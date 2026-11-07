@@ -1,0 +1,15 @@
+{
+  "source": "3234fb3183e78840321ab41fe6881b31a0f5d4b2",
+  "CI": 42352233778,
+  "CIstatus": "in_progress, notready",
+  "localOwners": "576P/18JSDOMloader failures; focused8P94assert; old47a4REDshortest-bandcases",
+  "bodyAndProofBinding230": "completeSVG/receipt exact47aed; no new masks replayed",
+  "standalone": "realbuildandbrowser2P504",
+  "rawGzipBrVs14": [
+    332,
+    -57,
+    183
+  ],
+  "prior47aCost": "case201crossing+1 withwire\u2212147.1, refinementrestoresoldSVG",
+  "archiveNote": "PendingCI recovery; read final handoff for later outcome."
+}

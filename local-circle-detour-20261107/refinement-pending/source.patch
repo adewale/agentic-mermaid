@@ -1,0 +1,173 @@
+diff --git a/docs/design/system/layout-0.6-performance-review.md b/docs/design/system/layout-0.6-performance-review.md
+index d93273309..a40f3b4f0 100644
+--- a/docs/design/system/layout-0.6-performance-review.md
++++ b/docs/design/system/layout-0.6-performance-review.md
+@@ -189,7 +189,8 @@ remaining, before the later exhaustion. Stop this resource-work hypothesis as a
+ repair; no cache is added and no helper-only optimization is retained.
+ 
+ The separate correctness intervention reuses existing local terminal proposals
+-before whole-band replacements for painted contacts. It changes output/proof work,
++after the first geometry-clear band fails ink admission, before further global
++lanes; a successful first band stays preferred. It changes output/proof work,
+ so before/after timing would not establish an equivalent-work performance ratio.
+ Raw profiles, source maps, RSS/heap and stopped drafts remain in `contact-producer-6aa`.
+ Case230 repeat walls 311.4/260.6 ms, edit 406.1 ms; case 372 239.5/243.4/231.4 ms.
+diff --git a/docs/design/system/layout-0.6-work-log.md b/docs/design/system/layout-0.6-work-log.md
+index 0d10132ee..fe38233fc 100644
+--- a/docs/design/system/layout-0.6-work-log.md
++++ b/docs/design/system/layout-0.6-work-log.md
+@@ -55,29 +55,36 @@ Brotli loss, preserving decoded worker bytes, ownership and browser contracts.
+ 
+ ## Local circle detour — 7 November
+ 
+-From `6aa0ee45d9b6052addcb77036c1f7ba4c13b2cb4`, existing Native case230 has a
+-0.453px circle/shaft contact. Profile first: the shared contact pass is about
+-2.1ms inclusive per case372 call, not a dominant CPU hotspot. Staging two-point
+-inputs reduces230 support constructions111→68 but leaves the product exact;
+-stop it. First whole-band proposals fail caption separation with4,724 units
+-remaining, so reducing construction alone does not close the loss.
+-
+-Reuse existing local terminal detours before whole-band replacements only for
+-painted contacts. Case230 proof U362,041→P362,293; selected actual shaft pixels
+-323→364/364 contribute, hidden41→0 and attenuated85→0. Only this shaft and
+-its generated scope change; all17 identities,40 relations,27 text programs,
+-caption/marker/endpoint attributes and normalized CSS remain. Area and17 crossings
+-stay fixed; bends104→106, wire+19.156 (+0.102%). SVG+32raw/+7gzip/Brotli unchanged.
+-Full standalone adds104raw/29gzip9/141Brotli11 bytes; caps/defaults/cache unchanged.
+-The new16.90s build/662,032KiB peakRSS is descriptive, not a speed/memory ratio.
+-
+-Owning case1RED→4GREEN (both backends/old and new witnesses); combined owners
+-572P with18 missing-JSDOM loader failures, types/lintP. Named old regressions
+-Native17/ELK296/362 and ELK230 stay exact P; Native33 stays P with a different
+-terminal path. Cases152/372 stay exact U. Actual standalone budget/Blob-worker owners pass2P504 assertions. Full matched CI
+-is still pending; do not infer preservation from helpers.
+-Evidence: `contact-producer-6aa`. Next: inspect the entire existing CI differential
+-for newly lost circle delivery/ink and retain all geometry/payload costs.
++From `6aa0ee45d9b6052addcb77036c1f7ba4c13b2cb4`, Native case230 has a 0.453px
++circle/shaft contact. Profile first: contact work is about 2.1ms inclusive per
++case372 call, not a CPU hotspot. Staged two-point inputs reduce constructions
++111→68 but leave the product exact; stop that probe. The first whole-band
++proposal fails caption separation with 4,724 units remaining.
++
++`47aed12780985e3b96e258db1485649a22bc183d` tries existing terminal repairs first:
++230 proof U362,041→P362,293; selected shaft contribution 323→364/364 pixels,
++hidden 41→0, attenuated 85→0. Only the shaft/scope change; all17 identities,
++40 relations,27 text programs, caption/marker/port attributes and CSS remain.
++Area/17 crossings stay fixed; bends104→106, wire+19.156 (+0.102%). SVG adds
++32raw/7gzip bytes; Brotli unchanged. Full CI compares1,748 records: nine SVGs
++change, no delivery/proof downgrade, no new circle contact or warning. But SHA201
++crossings8→9 despite wire−147.1; do not hide that quality cost.
++
++Refine from47aed: keep the first geometry-clear band's successful admission;
++try the existing local terminal repair once after that band is rejected, before
++further global lanes. Fresh201 is exact to the old SVG;230 SVG/entire receipt are
++exact to47aed, retaining the actual ink repair. Later-band behavior still needs
++full CI qualification. No new cache, body domain, cap, default or version change.
++
++Owning1RED→4GREEN; four added shortest-band orientations fail at47aed and pass
++after refinement. Refined combined owners576P/18 missing-JSDOM loader failures;
++core types/lint pass.
++Full production HTML versus14bec: +332raw,−57gzip9,+183Brotli11 bytes.
++The16.08s build/722,140KiB peakRSS is descriptive, not a performance ratio.
++The refined actual standalone browser/budget owners pass2P504 assertions; new
++matched CI remains pending at this commit. Evidence: `contact-producer-6aa`. Remaining152/372 U,
++Sparse32 and ER256 refusal are separate. Next: qualify the narrowed fallback's
++whole-corpus outcomes and retain every adverse geometry/resource change.
+ 
+ ## Painted-frame expansion reverted — 7 November
+ 
+diff --git a/src/__tests__/route-contracts.test.ts b/src/__tests__/route-contracts.test.ts
+index 85fba1cb2..e6570f99a 100644
+--- a/src/__tests__/route-contracts.test.ts
++++ b/src/__tests__/route-contracts.test.ts
+@@ -2913,6 +2913,29 @@ for(const [style,animate,animation,dash] of [
+  if(dash){expect(edge.points).toEqual(old);expect(after.svg).toBe(before.svg)}
+  else{expect(edge.points).not.toEqual(old);expect(after.points.some(([,y])=>y!>123)).toBe(true)}
+ })
++for (const transpose of [false, true]) for (const reverse of [false, true]) it(`retains an admitted shortest circle-clear band: transpose=${transpose}, reverse=${reverse}`, () => {
++ const point = (x: number, y: number) => transpose ? { x: y, y: x } : { x, y }
++ const box = (id: string, x: number, y: number, width: number, height: number, shape: PositionedNode['shape'] = 'rectangle'): PositionedNode => ({ id, label: id, shape, ...point(x, y), width: transpose ? height : width, height: transpose ? width : height })
++ const nodes = [box('S', 0, 100, 40, 20), box('T', 200, 0, 40, 20), { ...box('C', 19.578, 40, 40, 40, 'circle'), inlineStyle: { fill: '#fff', stroke: '#000', 'stroke-width': '.75' } }]
++ let points = [[20,100],[20,30],[220,30],[220,20]].map(([x,y]) => point(x!,y!))
++ if (reverse) points = points.toReversed()
++ const edge: PositionedEdge = { source: reverse ? 'T' : 'S', target: reverse ? 'S' : 'T', style: 'solid', hasArrowStart: false, hasArrowEnd: true, endMarker: 'arrow', points }
++ const endpoints = [points[0]!, points.at(-1)!]
++ repair(nodes, [edge], { direction: transpose ? (reverse ? 'RL' : 'LR') : (reverse ? 'BT' : 'TB') }, undefined, [], resolveRenderStyle())
++ const tags: Array<{ name: string; attrs: Record<string,string> }> = []
++ const parser = new SaxesParser({ xmlns: true })
++ parser.on('opentag', tag => tags.push({ name: tag.local, attrs: Object.fromEntries(Object.values(tag.attributes).map(attribute => [attribute.name, attribute.value])) }))
++ parser.write(renderSvg({ positioned: { width: 340, height: 340, nodes, edges: [edge], groups: [] }, colors: { bg: '#fff', fg: '#111', embedFontImport: false }, resolved: { renderOptions: {} } })).close()
++ const shaft = tags.find(tag => tag.attrs['data-role'] === 'edge')!.attrs
++ const actual = shaft.points!.split(/\s+/).map(pair => { const [x,y] = pair.split(',').map(Number); return { x: x!, y: y! } })
++ expect([actual[0], actual.at(-1)]).toEqual(endpoints)
++ const wire = actual.slice(1).reduce((sum, p, i) => sum + Math.abs(p.x - actual[i]!.x) + Math.abs(p.y - actual[i]!.y), 0)
++ expect(wire).toBeCloseTo(Math.abs(endpoints[0]!.x - endpoints[1]!.x) + Math.abs(endpoints[0]!.y - endpoints[1]!.y), 6)
++ const circle = tags.find(tag => tag.name === 'circle')!.attrs, cx = Number(circle.cx), cy = Number(circle.cy)
++ const distance = Math.min(...actual.slice(1).map((b,i) => { const a = actual[i]!, dx = b.x-a.x, dy = b.y-a.y, t = Math.max(0, Math.min(1, ((cx-a.x)*dx+(cy-a.y)*dy)/(dx*dx+dy*dy))); return Math.hypot(a.x+t*dx-cx,a.y+t*dy-cy) }))
++ expect(distance - Number(circle.r) - Number(circle['stroke-width'])/2 - Number(shaft['stroke-width'])/2).toBeGreaterThan(0)
++ expect([shaft['data-from'],shaft['data-to']]).toEqual([edge.source,edge.target])
++})
+ it.each((['elk', 'agentic'] as const).flatMap(backend => (['labelled reciprocal', 'bounded terminal'] as const).map(witness => [backend, witness] as const)))('clears the final painted circle contact in %s / %s', (backend, witness) => {
+  const source = witness === 'labelled reciprocal'
+   ? readFileSync(new URL('../../eval/layout-compare/fixtures/cyclic-labelled-18-cuts.mmd', import.meta.url), 'utf8')
+diff --git a/src/layout/passes/obstacle-routing.ts b/src/layout/passes/obstacle-routing.ts
+index 2ff71141e..66d15b981 100644
+--- a/src/layout/passes/obstacle-routing.ts
++++ b/src/layout/passes/obstacle-routing.ts
+@@ -88,7 +88,7 @@ export function rerouteEdgesThroughNodes(nodes: PositionedNode[], edges: Positio
+   const paintWork = graphInkWork()
+   const payPaint = (units: number): boolean => { chargeWork?.(units); return (paintWork.remaining -= units) >= 0 }
+   const paintedContact = style && withinGraphInkBudget(nodes, edges, groups) ? circleShaftPaintContext(style, payPaint) : undefined
+-  let currentEdge: PositionedEdge, paintedRepair = false
++  let currentEdge: PositionedEdge, paintedRepair = false, triedTerminals = false
+   const blockedBy = (a: Point, b: Point, node: PositionedNode): boolean => segmentThroughShape(a, b, node)
+     || paintedRepair && node.id !== currentEdge.source && node.id !== currentEdge.target && paintedContact!(currentEdge, [a, b], node) !== false
+   const throughNode = (pts: Point[], skip: ReadonlySet<string>): boolean => {
+@@ -196,7 +196,15 @@ export function rerouteEdgesThroughNodes(nodes: PositionedNode[], edges: Positio
+     const lanes = [...new Set(laneSet)].sort((p, q) => Math.abs(p - mean) - Math.abs(q - mean))
+     for (const lane of lanes) {
+       const route = simplifyPolyline([start, pt(m1, start[f.cross]), pt(m1, lane), pt(m2, lane), pt(m2, end[f.cross]), end])
+-      if (!throughNode(route, skip) && routeClearOfNodes(route, nodes, skip, chargeWork) && clearHeaders(route) && admitPaint(route)) return route
++      if (!throughNode(route, skip) && routeClearOfNodes(route, nodes, skip, chargeWork) && clearHeaders(route)) {
++        if (admitPaint(route)) return route
++        // Retain an admitted first band; after the first rejected painted band,
++        // try the existing local repair before spending work on further lanes.
++        if (paintedRepair && !triedTerminals) {
++          const local = detourTerminals(pts, skip)
++          if (local) return local
++        }
++      }
+     }
+     return null
+   }
+@@ -234,13 +242,14 @@ export function rerouteEdgesThroughNodes(nodes: PositionedNode[], edges: Positio
+     return null
+   }
+   const detourTerminals = (pts: Point[], skip: ReadonlySet<string>): Point[] | null => {
++    triedTerminals = true
+     const route = detourTerminalSegment(pts, skip)
+     if (route) return route
+     chargeWork?.(pts.length) // reverse-domain reference initialization
+     return detourTerminalSegment(pts.toReversed(), skip)?.reverse() ?? null
+   }
+   for (const edge of edges) {
+-    currentEdge = edge; paintedRepair = false
++    currentEdge = edge; paintedRepair = false; triedTerminals = false
+     chargeWork?.(1)
+     if (edge.source === edge.target || edge.points.length < 2) continue
+     const source = nodeMap.get(edge.source), target = nodeMap.get(edge.target)
+@@ -253,12 +262,8 @@ export function rerouteEdgesThroughNodes(nodes: PositionedNode[], edges: Positio
+     // Off-outline endpoints are reanchorOffOutlineEndpoints' job; this pass only
+     // relocates the interior of an otherwise port-exact route.
+     if (!onShapeOutline(source, edge.points[0]!) || !onShapeOutline(target, edge.points[edge.points.length - 1]!)) continue
+-    let route = shiftInteriorSegment(edge.points, skip)
+-    // A local terminal detour retains the other seated route/caption corridors;
+-    // try it before spending the paint allowance on whole-band replacements.
+-    if (!route && paintedRepair) route = detourTerminals(edge.points, skip)
+-    route ??= bracketOverBand(edge.points, skip)
+-    if (!route && !paintedRepair) route = detourTerminals(edge.points, skip)
++    let route = shiftInteriorSegment(edge.points, skip) ?? bracketOverBand(edge.points, skip)
++    if (!route && !triedTerminals) route = detourTerminals(edge.points, skip)
+     if (!route) continue // never-worse: no clean detour found, leave as-is
+     const savedCert = edge.routeCertificate
+     edge.points = route

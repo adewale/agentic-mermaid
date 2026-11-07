@@ -1,0 +1,17 @@
+bun test v1.4.4 (38afee6c8)
+
+src/__tests__/route-contracts.test.ts:
+(pass) node repairs retain terminal axes around measured headers > retains an admitted shortest circle-clear band: transpose=false, reverse=false [46.10ms]
+(pass) node repairs retain terminal axes around measured headers > retains an admitted shortest circle-clear band: transpose=false, reverse=true [5.17ms]
+(pass) node repairs retain terminal axes around measured headers > retains an admitted shortest circle-clear band: transpose=true, reverse=false [4.72ms]
+(pass) node repairs retain terminal axes around measured headers > retains an admitted shortest circle-clear band: transpose=true, reverse=true [4.83ms]
+(pass) node repairs retain terminal axes around measured headers > clears the final painted circle contact in elk / labelled reciprocal [493.76ms]
+(pass) node repairs retain terminal axes around measured headers > clears the final painted circle contact in elk / bounded terminal [354.94ms]
+(pass) node repairs retain terminal axes around measured headers > clears the final painted circle contact in agentic / labelled reciprocal [328.55ms]
+(pass) node repairs retain terminal axes around measured headers > clears the final painted circle contact in agentic / bounded terminal [206.39ms]
+
+ 8 pass
+ 494 filtered out
+ 0 fail
+ 94 expect() calls
+Ran 8 tests across 1 file. [2.26s]

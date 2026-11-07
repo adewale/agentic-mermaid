@@ -1,0 +1,20 @@
+{
+  "runtime": "Bun1.4.4 budget owner",
+  "arms": {
+    "baseline14": {
+      "raw": 2186759,
+      "gzip9": 1310687,
+      "brotli11": 1244928
+    },
+    "terminalFirst47a": {
+      "raw": 2186863,
+      "gzip9": 1310716,
+      "brotli11": 1245069
+    },
+    "refined": {
+      "raw": 2187091,
+      "gzip9": 1310630,
+      "brotli11": 1245111
+    }
+  }
+}

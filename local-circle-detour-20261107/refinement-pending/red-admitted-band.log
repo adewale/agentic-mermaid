@@ -1,0 +1,81 @@
+bun test v1.4.4 (38afee6c8)
+
+src/__tests__/route-contracts.test.ts:
+2928 |  parser.write(renderSvg({ positioned: { width: 340, height: 340, nodes, edges: [edge], groups: [] }, colors: { bg: '#fff', fg: '#111', embedFontImport: false }, resolved: { renderOptions: {} } })).close()
+2929 |  const shaft = tags.find(tag => tag.attrs['data-role'] === 'edge')!.attrs
+2930 |  const actual = shaft.points!.split(/\s+/).map(pair => { const [x,y] = pair.split(',').map(Number); return { x: x!, y: y! } })
+2931 |  expect([actual[0], actual.at(-1)]).toEqual(endpoints)
+2932 |  const wire = actual.slice(1).reduce((sum, p, i) => sum + Math.abs(p.x - actual[i]!.x) + Math.abs(p.y - actual[i]!.y), 0)
+2933 |  expect(wire).toBeCloseTo(Math.abs(endpoints[0]!.x - endpoints[1]!.x) + Math.abs(endpoints[0]!.y - endpoints[1]!.y), 6)
+                     ^
+error: expect(received).toBeCloseTo(expected, precision)
+
+Expected: 280
+Received: 300.844
+
+Expected precision: 6
+Expected difference: < 0.0000005
+Received difference: 20.843999999999994
+
+      at <anonymous> (/tmp/pr449-main-integration-20261029-762/src/__tests__/route-contracts.test.ts:2933:15)
+(fail) node repairs retain terminal axes around measured headers > retains an admitted shortest circle-clear band: transpose=false, reverse=false [41.91ms]
+2928 |  parser.write(renderSvg({ positioned: { width: 340, height: 340, nodes, edges: [edge], groups: [] }, colors: { bg: '#fff', fg: '#111', embedFontImport: false }, resolved: { renderOptions: {} } })).close()
+2929 |  const shaft = tags.find(tag => tag.attrs['data-role'] === 'edge')!.attrs
+2930 |  const actual = shaft.points!.split(/\s+/).map(pair => { const [x,y] = pair.split(',').map(Number); return { x: x!, y: y! } })
+2931 |  expect([actual[0], actual.at(-1)]).toEqual(endpoints)
+2932 |  const wire = actual.slice(1).reduce((sum, p, i) => sum + Math.abs(p.x - actual[i]!.x) + Math.abs(p.y - actual[i]!.y), 0)
+2933 |  expect(wire).toBeCloseTo(Math.abs(endpoints[0]!.x - endpoints[1]!.x) + Math.abs(endpoints[0]!.y - endpoints[1]!.y), 6)
+                     ^
+error: expect(received).toBeCloseTo(expected, precision)
+
+Expected: 280
+Received: 300.84400000000005
+
+Expected precision: 6
+Expected difference: < 0.0000005
+Received difference: 20.84400000000005
+
+      at <anonymous> (/tmp/pr449-main-integration-20261029-762/src/__tests__/route-contracts.test.ts:2933:15)
+(fail) node repairs retain terminal axes around measured headers > retains an admitted shortest circle-clear band: transpose=false, reverse=true [4.79ms]
+2928 |  parser.write(renderSvg({ positioned: { width: 340, height: 340, nodes, edges: [edge], groups: [] }, colors: { bg: '#fff', fg: '#111', embedFontImport: false }, resolved: { renderOptions: {} } })).close()
+2929 |  const shaft = tags.find(tag => tag.attrs['data-role'] === 'edge')!.attrs
+2930 |  const actual = shaft.points!.split(/\s+/).map(pair => { const [x,y] = pair.split(',').map(Number); return { x: x!, y: y! } })
+2931 |  expect([actual[0], actual.at(-1)]).toEqual(endpoints)
+2932 |  const wire = actual.slice(1).reduce((sum, p, i) => sum + Math.abs(p.x - actual[i]!.x) + Math.abs(p.y - actual[i]!.y), 0)
+2933 |  expect(wire).toBeCloseTo(Math.abs(endpoints[0]!.x - endpoints[1]!.x) + Math.abs(endpoints[0]!.y - endpoints[1]!.y), 6)
+                     ^
+error: expect(received).toBeCloseTo(expected, precision)
+
+Expected: 280
+Received: 300.844
+
+Expected precision: 6
+Expected difference: < 0.0000005
+Received difference: 20.843999999999994
+
+      at <anonymous> (/tmp/pr449-main-integration-20261029-762/src/__tests__/route-contracts.test.ts:2933:15)
+(fail) node repairs retain terminal axes around measured headers > retains an admitted shortest circle-clear band: transpose=true, reverse=false [4.55ms]
+2928 |  parser.write(renderSvg({ positioned: { width: 340, height: 340, nodes, edges: [edge], groups: [] }, colors: { bg: '#fff', fg: '#111', embedFontImport: false }, resolved: { renderOptions: {} } })).close()
+2929 |  const shaft = tags.find(tag => tag.attrs['data-role'] === 'edge')!.attrs
+2930 |  const actual = shaft.points!.split(/\s+/).map(pair => { const [x,y] = pair.split(',').map(Number); return { x: x!, y: y! } })
+2931 |  expect([actual[0], actual.at(-1)]).toEqual(endpoints)
+2932 |  const wire = actual.slice(1).reduce((sum, p, i) => sum + Math.abs(p.x - actual[i]!.x) + Math.abs(p.y - actual[i]!.y), 0)
+2933 |  expect(wire).toBeCloseTo(Math.abs(endpoints[0]!.x - endpoints[1]!.x) + Math.abs(endpoints[0]!.y - endpoints[1]!.y), 6)
+                     ^
+error: expect(received).toBeCloseTo(expected, precision)
+
+Expected: 280
+Received: 300.84400000000005
+
+Expected precision: 6
+Expected difference: < 0.0000005
+Received difference: 20.84400000000005
+
+      at <anonymous> (/tmp/pr449-main-integration-20261029-762/src/__tests__/route-contracts.test.ts:2933:15)
+(fail) node repairs retain terminal axes around measured headers > retains an admitted shortest circle-clear band: transpose=true, reverse=true [4.07ms]
+
+ 0 pass
+ 498 filtered out
+ 4 fail
+ 10 expect() calls
+Ran 4 tests across 1 file. [860.00ms]

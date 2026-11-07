@@ -1,0 +1,824 @@
+bun test v1.4.4 (38afee6c8)
+
+src/__tests__/route-contracts.test.ts:
+(pass) outward exact endpoint approaches > keeps feedback approaches outward through optional alignment in LR layouts (labels: %s) [217.21ms]
+(pass) outward exact endpoint approaches > keeps feedback approaches outward through optional alignment in LR layouts (labels: %s) [114.53ms]
+(pass) outward exact endpoint approaches > keeps feedback approaches outward through optional alignment in RL layouts (labels: %s) [86.13ms]
+(pass) outward exact endpoint approaches > keeps feedback approaches outward through optional alignment in RL layouts (labels: %s) [78.85ms]
+(pass) outward exact endpoint approaches > keeps feedback approaches outward through optional alignment in TD layouts (labels: %s) [75.51ms]
+(pass) outward exact endpoint approaches > keeps feedback approaches outward through optional alignment in TD layouts (labels: %s) [70.20ms]
+(pass) outward exact endpoint approaches > keeps feedback approaches outward through optional alignment in BT layouts (labels: %s) [74.74ms]
+(pass) outward exact endpoint approaches > keeps feedback approaches outward through optional alignment in BT layouts (labels: %s) [67.37ms]
+(pass) outward exact endpoint approaches > trims a hidden multi-segment source prefix at rotation 0 [3.72ms]
+(pass) outward exact endpoint approaches > trims a hidden multi-segment target prefix at rotation 0 [0.92ms]
+(pass) outward exact endpoint approaches > trims a hidden multi-segment source prefix at rotation 1 [1.27ms]
+(pass) outward exact endpoint approaches > trims a hidden multi-segment target prefix at rotation 1 [0.99ms]
+(pass) outward exact endpoint approaches > trims a hidden multi-segment source prefix at rotation 2 [0.83ms]
+(pass) outward exact endpoint approaches > trims a hidden multi-segment target prefix at rotation 2 [0.82ms]
+(pass) outward exact endpoint approaches > trims a hidden multi-segment source prefix at rotation 3 [14.94ms]
+(pass) outward exact endpoint approaches > trims a hidden multi-segment target prefix at rotation 3 [0.80ms]
+(pass) outward exact endpoint approaches > rejects a residual tangent source instead of certifying its boundary coordinate [0.65ms]
+(pass) outward exact endpoint approaches > rejects a residual tangent target instead of certifying its boundary coordinate [0.40ms]
+(pass) outward exact endpoint approaches > preserves a valid exterior self-loop and its return [0.66ms]
+(pass) outward exact endpoint approaches > retains a clear native two-bend route with outward floating subroutine contacts [3.20ms]
+(pass) outward exact endpoint approaches > retains a clear native two-bend route with outward floating cylinder contacts [1.49ms]
+(pass) outward exact endpoint approaches > repairs an outward floating route that grazes a foreign rounded card border [1.22ms]
+(pass) outward exact endpoint approaches > feedback shortening retains a smooth source normal instead of replacing its exterior stub with a tangent [27.01ms]
+(pass) keeps route clearance live when trusted label measurement moves an obstacle [74.89ms]
+(pass) keeps later fan-out repairs clear of a peer route moved earlier in the same pass [1.53ms]
+(pass) route proposal crossing consistency > repairs an unrelated rectangle left intrusion in route proposal at 0.02425 pixels [4.89ms]
+(pass) route proposal crossing consistency > repairs an unrelated rectangle left intrusion in final safety net at 0.02425 pixels [2.33ms]
+(pass) route proposal crossing consistency > repairs an unrelated subroutine left intrusion in route proposal at 0.02425 pixels [2.25ms]
+(pass) route proposal crossing consistency > repairs an unrelated subroutine left intrusion in final safety net at 0.02425 pixels [1.78ms]
+(pass) route proposal crossing consistency > repairs an unrelated fr-rect left intrusion in route proposal at 0.02425 pixels [13.89ms]
+(pass) route proposal crossing consistency > repairs an unrelated fr-rect left intrusion in final safety net at 0.02425 pixels [3.28ms]
+(pass) route proposal crossing consistency > repairs an unrelated subproc left intrusion in route proposal at 0.02425 pixels [3.53ms]
+(pass) route proposal crossing consistency > repairs an unrelated subproc left intrusion in final safety net at 0.02425 pixels [2.89ms]
+(pass) route proposal crossing consistency > repairs an unrelated lin-rect left intrusion in route proposal at 0.02425 pixels [4.54ms]
+(pass) route proposal crossing consistency > repairs an unrelated lin-rect left intrusion in final safety net at 0.02425 pixels [2.87ms]
+(pass) route proposal crossing consistency > repairs an unrelated div-rect left intrusion in route proposal at 0.02425 pixels [2.27ms]
+(pass) route proposal crossing consistency > repairs an unrelated div-rect left intrusion in final safety net at 0.02425 pixels [1.96ms]
+(pass) route proposal crossing consistency > repairs an unrelated win-pane left intrusion in route proposal at 0.02425 pixels [3.38ms]
+(pass) route proposal crossing consistency > repairs an unrelated win-pane left intrusion in final safety net at 0.02425 pixels [2.14ms]
+(pass) route proposal crossing consistency > repairs an unrelated rectangle left intrusion in route proposal at 0.035 pixels [1.13ms]
+(pass) route proposal crossing consistency > repairs an unrelated rectangle left intrusion in final safety net at 0.035 pixels [1.12ms]
+(pass) route proposal crossing consistency > repairs an unrelated subroutine left intrusion in route proposal at 0.035 pixels [1.48ms]
+(pass) route proposal crossing consistency > repairs an unrelated subroutine left intrusion in final safety net at 0.035 pixels [1.39ms]
+(pass) route proposal crossing consistency > repairs an unrelated fr-rect left intrusion in route proposal at 0.035 pixels [2.27ms]
+(pass) route proposal crossing consistency > repairs an unrelated fr-rect left intrusion in final safety net at 0.035 pixels [2.54ms]
+(pass) route proposal crossing consistency > repairs an unrelated subproc left intrusion in route proposal at 0.035 pixels [3.26ms]
+(pass) route proposal crossing consistency > repairs an unrelated subproc left intrusion in final safety net at 0.035 pixels [1.85ms]
+(pass) route proposal crossing consistency > repairs an unrelated lin-rect left intrusion in route proposal at 0.035 pixels [2.61ms]
+(pass) route proposal crossing consistency > repairs an unrelated lin-rect left intrusion in final safety net at 0.035 pixels [2.20ms]
+(pass) route proposal crossing consistency > repairs an unrelated div-rect left intrusion in route proposal at 0.035 pixels [3.27ms]
+(pass) route proposal crossing consistency > repairs an unrelated div-rect left intrusion in final safety net at 0.035 pixels [2.69ms]
+(pass) route proposal crossing consistency > repairs an unrelated win-pane left intrusion in route proposal at 0.035 pixels [3.74ms]
+(pass) route proposal crossing consistency > repairs an unrelated win-pane left intrusion in final safety net at 0.035 pixels [3.04ms]
+(pass) route proposal crossing consistency > repairs an unrelated rectangle left intrusion in route proposal at 0.3 pixels [2.02ms]
+(pass) route proposal crossing consistency > repairs an unrelated rectangle left intrusion in final safety net at 0.3 pixels [1.98ms]
+(pass) route proposal crossing consistency > repairs an unrelated subroutine left intrusion in route proposal at 0.3 pixels [1.73ms]
+(pass) route proposal crossing consistency > repairs an unrelated subroutine left intrusion in final safety net at 0.3 pixels [2.13ms]
+(pass) route proposal crossing consistency > repairs an unrelated fr-rect left intrusion in route proposal at 0.3 pixels [2.30ms]
+(pass) route proposal crossing consistency > repairs an unrelated fr-rect left intrusion in final safety net at 0.3 pixels [2.19ms]
+(pass) route proposal crossing consistency > repairs an unrelated subproc left intrusion in route proposal at 0.3 pixels [2.57ms]
+(pass) route proposal crossing consistency > repairs an unrelated subproc left intrusion in final safety net at 0.3 pixels [2.23ms]
+(pass) route proposal crossing consistency > repairs an unrelated lin-rect left intrusion in route proposal at 0.3 pixels [3.15ms]
+(pass) route proposal crossing consistency > repairs an unrelated lin-rect left intrusion in final safety net at 0.3 pixels [2.29ms]
+(pass) route proposal crossing consistency > repairs an unrelated div-rect left intrusion in route proposal at 0.3 pixels [2.68ms]
+(pass) route proposal crossing consistency > repairs an unrelated div-rect left intrusion in final safety net at 0.3 pixels [2.27ms]
+(pass) route proposal crossing consistency > repairs an unrelated win-pane left intrusion in route proposal at 0.3 pixels [3.04ms]
+(pass) route proposal crossing consistency > repairs an unrelated win-pane left intrusion in final safety net at 0.3 pixels [2.09ms]
+(pass) route proposal crossing consistency > repairs an unrelated cylinder left intrusion in route proposal at 0.1 pixels [18.62ms]
+(pass) route proposal crossing consistency > repairs an unrelated cylinder left intrusion in final safety net at 0.1 pixels [1.05ms]
+(pass) route proposal crossing consistency > repairs an unrelated cylinder right intrusion in route proposal at 0.1 pixels [2.62ms]
+(pass) route proposal crossing consistency > repairs an unrelated cylinder right intrusion in final safety net at 0.1 pixels [2.08ms]
+(pass) route proposal crossing consistency > repairs an unrelated cyl left intrusion in route proposal at 0.1 pixels [2.86ms]
+(pass) route proposal crossing consistency > repairs an unrelated cyl left intrusion in final safety net at 0.1 pixels [1.85ms]
+(pass) route proposal crossing consistency > repairs an unrelated cyl right intrusion in route proposal at 0.1 pixels [2.41ms]
+(pass) route proposal crossing consistency > repairs an unrelated cyl right intrusion in final safety net at 0.1 pixels [2.10ms]
+(pass) route proposal crossing consistency > repairs an unrelated cylinder left intrusion in route proposal at 0.386 pixels [1.67ms]
+(pass) route proposal crossing consistency > repairs an unrelated cylinder left intrusion in final safety net at 0.386 pixels [1.28ms]
+(pass) route proposal crossing consistency > repairs an unrelated cylinder right intrusion in route proposal at 0.386 pixels [1.51ms]
+(pass) route proposal crossing consistency > repairs an unrelated cylinder right intrusion in final safety net at 0.386 pixels [1.56ms]
+(pass) route proposal crossing consistency > repairs an unrelated cyl left intrusion in route proposal at 0.386 pixels [2.43ms]
+(pass) route proposal crossing consistency > repairs an unrelated cyl left intrusion in final safety net at 0.386 pixels [2.00ms]
+(pass) route proposal crossing consistency > repairs an unrelated cyl right intrusion in route proposal at 0.386 pixels [2.20ms]
+(pass) route proposal crossing consistency > repairs an unrelated cyl right intrusion in final safety net at 0.386 pixels [2.06ms]
+(pass) route proposal crossing consistency > detects a horizontal classic cylinder core shaft at its left side (0.1 px, $semanticShape [0.68ms]
+(pass) route proposal crossing consistency > detects a horizontal classic cylinder core shaft at its left side (0.1 px, cyl) [0.25ms]
+(pass) route proposal crossing consistency > detects a vertical classic cylinder core shaft at its left side (0.1 px, $semanticShape [0.21ms]
+(pass) route proposal crossing consistency > detects a vertical classic cylinder core shaft at its left side (0.1 px, cyl) [0.24ms]
+(pass) route proposal crossing consistency > detects a horizontal classic cylinder core shaft at its right side (0.1 px, $semanticShape [0.34ms]
+(pass) route proposal crossing consistency > detects a horizontal classic cylinder core shaft at its right side (0.1 px, cyl) [0.17ms]
+(pass) route proposal crossing consistency > detects a vertical classic cylinder core shaft at its right side (0.1 px, $semanticShape [0.18ms]
+(pass) route proposal crossing consistency > detects a vertical classic cylinder core shaft at its right side (0.1 px, cyl) [0.17ms]
+(pass) route proposal crossing consistency > detects a horizontal classic cylinder core shaft at its left side (0.386 px, $semanticShape [0.22ms]
+(pass) route proposal crossing consistency > detects a horizontal classic cylinder core shaft at its left side (0.386 px, cyl) [0.14ms]
+(pass) route proposal crossing consistency > detects a vertical classic cylinder core shaft at its left side (0.386 px, $semanticShape [0.11ms]
+(pass) route proposal crossing consistency > detects a vertical classic cylinder core shaft at its left side (0.386 px, cyl) [0.12ms]
+(pass) route proposal crossing consistency > detects a horizontal classic cylinder core shaft at its right side (0.386 px, $semanticShape [0.15ms]
+(pass) route proposal crossing consistency > detects a horizontal classic cylinder core shaft at its right side (0.386 px, cyl) [0.17ms]
+(pass) route proposal crossing consistency > detects a vertical classic cylinder core shaft at its right side (0.386 px, $semanticShape [0.13ms]
+(pass) route proposal crossing consistency > detects a vertical classic cylinder core shaft at its right side (0.386 px, cyl) [0.14ms]
+(pass) route proposal crossing consistency > retains left body boundary admission for $semanticShape [0.41ms]
+(pass) route proposal crossing consistency > retains left body boundary admission for cyl [0.15ms]
+(pass) route proposal crossing consistency > retains right body boundary admission for $semanticShape [0.09ms]
+(pass) route proposal crossing consistency > retains right body boundary admission for cyl [0.12ms]
+(pass) route proposal crossing consistency > retains fractional-width right body boundary admission for $semanticShape [0.30ms]
+(pass) route proposal crossing consistency > retains fractional-width right body boundary admission for cyl [0.23ms]
+(pass) route proposal crossing consistency > retains left horizontal boundary admission for $semanticShape [0.18ms]
+(pass) route proposal crossing consistency > retains left horizontal boundary admission for cyl [0.17ms]
+(pass) route proposal crossing consistency > retains right horizontal boundary admission for $semanticShape [0.18ms]
+(pass) route proposal crossing consistency > retains right horizontal boundary admission for cyl [0.40ms]
+(pass) route proposal crossing consistency > retains empty top cap corner admission for $semanticShape [0.19ms]
+(pass) route proposal crossing consistency > retains empty top cap corner admission for cyl [0.14ms]
+(pass) route proposal crossing consistency > retains empty bottom cap corner admission for $semanticShape [0.12ms]
+(pass) route proposal crossing consistency > retains empty bottom cap corner admission for cyl [0.13ms]
+(pass) route proposal crossing consistency > uses live group headers in LR lane prediction, production and hitch closure [2.38ms]
+(pass) route proposal crossing consistency > uses live group headers in TB lane prediction, production and hitch closure [1.39ms]
+(pass) route proposal crossing consistency > uses live group headers in BT lane prediction, production and hitch closure [0.62ms]
+(pass) route proposal crossing consistency > keeps settled reciprocal labels as obstacles in the final closure and its auditor [1.39ms]
+(pass) route proposal crossing consistency > does not add a crossing when the other route is subdivided=%s [1.44ms]
+(pass) route proposal crossing consistency > does not add a crossing when the other route is subdivided=%s [1.15ms]
+(pass) colliding duplicate labels > keeps both authored labels visible when neither can clear alone: case %s [91.26ms]
+(pass) colliding duplicate labels > keeps both authored labels visible when neither can clear alone: case %s [88.83ms]
+(pass) colliding duplicate labels > keeps both authored labels visible when neither can clear alone: case %s [66.53ms]
+(pass) colliding duplicate labels > keeps both authored labels visible when neither can clear alone: case %s [62.59ms]
+(pass) label candidate endpoint clearance > keeps nested group headers clear during off-route label repair [1.14ms]
+(pass) label candidate endpoint clearance > keeps nested group headers clear during shared-trunk label repair [0.71ms]
+(pass) label candidate endpoint clearance > keeps nested group headers clear during marker label repair [0.82ms]
+(pass) label candidate endpoint clearance > keeps duplicate terminal occurrences visible after shared-trunk label repair in BT [51.29ms]
+(pass) label candidate endpoint clearance > keeps duplicate terminal occurrences visible after shared-trunk label repair in TD [58.15ms]
+(pass) label candidate endpoint clearance > keeps an off-route label when both nearest return slots overlap its own target [0.79ms]
+(pass) label candidate endpoint clearance > keeps marker reservations live when later trusted label measurement replaces a peer route [1.31ms]
+(pass) label candidate endpoint clearance > preserves clear foreign shafts while moving a label away from a terminal marker [1.32ms]
+(pass) label candidate endpoint clearance > arrow start: preserves neighboring marker ink with default stroke units [2.43ms]
+(pass) label candidate endpoint clearance > arrow start: preserves neighboring marker ink with scaled stroke units [1.82ms]
+(pass) label candidate endpoint clearance > arrow start: preserves neighboring marker ink with fixed stroke units [2.07ms]
+(pass) label candidate endpoint clearance > arrow end: preserves neighboring marker ink with default stroke units [1.86ms]
+(pass) label candidate endpoint clearance > arrow end: preserves neighboring marker ink with scaled stroke units [1.30ms]
+(pass) label candidate endpoint clearance > arrow end: preserves neighboring marker ink with fixed stroke units [1.75ms]
+(pass) label candidate endpoint clearance > circle start: preserves neighboring marker ink with default stroke units [1.36ms]
+(pass) label candidate endpoint clearance > circle start: preserves neighboring marker ink with scaled stroke units [1.21ms]
+(pass) label candidate endpoint clearance > circle start: preserves neighboring marker ink with fixed stroke units [1.36ms]
+(pass) label candidate endpoint clearance > circle end: preserves neighboring marker ink with default stroke units [2.03ms]
+(pass) label candidate endpoint clearance > circle end: preserves neighboring marker ink with scaled stroke units [1.70ms]
+(pass) label candidate endpoint clearance > circle end: preserves neighboring marker ink with fixed stroke units [1.43ms]
+(pass) label candidate endpoint clearance > cross start: preserves neighboring marker ink with default stroke units [1.91ms]
+(pass) label candidate endpoint clearance > cross start: preserves neighboring marker ink with scaled stroke units [0.90ms]
+(pass) label candidate endpoint clearance > cross start: preserves neighboring marker ink with fixed stroke units [1.19ms]
+(pass) label candidate endpoint clearance > cross end: preserves neighboring marker ink with default stroke units [0.96ms]
+(pass) label candidate endpoint clearance > cross end: preserves neighboring marker ink with scaled stroke units [0.69ms]
+(pass) label candidate endpoint clearance > cross end: preserves neighboring marker ink with fixed stroke units [0.70ms]
+(pass) route contracts — MFA/login regression (issue #25 acceptance criterion 1) > primary-forward A -> B is a straight horizontal lane [0.14ms]
+(pass) route contracts — MFA/login regression (issue #25 acceptance criterion 1) > primary-forward B -> C is a straight horizontal lane
+(pass) route contracts — MFA/login regression (issue #25 acceptance criterion 1) > primary-forward C -> D is a straight horizontal lane
+(pass) route contracts — MFA/login regression (issue #25 acceptance criterion 1) > primary-forward D -> E is a straight horizontal lane
+(pass) route contracts — MFA/login regression (issue #25 acceptance criterion 1) > primary-forward E -> F is a straight horizontal lane
+(pass) route contracts — MFA/login regression (issue #25 acceptance criterion 1) > labeled feedback routes around through the outer channel with its label ON the loop [13.27ms]
+(pass) route contracts — MFA/login regression (issue #25 acceptance criterion 1) > unlabeled reciprocal pairs straighten into two parallel lanes [8.68ms]
+(pass) route contracts — MFA/login regression (issue #25 acceptance criterion 1) > D --No--> G retains a detour [0.09ms]
+(pass) route contracts — MFA/login regression (issue #25 acceptance criterion 1) > no edge contains consecutive duplicate points [0.08ms]
+(pass) route contracts — MFA/login regression (issue #25 acceptance criterion 1) > straightened diamond endpoints land on the diamond polygon, not the bbox corner [14.14ms]
+(pass) route contracts — MFA/login regression (issue #25 acceptance criterion 1) > straightened labeled edges carry their label onto the new lane [0.06ms]
+(pass) route contracts — blocked lane (issue #25 acceptance criterion 4) > a blocker node covering the direct lane prevents straightening and is named in the certificate [33.63ms]
+(pass) route contracts — determinism > repeated layouts produce byte-identical routes [26.37ms]
+(pass) classifyRoutes > classifies primary, feedback, and self-loop edges by author order [0.32ms]
+(pass) classifyRoutes > a reciprocal pair gives the lane to the author-first edge [0.17ms]
+(pass) classifyRoutes > edges to a subgraph id are container edges [0.56ms]
+(pass) classifyRoutes > edges spanning subgraph scopes are cross-hierarchy [0.33ms]
+(pass) classifyRoutes > longer cycles mark only the closing edge as feedback [0.15ms]
+(pass) emitted route certificate bends > ignores writer-equivalent arithmetic elbows while keeping real small turns and retained contacts [0.11ms]
+(pass) simplifyPolyline > removes consecutive duplicates [0.03ms]
+(pass) simplifyPolyline > removes collinear midpoints but keeps real bends at scale %s [0.02ms]
+(pass) simplifyPolyline > removes collinear midpoints but keeps real bends at scale %s
+(pass) simplifyPolyline > removes collinear midpoints but keeps real bends at scale %s
+(pass) simplifyPolyline > removes collinear midpoints but keeps real bends at scale %s
+(pass) simplifyPolyline > preserves a distinct final endpoint within the duplicate tolerance [0.02ms]
+(pass) simplifyPolyline > leaves two-point lines untouched [0.01ms]
+(pass) simplifyPolyline > keeps genuine small bends (only sub-epsilon noise is removed) [0.02ms]
+(pass) simplifyPolyline > is an idempotent, endpoint-preserving, non-growing normalizer [19.68ms]
+(pass) certificates > every positioned edge carries a certificate [10.83ms]
+(pass) certificates > feedback retry edges certify as outer-channel feedback routes (acceptance criterion 2) [10.54ms]
+(pass) certificates > a feedback edge whose parallel lanes are all blocked keeps its outer loop and names the blockers [18.81ms]
+(pass) certificates > straight forward lanes certify as straight (natively or by proof) [8.26ms]
+(pass) certificates > debug certificates expose dynamic port side, ordered slot, and semantic role [4.20ms]
+(pass) certificates > pre-layout port hints apply per independent primary edge, not whole-graph all-or-nothing [0.36ms]
+(pass) certificates > pre-layout port hints include eligible unlabeled feedback with flipped sides [0.26ms]
+(pass) certificates > pre-layout feedback port hints relax when a labeled reciprocal primary owns the lane [0.14ms]
+(pass) certificates > pre-layout feedback port hints keep duplicate returns fixed-side while preserving deterministic slots [0.15ms]
+(pass) certificates > pre-layout port hints upgrade only planner-owned primary duplicate faces to fixed order [0.31ms]
+(pass) certificates > pre-layout port hints expose relaxation diagnostics for unsupported route classes [0.26ms]
+(pass) certificates > pre-layout port hints skip nodes inside direction-override subgraphs [0.35ms]
+(pass) certificates > feedback endpoints get flipped-side semantic roles without changing sourcePort/targetPort [1.49ms]
+(pass) ROUTE_HITCH tripwire (issue #25 acceptance criterion 3) > the default pipeline emits no ROUTE_HITCH for the MFA regression [35.98ms]
+(pass) ROUTE_HITCH tripwire (issue #25 acceptance criterion 3) > fires when geometry is mutated after certification (stale-pass detector) [9.44ms]
+(pass) ROUTE_HITCH tripwire (issue #25 acceptance criterion 3) > validation never mutates the layout it inspects [8.78ms]
+(pass) bundle exemptions belong to constructed routes (#265) > a caller-provided membership set cannot certify an unrelated dogleg as a bundle [1.38ms]
+(pass) bundle exemptions belong to constructed routes (#265) > LR: an editable certificate cannot hide a lone four-bend hitch [1.45ms]
+(pass) bundle exemptions belong to constructed routes (#265) > RL: an editable certificate cannot hide a lone four-bend hitch [1.12ms]
+(pass) bundle exemptions belong to constructed routes (#265) > TD: an editable certificate cannot hide a lone four-bend hitch [1.18ms]
+(pass) bundle exemptions belong to constructed routes (#265) > BT: an editable certificate cannot hide a lone four-bend hitch [1.04ms]
+(pass) bundle exemptions belong to constructed routes (#265) > shared fan-out: whole-graph translation preserves justified bends [2.59ms]
+(pass) bundle exemptions belong to constructed routes (#265) > shared fan-in: whole-graph translation preserves justified bends [11.97ms]
+(pass) bundle exemptions belong to constructed routes (#265) > separated parallel lanes: whole-graph translation preserves justified bends [10.07ms]
+(pass) bundle exemptions belong to constructed routes (#265) > a copied bundle certificate cannot grant ownership to a different route [3.64ms]
+(pass) bundle exemptions belong to constructed routes (#265) > reissuing a certificate cannot inherit a bundle exemption after changing its lane [2.14ms]
+(pass) route contracts — RL and BT directions (mutation-survivor harvest) > RL: the forward lane straightens against the reversed axis; labeled feedback loops outside [11.15ms]
+(pass) route contracts — RL and BT directions (mutation-survivor harvest) > BT: the forward lane straightens as a vertical lane; labeled feedback takes a straight parallel back-lane [9.83ms]
+(pass) route contracts — feedback channel lanes > identifies the return channel before its farther target stub in TD with clear clearance [1.83ms]
+(pass) route contracts — feedback channel lanes > identifies the return channel before its farther target stub in TD with node clearance [1.01ms]
+(pass) route contracts — feedback channel lanes > identifies the return channel before its farther target stub in TD with crossing clearance [1.41ms]
+(pass) route contracts — feedback channel lanes > identifies the return channel before its farther target stub in RL with clear clearance [1.10ms]
+(pass) route contracts — feedback channel lanes > identifies the return channel before its farther target stub in RL with node clearance [0.96ms]
+(pass) route contracts — feedback channel lanes > identifies the return channel before its farther target stub in RL with crossing clearance [1.30ms]
+(pass) route contracts — feedback channel lanes > identifies the return channel before its farther target stub in BT with clear clearance [1.50ms]
+(pass) route contracts — feedback channel lanes > identifies the return channel before its farther target stub in BT with node clearance [1.02ms]
+(pass) route contracts — feedback channel lanes > identifies the return channel before its farther target stub in BT with crossing clearance [1.52ms]
+(pass) route contracts — feedback channel lanes > identifies the return channel before its farther target stub in LR with clear clearance [1.52ms]
+(pass) route contracts — feedback channel lanes > identifies the return channel before its farther target stub in LR with node clearance [0.98ms]
+(pass) route contracts — feedback channel lanes > identifies the return channel before its farther target stub in LR with crossing clearance [1.48ms]
+(pass) route contracts — feedback channel lanes > keeps noncontact head segments clear of the other endpoint in TD (gap=-20, node=0.75, shaft=1, style=false) [1.58ms]
+(pass) route contracts — feedback channel lanes > keeps noncontact tail segments clear of the other endpoint in TD (gap=-20, node=0.75, shaft=1, style=false) [0.82ms]
+(pass) route contracts — feedback channel lanes > keeps noncontact head segments clear of the other endpoint in RL (gap=-20, node=0.75, shaft=1, style=false) [0.49ms]
+(pass) route contracts — feedback channel lanes > keeps noncontact tail segments clear of the other endpoint in RL (gap=-20, node=0.75, shaft=1, style=false) [0.49ms]
+(pass) route contracts — feedback channel lanes > keeps noncontact head segments clear of the other endpoint in BT (gap=-20, node=0.75, shaft=1, style=false) [0.81ms]
+(pass) route contracts — feedback channel lanes > keeps noncontact tail segments clear of the other endpoint in BT (gap=-20, node=0.75, shaft=1, style=false) [0.44ms]
+(pass) route contracts — feedback channel lanes > keeps noncontact head segments clear of the other endpoint in LR (gap=-20, node=0.75, shaft=1, style=false) [0.63ms]
+(pass) route contracts — feedback channel lanes > keeps noncontact tail segments clear of the other endpoint in LR (gap=-20, node=0.75, shaft=1, style=false) [0.43ms]
+(pass) route contracts — feedback channel lanes > keeps noncontact head segments clear of the other endpoint in TD (gap=0, node=8, shaft=1, style=false) [0.55ms]
+(pass) route contracts — feedback channel lanes > keeps noncontact head segments clear of the other endpoint in TD (gap=0.1, node=0.75, shaft=1, style=false) [0.55ms]
+(pass) route contracts — feedback channel lanes > keeps noncontact head segments clear of the other endpoint in TD (gap=5, node=20, shaft=1, style=false) [0.40ms]
+(pass) route contracts — feedback channel lanes > keeps noncontact head segments clear of the other endpoint in TD (gap=5, node=20, shaft=1, style=true) [0.31ms]
+(pass) route contracts — feedback channel lanes > keeps noncontact head segments clear of the other endpoint in TD (gap=30, node=var(--outline), shaft=1, style=false) [0.62ms]
+(pass) route contracts — feedback channel lanes > keeps noncontact head segments clear of the other endpoint in TD (gap=30, node=0.75, shaft=var(--shaft), style=false) [0.72ms]
+(pass) route contracts — feedback channel lanes > keeps noncontact head segments clear of the other endpoint in TD (gap=50, node=20, shaft=1, style=false) [0.56ms]
+(pass) route contracts — feedback channel lanes > TD cycle: C -> A loops through the outer channel and enters A from outside the column [7.59ms]
+(pass) bundle contract — trunks never pass through nodes > an unlabeled fan-out skip-edge no longer routes through the intermediate node [7.95ms]
+(pass) bundle contract — trunks never pass through nodes > a clean small unlabeled fan-out uses symmetric emissions, not an accidental shared point [2.37ms]
+(pass) bundle contract — trunks never pass through nodes > a high-degree rectangle fan-out keeps one clean trunk instead of forming a box [3.50ms]
+(pass) bundle contract — trunks never pass through nodes > clear bundled fan-out branches do not keep tiny visual hitches [33.49ms]
+(pass) directLaneBlockers (unit) > reports every distinct blocker in discovery order for certificate evidence [0.67ms]
+(pass) directLaneBlockers (unit) > a node straddling the lane blocks; the same node beyond the 4px clearance does not [0.13ms]
+(pass) directLaneBlockers (unit) > a node outside the main-axis range never blocks [0.03ms]
+(pass) directLaneBlockers (unit) > another edge's label blocks the lane within its rendered pill (text + 8px padding) plus clearance [0.20ms]
+(pass) directLaneBlockers (unit) > a collinear parallel segment within 4px is a channel conflict; a perpendicular crossing is not [0.10ms]
+(pass) directLaneBlockers (unit) > an edge never blocks its own lane, even via a positional copy (same edgeIndex) [0.06ms]
+(pass) directLaneBlockers (unit) > the edge's own label needs lane capacity: pill width + 8px clearance [0.21ms]
+(pass) directLaneBlockers (unit) > vertical axis (TD): same proofs with main/cross swapped > node clearance boundaries use width on the cross axis and height on the main axis [0.21ms]
+(pass) directLaneBlockers (unit) > vertical axis (TD): same proofs with main/cross swapped > label pills swap width/height between axes [0.29ms]
+(pass) directLaneBlockers (unit) > vertical axis (TD): same proofs with main/cross swapped > channel conflicts are vertical segments here; horizontal crossings are fine [0.05ms]
+(pass) directLaneBlockers (unit) > vertical axis (TD): same proofs with main/cross swapped > own-label capacity uses pill height on a vertical lane [0.05ms]
+(pass) straightenable shape whitelist > subroutine nodes straighten like rectangles [6.43ms]
+(pass) straightenable shape whitelist > service nodes (architecture-projected graphs) straighten like rectangles [8.09ms]
+(pass) straightenable shape whitelist > non-straightenable shapes (cloud: a curved-path routing envelope) keep their routes and certify unverified-shape [10.68ms]
+(pass) validation ignores non-staircase routes > a diagonal post-certification mutation is not reported as a hitch [11.01ms]
+(pass) duplicate parallel edges (fast-check counterexample, pinned) > duplicate edges between one pair never collapse onto a single overlapping path [11.77ms]
+(pass) duplicate parallel edges (fast-check counterexample, pinned) > no unexplained hitch survives when duplicates unblock each other mid-pass [5.28ms]
+(pass) duplicate parallel edges (fast-check counterexample, pinned) > keeps both endpoints on the node outline — simplest pair — two A-->B edges (LR) [19.84ms]
+(pass) duplicate parallel edges (fast-check counterexample, pinned) > keeps both endpoints on the node outline — simplest pair — two A-->B edges (TD) [10.45ms]
+(pass) duplicate parallel edges (fast-check counterexample, pinned) > keeps both endpoints on the node outline — three parallel A-->B edges (LR) [9.39ms]
+(pass) duplicate parallel edges (fast-check counterexample, pinned) > keeps both endpoints on the node outline — labeled parallel pair (distinct labels) [9.70ms]
+(pass) duplicate parallel edges (fast-check counterexample, pinned) > keeps both endpoints on the node outline — duplicate feeder into a shared hub [16.61ms]
+(pass) duplicate parallel edges (fast-check counterexample, pinned) > keeps both endpoints on the node outline — issue #62 repro (regression guard) [21.51ms]
+(pass) duplicate parallel edges (fast-check counterexample, pinned) > routes duplicate edges as separated parallel lanes — two A-->B (LR) [3.77ms]
+(pass) duplicate parallel edges (fast-check counterexample, pinned) > routes duplicate edges as separated parallel lanes — three A-->B (LR) [2.62ms]
+(pass) duplicate parallel edges (fast-check counterexample, pinned) > routes duplicate edges as separated parallel lanes — two A-->B (TD) [2.22ms]
+(pass) duplicate parallel edges (fast-check counterexample, pinned) > routes duplicate edges as separated parallel lanes — feedback pair B-->A (LR) [9.50ms]
+(pass) duplicate parallel edges (fast-check counterexample, pinned) > routes duplicate edges as separated parallel lanes — feedback pair B-->A (TD) [8.19ms]
+(pass) duplicate parallel edges (fast-check counterexample, pinned) > distributes a mixed fan-in without collapse or crossing — duplicate feeder into a shared hub [21.76ms]
+(pass) duplicate parallel edges (fast-check counterexample, pinned) > distributes a mixed fan-in without collapse or crossing — issue #62 repro (duplicate pair + distinct feeder) [5.71ms]
+(pass) duplicate parallel edges (fast-check counterexample, pinned) > leaves pure distinct fan-in as a clean merge (issue #26 WS3 untouched) [10.15ms]
+(pass) duplicate parallel edges (fast-check counterexample, pinned) > separates mixed labeled and unlabeled duplicate lanes before route certification: TD fan-out [49.03ms]
+(pass) duplicate parallel edges (fast-check counterexample, pinned) > separates mixed labeled and unlabeled duplicate lanes before route certification: TD feedback loop [56.74ms]
+(pass) duplicate parallel edges (fast-check counterexample, pinned) > separates mixed labeled and unlabeled duplicate lanes before route certification: BT fan-out [38.34ms]
+(pass) duplicate parallel edges (fast-check counterexample, pinned) > separates mixed labeled and unlabeled duplicate lanes before route certification: BT feedback loop [32.54ms]
+(pass) duplicate parallel edges (fast-check counterexample, pinned) > separates mixed labeled and unlabeled duplicate lanes before route certification: LR fan-out [42.23ms]
+(pass) duplicate parallel edges (fast-check counterexample, pinned) > separates mixed labeled and unlabeled duplicate lanes before route certification: LR feedback loop [29.69ms]
+(pass) duplicate parallel edges (fast-check counterexample, pinned) > separates mixed labeled and unlabeled duplicate lanes before route certification: RL fan-out [27.34ms]
+(pass) duplicate parallel edges (fast-check counterexample, pinned) > separates mixed labeled and unlabeled duplicate lanes before route certification: RL feedback loop [26.22ms]
+(pass) duplicate parallel edges (fast-check counterexample, pinned) > a multiline mixed-pair label does not expand into a neighbouring node: LR [46.09ms]
+(pass) duplicate parallel edges (fast-check counterexample, pinned) > a multiline mixed-pair label does not expand into a neighbouring node: RL [23.32ms]
+(pass) duplicate parallel edges (fast-check counterexample, pinned) > nests offset duplicate lanes without crossing mid-path — issue #62 repro (N2 above N3) [5.16ms]
+(pass) duplicate parallel edges (fast-check counterexample, pinned) > nests offset duplicate lanes without crossing mid-path — shared hub, duplicate above hub [10.00ms]
+(pass) straightened certificate finality (fast-check counterexample, pinned) > does not expose straightened on a final detour [30.41ms]
+(pass) findLabelSlot (unit) > unlabeled edges get the midpoint without obstacle checks [0.10ms]
+(pass) findLabelSlot (unit) > a clear lane hosts the label at the midpoint [0.17ms]
+(pass) findLabelSlot (unit) > a pill at the midpoint staggers the label to the 1/3 slot [0.13ms]
+(pass) findLabelSlot (unit) > another edge's segment through the midpoint forces a stagger; pill-vs-pill respects the exact boundary [0.12ms]
+(pass) findLabelSlot (unit) > a node covering the whole lane leaves no slot [0.06ms]
+(pass) findLabelSlot (unit) > the edge's own endpoint is an obstacle: its label moves to the first slot leaving line beside it [0.03ms]
+(pass) findLabelSlot (unit) > the arrowhead end keeps its marker and line clear of the label as well [0.12ms]
+(pass) findLabelSlot (unit) > keeps the whole pill on a lane that ends at a bend [0.07ms]
+(pass) primary-over-feedback priority (unit) > a primary lane proof ignores its reciprocal feedback partner's label, and only that label [0.15ms]
+(pass) primary-over-feedback priority (unit) > a feedback lane proof never ignores the primary partner's label [0.04ms]
+(pass) ROUTE_HITCH tripwire covers feedback lanes > a dogleg injected into a straightened back-edge is reported [1.66ms]
+(pass) container edges anchor on container borders (issue #25 §11.5) > a container-to-container edge under direction overrides runs border to border, not in the margin [29.13ms]
+(pass) container edges anchor on container borders (issue #25 §11.5) > the route audit is silent across the MFA and container fixtures [10.62ms]
+(pass) layoutMermaid debug exposure (issue #25 acceptance criterion 8, open question 1) > layoutMermaid(d, { debug: true }) attaches a route certificate to every edge [44.34ms]
+(pass) route audit tripwires fire on post-certification corruption > skips certified edges with fewer than 2 points instead of throwing [2.63ms]
+(pass) route audit tripwires fire on post-certification corruption > ROUTE_UNEXPLAINED_BEND: a diagonal segment on a certified edge [11.07ms]
+(pass) route audit tripwires fire on post-certification corruption > ROUTE_STALE_AFTER_NODE_MOVE: a node moved without rerouting its edges [12.73ms]
+(pass) route audit tripwires fire on post-certification corruption > ROUTE_STALE_AFTER_NODE_MOVE: a non-incident node moved onto a certified route [1.96ms]
+(pass) route audit tripwires fire on post-certification corruption > ROUTE_SHAPE_MISANCHOR: an endpoint pulled inside a diamond [11.78ms]
+(pass) route audit tripwires fire on post-certification corruption > ROUTE_CONTAINER_MISANCHOR: a container edge detached from its border [12.65ms]
+(pass) route audit tripwires fire on post-certification corruption > ROUTE_LABEL_ON_SHARED_TRUNK: a label pill parked on another edge's collinear segment [9.96ms]
+(pass) route audit — boundary harvest > shared-trunk detection works for vertical trunks and respects the collinearity clearance [8.84ms]
+(pass) route audit — boundary harvest > stale vs shape-misanchor boundary: ±2px detachment separates the two codes [1.18ms]
+(pass) route audit — boundary harvest > container perimeter tolerance: 0.5px off is fine, 1.5px off fires [10.07ms]
+(pass) container repair — axis selection harvest > side-by-side containers route onto a horizontal lane [17.68ms]
+(pass) container repair — axis selection harvest > a circle-to-container relationship retains its attachment certificate [7.85ms]
+(pass) repairs never increase edge crossings > the feedback fan-out fixture has no proper edge crossings [9.75ms]
+(pass) semantic ports — N/E/S/W at bbox side midpoints (issue #26 WS3) > shapePorts derives cardinal ports from each painted outline [0.45ms]
+(pass) semantic ports — N/E/S/W at bbox side midpoints (issue #26 WS3) > the retry loop exits the decision diamond at its exact South vertex [0.16ms]
+(pass) semantic ports — N/E/S/W at bbox side midpoints (issue #26 WS3) > the retry loop enters its target at the exact South side midpoint [0.07ms]
+(pass) semantic ports — N/E/S/W at bbox side midpoints (issue #26 WS3) > F -> G enters Create Session at its exact West midpoint (and emits from F's vertex) [0.11ms]
+(pass) semantic ports — N/E/S/W at bbox side midpoints (issue #26 WS3) > aligned chains run port to port: B -> C from East midpoint to the West vertex [0.20ms]
+(pass) semantic ports — N/E/S/W at bbox side midpoints (issue #26 WS3) > circles join the straightenable set via their exact boundary ports [10.47ms]
+(pass) port ranking — sharp bits win when a side carries one line (issue #26 WS3 costs) > LR: one line out of the diamond emits from its exact E vertex [12.90ms]
+(pass) port ranking — sharp bits win when a side carries one line (issue #26 WS3 costs) > RL: one line out of the diamond emits from its exact W vertex [9.71ms]
+(pass) port ranking — sharp bits win when a side carries one line (issue #26 WS3 costs) > TD: one line out of the diamond emits from its exact S vertex [7.68ms]
+(pass) port ranking — sharp bits win when a side carries one line (issue #26 WS3 costs) > BT: one line out of the diamond emits from its exact N vertex [8.20ms]
+(pass) port ranking — sharp bits win when a side carries one line (issue #26 WS3 costs) > a blocked vertex emit hooks into the target's facing cross-side port (1 bend, not a 2-bend Z) [1.29ms]
+(pass) port ranking — sharp bits win when a side carries one line (issue #26 WS3 costs) > LR: port-lane alignment makes the labeled main branch vertex-to-port straight; the side input converges at the same port [2.78ms]
+(pass) port ranking — sharp bits win when a side carries one line (issue #26 WS3 costs) > RL: port-lane alignment makes the labeled main branch vertex-to-port straight; the side input converges at the same port [2.37ms]
+(pass) port ranking — sharp bits win when a side carries one line (issue #26 WS3 costs) > PORT_EXACT shapes: an unlabeled equal-rank peer fan-in merges SYMMETRICALLY at the exact port [6.88ms]
+(pass) port ranking — sharp bits win when a side carries one line (issue #26 WS3 costs) > PORT_EXACT shapes: an unlabeled equal-rank peer fan-in merges SYMMETRICALLY at the exact port [5.92ms]
+(pass) port ranking — sharp bits win when a side carries one line (issue #26 WS3 costs) > PORT_EXACT shapes: an unlabeled equal-rank peer fan-in merges SYMMETRICALLY at the exact port [8.08ms]
+(pass) port ranking — sharp bits win when a side carries one line (issue #26 WS3 costs) > PORT_EXACT shapes: an unlabeled equal-rank peer fan-in merges SYMMETRICALLY at the exact port [7.58ms]
+(pass) port ranking — sharp bits win when a side carries one line (issue #26 WS3 costs) > peer fan-in preserves outward routes and mirrors admitted single columns for rectangles [92.77ms]
+(pass) port ranking — sharp bits win when a side carries one line (issue #26 WS3 costs) > peer fan-in preserves outward routes and mirrors admitted single columns for stadiums [58.90ms]
+(pass) port ranking — sharp bits win when a side carries one line (issue #26 WS3 costs) > peer fan-in preserves outward routes and mirrors admitted single columns for hexagons [69.04ms]
+(pass) port ranking — sharp bits win when a side carries one line (issue #26 WS3 costs) > peer fan-in preserves outward routes and mirrors admitted single columns for cylinders [77.10ms]
+(pass) port ranking — sharp bits win when a side carries one line (issue #26 WS3 costs) > peer fan-in preserves outward routes and mirrors admitted single columns for circles [111.89ms]
+(pass) port ranking — sharp bits win when a side carries one line (issue #26 WS3 costs) > peer fan-in preserves outward routes and mirrors admitted single columns for diamonds [99.49ms]
+(pass) port ranking — sharp bits win when a side carries one line (issue #26 WS3 costs) > port-lane alignment includes diamonds: K becomes vertex-to-vertex straight [8.20ms]
+(pass) port ranking — sharp bits win when a side carries one line (issue #26 WS3 costs) > a feedback out-edge does not veto vertex alignment (R: yes-branch runs straight) [8.97ms]
+(pass) port ranking — sharp bits win when a side carries one line (issue #26 WS3 costs) > two lines out of one diamond side spread symmetrically (no line hogs the vertex) [19.93ms]
+(pass) port ranking — sharp bits win when a side carries one line (issue #26 WS3 costs) > keeps two private captioned diamond routes to the same target in TD [0.82ms]
+(pass) port ranking — sharp bits win when a side carries one line (issue #26 WS3 costs) > keeps two private captioned diamond routes to the same target in LR [0.13ms]
+(pass) port ranking — sharp bits win when a side carries one line (issue #26 WS3 costs) > keeps two private captioned diamond routes to the same target in BT [0.13ms]
+(pass) port ranking — sharp bits win when a side carries one line (issue #26 WS3 costs) > keeps two private captioned diamond routes to the same target in RL [0.10ms]
+(pass) port ranking — sharp bits win when a side carries one line (issue #26 WS3 costs) > a TD decision fork/rejoin exits the diamond through lower facet ports before honoring target lanes [11.67ms]
+(pass) port ranking — sharp bits win when a side carries one line (issue #26 WS3 costs) > a TD decision fork/rejoin connects every line through named endpoint ports [5.49ms]
+(pass) port ranking — sharp bits win when a side carries one line (issue #26 WS3 costs) > issue #42: grouped TD decision branches expose named lower diamond facet ports [16.74ms]
+(pass) port ranking — sharp bits win when a side carries one line (issue #26 WS3 costs) > bi-directional pairs render as TWO EQUAL parallel lines, symmetric about the centerline [24.26ms]
+(pass) port ranking — sharp bits win when a side carries one line (issue #26 WS3 costs) > LR: a chain of diamonds runs vertex to vertex [5.61ms]
+(pass) port ranking — sharp bits win when a side carries one line (issue #26 WS3 costs) > RL: a chain of diamonds runs vertex to vertex [4.90ms]
+(pass) port ranking — sharp bits win when a side carries one line (issue #26 WS3 costs) > TD: a chain of diamonds runs vertex to vertex [4.53ms]
+(pass) port ranking — sharp bits win when a side carries one line (issue #26 WS3 costs) > BT: a chain of diamonds runs vertex to vertex [5.49ms]
+(pass) port ranking — sharp bits win when a side carries one line (issue #26 WS3 costs) > diamond-to-diamond with misaligned centers: the source vertex wins (lines emit from points) [2.05ms]
+(pass) route contracts — properties > every edge gets a certificate and no unexplained hitch survives the pipeline [807.63ms]
+(pass) route contracts — properties > straightened routes are two-point, axis-aligned, and end on the node bbox boundary [330.17ms]
+(pass) route contracts — properties > layout output is deterministic across repeated runs [339.58ms]
+(pass) DECISION_BRANCH_UNLABELED lint (ISO 5807 10.3.1.2 / ANSI X3.5 4.10.2) > fires once per unlabeled branch of a multi-exit decision [26.36ms]
+(pass) DECISION_BRANCH_UNLABELED lint (ISO 5807 10.3.1.2 / ANSI X3.5 4.10.2) > stays silent for fully labeled decisions, single exits, and non-diamonds [53.67ms]
+2882 | const repair = rerouteEdgesThroughNodes
+2883 | for(const [style,animate,animation,dash] of [
+2884 |  ['solid',false,undefined,null],['solid',true,'slow','8 4'],['solid',true,'fast','8 4'],
+2885 |  ['thick',true,'fast','8 4'],['dotted',false,undefined,'4 4'],['dotted',true,'fast','4 4'],
+2886 | ] as const)it(`preserves the actual clear dash gap: ${style}, animate=${animate}, animation=${animation}`,()=>{
+2887 |  const { JSDOM }=createRequire(import.meta.url)('jsdom')
+                                                     ^
+ResolveMessage: Cannot find module 'jsdom'
+Require stack:
+- /tmp/pr449-main-integration-20261029-762/src/__tests__/route-contracts.test.ts
+      at <anonymous> (/tmp/pr449-main-integration-20261029-762/src/__tests__/route-contracts.test.ts:2887:47)
+(fail) node repairs retain terminal axes around measured headers > preserves the actual clear dash gap: solid, animate=false, animation=undefined [1.59ms]
+2882 | const repair = rerouteEdgesThroughNodes
+2883 | for(const [style,animate,animation,dash] of [
+2884 |  ['solid',false,undefined,null],['solid',true,'slow','8 4'],['solid',true,'fast','8 4'],
+2885 |  ['thick',true,'fast','8 4'],['dotted',false,undefined,'4 4'],['dotted',true,'fast','4 4'],
+2886 | ] as const)it(`preserves the actual clear dash gap: ${style}, animate=${animate}, animation=${animation}`,()=>{
+2887 |  const { JSDOM }=createRequire(import.meta.url)('jsdom')
+                                                     ^
+ResolveMessage: Cannot find module 'jsdom'
+Require stack:
+- /tmp/pr449-main-integration-20261029-762/src/__tests__/route-contracts.test.ts
+      at <anonymous> (/tmp/pr449-main-integration-20261029-762/src/__tests__/route-contracts.test.ts:2887:47)
+(fail) node repairs retain terminal axes around measured headers > preserves the actual clear dash gap: solid, animate=true, animation=slow [0.73ms]
+2882 | const repair = rerouteEdgesThroughNodes
+2883 | for(const [style,animate,animation,dash] of [
+2884 |  ['solid',false,undefined,null],['solid',true,'slow','8 4'],['solid',true,'fast','8 4'],
+2885 |  ['thick',true,'fast','8 4'],['dotted',false,undefined,'4 4'],['dotted',true,'fast','4 4'],
+2886 | ] as const)it(`preserves the actual clear dash gap: ${style}, animate=${animate}, animation=${animation}`,()=>{
+2887 |  const { JSDOM }=createRequire(import.meta.url)('jsdom')
+                                                     ^
+ResolveMessage: Cannot find module 'jsdom'
+Require stack:
+- /tmp/pr449-main-integration-20261029-762/src/__tests__/route-contracts.test.ts
+      at <anonymous> (/tmp/pr449-main-integration-20261029-762/src/__tests__/route-contracts.test.ts:2887:47)
+(fail) node repairs retain terminal axes around measured headers > preserves the actual clear dash gap: solid, animate=true, animation=fast [0.66ms]
+2882 | const repair = rerouteEdgesThroughNodes
+2883 | for(const [style,animate,animation,dash] of [
+2884 |  ['solid',false,undefined,null],['solid',true,'slow','8 4'],['solid',true,'fast','8 4'],
+2885 |  ['thick',true,'fast','8 4'],['dotted',false,undefined,'4 4'],['dotted',true,'fast','4 4'],
+2886 | ] as const)it(`preserves the actual clear dash gap: ${style}, animate=${animate}, animation=${animation}`,()=>{
+2887 |  const { JSDOM }=createRequire(import.meta.url)('jsdom')
+                                                     ^
+ResolveMessage: Cannot find module 'jsdom'
+Require stack:
+- /tmp/pr449-main-integration-20261029-762/src/__tests__/route-contracts.test.ts
+      at <anonymous> (/tmp/pr449-main-integration-20261029-762/src/__tests__/route-contracts.test.ts:2887:47)
+(fail) node repairs retain terminal axes around measured headers > preserves the actual clear dash gap: thick, animate=true, animation=fast [0.56ms]
+2882 | const repair = rerouteEdgesThroughNodes
+2883 | for(const [style,animate,animation,dash] of [
+2884 |  ['solid',false,undefined,null],['solid',true,'slow','8 4'],['solid',true,'fast','8 4'],
+2885 |  ['thick',true,'fast','8 4'],['dotted',false,undefined,'4 4'],['dotted',true,'fast','4 4'],
+2886 | ] as const)it(`preserves the actual clear dash gap: ${style}, animate=${animate}, animation=${animation}`,()=>{
+2887 |  const { JSDOM }=createRequire(import.meta.url)('jsdom')
+                                                     ^
+ResolveMessage: Cannot find module 'jsdom'
+Require stack:
+- /tmp/pr449-main-integration-20261029-762/src/__tests__/route-contracts.test.ts
+      at <anonymous> (/tmp/pr449-main-integration-20261029-762/src/__tests__/route-contracts.test.ts:2887:47)
+(fail) node repairs retain terminal axes around measured headers > preserves the actual clear dash gap: dotted, animate=false, animation=undefined [0.54ms]
+2882 | const repair = rerouteEdgesThroughNodes
+2883 | for(const [style,animate,animation,dash] of [
+2884 |  ['solid',false,undefined,null],['solid',true,'slow','8 4'],['solid',true,'fast','8 4'],
+2885 |  ['thick',true,'fast','8 4'],['dotted',false,undefined,'4 4'],['dotted',true,'fast','4 4'],
+2886 | ] as const)it(`preserves the actual clear dash gap: ${style}, animate=${animate}, animation=${animation}`,()=>{
+2887 |  const { JSDOM }=createRequire(import.meta.url)('jsdom')
+                                                     ^
+ResolveMessage: Cannot find module 'jsdom'
+Require stack:
+- /tmp/pr449-main-integration-20261029-762/src/__tests__/route-contracts.test.ts
+      at <anonymous> (/tmp/pr449-main-integration-20261029-762/src/__tests__/route-contracts.test.ts:2887:47)
+(fail) node repairs retain terminal axes around measured headers > preserves the actual clear dash gap: dotted, animate=true, animation=fast [0.49ms]
+(pass) node repairs retain terminal axes around measured headers > retains an admitted shortest circle-clear band: transpose=false, reverse=false [14.07ms]
+(pass) node repairs retain terminal axes around measured headers > retains an admitted shortest circle-clear band: transpose=false, reverse=true [3.97ms]
+(pass) node repairs retain terminal axes around measured headers > retains an admitted shortest circle-clear band: transpose=true, reverse=false [3.40ms]
+(pass) node repairs retain terminal axes around measured headers > retains an admitted shortest circle-clear band: transpose=true, reverse=true [3.69ms]
+(pass) node repairs retain terminal axes around measured headers > clears the final painted circle contact in elk / labelled reciprocal [298.38ms]
+(pass) node repairs retain terminal axes around measured headers > clears the final painted circle contact in elk / bounded terminal [322.11ms]
+(pass) node repairs retain terminal axes around measured headers > clears the final painted circle contact in agentic / labelled reciprocal [598.29ms]
+(pass) node repairs retain terminal axes around measured headers > clears the final painted circle contact in agentic / bounded terminal [297.21ms]
+3036 |  const resource = shaft.attrs['marker-end']!.slice(5, -1)
+3037 |  expect(tags.filter(tag => tag.name === 'marker' && tag.attrs.id === resource)).toHaveLength(1)
+3038 |  expect(rendered.receipt.layoutCertification?.status).toBe('passed')
+3039 | })
+3040 | for (const transpose of [false, true]) for (const reverse of [false,true]) for (const name of ['stroke-only contact', 'positive stroke gap', 'empty curved corner'] as const) it(`repairs actual ${name} without moving a clear route, transpose=${transpose}, reverse=${reverse}`, () => {
+3041 |  const { JSDOM } = createRequire(import.meta.url)('jsdom')
+                                                       ^
+ResolveMessage: Cannot find module 'jsdom'
+Require stack:
+- /tmp/pr449-main-integration-20261029-762/src/__tests__/route-contracts.test.ts
+      at <anonymous> (/tmp/pr449-main-integration-20261029-762/src/__tests__/route-contracts.test.ts:3041:49)
+(fail) node repairs retain terminal axes around measured headers > repairs actual stroke-only contact without moving a clear route, transpose=false, reverse=false [1.43ms]
+3036 |  const resource = shaft.attrs['marker-end']!.slice(5, -1)
+3037 |  expect(tags.filter(tag => tag.name === 'marker' && tag.attrs.id === resource)).toHaveLength(1)
+3038 |  expect(rendered.receipt.layoutCertification?.status).toBe('passed')
+3039 | })
+3040 | for (const transpose of [false, true]) for (const reverse of [false,true]) for (const name of ['stroke-only contact', 'positive stroke gap', 'empty curved corner'] as const) it(`repairs actual ${name} without moving a clear route, transpose=${transpose}, reverse=${reverse}`, () => {
+3041 |  const { JSDOM } = createRequire(import.meta.url)('jsdom')
+                                                       ^
+ResolveMessage: Cannot find module 'jsdom'
+Require stack:
+- /tmp/pr449-main-integration-20261029-762/src/__tests__/route-contracts.test.ts
+      at <anonymous> (/tmp/pr449-main-integration-20261029-762/src/__tests__/route-contracts.test.ts:3041:49)
+(fail) node repairs retain terminal axes around measured headers > repairs actual positive stroke gap without moving a clear route, transpose=false, reverse=false [0.96ms]
+3036 |  const resource = shaft.attrs['marker-end']!.slice(5, -1)
+3037 |  expect(tags.filter(tag => tag.name === 'marker' && tag.attrs.id === resource)).toHaveLength(1)
+3038 |  expect(rendered.receipt.layoutCertification?.status).toBe('passed')
+3039 | })
+3040 | for (const transpose of [false, true]) for (const reverse of [false,true]) for (const name of ['stroke-only contact', 'positive stroke gap', 'empty curved corner'] as const) it(`repairs actual ${name} without moving a clear route, transpose=${transpose}, reverse=${reverse}`, () => {
+3041 |  const { JSDOM } = createRequire(import.meta.url)('jsdom')
+                                                       ^
+ResolveMessage: Cannot find module 'jsdom'
+Require stack:
+- /tmp/pr449-main-integration-20261029-762/src/__tests__/route-contracts.test.ts
+      at <anonymous> (/tmp/pr449-main-integration-20261029-762/src/__tests__/route-contracts.test.ts:3041:49)
+(fail) node repairs retain terminal axes around measured headers > repairs actual empty curved corner without moving a clear route, transpose=false, reverse=false [0.62ms]
+3036 |  const resource = shaft.attrs['marker-end']!.slice(5, -1)
+3037 |  expect(tags.filter(tag => tag.name === 'marker' && tag.attrs.id === resource)).toHaveLength(1)
+3038 |  expect(rendered.receipt.layoutCertification?.status).toBe('passed')
+3039 | })
+3040 | for (const transpose of [false, true]) for (const reverse of [false,true]) for (const name of ['stroke-only contact', 'positive stroke gap', 'empty curved corner'] as const) it(`repairs actual ${name} without moving a clear route, transpose=${transpose}, reverse=${reverse}`, () => {
+3041 |  const { JSDOM } = createRequire(import.meta.url)('jsdom')
+                                                       ^
+ResolveMessage: Cannot find module 'jsdom'
+Require stack:
+- /tmp/pr449-main-integration-20261029-762/src/__tests__/route-contracts.test.ts
+      at <anonymous> (/tmp/pr449-main-integration-20261029-762/src/__tests__/route-contracts.test.ts:3041:49)
+(fail) node repairs retain terminal axes around measured headers > repairs actual stroke-only contact without moving a clear route, transpose=false, reverse=true [0.60ms]
+3036 |  const resource = shaft.attrs['marker-end']!.slice(5, -1)
+3037 |  expect(tags.filter(tag => tag.name === 'marker' && tag.attrs.id === resource)).toHaveLength(1)
+3038 |  expect(rendered.receipt.layoutCertification?.status).toBe('passed')
+3039 | })
+3040 | for (const transpose of [false, true]) for (const reverse of [false,true]) for (const name of ['stroke-only contact', 'positive stroke gap', 'empty curved corner'] as const) it(`repairs actual ${name} without moving a clear route, transpose=${transpose}, reverse=${reverse}`, () => {
+3041 |  const { JSDOM } = createRequire(import.meta.url)('jsdom')
+                                                       ^
+ResolveMessage: Cannot find module 'jsdom'
+Require stack:
+- /tmp/pr449-main-integration-20261029-762/src/__tests__/route-contracts.test.ts
+      at <anonymous> (/tmp/pr449-main-integration-20261029-762/src/__tests__/route-contracts.test.ts:3041:49)
+(fail) node repairs retain terminal axes around measured headers > repairs actual positive stroke gap without moving a clear route, transpose=false, reverse=true [0.61ms]
+3036 |  const resource = shaft.attrs['marker-end']!.slice(5, -1)
+3037 |  expect(tags.filter(tag => tag.name === 'marker' && tag.attrs.id === resource)).toHaveLength(1)
+3038 |  expect(rendered.receipt.layoutCertification?.status).toBe('passed')
+3039 | })
+3040 | for (const transpose of [false, true]) for (const reverse of [false,true]) for (const name of ['stroke-only contact', 'positive stroke gap', 'empty curved corner'] as const) it(`repairs actual ${name} without moving a clear route, transpose=${transpose}, reverse=${reverse}`, () => {
+3041 |  const { JSDOM } = createRequire(import.meta.url)('jsdom')
+                                                       ^
+ResolveMessage: Cannot find module 'jsdom'
+Require stack:
+- /tmp/pr449-main-integration-20261029-762/src/__tests__/route-contracts.test.ts
+      at <anonymous> (/tmp/pr449-main-integration-20261029-762/src/__tests__/route-contracts.test.ts:3041:49)
+(fail) node repairs retain terminal axes around measured headers > repairs actual empty curved corner without moving a clear route, transpose=false, reverse=true [0.53ms]
+3036 |  const resource = shaft.attrs['marker-end']!.slice(5, -1)
+3037 |  expect(tags.filter(tag => tag.name === 'marker' && tag.attrs.id === resource)).toHaveLength(1)
+3038 |  expect(rendered.receipt.layoutCertification?.status).toBe('passed')
+3039 | })
+3040 | for (const transpose of [false, true]) for (const reverse of [false,true]) for (const name of ['stroke-only contact', 'positive stroke gap', 'empty curved corner'] as const) it(`repairs actual ${name} without moving a clear route, transpose=${transpose}, reverse=${reverse}`, () => {
+3041 |  const { JSDOM } = createRequire(import.meta.url)('jsdom')
+                                                       ^
+ResolveMessage: Cannot find module 'jsdom'
+Require stack:
+- /tmp/pr449-main-integration-20261029-762/src/__tests__/route-contracts.test.ts
+      at <anonymous> (/tmp/pr449-main-integration-20261029-762/src/__tests__/route-contracts.test.ts:3041:49)
+(fail) node repairs retain terminal axes around measured headers > repairs actual stroke-only contact without moving a clear route, transpose=true, reverse=false [0.65ms]
+3036 |  const resource = shaft.attrs['marker-end']!.slice(5, -1)
+3037 |  expect(tags.filter(tag => tag.name === 'marker' && tag.attrs.id === resource)).toHaveLength(1)
+3038 |  expect(rendered.receipt.layoutCertification?.status).toBe('passed')
+3039 | })
+3040 | for (const transpose of [false, true]) for (const reverse of [false,true]) for (const name of ['stroke-only contact', 'positive stroke gap', 'empty curved corner'] as const) it(`repairs actual ${name} without moving a clear route, transpose=${transpose}, reverse=${reverse}`, () => {
+3041 |  const { JSDOM } = createRequire(import.meta.url)('jsdom')
+                                                       ^
+ResolveMessage: Cannot find module 'jsdom'
+Require stack:
+- /tmp/pr449-main-integration-20261029-762/src/__tests__/route-contracts.test.ts
+      at <anonymous> (/tmp/pr449-main-integration-20261029-762/src/__tests__/route-contracts.test.ts:3041:49)
+(fail) node repairs retain terminal axes around measured headers > repairs actual positive stroke gap without moving a clear route, transpose=true, reverse=false [0.49ms]
+3036 |  const resource = shaft.attrs['marker-end']!.slice(5, -1)
+3037 |  expect(tags.filter(tag => tag.name === 'marker' && tag.attrs.id === resource)).toHaveLength(1)
+3038 |  expect(rendered.receipt.layoutCertification?.status).toBe('passed')
+3039 | })
+3040 | for (const transpose of [false, true]) for (const reverse of [false,true]) for (const name of ['stroke-only contact', 'positive stroke gap', 'empty curved corner'] as const) it(`repairs actual ${name} without moving a clear route, transpose=${transpose}, reverse=${reverse}`, () => {
+3041 |  const { JSDOM } = createRequire(import.meta.url)('jsdom')
+                                                       ^
+ResolveMessage: Cannot find module 'jsdom'
+Require stack:
+- /tmp/pr449-main-integration-20261029-762/src/__tests__/route-contracts.test.ts
+      at <anonymous> (/tmp/pr449-main-integration-20261029-762/src/__tests__/route-contracts.test.ts:3041:49)
+(fail) node repairs retain terminal axes around measured headers > repairs actual empty curved corner without moving a clear route, transpose=true, reverse=false [0.50ms]
+3036 |  const resource = shaft.attrs['marker-end']!.slice(5, -1)
+3037 |  expect(tags.filter(tag => tag.name === 'marker' && tag.attrs.id === resource)).toHaveLength(1)
+3038 |  expect(rendered.receipt.layoutCertification?.status).toBe('passed')
+3039 | })
+3040 | for (const transpose of [false, true]) for (const reverse of [false,true]) for (const name of ['stroke-only contact', 'positive stroke gap', 'empty curved corner'] as const) it(`repairs actual ${name} without moving a clear route, transpose=${transpose}, reverse=${reverse}`, () => {
+3041 |  const { JSDOM } = createRequire(import.meta.url)('jsdom')
+                                                       ^
+ResolveMessage: Cannot find module 'jsdom'
+Require stack:
+- /tmp/pr449-main-integration-20261029-762/src/__tests__/route-contracts.test.ts
+      at <anonymous> (/tmp/pr449-main-integration-20261029-762/src/__tests__/route-contracts.test.ts:3041:49)
+(fail) node repairs retain terminal axes around measured headers > repairs actual stroke-only contact without moving a clear route, transpose=true, reverse=true [0.46ms]
+3036 |  const resource = shaft.attrs['marker-end']!.slice(5, -1)
+3037 |  expect(tags.filter(tag => tag.name === 'marker' && tag.attrs.id === resource)).toHaveLength(1)
+3038 |  expect(rendered.receipt.layoutCertification?.status).toBe('passed')
+3039 | })
+3040 | for (const transpose of [false, true]) for (const reverse of [false,true]) for (const name of ['stroke-only contact', 'positive stroke gap', 'empty curved corner'] as const) it(`repairs actual ${name} without moving a clear route, transpose=${transpose}, reverse=${reverse}`, () => {
+3041 |  const { JSDOM } = createRequire(import.meta.url)('jsdom')
+                                                       ^
+ResolveMessage: Cannot find module 'jsdom'
+Require stack:
+- /tmp/pr449-main-integration-20261029-762/src/__tests__/route-contracts.test.ts
+      at <anonymous> (/tmp/pr449-main-integration-20261029-762/src/__tests__/route-contracts.test.ts:3041:49)
+(fail) node repairs retain terminal axes around measured headers > repairs actual positive stroke gap without moving a clear route, transpose=true, reverse=true [0.64ms]
+3036 |  const resource = shaft.attrs['marker-end']!.slice(5, -1)
+3037 |  expect(tags.filter(tag => tag.name === 'marker' && tag.attrs.id === resource)).toHaveLength(1)
+3038 |  expect(rendered.receipt.layoutCertification?.status).toBe('passed')
+3039 | })
+3040 | for (const transpose of [false, true]) for (const reverse of [false,true]) for (const name of ['stroke-only contact', 'positive stroke gap', 'empty curved corner'] as const) it(`repairs actual ${name} without moving a clear route, transpose=${transpose}, reverse=${reverse}`, () => {
+3041 |  const { JSDOM } = createRequire(import.meta.url)('jsdom')
+                                                       ^
+ResolveMessage: Cannot find module 'jsdom'
+Require stack:
+- /tmp/pr449-main-integration-20261029-762/src/__tests__/route-contracts.test.ts
+      at <anonymous> (/tmp/pr449-main-integration-20261029-762/src/__tests__/route-contracts.test.ts:3041:49)
+(fail) node repairs retain terminal axes around measured headers > repairs actual empty curved corner without moving a clear route, transpose=true, reverse=true [0.55ms]
+(pass) node repairs retain terminal axes around measured headers > terminal ray and live header: transpose=false, mirror=false, reverse=false [2.21ms]
+(pass) node repairs retain terminal axes around measured headers > terminal ray and live header: transpose=false, mirror=false, reverse=true [0.71ms]
+(pass) node repairs retain terminal axes around measured headers > terminal ray and live header: transpose=false, mirror=true, reverse=false [0.73ms]
+(pass) node repairs retain terminal axes around measured headers > terminal ray and live header: transpose=false, mirror=true, reverse=true [0.58ms]
+(pass) node repairs retain terminal axes around measured headers > terminal ray and live header: transpose=true, mirror=false, reverse=false [0.48ms]
+(pass) node repairs retain terminal axes around measured headers > terminal ray and live header: transpose=true, mirror=false, reverse=true [0.55ms]
+(pass) node repairs retain terminal axes around measured headers > terminal ray and live header: transpose=true, mirror=true, reverse=false [0.52ms]
+(pass) node repairs retain terminal axes around measured headers > terminal ray and live header: transpose=true, mirror=true, reverse=true [0.36ms]
+(pass) node repairs retain terminal axes around measured headers > new terminal detour cannot traverse its own endpoint body / remote [0.56ms]
+(pass) node repairs retain terminal axes around measured headers > new terminal detour cannot traverse its own endpoint body / none [0.18ms]
+(pass) node repairs retain terminal axes around measured headers > new terminal detour cannot traverse its own endpoint body / zero-width [0.18ms]
+(pass) node repairs retain terminal axes around measured headers > new terminal detour never changes a simple route into selfcontact [0.78ms]
+(pass) node repairs retain terminal axes around measured headers > website Cloud source retains all authored nodes, groups, markers and clear literal bands [114.04ms]
+(pass) port-lane reserved-header admission > does not slide a card into an unchanged foreign 20 shaft [1.52ms]
+(pass) port-lane reserved-header admission > does not slide a card into an unchanged foreign 20px shaft [0.53ms]
+(pass) port-lane reserved-header admission > does not slide a card into an unchanged foreign 1em shaft [0.47ms]
+(pass) port-lane reserved-header admission > does not slide a card into an unchanged foreign var(--edge-width) shaft [0.33ms]
+(pass) port-lane reserved-header admission > keeps the same slide when the authored foreign shaft has a real ink gap [0.54ms]
+(pass) port-lane reserved-header admission > refuses the changed shaft beside a live header using its painted width [0.52ms]
+(pass) port-lane reserved-header admission > admits the changed shaft beside a live header using its painted width [0.29ms]
+(pass) port-lane reserved-header admission > refuses a rewritten shaft beside a foreign card [0.38ms]
+(pass) port-lane reserved-header admission > admits a rewritten shaft beside a foreign card [0.19ms]
+(pass) port-lane reserved-header admission > refuses the endpoint marker beside the same foreign card [0.38ms]
+(pass) port-lane reserved-header admission > admits the unmarked shaft beside the same foreign card [0.22ms]
+(pass) port-lane reserved-header admission > refuses the labelled-source slide beside a foreign painted shaft [2.21ms]
+(pass) port-lane reserved-header admission > keeps the labelled-source slide beside a foreign painted shaft [0.79ms]
+(pass) port-lane reserved-header admission > retains the clear compound detour from chained hubs 355 instead of sweeping its terminal run through G [0.47ms]
+(pass) port-lane reserved-header admission > rejects a moved node footprint entering a header even when its new shaft stays outside the band [0.54ms]
+(pass) port-lane reserved-header admission > rejects a stretched incident hop through a direct header [0.82ms]
+(pass) port-lane reserved-header admission > rejects a stretched incident hop through a nested header [0.41ms]
+(pass) port-lane reserved-header admission > still performs the clear alignment with an unrelated live header [0.29ms]
+(pass) port-lane reserved-header admission > retains the legal zero-width header control [0.65ms]
+(pass) port-lane reserved-header admission > retains the legal zero-height header control [0.35ms]
+(pass) port-lane reserved-header admission > retains the legal concurrency header control [0.24ms]
+(pass) port-lane reserved-header admission > refuses raw exterior contact when the moved card border enters the header [0.37ms]
+(pass) port-lane reserved-header admission > refuses the same moved card beside a header using its border ink [0.72ms]
+(pass) port-lane reserved-header admission > admits the same moved card beside a header using its border ink [0.24ms]
+(pass) port-lane reserved-header admission > does not turn an unchanged pre-existing bad edge into a veto of an unrelated clear move [0.67ms]
+(pass) port-lane foreign painted corridors > retains a foreign cubic marker when serving collapses its raw horizontal tangent [2.85ms]
+(pass) port-lane foreign painted corridors > horizontal slide preserves overlapping authored thick card borders [0.66ms]
+(pass) port-lane foreign painted corridors > horizontal slide preserves clear authored thick card borders [0.28ms]
+(pass) port-lane foreign painted corridors > vertical slide preserves overlapping authored thick card borders [0.21ms]
+(pass) port-lane foreign painted corridors > vertical slide preserves clear authored thick card borders [0.18ms]
+(pass) port-lane foreign painted corridors > horizontal foreign shaft cannot be covered by a moved card [0.97ms]
+(pass) port-lane foreign painted corridors > horizontal foreign shaft retains a safe alignment [0.45ms]
+(pass) port-lane foreign painted corridors > vertical foreign shaft cannot be covered by a moved card [0.36ms]
+(pass) port-lane foreign painted corridors > vertical foreign shaft retains a safe alignment [0.23ms]
+(pass) port-lane foreign painted corridors > retains a clear foreign circle marker during a horizontal slide [0.95ms]
+(pass) port-lane foreign painted corridors > retains a clear foreign circle marker during a vertical slide [0.45ms]
+(pass) container crossing repair reuses proven Z lanes > a separated container with no common straight lane removes its crossing through a complete clear Z [2.74ms]
+(pass) container crossing repair reuses proven Z lanes > preserves existing geometry for an already clear container route [1.01ms]
+(pass) container crossing repair reuses proven Z lanes > preserves existing geometry for an labelled container route [0.69ms]
+(pass) container crossing repair reuses proven Z lanes > the existing total-node quality bound leaves a large container route unchanged [1.39ms]
+(pass) a crossing container Z cannot borrow a bbox-gap proof for a diamond facet inside that box [1.67ms]
+(pass) unresolved marker-label seats > protects a foreign 2 shaft during caption rescue (transpose=false) [1.43ms]
+(pass) unresolved marker-label seats > protects a foreign 20 shaft during caption rescue (transpose=false) [0.73ms]
+(pass) unresolved marker-label seats > protects a foreign var(--unknown-width) shaft during caption rescue (transpose=false) [0.55ms]
+(pass) unresolved marker-label seats > protects a foreign 2 shaft during caption rescue (transpose=true) [0.56ms]
+(pass) unresolved marker-label seats > protects a foreign 20 shaft during caption rescue (transpose=true) [0.80ms]
+(pass) unresolved marker-label seats > protects a foreign var(--unknown-width) shaft during caption rescue (transpose=true) [0.34ms]
+(pass) unresolved marker-label seats > seats a short-loop caption without changing its route (quarter turns=%s) [2.40ms]
+(pass) unresolved marker-label seats > seats a short-loop caption without changing its route (quarter turns=%s) [0.49ms]
+(pass) unresolved marker-label seats > seats a short-loop caption without changing its route (quarter turns=%s) [1.88ms]
+(pass) unresolved marker-label seats > seats a short-loop caption without changing its route (quarter turns=%s) [0.50ms]
+(pass) unresolved marker-label seats > reseats a blocking caption jointly even without a current label-pair conflict [4.23ms]
+(pass) marker-label rescue refusal and custody > retains the complete original when rescue has unknown-ink [0.79ms]
+(pass) marker-label rescue refusal and custody > retains the complete original when rescue has no-room [0.92ms]
+(pass) marker-label rescue refusal and custody > retains the complete original when rescue has work-exhausted [2.65ms]
+(pass) marker-label rescue refusal and custody > retains an already clear legacy layout exactly [0.35ms]
+(pass) marker-label rescue refusal and custody > keeps a foreign painted shaft and a node body protected [1.18ms]
+(pass) a hidden carrier still reserves its visible caption during marker-label rescue [0.61ms]
+(pass) withholds the new overhang rescue for a rounded subject without changing its legacy seat [1.42ms]
+(pass) label rescue retains full thick header borders while admitting a separated seat [0.37ms]
+(pass) rounded header emission retains the generic join support when tiny arcs lose tangent agreement [0.34ms]
+(pass) private label-bearing route channels > seats duplicate routes with different labels in LR without dropping route semantics [86.43ms]
+(pass) private label-bearing route channels > seats duplicate routes with different labels in RL without dropping route semantics [74.20ms]
+(pass) private label-bearing route channels > seats duplicate routes with different labels in TD without dropping route semantics [43.57ms]
+(pass) private label-bearing route channels > seats duplicate routes with different labels in BT without dropping route semantics [78.99ms]
+(pass) private label-bearing route channels > seats outer feedback corridor in LR without dropping route semantics [45.07ms]
+(pass) private label-bearing route channels > seats outer feedback corridor in RL without dropping route semantics [47.13ms]
+(pass) private label-bearing route channels > seats outer feedback corridor in TD without dropping route semantics [54.18ms]
+(pass) private label-bearing route channels > seats outer feedback corridor in BT without dropping route semantics [50.89ms]
+(pass) private label-bearing route channels > seats normal stem beside a foreign label in LR without dropping route semantics [26.39ms]
+(pass) private label-bearing route channels > seats normal stem beside a foreign label in RL without dropping route semantics [27.86ms]
+(pass) private label-bearing route channels > seats normal stem beside a foreign label in TD without dropping route semantics [85.32ms]
+(pass) private label-bearing route channels > seats normal stem beside a foreign label in BT without dropping route semantics [115.10ms]
+(pass) private label-bearing route channels > seats tight retained target elbow in LR without dropping route semantics [57.40ms]
+(pass) private label-bearing route channels > seats tight retained target elbow in RL without dropping route semantics [45.12ms]
+(pass) private label-bearing route channels > seats tight retained target elbow in TD without dropping route semantics [53.30ms]
+(pass) private label-bearing route channels > seats tight retained target elbow in BT without dropping route semantics [41.86ms]
+(pass) private label-bearing route channels > seats coincident reciprocal labels in LR without dropping route semantics [53.49ms]
+(pass) private label-bearing route channels > seats coincident reciprocal labels in RL without dropping route semantics [43.18ms]
+(pass) private label-bearing route channels > seats coincident reciprocal labels in TD without dropping route semantics [46.42ms]
+(pass) private label-bearing route channels > seats coincident reciprocal labels in BT without dropping route semantics [31.31ms]
+(pass) private label-bearing route channels > seats coincident incoming thick arrow in LR without dropping route semantics [194.99ms]
+(pass) private label-bearing route channels > seats coincident incoming thick arrow in RL without dropping route semantics [205.22ms]
+(pass) private label-bearing route channels > seats coincident incoming thick arrow in TD without dropping route semantics [74.83ms]
+(pass) private label-bearing route channels > seats coincident incoming thick arrow in BT without dropping route semantics [65.15ms]
+(pass) private label-bearing route channels > seats mixed-width duplicate captions in LR without dropping route semantics [248.42ms]
+(pass) private label-bearing route channels > seats mixed-width duplicate captions in RL without dropping route semantics [229.61ms]
+(pass) private label-bearing route channels > seats mixed-width duplicate captions in TD without dropping route semantics [102.91ms]
+(pass) private label-bearing route channels > seats mixed-width duplicate captions in BT without dropping route semantics [94.32ms]
+(pass) a private channel retains end solid arrow leads and clears foreign ink at rotation 0 (collinear=false) [22.64ms]
+(pass) a private channel retains start solid arrow leads and clears foreign ink at rotation 0 (collinear=false) [19.71ms]
+(pass) a private channel retains start thick arrow leads and clears foreign ink at rotation 0 (collinear=false) [13.24ms]
+(pass) a private channel retains both thick arrow leads and clears foreign ink at rotation 0 (collinear=false) [15.79ms]
+(pass) a private channel retains start thick arrow leads and clears foreign ink at rotation 0 (collinear=true) [14.81ms]
+(pass) a private channel retains end solid arrow leads and clears foreign ink at rotation 1 (collinear=false) [15.88ms]
+(pass) a private channel retains start solid arrow leads and clears foreign ink at rotation 1 (collinear=false) [15.95ms]
+(pass) a private channel retains start thick arrow leads and clears foreign ink at rotation 1 (collinear=false) [11.38ms]
+(pass) a private channel retains both thick arrow leads and clears foreign ink at rotation 1 (collinear=false) [12.88ms]
+(pass) a private channel retains start thick arrow leads and clears foreign ink at rotation 1 (collinear=true) [12.24ms]
+(pass) a private channel retains end solid arrow leads and clears foreign ink at rotation 2 (collinear=false) [13.19ms]
+(pass) a private channel retains start solid arrow leads and clears foreign ink at rotation 2 (collinear=false) [14.16ms]
+(pass) a private channel retains start thick arrow leads and clears foreign ink at rotation 2 (collinear=false) [15.69ms]
+(pass) a private channel retains both thick arrow leads and clears foreign ink at rotation 2 (collinear=false) [10.57ms]
+(pass) a private channel retains start thick arrow leads and clears foreign ink at rotation 2 (collinear=true) [11.67ms]
+(pass) a private channel retains end solid arrow leads and clears foreign ink at rotation 3 (collinear=false) [28.16ms]
+(pass) a private channel retains start solid arrow leads and clears foreign ink at rotation 3 (collinear=false) [16.14ms]
+(pass) a private channel retains start thick arrow leads and clears foreign ink at rotation 3 (collinear=false) [16.94ms]
+(pass) a private channel retains both thick arrow leads and clears foreign ink at rotation 3 (collinear=false) [14.49ms]
+(pass) a private channel retains start thick arrow leads and clears foreign ink at rotation 3 (collinear=true) [12.14ms]
+(pass) route repair preserves authored identities when positioned edges are reordered [15.98ms]
+(pass) an overflowing terminal displacement cannot bypass marker separation [0.59ms]
+
+src/__tests__/layout-certification.test.ts:
+(pass) bounded final layout certification > certifies both owned candidates before preferring fewer final crossings [1.82ms]
+(pass) bounded final layout certification > preserves the owned primary after typed decline or invalid alternative geometry [1.32ms]
+(pass) bounded final layout certification > certifies a compact candidate after an orientation decline [0.97ms]
+(pass) bounded final layout certification > bounds optional owned trials while retaining the feasible primary [1.05ms]
+(pass) bounded final layout certification > propagates owned refinement failure %s [0.84ms]
+(pass) bounded final layout certification > propagates owned refinement failure %s [0.59ms]
+(pass) bounded final layout certification > propagates owned refinement failure %s [0.52ms]
+(pass) bounded final layout certification > never hides changed meaning in an owned alternative [0.72ms]
+(pass) bounded final layout certification > owned candidate correspondence failures are engine defects, not recoverable geometry [2.05ms]
+(pass) bounded final layout certification > owned candidate exceptions propagate while geometric rejection stays classified [1.69ms]
+(pass) bounded final layout certification > a rejected conditional solver preserves all four fallbacks with route selection %s [2.26ms]
+(pass) bounded final layout certification > a rejected conditional solver preserves all four fallbacks with route selection %s [1.57ms]
+(pass) bounded final layout certification > a failing primary producer is contained before separate-hierarchy within the public fallback budget [59.30ms]
+(pass) bounded final layout certification > a failing primary producer is contained before default within the public fallback budget [2.82ms]
+(pass) bounded final layout certification > the public layout certifies actual styled label geometry [15.00ms]
+(pass) bounded final layout certification > an invalid first route yields to a certified deterministic alternative [9.43ms]
+(pass) bounded final layout certification > readable container titles take precedence over a crossing reduction [3.82ms]
+(pass) bounded final layout certification > crossing reduction outranks fewer bends and a smaller canvas among feasible routes [1.04ms]
+(pass) bounded final layout certification > a final route comparison reuses its placement preflight and keeps placement evidence [1.61ms]
+(pass) bounded final layout certification > a final routing callback cannot use an attached receipt to bypass placement checks [3.63ms]
+(pass) bounded final layout certification > a soft label-conflict reduction cannot buy another crossing [2.37ms]
+(pass) bounded final layout certification > zero crossings do not suppress a bounded label-conflict comparison [1.37ms]
+(pass) bounded final layout certification > continuity outranks canonical ports when crossings are equal [1.16ms]
+(pass) bounded final layout certification > canonical ports outrank symmetry, which outranks compactness [3.70ms]
+(pass) bounded final layout certification > compactness breaks quality ties and exact ties retain candidate order [1.93ms]
+(pass) bounded final layout certification > quality production respects the deterministic nodes work bound at 64 [2.59ms]
+(pass) bounded final layout certification > quality production respects the deterministic nodes work bound at 65 [1.61ms]
+(pass) bounded final layout certification > quality production respects the deterministic edges work bound at 128 [11.87ms]
+(pass) bounded final layout certification > quality production respects the deterministic edges work bound at 129 [5.03ms]
+(pass) bounded final layout certification > ordinary zero-crossing graphs and no-op strategies do not produce a cosmetic alternative [67.16ms]
+(pass) bounded final layout certification > a real crossing graph bounds comparisons while retaining authored endpoints and zero-crossing ink [46.00ms]
+(pass) bounded final layout certification > no candidate succeeds on non-finite geometry, even when an outline checker could miss it [1.90ms]
+(pass) bounded final layout certification > a visible edge label requires retained labelBlock before certification [3.84ms]
+(pass) bounded final layout certification > a visible edge label requires retained labelPosition before certification [2.98ms]
+(pass) bounded final layout certification > a candidate cannot pass by losing or changing an authored node [9.76ms]
+(pass) bounded final layout certification > a candidate cannot pass by losing or changing an authored edge [2.34ms]
+(pass) bounded final layout certification > a candidate cannot pass by losing or changing an authored marker [2.20ms]
+(pass) bounded final layout certification > a candidate cannot pass by losing or changing an authored label [1.99ms]
+(pass) bounded final layout certification > a candidate cannot pass by losing or changing an authored node-label [1.80ms]
+(pass) bounded final layout certification > a candidate cannot pass by losing or changing an authored group-label [1.81ms]
+(pass) bounded final layout certification > a candidate cannot pass by losing or changing an authored parent [1.83ms]
+(pass) bounded final layout certification > a candidate cannot exchange authored members between intact group frames [9.44ms]
+(pass) bounded final layout certification > public group membership retains authored identities instead of inferring ownership from coordinates [1.75ms]
+(pass) bounded final layout certification > a retained node text block cannot replace the authored label [10.58ms]
+(pass) bounded final layout certification > a retained group text block cannot replace the authored label [2.61ms]
+(pass) bounded final layout certification > a retained edge text block cannot replace the authored label [2.54ms]
+(pass) bounded final layout certification > retained formatted and transformed labels preserve their authored source [15.72ms]
+(pass) bounded final layout certification > retained node text preserves decoded literal meaning through certification [19.35ms]
+(pass) bounded final layout certification > retained group text preserves decoded literal meaning through certification [9.85ms]
+(pass) bounded final layout certification > retained edge text preserves decoded literal meaning through certification [9.42ms]
+(pass) bounded final layout certification > retained text cannot change its prepared display interpretation [2.38ms]
+(pass) bounded final layout certification > retained text cannot change its prepared transform interpretation [1.85ms]
+(pass) bounded final layout certification > an authored child frame cannot escape its parent with its members [8.66ms]
+(pass) bounded final layout certification > exhaustion stops after four attempts and never returns the least-bad candidate [1.78ms]
+(pass) bounded final layout certification > a title preference preflight exception stays inside its candidate attempt [3.65ms]
+(pass) bounded final layout certification > a certified fallback survives an invalid title alternative without an extra production [0.85ms]
+(pass) bounded final layout certification > a certified fallback survives an invalid quality alternative without an extra production [0.71ms]
+(pass) bounded final layout certification > a non-recoverable %s cannot be hidden by an otherwise clean fallback [2.93ms]
+(pass) bounded final layout certification > a non-recoverable %s cannot be hidden by an otherwise clean fallback [2.50ms]
+(pass) bounded final layout certification > a non-recoverable %s cannot be hidden by an otherwise clean fallback [3.80ms]
+(pass) final full group-header route geometry > unrelated root header [1.32ms]
+(pass) final full group-header route geometry > nested header below the parent band [0.10ms]
+(pass) final full group-header route geometry > authored north exterior contact [0.07ms]
+(pass) final full group-header route geometry > own endpoint approached through its header interior [0.03ms]
+(pass) final full group-header route geometry > border-only north contact [0.02ms]
+(pass) final full group-header route geometry > invisible route [0.02ms]
+(pass) final full group-header route geometry > concurrency region has no own header [0.03ms]
+(pass) final full group-header route geometry > explicit zero header [0.02ms]
+(pass) final full group-header route geometry > missing height retains measured band [0.08ms]
+(pass) final full group-header route geometry > missing height does not reserve the whole group [0.02ms]
+(pass) group headers gate completed candidate consumers > a clear shorter shaft cannot make a reserved-header candidate feasible [1.76ms]
+(pass) group headers gate completed candidate consumers > a route alternative with fewer bends cannot overwrite a header-clear baseline [1.06ms]
+(pass) retained header bands are independent of frame height > final band: zero-width band above zero frame [0.27ms]
+(pass) retained header bands are independent of frame height > final band: positive-width full band beyond frame [0.04ms]
+(pass) retained header bands are independent of frame height > final band: below full retained band [0.01ms]
+(pass) retained header bands are independent of frame height > final band: exact lower boundary [0.01ms]
+(pass) retained header bands are independent of frame height > final band: missing height uses actual text fallback [0.01ms]
+(pass) retained header bands are independent of frame height > final band: negative retained height
+(pass) retained header bands are independent of frame height > final band: nonfinite retained height [0.01ms]
+(pass) retained header bands are independent of frame height > final band: infinite retained height
+(pass) retained header bands are independent of frame height > lane band: inside measured band beyond frame [0.26ms]
+(pass) retained header bands are independent of frame height > lane band: below measured band beyond frame [0.01ms]
+(pass) retained header bands are independent of frame height > lane band: missing height conservatively reserves whole frame [0.02ms]
+(pass) retained header bands are independent of frame height > lane band: negative height conservative
+(pass) retained header bands are independent of frame height > lane band: nonfinite height conservative
+(pass) retained header bands are independent of frame height > lane band: infinite height conservative
+(pass) retained header bands are independent of frame height > public empty golden group retains authored identity and its zero-area band [16.31ms]
+
+src/__tests__/style-options.test.ts:
+(pass) RenderOptions style surface > named Style + Palette stacks render without changing Mermaid source [52.07ms]
+(pass) RenderOptions style surface > hand-drawn style adds deterministic backdrop and honors seed [117.65ms]
+(pass) RenderOptions style surface > custom public style fragments validate and render [16.70ms]
+(pass) RenderOptions style surface > untrusted style colors and numeric controls reject injection and invalid geometry [1.06ms]
+(pass) RenderOptions style surface > removed role-style keys are rejected at validation and render boundaries [0.32ms]
+
+18 tests failed:
+(fail) node repairs retain terminal axes around measured headers > preserves the actual clear dash gap: solid, animate=false, animation=undefined [1.59ms]
+(fail) node repairs retain terminal axes around measured headers > preserves the actual clear dash gap: solid, animate=true, animation=slow [0.73ms]
+(fail) node repairs retain terminal axes around measured headers > preserves the actual clear dash gap: solid, animate=true, animation=fast [0.66ms]
+(fail) node repairs retain terminal axes around measured headers > preserves the actual clear dash gap: thick, animate=true, animation=fast [0.56ms]
+(fail) node repairs retain terminal axes around measured headers > preserves the actual clear dash gap: dotted, animate=false, animation=undefined [0.54ms]
+(fail) node repairs retain terminal axes around measured headers > preserves the actual clear dash gap: dotted, animate=true, animation=fast [0.49ms]
+(fail) node repairs retain terminal axes around measured headers > repairs actual stroke-only contact without moving a clear route, transpose=false, reverse=false [1.43ms]
+(fail) node repairs retain terminal axes around measured headers > repairs actual positive stroke gap without moving a clear route, transpose=false, reverse=false [0.96ms]
+(fail) node repairs retain terminal axes around measured headers > repairs actual empty curved corner without moving a clear route, transpose=false, reverse=false [0.62ms]
+(fail) node repairs retain terminal axes around measured headers > repairs actual stroke-only contact without moving a clear route, transpose=false, reverse=true [0.60ms]
+(fail) node repairs retain terminal axes around measured headers > repairs actual positive stroke gap without moving a clear route, transpose=false, reverse=true [0.61ms]
+(fail) node repairs retain terminal axes around measured headers > repairs actual empty curved corner without moving a clear route, transpose=false, reverse=true [0.53ms]
+(fail) node repairs retain terminal axes around measured headers > repairs actual stroke-only contact without moving a clear route, transpose=true, reverse=false [0.65ms]
+(fail) node repairs retain terminal axes around measured headers > repairs actual positive stroke gap without moving a clear route, transpose=true, reverse=false [0.49ms]
+(fail) node repairs retain terminal axes around measured headers > repairs actual empty curved corner without moving a clear route, transpose=true, reverse=false [0.50ms]
+(fail) node repairs retain terminal axes around measured headers > repairs actual stroke-only contact without moving a clear route, transpose=true, reverse=true [0.46ms]
+(fail) node repairs retain terminal axes around measured headers > repairs actual positive stroke gap without moving a clear route, transpose=true, reverse=true [0.64ms]
+(fail) node repairs retain terminal axes around measured headers > repairs actual empty curved corner without moving a clear route, transpose=true, reverse=true [0.55ms]
+
+ 576 pass
+ 18 fail
+ 4587 expect() calls
+Ran 594 tests across 3 files. [11.18s]

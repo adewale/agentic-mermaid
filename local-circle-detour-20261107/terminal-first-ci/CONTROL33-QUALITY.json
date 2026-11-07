@@ -1,0 +1,15 @@
+{
+  "case": "Native33",
+  "before": {
+    "viewBox": "0 0 2192.128 401.05",
+    "bends": 78,
+    "wire": 17075.835239034997
+  },
+  "after": {
+    "viewBox": "0 0 2192.128 401.05",
+    "bends": 78,
+    "wire": 17075.835239034997
+  },
+  "proofPreserved": "passed",
+  "scope": "Changed route quality record; actual old/new SVGs retained with separate marker/port checks."
+}
