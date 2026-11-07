@@ -562,7 +562,9 @@ export function attachSourceMapSpans(sourceMap: SourceMap, canonicalSource: stri
 
 /** Convert actual parser-owned ranges to the two established map coordinate
  * spaces. The parser callback owns grammar and identity; this helper owns only
- * coordinates, including wrappers, indentation and multiline statements. */
+ * coordinates, including wrappers, indentation and multiline statements. Equal
+ * family bytes publish both projections in one read; normalization differences
+ * still require the authored grammar's separate ranges. */
 export function mapObservedSource(
   source: string,
   context: FamilySourceMapContext | undefined,
@@ -571,18 +573,21 @@ export function mapObservedSource(
   const map: SourceMap = { nodes: new Map(), edges: new Map(), groups: new Map(), labels: new Map() }
   const starts = sourceLineStarts(source)
   const ends = { nodes: new Map<string, SourceLocation>(), edges: new Map<string, SourceLocation>(), groups: new Map<string, SourceLocation>(), labels: new Map<string, SourceLocation>() }
+  const original = context?.originalText
+  const prefix = context?.authoredWrapperLength ?? context?.wrapperSource?.length ?? 0
+  const authored = original?.slice(prefix)
+  const identical = source === authored
+  const authoredStarts = original === undefined ? undefined : original === source ? starts : sourceLineStarts(original)
+  const exact = context ? { nodes: new Map<string, SourceSpan>(), edges: new Map<string, SourceSpan>(), groups: new Map<string, SourceSpan>(), labels: new Map<string, SourceSpan>() } : undefined
   read(source, (kind, id, start, end) => {
     const point = sourcePointAt(starts, start), finish = sourcePointAt(starts, end)
     map[kind].set(id, { line: point.line, col: point.col })
     ends[kind].set(id, { line: finish.line, col: finish.col })
+    if (identical) exact![kind].set(id, prefix === 0 ? Object.freeze({ start: point, end: finish }) : sourceSpan(authoredStarts!, prefix + start, prefix + end))
   })
   recordSourceMapEnds(map, ends)
-  if (context) {
-    const original = context.originalText
-    const prefix = context.authoredWrapperLength ?? context.wrapperSource?.length ?? 0
-    const authoredStarts = sourceLineStarts(original)
-    const exact = { nodes: new Map<string, SourceSpan>(), edges: new Map<string, SourceSpan>(), groups: new Map<string, SourceSpan>(), labels: new Map<string, SourceSpan>() }
-    read(original.slice(prefix), (kind, id, start, end) => exact[kind].set(id, sourceSpan(authoredStarts, prefix + start, prefix + end)))
+  if (exact) {
+    if (!identical) read(authored!, (kind, id, start, end) => exact[kind].set(id, sourceSpan(authoredStarts!, prefix + start, prefix + end)))
     recordAuthoredSourceMapSpans(map, exact)
   }
   return map

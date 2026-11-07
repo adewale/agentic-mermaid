@@ -1,6 +1,9 @@
 import { describe, expect, test } from 'bun:test'
 import { parseRegisteredMermaid as parseMermaid } from '../agent/parse.ts'
 import { serializeMermaid } from '../agent/serialize.ts'
+import { attachSourceMapSpans, mapObservedSource } from '../agent/source-map-spans.ts'
+import { withParserObservation } from '../shared/parser-observation.ts'
+import { parseWardleyBody } from '../wardley/body.ts'
 import { layoutWardley } from '../wardley/layout.ts'
 import { layoutCynefin } from '../cynefin/layout.ts'
 import { layoutRailroad } from '../railroad/layout.ts'
@@ -939,6 +942,71 @@ foo[Node]`
   })
 })
 
+
+test.each([
+  ['without authored context', '', false, 1, false],
+  ['unwrapped identical', '', false, 1, true],
+  ['wrapped identical', '---\r\ntitle: Wrapper\r\n---\r\n', false, 1, true],
+  ['wrapped different', '---\r\ntitle: Wrapper\r\n---\r\n', true, 2, true],
+] as const)('observed maps read %s bytes without losing coordinate projections', (_name, wrapper, different, expectedReads, withContext) => {
+  const source = [
+    'wardley-beta', 'component A [80.0, 30.0]', 'component B [20.0, 70.0]',
+    'component A [60.0, 40.0]', 'pipeline A {', 'component C [50.0]', '}', 'A -> B ;needs',
+  ].join('\r\n')
+  const authored = different ? source.replace('component A [60.0, 40.0]', 'component "A" [60.0, 40.0]') : source
+  const original = wrapper + authored
+  const reads: string[] = []
+  const map = mapObservedSource(source, withContext ? { originalText: original, wrapperSource: wrapper } : undefined, (text, record) => {
+    reads.push(text)
+    let link = 0
+    withParserObservation('wardley', event => {
+      if (event.unit !== 'mutation' || event.source?.offset === undefined || event.source.endOffset === undefined) return
+      const add = (kind: 'nodes' | 'edges' | 'groups' | 'labels', id: string) => record(kind, id, event.source!.offset!, event.source!.endOffset!)
+      if (event.kind === 'add-node') {
+        const { id } = event.value as { id: string }
+        add('nodes', id); add('labels', `node:${id}`)
+      } else if (event.kind === 'start-pipeline') add('groups', `pipeline:${(event.value as { nodeId: string }).nodeId}`)
+      else if (event.kind === 'add-link') add('edges', `dependency:${link++}`)
+    }, () => parseWardleyBody(text))
+  })
+  expect(reads).toEqual(expectedReads === 1 ? [source] : [source, authored])
+  expect([...map.nodes]).toEqual([['A', { line: 4, col: 1 }], ['B', { line: 3, col: 1 }], ['A_C', { line: 6, col: 1 }]])
+  expect([...map.groups]).toEqual([['pipeline:A', { line: 5, col: 1 }]])
+  expect([...map.edges]).toEqual([['dependency:0', { line: 8, col: 1 }]])
+  expect([...map.labels.keys()]).toEqual(['node:A', 'node:B', 'node:A_C'])
+  const canonicalLocation = map.nodes.get('A')!
+  expect(Object.keys(canonicalLocation)).toEqual(['line', 'col'])
+  expect(Object.isFrozen(canonicalLocation)).toBe(false)
+  attachSourceMapSpans(map, source, original, sourcePreservationSpans(original, 'wardley-beta', wrapper.length))
+  const spans = map.spans!
+  expect([...spans.nodes].map(([id, span]) => [id, textAt(original, span)])).toEqual([
+    ['A', different ? 'component "A" [60.0, 40.0]' : 'component A [60.0, 40.0]'], ['B', 'component B [20.0, 70.0]'], ['A_C', 'component C [50.0]'],
+  ])
+  expect(textAt(original, spans.groups.get('pipeline:A'))).toBe('pipeline A {\r\ncomponent C [50.0]\r\n}')
+  expect(textAt(original, spans.edges.get('dependency:0'))).toBe('A -> B ;needs')
+  expect([...spans.labels].map(([id, span]) => [id, textAt(original, span)])).toEqual([
+    ['node:A', different ? 'component "A" [60.0, 40.0]' : 'component A [60.0, 40.0]'], ['node:B', 'component B [20.0, 70.0]'], ['node:A_C', 'component C [50.0]'],
+  ])
+  const point = spans.nodes.get('A')!
+  expect(point.start).toEqual({ offset: original.indexOf(different ? 'component "A"' : 'component A [60'), line: wrapper ? 7 : 4, col: 1 })
+  expect(Object.isFrozen(point)).toBe(true)
+  expect(Object.isFrozen(point.start)).toBe(true)
+  expect(Object.isFrozen(point.end)).toBe(true)
+  canonicalLocation.col = 99
+  expect(point.start.col).toBe(1)
+})
+
+test('observed source readers preserve native refusals in either coordinate input', () => {
+  const invalid = 'wardley-beta\ncomponent A'
+  for (const [source, expectedReads] of [[invalid, 1], ['wardley-beta\ncomponent A [80.0, 30.0]', 2]] as const) {
+    let reads = 0
+    expect(() => mapObservedSource(source, { originalText: invalid }, text => {
+      reads++
+      parseWardleyBody(text)
+    })).toThrow('wardley syntax error at 2:12:')
+    expect(reads).toBe(expectedReads)
+  }
+})
 
 test('Wardley observed source maps follow final component writes, pipelines and native annotation owners', () => {
   const source = [
