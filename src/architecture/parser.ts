@@ -4,7 +4,7 @@ import type { MermaidGraph, MermaidSubgraph, Direction } from '../types.ts'
 import { normalizeBrTags } from '../multiline-utils.ts'
 import { syntaxError } from '../shared/syntax-error.ts'
 import { parseAccessibilityDirective, type ParsedAccessibilityDirective } from '../shared/accessibility-directives.ts'
-import { quotedTextEnds, statementText, stripTrailingComment } from '../shared/trailing-comment.ts'
+import { quotedTextEnds, stripTrailingComment } from '../shared/trailing-comment.ts'
 import { ALIGN_DIRECTIVE_RE, parseAlignDirective } from './align.ts'
 import { ARCHITECTURE_GROUP_ICON_TITLE_OFFSET } from './config.ts'
 import type { ArchitectureAlignment } from './align.ts'
@@ -229,8 +229,7 @@ export function readArchitectureStatements(lines: readonly string[]): Architectu
       continue
     }
     index = ends[index]!
-    const hasTextIcon = /^service\s+[\w-]+\s*["']/.test(rawText)
-    const line = stripTrailingComment((hasTextIcon ? lines.slice(start, index + 1).join('\n') : statementText(lines, start, index)).trim())
+    const line = stripTrailingComment(lines.slice(start, index + 1).join('\n').trim())
     try {
       const title = line.match(/^title\s+(.+)$/i)
       const group = line.match(GROUP_RE)
