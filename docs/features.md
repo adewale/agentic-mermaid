@@ -132,7 +132,9 @@ endpoint is a convenience surface rather than a REST render API.
 
 - npm library (`agentic-mermaid` and `agentic-mermaid/agent`) with Node-runnable bins (`am`, the package-runner alias `agentic-mermaid`, and `agentic-mermaid-mcp`).
 - **Single binary** — `bun run build:binary` → `dist/am`, standalone
-  executable, no runtime dependency (#1018).
+  executable for rendering and local MCP (#1018), including `render_svg`,
+  `render_ascii` and `verify` without an external Node installation. See the
+  [process and memory budgets](./mcp-http-transport.md#direct-rendering-and-verification).
 - **llms.txt** agent-discovery digest, derived from capabilities.
 
 ## Guarantees & evidence

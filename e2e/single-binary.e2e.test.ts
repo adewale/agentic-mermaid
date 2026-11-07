@@ -4,19 +4,20 @@
 
 import { describe, test, expect } from 'bun:test'
 import { spawnSync } from 'node:child_process'
-import { existsSync, readFileSync, writeFileSync } from 'node:fs'
+import { copyFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { useTempDirs } from '../src/__tests__/helpers/temp-dir.ts'
 
 const REPO = join(import.meta.dir, '..')
-const ENTRY = join(REPO, 'bin', 'am.ts')
+const BUILD_SCRIPT = join(REPO, 'scripts', 'build', 'build-binary.ts')
 const BUILD_TIMEOUT_MS = 120_000
 const RUN_TIMEOUT_MS = 30_000
 
 // Build once into a temp dir so we don't fight the gitignored dist/am.
 const work = useTempDirs('am-bin-').dir()
-const BIN = join(work, 'am')
-const build = spawnSync('bun', ['build', ENTRY, '--compile', '--outfile', BIN], { encoding: 'utf8', timeout: BUILD_TIMEOUT_MS })
+const BINARY_NAME = process.platform === 'win32' ? 'am.exe' : 'am'
+const BIN = join(work, BINARY_NAME)
+const build = spawnSync('bun', ['run', BUILD_SCRIPT, '--outfile', BIN], { cwd: REPO, encoding: 'utf8', timeout: BUILD_TIMEOUT_MS })
 const haveBinary = build.status === 0 && existsSync(BIN)
 if (!haveBinary) {
   throw new Error([
@@ -32,6 +33,40 @@ const fixture = join(work, 'd.mmd')
 writeFileSync(fixture, 'flowchart TD\n  A[Start] --> B[End]\n')
 
 describe('#1018 single-binary distribution', () => {
+  test('copied binary serves direct MCP tools and recovers from syntax errors without Node', () => {
+    const copied = join(work, 'copied executable with spaces')
+    const emptyPath = join(work, 'no external runtimes')
+    mkdirSync(copied)
+    mkdirSync(emptyPath)
+    const binary = join(copied, BINARY_NAME)
+    copyFileSync(BIN, binary)
+    const requests = [
+      ...['render_svg', 'render_ascii', 'verify'].map((name, index) => ({
+        jsonrpc: '2.0', id: index + 1, method: 'tools/call', params: {
+          name, arguments: { source: 'sequenceDiagram\nA->>B: Embedded renderer' },
+        },
+      })),
+      { jsonrpc: '2.0', id: 4, method: 'tools/call', params: { name: 'render_svg', arguments: { source: '---\ntitle: Broken\n---\nsequenceDiagram\n  invalid ???' } } },
+      { jsonrpc: '2.0', id: 5, method: 'tools/call', params: { name: 'render_ascii', arguments: { source: 'sequenceDiagram\nA->>B: Recovered' } } },
+    ]
+    const result = spawnSync(binary, ['mcp'], {
+      cwd: copied, env: { ...Object.fromEntries(Object.entries(process.env).filter(([key]) => key.toUpperCase() !== 'PATH')), PATH: emptyPath },
+      input: requests.map(request => JSON.stringify(request)).join('\n') + '\n',
+      encoding: 'utf8', timeout: RUN_TIMEOUT_MS,
+    })
+    expect({ status: result.status, stderr: result.stderr }).toEqual({ status: 0, stderr: '' })
+    const responses = result.stdout.trim().split('\n').map(line => JSON.parse(line))
+    expect(responses).toHaveLength(5)
+    const byId = new Map(responses.map(response => [response.id, response.result]))
+    for (const response of responses) expect(response.result.structuredContent).toEqual(JSON.parse(response.result.content[0].text))
+    for (const id of [1, 2, 3, 5]) expect(byId.get(id)).toMatchObject({ isError: false, structuredContent: { ok: true } })
+    expect(byId.get(1).structuredContent.svg).toContain('<svg')
+    expect(byId.get(2).structuredContent.text).toContain('Embedded renderer')
+    expect(byId.get(3).structuredContent).toMatchObject({ family: 'sequence' })
+    expect(byId.get(4)).toMatchObject({ isError: true, structuredContent: { ok: false, error: { code: 'MERMAID_SYNTAX_ERROR', diagramType: 'sequence', line: 5, column: 3 } } })
+    expect(byId.get(5).structuredContent.text).toContain('Recovered')
+  })
+
   test('binary renders SVG', () => {
     const r = spawnSync(BIN, ['render', fixture], { encoding: 'utf8', timeout: RUN_TIMEOUT_MS })
     expect(r.status).toBe(0)

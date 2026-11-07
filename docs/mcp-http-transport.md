@@ -48,6 +48,48 @@ HTTP endpoints:
 
 `/rpc` and `/message` require `content-type: application/json`; browser-simple `text/plain` form posts are rejected. Non-loopback hosts require `Authorization: Bearer <token>` on `/rpc`, `/sse`, `/message`, and `/artifacts/*`, and the same Origin check covers those routes. SSE sessions are capped (32 by default); an exhausted server returns `503` instead of retaining another session.
 
+## Direct rendering and verification
+
+The local stdio and HTTP servers expose `render_svg`, `render_ascii`, and
+`verify`, with the same input schemas and payloads as the hosted tools. Local
+responses include both MCP `structuredContent` and an equivalent JSON text
+block. Use `render_ascii` with `useAscii: true` for ASCII, or omit it for Unicode.
+`verify` checks parsing, structure and graphical renderability.
+
+These three local tools share one warm render subprocess, with a 15-second
+wall-clock deadline per request, including queue and startup time. At most 32
+requests may wait; further calls receive `RENDER_BUSY`. Cancelling queued work
+leaves the active call intact. Cancelling or timing out active work retires its
+process immediately; replacement waits for process closure. Request IDs and
+receipt-time deadline checks reject late replies. Syntax errors return structured
+results and leave the worker usable; fatal worker/startup failures release the
+slot for a fresh process.
+
+The subprocess uses the server's current executable. Installed Node/Bun packages
+launch their built JavaScript supervisor and worker entries. The compiled Bun
+binary reexecutes itself with its embedded renderer; it needs no Node installation,
+source checkout or runtime bundling. An idle renderer stays warm and does not
+keep the server alive.
+
+A supervisor samples the whole render subprocess's resident memory (RSS),
+including its worker and native buffers, every 10 ms. It terminates the subprocess
+when a sample exceeds the 512 MiB budget. Sampling can be delayed by scheduling
+or serialization and can miss transient spikes; this is a best-effort budget,
+and usage can overshoot it. The parent server's memory is additional. Strict
+memory containment requires OS/container enforcement. Node also has a controlled
+V8 heap guard, checked before accepting work; inherited Node heap options cannot
+enlarge that guard. Bun uses the sampled RSS budget without a V8 heap guarantee.
+Memory-budget exits return `RENDER_MEMORY_LIMIT`. No sampled reading is reported
+as an actual peak.
+
+Process messages are bounded before transfer: requests to 4 MiB and results to
+16 MiB of JSON. Oversized requests/results return `RENDER_REQUEST_LIMIT` or
+`RENDER_OUTPUT_LIMIT`; diagrams retain the existing source/graph/Scene work
+limits. These transfer limits bound serialization work without making its
+execution time a fixed guarantee.
+The direct render helpers force strict output security and disable font imports.
+Local `execute` retains its existing sandbox and caller-selectable render policy.
+
 ## Direct JSON-RPC examples: `render_png`
 
 ### Base64 output (default)
