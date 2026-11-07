@@ -154,6 +154,11 @@ The review found defects beyond the first blocked benchmark assertion:
   policy. Their owning tests check nested and sibling membership after copying
   canonical source, as well as SVG/terminal correspondence. Mindmap diagnostics
   still use physical positions when a root shares its header line.
+  TreeView also uses the shared range producer for complete quoted and
+  box-prefix declarations, sharing immutable node/branch/label spans while
+  keeping mutable locations separate. Its reader and ranges handle LF, CRLF,
+  lone CR and mixed endings; preserving physical source must not introduce a
+  source-map crash on an already admitted line ending.
 - Railroad parsed accessibility fields but omitted them from its registered
   body and native SVG, and an unrelated title edit discarded them. Its existing
   body metadata adapter and field writer now retain those fields. The shared
