@@ -4,6 +4,7 @@ import { classMarkerPiecesOverlap } from '../layout/measured-marker-overlap.ts'
 import type { ResolvedRenderStyle } from '../styles.ts'
 import { layoutAgenticGraph } from '../layout/agentic-layered.ts'
 import { describe, expect, test } from 'bun:test'
+import { SaxesParser } from 'saxes'
 import { resolve } from 'node:path'
 import { readFileSync } from 'node:fs'
 import { createMeasuredLayoutCache, layoutLayeredGraph } from '../layout/agentic-producer-core.ts'
@@ -250,6 +251,160 @@ describe('flat measured marker finalization', () => {
 
 
 describe('measured primary port pitch',()=>{
+  const crowdedSources = [
+    { caseId: 201, target: 'n7', source: `flowchart LR
+n0((Node 201-0))
+n1[[Node 201-1]]
+n2[(Node 201-2)]
+n3[Node 201-3]
+n4{Node 201-4}
+n5(Node 201-5)
+n6((Node 201-6))
+n7[[Node 201-7]]
+n8[(Node 201-8)]
+n9[Node 201-9]
+n10{Node 201-10}
+n11(Node 201-11)
+n12((Node 201-12))
+n13[[Node 201-13]]
+n3 -->|edge 0 xxx| n12
+n11 --> n0
+n6 --> n7
+n7 --> n1
+n1 -->|edge 4 xxxxxxx| n6
+n2 --> n3
+n0 --> n2
+n12 --> n1
+n1 -->|edge 8 xxxxxxxxxxx| n7
+n1 --> n0
+n10 --> n9
+n1 --> n13
+n3 -->|edge 12 xxxxxxxxxxxxxxx| n13
+n10 --> n9
+n13 --> n10
+n0 --> n11
+n6 -->|edge 16 xxxxxxxxxxxxxxxxxxx| n2
+n11 --> n12
+n9 --> n10
+n9 --> n1
+n2 -->|edge 20 xxxxxx| n10
+n1 --> n7
+n3 --> n7
+n5 --> n3
+n3 -->|edge 24 xxxxxxxxxx| n12
+n9 --> n7
+n4 --> n12
+n6 --> n3
+n12 -->|edge 28 xxxxxxxxxxxxxx| n13
+n3 --> n6
+n6 --> n7
+n2 --> n0
+n3 -->|edge 32 xxxxxxxxxxxxxxxxxx| n4` },
+    { caseId: 241, target: 'n3', source: `flowchart LR
+n0{Node 241-0}
+n1(Node 241-1)
+n2((Node 241-2))
+n3[[Node 241-3]]
+n4[(Node 241-4)]
+n5[Node 241-5]
+n6{Node 241-6}
+n7(Node 241-7)
+n8((Node 241-8))
+n9[[Node 241-9]]
+n10[(Node 241-10)]
+n11[Node 241-11]
+n12{Node 241-12}
+n13(Node 241-13)
+n14((Node 241-14))
+n10 -->|edge 0 xxx| n3
+n12 --> n9
+n4 --> n2
+n8 --> n9
+n3 -->|edge 4 xxxxxxx| n14
+n11 --> n5
+n0 --> n10
+n12 --> n14
+n3 -->|edge 8 xxxxxxxxxxx| n11
+n13 --> n11
+n6 --> n5
+n11 --> n0
+n0 -->|edge 12 xxxxxxxxxxxxxxx| n1
+n13 --> n2
+n1 --> n4
+n3 --> n12
+n8 -->|edge 16 xxxxxxxxxxxxxxxxxxx| n6
+n8 --> n7
+n13 --> n3
+n8 --> n9
+n2 -->|edge 20 xxxxxx| n3
+n3 --> n12
+n7 --> n10
+n14 --> n2
+n10 -->|edge 24 xxxxxxxxxx| n6
+n9 --> n10
+n5 --> n1
+n6 --> n14
+n1 -->|edge 28 xxxxxxxxxxxxxx| n10
+n9 --> n0
+n2 --> n8
+n12 --> n13
+n12 -->|edge 32 xxxxxxxxxxxxxxxxxx| n11` }
+  ]
+  const markerCases = crowdedSources.flatMap(fixture => ['LR', 'RL', 'TB', 'BT'].flatMap(direction => {
+    return (direction === 'LR' ? [false, true] : [false]).map(hidden => ({
+      ...fixture, source: fixture.source + (hidden ? `\nn0 ~~~ ${fixture.target}\nn0 ~~~ ${fixture.target}\nn0 ~~~ ${fixture.target}` : ''),
+      direction, hidden, backend: 'agentic' as const,
+    }))
+  }))
+  test.each(markerCases)('keeps ordinary heads distinct on the actual subroutine face: $caseId / $direction / hidden=$hidden', ({ source, target, direction, backend }) => {
+    const product = renderMermaidSVGWithReceipt(source.replace('flowchart LR', 'flowchart ' + direction), { graphLayout: { backend, fallback: 'none' }, embedFontImport: false })
+    const tags: Array<{ name: string; attrs: Record<string, string>; text: string }> = [], stack: Array<(typeof tags)[number]> = []
+    const xml = new SaxesParser({ xmlns: true })
+    xml.on('opentag', tag => {
+      const item = { name: tag.local, attrs: Object.fromEntries(Object.values(tag.attributes).map(value => [value.name, value.value])), text: '' }
+      tags.push(item); stack.push(item)
+    })
+    xml.on('text', text => { for (const item of stack) item.text += text })
+    xml.on('closetag', () => { stack.pop() })
+    xml.write(product.svg).close()
+    const authored = [...source.matchAll(/^(n\d+) -->(?:\|([^|]+)\|)? (n\d+)$/gm)]
+    const carriers = tags.filter(tag => tag.attrs['data-role'] === 'edge' && tag.attrs['data-from'])
+    expect(carriers.map(tag => tag.attrs['data-from'] + '->' + tag.attrs['data-to']).sort()).toEqual(authored.map(match => match[1] + '->' + match[3]).sort())
+    const names = [...source.matchAll(/Node \d+-\d+/g)].map(match => match[0])
+    expect(tags.filter(tag => tag.name === 'text').map(tag => tag.text).sort()).toEqual([...names, ...authored.filter(match => match[2]).map(match => match[2]!)].sort())
+    const heads = carriers.filter(tag => tag.attrs['data-to'] === target).map(tag => {
+      const points = tag.attrs.points!.split(/\s+/).map(pair => pair.split(',').map(Number))
+      const tip = points.at(-1)!, prior = points.at(-2)!
+      expect(tip[0] === prior[0] || tip[1] === prior[1]).toBe(true)
+      expect(tag.attrs['stroke-width']).toBe('1')
+      const resourceId = tag.attrs['marker-end']!.slice(5, -1), resource = tags.filter(tag => tag.name === 'marker' && tag.attrs.id === resourceId)
+      expect(resource).toHaveLength(1)
+      expect(['markerWidth', 'markerHeight', 'refX', 'refY', 'orient'].map(key => resource[0]!.attrs[key])).toEqual(['8', '5', '8', '2.5', 'auto'])
+      const index = tags.indexOf(resource[0]!), polygon = tags[index + 1]!
+      expect([polygon.name, polygon.attrs.points, polygon.attrs['stroke-width']]).toEqual(['polygon', '0 0, 8 2.5, 0 5', '0.75'])
+      expect(polygon.attrs.fill).not.toBe('none')
+      const dx = Math.sign(tip[0]! - prior[0]!), dy = Math.sign(tip[1]! - prior[1]!)
+      // Independent actual marker vertices: reference (8,2.5), unit shaft
+      // width, cardinal SVG auto orientation. The round stroke adds .375px.
+      return [[0, 0], [8, 2.5], [0, 5]].map(([x, y]) => ({ x: tip[0]! + (x! - 8) * dx - (y! - 2.5) * dy, y: tip[1]! + (x! - 8) * dy + (y! - 2.5) * dx }))
+    })
+    expect(heads).toHaveLength(authored.filter(match => match[3] === target).length)
+    expect(heads.length).toBeGreaterThan(1)
+    for (let i = 0; i < heads.length; i++) for (const other of heads.slice(i + 1)) {
+      const head = heads[i]!
+      const axes = [head, other].flatMap(polygon => polygon.map((point, index) => {
+        const next = polygon[(index + 1) % polygon.length]!
+        return { x: next.y - point.y, y: point.x - next.x }
+      }))
+      expect(axes.some(axis => {
+        const project = (polygon: typeof head) => polygon.map(point => point.x * axis.x + point.y * axis.y)
+        const a = project(head), b = project(other), stroke = .75 * Math.hypot(axis.x, axis.y)
+        return Math.max(...a) + stroke < Math.min(...b) || Math.max(...b) + stroke < Math.min(...a)
+      })).toBe(true)
+    }
+    expect(product.receipt.layoutCertification?.status).toBe('passed')
+  })
+
   test.each(['LR','RL','TD','BT'] as const)('uses the reserved %s face capacity instead of reclustering ports eight pixels apart',direction=>{
     const horizontal=direction==='LR'||direction==='RL'
     const input:MeasuredGraph={nodes:[{id:'A',width:horizontal?20:100,height:horizontal?100:20},...['B','C','D'].map(id=>({id,width:horizontal?20:1,height:horizontal?1:20}))],edges:[1,2,3].map(target=>({source:0,target,minSpan:1})),direction,padding:0,nodeSpacing:0,layerSpacing:40}

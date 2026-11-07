@@ -53,6 +53,32 @@ replace neither the dated profiler nor its missing runtime/cold/cache evidence.
 Next causal probe: whether standalone worker precompression accounts for the
 Brotli loss, preserving decoded worker bytes, ownership and browser contracts.
 
+## Ordinary marker face capacity — 7 November
+
+From `6edd3fd3bb70bfa4232d61aba6cd0822b5adc82d`, actual201/241 subroutine faces
+have seven oriented ports but only36.9px height:4.6125px pitch overlaps their
+5.75px marker supports. Preparation excludes subroutines and ordinary heads;
+authored max(in,out) also misses ports combined by cycle orientation. Reuse the
+existing measured marker span, minimum pitch and served-body sizing for crowded
+ordinary rectangle/subroutine faces. Count invisible constraints as occupied
+slots too; explicit sizes/semantic shapes remain excluded. One bounded counter
+array and its edge visits debit existing ledgers; no cache/quota/default change.
+
+Both proofs move U→P. Written support gaps−1.1375→+1.3125px. Independent actual
+SVG masks recover4 hidden selected head pixels per case, attenuation12→0;
+raster phase/exposed totals differ, so no visibility ratio/readability claim.
+201 wire−3.00%, bends73→65, area+3.46%;241 wire−1.62%, bends61→60, area−0.59%.
+This conservatively reserves all incident slots: acyclic mixed-direction nodes
+can grow unnecessarily. That cost and resource charges remain part of the trial.
+
+Owning6RED→10GREEN/410 assertions includes all directions and invisible links.
+Broad701P/18 missing-JSDOM loader failures; core types/two-file lint pass.
+All18 frozen PR calls retain15 exact SVGs/entire receipts and three ER256 refusals.
+Actual17/33/230 retain passed proof;152/372 remain exactU. A before-profile uses
+the existing full-SVG/entire-receipt collector; no speed forecast or ratio.
+Evidence: `marker-capacity-6edd`. Full matched CI, actual standalone and payload
+qualification remain pending at this commit; retain all newly changed outcomes.
+
 ## Shortcut clearance trial stopped — 7 November
 
 At `3234fb3183e78840321ab41fe6881b31a0f5d4b2`, trace case152 before shared cleanup:
