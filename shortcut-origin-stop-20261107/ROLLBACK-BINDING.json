@@ -1,0 +1,30 @@
+[
+  {
+    "case": "Native17",
+    "reference": "/tmp/pr449-week-comparison-20261101/contact-producer-6aa/controls/Native17",
+    "SVGExact": true,
+    "entireReceiptExact": true,
+    "proof": "passed"
+  },
+  {
+    "case": "Native152",
+    "reference": "/tmp/pr449-week-comparison-20261101/contact-origin-3234/before",
+    "SVGExact": true,
+    "entireReceiptExact": true,
+    "proof": "unverified"
+  },
+  {
+    "case": "Native230",
+    "reference": "/tmp/pr449-week-comparison-20261101/contact-producer-6aa/final230-repeat",
+    "SVGExact": true,
+    "entireReceiptExact": true,
+    "proof": "passed"
+  },
+  {
+    "case": "Native372",
+    "reference": "/tmp/pr449-week-comparison-20261101/contact-producer-6aa/controls/Native372",
+    "SVGExact": true,
+    "entireReceiptExact": true,
+    "proof": "unverified"
+  }
+]

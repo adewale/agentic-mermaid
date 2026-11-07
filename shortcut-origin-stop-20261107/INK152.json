@@ -1,0 +1,40 @@
+{
+  "font": "manifest-verified Inter; system fonts off",
+  "zoom": 3,
+  "offlineRasters": 8,
+  "rows": [
+    {
+      "arm": "before",
+      "sha256": "960d89b522ab5441cd28e55c624441e2223c9443ccf1d7f50b238c2582790515",
+      "roi": {
+        "x0": 562,
+        "x1": 593,
+        "y0": 1674,
+        "y1": 1735
+      },
+      "exposed": 183,
+      "visible": 61,
+      "attenuated": 183,
+      "hidden": 122,
+      "actualShaft": "<polyline class=\"edge\" data-style=\"solid\" data-arrow-start=\"false\" data-arrow-end=\"true\" data-marker-end=\"arrow\" data-label=\"edge 16 xxxxxxxxxxxxxxxxxxx\" points=\"319.16,795.162 319.16,820.537 293.172,820.537 293.172,1371.181 434.765,1371.181 434.765,1384.556\" fill=\"none\" stroke=\"#939395\" stroke-width=\"1\" marker-end=\"url(#lc24-arrowhead)\" data-relationship=\"flowchart-edge\" data-direction=\"forward\" data-id=\"edge:n16-&gt;n12#0\" data-role=\"edge\" data-from=\"n16\" data-to=\"n12\" role=\"graphics-symbol\" aria-roledescription=\"relation\" aria-label=\"n16 to n12: edge 16 xxxxxxxxxxxxxxxxxxx\" />",
+      "actualCircle": "<rect x=\"293.224\" y=\"833.912\" width=\"104.194\" height=\"36.9\" rx=\"0\" ry=\"0\" fill=\"#f9f9f9\" stroke=\"#949495\" stroke-width=\"0.75\" data-id=\"node-shape:n4\" data-role=\"node\" />"
+    },
+    {
+      "arm": "after",
+      "sha256": "211c322ee2d3710fc97286e6143909b156bf79cb1e1c102e0d4bcc4e05da6e0f",
+      "roi": {
+        "x0": 562,
+        "x1": 593,
+        "y0": 1674,
+        "y1": 1735
+      },
+      "exposed": 183,
+      "visible": 183,
+      "attenuated": 0,
+      "hidden": 0,
+      "actualShaft": "<polyline class=\"edge\" data-style=\"solid\" data-arrow-start=\"false\" data-arrow-end=\"true\" data-marker-end=\"arrow\" data-label=\"edge 16 xxxxxxxxxxxxxxxxxxx\" points=\"319.16,795.162 319.16,820.537 287.224,820.537 287.224,1371.181 434.765,1371.181 434.765,1384.556\" fill=\"none\" stroke=\"#939395\" stroke-width=\"1\" marker-end=\"url(#lc24-arrowhead)\" data-relationship=\"flowchart-edge\" data-direction=\"forward\" data-id=\"edge:n16-&gt;n12#0\" data-role=\"edge\" data-from=\"n16\" data-to=\"n12\" role=\"graphics-symbol\" aria-roledescription=\"relation\" aria-label=\"n16 to n12: edge 16 xxxxxxxxxxxxxxxxxxx\" />",
+      "actualCircle": "<rect x=\"293.224\" y=\"833.912\" width=\"104.194\" height=\"36.9\" rx=\"0\" ry=\"0\" fill=\"#f9f9f9\" stroke=\"#949495\" stroke-width=\"0.75\" data-id=\"node-shape:n4\" data-role=\"node\" />"
+    }
+  ],
+  "scope": "Selected border interval only; marginal shaft contribution with/without foreign rectangle, not whole-glyph readability."
+}

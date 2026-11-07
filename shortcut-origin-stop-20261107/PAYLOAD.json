@@ -1,0 +1,16 @@
+{
+  "runtime": "v26.3.0",
+  "recipe": "Complete standalone HTML; Bun1.4.4 node:zlib gzip9/Br11; candidate2f641 reverted; not a current gain",
+  "arms": {
+    "before": {
+      "raw": 2187091,
+      "gzip9": 1310630,
+      "brotli11": 1245111
+    },
+    "after": {
+      "raw": 2187651,
+      "gzip9": 1310987,
+      "brotli11": 1245588
+    }
+  }
+}
