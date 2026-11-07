@@ -8,12 +8,12 @@ import { mindmapNestedShapeLines, mindmapNonportableTextLines, mindmapSerializat
 import { parseAccessibilityDirective } from '../shared/accessibility-directives.ts'
 import { labelOverflowCollector, setOptionalField } from './body-utils.ts'
 import { unknownOpMessage } from './mutation-ops.ts'
+import { splitHeaderStatement } from '../mermaid-source-wrapper.ts'
 
 export { mindmapSerializationProblem } from '../mindmap/parser.ts'
 
-/** Parsed bodies whose authored header pinned Mermaid rejects for the space
- * after it. The canonical source keeps no blank line or trailing whitespace,
- * so parsing records it for verify. */
+/** Retain the authored header's portability fact when later verification
+ * consumes the parsed body rather than the original input. */
 const spaceAfterHeader = new WeakSet<MindmapBody>()
 
 /** `authored` is the authored source from the header on. */
@@ -236,13 +236,14 @@ export function mutateMindmap(body: MindmapBody, op: MindmapMutationOp): Result<
  * on its canonical line: shape text holding its own delimiters in pairs, and
  * an accessibility directive, which Mermaid's mindmap grammar does not have. */
 export function mindmapUnsupportedSyntaxWarnings(canonicalSource: string): LayoutWarning[] {
-  const warnings: Array<LayoutWarning & { line: number }> = mindmapNestedShapeLines(canonicalSource).map(line => ({
+  const statementSource = splitHeaderStatement(canonicalSource)
+  const warnings: Array<LayoutWarning & { line: number }> = mindmapNestedShapeLines(statementSource).map(line => ({
     code: 'UNSUPPORTED_SYNTAX',
     syntax: 'mindmap_nested_shape_delimiters',
     line,
     message: 'Shape text holding delimiters of its own in pairs, as `root((a (b) c))`, is read whole. Pinned Mermaid ends the shape at the first closing delimiter and rejects the rest; put the whole text in double quotes.',
   }))
-  const lines = canonicalSource.split(/\r?\n/)
+  const lines = statementSource.split(/\r?\n/)
   const header = lines.findIndex(line => /^\s*mindmap\s*$/i.test(line))
   // A line inside a shape's text is no directive (mindmapStatementEnds).
   const ends = mindmapStatementEnds(lines)
@@ -261,10 +262,15 @@ export function mindmapUnsupportedSyntaxWarnings(canonicalSource: string): Layou
     })
     index = directive.endIndex + 1
   }
-  for (const problem of mindmapNonportableTextLines(canonicalSource)) warnings.push({
+  for (const problem of mindmapNonportableTextLines(statementSource)) warnings.push({
     code: 'UNSUPPORTED_SYNTAX', syntax: 'mindmap_nonportable_text', line: problem.line,
     message: `${problem.message}. The source is preserved; change this text to unlock typed Mindmap edits.`,
   })
+  // The shared header reader inserts one grammar row for an inline root.
+  // Diagnostics still address the published physical source.
+  if (statementSource !== canonicalSource) {
+    for (const warning of warnings) if (warning.line > header + 1) warning.line = Math.max(header + 1, warning.line - 1)
+  }
   return warnings.sort((left, right) => left.line - right.line)
 }
 

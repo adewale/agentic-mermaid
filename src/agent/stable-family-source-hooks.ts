@@ -461,7 +461,7 @@ export const TREEMAP_SOURCE_ADAPTER = /* @__PURE__ */ sourceAdapter('treemap', l
 export const TREEMAP_SOURCE_HOOKS: Omit<FamilyOperations, 'mutate'> = { ...TREEMAP_SOURCE_ADAPTER.operations, renderSource: () => 'serialized' }
 
 export const ISHIKAWA_SOURCE_ADAPTER = /* @__PURE__ */ sourceAdapter('ishikawa', lines => parseIshikawaBody(lines.slice(1)), renderIshikawa, verifyIshikawa, undefined, true)
-export const ISHIKAWA_SOURCE_HOOKS: Omit<FamilyOperations, 'mutate'> = { ...ISHIKAWA_SOURCE_ADAPTER.operations, renderSource: () => 'serialized' }
+export const ISHIKAWA_SOURCE_HOOKS: Omit<FamilyOperations, 'mutate'> = { ...ISHIKAWA_SOURCE_ADAPTER.operations, canonicalSource: 'preserved', renderSource: () => 'serialized' }
 
 export const STABLE_FAMILY_SOURCE_HOOKS = {
   packet: PACKET_SOURCE_HOOKS,

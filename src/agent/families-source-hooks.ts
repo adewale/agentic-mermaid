@@ -1286,6 +1286,7 @@ export const ARCHITECTURE_SOURCE_HOOKS = {
 
 // ---- Mindmap ---------------------------------------------------------------
 export const MINDMAP_SOURCE_HOOKS = {
+  canonicalSource: 'preserved',
   bodyAccessibility: ownBodyAccessibility('mindmap', 'native'),
   renderSource: () => 'serialized',
   extractLabels: extractLabelsGeneric,

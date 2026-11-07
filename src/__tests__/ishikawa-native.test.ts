@@ -9,6 +9,24 @@ const upstream = startUpstreamMermaid()
 afterAll(() => upstream.close())
 
 describe('native Ishikawa', () => {
+  test('copied canonical source retains nested and sibling causes', async () => {
+    const source = 'ishikawa\nProblem\nPeople\n  Training\n    Mentoring\nTools'
+    const expected = [['Problem', undefined], ['People', 'effect'], ['Training', 'cause-1'], ['Mentoring', 'cause-2'], ['Tools', 'effect']]
+    for (const authored of [source, `%% saved diagram\r\n${source.replaceAll('\n', '\r\n')}`]) {
+      const parsed = parseRegisteredMermaid(authored)
+      if (!parsed.ok || parsed.value.body.kind !== 'ishikawa') throw new Error('Expected typed Ishikawa')
+      expect(parsed.value.body.nodes.map(node => [node.label, node.parentId])).toEqual(expected)
+      const copied: { canonicalSource: string } = JSON.parse(JSON.stringify({ canonicalSource: parsed.value.canonicalSource }))
+      const reloaded = parseRegisteredMermaid(copied.canonicalSource)
+      expect(reloaded.ok && reloaded.value.body.kind).toBe('ishikawa')
+      if (!reloaded.ok || reloaded.value.body.kind !== 'ishikawa') throw new Error('Expected canonical Ishikawa')
+      expect(reloaded.value.body.nodes.map(node => [node.label, node.parentId])).toEqual(expected)
+      expect(renderMermaidSVG(copied.canonicalSource)).toBe(renderMermaidSVG(parsed.value))
+      expect(renderMermaidASCII(copied.canonicalSource)).toBe(renderMermaidASCII(parsed.value))
+      expect(await upstream.publicAccepts(copied.canonicalSource)).toBe(true)
+    }
+  })
+
   test('Ishikawa header comments share one direct and typed reading', async () => {
     for (const comment of ['%% explanation', '%%{', '%%{beta']) {
       const source = `ishikawa${comment}\nProblem\nPeople\n  Training\nTools`

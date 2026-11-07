@@ -233,6 +233,26 @@ describe('Mindmap grammar escapes keep identity and native drawing', () => {
   beforeAll(() => { upstream = startUpstreamMermaid() })
   afterAll(() => upstream.close())
 
+  test('copied canonical source retains nested and sibling ownership', async () => {
+    const source = 'mindmap\nroot(Root)\n  branch(Branch)\n    leaf[Leaf]\n  sibling[Sibling]'
+    for (const authored of [source, `%% saved diagram\r\n${source.replaceAll('\n', '\r\n')}`, source.replace('mindmap\nroot', 'mindmap root')]) {
+      const parsed = parseRegisteredMermaid(authored)
+      if (!parsed.ok || parsed.value.body.kind !== 'mindmap') throw new Error('Expected typed Mindmap')
+      expect(parsed.value.body.root).toMatchObject({ id: 'root', children: [
+        { id: 'branch', children: [{ id: 'leaf', children: [] }] },
+        { id: 'sibling', children: [] },
+      ] })
+      const copied: { canonicalSource: string } = JSON.parse(JSON.stringify({ canonicalSource: parsed.value.canonicalSource }))
+      const reloaded = parseRegisteredMermaid(copied.canonicalSource)
+      expect(reloaded.ok).toBe(true)
+      if (!reloaded.ok) throw new Error('Canonical Mindmap source must remain executable')
+      expect(reloaded.value.body).toEqual(parsed.value.body)
+      expect(renderMermaidSVG(copied.canonicalSource)).toBe(renderMermaidSVG(parsed.value))
+      expect(renderMermaidASCII(copied.canonicalSource)).toBe(renderMermaidASCII(parsed.value))
+      expect(await upstream.publicAccepts(copied.canonicalSource)).toBe(true)
+    }
+  })
+
   test('complete node productions protect style prepasses across identity and label fields', async () => {
     for (const [id, originalLabel, label] of [
       ['n', 'Child', 'style:a&'],
@@ -340,6 +360,7 @@ describe('Mindmap grammar escapes keep identity and native drawing', () => {
     expect(renderMermaidSVG(parsed.value)).toBe(renderMermaidSVG(source))
     expect(renderMermaidASCII(parsed.value)).toBe(renderMermaidASCII(source))
     expect(verifyMermaid(parsed.value).warnings).toContainEqual(expect.objectContaining({ code: 'UNSUPPORTED_SYNTAX', syntax: 'mindmap_nonportable_text' }))
+    if (source === 'mindmap [%%{g]') expect(verifyMermaid(parsed.value).warnings).toContainEqual(expect.objectContaining({ syntax: 'mindmap_nonportable_text', line: 1 }))
   })
 
   const unwritable: MindmapMutationOp[] = [
