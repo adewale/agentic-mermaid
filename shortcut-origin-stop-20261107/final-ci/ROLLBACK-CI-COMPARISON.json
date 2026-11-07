@@ -1,0 +1,152 @@
+{
+  "before": "3234fb318",
+  "after": "6edd3fd3b rollback",
+  "scope": "Existing CI snapshots; matched source/options/identities per backend. Comparison validation, not new rendering calls or a general workload ranking. Full adverse metrics and proof/delivery transitions retained.",
+  "totals": [
+    {
+      "snapshot": "agentic.json",
+      "cases": 256,
+      "svgChanged": 0,
+      "layoutChanged": 0,
+      "deliveryChanged": 0,
+      "PtoU": 0,
+      "UtoP": 0
+    },
+    {
+      "snapshot": "corpus/agentic.json",
+      "cases": 234,
+      "svgChanged": 0,
+      "layoutChanged": 0,
+      "deliveryChanged": 0,
+      "PtoU": 0,
+      "UtoP": 0
+    },
+    {
+      "snapshot": "corpus/elk.json",
+      "cases": 234,
+      "svgChanged": 0,
+      "layoutChanged": 0,
+      "deliveryChanged": 0,
+      "PtoU": 0,
+      "UtoP": 0
+    },
+    {
+      "snapshot": "development-256-319/agentic.json",
+      "cases": 64,
+      "svgChanged": 0,
+      "layoutChanged": 0,
+      "deliveryChanged": 0,
+      "PtoU": 0,
+      "UtoP": 0
+    },
+    {
+      "snapshot": "development-256-319/elk.json",
+      "cases": 64,
+      "svgChanged": 0,
+      "layoutChanged": 0,
+      "deliveryChanged": 0,
+      "PtoU": 0,
+      "UtoP": 0
+    },
+    {
+      "snapshot": "development-320-383/agentic.json",
+      "cases": 64,
+      "svgChanged": 0,
+      "layoutChanged": 0,
+      "deliveryChanged": 0,
+      "PtoU": 0,
+      "UtoP": 0
+    },
+    {
+      "snapshot": "development-320-383/elk.json",
+      "cases": 64,
+      "svgChanged": 0,
+      "layoutChanged": 0,
+      "deliveryChanged": 0,
+      "PtoU": 0,
+      "UtoP": 0
+    },
+    {
+      "snapshot": "elk.json",
+      "cases": 256,
+      "svgChanged": 0,
+      "layoutChanged": 0,
+      "deliveryChanged": 0,
+      "PtoU": 0,
+      "UtoP": 0
+    },
+    {
+      "snapshot": "independent-sha256-counter-v1-0-63/agentic.json",
+      "cases": 64,
+      "svgChanged": 0,
+      "layoutChanged": 0,
+      "deliveryChanged": 0,
+      "PtoU": 0,
+      "UtoP": 0
+    },
+    {
+      "snapshot": "independent-sha256-counter-v1-0-63/elk.json",
+      "cases": 64,
+      "svgChanged": 0,
+      "layoutChanged": 0,
+      "deliveryChanged": 0,
+      "PtoU": 0,
+      "UtoP": 0
+    },
+    {
+      "snapshot": "independent-sha256-counter-v1-128-191/agentic.json",
+      "cases": 64,
+      "svgChanged": 0,
+      "layoutChanged": 0,
+      "deliveryChanged": 0,
+      "PtoU": 0,
+      "UtoP": 0
+    },
+    {
+      "snapshot": "independent-sha256-counter-v1-128-191/elk.json",
+      "cases": 64,
+      "svgChanged": 0,
+      "layoutChanged": 0,
+      "deliveryChanged": 0,
+      "PtoU": 0,
+      "UtoP": 0
+    },
+    {
+      "snapshot": "independent-sha256-counter-v1-192-255/agentic.json",
+      "cases": 64,
+      "svgChanged": 0,
+      "layoutChanged": 0,
+      "deliveryChanged": 0,
+      "PtoU": 0,
+      "UtoP": 0
+    },
+    {
+      "snapshot": "independent-sha256-counter-v1-192-255/elk.json",
+      "cases": 64,
+      "svgChanged": 0,
+      "layoutChanged": 0,
+      "deliveryChanged": 0,
+      "PtoU": 0,
+      "UtoP": 0
+    },
+    {
+      "snapshot": "independent-sha256-counter-v1-64-127/agentic.json",
+      "cases": 64,
+      "svgChanged": 0,
+      "layoutChanged": 0,
+      "deliveryChanged": 0,
+      "PtoU": 0,
+      "UtoP": 0
+    },
+    {
+      "snapshot": "independent-sha256-counter-v1-64-127/elk.json",
+      "cases": 64,
+      "svgChanged": 0,
+      "layoutChanged": 0,
+      "deliveryChanged": 0,
+      "PtoU": 0,
+      "UtoP": 0
+    }
+  ],
+  "changed": []
+}

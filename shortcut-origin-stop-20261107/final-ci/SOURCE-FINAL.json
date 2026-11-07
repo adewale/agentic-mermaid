@@ -1,0 +1,114 @@
+{
+  "sourceHead": "6edd3fd3bb70bfa4232d61aba6cd0822b5adc82d",
+  "trial": "2f6417c9b37ff61a1f9618124b87b5b349ed5176",
+  "retainedRuntime": "3234fb3183e78840321ab41fe6881b31a0f5d4b2",
+  "srcTree": "f58954ef7ba16f55c57943a4c5d545716c048094",
+  "entireSrcTreeExact3234": true,
+  "worktreeClean": true,
+  "netSourceDiff": "32 work-log lines only",
+  "trialOutcome": "Selected152 physicalcontactfix +newNative17markerwarnings/PtoU; introduced-onlynarrowing alsoU; bothstopped. Current152/372U,17/230PexactpriorSVGandentirereceipts.",
+  "newCausalFinding": "compact measuredshortening firstturns152gap+5.125 to-.823 before anysharedcleanuppass; originalfirsttwoplacements remainclear",
+  "selected152Trial": {
+    "hiddenPixels": [
+      122,
+      0
+    ],
+    "visiblePixels": [
+      61,
+      183
+    ],
+    "exposedPixels": [
+      183,
+      183
+    ],
+    "proof": [
+      "unverified",
+      "passed"
+    ],
+    "operations": [
+      353905,
+      353896
+    ],
+    "wireDelta": 11.896,
+    "areaBendsCrossingsUnchanged": true,
+    "SVGDeltaRawGzipBr": [
+      -2,
+      1,
+      -18
+    ]
+  },
+  "partialCI": {
+    "run": 42359393457,
+    "matched": 1428,
+    "unavailable": 320,
+    "changedSVGs": 23,
+    "deliveryTransitions": 0,
+    "proofUpgrades": 10,
+    "proofDowngrades": 1,
+    "notEquivalentToVisibleGains": true
+  },
+  "rollbackCI": {
+    "run": 42359691358,
+    "status": "completed",
+    "notReady": true,
+    "conclusion": "failure"
+  },
+  "unchangedFrozenControls": "15completeSVGs/entirereceiptsexact;3sameER256refusals; validationnotnewgain",
+  "trialChecks": "7baseRED/20candidateGREEN328assert;706broadP18localmissingJSDOMloaderfails;coretypes/6fileBiomelintP. Missingeslint/cacheattemptretainedwithoutinstall; firsttestdraft/backupfilenameerrors retaineddistinctfromrealRED. Browsercrop initialnamespacefailure, permittedretry2capturesP. Actualstandaloneworkerbrowserowner notrunforstoppedtrial.",
+  "trialPayload": {
+    "runtime": "v26.3.0",
+    "recipe": "Complete standalone HTML; Bun1.4.4 node:zlib gzip9/Br11; candidate2f641 reverted; not a current gain",
+    "arms": {
+      "before": {
+        "raw": 2187091,
+        "gzip9": 1310630,
+        "brotli11": 1245111
+      },
+      "after": {
+        "raw": 2187651,
+        "gzip9": 1310987,
+        "brotli11": 1245588
+      }
+    }
+  },
+  "trialBuild": {
+    "exit": 0,
+    "wallSeconds": 18.980127835995518,
+    "peakRssKiB": 658496,
+    "scope": "One complete production build. No speed/memory ratio. Node captures may overlap; retained before build bytes are exact3234 product."
+  },
+  "noPerformanceRatio": "profileafterfullunprofiledwarmup:2repeatsand1authorededit;cache0. No equivalentafter-profile/cold/cache1speedup established.",
+  "nextIntervention": "AtwithdrawnNative17compactproducer, testactualtargetfacecapacity: neighboring5pxarrowfills pitched4.6125px. InspectexistingminimumPortSpacing/marker-spanhandoff and whyordinarysmallarrowcase skipsit before retryingclearanceveto. Do not addnewquota/cache orblindlyenlargeallnodes.",
+  "trialNative17": {
+    "actualSVGMarkerFillContact": true,
+    "contactAreaEachPx2": 0.120125,
+    "pairs": 3,
+    "distinctTipsRetained": true,
+    "rasterVisibilityAndReadingImpact": "unqualified",
+    "areaBeforeAfter": [
+      727775.001292,
+      674110.360896
+    ],
+    "wireBeforeAfter": [
+      13254.789298154,
+      9295.406991529
+    ],
+    "relationsRetained": 27,
+    "notAnAutomaticAcceptanceGate": true
+  },
+  "rollbackFullCIComparison": {
+    "run": 42359691358,
+    "checkout": "1eda7a829a6f8dc7c837247c22b77b41e9f799ab",
+    "tree": "004f30cf2624424ad414da1c168ac126c3852ce2",
+    "sourceTreeEqualHead": true,
+    "base": "39a500425f6b74eb486b9add9e90d538fab6a914",
+    "head": "6edd3fd3bb70bfa4232d61aba6cd0822b5adc82d",
+    "matched": 1748,
+    "changedSVGs": 0,
+    "changedLayoutRecords": 0,
+    "deliveryTransitions": 0,
+    "proofChanges": 0,
+    "scope": "Restoration validation, notnewgain. CurrentCIterminalfailed: Sparse32onlyunit2failure6413P1F; lazy/payloadceilings andadvisoryfailed; allotherrequiredruntime lanesP.",
+    "lazyJSONExact3234": true
+  }
+}
