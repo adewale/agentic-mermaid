@@ -5,7 +5,7 @@ import { minimumSpanRanks, privateRankSpan, MAX_MEASURED_RANKS as MAX_RANKS } fr
 import { compactMeasuredLoops } from './compact-measured-loops.ts'
 import type { Direction, Point } from '../types.ts'
 import { layoutSharedFan } from './shared-fan-core.ts'
-import { layoutCyclicGraph, type LayoutSearchWork } from './cycle-layout-search.ts'
+import { layoutCyclicGraph, orientMeasuredEdge, type LayoutSearchWork } from './cycle-layout-search.ts'
 import { layoutCompoundGraph } from './agentic-compound-core.ts'
 import { feedbackOrder } from './cycle-order.ts'
 import { assignChannelTracks, type ChannelStep, type ChannelWork } from './channel-tracks.ts'
@@ -186,7 +186,7 @@ export function layoutLayeredGraph(
     // the private placement graph, then restore each authored route occurrence.
     const reversed = edges.map(edge => (nodes[edge.source]!.partition ?? 0) > (nodes[edge.target]!.partition ?? 0))
     const placed = layoutLayeredGraph({ ...input, edges: edges.map((edge, index) => reversed[index]
-      ? { ...edge, source: edge.target, target: edge.source, sourcePortSpan: edge.targetPortSpan, targetPortSpan: edge.sourcePortSpan } : edge) }, forestLayout, unsupported, routingWork, searchWork)
+      ? orientMeasuredEdge(edge, edge.target, edge.source, true) : edge) }, forestLayout, unsupported, routingWork, searchWork)
     return { ...placed, edges: placed.edges.map((edge, index) => reversed[index] ? { ...edge, points: [...edge.points].reverse() } : edge) }
   }
 
@@ -287,7 +287,7 @@ export function layoutLayeredGraph(
       const order = input.authoredCycleOrder ? Uint32Array.from(nodes, (_, index) => index) : feedbackOrder(incoming, outgoing, edges)
       const reversed = edges.map(edge => (nodes[edge.source]!.partition ?? 0) === (nodes[edge.target]!.partition ?? 0) && order[edge.source]! > order[edge.target]!)
       const placed = layoutLayeredGraph({ ...input, cycleOriented: true, edges: edges.map((edge, index) => reversed[index]
-        ? { ...edge, source: edge.target, target: edge.source, sourcePortSpan: edge.targetPortSpan, targetPortSpan: edge.sourcePortSpan } : edge) }, forestLayout, unsupported, routingWork, searchWork)
+        ? orientMeasuredEdge(edge, edge.target, edge.source, true) : edge) }, forestLayout, unsupported, routingWork, searchWork)
       return { ...placed, edges: placed.edges.map((edge, index) => reversed[index] ? { ...edge, points: [...edge.points].reverse() } : edge) }
     }
     return layoutCyclicGraph(input, incoming, outgoing,

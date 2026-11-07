@@ -444,6 +444,7 @@ it('standalone editor renders and verifies with one persistent Blob worker', asy
     const worker = await started
     await standalone.waitForFunction(() => document.getElementById('status-text')?.textContent === 'OK')
     expect(await standalone.locator('#preview-inner svg').textContent()).toContain('Standalone')
+    expect(await standalone.locator('#editor-worker-payload').count()).toBe(0)
     expect(worker.url()).toStartWith('blob:')
     const emittedHtml = await Bun.file(join(ROOT, 'editor.html')).text()
     const encodedWorker = emittedHtml.match(/<script type="application\/octet-stream" id="editor-worker-payload">([\s\S]*?)<\/script>/)?.[1]

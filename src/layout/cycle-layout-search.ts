@@ -16,6 +16,11 @@ export interface LayoutSearchWork {
   routing: ChannelWork
 }
 
+/** Keep endpoint-owned metadata with its endpoint through private orientation. */
+export function orientMeasuredEdge(edge: MeasuredGraph['edges'][number], source: number, target: number, reversed: boolean): MeasuredGraph['edges'][number] {
+  return { ...edge, source, target, ...(reversed ? { sourcePortSpan: edge.targetPortSpan, targetPortSpan: edge.sourcePortSpan } : {}) }
+}
+
 class OptionalOrderDecline extends Error {}
 
 export function layoutCyclicGraph(
@@ -43,7 +48,7 @@ export function layoutCyclicGraph(
       nodes: permutation.map(index => nodes[index]!),
       edges: edgeOrder.map(original => {
         const edge = edges[original]!, source = reversed[original] ? edge.target : edge.source, target = reversed[original] ? edge.source : edge.target
-        return { ...edge, source: indices[source]!, target: indices[target]!, ...(reversed[original] ? { sourcePortSpan: edge.targetPortSpan, targetPortSpan: edge.sourcePortSpan } : {}) }
+        return orientMeasuredEdge(edge, indices[source]!, indices[target]!, reversed[original]!)
       }),
       loopPorts: input.loopPorts?.map(([a, b]) => [edgeIndices[a]!, edgeIndices[b]!] as const),
     }, fail, work)

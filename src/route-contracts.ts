@@ -1011,6 +1011,15 @@ export function recertifyReroutedEdge(edge: PositionedEdge, saved: RouteCertific
   }
 }
 
+/** Commit a post-certification repair with its label seat and fresh route facts. */
+export function commitReroutedEdge(edge: PositionedEdge, candidate: Pick<PositionedEdge, 'points' | 'labelPosition'>, sourceNode?: PositionedNode, targetNode?: PositionedNode): void {
+  const saved = edge.routeCertificate
+  edge.points = candidate.points
+  edge.labelPosition = candidate.labelPosition
+  recertifyReroutedEdge(edge, saved, sourceNode, targetNode)
+}
+
+
 // =====================================================================// Validation (consumed by verifyMermaid as ROUTE_HITCH)
 // =====================================================================
 export interface RouteHitch {

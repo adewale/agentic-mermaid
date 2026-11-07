@@ -679,3 +679,23 @@ Evidence: `weighted-face-780`. Remaining: oversubscribed SHA201+three invisible
 constraints, other U→U cases, Sparse32 proof cap, sharedER256 refusal and existing
 CI payload/quality failures. Next: qualify exact pushed-head CI and select one
 remaining actual-output counterexample; do not resume the failed body-growth probe.
+
+Finite owner-authorized cleanup from `62d521fbce155cdd3de928ec62fc5222fa3a8482`;
+the stopped campaign and both automations remain disabled. Certified Native
+memos now replace construction evidence with the lightweight artifact; an owning
+GC test fails before and passes after while keeping request/layout alive. The
+standalone releases its 1,482,622-character encoded payload/DOM node after Blob
+creation; browser restart remains supported. Completed XML projection replaces
+its builder closure. Write phases, same-proof completion and complete/abort
+handoffs are explicit; post-certificate obstacle repair commits its label and
+route facts together; private reversal has one endpoint-metadata rule. Scoped
+render execution rejects async escape while preserving host-result diagnostics.
+
+Eight complete SVGs/receipts remain byte-exact. Frozen owners:1,473P, known
+Sparse32 failure and18 missing-jsdom checks; core types/lint pass. Standalone2P,
+505 assertions. Added HTML cost: **+1,461 raw /+1,134 gzip9 /+870 Brotli11**;
+no CPU/RSS or bundle-reduction claim. Evidence: `invariant-plan-62d`.
+The proposed Native/Scene custody merge is not retained: read order, rejection
+policy and work charging differ; shared written geometry already has one issuer.
+Next is the bounded flat-segment trial, retained only with equivalent-work
+benefit; no further campaign or inventory is scheduled.

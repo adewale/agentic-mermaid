@@ -202,11 +202,11 @@ function renderPositionedWithTextMeasurement(
       let completed = false
       try {
         const svg = executionPlan.backend!.backend.render(scene!, backendContext)
-        if (actualWriteBound) layoutCertification = finishPositionedBackendEmission(request, layout, layoutCertification) ?? unavailableActualBackendWrite(scene!)
+        if (actualWriteBound) layoutCertification = finishPositionedBackendEmission(request, layout, { kind: 'complete', proof: layoutCertification! }) ?? unavailableActualBackendWrite(scene!)
         completed = true
         return svg
       } finally {
-        if (actualWriteBound && !completed) finishPositionedBackendEmission(request, layout, undefined, true)
+        if (actualWriteBound && !completed) finishPositionedBackendEmission(request, layout, { kind: 'abort' })
       }
     })
     if (actualWrite) {

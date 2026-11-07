@@ -75,8 +75,7 @@ interface XmlCaptureState {
 interface XmlWriteFact {
   readonly capture: SvgXmlCapture
   readonly record: SvgXmlWriteRecord
-  readonly projection: string | (() => XmlProjectionResult)
-  projected?: XmlProjection
+  projection: string | (() => XmlProjectionResult) | XmlProjection
 }
 const xmlCaptures = new WeakMap<SvgXmlCapture, XmlCaptureState>()
 const xmlWrites = new WeakMap<SvgXmlWrite, XmlWriteFact>()
@@ -133,10 +132,11 @@ export function createSvgXmlCapture(work: (operations: number) => boolean): SvgX
   }
   const projectFact = (fact: XmlWriteFact): XmlProjection | undefined => {
     if (!pay(2)) return undefined
-    if (fact.projected) return fact.projected
-    const projected = typeof fact.projection === 'string' ? boundary(fact.projection) ? fact.projection : undefined : fact.projection()
+    const pending = fact.projection
+    if (typeof pending === 'object') return pending
+    const projected = typeof pending === 'string' ? boundary(pending) ? pending : undefined : pending()
     if (projected === undefined || exhausted) return undefined
-    return fact.projected = typeof projected === 'string'
+    return fact.projection = typeof projected === 'string'
       ? Object.freeze({ skeleton: projected, occupied: EMPTY_XML_OCCUPIED }) : projected
   }
   const literal = (value: string, attribute: boolean): boolean => {
