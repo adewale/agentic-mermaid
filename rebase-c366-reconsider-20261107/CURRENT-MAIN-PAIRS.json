@@ -1,0 +1,110 @@
+{
+  "main": "c366de0d137e33e123acd84fc99164417c0f3917",
+  "pr": "93c6d75dc1373d5c238cc764d938ca6af91bebfe",
+  "rows": [
+    {
+      "case": "forest",
+      "backend": "agentic",
+      "sameInput": true,
+      "svgExact": false,
+      "mainRoute": {
+        "bends": 8,
+        "length": 700.0375,
+        "area": 226466.48000000004
+      },
+      "prRoute": {
+        "bends": 8,
+        "length": 397.7071666666667,
+        "area": 165355.65750000003
+      },
+      "mainDimensions": {
+        "width": 516.575,
+        "height": 438.40000000000003
+      },
+      "prDimensions": {
+        "width": 516.575,
+        "height": 320.1
+      },
+      "mainProof": "passed",
+      "prProof": "passed"
+    },
+    {
+      "case": "forest",
+      "backend": "elk",
+      "sameInput": true,
+      "svgExact": true,
+      "mainRoute": {
+        "bends": 8,
+        "length": 396.4696666666667,
+        "area": 176727.21000000002
+      },
+      "prRoute": {
+        "bends": 8,
+        "length": 396.4696666666667,
+        "area": 176727.21000000002
+      },
+      "mainDimensions": {
+        "width": 552.1,
+        "height": 320.1
+      },
+      "prDimensions": {
+        "width": 552.1,
+        "height": 320.1
+      },
+      "mainProof": "passed",
+      "prProof": "passed"
+    },
+    {
+      "case": "class2",
+      "backend": "agentic",
+      "sameInput": true,
+      "svgExact": false,
+      "mainRoute": {
+        "bends": 0,
+        "length": 60,
+        "area": 85680
+      },
+      "prRoute": {
+        "bends": 0,
+        "length": 60,
+        "area": 65400
+      },
+      "mainDimensions": {
+        "width": 360,
+        "height": 238
+      },
+      "prDimensions": {
+        "width": 200,
+        "height": 327
+      },
+      "mainProof": "passed",
+      "prProof": "passed"
+    },
+    {
+      "case": "class2",
+      "backend": "elk",
+      "sameInput": true,
+      "svgExact": true,
+      "mainRoute": {
+        "bends": 0,
+        "length": 60,
+        "area": 61400
+      },
+      "prRoute": {
+        "bends": 0,
+        "length": 60,
+        "area": 61400
+      },
+      "mainDimensions": {
+        "width": 200,
+        "height": 307
+      },
+      "prDimensions": {
+        "width": 200,
+        "height": 307
+      },
+      "mainProof": "passed",
+      "prProof": "passed"
+    }
+  ]
+}

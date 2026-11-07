@@ -1,0 +1,9 @@
+{
+  "archive": "rebase-c366-reconsider-20261107.tar.gz",
+  "bytes": 33074369,
+  "sha256": "f2f4efa7c92e04caac872caa03ed804b44952c264731e68ef139ea00ec5a989d",
+  "verifiedFiles": 119,
+  "source": "93c6d75dc1373d5c238cc764d938ca6af91bebfe",
+  "main": "c366de0d137e33e123acd84fc99164417c0f3917",
+  "contains": "Complete final and initial corpus snapshots, failures/probes, reports, actual SVG/PNG, built HTML, source-conflict records, dependency pins and verification logs. No retained local work deleted."
+}

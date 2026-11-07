@@ -1,0 +1,54 @@
+{
+  "runtime": {
+    "node": "26.3.0",
+    "bun": "1.4.4",
+    "boringssl": "41bf9b59c2ebf277a7aa427e1ecad5cc80dd4d4f",
+    "openssl": "1.1.0",
+    "llhttp": "9.4.2",
+    "libarchive": "27cbc7827172698143e440801fc0ba39ccb4f1f5",
+    "mimalloc": "92ef6587c57b262f6e6abf513f7776a2f8d12aeb",
+    "picohttpparser": "f4d94b48b31e0abae029ebeafcfd9ca0680ede58",
+    "uwebsockets": "38afee6c84fcf48c0edb2466aa4b27d287a59c30",
+    "webkit": "d6375c72affe0f70222cdcb45012b10f0bf3a9d5",
+    "zig": "04e7f6ac1e009525bc00934f20199c68f04e0a24",
+    "zlib": "12731092979c6d07f42da27da673a9f6c7b13586",
+    "tinycc": "05f0fafaa3be31e31d7b4b5c17dc60f62c991171",
+    "lolhtml": "725ce499aa9b71e38b7a2d0a9fbb6d7294a4079e",
+    "ares": "c7a3138dcfe3bb0eaaf10c0c24c36dc66dc790ab",
+    "libdeflate": "92e6a0db9fa848d742f9eb286c92afc60f2c3dda",
+    "usockets": "38afee6c84fcf48c0edb2466aa4b27d287a59c30",
+    "lshpack": "cf0f70dd10b352194c97448eb5d00b4aa484f531",
+    "zstd": "f8745da6ff1ad1e7bab384bd1f9d742439278e99",
+    "v8": "14.6.202.34-node.20",
+    "uv": "1.48.0",
+    "napi": "10",
+    "icu": "78.3",
+    "unicode": "17.0",
+    "sqlite": "3.53.4",
+    "typescript": "7.0.2",
+    "modules": "147"
+  },
+  "rows": [
+    {
+      "file": "/tmp/pr449-main-c366-reference-20261107/editor.html",
+      "raw": 5022428,
+      "gzip9": 1517563,
+      "brotli11": 1170181,
+      "sha256": "8f22abe63f47abc5f5562a8cfd8d031386fec8c38c267f6fbd5b2a5989da853e"
+    },
+    {
+      "file": "/tmp/pr449-week-comparison-20261101/er256-dda69/HTML-after.html",
+      "raw": 2204863,
+      "gzip9": 1324640,
+      "brotli11": 1258659,
+      "sha256": "63521920863e516ca4186f9b7b443b3a1bb795e8e2c83b8a93e346c0c92ee0a9"
+    },
+    {
+      "file": "/tmp/pr449-main-integration-20261029-762/editor.html",
+      "raw": 2287688,
+      "gzip9": 1386834,
+      "brotli11": 1318238,
+      "sha256": "cb24d4d4dcbd762f73ff794e2fb5812b9961170d78067886b5e2ec62bf0e9c7a"
+    }
+  ]
+}

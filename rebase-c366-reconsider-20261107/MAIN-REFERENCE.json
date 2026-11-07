@@ -1,0 +1,16 @@
+{
+  "root": "/tmp/pr449-main-c366-reference-20261107",
+  "source": "c366de0d137e33e123acd84fc99164417c0f3917",
+  "allMainDeclaredDependencyVersionsMatchPr": true,
+  "prAdditionalDependencies": {
+    "dependencies": {
+      "d3-shape": "1.3.7"
+    },
+    "devDependencies": {
+      "@types/d3-shape": "1.3.12",
+      "brotli": "1.3.3"
+    }
+  },
+  "dependencyLocation": "/tmp/pr449-main-integration-20261029-762/node_modules",
+  "purpose": "One standalone HTML build at new main with same Bun and installed common dependencies. Source import closures differ intentionally; not an equal-work CPU/memory ratio."
+}

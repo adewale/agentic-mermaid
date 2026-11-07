@@ -1,0 +1,11 @@
+{
+  "before": "d8c8ac879793a586b4b741c178b89d7900bd27ed",
+  "rebasedHead": "a62af0daf24d653554ee440443b01153b05b099e",
+  "combinedHead": "93c6d75dc1373d5c238cc764d938ca6af91bebfe",
+  "main": "c366de0d137e33e123acd84fc99164417c0f3917",
+  "backup": "backup/pr602-pre-rebase-20261107-d8c8",
+  "strategy": "--rebase-merges origin/main; final integration keeps previously published head as second parent for normal push",
+  "forcePush": false,
+  "oldHeadRetainedAsAncestor": true,
+  "sourceClean": true
+}

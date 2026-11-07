@@ -1,0 +1,29 @@
+[
+  {
+    "id": "corpus/state/17",
+    "changes": [
+      {
+        "before": "size=\"13\" font-weight=\"500\" fill=\"#27272A\" data-prepared-text=\"true\" dy=\"4.5",
+        "after": "size=\"13\" font-weight=\"500\" fill=\"#000000\" data-prepared-text=\"true\" dy=\"4.5"
+      }
+    ]
+  },
+  {
+    "id": "corpus/state/18",
+    "changes": [
+      {
+        "before": "size=\"13\" font-weight=\"500\" fill=\"#27272A\" data-prepared-text=\"true\" dy=\"4.5",
+        "after": "size=\"13\" font-weight=\"500\" fill=\"#000000\" data-prepared-text=\"true\" dy=\"4.5"
+      }
+    ]
+  },
+  {
+    "id": "corpus/state/19",
+    "changes": [
+      {
+        "before": "size=\"13\" font-weight=\"500\" fill=\"#27272A\" data-prepared-text=\"true\" dy=\"4.5",
+        "after": "size=\"13\" font-weight=\"500\" fill=\"#000000\" data-prepared-text=\"true\" dy=\"4.5"
+      }
+    ]
+  }
+]

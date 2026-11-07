@@ -1,0 +1,34 @@
+[
+  {
+    "name": "forest-main",
+    "source": "c366de0d137e33e123acd84fc99164417c0f3917",
+    "svgSHA256": "ff2e442a2e36cea0c3bafca7e991622109820c2aa9817e0159805d10f6c609bc",
+    "font": "manifest-verified Inter; system fonts disabled",
+    "zoom": 2,
+    "claim": "Actual final public SVG; named geometry comparison only, not whole-corpus ink qualification."
+  },
+  {
+    "name": "class2-main",
+    "source": "c366de0d137e33e123acd84fc99164417c0f3917",
+    "svgSHA256": "f32ffd7bba6744d9b500d31a5f59fed47572c1aee555c6a1afdea70c6d12e588",
+    "font": "manifest-verified Inter; system fonts disabled",
+    "zoom": 2,
+    "claim": "Actual final public SVG; named geometry comparison only, not whole-corpus ink qualification."
+  },
+  {
+    "name": "forest-pr",
+    "source": "93c6d75dc1373d5c238cc764d938ca6af91bebfe",
+    "svgSHA256": "c64f27ec883ab870d835b6023d8ba1e492c2295de47ad45b56c43b12966229be",
+    "font": "manifest-verified Inter; system fonts disabled",
+    "zoom": 2,
+    "claim": "Actual final public SVG; named geometry comparison only, not whole-corpus ink qualification."
+  },
+  {
+    "name": "class2-pr",
+    "source": "93c6d75dc1373d5c238cc764d938ca6af91bebfe",
+    "svgSHA256": "abfe1e32cc8a9e420ea920c891e1093117f98946aab1f733ed12c6ea4216608c",
+    "font": "manifest-verified Inter; system fonts disabled",
+    "zoom": 2,
+    "claim": "Actual final public SVG; named geometry comparison only, not whole-corpus ink qualification."
+  }
+]

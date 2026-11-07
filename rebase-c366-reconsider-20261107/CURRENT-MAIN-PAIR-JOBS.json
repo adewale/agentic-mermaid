@@ -1,0 +1,12 @@
+[
+  {
+    "id": "forest",
+    "family": "flowchart",
+    "source": "flowchart TB\nA[A0<br/>A1<br/>A2<br/>A3<br/>A4<br/>A5<br/>A6<br/>A7] --> B[Branch B]\nA --> C[Branch C]\nD[Root D] --> E[E0<br/>E1<br/>E2<br/>E3<br/>E4<br/>E5<br/>E6<br/>E7]\nD --> F[Branch F]"
+  },
+  {
+    "id": "class2",
+    "family": "class",
+    "source": "classDiagram\n    class Animal\n    Vehicle <|-- Car"
+  }
+]

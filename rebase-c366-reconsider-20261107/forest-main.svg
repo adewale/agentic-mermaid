@@ -1,0 +1,56 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="516.575" height="438.4" viewBox="0 0 516.575 438.4" style="--bg:#FFFFFF;--fg:#27272A;--font:Inter;background:#FFFFFF" class="am-08qp0ko0boik79">
+<style>
+  svg.am-08qp0ko0boik79 { font-family: var(--font, 'Inter'), system-ui, sans-serif; }
+  svg.am-08qp0ko0boik79 {
+    /* Derived from --bg and --fg (overridable via --line, --accent, etc.) */
+    --_text:          #27272A;
+    --_text-sec:      #575759;
+    --_text-muted:    #707072;
+    --_text-faint:    #8a8a8c;
+    --_line:          #939395;
+    --_arrow:         #47474a;
+    --_node-fill:     #f9f9f9;
+    --_node-stroke:   #d4d4d4;
+    --_group-fill:    #FFFFFF;
+    --_group-hdr:     #f4f4f4;
+    --_inner-stroke:  #e5e5e5;
+    --_key-badge:     #e9e9ea;
+  }
+</style>
+<defs>
+  <marker id="review-arrowhead" markerWidth="8" markerHeight="5" refX="8" refY="2.5" orient="auto">
+    <polygon points="0 0, 8 2.5, 0 5" fill="#47474a" stroke="#47474a" stroke-width="0.75" stroke-linejoin="round" />
+  </marker>
+  <marker id="review-arrowhead-start" markerWidth="8" markerHeight="5" refX="0" refY="2.5" orient="auto">
+    <polygon points="8 0, 0 2.5, 8 5" fill="#47474a" stroke="#47474a" stroke-width="0.75" stroke-linejoin="round" />
+  </marker>
+</defs>
+<polyline class="edge" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" points="141.525,195.2 141.525,248.775 88.7625,248.775 88.7625,302.35" fill="none" stroke="#939395" stroke-width="1" marker-end="url(#review-arrowhead)" data-relationship="flowchart-edge" data-direction="forward" data-id="edge:A-&gt;B#0" data-role="edge" data-from="A" data-to="B" role="graphics-symbol" aria-roledescription="relation" aria-label="A to B" />
+<polyline class="edge" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" points="161.525,195.2 161.525,248.775 214.2875,248.775 214.2875,302.35" fill="none" stroke="#939395" stroke-width="1" marker-end="url(#review-arrowhead)" data-relationship="flowchart-edge" data-direction="forward" data-id="edge:A-&gt;C#0" data-role="edge" data-from="A" data-to="C" role="graphics-symbol" aria-roledescription="relation" aria-label="A to C" />
+<polyline class="edge" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" points="383.8125,136.05 383.8125,189.625 321.05,189.625 321.05,243.2" fill="none" stroke="#939395" stroke-width="1" marker-end="url(#review-arrowhead)" data-relationship="flowchart-edge" data-direction="forward" data-id="edge:D-&gt;E#0" data-role="edge" data-from="D" data-to="E" role="graphics-symbol" aria-roledescription="relation" aria-label="D to E" />
+<polyline class="edge" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" points="383.8125,136.05 383.8125,189.625 427.8125,189.625 427.8125,302.35" fill="none" stroke="#939395" stroke-width="1" marker-end="url(#review-arrowhead)" data-relationship="flowchart-edge" data-direction="forward" data-id="edge:D-&gt;F#0" data-role="edge" data-from="D" data-to="F" role="graphics-symbol" aria-roledescription="relation" aria-label="D to F" />
+<g class="node" data-id="A" data-label="A0&#10;A1&#10;A2&#10;A3&#10;A4&#10;A5&#10;A6&#10;A7" data-shape="rectangle" data-role="node">
+  <rect x="121.525" y="40" width="60" height="155.2" rx="0" ry="0" fill="#f9f9f9" stroke="#949495" stroke-width="0.75" data-id="node-shape:A" data-role="node" />
+  <text x="151.525" y="117.6" text-anchor="middle" font-size="13" font-weight="500" fill="#27272A" data-prepared-text="true"><tspan x="151.525" dy="-54.6" textLength="18.252" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">A0</tspan><tspan x="151.525" dy="16.9" textLength="13.806" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">A1</tspan><tspan x="151.525" dy="16.9" textLength="18.252" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">A2</tspan><tspan x="151.525" dy="16.9" textLength="18.252" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">A3</tspan><tspan x="151.525" dy="16.9" textLength="18.252" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">A4</tspan><tspan x="151.525" dy="16.9" textLength="18.252" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">A5</tspan><tspan x="151.525" dy="16.9" textLength="18.252" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">A6</tspan><tspan x="151.525" dy="16.9" textLength="18.252" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">A7</tspan></text>
+</g>
+<g class="node" data-id="B" data-label="Branch B" data-shape="rectangle" data-role="node">
+  <rect x="40" y="302.35" width="97.525" height="36.9" rx="0" ry="0" fill="#f9f9f9" stroke="#949495" stroke-width="0.75" data-id="node-shape:B" data-role="node" />
+  <text x="88.7625" y="320.8" text-anchor="middle" font-size="13" font-weight="500" fill="#27272A" data-prepared-text="true" dy="4.55" textLength="57.525" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Branch B</text>
+</g>
+<g class="node" data-id="C" data-label="Branch C" data-shape="rectangle" data-role="node">
+  <rect x="165.525" y="302.35" width="97.525" height="36.9" rx="0" ry="0" fill="#f9f9f9" stroke="#949495" stroke-width="0.75" data-id="node-shape:C" data-role="node" />
+  <text x="214.2875" y="320.8" text-anchor="middle" font-size="13" font-weight="500" fill="#27272A" data-prepared-text="true" dy="4.55" textLength="57.525" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Branch C</text>
+</g>
+<g class="node" data-id="D" data-label="Root D" data-shape="rectangle" data-role="node">
+  <rect x="343.942" y="99.15" width="79.741" height="36.9" rx="0" ry="0" fill="#f9f9f9" stroke="#949495" stroke-width="0.75" data-id="node-shape:D" data-role="node" />
+  <text x="383.8125" y="117.6" text-anchor="middle" font-size="13" font-weight="500" fill="#27272A" data-prepared-text="true" dy="4.55" textLength="39.741" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Root D</text>
+</g>
+<g class="node" data-id="E" data-label="E0&#10;E1&#10;E2&#10;E3&#10;E4&#10;E5&#10;E6&#10;E7" data-shape="rectangle" data-role="node">
+  <rect x="291.05" y="243.2" width="60" height="155.2" rx="0" ry="0" fill="#f9f9f9" stroke="#949495" stroke-width="0.75" data-id="node-shape:E" data-role="node" />
+  <text x="321.05" y="320.8" text-anchor="middle" font-size="13" font-weight="500" fill="#27272A" data-prepared-text="true"><tspan x="321.05" dy="-54.6" textLength="18.252" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">E0</tspan><tspan x="321.05" dy="16.9" textLength="13.806" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">E1</tspan><tspan x="321.05" dy="16.9" textLength="18.252" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">E2</tspan><tspan x="321.05" dy="16.9" textLength="18.252" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">E3</tspan><tspan x="321.05" dy="16.9" textLength="18.252" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">E4</tspan><tspan x="321.05" dy="16.9" textLength="18.252" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">E5</tspan><tspan x="321.05" dy="16.9" textLength="18.252" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">E6</tspan><tspan x="321.05" dy="16.9" textLength="18.252" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">E7</tspan></text>
+</g>
+<g class="node" data-id="F" data-label="Branch F" data-shape="rectangle" data-role="node">
+  <rect x="379.05" y="302.35" width="97.525" height="36.9" rx="0" ry="0" fill="#f9f9f9" stroke="#949495" stroke-width="0.75" data-id="node-shape:F" data-role="node" />
+  <text x="427.8125" y="320.8" text-anchor="middle" font-size="13" font-weight="500" fill="#27272A" data-prepared-text="true" dy="4.55" textLength="57.525" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Branch F</text>
+</g>
+</svg>

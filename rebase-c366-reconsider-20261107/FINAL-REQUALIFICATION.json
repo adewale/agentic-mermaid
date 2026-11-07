@@ -1,0 +1,64 @@
+{
+  "source": "93c6d75dc1373d5c238cc764d938ca6af91bebfe",
+  "main": "c366de0d137e33e123acd84fc99164417c0f3917",
+  "before": "d8c8ac879793a586b4b741c178b89d7900bd27ed",
+  "scope": "874 fixed inputs/backend via existing snapshotSample, including fullSVG/public layout and receipts; validation after integration; no pixel-wide or runtime-ratio claim",
+  "backends": {
+    "agentic": {
+      "calls": 874,
+      "delivered": 874,
+      "svgExact": 871,
+      "svgChanged": [
+        "corpus/state/17",
+        "corpus/state/18",
+        "corpus/state/19"
+      ],
+      "proofCounts": {
+        "passed": 740,
+        "unverified": 134
+      },
+      "proofStatusChanges": [],
+      "deliveryChanges": [],
+      "routeGeometryChanges": []
+    },
+    "elk": {
+      "calls": 874,
+      "delivered": 874,
+      "svgExact": 871,
+      "svgChanged": [
+        "corpus/state/17",
+        "corpus/state/18",
+        "corpus/state/19"
+      ],
+      "proofCounts": {
+        "passed": 696,
+        "unverified": 178
+      },
+      "proofStatusChanges": [],
+      "deliveryChanges": [],
+      "routeGeometryChanges": []
+    }
+  },
+  "nativeVsElk": {
+    "area": {
+      "ELK lower": 64,
+      "Native lower": 670,
+      "equal": 140
+    },
+    "wire": {
+      "Native lower": 644,
+      "ELK lower": 81,
+      "equal": 149
+    },
+    "bends": {
+      "Native lower": 500,
+      "ELK lower": 153,
+      "equal": 221
+    },
+    "crossings": {
+      "Native lower": 645,
+      "equal": 228,
+      "ELK lower": 1
+    }
+  }
+}

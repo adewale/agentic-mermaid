@@ -1,0 +1,123 @@
+{
+  "recordedAt": "2026-11-07T21:16:07.609502+00:00",
+  "source": "93c6d75dc1373d5c238cc764d938ca6af91bebfe",
+  "main": "c366de0d137e33e123acd84fc99164417c0f3917",
+  "sourcePushedNormally": true,
+  "sourceClean": true,
+  "forcePush": false,
+  "oldPublishedHeadRetained": true,
+  "canonicalTypecheck": "passed",
+  "lint": "passed",
+  "owningSuites": {
+    "initialPass": 1340,
+    "initialFail": 8,
+    "sandboxRetriesPassed": 7,
+    "remainingKnownFail": "Sparse32"
+  },
+  "newFamilyAndSdk": {
+    "pass": 233,
+    "fail": 0,
+    "initialSandboxFailuresRetained": 48
+  },
+  "finalXmlSecurity": {
+    "pass": 34,
+    "fail": 0
+  },
+  "newNativeRegression": "RED to GREEN; 399809 of unchanged400000 operations",
+  "geometryGate": {
+    "cases": 330,
+    "passed": true,
+    "previousReviewedSemanticAndRouteExpectationsReconciled": true
+  },
+  "requirementRaster": "passed; prior PR-reviewed raster retained; no renderer geometry change",
+  "browser": {
+    "pass": 1,
+    "assertions": 650,
+    "chromium": "154.0.8037.57 system executable via external preload",
+    "seconds": 71.13,
+    "bundledBrowserUnavailable": true,
+    "initial60sTimeoutRetained": true
+  },
+  "standaloneGzipBudget": {
+    "passed": false,
+    "actual": 1386834,
+    "maximum": 1334500,
+    "over": 52334
+  },
+  "currentMainPayload": {
+    "mainGzip": 1517563,
+    "prGzip": 1386834,
+    "gzipDelta": -130729,
+    "mainBrotli": 1170181,
+    "prBrotli": 1318238,
+    "brotliDelta": 148057,
+    "noNewCpuOrRssRatio": true
+  },
+  "finalCorpus": {
+    "source": "93c6d75dc1373d5c238cc764d938ca6af91bebfe",
+    "main": "c366de0d137e33e123acd84fc99164417c0f3917",
+    "before": "d8c8ac879793a586b4b741c178b89d7900bd27ed",
+    "scope": "874 fixed inputs/backend via existing snapshotSample, including fullSVG/public layout and receipts; validation after integration; no pixel-wide or runtime-ratio claim",
+    "backends": {
+      "agentic": {
+        "calls": 874,
+        "delivered": 874,
+        "svgExact": 871,
+        "svgChanged": [
+          "corpus/state/17",
+          "corpus/state/18",
+          "corpus/state/19"
+        ],
+        "proofCounts": {
+          "passed": 740,
+          "unverified": 134
+        },
+        "proofStatusChanges": [],
+        "deliveryChanges": [],
+        "routeGeometryChanges": []
+      },
+      "elk": {
+        "calls": 874,
+        "delivered": 874,
+        "svgExact": 871,
+        "svgChanged": [
+          "corpus/state/17",
+          "corpus/state/18",
+          "corpus/state/19"
+        ],
+        "proofCounts": {
+          "passed": 696,
+          "unverified": 178
+        },
+        "proofStatusChanges": [],
+        "deliveryChanges": [],
+        "routeGeometryChanges": []
+      }
+    },
+    "nativeVsElk": {
+      "area": {
+        "ELK lower": 64,
+        "Native lower": 670,
+        "equal": 140
+      },
+      "wire": {
+        "Native lower": 644,
+        "ELK lower": 81,
+        "equal": 149
+      },
+      "bends": {
+        "Native lower": 500,
+        "ELK lower": 153,
+        "equal": 221
+      },
+      "crossings": {
+        "Native lower": 645,
+        "equal": 228,
+        "ELK lower": 1
+      }
+    }
+  },
+  "independentReview": "No blocking issue in inspected merge/capture scope; no general readiness claim",
+  "ready": false,
+  "automationsDisabled": true
+}
