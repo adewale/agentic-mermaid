@@ -646,6 +646,11 @@ function splitClassBlockStatement(text: string, inNamespace: boolean): string[] 
  */
 export function classStatementEnds(lines: readonly string[]): number[] {
   const ends = lines.map((_, index) => index)
+  if (!parserObservationActive('class')) {
+    try { scanClassStatements(lines, undefined, false, ends) }
+    catch { for (let index = 0; index < ends.length; index++) ends[index] = index }
+    return ends
+  }
   let tree: ClassStatementTree
   try {
     tree = readClassStatements(lines)
@@ -691,19 +696,26 @@ export function classStyleStatementLines(lines: readonly string[]): ReadonlySet<
 }
 
 export function readClassStatements(lines: readonly string[], authoredLines?: readonly (string | undefined)[], observe = true): ClassStatementTree {
-  const tree: ClassStatementTree = { source: lines.join('\n'), statements: [], diagnostics: [] }
+  return scanClassStatements(lines, authoredLines, observe)!
+}
+
+/** The statement walk also projects physical ownership without retaining a
+ * syntax tree. Classification and scope boundaries stay in this one reader. */
+function scanClassStatements(lines: readonly string[], authoredLines: readonly (string | undefined)[] | undefined, observe: boolean, ends?: number[]): ClassStatementTree | undefined {
+  const tree: ClassStatementTree | undefined = ends ? undefined : { source: lines.join('\n'), statements: [], diagnostics: [] }
   const stack: ClassStatementNode[] = []
   let offset = 0
   for (let lineIndex = 0; lineIndex < lines.length; lineIndex++) {
     const line = lines[lineIndex]!
-    const span = { line: lineIndex + 1, column: 1, start: offset, end: offset + line.length }
+    const firstLine = lineIndex, startOffset = offset
+    const span = tree ? { line: lineIndex + 1, column: 1, start: offset, end: offset + line.length } : undefined
     offset += line.length + 1
     // Read the line as Mermaid's grammar meets it, without its directives.
     let raw = line.replace(MERMAID_DIRECTIVE_RE, '')
-    const authored = authoredLines ? authoredLines[lineIndex]?.replace(MERMAID_DIRECTIVE_RE, '') : raw
+    const authored = ends ? undefined : authoredLines ? authoredLines[lineIndex]?.replace(MERMAID_DIRECTIVE_RE, '') : raw
     const scanned = scanInlineNamespaceStatement(raw.trim())
     const authoredParts = authored === undefined ? [] : expandInlineNamespaceStatement(authored.trim())
-    let fragments: Array<ClassStatementFragment & { authored?: string }> = scanned.map((fragment, index) => ({ ...fragment, authored: authoredParts.length === scanned.length ? authoredParts[index] : undefined }))
+    let fragments: Array<ClassStatementFragment & { authored?: string }> = ends ? scanned : scanned.map((fragment, index) => ({ ...fragment, authored: authoredParts.length === scanned.length ? authoredParts[index] : undefined }))
     // Mermaid's string runs on across line breaks. Where it holds a note, a
     // cardinality or a label, read the lines it spans as one statement with
     // `<br>`, the label line break, for each break, as flowchart does for
@@ -723,11 +735,12 @@ export function readClassStatements(lines: readonly string[], authoredLines?: re
     }
     if (end > lineIndex) {
       for (const line of lines.slice(lineIndex + 1, end + 1)) offset += line.length + 1
-      span.end = offset - 1
+      if (span) span.end = offset - 1
       lineIndex = end
       raw = statement
       fragments = [...fragments.slice(0, -1), ...scanInlineNamespaceStatement(statement).map(fragment => ({ ...last, ...fragment, authored: undefined }))]
     }
+    if (ends) ends[firstLine] = end
     // Fragments still to read, the next one last, so a statement read apart
     // puts its parts back in its place in time linear in the line.
     const pending = fragments.reverse()
@@ -753,6 +766,9 @@ export function readClassStatements(lines: readonly string[], authoredLines?: re
         continue
       }
       const text = inClass && !source.startsWith('}') ? source : classStatement(source)
+      // Members cannot open a scope. Their closing brace was consumed above;
+      // a scope-only caller needs no member classification or syntax value.
+      if (ends && inClass && text !== '}') continue
       let value: ClassSyntaxValue
       if (!source || source.startsWith('%%')) value = { kind: 'trivia' }
       else if (inClass && text !== '}') {
@@ -770,8 +786,15 @@ export function readClassStatements(lines: readonly string[], authoredLines?: re
         putBack(fragment, parts)
         continue
       }
-      const node: ClassStatementNode = { raw: whole && !split ? raw : source, text, source: span, value }
-      if (observe && parserObservationActive('class')) observeParserStatement('class', value.kind, text, { line: span.line, column: span.column, offset: span.start, endOffset: span.end, unit: 'normalized' })
+      if (!tree) {
+        if (value.kind === 'close') stack.pop()
+        else if (value.kind === 'namespace' || (value.kind === 'class' && value.declaration.opensBody)) {
+          stack.push({ raw: '', text: '', source: { line: firstLine + 1, column: 1, start: startOffset, end: offset - 1 }, value })
+        }
+        continue
+      }
+      const node: ClassStatementNode = { raw: whole && !split ? raw : source, text, source: span!, value }
+      if (observe && parserObservationActive('class')) observeParserStatement('class', value.kind, text, { line: span!.line, column: span!.column, offset: span!.start, endOffset: span!.end, unit: 'normalized' })
       if (fragment.followsNamespaceCloseOnSameLine || (closedOnLine === 'namespace' && value.kind !== 'trivia' && value.kind !== 'close')) node.followsNamespaceCloseOnSameLine = true
       else if (closedOnLine === 'class' && value.kind !== 'trivia' && value.kind !== 'close') node.followsClassCloseOnSameLine = true
       if (value.kind === 'close' && owner) closedOnLine = inClass ? 'class' : 'namespace'
@@ -782,20 +805,20 @@ export function readClassStatements(lines: readonly string[], authoredLines?: re
           stack.pop()
         } else {
           tree.statements.push(node)
-          tree.diagnostics.push({ reason: 'Unexpected closing brace in class diagram', source: span })
+          tree.diagnostics.push({ reason: 'Unexpected closing brace in class diagram', source: span! })
         }
         continue
       }
       const siblings = owner ? owner.children! : tree.statements
       siblings.push(node)
-      if (value.kind === 'unknown') tree.diagnostics.push({ reason: value.reason, source: span })
+      if (value.kind === 'unknown') tree.diagnostics.push({ reason: value.reason, source: span! })
       if (value.kind === 'namespace' || (value.kind === 'class' && value.declaration.opensBody)) {
         node.children = []
         stack.push(node)
       }
     }
   }
-  for (const owner of stack)
+  if (tree) for (const owner of stack)
     tree.diagnostics.push({
       reason: `Unclosed ${owner.value.kind === 'namespace' ? 'namespace' : 'class'} block`,
       source: owner.source,
