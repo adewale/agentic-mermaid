@@ -668,16 +668,9 @@ const KEYWORD_STATEMENT_RE = /^(?:(?:end|subgraph|classDef|class|style|linkStyle
  * render path decodes joins lines as the authored entity does.
  */
 export function coalesceFlowchartLines(lines: readonly string[]): FlowchartLineGroup[] {
-  return coalesceFlowchartLineGroups(lines)!
-}
-
-/** The same lexical walk can publish only group boundaries, without retaining
- * text or physical-piece records that a scope consumer immediately discards. */
-function coalesceFlowchartLineGroups(lines: readonly string[], extend?: (first: number, last: number) => void): FlowchartLineGroup[] | undefined {
-  const out: FlowchartLineGroup[] | undefined = extend ? undefined : []
+  const out: FlowchartLineGroup[] = []
   const scanLine = (text: string): FlowchartScan => lex(text, 0, false, true)
   let group: FlowchartLineGroup | undefined
-  let groupLine: number | undefined
   // The last line of `group` as lexed (behind the openers that put the lexer
   // in the state it began in), and whether its last statement is a keyword
   // statement.
@@ -747,26 +740,24 @@ function coalesceFlowchartLineGroups(lines: readonly string[], extend?: (first: 
     // (a string in a markdown string) ends where it ends.
     const midLabelString = scan.regions.some(region => region.kind === 'string' && region.parent >= 0 && region.start !== scan.regions[region.parent]!.contentStart)
     const subgraphTitle = title !== undefined && titleClosesFrom(index, title)
-    const inRegion = groupLine !== undefined && open.length > 0 && open.length <= MAX_CONTINUED_REGIONS && !midLabelString
+    const inRegion = group !== undefined && open.length > 0 && open.length <= MAX_CONTINUED_REGIONS && !midLabelString
       && (open[0] === 'metadata' || open.includes('markdown') || !keyword || subgraphTitle || (clickString && open.length === 1 && open[0] === 'string'))
       // Upstream's lexer rejects a text-arrow label that takes in a `--`
       // (`==`) that does not close it (findTextArrow): a line that would put
       // one in is no part of the label.
       && !(open[0] === 'edge-text' && textArrowStrays(`${continuationPrefix(scanned, scan).prefix}${trimmed}`))
     if (!inRegion && (!trimmed || trimmed.startsWith('%%'))) {
-      out?.push({ text: raw, line: index })
+      out.push({ text: raw, line: index })
       continue
     }
     const directive = inRegion ? undefined : directiveEnd(index)
     if (directive !== undefined) {
-      groupLine = index
-      group = out ? { text: raw, line: index, directive: true } : undefined
-      if (group) out!.push(group)
-      if (group) for (let at = index + 1; at <= directive; at++) {
+      group = { text: raw, line: index, directive: true }
+      out.push(group)
+      for (let at = index + 1; at <= directive; at++) {
         ;(group.joined ??= []).push({ at: group.text.length + 1, line: at, col: 0 })
         group.text += `\n${lines[at]!}`
       }
-      if (directive > index) extend?.(index, directive)
       index = directive
       scanned = ''
       scan = scanLine(scanned)
@@ -792,22 +783,18 @@ function coalesceFlowchartLineGroups(lines: readonly string[], extend?: (first: 
     } else {
       lineScan = scanLine(text)
       const endsWithLink = open.length === 0 && scan.links.at(-1)?.end === scanned.trimEnd().length
-      if (groupLine !== undefined && !keyword && ((endsWithLink && !KEYWORD_STATEMENT_RE.test(trimmed)) || lineScan.links[0]?.start === 0)) joint = ' '
+      if (group && !keyword && ((endsWithLink && !KEYWORD_STATEMENT_RE.test(trimmed)) || lineScan.links[0]?.start === 0)) joint = ' '
     }
     const leading = leadingLabelString(lineScan)
     if (leading !== undefined && !labelStringClosesFrom(index + 1)) lineScan = lex(text, 0, false, true, leading)
     if (joint === undefined) {
-      groupLine = index
-      group = out ? { text: raw, line: index } : undefined
-      if (group) out!.push(group)
+      group = { text: raw, line: index }
+      out.push(group)
     } else {
-      if (group) {
-        const piece = joint === '\n' ? raw : trimmed
-        const col = joint === '\n' ? 0 : raw.length - raw.trimStart().length
-        ;(group.joined ??= []).push({ at: group.text.length + joint.length, line: index, col })
-        group.text += `${joint}${piece}`
-      }
-      extend?.(groupLine!, index)
+      const piece = joint === '\n' ? raw : trimmed
+      const col = joint === '\n' ? 0 : raw.length - raw.trimStart().length
+      ;(group!.joined ??= []).push({ at: group!.text.length + joint.length, line: index, col })
+      group!.text += `${joint}${piece}`
     }
     const last = flowchartStatementSpans(text, lineScan).at(-1)
     if (joint === undefined || (last && last.start > 0)) {
@@ -835,7 +822,10 @@ export function flowchartStatementEnds(lines: readonly string[]): number[] {
     const text = line.trim()
     if (text && !text.startsWith('%%')) { read.push(index); texts.push(text) }
   })
-  coalesceFlowchartLineGroups(texts, (first, last) => { ends[read[first]!] = read[last]! })
+  for (const group of coalesceFlowchartLines(texts)) {
+    const last = group.joined?.at(-1)?.line
+    if (last !== undefined) ends[read[group.line]!] = read[last]!
+  }
   return ends
 }
 
