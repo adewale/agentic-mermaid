@@ -1,0 +1,75 @@
+import { expect, test } from 'bun:test'
+import { renderMermaidSVGWithReceipt, renderMermaidSVG, createMermaidRenderer, validateSerializableRenderOptions } from '../index.ts'
+import { BUNDLED_INTER_TEXT_MEASUREMENT } from '../inter-metrics.ts'
+import { measureTextWidth } from '../text-metrics.ts'
+import { createTextMeasurementExecution, withTextMeasurementExecution } from '../text-measurement-profile.ts'
+import { preparePixelText } from '../shared/prepared-text.ts'
+import { withPerformanceObserver, type PerformanceObservation } from '../performance-observations.ts'
+import { withPerformanceExperiments, PERFORMANCE_EXPERIMENTS } from '../experimental-performance.ts'
+
+test('bundled Inter reserves natural digit and kerned word advances', () => {
+  // Independent whole-run hb-shape observations from the shipped faces, 16px.
+  for (const [text, weight, expected] of [['11111111', 400, 52.0625], ['AVATAR', 400, 59.875], ['Authentication', 400, 109.5234375],
+    ['AVATAR', 500, 61.125], ['AVATAR', 600, 62.359375], ['AVATAR', 700, 63.59375]] as const) {
+    const execution = createTextMeasurementExecution(BUNDLED_INTER_TEXT_MEASUREMENT, 'Inter')
+    expect(withTextMeasurementExecution(execution, () => measureTextWidth(text, 16, weight))).toBeCloseTo(expected, 6)
+  }
+})
+
+test('unsupported scripts, styles, faces and weights retain the estimator', () => {
+  for (const [text, family, style, weight] of [['مرحبا', 'Inter', 'normal', 400], ['Hello', 'Acme, Inter', 'normal', 400], ['Hello', 'Inter', 'italic', 400], ['Hello', 'Inter', 'normal', 450]] as const) {
+    const expected = measureTextWidth(text, 16, weight, style, family)
+    const execution = createTextMeasurementExecution(BUNDLED_INTER_TEXT_MEASUREMENT, family)
+    expect(withTextMeasurementExecution(execution, () => measureTextWidth(text, 16, weight, style, family))).toBe(expected)
+  }
+})
+
+test('the serializable option selects the same profile for layout and paint', () => {
+  expect(validateSerializableRenderOptions({ fontMetrics: 'bundled-inter' })).toEqual([])
+  const source = 'flowchart TD\nA[11111111]'
+  const options = { fontMetrics: 'bundled-inter' as const, embedFontImport: false }
+  const result = renderMermaidSVGWithReceipt(source, options)
+  expect(result.receipt.textMeasurement?.id).toBe('agentic-mermaid:bundled-inter-ascii')
+  expect(result.svg).not.toBe(renderMermaidSVG(source, { embedFontImport: false }))
+  const host = createMermaidRenderer({ textMeasurement: { id: 'test:host', version: '1.0.0', measure: () => 100 } })
+  expect(() => host.renderMermaidSVG(source, options)).toThrow('cannot be combined')
+  expect(renderMermaidSVG(source, { fontMetrics: 'estimate' })).toBe(renderMermaidSVG(source))
+})
+
+test('partial metrics preserve fallback shaping envelopes and italic tracking padding', () => {
+  for (const text of ['مرحبا', '👩‍💻', '<i>WWW</i>', 'WWWΩ', 'AVمرحبا', 'A👩‍💻', '<i>WWW</i>Ω', 'Á']) {
+    const options = { fontSize: 16, fontWeight: 400, letterSpacing: 1 }
+    const expected = preparePixelText(text, options)
+    const execution = createTextMeasurementExecution(BUNDLED_INTER_TEXT_MEASUREMENT, 'Inter')
+    const actual = withTextMeasurementExecution(execution, () => preparePixelText(text, options))
+    expect(actual.width).toBeCloseTo(expected.width, 6)
+    expect(actual.height).toBe(expected.height)
+  }
+})
+
+test('immutable bundled geometry reuses its own cache without trusting a host identity', () => {
+  const source = 'flowchart LR\nCacheDigits[11111111] --> CacheWord[AVATAR]'
+  const options = { fontMetrics: 'bundled-inter' as const, embedFontImport: false }
+  const events: PerformanceObservation[] = []
+  withPerformanceExperiments(PERFORMANCE_EXPERIMENTS, () => {
+    const estimated = renderMermaidSVG(source)
+    const first = withPerformanceObserver(event => events.push(event), () => renderMermaidSVG(source, options))
+    const second = withPerformanceObserver(event => events.push(event), () => renderMermaidSVG(source, options))
+    expect(first).toBe(second)
+    expect(first).not.toBe(estimated)
+    expect(renderMermaidSVG(source)).toBe(estimated)
+    expect(events).toContainEqual({ version: 1, kind: 'cache', owner: 'positioned-layout', outcome: 'hit' })
+    let width = 80
+    const host = createMermaidRenderer({ textMeasurement: {
+      id: BUNDLED_INTER_TEXT_MEASUREMENT.id, version: BUNDLED_INTER_TEXT_MEASUREMENT.version,
+      measure: () => width,
+    } })
+    const hostEvents: PerformanceObservation[] = []
+    const before = withPerformanceObserver(event => hostEvents.push(event), () => host.renderMermaidSVG(source))
+    width = 160
+    const after = withPerformanceObserver(event => hostEvents.push(event), () => host.renderMermaidSVG(source))
+    expect(after).not.toBe(before)
+    expect(hostEvents).toContainEqual({ version: 1, kind: 'cache', owner: 'positioned-layout', outcome: 'bypass', reason: 'custom-text-measurement' })
+    expect(hostEvents.some(event => event.kind === 'cache' && event.owner === 'positioned-layout' && event.outcome === 'hit')).toBe(false)
+  })
+})
