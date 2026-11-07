@@ -66,7 +66,8 @@ failures and Bun/tsup startup failures are retained; Node24 builds pass, and onl
 copied metafile input labels are normalized for the existing reporter.
 
 A compression-only Packet static-closure probe concatenates all emitted bytes:
-PR summed gzip 198,715→196,279 (−2,436), still 32,035 above main's summed 164,244.
+With the reporter's Bun gzip implementation, PR summed transfer is
+199,406→196,990 (−2,416), still 32,073 above main's summed 164,917.
 This is not executable ESM or an optimization claim; stop chunk fragmentation as
 a sufficient remedy on this case. The largest pre-compaction source increments
 are paint certification 33,674B, emission context 14,557B, serialization 14,341B,
