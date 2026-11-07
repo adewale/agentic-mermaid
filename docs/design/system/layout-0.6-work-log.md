@@ -53,31 +53,33 @@ replace neither the dated profiler nor its missing runtime/cold/cache evidence.
 Next causal probe: whether standalone worker precompression accounts for the
 Brotli loss, preserving decoded worker bytes, ownership and browser contracts.
 
-## Ordinary marker face capacity — 7 November
+## Ordinary marker capacity trial stopped — 7 November
 
-From `6edd3fd3bb70bfa4232d61aba6cd0822b5adc82d`, actual201/241 subroutine faces
-have seven oriented ports but only36.9px height:4.6125px pitch overlaps their
-5.75px marker supports. Preparation excludes subroutines and ordinary heads;
-authored max(in,out) also misses ports combined by cycle orientation. Reuse the
-existing measured marker span, minimum pitch and served-body sizing for crowded
-ordinary rectangle/subroutine faces. Count invisible constraints as occupied
-slots too; explicit sizes/semantic shapes remain excluded. One bounded counter
-array and its edge visits debit existing ledgers; no cache/quota/default change.
+Trial `4db9d6db226c5957c1b003b5ad58b56af4b55480` locates actual201/241 head
+contacts at the first crowded face: seven privately oriented slots share36.9px,
+4.6125px pitch for5.75px supports. Reusing existing measured span/minimum pitch
+and served-body sizing repairs both selected heads: hidden4→0 each, attenuation
+12→0, proofU→P. Area+3.46%/−0.59%, wire−3.00%/−1.62%, bends73→65/61→60.
 
-Both proofs move U→P. Written support gaps−1.1375→+1.3125px. Independent actual
-SVG masks recover4 hidden selected head pixels per case, attenuation12→0;
-raster phase/exposed totals differ, so no visibility ratio/readability claim.
-201 wire−3.00%, bends73→65, area+3.46%;241 wire−1.62%, bends61→60, area−0.59%.
-This conservatively reserves all incident slots: acyclic mixed-direction nodes
-can grow unnecessarily. That cost and resource charges remain part of the trial.
+The full1,748-record CI comparison changes303 Native SVGs,58U→P and5P→U,
+with no delivery transitions; all874 ELK SVGs remain exact. Independent finalSVG
+geometry finds four introduced actual contacts: cyclic229 shaft/diamond tip,
+319 shaft/miter stroke,381 arrowfill overlap0.648px², and SHA37 shaft/border
+stroke overlap0.625px along roughly100px. SHA191 is a conservative envelope
+warning: the named pair remains clear by0.514px. Raster/readability impact of
+these adverse cases is unknown. Proof upgrades are not visible repair counts.
 
-Owning6RED→10GREEN/410 assertions includes all directions and invisible links.
-Broad701P/18 missing-JSDOM loader failures; core types/two-file lint pass.
-All18 frozen PR calls retain15 exact SVGs/entire receipts and three ER256 refusals.
-Actual17/33/230 retain passed proof;152/372 remain exactU. A before-profile uses
-the existing full-SVG/entire-receipt collector; no speed forecast or ratio.
-Evidence: `marker-capacity-6edd`. Full matched CI, actual standalone and payload
-qualification remain pending at this commit; retain all newly changed outcomes.
+Stop this intervention because enlarging bodies without preserving neighboring
+route clearance introduces actual contacts. Restore producer/test exactly to
+`6edd3fd3bb70bfa4232d61aba6cd0822b5adc82d`; no new runtime gain remains.
+Retain trial sources,16 actual rasters, raw profiles, matchedCI and all costs in
+`marker-capacity-6edd`. Trial6RED→10GREEN/410assert; broad701P/18 missing-JSDOM
+loader failures; final types/lint and standalone browser2P/504assert pass.
+These selected checks did not establish preservation. Acyclic hub body36.9→49.75
+without canvas growth; trialHTML+79raw/+81gzip/+55Br; build20.20s/RSS664124KiB
+descriptive, no speed ratio. Restore original editor bytes; unchanged runtime
+requalification is validation. Next: isolate where enlarged bodies first meet
+foreign routes in actualSHA37, before considering any narrower reservation rule.
 
 ## Shortcut clearance trial stopped — 7 November
 

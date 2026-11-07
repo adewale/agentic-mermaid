@@ -222,8 +222,8 @@ function placeNativeGraphCandidate(
       return undefined
     } : undefined
     let lead = 0, doubleDepth = 0, maximumStroke = 0
-    pay(0, 4 * nodes.length + 6)
-    const portSpans = new Float64Array(nodes.length), incoming = new Uint32Array(nodes.length), outgoing = new Uint32Array(nodes.length), incident = new Uint32Array(nodes.length)
+    pay(0, 3 * nodes.length + 5)
+    const portSpans = new Float64Array(nodes.length), incoming = new Uint32Array(nodes.length), outgoing = new Uint32Array(nodes.length)
     type MarkerRoom = { start: number; end: number; span: number; boundaryInset: number; boundaryHeight: number; boundaryCount: number }
     const footprints = new Map<string, MarkerRoom>()
     const numericWidth = (value: string | number): number | undefined => {
@@ -293,10 +293,6 @@ function placeNativeGraphCandidate(
         if (source < nodes.length) outgoing[source] = outgoing[source]! + 1
         if (target < nodes.length) incoming[target] = incoming[target]! + 1
       }
-      // Invisible constraints still occupy the rank router's endpoint slots.
-      pay(2)
-      if (source < nodes.length) incident[source] = incident[source]! + 1
-      if (target < nodes.length) incident[target] = incident[target]! + 1
       if (boundaryEnd) {
         const boundaryMarked = edge.style !== 'invisible' && (boundaryEnd === 'start' ? edge.hasArrowStart : edge.hasArrowEnd)
         if (boundaryMarked && (!footprint || !footprint.boundaryCount)) bindings.unsupported('ancestor marker paint bounds')
@@ -328,17 +324,10 @@ function placeNativeGraphCandidate(
     const minimumTerminalLead = lead + margin > Math.max(12, edgeSpacing) ? lead + margin : undefined
     for (let index = 0; index < nodes.length; index++) {
       pay(6)
-      const node = nodes[index]!, authored = graph.nodes.get(node.id)!
+      const node = nodes[index]!, authored = graph.nodes.get(node.id)!, degree = Math.max(incoming[index]!, outgoing[index]!)
       const pitch = portSpans[index]! + maximumStroke
+      if (degree < 2 || portSpans[index]! <= 8 || authored.shape !== 'rectangle' || authored.semanticShape || options.nodeSizes?.has(node.id)) continue
       const horizontal = (membership.get(node.id)?.direction ?? graph.direction) === 'LR' || (membership.get(node.id)?.direction ?? graph.direction) === 'RL'
-      // Cycle orientation can put authored incoming and outgoing links on one
-      // face. Ordinary heads also need room when that proportional spread
-      // would be narrower than their already measured painted footprint.
-      const crowded = portSpans[index]! > 0 && portSpans[index]! <= 8
-        && (authored.shape === 'rectangle' || authored.shape === 'subroutine')
-        && (horizontal ? node.height : node.width) / (incident[index]! + 1) < pitch
-      const degree = crowded ? incident[index]! : Math.max(incoming[index]!, outgoing[index]!)
-      if (degree < 2 || !crowded && (portSpans[index]! <= 8 || authored.shape !== 'rectangle') || authored.semanticShape || options.nodeSizes?.has(node.id)) continue
       const size = (degree - 1) * pitch, minimum = size <= 32 ? size * 1.5 : size + 16
       if (!Number.isFinite(minimum)) bindings.unsupported('agentic marker spacing range')
       if (horizontal) node.height = Math.max(node.height, minimum)
