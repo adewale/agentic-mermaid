@@ -6,11 +6,26 @@ import { distanceForOverlap, layoutCircles, lensArea } from '../venn/geometry.ts
 import { layoutMermaid, parseRegisteredMermaid, renderMermaidASCII, renderMermaidSVG, serializeMermaid, verifyMermaid } from '../agent/core.ts'
 import { startUpstreamMermaid } from './helpers/upstream-mermaid.ts'
 import { withParserObservation } from '../shared/parser-observation.ts'
+import { scanSvgStartTags } from '../svg-structure.ts'
 
 const upstream = startUpstreamMermaid()
 afterAll(() => upstream.close())
 
 describe('native Venn', () => {
+  test('styled intersection artwork keeps one public identity for its region', () => {
+    const input = 'venn-beta\nset A:20\nset B:12\nunion A,B:3\nstyle A,B fill:#00ff00'
+    const layout = layoutVennDiagram(parseVennDiagram(input))
+    const region = layout.regions.find(region => region.sets.length === 2)!
+    for (const style of [undefined, ['hand-drawn', 'dracula']]) {
+      const svg = renderMermaidSVG(input, { style })
+      const tags = scanSvgStartTags(svg)
+      const ids = tags.flatMap(tag => tag.attributes.filter(attr => attr.name === 'data-id').map(attr => attr.value))
+      expect(new Set(ids).size).toBe(ids.length)
+      expect(ids.filter(id => id === region.id)).toHaveLength(1)
+      expect(tags.some(tag => tag.name === 'path' && tag.attributes.some(attr => attr.name === 'fill' && attr.value === '#00ff00'))).toBe(true)
+    }
+  })
+
   const source = 'venn-beta\nset A["Alpha"]:20\n  text item["A note"]\nset B["Beta"]:12\nunion A,B["Shared"]:3\nstyle A fill:red'
   test('retains set and intersection identities, quantities and text ownership', () => {
     const body = parseVennDiagram(source)
@@ -193,7 +208,7 @@ describe('native Venn', () => {
     expect(verifyMermaid(source).ok).toBe(true)
     expect(await upstream.publicAccepts(serializeMermaid(parsed.value))).toBe(true)
     const styled = renderMermaidSVG(`${source}\nstyle A,B fill:red`)
-    expect(styled).toContain('data-role="bar"')
+    expect(scanSvgStartTags(styled).some(tag => tag.name === 'path' && tag.attributes.some(attr => attr.name === 'fill' && attr.value === 'red'))).toBe(true)
     expect(styled).toContain('fill="red"')
     const collisions = 'venn-beta\nset "venn-label-0":20\nset "venn-region-0":20\nunion "venn-label-0","venn-region-0"["Intersection"]:3\ntext "venn-label-0" "venn-label-1"["Owned note"]'
     const collisionDiagram = parseRegisteredMermaid(collisions)

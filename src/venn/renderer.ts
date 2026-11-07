@@ -37,8 +37,9 @@ export function lowerVennDrawing<T>(marks: DrawingFactory<T>, { positioned: char
         region.id,
         marks.shape({
           id: region.id,
+          identity: false,
           owner: { id: region.id, role: 'node' },
-          role: 'bar',
+          role: 'node',
           geometry: { kind: 'path', d: region.path },
           paint: { fill: paint.fill ?? 'none', fillOpacity: paint['fill-opacity'] ?? '0.22', stroke: paint.stroke ?? 'none', strokeWidth: paint['stroke-width'] ?? String(style.lineWidth) },
           channels: { category: region.id },
