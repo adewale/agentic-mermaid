@@ -421,6 +421,7 @@ test('verification names actual AgentFlow shape substitutions without changing r
   expect(substitutions(canonical).flatMap(warning => warning.code === 'UNSUPPORTED_SYNTAX' ? [warning.node] : []).sort()).toEqual(['a', 'api', 'b'])
   expect(parseAgentflow(canonical).roles.get('api')).toBe('connector')
   expect(substitutions('agentflow-beta\na\nb[Beta]\nc(Caption)\nconnector api[API]\na --> b --> c')).toEqual([])
+  expect(substitutions('agentflow-beta\nconnector api[API]@{ shape: service }')).toEqual([])
 })
 
 test('full-line comments cannot introduce semicolon statements while quoted percent labels stay literal', () => {

@@ -69,7 +69,7 @@ function agentflowShapeWarnings(body: AgentflowBody): LayoutWarning[] {
     const metadataShape = body.metadata.get(id)?.shape
     // The connector keyword owns its default silhouette independently of
     // bracket syntax. An explicit conflicting hint still needs a diagnosis.
-    if (body.connectors.has(id) && !metadataShape) continue
+    if (body.connectors.has(id) && (!metadataShape || metadataShape === agentflowRoleShape('connector'))) continue
     const shape = metadataShape || node.authoredShape || node.semanticShape || node.shape
     const role = body.roles.get(id)
     if (!role || agentflowShapeRole(shape) === role) continue
