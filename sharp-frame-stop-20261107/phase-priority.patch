@@ -1,0 +1,164 @@
+diff --git a/src/layout/graph-paint-support.ts b/src/layout/graph-paint-support.ts
+index d2f0600ec..526b209d4 100644
+--- a/src/layout/graph-paint-support.ts
++++ b/src/layout/graph-paint-support.ts
+@@ -85,42 +85,47 @@ import { tryParseCssColor } from '../shared/color-math.ts'
+  * Curved/diagonal/dashed routes and unknown paint stay outside this domain. */
+ export function bodyShaftPaintContext(style: GraphPaintStyle, pay: (units: number) => boolean) {
+   type Circle = { cx: number; cy: number; radius: number; innerRadius: number; bounds: AxisAlignedBox }
+-  type Body = Circle | { rect: true; bounds: AxisAlignedBox; clearance: AxisAlignedBox }
+-  const bodies = new Map<PositionedNode, Body | false | undefined>()
++  type Frame = { rect: true; bounds: AxisAlignedBox; clearance: AxisAlignedBox }
++  type PendingFrame = { pending: ReturnType<typeof shapeOutline> }
++  const bodies = new Map<PositionedNode, Circle | Frame | PendingFrame | false | undefined>()
+   const shafts = new WeakMap<PositionedEdge, WeakMap<readonly Point[], AxisAlignedBox[] | undefined>>()
+-  const bodyOf = (node: PositionedNode): Body | false | undefined => {
+-    if (bodies.has(node)) return bodies.get(node)
+-    if (!pay(32)) return undefined
+-    const width = node.inlineStyle?.['stroke-width'] ?? String(style.nodeLineWidth ?? STROKE_WIDTHS.innerBox)
+-    if (!pay(width.length + node.id.length + 8)) return undefined
+-    const piece = shapeOutline(node, { fill: node.inlineStyle?.fill ?? style.nodeFillColor ?? 'var(--_node-fill)', stroke: node.inlineStyle?.stroke ?? style.nodeBorderColor ?? 'var(--_node-stroke)', strokeWidth: formatSvgNumericAttribute('stroke-width', width) }, style.cornerRadius)
+-    const frame = piece.geometry.kind === 'rect' ? piece.geometry
+-      : node.shape === 'subroutine' && piece.geometry.kind === 'compound' ? piece.geometry.children[0] : undefined
+-    if (frame?.kind === 'rect' && !(frame.rx || frame.ry)) {
+-      if (!pay(48)) return undefined
+-      const geometry = writtenGeometry(frame)
+-      const paint = piece.geometry.kind === 'compound' ? piece.childPaints?.[0] ?? piece.paint : piece.paint
+-      const extent = paintedStrokeExtent(paint, false)
+-      const filled = paint.fill !== 'none' && paint.fill !== 'transparent' && tryParseCssColor(paint.fill ?? '')?.[3] !== 0
+-      // Filled right-angle frames occupy their complete written rectangle;
+-      // each axis extends by half the stroke, including mitered corners.
+-      const bounds = geometry.kind === 'rect' && extent !== undefined && filled
+-        ? { x0: geometry.x - extent, y0: geometry.y - extent, x1: geometry.x + geometry.width + extent, y1: geometry.y + geometry.height + extent } : undefined
+-      const clearance = nodePaintBounds({ kind: 'shape', id: node.id, role: 'node', geometry: writtenGeometry(piece.geometry), paint: piece.paint, ...(piece.childPaints ? { childPaints: piece.childPaints } : {}) })
+-      const result: Body | undefined = finiteBox(bounds) && finiteBox(clearance) ? { rect: true, bounds, clearance } : undefined
+-      bodies.set(node, result)
+-      return result
++  const bodyOf = (node: PositionedNode, frames: boolean): Circle | Frame | false | undefined => {
++    if (!bodies.has(node)) {
++      if (!pay(32)) return undefined
++      const width = node.inlineStyle?.['stroke-width'] ?? String(style.nodeLineWidth ?? STROKE_WIDTHS.innerBox)
++      if (!pay(width.length + node.id.length + 8)) return undefined
++      const piece = shapeOutline(node, { fill: node.inlineStyle?.fill ?? style.nodeFillColor ?? 'var(--_node-fill)', stroke: node.inlineStyle?.stroke ?? style.nodeBorderColor ?? 'var(--_node-stroke)', strokeWidth: formatSvgNumericAttribute('stroke-width', width) }, style.cornerRadius)
++      if (piece.geometry.kind === 'circle') {
++        const geometry = writtenGeometry(piece.geometry)
++        if (geometry.kind !== 'circle' || !pay(32)) return undefined
++        const bounds = nodePaintBounds({ kind: 'shape', id: node.id, role: 'node', geometry, paint: piece.paint })
++        const extent = paintedStrokeExtent(piece.paint, false)
++        const filled = piece.paint.fill !== 'none' && piece.paint.fill !== 'transparent' && tryParseCssColor(piece.paint.fill ?? '')?.[3] !== 0
++        if (!filled && extent === 0) { bodies.set(node, false); return false }
++        const radius = geometry.r + (extent ?? 0)
++        bodies.set(node, finiteBox(bounds) && extent !== undefined && geometry.r > 0 && Number.isFinite(radius ** 2)
++          ? { cx: geometry.cx, cy: geometry.cy, radius, innerRadius: filled ? 0 : Math.max(0, geometry.r - extent), bounds } : undefined)
++      } else {
++        const frame = piece.geometry.kind === 'rect' ? piece.geometry
++          : node.shape === 'subroutine' && piece.geometry.kind === 'compound' ? piece.geometry.children[0] : undefined
++        // Retain the existing producer's piece, but defer new frame work until
++        // every legacy circle decision has used the shared allowance.
++        bodies.set(node, frame?.kind === 'rect' && !(frame.rx || frame.ry) ? { pending: piece } : false)
++      }
+     }
+-    if (piece.geometry.kind !== 'circle') { bodies.set(node, false); return false }
+-    const geometry = writtenGeometry(piece.geometry)
+-    if (geometry.kind !== 'circle' || !pay(32)) return undefined
+-    const bounds = nodePaintBounds({ kind: 'shape', id: node.id, role: 'node', geometry, paint: piece.paint })
+-    const extent = paintedStrokeExtent(piece.paint, false)
+-    const filled = piece.paint.fill !== 'none' && piece.paint.fill !== 'transparent' && tryParseCssColor(piece.paint.fill ?? '')?.[3] !== 0
+-    if (!filled && extent === 0) { bodies.set(node, false); return false }
+-    const radius = geometry.r + (extent ?? 0)
+-    const result = finiteBox(bounds) && extent !== undefined && geometry.r > 0 && Number.isFinite(radius ** 2)
+-      ? { cx: geometry.cx, cy: geometry.cy, radius, innerRadius: filled ? 0 : Math.max(0, geometry.r - extent), bounds } : undefined
++    const body = bodies.get(node)
++    if (!body || !('pending' in body)) return body
++    if (!frames) return false
++    if (!pay(48)) return undefined
++    const piece = body.pending, written = writtenGeometry(piece.geometry)
++    const geometry = written.kind === 'compound' ? written.children[0] : written
++    const paint = written.kind === 'compound' ? piece.childPaints?.[0] ?? piece.paint : piece.paint
++    const extent = paintedStrokeExtent(paint, false)
++    const filled = paint.fill !== 'none' && paint.fill !== 'transparent' && tryParseCssColor(paint.fill ?? '')?.[3] !== 0
++    const bounds = geometry?.kind === 'rect' && extent !== undefined && filled
++      ? { x0: geometry.x - extent, y0: geometry.y - extent, x1: geometry.x + geometry.width + extent, y1: geometry.y + geometry.height + extent } : undefined
++    const clearance = nodePaintBounds({ kind: 'shape', id: node.id, role: 'node', geometry: written, paint: piece.paint, ...(piece.childPaints ? { childPaints: piece.childPaints } : {}) })
++    const result: Frame | undefined = finiteBox(bounds) && finiteBox(clearance) ? { rect: true, bounds, clearance } : undefined
+     bodies.set(node, result)
+     return result
+   }
+@@ -153,10 +158,10 @@ export function bodyShaftPaintContext(style: GraphPaintStyle, pay: (units: numbe
+     routes.set(points, boxes)
+     return boxes
+   }
+-  const contact = (edge: PositionedEdge, points: readonly Point[], node: PositionedNode): boolean | undefined => {
++  const contact = (edge: PositionedEdge, points: readonly Point[], node: PositionedNode, frames: boolean): boolean | undefined => {
+     if (!pay(2)) return undefined
+-    const body = bodyOf(node)
+-    if (body === false) return false
++    const body = bodyOf(node, frames)
++    if (body === false || body && ('rect' in body) !== frames) return false
+     const strips = shaft(edge, points)
+     if (!body || !strips) return undefined
+     for (const strip of strips) {
+@@ -175,7 +180,7 @@ export function bodyShaftPaintContext(style: GraphPaintStyle, pay: (units: numbe
+   // shaft extent. A fixed ten-pixel detour can cross an otherwise clear caption.
+   const lanes = (edge: PositionedEdge, node: PositionedNode, axis: 'x' | 'y'): readonly number[] => {
+     if (!pay(16)) return []
+-    const body = bodyOf(node)
++    const body = bodyOf(node, true)
+     if (!body || !('rect' in body)) return []
+     const extent = paintedStrokeExtent(edgeShaftPaint(edge, style), true)
+     if (extent === undefined) return []
+diff --git a/src/layout/passes/obstacle-routing.ts b/src/layout/passes/obstacle-routing.ts
+index a86880ed7..1cca29521 100644
+--- a/src/layout/passes/obstacle-routing.ts
++++ b/src/layout/passes/obstacle-routing.ts
+@@ -88,9 +88,9 @@ export function rerouteEdgesThroughNodes(nodes: PositionedNode[], edges: Positio
+   const paintWork = graphInkWork()
+   const payPaint = (units: number): boolean => { chargeWork?.(units); return (paintWork.remaining -= units) >= 0 }
+   const paintedContact = style && withinGraphInkBudget(nodes, edges, groups) ? bodyShaftPaintContext(style, payPaint) : undefined
+-  let currentEdge: PositionedEdge, paintedRepair = false
++  let currentEdge: PositionedEdge, paintedRepair = false, paintedFrames = false
+   const blockedBy = (a: Point, b: Point, node: PositionedNode): boolean => segmentThroughShape(a, b, node)
+-    || paintedRepair && node.id !== currentEdge.source && node.id !== currentEdge.target && paintedContact!.contact(currentEdge, [a, b], node) !== false
++    || paintedRepair && node.id !== currentEdge.source && node.id !== currentEdge.target && paintedContact!.contact(currentEdge, [a, b], node, paintedFrames) !== false
+   const throughNode = (pts: Point[], skip: ReadonlySet<string>): boolean => {
+     for (const n of nodes) {
+       chargeWork?.(1)
+@@ -153,7 +153,7 @@ export function rerouteEdgesThroughNodes(nodes: PositionedNode[], edges: Positio
+       for (const n of nodes) {
+         chargeWork?.(1)
+         if (skip.has(n.id)) continue
+-        if (paintedRepair) cands.push(...paintedContact!.lanes(currentEdge, n, ax))
++        if (paintedFrames && paintedRepair) cands.push(...paintedContact!.lanes(currentEdge, n, ax))
+         cands.push(n[ax] - THROUGH_LANE_GAP, n[ax] + (ax === 'x' ? n.width : n.height) + THROUGH_LANE_GAP)
+       }
+       cands.sort((p, q) => Math.abs(p - c) - Math.abs(q - c))
+@@ -234,15 +234,18 @@ export function rerouteEdgesThroughNodes(nodes: PositionedNode[], edges: Positio
+     }
+     return null
+   }
+-  for (const edge of edges) {
++  for (const frames of [false, true]) {
++    paintedFrames = frames
++    if (frames && (!paintedContact || paintWork.remaining < 0)) break
++    for (const edge of edges) {
+     currentEdge = edge; paintedRepair = false
+     chargeWork?.(1)
+     if (edge.source === edge.target || edge.points.length < 2) continue
+     const source = nodeMap.get(edge.source), target = nodeMap.get(edge.target)
+     if (!source || !target) continue
+     const skip = new Set([edge.source, edge.target])
+-    if (!throughNode(edge.points, skip)) {
+-      if (!paintedContact || !nodes.some(node => !skip.has(node.id) && paintedContact.contact(edge, edge.points, node) === true)) continue
++    if (frames || !throughNode(edge.points, skip)) {
++      if (!paintedContact || !nodes.some(node => !skip.has(node.id) && paintedContact.contact(edge, edge.points, node, frames) === true)) continue
+       paintedRepair = true
+     }
+     // Off-outline endpoints are reanchorOffOutlineEndpoints' job; this pass only
+@@ -259,6 +262,7 @@ export function rerouteEdgesThroughNodes(nodes: PositionedNode[], edges: Positio
+     edge.points = route
+     recertifyReroutedEdge(edge, savedCert, source, target)
+     if (edge.label) edge.labelPosition = calculatePathMidpoint(route)
++    }
+   }
+ }
+ 

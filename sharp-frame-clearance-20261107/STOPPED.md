@@ -1,0 +1,1 @@
+Candidate5ac52 was withdrawn in6aa0ee45d after full CI exposed five P-to-U records and actual circle contacts. See ../sharp-frame-stop-20261107/README.md. Historical screenshots/products remain evidence of the selected improvement, not a shipped fix.

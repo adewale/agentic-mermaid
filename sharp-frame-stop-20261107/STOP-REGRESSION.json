@@ -1,0 +1,21 @@
+{
+  "status": "stop and revert",
+  "candidate": "5ac52ad3f4909d4e498a04db1b04e01bd2c027f7",
+  "reason": "One selected actual repair introduces five CI P-to-U regressions, including independently confirmed new circle/shaft stroke contacts. New frame work competes with legacy circle work in the same ledger.",
+  "adverseCases": [
+    "Native SHA17",
+    "Native SHA33",
+    "ELK cyclic-labelled-18-cuts",
+    "ELK generated296",
+    "ELK generated362"
+  ],
+  "actualCircleOverlapPx": {
+    "SHA33": 0.875,
+    "ELK296": 0.125,
+    "ELK362": 0.5
+  },
+  "phasePriorityProbe": "Same memo and ledger, old circle phase before lazy frame phase. Native17/33 pass again; original152 returns original unverified353905. Insufficient, stop without adding caches or increasing caps.",
+  "newCaches": false,
+  "capsChanged": false,
+  "scope": "Exact CI source/options matched across1748backend-case records. Original data, all adverse metrics and unknowns retained. Direct source probes do not qualify a shipped implementation."
+}

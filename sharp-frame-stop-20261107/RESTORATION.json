@@ -1,0 +1,23 @@
+[
+  {
+    "case": "restored17",
+    "proof": "passed",
+    "CIbeforeSVGExact": false
+  },
+  {
+    "case": "restored33",
+    "proof": "passed",
+    "CIbeforeSVGExact": false
+  },
+  {
+    "case": "restored296",
+    "proof": "passed",
+    "CIbeforeSVGExact": false
+  },
+  {
+    "case": "restored152",
+    "proof": "unverified",
+    "beforeSVGExact": true,
+    "beforeEntireReceiptExact": true
+  }
+]
