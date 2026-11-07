@@ -1,0 +1,59 @@
+{
+  "actualCI37SVGExact": {
+    "before": true,
+    "trial": true
+  },
+  "relative17NewActualHeadContacts": [
+    {
+      "a": "edge:n3->n1#0",
+      "b": "edge:n3->n1#1",
+      "tips": [
+        [
+          132.338,
+          329.2045
+        ],
+        [
+          132.338,
+          324.592
+        ]
+      ],
+      "pitch": 4.612500000000011,
+      "triangleFillIntersection": 0.12012499999999296
+    },
+    {
+      "a": "edge:n3->n1#0",
+      "b": "edge:n4->n1#0",
+      "tips": [
+        [
+          132.338,
+          329.2045
+        ],
+        [
+          132.338,
+          333.817
+        ]
+      ],
+      "pitch": 4.612500000000011,
+      "triangleFillIntersection": 0.12012499999999296
+    },
+    {
+      "a": "edge:n0->n1#0",
+      "b": "edge:n4->n1#0",
+      "tips": [
+        [
+          132.338,
+          338.4295
+        ],
+        [
+          132.338,
+          333.817
+        ]
+      ],
+      "pitch": 4.612500000000011,
+      "triangleFillIntersection": 0.12012499999999296
+    }
+  ],
+  "marker": "unchanged8x5 arrowfill; .75roundstroke notneeded; leftwardheads; tipsdistinct",
+  "rasterReadability": "unknown",
+  "stop": "Relative floor fixes152 but doesnot preserve headcapacity; no source implementation retained."
+}
