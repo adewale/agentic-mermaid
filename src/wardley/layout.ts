@@ -5,6 +5,7 @@ import type { InternalStyleFace } from '../scene/style-registry.ts'
 import type { Geometry } from '../scene/ir.ts'
 import { pointOnRoutingBoundary } from '../shape-outline.ts'
 import type { WardleyBody, PositionedWardley, WardleyPlacedText, WardleyPlacedNode } from './types.ts'
+import { wardleyPipelineGroups } from './identity.ts'
 
 type NodeMark = Extract<Geometry, { kind: 'circle' | 'rect' }>
 
@@ -90,10 +91,11 @@ export function layoutWardley(body: WardleyBody, options: Readonly<RenderOptions
     const target = { x: x(trend.targetX), y: y(trend.targetY) }
     edges.push({ id: `evolve:${index}`, from: trend.nodeId, to: trend.nodeId, points: retainSegmentDirection(from, target, nodeContact(from, target, style.nodeLineWidth), target), dashed: true, flow: 'forward', trend: true })
   }
+  const pipelineIds = wardleyPipelineGroups(body)
   const pipelines = body.pipelines.map(pipeline => {
     const members = pipeline.componentIds.map(id => byId.get(id)!)
     const left = Math.min(...members.map(member => member.x)), right = Math.max(...members.map(member => member.x))
-    return { id: `pipeline:${pipeline.nodeId}`, members: [...pipeline.componentIds], x: left - 12, y: byId.get(pipeline.nodeId)!.y - 12, width: Math.max(24, right - left + 24), height: 24 }
+    return { id: pipelineIds.get(pipeline.nodeId)!, members: [...pipeline.componentIds], x: left - 12, y: byId.get(pipeline.nodeId)!.y - 12, width: Math.max(24, right - left + 24), height: 24 }
   })
   // Only automatically placed captions move. Component coordinates and
   // explicitly authored offsets remain exact; short leaders retain ownership.

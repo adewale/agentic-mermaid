@@ -10,6 +10,7 @@ import { sameSourceMeaning } from './source-mutation.ts'
 import { nativeAccessibilityText } from './accessibility-envelope.ts'
 import { accessibilityFields } from '../shared/accessibility-directives.ts'
 import { readAuthoredGrammarAccessibility } from '../shared/grammar-text.ts'
+import { rebaseWardleyPipelines, wardleyLabels, wardleyPipelineGroups, wardleyPipelineIds, wardleyReference } from '../wardley/identity.ts'
 import type { FamilyOperations } from './families.ts'
 import { err, ok, type LayoutWarning, type MutationError, type Result } from './types.ts'
 export { WARDLEY_OP_SCHEMAS, WARDLEY_OP_KINDS } from '../wardley/ops.ts'
@@ -55,6 +56,18 @@ export function renderWardley(body: WardleyBody): string {
   }
   const ids = new Set<string>(), nodes = new Map(body.nodes.map(node => [node.id, node]))
   const pipelineIds = new Set(body.pipelines.flatMap(pipeline => pipeline.componentIds))
+  const pipelineOwners = new Map(body.pipelines.flatMap(pipeline => pipeline.componentIds.map(id => [id, pipeline.nodeId] as const)))
+  const pipelineId = body.pipelines.length ? wardleyPipelineIds(body.nodes.filter(node => !pipelineIds.has(node.id)).map(node => node.id)) : undefined
+  let labels: Map<string, string> | undefined
+  const reference = (id: string) => {
+    if (!pipelineIds.has(id)) return id
+    const node = nodes.get(id)!
+    const parent = pipelineOwners.get(id)!
+    if (id === `${parent}_${node.label}`) return id
+    labels ??= wardleyLabels(body.nodes)
+    if (wardleyReference(node.label, nodes, labels) !== id) throw new Error(`Wardley pipeline component ${id} has no unambiguous source reference`)
+    return node.label
+  }
   for (const node of body.nodes) {
     if (ids.has(node.id) || !node.id.length) throw new Error('Wardley components require unique nonempty identities')
     ids.add(node.id)
@@ -66,22 +79,29 @@ export function renderWardley(body: WardleyBody): string {
   }
   for (const pipeline of body.pipelines) {
     if (!nodes.has(pipeline.nodeId) || !pipeline.componentIds.length) throw new Error('Wardley pipelines require a parent and at least one component')
-    lines.push(`pipeline ${quoted(pipeline.nodeId)} {`)
-    for (const id of pipeline.componentIds) {
-      const node = nodes.get(id)
-      if (!node || id !== `${pipeline.nodeId}_${node.label}` || node.y !== nodes.get(pipeline.nodeId)!.y) throw new Error('Wardley pipeline identities and visibility must agree with their parent')
-      lines.push(`  component ${quoted(node.label)} [${percent(node.x)}]${offset(node)}`)
-    }
-    lines.push('}')
+    for (const id of pipeline.componentIds) if (!nodes.has(id)) throw new Error('Wardley pipeline component was not found')
   }
+  let currentPipeline: string | undefined
+  for (const node of body.nodes) if (pipelineIds.has(node.id)) {
+    const parent = pipelineOwners.get(node.id)!
+    if (node.id !== pipelineId!(parent, node.label) || node.y !== nodes.get(parent)!.y) throw new Error('Wardley pipeline identities and visibility must agree with their parent')
+    if (parent !== currentPipeline) {
+      if (currentPipeline !== undefined) lines.push('}')
+      lines.push(`pipeline ${quoted(parent)} {`)
+      currentPipeline = parent
+    }
+    lines.push(`  component ${quoted(node.label)} [${percent(node.x)}]${offset(node)}`)
+  }
+  if (currentPipeline !== undefined) lines.push('}')
   for (const link of body.links) {
     if (!nodes.has(link.source) || !nodes.has(link.target)) throw new Error('Wardley dependency endpoints must name existing components')
     if (link.label !== undefined && (/[\r\n]/.test(link.label) || link.label.includes('%%{'))) throw new Error('Wardley dependency labels must be single-line text without directive openers')
     const port = link.flow === 'bidirectional' ? '+<>' : link.flow === 'backward' ? '+<' : link.flow === 'forward' ? '+>' : ''
-    lines.push(`${quoted(link.source)} ${port} ${link.dashed ? '-.->' : '->'} ${quoted(link.target)}${link.label !== undefined ? ` ;${link.label}` : ''}`)
+    lines.push(`${quoted(reference(link.source))} ${port} ${link.dashed ? '-.->' : '->'} ${quoted(reference(link.target))}${link.label !== undefined ? ` ;${link.label}` : ''}`)
   }
   for (const trend of body.trends) {
     if (!nodes.has(trend.nodeId) || trend.targetY !== nodes.get(trend.nodeId)!.y) throw new Error('Wardley evolution preserves component visibility')
+    if (reference(trend.nodeId) !== trend.nodeId) throw new Error('Wardley evolution requires an unambiguous component source identity')
     lines.push(`evolve ${quoted(trend.nodeId)} ${percent(trend.targetX)}`)
   }
   for (const note of body.notes) lines.push(`note ${quoted(note.text)} [${percent(note.y)}, ${percent(note.x)}]`)
@@ -139,6 +159,7 @@ export function mutateWardley(body: WardleyBody, op: WardleyMutationOp): Result<
       case 'add_note': next.notes.push({ text: op.text, x: op.x, y: op.y }); break
       default: return err({ code: 'INVALID_OP', message: unknownOpMessage('wardley', op) })
     }
+    rebaseWardleyPipelines(next)
     const actual = parseWardleyBody(renderWardley(next))
     if (!sameSourceMeaning(actual, next)) throw new Error('Wardley edit cannot retain the requested complete map semantics in Mermaid source')
     return ok(next)
@@ -163,6 +184,7 @@ export const WARDLEY_SOURCE_HOOKS: FamilyOperations = {
   },
   buildSourceMap: (body, source, context) => mapObservedSource(source, context, (text, range) => {
     if (body.kind !== 'wardley') return
+    const groups = wardleyPipelineGroups(body)
     let link = 0, note = 0, annotation = 0, accelerator = 0, deaccelerator = 0
     const trends = new Map(body.trends.map((trend, index) => [trend.nodeId, index]))
     withParserObservation('wardley', event => {
@@ -186,7 +208,7 @@ export const WARDLEY_SOURCE_HOOKS: FamilyOperations = {
           if (index !== undefined) add('edges', `evolve:${index}`)
           break
         }
-        case 'start-pipeline': add('groups', `pipeline:${(event.value as unknown as WardleyBody['pipelines'][number]).nodeId}`); break
+        case 'start-pipeline': add('groups', groups.get((event.value as unknown as WardleyBody['pipelines'][number]).nodeId)!); break
         case 'add-note': add('labels', `note:${note++}`); break
         case 'add-annotation': {
           const value = event.value as unknown as WardleyBody['annotations'][number]

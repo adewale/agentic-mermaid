@@ -2,6 +2,7 @@ import { observeParserMutation, type ParserObservationSource } from '../shared/p
 // Adapted from Pele (MIT, copyright 2026 kepano), revision 3a2f075.
 // See LICENSES/pele-MIT.txt.
 import { GrammarReadError } from '../shared/grammar-reader-error.ts'
+import { wardleyLabels, wardleyReference } from './identity.ts'
 
 export type SourceStrategy = 'build' | 'buy' | 'outsource' | 'market'
 export type Flow = 'forward' | 'backward' | 'bidirectional'
@@ -124,15 +125,15 @@ export class WardleyBuilder {
   }
 
   startPipeline(nodeId: string): void {
-    this.pipelines.set(nodeId, { nodeId, componentIds: [] })
+    if (!this.pipelines.has(nodeId)) this.pipelines.set(nodeId, { nodeId, componentIds: [] })
     const node = this.nodes.get(nodeId)
     if (node) node.isPipelineParent = true
     observeParserMutation('wardley', 'start-pipeline', this.pipelines.get(nodeId), this.observationSource)
   }
 
   addPipelineComponent(pipelineNodeId: string, componentId: string): void {
-    this.pipelines.get(pipelineNodeId)?.componentIds.push(componentId)
     const node = this.nodes.get(componentId)
+    if (!node?.inPipeline) this.pipelines.get(pipelineNodeId)?.componentIds.push(componentId)
     if (node) node.inPipeline = true
     observeParserMutation('wardley', 'add-pipeline-component', this.pipelines.get(pipelineNodeId), this.observationSource)
   }
@@ -180,11 +181,8 @@ export class WardleyBuilder {
   // have ids like "Parent_Child" and are linked by label.
   resolveNodeId(name: string): string {
     if (this.nodes.has(name)) return name
-    if (!this.labels) {
-      this.labels = new Map()
-      for (const [id, node] of this.nodes) if (!this.labels.has(node.label)) this.labels.set(node.label, id)
-    }
-    return this.labels.get(name) ?? name
+    this.labels ??= wardleyLabels(this.nodes.values())
+    return wardleyReference(name, this.nodes, this.labels)
   }
 
   build(): WardleyBuildResult {

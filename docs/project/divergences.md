@@ -970,3 +970,21 @@ and caption. Canonical exports include the authored loop statements; Mermaid
 accepts that syntax and continues to discard those transitions on its readback.
 The two original `cynefin.integration.spec.ts` assertions expecting loops to
 vanish remain intentional data-retention divergences.
+
+### Wardley preserves pipeline scopes without overwriting authored components
+
+Mermaid 12.2.0 generates a pipeline child's ID by joining its parent and label
+with an underscore. An authored `Service_Custom` component is therefore
+overwritten by `Custom` in pipeline `Service`, changing both coordinates and
+dependency targets. Agentic reserves authored IDs before allocating generated
+ones and keeps separate parent/label pairs distinct. Generated drawing groups
+use the same reserved namespace in layout and source maps.
+
+Reopening a pipeline retains its earlier members; redeclaring the same child
+updates that child without duplicating membership. Mermaid resets the member
+list on each opening. Native exports retain declaration order by reopening
+scopes when necessary. Mermaid accepts those writes but still exhibits its
+content losses. Dependencies use an unambiguous source name; checked edits
+refuse atomically when no such reference exists, including evolution of a
+collision-disambiguated child. Generated IDs may change after structural edits;
+authored IDs, labels and references retain their meaning.

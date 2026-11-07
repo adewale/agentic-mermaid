@@ -1,4 +1,4 @@
-import { renderMermaidSVG, verifyMermaid } from '../agent/core.ts'
+import { mutate, parseRegisteredMermaid, renderMermaidASCII, renderMermaidSVG, serializeMermaid, verifyMermaid } from '../agent/core.ts'
 import { describe, expect, test } from 'bun:test'
 import { parseWardleyBody, renderWardley, mutateWardley } from '../agent/wardley-body.ts'
 import { layoutWardley } from '../wardley/layout.ts'
@@ -28,6 +28,60 @@ accelerator Demand [0.7, 0.2]
 deaccelerator Risk [0.3, 0.6]
 `
 describe('Wardley native source and geometry', () => {
+  test('pipeline children and groups cannot overwrite authored generated-looking names', async () => {
+    const upstream = startUpstreamMermaid()
+    try {
+      for (const [declaration, reserved] of [
+        ['component Service_Custom [0.2,0.9]', ['Service_Custom']],
+        ['component Service_Custom [0.2,0.9]\ncomponent "Service_Custom#1" [0.1,0.7]', ['Service_Custom', 'Service_Custom#1']],
+      ] as const) {
+        const input = `wardley-beta\ncomponent Service [0.8,0.3]\n${declaration}\ncomponent "pipeline:Service" [0.3,0.8]\npipeline Service {\n component Custom [0.4]\n}\nService -> Service_Custom\nService -> Custom`
+        const body = parseWardleyBody(input)
+        expect(body.nodes.find(node => node.id === 'Service_Custom')).toMatchObject({ label: 'Service_Custom', x: 90, y: 20, className: 'component' })
+        const child = body.nodes.find(node => node.label === 'Custom')!
+        expect(child).toMatchObject({ x: 40, y: 80, inPipeline: true, className: 'pipeline-component' })
+        expect(reserved).not.toContain(child.id)
+        expect(new Set(body.nodes.map(node => node.id)).size).toBe(body.nodes.length)
+        expect(body.pipelines).toEqual([{ nodeId: 'Service', componentIds: [child.id] }])
+        expect(body.links.map(link => [link.source, link.target])).toEqual([['Service', 'Service_Custom'], ['Service', child.id]])
+        expect(parseWardleyBody(renderWardley(body))).toEqual(body)
+        expect(await upstream.publicAccepts(renderWardley(body))).toBe(true)
+        const parsed = parseRegisteredMermaid(input)
+        if (!parsed.ok || parsed.value.body.kind !== 'wardley') throw new Error('Expected typed Wardley')
+        const layout = layoutWardley(parsed.value.body)
+        expect(layout.pipelines[0]!.id).not.toBe('pipeline:Service')
+        expect(parsed.value.source.groups.has(layout.pipelines[0]!.id)).toBe(true)
+        const svg = renderMermaidSVG(parsed.value)
+        const ids = scanSvgStartTags(svg).flatMap(tag => tag.attributes.filter(attr => attr.name === 'data-id').map(attr => attr.value))
+        expect(new Set(ids).size).toBe(ids.length)
+        expect(renderMermaidASCII(parsed.value)).toContain('Service_Custom')
+        const renamedTitle = mutate(parsed.value, { kind: 'set_title', title: 'Still complete' })
+        if (!renamedTitle.ok || renamedTitle.value.body.kind !== 'wardley') throw new Error('Expected unchanged component identities')
+        expect(renamedTitle.value.body.nodes).toEqual(body.nodes)
+        expect(parseWardleyBody(serializeMermaid(renamedTitle.value))).toEqual(renamedTitle.value.body)
+        const removed = mutateWardley(body, { kind: 'remove_component', id: 'Service_Custom' })
+        if (!removed.ok) throw new Error(removed.error.message)
+        expect(removed.value.nodes.some(node => node.label === 'Custom')).toBe(true)
+        expect(removed.value.links).toHaveLength(1)
+        expect(parseWardleyBody(renderWardley(removed.value))).toEqual(removed.value)
+      }
+    } finally { upstream.close() }
+  })
+
+  test('pipeline scopes disambiguate underscores and retain repeated declarations', () => {
+    const input = 'wardley-beta\ncomponent A [0.8,0.3]\ncomponent A_B [0.6,0.5]\npipeline A {\n component B_C [0.2]\n}\npipeline A_B {\n component C [0.7]\n}\npipeline A {\n component Another [0.4]\n component B_C [0.25]\n}'
+    const body = parseWardleyBody(input)
+    expect(body.nodes.filter(node => node.inPipeline).map(node => [node.label, node.x, node.y])).toEqual([['B_C', 25, 80], ['C', 70, 60], ['Another', 40, 80]])
+    expect(new Set(body.pipelines.flatMap(pipeline => pipeline.componentIds)).size).toBe(3)
+    expect(body.pipelines.map(pipeline => pipeline.componentIds.length)).toEqual([2, 1])
+    expect(parseWardleyBody(renderWardley(body))).toEqual(body)
+    const changed = mutateWardley(body, { kind: 'add_component', id: 'New', x: 45, y: 30 })
+    expect(changed.ok).toBe(true)
+    if (!changed.ok) throw new Error(changed.error.message)
+    expect(changed.value.nodes.find(node => node.id === 'New')).toMatchObject({ label: 'New', x: 45, y: 30 })
+    expect(parseWardleyBody(renderWardley(changed.value))).toEqual(changed.value)
+  })
+
   test('public Scene validation retains an inertial component and all of its owned artwork', () => {
     expect(verifyMermaid(source).ok).toBe(true)
     const svg = renderMermaidSVG(source)

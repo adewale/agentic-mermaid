@@ -3,6 +3,7 @@
 import { GrammarReadError } from '../shared/grammar-reader-error.ts'
 import { WardleyBuilder, type Flow, type SourceStrategy, type WardleyBuildResult } from './builder.ts'
 import { wardleyAstSource, type LabelAst, type WardleyAst } from './parser.ts'
+import { wardleyPipelineIds } from './identity.ts'
 
 export interface WardleyModel extends WardleyBuildResult {
   type: 'wardley'
@@ -81,6 +82,7 @@ export function populate(ast: WardleyAst, db: WardleyBuilder): void {
     db.atSource(wardleyAstSource(note)).addNote({ text: note.text, x: at.x, y: at.y })
   }
 
+  const pipelineId = ast.pipelines.length ? wardleyPipelineIds([...ast.anchors, ...ast.components].map(node => node.name)) : undefined
   for (const pipeline of ast.pipelines) {
     const parent = db.getNode(pipeline.parent)
     if (!parent || typeof parent.y !== 'number') {
@@ -91,7 +93,7 @@ export function populate(ast: WardleyAst, db: WardleyBuilder): void {
     const y = parent.y
     db.atSource(wardleyAstSource(pipeline)).startPipeline(pipeline.parent)
     for (const component of pipeline.components) {
-      const id = `${pipeline.parent}_${component.name}`
+      const id = pipelineId!(pipeline.parent, component.name)
       const [labelOffsetX, labelOffsetY] = offsets(component.label)
       const x = toPercent(component.evolution, `Pipeline component "${component.name}" evolution`)
       db.atSource(wardleyAstSource(component)).addNode({
