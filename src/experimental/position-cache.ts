@@ -1,10 +1,11 @@
-import { estimatedResidency } from './cache-residency.ts'
 import type { FamilyLayoutResult, FamilyPositionedView } from '../agent/families.ts'
 import { graphLayoutDecisionsOf, transferGraphLayoutDecisions } from '../layout/decision-evidence.ts'
-import { isImmutablePixelTextPart, transferRetainedPixelText } from '../shared/prepared-text.ts'
-import { WeightedLru } from './weighted-lru.ts'
 import { observeCache } from '../performance-observations.ts'
 import type { PaintLayoutCertification } from '../scene/paint-certification.ts'
+import { isImmutablePixelTextPart, isRetainedPixelText, transferRetainedPixelText } from '../shared/prepared-text.ts'
+import { estimatedResidency } from './cache-residency.ts'
+import { WeightedLru } from './weighted-lru.ts'
+
 const familyIds = new WeakMap<object, number>()
 let nextFamilyId = 0
 interface PositionedSnapshot { result: FamilyLayoutResult; projection?: FamilyPositionedView }
@@ -28,30 +29,168 @@ function isolatedKey(family: object, key: string): string {
   if (id === undefined) { id = nextFamilyId++; familyIds.set(family, id) }
   return `${id}:${key}`
 }
+// Intrinsic collection iterators ignore caller overrides and mutable prototypes.
+const recordPrototype = Object.prototype, mapPrototype = Map.prototype, setPrototype = Set.prototype
+const mapEntries = Map.prototype.entries, setValues = Set.prototype.values
+const mapNext = Object.getPrototypeOf(new Map().entries()).next as MapIterator<[unknown, unknown]>['next']
+const setNext = Object.getPrototypeOf(new Set().values()).next as SetIterator<unknown>['next']
+function clonedKind(value: object): 'record' | 'array' | 'map' | 'set' | 'native' {
+  if (Array.isArray(value)) return 'array'
+  const prototype = Object.getPrototypeOf(value)
+  return prototype === recordPrototype || prototype === null ? 'record'
+    : prototype === mapPrototype ? 'map' : prototype === setPrototype ? 'set' : 'native'
+}
+
+function mapSnapshot(value: object): Array<[unknown, unknown]> {
+  const iterator = mapEntries.call(value as Map<unknown, unknown>), entries: Array<[unknown, unknown]> = []
+  for (let next = mapNext.call(iterator); !next.done; next = mapNext.call(iterator)) entries.push(next.value)
+  return entries
+}
+
+function setSnapshot(value: object): unknown[] {
+  const iterator = setValues.call(value as Set<unknown>), entries: unknown[] = []
+  for (let next = setNext.call(iterator); !next.done; next = setNext.call(iterator)) entries.push(next.value)
+  return entries
+}
+
+/** A complete value/alias witness permits original immutable substitutions.
+ * A failed witness never changes the native snapshot. */
+function positionedCustodyProof(source: unknown, copy: unknown, immutableText: boolean) {
+  const originals = new WeakMap<object, object>(), snapshots = new WeakMap<object, object>()
+  const replacements = new WeakMap<object, object>(), metadata: Array<[object, object]> = []
+  let hasReplacements = false
+  const prove = (a: unknown, b: unknown): boolean => {
+    if (a === null || typeof a !== 'object' || b === null || typeof b !== 'object') return Object.is(a, b)
+    if (originals.has(a) || snapshots.has(b)) return originals.get(a) === b && snapshots.get(b) === a
+    originals.set(a, b); snapshots.set(b, a)
+    const kind = clonedKind(b)
+    const immutable = isImmutablePixelTextPart(a)
+    // Opaque native objects keep their authoritative native snapshot. Optional
+    // custody reuse requires a complete value and bidirectional alias proof.
+    if (kind === 'native') return false
+    if (kind === 'map') {
+      const entries = mapSnapshot(a), copied = mapSnapshot(b)
+      if (entries.length !== copied.length) return false
+      for (let index = 0; index < entries.length; index++) {
+        const [key, item] = entries[index]!, [copyKey, copyValue] = copied[index]!
+        if (!prove(key, copyKey) || !prove(item, copyValue)) return false
+      }
+    } else if (kind === 'set') {
+      const values = setSnapshot(a), copied = setSnapshot(b)
+      if (values.length !== copied.length) return false
+      for (let index = 0; index < values.length; index++) if (!prove(values[index], copied[index])) return false
+    } else {
+      if (Array.isArray(a) !== (kind === 'array')) return false
+      // Constructor custody proves frozen, accessor-free data. Mutable source
+      // nodes still need a single descriptor snapshot before any recursion:
+      // a later Proxy trap can mutate siblings during the proof.
+      const descriptors = immutable ? undefined : Object.getOwnPropertyDescriptors(a)
+      const keys = descriptors ? Object.keys(descriptors).filter(key => descriptors[key]!.enumerable) : Object.keys(a)
+      const copied = Object.keys(b)
+      if (kind === 'array' && (descriptors ? descriptors.length?.value : (a as unknown[]).length) !== (b as unknown[]).length) return false
+      if (keys.length !== copied.length) return false
+      for (let index = 0; index < keys.length; index++) {
+        const key = keys[index]!, descriptor = descriptors?.[key]
+        if (key !== copied[index] || (descriptor && !('value' in descriptor))) return false
+        // Native-created records and arrays contain own data properties.
+        if (!prove(descriptor ? descriptor.value : (a as Record<string, unknown>)[key], (b as Record<string, unknown>)[key])) return false
+      }
+    }
+    if (isRetainedPixelText(a)) metadata.push([a, b])
+    if (immutableText && immutable) { replacements.set(b, a); hasReplacements = true }
+    return true
+  }
+  let proved = false
+  // Post-admission Proxy reflection can still be observed. A trap failure or
+  // inconsistent witness only declines custody; it cannot change admission or
+  // the captured native values. No original graph nodes are returned except
+  // value/alias-proved constructor-owned immutable parts.
+  try { proved = prove(source, copy) } catch { /* optional custody proof failed */ }
+  return proved ? { metadata, replacements, hasReplacements } : undefined
+}
+
+/** Metadata alone does not substitute values or merge aliases. If an unrelated
+ * native value or accessor prevents whole-graph reuse, independently prove each
+ * retained text subtree before transferring its preparation authority. */
+function transferIndependentTextCustody(source: unknown, copy: unknown): void {
+  const seen = new WeakSet<object>()
+  const visit = (a: unknown, b: unknown): void => {
+    if (a === null || typeof a !== 'object' || b === null || typeof b !== 'object' || seen.has(b)) return
+    seen.add(b)
+    if (isRetainedPixelText(a)) {
+      const proof = positionedCustodyProof(a, b, false)
+      if (proof) {
+        for (const [original, snapshot] of proof.metadata) transferRetainedPixelText(original, snapshot)
+        return
+      }
+    }
+    try {
+      const kind = clonedKind(b)
+      if (kind === 'map') {
+        const entries = mapSnapshot(a), copies = mapSnapshot(b)
+        if (entries.length !== copies.length) return
+        for (let i = 0; i < entries.length; i++) { visit(entries[i]![0], copies[i]![0]); visit(entries[i]![1], copies[i]![1]) }
+      } else if (kind === 'set') {
+        const entries = setSnapshot(a), copies = setSnapshot(b)
+        if (entries.length !== copies.length) return
+        for (let i = 0; i < entries.length; i++) visit(entries[i], copies[i])
+      } else if (kind === 'record' || kind === 'array') {
+        const descriptors = Object.getOwnPropertyDescriptors(a)
+        for (const key of Object.keys(b)) {
+          const descriptor = descriptors[key]
+          if (descriptor?.enumerable && 'value' in descriptor) visit(descriptor.value, (b as Record<string, unknown>)[key])
+        }
+      }
+    } catch { /* unrelated opaque or changed source data cannot grant custody */ }
+  }
+  visit(source, copy)
+}
+
 /** Public copies remain independent mutable snapshots. Private native copies
  * may share only constructor-owned immutable text, preserving custody cost. */
 export function clonePositioned<T>(source: T, immutableText = false): T {
+  // Native admission must precede reflection: even a descriptor trap can
+  // delete an uncloneable Proxy before structuredClone gets to reject it.
   const copy = structuredClone(source)
+  const proof = positionedCustodyProof(source, copy, immutableText)
+  if (!proof) { transferIndependentTextCustody(source, copy); return copy }
+  const { metadata, replacements, hasReplacements } = proof
+  for (const [a, b] of metadata) transferRetainedPixelText(a, b)
+  if (!hasReplacements) return copy
   const seen = new WeakSet<object>()
-  const visit = (a: unknown, b: unknown): unknown => {
-    if (a === null || typeof a !== 'object' || b === null || typeof b !== 'object') return b
-    if (immutableText && isImmutablePixelTextPart(a)) return a
-    if (seen.has(a)) return b
-    seen.add(a); transferRetainedPixelText(a, b)
-    if (a instanceof Map && b instanceof Map) {
-      const copies = b.entries()
-      for (const [key, value] of a) {
-        const [copyKey, copyValue] = copies.next().value!
-        const retainedKey = visit(key, copyKey), retainedValue = visit(value, copyValue)
-        b.delete(copyKey); b.set(retainedKey, retainedValue)
+  const retain = (value: unknown): unknown => {
+    if (value === null || typeof value !== 'object') return value
+    const replacement = replacements.get(value)
+    if (replacement) return replacement
+    if (seen.has(value)) return value
+    seen.add(value)
+    const kind = clonedKind(value)
+    if (kind === 'map') {
+      const entries = mapSnapshot(value), target = value as Map<unknown, unknown>
+      let changed = false
+      for (const entry of entries) {
+        const key = retain(entry[0]), item = retain(entry[1])
+        if (key !== entry[0] || item !== entry[1]) { entry[0] = key; entry[1] = item; changed = true }
       }
-    } else if (a instanceof Set && b instanceof Set) {
-      const copies = b.values()
-      for (const value of a) { const copied = copies.next().value; b.delete(copied); b.add(visit(value, copied)) }
-    } else for (const key of Object.keys(a)) (b as Record<string, unknown>)[key] = visit((a as Record<string, unknown>)[key], (b as Record<string, unknown>)[key])
-    return b
+      if (changed) { target.clear(); for (const [key, item] of entries) target.set(key, item) }
+    } else if (kind === 'set') {
+      const entries = setSnapshot(value), target = value as Set<unknown>
+      let changed = false
+      for (let index = 0; index < entries.length; index++) {
+        const item = retain(entries[index])
+        if (item !== entries[index]) { entries[index] = item; changed = true }
+      }
+      if (changed) { target.clear(); for (const item of entries) target.add(item) }
+    } else if (kind === 'record' || kind === 'array') {
+      const target = value as Record<string, unknown>
+      for (const key of Object.keys(value)) {
+        const item = target[key], retained = retain(item)
+        if (retained !== item) target[key] = retained
+      }
+    }
+    return value
   }
-  return visit(source, copy) as T
+  return retain(copy) as T
 }
 /** Membership records actual private cache geometry, including its operation
  * wrappers, never a caller brand. */
@@ -83,7 +222,7 @@ export function borrowedPositioned(family: object, key: string, nativeSvgRequest
 export function retainPositioned(family: object, key: string, value: FamilyLayoutResult, projection?: FamilyPositionedView): void {
   retainSnapshot(family, key, value, projection, true)
 }
-/** Fresh original Flowchart/State/Sequence geometry, private native SVG only. */
+/** Fresh original Flowchart/State/Sequence/Pie geometry, private native SVG only. */
 export function retainOwnedNativeSvgPositioned(family: object, key: string, value: FamilyLayoutResult, projection?: FamilyPositionedView): void {
   retainSnapshot(family, key, value, projection, false)
 }
