@@ -29,7 +29,8 @@ import { parseSankeyDiagram } from '../../src/sankey/parser.ts'
 import { resolveSequenceConfig } from '../../src/sequence/config.ts'
 import { sequenceFamilySource } from '../../src/sequence/family-source.ts'
 import { authoredSequenceLine, parseSequenceDiagram } from '../../src/sequence/parser.ts'
-import { withAccessibilityFields } from '../../src/shared/accessibility-directives.ts'
+import { withAccessibilityFields, withAccessibilityObject } from '../../src/shared/accessibility-directives.ts'
+import { familyParserLines } from '../../src/shared/parser-source.ts'
 import { type ParserObservation, snapshotParserObservationValue, withParserObservation } from '../../src/shared/parser-observation.ts'
 import { parseSwimlaneRenderSource } from '../../src/swimlane/parser.ts'
 import { parseTimelineDiagram } from '../../src/timeline/parser.ts'
@@ -101,11 +102,13 @@ function nativeParserForRequest(family: string, request: ReturnType<typeof resol
       case 'mindmap':
         return parseMindmap(normalized.familyBody)
       case 'pie':
-        return parsePieChart(pieFamilyLines(normalized))
+        return withFrontmatterTitle(parsePieChart(pieFamilyLines(normalized)), normalized.frontmatter)
       case 'quadrant':
-        return parseQuadrantChart(lines)
+        return withFrontmatterTitle(withAccessibilityObject(parseQuadrantChart(familyParserLines(normalized)), normalized.accessibility), normalized.frontmatter)
       case 'radar':
-        return parseRadarChart(normalized.lines)
+        return parseRadarChart(familyParserLines({ familyBody: normalized.body, familyLines: normalized.lines }), {
+          title: typeof normalized.frontmatter.title === 'string' ? normalized.frontmatter.title : undefined,
+        })
       case 'sankey':
         return parseSankeyDiagram(normalized.body.split(/\r?\n/))
       case 'sequence': {
@@ -116,7 +119,7 @@ function nativeParserForRequest(family: string, request: ReturnType<typeof resol
       case 'timeline':
         return parseTimelineDiagram(lines, normalized.accessibility)
       case 'xychart':
-        return parseXYChart(lines)
+        return withFrontmatterTitle(withAccessibilityObject(parseXYChart(familyParserLines(normalized)), normalized.accessibility), normalized.frontmatter)
       case 'treeview':
         return withFrontmatterTitle(withAccessibilityFields(parseTreeviewDiagram(normalized.authoredFamilyBody ?? normalized.familyBody), normalized.accessibility), normalized.frontmatter)
       case 'usecase':
