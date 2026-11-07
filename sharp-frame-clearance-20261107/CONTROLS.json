@@ -1,0 +1,158 @@
+[
+  {
+    "case": "ER208-chain/agentic",
+    "exit": 0,
+    "status": "returned",
+    "beforeStatus": "returned",
+    "svgExact": true,
+    "receiptExact": true,
+    "proof": "passed"
+  },
+  {
+    "case": "ER208-chain/elk",
+    "exit": 0,
+    "status": "returned",
+    "beforeStatus": "returned",
+    "svgExact": true,
+    "receiptExact": true,
+    "proof": "passed"
+  },
+  {
+    "case": "ER208-chain/omitted",
+    "exit": 0,
+    "status": "returned",
+    "beforeStatus": "returned",
+    "svgExact": true,
+    "receiptExact": true,
+    "proof": "passed"
+  },
+  {
+    "case": "Sparse256-default-gap/agentic",
+    "exit": 0,
+    "status": "returned",
+    "beforeStatus": "returned",
+    "svgExact": true,
+    "receiptExact": true,
+    "proof": "passed"
+  },
+  {
+    "case": "Sparse256-default-gap/elk",
+    "exit": 0,
+    "status": "returned",
+    "beforeStatus": "returned",
+    "svgExact": true,
+    "receiptExact": true,
+    "proof": "passed"
+  },
+  {
+    "case": "Sparse256-default-gap/omitted",
+    "exit": 0,
+    "status": "returned",
+    "beforeStatus": "returned",
+    "svgExact": true,
+    "receiptExact": true,
+    "proof": "passed"
+  },
+  {
+    "case": "er256-chain/agentic",
+    "exit": 1,
+    "status": "refused",
+    "beforeStatus": "refused",
+    "failureExact": true
+  },
+  {
+    "case": "er256-chain/elk",
+    "exit": 1,
+    "status": "refused",
+    "beforeStatus": "refused",
+    "failureExact": true
+  },
+  {
+    "case": "er256-chain/omitted",
+    "exit": 1,
+    "status": "refused",
+    "beforeStatus": "refused",
+    "failureExact": true
+  },
+  {
+    "case": "nonlinear-forest/agentic",
+    "exit": 0,
+    "status": "returned",
+    "beforeStatus": "returned",
+    "svgExact": true,
+    "receiptExact": true,
+    "proof": "passed"
+  },
+  {
+    "case": "nonlinear-forest/elk",
+    "exit": 0,
+    "status": "returned",
+    "beforeStatus": "returned",
+    "svgExact": true,
+    "receiptExact": true,
+    "proof": "passed"
+  },
+  {
+    "case": "nonlinear-forest/omitted",
+    "exit": 0,
+    "status": "returned",
+    "beforeStatus": "returned",
+    "svgExact": true,
+    "receiptExact": true,
+    "proof": "passed"
+  },
+  {
+    "case": "raw-fan-circle/agentic",
+    "exit": 0,
+    "status": "returned",
+    "beforeStatus": "returned",
+    "svgExact": true,
+    "receiptExact": true,
+    "proof": "unverified"
+  },
+  {
+    "case": "raw-fan-circle/elk",
+    "exit": 0,
+    "status": "returned",
+    "beforeStatus": "returned",
+    "svgExact": true,
+    "receiptExact": true,
+    "proof": "unverified"
+  },
+  {
+    "case": "raw-fan-circle/omitted",
+    "exit": 0,
+    "status": "returned",
+    "beforeStatus": "returned",
+    "svgExact": true,
+    "receiptExact": true,
+    "proof": "unverified"
+  },
+  {
+    "case": "requirement-cycle-TB/agentic",
+    "exit": 0,
+    "status": "returned",
+    "beforeStatus": "returned",
+    "svgExact": true,
+    "receiptExact": true,
+    "proof": "passed"
+  },
+  {
+    "case": "requirement-cycle-TB/elk",
+    "exit": 0,
+    "status": "returned",
+    "beforeStatus": "returned",
+    "svgExact": true,
+    "receiptExact": true,
+    "proof": "passed"
+  },
+  {
+    "case": "requirement-cycle-TB/omitted",
+    "exit": 0,
+    "status": "returned",
+    "beforeStatus": "returned",
+    "svgExact": true,
+    "receiptExact": true,
+    "proof": "passed"
+  }
+]

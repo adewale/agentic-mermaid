@@ -1,0 +1,20 @@
+{
+  "svgSHA256": "374e964bbaea4b6ae3c610c60cb450b0e4693a2a0d3110bd4e44700bb0fdfe5c",
+  "publicCalls": 0,
+  "offlineRasters": 4,
+  "font": "manifest-verified Inter, system fonts off",
+  "zoom": 2,
+  "roi": {
+    "x0": 574,
+    "x1": 591,
+    "y0": 1674,
+    "y1": 1735
+  },
+  "exposedShaftPixels": 183,
+  "visibleWithCardPixels": 183,
+  "attenuatedShaftPixels": 0,
+  "fullyHiddenShaftPixels": 0,
+  "actualShaft": "<polyline class=\"edge\" data-style=\"solid\" data-arrow-start=\"false\" data-arrow-end=\"true\" data-marker-end=\"arrow\" data-label=\"edge 16 xxxxxxxxxxxxxxxxxxx\" points=\"319.16,795.162 319.16,820.537 289.849,820.537 289.849,1371.181 434.765,1371.181 434.765,1384.556\" fill=\"none\" stroke=\"#939395\" stroke-width=\"1\" marker-end=\"url(#lc24-arrowhead)\" data-relationship=\"flowchart-edge\" data-direction=\"forward\" data-id=\"edge:n16-&gt;n12#0\" data-role=\"edge\" data-from=\"n16\" data-to=\"n12\" role=\"graphics-symbol\" aria-roledescription=\"relation\" aria-label=\"n16 to n12: edge 16 xxxxxxxxxxxxxxxxxxx\" />",
+  "actualCard": "<rect x=\"293.224\" y=\"833.912\" width=\"104.194\" height=\"36.9\" rx=\"0\" ry=\"0\" fill=\"#f9f9f9\" stroke=\"#949495\" stroke-width=\"0.75\" data-id=\"node-shape:n4\" data-role=\"node\" />",
+  "scope": "Actual saved output, independent per-pixel marginal shaft contribution with and without the foreign card; selected border interval only, not whole glyph/readability qualification."
+}

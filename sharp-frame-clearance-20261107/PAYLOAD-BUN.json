@@ -1,0 +1,15 @@
+{
+  "runtime": "Bun1.4.4 existing browser budget owner",
+  "arms": {
+    "before": {
+      "raw": 2186759,
+      "gzip9": 1310687,
+      "brotli11": 1244928
+    },
+    "after": {
+      "raw": 2187635,
+      "gzip9": 1311129,
+      "brotli11": 1246162
+    }
+  }
+}

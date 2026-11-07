@@ -1,0 +1,44 @@
+[
+  {
+    "case": "BT/agentic",
+    "status": "returned",
+    "proof": "passed",
+    "svgExact": true,
+    "receiptExact": true
+  },
+  {
+    "case": "BT/elk",
+    "status": "returned",
+    "proof": "passed",
+    "svgExact": true,
+    "receiptExact": true
+  },
+  {
+    "case": "LR/agentic",
+    "status": "returned",
+    "proof": "passed",
+    "svgExact": true,
+    "receiptExact": true
+  },
+  {
+    "case": "LR/elk",
+    "status": "returned",
+    "proof": "passed",
+    "svgExact": true,
+    "receiptExact": true
+  },
+  {
+    "case": "RL/agentic",
+    "status": "returned",
+    "proof": "passed",
+    "svgExact": true,
+    "receiptExact": true
+  },
+  {
+    "case": "RL/elk",
+    "status": "returned",
+    "proof": "passed",
+    "svgExact": true,
+    "receiptExact": true
+  }
+]

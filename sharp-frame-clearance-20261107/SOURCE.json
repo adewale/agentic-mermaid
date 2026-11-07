@@ -1,0 +1,9 @@
+{
+  "head": "5ac52ad3f4909d4e498a04db1b04e01bd2c027f7",
+  "base": "dd365744603143f105c2a8c8accf36203096b1ac",
+  "main": "39a500425f6b74eb486b9add9e90d538fab6a914",
+  "runtimeBefore": "14bec477578104a1eab5a279473aa77e747f8476",
+  "capturedAt": "2026-11-07T06:20:52.270289+00:00",
+  "trackedClean": true,
+  "note": "Final candidate runtime/test source bytes are committed; public candidate calls occurred before commit on these runtime bytes; source worklog added afterward."
+}

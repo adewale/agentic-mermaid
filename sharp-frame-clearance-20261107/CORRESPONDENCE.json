@@ -1,0 +1,199 @@
+{
+  "tagCount": 155,
+  "rows": [
+    {
+      "crossings": 16,
+      "sha256": "960d89b522ab5441cd28e55c624441e2223c9443ccf1d7f50b238c2582790515",
+      "viewport": "0 0 848.688 1461.456",
+      "edges": 39,
+      "bends": 70,
+      "wire": 13731.682989945002
+    },
+    {
+      "crossings": 16,
+      "sha256": "374e964bbaea4b6ae3c610c60cb450b0e4693a2a0d3110bd4e44700bb0fdfe5c",
+      "viewport": "0 0 848.688 1461.456",
+      "edges": 39,
+      "bends": 70,
+      "wire": 13738.328989945
+    }
+  ],
+  "changes": [
+    {
+      "index": 0,
+      "before": {
+        "name": "svg",
+        "attrs": {
+          "xmlns": "http://www.w3.org/2000/svg",
+          "width": "848.688",
+          "height": "1461.456",
+          "viewBox": "0 0 848.688 1461.456",
+          "style": "--bg:#FFFFFF;--fg:#27272A;--font:Inter;background:#FFFFFF",
+          "class": "am-0hw2fo81l1mxru"
+        }
+      },
+      "after": {
+        "name": "svg",
+        "attrs": {
+          "xmlns": "http://www.w3.org/2000/svg",
+          "width": "848.688",
+          "height": "1461.456",
+          "viewBox": "0 0 848.688 1461.456",
+          "style": "--bg:#FFFFFF;--fg:#27272A;--font:Inter;background:#FFFFFF",
+          "class": "am-0cqwa0o1pgokxt"
+        }
+      }
+    },
+    {
+      "index": 23,
+      "before": {
+        "name": "polyline",
+        "attrs": {
+          "class": "edge",
+          "data-style": "solid",
+          "data-arrow-start": "false",
+          "data-arrow-end": "true",
+          "data-marker-end": "arrow",
+          "data-label": "edge 16 xxxxxxxxxxxxxxxxxxx",
+          "points": "319.16,795.162 319.16,820.537 293.172,820.537 293.172,1371.181 434.765,1371.181 434.765,1384.556",
+          "fill": "none",
+          "stroke": "#939395",
+          "stroke-width": "1",
+          "marker-end": "url(#lc24-arrowhead)",
+          "data-relationship": "flowchart-edge",
+          "data-direction": "forward",
+          "data-id": "edge:n16->n12#0",
+          "data-role": "edge",
+          "data-from": "n16",
+          "data-to": "n12",
+          "role": "graphics-symbol",
+          "aria-roledescription": "relation",
+          "aria-label": "n16 to n12: edge 16 xxxxxxxxxxxxxxxxxxx"
+        }
+      },
+      "after": {
+        "name": "polyline",
+        "attrs": {
+          "class": "edge",
+          "data-style": "solid",
+          "data-arrow-start": "false",
+          "data-arrow-end": "true",
+          "data-marker-end": "arrow",
+          "data-label": "edge 16 xxxxxxxxxxxxxxxxxxx",
+          "points": "319.16,795.162 319.16,820.537 289.849,820.537 289.849,1371.181 434.765,1371.181 434.765,1384.556",
+          "fill": "none",
+          "stroke": "#939395",
+          "stroke-width": "1",
+          "marker-end": "url(#lc24-arrowhead)",
+          "data-relationship": "flowchart-edge",
+          "data-direction": "forward",
+          "data-id": "edge:n16->n12#0",
+          "data-role": "edge",
+          "data-from": "n16",
+          "data-to": "n12",
+          "role": "graphics-symbol",
+          "aria-roledescription": "relation",
+          "aria-label": "n16 to n12: edge 16 xxxxxxxxxxxxxxxxxxx"
+        }
+      }
+    },
+    {
+      "index": 63,
+      "before": {
+        "name": "rect",
+        "attrs": {
+          "class": "edge-label-halo",
+          "x": "206.097",
+          "y": "1118.356",
+          "width": "174.15",
+          "height": "38.3",
+          "rx": "4",
+          "ry": "4",
+          "fill": "#FFFFFF",
+          "stroke": "none"
+        }
+      },
+      "after": {
+        "name": "rect",
+        "attrs": {
+          "class": "edge-label-halo",
+          "x": "202.774",
+          "y": "1128.5115",
+          "width": "174.15",
+          "height": "38.3",
+          "rx": "4",
+          "ry": "4",
+          "fill": "#FFFFFF",
+          "stroke": "none"
+        }
+      }
+    },
+    {
+      "index": 64,
+      "before": {
+        "name": "rect",
+        "attrs": {
+          "x": "210.097",
+          "y": "1122.356",
+          "width": "166.15",
+          "height": "30.3",
+          "rx": "2",
+          "ry": "2",
+          "fill": "#FFFFFF",
+          "stroke": "#e5e5e5",
+          "stroke-width": "1"
+        }
+      },
+      "after": {
+        "name": "rect",
+        "attrs": {
+          "x": "206.774",
+          "y": "1132.5115",
+          "width": "166.15",
+          "height": "30.3",
+          "rx": "2",
+          "ry": "2",
+          "fill": "#FFFFFF",
+          "stroke": "#e5e5e5",
+          "stroke-width": "1"
+        }
+      }
+    },
+    {
+      "index": 65,
+      "before": {
+        "name": "text",
+        "attrs": {
+          "x": "293.172",
+          "y": "1137.506",
+          "text-anchor": "middle",
+          "font-size": "11",
+          "font-weight": "400",
+          "fill": "#575759",
+          "data-prepared-text": "true",
+          "dy": "3.85",
+          "textLength": "150.15",
+          "lengthAdjust": "spacingAndGlyphs",
+          "data-font-metrics": "deterministic-fit"
+        }
+      },
+      "after": {
+        "name": "text",
+        "attrs": {
+          "x": "289.849",
+          "y": "1147.6615",
+          "text-anchor": "middle",
+          "font-size": "11",
+          "font-weight": "400",
+          "fill": "#575759",
+          "data-prepared-text": "true",
+          "dy": "3.85",
+          "textLength": "150.15",
+          "lengthAdjust": "spacingAndGlyphs",
+          "data-font-metrics": "deterministic-fit"
+        }
+      }
+    }
+  ],
+  "scope": "Actual finalSVG start tags parsed independently by Saxes; every unchanged tag and attribute compared, not a helper/certificate claim."
+}
