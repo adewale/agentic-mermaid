@@ -5,6 +5,7 @@ import { mutateVenn, renderVenn, verifyVenn } from '../agent/venn-body.ts'
 import { distanceForOverlap, layoutCircles, lensArea } from '../venn/geometry.ts'
 import { layoutMermaid, parseRegisteredMermaid, renderMermaidASCII, renderMermaidSVG, serializeMermaid, verifyMermaid } from '../agent/core.ts'
 import { startUpstreamMermaid } from './helpers/upstream-mermaid.ts'
+import { withParserObservation } from '../shared/parser-observation.ts'
 
 const upstream = startUpstreamMermaid()
 afterAll(() => upstream.close())
@@ -166,6 +167,23 @@ describe('native Venn', () => {
       const location = parsed.value.source.nodes.get(id)!
       expect(parsed.value.canonicalSource.split('\r\n')[location.line - 1]!.slice(location.col - 1)).toStartWith(token)
     }
+  })
+  test('mixed CRLF and literal CR preserve model text and physical observation origins', () => {
+    const source = 'venn-beta\r\nset A["x\ry"]:10\r\nset B:5'
+    const origins: Array<{ offset?: number; endOffset?: number; line?: number; column?: number }> = []
+    const native = withParserObservation('venn', event => {
+      if (event.unit === 'mutation' && event.kind === 'add-subset') origins.push(event.source!)
+    }, () => parseVennDiagram(source))
+    expect(native.subsets[0]!.label).toBe('x\ry')
+    expect(native).toEqual(parseVennDiagram(source))
+    expect(origins[1]).toMatchObject({ offset: source.indexOf('set B:5'), endOffset: source.length, line: 4, column: 1, unit: 'physical' })
+    const parsed = parseRegisteredMermaid(source)
+    if (!parsed.ok || parsed.value.body.kind !== 'venn') throw Error('Expected typed mixed-EOL Venn')
+    expect(parsed.value.body.subsets[0]!.label).toBe('x\ny')
+    const span = parsed.value.source.spans!.nodes.get('B')!
+    expect(source.slice(span.start.offset, span.end.offset)).toBe('set B:5')
+    expect(span.start).toEqual({ offset: source.indexOf('set B:5'), line: 4, col: 1 })
+    expect(parsed.value.source.nodes.get('B')).toEqual({ line: 4, col: 1 })
   })
   test('public output retains region text and safe native identities through edits', async () => {
     const parsed = parseRegisteredMermaid(source)

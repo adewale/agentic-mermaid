@@ -4,6 +4,7 @@ import { GrammarReadError, syntaxError } from '../../shared/grammar-reader-error
 import type { VennDb } from './db.ts'
 import { T, TOKEN_NAMES, VennLexer } from './lexer.ts'
 import { parserObservationActive, observeParserToken, observeParserStatement } from '../../shared/parser-observation.ts'
+import { sourcePointAt } from '../../shared/source-spans.ts'
 
 const STATEMENT = "'EOF', 'NEWLINE', 'TITLE', 'SET', 'UNION', 'TEXT', 'INDENT_TEXT', 'STYLE'"
 const VALUE = "'NUMERIC', 'IDENTIFIER', 'STRING', 'HEXCOLOR', 'RGBCOLOR', 'RGBACOLOR'"
@@ -11,7 +12,7 @@ const VALUE = "'NUMERIC', 'IDENTIFIER', 'STRING', 'HEXCOLOR', 'RGBCOLOR', 'RGBAC
 // Ports Mermaid's venn grammar. A token is read only when the grammar has to look at one to
 // decide, because the lexer asks the model whether an indented `text` continues a set, and the
 // statements are what tell the model so.
-export function parseVenn(src: string, db: VennDb, origins?: { starts: readonly number[]; columns?: readonly number[] }): void {
+export function parseVenn(src: string, db: VennDb, origins?: { starts: readonly number[]; columns?: readonly number[]; physicalStarts?: readonly number[] }): void {
   const lexer = new VennLexer(src, db)
   let type = -1
   const observed = parserObservationActive('venn')
@@ -25,7 +26,9 @@ export function parseVenn(src: string, db: VennDb, origins?: { starts: readonly 
       else high = mid
     }
     const column = offset - lineStarts[low]! + (origins?.columns?.[low] ?? 0)
-    return { line: low + 1, column: column + 1, offset: origins ? origins.starts[low]! + column : offset, unit: origins ? 'physical' as const : 'normalized' as const }
+    const authored = origins ? origins.starts[low]! + column : offset
+    const point = origins?.physicalStarts ? sourcePointAt(origins.physicalStarts, authored) : undefined
+    return { line: point?.line ?? low + 1, column: point?.col ?? column + 1, offset: authored, unit: origins ? 'physical' as const : 'normalized' as const }
   }
 
   const peek = (): number => (type === -1 ? (type = lexer.next()) : type)

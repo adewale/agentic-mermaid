@@ -73,8 +73,19 @@ export function parseVennDiagram(input: string | readonly string[]): VennBody {
     if (observed && familyLine !== line) (columns ??= [])[origin] = line.length - familyLine.length
     return familyLine
   })
-  const physical = observed && (columns || typeof input === 'string' && input.includes('\r\n'))
-    ? { starts: sourceLineStarts(typeof input === 'string' ? input : input.join('\n')), columns } : undefined
+  let physical: Parameters<typeof parseVenn>[2]
+  if (observed && (columns || typeof input === 'string' && input.includes('\r'))) {
+    const authored = typeof input === 'string' ? input : input.join('\n')
+    const starts = sourceLineStarts(authored)
+    const loneCR = /\r(?!\n)/.test(authored)
+    physical = {
+      // Input splitting consumes LF/CRLF only; literal CR still affects the
+      // physical point index, but must not add a parser-row origin.
+      starts: loneCR ? [0, ...Array.from(authored.matchAll(/\n/g), match => match.index + 1)] : starts,
+      columns,
+      ...(loneCR ? { physicalStarts: starts } : {}),
+    }
+  }
   parseVenn(grammarLines.join('\n'), db, physical)
   assertDiagramWorkLimit('nodes', db.subsets.length + db.textNodes.length)
   const body: VennBody = {
