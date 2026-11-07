@@ -1,13 +1,16 @@
-import { observeParserStatement, observeParserMutation, parserObservationActive, withParserObservationGrammar } from '../shared/parser-observation.ts'
-import { coalesceFlowchartLines, flowchartGroupPosition, flowchartStatementSpans, scanFlowchart, type FlowchartScan } from '../flowchart-lexer.ts'
-import { readAgentflowMetadata } from './metadata.ts'
+import { containsFlowchartOpaqueSyntax } from '../agent/flowchart-unsupported.ts'
+import { coalesceFlowchartLines, type FlowchartScan, flowchartGroupPosition, flowchartStatementSpans, scanFlowchart } from '../flowchart-lexer.ts'
 import { normalizeV11Shape } from '../flowchart-shapes.ts'
-import { prepareDisplayText } from '../shared/display-text.ts'
 import { parseMermaid } from '../parser.ts'
 import { assertMermaidGraphWork } from '../shared/diagram-limits.ts'
+import { prepareDisplayText } from '../shared/display-text.ts'
+import { observeParserMutation, observeParserStatement, parserObservationActive, withParserObservationGrammar } from '../shared/parser-observation.ts'
+import { MermaidSyntaxError } from '../shared/syntax-error.ts'
 import type { MermaidSubgraph } from '../types.ts'
+import { readAgentflowMetadata } from './metadata.ts'
 import type { AgentflowBody, AgentflowMapping, AgentflowRole } from './types.ts'
-import { containsFlowchartOpaqueSyntax } from '../agent/flowchart-unsupported.ts'
+
+const syntaxError = (message: string): MermaidSyntaxError => new MermaidSyntaxError(message, { diagramType: 'agentflow' })
 
 const roles = new Set<AgentflowRole>(['task', 'tool', 'action', 'input', 'refdoc', 'decision', 'connector'])
 // Lowercase names present in the pinned12.2 global shape registry beyond
@@ -23,7 +26,7 @@ export function agentflowMetadata(value: unknown): Record<string, unknown> {
     if (Array.isArray(input)) return input.map(item => clean(item, depth + 1))
     if (input && typeof input === 'object') return Object.fromEntries(Object.entries(input).filter(([key]) => !['__proto__', 'prototype', 'constructor'].includes(key)).map(([key, item]) => [key, clean(item, depth + 1)]))
     if (input === null || typeof input === 'string' || typeof input === 'boolean' || (typeof input === 'number' && Number.isFinite(input))) return input
-    throw new Error('AgentFlow metadata must contain finite YAML data values')
+    throw syntaxError('AgentFlow metadata must contain finite YAML data values')
   }
   const cleaned = clean(value, 0)
   return cleaned && typeof cleaned === 'object' && !Array.isArray(cleaned) ? cleaned as Record<string, unknown> : {}
@@ -46,9 +49,9 @@ function metadataDeclaration(text: string, scan: FlowchartScan, before: number):
   let afterLink = 0
   for (const link of scan.links) if (link.end <= nameEnd) afterLink = link.end
   const match = /([\p{L}\p{N}_.:-]+)\s*$/u.exec(text.slice(afterLink, nameEnd))
-  if (!match) throw new Error('AgentFlow inline metadata needs a declared node, connector or flow')
+  if (!match) throw syntaxError('AgentFlow inline metadata needs a declared node, connector or flow')
   const start = afterLink + match.index
-  if (!scan.topLevel[start]) throw new Error('AgentFlow metadata target must be outside label text')
+  if (!scan.topLevel[start]) throw syntaxError('AgentFlow metadata target must be outside label text')
   return { id: match[1]!, start }
 }
 
@@ -86,7 +89,7 @@ export function parseAgentflow(source: string): AgentflowBody {
       }
       if (first) {
         const header = text.match(/^agentflow-beta(?:\s+(LR|RL|TB|TD|BT))?\s*$/i)
-        if (!header) throw new Error('Expected agentflow-beta and a supported direction')
+        if (!header) throw syntaxError('Expected agentflow-beta and a supported direction')
         grammar.push(`flowchart ${header[1] ?? 'TB'}`); first = false; continue
       }
       const map = (id: string, type: AgentflowMapping['type'], start = 0, finish = statement.text.length): void => {
@@ -99,12 +102,12 @@ export function parseAgentflow(source: string): AgentflowBody {
       const mappedVertices = new Set<string>()
       const anonymousFlow = /^flow\s*(?:@\s*\{|$)/i.test(text) ? syntheticIdentity('flow') : undefined
       for (const block of blocks) {
-        if (!block.closed) throw new Error('Unclosed AgentFlow metadata block')
+        if (!block.closed) throw syntaxError('Unclosed AgentFlow metadata block')
         const prefix = text.slice(0, block.start).trimEnd()
         const declaration = metadataDeclaration(text, scan, block.start)
         const id = anonymousFlow && prefix === 'flow' ? anonymousFlow : declaration.id
         const parsed = readAgentflowMetadata(text.slice(text.indexOf('{', block.start) + 1, block.end - 1))
-        if (!parsed.ok) throw new Error(`AgentFlow metadata for ${id}: ${parsed.message}`)
+        if (!parsed.ok) throw syntaxError(`AgentFlow metadata for ${id}: ${parsed.message}`)
         metadata.set(id, { ...metadata.get(id), ...agentflowMetadata(Object.fromEntries(parsed.entries)) })
         if (parserObservationActive('agentflow')) observeParserMutation('agentflow', 'set-metadata', { id, metadata: metadata.get(id) })
         if (prefix === id) {
@@ -127,7 +130,7 @@ export function parseAgentflow(source: string): AgentflowBody {
       }
       if (/^end\s*$/i.test(text)) {
         const frame = frames.pop()
-        if (!frame) throw new Error('AgentFlow end has no open flow or global block')
+        if (!frame) throw syntaxError('AgentFlow end has no open flow or global block')
         if (frame.mapping !== undefined) {
           const mapping = mappings[frame.mapping]!, end = flowchartGroupPosition(group, statement.start + statement.text.length)
           mapping.endLine = end.line + 1
@@ -137,7 +140,7 @@ export function parseAgentflow(source: string): AgentflowBody {
       }
       const flow = text.match(/^flow\s+([\p{L}\p{N}_.:-]+)(.*)$/u)
       if (flow) { openScope(flow[1]!, false); map(flow[1]!, 'flow'); grammar.push(`subgraph ${flow[1]}${flow[2]}`); continue }
-      if (/^(?:subgraph|global|flow)\b/i.test(text)) throw new Error('Unsupported AgentFlow container declaration')
+      if (/^(?:subgraph|global|flow)\b/i.test(text)) throw syntaxError('Unsupported AgentFlow container declaration')
       const connector = text.match(/^connector\s+([\p{L}\p{N}_.:-]+)(.*)$/u)
       if (connector) { connectors.add(connector[1]!); globals.add(connector[1]!); map(connector[1]!, 'connector'); text = `${connector[1]}${connector[2]}` }
       else if (!attachment) {
@@ -163,10 +166,10 @@ export function parseAgentflow(source: string): AgentflowBody {
       grammar.push(text)
     }
   }
-  if (frames.length) throw new Error('AgentFlow container is missing end')
-  if (first) throw new Error('Empty AgentFlow diagram')
+  if (frames.length) throw syntaxError('AgentFlow container is missing end')
+  if (first) throw syntaxError('Empty AgentFlow diagram')
   const topology = grammar.join('\n')
-  if (containsFlowchartOpaqueSyntax(topology)) throw new Error('AgentFlow contains source-preserved graph constructs')
+  if (containsFlowchartOpaqueSyntax(topology)) throw syntaxError('AgentFlow contains source-preserved graph constructs')
   const graph = withParserObservationGrammar('agentflow', 'flowchart', () => parseMermaid(topology))
   const allGroups = new Map<string, MermaidSubgraph>()
   const collect = (group: MermaidSubgraph): void => { allGroups.set(group.id, group); group.children.forEach(collect) }
@@ -206,7 +209,7 @@ export function parseAgentflow(source: string): AgentflowBody {
       !connectors.has(id) && data?.shape &&
       (typeof data.shape !== 'string' || data.shape !== data.shape.toLowerCase() || data.shape.includes('_') || ((!roles.has(data.shape as AgentflowRole) || data.shape === 'connector') && !additionalShapeNames.has(data.shape) && !normalizeV11Shape(data.shape)))
     )
-      throw new Error(`No such shape: ${JSON.stringify(data.shape)}. AgentFlow shapes must be known lowercase names`)
+      throw syntaxError(`No such shape: ${JSON.stringify(data.shape)}. AgentFlow shapes must be known lowercase names`)
     roleMap.set(id, connectors.has(id) ? 'connector' : agentflowRole(data?.shape ?? node.shape))
     if (data?.label !== undefined) {
       node.label = String(data.label)

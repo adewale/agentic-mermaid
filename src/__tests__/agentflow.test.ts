@@ -2,12 +2,12 @@ import { expect, test } from 'bun:test'
 import { decodeHTML } from 'entities'
 import { mutateAgentflow, parseAgentflowBody } from '../agent/agentflow-body.ts'
 import { parseRegisteredMermaid, renderMermaidASCII, serializeMermaid } from '../agent/core.ts'
-import { parseAgentflow } from '../agentflow/parser.ts'
+import { agentflowMetadata, parseAgentflow } from '../agentflow/parser.ts'
 import { projectAgentflowGraph } from '../agentflow/projection.ts'
 import { renderAgentflow } from '../agentflow/source.ts'
 import { renderMermaidASCIIWithReceipt } from '../ascii/index.ts'
 import { terminalDocumentOf } from '../ascii/terminal-document.ts'
-import { renderMermaidSVG } from '../index.ts'
+import { MermaidSyntaxError, parseAgentflowModel, renderMermaidSVG } from '../index.ts'
 import { startUpstreamMermaid } from './helpers/upstream-mermaid.ts'
 
 const source = `agentflow-beta TB
@@ -141,6 +141,32 @@ test('standalone metadata can define a scoped task; malformed and unsafe constru
     const parsed = parseAgentflowBody(input)
     expect(parsed.ok && parsed.value).toEqual({ kind: 'opaque', family: 'agentflow', source: input })
   }
+})
+
+test('strict AgentFlow input refusals are syntax errors while editable parsing preserves their source', () => {
+  for (const [input, message] of [
+    ['agentflow-beta LR\nflow team\na --> b', 'AgentFlow container is missing end'],
+    ['agentflow-beta LR\na@{ shape: TOOL }', 'No such shape: "TOOL". AgentFlow shapes must be known lowercase names'],
+    ['agentflow-beta LR\na@{ instruction: broken', 'Unclosed AgentFlow metadata block'],
+  ] as const) {
+    let failure: unknown
+    try { parseAgentflowModel(input) } catch (error) { failure = error }
+    expect(failure).toBeInstanceOf(MermaidSyntaxError)
+    expect(failure).toMatchObject({ name: 'MermaidSyntaxError', code: 'MERMAID_SYNTAX_ERROR', diagramType: 'agentflow', message })
+    expect(parseAgentflowBody(input)).toEqual({ ok: true, value: { kind: 'opaque', family: 'agentflow', source: input } })
+    const registered = parseRegisteredMermaid(input)
+    expect(registered.ok && registered.value.body).toEqual({ kind: 'opaque', family: 'agentflow', source: input })
+  }
+})
+
+test('AgentFlow metadata host nesting refusal remains distinct from authored syntax errors', () => {
+  let value: unknown = 'leaf'
+  for (let depth = 0; depth < 65; depth++) value = { nested: value }
+  let failure: unknown
+  try { agentflowMetadata(value) } catch (error) { failure = error }
+  expect(failure).toBeInstanceOf(Error)
+  expect(failure).not.toBeInstanceOf(MermaidSyntaxError)
+  expect(failure).toMatchObject({ message: 'AgentFlow metadata nesting exceeds the host limit' })
 })
 
 test('AgentFlow native SVG and strict terminal preserve visible endpoints and nested roles', () => {
