@@ -1,0 +1,577 @@
+[
+  {
+    "name": "forest-cache0-0-agentic",
+    "status": "existing-completed-pilot",
+    "processExit": 0
+  },
+  {
+    "name": "forest-cache0-0-elk",
+    "processExit": 0,
+    "totalProcessWallSec": 3.5892232010082807,
+    "artifactAvailable": true
+  },
+  {
+    "name": "forest-cache0-1-elk",
+    "processExit": 0,
+    "totalProcessWallSec": 3.192523677003919,
+    "artifactAvailable": true
+  },
+  {
+    "name": "forest-cache0-1-agentic",
+    "processExit": 0,
+    "totalProcessWallSec": 2.9825566790095763,
+    "artifactAvailable": true
+  },
+  {
+    "name": "forest-cache0-2-elk",
+    "processExit": 0,
+    "totalProcessWallSec": 3.234855274000438,
+    "artifactAvailable": true
+  },
+  {
+    "name": "forest-cache0-2-agentic",
+    "processExit": 0,
+    "totalProcessWallSec": 2.8319468589907046,
+    "artifactAvailable": true
+  },
+  {
+    "name": "forest-cache0-3-agentic",
+    "processExit": 0,
+    "totalProcessWallSec": 3.332277733992669,
+    "artifactAvailable": true
+  },
+  {
+    "name": "forest-cache0-3-elk",
+    "processExit": 0,
+    "totalProcessWallSec": 3.788328347989591,
+    "artifactAvailable": true
+  },
+  {
+    "name": "forest-cache1-0-agentic",
+    "processExit": 0,
+    "totalProcessWallSec": 3.2296185230079573,
+    "artifactAvailable": true
+  },
+  {
+    "name": "forest-cache1-0-elk",
+    "processExit": 0,
+    "totalProcessWallSec": 3.4813587219978217,
+    "artifactAvailable": true
+  },
+  {
+    "name": "forest-cache1-1-elk",
+    "processExit": 0,
+    "totalProcessWallSec": 3.5367754449980566,
+    "artifactAvailable": true
+  },
+  {
+    "name": "forest-cache1-1-agentic",
+    "processExit": 0,
+    "totalProcessWallSec": 3.185204124005395,
+    "artifactAvailable": true
+  },
+  {
+    "name": "forest-cache1-2-elk",
+    "processExit": 0,
+    "totalProcessWallSec": 3.586144532004255,
+    "artifactAvailable": true
+  },
+  {
+    "name": "forest-cache1-2-agentic",
+    "processExit": 0,
+    "totalProcessWallSec": 3.227731043996755,
+    "artifactAvailable": true
+  },
+  {
+    "name": "forest-cache1-3-agentic",
+    "processExit": 0,
+    "totalProcessWallSec": 3.1903750259953085,
+    "artifactAvailable": true
+  },
+  {
+    "name": "forest-cache1-3-elk",
+    "processExit": 0,
+    "totalProcessWallSec": 3.535319946007803,
+    "artifactAvailable": true
+  },
+  {
+    "name": "crossing276-cache0-0-agentic",
+    "processExit": 0,
+    "totalProcessWallSec": 5.453168014995754,
+    "artifactAvailable": true
+  },
+  {
+    "name": "crossing276-cache0-0-elk",
+    "processExit": 0,
+    "totalProcessWallSec": 5.94443540800421,
+    "artifactAvailable": true
+  },
+  {
+    "name": "crossing276-cache0-1-elk",
+    "processExit": 0,
+    "totalProcessWallSec": 5.593838821005193,
+    "artifactAvailable": true
+  },
+  {
+    "name": "crossing276-cache0-1-agentic",
+    "processExit": 0,
+    "totalProcessWallSec": 6.25843636400532,
+    "artifactAvailable": true
+  },
+  {
+    "name": "crossing276-cache0-2-elk",
+    "processExit": 0,
+    "totalProcessWallSec": 6.699578500003554,
+    "artifactAvailable": true
+  },
+  {
+    "name": "crossing276-cache0-2-agentic",
+    "processExit": 0,
+    "totalProcessWallSec": 6.099305107010878,
+    "artifactAvailable": true
+  },
+  {
+    "name": "crossing276-cache0-3-agentic",
+    "processExit": 0,
+    "totalProcessWallSec": 5.647506166002131,
+    "artifactAvailable": true
+  },
+  {
+    "name": "crossing276-cache0-3-elk",
+    "processExit": 0,
+    "totalProcessWallSec": 4.837551300006453,
+    "artifactAvailable": true
+  },
+  {
+    "name": "crossing276-cache1-0-agentic",
+    "processExit": 0,
+    "totalProcessWallSec": 3.237952558993129,
+    "artifactAvailable": true
+  },
+  {
+    "name": "crossing276-cache1-0-elk",
+    "processExit": 0,
+    "totalProcessWallSec": 3.457760209988919,
+    "artifactAvailable": true
+  },
+  {
+    "name": "crossing276-cache1-1-elk",
+    "processExit": 0,
+    "totalProcessWallSec": 5.056044928001938,
+    "artifactAvailable": true
+  },
+  {
+    "name": "crossing276-cache1-1-agentic",
+    "processExit": 0,
+    "totalProcessWallSec": 4.183963210001821,
+    "artifactAvailable": true
+  },
+  {
+    "name": "crossing276-cache1-2-elk",
+    "processExit": 0,
+    "totalProcessWallSec": 4.494743987001129,
+    "artifactAvailable": true
+  },
+  {
+    "name": "crossing276-cache1-2-agentic",
+    "processExit": 0,
+    "totalProcessWallSec": 3.0869827499991516,
+    "artifactAvailable": true
+  },
+  {
+    "name": "crossing276-cache1-3-agentic",
+    "processExit": 0,
+    "totalProcessWallSec": 3.1436556530097732,
+    "artifactAvailable": true
+  },
+  {
+    "name": "crossing276-cache1-3-elk",
+    "processExit": 0,
+    "totalProcessWallSec": 3.385922800996923,
+    "artifactAvailable": true
+  },
+  {
+    "name": "class128-cache0-0-agentic",
+    "processExit": 0,
+    "totalProcessWallSec": 7.2039908959995955,
+    "artifactAvailable": true
+  },
+  {
+    "name": "class128-cache0-0-elk",
+    "processExit": 0,
+    "totalProcessWallSec": 9.410728167000343,
+    "artifactAvailable": true
+  },
+  {
+    "name": "class128-cache0-1-elk",
+    "processExit": 0,
+    "totalProcessWallSec": 8.932337966994965,
+    "artifactAvailable": true
+  },
+  {
+    "name": "class128-cache0-1-agentic",
+    "processExit": 0,
+    "totalProcessWallSec": 9.002237369000795,
+    "artifactAvailable": true
+  },
+  {
+    "name": "class128-cache0-2-elk",
+    "processExit": 0,
+    "totalProcessWallSec": 8.220885383998393,
+    "artifactAvailable": true
+  },
+  {
+    "name": "class128-cache0-2-agentic",
+    "processExit": 0,
+    "totalProcessWallSec": 6.806070847000228,
+    "artifactAvailable": true
+  },
+  {
+    "name": "class128-cache0-3-agentic",
+    "processExit": 0,
+    "totalProcessWallSec": 7.080775526002981,
+    "artifactAvailable": true
+  },
+  {
+    "name": "class128-cache0-3-elk",
+    "processExit": 0,
+    "totalProcessWallSec": 7.539015517002554,
+    "artifactAvailable": true
+  },
+  {
+    "name": "class128-cache1-0-agentic",
+    "processExit": 0,
+    "totalProcessWallSec": 5.19404873799067,
+    "artifactAvailable": true
+  },
+  {
+    "name": "class128-cache1-0-elk",
+    "processExit": 0,
+    "totalProcessWallSec": 5.748235481994925,
+    "artifactAvailable": true
+  },
+  {
+    "name": "class128-cache1-1-elk",
+    "processExit": 0,
+    "totalProcessWallSec": 6.9672066799976164,
+    "artifactAvailable": true
+  },
+  {
+    "name": "class128-cache1-1-agentic",
+    "processExit": 0,
+    "totalProcessWallSec": 6.7407612960087135,
+    "artifactAvailable": true
+  },
+  {
+    "name": "class128-cache1-2-elk",
+    "processExit": 0,
+    "totalProcessWallSec": 5.772350212995661,
+    "artifactAvailable": true
+  },
+  {
+    "name": "class128-cache1-2-agentic",
+    "processExit": 0,
+    "totalProcessWallSec": 6.672144387994194,
+    "artifactAvailable": true
+  },
+  {
+    "name": "class128-cache1-3-agentic",
+    "processExit": 0,
+    "totalProcessWallSec": 6.304790452006273,
+    "artifactAvailable": true
+  },
+  {
+    "name": "class128-cache1-3-elk",
+    "processExit": 0,
+    "totalProcessWallSec": 7.671901379988412,
+    "artifactAvailable": true
+  },
+  {
+    "name": "er256LR-cache0-0-agentic",
+    "processExit": 0,
+    "totalProcessWallSec": 9.175977584003704,
+    "artifactAvailable": true
+  },
+  {
+    "name": "er256LR-cache0-0-elk",
+    "processExit": 0,
+    "totalProcessWallSec": 10.897349881997798,
+    "artifactAvailable": true
+  },
+  {
+    "name": "er256LR-cache0-1-elk",
+    "processExit": 0,
+    "totalProcessWallSec": 10.881130958994618,
+    "artifactAvailable": true
+  },
+  {
+    "name": "er256LR-cache0-1-agentic",
+    "processExit": 0,
+    "totalProcessWallSec": 8.970126868996886,
+    "artifactAvailable": true
+  },
+  {
+    "name": "er256LR-cache0-2-elk",
+    "processExit": 0,
+    "totalProcessWallSec": 10.881822269002441,
+    "artifactAvailable": true
+  },
+  {
+    "name": "er256LR-cache0-2-agentic",
+    "processExit": 0,
+    "totalProcessWallSec": 10.824435649003135,
+    "artifactAvailable": true
+  },
+  {
+    "name": "er256LR-cache0-3-agentic",
+    "processExit": 0,
+    "totalProcessWallSec": 8.908763223997084,
+    "artifactAvailable": true
+  },
+  {
+    "name": "er256LR-cache0-3-elk",
+    "processExit": 0,
+    "totalProcessWallSec": 11.106702563003637,
+    "artifactAvailable": true
+  },
+  {
+    "name": "er256LR-cache1-0-agentic",
+    "processExit": 0,
+    "totalProcessWallSec": 8.210514899998088,
+    "artifactAvailable": true
+  },
+  {
+    "name": "er256LR-cache1-0-elk",
+    "processExit": 0,
+    "totalProcessWallSec": 8.970968130000983,
+    "artifactAvailable": true
+  },
+  {
+    "name": "er256LR-cache1-1-elk",
+    "processExit": 0,
+    "totalProcessWallSec": 9.291335057991091,
+    "artifactAvailable": true
+  },
+  {
+    "name": "er256LR-cache1-1-agentic",
+    "processExit": 0,
+    "totalProcessWallSec": 9.956343149999157,
+    "artifactAvailable": true
+  },
+  {
+    "name": "er256LR-cache1-2-elk",
+    "processExit": 0,
+    "totalProcessWallSec": 12.093685746993287,
+    "artifactAvailable": true
+  },
+  {
+    "name": "er256LR-cache1-2-agentic",
+    "processExit": 0,
+    "totalProcessWallSec": 10.085360383003717,
+    "artifactAvailable": true
+  },
+  {
+    "name": "er256LR-cache1-3-agentic",
+    "processExit": 0,
+    "totalProcessWallSec": 8.113646003010217,
+    "artifactAvailable": true
+  },
+  {
+    "name": "er256LR-cache1-3-elk",
+    "processExit": 0,
+    "totalProcessWallSec": 10.311701307000476,
+    "artifactAvailable": true
+  },
+  {
+    "name": "sparse256-cache0-0-agentic",
+    "processExit": 0,
+    "totalProcessWallSec": 4.848474004000309,
+    "artifactAvailable": true
+  },
+  {
+    "name": "sparse256-cache0-0-elk",
+    "processExit": 0,
+    "totalProcessWallSec": 6.607438693987206,
+    "artifactAvailable": true
+  },
+  {
+    "name": "sparse256-cache0-1-elk",
+    "processExit": 0,
+    "totalProcessWallSec": 6.7033396209881175,
+    "artifactAvailable": true
+  },
+  {
+    "name": "sparse256-cache0-1-agentic",
+    "processExit": 0,
+    "totalProcessWallSec": 4.74479386099847,
+    "artifactAvailable": true
+  },
+  {
+    "name": "sparse256-cache0-2-elk",
+    "processExit": 0,
+    "totalProcessWallSec": 7.102137040987145,
+    "artifactAvailable": true
+  },
+  {
+    "name": "sparse256-cache0-2-agentic",
+    "processExit": 0,
+    "totalProcessWallSec": 5.093969656998524,
+    "artifactAvailable": true
+  },
+  {
+    "name": "sparse256-cache0-3-agentic",
+    "processExit": 0,
+    "totalProcessWallSec": 5.233037427999079,
+    "artifactAvailable": true
+  },
+  {
+    "name": "sparse256-cache0-3-elk",
+    "processExit": 0,
+    "totalProcessWallSec": 6.950497776007978,
+    "artifactAvailable": true
+  },
+  {
+    "name": "sparse256-cache1-0-agentic",
+    "processExit": 0,
+    "totalProcessWallSec": 5.090526546991896,
+    "artifactAvailable": true
+  },
+  {
+    "name": "sparse256-cache1-0-elk",
+    "processExit": 0,
+    "totalProcessWallSec": 5.897133477992611,
+    "artifactAvailable": true
+  },
+  {
+    "name": "sparse256-cache1-1-elk",
+    "processExit": 0,
+    "totalProcessWallSec": 5.743007627999759,
+    "artifactAvailable": true
+  },
+  {
+    "name": "sparse256-cache1-1-agentic",
+    "processExit": 0,
+    "totalProcessWallSec": 5.039196397003252,
+    "artifactAvailable": true
+  },
+  {
+    "name": "sparse256-cache1-2-elk",
+    "processExit": 0,
+    "totalProcessWallSec": 5.642687025989289,
+    "artifactAvailable": true
+  },
+  {
+    "name": "sparse256-cache1-2-agentic",
+    "processExit": 0,
+    "totalProcessWallSec": 5.043757708001067,
+    "artifactAvailable": true
+  },
+  {
+    "name": "sparse256-cache1-3-agentic",
+    "processExit": 0,
+    "totalProcessWallSec": 4.9456036659976235,
+    "artifactAvailable": true
+  },
+  {
+    "name": "sparse256-cache1-3-elk",
+    "processExit": 0,
+    "totalProcessWallSec": 5.849189415996079,
+    "artifactAvailable": true
+  },
+  {
+    "name": "requirement5-cache0-0-agentic",
+    "processExit": 0,
+    "totalProcessWallSec": 2.8335397519986145,
+    "artifactAvailable": true
+  },
+  {
+    "name": "requirement5-cache0-0-elk",
+    "processExit": 0,
+    "totalProcessWallSec": 3.4319258730101865,
+    "artifactAvailable": true
+  },
+  {
+    "name": "requirement5-cache0-1-elk",
+    "processExit": 0,
+    "totalProcessWallSec": 3.1779281060007634,
+    "artifactAvailable": true
+  },
+  {
+    "name": "requirement5-cache0-1-agentic",
+    "processExit": 0,
+    "totalProcessWallSec": 2.77665996599535,
+    "artifactAvailable": true
+  },
+  {
+    "name": "requirement5-cache0-2-elk",
+    "processExit": 0,
+    "totalProcessWallSec": 3.1374889019934926,
+    "artifactAvailable": true
+  },
+  {
+    "name": "requirement5-cache0-2-agentic",
+    "processExit": 0,
+    "totalProcessWallSec": 2.7317448879912263,
+    "artifactAvailable": true
+  },
+  {
+    "name": "requirement5-cache0-3-agentic",
+    "processExit": 0,
+    "totalProcessWallSec": 2.868982993008103,
+    "artifactAvailable": true
+  },
+  {
+    "name": "requirement5-cache0-3-elk",
+    "processExit": 0,
+    "totalProcessWallSec": 3.0799997039866867,
+    "artifactAvailable": true
+  },
+  {
+    "name": "requirement5-cache1-0-agentic",
+    "processExit": 0,
+    "totalProcessWallSec": 2.8275643840024713,
+    "artifactAvailable": true
+  },
+  {
+    "name": "requirement5-cache1-0-elk",
+    "processExit": 0,
+    "totalProcessWallSec": 2.9283656149927992,
+    "artifactAvailable": true
+  },
+  {
+    "name": "requirement5-cache1-1-elk",
+    "processExit": 0,
+    "totalProcessWallSec": 3.495098657993367,
+    "artifactAvailable": true
+  },
+  {
+    "name": "requirement5-cache1-1-agentic",
+    "processExit": 0,
+    "totalProcessWallSec": 2.731104720995063,
+    "artifactAvailable": true
+  },
+  {
+    "name": "requirement5-cache1-2-elk",
+    "processExit": 0,
+    "totalProcessWallSec": 3.624866080004722,
+    "artifactAvailable": true
+  },
+  {
+    "name": "requirement5-cache1-2-agentic",
+    "processExit": 0,
+    "totalProcessWallSec": 3.1775572580081644,
+    "artifactAvailable": true
+  },
+  {
+    "name": "requirement5-cache1-3-agentic",
+    "processExit": 0,
+    "totalProcessWallSec": 2.728337401000317,
+    "artifactAvailable": true
+  },
+  {
+    "name": "requirement5-cache1-3-elk",
+    "processExit": 0,
+    "totalProcessWallSec": 2.9281756530108396,
+    "artifactAvailable": true
+  }
+]

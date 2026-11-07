@@ -1,0 +1,482 @@
+[
+  {
+    "name": "forest-cache0-0-agentic",
+    "needle": "Branch Bee",
+    "actualTextPresent": true
+  },
+  {
+    "name": "forest-cache0-0-elk",
+    "needle": "Branch Bee",
+    "actualTextPresent": true
+  },
+  {
+    "name": "forest-cache0-1-elk",
+    "needle": "Branch Bee",
+    "actualTextPresent": true
+  },
+  {
+    "name": "forest-cache0-1-agentic",
+    "needle": "Branch Bee",
+    "actualTextPresent": true
+  },
+  {
+    "name": "forest-cache0-2-elk",
+    "needle": "Branch Bee",
+    "actualTextPresent": true
+  },
+  {
+    "name": "forest-cache0-2-agentic",
+    "needle": "Branch Bee",
+    "actualTextPresent": true
+  },
+  {
+    "name": "forest-cache0-3-agentic",
+    "needle": "Branch Bee",
+    "actualTextPresent": true
+  },
+  {
+    "name": "forest-cache0-3-elk",
+    "needle": "Branch Bee",
+    "actualTextPresent": true
+  },
+  {
+    "name": "forest-cache1-0-agentic",
+    "needle": "Branch Bee",
+    "actualTextPresent": true
+  },
+  {
+    "name": "forest-cache1-0-elk",
+    "needle": "Branch Bee",
+    "actualTextPresent": true
+  },
+  {
+    "name": "forest-cache1-1-elk",
+    "needle": "Branch Bee",
+    "actualTextPresent": true
+  },
+  {
+    "name": "forest-cache1-1-agentic",
+    "needle": "Branch Bee",
+    "actualTextPresent": true
+  },
+  {
+    "name": "forest-cache1-2-elk",
+    "needle": "Branch Bee",
+    "actualTextPresent": true
+  },
+  {
+    "name": "forest-cache1-2-agentic",
+    "needle": "Branch Bee",
+    "actualTextPresent": true
+  },
+  {
+    "name": "forest-cache1-3-agentic",
+    "needle": "Branch Bee",
+    "actualTextPresent": true
+  },
+  {
+    "name": "forest-cache1-3-elk",
+    "needle": "Branch Bee",
+    "actualTextPresent": true
+  },
+  {
+    "name": "crossing276-cache0-0-agentic",
+    "needle": "Node 276-0 revised",
+    "actualTextPresent": true
+  },
+  {
+    "name": "crossing276-cache0-0-elk",
+    "needle": "Node 276-0 revised",
+    "actualTextPresent": true
+  },
+  {
+    "name": "crossing276-cache0-1-elk",
+    "needle": "Node 276-0 revised",
+    "actualTextPresent": true
+  },
+  {
+    "name": "crossing276-cache0-1-agentic",
+    "needle": "Node 276-0 revised",
+    "actualTextPresent": true
+  },
+  {
+    "name": "crossing276-cache0-2-elk",
+    "needle": "Node 276-0 revised",
+    "actualTextPresent": true
+  },
+  {
+    "name": "crossing276-cache0-2-agentic",
+    "needle": "Node 276-0 revised",
+    "actualTextPresent": true
+  },
+  {
+    "name": "crossing276-cache0-3-agentic",
+    "needle": "Node 276-0 revised",
+    "actualTextPresent": true
+  },
+  {
+    "name": "crossing276-cache0-3-elk",
+    "needle": "Node 276-0 revised",
+    "actualTextPresent": true
+  },
+  {
+    "name": "crossing276-cache1-0-agentic",
+    "needle": "Node 276-0 revised",
+    "actualTextPresent": true
+  },
+  {
+    "name": "crossing276-cache1-0-elk",
+    "needle": "Node 276-0 revised",
+    "actualTextPresent": true
+  },
+  {
+    "name": "crossing276-cache1-1-elk",
+    "needle": "Node 276-0 revised",
+    "actualTextPresent": true
+  },
+  {
+    "name": "crossing276-cache1-1-agentic",
+    "needle": "Node 276-0 revised",
+    "actualTextPresent": true
+  },
+  {
+    "name": "crossing276-cache1-2-elk",
+    "needle": "Node 276-0 revised",
+    "actualTextPresent": true
+  },
+  {
+    "name": "crossing276-cache1-2-agentic",
+    "needle": "Node 276-0 revised",
+    "actualTextPresent": true
+  },
+  {
+    "name": "crossing276-cache1-3-agentic",
+    "needle": "Node 276-0 revised",
+    "actualTextPresent": true
+  },
+  {
+    "name": "crossing276-cache1-3-elk",
+    "needle": "Node 276-0 revised",
+    "actualTextPresent": true
+  },
+  {
+    "name": "class128-cache0-0-agentic",
+    "needle": "revised",
+    "actualTextPresent": true
+  },
+  {
+    "name": "class128-cache0-0-elk",
+    "needle": "revised",
+    "actualTextPresent": true
+  },
+  {
+    "name": "class128-cache0-1-elk",
+    "needle": "revised",
+    "actualTextPresent": true
+  },
+  {
+    "name": "class128-cache0-1-agentic",
+    "needle": "revised",
+    "actualTextPresent": true
+  },
+  {
+    "name": "class128-cache0-2-elk",
+    "needle": "revised",
+    "actualTextPresent": true
+  },
+  {
+    "name": "class128-cache0-2-agentic",
+    "needle": "revised",
+    "actualTextPresent": true
+  },
+  {
+    "name": "class128-cache0-3-agentic",
+    "needle": "revised",
+    "actualTextPresent": true
+  },
+  {
+    "name": "class128-cache0-3-elk",
+    "needle": "revised",
+    "actualTextPresent": true
+  },
+  {
+    "name": "class128-cache1-0-agentic",
+    "needle": "revised",
+    "actualTextPresent": true
+  },
+  {
+    "name": "class128-cache1-0-elk",
+    "needle": "revised",
+    "actualTextPresent": true
+  },
+  {
+    "name": "class128-cache1-1-elk",
+    "needle": "revised",
+    "actualTextPresent": true
+  },
+  {
+    "name": "class128-cache1-1-agentic",
+    "needle": "revised",
+    "actualTextPresent": true
+  },
+  {
+    "name": "class128-cache1-2-elk",
+    "needle": "revised",
+    "actualTextPresent": true
+  },
+  {
+    "name": "class128-cache1-2-agentic",
+    "needle": "revised",
+    "actualTextPresent": true
+  },
+  {
+    "name": "class128-cache1-3-agentic",
+    "needle": "revised",
+    "actualTextPresent": true
+  },
+  {
+    "name": "class128-cache1-3-elk",
+    "needle": "revised",
+    "actualTextPresent": true
+  },
+  {
+    "name": "er256LR-cache0-0-agentic",
+    "needle": "has",
+    "actualTextPresent": true
+  },
+  {
+    "name": "er256LR-cache0-0-elk",
+    "needle": "has",
+    "actualTextPresent": true
+  },
+  {
+    "name": "er256LR-cache0-1-elk",
+    "needle": "has",
+    "actualTextPresent": true
+  },
+  {
+    "name": "er256LR-cache0-1-agentic",
+    "needle": "has",
+    "actualTextPresent": true
+  },
+  {
+    "name": "er256LR-cache0-2-elk",
+    "needle": "has",
+    "actualTextPresent": true
+  },
+  {
+    "name": "er256LR-cache0-2-agentic",
+    "needle": "has",
+    "actualTextPresent": true
+  },
+  {
+    "name": "er256LR-cache0-3-agentic",
+    "needle": "has",
+    "actualTextPresent": true
+  },
+  {
+    "name": "er256LR-cache0-3-elk",
+    "needle": "has",
+    "actualTextPresent": true
+  },
+  {
+    "name": "er256LR-cache1-0-agentic",
+    "needle": "has",
+    "actualTextPresent": true
+  },
+  {
+    "name": "er256LR-cache1-0-elk",
+    "needle": "has",
+    "actualTextPresent": true
+  },
+  {
+    "name": "er256LR-cache1-1-elk",
+    "needle": "has",
+    "actualTextPresent": true
+  },
+  {
+    "name": "er256LR-cache1-1-agentic",
+    "needle": "has",
+    "actualTextPresent": true
+  },
+  {
+    "name": "er256LR-cache1-2-elk",
+    "needle": "has",
+    "actualTextPresent": true
+  },
+  {
+    "name": "er256LR-cache1-2-agentic",
+    "needle": "has",
+    "actualTextPresent": true
+  },
+  {
+    "name": "er256LR-cache1-3-agentic",
+    "needle": "has",
+    "actualTextPresent": true
+  },
+  {
+    "name": "er256LR-cache1-3-elk",
+    "needle": "has",
+    "actualTextPresent": true
+  },
+  {
+    "name": "sparse256-cache0-0-agentic",
+    "needle": "keeps",
+    "actualTextPresent": true
+  },
+  {
+    "name": "sparse256-cache0-0-elk",
+    "needle": "keeps",
+    "actualTextPresent": true
+  },
+  {
+    "name": "sparse256-cache0-1-elk",
+    "needle": "keeps",
+    "actualTextPresent": true
+  },
+  {
+    "name": "sparse256-cache0-1-agentic",
+    "needle": "keeps",
+    "actualTextPresent": true
+  },
+  {
+    "name": "sparse256-cache0-2-elk",
+    "needle": "keeps",
+    "actualTextPresent": true
+  },
+  {
+    "name": "sparse256-cache0-2-agentic",
+    "needle": "keeps",
+    "actualTextPresent": true
+  },
+  {
+    "name": "sparse256-cache0-3-agentic",
+    "needle": "keeps",
+    "actualTextPresent": true
+  },
+  {
+    "name": "sparse256-cache0-3-elk",
+    "needle": "keeps",
+    "actualTextPresent": true
+  },
+  {
+    "name": "sparse256-cache1-0-agentic",
+    "needle": "keeps",
+    "actualTextPresent": true
+  },
+  {
+    "name": "sparse256-cache1-0-elk",
+    "needle": "keeps",
+    "actualTextPresent": true
+  },
+  {
+    "name": "sparse256-cache1-1-elk",
+    "needle": "keeps",
+    "actualTextPresent": true
+  },
+  {
+    "name": "sparse256-cache1-1-agentic",
+    "needle": "keeps",
+    "actualTextPresent": true
+  },
+  {
+    "name": "sparse256-cache1-2-elk",
+    "needle": "keeps",
+    "actualTextPresent": true
+  },
+  {
+    "name": "sparse256-cache1-2-agentic",
+    "needle": "keeps",
+    "actualTextPresent": true
+  },
+  {
+    "name": "sparse256-cache1-3-agentic",
+    "needle": "keeps",
+    "actualTextPresent": true
+  },
+  {
+    "name": "sparse256-cache1-3-elk",
+    "needle": "keeps",
+    "actualTextPresent": true
+  },
+  {
+    "name": "requirement5-cache0-0-agentic",
+    "needle": "Text: Dispatch revised",
+    "actualTextPresent": true
+  },
+  {
+    "name": "requirement5-cache0-0-elk",
+    "needle": "Text: Dispatch revised",
+    "actualTextPresent": true
+  },
+  {
+    "name": "requirement5-cache0-1-elk",
+    "needle": "Text: Dispatch revised",
+    "actualTextPresent": true
+  },
+  {
+    "name": "requirement5-cache0-1-agentic",
+    "needle": "Text: Dispatch revised",
+    "actualTextPresent": true
+  },
+  {
+    "name": "requirement5-cache0-2-elk",
+    "needle": "Text: Dispatch revised",
+    "actualTextPresent": true
+  },
+  {
+    "name": "requirement5-cache0-2-agentic",
+    "needle": "Text: Dispatch revised",
+    "actualTextPresent": true
+  },
+  {
+    "name": "requirement5-cache0-3-agentic",
+    "needle": "Text: Dispatch revised",
+    "actualTextPresent": true
+  },
+  {
+    "name": "requirement5-cache0-3-elk",
+    "needle": "Text: Dispatch revised",
+    "actualTextPresent": true
+  },
+  {
+    "name": "requirement5-cache1-0-agentic",
+    "needle": "Text: Dispatch revised",
+    "actualTextPresent": true
+  },
+  {
+    "name": "requirement5-cache1-0-elk",
+    "needle": "Text: Dispatch revised",
+    "actualTextPresent": true
+  },
+  {
+    "name": "requirement5-cache1-1-elk",
+    "needle": "Text: Dispatch revised",
+    "actualTextPresent": true
+  },
+  {
+    "name": "requirement5-cache1-1-agentic",
+    "needle": "Text: Dispatch revised",
+    "actualTextPresent": true
+  },
+  {
+    "name": "requirement5-cache1-2-elk",
+    "needle": "Text: Dispatch revised",
+    "actualTextPresent": true
+  },
+  {
+    "name": "requirement5-cache1-2-agentic",
+    "needle": "Text: Dispatch revised",
+    "actualTextPresent": true
+  },
+  {
+    "name": "requirement5-cache1-3-agentic",
+    "needle": "Text: Dispatch revised",
+    "actualTextPresent": true
+  },
+  {
+    "name": "requirement5-cache1-3-elk",
+    "needle": "Text: Dispatch revised",
+    "actualTextPresent": true
+  }
+]

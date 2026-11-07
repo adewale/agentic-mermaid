@@ -1,0 +1,248 @@
+{
+  "runtime": "v24.19.0",
+  "zlib": "1.3.2.1-motley-3246f1b",
+  "brotli": "1.2.0",
+  "compression": "SVG and whole public product; gzip9/Brotli11; one frozen successful cold product perbackend/case; raw product equals timed consumer byte count",
+  "rows": [
+    {
+      "case": "forest",
+      "backend": "agentic",
+      "svg": {
+        "raw": 8049,
+        "gzip9": 1480,
+        "brotli11": 1232
+      },
+      "wholeProduct": {
+        "raw": 16715,
+        "gzip9": 2683,
+        "brotli11": 2269
+      },
+      "viewport": {
+        "x": 0,
+        "y": 0,
+        "width": 516.575,
+        "height": 320.1
+      }
+    },
+    {
+      "case": "forest",
+      "backend": "elk",
+      "svg": {
+        "raw": 8069,
+        "gzip9": 1482,
+        "brotli11": 1229
+      },
+      "wholeProduct": {
+        "raw": 16716,
+        "gzip9": 2681,
+        "brotli11": 2269
+      },
+      "viewport": {
+        "x": 0,
+        "y": 0,
+        "width": 552.1,
+        "height": 320.1
+      }
+    },
+    {
+      "case": "crossing276",
+      "backend": "agentic",
+      "svg": {
+        "raw": 24149,
+        "gzip9": 3107,
+        "brotli11": 2574
+      },
+      "wholeProduct": {
+        "raw": 34368,
+        "gzip9": 4386,
+        "brotli11": 3648
+      },
+      "viewport": {
+        "x": 0,
+        "y": 0,
+        "width": 881.001,
+        "height": 985.134
+      }
+    },
+    {
+      "case": "crossing276",
+      "backend": "elk",
+      "svg": {
+        "raw": 24728,
+        "gzip9": 3157,
+        "brotli11": 2666
+      },
+      "wholeProduct": {
+        "raw": 34937,
+        "gzip9": 4437,
+        "brotli11": 3740
+      },
+      "viewport": {
+        "x": 0,
+        "y": 0,
+        "width": 824.433333333,
+        "height": 1218.384
+      }
+    },
+    {
+      "case": "class128",
+      "backend": "agentic",
+      "svg": {
+        "raw": 189921,
+        "gzip9": 13063,
+        "brotli11": 7555
+      },
+      "wholeProduct": {
+        "raw": 217432,
+        "gzip9": 14851,
+        "brotli11": 8676
+      },
+      "viewport": {
+        "x": 0,
+        "y": 0,
+        "width": 200,
+        "height": 13959.19999999997
+      }
+    },
+    {
+      "case": "class128",
+      "backend": "elk",
+      "svg": {
+        "raw": 189921,
+        "gzip9": 13063,
+        "brotli11": 7555
+      },
+      "wholeProduct": {
+        "raw": 217415,
+        "gzip9": 14844,
+        "brotli11": 8648
+      },
+      "viewport": {
+        "x": 0,
+        "y": 0,
+        "width": 200,
+        "height": 13959.19999999997
+      }
+    },
+    {
+      "case": "er256LR",
+      "backend": "agentic",
+      "svg": {
+        "raw": 718510,
+        "gzip9": 48420,
+        "brotli11": 30727
+      },
+      "wholeProduct": {
+        "raw": 802221,
+        "gzip9": 50225,
+        "brotli11": 32314
+      },
+      "viewport": {
+        "x": 0,
+        "y": 0,
+        "width": 73684.98999999985,
+        "height": 136
+      }
+    },
+    {
+      "case": "er256LR",
+      "backend": "elk",
+      "svg": {
+        "raw": 722588,
+        "gzip9": 48324,
+        "brotli11": 30314
+      },
+      "wholeProduct": {
+        "raw": 806282,
+        "gzip9": 50244,
+        "brotli11": 32095
+      },
+      "viewport": {
+        "x": 0,
+        "y": 0,
+        "width": 90642.48999999977,
+        "height": 136
+      }
+    },
+    {
+      "case": "sparse256",
+      "backend": "agentic",
+      "svg": {
+        "raw": 265157,
+        "gzip9": 13306,
+        "brotli11": 6638
+      },
+      "wholeProduct": {
+        "raw": 301839,
+        "gzip9": 14902,
+        "brotli11": 7712
+      },
+      "viewport": {
+        "x": 0,
+        "y": 0,
+        "width": 1831,
+        "height": 1984.5
+      }
+    },
+    {
+      "case": "sparse256",
+      "backend": "elk",
+      "svg": {
+        "raw": 260973,
+        "gzip9": 12747,
+        "brotli11": 6836
+      },
+      "wholeProduct": {
+        "raw": 297636,
+        "gzip9": 14477,
+        "brotli11": 7744
+      },
+      "viewport": {
+        "x": 0,
+        "y": 0,
+        "width": 2300,
+        "height": 1504
+      }
+    },
+    {
+      "case": "requirement5",
+      "backend": "agentic",
+      "svg": {
+        "raw": 8845,
+        "gzip9": 1636,
+        "brotli11": 1353
+      },
+      "wholeProduct": {
+        "raw": 17569,
+        "gzip9": 2827,
+        "brotli11": 2397
+      },
+      "viewport": {
+        "x": 0,
+        "y": 0,
+        "width": 582.109,
+        "height": 385.6
+      }
+    },
+    {
+      "case": "requirement5",
+      "backend": "elk",
+      "svg": {
+        "raw": 8906,
+        "gzip9": 1677,
+        "brotli11": 1401
+      },
+      "wholeProduct": {
+        "raw": 17612,
+        "gzip9": 2871,
+        "brotli11": 2447
+      },
+      "viewport": {
+        "x": 0,
+        "y": 0,
+        "width": 597.01,
+        "height": 457.6
+      }
+    }
+  ]
+}

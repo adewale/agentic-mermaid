@@ -1,0 +1,1508 @@
+{
+  "area": [
+    {
+      "id": "generated-cyclic:0",
+      "native": 406494.48247200006,
+      "elk": 406173.7351466667
+    },
+    {
+      "id": "generated-cyclic:26",
+      "native": 613152.19178,
+      "elk": 573133.8939991668
+    },
+    {
+      "id": "generated-cyclic:39",
+      "native": 542411.0874000001,
+      "elk": 531473.6847300001
+    },
+    {
+      "id": "generated-cyclic:43",
+      "native": 763421.16158,
+      "elk": 737543.3314907143
+    },
+    {
+      "id": "generated-cyclic:65",
+      "native": 425888.31132,
+      "elk": 403715.03049
+    },
+    {
+      "id": "generated-cyclic:69",
+      "native": 906946.8819680002,
+      "elk": 814477.3532049999
+    },
+    {
+      "id": "generated-cyclic:73",
+      "native": 991854.560544,
+      "elk": 909241.1833962478
+    },
+    {
+      "id": "generated-cyclic:91",
+      "native": 461902.98871999996,
+      "elk": 452985.4213666667
+    },
+    {
+      "id": "generated-cyclic:107",
+      "native": 974978.776676,
+      "elk": 794369.4938413333
+    },
+    {
+      "id": "generated-cyclic:117",
+      "native": 625022.6133600002,
+      "elk": 497331.4333622859
+    },
+    {
+      "id": "generated-cyclic:120",
+      "native": 704285.449128,
+      "elk": 696886.8492074001
+    },
+    {
+      "id": "generated-cyclic:145",
+      "native": 730541.528184,
+      "elk": 684010.9608288001
+    },
+    {
+      "id": "generated-cyclic:156",
+      "native": 772748.102456,
+      "elk": 630401.59257
+    },
+    {
+      "id": "generated-cyclic:183",
+      "native": 455048.788752,
+      "elk": 442584.94134866673
+    },
+    {
+      "id": "generated-cyclic:187",
+      "native": 997883.5353599999,
+      "elk": 981749.2030576428
+    },
+    {
+      "id": "generated-cyclic:196",
+      "native": 511134.70250399987,
+      "elk": 441244.2149166667
+    },
+    {
+      "id": "generated-cyclic:197",
+      "native": 530485.265458,
+      "elk": 522074.1530048333
+    },
+    {
+      "id": "generated-cyclic:214",
+      "native": 858843.6633980001,
+      "elk": 821686.20655875
+    },
+    {
+      "id": "generated-cyclic:225",
+      "native": 812662.1402920001,
+      "elk": 790186.7969241071
+    },
+    {
+      "id": "corpus/flowchart/80",
+      "native": 66720.6,
+      "elk": 64720.8
+    },
+    {
+      "id": "corpus/flowchart/90",
+      "native": 134236.52985000002,
+      "elk": 127750.9393475
+    },
+    {
+      "id": "corpus/flowchart/91",
+      "native": 134236.52985000002,
+      "elk": 127750.9393475
+    },
+    {
+      "id": "corpus/state/0",
+      "native": 97157.368,
+      "elk": 96043.178
+    },
+    {
+      "id": "corpus/state/14",
+      "native": 565777.9008000001,
+      "elk": 513021.2904
+    },
+    {
+      "id": "corpus/state/19",
+      "native": 157608.0229,
+      "elk": 155195.4314
+    },
+    {
+      "id": "corpus/class/0",
+      "native": 322080,
+      "elk": 273504
+    },
+    {
+      "id": "corpus/class/2",
+      "native": 65400,
+      "elk": 61400
+    },
+    {
+      "id": "corpus/class/9",
+      "native": 296480,
+      "elk": 257920
+    },
+    {
+      "id": "corpus/class/16",
+      "native": 53703,
+      "elk": 51272
+    },
+    {
+      "id": "corpus/class/19",
+      "native": 220248,
+      "elk": 210018
+    },
+    {
+      "id": "corpus/class/27",
+      "native": 43600,
+      "elk": 39600
+    },
+    {
+      "id": "corpus/class/28",
+      "native": 43600,
+      "elk": 39600
+    },
+    {
+      "id": "corpus/class/29",
+      "native": 78480,
+      "elk": 67200
+    },
+    {
+      "id": "corpus/class/30",
+      "native": 43600,
+      "elk": 39600
+    },
+    {
+      "id": "corpus/class/33",
+      "native": 43600,
+      "elk": 39600
+    },
+    {
+      "id": "corpus/er/16",
+      "native": 723376,
+      "elk": 657020
+    },
+    {
+      "id": "corpus/er/17",
+      "native": 567910,
+      "elk": 539049
+    },
+    {
+      "id": "fixture/er-backends.mmd",
+      "native": 224532,
+      "elk": 209442
+    },
+    {
+      "id": "fixture/fan-in-fan-out.mmd",
+      "native": 111730.1833,
+      "elk": 109016.4833
+    },
+    {
+      "id": "fixture/stress/class-80-classes.mmd",
+      "native": 6839280,
+      "elk": 6690600
+    },
+    {
+      "id": "fixture/stress/flowchart-tree-300.mmd",
+      "native": 13283010.784000002,
+      "elk": 13248629.989100035
+    },
+    {
+      "id": "generated-cyclic:267",
+      "native": 1149562.98296,
+      "elk": 992331.047297333
+    },
+    {
+      "id": "generated-cyclic:277",
+      "native": 1026873.8693399999,
+      "elk": 770020.7799999999
+    },
+    {
+      "id": "generated-cyclic:287",
+      "native": 519258.4709599999,
+      "elk": 513655.91055999993
+    },
+    {
+      "id": "generated-cyclic:293",
+      "native": 1309695.1855199996,
+      "elk": 1309320.951874
+    },
+    {
+      "id": "generated-cyclic:301",
+      "native": 696454.7148000001,
+      "elk": 648222.485728
+    },
+    {
+      "id": "generated-cyclic:337",
+      "native": 1819898.27032,
+      "elk": 1482055.75935
+    },
+    {
+      "id": "generated-cyclic:339",
+      "native": 686109.1922599999,
+      "elk": 635280.322915
+    },
+    {
+      "id": "generated-cyclic:341",
+      "native": 826020.9460920001,
+      "elk": 820336.1552799998
+    },
+    {
+      "id": "generated-cyclic:351",
+      "native": 410597.7719177143,
+      "elk": 409839.13424999994
+    },
+    {
+      "id": "generated-cyclic:355",
+      "native": 906503.0842600003,
+      "elk": 902342.6123738887
+    },
+    {
+      "id": "generated-cyclic:367",
+      "native": 715698.75888,
+      "elk": 680256.7694599999
+    },
+    {
+      "id": "generated-cyclic:378",
+      "native": 636851.8180200001,
+      "elk": 598612.9146103333
+    },
+    {
+      "id": "generated-sha256-counter-v1:26",
+      "native": 589357.47584,
+      "elk": 554695.5509916666
+    },
+    {
+      "id": "generated-sha256-counter-v1:59",
+      "native": 1506607.354624,
+      "elk": 1419094.042375167
+    },
+    {
+      "id": "generated-sha256-counter-v1:130",
+      "native": 648428.9516879999,
+      "elk": 560265.0719506667
+    },
+    {
+      "id": "generated-sha256-counter-v1:137",
+      "native": 1278668.4438599995,
+      "elk": 1212866.9623365
+    },
+    {
+      "id": "generated-sha256-counter-v1:157",
+      "native": 680925.1172640001,
+      "elk": 613216.3697826667
+    },
+    {
+      "id": "generated-sha256-counter-v1:209",
+      "native": 722704.8095399998,
+      "elk": 651813.0779991667
+    },
+    {
+      "id": "generated-sha256-counter-v1:236",
+      "native": 782696.6928,
+      "elk": 765696.03649
+    },
+    {
+      "id": "generated-sha256-counter-v1:69",
+      "native": 734779.9616400002,
+      "elk": 709650.3091136666
+    },
+    {
+      "id": "generated-sha256-counter-v1:75",
+      "native": 1671148.1493000002,
+      "elk": 1383570.3377356667
+    },
+    {
+      "id": "generated-sha256-counter-v1:93",
+      "native": 590145.3831,
+      "elk": 518785.96917
+    },
+    {
+      "id": "generated-sha256-counter-v1:105",
+      "native": 548791.306432,
+      "elk": 465576.3472899
+    }
+  ],
+  "wire": [
+    {
+      "id": "generated-cyclic:11",
+      "native": 27124.028771564084,
+      "elk": 22458.140825533417
+    },
+    {
+      "id": "generated-cyclic:26",
+      "native": 7728.517902574774,
+      "elk": 6968.212794033623
+    },
+    {
+      "id": "generated-cyclic:35",
+      "native": 18717.532392686935,
+      "elk": 16934.78474852021
+    },
+    {
+      "id": "generated-cyclic:43",
+      "native": 11925.762533149471,
+      "elk": 11706.833243637197
+    },
+    {
+      "id": "generated-cyclic:69",
+      "native": 13803.457905117672,
+      "elk": 11426.671053160997
+    },
+    {
+      "id": "generated-cyclic:73",
+      "native": 16971.757304882292,
+      "elk": 16182.61466202587
+    },
+    {
+      "id": "generated-cyclic:78",
+      "native": 6302.728123386293,
+      "elk": 6225.612053161003
+    },
+    {
+      "id": "generated-cyclic:80",
+      "native": 9089.425341237658,
+      "elk": 7965.468169730247
+    },
+    {
+      "id": "generated-cyclic:85",
+      "native": 16446.873664018793,
+      "elk": 14362.490551405686
+    },
+    {
+      "id": "generated-cyclic:111",
+      "native": 26465.446321873966,
+      "elk": 23277.070309798535
+    },
+    {
+      "id": "generated-cyclic:117",
+      "native": 9836.186361185006,
+      "elk": 8514.815192850509
+    },
+    {
+      "id": "generated-cyclic:125",
+      "native": 26475.146388753874,
+      "elk": 21056.013453140138
+    },
+    {
+      "id": "generated-cyclic:129",
+      "native": 24480.833740736263,
+      "elk": 23038.66965088658
+    },
+    {
+      "id": "generated-cyclic:137",
+      "native": 17588.50669723325,
+      "elk": 16385.024400369144
+    },
+    {
+      "id": "generated-cyclic:175",
+      "native": 15190.136938221458,
+      "elk": 10151.440835862568
+    },
+    {
+      "id": "generated-cyclic:185",
+      "native": 12737.988508108736,
+      "elk": 12481.406095189948
+    },
+    {
+      "id": "generated-cyclic:187",
+      "native": 18249.323886020487,
+      "elk": 14975.3326954803
+    },
+    {
+      "id": "generated-cyclic:196",
+      "native": 7169.120484387859,
+      "elk": 6148.223423995526
+    },
+    {
+      "id": "generated-cyclic:211",
+      "native": 10462.078651841319,
+      "elk": 7652.384430120306
+    },
+    {
+      "id": "generated-cyclic:219",
+      "native": 19841.74675153356,
+      "elk": 17654.767380448488
+    },
+    {
+      "id": "generated-cyclic:222",
+      "native": 9924.464640838569,
+      "elk": 8072.3037270467
+    },
+    {
+      "id": "generated-cyclic:225",
+      "native": 11111.597367391394,
+      "elk": 10194.115803466517
+    },
+    {
+      "id": "generated-cyclic:229",
+      "native": 24409.49985972595,
+      "elk": 18415.181474906538
+    },
+    {
+      "id": "generated-cyclic:234",
+      "native": 7819.953764794394,
+      "elk": 7057.600108030662
+    },
+    {
+      "id": "generated-cyclic:243",
+      "native": 24593.737815563585,
+      "elk": 24256.767522087168
+    },
+    {
+      "id": "generated-cyclic:247",
+      "native": 6359.633498223792,
+      "elk": 5489.923333333333
+    },
+    {
+      "id": "corpus/flowchart/94",
+      "native": 560.0250000000001,
+      "elk": 477.80000000000007
+    },
+    {
+      "id": "corpus/flowchart/95",
+      "native": 302.125,
+      "elk": 300.9
+    },
+    {
+      "id": "corpus/flowchart/108",
+      "native": 533.617,
+      "elk": 499.53099999999995
+    },
+    {
+      "id": "corpus/state/8",
+      "native": 467.5285,
+      "elk": 460.084334730964
+    },
+    {
+      "id": "corpus/state/17",
+      "native": 536.6804858350256,
+      "elk": 528.7952513976308
+    },
+    {
+      "id": "corpus/state/18",
+      "native": 536.6804858350256,
+      "elk": 528.7952513976308
+    },
+    {
+      "id": "corpus/er/17",
+      "native": 605,
+      "elk": 556
+    },
+    {
+      "id": "fixture/class-basic.mmd",
+      "native": 266,
+      "elk": 240
+    },
+    {
+      "id": "fixture/class-compound-backends.mmd",
+      "native": 616,
+      "elk": 549
+    },
+    {
+      "id": "fixture/cyclic-labelled-15.mmd",
+      "native": 16446.873664018793,
+      "elk": 14362.490551405686
+    },
+    {
+      "id": "fixture/er-backends.mmd",
+      "native": 1558,
+      "elk": 1132
+    },
+    {
+      "id": "fixture/fan-in-fan-out.mmd",
+      "native": 484.4230000000002,
+      "elk": 459.4
+    },
+    {
+      "id": "fixture/state-basic.mmd",
+      "native": 244.00000000000009,
+      "elk": 244
+    },
+    {
+      "id": "fixture/stress/class-80-classes.mmd",
+      "native": 21474,
+      "elk": 21420
+    },
+    {
+      "id": "fixture/stress/flowchart-multigraph-24-loops.mmd",
+      "native": 52711.71665151517,
+      "elk": 48272.74268452382
+    },
+    {
+      "id": "fixture/stress/flowchart-subgraphs-12x8.mmd",
+      "native": 25945.07300000002,
+      "elk": 24572.724000000013
+    },
+    {
+      "id": "fixture/stress/flowchart-tree-300.mmd",
+      "native": 93426.55475308636,
+      "elk": 89117.38912345676
+    },
+    {
+      "id": "generated-cyclic:267",
+      "native": 21840.45355529698,
+      "elk": 12246.018042001177
+    },
+    {
+      "id": "generated-cyclic:274",
+      "native": 5863.587964915375,
+      "elk": 5403.124228148444
+    },
+    {
+      "id": "generated-cyclic:277",
+      "native": 15119.57839635894,
+      "elk": 13523.529944974853
+    },
+    {
+      "id": "generated-cyclic:287",
+      "native": 6579.105582373267,
+      "elk": 6555.26891060937
+    },
+    {
+      "id": "generated-cyclic:293",
+      "native": 26166.72425938261,
+      "elk": 21390.220181609955
+    },
+    {
+      "id": "generated-cyclic:304",
+      "native": 12943.348589746118,
+      "elk": 11599.702247742021
+    },
+    {
+      "id": "generated-cyclic:319",
+      "native": 19903.147641187214,
+      "elk": 19872.246667861556
+    },
+    {
+      "id": "generated-cyclic:330",
+      "native": 12418.945264780963,
+      "elk": 11598.829207404759
+    },
+    {
+      "id": "generated-cyclic:333",
+      "native": 18284.490661205753,
+      "elk": 16794.244277529484
+    },
+    {
+      "id": "generated-cyclic:337",
+      "native": 22201.397348357557,
+      "elk": 19939.77403290535
+    },
+    {
+      "id": "generated-cyclic:348",
+      "native": 25512.515848790525,
+      "elk": 25055.367930684442
+    },
+    {
+      "id": "generated-cyclic:355",
+      "native": 16208.42793802131,
+      "elk": 15110.014977964825
+    },
+    {
+      "id": "generated-cyclic:363",
+      "native": 28881.52192508071,
+      "elk": 28206.870028352172
+    },
+    {
+      "id": "generated-cyclic:367",
+      "native": 10177.117539948029,
+      "elk": 9305.432443835865
+    },
+    {
+      "id": "generated-sha256-counter-v1:26",
+      "native": 7686.25281894613,
+      "elk": 6665.433542521513
+    },
+    {
+      "id": "generated-sha256-counter-v1:43",
+      "native": 9977.092835564437,
+      "elk": 9932.477106802846
+    },
+    {
+      "id": "generated-sha256-counter-v1:52",
+      "native": 7428.082505512344,
+      "elk": 6726.277114754131
+    },
+    {
+      "id": "generated-sha256-counter-v1:53",
+      "native": 11374.479268537934,
+      "elk": 11279.578286549959
+    },
+    {
+      "id": "generated-sha256-counter-v1:59",
+      "native": 23737.533615431807,
+      "elk": 22900.09445058825
+    },
+    {
+      "id": "generated-sha256-counter-v1:137",
+      "native": 22933.940114869627,
+      "elk": 21452.17180647619
+    },
+    {
+      "id": "generated-sha256-counter-v1:157",
+      "native": 10246.680864270404,
+      "elk": 7870.935742558729
+    },
+    {
+      "id": "generated-sha256-counter-v1:175",
+      "native": 12547.61293929572,
+      "elk": 12275.971401001387
+    },
+    {
+      "id": "generated-sha256-counter-v1:181",
+      "native": 32733.048358131597,
+      "elk": 28651.177794274747
+    },
+    {
+      "id": "generated-sha256-counter-v1:209",
+      "native": 12387.862326430315,
+      "elk": 11317.625100048499
+    },
+    {
+      "id": "generated-sha256-counter-v1:215",
+      "native": 22017.462896385718,
+      "elk": 18271.148803192642
+    },
+    {
+      "id": "generated-sha256-counter-v1:227",
+      "native": 18997.335919750538,
+      "elk": 17199.12923828546
+    },
+    {
+      "id": "generated-sha256-counter-v1:229",
+      "native": 22935.910069851143,
+      "elk": 19386.29124414273
+    },
+    {
+      "id": "generated-sha256-counter-v1:245",
+      "native": 20736.424798016586,
+      "elk": 18897.346100044633
+    },
+    {
+      "id": "generated-sha256-counter-v1:69",
+      "native": 14378.83861950048,
+      "elk": 13743.452965960327
+    },
+    {
+      "id": "generated-sha256-counter-v1:75",
+      "native": 29198.800326983863,
+      "elk": 21623.043821939696
+    },
+    {
+      "id": "generated-sha256-counter-v1:91",
+      "native": 5038.554809013006,
+      "elk": 4671.803693671404
+    },
+    {
+      "id": "generated-sha256-counter-v1:97",
+      "native": 17576.738877942233,
+      "elk": 15081.623766064424
+    },
+    {
+      "id": "generated-sha256-counter-v1:101",
+      "native": 23936.935133950177,
+      "elk": 18526.02803568677
+    },
+    {
+      "id": "generated-sha256-counter-v1:105",
+      "native": 5807.326521361889,
+      "elk": 5630.969149419067
+    },
+    {
+      "id": "generated-sha256-counter-v1:106",
+      "native": 6429.462262453884,
+      "elk": 5790.156798759529
+    },
+    {
+      "id": "generated-sha256-counter-v1:109",
+      "native": 17083.152213044123,
+      "elk": 16416.265752744264
+    },
+    {
+      "id": "generated-sha256-counter-v1:124",
+      "native": 17470.350761918107,
+      "elk": 16459.757727253666
+    },
+    {
+      "id": "generated-sha256-counter-v1:127",
+      "native": 24590.310347903505,
+      "elk": 19042.37216078368
+    }
+  ],
+  "bends": [
+    {
+      "id": "generated-cyclic:2",
+      "native": 48,
+      "elk": 47
+    },
+    {
+      "id": "generated-cyclic:11",
+      "native": 110,
+      "elk": 85
+    },
+    {
+      "id": "generated-cyclic:15",
+      "native": 50,
+      "elk": 49
+    },
+    {
+      "id": "generated-cyclic:21",
+      "native": 84,
+      "elk": 80
+    },
+    {
+      "id": "generated-cyclic:23",
+      "native": 104,
+      "elk": 99
+    },
+    {
+      "id": "generated-cyclic:30",
+      "native": 66,
+      "elk": 63
+    },
+    {
+      "id": "generated-cyclic:33",
+      "native": 80,
+      "elk": 74
+    },
+    {
+      "id": "generated-cyclic:34",
+      "native": 104,
+      "elk": 93
+    },
+    {
+      "id": "generated-cyclic:38",
+      "native": 114,
+      "elk": 112
+    },
+    {
+      "id": "generated-cyclic:45",
+      "native": 88,
+      "elk": 87
+    },
+    {
+      "id": "generated-cyclic:49",
+      "native": 108,
+      "elk": 98
+    },
+    {
+      "id": "generated-cyclic:54",
+      "native": 64,
+      "elk": 61
+    },
+    {
+      "id": "generated-cyclic:68",
+      "native": 67,
+      "elk": 58
+    },
+    {
+      "id": "generated-cyclic:72",
+      "native": 73,
+      "elk": 66
+    },
+    {
+      "id": "generated-cyclic:75",
+      "native": 120,
+      "elk": 104
+    },
+    {
+      "id": "generated-cyclic:78",
+      "native": 42,
+      "elk": 39
+    },
+    {
+      "id": "generated-cyclic:89",
+      "native": 114,
+      "elk": 108
+    },
+    {
+      "id": "generated-cyclic:90",
+      "native": 126,
+      "elk": 124
+    },
+    {
+      "id": "generated-cyclic:93",
+      "native": 56,
+      "elk": 44
+    },
+    {
+      "id": "generated-cyclic:100",
+      "native": 104,
+      "elk": 93
+    },
+    {
+      "id": "generated-cyclic:101",
+      "native": 110,
+      "elk": 104
+    },
+    {
+      "id": "generated-cyclic:104",
+      "native": 54,
+      "elk": 52
+    },
+    {
+      "id": "generated-cyclic:109",
+      "native": 69,
+      "elk": 61
+    },
+    {
+      "id": "generated-cyclic:121",
+      "native": 60,
+      "elk": 58
+    },
+    {
+      "id": "generated-cyclic:128",
+      "native": 104,
+      "elk": 96
+    },
+    {
+      "id": "generated-cyclic:129",
+      "native": 108,
+      "elk": 100
+    },
+    {
+      "id": "generated-cyclic:137",
+      "native": 78,
+      "elk": 64
+    },
+    {
+      "id": "generated-cyclic:138",
+      "native": 96,
+      "elk": 92
+    },
+    {
+      "id": "generated-cyclic:142",
+      "native": 130,
+      "elk": 115
+    },
+    {
+      "id": "generated-cyclic:150",
+      "native": 96,
+      "elk": 81
+    },
+    {
+      "id": "generated-cyclic:158",
+      "native": 54,
+      "elk": 45
+    },
+    {
+      "id": "generated-cyclic:159",
+      "native": 53,
+      "elk": 50
+    },
+    {
+      "id": "generated-cyclic:162",
+      "native": 89,
+      "elk": 81
+    },
+    {
+      "id": "generated-cyclic:164",
+      "native": 96,
+      "elk": 92
+    },
+    {
+      "id": "generated-cyclic:167",
+      "native": 94,
+      "elk": 92
+    },
+    {
+      "id": "generated-cyclic:169",
+      "native": 36,
+      "elk": 34
+    },
+    {
+      "id": "generated-cyclic:179",
+      "native": 116,
+      "elk": 112
+    },
+    {
+      "id": "generated-cyclic:180",
+      "native": 101,
+      "elk": 100
+    },
+    {
+      "id": "generated-cyclic:187",
+      "native": 68,
+      "elk": 64
+    },
+    {
+      "id": "generated-cyclic:196",
+      "native": 44,
+      "elk": 43
+    },
+    {
+      "id": "generated-cyclic:202",
+      "native": 106,
+      "elk": 96
+    },
+    {
+      "id": "generated-cyclic:218",
+      "native": 118,
+      "elk": 94
+    },
+    {
+      "id": "generated-cyclic:222",
+      "native": 56,
+      "elk": 53
+    },
+    {
+      "id": "generated-cyclic:232",
+      "native": 108,
+      "elk": 81
+    },
+    {
+      "id": "generated-cyclic:246",
+      "native": 100,
+      "elk": 99
+    },
+    {
+      "id": "generated-cyclic:247",
+      "native": 42,
+      "elk": 39
+    },
+    {
+      "id": "corpus/flowchart/81",
+      "native": 8,
+      "elk": 4
+    },
+    {
+      "id": "corpus/flowchart/82",
+      "native": 8,
+      "elk": 4
+    },
+    {
+      "id": "corpus/flowchart/94",
+      "native": 7,
+      "elk": 6
+    },
+    {
+      "id": "corpus/flowchart/96",
+      "native": 7,
+      "elk": 6
+    },
+    {
+      "id": "corpus/flowchart/108",
+      "native": 6,
+      "elk": 4
+    },
+    {
+      "id": "corpus/class/0",
+      "native": 6,
+      "elk": 4
+    },
+    {
+      "id": "corpus/class/19",
+      "native": 12,
+      "elk": 10
+    },
+    {
+      "id": "corpus/class/25",
+      "native": 4,
+      "elk": 2
+    },
+    {
+      "id": "corpus/er/4",
+      "native": 4,
+      "elk": 2
+    },
+    {
+      "id": "corpus/er/5",
+      "native": 4,
+      "elk": 2
+    },
+    {
+      "id": "corpus/er/6",
+      "native": 4,
+      "elk": 2
+    },
+    {
+      "id": "corpus/er/9",
+      "native": 6,
+      "elk": 2
+    },
+    {
+      "id": "corpus/er/17",
+      "native": 9,
+      "elk": 6
+    },
+    {
+      "id": "fixture/class-backends.mmd",
+      "native": 12,
+      "elk": 10
+    },
+    {
+      "id": "fixture/class-basic.mmd",
+      "native": 4,
+      "elk": 2
+    },
+    {
+      "id": "fixture/stress/class-80-classes.mmd",
+      "native": 156,
+      "elk": 78
+    },
+    {
+      "id": "fixture/stress/er-40-entities.mmd",
+      "native": 68,
+      "elk": 38
+    },
+    {
+      "id": "fixture/stress/flowchart-mesh-120-labelled-40.mmd",
+      "native": 653,
+      "elk": 380
+    },
+    {
+      "id": "fixture/stress/flowchart-multigraph-24-loops.mmd",
+      "native": 398,
+      "elk": 178
+    },
+    {
+      "id": "fixture/stress/flowchart-subgraphs-12x8.mmd",
+      "native": 66,
+      "elk": 44
+    },
+    {
+      "id": "generated-cyclic:262",
+      "native": 58,
+      "elk": 49
+    },
+    {
+      "id": "generated-cyclic:266",
+      "native": 66,
+      "elk": 62
+    },
+    {
+      "id": "generated-cyclic:269",
+      "native": 84,
+      "elk": 81
+    },
+    {
+      "id": "generated-cyclic:270",
+      "native": 110,
+      "elk": 99
+    },
+    {
+      "id": "generated-cyclic:276",
+      "native": 63,
+      "elk": 54
+    },
+    {
+      "id": "generated-cyclic:277",
+      "native": 82,
+      "elk": 81
+    },
+    {
+      "id": "generated-cyclic:282",
+      "native": 74,
+      "elk": 73
+    },
+    {
+      "id": "generated-cyclic:289",
+      "native": 54,
+      "elk": 50
+    },
+    {
+      "id": "generated-cyclic:291",
+      "native": 80,
+      "elk": 75
+    },
+    {
+      "id": "generated-cyclic:293",
+      "native": 87,
+      "elk": 70
+    },
+    {
+      "id": "generated-cyclic:297",
+      "native": 85,
+      "elk": 81
+    },
+    {
+      "id": "generated-cyclic:298",
+      "native": 123,
+      "elk": 101
+    },
+    {
+      "id": "generated-cyclic:299",
+      "native": 54,
+      "elk": 53
+    },
+    {
+      "id": "generated-cyclic:308",
+      "native": 64,
+      "elk": 58
+    },
+    {
+      "id": "generated-cyclic:315",
+      "native": 46,
+      "elk": 45
+    },
+    {
+      "id": "generated-cyclic:323",
+      "native": 95,
+      "elk": 86
+    },
+    {
+      "id": "generated-cyclic:325",
+      "native": 44,
+      "elk": 42
+    },
+    {
+      "id": "generated-cyclic:330",
+      "native": 52,
+      "elk": 47
+    },
+    {
+      "id": "generated-cyclic:334",
+      "native": 90,
+      "elk": 87
+    },
+    {
+      "id": "generated-cyclic:338",
+      "native": 44,
+      "elk": 42
+    },
+    {
+      "id": "generated-cyclic:339",
+      "native": 54,
+      "elk": 41
+    },
+    {
+      "id": "generated-cyclic:341",
+      "native": 59,
+      "elk": 53
+    },
+    {
+      "id": "generated-cyclic:343",
+      "native": 68,
+      "elk": 60
+    },
+    {
+      "id": "generated-cyclic:344",
+      "native": 74,
+      "elk": 62
+    },
+    {
+      "id": "generated-cyclic:348",
+      "native": 130,
+      "elk": 104
+    },
+    {
+      "id": "generated-cyclic:365",
+      "native": 42,
+      "elk": 38
+    },
+    {
+      "id": "generated-cyclic:371",
+      "native": 64,
+      "elk": 55
+    },
+    {
+      "id": "generated-cyclic:372",
+      "native": 84,
+      "elk": 80
+    },
+    {
+      "id": "generated-cyclic:379",
+      "native": 58,
+      "elk": 56
+    },
+    {
+      "id": "generated-cyclic:382",
+      "native": 83,
+      "elk": 78
+    },
+    {
+      "id": "generated-cyclic:383",
+      "native": 90,
+      "elk": 78
+    },
+    {
+      "id": "generated-sha256-counter-v1:6",
+      "native": 76,
+      "elk": 68
+    },
+    {
+      "id": "generated-sha256-counter-v1:11",
+      "native": 110,
+      "elk": 94
+    },
+    {
+      "id": "generated-sha256-counter-v1:18",
+      "native": 78,
+      "elk": 77
+    },
+    {
+      "id": "generated-sha256-counter-v1:22",
+      "native": 73,
+      "elk": 63
+    },
+    {
+      "id": "generated-sha256-counter-v1:24",
+      "native": 100,
+      "elk": 97
+    },
+    {
+      "id": "generated-sha256-counter-v1:25",
+      "native": 96,
+      "elk": 93
+    },
+    {
+      "id": "generated-sha256-counter-v1:32",
+      "native": 75,
+      "elk": 68
+    },
+    {
+      "id": "generated-sha256-counter-v1:34",
+      "native": 95,
+      "elk": 90
+    },
+    {
+      "id": "generated-sha256-counter-v1:38",
+      "native": 120,
+      "elk": 103
+    },
+    {
+      "id": "generated-sha256-counter-v1:46",
+      "native": 71,
+      "elk": 64
+    },
+    {
+      "id": "generated-sha256-counter-v1:130",
+      "native": 48,
+      "elk": 46
+    },
+    {
+      "id": "generated-sha256-counter-v1:131",
+      "native": 52,
+      "elk": 45
+    },
+    {
+      "id": "generated-sha256-counter-v1:139",
+      "native": 94,
+      "elk": 68
+    },
+    {
+      "id": "generated-sha256-counter-v1:142",
+      "native": 97,
+      "elk": 94
+    },
+    {
+      "id": "generated-sha256-counter-v1:143",
+      "native": 40,
+      "elk": 37
+    },
+    {
+      "id": "generated-sha256-counter-v1:150",
+      "native": 76,
+      "elk": 73
+    },
+    {
+      "id": "generated-sha256-counter-v1:156",
+      "native": 46,
+      "elk": 40
+    },
+    {
+      "id": "generated-sha256-counter-v1:158",
+      "native": 64,
+      "elk": 57
+    },
+    {
+      "id": "generated-sha256-counter-v1:162",
+      "native": 72,
+      "elk": 61
+    },
+    {
+      "id": "generated-sha256-counter-v1:165",
+      "native": 88,
+      "elk": 83
+    },
+    {
+      "id": "generated-sha256-counter-v1:166",
+      "native": 118,
+      "elk": 95
+    },
+    {
+      "id": "generated-sha256-counter-v1:167",
+      "native": 118,
+      "elk": 105
+    },
+    {
+      "id": "generated-sha256-counter-v1:168",
+      "native": 91,
+      "elk": 89
+    },
+    {
+      "id": "generated-sha256-counter-v1:170",
+      "native": 44,
+      "elk": 41
+    },
+    {
+      "id": "generated-sha256-counter-v1:178",
+      "native": 84,
+      "elk": 82
+    },
+    {
+      "id": "generated-sha256-counter-v1:183",
+      "native": 42,
+      "elk": 38
+    },
+    {
+      "id": "generated-sha256-counter-v1:188",
+      "native": 79,
+      "elk": 73
+    },
+    {
+      "id": "generated-sha256-counter-v1:189",
+      "native": 72,
+      "elk": 65
+    },
+    {
+      "id": "generated-sha256-counter-v1:192",
+      "native": 90,
+      "elk": 89
+    },
+    {
+      "id": "generated-sha256-counter-v1:193",
+      "native": 122,
+      "elk": 84
+    },
+    {
+      "id": "generated-sha256-counter-v1:196",
+      "native": 37,
+      "elk": 31
+    },
+    {
+      "id": "generated-sha256-counter-v1:202",
+      "native": 104,
+      "elk": 85
+    },
+    {
+      "id": "generated-sha256-counter-v1:204",
+      "native": 86,
+      "elk": 80
+    },
+    {
+      "id": "generated-sha256-counter-v1:206",
+      "native": 112,
+      "elk": 102
+    },
+    {
+      "id": "generated-sha256-counter-v1:216",
+      "native": 96,
+      "elk": 88
+    },
+    {
+      "id": "generated-sha256-counter-v1:220",
+      "native": 98,
+      "elk": 93
+    },
+    {
+      "id": "generated-sha256-counter-v1:221",
+      "native": 40,
+      "elk": 38
+    },
+    {
+      "id": "generated-sha256-counter-v1:226",
+      "native": 64,
+      "elk": 63
+    },
+    {
+      "id": "generated-sha256-counter-v1:239",
+      "native": 69,
+      "elk": 68
+    },
+    {
+      "id": "generated-sha256-counter-v1:242",
+      "native": 96,
+      "elk": 82
+    },
+    {
+      "id": "generated-sha256-counter-v1:249",
+      "native": 62,
+      "elk": 58
+    },
+    {
+      "id": "generated-sha256-counter-v1:64",
+      "native": 104,
+      "elk": 90
+    },
+    {
+      "id": "generated-sha256-counter-v1:76",
+      "native": 134,
+      "elk": 103
+    },
+    {
+      "id": "generated-sha256-counter-v1:77",
+      "native": 86,
+      "elk": 84
+    },
+    {
+      "id": "generated-sha256-counter-v1:90",
+      "native": 144,
+      "elk": 109
+    },
+    {
+      "id": "generated-sha256-counter-v1:92",
+      "native": 44,
+      "elk": 42
+    },
+    {
+      "id": "generated-sha256-counter-v1:93",
+      "native": 50,
+      "elk": 46
+    },
+    {
+      "id": "generated-sha256-counter-v1:101",
+      "native": 82,
+      "elk": 79
+    },
+    {
+      "id": "generated-sha256-counter-v1:102",
+      "native": 114,
+      "elk": 101
+    },
+    {
+      "id": "generated-sha256-counter-v1:103",
+      "native": 104,
+      "elk": 93
+    },
+    {
+      "id": "generated-sha256-counter-v1:110",
+      "native": 71,
+      "elk": 69
+    },
+    {
+      "id": "generated-sha256-counter-v1:114",
+      "native": 83,
+      "elk": 76
+    },
+    {
+      "id": "generated-sha256-counter-v1:115",
+      "native": 96,
+      "elk": 84
+    },
+    {
+      "id": "generated-sha256-counter-v1:116",
+      "native": 111,
+      "elk": 101
+    },
+    {
+      "id": "generated-sha256-counter-v1:124",
+      "native": 84,
+      "elk": 80
+    },
+    {
+      "id": "generated-sha256-counter-v1:127",
+      "native": 84,
+      "elk": 80
+    }
+  ],
+  "crossings": [
+    {
+      "id": "generated-cyclic:276",
+      "native": 6,
+      "elk": 4
+    }
+  ],
+  "labelConflicts": [],
+  "parallelOverlaps": [],
+  "opposingOverlaps": []
+}

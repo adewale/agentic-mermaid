@@ -1,0 +1,1922 @@
+[
+  {
+    "name": "forest-cache0-0-agentic",
+    "expected": "agentic",
+    "decisions": [
+      {
+        "requested": "agentic",
+        "fallback": "none",
+        "selected": "agentic",
+        "attempts": [
+          {
+            "backend": "agentic",
+            "outcome": "selected"
+          }
+        ],
+        "implementation": "agentic-layered@28",
+        "role": "primary"
+      }
+    ],
+    "matched": true
+  },
+  {
+    "name": "forest-cache0-0-elk",
+    "expected": "elk",
+    "decisions": [
+      {
+        "requested": "elk",
+        "fallback": "none",
+        "selected": "elk",
+        "attempts": [
+          {
+            "backend": "elk",
+            "outcome": "selected"
+          }
+        ],
+        "implementation": "elk-layered@1",
+        "role": "primary"
+      }
+    ],
+    "matched": true
+  },
+  {
+    "name": "forest-cache0-1-elk",
+    "expected": "elk",
+    "decisions": [
+      {
+        "requested": "elk",
+        "fallback": "none",
+        "selected": "elk",
+        "attempts": [
+          {
+            "backend": "elk",
+            "outcome": "selected"
+          }
+        ],
+        "implementation": "elk-layered@1",
+        "role": "primary"
+      }
+    ],
+    "matched": true
+  },
+  {
+    "name": "forest-cache0-1-agentic",
+    "expected": "agentic",
+    "decisions": [
+      {
+        "requested": "agentic",
+        "fallback": "none",
+        "selected": "agentic",
+        "attempts": [
+          {
+            "backend": "agentic",
+            "outcome": "selected"
+          }
+        ],
+        "implementation": "agentic-layered@28",
+        "role": "primary"
+      }
+    ],
+    "matched": true
+  },
+  {
+    "name": "forest-cache0-2-elk",
+    "expected": "elk",
+    "decisions": [
+      {
+        "requested": "elk",
+        "fallback": "none",
+        "selected": "elk",
+        "attempts": [
+          {
+            "backend": "elk",
+            "outcome": "selected"
+          }
+        ],
+        "implementation": "elk-layered@1",
+        "role": "primary"
+      }
+    ],
+    "matched": true
+  },
+  {
+    "name": "forest-cache0-2-agentic",
+    "expected": "agentic",
+    "decisions": [
+      {
+        "requested": "agentic",
+        "fallback": "none",
+        "selected": "agentic",
+        "attempts": [
+          {
+            "backend": "agentic",
+            "outcome": "selected"
+          }
+        ],
+        "implementation": "agentic-layered@28",
+        "role": "primary"
+      }
+    ],
+    "matched": true
+  },
+  {
+    "name": "forest-cache0-3-agentic",
+    "expected": "agentic",
+    "decisions": [
+      {
+        "requested": "agentic",
+        "fallback": "none",
+        "selected": "agentic",
+        "attempts": [
+          {
+            "backend": "agentic",
+            "outcome": "selected"
+          }
+        ],
+        "implementation": "agentic-layered@28",
+        "role": "primary"
+      }
+    ],
+    "matched": true
+  },
+  {
+    "name": "forest-cache0-3-elk",
+    "expected": "elk",
+    "decisions": [
+      {
+        "requested": "elk",
+        "fallback": "none",
+        "selected": "elk",
+        "attempts": [
+          {
+            "backend": "elk",
+            "outcome": "selected"
+          }
+        ],
+        "implementation": "elk-layered@1",
+        "role": "primary"
+      }
+    ],
+    "matched": true
+  },
+  {
+    "name": "forest-cache1-0-agentic",
+    "expected": "agentic",
+    "decisions": [
+      {
+        "requested": "agentic",
+        "fallback": "none",
+        "selected": "agentic",
+        "attempts": [
+          {
+            "backend": "agentic",
+            "outcome": "selected"
+          }
+        ],
+        "implementation": "agentic-layered@28",
+        "role": "primary"
+      }
+    ],
+    "matched": true
+  },
+  {
+    "name": "forest-cache1-0-elk",
+    "expected": "elk",
+    "decisions": [
+      {
+        "requested": "elk",
+        "fallback": "none",
+        "selected": "elk",
+        "attempts": [
+          {
+            "backend": "elk",
+            "outcome": "selected"
+          }
+        ],
+        "implementation": "elk-layered@1",
+        "role": "primary"
+      }
+    ],
+    "matched": true
+  },
+  {
+    "name": "forest-cache1-1-elk",
+    "expected": "elk",
+    "decisions": [
+      {
+        "requested": "elk",
+        "fallback": "none",
+        "selected": "elk",
+        "attempts": [
+          {
+            "backend": "elk",
+            "outcome": "selected"
+          }
+        ],
+        "implementation": "elk-layered@1",
+        "role": "primary"
+      }
+    ],
+    "matched": true
+  },
+  {
+    "name": "forest-cache1-1-agentic",
+    "expected": "agentic",
+    "decisions": [
+      {
+        "requested": "agentic",
+        "fallback": "none",
+        "selected": "agentic",
+        "attempts": [
+          {
+            "backend": "agentic",
+            "outcome": "selected"
+          }
+        ],
+        "implementation": "agentic-layered@28",
+        "role": "primary"
+      }
+    ],
+    "matched": true
+  },
+  {
+    "name": "forest-cache1-2-elk",
+    "expected": "elk",
+    "decisions": [
+      {
+        "requested": "elk",
+        "fallback": "none",
+        "selected": "elk",
+        "attempts": [
+          {
+            "backend": "elk",
+            "outcome": "selected"
+          }
+        ],
+        "implementation": "elk-layered@1",
+        "role": "primary"
+      }
+    ],
+    "matched": true
+  },
+  {
+    "name": "forest-cache1-2-agentic",
+    "expected": "agentic",
+    "decisions": [
+      {
+        "requested": "agentic",
+        "fallback": "none",
+        "selected": "agentic",
+        "attempts": [
+          {
+            "backend": "agentic",
+            "outcome": "selected"
+          }
+        ],
+        "implementation": "agentic-layered@28",
+        "role": "primary"
+      }
+    ],
+    "matched": true
+  },
+  {
+    "name": "forest-cache1-3-agentic",
+    "expected": "agentic",
+    "decisions": [
+      {
+        "requested": "agentic",
+        "fallback": "none",
+        "selected": "agentic",
+        "attempts": [
+          {
+            "backend": "agentic",
+            "outcome": "selected"
+          }
+        ],
+        "implementation": "agentic-layered@28",
+        "role": "primary"
+      }
+    ],
+    "matched": true
+  },
+  {
+    "name": "forest-cache1-3-elk",
+    "expected": "elk",
+    "decisions": [
+      {
+        "requested": "elk",
+        "fallback": "none",
+        "selected": "elk",
+        "attempts": [
+          {
+            "backend": "elk",
+            "outcome": "selected"
+          }
+        ],
+        "implementation": "elk-layered@1",
+        "role": "primary"
+      }
+    ],
+    "matched": true
+  },
+  {
+    "name": "crossing276-cache0-0-agentic",
+    "expected": "agentic",
+    "decisions": [
+      {
+        "requested": "agentic",
+        "fallback": "none",
+        "selected": "agentic",
+        "attempts": [
+          {
+            "backend": "agentic",
+            "outcome": "selected"
+          }
+        ],
+        "implementation": "agentic-layered@28",
+        "role": "primary"
+      }
+    ],
+    "matched": true
+  },
+  {
+    "name": "crossing276-cache0-0-elk",
+    "expected": "elk",
+    "decisions": [
+      {
+        "requested": "elk",
+        "fallback": "none",
+        "selected": "elk",
+        "attempts": [
+          {
+            "backend": "elk",
+            "outcome": "selected"
+          }
+        ],
+        "implementation": "elk-layered@1",
+        "role": "primary"
+      }
+    ],
+    "matched": true
+  },
+  {
+    "name": "crossing276-cache0-1-elk",
+    "expected": "elk",
+    "decisions": [
+      {
+        "requested": "elk",
+        "fallback": "none",
+        "selected": "elk",
+        "attempts": [
+          {
+            "backend": "elk",
+            "outcome": "selected"
+          }
+        ],
+        "implementation": "elk-layered@1",
+        "role": "primary"
+      }
+    ],
+    "matched": true
+  },
+  {
+    "name": "crossing276-cache0-1-agentic",
+    "expected": "agentic",
+    "decisions": [
+      {
+        "requested": "agentic",
+        "fallback": "none",
+        "selected": "agentic",
+        "attempts": [
+          {
+            "backend": "agentic",
+            "outcome": "selected"
+          }
+        ],
+        "implementation": "agentic-layered@28",
+        "role": "primary"
+      }
+    ],
+    "matched": true
+  },
+  {
+    "name": "crossing276-cache0-2-elk",
+    "expected": "elk",
+    "decisions": [
+      {
+        "requested": "elk",
+        "fallback": "none",
+        "selected": "elk",
+        "attempts": [
+          {
+            "backend": "elk",
+            "outcome": "selected"
+          }
+        ],
+        "implementation": "elk-layered@1",
+        "role": "primary"
+      }
+    ],
+    "matched": true
+  },
+  {
+    "name": "crossing276-cache0-2-agentic",
+    "expected": "agentic",
+    "decisions": [
+      {
+        "requested": "agentic",
+        "fallback": "none",
+        "selected": "agentic",
+        "attempts": [
+          {
+            "backend": "agentic",
+            "outcome": "selected"
+          }
+        ],
+        "implementation": "agentic-layered@28",
+        "role": "primary"
+      }
+    ],
+    "matched": true
+  },
+  {
+    "name": "crossing276-cache0-3-agentic",
+    "expected": "agentic",
+    "decisions": [
+      {
+        "requested": "agentic",
+        "fallback": "none",
+        "selected": "agentic",
+        "attempts": [
+          {
+            "backend": "agentic",
+            "outcome": "selected"
+          }
+        ],
+        "implementation": "agentic-layered@28",
+        "role": "primary"
+      }
+    ],
+    "matched": true
+  },
+  {
+    "name": "crossing276-cache0-3-elk",
+    "expected": "elk",
+    "decisions": [
+      {
+        "requested": "elk",
+        "fallback": "none",
+        "selected": "elk",
+        "attempts": [
+          {
+            "backend": "elk",
+            "outcome": "selected"
+          }
+        ],
+        "implementation": "elk-layered@1",
+        "role": "primary"
+      }
+    ],
+    "matched": true
+  },
+  {
+    "name": "crossing276-cache1-0-agentic",
+    "expected": "agentic",
+    "decisions": [
+      {
+        "requested": "agentic",
+        "fallback": "none",
+        "selected": "agentic",
+        "attempts": [
+          {
+            "backend": "agentic",
+            "outcome": "selected"
+          }
+        ],
+        "implementation": "agentic-layered@28",
+        "role": "primary"
+      }
+    ],
+    "matched": true
+  },
+  {
+    "name": "crossing276-cache1-0-elk",
+    "expected": "elk",
+    "decisions": [
+      {
+        "requested": "elk",
+        "fallback": "none",
+        "selected": "elk",
+        "attempts": [
+          {
+            "backend": "elk",
+            "outcome": "selected"
+          }
+        ],
+        "implementation": "elk-layered@1",
+        "role": "primary"
+      }
+    ],
+    "matched": true
+  },
+  {
+    "name": "crossing276-cache1-1-elk",
+    "expected": "elk",
+    "decisions": [
+      {
+        "requested": "elk",
+        "fallback": "none",
+        "selected": "elk",
+        "attempts": [
+          {
+            "backend": "elk",
+            "outcome": "selected"
+          }
+        ],
+        "implementation": "elk-layered@1",
+        "role": "primary"
+      }
+    ],
+    "matched": true
+  },
+  {
+    "name": "crossing276-cache1-1-agentic",
+    "expected": "agentic",
+    "decisions": [
+      {
+        "requested": "agentic",
+        "fallback": "none",
+        "selected": "agentic",
+        "attempts": [
+          {
+            "backend": "agentic",
+            "outcome": "selected"
+          }
+        ],
+        "implementation": "agentic-layered@28",
+        "role": "primary"
+      }
+    ],
+    "matched": true
+  },
+  {
+    "name": "crossing276-cache1-2-elk",
+    "expected": "elk",
+    "decisions": [
+      {
+        "requested": "elk",
+        "fallback": "none",
+        "selected": "elk",
+        "attempts": [
+          {
+            "backend": "elk",
+            "outcome": "selected"
+          }
+        ],
+        "implementation": "elk-layered@1",
+        "role": "primary"
+      }
+    ],
+    "matched": true
+  },
+  {
+    "name": "crossing276-cache1-2-agentic",
+    "expected": "agentic",
+    "decisions": [
+      {
+        "requested": "agentic",
+        "fallback": "none",
+        "selected": "agentic",
+        "attempts": [
+          {
+            "backend": "agentic",
+            "outcome": "selected"
+          }
+        ],
+        "implementation": "agentic-layered@28",
+        "role": "primary"
+      }
+    ],
+    "matched": true
+  },
+  {
+    "name": "crossing276-cache1-3-agentic",
+    "expected": "agentic",
+    "decisions": [
+      {
+        "requested": "agentic",
+        "fallback": "none",
+        "selected": "agentic",
+        "attempts": [
+          {
+            "backend": "agentic",
+            "outcome": "selected"
+          }
+        ],
+        "implementation": "agentic-layered@28",
+        "role": "primary"
+      }
+    ],
+    "matched": true
+  },
+  {
+    "name": "crossing276-cache1-3-elk",
+    "expected": "elk",
+    "decisions": [
+      {
+        "requested": "elk",
+        "fallback": "none",
+        "selected": "elk",
+        "attempts": [
+          {
+            "backend": "elk",
+            "outcome": "selected"
+          }
+        ],
+        "implementation": "elk-layered@1",
+        "role": "primary"
+      }
+    ],
+    "matched": true
+  },
+  {
+    "name": "class128-cache0-0-agentic",
+    "expected": "agentic",
+    "decisions": [
+      {
+        "requested": "agentic",
+        "fallback": "none",
+        "selected": "agentic",
+        "attempts": [
+          {
+            "backend": "agentic",
+            "outcome": "selected"
+          }
+        ],
+        "implementation": "agentic-layered@28",
+        "role": "primary"
+      }
+    ],
+    "matched": true
+  },
+  {
+    "name": "class128-cache0-0-elk",
+    "expected": "elk",
+    "decisions": [
+      {
+        "requested": "elk",
+        "fallback": "none",
+        "selected": "elk",
+        "attempts": [
+          {
+            "backend": "elk",
+            "outcome": "selected"
+          }
+        ],
+        "implementation": "elk-layered@1",
+        "role": "primary"
+      }
+    ],
+    "matched": true
+  },
+  {
+    "name": "class128-cache0-1-elk",
+    "expected": "elk",
+    "decisions": [
+      {
+        "requested": "elk",
+        "fallback": "none",
+        "selected": "elk",
+        "attempts": [
+          {
+            "backend": "elk",
+            "outcome": "selected"
+          }
+        ],
+        "implementation": "elk-layered@1",
+        "role": "primary"
+      }
+    ],
+    "matched": true
+  },
+  {
+    "name": "class128-cache0-1-agentic",
+    "expected": "agentic",
+    "decisions": [
+      {
+        "requested": "agentic",
+        "fallback": "none",
+        "selected": "agentic",
+        "attempts": [
+          {
+            "backend": "agentic",
+            "outcome": "selected"
+          }
+        ],
+        "implementation": "agentic-layered@28",
+        "role": "primary"
+      }
+    ],
+    "matched": true
+  },
+  {
+    "name": "class128-cache0-2-elk",
+    "expected": "elk",
+    "decisions": [
+      {
+        "requested": "elk",
+        "fallback": "none",
+        "selected": "elk",
+        "attempts": [
+          {
+            "backend": "elk",
+            "outcome": "selected"
+          }
+        ],
+        "implementation": "elk-layered@1",
+        "role": "primary"
+      }
+    ],
+    "matched": true
+  },
+  {
+    "name": "class128-cache0-2-agentic",
+    "expected": "agentic",
+    "decisions": [
+      {
+        "requested": "agentic",
+        "fallback": "none",
+        "selected": "agentic",
+        "attempts": [
+          {
+            "backend": "agentic",
+            "outcome": "selected"
+          }
+        ],
+        "implementation": "agentic-layered@28",
+        "role": "primary"
+      }
+    ],
+    "matched": true
+  },
+  {
+    "name": "class128-cache0-3-agentic",
+    "expected": "agentic",
+    "decisions": [
+      {
+        "requested": "agentic",
+        "fallback": "none",
+        "selected": "agentic",
+        "attempts": [
+          {
+            "backend": "agentic",
+            "outcome": "selected"
+          }
+        ],
+        "implementation": "agentic-layered@28",
+        "role": "primary"
+      }
+    ],
+    "matched": true
+  },
+  {
+    "name": "class128-cache0-3-elk",
+    "expected": "elk",
+    "decisions": [
+      {
+        "requested": "elk",
+        "fallback": "none",
+        "selected": "elk",
+        "attempts": [
+          {
+            "backend": "elk",
+            "outcome": "selected"
+          }
+        ],
+        "implementation": "elk-layered@1",
+        "role": "primary"
+      }
+    ],
+    "matched": true
+  },
+  {
+    "name": "class128-cache1-0-agentic",
+    "expected": "agentic",
+    "decisions": [
+      {
+        "requested": "agentic",
+        "fallback": "none",
+        "selected": "agentic",
+        "attempts": [
+          {
+            "backend": "agentic",
+            "outcome": "selected"
+          }
+        ],
+        "implementation": "agentic-layered@28",
+        "role": "primary"
+      }
+    ],
+    "matched": true
+  },
+  {
+    "name": "class128-cache1-0-elk",
+    "expected": "elk",
+    "decisions": [
+      {
+        "requested": "elk",
+        "fallback": "none",
+        "selected": "elk",
+        "attempts": [
+          {
+            "backend": "elk",
+            "outcome": "selected"
+          }
+        ],
+        "implementation": "elk-layered@1",
+        "role": "primary"
+      }
+    ],
+    "matched": true
+  },
+  {
+    "name": "class128-cache1-1-elk",
+    "expected": "elk",
+    "decisions": [
+      {
+        "requested": "elk",
+        "fallback": "none",
+        "selected": "elk",
+        "attempts": [
+          {
+            "backend": "elk",
+            "outcome": "selected"
+          }
+        ],
+        "implementation": "elk-layered@1",
+        "role": "primary"
+      }
+    ],
+    "matched": true
+  },
+  {
+    "name": "class128-cache1-1-agentic",
+    "expected": "agentic",
+    "decisions": [
+      {
+        "requested": "agentic",
+        "fallback": "none",
+        "selected": "agentic",
+        "attempts": [
+          {
+            "backend": "agentic",
+            "outcome": "selected"
+          }
+        ],
+        "implementation": "agentic-layered@28",
+        "role": "primary"
+      }
+    ],
+    "matched": true
+  },
+  {
+    "name": "class128-cache1-2-elk",
+    "expected": "elk",
+    "decisions": [
+      {
+        "requested": "elk",
+        "fallback": "none",
+        "selected": "elk",
+        "attempts": [
+          {
+            "backend": "elk",
+            "outcome": "selected"
+          }
+        ],
+        "implementation": "elk-layered@1",
+        "role": "primary"
+      }
+    ],
+    "matched": true
+  },
+  {
+    "name": "class128-cache1-2-agentic",
+    "expected": "agentic",
+    "decisions": [
+      {
+        "requested": "agentic",
+        "fallback": "none",
+        "selected": "agentic",
+        "attempts": [
+          {
+            "backend": "agentic",
+            "outcome": "selected"
+          }
+        ],
+        "implementation": "agentic-layered@28",
+        "role": "primary"
+      }
+    ],
+    "matched": true
+  },
+  {
+    "name": "class128-cache1-3-agentic",
+    "expected": "agentic",
+    "decisions": [
+      {
+        "requested": "agentic",
+        "fallback": "none",
+        "selected": "agentic",
+        "attempts": [
+          {
+            "backend": "agentic",
+            "outcome": "selected"
+          }
+        ],
+        "implementation": "agentic-layered@28",
+        "role": "primary"
+      }
+    ],
+    "matched": true
+  },
+  {
+    "name": "class128-cache1-3-elk",
+    "expected": "elk",
+    "decisions": [
+      {
+        "requested": "elk",
+        "fallback": "none",
+        "selected": "elk",
+        "attempts": [
+          {
+            "backend": "elk",
+            "outcome": "selected"
+          }
+        ],
+        "implementation": "elk-layered@1",
+        "role": "primary"
+      }
+    ],
+    "matched": true
+  },
+  {
+    "name": "er256LR-cache0-0-agentic",
+    "expected": "agentic",
+    "decisions": [
+      {
+        "requested": "agentic",
+        "fallback": "none",
+        "selected": "agentic",
+        "attempts": [
+          {
+            "backend": "agentic",
+            "outcome": "selected"
+          }
+        ],
+        "implementation": "agentic-layered@28",
+        "role": "primary"
+      }
+    ],
+    "matched": true
+  },
+  {
+    "name": "er256LR-cache0-0-elk",
+    "expected": "elk",
+    "decisions": [
+      {
+        "requested": "elk",
+        "fallback": "none",
+        "selected": "elk",
+        "attempts": [
+          {
+            "backend": "elk",
+            "outcome": "selected"
+          }
+        ],
+        "implementation": "elk-layered@1",
+        "role": "primary"
+      }
+    ],
+    "matched": true
+  },
+  {
+    "name": "er256LR-cache0-1-elk",
+    "expected": "elk",
+    "decisions": [
+      {
+        "requested": "elk",
+        "fallback": "none",
+        "selected": "elk",
+        "attempts": [
+          {
+            "backend": "elk",
+            "outcome": "selected"
+          }
+        ],
+        "implementation": "elk-layered@1",
+        "role": "primary"
+      }
+    ],
+    "matched": true
+  },
+  {
+    "name": "er256LR-cache0-1-agentic",
+    "expected": "agentic",
+    "decisions": [
+      {
+        "requested": "agentic",
+        "fallback": "none",
+        "selected": "agentic",
+        "attempts": [
+          {
+            "backend": "agentic",
+            "outcome": "selected"
+          }
+        ],
+        "implementation": "agentic-layered@28",
+        "role": "primary"
+      }
+    ],
+    "matched": true
+  },
+  {
+    "name": "er256LR-cache0-2-elk",
+    "expected": "elk",
+    "decisions": [
+      {
+        "requested": "elk",
+        "fallback": "none",
+        "selected": "elk",
+        "attempts": [
+          {
+            "backend": "elk",
+            "outcome": "selected"
+          }
+        ],
+        "implementation": "elk-layered@1",
+        "role": "primary"
+      }
+    ],
+    "matched": true
+  },
+  {
+    "name": "er256LR-cache0-2-agentic",
+    "expected": "agentic",
+    "decisions": [
+      {
+        "requested": "agentic",
+        "fallback": "none",
+        "selected": "agentic",
+        "attempts": [
+          {
+            "backend": "agentic",
+            "outcome": "selected"
+          }
+        ],
+        "implementation": "agentic-layered@28",
+        "role": "primary"
+      }
+    ],
+    "matched": true
+  },
+  {
+    "name": "er256LR-cache0-3-agentic",
+    "expected": "agentic",
+    "decisions": [
+      {
+        "requested": "agentic",
+        "fallback": "none",
+        "selected": "agentic",
+        "attempts": [
+          {
+            "backend": "agentic",
+            "outcome": "selected"
+          }
+        ],
+        "implementation": "agentic-layered@28",
+        "role": "primary"
+      }
+    ],
+    "matched": true
+  },
+  {
+    "name": "er256LR-cache0-3-elk",
+    "expected": "elk",
+    "decisions": [
+      {
+        "requested": "elk",
+        "fallback": "none",
+        "selected": "elk",
+        "attempts": [
+          {
+            "backend": "elk",
+            "outcome": "selected"
+          }
+        ],
+        "implementation": "elk-layered@1",
+        "role": "primary"
+      }
+    ],
+    "matched": true
+  },
+  {
+    "name": "er256LR-cache1-0-agentic",
+    "expected": "agentic",
+    "decisions": [
+      {
+        "requested": "agentic",
+        "fallback": "none",
+        "selected": "agentic",
+        "attempts": [
+          {
+            "backend": "agentic",
+            "outcome": "selected"
+          }
+        ],
+        "implementation": "agentic-layered@28",
+        "role": "primary"
+      }
+    ],
+    "matched": true
+  },
+  {
+    "name": "er256LR-cache1-0-elk",
+    "expected": "elk",
+    "decisions": [
+      {
+        "requested": "elk",
+        "fallback": "none",
+        "selected": "elk",
+        "attempts": [
+          {
+            "backend": "elk",
+            "outcome": "selected"
+          }
+        ],
+        "implementation": "elk-layered@1",
+        "role": "primary"
+      }
+    ],
+    "matched": true
+  },
+  {
+    "name": "er256LR-cache1-1-elk",
+    "expected": "elk",
+    "decisions": [
+      {
+        "requested": "elk",
+        "fallback": "none",
+        "selected": "elk",
+        "attempts": [
+          {
+            "backend": "elk",
+            "outcome": "selected"
+          }
+        ],
+        "implementation": "elk-layered@1",
+        "role": "primary"
+      }
+    ],
+    "matched": true
+  },
+  {
+    "name": "er256LR-cache1-1-agentic",
+    "expected": "agentic",
+    "decisions": [
+      {
+        "requested": "agentic",
+        "fallback": "none",
+        "selected": "agentic",
+        "attempts": [
+          {
+            "backend": "agentic",
+            "outcome": "selected"
+          }
+        ],
+        "implementation": "agentic-layered@28",
+        "role": "primary"
+      }
+    ],
+    "matched": true
+  },
+  {
+    "name": "er256LR-cache1-2-elk",
+    "expected": "elk",
+    "decisions": [
+      {
+        "requested": "elk",
+        "fallback": "none",
+        "selected": "elk",
+        "attempts": [
+          {
+            "backend": "elk",
+            "outcome": "selected"
+          }
+        ],
+        "implementation": "elk-layered@1",
+        "role": "primary"
+      }
+    ],
+    "matched": true
+  },
+  {
+    "name": "er256LR-cache1-2-agentic",
+    "expected": "agentic",
+    "decisions": [
+      {
+        "requested": "agentic",
+        "fallback": "none",
+        "selected": "agentic",
+        "attempts": [
+          {
+            "backend": "agentic",
+            "outcome": "selected"
+          }
+        ],
+        "implementation": "agentic-layered@28",
+        "role": "primary"
+      }
+    ],
+    "matched": true
+  },
+  {
+    "name": "er256LR-cache1-3-agentic",
+    "expected": "agentic",
+    "decisions": [
+      {
+        "requested": "agentic",
+        "fallback": "none",
+        "selected": "agentic",
+        "attempts": [
+          {
+            "backend": "agentic",
+            "outcome": "selected"
+          }
+        ],
+        "implementation": "agentic-layered@28",
+        "role": "primary"
+      }
+    ],
+    "matched": true
+  },
+  {
+    "name": "er256LR-cache1-3-elk",
+    "expected": "elk",
+    "decisions": [
+      {
+        "requested": "elk",
+        "fallback": "none",
+        "selected": "elk",
+        "attempts": [
+          {
+            "backend": "elk",
+            "outcome": "selected"
+          }
+        ],
+        "implementation": "elk-layered@1",
+        "role": "primary"
+      }
+    ],
+    "matched": true
+  },
+  {
+    "name": "sparse256-cache0-0-agentic",
+    "expected": "agentic",
+    "decisions": [
+      {
+        "requested": "agentic",
+        "fallback": "none",
+        "selected": "agentic",
+        "attempts": [
+          {
+            "backend": "agentic",
+            "outcome": "selected"
+          }
+        ],
+        "implementation": "agentic-layered@28",
+        "role": "primary"
+      }
+    ],
+    "matched": true
+  },
+  {
+    "name": "sparse256-cache0-0-elk",
+    "expected": "elk",
+    "decisions": [
+      {
+        "requested": "elk",
+        "fallback": "none",
+        "selected": "elk",
+        "attempts": [
+          {
+            "backend": "elk",
+            "outcome": "selected"
+          }
+        ],
+        "implementation": "elk-layered@1",
+        "role": "primary"
+      }
+    ],
+    "matched": true
+  },
+  {
+    "name": "sparse256-cache0-1-elk",
+    "expected": "elk",
+    "decisions": [
+      {
+        "requested": "elk",
+        "fallback": "none",
+        "selected": "elk",
+        "attempts": [
+          {
+            "backend": "elk",
+            "outcome": "selected"
+          }
+        ],
+        "implementation": "elk-layered@1",
+        "role": "primary"
+      }
+    ],
+    "matched": true
+  },
+  {
+    "name": "sparse256-cache0-1-agentic",
+    "expected": "agentic",
+    "decisions": [
+      {
+        "requested": "agentic",
+        "fallback": "none",
+        "selected": "agentic",
+        "attempts": [
+          {
+            "backend": "agentic",
+            "outcome": "selected"
+          }
+        ],
+        "implementation": "agentic-layered@28",
+        "role": "primary"
+      }
+    ],
+    "matched": true
+  },
+  {
+    "name": "sparse256-cache0-2-elk",
+    "expected": "elk",
+    "decisions": [
+      {
+        "requested": "elk",
+        "fallback": "none",
+        "selected": "elk",
+        "attempts": [
+          {
+            "backend": "elk",
+            "outcome": "selected"
+          }
+        ],
+        "implementation": "elk-layered@1",
+        "role": "primary"
+      }
+    ],
+    "matched": true
+  },
+  {
+    "name": "sparse256-cache0-2-agentic",
+    "expected": "agentic",
+    "decisions": [
+      {
+        "requested": "agentic",
+        "fallback": "none",
+        "selected": "agentic",
+        "attempts": [
+          {
+            "backend": "agentic",
+            "outcome": "selected"
+          }
+        ],
+        "implementation": "agentic-layered@28",
+        "role": "primary"
+      }
+    ],
+    "matched": true
+  },
+  {
+    "name": "sparse256-cache0-3-agentic",
+    "expected": "agentic",
+    "decisions": [
+      {
+        "requested": "agentic",
+        "fallback": "none",
+        "selected": "agentic",
+        "attempts": [
+          {
+            "backend": "agentic",
+            "outcome": "selected"
+          }
+        ],
+        "implementation": "agentic-layered@28",
+        "role": "primary"
+      }
+    ],
+    "matched": true
+  },
+  {
+    "name": "sparse256-cache0-3-elk",
+    "expected": "elk",
+    "decisions": [
+      {
+        "requested": "elk",
+        "fallback": "none",
+        "selected": "elk",
+        "attempts": [
+          {
+            "backend": "elk",
+            "outcome": "selected"
+          }
+        ],
+        "implementation": "elk-layered@1",
+        "role": "primary"
+      }
+    ],
+    "matched": true
+  },
+  {
+    "name": "sparse256-cache1-0-agentic",
+    "expected": "agentic",
+    "decisions": [
+      {
+        "requested": "agentic",
+        "fallback": "none",
+        "selected": "agentic",
+        "attempts": [
+          {
+            "backend": "agentic",
+            "outcome": "selected"
+          }
+        ],
+        "implementation": "agentic-layered@28",
+        "role": "primary"
+      }
+    ],
+    "matched": true
+  },
+  {
+    "name": "sparse256-cache1-0-elk",
+    "expected": "elk",
+    "decisions": [
+      {
+        "requested": "elk",
+        "fallback": "none",
+        "selected": "elk",
+        "attempts": [
+          {
+            "backend": "elk",
+            "outcome": "selected"
+          }
+        ],
+        "implementation": "elk-layered@1",
+        "role": "primary"
+      }
+    ],
+    "matched": true
+  },
+  {
+    "name": "sparse256-cache1-1-elk",
+    "expected": "elk",
+    "decisions": [
+      {
+        "requested": "elk",
+        "fallback": "none",
+        "selected": "elk",
+        "attempts": [
+          {
+            "backend": "elk",
+            "outcome": "selected"
+          }
+        ],
+        "implementation": "elk-layered@1",
+        "role": "primary"
+      }
+    ],
+    "matched": true
+  },
+  {
+    "name": "sparse256-cache1-1-agentic",
+    "expected": "agentic",
+    "decisions": [
+      {
+        "requested": "agentic",
+        "fallback": "none",
+        "selected": "agentic",
+        "attempts": [
+          {
+            "backend": "agentic",
+            "outcome": "selected"
+          }
+        ],
+        "implementation": "agentic-layered@28",
+        "role": "primary"
+      }
+    ],
+    "matched": true
+  },
+  {
+    "name": "sparse256-cache1-2-elk",
+    "expected": "elk",
+    "decisions": [
+      {
+        "requested": "elk",
+        "fallback": "none",
+        "selected": "elk",
+        "attempts": [
+          {
+            "backend": "elk",
+            "outcome": "selected"
+          }
+        ],
+        "implementation": "elk-layered@1",
+        "role": "primary"
+      }
+    ],
+    "matched": true
+  },
+  {
+    "name": "sparse256-cache1-2-agentic",
+    "expected": "agentic",
+    "decisions": [
+      {
+        "requested": "agentic",
+        "fallback": "none",
+        "selected": "agentic",
+        "attempts": [
+          {
+            "backend": "agentic",
+            "outcome": "selected"
+          }
+        ],
+        "implementation": "agentic-layered@28",
+        "role": "primary"
+      }
+    ],
+    "matched": true
+  },
+  {
+    "name": "sparse256-cache1-3-agentic",
+    "expected": "agentic",
+    "decisions": [
+      {
+        "requested": "agentic",
+        "fallback": "none",
+        "selected": "agentic",
+        "attempts": [
+          {
+            "backend": "agentic",
+            "outcome": "selected"
+          }
+        ],
+        "implementation": "agentic-layered@28",
+        "role": "primary"
+      }
+    ],
+    "matched": true
+  },
+  {
+    "name": "sparse256-cache1-3-elk",
+    "expected": "elk",
+    "decisions": [
+      {
+        "requested": "elk",
+        "fallback": "none",
+        "selected": "elk",
+        "attempts": [
+          {
+            "backend": "elk",
+            "outcome": "selected"
+          }
+        ],
+        "implementation": "elk-layered@1",
+        "role": "primary"
+      }
+    ],
+    "matched": true
+  },
+  {
+    "name": "requirement5-cache0-0-agentic",
+    "expected": "agentic",
+    "decisions": [
+      {
+        "requested": "agentic",
+        "fallback": "none",
+        "selected": "agentic",
+        "attempts": [
+          {
+            "backend": "agentic",
+            "outcome": "selected"
+          }
+        ],
+        "implementation": "agentic-layered@28",
+        "role": "primary"
+      }
+    ],
+    "matched": true
+  },
+  {
+    "name": "requirement5-cache0-0-elk",
+    "expected": "elk",
+    "decisions": [
+      {
+        "requested": "elk",
+        "fallback": "none",
+        "selected": "elk",
+        "attempts": [
+          {
+            "backend": "elk",
+            "outcome": "selected"
+          }
+        ],
+        "implementation": "elk-layered@1",
+        "role": "primary"
+      }
+    ],
+    "matched": true
+  },
+  {
+    "name": "requirement5-cache0-1-elk",
+    "expected": "elk",
+    "decisions": [
+      {
+        "requested": "elk",
+        "fallback": "none",
+        "selected": "elk",
+        "attempts": [
+          {
+            "backend": "elk",
+            "outcome": "selected"
+          }
+        ],
+        "implementation": "elk-layered@1",
+        "role": "primary"
+      }
+    ],
+    "matched": true
+  },
+  {
+    "name": "requirement5-cache0-1-agentic",
+    "expected": "agentic",
+    "decisions": [
+      {
+        "requested": "agentic",
+        "fallback": "none",
+        "selected": "agentic",
+        "attempts": [
+          {
+            "backend": "agentic",
+            "outcome": "selected"
+          }
+        ],
+        "implementation": "agentic-layered@28",
+        "role": "primary"
+      }
+    ],
+    "matched": true
+  },
+  {
+    "name": "requirement5-cache0-2-elk",
+    "expected": "elk",
+    "decisions": [
+      {
+        "requested": "elk",
+        "fallback": "none",
+        "selected": "elk",
+        "attempts": [
+          {
+            "backend": "elk",
+            "outcome": "selected"
+          }
+        ],
+        "implementation": "elk-layered@1",
+        "role": "primary"
+      }
+    ],
+    "matched": true
+  },
+  {
+    "name": "requirement5-cache0-2-agentic",
+    "expected": "agentic",
+    "decisions": [
+      {
+        "requested": "agentic",
+        "fallback": "none",
+        "selected": "agentic",
+        "attempts": [
+          {
+            "backend": "agentic",
+            "outcome": "selected"
+          }
+        ],
+        "implementation": "agentic-layered@28",
+        "role": "primary"
+      }
+    ],
+    "matched": true
+  },
+  {
+    "name": "requirement5-cache0-3-agentic",
+    "expected": "agentic",
+    "decisions": [
+      {
+        "requested": "agentic",
+        "fallback": "none",
+        "selected": "agentic",
+        "attempts": [
+          {
+            "backend": "agentic",
+            "outcome": "selected"
+          }
+        ],
+        "implementation": "agentic-layered@28",
+        "role": "primary"
+      }
+    ],
+    "matched": true
+  },
+  {
+    "name": "requirement5-cache0-3-elk",
+    "expected": "elk",
+    "decisions": [
+      {
+        "requested": "elk",
+        "fallback": "none",
+        "selected": "elk",
+        "attempts": [
+          {
+            "backend": "elk",
+            "outcome": "selected"
+          }
+        ],
+        "implementation": "elk-layered@1",
+        "role": "primary"
+      }
+    ],
+    "matched": true
+  },
+  {
+    "name": "requirement5-cache1-0-agentic",
+    "expected": "agentic",
+    "decisions": [
+      {
+        "requested": "agentic",
+        "fallback": "none",
+        "selected": "agentic",
+        "attempts": [
+          {
+            "backend": "agentic",
+            "outcome": "selected"
+          }
+        ],
+        "implementation": "agentic-layered@28",
+        "role": "primary"
+      }
+    ],
+    "matched": true
+  },
+  {
+    "name": "requirement5-cache1-0-elk",
+    "expected": "elk",
+    "decisions": [
+      {
+        "requested": "elk",
+        "fallback": "none",
+        "selected": "elk",
+        "attempts": [
+          {
+            "backend": "elk",
+            "outcome": "selected"
+          }
+        ],
+        "implementation": "elk-layered@1",
+        "role": "primary"
+      }
+    ],
+    "matched": true
+  },
+  {
+    "name": "requirement5-cache1-1-elk",
+    "expected": "elk",
+    "decisions": [
+      {
+        "requested": "elk",
+        "fallback": "none",
+        "selected": "elk",
+        "attempts": [
+          {
+            "backend": "elk",
+            "outcome": "selected"
+          }
+        ],
+        "implementation": "elk-layered@1",
+        "role": "primary"
+      }
+    ],
+    "matched": true
+  },
+  {
+    "name": "requirement5-cache1-1-agentic",
+    "expected": "agentic",
+    "decisions": [
+      {
+        "requested": "agentic",
+        "fallback": "none",
+        "selected": "agentic",
+        "attempts": [
+          {
+            "backend": "agentic",
+            "outcome": "selected"
+          }
+        ],
+        "implementation": "agentic-layered@28",
+        "role": "primary"
+      }
+    ],
+    "matched": true
+  },
+  {
+    "name": "requirement5-cache1-2-elk",
+    "expected": "elk",
+    "decisions": [
+      {
+        "requested": "elk",
+        "fallback": "none",
+        "selected": "elk",
+        "attempts": [
+          {
+            "backend": "elk",
+            "outcome": "selected"
+          }
+        ],
+        "implementation": "elk-layered@1",
+        "role": "primary"
+      }
+    ],
+    "matched": true
+  },
+  {
+    "name": "requirement5-cache1-2-agentic",
+    "expected": "agentic",
+    "decisions": [
+      {
+        "requested": "agentic",
+        "fallback": "none",
+        "selected": "agentic",
+        "attempts": [
+          {
+            "backend": "agentic",
+            "outcome": "selected"
+          }
+        ],
+        "implementation": "agentic-layered@28",
+        "role": "primary"
+      }
+    ],
+    "matched": true
+  },
+  {
+    "name": "requirement5-cache1-3-agentic",
+    "expected": "agentic",
+    "decisions": [
+      {
+        "requested": "agentic",
+        "fallback": "none",
+        "selected": "agentic",
+        "attempts": [
+          {
+            "backend": "agentic",
+            "outcome": "selected"
+          }
+        ],
+        "implementation": "agentic-layered@28",
+        "role": "primary"
+      }
+    ],
+    "matched": true
+  },
+  {
+    "name": "requirement5-cache1-3-elk",
+    "expected": "elk",
+    "decisions": [
+      {
+        "requested": "elk",
+        "fallback": "none",
+        "selected": "elk",
+        "attempts": [
+          {
+            "backend": "elk",
+            "outcome": "selected"
+          }
+        ],
+        "implementation": "elk-layered@1",
+        "role": "primary"
+      }
+    ],
+    "matched": true
+  }
+]

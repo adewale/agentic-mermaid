@@ -1,0 +1,34 @@
+{
+  "actualSelectedPairs": 874,
+  "noDualBackendDecision": [],
+  "selectedVectors": {
+    "area": {
+      "ELK lower": 64,
+      "Native lower": 670,
+      "equal": 140
+    },
+    "wire": {
+      "Native lower": 644,
+      "ELK lower": 81,
+      "equal": 149
+    },
+    "bends": {
+      "Native lower": 500,
+      "ELK lower": 153,
+      "equal": 221
+    },
+    "crossings": {
+      "Native lower": 645,
+      "equal": 228,
+      "ELK lower": 1
+    }
+  },
+  "families": {
+    "flowchart": 770,
+    "state": 22,
+    "class": 40,
+    "er": 27,
+    "architecture": 12,
+    "requirement": 3
+  }
+}

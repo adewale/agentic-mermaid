@@ -1,0 +1,34 @@
+[
+  {
+    "case": "forest",
+    "backend": "agentic",
+    "svgSHA256": "0d8e952645d661a667cc789bc07d9604958c0fc7f3586f70bbc3f5bbbacae4e2",
+    "font": "manifest-verified Inter; system fonts disabled",
+    "width": 900,
+    "claim": "Actual final SVG, whole viewport. Visual inspection of these two cases does not qualify all874pixels."
+  },
+  {
+    "case": "forest",
+    "backend": "elk",
+    "svgSHA256": "674d578fdbd9e338cd11a8ff4ca81bfaca1df7e18c967c20630840ddbb83e9eb",
+    "font": "manifest-verified Inter; system fonts disabled",
+    "width": 900,
+    "claim": "Actual final SVG, whole viewport. Visual inspection of these two cases does not qualify all874pixels."
+  },
+  {
+    "case": "crossing276",
+    "backend": "agentic",
+    "svgSHA256": "c3553967285e79642d550c72a56f806d71d806fc136f68307c4929774df3f35e",
+    "font": "manifest-verified Inter; system fonts disabled",
+    "width": 900,
+    "claim": "Actual final SVG, whole viewport. Visual inspection of these two cases does not qualify all874pixels."
+  },
+  {
+    "case": "crossing276",
+    "backend": "elk",
+    "svgSHA256": "38e69b4b848d1ce8a322a7cb6dab56ae7109615c42a15f676c2e5b0dde83e2f8",
+    "font": "manifest-verified Inter; system fonts disabled",
+    "width": 900,
+    "claim": "Actual final SVG, whole viewport. Visual inspection of these two cases does not qualify all874pixels."
+  }
+]

@@ -1,0 +1,589 @@
+{
+  "scope": "fixed six inputs;96fresh sequential processes;4processes/backend/cache/input; cold +4repeat +edit+edited-repeat; one untimed final cache audit perprocess; no sourcechanges",
+  "cases": [
+    "forest",
+    "crossing276",
+    "class128",
+    "er256LR",
+    "sparse256",
+    "requirement5"
+  ],
+  "runs": [
+    {
+      "name": "forest-cache0-0-agentic",
+      "cache": 0,
+      "job": "/tmp/pr449-week-comparison-20261101/native-elk-d8c8-comparison/jobs/forest-cache0-0-agentic.json",
+      "out": "/tmp/pr449-week-comparison-20261101/native-elk-d8c8-comparison/measurements/forest-cache0-0-agentic"
+    },
+    {
+      "name": "forest-cache0-0-elk",
+      "cache": 0,
+      "job": "/tmp/pr449-week-comparison-20261101/native-elk-d8c8-comparison/jobs/forest-cache0-0-elk.json",
+      "out": "/tmp/pr449-week-comparison-20261101/native-elk-d8c8-comparison/measurements/forest-cache0-0-elk"
+    },
+    {
+      "name": "forest-cache0-1-elk",
+      "cache": 0,
+      "job": "/tmp/pr449-week-comparison-20261101/native-elk-d8c8-comparison/jobs/forest-cache0-1-elk.json",
+      "out": "/tmp/pr449-week-comparison-20261101/native-elk-d8c8-comparison/measurements/forest-cache0-1-elk"
+    },
+    {
+      "name": "forest-cache0-1-agentic",
+      "cache": 0,
+      "job": "/tmp/pr449-week-comparison-20261101/native-elk-d8c8-comparison/jobs/forest-cache0-1-agentic.json",
+      "out": "/tmp/pr449-week-comparison-20261101/native-elk-d8c8-comparison/measurements/forest-cache0-1-agentic"
+    },
+    {
+      "name": "forest-cache0-2-elk",
+      "cache": 0,
+      "job": "/tmp/pr449-week-comparison-20261101/native-elk-d8c8-comparison/jobs/forest-cache0-2-elk.json",
+      "out": "/tmp/pr449-week-comparison-20261101/native-elk-d8c8-comparison/measurements/forest-cache0-2-elk"
+    },
+    {
+      "name": "forest-cache0-2-agentic",
+      "cache": 0,
+      "job": "/tmp/pr449-week-comparison-20261101/native-elk-d8c8-comparison/jobs/forest-cache0-2-agentic.json",
+      "out": "/tmp/pr449-week-comparison-20261101/native-elk-d8c8-comparison/measurements/forest-cache0-2-agentic"
+    },
+    {
+      "name": "forest-cache0-3-agentic",
+      "cache": 0,
+      "job": "/tmp/pr449-week-comparison-20261101/native-elk-d8c8-comparison/jobs/forest-cache0-3-agentic.json",
+      "out": "/tmp/pr449-week-comparison-20261101/native-elk-d8c8-comparison/measurements/forest-cache0-3-agentic"
+    },
+    {
+      "name": "forest-cache0-3-elk",
+      "cache": 0,
+      "job": "/tmp/pr449-week-comparison-20261101/native-elk-d8c8-comparison/jobs/forest-cache0-3-elk.json",
+      "out": "/tmp/pr449-week-comparison-20261101/native-elk-d8c8-comparison/measurements/forest-cache0-3-elk"
+    },
+    {
+      "name": "forest-cache1-0-agentic",
+      "cache": 1,
+      "job": "/tmp/pr449-week-comparison-20261101/native-elk-d8c8-comparison/jobs/forest-cache1-0-agentic.json",
+      "out": "/tmp/pr449-week-comparison-20261101/native-elk-d8c8-comparison/measurements/forest-cache1-0-agentic"
+    },
+    {
+      "name": "forest-cache1-0-elk",
+      "cache": 1,
+      "job": "/tmp/pr449-week-comparison-20261101/native-elk-d8c8-comparison/jobs/forest-cache1-0-elk.json",
+      "out": "/tmp/pr449-week-comparison-20261101/native-elk-d8c8-comparison/measurements/forest-cache1-0-elk"
+    },
+    {
+      "name": "forest-cache1-1-elk",
+      "cache": 1,
+      "job": "/tmp/pr449-week-comparison-20261101/native-elk-d8c8-comparison/jobs/forest-cache1-1-elk.json",
+      "out": "/tmp/pr449-week-comparison-20261101/native-elk-d8c8-comparison/measurements/forest-cache1-1-elk"
+    },
+    {
+      "name": "forest-cache1-1-agentic",
+      "cache": 1,
+      "job": "/tmp/pr449-week-comparison-20261101/native-elk-d8c8-comparison/jobs/forest-cache1-1-agentic.json",
+      "out": "/tmp/pr449-week-comparison-20261101/native-elk-d8c8-comparison/measurements/forest-cache1-1-agentic"
+    },
+    {
+      "name": "forest-cache1-2-elk",
+      "cache": 1,
+      "job": "/tmp/pr449-week-comparison-20261101/native-elk-d8c8-comparison/jobs/forest-cache1-2-elk.json",
+      "out": "/tmp/pr449-week-comparison-20261101/native-elk-d8c8-comparison/measurements/forest-cache1-2-elk"
+    },
+    {
+      "name": "forest-cache1-2-agentic",
+      "cache": 1,
+      "job": "/tmp/pr449-week-comparison-20261101/native-elk-d8c8-comparison/jobs/forest-cache1-2-agentic.json",
+      "out": "/tmp/pr449-week-comparison-20261101/native-elk-d8c8-comparison/measurements/forest-cache1-2-agentic"
+    },
+    {
+      "name": "forest-cache1-3-agentic",
+      "cache": 1,
+      "job": "/tmp/pr449-week-comparison-20261101/native-elk-d8c8-comparison/jobs/forest-cache1-3-agentic.json",
+      "out": "/tmp/pr449-week-comparison-20261101/native-elk-d8c8-comparison/measurements/forest-cache1-3-agentic"
+    },
+    {
+      "name": "forest-cache1-3-elk",
+      "cache": 1,
+      "job": "/tmp/pr449-week-comparison-20261101/native-elk-d8c8-comparison/jobs/forest-cache1-3-elk.json",
+      "out": "/tmp/pr449-week-comparison-20261101/native-elk-d8c8-comparison/measurements/forest-cache1-3-elk"
+    },
+    {
+      "name": "crossing276-cache0-0-agentic",
+      "cache": 0,
+      "job": "/tmp/pr449-week-comparison-20261101/native-elk-d8c8-comparison/jobs/crossing276-cache0-0-agentic.json",
+      "out": "/tmp/pr449-week-comparison-20261101/native-elk-d8c8-comparison/measurements/crossing276-cache0-0-agentic"
+    },
+    {
+      "name": "crossing276-cache0-0-elk",
+      "cache": 0,
+      "job": "/tmp/pr449-week-comparison-20261101/native-elk-d8c8-comparison/jobs/crossing276-cache0-0-elk.json",
+      "out": "/tmp/pr449-week-comparison-20261101/native-elk-d8c8-comparison/measurements/crossing276-cache0-0-elk"
+    },
+    {
+      "name": "crossing276-cache0-1-elk",
+      "cache": 0,
+      "job": "/tmp/pr449-week-comparison-20261101/native-elk-d8c8-comparison/jobs/crossing276-cache0-1-elk.json",
+      "out": "/tmp/pr449-week-comparison-20261101/native-elk-d8c8-comparison/measurements/crossing276-cache0-1-elk"
+    },
+    {
+      "name": "crossing276-cache0-1-agentic",
+      "cache": 0,
+      "job": "/tmp/pr449-week-comparison-20261101/native-elk-d8c8-comparison/jobs/crossing276-cache0-1-agentic.json",
+      "out": "/tmp/pr449-week-comparison-20261101/native-elk-d8c8-comparison/measurements/crossing276-cache0-1-agentic"
+    },
+    {
+      "name": "crossing276-cache0-2-elk",
+      "cache": 0,
+      "job": "/tmp/pr449-week-comparison-20261101/native-elk-d8c8-comparison/jobs/crossing276-cache0-2-elk.json",
+      "out": "/tmp/pr449-week-comparison-20261101/native-elk-d8c8-comparison/measurements/crossing276-cache0-2-elk"
+    },
+    {
+      "name": "crossing276-cache0-2-agentic",
+      "cache": 0,
+      "job": "/tmp/pr449-week-comparison-20261101/native-elk-d8c8-comparison/jobs/crossing276-cache0-2-agentic.json",
+      "out": "/tmp/pr449-week-comparison-20261101/native-elk-d8c8-comparison/measurements/crossing276-cache0-2-agentic"
+    },
+    {
+      "name": "crossing276-cache0-3-agentic",
+      "cache": 0,
+      "job": "/tmp/pr449-week-comparison-20261101/native-elk-d8c8-comparison/jobs/crossing276-cache0-3-agentic.json",
+      "out": "/tmp/pr449-week-comparison-20261101/native-elk-d8c8-comparison/measurements/crossing276-cache0-3-agentic"
+    },
+    {
+      "name": "crossing276-cache0-3-elk",
+      "cache": 0,
+      "job": "/tmp/pr449-week-comparison-20261101/native-elk-d8c8-comparison/jobs/crossing276-cache0-3-elk.json",
+      "out": "/tmp/pr449-week-comparison-20261101/native-elk-d8c8-comparison/measurements/crossing276-cache0-3-elk"
+    },
+    {
+      "name": "crossing276-cache1-0-agentic",
+      "cache": 1,
+      "job": "/tmp/pr449-week-comparison-20261101/native-elk-d8c8-comparison/jobs/crossing276-cache1-0-agentic.json",
+      "out": "/tmp/pr449-week-comparison-20261101/native-elk-d8c8-comparison/measurements/crossing276-cache1-0-agentic"
+    },
+    {
+      "name": "crossing276-cache1-0-elk",
+      "cache": 1,
+      "job": "/tmp/pr449-week-comparison-20261101/native-elk-d8c8-comparison/jobs/crossing276-cache1-0-elk.json",
+      "out": "/tmp/pr449-week-comparison-20261101/native-elk-d8c8-comparison/measurements/crossing276-cache1-0-elk"
+    },
+    {
+      "name": "crossing276-cache1-1-elk",
+      "cache": 1,
+      "job": "/tmp/pr449-week-comparison-20261101/native-elk-d8c8-comparison/jobs/crossing276-cache1-1-elk.json",
+      "out": "/tmp/pr449-week-comparison-20261101/native-elk-d8c8-comparison/measurements/crossing276-cache1-1-elk"
+    },
+    {
+      "name": "crossing276-cache1-1-agentic",
+      "cache": 1,
+      "job": "/tmp/pr449-week-comparison-20261101/native-elk-d8c8-comparison/jobs/crossing276-cache1-1-agentic.json",
+      "out": "/tmp/pr449-week-comparison-20261101/native-elk-d8c8-comparison/measurements/crossing276-cache1-1-agentic"
+    },
+    {
+      "name": "crossing276-cache1-2-elk",
+      "cache": 1,
+      "job": "/tmp/pr449-week-comparison-20261101/native-elk-d8c8-comparison/jobs/crossing276-cache1-2-elk.json",
+      "out": "/tmp/pr449-week-comparison-20261101/native-elk-d8c8-comparison/measurements/crossing276-cache1-2-elk"
+    },
+    {
+      "name": "crossing276-cache1-2-agentic",
+      "cache": 1,
+      "job": "/tmp/pr449-week-comparison-20261101/native-elk-d8c8-comparison/jobs/crossing276-cache1-2-agentic.json",
+      "out": "/tmp/pr449-week-comparison-20261101/native-elk-d8c8-comparison/measurements/crossing276-cache1-2-agentic"
+    },
+    {
+      "name": "crossing276-cache1-3-agentic",
+      "cache": 1,
+      "job": "/tmp/pr449-week-comparison-20261101/native-elk-d8c8-comparison/jobs/crossing276-cache1-3-agentic.json",
+      "out": "/tmp/pr449-week-comparison-20261101/native-elk-d8c8-comparison/measurements/crossing276-cache1-3-agentic"
+    },
+    {
+      "name": "crossing276-cache1-3-elk",
+      "cache": 1,
+      "job": "/tmp/pr449-week-comparison-20261101/native-elk-d8c8-comparison/jobs/crossing276-cache1-3-elk.json",
+      "out": "/tmp/pr449-week-comparison-20261101/native-elk-d8c8-comparison/measurements/crossing276-cache1-3-elk"
+    },
+    {
+      "name": "class128-cache0-0-agentic",
+      "cache": 0,
+      "job": "/tmp/pr449-week-comparison-20261101/native-elk-d8c8-comparison/jobs/class128-cache0-0-agentic.json",
+      "out": "/tmp/pr449-week-comparison-20261101/native-elk-d8c8-comparison/measurements/class128-cache0-0-agentic"
+    },
+    {
+      "name": "class128-cache0-0-elk",
+      "cache": 0,
+      "job": "/tmp/pr449-week-comparison-20261101/native-elk-d8c8-comparison/jobs/class128-cache0-0-elk.json",
+      "out": "/tmp/pr449-week-comparison-20261101/native-elk-d8c8-comparison/measurements/class128-cache0-0-elk"
+    },
+    {
+      "name": "class128-cache0-1-elk",
+      "cache": 0,
+      "job": "/tmp/pr449-week-comparison-20261101/native-elk-d8c8-comparison/jobs/class128-cache0-1-elk.json",
+      "out": "/tmp/pr449-week-comparison-20261101/native-elk-d8c8-comparison/measurements/class128-cache0-1-elk"
+    },
+    {
+      "name": "class128-cache0-1-agentic",
+      "cache": 0,
+      "job": "/tmp/pr449-week-comparison-20261101/native-elk-d8c8-comparison/jobs/class128-cache0-1-agentic.json",
+      "out": "/tmp/pr449-week-comparison-20261101/native-elk-d8c8-comparison/measurements/class128-cache0-1-agentic"
+    },
+    {
+      "name": "class128-cache0-2-elk",
+      "cache": 0,
+      "job": "/tmp/pr449-week-comparison-20261101/native-elk-d8c8-comparison/jobs/class128-cache0-2-elk.json",
+      "out": "/tmp/pr449-week-comparison-20261101/native-elk-d8c8-comparison/measurements/class128-cache0-2-elk"
+    },
+    {
+      "name": "class128-cache0-2-agentic",
+      "cache": 0,
+      "job": "/tmp/pr449-week-comparison-20261101/native-elk-d8c8-comparison/jobs/class128-cache0-2-agentic.json",
+      "out": "/tmp/pr449-week-comparison-20261101/native-elk-d8c8-comparison/measurements/class128-cache0-2-agentic"
+    },
+    {
+      "name": "class128-cache0-3-agentic",
+      "cache": 0,
+      "job": "/tmp/pr449-week-comparison-20261101/native-elk-d8c8-comparison/jobs/class128-cache0-3-agentic.json",
+      "out": "/tmp/pr449-week-comparison-20261101/native-elk-d8c8-comparison/measurements/class128-cache0-3-agentic"
+    },
+    {
+      "name": "class128-cache0-3-elk",
+      "cache": 0,
+      "job": "/tmp/pr449-week-comparison-20261101/native-elk-d8c8-comparison/jobs/class128-cache0-3-elk.json",
+      "out": "/tmp/pr449-week-comparison-20261101/native-elk-d8c8-comparison/measurements/class128-cache0-3-elk"
+    },
+    {
+      "name": "class128-cache1-0-agentic",
+      "cache": 1,
+      "job": "/tmp/pr449-week-comparison-20261101/native-elk-d8c8-comparison/jobs/class128-cache1-0-agentic.json",
+      "out": "/tmp/pr449-week-comparison-20261101/native-elk-d8c8-comparison/measurements/class128-cache1-0-agentic"
+    },
+    {
+      "name": "class128-cache1-0-elk",
+      "cache": 1,
+      "job": "/tmp/pr449-week-comparison-20261101/native-elk-d8c8-comparison/jobs/class128-cache1-0-elk.json",
+      "out": "/tmp/pr449-week-comparison-20261101/native-elk-d8c8-comparison/measurements/class128-cache1-0-elk"
+    },
+    {
+      "name": "class128-cache1-1-elk",
+      "cache": 1,
+      "job": "/tmp/pr449-week-comparison-20261101/native-elk-d8c8-comparison/jobs/class128-cache1-1-elk.json",
+      "out": "/tmp/pr449-week-comparison-20261101/native-elk-d8c8-comparison/measurements/class128-cache1-1-elk"
+    },
+    {
+      "name": "class128-cache1-1-agentic",
+      "cache": 1,
+      "job": "/tmp/pr449-week-comparison-20261101/native-elk-d8c8-comparison/jobs/class128-cache1-1-agentic.json",
+      "out": "/tmp/pr449-week-comparison-20261101/native-elk-d8c8-comparison/measurements/class128-cache1-1-agentic"
+    },
+    {
+      "name": "class128-cache1-2-elk",
+      "cache": 1,
+      "job": "/tmp/pr449-week-comparison-20261101/native-elk-d8c8-comparison/jobs/class128-cache1-2-elk.json",
+      "out": "/tmp/pr449-week-comparison-20261101/native-elk-d8c8-comparison/measurements/class128-cache1-2-elk"
+    },
+    {
+      "name": "class128-cache1-2-agentic",
+      "cache": 1,
+      "job": "/tmp/pr449-week-comparison-20261101/native-elk-d8c8-comparison/jobs/class128-cache1-2-agentic.json",
+      "out": "/tmp/pr449-week-comparison-20261101/native-elk-d8c8-comparison/measurements/class128-cache1-2-agentic"
+    },
+    {
+      "name": "class128-cache1-3-agentic",
+      "cache": 1,
+      "job": "/tmp/pr449-week-comparison-20261101/native-elk-d8c8-comparison/jobs/class128-cache1-3-agentic.json",
+      "out": "/tmp/pr449-week-comparison-20261101/native-elk-d8c8-comparison/measurements/class128-cache1-3-agentic"
+    },
+    {
+      "name": "class128-cache1-3-elk",
+      "cache": 1,
+      "job": "/tmp/pr449-week-comparison-20261101/native-elk-d8c8-comparison/jobs/class128-cache1-3-elk.json",
+      "out": "/tmp/pr449-week-comparison-20261101/native-elk-d8c8-comparison/measurements/class128-cache1-3-elk"
+    },
+    {
+      "name": "er256LR-cache0-0-agentic",
+      "cache": 0,
+      "job": "/tmp/pr449-week-comparison-20261101/native-elk-d8c8-comparison/jobs/er256LR-cache0-0-agentic.json",
+      "out": "/tmp/pr449-week-comparison-20261101/native-elk-d8c8-comparison/measurements/er256LR-cache0-0-agentic"
+    },
+    {
+      "name": "er256LR-cache0-0-elk",
+      "cache": 0,
+      "job": "/tmp/pr449-week-comparison-20261101/native-elk-d8c8-comparison/jobs/er256LR-cache0-0-elk.json",
+      "out": "/tmp/pr449-week-comparison-20261101/native-elk-d8c8-comparison/measurements/er256LR-cache0-0-elk"
+    },
+    {
+      "name": "er256LR-cache0-1-elk",
+      "cache": 0,
+      "job": "/tmp/pr449-week-comparison-20261101/native-elk-d8c8-comparison/jobs/er256LR-cache0-1-elk.json",
+      "out": "/tmp/pr449-week-comparison-20261101/native-elk-d8c8-comparison/measurements/er256LR-cache0-1-elk"
+    },
+    {
+      "name": "er256LR-cache0-1-agentic",
+      "cache": 0,
+      "job": "/tmp/pr449-week-comparison-20261101/native-elk-d8c8-comparison/jobs/er256LR-cache0-1-agentic.json",
+      "out": "/tmp/pr449-week-comparison-20261101/native-elk-d8c8-comparison/measurements/er256LR-cache0-1-agentic"
+    },
+    {
+      "name": "er256LR-cache0-2-elk",
+      "cache": 0,
+      "job": "/tmp/pr449-week-comparison-20261101/native-elk-d8c8-comparison/jobs/er256LR-cache0-2-elk.json",
+      "out": "/tmp/pr449-week-comparison-20261101/native-elk-d8c8-comparison/measurements/er256LR-cache0-2-elk"
+    },
+    {
+      "name": "er256LR-cache0-2-agentic",
+      "cache": 0,
+      "job": "/tmp/pr449-week-comparison-20261101/native-elk-d8c8-comparison/jobs/er256LR-cache0-2-agentic.json",
+      "out": "/tmp/pr449-week-comparison-20261101/native-elk-d8c8-comparison/measurements/er256LR-cache0-2-agentic"
+    },
+    {
+      "name": "er256LR-cache0-3-agentic",
+      "cache": 0,
+      "job": "/tmp/pr449-week-comparison-20261101/native-elk-d8c8-comparison/jobs/er256LR-cache0-3-agentic.json",
+      "out": "/tmp/pr449-week-comparison-20261101/native-elk-d8c8-comparison/measurements/er256LR-cache0-3-agentic"
+    },
+    {
+      "name": "er256LR-cache0-3-elk",
+      "cache": 0,
+      "job": "/tmp/pr449-week-comparison-20261101/native-elk-d8c8-comparison/jobs/er256LR-cache0-3-elk.json",
+      "out": "/tmp/pr449-week-comparison-20261101/native-elk-d8c8-comparison/measurements/er256LR-cache0-3-elk"
+    },
+    {
+      "name": "er256LR-cache1-0-agentic",
+      "cache": 1,
+      "job": "/tmp/pr449-week-comparison-20261101/native-elk-d8c8-comparison/jobs/er256LR-cache1-0-agentic.json",
+      "out": "/tmp/pr449-week-comparison-20261101/native-elk-d8c8-comparison/measurements/er256LR-cache1-0-agentic"
+    },
+    {
+      "name": "er256LR-cache1-0-elk",
+      "cache": 1,
+      "job": "/tmp/pr449-week-comparison-20261101/native-elk-d8c8-comparison/jobs/er256LR-cache1-0-elk.json",
+      "out": "/tmp/pr449-week-comparison-20261101/native-elk-d8c8-comparison/measurements/er256LR-cache1-0-elk"
+    },
+    {
+      "name": "er256LR-cache1-1-elk",
+      "cache": 1,
+      "job": "/tmp/pr449-week-comparison-20261101/native-elk-d8c8-comparison/jobs/er256LR-cache1-1-elk.json",
+      "out": "/tmp/pr449-week-comparison-20261101/native-elk-d8c8-comparison/measurements/er256LR-cache1-1-elk"
+    },
+    {
+      "name": "er256LR-cache1-1-agentic",
+      "cache": 1,
+      "job": "/tmp/pr449-week-comparison-20261101/native-elk-d8c8-comparison/jobs/er256LR-cache1-1-agentic.json",
+      "out": "/tmp/pr449-week-comparison-20261101/native-elk-d8c8-comparison/measurements/er256LR-cache1-1-agentic"
+    },
+    {
+      "name": "er256LR-cache1-2-elk",
+      "cache": 1,
+      "job": "/tmp/pr449-week-comparison-20261101/native-elk-d8c8-comparison/jobs/er256LR-cache1-2-elk.json",
+      "out": "/tmp/pr449-week-comparison-20261101/native-elk-d8c8-comparison/measurements/er256LR-cache1-2-elk"
+    },
+    {
+      "name": "er256LR-cache1-2-agentic",
+      "cache": 1,
+      "job": "/tmp/pr449-week-comparison-20261101/native-elk-d8c8-comparison/jobs/er256LR-cache1-2-agentic.json",
+      "out": "/tmp/pr449-week-comparison-20261101/native-elk-d8c8-comparison/measurements/er256LR-cache1-2-agentic"
+    },
+    {
+      "name": "er256LR-cache1-3-agentic",
+      "cache": 1,
+      "job": "/tmp/pr449-week-comparison-20261101/native-elk-d8c8-comparison/jobs/er256LR-cache1-3-agentic.json",
+      "out": "/tmp/pr449-week-comparison-20261101/native-elk-d8c8-comparison/measurements/er256LR-cache1-3-agentic"
+    },
+    {
+      "name": "er256LR-cache1-3-elk",
+      "cache": 1,
+      "job": "/tmp/pr449-week-comparison-20261101/native-elk-d8c8-comparison/jobs/er256LR-cache1-3-elk.json",
+      "out": "/tmp/pr449-week-comparison-20261101/native-elk-d8c8-comparison/measurements/er256LR-cache1-3-elk"
+    },
+    {
+      "name": "sparse256-cache0-0-agentic",
+      "cache": 0,
+      "job": "/tmp/pr449-week-comparison-20261101/native-elk-d8c8-comparison/jobs/sparse256-cache0-0-agentic.json",
+      "out": "/tmp/pr449-week-comparison-20261101/native-elk-d8c8-comparison/measurements/sparse256-cache0-0-agentic"
+    },
+    {
+      "name": "sparse256-cache0-0-elk",
+      "cache": 0,
+      "job": "/tmp/pr449-week-comparison-20261101/native-elk-d8c8-comparison/jobs/sparse256-cache0-0-elk.json",
+      "out": "/tmp/pr449-week-comparison-20261101/native-elk-d8c8-comparison/measurements/sparse256-cache0-0-elk"
+    },
+    {
+      "name": "sparse256-cache0-1-elk",
+      "cache": 0,
+      "job": "/tmp/pr449-week-comparison-20261101/native-elk-d8c8-comparison/jobs/sparse256-cache0-1-elk.json",
+      "out": "/tmp/pr449-week-comparison-20261101/native-elk-d8c8-comparison/measurements/sparse256-cache0-1-elk"
+    },
+    {
+      "name": "sparse256-cache0-1-agentic",
+      "cache": 0,
+      "job": "/tmp/pr449-week-comparison-20261101/native-elk-d8c8-comparison/jobs/sparse256-cache0-1-agentic.json",
+      "out": "/tmp/pr449-week-comparison-20261101/native-elk-d8c8-comparison/measurements/sparse256-cache0-1-agentic"
+    },
+    {
+      "name": "sparse256-cache0-2-elk",
+      "cache": 0,
+      "job": "/tmp/pr449-week-comparison-20261101/native-elk-d8c8-comparison/jobs/sparse256-cache0-2-elk.json",
+      "out": "/tmp/pr449-week-comparison-20261101/native-elk-d8c8-comparison/measurements/sparse256-cache0-2-elk"
+    },
+    {
+      "name": "sparse256-cache0-2-agentic",
+      "cache": 0,
+      "job": "/tmp/pr449-week-comparison-20261101/native-elk-d8c8-comparison/jobs/sparse256-cache0-2-agentic.json",
+      "out": "/tmp/pr449-week-comparison-20261101/native-elk-d8c8-comparison/measurements/sparse256-cache0-2-agentic"
+    },
+    {
+      "name": "sparse256-cache0-3-agentic",
+      "cache": 0,
+      "job": "/tmp/pr449-week-comparison-20261101/native-elk-d8c8-comparison/jobs/sparse256-cache0-3-agentic.json",
+      "out": "/tmp/pr449-week-comparison-20261101/native-elk-d8c8-comparison/measurements/sparse256-cache0-3-agentic"
+    },
+    {
+      "name": "sparse256-cache0-3-elk",
+      "cache": 0,
+      "job": "/tmp/pr449-week-comparison-20261101/native-elk-d8c8-comparison/jobs/sparse256-cache0-3-elk.json",
+      "out": "/tmp/pr449-week-comparison-20261101/native-elk-d8c8-comparison/measurements/sparse256-cache0-3-elk"
+    },
+    {
+      "name": "sparse256-cache1-0-agentic",
+      "cache": 1,
+      "job": "/tmp/pr449-week-comparison-20261101/native-elk-d8c8-comparison/jobs/sparse256-cache1-0-agentic.json",
+      "out": "/tmp/pr449-week-comparison-20261101/native-elk-d8c8-comparison/measurements/sparse256-cache1-0-agentic"
+    },
+    {
+      "name": "sparse256-cache1-0-elk",
+      "cache": 1,
+      "job": "/tmp/pr449-week-comparison-20261101/native-elk-d8c8-comparison/jobs/sparse256-cache1-0-elk.json",
+      "out": "/tmp/pr449-week-comparison-20261101/native-elk-d8c8-comparison/measurements/sparse256-cache1-0-elk"
+    },
+    {
+      "name": "sparse256-cache1-1-elk",
+      "cache": 1,
+      "job": "/tmp/pr449-week-comparison-20261101/native-elk-d8c8-comparison/jobs/sparse256-cache1-1-elk.json",
+      "out": "/tmp/pr449-week-comparison-20261101/native-elk-d8c8-comparison/measurements/sparse256-cache1-1-elk"
+    },
+    {
+      "name": "sparse256-cache1-1-agentic",
+      "cache": 1,
+      "job": "/tmp/pr449-week-comparison-20261101/native-elk-d8c8-comparison/jobs/sparse256-cache1-1-agentic.json",
+      "out": "/tmp/pr449-week-comparison-20261101/native-elk-d8c8-comparison/measurements/sparse256-cache1-1-agentic"
+    },
+    {
+      "name": "sparse256-cache1-2-elk",
+      "cache": 1,
+      "job": "/tmp/pr449-week-comparison-20261101/native-elk-d8c8-comparison/jobs/sparse256-cache1-2-elk.json",
+      "out": "/tmp/pr449-week-comparison-20261101/native-elk-d8c8-comparison/measurements/sparse256-cache1-2-elk"
+    },
+    {
+      "name": "sparse256-cache1-2-agentic",
+      "cache": 1,
+      "job": "/tmp/pr449-week-comparison-20261101/native-elk-d8c8-comparison/jobs/sparse256-cache1-2-agentic.json",
+      "out": "/tmp/pr449-week-comparison-20261101/native-elk-d8c8-comparison/measurements/sparse256-cache1-2-agentic"
+    },
+    {
+      "name": "sparse256-cache1-3-agentic",
+      "cache": 1,
+      "job": "/tmp/pr449-week-comparison-20261101/native-elk-d8c8-comparison/jobs/sparse256-cache1-3-agentic.json",
+      "out": "/tmp/pr449-week-comparison-20261101/native-elk-d8c8-comparison/measurements/sparse256-cache1-3-agentic"
+    },
+    {
+      "name": "sparse256-cache1-3-elk",
+      "cache": 1,
+      "job": "/tmp/pr449-week-comparison-20261101/native-elk-d8c8-comparison/jobs/sparse256-cache1-3-elk.json",
+      "out": "/tmp/pr449-week-comparison-20261101/native-elk-d8c8-comparison/measurements/sparse256-cache1-3-elk"
+    },
+    {
+      "name": "requirement5-cache0-0-agentic",
+      "cache": 0,
+      "job": "/tmp/pr449-week-comparison-20261101/native-elk-d8c8-comparison/jobs/requirement5-cache0-0-agentic.json",
+      "out": "/tmp/pr449-week-comparison-20261101/native-elk-d8c8-comparison/measurements/requirement5-cache0-0-agentic"
+    },
+    {
+      "name": "requirement5-cache0-0-elk",
+      "cache": 0,
+      "job": "/tmp/pr449-week-comparison-20261101/native-elk-d8c8-comparison/jobs/requirement5-cache0-0-elk.json",
+      "out": "/tmp/pr449-week-comparison-20261101/native-elk-d8c8-comparison/measurements/requirement5-cache0-0-elk"
+    },
+    {
+      "name": "requirement5-cache0-1-elk",
+      "cache": 0,
+      "job": "/tmp/pr449-week-comparison-20261101/native-elk-d8c8-comparison/jobs/requirement5-cache0-1-elk.json",
+      "out": "/tmp/pr449-week-comparison-20261101/native-elk-d8c8-comparison/measurements/requirement5-cache0-1-elk"
+    },
+    {
+      "name": "requirement5-cache0-1-agentic",
+      "cache": 0,
+      "job": "/tmp/pr449-week-comparison-20261101/native-elk-d8c8-comparison/jobs/requirement5-cache0-1-agentic.json",
+      "out": "/tmp/pr449-week-comparison-20261101/native-elk-d8c8-comparison/measurements/requirement5-cache0-1-agentic"
+    },
+    {
+      "name": "requirement5-cache0-2-elk",
+      "cache": 0,
+      "job": "/tmp/pr449-week-comparison-20261101/native-elk-d8c8-comparison/jobs/requirement5-cache0-2-elk.json",
+      "out": "/tmp/pr449-week-comparison-20261101/native-elk-d8c8-comparison/measurements/requirement5-cache0-2-elk"
+    },
+    {
+      "name": "requirement5-cache0-2-agentic",
+      "cache": 0,
+      "job": "/tmp/pr449-week-comparison-20261101/native-elk-d8c8-comparison/jobs/requirement5-cache0-2-agentic.json",
+      "out": "/tmp/pr449-week-comparison-20261101/native-elk-d8c8-comparison/measurements/requirement5-cache0-2-agentic"
+    },
+    {
+      "name": "requirement5-cache0-3-agentic",
+      "cache": 0,
+      "job": "/tmp/pr449-week-comparison-20261101/native-elk-d8c8-comparison/jobs/requirement5-cache0-3-agentic.json",
+      "out": "/tmp/pr449-week-comparison-20261101/native-elk-d8c8-comparison/measurements/requirement5-cache0-3-agentic"
+    },
+    {
+      "name": "requirement5-cache0-3-elk",
+      "cache": 0,
+      "job": "/tmp/pr449-week-comparison-20261101/native-elk-d8c8-comparison/jobs/requirement5-cache0-3-elk.json",
+      "out": "/tmp/pr449-week-comparison-20261101/native-elk-d8c8-comparison/measurements/requirement5-cache0-3-elk"
+    },
+    {
+      "name": "requirement5-cache1-0-agentic",
+      "cache": 1,
+      "job": "/tmp/pr449-week-comparison-20261101/native-elk-d8c8-comparison/jobs/requirement5-cache1-0-agentic.json",
+      "out": "/tmp/pr449-week-comparison-20261101/native-elk-d8c8-comparison/measurements/requirement5-cache1-0-agentic"
+    },
+    {
+      "name": "requirement5-cache1-0-elk",
+      "cache": 1,
+      "job": "/tmp/pr449-week-comparison-20261101/native-elk-d8c8-comparison/jobs/requirement5-cache1-0-elk.json",
+      "out": "/tmp/pr449-week-comparison-20261101/native-elk-d8c8-comparison/measurements/requirement5-cache1-0-elk"
+    },
+    {
+      "name": "requirement5-cache1-1-elk",
+      "cache": 1,
+      "job": "/tmp/pr449-week-comparison-20261101/native-elk-d8c8-comparison/jobs/requirement5-cache1-1-elk.json",
+      "out": "/tmp/pr449-week-comparison-20261101/native-elk-d8c8-comparison/measurements/requirement5-cache1-1-elk"
+    },
+    {
+      "name": "requirement5-cache1-1-agentic",
+      "cache": 1,
+      "job": "/tmp/pr449-week-comparison-20261101/native-elk-d8c8-comparison/jobs/requirement5-cache1-1-agentic.json",
+      "out": "/tmp/pr449-week-comparison-20261101/native-elk-d8c8-comparison/measurements/requirement5-cache1-1-agentic"
+    },
+    {
+      "name": "requirement5-cache1-2-elk",
+      "cache": 1,
+      "job": "/tmp/pr449-week-comparison-20261101/native-elk-d8c8-comparison/jobs/requirement5-cache1-2-elk.json",
+      "out": "/tmp/pr449-week-comparison-20261101/native-elk-d8c8-comparison/measurements/requirement5-cache1-2-elk"
+    },
+    {
+      "name": "requirement5-cache1-2-agentic",
+      "cache": 1,
+      "job": "/tmp/pr449-week-comparison-20261101/native-elk-d8c8-comparison/jobs/requirement5-cache1-2-agentic.json",
+      "out": "/tmp/pr449-week-comparison-20261101/native-elk-d8c8-comparison/measurements/requirement5-cache1-2-agentic"
+    },
+    {
+      "name": "requirement5-cache1-3-agentic",
+      "cache": 1,
+      "job": "/tmp/pr449-week-comparison-20261101/native-elk-d8c8-comparison/jobs/requirement5-cache1-3-agentic.json",
+      "out": "/tmp/pr449-week-comparison-20261101/native-elk-d8c8-comparison/measurements/requirement5-cache1-3-agentic"
+    },
+    {
+      "name": "requirement5-cache1-3-elk",
+      "cache": 1,
+      "job": "/tmp/pr449-week-comparison-20261101/native-elk-d8c8-comparison/jobs/requirement5-cache1-3-elk.json",
+      "out": "/tmp/pr449-week-comparison-20261101/native-elk-d8c8-comparison/measurements/requirement5-cache1-3-elk"
+    }
+  ]
+}

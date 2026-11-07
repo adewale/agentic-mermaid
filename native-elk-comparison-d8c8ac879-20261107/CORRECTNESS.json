@@ -1,0 +1,133 @@
+{
+  "source": "d8c8ac879793a586b4b741c178b89d7900bd27ed",
+  "fixedPairs": 874,
+  "delivery": {
+    "Native": 874,
+    "ELK": 874
+  },
+  "proofContingency": {
+    "passed/passed": 663,
+    "unverified/unverified": 101,
+    "unverified/passed": 33,
+    "passed/unverified": 77
+  },
+  "qualityVectors": {
+    "area": {
+      "ELK lower": 64,
+      "Native lower": 670,
+      "equal": 140
+    },
+    "wire": {
+      "Native lower": 644,
+      "ELK lower": 81,
+      "equal": 149
+    },
+    "bends": {
+      "Native lower": 500,
+      "ELK lower": 153,
+      "equal": 221
+    },
+    "crossings": {
+      "Native lower": 645,
+      "equal": 228,
+      "ELK lower": 1
+    },
+    "labelConflicts": {
+      "equal": 833,
+      "Native lower": 41
+    },
+    "parallelOverlaps": {
+      "equal": 627,
+      "Native lower": 247
+    },
+    "opposingOverlaps": {
+      "equal": 846,
+      "Native lower": 28
+    }
+  },
+  "cohorts": {
+    "authored corpus234": {
+      "count": 234,
+      "vectors": {
+        "area": {
+          "equal": 140,
+          "Native lower": 72,
+          "ELK lower": 22
+        },
+        "wire": {
+          "equal": 149,
+          "Native lower": 68,
+          "ELK lower": 17
+        },
+        "bends": {
+          "equal": 192,
+          "Native lower": 22,
+          "ELK lower": 20
+        },
+        "crossings": {
+          "equal": 222,
+          "Native lower": 12
+        },
+        "labelConflicts": {
+          "equal": 233,
+          "Native lower": 1
+        },
+        "parallelOverlaps": {
+          "equal": 230,
+          "Native lower": 4
+        },
+        "opposingOverlaps": {
+          "equal": 234
+        }
+      }
+    },
+    "generated640": {
+      "count": 640,
+      "vectors": {
+        "area": {
+          "ELK lower": 42,
+          "Native lower": 598
+        },
+        "wire": {
+          "Native lower": 576,
+          "ELK lower": 64
+        },
+        "bends": {
+          "Native lower": 478,
+          "ELK lower": 133,
+          "equal": 29
+        },
+        "crossings": {
+          "Native lower": 633,
+          "equal": 6,
+          "ELK lower": 1
+        },
+        "labelConflicts": {
+          "equal": 600,
+          "Native lower": 40
+        },
+        "parallelOverlaps": {
+          "equal": 397,
+          "Native lower": 243
+        },
+        "opposingOverlaps": {
+          "equal": 612,
+          "Native lower": 28
+        }
+      }
+    }
+  },
+  "meaning": {
+    "cases": 1280,
+    "passed": 1280,
+    "unsupported": [],
+    "failed": [],
+    "coverage": "Literal generated declarations, actual SVG-owned text, shape primitive kinds, resolved arrow resources and directed/parallel occurrence carriers; not pixel visibility proof.234 mixed corpus cases are not assigned independent meaning success by this audit."
+  },
+  "limitations": [
+    "640generated/234mixed cases are not a representative workload weighting",
+    "Proof passed is not an independent visible correctness verdict",
+    "Named ER256 BT/RL refusals and Sparse32 proofcap remain outside874delivery roster",
+    "Original2dad/Trident/pinned Mermaid/Pele unavailable; Replacement24 sealed"
+  ]
+}
