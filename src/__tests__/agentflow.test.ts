@@ -383,6 +383,21 @@ test('shared shape aliases retain supported AgentFlow roles through output and c
   expect(reloaded.metadata).toEqual(edited.value.body.metadata)
 })
 
+test('AgentFlow round metadata is a readable task alias without losing its authored spelling', async () => {
+  const source = 'agentflow-beta\nA[Alpha]@{ shape: round }'
+  const upstream = startUpstreamMermaid()
+  try {
+    const control = await upstream.project(source, diagram => diagram.db.getVertices().get('A').type)
+    expect(control).toEqual({ ok: true, value: 'rect' })
+    const body = parseAgentflow(source)
+    expect(body.roles.get('A')).toBe('task')
+    expect(body.metadata.get('A')).toEqual({ shape: 'round' })
+    const written = renderAgentflow(body)
+    expect(await upstream.accepts(written)).toBe(true)
+    expect(parseAgentflow(written).metadata).toEqual(body.metadata)
+  } finally { upstream.close() }
+})
+
 test.each([null, false, 0, ''])('an unset metadata shape %j cannot erase a declared tool role', shape => {
   const source = `agentflow-beta\na[[Tool]]@{ shape: ${JSON.stringify(shape)} }`
   const body = parseAgentflow(source)

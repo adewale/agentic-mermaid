@@ -19,8 +19,12 @@ const roles = new Set<AgentflowRole>(['task', 'tool', 'action', 'input', 'refdoc
 // its renderer still derives only the family domain roles below.
 const additionalShapeNames = new Set(['anchor', 'browser', 'bucket', 'choice', 'composite', 'console', 'directory', 'doublecircle', 'folder', 'icon', 'note', 'person', 'state'])
 
+/** AgentFlow's legacy `round` aliases the shared rectangle default. Admission
+ * and domain-role interpretation must consume the same spelling. */
+function normalizedAgentflowShape(shape: string) { return normalizeV11Shape(shape === 'round' ? 'rect' : shape) }
+
 function invalidShape(shape: unknown): boolean {
-  return !!shape && (typeof shape !== 'string' || shape !== shape.toLowerCase() || shape.includes('_') || ((!roles.has(shape as AgentflowRole) || shape === 'connector') && !additionalShapeNames.has(shape) && !normalizeV11Shape(shape)))
+  return !!shape && (typeof shape !== 'string' || shape !== shape.toLowerCase() || shape.includes('_') || ((!roles.has(shape as AgentflowRole) || shape === 'connector') && !additionalShapeNames.has(shape) && !normalizedAgentflowShape(shape)))
 }
 
 /** Metadata is data, including unknown nested keys. Prototype-shaped keys
@@ -43,7 +47,7 @@ export function agentflowShapeRole(shape: unknown): AgentflowRole | undefined {
   if (typeof shape !== 'string') return undefined
   if (roles.has(shape as AgentflowRole)) return shape as AgentflowRole
   if (shape === 'rectangle' || shape === 'rounded') return 'task'
-  switch (normalizeV11Shape(shape)?.canonical) {
+  switch (normalizedAgentflowShape(shape)?.canonical) {
     case 'rect': case 'rounded': return 'task'
     case 'fr-rect': return 'tool'
     case 'lean-r': return 'input'
