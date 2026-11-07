@@ -19,7 +19,7 @@ describe('async browser SVG entry', () => {
     const source = 'pie\n "One" : 1'
     const expected = await renderLoadedFamilySvgWithReceipt(source, {}, descriptor)
     const loaded: string[] = []
-    const names = ['YAML', producer, 'ELK', 'HTML entities', 'Authored parser positions', 'Layout optimization']
+    const names = ['YAML', producer, 'ELK', 'HTML entities', 'Layout optimization', 'Authored parser positions']
     const dependencies = names.map(name => {
       const load = async () => { loaded.push(name) }
       return name === 'HTML entities' ? new HtmlEntityTableNotLoadedError('&hearts;', load)

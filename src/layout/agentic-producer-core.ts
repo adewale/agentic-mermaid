@@ -9,8 +9,7 @@ import type { AgenticGraphBindings, AgenticGraphOptions } from '../layout-engine
 import type { AgenticLayout, MeasuredGraph } from './agentic-layered-core.ts'
 import { MAX_EXPANDED_VERTICES, layoutLayeredGraph as layoutRawGraph } from './agentic-layered-core.ts'
 import { shortenMeasuredRoutes } from './shorten-measured-routes.ts'
-import { canExploreLayout, optionalLayout, recordLayoutProducer, selectedLayoutOptimization, layoutOptimizationEnabled } from './optimization-budget.ts'
-import { nonRegressingAlternative } from './non-regressing-alternative.ts'
+import { layoutOptimization } from './optimization-context.ts'
 export { improveArchitectureSiblingSlots } from './architecture-sibling-slots.ts'
 
 // Keep cache storage inside the optional solver chunk: importing shared
@@ -338,7 +337,7 @@ function placeNativeGraphCandidate(
   pay(0, 2)
   preparedGraphWork.set(measured, routingWork)
   let geometry: AgenticLayout
-  try { recordLayoutProducer(); geometry = measureRenderStage('agentic', () => layoutAgenticGraph(measured)) }
+  try { layoutOptimization()?.recordLayoutProducer(); geometry = measureRenderStage('agentic', () => layoutAgenticGraph(measured)) }
   finally { preparedGraphWork.delete(measured) }
   // Missing subjects or non-finite geometry are engine defects, not an
   // eligibility refusal that can be concealed by running another producer.
@@ -475,19 +474,20 @@ export function layoutNativeGraphCandidate(
 ): PositionedGraph {
   const candidate = selectNativeGraphCandidate(graph, options, style, layoutAgenticGraph, bindings)
   const first = certifyOwnedLayoutCandidate(graph, style, { strategy: 'agentic-layered', produce: () => candidate }, bindings)
-  if (options.graphLayout?.quality !== 'balanced' || !layoutOptimizationEnabled('ports') || !canExploreLayout()
+  const optimization = layoutOptimization()
+  if (options.graphLayout?.quality !== 'balanced' || !optimization?.layoutOptimizationEnabled('ports') || !optimization.canExploreLayout()
     || graph.nodes.size > 64 || graph.edges.length > 128 || graph.subgraphs.length || first.certification!.preference.selectedScore.totalBends === 0) return first
   let other: PositionedGraph | undefined
   try {
-    other = optionalLayout(() => certifyOwnedLayoutCandidate(graph, style, { strategy: 'port-aware-placement',
+    other = optimization.optionalLayout(() => certifyOwnedLayoutCandidate(graph, style, { strategy: 'port-aware-placement',
       produce: () => placeNativeGraphCandidate(graph, options, style, layoutAgenticGraph, bindings, false, 'ports'),
     }, bindings))
   } catch (error) {
     if (!(error instanceof GraphLayoutUnsupportedError) && !(error instanceof LayoutCertificationError)) throw error
     return first
   }
-  if (!other || !nonRegressingAlternative(first, other)) return first
-  selectedLayoutOptimization('port-aware-placement')
+  if (!other || !optimization.nonRegressingAlternative(first, other)) return first
+  optimization.selectedLayoutOptimization('port-aware-placement')
   return other
 }
 

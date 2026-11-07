@@ -92,4 +92,5 @@ output = root / 'src/inter-metrics-data.ts'
 output.write_text('// Runtime-consumed bundled Inter ASCII metrics. Regenerate with scripts/build/generate-inter-metrics.py.\n'
     '// Advances plus pair corrections approximate default shaping; full contextual shaping is outside this profile.\n'
     + '// Generator HarfBuzz ' + version().decode() + '\n'
-    + 'export const INTER_METRICS_DATA = ' + json.dumps(faces, separators=(',', ':')) + ' as const\n')
+    + 'function createData() { return ' + json.dumps(faces, separators=(',', ':')) + ' as const }\n'
+    + 'let data: ReturnType<typeof createData> | undefined\nexport function interMetricsData() { return data ??= createData() }\n')

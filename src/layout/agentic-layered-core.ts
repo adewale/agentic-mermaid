@@ -1,5 +1,5 @@
 import { assertMarkerPaint, type MarkerPaint } from './compound-marker-seating.ts'
-import { improvePortCoordinates } from './port-coordinate-placement.ts'
+import { layoutOptimization } from './optimization-context.ts'
 import { refinePrivateChainOrder } from './chain-insertion-order.ts'
 import { minimumSpanRanks, privateRankSpan, MAX_MEASURED_RANKS as MAX_RANKS } from './minimum-span-ranks.ts'
 import { compactMeasuredLoops } from './compact-measured-loops.ts'
@@ -705,7 +705,7 @@ export function layoutLayeredGraph(
     assignPorts(incoming[nodeIndex]!, false)
   }
 
-  if (input.portAwarePlacement) improvePortCoordinates(vertices, bands, chains, cross, sourcePort, targetPort, nodes.length, nodeSpacing, crossExtent, previousReal, nextReal)
+  if (input.portAwarePlacement) layoutOptimization(true)!.improvePortCoordinates(vertices, bands, chains, cross, sourcePort, targetPort, nodes.length, nodeSpacing, crossExtent, previousReal, nextReal)
 
   // Even zero requested spacing needs a channel in which a fan can turn.
   const halfGap = Math.max(4, layerSpacing / 2)

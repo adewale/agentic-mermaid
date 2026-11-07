@@ -1,5 +1,5 @@
 import { assessLayout, hardViolations, type RubricMetrics } from '../layout-rubric.ts'
-import { isOptionalLayoutBudgetExceeded } from './certification-error.ts'
+import { layoutOptimization } from './optimization-context.ts'
 import { labelRect } from '../route-contracts.ts'
 import type { ResolvedRenderStyle } from '../styles.ts'
 import type { MermaidGraph, MermaidSubgraph, PositionedGraph, PositionedGroup, Point } from '../types.ts'
@@ -11,7 +11,6 @@ import type { PixelTextBlock } from '../shared/prepared-text.ts'
 import { prepareDisplayText, resolveLabelContent, type DisplayTextInput } from '../shared/display-text.ts'
 import { observeFallback } from '../performance-observations.ts'
 import { graphTextBlock } from '../graph-text.ts'
-import { retainComparisonMetrics } from './optimization-context.ts'
 
 export { LayoutCertificationError, type LayoutCertificationAttempt } from './certification-error.ts'
 
@@ -312,7 +311,7 @@ function certifyCandidateForPurpose(graph: MermaidGraph, style: ResolvedRenderSt
     const rubric = violations.length === 0 ? assessLayout(graph, positioned, style) : undefined
     if (rubric) violations.push(...hardViolations(rubric).map(violation => `${violation.metric}: ${violation.detail}`))
     const preferNext = violations.length === 0 && (candidate.preferNext?.(positioned) ?? false)
-    if (rubric && violations.length === 0) retainComparisonMetrics(positioned, rubric.metrics, preferNext)
+    if (rubric && violations.length === 0) layoutOptimization()?.retainComparisonMetrics(positioned, rubric.metrics, preferNext)
     return {
       attempt: { strategy: candidate.strategy, violations },
       ...(violations.length === 0 && rubric ? {
@@ -321,7 +320,7 @@ function certifyCandidateForPurpose(graph: MermaidGraph, style: ResolvedRenderSt
     }
   } catch (error) {
     // A successful alternative cannot hide a broken pass or exceeded input work limit.
-    if (strictProducer || isOptionalLayoutBudgetExceeded(error) || error instanceof LayoutPassContractError || error instanceof DiagramWorkLimitError || error instanceof DeferredDependencyError) throw error
+    if (strictProducer || layoutOptimization()?.isOptionalLayoutBudgetExceeded(error) || error instanceof LayoutPassContractError || error instanceof DiagramWorkLimitError || error instanceof DeferredDependencyError) throw error
     return { attempt: { strategy: candidate.strategy, violations: [error instanceof Error ? error.message : String(error)] } }
   }
 }

@@ -51,11 +51,11 @@ describe('built artifact bundler and deferred dependency contracts', () => {
     expect({ status: rendered.status, stdout: rendered.stdout.trim(), stderr: rendered.stderr }).toEqual({ status: 0, stdout: 'true', stderr: '' })
   }, BUILD_TIMEOUT_MS + RUN_TIMEOUT_MS)
 
-  test('Node loads elkjs only when a family first lays out with it', () => {
+  test('Node loads solver and optional kernels only on demand', () => {
     const probe = `
       import { createRequire } from 'node:module'
       const require = createRequire(import.meta.url)
-      const loaded = () => Object.keys(require.cache).some(path => path.includes('/elkjs/'))
+      const loaded = () => { const files = Object.keys(require.cache); return [files.some(path => path.includes('/elkjs/')), files.some(path => path.endsWith('/inter-metrics-kernel.cjs')), files.some(path => path.endsWith('/layout-optimization.cjs'))] }
       const { renderMermaidSVG } = await import(${JSON.stringify(DIST_CORE)})
       const states = [loaded()]
       renderMermaidSVG('sequenceDiagram\\n  A->>B: hi')
@@ -64,17 +64,21 @@ describe('built artifact bundler and deferred dependency contracts', () => {
       states.push(loaded())
       renderMermaidSVG('flowchart TD\\n  A -->|needs ELK| B')
       states.push(loaded())
+      renderMermaidSVG('flowchart TD\\n A --> B', { fontMetrics: 'bundled-inter' })
+      states.push(loaded())
+      renderMermaidSVG('flowchart TD\\n A --> B', { graphLayout: { backend: 'elk', quality: 'balanced' } })
+      states.push(loaded())
       console.log(JSON.stringify(states))`
     const run = spawnSync(NODE, ['--input-type=module', '--eval', probe], { cwd: REPO, encoding: 'utf8', timeout: RUN_TIMEOUT_MS })
     expect({ status: run.status, stderr: run.stderr }).toEqual({ status: 0, stderr: '' })
     // Import, sequence, certified forest, then an ineligible labelled edge.
-    expect(JSON.parse(run.stdout)).toEqual([false, false, false, true])
+    expect(JSON.parse(run.stdout)).toEqual([[false, false, false], [false, false, false], [false, false, false], [true, false, false], [true, true, false], [true, true, true]])
   }, RUN_TIMEOUT_MS)
 
   test('a Node bundle of the agent entry carries ELK and needs no node_modules', () => {
     const work = temp.dir('am-agent-core-node-bundle-')
     const entry = join(work, 'entry.mjs')
-    writeFileSync(entry, `import { renderMermaidSVG } from ${JSON.stringify(DIST_CORE)}\nconsole.log(renderMermaidSVG('flowchart TD\\n  A -->|needs ELK| B').startsWith('<svg'))\n`)
+    writeFileSync(entry, `import { renderMermaidSVG } from ${JSON.stringify(DIST_CORE)}\nconsole.log(renderMermaidSVG('flowchart TD\\n  A -->|needs ELK| B', { fontMetrics: 'bundled-inter', graphLayout: { backend: 'elk', quality: 'balanced' } }).startsWith('<svg'))\n`)
     for (const format of ['esm', 'cjs'] as const) {
       const outfile = join(work, `bundle.${format === 'esm' ? 'mjs' : 'cjs'}`)
       const bundled = spawnSync('bun', ['build', entry, '--target=node', `--format=${format}`, '--outfile', outfile], { cwd: work, encoding: 'utf8', timeout: BUILD_TIMEOUT_MS })

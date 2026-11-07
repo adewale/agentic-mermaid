@@ -1,5 +1,5 @@
 import { applyLayoutHints } from './layout/layout-hints.ts'
-import { withLayoutOptimizationBudget, canExploreLayout, optionalLayout, recordLayoutProducer, selectedLayoutOptimization, layoutOptimizationEnabled } from './layout/optimization-budget.ts'
+import { layoutOptimization } from './layout/optimization-context.ts'
 import { measureLabelConflicts } from './layout/label-conflicts.ts'
 import { resolveLabelContent, type DisplayTextInput } from './shared/display-text.ts'
 import { preparePixelText } from './shared/prepared-text.ts'
@@ -62,7 +62,6 @@ import { runPipeline } from './layout/pass.ts'
 import type { LayoutPass, PassContextBase } from './layout/pass.ts'
 import type { PassMetrics, RubricMetric } from './layout/pass.ts'
 import { certifyCandidate, retainSelection, certifyLayoutWithRouteAlternative, certifyLayoutPlacementCandidates, positionedGeometryViolations, withinLayoutPreferenceBudget, LayoutCertificationError, type LayoutCertificationCandidate } from './layout/certification.ts'
-import { nonRegressingAlternative } from './layout/non-regressing-alternative.ts'
 import {
   DEFAULTS,
   flattenGroupBounds,
@@ -2011,7 +2010,8 @@ export function layoutGraphSync(
   graph: MermaidGraph,
   options: LayoutEngineOptions = {}
 ): PositionedGraph {
-  return withLayoutOptimizationBudget(graph, options.graphLayout, () => layoutGraphWithBudget(graph, options))
+  const optimization = layoutOptimization(Boolean(options.graphLayout?.quality || options.graphLayout?.viewport))
+  return optimization ? optimization.withLayoutOptimizationBudget(graph, options.graphLayout, () => layoutGraphWithBudget(graph, options)) : layoutGraphWithBudget(graph, options)
 }
 
 function layoutGraphWithBudget(graph: MermaidGraph, options: LayoutEngineOptions): PositionedGraph {
@@ -2128,7 +2128,7 @@ function layoutCandidate(
     if (Object.keys(overrides).length > 0) {
       attempt.layoutOptions = { ...attempt.layoutOptions, ...overrides }
     }
-    recordLayoutProducer()
+    layoutOptimization()?.recordLayoutProducer()
     try {
       const candidate = elkLayoutSync(attempt)
       // ELK can occasionally return a nominally successful graph containing
@@ -2247,15 +2247,16 @@ function layoutElkGraph(graph: MermaidGraph, options: LayoutEngineOptions, purpo
     return { strategy: 'without-generic-bundling', produce: makeRoute, preferNext: preferReadableTitles }
   }, preliminary)
   const certification = selected.certification!, before = certification.preference.selectedScore
-  if (options.graphLayout?.quality === 'balanced' && layoutOptimizationEnabled('elk-order') && canExploreLayout()
+  const optimization = layoutOptimization()
+  if (options.graphLayout?.quality === 'balanced' && optimization?.layoutOptimizationEnabled('elk-order') && optimization.canExploreLayout()
     && (before.edgeCrossings > 0 || before.labelConflicts > 0) && withinLayoutPreferenceBudget(graph)
     && !options.preserveSubgraphChildOrder && !options.layoutHints?.adjacent?.length && !hasParallelPair(graph.edges)) {
     const result = certifyCandidate(graph, style, { strategy: 'prefer-model-order',
-      produce: () => optionalLayout(() => layoutCandidate(graph, { ...options, preferModelOrder: true }, rememberAlternative)) ?? selected,
+      produce: () => optimization.optionalLayout(() => layoutCandidate(graph, { ...options, preferModelOrder: true }, rememberAlternative)) ?? selected,
       preferNext: preferReadableTitles,
     })
-    if (result.certified && nonRegressingAlternative(selected, result.certified.positioned)) {
-      selectedLayoutOptimization('prefer-model-order')
+    if (result.certified && optimization.nonRegressingAlternative(selected, result.certified.positioned)) {
+      optimization.selectedLayoutOptimization('prefer-model-order')
       return retainSelection(graph, { selected: result.certified, reason: 'non-regressing',
         attempts: certification.attempts + 1,
         compared: [...certification.preference.compared, { strategy: result.certified.strategy, score: result.certified.score }],

@@ -3,6 +3,7 @@ import { resolve, join, dirname } from 'node:path'
 import { gzipSync, brotliCompressSync } from 'node:zlib'
 import { execFileSync } from 'node:child_process'
 const root = resolve(process.argv[2]!), output = resolve(process.argv[3]!)
+const aliases = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8')).imports ?? {}
 const size = (file: string) => {
   const bytes = readFileSync(join(root, file))
   return { raw: bytes.length, gzip: gzipSync(bytes).length, brotli: brotliCompressSync(bytes).length }
@@ -14,6 +15,11 @@ const closure = (entry: string) => {
     files.add(file)
     for (const match of readFileSync(join(root, file), 'utf8').matchAll(/(?:\bfrom|\bimport)\s*["']([^"']+)["']/g)) {
       if (match[1]!.startsWith('.')) visit(join(dirname(file), match[1]!))
+      else if (match[1]!.startsWith('#')) {
+        const target = aliases[match[1]!]
+        if (!target) throw new Error(`Unresolved package import: ${match[1]}`)
+        visit(typeof target === 'string' ? target : target.node ?? target.default)
+      }
     }
   }
   visit(entry)
@@ -24,7 +30,7 @@ const closure = (entry: string) => {
 }
 const report = {
   revision: execFileSync('git', ['rev-parse', 'HEAD'], { cwd: root, encoding: 'utf8' }).trim(),
-  method: 'Built artifacts; gzip/Brotli per file summed for static internal ESM closure. External packages, dynamic imports and fonts excluded; actual lazy browser transfers are measured separately.',
+  method: 'Built artifacts; gzip/Brotli per file summed for static internal ESM closure. Node package-import conditions resolved; external packages, dynamic imports, deferred require kernels and fonts excluded; actual lazy browser transfers are measured separately.',
   nodeSvg: closure('dist/index.js'), nodeAgent: closure('dist/agent.js'),
   browserIife: size('dist/browser.global.js'),
 }

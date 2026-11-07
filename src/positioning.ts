@@ -17,7 +17,7 @@ import type { FamilyId } from './agent/types.ts'
 import { assessRenderedLayoutHardViolations } from './family-rubric.ts'
 import { LayoutCertificationError } from './layout/certification-error.ts'
 import { graphLayoutDecisionsOf, retainGraphLayoutDecision, withGraphLayoutDecisionObserver, type GraphLayoutDecision } from './layout/backend.ts'
-import { withLayoutOptimizationBudget } from './layout/optimization-context.ts'
+import { layoutOptimization } from './layout/optimization-context.ts'
 import type { NormalizedMermaidSource } from './mermaid-source.ts'
 import { type ResolvedRenderRequest, resolvedFamilyRenderContextOf, resolvedRenderExecutionPlanOf } from './render-contract.ts'
 import { withTextMeasurementExecution, textMeasurementCacheIdentity } from './text-measurement-profile.ts'
@@ -110,7 +110,7 @@ function positionFamily(familyId: FamilyId, request: ResolvedRenderRequest, sour
     !performanceExperimentEnabled('position-cache') ? 'disabled' : !certifyFinal ? 'external-family'
       : familyId === 'gantt' ? 'time-dependent-family' : !reusableMetrics ? 'custom-text-measurement'
         : cacheKey === undefined ? 'elk-cache-disabled' : 'key-limit')
-  return withLayoutOptimizationBudget(request, request.renderOptions.graphLayout, () => withTextMeasurementExecution(executionPlan.textMeasurement, () => {
+  const position = () => withTextMeasurementExecution(executionPlan.textMeasurement, () => {
     const role = request.output === 'ascii' || request.output === 'unicode' || request.output === 'html' ? 'companion' : 'primary'
     if (borrow && boundedKey !== undefined) {
       const snapshot = borrowedPositioned(descriptor, boundedKey, request.output === 'svg' ? request : undefined)
@@ -162,5 +162,7 @@ function positionFamily(familyId: FamilyId, request: ResolvedRenderRequest, sour
       retain(descriptor, boundedKey, result, retainedProjections.get(result))
     }
     return result
-  }), true)
+  })
+  const optimization = layoutOptimization(Boolean(request.renderOptions.graphLayout?.quality || request.renderOptions.graphLayout?.viewport))
+  return optimization ? optimization.withLayoutOptimizationBudget(request, request.renderOptions.graphLayout, position, true) : position()
 }

@@ -1,6 +1,6 @@
 import type { GraphLayoutOptions } from '../types.ts'
-import { OptionalLayoutBudgetExceeded } from './certification-error.ts'
-export { isOptionalLayoutBudgetExceeded } from './certification-error.ts'
+class OptionalLayoutBudgetExceeded extends Error {}
+export function isOptionalLayoutBudgetExceeded(error: unknown): boolean { return error instanceof OptionalLayoutBudgetExceeded }
 export { retainComparisonMetrics } from './non-regressing-alternative.ts'
 
 export interface LayoutOptimizationEvidence {
@@ -60,7 +60,7 @@ export function optionalLayout<T>(run: () => T): T | undefined {
   budget.attempts++
   budget.optional = true
   try { return run() } catch (error) {
-    if (!(error instanceof OptionalLayoutBudgetExceeded)) throw error
+    if (!isOptionalLayoutBudgetExceeded(error)) throw error
     return undefined
   } finally { budget.optional = false }
 }

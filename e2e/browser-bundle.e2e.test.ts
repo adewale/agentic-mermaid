@@ -719,11 +719,32 @@ describe('async family-loaded browser renderer', () => {
 
   test.each(['elk', 'agentic'] as const)('%s preserves opt-in layout evidence and font metrics across dependency replay', async backend => {
     const page = await browser.newPage()
+    const requests: string[] = []
+    page.on('request', request => requests.push(new URL(request.url()).pathname.replace(/^\/dist\//, '')))
     const source = 'flowchart TD\nA[One]\nB[Two]\nC[Three]\nD[Four]\nA --> D\nB --> C'
     const options = { security: 'strict' as const, fontMetrics: 'bundled-inter' as const,
       graphLayout: { backend, quality: 'balanced' as const, viewport: { width: 800, height: 600 } } }
     try {
       await page.goto(`${base}/blank.html`)
+      await page.evaluate(async ({ entry, source, backend }) => {
+        const api = await import(entry)
+        await api.renderMermaidSVGWithReceiptAsync(source, { security: 'strict', graphLayout: { backend } })
+      }, { entry: `${base}/dist/browser-lazy/index.js`, source, backend })
+      const fontChunk = lazyImplementationChunk('src/inter-metrics-data.ts')
+      const optionalChunk = lazyImplementationChunk('src/layout/optimization-budget.ts')
+      expect(requests).not.toContain(fontChunk)
+      expect(requests).not.toContain(optionalChunk)
+      // Same source and explicit producer as the measured main-branch ceiling.
+      expect(requests.filter(path => path.endsWith('.js')).length).toBeLessThanOrEqual(backend === 'elk' ? 35 : 37)
+      await page.evaluate(async ({ entry, source, options, backend }) => {
+        const api = await import(entry)
+        const selected = backend === 'elk'
+          ? { security: 'strict', fontMetrics: 'bundled-inter', graphLayout: { backend } }
+          : { security: 'strict', graphLayout: options.graphLayout }
+        await api.renderMermaidSVGWithReceiptAsync(source, selected)
+      }, { entry: `${base}/dist/browser-lazy/index.js`, source, options, backend })
+      expect(requests.filter(path => path === fontChunk)).toHaveLength(backend === 'elk' ? 1 : 0)
+      expect(requests.filter(path => path === optionalChunk)).toHaveLength(backend === 'agentic' ? 1 : 0)
       const actual = await page.evaluate(async ({ entry, source, options }) => {
         const api = await import(entry)
         const cold = await api.renderMermaidSVGWithReceiptAsync(source, options)
@@ -741,10 +762,12 @@ describe('async family-loaded browser renderer', () => {
       expect(actual.warm.receipt.requestDigest).toBe(actual.cold.receipt.requestDigest)
       expect(actual.warm.receipt.layoutCertification?.status).toBe('passed')
       expect(actual.warm.receipt.layoutOptimization.additionalProducerCalls).toBeLessThanOrEqual(2)
+      expect(requests.filter(path => path === fontChunk)).toHaveLength(1)
+      expect(requests.filter(path => path === optionalChunk)).toHaveLength(1)
     } finally { await page.close() }
   })
 
-  test('loads authored parser positions on demand and preserves cold and warm error locations', async () => {
+  test('loads authored positions only on demand and preserves cold and warm errors', async () => {
     const page = await browser.newPage()
     const requests: string[] = []
     const source = '---\ntitle: Broken\n---\n\n%% comment\nflowchart TD\n\n  B --> [oops'
@@ -755,7 +778,7 @@ describe('async family-loaded browser renderer', () => {
         const api = await import(entry)
         await api.renderMermaidSVGWithReceiptAsync('flowchart TD\nA --> B', { security: 'strict' })
       }, `${base}/dist/browser-lazy/index.js`)
-      const positions = lazyImplementationChunk('src/shared/parser-source.ts')
+      const positions = lazyImplementationChunk('src/shared/parser-source-kernel.ts')
       expect(requests.filter(path => path === positions)).toHaveLength(0)
       const actual = await page.evaluate(async ({ entry, source }) => {
         const api = await import(entry)
