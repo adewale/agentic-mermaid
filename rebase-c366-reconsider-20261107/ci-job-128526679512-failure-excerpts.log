@@ -1,0 +1,96 @@
++   ],
++   \"repairs\": [],
++   \"scope\": \"native-scene\",
++   \"status\": \"unverified\",
++   \"unit\": \"px\",
++   \"version\": 1,
++   \"viewport\": {
++     \"height\": 31000,
++     \"width\": 200,
++     \"x\": 0,
++     \"y\": 0,
++   },
+  }
+
+- Expected  - 2
++ Received  + 42
+
+      at <anonymous> (/home/runner/work/agentic-mermaid/agentic-mermaid/src/__tests__/paint-certification.test.ts:167:17)
+2026-11-07T20:59:20.4159835Z (fail) sparse decorative markers preserve completed direct and emitted text proof (32 markers, definitions=true) [7106.63ms]
+2026-11-07T20:59:20.4207525Z 
+2026-11-07T20:59:20.4238295Z ##[endgroup]
+2026-11-07T20:59:20.4251337Z 
+2026-11-07T20:59:20.4307917Z ##[group]src/__tests__/agent-class.test.ts:
+2026-11-07T20:59:20.4328277Z (pass) class — parse > Class style cascade survives typed edits, JSON and reload: margin:0,margin-left:8px [877.58ms]
+2026-11-07T20:59:21.3425934Z (pass) class — parse > Class repeated styles keep the final declaration at its authored position across source statements [933.49ms]
+2026-11-07T20:59:22.0069766Z 
+2026-11-07T20:59:22.0070906Z ##[endgroup]
+2026-11-07T20:59:22.0071471Z 
+2026-11-07T20:59:22.0072231Z ##[group]src/__tests__/paint-certification.test.ts:
+2026-11-07T20:59:22.0073350Z (pass) metered final SVG validation retains the admitted generated case 255 proof [1603.84ms]
+2026-11-07T20:59:22.3156375Z 
+2026-11-07T20:59:22.3158078Z ##[endgroup]
+2026-11-07T20:59:22.3158743Z 
+2026-11-07T20:59:22.3159430Z ##[group]src/__tests__/agent-class.test.ts:
+2026-11-07T20:59:22.3161139Z (pass) class — parse > Class preserves repeated CSS values, priority and fallback: {\"fields\":[\"font:24px monospace!important\",\"font:12px serif\"]} [970.64ms]
+2026-11-07T20:59:23.2649837Z (pass) class — parse > Class preserves repeated CSS values, priority and fallback: {\"fields\":[\"font:24px monospace\",\"font:bogus\"]} [949.21ms]
+2026-11-07T20:59:24.2083605Z (pass) class — parse > Class preserves repeated CSS values, priority and fallback: {\"fields\":[\"font:10px serif\",\"font-size:24px\",\"font:12px serif\"]} [943.42ms]
+2026-11-07T20:59:24.2098691Z (pass) class — parse > declaration shorthand stays editable and its member source belongs to the declared class [1.27ms]
+2026-11-07T20:59:24.2111201Z (pass) class — parse > basic class with members [0.39ms]
+2026-11-07T20:59:24.2112681Z (pass) class — parse > bare class + separate-decl members [0.41ms]
+2026-11-07T20:59:24.2114345Z (pass) class — parse > class with bracket label [0.28ms]
+2026-11-07T20:59:24.2116855Z (pass) class — parse > inheritance + composition + aggregation + association + dependency + realization [1.10ms]
+2026-11-07T20:59:24.2121730Z (pass) class — parse > relation with cardinality + label [0.50ms]
+2026-11-07T20:59:24.2126018Z (pass) class — parse > notes (attached and free) [0.42ms]
+2026-11-07T20:59:24.2130150Z (pass) class — parse > title [0.41ms]
+2026-11-07T20:59:24.2210255Z (pass) class — parse > direction and inert callbacks retain their source while class members remain editable [7.84ms]
+2026-11-07T20:59:24.2228404Z (pass) class — parse > source-preserving mutations refuse stale provenance instead of dropping live typed fields [0.65ms]
+2026-11-07T20:59:24.2288762Z (pass) class — parse > owned identity edits retain unrelated callback and direction statements [6.54ms]
+2026-11-07T21:05:57.0508600Z (pass) ER rebuilt frame routes retain actual normal contacts in RL with elk framesOnly=false vocabulary=false siblings=true [47.84ms]
+2026-11-07T21:05:57.0585057Z (pass) ER final candidate backend ownership > rechecks moved cardinality ink before allocating the next automatic port [7.67ms]
+2026-11-07T21:05:57.0886308Z Agentic graph layout declined this input; using the requested ELK fallback: candidate failed mandatory geometry certification
+2026-11-07T21:05:57.0887940Z (pass) ER final candidate backend ownership > rejects actual incomplete native geometry before selecting a requested ELK fallback, sharing final work [30.05ms]
+2026-11-07T21:05:57.0896222Z (pass) ER final candidate backend ownership > propagates an unexpected late finalizer error without invoking ELK [1.10ms]
+2026-11-07T21:05:57.0903525Z 
+2026-11-07T21:05:57.0904899Z ##[endgroup]
+2026-11-07T21:05:57.2185543Z 
+2026-11-07T21:05:57.2186015Z 6 tests skipped:
+2026-11-07T21:05:57.2186579Z (skip) requirementDb > should create unique edge ids for parallel relationships
+2026-11-07T21:05:57.2187615Z (skip) editor theme switcher re-themes the diagram, never the chrome > (unnamed)
+2026-11-07T21:05:57.2189763Z (skip) editor theme switcher re-themes the diagram, never the chrome > Paper → tokyo-night → Paper tracks in the artwork while the chrome stays Kiln
+2026-11-07T21:05:57.2191352Z (skip) editor theme switcher re-themes the diagram, never the chrome > verification is the authority gate for export, copy, and share links
+2026-11-07T21:05:57.2192350Z (skip) editor theme switcher re-themes the diagram, never the chrome > storage-denied browsers still boot and render the default diagram
+2026-11-07T21:05:57.2193067Z (skip) editor theme switcher re-themes the diagram, never the chrome > (unnamed)
+2026-11-07T21:05:57.2193393Z 
+2026-11-07T21:05:57.2193397Z 
+2026-11-07T21:05:57.2193481Z 1 tests failed:
+2026-11-07T21:05:57.2193970Z (fail) sparse decorative markers preserve completed direct and emitted text proof (32 markers, definitions=true) [7106.63ms]
+2026-11-07T21:05:57.2194430Z 
+2026-11-07T21:05:57.2194513Z  6385 pass
+2026-11-07T21:05:57.2194749Z  6 skip
+2026-11-07T21:05:57.2194927Z  1 fail
+2026-11-07T21:05:57.2195130Z  486976 expect() calls
+2026-11-07T21:05:57.2195376Z Ran 6392 tests across 202 files. [440.88s]
+2026-11-07T21:05:57.2212765Z error: script \"test\" exited with code 1
+2026-11-07T21:05:57.2226546Z ##[error]Process completed with exit code 1.
+2026-11-07T21:05:57.2347858Z Post job cleanup.
+2026-11-07T21:05:57.3247457Z [command]/usr/bin/git version
+2026-11-07T21:05:57.3295543Z git version 2.56.0
+2026-11-07T21:05:57.3332727Z Temporarily overriding HOME='/home/runner/work/_temp/5327e63f-f38d-4678-afb3-ad7741f3babf' before making global git config changes
+2026-11-07T21:05:57.3333968Z Adding repository directory to the temporary git global config as a safe directory
+2026-11-07T21:05:57.3339304Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/agentic-mermaid/agentic-mermaid
+2026-11-07T21:05:57.3375497Z Removing SSH command configuration
+2026-11-07T21:05:57.3382402Z [command]/usr/bin/git config --local --name-only --get-regexp core\\.sshCommand
+2026-11-07T21:05:57.3422428Z [command]/usr/bin/git submodule foreach --recursive sh -c \"git config --local --name-only --get-regexp 'core\\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :\"
+2026-11-07T21:05:57.3742751Z Removing HTTP extra header
+2026-11-07T21:05:57.3747200Z [command]/usr/bin/git config --local --name-only --get-regexp http\\.https\\:\\/\\/github\\.com\\/\\.extraheader
+2026-11-07T21:05:57.3795279Z [command]/usr/bin/git submodule foreach --recursive sh -c \"git config --local --name-only --get-regexp 'http\\.https\\:\\/\\/github\\.com\\/\\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :\"
+2026-11-07T21:05:57.4120505Z Removing includeIf entries pointing to credentials config files
+2026-11-07T21:05:57.4127272Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\\.gitdir:
+2026-11-07T21:05:57.4159134Z includeif.gitdir:/home/runner/work/agentic-mermaid/agentic-mermaid/.git.path
+2026-11-07T21:05:57.4160110Z includeif.gitdir:/home/runner/work/agentic-mermaid/agentic-mermaid/.git/worktrees/*.path
+2026-11-07T21:05:57.4160653Z includeif.gitdir:/github/workspace/.git.path
+2026-11-07T21:05:57.4161033Z includeif.gitdir:/github/workspace/.git/worktrees/*.path
+2026-11-07T21:05:57.4168234Z [command]/usr/bin/git config --local --get-all includeif.gitdir:/home/runner/work/agentic-mermaid/agentic-mermaid/.git.path
+2026-11-07T21:05:57.4192366Z /home/runner/work/_temp/git-credentials-1e3f73f6-e00b-4de3-b034-af4a9dcae398.config
+2026-11-07T21:05:57.4203091Z [command]/usr/bin/git config --local --unset includeif.gitdir:/home/runner/work/agentic-mermaid/agentic-mermaid/.git.path \\/home\\/runner\\/work\\/_temp\\/git\\-credentials\\-1e3f73f6\\-e00b\\-4de3\\-b034\\-af4a9dcae398\\.config

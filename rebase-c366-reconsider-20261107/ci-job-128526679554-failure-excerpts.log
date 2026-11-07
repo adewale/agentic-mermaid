@@ -1,0 +1,72 @@
+2026-11-07T21:00:41.9313166Z 398 | it('standalone editor stays within its single-renderer payload budget', async () => {
+2026-11-07T21:00:41.9314054Z 399 |   const html = new Uint8Array(await Bun.file(join(ROOT, 'editor.html')).arrayBuffer())
+2026-11-07T21:00:41.9314670Z 400 |   // Keep this campaign's original ceilings while integrating Main's delivery
+2026-11-07T21:00:41.9315267Z 401 |   // changes. One renderer serves both realms; relative growth is checked too.
+2026-11-07T21:00:41.9315847Z 402 |   expect(html.byteLength).toBeLessThanOrEqual(4_429_400)
+2026-11-07T21:00:41.9316573Z 403 |   expect(gzipSync(html, { level: 9 }).byteLength).toBeLessThanOrEqual(1_334_500)
+2026-11-07T21:00:41.9317240Z                                                         ^
+2026-11-07T21:00:41.9317665Z error: expect(received).toBeLessThanOrEqual(expected)
+2026-11-07T21:00:41.9317969Z 
+2026-11-07T21:00:41.9318109Z Expected: <= 1334500
+2026-11-07T21:00:41.9318460Z Received: 1377971
+2026-11-07T21:00:41.9318618Z 
+2026-11-07T21:00:41.9318902Z       at <anonymous> (/__w/agentic-mermaid/agentic-mermaid/e2e/browser.test.ts:403:51)
+2026-11-07T21:00:41.9319287Z 
+2026-11-07T21:00:41.9346437Z ##[error]Expected: <= 1334500
+Received: 1377971
+
+      at <anonymous> (/__w/agentic-mermaid/agentic-mermaid/e2e/browser.test.ts:403:51)
+2026-11-07T21:00:41.9356225Z (fail) standalone editor stays within its single-renderer payload budget [72.05ms]
+2026-11-07T21:00:41.9357236Z (pass) standalone editor renders and verifies with one persistent Blob worker [47647.51ms]
+2026-11-07T21:00:41.9358286Z (pass) browser: live editor integration > browser DOM retains independently authored Pie entity labels [194.37ms]
+2026-11-07T21:00:41.9359545Z (pass) browser: live editor integration > contains long regular and highlighted pie legend rows across fallback fonts [347.88ms]
+2026-11-07T21:00:41.9360998Z (pass) browser: live editor integration > pie hover emphasis remains reachable when interactive tooltips add a hit target [38.88ms]
+2026-11-07T21:00:41.9362483Z (pass) browser: live editor integration > pie hover emphasis survives styled redraws without enabling tooltips [74.98ms]
+2026-11-07T21:00:41.9363618Z (pass) browser: live editor integration > opens /editor to the default loop diagram on the Kiln Stone chrome [1004.52ms]
+2026-11-07T21:00:41.9364421Z (pass) browser: live editor integration > mobile editor uses pane tabs instead of clipping the workspace [572.01ms]
+2026-11-07T21:00:41.9365261Z (pass) browser: live editor integration > retargets preview zoom and pauses a focused toast without blocking its eventual dismissal [2007.38ms]
+2026-11-07T21:00:41.9366224Z (pass) browser: live editor integration > lets an ordinary pointer grab preview momentum and suppresses coast under reduced motion [7993.36ms]
+2026-11-07T21:00:41.9367068Z (pass) browser: live editor integration > commits button zoom immediately under reduced motion [1079.89ms]
+2026-11-07T21:00:41.9367888Z (pass) browser: live editor integration > empty-state CTA opens a persistent examples sidebar [1092.25ms]
+2026-11-07T21:00:41.9368717Z (pass) browser: live editor integration > opens /editor and renders fork-added diagram families through the bundled renderer [4600.18ms]
+2026-11-07T21:00:41.9369546Z (pass) browser: live editor integration > uses local theme registry entries in the editor theme dropdown [1290.11ms]
+2026-11-07T21:00:41.9370386Z (pass) browser: live editor integration > examples sidebar keeps the selected theme and exposes blank reset without a floating source toolbar [1750.08ms]
+2026-11-07T21:00:41.9371283Z (pass) browser: live editor integration > topbar button dimensions do not shift when toggling day/dark mode [535.49ms]
+2026-11-07T21:00:41.9372563Z (pass) browser: live editor integration > loads source/config examples without overriding the selected theme [1426.77ms]
+2026-11-07T21:00:41.9373396Z (pass) browser: live editor integration > treats shared hash configuration as untrusted and renders only inert SVG [849.38ms]
+2026-11-07T21:00:41.9374247Z (pass) browser: visual regression > architecture rounded fills match screenshot baseline without decorative rails [1313.46ms]
+2026-11-07T21:00:41.9375074Z (pass) browser: visual regression > rounded header fills and slop-free cards match screenshot baselines [6248.50ms]
+2026-11-07T21:00:41.9375489Z 
+2026-11-07T21:00:41.9375983Z ##[endgroup]
+2026-11-07T21:00:41.9376130Z 
+2026-11-07T21:00:41.9376289Z 1 tests failed:
+2026-11-07T21:00:41.9376767Z (fail) standalone editor stays within its single-renderer payload budget [72.05ms]
+2026-11-07T21:00:41.9377129Z 
+2026-11-07T21:00:41.9377252Z  21 pass
+2026-11-07T21:00:41.9377586Z  1 fail
+2026-11-07T21:00:41.9377873Z  918 expect() calls
+2026-11-07T21:00:41.9378269Z Ran 22 tests across 1 file. [96.93s]
+2026-11-07T21:00:41.9378674Z 32 |     new Response(child.stderr).text(),
+2026-11-07T21:00:41.9379063Z 33 |     child.exited,
+2026-11-07T21:00:41.9379405Z 34 |   ])
+2026-11-07T21:00:41.9379724Z 35 |   if (stdout) process.stdout.write(stdout)
+2026-11-07T21:00:41.9380137Z 36 |   if (stderr) process.stderr.write(stderr)
+2026-11-07T21:00:41.9380712Z 37 |   if (exitCode !== 0) throw new Error(`Command exited ${exitCode}: ${command.join(' ')}`)
+2026-11-07T21:00:41.9381181Z                                      ^
+2026-11-07T21:00:41.9381787Z error: Command exited 1: bun test browser.test.ts --timeout 600000
+2026-11-07T21:00:41.9382360Z       at run (/__w/agentic-mermaid/agentic-mermaid/e2e/run-browser-contracts.ts:37:33)
+2026-11-07T21:00:41.9382716Z 
+2026-11-07T21:00:41.9384255Z ##[error]
+      at run (/__w/agentic-mermaid/agentic-mermaid/e2e/run-browser-contracts.ts:37:33)
+2026-11-07T21:00:41.9385145Z 
+2026-11-07T21:00:41.9385271Z Bun v1.4.4 (Linux x64)
+2026-11-07T21:00:41.9385647Z error: script \"test:browser\" exited with code 1
+2026-11-07T21:00:41.9388281Z ##[error]Process completed with exit code 1.
+2026-11-07T21:00:41.9472138Z ##[group]Run actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+2026-11-07T21:00:41.9472686Z with:
+2026-11-07T21:00:41.9473152Z   name: editor-community-review-93c6d75dc1373d5c238cc764d938ca6af91bebfe
+2026-11-07T21:00:41.9473687Z   path: e2e/screenshots/current-*.png
+2026-11-07T21:00:41.9474062Z   retention-days: 7
+2026-11-07T21:00:41.9474387Z   if-no-files-found: warn
+2026-11-07T21:00:41.9474770Z   compression-level: 6
+2026-11-07T21:00:41.9475174Z   overwrite: false

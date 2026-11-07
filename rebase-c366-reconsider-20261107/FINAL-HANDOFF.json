@@ -1,0 +1,27 @@
+{
+  "source": "a195262036dbb07c7ce4919505d4ff47dea09e63",
+  "runtimeQualifiedSource": "93c6d75dc1373d5c238cc764d938ca6af91bebfe",
+  "changesSinceQualification": [
+    "docs/design/system/layout-0.6-work-log.md",
+    "src/__tests__/fanout-symmetry.test.ts"
+  ],
+  "runtimeSourceUnchanged": true,
+  "forestOwnerBefore": {
+    "passed": 5,
+    "failed": 1
+  },
+  "forestOwnersAfter": {
+    "passed": 49,
+    "failed": 0,
+    "assertions": 867
+  },
+  "lint": "passed",
+  "previousHeadCI": {
+    "run": 42413401665,
+    "status": "completed",
+    "conclusion": "failure"
+  },
+  "finalHeadCI": "pending, not ready",
+  "remaining": "Sparse32 proof cap; ER256 BT/RL; crossing276; Sparse256 tradeoffs; original gzip/lazy/payload limits; no new CPU/RSS result",
+  "coreEvidence": "fb8258f17fadf2996e15aa4c82a0973b1cefae4f"
+}

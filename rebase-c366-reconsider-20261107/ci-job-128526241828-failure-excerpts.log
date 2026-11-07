@@ -1,0 +1,96 @@
+2026-11-07T20:56:47.2240688Z browser family catalog is current (33 families)
+2026-11-07T20:56:47.2319652Z ##[endgroup]
+2026-11-07T20:56:47.2320357Z ##[group]Verify website and Worker artifacts
+2026-11-07T20:56:47.2366512Z $ bun run website/build.ts --check
+2026-11-07T20:57:19.4312873Z website/build: 17/37 warning pages carry a build-time-verified firing demo
+2026-11-07T20:57:20.1379417Z website/build --check: regenerated 465 public and 13 Worker artifacts successfully.
+2026-11-07T20:57:20.2060992Z ##[endgroup]
+2026-11-07T20:57:20.2061968Z ##[group]Verify the lazy browser bundle graph and size budgets
+2026-11-07T20:57:20.2084793Z $ bun run scripts/build/browser-lazy-report.ts
+2026-11-07T20:57:27.0490772Z 303 |     checkBudget('flowchart omitted-layout forest plus YAML', { requests: forestBudget.length, ...transferSize(forestBudget) }, budgets.families.flowchart)
+2026-11-07T20:57:27.0492194Z 304 |     const fallbackBudget = staticClosure([...implicitForestFallbackFiles!, ...yamlFiles])
+2026-11-07T20:57:27.0493860Z 305 |     checkBudget('flowchart omitted-layout forest then ELK plus YAML', { requests: fallbackBudget.length, ...transferSize(fallbackBudget) }, budgets.families.flowchart)
+2026-11-07T20:57:27.0495115Z 306 |   }
+2026-11-07T20:57:27.0495423Z 307 | }
+2026-11-07T20:57:27.0496211Z 308 | if (problems.length > 0) throw new Error(`Async browser size budgets exceeded:\
+${problems.join('\
+')}`)
+2026-11-07T20:57:27.0496936Z                                          ^
+2026-11-07T20:57:27.0497256Z error: Async browser size budgets exceeded:
+2026-11-07T20:57:27.0497547Z flowchart raw: 2515717 > 2430000
+2026-11-07T20:57:27.0497797Z flowchart gzip: 777454 > 761500
+2026-11-07T20:57:27.0498454Z state raw: 2514790 > 2430000
+2026-11-07T20:57:27.0498705Z state gzip: 776563 > 761000
+2026-11-07T20:57:27.0498936Z sequence raw: 798021 > 667000
+2026-11-07T20:57:27.0499175Z sequence gzip: 255146 > 214000
+2026-11-07T20:57:27.0499412Z sequence brotli: 214624 > 190750
+2026-11-07T20:57:27.0499664Z timeline raw: 738712 > 617000
+2026-11-07T20:57:27.0499895Z timeline gzip: 236220 > 198000
+2026-11-07T20:57:27.0500132Z timeline brotli: 197565 > 174500
+2026-11-07T20:57:27.0500362Z er raw: 2397220 > 2311000
+2026-11-07T20:57:27.0500581Z er gzip: 736244 > 718000
+2026-11-07T20:57:27.0500803Z journey raw: 759684 > 637000
+2026-11-07T20:57:27.0501031Z journey gzip: 243600 > 204250
+2026-11-07T20:57:27.0501267Z journey brotli: 204286 > 181500
+2026-11-07T20:57:27.0501504Z architecture raw: 2495126 > 2318000
+2026-11-07T20:57:27.0501759Z architecture gzip: 768298 > 751000
+2026-11-07T20:57:27.0502049Z architecture brotli: 609033 > 608500
+2026-11-07T20:57:27.0502311Z xychart raw: 781993 > 654000
+2026-11-07T20:57:27.0502535Z xychart gzip: 251200 > 211000
+2026-11-07T20:57:27.0502800Z xychart brotli: 210843 > 187250
+2026-11-07T20:57:27.0503040Z pie raw: 751290 > 634000
+2026-11-07T20:57:27.0503254Z pie gzip: 243096 > 208500
+2026-11-07T20:57:27.0503472Z pie brotli: 203683 > 185500
+2026-11-07T20:57:27.0503697Z quadrant raw: 747908 > 622000
+2026-11-07T20:57:27.0503975Z quadrant gzip: 240531 > 201000
+2026-11-07T20:57:27.0504207Z quadrant brotli: 201367 > 177500
+2026-11-07T20:57:27.0504443Z gantt raw: 765673 > 642000
+2026-11-07T20:57:27.0504660Z gantt gzip: 245536 > 207000
+2026-11-07T20:59:02.7078921Z $ bun eval/trident/prepare.ts && tsc --noEmit -p tsconfig.repo.json
+2026-11-07T20:59:03.3087609Z bun install v1.4.4 (38afee6c8)
+2026-11-07T20:59:03.4250376Z 
+2026-11-07T20:59:03.4250855Z + @biomejs/biome@2.5.5
+2026-11-07T20:59:03.4251204Z + @types/bun@1.3.9
+2026-11-07T20:59:03.4251445Z + typescript@5.9.3
+2026-11-07T20:59:03.4251678Z + @resvg/resvg-js@2.6.2
+2026-11-07T20:59:03.4251921Z + entities@7.0.1
+2026-11-07T20:59:03.4252137Z + esbuild@0.28.1
+2026-11-07T20:59:03.4252644Z + playwright@1.58.2
+2026-11-07T20:59:03.4253141Z + saxes@6.0.0
+2026-11-07T20:59:03.4253615Z + yaml@2.9.0
+2026-11-07T20:59:03.4253911Z 
+2026-11-07T20:59:03.4254733Z 19 packages installed [117.00ms]
+2026-11-07T20:59:03.4274757Z /home/runner/work/agentic-mermaid/agentic-mermaid/bench-report/.trident/f080278e31e4202ca89d524e4ee9e4cf3cbff038
+2026-11-07T20:59:25.2750131Z ##[endgroup]
+2026-11-07T20:59:25.2753150Z ##[error]browser-lazy (bun run check:browser-lazy)
+2026-11-07T20:59:25.2754582Z 
+2026-11-07T20:59:25.2754767Z Quality suite failed in 1 check:
+2026-11-07T20:59:25.2755463Z - Verify the lazy browser bundle graph and size budgets: bun run check:browser-lazy
+2026-11-07T20:59:25.2767588Z error: script \"quality:check\" exited with code 1
+2026-11-07T20:59:25.2782694Z ##[error]Process completed with exit code 1.
+2026-11-07T20:59:25.2941621Z Post job cleanup.
+2026-11-07T20:59:25.3851611Z [command]/usr/bin/git version
+2026-11-07T20:59:25.3904560Z git version 2.56.0
+2026-11-07T20:59:25.3950205Z Temporarily overriding HOME='/home/runner/work/_temp/de7a99e3-d9d5-485f-a16a-dd2c3739689c' before making global git config changes
+2026-11-07T20:59:25.3951655Z Adding repository directory to the temporary git global config as a safe directory
+2026-11-07T20:59:25.3956230Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/agentic-mermaid/agentic-mermaid
+2026-11-07T20:59:25.3998589Z Removing SSH command configuration
+2026-11-07T20:59:25.4006518Z [command]/usr/bin/git config --local --name-only --get-regexp core\\.sshCommand
+2026-11-07T20:59:25.4066076Z [command]/usr/bin/git submodule foreach --recursive sh -c \"git config --local --name-only --get-regexp 'core\\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :\"
+2026-11-07T20:59:25.4416411Z Removing HTTP extra header
+2026-11-07T20:59:25.4423122Z [command]/usr/bin/git config --local --name-only --get-regexp http\\.https\\:\\/\\/github\\.com\\/\\.extraheader
+2026-11-07T20:59:25.4472525Z [command]/usr/bin/git submodule foreach --recursive sh -c \"git config --local --name-only --get-regexp 'http\\.https\\:\\/\\/github\\.com\\/\\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :\"
+2026-11-07T20:59:25.4817133Z Removing includeIf entries pointing to credentials config files
+2026-11-07T20:59:25.4824180Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\\.gitdir:
+2026-11-07T20:59:25.4886801Z includeif.gitdir:/home/runner/work/agentic-mermaid/agentic-mermaid/.git.path
+2026-11-07T20:59:25.4887634Z includeif.gitdir:/home/runner/work/agentic-mermaid/agentic-mermaid/.git/worktrees/*.path
+2026-11-07T20:59:25.4888388Z includeif.gitdir:/github/workspace/.git.path
+2026-11-07T20:59:25.4888788Z includeif.gitdir:/github/workspace/.git/worktrees/*.path
+2026-11-07T20:59:25.4898033Z [command]/usr/bin/git config --local --get-all includeif.gitdir:/home/runner/work/agentic-mermaid/agentic-mermaid/.git.path
+2026-11-07T20:59:25.4923819Z /home/runner/work/_temp/git-credentials-0229b672-0214-4530-a960-971d88213e7a.config
+2026-11-07T20:59:25.4935352Z [command]/usr/bin/git config --local --unset includeif.gitdir:/home/runner/work/agentic-mermaid/agentic-mermaid/.git.path \\/home\\/runner\\/work\\/_temp\\/git\\-credentials\\-0229b672\\-0214\\-4530\\-a960\\-971d88213e7a\\.config
+2026-11-07T20:59:25.4978949Z [command]/usr/bin/git config --local --get-all includeif.gitdir:/home/runner/work/agentic-mermaid/agentic-mermaid/.git/worktrees/*.path
+2026-11-07T20:59:25.5011873Z /home/runner/work/_temp/git-credentials-0229b672-0214-4530-a960-971d88213e7a.config
+2026-11-07T20:59:25.5023812Z [command]/usr/bin/git config --local --unset includeif.gitdir:/home/runner/work/agentic-mermaid/agentic-mermaid/.git/worktrees/*.path \\/home\\/runner\\/work\\/_temp\\/git\\-credentials\\-0229b672\\-0214\\-4530\\-a960\\-971d88213e7a\\.config
+2026-11-07T20:59:25.5060566Z [command]/usr/bin/git config --local --get-all includeif.gitdir:/github/workspace/.git.path
+2026-11-07T20:59:25.5085668Z /github/runner_temp/git-credentials-0229b672-0214-4530-a960-971d88213e7a.config

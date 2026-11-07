@@ -1,0 +1,31 @@
+bun test v1.4.4 (38afee6c8)
+
+src/__tests__/fanout-symmetry.test.ts:
+(pass) fan-out peer symmetry > spreads center-aligned unequal terminal peers without moving their bodies in TB [15.19ms]
+(pass) fan-out peer symmetry > spreads center-aligned unequal terminal peers without moving their bodies in BT [3.33ms]
+(pass) fan-out peer symmetry > spreads center-aligned unequal terminal peers without moving their bodies in LR [2.89ms]
+(pass) fan-out peer symmetry > spreads center-aligned unequal terminal peers without moving their bodies in RL [2.59ms]
+100 |       ['A', 'B', 'false', 'true'], ['A', 'C', 'false', 'true'], ['D', 'E', 'false', 'true'], ['D', 'F', 'false', 'true'],
+101 |     ])
+102 |     const E = tags.find(tag => tag['data-id'] === 'node-shape:E')!, F = tags.find(tag => tag['data-id'] === 'node-shape:F')!
+103 |     expect(Number(E.height)).toBeGreaterThan(Number(F.height))
+104 |     expect(Number(E.width)).toBeLessThan(Number(F.width))
+105 |     expect(Number(E.y) + Number(E.height) / 2).toBeCloseTo(Number(F.y) + Number(F.height) / 2, 8)
+                                                     ^
+error: expect(received).toBeCloseTo(expected, precision)
+
+Expected: 143.35
+Received: 202.5
+
+Expected precision: 8
+Expected difference: < 0.000000005
+Received difference: 59.150000000000006
+
+      at <anonymous> (/tmp/pr449-main-integration-20261029-762/src/__tests__/fanout-symmetry.test.ts:105:48)
+(fail) fan-out peer symmetry > retains authored forest bands and distinct exits through final SVG emission [200.52ms]
+(pass) fan-out peer symmetry > peers with differing label widths are equalized to a common width and aligned [445.40ms]
+
+ 5 pass
+ 1 fail
+ 127 expect() calls
+Ran 6 tests across 1 file. [1189.00ms]

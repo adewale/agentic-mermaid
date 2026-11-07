@@ -1,0 +1,156 @@
+{
+  "commit": "fb8258f17fadf2996e15aa4c82a0973b1cefae4f",
+  "parent": "7b77d5368ca6c0ec5febbf8b1f0fc7b031f3e3d9",
+  "ref": "refs/heads/review/pr449-evidence-20261105",
+  "prefix": "rebase-c366-reconsider-20261107/",
+  "source": "93c6d75dc1373d5c238cc764d938ca6af91bebfe",
+  "files": [
+    {
+      "path": "rebase-c366-reconsider-20261107/README.md",
+      "gitBlob": "c3f7c1e0011f2fe2bca90d4e291d2a4a0a49adfe",
+      "sha256": "221f2c1ce6cceef11fa086e4d16544f5bdca77a0e62facc3c724f06bdd9cf091",
+      "bytes": 9996
+    },
+    {
+      "path": "rebase-c366-reconsider-20261107/RECONSIDERED-PROPOSALS.md",
+      "gitBlob": "5f6ce6ef070076fc74a357ead7c3db60f0540bc1",
+      "sha256": "ec42962a486c9936746f1c0c8a926a10e6ec9d5bd311c1337c5ef8f815b11694",
+      "bytes": 4116
+    },
+    {
+      "path": "rebase-c366-reconsider-20261107/VERIFICATION.json",
+      "gitBlob": "e4d670dca07bebc19a1034d44b48af7069efc68d",
+      "sha256": "e185a775d6b0209fd386a68f08745a04e9320b6213b26cb35df8c86fcc4b3220",
+      "bytes": 3308
+    },
+    {
+      "path": "rebase-c366-reconsider-20261107/REBASE.json",
+      "gitBlob": "85e80b4c235c24922dba930204b5c9044d0b3676",
+      "sha256": "2179071300d907d070902cfae3ab59f62f7b9f76e53ac78622fdb356735bf4dc",
+      "bytes": 500
+    },
+    {
+      "path": "rebase-c366-reconsider-20261107/FINAL-REQUALIFICATION.json",
+      "gitBlob": "778f6079f981e677baf51ea4b7c4cdcf0eda26b9",
+      "sha256": "9b92af8fa66fddae4f0c8af51d19060a706301981529b8edac7e4133e5510500",
+      "bytes": 1509
+    },
+    {
+      "path": "rebase-c366-reconsider-20261107/CURRENT-MAIN-PAIR-JOBS.json",
+      "gitBlob": "147f6f9ffc931fad3a15ef68dec34ab75fd8b2f3",
+      "sha256": "04ffab4f4f795adc00086fd597a9e104fc73f9f4487664f9afeb92ff376d5008",
+      "bytes": 389
+    },
+    {
+      "path": "rebase-c366-reconsider-20261107/CURRENT-MAIN-PAIRS.json",
+      "gitBlob": "6e69696db200f90e1b2deb04dbba32873d1e7bf4",
+      "sha256": "f70af79984d80c16feee8ed43e04d0f878378f75bf66376dc8559f133e43ab25",
+      "bytes": 2299
+    },
+    {
+      "path": "rebase-c366-reconsider-20261107/MAIN-REFERENCE.json",
+      "gitBlob": "fdbb61b4447e9a7a2fdaad287cbd35cc161331d1",
+      "sha256": "bd35fdb9204a28f8eda8ed307213bcf2ca4722e79d3172294e2850ad1eea6ab1",
+      "bytes": 611
+    },
+    {
+      "path": "rebase-c366-reconsider-20261107/FINAL-HTML-COST.json",
+      "gitBlob": "a3a34fbc637e4518103837efd5d77f6ef107eac4",
+      "sha256": "360b2740c453a062f87daacfa6382c19f06909ee2f1a8ef1993708109a4a1140",
+      "bytes": 1930
+    },
+    {
+      "path": "rebase-c366-reconsider-20261107/STATE-SEMANTIC-DIFFERENCES.json",
+      "gitBlob": "21ed7d74091b6e00a92889f8dd2b85853590ba29",
+      "sha256": "26faf64179da9af0a9fd1298bdb5dd86104638d4a701c51535dcae9bf2c9b3cb",
+      "bytes": 870
+    },
+    {
+      "path": "rebase-c366-reconsider-20261107/VISUALS.json",
+      "gitBlob": "a3c4e421272d6c54d56cf2ba38300758f05112b7",
+      "sha256": "68af124a7c71e8e4ca2ff343e338c600164b10628aa4f325e2fd054e6618c735",
+      "bytes": 1454
+    },
+    {
+      "path": "rebase-c366-reconsider-20261107/astra-main-review.md",
+      "gitBlob": "f59a86c707b6454b2c90efb740abba4149d3e4af",
+      "sha256": "c2aa3308a1045dbfa3b20e7a92ae229e8db61f725cc5bbc49a54b6b461eb1b3f",
+      "bytes": 9711
+    },
+    {
+      "path": "rebase-c366-reconsider-20261107/astra-integration-review.md",
+      "gitBlob": "4b7c9416088514be0cd14287463d64fca63ae0c0",
+      "sha256": "7f8d18049fab92a76559eb3d4bc6f034a452cb0e712455125cadd4712cc4faae",
+      "bytes": 4522
+    },
+    {
+      "path": "rebase-c366-reconsider-20261107/ARCHIVE.json",
+      "gitBlob": "ca5552ef134746a8bd93863046da06f90552c241",
+      "sha256": "937127e62247efff09e1f6f68a3180e1e1fb5b5d2265f58d2c551c10da756c11",
+      "bytes": 505
+    },
+    {
+      "path": "rebase-c366-reconsider-20261107/CI-OBSERVED.json",
+      "gitBlob": "315566ca0cd96e1455448db01f2b14759193c4f8",
+      "sha256": "ff65c457639f891dd3d27edc15e27e12641b3b01d4f61e0d50836e012658b142",
+      "bytes": 1261
+    },
+    {
+      "path": "rebase-c366-reconsider-20261107/forest-main.png",
+      "gitBlob": "3dc79280c61351eb39be2c11be0ee9fab6a08121",
+      "sha256": "a40767a43206787c453262c298581fe0fd9fd728daa19b443f37b452564d4eb6",
+      "bytes": 34287
+    },
+    {
+      "path": "rebase-c366-reconsider-20261107/forest-pr.png",
+      "gitBlob": "986daf2fa8dc7a3137cf9a314f49b5f998f7d40f",
+      "sha256": "56f9bce331cf1af6650cd5726f13e2b533d043aff5aa559fc50e0824fb60ec75",
+      "bytes": 29716
+    },
+    {
+      "path": "rebase-c366-reconsider-20261107/class2-main.png",
+      "gitBlob": "4b28e9b675e8de7bf6530563e942554e6a910949",
+      "sha256": "b9af53a331763771e55abe8576435294dc9dfea7cc3317c6f23c92f645ad3316",
+      "bytes": 9110
+    },
+    {
+      "path": "rebase-c366-reconsider-20261107/class2-pr.png",
+      "gitBlob": "10ae6f43b7d4c9c31c620c58d897769a723f4137",
+      "sha256": "467731f2934a528d91ec4c85ced915386a0a4ad8df16d85ee2f05e5e9325d59d",
+      "bytes": 8868
+    },
+    {
+      "path": "rebase-c366-reconsider-20261107/forest-main.svg",
+      "gitBlob": "cea653753eb36457814fd36c7c3f5a5a56d0fc67",
+      "sha256": "ff2e442a2e36cea0c3bafca7e991622109820c2aa9817e0159805d10f6c609bc",
+      "bytes": 8094
+    },
+    {
+      "path": "rebase-c366-reconsider-20261107/forest-pr.svg",
+      "gitBlob": "7da60b8634348ad88c3f7de5cbb0d4a35de91091",
+      "sha256": "c64f27ec883ab870d835b6023d8ba1e492c2295de47ad45b56c43b12966229be",
+      "bytes": 8091
+    },
+    {
+      "path": "rebase-c366-reconsider-20261107/class2-main.svg",
+      "gitBlob": "72e97c8ece42a8ab38b9c5176609c1ad14f737e7",
+      "sha256": "f32ffd7bba6744d9b500d31a5f59fed47572c1aee555c6a1afdea70c6d12e588",
+      "bytes": 5139
+    },
+    {
+      "path": "rebase-c366-reconsider-20261107/class2-pr.svg",
+      "gitBlob": "dad5eba32ea7e85dbf664688b9f4b1fd57f90d70",
+      "sha256": "abfe1e32cc8a9e420ea920c891e1093117f98946aab1f733ed12c6ea4216608c",
+      "bytes": 5143
+    },
+    {
+      "path": "rebase-c366-reconsider-20261107/rebase-c366-reconsider-20261107.tar.gz",
+      "gitBlob": "9ff69f06e0d6cf46f2a2ccc6c554749edb8ef7b2",
+      "sha256": "f2f4efa7c92e04caac872caa03ed804b44952c264731e68ef139ea00ec5a989d",
+      "bytes": 33074369
+    }
+  ],
+  "pushed": true,
+  "contentVerified": true,
+  "remoteVerified": true
+}

@@ -1,0 +1,96 @@
+2026-11-07T21:01:54.9527549Z 
+2026-11-07T21:01:54.9527627Z Expected: 143.35
+2026-11-07T21:01:54.9527815Z Received: 202.5
+2026-11-07T21:01:54.9527932Z 
+2026-11-07T21:01:54.9528024Z Expected precision: 8
+2026-11-07T21:01:54.9528238Z Expected difference: < 0.000000005
+2026-11-07T21:01:54.9528488Z Received difference: 59.150000000000006
+2026-11-07T21:01:54.9528657Z 
+2026-11-07T21:01:54.9528974Z       at <anonymous> (/home/runner/work/agentic-mermaid/agentic-mermaid/src/__tests__/fanout-symmetry.test.ts:105:48)
+2026-11-07T21:01:54.9529377Z 
+2026-11-07T21:01:54.9560477Z ##[error]Expected: 143.35
+Received: 202.5
+
+Expected precision: 8
+Expected difference: < 0.000000005
+Received difference: 59.150000000000006
+
+      at <anonymous> (/home/runner/work/agentic-mermaid/agentic-mermaid/src/__tests__/fanout-symmetry.test.ts:105:48)
+2026-11-07T21:01:54.9569431Z (fail) fan-out peer symmetry > retains authored forest bands and distinct exits through final SVG emission [72.71ms]
+2026-11-07T21:01:54.9569823Z 
+2026-11-07T21:01:54.9570086Z ##[endgroup]
+2026-11-07T21:01:54.9570196Z 
+2026-11-07T21:01:54.9570504Z ##[group]src/__tests__/terminal-native-route-regressions.test.ts:
+2026-11-07T21:01:54.9571067Z (pass) different Flowchart marker meanings receive distinct physical ports, including self routes (ASCII=%s) [32.46ms]
+2026-11-07T21:01:55.0434022Z (pass) every native node silhouette retains inward markers on all four faces (ASCII=%s) [96.18ms]
+2026-11-07T21:01:55.1003468Z 
+2026-11-07T21:01:55.1014090Z ##[endgroup]
+2026-11-07T21:01:55.1014234Z 
+2026-11-07T21:01:55.1014481Z ##[group]src/__tests__/fanout-symmetry.test.ts:
+2026-11-07T21:01:55.1015005Z (pass) fan-out peer symmetry > peers with differing label widths are equalized to a common width and aligned [154.78ms]
+2026-11-07T21:01:55.1094203Z 
+2026-11-07T21:01:55.1094964Z ##[endgroup]
+2026-11-07T21:01:55.1306412Z 
+2026-11-07T21:01:55.1307423Z ##[group]src/__tests__/terminal-native-route-regressions.test.ts:
+2026-11-07T21:01:55.1307986Z (pass) every native node silhouette retains inward markers on all four faces (ASCII=%s) [87.81ms]
+2026-11-07T21:01:55.1778528Z 
+2026-11-07T21:01:55.1804342Z ##[endgroup]
+2026-11-07T21:01:55.1804824Z 
+2026-11-07T21:01:55.1805282Z ##[group]src/__tests__/flowchart-edge-ids.test.ts:
+2026-11-07T21:01:55.1806192Z (pass) flowchart edge IDs — parse > the render parser models the authored edge ID [1.19ms]
+2026-11-07T21:01:55.1807032Z (pass) flowchart edge IDs — parse > IDs ride every operator family (thick, dotted, text-label arrows) [1.04ms]
+2026-11-07T21:01:55.2014575Z (pass) flowchart edge IDs — parse > keeps an explicit ID and label between x-- and --x [18.51ms]
+2026-11-07T21:01:55.2039087Z (pass) flowchart edge IDs — parse > keeps an explicit ID and label between x== and ==x [6.52ms]
+2026-11-07T21:01:55.2128811Z (pass) flowchart edge IDs — parse > keeps an explicit ID and label between x-. and .-x [6.18ms]
+2026-11-07T21:01:55.2162131Z (pass) flowchart edge IDs — parse > keeps an explicit ID and label between o-- and --o [5.55ms]
+2026-11-07T21:01:55.2214448Z (pass) flowchart edge IDs — parse > keeps an explicit ID and label between o== and ==o [5.38ms]
+2026-11-07T21:01:55.2274558Z (pass) flowchart edge IDs — parse > keeps an explicit ID and label between o-. and .-o [5.13ms]
+2026-11-07T21:01:55.2314608Z (pass) flowchart edge IDs — parse > keeps an explicit ID and label between <-- and --> [5.05ms]
+2026-11-07T21:02:16.6367472Z (skip) website browser accessibility smoke > examples editor-state links survive editor initialization and load their source
+2026-11-07T21:02:16.6367889Z (skip) website browser accessibility smoke > editor corrupt share hashes fail closed instead of loading plausible content
+2026-11-07T21:02:16.6368287Z (skip) website browser accessibility smoke > editor aborts oversized expanded share links and reports the limit
+2026-11-07T21:02:16.6368673Z (skip) website browser accessibility smoke > editor reports a missing DecompressionStream without legacy fallback
+2026-11-07T21:02:16.6369128Z (skip) website browser accessibility smoke > editor rejects oversized saved drafts before parsing and clears them
+2026-11-07T21:02:16.6369551Z (skip) website browser accessibility smoke > editor autosaves drafts only within the current tab session
+2026-11-07T21:02:16.6369901Z (skip) website browser accessibility smoke > editor share config cannot weaken strict SVG insertion
+2026-11-07T21:02:16.6370252Z (skip) website browser accessibility smoke > editor loads every self-hosted diagram font face it advertises
+2026-11-07T21:02:16.6370624Z (skip) website browser accessibility smoke > SVG export embeds canonical full Inter TTFs and never public subsets
+2026-11-07T21:02:16.6371150Z (skip) website browser accessibility smoke > editor share links cannot inject active SVG through render config
+2026-11-07T21:02:16.6371524Z (skip) website browser accessibility smoke > editor share links restore style state and styled label fonts
+2026-11-07T21:02:16.6371908Z (skip) website browser accessibility smoke > editor share links apply compact schematic label typography in the browser
+2026-11-07T21:02:16.6372289Z (skip) website browser accessibility smoke > editor mobile preview controls stay reachable at phone width
+2026-11-07T21:02:16.6372679Z (skip) website browser accessibility smoke > editor popovers are keyboard-operable, inert when closed, and restore focus
+2026-11-07T21:02:16.6373124Z (skip) website browser accessibility smoke > (unnamed)
+2026-11-07T21:02:16.6373246Z 
+2026-11-07T21:02:16.6373253Z 
+2026-11-07T21:02:16.6373302Z 1 tests failed:
+2026-11-07T21:02:16.6373545Z (fail) fan-out peer symmetry > retains authored forest bands and distinct exits through final SVG emission [72.71ms]
+2026-11-07T21:02:16.6373764Z 
+2026-11-07T21:02:16.6373818Z  4644 pass
+2026-11-07T21:02:16.6373932Z  31 skip
+2026-11-07T21:02:16.6374035Z  1 fail
+2026-11-07T21:02:16.6374145Z  7648939 expect() calls
+2026-11-07T21:02:16.6374291Z Ran 4676 tests across 202 files. [228.19s]
+2026-11-07T21:02:16.6381774Z error: script \"test\" exited with code 1
+2026-11-07T21:02:16.6399569Z ##[error]Process completed with exit code 1.
+2026-11-07T21:02:16.6476403Z Post job cleanup.
+2026-11-07T21:02:16.7014798Z [command]/usr/bin/git version
+2026-11-07T21:02:16.7049593Z git version 2.56.0
+2026-11-07T21:02:16.7070629Z Temporarily overriding HOME='/home/runner/work/_temp/f9d00e08-f0a7-44cd-a109-657075e3f483' before making global git config changes
+2026-11-07T21:02:16.7071535Z Adding repository directory to the temporary git global config as a safe directory
+2026-11-07T21:02:16.7073639Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/agentic-mermaid/agentic-mermaid
+2026-11-07T21:02:16.7103587Z Removing SSH command configuration
+2026-11-07T21:02:16.7107492Z [command]/usr/bin/git config --local --name-only --get-regexp core\\.sshCommand
+2026-11-07T21:02:16.7138272Z [command]/usr/bin/git submodule foreach --recursive sh -c \"git config --local --name-only --get-regexp 'core\\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :\"
+2026-11-07T21:02:16.7388055Z Removing HTTP extra header
+2026-11-07T21:02:16.7388786Z [command]/usr/bin/git config --local --name-only --get-regexp http\\.https\\:\\/\\/github\\.com\\/\\.extraheader
+2026-11-07T21:02:16.7424075Z [command]/usr/bin/git submodule foreach --recursive sh -c \"git config --local --name-only --get-regexp 'http\\.https\\:\\/\\/github\\.com\\/\\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :\"
+2026-11-07T21:02:16.7648406Z Removing includeIf entries pointing to credentials config files
+2026-11-07T21:02:16.7653897Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\\.gitdir:
+2026-11-07T21:02:16.7675635Z includeif.gitdir:/home/runner/work/agentic-mermaid/agentic-mermaid/.git.path
+2026-11-07T21:02:16.7675995Z includeif.gitdir:/home/runner/work/agentic-mermaid/agentic-mermaid/.git/worktrees/*.path
+2026-11-07T21:02:16.7676356Z includeif.gitdir:/github/workspace/.git.path
+2026-11-07T21:02:16.7676672Z includeif.gitdir:/github/workspace/.git/worktrees/*.path
+2026-11-07T21:02:16.7682097Z [command]/usr/bin/git config --local --get-all includeif.gitdir:/home/runner/work/agentic-mermaid/agentic-mermaid/.git.path
+2026-11-07T21:02:16.7701882Z /home/runner/work/_temp/git-credentials-ce6996d0-bdf3-4e50-bac2-53b0b1d704df.config
+2026-11-07T21:02:16.7708933Z [command]/usr/bin/git config --local --unset includeif.gitdir:/home/runner/work/agentic-mermaid/agentic-mermaid/.git.path \\/home\\/runner\\/work\\/_temp\\/git\\-credentials\\-ce6996d0\\-bdf3\\-4e50\\-bac2\\-53b0b1d704df\\.config

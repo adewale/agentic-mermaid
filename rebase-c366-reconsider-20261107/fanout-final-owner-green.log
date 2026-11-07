@@ -1,0 +1,73 @@
+bun test v1.4.4 (38afee6c8)
+
+src/__tests__/indexed-forest.test.ts:
+(pass) certified indexed forest layout > retains measured native leaf boxes beside a multiline sibling in TD [232.16ms]
+(pass) certified indexed forest layout > retains measured native leaf boxes beside a multiline sibling in BT [34.95ms]
+(pass) certified indexed forest layout > retains measured native leaf boxes beside a multiline sibling in LR [74.35ms]
+(pass) certified indexed forest layout > retains measured native leaf boxes beside a multiline sibling in RL [38.80ms]
+(pass) certified indexed forest layout > seats a complete leaf beside its taller sibling without lengthening their routes in TD [0.48ms]
+(pass) certified indexed forest layout > seats a complete leaf beside its taller sibling without lengthening their routes in BT [0.22ms]
+(pass) certified indexed forest layout > seats a complete leaf beside its taller sibling without lengthening their routes in LR [0.12ms]
+(pass) certified indexed forest layout > seats a complete leaf beside its taller sibling without lengthening their routes in RL [0.11ms]
+(pass) certified indexed forest layout > packs disconnected components without changing their internal geometry in TD [0.62ms]
+(pass) certified indexed forest layout > packs disconnected components without changing their internal geometry in BT [0.21ms]
+(pass) certified indexed forest layout > packs disconnected components without changing their internal geometry in LR [0.07ms]
+(pass) certified indexed forest layout > packs disconnected components without changing their internal geometry in RL [0.06ms]
+(pass) certified indexed forest layout > retains ELK for tight spacing without forest route channels: {"nodeSpacing":0,"layerSpacing":0,"padding":0} [549.92ms]
+(pass) certified indexed forest layout > retains ELK for tight spacing without forest route channels: {"nodeSpacing":1,"layerSpacing":0,"padding":0} [183.02ms]
+(pass) certified indexed forest layout > retains ELK for tight spacing without forest route channels: {"nodeSpacing":0,"layerSpacing":1,"padding":0} [128.85ms]
+(pass) certified indexed forest layout > leaves Architecture side-constrained placement on its existing producer [75.41ms]
+(pass) certified indexed forest layout > keeps variable-size nodes and edges connected without overlap in TD [22.03ms]
+(pass) certified indexed forest layout > keeps variable-size nodes and edges connected without overlap in LR [14.46ms]
+(pass) certified indexed forest layout > keeps variable-size nodes and edges connected without overlap in BT [18.36ms]
+(pass) certified indexed forest layout > keeps variable-size nodes and edges connected without overlap in RL [13.27ms]
+(pass) certified indexed forest layout > measured forest band-gap routing > keeps disconnected fan bands local to their own measured roots in TD [0.56ms]
+(pass) certified indexed forest layout > measured forest band-gap routing > keeps unequal sibling bands clear with outward ports in TD [0.20ms]
+(pass) certified indexed forest layout > measured forest band-gap routing > moves an exact sibling border contact into the open band gap in TD [0.10ms]
+(pass) certified indexed forest layout > measured forest band-gap routing > retains the exact uniform forest geometry in TD [0.05ms]
+(pass) certified indexed forest layout > measured forest band-gap routing > keeps disconnected fan bands local to their own measured roots in BT [0.26ms]
+(pass) certified indexed forest layout > measured forest band-gap routing > keeps unequal sibling bands clear with outward ports in BT [0.08ms]
+(pass) certified indexed forest layout > measured forest band-gap routing > moves an exact sibling border contact into the open band gap in BT [0.04ms]
+(pass) certified indexed forest layout > measured forest band-gap routing > retains the exact uniform forest geometry in BT [0.02ms]
+(pass) certified indexed forest layout > measured forest band-gap routing > keeps disconnected fan bands local to their own measured roots in LR [0.14ms]
+(pass) certified indexed forest layout > measured forest band-gap routing > keeps unequal sibling bands clear with outward ports in LR [0.11ms]
+(pass) certified indexed forest layout > measured forest band-gap routing > moves an exact sibling border contact into the open band gap in LR [0.02ms]
+(pass) certified indexed forest layout > measured forest band-gap routing > retains the exact uniform forest geometry in LR [0.01ms]
+(pass) certified indexed forest layout > measured forest band-gap routing > keeps disconnected fan bands local to their own measured roots in RL [0.13ms]
+(pass) certified indexed forest layout > measured forest band-gap routing > keeps unequal sibling bands clear with outward ports in RL [0.07ms]
+(pass) certified indexed forest layout > measured forest band-gap routing > moves an exact sibling border contact into the open band gap in RL [0.02ms]
+(pass) certified indexed forest layout > measured forest band-gap routing > retains the exact uniform forest geometry in RL [0.02ms]
+(pass) certified indexed forest layout > keeps the original certified ELK strategies for an ineligible graph: flowchart LR
+A --> B
+B --> A [15.82ms]
+(pass) certified indexed forest layout > keeps the original certified ELK strategies for an ineligible graph: flowchart TD
+A --> B
+A --> C
+B --> D
+C --> D [37.08ms]
+(pass) certified indexed forest layout > keeps the original certified ELK strategies for an ineligible graph: flowchart TD
+A --> B
+A --> B [34.15ms]
+(pass) certified indexed forest layout > keeps the original certified ELK strategies for an ineligible graph: flowchart TD
+A -- label --> B [29.29ms]
+(pass) certified indexed forest layout > keeps the original certified ELK strategies for an ineligible graph: flowchart TD
+A ---> B [13.62ms]
+(pass) certified indexed forest layout > keeps the original certified ELK strategies for an ineligible graph: flowchart TD
+A{Decision} --> B [21.81ms]
+(pass) certified indexed forest layout > keeps the original certified ELK strategies for an ineligible graph: flowchart TD
+subgraph S[Group]
+A --> B
+end [36.62ms]
+
+src/__tests__/fanout-symmetry.test.ts:
+(pass) fan-out peer symmetry > spreads center-aligned unequal terminal peers without moving their bodies in TB [5.02ms]
+(pass) fan-out peer symmetry > spreads center-aligned unequal terminal peers without moving their bodies in BT [1.62ms]
+(pass) fan-out peer symmetry > spreads center-aligned unequal terminal peers without moving their bodies in LR [4.37ms]
+(pass) fan-out peer symmetry > spreads center-aligned unequal terminal peers without moving their bodies in RL [1.67ms]
+(pass) fan-out peer symmetry > retains measured forest leaf seating and distinct exits through final SVG emission [59.84ms]
+(pass) fan-out peer symmetry > peers with differing label widths are equalized to a common width and aligned [124.46ms]
+
+ 49 pass
+ 0 fail
+ 867 expect() calls
+Ran 49 tests across 2 files. [2.92s]

@@ -1,0 +1,236 @@
+{
+  "source": "93c6d75dc1373d5c238cc764d938ca6af91bebfe",
+  "run": 42413401665,
+  "ready": false,
+  "jobs": [
+    {
+      "id": 128526151472,
+      "name": "Select required checks",
+      "status": "completed",
+      "conclusion": "success",
+      "failedSteps": []
+    },
+    {
+      "id": 128526151533,
+      "name": "Expire label approvals of earlier heads",
+      "status": "completed",
+      "conclusion": "success",
+      "failedSteps": []
+    },
+    {
+      "id": 128526241828,
+      "name": "Quality gates",
+      "status": "completed",
+      "conclusion": "failure",
+      "failedSteps": [
+        {
+          "name": "Run the complete local and CI quality suite",
+          "status": "completed",
+          "conclusion": "failure",
+          "number": 4
+        }
+      ]
+    },
+    {
+      "id": 128526241872,
+      "name": "Build portable test artifacts",
+      "status": "completed",
+      "conclusion": "success",
+      "failedSteps": []
+    },
+    {
+      "id": 128526241895,
+      "name": "Renderer isolation (macos-15-intel)",
+      "status": "completed",
+      "conclusion": "success",
+      "failedSteps": []
+    },
+    {
+      "id": 128526241905,
+      "name": "MCP conformance",
+      "status": "completed",
+      "conclusion": "success",
+      "failedSteps": []
+    },
+    {
+      "id": 128526241914,
+      "name": "Independent semantic conformance / semantic",
+      "status": "completed",
+      "conclusion": "success",
+      "failedSteps": []
+    },
+    {
+      "id": 128526241915,
+      "name": "Renderer isolation (windows-latest)",
+      "status": "completed",
+      "conclusion": "success",
+      "failedSteps": []
+    },
+    {
+      "id": 128526241921,
+      "name": "Generated layout diagnostic (advisory)",
+      "status": "completed",
+      "conclusion": "failure",
+      "failedSteps": [
+        {
+          "name": "Compare backend readability and retain geometric tradeoffs",
+          "status": "completed",
+          "conclusion": "failure",
+          "number": 6
+        }
+      ]
+    },
+    {
+      "id": 128526241932,
+      "name": "Layout backend review evidence",
+      "status": "completed",
+      "conclusion": "success",
+      "failedSteps": []
+    },
+    {
+      "id": 128526241943,
+      "name": "CLI and single-binary tests",
+      "status": "completed",
+      "conclusion": "success",
+      "failedSteps": []
+    },
+    {
+      "id": 128526243321,
+      "name": "Documentation checks",
+      "status": "completed",
+      "conclusion": "skipped"
+    },
+    {
+      "id": 128526679421,
+      "name": "Unit tests (2/3)",
+      "status": "completed",
+      "conclusion": "failure",
+      "failedSteps": [
+        {
+          "name": "Run test shard",
+          "status": "completed",
+          "conclusion": "failure",
+          "number": 8
+        }
+      ]
+    },
+    {
+      "id": 128526679426,
+      "name": "Installed-package quickstarts",
+      "status": "completed",
+      "conclusion": "success",
+      "failedSteps": []
+    },
+    {
+      "id": 128526679454,
+      "name": "Unit tests (3/3)",
+      "status": "completed",
+      "conclusion": "cancelled",
+      "failedSteps": []
+    },
+    {
+      "id": 128526679462,
+      "name": "E2E (browser)",
+      "status": "completed",
+      "conclusion": "success",
+      "failedSteps": []
+    },
+    {
+      "id": 128526679512,
+      "name": "Unit tests (1/3)",
+      "status": "completed",
+      "conclusion": "failure",
+      "failedSteps": [
+        {
+          "name": "Run test shard",
+          "status": "completed",
+          "conclusion": "failure",
+          "number": 8
+        }
+      ]
+    },
+    {
+      "id": 128526679534,
+      "name": "E2E (tarball-consumer-node22)",
+      "status": "completed",
+      "conclusion": "success",
+      "failedSteps": []
+    },
+    {
+      "id": 128526679553,
+      "name": "E2E (payload)",
+      "status": "completed",
+      "conclusion": "failure",
+      "failedSteps": [
+        {
+          "name": "Verify website payload request graphs and budgets",
+          "status": "completed",
+          "conclusion": "failure",
+          "number": 32
+        },
+        {
+          "name": "Compare payload with the base branch",
+          "status": "completed",
+          "conclusion": "failure",
+          "number": 33
+        }
+      ]
+    },
+    {
+      "id": 128526679554,
+      "name": "E2E (browser-site)",
+      "status": "completed",
+      "conclusion": "failure",
+      "failedSteps": [
+        {
+          "name": "Run canonical browser contracts",
+          "status": "completed",
+          "conclusion": "failure",
+          "number": 27
+        }
+      ]
+    },
+    {
+      "id": 128526679558,
+      "name": "E2E (tarball-consumer)",
+      "status": "completed",
+      "conclusion": "success",
+      "failedSteps": []
+    },
+    {
+      "id": 128526679616,
+      "name": "E2E (dist-artifact)",
+      "status": "completed",
+      "conclusion": "success",
+      "failedSteps": []
+    },
+    {
+      "id": 128531755541,
+      "name": "test",
+      "status": "completed",
+      "conclusion": "failure",
+      "failedSteps": [
+        {
+          "name": "Require every runtime lane to pass",
+          "status": "completed",
+          "conclusion": "failure",
+          "number": 2
+        }
+      ]
+    },
+    {
+      "id": 128531781078,
+      "name": "CI complete",
+      "status": "completed",
+      "conclusion": "failure",
+      "failedSteps": [
+        {
+          "name": "Require every selected CI lane to pass",
+          "status": "completed",
+          "conclusion": "failure",
+          "number": 2
+        }
+      ]
+    }
+  ]
+}

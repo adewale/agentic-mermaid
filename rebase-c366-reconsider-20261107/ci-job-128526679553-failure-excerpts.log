@@ -1,0 +1,96 @@
+2026-11-07T21:00:03.0199646Z Artifact meaning-preservation-93c6d75dc1373d5c238cc764d938ca6af91bebfe has been successfully uploaded! Final size is 11426171 bytes. Artifact ID is 13590012950
+2026-11-07T21:00:03.0203151Z Artifact download URL: https://github.com/adewale/agentic-mermaid/actions/runs/42413401665/artifacts/13590012950
+2026-11-07T21:00:03.0541492Z ##[group]Run bun run website:payload:check --report head-site.json --public-root website/public
+2026-11-07T21:00:03.0542203Z \u001b[36;1mbun run website:payload:check --report head-site.json --public-root website/public\u001b[0m
+2026-11-07T21:00:03.0543043Z shell: bash --noprofile --norc -e -o pipefail {0}
+2026-11-07T21:00:03.0543361Z env:
+2026-11-07T21:00:03.0543553Z   AM_CI_ARTIFACTS: 1
+2026-11-07T21:00:03.0543778Z ##[endgroup]
+2026-11-07T21:00:03.1145108Z $ bun run scripts/site/website-payload-report.ts --check --report head-site.json --public-root website/public
+2026-11-07T21:00:15.4258226Z 130 | })
+2026-11-07T21:00:15.4258633Z 131 | cleanup()
+2026-11-07T21:00:15.4259064Z 132 | if (REPORT_OUT) writeFileSync(resolve(REPORT_OUT), stablePayloadJson(report))
+2026-11-07T21:00:15.4259551Z 133 | if (process.argv.includes('--check')) {
+2026-11-07T21:00:15.4260019Z 134 |   const problems = verifyWebsitePayloadBudgets(report, WEBSITE_PAYLOAD_BUDGETS)
+2026-11-07T21:00:15.4260871Z 135 |   if (problems.length) throw new Error(`Website payload budget failures:\
+${problems.map(problem => `- ${problem}`).join('\
+')}`)
+2026-11-07T21:00:15.4261462Z                                        ^
+2026-11-07T21:00:15.4261754Z error: Website payload budget failures:
+2026-11-07T21:00:15.4262044Z - demo: rawBytes 826942 exceeds 788000
+2026-11-07T21:00:15.4262325Z - demo: gzipBytes 312656 exceeds 302500
+2026-11-07T21:00:15.4263037Z       at /__w/agentic-mermaid/agentic-mermaid/scripts/site/website-payload-report.ts:135:34
+2026-11-07T21:00:15.4263476Z 
+2026-11-07T21:00:15.4286613Z ##[error]- demo: gzipBytes 312656 exceeds 302500
+      at /__w/agentic-mermaid/agentic-mermaid/scripts/site/website-payload-report.ts:135:34
+2026-11-07T21:00:15.4294993Z 
+2026-11-07T21:00:15.4295165Z Bun v1.4.4 (Linux x64)
+2026-11-07T21:00:15.4359610Z error: script \"website:payload:check\" exited with code 1
+2026-11-07T21:00:15.4411863Z ##[error]Process completed with exit code 1.
+2026-11-07T21:00:15.4484676Z ##[group]Run # The absolute check writes this report before checking its ceilings.
+2026-11-07T21:00:15.4485388Z \u001b[36;1m# The absolute check writes this report before checking its ceilings.\u001b[0m
+2026-11-07T21:00:15.4485914Z \u001b[36;1m# Keep the relative diagnosis when those ceilings are already failing.\u001b[0m
+2026-11-07T21:00:15.4486328Z \u001b[36;1mtest -s head-site.json\u001b[0m
+2026-11-07T21:00:15.4486651Z \u001b[36;1mgit fetch --no-tags --depth=1 origin \"$BASE_SHA\"\u001b[0m
+2026-11-07T21:00:15.4487062Z \u001b[36;1mgit worktree add --detach ../payload-base \"$BASE_SHA\"\u001b[0m
+2026-11-07T21:00:15.4487727Z \u001b[36;1m# Build the base with the Bun the base pins, so a PR that upgrades Bun\u001b[0m
+2026-11-07T21:00:15.4488243Z \u001b[36;1m# shows the upgrade's effect instead of building both sides with it.\u001b[0m
+2026-11-07T21:00:15.4488743Z \u001b[36;1mbase_bun_bin=$(bun run scripts/ci/base-bun.ts --base ../payload-base)\u001b[0m
+2026-11-07T21:00:15.4489244Z \u001b[36;1mbase_path=\"${base_bun_bin:+$base_bun_bin:}$PATH\"\u001b[0m
+2026-11-07T21:00:15.4489627Z \u001b[36;1mhead_bun=$(command -v bun)\u001b[0m
+2026-11-07T21:00:15.4490018Z \u001b[36;1m(cd ../payload-base && PATH=\"$base_path\" bun install --frozen-lockfile)\u001b[0m
+2026-11-07T21:00:15.4490596Z \u001b[36;1mbun run scripts/build/browser-lazy-report.ts --measure-only --json > head-lazy.json\u001b[0m
+2026-11-07T21:00:15.4491125Z \u001b[36;1mcp dist/metafile-esm.json head-lazy-metafile.json\u001b[0m
+2026-11-07T21:00:15.4491808Z \u001b[36;1mAM_CI_ARTIFACTS=0 PATH=\"$base_path\" \"$head_bun\" run scripts/site/website-payload-report.ts --root ../payload-base --report base-site.json\u001b[0m
+2026-11-07T21:00:15.4492685Z \u001b[36;1mbun run scripts/build/browser-lazy-report.ts --root ../payload-base --measure-only --json > base-lazy.json\u001b[0m
+2026-11-07T21:00:15.4493634Z \u001b[36;1mcp ../payload-base/dist/metafile-esm.json base-lazy-metafile.json\u001b[0m
+2026-11-07T21:00:15.4494030Z \u001b[36;1mallow=()\u001b[0m
+2026-11-07T21:00:15.4494523Z \u001b[36;1mif bun run scripts/ci/label-approval.ts check --label payload-growth-approved; then allow=(--allow-growth); fi\u001b[0m
+2026-11-07T21:00:18.1962122Z + tsup@8.5.1
+2026-11-07T21:00:18.1962311Z + typescript@5.9.3
+2026-11-07T21:00:18.1962519Z + upng-js@2.1.0
+2026-11-07T21:00:18.1962712Z + vitest@4.1.11
+2026-11-07T21:00:18.1963243Z + wrangler@4.149.0
+2026-11-07T21:00:18.1963579Z + @resvg/resvg-js@2.6.2
+2026-11-07T21:00:18.1963920Z + acorn@8.16.0
+2026-11-07T21:00:18.1964470Z + d3-format@3.1.0
+2026-11-07T21:00:18.1964793Z + d3-sankey@0.12.3
+2026-11-07T21:00:18.1965113Z + elkjs@0.11.1
+2026-11-07T21:00:18.1965434Z + entities@7.0.1
+2026-11-07T21:00:18.1965757Z + yaml@2.9.0
+2026-11-07T21:00:18.1965944Z 
+2026-11-07T21:00:18.1966108Z 614 packages installed [1435.00ms]
+2026-11-07T21:00:53.3391566Z website/build: 17/37 warning pages carry a build-time-verified firing demo
+2026-11-07T21:00:53.3849981Z website/build: wrote 465 files to /tmp/agentic-mermaid-website-payload-M7g39Y (public only)
+2026-11-07T21:01:12.2744214Z The PR does not carry the payload-growth-approved label.
+2026-11-07T21:01:12.2997295Z Payload grew beyond the per-PR limit: lazy:agentflow +46060 gzip bytes, lazy:architecture +46041 gzip bytes, lazy:block +46660 gzip bytes, lazy:c4 +46663 gzip bytes, lazy:class +40970 gzip bytes, lazy:cynefin +40797 gzip bytes, lazy:er +48037 gzip bytes, lazy:eventmodeling +40770 gzip bytes, lazy:flowchart +46056 gzip bytes, lazy:gantt +40792 gzip bytes, lazy:gitgraph +40759 gzip bytes, lazy:ishikawa +40770 gzip bytes, lazy:journey +40778 gzip bytes, lazy:kanban +40786 gzip bytes, lazy:mindmap +40769 gzip bytes, lazy:packet +40779 gzip bytes, lazy:pie +40780 gzip bytes, lazy:quadrant +40771 gzip bytes, lazy:radar +40775 gzip bytes, lazy:railroad +40776 gzip bytes, lazy:requirement +41014 gzip bytes, lazy:sankey +42504 gzip bytes, lazy:sequence +40772 gzip bytes, lazy:state +46063 gzip bytes, lazy:swimlane +46065 gzip bytes, lazy:timeline +40773 gzip bytes, lazy:treemap +40786 gzip bytes, lazy:treeview +40793 gzip bytes, lazy:usecase +46070 gzip bytes, lazy:venn +40835 gzip bytes, lazy:wardley +40801 gzip bytes, lazy:xychart +40789 gzip bytes, lazy:zenuml +40773 gzip bytes, route:demo +40774 gzip bytes, route:editor-empty +8096 gzip bytes
+2026-11-07T21:01:12.3001394Z ### Payload delta vs base (fails above +2% and +1,024 gzip bytes)
+2026-11-07T21:01:12.3013432Z 
+2026-11-07T21:01:12.3014568Z | Payload | Requests | Gzip base | Gzip head | Δ gzip | Δ % | |
+2026-11-07T21:01:12.3015730Z |---|---:|---:|---:|---:|---:|---|
+2026-11-07T21:01:12.3016712Z | lazy:agentflow | 25 → 24 | 735,413 | 781,473 | +46,060 | +6.26% | ❌ |
+2026-11-07T21:01:12.3017774Z | lazy:architecture | 24 → 23 | 722,257 | 768,298 | +46,041 | +6.37% | ❌ |
+2026-11-07T21:01:12.3018799Z | lazy:block | 16 → 15 | 243,394 | 290,054 | +46,660 | +19.17% | ❌ |
+2026-11-07T21:01:12.3019705Z | lazy:c4 | 19 → 18 | 261,533 | 308,196 | +46,663 | +17.84% | ❌ |
+2026-11-07T21:01:12.3020759Z | lazy:class | 21 → 19 | 666,027 | 706,997 | +40,970 | +6.15% | ❌ |
+2026-11-07T21:01:12.3022112Z | lazy:cynefin | 13 → 11 | 194,170 | 234,967 | +40,797 | +21.01% | ❌ |
+2026-11-07T21:01:12.3023217Z | lazy:er | 21 → 20 | 688,207 | 736,244 | +48,037 | +6.98% | ❌ |
+2026-11-07T21:01:12.3024214Z | lazy:eventmodeling | 11 → 9 | 194,902 | 235,672 | +40,770 | +20.92% | ❌ |
+2026-11-07T21:01:12.3025283Z | lazy:flowchart | 27 → 26 | 731,398 | 777,454 | +46,056 | +6.30% | ❌ |
+2026-11-07T21:01:12.3026374Z | lazy:gantt | 11 → 9 | 204,744 | 245,536 | +40,792 | +19.92% | ❌ |
+2026-11-07T21:01:12.3027207Z | lazy:gitgraph | 14 → 12 | 202,356 | 243,115 | +40,759 | +20.14% | ❌ |
+2026-11-07T21:01:12.3027972Z | lazy:initial | 5 → 3 | 6,364 | 6,187 | -177 | -2.78% |  |
+2026-11-07T21:01:12.3028794Z | lazy:ishikawa | 13 → 11 | 192,873 | 233,643 | +40,770 | +21.14% | ❌ |
+2026-11-07T21:01:12.3029646Z | lazy:journey | 12 → 10 | 202,822 | 243,600 | +40,778 | +20.11% | ❌ |
+2026-11-07T21:01:12.3031146Z | lazy:kanban | 13 → 11 | 195,850 | 236,636 | +40,786 | +20.83% | ❌ |
+2026-11-07T21:01:12.3032368Z | lazy:mindmap | 16 → 14 | 204,403 | 245,172 | +40,769 | +19.95% | ❌ |
+2026-11-07T21:01:12.3033399Z | lazy:packet | 12 → 10 | 192,376 | 233,155 | +40,779 | +21.20% | ❌ |
+2026-11-07T21:01:12.3034187Z | lazy:pie | 17 → 15 | 202,316 | 243,096 | +40,780 | +20.16% | ❌ |
+2026-11-07T21:01:12.3034972Z | lazy:quadrant | 14 → 12 | 199,760 | 240,531 | +40,771 | +20.41% | ❌ |
+2026-11-07T21:01:12.3035784Z | lazy:radar | 16 → 14 | 204,143 | 244,918 | +40,775 | +19.97% | ❌ |
+2026-11-07T21:01:12.3036738Z | lazy:railroad | 13 → 11 | 197,957 | 238,733 | +40,776 | +20.60% | ❌ |
+2026-11-07T21:01:12.3038145Z | lazy:requirement | 13 → 11 | 627,962 | 668,976 | +41,014 | +6.53% | ❌ |
+2026-11-07T21:01:12.3039130Z | lazy:sankey | 13 → 12 | 201,576 | 244,080 | +42,504 | +21.09% | ❌ |
+2026-11-07T21:01:12.3040007Z | lazy:sequence | 15 → 13 | 214,374 | 255,146 | +40,772 | +19.02% | ❌ |
+2026-11-07T21:01:12.3040695Z | lazy:state | 23 → 22 | 730,500 | 776,563 | +46,063 | +6.31% | ❌ |
+2026-11-07T21:01:12.3041492Z | lazy:swimlane | 27 → 26 | 746,077 | 792,142 | +46,065 | +6.17% | ❌ |
