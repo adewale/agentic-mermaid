@@ -756,3 +756,30 @@ Class area losses versusELK13→11; wins8→10. Actual text/identities preserved
 scoped forest/layered owners206P; core types/lintP. Route owners retain18 missing
 jsdom checks. Added code/payload cost is retained in evidence; no CPU speedup or
 bundle-reduction claim. Evidence: `ranked-losses-ce15`; automations stay disabled.
+
+Forest follow-up from `aa61c7c736750b85bac8ac813b902707b66a8363`: centre placement
+inside a taller sibling's band lengthens a complete leaf's incoming route. Seat
+that leaf toward its parent; preserve scope projections and the legacy ELK-shaped
+adapter. Leaf-only trial introduced blank-card growth in two downstream symmetry
+paths. Reuse Native's measured boxes: skip ELK size preparation and use the fan
+emitter's route-only path. Producer owners4RED→GREEN; introduced consumer growth
+3RED→GREEN. Explicit complete/scope/ELK-projection contexts keep those contracts
+separate. Named forest wire436.8572→404.2875,8bends unchanged; area165,355.6575
+unchanged. ELK wire396.4697: remaining gap+1.97%, down from+10.19%.
+
+Fresh234corpus calls preserve delivery/proof, crossings, bends, label conflicts
+and overlaps; Class0 wire502→482 and tree300 wire93,477.0672→93,426.5548,
+area13,285,417.8484→13,283,010.7840. Reuse640labelled generated inputs excluded
+by the existing forest guard; no new generated calls claimed. Final forest,
+layered, symmetry and graph-selection owners442P/1missing-jsdom; Class owners
+remain passing after producer change; core types/lintP. No CPU/RSS gain claimed.
+
+Stop ER256 pair-scan proposal: even a diagnostic removing both scans entirely
+still refuses at400k later. Requalified distinct-cut trial fixes276(6→3crossings,
+63→52bends), but causes39new attenuated shaft pixels on42; withdraw it. Across874
+trial outputs123crossing improvements/14adverse,105area grows/100shrinks,
+99wire grows/109shrinks,91bend grows/101shrinks,15P→U/9U→P remain evidence.
+Two inspected33 marker warnings have zero lost ink, kept separate from42's real
+contact. Sparse256 row-major8-column diagnostic reaches+1.34% area versusELK,
+but height+31.04% and gzip SVG grows; it stays unshipped. Preserve the shipped
+Sparse+5.04%, existing unverified cases, ER256 refusal and original caps.

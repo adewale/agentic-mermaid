@@ -7,8 +7,35 @@ import type { Direction } from '../types.ts'
 import { renderMermaidSVG } from '../index.ts'
 import { layoutMeasuredForest } from '../layout/measured-forest.ts'
 import type { MeasuredGraph } from '../layout/agentic-layered-core.ts'
+import { scanSvgStartTags, decodedSvgAttributeValue } from '../svg-structure.ts'
 
 describe('certified indexed forest layout', () => {
+  test.each(['TD', 'BT', 'LR', 'RL'] as const)('retains measured native leaf boxes beside a multiline sibling in %s', direction => {
+    const source = `flowchart ${direction}\nA[a<br/>b<br/>c<br/>d<br/>e<br/>f<br/>g<br/>h] --> B[Short]\nA --> C[Short]\nD[Root] --> E[a<br/>b<br/>c<br/>d<br/>e<br/>f<br/>g<br/>h]\nD --> F[Short]`
+    const tags = scanSvgStartTags(renderMermaidSVG(source, { graphLayout: { backend: 'agentic', fallback: 'none' } }))
+    const height = (id: string) => Number(decodedSvgAttributeValue(tags.find(tag => decodedSvgAttributeValue(tag, 'data-id') === `node-shape:${id}`)!, 'height'))
+    expect(height('F')).toBe(height('D'))
+    expect(height('E')).toBeGreaterThan(height('F'))
+  })
+
+  test.each(['TD', 'BT', 'LR', 'RL'] as const)('seats a complete leaf beside its taller sibling without lengthening their routes in %s', direction => {
+    const horizontal = direction === 'LR' || direction === 'RL', reverse = direction === 'BT' || direction === 'RL'
+    const input: MeasuredGraph = {
+      direction, padding: 20, nodeSpacing: 20, layerSpacing: 60,
+      nodes: [40, 100, 40].map((main, index) => ({ id: String(index), width: horizontal ? main : 100, height: horizontal ? 100 : main })),
+      edges: [{ source: 0, target: 1, minSpan: 1 }, { source: 0, target: 2, minSpan: 1 }],
+    }
+    const output = layoutMeasuredForest(input)!, local = layoutMeasuredForest(input, 'scope')!, legacy = layoutMeasuredForest(input, 'elk-projection')!
+    const nearFace = (placed: typeof output, index: number) => horizontal
+      ? placed.nodes[index]!.x + (reverse ? input.nodes[index]!.width : 0)
+      : placed.nodes[index]!.y + (reverse ? input.nodes[index]!.height : 0)
+    expect(nearFace(output, 1)).toBe(nearFace(output, 2))
+    // Local siblings may have external contacts omitted from this projection.
+    expect(Math.abs(nearFace(local, 1) - nearFace(local, 2))).toBe(30)
+    expect(Math.abs(nearFace(legacy, 1) - nearFace(legacy, 2))).toBe(30)
+    expect(output.edges.reduce((length, edge) => length + edge.points.slice(1).reduce((sum, point, index) => sum + Math.abs(point.x - edge.points[index]!.x) + Math.abs(point.y - edge.points[index]!.y), 0), 0)).toBe(240)
+  })
+
   test.each(['TD', 'BT', 'LR', 'RL'] as const)('packs disconnected components without changing their internal geometry in %s', direction => {
     const horizontal = direction === 'LR' || direction === 'RL'
     const input: MeasuredGraph = {
