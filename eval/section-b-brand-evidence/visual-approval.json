@@ -2,9 +2,9 @@
   "schemaVersion": 1,
   "status": "approved",
   "artifact": "src/__tests__/testdata/section-b-brand-evidence.png",
-  "artifactSha256": "0654d4258acf60959bcd6064c43ec9a510b3e9f4fe932208a4210a5e9715d6da",
-  "reviewedAt": "2026-11-05",
-  "reviewer": "Codex agent, PR #601 native-family readability and Wardley contact review",
-  "scope": "Agent review at renderer revision b3015e10b0a1a682a2c282019051cec5f7a23432: inspected all 32 new-family cells across four variants at native 520\u00d7380 size, dense before/after captures, and original-family controls. Six original-family dark-operations cells change due to the shared mono metric correction (Packet, Kanban, Requirement, Treemap, Block, Event Modeling); the other 94 original-family cells remain pixel-identical. Dense routing and caption repairs have separate full-size witnesses. This finite review is not human approval, deployed-site parity, complete style-channel equivalence or arbitrary-density proof. Follow-up at renderer 0a5acb11: inspected four changed Wardley cells before/after at native size. Visible carriers now contact node outlines; positions, labels and palette treatments remain fixed. The other 128 cells are pixel-identical to the previous approved sheet.",
+  "artifactSha256": "51ef16ebc622d8ba49529b9c74c06c76d51f4cb09b02b8f38b102c95aa52dc38",
+  "reviewedAt": "2026-11-07",
+  "reviewer": "Codex agent, PR #601 actor contact and integration review",
+  "scope": "Retains the prior finite palette reviews. At renderer 6b9726dec35eb65f69fdf1aed19baf7e6d31443b, inspected all four changed UseCase cells at native 520\u00d7380: the Customer connector reaches the painted person in sentinel, editorial, technical and dark-operations variants, with captions and ellipse contacts retained. The other 128 cells are pixel-identical to the preceding approved sheet. The Venn role declaration cleanup does not change paint. Separate owned-ink regressions cover parallel, reciprocal and self links in four directions with six-pixel strokes. This is agent review, not human approval, deployed-site parity or an arbitrary-density guarantee.",
   "audit": "eval/section-b-brand-evidence/arrowhead-clearance-review.md"
 }

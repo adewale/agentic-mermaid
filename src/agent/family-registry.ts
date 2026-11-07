@@ -1431,7 +1431,7 @@ gitGraph LR:
     editorDescription: 'Sets, intersections, exact values and region-owned text.', editorExampleId: 'venn-basic', editorGlyph: 'VN',
     config: { section: 'venn', keys: ['height', 'look', 'padding', 'theme', 'useDebugLayout', 'width'], noopKeys: ['height', 'look', 'padding', 'theme', 'useDebugLayout', 'width'] },
     semanticChannels: ['category'], detect: familyDetection.detectsVennFamily,
-    sceneRoles: [nativeSceneRole('prelude', 'document'), nativeSceneRole('chrome', 'document'), nativeSceneRole('title', 'text'), nativeSceneRole('node', 'container', 'shape'), nativeSceneRole('label', 'text'), nativeSceneRole('bar', 'shape')],
+    sceneRoles: [nativeSceneRole('prelude', 'document'), nativeSceneRole('chrome', 'document'), nativeSceneRole('title', 'text'), nativeSceneRole('node', 'container', 'shape'), nativeSceneRole('label', 'text')],
     example: 'venn-beta\nset A["Frontend"]:20\nset B["Backend"]:12\nunion A,B["Shared"]:3', editorExample: 'venn-beta\nset A["Frontend"]:20\nset B["Backend"]:12\nunion A,B["Shared"]:3',
   },
   {

@@ -52,8 +52,7 @@ const descriptorData = Object.freeze({
     "chrome",
     "title",
     "node",
-    "label",
-    "bar"
+    "label"
   ],
   "scenePrimitiveEvidence": [
     {
@@ -104,15 +103,6 @@ const descriptorData = Object.freeze({
     {
       "role": "label",
       "primitive": "text",
-      "applicability": "applicable",
-      "realization": "native",
-      "evidence": [
-        "src/__tests__/section-a-family-descriptor-conformance.test.ts"
-      ]
-    },
-    {
-      "role": "bar",
-      "primitive": "shape",
       "applicability": "applicable",
       "realization": "native",
       "evidence": [
