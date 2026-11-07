@@ -179,6 +179,13 @@ Chromium/server hooks cannot overlap and exhaust a constrained hosted runner. Th
 package and CI both invoke `e2e/run-browser-contracts.ts`, whose canonical file
 list also fails if any contract executes zero positive tests, while independent
 lanes run the CLI/single-binary, dist-artifact, and tarball-consumer suites.
+Bundle receipt comparisons run their source reference in a fresh production
+process. Launching a browser test from the repository root loads the unit-test
+preload, which forces Scene assertions before source imports; the browser uses
+the production native path. Comparing those different evidence paths produces
+false receipt mismatches in work counts and viewport precision. Keep full receipt
+equality, diagnostics and parser locations, and compare explicit strict layout
+safety separately, including its refusal of conditional paint.
 Broad contact-sheet rendering is periodic/triggered rather than a per-PR sweep.
 Human review is recommended for visual releases, but it is advisory rather than
 a package-publication gate.
