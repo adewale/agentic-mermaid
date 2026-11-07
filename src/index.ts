@@ -32,6 +32,7 @@ export type { DiagramColors, ResolvedColors } from './theme.ts'
 export { fromShikiTheme, DEFAULTS, resolveColors, inlineResolvedColors } from './theme.ts'
 export { resolveDiagramColors } from './color-resolver.ts'
 export { parseRegisteredMermaid } from './agent/parse.ts'
+export * from './diagram-parsers.ts'
 export type {
   ParsedDiagram,
   ExtensionValidDiagram,

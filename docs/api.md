@@ -24,6 +24,40 @@ discover installed support. In MCP, use `describe_sdk` for mutation fields and
 from the library and Code Mode; use `describe_sdk` with
 `{ "capability": "resolved-scene" }` for their types and runtime limits.
 
+## Typed parsers
+
+`parseClassDiagram(source)`, `parseErDiagram(source)` and
+`parseSequenceDiagram(source)` are exported from `agentic-mermaid`,
+`agentic-mermaid/agent` and `agentic-mermaid/agent/core`. They accept complete
+Mermaid source, including YAML front matter, init directives and accessibility
+metadata, and return the renderer's typed model without running layout.
+
+```ts
+import { parseClassDiagram, parseErDiagram, parseSequenceDiagram } from 'agentic-mermaid'
+
+const classes = parseClassDiagram('classDiagram\nclass Reader {\n<<interface>>\n+read(id: int) String\n}')
+console.log(classes.classes[0].annotation, classes.classes[0].methods[0].params)
+
+const er = parseErDiagram('erDiagram\nUSER {\nint id PK "primary key"\n}')
+console.log(er.entities[0].attributes[0]) // { type, name, keys, comment, ... }
+
+const sequence = parseSequenceDiagram('sequenceDiagram\nNote over A: Ready\nA->>B: Hello')
+console.log(sequence.notes, sequence.activationEvents, sequence.boxes)
+```
+
+Class attributes and methods have visibility, type, static/abstract flags and
+method parameters; annotations are separate. Relationships preserve marker and
+line distinctions, including `--` versus `-->`. Sequence actors carry
+`createMessageIndex` and `destroyMessageIndex` lifecycle bindings; notes and
+standalone activations carry message-boundary indices. Titles are available on
+each model. Class and ER style definitions are `Map` values.
+
+These models are inspection data. Continue using `parseRegisteredMermaid` and
+`as*` helpers for mutation and serialization. Syntax failures use
+`MermaidSyntaxError`; statement failures expose `diagramType`, `line` and
+`column` when known. Public source parsers map known positions back to the input;
+positions that cannot be mapped are omitted.
+
 ## Vocabulary
 
 <!-- BEGIN GENERATED: diagram-terminology -->

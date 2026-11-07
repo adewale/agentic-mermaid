@@ -1,8 +1,9 @@
+import { withParserSource } from '../shared/parser-source.ts'
 import { diagnoseClassConfig } from '../class/config-diagnostics.ts'
 import { projectClassPositioned } from '../positioned-views/class.ts'
 import { layoutResult, positionedView, scene, type BrowserSvgFamilyHooks } from '../browser-lazy/family.ts'
 import { layoutClassDiagram, resolveClassRenderOptions } from '../class/layout.ts'
-import { classStatementEnds, parseClassDiagram } from '../class/parser.ts'
+import { classStatementEnds, expandInlineNamespaceStatement, parseClassDiagram } from '../class/parser.ts'
 import { lowerClassScene } from '../class/renderer.ts'
 import { withAccessibilityFields } from '../shared/accessibility-directives.ts'
 import { withFrontmatterTitle } from '../mermaid-source.ts'
@@ -17,10 +18,10 @@ export const CLASS_SVG_HOOKS = {
     renderOptions: resolveClassRenderOptions(ctx.source.frontmatter, ctx.renderOptions),
   }),
   layout: ctx => {
-    const diagram = withFrontmatterTitle(withAccessibilityFields(parseClassDiagram(
+    const diagram = withFrontmatterTitle(withAccessibilityFields(withParserSource(ctx.source, () => ctx.source.familyLines.flatMap(expandInlineNamespaceStatement), () => parseClassDiagram(
       ctx.source.familyLines,
       ctx.source.authoredFamilyLines ?? ctx.source.familyLines,
-    ), ctx.source.accessibility), ctx.source.frontmatter)
+    )), ctx.source.accessibility), ctx.source.frontmatter)
     checkAllClassLikeAuthoredStyles(diagram.classDefs, diagram.classes)
     return layoutResult(layoutClassDiagram(diagram, ctx.renderOptions, ctx.styleFace, ctx.paintBackendId))
   },

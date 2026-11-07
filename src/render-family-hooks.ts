@@ -14,6 +14,8 @@ import { SWIMLANE_SVG_HOOKS } from './svg-family-hooks/swimlane.ts'
 import { renderSwimlaneTerminal } from './ascii/swimlane.ts'
 import { TREEVIEW_SVG_HOOKS } from './svg-family-hooks/treeview.ts'
 import { renderTreeviewTerminal } from './ascii/treeview.ts'
+import { expandInlineNamespaceStatement } from './class/parser.ts'
+import { authoredParserColumn, withParserSource } from './shared/parser-source.ts'
 import { ZENUML_SVG_HOOKS } from './svg-family-hooks/zenuml.ts'
 import { renderZenUMLTerminal } from './ascii/zenuml.ts'
 import { EVENTMODELING_SVG_HOOKS } from './svg-family-hooks/eventmodeling.ts'
@@ -159,18 +161,19 @@ export const SEQUENCE_RENDER_HOOKS = {
   ...SEQUENCE_SVG_HOOKS,
   renderAscii: /* @__PURE__ */ nativeTerminalRenderer(ctx => {
     const family = sequenceFamilySource(ctx.source, 'decoded')
-    return renderSequenceTerminal(family.familyText, ctx.config, ctx.colorMode, ctx.theme, (ctx.familyConfig as { sequence?: ReturnType<typeof resolveSequenceConfig> } | undefined)?.sequence ?? {}, ctx.options.targetWidth, authoredSequenceLine(family))
+    const coordinates = family === ctx.source ? family : { ...ctx.source, familyLines: family.familyLines }
+    return renderSequenceTerminal(family.familyText, ctx.config, ctx.colorMode, ctx.theme, (ctx.familyConfig as { sequence?: ReturnType<typeof resolveSequenceConfig> } | undefined)?.sequence ?? {}, ctx.options.targetWidth, authoredSequenceLine(coordinates), authoredParserColumn(coordinates))
   }),
 } satisfies BuiltinRenderHooks
 
 export const CLASS_RENDER_HOOKS = {
   ...CLASS_SVG_HOOKS,
-  renderAscii: /* @__PURE__ */ nativeTerminalRenderer(ctx => renderClassTerminal(ctx.source.familyText, ctx.config, ctx.colorMode, ctx.theme, ctx.options.targetWidth, (ctx.source.authoredFamilyLines ?? ctx.source.familyLines).join('\n'))),
+  renderAscii: /* @__PURE__ */ nativeTerminalRenderer(ctx => withParserSource(ctx.source, () => ctx.source.familyLines.flatMap(expandInlineNamespaceStatement), () => renderClassTerminal(ctx.source.familyText, ctx.config, ctx.colorMode, ctx.theme, ctx.options.targetWidth, (ctx.source.authoredFamilyLines ?? ctx.source.familyLines).join('\n')))),
 } satisfies BuiltinRenderHooks
 
 export const ER_RENDER_HOOKS = {
   ...ER_SVG_HOOKS,
-  renderAscii: /* @__PURE__ */ nativeTerminalRenderer(ctx => renderErTerminal(ctx.source.familyText, ctx.config, ctx.colorMode, ctx.theme, ctx.options.targetWidth)),
+  renderAscii: /* @__PURE__ */ nativeTerminalRenderer(ctx => withParserSource(ctx.source, () => ctx.source.familyLines, () => renderErTerminal(ctx.source.familyText, ctx.config, ctx.colorMode, ctx.theme, ctx.options.targetWidth))),
 } satisfies BuiltinRenderHooks
 
 export const TIMELINE_RENDER_HOOKS = {
@@ -232,7 +235,7 @@ export const GANTT_RENDER_HOOKS = {
 
 export const MINDMAP_RENDER_HOOKS = {
   ...MINDMAP_SVG_HOOKS,
-  renderAscii: /* @__PURE__ */ nativeTerminalRenderer(ctx => renderMindmapTerminal(parseMindmap(ctx.source.authoredFamilyBody ?? ctx.source.familyBody), ctx.config, ctx.colorMode, ctx.theme, ctx.options.targetWidth)),
+  renderAscii: /* @__PURE__ */ nativeTerminalRenderer(ctx => renderMindmapTerminal(withParserSource(ctx.source, () => (ctx.source.authoredFamilyBody ?? ctx.source.familyBody).split('\n'), () => parseMindmap(ctx.source.authoredFamilyBody ?? ctx.source.familyBody)), ctx.config, ctx.colorMode, ctx.theme, ctx.options.targetWidth)),
 } satisfies BuiltinRenderHooks
 
 export const GITGRAPH_RENDER_HOOKS = {
@@ -245,11 +248,11 @@ export const GITGRAPH_RENDER_HOOKS = {
         }
       | undefined
     return renderGitGraphTerminal(
-      parseGitGraph(ctx.source.familyBody, {
+      withParserSource(ctx.source, () => ctx.source.familyBody.split('\n'), () => parseGitGraph(ctx.source.familyBody, {
         mainBranchName: familyConfig?.position?.mainBranchName,
         mainBranchOrder: familyConfig?.position?.mainBranchOrder,
         title: familyConfig?.title,
-      }),
+      })),
       ctx.config,
       ctx.colorMode,
       ctx.theme,

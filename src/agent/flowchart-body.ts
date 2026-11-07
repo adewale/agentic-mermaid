@@ -16,6 +16,7 @@
 // ============================================================================
 
 import { parseMermaid as parseFlowchartLegacy } from '../parser.ts'
+import { MermaidSyntaxError } from '../shared/syntax-error.ts'
 import { DiagramWorkLimitError } from '../shared/diagram-limits.ts'
 import { parseMutableStyleProps, unsafeStylePaintError } from '../shared/style-props.ts'
 import { unknownOpMessage } from './mutation-ops.ts'
@@ -109,7 +110,7 @@ export function parseFlowchartBody(canonicalSource: string, opaqueSource = canon
     return ok({ kind: 'flowchart', graph })
   } catch (e) {
     if (e instanceof DiagramWorkLimitError && e.resource === 'sourceCharacters') throw e
-    return err([{ code: 'PARSE_FAILED', message: e instanceof Error ? e.message : String(e) }])
+    return err([{ code: 'PARSE_FAILED', message: e instanceof Error ? e.message : String(e), ...(e instanceof MermaidSyntaxError ? { line: e.line, column: e.column, col: e.column, diagramType: e.diagramType } : {}) }])
   }
 }
 

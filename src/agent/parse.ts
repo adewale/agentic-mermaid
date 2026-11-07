@@ -1,3 +1,4 @@
+import { authoredSyntaxLocation } from '../shared/parser-source.ts'
 // ============================================================================
 // parseRegisteredMermaid: source → ParsedDiagram (multi-error).
 //
@@ -322,7 +323,13 @@ export function parseRegisteredMermaid(source: string): Result<ParsedDiagram, Pa
       return err([{ code: 'FAMILY_DESCRIPTOR_CONTRACT', message: `Family "${kind}" parse hook threw: ${reason}`, line: 1 }])
     }
     if (!parsed.ok) {
-      errors.push(...parsed.error)
+      for (const error of parsed.error) {
+        const mapsLocation = (kind === 'flowchart' || kind === 'mindmap' || kind === 'gitgraph') && error.line !== undefined
+        const location = mapsLocation
+          ? authoredSyntaxLocation(authoredEnvelope, normalizedSemanticSource.familyBody.split('\n'), error)
+          : error
+        errors.push({ ...error, ...location, col: mapsLocation ? location.column : error.col, diagramType: error.diagramType ?? kind })
+      }
       return err(errors)
     }
     if (parsed.value.kind === 'preserved') {

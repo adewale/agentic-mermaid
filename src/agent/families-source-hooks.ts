@@ -6,6 +6,8 @@ import { USECASE_SOURCE_HOOKS } from './usecase-body.ts'
 import { AGENTFLOW_SOURCE_HOOKS } from './agentflow-body.ts'
 import { TREEVIEW_SOURCE_HOOKS } from './treeview-body.ts'
 import { SWIMLANE_SOURCE_HOOKS } from './swimlane-body.ts'
+import { authoredSyntaxLocation } from '../shared/parser-source.ts'
+import { LocatedParserError } from '../shared/syntax-error.ts'
 import { ZENUML_SOURCE_HOOKS } from './zenuml-body.ts'
 import { EVENTMODELING_SOURCE_HOOKS } from './eventmodeling-body.ts'
 import { readAuthoredGrammarAccessibility } from '../shared/grammar-text.ts'
@@ -244,7 +246,7 @@ export const SEQUENCE_SOURCE_HOOKS = {
       return ok(body ?? { kind: 'opaque', family: 'sequence', source: opaqueSource })
     } catch (error) {
       if (!(error instanceof SequenceParticipantIdError)) throw error
-      return err([{ code: 'PARSE_FAILED', message: error.message }])
+      return err([{ code: 'PARSE_FAILED', message: error.message, ...authoredSyntaxLocation(authored, rawBodyLines, error) }])
     }
   },
   serialize: body => {
@@ -1291,7 +1293,7 @@ export const MINDMAP_SOURCE_HOOKS = {
       const body = parseMindmapBody(source.familyBody, opaqueSource)
       return ok(mindmapSerializationProblem(body, opaqueSource) ? { kind: 'opaque', family: 'mindmap', source: opaqueSource } : body)
     } catch (error) {
-      return err([{ code: 'PARSE_FAILED', message: error instanceof Error ? error.message : String(error) }])
+      return err([{ code: 'PARSE_FAILED', message: error instanceof Error ? error.message : String(error), ...(error instanceof LocatedParserError ? { line: error.line, column: error.column, col: error.column, diagramType: error.diagramType } : {}) }])
     }
   },
   serialize: body => {
@@ -1318,7 +1320,7 @@ export const GITGRAPH_SOURCE_HOOKS = {
       })
       return ok(body)
     } catch (error) {
-      return err([{ code: 'PARSE_FAILED', message: error instanceof Error ? error.message : String(error) }])
+      return err([{ code: 'PARSE_FAILED', message: error instanceof Error ? error.message : String(error), ...(error instanceof LocatedParserError ? { line: error.line, column: error.column, col: error.column, diagramType: error.diagramType } : {}) }])
     }
   },
   serialize: body => {

@@ -813,6 +813,12 @@ const fixtures: Fixture[] = [
     cue: 'Inspect the entity header and relationship: literal &lt;b&gt;code&lt;/b&gt; and &lt;i&gt;link&lt;/i&gt; delimiters stay visible beside genuinely bold and italic words. The endpoints and cardinality markers are controls. Spacing between formatted fragments remains imperfect in bundled-font PNGs at both revisions; the SVG retains the authored spaces. This pair establishes text interpretation, not a spacing repair, mutation behavior or upstream visual parity.',
   },
   {
+    id: 'class-member-classifier-suffixes',
+    title: 'Class method classifiers stay separate from return types and parameter text',
+    source: 'classDiagram\nclass Reader {\n+read(id: int) String$\n+estimate() Money*\n+plain(price: Money$, glob: *) Map~Money$~\n}',
+    cue: 'The read method stays underlined and returns String without a trailing $. The estimate method stays italic and returns Money without a trailing *. The plain method retains literal parameter markers without becoming static or abstract. These three methods do not establish arbitrary class grammar or layout.',
+  },
+  {
     id: 'class-entity-label-members',
     title: 'Class decodes label, annotation and member entities as literal display text (CONS-46)',
     source: 'classDiagram\nclass A["#lt;b#gt;code#lt;/b#gt;"]\nclass A {\n <<#lt;i#gt;tag#lt;/i#gt;>>\n +String field#35;tag\n}\nA --> B : unchanged',

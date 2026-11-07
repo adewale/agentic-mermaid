@@ -1269,6 +1269,9 @@ export interface ParseError {
   message: string
   line?: number
   col?: number
+  /** One-based column; col is retained as a compatibility alias. */
+  column?: number
+  diagramType?: string
   /** Present when parsing cannot proceed but no authored bytes were discarded. */
   preservation?: SourcePreservationReceipt
   help?: string

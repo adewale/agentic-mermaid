@@ -1,3 +1,4 @@
+import { withParserSource } from '../shared/parser-source.ts'
 import { diagnoseFlowchartConfig } from '../flowchart/config-diagnostics.ts'
 import { projectGraphPositioned } from '../positioned-views/graph.ts'
 import { layoutResult, positionedView, scene, type BrowserSvgFamilyHooks } from '../browser-lazy/family.ts'
@@ -23,7 +24,7 @@ export const FLOWCHART_SVG_HOOKS = {
     renderOptions: resolveFlowchartRenderOptions(ctx.source.frontmatter, ctx.renderOptions),
   }),
   layout: ctx => {
-    const graph = parseFlowchartRenderSource(ctx.source.authoredFamilyBody ?? ctx.source.familyBody, ctx.source.familyBody)
+    const graph = withParserSource(ctx.source, () => ctx.source.familyBody.split('\n'), () => parseFlowchartRenderSource(ctx.source.authoredFamilyBody ?? ctx.source.familyBody, ctx.source.familyBody))
     checkAllGraphAuthoredStyles(graph)
     applyFlowchartLabelWrapping(graph, ctx.renderOptions, ctx.styleFace)
     const diagramTitle = frontmatterTitle(ctx.source.frontmatter)

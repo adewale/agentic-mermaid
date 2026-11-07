@@ -1,3 +1,4 @@
+import { withParserSource } from '../shared/parser-source.ts'
 import { diagnoseGitGraphConfig } from '../gitgraph/config-diagnostics.ts'
 import { projectGitGraphPositioned } from '../positioned-views/gitgraph.ts'
 import { layoutResult, positionedView, scene, type BrowserSvgFamilyHooks } from '../browser-lazy/family.ts'
@@ -28,11 +29,11 @@ export const GITGRAPH_SVG_HOOKS = {
       title?: string
     } | undefined
     const config = familyConfig?.position ?? resolveGitGraphPositionConfig(undefined)
-    const diagram = withAccessibilityFields(parseGitGraph(ctx.source.familyBody, {
+    const diagram = withAccessibilityFields(withParserSource(ctx.source, () => ctx.source.familyBody.split('\n'), () => parseGitGraph(ctx.source.familyBody, {
       mainBranchName: config.mainBranchName,
       mainBranchOrder: config.mainBranchOrder,
       title: familyConfig?.title,
-    }), ctx.source.accessibility)
+    })), ctx.source.accessibility)
     return layoutResult(positionGitGraph(diagram, config, ctx.renderOptions, ctx.styleFace), { injectAccessibility: false })
   },
   projectPositioned: positionedView(projectGitGraphPositioned),
