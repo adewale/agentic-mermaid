@@ -53,6 +53,28 @@ replace neither the dated profiler nor its missing runtime/cold/cache evidence.
 Next causal probe: whether standalone worker precompression accounts for the
 Brotli loss, preserving decoded worker bytes, ownership and browser contracts.
 
+## Painted contact probes stopped — 7 November
+
+At `deafff39d427082c233e8caf4917175404f6c248`, exact-head CI42337818688 fails.
+Its development case276 has six actual shaft crossings versus ELK's four;
+Native retains lower area/wire. The selected measured route already has six
+before shared cleanup. Reordering the same compact trial allowance yields
+three crossings but introduces a real0.580px shaft/card contact and proof U;
+restore it. The stopped forest leaf-sizing trial is not replayed.
+
+Original CI `sha256-counter-v1:152` reproduces byte-exact:17nodes/39relations,
+delivered, proof U353,905. A shaft lies0.052px outside a foreign rectangle;
+combined half-strokes0.875px overlap by0.823px. Fixed-Inter four-mask rasters
+find183exposed shaft pixels,61contributing with the card,122fully hidden in
+the selected border interval. This is an actual ink loss, not merely a metric.
+Extending existing painted-obstacle detection passes28owning cases after8RED
+contacts, but152/372/102 remain byte-exact U. The nearest detour fails existing
+label-ink separation; caption-boundary and retained-caption probes also leave152
+unchanged. Restore all runtime/tests; no failure removed or speedup claimed.
+Eight full-public-SVG/entire-receipt calls and all adverse probes are retained in
+`forest-placement-deafff`; no cache/cap/default/version changes. Next intervention
+must solve joint painted-route/caption feasibility, beyond contact detection.
+
 ## Rebase and Sparse32 boundary — 7 November
 
 Owner-requested `rebase --rebase-merges` onto main39 completes at the same
