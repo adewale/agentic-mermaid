@@ -64,7 +64,7 @@ interface SourceStatementSegment {
   readonly regionsByStart: ReadonlyMap<number, FlowchartRegion>
   /** Closed statement-level pipe labels, in source order. */
   readonly pipeLabels: readonly FlowchartRegion[]
-  readonly topLevel: FlowchartScan['topLevel']
+  readonly topLevel: readonly boolean[]
   readonly textLabelRanges: TextRange[]
   readonly operatorRanges: ReadonlyArray<{ start: number; end: number }>
   readonly operatorStarts: ReadonlySet<number>
@@ -402,7 +402,7 @@ export function edgeSourceMapKey(index: number, edge: MermaidEdge): string { ret
 
 interface EdgeMention { sourceCol: number; targetCol: number }
 
-function compactOperatorRanges(line: string, topLevel: FlowchartScan['topLevel']): Array<{ start: number; end: number }> {
+function compactOperatorRanges(line: string, topLevel: readonly boolean[]): Array<{ start: number; end: number }> {
   const ranges: Array<{ start: number; end: number }> = []
   for (let index = 0; index < line.length; index++) {
     if (!topLevel[index]) continue
