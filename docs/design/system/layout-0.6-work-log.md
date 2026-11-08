@@ -963,3 +963,18 @@ extends that contract with its private loop/orientation/search controls; existin
 exports and algorithm bodies remain. Core/repo types and canonical lint pass;
 measured-layout/selection owners261P0F9,259assertions. No geometry or speed gain
 claimed; runtime adapter admission belongs to stage2. Existing PR602 only.
+
+### 8 November — Trinity stage 2: first common consumer
+
+Based on `c76dde5b3496f7472b3d51cdaeeccfb10cf26aef`: Requirement now dispatches
+neutral measured input through Native/ELK adapters. Result role, cardinality and
+extent checks precede family completion; Native capacity growth remains private
+and publishes only after success. ELK declines untranslated constraints explicitly.
+Other families retain their current builders. No geometry or speed improvement is
+claimed: 24 public SVG/entire-receipt products (four directions, both backends,
+ordinary/parallel/empty) match exactly. Core/repo types and lint pass; 84 owning
+tests pass (7,405 assertions), plus the final nine boundary tests. Sandbox child
+fixtures required the usual unrestricted retry. No cache, cap, default or version
+changes. Evidence: `/tmp/pr449-week-comparison-20261101/trinity-stage2-20261108`.
+Next: move legacy completion, its manifest/context/guards together, so Trinity
+need not import or inherit ELK repair policy. Known actual-ink losses remain.

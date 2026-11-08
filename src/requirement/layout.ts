@@ -1,9 +1,9 @@
 import { requirementArrow, requirementContains, requirementContainsPortSpan, requirementMarkerTerminal } from './markers.ts'
-import type { ElkExtendedEdge, ElkNode } from 'elkjs'
-import { elkLayoutSync } from '../elk-instance.ts'
-import { alignElkRoundoff } from '../layout/elk-roundoff.ts'
+import { elkMeasuredAdapter } from '../layout/elk-measured-adapter.ts'
+import { nativeMeasuredAdapter } from '../layout/native-measured-adapter.ts'
+import { solveMeasuredLayout } from '../layout/measured-backend.ts'
+import type { MeasuredRoutes } from '../layout/measured-graph.ts'
 import { fitMeasuredLayout } from '../layout/fit-measured-layout.ts'
-import { layoutAgenticGraph, type AgenticLayout } from '../layout/agentic-layered.ts'
 import { runMeasuredGraphBackend } from '../layout/backend.ts'
 import { measureRenderStage } from '../render-stages.ts'
 import { resolveRoleStyle } from '../scene/roles.ts'
@@ -77,8 +77,7 @@ export function layoutRequirementDiagram(model: RequirementBody, options: Render
   const nodeSpacing = options.nodeSpacing ?? metric('nodeSpacing', 40, 0, Infinity),
     layerSpacing = options.layerSpacing ?? metric('rankSpacing', 72, 0, Infinity)
   const terminalLead = model.relations.some(edge => edge.type !== 'contains') ? requirementMarkerTerminal(requirementArrow.id, style.lineWidth, 'end') + style.edgeBendRadius : 0
-  type Placement = Pick<AgenticLayout, 'width' | 'height' | 'nodes' | 'edges'>
-  const result = runMeasuredGraphBackend<Placement>(options, () => {
+  const result = runMeasuredGraphBackend<MeasuredRoutes>(options, () => {
     return measureRenderStage('agentic', () => {
       const incidences = new Uint32Array(nodes.length), containsSources = new Uint8Array(nodes.length)
       for (const edge of model.relations) {
@@ -100,7 +99,7 @@ export function layoutRequirementDiagram(model: RequirementBody, options: Render
           label: { width: labels[index]!.width + 16, height: labels[index]!.height + 10 } })),
         direction: model.direction, padding: pad, nodeSpacing, layerSpacing, ...(terminalLead ? { minimumTerminalLead: terminalLead } : {}), edgeSpacing: Math.max(6, style.lineWidth + 4),
       }
-      const placed = fitMeasuredLayout(measured, layoutAgenticGraph(measured))
+      const placed = fitMeasuredLayout(measured, solveMeasuredLayout({ role: 'routed', graph: measured }, nativeMeasuredAdapter))
       // A declined Native attempt must leave the ELK fallback's measured cards
       // untouched. Publish capacity growth only with the successful placement.
       for (const [index, node] of nodes.entries()) {
@@ -113,32 +112,12 @@ export function layoutRequirementDiagram(model: RequirementBody, options: Render
     // Zero clearance lets ELK put the first routing track on the card border.
     // Contains owns a source marker, so it needs its painted terminal lead too.
     const elkTerminalLead = Math.max(terminalLead, model.relations.some(edge => edge.type === 'contains') ? requirementMarkerTerminal(requirementContains.id, style.lineWidth, 'start') + style.edgeBendRadius : 0)
-    const idMap = new Map(nodes.map((node, index) => [node.id, `n${index}`]))
-    const elkEdges: ElkExtendedEdge[] = model.relations.map((edge, i) => ({ id: `e${i}`, sources: [idMap.get(edge.src)!], targets: [idMap.get(edge.dst)!], labels: [{ text: labels[i]!.text, width: labels[i]!.width + 16, height: labels[i]!.height + 10 }] }))
-    const graph: ElkNode = {
-      id: 'requirement-layout',
-      layoutOptions: {
-        'elk.algorithm': 'layered',
-        'elk.direction': ({ TB: 'DOWN', BT: 'UP', LR: 'RIGHT', RL: 'LEFT' } as const)[model.direction],
-        'elk.edgeRouting': 'ORTHOGONAL',
-        'elk.spacing.edgeNode': String(elkTerminalLead),
-        'elk.layered.spacing.edgeNodeBetweenLayers': String(elkTerminalLead),
-        'elk.spacing.nodeNode': String(nodeSpacing),
-        'elk.layered.spacing.nodeNodeBetweenLayers': String(layerSpacing),
-        'elk.padding': `[top=${pad},left=${pad},bottom=${pad},right=${pad}]`,
-      },
-      children: nodes.map(n => ({ id: idMap.get(n.id)!, width: n.width, height: n.height })),
-      edges: elkEdges,
-    }
-    const placed = nodes.length ? elkLayoutSync(graph) : { ...graph, width: pad * 2, height: pad * 2 }
-    const positions = nodes.map(() => ({ x: 0, y: 0 }))
-    for (const child of placed.children ?? []) positions[Number(child.id.slice(1))] = { x: child.x ?? 0, y: child.y ?? 0 }
-    return { width: placed.width ?? 0, height: placed.height ?? pad * 2, nodes: positions,
-      edges: model.relations.map((_, index) => {
-        const edge = placed.edges?.[index], label = edge?.labels?.[0]
-        return { points: alignElkRoundoff((edge?.sections ?? []).flatMap(s => [s.startPoint, ...(s.bendPoints ?? []), s.endPoint])),
-          ...(label?.x !== undefined ? { labelPosition: { x: label.x + (label.width ?? 0) / 2, y: (label.y ?? 0) + (label.height ?? 0) / 2 } } : {}) }
-      }) }
+    return solveMeasuredLayout({ role: 'routed', graph: {
+      nodes: nodes.map(node => ({ id: node.id, width: node.width, height: node.height })),
+      edges: model.relations.map((edge, index) => ({ source: indices.get(edge.src)!, target: indices.get(edge.dst)!, minSpan: 1,
+        label: { width: labels[index]!.width + 16, height: labels[index]!.height + 10 } })),
+      direction: model.direction, padding: pad, nodeSpacing, layerSpacing,
+    } }, elkMeasuredAdapter({ rootId: 'requirement-layout', edgeNodeSpacing: elkTerminalLead, labelText: labels.map(label => label.text) }))
   })
   const band = diagramTitleBand(model.title, style),
     titleHeight = band?.height ?? 0
