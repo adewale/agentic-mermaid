@@ -6,8 +6,8 @@ import { LayoutCertificationError } from '../layout/certification-error.ts'
 import type { Point, RenderOptions } from '../types.ts'
 import { ARCHITECTURE_DEFAULT_LAYER_SPACING, ARCHITECTURE_DEFAULT_NODE_SPACING, DEFAULT_ARCHITECTURE_VISUAL, architectureLayoutMetrics } from './config.ts'
 import type { ArchitectureLayoutMetrics } from './config.ts'
-import { layoutElkGraphPlacementSync, layoutNativeGraphPlacementSync } from '../layout-engine.ts'
-import { runMeasuredGraphBackend } from '../layout/backend.ts'
+import { layoutElkGraphPlacementSync, layoutNativeGraphPlacementSync, layoutTrinityGraphPlacementSync } from '../layout-engine.ts'
+import { runMeasuredGraphBackend, GraphLayoutUnsupportedError } from '../layout/backend.ts'
 import { architectureToMermaidGraph } from './parser.ts'
 import { preparePixelText } from '../shared/prepared-text.ts'
 import { compareCodePointStrings } from '../shared/deterministic-order.ts'
@@ -58,6 +58,40 @@ interface ResolvedEndpoint {
   exit: Point
 }
 
+function architecturePlacementFace(basis: ArchitectureLayoutMetrics) {
+  return {
+      node: {
+        fontSize: basis.serviceFontSize,
+        fontWeight: basis.serviceFontWeight,
+        letterSpacing: basis.serviceLetterSpacing,
+        textTransform: undefined,
+        paddingX: basis.servicePaddingX,
+        paddingY: basis.servicePaddingY,
+        cornerRadius: basis.serviceCornerRadius,
+        lineWidth: basis.serviceLineWidth,
+      },
+      edge: {
+        fontSize: basis.edgeFontSize,
+        fontWeight: basis.edgeFontWeight,
+        letterSpacing: basis.edgeLetterSpacing,
+        textTransform: undefined,
+        lineWidth: basis.edgeLineWidth,
+        bendRadius: basis.edgeBendRadius,
+      },
+      group: {
+        fontSize: basis.groupFontSize,
+        fontWeight: basis.groupFontWeight,
+        letterSpacing: basis.groupLetterSpacing,
+        fontFamily: basis.groupFont,
+        textTransform: undefined,
+        paddingX: basis.groupPaddingX,
+        paddingY: basis.groupPaddingY,
+        cornerRadius: basis.groupCornerRadius,
+        lineWidth: basis.groupLineWidth,
+      },
+    }
+}
+
 /**
  * Lay out an architecture diagram by reusing the graph/subgraph placement
  * engine, then re-projecting the result into architecture-specific primitives.
@@ -66,6 +100,7 @@ export function layoutArchitectureDiagram(
   diagram: ArchitectureDiagram,
   options: RenderOptions = {},
   metrics?: ArchitectureLayoutMetrics,
+  paintBackendId?: string,
 ): PositionedArchitectureDiagram {
   assertArchitectureDiagramWork(diagram)
   const typography = metrics ?? architectureLayoutMetrics(DEFAULT_ARCHITECTURE_VISUAL)
@@ -112,37 +147,7 @@ export function layoutArchitectureDiagram(
     // The graph's temporary routes do not describe the side-constrained paths
     // below. Their cosmetic score cannot rank Architecture's final artifact.
     compareRoutePreferences: false,
-    styleFace: metrics ? {
-      node: {
-        fontSize: metrics.serviceFontSize,
-        fontWeight: metrics.serviceFontWeight,
-        letterSpacing: metrics.serviceLetterSpacing,
-        textTransform: undefined,
-        paddingX: metrics.servicePaddingX,
-        paddingY: metrics.servicePaddingY,
-        cornerRadius: metrics.serviceCornerRadius,
-        lineWidth: metrics.serviceLineWidth,
-      },
-      edge: {
-        fontSize: metrics.edgeFontSize,
-        fontWeight: metrics.edgeFontWeight,
-        letterSpacing: metrics.edgeLetterSpacing,
-        textTransform: undefined,
-        lineWidth: metrics.edgeLineWidth,
-        bendRadius: metrics.edgeBendRadius,
-      },
-      group: {
-        fontSize: metrics.groupFontSize,
-        fontWeight: metrics.groupFontWeight,
-        letterSpacing: metrics.groupLetterSpacing,
-        fontFamily: metrics.groupFont,
-        textTransform: undefined,
-        paddingX: metrics.groupPaddingX,
-        paddingY: metrics.groupPaddingY,
-        cornerRadius: metrics.groupCornerRadius,
-        lineWidth: metrics.groupLineWidth,
-      },
-    } : undefined,
+    styleFace: metrics ? architecturePlacementFace(metrics) : undefined,
   }
   const servicesById = new Map(diagram.services.map((service) => [service.id, service]))
   const groupsById = new Map(diagram.groups.map((group) => [group.id, group]))
@@ -362,6 +367,23 @@ export function layoutArchitectureDiagram(
     () => finish(layoutNativeGraphPlacementSync(graph, placementOptions), true),
     () => finish(layoutElkGraphPlacementSync(graph, { ...placementOptions, preserveSubgraphChildOrder: true }), false),
     true,
+    undefined,
+    () => {
+      if (paintBackendId !== undefined && paintBackendId !== 'backend:default') throw new GraphLayoutUnsupportedError('Architecture placement requires canonical paint', 'Trinity')
+      if (diagram.groups.length !== 1 || diagram.groups[0]!.parentId || diagram.junctions.length || diagram.services.some(service => service.parentId !== diagram.groups[0]!.id) || diagram.edges.some(edge => edge.label !== undefined || edge.source.boundary === 'group' || edge.target.boundary === 'group')) throw new GraphLayoutUnsupportedError('Architecture placement requires one container with unlabelled service-forest edges', 'Trinity')
+      // These minima come from the same retained text and icon positions used
+      // below. No generic graph routes or marker measurements are needed.
+      const sizes = new Map(diagram.services.map(service => {
+        const block = serviceText.get(service.id)!, icon = iconTextBlocks.get(service.id)
+        const size = typography.serviceIconSize ?? DEFAULT_ARCHITECTURE_VISUAL.serviceIconSize
+        const iconWidth = icon?.width ?? (service.icon ? size : 0)
+        const gap = icon ? icon.width ? 10 : 0 : service.icon ? Math.max(10, typography.servicePaddingX * .7) : 0
+        const fallback = architectureIconFallbackBlock(service.icon, size)
+        if (fallback && fallback.width > size) throw new GraphLayoutUnsupportedError('Architecture fallback icon exceeds its measured box', 'Trinity')
+        return [service.id, { width: Math.max(service.icon ? 120 : 60, block.width + iconWidth + gap + typography.servicePaddingX * 2), height: Math.max(service.icon ? 48 : 36, Math.max(block.height, icon?.height ?? (service.icon ? size : 0)) + typography.servicePaddingY * 2) }] as const
+      }))
+      return finish(layoutTrinityGraphPlacementSync(graph, { ...placementOptions, nodeSizes: sizes, styleFace: architecturePlacementFace(typography) }), false)
+    },
   )
 }
 

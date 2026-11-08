@@ -1222,3 +1222,35 @@ quality gain, not general workload parity. Final editor Bun gzip9 1,341,432
 Core/repository types, lint, both unchanged MCP context ceilings and actual lazy/editor
 builds pass. Equivalent complete ER runtime/browser costs follow; no ratio inferred.
 Evidence: `trinity-er-20261108`. Compounds and larger routed domains remain losses.
+
+### Trinity stage 5: single-container Architecture placement
+
+After `bcf5e6bad`, the enrolled service forest refusal reproduces. Extract the
+existing bottom-up scope sizing/projection without Native lifting, private flags,
+expansion statistics or route construction. Preserve Native child read/visit order;
+carry its captured leaf count. Owned placement reuses primary body/header measurement
+while omitting generic marker/routing preparation. Architecture supplies actual
+retained text/icon minima and canonical service/frame paint, then owns final ports,
+routes, headers, labels and certification. Private Native sibling search stays off.
+One container, all service leaves and unlabelled forests only; junctions, other scopes,
+frame endpoints, labels and noncanonical paint explicitly decline. Existing forest
+placement4096/16384, depth and cumulative expansion/work limits are unchanged;
+this is separate from routed64/128 admission.
+
+The actual service/header/port owner fails before and passes after. Public source/
+parsed/layout/PNG, enlarged Japanese text/icon minima, explicit fallback, rough
+paint and hard-work owners pass. Architecture owners53P plus new focused owners8P;
+compound owners11P. All874 Native SVG/outcome/route vectors remain exact after the
+extraction; final leaf-scalar adjustment requalifies all34 affected compound vectors
+exactly. Initial sandbox child failures, type annotation failures and one subset
+reader path mistake remain in evidence; no visible defect is attributed to them.
+
+All eight affected Native/ELK Architecture SVGs are exact; four new Trinity products
+return/passed. Coverage20→24 of30, unsupported8→4, two input errors stay. Trident
+466→518P, unsupported117→65, blocked28/failed2 unchanged. Remaining enrolled losses:
+nested Flowchart, nested State, Class namespace/cardinality/note and controlled image.
+Actual editor Bun gzip9 1,341,432→1,341,338 (−94), Brotli11
+1,280,927→1,281,204 (+277); original gzip limit still fails6,838. Both builds,
+types/lint and MCP context ceilings pass. Complete-product/browser costs follow;
+no general replacement claim. Evidence:
+`trinity-architecture-20261108`. Adoption and retirement remain unqualified.
