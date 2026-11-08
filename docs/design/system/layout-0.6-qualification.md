@@ -5,7 +5,8 @@ ELK/Native/Trinity interface, metrics, state/invariant ownership and plan cleanu
 The owner subsequently authorized executing the ten-stage roadmap, with a report
 after each stage. Stages 1–2 are complete for the neutral type contract and first real
 Requirement consumer; other families retain their existing adapters. Stage 3
-separates legacy completion. Trinity is not implemented yet; automation remains off. Defaults, versions, limits and Replacement24 are unchanged.
+separates legacy completion and reusable measurement, with unchanged products
+but +892 gzip bytes (315 over the original editor limit). Stage 4 is next. Trinity is not implemented yet; automation remains off. Defaults, versions, limits and Replacement24 are unchanged.
 
 [Trinity specification](trinity-layout.md) owns the proposed contract, refactoring
 map, state machines and metric definitions. [TODO](../../../TODO.md#owned-graph-backend-qualification-owner-request-pr-449)

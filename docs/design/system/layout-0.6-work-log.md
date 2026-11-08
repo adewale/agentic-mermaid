@@ -978,3 +978,24 @@ fixtures required the usual unrestricted retry. No cache, cap, default or versio
 changes. Evidence: `/tmp/pr449-week-comparison-20261101/trinity-stage2-20261108`.
 Next: move legacy completion, its manifest/context/guards together, so Trinity
 need not import or inherit ELK repair policy. Known actual-ink losses remain.
+
+### 8 November — Trinity stage 3: separate legacy completion
+
+Based on `bf48cee97e3e9362a1b6895a5b927b735d4f6977`: reusable group measurement
+and text retention now have a leaf owner. Legacy completion retains its entire
+pass manifest/context, ordering/freeze/metric guards, notes and bounds in one
+module; old exports delegate there. No solver/completion bypass is enabled.
+Core/repo types and lint pass; 847 owning route/pass/state/selection tests pass
+(6,212 assertions). All 1,748 enrolled products retain exact SVG, route vector,
+delivery and proof outcomes: Native740P/134unverified, ELK696P/178unverified.
+Independent review found no existing-path regression, but the neutral boundary
+still needs explicit finite/contact/size/work admission for Trinity.
+
+Adverse cost is retained: actual editor1,334,815gzip9 /1,275,028Brotli11, +892/+1,579
+versus the preceding runtime. The unchanged1,334,500gzip limit now fails by315.
+A follow-up common Requirement-builder trial worsened gzip by another155bytes
+and added Native setup allocation, so it was stopped and reverted. Both artifacts
+and the trial remain under `trinity-stage3-20261108` in the existing evidence
+workspace. No geometry or speed gain is claimed; other distribution losses remain.
+Next: a bounded opt-in Trinity solve with explicit contact/capacity admission;
+no adoption until actual final output and consumed-product costs justify it.
