@@ -37,6 +37,45 @@ describe('Trinity primary measured producer', () => {
     expect(layout.nodes.map(node => [node.id, node.label])).toEqual([['A', 'Alpha'], ['B', 'Beta']])
     expect(layout.edges.map(edge => [edge.from, edge.to, edge.label?.text])).toEqual([['A', 'B', 'advance']])
   })
+  test.each(['TB', 'BT', 'LR', 'RL'])('seats State pseudostates on their actual written circles in %s', direction => {
+    const source = `stateDiagram-v2\ndirection ${direction}\n[*] --> Idle\nIdle --> Done: complete\nDone --> [*]`
+    const options = { graphLayout: { backend: 'trinity' as const }, embedFontImport: false }
+    const product = renderMermaidSVGWithReceipt(source, options)
+    expect(product.receipt.layoutCertification?.status).toBe('passed')
+    const { layout } = layoutMermaidWithReceipt(source, options)
+    const circles = scanSvgStartTags(product.svg).filter(tag => tag.name === 'circle')
+    const carriers = scanSvgStartTags(product.svg).filter(tag => tag.name === 'polyline' && decodedSvgAttributeValue(tag, 'data-role') === 'edge')
+    for (const node of layout.nodes.filter(node => node.shape === 'state-start' || node.shape === 'state-end')) {
+      const cx = node.x + node.w / 2, cy = node.y + node.h / 2
+      const ink = circles.filter(tag => Math.abs(Number(decodedSvgAttributeValue(tag, 'cx')) - cx) < .001 && Math.abs(Number(decodedSvgAttributeValue(tag, 'cy')) - cy) < .001)
+      expect(ink.length).toBe(node.shape === 'state-start' ? 1 : 2)
+      const radius = Math.max(...ink.map(tag => Number(decodedSvgAttributeValue(tag, 'r'))))
+      expect(radius).toBe(Math.min(node.w, node.h) / 2 - 2)
+      for (const edge of carriers) {
+        const from = decodedSvgAttributeValue(edge, 'data-from'), to = decodedSvgAttributeValue(edge, 'data-to')
+        if (from !== node.id && to !== node.id) continue
+        const points = decodedSvgAttributeValue(edge, 'points')!.split(' ').map(pair => pair.split(',').map(Number))
+        const at = from === node.id ? points[0]! : points.at(-1)!
+        expect(Math.hypot(at[0]! - cx, at[1]! - cy)).toBeCloseTo(radius, 2)
+        expect(Math.abs(at[0]! - cx) < .001 || Math.abs(at[1]! - cy) < .001).toBe(true)
+      }
+    }
+    expect(carriers).toHaveLength(3)
+  })
+  test('keeps fixed nonsquare circle bodies and declines typed pseudostate labels/media', () => {
+    const graph = parseFlowchart('flowchart TB\nA --> B')
+    const initial = graph.nodes.get('A')!
+    initial.shape = 'state-start'; initial.label = ''
+    const options = { graphLayout: { backend: 'trinity' as const }, nodeSizes: new Map([['A', { width: 44, height: 28 }]]) }
+    const positioned = layoutGraphSync(graph, options)
+    const body = positioned.nodes.find(node => node.id === 'A')!, at = positioned.edges[0]!.points[0]!
+    expect([body.width, body.height]).toEqual([44, 28])
+    expect([at.x, at.y]).toEqual([body.x + 22, body.y + 14 + 12])
+    initial.label = 'Unexpected label'
+    expect(() => layoutGraphSync(graph, options)).toThrow('labelled and media pseudostates')
+    initial.label = ''; initial.icon = 'fa:star'
+    expect(() => layoutGraphSync(graph, options)).toThrow('labelled and media pseudostates')
+  })
   test.each([1, 6])('measures the actual written opaque caption halo for a %spx shaft', lineWidth => {
     let measured: MeasuredGraph | undefined
     const factory = trinityKernel.trinityMeasuredAdapter
@@ -72,7 +111,7 @@ describe('Trinity primary measured producer', () => {
     for (const text of ['Release', 'Review', 'run', 'again', 'back', 'loop']) expect(rendered.svg).toContain(text)
   })
 
-  test.each(['flowchart TB\nA{Decision}-->B[Body]', 'flowchart TB\nsubgraph g[Group]\nA-->B\nend', 'flowchart LR\nA e1@--> B\nA-->C\ne1@{curve: natural}', 'stateDiagram-v2\n[*]-->A', 'stateDiagram-v2\nA-->B\nnote right of A: Note'])('declines untranslated geometry and keeps fallback explicit: %s', source => {
+  test.each(['flowchart TB\nA{Decision}-->B[Body]', 'flowchart TB\nsubgraph g[Group]\nA-->B\nend', 'flowchart LR\nA e1@--> B\nA-->C\ne1@{curve: natural}', 'stateDiagram-v2\nA-->B\nnote right of A: Note'])('declines untranslated geometry and keeps fallback explicit: %s', source => {
     expect(() => renderMermaidSVGWithReceipt(source, { graphLayout: { backend: 'trinity' } })).toThrow(GraphLayoutUnsupportedError)
     const fallback = renderMermaidSVGWithReceipt(source, { graphLayout: { backend: 'trinity', fallback: 'elk' } })
     expect(fallback.svg).toBe(renderMermaidSVGWithReceipt(source, { graphLayout: { backend: 'elk' } }).svg)

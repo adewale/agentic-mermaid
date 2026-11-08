@@ -6,6 +6,7 @@ import type { AgenticGraphBindings, AgenticGraphOptions } from '../layout-engine
 import type { MeasuredGraph, MeasuredRoutes } from './measured-graph.ts'
 import { fitMeasuredLayout } from './fit-measured-layout.ts'
 import { LayoutWorkLimitError } from './backend.ts'
+import { shapeOutline } from '../shape-outline.ts'
 
 interface ProjectionCompletion { mergeEdges: boolean; sharedEdges?: readonly number[] }
 
@@ -23,7 +24,11 @@ export function prepareMeasuredGraphCandidate(
   if (physical) {
     if (graph.subgraphs.length || graph.stateNotes?.length || graph.floatingStateNotes?.length) bindings.unsupported('compound and note geometry are outside the flat measured slice')
     if (graph.nodes.size > 64 || graph.edges.length > 128) bindings.unsupported('flat slice is limited to 64 nodes and 128 edges')
-    for (const node of graph.nodes.values()) if (node.semanticShape || node.shape !== 'rectangle' && node.shape !== 'rounded') bindings.unsupported('only measured rectangular and rounded-rectangular contacts are supported')
+    for (const node of graph.nodes.values()) {
+      const pseudo = node.shape === 'state-start' || node.shape === 'state-end'
+      if (node.semanticShape || node.shape !== 'rectangle' && node.shape !== 'rounded' && !pseudo) bindings.unsupported('only measured rectangular, rounded and State circle contacts are supported')
+      if (pseudo && (node.label || node.labelContent || node.labelBlock?.text || node.icon || node.image)) bindings.unsupported('labelled and media pseudostates are outside the fixed circle slice')
+    }
     if (graph.edges.some(edge => edge.curve !== undefined)) bindings.unsupported('authored curve paint is outside the orthogonal measured slice')
     if (style.lineWidth <= 0) bindings.unsupported('zero-width shafts are outside the flat measured slice')
   }
@@ -58,7 +63,7 @@ export function prepareMeasuredGraphCandidate(
     if (measurePortFaces) pay(0, graph.nodes.size + 1)
     const portFaces = measurePortFaces ? new Uint8Array(graph.nodes.size) : undefined
     const nodes: MeasuredGraph['nodes'][number][] = [...graph.nodes].map(([id, node], index) => {
-      if (portFaces) portFaces[index] = Number(!node.semanticShape && (node.shape === 'rectangle' || node.shape === 'subroutine' || physical && node.shape === 'rounded'))
+      if (portFaces) portFaces[index] = Number(!node.semanticShape && (node.shape === 'rectangle' || node.shape === 'subroutine' || physical && (node.shape === 'rounded' || node.shape === 'state-start' || node.shape === 'state-end')))
       if (groupIndices.has(id)) bindings.unsupported('overlapping node and frame identities')
       const owner = membership.get(id)
       return { id, ...(owner ? { parent: owner.parent } : {}), ...(options.nodeSizes?.get(id) ?? estimateNodeSize(id, resolveLabelContent(node.label, node.labelContent), node.shape, style, owner?.direction ?? graph.direction, options.stateVisual, node.labelBlock)) }
@@ -237,6 +242,19 @@ export function prepareMeasuredGraphCandidate(
       if (physical && width !== undefined) {
         pay(8, 4)
         const node = nodes[indices.get(id)!]!, authored = graph.nodes.get(id)!
+        if (authored.shape === 'state-start' || authored.shape === 'state-end') {
+          pay(32, 32)
+          const outline = shapeOutline({ ...authored, ...node, x: 0, y: 0 }, { fill: 'var(--_node-fill)', stroke: 'var(--_node-stroke)', strokeWidth: String(width) }, style.cornerRadius)
+          const boundary = outline.routing
+          if (boundary.kind !== 'ellipse' || boundary.cx !== node.width / 2 || boundary.cy !== node.height / 2) bindings.unsupported('pseudostate needs a centered ellipse boundary')
+          const stroke = Math.max(...(outline.childPaints ?? [outline.paint]).map(paint => paint.stroke === 'none' ? 0 : numericWidth(paint.strokeWidth ?? width) ?? NaN))
+          if (!Number.isFinite(stroke)) bindings.unsupported('pseudostate paint needs an absolute stroke measurement')
+          node.contact = 'ellipse'
+          node.contactEllipse = { rx: boundary.rx, ry: boundary.ry }
+          node.paintStrokeWidth = stroke
+          node.sizePolicy = 'fixed'
+          continue
+        }
         const radius = style.cornerRadius ?? (authored.shape === 'rounded' ? 6 : 0)
         node.paintStrokeWidth = width
         node.paintCornerRadius = radius

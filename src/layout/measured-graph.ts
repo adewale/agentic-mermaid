@@ -6,7 +6,7 @@ export interface MeasuredGraph {
   /** An explicit rounded contact declares paintCornerRadius as a conservative
    * radius bound that remains valid after any permitted size growth.
    * Ordered partitions are local to a sibling scope; omitted values use zero. */
-  nodes: readonly { id: string; width: number; height: number; /** Explicit contact domain; absence remains unknown for new solvers. */ contact?: 'rectangle' | 'rounded-rectangle'; /** Fixed by default; growth must be consumed by the family. */ sizePolicy?: 'fixed' | 'minimum'; paintStrokeWidth?: number; paintCornerRadius?: number; /** Producer-reserved primary port pitch; final paint proofs remain required. */ minimumPortSpacing?: number; parent?: number; partition?: number; modelOrder?: number }[]
+  nodes: readonly { id: string; width: number; height: number; /** Explicit contact domain; absence remains unknown for new solvers. */ contact?: 'rectangle' | 'rounded-rectangle' | 'ellipse'; /** Centered in the fixed logical body; radii come from the shape owner. */ contactEllipse?: { rx: number; ry: number }; /** Fixed by default; growth must be consumed by the family. */ sizePolicy?: 'fixed' | 'minimum'; paintStrokeWidth?: number; paintCornerRadius?: number; /** Producer-reserved primary port pitch; final paint proofs remain required. */ minimumPortSpacing?: number; parent?: number; partition?: number; modelOrder?: number }[]
   /** Edges may address a frame at nodes.length + its group index. */
   groups?: readonly {
     id: string; parent?: number; partition?: number; modelOrder?: number; direction?: Direction; minWidth: number
