@@ -1,0 +1,20 @@
+{
+  "before": {
+    "raw": 2287540,
+    "gzip9": 1386827,
+    "brotli11": 1318081,
+    "sha256": "bbfeabc29496dd8f29bb13bcc08d5d8eb28561c938714184fc203030a9d7b0fd"
+  },
+  "after": {
+    "raw": 2109909,
+    "gzip9": 1332711,
+    "brotli11": 1272057,
+    "sha256": "d4ad1038ef9b57be1c1748b65bd4a7006f5c5bc368aad5cff0d583ace16a3d38"
+  },
+  "delta": {
+    "raw": -177631,
+    "gzip9": -54116,
+    "brotli11": -46024
+  },
+  "originalGzipCap": 1334500
+}

@@ -1,0 +1,69 @@
+{
+  "source": "0c162c446b58ad98d0a5550719592a0d868619f8",
+  "parents": [
+    "d4e044949dd604cc0ca5deb692a6e82218d4b487",
+    "e7cb05baa7f68154942a9ce9c6e9aaaee163dc94"
+  ],
+  "completedAt": "2026-11-08T00:42:55.902455+00:00",
+  "sparse32": "Reproduced proof exhaustion; streaming trial still exhausts and raises authority concern; stopped, no XML production change.",
+  "payload": {
+    "raw": 2112604,
+    "gzip9": 1333923,
+    "brotli11": 1273449,
+    "sha256": "2f99f716672272325ebe472fc7a88081943ed7a34ddb65dda99ac42b19558510",
+    "gzipCap": 1334500
+  },
+  "fixedCorpus": {
+    "agentic": {
+      "count": 874,
+      "changes": [],
+      "proof": {
+        "passed": 740,
+        "unverified": 134
+      }
+    },
+    "elk": {
+      "count": 874,
+      "changes": [],
+      "proof": {
+        "passed": 696,
+        "unverified": 178
+      }
+    }
+  },
+  "verification": {
+    "canonicalCoreAndRepositoryTypes": "passed",
+    "canonicalLint": "passed,2134files",
+    "owners": "131passed,6sandboxesbuildfailures",
+    "exactProjectionRetryAndMCP_ZenAdjacent": "76passed0failed799assertions",
+    "er256": "8passed0failed96assertions",
+    "standaloneBudgetAndWorker": "2passed0failed657assertions",
+    "hostedBuild": "passed; no startup request/transfer claim",
+    "sourceReviews": [
+      "options-split-review.md",
+      "main608-review.md"
+    ]
+  },
+  "runtimeBaseline": {
+    "source": "d4e044949dd604cc0ca5deb692a6e82218d4b487",
+    "freshProcesses": 24,
+    "timedCompleteCalls": 168,
+    "returnedProofPassed": 168,
+    "independentXMLProductsPassed": 48,
+    "combinedMain608TimingMeasured": false,
+    "wholeWorkloadSpeedRatioEstablished": false
+  },
+  "remaining": [
+    "Sparse32 proof availability",
+    "visible contacts152/372/201/241",
+    "crossing276",
+    "Class2 area/height tradeoff",
+    "Sparse256 historical implemented area+5.04%",
+    "other lazy/site/payload costs",
+    "exact combined-head CI"
+  ],
+  "capsRaised": false,
+  "newCaches": false,
+  "automationsDisabled": true,
+  "replacement24": "sealed"
+}

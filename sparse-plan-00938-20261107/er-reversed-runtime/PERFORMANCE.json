@@ -1,0 +1,2655 @@
+{
+  "source": "d4e044949dd604cc0ca5deb692a6e82218d4b487",
+  "processes": 24,
+  "missingProcesses": [],
+  "timedCalls": 168,
+  "returned": 168,
+  "postTimedUntimedAudits": 24,
+  "summary": [
+    {
+      "case": "er256BT",
+      "cache": 0,
+      "backend": "agentic",
+      "cells": {
+        "cold-render": {
+          "attempts": 3,
+          "returned": 3,
+          "proof": {
+            "passed": 3
+          },
+          "wallMs": {
+            "n": 3,
+            "median": 2021.7380210000001,
+            "min": 1538.4924760000004,
+            "max": 3013.510331
+          },
+          "cpuMs": {
+            "n": 3,
+            "median": 2825.938,
+            "min": 2386.512,
+            "max": 5232.974
+          },
+          "heapUsedAfterMiB": {
+            "n": 3,
+            "median": 91.0059585571289,
+            "min": 86.74403381347656,
+            "max": 111.32129669189453
+          },
+          "rssAfterMiB": {
+            "n": 3,
+            "median": 292.01953125,
+            "min": 291.171875,
+            "max": 307.1328125
+          },
+          "processPeakRSSMiB": {
+            "n": 3,
+            "median": 292.01953125,
+            "min": 291.171875,
+            "max": 307.1328125
+          },
+          "perProcessMedians": [
+            {
+              "replicate": 0,
+              "medianMs": 1538.4924760000004
+            },
+            {
+              "replicate": 1,
+              "medianMs": 2021.7380210000001
+            },
+            {
+              "replicate": 2,
+              "medianMs": 3013.510331
+            }
+          ],
+          "failures": []
+        },
+        "repeats": {
+          "attempts": 12,
+          "returned": 12,
+          "proof": {
+            "passed": 12
+          },
+          "wallMs": {
+            "n": 12,
+            "median": 1072.477535,
+            "min": 738.9588189999995,
+            "max": 3093.7339820000016
+          },
+          "cpuMs": {
+            "n": 12,
+            "median": 1665.787,
+            "min": 1081.838,
+            "max": 4573.815
+          },
+          "heapUsedAfterMiB": {
+            "n": 12,
+            "median": 94.16040802001953,
+            "min": 91.05548095703125,
+            "max": 100.8382339477539
+          },
+          "rssAfterMiB": {
+            "n": 12,
+            "median": 300.6328125,
+            "min": 292.55859375,
+            "max": 311.85546875
+          },
+          "processPeakRSSMiB": {
+            "n": 12,
+            "median": 301.138671875,
+            "min": 293.91015625,
+            "max": 311.98046875
+          },
+          "perProcessMedians": [
+            {
+              "replicate": 0,
+              "medianMs": 778.2903699999997
+            },
+            {
+              "replicate": 1,
+              "medianMs": 1057.0215035
+            },
+            {
+              "replicate": 2,
+              "medianMs": 2332.3694714999997
+            }
+          ],
+          "failures": []
+        },
+        "edit": {
+          "attempts": 3,
+          "returned": 3,
+          "proof": {
+            "passed": 3
+          },
+          "wallMs": {
+            "n": 3,
+            "median": 1742.405982000002,
+            "min": 713.9054770000002,
+            "max": 1978.4562000000005
+          },
+          "cpuMs": {
+            "n": 3,
+            "median": 2398.458,
+            "min": 1016.44,
+            "max": 2624.611
+          },
+          "heapUsedAfterMiB": {
+            "n": 3,
+            "median": 90.5298843383789,
+            "min": 89.6842041015625,
+            "max": 91.16211700439453
+          },
+          "rssAfterMiB": {
+            "n": 3,
+            "median": 294.16015625,
+            "min": 290.72265625,
+            "max": 313.72265625
+          },
+          "processPeakRSSMiB": {
+            "n": 3,
+            "median": 301.4296875,
+            "min": 300.29296875,
+            "max": 313.72265625
+          },
+          "perProcessMedians": [
+            {
+              "replicate": 0,
+              "medianMs": 713.9054770000002
+            },
+            {
+              "replicate": 1,
+              "medianMs": 1978.4562000000005
+            },
+            {
+              "replicate": 2,
+              "medianMs": 1742.405982000002
+            }
+          ],
+          "failures": []
+        },
+        "edited-repeat": {
+          "attempts": 3,
+          "returned": 3,
+          "proof": {
+            "passed": 3
+          },
+          "wallMs": {
+            "n": 3,
+            "median": 2087.640464,
+            "min": 734.7703739999997,
+            "max": 2551.6681500000013
+          },
+          "cpuMs": {
+            "n": 3,
+            "median": 2782.564,
+            "min": 1044.983,
+            "max": 3866.959
+          },
+          "heapUsedAfterMiB": {
+            "n": 3,
+            "median": 91.94066619873047,
+            "min": 91.515869140625,
+            "max": 92.29158020019531
+          },
+          "rssAfterMiB": {
+            "n": 3,
+            "median": 294.2890625,
+            "min": 292.84765625,
+            "max": 314.51171875
+          },
+          "processPeakRSSMiB": {
+            "n": 3,
+            "median": 301.4296875,
+            "min": 300.29296875,
+            "max": 314.51171875
+          },
+          "perProcessMedians": [
+            {
+              "replicate": 0,
+              "medianMs": 734.7703739999997
+            },
+            {
+              "replicate": 1,
+              "medianMs": 2551.6681500000013
+            },
+            {
+              "replicate": 2,
+              "medianMs": 2087.640464
+            }
+          ],
+          "failures": []
+        }
+      },
+      "importMs": {
+        "n": 3,
+        "median": 3351.051237,
+        "min": 2986.145216,
+        "max": 4790.810273
+      },
+      "cacheAudit": [
+        {
+          "owner": "backend-registry",
+          "outcome": "hit",
+          "count": 3
+        },
+        {
+          "owner": "capability-decision",
+          "outcome": "hit",
+          "count": 3
+        },
+        {
+          "owner": "positioned-layout",
+          "outcome": "bypass",
+          "count": 3
+        },
+        {
+          "owner": "native-drawing",
+          "outcome": "bypass",
+          "count": 3
+        },
+        {
+          "owner": "positioned-scene",
+          "outcome": "miss",
+          "count": 3
+        },
+        {
+          "owner": "positioned-scene",
+          "outcome": "hit",
+          "count": 3
+        },
+        {
+          "owner": "paint-certification",
+          "outcome": "miss",
+          "count": 3
+        },
+        {
+          "owner": "svg-inspection",
+          "outcome": "miss",
+          "count": 6
+        },
+        {
+          "owner": "svg-inspection",
+          "outcome": "store-skipped",
+          "count": 3
+        }
+      ],
+      "repeatSVGExact": true,
+      "repeatReceiptExact": true,
+      "editChanged": true
+    },
+    {
+      "case": "er256BT",
+      "cache": 0,
+      "backend": "elk",
+      "cells": {
+        "cold-render": {
+          "attempts": 3,
+          "returned": 3,
+          "proof": {
+            "passed": 3
+          },
+          "wallMs": {
+            "n": 3,
+            "median": 2379.9370229999995,
+            "min": 1493.057456,
+            "max": 4888.53577
+          },
+          "cpuMs": {
+            "n": 3,
+            "median": 4065.531,
+            "min": 2799.803,
+            "max": 7321.881
+          },
+          "heapUsedAfterMiB": {
+            "n": 3,
+            "median": 121.5943603515625,
+            "min": 103.92861938476562,
+            "max": 123.14634704589844
+          },
+          "rssAfterMiB": {
+            "n": 3,
+            "median": 314.93359375,
+            "min": 312.65234375,
+            "max": 318.16796875
+          },
+          "processPeakRSSMiB": {
+            "n": 3,
+            "median": 314.93359375,
+            "min": 312.65234375,
+            "max": 318.16796875
+          },
+          "perProcessMedians": [
+            {
+              "replicate": 0,
+              "medianMs": 1493.057456
+            },
+            {
+              "replicate": 1,
+              "medianMs": 4888.53577
+            },
+            {
+              "replicate": 2,
+              "medianMs": 2379.9370229999995
+            }
+          ],
+          "failures": []
+        },
+        "repeats": {
+          "attempts": 12,
+          "returned": 12,
+          "proof": {
+            "passed": 12
+          },
+          "wallMs": {
+            "n": 12,
+            "median": 1082.3747679999997,
+            "min": 910.0502549999992,
+            "max": 2728.1577670000006
+          },
+          "cpuMs": {
+            "n": 12,
+            "median": 1810.0475000000001,
+            "min": 1440.742,
+            "max": 4538.367
+          },
+          "heapUsedAfterMiB": {
+            "n": 12,
+            "median": 117.15518188476562,
+            "min": 114.74577331542969,
+            "max": 125.23052215576172
+          },
+          "rssAfterMiB": {
+            "n": 12,
+            "median": 327.248046875,
+            "min": 323.625,
+            "max": 331.9765625
+          },
+          "processPeakRSSMiB": {
+            "n": 12,
+            "median": 329.11328125,
+            "min": 323.625,
+            "max": 331.9765625
+          },
+          "perProcessMedians": [
+            {
+              "replicate": 0,
+              "medianMs": 1019.5201320000001
+            },
+            {
+              "replicate": 1,
+              "medianMs": 2215.2004555000003
+            },
+            {
+              "replicate": 2,
+              "medianMs": 1044.6875115000003
+            }
+          ],
+          "failures": []
+        },
+        "edit": {
+          "attempts": 3,
+          "returned": 3,
+          "proof": {
+            "passed": 3
+          },
+          "wallMs": {
+            "n": 3,
+            "median": 1073.641991999999,
+            "min": 899.7579930000011,
+            "max": 1753.6037599999981
+          },
+          "cpuMs": {
+            "n": 3,
+            "median": 1660.993,
+            "min": 1471.454,
+            "max": 2575.057
+          },
+          "heapUsedAfterMiB": {
+            "n": 3,
+            "median": 114.42255401611328,
+            "min": 111.29960632324219,
+            "max": 114.87130737304688
+          },
+          "rssAfterMiB": {
+            "n": 3,
+            "median": 329.890625,
+            "min": 325.171875,
+            "max": 332.68359375
+          },
+          "processPeakRSSMiB": {
+            "n": 3,
+            "median": 330.15234375,
+            "min": 328.671875,
+            "max": 332.68359375
+          },
+          "perProcessMedians": [
+            {
+              "replicate": 0,
+              "medianMs": 899.7579930000011
+            },
+            {
+              "replicate": 1,
+              "medianMs": 1753.6037599999981
+            },
+            {
+              "replicate": 2,
+              "medianMs": 1073.641991999999
+            }
+          ],
+          "failures": []
+        },
+        "edited-repeat": {
+          "attempts": 3,
+          "returned": 3,
+          "proof": {
+            "passed": 3
+          },
+          "wallMs": {
+            "n": 3,
+            "median": 968.3828020000001,
+            "min": 929.8278069999997,
+            "max": 1528.9658909999998
+          },
+          "cpuMs": {
+            "n": 3,
+            "median": 1461.089,
+            "min": 1420.643,
+            "max": 2210.044
+          },
+          "heapUsedAfterMiB": {
+            "n": 3,
+            "median": 114.81774139404297,
+            "min": 114.70308685302734,
+            "max": 115.26206970214844
+          },
+          "rssAfterMiB": {
+            "n": 3,
+            "median": 329.90625,
+            "min": 328.484375,
+            "max": 332.9140625
+          },
+          "processPeakRSSMiB": {
+            "n": 3,
+            "median": 330.15234375,
+            "min": 328.671875,
+            "max": 332.9140625
+          },
+          "perProcessMedians": [
+            {
+              "replicate": 0,
+              "medianMs": 929.8278069999997
+            },
+            {
+              "replicate": 1,
+              "medianMs": 1528.9658909999998
+            },
+            {
+              "replicate": 2,
+              "medianMs": 968.3828020000001
+            }
+          ],
+          "failures": []
+        }
+      },
+      "importMs": {
+        "n": 3,
+        "median": 3399.171115,
+        "min": 2457.026954,
+        "max": 6646.679832999999
+      },
+      "cacheAudit": [
+        {
+          "owner": "backend-registry",
+          "outcome": "hit",
+          "count": 3
+        },
+        {
+          "owner": "capability-decision",
+          "outcome": "hit",
+          "count": 3
+        },
+        {
+          "owner": "positioned-layout",
+          "outcome": "bypass",
+          "count": 3
+        },
+        {
+          "owner": "elk-layout",
+          "outcome": "bypass",
+          "count": 3
+        },
+        {
+          "owner": "native-drawing",
+          "outcome": "bypass",
+          "count": 3
+        },
+        {
+          "owner": "positioned-scene",
+          "outcome": "miss",
+          "count": 3
+        },
+        {
+          "owner": "positioned-scene",
+          "outcome": "hit",
+          "count": 3
+        },
+        {
+          "owner": "paint-certification",
+          "outcome": "miss",
+          "count": 3
+        },
+        {
+          "owner": "svg-inspection",
+          "outcome": "miss",
+          "count": 6
+        },
+        {
+          "owner": "svg-inspection",
+          "outcome": "store-skipped",
+          "count": 3
+        }
+      ],
+      "repeatSVGExact": true,
+      "repeatReceiptExact": true,
+      "editChanged": true
+    },
+    {
+      "case": "er256BT",
+      "cache": 1,
+      "backend": "agentic",
+      "cells": {
+        "cold-render": {
+          "attempts": 3,
+          "returned": 3,
+          "proof": {
+            "passed": 3
+          },
+          "wallMs": {
+            "n": 3,
+            "median": 1109.924817,
+            "min": 1063.7989929999999,
+            "max": 1113.066676
+          },
+          "cpuMs": {
+            "n": 3,
+            "median": 1766.438,
+            "min": 1758.886,
+            "max": 1803.295
+          },
+          "heapUsedAfterMiB": {
+            "n": 3,
+            "median": 119.38096618652344,
+            "min": 119.33296966552734,
+            "max": 119.66912841796875
+          },
+          "rssAfterMiB": {
+            "n": 3,
+            "median": 286.66015625,
+            "min": 286.52734375,
+            "max": 287.46875
+          },
+          "processPeakRSSMiB": {
+            "n": 3,
+            "median": 286.66015625,
+            "min": 286.52734375,
+            "max": 287.46875
+          },
+          "perProcessMedians": [
+            {
+              "replicate": 0,
+              "medianMs": 1113.066676
+            },
+            {
+              "replicate": 1,
+              "medianMs": 1063.7989929999999
+            },
+            {
+              "replicate": 2,
+              "medianMs": 1109.924817
+            }
+          ],
+          "failures": []
+        },
+        "repeats": {
+          "attempts": 12,
+          "returned": 12,
+          "proof": {
+            "passed": 12
+          },
+          "wallMs": {
+            "n": 12,
+            "median": 651.7399974999998,
+            "min": 600.0634879999998,
+            "max": 784.7681170000001
+          },
+          "cpuMs": {
+            "n": 12,
+            "median": 960.6034999999999,
+            "min": 822.629,
+            "max": 1169.768
+          },
+          "heapUsedAfterMiB": {
+            "n": 12,
+            "median": 89.43821334838867,
+            "min": 87.16650390625,
+            "max": 92.52008056640625
+          },
+          "rssAfterMiB": {
+            "n": 12,
+            "median": 288.419921875,
+            "min": 284.640625,
+            "max": 294.74609375
+          },
+          "processPeakRSSMiB": {
+            "n": 12,
+            "median": 289.478515625,
+            "min": 287.59375,
+            "max": 294.74609375
+          },
+          "perProcessMedians": [
+            {
+              "replicate": 0,
+              "medianMs": 671.0735155000002
+            },
+            {
+              "replicate": 1,
+              "medianMs": 606.9795245
+            },
+            {
+              "replicate": 2,
+              "medianMs": 674.2871355000002
+            }
+          ],
+          "failures": []
+        },
+        "edit": {
+          "attempts": 3,
+          "returned": 3,
+          "proof": {
+            "passed": 3
+          },
+          "wallMs": {
+            "n": 3,
+            "median": 767.7720510000008,
+            "min": 767.0775270000004,
+            "max": 798.5162460000001
+          },
+          "cpuMs": {
+            "n": 3,
+            "median": 1122.053,
+            "min": 1103.73,
+            "max": 1156.866
+          },
+          "heapUsedAfterMiB": {
+            "n": 3,
+            "median": 101.70330810546875,
+            "min": 101.50209045410156,
+            "max": 101.95256042480469
+          },
+          "rssAfterMiB": {
+            "n": 3,
+            "median": 289.03515625,
+            "min": 287.40234375,
+            "max": 290.015625
+          },
+          "processPeakRSSMiB": {
+            "n": 3,
+            "median": 291.76171875,
+            "min": 291.1484375,
+            "max": 294.74609375
+          },
+          "perProcessMedians": [
+            {
+              "replicate": 0,
+              "medianMs": 767.7720510000008
+            },
+            {
+              "replicate": 1,
+              "medianMs": 767.0775270000004
+            },
+            {
+              "replicate": 2,
+              "medianMs": 798.5162460000001
+            }
+          ],
+          "failures": []
+        },
+        "edited-repeat": {
+          "attempts": 3,
+          "returned": 3,
+          "proof": {
+            "passed": 3
+          },
+          "wallMs": {
+            "n": 3,
+            "median": 610.8098019999998,
+            "min": 606.1041409999998,
+            "max": 744.1870769999996
+          },
+          "cpuMs": {
+            "n": 3,
+            "median": 844.27,
+            "min": 768.165,
+            "max": 986.651
+          },
+          "heapUsedAfterMiB": {
+            "n": 3,
+            "median": 88.32833862304688,
+            "min": 88.30366516113281,
+            "max": 89.18531799316406
+          },
+          "rssAfterMiB": {
+            "n": 3,
+            "median": 290.4921875,
+            "min": 287.3515625,
+            "max": 291.51953125
+          },
+          "processPeakRSSMiB": {
+            "n": 3,
+            "median": 291.8359375,
+            "min": 291.51953125,
+            "max": 294.74609375
+          },
+          "perProcessMedians": [
+            {
+              "replicate": 0,
+              "medianMs": 610.8098019999998
+            },
+            {
+              "replicate": 1,
+              "medianMs": 606.1041409999998
+            },
+            {
+              "replicate": 2,
+              "medianMs": 744.1870769999996
+            }
+          ],
+          "failures": []
+        }
+      },
+      "importMs": {
+        "n": 3,
+        "median": 2481.35151,
+        "min": 2397.919433,
+        "max": 2512.600492
+      },
+      "cacheAudit": [
+        {
+          "owner": "backend-registry",
+          "outcome": "hit",
+          "count": 3
+        },
+        {
+          "owner": "capability-decision",
+          "outcome": "hit",
+          "count": 3
+        },
+        {
+          "owner": "positioned-layout",
+          "outcome": "hit",
+          "count": 3
+        },
+        {
+          "owner": "native-drawing",
+          "outcome": "bypass",
+          "count": 3
+        },
+        {
+          "owner": "positioned-scene",
+          "outcome": "miss",
+          "count": 3
+        },
+        {
+          "owner": "positioned-scene",
+          "outcome": "hit",
+          "count": 3
+        },
+        {
+          "owner": "paint-certification",
+          "outcome": "miss",
+          "count": 3
+        },
+        {
+          "owner": "svg-inspection",
+          "outcome": "miss",
+          "count": 6
+        },
+        {
+          "owner": "svg-inspection",
+          "outcome": "store-skipped",
+          "count": 3
+        }
+      ],
+      "repeatSVGExact": true,
+      "repeatReceiptExact": true,
+      "editChanged": true
+    },
+    {
+      "case": "er256BT",
+      "cache": 1,
+      "backend": "elk",
+      "cells": {
+        "cold-render": {
+          "attempts": 3,
+          "returned": 3,
+          "proof": {
+            "passed": 3
+          },
+          "wallMs": {
+            "n": 3,
+            "median": 1607.112357,
+            "min": 1586.648302,
+            "max": 1668.208267
+          },
+          "cpuMs": {
+            "n": 3,
+            "median": 2965.022,
+            "min": 2884.127,
+            "max": 3128.862
+          },
+          "heapUsedAfterMiB": {
+            "n": 3,
+            "median": 147.22027587890625,
+            "min": 131.99093627929688,
+            "max": 150.2416000366211
+          },
+          "rssAfterMiB": {
+            "n": 3,
+            "median": 315.57421875,
+            "min": 313.84765625,
+            "max": 330.69921875
+          },
+          "processPeakRSSMiB": {
+            "n": 3,
+            "median": 315.57421875,
+            "min": 313.84765625,
+            "max": 330.69921875
+          },
+          "perProcessMedians": [
+            {
+              "replicate": 0,
+              "medianMs": 1586.648302
+            },
+            {
+              "replicate": 1,
+              "medianMs": 1668.208267
+            },
+            {
+              "replicate": 2,
+              "medianMs": 1607.112357
+            }
+          ],
+          "failures": []
+        },
+        "repeats": {
+          "attempts": 12,
+          "returned": 12,
+          "proof": {
+            "passed": 12
+          },
+          "wallMs": {
+            "n": 12,
+            "median": 678.2235105,
+            "min": 538.5137859999995,
+            "max": 1310.092536
+          },
+          "cpuMs": {
+            "n": 12,
+            "median": 1050.209,
+            "min": 890.881,
+            "max": 1699.836
+          },
+          "heapUsedAfterMiB": {
+            "n": 12,
+            "median": 107.2362174987793,
+            "min": 103.76670837402344,
+            "max": 111.19715118408203
+          },
+          "rssAfterMiB": {
+            "n": 12,
+            "median": 322.38671875,
+            "min": 315.796875,
+            "max": 332.203125
+          },
+          "processPeakRSSMiB": {
+            "n": 12,
+            "median": 324.3125,
+            "min": 316.43359375,
+            "max": 332.328125
+          },
+          "perProcessMedians": [
+            {
+              "replicate": 0,
+              "medianMs": 698.4296774999998
+            },
+            {
+              "replicate": 1,
+              "medianMs": 771.6116175000002
+            },
+            {
+              "replicate": 2,
+              "medianMs": 580.488992
+            }
+          ],
+          "failures": []
+        },
+        "edit": {
+          "attempts": 3,
+          "returned": 3,
+          "proof": {
+            "passed": 3
+          },
+          "wallMs": {
+            "n": 3,
+            "median": 980.487666,
+            "min": 977.7819369999997,
+            "max": 1112.0827629999994
+          },
+          "cpuMs": {
+            "n": 3,
+            "median": 1861.424,
+            "min": 1788.472,
+            "max": 2135.695
+          },
+          "heapUsedAfterMiB": {
+            "n": 3,
+            "median": 124.56761169433594,
+            "min": 123.28150939941406,
+            "max": 146.62285614013672
+          },
+          "rssAfterMiB": {
+            "n": 3,
+            "median": 342.36328125,
+            "min": 327.125,
+            "max": 412.02734375
+          },
+          "processPeakRSSMiB": {
+            "n": 3,
+            "median": 342.36328125,
+            "min": 327.125,
+            "max": 414.97265625
+          },
+          "perProcessMedians": [
+            {
+              "replicate": 0,
+              "medianMs": 1112.0827629999994
+            },
+            {
+              "replicate": 1,
+              "medianMs": 980.487666
+            },
+            {
+              "replicate": 2,
+              "medianMs": 977.7819369999997
+            }
+          ],
+          "failures": []
+        },
+        "edited-repeat": {
+          "attempts": 3,
+          "returned": 3,
+          "proof": {
+            "passed": 3
+          },
+          "wallMs": {
+            "n": 3,
+            "median": 589.8661090000005,
+            "min": 567.2672110000003,
+            "max": 644.5038330000007
+          },
+          "cpuMs": {
+            "n": 3,
+            "median": 821.074,
+            "min": 772.943,
+            "max": 901.406
+          },
+          "heapUsedAfterMiB": {
+            "n": 3,
+            "median": 106.69171142578125,
+            "min": 106.46302032470703,
+            "max": 106.84471893310547
+          },
+          "rssAfterMiB": {
+            "n": 3,
+            "median": 342.26171875,
+            "min": 330.85546875,
+            "max": 412.1640625
+          },
+          "processPeakRSSMiB": {
+            "n": 3,
+            "median": 342.36328125,
+            "min": 330.85546875,
+            "max": 414.97265625
+          },
+          "perProcessMedians": [
+            {
+              "replicate": 0,
+              "medianMs": 644.5038330000007
+            },
+            {
+              "replicate": 1,
+              "medianMs": 589.8661090000005
+            },
+            {
+              "replicate": 2,
+              "medianMs": 567.2672110000003
+            }
+          ],
+          "failures": []
+        }
+      },
+      "importMs": {
+        "n": 3,
+        "median": 2420.1299849999996,
+        "min": 2160.616976,
+        "max": 2532.224061
+      },
+      "cacheAudit": [
+        {
+          "owner": "backend-registry",
+          "outcome": "hit",
+          "count": 3
+        },
+        {
+          "owner": "capability-decision",
+          "outcome": "hit",
+          "count": 3
+        },
+        {
+          "owner": "positioned-layout",
+          "outcome": "hit",
+          "count": 3
+        },
+        {
+          "owner": "native-drawing",
+          "outcome": "bypass",
+          "count": 3
+        },
+        {
+          "owner": "positioned-scene",
+          "outcome": "miss",
+          "count": 3
+        },
+        {
+          "owner": "positioned-scene",
+          "outcome": "hit",
+          "count": 3
+        },
+        {
+          "owner": "paint-certification",
+          "outcome": "miss",
+          "count": 3
+        },
+        {
+          "owner": "svg-inspection",
+          "outcome": "miss",
+          "count": 6
+        },
+        {
+          "owner": "svg-inspection",
+          "outcome": "store-skipped",
+          "count": 3
+        }
+      ],
+      "repeatSVGExact": true,
+      "repeatReceiptExact": true,
+      "editChanged": true
+    },
+    {
+      "case": "er256RL",
+      "cache": 0,
+      "backend": "agentic",
+      "cells": {
+        "cold-render": {
+          "attempts": 3,
+          "returned": 3,
+          "proof": {
+            "passed": 3
+          },
+          "wallMs": {
+            "n": 3,
+            "median": 1052.286278,
+            "min": 802.9476409999997,
+            "max": 1178.5775669999998
+          },
+          "cpuMs": {
+            "n": 3,
+            "median": 1702.858,
+            "min": 1377.879,
+            "max": 2081.861
+          },
+          "heapUsedAfterMiB": {
+            "n": 3,
+            "median": 96.5908432006836,
+            "min": 91.73464965820312,
+            "max": 112.59110260009766
+          },
+          "rssAfterMiB": {
+            "n": 3,
+            "median": 289.546875,
+            "min": 284.828125,
+            "max": 292.40234375
+          },
+          "processPeakRSSMiB": {
+            "n": 3,
+            "median": 289.546875,
+            "min": 284.828125,
+            "max": 292.40234375
+          },
+          "perProcessMedians": [
+            {
+              "replicate": 0,
+              "medianMs": 1178.5775669999998
+            },
+            {
+              "replicate": 1,
+              "medianMs": 802.9476409999997
+            },
+            {
+              "replicate": 2,
+              "medianMs": 1052.286278
+            }
+          ],
+          "failures": []
+        },
+        "repeats": {
+          "attempts": 12,
+          "returned": 12,
+          "proof": {
+            "passed": 12
+          },
+          "wallMs": {
+            "n": 12,
+            "median": 756.3058725000001,
+            "min": 593.627023,
+            "max": 914.9585179999995
+          },
+          "cpuMs": {
+            "n": 12,
+            "median": 1138.9915,
+            "min": 883.787,
+            "max": 1355.328
+          },
+          "heapUsedAfterMiB": {
+            "n": 12,
+            "median": 94.1103401184082,
+            "min": 90.95573425292969,
+            "max": 101.1337890625
+          },
+          "rssAfterMiB": {
+            "n": 12,
+            "median": 294.025390625,
+            "min": 284.13671875,
+            "max": 305.6875
+          },
+          "processPeakRSSMiB": {
+            "n": 12,
+            "median": 295.275390625,
+            "min": 290.08984375,
+            "max": 305.6875
+          },
+          "perProcessMedians": [
+            {
+              "replicate": 0,
+              "medianMs": 849.7532729999998
+            },
+            {
+              "replicate": 1,
+              "medianMs": 606.056863
+            },
+            {
+              "replicate": 2,
+              "medianMs": 759.8546749999996
+            }
+          ],
+          "failures": []
+        },
+        "edit": {
+          "attempts": 3,
+          "returned": 3,
+          "proof": {
+            "passed": 3
+          },
+          "wallMs": {
+            "n": 3,
+            "median": 731.004696,
+            "min": 600.6388580000003,
+            "max": 826.3834200000001
+          },
+          "cpuMs": {
+            "n": 3,
+            "median": 1013.356,
+            "min": 843.122,
+            "max": 1144.059
+          },
+          "heapUsedAfterMiB": {
+            "n": 3,
+            "median": 90.08626556396484,
+            "min": 89.90460968017578,
+            "max": 90.38451385498047
+          },
+          "rssAfterMiB": {
+            "n": 3,
+            "median": 288.015625,
+            "min": 286.13671875,
+            "max": 305.73828125
+          },
+          "processPeakRSSMiB": {
+            "n": 3,
+            "median": 297.65625,
+            "min": 290.71484375,
+            "max": 305.73828125
+          },
+          "perProcessMedians": [
+            {
+              "replicate": 0,
+              "medianMs": 826.3834200000001
+            },
+            {
+              "replicate": 1,
+              "medianMs": 600.6388580000003
+            },
+            {
+              "replicate": 2,
+              "medianMs": 731.004696
+            }
+          ],
+          "failures": []
+        },
+        "edited-repeat": {
+          "attempts": 3,
+          "returned": 3,
+          "proof": {
+            "passed": 3
+          },
+          "wallMs": {
+            "n": 3,
+            "median": 792.969473000001,
+            "min": 585.7024859999992,
+            "max": 917.456193
+          },
+          "cpuMs": {
+            "n": 3,
+            "median": 1084.818,
+            "min": 802.665,
+            "max": 1259.651
+          },
+          "heapUsedAfterMiB": {
+            "n": 3,
+            "median": 91.53880310058594,
+            "min": 90.36041259765625,
+            "max": 92.11238861083984
+          },
+          "rssAfterMiB": {
+            "n": 3,
+            "median": 290.94140625,
+            "min": 286.16796875,
+            "max": 305.22265625
+          },
+          "processPeakRSSMiB": {
+            "n": 3,
+            "median": 297.65625,
+            "min": 290.71484375,
+            "max": 305.73828125
+          },
+          "perProcessMedians": [
+            {
+              "replicate": 0,
+              "medianMs": 917.456193
+            },
+            {
+              "replicate": 1,
+              "medianMs": 585.7024859999992
+            },
+            {
+              "replicate": 2,
+              "medianMs": 792.969473000001
+            }
+          ],
+          "failures": []
+        }
+      },
+      "importMs": {
+        "n": 3,
+        "median": 2182.6374610000003,
+        "min": 2023.023364,
+        "max": 2503.068036
+      },
+      "cacheAudit": [
+        {
+          "owner": "backend-registry",
+          "outcome": "hit",
+          "count": 3
+        },
+        {
+          "owner": "capability-decision",
+          "outcome": "hit",
+          "count": 3
+        },
+        {
+          "owner": "positioned-layout",
+          "outcome": "bypass",
+          "count": 3
+        },
+        {
+          "owner": "native-drawing",
+          "outcome": "bypass",
+          "count": 3
+        },
+        {
+          "owner": "positioned-scene",
+          "outcome": "miss",
+          "count": 3
+        },
+        {
+          "owner": "positioned-scene",
+          "outcome": "hit",
+          "count": 3
+        },
+        {
+          "owner": "paint-certification",
+          "outcome": "miss",
+          "count": 3
+        },
+        {
+          "owner": "svg-inspection",
+          "outcome": "miss",
+          "count": 6
+        },
+        {
+          "owner": "svg-inspection",
+          "outcome": "store-skipped",
+          "count": 3
+        }
+      ],
+      "repeatSVGExact": true,
+      "repeatReceiptExact": true,
+      "editChanged": true
+    },
+    {
+      "case": "er256RL",
+      "cache": 0,
+      "backend": "elk",
+      "cells": {
+        "cold-render": {
+          "attempts": 3,
+          "returned": 3,
+          "proof": {
+            "passed": 3
+          },
+          "wallMs": {
+            "n": 3,
+            "median": 1522.8377489999998,
+            "min": 1181.2289029999997,
+            "max": 1625.8144160000002
+          },
+          "cpuMs": {
+            "n": 3,
+            "median": 2744.638,
+            "min": 2445.096,
+            "max": 3003.535
+          },
+          "heapUsedAfterMiB": {
+            "n": 3,
+            "median": 119.03943634033203,
+            "min": 115.03016662597656,
+            "max": 119.5124282836914
+          },
+          "rssAfterMiB": {
+            "n": 3,
+            "median": 328.609375,
+            "min": 315.1796875,
+            "max": 359.40625
+          },
+          "processPeakRSSMiB": {
+            "n": 3,
+            "median": 328.609375,
+            "min": 315.1796875,
+            "max": 359.40625
+          },
+          "perProcessMedians": [
+            {
+              "replicate": 0,
+              "medianMs": 1625.8144160000002
+            },
+            {
+              "replicate": 1,
+              "medianMs": 1181.2289029999997
+            },
+            {
+              "replicate": 2,
+              "medianMs": 1522.8377489999998
+            }
+          ],
+          "failures": []
+        },
+        "repeats": {
+          "attempts": 12,
+          "returned": 12,
+          "proof": {
+            "passed": 12
+          },
+          "wallMs": {
+            "n": 12,
+            "median": 999.0604735000002,
+            "min": 760.6406130000005,
+            "max": 1195.7108349999999
+          },
+          "cpuMs": {
+            "n": 12,
+            "median": 1611.4645,
+            "min": 1199.514,
+            "max": 1793.147
+          },
+          "heapUsedAfterMiB": {
+            "n": 12,
+            "median": 115.32036590576172,
+            "min": 110.91735076904297,
+            "max": 123.91868591308594
+          },
+          "rssAfterMiB": {
+            "n": 12,
+            "median": 339.78125,
+            "min": 325.390625,
+            "max": 367.546875
+          },
+          "processPeakRSSMiB": {
+            "n": 12,
+            "median": 340.046875,
+            "min": 326.640625,
+            "max": 367.546875
+          },
+          "perProcessMedians": [
+            {
+              "replicate": 0,
+              "medianMs": 999.0604735000002
+            },
+            {
+              "replicate": 1,
+              "medianMs": 782.9314205000001
+            },
+            {
+              "replicate": 2,
+              "medianMs": 1084.7850910000002
+            }
+          ],
+          "failures": []
+        },
+        "edit": {
+          "attempts": 3,
+          "returned": 3,
+          "proof": {
+            "passed": 3
+          },
+          "wallMs": {
+            "n": 3,
+            "median": 951.7187180000001,
+            "min": 806.563666,
+            "max": 965.1609630000003
+          },
+          "cpuMs": {
+            "n": 3,
+            "median": 1480.626,
+            "min": 1279.734,
+            "max": 1487.554
+          },
+          "heapUsedAfterMiB": {
+            "n": 3,
+            "median": 110.43147277832031,
+            "min": 109.61519622802734,
+            "max": 111.86801147460938
+          },
+          "rssAfterMiB": {
+            "n": 3,
+            "median": 340.41796875,
+            "min": 322.41015625,
+            "max": 366.76171875
+          },
+          "processPeakRSSMiB": {
+            "n": 3,
+            "median": 340.41796875,
+            "min": 329.29296875,
+            "max": 367.546875
+          },
+          "perProcessMedians": [
+            {
+              "replicate": 0,
+              "medianMs": 965.1609630000003
+            },
+            {
+              "replicate": 1,
+              "medianMs": 806.563666
+            },
+            {
+              "replicate": 2,
+              "medianMs": 951.7187180000001
+            }
+          ],
+          "failures": []
+        },
+        "edited-repeat": {
+          "attempts": 3,
+          "returned": 3,
+          "proof": {
+            "passed": 3
+          },
+          "wallMs": {
+            "n": 3,
+            "median": 941.9541360000003,
+            "min": 801.800890999999,
+            "max": 965.9370850000014
+          },
+          "cpuMs": {
+            "n": 3,
+            "median": 1398.624,
+            "min": 1282.063,
+            "max": 1411.881
+          },
+          "heapUsedAfterMiB": {
+            "n": 3,
+            "median": 110.77310180664062,
+            "min": 110.65642547607422,
+            "max": 114.75382995605469
+          },
+          "rssAfterMiB": {
+            "n": 3,
+            "median": 341.52734375,
+            "min": 322.5703125,
+            "max": 367.78125
+          },
+          "processPeakRSSMiB": {
+            "n": 3,
+            "median": 341.52734375,
+            "min": 329.29296875,
+            "max": 367.78125
+          },
+          "perProcessMedians": [
+            {
+              "replicate": 0,
+              "medianMs": 965.9370850000014
+            },
+            {
+              "replicate": 1,
+              "medianMs": 801.800890999999
+            },
+            {
+              "replicate": 2,
+              "medianMs": 941.9541360000003
+            }
+          ],
+          "failures": []
+        }
+      },
+      "importMs": {
+        "n": 3,
+        "median": 2912.629438,
+        "min": 2000.978109,
+        "max": 2973.765721
+      },
+      "cacheAudit": [
+        {
+          "owner": "backend-registry",
+          "outcome": "hit",
+          "count": 3
+        },
+        {
+          "owner": "capability-decision",
+          "outcome": "hit",
+          "count": 3
+        },
+        {
+          "owner": "positioned-layout",
+          "outcome": "bypass",
+          "count": 3
+        },
+        {
+          "owner": "elk-layout",
+          "outcome": "bypass",
+          "count": 3
+        },
+        {
+          "owner": "native-drawing",
+          "outcome": "bypass",
+          "count": 3
+        },
+        {
+          "owner": "positioned-scene",
+          "outcome": "miss",
+          "count": 3
+        },
+        {
+          "owner": "positioned-scene",
+          "outcome": "hit",
+          "count": 3
+        },
+        {
+          "owner": "paint-certification",
+          "outcome": "miss",
+          "count": 3
+        },
+        {
+          "owner": "svg-inspection",
+          "outcome": "miss",
+          "count": 6
+        },
+        {
+          "owner": "svg-inspection",
+          "outcome": "store-skipped",
+          "count": 3
+        }
+      ],
+      "repeatSVGExact": true,
+      "repeatReceiptExact": true,
+      "editChanged": true
+    },
+    {
+      "case": "er256RL",
+      "cache": 1,
+      "backend": "agentic",
+      "cells": {
+        "cold-render": {
+          "attempts": 3,
+          "returned": 3,
+          "proof": {
+            "passed": 3
+          },
+          "wallMs": {
+            "n": 3,
+            "median": 1095.498426,
+            "min": 1079.290697,
+            "max": 1113.817869
+          },
+          "cpuMs": {
+            "n": 3,
+            "median": 1759.026,
+            "min": 1753.292,
+            "max": 1767.022
+          },
+          "heapUsedAfterMiB": {
+            "n": 3,
+            "median": 100.35387420654297,
+            "min": 95.22555541992188,
+            "max": 119.12001037597656
+          },
+          "rssAfterMiB": {
+            "n": 3,
+            "median": 293.12890625,
+            "min": 289.08984375,
+            "max": 298.703125
+          },
+          "processPeakRSSMiB": {
+            "n": 3,
+            "median": 293.12890625,
+            "min": 289.08984375,
+            "max": 298.703125
+          },
+          "perProcessMedians": [
+            {
+              "replicate": 0,
+              "medianMs": 1079.290697
+            },
+            {
+              "replicate": 1,
+              "medianMs": 1095.498426
+            },
+            {
+              "replicate": 2,
+              "medianMs": 1113.817869
+            }
+          ],
+          "failures": []
+        },
+        "repeats": {
+          "attempts": 12,
+          "returned": 12,
+          "proof": {
+            "passed": 12
+          },
+          "wallMs": {
+            "n": 12,
+            "median": 641.26566,
+            "min": 576.4994420000003,
+            "max": 699.9069749999999
+          },
+          "cpuMs": {
+            "n": 12,
+            "median": 931.702,
+            "min": 841.511,
+            "max": 1035.084
+          },
+          "heapUsedAfterMiB": {
+            "n": 12,
+            "median": 90.49678039550781,
+            "min": 87.80248260498047,
+            "max": 93.75325775146484
+          },
+          "rssAfterMiB": {
+            "n": 12,
+            "median": 298.509765625,
+            "min": 289.5078125,
+            "max": 305.31640625
+          },
+          "processPeakRSSMiB": {
+            "n": 12,
+            "median": 299.91015625,
+            "min": 292.71875,
+            "max": 305.31640625
+          },
+          "perProcessMedians": [
+            {
+              "replicate": 0,
+              "medianMs": 650.4597199999998
+            },
+            {
+              "replicate": 1,
+              "medianMs": 610.2184750000001
+            },
+            {
+              "replicate": 2,
+              "medianMs": 641.1576035
+            }
+          ],
+          "failures": []
+        },
+        "edit": {
+          "attempts": 3,
+          "returned": 3,
+          "proof": {
+            "passed": 3
+          },
+          "wallMs": {
+            "n": 3,
+            "median": 754.3828729999996,
+            "min": 691.2192850000001,
+            "max": 803.3858040000005
+          },
+          "cpuMs": {
+            "n": 3,
+            "median": 1110.273,
+            "min": 988.91,
+            "max": 1188.141
+          },
+          "heapUsedAfterMiB": {
+            "n": 3,
+            "median": 101.20423126220703,
+            "min": 101.13807678222656,
+            "max": 101.73970031738281
+          },
+          "rssAfterMiB": {
+            "n": 3,
+            "median": 298.40234375,
+            "min": 293.69921875,
+            "max": 301.578125
+          },
+          "processPeakRSSMiB": {
+            "n": 3,
+            "median": 305.44140625,
+            "min": 295.9375,
+            "max": 305.546875
+          },
+          "perProcessMedians": [
+            {
+              "replicate": 0,
+              "medianMs": 803.3858040000005
+            },
+            {
+              "replicate": 1,
+              "medianMs": 691.2192850000001
+            },
+            {
+              "replicate": 2,
+              "medianMs": 754.3828729999996
+            }
+          ],
+          "failures": []
+        },
+        "edited-repeat": {
+          "attempts": 3,
+          "returned": 3,
+          "proof": {
+            "passed": 3
+          },
+          "wallMs": {
+            "n": 3,
+            "median": 614.3162969999994,
+            "min": 598.0357999999997,
+            "max": 665.870672
+          },
+          "cpuMs": {
+            "n": 3,
+            "median": 848.039,
+            "min": 837.139,
+            "max": 920.144
+          },
+          "heapUsedAfterMiB": {
+            "n": 3,
+            "median": 88.73377227783203,
+            "min": 88.69743347167969,
+            "max": 89.02435302734375
+          },
+          "rssAfterMiB": {
+            "n": 3,
+            "median": 298.671875,
+            "min": 289.296875,
+            "max": 301.59375
+          },
+          "processPeakRSSMiB": {
+            "n": 3,
+            "median": 305.44140625,
+            "min": 295.9375,
+            "max": 305.546875
+          },
+          "perProcessMedians": [
+            {
+              "replicate": 0,
+              "medianMs": 614.3162969999994
+            },
+            {
+              "replicate": 1,
+              "medianMs": 598.0357999999997
+            },
+            {
+              "replicate": 2,
+              "medianMs": 665.870672
+            }
+          ],
+          "failures": []
+        }
+      },
+      "importMs": {
+        "n": 3,
+        "median": 2471.0974779999997,
+        "min": 2379.916566,
+        "max": 2585.433055
+      },
+      "cacheAudit": [
+        {
+          "owner": "backend-registry",
+          "outcome": "hit",
+          "count": 3
+        },
+        {
+          "owner": "capability-decision",
+          "outcome": "hit",
+          "count": 3
+        },
+        {
+          "owner": "positioned-layout",
+          "outcome": "hit",
+          "count": 3
+        },
+        {
+          "owner": "native-drawing",
+          "outcome": "bypass",
+          "count": 3
+        },
+        {
+          "owner": "positioned-scene",
+          "outcome": "miss",
+          "count": 3
+        },
+        {
+          "owner": "positioned-scene",
+          "outcome": "hit",
+          "count": 3
+        },
+        {
+          "owner": "paint-certification",
+          "outcome": "miss",
+          "count": 3
+        },
+        {
+          "owner": "svg-inspection",
+          "outcome": "miss",
+          "count": 6
+        },
+        {
+          "owner": "svg-inspection",
+          "outcome": "store-skipped",
+          "count": 3
+        }
+      ],
+      "repeatSVGExact": true,
+      "repeatReceiptExact": true,
+      "editChanged": true
+    },
+    {
+      "case": "er256RL",
+      "cache": 1,
+      "backend": "elk",
+      "cells": {
+        "cold-render": {
+          "attempts": 3,
+          "returned": 3,
+          "proof": {
+            "passed": 3
+          },
+          "wallMs": {
+            "n": 3,
+            "median": 1486.1220430000003,
+            "min": 1259.234414,
+            "max": 1511.9814110000002
+          },
+          "cpuMs": {
+            "n": 3,
+            "median": 2722.748,
+            "min": 2698.228,
+            "max": 2841.536
+          },
+          "heapUsedAfterMiB": {
+            "n": 3,
+            "median": 126.72378540039062,
+            "min": 101.91393280029297,
+            "max": 127.89797973632812
+          },
+          "rssAfterMiB": {
+            "n": 3,
+            "median": 329.96484375,
+            "min": 314.96484375,
+            "max": 351.09765625
+          },
+          "processPeakRSSMiB": {
+            "n": 3,
+            "median": 329.96484375,
+            "min": 314.96484375,
+            "max": 351.09765625
+          },
+          "perProcessMedians": [
+            {
+              "replicate": 0,
+              "medianMs": 1486.1220430000003
+            },
+            {
+              "replicate": 1,
+              "medianMs": 1511.9814110000002
+            },
+            {
+              "replicate": 2,
+              "medianMs": 1259.234414
+            }
+          ],
+          "failures": []
+        },
+        "repeats": {
+          "attempts": 12,
+          "returned": 12,
+          "proof": {
+            "passed": 12
+          },
+          "wallMs": {
+            "n": 12,
+            "median": 592.5802594999996,
+            "min": 519.0090770000006,
+            "max": 659.7609829999997
+          },
+          "cpuMs": {
+            "n": 12,
+            "median": 888.8435,
+            "min": 772.229,
+            "max": 1018.67
+          },
+          "heapUsedAfterMiB": {
+            "n": 12,
+            "median": 106.23848342895508,
+            "min": 104.03164672851562,
+            "max": 110.49575805664062
+          },
+          "rssAfterMiB": {
+            "n": 12,
+            "median": 331.28125,
+            "min": 316.95703125,
+            "max": 361.22265625
+          },
+          "processPeakRSSMiB": {
+            "n": 12,
+            "median": 331.78125,
+            "min": 316.95703125,
+            "max": 361.22265625
+          },
+          "perProcessMedians": [
+            {
+              "replicate": 0,
+              "medianMs": 595.8391799999999
+            },
+            {
+              "replicate": 1,
+              "medianMs": 611.9934229999999
+            },
+            {
+              "replicate": 2,
+              "medianMs": 538.9596700000002
+            }
+          ],
+          "failures": []
+        },
+        "edit": {
+          "attempts": 3,
+          "returned": 3,
+          "proof": {
+            "passed": 3
+          },
+          "wallMs": {
+            "n": 3,
+            "median": 961.8406610000002,
+            "min": 816.3963180000001,
+            "max": 964.0573469999999
+          },
+          "cpuMs": {
+            "n": 3,
+            "median": 1674.222,
+            "min": 1419.225,
+            "max": 1685.221
+          },
+          "heapUsedAfterMiB": {
+            "n": 3,
+            "median": 121.49650573730469,
+            "min": 121.38258361816406,
+            "max": 122.01446533203125
+          },
+          "rssAfterMiB": {
+            "n": 3,
+            "median": 342.03125,
+            "min": 328.12109375,
+            "max": 363.43359375
+          },
+          "processPeakRSSMiB": {
+            "n": 3,
+            "median": 342.03125,
+            "min": 328.12109375,
+            "max": 363.43359375
+          },
+          "perProcessMedians": [
+            {
+              "replicate": 0,
+              "medianMs": 964.0573469999999
+            },
+            {
+              "replicate": 1,
+              "medianMs": 961.8406610000002
+            },
+            {
+              "replicate": 2,
+              "medianMs": 816.3963180000001
+            }
+          ],
+          "failures": []
+        },
+        "edited-repeat": {
+          "attempts": 3,
+          "returned": 3,
+          "proof": {
+            "passed": 3
+          },
+          "wallMs": {
+            "n": 3,
+            "median": 572.7260200000001,
+            "min": 527.3808720000006,
+            "max": 605.9293810000008
+          },
+          "cpuMs": {
+            "n": 3,
+            "median": 803.542,
+            "min": 738.408,
+            "max": 843.635
+          },
+          "heapUsedAfterMiB": {
+            "n": 3,
+            "median": 106.7958984375,
+            "min": 106.654541015625,
+            "max": 107.18458557128906
+          },
+          "rssAfterMiB": {
+            "n": 3,
+            "median": 342.15625,
+            "min": 328.04296875,
+            "max": 363.390625
+          },
+          "processPeakRSSMiB": {
+            "n": 3,
+            "median": 342.15625,
+            "min": 328.12109375,
+            "max": 363.43359375
+          },
+          "perProcessMedians": [
+            {
+              "replicate": 0,
+              "medianMs": 605.9293810000008
+            },
+            {
+              "replicate": 1,
+              "medianMs": 572.7260200000001
+            },
+            {
+              "replicate": 2,
+              "medianMs": 527.3808720000006
+            }
+          ],
+          "failures": []
+        }
+      },
+      "importMs": {
+        "n": 3,
+        "median": 2334.700609,
+        "min": 2110.101653,
+        "max": 2368.521107
+      },
+      "cacheAudit": [
+        {
+          "owner": "backend-registry",
+          "outcome": "hit",
+          "count": 3
+        },
+        {
+          "owner": "capability-decision",
+          "outcome": "hit",
+          "count": 3
+        },
+        {
+          "owner": "positioned-layout",
+          "outcome": "hit",
+          "count": 3
+        },
+        {
+          "owner": "native-drawing",
+          "outcome": "bypass",
+          "count": 3
+        },
+        {
+          "owner": "positioned-scene",
+          "outcome": "miss",
+          "count": 3
+        },
+        {
+          "owner": "positioned-scene",
+          "outcome": "hit",
+          "count": 3
+        },
+        {
+          "owner": "paint-certification",
+          "outcome": "miss",
+          "count": 3
+        },
+        {
+          "owner": "svg-inspection",
+          "outcome": "miss",
+          "count": 6
+        },
+        {
+          "owner": "svg-inspection",
+          "outcome": "store-skipped",
+          "count": 3
+        }
+      ],
+      "repeatSVGExact": true,
+      "repeatReceiptExact": true,
+      "editChanged": true
+    }
+  ],
+  "comparisons": [
+    {
+      "case": "er256BT",
+      "cache": 0,
+      "phase": "cold-render",
+      "NativeMs": 2021.7380210000001,
+      "ELKMs": 2379.9370229999995,
+      "completePassedPairs": true,
+      "NativeOverELK": null,
+      "pairedProcessMedians": [
+        {
+          "replicate": 0,
+          "NativeMs": 1538.4924760000004,
+          "ELKMs": 1493.057456
+        },
+        {
+          "replicate": 1,
+          "NativeMs": 2021.7380210000001,
+          "ELKMs": 4888.53577
+        },
+        {
+          "replicate": 2,
+          "NativeMs": 3013.510331,
+          "ELKMs": 2379.9370229999995
+        }
+      ],
+      "NativeLowerPairs": 1,
+      "pairCount": 3,
+      "qualification": "No ratios reported; complete products/proofs and counts remain explicit; all other timings retained descriptively. Three fresh processes per arm; repeated values are within-process samples."
+    },
+    {
+      "case": "er256BT",
+      "cache": 0,
+      "phase": "repeats",
+      "NativeMs": 1072.477535,
+      "ELKMs": 1082.3747679999997,
+      "completePassedPairs": true,
+      "NativeOverELK": null,
+      "pairedProcessMedians": [
+        {
+          "replicate": 0,
+          "NativeMs": 778.2903699999997,
+          "ELKMs": 1019.5201320000001
+        },
+        {
+          "replicate": 1,
+          "NativeMs": 1057.0215035,
+          "ELKMs": 2215.2004555000003
+        },
+        {
+          "replicate": 2,
+          "NativeMs": 2332.3694714999997,
+          "ELKMs": 1044.6875115000003
+        }
+      ],
+      "NativeLowerPairs": 2,
+      "pairCount": 3,
+      "qualification": "No ratios reported; complete products/proofs and counts remain explicit; all other timings retained descriptively. Three fresh processes per arm; repeated values are within-process samples."
+    },
+    {
+      "case": "er256BT",
+      "cache": 0,
+      "phase": "edit",
+      "NativeMs": 1742.405982000002,
+      "ELKMs": 1073.641991999999,
+      "completePassedPairs": true,
+      "NativeOverELK": null,
+      "pairedProcessMedians": [
+        {
+          "replicate": 0,
+          "NativeMs": 713.9054770000002,
+          "ELKMs": 899.7579930000011
+        },
+        {
+          "replicate": 1,
+          "NativeMs": 1978.4562000000005,
+          "ELKMs": 1753.6037599999981
+        },
+        {
+          "replicate": 2,
+          "NativeMs": 1742.405982000002,
+          "ELKMs": 1073.641991999999
+        }
+      ],
+      "NativeLowerPairs": 1,
+      "pairCount": 3,
+      "qualification": "No ratios reported; complete products/proofs and counts remain explicit; all other timings retained descriptively. Three fresh processes per arm; repeated values are within-process samples."
+    },
+    {
+      "case": "er256BT",
+      "cache": 0,
+      "phase": "edited-repeat",
+      "NativeMs": 2087.640464,
+      "ELKMs": 968.3828020000001,
+      "completePassedPairs": true,
+      "NativeOverELK": null,
+      "pairedProcessMedians": [
+        {
+          "replicate": 0,
+          "NativeMs": 734.7703739999997,
+          "ELKMs": 929.8278069999997
+        },
+        {
+          "replicate": 1,
+          "NativeMs": 2551.6681500000013,
+          "ELKMs": 1528.9658909999998
+        },
+        {
+          "replicate": 2,
+          "NativeMs": 2087.640464,
+          "ELKMs": 968.3828020000001
+        }
+      ],
+      "NativeLowerPairs": 1,
+      "pairCount": 3,
+      "qualification": "No ratios reported; complete products/proofs and counts remain explicit; all other timings retained descriptively. Three fresh processes per arm; repeated values are within-process samples."
+    },
+    {
+      "case": "er256BT",
+      "cache": 1,
+      "phase": "cold-render",
+      "NativeMs": 1109.924817,
+      "ELKMs": 1607.112357,
+      "completePassedPairs": true,
+      "NativeOverELK": null,
+      "pairedProcessMedians": [
+        {
+          "replicate": 0,
+          "NativeMs": 1113.066676,
+          "ELKMs": 1586.648302
+        },
+        {
+          "replicate": 1,
+          "NativeMs": 1063.7989929999999,
+          "ELKMs": 1668.208267
+        },
+        {
+          "replicate": 2,
+          "NativeMs": 1109.924817,
+          "ELKMs": 1607.112357
+        }
+      ],
+      "NativeLowerPairs": 3,
+      "pairCount": 3,
+      "qualification": "No ratios reported; complete products/proofs and counts remain explicit; all other timings retained descriptively. Three fresh processes per arm; repeated values are within-process samples."
+    },
+    {
+      "case": "er256BT",
+      "cache": 1,
+      "phase": "repeats",
+      "NativeMs": 651.7399974999998,
+      "ELKMs": 678.2235105,
+      "completePassedPairs": true,
+      "NativeOverELK": null,
+      "pairedProcessMedians": [
+        {
+          "replicate": 0,
+          "NativeMs": 671.0735155000002,
+          "ELKMs": 698.4296774999998
+        },
+        {
+          "replicate": 1,
+          "NativeMs": 606.9795245,
+          "ELKMs": 771.6116175000002
+        },
+        {
+          "replicate": 2,
+          "NativeMs": 674.2871355000002,
+          "ELKMs": 580.488992
+        }
+      ],
+      "NativeLowerPairs": 2,
+      "pairCount": 3,
+      "qualification": "No ratios reported; complete products/proofs and counts remain explicit; all other timings retained descriptively. Three fresh processes per arm; repeated values are within-process samples."
+    },
+    {
+      "case": "er256BT",
+      "cache": 1,
+      "phase": "edit",
+      "NativeMs": 767.7720510000008,
+      "ELKMs": 980.487666,
+      "completePassedPairs": true,
+      "NativeOverELK": null,
+      "pairedProcessMedians": [
+        {
+          "replicate": 0,
+          "NativeMs": 767.7720510000008,
+          "ELKMs": 1112.0827629999994
+        },
+        {
+          "replicate": 1,
+          "NativeMs": 767.0775270000004,
+          "ELKMs": 980.487666
+        },
+        {
+          "replicate": 2,
+          "NativeMs": 798.5162460000001,
+          "ELKMs": 977.7819369999997
+        }
+      ],
+      "NativeLowerPairs": 3,
+      "pairCount": 3,
+      "qualification": "No ratios reported; complete products/proofs and counts remain explicit; all other timings retained descriptively. Three fresh processes per arm; repeated values are within-process samples."
+    },
+    {
+      "case": "er256BT",
+      "cache": 1,
+      "phase": "edited-repeat",
+      "NativeMs": 610.8098019999998,
+      "ELKMs": 589.8661090000005,
+      "completePassedPairs": true,
+      "NativeOverELK": null,
+      "pairedProcessMedians": [
+        {
+          "replicate": 0,
+          "NativeMs": 610.8098019999998,
+          "ELKMs": 644.5038330000007
+        },
+        {
+          "replicate": 1,
+          "NativeMs": 606.1041409999998,
+          "ELKMs": 589.8661090000005
+        },
+        {
+          "replicate": 2,
+          "NativeMs": 744.1870769999996,
+          "ELKMs": 567.2672110000003
+        }
+      ],
+      "NativeLowerPairs": 1,
+      "pairCount": 3,
+      "qualification": "No ratios reported; complete products/proofs and counts remain explicit; all other timings retained descriptively. Three fresh processes per arm; repeated values are within-process samples."
+    },
+    {
+      "case": "er256RL",
+      "cache": 0,
+      "phase": "cold-render",
+      "NativeMs": 1052.286278,
+      "ELKMs": 1522.8377489999998,
+      "completePassedPairs": true,
+      "NativeOverELK": null,
+      "pairedProcessMedians": [
+        {
+          "replicate": 0,
+          "NativeMs": 1178.5775669999998,
+          "ELKMs": 1625.8144160000002
+        },
+        {
+          "replicate": 1,
+          "NativeMs": 802.9476409999997,
+          "ELKMs": 1181.2289029999997
+        },
+        {
+          "replicate": 2,
+          "NativeMs": 1052.286278,
+          "ELKMs": 1522.8377489999998
+        }
+      ],
+      "NativeLowerPairs": 3,
+      "pairCount": 3,
+      "qualification": "No ratios reported; complete products/proofs and counts remain explicit; all other timings retained descriptively. Three fresh processes per arm; repeated values are within-process samples."
+    },
+    {
+      "case": "er256RL",
+      "cache": 0,
+      "phase": "repeats",
+      "NativeMs": 756.3058725000001,
+      "ELKMs": 999.0604735000002,
+      "completePassedPairs": true,
+      "NativeOverELK": null,
+      "pairedProcessMedians": [
+        {
+          "replicate": 0,
+          "NativeMs": 849.7532729999998,
+          "ELKMs": 999.0604735000002
+        },
+        {
+          "replicate": 1,
+          "NativeMs": 606.056863,
+          "ELKMs": 782.9314205000001
+        },
+        {
+          "replicate": 2,
+          "NativeMs": 759.8546749999996,
+          "ELKMs": 1084.7850910000002
+        }
+      ],
+      "NativeLowerPairs": 3,
+      "pairCount": 3,
+      "qualification": "No ratios reported; complete products/proofs and counts remain explicit; all other timings retained descriptively. Three fresh processes per arm; repeated values are within-process samples."
+    },
+    {
+      "case": "er256RL",
+      "cache": 0,
+      "phase": "edit",
+      "NativeMs": 731.004696,
+      "ELKMs": 951.7187180000001,
+      "completePassedPairs": true,
+      "NativeOverELK": null,
+      "pairedProcessMedians": [
+        {
+          "replicate": 0,
+          "NativeMs": 826.3834200000001,
+          "ELKMs": 965.1609630000003
+        },
+        {
+          "replicate": 1,
+          "NativeMs": 600.6388580000003,
+          "ELKMs": 806.563666
+        },
+        {
+          "replicate": 2,
+          "NativeMs": 731.004696,
+          "ELKMs": 951.7187180000001
+        }
+      ],
+      "NativeLowerPairs": 3,
+      "pairCount": 3,
+      "qualification": "No ratios reported; complete products/proofs and counts remain explicit; all other timings retained descriptively. Three fresh processes per arm; repeated values are within-process samples."
+    },
+    {
+      "case": "er256RL",
+      "cache": 0,
+      "phase": "edited-repeat",
+      "NativeMs": 792.969473000001,
+      "ELKMs": 941.9541360000003,
+      "completePassedPairs": true,
+      "NativeOverELK": null,
+      "pairedProcessMedians": [
+        {
+          "replicate": 0,
+          "NativeMs": 917.456193,
+          "ELKMs": 965.9370850000014
+        },
+        {
+          "replicate": 1,
+          "NativeMs": 585.7024859999992,
+          "ELKMs": 801.800890999999
+        },
+        {
+          "replicate": 2,
+          "NativeMs": 792.969473000001,
+          "ELKMs": 941.9541360000003
+        }
+      ],
+      "NativeLowerPairs": 3,
+      "pairCount": 3,
+      "qualification": "No ratios reported; complete products/proofs and counts remain explicit; all other timings retained descriptively. Three fresh processes per arm; repeated values are within-process samples."
+    },
+    {
+      "case": "er256RL",
+      "cache": 1,
+      "phase": "cold-render",
+      "NativeMs": 1095.498426,
+      "ELKMs": 1486.1220430000003,
+      "completePassedPairs": true,
+      "NativeOverELK": null,
+      "pairedProcessMedians": [
+        {
+          "replicate": 0,
+          "NativeMs": 1079.290697,
+          "ELKMs": 1486.1220430000003
+        },
+        {
+          "replicate": 1,
+          "NativeMs": 1095.498426,
+          "ELKMs": 1511.9814110000002
+        },
+        {
+          "replicate": 2,
+          "NativeMs": 1113.817869,
+          "ELKMs": 1259.234414
+        }
+      ],
+      "NativeLowerPairs": 3,
+      "pairCount": 3,
+      "qualification": "No ratios reported; complete products/proofs and counts remain explicit; all other timings retained descriptively. Three fresh processes per arm; repeated values are within-process samples."
+    },
+    {
+      "case": "er256RL",
+      "cache": 1,
+      "phase": "repeats",
+      "NativeMs": 641.26566,
+      "ELKMs": 592.5802594999996,
+      "completePassedPairs": true,
+      "NativeOverELK": null,
+      "pairedProcessMedians": [
+        {
+          "replicate": 0,
+          "NativeMs": 650.4597199999998,
+          "ELKMs": 595.8391799999999
+        },
+        {
+          "replicate": 1,
+          "NativeMs": 610.2184750000001,
+          "ELKMs": 611.9934229999999
+        },
+        {
+          "replicate": 2,
+          "NativeMs": 641.1576035,
+          "ELKMs": 538.9596700000002
+        }
+      ],
+      "NativeLowerPairs": 1,
+      "pairCount": 3,
+      "qualification": "No ratios reported; complete products/proofs and counts remain explicit; all other timings retained descriptively. Three fresh processes per arm; repeated values are within-process samples."
+    },
+    {
+      "case": "er256RL",
+      "cache": 1,
+      "phase": "edit",
+      "NativeMs": 754.3828729999996,
+      "ELKMs": 961.8406610000002,
+      "completePassedPairs": true,
+      "NativeOverELK": null,
+      "pairedProcessMedians": [
+        {
+          "replicate": 0,
+          "NativeMs": 803.3858040000005,
+          "ELKMs": 964.0573469999999
+        },
+        {
+          "replicate": 1,
+          "NativeMs": 691.2192850000001,
+          "ELKMs": 961.8406610000002
+        },
+        {
+          "replicate": 2,
+          "NativeMs": 754.3828729999996,
+          "ELKMs": 816.3963180000001
+        }
+      ],
+      "NativeLowerPairs": 3,
+      "pairCount": 3,
+      "qualification": "No ratios reported; complete products/proofs and counts remain explicit; all other timings retained descriptively. Three fresh processes per arm; repeated values are within-process samples."
+    },
+    {
+      "case": "er256RL",
+      "cache": 1,
+      "phase": "edited-repeat",
+      "NativeMs": 614.3162969999994,
+      "ELKMs": 572.7260200000001,
+      "completePassedPairs": true,
+      "NativeOverELK": null,
+      "pairedProcessMedians": [
+        {
+          "replicate": 0,
+          "NativeMs": 614.3162969999994,
+          "ELKMs": 605.9293810000008
+        },
+        {
+          "replicate": 1,
+          "NativeMs": 598.0357999999997,
+          "ELKMs": 572.7260200000001
+        },
+        {
+          "replicate": 2,
+          "NativeMs": 665.870672,
+          "ELKMs": 527.3808720000006
+        }
+      ],
+      "NativeLowerPairs": 0,
+      "pairCount": 3,
+      "qualification": "No ratios reported; complete products/proofs and counts remain explicit; all other timings retained descriptively. Three fresh processes per arm; repeated values are within-process samples."
+    }
+  ],
+  "scope": "Node24source API. Source imports separate; first render after imports.24sequential fresh processes with alternating order, three/arm/cache/case. Four same-source repeats, one edit, one edited repeat after first call. Sampling and timed observers off; full SVG+entire receipt serialized. ExplicitGC/compression/artifact writes outside timed calls. PeakRSS includes source import/harness/compression and retained first product; not package/browser memory. No representative-workload aggregate speedup."
+}

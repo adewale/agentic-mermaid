@@ -1,0 +1,39 @@
+[
+  {
+    "file": "editor-before-metafile.json",
+    "sourceRuntimeBytes": 654896,
+    "compressedRuntimeBytes": 471764,
+    "workerBytes": 4982974,
+    "packedWorkerBytes": 1171249,
+    "htmlBytes": 2287540,
+    "htmlGzipBytes": 1386827,
+    "runtimeGraphInputs": 228,
+    "sceneImplementationContributions": {
+      "src/scene/scene-validation-limits.ts": 241,
+      "src/scene/svg-writer.ts": 22090,
+      "src/scene/scene-validation-core.ts": 67852,
+      "src/scene/serialization.ts": 11312,
+      "src/scene/backend-conformance.ts": 20769,
+      "src/scene/backend.ts": 1877
+    },
+    "renderOptionContractContributions": {
+      "src/render-contract.ts": 19104
+    },
+    "scope": "Bun pre-SWC contributions only; actual full HTML gzip/Brotli measured separately."
+  },
+  {
+    "file": "editor-after-metafile.json",
+    "sourceRuntimeBytes": 367488,
+    "compressedRuntimeBytes": 294345,
+    "workerBytes": 4983032,
+    "packedWorkerBytes": 1171092,
+    "htmlBytes": 2109909,
+    "htmlGzipBytes": 1332711,
+    "runtimeGraphInputs": 63,
+    "sceneImplementationContributions": {},
+    "renderOptionContractContributions": {
+      "src/render-option-contract.ts": 17276
+    },
+    "scope": "Bun pre-SWC contributions only; actual full HTML gzip/Brotli measured separately."
+  }
+]

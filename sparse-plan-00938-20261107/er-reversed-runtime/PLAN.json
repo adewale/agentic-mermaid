@@ -1,0 +1,152 @@
+{
+  "scope": "Newly delivered ER256 BT/RL domain;24 fresh sequential Node24 processes, module import separate, cold+4repeat+edit+edited-repeat, complete SVG and receipt, no sampling/timed observers; layout cache0/1 and actual post-measurement cache audit. Descriptive p50 only; no precise tail/leak claim.",
+  "runs": [
+    {
+      "name": "er256BT-cache0-0-agentic",
+      "cache": 0,
+      "job": "/tmp/pr449-week-comparison-20261101/sparse-plan-00938-20261107/er-reversed-runtime/jobs/er256BT-cache0-0-agentic.json",
+      "out": "/tmp/pr449-week-comparison-20261101/sparse-plan-00938-20261107/er-reversed-runtime/measurements/er256BT-cache0-0-agentic"
+    },
+    {
+      "name": "er256BT-cache0-0-elk",
+      "cache": 0,
+      "job": "/tmp/pr449-week-comparison-20261101/sparse-plan-00938-20261107/er-reversed-runtime/jobs/er256BT-cache0-0-elk.json",
+      "out": "/tmp/pr449-week-comparison-20261101/sparse-plan-00938-20261107/er-reversed-runtime/measurements/er256BT-cache0-0-elk"
+    },
+    {
+      "name": "er256BT-cache0-1-elk",
+      "cache": 0,
+      "job": "/tmp/pr449-week-comparison-20261101/sparse-plan-00938-20261107/er-reversed-runtime/jobs/er256BT-cache0-1-elk.json",
+      "out": "/tmp/pr449-week-comparison-20261101/sparse-plan-00938-20261107/er-reversed-runtime/measurements/er256BT-cache0-1-elk"
+    },
+    {
+      "name": "er256BT-cache0-1-agentic",
+      "cache": 0,
+      "job": "/tmp/pr449-week-comparison-20261101/sparse-plan-00938-20261107/er-reversed-runtime/jobs/er256BT-cache0-1-agentic.json",
+      "out": "/tmp/pr449-week-comparison-20261101/sparse-plan-00938-20261107/er-reversed-runtime/measurements/er256BT-cache0-1-agentic"
+    },
+    {
+      "name": "er256BT-cache0-2-agentic",
+      "cache": 0,
+      "job": "/tmp/pr449-week-comparison-20261101/sparse-plan-00938-20261107/er-reversed-runtime/jobs/er256BT-cache0-2-agentic.json",
+      "out": "/tmp/pr449-week-comparison-20261101/sparse-plan-00938-20261107/er-reversed-runtime/measurements/er256BT-cache0-2-agentic"
+    },
+    {
+      "name": "er256BT-cache0-2-elk",
+      "cache": 0,
+      "job": "/tmp/pr449-week-comparison-20261101/sparse-plan-00938-20261107/er-reversed-runtime/jobs/er256BT-cache0-2-elk.json",
+      "out": "/tmp/pr449-week-comparison-20261101/sparse-plan-00938-20261107/er-reversed-runtime/measurements/er256BT-cache0-2-elk"
+    },
+    {
+      "name": "er256BT-cache1-0-agentic",
+      "cache": 1,
+      "job": "/tmp/pr449-week-comparison-20261101/sparse-plan-00938-20261107/er-reversed-runtime/jobs/er256BT-cache1-0-agentic.json",
+      "out": "/tmp/pr449-week-comparison-20261101/sparse-plan-00938-20261107/er-reversed-runtime/measurements/er256BT-cache1-0-agentic"
+    },
+    {
+      "name": "er256BT-cache1-0-elk",
+      "cache": 1,
+      "job": "/tmp/pr449-week-comparison-20261101/sparse-plan-00938-20261107/er-reversed-runtime/jobs/er256BT-cache1-0-elk.json",
+      "out": "/tmp/pr449-week-comparison-20261101/sparse-plan-00938-20261107/er-reversed-runtime/measurements/er256BT-cache1-0-elk"
+    },
+    {
+      "name": "er256BT-cache1-1-elk",
+      "cache": 1,
+      "job": "/tmp/pr449-week-comparison-20261101/sparse-plan-00938-20261107/er-reversed-runtime/jobs/er256BT-cache1-1-elk.json",
+      "out": "/tmp/pr449-week-comparison-20261101/sparse-plan-00938-20261107/er-reversed-runtime/measurements/er256BT-cache1-1-elk"
+    },
+    {
+      "name": "er256BT-cache1-1-agentic",
+      "cache": 1,
+      "job": "/tmp/pr449-week-comparison-20261101/sparse-plan-00938-20261107/er-reversed-runtime/jobs/er256BT-cache1-1-agentic.json",
+      "out": "/tmp/pr449-week-comparison-20261101/sparse-plan-00938-20261107/er-reversed-runtime/measurements/er256BT-cache1-1-agentic"
+    },
+    {
+      "name": "er256BT-cache1-2-agentic",
+      "cache": 1,
+      "job": "/tmp/pr449-week-comparison-20261101/sparse-plan-00938-20261107/er-reversed-runtime/jobs/er256BT-cache1-2-agentic.json",
+      "out": "/tmp/pr449-week-comparison-20261101/sparse-plan-00938-20261107/er-reversed-runtime/measurements/er256BT-cache1-2-agentic"
+    },
+    {
+      "name": "er256BT-cache1-2-elk",
+      "cache": 1,
+      "job": "/tmp/pr449-week-comparison-20261101/sparse-plan-00938-20261107/er-reversed-runtime/jobs/er256BT-cache1-2-elk.json",
+      "out": "/tmp/pr449-week-comparison-20261101/sparse-plan-00938-20261107/er-reversed-runtime/measurements/er256BT-cache1-2-elk"
+    },
+    {
+      "name": "er256RL-cache0-0-agentic",
+      "cache": 0,
+      "job": "/tmp/pr449-week-comparison-20261101/sparse-plan-00938-20261107/er-reversed-runtime/jobs/er256RL-cache0-0-agentic.json",
+      "out": "/tmp/pr449-week-comparison-20261101/sparse-plan-00938-20261107/er-reversed-runtime/measurements/er256RL-cache0-0-agentic"
+    },
+    {
+      "name": "er256RL-cache0-0-elk",
+      "cache": 0,
+      "job": "/tmp/pr449-week-comparison-20261101/sparse-plan-00938-20261107/er-reversed-runtime/jobs/er256RL-cache0-0-elk.json",
+      "out": "/tmp/pr449-week-comparison-20261101/sparse-plan-00938-20261107/er-reversed-runtime/measurements/er256RL-cache0-0-elk"
+    },
+    {
+      "name": "er256RL-cache0-1-elk",
+      "cache": 0,
+      "job": "/tmp/pr449-week-comparison-20261101/sparse-plan-00938-20261107/er-reversed-runtime/jobs/er256RL-cache0-1-elk.json",
+      "out": "/tmp/pr449-week-comparison-20261101/sparse-plan-00938-20261107/er-reversed-runtime/measurements/er256RL-cache0-1-elk"
+    },
+    {
+      "name": "er256RL-cache0-1-agentic",
+      "cache": 0,
+      "job": "/tmp/pr449-week-comparison-20261101/sparse-plan-00938-20261107/er-reversed-runtime/jobs/er256RL-cache0-1-agentic.json",
+      "out": "/tmp/pr449-week-comparison-20261101/sparse-plan-00938-20261107/er-reversed-runtime/measurements/er256RL-cache0-1-agentic"
+    },
+    {
+      "name": "er256RL-cache0-2-agentic",
+      "cache": 0,
+      "job": "/tmp/pr449-week-comparison-20261101/sparse-plan-00938-20261107/er-reversed-runtime/jobs/er256RL-cache0-2-agentic.json",
+      "out": "/tmp/pr449-week-comparison-20261101/sparse-plan-00938-20261107/er-reversed-runtime/measurements/er256RL-cache0-2-agentic"
+    },
+    {
+      "name": "er256RL-cache0-2-elk",
+      "cache": 0,
+      "job": "/tmp/pr449-week-comparison-20261101/sparse-plan-00938-20261107/er-reversed-runtime/jobs/er256RL-cache0-2-elk.json",
+      "out": "/tmp/pr449-week-comparison-20261101/sparse-plan-00938-20261107/er-reversed-runtime/measurements/er256RL-cache0-2-elk"
+    },
+    {
+      "name": "er256RL-cache1-0-agentic",
+      "cache": 1,
+      "job": "/tmp/pr449-week-comparison-20261101/sparse-plan-00938-20261107/er-reversed-runtime/jobs/er256RL-cache1-0-agentic.json",
+      "out": "/tmp/pr449-week-comparison-20261101/sparse-plan-00938-20261107/er-reversed-runtime/measurements/er256RL-cache1-0-agentic"
+    },
+    {
+      "name": "er256RL-cache1-0-elk",
+      "cache": 1,
+      "job": "/tmp/pr449-week-comparison-20261101/sparse-plan-00938-20261107/er-reversed-runtime/jobs/er256RL-cache1-0-elk.json",
+      "out": "/tmp/pr449-week-comparison-20261101/sparse-plan-00938-20261107/er-reversed-runtime/measurements/er256RL-cache1-0-elk"
+    },
+    {
+      "name": "er256RL-cache1-1-elk",
+      "cache": 1,
+      "job": "/tmp/pr449-week-comparison-20261101/sparse-plan-00938-20261107/er-reversed-runtime/jobs/er256RL-cache1-1-elk.json",
+      "out": "/tmp/pr449-week-comparison-20261101/sparse-plan-00938-20261107/er-reversed-runtime/measurements/er256RL-cache1-1-elk"
+    },
+    {
+      "name": "er256RL-cache1-1-agentic",
+      "cache": 1,
+      "job": "/tmp/pr449-week-comparison-20261101/sparse-plan-00938-20261107/er-reversed-runtime/jobs/er256RL-cache1-1-agentic.json",
+      "out": "/tmp/pr449-week-comparison-20261101/sparse-plan-00938-20261107/er-reversed-runtime/measurements/er256RL-cache1-1-agentic"
+    },
+    {
+      "name": "er256RL-cache1-2-agentic",
+      "cache": 1,
+      "job": "/tmp/pr449-week-comparison-20261101/sparse-plan-00938-20261107/er-reversed-runtime/jobs/er256RL-cache1-2-agentic.json",
+      "out": "/tmp/pr449-week-comparison-20261101/sparse-plan-00938-20261107/er-reversed-runtime/measurements/er256RL-cache1-2-agentic"
+    },
+    {
+      "name": "er256RL-cache1-2-elk",
+      "cache": 1,
+      "job": "/tmp/pr449-week-comparison-20261101/sparse-plan-00938-20261107/er-reversed-runtime/jobs/er256RL-cache1-2-elk.json",
+      "out": "/tmp/pr449-week-comparison-20261101/sparse-plan-00938-20261107/er-reversed-runtime/measurements/er256RL-cache1-2-elk"
+    }
+  ],
+  "sourceRevision": "d4e044949dd604cc0ca5deb692a6e82218d4b487",
+  "startedAt": "2026-11-08T00:09:59Z",
+  "finishedAt": "2026-11-08T00:14:27Z"
+}
