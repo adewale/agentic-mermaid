@@ -1,0 +1,35 @@
+{
+  "at": "2026-11-08T23:48:05.457587+00:00",
+  "head": "21194248b21873a87fa72fa545f67cfd8b49dad4",
+  "runtimeSource": "fe911360151ebfd534799db7da8d0533931054ec",
+  "sourceAndArchitectureEvidencePushed": true,
+  "latestCI": {
+    "run": 42536426208,
+    "status": "in_progress",
+    "ready": false,
+    "quality": "failed original lazy payload budgets"
+  },
+  "runtimeCI": {
+    "head": "fe911360151ebfd534799db7da8d0533931054ec",
+    "run": 42534101146,
+    "status": "completed",
+    "conclusion": "failure",
+    "ready": false,
+    "failures": [
+      "Sparse32",
+      "lazy payload budgets",
+      "website payload budgets",
+      "generated layout advisory",
+      "two stale Class/ER refusal owners, repaired in21194248b"
+    ]
+  },
+  "pr": 602,
+  "draft": true,
+  "noNewPRsOrIssues": true,
+  "automations": {
+    "6ae0b82853508191843a984cfb468d5b": false,
+    "6ae5e528d93881918a13186253dbae8e": false
+  },
+  "agentScopeReviewComplete": true,
+  "leaseReleased": true
+}

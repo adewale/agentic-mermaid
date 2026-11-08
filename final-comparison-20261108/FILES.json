@@ -1,0 +1,32 @@
+[
+  {
+    "path": "final-comparison-20261108/COMPARISON.md",
+    "bytes": 14476,
+    "sha256": "13072448d76a2d44033b042eac3e09ce16dda05279f180bfdb6d7ff95f04f7aa"
+  },
+  {
+    "path": "final-comparison-20261108/COST-ROWS.json",
+    "bytes": 145188,
+    "sha256": "73bc59ddb7c88be07b1c4ee099162b29999e08b5750709b6be53a0d417cc9827"
+  },
+  {
+    "path": "final-comparison-20261108/review.md",
+    "bytes": 1904,
+    "sha256": "003fc80c8d426290eb62f4b36c3a82b0ded264d0de7a8be8dc96453804bab957"
+  },
+  {
+    "path": "final-comparison-20261108/STATUS.json",
+    "bytes": 977,
+    "sha256": "2dcd4c19b3ab505192e3763958defd27ac81a2824e43857b4fff0404829308c5"
+  },
+  {
+    "path": "final-comparison-20261108/campaign-state.json",
+    "bytes": 46399,
+    "sha256": "34225a45760e7ad7057d8a4b0283745b519e7941bdec690cf561e2585f222a1a"
+  },
+  {
+    "path": "final-comparison-20261108/PR-BODY.md",
+    "bytes": 11540,
+    "sha256": "ed366ee59c5ec147360df3e544b8af53b5f1d4e8cb18782f4513ff655fd51580"
+  }
+]
