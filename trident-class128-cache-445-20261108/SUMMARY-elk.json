@@ -1,0 +1,283 @@
+{
+  "status": "uncalibrated",
+  "cases": [
+    {
+      "id": "scaling:class:128",
+      "family": "class",
+      "cohort": "scaling",
+      "expectedAccepted": true,
+      "unsupported": null,
+      "checkedWorkers": 15,
+      "acceptanceMatches": false,
+      "failedWorkers": 0,
+      "blockedWorkers": 0,
+      "semanticComplete": false,
+      "unmeasuredScopes": [
+        "Perceptual legibility, font metrics, text clipping and complete shape/path paint correspondence are not measured."
+      ],
+      "failures": []
+    }
+  ],
+  "timing": [
+    {
+      "caseId": "scaling:class:128",
+      "family": "class",
+      "cohort": "scaling",
+      "scale": 128,
+      "expectedAccepted": true,
+      "track": "first-use",
+      "samples": 0,
+      "medianMs": null,
+      "p95Ms": null,
+      "minMs": null,
+      "maxMs": null,
+      "rounds": [
+        {
+          "round": 1,
+          "samples": 0,
+          "medianMs": null,
+          "p95Ms": null,
+          "minMs": null,
+          "maxMs": null
+        },
+        {
+          "round": 2,
+          "samples": 0,
+          "medianMs": null,
+          "p95Ms": null,
+          "minMs": null,
+          "maxMs": null
+        },
+        {
+          "round": 3,
+          "samples": 0,
+          "medianMs": null,
+          "p95Ms": null,
+          "minMs": null,
+          "maxMs": null
+        },
+        {
+          "round": 4,
+          "samples": 0,
+          "medianMs": null,
+          "p95Ms": null,
+          "minMs": null,
+          "maxMs": null
+        },
+        {
+          "round": 5,
+          "samples": 0,
+          "medianMs": null,
+          "p95Ms": null,
+          "minMs": null,
+          "maxMs": null
+        }
+      ],
+      "calibration": {
+        "status": "uncalibrated",
+        "gaps": [
+          "Every replica/round needs the declared finite positive sample count",
+          "Expected worker identities are missing or duplicated"
+        ],
+        "controlRatios": [],
+        "candidateRatios": [],
+        "controlBand": null,
+        "candidateRatio": null
+      },
+      "scope": "First API call in each fresh process; import excluded.",
+      "semanticComplete": false,
+      "nativeAndPaintScopes": []
+    },
+    {
+      "caseId": "scaling:class:128",
+      "family": "class",
+      "cohort": "scaling",
+      "scale": 128,
+      "expectedAccepted": true,
+      "track": "warm-repeat",
+      "samples": 155,
+      "medianMs": 221.08192402124405,
+      "p95Ms": 314.69521102309227,
+      "minMs": 175.17455598711967,
+      "maxMs": 447.6793549954891,
+      "rounds": [
+        {
+          "round": 1,
+          "samples": 31,
+          "medianMs": 238.0277779996395,
+          "p95Ms": 339.86401599645615,
+          "minMs": 197.58350801467896,
+          "maxMs": 447.6793549954891
+        },
+        {
+          "round": 2,
+          "samples": 31,
+          "medianMs": 218.7158360183239,
+          "p95Ms": 314.69521102309227,
+          "minMs": 191.35200402140617,
+          "maxMs": 375.43884897232056
+        },
+        {
+          "round": 3,
+          "samples": 31,
+          "medianMs": 210.08607298135757,
+          "p95Ms": 277.07317900657654,
+          "minMs": 175.17455598711967,
+          "maxMs": 351.37362000346184
+        },
+        {
+          "round": 4,
+          "samples": 31,
+          "medianMs": 225.45282399654388,
+          "p95Ms": 318.99014899134636,
+          "minMs": 198.69133499264717,
+          "maxMs": 335.15232998132706
+        },
+        {
+          "round": 5,
+          "samples": 31,
+          "medianMs": 212.05570501089096,
+          "p95Ms": 286.61660400032997,
+          "minMs": 179.28616797924042,
+          "maxMs": 301.50818598270416
+        }
+      ],
+      "calibration": {
+        "status": "calibrated",
+        "gaps": [],
+        "controlRatios": [
+          1.0323386679311062,
+          1.0008716604899237,
+          0.9232255672041533,
+          0.8787293742087272,
+          0.926459576643444
+        ],
+        "candidateRatios": [
+          1.0471139682543846,
+          0.9305647434547476,
+          0.9216763272076858,
+          1.011648877593235,
+          0.9643801624441903
+        ],
+        "controlBand": {
+          "lower": 0.8787293742087272,
+          "upper": 1.138006796347822
+        },
+        "candidateRatio": 0.9643801624441903,
+        "interpretation": "within observed control band"
+      },
+      "scope": "Distribution of per-call means from bounded adaptive batches; p95 of sample means is not a single-call tail latency.",
+      "semanticComplete": false,
+      "nativeAndPaintScopes": [
+        "Perceptual legibility, font metrics, text clipping and complete shape/path paint correspondence are not measured."
+      ]
+    },
+    {
+      "caseId": "scaling:class:128",
+      "family": "class",
+      "cohort": "scaling",
+      "scale": 128,
+      "expectedAccepted": true,
+      "track": "warm-new-source",
+      "samples": 155,
+      "medianMs": 247.01156800985336,
+      "p95Ms": 407.92783400416374,
+      "minMs": 201.72825700044632,
+      "maxMs": 498.7372539937496,
+      "rounds": [
+        {
+          "round": 1,
+          "samples": 31,
+          "medianMs": 247.01156800985336,
+          "p95Ms": 314.5980579853058,
+          "minMs": 218.4535390138626,
+          "maxMs": 386.44361102581024
+        },
+        {
+          "round": 2,
+          "samples": 31,
+          "medianMs": 257.97675999999046,
+          "p95Ms": 460.11895802617073,
+          "minMs": 213.79668501019478,
+          "maxMs": 470.93439799547195
+        },
+        {
+          "round": 3,
+          "samples": 31,
+          "medianMs": 259.78872299194336,
+          "p95Ms": 413.2815510034561,
+          "minMs": 229.829775005579,
+          "maxMs": 498.7372539937496
+        },
+        {
+          "round": 4,
+          "samples": 31,
+          "medianMs": 245.15186500549316,
+          "p95Ms": 304.4223710000515,
+          "minMs": 223.3912110030651,
+          "maxMs": 450.22942301630974
+        },
+        {
+          "round": 5,
+          "samples": 31,
+          "medianMs": 220.7593369781971,
+          "p95Ms": 407.92783400416374,
+          "minMs": 201.72825700044632,
+          "maxMs": 427.22708800435066
+        }
+      ],
+      "calibration": {
+        "status": "calibrated",
+        "gaps": [],
+        "controlRatios": [
+          0.9881170628043151,
+          0.9757670619011992,
+          0.9688640942453044,
+          0.8701036299112752,
+          0.9298023551229199
+        ],
+        "candidateRatios": [
+          1.0617955521654017,
+          1.0436885780672212,
+          1.070775182776452,
+          1.0321591418396159,
+          0.9456797073087325
+        ],
+        "controlBand": {
+          "lower": 0.8701036299112752,
+          "upper": 1.149288390052999
+        },
+        "candidateRatio": 1.0436885780672212,
+        "interpretation": "within observed control band"
+      },
+      "scope": "Comment-varied source bytes with the same semantic graph; cache-key diagnostic, not proof of uncached layout. Distribution of per-call means from bounded adaptive batches; p95 of sample means is not a single-call tail latency.",
+      "semanticComplete": false,
+      "nativeAndPaintScopes": [
+        "Perceptual legibility, font metrics, text clipping and complete shape/path paint correspondence are not measured."
+      ]
+    }
+  ],
+  "familyTimings": [],
+  "resources": [],
+  "retention": [],
+  "modelCost": {
+    "status": "unavailable",
+    "dollars": null,
+    "detail": "No actual provider/model transcript and dated token-price evidence supplied"
+  },
+  "counts": {
+    "cases": 1,
+    "positiveCases": 1,
+    "negativeCases": 0,
+    "families": 0,
+    "unsupportedFamilies": [],
+    "unsupportedCases": 0,
+    "workers": 15,
+    "failedWorkers": 0,
+    "blockedWorkers": 0,
+    "completeSemanticCases": 0,
+    "calibratedTimingRows": 2,
+    "totalTimingRows": 3,
+    "actualTimedCalls": 930
+  }
+}

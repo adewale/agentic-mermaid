@@ -1,0 +1,17 @@
+{
+  "source": "f55a8f8ecdecf2727a2e623749854f0abe52088e",
+  "runtime": "0c162c446b58ad98d0a5550719592a0d868619f8",
+  "fullComparisonEvidence": "e4e94f685271e330c1e9c998e33c011a48f89f02",
+  "automationsRemainOff": true,
+  "productionChanged": false,
+  "replacementComplete": false,
+  "remaining": [
+    "actual Native contacts152/372/201/241",
+    "Sparse32 proof exhaustion",
+    "crossing276/Class2/Sparse256 tradeoffs",
+    "lazy/website distribution limits",
+    "broader independent correctness and calibrated cost qualification"
+  ],
+  "stoppedHypothesis": "Optimize cached Class128 based solely on fixed11%exploratory loss; no stable effect or causal subtraction established.",
+  "next": "Use one retained actual-ink counterexample or measured avoidable cost; keep original caps and preserve all adverse outputs. Fresh lease required."
+}

@@ -1,0 +1,190 @@
+{
+  "rows": [
+    {
+      "backend": "agentic",
+      "track": "warm-repeat",
+      "processes": 15,
+      "medianOfProcessMediansMs": 233.79583901166916,
+      "minProcessMedianMs": 224.8292419910431,
+      "maxProcessMedianMs": 298.89819699525833,
+      "officialBMedianMs": 241.84219700098038,
+      "perLaneCalibration": {
+        "status": "calibrated",
+        "gaps": [],
+        "controlRatios": [
+          0.9922303321580386,
+          1.0416658980063,
+          1.0397068351387355,
+          0.9039530743392619,
+          1.0272409007670265
+        ],
+        "candidateRatios": [
+          0.9654055010259834,
+          1.2933287025777147,
+          1.0072001601064315,
+          0.900724333368035,
+          0.9958813538236183
+        ],
+        "controlBand": {
+          "lower": 0.9039530743392619,
+          "upper": 1.106252114614404
+        },
+        "candidateRatio": 0.9958813538236183,
+        "interpretation": "within observed control band"
+      }
+    },
+    {
+      "backend": "agentic",
+      "track": "warm-new-source",
+      "processes": 15,
+      "medianOfProcessMediansMs": 250.7808339893818,
+      "minProcessMedianMs": 237.6224670112133,
+      "maxProcessMedianMs": 282.0299009978771,
+      "officialBMedianMs": 256.1657219827175,
+      "perLaneCalibration": {
+        "status": "calibrated",
+        "gaps": [],
+        "controlRatios": [
+          0.9918618183075524,
+          1.0660873772116835,
+          1.0299115317950156,
+          0.956450452858193,
+          0.9815730148812397
+        ],
+        "candidateRatios": [
+          0.9763544339476388,
+          1.0538352562522129,
+          1.017604790282121,
+          0.9644836653258694,
+          1.1758961263252115
+        ],
+        "controlBand": {
+          "lower": 0.9380094177791197,
+          "upper": 1.0660873772116835
+        },
+        "candidateRatio": 1.017604790282121,
+        "interpretation": "within observed control band"
+      }
+    },
+    {
+      "backend": "elk",
+      "track": "warm-repeat",
+      "processes": 15,
+      "medianOfProcessMediansMs": 225.45282399654388,
+      "minProcessMedianMs": 208.9072189927101,
+      "maxProcessMedianMs": 238.0277779996395,
+      "officialBMedianMs": 221.08192402124405,
+      "perLaneCalibration": {
+        "status": "calibrated",
+        "gaps": [],
+        "controlRatios": [
+          1.0323386679311062,
+          1.0008716604899237,
+          0.9232255672041533,
+          0.8787293742087272,
+          0.926459576643444
+        ],
+        "candidateRatios": [
+          1.0471139682543846,
+          0.9305647434547476,
+          0.9216763272076858,
+          1.011648877593235,
+          0.9643801624441903
+        ],
+        "controlBand": {
+          "lower": 0.8787293742087272,
+          "upper": 1.138006796347822
+        },
+        "candidateRatio": 0.9643801624441903,
+        "interpretation": "within observed control band"
+      }
+    },
+    {
+      "backend": "elk",
+      "track": "warm-new-source",
+      "processes": 15,
+      "medianOfProcessMediansMs": 244.16461798548698,
+      "minProcessMedianMs": 220.7593369781971,
+      "maxProcessMedianMs": 259.78872299194336,
+      "officialBMedianMs": 247.01156800985336,
+      "perLaneCalibration": {
+        "status": "calibrated",
+        "gaps": [],
+        "controlRatios": [
+          0.9881170628043151,
+          0.9757670619011992,
+          0.9688640942453044,
+          0.8701036299112752,
+          0.9298023551229199
+        ],
+        "candidateRatios": [
+          1.0617955521654017,
+          1.0436885780672212,
+          1.070775182776452,
+          1.0321591418396159,
+          0.9456797073087325
+        ],
+        "controlBand": {
+          "lower": 0.8701036299112752,
+          "upper": 1.149288390052999
+        },
+        "candidateRatio": 1.0436885780672212,
+        "interpretation": "within observed control band"
+      }
+    }
+  ],
+  "artifactMismatches": [],
+  "svgBindings": [
+    {
+      "file": "r5-B-elk.svg",
+      "exactOriginalTimedSVG": true,
+      "sha256": "bfbb77b3c6f56e2126b77b9ec2d23afb556a261c111fcd93e84cbc6879487023"
+    },
+    {
+      "file": "r5-B-agentic.svg",
+      "exactOriginalTimedSVG": true,
+      "sha256": "bfbb77b3c6f56e2126b77b9ec2d23afb556a261c111fcd93e84cbc6879487023"
+    },
+    {
+      "file": "r4-B-agentic.svg",
+      "exactOriginalTimedSVG": true,
+      "sha256": "bfbb77b3c6f56e2126b77b9ec2d23afb556a261c111fcd93e84cbc6879487023"
+    },
+    {
+      "file": "r4-B-elk.svg",
+      "exactOriginalTimedSVG": true,
+      "sha256": "bfbb77b3c6f56e2126b77b9ec2d23afb556a261c111fcd93e84cbc6879487023"
+    },
+    {
+      "file": "r3-B-elk.svg",
+      "exactOriginalTimedSVG": true,
+      "sha256": "bfbb77b3c6f56e2126b77b9ec2d23afb556a261c111fcd93e84cbc6879487023"
+    },
+    {
+      "file": "r3-B-agentic.svg",
+      "exactOriginalTimedSVG": true,
+      "sha256": "bfbb77b3c6f56e2126b77b9ec2d23afb556a261c111fcd93e84cbc6879487023"
+    },
+    {
+      "file": "r2-B-agentic.svg",
+      "exactOriginalTimedSVG": true,
+      "sha256": "bfbb77b3c6f56e2126b77b9ec2d23afb556a261c111fcd93e84cbc6879487023"
+    },
+    {
+      "file": "r2-B-elk.svg",
+      "exactOriginalTimedSVG": true,
+      "sha256": "bfbb77b3c6f56e2126b77b9ec2d23afb556a261c111fcd93e84cbc6879487023"
+    },
+    {
+      "file": "r1-B-elk.svg",
+      "exactOriginalTimedSVG": true,
+      "sha256": "bfbb77b3c6f56e2126b77b9ec2d23afb556a261c111fcd93e84cbc6879487023"
+    },
+    {
+      "file": "r1-B-agentic.svg",
+      "exactOriginalTimedSVG": true,
+      "sha256": "bfbb77b3c6f56e2126b77b9ec2d23afb556a261c111fcd93e84cbc6879487023"
+    }
+  ],
+  "scope": "Per-lane calibration does not test Native-versus-ELK effect. All30 workers partial semantic qualification; no cold/memory supplement. No new implementation or parity claim."
+}
