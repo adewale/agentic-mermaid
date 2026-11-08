@@ -249,3 +249,43 @@ other geometries; all visits and exact checks remain metered. The existing874
 inputs/backend retain exact SVGs, route vectors, delivery and proof statuses.
 
 Evidence: `outcome-plan-a195-20261107` on the existing review evidence branch.
+
+## Trinity public Requirement checkpoint, 8 November
+
+Source `01497b98ff72f5e0c30d23e1379adeb09cc2032c`. The existing inspector collector
+ran three fresh source processes (ELK, Native, Trinity), each with one complete
+unprofiled warmup, two profiled repeats and an edit. All9 profiled SVG+entire
+receipt calls returned with passed certification. This profile precedes any new
+shared-cost optimization. It is separate from the60 unprofiled calls below.
+
+Raw elapsed sample-delta weights, averaged over9 calls; inclusive rows overlap.
+These are sampled source-attribution weights, not exclusive CPU or removable
+wall time. The1/2/5ms active-interval sensitivity views reorder the lower spots;
+the raw ranking is not a stable universal ranking for other diagram families.
+
+| Raw self-ranked spot | Self / inclusive ms per call | Matching case and proposed action | Expected speedup |
+| --- | ---: | --- | --- |
+| `copyInner`, `scene/native-paint-emission.ts:105` |9.65 /13.17|Data-oriented ownership capture. Its identity Set protects dynamic alias/cycle semantics; sampled function time does not isolate a hot hash operation. No safe flat-index substitution or redundant traversal established.|Unknown; no rewrite justified.|
+| `copy`, `scene/native-paint-emission.ts:243` |3.05 /13.38|Existing call-local text-plan reuse. It avoids repeated reflection while creating fresh receivers required by getters/ownership. No evidence that another cache or sharing those receivers fixes a slow design.|Unknown; preserve custody.|
+| `readXmlDataEnd`, `output-security.ts:217` |1.55 /1.82|Data-oriented scalar scan, already indexed by UTF16 offset. Named-reference lookup is not separately shown hot. Preserve surrogate/reference/delimiter validation.|Unknown.|
+| `verifyDocumentEnvelope`, `output-security.ts:325` |1.51 /4.59|Data-oriented scan; envelope parsing already includes attribute security. Metered private-projection validation and final public-byte security check different artifacts.|Unknown; do not delete either obligation.|
+| `omitUndefinedObjectFields`, `render-contract.ts:501` |1.40 /1.47|Data-oriented admission. Normalization privately freezes/brands its result, so the subsequent immutable snapshot is already a membership return. Receipt composites have separate aggregate budgets; no safe duplicate walk subtraction established.|Unknown.|
+
+The cache inventory above still applies. Trinity adds no geometry cache; the lazy
+loader's pending promise is dependency lifecycle. No hot one-field pass or serial
+independent awaits were demonstrated in these synchronous frames. Independent
+causal review stopped the apparent-duplicate hypotheses; skipping necessary work
+would only time absence of an obligation, not establish a valid optimization.
+
+Existing unprofiled complete-product collector:12 serial fresh processes,
+3backends×2layout-cache settings×2replicas, one cold render, two repeats and two
+edits each:60/60 returned/passed. Module import is separate; derived caches may
+remain warm. On this one TB Requirement, cache-disabled cold medians were
+ELK284.6ms, Native165.7ms, Trinity140.1ms; second-repeat medians44.9/29.2/24.9ms.
+Cache-enabled second repeats28.5/27.2/25.7ms; second edits29.3/20.8/23.3ms.
+Two process replicates, warmup/JIT effects and mixed layout quality do not support
+a general speedup ratio. Process peak RSS ranges overlap and include source
+imports/harness/artifact compression; negative heap deltas include GC. No memory
+superiority is established. Exact values, ranges, whole-product equality,
+cache audits and failed/unavailable cells are in `trinity-public-20261108` on
+the existing evidence branch; no new cache or performance rewrite is shipped.
