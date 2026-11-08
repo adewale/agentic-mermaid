@@ -1,5 +1,9 @@
 # Native layout recovery: results and handoff
 
+Current work order: [Trinity and shared layout plan](layout-0.6-qualification.md).
+The dated records below are historical evidence; earlier “next” statements do not
+create parallel active queues. No retained experiment or output is discarded.
+
 The owner resumed the campaign on **5 November 2026 at 13:48 UTC**, authorizing
 regular commits and pushes to PR #602. The deadline remains **8 November 2026 at
 23:59:59 UTC**. Work runs in bounded sessions with a coordination lease; continuous
@@ -944,3 +948,11 @@ Stop optimization based only on that number; no parity/gain claim. Allten SVGs
 match original timed products; artifact hashes unchanged. No production edits.
 Evidence: trident-class128-cache-445-20261108. Original correctness/proof/payload
 losses remain; next intervention needs a demonstrated avoidable cost or actual-ink repair.
+
+At f55a8f8ec, capture the owner-requested Trinity design: neutral measured
+placement/routed boundary, concrete adapter/completion owners, existing state
+transitions/invariants and eight separate metric dimensions. Consolidate the
+active plan and TODO; retain historical outcomes/deferred proposals without
+scheduling them or marking them done. No runtime/backend/default/cap changes,
+benchmarks or performance gains. Next implementation unit: extract the neutral
+role-aware boundary while delegating existing ELK/Native behavior unchanged.
