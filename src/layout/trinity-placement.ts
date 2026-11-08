@@ -26,6 +26,7 @@ export function tryTrinityForestPlacement(input: MeasuredGraph, work: ChannelWor
   for (const node of input.nodes) {
     if (typeof node.id !== 'string' || ids.has(node.id)) throw new TypeError('Measured node identities must be unique strings')
     ids.add(node.id)
+    if (node.contactEllipse !== undefined && node.contact !== 'ellipse') throw new TypeError('Ellipse radii require an ellipse contact')
     if (node.contact !== 'rectangle' && node.contact !== 'rounded-rectangle') return undefined
     if (![node.width, node.height].every(value => Number.isFinite(value) && value > 0)) throw new TypeError('Invalid measured body size')
     if (node.paintStrokeWidth === undefined) return undefined

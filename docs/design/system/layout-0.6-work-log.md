@@ -1136,3 +1136,28 @@ scope. Editor still exceeds its original gzip limit by 5,068 bytes.
 Evidence: `trinity-primary-20261108/README.md`, `PERFORMANCE.json`, `measurements`
 and `browser`. This qualification changes no runtime. Compounds/family coverage
 remain the next deficit; adoption and retirement remain blocked.
+
+### Trinity stage 5: State initial/final circles
+
+After `1f4e1e64c`, reproduce four directional refusals for State start/end
+symbols, then reuse `shapeOutline` for actual centered circle radii and per-piece
+stroke (initial zero; final outer ring 1.5px). Logical bodies stay fixed; ports
+use actual cardinal extrema. Multiple endpoints on one privately oriented face,
+loops, oversized artwork and typed labels/media decline. No caps or defaults change.
+
+Four actual-SVG circle/carrier owners fail before and pass after. Custom nonsquare
+bodies, reversed duplicate-face demand, malformed metadata and hard-ledger owners
+pass; independent review caught and fixed contradictory placement metadata and
+malformed scalar validation preceding unsupported policy. Combined owners141P;
+core/repository types, lint and real lazy/editor builds pass. An initial owner
+used normalized width/height instead of w/h; its failed log is retained.
+
+Affected State products: ten Native/ELK SVGs and three already-supported Trinity
+SVGs remain exact. Initial/final cohort case now delivers; nesting stays unsupported.
+Frozen coverage 11→12 of30 returned/passed, unsupported17→16, two input errors stay.
+Independent Trident ledger 354→365P, unsupported233→219, blocked24→27, failed2
+unchanged; newly returned ink still has unavailable observations. Actual editor
+Bun gzip9 1,339,568→1,339,699 (+131), Brotli11 1,279,561→1,279,693 (+132).
+Original gzip limit fails by5,199. No speed or memory gain claimed. Evidence:
+`trinity-state-20261108`. Remaining: compounds/families and broader qualification;
+adoption/retirement remain blocked.

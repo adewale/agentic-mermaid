@@ -49,12 +49,20 @@ function solveTrinity(input: MeasuredGraph, work: ChannelWork, role: MeasuredLay
     ids.add(node.id)
     if (!size(node.width, true) || !size(node.height, true)) throw new TypeError('Invalid measured body size')
     if (node.parent !== undefined || node.partition !== undefined || node.modelOrder !== undefined) decline('scope and authored ordering constraints are not implemented')
-    if (node.contact !== 'rectangle' && node.contact !== 'rounded-rectangle') decline('explicit rectangular contact geometry is required')
+    if (node.contact !== 'rectangle' && node.contact !== 'rounded-rectangle' && node.contact !== 'ellipse') decline('explicit contact geometry is required')
+    if (node.sizePolicy !== undefined && node.sizePolicy !== 'fixed' && node.sizePolicy !== 'minimum') throw new TypeError('Invalid measured size policy')
+    if (!size(node.paintStrokeWidth!, node.contact !== 'ellipse')) throw new TypeError('Invalid measured contact demand')
+    if (node.minimumPortSpacing !== undefined && !size(node.minimumPortSpacing, true)) throw new TypeError('Invalid measured contact demand')
+    if (node.paintCornerRadius !== undefined && !size(node.paintCornerRadius)) throw new TypeError('Invalid measured contact radius')
+    if (node.contact === 'ellipse') {
+      const ellipse = node.contactEllipse!
+      if (!ellipse) decline('ellipse contact radii must be measured')
+      if (!size(ellipse.rx, true) || !size(ellipse.ry, true) || ellipse.rx + node.paintStrokeWidth! / 2 > node.width / 2 || ellipse.ry + node.paintStrokeWidth! / 2 > node.height / 2) throw new TypeError('Invalid measured ellipse contact')
+      if (node.sizePolicy === 'minimum') decline('ellipse contact requires a fixed body')
+      if (node.paintCornerRadius) throw new TypeError('Ellipse contact has a rounded paint radius')
+    } else if (node.contactEllipse !== undefined) throw new TypeError('Ellipse radii require an ellipse contact')
     if (node.contact === 'rounded-rectangle' && node.paintCornerRadius === undefined) decline('rounded contact radius must be measured')
     if (node.contact === 'rectangle' && node.paintCornerRadius) throw new TypeError('Rectangular contact has a rounded paint radius')
-    if (node.sizePolicy !== undefined && node.sizePolicy !== 'fixed' && node.sizePolicy !== 'minimum') throw new TypeError('Invalid measured size policy')
-    for (const value of [node.paintStrokeWidth, node.minimumPortSpacing]) if (value !== undefined && !size(value, true)) throw new TypeError('Invalid measured contact demand')
-    if (node.paintCornerRadius !== undefined && !size(node.paintCornerRadius)) throw new TypeError('Invalid measured contact radius')
     widths.push(horizontal ? node.height : node.width); heights.push(horizontal ? node.width : node.height)
   }
   const sourceSupports = new Float64Array(m), targetSupports = new Float64Array(m)
@@ -140,6 +148,13 @@ function solveTrinity(input: MeasuredGraph, work: ChannelWork, role: MeasuredLay
     margin[node] = Math.max(margin[node]!, cornerMargin + support / 2)
     pitch[node] = demand + spacing
     const count = Math.max(forward[node]!.length, incoming[node]!.length)
+    if (body.contact === 'ellipse') {
+      // Only cardinal singleton contacts are admitted. Their entire endpoint
+      // support must fit the unchanged logical footprint; circles never grow
+      // to satisfy a rectangular port-packing rule.
+      if (count > 1 || loops[node]!.length || support > widths[node]! || (body.minimumPortSpacing ?? 0) > widths[node]!) decline('fixed ellipse has insufficient physical port capacity')
+      continue
+    }
     const required = count > 1 ? (count - 1) * pitch[node]! + margin[node]! * 2 : margin[node]! * 2
     if (count && widths[node]! < required) {
       if (body.sizePolicy !== 'minimum') decline('fixed body has insufficient physical port capacity')
@@ -305,11 +320,15 @@ function solveTrinity(input: MeasuredGraph, work: ChannelWork, role: MeasuredLay
       const a = path[i - 1]!, b = path[i]!, rank = ranks[a]!
       const ax = cross[a]! + widths[a]! / 2 + (i === 1 ? sourceOffsets[e]! : 0), bx = cross[b]! + widths[b]! / 2 + (i + 1 === path.length ? targetOffsets[e]! : 0)
       const step = steps[e]![i - 1]!, track = gapStarts[rank]! + step.offset
-      append(ax, main[a]! + heights[a]!); append(ax, track)
+      const sourceEllipse = i === 1 ? input.nodes[a]?.contactEllipse : undefined
+      const targetEllipse = i + 1 === path.length ? input.nodes[b]?.contactEllipse : undefined
+      const sourceInset = sourceEllipse ? heights[a]! / 2 - (horizontal ? sourceEllipse.rx : sourceEllipse.ry) : 0
+      const targetInset = targetEllipse ? heights[b]! / 2 - (horizontal ? targetEllipse.rx : targetEllipse.ry) : 0
+      append(ax, main[a]! + heights[a]! - sourceInset); append(ax, track)
       if (step.targetEscape !== undefined) {
         append(step.targetEscape, track); append(step.targetEscape, gapStarts[rank]! + step.targetExit!); append(bx, gapStarts[rank]! + step.targetExit!)
       } else append(bx, track)
-      append(bx, main[b]!)
+      append(bx, main[b]! + targetInset)
     }
     if (backward[e]) points.reverse()
     const label = labelVertices[e]!

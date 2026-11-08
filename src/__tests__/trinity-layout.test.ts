@@ -59,6 +59,35 @@ describe('Trinity flat measured solve', () => {
     expect(edge.points).toHaveLength(4)
   })
 
+  test.each(['TB', 'BT', 'LR', 'RL'] as const)('uses fixed centered ellipse contacts without changing the logical footprint in %s', direction => {
+    const input: MeasuredGraph = { ...base(), direction, nodes: [
+      { id: 'initial', width: 44, height: 28, contact: 'ellipse', contactEllipse: { rx: 12, ry: 12 }, paintStrokeWidth: 0 },
+      node('body'),
+      { id: 'final', width: 32, height: 40, contact: 'ellipse', contactEllipse: { rx: 14, ry: 14 }, paintStrokeWidth: 1.5 },
+    ], edges: [{ source: 0, target: 1, minSpan: 1, sourcePortSpan: 2, targetPortSpan: 7 }, { source: 1, target: 2, minSpan: 1, sourcePortSpan: 2, targetPortSpan: 7 }] }
+    const before = structuredClone(input)
+    const result = solveMeasuredLayout({ role: 'routed', graph: input }, trinityMeasuredAdapter(ledger()))
+    expect(input).toEqual(before)
+    expect(result.nodes.map(body => [body.width, body.height])).toEqual(input.nodes.map(body => [body.width, body.height]))
+    for (const [index, at] of [[0, result.edges[0]!.points[0]!], [2, result.edges[1]!.points.at(-1)!]] as const) {
+      const node = result.nodes[index]!, ellipse = input.nodes[index]!.contactEllipse!
+      expect(((at.x - node.x - node.width! / 2) / ellipse.rx) ** 2 + ((at.y - node.y - node.height! / 2) / ellipse.ry) ** 2).toBeCloseTo(1, 10)
+    }
+  })
+
+  test('declines ellipse loops, reversed duplicate-face demands and oversized artwork; hard ledger exhaustion is not fallback', () => {
+    const input: MeasuredGraph = { ...base(), nodes: [{ id: 'dot', width: 28, height: 28, contact: 'ellipse', contactEllipse: { rx: 12, ry: 12 }, paintStrokeWidth: 0 }, node('body')], edges: [{ source: 0, target: 1, minSpan: 1, sourcePortSpan: 2, targetPortSpan: 7 }] }
+    const solve = (graph: MeasuredGraph, work = ledger()) => solveMeasuredLayout({ role: 'routed', graph }, trinityMeasuredAdapter(work))
+    expect(() => solve({ ...input, edges: [...input.edges, { source: 1, target: 0, minSpan: 1, sourcePortSpan: 2, targetPortSpan: 7 }] })).toThrow('fixed ellipse has insufficient physical port capacity')
+    expect(() => solve({ ...input, edges: [{ source: 0, target: 0, minSpan: 1, sourcePortSpan: 2, targetPortSpan: 7 }] })).toThrow('fixed ellipse has insufficient physical port capacity')
+    expect(() => solve({ ...input, edges: [{ ...input.edges[0]!, sourcePortSpan: 29 }] })).toThrow('fixed ellipse has insufficient physical port capacity')
+    for (const paintStrokeWidth of [NaN, -1]) expect(() => solve({ ...input, nodes: [{ ...input.nodes[0]!, paintStrokeWidth, sizePolicy: 'minimum' }, input.nodes[1]!] })).toThrow(TypeError)
+    expect(() => solve(input, { ...ledger(), pairs: -1 })).toThrow(LayoutWorkLimitError)
+    for (const contactEllipse of [{ rx: NaN, ry: 12 }, { rx: 15, ry: 12 }]) expect(() => solve({ ...input, nodes: [{ ...input.nodes[0]!, contactEllipse }, input.nodes[1]!] })).toThrow(TypeError)
+    expect(() => solve({ ...input, nodes: [{ ...input.nodes[0]!, sizePolicy: 'minimum' }, input.nodes[1]!] })).toThrow('ellipse contact requires a fixed body')
+    expect(() => solve({ ...input, nodes: [{ ...input.nodes[0]!, contact: 'rectangle', contactEllipse: undefined }, input.nodes[1]!] })).toThrow(TypeError)
+  })
+
   test('keeps external inlet and cycle peer co-ranked instead of adding a DFS-dependent rank', () => {
     const input: MeasuredGraph = { ...base(), nodes: [node('fast', 180), node('suite', 120), node('report', 120)], edges: [
       { source: 1, target: 0, minSpan: 1 , sourcePortSpan: 2, targetPortSpan: 2}, { source: 1, target: 0, minSpan: 1 , sourcePortSpan: 2, targetPortSpan: 2},
@@ -190,6 +219,11 @@ describe('Trinity flat measured solve', () => {
       const delta = horizontal ? target.x - source.x : target.y - source.y
       expect(reverse ? delta < 0 : delta > 0).toBe(true)
     }
+  })
+
+  test('placement cannot silently ignore contradictory ellipse metadata', () => {
+    const input: MeasuredGraph = { nodes: [{ ...node('body'), contactEllipse: { rx: 12, ry: 12 } }], edges: [], direction: 'TB', padding: 16, nodeSpacing: 20, layerSpacing: 40 }
+    for (const adapter of [trinityPlacementAdapter(ledger()), trinityMeasuredAdapter(ledger())]) expect(() => solveMeasuredLayout({ role: 'placement', graph: input }, adapter)).toThrow(TypeError)
   })
 
   test('places a 128-body chain without constructing generic routes or loading its routed slice', () => {
