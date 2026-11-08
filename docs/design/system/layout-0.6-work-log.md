@@ -888,3 +888,20 @@ Standalone budget+worker2P657assertions; worker wall147.7s under concurrent chec
 is not a speed result. Independent review finds no option-contract loss.
 Sparse32, lazy/website limits and visible/quality losses remain; new fixed-roster
 qualification and final CI are recorded with the published evidence. Automationoff.
+
+
+Integrate main e7cb05baa (#608) into d4e044949 without rewriting history. Keep
+bounded queue/capture/private-clone behavior, both ownership test groups and the
+option leaf; retain stricter PR lazy limits. Core/repo types and lintP. Cache/
+preview/editor owners131P plus six sandbox esbuild failures; exact projection
+retry plus adjacent MCP/Zen owners76P. ER256 matrix8P/96 assertions. Both real
+editor buildsP; standalone budget+worker2P/657 assertions. All1,748 fixed SVGs,
+route vectors and delivery/proof outcomes exact; preservation, not new layout
+progress. Independent integration review finds no actionable regression.
+HTML gzip1,332,711→1,333,923/Brotli1,272,057→1,273,449; adverse+1,212/+1,392
+bytes, original gzip cap stillP with577 spare. The new24-process/168-call ER256
+runtime baseline and48 actual-XML checks bind to d4 before integration; timings
+are mixed, not a combined-head speedup. Sparse32, visible contacts, quality and
+other distribution losses remain. Evidence: sparse-plan-00938-20261107. Keep
+Sparse streaming stopped; next causal work is its first XML/proof exhaustion,
+with current CI separate and automation off.

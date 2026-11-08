@@ -18,6 +18,7 @@
  */
 
 import { runtimeRenderContractPlugin } from '../build/runtime-render-contract.ts'
+import { consolidateEditorWorker } from '../build/consolidate-browser-runtime.ts'
 import { minifyBrowserRuntime } from '../build/runtime-minify.ts'
 import { packStandaloneWorker, standaloneCodecNotices, standaloneCodecPlugin, standaloneWorkerNotices } from '../build/standalone-worker-payload.ts'
 import { browserOptimizerRecipe, compactBunBrowserModules } from '../build/compact-browser-modules.ts'
@@ -189,6 +190,8 @@ async function generateEditorHtml(): Promise<string> {
       format: 'esm',
       minify: true,
       splitting: true,
+      metafile: true,
+      banner: `/* browser optimizer recipe ${browserOptimizerRecipe()} */`,
       outdir: runtimeDirectory,
       naming: { entry: '[name]-[hash].js', chunk: 'chunk-[hash].js' },
       plugins: [
@@ -209,6 +212,7 @@ async function generateEditorHtml(): Promise<string> {
     })
     const workerEntry = workerBuild.outputs.find(output => output.kind === 'entry-point')
     if (!workerBuild.success || !workerEntry) throw new AggregateError(workerBuild.logs, 'Preview worker build failed')
+    await consolidateEditorWorker(workerBuild.outputs, workerBuild.metafile!, runtimeDirectory, process.cwd(), browserOptimizerRecipe())
     workerUrl = `/editor/runtime/${basename(workerEntry.path)}`
   }
   // Both delivery modes use the same source-only family registry and admission

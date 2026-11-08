@@ -158,7 +158,7 @@ function positionFamily(familyId: FamilyId, request: ResolvedRenderRequest, sour
       // These original hooks parse fresh private diagrams. Native SVG consumes
       // their geometry without exposing it; shared prepared text is frozen.
       const retain = borrow && request.output === 'svg'
-        && (familyId === 'sequence' || familyId === 'flowchart' || familyId === 'state')
+        && (familyId === 'sequence' || familyId === 'flowchart' || familyId === 'state' || familyId === 'pie')
         ? retainOwnedNativeSvgPositioned : retainPositioned
       retain(descriptor, boundedKey, result, retainedProjections.get(result))
     }

@@ -1,8 +1,10 @@
 import { captureRenderOptions } from '../render-contract.ts'
+import { createSettlement } from '../shared/settlement.ts'
 import type { RenderOptions } from '../types.ts'
 import { ZenUMLBackendError } from './upstream.ts'
-export { ZenUMLBackendError, UPSTREAM_ZENUML_CAPABILITIES, createUpstreamZenUMLRenderer, renderUpstreamZenUMLSVG } from './upstream.ts'
-export type { UpstreamZenUMLOptions, UpstreamZenUMLRenderOptions, UpstreamZenUMLRenderer } from './upstream.ts'
+
+export { UPSTREAM_ZENUML_CAPABILITIES,ZenUMLBackendError,createUpstreamZenUMLRenderer,renderUpstreamZenUMLSVG } from './upstream.ts'
+export type { UpstreamZenUMLOptions,UpstreamZenUMLRenderOptions,UpstreamZenUMLRenderer } from './upstream.ts'
 
 export const ZENUML_CAPABILITIES = Object.freeze({
   maturity: 'experimental', sourcePreservation: true, nativeParse: true,
@@ -60,19 +62,19 @@ export function createZenUMLRenderer(options: ZenUMLOptions = {}): ZenUMLRendere
       let rejectCancelled!: (error: unknown) => void
       const cancelled = new Promise<never>((_, no) => { rejectCancelled = no })
       void cancelled.catch(() => {})
-      let settled = false
+      const completion = createSettlement<{ ok: true; svg: string } | { ok: false; error: unknown }>(outcome => outcome.ok ? resolve(outcome.svg) : reject(outcome.error))
       let timer: ReturnType<typeof setTimeout> | undefined
       const release = () => {
-        settled = true
         clearTimeout(timer)
         pending--
         cancelPending.delete(fail)
         const index = queue.indexOf(job)
         if (index >= 0) queue.splice(index, 1)
       }
-      const fail = (error: unknown) => { if (!settled) { rejectCancelled(error); release(); reject(error) } }
+      completion.onCleanup(release)
+      const fail = (error: unknown) => { if (completion.pending) { rejectCancelled(error); completion.finish({ ok: false, error }) } }
       const job = async () => {
-        if (settled) return
+        if (!completion.pending) return
         timer = setTimeout(() => fail(unavailable('ZenUML rendering did not complete before its deadline.')), captured.timeout)
         try {
           const render = async () => {
@@ -80,11 +82,11 @@ export function createZenUMLRenderer(options: ZenUMLOptions = {}): ZenUMLRendere
               import('../browser-lazy/families/zenuml.ts'),
               import('../browser-lazy/render-core.ts'),
             ])
-            if (settled) throw unavailable('The ZenUML request is no longer active.')
+            if (!completion.pending) throw unavailable('The ZenUML request is no longer active.')
             return renderLoadedFamilySvg(source, captured.options, family)
           }
           const svg = await Promise.race([render(), cancelled])
-          if (!settled) { release(); resolve(svg) }
+          completion.finish({ ok: true, svg })
         } catch (error) { fail(error) }
       }
       cancelPending.add(fail)
