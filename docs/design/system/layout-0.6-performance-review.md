@@ -289,3 +289,47 @@ imports/harness/artifact compression; negative heap deltas include GC. No memory
 superiority is established. Exact values, ranges, whole-product equality,
 cache audits and failed/unavailable cells are in `trinity-public-20261108` on
 the existing evidence branch; no new cache or performance rewrite is shipped.
+
+## Five-family profile at `fe9113601`, 8 November
+
+The existing collector now profiles five supported cases (Flowchart, Requirement,
+Class, ER and single-container Architecture), three backends, two repeats and an
+edit:45 complete SVG+entire-receipt calls, all returned/passed. Each fresh process
+has an unprofiled warmup; layout-cache flag is off, derived caches remain. Profile
+runs are separate from300 unprofiled calls and browser/build observations.
+This changes the workload mix; lower weights than the earlier Requirement-only
+profile are not a measured implementation improvement. Cold-cost causes remain
+unisolated by this steady profile.
+
+Raw elapsed sample-delta weights per call, self/inclusive; inclusive rows overlap
+and these are not exclusive CPU or removable wall durations. Original source maps
+and1/2/5ms active-interval sensitivity views remain in the evidence.
+
+| Spot and current source location | Self / inclusive ms | Matching case, proposal and limit | Expected speedup |
+| --- | ---: | --- | --- |
+| `copyInner`, `scene/native-paint-emission.ts:105` |2.162 /2.842|Data-oriented ownership capture. Identity lookup is not isolated as the hot instruction; fixed x/y capture already exists. A flat pointer table would need prior trusted IDs and must retain alias/cycle/getter custody. No further safe subtraction demonstrated.|Unknown; no rewrite shipped.|
+| `visit`, `scene/scene-data-snapshot.ts:98` |1.581 /1.749|Data-oriented admission; it reads all descriptors and enforces aggregate object, text, key and array bounds. The existing private admitted-document membership return already skips repeat admission. Call-local alias maps are semantic custody, not a cache hiding an established slow design. The diagnostic-allocation ceiling below is insufficient; stop without deleting the walk.|Unknown; ceiling probe below does not justify implementation.|
+| `certifyNativePaint`, `scene/paint-certification.ts:1491` |0.740 /3.531|Data-oriented inspection of the actual emitted artifact. Many fields and mandatory ownership/text/occlusion checks are consumed; no one-field AoS pass or sufficient duplicate validation is demonstrated. Reuse of numeric producer evidence already exists.|Unknown; keep proof obligations.|
+| `copy`, `scene/native-paint-emission.ts:243` |0.623 /2.948|Existing call-local text-plan cache. It reuses reflection while producing fresh receivers for mutable/getter semantics. No additional cache or safe cross-capture receiver sharing is justified.|Unknown; retain custody.|
+| `omitUndefinedObjectFields`, `render-contract.ts:501` |0.552 /0.604|Data-oriented normalization. Subsequent private immutable membership already avoids another snapshot traversal; receipt aggregates have distinct budgets. No duplicated work proved removable.|Unknown.|
+
+No independent serial awaits occur in these synchronous frames. The cache
+inventory above remains applicable; Trinity still adds no geometry cache. Lazy
+pending promises are dependency lifetime. Snapshot cost is shared by Class/ER
+through all three layout backends, so any valid improvement would help ELK too.
+Independent scope/value review is retained in `profile/causal-review.md`.
+
+### Diagnostic-path ceiling: stop before production changes
+
+A deliberately unsafe overlay removes only the two successful-recursion path
+concatenations at `scene-data-snapshot.ts:172,221`. It preserves descriptor,
+cycle, alias and aggregate accounting, but its nested error paths are wrong: it
+is not a production candidate or correctness qualification. Four fresh Class
+Native processes per variant, reversed pair order,40 complete calls. Successful
+SVGs and entire receipts are byte-exact across variants; all calls returned/P.
+
+Baseline/ceiling repeat2 medians26.76/28.04ms (ceiling worse); edit2 23.65/22.00ms;
+repeat1 33.85/33.51ms. Ranges overlap. This does not establish a sufficient,
+consistent benefit or a production speedup ratio. Stop the hypothesis here; do
+not implement a path-builder rewrite on this evidence. No source optimization
+or new cache is shipped. Raw overlays/results remain in `profile/path-ceiling`.

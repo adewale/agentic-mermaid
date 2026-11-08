@@ -1254,3 +1254,29 @@ Actual editor Bun gzip9 1,341,432→1,341,338 (−94), Brotli11
 types/lint and MCP context ceilings pass. Complete-product/browser costs follow;
 no general replacement claim. Evidence:
 `trinity-architecture-20261108`. Adoption and retirement remain unqualified.
+
+### Current shared-cost profile and stopped ceiling
+
+Runtime `fe9113601`:45 profiled complete products across five supported cases and
+three backends, all returned/passed, separate from300 unprofiled calls. New hot
+snapshot capture is shared Class/ER work, not a Trinity-specific solver deficit;
+existing admitted-document membership already skips repeat admission. Five
+self/inclusive frames, cache inventory and limits are in the performance report.
+A40-call diagnostic-path subtraction ceiling preserves successful full products
+but deliberately breaks error paths, so is not shippable. Repeat2 worsens
+26.76→28.04ms while edit2 improves23.65→22.00ms; overlapping ranges do not establish
+sufficient consistent benefit. Stop; no performance rewrite or new cache.
+Evidence: `trinity-architecture-20261108/profile`.
+
+### Trinity complete Architecture products and bounded decision
+
+Runtime `fe9113601`:60 complete Architecture SVG+receipt calls returned/passed.
+Cache-off cold medians ELK450.56/Native186.22/Trinity247.81ms; second repeats
+62.45/29.26/62.75ms. Cached results vary too; preserve adverse costs and full
+CPU/RSS/heap ranges, no general speed/memory claim. Actual six-family browser
+product union gzip856,349/483,797/450,550, Brotli686,964/414,176/385,763;
+requests41/47/47 including binding. Full receipts consumed; raw server, files
+compressed afterwards. Branching Architecture area151,171.228/151,171.228/
+151,593.494 and wire352/358.133/354, bends4; adverse ELK deltas retained.
+No retirement/default change:24/30 delivery and local routed64/128 are not broad
+replacement qualification; original editor limit still fails6,838, CI not ready.
