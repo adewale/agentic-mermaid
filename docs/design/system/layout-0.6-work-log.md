@@ -1073,3 +1073,14 @@ No new cache, default/package-version/cap change. Evidence:
 `trinity-public-20261108`; next: actual public Trident ink and complete-product
 cold/cache/edit/profile/memory/payload observations. Stage6 has no new safe
 performance subtraction demonstrated yet; stopped probes remain stopped.
+
+### Public option integration regression: compact MCP budgets
+
+CI at01497b98f exposed two new execute-description regressions:15,184bytes
+against<15,150 locally and15,253 against<15,250 hosted. Both reproduced locally.
+Reuse one compact `Solver` type for the repeated backend union and remove the
+runtime-implementation word from shared execute help. Backend choices, receipt
+fields and full SDK remain; neither context ceiling is raised. Both named owners
+fail before and pass after. Core types/lint and declaration owners pass; child
+recipe checks require the normal outside-sandbox retry. Sparse32 and distribution
+CI failures remain. Evidence: `trinity-public-20261108/mcp-*`.
