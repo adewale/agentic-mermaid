@@ -339,7 +339,7 @@ export function layoutQuadrantChart(
     return {
       number,
       label: chart.quadrants[number - 1],
-      labelBlock: chart.quadrants[number - 1] === undefined ? undefined : preparePixelText(chart.quadrants[number - 1]!, { display: 'formatted', transform: style.groupTextTransform, fontSize: style.groupHeaderFontSize, fontWeight: style.groupHeaderFontWeight, letterSpacing: style.groupLetterSpacing }),
+      labelBlock: chart.quadrants[number - 1] === undefined ? undefined : preparePixelText(chart.quadrants[number - 1]!, { display: 'formatted', transform: style.groupTextTransform, fontSize: style.groupHeaderFontSize, fontWeight: style.groupHeaderFontWeight, letterSpacing: style.groupLetterSpacing, maxWidth: Math.max(1, half - 8) }),
       x: round(x),
       y: round(y),
       width: round(half),
@@ -365,18 +365,34 @@ export function layoutQuadrantChart(
   const fs = style.nodeLabelFontSize
   const fw = style.nodeLabelFontWeight
   const lineGap = visual.pointTextPadding ?? Q.pointTextPadding
-  const placedBoxes: Box[] = regions
-    .filter(r => r.label)
-    .map(r => {
-      const w = r.labelBlock!.width
-      return { x0: r.labelX - w / 2, y0: r.labelY - r.labelBlock!.height / 2, x1: r.labelX + w / 2, y1: r.labelY + r.labelBlock!.height / 2 }
-    })
   const defaultRadius = visual.pointRadius ?? Q.pointRadius
   const resolved = chart.points.map(p => resolvePointVisual(p, chart.classDefs, { radius: defaultRadius }))
   const pointBoxes: Box[] = chart.points.map((p, i) => {
     const cx = plotX + p.x * size, cy = plotY + (1 - p.y) * size, r = resolved[i]!.radius + 1
     return { x0: cx - r, y0: cy - r, x1: cx + r, y1: cy + r }
   })
+  // Data coordinates are fixed. A section caption at its geometric center
+  // must yield when a data point occupies that center; moving point labels
+  // alone cannot stop the marker from covering the caption. Keep a safe
+  // caption centered, otherwise search deterministically inside its region.
+  const placedBoxes: Box[] = []
+  for (const region of regions) {
+    if (!region.label) continue
+    const w = region.labelBlock!.width, h = region.labelBlock!.height
+    const centered = { x0: region.labelX - w / 2, y0: region.labelY - h / 2, x1: region.labelX + w / 2, y1: region.labelY + h / 2 }
+    const candidates = function* () {
+      yield centered
+      for (const candidate of labelCandidates(region.labelX, region.labelY, 8, w, h)) yield candidate.box
+    }
+    const clear = (b: Box) => b.x0 >= region.x + 4 && b.x1 <= region.x + region.width - 4 && b.y0 >= region.y + 4 && b.y1 <= region.y + region.height - 4
+      && !pointBoxes.some(point => intersects(b, point)) && !placedBoxes.some(other => intersects(b, other))
+    let chosen = centered
+    for (const candidate of candidates()) if (clear(candidate)) { chosen = candidate; break }
+    region.labelX = round((chosen.x0 + chosen.x1) / 2)
+    region.labelY = round((chosen.y0 + chosen.y1) / 2)
+    // Reserve a small text-ink allowance, also used by subsequent point labels.
+    placedBoxes.push({ x0: chosen.x0 - 2, y0: chosen.y0 - 2, x1: chosen.x1 + 2, y1: chosen.y1 + 2 })
+  }
   const canvas: Box = { x0: 2, y0: 2, x1: width - 2, y1: height - 2 }
   const routedLeaders: LeaderSegment[] = []
   const indexed = chart.points.length >= 128

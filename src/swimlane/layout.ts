@@ -28,6 +28,7 @@ export function layoutSwimlane(graph: MermaidGraph, options: NonNullable<Paramet
   const padding = options.padding ?? 40, inset = 24, gap = Math.max(48, options.nodeSpacing ?? 32)
   const style = resolveRenderStyle(options, undefined, options.styleFace)
   const edges: PositionedEdge[] = graph.edges.map((edge, edgeIndex) => ({ ...edge, edgeIndex, points: [],
+    ...(graph.linkCurves?.size ? { curve: edge.curve ?? graph.linkCurves.get(edgeIndex) ?? graph.linkCurves.get('default') } : {}),
     ...(edge.label !== undefined ? { labelBlock: graphTextBlock(resolveLabelContent(edge.label, edge.labelContent), style, 'edge') } : {}),
     inlineStyle: resolveEdgeInlineStyle(edgeIndex, graph), classNames: edge.id ? graphClassNames(graph.classAssignments.get(edge.id)) : [] }))
   const titleBand = diagramTitleBand(diagramTitle, style)

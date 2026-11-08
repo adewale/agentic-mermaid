@@ -265,6 +265,129 @@ parentPort.postMessage({type:'ready'});`)
 
 
 describe('render process message and generation boundaries', () => {
+  test.each(['argument getter', 'toJSON', 'timeout getter', 'signal registration'])('rechecks queue capacity after caller code in %s', async boundary => {
+    const renderer = new ControlledRenderer(), executor = new SourceToolExecutor(() => renderer)
+    const jobs = [executor.run('verify', {})]
+    let calls = 0
+    const fill = () => {
+      calls++
+      for (let index = 0; index < 32; index++) jobs.push(executor.run('verify', {}))
+    }
+    const controller = new AbortController()
+    const args = boundary === 'argument getter' ? { get source() { fill(); return 'A' } }
+      : boundary === 'toJSON' ? { toJSON() { fill(); return { source: 'A' } } } : { source: 'A' }
+    if (boundary === 'signal registration') {
+      const add = controller.signal.addEventListener
+      Object.defineProperty(controller.signal, 'addEventListener', { value: (...values: unknown[]) => {
+        fill()
+        return Reflect.apply(add, controller.signal, values)
+      } })
+    }
+    const outer = executor.run('verify', args, { signal: controller.signal,
+      get timeoutMs() { if (boundary === 'timeout getter') fill(); return 30_000 },
+    })
+    for (let index = 0; index < renderer.sent.length; index++) renderer.reply(renderer.sent[index]!.id, { ok: true })
+    expect(await outer).toMatchObject({ error: { code: 'RENDER_BUSY' } })
+    expect(calls).toBe(1)
+    expect(renderer.sent).toHaveLength(33)
+    await Promise.all(jobs)
+  })
+
+  test.each(['argument getter', 'toJSON', 'timeout getter', 'signal registration'])('cancellation during %s prevents dispatch', async boundary => {
+    const renderer = new ControlledRenderer(), executor = new SourceToolExecutor(() => renderer), controller = new AbortController()
+    let calls = 0
+    const cancel = () => { calls++; controller.abort() }
+    const args = boundary === 'argument getter' ? { get source() { cancel(); return 'A' } }
+      : boundary === 'toJSON' ? { toJSON() { cancel(); return { source: 'A' } } } : { source: 'A' }
+    if (boundary === 'signal registration') {
+      const add = controller.signal.addEventListener
+      Object.defineProperty(controller.signal, 'addEventListener', { value: (...values: unknown[]) => {
+        cancel()
+        return Reflect.apply(add, controller.signal, values)
+      } })
+    }
+    const result = executor.run('verify', args, { signal: controller.signal,
+      get timeoutMs() { if (boundary === 'timeout getter') cancel(); return 30_000 },
+    })
+    if (renderer.sent.length) renderer.reply(renderer.sent[0]!.id, { ok: true })
+    expect(await result).toMatchObject({ error: { code: 'RENDER_CANCELLED' } })
+    expect(calls).toBe(1)
+    expect(renderer.sent).toEqual([])
+  })
+
+  test('a timeout getter cannot overbook the queued byte budget', async () => {
+    const renderer = new ControlledRenderer(), executor = new SourceToolExecutor(() => renderer)
+    const jobs = [executor.run('verify', {})], source = 'x'.repeat(3 * 1024 * 1024)
+    const outer = executor.run('verify', { source }, {
+      get timeoutMs() {
+        for (let index = 0; index < 5; index++) jobs.push(executor.run('verify', { source }))
+        return 30_000
+      },
+    })
+    for (let index = 0; index < renderer.sent.length; index++) renderer.reply(renderer.sent[index]!.id, { ok: true })
+    expect(await outer).toMatchObject({ error: { code: 'RENDER_BUSY' } })
+    expect(renderer.sent).toHaveLength(6)
+    for (const result of await Promise.all(jobs)) expect(result).toEqual({ ok: true })
+  })
+
+  test('captures the cancellation signal once for admission, listening and cleanup', async () => {
+    const renderer = new ControlledRenderer(), executor = new SourceToolExecutor(() => renderer), controller = new AbortController()
+    let reads = 0
+    const result = executor.run('verify', {}, {
+      get signal() {
+        if (++reads > 1) throw new Error('signal was read after admission')
+        return controller.signal
+      },
+    })
+    renderer.reply(renderer.sent[0]!.id, { ok: true })
+    expect(await result).toEqual({ ok: true })
+    expect(reads).toBe(1)
+    controller.abort()
+    expect(renderer.terminations).toBe(0)
+  })
+
+  test('timeout cleanup releases its timer and abort listener when retirement throws', async () => {
+    const renderer = new ControlledRenderer(), controller = new AbortController()
+    const retirementError = new Error('cannot retire renderer')
+    renderer.terminate = () => { throw retirementError }
+    let expire!: () => void
+    const timer = spyOn(globalThis, 'setTimeout').mockImplementation(((callback: (...args: any[]) => void) => {
+      expire = callback
+      return 0 as unknown as ReturnType<typeof setTimeout>
+    }) as typeof setTimeout)
+    const clear = spyOn(globalThis, 'clearTimeout').mockImplementation(() => {})
+    const remove = spyOn(controller.signal, 'removeEventListener')
+    try {
+      const executor = new SourceToolExecutor(() => renderer)
+      const result = executor.run('verify', {}, { signal: controller.signal })
+      expect(() => expire()).toThrow(retirementError)
+      expect(await result).toMatchObject({ error: { code: 'RENDER_TIMEOUT' } })
+      expect(clear).toHaveBeenCalledTimes(1)
+      expect(remove).toHaveBeenCalledTimes(1)
+      renderer.emit('exit', 73)
+    } finally { timer.mockRestore(); clear.mockRestore(); remove.mockRestore() }
+  })
+
+  test('releases queued byte reservations on cancellation and completion', async () => {
+    const renderer = new ControlledRenderer(), executor = new SourceToolExecutor(() => renderer)
+    const controllers = Array.from({ length: 7 }, () => new AbortController())
+    const source = 'x'.repeat(3 * 1024 * 1024)
+    const jobs = controllers.slice(0, 6).map(controller => executor.run('verify', { source }, { signal: controller.signal }))
+    expect(await executor.run('verify', { source })).toMatchObject({ error: { code: 'RENDER_BUSY' } })
+    controllers[1]!.abort()
+    expect(await jobs[1]).toMatchObject({ error: { code: 'RENDER_CANCELLED' } })
+    jobs.push(executor.run('verify', { source }, { signal: controllers[6]!.signal }))
+    renderer.reply(renderer.sent[0]!.id, { ok: true })
+    expect(await jobs[0]).toEqual({ ok: true })
+    // Dequeueing the next job releases another reservation.
+    const last = new AbortController()
+    jobs.push(executor.run('verify', { source }, { signal: last.signal }))
+    controllers.forEach(controller => controller.abort()); last.abort()
+    renderer.emit('exit', 0)
+    const results = await Promise.all(jobs)
+    for (const result of results.slice(1)) expect(result).toMatchObject({ error: { code: 'RENDER_CANCELLED' } })
+  })
+
   test('rejects oversized strings, escaped text and scalar-heavy results before IPC', () => {
     const value = { text: 'Hello \u{1f30d}\n' }
     expect(JSON.parse(sourceToolMessage(value, 128))).toEqual(value)

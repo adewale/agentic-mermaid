@@ -1,12 +1,14 @@
+import { isOwnedFamily } from '../experimental/owned-family.ts'
+import { finalizeOwnedScene } from './owned-data.ts'
 import { createSceneWriteCapture, type SceneWriteReceipt } from './serialization.ts'
 import { MAX_OCCLUSION_OPERATIONS } from './native-paint-emission.ts'
 import { assertBackendConformance, isBuiltinDefaultBackend, isOriginalEnrolledDefaultBackend, getBackendDescriptor } from './backend.ts'
-import { nativeDrawingOf, originalNativeDrawingOf, preferSceneDrawing, type DrawingProducer } from './drawing.ts'
+import { nativeDrawingOf, originalNativeDrawingOf, isOriginalSceneLowering, preferSceneDrawing, type DrawingProducer } from './drawing.ts'
 import { drawNative, type NativeDrawing } from './native-drawing.ts'
 import type { FamilyLayoutResult } from '../agent/families.ts'
 import type { ResolvedRenderRequest } from '../render-contract.ts'
 import { resolvedFamilyRenderContextOf, resolvedRenderExecutionPlanOf } from '../render-contract.ts'
-import { positionedForNativeProducer, retainedFamilyProjection } from '../positioning.ts'
+import { positionedForNativeProducer, positionedForSceneLowering, retainedFamilyProjection } from '../positioning.ts'
 import { withTextMeasurementExecution } from '../text-measurement-profile.ts'
 import { admitFamilyScene } from './admission.ts'
 import { sceneAssertionsEnabled } from './assertions.ts'
@@ -62,7 +64,10 @@ export function retainedPositionedScene(request: ResolvedRenderRequest, layout: 
   const writer = plan.backend ?? (plan.mode === 'layout' && request.appearance.inferredBackend === 'default' ? getBackendDescriptor('default') : undefined)
   const writes = !plan.family.id.startsWith('family:') && writer && isBuiltinDefaultBackend(writer.backend) && isOriginalEnrolledDefaultBackend(writer.backend)
     ? createSceneWriteCapture(MAX_OCCLUSION_OPERATIONS, { fractionalCircleOutput: !request.appearance.styled && !request.appearance.colors.shadow, pageUnderlay: request.appearance.styled }, actualBackendWrite) : undefined
-  const lower = () => plan.family.lowerScene!({ positioned: layout.positioned, colors, resolved: resolvedFamilyRenderContextOf(request) })
+  const lower = () => {
+    const scene = plan.family.lowerScene!({ positioned: positionedForSceneLowering(layout), colors, resolved: resolvedFamilyRenderContextOf(request) })
+    return !writes && isOwnedFamily(plan.family) && isOriginalSceneLowering(plan.family.lowerScene) ? finalizeOwnedScene(scene) : scene
+  }
   const scene = withTextMeasurementExecution(plan.textMeasurement, () => admitFamilyScene(plan.family,
     !assertions && !plan.family.id.startsWith('family:') ? withDeferredTerminalProjections(lower) : lower(), assertions, writes?.observe))
   requests.set(request, { scene, crossChecks: assertions, ...(actualBackendWrite && writes ? { pendingWrites: writes, writes: writes.prepare(scene) } : { writes: writes?.finish(scene) }) })

@@ -1,6 +1,6 @@
 import { setCopyFeedback } from './copy-feedback.js';
 import { ui } from './context.js';
-import { buildOptions, currentEditorSource, hasCurrentVerifiedSvgArtifact, renderRequestVersion } from './rendering.js';
+import { currentVerifiedRender, isCurrentVerifiedRender, hasCurrentVerifiedSvgArtifact } from './rendering.js';
 import { createPopupController } from './helpers.js';
 import { renderMermaidPngInBrowserWithReceipt } from './state.js';
 import { editor, previewInner } from './elements.js';
@@ -239,12 +239,11 @@ export function canonicalBrowserPng(outputOptions) {
   if (typeof renderMermaidPngInBrowserWithReceipt !== 'function') {
     return Promise.reject(new Error('Canonical browser PNG adapter is unavailable'));
   }
-  var source = currentEditorSource();
-  var requestVersion = renderRequestVersion;
-  var previewDigest = previewInner.dataset.sharedRequestDigest;
-  var options = ui.lastRenderedSvgOptions || buildOptions();
-  return renderMermaidPngInBrowserWithReceipt(source, options, outputOptions, rasterizeCanonicalSvg).then(function(artifact) {
-    if (renderRequestVersion !== requestVersion || currentEditorSource() !== source || !hasRenderedSvg()) {
+  var record = currentVerifiedRender();
+  if (!record) return Promise.reject(new Error('Render and verify this diagram before exporting PNG.'));
+  var previewDigest = record.artifact.receipt.sharedRequestDigest;
+  return renderMermaidPngInBrowserWithReceipt(record.source, record.options, outputOptions, rasterizeCanonicalSvg).then(function(artifact) {
+    if (!isCurrentVerifiedRender(record)) {
       throw new Error('Diagram changed while PNG export was rendering; try again.');
     }
     if (artifact.receipt.output !== 'png') throw new Error('PNG export returned a non-PNG receipt');
@@ -287,11 +286,11 @@ export function exportPNG() {
 
 export function exportSVG() {
   if (!hasRenderedSvg()) return;
-  var artifact = ui.lastRenderedSvgArtifact;
-  var requestVersion = renderRequestVersion;
-  var previewDigest = previewInner.dataset.sharedRequestDigest;
+  var record = currentVerifiedRender();
+  var artifact = record.artifact;
+  var previewDigest = artifact.receipt.sharedRequestDigest;
   serializeCanonicalSvg(artifact.svg).then(function(projected) {
-    if (renderRequestVersion !== requestVersion || ui.lastRenderedSvgArtifact !== artifact || !hasRenderedSvg()
+    if (!isCurrentVerifiedRender(record)
         || !previewDigest || previewInner.dataset.sharedRequestDigest !== previewDigest
         || artifact.receipt.sharedRequestDigest !== previewDigest) {
       throw new Error('SVG bytes and preview receipt no longer match');

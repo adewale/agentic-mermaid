@@ -460,6 +460,11 @@ export function resolveGanttSchedule(model: GanttModel, clock: GanttClock = {}):
   const calendar = calendarFromModel(model)
   const isExcludedDay = buildExclusionPredicate(calendar)
   const dateOnly = isDateOnlyFormat(model.dateFormat)
+  // The standard task-date notation also admits a bare four-digit year
+  // (January 1), used by the documented multi-year example. Keep the strict
+  // format parser for calendar exclusions, clocks and explicit other formats.
+  const taskDate = (raw: string) => parseGanttDate(raw, model.dateFormat)
+    ?? (model.dateFormat === 'YYYY-MM-DD' && /^\d{4}$/.test(raw) ? parseGanttDate(raw, 'YYYY') : null)
 
   const byId = new Map<string, GanttModelTask>()
   for (const t of model.tasks) {
@@ -486,7 +491,7 @@ export function resolveGanttSchedule(model: GanttModel, clock: GanttClock = {}):
     } else if (task.start.kind === 'after') {
       start = Math.max(...task.start.refs.map(r => resolved[byId.get(r)!.index]!.end))
     } else {
-      const parsed = parseGanttDate(task.start.raw, model.dateFormat)
+      const parsed = taskDate(task.start.raw)
       if (parsed === null) {
         throw new GanttError('GANTT_BAD_DATE', `Invalid start date "${task.start.raw}" for dateFormat "${model.dateFormat}"`, task.line)
       }
@@ -506,7 +511,7 @@ export function resolveGanttSchedule(model: GanttModel, clock: GanttClock = {}):
       }
       end = added
     } else {
-      const parsed = parseGanttDate(task.end.raw, model.dateFormat)
+      const parsed = taskDate(task.end.raw)
       if (parsed === null) {
         throw new GanttError('GANTT_BAD_DATE', `Invalid end date "${task.end.raw}" for dateFormat "${model.dateFormat}"`, task.line)
       }

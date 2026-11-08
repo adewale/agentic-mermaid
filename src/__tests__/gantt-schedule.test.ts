@@ -68,6 +68,14 @@ describe('addGanttDuration', () => {
 })
 
 describe('resolver — core rules', () => {
+  test('standard task dates admit an unambiguous bare year without relaxing strict calendar parsing', () => {
+    const schedule = scheduleOf('gantt\nIron :iron, 1982, 3y\nHouse :house, 1986, 1989')
+    expect(schedule.tasks[0]).toMatchObject({ start: UTC(1982, 1, 1), end: UTC(1985, 1, 1) })
+    expect(schedule.tasks[1]).toMatchObject({ start: UTC(1986, 1, 1), end: UTC(1989, 1, 1) })
+    expect(parseGanttDate('1982', 'YYYY-MM-DD')).toBeNull()
+    expect(() => scheduleOf('gantt\ndateFormat DD/MM/YYYY\nTask :1982, 3y')).toThrow('GANTT_BAD_DATE')
+    expect(() => scheduleOf('gantt\nexcludes weekdays\nTask :1982, 3y')).toThrow('GANTT_BAD_DATE')
+  })
   test('explicit dates, durations, and inherited starts', () => {
     const s = scheduleOf(`gantt
       dateFormat YYYY-MM-DD

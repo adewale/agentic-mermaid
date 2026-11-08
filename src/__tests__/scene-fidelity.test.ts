@@ -1,3 +1,4 @@
+import { retainedPositionedScene } from '../scene/positioned.ts'
 // Scene-fidelity gate: for every family with a SceneGraph lowering, the
 // semantic fields on each mark (geometry, markers, text) must agree with the
 // mark's canonical serialization. Styled backends redraw from the semantic fields,
@@ -399,4 +400,26 @@ describe('bounded Scene admission snapshot', () => {
       expect(Object.isFrozen(snapshot)).toBe(true)
     }
   })
+})
+
+test('owned Scene admission materializes and freezes connector projections before a backend receives them', () => {
+  const request = resolveRenderRequest('flowchart LR\nA --> B')
+  const layout = positionResolvedFamily('flowchart', request)
+  const scene = retainedPositionedScene(request, layout)
+  const seen = new Set<object>()
+  const inspect = (value: unknown): void => {
+    if (!value || typeof value !== 'object' || seen.has(value)) return
+    seen.add(value)
+    expect(Object.isFrozen(value)).toBe(true)
+    for (const key of Object.getOwnPropertyNames(value)) {
+      const descriptor = Object.getOwnPropertyDescriptor(value, key)!
+      expect('value' in descriptor).toBe(true)
+      inspect(descriptor.value)
+    }
+  }
+  inspect(scene)
+  const connectors = (node: SceneNode): Array<Extract<SceneNode, { kind: 'connector' }>> =>
+    node.kind === 'connector' ? [node] : node.kind === 'group' ? node.children.flatMap(child => connectors(child.node)) : []
+  const connector = scene.parts.flatMap(connectors)[0]!
+  expect(() => { (connector.terminalProjection.diagnostics as string[]).push('changed') }).toThrow()
 })

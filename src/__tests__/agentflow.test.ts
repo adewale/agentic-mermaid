@@ -7,6 +7,8 @@ import { projectAgentflowGraph } from '../agentflow/projection.ts'
 import { renderAgentflow } from '../agentflow/source.ts'
 import { renderMermaidASCIIWithReceipt } from '../ascii/index.ts'
 import { terminalDocumentOf } from '../ascii/terminal-document.ts'
+import { resolveEdgeInlineStyle } from '../color-resolver.ts'
+import { layoutGraphSync } from '../layout-engine.ts'
 import { MermaidSyntaxError, parseAgentflowModel, renderMermaidSVG, renderMermaidSVGWithReceipt } from '../index.ts'
 import { startUpstreamMermaid } from './helpers/upstream-mermaid.ts'
 
@@ -33,8 +35,9 @@ writer@{
     constructor: stripped
 }`
 
-test('AgentFlow preserves roles, connector and global ownership, arbitrary metadata, and attachment mappings', () => {
-  const body = parseAgentflow(source)
+test.each(['', 'linkStyle default interpolate basis', 'linkStyle 0 interpolate linear', 'linkStyle default interpolate basis\nlinkStyle 0 interpolate linear'])('AgentFlow preserves roles, connector and global ownership, arbitrary metadata, and attachment mappings (%j)', directive => {
+  const input = source + '\n' + directive
+  const body = parseAgentflow(input)
   expect([...body.roles]).toEqual([
     ['llm', 'connector'],
     ['guide', 'refdoc'],
@@ -49,7 +52,13 @@ test('AgentFlow preserves roles, connector and global ownership, arbitrary metad
   expect(body.metadata.get('writer')?.custom).toEqual({ retained: true })
   expect(body.mappings.filter(mapping => mapping.id === 'writer').map(mapping => mapping.type)).toEqual(['flow', 'attachment'])
   expect(body.mappings.filter(mapping => mapping.id === 'transfer').map(mapping => mapping.type)).toEqual(['edge', 'attachment'])
-  const reparsed = parseAgentflow(renderAgentflow(body))
+  const editable = parseRegisteredMermaid(input)
+  if (!editable.ok || editable.value.body.kind !== 'agentflow') throw Error('Expected editable AgentFlow')
+  const written = serializeMermaid(editable.value)
+  expect(written.match(/^\s*linkStyle .*interpolate /gm)?.length ?? 0).toBe(directive ? directive.split('\n').length : 0)
+  const reparsed = parseAgentflow(written)
+  expect([...reparsed.connectors]).toEqual(['llm'])
+  expect([...reparsed.globals]).toEqual(['llm', 'guide'])
   expect(reparsed.graph).toEqual(body.graph)
   expect(reparsed.metadata).toEqual(body.metadata)
   expect(reparsed.roles).toEqual(body.roles)
@@ -167,13 +176,23 @@ test('AgentFlow typed metadata and identity edits keep family-owned records and 
 })
 
 test('collapsed flows retarget cross-boundary edges while the editable model keeps their children', () => {
-  const body = parseAgentflow(`${source}\nwriter@{ view: collapsed }`)
+  const body = parseAgentflow(`${source}\nwriter@{ view: collapsed }
+linkStyle default interpolate step
+linkStyle 0 interpolate linear stroke:red
+linkStyle 1 interpolate basis stroke:blue
+linkStyle 2 interpolate cardinal stroke:green
+transfer@{ curve: linear }`)
+  const original = structuredClone(body.graph)
   const projected = projectAgentflowGraph(body)
   expect(body.graph.nodes.has('write')).toBe(true)
   expect(projected.nodes.has('write')).toBe(false)
   expect(projected.nodes.has('writer')).toBe(true)
   expect(projected.subgraphs[0]?.nodeIds).toContain('writer')
-  expect(projected.edges.find(edge => edge.id === 'transfer')).toMatchObject({ source: 'writer', target: 'publish' })
+  expect(projected.edges.find(edge => edge.id === 'transfer')).toMatchObject({ source: 'writer', target: 'publish', curve: 'linear' })
+  expect([...projected.linkCurves!]).toEqual([['default', 'step'], [0, 'basis'], [1, 'cardinal']])
+  expect(projected.edges.map((_, index) => resolveEdgeInlineStyle(index, projected)?.stroke)).toEqual(['blue', 'green'])
+  expect(layoutGraphSync(projected).edges.map(edge => edge.curve)).toEqual(['basis', 'linear'])
+  expect(body.graph).toEqual(original)
 })
 
 test.each<{ name: string; prefix: string; between: string; suffix: string; parents: Record<string, string | null> }>([

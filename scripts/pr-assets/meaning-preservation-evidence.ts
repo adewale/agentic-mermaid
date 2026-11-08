@@ -224,6 +224,71 @@ assets/ icon(folder)
   { id: 'roadmap-repair-agentflow-roles', title: 'AgentFlow: role and compound styling control', source: readFileSync(join(ROOT, 'eval/layout-compare/fixtures/agentflow-native.mmd'), 'utf8'), renderOptions: { style: 'risograph' }, pngScale: 1, captureLayout: true, cue: 'Preservation control: publishing tasks, tool/action silhouettes, connector and global document remain recognizable under the same risograph style. This compound graph intentionally retains ELK; native forest timing is qualified separately and is not inferred from this image.' },
 ]
 const fixtures: Fixture[] = [
+  {
+    id: 'reviewed-bordered-literal-shape', title: 'Bordered rectangle retains slash-delimited literal text',
+    source: 'flowchart LR\nA[|borders:lt|/Lean/] --> B[Done]', captureLayout: true,
+    cue: 'Read the complete /Lean/ label and inspect the authored left/top borders. Recognizing a rectangle border prefix must not reinterpret the slash text as a parallelogram. The layout sidecar retains rectangle identity; owning tests also cover backslashes, trapezoid-like text, quoting and canonical reload.',
+  },
+  {
+    id: 'reviewed-agentflow-curve-export', title: 'AgentFlow export keeps interpolation out of connector declarations',
+    source: 'agentflow-beta TB\nconnector C[Connector]\nglobal\nG[Guide]\nend\nC --> A[Action]\nG --> A\nlinkStyle default interpolate basis',
+    mutation: { kind: 'rename_node', from: 'C', to: 'API' }, captureLayout: true,
+    cue: 'Both revisions rename the connector to API and export/reload it. Inspect the saved source and connector inventory: no connector named linkStyle may appear, and the graph-level curve directive occurs once. An unsupported original baseline retains its actual error; owning tests independently assert identities, roles and all curve directives.',
+  },
+  {
+    id: 'reviewed-agentflow-collapsed-curves', title: 'Collapsed AgentFlow retains the surviving edge curve and color',
+    source: 'agentflow-beta TB\nflow F[Flow]\nA --> B\nend\nB --> C\nF@{ view: collapsed }\nlinkStyle 0 interpolate linear stroke:red\nlinkStyle 1 interpolate basis stroke:blue',
+    captureLayout: true,
+    cue: 'The red internal edge is hidden by collapse. Inspect the surviving Flow-to-C edge: it keeps its authored blue paint and basis curve rather than inheriting the removed first edge\'s red/linear style. The editable model retains both original edges and their style indices.',
+  },
+  {
+    id: 'reviewed-swimlane-legacy-curves', title: 'Swimlane preserves legacy curve precedence',
+    source: 'swimlane-beta LR\nsubgraph One\nA\nB\nend\nsubgraph Two\nC\nD\nend\nA e0@--> B\nB e1@--> C\nC e2@--> D\nlinkStyle default interpolate basis\nlinkStyle 1 interpolate cardinal\ne1@{ curve: linear }',
+    captureLayout: true,
+    cue: 'Inspect the rendered edge paths; explicit e1 metadata remains the linear control while the other two edges use the default curve. The layout sidecar retains edge identities and paths, not curve-name fields. Owning layout/reload tests independently assert basis, linear, basis and cover indexed-only curves and immutable inputs; these finite renders do not promise identical geometry to Mermaid.',
+  },
+  {
+    id: 'reviewed-gantt-year', title: 'Documented bare-year task dates retain their calendar meaning',
+    source: 'gantt\nsection Waffle\nIron :1982, 3y\nHouse :1986, 3y',
+    pngScale: 1, captureLayout: true,
+    cue: 'The actual baseline scheduling error is retained. The candidate schedules Iron from January 1, 1982 to January 1, 1985, and House from January 1, 1986 to January 1, 1989. Inspect the bar positions, labels and resolved layout; invalid calendar words and custom date formats remain strict.',
+  },
+  {
+    id: 'reviewed-quadrant-clearance', title: 'Fixed quadrant points do not cover section captions',
+    source: 'quadrantChart\ntitle Value vs. cost\nquadrant-1 Plan\nquadrant-2 Do now\nquadrant-3 Maybe\nquadrant-4 Drop\nAlpha: [0.25, 0.75]\nBeta: [0.7, 0.8]\nGamma: [0.3, 0.3]\nDelta: [0.75, 0.25]',
+    pngScale: 1, captureLayout: true,
+    cue: 'Alpha and Delta keep their authored coordinates. Inspect their markers and the Do now/Drop captions: the captions move within their own regions instead of being covered. Point-label and caption geometry are independently checked; this finite example does not guarantee clearance in an arbitrarily overfull fixed canvas.',
+  },
+  {
+    id: 'reviewed-wrap-conservation', title: 'Emergency wrapping preserves rectangle without an invented hyphen',
+    source: '---\nconfig:\n  layout: elk\n  look: handDrawn\n  handDrawnSeed: 1\n  htmlLabels: false\n  flowchart:\n    htmlLabels: false\n    minNodeWidth: 180\n    wrappingWidth: 56\n    padding: 16\n---\nflowchart LR\nA((Small<br>circle)) --> B(((Small<br>double<br>circle))) --> R[Small<br>rectangle]',
+    pngScale: 1, captureLayout: true,
+    cue: 'Read the wrapped rectangle label. The baseline inserts an unauthored hyphen inside the word; the candidate wraps its original graphemes. Authored soft hyphens remain supported and have separate tests.',
+  },
+  {
+    id: 'reviewed-grouped-fanout', title: 'A grouped diamond fan-out retains certified containment',
+    source: 'graph TD\nA[Christmas] -->|Get money| B(Go shopping)\nB --> C{Let me think}\nB --> G[/Another/]\nC ==>|One| D[Laptop]\nC -->|Two| E[iPhone]\nC -->|Three| F[fa:fa-car Car]\nsubgraph section\nC\nD\nE\nF\nG\nend',
+    pngScale: 1, captureLayout: true,
+    cue: 'The actual baseline certification error is retained. The candidate keeps C, D, E, F and G inside section and renders the original edges, labels and headers. The optimization no longer moves grouped targets beyond their unchanged frame; final certificates remain enabled.',
+  },
+  {
+    id: 'reviewed-rectangle-borders', title: 'Rectangle border properties retain display text',
+    source: 'flowchart LR\nA[Build] --> B[|borders:lt|Deploy] --> C[Done]',
+    pngScale: 1, captureLayout: true,
+    cue: 'Deploy is the complete label. Inspect its left and top strokes: the property prefix is syntax and must not appear as text. The content box remains a conservative routing envelope; this example is not a general port-clearance proof.',
+  },
+  {
+    id: 'reviewed-link-interpolation', title: 'Legacy interpolation and CSS can render together',
+    source: 'flowchart TD\nA[Build] --> B[Test]\nA --> C[Deploy]\nB --> C\nlinkStyle 0,1 interpolate basis stroke-width:2px;',
+    pngScale: 1,
+    cue: 'The baseline rejects the style statement and is shown as its actual error. The repaired source draws all three labels and links while retaining interpolation and width. This image does not promise Mermaid-identical spline geometry.',
+  },
+  {
+    id: 'reviewed-empty-gitgraph-tag', title: 'An explicit empty tag creates no tag box',
+    source: 'gitGraph\ncommit id:"base"\nbranch feature\ncommit id:"A"\ncheckout main\ncherry-pick id:"A" tag:""',
+    pngScale: 1,
+    cue: 'Inspect above the cherry-pick commit: the old empty tag pill disappears. Branches, commit identity and the cherry-pick relation remain. Owning tests separately check save/reload and typed tag clearing.',
+  },
   ...(['LR', 'RL'] as const).map((direction): Fixture => ({
     id: `elk-class-caption-${direction.toLowerCase()}`,
     title: `Class: nested ELK captions stay with their carriers (${direction})`,
@@ -1274,6 +1339,16 @@ const fixtures: Fixture[] = [
   },
 ]
 const terminalFixtures = [
+  {
+    id: 'reviewed-terminal-note-parity', title: 'Short terminal over-note contains both stems at odd separation',
+    source: 'sequenceDiagram\nparticipant A as ABCDEFGHIJK\nparticipant B\nNote over A,B: x',
+    cue: 'Follow each real lifeline below the participant cards into the note interval. Both stems must lie strictly between its walls, including B on the right. The owning regression checks even/odd spacing, reversed endpoints and ASCII/Unicode; participant range endpoints are not used as stem coordinates.',
+  },
+  {
+    id: 'reviewed-terminal-over-note',
+    source: 'sequenceDiagram\nparticipant A as Alice\nparticipant B as Bob\nparticipant C as Carol\nA->>C: Hello\nloop Owned\nNote over A,C: Shared<br>note\nend\nC-->>A: Done',
+    cue: 'The short Shared/note box spans Alice and Carol, including Bob between them, in ASCII and Unicode output. It remains inside Owned and before Done. Inspect its actual borders and metadata; the old text-sized box sat between the addressed lifelines instead of owning them.',
+  },
   ...nativeFamilyFixtures.map(({ id, source, cue }) => ({ id: `terminal-${id}`, source, cue })),
   {
     id: 'terminal-class-notes-only',

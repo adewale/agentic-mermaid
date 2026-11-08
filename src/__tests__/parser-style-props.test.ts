@@ -6,6 +6,28 @@ import { parseMermaid } from '../parser.ts'
 import { renderMermaidSVG } from '../index.ts'
 import { mutate, parseRegisteredMermaid, renderMermaidSVG as renderDiagramSVG, serializeMermaid, verifyMermaid } from '../agent/index.ts'
 import { startUpstreamMermaid } from './helpers/upstream-mermaid.ts'
+import { parseClassLikeStyleProps, serializeClassLikeStyleProps } from '../shared/class-like-style.ts'
+
+test('Class and State retain hex CSS tokens before semicolon delimiters independently of property name', () => {
+  for (const [name, value] of [['background', '#bbb'], ['border', '1px solid #abc'], ['outline-color', '#123456'], ['--paint', '#1234']]) {
+    expect(parseClassLikeStyleProps(`${name}:${value};font-weight:bold`)).toEqual({ [name!]: value!, 'font-weight': 'bold' })
+    for (const header of ['classDiagram', 'stateDiagram-v2']) {
+      const source = `${header}\nclassDef hot ${name}:${value};`
+      const parsed = parseRegisteredMermaid(source)
+      expect(parsed.ok).toBe(true)
+      if (!parsed.ok) throw Error(JSON.stringify(parsed.error))
+      expect(['class', 'state']).toContain(parsed.value.body.kind)
+      if (parsed.value.body.kind !== 'class' && parsed.value.body.kind !== 'state') throw Error('expected structured style')
+      expect(parsed.value.body.classDefs?.hot?.[name!]).toBe(value!)
+      const again = parseRegisteredMermaid(serializeMermaid(parsed.value))
+      if (!again.ok || (again.value.body.kind !== 'class' && again.value.body.kind !== 'state')) throw Error('expected structured round trip')
+      expect(again.value.body.classDefs?.hot?.[name!]).toBe(value!)
+    }
+  }
+  expect(parseClassLikeStyleProps('font-family: #100;irection TB#44;serif,background:#123;')).toEqual({ 'font-family': 'direction TB,serif', background: '#123' })
+  const encoded = { 'font-family': 'direction TB, "Inter, Text", serif', custom: '\u2028\u2029', background: '#123' }
+  expect(parseClassLikeStyleProps(serializeClassLikeStyleProps(encoded))).toEqual(encoded)
+})
 
 function nodeStyle(line: string, id = 'A'): Record<string, string> | undefined {
   return parseMermaid(`flowchart TD\n  A\n  ${line}`).nodeStyles.get(id)

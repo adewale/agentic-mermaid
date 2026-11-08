@@ -121,7 +121,8 @@ test('borrowed and public fallback hits notify each current request once and ret
       assert.equal(selected.attempts[0].reason, 'agentic local rank-expansion limit')
       const repeated = observe(() => positionFamilyForNativeRender(borrowedRequest))
       assert.deepEqual(repeated.stages, [])
-      assert.strictEqual(repeated.value, borrowed.value)
+      assert.notStrictEqual(repeated.value, borrowed.value)
+      assert.strictEqual(repeated.value.positioned, borrowed.value.positioned)
       assert.equal(calls.borrowed.length, 1)
 
       const publicRequest = request('public')

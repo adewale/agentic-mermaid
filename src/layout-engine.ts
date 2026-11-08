@@ -1,3 +1,4 @@
+import { withRouteMarkerCache } from './layout/route-marker-clearance.ts'
 import { applyLayoutHints } from './layout/layout-hints.ts'
 import { layoutOptimization } from './layout/optimization-context.ts'
 import { measureLabelConflicts } from './layout/label-conflicts.ts'
@@ -1951,6 +1952,7 @@ function extractNodesAndGroups(
           ...(mNode.labelContent ? { labelContent: mNode.labelContent } : {}),
           ...(mNode.labelBlock ? { labelBlock: mNode.labelBlock } : {}),
           shape: mNode.shape,
+          ...(mNode.borders !== undefined ? { borders: mNode.borders } : {}),
           ...(mNode.floatingNoteId !== undefined ? { floatingNoteId: mNode.floatingNoteId } : {}),
           ...(mNode.semanticShape !== undefined ? { semanticShape: mNode.semanticShape } : {}),
           x,
@@ -2010,8 +2012,12 @@ export function layoutGraphSync(
   graph: MermaidGraph,
   options: LayoutEngineOptions = {}
 ): PositionedGraph {
+  if (graph.linkCurves?.size) graph = {
+    ...graph,
+    edges: graph.edges.map((edge, index) => ({ ...edge, curve: edge.curve ?? graph.linkCurves!.get(index) ?? graph.linkCurves!.get('default') })),
+  }
   const optimization = layoutOptimization(Boolean(options.graphLayout?.quality || options.graphLayout?.viewport))
-  return optimization ? optimization.withLayoutOptimizationBudget(graph, options.graphLayout, () => layoutGraphWithBudget(graph, options)) : layoutGraphWithBudget(graph, options)
+  return withRouteMarkerCache(() => optimization ? optimization.withLayoutOptimizationBudget(graph, options.graphLayout, () => layoutGraphWithBudget(graph, options)) : layoutGraphWithBudget(graph, options))
 }
 
 function layoutGraphWithBudget(graph: MermaidGraph, options: LayoutEngineOptions): PositionedGraph {

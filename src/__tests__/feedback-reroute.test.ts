@@ -13,7 +13,7 @@ import { layoutGraphSync } from '../layout-engine.ts'
 import { assessLayout, hardViolations } from '../layout-rubric.ts'
 import { applyRouteContracts, closeRouteContracts, findRouteHitches } from '../route-contracts.ts'
 import { graphEdgeMarkerPaintRegions } from '../graph-connectors.ts'
-import { routeCandidateMarkerBlocker, routeCandidateMarkersClear } from '../layout/route-marker-clearance.ts'
+import { routeCandidateMarkerBlocker, routeCandidateMarkersClear, withRouteMarkerCache } from '../layout/route-marker-clearance.ts'
 import { laneContextFor, repairRectLikeEndpointOverflow, tryStraighten } from '../layout/route-lanes.ts'
 import type { Point, PositionedEdge, PositionedNode } from '../types.ts'
 import { routeMarkerPaintRegions } from '../layout/route-marker-clearance.ts'
@@ -286,4 +286,57 @@ test('a marker-blocked straight candidate reports the actual peer attachment ins
   expect(result.applied).toBe(false)
   expect(result.blockers).toContainEqual({ kind: 'port', id: 'peer-marker:PA16->A[2]:end' })
   expect(edge.points).toEqual(before)
+})
+
+// Run multiple proposals in one owner lifetime, including in-place edits and
+// rollback. Sparse peers exercise the spatial broad phase as well as custody.
+test('marker indexing retains live peer geometry, unknown blockers and diagnostic order', () => {
+  const edge = marked('A', 'T', [{ x: 200, y: 10 }, { x: 100, y: 10 }])
+  const peer = marked('B', 'T', [{ x: 200, y: 26 }, { x: 100, y: 26 }])
+  const far = Array.from({ length: 100 }, (_, i) => marked(`P${i}`, `Q${i}`, [{ x: 500 + i * 50, y: 300 }, { x: 520 + i * 50, y: 300 }]))
+  const peers = [edge, ...far, peer]
+  const route = [{ x: 200, y: 20 }, { x: 100, y: 20 }]
+  const style = { ...markerStyle }
+  withRouteMarkerCache(() => {
+    expect(routeCandidateMarkersClear(edge, route, peers, style)).toBe(true)
+    peer.points[0]!.y = peer.points[1]!.y = 24.3
+    expect(routeCandidateMarkerBlocker(edge, route, peers, style)?.id).toContain('peer-marker:B->T')
+    peer.points[0]!.y = peer.points[1]!.y = 26
+    expect(routeCandidateMarkersClear(edge, route, peers, style)).toBe(true)
+    style.lineWidth = 2
+    expect(routeCandidateMarkersClear(edge, route, peers, style)).toBe(false)
+    style.lineWidth = 1
+    expect(routeCandidateMarkersClear(edge, route, peers, style)).toBe(true)
+    far[0]!.points[0]!.x = Number.NaN
+    expect(routeCandidateMarkerBlocker(edge, route, peers, style)?.id).toContain('peer-marker:P0->Q0')
+    far.shift()
+    peers.splice(1, 1)
+    expect(routeCandidateMarkersClear(edge, route, peers, style)).toBe(true)
+    peer.inlineStyle = { 'stroke-width': '20' }
+    expect(routeCandidateMarkersClear(edge, route, peers, style)).toBe(false)
+    delete peer.inlineStyle
+    expect(() => withRouteMarkerCache(() => { throw new Error('nested layout') })).toThrow('nested layout')
+    expect(routeCandidateMarkersClear(edge, route, peers, style)).toBe(true)
+  })
+})
+
+test('spatial marker pruning agrees with the live guard across marker shapes, curves and widths', () => {
+  const examples: Array<{ edge: PositionedEdge; peers: PositionedEdge[]; points: Point[]; style: typeof markerStyle; blocker: ReturnType<typeof routeCandidateMarkerBlocker> }> = []
+  for (const kind of ['arrow', 'circle', 'cross'] as const) for (const curve of [undefined, 'basis'] as const) {
+    for (const radius of [0, 8]) for (const width of [1, 2]) for (const y of [20, 24.3, 26, 100]) {
+      const edge = marked('A', 'T', [{ x: 200, y: 10 }, { x: 100, y: 10 }])
+      const peer = marked('B', 'T', [{ x: 200, y }, { x: 100, y }])
+      edge.endMarker = peer.endMarker = kind
+      edge.curve = peer.curve = curve
+      const peers = [edge, ...Array.from({ length: 20 }, (_, i) => marked(`P${i}`, `Q${i}`, [{ x: 1000 + i * 50, y: 300 }, { x: 1020 + i * 50, y: 300 }])), peer]
+      const points = [{ x: 200, y: 20 }, { x: 100, y: 20 }]
+      const style = { ...markerStyle, lineWidth: width, edgeBendRadius: radius }
+      examples.push({ edge, peers, points, style, blocker: routeCandidateMarkerBlocker(edge, points, peers, style) })
+    }
+  }
+  withRouteMarkerCache(() => {
+    for (const example of examples) for (let repeat = 0; repeat < 2; repeat++) {
+      expect(routeCandidateMarkerBlocker(example.edge, example.points, example.peers, example.style)).toEqual(example.blocker)
+    }
+  })
 })

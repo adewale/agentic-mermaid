@@ -101,7 +101,7 @@ describe('pinned Mermaid Mindmap/GitGraph upstream oracle', () => {
         const graph = parseGitGraph(b.source!)
         const picked = graph.commits.filter(commit => commit.source === 'cherry-pick')
         expect(picked.map(commit => [commit.cherrySource, commit.cherryParent, commit.tags])).toEqual([
-          ['M', 'ZERO', ['']], ['M', 'B', ['']],
+          ['M', 'ZERO', []], ['M', 'B', []],
         ])
         expect(parseGitGraph(serializeGitGraph(graph))).toEqual(graph)
       } else expect(() => parseGitGraph(b.source!)).toThrow(b.assertions!.errorMessage)

@@ -2,27 +2,32 @@
 // DOM/font/Canvas capabilities remain explicit main-thread callbacks.
 import { SHARED_RENDER_OPTION_FIELDS, sharedRenderOptionsJsonSchema, validateSerializableRenderOptions } from './render-option-contract.ts'
 import { verifyNoExternalRefs } from './output-security.ts'
+import type { ApplyOpsInput, OpEnvelope } from './agent/apply.ts'
 import { WARNING_SEVERITY, WARNING_TIER } from './agent/types.ts'
-import { STYLE_COLOR_TOKEN_DESCRIPTORS, knownStyleDescriptors, knownStyles, getStyle } from './scene/style-registry.ts'
-import { resolveAuthoredEditorOptions, type EditorRenderStateInput } from './editor-option-policy.ts'
-import { PreviewSupersededError, PreviewRuntimeLoadError } from './browser-preview-errors.ts'
+import type { AsciiRenderOptions, RenderedAscii } from './ascii/index.ts'
+import type { EditorWorkerArtifact, EditorWorkerOperation, PreviewArtifact } from './browser-editor-protocol.ts'
+import { captureEditorOperation } from './browser-editor-snapshot.ts'
+import type { BrowserPngRasterizer, RenderedBrowserPng } from './browser-png.ts'
 import type { PreviewWorkerClient } from './browser-preview-client.ts'
-import type { AsciiRenderOptions } from './ascii/index.ts'
-import type { RenderOptions } from './types.ts'
-import type { BrowserPngRasterizer } from './browser-png.ts'
+import { PreviewRuntimeLoadError, PreviewSupersededError } from './browser-preview-errors.ts'
+import { resolveAuthoredEditorOptions, type EditorRenderStateInput } from './editor-option-policy.ts'
+import { verifyNoExternalRefs } from './output-security.ts'
 import type { PortablePngOutputOptions } from './png-contract.ts'
-import type { ApplyOpsInput } from './agent/apply.ts'
+import { SHARED_RENDER_OPTION_FIELDS, sharedRenderOptionsJsonSchema, validateSerializableRenderOptions } from './render-contract.ts'
+import { STYLE_COLOR_TOKEN_DESCRIPTORS, getStyle, knownStyleDescriptors, knownStyles } from './scene/style-registry.ts'
+import type { RenderOptions } from './types.ts'
 
 export function createBrowserEditorAdapter(load: () => PreviewWorkerClient | Promise<PreviewWorkerClient>, onRuntimeStatus?: (available: boolean) => void) {
   let generation = 0, loaded: PreviewWorkerClient | undefined
   let fittingOptions: typeof resolveAuthoredEditorOptions | undefined, preparingOptions: Promise<void> | undefined
-  async function execute<T>(operation: (client: PreviewWorkerClient) => Promise<T>): Promise<T> {
+  async function execute<T extends EditorWorkerArtifact>(operation: EditorWorkerOperation, rasterize?: BrowserPngRasterizer): Promise<T> {
+    const snapshot = captureEditorOperation(operation)
     const requested = generation
     try {
       const client = await load()
       loaded = client
       if (requested !== generation) throw new PreviewSupersededError()
-      const artifact = await operation(client)
+      const artifact = await client.submit<T>(snapshot, rasterize)
       if (requested === generation) onRuntimeStatus?.(true)
       return artifact
     } catch (error) {
@@ -44,25 +49,20 @@ export function createBrowserEditorAdapter(load: () => PreviewWorkerClient | Pro
     },
     resolveEditorRenderOptions: (...args: Parameters<typeof resolveAuthoredEditorOptions>) => (fittingOptions ?? resolveAuthoredEditorOptions)(...args),
     applyOps(source: string, ops: unknown, mode?: ApplyOpsInput['mode']) {
-      const snapshot = structuredClone(ops)
-      return execute(client => client.applyOps(source, snapshot, mode))
+      return execute<{ mutation: OpEnvelope }>({ operation: 'mutate', source, options: {}, ops, mode }).then(artifact => artifact.mutation)
     },
     renderMermaidSVGWithReceipt(source: string, options: RenderOptions = {}) {
-      const snapshot = structuredClone(options)
-      return execute(client => client.render(source, snapshot))
+      return execute<PreviewArtifact>({ operation: 'preview', source, options })
     },
     cancelPendingRender() { generation++; loaded?.invalidate() },
     renderMermaidASCIIWithReceipt(source: string, options: AsciiRenderOptions = {}) {
-      const snapshot = structuredClone(options)
-      return execute(client => client.renderText(source, snapshot, true))
+      return execute<RenderedAscii>({ operation: 'ascii', source, options })
     },
     renderMermaidUnicodeWithReceipt(source: string, options: AsciiRenderOptions = {}) {
-      const snapshot = structuredClone(options)
-      return execute(client => client.renderText(source, snapshot, false))
+      return execute<RenderedAscii>({ operation: 'unicode', source, options })
     },
     renderMermaidPNGInBrowserWithReceipt(source: string, options: RenderOptions, output: number | PortablePngOutputOptions, rasterize: BrowserPngRasterizer) {
-      const snapshot = structuredClone({ options, output })
-      return execute(client => client.renderPng(source, snapshot.options, snapshot.output, rasterize))
+      return execute<RenderedBrowserPng>({ operation: 'png', source, options, output }, rasterize)
     },
     SHARED_RENDER_OPTION_FIELDS,
     STYLE_COLOR_TOKEN_FIELDS: Object.freeze(Object.keys(STYLE_COLOR_TOKEN_DESCRIPTORS)),

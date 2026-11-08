@@ -1,6 +1,7 @@
+import { writtenTagOf, projectWrittenTag, writerEvidenceEnabled, type WrittenReplacement } from './svg-writer-evidence.ts'
 import { decodeXML } from 'entities'
 import { createSvgInspector } from './svg-inspection-cache.ts'
-import { isAsciiXmlNameChar, xmlTokenAt, xmlIndexOf, xmlSlice } from './shared/xml-name.ts'
+import { asciiXmlNameEnd, isAsciiXmlNameChar, xmlTokenAt, xmlIndexOf, xmlSlice } from './shared/xml-name.ts'
 
 export interface SvgAttributeToken {
   readonly name: string
@@ -117,7 +118,7 @@ export function visitSvgStartTagsFresh(source: string, visitor: {
 }
 
 // One lexical owner: inventory, CSS values/contexts, or style bodies only.
-function scanStartTags(source: string, cssRanges?: SvgRange[], styleContexts?: SvgRange[], first?: { attribute(name: string, value: string): void; expectedName: string; name: string | undefined }, fresh = false, primitive?: Parameters<typeof visitSvgStartTagsFresh>[1]): readonly SvgStartTagToken[] | undefined {
+function scanStartTags(source: string, cssRanges?: SvgRange[], styleContexts?: SvgRange[], first?: { attribute(name: string, value: string): void; expectedName: string; name: string | undefined }, fresh = false, primitive?: Parameters<typeof visitSvgStartTagsFresh>[1], collectWritten = false): readonly SvgStartTagToken[] | undefined {
   const tags: SvgStartTagToken[] | undefined = cssRanges || styleContexts || first || primitive ? undefined : []
   for (let start = sourceIndexOf(source, '<', undefined, fresh); start >= 0; start = sourceIndexOf(source, '<', start + 1, fresh)) {
     if (sourceTokenAt(source, '<!--', start, fresh)) {
@@ -135,7 +136,8 @@ function scanStartTags(source: string, cssRanges?: SvgRange[], styleContexts?: S
     const initial = source[start + 1]
     if (!initial || initial === '/' || initial === '!' || initial === '?') continue
     let nameEnd = start + 1
-    while (isAsciiXmlNameChar(source[nameEnd], fresh)) nameEnd++
+    if (fresh) { while (isAsciiXmlNameChar(source[nameEnd], true)) nameEnd++ }
+    else nameEnd = asciiXmlNameEnd(source, nameEnd)
     if (nameEnd === start + 1) continue
     const end = scanTagEnd(source, nameEnd, fresh)
     if (end < 0) break
@@ -153,7 +155,8 @@ function scanStartTags(source: string, cssRanges?: SvgRange[], styleContexts?: S
         while (isWhitespace(source[cursor], fresh)) cursor++
         if (source[cursor] === '>' || (source[cursor] === '/' && source[cursor + 1] === '>')) break
         const nameStart = cursor
-        while (isAsciiXmlNameChar(source[cursor], fresh)) cursor++
+        if (fresh) { while (isAsciiXmlNameChar(source[cursor], true)) cursor++ }
+        else cursor = asciiXmlNameEnd(source, cursor)
         if (cursor === nameStart) break
         const name = sourceSlice(source, nameStart, cursor, fresh)
         while (isWhitespace(source[cursor], fresh)) cursor++
@@ -171,7 +174,7 @@ function scanStartTags(source: string, cssRanges?: SvgRange[], styleContexts?: S
         else if (first && first.name === first.expectedName) first.attribute(name, sourceSlice(source, valueStart, cursor, fresh))
         else if (primitive) primitive.attribute(name, sourceSlice(source, valueStart, cursor, fresh), quote, nameStart, valueStart, cursor)
         else if (cssRanges && CSS_VALUE_ATTRIBUTES.has(name)) {
-          const range = { start: valueStart, end: cursor }
+          const range: SvgCssRange = collectWritten ? { start: valueStart, end: cursor, tagStart: start, tagEnd: end, name } : { start: valueStart, end: cursor }
           cssRanges.push(range)
           if (name === 'style') styleContexts!.push(range)
         }
@@ -222,6 +225,9 @@ interface Replacement {
   readonly start: number
   readonly end: number
   readonly value: string
+  readonly name?: string
+  readonly tagStart?: number
+  readonly tagEnd?: number
 }
 
 // Replacement ranges are normally disjoint (attribute values, style text), so
@@ -246,17 +252,43 @@ function applyReplacements(source: string, replacements: readonly Replacement[])
   return parts.reverse().join('')
 }
 
+function carryWrittenTags(source: string, changes: readonly Replacement[]): void {
+  let start = -1, end = -1
+  let owned: WrittenReplacement[] = []
+  const retain = () => {
+    if (!owned.length) return
+    const tag = writtenTagOf(source.slice(start, end))
+    if (tag) projectWrittenTag(source, { start, end, tag }, owned)
+  }
+  for (const change of changes) {
+    if (change.tagStart === undefined) continue
+    if (change.tagStart !== start) {
+      retain()
+      start = change.tagStart; end = change.tagEnd!; owned = []
+    }
+    owned.push(change)
+  }
+  retain()
+}
+
 export function transformSvgAttributes(
   source: string,
   transform: (attribute: SvgAttributeToken, tag: SvgStartTagToken) => string | undefined,
 ): string {
   const replacements: Replacement[] = []
+  const collectWritten = writerEvidenceEnabled()
   for (const tag of scanSvgStartTags(source)) {
+    const firstChange = replacements.length
     for (const attribute of tag.attributes) {
       const value = transform(attribute, tag)
       if (value !== undefined && value !== attribute.value) {
-        replacements.push({ start: attribute.valueStart, end: attribute.valueEnd, value })
+        const change = { start: attribute.valueStart, end: attribute.valueEnd, value, name: attribute.name }
+        replacements.push(change)
       }
+    }
+    if (collectWritten && replacements.length > firstChange) {
+      const evidence = writtenTagOf(source.slice(tag.start, tag.end))
+      if (evidence) projectWrittenTag(source, { start: tag.start, end: tag.end, tag: evidence }, replacements.slice(firstChange))
     }
   }
   return applyReplacements(source, replacements)
@@ -275,16 +307,22 @@ export interface SvgRange {
 
 /** Local lexical CSS metadata, valid only for this exact immutable string.
  * Consumed synchronously; never public inspection evidence or XML admission. */
+interface SvgCssRange extends SvgRange {
+  readonly tagStart?: number
+  readonly tagEnd?: number
+  readonly name?: string
+}
+
 export interface SvgCssProjection {
   readonly source: string
-  readonly cssRanges: readonly SvgRange[]
+  readonly cssRanges: readonly SvgCssRange[]
   readonly styleContexts: readonly SvgRange[]
 }
 
 export function projectSvgCss(source: string): SvgCssProjection {
-  const cssRanges: SvgRange[] = []
+  const cssRanges: SvgCssRange[] = []
   const styleContexts: SvgRange[] = []
-  scanStartTags(source, cssRanges, styleContexts)
+  scanStartTags(source, cssRanges, styleContexts, undefined, false, undefined, writerEvidenceEnabled())
   return { source, cssRanges, styleContexts }
 }
 
@@ -305,10 +343,14 @@ export function transformSvgCssValues(
   projection: SvgCssProjection = projectSvgCss(source),
 ): string {
   if (projection.source !== source) throw new Error('SVG CSS projection does not match its source')
-  return applyReplacements(source, projection.cssRanges.map(range => ({
-    ...range,
-    value: transform(source.slice(range.start, range.end), range),
-  })))
+  const changes: Replacement[] = []
+  for (const range of projection.cssRanges) {
+    const original = source.slice(range.start, range.end)
+    const value = transform(original, range)
+    if (value !== original) changes.push({ ...range, value, name: range.name })
+  }
+  if (writerEvidenceEnabled()) carryWrittenTags(source, changes)
+  return applyReplacements(source, changes)
 }
 
 export function replaceSvgRootStartTag(

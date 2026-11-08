@@ -1,3 +1,4 @@
+import { retainWrittenFields, retainTextAttributes, writeTextOpening, writerEvidenceEnabled } from '../svg-writer-evidence.ts'
 // ============================================================================
 // The default backend's SVG writer: each shape, text and connector mark's
 // element is written from its typed fields, so paint certification, which
@@ -464,6 +465,9 @@ export function writtenLeafContextOf(node: object, svg: string): WrittenLeafCont
  * Numeric fields use the shared SVG spelling at this write boundary. */
 class SvgWriter {
   value = ''
+  private tagName?: string
+  private start = 0
+  private attributes: string[] | undefined = writerEvidenceEnabled() ? [] : undefined
   transformed = false
   observeAttributes?: (name: string, literal: string) => void
   observePaint?: (field: keyof MarkPaint, literal: string, escaped: unknown) => void
@@ -476,15 +480,27 @@ class SvgWriter {
 
   element(name: string): void {
     const actual = `${name}`
+    this.tagName = actual
+    this.start = this.value.length
+    this.attributes = writerEvidenceEnabled() ? [] : undefined
     this.raw(`<${actual}`)
     this.xml?.element(actual)
   }
+
+  close(): void {
+    this.value += ' />'
+    if (this.tagName && this.attributes) retainWrittenFields(this.value.slice(this.start), this.tagName, this.attributes, true)
+    this.tagName = undefined
+  }
+
+  textEvidence(text: string) { return this.attributes ? retainTextAttributes(text, this.attributes) : undefined }
 
   raw(text: string): void { this.value += text }
 
   attribute(name: string, value: string | number, changedToken?: (offset: number, literal: string) => boolean | void, numericToken?: (literal: string, raw: string) => boolean | void, paintField?: keyof MarkPaint): string {
     const literal = typeof value === 'number' ? formatSvgNumber(value) : formatSvgNumericAttribute(name, value, changedToken, numericToken)
     const escaped = typeof value === 'number' ? literal : escapeAttr(literal)
+    this.attributes?.push(name, escaped)
     this.value += ` ${name}="${escaped}"`
     this.xml?.attribute(name, escaped)
     if (paintField !== undefined && this.observePaint) this.xml?.recordPaintField(paintField)
@@ -686,7 +702,7 @@ export function writeShapeSvg(node: ShapeMark, sink?: SvgGeometryWriteSink, capt
     transformAttribute(out, node.transform)
     out.observeAttributes = undefined
     if (index === 0) identityAttributes(out, node.identity, node.accessibility)
-    out.raw(' />')
+    out.close()
   }
   report?.(node, invalidAttributes ? undefined : Object.freeze(attributes!))
   writtenLeafContexts.set(node, { svg: out.value, context: Object.freeze({ transformed: out.transformed }) })
@@ -733,7 +749,7 @@ export function writeTextSvg(node: TextMark, capture?: SvgXmlCapture, sink?: Svg
     observed = true
     out.xml!.prepared(written)
     if (report) out.xml!.markPaintPrepared(written)
-  } : undefined, node.anchor)
+  } : undefined, node.anchor, out.textEvidence(attrs))
   if (!node.spans) {
     if (!capture) return svg
     const write = finishXmlLeaf(capture, node, svg, out.xml, observed, undefined, report ? out.xml : undefined)
@@ -748,7 +764,7 @@ export function writeTextSvg(node: TextMark, capture?: SvgXmlCapture, sink?: Svg
   const content = `>${escapeXml(shown)}</text>`
   if (!svg.endsWith(content)) throw new TypeError(`Text "${node.id}" spans require a one-line label`)
   let spans = ''
-  for (const span of node.spans) spans += `<tspan fill="${escapeAttr(span.fill)}">${escapeXml(span.text)}</tspan>`
+  for (const span of node.spans) spans += `${writeTextOpening('tspan', [['fill', escapeAttr(span.fill)]])}${escapeXml(span.text)}</tspan>`
   const written = `${svg.slice(0, -content.length)}>${spans}</text>`
   if (!capture) return written
   const write = capture.raw(written, node)
@@ -780,11 +796,11 @@ function connectorInlineLabelSvg(node: ConnectorMark, label: ConnectorLabelDescr
   out.attribute('text-anchor', label.textAnchor)
   transformAttribute(out, node.transform)
   paintAttributes(out, paint)
-  let complete = false
-  const svg = renderMultilineText(block, label.anchor.x, label.anchor.y - Math.max(0, label.clearance ?? 0), block.fontSize, capture ? xmlRange(out.value, 1) : out.value.slice(1), 0, false, out.xml ? written => {
+  let complete = false, attrs = ''
+  const svg = renderMultilineText(block, label.anchor.x, label.anchor.y - Math.max(0, label.clearance ?? 0), block.fontSize, attrs = capture ? xmlRange(out.value, 1) : out.value.slice(1), 0, false, out.xml ? written => {
     complete = true
     out.xml!.prepared(written)
-  } : undefined, label.textAnchor)
+  } : undefined, label.textAnchor, out.textEvidence(attrs))
   return { svg, transformed: out.transformed, xml: out.xml, complete }
 }
 
@@ -826,7 +842,7 @@ export function writeConnectorSvg(node: ConnectorMark, sink?: SvgGeometryWriteSi
     out.attribute('data-relationship', node.relationship.kind)
     out.attribute('data-direction', node.relationship.direction)
     identityAttributes(out, node.identity, node.accessibility)
-    out.raw(' />')
+    out.close()
   }
   for (let index = 0; index < node.labels.length; index++) {
     const label = connectorInlineLabelSvg(node, node.labels[index]!, index, capture)

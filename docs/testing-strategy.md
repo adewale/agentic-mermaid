@@ -179,6 +179,13 @@ Chromium/server hooks cannot overlap and exhaust a constrained hosted runner. Th
 package and CI both invoke `e2e/run-browser-contracts.ts`, whose canonical file
 list also fails if any contract executes zero positive tests, while independent
 lanes run the CLI/single-binary, dist-artifact, and tarball-consumer suites.
+Bundle receipt comparisons run their source reference in a fresh production
+process. Launching a browser test from the repository root loads the unit-test
+preload, which forces Scene assertions before source imports; the browser uses
+the production native path. Comparing those different evidence paths produces
+false receipt mismatches in work counts and viewport precision. Keep full receipt
+equality, diagnostics and parser locations, and compare explicit strict layout
+safety separately, including its refusal of conditional paint.
 Broad contact-sheet rendering is periodic/triggered rather than a per-PR sweep.
 Human review is recommended for visual releases, but it is advisory rather than
 a package-publication gate.
@@ -718,7 +725,10 @@ table here, which would drift. In broad strokes:
   font/Canvas callback and transfers an allocation-bounded copy of its bytes
   back for canonical PNG validation. Callback buffers are never detached.
   One operation is active, with one replaceable preview and four queued exports;
-  source/config changes cancel stale work, including a PNG awaiting font/Canvas
+  waiting exports share a 16 MiB payload residency estimate, while preview
+  admission has a separate 12 MiB estimate. These are admission estimates, not
+  process heap limits.
+  Source/config changes cancel stale work, including a PNG awaiting font/Canvas
   I/O, so a new preview can proceed. Timeouts and crashes reject all waiters and
   the next operation starts a fresh worker.
 

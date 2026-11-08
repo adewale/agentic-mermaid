@@ -1,3 +1,4 @@
+import { writtenTagOf } from './svg-writer-evidence.ts'
 // ============================================================================
 // One output-security policy for every SVG-producing path.
 //
@@ -132,6 +133,7 @@ function xmlParserList<T>(): XmlParserList<T> { const result = Object.create(nul
 interface XmlElementFrame {
   readonly name: string
   readonly namespaces: ReadonlyMap<string, string>
+  readonly styleStart?: number
 }
 
 function isAllowedXmlCodePoint(codePoint: number): boolean {
@@ -322,12 +324,15 @@ export function verifySvgDocumentDataPositions(svg: string, positions: Readonly<
   }
 }
 
-function verifyDocumentEnvelope(svg: string, observeAttribute?: (name: string, rawValue: string) => void, work?: XmlWork, observeData?: (start: number, end: number, inside: boolean) => boolean): boolean {
+interface WrittenDocumentInspection { elements: number; styleStarts: number[]; styleEnds: Array<{ start: number; end: number }> }
+
+function verifyDocumentEnvelope(svg: string, observeAttribute?: (name: string, rawValue: string) => void, work?: XmlWork, observeData?: (start: number, end: number, inside: boolean) => boolean, useWritten = false, observeWritten?: (refs: readonly string[], active: readonly string[]) => void, document?: WrittenDocumentInspection): boolean {
   const stack = xmlParserList<XmlElementFrame>()
   const shortAttributeNames = xmlParserList<string>()
   let longAttributeNames: Set<string> | undefined
   let rootSeen = false
   let rootClosed = false
+  let styleDepth = 0
   // A leading decoded byte-order mark is legal XML; elsewhere it is text,
   // so it cannot stand in for XML whitespace outside the root.
   work?.(1)
@@ -368,6 +373,10 @@ function verifyDocumentEnvelope(svg: string, observeAttribute?: (name: string, r
       const frame = stack[--stack.length]
       delete stack[stack.length]
       if (frame?.name !== name) return false
+      if (frame.styleStart !== undefined) {
+        styleDepth--
+        document?.styleEnds.push({ start: cursor, end: end + 1 })
+      }
       cursor = end + 1
       if (stack.length === 0) {
         if (name !== 'svg' || rootClosed) return false
@@ -376,6 +385,7 @@ function verifyDocumentEnvelope(svg: string, observeAttribute?: (name: string, r
       continue
     }
 
+    if (styleDepth > 0) return false
     const nameEnd = readXmlNameEnd(svg, cursor + 1, work)
     // The admitted serializer subset has only unprefixed SVG elements.
     // Qualified-name objects are needed for attributes, never for elements.
@@ -386,6 +396,33 @@ function verifyDocumentEnvelope(svg: string, observeAttribute?: (name: string, r
     if (stack.length === 0) {
       if (rootSeen || name !== 'svg') return false
       rootSeen = true
+    }
+
+    if (useWritten && !work && stack.length > 0 && stack[stack.length - 1]!.namespaces.get('') === SVG_NAMESPACE) {
+      const close = svg.indexOf('>', nameEnd)
+      const written = close < 0 ? undefined : writtenTagOf(svg.slice(cursor, close + 1))
+      if (written) {
+        for (const attribute of written.attributes) observeWritten?.(attribute.refs, attribute.active)
+        if (!written.selfClosing) {
+          const namespaces = stack[stack.length - 1]!.namespaces
+          stack[stack.length++] = { name, namespaces }
+        }
+        cursor = close + 1
+        continue
+      }
+    }
+
+    const styleStart = cursor
+    work?.(5)
+    const isStyle = name.length === 5 && (name[0] === 's' || name[0] === 'S') && (name[1] === 't' || name[1] === 'T')
+      && (name[2] === 'y' || name[2] === 'Y') && (name[3] === 'l' || name[3] === 'L') && (name[4] === 'e' || name[4] === 'E')
+    if (document) {
+      if (/^style\b/i.test(name)) document.styleStarts.push(styleStart)
+      const unsafe = SECURITY_ELEMENT_NAME.exec(name)?.[1]
+      if (unsafe) {
+        const index = SECURITY_ELEMENT_NAMES.findIndex(tag => tag.toLowerCase() === unsafe.toLowerCase())
+        document.elements |= 1 << (index < 0 ? SECURITY_ELEMENT_NAMES.length : index)
+      }
     }
 
     let end = nameEnd
@@ -527,7 +564,8 @@ function verifyDocumentEnvelope(svg: string, observeAttribute?: (name: string, r
       if (stack.length === 0) return false
     } else {
       work?.(1)
-      stack[stack.length++] = { name, namespaces }
+      if (isStyle) styleDepth++
+      stack[stack.length++] = { name, namespaces, ...(isStyle ? { styleStart } : {}) }
     }
   }
 
@@ -659,6 +697,25 @@ interface SecurityFindings {
 
 const securityFindings = createSvgInspector('security', inspectSecurity)
 
+/** Private writer admission. Empty findings are shared per tag rather than
+ * allocating arrays for each scalar field. Errors defer to final admission. */
+export function writtenAttributesFindings(fields: readonly string[]): readonly { readonly name: string; readonly value: string; readonly order: number; readonly refs: readonly string[]; readonly active: readonly string[] }[] | undefined {
+  const refs: string[] = [], active: string[] = []
+  const findings: Array<{ name: string; value: string; order: number; refs: readonly string[]; active: readonly string[] }> = []
+  const names = new Set<string>()
+  for (let i = 0; i < fields.length; i += 2) {
+    const name = fields[i]!, value = fields[i + 1]!
+    if (typeof name !== 'string' || typeof value !== 'string' || !/^(?:[A-Za-z_][A-Za-z0-9_.-]*|xml:space)$/.test(name) || name === 'xmlns' || names.has(name)
+      || /["<>]/.test(value) || !hasWellFormedXmlReferences(value)) return undefined
+    names.add(name)
+    const beforeRefs = refs.length, beforeActive = active.length
+    try { inspectAttributeSecurity(name, value, refs, active) } catch { return undefined }
+    if (refs.length !== beforeRefs || active.length !== beforeActive) findings.push(Object.freeze({ name, value, order: i / 2,
+      refs: Object.freeze(refs.slice(beforeRefs)), active: Object.freeze(active.slice(beforeActive)) }))
+  }
+  return Object.freeze(findings)
+}
+
 function inspectAttributeSecurity(qualified: string, value: string, refs: string[], active: string[]): void {
   const lower = qualified.toLowerCase()
   const colon = lower.lastIndexOf(':')
@@ -700,22 +757,27 @@ function inspectSecurity(svg: string): SecurityFindings {
       inspectAttributeSecurity(match[1]!, unquoteAttribute(match[2]!), refs, active)
     }
   }
+  // This raw-reference API accepts unvalidated markup. Element-bearing CSS
+  // cannot prove safe references; final admission rejects it at the XML gate.
+  for (const style of markup.matchAll(/<style\b[^>]*>([\s\S]*?)<\/style[\t\n\r ]*>/gi)) {
+    if (/<[^\s!?/<>]/.test(style[1]!)) { refs.push('style-element-content'); active.push('style-element-content') }
+  }
   return inspectSecurityTail(markup, refs, active)
 }
 
-function inspectSecurityTail(markup: string, refs: string[], active: string[]): SecurityFindings {
+function inspectSecurityTail(markup: string, refs: string[], active: string[], knownElements?: number): SecurityFindings {
   // Character references are decoded inside attribute values and CSS, where
   // the XML/CSS consumers interpret them. Do not decode the complete document:
   // escaped label text such as `&lt;script&gt;` remains text in XML and must not
   // be mistaken for a structural element.
-  for (const style of markup.matchAll(/<style\b[^>]*>([\s\S]*?)<\/style>/gi)) {
+  for (const style of markup.matchAll(/<style\b[^>]*>([\s\S]*?)<\/style[\t\n\r ]*>/gi)) {
     if (unsafeActiveCss(style[1]!)) active.push('active-css')
     refs.push(...unsafeCssReferences(style[1]!))
   }
   // Scan the union once, then preserve the established diagnostic order and
   // one finding per tag kind even when hostile markup repeats an element.
-  let elementKinds = 0
-  for (const match of markup.matchAll(SECURITY_ELEMENT_TAG)) {
+  let elementKinds = knownElements ?? 0
+  if (knownElements === undefined) for (const match of markup.matchAll(SECURITY_ELEMENT_TAG)) {
     // The raw-reference API also accepts unvalidated markup. Preserve its
     // conservative finding for an unsafe namespace prefix as well as the tag.
     const prefix = match[1] && SECURITY_ELEMENT_NAME.exec(match[1])?.[1]
@@ -738,11 +800,12 @@ export function verifyNoExternalRefs(svg: string): { ok: boolean; refs: string[]
   return { ok: refs.length === 0, refs: [...refs] }
 }
 
-const inspectFinalSvg = createSvgInspector('final-security', (svg: string): SecurityFindings | false => {
+function inspectFinalDocument(svg: string, useWritten = false): SecurityFindings | false {
   const refs: string[] = []
   const active: string[] = []
   let failed = false
   let failure: unknown
+  const document: WrittenDocumentInspection | undefined = useWritten ? { elements: 0, styleStarts: [], styleEnds: [] } : undefined
   const valid = verifyDocumentEnvelope(svg, (name, rawValue) => {
     if (failed) return
     try {
@@ -753,14 +816,30 @@ const inspectFinalSvg = createSvgInspector('final-security', (svg: string): Secu
       failed = true
       failure = error
     }
-  })
+  }, undefined, undefined, useWritten, (writtenRefs, writtenActive) => { refs.push(...writtenRefs); active.push(...writtenActive) }, document)
   if (!valid) return false
   if (failed) throw failure
+  if (document) {
+    let end = -1, closing = 0
+    const styles: string[] = []
+    for (const start of document.styleStarts) {
+      if (start < end) continue
+      const open = svg.indexOf('>', start)
+      while (closing < document.styleEnds.length && document.styleEnds[closing]!.start <= open) closing++
+      const close = document.styleEnds[closing]
+      if (!close) break
+      end = close.end
+      styles.push(svg.slice(start, end))
+    }
+    return inspectSecurityTail(styles.join('').replace(/<!--[\s\S]*?-->/g, ''), refs, active, document.elements)
+  }
   return inspectSecurityTail(svg.replace(/<!--[\s\S]*?-->/g, ''), refs, active)
-})
+}
+const inspectFinalSvg = createSvgInspector('final-security', inspectFinalDocument)
+const inspectFinalWrittenSvg = createSvgInspector('final-security-written', svg => inspectFinalDocument(svg, true))
 
-export function applyOutputSecurityPolicy(svg: string, mode: OutputSecurityMode = 'default'): OutputSecurityResult {
-  const inspection = inspectFinalSvg(svg)
+function applySecurityPolicy(svg: string, mode: OutputSecurityMode, useWritten: boolean): OutputSecurityResult {
+  const inspection = useWritten ? inspectFinalWrittenSvg(svg) : inspectFinalSvg(svg)
   if (!inspection) {
     throw new Error('OutputSecurityPolicy rejected an invalid SVG document envelope')
   }
@@ -778,4 +857,15 @@ export function applyOutputSecurityPolicy(svg: string, mode: OutputSecurityMode 
       reference,
     })),
   }
+}
+
+/** Public boundary always examines arbitrary supplied SVG bytes. */
+export function applyOutputSecurityPolicy(svg: string, mode: OutputSecurityMode = 'default'): OutputSecurityResult {
+  return applySecurityPolicy(svg, mode, false)
+}
+
+/** Private original-writer boundary; opaque output and unrecorded changes
+ * retain full admission within the same envelope walk. */
+export function applyWrittenOutputSecurityPolicy(svg: string, mode: OutputSecurityMode = 'default'): OutputSecurityResult {
+  return applySecurityPolicy(svg, mode, true)
 }

@@ -1,5 +1,6 @@
 import { admittedSceneRecord, recordAdmittedScene } from './scene-admission-state.ts'
 export { recordAdmittedScene } from './scene-admission-state.ts'
+import { isOwnedScene } from './owned-data.ts'
 /**
  * One bounded immutable snapshot for external Scene data.
  *
@@ -241,7 +242,8 @@ export function snapshotBoundedExternalData(
 
 /**
  * Documents that passed admission, with the rule set they passed. Every document
- * is a recursively frozen own-data snapshot, including any registered built-in
+ * is recursively frozen, from external own-data admission or a private
+ * constructor-owned graph, including any registered built-in
  * terminal projection. Its validation result cannot change: passing it through
  * another admission gate re-proves nothing. Only this module records documents,
  * so a caller cannot forge membership.
@@ -257,7 +259,7 @@ export function admitSceneDocumentWith(value: unknown, mode: 'internal' | 'exter
   const prior = typeof value === 'object' && value !== null ? admittedSceneRecord(value) : undefined
   if (internalOnly && (mode === 'external' || prior !== undefined && (prior.mode === 'external' || sceneValidationMode(value) === 'external'))) refuseExternalBrowserScene()
   const requiredChecks = mode !== 'internal' || crossChecks
-  if (prior !== undefined && prior.mode === (mode ?? sceneValidationMode(value))) {
+  if (prior !== undefined && (!serializationObserver || isOwnDataSceneSnapshotInert(value as object)) && prior.mode === (mode ?? sceneValidationMode(value))) {
     // A prior cheap admission cannot stand in for a later strict request.
     if ((prior.mode === 'external' || crossChecks) && !prior.crossChecks) {
       validate(value, prior.mode, true, serializationObserver)
@@ -265,7 +267,8 @@ export function admitSceneDocumentWith(value: unknown, mode: 'internal' | 'exter
     }
     return value as SceneDoc
   }
-  const admitted = snapshotBoundedExternalData(value, EXTERNAL_SCENE_DOCUMENT_SNAPSHOT_LIMITS, 'scene')
+  const admitted = !serializationObserver && mode === 'internal' && typeof value === 'object' && value !== null && isOwnedScene(value)
+    ? value : snapshotBoundedExternalData(value, EXTERNAL_SCENE_DOCUMENT_SNAPSHOT_LIMITS, 'scene')
   if (internalOnly && sceneValidationMode(admitted) === 'external') refuseExternalBrowserScene()
   validate(admitted, mode, mode !== 'internal' || crossChecks, serializationObserver)
   recordAdmittedScene(admitted as SceneDoc, mode ?? sceneValidationMode(admitted), requiredChecks)

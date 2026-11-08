@@ -1,7 +1,7 @@
 import { ui } from './context.js';
 import { DEFAULT_EDITOR_PALETTE, editorPaletteInput, state } from './state.js';
 import { editor } from './elements.js';
-import { hasCurrentVerifiedSvgArtifact } from './rendering.js';
+import { currentVerifiedRender, isCurrentVerifiedRender, hasCurrentVerifiedSvgArtifact } from './rendering.js';
 import { showToast } from './toast.js';
 export var HASH_DEFLATE_PREFIX, EDITOR_SHARE_STATE_KEYS, MAX_SHARE_DECODED_BYTES, MAX_SHARE_ENCODED_BYTES, MAX_DRAFT_BYTES, hashDecodeFailure, DRAFT_STORAGE_KEY, draftSaveTimer, draftRestoreFailure, draftSaveLimitNotified;
 
@@ -237,13 +237,13 @@ export function updateHash() {
     return Promise.resolve(false);
   }
   var source = editor.value;
+  var record = currentVerifiedRender();
   var obj = currentEditorShareState();
   // Compression is async; the token drops stale writes when edits overlap.
   var token = ++ui.hashUpdateToken;
   return encodeSourceCompressed(JSON.stringify(obj)).then(function(encoded) {
     if (token !== ui.hashUpdateToken
-      || typeof hasCurrentVerifiedSvgArtifact !== 'function'
-      || !hasCurrentVerifiedSvgArtifact()
+      || !isCurrentVerifiedRender(record)
       || editor.value !== source) return false;
     window.history.replaceState(null, '', window.location.pathname + '#' + encoded);
     return true;

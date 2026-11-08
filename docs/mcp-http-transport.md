@@ -58,7 +58,10 @@ block. Use `render_ascii` with `useAscii: true` for ASCII, or omit it for Unicod
 
 These three local tools share one warm render subprocess, with a 15-second
 wall-clock deadline per request, including queue and startup time. At most 32
-requests may wait; further calls receive `RENDER_BUSY`. Cancelling queued work
+requests may wait, sharing a 16 MiB budget for serialized request payloads;
+further calls receive `RENDER_BUSY` when either limit is reached. The active
+request has its own 4 MiB message limit. Dequeueing, cancellation and expiration
+release queued capacity. Cancelling queued work
 leaves the active call intact. Cancelling or timing out active work retires its
 process immediately; replacement waits for process closure. Request IDs and
 receipt-time deadline checks reject late replies. Syntax errors return structured
