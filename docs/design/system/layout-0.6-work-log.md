@@ -956,3 +956,10 @@ active plan and TODO; retain historical outcomes/deferred proposals without
 scheduling them or marking them done. No runtime/backend/default/cap changes,
 benchmarks or performance gains. Next implementation unit: extract the neutral
 role-aware boundary while delegating existing ELK/Native behavior unchanged.
+
+Stage 1 from3ba57ed22: extract neutral measured constraints, placement/routed
+geometry and role-aware adapter types into layout/measured-graph.ts. Native input
+extends that contract with its private loop/orientation/search controls; existing
+exports and algorithm bodies remain. Core/repo types and canonical lint pass;
+measured-layout/selection owners261P0F9,259assertions. No geometry or speed gain
+claimed; runtime adapter admission belongs to stage2. Existing PR602 only.

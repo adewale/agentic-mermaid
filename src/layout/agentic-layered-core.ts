@@ -1,9 +1,10 @@
-import { assertMarkerPaint, type MarkerPaint } from './compound-marker-seating.ts'
+import { assertMarkerPaint } from './compound-marker-seating.ts'
 import { layoutOptimization } from './optimization-context.ts'
 import { refinePrivateChainOrder } from './chain-insertion-order.ts'
 import { minimumSpanRanks, privateRankSpan, MAX_MEASURED_RANKS as MAX_RANKS } from './minimum-span-ranks.ts'
 import { compactMeasuredLoops } from './compact-measured-loops.ts'
 import type { Direction, Point } from '../types.ts'
+import type { MeasuredGraph as SharedMeasuredGraph, MeasuredRoutes } from './measured-graph.ts'
 import { layoutSharedFan } from './shared-fan-core.ts'
 import { layoutCyclicGraph, orientMeasuredEdge, type LayoutSearchWork } from './cycle-layout-search.ts'
 import { layoutCompoundGraph } from './agentic-compound-core.ts'
@@ -11,38 +12,10 @@ import { feedbackOrder } from './cycle-order.ts'
 import { assignChannelTracks, type ChannelStep, type ChannelWork } from './channel-tracks.ts'
 import { AGENTIC_MAX_NODES as MAX_NODES, AGENTIC_MAX_EDGES as MAX_EDGES, AGENTIC_MAX_EXPANDED_VERTICES as MAX_EXPANDED_VERTICES } from './agentic-limits.ts'
 
-export interface MeasuredGraph {
-  /** Ordered partitions are local to a sibling scope; omitted values use zero. */
-  nodes: readonly { id: string; width: number; height: number; paintStrokeWidth?: number; paintCornerRadius?: number; /** Producer-reserved primary port pitch; final paint proofs remain required. */ minimumPortSpacing?: number; parent?: number; partition?: number; modelOrder?: number }[]
-  /** Edges may address a frame at nodes.length + its group index. */
-  groups?: readonly {
-    id: string; parent?: number; partition?: number; modelOrder?: number; direction?: Direction; minWidth: number
-    /** Measured painted header strip, excluding blank content padding. */
-    paintStrokeWidth?: number
-    /** Actual canonical rounded-rectangle frame radius; absent means unknown. */
-    paintCornerRadius?: number
-    headerHeight?: number
-    padding: { top: number; right: number; bottom: number; left: number }
-  }[]
-  /** Label dimensions include the occupied painted body. Its own shaft is
-   * masked by that body; foreign routes must stay outside it. Loop expansion
-   * reserves additional space beside the arc instead of masking its shaft. */
-  edges: readonly { source: number; target: number; minSpan: number; sourcePortSpan?: number; targetPortSpan?: number; short?: true; boundaryMarker?: { inset: number; height: number }; markerPaint?: MarkerPaint; visible?: boolean; label?: { width: number; height: number } }[]
-  direction: Direction
-  padding: number
-  nodeSpacing: number
-  layerSpacing: number
-  edgeSpacing?: number
-  /** Actual endpoint artwork lead reserved independently of peer-obstacle clearance. */
-  minimumTerminalLead?: number
-  nodeClearance?: number
-  /** Actual maximum painted edge stroke, supplied by the producer. Absence keeps legacy routing. */
-  maximumEdgeStrokeWidth?: number
-  maximumEdgeBendRadius?: number
+/** Native implementation controls stay outside the common measured contract. */
+export interface MeasuredGraph extends SharedMeasuredGraph {
   /** Private source-port separation constraints introduced by loop expansion. */
   loopPorts?: readonly (readonly [number, number])[]
-  /** Adapter permits confluent routing only for compatible plain fans. */
-  shareCompleteFans?: boolean
   /** Private single-candidate refinement; authored arrow direction is restored. */
   authoredCycleOrder?: boolean
   /** Optional compact candidate: only labelled links need an extra private rank. */
@@ -56,19 +29,14 @@ export interface MeasuredGraph {
   placementOnly?: true
 }
 
-export interface AgenticLayout {
+export interface AgenticLayout extends MeasuredRoutes {
   topology: 'forest' | 'layered'
   /** Authored edges whose producer explicitly owns shared routing. */
   sharedEdges?: readonly number[]
-  width: number
-  height: number
-  nodes: { x: number; y: number }[]
-  groups?: { x: number; y: number; width: number; height: number }[]
   /** Private aggregate work accounting for nested scope expansion. */
   expandedVertices?: number
   /** Routes whose frame/header corridors must survive raw shortcutting. */
   boundaryRoutes?: readonly number[]
-  edges: { points: Point[]; labelPosition?: Point }[]
 }
 
 export type CompleteMeasuredCandidate = (candidate: AgenticLayout, fail: (reason: string) => never, work: ChannelWork) => AgenticLayout

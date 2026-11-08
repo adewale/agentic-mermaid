@@ -2,8 +2,9 @@
 
 Updated 8 November 2026. The owner requested a Trinity specification, common
 ELK/Native/Trinity interface, metrics, state/invariant ownership and plan cleanup.
-This change captures that design; it does not implement a third backend or resume
-an automated campaign. Defaults, versions, limits and Replacement24 are unchanged.
+The owner subsequently authorized executing the ten-stage roadmap, with a report
+after each stage. Stage 1 (neutral type contract) is complete; stage 2 wires the
+existing adapters. Trinity is not implemented yet; automation remains off. Defaults, versions, limits and Replacement24 are unchanged.
 
 [Trinity specification](trinity-layout.md) owns the proposed contract, refactoring
 map, state machines and metric definitions. [TODO](../../../TODO.md#owned-graph-backend-qualification-owner-request-pr-449)
@@ -35,7 +36,8 @@ unchanged comparisons are validation. No new assistant-created acceptance gates.
 
 ## Starting position
 
-Trinity has no implementation or measured results. At `f55a8f8ec`, Native's known
+Trinity has no implementation or measured results. The neutral contract extraction
+preserves existing ELK/Native runtime behavior. At `f55a8f8ec`, Native's known
 contacts and Sparse32 proof exhaustion remain. ER256 delivery is already repaired
 through both backends; option validation is already a leaf module. Neither is an
 unfinished task to repeat. Runtime CI remains failed; this design makes no readiness
