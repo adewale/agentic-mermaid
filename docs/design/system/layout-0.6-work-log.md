@@ -920,3 +920,17 @@ Stop this line. Corrected first main build's local ELK0.11.0 mismatch; retain al
 failed builds/probes. Full0c CI nowF: Sparse32/lazy+website costs/advisory; browser,
 package/CLI/semantic lanesP. Evidence: lazy-closure-0c162-20261108. Goal remains
 blocked by correctness/performance/resource losses; no new runtime gain claimed.
+
+At df133c694, complete pinned Tridentf080 comparison:1,300 workers,27 enrolled
+graph portable cases;25 positive completed pairs favor Native uncached, cached
+repeat14lower/11higher. Three processes/cell, seven warm samples: exploratory,
+not calibrated speedup. Class128 cache1 Native280.59ms/ELK252.57ms remains a loss.
+Thirty fidelity cases/backend:28SVGs each;613 planned criteria Native576P28blocked
+3F6unsupported, ELK575P29blocked3F6unsupported. FontSize refusals are unsupported
+binding options; image omission follows warned offline policy; unknown ink stays
+unknown. All50seed SVGs match100timed products,52receipts confirm no fallback.
+Actual six-family browser product union Native476,485gzip/407,052Br versus
+ELK851,989/682,687; adverse39vs37requests including binding. Both retention
+diagnostics grow; no leak claim. Artifact/dependency/kit identities unchanged.
+No runtime edits or repeated tests as progress. Evidence: trident-native-elk-df133-
+20261108. df133CI completed failed; next qualify cached Class128 before profiling.
