@@ -1,0 +1,26 @@
+{
+  "observedAt": "2026-11-08T00:44:58.999550+00:00",
+  "head": "0c162c446b58ad98d0a5550719592a0d868619f8",
+  "runs": [
+    {
+      "id": 42431021452,
+      "name": "CI",
+      "status": "in_progress",
+      "conclusion": null
+    },
+    {
+      "id": 42431021698,
+      "name": "Ruff",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 42431021644,
+      "name": "Action pinning",
+      "status": "completed",
+      "conclusion": "success"
+    }
+  ],
+  "ready": false,
+  "note": "CI-AT-PUBLICATION.json timestamp was an estimate ahead of observation; use this final actual clock snapshot."
+}
