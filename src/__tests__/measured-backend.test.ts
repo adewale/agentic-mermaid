@@ -95,6 +95,9 @@ describe('measured solve boundary', () => {
       { kind: 'routed', geometry: { ...valid, nodes: [] } },
       { kind: 'routed', geometry: { ...valid, edges: [] } },
       { kind: 'routed', geometry: { ...valid, width: Infinity } },
+      { kind: 'routed', geometry: { ...valid, nodes: [{ x: NaN, y: 0 }, valid.nodes[1]!] } },
+      { kind: 'routed', geometry: { ...valid, nodes: [{ x: 0, y: 0, width: 101, height: 40 }, valid.nodes[1]!] } },
+      { kind: 'routed', geometry: { ...valid, edges: [{ points: [{ x: 0, y: 0 }, { x: Infinity, y: 40 }] }] } },
     ]
     for (const result of malformed) expect(() => solveMeasuredLayout({ role: 'routed', graph }, { solve: () => result })).toThrow(TypeError)
     const dependency = new DeferredDependencyError('native', async () => {})

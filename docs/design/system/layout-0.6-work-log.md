@@ -999,3 +999,32 @@ and the trial remain under `trinity-stage3-20261108` in the existing evidence
 workspace. No geometry or speed gain is claimed; other distribution losses remain.
 Next: a bounded opt-in Trinity solve with explicit contact/capacity admission;
 no adoption until actual final output and consumed-product costs justify it.
+
+### 8 November — Trinity stage 4: bounded private kernel
+
+Based on `5662348290d046a691b786e7b16ed41acf1eaade`: added a cache-free flat
+64node/128edge kernel through the neutral interface. SCC boundary demand, physical
+endpoint support, occupied loop/label space precede coordinates; fixed sizes are
+preserved and only permitted minimums grow. Shared channel allocation accepts
+measured asymmetric margins; its old default path stays unchanged. The common
+boundary checks finite geometry/size policy; fitting retains actual dimensions.
+Supplied-budget exhaustion is a hard error, not fallback permission. Independent
+review found and prompted fixes for half-support, long-loop spans, unknown paint
+and budget classification; a subsequent mixed-width metadata error is also fixed.
+
+All1,748 existing SVG/outcome/route vectors remain exact. Core/repo types, lint and
+owning tests pass. On one retained Requirement fixture, four direct-family Trinity
+SVGs resolve13Trident browser criteria each; Native/ELK each retain two unavailable
+label-owner observations. Initial observer case/marker vocabulary errors remain
+with the corrected binding explanation. This is not public Trinity/receipt proof.
+The historical Requirement+9.53% loss was already superseded; no new closure is
+claimed. Trinity area is about4.7–4.8% below ELK here, but current Native beats TB
+area/wire; Trinity has18bends vsELK10/8 andNative8/6. All costs remain in raw SVG
+metrics. The failed3.4× area prototype and causal refinements are retained.
+
+Bare browser kernel closure:17,560raw /6,465gzip /5,841Brotli,13inputs, no ELK or
+Native core; this is not complete product delivery. Actual editor:1,335,115gzip /
+1,274,636Brotli (+300/−392 vsstage3), failing the unchanged gzip limit by615bytes.
+No public option, default/version/cap change or general speed/memory claim.
+Evidence: `trinity-stage4-20261108` in the existing evidence workspace. Next: reuse
+placement/compound owners and then register/measure actual public delivery.

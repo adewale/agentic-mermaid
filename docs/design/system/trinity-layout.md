@@ -1,11 +1,13 @@
 # Trinity: measured layout contract and replacement design
 
-Status: proposed design, requested 8 November 2026. No Trinity implementation,
-backend registration, default switch, limit increase or package-version change is
-included. [Execution plan](layout-0.6-qualification.md) owns the work order;
+Status: first bounded flat kernel implemented on 8 November 2026, with no public
+backend registration or adoption. Neutral types, the first Requirement consumer,
+and legacy completion separation are implemented. Other adapters and the common
+physical contract remain incomplete. Defaults, limits and package versions are
+unchanged. [Execution plan](layout-0.6-qualification.md) owns the work order;
 [TODO](../../../TODO.md#owned-graph-backend-qualification-owner-request-pr-449)
-owns the backlog. Design observations bind to source
-`f55a8f8ecdecf2727a2e623749854f0abe52088e`.
+owns the backlog. Original design observations bind to
+`f55a8f8ecdecf2727a2e623749854f0abe52088e`; the work log records implementation.
 
 ## Objective and scope
 
@@ -213,7 +215,16 @@ changes to investigate/implement in the short execution plan, not completed work
 
 ## Metrics and comparison contract
 
-Trinity has **no measurements yet**. Freeze workload enrollment/options and requested
+Trinity has only a bounded direct-family Requirement observation, not a public
+performance or replacement result. The private flat kernel requires explicit
+rectangular contact, paint and endpoint support, preserves fixed/minimum sizes,
+and declines remaining features; supplied work exhaustion cannot trigger fallback.
+One retained fixture in four directions has smaller area than ELK but more bends;
+current Native is better on TB/BT area and wire. The bare kernel is 6,465gzip bytes,
+not a browser-product measurement. Existing Native/ELK products remain exact.
+Full public costs, memory, delivery and broader ink remain unqualified.
+
+Freeze workload enrollment/options and requested
 capabilities before outcomes; keep unsupported/declined/refused/unknown cells in
 the report. Do not redefine the domain after losing. Use existing Trident and
 owning conformance/ink tools, not a new qualification framework or composite score.

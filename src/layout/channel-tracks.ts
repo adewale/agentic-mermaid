@@ -22,10 +22,18 @@ export function assignChannelTracks(
   work: ChannelWork,
   unsupported: (reason: string) => never,
   minimumTerminalLead?: number,
+  terminalMargins?: { source: number; target: number },
 ): number {
+  if (terminalMargins && ![terminalMargins.source, terminalMargins.target].every(value => Number.isFinite(value) && value >= 0)) throw new TypeError('Invalid measured channel terminal margins')
   const epsilon = 0.01
   const active = segments.filter(step => Math.abs(step.sourceCross - step.targetCross) > epsilon)
-  if (!active.length) return baseGap
+  if (!active.length) {
+    if (!terminalMargins) return baseGap
+    const source = Math.max(spacing, terminalMargins.source), target = Math.max(spacing, terminalMargins.target)
+    const gap = Math.max(baseGap, source + target), slack = (gap - source - target) / 2
+    for (const step of segments) step.offset = source + slack
+    return gap
+  }
   work.pairs -= active.length * segments.length
   if (work.pairs < 0) unsupported('agentic local channel-pair limit')
   const low = (step: ChannelStep) => Math.min(step.sourceCross, step.targetCross)
@@ -80,11 +88,13 @@ export function assignChannelTracks(
     escapes = true
   }
   const margin = Math.max(12, spacing, minimumTerminalLead ?? 0)
-  const needed = 2 * margin + maxTrack * spacing + (escapes ? spacing : 0)
+  const sourceMargin = terminalMargins ? Math.max(spacing, terminalMargins.source) : margin
+  const targetMargin = terminalMargins ? Math.max(spacing, terminalMargins.target) : margin
+  const needed = sourceMargin + targetMargin + maxTrack * spacing + (escapes ? spacing : 0)
   const gap = Math.max(baseGap, needed), slack = (gap - needed) / 2
   for (const step of segments) {
-    step.offset = margin + slack + step.track * spacing
-    if (step.targetEscape !== undefined) step.targetExit = gap - margin
+    step.offset = sourceMargin + slack + step.track * spacing
+    if (step.targetEscape !== undefined) step.targetExit = gap - targetMargin
   }
   return gap
 }
