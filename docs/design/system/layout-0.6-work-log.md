@@ -888,3 +888,35 @@ Standalone budget+worker2P657assertions; worker wall147.7s under concurrent chec
 is not a speed result. Independent review finds no option-contract loss.
 Sparse32, lazy/website limits and visible/quality losses remain; new fixed-roster
 qualification and final CI are recorded with the published evidence. Automationoff.
+
+
+Integrate main e7cb05baa (#608) into d4e044949 without rewriting history. Keep
+bounded queue/capture/private-clone behavior, both ownership test groups and the
+option leaf; retain stricter PR lazy limits. Core/repo types and lintP. Cache/
+preview/editor owners131P plus six sandbox esbuild failures; exact projection
+retry plus adjacent MCP/Zen owners76P. ER256 matrix8P/96 assertions. Both real
+editor buildsP; standalone budget+worker2P/657 assertions. All1,748 fixed SVGs,
+route vectors and delivery/proof outcomes exact; preservation, not new layout
+progress. Independent integration review finds no actionable regression.
+HTML gzip1,332,711→1,333,923/Brotli1,272,057→1,273,449; adverse+1,212/+1,392
+bytes, original gzip cap stillP with577 spare. The new24-process/168-call ER256
+runtime baseline and48 actual-XML checks bind to d4 before integration; timings
+are mixed, not a combined-head speedup. Sparse32, visible contacts, quality and
+other distribution losses remain. Evidence: sparse-plan-00938-20261107. Keep
+Sparse streaming stopped; next causal work is its first XML/proof exhaustion,
+with current CI separate and automation off.
+
+
+From0c162c446, qualify actual Native/ELK lazy artifact closures at matching
+ELK0.11.1: Flowchart gzip378,598/746,952, Brotli320,974/590,334; Native29vs25
+module requests. Nine measured graph families use fewer Native bytes, not an
+actual browser/startup or whole-workload replacement result. PR-versus-main
+common growth persists: Flowchart+46,076gzip, Timeline+40,813gzip. Removing forced
+union hints worsens all families (~+900gzip/+2,700Brotli): stop, no runtime edit.
+Sparse32 owner2P1F reproduced. Deferred name-token trial stillU400k; diagnostic
+emission450,245→421,715 is over cap before proof, not a repaired result. Independent
+review rules out proposed paint-replay fusion: own-paint labels never use it.
+Stop this line. Corrected first main build's local ELK0.11.0 mismatch; retain all
+failed builds/probes. Full0c CI nowF: Sparse32/lazy+website costs/advisory; browser,
+package/CLI/semantic lanesP. Evidence: lazy-closure-0c162-20261108. Goal remains
+blocked by correctness/performance/resource losses; no new runtime gain claimed.
