@@ -1,6 +1,6 @@
 // Engine-free editor facade. All rendering is owned by one persistent worker;
 // DOM/font/Canvas capabilities remain explicit main-thread callbacks.
-import { SHARED_RENDER_OPTION_FIELDS, sharedRenderOptionsJsonSchema, validateSerializableRenderOptions } from './render-contract.ts'
+import { SHARED_RENDER_OPTION_FIELDS, sharedRenderOptionsJsonSchema, validateSerializableRenderOptions } from './render-option-contract.ts'
 import { verifyNoExternalRefs } from './output-security.ts'
 import { WARNING_SEVERITY, WARNING_TIER } from './agent/types.ts'
 import { STYLE_COLOR_TOKEN_DESCRIPTORS, knownStyleDescriptors, knownStyles, getStyle } from './scene/style-registry.ts'

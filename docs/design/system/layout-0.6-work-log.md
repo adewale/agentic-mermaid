@@ -873,3 +873,18 @@ profiled admitted costs establish no runtime/RSS ratio. Shorten the existing
 plan, rank remaining proposals and separate optimization metrics. Sparse32,
 visible contacts, crossing276, Sparse256 and payload losses remain. Next:
 Sparse32's first exhausted XML/capture stage; automation stays disabled.
+
+
+From00938cc04, stop Sparse32's eager XML-streaming trial: proof stillU400k;
+review identifies changed ambient-lookup timing as an authority concern. The
+removed-check diagnostic is not a repair; no XML production change ships.
+Separate option metadata/validation into one leaf owner, retaining canonical
+exports/identities and the same worker/public backend checks. Main-thread graph
+228→63 inputs; graphical validation/writer/conformance contributions disappear.
+ActualHTML raw2,287,540→2,109,909; gzip1,386,827→1,332,711; Brotli1,318,081→
+1,272,057. Original gzip budget nowP with1,789bytes spare. Core/repo types/lintP;
+102 initial ownerP plus six esbuild sandbox failures, projection retry11P.
+Standalone budget+worker2P657assertions; worker wall147.7s under concurrent checks
+is not a speed result. Independent review finds no option-contract loss.
+Sparse32, lazy/website limits and visible/quality losses remain; new fixed-roster
+qualification and final CI are recorded with the published evidence. Automationoff.

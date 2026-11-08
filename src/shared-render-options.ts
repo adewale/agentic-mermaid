@@ -1,5 +1,5 @@
 import type { RenderOptions } from './types.ts'
-import { NON_SERIALIZABLE_RENDER_OPTION_FIELDS, SHARED_RENDER_OPTION_FIELDS } from './render-contract.ts'
+import { NON_SERIALIZABLE_RENDER_OPTION_FIELDS, SHARED_RENDER_OPTION_FIELDS } from './render-option-contract.ts'
 
 /** Output adapters own their format-specific controls; only this projection
  * enters shared render admission and appearance capture. */

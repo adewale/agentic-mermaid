@@ -152,7 +152,7 @@ describe('browser runtime metadata projection', () => {
       "function fieldsJsonSchema() { return { $schema: 'https://json-schema.org/draft/2020-12/schema', $id: 'https://example.test/schema', title: 'Schema metadata', type: 'object', properties: { $schema: { type: 'string' }, $id: { type: 'string' }, title: { type: 'string' } }, required: ['title'], additionalProperties: false }; }",
       'function run() { return { field: SHARED_RENDER_OPTION_FIELD_DESCRIPTORS.style, paint: PAINT_SCHEMA, properties: ARCHITECTURE_VISUAL_SCHEMA_PROPERTIES, styleFields: STYLE_SPEC_FIELD_DESCRIPTORS, roleFields: ROLE_STYLE_PROPERTY_DESCRIPTORS, roleSchemas: rolePropertyJsonSchemas(), schema: fieldsJsonSchema() }; }',
     ].join('\n')
-    const path = fixture('src/render-contract.ts', source)
+    const path = fixture('src/render-option-contract.ts', source)
     const terminalRenderer = Function(`${project(path, { schemaDocumentation: false, terminalAdapter: true })}\nreturn run();`)()
     expect(terminalRenderer.field.terminal).toBe('projected')
     expect(terminalRenderer.field.terminalNote).toBe('required terminal note')

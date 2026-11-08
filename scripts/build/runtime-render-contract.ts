@@ -477,9 +477,11 @@ export function runtimeRenderContractPlugin({ schemaDocumentation = true, termin
         loader: 'ts',
         resolveDir: dirname(path),
       }))
-      build.onLoad({ filter: /[\\/]src[\\/](?:render-contract|scene[\\/](?:style-spec|role-style-contract))\.ts$/ }, ({ path }) => !path.endsWith('render-contract.ts') && schemaDocumentation ? undefined : ({
-        contents: runtimeSource(coalesceRuntimePrimitives && path.endsWith('render-contract.ts')
-          ? runtimeFamilyDiagnosticsSource(readFileSync(path, 'utf8'), path) : readFileSync(path, 'utf8'), path, schemaDocumentation, terminalAdapter),
+      build.onLoad({ filter: /[\\/]src[\\/]render-contract\.ts$/ }, ({ path }) => !coalesceRuntimePrimitives ? undefined : ({
+        contents: runtimeFamilyDiagnosticsSource(readFileSync(path, 'utf8'), path), loader: 'ts', resolveDir: dirname(path),
+      }))
+      build.onLoad({ filter: /[\\/]src[\\/](?:render-option-contract|scene[\\/](?:style-spec|role-style-contract))\.ts$/ }, ({ path }) => !path.endsWith('render-option-contract.ts') && schemaDocumentation ? undefined : ({
+        contents: runtimeSource(readFileSync(path, 'utf8'), path, schemaDocumentation, terminalAdapter),
         loader: 'ts',
         resolveDir: dirname(path),
       }))
