@@ -24,3 +24,5 @@ export const requirementMarkerTerminal = prepareMarkerTerminals([requirementArro
 // painted envelope, including the same conservative compound stroke extent.
 const containsBounds = geometryBounds(requirementContains.geometry!)!
 export const requirementContainsPortSpan = containsBounds.y1 - containsBounds.y0 + 2 * paintedStrokeExtent(requirementContains.paint!, true)!
+const arrowBounds = geometryBounds(requirementArrow.geometry!)!
+export const requirementArrowPortSpan = arrowBounds.y1 - arrowBounds.y0 + 2 * paintedStrokeExtent(requirementArrow.paint!, true)!

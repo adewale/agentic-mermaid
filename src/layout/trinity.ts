@@ -39,7 +39,7 @@ function solveTrinity(input: MeasuredGraph, work: ChannelWork, role: MeasuredLay
   const spacing = input.edgeSpacing!, lead = input.minimumTerminalLead!
   if (input.nodeClearance !== undefined && !size(input.nodeClearance) || input.maximumEdgeStrokeWidth !== undefined && !size(input.maximumEdgeStrokeWidth, true)) throw new TypeError('Invalid measured paint clearance')
   const clearance = (input.nodeClearance ?? 0) + input.maximumEdgeStrokeWidth! / 2
-  if (!size(spacing, true) || !size(lead, true) || !size(clearance) || input.maximumEdgeBendRadius !== undefined && !size(input.maximumEdgeBendRadius)) throw new TypeError('Invalid measured routing demand')
+  if (!size(spacing, true) || !size(lead) || !size(clearance) || input.maximumEdgeBendRadius !== undefined && !size(input.maximumEdgeBendRadius)) throw new TypeError('Invalid measured routing demand')
   if (input.maximumEdgeBendRadius) decline('rounded route paint is not implemented')
   const ids = new Set<string>()
   const widths: number[] = [], heights: number[] = []

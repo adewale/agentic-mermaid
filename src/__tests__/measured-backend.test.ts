@@ -1,11 +1,31 @@
 import { describe, expect, test } from 'bun:test'
-import { DeferredDependencyError, GraphLayoutUnsupportedError, LayoutCertificationError, withGraphLayoutDecisionObserver, type GraphLayoutDecision } from '../layout/backend.ts'
+import { DeferredDependencyError, GraphLayoutUnsupportedError, LayoutCertificationError, LayoutWorkLimitError, withGraphLayoutDecisionObserver, type GraphLayoutDecision } from '../layout/backend.ts'
 import { runMeasuredGraphBackend, solveMeasuredLayout } from '../layout/measured-backend.ts'
 import { elkMeasuredAdapter } from '../layout/elk-measured-adapter.ts'
 import { nativeMeasuredAdapter } from '../layout/native-measured-adapter.ts'
 import type { MeasuredGraph, MeasuredLayoutResult } from '../layout/measured-graph.ts'
 
 describe('measured family backend selection', () => {
+  test('selects the real Trinity callback and never silently substitutes another solver', () => {
+    const calls: string[] = [], decisions: GraphLayoutDecision[] = [], options = { graphLayout: { backend: 'trinity' as const } }
+    const native = () => { calls.push('native'); return 'native' }, elk = () => { calls.push('elk'); return 'elk' }
+    expect(() => runMeasuredGraphBackend(options, native, elk)).toThrow(GraphLayoutUnsupportedError)
+    expect(calls).toEqual([])
+    const result = withGraphLayoutDecisionObserver(decision => decisions.push(decision), () => runMeasuredGraphBackend(options, native, elk, false, undefined, () => { calls.push('trinity'); return 'trinity' }))
+    expect(result).toBe('trinity')
+    expect(calls).toEqual(['trinity'])
+    expect(decisions[0]).toMatchObject({ requested: 'trinity', selected: 'trinity', implementation: 'trinity@1', attempts: [{ backend: 'trinity', outcome: 'selected' }] })
+    const fallback = withGraphLayoutDecisionObserver(decision => decisions.push(decision), () => runMeasuredGraphBackend({ graphLayout: { backend: 'trinity', fallback: 'elk' } }, native, elk))
+    expect(fallback).toBe('elk')
+    expect(decisions[1]).toMatchObject({ requested: 'trinity', selected: 'elk', attempts: [{ backend: 'trinity', outcome: 'unsupported', reason: expect.any(String) }, { backend: 'elk', outcome: 'selected' }] })
+  })
+
+  test.each([new LayoutWorkLimitError('pairs'), new TypeError('invalid demand'), new DeferredDependencyError('Trinity layout', async () => {})])('Trinity propagates %s without fallback', error => {
+    let fallback = 0
+    expect(() => runMeasuredGraphBackend({ graphLayout: { backend: 'trinity', fallback: 'elk' } }, () => 0, () => { fallback++; return 0 }, true, undefined, () => { throw error })).toThrow(error)
+    expect(fallback).toBe(0)
+  })
+
   test('attributes exactly one typed-decline fallback and retains its actual reason', () => {
     const decisions: GraphLayoutDecision[] = [], calls: string[] = []
     const result = withGraphLayoutDecisionObserver(value => decisions.push(value), () => runMeasuredGraphBackend(

@@ -206,6 +206,8 @@ async function generateEditorHtml(): Promise<string> {
           build.onResolve({ filter: /(?:^|\/)indexed-forest\.ts$/ }, () => ({ path: fileURLToPath(new URL('../../src/experimental/indexed-forest.lazy.ts', import.meta.url)) }))
           build.onResolve({ filter: /(?:^|\/)agentic-layered\.ts$/ }, args => args.kind === 'dynamic-import' ? undefined
             : { path: fileURLToPath(new URL('../../src/layout/agentic-layered.lazy.ts', import.meta.url)) })
+          build.onResolve({ filter: /(?:^|\/)trinity\.ts$/ }, args => args.kind === 'dynamic-import' ? undefined
+            : { path: fileURLToPath(new URL('../../src/layout/trinity.lazy.ts', import.meta.url)) })
           },
         },
       ],

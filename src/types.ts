@@ -515,8 +515,8 @@ export interface GraphLayoutHints {
 }
 
 export interface GraphLayoutOptions {
-  backend: 'elk' | 'agentic'
-  /** Agentic may explicitly fall back to ELK; omitted means none. */
+  backend: 'elk' | 'agentic' | 'trinity'
+  /** Native or Trinity may explicitly fall back to ELK; omitted means none. */
   fallback?: 'none' | 'elk'
   /** Bounded certified alternatives; omitted preserves existing geometry. */
   quality?: 'balanced'

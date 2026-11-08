@@ -98,7 +98,7 @@ interface RenderExecutionDecision {
   readonly backend: { readonly mode: 'scene'; readonly requestedId: string; readonly selectedId: string; readonly version: string; readonly hostPolicy: boolean } | { readonly mode: 'family-svg' }
   readonly digest: string
 }
-type GraphLayoutDecision = Readonly<{ requested: 'elk' | 'agentic'; fallback: 'none' | 'elk'; selected: 'elk' | 'agentic'; reason?: string; attempts: readonly Readonly<{ backend: 'elk' | 'agentic'; outcome: 'selected' | 'unsupported' | 'candidate-rejected'; reason?: string }>[]; implementation: string; role?: 'primary' | 'companion' }>
+type GraphLayoutDecision = Readonly<{ requested: 'elk' | 'agentic' | 'trinity'; fallback: 'none' | 'elk'; selected: 'elk' | 'agentic' | 'trinity'; reason?: string; attempts: readonly Readonly<{ backend: 'elk' | 'agentic' | 'trinity'; outcome: 'selected' | 'unsupported' | 'candidate-rejected'; reason?: string }>[]; implementation: string; role?: 'primary' | 'companion' }>
 interface RenderRequestReceipt { version: ${RENDER_CONTRACT_VERSION}; output: 'svg' | 'png' | 'ascii' | 'unicode' | 'html' | 'layout'; sharedRequestDigest: string; requestDigest: string; appearanceDigest: string; capabilityDecision: CapabilityDecision; diagnostics?: readonly RenderArtifactDiagnostic[]; graphicalProjectionDigest?: string; executionDecision?: RenderExecutionDecision; layoutDecisions?: readonly GraphLayoutDecision[] }`
 
 /** Lossless whitespace projection for the tools/list context budget. Every
