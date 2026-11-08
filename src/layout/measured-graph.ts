@@ -3,8 +3,10 @@ import type { MarkerPaint } from './compound-marker-seating.ts'
 
 /** Backend-neutral measured constraints. No solver implementation is loaded here. */
 export interface MeasuredGraph {
-  /** Ordered partitions are local to a sibling scope; omitted values use zero. */
-  nodes: readonly { id: string; width: number; height: number; paintStrokeWidth?: number; paintCornerRadius?: number; /** Producer-reserved primary port pitch; final paint proofs remain required. */ minimumPortSpacing?: number; parent?: number; partition?: number; modelOrder?: number }[]
+  /** An explicit rounded contact declares paintCornerRadius as a conservative
+   * radius bound that remains valid after any permitted size growth.
+   * Ordered partitions are local to a sibling scope; omitted values use zero. */
+  nodes: readonly { id: string; width: number; height: number; /** Explicit contact domain; absence remains unknown for new solvers. */ contact?: 'rectangle' | 'rounded-rectangle'; /** Fixed by default; growth must be consumed by the family. */ sizePolicy?: 'fixed' | 'minimum'; paintStrokeWidth?: number; paintCornerRadius?: number; /** Producer-reserved primary port pitch; final paint proofs remain required. */ minimumPortSpacing?: number; parent?: number; partition?: number; modelOrder?: number }[]
   /** Edges may address a frame at nodes.length + its group index. */
   groups?: readonly {
     id: string; parent?: number; partition?: number; modelOrder?: number; direction?: Direction; minWidth: number
@@ -15,7 +17,8 @@ export interface MeasuredGraph {
     headerHeight?: number
     padding: { top: number; right: number; bottom: number; left: number }
   }[]
-  /** Label dimensions include the occupied painted body. Its own shaft is
+  /** Endpoint spans bound full symmetric perpendicular paint support about
+   * the shaft axis, including its stroke. Label dimensions include the occupied painted body. Its own shaft is
    * masked by that body; foreign routes must stay outside it. Loop expansion
    * reserves additional space beside the arc instead of masking its shaft. */
   edges: readonly { source: number; target: number; minSpan: number; sourcePortSpan?: number; targetPortSpan?: number; short?: true; boundaryMarker?: { inset: number; height: number }; markerPaint?: MarkerPaint; visible?: boolean; label?: { width: number; height: number } }[]
@@ -37,8 +40,9 @@ export interface MeasuredGraph {
 export interface MeasuredPlacement {
   width: number
   height: number
-  /** Positions retain input order; measured body dimensions remain authoritative. */
-  nodes: { x: number; y: number }[]
+  /** Positions retain input order; absent dimensions retain measured sizes.
+   * Explicit dimensions must obey the input fixed/minimum size policy. */
+  nodes: { x: number; y: number; /** Only a permitted-growth solver returns actual dimensions. */ width?: number; height?: number }[]
   groups?: { x: number; y: number; width: number; height: number }[]
 }
 

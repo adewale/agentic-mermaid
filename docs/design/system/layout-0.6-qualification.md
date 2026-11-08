@@ -2,11 +2,12 @@
 
 Updated 8 November 2026. The owner requested a Trinity specification, common
 ELK/Native/Trinity interface, metrics, state/invariant ownership and plan cleanup.
-The owner subsequently authorized executing the ten-stage roadmap, with a report
-after each stage. Stages 1–2 are complete for the neutral type contract and first real
-Requirement consumer; other families retain their existing adapters. Stage 3
-separates legacy completion and reusable measurement, with unchanged products
-but +892 gzip bytes (315 over the original editor limit). Stage 4 is next. Trinity is not implemented yet; automation remains off. Defaults, versions, limits and Replacement24 are unchanged.
+The owner subsequently authorized the ten-stage roadmap, with a report after each
+stage. Stages 1–3 are implemented for the neutral contract, first Requirement
+consumer and legacy completion split. Stage 4 adds a bounded private flat kernel;
+it has no public backend option. Other families, equivalent public costs and
+adoption remain unfinished. Automation stays off. Defaults, versions, original
+limits and Replacement24 remain unchanged.
 
 [Trinity specification](trinity-layout.md) owns the proposed contract, refactoring
 map, state machines and metric definitions. [TODO](../../../TODO.md#owned-graph-backend-qualification-owner-request-pr-449)
@@ -16,19 +17,18 @@ failed probes and earlier plans; their old “next” statements are historical.
 
 ## Work order
 
-| Order | Deliverable and existing owners | Observable value / verification |
+| Stage | Deliverable / current state | Verification and limits |
 | --- | --- | --- |
-| 1 | Extract neutral measured input and role-aware placement/routed results from `layout/agentic-layered-core.ts`; adapt the existing selector in `layout/backend.ts` and family call sites. Keep ELK/Native private flags and raw options inside their adapters. | Same existing ELK/Native products and fallback/error behavior through one boundary. Extend owning backend/family tests for actual constraint and result-role failures; no new qualification framework. Expose fixed/minimum dimensions, shape/marker/label demand and capability declines honestly. |
-| 2 | Separate measurement, dispatch and legacy completion in `layout-engine.ts`; move the current pass manifest/context/guards together. Keep public entry re-exports and placement-only family contracts. | A future Trinity result can bypass ELK repairs; ELK keeps required normalization, Native keeps its guarded path. Verify unchanged final SVG/receipt outcomes for extraction and measure built imports. A file move alone is not a byte or speed win. |
-| 3 | Implement an opt-in Trinity slice against that contract: measured flat graphs, cycles, labels and physically adequate ports, with explicit declines for remaining constraints. Use existing forest machinery where applicable. | Repair a retained actual-ink deficit before broadening coverage. Start with compact-face/shortening cases 17, 152, 201 and 241 and the previously adverse controls 42, 229, 319, 381 and SHA37. Trace case 372 separately. Preserve authored meaning, fixed sizes, foreign-route clearance and all caps; retain area/wire/bend/cost losses. |
-| 4 | Extend through the existing compound/family owners, one demonstrated missing constraint at a time; register public/lazy Trinity selection only with its real adapter. | Explicit support for groups, headers, mixed directions, boundary contacts and specialized family geometry. Avoid redundant adapter routing for placement-only families; report unavoidable backend work. No silent flattening, hidden fallback or default change. Requalify the affected existing family owners and final ink. |
-| 5 | Profile and remove sufficient shared completion/emission work; measure equal consumed work through all three adapters with existing Trident. Investigate narrow cyclic double fitting before general redesign; keep Sparse32 XML work separate. | End-to-end correctness/cost benefits, identifying shared gains that also improve ELK. Preserve ownership/getter/CSS/definitions/UTF16 and actual-write proof. Report kernel, full SVG+receipt, cold/recompute/cache/edit/churn, memory and fetched compressed bytes separately. |
-
-The first implementation unit is the neutral role-aware boundary, with existing
-backends delegated unchanged. Do not rewrite every family or add a backend registry
-before that unit demonstrates value. Kernel work and an independently shippable
-shared repair may proceed separately; shared improvements do not count as Trinity
-closing its relative gap with ELK.
+| 1 | Neutral measured input, explicit placement/routed results and fixed/minimum body policy. Implemented. | Preserve compatibility exports; enforce finite results, subject correspondence and permitted growth. This is not final written-ink proof. |
+| 2 | Existing ELK/Native adapters. First real Requirement consumer implemented; other families remain in stage 5. | Preserve existing products, typed fallback, mutable/getter isolation and actual family completion. Decline untranslated constraints explicitly. |
+| 3 | Separate reusable measurement, dispatch and legacy completion. Implemented. | Manifest/context/order/freeze/metric guards move together. All1,748 existing SVG/outcome/route vectors stay exact. Source moves alone establish no performance gain. |
+| 4 | First bounded opt-in Trinity kernel. Implemented privately, not publicly registered. | Flat rectangular contacts, cycles, occupied labels and pre-coordinate endpoint capacity; explicit unsupported domains. Actual family SVG observation is narrow and retains wire/bend/area costs. No public performance or replacement claim. |
+| 5 | Compound and family adapters, including placement-only consumers and primary graph measurement. Next. | Reuse existing owners; no silent flattening or discarded authored constraints. Preserve headers, hierarchy, direction, contacts and original caps. Requalify affected actual final output. |
+| 6 | Shared completion/emission cost. Profile before any optimization. | Stop insufficient Sparse32 and duplicate-work hypotheses already falsified. Implement only a sufficient measured subtraction; retain owning capture/lookup/UTF16/CSS/definitions contracts. No new caches or invented speedups. |
+| 7 | Public API, lazy delivery and actual backend decisions. Pending. | Register a real adapter only; preserve explicit no-fallback and requested/selected/primary/companion evidence. Measure actual dependency/request closures and compressed bytes. |
+| 8 | Existing Trident equal-work qualification. Pending. | Independent authored meaning and written ink; keep every unsupported/refused/unknown/adverse cell. Separate kernel/full SVG+receipt, cold/cache/edit/churn, memory and real payloads. Replacement24 stays sealed until its required freeze. |
+| 9 | Adoption decision from the owner's workload and verified results. Pending. | Existing losses and unsupported workload remain visible; no automatic default or version change. No assistant-created acceptance gates. |
+| 10 | Retire superseded paths only after replacement is qualified. Pending. | Preserve public compatibility and recovery history; do not remove ELK merely because a private subset is smaller. |
 
 For each real change: reproduce the loss, locate its first responsible stage,
 test the smallest causal intervention, qualify the affected contracts, then commit
@@ -38,8 +38,9 @@ unchanged comparisons are validation. No new assistant-created acceptance gates.
 
 ## Starting position
 
-Trinity has no implementation or measured results. The neutral contract extraction
-preserves existing ELK/Native runtime behavior. At `f55a8f8ec`, Native's known
+The initial private kernel is bounded to64nodes/128edges and explicit measured
+paint/contact support. It is not publicly selectable. Existing ELK/Native runtime
+products are preserved; new common validation is not a visible-correctness gain. At `f55a8f8ec`, Native's known
 contacts and Sparse32 proof exhaustion remain. ER256 delivery is already repaired
 through both backends; option validation is already a leaf module. Neither is an
 unfinished task to repeat. Runtime CI remains failed; this design makes no readiness

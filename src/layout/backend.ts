@@ -23,9 +23,18 @@ export interface GraphLayoutDecision {
 
 export class GraphLayoutUnsupportedError extends Error {
   readonly code = 'GRAPH_LAYOUT_UNSUPPORTED'
-  constructor(readonly reason: string, backend: 'Agentic' | 'ELK' = 'Agentic') {
+  constructor(readonly reason: string, backend: 'Agentic' | 'ELK' | 'Trinity' = 'Agentic') {
     super(`${backend} graph layout does not support this input: ${reason}`)
     this.name = 'GraphLayoutUnsupportedError'
+  }
+}
+
+/** Exhausting a supplied cumulative ledger must never authorize fallback. */
+export class LayoutWorkLimitError extends RangeError {
+  readonly code = 'LAYOUT_WORK_LIMIT'
+  constructor(readonly resource: 'pairs' | 'arcs' | 'swaps') {
+    super(`Measured layout ${resource} work limit exceeded`)
+    this.name = 'LayoutWorkLimitError'
   }
 }
 

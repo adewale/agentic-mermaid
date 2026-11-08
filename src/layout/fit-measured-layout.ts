@@ -14,7 +14,7 @@ export function fitMeasuredLayout<T extends MeasuredRoutes>(input: MeasuredGraph
     right = Math.max(right, x + w)
     bottom = Math.max(bottom, y + h)
   }
-  input.nodes.forEach((node, index) => include(placed.nodes[index]!.x, placed.nodes[index]!.y, node.width, node.height))
+  input.nodes.forEach((node, index) => { const actual = placed.nodes[index]!; include(actual.x, actual.y, actual.width ?? node.width, actual.height ?? node.height) })
   placed.edges.forEach((edge, index) => {
     edge.points.forEach(p => include(p.x, p.y))
     const p = edge.labelPosition,
@@ -23,7 +23,7 @@ export function fitMeasuredLayout<T extends MeasuredRoutes>(input: MeasuredGraph
   })
   const dx = input.padding - left,
     dy = input.padding - top
-  placed.nodes = placed.nodes.map(p => ({ x: p.x + dx, y: p.y + dy }))
+  placed.nodes = placed.nodes.map(p => ({ ...p, x: p.x + dx, y: p.y + dy }))
   placed.edges = placed.edges.map(edge => ({ ...edge, points: edge.points.map(p => ({ x: p.x + dx, y: p.y + dy })), ...(edge.labelPosition ? { labelPosition: { x: edge.labelPosition.x + dx, y: edge.labelPosition.y + dy } } : {}) }))
   placed.width = right - left + 2 * input.padding
   placed.height = bottom - top + 2 * input.padding

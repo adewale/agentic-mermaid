@@ -1030,6 +1030,14 @@ describe('owned measured layered layout', () => {
     expect(input).toEqual(original)
   })
 
+  test.each([0, 0.005, 60])('retains measured asymmetric terminal leads for a %s-cross channel', delta => {
+    const steps = [{ sourceCross: 20, targetCross: 20 + delta, offset: 0, track: 0 }]
+    const height = assignChannelTracks(steps, 0, 6, 180, { pairs: 100, arcs: 100, swaps: 100 }, reason => { throw new Error(reason) }, undefined, { source: 18, target: 2 })
+    expect(steps[0]!.offset).toBeGreaterThanOrEqual(18)
+    expect(height - steps[0]!.offset).toBeGreaterThanOrEqual(6)
+    expect(height).toBe(24)
+  })
+
   test('keeps nearly coincident terminal columns out of parallel route ink', () => {
     const steps = [
       { sourceCross: 100.25, targetCross: 140, offset: 0, track: 0 },
