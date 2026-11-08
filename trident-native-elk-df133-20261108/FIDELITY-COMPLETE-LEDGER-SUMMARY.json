@@ -1,0 +1,849 @@
+{
+  "agentic": {
+    "plannedCriteria": 613,
+    "counts": {
+      "passed": 576,
+      "blocked": 28,
+      "failed": 3,
+      "unsupported": 6
+    },
+    "cases": [
+      {
+        "id": "meaning:family:flowchart",
+        "planned": 17,
+        "complete": true,
+        "losses": []
+      },
+      {
+        "id": "meaning:family:state",
+        "planned": 17,
+        "complete": true,
+        "losses": []
+      },
+      {
+        "id": "meaning:family:class",
+        "planned": 17,
+        "complete": true,
+        "losses": []
+      },
+      {
+        "id": "meaning:family:er",
+        "planned": 17,
+        "complete": true,
+        "losses": []
+      },
+      {
+        "id": "meaning:family:architecture",
+        "planned": 19,
+        "complete": true,
+        "losses": []
+      },
+      {
+        "id": "meaning:family:requirement",
+        "planned": 21,
+        "complete": true,
+        "losses": []
+      },
+      {
+        "id": "features:flowchart:nesting-parallel-unicode",
+        "planned": 23,
+        "complete": true,
+        "losses": []
+      },
+      {
+        "id": "features:flowchart:two-ended-and-undirected",
+        "planned": 18,
+        "complete": true,
+        "losses": []
+      },
+      {
+        "id": "features:class:namespace-members-cardinality",
+        "planned": 24,
+        "complete": true,
+        "losses": []
+      },
+      {
+        "id": "features:class:inheritance-composition-dependency",
+        "planned": 20,
+        "complete": true,
+        "losses": []
+      },
+      {
+        "id": "features:state:nesting-reciprocal-alias",
+        "planned": 21,
+        "complete": true,
+        "losses": []
+      },
+      {
+        "id": "features:state:initial-final-pseudostates",
+        "planned": 20,
+        "complete": false,
+        "losses": [
+          {
+            "surface": "browser-owned-ink",
+            "criterion": "painted-node-ownership",
+            "status": "blocked",
+            "detail": "Ambiguous or absent label-to-shape ownership: [start:root], [end:root]"
+          },
+          {
+            "surface": "browser-owned-ink",
+            "criterion": "painted-relationships",
+            "status": "blocked",
+            "detail": "This representation needs a reviewed endpoint/marker projection; no semantic paint credit from labels alone"
+          },
+          {
+            "surface": "browser-owned-ink",
+            "criterion": "painted-relationship-label-ownership",
+            "status": "blocked",
+            "detail": "Visible label must belong to the corresponding actual route: unique geometry or matching public SVG edge identity plus spatial agreement; global text counts cannot bind labels"
+          }
+        ]
+      },
+      {
+        "id": "features:er:attributes-identifying-cardinality",
+        "planned": 22,
+        "complete": false,
+        "losses": [
+          {
+            "surface": "browser-owned-ink",
+            "criterion": "painted-cardinality-decorations",
+            "status": "blocked",
+            "detail": "Owned endpoints are measured, but exact crow-foot/optional-circle combinations need a reviewed per-marker paint projection; native cardinalities alone earn no paint credit"
+          }
+        ]
+      },
+      {
+        "id": "features:requirement:types-risk-relations",
+        "planned": 21,
+        "complete": true,
+        "losses": []
+      },
+      {
+        "id": "features:architecture:ports-groups-branching",
+        "planned": 21,
+        "complete": true,
+        "losses": []
+      },
+      {
+        "id": "meaning:family:flowchart:configuration-reset",
+        "planned": 19,
+        "complete": true,
+        "losses": []
+      },
+      {
+        "id": "meaning:family:flowchart:configuration-reset:edit",
+        "planned": 21,
+        "complete": true,
+        "losses": []
+      },
+      {
+        "id": "meaning:family:state:configuration-reset",
+        "planned": 19,
+        "complete": true,
+        "losses": []
+      },
+      {
+        "id": "meaning:family:state:configuration-reset:edit",
+        "planned": 21,
+        "complete": true,
+        "losses": []
+      },
+      {
+        "id": "meaning:family:class:configuration-reset",
+        "planned": 19,
+        "complete": true,
+        "losses": []
+      },
+      {
+        "id": "meaning:family:class:configuration-reset:edit",
+        "planned": 21,
+        "complete": true,
+        "losses": []
+      },
+      {
+        "id": "meaning:family:er:configuration-reset",
+        "planned": 19,
+        "complete": true,
+        "losses": []
+      },
+      {
+        "id": "meaning:family:er:configuration-reset:edit",
+        "planned": 21,
+        "complete": true,
+        "losses": []
+      },
+      {
+        "id": "meaning:family:architecture:configuration-reset",
+        "planned": 21,
+        "complete": true,
+        "losses": []
+      },
+      {
+        "id": "meaning:family:architecture:configuration-reset:edit",
+        "planned": 23,
+        "complete": true,
+        "losses": []
+      },
+      {
+        "id": "meaning:family:requirement:configuration-reset",
+        "planned": 23,
+        "complete": true,
+        "losses": []
+      },
+      {
+        "id": "meaning:family:requirement:configuration-reset:edit",
+        "planned": 25,
+        "complete": true,
+        "losses": []
+      },
+      {
+        "id": "features:flowchart:font-size-reset",
+        "planned": 21,
+        "complete": false,
+        "losses": [
+          {
+            "surface": "browser-public-api",
+            "criterion": "public-svg-admission",
+            "status": "failed",
+            "detail": "Node publicSVG result; not browserrenderer execution."
+          },
+          {
+            "surface": "browser-public-api",
+            "criterion": "standalone-svg-and-labels",
+            "status": "blocked",
+            "detail": "Declared criterion was not observed after failed browser admission: Node publicSVG result; not browserrenderer execution."
+          },
+          {
+            "surface": "browser-owned-ink",
+            "criterion": "svg-root",
+            "status": "blocked",
+            "detail": "Declared criterion was not observed after failed browser admission: Node publicSVG result; not browserrenderer execution."
+          },
+          {
+            "surface": "browser-owned-ink",
+            "criterion": "svg-unique-ids",
+            "status": "blocked",
+            "detail": "Declared criterion was not observed after failed browser admission: Node publicSVG result; not browserrenderer execution."
+          },
+          {
+            "surface": "browser-owned-ink",
+            "criterion": "canvas",
+            "status": "blocked",
+            "detail": "Declared criterion was not observed after failed browser admission: Node publicSVG result; not browserrenderer execution."
+          },
+          {
+            "surface": "browser-owned-ink",
+            "criterion": "visible-authored-labels",
+            "status": "blocked",
+            "detail": "Declared criterion was not observed after failed browser admission: Node publicSVG result; not browserrenderer execution."
+          },
+          {
+            "surface": "browser-owned-ink",
+            "criterion": "labels-within-canvas",
+            "status": "blocked",
+            "detail": "Declared criterion was not observed after failed browser admission: Node publicSVG result; not browserrenderer execution."
+          },
+          {
+            "surface": "browser-owned-ink",
+            "criterion": "unclipped-authored-labels",
+            "status": "blocked",
+            "detail": "Declared criterion was not observed after failed browser admission: Node publicSVG result; not browserrenderer execution."
+          },
+          {
+            "surface": "browser-owned-ink",
+            "criterion": "visible-ink",
+            "status": "blocked",
+            "detail": "Declared criterion was not observed after failed browser admission: Node publicSVG result; not browserrenderer execution."
+          },
+          {
+            "surface": "browser-owned-ink",
+            "criterion": "paint-opacity-and-color",
+            "status": "blocked",
+            "detail": "Declared criterion was not observed after failed browser admission: Node publicSVG result; not browserrenderer execution."
+          },
+          {
+            "surface": "browser-owned-ink",
+            "criterion": "computed-authored-font-size",
+            "status": "blocked",
+            "detail": "Declared criterion was not observed after failed browser admission: Node publicSVG result; not browserrenderer execution."
+          },
+          {
+            "surface": "browser-owned-ink",
+            "criterion": "painted-node-ownership",
+            "status": "blocked",
+            "detail": "Declared criterion was not observed after failed browser admission: Node publicSVG result; not browserrenderer execution."
+          },
+          {
+            "surface": "browser-owned-ink",
+            "criterion": "painted-relationships",
+            "status": "blocked",
+            "detail": "Declared criterion was not observed after failed browser admission: Node publicSVG result; not browserrenderer execution."
+          }
+        ]
+      },
+      {
+        "id": "features:flowchart:font-size-reset:edit",
+        "planned": 23,
+        "complete": false,
+        "losses": [
+          {
+            "surface": "browser-public-api",
+            "criterion": "public-svg-admission",
+            "status": "failed",
+            "detail": "Node publicSVG result; not browserrenderer execution."
+          },
+          {
+            "surface": "browser-public-api",
+            "criterion": "standalone-svg-and-labels",
+            "status": "blocked",
+            "detail": "Declared criterion was not observed after failed browser admission: Node publicSVG result; not browserrenderer execution."
+          },
+          {
+            "surface": "browser-owned-ink",
+            "criterion": "svg-root",
+            "status": "blocked",
+            "detail": "Declared criterion was not observed after failed browser admission: Node publicSVG result; not browserrenderer execution."
+          },
+          {
+            "surface": "browser-owned-ink",
+            "criterion": "svg-unique-ids",
+            "status": "blocked",
+            "detail": "Declared criterion was not observed after failed browser admission: Node publicSVG result; not browserrenderer execution."
+          },
+          {
+            "surface": "browser-owned-ink",
+            "criterion": "canvas",
+            "status": "blocked",
+            "detail": "Declared criterion was not observed after failed browser admission: Node publicSVG result; not browserrenderer execution."
+          },
+          {
+            "surface": "browser-owned-ink",
+            "criterion": "visible-authored-labels",
+            "status": "blocked",
+            "detail": "Declared criterion was not observed after failed browser admission: Node publicSVG result; not browserrenderer execution."
+          },
+          {
+            "surface": "browser-owned-ink",
+            "criterion": "labels-within-canvas",
+            "status": "blocked",
+            "detail": "Declared criterion was not observed after failed browser admission: Node publicSVG result; not browserrenderer execution."
+          },
+          {
+            "surface": "browser-owned-ink",
+            "criterion": "unclipped-authored-labels",
+            "status": "blocked",
+            "detail": "Declared criterion was not observed after failed browser admission: Node publicSVG result; not browserrenderer execution."
+          },
+          {
+            "surface": "browser-owned-ink",
+            "criterion": "visible-ink",
+            "status": "blocked",
+            "detail": "Declared criterion was not observed after failed browser admission: Node publicSVG result; not browserrenderer execution."
+          },
+          {
+            "surface": "browser-owned-ink",
+            "criterion": "paint-opacity-and-color",
+            "status": "blocked",
+            "detail": "Declared criterion was not observed after failed browser admission: Node publicSVG result; not browserrenderer execution."
+          },
+          {
+            "surface": "browser-owned-ink",
+            "criterion": "computed-authored-font-size",
+            "status": "blocked",
+            "detail": "Declared criterion was not observed after failed browser admission: Node publicSVG result; not browserrenderer execution."
+          },
+          {
+            "surface": "browser-owned-ink",
+            "criterion": "painted-node-ownership",
+            "status": "blocked",
+            "detail": "Declared criterion was not observed after failed browser admission: Node publicSVG result; not browserrenderer execution."
+          },
+          {
+            "surface": "browser-owned-ink",
+            "criterion": "painted-relationships",
+            "status": "blocked",
+            "detail": "Declared criterion was not observed after failed browser admission: Node publicSVG result; not browserrenderer execution."
+          }
+        ]
+      },
+      {
+        "id": "features:flowchart:controlled-image",
+        "planned": 19,
+        "complete": false,
+        "losses": [
+          {
+            "surface": "native-public-api",
+            "criterion": "native-admission",
+            "status": "unsupported",
+            "detail": "Opaque source preservation is not native semantic support or public rejection"
+          },
+          {
+            "surface": "native-public-api",
+            "criterion": "family",
+            "status": "unsupported",
+            "detail": "Returned native family; a source-preservation envelope is not native admission."
+          },
+          {
+            "surface": "native-public-api",
+            "criterion": "identities",
+            "status": "unsupported",
+            "detail": "Exact authored identity multiset, including duplicate and omitted identities."
+          },
+          {
+            "surface": "native-public-api",
+            "criterion": "node-labels",
+            "status": "unsupported",
+            "detail": "Authored identity-to-label binding; NFC/whitespace normalization applies to display labels, never identity strings."
+          },
+          {
+            "surface": "native-public-api",
+            "criterion": "relationships",
+            "status": "unsupported",
+            "detail": "Exact endpoint/direction/declared-marker/label multiset; parallel and reciprocal relationships remain distinct."
+          },
+          {
+            "surface": "native-public-api",
+            "criterion": "fact:image-requests",
+            "status": "unsupported",
+            "detail": "Independently declared family content with meaningful ordering retained."
+          },
+          {
+            "surface": "browser-owned-ink",
+            "criterion": "embedded-images",
+            "status": "failed",
+            "detail": "Every independently declared image must be emitted with its authored asset, decoded and visible. Missing images are failures; unprojected image masks/clips stay unavailable."
+          }
+        ]
+      }
+    ],
+    "completeCases": 25,
+    "scope": "Trident completeCriterionLedger includesallplannedcriteria; missingpaintafterrefusal staysblocked. Original browser-public-api criterionnamespace actually bindsNodeSVG API here, explicitlylabeled."
+  },
+  "elk": {
+    "plannedCriteria": 613,
+    "counts": {
+      "passed": 575,
+      "blocked": 29,
+      "failed": 3,
+      "unsupported": 6
+    },
+    "cases": [
+      {
+        "id": "meaning:family:flowchart",
+        "planned": 17,
+        "complete": true,
+        "losses": []
+      },
+      {
+        "id": "meaning:family:state",
+        "planned": 17,
+        "complete": true,
+        "losses": []
+      },
+      {
+        "id": "meaning:family:class",
+        "planned": 17,
+        "complete": true,
+        "losses": []
+      },
+      {
+        "id": "meaning:family:er",
+        "planned": 17,
+        "complete": true,
+        "losses": []
+      },
+      {
+        "id": "meaning:family:architecture",
+        "planned": 19,
+        "complete": true,
+        "losses": []
+      },
+      {
+        "id": "meaning:family:requirement",
+        "planned": 21,
+        "complete": true,
+        "losses": []
+      },
+      {
+        "id": "features:flowchart:nesting-parallel-unicode",
+        "planned": 23,
+        "complete": true,
+        "losses": []
+      },
+      {
+        "id": "features:flowchart:two-ended-and-undirected",
+        "planned": 18,
+        "complete": true,
+        "losses": []
+      },
+      {
+        "id": "features:class:namespace-members-cardinality",
+        "planned": 24,
+        "complete": true,
+        "losses": []
+      },
+      {
+        "id": "features:class:inheritance-composition-dependency",
+        "planned": 20,
+        "complete": true,
+        "losses": []
+      },
+      {
+        "id": "features:state:nesting-reciprocal-alias",
+        "planned": 21,
+        "complete": true,
+        "losses": []
+      },
+      {
+        "id": "features:state:initial-final-pseudostates",
+        "planned": 20,
+        "complete": false,
+        "losses": [
+          {
+            "surface": "browser-owned-ink",
+            "criterion": "painted-node-ownership",
+            "status": "blocked",
+            "detail": "Ambiguous or absent label-to-shape ownership: [start:root], [end:root]"
+          },
+          {
+            "surface": "browser-owned-ink",
+            "criterion": "painted-relationships",
+            "status": "blocked",
+            "detail": "This representation needs a reviewed endpoint/marker projection; no semantic paint credit from labels alone"
+          },
+          {
+            "surface": "browser-owned-ink",
+            "criterion": "painted-relationship-label-ownership",
+            "status": "blocked",
+            "detail": "Visible label must belong to the corresponding actual route: unique geometry or matching public SVG edge identity plus spatial agreement; global text counts cannot bind labels"
+          }
+        ]
+      },
+      {
+        "id": "features:er:attributes-identifying-cardinality",
+        "planned": 22,
+        "complete": false,
+        "losses": [
+          {
+            "surface": "browser-owned-ink",
+            "criterion": "painted-cardinality-decorations",
+            "status": "blocked",
+            "detail": "Owned endpoints are measured, but exact crow-foot/optional-circle combinations need a reviewed per-marker paint projection; native cardinalities alone earn no paint credit"
+          }
+        ]
+      },
+      {
+        "id": "features:requirement:types-risk-relations",
+        "planned": 21,
+        "complete": false,
+        "losses": [
+          {
+            "surface": "browser-owned-ink",
+            "criterion": "painted-relationship-label-ownership",
+            "status": "blocked",
+            "detail": "Visible label must belong to the corresponding actual route: unique geometry or matching public SVG edge identity plus spatial agreement; global text counts cannot bind labels"
+          }
+        ]
+      },
+      {
+        "id": "features:architecture:ports-groups-branching",
+        "planned": 21,
+        "complete": true,
+        "losses": []
+      },
+      {
+        "id": "meaning:family:flowchart:configuration-reset",
+        "planned": 19,
+        "complete": true,
+        "losses": []
+      },
+      {
+        "id": "meaning:family:flowchart:configuration-reset:edit",
+        "planned": 21,
+        "complete": true,
+        "losses": []
+      },
+      {
+        "id": "meaning:family:state:configuration-reset",
+        "planned": 19,
+        "complete": true,
+        "losses": []
+      },
+      {
+        "id": "meaning:family:state:configuration-reset:edit",
+        "planned": 21,
+        "complete": true,
+        "losses": []
+      },
+      {
+        "id": "meaning:family:class:configuration-reset",
+        "planned": 19,
+        "complete": true,
+        "losses": []
+      },
+      {
+        "id": "meaning:family:class:configuration-reset:edit",
+        "planned": 21,
+        "complete": true,
+        "losses": []
+      },
+      {
+        "id": "meaning:family:er:configuration-reset",
+        "planned": 19,
+        "complete": true,
+        "losses": []
+      },
+      {
+        "id": "meaning:family:er:configuration-reset:edit",
+        "planned": 21,
+        "complete": true,
+        "losses": []
+      },
+      {
+        "id": "meaning:family:architecture:configuration-reset",
+        "planned": 21,
+        "complete": true,
+        "losses": []
+      },
+      {
+        "id": "meaning:family:architecture:configuration-reset:edit",
+        "planned": 23,
+        "complete": true,
+        "losses": []
+      },
+      {
+        "id": "meaning:family:requirement:configuration-reset",
+        "planned": 23,
+        "complete": true,
+        "losses": []
+      },
+      {
+        "id": "meaning:family:requirement:configuration-reset:edit",
+        "planned": 25,
+        "complete": true,
+        "losses": []
+      },
+      {
+        "id": "features:flowchart:font-size-reset",
+        "planned": 21,
+        "complete": false,
+        "losses": [
+          {
+            "surface": "browser-public-api",
+            "criterion": "public-svg-admission",
+            "status": "failed",
+            "detail": "Node publicSVG result; not browserrenderer execution."
+          },
+          {
+            "surface": "browser-public-api",
+            "criterion": "standalone-svg-and-labels",
+            "status": "blocked",
+            "detail": "Declared criterion was not observed after failed browser admission: Node publicSVG result; not browserrenderer execution."
+          },
+          {
+            "surface": "browser-owned-ink",
+            "criterion": "svg-root",
+            "status": "blocked",
+            "detail": "Declared criterion was not observed after failed browser admission: Node publicSVG result; not browserrenderer execution."
+          },
+          {
+            "surface": "browser-owned-ink",
+            "criterion": "svg-unique-ids",
+            "status": "blocked",
+            "detail": "Declared criterion was not observed after failed browser admission: Node publicSVG result; not browserrenderer execution."
+          },
+          {
+            "surface": "browser-owned-ink",
+            "criterion": "canvas",
+            "status": "blocked",
+            "detail": "Declared criterion was not observed after failed browser admission: Node publicSVG result; not browserrenderer execution."
+          },
+          {
+            "surface": "browser-owned-ink",
+            "criterion": "visible-authored-labels",
+            "status": "blocked",
+            "detail": "Declared criterion was not observed after failed browser admission: Node publicSVG result; not browserrenderer execution."
+          },
+          {
+            "surface": "browser-owned-ink",
+            "criterion": "labels-within-canvas",
+            "status": "blocked",
+            "detail": "Declared criterion was not observed after failed browser admission: Node publicSVG result; not browserrenderer execution."
+          },
+          {
+            "surface": "browser-owned-ink",
+            "criterion": "unclipped-authored-labels",
+            "status": "blocked",
+            "detail": "Declared criterion was not observed after failed browser admission: Node publicSVG result; not browserrenderer execution."
+          },
+          {
+            "surface": "browser-owned-ink",
+            "criterion": "visible-ink",
+            "status": "blocked",
+            "detail": "Declared criterion was not observed after failed browser admission: Node publicSVG result; not browserrenderer execution."
+          },
+          {
+            "surface": "browser-owned-ink",
+            "criterion": "paint-opacity-and-color",
+            "status": "blocked",
+            "detail": "Declared criterion was not observed after failed browser admission: Node publicSVG result; not browserrenderer execution."
+          },
+          {
+            "surface": "browser-owned-ink",
+            "criterion": "computed-authored-font-size",
+            "status": "blocked",
+            "detail": "Declared criterion was not observed after failed browser admission: Node publicSVG result; not browserrenderer execution."
+          },
+          {
+            "surface": "browser-owned-ink",
+            "criterion": "painted-node-ownership",
+            "status": "blocked",
+            "detail": "Declared criterion was not observed after failed browser admission: Node publicSVG result; not browserrenderer execution."
+          },
+          {
+            "surface": "browser-owned-ink",
+            "criterion": "painted-relationships",
+            "status": "blocked",
+            "detail": "Declared criterion was not observed after failed browser admission: Node publicSVG result; not browserrenderer execution."
+          }
+        ]
+      },
+      {
+        "id": "features:flowchart:font-size-reset:edit",
+        "planned": 23,
+        "complete": false,
+        "losses": [
+          {
+            "surface": "browser-public-api",
+            "criterion": "public-svg-admission",
+            "status": "failed",
+            "detail": "Node publicSVG result; not browserrenderer execution."
+          },
+          {
+            "surface": "browser-public-api",
+            "criterion": "standalone-svg-and-labels",
+            "status": "blocked",
+            "detail": "Declared criterion was not observed after failed browser admission: Node publicSVG result; not browserrenderer execution."
+          },
+          {
+            "surface": "browser-owned-ink",
+            "criterion": "svg-root",
+            "status": "blocked",
+            "detail": "Declared criterion was not observed after failed browser admission: Node publicSVG result; not browserrenderer execution."
+          },
+          {
+            "surface": "browser-owned-ink",
+            "criterion": "svg-unique-ids",
+            "status": "blocked",
+            "detail": "Declared criterion was not observed after failed browser admission: Node publicSVG result; not browserrenderer execution."
+          },
+          {
+            "surface": "browser-owned-ink",
+            "criterion": "canvas",
+            "status": "blocked",
+            "detail": "Declared criterion was not observed after failed browser admission: Node publicSVG result; not browserrenderer execution."
+          },
+          {
+            "surface": "browser-owned-ink",
+            "criterion": "visible-authored-labels",
+            "status": "blocked",
+            "detail": "Declared criterion was not observed after failed browser admission: Node publicSVG result; not browserrenderer execution."
+          },
+          {
+            "surface": "browser-owned-ink",
+            "criterion": "labels-within-canvas",
+            "status": "blocked",
+            "detail": "Declared criterion was not observed after failed browser admission: Node publicSVG result; not browserrenderer execution."
+          },
+          {
+            "surface": "browser-owned-ink",
+            "criterion": "unclipped-authored-labels",
+            "status": "blocked",
+            "detail": "Declared criterion was not observed after failed browser admission: Node publicSVG result; not browserrenderer execution."
+          },
+          {
+            "surface": "browser-owned-ink",
+            "criterion": "visible-ink",
+            "status": "blocked",
+            "detail": "Declared criterion was not observed after failed browser admission: Node publicSVG result; not browserrenderer execution."
+          },
+          {
+            "surface": "browser-owned-ink",
+            "criterion": "paint-opacity-and-color",
+            "status": "blocked",
+            "detail": "Declared criterion was not observed after failed browser admission: Node publicSVG result; not browserrenderer execution."
+          },
+          {
+            "surface": "browser-owned-ink",
+            "criterion": "computed-authored-font-size",
+            "status": "blocked",
+            "detail": "Declared criterion was not observed after failed browser admission: Node publicSVG result; not browserrenderer execution."
+          },
+          {
+            "surface": "browser-owned-ink",
+            "criterion": "painted-node-ownership",
+            "status": "blocked",
+            "detail": "Declared criterion was not observed after failed browser admission: Node publicSVG result; not browserrenderer execution."
+          },
+          {
+            "surface": "browser-owned-ink",
+            "criterion": "painted-relationships",
+            "status": "blocked",
+            "detail": "Declared criterion was not observed after failed browser admission: Node publicSVG result; not browserrenderer execution."
+          }
+        ]
+      },
+      {
+        "id": "features:flowchart:controlled-image",
+        "planned": 19,
+        "complete": false,
+        "losses": [
+          {
+            "surface": "native-public-api",
+            "criterion": "native-admission",
+            "status": "unsupported",
+            "detail": "Opaque source preservation is not native semantic support or public rejection"
+          },
+          {
+            "surface": "native-public-api",
+            "criterion": "family",
+            "status": "unsupported",
+            "detail": "Returned native family; a source-preservation envelope is not native admission."
+          },
+          {
+            "surface": "native-public-api",
+            "criterion": "identities",
+            "status": "unsupported",
+            "detail": "Exact authored identity multiset, including duplicate and omitted identities."
+          },
+          {
+            "surface": "native-public-api",
+            "criterion": "node-labels",
+            "status": "unsupported",
+            "detail": "Authored identity-to-label binding; NFC/whitespace normalization applies to display labels, never identity strings."
+          },
+          {
+            "surface": "native-public-api",
+            "criterion": "relationships",
+            "status": "unsupported",
+            "detail": "Exact endpoint/direction/declared-marker/label multiset; parallel and reciprocal relationships remain distinct."
+          },
+          {
+            "surface": "native-public-api",
+            "criterion": "fact:image-requests",
+            "status": "unsupported",
+            "detail": "Independently declared family content with meaningful ordering retained."
+          },
+          {
+            "surface": "browser-owned-ink",
+            "criterion": "embedded-images",
+            "status": "failed",
+            "detail": "Every independently declared image must be emitted with its authored asset, decoded and visible. Missing images are failures; unprojected image masks/clips stay unavailable."
+          }
+        ]
+      }
+    ],
+    "completeCases": 24,
+    "scope": "Trident completeCriterionLedger includesallplannedcriteria; missingpaintafterrefusal staysblocked. Original browser-public-api criterionnamespace actually bindsNodeSVG API here, explicitlylabeled."
+  }
+}

@@ -1,0 +1,1090 @@
+[
+  {
+    "id": "family:flowchart",
+    "family": "flowchart",
+    "cache": 0,
+    "eligiblePositivePair": true,
+    "native": {
+      "cold": 127.76179099082947,
+      "repeat": 13.272573977708817,
+      "newSource": 9.108559995889664,
+      "peakRssMiB": 75.71875,
+      "heapAfterGcMiB": 14.36126708984375
+    },
+    "elk": {
+      "cold": 340.5657120049,
+      "repeat": 21.19548997282982,
+      "newSource": 16.535781025886536,
+      "peakRssMiB": 95.30078125,
+      "heapAfterGcMiB": 24.861053466796875
+    }
+  },
+  {
+    "id": "family:state",
+    "family": "state",
+    "cache": 0,
+    "eligiblePositivePair": true,
+    "native": {
+      "cold": 136.61009100079536,
+      "repeat": 13.137114018201828,
+      "newSource": 8.280618995428085,
+      "peakRssMiB": 76.87109375,
+      "heapAfterGcMiB": 14.206771850585938
+    },
+    "elk": {
+      "cold": 346.03757098317146,
+      "repeat": 22.81071400642395,
+      "newSource": 16.407063990831375,
+      "peakRssMiB": 95.71484375,
+      "heapAfterGcMiB": 24.62188720703125
+    }
+  },
+  {
+    "id": "family:class",
+    "family": "class",
+    "cache": 0,
+    "eligiblePositivePair": true,
+    "native": {
+      "cold": 121.18535101413727,
+      "repeat": 12.384382009506226,
+      "newSource": 7.971358001232147,
+      "peakRssMiB": 77.22265625,
+      "heapAfterGcMiB": 13.968856811523438
+    },
+    "elk": {
+      "cold": 317.0459589958191,
+      "repeat": 18.092940002679825,
+      "newSource": 14.162151992321014,
+      "peakRssMiB": 94.859375,
+      "heapAfterGcMiB": 23.822265625
+    }
+  },
+  {
+    "id": "family:er",
+    "family": "er",
+    "cache": 0,
+    "eligiblePositivePair": true,
+    "native": {
+      "cold": 102.36570897698402,
+      "repeat": 11.339581996202469,
+      "newSource": 7.378861993551254,
+      "peakRssMiB": 76.703125,
+      "heapAfterGcMiB": 13.738845825195312
+    },
+    "elk": {
+      "cold": 304.4412180185318,
+      "repeat": 16.78397500514984,
+      "newSource": 12.975145995616913,
+      "peakRssMiB": 94.4453125,
+      "heapAfterGcMiB": 23.675582885742188
+    }
+  },
+  {
+    "id": "family:architecture",
+    "family": "architecture",
+    "cache": 0,
+    "eligiblePositivePair": true,
+    "native": {
+      "cold": 124.0827220082283,
+      "repeat": 14.660095006227493,
+      "newSource": 11.777812004089355,
+      "peakRssMiB": 75.78515625,
+      "heapAfterGcMiB": 14.069412231445312
+    },
+    "elk": {
+      "cold": 353.70673501491547,
+      "repeat": 26.190845012664795,
+      "newSource": 20.324790984392166,
+      "peakRssMiB": 96.32421875,
+      "heapAfterGcMiB": 24.787078857421875
+    }
+  },
+  {
+    "id": "family:requirement",
+    "family": "requirement",
+    "cache": 0,
+    "eligiblePositivePair": true,
+    "native": {
+      "cold": 118.89875000715256,
+      "repeat": 12.347281008958817,
+      "newSource": 10.687712997198105,
+      "peakRssMiB": 76.62109375,
+      "heapAfterGcMiB": 13.972854614257812
+    },
+    "elk": {
+      "cold": 341.0502129793167,
+      "repeat": 22.408941000699997,
+      "newSource": 16.25176501274109,
+      "peakRssMiB": 94.87890625,
+      "heapAfterGcMiB": 23.914573669433594
+    }
+  },
+  {
+    "id": "scaling:flowchart:8",
+    "family": "flowchart",
+    "cache": 0,
+    "eligiblePositivePair": true,
+    "native": {
+      "cold": 139.36760500073433,
+      "repeat": 22.463082015514374,
+      "newSource": 19.055442988872528,
+      "peakRssMiB": 81.62890625,
+      "heapAfterGcMiB": 15.396591186523438
+    },
+    "elk": {
+      "cold": 406.944099009037,
+      "repeat": 36.553355008363724,
+      "newSource": 27.87187898159027,
+      "peakRssMiB": 105.41015625,
+      "heapAfterGcMiB": 26.384849548339844
+    }
+  },
+  {
+    "id": "scaling:flowchart:32",
+    "family": "flowchart",
+    "cache": 0,
+    "eligiblePositivePair": true,
+    "native": {
+      "cold": 230.89063799381256,
+      "repeat": 58.32514899969101,
+      "newSource": 48.52695298194885,
+      "peakRssMiB": 93.8828125,
+      "heapAfterGcMiB": 16.986541748046875
+    },
+    "elk": {
+      "cold": 489.0476070046425,
+      "repeat": 95.57627502083778,
+      "newSource": 78.73159697651863,
+      "peakRssMiB": 128.5078125,
+      "heapAfterGcMiB": 29.37187957763672
+    }
+  },
+  {
+    "id": "scaling:flowchart:128",
+    "family": "flowchart",
+    "cache": 0,
+    "eligiblePositivePair": true,
+    "native": {
+      "cold": 359.4455190002918,
+      "repeat": 148.20462301373482,
+      "newSource": 115.79925900697708,
+      "peakRssMiB": 125.42578125,
+      "heapAfterGcMiB": 16.920822143554688
+    },
+    "elk": {
+      "cold": 772.7157899737358,
+      "repeat": 248.28325000405312,
+      "newSource": 186.15707701444626,
+      "peakRssMiB": 185.8515625,
+      "heapAfterGcMiB": 31.84735870361328
+    }
+  },
+  {
+    "id": "scaling:class:8",
+    "family": "class",
+    "cache": 0,
+    "eligiblePositivePair": true,
+    "native": {
+      "cold": 145.3411190211773,
+      "repeat": 24.463510990142822,
+      "newSource": 22.264479994773865,
+      "peakRssMiB": 85.41796875,
+      "heapAfterGcMiB": 14.928703308105469
+    },
+    "elk": {
+      "cold": 359.7797169983387,
+      "repeat": 32.17552098631859,
+      "newSource": 26.18129500746727,
+      "peakRssMiB": 104.12890625,
+      "heapAfterGcMiB": 25.48187255859375
+    }
+  },
+  {
+    "id": "scaling:class:32",
+    "family": "class",
+    "cache": 0,
+    "eligiblePositivePair": true,
+    "native": {
+      "cold": 207.67917197942734,
+      "repeat": 72.5029099881649,
+      "newSource": 62.32982099056244,
+      "peakRssMiB": 95.59765625,
+      "heapAfterGcMiB": 15.8687744140625
+    },
+    "elk": {
+      "cold": 484.6603280007839,
+      "repeat": 99.25435498356819,
+      "newSource": 77.42992702126503,
+      "peakRssMiB": 125.01171875,
+      "heapAfterGcMiB": 27.21355438232422
+    }
+  },
+  {
+    "id": "scaling:class:128",
+    "family": "class",
+    "cache": 0,
+    "eligiblePositivePair": true,
+    "native": {
+      "cold": 510.9705879986286,
+      "repeat": 268.7350549995899,
+      "newSource": 233.58693099021912,
+      "peakRssMiB": 169.02734375,
+      "heapAfterGcMiB": 17.587814331054688
+    },
+    "elk": {
+      "cold": 823.6281519830227,
+      "repeat": 310.767224997282,
+      "newSource": 314.7832220196724,
+      "peakRssMiB": 192.73828125,
+      "heapAfterGcMiB": 30.25731658935547
+    }
+  },
+  {
+    "id": "scaling:state:8",
+    "family": "state",
+    "cache": 0,
+    "eligiblePositivePair": true,
+    "native": {
+      "cold": 171.2707200050354,
+      "repeat": 18.672265022993088,
+      "newSource": 16.50748500227928,
+      "peakRssMiB": 81.28515625,
+      "heapAfterGcMiB": 15.056816101074219
+    },
+    "elk": {
+      "cold": 401.9472370147705,
+      "repeat": 39.45678201317787,
+      "newSource": 29.22412198781967,
+      "peakRssMiB": 104.66796875,
+      "heapAfterGcMiB": 26.304229736328125
+    }
+  },
+  {
+    "id": "scaling:state:32",
+    "family": "state",
+    "cache": 0,
+    "eligiblePositivePair": true,
+    "native": {
+      "cold": 222.4771439731121,
+      "repeat": 59.71177199482918,
+      "newSource": 46.20263600349426,
+      "peakRssMiB": 94.2421875,
+      "heapAfterGcMiB": 16.93048095703125
+    },
+    "elk": {
+      "cold": 467.2535150051117,
+      "repeat": 95.58290401101112,
+      "newSource": 69.96989700198174,
+      "peakRssMiB": 125.24609375,
+      "heapAfterGcMiB": 29.34752655029297
+    }
+  },
+  {
+    "id": "scaling:state:128",
+    "family": "state",
+    "cache": 0,
+    "eligiblePositivePair": true,
+    "native": {
+      "cold": 419.8198840022087,
+      "repeat": 166.50301098823547,
+      "newSource": 122.16857099533081,
+      "peakRssMiB": 122.796875,
+      "heapAfterGcMiB": 16.942184448242188
+    },
+    "elk": {
+      "cold": 772.5336419939995,
+      "repeat": 227.84515902400017,
+      "newSource": 180.03661000728607,
+      "peakRssMiB": 176.65625,
+      "heapAfterGcMiB": 31.864822387695312
+    }
+  },
+  {
+    "id": "scaling:er:8",
+    "family": "er",
+    "cache": 0,
+    "eligiblePositivePair": true,
+    "native": {
+      "cold": 131.48923102021217,
+      "repeat": 25.428705006837845,
+      "newSource": 23.113651990890503,
+      "peakRssMiB": 89.734375,
+      "heapAfterGcMiB": 14.592506408691406
+    },
+    "elk": {
+      "cold": 364.77334201335907,
+      "repeat": 37.16202899813652,
+      "newSource": 30.31072700023651,
+      "peakRssMiB": 106.3203125,
+      "heapAfterGcMiB": 25.47595977783203
+    }
+  },
+  {
+    "id": "scaling:er:32",
+    "family": "er",
+    "cache": 0,
+    "eligiblePositivePair": true,
+    "native": {
+      "cold": 222.70869499444962,
+      "repeat": 84.04015201330185,
+      "newSource": 71.11449497938156,
+      "peakRssMiB": 105.234375,
+      "heapAfterGcMiB": 15.743377685546875
+    },
+    "elk": {
+      "cold": 503.16419100761414,
+      "repeat": 114.90921100974083,
+      "newSource": 100.30979397892952,
+      "peakRssMiB": 129.02734375,
+      "heapAfterGcMiB": 27.62371063232422
+    }
+  },
+  {
+    "id": "scaling:er:128",
+    "family": "er",
+    "cache": 0,
+    "eligiblePositivePair": true,
+    "native": {
+      "cold": 463.92100900411606,
+      "repeat": 276.3781789839268,
+      "newSource": 262.3038159906864,
+      "peakRssMiB": 167.26953125,
+      "heapAfterGcMiB": 17.37487030029297
+    },
+    "elk": {
+      "cold": 916.3470930159092,
+      "repeat": 372.92267698049545,
+      "newSource": 330.6143789887428,
+      "peakRssMiB": 197.5703125,
+      "heapAfterGcMiB": 31.900421142578125
+    }
+  },
+  {
+    "id": "adversarial:label-edit",
+    "family": "flowchart",
+    "cache": 0,
+    "eligiblePositivePair": true,
+    "native": {
+      "cold": 123.40722700953484,
+      "repeat": 11.691969007253647,
+      "newSource": 7.256570994853973,
+      "edit": 5.7752499878406525,
+      "peakRssMiB": 75.6328125,
+      "heapAfterGcMiB": 13.989509582519531
+    },
+    "elk": {
+      "cold": 332.86070600152016,
+      "repeat": 22.050570994615555,
+      "newSource": 15.75440400838852,
+      "edit": 12.368380010128021,
+      "peakRssMiB": 94.11328125,
+      "heapAfterGcMiB": 24.19854736328125
+    }
+  },
+  {
+    "id": "adversarial:parallel-reciprocal",
+    "family": "flowchart",
+    "cache": 0,
+    "eligiblePositivePair": true,
+    "native": {
+      "cold": 140.47518500685692,
+      "repeat": 16.663055986166,
+      "newSource": 11.936194002628326,
+      "peakRssMiB": 76.734375,
+      "heapAfterGcMiB": 14.808845520019531
+    },
+    "elk": {
+      "cold": 375.3817349970341,
+      "repeat": 27.92101898789406,
+      "newSource": 20.06385600566864,
+      "peakRssMiB": 97.3828125,
+      "heapAfterGcMiB": 25.477706909179688
+    }
+  },
+  {
+    "id": "adversarial:nested-groups",
+    "family": "flowchart",
+    "cache": 0,
+    "eligiblePositivePair": true,
+    "native": {
+      "cold": 141.8236449956894,
+      "repeat": 17.198298007249832,
+      "newSource": 13.419735997915268,
+      "peakRssMiB": 76.875,
+      "heapAfterGcMiB": 14.700103759765625
+    },
+    "elk": {
+      "cold": 381.5090989768505,
+      "repeat": 30.057355999946594,
+      "newSource": 22.52081799507141,
+      "peakRssMiB": 98.2421875,
+      "heapAfterGcMiB": 25.655662536621094
+    }
+  },
+  {
+    "id": "adversarial:wide-unicode",
+    "family": "flowchart",
+    "cache": 0,
+    "eligiblePositivePair": true,
+    "native": {
+      "cold": 130.75241100788116,
+      "repeat": 12.705423027276993,
+      "newSource": 8.045648008584976,
+      "peakRssMiB": 75.92578125,
+      "heapAfterGcMiB": 14.225486755371094
+    },
+    "elk": {
+      "cold": 335.87469801306725,
+      "repeat": 20.013392001390457,
+      "newSource": 14.38646399974823,
+      "peakRssMiB": 94.71484375,
+      "heapAfterGcMiB": 24.33061981201172
+    }
+  },
+  {
+    "id": "adversarial:generated-looking-ids",
+    "family": "flowchart",
+    "cache": 0,
+    "eligiblePositivePair": true,
+    "native": {
+      "cold": 130.45643401145935,
+      "repeat": 12.332637995481491,
+      "newSource": 8.965472012758255,
+      "peakRssMiB": 76.03515625,
+      "heapAfterGcMiB": 14.370780944824219
+    },
+    "elk": {
+      "cold": 360.1004739999771,
+      "repeat": 22.945598006248474,
+      "newSource": 17.80103701353073,
+      "peakRssMiB": 95.43359375,
+      "heapAfterGcMiB": 24.86779022216797
+    }
+  },
+  {
+    "id": "adversarial:quoted-labels",
+    "family": "flowchart",
+    "cache": 0,
+    "eligiblePositivePair": true,
+    "native": {
+      "cold": 136.4888020157814,
+      "repeat": 12.60122200846672,
+      "newSource": 8.442281991243362,
+      "peakRssMiB": 75.5703125,
+      "heapAfterGcMiB": 14.038398742675781
+    },
+    "elk": {
+      "cold": 348.0173000097275,
+      "repeat": 24.391241997480392,
+      "newSource": 14.907497018575668,
+      "peakRssMiB": 93.94921875,
+      "heapAfterGcMiB": 24.22643280029297
+    }
+  },
+  {
+    "id": "adversarial:invalid-recovery",
+    "family": "flowchart",
+    "cache": 0,
+    "eligiblePositivePair": true,
+    "native": {
+      "cold": 115.59299400448799,
+      "repeat": 11.697299003601074,
+      "newSource": 7.8966160118579865,
+      "peakRssMiB": 75.6328125,
+      "heapAfterGcMiB": 14.028945922851562
+    },
+    "elk": {
+      "cold": 323.4022350013256,
+      "repeat": 19.556457996368408,
+      "newSource": 14.03117299079895,
+      "peakRssMiB": 95.328125,
+      "heapAfterGcMiB": 24.23089599609375
+    }
+  },
+  {
+    "id": "adversarial:configuration-reset",
+    "family": "flowchart",
+    "cache": 0,
+    "eligiblePositivePair": false,
+    "native": {
+      "cold": 10.14002799987793,
+      "repeat": 0.07732165662141946,
+      "newSource": 0.04656474257624427,
+      "edit": 0.0374200901499501,
+      "peakRssMiB": 74.95703125,
+      "heapAfterGcMiB": 14.342132568359375
+    },
+    "elk": {
+      "cold": 8.60156300663948,
+      "repeat": 0.0744065455027989,
+      "newSource": 0.04488326377338833,
+      "edit": 0.04400008592916572,
+      "peakRssMiB": 75.71875,
+      "heapAfterGcMiB": 14.341438293457031
+    }
+  },
+  {
+    "id": "invalid:missing-endpoints",
+    "family": "flowchart",
+    "cache": 0,
+    "eligiblePositivePair": false,
+    "native": {
+      "cold": 27.192308008670807,
+      "repeat": 1.3067099899053574,
+      "newSource": 1.0951149960358937,
+      "peakRssMiB": 71.28515625,
+      "heapAfterGcMiB": 11.519180297851562
+    },
+    "elk": {
+      "cold": 27.605578988790512,
+      "repeat": 1.1251115053892136,
+      "newSource": 0.8776140014330546,
+      "peakRssMiB": 71.3125,
+      "heapAfterGcMiB": 11.519371032714844
+    }
+  },
+  {
+    "id": "family:flowchart",
+    "family": "flowchart",
+    "cache": 1,
+    "eligiblePositivePair": true,
+    "native": {
+      "cold": 132.1646399796009,
+      "repeat": 3.432065010070801,
+      "newSource": 11.281940013170242,
+      "peakRssMiB": 75.79296875,
+      "heapAfterGcMiB": 14.406585693359375
+    },
+    "elk": {
+      "cold": 353.1524510085583,
+      "repeat": 2.8716650009155273,
+      "newSource": 11.765566974878311,
+      "peakRssMiB": 95.09375,
+      "heapAfterGcMiB": 24.929580688476562
+    }
+  },
+  {
+    "id": "family:state",
+    "family": "state",
+    "cache": 1,
+    "eligiblePositivePair": true,
+    "native": {
+      "cold": 145.91368901729584,
+      "repeat": 2.8116270005702972,
+      "newSource": 11.257447004318237,
+      "peakRssMiB": 75.68359375,
+      "heapAfterGcMiB": 14.233711242675781
+    },
+    "elk": {
+      "cold": 382.2171950042248,
+      "repeat": 3.2624000012874603,
+      "newSource": 12.534539997577667,
+      "peakRssMiB": 94.3125,
+      "heapAfterGcMiB": 24.666114807128906
+    }
+  },
+  {
+    "id": "family:class",
+    "family": "class",
+    "cache": 1,
+    "eligiblePositivePair": true,
+    "native": {
+      "cold": 127.08821600675583,
+      "repeat": 10.820827007293701,
+      "newSource": 10.275629997253418,
+      "peakRssMiB": 77.09765625,
+      "heapAfterGcMiB": 14.053245544433594
+    },
+    "elk": {
+      "cold": 323.9481920003891,
+      "repeat": 9.978156000375748,
+      "newSource": 11.117852002382278,
+      "peakRssMiB": 95.12890625,
+      "heapAfterGcMiB": 23.89281463623047
+    }
+  },
+  {
+    "id": "family:er",
+    "family": "er",
+    "cache": 1,
+    "eligiblePositivePair": true,
+    "native": {
+      "cold": 114.67020300030708,
+      "repeat": 10.209412008523941,
+      "newSource": 8.696812003850937,
+      "peakRssMiB": 76.8359375,
+      "heapAfterGcMiB": 13.819648742675781
+    },
+    "elk": {
+      "cold": 310.9743729829788,
+      "repeat": 10.256626009941101,
+      "newSource": 10.21118700504303,
+      "peakRssMiB": 93.66796875,
+      "heapAfterGcMiB": 23.741043090820312
+    }
+  },
+  {
+    "id": "family:architecture",
+    "family": "architecture",
+    "cache": 1,
+    "eligiblePositivePair": true,
+    "native": {
+      "cold": 123.53402099013329,
+      "repeat": 12.016608983278275,
+      "newSource": 11.735601007938385,
+      "peakRssMiB": 75.19921875,
+      "heapAfterGcMiB": 14.1290283203125
+    },
+    "elk": {
+      "cold": 354.8911979794502,
+      "repeat": 13.616470009088516,
+      "newSource": 15.61759302020073,
+      "peakRssMiB": 96,
+      "heapAfterGcMiB": 25.016098022460938
+    }
+  },
+  {
+    "id": "family:requirement",
+    "family": "requirement",
+    "cache": 1,
+    "eligiblePositivePair": true,
+    "native": {
+      "cold": 110.35200098156929,
+      "repeat": 13.442045986652374,
+      "newSource": 11.946836978197098,
+      "peakRssMiB": 75.609375,
+      "heapAfterGcMiB": 14.045509338378906
+    },
+    "elk": {
+      "cold": 321.92721500992775,
+      "repeat": 12.779918998479843,
+      "newSource": 12.803396999835968,
+      "peakRssMiB": 94.44921875,
+      "heapAfterGcMiB": 23.81684112548828
+    }
+  },
+  {
+    "id": "scaling:flowchart:8",
+    "family": "flowchart",
+    "cache": 1,
+    "eligiblePositivePair": true,
+    "native": {
+      "cold": 158.76493400335312,
+      "repeat": 4.4380810260772705,
+      "newSource": 19.203566998243332,
+      "peakRssMiB": 80.875,
+      "heapAfterGcMiB": 15.21875
+    },
+    "elk": {
+      "cold": 402.5396920144558,
+      "repeat": 4.513047993183136,
+      "newSource": 23.630584001541138,
+      "peakRssMiB": 104.22265625,
+      "heapAfterGcMiB": 26.461387634277344
+    }
+  },
+  {
+    "id": "scaling:flowchart:32",
+    "family": "flowchart",
+    "cache": 1,
+    "eligiblePositivePair": true,
+    "native": {
+      "cold": 225.59128099679947,
+      "repeat": 7.991091012954712,
+      "newSource": 58.27838498353958,
+      "peakRssMiB": 93.1171875,
+      "heapAfterGcMiB": 17.099502563476562
+    },
+    "elk": {
+      "cold": 508.7577899992466,
+      "repeat": 8.112961024045944,
+      "newSource": 77.52826499938965,
+      "peakRssMiB": 122.62890625,
+      "heapAfterGcMiB": 29.562591552734375
+    }
+  },
+  {
+    "id": "scaling:flowchart:128",
+    "family": "flowchart",
+    "cache": 1,
+    "eligiblePositivePair": true,
+    "native": {
+      "cold": 393.73221799731255,
+      "repeat": 17.864145010709763,
+      "newSource": 146.025014013052,
+      "peakRssMiB": 116.59765625,
+      "heapAfterGcMiB": 17.37354278564453
+    },
+    "elk": {
+      "cold": 843.8096790015697,
+      "repeat": 19.752749979496002,
+      "newSource": 155.98069900274277,
+      "peakRssMiB": 162.73046875,
+      "heapAfterGcMiB": 32.49397277832031
+    }
+  },
+  {
+    "id": "scaling:class:8",
+    "family": "class",
+    "cache": 1,
+    "eligiblePositivePair": true,
+    "native": {
+      "cold": 145.62945300340652,
+      "repeat": 25.488925009965897,
+      "newSource": 25.83957800269127,
+      "peakRssMiB": 88.57421875,
+      "heapAfterGcMiB": 15.031181335449219
+    },
+    "elk": {
+      "cold": 373.5723229944706,
+      "repeat": 26.055081993341446,
+      "newSource": 22.377901017665863,
+      "peakRssMiB": 103.8125,
+      "heapAfterGcMiB": 25.543663024902344
+    }
+  },
+  {
+    "id": "scaling:class:32",
+    "family": "class",
+    "cache": 1,
+    "eligiblePositivePair": true,
+    "native": {
+      "cold": 237.2085070014,
+      "repeat": 69.82890400290489,
+      "newSource": 75.91119500994682,
+      "peakRssMiB": 100.1640625,
+      "heapAfterGcMiB": 16.06195068359375
+    },
+    "elk": {
+      "cold": 523.9057340025902,
+      "repeat": 74.91449299454689,
+      "newSource": 77.25255498290062,
+      "peakRssMiB": 125.4296875,
+      "heapAfterGcMiB": 27.343772888183594
+    }
+  },
+  {
+    "id": "scaling:class:128",
+    "family": "class",
+    "cache": 1,
+    "eligiblePositivePair": true,
+    "native": {
+      "cold": 574.5886000096798,
+      "repeat": 280.5935589969158,
+      "newSource": 291.69704499840736,
+      "peakRssMiB": 163.66015625,
+      "heapAfterGcMiB": 18.06476593017578
+    },
+    "elk": {
+      "cold": 913.1978510022163,
+      "repeat": 252.57458001375198,
+      "newSource": 293.91922798752785,
+      "peakRssMiB": 184.421875,
+      "heapAfterGcMiB": 30.691123962402344
+    }
+  },
+  {
+    "id": "scaling:state:8",
+    "family": "state",
+    "cache": 1,
+    "eligiblePositivePair": true,
+    "native": {
+      "cold": 193.6006239950657,
+      "repeat": 4.299010992050171,
+      "newSource": 17.199857980012894,
+      "peakRssMiB": 80.26953125,
+      "heapAfterGcMiB": 15.114097595214844
+    },
+    "elk": {
+      "cold": 733.4869470000267,
+      "repeat": 3.7329260110855103,
+      "newSource": 18.42271599173546,
+      "peakRssMiB": 104.0546875,
+      "heapAfterGcMiB": 26.374465942382812
+    }
+  },
+  {
+    "id": "scaling:state:32",
+    "family": "state",
+    "cache": 1,
+    "eligiblePositivePair": true,
+    "native": {
+      "cold": 253.21395200490952,
+      "repeat": 7.960235983133316,
+      "newSource": 59.48279598355293,
+      "peakRssMiB": 93.2109375,
+      "heapAfterGcMiB": 17.052627563476562
+    },
+    "elk": {
+      "cold": 681.7345149815083,
+      "repeat": 6.547811985015869,
+      "newSource": 56.916663974523544,
+      "peakRssMiB": 123.23828125,
+      "heapAfterGcMiB": 29.52233123779297
+    }
+  },
+  {
+    "id": "scaling:state:128",
+    "family": "state",
+    "cache": 1,
+    "eligiblePositivePair": true,
+    "native": {
+      "cold": 401.30314001441,
+      "repeat": 16.597377002239227,
+      "newSource": 147.76154798269272,
+      "peakRssMiB": 119.8671875,
+      "heapAfterGcMiB": 17.392608642578125
+    },
+    "elk": {
+      "cold": 849.111074000597,
+      "repeat": 21.47715499997139,
+      "newSource": 158.07245498895645,
+      "peakRssMiB": 161.4765625,
+      "heapAfterGcMiB": 32.48664093017578
+    }
+  },
+  {
+    "id": "scaling:er:8",
+    "family": "er",
+    "cache": 1,
+    "eligiblePositivePair": true,
+    "native": {
+      "cold": 147.1137459874153,
+      "repeat": 24.945883989334106,
+      "newSource": 20.069187998771667,
+      "peakRssMiB": 89.22265625,
+      "heapAfterGcMiB": 14.692062377929688
+    },
+    "elk": {
+      "cold": 362.13252598047256,
+      "repeat": 24.96483200788498,
+      "newSource": 20.27802801132202,
+      "peakRssMiB": 105.73046875,
+      "heapAfterGcMiB": 25.578216552734375
+    }
+  },
+  {
+    "id": "scaling:er:32",
+    "family": "er",
+    "cache": 1,
+    "eligiblePositivePair": true,
+    "native": {
+      "cold": 267.425458997488,
+      "repeat": 74.60973700881004,
+      "newSource": 78.76570901274681,
+      "peakRssMiB": 105.70703125,
+      "heapAfterGcMiB": 15.904220581054688
+    },
+    "elk": {
+      "cold": 490.51841300725937,
+      "repeat": 82.1055200099945,
+      "newSource": 73.07365697622299,
+      "peakRssMiB": 132.32421875,
+      "heapAfterGcMiB": 27.848655700683594
+    }
+  },
+  {
+    "id": "scaling:er:128",
+    "family": "er",
+    "cache": 1,
+    "eligiblePositivePair": true,
+    "native": {
+      "cold": 551.6760530173779,
+      "repeat": 249.36565500497818,
+      "newSource": 267.94469797611237,
+      "peakRssMiB": 167.59765625,
+      "heapAfterGcMiB": 17.756385803222656
+    },
+    "elk": {
+      "cold": 898.4662140011787,
+      "repeat": 256.9667130112648,
+      "newSource": 278.4281169772148,
+      "peakRssMiB": 205.4453125,
+      "heapAfterGcMiB": 32.376617431640625
+    }
+  },
+  {
+    "id": "adversarial:label-edit",
+    "family": "flowchart",
+    "cache": 1,
+    "eligiblePositivePair": true,
+    "native": {
+      "cold": 129.82690200209618,
+      "repeat": 2.8048259913921356,
+      "newSource": 10.452589005231857,
+      "edit": 2.0816629827022552,
+      "peakRssMiB": 75.37890625,
+      "heapAfterGcMiB": 14.053901672363281
+    },
+    "elk": {
+      "cold": 354.8336960077286,
+      "repeat": 3.0253080129623413,
+      "newSource": 10.724384009838104,
+      "edit": 1.6799795031547546,
+      "peakRssMiB": 94.578125,
+      "heapAfterGcMiB": 24.249984741210938
+    }
+  },
+  {
+    "id": "adversarial:parallel-reciprocal",
+    "family": "flowchart",
+    "cache": 1,
+    "eligiblePositivePair": true,
+    "native": {
+      "cold": 133.7050970196724,
+      "repeat": 2.829952985048294,
+      "newSource": 16.0049409866333,
+      "peakRssMiB": 76.359375,
+      "heapAfterGcMiB": 14.851409912109375
+    },
+    "elk": {
+      "cold": 381.2036290168762,
+      "repeat": 2.9272280037403107,
+      "newSource": 13.92671400308609,
+      "peakRssMiB": 96.64453125,
+      "heapAfterGcMiB": 25.49773406982422
+    }
+  },
+  {
+    "id": "adversarial:nested-groups",
+    "family": "flowchart",
+    "cache": 1,
+    "eligiblePositivePair": true,
+    "native": {
+      "cold": 135.8083499968052,
+      "repeat": 3.189087986946106,
+      "newSource": 15.081252992153168,
+      "peakRssMiB": 76.62890625,
+      "heapAfterGcMiB": 14.749038696289062
+    },
+    "elk": {
+      "cold": 412.32774099707603,
+      "repeat": 2.625212997198105,
+      "newSource": 14.06105500459671,
+      "peakRssMiB": 97.52734375,
+      "heapAfterGcMiB": 25.724700927734375
+    }
+  },
+  {
+    "id": "adversarial:wide-unicode",
+    "family": "flowchart",
+    "cache": 1,
+    "eligiblePositivePair": true,
+    "native": {
+      "cold": 133.6247269809246,
+      "repeat": 2.964015007019043,
+      "newSource": 10.952503979206085,
+      "peakRssMiB": 75.73046875,
+      "heapAfterGcMiB": 14.167839050292969
+    },
+    "elk": {
+      "cold": 331.0305899977684,
+      "repeat": 2.4961369931697845,
+      "newSource": 10.214473992586136,
+      "peakRssMiB": 93.82421875,
+      "heapAfterGcMiB": 24.368148803710938
+    }
+  },
+  {
+    "id": "adversarial:generated-looking-ids",
+    "family": "flowchart",
+    "cache": 1,
+    "eligiblePositivePair": true,
+    "native": {
+      "cold": 133.03010600805283,
+      "repeat": 3.413888990879059,
+      "newSource": 12.261339992284775,
+      "peakRssMiB": 75.7578125,
+      "heapAfterGcMiB": 14.397857666015625
+    },
+    "elk": {
+      "cold": 364.4737569987774,
+      "repeat": 3.0220790207386017,
+      "newSource": 16.633031994104385,
+      "peakRssMiB": 95.0859375,
+      "heapAfterGcMiB": 24.90441131591797
+    }
+  },
+  {
+    "id": "adversarial:quoted-labels",
+    "family": "flowchart",
+    "cache": 1,
+    "eligiblePositivePair": true,
+    "native": {
+      "cold": 128.8078480064869,
+      "repeat": 3.397617995738983,
+      "newSource": 11.10809201002121,
+      "peakRssMiB": 75.07421875,
+      "heapAfterGcMiB": 14.079086303710938
+    },
+    "elk": {
+      "cold": 361.81983998417854,
+      "repeat": 2.2367600202560425,
+      "newSource": 11.966740995645523,
+      "peakRssMiB": 93.87109375,
+      "heapAfterGcMiB": 24.29192352294922
+    }
+  },
+  {
+    "id": "adversarial:invalid-recovery",
+    "family": "flowchart",
+    "cache": 1,
+    "eligiblePositivePair": true,
+    "native": {
+      "cold": 120.42362600564957,
+      "repeat": 2.9954150021076202,
+      "newSource": 11.036893010139465,
+      "peakRssMiB": 75.5234375,
+      "heapAfterGcMiB": 14.072151184082031
+    },
+    "elk": {
+      "cold": 331.48138999938965,
+      "repeat": 2.741835981607437,
+      "newSource": 10.695419013500214,
+      "peakRssMiB": 94.77734375,
+      "heapAfterGcMiB": 24.277320861816406
+    }
+  },
+  {
+    "id": "adversarial:configuration-reset",
+    "family": "flowchart",
+    "cache": 1,
+    "eligiblePositivePair": false,
+    "native": {
+      "cold": 8.78872099518776,
+      "repeat": 0.07168218067714147,
+      "newSource": 0.052120667237501875,
+      "edit": 0.03464346925417582,
+      "peakRssMiB": 75.59375,
+      "heapAfterGcMiB": 14.373863220214844
+    },
+    "elk": {
+      "cold": 8.729483991861343,
+      "repeat": 0.06669713258743286,
+      "newSource": 0.05319818383768985,
+      "edit": 0.03615119733980724,
+      "peakRssMiB": 75.48828125,
+      "heapAfterGcMiB": 14.374130249023438
+    }
+  },
+  {
+    "id": "invalid:missing-endpoints",
+    "family": "flowchart",
+    "cache": 1,
+    "eligiblePositivePair": false,
+    "native": {
+      "cold": 27.5765800178051,
+      "repeat": 1.6330955028533936,
+      "newSource": 1.3787380009889603,
+      "peakRssMiB": 71.26171875,
+      "heapAfterGcMiB": 11.52197265625
+    },
+    "elk": {
+      "cold": 29.48471400141716,
+      "repeat": 1.569375991821289,
+      "newSource": 1.2378614991903305,
+      "peakRssMiB": 71.81640625,
+      "heapAfterGcMiB": 11.54205322265625
+    }
+  }
+]

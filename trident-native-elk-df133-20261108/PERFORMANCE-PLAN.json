@@ -1,0 +1,49 @@
+{
+  "source": "df133c69480e71d230a0e9256b1103cc5068bd22",
+  "Trident": "f080278e31e4202ca89d524e4ee9e4cf3cbff038",
+  "artifactIdentity": "IDENTITY-FINAL.json",
+  "cases": "All27 graph-related original portable cases;22 remaining portable cases listed separately because graph backend selection doesnotchange their renderer.",
+  "lanes": [
+    "Native fallbacknone",
+    "ELK fallbacknone"
+  ],
+  "cacheRegimes": [
+    0,
+    1
+  ],
+  "warm": {
+    "rounds": 1,
+    "replicas": [
+      "A0",
+      "A1",
+      "B"
+    ],
+    "samplesPerTrack": 7,
+    "minSampleMs": 2,
+    "scope": "Three freshprocesses percase/backend/cache; warmrepeat, commentnewsource and authorededit separately"
+  },
+  "cold": {
+    "rounds": 1,
+    "replicas": [
+      "A0",
+      "A1",
+      "B"
+    ],
+    "samplesPerReplica": 1,
+    "preparationConcurrency": 3,
+    "scope": "Three freshprocesses, imports prepared behind idlebarrier, APIserial"
+  },
+  "resources": {
+    "baselineProcessesPerCell": 3,
+    "memoryProcessesPerCell": 3,
+    "observer": "Extracted Debian GNUtime1.9-0.2 amd64; exactbinarysha recorded",
+    "scope": "APIreturn/GCreleased memory separate from wholeworkerCPU/peakRSS includingqualification"
+  },
+  "retention": "Original Trident1000-call flowchart8 diagnostic once/backend/cache, separate from memory snapshots",
+  "qualification": "Original portable fidelity scopes and failures retained. Dedicated original Trident meaning/paint observers on30 expanded graphcases supplement it. Neither proves allvisiblecorrectness.",
+  "calibration": "Bounded exploratory run: below existing Trident5round/31warm/20cold defaults; summaries must remain uncalibrated, no fullperformancequalification or generalreplacementratio.",
+  "scheduling": "Backendorder alternatespercase/phase; replicasrotate; no concurrentbackendAPIcalls, profiling, builds, orbrowserobserver; allcollectionafterfidelitybrowserclosed.",
+  "publicBoundary": "Same actual public renderMermaidSVG + bytecount; not fullSVG+receipt benchmark. Clone/import/oracle/qualification outsideclock.",
+  "controls": "DefaultELK prelude semantics preserved and recorded. SourcefontSize contract failure kept, never removed from enrollment.",
+  "allowance": "Originalproductcaps/defaults/versions unchanged; no production source changes; Replacement24 sealed"
+}

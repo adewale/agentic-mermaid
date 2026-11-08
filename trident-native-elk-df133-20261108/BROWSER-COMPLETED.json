@@ -1,0 +1,44 @@
+{
+  "lanes": [
+    {
+      "backend": "agentic",
+      "status": "passed",
+      "requests": 39,
+      "totals": {
+        "raw": 1446662,
+        "gzip9": 477216,
+        "brotli11": 407641
+      },
+      "product": {
+        "raw": 1445372,
+        "gzip9": 476485,
+        "brotli11": 407052
+      },
+      "adapter": {
+        "raw": 1290,
+        "gzip9": 731,
+        "brotli11": 589
+      }
+    },
+    {
+      "backend": "elk",
+      "status": "passed",
+      "requests": 37,
+      "totals": {
+        "raw": 2738602,
+        "gzip9": 852718,
+        "brotli11": 683274
+      },
+      "product": {
+        "raw": 2737316,
+        "gzip9": 851989,
+        "brotli11": 682687
+      },
+      "adapter": {
+        "raw": 1286,
+        "gzip9": 729,
+        "brotli11": 587
+      }
+    }
+  ]
+}

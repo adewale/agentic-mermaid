@@ -1,0 +1,2051 @@
+{
+  "rows": [
+    {
+      "id": "family:flowchart",
+      "backend": "agentic",
+      "variant": "seed",
+      "expectedAccepted": true,
+      "preludes": [],
+      "returned": true,
+      "svgSha256": "8a60671ca3b25d57a7c663fcd7939d603dd6079f0f1cec5a5bbad98f56a2d9e3",
+      "proof": "passed",
+      "decisions": [
+        {
+          "requested": "agentic",
+          "fallback": "none",
+          "selected": "agentic",
+          "attempts": [
+            {
+              "backend": "agentic",
+              "outcome": "selected"
+            }
+          ],
+          "implementation": "agentic-layered@28",
+          "role": "primary"
+        }
+      ],
+      "actualSelectionMatches": true,
+      "representativeSvgBindings": [
+        {
+          "cache": 0,
+          "exists": true,
+          "exact": true
+        },
+        {
+          "cache": 1,
+          "exists": true,
+          "exact": true
+        }
+      ]
+    },
+    {
+      "id": "family:flowchart",
+      "backend": "elk",
+      "variant": "seed",
+      "expectedAccepted": true,
+      "preludes": [],
+      "returned": true,
+      "svgSha256": "8a60671ca3b25d57a7c663fcd7939d603dd6079f0f1cec5a5bbad98f56a2d9e3",
+      "proof": "passed",
+      "decisions": [
+        {
+          "requested": "elk",
+          "fallback": "none",
+          "selected": "elk",
+          "attempts": [
+            {
+              "backend": "elk",
+              "outcome": "selected"
+            }
+          ],
+          "implementation": "elk-layered@1",
+          "role": "primary"
+        }
+      ],
+      "actualSelectionMatches": true,
+      "representativeSvgBindings": [
+        {
+          "cache": 0,
+          "exists": true,
+          "exact": true
+        },
+        {
+          "cache": 1,
+          "exists": true,
+          "exact": true
+        }
+      ]
+    },
+    {
+      "id": "family:state",
+      "backend": "agentic",
+      "variant": "seed",
+      "expectedAccepted": true,
+      "preludes": [],
+      "returned": true,
+      "svgSha256": "5e01d14be1b1de8a0ac9717f1ce14d767b0e04f03fe6a65cded197bf4a46eb44",
+      "proof": "passed",
+      "decisions": [
+        {
+          "requested": "agentic",
+          "fallback": "none",
+          "selected": "agentic",
+          "attempts": [
+            {
+              "backend": "agentic",
+              "outcome": "selected"
+            }
+          ],
+          "implementation": "agentic-layered@28",
+          "role": "primary"
+        }
+      ],
+      "actualSelectionMatches": true,
+      "representativeSvgBindings": [
+        {
+          "cache": 0,
+          "exists": true,
+          "exact": true
+        },
+        {
+          "cache": 1,
+          "exists": true,
+          "exact": true
+        }
+      ]
+    },
+    {
+      "id": "family:state",
+      "backend": "elk",
+      "variant": "seed",
+      "expectedAccepted": true,
+      "preludes": [],
+      "returned": true,
+      "svgSha256": "7c1ee9cd47b8215a40df9bb1fd84c2dd8b1a57baa997fd76dcee12356aef4876",
+      "proof": "passed",
+      "decisions": [
+        {
+          "requested": "elk",
+          "fallback": "none",
+          "selected": "elk",
+          "attempts": [
+            {
+              "backend": "elk",
+              "outcome": "selected"
+            }
+          ],
+          "implementation": "elk-layered@1",
+          "role": "primary"
+        }
+      ],
+      "actualSelectionMatches": true,
+      "representativeSvgBindings": [
+        {
+          "cache": 0,
+          "exists": true,
+          "exact": true
+        },
+        {
+          "cache": 1,
+          "exists": true,
+          "exact": true
+        }
+      ]
+    },
+    {
+      "id": "family:class",
+      "backend": "agentic",
+      "variant": "seed",
+      "expectedAccepted": true,
+      "preludes": [],
+      "returned": true,
+      "svgSha256": "0d2fdbd3844b2563cbf4a630a2a5c319fa714ab6f8b25573ed6454756ca88e95",
+      "proof": "passed",
+      "decisions": [
+        {
+          "requested": "agentic",
+          "fallback": "none",
+          "selected": "agentic",
+          "attempts": [
+            {
+              "backend": "agentic",
+              "outcome": "selected"
+            }
+          ],
+          "implementation": "agentic-layered@28",
+          "role": "primary"
+        }
+      ],
+      "actualSelectionMatches": true,
+      "representativeSvgBindings": [
+        {
+          "cache": 0,
+          "exists": true,
+          "exact": true
+        },
+        {
+          "cache": 1,
+          "exists": true,
+          "exact": true
+        }
+      ]
+    },
+    {
+      "id": "family:class",
+      "backend": "elk",
+      "variant": "seed",
+      "expectedAccepted": true,
+      "preludes": [],
+      "returned": true,
+      "svgSha256": "1f2da6ace94abf1fd152373d056ac20977abfca11f7c109f9448a239bb25dbb5",
+      "proof": "passed",
+      "decisions": [
+        {
+          "requested": "elk",
+          "fallback": "none",
+          "selected": "elk",
+          "attempts": [
+            {
+              "backend": "elk",
+              "outcome": "selected"
+            }
+          ],
+          "implementation": "elk-layered@1",
+          "role": "primary"
+        }
+      ],
+      "actualSelectionMatches": true,
+      "representativeSvgBindings": [
+        {
+          "cache": 0,
+          "exists": true,
+          "exact": true
+        },
+        {
+          "cache": 1,
+          "exists": true,
+          "exact": true
+        }
+      ]
+    },
+    {
+      "id": "family:er",
+      "backend": "agentic",
+      "variant": "seed",
+      "expectedAccepted": true,
+      "preludes": [],
+      "returned": true,
+      "svgSha256": "6a3b7f68710b81f6615d9f8628e84e07af41a1547cff82f6451a9c0d9aadf936",
+      "proof": "passed",
+      "decisions": [
+        {
+          "requested": "agentic",
+          "fallback": "none",
+          "selected": "agentic",
+          "attempts": [
+            {
+              "backend": "agentic",
+              "outcome": "selected"
+            }
+          ],
+          "implementation": "agentic-layered@28",
+          "role": "primary"
+        }
+      ],
+      "actualSelectionMatches": true,
+      "representativeSvgBindings": [
+        {
+          "cache": 0,
+          "exists": true,
+          "exact": true
+        },
+        {
+          "cache": 1,
+          "exists": true,
+          "exact": true
+        }
+      ]
+    },
+    {
+      "id": "family:er",
+      "backend": "elk",
+      "variant": "seed",
+      "expectedAccepted": true,
+      "preludes": [],
+      "returned": true,
+      "svgSha256": "e532c8934f3fa1bcb019ff050ca3db209bfd95082afb89b1fb0292ee22c547d4",
+      "proof": "passed",
+      "decisions": [
+        {
+          "requested": "elk",
+          "fallback": "none",
+          "selected": "elk",
+          "attempts": [
+            {
+              "backend": "elk",
+              "outcome": "selected"
+            }
+          ],
+          "implementation": "elk-layered@1",
+          "role": "primary"
+        }
+      ],
+      "actualSelectionMatches": true,
+      "representativeSvgBindings": [
+        {
+          "cache": 0,
+          "exists": true,
+          "exact": true
+        },
+        {
+          "cache": 1,
+          "exists": true,
+          "exact": true
+        }
+      ]
+    },
+    {
+      "id": "family:architecture",
+      "backend": "agentic",
+      "variant": "seed",
+      "expectedAccepted": true,
+      "preludes": [],
+      "returned": true,
+      "svgSha256": "8864e089334289bacb44f67df966a65f5011a71e6e8f2106c0f7e9075e4de307",
+      "proof": "passed",
+      "decisions": [
+        {
+          "requested": "agentic",
+          "fallback": "none",
+          "selected": "agentic",
+          "attempts": [
+            {
+              "backend": "agentic",
+              "outcome": "selected"
+            }
+          ],
+          "implementation": "agentic-layered@28",
+          "role": "primary"
+        }
+      ],
+      "actualSelectionMatches": true,
+      "representativeSvgBindings": [
+        {
+          "cache": 0,
+          "exists": true,
+          "exact": true
+        },
+        {
+          "cache": 1,
+          "exists": true,
+          "exact": true
+        }
+      ]
+    },
+    {
+      "id": "family:architecture",
+      "backend": "elk",
+      "variant": "seed",
+      "expectedAccepted": true,
+      "preludes": [],
+      "returned": true,
+      "svgSha256": "8864e089334289bacb44f67df966a65f5011a71e6e8f2106c0f7e9075e4de307",
+      "proof": "passed",
+      "decisions": [
+        {
+          "requested": "elk",
+          "fallback": "none",
+          "selected": "elk",
+          "attempts": [
+            {
+              "backend": "elk",
+              "outcome": "selected"
+            }
+          ],
+          "implementation": "elk-layered@1",
+          "role": "primary"
+        }
+      ],
+      "actualSelectionMatches": true,
+      "representativeSvgBindings": [
+        {
+          "cache": 0,
+          "exists": true,
+          "exact": true
+        },
+        {
+          "cache": 1,
+          "exists": true,
+          "exact": true
+        }
+      ]
+    },
+    {
+      "id": "family:requirement",
+      "backend": "agentic",
+      "variant": "seed",
+      "expectedAccepted": true,
+      "preludes": [],
+      "returned": true,
+      "svgSha256": "fa4b3266cca1cc39eb765546366fb0552d8f14641fb568fdf375b6e3ff5d4779",
+      "proof": "passed",
+      "decisions": [
+        {
+          "requested": "agentic",
+          "fallback": "none",
+          "selected": "agentic",
+          "attempts": [
+            {
+              "backend": "agentic",
+              "outcome": "selected"
+            }
+          ],
+          "implementation": "agentic-layered@28",
+          "role": "primary"
+        }
+      ],
+      "actualSelectionMatches": true,
+      "representativeSvgBindings": [
+        {
+          "cache": 0,
+          "exists": true,
+          "exact": true
+        },
+        {
+          "cache": 1,
+          "exists": true,
+          "exact": true
+        }
+      ]
+    },
+    {
+      "id": "family:requirement",
+      "backend": "elk",
+      "variant": "seed",
+      "expectedAccepted": true,
+      "preludes": [],
+      "returned": true,
+      "svgSha256": "00325fe9782ba093ce736225bb9978db47d2ae55aabc5c4ddf477254bbfc3ec9",
+      "proof": "passed",
+      "decisions": [
+        {
+          "requested": "elk",
+          "fallback": "none",
+          "selected": "elk",
+          "attempts": [
+            {
+              "backend": "elk",
+              "outcome": "selected"
+            }
+          ],
+          "implementation": "elk-layered@1",
+          "role": "primary"
+        }
+      ],
+      "actualSelectionMatches": true,
+      "representativeSvgBindings": [
+        {
+          "cache": 0,
+          "exists": true,
+          "exact": true
+        },
+        {
+          "cache": 1,
+          "exists": true,
+          "exact": true
+        }
+      ]
+    },
+    {
+      "id": "scaling:flowchart:8",
+      "backend": "agentic",
+      "variant": "seed",
+      "expectedAccepted": true,
+      "preludes": [],
+      "returned": true,
+      "svgSha256": "43a028e396258ed78da49b2ac6af3ce08d0da89e50f206e456806d33ce64d801",
+      "proof": "passed",
+      "decisions": [
+        {
+          "requested": "agentic",
+          "fallback": "none",
+          "selected": "agentic",
+          "attempts": [
+            {
+              "backend": "agentic",
+              "outcome": "selected"
+            }
+          ],
+          "implementation": "agentic-layered@28",
+          "role": "primary"
+        }
+      ],
+      "actualSelectionMatches": true,
+      "representativeSvgBindings": [
+        {
+          "cache": 0,
+          "exists": true,
+          "exact": true
+        },
+        {
+          "cache": 1,
+          "exists": true,
+          "exact": true
+        }
+      ]
+    },
+    {
+      "id": "scaling:flowchart:8",
+      "backend": "elk",
+      "variant": "seed",
+      "expectedAccepted": true,
+      "preludes": [],
+      "returned": true,
+      "svgSha256": "43a028e396258ed78da49b2ac6af3ce08d0da89e50f206e456806d33ce64d801",
+      "proof": "passed",
+      "decisions": [
+        {
+          "requested": "elk",
+          "fallback": "none",
+          "selected": "elk",
+          "attempts": [
+            {
+              "backend": "elk",
+              "outcome": "selected"
+            }
+          ],
+          "implementation": "elk-layered@1",
+          "role": "primary"
+        }
+      ],
+      "actualSelectionMatches": true,
+      "representativeSvgBindings": [
+        {
+          "cache": 0,
+          "exists": true,
+          "exact": true
+        },
+        {
+          "cache": 1,
+          "exists": true,
+          "exact": true
+        }
+      ]
+    },
+    {
+      "id": "scaling:flowchart:32",
+      "backend": "agentic",
+      "variant": "seed",
+      "expectedAccepted": true,
+      "preludes": [],
+      "returned": true,
+      "svgSha256": "736399dd63c872a0adf14381fced683068f543d8c334e175d1aec340e5ed0e6a",
+      "proof": "passed",
+      "decisions": [
+        {
+          "requested": "agentic",
+          "fallback": "none",
+          "selected": "agentic",
+          "attempts": [
+            {
+              "backend": "agentic",
+              "outcome": "selected"
+            }
+          ],
+          "implementation": "agentic-layered@28",
+          "role": "primary"
+        }
+      ],
+      "actualSelectionMatches": true,
+      "representativeSvgBindings": [
+        {
+          "cache": 0,
+          "exists": true,
+          "exact": true
+        },
+        {
+          "cache": 1,
+          "exists": true,
+          "exact": true
+        }
+      ]
+    },
+    {
+      "id": "scaling:flowchart:32",
+      "backend": "elk",
+      "variant": "seed",
+      "expectedAccepted": true,
+      "preludes": [],
+      "returned": true,
+      "svgSha256": "736399dd63c872a0adf14381fced683068f543d8c334e175d1aec340e5ed0e6a",
+      "proof": "passed",
+      "decisions": [
+        {
+          "requested": "elk",
+          "fallback": "none",
+          "selected": "elk",
+          "attempts": [
+            {
+              "backend": "elk",
+              "outcome": "selected"
+            }
+          ],
+          "implementation": "elk-layered@1",
+          "role": "primary"
+        }
+      ],
+      "actualSelectionMatches": true,
+      "representativeSvgBindings": [
+        {
+          "cache": 0,
+          "exists": true,
+          "exact": true
+        },
+        {
+          "cache": 1,
+          "exists": true,
+          "exact": true
+        }
+      ]
+    },
+    {
+      "id": "scaling:flowchart:128",
+      "backend": "agentic",
+      "variant": "seed",
+      "expectedAccepted": true,
+      "preludes": [],
+      "returned": true,
+      "svgSha256": "3cf427ffb5193dc79275b3d7edcbf7c15dc70d72dc987ee23cb1379e7d1e0ea0",
+      "proof": "unverified",
+      "decisions": [
+        {
+          "requested": "agentic",
+          "fallback": "none",
+          "selected": "agentic",
+          "attempts": [
+            {
+              "backend": "agentic",
+              "outcome": "selected"
+            }
+          ],
+          "implementation": "agentic-layered@28",
+          "role": "primary"
+        }
+      ],
+      "actualSelectionMatches": true,
+      "representativeSvgBindings": [
+        {
+          "cache": 0,
+          "exists": true,
+          "exact": true
+        },
+        {
+          "cache": 1,
+          "exists": true,
+          "exact": true
+        }
+      ]
+    },
+    {
+      "id": "scaling:flowchart:128",
+      "backend": "elk",
+      "variant": "seed",
+      "expectedAccepted": true,
+      "preludes": [],
+      "returned": true,
+      "svgSha256": "3cf427ffb5193dc79275b3d7edcbf7c15dc70d72dc987ee23cb1379e7d1e0ea0",
+      "proof": "unverified",
+      "decisions": [
+        {
+          "requested": "elk",
+          "fallback": "none",
+          "selected": "elk",
+          "attempts": [
+            {
+              "backend": "elk",
+              "outcome": "selected"
+            }
+          ],
+          "implementation": "elk-layered@1",
+          "role": "primary"
+        }
+      ],
+      "actualSelectionMatches": true,
+      "representativeSvgBindings": [
+        {
+          "cache": 0,
+          "exists": true,
+          "exact": true
+        },
+        {
+          "cache": 1,
+          "exists": true,
+          "exact": true
+        }
+      ]
+    },
+    {
+      "id": "scaling:class:8",
+      "backend": "agentic",
+      "variant": "seed",
+      "expectedAccepted": true,
+      "preludes": [],
+      "returned": true,
+      "svgSha256": "4069b7da2fcb57825110ef2012066d1e9d9fe8d66828ebca0b68e04879f82eb1",
+      "proof": "passed",
+      "decisions": [
+        {
+          "requested": "agentic",
+          "fallback": "none",
+          "selected": "agentic",
+          "attempts": [
+            {
+              "backend": "agentic",
+              "outcome": "selected"
+            }
+          ],
+          "implementation": "agentic-layered@28",
+          "role": "primary"
+        }
+      ],
+      "actualSelectionMatches": true,
+      "representativeSvgBindings": [
+        {
+          "cache": 0,
+          "exists": true,
+          "exact": true
+        },
+        {
+          "cache": 1,
+          "exists": true,
+          "exact": true
+        }
+      ]
+    },
+    {
+      "id": "scaling:class:8",
+      "backend": "elk",
+      "variant": "seed",
+      "expectedAccepted": true,
+      "preludes": [],
+      "returned": true,
+      "svgSha256": "4069b7da2fcb57825110ef2012066d1e9d9fe8d66828ebca0b68e04879f82eb1",
+      "proof": "passed",
+      "decisions": [
+        {
+          "requested": "elk",
+          "fallback": "none",
+          "selected": "elk",
+          "attempts": [
+            {
+              "backend": "elk",
+              "outcome": "selected"
+            }
+          ],
+          "implementation": "elk-layered@1",
+          "role": "primary"
+        }
+      ],
+      "actualSelectionMatches": true,
+      "representativeSvgBindings": [
+        {
+          "cache": 0,
+          "exists": true,
+          "exact": true
+        },
+        {
+          "cache": 1,
+          "exists": true,
+          "exact": true
+        }
+      ]
+    },
+    {
+      "id": "scaling:class:32",
+      "backend": "agentic",
+      "variant": "seed",
+      "expectedAccepted": true,
+      "preludes": [],
+      "returned": true,
+      "svgSha256": "4119efe0044b27b9a1d3da76c1d8efb12523a50bdac1912e9eb86a720eace8ba",
+      "proof": "passed",
+      "decisions": [
+        {
+          "requested": "agentic",
+          "fallback": "none",
+          "selected": "agentic",
+          "attempts": [
+            {
+              "backend": "agentic",
+              "outcome": "selected"
+            }
+          ],
+          "implementation": "agentic-layered@28",
+          "role": "primary"
+        }
+      ],
+      "actualSelectionMatches": true,
+      "representativeSvgBindings": [
+        {
+          "cache": 0,
+          "exists": true,
+          "exact": true
+        },
+        {
+          "cache": 1,
+          "exists": true,
+          "exact": true
+        }
+      ]
+    },
+    {
+      "id": "scaling:class:32",
+      "backend": "elk",
+      "variant": "seed",
+      "expectedAccepted": true,
+      "preludes": [],
+      "returned": true,
+      "svgSha256": "4119efe0044b27b9a1d3da76c1d8efb12523a50bdac1912e9eb86a720eace8ba",
+      "proof": "passed",
+      "decisions": [
+        {
+          "requested": "elk",
+          "fallback": "none",
+          "selected": "elk",
+          "attempts": [
+            {
+              "backend": "elk",
+              "outcome": "selected"
+            }
+          ],
+          "implementation": "elk-layered@1",
+          "role": "primary"
+        }
+      ],
+      "actualSelectionMatches": true,
+      "representativeSvgBindings": [
+        {
+          "cache": 0,
+          "exists": true,
+          "exact": true
+        },
+        {
+          "cache": 1,
+          "exists": true,
+          "exact": true
+        }
+      ]
+    },
+    {
+      "id": "scaling:class:128",
+      "backend": "agentic",
+      "variant": "seed",
+      "expectedAccepted": true,
+      "preludes": [],
+      "returned": true,
+      "svgSha256": "bfbb77b3c6f56e2126b77b9ec2d23afb556a261c111fcd93e84cbc6879487023",
+      "proof": "passed",
+      "decisions": [
+        {
+          "requested": "agentic",
+          "fallback": "none",
+          "selected": "agentic",
+          "attempts": [
+            {
+              "backend": "agentic",
+              "outcome": "selected"
+            }
+          ],
+          "implementation": "agentic-layered@28",
+          "role": "primary"
+        }
+      ],
+      "actualSelectionMatches": true,
+      "representativeSvgBindings": [
+        {
+          "cache": 0,
+          "exists": true,
+          "exact": true
+        },
+        {
+          "cache": 1,
+          "exists": true,
+          "exact": true
+        }
+      ]
+    },
+    {
+      "id": "scaling:class:128",
+      "backend": "elk",
+      "variant": "seed",
+      "expectedAccepted": true,
+      "preludes": [],
+      "returned": true,
+      "svgSha256": "bfbb77b3c6f56e2126b77b9ec2d23afb556a261c111fcd93e84cbc6879487023",
+      "proof": "passed",
+      "decisions": [
+        {
+          "requested": "elk",
+          "fallback": "none",
+          "selected": "elk",
+          "attempts": [
+            {
+              "backend": "elk",
+              "outcome": "selected"
+            }
+          ],
+          "implementation": "elk-layered@1",
+          "role": "primary"
+        }
+      ],
+      "actualSelectionMatches": true,
+      "representativeSvgBindings": [
+        {
+          "cache": 0,
+          "exists": true,
+          "exact": true
+        },
+        {
+          "cache": 1,
+          "exists": true,
+          "exact": true
+        }
+      ]
+    },
+    {
+      "id": "scaling:state:8",
+      "backend": "agentic",
+      "variant": "seed",
+      "expectedAccepted": true,
+      "preludes": [],
+      "returned": true,
+      "svgSha256": "d16337421447b563fa69486d0d158a36cfd3f7ab83c3405b1a67de5ac2ae71c8",
+      "proof": "passed",
+      "decisions": [
+        {
+          "requested": "agentic",
+          "fallback": "none",
+          "selected": "agentic",
+          "attempts": [
+            {
+              "backend": "agentic",
+              "outcome": "selected"
+            }
+          ],
+          "implementation": "agentic-layered@28",
+          "role": "primary"
+        }
+      ],
+      "actualSelectionMatches": true,
+      "representativeSvgBindings": [
+        {
+          "cache": 0,
+          "exists": true,
+          "exact": true
+        },
+        {
+          "cache": 1,
+          "exists": true,
+          "exact": true
+        }
+      ]
+    },
+    {
+      "id": "scaling:state:8",
+      "backend": "elk",
+      "variant": "seed",
+      "expectedAccepted": true,
+      "preludes": [],
+      "returned": true,
+      "svgSha256": "d16337421447b563fa69486d0d158a36cfd3f7ab83c3405b1a67de5ac2ae71c8",
+      "proof": "passed",
+      "decisions": [
+        {
+          "requested": "elk",
+          "fallback": "none",
+          "selected": "elk",
+          "attempts": [
+            {
+              "backend": "elk",
+              "outcome": "selected"
+            }
+          ],
+          "implementation": "elk-layered@1",
+          "role": "primary"
+        }
+      ],
+      "actualSelectionMatches": true,
+      "representativeSvgBindings": [
+        {
+          "cache": 0,
+          "exists": true,
+          "exact": true
+        },
+        {
+          "cache": 1,
+          "exists": true,
+          "exact": true
+        }
+      ]
+    },
+    {
+      "id": "scaling:state:32",
+      "backend": "agentic",
+      "variant": "seed",
+      "expectedAccepted": true,
+      "preludes": [],
+      "returned": true,
+      "svgSha256": "cc6544fae562fde196edeae825976377d5df66e0b3c08788a25a8b41095f84a6",
+      "proof": "passed",
+      "decisions": [
+        {
+          "requested": "agentic",
+          "fallback": "none",
+          "selected": "agentic",
+          "attempts": [
+            {
+              "backend": "agentic",
+              "outcome": "selected"
+            }
+          ],
+          "implementation": "agentic-layered@28",
+          "role": "primary"
+        }
+      ],
+      "actualSelectionMatches": true,
+      "representativeSvgBindings": [
+        {
+          "cache": 0,
+          "exists": true,
+          "exact": true
+        },
+        {
+          "cache": 1,
+          "exists": true,
+          "exact": true
+        }
+      ]
+    },
+    {
+      "id": "scaling:state:32",
+      "backend": "elk",
+      "variant": "seed",
+      "expectedAccepted": true,
+      "preludes": [],
+      "returned": true,
+      "svgSha256": "cc6544fae562fde196edeae825976377d5df66e0b3c08788a25a8b41095f84a6",
+      "proof": "passed",
+      "decisions": [
+        {
+          "requested": "elk",
+          "fallback": "none",
+          "selected": "elk",
+          "attempts": [
+            {
+              "backend": "elk",
+              "outcome": "selected"
+            }
+          ],
+          "implementation": "elk-layered@1",
+          "role": "primary"
+        }
+      ],
+      "actualSelectionMatches": true,
+      "representativeSvgBindings": [
+        {
+          "cache": 0,
+          "exists": true,
+          "exact": true
+        },
+        {
+          "cache": 1,
+          "exists": true,
+          "exact": true
+        }
+      ]
+    },
+    {
+      "id": "scaling:state:128",
+      "backend": "agentic",
+      "variant": "seed",
+      "expectedAccepted": true,
+      "preludes": [],
+      "returned": true,
+      "svgSha256": "d647efb035a0db22460bd164a5655fec2a4b08fd80643f7a1ff72554ac0e915f",
+      "proof": "unverified",
+      "decisions": [
+        {
+          "requested": "agentic",
+          "fallback": "none",
+          "selected": "agentic",
+          "attempts": [
+            {
+              "backend": "agentic",
+              "outcome": "selected"
+            }
+          ],
+          "implementation": "agentic-layered@28",
+          "role": "primary"
+        }
+      ],
+      "actualSelectionMatches": true,
+      "representativeSvgBindings": [
+        {
+          "cache": 0,
+          "exists": true,
+          "exact": true
+        },
+        {
+          "cache": 1,
+          "exists": true,
+          "exact": true
+        }
+      ]
+    },
+    {
+      "id": "scaling:state:128",
+      "backend": "elk",
+      "variant": "seed",
+      "expectedAccepted": true,
+      "preludes": [],
+      "returned": true,
+      "svgSha256": "49d51d9c149922dc9745422d4f4256f183a5790b00edade5097d8b350593f839",
+      "proof": "unverified",
+      "decisions": [
+        {
+          "requested": "elk",
+          "fallback": "none",
+          "selected": "elk",
+          "attempts": [
+            {
+              "backend": "elk",
+              "outcome": "selected"
+            }
+          ],
+          "implementation": "elk-layered@1",
+          "role": "primary"
+        }
+      ],
+      "actualSelectionMatches": true,
+      "representativeSvgBindings": [
+        {
+          "cache": 0,
+          "exists": true,
+          "exact": true
+        },
+        {
+          "cache": 1,
+          "exists": true,
+          "exact": true
+        }
+      ]
+    },
+    {
+      "id": "scaling:er:8",
+      "backend": "agentic",
+      "variant": "seed",
+      "expectedAccepted": true,
+      "preludes": [],
+      "returned": true,
+      "svgSha256": "0f31434c0ad094a895d0152187276abdbbf00b058491130b8b8cb8d7451b61ac",
+      "proof": "passed",
+      "decisions": [
+        {
+          "requested": "agentic",
+          "fallback": "none",
+          "selected": "agentic",
+          "attempts": [
+            {
+              "backend": "agentic",
+              "outcome": "selected"
+            }
+          ],
+          "implementation": "agentic-layered@28",
+          "role": "primary"
+        }
+      ],
+      "actualSelectionMatches": true,
+      "representativeSvgBindings": [
+        {
+          "cache": 0,
+          "exists": true,
+          "exact": true
+        },
+        {
+          "cache": 1,
+          "exists": true,
+          "exact": true
+        }
+      ]
+    },
+    {
+      "id": "scaling:er:8",
+      "backend": "elk",
+      "variant": "seed",
+      "expectedAccepted": true,
+      "preludes": [],
+      "returned": true,
+      "svgSha256": "8405a9a382046db5693e59d49836c5739525d09e4b753a828aa76503134db59e",
+      "proof": "passed",
+      "decisions": [
+        {
+          "requested": "elk",
+          "fallback": "none",
+          "selected": "elk",
+          "attempts": [
+            {
+              "backend": "elk",
+              "outcome": "selected"
+            }
+          ],
+          "implementation": "elk-layered@1",
+          "role": "primary"
+        }
+      ],
+      "actualSelectionMatches": true,
+      "representativeSvgBindings": [
+        {
+          "cache": 0,
+          "exists": true,
+          "exact": true
+        },
+        {
+          "cache": 1,
+          "exists": true,
+          "exact": true
+        }
+      ]
+    },
+    {
+      "id": "scaling:er:32",
+      "backend": "agentic",
+      "variant": "seed",
+      "expectedAccepted": true,
+      "preludes": [],
+      "returned": true,
+      "svgSha256": "f148384d74c6adb0404809e1ee042d7541ec0b320ea5522d21e2116d9cb544b4",
+      "proof": "passed",
+      "decisions": [
+        {
+          "requested": "agentic",
+          "fallback": "none",
+          "selected": "agentic",
+          "attempts": [
+            {
+              "backend": "agentic",
+              "outcome": "selected"
+            }
+          ],
+          "implementation": "agentic-layered@28",
+          "role": "primary"
+        }
+      ],
+      "actualSelectionMatches": true,
+      "representativeSvgBindings": [
+        {
+          "cache": 0,
+          "exists": true,
+          "exact": true
+        },
+        {
+          "cache": 1,
+          "exists": true,
+          "exact": true
+        }
+      ]
+    },
+    {
+      "id": "scaling:er:32",
+      "backend": "elk",
+      "variant": "seed",
+      "expectedAccepted": true,
+      "preludes": [],
+      "returned": true,
+      "svgSha256": "72eb3c04420fade8ac829692e6b43af46dc4f40d4c35928267bb4f0642f4b68d",
+      "proof": "passed",
+      "decisions": [
+        {
+          "requested": "elk",
+          "fallback": "none",
+          "selected": "elk",
+          "attempts": [
+            {
+              "backend": "elk",
+              "outcome": "selected"
+            }
+          ],
+          "implementation": "elk-layered@1",
+          "role": "primary"
+        }
+      ],
+      "actualSelectionMatches": true,
+      "representativeSvgBindings": [
+        {
+          "cache": 0,
+          "exists": true,
+          "exact": true
+        },
+        {
+          "cache": 1,
+          "exists": true,
+          "exact": true
+        }
+      ]
+    },
+    {
+      "id": "scaling:er:128",
+      "backend": "agentic",
+      "variant": "seed",
+      "expectedAccepted": true,
+      "preludes": [],
+      "returned": true,
+      "svgSha256": "df952ddecc637791b574379efeeaa6aaad821bd5c3d241b9f9657e7927f9b6a5",
+      "proof": "passed",
+      "decisions": [
+        {
+          "requested": "agentic",
+          "fallback": "none",
+          "selected": "agentic",
+          "attempts": [
+            {
+              "backend": "agentic",
+              "outcome": "selected"
+            }
+          ],
+          "implementation": "agentic-layered@28",
+          "role": "primary"
+        }
+      ],
+      "actualSelectionMatches": true,
+      "representativeSvgBindings": [
+        {
+          "cache": 0,
+          "exists": true,
+          "exact": true
+        },
+        {
+          "cache": 1,
+          "exists": true,
+          "exact": true
+        }
+      ]
+    },
+    {
+      "id": "scaling:er:128",
+      "backend": "elk",
+      "variant": "seed",
+      "expectedAccepted": true,
+      "preludes": [],
+      "returned": true,
+      "svgSha256": "7faf4ceb75ec30e0509bb9902e4555c77077d7f4ce6f6c1e083732200b1650e0",
+      "proof": "passed",
+      "decisions": [
+        {
+          "requested": "elk",
+          "fallback": "none",
+          "selected": "elk",
+          "attempts": [
+            {
+              "backend": "elk",
+              "outcome": "selected"
+            }
+          ],
+          "implementation": "elk-layered@1",
+          "role": "primary"
+        }
+      ],
+      "actualSelectionMatches": true,
+      "representativeSvgBindings": [
+        {
+          "cache": 0,
+          "exists": true,
+          "exact": true
+        },
+        {
+          "cache": 1,
+          "exists": true,
+          "exact": true
+        }
+      ]
+    },
+    {
+      "id": "adversarial:label-edit",
+      "backend": "agentic",
+      "variant": "seed",
+      "expectedAccepted": true,
+      "preludes": [],
+      "returned": true,
+      "svgSha256": "8970961f31bc2607a6d6ee2fe92727d2f1bbb21ea4a4b484497baa471ac43949",
+      "proof": "passed",
+      "decisions": [
+        {
+          "requested": "agentic",
+          "fallback": "none",
+          "selected": "agentic",
+          "attempts": [
+            {
+              "backend": "agentic",
+              "outcome": "selected"
+            }
+          ],
+          "implementation": "agentic-layered@28",
+          "role": "primary"
+        }
+      ],
+      "actualSelectionMatches": true,
+      "representativeSvgBindings": [
+        {
+          "cache": 0,
+          "exists": true,
+          "exact": true
+        },
+        {
+          "cache": 1,
+          "exists": true,
+          "exact": true
+        }
+      ]
+    },
+    {
+      "id": "adversarial:label-edit",
+      "backend": "agentic",
+      "variant": "edit",
+      "expectedAccepted": true,
+      "preludes": [],
+      "returned": true,
+      "svgSha256": "7f16f38199eceaf38a0d5422babf48a49b7f6ed16e9ddebfe4c37b6a1df5e50e",
+      "proof": "passed",
+      "decisions": [
+        {
+          "requested": "agentic",
+          "fallback": "none",
+          "selected": "agentic",
+          "attempts": [
+            {
+              "backend": "agentic",
+              "outcome": "selected"
+            }
+          ],
+          "implementation": "agentic-layered@28",
+          "role": "primary"
+        }
+      ],
+      "actualSelectionMatches": true,
+      "representativeSvgBindings": []
+    },
+    {
+      "id": "adversarial:label-edit",
+      "backend": "elk",
+      "variant": "seed",
+      "expectedAccepted": true,
+      "preludes": [],
+      "returned": true,
+      "svgSha256": "8970961f31bc2607a6d6ee2fe92727d2f1bbb21ea4a4b484497baa471ac43949",
+      "proof": "passed",
+      "decisions": [
+        {
+          "requested": "elk",
+          "fallback": "none",
+          "selected": "elk",
+          "attempts": [
+            {
+              "backend": "elk",
+              "outcome": "selected"
+            }
+          ],
+          "implementation": "elk-layered@1",
+          "role": "primary"
+        }
+      ],
+      "actualSelectionMatches": true,
+      "representativeSvgBindings": [
+        {
+          "cache": 0,
+          "exists": true,
+          "exact": true
+        },
+        {
+          "cache": 1,
+          "exists": true,
+          "exact": true
+        }
+      ]
+    },
+    {
+      "id": "adversarial:label-edit",
+      "backend": "elk",
+      "variant": "edit",
+      "expectedAccepted": true,
+      "preludes": [],
+      "returned": true,
+      "svgSha256": "7f16f38199eceaf38a0d5422babf48a49b7f6ed16e9ddebfe4c37b6a1df5e50e",
+      "proof": "passed",
+      "decisions": [
+        {
+          "requested": "elk",
+          "fallback": "none",
+          "selected": "elk",
+          "attempts": [
+            {
+              "backend": "elk",
+              "outcome": "selected"
+            }
+          ],
+          "implementation": "elk-layered@1",
+          "role": "primary"
+        }
+      ],
+      "actualSelectionMatches": true,
+      "representativeSvgBindings": []
+    },
+    {
+      "id": "adversarial:parallel-reciprocal",
+      "backend": "agentic",
+      "variant": "seed",
+      "expectedAccepted": true,
+      "preludes": [],
+      "returned": true,
+      "svgSha256": "7fb617d6f11256a65446018f0ebfb5398a5e744d8bda97226b4e022a117b034c",
+      "proof": "passed",
+      "decisions": [
+        {
+          "requested": "agentic",
+          "fallback": "none",
+          "selected": "agentic",
+          "attempts": [
+            {
+              "backend": "agentic",
+              "outcome": "selected"
+            }
+          ],
+          "implementation": "agentic-layered@28",
+          "role": "primary"
+        }
+      ],
+      "actualSelectionMatches": true,
+      "representativeSvgBindings": [
+        {
+          "cache": 0,
+          "exists": true,
+          "exact": true
+        },
+        {
+          "cache": 1,
+          "exists": true,
+          "exact": true
+        }
+      ]
+    },
+    {
+      "id": "adversarial:parallel-reciprocal",
+      "backend": "elk",
+      "variant": "seed",
+      "expectedAccepted": true,
+      "preludes": [],
+      "returned": true,
+      "svgSha256": "3f7b551d77cc9453e04953a0ec48d9ab3f36f33a004ffb827aa0d97b9c6b59c3",
+      "proof": "passed",
+      "decisions": [
+        {
+          "requested": "elk",
+          "fallback": "none",
+          "selected": "elk",
+          "attempts": [
+            {
+              "backend": "elk",
+              "outcome": "selected"
+            }
+          ],
+          "implementation": "elk-layered@1",
+          "role": "primary"
+        }
+      ],
+      "actualSelectionMatches": true,
+      "representativeSvgBindings": [
+        {
+          "cache": 0,
+          "exists": true,
+          "exact": true
+        },
+        {
+          "cache": 1,
+          "exists": true,
+          "exact": true
+        }
+      ]
+    },
+    {
+      "id": "adversarial:nested-groups",
+      "backend": "agentic",
+      "variant": "seed",
+      "expectedAccepted": true,
+      "preludes": [],
+      "returned": true,
+      "svgSha256": "4943afa879531fbb0a8c0754931dd7b397b201a5a8952505bf929533228929b6",
+      "proof": "passed",
+      "decisions": [
+        {
+          "requested": "agentic",
+          "fallback": "none",
+          "selected": "agentic",
+          "attempts": [
+            {
+              "backend": "agentic",
+              "outcome": "selected"
+            }
+          ],
+          "implementation": "agentic-layered@28",
+          "role": "primary"
+        }
+      ],
+      "actualSelectionMatches": true,
+      "representativeSvgBindings": [
+        {
+          "cache": 0,
+          "exists": true,
+          "exact": true
+        },
+        {
+          "cache": 1,
+          "exists": true,
+          "exact": true
+        }
+      ]
+    },
+    {
+      "id": "adversarial:nested-groups",
+      "backend": "elk",
+      "variant": "seed",
+      "expectedAccepted": true,
+      "preludes": [],
+      "returned": true,
+      "svgSha256": "4fd1c777cecfcf5b9656d1eddff8938fc373155c3f1778d76413c2040f16968a",
+      "proof": "passed",
+      "decisions": [
+        {
+          "requested": "elk",
+          "fallback": "none",
+          "selected": "elk",
+          "attempts": [
+            {
+              "backend": "elk",
+              "outcome": "selected"
+            }
+          ],
+          "implementation": "elk-layered@1",
+          "role": "primary"
+        }
+      ],
+      "actualSelectionMatches": true,
+      "representativeSvgBindings": [
+        {
+          "cache": 0,
+          "exists": true,
+          "exact": true
+        },
+        {
+          "cache": 1,
+          "exists": true,
+          "exact": true
+        }
+      ]
+    },
+    {
+      "id": "adversarial:wide-unicode",
+      "backend": "agentic",
+      "variant": "seed",
+      "expectedAccepted": true,
+      "preludes": [],
+      "returned": true,
+      "svgSha256": "78bd15636b28ad30fcd61e68680dbb3d7e0c67713d0ba26c33447a88a7d6f113",
+      "proof": "passed",
+      "decisions": [
+        {
+          "requested": "agentic",
+          "fallback": "none",
+          "selected": "agentic",
+          "attempts": [
+            {
+              "backend": "agentic",
+              "outcome": "selected"
+            }
+          ],
+          "implementation": "agentic-layered@28",
+          "role": "primary"
+        }
+      ],
+      "actualSelectionMatches": true,
+      "representativeSvgBindings": [
+        {
+          "cache": 0,
+          "exists": true,
+          "exact": true
+        },
+        {
+          "cache": 1,
+          "exists": true,
+          "exact": true
+        }
+      ]
+    },
+    {
+      "id": "adversarial:wide-unicode",
+      "backend": "elk",
+      "variant": "seed",
+      "expectedAccepted": true,
+      "preludes": [],
+      "returned": true,
+      "svgSha256": "78bd15636b28ad30fcd61e68680dbb3d7e0c67713d0ba26c33447a88a7d6f113",
+      "proof": "passed",
+      "decisions": [
+        {
+          "requested": "elk",
+          "fallback": "none",
+          "selected": "elk",
+          "attempts": [
+            {
+              "backend": "elk",
+              "outcome": "selected"
+            }
+          ],
+          "implementation": "elk-layered@1",
+          "role": "primary"
+        }
+      ],
+      "actualSelectionMatches": true,
+      "representativeSvgBindings": [
+        {
+          "cache": 0,
+          "exists": true,
+          "exact": true
+        },
+        {
+          "cache": 1,
+          "exists": true,
+          "exact": true
+        }
+      ]
+    },
+    {
+      "id": "adversarial:generated-looking-ids",
+      "backend": "agentic",
+      "variant": "seed",
+      "expectedAccepted": true,
+      "preludes": [],
+      "returned": true,
+      "svgSha256": "bc52c36973b29a9f9638b3a21b2cbfa62442238f0fefed7446c5fc751857dcc3",
+      "proof": "passed",
+      "decisions": [
+        {
+          "requested": "agentic",
+          "fallback": "none",
+          "selected": "agentic",
+          "attempts": [
+            {
+              "backend": "agentic",
+              "outcome": "selected"
+            }
+          ],
+          "implementation": "agentic-layered@28",
+          "role": "primary"
+        }
+      ],
+      "actualSelectionMatches": true,
+      "representativeSvgBindings": [
+        {
+          "cache": 0,
+          "exists": true,
+          "exact": true
+        },
+        {
+          "cache": 1,
+          "exists": true,
+          "exact": true
+        }
+      ]
+    },
+    {
+      "id": "adversarial:generated-looking-ids",
+      "backend": "elk",
+      "variant": "seed",
+      "expectedAccepted": true,
+      "preludes": [],
+      "returned": true,
+      "svgSha256": "bc52c36973b29a9f9638b3a21b2cbfa62442238f0fefed7446c5fc751857dcc3",
+      "proof": "passed",
+      "decisions": [
+        {
+          "requested": "elk",
+          "fallback": "none",
+          "selected": "elk",
+          "attempts": [
+            {
+              "backend": "elk",
+              "outcome": "selected"
+            }
+          ],
+          "implementation": "elk-layered@1",
+          "role": "primary"
+        }
+      ],
+      "actualSelectionMatches": true,
+      "representativeSvgBindings": [
+        {
+          "cache": 0,
+          "exists": true,
+          "exact": true
+        },
+        {
+          "cache": 1,
+          "exists": true,
+          "exact": true
+        }
+      ]
+    },
+    {
+      "id": "adversarial:quoted-labels",
+      "backend": "agentic",
+      "variant": "seed",
+      "expectedAccepted": true,
+      "preludes": [],
+      "returned": true,
+      "svgSha256": "039eeab362cc33ead7711e770d4c0651a6552bb546dddd4b1d6151bb1234f9a3",
+      "proof": "passed",
+      "decisions": [
+        {
+          "requested": "agentic",
+          "fallback": "none",
+          "selected": "agentic",
+          "attempts": [
+            {
+              "backend": "agentic",
+              "outcome": "selected"
+            }
+          ],
+          "implementation": "agentic-layered@28",
+          "role": "primary"
+        }
+      ],
+      "actualSelectionMatches": true,
+      "representativeSvgBindings": [
+        {
+          "cache": 0,
+          "exists": true,
+          "exact": true
+        },
+        {
+          "cache": 1,
+          "exists": true,
+          "exact": true
+        }
+      ]
+    },
+    {
+      "id": "adversarial:quoted-labels",
+      "backend": "elk",
+      "variant": "seed",
+      "expectedAccepted": true,
+      "preludes": [],
+      "returned": true,
+      "svgSha256": "039eeab362cc33ead7711e770d4c0651a6552bb546dddd4b1d6151bb1234f9a3",
+      "proof": "passed",
+      "decisions": [
+        {
+          "requested": "elk",
+          "fallback": "none",
+          "selected": "elk",
+          "attempts": [
+            {
+              "backend": "elk",
+              "outcome": "selected"
+            }
+          ],
+          "implementation": "elk-layered@1",
+          "role": "primary"
+        }
+      ],
+      "actualSelectionMatches": true,
+      "representativeSvgBindings": [
+        {
+          "cache": 0,
+          "exists": true,
+          "exact": true
+        },
+        {
+          "cache": 1,
+          "exists": true,
+          "exact": true
+        }
+      ]
+    },
+    {
+      "id": "adversarial:invalid-recovery",
+      "backend": "agentic",
+      "variant": "seed",
+      "expectedAccepted": true,
+      "preludes": [
+        {
+          "expected": false,
+          "accepted": false,
+          "error": "Error: Invalid mermaid header: \"flowchart LR --> -->\". Expected \"graph TD\", \"flowchart LR\", \"stateDiagram-v2\", etc."
+        }
+      ],
+      "returned": true,
+      "svgSha256": "fa665685468e63bd0e42971314f35f0a4240213c9472e6804f419ef6a523a6c7",
+      "proof": "passed",
+      "decisions": [
+        {
+          "requested": "agentic",
+          "fallback": "none",
+          "selected": "agentic",
+          "attempts": [
+            {
+              "backend": "agentic",
+              "outcome": "selected"
+            }
+          ],
+          "implementation": "agentic-layered@28",
+          "role": "primary"
+        }
+      ],
+      "actualSelectionMatches": true,
+      "representativeSvgBindings": [
+        {
+          "cache": 0,
+          "exists": true,
+          "exact": true
+        },
+        {
+          "cache": 1,
+          "exists": true,
+          "exact": true
+        }
+      ]
+    },
+    {
+      "id": "adversarial:invalid-recovery",
+      "backend": "elk",
+      "variant": "seed",
+      "expectedAccepted": true,
+      "preludes": [
+        {
+          "expected": false,
+          "accepted": false,
+          "error": "Error: Invalid mermaid header: \"flowchart LR --> -->\". Expected \"graph TD\", \"flowchart LR\", \"stateDiagram-v2\", etc."
+        }
+      ],
+      "returned": true,
+      "svgSha256": "fa665685468e63bd0e42971314f35f0a4240213c9472e6804f419ef6a523a6c7",
+      "proof": "passed",
+      "decisions": [
+        {
+          "requested": "elk",
+          "fallback": "none",
+          "selected": "elk",
+          "attempts": [
+            {
+              "backend": "elk",
+              "outcome": "selected"
+            }
+          ],
+          "implementation": "elk-layered@1",
+          "role": "primary"
+        }
+      ],
+      "actualSelectionMatches": true,
+      "representativeSvgBindings": [
+        {
+          "cache": 0,
+          "exists": true,
+          "exact": true
+        },
+        {
+          "cache": 1,
+          "exists": true,
+          "exact": true
+        }
+      ]
+    },
+    {
+      "id": "adversarial:configuration-reset",
+      "backend": "agentic",
+      "variant": "seed",
+      "expectedAccepted": true,
+      "preludes": [
+        {
+          "expected": true,
+          "accepted": true
+        }
+      ],
+      "returned": false,
+      "error": "RenderConfigError: Invalid RenderOptions: unknown render option \"fontSize\"",
+      "errorName": "RenderConfigError"
+    },
+    {
+      "id": "adversarial:configuration-reset",
+      "backend": "agentic",
+      "variant": "edit",
+      "expectedAccepted": true,
+      "preludes": [
+        {
+          "expected": true,
+          "accepted": true
+        }
+      ],
+      "returned": false,
+      "error": "RenderConfigError: Invalid RenderOptions: unknown render option \"fontSize\"",
+      "errorName": "RenderConfigError"
+    },
+    {
+      "id": "adversarial:configuration-reset",
+      "backend": "elk",
+      "variant": "seed",
+      "expectedAccepted": true,
+      "preludes": [
+        {
+          "expected": true,
+          "accepted": true
+        }
+      ],
+      "returned": false,
+      "error": "RenderConfigError: Invalid RenderOptions: unknown render option \"fontSize\"",
+      "errorName": "RenderConfigError"
+    },
+    {
+      "id": "adversarial:configuration-reset",
+      "backend": "elk",
+      "variant": "edit",
+      "expectedAccepted": true,
+      "preludes": [
+        {
+          "expected": true,
+          "accepted": true
+        }
+      ],
+      "returned": false,
+      "error": "RenderConfigError: Invalid RenderOptions: unknown render option \"fontSize\"",
+      "errorName": "RenderConfigError"
+    },
+    {
+      "id": "invalid:missing-endpoints",
+      "backend": "agentic",
+      "variant": "seed",
+      "expectedAccepted": false,
+      "preludes": [],
+      "returned": false,
+      "error": "Error: Invalid mermaid header: \"flowchart LR --> -->\". Expected \"graph TD\", \"flowchart LR\", \"stateDiagram-v2\", etc.",
+      "errorName": "Error"
+    },
+    {
+      "id": "invalid:missing-endpoints",
+      "backend": "elk",
+      "variant": "seed",
+      "expectedAccepted": false,
+      "preludes": [],
+      "returned": false,
+      "error": "Error: Invalid mermaid header: \"flowchart LR --> -->\". Expected \"graph TD\", \"flowchart LR\", \"stateDiagram-v2\", etc.",
+      "errorName": "Error"
+    }
+  ],
+  "scope": "Untimed public SVG+receipt audit. Seed SVGs bound byte-exact to representative original Trident SVG-only products in bothcache regimes; not a performance measurement of receipts. Unsupported options/negative refusals remain."
+}
