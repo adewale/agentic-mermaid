@@ -1,0 +1,111 @@
+{
+  "review_date": "2026-11-08",
+  "mode": "read-only source and existing evidence review",
+  "native": {
+    "root": "/tmp/pr449-main-integration-20261029-762",
+    "head": "f55a8f8ecdecf2727a2e623749854f0abe52088e",
+    "runtime_head": "0c162c446b58ad98d0a5550719592a0d868619f8",
+    "status_before": "clean",
+    "inspected_paths": [
+      "CLAUDE.md",
+      "docs/design/system/layout-0.6-work-log.md",
+      "docs/design/system/layout-0.6-performance-review.md",
+      "src/layout/agentic-producer-core.ts",
+      "src/layout/agentic-layered-core.ts",
+      "src/layout/cycle-layout-search.ts",
+      "src/layout/fit-measured-layout.ts",
+      "src/layout/shorten-measured-routes.ts",
+      "src/layout/measured-forest.ts",
+      "src/layout/certification.ts",
+      "src/layout/pass.ts",
+      "src/layout-engine.ts",
+      "src/scene/svg-writer.ts",
+      "src/text-metrics.ts",
+      "src/__tests__/layout-certification.test.ts",
+      "src/__tests__/agentic-layered.test.ts"
+    ]
+  },
+  "pele": {
+    "root": "/tmp/pr449-week-comparison-20261101/trident-elk-research-20261107/astra/pele-3a2f075ee0c3d914f0fad3545fc0f193693975ac",
+    "version": "1.13.0",
+    "commit": "3a2f075ee0c3d914f0fad3545fc0f193693975ac",
+    "commit_date": "2026-10-31T00:07:28Z",
+    "live_head_confirmation": "Coordinator live GitHub GET during 2026-11-08 review; see retrieval date/recorded time in pele-live-head.json",
+    "archive_sha256": "a3b5641d9dc9658011a887f3d3b04490ee95320e888fa5b54a1ce07b7f3b6f90",
+    "separate_1_9": {
+      "version": "1.9.0",
+      "commit": "e7f092a4de147cc32210913c20e36eaa5fcd0ef1",
+      "archive_sha256": "c4ede14e4a9ebec8c930ef2f0d8faf9e0c436e34417df622956665a0cbed10a8",
+      "package_version_read_directly_from_tar": true,
+      "npm_byte_identity_requalified": false
+    },
+    "license": "MIT; compat specs/grammars from MIT Mermaid12.1; Lucide icon separately ISC",
+    "inspected_paths": [
+      "AGENTS.md",
+      "LICENSE",
+      "README.md",
+      "package.json",
+      "src/core.ts",
+      "src/text/measurer.ts",
+      "src/mount.ts",
+      "src/layout/layered.ts",
+      "src/layout/compound.ts",
+      "src/diagrams/flowchart/graph.ts",
+      "src/diagrams/flowchart/render.ts",
+      "src/diagrams/class/render.ts",
+      "src/diagrams/er/render.ts",
+      "src/diagrams/state/render.ts",
+      "src/diagrams/requirement/render.ts",
+      "website/src/content/docs/compatibility.md",
+      "tests/layout/compound.test.ts",
+      "tests/layout/layered.test.ts",
+      "tests/render/flowchart.test.ts",
+      "tests/util/measurer.test.ts",
+      "tests/compat/flowchart/SKIPPED.md",
+      "tests/compat/state/SKIPPED.md",
+      "scripts/build.mjs",
+      "scripts/bench-mermaid.mjs"
+    ]
+  },
+  "previous_evidence": [
+    "/tmp/pr449-correctness-24h-20261030/campaign-state.json",
+    "/tmp/pr449-week-comparison-20261101/trident-elk-research-20261107/IMPLEMENTATION-MAP.md",
+    "/tmp/pr449-week-comparison-20261101/trident-elk-research-20261107/LITERATURE.md",
+    "/tmp/pr449-week-comparison-20261101/trident-elk-research-20261107/astra/ASTRA-PELE-REVIEW.md",
+    "/tmp/pr449-week-comparison-20261101/trident-elk-research-20261107/astra/ASTRA-PELE-ADDENDUM.md",
+    "/tmp/pr449-week-comparison-20261101/contact-origin-3234/PROFILE-FIRST.md",
+    "/tmp/pr449-week-comparison-20261101/contact-producer-6aa/PROFILE-BEFORE.md",
+    "/tmp/pr449-week-comparison-20261101/joint-caption-dd365/PR-BODY-FINAL.md"
+  ],
+  "new_runtime_probes": [],
+  "tests_run": [],
+  "builds_or_installs": [],
+  "production_changes": false,
+  "unknowns": [
+    "Pele output on named Native visible-loss sources untested",
+    "No equivalent-work Pele/Native/ELK runtime or retention comparison",
+    "No universal safe Native family/size boundary established",
+    "First responsible stage for Native372 not isolated in reviewed evidence",
+    "Duplicate completion magnitude and safe removal not measured",
+    "Source archives not provenance for old npm/site bytes"
+  ],
+  "source_confirmed_rechecks": {
+    "zero_crossing_owned_refinement_exit": true,
+    "internal_candidate_receipt_replaced": true,
+    "ordinary_dense_port_proportional_fallback": true,
+    "extra_fit_is_general": false,
+    "extra_fit_scope": "bounded cyclic+self-loop completion callback then projection",
+    "shared_final_route_certification_removable_from_source_nesting_alone": false
+  },
+  "coordinator_review": {
+    "production_head_unchanged": true,
+    "notes": [
+      "Removed minute-specific retrieval claim; exact metadata records live GET response and recording time.",
+      "Sparse32 diagnosis retains saved first-exhaustion subsystem; current per-stage counts are not remeasured and relaxed diagnostics remain separate."
+    ],
+    "source_archive_checks": {
+      "pele-current.tar.gz": "a3b5641d9dc9658011a887f3d3b04490ee95320e888fa5b54a1ce07b7f3b6f90",
+      "pele-1.9-source.tar.gz": "c4ede14e4a9ebec8c930ef2f0d8faf9e0c436e34417df622956665a0cbed10a8"
+    }
+  }
+}

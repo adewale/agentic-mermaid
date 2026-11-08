@@ -1,0 +1,118 @@
+{
+  "retrievedDuringUtcDate": "2026-11-08",
+  "recordedAt": "2026-11-08 09:13:20 UTC",
+  "url": "https://api.github.com/repos/obsidianmd/pele/commits/HEAD",
+  "response": {
+    "sha": "3a2f075ee0c3d914f0fad3545fc0f193693975ac",
+    "node_id": "C_kwDOU9U4Z9oAKDNhMmYwNzVlZTBjM2Q5MTRmMGZhZDM1NDVmYzBmMTkzNjkzOTc1YWM",
+    "commit": {
+      "author": {
+        "name": "Steph Ango",
+        "email": "10565871+kepano@users.noreply.github.com",
+        "date": "2026-10-31T00:07:28Z"
+      },
+      "committer": {
+        "name": "Steph Ango",
+        "email": "10565871+kepano@users.noreply.github.com",
+        "date": "2026-10-31T00:07:28Z"
+      },
+      "message": "Release: 1.13.0",
+      "tree": {
+        "sha": "3c36dc00bf4a037c39fa0293541b24c81923194b",
+        "url": "https://api.github.com/repos/obsidianmd/pele/git/trees/3c36dc00bf4a037c39fa0293541b24c81923194b"
+      },
+      "url": "https://api.github.com/repos/obsidianmd/pele/git/commits/3a2f075ee0c3d914f0fad3545fc0f193693975ac",
+      "comment_count": 0,
+      "verification": {
+        "verified": false,
+        "reason": "unsigned",
+        "signature": null,
+        "payload": null,
+        "verified_at": null
+      }
+    },
+    "url": "https://api.github.com/repos/obsidianmd/pele/commits/3a2f075ee0c3d914f0fad3545fc0f193693975ac",
+    "html_url": "https://github.com/obsidianmd/pele/commit/3a2f075ee0c3d914f0fad3545fc0f193693975ac",
+    "comments_url": "https://api.github.com/repos/obsidianmd/pele/commits/3a2f075ee0c3d914f0fad3545fc0f193693975ac/comments",
+    "author": {
+      "login": "kepano",
+      "id": 10565871,
+      "node_id": "MDQ6VXNlcjEwNTY1ODcx",
+      "avatar_url": "https://avatars.githubusercontent.com/u/10565871?v=4",
+      "gravatar_id": "",
+      "url": "https://api.github.com/users/kepano",
+      "html_url": "https://github.com/kepano",
+      "followers_url": "https://api.github.com/users/kepano/followers",
+      "following_url": "https://api.github.com/users/kepano/following{/other_user}",
+      "gists_url": "https://api.github.com/users/kepano/gists{/gist_id}",
+      "starred_url": "https://api.github.com/users/kepano/starred{/owner}{/repo}",
+      "subscriptions_url": "https://api.github.com/users/kepano/subscriptions",
+      "organizations_url": "https://api.github.com/users/kepano/orgs",
+      "repos_url": "https://api.github.com/users/kepano/repos",
+      "events_url": "https://api.github.com/users/kepano/events{/privacy}",
+      "received_events_url": "https://api.github.com/users/kepano/received_events",
+      "type": "User",
+      "user_view_type": "public",
+      "site_admin": false
+    },
+    "committer": {
+      "login": "kepano",
+      "id": 10565871,
+      "node_id": "MDQ6VXNlcjEwNTY1ODcx",
+      "avatar_url": "https://avatars.githubusercontent.com/u/10565871?v=4",
+      "gravatar_id": "",
+      "url": "https://api.github.com/users/kepano",
+      "html_url": "https://github.com/kepano",
+      "followers_url": "https://api.github.com/users/kepano/followers",
+      "following_url": "https://api.github.com/users/kepano/following{/other_user}",
+      "gists_url": "https://api.github.com/users/kepano/gists{/gist_id}",
+      "starred_url": "https://api.github.com/users/kepano/starred{/owner}{/repo}",
+      "subscriptions_url": "https://api.github.com/users/kepano/subscriptions",
+      "organizations_url": "https://api.github.com/users/kepano/orgs",
+      "repos_url": "https://api.github.com/users/kepano/repos",
+      "events_url": "https://api.github.com/users/kepano/events{/privacy}",
+      "received_events_url": "https://api.github.com/users/kepano/received_events",
+      "type": "User",
+      "user_view_type": "public",
+      "site_admin": false
+    },
+    "parents": [
+      {
+        "sha": "44d71128f69821641fe2335dee3b2cc71ae88d17",
+        "url": "https://api.github.com/repos/obsidianmd/pele/commits/44d71128f69821641fe2335dee3b2cc71ae88d17",
+        "html_url": "https://github.com/obsidianmd/pele/commit/44d71128f69821641fe2335dee3b2cc71ae88d17"
+      }
+    ],
+    "stats": {
+      "total": 6,
+      "additions": 3,
+      "deletions": 3
+    },
+    "files": [
+      {
+        "sha": "4584d91e4ffa4b297e876ccd56e2d93d9018f3e8",
+        "filename": "package-lock.json",
+        "status": "modified",
+        "additions": 2,
+        "deletions": 2,
+        "changes": 4,
+        "blob_url": "https://github.com/obsidianmd/pele/blob/3a2f075ee0c3d914f0fad3545fc0f193693975ac/package-lock.json",
+        "raw_url": "https://github.com/obsidianmd/pele/raw/3a2f075ee0c3d914f0fad3545fc0f193693975ac/package-lock.json",
+        "contents_url": "https://api.github.com/repos/obsidianmd/pele/contents/package-lock.json?ref=3a2f075ee0c3d914f0fad3545fc0f193693975ac",
+        "patch": "@@ -1,12 +1,12 @@\n {\n   \"name\": \"pele\",\n-  \"version\": \"1.12.0\",\n+  \"version\": \"1.13.0\",\n   \"lockfileVersion\": 3,\n   \"requires\": true,\n   \"packages\": {\n     \"\": {\n       \"name\": \"pele\",\n-      \"version\": \"1.12.0\",\n+      \"version\": \"1.13.0\",\n       \"license\": \"MIT\",\n       \"devDependencies\": {\n         \"@braintree/sanitize-url\": \"^7.1.2\","
+      },
+      {
+        "sha": "9728adb4f4fa4b9e525a74c2eda48b3f4f1a6ebe",
+        "filename": "package.json",
+        "status": "modified",
+        "additions": 1,
+        "deletions": 1,
+        "changes": 2,
+        "blob_url": "https://github.com/obsidianmd/pele/blob/3a2f075ee0c3d914f0fad3545fc0f193693975ac/package.json",
+        "raw_url": "https://github.com/obsidianmd/pele/raw/3a2f075ee0c3d914f0fad3545fc0f193693975ac/package.json",
+        "contents_url": "https://api.github.com/repos/obsidianmd/pele/contents/package.json?ref=3a2f075ee0c3d914f0fad3545fc0f193693975ac",
+        "patch": "@@ -1,6 +1,6 @@\n {\n   \"name\": \"pele\",\n-  \"version\": \"1.12.0\",\n+  \"version\": \"1.13.0\",\n   \"description\": \"A fast, lightweight Mermaid renderer that outputs themeable SVG.\",\n   \"license\": \"MIT\",\n   \"author\": \"kepano\","
+      }
+    ]
+  }
+}
