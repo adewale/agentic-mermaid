@@ -1,4 +1,6 @@
 import { scanSvgStartTags } from '../svg-structure.ts'
+import * as trinityKernel from '../layout/trinity.ts'
+import { LayoutWorkLimitError } from '../layout/backend.ts'
 
 import { describe, expect, spyOn, test } from 'bun:test'
 import { readFileSync } from 'node:fs'
@@ -27,6 +29,61 @@ const fixture = readFileSync(new URL('../../eval/layout-compare/fixtures/class-b
 const compoundFixture = readFileSync(new URL('../../eval/layout-compare/fixtures/class-compound-backends.mmd', import.meta.url), 'utf8')
 
 describe('Class layout backends', () => {
+  test.each(['TB', 'BT', 'LR', 'RL'])('Trinity retains flat Class members, labels and canonical endpoint markers in %s', direction => {
+    const source = `classDiagram\ndirection ${direction}\nclass Animal {\n+String name\n+save() bool\n}\nAnimal <|-- Dog\nDog *-- Collar\nDog ..> Food : eats`
+    const product = renderMermaidSVGWithReceipt(source, { graphLayout: { backend: 'trinity', fallback: 'none' } })
+    expect(product.receipt.layoutDecisions?.[0]).toMatchObject({ requested: 'trinity', selected: 'trinity' })
+    expect(product.receipt.layoutCertification?.status).toBe('passed')
+    for (const text of ['Animal', 'String', 'name', 'save()', 'bool', 'Dog', 'Collar', 'Food', 'eats']) expect(product.svg).toContain(text)
+    const edges = scanSvgStartTags(product.svg).filter(tag => tag.attributes.some(attr => attr.name === 'class' && attr.value === 'class-relationship'))
+    expect(edges).toHaveLength(3)
+    const attrs = edges.map(edge => Object.fromEntries(edge.attributes.map(attr => [attr.name, attr.value])))
+    expect(attrs.map(a => [a['data-from'], a['data-to']])).toEqual([['Animal', 'Dog'], ['Dog', 'Collar'], ['Dog', 'Food']])
+    expect(attrs.map(a => a['marker-start'] ?? a['marker-end'])).toEqual([expect.stringContaining('cls-inherit'), expect.stringContaining('cls-composition'), expect.stringContaining('cls-arrow')])
+  })
+
+  test('Trinity consumes grown card height once as blank method space', () => {
+    const options = { graphLayout: { backend: 'trinity' as const }, style: { roles: { relationship: { lineWidth: 6 } } } }
+    const declaration = 'classDiagram\ndirection LR\nclass Root {\n+String key\n+save() bool\n}'
+    const original = layoutClassDiagram(parseClassDiagram(toMermaidLines(declaration)), options, { edge: { lineWidth: 6 } }).classes[0]!
+    const source = declaration + '\n' + Array.from({ length: 4 }, (_, i) => `Root *-- Peer${i}`).join('\n')
+    const grown = layoutClassDiagram(parseClassDiagram(toMermaidLines(source)), options, { edge: { lineWidth: 6 } }).classes.find(cls => cls.id === 'Root')!
+    expect(grown.height).toBeGreaterThan(original.height)
+    expect(grown.headerHeight).toBe(original.headerHeight)
+    expect(grown.attrHeight).toBe(original.attrHeight)
+    expect(grown.methodHeight - original.methodHeight).toBeCloseTo(grown.height - original.height, 10)
+    expect(renderMermaidSVGWithReceipt(source, options).receipt.layoutCertification?.status).toBe('passed')
+  })
+
+  test.each([
+    'classDiagram\nnamespace Domain {\nclass A\n}\nclass B\nA --> B',
+    'classDiagram\nclass A\nnote for A "Keep note"',
+    'classDiagram\nA "1" --> "*" B',
+    'classDiagram\nA --() API',
+  ])('Trinity declines untranslated Class constraints and only falls back explicitly: %s', source => {
+    expect(() => renderMermaidSVGWithReceipt(source, { graphLayout: { backend: 'trinity' } })).toThrow('flat Class cards require canonical paint')
+    const fallback = renderMermaidSVGWithReceipt(source, { graphLayout: { backend: 'trinity', fallback: 'elk' } })
+    expect(fallback.svg).toBe(renderMermaidSVGWithReceipt(source, { graphLayout: { backend: 'elk' } }).svg)
+    expect(fallback.receipt.layoutDecisions?.[0]).toMatchObject({ requested: 'trinity', selected: 'elk' })
+  })
+
+  test('Trinity completes the same public Class input across source, parsed, layout and PNG, and preserves hard kernel failures', () => {
+    const source = 'classDiagram\nclass Alpha\nclass Beta\nAlpha --> Beta: uses'
+    const options = { graphLayout: { backend: 'trinity' as const, fallback: 'none' as const } }
+    const sourceProduct = renderMermaidSVGWithReceipt(source, options)
+    const parsed = parseRegisteredMermaid(source)
+    if (!parsed.ok) throw Error('Expected Class input')
+    expect(renderMermaidSVGWithReceipt(parsed.value, options).svg).toBe(sourceProduct.svg)
+    expect(layoutMermaidWithReceipt(source, options).receipt.layoutDecisions).toEqual(sourceProduct.receipt.layoutDecisions)
+    const png = renderMermaidPNGWithReceipt(source, options)
+    expect(png.png.length).toBeGreaterThan(0)
+    expect(png.receipt.layoutDecisions).toEqual(sourceProduct.receipt.layoutDecisions)
+    const kernel = spyOn(trinityKernel, 'trinityMeasuredAdapter').mockImplementation(() => { throw new LayoutWorkLimitError('pairs') })
+    try {
+      expect(() => layoutClassDiagram(parseClassDiagram(toMermaidLines(source)), { graphLayout: { backend: 'trinity', fallback: 'elk' } })).toThrow(LayoutWorkLimitError)
+    } finally { kernel.mockRestore() }
+  })
+
   test.each(['LR', 'RL', 'TB', 'BT'])('keeps nested ELK captions associated with their own final carrier in %s', direction => {
     const source = `classDiagram\ndirection ${direction}\nnamespace Root {\n class Gateway {\n  +String key\n }\n namespace Domain {\n  class Draft {\n   +String token\n  }\n  class Sink {\n   +String id\n  }\n }\n}\nGateway "1" *-- Draft : opens\nGateway "*" ..> Sink : submits\nDraft "1" --> Sink : commits\nSink "0..1" ..|> Sink : retries\nnote for Gateway "Keep authored Gateway note"`
     const rendered = renderMermaidSVGWithReceipt(source, { graphLayout: { backend: 'elk', fallback: 'none' }, style: { roles: { relationship: { bendRadius: 0 } } } })
