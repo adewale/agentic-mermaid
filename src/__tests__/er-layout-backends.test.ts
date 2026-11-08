@@ -14,7 +14,10 @@ import { measureQuality } from '../agent/quality.ts'
 import * as agenticProducer from '../layout/agentic-layered.ts'
 import * as elkProducer from '../elk-instance.ts'
 import * as erLabels from '../er/label-layout.ts'
-import { ErRouteGeometryError } from '../er/errors.ts'
+import { ErRouteGeometryError, ErRouteWorkLimitError, ErLabelWorkLimitError } from '../er/errors.ts'
+import * as trinityKernel from '../layout/trinity.ts'
+import { LayoutWorkLimitError } from '../layout/backend.ts'
+import type { MeasuredGraph } from '../layout/measured-graph.ts'
 
 const { JSDOM } = createRequire(import.meta.url)('jsdom')
 
@@ -23,6 +26,84 @@ const compoundFixture = readFileSync(new URL('../../eval/layout-compare/fixtures
 const fixture = readFileSync(new URL('../../eval/layout-compare/fixtures/er-backends.mmd', import.meta.url), 'utf8')
 
 describe('ER layout backends', () => {
+  test('Trinity keeps role shafts, cardinality glyphs and merged entity strokes distinct', () => {
+    const source = 'erDiagram\nA ||--o{ B : owns\nA ||..o{ C : references\nclassDef default stroke-width:2px\nclassDef thick stroke-width:4px\nclass A thick\nstyle A stroke-width:7px'
+    const original = trinityKernel.trinityMeasuredAdapter
+    let measured: MeasuredGraph | undefined
+    const producer = spyOn(trinityKernel, 'trinityMeasuredAdapter').mockImplementation(work => {
+      const adapter = original(work)
+      return { solve(request) { measured = request.graph; return adapter.solve(request) } }
+    })
+    try {
+      const placed = layoutErDiagram(parseErDiagram(toMermaidLines(source)), { graphLayout: { backend: 'trinity' } }, {
+        roles: { relationship: { lineWidth: 3, bendRadius: 0 } },
+        semanticSlots: { identifying: { lineWidth: 13, bendRadius: 0 } },
+        bindings: [{ role: 'relationship', channel: 'category', value: 'identifying', slot: 'identifying' }],
+      })
+      expect(measured!.maximumEdgeStrokeWidth).toBe(13)
+      expect(measured!.edges[0]!.sourcePortSpan).toBeGreaterThanOrEqual(13)
+      expect(measured!.nodes.map(node => node.paintStrokeWidth)).toEqual([7, 2, 2])
+      expect(placed.entities.map(entity => entity.inlineStyle?.['stroke-width'])).toEqual(['7px', '2px', '2px'])
+    } finally { producer.mockRestore() }
+  })
+
+  test('Trinity declines groups, noncanonical paint and bent relationship roles; work errors never authorize fallback', () => {
+    const source = 'erDiagram\nA ||--o{ B : owns', model = parseErDiagram(toMermaidLines(source))
+    const options = { graphLayout: { backend: 'trinity' as const, fallback: 'elk' as const } }
+    expect(() => renderMermaidSVGWithReceipt(source, { graphLayout: { backend: 'trinity' }, style: 'hand-drawn' })).toThrow('canonical paint')
+    expect(() => layoutErDiagram(model, { graphLayout: { backend: 'trinity' } }, { roles: { relationship: { bendRadius: 4 } } })).toThrow('rounded ER relationship paint')
+    const grouped = parseErDiagram(toMermaidLines('erDiagram\nsubgraph G[Group]\nA ||--o{ B : owns\nend'))
+    expect(() => layoutErDiagram(grouped, { graphLayout: { backend: 'trinity' } })).toThrow('ER groups')
+    expect(renderMermaidSVGWithReceipt('erDiagram\nsubgraph G[Group]\nA ||--o{ B : owns\nend', options).receipt.layoutDecisions?.[0]).toMatchObject({ requested: 'trinity', selected: 'elk' })
+    for (const error of [new LayoutWorkLimitError('pairs'), new ErRouteWorkLimitError(), new ErLabelWorkLimitError()]) {
+      const producer = spyOn(trinityKernel, 'trinityMeasuredAdapter').mockImplementation(() => { throw error })
+      const elk = spyOn(elkProducer, 'elkLayoutSync')
+      try { expect(() => layoutErDiagram(model, options)).toThrow(error); expect(elk).not.toHaveBeenCalled() } finally { elk.mockRestore(); producer.mockRestore() }
+    }
+  })
+
+  test('Trinity consumes grown ER bodies without changing measured attribute rows and retains loop/cycle captions', () => {
+    const declaration = 'erDiagram\ndirection LR\nROOT {\nint id PK\n}'
+    const options = { graphLayout: { backend: 'trinity' as const } }
+    const original = layoutErDiagram(parseErDiagram(toMermaidLines(declaration)), options).entities[0]!
+    const source = declaration + '\n' + Array.from({ length: 6 }, (_, index) => `ROOT ||--o{ PEER${index} : owns${index}`).join('\n')
+    const grown = layoutErDiagram(parseErDiagram(toMermaidLines(source)), options).entities.find(entity => entity.id === 'ROOT')!
+    expect(grown.height).toBeGreaterThan(original.height)
+    expect(grown.headerHeight).toBe(original.headerHeight)
+    expect(grown.rowHeight).toBe(original.rowHeight)
+    expect(grown.attributes).toEqual(original.attributes)
+    expect(renderMermaidSVGWithReceipt(source, options).receipt.layoutCertification?.status).toBe('passed')
+    const loop = renderMermaidSVGWithReceipt('erDiagram\nA ||--o{ A : loops\nA ||--o{ B : goes\nB ||--o{ A : returns', options)
+    expect(loop.receipt.layoutCertification?.status).toBe('passed')
+    for (const label of ['loops', 'goes', 'returns']) expect(loop.svg).toContain(label)
+  })
+
+  test('Trinity ER uses one public input across parsed, layout and PNG surfaces', () => {
+    const source = 'erDiagram\nA ||--o{ B : owns', options = { graphLayout: { backend: 'trinity' as const } }
+    const parsed = parseRegisteredMermaid(source)
+    if (!parsed.ok) throw Error('Expected ER input')
+    const original = renderMermaidSVGWithReceipt(source, options)
+    expect(renderMermaidSVGWithReceipt(parsed.value, options).svg).toBe(original.svg)
+    expect(layoutMermaidWithReceipt(source, options).receipt.layoutDecisions).toEqual(original.receipt.layoutDecisions)
+    const png = renderMermaidPNGWithReceipt(source, options)
+    expect(png.png.length).toBeGreaterThan(0)
+    expect(png.receipt.layoutDecisions).toEqual(original.receipt.layoutDecisions)
+  })
+
+  test.each(['TB', 'BT', 'LR', 'RL'])('Trinity delivers flat ER attributes, labels and actual cardinality glyphs in %s', direction => {
+    const source = `erDiagram\ndirection ${direction}\nCUSTOMER {\nint id PK\n}\nORDER {\nint id PK\nint customer_id FK\n}\nITEM {\nstring sku\n}\nCUSTOMER ||--o{ ORDER : places\nORDER ||--|{ ITEM : contains`
+    const product = renderMermaidSVGWithReceipt(source, { graphLayout: { backend: 'trinity', fallback: 'none' } })
+    expect(product.receipt.layoutDecisions?.[0]).toMatchObject({ requested: 'trinity', selected: 'trinity' })
+    expect(product.receipt.layoutCertification?.status).toBe('passed')
+    const document = new JSDOM(product.svg, { contentType: 'image/svg+xml' }).window.document as Document
+    const carriers = [...document.querySelectorAll('.er-relationship')]
+    expect(carriers.map(edge => ['data-from', 'data-to', 'data-cardinality1', 'data-cardinality2', 'data-label'].map(name => edge.getAttribute(name)))).toEqual([
+      ['CUSTOMER', 'ORDER', 'one', 'zero-many', 'places'], ['ORDER', 'ITEM', 'one', 'many', 'contains'],
+    ])
+    expect(document.querySelectorAll('[data-role="cardinality"]')).toHaveLength(4)
+    for (const text of ['CUSTOMER', 'ORDER', 'ITEM', 'id', 'PK', 'customer_id', 'FK', 'sku', 'places', 'contains']) expect(product.svg).toContain(text)
+  })
+
   test.each([
     ...[1, 4].map(count => ({ count, size: 4096, backend: 'elk' as const, direction: undefined })),
     ...(['TB', 'BT', 'LR', 'RL'] as const).map(direction => ({ count: 1, size: 256, backend: 'agentic' as const, direction })),
