@@ -3,6 +3,7 @@ import { fitMeasuredLayout } from '../layout/fit-measured-layout.ts'
 import { GraphLayoutUnsupportedError, LayoutWorkLimitError, runMeasuredGraphBackend } from '../layout/backend.ts'
 import type { MeasuredGraph } from '../layout/measured-graph.ts'
 import { solveMeasuredLayout } from '../layout/measured-backend.ts'
+import { trinityPlacementAdapter } from '../layout/trinity-placement.ts'
 import { trinityMeasuredAdapter } from '../layout/trinity.ts'
 
 const ledger = () => ({ pairs: 1_000_000, arcs: 65536, swaps: 1_000_000 })
@@ -161,4 +162,73 @@ describe('Trinity flat measured solve', () => {
     expect(() => solveMeasuredLayout({ role: 'routed', graph: unknown }, trinityMeasuredAdapter(ledger()))).toThrow(GraphLayoutUnsupportedError)
     expect(() => solveMeasuredLayout({ role: 'routed', graph: { ...input, edges: [{ source: 0, target: 1, minSpan: 1, short: true , sourcePortSpan: 2, targetPortSpan: 2}] } }, trinityMeasuredAdapter(ledger()))).toThrow('short edges')
   })
+  test.each(['TB', 'BT', 'LR', 'RL'] as const)('reuses ordered forest body placement with painted bounds in %s', direction => {
+    const input: MeasuredGraph = {
+      nodes: [node('root'), { ...node('left'), height: 40 }, { ...node('right'), height: 90 }, node('leaf'), node('island 漢🙂')],
+      edges: [{ source: 0, target: 1, minSpan: 1 }, { source: 0, target: 2, minSpan: 1 }, { source: 2, target: 3, minSpan: 1 }],
+      direction, padding: 16, nodeSpacing: 20, layerSpacing: 40,
+    }
+    const before = structuredClone(input), placed = solveMeasuredLayout({ role: 'placement', graph: input }, trinityPlacementAdapter(ledger()))
+    expect(input).toEqual(before)
+    expect(placed.nodes).toHaveLength(5)
+    expect('edges' in placed).toBe(false)
+    for (let i = 0; i < placed.nodes.length; i++) {
+      const a = placed.nodes[i]!, source = input.nodes[i]!
+      expect([a.width, a.height]).toEqual([source.width, source.height])
+      expect(a.x - 1).toBeGreaterThanOrEqual(16)
+      expect(a.y - 1).toBeGreaterThanOrEqual(16)
+      expect(a.x + a.width! + 1).toBeLessThanOrEqual(placed.width - 16)
+      expect(a.y + a.height! + 1).toBeLessThanOrEqual(placed.height - 16)
+      for (let j = 0; j < i; j++) {
+        const b = placed.nodes[j]!
+        expect(a.x - 1 < b.x + b.width! + 1 && a.x + a.width! + 1 > b.x - 1 && a.y - 1 < b.y + b.height! + 1 && a.y + a.height! + 1 > b.y - 1).toBe(false)
+      }
+    }
+    const horizontal = direction === 'LR' || direction === 'RL', reverse = direction === 'BT' || direction === 'RL'
+    for (const edge of input.edges) {
+      const source = placed.nodes[edge.source]!, target = placed.nodes[edge.target]!
+      const delta = horizontal ? target.x - source.x : target.y - source.y
+      expect(reverse ? delta < 0 : delta > 0).toBe(true)
+    }
+  })
+
+  test('places a 128-body chain without constructing generic routes or loading its routed slice', () => {
+    const input: MeasuredGraph = {
+      nodes: Array.from({ length: 128 }, (_, i) => node(`entity-${i}`)),
+      edges: Array.from({ length: 127 }, (_, i) => ({ source: i, target: i + 1, minSpan: 1 })),
+      direction: 'LR', padding: 16, nodeSpacing: 20, layerSpacing: 40,
+    }
+    const work = ledger(), result = solveMeasuredLayout({ role: 'placement', graph: input }, trinityPlacementAdapter(work))
+    expect(result.nodes).toHaveLength(128)
+    expect('edges' in result).toBe(false)
+    expect(result.nodes[127]!.x).toBeGreaterThan(result.nodes[0]!.x)
+    expect(work.pairs).toBe(1_000_000 - 255)
+    expect(work.arcs).toBe(65536 - 127)
+  })
+
+  test('a single placement body reserves its actual stroke without growing its fixed dimensions', () => {
+    const input: MeasuredGraph = { nodes: [{ id: 'solo', width: 20, height: 12, contact: 'rectangle', paintStrokeWidth: 4 }], edges: [], direction: 'TB', padding: 2, nodeSpacing: 0, layerSpacing: 0 }
+    const result = solveMeasuredLayout({ role: 'placement', graph: input }, trinityPlacementAdapter(ledger()))
+    expect(result).toEqual({ width: 28, height: 20, nodes: [{ x: 4, y: 4, width: 20, height: 12 }] })
+  })
+
+  test('placement declines declared routing demands and preserves spent work across failed preparation', () => {
+    const input: MeasuredGraph = { nodes: [node('A'), node('B')], edges: [{ source: 0, target: 1, minSpan: 1 }], direction: 'TB', padding: 16, nodeSpacing: 20, layerSpacing: 40 }
+    expect(() => solveMeasuredLayout({ role: 'placement', graph: { ...input, nodes: input.nodes.map(body => ({ ...body, contact: undefined })) } }, trinityPlacementAdapter(ledger()))).toThrow(GraphLayoutUnsupportedError)
+    expect(() => solveMeasuredLayout({ role: 'placement', graph: { ...input, edges: [{ ...input.edges[0]!, label: { width: 40, height: 20 } }] } }, trinityPlacementAdapter(ledger()))).toThrow(GraphLayoutUnsupportedError)
+    const work = { pairs: 8, arcs: 4, swaps: 0 }, adapter = trinityPlacementAdapter(work)
+    const cycle = { ...input, edges: [...input.edges, { source: 1, target: 0, minSpan: 1 }] }
+    expect(() => solveMeasuredLayout({ role: 'placement', graph: cycle }, adapter)).toThrow(GraphLayoutUnsupportedError)
+    expect(work.pairs).toBe(4)
+    expect(work.arcs).toBe(2)
+    expect(() => solveMeasuredLayout({ role: 'placement', graph: cycle }, adapter)).toThrow(GraphLayoutUnsupportedError)
+    expect(work.pairs).toBe(0)
+    expect(() => solveMeasuredLayout({ role: 'placement', graph: input }, adapter)).toThrow(LayoutWorkLimitError)
+  })
+
+  test('an already exhausted ledger precedes even an unsupported routed size', () => {
+    const input = { ...base(), nodes: Array.from({ length: 65 }, (_, i) => node(`N${i}`)) }
+    expect(() => solveMeasuredLayout({ role: 'routed', graph: input }, trinityMeasuredAdapter({ pairs: -1, arcs: 100, swaps: 100 }))).toThrow(LayoutWorkLimitError)
+  })
+
 })

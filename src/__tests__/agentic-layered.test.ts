@@ -11,6 +11,7 @@ import { type AgenticLayout, layoutLayeredGraph } from '../layout/agentic-layere
 import { GraphLayoutUnsupportedError } from '../layout/backend.ts'
 import type { Direction, Point } from '../types.ts'
 import { countOpposingRouteOverlaps, countParallelRouteOverlaps } from '../layout-rubric.ts'
+import { layoutMeasuredForest } from '../layout/measured-forest.ts'
 import { assignChannelTracks } from '../layout/channel-tracks.ts'
 import { createEndpointSparseVisibilityGraph, createSparseAdjacencyStoragePool, createSparseQueryWorkspacePool, createSparseVisibilityGraph } from '../layout/compound-sparse-visibility.ts'
 import { createVisibilityGrid } from '../layout/compound-visibility.ts'
@@ -1028,6 +1029,17 @@ describe('owned measured layered layout', () => {
     expect(placed.nodes[1]![axis]).toBe(placed.nodes[2]![axis])
     expect(countPolylineCrossings(placed.edges)).toBe(0)
     expect(input).toEqual(original)
+  })
+
+  test('retains routed forest source pitch after extracting body placement', () => {
+    const input: MeasuredGraph = { nodes: [{ id: 'root', width: 160, height: 40, minimumPortSpacing: 40 }, ...['A', 'B', 'C'].map(id => ({ id, width: 40, height: 40 }))],
+      edges: [1, 2, 3].map(target => ({ source: 0, target, minSpan: 1 })), direction: 'TB', padding: 16, nodeSpacing: 40, layerSpacing: 72 }
+    const placed = layoutMeasuredForest(input)!
+    expect(placed).toBeDefined()
+    expect(placed.edges).toHaveLength(3)
+    expect(placed.edges[1]!.points[0]!.x - placed.edges[0]!.points[0]!.x).toBe(40)
+    expect(placed.edges[2]!.points[0]!.x - placed.edges[1]!.points[0]!.x).toBe(40)
+    expect(countParallelRouteOverlaps(placed.edges.map((edge, index) => ({ ...edge, source: 'root', target: String(index), style: 'solid' as const })))).toBe(0)
   })
 
   test.each([0, 0.005, 60])('retains measured asymmetric terminal leads for a %s-cross channel', delta => {
