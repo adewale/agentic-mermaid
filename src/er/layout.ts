@@ -27,7 +27,10 @@ import { elkLayoutSync } from '../elk-instance.ts'
 import { alignElkRoundoff } from '../layout/elk-roundoff.ts'
 import { directionToElk } from '../layout/backend.ts'
 import { layoutAgenticGraph } from '../layout/agentic-layered.ts'
-import { runMeasuredGraphBackend } from '../layout/backend.ts'
+import { runMeasuredGraphBackend, GraphLayoutUnsupportedError } from '../layout/backend.ts'
+import type { MeasuredGraph } from '../layout/measured-graph.ts'
+import { solveMeasuredLayout } from '../layout/measured-backend.ts'
+import { trinityMeasuredAdapter } from '../layout/trinity.ts'
 import { LayoutCertificationError } from '../layout/certification-error.ts'
 import { measureRenderStage } from '../render-stages.ts'
 import { checkedAuthoredStyle } from '../shared/style-props.ts'
@@ -448,7 +451,13 @@ interface ErPlacement {
 
 const defineErIsland = Object.defineProperty
 
-function erEntityStrokeHalf(entity: PositionedErEntity, style: ResolvedRenderStyle): number {
+function erEntityPaint(diagram: ErDiagram, entity: ErEntity, defaultStyle: Readonly<Record<string, string>> | undefined): Record<string, string> | undefined {
+  const classStyle: Record<string, string> = { ...defaultStyle }
+  for (const name of entity.className?.split(/[ \t]+/) ?? []) Object.assign(classStyle, checkedAuthoredStyle(diagram.classDefs.get(name), `classDef ${name}`))
+  return Object.keys(classStyle).length > 0 || entity.inlineStyle ? { ...classStyle, ...checkedAuthoredStyle(entity.inlineStyle, `style ${entity.id}`) } : undefined
+}
+
+function erEntityStrokeHalf(entity: Pick<PositionedErEntity, 'inlineStyle'>, style: ResolvedRenderStyle): number {
   const authored = Number.parseFloat(entity.inlineStyle?.['stroke-width'] ?? '')
   return (Number.isFinite(authored) && authored > 0 ? authored : style.nodeLineWidth) / 2
 }
@@ -660,8 +669,7 @@ function extractErLayout(
   for (const child of result.entities) {
     const entity = entityLookup.get(child.id)
     if (entity) {
-      const classStyle: Record<string, string> = { ...defaultStyle }
-      for (const name of entity.className?.split(/[ \t]+/) ?? []) Object.assign(classStyle, checkedAuthoredStyle(diagram.classDefs.get(name), `classDef ${name}`))
+      const localPaint = erEntityPaint(diagram, entity, defaultStyle)
       positionedEntities.push({
         id: entity.id,
         label: entity.label,
@@ -674,9 +682,7 @@ function extractErLayout(
         headerHeight: entitySizes.get(entity.id)!.headerHeight,
         rowHeight: ER.rowHeight,
         ...(entity.className ? { className: entity.className } : {}),
-        ...(Object.keys(classStyle).length > 0 || entity.inlineStyle ? {
-          inlineStyle: { ...classStyle, ...checkedAuthoredStyle(entity.inlineStyle, `style ${entity.id}`) },
-        } : {}),
+        ...(localPaint ? { inlineStyle: localPaint } : {}),
         ...(entity.groupId ? { groupId: entity.groupId } : {}),
       })
     }
@@ -1206,12 +1212,13 @@ function layoutErGroupsOnly(diagram: ErDiagram, style: ResolvedRenderStyle, styl
 }
 
 /**
- * Lay out a parsed ER diagram using ELK.js.
+ * Lay out measured ER cards with the selected graph backend.
  */
 export function layoutErDiagram(
   diagram: ErDiagram,
   options: RenderOptions = {},
   styleFace?: Readonly<InternalStyleFace>,
+  paintBackendId?: string,
 ): PositionedErDiagram {
   assertErDiagramWork(diagram)
   const style = resolveRenderStyle(options, ER_STYLE_DEFAULTS, styleFace)
@@ -1231,11 +1238,21 @@ export function layoutErDiagram(
   if (diagram.entities.length === 0) {
     const empty = (): PositionedErDiagram => withErTitle({ width: 0, height: 0, accessibilityTitle: diagram.accessibilityTitle, accessibilityDescription: diagram.accessibilityDescription, entities: [], relationships: [], groups: [] }, diagram.title, style)
     const frames = () => diagram.groups.length ? finishErGeometry(withErTitle(prepareErText(layoutErGroupsOnly(diagram, style, styleFace, work), style, styleFace), diagram.title, style), style, styleFace, work) : empty()
-    return runMeasuredGraphBackend(options, () => nativeCandidate(frames), () => { erCharge(work, 0); return frames() }, true)
+    return runMeasuredGraphBackend(options, () => nativeCandidate(frames), () => { erCharge(work, 0); return frames() }, true, undefined, () => {
+      if (diagram.groups.length) throw new GraphLayoutUnsupportedError('ER frames are outside the flat slice', 'Trinity')
+      return empty()
+    })
   }
   const entitySizes = measureErEntities(diagram, style)
   let nativeIsolateSpacing: number | undefined
-  const nativePlacement = (): ErPlacement => {
+  const measuredPlacement = (trinity = false): ErPlacement => {
+    if (trinity && paintBackendId !== undefined && paintBackendId !== 'backend:default') throw new GraphLayoutUnsupportedError('ER cards require canonical paint in the flat slice', 'Trinity')
+    if (trinity && (diagram.groups.length || diagram.entities.some(entity => entity.groupId))) throw new GraphLayoutUnsupportedError('ER groups are outside the flat slice', 'Trinity')
+    if (trinity && (diagram.entities.length > 64 || diagram.relationships.length > 128)) throw new GraphLayoutUnsupportedError('flat slice is limited to 64 nodes and 128 edges', 'Trinity')
+    if (trinity && style.edgeBendRadius) throw new GraphLayoutUnsupportedError('rounded ER paint is outside the flat slice', 'Trinity')
+    const endpointSupports = trinity ? new Float64Array(diagram.relationships.length * 2) : undefined
+    let maximumStroke = style.lineWidth, relationshipIndex = 0
+
     const indices = new Map(diagram.entities.map((entity, index) => [entity.id, index]))
     const groupIds = new Set(diagram.groups.map(group => group.id))
     const subjects = new Set([...indices.keys(), ...groupIds])
@@ -1244,6 +1261,9 @@ export function layoutErDiagram(
     let minimumTerminalLead = 0
     for (const rel of diagram.relationships) {
       const role = erRelationshipStyle(rel, styleFace)
+      if (trinity && role?.bendRadius) throw new GraphLayoutUnsupportedError('rounded ER relationship paint is outside the flat slice', 'Trinity')
+      maximumStroke = Math.max(maximumStroke, role?.lineWidth ?? style.lineWidth)
+      let side = 0
       for (const [id, kind] of [[rel.entity1, rel.cardinality1], [rel.entity2, rel.cardinality2]] as const) {
         const bound = erCardinalityEnvelope(kind, style.lineWidth)
         erCharge(work)
@@ -1252,12 +1272,14 @@ export function layoutErDiagram(
         const lead = depth + Math.min(role?.bendRadius ?? style.edgeBendRadius, depth)
         minimumTerminalLead = Math.max(minimumTerminalLead, lead)
         // The layered producer's earliest channel turn is layerSpacing/4.
-        layerSpacing = Math.max(layerSpacing, 4 * lead)
-        if (!groupIds.has(id)) spans.set(id, (spans.get(id) ?? 0) + bound.y1 - bound.y0 + style.lineWidth + .25)
+        if (!trinity) layerSpacing = Math.max(layerSpacing, 4 * lead)
+        if (trinity) endpointSupports![relationshipIndex * 2 + side++] = Math.max(role?.lineWidth ?? style.lineWidth, 2 * Math.max(Math.abs(bound.y0), Math.abs(bound.y1)))
+        if (!trinity && !groupIds.has(id)) spans.set(id, (spans.get(id) ?? 0) + bound.y1 - bound.y0 + style.lineWidth + .25)
       }
+      relationshipIndex++
     }
     let isolateCount = 0, requestedNodeSpacing: number | undefined
-    const nativeSizes = new Map(diagram.entities.map(entity => {
+    const placementSizes = trinity ? entitySizes : new Map(diagram.entities.map(entity => {
       const size = entitySizes.get(entity.id)!, reservedSpan = spans.get(entity.id), span = (reservedSpan ?? 0) + 2 * Math.max(8, style.cornerRadius ?? 0)
       if (groupIds.size === 0 && reservedSpan === undefined) { erCharge(work); isolateCount++ }
       return [entity.id, { ...size, width: Math.max(size.width, span), height: Math.max(size.height, span) }] as const
@@ -1269,16 +1291,25 @@ export function layoutErDiagram(
       // dependency; only leaf placement is delegated to this measured call.
       if (source === undefined || target === undefined) return []
       const block = erRelationshipBlock(rel, style, styleFace)
-      return [{ relationshipIndex, source, target, minSpan: 1, ...(rel.label ? { label: { width: block.width + 16, height: block.height + 16 } } : {}) }]
+      return [{ relationshipIndex, source, target, minSpan: 1, ...(trinity ? { sourcePortSpan: endpointSupports![relationshipIndex * 2]!, targetPortSpan: endpointSupports![relationshipIndex * 2 + 1]! } : {}), ...(rel.label ? { label: { width: block.width + 16, height: block.height + 16 } } : {}) }]
     })
-    const placed = measureRenderStage('agentic', () => layoutAgenticGraph({
-      nodes: diagram.entities.map(entity => ({ id: entity.id, ...nativeSizes.get(entity.id)! })), edges,
-      direction: diagram.direction ?? 'LR', padding: ER.padding, nodeSpacing: (requestedNodeSpacing = options.nodeSpacing) ?? ER.nodeSpacing,
-      layerSpacing, ...(minimumTerminalLead > 0 ? { minimumTerminalLead } : {}), edgeSpacing: Math.max(6, style.lineWidth + 4),
-    }))
-    nativeIsolateSpacing = groupIds.size === 0 && isolateCount >= 2 ? requestedNodeSpacing ?? ER.isolateSpacing : undefined
+    const defaultPaint = trinity ? checkedAuthoredStyle(diagram.classDefs.get('default'), 'classDef default') : undefined
+    const placed = measureRenderStage(trinity ? 'trinity' : 'agentic', () => {
+      const input: MeasuredGraph = {
+        nodes: diagram.entities.map(entity => ({ id: entity.id, ...placementSizes.get(entity.id)!, ...(trinity ? {
+          contact: style.cornerRadius ? 'rounded-rectangle' as const : 'rectangle' as const,
+          paintCornerRadius: style.cornerRadius ?? 0,
+          paintStrokeWidth: 2 * erEntityStrokeHalf({ inlineStyle: erEntityPaint(diagram, entity, defaultPaint) }, style),
+          sizePolicy: 'minimum' as const,
+        } : {}) })), edges,
+        direction: diagram.direction ?? 'LR', padding: ER.padding, nodeSpacing: (requestedNodeSpacing = options.nodeSpacing) ?? ER.nodeSpacing,
+        layerSpacing, ...(trinity ? { minimumTerminalLead, maximumEdgeStrokeWidth: maximumStroke, maximumEdgeBendRadius: 0, nodeClearance: 0 } : minimumTerminalLead > 0 ? { minimumTerminalLead } : {}), edgeSpacing: Math.max(6, (trinity ? maximumStroke : style.lineWidth) + 4),
+      }
+      return trinity ? solveMeasuredLayout({ role: 'routed', graph: input }, trinityMeasuredAdapter({ pairs: 1_000_000, arcs: 65536, swaps: 1_000_000 })) : layoutAgenticGraph(input)
+    })
+    if (!trinity) nativeIsolateSpacing = groupIds.size === 0 && isolateCount >= 2 ? requestedNodeSpacing ?? ER.isolateSpacing : undefined
     return { width: placed.width, height: placed.height, preserveTerminalNormals: true, labelPlacement: 'shaft-aware',
-      entities: placed.nodes.map((position, index) => ({ id: diagram.entities[index]!.id, ...position, ...nativeSizes.get(diagram.entities[index]!.id)! })),
+      entities: placed.nodes.map((position, index) => ({ id: diagram.entities[index]!.id, ...position, ...placementSizes.get(diagram.entities[index]!.id)!, ...(trinity ? { width: position.width!, height: position.height! } : {}) })),
       routes: new Map(placed.edges.map((route, index) => [edges[index]!.relationshipIndex, route.points])),
       labelPositions: new Map(placed.edges.flatMap((route, index) => route.labelPosition
         ? [[edges[index]!.relationshipIndex, { ...route.labelPosition }] as const] : [])) }
@@ -1298,7 +1329,16 @@ export function layoutErDiagram(
       placement.preserveTerminalNormals ? nativeIsolateSpacing : undefined), style, styleFace), diagram.title, style)
     return finishErGeometry(positioned, style, styleFace, work)
   }
-  return runMeasuredGraphBackend(options, () => nativeCandidate(() => finish(nativePlacement())), () => finish(elkPlacement()), true)
+  return runMeasuredGraphBackend(options, () => nativeCandidate(() => finish(measuredPlacement())), () => finish(elkPlacement()), true, undefined, () => {
+    try { return finish(measuredPlacement(true)) } catch (error) {
+      // Geometry rejection may use an explicitly requested fallback. Neither
+      // ER work exhaustion nor the neutral kernel's ledger can become one.
+      if (!(error instanceof ErRouteGeometryError) || options.graphLayout?.fallback !== 'elk') throw error
+      const rejected = new LayoutCertificationError([{ strategy: 'er-final-geometry', violations: [error.message] }])
+      rejected.cause = error
+      throw rejected
+    }
+  })
 }
 
 /** The diagram's title takes a band above everything the layout placed. */

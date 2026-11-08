@@ -1192,3 +1192,33 @@ Actual editor build: gzip9 1,339,699→1,340,386 (+687), Brotli11
 Complete-cost/browser qualification follows. No speed/memory claim
 from this feature. Evidence: `trinity-class-20261108`; compounds/other families
 and broad qualification remain unfinished, adoption/retirement blocked.
+
+### Trinity stage 5: flat ER cards
+
+After `a67632464`, four directional ER refusals reproduce. Reuse measured entity
+minima, actual cardinality envelopes, role-specific shafts and terminal lead.
+Trinity plans capacity, retains returned dimensions and reuses completed ER
+label/contact/ink checks; Native keeps its summed-incidence sizing and island
+policy. A common paint merge supplies both measurement and extraction. Groups,
+memberships, nondefault paint and global/role bends remain unsupported. Only
+explicit geometry rejection may use requested fallback; ER/kernel work errors stay hard.
+
+Four actual glyph/attribute/caption owners fail before and pass after. Growth with
+unchanged rows/header, loop/cycle captions, 13px role shaft versus merged7/2/2px
+entity strokes, public parsed/layout/PNG and hard-error/fallback owners pass.
+Relevant ER layout/label/direction/paint checks62P. Core/repository types and lint
+pass; review caught missing paint-backend identity at the ER hook, now forwarded
+and guarded, with a public hand-drawn owner. Initial optional-style type failure
+is retained. No visible rough-paint defect is claimed.
+
+All ten affected Native/ELK SVGs remain exact. Four new Trinity products return
+with passed certification: coverage16→20 of30, unsupported12→8, two input errors
+stay. Trident416→466P, unsupported168→117, blocked27→28, failed2 unchanged.
+Retained attributes/cardinality TB fixture: area ELK147,532/Native119,152/
+Trinity102,566.1; wire400.6/271.6/192.1; bends/crossings/parallel/opposing counts
+all zero. Other directions and actual products retained. This is a selected
+quality gain, not general workload parity. Final editor Bun gzip9 1,341,432
+(+1,046), Brotli11 1,280,927 (+756); original gzip limit fails6,932.
+Core/repository types, lint, both unchanged MCP context ceilings and actual lazy/editor
+builds pass. Equivalent complete ER runtime/browser costs follow; no ratio inferred.
+Evidence: `trinity-er-20261108`. Compounds and larger routed domains remain losses.

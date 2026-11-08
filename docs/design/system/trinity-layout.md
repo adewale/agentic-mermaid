@@ -1,6 +1,6 @@
 # Trinity: measured layout contract and replacement design
 
-Status: bounded Trinity rectangular Flowchart/State, fixed State start/end circles, flat Class cards and Requirement rendering is publicly selectable with
+Status: bounded Trinity rectangular Flowchart/State, fixed State start/end circles, flat Class/ER cards and Requirement rendering is publicly selectable with
 `graphLayout: { backend: 'trinity' }`. Source/Node, layout, PNG and lazy browser
 entry points share the real adapter and decision evidence. Routed admission is
 64nodes/128edges with measured rectangular or fixed singleton-circle contacts; unsupported shapes, groups,
@@ -219,11 +219,11 @@ changes to investigate/implement in the short execution plan, not completed work
 
 ## Metrics and comparison contract
 
-Trinity now has bounded public Requirement, Flowchart/State and Class delivery.
-The frozen 30-case comparison returns 16 SVGs with passed certification through
-Trinity, versus 28 through Native/ELK; Trinity retains 12 unsupported cases and
+Trinity now has bounded public Requirement, Flowchart/State and Class/ER delivery.
+The frozen 30-case comparison returns 20 SVGs with passed certification through
+Trinity, versus 28 through Native/ELK; Trinity retains 8 unsupported cases and
 the same two input errors. Authored meaning, actual written ink, receipt proof
-and layout quality remain separate. Newly supported State circles and Class
+and layout quality remain separate. Newly supported State circles and Class/ER
 cards do not establish compound, notes, interface or cardinality support.
 
 The existing collector has measured 120 complete Flowchart/Requirement SVG+receipt
