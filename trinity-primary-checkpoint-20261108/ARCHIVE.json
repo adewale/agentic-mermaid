@@ -1,0 +1,8 @@
+{
+  "source": "1f4e1e64ca2a3e8b383f343a9f82c02e22b53327",
+  "runtime": "bbab8283d8db6e6b6827b49550fcae73b7353736",
+  "files": 1176,
+  "archiveBytes": 7148121,
+  "sha256": "63aced17e963479575d9d66dee2c10b84d156ea3ee5894010370aa311ee961f7",
+  "omitted": "Duplicate unchanged agentic-after.json.gz remains local; comparison/runner retained; previous checkpoints retain identical Native products."
+}
