@@ -94,8 +94,15 @@ substantially despite lower Native memory; no settled-memory or no-leak claim.
 
 This adds comparison coverage, not a runtime improvement. The original fixed
 counterexamples and distribution/proof failures remain; df133 CI completed failed.
-Next qualify the cached Class128 observation before profiling/optimization. The
-image scope gap does not automatically authorize changing offline product policy.
+The focused cached Class128 supplement uses five rounds,31warm samples and
+30fresh workers. Across15process medians/backend, repeats are233.80ms Native
+versus225.45ms ELK, with ranges224.83–298.90/208.91–238.03. All four warm rows
+meet per-lane calibration; missing cold rows remain missing. Per-lane A/A repeat
+bands span roughly10–14%, so they do not establish the earlier fixed11%backend
+penalty. Native remains slower in central observations; neither parity nor an
+optimization gain follows. Stop optimization based only on that exploratory gap.
+All ten saved SVGs match the original timed products; artifact hashes are unchanged.
+The image scope gap does not automatically authorize changing offline product policy.
 Raw results, frozen inputs, exact artifacts, reproduction and all limitations are
 in the existing evidence branch's `trident-native-elk-df133-20261108` checkpoint.
 
@@ -155,7 +162,8 @@ must not be pooled into an overall correctness percentage.
 | Standalone transfer |1,333,923 gzip9;1,273,449 Brotli11 bytes | Original gzip ceiling1,334,500 passes with577bytes spare. Earlier mainc3661,517,563 /1,170,181 has a different tradeoff; no current-main standalone ratio. |
 | Native/ELK lazy Flowchart closure |378,598/746,952 gzip;320,974/590,334 Brotli | Retain the Native byte saving alongside29vs25 module requests; measure actual startup and fallback demands separately. Other family and PR-versus-main closure costs remain explicit. |
 | Fully consumed runtime | d4 checkpoint:24fresh ER256 BT/RL processes,168complete calls/proofs passed;48actual-XML cold/edit products audited | Cold/cache/edit results are mixed; Native loses uncached BT edits and cached RL repeats. This predates main608; no merged-head speedup or p95 estimate is established. |
-| Memory | No fresh settled/peak comparison | Peak process RSS, retained heap after the same workload and allocation separately. Profiler artifacts/retained products are not a leak experiment. |
+| Trident SVG-only runtime |27enrolled cases;25completed positive pairs favor Native uncached, cache1 repeat14lower/11higher; exploratory | Focused cached Class128 central observations remain slower, but the original fixed11%penalty is not established. Keep API/import/cache/edit scopes and partial semantics separate; no general speed ratio. |
+| Trident memory | Flowchart128 cache0 peak worker RSS125.43MiB Native/185.85MiB ELK; three processes/cell | Peak worker includes import/driver/qualification; API-return/post-GC snapshots are separate. Both1,000-call retention diagnostics grow substantially; no settled-memory or leak conclusion. |
 
 Quality is a vector: missing meaning, visible collisions, area, wire, bends,
 crossings, aspect ratio and edit displacement have different costs. Keep the

@@ -934,3 +934,13 @@ ELK851,989/682,687; adverse39vs37requests including binding. Both retention
 diagnostics grow; no leak claim. Artifact/dependency/kit identities unchanged.
 No runtime edits or repeated tests as progress. Evidence: trident-native-elk-df133-
 20261108. df133CI completed failed; next qualify cached Class128 before profiling.
+
+At44528195d, focused Trident Class128/cache1:30fresh workers, five rounds,
+31warm samples; all four warm rows meet per-lane calibration, cold intentionally
+unmeasured. Repeat median across15process medians Native233.80ms/ELK225.45ms;
+ranges224.83–298.90/208.91–238.03. Central Native cost remains higher, but the
+earlier fixed11%penalty is not established by A/A control bands of~10–14%.
+Stop optimization based only on that number; no parity/gain claim. Allten SVGs
+match original timed products; artifact hashes unchanged. No production edits.
+Evidence: trident-class128-cache-445-20261108. Original correctness/proof/payload
+losses remain; next intervention needs a demonstrated avoidable cost or actual-ink repair.
