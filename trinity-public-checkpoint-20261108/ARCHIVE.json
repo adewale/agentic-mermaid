@@ -1,0 +1,9 @@
+{
+  "source": "0c784ebbcdba53f6097573fedbf1665c5650737c",
+  "runtime": "01497b98ff72f5e0c30d23e1379adeb09cc2032c",
+  "createdAt": "2026-11-08T20:45:56.290181+00:00",
+  "sha256": "f7df7f1b314f5a211ef399627c763fea39794560110b0a4d76dbde10e5030c35",
+  "bytes": 10472201,
+  "regularFiles": 919,
+  "omission": "Duplicate unchanged874Native raw snapshot retained locally; previous outcome-plan/stages1-3 evidence contains equivalent exact products. New comparison ledger and runner included."
+}
