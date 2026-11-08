@@ -1028,3 +1028,20 @@ Native core; this is not complete product delivery. Actual editor:1,335,115gzip 
 No public option, default/version/cap change or general speed/memory claim.
 Evidence: `trinity-stage4-20261108` in the existing evidence workspace. Next: reuse
 placement/compound owners and then register/measure actual public delivery.
+
+### Trinity stage5 placement slice (8 November)
+
+After deb1d6971, reuse the ordered forest body's placement producer directly.
+Private placement jobs can use the existing4096node/16384edge admission bounds,
+without allocating discarded routes; routed Trinity stays64/128. Rectangle or
+rounded-rectangle paint must be explicit; fixed body dimensions survive while
+outer stroke extents reserve padding. Unknown contacts/routing demands decline.
+Already-depleted ledgers now fail before even unsupported-size admission.
+
+210 owning tests pass, core/repo types and lint pass. All874 existing Native
+SVG/outcome/route vectors stay exact: preservation validation, not new coverage.
+Independent review's unknown-contact finding is fixed. No CPU/RSS/payload saving
+is established; extraction adds a small preparation wrapper to legacy routing.
+Evidence: `trinity-stage5-20261108`. Compounds and other family adapters remain
+unfinished. Next: real public Requirement selection with truthful typed fallback,
+then equal complete-product observations rather than private-kernel ratios.

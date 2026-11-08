@@ -1,11 +1,12 @@
-import type { AgenticLayout, MeasuredGraph } from './agentic-layered.ts'
+import type { AgenticLayout, MeasuredGraph as NativeMeasuredGraph } from './agentic-layered.ts'
+import type { MeasuredGraph, MeasuredPlacement } from './measured-graph.ts'
 
 /** Variable-size ordered forests need subtree spans, not crossing sweeps.
  * This is shared by the native producer and the legacy forest experiment.
  * Keep each subtree in its own interval and reserve depth bands within each
  * root, so incomplete levels cannot interleave related branches. Disconnected
  * roots already have separate cross-axis intervals and need no shared bands. */
-export function layoutMeasuredForest(input: MeasuredGraph, context: 'complete' | 'scope' | 'elk-projection' = 'complete'): AgenticLayout | undefined {
+function prepareMeasuredForest(input: MeasuredGraph, context: 'complete' | 'scope' | 'elk-projection') {
   const { nodes, edges, padding, nodeSpacing, layerSpacing } = input
   if (nodes.length < 2 || edges.length >= nodes.length || nodeSpacing <= 0 || layerSpacing <= 0
     || ![padding, nodeSpacing, layerSpacing].every(value => Number.isFinite(value) && value >= 0)
@@ -121,6 +122,29 @@ export function layoutMeasuredForest(input: MeasuredGraph, context: 'complete' |
     let start = starts[id]! + (span[id]! - peerWidth) / 2
     for (const child of peers) { starts[child] = start; start += span[child]! + nodeSpacing }
   }
+  return {
+    geometry: { width: 2 * padding + (horizontal ? mainExtent : crossExtent), height: 2 * padding + (horizontal ? crossExtent : mainExtent), nodes: positioned },
+    outgoing, bandOffset, rootOrdinal, depth, bandStart, bands, mainExtent, crossExtent, crossSize,
+  }
+}
+
+/** Body placement only: no temporary routes or routing-track workspace. */
+export function placeMeasuredForest(input: MeasuredGraph, context: 'complete' | 'scope' | 'elk-projection' = 'complete'): MeasuredPlacement | undefined {
+  if (input.groups?.length) return undefined
+  if (input.nodes.length === 1 && !input.edges.length) {
+    const node = input.nodes[0]!, padding = input.padding
+    if (![node.width, node.height].every(value => Number.isFinite(value) && value > 0) || !Number.isFinite(padding) || padding < 0 || !Number.isFinite(node.width + node.height + 4 * padding)) return undefined
+    return { width: node.width + 2 * padding, height: node.height + 2 * padding, nodes: [{ x: padding, y: padding }] }
+  }
+  return prepareMeasuredForest(input, context)?.geometry
+}
+
+export function layoutMeasuredForest(input: NativeMeasuredGraph, context: 'complete' | 'scope' | 'elk-projection' = 'complete'): AgenticLayout | undefined {
+  const prepared = prepareMeasuredForest(input, context)
+  if (!prepared) return undefined
+  const { outgoing, bandOffset, rootOrdinal, depth, bandStart, bands, mainExtent, crossExtent, crossSize, geometry } = prepared
+  const { nodes, edges, padding, layerSpacing } = input
+  const positioned = geometry.nodes, horizontal = input.direction === 'LR' || input.direction === 'RL', reverse = input.direction === 'RL' || input.direction === 'BT'
   // Spread ports also need ordered bend channels. Reusing one channel leaves
   // overlapping runs between siblings whose source contacts are now distinct.
   // Routes toward the low cross side use increasing channels; routes toward

@@ -1,4 +1,6 @@
 import { assertMarkerPaint } from './compound-marker-seating.ts'
+import { assertTrinityWork } from './trinity-work.ts'
+import { tryTrinityForestPlacement } from './trinity-placement.ts'
 import { GraphLayoutUnsupportedError, LayoutWorkLimitError } from './backend.ts'
 import { AGENTIC_MAX_RANKS, AGENTIC_MAX_EXPANDED_VERTICES } from './agentic-limits.ts'
 import { assignChannelTracks, type ChannelStep, type ChannelWork } from './channel-tracks.ts'
@@ -12,6 +14,10 @@ const size = (value: number, positive = false): boolean => Number.isFinite(value
 export function trinityMeasuredAdapter(work: ChannelWork): MeasuredLayoutAdapter<MeasuredLayoutRole> {
   return {
     solve(request: MeasuredLayoutRequest): MeasuredLayoutResult {
+      if (request.role === 'placement') {
+        const geometry = tryTrinityForestPlacement(request.graph, work)
+        if (geometry) return { kind: 'placed', geometry }
+      }
       const geometry = solveTrinity(request.graph, work, request.role)
       return request.role === 'placement' ? { kind: 'placed', geometry } : { kind: 'routed', geometry }
     },
@@ -19,12 +25,12 @@ export function trinityMeasuredAdapter(work: ChannelWork): MeasuredLayoutAdapter
 }
 
 function solveTrinity(input: MeasuredGraph, work: ChannelWork, role: MeasuredLayoutRole): MeasuredRoutes {
+  assertTrinityWork(work)
   const n = input.nodes.length, m = input.edges.length
   // This first slice has deliberately local admission, not a larger product cap.
   if (n > 64 || m > 128) decline('flat slice is limited to 64 nodes and 128 edges')
   if (![input.padding, input.nodeSpacing, input.layerSpacing].every(value => size(value))) throw new TypeError('Invalid measured spacing')
   if (!['TD', 'TB', 'BT', 'LR', 'RL'].includes(input.direction)) throw new TypeError('Invalid measured direction')
-  for (const key of ['pairs', 'arcs', 'swaps'] as const) { if (!Number.isFinite(work[key])) throw new TypeError('Invalid Trinity work ledger'); if (work[key] < 0) throw new LayoutWorkLimitError(key) }
   const spend = (count = 1): void => { work.pairs -= count; if (work.pairs < 0) throw new LayoutWorkLimitError('pairs') }
   const arc = (): void => { work.arcs -= 2; if (work.arcs < 0) throw new LayoutWorkLimitError('arcs') }
   if (input.groups?.length || input.shareCompleteFans) decline('compound scopes and shared fans are not implemented')
