@@ -23,8 +23,8 @@ export interface GraphLayoutDecision {
 
 export class GraphLayoutUnsupportedError extends Error {
   readonly code = 'GRAPH_LAYOUT_UNSUPPORTED'
-  constructor(readonly reason: string) {
-    super(`Agentic graph layout does not support this input: ${reason}`)
+  constructor(readonly reason: string, backend: 'Agentic' | 'ELK' = 'Agentic') {
+    super(`${backend} graph layout does not support this input: ${reason}`)
     this.name = 'GraphLayoutUnsupportedError'
   }
 }

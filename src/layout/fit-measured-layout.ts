@@ -1,8 +1,8 @@
-import type { AgenticLayout, MeasuredGraph } from './agentic-layered-core.ts'
+import type { MeasuredGraph, MeasuredRoutes } from './measured-graph.ts'
 
 /** Discard private placement margins after the final route and caption edits.
  * Preserve the requested padding around every retained body and route. */
-export function fitMeasuredLayout(input: MeasuredGraph, placed: AgenticLayout): AgenticLayout {
+export function fitMeasuredLayout<T extends MeasuredRoutes>(input: MeasuredGraph, placed: T): T {
   if (input.groups?.length || !input.nodes.length || input.nodes.length > 256 || input.edges.length > 128 || placed.edges.reduce((n, e) => n + e.points.length, 0) > 2048) return placed
   let left = Infinity,
     top = Infinity,
