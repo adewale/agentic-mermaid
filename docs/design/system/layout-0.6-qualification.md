@@ -28,16 +28,38 @@ admitted TB/LR preserve exact SVGs while Native work falls397,206→343,421 and 
 384,466→330,681. All1,748 fixed-roster SVGs and delivery/proof/route outcomes stay
 exact; those unchanged cases are validation. Fresh returned ER256 products are
 supplemental evidence, not additions to a denominator chosen after outcomes.
-That ER change saved7gzip/157Brotli bytes. The next change separates the shared
-option contract from executable rendering: standalone gzip1,386,827→1,332,711 and
-Brotli1,318,081→1,272,057. The original1,334,500 gzip budget now passes locally,
-with1,789bytes spare. Worker/backend validation remains intact. No causal runtime
-or memory speedup is established.
+That ER change saved7gzip/157Brotli bytes. The option-contract split then reduced
+standalone gzip1,386,827→1,332,711 and Brotli1,318,081→1,272,057. Integrating
+main608 adds1,212gzip/1,392Brotli bytes: final1,333,923/1,273,449, with577bytes
+spare under the original1,334,500 gzip ceiling. Worker/backend validation remains
+intact. No causal runtime or memory speedup is established.
 
 Sparse32 streaming validation was tested and stopped: it still exhausts400k and
 review found an unresolved authority concern from moving ambient lookups into
 emission. The diagnostic removed-check pass is not a repair. Production XML
-validation remains unchanged; this item is still open.
+validation remains unchanged; this item is still open. A subsequent deferred
+name-token/prepared-mask trial also remains unverified at400k. Count-only
+diagnostics report450,245→421,715 emission operations, before final proof work;
+these relaxed diagnostic counts are not admissible passes. Independent review
+finds that sharing paint replay cannot close this witness: its own-paint labels
+never consume that replay. Stop this hypothesis rather than adding more machinery.
+
+At0c162c446, canonical lazy artifacts with the same pinned ELK0.11.1 show Native
+closures smaller in raw/gzip/Brotli bytes for all nine graph families measured by
+the existing report. Flowchart is378,598gzip/320,974Brotli for Native versus
+746,952/590,334 for ELK; Native uses29 module requests versus25. These are built
+static/provider closures, not captured browser requests, startup timing or full
+delivery qualification. This backend comparison is distinct from the PR's common
+pipeline growth versus main: Flowchart+46,076gzip, Timeline+40,813gzip. Removing
+forced render-core grouping worsens every family closure (roughly+900gzip and
++2,700Brotli), so that outside-source trial is stopped. No runtime change ships.
+The first reference build's ELK0.11.0 dependency mismatch was corrected before
+the equal-dependency comparison; failed attempts and adverse costs are retained.
+
+Full runtime CI at0c162c446 has completed failed: Sparse32, lazy/website payload
+limits and generated-layout advisory. Browser/site, package-consumer, CLI,
+semantic conformance and the other two unit shards pass. A smaller Native solver
+download and a passing standalone ceiling do not close those remaining failures.
 
 A newly reproduced missing-meaning or visible-output defect can outrank a resource
 optimization. These are priorities, not a promise to run every experiment before
@@ -96,8 +118,9 @@ must not be pooled into an overall correctness percentage.
 | Forest wire / area | Native397.71 /165,356; ELK396.47 /176,727 | Retain the useful wire/area tradeoff,8 bends and final contacts; do not spend cycles forcing the remaining0.31% wire delta to zero. |
 | Class2 area / height | Native65,400 /327; ELK61,400 /307 | Reduce area with height/aspect ratio, wire and visible layout reported. |
 | Crossing276 / Sparse256 |6vs4 crossings; historical area+5.04% | Retain adverse bends, contacts, height and compressed SVG cost. |
-| Standalone transfer |1,332,711 gzip9;1,272,057 Brotli11 bytes | Reduce both actual artifacts where possible; original gzip ceiling1,334,500 passes locally with1,789bytes spare. Current main1,517,563 /1,170,181 has a different tradeoff. |
-| Fully consumed runtime | No fresh post-rebase p50/p95 baseline | Measure milliseconds/call per family/backend/regime, output bytes and attempts; compare equivalent completed work. Refusal versus delivery is not a speed ratio. |
+| Standalone transfer |1,333,923 gzip9;1,273,449 Brotli11 bytes | Original gzip ceiling1,334,500 passes with577bytes spare. Earlier mainc3661,517,563 /1,170,181 has a different tradeoff; no current-main standalone ratio. |
+| Native/ELK lazy Flowchart closure |378,598/746,952 gzip;320,974/590,334 Brotli | Retain the Native byte saving alongside29vs25 module requests; measure actual startup and fallback demands separately. Other family and PR-versus-main closure costs remain explicit. |
+| Fully consumed runtime | d4 checkpoint:24fresh ER256 BT/RL processes,168complete calls/proofs passed;48actual-XML cold/edit products audited | Cold/cache/edit results are mixed; Native loses uncached BT edits and cached RL repeats. This predates main608; no merged-head speedup or p95 estimate is established. |
 | Memory | No fresh settled/peak comparison | Peak process RSS, retained heap after the same workload and allocation separately. Profiler artifacts/retained products are not a leak experiment. |
 
 Quality is a vector: missing meaning, visible collisions, area, wire, bends,

@@ -905,3 +905,18 @@ are mixed, not a combined-head speedup. Sparse32, visible contacts, quality and
 other distribution losses remain. Evidence: sparse-plan-00938-20261107. Keep
 Sparse streaming stopped; next causal work is its first XML/proof exhaustion,
 with current CI separate and automation off.
+
+
+From0c162c446, qualify actual Native/ELK lazy artifact closures at matching
+ELK0.11.1: Flowchart gzip378,598/746,952, Brotli320,974/590,334; Native29vs25
+module requests. Nine measured graph families use fewer Native bytes, not an
+actual browser/startup or whole-workload replacement result. PR-versus-main
+common growth persists: Flowchart+46,076gzip, Timeline+40,813gzip. Removing forced
+union hints worsens all families (~+900gzip/+2,700Brotli): stop, no runtime edit.
+Sparse32 owner2P1F reproduced. Deferred name-token trial stillU400k; diagnostic
+emission450,245→421,715 is over cap before proof, not a repaired result. Independent
+review rules out proposed paint-replay fusion: own-paint labels never use it.
+Stop this line. Corrected first main build's local ELK0.11.0 mismatch; retain all
+failed builds/probes. Full0c CI nowF: Sparse32/lazy+website costs/advisory; browser,
+package/CLI/semantic lanesP. Evidence: lazy-closure-0c162-20261108. Goal remains
+blocked by correctness/performance/resource losses; no new runtime gain claimed.
