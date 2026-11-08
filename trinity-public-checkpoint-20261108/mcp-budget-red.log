@@ -1,0 +1,39 @@
+bun test v1.4.4 (38afee6c8)
+
+src/__tests__/hosted-mcp.test.ts:
+442 |     const execute = HOSTED_TOOLS.find(t => t.name === 'execute')!
+443 |     const mutate = HOSTED_TOOLS.find(t => t.name === 'mutate')!
+444 |     const build = HOSTED_TOOLS.find(t => t.name === 'build')!
+445 |     // Include metrics, layout selectors and parse positions without increasing
+446 |     // the context limit; family edit schemas stay progressively loaded.
+447 |     expect(new TextEncoder().encode(execute.description).length).toBeLessThan(15_250)
+                                                                       ^
+error: expect(received).toBeLessThan(expected)
+
+Expected: < 15250
+Received: 15253
+
+      at <anonymous> (/tmp/pr449-main-integration-20261029-762/src/__tests__/hosted-mcp.test.ts:447:66)
+(fail) hosted declarative mutate/build tools > tool descriptions defer family schemas to describe_sdk [0.45ms]
+
+src/__tests__/agent-mcp.test.ts:
+730 |     }
+731 |     expect(tools[0].description).toContain('interface RenderRequestReceipt')
+732 |     expect(tools[0].description).toMatch(/interface RenderRequestReceipt\s*\{\s*version:\s*2;/)
+733 |     // Include metrics, layout selectors and parse positions without increasing
+734 |     // the context limit; family edit schemas stay progressively loaded.
+735 |     expect(new TextEncoder().encode(tools[0].description).length).toBeLessThan(15_150)
+                                                                        ^
+error: expect(received).toBeLessThan(expected)
+
+Expected: < 15150
+Received: 15184
+
+      at <anonymous> (/tmp/pr449-main-integration-20261029-762/src/__tests__/agent-mcp.test.ts:735:67)
+(fail) MCP — JSON-RPC happy + sad > tools/list has a compact execute SDK plus progressive family discovery [2.68ms]
+
+ 0 pass
+ 157 filtered out
+ 2 fail
+ 44 expect() calls
+Ran 2 tests across 2 files. [665.00ms]

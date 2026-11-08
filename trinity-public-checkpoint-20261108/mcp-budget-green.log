@@ -1,0 +1,13 @@
+bun test v1.4.4 (38afee6c8)
+
+src/__tests__/hosted-mcp.test.ts:
+(pass) hosted declarative mutate/build tools > tool descriptions defer family schemas to describe_sdk [0.20ms]
+
+src/__tests__/agent-mcp.test.ts:
+(pass) MCP — JSON-RPC happy + sad > tools/list has a compact execute SDK plus progressive family discovery [1.45ms]
+
+ 2 pass
+ 157 filtered out
+ 0 fail
+ 48 expect() calls
+Ran 2 tests across 2 files. [650.00ms]

@@ -1,0 +1,13 @@
+bun test v1.4.4 (38afee6c8)
+
+src/__tests__/agent-doc-sync.test.ts:
+(pass) documented package usage works > browser client recipes bundle through the browser ESM entry [2223.01ms]
+(pass) documented package usage works > package-runner quickstarts install the published package and run a real subcommand [81.21ms]
+(pass) shipped examples run > agent-loop example runs [856.41ms]
+(pass) shipped examples run > MCP/CLI parity example runs [3849.44ms]
+
+ 4 pass
+ 11 filtered out
+ 0 fail
+ 30 expect() calls
+Ran 4 tests across 1 file. [8.06s]
