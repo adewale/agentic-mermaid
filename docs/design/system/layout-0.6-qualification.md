@@ -4,9 +4,9 @@ Updated 8 November 2026. The owner requested a Trinity specification, common
 ELK/Native/Trinity interface, metrics, state/invariant ownership and plan cleanup.
 The owner subsequently authorized the ten-stage roadmap, with a report after each
 stage. Stages 1–3 are implemented for the neutral contract, first Requirement
-consumer and legacy completion split. Stage 4 adds a bounded private flat kernel;
-stage7 now registers its bounded Requirement and rectangular primary adapters publicly. Other families,
-compound support, broader equivalent public costs and adoption remain unfinished. Automation stays off. Defaults, versions, original
+consumer and legacy completion split. Stage 4 adds a bounded flat kernel;
+stage 7 registers bounded Requirement, Flowchart, State, Class, ER and single-container
+Architecture adapters publicly. Broader compounds and adoption remain unfinished. Automation stays off. Defaults, versions, original
 limits and Replacement24 remain unchanged.
 
 [Trinity specification](trinity-layout.md) owns the proposed contract, refactoring
@@ -22,13 +22,13 @@ failed probes and earlier plans; their old “next” statements are historical.
 | 1 | Neutral measured input, explicit placement/routed results and fixed/minimum body policy. Implemented. | Preserve compatibility exports; enforce finite results, subject correspondence and permitted growth. This is not final written-ink proof. |
 | 2 | Existing ELK/Native adapters. Requirement, flat Class/ER and single-container Architecture consumers implemented; other family/compound paths remain in stage 5. | Preserve existing products, typed fallback, mutable/getter isolation and actual family completion. Decline untranslated constraints explicitly. |
 | 3 | Separate reusable measurement, dispatch and legacy completion. Implemented. | Manifest/context/order/freeze/metric guards move together. All1,748 existing SVG/outcome/route vectors stay exact. Source moves alone establish no performance gain. |
-| 4 | First bounded opt-in Trinity kernel. Implemented; stage7 registers the Requirement slice. | Flat rectangular contacts, cycles, occupied labels and pre-coordinate endpoint capacity; explicit unsupported domains. Actual family SVG observation is narrow and retains wire/bend/area costs. No public performance or replacement claim. |
+| 4 | Bounded opt-in Trinity kernel. Implemented; stage 7 registers supported family adapters. | Flat rectangular contacts, cycles, occupied labels and pre-coordinate endpoint capacity; explicit unsupported domains. Actual family SVG observation is narrow and retains wire/bend/area costs. Public complete-product costs are measured separately; no general replacement claim. |
 | 5 | Compound and family adapters. Private forest placement now reuses the existing body producer without discarded routes; shared primary glyph/CSS measurement now feeds Native/Trinity; single-container Architecture now consumes placement with its own routes; broader compounds remain unfinished. | Reuse existing owners; no silent flattening or discarded authored constraints. Preserve headers, hierarchy, direction, contacts and original caps. Requalify affected actual final output. |
-| 6 | Shared completion/emission cost. Profile before any optimization. | Stop insufficient Sparse32 and duplicate-work hypotheses already falsified. Implement only a sufficient measured subtraction; retain owning capture/lookup/UTF16/CSS/definitions contracts. No new caches or invented speedups. |
+| 6 | Shared completion/emission cost. Fresh 45-call profile and cache inventory reported; unsafe diagnostic-path ceiling stopped without a production rewrite. | Stop insufficient Sparse32 and duplicate-work hypotheses already falsified. Implement only a sufficient measured subtraction; retain owning capture/lookup/UTF16/CSS/definitions contracts. No new caches or invented speedups. |
 | 7 | Public API, lazy delivery and actual backend decisions. Requirement, flat Class/ER, single-container Architecture and rectangular Flowchart/State plus fixed start/end-circle adapters implemented; untranslated families/geometry explicitly decline unless fallback was requested. | Register a real adapter only; preserve explicit no-fallback and requested/selected/primary/companion evidence. Measure actual dependency/request closures and compressed bytes. |
-| 8 | Existing Trident equal-work qualification. Bounded public comparison implemented:24/30 delivered by Trinity,120 complete timed calls and actual three-family browser closure; broader workload remains pending. | Independent authored meaning and written ink; keep every unsupported/refused/unknown/adverse cell. Separate kernel/full SVG+receipt, cold/cache/edit/churn, memory and real payloads. Replacement24 stays sealed until its required freeze. |
-| 9 | Adoption decision from the owner's workload and verified results. Pending. | Existing losses and unsupported workload remain visible; no automatic default or version change. No assistant-created acceptance gates. |
-| 10 | Retire superseded paths only after replacement is qualified. Pending. | Preserve public compatibility and recovery history; do not remove ELK merely because a private subset is smaller. |
+| 8 | Existing Trident equal-work qualification. Bounded public comparison: Trinity 24/30 delivered, four unsupported, two shared input errors; 300 unprofiled complete calls and actual six-family browser union. Broader workload remains unqualified. | Independent authored meaning and written ink; keep every unsupported/refused/unknown/adverse cell. Separate kernel/full SVG+receipt, cold/cache/edit/churn, memory and real payloads. Replacement24 stays sealed until its required freeze. |
+| 9 | Adoption decision: retain ELK. Trinity has unsupported workloads, mixed runtime costs and failed distribution budgets. | Existing losses and unsupported workload remain visible; no automatic default or version change. No assistant-created acceptance gates. |
+| 10 | Retirement deferred. Replacement is unqualified; preserve ELK and public compatibility. | Preserve public compatibility and recovery history; do not remove ELK merely because a private subset is smaller. |
 
 For each real change: reproduce the loss, locate its first responsible stage,
 test the smallest causal intervention, qualify the affected contracts, then commit
