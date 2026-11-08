@@ -1,0 +1,33 @@
+# Single-container Architecture and final five-family profile
+
+Runtime: fe9113601. Extract only bottom-up scope sizing/projection for reuse. Native retains child read/visit order, its captured leaf count, lifting, private flags, expansion statistics and local/boundary route projection. Trinity consumes body-only placement and a single cumulative ledger, with no fabricated Native statistics or generic routes. Architecture supplies retained text/icon minima and owns actual ports, final routes, headers, labels and certification, with private Native sibling search disabled.
+
+Initial domain: one container, all service leaves, unlabelled forests and canonical paint. Junctions, other/nested scopes, frame endpoints, labels and noncanonical paint explicitly decline. Existing forest placement4096/16384 admission and cumulative work/expansion limits remain; this is distinct from routed64/128 admission. No delivery claim at the full admission caps follows from the small qualification cases.
+
+The enrolled refusal reproduces before and the actual service/header/port owner passes after. Initial Architecture owners53P, focused8P, final backend file36P, compound owners11P. Source/parsed/layout/PNG, enlarged Japanese text/icon minima, explicit fallback, rough paint and hard-work contracts pass. Core/repository types, lint, original MCP context ceilings and actual lazy/editor builds pass. Independent review finds no actionable issue. Initial child sandbox failures, generic type errors and one subset-reader path error remain as evidence.
+
+All874 existing Native SVG/outcome/route vectors are exact after extraction. Final captured-leaf-count adjustment requalifies all34 affected compound vectors exactly. Eight affected Native/ELK Architecture SVGs exact; four new Trinity products return/passed. Unaffected prior results carry forward, not replay progress. Frozen30: Trinity24returned/passed,4unsupported,2inputerrors; Native/ELK28returned/passed,2inputerrors. Complete Trident ledger: Trinity518P65unsupported28blocked2failed; Native576P6U28B3F, ELK575P6U29B3F. Meaning, delivery, actual ink and receipt proof remain separate; all unknowns/adverse cells retained.
+
+Remaining enrolled Trinity losses: nested Flowchart, nested State, Class namespace/cardinality/note and controlled image. The same two font-size input errors remain. Larger routed workloads are also outside the64/128 slice. Replacement24 sealed. Broad migration, adoption and retirement remain incomplete; retain ELK and existing defaults.
+
+## Quality and complete-product costs
+
+Actual branching Architecture SVG: ELK area151171.228/wire352/bends4; Native151171.228/358.133/4; Trinity151593.494/354/4. All observed crossings/parallel/opposing counts zero. The small adverse Trinity area/wire versus ELK remain. Complete actual-SVG metrics and products are retained for all four enrolled Architecture cases.
+
+12 serial fresh Node24 processes, one Architecture source × three backends × two cache settings × two replicas:60 complete SVG+entire receipt calls. All returned with passed certification; repeats and repeated edits exact, edits change SVG. Cache-off cold medians ELK450.56/Native186.22/Trinity247.81ms; repeat2 62.45/29.26/62.75ms; edit2 44.81/43.92/26.83ms. Cache-on repeat2 22.65/30.10/30.03ms, edit2 27.45/22.07/22.52ms. Adverse costs retained; small samples support no general ratio or uniform advantage.
+
+Cache-off process peak RSS ranges KiB: ELK180984–195956, Native170208–174796, Trinity170308–172484. Heap used after windows in bytes: ELK51952048–56467064, Native36641480–55115960, Trinity35944216–39824128. These include source imports/harness/artifact scope, heap snapshots are not heap peaks and GC affects deltas. No general memory superiority. PERFORMANCE.json preserves every phase/range/CPU/heap/RSS measurement.
+
+Actual same-six-family browser union plus four enrolled feature sources: product modules ELK856349gzip9/686964Br11, Native483797/414176, Trinity450550/385763 bytes; requests including binding41/47/47. Full public SVG+receipt consumed by binding. Binding bytes separate; raw server and post-observation file compression, not compressed wire/startup. Earlier smaller family unions have different scopes.
+
+Complete measured Architecture JSON product: ELK2839gzip/2426Br, Native2855/2452, Trinity2848/2437. Editor Bun1.4.4 gzip1341338 (−94 versus ER), Brotli1281204 (+277); original1334500gzip ceiling still fails6838. No default/version/cap or geometry-cache change.
+
+## Profile and stopped probe
+
+Existing V8 collector, current runtime, five supported cases × three backends × three steady windows:45 complete products, all returned/P. Unprofiled warmup per process; layout-cache flagoff, derived caches remain. Separate from300 unprofiled calls and browser/build observations. Self/inclusive raw elapsed sample weights per call: copyInner2.162/2.842ms, external snapshot visit1.581/1.749, certifyNativePaint0.740/3.531, copy0.623/2.948, omitUndefined0.552/0.604. Inclusive weights overlap and are not exclusive CPU/removable time. Original maps and1/2/5ms sensitivity diagnostics retained. This workload differs from the earlier Requirement-only profile; no before/after speedup follows. Cold-cost causes remain unisolated.
+
+Independent causal review identifies shared Class/ER admission cost, not a Trinity-specific solver cause. Existing admitted-document membership already bypasses repeat admission. A deliberately unsafe diagnostic-path-only ceiling removes two successful-recursion concatenations while breaking nested error paths.40 successful full products remain exact across variants; all returned/P. Four replicas per variant: repeat2 baseline26.76ms/ceiling28.04 (worse), repeat1 33.85/33.51, edit2 23.65/22.00, overlapping ranges. No sufficient consistent benefit or valid production speedup ratio; stop. No rewrite or new cache shipped. Unsafe overlay is explicitly marked and must never be applied as production code.
+
+Final test-only maintenance: two obsolete Class/ER refusal assertions reproduced failing; the existing table now requires Trinity selection, identical SVG with allowed fallback, and no fallback diagnostic. Requirement owners51P after five sandbox child-stdin EPERM retries; core/repo types and repository lint pass. Runtime remains fe9113601. Runtime CI42534101146 completed failed (Sparse32, lazy/website budgets, advisory, plus those two now-repaired stale tests); later heads require their own CI.
+
+Raw scripts, logs, final products, built assets and failed probes are retained in evidence.tar.gz. FILES.json records verified archive members and SHA256; ARCHIVE.json binds the runtime and archive. No local evidence was deleted.
