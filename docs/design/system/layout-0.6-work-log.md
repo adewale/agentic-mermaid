@@ -1084,3 +1084,35 @@ fields and full SDK remain; neither context ceiling is raised. Both named owners
 fail before and pass after. Core types/lint and declaration owners pass; child
 recipe checks require the normal outside-sandbox retry. Sparse32 and distribution
 CI failures remain. Evidence: `trinity-public-20261108/mcp-*`.
+
+### Trinity stage5 primary producer slice (8 November)
+
+After4433c6f1c, extract the existing graph glyph/CSS measurement and projection
+producer for Native and Trinity. Native retains private order flags, cache,
+prepared-work custody and legacy completion. Trinity consumes the neutral routed
+boundary and existing strict correspondence/text/certification owners, without
+legacy repair. Plain rectangle/rounded Flowchart and State bodies now deliver;
+notes, pseudostates, groups, semantic shapes and authored curves explicitly
+remain unsupported. Current routed64/128 limits stay unchanged.
+
+On the frozen30-case cohort, Trinity returned/passed rises4→11, unsupported24→17;
+shared two input errors stay. Native/ELK remain28returned/passed. Independent
+actual-SVG Trident ledger: Trinity354P233unsupported24blocked2F; Native576P28B3F6U,
+ELK575P29B3F6U. Common parser/default-prelude credit is not solver delivery.
+All874Native SVG/outcome/route vectors remain exact. Graph/cache owners110P,
+focused physical/State owners15P, lazy27P; core/repo types/lint and both real
+builds pass. Existing sandbox child timeout replays pass under canonical timeout.
+
+Review caught two introduced admission defects: natural-curve input returned
+with passed certification despite orthogonal-only demand; curves now decline.
+Ordinary caption demand omitted the actual opaque halo (24px too narrow at6px
+shaft). Two owning observations fail before and pass after using the drawing's
+halo helper. A separate collision probe had no hits; no visible-collision fix
+is claimed. The initially missing retained caption geometry and mistaken test
+label-shape assumption are retained as failed probes too.
+
+Actual editor Bun gzip9 1,339,158→1,339,568 (+410); Brotli11
+1,279,895→1,279,561 (−334). Original gzip limit still fails by5,068. New primary
+CPU/RSS/browser-closure comparison follows; no gain inferred from extraction.
+Evidence: `trinity-primary-20261108`. Remaining: compound/family coverage and
+broader equivalent-product qualification; adoption/retirement remain blocked.

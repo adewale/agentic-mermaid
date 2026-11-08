@@ -43,6 +43,7 @@ import type { InternalStyleFace } from './scene/style-registry.ts'
 import type { ResolvedStateVisualConfig, StateRenderOptions } from './state/config.ts'
 import { elkLayoutSync } from './elk-instance.ts'
 import { layoutAgenticCandidate, layoutAgenticPlacement } from './layout/agentic-layered.ts'
+import { layoutTrinityCandidate } from './layout/trinity-producer.ts'
 import { customTextMeasurementActive } from './text-measurement-profile.ts'
 import { edgeSelectorIndices } from './shared/edge-selectors.ts'
 import { graphEdgeMarkerPaintRegions } from './graph-connectors.ts'
@@ -1655,7 +1656,10 @@ function layoutUntitledGraph(graph: MermaidGraph, options: LayoutEngineOptions):
   return runMeasuredGraphBackend(options, () => {
     const style = resolveRenderStyle(options, options.stateVisual?.styleDefaults, options.styleFace)
     return layoutAgenticCandidate(graph, options, style, agenticGraphBindings)
-  }, () => layoutElkGraph(graph, options), true, (positioned, decision) => { positioned.layoutDecision = decision })
+  }, () => layoutElkGraph(graph, options), true, (positioned, decision) => { positioned.layoutDecision = decision }, () => {
+    const style = resolveRenderStyle(options, options.stateVisual?.styleDefaults, options.styleFace)
+    return layoutTrinityCandidate(graph, options, style, agenticGraphBindings)
+  })
 }
 
 /** Four deterministic strategy combinations, each with the existing bounded

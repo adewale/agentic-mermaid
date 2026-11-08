@@ -590,7 +590,7 @@ root - contains -> side`
     expect(fallback.receipt.diagnostics).toContainEqual(expect.objectContaining({ code: 'GRAPH_LAYOUT_FALLBACK', message: expect.stringContaining('Trinity') }))
   })
 
-  test.each(['flowchart TB\n A-->B', 'classDiagram\n A-->B', 'erDiagram\n A ||--o{ B : owns'])('unmigrated families never silently select ELK for a Trinity request: %s', input => {
+  test.each(['classDiagram\n A-->B', 'erDiagram\n A ||--o{ B : owns'])('unmigrated families never silently select ELK for a Trinity request: %s', input => {
     expect(() => renderMermaidSVGWithReceipt(input, { graphLayout: { backend: 'trinity' } })).toThrow('Trinity')
     const result = renderMermaidSVGWithReceipt(input, { graphLayout: { backend: 'trinity', fallback: 'elk' } })
     expect(result.receipt.layoutDecisions?.[0]).toMatchObject({ requested: 'trinity', selected: 'elk', attempts: [{ backend: 'trinity', outcome: 'unsupported', reason: expect.any(String) }, { backend: 'elk', outcome: 'selected' }] })

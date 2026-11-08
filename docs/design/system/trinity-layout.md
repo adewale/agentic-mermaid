@@ -1,10 +1,10 @@
 # Trinity: measured layout contract and replacement design
 
-Status: bounded Trinity Requirement rendering is publicly selectable with
+Status: bounded Trinity rectangular Flowchart/State and Requirement rendering is publicly selectable with
 `graphLayout: { backend: 'trinity' }`. Source/Node, layout, PNG and lazy browser
 entry points share the real adapter and decision evidence. Routed admission is
 64nodes/128edges with measured rectangular contacts; unsupported shapes, groups,
-route paint and other families decline unless ELK fallback was requested. The
+route paint, State notes/pseudostates and other families decline unless ELK fallback was requested. The
 private placement-only forest slice reuses the existing body producer up to
 existing4096node/16384edge limits. Compound/family migration and adoption remain
 unfinished. Defaults, limits and package versions are
