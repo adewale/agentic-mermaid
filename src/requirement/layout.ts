@@ -1,10 +1,11 @@
-import { requirementArrow, requirementContains, requirementContainsPortSpan, requirementMarkerTerminal } from './markers.ts'
+import { requirementArrow, requirementArrowPortSpan, requirementContains, requirementContainsPortSpan, requirementMarkerTerminal } from './markers.ts'
 import { elkMeasuredAdapter } from '../layout/elk-measured-adapter.ts'
 import { nativeMeasuredAdapter } from '../layout/native-measured-adapter.ts'
+import { trinityMeasuredAdapter } from '../layout/trinity.ts'
 import { solveMeasuredLayout } from '../layout/measured-backend.ts'
 import type { MeasuredRoutes } from '../layout/measured-graph.ts'
 import { fitMeasuredLayout } from '../layout/fit-measured-layout.ts'
-import { runMeasuredGraphBackend } from '../layout/backend.ts'
+import { GraphLayoutUnsupportedError, runMeasuredGraphBackend } from '../layout/backend.ts'
 import { measureRenderStage } from '../render-stages.ts'
 import { resolveRoleStyle } from '../scene/roles.ts'
 import type { InternalStyleFace } from '../scene/style-registry.ts'
@@ -118,7 +119,34 @@ export function layoutRequirementDiagram(model: RequirementBody, options: Render
         label: { width: labels[index]!.width + 16, height: labels[index]!.height + 10 } })),
       direction: model.direction, padding: pad, nodeSpacing, layerSpacing,
     } }, elkMeasuredAdapter({ rootId: 'requirement-layout', edgeNodeSpacing: elkTerminalLead, labelText: labels.map(label => label.text) }))
-  })
+  }, false, undefined, () => measureRenderStage('trinity', () => {
+    if (style.lineWidth <= 0) throw new GraphLayoutUnsupportedError('Requirement zero-width shafts are outside the Trinity slice', 'Trinity')
+    const measured = {
+      nodes: nodes.map(node => {
+        const authoredStroke = node.style['stroke-width']?.trim()
+        // Relative/CSS-dependent paint is unknown here; do not manufacture a
+        // pixel measurement with parseFloat and let it authorize placement.
+        if (authoredStroke !== undefined && !/^(?:\d+(?:\.\d*)?|\.\d+)(?:px)?$/.test(authoredStroke)) throw new GraphLayoutUnsupportedError('Requirement stroke width needs an absolute pixel measurement', 'Trinity')
+        const stroke = authoredStroke === undefined ? style.nodeLineWidth : Number.parseFloat(authoredStroke)
+        if (!Number.isFinite(stroke) || stroke <= 0) throw new GraphLayoutUnsupportedError('Requirement contacts need a finite positive pixel stroke', 'Trinity')
+        return { id: node.id, width: node.width, height: node.height, contact: style.cornerRadius ? 'rounded-rectangle' as const : 'rectangle' as const,
+          sizePolicy: 'minimum' as const, paintCornerRadius: style.cornerRadius ?? 0, paintStrokeWidth: stroke, minimumPortSpacing: requirementContainsPortSpan }
+      }),
+      edges: model.relations.map((edge, index) => ({ source: indices.get(edge.src)!, target: indices.get(edge.dst)!, minSpan: 1,
+        sourcePortSpan: edge.type === 'contains' ? Math.max(style.lineWidth, requirementContainsPortSpan) : style.lineWidth,
+        targetPortSpan: edge.type === 'contains' ? style.lineWidth : Math.max(style.lineWidth, requirementArrowPortSpan),
+        label: { width: labels[index]!.width + 16, height: labels[index]!.height + 10 } })),
+      direction: model.direction, padding: pad, nodeSpacing, layerSpacing, edgeSpacing: Math.max(6, style.lineWidth + 4),
+      minimumTerminalLead: Math.max(terminalLead, model.relations.some(edge => edge.type === 'contains') ? requirementMarkerTerminal(requirementContains.id, style.lineWidth, 'start') + style.edgeBendRadius : 0),
+      maximumEdgeStrokeWidth: style.lineWidth, maximumEdgeBendRadius: style.edgeBendRadius,
+    }
+    const placed = solveMeasuredLayout({ role: 'routed', graph: measured }, trinityMeasuredAdapter({ pairs: 1_000_000, arcs: 65536, swaps: 1_000_000 }))
+    for (const [index, at] of placed.nodes.entries()) {
+      nodes[index]!.width = at.width ?? nodes[index]!.width
+      nodes[index]!.height = at.height ?? nodes[index]!.height
+    }
+    return placed
+  }))
   const band = diagramTitleBand(model.title, style),
     titleHeight = band?.height ?? 0
   const width = Math.max(result.width ?? 0, (band?.width ?? 0) + pad * 2, pad * 2),

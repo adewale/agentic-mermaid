@@ -1,9 +1,13 @@
 # Trinity: measured layout contract and replacement design
 
-Status: first bounded flat kernel implemented on 8 November 2026, with no public
-backend registration or adoption. Neutral types, the first Requirement consumer,
-and legacy completion separation are implemented. Other adapters and the common
-physical contract remain incomplete. Defaults, limits and package versions are
+Status: bounded Trinity Requirement rendering is publicly selectable with
+`graphLayout: { backend: 'trinity' }`. Source/Node, layout, PNG and lazy browser
+entry points share the real adapter and decision evidence. Routed admission is
+64nodes/128edges with measured rectangular contacts; unsupported shapes, groups,
+route paint and other families decline unless ELK fallback was requested. The
+private placement-only forest slice reuses the existing body producer up to
+existing4096node/16384edge limits. Compound/family migration and adoption remain
+unfinished. Defaults, limits and package versions are
 unchanged. [Execution plan](layout-0.6-qualification.md) owns the work order;
 [TODO](../../../TODO.md#owned-graph-backend-qualification-owner-request-pr-449)
 owns the backlog. Original design observations bind to

@@ -6,14 +6,15 @@ export { DeferredDependencyError, LayoutCertificationError, type LayoutCertifica
 export { withRenderStageObserver, measureRenderStage, type RenderStage, type RenderStageSample } from '../render-stages.ts'
 
 export const AGENTIC_LAYERED_IMPLEMENTATION = 'agentic-layered@28'
+export const TRINITY_IMPLEMENTATION = 'trinity@1'
 
 export interface GraphLayoutDecision {
-  readonly requested: 'elk' | 'agentic'
+  readonly requested: 'elk' | 'agentic' | 'trinity'
   readonly fallback: 'none' | 'elk'
-  readonly selected: 'elk' | 'agentic'
+  readonly selected: 'elk' | 'agentic' | 'trinity'
   readonly reason?: string
   readonly attempts: readonly {
-    readonly backend: 'elk' | 'agentic'
+    readonly backend: 'elk' | 'agentic' | 'trinity'
     readonly outcome: 'selected' | 'unsupported' | 'candidate-rejected'
     readonly reason?: string
   }[]
@@ -55,10 +56,11 @@ export function emitGraphLayoutDecision(decision: GraphLayoutDecision): void {
 export function selectElkForGraphFamily(options: Pick<RenderOptions, 'graphLayout'>, family: string): GraphLayoutDecision {
   const requested = options.graphLayout?.backend ?? 'elk'
   const fallback = options.graphLayout?.fallback ?? 'none'
-  if (requested === 'agentic') {
-    const reason = `${family} family geometry is not supported by the Agentic backend`
-    if (fallback !== 'elk') throw new GraphLayoutUnsupportedError(reason)
-    return { requested, fallback, selected: 'elk', reason, attempts: [{ backend: 'agentic', outcome: 'unsupported', reason }, { backend: 'elk', outcome: 'selected' }], implementation: 'elk-layered@1' }
+  if (requested !== 'elk') {
+    const name = requested === 'agentic' ? 'Agentic' : 'Trinity'
+    const reason = `${family} family geometry is not supported by the ${name} backend`
+    if (fallback !== 'elk') throw new GraphLayoutUnsupportedError(reason, name)
+    return { requested, fallback, selected: 'elk', reason, attempts: [{ backend: requested, outcome: 'unsupported', reason }, { backend: 'elk', outcome: 'selected' }], implementation: 'elk-layered@1' }
   }
   return { requested, fallback, selected: 'elk', attempts: [{ backend: 'elk', outcome: 'selected' }], implementation: 'elk-layered@1' }
 }
@@ -72,19 +74,24 @@ export function runMeasuredGraphBackend<T>(
   elk: () => T,
   allowCandidateRejection = false,
   retainDecision?: (result: T, decision: GraphLayoutDecision) => void,
+  trinity?: () => T,
 ): T {
   const policy = options.graphLayout
   if (!policy) return elk()
   const attempts: Array<GraphLayoutDecision['attempts'][number]> = []
   let result: T, selected = policy.backend, reason: string | undefined
-  if (policy.backend === 'agentic') {
+  if (policy.backend !== 'elk') {
     try {
-      result = native()
+      if (policy.backend === 'agentic') result = native()
+      else {
+        if (!trinity) throw new GraphLayoutUnsupportedError('this family has no Trinity adapter', 'Trinity')
+        result = trinity()
+      }
     } catch (error) {
       const unsupported = error instanceof GraphLayoutUnsupportedError
       if ((!unsupported && !(allowCandidateRejection && error instanceof LayoutCertificationError)) || policy.fallback !== 'elk') throw error
       reason = unsupported ? error.reason : 'candidate failed mandatory geometry certification'
-      attempts.push({ backend: 'agentic', outcome: unsupported ? 'unsupported' : 'candidate-rejected', reason })
+      attempts.push({ backend: policy.backend, outcome: unsupported ? 'unsupported' : 'candidate-rejected', reason })
       result = elk()
       selected = 'elk'
     }
@@ -93,7 +100,7 @@ export function runMeasuredGraphBackend<T>(
   }
   attempts.push({ backend: selected, outcome: 'selected' })
   const decision: GraphLayoutDecision = { requested: policy.backend, fallback: policy.fallback ?? 'none', selected, attempts,
-    implementation: selected === 'agentic' ? AGENTIC_LAYERED_IMPLEMENTATION : 'elk-layered@1', ...(reason ? { reason } : {}) }
+    implementation: selected === 'agentic' ? AGENTIC_LAYERED_IMPLEMENTATION : selected === 'trinity' ? TRINITY_IMPLEMENTATION : 'elk-layered@1', ...(reason ? { reason } : {}) }
   retainDecision?.(result, decision)
   emitGraphLayoutDecision(decision)
   return result

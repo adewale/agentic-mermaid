@@ -70,6 +70,8 @@ export default defineConfig({
         ({ path: resolve(args.resolveDir, args.path.replace(/\.ts$/, '.lazy.ts')) }))
       build.onResolve({ filter: /\/agentic-layered\.ts$/ }, args =>
         args.kind === 'dynamic-import' ? undefined : { path: resolve(args.resolveDir, args.path.replace(/\.ts$/, '.lazy.ts')) })
+      build.onResolve({ filter: /\/trinity\.ts$/ }, args =>
+        args.kind === 'dynamic-import' ? undefined : { path: resolve(args.resolveDir, args.path.replace(/\.ts$/, '.lazy.ts')) })
       build.onResolve({ filter: /\/builtin-font-metrics\.ts$/ }, args =>
         ({ path: resolve(args.resolveDir, args.path.replace(/\.ts$/, '.lazy.ts')) }))
     },

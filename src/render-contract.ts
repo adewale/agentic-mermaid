@@ -321,9 +321,9 @@ function receiptDiagnostics(
   return Object.freeze([
     ...(Object.hasOwn(request, 'resolutionDiagnostics') ? request.resolutionDiagnostics! : []),
     ...diagnostics,
-    ...graphLayoutDecisionsOf(request).flatMap(decision => decision.requested === 'agentic' && decision.selected === 'elk' ? [{
+    ...graphLayoutDecisionsOf(request).flatMap(decision => decision.requested !== 'elk' && decision.selected === 'elk' ? [{
       code: 'GRAPH_LAYOUT_FALLBACK', feature: 'graph-layout',
-      message: `Agentic graph layout used the requested ELK fallback: ${decision.reason ?? 'candidate rejected'}`,
+      message: `${decision.requested === 'agentic' ? 'Agentic' : 'Trinity'} graph layout used the requested ELK fallback: ${decision.reason ?? 'candidate rejected'}`,
     }] : []),
   ].flatMap(diagnostic => {
     const key = canonicalJson(diagnostic)

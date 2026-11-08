@@ -1045,3 +1045,31 @@ is established; extraction adds a small preparation wrapper to legacy routing.
 Evidence: `trinity-stage5-20261108`. Compounds and other family adapters remain
 unfinished. Next: real public Requirement selection with truthful typed fallback,
 then equal complete-product observations rather than private-kernel ratios.
+
+### Trinity stage7 first public adapter (8 November)
+
+After0604aae77, `graphLayout.backend='trinity'` now runs the real measured
+Requirement producer across source/parsed/layout/PNG and lazy browser paths.
+Requested/selected/attempt/implementation evidence stays distinct; unmigrated
+families and unsupported64/128 domains decline, with ELK only on explicit
+fallback. Hard work/TypeError/dependency suspension cannot authorize fallback.
+The measured cards publish growth only after successful solve. Marker supports
+come from their actual fixed resources; relative CSS stroke is unknown/declined.
+A valid zero terminal lead is accepted, including an empty public diagram.
+
+Requirement owners52P; selection/lazy/capture/kernel owners87P; core/repo types,
+lint and both real builds pass. Independent review found no remaining actionable
+issue in this bounded slice. Current direct public retained fixture returns all
+four directions with passed final certification; broader authored/ink/cost
+qualification follows. Source/Node's static import adds code; lazy selection
+requires its own actual request evidence. Other family/compound stages remain
+incomplete, not silently delegated to Native.
+
+Matched editor compression on identical retained/new bytes: Bun1.4.4 gzip9
+1,335,115→1,339,158 (+4,043); Brotli11 1,274,636→1,279,895 (+5,259).
+Original gzip1,334,500 still fails by4,658. Node24's different zlib produces
+1,303,274→1,307,912; do not mix codecs or claim the apparent27KB drop as a gain.
+No new cache, default/package-version/cap change. Evidence:
+`trinity-public-20261108`; next: actual public Trident ink and complete-product
+cold/cache/edit/profile/memory/payload observations. Stage6 has no new safe
+performance subtraction demonstrated yet; stopped probes remain stopped.

@@ -45,7 +45,7 @@ describe('Requirement layout backends', () => {
     }
   })
 
-  test.each((['agentic', 'elk'] as const).flatMap(backend => (['scene', 'native'] as const).map(admission => ({ backend, admission }))))('retains parallel requirement occurrences and authored names with $backend through $admission', async ({ backend, admission }) => {
+  test.each((['agentic', 'elk', 'trinity'] as const).flatMap(backend => (['scene', 'native'] as const).map(admission => ({ backend, admission }))))('retains parallel requirement occurrences and authored names with $backend through $admission', async ({ backend, admission }) => {
     // Authored relation-1 is a card name, independently of generated edge IDs;
     // the two satisfies declarations must retain separate caption owners.
     const interaction = {
@@ -552,12 +552,12 @@ root - contains -> side`
     }
   })
 
-  test('uses the native producer across source, parsed, layout and PNG while preserving explicit ELK', () => {
+  test.each(['agentic', 'trinity'] as const)('uses $backend across source, parsed, layout and PNG while preserving explicit ELK', backend => {
     const input = source('TB'), stages: string[] = [], parsed = parseRegisteredMermaid(input)
-    const options = { ...native, padding: 33 }
+    const options = { graphLayout: { backend }, padding: 33 }
     if (!parsed.ok) throw new Error('fixture must parse')
     const rendered = withRenderStageObserver(sample => stages.push(sample.stage), () => renderMermaidSVGWithReceipt(input, options))
-    expect(stages).toContain('agentic')
+    expect(stages).toContain(backend)
     expect(stages).not.toContain('elk')
     expect(renderMermaidSVGWithReceipt(parsed.value, options).svg).toBe(rendered.svg)
     expect(layoutMermaidWithReceipt(input, options).receipt.layoutDecisions).toEqual(rendered.receipt.layoutDecisions)
@@ -568,13 +568,31 @@ root - contains -> side`
     expect(elk.svg).toBe(legacy.svg)
     expect(legacy.receipt.layoutDecisions).toBeUndefined()
     expect(elk.receipt.layoutDecisions).toEqual([expect.objectContaining({ selected: 'elk' })])
-    expect(renderMermaidSVGWithReceipt(input, { graphLayout: { backend: 'agentic', fallback: 'elk' } }).receipt.layoutDecisions).toEqual([expect.objectContaining({ selected: 'agentic', attempts: [{ backend: 'agentic', outcome: 'selected' }] })])
+    expect(renderMermaidSVGWithReceipt(input, { graphLayout: { backend, fallback: 'elk' } }).receipt.layoutDecisions).toEqual([expect.objectContaining({ selected: backend, attempts: [{ backend, outcome: 'selected' }] })])
     JSON.stringify(rendered.receipt)
     JSON.stringify(png.receipt)
   })
 
-  test('retains empty native canvases without starting ELK', () => {
-    const result = renderMermaidSVGWithReceipt('requirementDiagram', native)
-    expect(result.receipt.layoutDecisions).toEqual([expect.objectContaining({ selected: 'agentic' })])
+  test.each(['agentic', 'trinity'] as const)('retains empty $backend canvases without starting ELK', backend => {
+    const result = renderMermaidSVGWithReceipt('requirementDiagram', { graphLayout: { backend } })
+    expect(result.receipt.layoutDecisions).toEqual([expect.objectContaining({ selected: backend })])
+  })
+
+  test('Trinity preserves the explicit fallback policy for a Requirement graph outside its routed slice', () => {
+    const input = 'requirementDiagram\n' + Array.from({ length: 65 }, (_, i) => `requirement R${i} {\n id: ${i}\n}`).join('\n')
+    expect(() => renderMermaidSVGWithReceipt(input, { graphLayout: { backend: 'trinity' } })).toThrow('64 nodes')
+    const fallback = renderMermaidSVGWithReceipt(input, { graphLayout: { backend: 'trinity', fallback: 'elk' } })
+    const elk = renderMermaidSVGWithReceipt(input, { graphLayout: { backend: 'elk' } })
+    expect(fallback.svg).toBe(elk.svg)
+    expect(fallback.receipt.layoutDecisions).toEqual([expect.objectContaining({ requested: 'trinity', selected: 'elk', implementation: 'elk-layered@1', attempts: [
+      { backend: 'trinity', outcome: 'unsupported', reason: expect.stringContaining('64 nodes') }, { backend: 'elk', outcome: 'selected' },
+    ] })])
+    expect(fallback.receipt.diagnostics).toContainEqual(expect.objectContaining({ code: 'GRAPH_LAYOUT_FALLBACK', message: expect.stringContaining('Trinity') }))
+  })
+
+  test.each(['flowchart TB\n A-->B', 'classDiagram\n A-->B', 'erDiagram\n A ||--o{ B : owns'])('unmigrated families never silently select ELK for a Trinity request: %s', input => {
+    expect(() => renderMermaidSVGWithReceipt(input, { graphLayout: { backend: 'trinity' } })).toThrow('Trinity')
+    const result = renderMermaidSVGWithReceipt(input, { graphLayout: { backend: 'trinity', fallback: 'elk' } })
+    expect(result.receipt.layoutDecisions?.[0]).toMatchObject({ requested: 'trinity', selected: 'elk', attempts: [{ backend: 'trinity', outcome: 'unsupported', reason: expect.any(String) }, { backend: 'elk', outcome: 'selected' }] })
   })
 })
