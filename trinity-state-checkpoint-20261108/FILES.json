@@ -1,0 +1,1347 @@
+[
+  {
+    "path": "trinity-state-20261108/ACQUISITION-SUPPLEMENT.json",
+    "bytes": 14116,
+    "sha256": "5811ec924338f401390cbab6ec30e06ee6019e472943f13035834913f16c9a09"
+  },
+  {
+    "path": "trinity-state-20261108/AUTHORED-MEANING.json",
+    "bytes": 78278,
+    "sha256": "201b86f65a05abfa3101ad3f528faebd0c2edeeacb4e886a2f49b7b1f6246ebe"
+  },
+  {
+    "path": "trinity-state-20261108/COHORT-INK.json",
+    "bytes": 363077,
+    "sha256": "6b6be7c1c4fffd4791420bc670f6ba128a0835c1df142c82765a1cf0aad9de84"
+  },
+  {
+    "path": "trinity-state-20261108/COHORT-PRODUCTS.json",
+    "bytes": 946496,
+    "sha256": "00f8cd187385ea2e9851fbc27592ce84f3a096562bd2276e3793709ea1ccfd03"
+  },
+  {
+    "path": "trinity-state-20261108/CRITERIA-PLAN.json",
+    "bytes": 114329,
+    "sha256": "786f23be2b8794aa906da6f7a9c98bb78c4f90c0cd2b21ffdea2c37abca10325"
+  },
+  {
+    "path": "trinity-state-20261108/FIDELITY-SUMMARY.json",
+    "bytes": 144317,
+    "sha256": "a6da3b0e570050277de9542ef380ad14876ff0b47185231e1368e5dfbdc92206"
+  },
+  {
+    "path": "trinity-state-20261108/LEDGER-agentic.json",
+    "bytes": 591114,
+    "sha256": "7155f941338aca32866fe0d57ebd95850bde7dd4b855a44c54cc6f742f9d2aba"
+  },
+  {
+    "path": "trinity-state-20261108/LEDGER-elk.json",
+    "bytes": 588675,
+    "sha256": "ff0fb224cf958424b31215da7467a9b788bb7f94b4e8f8e81310c704b5ee47cc"
+  },
+  {
+    "path": "trinity-state-20261108/LEDGER-trinity.json",
+    "bytes": 581998,
+    "sha256": "33ee26b7fea5cdeadcaf58a242f3153ecba06d08aa496ef6d2b358d1935b7472"
+  },
+  {
+    "path": "trinity-state-20261108/README.md",
+    "bytes": 1954,
+    "sha256": "48af0cb764f548cc153eac7a0a6a3f05f76d36592f580cc7df59b00f43a4eb71"
+  },
+  {
+    "path": "trinity-state-20261108/STATE-REQUALIFICATION.json",
+    "bytes": 401014,
+    "sha256": "e24577acfb01040dfb01f32525c055eacdb1aa8725dd5ada7ab7ee9f0be3b535"
+  },
+  {
+    "path": "trinity-state-20261108/build-lazy.log",
+    "bytes": 12341,
+    "sha256": "e856284993b86c4e337a155a60c8c3fda1e427a79535abfb4709f9e8e41084a7"
+  },
+  {
+    "path": "trinity-state-20261108/build-lazy.ts",
+    "bytes": 318,
+    "sha256": "303d713870d0d8476eb9fef1a20ab26b234e6ae4e9de34d10ca3904d2debe81c"
+  },
+  {
+    "path": "trinity-state-20261108/cohort-ink/BROWSER.json",
+    "bytes": 924,
+    "sha256": "bf00a4dba1f905f2100c9579645b316615185aa78c048d0be2ae80de44e2f581"
+  },
+  {
+    "path": "trinity-state-20261108/complete-ledger.ts",
+    "bytes": 4900,
+    "sha256": "880d680b93c63db907e2e581d47e2f04e14272c4ff6f6d9acfce120df66d4ff3"
+  },
+  {
+    "path": "trinity-state-20261108/dist/browser-lazy/chunks/agentflow-PHHMMV5J.js",
+    "bytes": 16966,
+    "sha256": "19cb7986ce070d69f1ff74b6abb7e79c99b1eff38b34a6bffadf4025dac11988"
+  },
+  {
+    "path": "trinity-state-20261108/dist/browser-lazy/chunks/agentic-producer-core-Y6S5MK3U.js",
+    "bytes": 108339,
+    "sha256": "7605de09bffc3472b9e9ebfa3f98c663e5341d552d9ec2ad179f0a42d0540a98"
+  },
+  {
+    "path": "trinity-state-20261108/dist/browser-lazy/chunks/architecture-OMM4FMOV.js",
+    "bytes": 57576,
+    "sha256": "f5d4384fc146ecd4b8fa49e19482ec0c2159e43708ec57de711621e1a80605fe"
+  },
+  {
+    "path": "trinity-state-20261108/dist/browser-lazy/chunks/block-R3R2KMUC.js",
+    "bytes": 34673,
+    "sha256": "b38c418c86c43da79329517f3ee70052c0d785318008c7ae438c0678c2013ae2"
+  },
+  {
+    "path": "trinity-state-20261108/dist/browser-lazy/chunks/builtin-backends-TIEJ7UNX.js",
+    "bytes": 39789,
+    "sha256": "a4da004687306356178876ca82bd0e500798784ba3947fa174e6d83c5f1162f6"
+  },
+  {
+    "path": "trinity-state-20261108/dist/browser-lazy/chunks/c4-5CASB5Q2.js",
+    "bytes": 71964,
+    "sha256": "894381756fbcb264d9261cb757bd700018e0a92d463137ea55eadb21cc718b7a"
+  },
+  {
+    "path": "trinity-state-20261108/dist/browser-lazy/chunks/chunk-2F5FV4FV.js",
+    "bytes": 12515,
+    "sha256": "8e24df4de9a9dc4139ae7ca63b3a3e8b3ad2cde3ce783c5c2c07ebc884844783"
+  },
+  {
+    "path": "trinity-state-20261108/dist/browser-lazy/chunks/chunk-2FFMGXYS.js",
+    "bytes": 8663,
+    "sha256": "b9b73340995205568568617702002640e27b8b7047c6184919cce35ff1381351"
+  },
+  {
+    "path": "trinity-state-20261108/dist/browser-lazy/chunks/chunk-2QWPKXL3.js",
+    "bytes": 1607,
+    "sha256": "43fcf51e3d2ed5d94df23cdcd8eacdba6c2511f4af810d49cdfb0e8bcf9db006"
+  },
+  {
+    "path": "trinity-state-20261108/dist/browser-lazy/chunks/chunk-4FJJ6BHR.js",
+    "bytes": 414,
+    "sha256": "c4b8ecae68125ad7dae7239f8c5d8fe3792bf68d564652e83f19164608b012c4"
+  },
+  {
+    "path": "trinity-state-20261108/dist/browser-lazy/chunks/chunk-4RNGW2RF.js",
+    "bytes": 20809,
+    "sha256": "f32b681d9d5408898b23c35f1322994ff6b560f25e7d9448364f63542f1b382c"
+  },
+  {
+    "path": "trinity-state-20261108/dist/browser-lazy/chunks/chunk-5AVWL4HA.js",
+    "bytes": 281,
+    "sha256": "28099c26511b2903c0153dcfbb9b57f5091ecd9718b0eef849be94924a5050a7"
+  },
+  {
+    "path": "trinity-state-20261108/dist/browser-lazy/chunks/chunk-7JOXKRSW.js",
+    "bytes": 424,
+    "sha256": "4fc90f13e127a275290b54f9ac4f416cb1deccab4003a83d4b45843606f1d235"
+  },
+  {
+    "path": "trinity-state-20261108/dist/browser-lazy/chunks/chunk-7WYEZDAV.js",
+    "bytes": 2947,
+    "sha256": "9537136b03638cfeaee3fd895794340115c04b985d0f37a91cb3218ad460289f"
+  },
+  {
+    "path": "trinity-state-20261108/dist/browser-lazy/chunks/chunk-7X62GRYO.js",
+    "bytes": 7330,
+    "sha256": "bc9243c7c84de8de1e64f44b485dad3f99b66f75179002049b1c578fef2bb321"
+  },
+  {
+    "path": "trinity-state-20261108/dist/browser-lazy/chunks/chunk-A6CKOFBH.js",
+    "bytes": 1688,
+    "sha256": "46fa22cad855125a0c8df09dedba8ac095747ff2242a5023c12d637b1dae55c3"
+  },
+  {
+    "path": "trinity-state-20261108/dist/browser-lazy/chunks/chunk-AII457QA.js",
+    "bytes": 595,
+    "sha256": "e19db39ab8ce906fc691b3e7eaaa0659ca31bbeede2bb6514d1b4798062dd00a"
+  },
+  {
+    "path": "trinity-state-20261108/dist/browser-lazy/chunks/chunk-CDC4GQBX.js",
+    "bytes": 515,
+    "sha256": "482e5478f48b114362945875e894d4bfcb6402b482c91b2ca4515502f12151d9"
+  },
+  {
+    "path": "trinity-state-20261108/dist/browser-lazy/chunks/chunk-CLWWU6PK.js",
+    "bytes": 887,
+    "sha256": "8e228b2d11e2c6bfca5b0b6ae36c976d9f129136cb7d67c6c35e8d59713f3959"
+  },
+  {
+    "path": "trinity-state-20261108/dist/browser-lazy/chunks/chunk-D7ACEPSO.js",
+    "bytes": 6562,
+    "sha256": "0564120dec9fe0cc5f659ada8afa171c37621007ebbdd54d91df1c54c7707d6d"
+  },
+  {
+    "path": "trinity-state-20261108/dist/browser-lazy/chunks/chunk-D971EB51.js",
+    "bytes": 599808,
+    "sha256": "e9b74914c352e5afeaee43e4b58d546b943522fd3d9793a963848f2054217881"
+  },
+  {
+    "path": "trinity-state-20261108/dist/browser-lazy/chunks/chunk-EZZICG5F.js",
+    "bytes": 760,
+    "sha256": "239eace03348a64ad3a1d8786ebc3033a3272456149cec0648f97572d7938697"
+  },
+  {
+    "path": "trinity-state-20261108/dist/browser-lazy/chunks/chunk-FNMIBZ7T.js",
+    "bytes": 3624,
+    "sha256": "62edc576c5d2d935fc0b484cbb30c0444637c0c7fd8341dd7e5dfc8c8fee3418"
+  },
+  {
+    "path": "trinity-state-20261108/dist/browser-lazy/chunks/chunk-FR62EHID.js",
+    "bytes": 1840,
+    "sha256": "850ae89edf5cef8893c9328525dcb1c3ff1bfb9581085a2c92f6e84c29d282f4"
+  },
+  {
+    "path": "trinity-state-20261108/dist/browser-lazy/chunks/chunk-GEVNTA6Z.js",
+    "bytes": 272,
+    "sha256": "324ccdfb690624097bcbb8db7215bf51f1156efa1c6cdda14cfab8b59f092c4e"
+  },
+  {
+    "path": "trinity-state-20261108/dist/browser-lazy/chunks/chunk-GMYJFQHI.js",
+    "bytes": 117873,
+    "sha256": "9dbcf62413d3669903fc0506fa9e1b481809a36df0ca4af4253faaa95ea15615"
+  },
+  {
+    "path": "trinity-state-20261108/dist/browser-lazy/chunks/chunk-IH2QCKZZ.js",
+    "bytes": 4802,
+    "sha256": "8f32d9017a0dcfc605d53fd74a4a623b2f4a134f36204867386cdc8879850531"
+  },
+  {
+    "path": "trinity-state-20261108/dist/browser-lazy/chunks/chunk-IYPM5OWP.js",
+    "bytes": 21116,
+    "sha256": "246f3ac928f8d37094f3b937b24c918540861550a09c202391b6eacf76c1a743"
+  },
+  {
+    "path": "trinity-state-20261108/dist/browser-lazy/chunks/chunk-JAY5YCCH.js",
+    "bytes": 1618,
+    "sha256": "3c0d94a02b16d9424b8909d3b4a35dc6719c0a1d531aade6b4ec84a7c5018b51"
+  },
+  {
+    "path": "trinity-state-20261108/dist/browser-lazy/chunks/chunk-JVFVBEG7.js",
+    "bytes": 340,
+    "sha256": "256171d38d871940de29887398233287ce8c860548956be7aaeb5e4c2fe7967d"
+  },
+  {
+    "path": "trinity-state-20261108/dist/browser-lazy/chunks/chunk-KVSZ7XLL.js",
+    "bytes": 401,
+    "sha256": "65f036e9c0f6f1097ad76565460d8e458e47afa2544b434275e5f3b9891b535e"
+  },
+  {
+    "path": "trinity-state-20261108/dist/browser-lazy/chunks/chunk-M62WLLR3.js",
+    "bytes": 1188,
+    "sha256": "d39e326ae1743da0433533754f01e8891aae3369bdfcc32f094a0ff58652be25"
+  },
+  {
+    "path": "trinity-state-20261108/dist/browser-lazy/chunks/chunk-MWCW7WDH.js",
+    "bytes": 11858,
+    "sha256": "b9c15841a4593a63d33e17933587dac94c96d78587e7775ddd33a46725fd148f"
+  },
+  {
+    "path": "trinity-state-20261108/dist/browser-lazy/chunks/chunk-NBHHPERM.js",
+    "bytes": 1832,
+    "sha256": "2277bd98607e484ab1afdb62b3841f8fbe797aad24919e97429f1c8417d77389"
+  },
+  {
+    "path": "trinity-state-20261108/dist/browser-lazy/chunks/chunk-O4WXINVK.js",
+    "bytes": 5103,
+    "sha256": "30e5de7004b351e437374ab5ffccba7025aa4ac6b773bda90f2ea90744111b2e"
+  },
+  {
+    "path": "trinity-state-20261108/dist/browser-lazy/chunks/chunk-OGB2YZWM.js",
+    "bytes": 163,
+    "sha256": "be219d28301693b3509806f8002add7ff66819d52ee550911fffc1fb47a837c6"
+  },
+  {
+    "path": "trinity-state-20261108/dist/browser-lazy/chunks/chunk-Q2JWQOFR.js",
+    "bytes": 13054,
+    "sha256": "17f8fc56bb05f2b43ab34b7b9f41ee92f21988a4ec08edb73b5dc718a71134f4"
+  },
+  {
+    "path": "trinity-state-20261108/dist/browser-lazy/chunks/chunk-RNJQ25EL.js",
+    "bytes": 383,
+    "sha256": "6741f810ec9e6a25e9593292e3d519717f8715266ae802831a673560b259d202"
+  },
+  {
+    "path": "trinity-state-20261108/dist/browser-lazy/chunks/chunk-RTUN4I4Z.js",
+    "bytes": 261,
+    "sha256": "9bf90e43a940b2b86d2c8296bdc7d4a53452a5151164f38d10a70488beb08c9e"
+  },
+  {
+    "path": "trinity-state-20261108/dist/browser-lazy/chunks/chunk-SC76MUQ3.js",
+    "bytes": 440,
+    "sha256": "32f2e061f17b0958551c522cf707b97162f11e6f3fdc44667276459410366258"
+  },
+  {
+    "path": "trinity-state-20261108/dist/browser-lazy/chunks/chunk-SUY5AJDN.js",
+    "bytes": 70956,
+    "sha256": "81ab1725e449906949f86c7eb8d2da9bd9f8f420460d9945f7f15b308201dc27"
+  },
+  {
+    "path": "trinity-state-20261108/dist/browser-lazy/chunks/chunk-TXALF2FK.js",
+    "bytes": 891,
+    "sha256": "09e4a78804795224819ca40734070069a0977f9c72bd27d06de37b90f7e6c2bf"
+  },
+  {
+    "path": "trinity-state-20261108/dist/browser-lazy/chunks/chunk-U6OVMGDP.js",
+    "bytes": 786,
+    "sha256": "499174db340f7d3928bd4dc5e8fb2ae35f9ffdd9459caaadec2d6e212220b2e9"
+  },
+  {
+    "path": "trinity-state-20261108/dist/browser-lazy/chunks/chunk-UMG3LHWW.js",
+    "bytes": 2179,
+    "sha256": "e3d5ac7c6d78292f4f686a98a7fe69e86681fea059722b3d5cd9d53b4be91938"
+  },
+  {
+    "path": "trinity-state-20261108/dist/browser-lazy/chunks/chunk-UQ7GTNSR.js",
+    "bytes": 7633,
+    "sha256": "daae0619bc0ec02d0d90d2108156b16b85d5321dbe6cccf0ad14514944707a5d"
+  },
+  {
+    "path": "trinity-state-20261108/dist/browser-lazy/chunks/chunk-VA5NXN6C.js",
+    "bytes": 119027,
+    "sha256": "b899dcfef5fdff31608739a728cbf009cf18326fb6cd04056a1bf4ff59d573d1"
+  },
+  {
+    "path": "trinity-state-20261108/dist/browser-lazy/chunks/chunk-VBMEMD4H.js",
+    "bytes": 58884,
+    "sha256": "2759db2dfb9acac374c593fc629ed4b1dbe0fc8be16004e298628f78abda0bc8"
+  },
+  {
+    "path": "trinity-state-20261108/dist/browser-lazy/chunks/chunk-VI45WYIB.js",
+    "bytes": 11944,
+    "sha256": "170dcd0e02f0ce225cd1033909410997238b0c6ceac58caf56483af55a4dad0e"
+  },
+  {
+    "path": "trinity-state-20261108/dist/browser-lazy/chunks/chunk-W2ZO2GWS.js",
+    "bytes": 2554,
+    "sha256": "907a7588a32f326ef18b3859378f3e6b4ba39387125c6d600dedb91dd3c855bb"
+  },
+  {
+    "path": "trinity-state-20261108/dist/browser-lazy/chunks/chunk-ZUH3ERZV.js",
+    "bytes": 865,
+    "sha256": "73b175b99fa7e205b3225821cbd981c406f80917a8246db295197348e63702c6"
+  },
+  {
+    "path": "trinity-state-20261108/dist/browser-lazy/chunks/class-7BEK7KE3.js",
+    "bytes": 118058,
+    "sha256": "de9c072562e9048e19d9ec652b1c8eae9174e4935e1456a2f0fad4250c577e0a"
+  },
+  {
+    "path": "trinity-state-20261108/dist/browser-lazy/chunks/cynefin-IKOLBDVE.js",
+    "bytes": 11467,
+    "sha256": "4e833d0563a9fd6ab5beee78a1ced3c9435862e09c0b07a2126f2532e0b751a1"
+  },
+  {
+    "path": "trinity-state-20261108/dist/browser-lazy/chunks/decode-E23ODK3H.js",
+    "bytes": 40525,
+    "sha256": "65d57aaca480d91b64d4fbaf4989f871c57fbebddf311bb5f2a9e7ee58568886"
+  },
+  {
+    "path": "trinity-state-20261108/dist/browser-lazy/chunks/elk.bundled-X5K4KOFH.js",
+    "bytes": 1447491,
+    "sha256": "2422557bc2a76ea5bea842c44c646f82d8d5dd66eeddbb017f3883feffa78ef5"
+  },
+  {
+    "path": "trinity-state-20261108/dist/browser-lazy/chunks/er-E6WLQWZF.js",
+    "bytes": 84289,
+    "sha256": "77053322d23227ef4d4aa287ef2fc9b1e8990d162f9f2765818653e28ae84c98"
+  },
+  {
+    "path": "trinity-state-20261108/dist/browser-lazy/chunks/eventmodeling-N6N555QR.js",
+    "bytes": 19337,
+    "sha256": "39c5d587ac7dc4ce8898294441d3a0824d4a2afb95b60fcbdf2cae804b52e295"
+  },
+  {
+    "path": "trinity-state-20261108/dist/browser-lazy/chunks/flowchart-533RNJ4X.js",
+    "bytes": 5774,
+    "sha256": "99173d3e6f30bbc1c51c58e493f5e1c1b3ed41831c879a3af3df17741177fc26"
+  },
+  {
+    "path": "trinity-state-20261108/dist/browser-lazy/chunks/forest-implementation-WIZWGTIE.js",
+    "bytes": 991,
+    "sha256": "041b65cfcaa48eba28ab7d56eb2f37e03e89b1f062a3a43e7391acb7468f432c"
+  },
+  {
+    "path": "trinity-state-20261108/dist/browser-lazy/chunks/gantt-ZOODU4E4.js",
+    "bytes": 48718,
+    "sha256": "b55f5d9e7e8f10dfb2cdef356c7362c4b36ea6c4450da54e6c021d50f2a7f88a"
+  },
+  {
+    "path": "trinity-state-20261108/dist/browser-lazy/chunks/gitgraph-U3N6QHYC.js",
+    "bytes": 27463,
+    "sha256": "cbded4200bd6f59724d6ea494df071ffe865e94b07c3b2e540334cdde8903895"
+  },
+  {
+    "path": "trinity-state-20261108/dist/browser-lazy/chunks/inter-metrics-kernel-E4EEPZL6.js",
+    "bytes": 18621,
+    "sha256": "93f974dd12ced670e72104ad46a8f8cc77f8556b282d3430632fcf1fdd2baa04"
+  },
+  {
+    "path": "trinity-state-20261108/dist/browser-lazy/chunks/ishikawa-PN32L42Z.js",
+    "bytes": 9613,
+    "sha256": "6467c4e1f377443275126860bc9ae1d9bcaf17383ed43c595149205bd6ad5821"
+  },
+  {
+    "path": "trinity-state-20261108/dist/browser-lazy/chunks/journey-D5GDK42A.js",
+    "bytes": 34084,
+    "sha256": "78f77a6dff69eee0fc5bcb92db1060a7b62a04d54a82f1f1f6a519df18cc35e7"
+  },
+  {
+    "path": "trinity-state-20261108/dist/browser-lazy/chunks/kanban-VTS62HTK.js",
+    "bytes": 15216,
+    "sha256": "ed827bbef6948afee5f94b4df49c7c322175798db63026d7013f073ea6a9e002"
+  },
+  {
+    "path": "trinity-state-20261108/dist/browser-lazy/chunks/mermaid-yaml-runtime-EDAWOZLW.js",
+    "bytes": 100108,
+    "sha256": "d43d69243c00dde9289eb86f9f932fa38361448ee9351ae269a7c5dacc1d821a"
+  },
+  {
+    "path": "trinity-state-20261108/dist/browser-lazy/chunks/mindmap-YDJI2ROQ.js",
+    "bytes": 20404,
+    "sha256": "65b68e867a3ed1facbc63102f25dba9d7c9394773821187be6cf7ddb19106b52"
+  },
+  {
+    "path": "trinity-state-20261108/dist/browser-lazy/chunks/optimization-runtime-MPMJL7DQ.js",
+    "bytes": 6220,
+    "sha256": "3aace280afa721dc86fbcb64b5edc35cb1701d08ac732ab60f06bf02fd147d68"
+  },
+  {
+    "path": "trinity-state-20261108/dist/browser-lazy/chunks/packet-AQQESNVO.js",
+    "bytes": 8770,
+    "sha256": "fca9354b60ca2300adde414a29f8a3d7f61ffb2b624c4c4efaf8cb55165523e4"
+  },
+  {
+    "path": "trinity-state-20261108/dist/browser-lazy/chunks/parser-source-YCESMRB4.js",
+    "bytes": 2365,
+    "sha256": "6112ba844c178f033a28843b4dcb1666aee3c85df27d513ae7c8d227d72dcb0d"
+  },
+  {
+    "path": "trinity-state-20261108/dist/browser-lazy/chunks/pie-CW36EUEB.js",
+    "bytes": 22757,
+    "sha256": "ed531d48f22e4eb144098d13070e30a6ba1dbf42f3cd0abb87e2124fb94d6b0b"
+  },
+  {
+    "path": "trinity-state-20261108/dist/browser-lazy/chunks/quadrant-MJYMYXE3.js",
+    "bytes": 28702,
+    "sha256": "dd65f4d682ca2366c658d20e66b57d516a2ff9bee64abd08485029d11cf68f12"
+  },
+  {
+    "path": "trinity-state-20261108/dist/browser-lazy/chunks/radar-JX3KL23L.js",
+    "bytes": 30781,
+    "sha256": "4638056a9a3c432d3a19c1724d04911764cbd7675fc90b1a2ae3237fd9810a3e"
+  },
+  {
+    "path": "trinity-state-20261108/dist/browser-lazy/chunks/railroad-QU5WPSYJ.js",
+    "bytes": 23606,
+    "sha256": "81f8cf6a9d7f16560f17211681ef1c8c4ed23472638d59baa7ef53d147f2cb86"
+  },
+  {
+    "path": "trinity-state-20261108/dist/browser-lazy/chunks/render-core-KCTIYUZ2.js",
+    "bytes": 183,
+    "sha256": "2984c1ee86ce3c7d9621ec9e7f7020388dfe2a185e877854d062926cc9ee7905"
+  },
+  {
+    "path": "trinity-state-20261108/dist/browser-lazy/chunks/requirement-RIHQZUNN.js",
+    "bytes": 31003,
+    "sha256": "a3afb79819f6d2e7e13d962212e9c0e361304ae7a8decf8e7b2e6ea038b594f4"
+  },
+  {
+    "path": "trinity-state-20261108/dist/browser-lazy/chunks/sankey-35UUNFZI.js",
+    "bytes": 25149,
+    "sha256": "5eaae882acee2797a2d729b06d18f26227e9bd0e6244d5e37b836d86e420bfec"
+  },
+  {
+    "path": "trinity-state-20261108/dist/browser-lazy/chunks/sequence-HSWCSUZ2.js",
+    "bytes": 7273,
+    "sha256": "cd086c11b5322157dbae44970e4dbd92e5e500c36734dc5b063884649aeaa8ae"
+  },
+  {
+    "path": "trinity-state-20261108/dist/browser-lazy/chunks/state-V7L7DC2E.js",
+    "bytes": 7977,
+    "sha256": "eed604e5a8bd67cc3b88b7bf65c179e47a313df4b4e4551dd2df12f1aad359b8"
+  },
+  {
+    "path": "trinity-state-20261108/dist/browser-lazy/chunks/swimlane-BFZEKXLW.js",
+    "bytes": 14963,
+    "sha256": "dd1794e5bf988ddbfa2621ebb647cbd6e2c2e2f0140b54712f8229a1eae26d22"
+  },
+  {
+    "path": "trinity-state-20261108/dist/browser-lazy/chunks/timeline-X65VN7QB.js",
+    "bytes": 21762,
+    "sha256": "be88737b7774d7c48fae9362d3e6d857654089e4abd0dbd35b2228066b911a94"
+  },
+  {
+    "path": "trinity-state-20261108/dist/browser-lazy/chunks/treemap-P33XSRQR.js",
+    "bytes": 18250,
+    "sha256": "9a367187700a72260857d393cef71d2d63a251c2a1763e54e9dbb68f3e107173"
+  },
+  {
+    "path": "trinity-state-20261108/dist/browser-lazy/chunks/treeview-R5XN4OP3.js",
+    "bytes": 11612,
+    "sha256": "69dab625ffacfc4c42d7ef6e66e7518c20fd81e4b3a4c0d8c323737c2fde7cf2"
+  },
+  {
+    "path": "trinity-state-20261108/dist/browser-lazy/chunks/trinity-GM3LHP63.js",
+    "bytes": 16622,
+    "sha256": "fa353f00902f7a6bb1fa777ff444d861419a80821dc2f63180e08b508d349a8f"
+  },
+  {
+    "path": "trinity-state-20261108/dist/browser-lazy/chunks/trinity-producer-ROWLPVIV.js",
+    "bytes": 952,
+    "sha256": "7583d27c73aae2e25e743d1f8c12de10f084ca8b025547f62bedbb79a4ecff6a"
+  },
+  {
+    "path": "trinity-state-20261108/dist/browser-lazy/chunks/usecase-46OY4PSC.js",
+    "bytes": 48700,
+    "sha256": "03ad81d91f043ba11860668f17dfd9f5086da965afa78268a4317b0a98b0ad3c"
+  },
+  {
+    "path": "trinity-state-20261108/dist/browser-lazy/chunks/venn-QDQK34KI.js",
+    "bytes": 24052,
+    "sha256": "c226fbbab84367f78928d0f06e449b7ad328ab90cdd02b74b88b751c621a5a73"
+  },
+  {
+    "path": "trinity-state-20261108/dist/browser-lazy/chunks/wardley-E3KD3PO5.js",
+    "bytes": 26062,
+    "sha256": "931ccdafb9cd4c6ba63a0e00fa76f4048d9786393471e3a80f37a11e2a5b754f"
+  },
+  {
+    "path": "trinity-state-20261108/dist/browser-lazy/chunks/xychart-LDKOZOOD.js",
+    "bytes": 54116,
+    "sha256": "882075949487585a8dab4f59ed9f034690383f228af3aaca6336461626158d8a"
+  },
+  {
+    "path": "trinity-state-20261108/dist/browser-lazy/chunks/zenuml-GSD66FAD.js",
+    "bytes": 22967,
+    "sha256": "f4d6e030733054bf23e9ee3fbb1a0fb0b23f85c517f108cc278b9b96c541f8e4"
+  },
+  {
+    "path": "trinity-state-20261108/dist/browser-lazy/index.js",
+    "bytes": 4368,
+    "sha256": "1d17472a6a68860d4ca70630977aac5dfe24e4b5bf2992a3fd4fec783f76e07e"
+  },
+  {
+    "path": "trinity-state-20261108/dist/metafile-esm.json",
+    "bytes": 580338,
+    "sha256": "44bc4bc69aacaf59ff818aecaca099f3bd2daf7465c08bc5e57be7fdb3e924c1"
+  },
+  {
+    "path": "trinity-state-20261108/editor-build/BUILD-STATUS.json",
+    "bytes": 288,
+    "sha256": "5ddaad5ec87fe180ef898c03c455eeb704d4c28c62726c67c78801a36caa0400"
+  },
+  {
+    "path": "trinity-state-20261108/editor-build/CANONICAL-COMPRESSION.json",
+    "bytes": 399,
+    "sha256": "471bf5b7a8438d1739d062fc73f44cda56c17d17190387c5053e432262276f1a"
+  },
+  {
+    "path": "trinity-state-20261108/editor-build/after-metafile.json",
+    "bytes": 576629,
+    "sha256": "8fe60946906fed8fb6bef4a2d28e828fc48c04b37ccd6fe57e3ef9cc79b481c7"
+  },
+  {
+    "path": "trinity-state-20261108/editor-build/after-production.html.gz",
+    "bytes": 1314380,
+    "sha256": "367257f721d16fd778d5b458069b828f79162c28563c9e6d6337314eb8795a95"
+  },
+  {
+    "path": "trinity-state-20261108/editor-build/build.py",
+    "bytes": 1425,
+    "sha256": "037a906e348eb26f89f4968a895938f1fb1d9cf73e5b237342494e2c0acb3a98"
+  },
+  {
+    "path": "trinity-state-20261108/editor-build/compress.ts",
+    "bytes": 727,
+    "sha256": "426f70ad262b40051232c4abcdfa11509494467b8587a5393960cb2fae92355b"
+  },
+  {
+    "path": "trinity-state-20261108/editor-build/production-build.log",
+    "bytes": 101,
+    "sha256": "0472247c8f75db841beb313ac99775e29ef5c9228cb5bb149bc796e00ec1d608"
+  },
+  {
+    "path": "trinity-state-20261108/final-lint.log",
+    "bytes": 84,
+    "sha256": "abfb3f60e0136b14f48e9b02b9c2e2e10d3ceeebcb9ee5046d5a85692b97d93c"
+  },
+  {
+    "path": "trinity-state-20261108/final-owners.log",
+    "bytes": 18304,
+    "sha256": "25358f86d13007d7b1b63489476f5b4891063dd4f32bba68e9701d82971a2dfc"
+  },
+  {
+    "path": "trinity-state-20261108/first-green.log",
+    "bytes": 4255,
+    "sha256": "43733e80b9570e6e4493eae9532d956c51c8c14b54d55e306bb8a150d78e49a0"
+  },
+  {
+    "path": "trinity-state-20261108/green.log",
+    "bytes": 2470,
+    "sha256": "a239c78bc9965170fbd947338e93fae3539d8674e14a595bd6f8ea234dd26124"
+  },
+  {
+    "path": "trinity-state-20261108/ink.log",
+    "bytes": 875,
+    "sha256": "55c0a19c72bae3d1500cc93f2ef066aa8d7eaeda77a305180f3b50f68ecf3503"
+  },
+  {
+    "path": "trinity-state-20261108/inspect.ts",
+    "bytes": 769,
+    "sha256": "ebd2e1ca9742a63c1d380c3096c8511a34a618458d5964f2dfa2848ead9524b7"
+  },
+  {
+    "path": "trinity-state-20261108/kernel-review-green.log",
+    "bytes": 4062,
+    "sha256": "0486bbd66fc9211f6dd63a16f3b2b2b2d3bc1efb0cbc7212d890ad2cd3e6135a"
+  },
+  {
+    "path": "trinity-state-20261108/kernel.log",
+    "bytes": 3950,
+    "sha256": "d8728482fc48e53b517a58bceb2e9d60b182d4ca710bcdda2e937060cc108250"
+  },
+  {
+    "path": "trinity-state-20261108/ledger.log",
+    "bytes": 404,
+    "sha256": "42b4a156d57913f691008c975a420f857c9398305e14c5349eeb6232e3d3381f"
+  },
+  {
+    "path": "trinity-state-20261108/lint.log",
+    "bytes": 80,
+    "sha256": "6ace0a31299794dd3cece70bab2fd2eca3f15b36af34ea2f2f442e012c8555cb"
+  },
+  {
+    "path": "trinity-state-20261108/observe-state.ts",
+    "bytes": 3983,
+    "sha256": "165f6bba7ca12ad9c04b8400dfb93a808672fa6f949a8bf35ef04a8d1d1c756a"
+  },
+  {
+    "path": "trinity-state-20261108/owners.log",
+    "bytes": 18193,
+    "sha256": "391ecf02ce3d1c3b8da465bceffb2f125e2a979f57dc0cd48c05674f843efa25"
+  },
+  {
+    "path": "trinity-state-20261108/products/0-meaning_family_flowchart-agentic.receipt.json",
+    "bytes": 11810,
+    "sha256": "d8e5bf513235e96e35704c0fba7104b2b70b08724635006f81bcb43621ea1814"
+  },
+  {
+    "path": "trinity-state-20261108/products/0-meaning_family_flowchart-agentic.svg",
+    "bytes": 3588,
+    "sha256": "8a60671ca3b25d57a7c663fcd7939d603dd6079f0f1cec5a5bbad98f56a2d9e3"
+  },
+  {
+    "path": "trinity-state-20261108/products/0-meaning_family_flowchart-elk.receipt.json",
+    "bytes": 11793,
+    "sha256": "4a8310eac7f0ad3f31d62850d8dd8d8f4bb20a9b973e1c952372884d80e16d9d"
+  },
+  {
+    "path": "trinity-state-20261108/products/0-meaning_family_flowchart-elk.svg",
+    "bytes": 3588,
+    "sha256": "8a60671ca3b25d57a7c663fcd7939d603dd6079f0f1cec5a5bbad98f56a2d9e3"
+  },
+  {
+    "path": "trinity-state-20261108/products/0-meaning_family_flowchart-trinity.receipt.json",
+    "bytes": 11801,
+    "sha256": "fa1a812b5c6c2862928d758f548250ea5779c7f362a20babb6589a0ae0f3bb94"
+  },
+  {
+    "path": "trinity-state-20261108/products/0-meaning_family_flowchart-trinity.svg",
+    "bytes": 3597,
+    "sha256": "12f8d5a5a54452058ee3f14352efa05b67255e54e71d5564fbb6b2899f37c70f"
+  },
+  {
+    "path": "trinity-state-20261108/products/1-meaning_family_state-agentic.receipt.json",
+    "bytes": 11802,
+    "sha256": "1781544d835a78b180f2eb0eeffafaa0077ac753c10c28367f2b708673406235"
+  },
+  {
+    "path": "trinity-state-20261108/products/1-meaning_family_state-agentic.svg",
+    "bytes": 3249,
+    "sha256": "5e01d14be1b1de8a0ac9717f1ce14d767b0e04f03fe6a65cded197bf4a46eb44"
+  },
+  {
+    "path": "trinity-state-20261108/products/1-meaning_family_state-elk.receipt.json",
+    "bytes": 11785,
+    "sha256": "83226a7d602539a523c9952f2382359a2470c86f026b90483e3e70c3a386474c"
+  },
+  {
+    "path": "trinity-state-20261108/products/1-meaning_family_state-elk.svg",
+    "bytes": 3250,
+    "sha256": "7c1ee9cd47b8215a40df9bb1fd84c2dd8b1a57baa997fd76dcee12356aef4876"
+  },
+  {
+    "path": "trinity-state-20261108/products/1-meaning_family_state-trinity.receipt.json",
+    "bytes": 11794,
+    "sha256": "29ffcf14c51c229cab608c6f3ac19f870c9fc3b17db51962c24cbe193512fc5a"
+  },
+  {
+    "path": "trinity-state-20261108/products/1-meaning_family_state-trinity.svg",
+    "bytes": 3270,
+    "sha256": "67f666589981a1e71c30dc82f95bbc41ce4f78564c47b358be1d74dde74ecc4f"
+  },
+  {
+    "path": "trinity-state-20261108/products/10-features_state_nesting-reciprocal-alias-agentic.receipt.json",
+    "bytes": 11805,
+    "sha256": "0508b609742284261fd68ef1dbbe7d4fed66025db89c2d1429dcbc38989b680b"
+  },
+  {
+    "path": "trinity-state-20261108/products/10-features_state_nesting-reciprocal-alias-agentic.svg",
+    "bytes": 6571,
+    "sha256": "42179a2408b50b1d35dded4accfd5c857e8a64290ec5a7ac903af091b8cfd852"
+  },
+  {
+    "path": "trinity-state-20261108/products/10-features_state_nesting-reciprocal-alias-elk.receipt.json",
+    "bytes": 11789,
+    "sha256": "47667eac81b0f9678b3a22f27fae98184bb0e24f0439b5b4f083be36fe2796aa"
+  },
+  {
+    "path": "trinity-state-20261108/products/10-features_state_nesting-reciprocal-alias-elk.svg",
+    "bytes": 6670,
+    "sha256": "126249210cd48dca6e78150e131903c39d7ec528b17cb92f32024572526cd62a"
+  },
+  {
+    "path": "trinity-state-20261108/products/11-features_state_initial-final-pseudostates-agentic.receipt.json",
+    "bytes": 11804,
+    "sha256": "9279cd63290abb35efabfae0d3c0a3d0dca39d25ed8f7f63deba2044352b002f"
+  },
+  {
+    "path": "trinity-state-20261108/products/11-features_state_initial-final-pseudostates-agentic.svg",
+    "bytes": 4686,
+    "sha256": "32051f7d4059ee553b36b72d8fc76c4689fdd3c3a0997fc25494379ba4ef6d57"
+  },
+  {
+    "path": "trinity-state-20261108/products/11-features_state_initial-final-pseudostates-elk.receipt.json",
+    "bytes": 11787,
+    "sha256": "ded258c99d0c0569ffab4613ae90f9665ca6a26483f08ce576d371fdc4aca2fd"
+  },
+  {
+    "path": "trinity-state-20261108/products/11-features_state_initial-final-pseudostates-elk.svg",
+    "bytes": 4686,
+    "sha256": "5392c2f9d88f3d68fd28f4b1f46582551fb39b96a76c3686d0b9fd9c4a450eae"
+  },
+  {
+    "path": "trinity-state-20261108/products/11-features_state_initial-final-pseudostates-trinity.receipt.json",
+    "bytes": 11796,
+    "sha256": "14dda6a44d22dc385b442fca218c19737c52c27aa38ddff0d4c71963f16cc473"
+  },
+  {
+    "path": "trinity-state-20261108/products/11-features_state_initial-final-pseudostates-trinity.svg",
+    "bytes": 4723,
+    "sha256": "9235a6dd9b700f0a09692d801d2f87e74d71bd368e6a17240f56b3db3e6f15e9"
+  },
+  {
+    "path": "trinity-state-20261108/products/12-features_er_attributes-identifying-cardinality-agentic.receipt.json",
+    "bytes": 11238,
+    "sha256": "1ba6e5ec0604bae2866de86bc27dfce5e1867c51c1a924a51cc8b906104e907a"
+  },
+  {
+    "path": "trinity-state-20261108/products/12-features_er_attributes-identifying-cardinality-agentic.svg",
+    "bytes": 9043,
+    "sha256": "1a9c08ca5874ceafacfd5846e062b50e80615f71074ec85905f662be39e29618"
+  },
+  {
+    "path": "trinity-state-20261108/products/12-features_er_attributes-identifying-cardinality-elk.receipt.json",
+    "bytes": 11221,
+    "sha256": "5362bad41212601814ef734ddcea475ee4b7ddd0e6952b095de4a18df712d0d9"
+  },
+  {
+    "path": "trinity-state-20261108/products/12-features_er_attributes-identifying-cardinality-elk.svg",
+    "bytes": 9040,
+    "sha256": "a0d3add7c7291e4cacd6a4152d77c0a3fdfb7caa08903c0ae37715e692c0382f"
+  },
+  {
+    "path": "trinity-state-20261108/products/13-features_requirement_types-risk-relations-agentic.receipt.json",
+    "bytes": 11818,
+    "sha256": "871a7496a99b8e0b9d184aaf55928e663c193b9601881c8195cda5d7fc33d422"
+  },
+  {
+    "path": "trinity-state-20261108/products/13-features_requirement_types-risk-relations-agentic.svg",
+    "bytes": 8309,
+    "sha256": "82e6392ecf5edad2aa673425d6e852cd2c12fe64e6d32c9a8d13a14ba0509006"
+  },
+  {
+    "path": "trinity-state-20261108/products/13-features_requirement_types-risk-relations-elk.receipt.json",
+    "bytes": 11801,
+    "sha256": "7e3a91959b0248ea538d3370e6c172f79741826793c0f8991a3a9e10bc18bf8c"
+  },
+  {
+    "path": "trinity-state-20261108/products/13-features_requirement_types-risk-relations-elk.svg",
+    "bytes": 8364,
+    "sha256": "1f5b527a45a7fb4f2e7cbafc5d67ad91318ae28dc398f3e2156c04217a68bc97"
+  },
+  {
+    "path": "trinity-state-20261108/products/13-features_requirement_types-risk-relations-trinity.receipt.json",
+    "bytes": 11809,
+    "sha256": "7443fb1bf11372db0611b99258aaf0899fae10c815cd8e32deeeda19cfbe5b61"
+  },
+  {
+    "path": "trinity-state-20261108/products/13-features_requirement_types-risk-relations-trinity.svg",
+    "bytes": 8491,
+    "sha256": "0a2b0d3042e8660331e608c7f7310ab6a539b62b3def99014cec14500c96cae4"
+  },
+  {
+    "path": "trinity-state-20261108/products/14-features_architecture_ports-groups-branching-agentic.receipt.json",
+    "bytes": 11816,
+    "sha256": "f930d2b54b8321ceab1185fe9845af49874d5e1842044608e44aff59a91b43c5"
+  },
+  {
+    "path": "trinity-state-20261108/products/14-features_architecture_ports-groups-branching-agentic.svg",
+    "bytes": 7955,
+    "sha256": "1e423705c26a1e24ad51eff20246577b89a283505498756089c90fc457b16a19"
+  },
+  {
+    "path": "trinity-state-20261108/products/14-features_architecture_ports-groups-branching-elk.receipt.json",
+    "bytes": 11799,
+    "sha256": "f61a8d1f23ea98724e084243dcd116a881b39be7897b0d7d5c423533047d28f3"
+  },
+  {
+    "path": "trinity-state-20261108/products/14-features_architecture_ports-groups-branching-elk.svg",
+    "bytes": 7927,
+    "sha256": "25ccdfe117d14cf0e69b05b8f27dd19b0db223a8ba804002788df65b7f17a788"
+  },
+  {
+    "path": "trinity-state-20261108/products/15-meaning_family_flowchart_configuration-reset-agentic.receipt.json",
+    "bytes": 11810,
+    "sha256": "d8e5bf513235e96e35704c0fba7104b2b70b08724635006f81bcb43621ea1814"
+  },
+  {
+    "path": "trinity-state-20261108/products/15-meaning_family_flowchart_configuration-reset-agentic.svg",
+    "bytes": 3588,
+    "sha256": "8a60671ca3b25d57a7c663fcd7939d603dd6079f0f1cec5a5bbad98f56a2d9e3"
+  },
+  {
+    "path": "trinity-state-20261108/products/15-meaning_family_flowchart_configuration-reset-elk.receipt.json",
+    "bytes": 11793,
+    "sha256": "4a8310eac7f0ad3f31d62850d8dd8d8f4bb20a9b973e1c952372884d80e16d9d"
+  },
+  {
+    "path": "trinity-state-20261108/products/15-meaning_family_flowchart_configuration-reset-elk.svg",
+    "bytes": 3588,
+    "sha256": "8a60671ca3b25d57a7c663fcd7939d603dd6079f0f1cec5a5bbad98f56a2d9e3"
+  },
+  {
+    "path": "trinity-state-20261108/products/15-meaning_family_flowchart_configuration-reset-trinity.receipt.json",
+    "bytes": 11801,
+    "sha256": "fa1a812b5c6c2862928d758f548250ea5779c7f362a20babb6589a0ae0f3bb94"
+  },
+  {
+    "path": "trinity-state-20261108/products/15-meaning_family_flowchart_configuration-reset-trinity.svg",
+    "bytes": 3597,
+    "sha256": "12f8d5a5a54452058ee3f14352efa05b67255e54e71d5564fbb6b2899f37c70f"
+  },
+  {
+    "path": "trinity-state-20261108/products/16-meaning_family_flowchart_configuration-reset_edit-agentic.receipt.json",
+    "bytes": 11810,
+    "sha256": "4293ce75a683d7c79d6c66b3b5a2f632ba49850988d4cc245ba951f2da9cf89b"
+  },
+  {
+    "path": "trinity-state-20261108/products/16-meaning_family_flowchart_configuration-reset_edit-agentic.svg",
+    "bytes": 3603,
+    "sha256": "747b99c86aa443818764dd3ea98cf6f2524a8adfef4d54f8b0970549ea8a28b7"
+  },
+  {
+    "path": "trinity-state-20261108/products/16-meaning_family_flowchart_configuration-reset_edit-elk.receipt.json",
+    "bytes": 11793,
+    "sha256": "af96b268f06368b661b014e9f0d681788f1a2f64d1f30274636f52f97b16ca4d"
+  },
+  {
+    "path": "trinity-state-20261108/products/16-meaning_family_flowchart_configuration-reset_edit-elk.svg",
+    "bytes": 3603,
+    "sha256": "747b99c86aa443818764dd3ea98cf6f2524a8adfef4d54f8b0970549ea8a28b7"
+  },
+  {
+    "path": "trinity-state-20261108/products/16-meaning_family_flowchart_configuration-reset_edit-trinity.receipt.json",
+    "bytes": 11801,
+    "sha256": "64489ee97acbf1553b63bf453d1eb00d186e80cc514cffecb2e06245fee27b91"
+  },
+  {
+    "path": "trinity-state-20261108/products/16-meaning_family_flowchart_configuration-reset_edit-trinity.svg",
+    "bytes": 3614,
+    "sha256": "570f19d137eb7ccde0225965821b00217b578b18c6939feea5c39f717404988f"
+  },
+  {
+    "path": "trinity-state-20261108/products/17-meaning_family_state_configuration-reset-agentic.receipt.json",
+    "bytes": 11802,
+    "sha256": "1781544d835a78b180f2eb0eeffafaa0077ac753c10c28367f2b708673406235"
+  },
+  {
+    "path": "trinity-state-20261108/products/17-meaning_family_state_configuration-reset-agentic.svg",
+    "bytes": 3249,
+    "sha256": "5e01d14be1b1de8a0ac9717f1ce14d767b0e04f03fe6a65cded197bf4a46eb44"
+  },
+  {
+    "path": "trinity-state-20261108/products/17-meaning_family_state_configuration-reset-elk.receipt.json",
+    "bytes": 11785,
+    "sha256": "83226a7d602539a523c9952f2382359a2470c86f026b90483e3e70c3a386474c"
+  },
+  {
+    "path": "trinity-state-20261108/products/17-meaning_family_state_configuration-reset-elk.svg",
+    "bytes": 3250,
+    "sha256": "7c1ee9cd47b8215a40df9bb1fd84c2dd8b1a57baa997fd76dcee12356aef4876"
+  },
+  {
+    "path": "trinity-state-20261108/products/17-meaning_family_state_configuration-reset-trinity.receipt.json",
+    "bytes": 11794,
+    "sha256": "29ffcf14c51c229cab608c6f3ac19f870c9fc3b17db51962c24cbe193512fc5a"
+  },
+  {
+    "path": "trinity-state-20261108/products/17-meaning_family_state_configuration-reset-trinity.svg",
+    "bytes": 3270,
+    "sha256": "67f666589981a1e71c30dc82f95bbc41ce4f78564c47b358be1d74dde74ecc4f"
+  },
+  {
+    "path": "trinity-state-20261108/products/18-meaning_family_state_configuration-reset_edit-agentic.receipt.json",
+    "bytes": 11803,
+    "sha256": "98e24768a526010673be0474a96452a5c66aaf470f1f9d50ac582482339af98c"
+  },
+  {
+    "path": "trinity-state-20261108/products/18-meaning_family_state_configuration-reset_edit-agentic.svg",
+    "bytes": 3274,
+    "sha256": "d87eccf92fb122e4b07bf6734633d7ae59f1c74b10d3b2424acd54d7bac77f8a"
+  },
+  {
+    "path": "trinity-state-20261108/products/18-meaning_family_state_configuration-reset_edit-elk.receipt.json",
+    "bytes": 11786,
+    "sha256": "8232efb422b46cb3d8296d853268e23b0bba752d07db5e7c7df5fcaa2c2ae426"
+  },
+  {
+    "path": "trinity-state-20261108/products/18-meaning_family_state_configuration-reset_edit-elk.svg",
+    "bytes": 3275,
+    "sha256": "5785fd08fb008bac5a1b4f3816bc5b112d533054ecd2375cc24dabe1f1a4edc7"
+  },
+  {
+    "path": "trinity-state-20261108/products/18-meaning_family_state_configuration-reset_edit-trinity.receipt.json",
+    "bytes": 11794,
+    "sha256": "9f5a5ff0d7b0ab0c5532b3e165c2736830916016687f5c6e2c5ffef5408cf65f"
+  },
+  {
+    "path": "trinity-state-20261108/products/18-meaning_family_state_configuration-reset_edit-trinity.svg",
+    "bytes": 3293,
+    "sha256": "0fe6bca5c126e772309f0f772a93b0f8c0829fa4f42c4190a9c6257c4db6c258"
+  },
+  {
+    "path": "trinity-state-20261108/products/19-meaning_family_class_configuration-reset-agentic.receipt.json",
+    "bytes": 11812,
+    "sha256": "cb78bb05b5f6a5db1cb9003a79e13af717397d98aaa392067c4bd6152ba07a58"
+  },
+  {
+    "path": "trinity-state-20261108/products/19-meaning_family_class_configuration-reset-agentic.svg",
+    "bytes": 4654,
+    "sha256": "0d2fdbd3844b2563cbf4a630a2a5c319fa714ab6f8b25573ed6454756ca88e95"
+  },
+  {
+    "path": "trinity-state-20261108/products/19-meaning_family_class_configuration-reset-elk.receipt.json",
+    "bytes": 11782,
+    "sha256": "f4e6006a92c259f6548ca58d642cc5a6af0c1ef16b884a347121cefe94bfdbff"
+  },
+  {
+    "path": "trinity-state-20261108/products/19-meaning_family_class_configuration-reset-elk.svg",
+    "bytes": 4657,
+    "sha256": "1f2da6ace94abf1fd152373d056ac20977abfca11f7c109f9448a239bb25dbb5"
+  },
+  {
+    "path": "trinity-state-20261108/products/2-meaning_family_class-agentic.receipt.json",
+    "bytes": 11812,
+    "sha256": "cb78bb05b5f6a5db1cb9003a79e13af717397d98aaa392067c4bd6152ba07a58"
+  },
+  {
+    "path": "trinity-state-20261108/products/2-meaning_family_class-agentic.svg",
+    "bytes": 4654,
+    "sha256": "0d2fdbd3844b2563cbf4a630a2a5c319fa714ab6f8b25573ed6454756ca88e95"
+  },
+  {
+    "path": "trinity-state-20261108/products/2-meaning_family_class-elk.receipt.json",
+    "bytes": 11782,
+    "sha256": "f4e6006a92c259f6548ca58d642cc5a6af0c1ef16b884a347121cefe94bfdbff"
+  },
+  {
+    "path": "trinity-state-20261108/products/2-meaning_family_class-elk.svg",
+    "bytes": 4657,
+    "sha256": "1f2da6ace94abf1fd152373d056ac20977abfca11f7c109f9448a239bb25dbb5"
+  },
+  {
+    "path": "trinity-state-20261108/products/20-meaning_family_class_configuration-reset_edit-agentic.receipt.json",
+    "bytes": 11812,
+    "sha256": "2f740bef68f44b6ed1a12333eba681830957aec3c2ee54f9ec6a0aa9d63ba558"
+  },
+  {
+    "path": "trinity-state-20261108/products/20-meaning_family_class_configuration-reset_edit-agentic.svg",
+    "bytes": 4668,
+    "sha256": "310a95be7caa7969e2d3c1b2fc1fc2aee5a06f197829da79e43d7b1bdeb95c86"
+  },
+  {
+    "path": "trinity-state-20261108/products/20-meaning_family_class_configuration-reset_edit-elk.receipt.json",
+    "bytes": 11782,
+    "sha256": "d24fe6b063d26d709bd648105f827466dad9112d6789771109e5666617b774d1"
+  },
+  {
+    "path": "trinity-state-20261108/products/20-meaning_family_class_configuration-reset_edit-elk.svg",
+    "bytes": 4671,
+    "sha256": "580afa60cbb9bf650244350fee2f317db4d3ae5b68ab1ebece53de25f000d745"
+  },
+  {
+    "path": "trinity-state-20261108/products/21-meaning_family_er_configuration-reset-agentic.receipt.json",
+    "bytes": 11236,
+    "sha256": "3f9488cb52bb201a5f64f76be6831eb5434c974d9c77ea812df5a1383c51bc46"
+  },
+  {
+    "path": "trinity-state-20261108/products/21-meaning_family_er_configuration-reset-agentic.svg",
+    "bytes": 4571,
+    "sha256": "6a3b7f68710b81f6615d9f8628e84e07af41a1547cff82f6451a9c0d9aadf936"
+  },
+  {
+    "path": "trinity-state-20261108/products/21-meaning_family_er_configuration-reset-elk.receipt.json",
+    "bytes": 11219,
+    "sha256": "51c8fae67402681098e54fccb8785ec9b08cfb3d6645369687f1e25502057fff"
+  },
+  {
+    "path": "trinity-state-20261108/products/21-meaning_family_er_configuration-reset-elk.svg",
+    "bytes": 4568,
+    "sha256": "e532c8934f3fa1bcb019ff050ca3db209bfd95082afb89b1fb0292ee22c547d4"
+  },
+  {
+    "path": "trinity-state-20261108/products/22-meaning_family_er_configuration-reset_edit-agentic.receipt.json",
+    "bytes": 11236,
+    "sha256": "7994dbe9e5d99a042a79eefb36a718db2317a7f795fad55a8b74bf18803918f2"
+  },
+  {
+    "path": "trinity-state-20261108/products/22-meaning_family_er_configuration-reset_edit-agentic.svg",
+    "bytes": 4597,
+    "sha256": "64f9b4ebf5becf6fd20ec529bd77fb99fe2df68cd3db17c460952c53467917d5"
+  },
+  {
+    "path": "trinity-state-20261108/products/22-meaning_family_er_configuration-reset_edit-elk.receipt.json",
+    "bytes": 11219,
+    "sha256": "9444c88e4270af973da334f0fb370667b59c95a49ae5019c46fdfd9967a2651e"
+  },
+  {
+    "path": "trinity-state-20261108/products/22-meaning_family_er_configuration-reset_edit-elk.svg",
+    "bytes": 4594,
+    "sha256": "cffdbd69e59ff985678c9d937a3c836ca15972a49b7b15fb87f5f29583eb6639"
+  },
+  {
+    "path": "trinity-state-20261108/products/23-meaning_family_architecture_configuration-reset-agentic.receipt.json",
+    "bytes": 11812,
+    "sha256": "2aef4a7ef782167cfd1c329df54be941b0fa7864e8c98174bcb2a63f8b3091d6"
+  },
+  {
+    "path": "trinity-state-20261108/products/23-meaning_family_architecture_configuration-reset-agentic.svg",
+    "bytes": 6233,
+    "sha256": "8864e089334289bacb44f67df966a65f5011a71e6e8f2106c0f7e9075e4de307"
+  },
+  {
+    "path": "trinity-state-20261108/products/23-meaning_family_architecture_configuration-reset-elk.receipt.json",
+    "bytes": 11795,
+    "sha256": "5826fd4fa78919086bcfb6b3cb473591bb316e36ef3fe0aca4bca308de921609"
+  },
+  {
+    "path": "trinity-state-20261108/products/23-meaning_family_architecture_configuration-reset-elk.svg",
+    "bytes": 6233,
+    "sha256": "8864e089334289bacb44f67df966a65f5011a71e6e8f2106c0f7e9075e4de307"
+  },
+  {
+    "path": "trinity-state-20261108/products/24-meaning_family_architecture_configuration-reset_edit-agentic.receipt.json",
+    "bytes": 11816,
+    "sha256": "3eb51f1f1e568a55848cb4c276436a0852ba49768dda81be9da418691a6db62f"
+  },
+  {
+    "path": "trinity-state-20261108/products/24-meaning_family_architecture_configuration-reset_edit-agentic.svg",
+    "bytes": 6303,
+    "sha256": "e6d8bdbf115d850e48400458fc9a1024e40ab2884af72b480f543e70b77660aa"
+  },
+  {
+    "path": "trinity-state-20261108/products/24-meaning_family_architecture_configuration-reset_edit-elk.receipt.json",
+    "bytes": 11799,
+    "sha256": "02ab6c6bc28f71f4c38bc9667798a288654e3c2434b21239c8befe252218f367"
+  },
+  {
+    "path": "trinity-state-20261108/products/24-meaning_family_architecture_configuration-reset_edit-elk.svg",
+    "bytes": 6303,
+    "sha256": "e6d8bdbf115d850e48400458fc9a1024e40ab2884af72b480f543e70b77660aa"
+  },
+  {
+    "path": "trinity-state-20261108/products/25-meaning_family_requirement_configuration-reset-agentic.receipt.json",
+    "bytes": 11815,
+    "sha256": "05614a5625feed033611a06b372c34277ee238508f7791ea9c49ec362d78b514"
+  },
+  {
+    "path": "trinity-state-20261108/products/25-meaning_family_requirement_configuration-reset-agentic.svg",
+    "bytes": 5135,
+    "sha256": "fa4b3266cca1cc39eb765546366fb0552d8f14641fb568fdf375b6e3ff5d4779"
+  },
+  {
+    "path": "trinity-state-20261108/products/25-meaning_family_requirement_configuration-reset-elk.receipt.json",
+    "bytes": 11798,
+    "sha256": "23410ce5aee9e8ccf21e3c0cb082cae9f22909b44bb557ea7edbae01109af29f"
+  },
+  {
+    "path": "trinity-state-20261108/products/25-meaning_family_requirement_configuration-reset-elk.svg",
+    "bytes": 5134,
+    "sha256": "00325fe9782ba093ce736225bb9978db47d2ae55aabc5c4ddf477254bbfc3ec9"
+  },
+  {
+    "path": "trinity-state-20261108/products/25-meaning_family_requirement_configuration-reset-trinity.receipt.json",
+    "bytes": 11806,
+    "sha256": "73d725b36f959b85d76f205f8e6f6cf3786e7f7411c922a54dce0da1f49a0cdb"
+  },
+  {
+    "path": "trinity-state-20261108/products/25-meaning_family_requirement_configuration-reset-trinity.svg",
+    "bytes": 5178,
+    "sha256": "87e695ae2ef555e744fce997c08d3d0faeaa518d579e4724179b388575556fb2"
+  },
+  {
+    "path": "trinity-state-20261108/products/26-meaning_family_requirement_configuration-reset_edit-agentic.receipt.json",
+    "bytes": 11815,
+    "sha256": "a22465c6541f9ee0effc65d5dfd2fb12c8d4885de72648b01cfd854b85a5b7d0"
+  },
+  {
+    "path": "trinity-state-20261108/products/26-meaning_family_requirement_configuration-reset_edit-agentic.svg",
+    "bytes": 5132,
+    "sha256": "15cf0c06be1ffae09f6c943d2a58b228d30383d0646c94d5ad5890c8caa94ac3"
+  },
+  {
+    "path": "trinity-state-20261108/products/26-meaning_family_requirement_configuration-reset_edit-elk.receipt.json",
+    "bytes": 11798,
+    "sha256": "f68088134756f48b7c96c4f60ae70fc957db2e85b2b6cc319cb9e84af6f01844"
+  },
+  {
+    "path": "trinity-state-20261108/products/26-meaning_family_requirement_configuration-reset_edit-elk.svg",
+    "bytes": 5131,
+    "sha256": "a372cdc8079c14320e9eebaab6c5e9006c14036edc947fb7aa986afa0075049f"
+  },
+  {
+    "path": "trinity-state-20261108/products/26-meaning_family_requirement_configuration-reset_edit-trinity.receipt.json",
+    "bytes": 11806,
+    "sha256": "9c0569b908edc092144b6251ba9945ae01ebc212a28c1a9264ee8e7ed800417f"
+  },
+  {
+    "path": "trinity-state-20261108/products/26-meaning_family_requirement_configuration-reset_edit-trinity.svg",
+    "bytes": 5175,
+    "sha256": "d5d35d9fa083fabdd6ed779af9e8149c8d03fa9753ded3b4ac0777efaa2bb07e"
+  },
+  {
+    "path": "trinity-state-20261108/products/29-features_flowchart_controlled-image-agentic.receipt.json",
+    "bytes": 11810,
+    "sha256": "839cda1c1f5557b3cce799b5468eff31d41f7bfd044a88d06f3cc9154aaccdd5"
+  },
+  {
+    "path": "trinity-state-20261108/products/29-features_flowchart_controlled-image-agentic.svg",
+    "bytes": 3250,
+    "sha256": "c5189dd085fafd0f8cb0351ddc7410d11541566d80359b902903af06d443e955"
+  },
+  {
+    "path": "trinity-state-20261108/products/29-features_flowchart_controlled-image-elk.receipt.json",
+    "bytes": 11793,
+    "sha256": "69edaebd052a0dc3087a0fd6906cd7df52ce8121e58dcca359e09c605a73d0b1"
+  },
+  {
+    "path": "trinity-state-20261108/products/29-features_flowchart_controlled-image-elk.svg",
+    "bytes": 3250,
+    "sha256": "c5189dd085fafd0f8cb0351ddc7410d11541566d80359b902903af06d443e955"
+  },
+  {
+    "path": "trinity-state-20261108/products/3-meaning_family_er-agentic.receipt.json",
+    "bytes": 11236,
+    "sha256": "3f9488cb52bb201a5f64f76be6831eb5434c974d9c77ea812df5a1383c51bc46"
+  },
+  {
+    "path": "trinity-state-20261108/products/3-meaning_family_er-agentic.svg",
+    "bytes": 4571,
+    "sha256": "6a3b7f68710b81f6615d9f8628e84e07af41a1547cff82f6451a9c0d9aadf936"
+  },
+  {
+    "path": "trinity-state-20261108/products/3-meaning_family_er-elk.receipt.json",
+    "bytes": 11219,
+    "sha256": "51c8fae67402681098e54fccb8785ec9b08cfb3d6645369687f1e25502057fff"
+  },
+  {
+    "path": "trinity-state-20261108/products/3-meaning_family_er-elk.svg",
+    "bytes": 4568,
+    "sha256": "e532c8934f3fa1bcb019ff050ca3db209bfd95082afb89b1fb0292ee22c547d4"
+  },
+  {
+    "path": "trinity-state-20261108/products/4-meaning_family_architecture-agentic.receipt.json",
+    "bytes": 11812,
+    "sha256": "2aef4a7ef782167cfd1c329df54be941b0fa7864e8c98174bcb2a63f8b3091d6"
+  },
+  {
+    "path": "trinity-state-20261108/products/4-meaning_family_architecture-agentic.svg",
+    "bytes": 6233,
+    "sha256": "8864e089334289bacb44f67df966a65f5011a71e6e8f2106c0f7e9075e4de307"
+  },
+  {
+    "path": "trinity-state-20261108/products/4-meaning_family_architecture-elk.receipt.json",
+    "bytes": 11795,
+    "sha256": "5826fd4fa78919086bcfb6b3cb473591bb316e36ef3fe0aca4bca308de921609"
+  },
+  {
+    "path": "trinity-state-20261108/products/4-meaning_family_architecture-elk.svg",
+    "bytes": 6233,
+    "sha256": "8864e089334289bacb44f67df966a65f5011a71e6e8f2106c0f7e9075e4de307"
+  },
+  {
+    "path": "trinity-state-20261108/products/5-meaning_family_requirement-agentic.receipt.json",
+    "bytes": 11815,
+    "sha256": "05614a5625feed033611a06b372c34277ee238508f7791ea9c49ec362d78b514"
+  },
+  {
+    "path": "trinity-state-20261108/products/5-meaning_family_requirement-agentic.svg",
+    "bytes": 5135,
+    "sha256": "fa4b3266cca1cc39eb765546366fb0552d8f14641fb568fdf375b6e3ff5d4779"
+  },
+  {
+    "path": "trinity-state-20261108/products/5-meaning_family_requirement-elk.receipt.json",
+    "bytes": 11798,
+    "sha256": "23410ce5aee9e8ccf21e3c0cb082cae9f22909b44bb557ea7edbae01109af29f"
+  },
+  {
+    "path": "trinity-state-20261108/products/5-meaning_family_requirement-elk.svg",
+    "bytes": 5134,
+    "sha256": "00325fe9782ba093ce736225bb9978db47d2ae55aabc5c4ddf477254bbfc3ec9"
+  },
+  {
+    "path": "trinity-state-20261108/products/5-meaning_family_requirement-trinity.receipt.json",
+    "bytes": 11806,
+    "sha256": "73d725b36f959b85d76f205f8e6f6cf3786e7f7411c922a54dce0da1f49a0cdb"
+  },
+  {
+    "path": "trinity-state-20261108/products/5-meaning_family_requirement-trinity.svg",
+    "bytes": 5178,
+    "sha256": "87e695ae2ef555e744fce997c08d3d0faeaa518d579e4724179b388575556fb2"
+  },
+  {
+    "path": "trinity-state-20261108/products/6-features_flowchart_nesting-parallel-unicode-agentic.receipt.json",
+    "bytes": 11813,
+    "sha256": "b075737c15b02131ba04508bf1b7fbdf62a12ce9beafffb42599baa92bf3a6cd"
+  },
+  {
+    "path": "trinity-state-20261108/products/6-features_flowchart_nesting-parallel-unicode-agentic.svg",
+    "bytes": 8158,
+    "sha256": "de249aa1bc18fb10c580aa3932b4e8f4c5fde14cf4750f6f9fbe7fd9e3ef8e80"
+  },
+  {
+    "path": "trinity-state-20261108/products/6-features_flowchart_nesting-parallel-unicode-elk.receipt.json",
+    "bytes": 11796,
+    "sha256": "35e3a34a336fb2d65303d4be05a52c368d5e7cc4232135c5cd9ee27078072f53"
+  },
+  {
+    "path": "trinity-state-20261108/products/6-features_flowchart_nesting-parallel-unicode-elk.svg",
+    "bytes": 8167,
+    "sha256": "b27342f27515fdf6b067eec6c124474d018e60882c0c6b8cfe8e59c44633269d"
+  },
+  {
+    "path": "trinity-state-20261108/products/7-features_flowchart_two-ended-and-undirected-agentic.receipt.json",
+    "bytes": 11810,
+    "sha256": "3e8bbcf8c563033809460a4c3e7a31f74872097dfa1fc7061a3d3fcde9039de4"
+  },
+  {
+    "path": "trinity-state-20261108/products/7-features_flowchart_two-ended-and-undirected-agentic.svg",
+    "bytes": 3607,
+    "sha256": "bd4a49bec2516d67e5510370729ba0868857b66989f894caf2a8c9b40326f134"
+  },
+  {
+    "path": "trinity-state-20261108/products/7-features_flowchart_two-ended-and-undirected-elk.receipt.json",
+    "bytes": 11793,
+    "sha256": "0af81a7abfccdf20dce6d76eb3a7a85e59960a1b5a636e934a5f5c3f67e69d01"
+  },
+  {
+    "path": "trinity-state-20261108/products/7-features_flowchart_two-ended-and-undirected-elk.svg",
+    "bytes": 3607,
+    "sha256": "bd4a49bec2516d67e5510370729ba0868857b66989f894caf2a8c9b40326f134"
+  },
+  {
+    "path": "trinity-state-20261108/products/7-features_flowchart_two-ended-and-undirected-trinity.receipt.json",
+    "bytes": 11801,
+    "sha256": "a0f973f3fd802f88d0c6d1fda6bdb7e4e635cc6f423587cc85d82e2f27a560a0"
+  },
+  {
+    "path": "trinity-state-20261108/products/7-features_flowchart_two-ended-and-undirected-trinity.svg",
+    "bytes": 3616,
+    "sha256": "278020412dae5a0077a0b649ac46c4cecf4c14904d197ef6966f97e4939beb90"
+  },
+  {
+    "path": "trinity-state-20261108/products/8-features_class_namespace-members-cardinality-agentic.receipt.json",
+    "bytes": 11804,
+    "sha256": "a52741b1e47cad142aeb2f7b73891b6194608c4d4edeafe897d5c35c81a34d36"
+  },
+  {
+    "path": "trinity-state-20261108/products/8-features_class_namespace-members-cardinality-agentic.svg",
+    "bytes": 7684,
+    "sha256": "9fddac4bbec0d62af841e5490f031c1f40930fafdc72be822ada11b619287799"
+  },
+  {
+    "path": "trinity-state-20261108/products/8-features_class_namespace-members-cardinality-elk.receipt.json",
+    "bytes": 11787,
+    "sha256": "d86bf5997ca4de2e8eb87b4f9a317dc2a11cd7042d15e46f078ade9117e41a13"
+  },
+  {
+    "path": "trinity-state-20261108/products/8-features_class_namespace-members-cardinality-elk.svg",
+    "bytes": 7688,
+    "sha256": "53963080446d11775665de03a665f927b2d71c6493910d44b5fcaa192a6a3ce3"
+  },
+  {
+    "path": "trinity-state-20261108/products/9-features_class_inheritance-composition-dependency-agentic.receipt.json",
+    "bytes": 11798,
+    "sha256": "2c4164eea0760736deb99d0f1314d9cc2429273f53bba7d1d94ac7824745a13a"
+  },
+  {
+    "path": "trinity-state-20261108/products/9-features_class_inheritance-composition-dependency-agentic.svg",
+    "bytes": 7620,
+    "sha256": "4b11d24ce15111c175926de1bee1b9eb989b631dc2bc0377dea95594650e4f9b"
+  },
+  {
+    "path": "trinity-state-20261108/products/9-features_class_inheritance-composition-dependency-elk.receipt.json",
+    "bytes": 11783,
+    "sha256": "f7962c6f367691a9259c0f68f3eafc0af54a33d9ec209c806169b311e0353da9"
+  },
+  {
+    "path": "trinity-state-20261108/products/9-features_class_inheritance-composition-dependency-elk.svg",
+    "bytes": 7678,
+    "sha256": "0a3a091904c5813f6377b0c82976a8e62e71243f2b4cfabe1d5ae8fb9c74a89f"
+  },
+  {
+    "path": "trinity-state-20261108/red.log",
+    "bytes": 8138,
+    "sha256": "293abe069f043a5b0df8afd1df49f323058f54e7762b599949846f3c1a61f403"
+  },
+  {
+    "path": "trinity-state-20261108/repo-types.log",
+    "bytes": 142,
+    "sha256": "54df6f7be5ec90ebe27016710278eead4ed715a596909da705c3ea4c559469b6"
+  },
+  {
+    "path": "trinity-state-20261108/requalify.log",
+    "bytes": 1303,
+    "sha256": "7399d76ef0a04beab0dcecb340d77abf9bf6954306e5cf7544a8dded1a82c23d"
+  },
+  {
+    "path": "trinity-state-20261108/requalify.ts",
+    "bytes": 1766,
+    "sha256": "0c81e610ace7f985c6fb90745e26fb424bf81601618b2f403e2842e96a85ce86"
+  },
+  {
+    "path": "trinity-state-20261108/review.md",
+    "bytes": 3055,
+    "sha256": "64abd7594a0e789e5bf540d709910cfed6663e4e9d0b53c270125bfdd2d22fda"
+  },
+  {
+    "path": "trinity-state-20261108/state.svg",
+    "bytes": 4728,
+    "sha256": "d9d75832ce7cc851b6ab804118b9bada814b63d5b39d631d239393274ab7313f"
+  },
+  {
+    "path": "trinity-state-20261108/types-first.log",
+    "bytes": 728,
+    "sha256": "c044767c4e78a3f898e20c43bb3234cd1dbf6a6065b19876497ce5e922023df7"
+  },
+  {
+    "path": "trinity-state-20261108/types.log",
+    "bytes": 32,
+    "sha256": "70685b4df7789c854b9e1ceab7d78a6d0f9a0831c11eb0010b7b5fdbe0e50c39"
+  }
+]
