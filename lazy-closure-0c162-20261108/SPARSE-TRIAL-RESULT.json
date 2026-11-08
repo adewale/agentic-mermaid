@@ -1,0 +1,14 @@
+{
+  "source": "0c162c446b58ad98d0a5550719592a0d868619f8",
+  "owningBefore": "2passed1failed13729assertions",
+  "trial": "Deferred known attribute tokens and prepared duplicate bitmask; validation stays deferred",
+  "before": "returned,unverified400k",
+  "after": "returned,unverified400k",
+  "wholeSVGExact": true,
+  "diagnosticEmissionRequiredBefore": 450245,
+  "diagnosticEmissionRequiredTrial": 421715,
+  "diagnosticCapRelaxed": true,
+  "diagnosticPassClaimed": false,
+  "decision": "Stop: does not recover Sparse32; paint-replay alternative unused by this witness; independent review supplies insufficient-savings bound.",
+  "productionRuntimeChanged": false
+}

@@ -1,0 +1,72 @@
+bun test v1.4.4 (38afee6c8)
+
+src/__tests__/paint-certification.test.ts:
+(pass) sparse decorative markers preserve completed direct and emitted text proof (0 markers, definitions=false) [886.56ms]
+(pass) sparse decorative markers preserve completed direct and emitted text proof (0 markers, definitions=true) [782.41ms]
+162 |   }
+163 |   expect(certifyScenePaint(producer(marks, context))).toMatchObject({ status: 'passed', issues: [] })
+164 |   const proof = certifyNativePaint(drawing.header, drawing.paint)
+165 |   expect(proof.checks.maxOperations).toBe(400000)
+166 |   expect(proof.checks.operations).toBeLessThanOrEqual(400000)
+167 |   expect(proof).toMatchObject({ status: 'passed', issues: [] })
+                      ^
+error: expect(received).toMatchObject(expected)
+
+  {
+-   "issues": [],
+-   "status": "passed",
++   "attempts": 1,
++   "checks": {
++     "labels": 0,
++     "markers": 0,
++     "maxOcclusionPairs": 100000,
++     "maxOperations": 400000,
++     "occlusionPairs": 0,
++     "operations": 400000,
++     "primitives": 1535,
++   },
++   "coverage": {
++     "conditional": 0,
++     "fallbackText": 0,
++     "measured": 1532,
++     "preparedText": 1500,
++     "unmeasured": 0,
++   },
++   "issues": [
++     {
++       "code": "OUTPUT_SCOPE",
++       "message": "Emitted document context or marker resource differs from retained paint evidence",
++     },
++     {
++       "code": "CHECK_BUDGET",
++       "message": "Occlusion checking reached its 100000-pair or 400000-operation limit",
++     },
++   ],
++   "limitations": [
++     "Prepared occupied text regions bound native geometry; exact glyph ink depends on the resolved font.",
++     "Declared transparency, intentional data-mark overlap and externally modified CSS are outside this proof.",
++   ],
++   "repairs": [],
++   "scope": "native-scene",
++   "status": "unverified",
++   "unit": "px",
++   "version": 1,
++   "viewport": {
++     "height": 31000,
++     "width": 200,
++     "x": 0,
++     "y": 0,
++   },
+  }
+
+- Expected  - 2
++ Received  + 42
+
+      at <anonymous> (/tmp/pr449-main-integration-20261029-762/src/__tests__/paint-certification.test.ts:167:17)
+(fail) sparse decorative markers preserve completed direct and emitted text proof (32 markers, definitions=true) [7207.15ms]
+
+ 2 pass
+ 650 filtered out
+ 1 fail
+ 13729 expect() calls
+Ran 3 tests across 1 file. [9.44s]

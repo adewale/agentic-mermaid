@@ -1,0 +1,24 @@
+{
+  "runtime": "0c162c446b58ad98d0a5550719592a0d868619f8",
+  "source": "df133c69480e71d230a0e9256b1103cc5068bd22",
+  "main": "e7cb05baa7f68154942a9ce9c6e9aaaee163dc94",
+  "sourceChange": "Documentation only; runtime unchanged.",
+  "newProductionGain": false,
+  "newEvidence": "Same-dependency Native/ELK actual built closures, all nine reported graph families Native smaller; more modules.",
+  "stopped": [
+    "forced grouping removal worsens every family",
+    "deferred token trial still exhausts Sparse32",
+    "paint replay unused by own-paint Sparse32 witness"
+  ],
+  "goal": "blocked by unresolved correctness/performance/payload failures; not established Native replacement",
+  "completedRuntimeCI": {
+    "head": "0c162c446b58ad98d0a5550719592a0d868619f8",
+    "run": 42431021452,
+    "conclusion": "failure"
+  },
+  "newAcceptanceGates": false,
+  "capsVersionsDefaultsChanged": false,
+  "newCaches": false,
+  "automationsDisabled": true,
+  "recordedAt": "2026-11-08T01:30:58.637951+00:00"
+}

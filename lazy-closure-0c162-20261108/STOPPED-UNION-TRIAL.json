@@ -1,0 +1,179 @@
+{
+  "source": "0c162c446b58ad98d0a5550719592a0d868619f8",
+  "candidate": "outside-source remove build-only forced render-core union hints",
+  "result": "stopped: all family closures grow, no production change",
+  "initialDelta": {
+    "requests": 2,
+    "raw": 12,
+    "gzip": 176,
+    "brotli": 115
+  },
+  "families": {
+    "flowchart": {
+      "gzip": 910,
+      "brotli": 2784,
+      "requests": 2
+    },
+    "state": {
+      "gzip": 900,
+      "brotli": 2794,
+      "requests": 2
+    },
+    "sequence": {
+      "gzip": 911,
+      "brotli": 2747,
+      "requests": 2
+    },
+    "timeline": {
+      "gzip": 902,
+      "brotli": 2729,
+      "requests": 2
+    },
+    "class": {
+      "gzip": 895,
+      "brotli": 2696,
+      "requests": 2
+    },
+    "er": {
+      "gzip": 936,
+      "brotli": 2814,
+      "requests": 2
+    },
+    "journey": {
+      "gzip": 907,
+      "brotli": 2727,
+      "requests": 2
+    },
+    "architecture": {
+      "gzip": 916,
+      "brotli": 2772,
+      "requests": 2
+    },
+    "xychart": {
+      "gzip": 903,
+      "brotli": 2710,
+      "requests": 2
+    },
+    "pie": {
+      "gzip": 903,
+      "brotli": 2722,
+      "requests": 2
+    },
+    "quadrant": {
+      "gzip": 903,
+      "brotli": 2724,
+      "requests": 2
+    },
+    "gantt": {
+      "gzip": 884,
+      "brotli": 2756,
+      "requests": 2
+    },
+    "mindmap": {
+      "gzip": 913,
+      "brotli": 2736,
+      "requests": 2
+    },
+    "gitgraph": {
+      "gzip": 921,
+      "brotli": 2786,
+      "requests": 2
+    },
+    "radar": {
+      "gzip": 915,
+      "brotli": 2736,
+      "requests": 2
+    },
+    "sankey": {
+      "gzip": 890,
+      "brotli": 2715,
+      "requests": 2
+    },
+    "c4": {
+      "gzip": 905,
+      "brotli": 2698,
+      "requests": 2
+    },
+    "packet": {
+      "gzip": 903,
+      "brotli": 2703,
+      "requests": 2
+    },
+    "kanban": {
+      "gzip": 893,
+      "brotli": 2686,
+      "requests": 2
+    },
+    "requirement": {
+      "gzip": 898,
+      "brotli": 2705,
+      "requests": 2
+    },
+    "treemap": {
+      "gzip": 901,
+      "brotli": 2689,
+      "requests": 2
+    },
+    "ishikawa": {
+      "gzip": 909,
+      "brotli": 2716,
+      "requests": 2
+    },
+    "block": {
+      "gzip": 897,
+      "brotli": 2739,
+      "requests": 2
+    },
+    "eventmodeling": {
+      "gzip": 908,
+      "brotli": 2720,
+      "requests": 2
+    },
+    "zenuml": {
+      "gzip": 911,
+      "brotli": 2740,
+      "requests": 2
+    },
+    "railroad": {
+      "gzip": 903,
+      "brotli": 2687,
+      "requests": 2
+    },
+    "cynefin": {
+      "gzip": 876,
+      "brotli": 2710,
+      "requests": 2
+    },
+    "agentflow": {
+      "gzip": 906,
+      "brotli": 2781,
+      "requests": 2
+    },
+    "usecase": {
+      "gzip": 875,
+      "brotli": 2709,
+      "requests": 2
+    },
+    "wardley": {
+      "gzip": 878,
+      "brotli": 2730,
+      "requests": 2
+    },
+    "venn": {
+      "gzip": 837,
+      "brotli": 2722,
+      "requests": 2
+    },
+    "swimlane": {
+      "gzip": 905,
+      "brotli": 2772,
+      "requests": 2
+    },
+    "treeview": {
+      "gzip": 885,
+      "brotli": 2676,
+      "requests": 2
+    }
+  },
+  "note": "First build attempt had inherited root config; canonical runs explicitly disable auto config. All failed attempts retained. No render correctness or runtime gain claimed."
+}

@@ -1,0 +1,6 @@
+{
+  "firstMainBuild": "main-dist; excluded from equal-dependency comparison: workspace ELK0.11.0 mismatched repository0.11.1",
+  "correctedMainBuild": "main-matched-dist; uses same local dependency links as PR, ELK0.11.1",
+  "nativeVersusELKWithinPR": "Both selected backends already use same PR graph and dependencies.",
+  "retained": "Original reference node_modules symlink renamed node_modules.initial-symlink, not deleted."
+}

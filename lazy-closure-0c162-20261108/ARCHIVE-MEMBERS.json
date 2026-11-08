@@ -1,0 +1,2607 @@
+[
+  {
+    "path": "lazy-closure-0c162-20261108/DEPENDENCY-CORRECTION.json",
+    "bytes": 431,
+    "sha256": "d84506a033f76a1fc26b22bb167908f827fa6cd8dfa6aafa80df233bc04df05c"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/FINAL-RESULTS.json",
+    "bytes": 1000,
+    "sha256": "faf236b467212fe3fcce25f950738a0db640f778ea7e25437db42768de901240"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/INPUT-ATTRIBUTION.json",
+    "bytes": 7227,
+    "sha256": "345ff061c6958e0338284b96063443eae603bf93db8d8e30c2e44cec865855c6"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/QUALIFIED-CLOSURES.json",
+    "bytes": 6622,
+    "sha256": "8b9201fcfc77c00a1eddb334e2942d6c778679e46802c922f858b105768e9166"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/README.md",
+    "bytes": 5795,
+    "sha256": "6794d3b3e6c8d3fce095ff2a8e5ab8612772ac6f1c09ac0c6a57af732d1f2918"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/SPARSE-TRIAL-RESULT.json",
+    "bytes": 665,
+    "sha256": "8e34b3878ddf264cf939b3e8410bc8002951ce99657709624fe0c188085a2616"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/STOPPED-UNION-TRIAL.json",
+    "bytes": 3311,
+    "sha256": "48dcb511d97597c875eb2ab02456068a06b3ddb00397df7b7ce5f68c51c13323"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/before-build-retry.log",
+    "bytes": 12235,
+    "sha256": "832d89a20b4475fb4089a4819b88d30f739efc152b6132a66a2fe0c52b9da720"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/before-build.log",
+    "bytes": 697,
+    "sha256": "fd295c2e08bc2442bb4e7e35ec57fa2e2162fa40f74a89f54890e3edcb663bcc"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/before-dist/browser-lazy/chunks/agentflow-7VVEG2OC.js",
+    "bytes": 16887,
+    "sha256": "44738749e9c72080f81fb0a35169a43cc9a4b94c3aaca9cd05d43d7e20556294"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/before-dist/browser-lazy/chunks/agentic-producer-core-CDPONG7B.js",
+    "bytes": 138087,
+    "sha256": "19613dbe9259ab786bea72b8e5d394ff8a0380caf1bc1b8a17251e7702a69d29"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/before-dist/browser-lazy/chunks/architecture-PTDDZ7P4.js",
+    "bytes": 57491,
+    "sha256": "876e40c6a162c320d4fabea3b0611094c13479d0a1a033d03d92ee82107fc3f8"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/before-dist/browser-lazy/chunks/block-BE3LGYX5.js",
+    "bytes": 34656,
+    "sha256": "24f060e81c36a05839d4faf6fc5e8542322e75f957fb754b3469389874ba38fd"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/before-dist/browser-lazy/chunks/builtin-backends-MYQSN5QN.js",
+    "bytes": 39761,
+    "sha256": "9f420ac022250c5d22185955b30d61148a07e73c434a4c46cf6f1b5f9d864168"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/before-dist/browser-lazy/chunks/c4-EQZZLFZR.js",
+    "bytes": 71932,
+    "sha256": "195db8cdc7d4369be182caa287c80079abdee5f96171503abcf022ec293af2de"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/before-dist/browser-lazy/chunks/chunk-26U3FNXB.js",
+    "bytes": 2179,
+    "sha256": "c581f5b309d4a23a3e7787eb260a69af59b5a527e120cfc3c57e286ea266764a"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/before-dist/browser-lazy/chunks/chunk-4A360611.js",
+    "bytes": 599138,
+    "sha256": "40a447d02107e49c78d7d96f2cf27c77a8d09db027492ff8dbf4662a282307be"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/before-dist/browser-lazy/chunks/chunk-5AVWL4HA.js",
+    "bytes": 281,
+    "sha256": "28099c26511b2903c0153dcfbb9b57f5091ecd9718b0eef849be94924a5050a7"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/before-dist/browser-lazy/chunks/chunk-6KIDXM54.js",
+    "bytes": 781,
+    "sha256": "a88a550dae2cffd70ac76f08c45fcce717dc535d45609c38427370ae9124a87f"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/before-dist/browser-lazy/chunks/chunk-7WYEZDAV.js",
+    "bytes": 2947,
+    "sha256": "9537136b03638cfeaee3fd895794340115c04b985d0f37a91cb3218ad460289f"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/before-dist/browser-lazy/chunks/chunk-7X62GRYO.js",
+    "bytes": 7330,
+    "sha256": "bc9243c7c84de8de1e64f44b485dad3f99b66f75179002049b1c578fef2bb321"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/before-dist/browser-lazy/chunks/chunk-AIDFRMMX.js",
+    "bytes": 58884,
+    "sha256": "8958ee486f14adace63d87d01906fd1409aab4510fe9a5e825f7eacd29517f3c"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/before-dist/browser-lazy/chunks/chunk-AII457QA.js",
+    "bytes": 595,
+    "sha256": "e19db39ab8ce906fc691b3e7eaaa0659ca31bbeede2bb6514d1b4798062dd00a"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/before-dist/browser-lazy/chunks/chunk-BIDH6Y72.js",
+    "bytes": 855,
+    "sha256": "851fed7a50b377ed52b1e24647cb2e3e0d2c3197abc3186725c027ee26d1ed42"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/before-dist/browser-lazy/chunks/chunk-BOZNQDND.js",
+    "bytes": 70954,
+    "sha256": "457cecf5ac85fcdb63d2a7d409e6512ee3720c7ba377ca323c29cba3babc5a06"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/before-dist/browser-lazy/chunks/chunk-CLJPUMSP.js",
+    "bytes": 11957,
+    "sha256": "0d89dd2019cbe3ff0981170d6d7ede67e64e8c738c523a91e50bae5c71ebcdc3"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/before-dist/browser-lazy/chunks/chunk-CLWWU6PK.js",
+    "bytes": 887,
+    "sha256": "8e228b2d11e2c6bfca5b0b6ae36c976d9f129136cb7d67c6c35e8d59713f3959"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/before-dist/browser-lazy/chunks/chunk-CZLN27NO.js",
+    "bytes": 414,
+    "sha256": "fa3acd62a3fb00d1898fba2293928c5cf81a8f46a9f6d4bbf0f3bad9c8a210ac"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/before-dist/browser-lazy/chunks/chunk-D4YBYEMJ.js",
+    "bytes": 391,
+    "sha256": "d7d5885098098878ad8ddb6b00b567545a7810262be1737e7e82e5d1845f3d4e"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/before-dist/browser-lazy/chunks/chunk-DY5W4HWS.js",
+    "bytes": 20809,
+    "sha256": "09ae092ae6766772d3b281c16bc7e5f917e21a7f3e5654d502d922c896e51280"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/before-dist/browser-lazy/chunks/chunk-GOHJAZLX.js",
+    "bytes": 505,
+    "sha256": "303d9d558a7149aef8df0c6d6a2f9f22ac9039446ee9c9479f9838f74be4a7ae"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/before-dist/browser-lazy/chunks/chunk-GOQNTA7O.js",
+    "bytes": 116155,
+    "sha256": "2a89a1367fda4fc794ccb47ac68b823d627ebae409b9c9eb053505f7ea27dae7"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/before-dist/browser-lazy/chunks/chunk-HMUJC5HE.js",
+    "bytes": 11759,
+    "sha256": "de8024d7d0b646858e81bda4be9c9ba6bcdde2b0e68c3eb27b73ccb56867f43d"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/before-dist/browser-lazy/chunks/chunk-JVFVBEG7.js",
+    "bytes": 340,
+    "sha256": "256171d38d871940de29887398233287ce8c860548956be7aaeb5e4c2fe7967d"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/before-dist/browser-lazy/chunks/chunk-LCLEOKVP.js",
+    "bytes": 1618,
+    "sha256": "0832dc36e804bde089a2e578cb32f7e04caf9235a4f5d9f38cd141c7807cc811"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/before-dist/browser-lazy/chunks/chunk-MGB4W7MC.js",
+    "bytes": 424,
+    "sha256": "4f562dd25eb94941d2a293e00892040ec562ca686c202b7e945fb758ba04addf"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/before-dist/browser-lazy/chunks/chunk-NDSEJZ4K.js",
+    "bytes": 2544,
+    "sha256": "814a6dcf8661c5fe77d5c7f438aab2c8fae79b4c02df9f3b5e61e36a2471c81a"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/before-dist/browser-lazy/chunks/chunk-OGB2YZWM.js",
+    "bytes": 163,
+    "sha256": "be219d28301693b3509806f8002add7ff66819d52ee550911fffc1fb47a837c6"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/before-dist/browser-lazy/chunks/chunk-QCCDYPU7.js",
+    "bytes": 760,
+    "sha256": "93180efbe11643eaa3094df461ab8226bb600882e29f3e863dd2ba1135cd4852"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/before-dist/browser-lazy/chunks/chunk-RNHOTV6W.js",
+    "bytes": 1607,
+    "sha256": "2fa7c31ec1ac14d85908c4def1b95cd6edf428ce10dd23f7512407cb66d24e91"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/before-dist/browser-lazy/chunks/chunk-SC76MUQ3.js",
+    "bytes": 440,
+    "sha256": "32f2e061f17b0958551c522cf707b97162f11e6f3fdc44667276459410366258"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/before-dist/browser-lazy/chunks/chunk-SCZQBZCP.js",
+    "bytes": 3624,
+    "sha256": "8939384f58a360763f14275a0453c608218d22e3b4e798c86fa2dfa36ac1e1c0"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/before-dist/browser-lazy/chunks/chunk-SZVDGG5J.js",
+    "bytes": 119029,
+    "sha256": "7d0200a3c8ea8387f0b265eebd3cfcc4645a9cc3b8726f83a083e8ec06104f92"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/before-dist/browser-lazy/chunks/chunk-TXALF2FK.js",
+    "bytes": 891,
+    "sha256": "09e4a78804795224819ca40734070069a0977f9c72bd27d06de37b90f7e6c2bf"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/before-dist/browser-lazy/chunks/chunk-UCH2DIJ5.js",
+    "bytes": 266,
+    "sha256": "73ffdb00d5862b3e0d80e095f0f155ea62b36258ee8806b04b664069c76cb497"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/before-dist/browser-lazy/chunks/chunk-UQ7GTNSR.js",
+    "bytes": 7633,
+    "sha256": "daae0619bc0ec02d0d90d2108156b16b85d5321dbe6cccf0ad14514944707a5d"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/before-dist/browser-lazy/chunks/chunk-UQFXLHAQ.js",
+    "bytes": 12520,
+    "sha256": "0f40d13cabdf481192284eeabdbf374a7595ba2d691e773a4e57f576afe6e059"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/before-dist/browser-lazy/chunks/chunk-V4R4T5DK.js",
+    "bytes": 383,
+    "sha256": "cbc4c3ee2c2214791f7ed052d94ddd10e22bbfd869468f8dbef9bf3d1692dd81"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/before-dist/browser-lazy/chunks/chunk-VWN65224.js",
+    "bytes": 13054,
+    "sha256": "752d95ebe76d9e3113f4cc0d5ce67694ab38bcc60834a32f460c120d1b753e8a"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/before-dist/browser-lazy/chunks/chunk-WSJ35DMW.js",
+    "bytes": 1840,
+    "sha256": "5637a0835c7a23b13d0d11270631ed040454bae07f3375f0c7c41ac7d6b24d58"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/before-dist/browser-lazy/chunks/chunk-XG7746SW.js",
+    "bytes": 8658,
+    "sha256": "83b22f186ad30aef2e14998970b0ea5a50c1c429ac1cb241387652dd7b568de9"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/before-dist/browser-lazy/chunks/chunk-YV65UIIE.js",
+    "bytes": 1678,
+    "sha256": "de72d95980bfc67d752747e6fad16933622e1b8cb4db6be923d9f67cd71e74d7"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/before-dist/browser-lazy/chunks/class-INS2TLFO.js",
+    "bytes": 118018,
+    "sha256": "b2acabf1513719327491133b144b4ded69a08dc9c8065f03de65ce3c41d3a85b"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/before-dist/browser-lazy/chunks/cynefin-IBSQCQHX.js",
+    "bytes": 11437,
+    "sha256": "a22a2aaebd5c6d3e68fd04926251aaa8c08457b09958c76ff009632f56c094e5"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/before-dist/browser-lazy/chunks/decode-E23ODK3H.js",
+    "bytes": 40525,
+    "sha256": "65d57aaca480d91b64d4fbaf4989f871c57fbebddf311bb5f2a9e7ee58568886"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/before-dist/browser-lazy/chunks/elk.bundled-X5K4KOFH.js",
+    "bytes": 1447491,
+    "sha256": "2422557bc2a76ea5bea842c44c646f82d8d5dd66eeddbb017f3883feffa78ef5"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/before-dist/browser-lazy/chunks/er-YESKYRCD.js",
+    "bytes": 84261,
+    "sha256": "de430762767bd0326abbb2ca4966e8317d6678956b26dbf329f89e65f8586f42"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/before-dist/browser-lazy/chunks/eventmodeling-XYN4CAUE.js",
+    "bytes": 19317,
+    "sha256": "d27ce7e512b54bdf0a842be31a5f6f0e7653b3988865903b64d0203e82ef84ee"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/before-dist/browser-lazy/chunks/flowchart-YASWN3FQ.js",
+    "bytes": 5690,
+    "sha256": "7baceb5e58d79bec6c06c905e522c28075a1d5e176191d9f7fcc97f082a52623"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/before-dist/browser-lazy/chunks/forest-implementation-FARHT75V.js",
+    "bytes": 4940,
+    "sha256": "5aad7366fb4327212da5dc007042a3b5dffa683900e4d04a8a0374ae301f4340"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/before-dist/browser-lazy/chunks/gantt-UOTRPQW2.js",
+    "bytes": 48699,
+    "sha256": "dd8884bfe014fa82af8dc87625a58deaa40dfce1be29b6640bb85446eb36f7f3"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/before-dist/browser-lazy/chunks/gitgraph-K5AB4TXW.js",
+    "bytes": 27426,
+    "sha256": "e3133db728c6eb6ddfeee43fd09ff962d2874e71c442989fc68951f70de572e1"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/before-dist/browser-lazy/chunks/inter-metrics-kernel-E4EEPZL6.js",
+    "bytes": 18621,
+    "sha256": "93f974dd12ced670e72104ad46a8f8cc77f8556b282d3430632fcf1fdd2baa04"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/before-dist/browser-lazy/chunks/ishikawa-TIIHIV6F.js",
+    "bytes": 9589,
+    "sha256": "5a0b053970bae5a06881520fe6913cfcd07d3be0f68f2e62474759a66cd450bf"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/before-dist/browser-lazy/chunks/journey-I7LCLYF4.js",
+    "bytes": 34052,
+    "sha256": "cd64b453e0230bd3b3662aff0bcfdffdb15f987ae08b0c9347c99c9e25c2ad91"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/before-dist/browser-lazy/chunks/kanban-R67J3QZX.js",
+    "bytes": 15197,
+    "sha256": "41a7a1aa3046c476a8337850eee95b15248add3a9fb4096ffdd5b0349f8d6302"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/before-dist/browser-lazy/chunks/mermaid-yaml-runtime-EDAWOZLW.js",
+    "bytes": 100108,
+    "sha256": "d43d69243c00dde9289eb86f9f932fa38361448ee9351ae269a7c5dacc1d821a"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/before-dist/browser-lazy/chunks/mindmap-6U2QM5YR.js",
+    "bytes": 20386,
+    "sha256": "30361e5e997e67f966699bb4d03e48202539d72d8e70f1fa925d39cc96ceec5c"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/before-dist/browser-lazy/chunks/optimization-runtime-MPMJL7DQ.js",
+    "bytes": 6220,
+    "sha256": "3aace280afa721dc86fbcb64b5edc35cb1701d08ac732ab60f06bf02fd147d68"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/before-dist/browser-lazy/chunks/packet-RQZJSJYC.js",
+    "bytes": 8750,
+    "sha256": "46d48ddcce4a370e01a3aed42e60a073a2c6346431120d5767f1cc00689ac499"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/before-dist/browser-lazy/chunks/parser-source-E2DEEFFF.js",
+    "bytes": 2337,
+    "sha256": "14b3a66c9bd4a3d1b52d5c40c8551401af13e891d8dad4dd9185fa4ecef9259e"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/before-dist/browser-lazy/chunks/pie-A34ZTWOV.js",
+    "bytes": 22719,
+    "sha256": "241beabb9836389f0ce01cadabacb96425a522729821232983cce042d0eef62d"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/before-dist/browser-lazy/chunks/quadrant-DZYDSUIW.js",
+    "bytes": 28664,
+    "sha256": "ec08c4b8f64321e0a0c7010a70491820dcf6081397be656738ac3ccb282d4856"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/before-dist/browser-lazy/chunks/radar-IM2LCM5I.js",
+    "bytes": 30737,
+    "sha256": "ecaab6eee10fcb9d0cfe7aa52366be0aa907da6ac09a3c14d203811123947b30"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/before-dist/browser-lazy/chunks/railroad-YQAK2TUL.js",
+    "bytes": 23582,
+    "sha256": "6ebc4a813e24f8d16bb5edcf9a9a084b62f0761ad7a7a114005dce16aacd26ad"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/before-dist/browser-lazy/chunks/render-core-VK6GNDN6.js",
+    "bytes": 155,
+    "sha256": "3a46a81124126b912549ee86c40cd1f4f7bf6b90eded83a424a5167a4f576d22"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/before-dist/browser-lazy/chunks/requirement-SNXVXGLF.js",
+    "bytes": 27896,
+    "sha256": "c295d9f0cdb61a13389c772d1e9b4344821abb60df7fa827b93c4acbf327c7ce"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/before-dist/browser-lazy/chunks/sankey-UO7T5DX7.js",
+    "bytes": 25116,
+    "sha256": "e31b210049be9f5e173babffc6a0eafcfd282dde00f504ea78ad9db0ee326fe0"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/before-dist/browser-lazy/chunks/sequence-N5N2AEPR.js",
+    "bytes": 7246,
+    "sha256": "18552b5b45d49d2aefcdb6937e0021016b45987bd5d88b7960cb3d5f758e3a81"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/before-dist/browser-lazy/chunks/state-FJLLOK5Z.js",
+    "bytes": 7890,
+    "sha256": "1c063b45bb3f81a30c8761a71a38b83a6970f52ce25380db703f14f1aa3a73e3"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/before-dist/browser-lazy/chunks/swimlane-5Y7PYZ7J.js",
+    "bytes": 14881,
+    "sha256": "92f714ad82f1bbf42bef92476506374ed56691d12039bd2ed8b298da77672896"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/before-dist/browser-lazy/chunks/timeline-JQWYAX3M.js",
+    "bytes": 21738,
+    "sha256": "393fdac9136ac415aa5ed0bd4b448dff1b3f829bfa60254925310a233a3c4083"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/before-dist/browser-lazy/chunks/treemap-ORPROIRR.js",
+    "bytes": 18227,
+    "sha256": "ea13ed32d6e93962b96ad6dcc1e51ecda40c123491874d66dc08973abbdf8d2f"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/before-dist/browser-lazy/chunks/treeview-W53KRUU3.js",
+    "bytes": 11582,
+    "sha256": "34f1c533b81e19129c8e195d91f5862217c95302198d321812a2b137f18122b0"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/before-dist/browser-lazy/chunks/usecase-NM4ITDK5.js",
+    "bytes": 48610,
+    "sha256": "bcf91baea43c2d1a619ca2a00e22c3f484087a55c72d857ce1f0cb6ef6072ffa"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/before-dist/browser-lazy/chunks/venn-NHNUIARF.js",
+    "bytes": 24031,
+    "sha256": "0ffacc0e60ae93b75d96bb410a09aa845e82ce54476c317e1360b18317ed7174"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/before-dist/browser-lazy/chunks/wardley-MVLLR46F.js",
+    "bytes": 26027,
+    "sha256": "0627f40324e76709b9b997c22642718bf3e3f4bc563798dc74e4033991f98c80"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/before-dist/browser-lazy/chunks/xychart-YDYZQNAR.js",
+    "bytes": 54086,
+    "sha256": "20147b6bf692960fa7c17fcfe521846b53f5291035ce7ac71b2356f9ef2dfd51"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/before-dist/browser-lazy/chunks/zenuml-N4T46KPJ.js",
+    "bytes": 22940,
+    "sha256": "afd669838cbb56376260123546b0962b8dc1e0883ba690c31bc5c3d5da191a27"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/before-dist/browser-lazy/index.js",
+    "bytes": 4328,
+    "sha256": "776d42fc1250f9e29bf3e4f5fc3a60ac87e4169781c13442198759e44b09a184"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/before-dist/metafile-esm.json",
+    "bytes": 566345,
+    "sha256": "f35a2357b18196e84f087fba8ff9f35b3864f5c5960068556ee885a44e17ed73"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/before-report.err",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/before-report.json",
+    "bytes": 15484,
+    "sha256": "75d45b2e3557d632af1ec89b517a5175f0ecd38893889ca697f2ae13b1142666"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/campaign-state-acquired.json",
+    "bytes": 33336,
+    "sha256": "c8bce65ce691d670d94925079940d6ca538f207bbaee8d324f17d0e61996c7b0"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/canonical-before/browser-lazy/chunks/agentflow-7VVEG2OC.js",
+    "bytes": 16887,
+    "sha256": "44738749e9c72080f81fb0a35169a43cc9a4b94c3aaca9cd05d43d7e20556294"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/canonical-before/browser-lazy/chunks/agentic-producer-core-CDPONG7B.js",
+    "bytes": 138087,
+    "sha256": "19613dbe9259ab786bea72b8e5d394ff8a0380caf1bc1b8a17251e7702a69d29"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/canonical-before/browser-lazy/chunks/architecture-PTDDZ7P4.js",
+    "bytes": 57491,
+    "sha256": "876e40c6a162c320d4fabea3b0611094c13479d0a1a033d03d92ee82107fc3f8"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/canonical-before/browser-lazy/chunks/block-BE3LGYX5.js",
+    "bytes": 34656,
+    "sha256": "24f060e81c36a05839d4faf6fc5e8542322e75f957fb754b3469389874ba38fd"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/canonical-before/browser-lazy/chunks/builtin-backends-MYQSN5QN.js",
+    "bytes": 39761,
+    "sha256": "9f420ac022250c5d22185955b30d61148a07e73c434a4c46cf6f1b5f9d864168"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/canonical-before/browser-lazy/chunks/c4-EQZZLFZR.js",
+    "bytes": 71932,
+    "sha256": "195db8cdc7d4369be182caa287c80079abdee5f96171503abcf022ec293af2de"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/canonical-before/browser-lazy/chunks/chunk-26U3FNXB.js",
+    "bytes": 2179,
+    "sha256": "c581f5b309d4a23a3e7787eb260a69af59b5a527e120cfc3c57e286ea266764a"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/canonical-before/browser-lazy/chunks/chunk-4A360611.js",
+    "bytes": 599138,
+    "sha256": "40a447d02107e49c78d7d96f2cf27c77a8d09db027492ff8dbf4662a282307be"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/canonical-before/browser-lazy/chunks/chunk-5AVWL4HA.js",
+    "bytes": 281,
+    "sha256": "28099c26511b2903c0153dcfbb9b57f5091ecd9718b0eef849be94924a5050a7"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/canonical-before/browser-lazy/chunks/chunk-6KIDXM54.js",
+    "bytes": 781,
+    "sha256": "a88a550dae2cffd70ac76f08c45fcce717dc535d45609c38427370ae9124a87f"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/canonical-before/browser-lazy/chunks/chunk-7WYEZDAV.js",
+    "bytes": 2947,
+    "sha256": "9537136b03638cfeaee3fd895794340115c04b985d0f37a91cb3218ad460289f"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/canonical-before/browser-lazy/chunks/chunk-7X62GRYO.js",
+    "bytes": 7330,
+    "sha256": "bc9243c7c84de8de1e64f44b485dad3f99b66f75179002049b1c578fef2bb321"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/canonical-before/browser-lazy/chunks/chunk-AIDFRMMX.js",
+    "bytes": 58884,
+    "sha256": "8958ee486f14adace63d87d01906fd1409aab4510fe9a5e825f7eacd29517f3c"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/canonical-before/browser-lazy/chunks/chunk-AII457QA.js",
+    "bytes": 595,
+    "sha256": "e19db39ab8ce906fc691b3e7eaaa0659ca31bbeede2bb6514d1b4798062dd00a"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/canonical-before/browser-lazy/chunks/chunk-BIDH6Y72.js",
+    "bytes": 855,
+    "sha256": "851fed7a50b377ed52b1e24647cb2e3e0d2c3197abc3186725c027ee26d1ed42"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/canonical-before/browser-lazy/chunks/chunk-BOZNQDND.js",
+    "bytes": 70954,
+    "sha256": "457cecf5ac85fcdb63d2a7d409e6512ee3720c7ba377ca323c29cba3babc5a06"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/canonical-before/browser-lazy/chunks/chunk-CLJPUMSP.js",
+    "bytes": 11957,
+    "sha256": "0d89dd2019cbe3ff0981170d6d7ede67e64e8c738c523a91e50bae5c71ebcdc3"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/canonical-before/browser-lazy/chunks/chunk-CLWWU6PK.js",
+    "bytes": 887,
+    "sha256": "8e228b2d11e2c6bfca5b0b6ae36c976d9f129136cb7d67c6c35e8d59713f3959"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/canonical-before/browser-lazy/chunks/chunk-CZLN27NO.js",
+    "bytes": 414,
+    "sha256": "fa3acd62a3fb00d1898fba2293928c5cf81a8f46a9f6d4bbf0f3bad9c8a210ac"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/canonical-before/browser-lazy/chunks/chunk-D4YBYEMJ.js",
+    "bytes": 391,
+    "sha256": "d7d5885098098878ad8ddb6b00b567545a7810262be1737e7e82e5d1845f3d4e"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/canonical-before/browser-lazy/chunks/chunk-DY5W4HWS.js",
+    "bytes": 20809,
+    "sha256": "09ae092ae6766772d3b281c16bc7e5f917e21a7f3e5654d502d922c896e51280"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/canonical-before/browser-lazy/chunks/chunk-GOHJAZLX.js",
+    "bytes": 505,
+    "sha256": "303d9d558a7149aef8df0c6d6a2f9f22ac9039446ee9c9479f9838f74be4a7ae"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/canonical-before/browser-lazy/chunks/chunk-GOQNTA7O.js",
+    "bytes": 116155,
+    "sha256": "2a89a1367fda4fc794ccb47ac68b823d627ebae409b9c9eb053505f7ea27dae7"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/canonical-before/browser-lazy/chunks/chunk-HMUJC5HE.js",
+    "bytes": 11759,
+    "sha256": "de8024d7d0b646858e81bda4be9c9ba6bcdde2b0e68c3eb27b73ccb56867f43d"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/canonical-before/browser-lazy/chunks/chunk-JVFVBEG7.js",
+    "bytes": 340,
+    "sha256": "256171d38d871940de29887398233287ce8c860548956be7aaeb5e4c2fe7967d"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/canonical-before/browser-lazy/chunks/chunk-LCLEOKVP.js",
+    "bytes": 1618,
+    "sha256": "0832dc36e804bde089a2e578cb32f7e04caf9235a4f5d9f38cd141c7807cc811"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/canonical-before/browser-lazy/chunks/chunk-MGB4W7MC.js",
+    "bytes": 424,
+    "sha256": "4f562dd25eb94941d2a293e00892040ec562ca686c202b7e945fb758ba04addf"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/canonical-before/browser-lazy/chunks/chunk-NDSEJZ4K.js",
+    "bytes": 2544,
+    "sha256": "814a6dcf8661c5fe77d5c7f438aab2c8fae79b4c02df9f3b5e61e36a2471c81a"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/canonical-before/browser-lazy/chunks/chunk-OGB2YZWM.js",
+    "bytes": 163,
+    "sha256": "be219d28301693b3509806f8002add7ff66819d52ee550911fffc1fb47a837c6"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/canonical-before/browser-lazy/chunks/chunk-QCCDYPU7.js",
+    "bytes": 760,
+    "sha256": "93180efbe11643eaa3094df461ab8226bb600882e29f3e863dd2ba1135cd4852"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/canonical-before/browser-lazy/chunks/chunk-RNHOTV6W.js",
+    "bytes": 1607,
+    "sha256": "2fa7c31ec1ac14d85908c4def1b95cd6edf428ce10dd23f7512407cb66d24e91"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/canonical-before/browser-lazy/chunks/chunk-SC76MUQ3.js",
+    "bytes": 440,
+    "sha256": "32f2e061f17b0958551c522cf707b97162f11e6f3fdc44667276459410366258"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/canonical-before/browser-lazy/chunks/chunk-SCZQBZCP.js",
+    "bytes": 3624,
+    "sha256": "8939384f58a360763f14275a0453c608218d22e3b4e798c86fa2dfa36ac1e1c0"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/canonical-before/browser-lazy/chunks/chunk-SZVDGG5J.js",
+    "bytes": 119029,
+    "sha256": "7d0200a3c8ea8387f0b265eebd3cfcc4645a9cc3b8726f83a083e8ec06104f92"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/canonical-before/browser-lazy/chunks/chunk-TXALF2FK.js",
+    "bytes": 891,
+    "sha256": "09e4a78804795224819ca40734070069a0977f9c72bd27d06de37b90f7e6c2bf"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/canonical-before/browser-lazy/chunks/chunk-UCH2DIJ5.js",
+    "bytes": 266,
+    "sha256": "73ffdb00d5862b3e0d80e095f0f155ea62b36258ee8806b04b664069c76cb497"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/canonical-before/browser-lazy/chunks/chunk-UQ7GTNSR.js",
+    "bytes": 7633,
+    "sha256": "daae0619bc0ec02d0d90d2108156b16b85d5321dbe6cccf0ad14514944707a5d"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/canonical-before/browser-lazy/chunks/chunk-UQFXLHAQ.js",
+    "bytes": 12520,
+    "sha256": "0f40d13cabdf481192284eeabdbf374a7595ba2d691e773a4e57f576afe6e059"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/canonical-before/browser-lazy/chunks/chunk-V4R4T5DK.js",
+    "bytes": 383,
+    "sha256": "cbc4c3ee2c2214791f7ed052d94ddd10e22bbfd869468f8dbef9bf3d1692dd81"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/canonical-before/browser-lazy/chunks/chunk-VWN65224.js",
+    "bytes": 13054,
+    "sha256": "752d95ebe76d9e3113f4cc0d5ce67694ab38bcc60834a32f460c120d1b753e8a"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/canonical-before/browser-lazy/chunks/chunk-WSJ35DMW.js",
+    "bytes": 1840,
+    "sha256": "5637a0835c7a23b13d0d11270631ed040454bae07f3375f0c7c41ac7d6b24d58"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/canonical-before/browser-lazy/chunks/chunk-XG7746SW.js",
+    "bytes": 8658,
+    "sha256": "83b22f186ad30aef2e14998970b0ea5a50c1c429ac1cb241387652dd7b568de9"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/canonical-before/browser-lazy/chunks/chunk-YV65UIIE.js",
+    "bytes": 1678,
+    "sha256": "de72d95980bfc67d752747e6fad16933622e1b8cb4db6be923d9f67cd71e74d7"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/canonical-before/browser-lazy/chunks/class-INS2TLFO.js",
+    "bytes": 118018,
+    "sha256": "b2acabf1513719327491133b144b4ded69a08dc9c8065f03de65ce3c41d3a85b"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/canonical-before/browser-lazy/chunks/cynefin-IBSQCQHX.js",
+    "bytes": 11437,
+    "sha256": "a22a2aaebd5c6d3e68fd04926251aaa8c08457b09958c76ff009632f56c094e5"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/canonical-before/browser-lazy/chunks/decode-E23ODK3H.js",
+    "bytes": 40525,
+    "sha256": "65d57aaca480d91b64d4fbaf4989f871c57fbebddf311bb5f2a9e7ee58568886"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/canonical-before/browser-lazy/chunks/elk.bundled-X5K4KOFH.js",
+    "bytes": 1447491,
+    "sha256": "2422557bc2a76ea5bea842c44c646f82d8d5dd66eeddbb017f3883feffa78ef5"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/canonical-before/browser-lazy/chunks/er-YESKYRCD.js",
+    "bytes": 84261,
+    "sha256": "de430762767bd0326abbb2ca4966e8317d6678956b26dbf329f89e65f8586f42"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/canonical-before/browser-lazy/chunks/eventmodeling-XYN4CAUE.js",
+    "bytes": 19317,
+    "sha256": "d27ce7e512b54bdf0a842be31a5f6f0e7653b3988865903b64d0203e82ef84ee"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/canonical-before/browser-lazy/chunks/flowchart-YASWN3FQ.js",
+    "bytes": 5690,
+    "sha256": "7baceb5e58d79bec6c06c905e522c28075a1d5e176191d9f7fcc97f082a52623"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/canonical-before/browser-lazy/chunks/forest-implementation-FARHT75V.js",
+    "bytes": 4940,
+    "sha256": "5aad7366fb4327212da5dc007042a3b5dffa683900e4d04a8a0374ae301f4340"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/canonical-before/browser-lazy/chunks/gantt-UOTRPQW2.js",
+    "bytes": 48699,
+    "sha256": "dd8884bfe014fa82af8dc87625a58deaa40dfce1be29b6640bb85446eb36f7f3"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/canonical-before/browser-lazy/chunks/gitgraph-K5AB4TXW.js",
+    "bytes": 27426,
+    "sha256": "e3133db728c6eb6ddfeee43fd09ff962d2874e71c442989fc68951f70de572e1"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/canonical-before/browser-lazy/chunks/inter-metrics-kernel-E4EEPZL6.js",
+    "bytes": 18621,
+    "sha256": "93f974dd12ced670e72104ad46a8f8cc77f8556b282d3430632fcf1fdd2baa04"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/canonical-before/browser-lazy/chunks/ishikawa-TIIHIV6F.js",
+    "bytes": 9589,
+    "sha256": "5a0b053970bae5a06881520fe6913cfcd07d3be0f68f2e62474759a66cd450bf"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/canonical-before/browser-lazy/chunks/journey-I7LCLYF4.js",
+    "bytes": 34052,
+    "sha256": "cd64b453e0230bd3b3662aff0bcfdffdb15f987ae08b0c9347c99c9e25c2ad91"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/canonical-before/browser-lazy/chunks/kanban-R67J3QZX.js",
+    "bytes": 15197,
+    "sha256": "41a7a1aa3046c476a8337850eee95b15248add3a9fb4096ffdd5b0349f8d6302"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/canonical-before/browser-lazy/chunks/mermaid-yaml-runtime-EDAWOZLW.js",
+    "bytes": 100108,
+    "sha256": "d43d69243c00dde9289eb86f9f932fa38361448ee9351ae269a7c5dacc1d821a"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/canonical-before/browser-lazy/chunks/mindmap-6U2QM5YR.js",
+    "bytes": 20386,
+    "sha256": "30361e5e997e67f966699bb4d03e48202539d72d8e70f1fa925d39cc96ceec5c"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/canonical-before/browser-lazy/chunks/optimization-runtime-MPMJL7DQ.js",
+    "bytes": 6220,
+    "sha256": "3aace280afa721dc86fbcb64b5edc35cb1701d08ac732ab60f06bf02fd147d68"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/canonical-before/browser-lazy/chunks/packet-RQZJSJYC.js",
+    "bytes": 8750,
+    "sha256": "46d48ddcce4a370e01a3aed42e60a073a2c6346431120d5767f1cc00689ac499"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/canonical-before/browser-lazy/chunks/parser-source-E2DEEFFF.js",
+    "bytes": 2337,
+    "sha256": "14b3a66c9bd4a3d1b52d5c40c8551401af13e891d8dad4dd9185fa4ecef9259e"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/canonical-before/browser-lazy/chunks/pie-A34ZTWOV.js",
+    "bytes": 22719,
+    "sha256": "241beabb9836389f0ce01cadabacb96425a522729821232983cce042d0eef62d"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/canonical-before/browser-lazy/chunks/quadrant-DZYDSUIW.js",
+    "bytes": 28664,
+    "sha256": "ec08c4b8f64321e0a0c7010a70491820dcf6081397be656738ac3ccb282d4856"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/canonical-before/browser-lazy/chunks/radar-IM2LCM5I.js",
+    "bytes": 30737,
+    "sha256": "ecaab6eee10fcb9d0cfe7aa52366be0aa907da6ac09a3c14d203811123947b30"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/canonical-before/browser-lazy/chunks/railroad-YQAK2TUL.js",
+    "bytes": 23582,
+    "sha256": "6ebc4a813e24f8d16bb5edcf9a9a084b62f0761ad7a7a114005dce16aacd26ad"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/canonical-before/browser-lazy/chunks/render-core-VK6GNDN6.js",
+    "bytes": 155,
+    "sha256": "3a46a81124126b912549ee86c40cd1f4f7bf6b90eded83a424a5167a4f576d22"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/canonical-before/browser-lazy/chunks/requirement-SNXVXGLF.js",
+    "bytes": 27896,
+    "sha256": "c295d9f0cdb61a13389c772d1e9b4344821abb60df7fa827b93c4acbf327c7ce"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/canonical-before/browser-lazy/chunks/sankey-UO7T5DX7.js",
+    "bytes": 25116,
+    "sha256": "e31b210049be9f5e173babffc6a0eafcfd282dde00f504ea78ad9db0ee326fe0"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/canonical-before/browser-lazy/chunks/sequence-N5N2AEPR.js",
+    "bytes": 7246,
+    "sha256": "18552b5b45d49d2aefcdb6937e0021016b45987bd5d88b7960cb3d5f758e3a81"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/canonical-before/browser-lazy/chunks/state-FJLLOK5Z.js",
+    "bytes": 7890,
+    "sha256": "1c063b45bb3f81a30c8761a71a38b83a6970f52ce25380db703f14f1aa3a73e3"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/canonical-before/browser-lazy/chunks/swimlane-5Y7PYZ7J.js",
+    "bytes": 14881,
+    "sha256": "92f714ad82f1bbf42bef92476506374ed56691d12039bd2ed8b298da77672896"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/canonical-before/browser-lazy/chunks/timeline-JQWYAX3M.js",
+    "bytes": 21738,
+    "sha256": "393fdac9136ac415aa5ed0bd4b448dff1b3f829bfa60254925310a233a3c4083"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/canonical-before/browser-lazy/chunks/treemap-ORPROIRR.js",
+    "bytes": 18227,
+    "sha256": "ea13ed32d6e93962b96ad6dcc1e51ecda40c123491874d66dc08973abbdf8d2f"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/canonical-before/browser-lazy/chunks/treeview-W53KRUU3.js",
+    "bytes": 11582,
+    "sha256": "34f1c533b81e19129c8e195d91f5862217c95302198d321812a2b137f18122b0"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/canonical-before/browser-lazy/chunks/usecase-NM4ITDK5.js",
+    "bytes": 48610,
+    "sha256": "bcf91baea43c2d1a619ca2a00e22c3f484087a55c72d857ce1f0cb6ef6072ffa"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/canonical-before/browser-lazy/chunks/venn-NHNUIARF.js",
+    "bytes": 24031,
+    "sha256": "0ffacc0e60ae93b75d96bb410a09aa845e82ce54476c317e1360b18317ed7174"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/canonical-before/browser-lazy/chunks/wardley-MVLLR46F.js",
+    "bytes": 26027,
+    "sha256": "0627f40324e76709b9b997c22642718bf3e3f4bc563798dc74e4033991f98c80"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/canonical-before/browser-lazy/chunks/xychart-YDYZQNAR.js",
+    "bytes": 54086,
+    "sha256": "20147b6bf692960fa7c17fcfe521846b53f5291035ce7ac71b2356f9ef2dfd51"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/canonical-before/browser-lazy/chunks/zenuml-N4T46KPJ.js",
+    "bytes": 22940,
+    "sha256": "afd669838cbb56376260123546b0962b8dc1e0883ba690c31bc5c3d5da191a27"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/canonical-before/browser-lazy/index.js",
+    "bytes": 4328,
+    "sha256": "776d42fc1250f9e29bf3e4f5fc3a60ac87e4169781c13442198759e44b09a184"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/canonical-before/metafile-esm.json",
+    "bytes": 569875,
+    "sha256": "8970f8425b9ae6876f7589b7e2cf0467f055b7781336aebf2ad9a7285bfeec73"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/canonical-before-build.log",
+    "bytes": 12561,
+    "sha256": "7ceb62c130f211952e58feafe485e9ceb93b63ecda74b00081d024e3e3667a14"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/count-only-before/RESULT.json.gz",
+    "bytes": 1053,
+    "sha256": "f24328ea50a49f3da819e9ad049a7f66023b06c243125e1e8dcbe674f9cad8f5"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/count-only-before/edit.cpuprofile.gz",
+    "bytes": 6888,
+    "sha256": "ede0b143aba88461e5167ad27c8b790bf32724abf7bedc4d16804ccf142b9ab1"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/count-only-before/edit.receipt.json.gz",
+    "bytes": 566,
+    "sha256": "4ea6806b25bf86bfe46014b574f69358f50c6e99f8900cc8427e6bd200ce7677"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/count-only-before/edit.row.json.gz",
+    "bytes": 380,
+    "sha256": "5f446996480a5a0a0d75c438658b342a2e07e6b6429496957f24002209fd4e43"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/count-only-before/edit.svg.gz",
+    "bytes": 5349,
+    "sha256": "7eeac3815259f8bb08b6f6afa59a2c9fca240d11c2a184d37cf47eb962248852"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/count-only-before/repeat1.cpuprofile.gz",
+    "bytes": 7324,
+    "sha256": "863cb93604a63a2cce6479da8994bb6dc785aa474831ceededb9852b2bbbe7c8"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/count-only-before/repeat1.receipt.json.gz",
+    "bytes": 566,
+    "sha256": "4ea6806b25bf86bfe46014b574f69358f50c6e99f8900cc8427e6bd200ce7677"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/count-only-before/repeat1.row.json.gz",
+    "bytes": 413,
+    "sha256": "cb9655938ec862fb64b4e4387c08352793a66c201f18ea99f72096cb0c8d3c67"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/count-only-before/repeat1.svg.gz",
+    "bytes": 5349,
+    "sha256": "7eeac3815259f8bb08b6f6afa59a2c9fca240d11c2a184d37cf47eb962248852"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/count-only-before/repeat2.cpuprofile.gz",
+    "bytes": 6837,
+    "sha256": "89d109ac5a153c1dbad56d859896ba035e31c64eb3dc92103b9bdb4bb26251ca"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/count-only-before/repeat2.receipt.json.gz",
+    "bytes": 566,
+    "sha256": "4ea6806b25bf86bfe46014b574f69358f50c6e99f8900cc8427e6bd200ce7677"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/count-only-before/repeat2.row.json.gz",
+    "bytes": 406,
+    "sha256": "182d2800102a804a56351675ceec24b90ba2abbc9ea03685ae9d68fa6cf79c95"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/count-only-before/repeat2.svg.gz",
+    "bytes": 5349,
+    "sha256": "7eeac3815259f8bb08b6f6afa59a2c9fca240d11c2a184d37cf47eb962248852"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/count-only-before/source-maps.json.gz",
+    "bytes": 134162,
+    "sha256": "7db687e4260f086a9851ade1cfd32ad32f46041e0d452178add2db43e23bc6b1"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/count-only-before/warmup.receipt.json.gz",
+    "bytes": 566,
+    "sha256": "4ea6806b25bf86bfe46014b574f69358f50c6e99f8900cc8427e6bd200ce7677"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/count-only-before/warmup?.svg.gz",
+    "bytes": 5349,
+    "sha256": "7eeac3815259f8bb08b6f6afa59a2c9fca240d11c2a184d37cf47eb962248852"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/count-only-before.json",
+    "bytes": 445,
+    "sha256": "80928aa9d80d240e7ed663808bd28ab417c1d573e37f98cb3285ff5ffaa27aee"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/count-only-before.log",
+    "bytes": 652,
+    "sha256": "4c71ed07c3a2dafcffb34e95e6332c037d0b51b5e630dc4be06d4532feb50549"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/count-only-token/RESULT.json.gz",
+    "bytes": 1074,
+    "sha256": "483126098f64c92959ebd363089e8b162f7b8487be808a952cd67cf887e21b10"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/count-only-token/edit.cpuprofile.gz",
+    "bytes": 6265,
+    "sha256": "d3ad98484c95ee101fdffd192400f438f77a2ed73172632f2b15e7323d862f36"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/count-only-token/edit.receipt.json.gz",
+    "bytes": 567,
+    "sha256": "b222b5b47081921ee85acc544b69c23dee5fc20e5c80f05a4858d71b50d9c5ff"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/count-only-token/edit.row.json.gz",
+    "bytes": 384,
+    "sha256": "be691271d5d86d5d43a8ccf0a3915dc2c92f3650a6aa1edcc173a26e57f10f10"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/count-only-token/edit.svg.gz",
+    "bytes": 5349,
+    "sha256": "7eeac3815259f8bb08b6f6afa59a2c9fca240d11c2a184d37cf47eb962248852"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/count-only-token/repeat1.cpuprofile.gz",
+    "bytes": 7256,
+    "sha256": "463be02a4cc1e75d5825cee7b51a05e8a44ef40344080c1d3a4214a53ef5cf85"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/count-only-token/repeat1.receipt.json.gz",
+    "bytes": 567,
+    "sha256": "b222b5b47081921ee85acc544b69c23dee5fc20e5c80f05a4858d71b50d9c5ff"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/count-only-token/repeat1.row.json.gz",
+    "bytes": 408,
+    "sha256": "167fcf5d9890f2736429e4f05d08917ca03da5b68b9b99bcd75a2eb69155ce16"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/count-only-token/repeat1.svg.gz",
+    "bytes": 5349,
+    "sha256": "7eeac3815259f8bb08b6f6afa59a2c9fca240d11c2a184d37cf47eb962248852"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/count-only-token/repeat2.cpuprofile.gz",
+    "bytes": 6408,
+    "sha256": "e483e1eeab0ffbfe843797c69b15d7d08d92da2b57e322ce13ceb2a5f594f1ed"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/count-only-token/repeat2.receipt.json.gz",
+    "bytes": 567,
+    "sha256": "b222b5b47081921ee85acc544b69c23dee5fc20e5c80f05a4858d71b50d9c5ff"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/count-only-token/repeat2.row.json.gz",
+    "bytes": 406,
+    "sha256": "73b808f6836b82aa09af66074970f3614fb4afd6744acc163379637ccc2993fe"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/count-only-token/repeat2.svg.gz",
+    "bytes": 5349,
+    "sha256": "7eeac3815259f8bb08b6f6afa59a2c9fca240d11c2a184d37cf47eb962248852"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/count-only-token/source-maps.json.gz",
+    "bytes": 134254,
+    "sha256": "5b5a16f1b6f7b051d556be5f4b52138d9e0b22e0b9049b4e4a2878cc2e11e2ab"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/count-only-token/warmup.receipt.json.gz",
+    "bytes": 567,
+    "sha256": "b222b5b47081921ee85acc544b69c23dee5fc20e5c80f05a4858d71b50d9c5ff"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/count-only-token/warmup?.svg.gz",
+    "bytes": 5349,
+    "sha256": "7eeac3815259f8bb08b6f6afa59a2c9fca240d11c2a184d37cf47eb962248852"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/count-only-token.json",
+    "bytes": 609,
+    "sha256": "6f472dfd7d61857516af8fa98bf0df8303a582aa9342e29c18887bea243d9eb3"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/count-only-token.log",
+    "bytes": 660,
+    "sha256": "202263169eac42d04d66d2e12f8157b0815dfc6f31163af379d8e0b7fbf5d078"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/main-build.log",
+    "bytes": 11566,
+    "sha256": "0c278a2348c0dcaaa2a667874622ebb774a2ddd8021eaf52e1ad1e4e23519741"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/main-dist/browser-lazy/chunks/agentflow-JACYHRF5.js",
+    "bytes": 16836,
+    "sha256": "4e493788ed51a0675156e613e787652832b92ca5c9ab7cc70827ddb0de4615ba"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/main-dist/browser-lazy/chunks/agentic-producer-core-Z726XKBG.js",
+    "bytes": 134409,
+    "sha256": "553cac4e62ffa00b6ef6be949133e02a56e9f432738aedce38ab031ef56baddf"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/main-dist/browser-lazy/chunks/architecture-JMBCMTAB.js",
+    "bytes": 57453,
+    "sha256": "7c9483841d5f6a73ed35de035855060a6e4ace2ab401e1d7a6aaad2657a95c7e"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/main-dist/browser-lazy/chunks/block-BZXFUVCZ.js",
+    "bytes": 34609,
+    "sha256": "9caa373b111536150d03b1057b65cabd6508c74612cbb7a7e4f843fe70989110"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/main-dist/browser-lazy/chunks/builtin-backends-XDGFKKCG.js",
+    "bytes": 39689,
+    "sha256": "a7021e32cd5e6ff9b9b6be6990efb1555fdeff6534015f6ce7ec7c9e8b5b89f0"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/main-dist/browser-lazy/chunks/c4-C5NGSCKD.js",
+    "bytes": 71846,
+    "sha256": "58c3d2718f2e0c3d21c6c3d55e658b2d7ea72c709e98538232edd558a077923c"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/main-dist/browser-lazy/chunks/chunk-272D5C0D.js",
+    "bytes": 440758,
+    "sha256": "d377844d921f1370e00b3f53aece1c28585e1cba9b1c54a662cf9b376e1fea85"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/main-dist/browser-lazy/chunks/chunk-2ZKJWV3A.js",
+    "bytes": 8659,
+    "sha256": "b3b8a93576a972fa06561ba5f80b625c6ddd6bf1d2888cc7cc9da5f884ccae00"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/main-dist/browser-lazy/chunks/chunk-3J2JEPRQ.js",
+    "bytes": 2947,
+    "sha256": "9537136b03638cfeaee3fd895794340115c04b985d0f37a91cb3218ad460289f"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/main-dist/browser-lazy/chunks/chunk-3K3F6XXD.js",
+    "bytes": 787,
+    "sha256": "12d6b93b431b852780a8cb552da287de47796df3b8c440130960400827da417a"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/main-dist/browser-lazy/chunks/chunk-3Z4KK3AE.js",
+    "bytes": 865,
+    "sha256": "0c30a71f9d9a2aa77b444c8baa4e7b4de3dad945d31af48ce483ff7b52048687"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/main-dist/browser-lazy/chunks/chunk-43OLWVDN.js",
+    "bytes": 58868,
+    "sha256": "091af7f9fd69da93ac85782206a3abf4d2441c3dc0f5a736cc0c75cdca037b6d"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/main-dist/browser-lazy/chunks/chunk-53XS44EV.js",
+    "bytes": 424,
+    "sha256": "01fca6c3dc4f331393670392113f6cea739a5e48cdfd2a0a3b682441c408f5be"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/main-dist/browser-lazy/chunks/chunk-5R26VWPJ.js",
+    "bytes": 2908,
+    "sha256": "5e92b31f8e4ce6b136af353fe098677d86350035bd7d8fa0bd1089d5393675bc"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/main-dist/browser-lazy/chunks/chunk-6MSYVXSW.js",
+    "bytes": 2178,
+    "sha256": "edb16dfd9a9742404a2cb3d1568aef822164b0d76f08b14c41663329f22d8b20"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/main-dist/browser-lazy/chunks/chunk-6ZZNFI2P.js",
+    "bytes": 106024,
+    "sha256": "66a3e87e1d87775f83377495ceeaaacbb463af4dbe20e0bd32b6964862a3742d"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/main-dist/browser-lazy/chunks/chunk-AJAQ7ZVV.js",
+    "bytes": 595,
+    "sha256": "e19db39ab8ce906fc691b3e7eaaa0659ca31bbeede2bb6514d1b4798062dd00a"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/main-dist/browser-lazy/chunks/chunk-AKMCV7EU.js",
+    "bytes": 3624,
+    "sha256": "31ce40d292403c33942dcacbf1799c3acf0f8575f68e314ddf24bf24029accf3"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/main-dist/browser-lazy/chunks/chunk-CXRDIDIW.js",
+    "bytes": 340,
+    "sha256": "256171d38d871940de29887398233287ce8c860548956be7aaeb5e4c2fe7967d"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/main-dist/browser-lazy/chunks/chunk-DAWLGI73.js",
+    "bytes": 13054,
+    "sha256": "35796c0dc977c14bee9c287b3cd754791f62e538bbe362456d2491b4b53aa634"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/main-dist/browser-lazy/chunks/chunk-DGTJPOBX.js",
+    "bytes": 163,
+    "sha256": "be219d28301693b3509806f8002add7ff66819d52ee550911fffc1fb47a837c6"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/main-dist/browser-lazy/chunks/chunk-DU42PEH6.js",
+    "bytes": 414,
+    "sha256": "00bcfeb646341278c660974b306611b2cbc4f6871e8bf9baa94aa68784100761"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/main-dist/browser-lazy/chunks/chunk-GBTIP6WP.js",
+    "bytes": 1849,
+    "sha256": "0c24583b86cc005a29aca8c2a095ecf909d86a366073206c081b97a17dbf7254"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/main-dist/browser-lazy/chunks/chunk-IJORJ2T2.js",
+    "bytes": 516,
+    "sha256": "0865bf60cd206e4e3009a6341482056290a28ba8f287e41b8d416be756a9a383"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/main-dist/browser-lazy/chunks/chunk-LEVWSLCG.js",
+    "bytes": 887,
+    "sha256": "8e228b2d11e2c6bfca5b0b6ae36c976d9f129136cb7d67c6c35e8d59713f3959"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/main-dist/browser-lazy/chunks/chunk-LJARND32.js",
+    "bytes": 2554,
+    "sha256": "e7f7ffb9519039044d4ed1b35488b4e7a42c21daf240387e72c5d6470113920b"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/main-dist/browser-lazy/chunks/chunk-MBEXTBFH.js",
+    "bytes": 118112,
+    "sha256": "a8e201d05e906505fa7550c2a439d6f9d39835496aa99784a04ec283beb1d5c4"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/main-dist/browser-lazy/chunks/chunk-NNTJ3OTN.js",
+    "bytes": 12508,
+    "sha256": "2b3754409f4bd70372f007c37e4e32a4cf36fa2577a13ba3dac2fc52d2ad9361"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/main-dist/browser-lazy/chunks/chunk-PGHWKKTB.js",
+    "bytes": 281,
+    "sha256": "28099c26511b2903c0153dcfbb9b57f5091ecd9718b0eef849be94924a5050a7"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/main-dist/browser-lazy/chunks/chunk-PIMKCBZI.js",
+    "bytes": 1607,
+    "sha256": "01852442d4f6f7e47311c282f45bc9e91b8d1aadd677bfae04ad3140a6ee3f50"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/main-dist/browser-lazy/chunks/chunk-PVLQ62J6.js",
+    "bytes": 6562,
+    "sha256": "0564120dec9fe0cc5f659ada8afa171c37621007ebbdd54d91df1c54c7707d6d"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/main-dist/browser-lazy/chunks/chunk-QDTBMCYF.js",
+    "bytes": 383,
+    "sha256": "71f55e41cfa93bd7ea59f9ecfd36c1e6042cc87866de66615619dc46cdd6163d"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/main-dist/browser-lazy/chunks/chunk-QHWBW4N4.js",
+    "bytes": 20808,
+    "sha256": "c703ae23dc7a8bc9b28a036664a554cdcdabb587216dfb5418eefcaa5e2d7a95"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/main-dist/browser-lazy/chunks/chunk-QJ5DMXEH.js",
+    "bytes": 70979,
+    "sha256": "9f8256257e3bd311afcfd0d812a03ecf39e56748f5f1e788e3a67bcad8fbee4e"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/main-dist/browser-lazy/chunks/chunk-QVI2L4GB.js",
+    "bytes": 440,
+    "sha256": "32f2e061f17b0958551c522cf707b97162f11e6f3fdc44667276459410366258"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/main-dist/browser-lazy/chunks/chunk-RQY6XHX2.js",
+    "bytes": 11982,
+    "sha256": "fd96e4c5178a3b7fe4c3a316e4dfff459d8bffc32231a192abef190159efec3f"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/main-dist/browser-lazy/chunks/chunk-S5WKTT2R.js",
+    "bytes": 400,
+    "sha256": "921f05e9d86b517361171382572a9f085ca8e13fb3f946a13e329a7b08252fae"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/main-dist/browser-lazy/chunks/chunk-TB6QQDYU.js",
+    "bytes": 2673,
+    "sha256": "6a4844ce7a0b8052230e59861343098c393a98e49268c9d36e013bca33f7471a"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/main-dist/browser-lazy/chunks/chunk-TM7USALT.js",
+    "bytes": 891,
+    "sha256": "931b6f436f68856d4e24deb1028adb9f263d4ea810f624fcbc1c9e72ba263827"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/main-dist/browser-lazy/chunks/chunk-U63FAIYY.js",
+    "bytes": 759,
+    "sha256": "093eb30553f620f756af19f812cc94e660ed68043a43fb45dae2ee41089110da"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/main-dist/browser-lazy/chunks/chunk-V4WS5APO.js",
+    "bytes": 2226,
+    "sha256": "e5217dd800ee578837918ca5767317c7174a0be9335ea9acc72f425d3252a0fc"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/main-dist/browser-lazy/chunks/chunk-WOI3Z3QK.js",
+    "bytes": 7330,
+    "sha256": "bc9243c7c84de8de1e64f44b485dad3f99b66f75179002049b1c578fef2bb321"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/main-dist/browser-lazy/chunks/chunk-YPFXY44X.js",
+    "bytes": 1688,
+    "sha256": "079ef99569f53176b07c2b81185ffc4ea71a45ee84457e07704cdfb099c82395"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/main-dist/browser-lazy/chunks/chunk-ZQ543RQY.js",
+    "bytes": 267,
+    "sha256": "ddd63ccb789fb637aa895480f99badb35c55f7c976a6b2efb9b4eb959ed92226"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/main-dist/browser-lazy/chunks/class-IRUSLZRE.js",
+    "bytes": 117310,
+    "sha256": "54a105d753b58db4b68f01963651dfbbe0d76b8d56633f6864bea670ce2d345f"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/main-dist/browser-lazy/chunks/cynefin-CRACMQ7U.js",
+    "bytes": 11397,
+    "sha256": "f56de5eeebe1b7088de4398f87578503f03b00afabff658998806fea812a3979"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/main-dist/browser-lazy/chunks/decode-TWI5WB5X.js",
+    "bytes": 40525,
+    "sha256": "be0c244e820575f7019c78bc9efbf9723e1e40a2580834bb19b870569f4e97dd"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/main-dist/browser-lazy/chunks/elk.bundled-YPA2PHB4.js",
+    "bytes": 1466298,
+    "sha256": "c27999bbce9a4993609d4ae4eced8e416d1beb8d0d9c50854da1b464006a29e2"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/main-dist/browser-lazy/chunks/er-35KXK3MO.js",
+    "bytes": 80106,
+    "sha256": "3ffbee690a3dbb46ddf2efe604c42996390aee452d00751db603c2abbd56a7a4"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/main-dist/browser-lazy/chunks/eventmodeling-3IZCXWYB.js",
+    "bytes": 19306,
+    "sha256": "6267129dd3326735e2ffe5553ce6d6389b10e33f37b5dd3418f14e56680578c6"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/main-dist/browser-lazy/chunks/flowchart-IOX3LFXT.js",
+    "bytes": 5646,
+    "sha256": "13ffcc175407b69598f0e2169d8f966318228fb54bc2402d5090e21eccabf935"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/main-dist/browser-lazy/chunks/forest-implementation-SN7LF2DC.js",
+    "bytes": 3942,
+    "sha256": "a74a57300b831b91921d216074703e8cc9a0b3b8ba06425389fcb3353a5ee2b9"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/main-dist/browser-lazy/chunks/gantt-O6QZ2YOW.js",
+    "bytes": 48684,
+    "sha256": "124a5b4a866370c901e87fafc73d3b6f936e7e2aa9a295f8f2ae66b288b0f44d"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/main-dist/browser-lazy/chunks/gitgraph-3WFUYCAM.js",
+    "bytes": 27434,
+    "sha256": "dc2451fbafa11832e7c42b8fbcc2911e5624e2f79868d6c3050e75451cc6e6e1"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/main-dist/browser-lazy/chunks/inter-metrics-kernel-EXRYN7X3.js",
+    "bytes": 18621,
+    "sha256": "26374f5ea47fc4def00a2921e72197beaa76b907a6194fd0c7ac9b5f7f2f2591"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/main-dist/browser-lazy/chunks/ishikawa-WSKIUYSC.js",
+    "bytes": 9580,
+    "sha256": "016ab9c83d7652a0913ca23005f5abb2d4510db14a2b74e608648016f56dd37f"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/main-dist/browser-lazy/chunks/journey-B67ZFC6F.js",
+    "bytes": 34050,
+    "sha256": "2c3b60edd77b6cf934968a885e3482d610e790d0d84358b7c0aa73ce99f6164c"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/main-dist/browser-lazy/chunks/kanban-QH5WI5LK.js",
+    "bytes": 15184,
+    "sha256": "d5de12cb350370114d3d19a6e4c5f6cc45d916eadadd26ff51535e8ea419ac16"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/main-dist/browser-lazy/chunks/mermaid-yaml-runtime-5X2H7YWF.js",
+    "bytes": 100108,
+    "sha256": "e1a7cc7d0d8dc102932e686f3eec9a77d1c7e8978759dc6d8ed45e9b6c1a551c"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/main-dist/browser-lazy/chunks/mindmap-MDAWWVKA.js",
+    "bytes": 20390,
+    "sha256": "af90a4cd1964fe629d91edf609e97eb2df74a9a0a20b2a94280f83d5e485d9bf"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/main-dist/browser-lazy/chunks/optimization-runtime-BND2VT5Q.js",
+    "bytes": 6220,
+    "sha256": "61edcc5960d4a673ea18ba89bffd3cdbc3f46d3f07fd4470ac87e3e15385504c"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/main-dist/browser-lazy/chunks/packet-7ZTI5ILC.js",
+    "bytes": 8735,
+    "sha256": "f238358c15d4120b5d786029566b008640f030d9156ecbb5da2b57d6253dcbfe"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/main-dist/browser-lazy/chunks/parser-source-E2YCG4BN.js",
+    "bytes": 2395,
+    "sha256": "78aaf9f30315fbc041e913b1e55e03d0a2564bc940677d047d2d8574dafa9b1c"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/main-dist/browser-lazy/chunks/pie-YW7FP57M.js",
+    "bytes": 22712,
+    "sha256": "815f692f20a32c9f29c76ca780bcfcede1c27af1d0a14854139a1c4573462e5c"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/main-dist/browser-lazy/chunks/quadrant-UUIDH2Q6.js",
+    "bytes": 28663,
+    "sha256": "010c8dbefa908823e6682d4a80b09c73b26a147970ea7293730a60c996a26f47"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/main-dist/browser-lazy/chunks/radar-XHE6D3CP.js",
+    "bytes": 30742,
+    "sha256": "779a635b42798ce0b4b52937c433699b64602e5920f24e8c96e1955503ee0adf"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/main-dist/browser-lazy/chunks/railroad-VWSIEHF7.js",
+    "bytes": 23563,
+    "sha256": "d47d73cff970743f308363b4be179c78acc60c8cdbc87f13adddb8f2a1941c9a"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/main-dist/browser-lazy/chunks/render-core-5FERY6UI.js",
+    "bytes": 30883,
+    "sha256": "0dba18686779525262e3a252588e76f92523ced8e7fdf21f10a951d0bc49e258"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/main-dist/browser-lazy/chunks/requirement-4ERWNK4A.js",
+    "bytes": 27250,
+    "sha256": "e15b2f91411558b8ce44efefc3f9af92e657d7d33032566c22d4bea888a3935c"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/main-dist/browser-lazy/chunks/sankey-CP7ZZVU4.js",
+    "bytes": 25070,
+    "sha256": "43a4e0ddd9ef4db266f4d78f52b49b7854302d64ce544b4980f760807ddf4fb8"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/main-dist/browser-lazy/chunks/sequence-AQSILZDQ.js",
+    "bytes": 7233,
+    "sha256": "ed893786bb7e15ee7eb7f20b04eb9cd61dec52ae488312ed8ef9d5214ec01ac8"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/main-dist/browser-lazy/chunks/state-WO5QCQ4P.js",
+    "bytes": 7844,
+    "sha256": "9eac5c8b8324b32b9d0ca83978d7a02737c53487cc30c3e69445473512227e49"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/main-dist/browser-lazy/chunks/swimlane-ZDDOX73H.js",
+    "bytes": 14836,
+    "sha256": "cab4b3788be101aed3bd5fec80dd5009176092f521cb19f9fd41f68caca8c997"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/main-dist/browser-lazy/chunks/timeline-5GCVGOU4.js",
+    "bytes": 21726,
+    "sha256": "b314da2dfe05f1ab8f798188c3878bcaeb6f99d296768f04b5f7d712c7e13896"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/main-dist/browser-lazy/chunks/treemap-PCMYGYQS.js",
+    "bytes": 18218,
+    "sha256": "5dca8a31fb7722d2038260bd1d64423faa306eb4e5581d1821d9b9e6f3f0a905"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/main-dist/browser-lazy/chunks/treeview-BBCYXYUG.js",
+    "bytes": 11545,
+    "sha256": "17df0d98ca48fabed1fe4a5cd2d51e2e84186815650978bd29f8eceb67713c1b"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/main-dist/browser-lazy/chunks/usecase-NLPTJAC3.js",
+    "bytes": 48577,
+    "sha256": "811e2ccfbdb70625145847c35f1378f007431fbb8c48ed73b8106d52651120b5"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/main-dist/browser-lazy/chunks/venn-QX4XTBPP.js",
+    "bytes": 23993,
+    "sha256": "eec7c18bc2de37f97958b3ed6aaedf3eb5a71af5b704492c775399f569e2298e"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/main-dist/browser-lazy/chunks/wardley-AXLS24CO.js",
+    "bytes": 25992,
+    "sha256": "fc7188df69779076f4338edcbc4b11ae574b0e8045981cb483f112f6933e93b1"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/main-dist/browser-lazy/chunks/xychart-IR6VL7IG.js",
+    "bytes": 54082,
+    "sha256": "dca9cccc0498736bb4605ba28d8dc01cc9944997d2eb36d8f13971d26272c14c"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/main-dist/browser-lazy/chunks/zenuml-WRW5VMAP.js",
+    "bytes": 22927,
+    "sha256": "2b9e9e70b4b9a1aa04bd15df2d3b242253490eb4e3d2c0e6ffbbbe8cbd700ac0"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/main-dist/browser-lazy/index.js",
+    "bytes": 4403,
+    "sha256": "28083197ee67e5eb86b98ebdc153db215c389cae5689b0afbdb436a30bd102dc"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/main-dist/metafile-esm.json",
+    "bytes": 560786,
+    "sha256": "c354a2460999b0ed72e39f88889e8d39378352e70e59b4ed02fec7c414d30735"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/main-matched-build.log",
+    "bytes": 12787,
+    "sha256": "f5fe5ec22692b4b7667e8cebc6ce0f4e551b0d1cfe86f43ed1fa2f4e5e40d756"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/main-matched-dist/browser-lazy/chunks/agentflow-AW5KTSGR.js",
+    "bytes": 16836,
+    "sha256": "8413fad49319a12eec3d649f3d3eed0f52f39964a2862d2ce977c73b75e17e22"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/main-matched-dist/browser-lazy/chunks/agentic-producer-core-Z726XKBG.js",
+    "bytes": 134409,
+    "sha256": "553cac4e62ffa00b6ef6be949133e02a56e9f432738aedce38ab031ef56baddf"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/main-matched-dist/browser-lazy/chunks/architecture-ZHK4AIUQ.js",
+    "bytes": 57453,
+    "sha256": "9f44ae38dd9b3387a5241ed6aa5e407d52f0a9a265f956ba17202d25044b11a9"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/main-matched-dist/browser-lazy/chunks/block-BZXFUVCZ.js",
+    "bytes": 34609,
+    "sha256": "9caa373b111536150d03b1057b65cabd6508c74612cbb7a7e4f843fe70989110"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/main-matched-dist/browser-lazy/chunks/builtin-backends-XDGFKKCG.js",
+    "bytes": 39689,
+    "sha256": "a7021e32cd5e6ff9b9b6be6990efb1555fdeff6534015f6ce7ec7c9e8b5b89f0"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/main-matched-dist/browser-lazy/chunks/c4-C5NGSCKD.js",
+    "bytes": 71846,
+    "sha256": "58c3d2718f2e0c3d21c6c3d55e658b2d7ea72c709e98538232edd558a077923c"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/main-matched-dist/browser-lazy/chunks/chunk-272D5C0D.js",
+    "bytes": 440758,
+    "sha256": "d377844d921f1370e00b3f53aece1c28585e1cba9b1c54a662cf9b376e1fea85"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/main-matched-dist/browser-lazy/chunks/chunk-2ZKJWV3A.js",
+    "bytes": 8659,
+    "sha256": "b3b8a93576a972fa06561ba5f80b625c6ddd6bf1d2888cc7cc9da5f884ccae00"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/main-matched-dist/browser-lazy/chunks/chunk-3J2JEPRQ.js",
+    "bytes": 2947,
+    "sha256": "9537136b03638cfeaee3fd895794340115c04b985d0f37a91cb3218ad460289f"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/main-matched-dist/browser-lazy/chunks/chunk-3K3F6XXD.js",
+    "bytes": 787,
+    "sha256": "12d6b93b431b852780a8cb552da287de47796df3b8c440130960400827da417a"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/main-matched-dist/browser-lazy/chunks/chunk-3Z4KK3AE.js",
+    "bytes": 865,
+    "sha256": "0c30a71f9d9a2aa77b444c8baa4e7b4de3dad945d31af48ce483ff7b52048687"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/main-matched-dist/browser-lazy/chunks/chunk-43OLWVDN.js",
+    "bytes": 58868,
+    "sha256": "091af7f9fd69da93ac85782206a3abf4d2441c3dc0f5a736cc0c75cdca037b6d"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/main-matched-dist/browser-lazy/chunks/chunk-53XS44EV.js",
+    "bytes": 424,
+    "sha256": "01fca6c3dc4f331393670392113f6cea739a5e48cdfd2a0a3b682441c408f5be"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/main-matched-dist/browser-lazy/chunks/chunk-5R26VWPJ.js",
+    "bytes": 2908,
+    "sha256": "5e92b31f8e4ce6b136af353fe098677d86350035bd7d8fa0bd1089d5393675bc"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/main-matched-dist/browser-lazy/chunks/chunk-6MSYVXSW.js",
+    "bytes": 2178,
+    "sha256": "edb16dfd9a9742404a2cb3d1568aef822164b0d76f08b14c41663329f22d8b20"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/main-matched-dist/browser-lazy/chunks/chunk-6ZZNFI2P.js",
+    "bytes": 106024,
+    "sha256": "66a3e87e1d87775f83377495ceeaaacbb463af4dbe20e0bd32b6964862a3742d"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/main-matched-dist/browser-lazy/chunks/chunk-AJAQ7ZVV.js",
+    "bytes": 595,
+    "sha256": "e19db39ab8ce906fc691b3e7eaaa0659ca31bbeede2bb6514d1b4798062dd00a"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/main-matched-dist/browser-lazy/chunks/chunk-AKMCV7EU.js",
+    "bytes": 3624,
+    "sha256": "31ce40d292403c33942dcacbf1799c3acf0f8575f68e314ddf24bf24029accf3"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/main-matched-dist/browser-lazy/chunks/chunk-CXRDIDIW.js",
+    "bytes": 340,
+    "sha256": "256171d38d871940de29887398233287ce8c860548956be7aaeb5e4c2fe7967d"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/main-matched-dist/browser-lazy/chunks/chunk-DAWLGI73.js",
+    "bytes": 13054,
+    "sha256": "35796c0dc977c14bee9c287b3cd754791f62e538bbe362456d2491b4b53aa634"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/main-matched-dist/browser-lazy/chunks/chunk-DGTJPOBX.js",
+    "bytes": 163,
+    "sha256": "be219d28301693b3509806f8002add7ff66819d52ee550911fffc1fb47a837c6"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/main-matched-dist/browser-lazy/chunks/chunk-DU42PEH6.js",
+    "bytes": 414,
+    "sha256": "00bcfeb646341278c660974b306611b2cbc4f6871e8bf9baa94aa68784100761"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/main-matched-dist/browser-lazy/chunks/chunk-GBTIP6WP.js",
+    "bytes": 1849,
+    "sha256": "0c24583b86cc005a29aca8c2a095ecf909d86a366073206c081b97a17dbf7254"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/main-matched-dist/browser-lazy/chunks/chunk-IJORJ2T2.js",
+    "bytes": 516,
+    "sha256": "0865bf60cd206e4e3009a6341482056290a28ba8f287e41b8d416be756a9a383"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/main-matched-dist/browser-lazy/chunks/chunk-LEVWSLCG.js",
+    "bytes": 887,
+    "sha256": "8e228b2d11e2c6bfca5b0b6ae36c976d9f129136cb7d67c6c35e8d59713f3959"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/main-matched-dist/browser-lazy/chunks/chunk-NNTJ3OTN.js",
+    "bytes": 12508,
+    "sha256": "2b3754409f4bd70372f007c37e4e32a4cf36fa2577a13ba3dac2fc52d2ad9361"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/main-matched-dist/browser-lazy/chunks/chunk-PGHWKKTB.js",
+    "bytes": 281,
+    "sha256": "28099c26511b2903c0153dcfbb9b57f5091ecd9718b0eef849be94924a5050a7"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/main-matched-dist/browser-lazy/chunks/chunk-PIMKCBZI.js",
+    "bytes": 1607,
+    "sha256": "01852442d4f6f7e47311c282f45bc9e91b8d1aadd677bfae04ad3140a6ee3f50"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/main-matched-dist/browser-lazy/chunks/chunk-PVLQ62J6.js",
+    "bytes": 6562,
+    "sha256": "0564120dec9fe0cc5f659ada8afa171c37621007ebbdd54d91df1c54c7707d6d"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/main-matched-dist/browser-lazy/chunks/chunk-QDTBMCYF.js",
+    "bytes": 383,
+    "sha256": "71f55e41cfa93bd7ea59f9ecfd36c1e6042cc87866de66615619dc46cdd6163d"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/main-matched-dist/browser-lazy/chunks/chunk-QGQCK64N.js",
+    "bytes": 2559,
+    "sha256": "e56a05122948c1874d7f1cccc94526864e6ae96d745004f87c1bf508eab60077"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/main-matched-dist/browser-lazy/chunks/chunk-QHWBW4N4.js",
+    "bytes": 20808,
+    "sha256": "c703ae23dc7a8bc9b28a036664a554cdcdabb587216dfb5418eefcaa5e2d7a95"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/main-matched-dist/browser-lazy/chunks/chunk-QJ5DMXEH.js",
+    "bytes": 70979,
+    "sha256": "9f8256257e3bd311afcfd0d812a03ecf39e56748f5f1e788e3a67bcad8fbee4e"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/main-matched-dist/browser-lazy/chunks/chunk-QVI2L4GB.js",
+    "bytes": 440,
+    "sha256": "32f2e061f17b0958551c522cf707b97162f11e6f3fdc44667276459410366258"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/main-matched-dist/browser-lazy/chunks/chunk-RQY6XHX2.js",
+    "bytes": 11982,
+    "sha256": "fd96e4c5178a3b7fe4c3a316e4dfff459d8bffc32231a192abef190159efec3f"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/main-matched-dist/browser-lazy/chunks/chunk-S5WKTT2R.js",
+    "bytes": 400,
+    "sha256": "921f05e9d86b517361171382572a9f085ca8e13fb3f946a13e329a7b08252fae"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/main-matched-dist/browser-lazy/chunks/chunk-TB6QQDYU.js",
+    "bytes": 2673,
+    "sha256": "6a4844ce7a0b8052230e59861343098c393a98e49268c9d36e013bca33f7471a"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/main-matched-dist/browser-lazy/chunks/chunk-TM7USALT.js",
+    "bytes": 891,
+    "sha256": "931b6f436f68856d4e24deb1028adb9f263d4ea810f624fcbc1c9e72ba263827"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/main-matched-dist/browser-lazy/chunks/chunk-U63FAIYY.js",
+    "bytes": 759,
+    "sha256": "093eb30553f620f756af19f812cc94e660ed68043a43fb45dae2ee41089110da"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/main-matched-dist/browser-lazy/chunks/chunk-V4WS5APO.js",
+    "bytes": 2226,
+    "sha256": "e5217dd800ee578837918ca5767317c7174a0be9335ea9acc72f425d3252a0fc"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/main-matched-dist/browser-lazy/chunks/chunk-WOI3Z3QK.js",
+    "bytes": 7330,
+    "sha256": "bc9243c7c84de8de1e64f44b485dad3f99b66f75179002049b1c578fef2bb321"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/main-matched-dist/browser-lazy/chunks/chunk-YPFXY44X.js",
+    "bytes": 1688,
+    "sha256": "079ef99569f53176b07c2b81185ffc4ea71a45ee84457e07704cdfb099c82395"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/main-matched-dist/browser-lazy/chunks/chunk-YXSNJU3Z.js",
+    "bytes": 118112,
+    "sha256": "c044c9b9864cb6e08e31f51eba55b92f774e8ee7c1c07a044026ad6a0a0f5764"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/main-matched-dist/browser-lazy/chunks/chunk-ZQ543RQY.js",
+    "bytes": 267,
+    "sha256": "ddd63ccb789fb637aa895480f99badb35c55f7c976a6b2efb9b4eb959ed92226"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/main-matched-dist/browser-lazy/chunks/class-UP3OZSNM.js",
+    "bytes": 117310,
+    "sha256": "991b756d07dafb2c4a0066b75d0278c7383d2d021e03bc98790f4cb69bf32b86"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/main-matched-dist/browser-lazy/chunks/cynefin-CRACMQ7U.js",
+    "bytes": 11397,
+    "sha256": "f56de5eeebe1b7088de4398f87578503f03b00afabff658998806fea812a3979"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/main-matched-dist/browser-lazy/chunks/decode-TWI5WB5X.js",
+    "bytes": 40525,
+    "sha256": "be0c244e820575f7019c78bc9efbf9723e1e40a2580834bb19b870569f4e97dd"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/main-matched-dist/browser-lazy/chunks/elk.bundled-KBJELNKX.js",
+    "bytes": 1447491,
+    "sha256": "ab43ab214567f43b165551bb8ecc0c985aba3834fd98c767cb6f6519018eddb6"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/main-matched-dist/browser-lazy/chunks/er-V4PGGLCX.js",
+    "bytes": 80106,
+    "sha256": "498d8957bf7cb7a109110029a87e6a50e3750dcccc833c32ee1b082a5b18f1b6"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/main-matched-dist/browser-lazy/chunks/eventmodeling-3IZCXWYB.js",
+    "bytes": 19306,
+    "sha256": "6267129dd3326735e2ffe5553ce6d6389b10e33f37b5dd3418f14e56680578c6"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/main-matched-dist/browser-lazy/chunks/flowchart-V5OZFDV3.js",
+    "bytes": 5646,
+    "sha256": "ce442f2cf17349e3942a443892bcb2c8603f44d4f3b9898071a6a388fbd4b6ab"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/main-matched-dist/browser-lazy/chunks/forest-implementation-SN7LF2DC.js",
+    "bytes": 3942,
+    "sha256": "a74a57300b831b91921d216074703e8cc9a0b3b8ba06425389fcb3353a5ee2b9"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/main-matched-dist/browser-lazy/chunks/gantt-O6QZ2YOW.js",
+    "bytes": 48684,
+    "sha256": "124a5b4a866370c901e87fafc73d3b6f936e7e2aa9a295f8f2ae66b288b0f44d"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/main-matched-dist/browser-lazy/chunks/gitgraph-3WFUYCAM.js",
+    "bytes": 27434,
+    "sha256": "dc2451fbafa11832e7c42b8fbcc2911e5624e2f79868d6c3050e75451cc6e6e1"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/main-matched-dist/browser-lazy/chunks/inter-metrics-kernel-EXRYN7X3.js",
+    "bytes": 18621,
+    "sha256": "26374f5ea47fc4def00a2921e72197beaa76b907a6194fd0c7ac9b5f7f2f2591"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/main-matched-dist/browser-lazy/chunks/ishikawa-WSKIUYSC.js",
+    "bytes": 9580,
+    "sha256": "016ab9c83d7652a0913ca23005f5abb2d4510db14a2b74e608648016f56dd37f"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/main-matched-dist/browser-lazy/chunks/journey-B67ZFC6F.js",
+    "bytes": 34050,
+    "sha256": "2c3b60edd77b6cf934968a885e3482d610e790d0d84358b7c0aa73ce99f6164c"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/main-matched-dist/browser-lazy/chunks/kanban-QH5WI5LK.js",
+    "bytes": 15184,
+    "sha256": "d5de12cb350370114d3d19a6e4c5f6cc45d916eadadd26ff51535e8ea419ac16"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/main-matched-dist/browser-lazy/chunks/mermaid-yaml-runtime-5X2H7YWF.js",
+    "bytes": 100108,
+    "sha256": "e1a7cc7d0d8dc102932e686f3eec9a77d1c7e8978759dc6d8ed45e9b6c1a551c"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/main-matched-dist/browser-lazy/chunks/mindmap-MDAWWVKA.js",
+    "bytes": 20390,
+    "sha256": "af90a4cd1964fe629d91edf609e97eb2df74a9a0a20b2a94280f83d5e485d9bf"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/main-matched-dist/browser-lazy/chunks/optimization-runtime-BND2VT5Q.js",
+    "bytes": 6220,
+    "sha256": "61edcc5960d4a673ea18ba89bffd3cdbc3f46d3f07fd4470ac87e3e15385504c"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/main-matched-dist/browser-lazy/chunks/packet-7ZTI5ILC.js",
+    "bytes": 8735,
+    "sha256": "f238358c15d4120b5d786029566b008640f030d9156ecbb5da2b57d6253dcbfe"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/main-matched-dist/browser-lazy/chunks/parser-source-E2YCG4BN.js",
+    "bytes": 2395,
+    "sha256": "78aaf9f30315fbc041e913b1e55e03d0a2564bc940677d047d2d8574dafa9b1c"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/main-matched-dist/browser-lazy/chunks/pie-YW7FP57M.js",
+    "bytes": 22712,
+    "sha256": "815f692f20a32c9f29c76ca780bcfcede1c27af1d0a14854139a1c4573462e5c"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/main-matched-dist/browser-lazy/chunks/quadrant-UUIDH2Q6.js",
+    "bytes": 28663,
+    "sha256": "010c8dbefa908823e6682d4a80b09c73b26a147970ea7293730a60c996a26f47"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/main-matched-dist/browser-lazy/chunks/radar-XHE6D3CP.js",
+    "bytes": 30742,
+    "sha256": "779a635b42798ce0b4b52937c433699b64602e5920f24e8c96e1955503ee0adf"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/main-matched-dist/browser-lazy/chunks/railroad-VWSIEHF7.js",
+    "bytes": 23563,
+    "sha256": "d47d73cff970743f308363b4be179c78acc60c8cdbc87f13adddb8f2a1941c9a"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/main-matched-dist/browser-lazy/chunks/render-core-5FERY6UI.js",
+    "bytes": 30883,
+    "sha256": "0dba18686779525262e3a252588e76f92523ced8e7fdf21f10a951d0bc49e258"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/main-matched-dist/browser-lazy/chunks/requirement-Z5TLNEGZ.js",
+    "bytes": 27250,
+    "sha256": "de055115c8165de38366823891570067037bec258e900028821ebf9ff798260d"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/main-matched-dist/browser-lazy/chunks/sankey-CP7ZZVU4.js",
+    "bytes": 25070,
+    "sha256": "43a4e0ddd9ef4db266f4d78f52b49b7854302d64ce544b4980f760807ddf4fb8"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/main-matched-dist/browser-lazy/chunks/sequence-AQSILZDQ.js",
+    "bytes": 7233,
+    "sha256": "ed893786bb7e15ee7eb7f20b04eb9cd61dec52ae488312ed8ef9d5214ec01ac8"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/main-matched-dist/browser-lazy/chunks/state-R3JDLRCD.js",
+    "bytes": 7844,
+    "sha256": "ac3544cfae9e87a0fccb5839f50062de433d6e847bc46f822087e7651baba346"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/main-matched-dist/browser-lazy/chunks/swimlane-N6IPIHPI.js",
+    "bytes": 14836,
+    "sha256": "44d4a09d1115467342365e83d431924ff493ed74e59e8fd7a1f0fde86e69e24d"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/main-matched-dist/browser-lazy/chunks/timeline-5GCVGOU4.js",
+    "bytes": 21726,
+    "sha256": "b314da2dfe05f1ab8f798188c3878bcaeb6f99d296768f04b5f7d712c7e13896"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/main-matched-dist/browser-lazy/chunks/treemap-PCMYGYQS.js",
+    "bytes": 18218,
+    "sha256": "5dca8a31fb7722d2038260bd1d64423faa306eb4e5581d1821d9b9e6f3f0a905"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/main-matched-dist/browser-lazy/chunks/treeview-BBCYXYUG.js",
+    "bytes": 11545,
+    "sha256": "17df0d98ca48fabed1fe4a5cd2d51e2e84186815650978bd29f8eceb67713c1b"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/main-matched-dist/browser-lazy/chunks/usecase-VW2HCIXV.js",
+    "bytes": 48577,
+    "sha256": "4aa488ed2b057d81d5a160a8b5746baebf3cdf9b4b793da78b9e8bddc1b6e1b2"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/main-matched-dist/browser-lazy/chunks/venn-QX4XTBPP.js",
+    "bytes": 23993,
+    "sha256": "eec7c18bc2de37f97958b3ed6aaedf3eb5a71af5b704492c775399f569e2298e"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/main-matched-dist/browser-lazy/chunks/wardley-AXLS24CO.js",
+    "bytes": 25992,
+    "sha256": "fc7188df69779076f4338edcbc4b11ae574b0e8045981cb483f112f6933e93b1"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/main-matched-dist/browser-lazy/chunks/xychart-IR6VL7IG.js",
+    "bytes": 54082,
+    "sha256": "dca9cccc0498736bb4605ba28d8dc01cc9944997d2eb36d8f13971d26272c14c"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/main-matched-dist/browser-lazy/chunks/zenuml-WRW5VMAP.js",
+    "bytes": 22927,
+    "sha256": "2b9e9e70b4b9a1aa04bd15df2d3b242253490eb4e3d2c0e6ffbbbe8cbd700ac0"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/main-matched-dist/browser-lazy/index.js",
+    "bytes": 4398,
+    "sha256": "f1c283e0bd47816aacad16b49cf2f1bd52d6132d7f46fcb513e929a2a6de92d2"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/main-matched-dist/metafile-esm.json",
+    "bytes": 566970,
+    "sha256": "5950658b6b29dee0bfe181483b105fd8f7e65d5bb33fee9658d737d1bdac50a4"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/main-matched-report.err",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/main-matched-report.json",
+    "bytes": 15496,
+    "sha256": "d2489f28fb243ff211e06ebb0ca2bc7e57f08977dc57b43a073e7035af4cc3f5"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/main-report.err",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/main-report.json",
+    "bytes": 15480,
+    "sha256": "ac587987b902029ede19814f2edcbc3224a8b5c08738fd0b6408e6529eb74fde"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/make-deferred-token-trial.py",
+    "bytes": 2656,
+    "sha256": "403a128a4599352a03ab5a3848f3d9b5224fd805c2618c6c6245b86aca559739"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/native-emission-count-only.ts",
+    "bytes": 52803,
+    "sha256": "c9302bace3692ce9887e4bf8db893fd0189c7a332eb7c6b891f9663a5de94e17"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/no-forced-union/browser-lazy/chunks/agentflow-FJAP2EXJ.js",
+    "bytes": 16864,
+    "sha256": "31d35de6e461a3376b5f69c5bfcfd78e1b3d77ebba16a515e9a903f708432ff6"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/no-forced-union/browser-lazy/chunks/agentic-producer-core-3GTHC32H.js",
+    "bytes": 138015,
+    "sha256": "1014adb8b97c440fb231eb9d3735da0a7070b880e2cc5c47543000221041bdd1"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/no-forced-union/browser-lazy/chunks/architecture-NBFBMOOY.js",
+    "bytes": 57481,
+    "sha256": "60fb72c6919cb86bc447138ca125f8a9f9d7f1ae2a8402c87eebb7eebca9604c"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/no-forced-union/browser-lazy/chunks/block-OJL7FMAR.js",
+    "bytes": 34637,
+    "sha256": "6fed8514a88576e9e169e525bef30007b48217645d5819caa05fa94f40d80cb7"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/no-forced-union/browser-lazy/chunks/builtin-backends-GNAETEMM.js",
+    "bytes": 39689,
+    "sha256": "f22a8b8b429d2976ee7fd4b3854ef04049cf5df8061c72abc146dab6013ef2b6"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/no-forced-union/browser-lazy/chunks/c4-DXH5KUBD.js",
+    "bytes": 71874,
+    "sha256": "36f91886c8b4688807e59b981c33e9dffe4360449676e11ab544994dba163033"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/no-forced-union/browser-lazy/chunks/chunk-2XJY4EYW.js",
+    "bytes": 2554,
+    "sha256": "a0c49c3646be369a4f1dad7eb8f315bd592bb505c00fafb4639dacdbca55c9cd"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/no-forced-union/browser-lazy/chunks/chunk-3484447B.js",
+    "bytes": 566019,
+    "sha256": "22b181e80bd830f8dc614372c905e704b4253078d2bd0c0d40d35a137349a0cb"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/no-forced-union/browser-lazy/chunks/chunk-3ZVHJFTK.js",
+    "bytes": 70979,
+    "sha256": "53e7168fdeb5f701d33cc1e7c7a109ad190a56e5c7b464ccd1b2c68af6d9f362"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/no-forced-union/browser-lazy/chunks/chunk-5AVWL4HA.js",
+    "bytes": 281,
+    "sha256": "28099c26511b2903c0153dcfbb9b57f5091ecd9718b0eef849be94924a5050a7"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/no-forced-union/browser-lazy/chunks/chunk-5NXVWNWO.js",
+    "bytes": 787,
+    "sha256": "983ca2c72c168ee7f9980e6acc17afcb1900c9094b630ae578531e3e73a7952d"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/no-forced-union/browser-lazy/chunks/chunk-6IXBR4Z6.js",
+    "bytes": 390,
+    "sha256": "7b4ec29a26f41f1e9588ae6786b8fb64c6d8dc95af60f3e4b4809c152871bccd"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/no-forced-union/browser-lazy/chunks/chunk-6LDTGWKC.js",
+    "bytes": 58884,
+    "sha256": "431c61896f62e1940aea087d309fcdc1e86cb2879b7b11918ce5d687b8d3ee2f"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/no-forced-union/browser-lazy/chunks/chunk-7R2ILN44.js",
+    "bytes": 2908,
+    "sha256": "5e92b31f8e4ce6b136af353fe098677d86350035bd7d8fa0bd1089d5393675bc"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/no-forced-union/browser-lazy/chunks/chunk-7WYEZDAV.js",
+    "bytes": 2947,
+    "sha256": "9537136b03638cfeaee3fd895794340115c04b985d0f37a91cb3218ad460289f"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/no-forced-union/browser-lazy/chunks/chunk-7X62GRYO.js",
+    "bytes": 7330,
+    "sha256": "bc9243c7c84de8de1e64f44b485dad3f99b66f75179002049b1c578fef2bb321"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/no-forced-union/browser-lazy/chunks/chunk-ADIAAMOP.js",
+    "bytes": 424,
+    "sha256": "ab933d4311f21c34fda4bb129a6a6b36dff7494b46abd6d080e27f0e36a564bf"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/no-forced-union/browser-lazy/chunks/chunk-AII457QA.js",
+    "bytes": 595,
+    "sha256": "e19db39ab8ce906fc691b3e7eaaa0659ca31bbeede2bb6514d1b4798062dd00a"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/no-forced-union/browser-lazy/chunks/chunk-BM7KLDQJ.js",
+    "bytes": 3624,
+    "sha256": "7755e16c7318c2f555170f12f87de4de5329f337c1ed2c95737c0b44e55937e6"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/no-forced-union/browser-lazy/chunks/chunk-C25LWD5V.js",
+    "bytes": 2178,
+    "sha256": "c53661fe87828ec30f4c5f8942f281e77581ac8d7c1f63301bc06676f00b1c2e"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/no-forced-union/browser-lazy/chunks/chunk-CLWWU6PK.js",
+    "bytes": 887,
+    "sha256": "8e228b2d11e2c6bfca5b0b6ae36c976d9f129136cb7d67c6c35e8d59713f3959"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/no-forced-union/browser-lazy/chunks/chunk-D7ACEPSO.js",
+    "bytes": 6562,
+    "sha256": "0564120dec9fe0cc5f659ada8afa171c37621007ebbdd54d91df1c54c7707d6d"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/no-forced-union/browser-lazy/chunks/chunk-G6GTXYOZ.js",
+    "bytes": 414,
+    "sha256": "a8716c42af5a4a4f1d01846be336ed422bfce7e9d91a18045676f4a989f18022"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/no-forced-union/browser-lazy/chunks/chunk-GA6ZKOIY.js",
+    "bytes": 20808,
+    "sha256": "53f8c3406080273abf67c97534ded979711bd6c3ce825e5c76528929e2f50f19"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/no-forced-union/browser-lazy/chunks/chunk-HF2LTF4S.js",
+    "bytes": 865,
+    "sha256": "75ea7a30d5a1d02fa2159d4df00e907829dfd8e2e3b53038f8294e277ecffbd6"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/no-forced-union/browser-lazy/chunks/chunk-HWWK3QYP.js",
+    "bytes": 383,
+    "sha256": "d76426374fa8a147fbd68ad7b94a6a18f13b6768c6459c87a3407da5d4bb1a4d"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/no-forced-union/browser-lazy/chunks/chunk-IHLOHQ5F.js",
+    "bytes": 8654,
+    "sha256": "858aa16bd831fd3f7b27d412e940e8049b9deedf970610c538b0ec5358faacdd"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/no-forced-union/browser-lazy/chunks/chunk-J5CF3OQK.js",
+    "bytes": 759,
+    "sha256": "83cf43333aeba5aef2ef3bc68dd709b6cb62c5c5d2acc11260bf565fcfd7c6b4"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/no-forced-union/browser-lazy/chunks/chunk-JGYVEQVW.js",
+    "bytes": 1607,
+    "sha256": "389306511e538b8b418d1246eb05d7e3e855126a28300a26d4a373edbf87e233"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/no-forced-union/browser-lazy/chunks/chunk-JVFVBEG7.js",
+    "bytes": 340,
+    "sha256": "256171d38d871940de29887398233287ce8c860548956be7aaeb5e4c2fe7967d"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/no-forced-union/browser-lazy/chunks/chunk-JYWEHJKL.js",
+    "bytes": 1688,
+    "sha256": "b1f3270a0e31012b491514991e0b36e65071bb0cf559ab30463bd059a39052bf"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/no-forced-union/browser-lazy/chunks/chunk-LH3ACTUS.js",
+    "bytes": 116150,
+    "sha256": "816f350e4ea204aa1a7ddbbb9cd8125d4dc6ce338bf03d6a8919d9f39c7d275e"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/no-forced-union/browser-lazy/chunks/chunk-OGB2YZWM.js",
+    "bytes": 163,
+    "sha256": "be219d28301693b3509806f8002add7ff66819d52ee550911fffc1fb47a837c6"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/no-forced-union/browser-lazy/chunks/chunk-PKTUFZOH.js",
+    "bytes": 13054,
+    "sha256": "0a610cdd945602244541b23f67462c11e0d595328dbf1d3f71be95ad79c6018c"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/no-forced-union/browser-lazy/chunks/chunk-PR4RWE3O.js",
+    "bytes": 506,
+    "sha256": "ee441087fd5d8bb2cd5c7a643948ab2186a20b02d17f6b32cc4cdb2817f064b1"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/no-forced-union/browser-lazy/chunks/chunk-Q6SJVCCD.js",
+    "bytes": 12510,
+    "sha256": "5188507f8613c56602f2ce02cc534e1fbc227682ac0671c1b6f65a28275ea76b"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/no-forced-union/browser-lazy/chunks/chunk-QXHPD2KN.js",
+    "bytes": 1849,
+    "sha256": "242d116583d0c6fd03458cae0e91a4b668a56895638988333353f1a9da318cdb"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/no-forced-union/browser-lazy/chunks/chunk-RXURQ7XN.js",
+    "bytes": 267,
+    "sha256": "9349de1853c07ddb15d2f63a6924ef356d11edbc8c584e0cfe26784ca8199428"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/no-forced-union/browser-lazy/chunks/chunk-SC76MUQ3.js",
+    "bytes": 440,
+    "sha256": "32f2e061f17b0958551c522cf707b97162f11e6f3fdc44667276459410366258"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/no-forced-union/browser-lazy/chunks/chunk-TUU2KFVQ.js",
+    "bytes": 1622,
+    "sha256": "ae03f23bb68b9e034bb56fb3416420a5303d2e4297c781ba152510b49d8523e4"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/no-forced-union/browser-lazy/chunks/chunk-TXALF2FK.js",
+    "bytes": 891,
+    "sha256": "09e4a78804795224819ca40734070069a0977f9c72bd27d06de37b90f7e6c2bf"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/no-forced-union/browser-lazy/chunks/chunk-UQ7GTNSR.js",
+    "bytes": 7633,
+    "sha256": "daae0619bc0ec02d0d90d2108156b16b85d5321dbe6cccf0ad14514944707a5d"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/no-forced-union/browser-lazy/chunks/chunk-XCY3ATVY.js",
+    "bytes": 2226,
+    "sha256": "e5217dd800ee578837918ca5767317c7174a0be9335ea9acc72f425d3252a0fc"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/no-forced-union/browser-lazy/chunks/chunk-YPNYY2VF.js",
+    "bytes": 119045,
+    "sha256": "3efcc93614f1ffecb3a8b0b49f28faf3cd00bc1492d44c5d46d929f24f3885c3"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/no-forced-union/browser-lazy/chunks/chunk-ZKDKONQH.js",
+    "bytes": 11951,
+    "sha256": "0333eb60e2997764a16d734bbabaa2b7b81dbcccc239aa23cb8028981d73ad9a"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/no-forced-union/browser-lazy/chunks/class-XXYZIGXY.js",
+    "bytes": 118019,
+    "sha256": "03d94d0217cbd41013a39338e9afecdfacaa5bd3ad830f9f54360cb2d360f9fd"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/no-forced-union/browser-lazy/chunks/cynefin-HBZ72CRK.js",
+    "bytes": 11392,
+    "sha256": "aca0b7cf6cf118070672c840f16ca62038b13779363d67986c148c97552fc548"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/no-forced-union/browser-lazy/chunks/decode-E23ODK3H.js",
+    "bytes": 40525,
+    "sha256": "65d57aaca480d91b64d4fbaf4989f871c57fbebddf311bb5f2a9e7ee58568886"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/no-forced-union/browser-lazy/chunks/elk.bundled-X5K4KOFH.js",
+    "bytes": 1447491,
+    "sha256": "2422557bc2a76ea5bea842c44c646f82d8d5dd66eeddbb017f3883feffa78ef5"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/no-forced-union/browser-lazy/chunks/er-3M3T2AAN.js",
+    "bytes": 84262,
+    "sha256": "f95c3c6879dd3e319d2dc3d0cc10b5c69e078891eff996fa93ce1368993b9e7b"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/no-forced-union/browser-lazy/chunks/eventmodeling-CSASCBXE.js",
+    "bytes": 19306,
+    "sha256": "51b7257e4cc727fc9f187eeffde7c48de83fb8fcb3604dbecdab06c6e098f49d"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/no-forced-union/browser-lazy/chunks/flowchart-VJDFXCHF.js",
+    "bytes": 5674,
+    "sha256": "86991ea43abbf8975d4829faa71d90ca8d17b3644f526ed26949ceae3139d9bb"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/no-forced-union/browser-lazy/chunks/forest-implementation-FARHT75V.js",
+    "bytes": 4940,
+    "sha256": "5aad7366fb4327212da5dc007042a3b5dffa683900e4d04a8a0374ae301f4340"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/no-forced-union/browser-lazy/chunks/gantt-U5L5H7BP.js",
+    "bytes": 48684,
+    "sha256": "1633be945815542603d7bb2c07046f162445acd2ba3e21ccf529ec0bbe3750ee"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/no-forced-union/browser-lazy/chunks/gitgraph-WRWUK6A5.js",
+    "bytes": 27434,
+    "sha256": "2c6f4c426592d0055156f02acf452b80a7bca6ade295650d519a48e90625051d"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/no-forced-union/browser-lazy/chunks/inter-metrics-kernel-E4EEPZL6.js",
+    "bytes": 18621,
+    "sha256": "93f974dd12ced670e72104ad46a8f8cc77f8556b282d3430632fcf1fdd2baa04"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/no-forced-union/browser-lazy/chunks/ishikawa-YMQWINX6.js",
+    "bytes": 9580,
+    "sha256": "8ab4f9468f6d658f1c85003a729a7a5bb6859bac8424af95543bee1199ae806e"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/no-forced-union/browser-lazy/chunks/journey-MOFJVYKU.js",
+    "bytes": 34050,
+    "sha256": "5554071ef1945829f3e3d7fe7c346bdce9ca3804baba2861fd5ff3a198793095"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/no-forced-union/browser-lazy/chunks/kanban-VMASP2GL.js",
+    "bytes": 15184,
+    "sha256": "c82377e7ab113976b75a5b39c43cdecc5f754d56d9714ce045c8d0f8418a79c2"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/no-forced-union/browser-lazy/chunks/mermaid-yaml-runtime-EDAWOZLW.js",
+    "bytes": 100108,
+    "sha256": "d43d69243c00dde9289eb86f9f932fa38361448ee9351ae269a7c5dacc1d821a"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/no-forced-union/browser-lazy/chunks/mindmap-YIMBVCOJ.js",
+    "bytes": 20380,
+    "sha256": "360a2ceb98913523d981f654a76112ce989e3ae621d35e952e390fb852efda69"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/no-forced-union/browser-lazy/chunks/optimization-runtime-MPMJL7DQ.js",
+    "bytes": 6220,
+    "sha256": "3aace280afa721dc86fbcb64b5edc35cb1701d08ac732ab60f06bf02fd147d68"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/no-forced-union/browser-lazy/chunks/packet-ZRHLWMNL.js",
+    "bytes": 8740,
+    "sha256": "cf825dc2645ffe9826921d2a5e788999277c36ac6f6e3aaec500fa1b2cf7f6af"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/no-forced-union/browser-lazy/chunks/parser-source-N56FDX5O.js",
+    "bytes": 2395,
+    "sha256": "5afbc2c11657131713dc81511c7d1117208223aaa0f8f9036be8ec0623b13fe6"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/no-forced-union/browser-lazy/chunks/pie-ZPNJDVMG.js",
+    "bytes": 22717,
+    "sha256": "c9509c5d7a9cfd3c0794344757f685e9a0370110ca1009c904d9f078dfa1c136"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/no-forced-union/browser-lazy/chunks/quadrant-UIIJTHFJ.js",
+    "bytes": 28663,
+    "sha256": "de03c7680edf888e82ce4315f06dcfaa8c938dac36e5f69743499437e5b64b80"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/no-forced-union/browser-lazy/chunks/radar-DQOQ7THD.js",
+    "bytes": 30742,
+    "sha256": "128963a38c2c42e028794383c46dfc81f6ce1572b82fcea447c70d4463766e93"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/no-forced-union/browser-lazy/chunks/railroad-OKJYUGES.js",
+    "bytes": 23563,
+    "sha256": "594cd695e0dbfb6af63abb7ae6441d85286ee992513cf917ae16435c54dccb57"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/no-forced-union/browser-lazy/chunks/render-core-O3SM2CVY.js",
+    "bytes": 34874,
+    "sha256": "2f943bfabd037f6d1e20e2279fa841f254d78507c925459cc16a58925301c858"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/no-forced-union/browser-lazy/chunks/requirement-LDAUHYL2.js",
+    "bytes": 27876,
+    "sha256": "214348697c8357fcc23dc49cac5aecf0f7b52b5dfdebb0076c20507cea1da625"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/no-forced-union/browser-lazy/chunks/sankey-AXA3YZTN.js",
+    "bytes": 25098,
+    "sha256": "7267d589edaaa6b96f6df4a6788efd55e74c274d91e0f9096a5d0ceb825b547c"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/no-forced-union/browser-lazy/chunks/sequence-3TIGEQRU.js",
+    "bytes": 7233,
+    "sha256": "927db397697b31aa12438894c0b77fecd2f32fb237d60b55b6655920db5c995b"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/no-forced-union/browser-lazy/chunks/state-3L73X2XQ.js",
+    "bytes": 7877,
+    "sha256": "d80ce76df32bff5b736e51dd9728644a8dc5bc7a2e37646c6806ad74a0f30b40"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/no-forced-union/browser-lazy/chunks/swimlane-YMQ7CAXZ.js",
+    "bytes": 14864,
+    "sha256": "0464a0de15402a82c92b0a1b4cc3c5c9ed4e082ecacaea413ec48a019f73cf4e"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/no-forced-union/browser-lazy/chunks/timeline-NPRTNUIB.js",
+    "bytes": 21721,
+    "sha256": "a9d669155ea19a090bffa6a64238fb799034c0f6e296322d2ae1ac65f16e5eb8"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/no-forced-union/browser-lazy/chunks/treemap-OX7AJZPR.js",
+    "bytes": 18218,
+    "sha256": "1d98638a4801548464de77f17fcf54f9b0325888e035078b790ba3ea2d93d1df"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/no-forced-union/browser-lazy/chunks/treeview-4VKJCIYQ.js",
+    "bytes": 11545,
+    "sha256": "b19acbf22e9106e55191e6d9bceb93061283eb47680eefabe185492ad28894ae"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/no-forced-union/browser-lazy/chunks/usecase-BRNSDC65.js",
+    "bytes": 48605,
+    "sha256": "748c962939875614b07957645e4ea210d4429c50f8147be78d860558d0007759"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/no-forced-union/browser-lazy/chunks/venn-MMPBWMPL.js",
+    "bytes": 23993,
+    "sha256": "ddd41d8ad55fc647a74be9a7e1aacb3b4f36e0dbcd883d7ca19b1d9e370f47ac"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/no-forced-union/browser-lazy/chunks/wardley-LY7HEG5F.js",
+    "bytes": 25987,
+    "sha256": "c63852ca5525c261950c7cb85c576486e99dc28aff4aa299e753a09410be863a"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/no-forced-union/browser-lazy/chunks/xychart-DWHVQPJP.js",
+    "bytes": 54082,
+    "sha256": "b7dc2864069a623b68750d175a798557d74183c6b90f614d3f7961f6d52da27b"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/no-forced-union/browser-lazy/chunks/zenuml-JL7ZKRDK.js",
+    "bytes": 22927,
+    "sha256": "aa00c036d44daec4bfc086d8a7105af92e8a44da055a5136b93a3aff27683be7"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/no-forced-union/browser-lazy/index.js",
+    "bytes": 4403,
+    "sha256": "fac699a7ee1c4848d5ce2046ebd7df0410ccf06e0c9f9d4e85bb0e733cac3f74"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/no-forced-union/metafile-esm.json",
+    "bytes": 577997,
+    "sha256": "5a88cf9c085edc0f68e10026bee650f94313abc4d54c88d042ff85d5521775f9"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/no-forced-union-build-retry.log",
+    "bytes": 12767,
+    "sha256": "03cd756814e92e97734304e12253647f46354afdb3978c42e502e6d17881720e"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/no-forced-union-build.log",
+    "bytes": 221,
+    "sha256": "b6ac7516e6665a9af348877452715c89c609133cf38ce990414bd2526589b0de"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/no-forced-union-report.err",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/no-forced-union-report.json",
+    "bytes": 15498,
+    "sha256": "9bb6671f6566438498d8f0c28570aa7f45061dd7cf7244041e1585838827e795"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/report-before.log",
+    "bytes": 213,
+    "sha256": "9f832de9735474fa4769bd74670dc3369a3a04a55df4676a3871e78659596b45"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/report-before.ts",
+    "bytes": 18611,
+    "sha256": "581f192508bbdf50aea1fabc817acfaac2389b645b076c9a2fc01b25105f1f1c"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/report-main-matched.ts",
+    "bytes": 18612,
+    "sha256": "a97e39248db45d129acc2901dd295731e8087b2894b72a5250d5f4e7472d1765"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/report-main.ts",
+    "bytes": 18604,
+    "sha256": "dec8534ad83a02b97f7707a9ae5f2c5b97c094593a6b9a6dc866be6e3611413c"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/report-no-forced-union.ts",
+    "bytes": 18610,
+    "sha256": "62cee959a9e39d5a589efa598f2873838d146c8444c7ffb61e4b8542adbb7f2a"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/sparse-before/RESULT.json.gz",
+    "bytes": 918,
+    "sha256": "5e026de8805dcb83baf2b6cbc94b64ed6f32ae582d7991c3ee0e7449567d60dd"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/sparse-before/edit.cpuprofile.gz",
+    "bytes": 8103,
+    "sha256": "a47258aac9f166612feddd89803f23897a91371a07590e2110dcbc937bc94b5c"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/sparse-before/edit.receipt.json.gz",
+    "bytes": 629,
+    "sha256": "e83655342733c51acb1bd50ef9ce48a692b1011b60b38e1d179da49d8c09dc88"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/sparse-before/edit.row.json.gz",
+    "bytes": 384,
+    "sha256": "29c3ce3e2909ccba364f796da142ba227473703b07fe771a7131e6ea01a7f100"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/sparse-before/edit.svg.gz",
+    "bytes": 5349,
+    "sha256": "7eeac3815259f8bb08b6f6afa59a2c9fca240d11c2a184d37cf47eb962248852"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/sparse-before/repeat1.cpuprofile.gz",
+    "bytes": 8456,
+    "sha256": "e96eb4b69822521600702a19266d58bcf8bb0be8b9d7e588dc055c5b4d7e7a18"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/sparse-before/repeat1.receipt.json.gz",
+    "bytes": 629,
+    "sha256": "e83655342733c51acb1bd50ef9ce48a692b1011b60b38e1d179da49d8c09dc88"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/sparse-before/repeat1.row.json.gz",
+    "bytes": 412,
+    "sha256": "e67d2ea05e6a7a906dab6075524d0beddd2e4a1dbd7099f2bc20bb1d2569af69"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/sparse-before/repeat1.svg.gz",
+    "bytes": 5349,
+    "sha256": "7eeac3815259f8bb08b6f6afa59a2c9fca240d11c2a184d37cf47eb962248852"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/sparse-before/repeat2.cpuprofile.gz",
+    "bytes": 7618,
+    "sha256": "c2d1d38c03dfa637906602e51a80ef22ac8dbb9392f6dceeb1a31fb2d199fc01"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/sparse-before/repeat2.receipt.json.gz",
+    "bytes": 629,
+    "sha256": "e83655342733c51acb1bd50ef9ce48a692b1011b60b38e1d179da49d8c09dc88"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/sparse-before/repeat2.row.json.gz",
+    "bytes": 403,
+    "sha256": "c56b2901cb747e2b09265b7c8986704aecfc89266ca4ea22667eb105a80e9dc3"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/sparse-before/repeat2.svg.gz",
+    "bytes": 5349,
+    "sha256": "7eeac3815259f8bb08b6f6afa59a2c9fca240d11c2a184d37cf47eb962248852"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/sparse-before/source-maps.json.gz",
+    "bytes": 134162,
+    "sha256": "8b3b1584430d536966d3b78c2d2c0d2be4be076e0bbefafa32a0c173dc2fb109"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/sparse-before/warmup.receipt.json.gz",
+    "bytes": 629,
+    "sha256": "e83655342733c51acb1bd50ef9ce48a692b1011b60b38e1d179da49d8c09dc88"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/sparse-before/warmup?.svg.gz",
+    "bytes": 5349,
+    "sha256": "7eeac3815259f8bb08b6f6afa59a2c9fca240d11c2a184d37cf47eb962248852"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/sparse-before-profile.log",
+    "bytes": 644,
+    "sha256": "90a13bff42b8ff8e6da8b6103dc2ed843a67500e31c7f0d851f4071d76451f05"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/sparse-before.json",
+    "bytes": 188,
+    "sha256": "39d442f1769dd887298f59bbcd89cf71df09805e9f05a97186df3fed14b4b2be"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/sparse-deferred-token/RESULT.json.gz",
+    "bytes": 996,
+    "sha256": "f6cf586efac23bfd0458c91b58116d15c0bf20461016c3bdefde6742feb56029"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/sparse-deferred-token/edit.cpuprofile.gz",
+    "bytes": 8839,
+    "sha256": "74b1413f1545382f1ac1803b7fba07dc1922e487b0da9e4321119c40468b790a"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/sparse-deferred-token/edit.receipt.json.gz",
+    "bytes": 621,
+    "sha256": "b1ca7727cfcaf3dc05dc5a804cbd42f26184b30af335c6c6cc9f4f79cd564e54"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/sparse-deferred-token/edit.row.json.gz",
+    "bytes": 381,
+    "sha256": "8a9635102da5bab11d3f070aec1eeb4b397467158021e84b24a16f8b0a2e0ea6"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/sparse-deferred-token/edit.svg.gz",
+    "bytes": 5349,
+    "sha256": "7eeac3815259f8bb08b6f6afa59a2c9fca240d11c2a184d37cf47eb962248852"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/sparse-deferred-token/repeat1.cpuprofile.gz",
+    "bytes": 8955,
+    "sha256": "1b0a7007d29b56df9e7c79fe2dc32204033d2d3a26ba3baa790bfb1ddec61457"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/sparse-deferred-token/repeat1.receipt.json.gz",
+    "bytes": 621,
+    "sha256": "b1ca7727cfcaf3dc05dc5a804cbd42f26184b30af335c6c6cc9f4f79cd564e54"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/sparse-deferred-token/repeat1.row.json.gz",
+    "bytes": 410,
+    "sha256": "ca621bd6ad6b8ef76f88f165bf391e55a9372dafb68a06358a545cb8f08ad080"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/sparse-deferred-token/repeat1.svg.gz",
+    "bytes": 5349,
+    "sha256": "7eeac3815259f8bb08b6f6afa59a2c9fca240d11c2a184d37cf47eb962248852"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/sparse-deferred-token/repeat2.cpuprofile.gz",
+    "bytes": 7960,
+    "sha256": "5678d5b1253189a606554150fdb7b14e962de2bb7665d09189e053164ab59127"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/sparse-deferred-token/repeat2.receipt.json.gz",
+    "bytes": 621,
+    "sha256": "b1ca7727cfcaf3dc05dc5a804cbd42f26184b30af335c6c6cc9f4f79cd564e54"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/sparse-deferred-token/repeat2.row.json.gz",
+    "bytes": 412,
+    "sha256": "5c20ac2ea47c0ad47d967e687bc5b1d938a55379eff9e58760e28675f424dbf5"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/sparse-deferred-token/repeat2.svg.gz",
+    "bytes": 5349,
+    "sha256": "7eeac3815259f8bb08b6f6afa59a2c9fca240d11c2a184d37cf47eb962248852"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/sparse-deferred-token/source-maps.json.gz",
+    "bytes": 134254,
+    "sha256": "fa546f88b51244c24087237218af3073cda13022a6621d7ced6a0bf13a209447"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/sparse-deferred-token/warmup.receipt.json.gz",
+    "bytes": 621,
+    "sha256": "b1ca7727cfcaf3dc05dc5a804cbd42f26184b30af335c6c6cc9f4f79cd564e54"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/sparse-deferred-token/warmup?.svg.gz",
+    "bytes": 5349,
+    "sha256": "7eeac3815259f8bb08b6f6afa59a2c9fca240d11c2a184d37cf47eb962248852"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/sparse-deferred-token-profile.log",
+    "bytes": 635,
+    "sha256": "64a9b4514d14c6eb0e148ef8e50ce68bb0072ff6cd9110fc560add53d4ad3c06"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/sparse-deferred-token.json",
+    "bytes": 355,
+    "sha256": "07f9b9b9b80b543b6b73471337a295480b13e917cf70e33c875e8a7040c46e43"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/sparse-owner-red.log",
+    "bytes": 2342,
+    "sha256": "92d3249bed79169395f96292a293234f9a8fb8a2b77798c88e36596e2919c878"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/sparse-value-review.md",
+    "bytes": 4840,
+    "sha256": "f7e0fd9d23947b2358584af5716eeb14620be23477d8eef2e5dcc929defef881"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/svg-writer-before.ts",
+    "bytes": 49113,
+    "sha256": "d5ccae31d97bb7902b27c2ed47ae42b69cd223457aac1390b32bd30e841f8a71"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/svg-writer-deferred-token.ts",
+    "bytes": 49569,
+    "sha256": "02a4a7337b1b3eb54fd11d99bfca92fc8aa918b60fd0fffcdc0567d6a4a3a4db"
+  },
+  {
+    "path": "lazy-closure-0c162-20261108/without-forced-union.ts",
+    "bytes": 619,
+    "sha256": "05594573e5a07b01121cad8f283be8b0f6452976aea5ab69391efad1b46314db"
+  }
+]
