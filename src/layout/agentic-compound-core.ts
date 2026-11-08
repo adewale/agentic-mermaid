@@ -2,7 +2,7 @@ import { assertFinalBoundaryContacts, routeCrossHierarchy } from './compound-bou
 import { planAncestorBoundaryConnections, projectAncestorBoundaryPlaceholder } from './ancestor-boundary-routes.ts'
 import type { ChannelWork } from './channel-tracks.ts'
 import type { AgenticLayout, MeasuredGraph } from './agentic-layered-core.ts'
-import type { Direction } from '../types.ts'
+import { placeMeasuredScopes } from './measured-scopes.ts'
 
 /** Place scopes bottom-up, then join leaves and frames through bounded boundary
  * corridors. Explicit ancestor contacts reserve their own interior corridors. */
@@ -77,19 +77,16 @@ export function layoutCompoundGraph(
     if (ancestorEdges!.some(index => !ancestorPlan.connections.has(index))) throw new TypeError('Ancestor planner lost an authored endpoint occurrence')
     groups = ancestorPlan.groups
   }
-  type Scope = { direction: Direction; placed: AgenticLayout; width: number; height: number; dx: number; dy: number }
-  const scopes: Scope[] = new Array(groups.length + 1)
   let expandedVertices = 0
-  const place = (scope: number, inherited: Direction): Scope => {
-    const group = groups[scope - 1]
-    const direction = group?.direction ?? inherited
+  const edges: AgenticLayout['edges'] = new Array(input.edges.length)
+  const { root, scopes, nodes, frames } = placeMeasuredScopes<AgenticLayout>(input, groups, children, leafCount, (scope, direction, placeChild) => {
     const members = children[scope]!, local = new Map(members.map((id, index) => [id, index]))
     const nodes = members.map(id => {
       if (id < leafCount) {
         const { id: identity, width, height, partition, modelOrder, minimumPortSpacing } = input.nodes[id]!
         return { id: identity, width, height, partition, modelOrder, ...(minimumPortSpacing!==undefined?{minimumPortSpacing}:{}) }
       }
-      const child = place(id - leafCount + 1, direction)
+      const child = placeChild(id)
       return { id: groups[id - leafCount]!.id, width: child.width, height: child.height, partition: groups[id - leafCount]!.partition, modelOrder: groups[id - leafCount]!.modelOrder }
     })
     const edges = hosted[scope]!.map(index => {
@@ -102,35 +99,14 @@ export function layoutCompoundGraph(
     const placed = layout(flat)
     expandedVertices += placed.expandedVertices ?? nodes.length
     if (expandedVertices > expansionLimit) unsupported('agentic local compound-expansion limit')
-    const pad = group?.padding ?? { top: input.padding, right: input.padding, bottom: input.padding, left: input.padding }
-    const width = Math.max(group?.minWidth ?? 0, placed.width + pad.left + pad.right, 1)
-    const value = { direction, placed, width, height: Math.max(placed.height + pad.top + pad.bottom, 1), dx: pad.left + (width - placed.width - pad.left - pad.right) / 2, dy: pad.top }
-    if (!Number.isFinite(value.width + value.height + value.dx + value.dy)) unsupported('agentic local coordinate-range limit')
-    scopes[scope] = value
-    return value
-  }
-  const root = place(0, input.direction)
-  const nodes: AgenticLayout['nodes'] = new Array(leafCount)
-  const frames: NonNullable<AgenticLayout['groups']> = new Array(groups.length)
-  const edges: AgenticLayout['edges'] = new Array(input.edges.length)
-  const project = (scope: number, x: number, y: number): void => {
-    const value = scopes[scope]!, dx = x + value.dx, dy = y + value.dy
-    children[scope]!.forEach((id, index) => {
-      const point = value.placed.nodes[index]!, location = { x: point.x + dx, y: point.y + dy }
-      if (id < leafCount) nodes[id] = location
-      else {
-        const groupIndex = id - leafCount, child = scopes[groupIndex + 1]!
-        frames[groupIndex] = { ...location, width: child.width, height: child.height }
-        project(groupIndex + 1, location.x, location.y)
-      }
-    })
+    return placed
+  }, unsupported, (scope, dx, dy, placed) => {
     hosted[scope]!.forEach((id, index) => {
-      const edge = value.placed.edges[index]!
+      const edge = placed.edges[index]!
       edges[id] = { points: edge.points.map(point => ({ x: point.x + dx, y: point.y + dy })),
         ...(edge.labelPosition ? { labelPosition: { x: edge.labelPosition.x + dx, y: edge.labelPosition.y + dy } } : {}) }
     })
-  }
-  project(0, 0, 0)
+  })
   if (ancestorPlan) for (const index of ancestorPlan.connections.keys()) edges[index] = projectAncestorBoundaryPlaceholder(ancestorPlan, index, frames, amount => {
     if (!Number.isSafeInteger(amount) || amount < 0) throw new TypeError('Invalid ancestor placeholder reservation')
     if (expandedVertices + amount > expansionLimit) unsupported('agentic local compound-expansion limit')

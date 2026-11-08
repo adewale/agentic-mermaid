@@ -15,9 +15,10 @@ interface ProjectionCompletion { mergeEdges: boolean; sharedEdges?: readonly num
 export function prepareMeasuredGraphCandidate(
   graph: MermaidGraph, options: AgenticGraphOptions, style: ResolvedRenderStyle,
   bindings: AgenticGraphBindings,
-  purpose: 'legacy-routed' | 'legacy-placement' | 'owned-routed' = 'legacy-routed',
+  purpose: 'legacy-routed' | 'legacy-placement' | 'owned-routed' | 'owned-placement' = 'legacy-routed',
 ) {
-  const placementOnly = purpose === 'legacy-placement'
+  const ownedPlacement = purpose === 'owned-placement'
+  const placementOnly = purpose === 'legacy-placement' || ownedPlacement
   const physical = purpose === 'owned-routed'
   const { edgeSelectorIndices, graphEdgeMarkerPaintRegions, DEFAULTS, LABEL_PILL_PADDING, measureRenderStage, graphTextBlock, resolveLabelContent, groupTitleWidth, groupHeaderHeight, estimateNodeSize, resolveNodeInlineStyle, resolveEdgeInlineStyle, resolveClassInlineStyle, containsNonFiniteNumber, finishGraphGeometry } = bindings
   if (options.preserveSubgraphChildOrder) bindings.unsupported('family-specific graph geometry')
@@ -38,8 +39,8 @@ export function prepareMeasuredGraphCandidate(
   routingWork.arcs -= 2 // ledger record and its private preparation closure
   const pay = (pairs: number, slots = 0): void => {
     routingWork.pairs -= pairs; routingWork.arcs -= slots
-    if (physical && routingWork.pairs < 0) throw new LayoutWorkLimitError('pairs')
-    if (physical && routingWork.arcs < 0) throw new LayoutWorkLimitError('arcs')
+    if ((physical || ownedPlacement) && routingWork.pairs < 0) throw new LayoutWorkLimitError('pairs')
+    if ((physical || ownedPlacement) && routingWork.arcs < 0) throw new LayoutWorkLimitError('arcs')
     if (routingWork.pairs < 0 || routingWork.arcs < 0) bindings.unsupported('agentic marker preparation work limit')
   }
   const measured = measureRenderStage('graph-preparation', () => {
@@ -126,6 +127,16 @@ export function prepareMeasuredGraphCandidate(
         if (index === undefined) throw new Error(`LAYOUT_HINT_INVALID: unknown edge "${id}"`)
         preferred.add(index)
       }
+    }
+    if (ownedPlacement) {
+      const edges: MeasuredGraph['edges'] = graph.edges.map(edge => {
+        pay(6, 3)
+        const source = indices.get(edge.source), target = indices.get(edge.target)
+        if (source === undefined || target === undefined) throw new TypeError('Measured placement endpoint is undeclared')
+        if (edge.label || edge.labelContent || edge.style === 'invisible' || edge.length !== undefined && edge.length !== 1 || edge.curve !== undefined || preferred?.size) bindings.unsupported('labelled or constrained placement edges are outside the forest slice')
+        return { source, target, minSpan: 1 }
+      })
+      return { nodes, groups, edges, direction: graph.direction, padding: opts.padding, nodeSpacing: opts.nodeSpacing, layerSpacing: opts.layerSpacing }
     }
     const ancestorEnd = groups.length ? (source: number, target: number): 'start' | 'end' | undefined => {
       const encloses = (group: number, subject: number): boolean => {
@@ -297,7 +308,7 @@ export function prepareMeasuredGraphCandidate(
     let geometry = initial
   // Missing subjects or non-finite geometry are engine defects, not an
   // eligibility refusal that can be concealed by running another producer.
-  if (geometry.nodes.length !== measured.nodes.length || (geometry.groups?.length ?? 0) !== measured.groups.length || geometry.edges.length !== graph.edges.length || containsNonFiniteNumber(geometry)
+  if (geometry.nodes.length !== measured.nodes.length || (geometry.groups?.length ?? 0) !== measured.groups.length || !placementOnly && geometry.edges.length !== graph.edges.length || containsNonFiniteNumber(geometry)
     || completion?.sharedEdges?.some(index => !Number.isInteger(index) || index < 0 || index >= graph.edges.length)
     || !placementOnly && geometry.edges.some((edge, index) => edge.points.length < 2 || (measured.edges[index]!.label && !edge.labelPosition))) {
     throw new TypeError('Agentic graph producer returned malformed geometry')

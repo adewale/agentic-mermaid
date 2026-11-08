@@ -35,7 +35,7 @@ export const ARCHITECTURE_SVG_HOOKS = {
       parseArchitectureDiagram(architectureSourceLines(ctx.source)),
       ctx.source.accessibility,
     ), ctx.source.frontmatter)
-    return layoutResult(layoutArchitectureDiagram(diagram, ctx.renderOptions, familyConfig?.layout), {
+    return layoutResult(layoutArchitectureDiagram(diagram, ctx.renderOptions, familyConfig?.layout, ctx.paintBackendId), {
       injectAccessibility: false,
     })
   },
