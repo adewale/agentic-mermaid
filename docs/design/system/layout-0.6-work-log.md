@@ -1161,3 +1161,34 @@ Bun gzip9 1,339,568→1,339,699 (+131), Brotli11 1,279,561→1,279,693 (+132).
 Original gzip limit fails by5,199. No speed or memory gain claimed. Evidence:
 `trinity-state-20261108`. Remaining: compounds/families and broader qualification;
 adoption/retirement remain blocked.
+
+### Trinity stage 5: flat Class cards
+
+After `3cc281f2f`, four directional Class refusals reproduce. Reuse the existing
+card/caption/marker producer and completed Class finalizer; Trinity consumes
+canonical painted endpoint spans and the neutral routed adapter, while Native
+keeps its marker minima, raw pieces and original dimensions. Returned Trinity
+height grows blank method space through the existing extraction, exactly once.
+Namespaces, notes, independent interfaces, cardinalities and nondefault paint
+remain explicit exclusions. Kernel/preparation exhaustion cannot authorize fallback.
+
+Four actual Class marker/member/caption owners fail before and pass after. Growth,
+fallback, source/parsed/layout/PNG and hard-error owners pass; independent review
+finds no remaining actionable defect. Class/marker owners269P plus the new public
+owner pass; core/repository types, lint and lazy/editor builds pass. Failed test
+assumptions (inheritance endpoint direction, parser line input, annotation versus
+lollipop interface, direct-family style face) remain in evidence.
+
+Affected Class products: all ten Native/ELK SVGs exact; four new Trinity products
+return/passed, namespace/member/cardinality/note case remains unsupported. Frozen
+coverage12→16 of30, unsupported16→12, same two input errors. Trident365→416P,
+unsupported219→168, blocked27 and failed2 unchanged. Retained inheritance fixture
+TB: ELK area136,680/wire348.90/bends2; Native131,040/214.60/0;
+Trinity129,238/340.30/4. All observed crossing/parallel/opposing counts zero;
+other directions and actual SVGs retained. Smaller area is not universal quality.
+
+Actual editor build: gzip9 1,339,699→1,340,386 (+687), Brotli11
+1,279,693→1,280,171 (+478), original gzip limit fails5,886. Descriptor/API refresh retains those bytes and both MCP context ceilings pass.
+Complete-cost/browser qualification follows. No speed/memory claim
+from this feature. Evidence: `trinity-class-20261108`; compounds/other families
+and broad qualification remain unfinished, adoption/retirement blocked.

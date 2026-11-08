@@ -1,6 +1,6 @@
 # Trinity: measured layout contract and replacement design
 
-Status: bounded Trinity rectangular Flowchart/State, fixed State start/end circles and Requirement rendering is publicly selectable with
+Status: bounded Trinity rectangular Flowchart/State, fixed State start/end circles, flat Class cards and Requirement rendering is publicly selectable with
 `graphLayout: { backend: 'trinity' }`. Source/Node, layout, PNG and lazy browser
 entry points share the real adapter and decision evidence. Routed admission is
 64nodes/128edges with measured rectangular or fixed singleton-circle contacts; unsupported shapes, groups,
@@ -219,14 +219,20 @@ changes to investigate/implement in the short execution plan, not completed work
 
 ## Metrics and comparison contract
 
-Trinity has only a bounded direct-family Requirement observation, not a public
-performance or replacement result. The private flat kernel requires explicit
-rectangular contact, paint and endpoint support, preserves fixed/minimum sizes,
-and declines remaining features; supplied work exhaustion cannot trigger fallback.
-One retained fixture in four directions has smaller area than ELK but more bends;
-current Native is better on TB/BT area and wire. The bare kernel is 6,465gzip bytes,
-not a browser-product measurement. Existing Native/ELK products remain exact.
-Full public costs, memory, delivery and broader ink remain unqualified.
+Trinity now has bounded public Requirement, Flowchart/State and Class delivery.
+The frozen 30-case comparison returns 16 SVGs with passed certification through
+Trinity, versus 28 through Native/ELK; Trinity retains 12 unsupported cases and
+the same two input errors. Authored meaning, actual written ink, receipt proof
+and layout quality remain separate. Newly supported State circles and Class
+cards do not establish compound, notes, interface or cardinality support.
+
+The existing collector has measured 120 complete Flowchart/Requirement SVG+receipt
+calls at `bbab8283d`, with cold/cache/edit and memory kept separate. Two cases
+and two replicas establish no general ratio or memory superiority. Actual
+three-family lazy delivery is smaller for Trinity than ELK; the full editor
+still exceeds its original gzip budget. Class complete-product costs follow
+its own current qualification. Exact measurements and adverse cells belong
+in the work log, PR and recoverable evidence, not a new scoring framework.
 
 Freeze workload enrollment/options and requested
 capabilities before outcomes; keep unsupported/declined/refused/unknown cells in
