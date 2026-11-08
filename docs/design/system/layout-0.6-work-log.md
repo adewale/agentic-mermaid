@@ -1280,3 +1280,26 @@ compressed afterwards. Branching Architecture area151,171.228/151,171.228/
 151,593.494 and wire352/358.133/354, bends4; adverse ELK deltas retained.
 No retirement/default change:24/30 delivery and local routed64/128 are not broad
 replacement qualification; original editor limit still fails6,838, CI not ready.
+
+## Final bounded decision and stale owner repair — 8 November
+
+Runtime `fe911360151ebfd534799db7da8d0533931054ec`; report `03d973704`.
+Stage9: retain ELK. Trinity delivers24/30 frozen inputs versus28 for Native/ELK;
+four unsupported and two shared input errors remain. Three hundred complete
+unprofiled calls pass, but cold/cache/edit costs are mixed; actual six-family
+fetched product gzip is450550/483797/856349 bytes for Trinity/Native/ELK, with
+47/47/41 requests including binding. These are post-observation compressed files,
+not compressed network/startup results. Editor gzip1341338 still fails the original
+1334500 ceiling by6838. Stage10 retirement is deferred; broader stage5/8 work is
+incomplete. Defaults, versions, caps and Replacement24 remain unchanged.
+
+Runtime CI42534101146 fails Sparse32, lazy/website payload budgets, advisory and
+two stale Requirement tests that still label newly migrated Class/ER unsupported.
+Reproduce both stale failures; update the existing table to require direct Trinity
+selection even when ELK fallback is allowed, identical SVG and no fallback warning.
+Both changed owners pass; full Requirement file51P after retrying five sandbox
+child-stdin EPERM failures outside the sandbox. Existing Class/ER owners retain
+untranslated-constraint refusal and explicit-fallback coverage. No runtime output
+or new coverage gain is claimed for this test maintenance. Types/lint verified
+with the commit; no acceptance ceilings raised. Next work requires a new bounded
+owner-directed intervention on actual unsupported workload or measured cost.

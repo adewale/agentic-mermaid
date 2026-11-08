@@ -590,9 +590,11 @@ root - contains -> side`
     expect(fallback.receipt.diagnostics).toContainEqual(expect.objectContaining({ code: 'GRAPH_LAYOUT_FALLBACK', message: expect.stringContaining('Trinity') }))
   })
 
-  test.each(['classDiagram\n A-->B', 'erDiagram\n A ||--o{ B : owns'])('unmigrated families never silently select ELK for a Trinity request: %s', input => {
-    expect(() => renderMermaidSVGWithReceipt(input, { graphLayout: { backend: 'trinity' } })).toThrow('Trinity')
+  test.each(['classDiagram\n A-->B', 'erDiagram\n A ||--o{ B : owns'])('migrated families preserve explicit Trinity selection when fallback is allowed: %s', input => {
+    const direct = renderMermaidSVGWithReceipt(input, { graphLayout: { backend: 'trinity' } })
     const result = renderMermaidSVGWithReceipt(input, { graphLayout: { backend: 'trinity', fallback: 'elk' } })
-    expect(result.receipt.layoutDecisions?.[0]).toMatchObject({ requested: 'trinity', selected: 'elk', attempts: [{ backend: 'trinity', outcome: 'unsupported', reason: expect.any(String) }, { backend: 'elk', outcome: 'selected' }] })
+    expect(result.svg).toBe(direct.svg)
+    expect(result.receipt.layoutDecisions?.[0]).toMatchObject({ requested: 'trinity', selected: 'trinity', attempts: [{ backend: 'trinity', outcome: 'selected' }] })
+    expect(result.receipt.diagnostics?.some(diagnostic => diagnostic.code === 'GRAPH_LAYOUT_FALLBACK')).toBe(false)
   })
 })
