@@ -1116,3 +1116,23 @@ Actual editor Bun gzip9 1,339,158→1,339,568 (+410); Brotli11
 CPU/RSS/browser-closure comparison follows; no gain inferred from extraction.
 Evidence: `trinity-primary-20261108`. Remaining: compound/family coverage and
 broader equivalent-product qualification; adoption/retirement remain blocked.
+
+### Trinity stage 8: complete primary products
+
+Runtime `bbab8283d`: 24 serial fresh Node24 processes, 120 complete SVG+receipt
+calls, two cases × three backends × two cache settings × two replicas. All
+returned with passed certification; repeats and repeated edits were exact, and
+edits changed SVG. Flowchart cache-off cold medians: ELK 318.57, Native 153.21,
+Trinity 139.91ms; second repeats 33.74/19.59/17.53ms. Cache-on second repeats
+5.75/5.09/5.64ms show no uniform cached advantage. Requirement cache-off cold
+medians: 308.13/164.63/154.87ms. Full ranges, CPU, RSS and heap remain in evidence;
+two cases establish no general ratio or memory superiority.
+
+Actual three-family lazy product union: ELK 763,046 gzip9 / 605,263 Brotli11,
+Native 397,062 / 338,188, Trinity 361,689 / 307,871 bytes; requests including
+binding 34/41/39. Full public products were consumed. The server sent raw bytes;
+compression follows observation. Earlier Requirement-only closure has a different
+scope. Editor still exceeds its original gzip limit by 5,068 bytes.
+Evidence: `trinity-primary-20261108/README.md`, `PERFORMANCE.json`, `measurements`
+and `browser`. This qualification changes no runtime. Compounds/family coverage
+remain the next deficit; adoption and retirement remain blocked.
