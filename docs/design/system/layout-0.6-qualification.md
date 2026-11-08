@@ -65,6 +65,40 @@ A newly reproduced missing-meaning or visible-output defect can outrank a resour
 optimization. These are priorities, not a promise to run every experiment before
 shipping an independent repair.
 
+## Trident comparison at df133c694
+
+Pinned Trident `f080278e31e4202ca89d524e4ee9e4cf3cbff038` now measures the same
+compiled public Node SVG artifact with Native/ELK selection and fallback disabled.
+All27 graph-related portable cases remain enrolled;22 other cases are explicitly
+outside backend selection. Across25 successfully returned positive pairs, observed
+uncached cold/repeat medians and memory are lower for Native. Cached repeats are
+mixed:14 lower,11 higher; Class128 is280.59ms Native versus252.57ms ELK.
+One round, three fresh processes per cell and seven warm samples are exploratory,
+below Trident calibration settings. No general speed ratio or p95 follows.
+This SVG-only clock does not replace the earlier entire-receipt measurements.
+
+The independent30-case fidelity cohort returns28SVGs per backend. Of613 planned
+criteria each, Native has576passed/28blocked/3failed/6unsupported; ELK575/29/3/6.
+Two failed requests use unsupported top-level fontSize; both omit an authored image
+under the current warned offline-placeholder policy. Unknown pseudostate/ER paint
+and ELK Requirement label ownership remain unknown, not incorrect drawings.
+All50 returned portable seed SVGs bind exactly to100 measured cache0/1 products;
+all52 returned seed/edit receipts confirm selected backend without fallback.
+
+Actual Trident browser capture of the same six-family union fetches Native
+476,485gzip9/407,052Brotli11 product bytes versus ELK851,989/682,687. Native uses
+39requests versus37, including the separately reported binding. These compress
+the actual fetched bytes after raw local responses; they are not compressed wire
+measurements or browser startup timing. Both1,000-call retention diagnostics grow
+substantially despite lower Native memory; no settled-memory or no-leak claim.
+
+This adds comparison coverage, not a runtime improvement. The original fixed
+counterexamples and distribution/proof failures remain; df133 CI completed failed.
+Next qualify the cached Class128 observation before profiling/optimization. The
+image scope gap does not automatically authorize changing offline product policy.
+Raw results, frozen inputs, exact artifacts, reproduction and all limitations are
+in the existing evidence branch's `trident-native-elk-df133-20261108` checkpoint.
+
 ## Interface and state proposals
 
 Extend the existing backend selection, typed fallback and family conformance

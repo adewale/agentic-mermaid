@@ -29,3 +29,13 @@ The source command bootstraps shared code before loading a runner. The canonical
 repository typecheck also prepares it so returned source runners remain checked.
 Public comparisons delegate through `eval/trident/run.ts`. Keep measured evidence
 in ignored `bench-report/` or an external directory; do not commit derived results.
+
+The 8 November Native/ELK comparison at product `df133c694` uses clean Trident
+`f080278e31e4202ca89d524e4ee9e4cf3cbff038`: original portable graph cases,
+independent authored-meaning/actual-ink observers, fresh Node processes and actual
+browser request capture. Frozen inputs, compiled kit/product, raw results and
+reproduction scripts are retained on `review/pr449-evidence-20261105` under
+`trident-native-elk-df133-20261108`. Timing is exploratory, not fully calibrated;
+partial qualifications, unsupported options, shared image scope and adverse
+cached/retention observations remain explicit. See the
+[current comparison scope](../../docs/design/system/layout-0.6-qualification.md#trident-comparison-at-df133c694).
