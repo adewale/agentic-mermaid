@@ -2,6 +2,7 @@ import { formatSvgNumber } from '../shared/svg-number.ts'
 import { type NodeLaneIndex } from '../shared/node-lane-index.ts'
 import { customTextMeasurementActive } from '../text-measurement-profile.ts'
 import { type RouteChannelGeometry } from '../shared/route-channel-geometry.ts'
+import type { RouteMarkerPeerContext } from './route-marker-clearance.ts'
 import type { AnyPort, DiamondFacet, Direction, MermaidGraph, MermaidSubgraph, Point, PortSemanticRole, PortSide, PositionedEdge, PositionedGroup, PositionedNode, RouteClass, RoutePortAssignment } from '../types.ts'
 import { isOutwardShapeApproach } from '../shape-clipping.ts'
 import { pointOnShapeSide, shapeCardinalPorts, shapeRoutingProfile } from '../shape-outline.ts'
@@ -439,6 +440,8 @@ export interface LaneContext {
   nodeLaneIndexes?: { x?: NodeLaneIndex | null; y?: NodeLaneIndex | null }
   /** Owner invalidation follows every route write; labels remain live. */
   routeChannelGeometry?: RouteChannelGeometry
+  /** One owned route pass; every geometry write marks its marker view dirty. */
+  routeMarkerPeers?: RouteMarkerPeerContext
 }
 
 /** The side of a node that faces along `axis` — facing=1 for the side an
@@ -558,11 +561,12 @@ export function perpendicularAxis(axis: Axis, from: number, to: number): Axis {
   return { main: axis.cross, cross: axis.main, sign: from < to ? 1 : -1 }
 }
 
-export function invalidateRouteGeometry(ctx: Pick<LaneContext, 'routeChannelGeometry'>, edge: PositionedEdge): void {
+export function invalidateRouteGeometry(ctx: Pick<LaneContext, 'routeChannelGeometry' | 'routeMarkerPeers'>, edge: PositionedEdge): void {
   ctx.routeChannelGeometry?.delete(edge)
+  ctx.routeMarkerPeers?.invalidate(edge)
 }
 
-export function setRoutePoints(ctx: Pick<LaneContext, 'routeChannelGeometry'>, edge: PositionedEdge, points: Point[]): void {
+export function setRoutePoints(ctx: Pick<LaneContext, 'routeChannelGeometry' | 'routeMarkerPeers'>, edge: PositionedEdge, points: Point[]): void {
   invalidateRouteGeometry(ctx, edge)
   edge.points = points
 }

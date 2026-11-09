@@ -5,6 +5,141 @@ import type { Point, PositionedEdge, RouteBlocker } from '../types.ts'
 import type { LabelMetricsStyle } from './route-geometry.ts'
 
 type MarkerRegion = ReturnType<typeof graphEdgeMarkerPaintRegions>[number]
+type MarkerView = ReturnType<typeof markerView>
+type MarkerBox = NonNullable<MarkerRegion['bounds']>
+
+interface PeerMarkerSnapshot {
+  edge: PositionedEdge
+  ordinals: number[]
+  known: boolean
+  view?: MarkerView
+  bounds?: MarkerBox
+}
+
+export interface RouteMarkerPeerContext {
+  invalidate(edge: PositionedEdge): void
+  query(marker: MarkerRegion, peers: readonly PositionedEdge[], style: LabelMetricsStyle): PositionedEdge[] | undefined
+  view(edge: PositionedEdge): PeerMarkerSnapshot | undefined
+}
+
+function expandedMarkerBox(marker: MarkerRegion): MarkerBox | undefined {
+  if (!measured(marker)) return undefined
+  const box = marker.bounds!
+  // Two inflated boxes enclose separated()'s pairwise error, with spare
+  // roundoff margin. An overflow stays in the unconditional peer set.
+  const error = (Math.abs(box.x0) + Math.abs(box.y0) + Math.abs(box.x1) + Math.abs(box.y1)) * 2e-10 + 2e-9
+  const expanded = { x0: box.x0 - error, y0: box.y0 - error, x1: box.x1 + error, y1: box.y1 + error }
+  return Object.values(expanded).every(Number.isFinite) ? expanded : undefined
+}
+
+/** The owning synchronous route pass invalidates every changed edge. Views
+ * and the spatial tree are prepared only when a changed marker needs peers;
+ * accepted writes refresh their leaves rather than rebuilding the roster. */
+export function createRouteMarkerPeerContext(peers: readonly PositionedEdge[], style: LabelMetricsStyle, admit?: () => boolean): RouteMarkerPeerContext {
+  const prepare = () => {
+    let capacity = 1
+    while (capacity < peers.length) capacity *= 2
+    const bounds = new Float64Array(8 * capacity)
+    const ordinals = new Int32Array(2 * capacity).fill(-1)
+    const leaves = new Int32Array(peers.length)
+    const snapshots = new Map<PositionedEdge, PeerMarkerSnapshot>()
+    const rows: PeerMarkerSnapshot[] = []
+    const uncertain = new Set<number>(), dirty = new Set<PositionedEdge>()
+    const write = (node: number, box?: MarkerBox): void => {
+      const offset = 4 * node
+      bounds[offset] = box?.x0 ?? Infinity; bounds[offset + 1] = box?.y0 ?? Infinity
+      bounds[offset + 2] = box?.x1 ?? -Infinity; bounds[offset + 3] = box?.y1 ?? -Infinity
+    }
+    const join = (node: number): void => {
+      const offset = 4 * node, left = 8 * node, right = left + 4
+      bounds[offset] = Math.min(bounds[left]!, bounds[right]!); bounds[offset + 1] = Math.min(bounds[left + 1]!, bounds[right + 1]!)
+      bounds[offset + 2] = Math.max(bounds[left + 2]!, bounds[right + 2]!); bounds[offset + 3] = Math.max(bounds[left + 3]!, bounds[right + 3]!)
+    }
+    const refresh = (snapshot: PeerMarkerSnapshot): void => {
+      const edge = snapshot.edge, visible = edge.style !== 'invisible' && (edge.hasArrowStart || edge.hasArrowEnd)
+      snapshot.known = !visible || mappingKnown(edge, style)
+      snapshot.view = visible && snapshot.known ? markerView(edge, style, false) : undefined
+      let combined: MarkerBox | undefined
+      let unknown = !snapshot.known
+      for (const marker of snapshot.view?.regions ?? []) {
+        const box = expandedMarkerBox(marker)
+        if (!box) { unknown = true; break }
+        if (!combined) combined = { ...box }
+        else {
+          combined.x0 = Math.min(combined.x0, box.x0); combined.y0 = Math.min(combined.y0, box.y0)
+          combined.x1 = Math.max(combined.x1, box.x1); combined.y1 = Math.max(combined.y1, box.y1)
+        }
+      }
+      snapshot.bounds = unknown ? undefined : combined
+      for (const ordinal of snapshot.ordinals) {
+        if (unknown) uncertain.add(ordinal)
+        else uncertain.delete(ordinal)
+      }
+    }
+    peers.forEach((edge, ordinal) => {
+      let snapshot = snapshots.get(edge)
+      if (!snapshot) { snapshot = { edge, ordinals: [], known: false }; snapshots.set(edge, snapshot) }
+      snapshot.ordinals.push(ordinal); rows.push(snapshot)
+    })
+    for (const snapshot of snapshots.values()) refresh(snapshot)
+    const build = (order: number[], node: number): void => {
+      if (order.length === 1) {
+        const ordinal = order[0]!
+        ordinals[node] = ordinal; leaves[ordinal] = node; write(node, rows[ordinal]!.bounds)
+        return
+      }
+      let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity
+      for (const ordinal of order) {
+        const box = rows[ordinal]!.bounds
+        if (box) { x0 = Math.min(x0, box.x0); y0 = Math.min(y0, box.y0); x1 = Math.max(x1, box.x1); y1 = Math.max(y1, box.y1) }
+      }
+      const axis = x1 - x0 >= y1 - y0 ? 'x0' : 'y0'
+      order.sort((a, b) => (rows[a]!.bounds?.[axis] ?? 0) - (rows[b]!.bounds?.[axis] ?? 0) || a - b)
+      const middle = Math.floor(order.length / 2)
+      build(order.slice(0, middle), 2 * node); build(order.slice(middle), 2 * node + 1); join(node)
+    }
+    if (rows.length) build(rows.map((_, index) => index), 1)
+    const flush = (): void => {
+      for (const edge of dirty) {
+        const snapshot = snapshots.get(edge)
+        if (!snapshot) continue
+        refresh(snapshot)
+        for (const ordinal of snapshot.ordinals) {
+          const leaf = leaves[ordinal]!
+          write(leaf, snapshot.bounds)
+          for (let parent = leaf >> 1; parent; parent >>= 1) join(parent)
+        }
+      }
+      dirty.clear()
+    }
+    return { bounds, ordinals, snapshots, rows, uncertain, dirty, flush }
+  }
+  let state: ReturnType<typeof prepare> | undefined, admitted: boolean | undefined
+  return {
+    invalidate(edge) { state?.dirty.add(edge) },
+    view(edge) { return state?.snapshots.get(edge) },
+    query(marker, currentPeers, currentStyle) {
+      if (currentPeers !== peers || currentStyle !== style) return undefined
+      const box = expandedMarkerBox(marker)
+      if (!box) return undefined
+      if (admitted === undefined) admitted = admit ? admit() === true : true
+      if (!admitted) return undefined
+      const prepared = state ??= prepare()
+      prepared.flush()
+      const found = [...prepared.uncertain]
+      const visit = (node: number): void => {
+        const offset = 4 * node, bounds = prepared.bounds
+        if (!(box.x0 <= bounds[offset + 2]! && box.x1 >= bounds[offset]! && box.y0 <= bounds[offset + 3]! && box.y1 >= bounds[offset + 1]!)) return
+        const ordinal = prepared.ordinals[node]!
+        if (ordinal >= 0) found.push(ordinal)
+        else { visit(2 * node); visit(2 * node + 1) }
+      }
+      if (prepared.rows.length) visit(1)
+      found.sort((a, b) => a - b)
+      return found.map(ordinal => peers[ordinal]!)
+    },
+  }
+}
 
 function markerView(edge: PositionedEdge, style: LabelMetricsStyle, includeHull = true): { regions: MarkerRegion[]; points: Point[]; directional: boolean } {
   const points = edge.points.map(point => ({ x: Number(formatSvgNumber(point.x)), y: Number(formatSvgNumber(point.y)) }))
@@ -198,10 +333,11 @@ function indexedMarkerPeers(peers: readonly PositionedEdge[], style: LabelMetric
 }
 
 /** Optional endpoint-centering candidates may not discard reserved marker
- * seats. Refresh peer geometry from live routes; never cache acceptance decisions.
+ * seats. Borrowed callers read live peers; an owned pass may reuse explicitly
+ * invalidated marker views. No candidate acceptance is retained.
  * Unchanged endpoint occurrences keep their existing proof/status, while a
  * changed one must separate from ALL peers and its staged opposite marker. */
-export function routeCandidateMarkerBlocker(edge: PositionedEdge, points: Point[], peers: readonly PositionedEdge[], style: LabelMetricsStyle, peerOwner: PositionedEdge = edge): RouteBlocker | undefined {
+export function routeCandidateMarkerBlocker(edge: PositionedEdge, points: Point[], peers: readonly PositionedEdge[], style: LabelMetricsStyle, peerOwner: PositionedEdge = edge, context?: RouteMarkerPeerContext): RouteBlocker | undefined {
   if (!edge.hasArrowStart && !edge.hasArrowEnd || edge.style === 'invisible') return undefined
   const blocker = (owner: PositionedEdge, position: string, relation: string): RouteBlocker => ({ kind: 'port', id: `${relation}:${owner.id ?? `${owner.source}->${owner.target}[${owner.edgeIndex ?? peers.indexOf(owner)}]`}:${position}` })
   if (!mappingKnown({ ...edge, points }, style)) return blocker(peerOwner, 'mapping', 'marker')
@@ -223,9 +359,13 @@ export function routeCandidateMarkerBlocker(edge: PositionedEdge, points: Point[
           : sameTerminalSegment(edge.points, points, marker.position))) continue
     if (!measured(marker)) return blocker(peerOwner, marker.position, 'marker')
     for (const opposite of after) if (opposite !== marker && !separated(marker, opposite)) return blocker(peerOwner, opposite.position, 'opposite-marker')
-    indexed ??= indexedMarkerPeers(peers, style)
+    const ownedPeers = context?.query(marker, peers, style)
+    if (!context) indexed ??= indexedMarkerPeers(peers, style)
     const nearby = indexed?.query?.(marker.bounds!)
-    const candidates = nearby ?? peers.map((peer, order) => ({ peer, order, known: mappingKnown(peer, style), view: undefined }))
+    const candidates = ownedPeers ? ownedPeers.map(peer => {
+      const retained = context!.view(peer)
+      return { peer, known: retained ? retained.known : mappingKnown(peer, style), view: retained?.view }
+    }) : nearby ?? peers.map((peer, order) => ({ peer, order, known: mappingKnown(peer, style), view: undefined }))
     for (const entry of candidates) {
       const peer = entry.peer
       if (peer === peerOwner || peer.style === 'invisible' || !peer.hasArrowStart && !peer.hasArrowEnd) continue
@@ -248,6 +388,6 @@ export function routeCandidateMarkerBlocker(edge: PositionedEdge, points: Point[
   return undefined
 }
 
-export function routeCandidateMarkersClear(edge: PositionedEdge, points: Point[], peers: readonly PositionedEdge[], style: LabelMetricsStyle, peerOwner: PositionedEdge = edge): boolean {
-  return routeCandidateMarkerBlocker(edge, points, peers, style, peerOwner) === undefined
+export function routeCandidateMarkersClear(edge: PositionedEdge, points: Point[], peers: readonly PositionedEdge[], style: LabelMetricsStyle, peerOwner: PositionedEdge = edge, context?: RouteMarkerPeerContext): boolean {
+  return routeCandidateMarkerBlocker(edge, points, peers, style, peerOwner, context) === undefined
 }

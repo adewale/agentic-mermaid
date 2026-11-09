@@ -1,5 +1,11 @@
 # Trinity: measured layout contract and replacement design
 
+**Feature development frozen, 9 November 2026.** The owner selected Native as
+the sole replacement candidate. Keep the existing Trinity API for compatibility;
+port useful neutral-contract and capacity work into Native. The design below
+records the earlier experiment. The [Native plan](layout-0.6-qualification.md)
+owns current work; it does not authorize another Trinity feature queue.
+
 Status: bounded Trinity rectangular Flowchart/State including nested scopes, canonical Flowchart decision diamonds in closed scopes, fixed State start/end circles, canonical Class scopes with notes/cardinalities, flat ER cards, single-container Architecture service forests and Requirement rendering is publicly selectable with
 `graphLayout: { backend: 'trinity' }`. Source/Node, layout, PNG and lazy browser
 entry points share the real adapter and decision evidence. Routed admission is

@@ -13,7 +13,8 @@ import { layoutGraphSync } from '../layout-engine.ts'
 import { assessLayout, hardViolations } from '../layout-rubric.ts'
 import { applyRouteContracts, closeRouteContracts, findRouteHitches } from '../route-contracts.ts'
 import { graphEdgeMarkerPaintRegions } from '../graph-connectors.ts'
-import { routeCandidateMarkerBlocker, routeCandidateMarkersClear, withRouteMarkerCache } from '../layout/route-marker-clearance.ts'
+import { createRouteMarkerPeerContext, routeCandidateMarkerBlocker, routeCandidateMarkersClear, withRouteMarkerCache } from '../layout/route-marker-clearance.ts'
+import { invalidateRouteGeometry, setRoutePoints } from '../layout/route-geometry.ts'
 import { laneContextFor, repairRectLikeEndpointOverflow, tryStraighten } from '../layout/route-lanes.ts'
 import type { Point, PositionedEdge, PositionedNode } from '../types.ts'
 import { routeMarkerPaintRegions } from '../layout/route-marker-clearance.ts'
@@ -192,16 +193,25 @@ test('optional straightening preserves a source marker beside an unchanged incom
   expect(edge.points[0]!.y).toBe(12)
 })
 
-test('marker candidates check their staged opposite head and fresh peer geometry without rechecking inherited issues', () => {
+test.each([false, true])('marker candidates retain staged opposite and fresh peer geometry (indexed=%s)', indexed => {
   const loop = marked('S', 'S', [{ x: 100, y: 20 }, { x: 120, y: 20 }, { x: 120, y: 40 }, { x: 100, y: 40 }], true, true)
   const colliding = [{ x: 100, y: 35.7 }, { x: 120, y: 35.7 }, { x: 120, y: 40 }, { x: 100, y: 40 }]
   expect(routeCandidateMarkersClear(loop, colliding, [loop], markerStyle)).toBe(false)
   expect(routeCandidateMarkerBlocker(loop, colliding, [loop], markerStyle)?.id).toContain('opposite-marker:')
   const peer = marked('P', 'S', [{ x: 200, y: 42 }, { x: 100, y: 42 }])
+  const peers = [loop, peer]
+  const owner = { routeMarkerPeers: indexed ? createRouteMarkerPeerContext(peers, markerStyle) : undefined }
+  const clear = (points: Point[]) => routeCandidateMarkersClear(loop, points, peers, markerStyle, loop, owner.routeMarkerPeers)
   const safe = [{ x: 100, y: 10 }, { x: 120, y: 10 }, { x: 120, y: 40 }, { x: 100, y: 40 }]
-  expect(routeCandidateMarkersClear(loop, safe, [loop, peer], markerStyle)).toBe(true)
-  peer.points = [{ x: 200, y: 14.3 }, { x: 100, y: 14.3 }]
-  expect(routeCandidateMarkersClear(loop, safe, [loop, peer], markerStyle)).toBe(false)
+  expect(clear(safe)).toBe(true)
+  const saved = peer.points
+  setRoutePoints(owner, peer, [{ x: 200, y: 14.3 }, { x: 100, y: 14.3 }])
+  expect(clear(safe)).toBe(false)
+  setRoutePoints(owner, peer, saved)
+  expect(clear(safe)).toBe(true)
+  peer.points[0]!.y = peer.points[1]!.y = 14.3
+  invalidateRouteGeometry(owner, peer)
+  expect(clear(safe)).toBe(false)
   expect(routeCandidateMarkersClear(loop, [], [loop], markerStyle)).toBe(false)
 })
 
@@ -215,6 +225,18 @@ test('marker candidates retain actual width and orientation instead of comparing
   const vertical = marked('A', 'T', [{ x: 100, y: 0 }, { x: 100, y: 20 }])
   peer.points = [{ x: 200, y: 24.3 }, { x: 100, y: 24.3 }]
   expect(routeCandidateMarkersClear(vertical, route, [vertical, peer], markerStyle)).toBe(false)
+})
+
+test.each([false, true])('marker peer queries retain authored blockers and unknown geometry (indexed=%s)', indexed => {
+  const edge = marked('A', 'T', [{ x: 200, y: 10 }, { x: 100, y: 10 }])
+  const unknown = marked('U', 'T', [{ x: NaN, y: 100 }, { x: 100, y: 100 }])
+  const collision = marked('C', 'T', [{ x: 200, y: 24.3 }, { x: 100, y: 24.3 }])
+  const route = [{ x: 200, y: 20 }, { x: 100, y: 20 }]
+  for (const [first, second, expected] of [[unknown, collision, 'peer-marker:U->T[1]:mapping'], [collision, unknown, 'peer-marker:C->T[1]:end']] as const) {
+    const peers = [edge, first, second]
+    const context = indexed ? createRouteMarkerPeerContext(peers, markerStyle) : undefined
+    expect(routeCandidateMarkerBlocker(edge, route, peers, markerStyle, edge, context)?.id).toBe(expected)
+  }
 })
 
 test('exact convergent glyph repaint retains all other peer checks and never admits a different pose or paint', () => {

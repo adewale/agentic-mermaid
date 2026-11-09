@@ -382,7 +382,7 @@ export function prepareMeasuredGraphCandidate(
   if (!completion) return { width: geometry.width, height: geometry.height, nodes, edges, groups }
   // Forest fans use shared trunks. Layered placement reserves private label
   // corridors; generic bundling can move foreign routes into those corridors.
-  const positioned = finishGraphGeometry({ width: geometry.width, height: geometry.height, nodes, edges, groups }, graph, completion.mergeEdges, opts.padding, style, options.stateVisual?.noteMargin ?? 18, undefined, completion.sharedEdges).positioned
+  const positioned = finishGraphGeometry({ width: geometry.width, height: geometry.height, nodes, edges, groups }, graph, completion.mergeEdges, opts.padding, style, options.stateVisual?.noteMargin ?? 18, undefined, completion.sharedEdges, true).positioned
   if (containsNonFiniteNumber(positioned)) throw new TypeError('Agentic graph pipeline returned non-finite geometry')
   return positioned
   } }

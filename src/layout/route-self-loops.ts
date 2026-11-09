@@ -8,7 +8,7 @@ import { routeCandidateMarkerBlocker, routeMarkerPaintRegions } from './route-ma
 import { nodePaintBounds, paintedStrokeExtent } from '../scene/bounds.ts'
 import { shapeOutline } from '../shape-outline.ts'
 import { STROKE_WIDTHS, type ResolvedRenderStyle } from '../styles.ts'
-export function createSelfLoopRouter(nodeMap: ReadonlyMap<string, PositionedNode>, groupMap: ReadonlyMap<string, PositionedGroup>, ctx: Pick<LaneContext, 'nodes' | 'edges' | 'style' | 'routeChannelGeometry'>, markerBlockers?: RouteBlocker[], reserved = new Set<PositionedEdge>()): (edge: PositionedEdge) => PortSide | null {
+export function createSelfLoopRouter(nodeMap: ReadonlyMap<string, PositionedNode>, groupMap: ReadonlyMap<string, PositionedGroup>, ctx: Pick<LaneContext, 'nodes' | 'edges' | 'style' | 'routeChannelGeometry' | 'routeMarkerPeers'>, markerBlockers?: RouteBlocker[], reserved = new Set<PositionedEdge>()): (edge: PositionedEdge) => PortSide | null {
   const style = ctx.style
 
   // ---- Self-loop arc routing (plan §State 6; upstream #6336/#6049) --------
@@ -249,7 +249,7 @@ export function createSelfLoopRouter(nodeMap: ReadonlyMap<string, PositionedNode
       // the actual marker pose. Failed seats leave all live routes unchanged.
       const clipped = clipEdgeToShape(clipEdgeToShape(points, node, true), node, false)
       if ([...reserved].some(other => other !== edge && routesCrossOrOverlap(clipped, other.points))) return null
-      const blocker = routeCandidateMarkerBlocker(edge, clipped, ctx.edges, style)
+      const blocker = routeCandidateMarkerBlocker(edge, clipped, ctx.edges, style, edge, ctx.routeMarkerPeers)
       if (blocker) { markerBlockers?.push(blocker); return null }
       const labels = labelPlanFor(side, depth, clipped)
       return labels ? { points: clipped, labels } : null

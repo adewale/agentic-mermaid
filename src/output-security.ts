@@ -325,13 +325,9 @@ export function verifySvgDocumentDataPositions(svg: string, positions: Readonly<
   }
 }
 
-<<<<<<< HEAD
 interface WrittenDocumentInspection { elements: number; styleStarts: number[]; styleEnds: Array<{ start: number; end: number }> }
 
-function verifyDocumentEnvelope(svg: string, observeAttribute?: (name: string, rawValue: string) => void, work?: XmlWork, observeData?: (start: number, end: number, inside: boolean) => boolean, useWritten = false, observeWritten?: (refs: readonly string[], active: readonly string[]) => void, document?: WrittenDocumentInspection): boolean {
-=======
-function verifyDocumentEnvelope(svg: string, observeAttribute?: (name: string, rawValue: string, element: string) => void, work?: XmlWork, observeData?: (start: number, end: number, inside: boolean) => boolean): boolean {
->>>>>>> e387064d0 (feat(flowchart): render sized inline PNGs through shared drawing)
+function verifyDocumentEnvelope(svg: string, observeAttribute?: (name: string, rawValue: string, element: string) => void, work?: XmlWork, observeData?: (start: number, end: number, inside: boolean) => boolean, useWritten = false, observeWritten?: (refs: readonly string[], active: readonly string[]) => void, document?: WrittenDocumentInspection): boolean {
   const stack = xmlParserList<XmlElementFrame>()
   const shortAttributeNames = xmlParserList<string>()
   let longAttributeNames: Set<string> | undefined
@@ -424,7 +420,7 @@ function verifyDocumentEnvelope(svg: string, observeAttribute?: (name: string, r
     if (document) {
       if (/^style\b/i.test(name)) document.styleStarts.push(styleStart)
       const unsafe = SECURITY_ELEMENT_NAME.exec(name)?.[1]
-      if (unsafe) {
+      if (unsafe && !(name === 'image' && inlineImageTagAt(svg, cursor))) {
         const index = SECURITY_ELEMENT_NAMES.findIndex(tag => tag.toLowerCase() === unsafe.toLowerCase())
         document.elements |= 1 << (index < 0 ? SECURITY_ELEMENT_NAMES.length : index)
       }
@@ -702,7 +698,6 @@ interface SecurityFindings {
 
 const securityFindings = createSvgInspector('security', inspectSecurity)
 
-<<<<<<< HEAD
 /** Private writer admission. Empty findings are shared per tag rather than
  * allocating arrays for each scalar field. Errors defer to final admission. */
 export function writtenAttributesFindings(fields: readonly string[]): readonly { readonly name: string; readonly value: string; readonly order: number; readonly refs: readonly string[]; readonly active: readonly string[] }[] | undefined {
@@ -722,10 +717,7 @@ export function writtenAttributesFindings(fields: readonly string[]): readonly {
   return Object.freeze(findings)
 }
 
-function inspectAttributeSecurity(qualified: string, value: string, refs: string[], active: string[]): void {
-=======
 function inspectAttributeSecurity(qualified: string, value: string, refs: string[], active: string[], element?: string): void {
->>>>>>> e387064d0 (feat(flowchart): render sized inline PNGs through shared drawing)
   const lower = qualified.toLowerCase()
   const colon = lower.lastIndexOf(':')
   const name = colon < 0 ? lower : lower.slice(colon + 1)
@@ -776,9 +768,6 @@ function inspectSecurity(svg: string): SecurityFindings {
   return inspectSecurityTail(markup, refs, active)
 }
 
-<<<<<<< HEAD
-function inspectSecurityTail(markup: string, refs: string[], active: string[], knownElements?: number): SecurityFindings {
-=======
 /** Check this exact tag, so a safe sibling cannot excuse another image or namespace. */
 function inlineImageTagAt(markup: string, start: number): boolean {
   if (!/^<image(?:\s|\/?>)/.test(markup.slice(start, start + 8))) return false
@@ -798,8 +787,7 @@ function inlineImageTagAt(markup: string, start: number): boolean {
   return false
 }
 
-function inspectSecurityTail(markup: string, refs: string[], active: string[]): SecurityFindings {
->>>>>>> e387064d0 (feat(flowchart): render sized inline PNGs through shared drawing)
+function inspectSecurityTail(markup: string, refs: string[], active: string[], knownElements?: number): SecurityFindings {
   // Character references are decoded inside attribute values and CSS, where
   // the XML/CSS consumers interpret them. Do not decode the complete document:
   // escaped label text such as `&lt;script&gt;` remains text in XML and must not
@@ -810,14 +798,9 @@ function inspectSecurityTail(markup: string, refs: string[], active: string[]): 
   }
   // Scan the union once, then preserve the established diagnostic order and
   // one finding per tag kind even when hostile markup repeats an element.
-<<<<<<< HEAD
   let elementKinds = knownElements ?? 0
   if (knownElements === undefined) for (const match of markup.matchAll(SECURITY_ELEMENT_TAG)) {
-=======
-  let elementKinds = 0
-  for (const match of markup.matchAll(SECURITY_ELEMENT_TAG)) {
     if (!match[1] && match[2] === 'image' && inlineImageTagAt(markup, match.index!)) continue
->>>>>>> e387064d0 (feat(flowchart): render sized inline PNGs through shared drawing)
     // The raw-reference API also accepts unvalidated markup. Preserve its
     // conservative finding for an unsafe namespace prefix as well as the tag.
     const prefix = match[1] && SECURITY_ELEMENT_NAME.exec(match[1])?.[1]
@@ -845,12 +828,8 @@ function inspectFinalDocument(svg: string, useWritten = false): SecurityFindings
   const active: string[] = []
   let failed = false
   let failure: unknown
-<<<<<<< HEAD
   const document: WrittenDocumentInspection | undefined = useWritten ? { elements: 0, styleStarts: [], styleEnds: [] } : undefined
-  const valid = verifyDocumentEnvelope(svg, (name, rawValue) => {
-=======
   const valid = verifyDocumentEnvelope(svg, (name, rawValue, element) => {
->>>>>>> e387064d0 (feat(flowchart): render sized inline PNGs through shared drawing)
     if (failed) return
     try {
       inspectAttributeSecurity(name, rawValue, refs, active, element)

@@ -14,6 +14,7 @@ import { translateGeometryToNonNegativeOrigin, extractEdgesRecursively, alignLay
 
 /** The mutable bag the post-ELK geometry passes thread through (see ./layout/pass.ts). */
 export interface LayoutPassContext extends PassContextBase {
+  readonly ownedMarkerPeers?: boolean
   readonly elkResult?: ElkNode
   readonly graph: MermaidGraph
   nodes: PositionedNode[]
@@ -216,7 +217,7 @@ export const LAYOUT_PIPELINE: ReadonlyArray<LayoutPass<LayoutPassContext>> = [
       bends: { worsenBy: 4, whenImproves: ['hard', 'crossings', 'endpointApproaches'], perImprovement: true },
       portRate: { worsenBy: 1, whenImproves: ['hard', 'crossings', 'bends', 'endpointApproaches', 'opposingOverlaps'] },
     },
-    run: c => { applyRouteContracts({ nodes: c.nodes, edges: c.edges, groups: c.groups }, c.graph, c.bundled, c.style, c.elkResult ? undefined : { preserveSelfLoops: true, preserveLabels: true, preserveEndpointSeats: true }) },
+    run: c => { applyRouteContracts({ nodes: c.nodes, edges: c.edges, groups: c.groups }, c.graph, c.bundled, c.style, c.elkResult ? undefined : { preserveSelfLoops: true, preserveLabels: true, preserveEndpointSeats: true, ownedMarkerPeers: c.ownedMarkerPeers }) },
   },
   {
     id: 'reanchorOffOutlineEndpoints', doc: 're-route an edge whose endpoint dangles off a moved node onto that node\'s flow port (edge-only, freeze-safe)',
@@ -398,6 +399,7 @@ export function finishGraphGeometry(
   stateNoteMargin: number,
   elkResult?: ElkNode,
   sharedEdges?: readonly number[],
+  ownedMarkerPeers = false,
 ): LayoutRouteProposal {
   const { nodes, edges, groups } = initial
 
@@ -415,6 +417,7 @@ export function finishGraphGeometry(
   // LAYOUT_PIPELINE manifest is the execution path. extractNodesAndGroups + margins
   // (above) are the producer setup; the bounds computation (below) is the epilogue.
   const ctx: LayoutPassContext = {
+    ownedMarkerPeers,
     elkResult,
     graph,
     nodes,
