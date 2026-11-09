@@ -1423,3 +1423,14 @@ not a solver fix or silent security/proof exemption. No runtime/policy/version/
 cap change; retain the failure/unsupported cells. Independent scope review agrees.
 Evidence `trinity-controlled-image-20261109`; next profile the now-completed
 fan-in products before testing an uncached data-oriented subtraction.
+
+At `d951d78360d45c0260779c8d63207dbe92a85c1b`, fresh post-delivery V8 profile
+completes all3 Trinity fan-in calls; five self/inclusive frames reported in the
+performance review. Test dense heap-page directory only, retaining sparse state
+storage. Existing serial ABBA collector:40 complete products all returned/P and
+SVG/entire receipts byte-exact; repeat2 median128.98→125.67ms, edit2
+138.21→186.05ms, cold357.77→403.70ms. Mixed/wide costs establish no stable gain.
+Independent review and actual router probe also expose inherited-descriptor
+observation introduced by the candidate: Map baseline returns, candidate throws.
+Stop the rewrite; production/caches/caps unchanged. Evidence
+`trinity-postdelivery-profile-20261109`; no visible-correctness gain claimed.

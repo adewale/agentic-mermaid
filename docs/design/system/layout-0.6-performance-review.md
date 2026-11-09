@@ -1,5 +1,43 @@
 # Performance review at the integrated PR602 checkpoint
 
+## Completed compound profile and rejected heap directory — 9 November
+
+At `d951d78360d45c0260779c8d63207dbe92a85c1b`, the existing Node24/V8 collector
+profiles nine cache0 attempts on the same supplemental fan-in:8 returned/proof-
+passed and one Native edit refusal. All3 Trinity calls now complete emission;
+the earlier refusal profile below cannot establish their hotspot priorities.
+Two Trinity repeats give these raw **self /inclusive elapsed sample-delta ms per
+call**, not exclusive CPU durations or removable time. Inclusive weights overlap;
+the state-page frame includes one gap above5ms. All source maps and sensitivity
+views remain in `trinity-postdelivery-profile-20261109`.
+
+| Frame / source location | Self / inclusive ms | Matching case and decision | Expected speedup |
+| --- | ---: | --- | --- |
+| `heap`, `layout/compound-lazy-visibility.ts:113` |6.902 /6.902|Hot hash lookup; heap slots/pages are dense, so test an array page directory.|Unmeasured; trial below rejected.|
+| `less`, same file:129 |6.558 /9.379|Hot sparse state-page lookups; retain sparse storage and unchanged priorities/ties.|Unmeasured.|
+| `copyInner`, `scene/native-paint-emission.ts:105` |5.907 /9.216|None/data-oriented; preserve required mutable/getter/ownership capture. Prior unsafe subtraction remains stopped.|Unmeasured.|
+| `ensure`, first file:96 |5.427 /5.427|Hot hash lookup, but state IDs are sparse and allocation is bounded; no dense state allocation proposed.|Unmeasured.|
+| `swap`, first file:133 |4.622 /12.137|Hot heap lookups; the same directory trial, not another rewrite.|Unmeasured; trial below rejected.|
+
+The state pages already use typed SoA columns and integer IDs. No independent
+awaits occur here. Page tables own query storage, not cross-request result caches;
+the existing cache inventory remains, with no new slow-design attribution.
+
+An external array-directory candidate keeps page reservations, IDs, order and
+work charges. Eight serial fresh Node processes in ABBA order consume40 complete
+SVG+entire receipts, all returned/proof-passed and byte-exact across variants.
+Baseline/candidate medians: repeat2 wall128.98/125.67ms, CPU344.04/340.34;
+edit2 wall138.21/186.05, CPU396.41/344.70; cold wall357.77/403.70. Ranges are
+wide and costs mixed, so no stable whole-product benefit is established.
+
+Independent review also finds that the candidate's ordinary property descriptor
+can observe inherited `get`/`set`. An isolated actual router call under inherited
+`get` returns through the Map baseline (zero observations) and throws through the
+candidate (one observation). A null-prototype descriptor would fix that newly
+introduced protocol risk, but the cost evidence does not justify pursuing this
+rewrite. Stop it; no production storage change, new cache or cap change ships.
+Retain all diagnostic sources, timing products, adverse costs and rejected probes.
+
 ## Labelled compound refusal profile — 9 November
 
 Source `680d01bc579fd4d1ef2b92bceb29fe4f54eb03b9`, before the delivery repair
