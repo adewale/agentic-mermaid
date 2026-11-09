@@ -1,6 +1,6 @@
 {
   "owner": "root-trinity-20261109",
-  "updated_at": "2026-11-09T00:51:38.883895+00:00",
+  "updated_at": "2026-11-09T00:53:48.477158+00:00",
   "worktree": "/tmp/pr449-main-integration-20261029-762",
   "branch": "work/pr449-reconstruct-20261103",
   "recovery_base": "3b56da55e6570908beb5d96c25f4c03c1a828a22",
@@ -8,7 +8,7 @@
   "note": "Current Trinity outcomes and remaining losses are recorded in trinity_execution and final_comparison; dated records are retained history.",
   "writers": [],
   "head": "680d01bc579fd4d1ef2b92bceb29fe4f54eb03b9",
-  "next_fix": "Resume with Classnamespace/cardinality/note refusal. Preserve supplemental Pele boundary-port fan-in as a causal witness; do not rewrite routing unless the probe demonstrates a deficit. Current compound120calls andTrident26/30 qualified; broadercapability andoriginalbudgets remain.",
+  "next_fix": "Investigate newly reproduced supplemental PelePR97 fan-in refusal: Trinity hits local cross-hierarchy visibility-expansion cap while Native/ELK return/P. Capture/profile first responsible stage; test smallest geometry intervention without raising caps. Classnamespace/cardinality/note and controlledimage remain frozen losses.",
   "status": "bounded-compound-run-complete-goal-active",
   "checkpoint": "21194248b21873a87fa72fa545f67cfd8b49dad4",
   "evidence": "8e4ebd21df5041ea654343d2037622c9f9ddc3c7",
@@ -834,7 +834,17 @@
         "compressedWireMeasured": false
       },
       "familyConsumers": "231P withcanonical30000ms; prior221P10plainBun5000mstimeouts retained, no cap/test change",
-      "recoveryPending": true
+      "recoveryPending": true,
+      "communityCounterexample": {
+        "source": "Pele PR97 first source block",
+        "subjects": 8,
+        "edges": 8,
+        "trinity": "unsupported local cross-hierarchy visibility-expansion limit",
+        "native": "returned proofpassed",
+        "elk": "returned proofpassed",
+        "independentInk": "notqualified",
+        "addedToFrozen30": false
+      }
     }
   },
   "latest_checkpoint_at": "2026-11-08T18:07:51.384899+00:00",

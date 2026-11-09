@@ -1,0 +1,37 @@
+[
+  {
+    "path": "elk-nested-flowchart.png",
+    "bytes": 9793,
+    "sha256": "2a8a394f124ed5b927ced7b458d06c55631396be24eccfc7327f2dc4afd2f6b5"
+  },
+  {
+    "path": "agentic-nested-flowchart.png",
+    "bytes": 9751,
+    "sha256": "259a621c6a5237b7d60ee69a7985a58ff50ceb8a5ac03a6dc3f30534315efc6d"
+  },
+  {
+    "path": "trinity-nested-flowchart.png",
+    "bytes": 9576,
+    "sha256": "1fa3426ffcf4fe7cec676a3f37abecd54493dc4221f891006f8e4c4220ecaa0a"
+  },
+  {
+    "path": "elk-nested-state.png",
+    "bytes": 8104,
+    "sha256": "4d25ef6c5ed592e42e64fd4d10a3fd91e00ae6ed2e8bf4cd69a1f4ebf84717f9"
+  },
+  {
+    "path": "agentic-nested-state.png",
+    "bytes": 7835,
+    "sha256": "e1292200009950b565ae0c5af224b3972986a8890e6b98943e0150f39658c7e5"
+  },
+  {
+    "path": "trinity-nested-state.png",
+    "bytes": 7872,
+    "sha256": "eeb7059a6c9a0b402f535c514bc289b242f6264f577e92b47f1fd73631066fd8"
+  },
+  {
+    "path": "campaign-state.json",
+    "bytes": 49906,
+    "sha256": "4e8e3cf130820fda026a6ba40c121a3f4b59f70f86dd845b6dc01648e3d9e404"
+  }
+]
