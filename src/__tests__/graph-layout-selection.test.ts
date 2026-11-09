@@ -28,6 +28,20 @@ import * as trinityKernel from '../layout/trinity.ts'
 import type { MeasuredGraph } from '../layout/measured-graph.ts'
 
 describe('Trinity primary measured producer', () => {
+  test.each(['LR', 'RL', 'TB', 'BT'])('connects labelled cross-group fan-in to leaves in %s', direction => {
+    const source = `flowchart ${direction}\nsubgraph A\na1\na2\nend\nsubgraph B\nb1["b1<br/>two<br/>three"]\nb2["b2<br/>two<br/>three"]\nb3["b3<br/>two<br/>three"]\nb4["b4<br/>two<br/>three<br/>four"]\nend\na1 -->|label| b1\na2 -->|label| b1\na1 -->|label| b2\na2 -->|label| b2\na1 -->|label| b3\na2 -->|label| b3\na1 -->|label| b4\na2 -->|label| b4`
+    const options = { graphLayout: { backend: 'trinity' as const, fallback: 'none' as const }, embedFontImport: false }
+    const product = renderMermaidSVGWithReceipt(source, options)
+    expect(product.receipt.layoutDecisions?.[0]).toMatchObject({ requested: 'trinity', selected: 'trinity' })
+    expect(product.receipt.layoutCertification?.status).toBe('passed')
+    const { layout } = layoutMermaidWithReceipt(source, options)
+    expect(layout.nodes.map(node => node.id)).toEqual(['a1', 'a2', 'b1', 'b2', 'b3', 'b4'])
+    expect(layout.groups?.map(group => [group.id, group.members])).toEqual([['A', ['a1', 'a2']], ['B', ['b1', 'b2', 'b3', 'b4']]])
+    expect(layout.edges.map(edge => [edge.from, edge.to, edge.label?.text])).toEqual(['b1', 'b2', 'b3', 'b4'].flatMap(target => [['a1', target, 'label'], ['a2', target, 'label']]))
+    const carriers = scanSvgStartTags(product.svg).filter(tag => decodedSvgAttributeValue(tag, 'data-role') === 'edge')
+    expect(carriers.map(tag => [decodedSvgAttributeValue(tag, 'data-from'), decodedSvgAttributeValue(tag, 'data-to')])).toEqual(layout.edges.map(edge => [edge.from, edge.to]))
+    expect(renderMermaidSVGWithReceipt(source, options)).toEqual(product)
+  })
   test('compound work exhaustion stays hard when ELK fallback is allowed', () => {
     const factory = trinityKernel.trinityMeasuredAdapter
     const observed = spyOn(trinityKernel, 'trinityMeasuredAdapter').mockImplementation(work => {

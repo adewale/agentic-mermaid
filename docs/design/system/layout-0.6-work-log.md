@@ -1336,3 +1336,26 @@ original gzip cap still fails8289. Complete runtime/memory/lazy costs follow;
 no performance gain or replacement readiness claim. Evidence:
 `trinity-compound-20261109`. Remaining enrolled losses are Class namespace/
 cardinality/note and controlled image; wider workload/quality/resource losses remain.
+
+### Labelled cross-group fan-in — 9 November
+
+After `680d01bc579fd4d1ef2b92bceb29fe4f54eb03b9`, Pele PR97's six-leaf,
+eight-edge witness reproduces Trinity expansion refusal. Fresh nine-attempt V8
+profile and ledger capture find wasted primary search; both direct-first and
+single-search subtraction still fail, so stop those hypotheses. Final-edge57
+proposals all fail measured contact against a committed peer. Preserve the label
+shaft, replace temporary quotient bends with actual descendant connections;
+retain border escape offsets and charge the shaft scan. No cap/cache change.
+
+Four directions refuse before and return/proof-pass after; actual Trident SVG/ink
+observers find no failed checks on ten returned three-backend products. Native
+TB/BT refusals remain. Frozen26/30 delivery unchanged;39 affected cohort outcomes
+and SVGs exact. Native compounds33/34 exact; changed Class case retains area220248,
+wire640→618, bends12→6. LR witness ELK/Native/Trinity area269990/245660/236886,
+wire3289.85/2334.19/2693.10, crossings6/13/9; TB crossings13/unsupported/29 are
+adverse. Primary/kernel/cache213P; nearby211P plus corrected Class guard1P;
+core/repo types, lint, editor/lazy builds pass. Editor gzip1342789→1342154,
+Brotli1282069→1281810; original gzip cap still fails7654. Independent review
+finds no remaining blocker. Evidence `trinity-community-ports-20261109` retains
+failed trials. Complete runtime/fetched payload qualification follows; remaining
+losses include Class namespace/cardinality/note and controlled image. Retain ELK.
