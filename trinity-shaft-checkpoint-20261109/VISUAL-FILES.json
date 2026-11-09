@@ -1,0 +1,66 @@
+{
+  "runtime": "e928a1847ef773058f62e36122780a81fcd928f7",
+  "files": [
+    {
+      "path": "agentic-LR.png",
+      "sha256": "1bd638750d3f8fd154d41e1c713f5923c178d55a54894ca32c886f916d23782c",
+      "bytes": 17459
+    },
+    {
+      "path": "agentic-RL.png",
+      "sha256": "f3420ef617104e83319ae8a100763eae4a72d13b2b781dfdaee3e19c7253cafa",
+      "bytes": 17622
+    },
+    {
+      "path": "class-after.png",
+      "sha256": "fb20b9eff2beb0028a7c099145579525995c9985e529f0eaa28c89f9cf200674",
+      "bytes": 16281
+    },
+    {
+      "path": "class-before.png",
+      "sha256": "c04ccc90104e9927663ebd69bf53f7792010eb66e6f25731ba2703c86b6d1dd8",
+      "bytes": 16414
+    },
+    {
+      "path": "elk-BT.png",
+      "sha256": "5788b3e53b0cc3f794ccfb36b097a9aa17e00910e5515cd3cc5122bb0c601256",
+      "bytes": 15525
+    },
+    {
+      "path": "elk-LR.png",
+      "sha256": "5b711f1b8c6e4599402bf3dcab7f79b33e16969d71392792339b9baca6da6ef5",
+      "bytes": 17415
+    },
+    {
+      "path": "elk-RL.png",
+      "sha256": "f04e26024f0504afb1472833387c3f12095c0c6d15d836ce5942941d032dede1",
+      "bytes": 17249
+    },
+    {
+      "path": "elk-TB.png",
+      "sha256": "a97dee1c5f42e39e5948c7c523ca6166c1f6d185b360629fa3caeca9e4c5ed38",
+      "bytes": 18722
+    },
+    {
+      "path": "trinity-BT.png",
+      "sha256": "5e8000cae820e694a925e0de9b64bc24f0c8562457caa24166655ff9a808fd50",
+      "bytes": 12885
+    },
+    {
+      "path": "trinity-LR.png",
+      "sha256": "bb7faeb2f5350e05d3f6c9925f90892894af4f7acb0bc88594ec32461c847633",
+      "bytes": 17092
+    },
+    {
+      "path": "trinity-RL.png",
+      "sha256": "52eeadd1415dac7e99ad4158a37c03cd4ddc5b2caf9c55a7d4253d0986638c1b",
+      "bytes": 17362
+    },
+    {
+      "path": "trinity-TB.png",
+      "sha256": "0ce7efbec604e9de1a10bba40eeef4905e991bfad6ac478003dd3cfabc7bd97a",
+      "bytes": 13239
+    }
+  ],
+  "scope": "Actual Chromium screenshots of current public SVG; class-before is retained pre-change control. Corresponding raw observer evidence in archive."
+}
