@@ -1,0 +1,4167 @@
+[
+  {
+    "path": "trinity-lazy-priority-20261109/ABBA-QUALIFICATION.json",
+    "bytes": 79376,
+    "sha256": "161fcd90a431c7b92140ab78f68f728bf7446e29fa84fbc5bd37922a238b1853"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/ABBA-RUNS.json",
+    "bytes": 1209,
+    "sha256": "426ac44b82c8c2dfa068898ede32b63bf3c9b527c74b8e1968520ba87ec3f7ca"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/BROWSER-COMPLETED.json",
+    "bytes": 1186,
+    "sha256": "8a3063928334afd244738c2d86ad3423a3c0b2e1febcf0d2708d62688e56dacc"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/BROWSER-DELTAS.json",
+    "bytes": 1255,
+    "sha256": "cb1f5a15bdae411f6c9945964b9aebe073b9999b267b1ffbd139a957a0a7b33b"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/COST-RUNS.json",
+    "bytes": 1616,
+    "sha256": "423d896862ccc2deeb3edfc7c578f5b9d22ea2ed5821947cc704f006af03e140"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/COST-SUMMARY.json",
+    "bytes": 8118,
+    "sha256": "292931e9029ea23762770a7f1a7c782c440940e4cf8f9cba423dbf144adaad27"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/FANIN-QUALIFICATION.json",
+    "bytes": 2371,
+    "sha256": "30c1205b5dc94eb638e92ee66e1264b6b68dbebaec96bcdaeb5709e63271e47f"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/FROZEN-QUALIFICATION.json",
+    "bytes": 438,
+    "sha256": "fc3b477e9db27c968feb8f0dc0acd381913b11f45526efbb53b02fa48f54e0a2"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/FROZEN-REQUALIFICATION.json",
+    "bytes": 29441,
+    "sha256": "e275d97f54bf02822311a96e19a0c8c1e420050e5cd17b6de73fdec406d83acd"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/PRODUCT-STREAMS.json",
+    "bytes": 14883,
+    "sha256": "4619ab8ff36731344a1ef73556a1ad896d378884c6c12975f201b79419635ea9"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/PROFILE-FIRST.md",
+    "bytes": 2303,
+    "sha256": "8cb38f224c63055f97a46490c24f240b39c40327c741e03b965a83835a05b381"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/README.md",
+    "bytes": 4303,
+    "sha256": "deddec942d4b3dfc29a73c2e06c237845ca207d3cc523deaab029d4ebc35bf00"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/abba-0-baseline/RESULT.json.gz",
+    "bytes": 1821,
+    "sha256": "82c760504a4032dcc86190acbd89292d06036d6785e2aaf3f1c253d59c32043b"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/abba-0-baseline/cache-audit.json.gz",
+    "bytes": 278,
+    "sha256": "3493f7bccf05d26cdbe9798211049703c46d09c5efac781f3f111fb1dbe4f65e"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/abba-0-baseline/cold-render.row.json.gz",
+    "bytes": 622,
+    "sha256": "d0d4c594a7ba875afef8b7d040951d5500587a5d0bfcc7625c29b10e3b9a3817"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/abba-0-baseline/edit.cpuprofile.gz",
+    "bytes": 41,
+    "sha256": "f0bd37867d41bea6d64d7f6235bd223c9c977116a24df687b1d9dd99e5a11be1"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/abba-0-baseline/edit.receipt.json.gz",
+    "bytes": 1205,
+    "sha256": "3d6e978dcbd25a96b494a5ba5d076e6c8a8493e181a318f2d00f0c0106f63e31"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/abba-0-baseline/edit.row.json.gz",
+    "bytes": 653,
+    "sha256": "a3c63f60bac05b0650affb83d987e4327cb4e9b20b107d55cbbf1a289addf82a"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/abba-0-baseline/edit.svg.gz",
+    "bytes": 2151,
+    "sha256": "eea69ca1e3ee32979124f3f6751e941ff942f9c52e714268fd578e4115de59f9"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/abba-0-baseline/edit2.cpuprofile.gz",
+    "bytes": 41,
+    "sha256": "f0bd37867d41bea6d64d7f6235bd223c9c977116a24df687b1d9dd99e5a11be1"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/abba-0-baseline/edit2.receipt.json.gz",
+    "bytes": 1205,
+    "sha256": "3d6e978dcbd25a96b494a5ba5d076e6c8a8493e181a318f2d00f0c0106f63e31"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/abba-0-baseline/edit2.row.json.gz",
+    "bytes": 648,
+    "sha256": "42c1c845140d8893bea116f51297b69237a36f18060a33e2b2a87cdedf41b3dd"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/abba-0-baseline/edit2.svg.gz",
+    "bytes": 2151,
+    "sha256": "eea69ca1e3ee32979124f3f6751e941ff942f9c52e714268fd578e4115de59f9"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/abba-0-baseline/repeat1.cpuprofile.gz",
+    "bytes": 41,
+    "sha256": "f0bd37867d41bea6d64d7f6235bd223c9c977116a24df687b1d9dd99e5a11be1"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/abba-0-baseline/repeat1.receipt.json.gz",
+    "bytes": 1207,
+    "sha256": "33c8725e4a4da699345625648c8f7f43c510d3635acb1160a7a2c5e487ab1156"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/abba-0-baseline/repeat1.row.json.gz",
+    "bytes": 670,
+    "sha256": "7b4730a6bdff5b741ad489f8e895c864f72adcecb1db54cf6109541d81f67f05"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/abba-0-baseline/repeat1.svg.gz",
+    "bytes": 2122,
+    "sha256": "cbcf01e09801830506ad4bf2dbf22fbd92938d3a6d880b479ac52bc54574d8c6"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/abba-0-baseline/repeat2.cpuprofile.gz",
+    "bytes": 41,
+    "sha256": "f0bd37867d41bea6d64d7f6235bd223c9c977116a24df687b1d9dd99e5a11be1"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/abba-0-baseline/repeat2.receipt.json.gz",
+    "bytes": 1207,
+    "sha256": "33c8725e4a4da699345625648c8f7f43c510d3635acb1160a7a2c5e487ab1156"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/abba-0-baseline/repeat2.row.json.gz",
+    "bytes": 673,
+    "sha256": "5d73cd086b51c72f30e549ac200621935adee9299e4c65631263281ce08f02de"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/abba-0-baseline/repeat2.svg.gz",
+    "bytes": 2122,
+    "sha256": "cbcf01e09801830506ad4bf2dbf22fbd92938d3a6d880b479ac52bc54574d8c6"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/abba-0-baseline/source-maps.json.gz",
+    "bytes": 22,
+    "sha256": "73a1b438b0221511fb3dde18e019f5ab045811b2248d25d424e40980c683a9dc"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/abba-0-baseline/warmup.receipt.json.gz",
+    "bytes": 1207,
+    "sha256": "33c8725e4a4da699345625648c8f7f43c510d3635acb1160a7a2c5e487ab1156"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/abba-0-baseline/warmup.svg.gz",
+    "bytes": 2122,
+    "sha256": "cbcf01e09801830506ad4bf2dbf22fbd92938d3a6d880b479ac52bc54574d8c6"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/abba-0-baseline.log",
+    "bytes": 695,
+    "sha256": "32bec0dfac41924534f2b17232c9cc1cc0eb41db65cb35b27d8e687a42a27128"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/abba-1-local/RESULT.json.gz",
+    "bytes": 1915,
+    "sha256": "74f723de028d329f5d0807acaff91cfd528939bc99f37cb5db7693367609c45e"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/abba-1-local/cache-audit.json.gz",
+    "bytes": 278,
+    "sha256": "3493f7bccf05d26cdbe9798211049703c46d09c5efac781f3f111fb1dbe4f65e"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/abba-1-local/cold-render.row.json.gz",
+    "bytes": 613,
+    "sha256": "7681300a63e295ac5f8e32134d0260e2124db7f6d5a9b54493c764207840128d"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/abba-1-local/edit.cpuprofile.gz",
+    "bytes": 41,
+    "sha256": "f0bd37867d41bea6d64d7f6235bd223c9c977116a24df687b1d9dd99e5a11be1"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/abba-1-local/edit.receipt.json.gz",
+    "bytes": 1205,
+    "sha256": "3d6e978dcbd25a96b494a5ba5d076e6c8a8493e181a318f2d00f0c0106f63e31"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/abba-1-local/edit.row.json.gz",
+    "bytes": 648,
+    "sha256": "9e4f97e4741664af215bfb48e40864c6dd73e962823b34fa53f60b61493af7c7"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/abba-1-local/edit.svg.gz",
+    "bytes": 2151,
+    "sha256": "eea69ca1e3ee32979124f3f6751e941ff942f9c52e714268fd578e4115de59f9"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/abba-1-local/edit2.cpuprofile.gz",
+    "bytes": 41,
+    "sha256": "f0bd37867d41bea6d64d7f6235bd223c9c977116a24df687b1d9dd99e5a11be1"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/abba-1-local/edit2.receipt.json.gz",
+    "bytes": 1205,
+    "sha256": "3d6e978dcbd25a96b494a5ba5d076e6c8a8493e181a318f2d00f0c0106f63e31"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/abba-1-local/edit2.row.json.gz",
+    "bytes": 651,
+    "sha256": "0a2b62a593d3bead8194cc6389b6167979a30957c78d3011ee8f0eae08497dbe"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/abba-1-local/edit2.svg.gz",
+    "bytes": 2151,
+    "sha256": "eea69ca1e3ee32979124f3f6751e941ff942f9c52e714268fd578e4115de59f9"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/abba-1-local/repeat1.cpuprofile.gz",
+    "bytes": 41,
+    "sha256": "f0bd37867d41bea6d64d7f6235bd223c9c977116a24df687b1d9dd99e5a11be1"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/abba-1-local/repeat1.receipt.json.gz",
+    "bytes": 1207,
+    "sha256": "33c8725e4a4da699345625648c8f7f43c510d3635acb1160a7a2c5e487ab1156"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/abba-1-local/repeat1.row.json.gz",
+    "bytes": 669,
+    "sha256": "b9429b6a9215f42bc98582fd1df923582c653807fc35917ccc523302cf5a736a"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/abba-1-local/repeat1.svg.gz",
+    "bytes": 2122,
+    "sha256": "cbcf01e09801830506ad4bf2dbf22fbd92938d3a6d880b479ac52bc54574d8c6"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/abba-1-local/repeat2.cpuprofile.gz",
+    "bytes": 41,
+    "sha256": "f0bd37867d41bea6d64d7f6235bd223c9c977116a24df687b1d9dd99e5a11be1"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/abba-1-local/repeat2.receipt.json.gz",
+    "bytes": 1207,
+    "sha256": "33c8725e4a4da699345625648c8f7f43c510d3635acb1160a7a2c5e487ab1156"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/abba-1-local/repeat2.row.json.gz",
+    "bytes": 671,
+    "sha256": "36a9134dae9326eb8feb519f4727320dddc4b8b11060e7d4af8c11cc024a1ad4"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/abba-1-local/repeat2.svg.gz",
+    "bytes": 2122,
+    "sha256": "cbcf01e09801830506ad4bf2dbf22fbd92938d3a6d880b479ac52bc54574d8c6"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/abba-1-local/source-maps.json.gz",
+    "bytes": 22,
+    "sha256": "73a1b438b0221511fb3dde18e019f5ab045811b2248d25d424e40980c683a9dc"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/abba-1-local/warmup.receipt.json.gz",
+    "bytes": 1207,
+    "sha256": "33c8725e4a4da699345625648c8f7f43c510d3635acb1160a7a2c5e487ab1156"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/abba-1-local/warmup.svg.gz",
+    "bytes": 2122,
+    "sha256": "cbcf01e09801830506ad4bf2dbf22fbd92938d3a6d880b479ac52bc54574d8c6"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/abba-1-local.log",
+    "bytes": 695,
+    "sha256": "b3182c4f9ad1da6ed2ca130923f0e823bb19407412b10e55f96f4f2d4f64c409"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/abba-2-local/RESULT.json.gz",
+    "bytes": 1907,
+    "sha256": "6b9ea158a4758129e04c98f10e9cb970b5559443ba5e628a0380caccb7e4c87b"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/abba-2-local/cache-audit.json.gz",
+    "bytes": 278,
+    "sha256": "3493f7bccf05d26cdbe9798211049703c46d09c5efac781f3f111fb1dbe4f65e"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/abba-2-local/cold-render.row.json.gz",
+    "bytes": 620,
+    "sha256": "06ea6e439de45ff4a84422c387d92fec2cfb4de6dd754386b0896b578ffa6cfd"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/abba-2-local/edit.cpuprofile.gz",
+    "bytes": 41,
+    "sha256": "f0bd37867d41bea6d64d7f6235bd223c9c977116a24df687b1d9dd99e5a11be1"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/abba-2-local/edit.receipt.json.gz",
+    "bytes": 1205,
+    "sha256": "3d6e978dcbd25a96b494a5ba5d076e6c8a8493e181a318f2d00f0c0106f63e31"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/abba-2-local/edit.row.json.gz",
+    "bytes": 647,
+    "sha256": "101d282ff531ecff5854528c712a37dcf8af3997b557f9a8e8a67980b34c9ca8"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/abba-2-local/edit.svg.gz",
+    "bytes": 2151,
+    "sha256": "eea69ca1e3ee32979124f3f6751e941ff942f9c52e714268fd578e4115de59f9"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/abba-2-local/edit2.cpuprofile.gz",
+    "bytes": 41,
+    "sha256": "f0bd37867d41bea6d64d7f6235bd223c9c977116a24df687b1d9dd99e5a11be1"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/abba-2-local/edit2.receipt.json.gz",
+    "bytes": 1205,
+    "sha256": "3d6e978dcbd25a96b494a5ba5d076e6c8a8493e181a318f2d00f0c0106f63e31"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/abba-2-local/edit2.row.json.gz",
+    "bytes": 645,
+    "sha256": "225af2522b2a546b8eb4bc1054fce1b74ccc67aa63dc2006c61a806c1f8b0c30"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/abba-2-local/edit2.svg.gz",
+    "bytes": 2151,
+    "sha256": "eea69ca1e3ee32979124f3f6751e941ff942f9c52e714268fd578e4115de59f9"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/abba-2-local/repeat1.cpuprofile.gz",
+    "bytes": 41,
+    "sha256": "f0bd37867d41bea6d64d7f6235bd223c9c977116a24df687b1d9dd99e5a11be1"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/abba-2-local/repeat1.receipt.json.gz",
+    "bytes": 1207,
+    "sha256": "33c8725e4a4da699345625648c8f7f43c510d3635acb1160a7a2c5e487ab1156"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/abba-2-local/repeat1.row.json.gz",
+    "bytes": 672,
+    "sha256": "79c46ce8ccfdb0e8b0b29b1e8b69b9ac80c32833416a1deab0b24ce05c371218"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/abba-2-local/repeat1.svg.gz",
+    "bytes": 2122,
+    "sha256": "cbcf01e09801830506ad4bf2dbf22fbd92938d3a6d880b479ac52bc54574d8c6"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/abba-2-local/repeat2.cpuprofile.gz",
+    "bytes": 41,
+    "sha256": "f0bd37867d41bea6d64d7f6235bd223c9c977116a24df687b1d9dd99e5a11be1"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/abba-2-local/repeat2.receipt.json.gz",
+    "bytes": 1207,
+    "sha256": "33c8725e4a4da699345625648c8f7f43c510d3635acb1160a7a2c5e487ab1156"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/abba-2-local/repeat2.row.json.gz",
+    "bytes": 666,
+    "sha256": "a151fefe66ee81ff0cd966a72e0963b945aa0f5b7968d36a6d263e7593469cfb"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/abba-2-local/repeat2.svg.gz",
+    "bytes": 2122,
+    "sha256": "cbcf01e09801830506ad4bf2dbf22fbd92938d3a6d880b479ac52bc54574d8c6"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/abba-2-local/source-maps.json.gz",
+    "bytes": 22,
+    "sha256": "73a1b438b0221511fb3dde18e019f5ab045811b2248d25d424e40980c683a9dc"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/abba-2-local/warmup.receipt.json.gz",
+    "bytes": 1207,
+    "sha256": "33c8725e4a4da699345625648c8f7f43c510d3635acb1160a7a2c5e487ab1156"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/abba-2-local/warmup.svg.gz",
+    "bytes": 2122,
+    "sha256": "cbcf01e09801830506ad4bf2dbf22fbd92938d3a6d880b479ac52bc54574d8c6"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/abba-2-local.log",
+    "bytes": 695,
+    "sha256": "7f3ffd3f3fb94bfa12c7a3c2d6de31e01150024db02ceefc9416e01ef04fcf4e"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/abba-3-baseline/RESULT.json.gz",
+    "bytes": 1813,
+    "sha256": "c6efb1b8c888ee5b394363e7181b91f45a44a8b25433dd208c74ae931e6216f4"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/abba-3-baseline/cache-audit.json.gz",
+    "bytes": 278,
+    "sha256": "3493f7bccf05d26cdbe9798211049703c46d09c5efac781f3f111fb1dbe4f65e"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/abba-3-baseline/cold-render.row.json.gz",
+    "bytes": 620,
+    "sha256": "eecc5d28c976f5129a2db76e1ff5ac49210efc46055fe3e633d437167e622e5c"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/abba-3-baseline/edit.cpuprofile.gz",
+    "bytes": 41,
+    "sha256": "f0bd37867d41bea6d64d7f6235bd223c9c977116a24df687b1d9dd99e5a11be1"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/abba-3-baseline/edit.receipt.json.gz",
+    "bytes": 1205,
+    "sha256": "3d6e978dcbd25a96b494a5ba5d076e6c8a8493e181a318f2d00f0c0106f63e31"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/abba-3-baseline/edit.row.json.gz",
+    "bytes": 652,
+    "sha256": "bf873978ad3df38ae142b50f70f4e6d5543e49ecf50172887449fe9dedca5e21"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/abba-3-baseline/edit.svg.gz",
+    "bytes": 2151,
+    "sha256": "eea69ca1e3ee32979124f3f6751e941ff942f9c52e714268fd578e4115de59f9"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/abba-3-baseline/edit2.cpuprofile.gz",
+    "bytes": 41,
+    "sha256": "f0bd37867d41bea6d64d7f6235bd223c9c977116a24df687b1d9dd99e5a11be1"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/abba-3-baseline/edit2.receipt.json.gz",
+    "bytes": 1205,
+    "sha256": "3d6e978dcbd25a96b494a5ba5d076e6c8a8493e181a318f2d00f0c0106f63e31"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/abba-3-baseline/edit2.row.json.gz",
+    "bytes": 649,
+    "sha256": "a19e7c3acbc842747a8d6a4d175bddf5e118734c6c369dca5c10c9463663753c"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/abba-3-baseline/edit2.svg.gz",
+    "bytes": 2151,
+    "sha256": "eea69ca1e3ee32979124f3f6751e941ff942f9c52e714268fd578e4115de59f9"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/abba-3-baseline/repeat1.cpuprofile.gz",
+    "bytes": 41,
+    "sha256": "f0bd37867d41bea6d64d7f6235bd223c9c977116a24df687b1d9dd99e5a11be1"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/abba-3-baseline/repeat1.receipt.json.gz",
+    "bytes": 1207,
+    "sha256": "33c8725e4a4da699345625648c8f7f43c510d3635acb1160a7a2c5e487ab1156"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/abba-3-baseline/repeat1.row.json.gz",
+    "bytes": 677,
+    "sha256": "d0cea8facf4860597cc679f0c1378bd03b3a7ce43080423b243bd4ae351708b8"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/abba-3-baseline/repeat1.svg.gz",
+    "bytes": 2122,
+    "sha256": "cbcf01e09801830506ad4bf2dbf22fbd92938d3a6d880b479ac52bc54574d8c6"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/abba-3-baseline/repeat2.cpuprofile.gz",
+    "bytes": 41,
+    "sha256": "f0bd37867d41bea6d64d7f6235bd223c9c977116a24df687b1d9dd99e5a11be1"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/abba-3-baseline/repeat2.receipt.json.gz",
+    "bytes": 1207,
+    "sha256": "33c8725e4a4da699345625648c8f7f43c510d3635acb1160a7a2c5e487ab1156"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/abba-3-baseline/repeat2.row.json.gz",
+    "bytes": 669,
+    "sha256": "b1e27798ff61f3fef6e8e1a1e841fd820cd79a7e9e0fff19148678131950de5d"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/abba-3-baseline/repeat2.svg.gz",
+    "bytes": 2122,
+    "sha256": "cbcf01e09801830506ad4bf2dbf22fbd92938d3a6d880b479ac52bc54574d8c6"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/abba-3-baseline/source-maps.json.gz",
+    "bytes": 22,
+    "sha256": "73a1b438b0221511fb3dde18e019f5ab045811b2248d25d424e40980c683a9dc"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/abba-3-baseline/warmup.receipt.json.gz",
+    "bytes": 1207,
+    "sha256": "33c8725e4a4da699345625648c8f7f43c510d3635acb1160a7a2c5e487ab1156"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/abba-3-baseline/warmup.svg.gz",
+    "bytes": 2122,
+    "sha256": "cbcf01e09801830506ad4bf2dbf22fbd92938d3a6d880b479ac52bc54574d8c6"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/abba-3-baseline.log",
+    "bytes": 693,
+    "sha256": "c9e3882cc7666b974d086941ccbe2913eeda3971c32c8abf4db04f439f48b07c"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/abba-4-local/RESULT.json.gz",
+    "bytes": 1892,
+    "sha256": "61f719cd6defcfbfff18c5be6ef05313bad89ebb4b938dfa0abe82022e5c28b8"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/abba-4-local/cache-audit.json.gz",
+    "bytes": 278,
+    "sha256": "3493f7bccf05d26cdbe9798211049703c46d09c5efac781f3f111fb1dbe4f65e"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/abba-4-local/cold-render.row.json.gz",
+    "bytes": 620,
+    "sha256": "caefacefaaa23373ae7ab32eb592d8eaca31cf5aba0cd8833a104e7933f2d0c6"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/abba-4-local/edit.cpuprofile.gz",
+    "bytes": 41,
+    "sha256": "f0bd37867d41bea6d64d7f6235bd223c9c977116a24df687b1d9dd99e5a11be1"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/abba-4-local/edit.receipt.json.gz",
+    "bytes": 1205,
+    "sha256": "3d6e978dcbd25a96b494a5ba5d076e6c8a8493e181a318f2d00f0c0106f63e31"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/abba-4-local/edit.row.json.gz",
+    "bytes": 648,
+    "sha256": "6ae5f25a7b5479a44ed28f9bdc468d53bb9719e4ac83b436146dd76abb892650"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/abba-4-local/edit.svg.gz",
+    "bytes": 2151,
+    "sha256": "eea69ca1e3ee32979124f3f6751e941ff942f9c52e714268fd578e4115de59f9"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/abba-4-local/edit2.cpuprofile.gz",
+    "bytes": 41,
+    "sha256": "f0bd37867d41bea6d64d7f6235bd223c9c977116a24df687b1d9dd99e5a11be1"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/abba-4-local/edit2.receipt.json.gz",
+    "bytes": 1205,
+    "sha256": "3d6e978dcbd25a96b494a5ba5d076e6c8a8493e181a318f2d00f0c0106f63e31"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/abba-4-local/edit2.row.json.gz",
+    "bytes": 639,
+    "sha256": "2bd07ae7e89070abd3b9c46f983cf9ccb324447281fb131da6532e0feb48b059"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/abba-4-local/edit2.svg.gz",
+    "bytes": 2151,
+    "sha256": "eea69ca1e3ee32979124f3f6751e941ff942f9c52e714268fd578e4115de59f9"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/abba-4-local/repeat1.cpuprofile.gz",
+    "bytes": 41,
+    "sha256": "f0bd37867d41bea6d64d7f6235bd223c9c977116a24df687b1d9dd99e5a11be1"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/abba-4-local/repeat1.receipt.json.gz",
+    "bytes": 1207,
+    "sha256": "33c8725e4a4da699345625648c8f7f43c510d3635acb1160a7a2c5e487ab1156"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/abba-4-local/repeat1.row.json.gz",
+    "bytes": 666,
+    "sha256": "1127c887776b1158d44c28d4f66660d2d10caaff5b9a1a712e298f1ae3bbb5a0"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/abba-4-local/repeat1.svg.gz",
+    "bytes": 2122,
+    "sha256": "cbcf01e09801830506ad4bf2dbf22fbd92938d3a6d880b479ac52bc54574d8c6"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/abba-4-local/repeat2.cpuprofile.gz",
+    "bytes": 41,
+    "sha256": "f0bd37867d41bea6d64d7f6235bd223c9c977116a24df687b1d9dd99e5a11be1"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/abba-4-local/repeat2.receipt.json.gz",
+    "bytes": 1207,
+    "sha256": "33c8725e4a4da699345625648c8f7f43c510d3635acb1160a7a2c5e487ab1156"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/abba-4-local/repeat2.row.json.gz",
+    "bytes": 674,
+    "sha256": "11aa374eb41cae908bf1c7138316c53d3757c022efa307fbbff74670b8ca8956"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/abba-4-local/repeat2.svg.gz",
+    "bytes": 2122,
+    "sha256": "cbcf01e09801830506ad4bf2dbf22fbd92938d3a6d880b479ac52bc54574d8c6"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/abba-4-local/source-maps.json.gz",
+    "bytes": 22,
+    "sha256": "73a1b438b0221511fb3dde18e019f5ab045811b2248d25d424e40980c683a9dc"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/abba-4-local/warmup.receipt.json.gz",
+    "bytes": 1207,
+    "sha256": "33c8725e4a4da699345625648c8f7f43c510d3635acb1160a7a2c5e487ab1156"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/abba-4-local/warmup.svg.gz",
+    "bytes": 2122,
+    "sha256": "cbcf01e09801830506ad4bf2dbf22fbd92938d3a6d880b479ac52bc54574d8c6"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/abba-4-local.log",
+    "bytes": 692,
+    "sha256": "fda0015f4f148298b583d48cc5f044918e1758666f7b2f66be916babeb6acf9c"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/abba-5-baseline/RESULT.json.gz",
+    "bytes": 1818,
+    "sha256": "546550db180d5f1155d549e28638c6f3184a3110a0ee2a8742de24d4ec541293"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/abba-5-baseline/cache-audit.json.gz",
+    "bytes": 278,
+    "sha256": "3493f7bccf05d26cdbe9798211049703c46d09c5efac781f3f111fb1dbe4f65e"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/abba-5-baseline/cold-render.row.json.gz",
+    "bytes": 621,
+    "sha256": "998ee67a2ca3491167a9e48073c4fea2be45bb74aa4a472868e046e60ddab962"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/abba-5-baseline/edit.cpuprofile.gz",
+    "bytes": 41,
+    "sha256": "f0bd37867d41bea6d64d7f6235bd223c9c977116a24df687b1d9dd99e5a11be1"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/abba-5-baseline/edit.receipt.json.gz",
+    "bytes": 1205,
+    "sha256": "3d6e978dcbd25a96b494a5ba5d076e6c8a8493e181a318f2d00f0c0106f63e31"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/abba-5-baseline/edit.row.json.gz",
+    "bytes": 651,
+    "sha256": "6ed57d8905621fdcbd393d4b7a901ed74d04987bf076dcaffd31fd1d337348cf"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/abba-5-baseline/edit.svg.gz",
+    "bytes": 2151,
+    "sha256": "eea69ca1e3ee32979124f3f6751e941ff942f9c52e714268fd578e4115de59f9"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/abba-5-baseline/edit2.cpuprofile.gz",
+    "bytes": 41,
+    "sha256": "f0bd37867d41bea6d64d7f6235bd223c9c977116a24df687b1d9dd99e5a11be1"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/abba-5-baseline/edit2.receipt.json.gz",
+    "bytes": 1205,
+    "sha256": "3d6e978dcbd25a96b494a5ba5d076e6c8a8493e181a318f2d00f0c0106f63e31"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/abba-5-baseline/edit2.row.json.gz",
+    "bytes": 650,
+    "sha256": "cffbfc88bca20ecf21db5e1a5fc2846d4b8a6f1403f2db62f11587c60287ac55"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/abba-5-baseline/edit2.svg.gz",
+    "bytes": 2151,
+    "sha256": "eea69ca1e3ee32979124f3f6751e941ff942f9c52e714268fd578e4115de59f9"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/abba-5-baseline/repeat1.cpuprofile.gz",
+    "bytes": 41,
+    "sha256": "f0bd37867d41bea6d64d7f6235bd223c9c977116a24df687b1d9dd99e5a11be1"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/abba-5-baseline/repeat1.receipt.json.gz",
+    "bytes": 1207,
+    "sha256": "33c8725e4a4da699345625648c8f7f43c510d3635acb1160a7a2c5e487ab1156"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/abba-5-baseline/repeat1.row.json.gz",
+    "bytes": 668,
+    "sha256": "9572709f79be7e70f5b2e4bded7a7e93d97625dc7bc5aa6bc9b2678fcff39117"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/abba-5-baseline/repeat1.svg.gz",
+    "bytes": 2122,
+    "sha256": "cbcf01e09801830506ad4bf2dbf22fbd92938d3a6d880b479ac52bc54574d8c6"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/abba-5-baseline/repeat2.cpuprofile.gz",
+    "bytes": 41,
+    "sha256": "f0bd37867d41bea6d64d7f6235bd223c9c977116a24df687b1d9dd99e5a11be1"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/abba-5-baseline/repeat2.receipt.json.gz",
+    "bytes": 1207,
+    "sha256": "33c8725e4a4da699345625648c8f7f43c510d3635acb1160a7a2c5e487ab1156"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/abba-5-baseline/repeat2.row.json.gz",
+    "bytes": 666,
+    "sha256": "f2152048266a5854c539147c614ee345379a0c1f25604bded8e256d418e1ae0d"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/abba-5-baseline/repeat2.svg.gz",
+    "bytes": 2122,
+    "sha256": "cbcf01e09801830506ad4bf2dbf22fbd92938d3a6d880b479ac52bc54574d8c6"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/abba-5-baseline/source-maps.json.gz",
+    "bytes": 22,
+    "sha256": "73a1b438b0221511fb3dde18e019f5ab045811b2248d25d424e40980c683a9dc"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/abba-5-baseline/warmup.receipt.json.gz",
+    "bytes": 1207,
+    "sha256": "33c8725e4a4da699345625648c8f7f43c510d3635acb1160a7a2c5e487ab1156"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/abba-5-baseline/warmup.svg.gz",
+    "bytes": 2122,
+    "sha256": "cbcf01e09801830506ad4bf2dbf22fbd92938d3a6d880b479ac52bc54574d8c6"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/abba-5-baseline.log",
+    "bytes": 694,
+    "sha256": "cafdbc30f8c5b1b5e32623a352bfb4e6ad062c26c7c9f7f6eb32fa32a47e7198"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/abba-6-baseline/RESULT.json.gz",
+    "bytes": 1805,
+    "sha256": "664b6f56ee9364b3e36c6cc80c987a156b5f2f75ac8663c3f5885d657596e67c"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/abba-6-baseline/cache-audit.json.gz",
+    "bytes": 278,
+    "sha256": "3493f7bccf05d26cdbe9798211049703c46d09c5efac781f3f111fb1dbe4f65e"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/abba-6-baseline/cold-render.row.json.gz",
+    "bytes": 619,
+    "sha256": "f1ef44c6174b5429d544aaba3415723d82a9f12eb426c4e6d546adcddf7e4874"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/abba-6-baseline/edit.cpuprofile.gz",
+    "bytes": 41,
+    "sha256": "f0bd37867d41bea6d64d7f6235bd223c9c977116a24df687b1d9dd99e5a11be1"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/abba-6-baseline/edit.receipt.json.gz",
+    "bytes": 1205,
+    "sha256": "3d6e978dcbd25a96b494a5ba5d076e6c8a8493e181a318f2d00f0c0106f63e31"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/abba-6-baseline/edit.row.json.gz",
+    "bytes": 647,
+    "sha256": "bc4f61adfa448bdc2dd7fde057f206cf38574f277abe8550e53774b46ffc85e0"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/abba-6-baseline/edit.svg.gz",
+    "bytes": 2151,
+    "sha256": "eea69ca1e3ee32979124f3f6751e941ff942f9c52e714268fd578e4115de59f9"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/abba-6-baseline/edit2.cpuprofile.gz",
+    "bytes": 41,
+    "sha256": "f0bd37867d41bea6d64d7f6235bd223c9c977116a24df687b1d9dd99e5a11be1"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/abba-6-baseline/edit2.receipt.json.gz",
+    "bytes": 1205,
+    "sha256": "3d6e978dcbd25a96b494a5ba5d076e6c8a8493e181a318f2d00f0c0106f63e31"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/abba-6-baseline/edit2.row.json.gz",
+    "bytes": 649,
+    "sha256": "13c302d6c10fa08d15ff85b7bc22a1388e514861e3048810c4fd096233627add"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/abba-6-baseline/edit2.svg.gz",
+    "bytes": 2151,
+    "sha256": "eea69ca1e3ee32979124f3f6751e941ff942f9c52e714268fd578e4115de59f9"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/abba-6-baseline/repeat1.cpuprofile.gz",
+    "bytes": 41,
+    "sha256": "f0bd37867d41bea6d64d7f6235bd223c9c977116a24df687b1d9dd99e5a11be1"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/abba-6-baseline/repeat1.receipt.json.gz",
+    "bytes": 1207,
+    "sha256": "33c8725e4a4da699345625648c8f7f43c510d3635acb1160a7a2c5e487ab1156"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/abba-6-baseline/repeat1.row.json.gz",
+    "bytes": 666,
+    "sha256": "6ae01d42de0303a3dd72e42a4ecdf26c9fa283e12aad931798b6a91eb91a27bc"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/abba-6-baseline/repeat1.svg.gz",
+    "bytes": 2122,
+    "sha256": "cbcf01e09801830506ad4bf2dbf22fbd92938d3a6d880b479ac52bc54574d8c6"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/abba-6-baseline/repeat2.cpuprofile.gz",
+    "bytes": 41,
+    "sha256": "f0bd37867d41bea6d64d7f6235bd223c9c977116a24df687b1d9dd99e5a11be1"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/abba-6-baseline/repeat2.receipt.json.gz",
+    "bytes": 1207,
+    "sha256": "33c8725e4a4da699345625648c8f7f43c510d3635acb1160a7a2c5e487ab1156"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/abba-6-baseline/repeat2.row.json.gz",
+    "bytes": 666,
+    "sha256": "e4f1b3a76baa0b9301f8d5aad3f1bfcae10947bf95d9c72f54b10440fcd76904"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/abba-6-baseline/repeat2.svg.gz",
+    "bytes": 2122,
+    "sha256": "cbcf01e09801830506ad4bf2dbf22fbd92938d3a6d880b479ac52bc54574d8c6"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/abba-6-baseline/source-maps.json.gz",
+    "bytes": 22,
+    "sha256": "73a1b438b0221511fb3dde18e019f5ab045811b2248d25d424e40980c683a9dc"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/abba-6-baseline/warmup.receipt.json.gz",
+    "bytes": 1207,
+    "sha256": "33c8725e4a4da699345625648c8f7f43c510d3635acb1160a7a2c5e487ab1156"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/abba-6-baseline/warmup.svg.gz",
+    "bytes": 2122,
+    "sha256": "cbcf01e09801830506ad4bf2dbf22fbd92938d3a6d880b479ac52bc54574d8c6"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/abba-6-baseline.log",
+    "bytes": 695,
+    "sha256": "ed7441754b3e9bf4851c5456acfdb4d4b8bc72e71cf722b3f606d941dc7fa20e"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/abba-7-local/RESULT.json.gz",
+    "bytes": 1896,
+    "sha256": "e5b4f61d0ba524aca3bf04cc0a366000553f172b8ae97260ef4485542b4111c6"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/abba-7-local/cache-audit.json.gz",
+    "bytes": 278,
+    "sha256": "3493f7bccf05d26cdbe9798211049703c46d09c5efac781f3f111fb1dbe4f65e"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/abba-7-local/cold-render.row.json.gz",
+    "bytes": 620,
+    "sha256": "af9e6aae356dc9d8ec2fa898e92b91158f38d6a6c57d1d66822095b15f2eddd2"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/abba-7-local/edit.cpuprofile.gz",
+    "bytes": 41,
+    "sha256": "f0bd37867d41bea6d64d7f6235bd223c9c977116a24df687b1d9dd99e5a11be1"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/abba-7-local/edit.receipt.json.gz",
+    "bytes": 1205,
+    "sha256": "3d6e978dcbd25a96b494a5ba5d076e6c8a8493e181a318f2d00f0c0106f63e31"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/abba-7-local/edit.row.json.gz",
+    "bytes": 642,
+    "sha256": "da37d5ff981e56c536ba714f22e762ab58023add78e3598b77ff9ec5707a6868"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/abba-7-local/edit.svg.gz",
+    "bytes": 2151,
+    "sha256": "eea69ca1e3ee32979124f3f6751e941ff942f9c52e714268fd578e4115de59f9"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/abba-7-local/edit2.cpuprofile.gz",
+    "bytes": 41,
+    "sha256": "f0bd37867d41bea6d64d7f6235bd223c9c977116a24df687b1d9dd99e5a11be1"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/abba-7-local/edit2.receipt.json.gz",
+    "bytes": 1205,
+    "sha256": "3d6e978dcbd25a96b494a5ba5d076e6c8a8493e181a318f2d00f0c0106f63e31"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/abba-7-local/edit2.row.json.gz",
+    "bytes": 638,
+    "sha256": "88631ea4d4bbbfb3b7d1a45e0b5ebfb8c832cbe44d705b7008cc26827744a549"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/abba-7-local/edit2.svg.gz",
+    "bytes": 2151,
+    "sha256": "eea69ca1e3ee32979124f3f6751e941ff942f9c52e714268fd578e4115de59f9"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/abba-7-local/repeat1.cpuprofile.gz",
+    "bytes": 41,
+    "sha256": "f0bd37867d41bea6d64d7f6235bd223c9c977116a24df687b1d9dd99e5a11be1"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/abba-7-local/repeat1.receipt.json.gz",
+    "bytes": 1207,
+    "sha256": "33c8725e4a4da699345625648c8f7f43c510d3635acb1160a7a2c5e487ab1156"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/abba-7-local/repeat1.row.json.gz",
+    "bytes": 666,
+    "sha256": "b6d2b4eb7cf02844bb9fe4bc1ad10827f3e3729fc4f07736cbf7d46dc934ef35"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/abba-7-local/repeat1.svg.gz",
+    "bytes": 2122,
+    "sha256": "cbcf01e09801830506ad4bf2dbf22fbd92938d3a6d880b479ac52bc54574d8c6"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/abba-7-local/repeat2.cpuprofile.gz",
+    "bytes": 41,
+    "sha256": "f0bd37867d41bea6d64d7f6235bd223c9c977116a24df687b1d9dd99e5a11be1"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/abba-7-local/repeat2.receipt.json.gz",
+    "bytes": 1207,
+    "sha256": "33c8725e4a4da699345625648c8f7f43c510d3635acb1160a7a2c5e487ab1156"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/abba-7-local/repeat2.row.json.gz",
+    "bytes": 673,
+    "sha256": "936490c9c465aa6bbc61afafa73a2c020158f1bbf9382c7d4f626b78f95f80f0"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/abba-7-local/repeat2.svg.gz",
+    "bytes": 2122,
+    "sha256": "cbcf01e09801830506ad4bf2dbf22fbd92938d3a6d880b479ac52bc54574d8c6"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/abba-7-local/source-maps.json.gz",
+    "bytes": 22,
+    "sha256": "73a1b438b0221511fb3dde18e019f5ab045811b2248d25d424e40980c683a9dc"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/abba-7-local/warmup.receipt.json.gz",
+    "bytes": 1207,
+    "sha256": "33c8725e4a4da699345625648c8f7f43c510d3635acb1160a7a2c5e487ab1156"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/abba-7-local/warmup.svg.gz",
+    "bytes": 2122,
+    "sha256": "cbcf01e09801830506ad4bf2dbf22fbd92938d3a6d880b479ac52bc54574d8c6"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/abba-7-local.log",
+    "bytes": 694,
+    "sha256": "dfed653b8af623bf078641a381b6e32677483117ec8ba5f4e5f4829ad530186d"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/abba.log",
+    "bytes": 608,
+    "sha256": "2925176dd5a1243663077f7987dbfc91ed111025d24f703f1c069cb863434140"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/analysis.json",
+    "bytes": 2435810,
+    "sha256": "a0aed5f2d1e32831018081b462e0467b7227e585bf88ff20a1023bd708bdeb74"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/analysis.log",
+    "bytes": 7955,
+    "sha256": "c4f52b06542cdede75cc455ee6230f0311422b0b97c1b40039b8200272bcff18"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/analyze.mjs",
+    "bytes": 11162,
+    "sha256": "9f9c3f885d943c3dfacdc677e5d37c58c80f5b9023b6517ee5f5cf95095a545f"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/DELIVERY-COMPARISON.json",
+    "bytes": 57269,
+    "sha256": "ef5cc3e5faefc5344faa2c547add8dc47725348b1753e7900a20b3a67a1b18a9"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/WORKLOADS.json",
+    "bytes": 5916,
+    "sha256": "be9028aa5697141d96cf1086ccc21f1ce1f89ca05ae3e501438f2b278270399c"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/agentic/DELIVERY.json",
+    "bytes": 18699,
+    "sha256": "dfa9109df5afae8773010131c34ac1328d9a9abae5c27e74b3abe2fb0b96ef32"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/agentic/PREPARED.json",
+    "bytes": 26615,
+    "sha256": "8985070a7bb1d02e6c52e1363c4917211d525ccfaeb51fd991dd99e4316a4210"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/agentic/RESULT.json",
+    "bytes": 20759,
+    "sha256": "946f68de91a62e1d52b52432f598534f08b5ab6883eefed0d18fe41ad5f17d61"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/agentic/community-browser-rounds.json",
+    "bytes": 55798,
+    "sha256": "28f18f6bedd7a7be28a2eef5ffe3bfb22cf94f099a86afea29244dea4a339000"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/community-browser-prepared.json",
+    "bytes": 3,
+    "sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/elk/DELIVERY.json",
+    "bytes": 16367,
+    "sha256": "c0d7580ed6804ccf9ad43421d04e45cca7070c456d19a732a1bd1dc03dd1c94c"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/elk/PREPARED.json",
+    "bytes": 26223,
+    "sha256": "baacf8685604075fc1dec0d4f12bd9ff0c28971044d8f0ac63168116fb603475"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/elk/RESULT.json",
+    "bytes": 20779,
+    "sha256": "30c5dbf35fa178c729dabc2c93f1378be69f16edeb83df1c31a74eb793bf93b5"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/elk/community-browser-rounds.json",
+    "bytes": 54127,
+    "sha256": "2aa3b4fda99dc30813fca8aa22aecd69f0900280a929ff27a344d0954c6dae5e"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/agentic/browser-lazy/chunks/agentflow-TOBVY25S.js",
+    "bytes": 16966,
+    "sha256": "bc32ced7a044e968d31f001e579585e776cdc6dfebb6f4841f967983d9122b64"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/agentic/browser-lazy/chunks/agentic-producer-core-H7YI3PSO.js",
+    "bytes": 43081,
+    "sha256": "641774204fd27b415833efd1d32d44f38511b13c5ccea9ff7ec6081ba27c53de"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/agentic/browser-lazy/chunks/architecture-Z2TGK3PL.js",
+    "bytes": 58616,
+    "sha256": "0a75aa1b276c07495859eb536edd7eb1caaabc5478eab4c271e0d71ea92b3cfc"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/agentic/browser-lazy/chunks/block-R3R2KMUC.js",
+    "bytes": 34673,
+    "sha256": "4ac90cb41c3ef3debdf12d430fe3ea3714cd050182d86d378facfdb74d4e7840"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/agentic/browser-lazy/chunks/builtin-backends-TIEJ7UNX.js",
+    "bytes": 39789,
+    "sha256": "97ee22abf1a8d94f5f54c2d1a1242eafd997a377317f54760a11fd50771ed838"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/agentic/browser-lazy/chunks/c4-5CASB5Q2.js",
+    "bytes": 71964,
+    "sha256": "894381756fbcb264d9261cb757bd700018e0a92d463137ea55eadb21cc718b7a"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/agentic/browser-lazy/chunks/chunk-2FFMGXYS.js",
+    "bytes": 8663,
+    "sha256": "80881cc24c19ef0c6a1ae408ceb527709a7ae1049027cbcda3ee20c49f3ce459"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/agentic/browser-lazy/chunks/chunk-2QWPKXL3.js",
+    "bytes": 1607,
+    "sha256": "43fcf51e3d2ed5d94df23cdcd8eacdba6c2511f4af810d49cdfb0e8bcf9db006"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/agentic/browser-lazy/chunks/chunk-4FJJ6BHR.js",
+    "bytes": 414,
+    "sha256": "c4b8ecae68125ad7dae7239f8c5d8fe3792bf68d564652e83f19164608b012c4"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/agentic/browser-lazy/chunks/chunk-4RNGW2RF.js",
+    "bytes": 20809,
+    "sha256": "d986db36b676c4bb5011e76b933e0bfa1358646ab8b174e8ac531d498472bd85"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/agentic/browser-lazy/chunks/chunk-5AVWL4HA.js",
+    "bytes": 281,
+    "sha256": "28099c26511b2903c0153dcfbb9b57f5091ecd9718b0eef849be94924a5050a7"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/agentic/browser-lazy/chunks/chunk-7JOXKRSW.js",
+    "bytes": 424,
+    "sha256": "4fc90f13e127a275290b54f9ac4f416cb1deccab4003a83d4b45843606f1d235"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/agentic/browser-lazy/chunks/chunk-7WYEZDAV.js",
+    "bytes": 2947,
+    "sha256": "9537136b03638cfeaee3fd895794340115c04b985d0f37a91cb3218ad460289f"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/agentic/browser-lazy/chunks/chunk-7X62GRYO.js",
+    "bytes": 7330,
+    "sha256": "bc9243c7c84de8de1e64f44b485dad3f99b66f75179002049b1c578fef2bb321"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/agentic/browser-lazy/chunks/chunk-A6CKOFBH.js",
+    "bytes": 1688,
+    "sha256": "bddec1a39b374dbce7ebfe145118dce17c07efa33ed8e1e0104322d2947f6fd6"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/agentic/browser-lazy/chunks/chunk-AII457QA.js",
+    "bytes": 595,
+    "sha256": "e19db39ab8ce906fc691b3e7eaaa0659ca31bbeede2bb6514d1b4798062dd00a"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/agentic/browser-lazy/chunks/chunk-AZGIQUN4.js",
+    "bytes": 12761,
+    "sha256": "71b334ffa829495c633608912045d550c3b675b72f0afcbb70bde5eafd181826"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/agentic/browser-lazy/chunks/chunk-BDYRCRM2.js",
+    "bytes": 118046,
+    "sha256": "b15f56562abfa9200477d18c315c253da7b3b27d146116f69cef4f538763beaa"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/agentic/browser-lazy/chunks/chunk-BEYC7DI5.js",
+    "bytes": 2559,
+    "sha256": "595c424a359ebb4ec8ee96e8a08f241a202710de652c82de95b3807d33834c50"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/agentic/browser-lazy/chunks/chunk-CDC4GQBX.js",
+    "bytes": 515,
+    "sha256": "65d377bffdbc6313dd4e19ccd2aad490d0a9e5e6c65eb74d7aa65f092c92959f"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/agentic/browser-lazy/chunks/chunk-CLWWU6PK.js",
+    "bytes": 887,
+    "sha256": "8e228b2d11e2c6bfca5b0b6ae36c976d9f129136cb7d67c6c35e8d59713f3959"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/agentic/browser-lazy/chunks/chunk-D7ACEPSO.js",
+    "bytes": 6562,
+    "sha256": "0564120dec9fe0cc5f659ada8afa171c37621007ebbdd54d91df1c54c7707d6d"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/agentic/browser-lazy/chunks/chunk-D971EB51.js",
+    "bytes": 599808,
+    "sha256": "ec6a91c48b0a411080bfd39eb2e7d8727c60f4809eb10f1235147f3173e59174"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/agentic/browser-lazy/chunks/chunk-EZZICG5F.js",
+    "bytes": 760,
+    "sha256": "239eace03348a64ad3a1d8786ebc3033a3272456149cec0648f97572d7938697"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/agentic/browser-lazy/chunks/chunk-FNMIBZ7T.js",
+    "bytes": 3624,
+    "sha256": "62edc576c5d2d935fc0b484cbb30c0444637c0c7fd8341dd7e5dfc8c8fee3418"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/agentic/browser-lazy/chunks/chunk-FR62EHID.js",
+    "bytes": 1840,
+    "sha256": "850ae89edf5cef8893c9328525dcb1c3ff1bfb9581085a2c92f6e84c29d282f4"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/agentic/browser-lazy/chunks/chunk-IH2QCKZZ.js",
+    "bytes": 4802,
+    "sha256": "8f32d9017a0dcfc605d53fd74a4a623b2f4a134f36204867386cdc8879850531"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/agentic/browser-lazy/chunks/chunk-JAY5YCCH.js",
+    "bytes": 1618,
+    "sha256": "3c0d94a02b16d9424b8909d3b4a35dc6719c0a1d531aade6b4ec84a7c5018b51"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/agentic/browser-lazy/chunks/chunk-JVFVBEG7.js",
+    "bytes": 340,
+    "sha256": "256171d38d871940de29887398233287ce8c860548956be7aaeb5e4c2fe7967d"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/agentic/browser-lazy/chunks/chunk-KVSZ7XLL.js",
+    "bytes": 401,
+    "sha256": "0426518e224aa269ee46483d465e450336f77218f16b501e73473ba703e3ac60"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/agentic/browser-lazy/chunks/chunk-M62WLLR3.js",
+    "bytes": 1188,
+    "sha256": "d39e326ae1743da0433533754f01e8891aae3369bdfcc32f094a0ff58652be25"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/agentic/browser-lazy/chunks/chunk-MN6KOKXA.js",
+    "bytes": 272,
+    "sha256": "65260ac05b147a628f7f41352c8efcfa2e61a21ee03f4b6b43698caa4d3c0d4c"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/agentic/browser-lazy/chunks/chunk-NBHHPERM.js",
+    "bytes": 1832,
+    "sha256": "2277bd98607e484ab1afdb62b3841f8fbe797aad24919e97429f1c8417d77389"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/agentic/browser-lazy/chunks/chunk-NU4JOU63.js",
+    "bytes": 892,
+    "sha256": "c178c855027ec602f768d67e3cbf5193b6508318f3647750281c99e4216a1314"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/agentic/browser-lazy/chunks/chunk-O4WXINVK.js",
+    "bytes": 5103,
+    "sha256": "30e5de7004b351e437374ab5ffccba7025aa4ac6b773bda90f2ea90744111b2e"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/agentic/browser-lazy/chunks/chunk-OCYQH4LM.js",
+    "bytes": 85999,
+    "sha256": "7ec197b6048ae53fe721df0ef67c48dccce74caea3f4ed04c9d110c622a4bab0"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/agentic/browser-lazy/chunks/chunk-OGB2YZWM.js",
+    "bytes": 163,
+    "sha256": "be219d28301693b3509806f8002add7ff66819d52ee550911fffc1fb47a837c6"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/agentic/browser-lazy/chunks/chunk-Q2JWQOFR.js",
+    "bytes": 13054,
+    "sha256": "17f8fc56bb05f2b43ab34b7b9f41ee92f21988a4ec08edb73b5dc718a71134f4"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/agentic/browser-lazy/chunks/chunk-RNJQ25EL.js",
+    "bytes": 383,
+    "sha256": "6741f810ec9e6a25e9593292e3d519717f8715266ae802831a673560b259d202"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/agentic/browser-lazy/chunks/chunk-RTUN4I4Z.js",
+    "bytes": 261,
+    "sha256": "9bf90e43a940b2b86d2c8296bdc7d4a53452a5151164f38d10a70488beb08c9e"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/agentic/browser-lazy/chunks/chunk-SC76MUQ3.js",
+    "bytes": 440,
+    "sha256": "32f2e061f17b0958551c522cf707b97162f11e6f3fdc44667276459410366258"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/agentic/browser-lazy/chunks/chunk-SUY5AJDN.js",
+    "bytes": 70956,
+    "sha256": "4e904cf0c828b2480af202b830caba842835b5a6ced1143bcba91fba1ed41f3d"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/agentic/browser-lazy/chunks/chunk-TGCDPG3B.js",
+    "bytes": 12510,
+    "sha256": "c2af49073eaa7fb2eb988eafa6d899906aa2084b676f4c757e7d63f430c36f0c"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/agentic/browser-lazy/chunks/chunk-TXALF2FK.js",
+    "bytes": 891,
+    "sha256": "09e4a78804795224819ca40734070069a0977f9c72bd27d06de37b90f7e6c2bf"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/agentic/browser-lazy/chunks/chunk-U6OVMGDP.js",
+    "bytes": 786,
+    "sha256": "499174db340f7d3928bd4dc5e8fb2ae35f9ffdd9459caaadec2d6e212220b2e9"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/agentic/browser-lazy/chunks/chunk-UMG3LHWW.js",
+    "bytes": 2179,
+    "sha256": "c7f578191c80405272c9db7465b553bd916396f2761f322e197b10aa25163306"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/agentic/browser-lazy/chunks/chunk-UNKE6CHI.js",
+    "bytes": 3074,
+    "sha256": "fcf9e47b078afee0de7ed36f6474a28ed67f637b20032410ab24edcd25e754bb"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/agentic/browser-lazy/chunks/chunk-UQ7GTNSR.js",
+    "bytes": 7633,
+    "sha256": "daae0619bc0ec02d0d90d2108156b16b85d5321dbe6cccf0ad14514944707a5d"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/agentic/browser-lazy/chunks/chunk-VA5NXN6C.js",
+    "bytes": 119027,
+    "sha256": "08f056a589a6abef3c19ca11bf1ec90b3225fae3e38075370fc40235d9241c9a"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/agentic/browser-lazy/chunks/chunk-VBMEMD4H.js",
+    "bytes": 58889,
+    "sha256": "f12e30f69dbc5b5eade147febec95f147b0e873fd4dd978bcbbbd1588c4eebc1"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/agentic/browser-lazy/chunks/chunk-VI45WYIB.js",
+    "bytes": 11944,
+    "sha256": "170dcd0e02f0ce225cd1033909410997238b0c6ceac58caf56483af55a4dad0e"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/agentic/browser-lazy/chunks/chunk-ZUH3ERZV.js",
+    "bytes": 865,
+    "sha256": "993f1a3ef1064a1825f8063bac9bc4b28304968341f449751f08e70973d4b3d9"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/agentic/browser-lazy/chunks/class-AMOQYI2P.js",
+    "bytes": 119180,
+    "sha256": "fe601e4517f79e6d500999fd39dc167a3bda3658f1a0c01dc81d18a93abab446"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/agentic/browser-lazy/chunks/cynefin-IKOLBDVE.js",
+    "bytes": 11467,
+    "sha256": "b226c7f8b7bb80edb1cb3bff972acef667357645155e919da9059e8228ca4fe9"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/agentic/browser-lazy/chunks/decode-E23ODK3H.js",
+    "bytes": 40525,
+    "sha256": "65d57aaca480d91b64d4fbaf4989f871c57fbebddf311bb5f2a9e7ee58568886"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/agentic/browser-lazy/chunks/elk.bundled-X5K4KOFH.js",
+    "bytes": 1447491,
+    "sha256": "2422557bc2a76ea5bea842c44c646f82d8d5dd66eeddbb017f3883feffa78ef5"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/agentic/browser-lazy/chunks/er-JPKT5N4M.js",
+    "bytes": 86081,
+    "sha256": "34e0d8a1900f1d2bef85c79745dde0bcfe8e45aedd9d5c6ee6b37b77672fe4df"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/agentic/browser-lazy/chunks/eventmodeling-N6N555QR.js",
+    "bytes": 19337,
+    "sha256": "5c6b32f31798d39d4b9cb92c6457988a3fe8a54707b305e3532e478592ecc749"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/agentic/browser-lazy/chunks/flowchart-4OEA3B6G.js",
+    "bytes": 5774,
+    "sha256": "3c0ff8a4bcca3ee406768b4914eaa7ba25bcb915094831291779ad0b6260ffe1"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/agentic/browser-lazy/chunks/forest-implementation-WIZWGTIE.js",
+    "bytes": 991,
+    "sha256": "041b65cfcaa48eba28ab7d56eb2f37e03e89b1f062a3a43e7391acb7468f432c"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/agentic/browser-lazy/chunks/gantt-ZOODU4E4.js",
+    "bytes": 48718,
+    "sha256": "b55f5d9e7e8f10dfb2cdef356c7362c4b36ea6c4450da54e6c021d50f2a7f88a"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/agentic/browser-lazy/chunks/gitgraph-U3N6QHYC.js",
+    "bytes": 27463,
+    "sha256": "cbded4200bd6f59724d6ea494df071ffe865e94b07c3b2e540334cdde8903895"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/agentic/browser-lazy/chunks/inter-metrics-kernel-E4EEPZL6.js",
+    "bytes": 18621,
+    "sha256": "93f974dd12ced670e72104ad46a8f8cc77f8556b282d3430632fcf1fdd2baa04"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/agentic/browser-lazy/chunks/ishikawa-PN32L42Z.js",
+    "bytes": 9613,
+    "sha256": "6c174976c3eafab51b65431716eda221f9350597326a13219bceba6974718495"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/agentic/browser-lazy/chunks/journey-D5GDK42A.js",
+    "bytes": 34084,
+    "sha256": "5241bd78ea917cfde4c81e59919ff887a4f1ddd497bff580e71d05d7af185c08"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/agentic/browser-lazy/chunks/kanban-VTS62HTK.js",
+    "bytes": 15216,
+    "sha256": "a1cfc84061de5e82f396055438158f28293d627075d499af8e7cabf7742498a0"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/agentic/browser-lazy/chunks/mermaid-yaml-runtime-EDAWOZLW.js",
+    "bytes": 100108,
+    "sha256": "d43d69243c00dde9289eb86f9f932fa38361448ee9351ae269a7c5dacc1d821a"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/agentic/browser-lazy/chunks/mindmap-YDJI2ROQ.js",
+    "bytes": 20404,
+    "sha256": "65b68e867a3ed1facbc63102f25dba9d7c9394773821187be6cf7ddb19106b52"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/agentic/browser-lazy/chunks/optimization-runtime-MPMJL7DQ.js",
+    "bytes": 6220,
+    "sha256": "3aace280afa721dc86fbcb64b5edc35cb1701d08ac732ab60f06bf02fd147d68"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/agentic/browser-lazy/chunks/packet-AQQESNVO.js",
+    "bytes": 8770,
+    "sha256": "13d800b0b0a2471e029c0c96896a8a6da4480f6665379dcd96df0ddd49d798ba"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/agentic/browser-lazy/chunks/parser-source-YCESMRB4.js",
+    "bytes": 2365,
+    "sha256": "780c571b06cfa572a22e4d92134824421e4271da86575e30c55d8f7be8118df1"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/agentic/browser-lazy/chunks/pie-CW36EUEB.js",
+    "bytes": 22757,
+    "sha256": "694257fc4433b12ee603fd8daaa4186eb6a8be606a73aa200e83fb8fcf10f825"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/agentic/browser-lazy/chunks/quadrant-MJYMYXE3.js",
+    "bytes": 28702,
+    "sha256": "4c23e2e83f27b32f380377f9cfdec333aaeb34f56aa023eb697bb2cb5dc43e49"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/agentic/browser-lazy/chunks/radar-JX3KL23L.js",
+    "bytes": 30781,
+    "sha256": "4638056a9a3c432d3a19c1724d04911764cbd7675fc90b1a2ae3237fd9810a3e"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/agentic/browser-lazy/chunks/railroad-QU5WPSYJ.js",
+    "bytes": 23606,
+    "sha256": "81f8cf6a9d7f16560f17211681ef1c8c4ed23472638d59baa7ef53d147f2cb86"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/agentic/browser-lazy/chunks/render-core-KCTIYUZ2.js",
+    "bytes": 183,
+    "sha256": "6903aa4c211749bdbba5817fabcb3966bbe602abe3d390458543acb7008e3d59"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/agentic/browser-lazy/chunks/requirement-CI5JKWZ4.js",
+    "bytes": 34970,
+    "sha256": "c4a360dd6583d08ffb7fbf86650495ee341d56d61961465d2a7d8caef075d41e"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/agentic/browser-lazy/chunks/sankey-35UUNFZI.js",
+    "bytes": 25149,
+    "sha256": "5eaae882acee2797a2d729b06d18f26227e9bd0e6244d5e37b836d86e420bfec"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/agentic/browser-lazy/chunks/sequence-HSWCSUZ2.js",
+    "bytes": 7273,
+    "sha256": "cd086c11b5322157dbae44970e4dbd92e5e500c36734dc5b063884649aeaa8ae"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/agentic/browser-lazy/chunks/state-ZMCS4LJW.js",
+    "bytes": 7977,
+    "sha256": "a5ea2df8268492b8ba9f2c7b825f8577a0f738d4717585da6862290341696256"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/agentic/browser-lazy/chunks/swimlane-6H3P24LN.js",
+    "bytes": 14968,
+    "sha256": "719ae051150c6b9bac2228f2fb81f3bd8c9b1b6cde91b72b19704d068ee856f9"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/agentic/browser-lazy/chunks/timeline-X65VN7QB.js",
+    "bytes": 21762,
+    "sha256": "be88737b7774d7c48fae9362d3e6d857654089e4abd0dbd35b2228066b911a94"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/agentic/browser-lazy/chunks/treemap-P33XSRQR.js",
+    "bytes": 18250,
+    "sha256": "c341e17d723dfc9e1fa0f48fb96b0a8545bb76b10246ddff0e49d59457e02ff2"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/agentic/browser-lazy/chunks/treeview-R5XN4OP3.js",
+    "bytes": 11612,
+    "sha256": "69dab625ffacfc4c42d7ef6e66e7518c20fd81e4b3a4c0d8c323737c2fde7cf2"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/agentic/browser-lazy/chunks/trinity-FOPO4S5L.js",
+    "bytes": 16604,
+    "sha256": "45e0ad5cddf16c142543bd34a544508b28886eec16bb374582d6ce6d5868a119"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/agentic/browser-lazy/chunks/trinity-producer-HJCGYYTT.js",
+    "bytes": 2715,
+    "sha256": "0ad76662804044ca8041822d54f8bd090027169470c2f7ae6a44302c28dc2d25"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/agentic/browser-lazy/chunks/usecase-5KCVXZEM.js",
+    "bytes": 48700,
+    "sha256": "74f45b41d3e10d251dc5bf20d5b4bff0ed8f3768a91bc6ff5d7ca1f151b6ab45"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/agentic/browser-lazy/chunks/venn-QDQK34KI.js",
+    "bytes": 24052,
+    "sha256": "b02226c437113c319f08ea7f1f88606599cc82de528c4d00767e48b4d7bb3d82"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/agentic/browser-lazy/chunks/wardley-E3KD3PO5.js",
+    "bytes": 26062,
+    "sha256": "b2fd60093a65c881187344e3829b9ab0a0c6df467f528bcfc51cf192fcf79fe6"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/agentic/browser-lazy/chunks/xychart-LDKOZOOD.js",
+    "bytes": 54116,
+    "sha256": "3563984d5df14942dd400a507eb094800970d47eed0c39dc8d433ac72d2c694e"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/agentic/browser-lazy/chunks/zenuml-GSD66FAD.js",
+    "bytes": 22967,
+    "sha256": "790c9b02c29aee75a011f2babec8331993adf5da3bb21e0f25ad3be607b76397"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/agentic/browser-lazy/index.js",
+    "bytes": 4358,
+    "sha256": "e6096d63c7d118cd83304b49d7102a41ee74fe75b0f6683a28d78785368e1868"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/agentic/declared-adapter.mjs",
+    "bytes": 965,
+    "sha256": "2db9f4b28ad5d21417101446f0fb5375d6281898daeff495295504eae98cd103"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/agentic/entry.mjs",
+    "bytes": 505,
+    "sha256": "6bafd8229173fc8a715691f86706881e21f00b058f2922b01ef47e3f59615850"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/elk/browser-lazy/chunks/agentflow-TOBVY25S.js",
+    "bytes": 16966,
+    "sha256": "bc32ced7a044e968d31f001e579585e776cdc6dfebb6f4841f967983d9122b64"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/elk/browser-lazy/chunks/agentic-producer-core-H7YI3PSO.js",
+    "bytes": 43081,
+    "sha256": "641774204fd27b415833efd1d32d44f38511b13c5ccea9ff7ec6081ba27c53de"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/elk/browser-lazy/chunks/architecture-Z2TGK3PL.js",
+    "bytes": 58616,
+    "sha256": "0a75aa1b276c07495859eb536edd7eb1caaabc5478eab4c271e0d71ea92b3cfc"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/elk/browser-lazy/chunks/block-R3R2KMUC.js",
+    "bytes": 34673,
+    "sha256": "4ac90cb41c3ef3debdf12d430fe3ea3714cd050182d86d378facfdb74d4e7840"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/elk/browser-lazy/chunks/builtin-backends-TIEJ7UNX.js",
+    "bytes": 39789,
+    "sha256": "97ee22abf1a8d94f5f54c2d1a1242eafd997a377317f54760a11fd50771ed838"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/elk/browser-lazy/chunks/c4-5CASB5Q2.js",
+    "bytes": 71964,
+    "sha256": "894381756fbcb264d9261cb757bd700018e0a92d463137ea55eadb21cc718b7a"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/elk/browser-lazy/chunks/chunk-2FFMGXYS.js",
+    "bytes": 8663,
+    "sha256": "80881cc24c19ef0c6a1ae408ceb527709a7ae1049027cbcda3ee20c49f3ce459"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/elk/browser-lazy/chunks/chunk-2QWPKXL3.js",
+    "bytes": 1607,
+    "sha256": "43fcf51e3d2ed5d94df23cdcd8eacdba6c2511f4af810d49cdfb0e8bcf9db006"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/elk/browser-lazy/chunks/chunk-4FJJ6BHR.js",
+    "bytes": 414,
+    "sha256": "c4b8ecae68125ad7dae7239f8c5d8fe3792bf68d564652e83f19164608b012c4"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/elk/browser-lazy/chunks/chunk-4RNGW2RF.js",
+    "bytes": 20809,
+    "sha256": "d986db36b676c4bb5011e76b933e0bfa1358646ab8b174e8ac531d498472bd85"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/elk/browser-lazy/chunks/chunk-5AVWL4HA.js",
+    "bytes": 281,
+    "sha256": "28099c26511b2903c0153dcfbb9b57f5091ecd9718b0eef849be94924a5050a7"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/elk/browser-lazy/chunks/chunk-7JOXKRSW.js",
+    "bytes": 424,
+    "sha256": "4fc90f13e127a275290b54f9ac4f416cb1deccab4003a83d4b45843606f1d235"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/elk/browser-lazy/chunks/chunk-7WYEZDAV.js",
+    "bytes": 2947,
+    "sha256": "9537136b03638cfeaee3fd895794340115c04b985d0f37a91cb3218ad460289f"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/elk/browser-lazy/chunks/chunk-7X62GRYO.js",
+    "bytes": 7330,
+    "sha256": "bc9243c7c84de8de1e64f44b485dad3f99b66f75179002049b1c578fef2bb321"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/elk/browser-lazy/chunks/chunk-A6CKOFBH.js",
+    "bytes": 1688,
+    "sha256": "bddec1a39b374dbce7ebfe145118dce17c07efa33ed8e1e0104322d2947f6fd6"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/elk/browser-lazy/chunks/chunk-AII457QA.js",
+    "bytes": 595,
+    "sha256": "e19db39ab8ce906fc691b3e7eaaa0659ca31bbeede2bb6514d1b4798062dd00a"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/elk/browser-lazy/chunks/chunk-AZGIQUN4.js",
+    "bytes": 12761,
+    "sha256": "71b334ffa829495c633608912045d550c3b675b72f0afcbb70bde5eafd181826"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/elk/browser-lazy/chunks/chunk-BDYRCRM2.js",
+    "bytes": 118046,
+    "sha256": "b15f56562abfa9200477d18c315c253da7b3b27d146116f69cef4f538763beaa"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/elk/browser-lazy/chunks/chunk-BEYC7DI5.js",
+    "bytes": 2559,
+    "sha256": "595c424a359ebb4ec8ee96e8a08f241a202710de652c82de95b3807d33834c50"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/elk/browser-lazy/chunks/chunk-CDC4GQBX.js",
+    "bytes": 515,
+    "sha256": "65d377bffdbc6313dd4e19ccd2aad490d0a9e5e6c65eb74d7aa65f092c92959f"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/elk/browser-lazy/chunks/chunk-CLWWU6PK.js",
+    "bytes": 887,
+    "sha256": "8e228b2d11e2c6bfca5b0b6ae36c976d9f129136cb7d67c6c35e8d59713f3959"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/elk/browser-lazy/chunks/chunk-D7ACEPSO.js",
+    "bytes": 6562,
+    "sha256": "0564120dec9fe0cc5f659ada8afa171c37621007ebbdd54d91df1c54c7707d6d"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/elk/browser-lazy/chunks/chunk-D971EB51.js",
+    "bytes": 599808,
+    "sha256": "ec6a91c48b0a411080bfd39eb2e7d8727c60f4809eb10f1235147f3173e59174"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/elk/browser-lazy/chunks/chunk-EZZICG5F.js",
+    "bytes": 760,
+    "sha256": "239eace03348a64ad3a1d8786ebc3033a3272456149cec0648f97572d7938697"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/elk/browser-lazy/chunks/chunk-FNMIBZ7T.js",
+    "bytes": 3624,
+    "sha256": "62edc576c5d2d935fc0b484cbb30c0444637c0c7fd8341dd7e5dfc8c8fee3418"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/elk/browser-lazy/chunks/chunk-FR62EHID.js",
+    "bytes": 1840,
+    "sha256": "850ae89edf5cef8893c9328525dcb1c3ff1bfb9581085a2c92f6e84c29d282f4"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/elk/browser-lazy/chunks/chunk-IH2QCKZZ.js",
+    "bytes": 4802,
+    "sha256": "8f32d9017a0dcfc605d53fd74a4a623b2f4a134f36204867386cdc8879850531"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/elk/browser-lazy/chunks/chunk-JAY5YCCH.js",
+    "bytes": 1618,
+    "sha256": "3c0d94a02b16d9424b8909d3b4a35dc6719c0a1d531aade6b4ec84a7c5018b51"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/elk/browser-lazy/chunks/chunk-JVFVBEG7.js",
+    "bytes": 340,
+    "sha256": "256171d38d871940de29887398233287ce8c860548956be7aaeb5e4c2fe7967d"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/elk/browser-lazy/chunks/chunk-KVSZ7XLL.js",
+    "bytes": 401,
+    "sha256": "0426518e224aa269ee46483d465e450336f77218f16b501e73473ba703e3ac60"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/elk/browser-lazy/chunks/chunk-M62WLLR3.js",
+    "bytes": 1188,
+    "sha256": "d39e326ae1743da0433533754f01e8891aae3369bdfcc32f094a0ff58652be25"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/elk/browser-lazy/chunks/chunk-MN6KOKXA.js",
+    "bytes": 272,
+    "sha256": "65260ac05b147a628f7f41352c8efcfa2e61a21ee03f4b6b43698caa4d3c0d4c"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/elk/browser-lazy/chunks/chunk-NBHHPERM.js",
+    "bytes": 1832,
+    "sha256": "2277bd98607e484ab1afdb62b3841f8fbe797aad24919e97429f1c8417d77389"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/elk/browser-lazy/chunks/chunk-NU4JOU63.js",
+    "bytes": 892,
+    "sha256": "c178c855027ec602f768d67e3cbf5193b6508318f3647750281c99e4216a1314"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/elk/browser-lazy/chunks/chunk-O4WXINVK.js",
+    "bytes": 5103,
+    "sha256": "30e5de7004b351e437374ab5ffccba7025aa4ac6b773bda90f2ea90744111b2e"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/elk/browser-lazy/chunks/chunk-OCYQH4LM.js",
+    "bytes": 85999,
+    "sha256": "7ec197b6048ae53fe721df0ef67c48dccce74caea3f4ed04c9d110c622a4bab0"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/elk/browser-lazy/chunks/chunk-OGB2YZWM.js",
+    "bytes": 163,
+    "sha256": "be219d28301693b3509806f8002add7ff66819d52ee550911fffc1fb47a837c6"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/elk/browser-lazy/chunks/chunk-Q2JWQOFR.js",
+    "bytes": 13054,
+    "sha256": "17f8fc56bb05f2b43ab34b7b9f41ee92f21988a4ec08edb73b5dc718a71134f4"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/elk/browser-lazy/chunks/chunk-RNJQ25EL.js",
+    "bytes": 383,
+    "sha256": "6741f810ec9e6a25e9593292e3d519717f8715266ae802831a673560b259d202"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/elk/browser-lazy/chunks/chunk-RTUN4I4Z.js",
+    "bytes": 261,
+    "sha256": "9bf90e43a940b2b86d2c8296bdc7d4a53452a5151164f38d10a70488beb08c9e"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/elk/browser-lazy/chunks/chunk-SC76MUQ3.js",
+    "bytes": 440,
+    "sha256": "32f2e061f17b0958551c522cf707b97162f11e6f3fdc44667276459410366258"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/elk/browser-lazy/chunks/chunk-SUY5AJDN.js",
+    "bytes": 70956,
+    "sha256": "4e904cf0c828b2480af202b830caba842835b5a6ced1143bcba91fba1ed41f3d"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/elk/browser-lazy/chunks/chunk-TGCDPG3B.js",
+    "bytes": 12510,
+    "sha256": "c2af49073eaa7fb2eb988eafa6d899906aa2084b676f4c757e7d63f430c36f0c"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/elk/browser-lazy/chunks/chunk-TXALF2FK.js",
+    "bytes": 891,
+    "sha256": "09e4a78804795224819ca40734070069a0977f9c72bd27d06de37b90f7e6c2bf"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/elk/browser-lazy/chunks/chunk-U6OVMGDP.js",
+    "bytes": 786,
+    "sha256": "499174db340f7d3928bd4dc5e8fb2ae35f9ffdd9459caaadec2d6e212220b2e9"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/elk/browser-lazy/chunks/chunk-UMG3LHWW.js",
+    "bytes": 2179,
+    "sha256": "c7f578191c80405272c9db7465b553bd916396f2761f322e197b10aa25163306"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/elk/browser-lazy/chunks/chunk-UNKE6CHI.js",
+    "bytes": 3074,
+    "sha256": "fcf9e47b078afee0de7ed36f6474a28ed67f637b20032410ab24edcd25e754bb"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/elk/browser-lazy/chunks/chunk-UQ7GTNSR.js",
+    "bytes": 7633,
+    "sha256": "daae0619bc0ec02d0d90d2108156b16b85d5321dbe6cccf0ad14514944707a5d"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/elk/browser-lazy/chunks/chunk-VA5NXN6C.js",
+    "bytes": 119027,
+    "sha256": "08f056a589a6abef3c19ca11bf1ec90b3225fae3e38075370fc40235d9241c9a"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/elk/browser-lazy/chunks/chunk-VBMEMD4H.js",
+    "bytes": 58889,
+    "sha256": "f12e30f69dbc5b5eade147febec95f147b0e873fd4dd978bcbbbd1588c4eebc1"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/elk/browser-lazy/chunks/chunk-VI45WYIB.js",
+    "bytes": 11944,
+    "sha256": "170dcd0e02f0ce225cd1033909410997238b0c6ceac58caf56483af55a4dad0e"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/elk/browser-lazy/chunks/chunk-ZUH3ERZV.js",
+    "bytes": 865,
+    "sha256": "993f1a3ef1064a1825f8063bac9bc4b28304968341f449751f08e70973d4b3d9"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/elk/browser-lazy/chunks/class-AMOQYI2P.js",
+    "bytes": 119180,
+    "sha256": "fe601e4517f79e6d500999fd39dc167a3bda3658f1a0c01dc81d18a93abab446"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/elk/browser-lazy/chunks/cynefin-IKOLBDVE.js",
+    "bytes": 11467,
+    "sha256": "b226c7f8b7bb80edb1cb3bff972acef667357645155e919da9059e8228ca4fe9"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/elk/browser-lazy/chunks/decode-E23ODK3H.js",
+    "bytes": 40525,
+    "sha256": "65d57aaca480d91b64d4fbaf4989f871c57fbebddf311bb5f2a9e7ee58568886"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/elk/browser-lazy/chunks/elk.bundled-X5K4KOFH.js",
+    "bytes": 1447491,
+    "sha256": "2422557bc2a76ea5bea842c44c646f82d8d5dd66eeddbb017f3883feffa78ef5"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/elk/browser-lazy/chunks/er-JPKT5N4M.js",
+    "bytes": 86081,
+    "sha256": "34e0d8a1900f1d2bef85c79745dde0bcfe8e45aedd9d5c6ee6b37b77672fe4df"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/elk/browser-lazy/chunks/eventmodeling-N6N555QR.js",
+    "bytes": 19337,
+    "sha256": "5c6b32f31798d39d4b9cb92c6457988a3fe8a54707b305e3532e478592ecc749"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/elk/browser-lazy/chunks/flowchart-4OEA3B6G.js",
+    "bytes": 5774,
+    "sha256": "3c0ff8a4bcca3ee406768b4914eaa7ba25bcb915094831291779ad0b6260ffe1"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/elk/browser-lazy/chunks/forest-implementation-WIZWGTIE.js",
+    "bytes": 991,
+    "sha256": "041b65cfcaa48eba28ab7d56eb2f37e03e89b1f062a3a43e7391acb7468f432c"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/elk/browser-lazy/chunks/gantt-ZOODU4E4.js",
+    "bytes": 48718,
+    "sha256": "b55f5d9e7e8f10dfb2cdef356c7362c4b36ea6c4450da54e6c021d50f2a7f88a"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/elk/browser-lazy/chunks/gitgraph-U3N6QHYC.js",
+    "bytes": 27463,
+    "sha256": "cbded4200bd6f59724d6ea494df071ffe865e94b07c3b2e540334cdde8903895"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/elk/browser-lazy/chunks/inter-metrics-kernel-E4EEPZL6.js",
+    "bytes": 18621,
+    "sha256": "93f974dd12ced670e72104ad46a8f8cc77f8556b282d3430632fcf1fdd2baa04"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/elk/browser-lazy/chunks/ishikawa-PN32L42Z.js",
+    "bytes": 9613,
+    "sha256": "6c174976c3eafab51b65431716eda221f9350597326a13219bceba6974718495"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/elk/browser-lazy/chunks/journey-D5GDK42A.js",
+    "bytes": 34084,
+    "sha256": "5241bd78ea917cfde4c81e59919ff887a4f1ddd497bff580e71d05d7af185c08"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/elk/browser-lazy/chunks/kanban-VTS62HTK.js",
+    "bytes": 15216,
+    "sha256": "a1cfc84061de5e82f396055438158f28293d627075d499af8e7cabf7742498a0"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/elk/browser-lazy/chunks/mermaid-yaml-runtime-EDAWOZLW.js",
+    "bytes": 100108,
+    "sha256": "d43d69243c00dde9289eb86f9f932fa38361448ee9351ae269a7c5dacc1d821a"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/elk/browser-lazy/chunks/mindmap-YDJI2ROQ.js",
+    "bytes": 20404,
+    "sha256": "65b68e867a3ed1facbc63102f25dba9d7c9394773821187be6cf7ddb19106b52"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/elk/browser-lazy/chunks/optimization-runtime-MPMJL7DQ.js",
+    "bytes": 6220,
+    "sha256": "3aace280afa721dc86fbcb64b5edc35cb1701d08ac732ab60f06bf02fd147d68"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/elk/browser-lazy/chunks/packet-AQQESNVO.js",
+    "bytes": 8770,
+    "sha256": "13d800b0b0a2471e029c0c96896a8a6da4480f6665379dcd96df0ddd49d798ba"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/elk/browser-lazy/chunks/parser-source-YCESMRB4.js",
+    "bytes": 2365,
+    "sha256": "780c571b06cfa572a22e4d92134824421e4271da86575e30c55d8f7be8118df1"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/elk/browser-lazy/chunks/pie-CW36EUEB.js",
+    "bytes": 22757,
+    "sha256": "694257fc4433b12ee603fd8daaa4186eb6a8be606a73aa200e83fb8fcf10f825"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/elk/browser-lazy/chunks/quadrant-MJYMYXE3.js",
+    "bytes": 28702,
+    "sha256": "4c23e2e83f27b32f380377f9cfdec333aaeb34f56aa023eb697bb2cb5dc43e49"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/elk/browser-lazy/chunks/radar-JX3KL23L.js",
+    "bytes": 30781,
+    "sha256": "4638056a9a3c432d3a19c1724d04911764cbd7675fc90b1a2ae3237fd9810a3e"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/elk/browser-lazy/chunks/railroad-QU5WPSYJ.js",
+    "bytes": 23606,
+    "sha256": "81f8cf6a9d7f16560f17211681ef1c8c4ed23472638d59baa7ef53d147f2cb86"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/elk/browser-lazy/chunks/render-core-KCTIYUZ2.js",
+    "bytes": 183,
+    "sha256": "6903aa4c211749bdbba5817fabcb3966bbe602abe3d390458543acb7008e3d59"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/elk/browser-lazy/chunks/requirement-CI5JKWZ4.js",
+    "bytes": 34970,
+    "sha256": "c4a360dd6583d08ffb7fbf86650495ee341d56d61961465d2a7d8caef075d41e"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/elk/browser-lazy/chunks/sankey-35UUNFZI.js",
+    "bytes": 25149,
+    "sha256": "5eaae882acee2797a2d729b06d18f26227e9bd0e6244d5e37b836d86e420bfec"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/elk/browser-lazy/chunks/sequence-HSWCSUZ2.js",
+    "bytes": 7273,
+    "sha256": "cd086c11b5322157dbae44970e4dbd92e5e500c36734dc5b063884649aeaa8ae"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/elk/browser-lazy/chunks/state-ZMCS4LJW.js",
+    "bytes": 7977,
+    "sha256": "a5ea2df8268492b8ba9f2c7b825f8577a0f738d4717585da6862290341696256"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/elk/browser-lazy/chunks/swimlane-6H3P24LN.js",
+    "bytes": 14968,
+    "sha256": "719ae051150c6b9bac2228f2fb81f3bd8c9b1b6cde91b72b19704d068ee856f9"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/elk/browser-lazy/chunks/timeline-X65VN7QB.js",
+    "bytes": 21762,
+    "sha256": "be88737b7774d7c48fae9362d3e6d857654089e4abd0dbd35b2228066b911a94"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/elk/browser-lazy/chunks/treemap-P33XSRQR.js",
+    "bytes": 18250,
+    "sha256": "c341e17d723dfc9e1fa0f48fb96b0a8545bb76b10246ddff0e49d59457e02ff2"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/elk/browser-lazy/chunks/treeview-R5XN4OP3.js",
+    "bytes": 11612,
+    "sha256": "69dab625ffacfc4c42d7ef6e66e7518c20fd81e4b3a4c0d8c323737c2fde7cf2"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/elk/browser-lazy/chunks/trinity-FOPO4S5L.js",
+    "bytes": 16604,
+    "sha256": "45e0ad5cddf16c142543bd34a544508b28886eec16bb374582d6ce6d5868a119"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/elk/browser-lazy/chunks/trinity-producer-HJCGYYTT.js",
+    "bytes": 2715,
+    "sha256": "0ad76662804044ca8041822d54f8bd090027169470c2f7ae6a44302c28dc2d25"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/elk/browser-lazy/chunks/usecase-5KCVXZEM.js",
+    "bytes": 48700,
+    "sha256": "74f45b41d3e10d251dc5bf20d5b4bff0ed8f3768a91bc6ff5d7ca1f151b6ab45"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/elk/browser-lazy/chunks/venn-QDQK34KI.js",
+    "bytes": 24052,
+    "sha256": "b02226c437113c319f08ea7f1f88606599cc82de528c4d00767e48b4d7bb3d82"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/elk/browser-lazy/chunks/wardley-E3KD3PO5.js",
+    "bytes": 26062,
+    "sha256": "b2fd60093a65c881187344e3829b9ab0a0c6df467f528bcfc51cf192fcf79fe6"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/elk/browser-lazy/chunks/xychart-LDKOZOOD.js",
+    "bytes": 54116,
+    "sha256": "3563984d5df14942dd400a507eb094800970d47eed0c39dc8d433ac72d2c694e"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/elk/browser-lazy/chunks/zenuml-GSD66FAD.js",
+    "bytes": 22967,
+    "sha256": "790c9b02c29aee75a011f2babec8331993adf5da3bb21e0f25ad3be607b76397"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/elk/browser-lazy/index.js",
+    "bytes": 4358,
+    "sha256": "e6096d63c7d118cd83304b49d7102a41ee74fe75b0f6683a28d78785368e1868"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/elk/declared-adapter.mjs",
+    "bytes": 965,
+    "sha256": "2db9f4b28ad5d21417101446f0fb5375d6281898daeff495295504eae98cd103"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/elk/entry.mjs",
+    "bytes": 501,
+    "sha256": "8b3cc9f1b2d1c0b825b6f0f1508ad7bf1fd49e8439b1bc9d5432c6a9511ad613"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/trinity/browser-lazy/chunks/agentflow-TOBVY25S.js",
+    "bytes": 16966,
+    "sha256": "bc32ced7a044e968d31f001e579585e776cdc6dfebb6f4841f967983d9122b64"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/trinity/browser-lazy/chunks/agentic-producer-core-H7YI3PSO.js",
+    "bytes": 43081,
+    "sha256": "641774204fd27b415833efd1d32d44f38511b13c5ccea9ff7ec6081ba27c53de"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/trinity/browser-lazy/chunks/architecture-Z2TGK3PL.js",
+    "bytes": 58616,
+    "sha256": "0a75aa1b276c07495859eb536edd7eb1caaabc5478eab4c271e0d71ea92b3cfc"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/trinity/browser-lazy/chunks/block-R3R2KMUC.js",
+    "bytes": 34673,
+    "sha256": "4ac90cb41c3ef3debdf12d430fe3ea3714cd050182d86d378facfdb74d4e7840"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/trinity/browser-lazy/chunks/builtin-backends-TIEJ7UNX.js",
+    "bytes": 39789,
+    "sha256": "97ee22abf1a8d94f5f54c2d1a1242eafd997a377317f54760a11fd50771ed838"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/trinity/browser-lazy/chunks/c4-5CASB5Q2.js",
+    "bytes": 71964,
+    "sha256": "894381756fbcb264d9261cb757bd700018e0a92d463137ea55eadb21cc718b7a"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/trinity/browser-lazy/chunks/chunk-2FFMGXYS.js",
+    "bytes": 8663,
+    "sha256": "80881cc24c19ef0c6a1ae408ceb527709a7ae1049027cbcda3ee20c49f3ce459"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/trinity/browser-lazy/chunks/chunk-2QWPKXL3.js",
+    "bytes": 1607,
+    "sha256": "43fcf51e3d2ed5d94df23cdcd8eacdba6c2511f4af810d49cdfb0e8bcf9db006"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/trinity/browser-lazy/chunks/chunk-4FJJ6BHR.js",
+    "bytes": 414,
+    "sha256": "c4b8ecae68125ad7dae7239f8c5d8fe3792bf68d564652e83f19164608b012c4"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/trinity/browser-lazy/chunks/chunk-4RNGW2RF.js",
+    "bytes": 20809,
+    "sha256": "d986db36b676c4bb5011e76b933e0bfa1358646ab8b174e8ac531d498472bd85"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/trinity/browser-lazy/chunks/chunk-5AVWL4HA.js",
+    "bytes": 281,
+    "sha256": "28099c26511b2903c0153dcfbb9b57f5091ecd9718b0eef849be94924a5050a7"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/trinity/browser-lazy/chunks/chunk-7JOXKRSW.js",
+    "bytes": 424,
+    "sha256": "4fc90f13e127a275290b54f9ac4f416cb1deccab4003a83d4b45843606f1d235"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/trinity/browser-lazy/chunks/chunk-7WYEZDAV.js",
+    "bytes": 2947,
+    "sha256": "9537136b03638cfeaee3fd895794340115c04b985d0f37a91cb3218ad460289f"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/trinity/browser-lazy/chunks/chunk-7X62GRYO.js",
+    "bytes": 7330,
+    "sha256": "bc9243c7c84de8de1e64f44b485dad3f99b66f75179002049b1c578fef2bb321"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/trinity/browser-lazy/chunks/chunk-A6CKOFBH.js",
+    "bytes": 1688,
+    "sha256": "bddec1a39b374dbce7ebfe145118dce17c07efa33ed8e1e0104322d2947f6fd6"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/trinity/browser-lazy/chunks/chunk-AII457QA.js",
+    "bytes": 595,
+    "sha256": "e19db39ab8ce906fc691b3e7eaaa0659ca31bbeede2bb6514d1b4798062dd00a"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/trinity/browser-lazy/chunks/chunk-AZGIQUN4.js",
+    "bytes": 12761,
+    "sha256": "71b334ffa829495c633608912045d550c3b675b72f0afcbb70bde5eafd181826"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/trinity/browser-lazy/chunks/chunk-BDYRCRM2.js",
+    "bytes": 118046,
+    "sha256": "b15f56562abfa9200477d18c315c253da7b3b27d146116f69cef4f538763beaa"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/trinity/browser-lazy/chunks/chunk-BEYC7DI5.js",
+    "bytes": 2559,
+    "sha256": "595c424a359ebb4ec8ee96e8a08f241a202710de652c82de95b3807d33834c50"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/trinity/browser-lazy/chunks/chunk-CDC4GQBX.js",
+    "bytes": 515,
+    "sha256": "65d377bffdbc6313dd4e19ccd2aad490d0a9e5e6c65eb74d7aa65f092c92959f"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/trinity/browser-lazy/chunks/chunk-CLWWU6PK.js",
+    "bytes": 887,
+    "sha256": "8e228b2d11e2c6bfca5b0b6ae36c976d9f129136cb7d67c6c35e8d59713f3959"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/trinity/browser-lazy/chunks/chunk-D7ACEPSO.js",
+    "bytes": 6562,
+    "sha256": "0564120dec9fe0cc5f659ada8afa171c37621007ebbdd54d91df1c54c7707d6d"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/trinity/browser-lazy/chunks/chunk-D971EB51.js",
+    "bytes": 599808,
+    "sha256": "ec6a91c48b0a411080bfd39eb2e7d8727c60f4809eb10f1235147f3173e59174"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/trinity/browser-lazy/chunks/chunk-EZZICG5F.js",
+    "bytes": 760,
+    "sha256": "239eace03348a64ad3a1d8786ebc3033a3272456149cec0648f97572d7938697"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/trinity/browser-lazy/chunks/chunk-FNMIBZ7T.js",
+    "bytes": 3624,
+    "sha256": "62edc576c5d2d935fc0b484cbb30c0444637c0c7fd8341dd7e5dfc8c8fee3418"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/trinity/browser-lazy/chunks/chunk-FR62EHID.js",
+    "bytes": 1840,
+    "sha256": "850ae89edf5cef8893c9328525dcb1c3ff1bfb9581085a2c92f6e84c29d282f4"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/trinity/browser-lazy/chunks/chunk-IH2QCKZZ.js",
+    "bytes": 4802,
+    "sha256": "8f32d9017a0dcfc605d53fd74a4a623b2f4a134f36204867386cdc8879850531"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/trinity/browser-lazy/chunks/chunk-JAY5YCCH.js",
+    "bytes": 1618,
+    "sha256": "3c0d94a02b16d9424b8909d3b4a35dc6719c0a1d531aade6b4ec84a7c5018b51"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/trinity/browser-lazy/chunks/chunk-JVFVBEG7.js",
+    "bytes": 340,
+    "sha256": "256171d38d871940de29887398233287ce8c860548956be7aaeb5e4c2fe7967d"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/trinity/browser-lazy/chunks/chunk-KVSZ7XLL.js",
+    "bytes": 401,
+    "sha256": "0426518e224aa269ee46483d465e450336f77218f16b501e73473ba703e3ac60"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/trinity/browser-lazy/chunks/chunk-M62WLLR3.js",
+    "bytes": 1188,
+    "sha256": "d39e326ae1743da0433533754f01e8891aae3369bdfcc32f094a0ff58652be25"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/trinity/browser-lazy/chunks/chunk-MN6KOKXA.js",
+    "bytes": 272,
+    "sha256": "65260ac05b147a628f7f41352c8efcfa2e61a21ee03f4b6b43698caa4d3c0d4c"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/trinity/browser-lazy/chunks/chunk-NBHHPERM.js",
+    "bytes": 1832,
+    "sha256": "2277bd98607e484ab1afdb62b3841f8fbe797aad24919e97429f1c8417d77389"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/trinity/browser-lazy/chunks/chunk-NU4JOU63.js",
+    "bytes": 892,
+    "sha256": "c178c855027ec602f768d67e3cbf5193b6508318f3647750281c99e4216a1314"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/trinity/browser-lazy/chunks/chunk-O4WXINVK.js",
+    "bytes": 5103,
+    "sha256": "30e5de7004b351e437374ab5ffccba7025aa4ac6b773bda90f2ea90744111b2e"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/trinity/browser-lazy/chunks/chunk-OCYQH4LM.js",
+    "bytes": 85999,
+    "sha256": "7ec197b6048ae53fe721df0ef67c48dccce74caea3f4ed04c9d110c622a4bab0"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/trinity/browser-lazy/chunks/chunk-OGB2YZWM.js",
+    "bytes": 163,
+    "sha256": "be219d28301693b3509806f8002add7ff66819d52ee550911fffc1fb47a837c6"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/trinity/browser-lazy/chunks/chunk-Q2JWQOFR.js",
+    "bytes": 13054,
+    "sha256": "17f8fc56bb05f2b43ab34b7b9f41ee92f21988a4ec08edb73b5dc718a71134f4"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/trinity/browser-lazy/chunks/chunk-RNJQ25EL.js",
+    "bytes": 383,
+    "sha256": "6741f810ec9e6a25e9593292e3d519717f8715266ae802831a673560b259d202"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/trinity/browser-lazy/chunks/chunk-RTUN4I4Z.js",
+    "bytes": 261,
+    "sha256": "9bf90e43a940b2b86d2c8296bdc7d4a53452a5151164f38d10a70488beb08c9e"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/trinity/browser-lazy/chunks/chunk-SC76MUQ3.js",
+    "bytes": 440,
+    "sha256": "32f2e061f17b0958551c522cf707b97162f11e6f3fdc44667276459410366258"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/trinity/browser-lazy/chunks/chunk-SUY5AJDN.js",
+    "bytes": 70956,
+    "sha256": "4e904cf0c828b2480af202b830caba842835b5a6ced1143bcba91fba1ed41f3d"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/trinity/browser-lazy/chunks/chunk-TGCDPG3B.js",
+    "bytes": 12510,
+    "sha256": "c2af49073eaa7fb2eb988eafa6d899906aa2084b676f4c757e7d63f430c36f0c"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/trinity/browser-lazy/chunks/chunk-TXALF2FK.js",
+    "bytes": 891,
+    "sha256": "09e4a78804795224819ca40734070069a0977f9c72bd27d06de37b90f7e6c2bf"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/trinity/browser-lazy/chunks/chunk-U6OVMGDP.js",
+    "bytes": 786,
+    "sha256": "499174db340f7d3928bd4dc5e8fb2ae35f9ffdd9459caaadec2d6e212220b2e9"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/trinity/browser-lazy/chunks/chunk-UMG3LHWW.js",
+    "bytes": 2179,
+    "sha256": "c7f578191c80405272c9db7465b553bd916396f2761f322e197b10aa25163306"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/trinity/browser-lazy/chunks/chunk-UNKE6CHI.js",
+    "bytes": 3074,
+    "sha256": "fcf9e47b078afee0de7ed36f6474a28ed67f637b20032410ab24edcd25e754bb"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/trinity/browser-lazy/chunks/chunk-UQ7GTNSR.js",
+    "bytes": 7633,
+    "sha256": "daae0619bc0ec02d0d90d2108156b16b85d5321dbe6cccf0ad14514944707a5d"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/trinity/browser-lazy/chunks/chunk-VA5NXN6C.js",
+    "bytes": 119027,
+    "sha256": "08f056a589a6abef3c19ca11bf1ec90b3225fae3e38075370fc40235d9241c9a"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/trinity/browser-lazy/chunks/chunk-VBMEMD4H.js",
+    "bytes": 58889,
+    "sha256": "f12e30f69dbc5b5eade147febec95f147b0e873fd4dd978bcbbbd1588c4eebc1"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/trinity/browser-lazy/chunks/chunk-VI45WYIB.js",
+    "bytes": 11944,
+    "sha256": "170dcd0e02f0ce225cd1033909410997238b0c6ceac58caf56483af55a4dad0e"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/trinity/browser-lazy/chunks/chunk-ZUH3ERZV.js",
+    "bytes": 865,
+    "sha256": "993f1a3ef1064a1825f8063bac9bc4b28304968341f449751f08e70973d4b3d9"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/trinity/browser-lazy/chunks/class-AMOQYI2P.js",
+    "bytes": 119180,
+    "sha256": "fe601e4517f79e6d500999fd39dc167a3bda3658f1a0c01dc81d18a93abab446"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/trinity/browser-lazy/chunks/cynefin-IKOLBDVE.js",
+    "bytes": 11467,
+    "sha256": "b226c7f8b7bb80edb1cb3bff972acef667357645155e919da9059e8228ca4fe9"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/trinity/browser-lazy/chunks/decode-E23ODK3H.js",
+    "bytes": 40525,
+    "sha256": "65d57aaca480d91b64d4fbaf4989f871c57fbebddf311bb5f2a9e7ee58568886"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/trinity/browser-lazy/chunks/elk.bundled-X5K4KOFH.js",
+    "bytes": 1447491,
+    "sha256": "2422557bc2a76ea5bea842c44c646f82d8d5dd66eeddbb017f3883feffa78ef5"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/trinity/browser-lazy/chunks/er-JPKT5N4M.js",
+    "bytes": 86081,
+    "sha256": "34e0d8a1900f1d2bef85c79745dde0bcfe8e45aedd9d5c6ee6b37b77672fe4df"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/trinity/browser-lazy/chunks/eventmodeling-N6N555QR.js",
+    "bytes": 19337,
+    "sha256": "5c6b32f31798d39d4b9cb92c6457988a3fe8a54707b305e3532e478592ecc749"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/trinity/browser-lazy/chunks/flowchart-4OEA3B6G.js",
+    "bytes": 5774,
+    "sha256": "3c0ff8a4bcca3ee406768b4914eaa7ba25bcb915094831291779ad0b6260ffe1"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/trinity/browser-lazy/chunks/forest-implementation-WIZWGTIE.js",
+    "bytes": 991,
+    "sha256": "041b65cfcaa48eba28ab7d56eb2f37e03e89b1f062a3a43e7391acb7468f432c"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/trinity/browser-lazy/chunks/gantt-ZOODU4E4.js",
+    "bytes": 48718,
+    "sha256": "b55f5d9e7e8f10dfb2cdef356c7362c4b36ea6c4450da54e6c021d50f2a7f88a"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/trinity/browser-lazy/chunks/gitgraph-U3N6QHYC.js",
+    "bytes": 27463,
+    "sha256": "cbded4200bd6f59724d6ea494df071ffe865e94b07c3b2e540334cdde8903895"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/trinity/browser-lazy/chunks/inter-metrics-kernel-E4EEPZL6.js",
+    "bytes": 18621,
+    "sha256": "93f974dd12ced670e72104ad46a8f8cc77f8556b282d3430632fcf1fdd2baa04"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/trinity/browser-lazy/chunks/ishikawa-PN32L42Z.js",
+    "bytes": 9613,
+    "sha256": "6c174976c3eafab51b65431716eda221f9350597326a13219bceba6974718495"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/trinity/browser-lazy/chunks/journey-D5GDK42A.js",
+    "bytes": 34084,
+    "sha256": "5241bd78ea917cfde4c81e59919ff887a4f1ddd497bff580e71d05d7af185c08"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/trinity/browser-lazy/chunks/kanban-VTS62HTK.js",
+    "bytes": 15216,
+    "sha256": "a1cfc84061de5e82f396055438158f28293d627075d499af8e7cabf7742498a0"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/trinity/browser-lazy/chunks/mermaid-yaml-runtime-EDAWOZLW.js",
+    "bytes": 100108,
+    "sha256": "d43d69243c00dde9289eb86f9f932fa38361448ee9351ae269a7c5dacc1d821a"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/trinity/browser-lazy/chunks/mindmap-YDJI2ROQ.js",
+    "bytes": 20404,
+    "sha256": "65b68e867a3ed1facbc63102f25dba9d7c9394773821187be6cf7ddb19106b52"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/trinity/browser-lazy/chunks/optimization-runtime-MPMJL7DQ.js",
+    "bytes": 6220,
+    "sha256": "3aace280afa721dc86fbcb64b5edc35cb1701d08ac732ab60f06bf02fd147d68"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/trinity/browser-lazy/chunks/packet-AQQESNVO.js",
+    "bytes": 8770,
+    "sha256": "13d800b0b0a2471e029c0c96896a8a6da4480f6665379dcd96df0ddd49d798ba"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/trinity/browser-lazy/chunks/parser-source-YCESMRB4.js",
+    "bytes": 2365,
+    "sha256": "780c571b06cfa572a22e4d92134824421e4271da86575e30c55d8f7be8118df1"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/trinity/browser-lazy/chunks/pie-CW36EUEB.js",
+    "bytes": 22757,
+    "sha256": "694257fc4433b12ee603fd8daaa4186eb6a8be606a73aa200e83fb8fcf10f825"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/trinity/browser-lazy/chunks/quadrant-MJYMYXE3.js",
+    "bytes": 28702,
+    "sha256": "4c23e2e83f27b32f380377f9cfdec333aaeb34f56aa023eb697bb2cb5dc43e49"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/trinity/browser-lazy/chunks/radar-JX3KL23L.js",
+    "bytes": 30781,
+    "sha256": "4638056a9a3c432d3a19c1724d04911764cbd7675fc90b1a2ae3237fd9810a3e"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/trinity/browser-lazy/chunks/railroad-QU5WPSYJ.js",
+    "bytes": 23606,
+    "sha256": "81f8cf6a9d7f16560f17211681ef1c8c4ed23472638d59baa7ef53d147f2cb86"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/trinity/browser-lazy/chunks/render-core-KCTIYUZ2.js",
+    "bytes": 183,
+    "sha256": "6903aa4c211749bdbba5817fabcb3966bbe602abe3d390458543acb7008e3d59"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/trinity/browser-lazy/chunks/requirement-CI5JKWZ4.js",
+    "bytes": 34970,
+    "sha256": "c4a360dd6583d08ffb7fbf86650495ee341d56d61961465d2a7d8caef075d41e"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/trinity/browser-lazy/chunks/sankey-35UUNFZI.js",
+    "bytes": 25149,
+    "sha256": "5eaae882acee2797a2d729b06d18f26227e9bd0e6244d5e37b836d86e420bfec"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/trinity/browser-lazy/chunks/sequence-HSWCSUZ2.js",
+    "bytes": 7273,
+    "sha256": "cd086c11b5322157dbae44970e4dbd92e5e500c36734dc5b063884649aeaa8ae"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/trinity/browser-lazy/chunks/state-ZMCS4LJW.js",
+    "bytes": 7977,
+    "sha256": "a5ea2df8268492b8ba9f2c7b825f8577a0f738d4717585da6862290341696256"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/trinity/browser-lazy/chunks/swimlane-6H3P24LN.js",
+    "bytes": 14968,
+    "sha256": "719ae051150c6b9bac2228f2fb81f3bd8c9b1b6cde91b72b19704d068ee856f9"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/trinity/browser-lazy/chunks/timeline-X65VN7QB.js",
+    "bytes": 21762,
+    "sha256": "be88737b7774d7c48fae9362d3e6d857654089e4abd0dbd35b2228066b911a94"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/trinity/browser-lazy/chunks/treemap-P33XSRQR.js",
+    "bytes": 18250,
+    "sha256": "c341e17d723dfc9e1fa0f48fb96b0a8545bb76b10246ddff0e49d59457e02ff2"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/trinity/browser-lazy/chunks/treeview-R5XN4OP3.js",
+    "bytes": 11612,
+    "sha256": "69dab625ffacfc4c42d7ef6e66e7518c20fd81e4b3a4c0d8c323737c2fde7cf2"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/trinity/browser-lazy/chunks/trinity-FOPO4S5L.js",
+    "bytes": 16604,
+    "sha256": "45e0ad5cddf16c142543bd34a544508b28886eec16bb374582d6ce6d5868a119"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/trinity/browser-lazy/chunks/trinity-producer-HJCGYYTT.js",
+    "bytes": 2715,
+    "sha256": "0ad76662804044ca8041822d54f8bd090027169470c2f7ae6a44302c28dc2d25"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/trinity/browser-lazy/chunks/usecase-5KCVXZEM.js",
+    "bytes": 48700,
+    "sha256": "74f45b41d3e10d251dc5bf20d5b4bff0ed8f3768a91bc6ff5d7ca1f151b6ab45"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/trinity/browser-lazy/chunks/venn-QDQK34KI.js",
+    "bytes": 24052,
+    "sha256": "b02226c437113c319f08ea7f1f88606599cc82de528c4d00767e48b4d7bb3d82"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/trinity/browser-lazy/chunks/wardley-E3KD3PO5.js",
+    "bytes": 26062,
+    "sha256": "b2fd60093a65c881187344e3829b9ab0a0c6df467f528bcfc51cf192fcf79fe6"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/trinity/browser-lazy/chunks/xychart-LDKOZOOD.js",
+    "bytes": 54116,
+    "sha256": "3563984d5df14942dd400a507eb094800970d47eed0c39dc8d433ac72d2c694e"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/trinity/browser-lazy/chunks/zenuml-GSD66FAD.js",
+    "bytes": 22967,
+    "sha256": "790c9b02c29aee75a011f2babec8331993adf5da3bb21e0f25ad3be607b76397"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/trinity/browser-lazy/index.js",
+    "bytes": 4358,
+    "sha256": "e6096d63c7d118cd83304b49d7102a41ee74fe75b0f6683a28d78785368e1868"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/trinity/declared-adapter.mjs",
+    "bytes": 965,
+    "sha256": "2db9f4b28ad5d21417101446f0fb5375d6281898daeff495295504eae98cd103"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/engines/trinity/entry.mjs",
+    "bytes": 505,
+    "sha256": "b37940c41760071f7c3f4c8e53a4484a87c4eefbbf0570f09de0b160227e2f4b"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/qualification/qualification-visible-content-v3-0201ef6ba4287de67684b0ee65a3ee049be3140709c477262bf21e36c8de8901.js",
+    "bytes": 44494,
+    "sha256": "0201ef6ba4287de67684b0ee65a3ee049be3140709c477262bf21e36c8de8901"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/trinity/DELIVERY.json",
+    "bytes": 19067,
+    "sha256": "ab08642db5488350192fbe3df0315571057a9e93a18526003fe65c5454e13eb0"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/trinity/PREPARED.json",
+    "bytes": 26615,
+    "sha256": "b91a449c3fc5f911d6a4604c599e28a42d0597f78e4bf3195f9b34842137a7ef"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/trinity/RESULT.json",
+    "bytes": 20732,
+    "sha256": "7c99693613818e18ddd346c6dbcceb4a9d60013ba819e25bf0738949b04b1b5a"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser/trinity/community-browser-rounds.json",
+    "bytes": 55969,
+    "sha256": "b4d2c00d5a7d13eed8ea1f97ebc784775c9b1a1cee643a221cf1a27b160efd0d"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser-delivery.log",
+    "bytes": 659,
+    "sha256": "8cd6c0630dd087f7648493ba9402f3adf16315129c2edf983f318516ef2f7450"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/browser-delivery.ts",
+    "bytes": 7455,
+    "sha256": "c02b4c8713d28c80e9b8cb34295bcd77f859b9b048785f17e525b5fc89ba92d5"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/build-lazy.log",
+    "bytes": 13332,
+    "sha256": "52240142faf92017aded7f3e99e9341695da657c84984a1fcf7da234075d52f5"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/build-lazy.ts",
+    "bytes": 326,
+    "sha256": "c9226c885e46a353e6ebd450e038772db38b7299676dc58ebd6dc3cffcb0442d"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/community-ports-trinity-job.json",
+    "bytes": 936,
+    "sha256": "a23ebb01fc407f45faff31a48c6aa491ba10d8ab239e3dcfcc844080691df510"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/compound-lazy-visibility.before.ts",
+    "bytes": 11823,
+    "sha256": "a9687f31150f92409fc160c24312f89ecbf80514d63ce19d7aeae0ad33b94e6d"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/compound-lazy-visibility.local.ts",
+    "bytes": 11852,
+    "sha256": "ab8849502efc2ca95081045305ad2091128b14c66798e96cc4f29bddb07de215"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/dist/browser-lazy/chunks/agentflow-TOBVY25S.js",
+    "bytes": 16966,
+    "sha256": "bc32ced7a044e968d31f001e579585e776cdc6dfebb6f4841f967983d9122b64"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/dist/browser-lazy/chunks/agentic-producer-core-H7YI3PSO.js",
+    "bytes": 43081,
+    "sha256": "641774204fd27b415833efd1d32d44f38511b13c5ccea9ff7ec6081ba27c53de"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/dist/browser-lazy/chunks/architecture-Z2TGK3PL.js",
+    "bytes": 58616,
+    "sha256": "0a75aa1b276c07495859eb536edd7eb1caaabc5478eab4c271e0d71ea92b3cfc"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/dist/browser-lazy/chunks/block-R3R2KMUC.js",
+    "bytes": 34673,
+    "sha256": "4ac90cb41c3ef3debdf12d430fe3ea3714cd050182d86d378facfdb74d4e7840"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/dist/browser-lazy/chunks/builtin-backends-TIEJ7UNX.js",
+    "bytes": 39789,
+    "sha256": "97ee22abf1a8d94f5f54c2d1a1242eafd997a377317f54760a11fd50771ed838"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/dist/browser-lazy/chunks/c4-5CASB5Q2.js",
+    "bytes": 71964,
+    "sha256": "894381756fbcb264d9261cb757bd700018e0a92d463137ea55eadb21cc718b7a"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/dist/browser-lazy/chunks/chunk-2FFMGXYS.js",
+    "bytes": 8663,
+    "sha256": "80881cc24c19ef0c6a1ae408ceb527709a7ae1049027cbcda3ee20c49f3ce459"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/dist/browser-lazy/chunks/chunk-2QWPKXL3.js",
+    "bytes": 1607,
+    "sha256": "43fcf51e3d2ed5d94df23cdcd8eacdba6c2511f4af810d49cdfb0e8bcf9db006"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/dist/browser-lazy/chunks/chunk-4FJJ6BHR.js",
+    "bytes": 414,
+    "sha256": "c4b8ecae68125ad7dae7239f8c5d8fe3792bf68d564652e83f19164608b012c4"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/dist/browser-lazy/chunks/chunk-4RNGW2RF.js",
+    "bytes": 20809,
+    "sha256": "d986db36b676c4bb5011e76b933e0bfa1358646ab8b174e8ac531d498472bd85"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/dist/browser-lazy/chunks/chunk-5AVWL4HA.js",
+    "bytes": 281,
+    "sha256": "28099c26511b2903c0153dcfbb9b57f5091ecd9718b0eef849be94924a5050a7"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/dist/browser-lazy/chunks/chunk-7JOXKRSW.js",
+    "bytes": 424,
+    "sha256": "4fc90f13e127a275290b54f9ac4f416cb1deccab4003a83d4b45843606f1d235"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/dist/browser-lazy/chunks/chunk-7WYEZDAV.js",
+    "bytes": 2947,
+    "sha256": "9537136b03638cfeaee3fd895794340115c04b985d0f37a91cb3218ad460289f"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/dist/browser-lazy/chunks/chunk-7X62GRYO.js",
+    "bytes": 7330,
+    "sha256": "bc9243c7c84de8de1e64f44b485dad3f99b66f75179002049b1c578fef2bb321"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/dist/browser-lazy/chunks/chunk-A6CKOFBH.js",
+    "bytes": 1688,
+    "sha256": "bddec1a39b374dbce7ebfe145118dce17c07efa33ed8e1e0104322d2947f6fd6"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/dist/browser-lazy/chunks/chunk-AII457QA.js",
+    "bytes": 595,
+    "sha256": "e19db39ab8ce906fc691b3e7eaaa0659ca31bbeede2bb6514d1b4798062dd00a"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/dist/browser-lazy/chunks/chunk-AZGIQUN4.js",
+    "bytes": 12761,
+    "sha256": "71b334ffa829495c633608912045d550c3b675b72f0afcbb70bde5eafd181826"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/dist/browser-lazy/chunks/chunk-BDYRCRM2.js",
+    "bytes": 118046,
+    "sha256": "b15f56562abfa9200477d18c315c253da7b3b27d146116f69cef4f538763beaa"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/dist/browser-lazy/chunks/chunk-BEYC7DI5.js",
+    "bytes": 2559,
+    "sha256": "595c424a359ebb4ec8ee96e8a08f241a202710de652c82de95b3807d33834c50"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/dist/browser-lazy/chunks/chunk-CDC4GQBX.js",
+    "bytes": 515,
+    "sha256": "65d377bffdbc6313dd4e19ccd2aad490d0a9e5e6c65eb74d7aa65f092c92959f"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/dist/browser-lazy/chunks/chunk-CLWWU6PK.js",
+    "bytes": 887,
+    "sha256": "8e228b2d11e2c6bfca5b0b6ae36c976d9f129136cb7d67c6c35e8d59713f3959"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/dist/browser-lazy/chunks/chunk-D7ACEPSO.js",
+    "bytes": 6562,
+    "sha256": "0564120dec9fe0cc5f659ada8afa171c37621007ebbdd54d91df1c54c7707d6d"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/dist/browser-lazy/chunks/chunk-D971EB51.js",
+    "bytes": 599808,
+    "sha256": "ec6a91c48b0a411080bfd39eb2e7d8727c60f4809eb10f1235147f3173e59174"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/dist/browser-lazy/chunks/chunk-EZZICG5F.js",
+    "bytes": 760,
+    "sha256": "239eace03348a64ad3a1d8786ebc3033a3272456149cec0648f97572d7938697"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/dist/browser-lazy/chunks/chunk-FNMIBZ7T.js",
+    "bytes": 3624,
+    "sha256": "62edc576c5d2d935fc0b484cbb30c0444637c0c7fd8341dd7e5dfc8c8fee3418"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/dist/browser-lazy/chunks/chunk-FR62EHID.js",
+    "bytes": 1840,
+    "sha256": "850ae89edf5cef8893c9328525dcb1c3ff1bfb9581085a2c92f6e84c29d282f4"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/dist/browser-lazy/chunks/chunk-IH2QCKZZ.js",
+    "bytes": 4802,
+    "sha256": "8f32d9017a0dcfc605d53fd74a4a623b2f4a134f36204867386cdc8879850531"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/dist/browser-lazy/chunks/chunk-JAY5YCCH.js",
+    "bytes": 1618,
+    "sha256": "3c0d94a02b16d9424b8909d3b4a35dc6719c0a1d531aade6b4ec84a7c5018b51"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/dist/browser-lazy/chunks/chunk-JVFVBEG7.js",
+    "bytes": 340,
+    "sha256": "256171d38d871940de29887398233287ce8c860548956be7aaeb5e4c2fe7967d"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/dist/browser-lazy/chunks/chunk-KVSZ7XLL.js",
+    "bytes": 401,
+    "sha256": "0426518e224aa269ee46483d465e450336f77218f16b501e73473ba703e3ac60"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/dist/browser-lazy/chunks/chunk-M62WLLR3.js",
+    "bytes": 1188,
+    "sha256": "d39e326ae1743da0433533754f01e8891aae3369bdfcc32f094a0ff58652be25"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/dist/browser-lazy/chunks/chunk-MN6KOKXA.js",
+    "bytes": 272,
+    "sha256": "65260ac05b147a628f7f41352c8efcfa2e61a21ee03f4b6b43698caa4d3c0d4c"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/dist/browser-lazy/chunks/chunk-NBHHPERM.js",
+    "bytes": 1832,
+    "sha256": "2277bd98607e484ab1afdb62b3841f8fbe797aad24919e97429f1c8417d77389"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/dist/browser-lazy/chunks/chunk-NU4JOU63.js",
+    "bytes": 892,
+    "sha256": "c178c855027ec602f768d67e3cbf5193b6508318f3647750281c99e4216a1314"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/dist/browser-lazy/chunks/chunk-O4WXINVK.js",
+    "bytes": 5103,
+    "sha256": "30e5de7004b351e437374ab5ffccba7025aa4ac6b773bda90f2ea90744111b2e"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/dist/browser-lazy/chunks/chunk-OCYQH4LM.js",
+    "bytes": 85999,
+    "sha256": "7ec197b6048ae53fe721df0ef67c48dccce74caea3f4ed04c9d110c622a4bab0"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/dist/browser-lazy/chunks/chunk-OGB2YZWM.js",
+    "bytes": 163,
+    "sha256": "be219d28301693b3509806f8002add7ff66819d52ee550911fffc1fb47a837c6"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/dist/browser-lazy/chunks/chunk-Q2JWQOFR.js",
+    "bytes": 13054,
+    "sha256": "17f8fc56bb05f2b43ab34b7b9f41ee92f21988a4ec08edb73b5dc718a71134f4"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/dist/browser-lazy/chunks/chunk-RNJQ25EL.js",
+    "bytes": 383,
+    "sha256": "6741f810ec9e6a25e9593292e3d519717f8715266ae802831a673560b259d202"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/dist/browser-lazy/chunks/chunk-RTUN4I4Z.js",
+    "bytes": 261,
+    "sha256": "9bf90e43a940b2b86d2c8296bdc7d4a53452a5151164f38d10a70488beb08c9e"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/dist/browser-lazy/chunks/chunk-SC76MUQ3.js",
+    "bytes": 440,
+    "sha256": "32f2e061f17b0958551c522cf707b97162f11e6f3fdc44667276459410366258"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/dist/browser-lazy/chunks/chunk-SUY5AJDN.js",
+    "bytes": 70956,
+    "sha256": "4e904cf0c828b2480af202b830caba842835b5a6ced1143bcba91fba1ed41f3d"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/dist/browser-lazy/chunks/chunk-TGCDPG3B.js",
+    "bytes": 12510,
+    "sha256": "c2af49073eaa7fb2eb988eafa6d899906aa2084b676f4c757e7d63f430c36f0c"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/dist/browser-lazy/chunks/chunk-TXALF2FK.js",
+    "bytes": 891,
+    "sha256": "09e4a78804795224819ca40734070069a0977f9c72bd27d06de37b90f7e6c2bf"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/dist/browser-lazy/chunks/chunk-U6OVMGDP.js",
+    "bytes": 786,
+    "sha256": "499174db340f7d3928bd4dc5e8fb2ae35f9ffdd9459caaadec2d6e212220b2e9"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/dist/browser-lazy/chunks/chunk-UMG3LHWW.js",
+    "bytes": 2179,
+    "sha256": "c7f578191c80405272c9db7465b553bd916396f2761f322e197b10aa25163306"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/dist/browser-lazy/chunks/chunk-UNKE6CHI.js",
+    "bytes": 3074,
+    "sha256": "fcf9e47b078afee0de7ed36f6474a28ed67f637b20032410ab24edcd25e754bb"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/dist/browser-lazy/chunks/chunk-UQ7GTNSR.js",
+    "bytes": 7633,
+    "sha256": "daae0619bc0ec02d0d90d2108156b16b85d5321dbe6cccf0ad14514944707a5d"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/dist/browser-lazy/chunks/chunk-VA5NXN6C.js",
+    "bytes": 119027,
+    "sha256": "08f056a589a6abef3c19ca11bf1ec90b3225fae3e38075370fc40235d9241c9a"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/dist/browser-lazy/chunks/chunk-VBMEMD4H.js",
+    "bytes": 58889,
+    "sha256": "f12e30f69dbc5b5eade147febec95f147b0e873fd4dd978bcbbbd1588c4eebc1"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/dist/browser-lazy/chunks/chunk-VI45WYIB.js",
+    "bytes": 11944,
+    "sha256": "170dcd0e02f0ce225cd1033909410997238b0c6ceac58caf56483af55a4dad0e"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/dist/browser-lazy/chunks/chunk-ZUH3ERZV.js",
+    "bytes": 865,
+    "sha256": "993f1a3ef1064a1825f8063bac9bc4b28304968341f449751f08e70973d4b3d9"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/dist/browser-lazy/chunks/class-AMOQYI2P.js",
+    "bytes": 119180,
+    "sha256": "fe601e4517f79e6d500999fd39dc167a3bda3658f1a0c01dc81d18a93abab446"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/dist/browser-lazy/chunks/cynefin-IKOLBDVE.js",
+    "bytes": 11467,
+    "sha256": "b226c7f8b7bb80edb1cb3bff972acef667357645155e919da9059e8228ca4fe9"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/dist/browser-lazy/chunks/decode-E23ODK3H.js",
+    "bytes": 40525,
+    "sha256": "65d57aaca480d91b64d4fbaf4989f871c57fbebddf311bb5f2a9e7ee58568886"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/dist/browser-lazy/chunks/elk.bundled-X5K4KOFH.js",
+    "bytes": 1447491,
+    "sha256": "2422557bc2a76ea5bea842c44c646f82d8d5dd66eeddbb017f3883feffa78ef5"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/dist/browser-lazy/chunks/er-JPKT5N4M.js",
+    "bytes": 86081,
+    "sha256": "34e0d8a1900f1d2bef85c79745dde0bcfe8e45aedd9d5c6ee6b37b77672fe4df"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/dist/browser-lazy/chunks/eventmodeling-N6N555QR.js",
+    "bytes": 19337,
+    "sha256": "5c6b32f31798d39d4b9cb92c6457988a3fe8a54707b305e3532e478592ecc749"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/dist/browser-lazy/chunks/flowchart-4OEA3B6G.js",
+    "bytes": 5774,
+    "sha256": "3c0ff8a4bcca3ee406768b4914eaa7ba25bcb915094831291779ad0b6260ffe1"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/dist/browser-lazy/chunks/forest-implementation-WIZWGTIE.js",
+    "bytes": 991,
+    "sha256": "041b65cfcaa48eba28ab7d56eb2f37e03e89b1f062a3a43e7391acb7468f432c"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/dist/browser-lazy/chunks/gantt-ZOODU4E4.js",
+    "bytes": 48718,
+    "sha256": "b55f5d9e7e8f10dfb2cdef356c7362c4b36ea6c4450da54e6c021d50f2a7f88a"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/dist/browser-lazy/chunks/gitgraph-U3N6QHYC.js",
+    "bytes": 27463,
+    "sha256": "cbded4200bd6f59724d6ea494df071ffe865e94b07c3b2e540334cdde8903895"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/dist/browser-lazy/chunks/inter-metrics-kernel-E4EEPZL6.js",
+    "bytes": 18621,
+    "sha256": "93f974dd12ced670e72104ad46a8f8cc77f8556b282d3430632fcf1fdd2baa04"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/dist/browser-lazy/chunks/ishikawa-PN32L42Z.js",
+    "bytes": 9613,
+    "sha256": "6c174976c3eafab51b65431716eda221f9350597326a13219bceba6974718495"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/dist/browser-lazy/chunks/journey-D5GDK42A.js",
+    "bytes": 34084,
+    "sha256": "5241bd78ea917cfde4c81e59919ff887a4f1ddd497bff580e71d05d7af185c08"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/dist/browser-lazy/chunks/kanban-VTS62HTK.js",
+    "bytes": 15216,
+    "sha256": "a1cfc84061de5e82f396055438158f28293d627075d499af8e7cabf7742498a0"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/dist/browser-lazy/chunks/mermaid-yaml-runtime-EDAWOZLW.js",
+    "bytes": 100108,
+    "sha256": "d43d69243c00dde9289eb86f9f932fa38361448ee9351ae269a7c5dacc1d821a"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/dist/browser-lazy/chunks/mindmap-YDJI2ROQ.js",
+    "bytes": 20404,
+    "sha256": "65b68e867a3ed1facbc63102f25dba9d7c9394773821187be6cf7ddb19106b52"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/dist/browser-lazy/chunks/optimization-runtime-MPMJL7DQ.js",
+    "bytes": 6220,
+    "sha256": "3aace280afa721dc86fbcb64b5edc35cb1701d08ac732ab60f06bf02fd147d68"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/dist/browser-lazy/chunks/packet-AQQESNVO.js",
+    "bytes": 8770,
+    "sha256": "13d800b0b0a2471e029c0c96896a8a6da4480f6665379dcd96df0ddd49d798ba"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/dist/browser-lazy/chunks/parser-source-YCESMRB4.js",
+    "bytes": 2365,
+    "sha256": "780c571b06cfa572a22e4d92134824421e4271da86575e30c55d8f7be8118df1"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/dist/browser-lazy/chunks/pie-CW36EUEB.js",
+    "bytes": 22757,
+    "sha256": "694257fc4433b12ee603fd8daaa4186eb6a8be606a73aa200e83fb8fcf10f825"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/dist/browser-lazy/chunks/quadrant-MJYMYXE3.js",
+    "bytes": 28702,
+    "sha256": "4c23e2e83f27b32f380377f9cfdec333aaeb34f56aa023eb697bb2cb5dc43e49"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/dist/browser-lazy/chunks/radar-JX3KL23L.js",
+    "bytes": 30781,
+    "sha256": "4638056a9a3c432d3a19c1724d04911764cbd7675fc90b1a2ae3237fd9810a3e"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/dist/browser-lazy/chunks/railroad-QU5WPSYJ.js",
+    "bytes": 23606,
+    "sha256": "81f8cf6a9d7f16560f17211681ef1c8c4ed23472638d59baa7ef53d147f2cb86"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/dist/browser-lazy/chunks/render-core-KCTIYUZ2.js",
+    "bytes": 183,
+    "sha256": "6903aa4c211749bdbba5817fabcb3966bbe602abe3d390458543acb7008e3d59"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/dist/browser-lazy/chunks/requirement-CI5JKWZ4.js",
+    "bytes": 34970,
+    "sha256": "c4a360dd6583d08ffb7fbf86650495ee341d56d61961465d2a7d8caef075d41e"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/dist/browser-lazy/chunks/sankey-35UUNFZI.js",
+    "bytes": 25149,
+    "sha256": "5eaae882acee2797a2d729b06d18f26227e9bd0e6244d5e37b836d86e420bfec"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/dist/browser-lazy/chunks/sequence-HSWCSUZ2.js",
+    "bytes": 7273,
+    "sha256": "cd086c11b5322157dbae44970e4dbd92e5e500c36734dc5b063884649aeaa8ae"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/dist/browser-lazy/chunks/state-ZMCS4LJW.js",
+    "bytes": 7977,
+    "sha256": "a5ea2df8268492b8ba9f2c7b825f8577a0f738d4717585da6862290341696256"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/dist/browser-lazy/chunks/swimlane-6H3P24LN.js",
+    "bytes": 14968,
+    "sha256": "719ae051150c6b9bac2228f2fb81f3bd8c9b1b6cde91b72b19704d068ee856f9"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/dist/browser-lazy/chunks/timeline-X65VN7QB.js",
+    "bytes": 21762,
+    "sha256": "be88737b7774d7c48fae9362d3e6d857654089e4abd0dbd35b2228066b911a94"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/dist/browser-lazy/chunks/treemap-P33XSRQR.js",
+    "bytes": 18250,
+    "sha256": "c341e17d723dfc9e1fa0f48fb96b0a8545bb76b10246ddff0e49d59457e02ff2"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/dist/browser-lazy/chunks/treeview-R5XN4OP3.js",
+    "bytes": 11612,
+    "sha256": "69dab625ffacfc4c42d7ef6e66e7518c20fd81e4b3a4c0d8c323737c2fde7cf2"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/dist/browser-lazy/chunks/trinity-FOPO4S5L.js",
+    "bytes": 16604,
+    "sha256": "45e0ad5cddf16c142543bd34a544508b28886eec16bb374582d6ce6d5868a119"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/dist/browser-lazy/chunks/trinity-producer-HJCGYYTT.js",
+    "bytes": 2715,
+    "sha256": "0ad76662804044ca8041822d54f8bd090027169470c2f7ae6a44302c28dc2d25"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/dist/browser-lazy/chunks/usecase-5KCVXZEM.js",
+    "bytes": 48700,
+    "sha256": "74f45b41d3e10d251dc5bf20d5b4bff0ed8f3768a91bc6ff5d7ca1f151b6ab45"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/dist/browser-lazy/chunks/venn-QDQK34KI.js",
+    "bytes": 24052,
+    "sha256": "b02226c437113c319f08ea7f1f88606599cc82de528c4d00767e48b4d7bb3d82"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/dist/browser-lazy/chunks/wardley-E3KD3PO5.js",
+    "bytes": 26062,
+    "sha256": "b2fd60093a65c881187344e3829b9ab0a0c6df467f528bcfc51cf192fcf79fe6"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/dist/browser-lazy/chunks/xychart-LDKOZOOD.js",
+    "bytes": 54116,
+    "sha256": "3563984d5df14942dd400a507eb094800970d47eed0c39dc8d433ac72d2c694e"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/dist/browser-lazy/chunks/zenuml-GSD66FAD.js",
+    "bytes": 22967,
+    "sha256": "790c9b02c29aee75a011f2babec8331993adf5da3bb21e0f25ad3be607b76397"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/dist/browser-lazy/index.js",
+    "bytes": 4358,
+    "sha256": "e6096d63c7d118cd83304b49d7102a41ee74fe75b0f6683a28d78785368e1868"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/dist/metafile-esm.json",
+    "bytes": 592325,
+    "sha256": "7dd0e7972c058f4c9b6a81e0df5958a8d7509e529656da8ef0b947b2a1a5785a"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/fanin/DIRECTIONS.json",
+    "bytes": 15181,
+    "sha256": "089b6077f8c8919bca7017b207a2ba857fea6deec9a782b1effd1aacbb29fead"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/fanin/products/agentic-LR.layout.json",
+    "bytes": 10181,
+    "sha256": "b7d20a47ba27805b3a27abb3ed41fffa5b3ceb09b6f9a0e421d39646dad8d9ff"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/fanin/products/agentic-LR.receipt.json",
+    "bytes": 11814,
+    "sha256": "6f9cbe18db594bd950a6d2faa2c5185ba35096de1f6bfcc429e6e745db550176"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/fanin/products/agentic-LR.svg",
+    "bytes": 15644,
+    "sha256": "e543508d50f4c63658d7223937e94d41ce526b8884ea113e486fc6f1b482b698"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/fanin/products/agentic-RL.layout.json",
+    "bytes": 10142,
+    "sha256": "f3e32b40db7083648da27e437aeade0bfb363f181fc7cbd93d6b1940cc5ea0ff"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/fanin/products/agentic-RL.receipt.json",
+    "bytes": 11814,
+    "sha256": "720d11627102aa074aa206803b6561487c59f2e49ec1851d5f3d9256b9e38f20"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/fanin/products/agentic-RL.svg",
+    "bytes": 15714,
+    "sha256": "f5c0b1ad440e18c8850cddb2af14acefd3ecdf62f6e18baf4742eb15c8823687"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/fanin/products/elk-BT.layout.json",
+    "bytes": 9450,
+    "sha256": "529ebd64561da2b004b050a6bec63a1e12c7ae1e074b102ce704e0704baaf4b7"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/fanin/products/elk-BT.receipt.json",
+    "bytes": 11797,
+    "sha256": "a9adb3fdc519de2ccf1498c65ef0c8aac881a913f9827d6f99d8495b11556ef9"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/fanin/products/elk-BT.svg",
+    "bytes": 15464,
+    "sha256": "5b1635643583b1eae22f7c3306cf67ea1514dc759d62de079c6db9900413326b"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/fanin/products/elk-LR.layout.json",
+    "bytes": 11339,
+    "sha256": "1428a07d18304b8860f50ca20a9697ae6eefeb925dd49b9a2634d1c2b973c7a7"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/fanin/products/elk-LR.receipt.json",
+    "bytes": 11797,
+    "sha256": "e67c23ee6a5c0502ef1d5b381c448d319abcb5e70c3d260c642d23057f8fc27d"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/fanin/products/elk-LR.svg",
+    "bytes": 16583,
+    "sha256": "b4aeed2fe6d488ba76131db25c624081639e47d1b1ac4a02eabeb1a5dfbaf0af"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/fanin/products/elk-RL.layout.json",
+    "bytes": 11347,
+    "sha256": "10591571a3db6d5a01dcef67a6c29a521780866953c21466740e840442cc8a1a"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/fanin/products/elk-RL.receipt.json",
+    "bytes": 11797,
+    "sha256": "6e10cbb17bfc047f7b1b4c65df4db3913a2fbdbe4e87e7a4b4aa0beb9a3fa2c2"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/fanin/products/elk-RL.svg",
+    "bytes": 16627,
+    "sha256": "1cd52a7c663bb9697499ce838cb058f4e3c6548dc6a0eeeded1bccea823de811"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/fanin/products/elk-TB.layout.json",
+    "bytes": 9658,
+    "sha256": "39b92be1447884e78a8ca6ceb2c35aa6d53905d16dfa96d3eb8d45ce56095cac"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/fanin/products/elk-TB.receipt.json",
+    "bytes": 11798,
+    "sha256": "b556504a43849578def2a3b64c85ea9005746e23cab26507c1345a16c0ad9509"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/fanin/products/elk-TB.svg",
+    "bytes": 15582,
+    "sha256": "756b04ff189a476a3223c5a68c52bb26152711f97558e8ddbad7c5346a10e810"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/fanin/products/trinity-BT.layout.json",
+    "bytes": 9173,
+    "sha256": "75d8069fd803833415b4ab20103e7c339f45041c4a611392d81c21055a5533b8"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/fanin/products/trinity-BT.receipt.json",
+    "bytes": 11806,
+    "sha256": "f6e433e85fd1967b97d313f299d2587af412f839c14bf44312700901af15e618"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/fanin/products/trinity-BT.svg",
+    "bytes": 15570,
+    "sha256": "956bae10df59149d8030ef351db86b566aa3d35a7ef929efbe7f80680d6f6dc6"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/fanin/products/trinity-LR.layout.json",
+    "bytes": 9220,
+    "sha256": "22f5e050563f04aa66d538477e05a57b7bcbb7d661fde6c252ff4aedc4ce2e5d"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/fanin/products/trinity-LR.receipt.json",
+    "bytes": 11805,
+    "sha256": "fb69e7f5800a336423254ddf77b3a997156374e5d77a365f5f1ebe08abd2fdf1"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/fanin/products/trinity-LR.svg",
+    "bytes": 15530,
+    "sha256": "a171c7e4c79b42eb0a4bd4c9964326b73d20bb8448bba9c82858c84a983092c5"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/fanin/products/trinity-RL.layout.json",
+    "bytes": 9165,
+    "sha256": "56cc20ff3d1c1c7618429e3aab56848243f1b3d2325d96506f72536f85193ac2"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/fanin/products/trinity-RL.receipt.json",
+    "bytes": 11805,
+    "sha256": "6f380289b39d83b3cdb72a7a374c58dfbbc7f5a10be56de836177d7ad9bf0086"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/fanin/products/trinity-RL.svg",
+    "bytes": 15540,
+    "sha256": "14a85bb7f898894fba4df1ede1f287fd72286178f328ce8a406b1cc54019323b"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/fanin/products/trinity-TB.layout.json",
+    "bytes": 9612,
+    "sha256": "e7b50a2c85f09c1ed74c60600db1ca69e551fa3823a32a44df4d3c486fe1d5e7"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/fanin/products/trinity-TB.receipt.json",
+    "bytes": 11806,
+    "sha256": "1963480f1f69a17532b1027727864624be7aa63ee4f63830e31704218403bee4"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/fanin/products/trinity-TB.svg",
+    "bytes": 15695,
+    "sha256": "3f167a8ac64646d97ba924d75ff852c848c4af3a4327622ffa9efca6074129af"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/fanin.log",
+    "bytes": 850,
+    "sha256": "a42ff7d728f69e53f4f4311d6cf5a85785600549120f4f79625f8d1a53b9de28"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/frozen-products/0-meaning_family_flowchart-agentic.receipt.json",
+    "bytes": 7912,
+    "sha256": "94f96be39a34659e64e4e0dce3f8fe816a81f4531c64f045625822a595d93c76"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/frozen-products/0-meaning_family_flowchart-agentic.svg",
+    "bytes": 3588,
+    "sha256": "8a60671ca3b25d57a7c663fcd7939d603dd6079f0f1cec5a5bbad98f56a2d9e3"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/frozen-products/0-meaning_family_flowchart-elk.receipt.json",
+    "bytes": 7895,
+    "sha256": "9de566bde761a8881dc6100c59a59ac3767299d36453908a26078cfdbc8c161e"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/frozen-products/0-meaning_family_flowchart-elk.svg",
+    "bytes": 3588,
+    "sha256": "8a60671ca3b25d57a7c663fcd7939d603dd6079f0f1cec5a5bbad98f56a2d9e3"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/frozen-products/0-meaning_family_flowchart-trinity.receipt.json",
+    "bytes": 7903,
+    "sha256": "106cd17eab161f5e1082cde6f488c6a3f5a7829813e7d0c29b43e4dce121f27e"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/frozen-products/0-meaning_family_flowchart-trinity.svg",
+    "bytes": 3597,
+    "sha256": "12f8d5a5a54452058ee3f14352efa05b67255e54e71d5564fbb6b2899f37c70f"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/frozen-products/1-meaning_family_state-agentic.receipt.json",
+    "bytes": 7904,
+    "sha256": "c44e7221aa2c36250dc1bdf6a175c6837be12bad57fe43f54b8ad12f6c5c304d"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/frozen-products/1-meaning_family_state-agentic.svg",
+    "bytes": 3249,
+    "sha256": "5e01d14be1b1de8a0ac9717f1ce14d767b0e04f03fe6a65cded197bf4a46eb44"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/frozen-products/1-meaning_family_state-elk.receipt.json",
+    "bytes": 7887,
+    "sha256": "4448c293ddeb29864f1c69c14e16eb2d1eb53e41b0072a6c4a97cefa4d25da2e"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/frozen-products/1-meaning_family_state-elk.svg",
+    "bytes": 3250,
+    "sha256": "7c1ee9cd47b8215a40df9bb1fd84c2dd8b1a57baa997fd76dcee12356aef4876"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/frozen-products/1-meaning_family_state-trinity.receipt.json",
+    "bytes": 7896,
+    "sha256": "462795b21afb45aae24d96e3b2bb63b28d432f85779e6cd1ab3f50eff689bffe"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/frozen-products/1-meaning_family_state-trinity.svg",
+    "bytes": 3270,
+    "sha256": "67f666589981a1e71c30dc82f95bbc41ce4f78564c47b358be1d74dde74ecc4f"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/frozen-products/10-features_state_nesting-reciprocal-alias-agentic.receipt.json",
+    "bytes": 7907,
+    "sha256": "e2674685b5e0cd337595c2b015f910f49e9fa9ecbb22b0d8382596cd7cace3f1"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/frozen-products/10-features_state_nesting-reciprocal-alias-agentic.svg",
+    "bytes": 6571,
+    "sha256": "42179a2408b50b1d35dded4accfd5c857e8a64290ec5a7ac903af091b8cfd852"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/frozen-products/10-features_state_nesting-reciprocal-alias-elk.receipt.json",
+    "bytes": 7891,
+    "sha256": "2ed881b26aab64c60d7b22b1b079ee1c064fb4bfde06e912f38b83d3b34073a3"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/frozen-products/10-features_state_nesting-reciprocal-alias-elk.svg",
+    "bytes": 6670,
+    "sha256": "126249210cd48dca6e78150e131903c39d7ec528b17cb92f32024572526cd62a"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/frozen-products/10-features_state_nesting-reciprocal-alias-trinity.receipt.json",
+    "bytes": 7899,
+    "sha256": "6b99426c6713851fe32a2921d68bad8ecf5d1fc93f36e5c4326a10331950c79d"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/frozen-products/10-features_state_nesting-reciprocal-alias-trinity.svg",
+    "bytes": 6654,
+    "sha256": "d5412205b425caab0b8e6a09844ffe75f93248685fab5c514be667a77fc2e74e"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/frozen-products/11-features_state_initial-final-pseudostates-agentic.receipt.json",
+    "bytes": 7906,
+    "sha256": "e60e98b4dbdea1097784844013b97aeb37528d61b5da017b7493ca805884b8e0"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/frozen-products/11-features_state_initial-final-pseudostates-agentic.svg",
+    "bytes": 4686,
+    "sha256": "32051f7d4059ee553b36b72d8fc76c4689fdd3c3a0997fc25494379ba4ef6d57"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/frozen-products/11-features_state_initial-final-pseudostates-elk.receipt.json",
+    "bytes": 7889,
+    "sha256": "0cd0368d6bc138cea8013e80f8d5f8919fdedc030cca475c10c59bf6a4246e14"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/frozen-products/11-features_state_initial-final-pseudostates-elk.svg",
+    "bytes": 4686,
+    "sha256": "5392c2f9d88f3d68fd28f4b1f46582551fb39b96a76c3686d0b9fd9c4a450eae"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/frozen-products/11-features_state_initial-final-pseudostates-trinity.receipt.json",
+    "bytes": 7898,
+    "sha256": "9f3c189a3713ac2cba1be0e21f55776872172884b4ce62cbcc0bfa009a28efd8"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/frozen-products/11-features_state_initial-final-pseudostates-trinity.svg",
+    "bytes": 4723,
+    "sha256": "9235a6dd9b700f0a09692d801d2f87e74d71bd368e6a17240f56b3db3e6f15e9"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/frozen-products/12-features_er_attributes-identifying-cardinality-agentic.receipt.json",
+    "bytes": 7532,
+    "sha256": "566726474c99f7427542f45939ff178015862e32c898febb6a1baa6a2c93d901"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/frozen-products/12-features_er_attributes-identifying-cardinality-agentic.svg",
+    "bytes": 9043,
+    "sha256": "1a9c08ca5874ceafacfd5846e062b50e80615f71074ec85905f662be39e29618"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/frozen-products/12-features_er_attributes-identifying-cardinality-elk.receipt.json",
+    "bytes": 7515,
+    "sha256": "a6db7cee4f72eccf1c62fee44cb321226d6ec9affde06f6a7498a51b32d8132a"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/frozen-products/12-features_er_attributes-identifying-cardinality-elk.svg",
+    "bytes": 9040,
+    "sha256": "a0d3add7c7291e4cacd6a4152d77c0a3fdfb7caa08903c0ae37715e692c0382f"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/frozen-products/12-features_er_attributes-identifying-cardinality-trinity.receipt.json",
+    "bytes": 7523,
+    "sha256": "89914cc5b627dff82ffb76c3f5fc4e6b8f4e5acc2afcb34f7f18e2cce785b719"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/frozen-products/12-features_er_attributes-identifying-cardinality-trinity.svg",
+    "bytes": 9158,
+    "sha256": "87e2d61d72be1af7e8b764ce6f14dd59f7159e56dcaf69afc2b549e7450e1fbc"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/frozen-products/13-features_requirement_types-risk-relations-agentic.receipt.json",
+    "bytes": 7920,
+    "sha256": "a9c7ed971834bb1bc26318b39541412ec980d897406a39d8f6f3e10bbe4900b0"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/frozen-products/13-features_requirement_types-risk-relations-agentic.svg",
+    "bytes": 8309,
+    "sha256": "82e6392ecf5edad2aa673425d6e852cd2c12fe64e6d32c9a8d13a14ba0509006"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/frozen-products/13-features_requirement_types-risk-relations-elk.receipt.json",
+    "bytes": 7903,
+    "sha256": "956a7760ee930dad3edc3c7af8ddeb8236e30cd4dd331913cec34b39dea3f90f"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/frozen-products/13-features_requirement_types-risk-relations-elk.svg",
+    "bytes": 8364,
+    "sha256": "66cab83607132ce9beb4d753198eb469d936d6d3a6acfda3694865959f396d31"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/frozen-products/13-features_requirement_types-risk-relations-trinity.receipt.json",
+    "bytes": 7911,
+    "sha256": "ed4007aca35fdc8a1c85d35539fa4521acb15cc06f446f9e84afef98971e1c92"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/frozen-products/13-features_requirement_types-risk-relations-trinity.svg",
+    "bytes": 8389,
+    "sha256": "633898154ea4f80a36e85d5d7a4c8ff77fd4768bd558ee5c2dfd5bc1aad051c5"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/frozen-products/14-features_architecture_ports-groups-branching-agentic.receipt.json",
+    "bytes": 7918,
+    "sha256": "1cb2dd1b83e8a28c0ba09eb35b915f28ee43ba7a4e997fa12c110ca61152def8"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/frozen-products/14-features_architecture_ports-groups-branching-agentic.svg",
+    "bytes": 7955,
+    "sha256": "1e423705c26a1e24ad51eff20246577b89a283505498756089c90fc457b16a19"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/frozen-products/14-features_architecture_ports-groups-branching-elk.receipt.json",
+    "bytes": 7901,
+    "sha256": "d2e0b3030c3d7fcb0c79dae53df0e272e01b92ce736d02b0ac4d5b0af71050df"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/frozen-products/14-features_architecture_ports-groups-branching-elk.svg",
+    "bytes": 7927,
+    "sha256": "25ccdfe117d14cf0e69b05b8f27dd19b0db223a8ba804002788df65b7f17a788"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/frozen-products/14-features_architecture_ports-groups-branching-trinity.receipt.json",
+    "bytes": 7909,
+    "sha256": "be3a3c7396b41af99390f6c9a1844281073acfd8a8dc082bc83e98998bab7276"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/frozen-products/14-features_architecture_ports-groups-branching-trinity.svg",
+    "bytes": 7945,
+    "sha256": "26e2ca6996adc12e2a7e4e122e9d98cc37f7ee6377805ad59817f0cf4a1427c9"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/frozen-products/15-meaning_family_flowchart_configuration-reset-agentic.receipt.json",
+    "bytes": 7912,
+    "sha256": "94f96be39a34659e64e4e0dce3f8fe816a81f4531c64f045625822a595d93c76"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/frozen-products/15-meaning_family_flowchart_configuration-reset-agentic.svg",
+    "bytes": 3588,
+    "sha256": "8a60671ca3b25d57a7c663fcd7939d603dd6079f0f1cec5a5bbad98f56a2d9e3"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/frozen-products/15-meaning_family_flowchart_configuration-reset-elk.receipt.json",
+    "bytes": 7895,
+    "sha256": "9de566bde761a8881dc6100c59a59ac3767299d36453908a26078cfdbc8c161e"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/frozen-products/15-meaning_family_flowchart_configuration-reset-elk.svg",
+    "bytes": 3588,
+    "sha256": "8a60671ca3b25d57a7c663fcd7939d603dd6079f0f1cec5a5bbad98f56a2d9e3"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/frozen-products/15-meaning_family_flowchart_configuration-reset-trinity.receipt.json",
+    "bytes": 7903,
+    "sha256": "106cd17eab161f5e1082cde6f488c6a3f5a7829813e7d0c29b43e4dce121f27e"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/frozen-products/15-meaning_family_flowchart_configuration-reset-trinity.svg",
+    "bytes": 3597,
+    "sha256": "12f8d5a5a54452058ee3f14352efa05b67255e54e71d5564fbb6b2899f37c70f"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/frozen-products/16-meaning_family_flowchart_configuration-reset_edit-agentic.receipt.json",
+    "bytes": 7912,
+    "sha256": "21b533f5bd8a573a651702f6e02fc770e31a60e69774cfba222a9aab8a140224"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/frozen-products/16-meaning_family_flowchart_configuration-reset_edit-agentic.svg",
+    "bytes": 3603,
+    "sha256": "747b99c86aa443818764dd3ea98cf6f2524a8adfef4d54f8b0970549ea8a28b7"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/frozen-products/16-meaning_family_flowchart_configuration-reset_edit-elk.receipt.json",
+    "bytes": 7895,
+    "sha256": "a098204c7d311bc4925acdf44e6cbadfdba8ecb553c397460ef8dd2447af8836"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/frozen-products/16-meaning_family_flowchart_configuration-reset_edit-elk.svg",
+    "bytes": 3603,
+    "sha256": "747b99c86aa443818764dd3ea98cf6f2524a8adfef4d54f8b0970549ea8a28b7"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/frozen-products/16-meaning_family_flowchart_configuration-reset_edit-trinity.receipt.json",
+    "bytes": 7903,
+    "sha256": "b7afbefbb305bb03a14b7e6d302f34cb6d8ba552d4715cb09130bbe33a9f6e22"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/frozen-products/16-meaning_family_flowchart_configuration-reset_edit-trinity.svg",
+    "bytes": 3614,
+    "sha256": "570f19d137eb7ccde0225965821b00217b578b18c6939feea5c39f717404988f"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/frozen-products/17-meaning_family_state_configuration-reset-agentic.receipt.json",
+    "bytes": 7904,
+    "sha256": "c44e7221aa2c36250dc1bdf6a175c6837be12bad57fe43f54b8ad12f6c5c304d"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/frozen-products/17-meaning_family_state_configuration-reset-agentic.svg",
+    "bytes": 3249,
+    "sha256": "5e01d14be1b1de8a0ac9717f1ce14d767b0e04f03fe6a65cded197bf4a46eb44"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/frozen-products/17-meaning_family_state_configuration-reset-elk.receipt.json",
+    "bytes": 7887,
+    "sha256": "4448c293ddeb29864f1c69c14e16eb2d1eb53e41b0072a6c4a97cefa4d25da2e"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/frozen-products/17-meaning_family_state_configuration-reset-elk.svg",
+    "bytes": 3250,
+    "sha256": "7c1ee9cd47b8215a40df9bb1fd84c2dd8b1a57baa997fd76dcee12356aef4876"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/frozen-products/17-meaning_family_state_configuration-reset-trinity.receipt.json",
+    "bytes": 7896,
+    "sha256": "462795b21afb45aae24d96e3b2bb63b28d432f85779e6cd1ab3f50eff689bffe"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/frozen-products/17-meaning_family_state_configuration-reset-trinity.svg",
+    "bytes": 3270,
+    "sha256": "67f666589981a1e71c30dc82f95bbc41ce4f78564c47b358be1d74dde74ecc4f"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/frozen-products/18-meaning_family_state_configuration-reset_edit-agentic.receipt.json",
+    "bytes": 7905,
+    "sha256": "4376a9fe3f1838ae55fe73da9559cfa84c0367484f0601189e5c7aed26f12f10"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/frozen-products/18-meaning_family_state_configuration-reset_edit-agentic.svg",
+    "bytes": 3274,
+    "sha256": "d87eccf92fb122e4b07bf6734633d7ae59f1c74b10d3b2424acd54d7bac77f8a"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/frozen-products/18-meaning_family_state_configuration-reset_edit-elk.receipt.json",
+    "bytes": 7888,
+    "sha256": "ce0ab50e24156635afa2e7e93b70d696f658448a7f8eb3f29b6cf73a366dd3f1"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/frozen-products/18-meaning_family_state_configuration-reset_edit-elk.svg",
+    "bytes": 3275,
+    "sha256": "5785fd08fb008bac5a1b4f3816bc5b112d533054ecd2375cc24dabe1f1a4edc7"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/frozen-products/18-meaning_family_state_configuration-reset_edit-trinity.receipt.json",
+    "bytes": 7896,
+    "sha256": "a7e8b7ada4bdfbea1b13dfb9c78dc6c02f1eff71bd99e16629effb0740c59624"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/frozen-products/18-meaning_family_state_configuration-reset_edit-trinity.svg",
+    "bytes": 3293,
+    "sha256": "0fe6bca5c126e772309f0f772a93b0f8c0829fa4f42c4190a9c6257c4db6c258"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/frozen-products/19-meaning_family_class_configuration-reset-agentic.receipt.json",
+    "bytes": 7914,
+    "sha256": "694e994db5d856a22bb877b48cfdfd772a94d297a99663f9307917db164c094b"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/frozen-products/19-meaning_family_class_configuration-reset-agentic.svg",
+    "bytes": 4654,
+    "sha256": "0d2fdbd3844b2563cbf4a630a2a5c319fa714ab6f8b25573ed6454756ca88e95"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/frozen-products/19-meaning_family_class_configuration-reset-elk.receipt.json",
+    "bytes": 7884,
+    "sha256": "37a8ebb22240c438cfafdf186b35681227ff435b5ba8f6b21ef5ce97cfca607d"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/frozen-products/19-meaning_family_class_configuration-reset-elk.svg",
+    "bytes": 4657,
+    "sha256": "1f2da6ace94abf1fd152373d056ac20977abfca11f7c109f9448a239bb25dbb5"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/frozen-products/19-meaning_family_class_configuration-reset-trinity.receipt.json",
+    "bytes": 7892,
+    "sha256": "ae0629cd0d87afce0ae9edc0906e630b2258ac4cf6d76ccff0f7163a16a717ce"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/frozen-products/19-meaning_family_class_configuration-reset-trinity.svg",
+    "bytes": 4699,
+    "sha256": "5dbecc99db5b40e63eb14012e7da1f6ba6e2c9f8cb636e3ec90c3ae1ebc7636b"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/frozen-products/2-meaning_family_class-agentic.receipt.json",
+    "bytes": 7914,
+    "sha256": "694e994db5d856a22bb877b48cfdfd772a94d297a99663f9307917db164c094b"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/frozen-products/2-meaning_family_class-agentic.svg",
+    "bytes": 4654,
+    "sha256": "0d2fdbd3844b2563cbf4a630a2a5c319fa714ab6f8b25573ed6454756ca88e95"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/frozen-products/2-meaning_family_class-elk.receipt.json",
+    "bytes": 7884,
+    "sha256": "37a8ebb22240c438cfafdf186b35681227ff435b5ba8f6b21ef5ce97cfca607d"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/frozen-products/2-meaning_family_class-elk.svg",
+    "bytes": 4657,
+    "sha256": "1f2da6ace94abf1fd152373d056ac20977abfca11f7c109f9448a239bb25dbb5"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/frozen-products/2-meaning_family_class-trinity.receipt.json",
+    "bytes": 7892,
+    "sha256": "ae0629cd0d87afce0ae9edc0906e630b2258ac4cf6d76ccff0f7163a16a717ce"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/frozen-products/2-meaning_family_class-trinity.svg",
+    "bytes": 4699,
+    "sha256": "5dbecc99db5b40e63eb14012e7da1f6ba6e2c9f8cb636e3ec90c3ae1ebc7636b"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/frozen-products/20-meaning_family_class_configuration-reset_edit-agentic.receipt.json",
+    "bytes": 7914,
+    "sha256": "2bbf180ff6c07444aca7d0366357d30ad8c29e8cbd2a886e8ba839b95dfc5489"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/frozen-products/20-meaning_family_class_configuration-reset_edit-agentic.svg",
+    "bytes": 4668,
+    "sha256": "310a95be7caa7969e2d3c1b2fc1fc2aee5a06f197829da79e43d7b1bdeb95c86"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/frozen-products/20-meaning_family_class_configuration-reset_edit-elk.receipt.json",
+    "bytes": 7884,
+    "sha256": "4c8b3157e5d8d176b585e6fdf686ce7f84b493ad3e1166d5b0d2f8e557588502"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/frozen-products/20-meaning_family_class_configuration-reset_edit-elk.svg",
+    "bytes": 4671,
+    "sha256": "580afa60cbb9bf650244350fee2f317db4d3ae5b68ab1ebece53de25f000d745"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/frozen-products/20-meaning_family_class_configuration-reset_edit-trinity.receipt.json",
+    "bytes": 7892,
+    "sha256": "6fc16ffc37d3d5a2e0ae346e610c5d83034270e1dbec8fc2e30716d906247d64"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/frozen-products/20-meaning_family_class_configuration-reset_edit-trinity.svg",
+    "bytes": 4713,
+    "sha256": "beb51bd5acd2d9aa5885b5d1aedcca61ffc974b400473ad3ed432f31e3e503bd"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/frozen-products/21-meaning_family_er_configuration-reset-agentic.receipt.json",
+    "bytes": 7530,
+    "sha256": "fd62fbd59ef981b7da7af36dc802cdebb716c3cd74a867fa9d6ae43b27da0ef7"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/frozen-products/21-meaning_family_er_configuration-reset-agentic.svg",
+    "bytes": 4571,
+    "sha256": "6a3b7f68710b81f6615d9f8628e84e07af41a1547cff82f6451a9c0d9aadf936"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/frozen-products/21-meaning_family_er_configuration-reset-elk.receipt.json",
+    "bytes": 7513,
+    "sha256": "aa8b540f077838de7b28fa924c9b91cf557e4e06a2bdb7c91edcd74345e358db"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/frozen-products/21-meaning_family_er_configuration-reset-elk.svg",
+    "bytes": 4568,
+    "sha256": "e532c8934f3fa1bcb019ff050ca3db209bfd95082afb89b1fb0292ee22c547d4"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/frozen-products/21-meaning_family_er_configuration-reset-trinity.receipt.json",
+    "bytes": 7521,
+    "sha256": "b9d40310f65106705268731ae8e92fa1d24f0cbe3072d06d5f1dca4ecfea07f7"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/frozen-products/21-meaning_family_er_configuration-reset-trinity.svg",
+    "bytes": 4628,
+    "sha256": "5f8e534497e6442e3adf79418e7c85e4a4c780cd21c0254860e0d4137969cd4e"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/frozen-products/22-meaning_family_er_configuration-reset_edit-agentic.receipt.json",
+    "bytes": 7530,
+    "sha256": "00e60b849c28338089e7feed28627f8f0c1e37ba349fcb5648381cb7970c187a"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/frozen-products/22-meaning_family_er_configuration-reset_edit-agentic.svg",
+    "bytes": 4597,
+    "sha256": "64f9b4ebf5becf6fd20ec529bd77fb99fe2df68cd3db17c460952c53467917d5"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/frozen-products/22-meaning_family_er_configuration-reset_edit-elk.receipt.json",
+    "bytes": 7513,
+    "sha256": "4e6f147010b3c7c377ba078ac012d4a4f40e508a376520d2d713b0a8db4e3135"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/frozen-products/22-meaning_family_er_configuration-reset_edit-elk.svg",
+    "bytes": 4594,
+    "sha256": "cffdbd69e59ff985678c9d937a3c836ca15972a49b7b15fb87f5f29583eb6639"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/frozen-products/22-meaning_family_er_configuration-reset_edit-trinity.receipt.json",
+    "bytes": 7521,
+    "sha256": "6ac743884d6a7906b3ded0906168aeeffbc07e8d906dcd89bac69d8cca973bbf"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/frozen-products/22-meaning_family_er_configuration-reset_edit-trinity.svg",
+    "bytes": 4654,
+    "sha256": "410c58a1cd851fbb003b6a955b902aafe4a715d18ca5427e313dcef6c7d59b11"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/frozen-products/23-meaning_family_architecture_configuration-reset-agentic.receipt.json",
+    "bytes": 7914,
+    "sha256": "cf704bb390203af2789bb1047e0fe312095fa60cef2c64e35d659084dbfde621"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/frozen-products/23-meaning_family_architecture_configuration-reset-agentic.svg",
+    "bytes": 6233,
+    "sha256": "8864e089334289bacb44f67df966a65f5011a71e6e8f2106c0f7e9075e4de307"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/frozen-products/23-meaning_family_architecture_configuration-reset-elk.receipt.json",
+    "bytes": 7897,
+    "sha256": "392f5798dc93db61c4e4cc9fae8ca9bc69a9abc35b766ad5c765a34442a58461"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/frozen-products/23-meaning_family_architecture_configuration-reset-elk.svg",
+    "bytes": 6233,
+    "sha256": "8864e089334289bacb44f67df966a65f5011a71e6e8f2106c0f7e9075e4de307"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/frozen-products/23-meaning_family_architecture_configuration-reset-trinity.receipt.json",
+    "bytes": 7905,
+    "sha256": "8824fc7f002a395c6891089616d79068148b5f473bbadafcbb800daa2d20a420"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/frozen-products/23-meaning_family_architecture_configuration-reset-trinity.svg",
+    "bytes": 6247,
+    "sha256": "24603b9fc5268d2bd75f15f17eb0a983df9c2fce05ef37800dba8eae6b59ac3e"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/frozen-products/24-meaning_family_architecture_configuration-reset_edit-agentic.receipt.json",
+    "bytes": 7918,
+    "sha256": "e228f026f5e26f4956a0416cbf10249910d6d4c1a04efde0e77ea0bc398abc23"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/frozen-products/24-meaning_family_architecture_configuration-reset_edit-agentic.svg",
+    "bytes": 6303,
+    "sha256": "e6d8bdbf115d850e48400458fc9a1024e40ab2884af72b480f543e70b77660aa"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/frozen-products/24-meaning_family_architecture_configuration-reset_edit-elk.receipt.json",
+    "bytes": 7901,
+    "sha256": "c4768b8fc0a20df0a5414651a32876ca6a32c985a277d8ab371d7f169379674a"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/frozen-products/24-meaning_family_architecture_configuration-reset_edit-elk.svg",
+    "bytes": 6303,
+    "sha256": "e6d8bdbf115d850e48400458fc9a1024e40ab2884af72b480f543e70b77660aa"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/frozen-products/24-meaning_family_architecture_configuration-reset_edit-trinity.receipt.json",
+    "bytes": 7909,
+    "sha256": "9688f560d26357b699ba7e7f6b8c02c1601153577b0868ee8abee04089e7bd3c"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/frozen-products/24-meaning_family_architecture_configuration-reset_edit-trinity.svg",
+    "bytes": 6317,
+    "sha256": "957a010c51664eb63048555d3279f2085bbde85d1f55c171df2aec8cd41fe85b"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/frozen-products/25-meaning_family_requirement_configuration-reset-agentic.receipt.json",
+    "bytes": 7917,
+    "sha256": "205ee530a5b0ebbc19d45af66de57fd9c378c435fdd37839d65f1150e7fe5652"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/frozen-products/25-meaning_family_requirement_configuration-reset-agentic.svg",
+    "bytes": 5135,
+    "sha256": "fa4b3266cca1cc39eb765546366fb0552d8f14641fb568fdf375b6e3ff5d4779"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/frozen-products/25-meaning_family_requirement_configuration-reset-elk.receipt.json",
+    "bytes": 7900,
+    "sha256": "f5dd43eabb36cd4b7e86525a0bd7ac6239ec6c78edf711d85e459f4848042617"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/frozen-products/25-meaning_family_requirement_configuration-reset-elk.svg",
+    "bytes": 5134,
+    "sha256": "b1c0256c41fbb763fe88148279e6b5ca85624c7877e045142930a1663bf03327"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/frozen-products/25-meaning_family_requirement_configuration-reset-trinity.receipt.json",
+    "bytes": 7908,
+    "sha256": "c84c1f98fd6ad4fe67079725c3c0b7e2f5470a1675624ad2e9cb77ed3954a210"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/frozen-products/25-meaning_family_requirement_configuration-reset-trinity.svg",
+    "bytes": 5178,
+    "sha256": "87e695ae2ef555e744fce997c08d3d0faeaa518d579e4724179b388575556fb2"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/frozen-products/26-meaning_family_requirement_configuration-reset_edit-agentic.receipt.json",
+    "bytes": 7917,
+    "sha256": "19e3ad29510f618e86f9c777651c2a21a667b14e51b112ddd606e793ce345207"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/frozen-products/26-meaning_family_requirement_configuration-reset_edit-agentic.svg",
+    "bytes": 5132,
+    "sha256": "15cf0c06be1ffae09f6c943d2a58b228d30383d0646c94d5ad5890c8caa94ac3"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/frozen-products/26-meaning_family_requirement_configuration-reset_edit-elk.receipt.json",
+    "bytes": 7900,
+    "sha256": "d97cdd02a091c32f386a3d446e6633235fe1d5d0cac2be67d9998874a8283961"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/frozen-products/26-meaning_family_requirement_configuration-reset_edit-elk.svg",
+    "bytes": 5131,
+    "sha256": "095d454b1baceccea967ddbf115f4b26ad6397caf8824ca05839c2589692bb5f"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/frozen-products/26-meaning_family_requirement_configuration-reset_edit-trinity.receipt.json",
+    "bytes": 7908,
+    "sha256": "d8817aea2375d15575c08db342a9f49ee1c26cb7cea4ea08f0431168c69e7753"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/frozen-products/26-meaning_family_requirement_configuration-reset_edit-trinity.svg",
+    "bytes": 5175,
+    "sha256": "d5d35d9fa083fabdd6ed779af9e8149c8d03fa9753ded3b4ac0777efaa2bb07e"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/frozen-products/29-features_flowchart_controlled-image-agentic.receipt.json",
+    "bytes": 7912,
+    "sha256": "8e6e80fe084b67194382f1f3f40bf27383a1c7c0373e217c6889601baf42ace2"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/frozen-products/29-features_flowchart_controlled-image-agentic.svg",
+    "bytes": 3250,
+    "sha256": "c5189dd085fafd0f8cb0351ddc7410d11541566d80359b902903af06d443e955"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/frozen-products/29-features_flowchart_controlled-image-elk.receipt.json",
+    "bytes": 7895,
+    "sha256": "ee0aec1786af25cb213dceccc12219948418311657016368d8cabd0e18d4e5ff"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/frozen-products/29-features_flowchart_controlled-image-elk.svg",
+    "bytes": 3250,
+    "sha256": "c5189dd085fafd0f8cb0351ddc7410d11541566d80359b902903af06d443e955"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/frozen-products/3-meaning_family_er-agentic.receipt.json",
+    "bytes": 7530,
+    "sha256": "fd62fbd59ef981b7da7af36dc802cdebb716c3cd74a867fa9d6ae43b27da0ef7"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/frozen-products/3-meaning_family_er-agentic.svg",
+    "bytes": 4571,
+    "sha256": "6a3b7f68710b81f6615d9f8628e84e07af41a1547cff82f6451a9c0d9aadf936"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/frozen-products/3-meaning_family_er-elk.receipt.json",
+    "bytes": 7513,
+    "sha256": "aa8b540f077838de7b28fa924c9b91cf557e4e06a2bdb7c91edcd74345e358db"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/frozen-products/3-meaning_family_er-elk.svg",
+    "bytes": 4568,
+    "sha256": "e532c8934f3fa1bcb019ff050ca3db209bfd95082afb89b1fb0292ee22c547d4"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/frozen-products/3-meaning_family_er-trinity.receipt.json",
+    "bytes": 7521,
+    "sha256": "b9d40310f65106705268731ae8e92fa1d24f0cbe3072d06d5f1dca4ecfea07f7"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/frozen-products/3-meaning_family_er-trinity.svg",
+    "bytes": 4628,
+    "sha256": "5f8e534497e6442e3adf79418e7c85e4a4c780cd21c0254860e0d4137969cd4e"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/frozen-products/4-meaning_family_architecture-agentic.receipt.json",
+    "bytes": 7914,
+    "sha256": "cf704bb390203af2789bb1047e0fe312095fa60cef2c64e35d659084dbfde621"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/frozen-products/4-meaning_family_architecture-agentic.svg",
+    "bytes": 6233,
+    "sha256": "8864e089334289bacb44f67df966a65f5011a71e6e8f2106c0f7e9075e4de307"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/frozen-products/4-meaning_family_architecture-elk.receipt.json",
+    "bytes": 7897,
+    "sha256": "392f5798dc93db61c4e4cc9fae8ca9bc69a9abc35b766ad5c765a34442a58461"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/frozen-products/4-meaning_family_architecture-elk.svg",
+    "bytes": 6233,
+    "sha256": "8864e089334289bacb44f67df966a65f5011a71e6e8f2106c0f7e9075e4de307"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/frozen-products/4-meaning_family_architecture-trinity.receipt.json",
+    "bytes": 7905,
+    "sha256": "8824fc7f002a395c6891089616d79068148b5f473bbadafcbb800daa2d20a420"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/frozen-products/4-meaning_family_architecture-trinity.svg",
+    "bytes": 6247,
+    "sha256": "24603b9fc5268d2bd75f15f17eb0a983df9c2fce05ef37800dba8eae6b59ac3e"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/frozen-products/5-meaning_family_requirement-agentic.receipt.json",
+    "bytes": 7917,
+    "sha256": "205ee530a5b0ebbc19d45af66de57fd9c378c435fdd37839d65f1150e7fe5652"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/frozen-products/5-meaning_family_requirement-agentic.svg",
+    "bytes": 5135,
+    "sha256": "fa4b3266cca1cc39eb765546366fb0552d8f14641fb568fdf375b6e3ff5d4779"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/frozen-products/5-meaning_family_requirement-elk.receipt.json",
+    "bytes": 7900,
+    "sha256": "f5dd43eabb36cd4b7e86525a0bd7ac6239ec6c78edf711d85e459f4848042617"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/frozen-products/5-meaning_family_requirement-elk.svg",
+    "bytes": 5134,
+    "sha256": "b1c0256c41fbb763fe88148279e6b5ca85624c7877e045142930a1663bf03327"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/frozen-products/5-meaning_family_requirement-trinity.receipt.json",
+    "bytes": 7908,
+    "sha256": "c84c1f98fd6ad4fe67079725c3c0b7e2f5470a1675624ad2e9cb77ed3954a210"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/frozen-products/5-meaning_family_requirement-trinity.svg",
+    "bytes": 5178,
+    "sha256": "87e695ae2ef555e744fce997c08d3d0faeaa518d579e4724179b388575556fb2"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/frozen-products/6-features_flowchart_nesting-parallel-unicode-agentic.receipt.json",
+    "bytes": 7915,
+    "sha256": "533d89e63a8a17fe619fbaf5f0cfe7614c8cc1dbcbde031953778a677703f272"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/frozen-products/6-features_flowchart_nesting-parallel-unicode-agentic.svg",
+    "bytes": 8158,
+    "sha256": "de249aa1bc18fb10c580aa3932b4e8f4c5fde14cf4750f6f9fbe7fd9e3ef8e80"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/frozen-products/6-features_flowchart_nesting-parallel-unicode-elk.receipt.json",
+    "bytes": 7898,
+    "sha256": "f996cec8ae6f33627f9bb974a8e4dae3dc4f6571cd5d4a05299f01e45b789092"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/frozen-products/6-features_flowchart_nesting-parallel-unicode-elk.svg",
+    "bytes": 8167,
+    "sha256": "b27342f27515fdf6b067eec6c124474d018e60882c0c6b8cfe8e59c44633269d"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/frozen-products/6-features_flowchart_nesting-parallel-unicode-trinity.receipt.json",
+    "bytes": 7907,
+    "sha256": "90d659eb585094dddf8289ecd8081e25bfe5d24e98153d618d1c9a1c92422ddf"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/frozen-products/6-features_flowchart_nesting-parallel-unicode-trinity.svg",
+    "bytes": 8302,
+    "sha256": "026ba9aa3ae39cf8cc5523998452205cb51a39323c343a42a593d017197bfbec"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/frozen-products/7-features_flowchart_two-ended-and-undirected-agentic.receipt.json",
+    "bytes": 7912,
+    "sha256": "e18469a84852b03ab385d6c1f42a96cc2139417f6e77290d1d4cd75c2ca678cb"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/frozen-products/7-features_flowchart_two-ended-and-undirected-agentic.svg",
+    "bytes": 3607,
+    "sha256": "bd4a49bec2516d67e5510370729ba0868857b66989f894caf2a8c9b40326f134"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/frozen-products/7-features_flowchart_two-ended-and-undirected-elk.receipt.json",
+    "bytes": 7895,
+    "sha256": "9779c73e274743e95724e61123b8c9826914e058c2faa7092fd50fc15a79afa9"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/frozen-products/7-features_flowchart_two-ended-and-undirected-elk.svg",
+    "bytes": 3607,
+    "sha256": "bd4a49bec2516d67e5510370729ba0868857b66989f894caf2a8c9b40326f134"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/frozen-products/7-features_flowchart_two-ended-and-undirected-trinity.receipt.json",
+    "bytes": 7903,
+    "sha256": "b9f6c1e70fa79c7e912dc22d1ae7ed5dc289e6e41f2094bf14abea5f5178cc71"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/frozen-products/7-features_flowchart_two-ended-and-undirected-trinity.svg",
+    "bytes": 3616,
+    "sha256": "278020412dae5a0077a0b649ac46c4cecf4c14904d197ef6966f97e4939beb90"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/frozen-products/8-features_class_namespace-members-cardinality-agentic.receipt.json",
+    "bytes": 7906,
+    "sha256": "10f5fbfed276f80c7d475e1182ddfafad16ce735c8b3313aa877b5b7be1fff5d"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/frozen-products/8-features_class_namespace-members-cardinality-agentic.svg",
+    "bytes": 7684,
+    "sha256": "9fddac4bbec0d62af841e5490f031c1f40930fafdc72be822ada11b619287799"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/frozen-products/8-features_class_namespace-members-cardinality-elk.receipt.json",
+    "bytes": 7889,
+    "sha256": "92f3665337c53f8ef243c01e85cfa90dba3ce4502b27f39a710942e1bf9291da"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/frozen-products/8-features_class_namespace-members-cardinality-elk.svg",
+    "bytes": 7688,
+    "sha256": "53963080446d11775665de03a665f927b2d71c6493910d44b5fcaa192a6a3ce3"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/frozen-products/8-features_class_namespace-members-cardinality-trinity.receipt.json",
+    "bytes": 7897,
+    "sha256": "25989a369e28fc23d34d2ac7e67455d828d1ecf230f2f5d87c1f7936836ee396"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/frozen-products/8-features_class_namespace-members-cardinality-trinity.svg",
+    "bytes": 7693,
+    "sha256": "75b68b3af4f27d8cd0fc2a24d7cea46977e70b8a685793d6755c39d7d4a33e4b"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/frozen-products/9-features_class_inheritance-composition-dependency-agentic.receipt.json",
+    "bytes": 7900,
+    "sha256": "073748fa43e7b46317eee6882de46953ec74a7628c553bf72466a9b9ae6f8a17"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/frozen-products/9-features_class_inheritance-composition-dependency-agentic.svg",
+    "bytes": 7620,
+    "sha256": "4b11d24ce15111c175926de1bee1b9eb989b631dc2bc0377dea95594650e4f9b"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/frozen-products/9-features_class_inheritance-composition-dependency-elk.receipt.json",
+    "bytes": 7885,
+    "sha256": "330d22fe2d17829985b929d70e409558a4d4c1b5b8e4153120a3887cb7e81eff"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/frozen-products/9-features_class_inheritance-composition-dependency-elk.svg",
+    "bytes": 7678,
+    "sha256": "0a3a091904c5813f6377b0c82976a8e62e71243f2b4cfabe1d5ae8fb9c74a89f"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/frozen-products/9-features_class_inheritance-composition-dependency-trinity.receipt.json",
+    "bytes": 7891,
+    "sha256": "bfb51e5613af0da1f041f296224a55f927ca42d74450ea823ff81048d7631f35"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/frozen-products/9-features_class_inheritance-composition-dependency-trinity.svg",
+    "bytes": 7814,
+    "sha256": "1086b84b5299be8c4317709638d51f92752514e8a70d3094a14ce811ff4a3bdc"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/frozen.log",
+    "bytes": 2647,
+    "sha256": "148d4eb6b48cbd51a9be745549377336ea719aeee88db6ac48b29cba19acc41c"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/lint.log",
+    "bytes": 80,
+    "sha256": "57ca83f1fe984463a54ac30d534583cb0c17f5a52b6e7f94378821beb8b07cf9"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/measure.mjs",
+    "bytes": 6425,
+    "sha256": "ac2a979f7788f4aa93ebbb96c096eadc0458f11e65188ade0667a96f7a027028"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/owners.log",
+    "bytes": 50757,
+    "sha256": "0b457b0c0651f41f4e989e70c3208159402389ff40f60ad88c3b99a6ef57c3c8"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/performance-review.before.md",
+    "bytes": 33002,
+    "sha256": "56f11f85b7d85d1dc60e5a8ad80abfcab3761c04d3accce91f3aa1ad68af293e"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/product-streams/3080577a7a83ceaacc282b68d5ae600ca702aa0dbde7caecb1e109a901e05cf7.br",
+    "bytes": 2790,
+    "sha256": "a94c595856061f28d29ef270a6ea8b2f36cee3543d082b8c38dd732cc45f7ea1"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/product-streams/3080577a7a83ceaacc282b68d5ae600ca702aa0dbde7caecb1e109a901e05cf7.gz",
+    "bytes": 3310,
+    "sha256": "43f1c19348b6cdf0d7132348ef167622fc6dee80ba47465262619acd2335c7b8"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/product-streams/ff31025ad1cc7a85b72b23a09d7a0ad05ebd53dcf8714427693901a6ca6db053.br",
+    "bytes": 2825,
+    "sha256": "0d474d832152ba69f08497a091764189d98aae502bf04d276eb243d79cc1bd8d"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/product-streams/ff31025ad1cc7a85b72b23a09d7a0ad05ebd53dcf8714427693901a6ca6db053.gz",
+    "bytes": 3342,
+    "sha256": "ab33b607cae7a2c0d257ff996880cd6421a8967679ea4cb345a9e38e4e85f19f"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/profile-before/RESULT.json.gz",
+    "bytes": 1877,
+    "sha256": "aed73be0a9b304229438cc1325f0c9edd92b0203406413510bd8f30ce08c3b29"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/profile-before/edit.cpuprofile.gz",
+    "bytes": 13071,
+    "sha256": "24db5fa299a51b482cdb9c7f746fb30a7ea4784ecfd3e2961fda51366cf515b9"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/profile-before/edit.receipt.json.gz",
+    "bytes": 1205,
+    "sha256": "3d6e978dcbd25a96b494a5ba5d076e6c8a8493e181a318f2d00f0c0106f63e31"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/profile-before/edit.row.json.gz",
+    "bytes": 1014,
+    "sha256": "384ab86186cb44477b5ff245486abce11b1f0593cb4ee34d85662bffee666170"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/profile-before/edit.svg.gz",
+    "bytes": 2151,
+    "sha256": "eea69ca1e3ee32979124f3f6751e941ff942f9c52e714268fd578e4115de59f9"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/profile-before/repeat1.cpuprofile.gz",
+    "bytes": 15418,
+    "sha256": "4c88dc3ee9d6f08c9dd2ae3b3744806621c8dace50a4fa7262fccc031f3fc9be"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/profile-before/repeat1.receipt.json.gz",
+    "bytes": 1207,
+    "sha256": "33c8725e4a4da699345625648c8f7f43c510d3635acb1160a7a2c5e487ab1156"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/profile-before/repeat1.row.json.gz",
+    "bytes": 1034,
+    "sha256": "1608d38fb598d8af0166facd71b295ff5fe14b5560ffbe3c2c01275abcbd5bc6"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/profile-before/repeat1.svg.gz",
+    "bytes": 2122,
+    "sha256": "cbcf01e09801830506ad4bf2dbf22fbd92938d3a6d880b479ac52bc54574d8c6"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/profile-before/repeat2.cpuprofile.gz",
+    "bytes": 14836,
+    "sha256": "847a9b565e0eb25a32b6c173a1e63b147ae9aec5aefdc0645f4042ab5e9c3956"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/profile-before/repeat2.receipt.json.gz",
+    "bytes": 1207,
+    "sha256": "33c8725e4a4da699345625648c8f7f43c510d3635acb1160a7a2c5e487ab1156"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/profile-before/repeat2.row.json.gz",
+    "bytes": 1032,
+    "sha256": "fd96eccd46943fe8a8f66f7f8ae27c7c50922805ff985436a764e275ebdf60cd"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/profile-before/repeat2.svg.gz",
+    "bytes": 2122,
+    "sha256": "cbcf01e09801830506ad4bf2dbf22fbd92938d3a6d880b479ac52bc54574d8c6"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/profile-before/source-maps.json.gz",
+    "bytes": 1057491,
+    "sha256": "f9df7557677bc9afced401646176454d16b3d67106b0ab853e9a19891ac86423"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/profile-before/warmup.receipt.json.gz",
+    "bytes": 1207,
+    "sha256": "33c8725e4a4da699345625648c8f7f43c510d3635acb1160a7a2c5e487ab1156"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/profile-before/warmup?.svg.gz",
+    "bytes": 2122,
+    "sha256": "cbcf01e09801830506ad4bf2dbf22fbd92938d3a6d880b479ac52bc54574d8c6"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/profile-before-frame-mappings.json",
+    "bytes": 163392,
+    "sha256": "b586f8ea7b7e7bf0c47f2cd1fa45bdb120a5d8b561aea9f1ab09042bdba02c27"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/profile-before.log",
+    "bytes": 609,
+    "sha256": "12fa0321cf1539a570fb0d0a9806aa5ad78d4ac884fafa4b1835c1e092896844"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/qualify-fanin.ts",
+    "bytes": 1702,
+    "sha256": "769e4df70b93f82a8d90bc4e1d3c54883382d1747ac6bbb2c6983e6222833eb3"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/qualify.py",
+    "bytes": 2040,
+    "sha256": "13ad22d54d540783eab8211846d883ab8128ec81149501fbea4f85cdc1afa8e2"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/requalify-frozen.ts",
+    "bytes": 1958,
+    "sha256": "d70db0968e762e8be6bcc5e8950b9ce13ce607d3c81fb45e500237090f55f972"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/retain-product-streams.mjs",
+    "bytes": 1961,
+    "sha256": "7b7382d2bf970df02c2c418038110df50ccdf7169f78418ea7a19e0c96f48867"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/run-abba.py",
+    "bytes": 971,
+    "sha256": "20c1cb1985fc1a206f6046a74eb45afe25b70996561112c4e900687498b3737c"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/scope-review.md",
+    "bytes": 1424,
+    "sha256": "ebe485c424c1a7138c76bd268ed88bc9b893738d78f162f15f08924e6085e499"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/trinity-baseline-job.json",
+    "bytes": 1025,
+    "sha256": "fda46d843faa62e3ef72e72485ab53fe9ee38a1223b2f63de375a5a132af47f5"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/trinity-local-job.json",
+    "bytes": 1233,
+    "sha256": "89addf5a97860a03e80332b64dc323a8b27ab3ffc2cc9a501253723ef7fdae5e"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/typecheck.log",
+    "bytes": 225,
+    "sha256": "f24f29e2837198be597c614681ebf33d0fb50d3aeb28485c1e6f6fb5301c91dd"
+  },
+  {
+    "path": "trinity-lazy-priority-20261109/worker.mjs",
+    "bytes": 4886,
+    "sha256": "a38118258aa6f83abe64cbe6734dc7eccfa19633ed24f766ba0039a0a571c34f"
+  }
+]
