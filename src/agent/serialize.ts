@@ -276,6 +276,7 @@ function rebuildFromPayload(payload: ValidDiagramPayload): Result<ValidDiagram, 
       classAssignments: toMap(sg.classAssignments),
       nodeStyles: toMap(sg.nodeStyles),
       linkStyles: toLinkStyleMap(sg.linkStyles),
+      ...(sg.linkCurves !== undefined ? { linkCurves: toLinkStyleMap<string>(sg.linkCurves) } : {}),
     }
     body = payload.body.kind === 'agentflow' ? {
       ...payload.body,
@@ -372,9 +373,9 @@ function toMap<V>(input: unknown): Map<string, V> {
   return new Map()
 }
 
-function toLinkStyleMap(input: unknown): Map<number | 'default', Record<string, string>> {
-  const raw = toMap<Record<string, string>>(input)
-  const out = new Map<number | 'default', Record<string, string>>()
+function toLinkStyleMap<T = Record<string, string>>(input: unknown): Map<number | 'default', T> {
+  const raw = toMap<T>(input)
+  const out = new Map<number | 'default', T>()
   for (const [k, v] of raw) {
     if (k === 'default') {
       out.set('default', v)

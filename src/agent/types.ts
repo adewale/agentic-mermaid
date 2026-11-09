@@ -2046,6 +2046,7 @@ export interface SerializedFlowchartGraph {
   classAssignments?: unknown
   nodeStyles?: unknown
   linkStyles?: unknown
+  linkCurves?: unknown
 }
 
 export interface ValidDiagramPayload {

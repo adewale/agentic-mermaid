@@ -448,7 +448,12 @@ function parseFlowchart(lines: string[], breaks: ReadonlyArray<readonly number[]
         // above the line. Ours styles that link wherever it is defined, and a
         // style whose index names no link draws nothing; verify reports both
         // (agent/flowchart-unsupported.ts).
-        const props = checkedFlowchartStyleProps(parseStyleProps(linkStyleMatch[2]!))
+        const interpolation = /^interpolate\s+([a-z][a-z0-9-]*)(?:\s+|$)([\s\S]*)/i.exec(linkStyleMatch[2]!)
+        if (interpolation) {
+          graph.linkCurves ??= new Map()
+          for (const index of target === 'default' ? ['default' as const] : indices) graph.linkCurves.set(index, interpolation[1]!)
+        }
+        const props = checkedFlowchartStyleProps(parseStyleProps(interpolation ? interpolation[2]! : linkStyleMatch[2]!))
         if (Object.keys(props).length === 0) continue
         if (target === 'default') {
           graph.linkStyles.set('default', { ...graph.linkStyles.get('default'), ...props })
@@ -1720,6 +1725,11 @@ const QUOTED_SHAPE_DELIMITERS: Array<{ open: string; close: string; shape: NodeS
  * token needs a character, and it rejects the label. */
 const EMPTY_STRING_LABEL_RE = /^\s*""\s*$/
 
+function rectangleBorderLabel(suffix: string): { text: string; borders?: string; offset: number } {
+  const prefix = /^\[\|borders:([lrtb]+|none)\|/.exec(suffix)
+  return prefix ? { text: '[' + suffix.slice(prefix[0].length), borders: prefix[1] === 'none' ? '' : [...new Set(prefix[1])].join(''), offset: prefix[0].length - 1 } : { text: suffix, offset: 0 }
+}
+
 function consumeQuotedShapeNode(
   text: string,
   graph: MermaidGraph,
@@ -1727,7 +1737,8 @@ function consumeQuotedShapeNode(
   notes?: FlowchartNodeNotes): ConsumedNode | null {
   const identifier = consumeBareNodeId(text)
   if (!identifier) return null
-  const suffix = text.slice(identifier.length)
+  const border = rectangleBorderLabel(text.slice(identifier.length))
+  const suffix = border.text
   for (const spec of QUOTED_SHAPE_DELIMITERS) {
     if (!suffix.startsWith(`${spec.open}"`)) continue
     const quoteStart = spec.open.length
@@ -1740,9 +1751,10 @@ function consumeQuotedShapeNode(
       label: parsed.text,
       ...(parsed.labelContent ? { labelContent: parsed.labelContent } : {}),
       shape: spec.shape,
+      ...(border.borders !== undefined ? { borders: border.borders } : {}),
       ...(parsed.markdown ? { markdownLabel: true as const } : {}),
     })
-    const consumed = identifier.length + quoteEnd + 1 + spec.close.length
+    const consumed = identifier.length + quoteEnd + 1 + spec.close.length + border.offset
     return { id: identifier.id, remaining: text.slice(consumed) }
   }
   return null
@@ -1792,7 +1804,8 @@ function consumeNode(
 
   // Try each node pattern (shape-qualified)
   const identifier = consumeBareNodeId(text)
-  const shapeText = identifier ? text.slice(identifier.length) : ''
+  const border = rectangleBorderLabel(identifier ? text.slice(identifier.length) : '')
+  const shapeText = border.text
   for (const { regex, shape } of identifier ? NODE_PATTERNS : []) {
     const match = shapeText.match(regex)
     if (match) {
@@ -1800,8 +1813,8 @@ function consumeNode(
       if (labelTextHoldsDelimiter(match[1]!, TRAPEZOID_SHAPES.has(shape) ? 'trapezoid' : 'text')) notes?.add('label-delimiter')
       if (EMPTY_STRING_LABEL_RE.test(match[1]!)) notes?.add('empty-string')
       const { text: label, markdown, labelContent } = parseFlowchartLabel(match[1]!)
-      defineNode(graph, subgraphStack, { id, label, shape, ...(markdown ? { markdownLabel: true as const } : {}), ...(labelContent ? { labelContent } : {}) })
-      remaining = shapeText.slice(match[0].length)
+      defineNode(graph, subgraphStack, { id, label, shape, ...(border.borders !== undefined ? { borders: border.borders } : {}), ...(markdown ? { markdownLabel: true as const } : {}), ...(labelContent ? { labelContent } : {}) })
+      remaining = text.slice(identifier!.length + match[0].length + border.offset)
       break
     }
   }
@@ -1886,8 +1899,8 @@ function defineNode(
     registerNode(graph, subgraphStack, node)
     return
   }
-  const { markdownLabel: _markdown, semanticShape: _semantic, authoredShape: _authored, labelContent: _content, ...kept } = existing
-  graph.nodes.set(node.id, { ...kept, label: node.label, shape: node.shape, ...(node.markdownLabel ? { markdownLabel: true as const } : {}), ...(node.labelContent ? { labelContent: node.labelContent } : {}) })
+  const { markdownLabel: _markdown, semanticShape: _semantic, authoredShape: _authored, labelContent: _content, borders: _borders, ...kept } = existing
+  graph.nodes.set(node.id, { ...kept, label: node.label, shape: node.shape, ...(node.borders !== undefined ? { borders: node.borders } : {}), ...(node.markdownLabel ? { markdownLabel: true as const } : {}), ...(node.labelContent ? { labelContent: node.labelContent } : {}) })
   if (parserObservationActive('flowchart')) observeParserMutation('flowchart', 'define-node', graph.nodes.get(node.id))
   trackInSubgraph(subgraphStack, node.id)
 }

@@ -224,6 +224,24 @@ assets/ icon(folder)
   { id: 'roadmap-repair-agentflow-roles', title: 'AgentFlow: role and compound styling control', source: readFileSync(join(ROOT, 'eval/layout-compare/fixtures/agentflow-native.mmd'), 'utf8'), renderOptions: { style: 'risograph' }, pngScale: 1, captureLayout: true, cue: 'Preservation control: publishing tasks, tool/action silhouettes, connector and global document remain recognizable under the same risograph style. This compound graph intentionally retains ELK; native forest timing is qualified separately and is not inferred from this image.' },
 ]
 const fixtures: Fixture[] = [
+  {
+    id: 'reviewed-rectangle-borders', title: 'Rectangle border properties retain display text',
+    source: 'flowchart LR\nA[Build] --> B[|borders:lt|Deploy] --> C[Done]',
+    pngScale: 1, captureLayout: true,
+    cue: 'Deploy is the complete label. Inspect its left and top strokes: the property prefix is syntax and must not appear as text. The content box remains a conservative routing envelope; this example is not a general port-clearance proof.',
+  },
+  {
+    id: 'reviewed-link-interpolation', title: 'Legacy interpolation and CSS can render together',
+    source: 'flowchart TD\nA[Build] --> B[Test]\nA --> C[Deploy]\nB --> C\nlinkStyle 0,1 interpolate basis stroke-width:2px;',
+    pngScale: 1,
+    cue: 'The baseline rejects the style statement and is shown as its actual error. The repaired source draws all three labels and links while retaining interpolation and width. This image does not promise Mermaid-identical spline geometry.',
+  },
+  {
+    id: 'reviewed-empty-gitgraph-tag', title: 'An explicit empty tag creates no tag box',
+    source: 'gitGraph\ncommit id:"base"\nbranch feature\ncommit id:"A"\ncheckout main\ncherry-pick id:"A" tag:""',
+    pngScale: 1,
+    cue: 'Inspect above the cherry-pick commit: the old empty tag pill disappears. Branches, commit identity and the cherry-pick relation remain. Owning tests separately check save/reload and typed tag clearing.',
+  },
   ...(['LR', 'RL'] as const).map((direction): Fixture => ({
     id: `elk-class-caption-${direction.toLowerCase()}`,
     title: `Class: nested ELK captions stay with their carriers (${direction})`,

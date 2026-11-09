@@ -3,8 +3,6 @@ import { projectEntityMarkers } from './mermaid-entity-display.ts'
 import { encodeMermaidEntities, toEntityMarkers } from './mermaid-entities.ts'
 import { projectStyleDeclarations, type StyleDeclaration } from './style-props.ts'
 
-const PAINT_PREFIX = /^\s*(?:fill|stroke|color)\s*:\s*$/
-
 /** Class/State delimiters are classified before entities become payload.
  * Native CSS's trailing semicolon on a complete hex paint remains a CSS
  * delimiter; writers protect literal entity text so this is unambiguous. */
@@ -20,7 +18,8 @@ function classLikeStyleFields(source: string): string[] {
     // escaped hash becomes a marker, and its semicolon is never punctuation.
     if (char === '#') {
       const entity = /^#\w+;/.exec(source.slice(index))?.[0]
-      if (entity && !(PAINT_PREFIX.test(source.slice(start, index)) && tryParseCssColor(entity.slice(0, -1)) !== null)) {
+      const cssHex = entity && !quote && depth === 0 && /[:\s]/.test(source[index - 1] ?? '') && tryParseCssColor(entity.slice(0, -1)) !== null
+      if (entity && !cssHex) {
         index += entity.length - 1
         escaped = false
         continue

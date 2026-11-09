@@ -22,6 +22,8 @@ export interface MermaidGraph {
   nodeStyles: Map<string, Record<string, string>>
   /** Maps edge indices (or 'default') to inline styles from `linkStyle` directives */
   linkStyles: Map<number | 'default', Record<string, string>>
+  /** Legacy linkStyle interpolation, separate from CSS and edge-ID metadata. */
+  linkCurves?: Map<number | 'default', string>
   /** State diagrams only: `note left|right of X` annotations, in source order.
    *  Placed by a post-layout pass (layout-engine placeStateNotes); flowcharts
    *  never populate this. */
@@ -56,6 +58,8 @@ export interface MermaidNode {
   /** Runtime pixel wrapping; the authored label and its display runs stay intact. */
   labelBlock?: PixelTextBlock
   shape: NodeShape
+  /** Authored rectangle border sides: l, r, t, b; absent means all sides. */
+  borders?: string
   /** Authored note identity when this physical node is a floating annotation. */
   floatingNoteId?: string
   /** Mermaid v11 `@{ shape: ... }` semantic shape, normalized to the canonical
@@ -232,6 +236,7 @@ export interface PositionedNode {
   label: string
   labelContent?: LabelContent
   shape: NodeShape
+  borders?: string
   floatingNoteId?: string
   /** Mermaid v11 semantic shape id when the node was declared via
    *  `@{ shape: ... }` metadata — emitted as the SVG data-semantic-shape. */

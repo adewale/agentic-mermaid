@@ -1,10 +1,46 @@
 import { describe, it, expect } from 'bun:test'
 import { parseMermaid } from '../parser.ts'
 import { renderMermaidSVG } from '../index.ts'
-import { parseRegisteredMermaid, serializeMermaid } from '../agent/index.ts'
+import { mutate, parseRegisteredMermaid, serializeMermaid, synthesizeFromGraph } from '../agent/index.ts'
 import { scanSvgStartTags } from '../svg-structure.ts'
+import { layoutGraphSync } from '../layout-engine.ts'
+import { startUpstreamMermaid } from './helpers/upstream-mermaid.ts'
 
 describe('linkStyle – parser', () => {
+  it('legacy default and indexed interpolation survives styles, edits, synthesis and layout', async () => {
+    const written: string[] = []
+    for (const [target, css] of [['default', ''], ['default', ' stroke-width:1px'], ['0', ' stroke-width:1px'], ['0,1', ' stroke-width:1px']]) {
+      const source = `flowchart TD\nA --> B\nB --> C\nlinkStyle ${target} interpolate basis${css};`
+      const graph = parseMermaid(source)
+      expect(graph.linkCurves?.get(target === 'default' ? 'default' : 0)).toBe('basis')
+      if (css) expect(graph.linkStyles.get(target === 'default' ? 'default' : 0)).toEqual({ 'stroke-width': '1px' })
+      const parsed = parseRegisteredMermaid(source)
+      if (!parsed.ok) throw Error(JSON.stringify(parsed.error))
+      const serialized = serializeMermaid(parsed.value)
+      written.push(serialized)
+      expect(parseMermaid(serialized).linkCurves).toEqual(graph.linkCurves)
+      expect(layoutGraphSync(graph).edges[0]!.curve).toBe('basis')
+      expect(() => renderMermaidSVG(source)).not.toThrow()
+    }
+    const source = 'flowchart TD\nA e1@--> B\nB e2@--> C\nlinkStyle default interpolate basis\nlinkStyle 1 interpolate cardinal\ne1@{ curve: linear }'
+    const parsed = parseRegisteredMermaid(source)
+    if (!parsed.ok || parsed.value.body.kind !== 'flowchart') throw Error('expected graph')
+    expect(layoutGraphSync(parsed.value.body.graph).edges.map(edge => edge.curve)).toEqual(['linear', 'cardinal'])
+    const edited = mutate(parsed.value, { kind: 'remove_edge', id: 'e1' })
+    if (!edited.ok || edited.value.body.kind !== 'flowchart') throw Error('expected edited graph')
+    expect(edited.value.body.graph.linkCurves?.get(0)).toBe('cardinal')
+    expect(parsed.value.body.graph.linkCurves?.get(1)).toBe('cardinal')
+    const added = mutate(parsed.value, { kind: 'add_edge', from: 'C', to: 'A' })
+    if (!added.ok || added.value.body.kind !== 'flowchart') throw Error('expected added edge')
+    expect(layoutGraphSync(added.value.body.graph).edges.at(-1)!.curve).toBe('basis')
+    const synthesized = synthesizeFromGraph({ kind: 'flowchart', body: { kind: 'flowchart', graph: { ...edited.value.body.graph, nodes: [...edited.value.body.graph.nodes] } } })
+    if (!synthesized.ok) throw Error(JSON.stringify(synthesized.error))
+    expect(parseMermaid(serializeMermaid(synthesized.value)).linkCurves?.get(0)).toBe('cardinal')
+    const upstream = startUpstreamMermaid()
+    try {
+      for (const source of written) expect((await upstream.parse(source)).ok).toBe(true)
+    } finally { upstream.close() }
+  })
   it('parses linkStyle with single index', () => {
     const g = parseMermaid('graph TD\n  A --> B\n  linkStyle 0 stroke:#ff0000,stroke-width:2px')
     expect(g.linkStyles.get(0)).toEqual({ stroke: '#ff0000', 'stroke-width': '2px' })
