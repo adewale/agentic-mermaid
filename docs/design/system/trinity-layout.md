@@ -55,6 +55,14 @@ Other families still have backend-specific translations; a shared type alone
 does not establish equivalent demand or complete conformance.
 Layout backend, SVG/style backend and native drawing producer are different roles.
 
+Flat-root contact placement projects ordered endpoint supports toward reserved
+neighbor lanes before allocating channels. Both placement and routed roles keep
+the same body coordinates. Compound-local requests have external attachments
+whose corridors are absent from their local IR; their wrapper explicitly retains
+the existing centered contacts. Applying the projection globally introduced three
+fan-in refusals and was stopped. This is a private solve-context distinction,
+not a public backend flag or permission to drop those corridor constraints.
+
 ```text
 capture source/options/style/font context
   -> family measures and normalizes one owned request

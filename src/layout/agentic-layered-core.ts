@@ -9,7 +9,7 @@ import { layoutSharedFan } from './shared-fan-core.ts'
 import { layoutCyclicGraph, orientMeasuredEdge, type LayoutSearchWork } from './cycle-layout-search.ts'
 import { layoutCompoundGraph } from './agentic-compound-core.ts'
 import { feedbackOrder } from './cycle-order.ts'
-import { assignChannelTracks, type ChannelStep, type ChannelWork } from './channel-tracks.ts'
+import { assignChannelTracks, orderedPortCoordinate, type ChannelStep, type ChannelWork } from './channel-tracks.ts'
 import { AGENTIC_MAX_NODES as MAX_NODES, AGENTIC_MAX_EDGES as MAX_EDGES, AGENTIC_MAX_EXPANDED_VERTICES as MAX_EXPANDED_VERTICES } from './agentic-limits.ts'
 
 /** Native implementation controls stay outside the common measured contract. */
@@ -714,7 +714,7 @@ export function layoutLayeredGraph(
         const left = cross[nodeIndex]! - width / 2 + margin, right = cross[nodeIndex]! + width / 2 - margin
         const positions = peers.map((edge, slot) => {
           const chain = chains[edge]!, neighbor = source ? chain[1]! : chain[chain.length - 2]!
-          return Math.max(left + slot * separation, Math.min(right - (peers.length - 1 - slot) * separation, cross[neighbor]!))
+          return orderedPortCoordinate(cross[neighbor]!, left, right, slot, peers.length, separation)
         })
         for (let slot = 1; slot < positions.length; slot++) positions[slot] = Math.max(positions[slot]!, positions[slot - 1]! + separation)
         peers.forEach((edge, slot) => { (source ? sourcePort : targetPort)[edge] = positions[slot]! })

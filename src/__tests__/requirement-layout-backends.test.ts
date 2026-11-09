@@ -385,7 +385,7 @@ root - contains -> side`
     } finally { dom.window.close() }
   })
 
-  test.each((['TB', 'BT', 'LR', 'RL'] as const).flatMap(direction => (['agentic', 'elk'] as const).map(backend => ({ direction, backend }))))('retains measured cards, relationship labels and distinct routes in $direction with $backend', ({ direction, backend }) => {
+  test.each((['TB', 'BT', 'LR', 'RL'] as const).flatMap(direction => (['agentic', 'elk', 'trinity'] as const).map(backend => ({ direction, backend }))))('retains measured cards, relationship labels and distinct routes in $direction with $backend', ({ direction, backend }) => {
     const options = { graphLayout: { backend, fallback: 'none' as const } }
     const model = parseRequirementDiagram(source(direction)), original = structuredClone(model)
     const placed = layoutRequirementDiagram(model, options)
@@ -394,6 +394,11 @@ root - contains -> side`
     expect(placed.nodes).toHaveLength(3)
     const expectedRelations: string[][] = [['suite', 'fast', 'verifies'], ['suite', 'fast', 'traces'], ['fast', 'report', 'derives'], ['report', 'fast', 'satisfies'], ['fast', 'fast', 'refines']]
     expect(placed.edges.map(edge => [edge.src, edge.dst, edge.type])).toEqual(expectedRelations)
+    if (backend === 'trinity') {
+      // The traces caption lane fits both faces in every direction; the wider
+      // TB/BT faces also admit derives without an elbow to reach its caption.
+      for (const kind of direction === 'TB' || direction === 'BT' ? ['traces', 'derives'] : ['traces']) expect(placed.edges.find(edge => edge.type === kind)!.points).toHaveLength(2)
+    }
     const rects = placed.edges.map(edge => ({ x: edge.labelPosition.x - edge.label.width / 2 - 6, y: edge.labelPosition.y - edge.label.height / 2 - 4, w: edge.label.width + 12, h: edge.label.height + 8 }))
     for (const [index, edge] of placed.edges.entries()) {
       expect(edge.points.length).toBeGreaterThanOrEqual(2)

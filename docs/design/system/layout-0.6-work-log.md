@@ -1512,3 +1512,24 @@ cap/default/version. Evidence `trinity-common-requirement-20261109`. Remaining:
 same-input Requirement Trinity18bends/1072.96wire versus ELK10/1021.17; diagnose
 placement/routing cause before optimization. The later Native body-gap prototype
 stays withdrawn (+933gzip, no Trinity delivery gain), backed up as892dee0a7.
+
+## Flat Trinity contact placement — 9 November
+
+Parent0597: identical measured Requirement requests isolate centered endpoint
+slots as the detour cause, before emission. Reuse Native's ordered scalar clamp
+upstream of channel allocation. TB/BT18→6bends, wire1072.96→507.03; TB area
+244079.95→242350.83, with zero crossings. LR/RL18→8bends. All60Requirement
+renders/P remain; Native/ELK40SVGs exact. Global projection is stopped: labelled
+compound fan-in newly refused LR/RL/TB at unchanged limits. Explicit private
+root/scope context retains all prior compound contacts; all10returned fan products
+are exact and two prior Native refusals remain. Both flat roles share contact
+placement, preserving their body-coordinate contract. 178selection/kernel owners,
+110family/kernel owners and37kernel owners pass; old kernel fails4new route
+owners, stopped global variant fails3existing compound owners. Types/lint pass.
+Frozen90delivery/proof unchanged; only2TrinitySVGs change, with25independent
+Trident paint checks passed.40fresh processes/136complete calls allP,80repeat
+products exact; timings/RSS are mixed, including BT cache0repeat2 median32.67→
+63.10ms. No runtime/memory win claimed. TB response gzip3214→3167/Br2720→2671;
+browser gzip +52/+14/+219bytes for Native/ELK/Trinity. No cache/cap/default/version
+change. Evidence `trinity-requirement-detours-20261109`. Remaining: Native compound
+fan TB arc refusal/BT corridor refusal; Trinity compound TB crossings29 vs ELK13.
