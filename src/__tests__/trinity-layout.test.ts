@@ -59,6 +59,15 @@ describe('Trinity flat measured solve', () => {
     const input: MeasuredGraph = { ...base(), nodes: [
       { id: 'Q', width: 100, height: 100, contact: 'diamond', contactDiamond: { strokeExtent: 4 }, paintStrokeWidth: 2 }, node('A'), node('B'),
     ], edges: [{ source: 0, target: 1, minSpan: 1, sourcePortSpan: 2, targetPortSpan: 12, sourceMarkerPresent: false }, { source: 0, target: 2, minSpan: 1, sourcePortSpan: 2, targetPortSpan: 12, sourceMarkerPresent: false }] }
+    const contained = { ...input, nodes: input.nodes.map(body => ({ ...body, parent: 0 })), groups: [{ id: 'stage', minWidth: 500, headerHeight: 24, padding: { top: 40, bottom: 16, left: 16, right: 16 }, paintStrokeWidth: 1, paintCornerRadius: 4 }] }
+    const before = structuredClone(contained), nested = solveMeasuredLayout({ role: 'routed', graph: contained }, trinityMeasuredAdapter(ledger()))
+    expect(contained).toEqual(before)
+    expect(nested.nodes[0]!.y).toBeGreaterThanOrEqual(nested.groups![0]!.y + 40)
+    expect(nested.nodes[0]!.width).toBe(100)
+    const unrelatedCrossing = { ...contained, nodes: contained.nodes.map((body, i) => i === 2 ? { ...body, parent: undefined } : body), edges: [{ ...input.edges[0]!, source: 1, target: 2 }] }
+    expect(() => trinityMeasuredAdapter(ledger()).solve({ role: 'routed', graph: unrelatedCrossing })).toThrow(GraphLayoutUnsupportedError)
+    expect(() => trinityMeasuredAdapter(ledger()).solve({ role: 'routed', graph: { ...contained, edges: [{ ...input.edges[0]!, source: 3 }] } })).toThrow(GraphLayoutUnsupportedError)
+    expect(() => trinityMeasuredAdapter(ledger()).solve({ role: 'routed', graph: { ...contained, edges: [{ ...input.edges[0]!, source: NaN }] } })).toThrow(TypeError)
     const missing = { ...input, edges: input.edges.map(({ sourceMarkerPresent: _, ...edge }) => edge) }
     expect(() => trinityMeasuredAdapter(ledger()).solve({ role: 'routed', graph: missing })).toThrow(GraphLayoutUnsupportedError)
     let inheritedReads = 0

@@ -30,16 +30,20 @@ import type { MeasuredGraph } from '../layout/measured-graph.ts'
 describe('Trinity primary measured producer', () => {
   test.each(['LR', 'RL', 'TB', 'BT'])('retains decision fan facets, cardinal heads and feedback identities in %s', direction => {
     const fan = 'Q{Decision} -->|left| L[Left]\nQ -->|middle| M[Middle]\nQ -.->|right| R[Right]'
-    for (const [body, ids, expected] of [
-      [fan, ['L', 'M', 'Q', 'R'], [['Q', 'L', 'left'], ['Q', 'M', 'middle'], ['Q', 'R', 'right']]],
-      ['S[Start] --> Q{Decision}\n' + fan, ['L', 'M', 'Q', 'R', 'S'], [['S', 'Q', undefined], ['Q', 'L', 'left'], ['Q', 'M', 'middle'], ['Q', 'R', 'right']]],
-      ['Q{Decision} -->|go| A[Task]\nA ---|back| Q', ['A', 'Q'], [['Q', 'A', 'go'], ['A', 'Q', 'back']]],
+    const fanIds = ['L', 'M', 'Q', 'R'], fanEdges = [['Q', 'L', 'left'], ['Q', 'M', 'middle'], ['Q', 'R', 'right']], fanLabels = ['Decision', 'Left', 'Middle', 'Right', 'left', 'middle', 'right']
+    for (const [body, ids, expected, labels, groups] of [
+      [fan, fanIds, fanEdges, fanLabels, []],
+      ['S[Start] --> Q{Decision}\n' + fan, ['L', 'M', 'Q', 'R', 'S'], [['S', 'Q', undefined], ...fanEdges], ['Start', ...fanLabels], []],
+      ['Q{Decision} -->|go| A[Task]\nA ---|back| Q', ['A', 'Q'], [['Q', 'A', 'go'], ['A', 'Q', 'back']], ['Decision', 'Task', 'go', 'back'], []],
+      [`subgraph Stage[Choose a path]\n${fan}\nend`, fanIds, fanEdges, [...fanLabels, 'Choose a path'], [['Stage', undefined, ['Q', 'L', 'M', 'R']]]],
+      [`subgraph Outer[A wide outer title]\ndirection TB\nsubgraph Stage[Choose a path]\ndirection RL\n${fan}\nend\nend`, fanIds, fanEdges, [...fanLabels, 'A wide outer title', 'Choose a path'], [['Outer', undefined, []], ['Stage', 'Outer', ['Q', 'L', 'M', 'R']]]],
     ] as const) {
       const source = `flowchart ${direction}\n${body}`, options = { graphLayout: { backend: 'trinity' as const, fallback: 'none' as const }, embedFontImport: false }
       const product = renderMermaidSVGWithReceipt(source, options), layout = layoutMermaidWithReceipt(source, options).layout
       expect(layout.nodes.map(node => node.id).sort()).toEqual([...ids])
       expect(layout.edges.map(edge => [edge.from, edge.to, edge.label?.text])).toEqual(expected.map(edge => [...edge]))
-      expect(missingSvgLabels(product.svg, body === fan ? ['Decision', 'Left', 'Middle', 'Right', 'left', 'middle', 'right'] : body.startsWith('S[') ? ['Start', 'Decision', 'Left', 'Middle', 'Right', 'left', 'middle', 'right'] : ['Decision', 'Task', 'go', 'back'])).toEqual([])
+      expect(missingSvgLabels(product.svg, [...labels])).toEqual([])
+      expect((layout.groups ?? []).map(group => [group.id, group.parentId, group.members])).toEqual(groups.map(([id, parent, members]) => [id, parent, [...members]]))
       const tags = scanSvgStartTags(product.svg), polygon = tags.find(tag => decodedSvgAttributeValue(tag, 'data-id') === 'node-shape:Q')!
       expect(polygon.name).toBe('polygon')
       const vertices = decodedSvgAttributeValue(polygon, 'points')!.trim().split(/\s+/).map(pair => pair.split(',').map(Number))
@@ -204,7 +208,7 @@ describe('Trinity primary measured producer', () => {
     for (const text of ['Release', 'Review', 'run', 'again', 'back', 'loop']) expect(rendered.svg).toContain(text)
   })
 
-  test.each(['flowchart TB\nA((Decision))-->B[Body]', 'flowchart LR\nA e1@--> B\nA-->C\ne1@{curve: natural}', 'stateDiagram-v2\nA-->B\nnote right of A: Note', 'stateDiagram-v2\nstate Active {\nA-->B\n}\nclassDef wide stroke-width:8px\nclass Active wide'])('declines untranslated geometry and keeps fallback explicit: %s', source => {
+  test.each(['flowchart TB\nA((Decision))-->B[Body]','flowchart TB\nS[Start] --> Q{Decision}\nsubgraph Stage[Choose a path]\nQ --> L[Left]\nend', 'flowchart TB\nsubgraph Stage\nQ{Decision}\nA[Inside]\nend\nA --> B[Outside]', 'flowchart TB\nsubgraph Stage\nQ{Decision} --- A[Body]\nend\nStage --> B[Outside]',  'flowchart LR\nA e1@--> B\nA-->C\ne1@{curve: natural}', 'stateDiagram-v2\nA-->B\nnote right of A: Note', 'stateDiagram-v2\nstate Active {\nA-->B\n}\nclassDef wide stroke-width:8px\nclass Active wide'])('declines untranslated geometry and keeps fallback explicit: %s', source => {
     expect(() => renderMermaidSVGWithReceipt(source, { graphLayout: { backend: 'trinity' } })).toThrow(GraphLayoutUnsupportedError)
     const fallback = renderMermaidSVGWithReceipt(source, { graphLayout: { backend: 'trinity', fallback: 'elk' } })
     expect(fallback.svg).toBe(renderMermaidSVGWithReceipt(source, { graphLayout: { backend: 'elk' } }).svg)
