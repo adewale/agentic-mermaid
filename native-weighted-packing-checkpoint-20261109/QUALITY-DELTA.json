@@ -1,0 +1,145 @@
+{
+  "routeGeometry.area": {
+    "countsWithin39ChangedLayouts": {
+      "equal": 33,
+      "lower": 6
+    },
+    "largestAdverse": [],
+    "allAdverse": []
+  },
+  "routeGeometry.length": {
+    "countsWithin39ChangedLayouts": {
+      "lower": 34,
+      "equal": 2,
+      "higher": 3
+    },
+    "largestAdverse": [
+      {
+        "id": "generated-cyclic:179",
+        "cohort": 0,
+        "before": 20504.03493658738,
+        "after": 20508.03493658738,
+        "delta": 4.0,
+        "percent": 0.019508355366992802
+      },
+      {
+        "id": "generated-sha256-counter-v1:89",
+        "cohort": 7,
+        "before": 29624.388269340692,
+        "after": 29627.200769340692,
+        "delta": 2.8125,
+        "percent": 0.009493866926235661
+      },
+      {
+        "id": "generated-sha256-counter-v1:127",
+        "cohort": 7,
+        "before": 24582.835347903507,
+        "after": 24583.710347903507,
+        "delta": 0.875,
+        "percent": 0.003559394136676275
+      }
+    ],
+    "allAdverse": [
+      {
+        "id": "generated-cyclic:179",
+        "cohort": 0,
+        "before": 20504.03493658738,
+        "after": 20508.03493658738,
+        "delta": 4.0,
+        "percent": 0.019508355366992802
+      },
+      {
+        "id": "generated-sha256-counter-v1:89",
+        "cohort": 7,
+        "before": 29624.388269340692,
+        "after": 29627.200769340692,
+        "delta": 2.8125,
+        "percent": 0.009493866926235661
+      },
+      {
+        "id": "generated-sha256-counter-v1:127",
+        "cohort": 7,
+        "before": 24582.835347903507,
+        "after": 24583.710347903507,
+        "delta": 0.875,
+        "percent": 0.003559394136676275
+      }
+    ]
+  },
+  "routeGeometry.bends": {
+    "countsWithin39ChangedLayouts": {
+      "equal": 34,
+      "higher": 2,
+      "lower": 3
+    },
+    "largestAdverse": [
+      {
+        "id": "generated-sha256-counter-v1:17",
+        "cohort": 4,
+        "before": 52,
+        "after": 54,
+        "delta": 2,
+        "percent": 3.8461538461538547
+      },
+      {
+        "id": "generated-cyclic:41",
+        "cohort": 0,
+        "before": 60,
+        "after": 62,
+        "delta": 2,
+        "percent": 3.3333333333333437
+      }
+    ],
+    "allAdverse": [
+      {
+        "id": "generated-cyclic:41",
+        "cohort": 0,
+        "before": 60,
+        "after": 62,
+        "delta": 2,
+        "percent": 3.3333333333333437
+      },
+      {
+        "id": "generated-sha256-counter-v1:17",
+        "cohort": 4,
+        "before": 52,
+        "after": 54,
+        "delta": 2,
+        "percent": 3.8461538461538547
+      }
+    ]
+  },
+  "edgeCrossings": {
+    "countsWithin39ChangedLayouts": {
+      "equal": 38,
+      "higher": 1
+    },
+    "largestAdverse": [
+      {
+        "id": "generated-cyclic:291",
+        "cohort": 2,
+        "before": 2,
+        "after": 3,
+        "delta": 1,
+        "percent": 50.0
+      }
+    ],
+    "allAdverse": [
+      {
+        "id": "generated-cyclic:291",
+        "cohort": 2,
+        "before": 2,
+        "after": 3,
+        "delta": 1,
+        "percent": 50.0
+      }
+    ]
+  },
+  "labelConflicts.total": {
+    "countsWithin39ChangedLayouts": {
+      "equal": 39
+    },
+    "largestAdverse": [],
+    "allAdverse": []
+  }
+}

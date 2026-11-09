@@ -1,0 +1,118 @@
+[
+  {
+    "kind": "fiveprioractualinkbinding",
+    "case": 0,
+    "product": "svg",
+    "exact": true
+  },
+  {
+    "kind": "fiveprioractualinkbinding",
+    "case": 0,
+    "product": "receipt.json",
+    "exact": true
+  },
+  {
+    "kind": "fiveprioractualinkbinding",
+    "case": 1,
+    "product": "svg",
+    "exact": true
+  },
+  {
+    "kind": "fiveprioractualinkbinding",
+    "case": 1,
+    "product": "receipt.json",
+    "exact": true
+  },
+  {
+    "kind": "fiveprioractualinkbinding",
+    "case": 2,
+    "product": "svg",
+    "exact": true
+  },
+  {
+    "kind": "fiveprioractualinkbinding",
+    "case": 2,
+    "product": "receipt.json",
+    "exact": true
+  },
+  {
+    "kind": "fiveprioractualinkbinding",
+    "case": 3,
+    "product": "svg",
+    "exact": true
+  },
+  {
+    "kind": "fiveprioractualinkbinding",
+    "case": 3,
+    "product": "receipt.json",
+    "exact": true
+  },
+  {
+    "kind": "fiveprioractualinkbinding",
+    "case": 4,
+    "product": "svg",
+    "exact": true
+  },
+  {
+    "kind": "fiveprioractualinkbinding",
+    "case": 4,
+    "product": "receipt.json",
+    "exact": true
+  },
+  {
+    "kind": "priorbodygaphalobinding",
+    "direction": "TB",
+    "backend": "agentic",
+    "product": "svg",
+    "exact": true
+  },
+  {
+    "kind": "priorbodygaphalobinding",
+    "direction": "TB",
+    "backend": "agentic",
+    "product": "receipt.json",
+    "exact": true
+  },
+  {
+    "kind": "priorbodygaphalobinding",
+    "direction": "TB",
+    "backend": "elk",
+    "product": "svg",
+    "exact": true
+  },
+  {
+    "kind": "priorbodygaphalobinding",
+    "direction": "TB",
+    "backend": "elk",
+    "product": "receipt.json",
+    "exact": true
+  },
+  {
+    "kind": "priorbodygaphalobinding",
+    "direction": "BT",
+    "backend": "agentic",
+    "product": "svg",
+    "exact": true
+  },
+  {
+    "kind": "priorbodygaphalobinding",
+    "direction": "BT",
+    "backend": "agentic",
+    "product": "receipt.json",
+    "exact": true
+  },
+  {
+    "kind": "priorbodygaphalobinding",
+    "direction": "BT",
+    "backend": "elk",
+    "product": "svg",
+    "exact": true
+  },
+  {
+    "kind": "priorbodygaphalobinding",
+    "direction": "BT",
+    "backend": "elk",
+    "product": "receipt.json",
+    "exact": true
+  }
+]
