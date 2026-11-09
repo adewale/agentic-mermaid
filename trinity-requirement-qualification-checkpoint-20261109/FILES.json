@@ -1,0 +1,477 @@
+[
+  {
+    "path": "trinity-requirement-golden-review-20261109/CI-AFTER-PUSH.json",
+    "bytes": 443,
+    "sha256": "18f9959fd80addd698ffe8473ded300800078f5d96a55ebd74790748e5eec423"
+  },
+  {
+    "path": "trinity-requirement-golden-review-20261109/GOLDEN-COSTS.json",
+    "bytes": 681,
+    "sha256": "6cbdeaec9289833c4b9cc2c4296fae0c80a8599422343a4c0d8b7d9ffb4833c4"
+  },
+  {
+    "path": "trinity-requirement-golden-review-20261109/LAYOUT-DIFF.json",
+    "bytes": 21062,
+    "sha256": "61aaa628f82133ee82f938586a48177d149f104c481d75804528e5611eff0b66"
+  },
+  {
+    "path": "trinity-requirement-golden-review-20261109/PR-BEFORE.json",
+    "bytes": 12432,
+    "sha256": "3fea760e765168db994e8fd3e821d5d24a1150e11374db1a38f527ca03da08b1"
+  },
+  {
+    "path": "trinity-requirement-golden-review-20261109/README.md",
+    "bytes": 2496,
+    "sha256": "cac3143e3b1d336bddf0e735d1de16bb3c682d87a0cdf837406909da126b4e0f"
+  },
+  {
+    "path": "trinity-requirement-golden-review-20261109/SHEET-DIFF.json",
+    "bytes": 659,
+    "sha256": "d22ea7b8c13b6370fa4b626380846344ca3f7c9decd83dc2f778f11d9d3386eb"
+  },
+  {
+    "path": "trinity-requirement-golden-review-20261109/WATERCOLOR.diff",
+    "bytes": 10645,
+    "sha256": "2b8aca2416f0b215912861f003b4543b3299ceecefdeaa28cd5cbd60c8b30f5f"
+  },
+  {
+    "path": "trinity-requirement-golden-review-20261109/after-v2-r6-c1.png",
+    "bytes": 10960,
+    "sha256": "ec76a837055046115ce24dea2cd9702890500771c26aeebbd599984d2fc74e98"
+  },
+  {
+    "path": "trinity-requirement-golden-review-20261109/after-v3-r6-c1.png",
+    "bytes": 10600,
+    "sha256": "fb97604b7b32eafe23f1a9550810598adad47c8381b63f78319d6476920a9d97"
+  },
+  {
+    "path": "trinity-requirement-golden-review-20261109/before-approval.json",
+    "bytes": 1063,
+    "sha256": "028e5ce294ad981d066ef50222dfbd21cf30c62382b6296f2ede56606a540db7"
+  },
+  {
+    "path": "trinity-requirement-golden-review-20261109/before-layout.json",
+    "bytes": 313473,
+    "sha256": "a60b635526681da51531f5cf08c864073f7c496e46c4808ac7189e36a18a2a60"
+  },
+  {
+    "path": "trinity-requirement-golden-review-20261109/before-sheet.png",
+    "bytes": 1911608,
+    "sha256": "51ef16ebc622d8ba49529b9c74c06c76d51f4cb09b02b8f38b102c95aa52dc38"
+  },
+  {
+    "path": "trinity-requirement-golden-review-20261109/before-v2-r6-c1.png",
+    "bytes": 11150,
+    "sha256": "260dee75efece35d68cee87c286d978a287743cc7720f5715acab13f563f6b10"
+  },
+  {
+    "path": "trinity-requirement-golden-review-20261109/before-v3-r6-c1.png",
+    "bytes": 10849,
+    "sha256": "8d53dc9a131142f7adae3160451540fe328db6a20fc2d27ac1126521d640bcca"
+  },
+  {
+    "path": "trinity-requirement-golden-review-20261109/before-watercolor.svg",
+    "bytes": 7227,
+    "sha256": "7a55edf28d0cb2eff6c4ace9e9a49664f0c37a0325155c50257d262e6b018900"
+  },
+  {
+    "path": "trinity-requirement-golden-review-20261109/candidate-layout-generated.json",
+    "bytes": 313473,
+    "sha256": "f4222c83ba37bcf30de7ea4c9fd55b19c72316c5649a45f64335e36b13824a8e"
+  },
+  {
+    "path": "trinity-requirement-golden-review-20261109/candidate-sheet.png",
+    "bytes": 1912779,
+    "sha256": "a8f723d8f8b3bf295e622d0a64978f66c500ec90283437bcdb65cf599686c827"
+  },
+  {
+    "path": "trinity-requirement-golden-review-20261109/candidate-watercolor.svg",
+    "bytes": 7232,
+    "sha256": "940a9e85c3b55b23e34075e10887df5c88ed66ef38157bbcd0551e62babe1ca2"
+  },
+  {
+    "path": "trinity-requirement-golden-review-20261109/candidate.ts",
+    "bytes": 914,
+    "sha256": "43372325bd885f86df61525e99fadf671e6df9978e226c1fa7b59bc551e3c325"
+  },
+  {
+    "path": "trinity-requirement-golden-review-20261109/checkpoint.py",
+    "bytes": 2684,
+    "sha256": "40e5f28a4300fb80e5f34c20a79f85bf9ab78315ac04a1b75cda40e1ea51092a"
+  },
+  {
+    "path": "trinity-requirement-golden-review-20261109/current-basic.receipt.json",
+    "bytes": 11506,
+    "sha256": "887842246e23bff6793cd50b5027da8e1581ea1d6630265f430eaad0797eabcc"
+  },
+  {
+    "path": "trinity-requirement-golden-review-20261109/current-basic.svg",
+    "bytes": 5118,
+    "sha256": "c56f7da18a55d99f3edbedd8ea974da9476da168fa0c74f0fc203d1d058b974e"
+  },
+  {
+    "path": "trinity-requirement-golden-review-20261109/generate.log",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "path": "trinity-requirement-golden-review-20261109/layout-green.log",
+    "bytes": 386,
+    "sha256": "f33c1117759c9fe16d5ff3ee2348e87852d3166f2f84dc9160641e92c4062c0b"
+  },
+  {
+    "path": "trinity-requirement-golden-review-20261109/layout-red.log",
+    "bytes": 1711,
+    "sha256": "4d3415f6b63349a06a79396fb07e97f54675c86b3189297d485bb70244b4d1af"
+  },
+  {
+    "path": "trinity-requirement-golden-review-20261109/layout-update.log",
+    "bytes": 437,
+    "sha256": "f686bd8557be77ad84d7c675f8ebbe9488ac1f95e548287980544fda019fca17"
+  },
+  {
+    "path": "trinity-requirement-golden-review-20261109/lint.log",
+    "bytes": 80,
+    "sha256": "57ca83f1fe984463a54ac30d534583cb0c17f5a52b6e7f94378821beb8b07cf9"
+  },
+  {
+    "path": "trinity-requirement-golden-review-20261109/owners.log",
+    "bytes": 25729,
+    "sha256": "beb132940d93f71e1e8647f3ce8910b41270012efcdd4cb4a25061a95ac513e2"
+  },
+  {
+    "path": "trinity-requirement-golden-review-20261109/requirement-owners-retry.log",
+    "bytes": 8102,
+    "sha256": "5d51cf981ab5d65e68102e7559b9b1e5e55b8eda7c4b3335c25da3afa4cd9583"
+  },
+  {
+    "path": "trinity-requirement-golden-review-20261109/sparse32-value-review/authority-review.md",
+    "bytes": 6360,
+    "sha256": "eb7a85929fdcb8dcd593d28e1942e6dd807bd7cc224515a879dcb27858fa402e"
+  },
+  {
+    "path": "trinity-requirement-golden-review-20261109/stopped-crossing-channel/GEOMETRY-COUNTERFACTUAL.json",
+    "bytes": 2117,
+    "sha256": "7a52221656891e0c8b51624a01ee86b55b8b18e7042df713f49edc46f7acb7cd"
+  },
+  {
+    "path": "trinity-requirement-golden-review-20261109/stopped-crossing-channel/causal-review.md",
+    "bytes": 7553,
+    "sha256": "08f46101be44be9cf787015b83ad5c9d4b25cc309e875768d8cc09d1921f4ff3"
+  },
+  {
+    "path": "trinity-requirement-golden-review-20261109/stopped-crossing-channel/compound-boundary-routes.trace.ts",
+    "bytes": 84777,
+    "sha256": "94a0a7558c0daec8aab46d715924474d75a4b22bafe127778e3bdc017d2cbdf8"
+  },
+  {
+    "path": "trinity-requirement-golden-review-20261109/stopped-crossing-channel/geometry-probe.ts",
+    "bytes": 3100,
+    "sha256": "1ed3334d1887d146fb4e3298ef6f7fc722f54f08cfa3d72434ef0ea136d1de71"
+  },
+  {
+    "path": "trinity-requirement-golden-review-20261109/stopped-crossing-channel/job.json",
+    "bytes": 961,
+    "sha256": "5c0e8f8f0ceb503fddd53be18f9a8bf5c471fc294e538ab8b24059ed93076f21"
+  },
+  {
+    "path": "trinity-requirement-golden-review-20261109/stopped-crossing-channel/trace/0.receipt.json.gz",
+    "bytes": 1207,
+    "sha256": "babfb41f8ad5e841c28c04448893c5286241ed77e6fda90337b4b49618154b63"
+  },
+  {
+    "path": "trinity-requirement-golden-review-20261109/stopped-crossing-channel/trace/0.svg.gz",
+    "bytes": 2210,
+    "sha256": "80c3b1606b2099466b7572d16d65942ce197b9ccd9d260203e89e0a4689b828a"
+  },
+  {
+    "path": "trinity-requirement-golden-review-20261109/stopped-crossing-channel/trace/RESULT.json",
+    "bytes": 173,
+    "sha256": "e21390e309e32ee8dff32e070de6ff5af9b4f53d192f2d92ea2b631f356f8777"
+  },
+  {
+    "path": "trinity-requirement-golden-review-20261109/stopped-crossing-channel/trace/TRACE.jsonl",
+    "bytes": 141939,
+    "sha256": "04d41ca99e3999519c19fe66c9dec8b045f8d70cec2a935cf5bb21727fe32964"
+  },
+  {
+    "path": "trinity-requirement-golden-review-20261109/stopped-native-stubs/BASELINE.json",
+    "bytes": 2153,
+    "sha256": "15d8926685c6788fce615cc5ed10fb44809cb9fd764c3aa46fa257f44e17339f"
+  },
+  {
+    "path": "trinity-requirement-golden-review-20261109/stopped-native-stubs/GOAL-COMPONENTS.json",
+    "bytes": 85062,
+    "sha256": "5e52b32705a703d107b6ec9637ca8301d3d15da679a20efc5198fa84c1a4036d"
+  },
+  {
+    "path": "trinity-requirement-golden-review-20261109/stopped-native-stubs/PROVISIONAL-STUB-GEOMETRY.json",
+    "bytes": 7481,
+    "sha256": "2ed3b39531b85680561ac329a4975c6faae085dddb4ba99339e150dc6f44dd05"
+  },
+  {
+    "path": "trinity-requirement-golden-review-20261109/stopped-native-stubs/README.md",
+    "bytes": 2141,
+    "sha256": "e35b033025fbfcac16d7dacc5fa7019d2fb4f4b40d66c7ea01e70590d915a8c1"
+  },
+  {
+    "path": "trinity-requirement-golden-review-20261109/stopped-native-stubs/analyze-components.py",
+    "bytes": 2073,
+    "sha256": "5ed53861aa31c69449aedbeef0a0f6f13d86c72f9ae844e2ddde53047891a145"
+  },
+  {
+    "path": "trinity-requirement-golden-review-20261109/stopped-native-stubs/analyze-provisional-stubs.py",
+    "bytes": 2938,
+    "sha256": "aa6f3cc687b4dc2d24c728f1fef469e776451f3fb3e1b2b58e50edc811557656"
+  },
+  {
+    "path": "trinity-requirement-golden-review-20261109/stopped-native-stubs/baseline.ts",
+    "bytes": 1001,
+    "sha256": "ca3fb7f9f9c55fb65d787f795a4ed8e645379d9dac6fb7cf5e081ebc5d1b4e41"
+  },
+  {
+    "path": "trinity-requirement-golden-review-20261109/stopped-native-stubs/causal-review.md",
+    "bytes": 7886,
+    "sha256": "5fc481bfd543cedca79b3ffc6bea237f30a57c8d88928683e63fcf6a6c97526b"
+  },
+  {
+    "path": "trinity-requirement-golden-review-20261109/stopped-native-stubs/ci-artifacts.jsonl",
+    "bytes": 904,
+    "sha256": "7a1debdcda64b13cd8c7924269c4df651f5c95bec04b18a36e42faaba478ff44"
+  },
+  {
+    "path": "trinity-requirement-golden-review-20261109/stopped-native-stubs/ci-failed-checks.jsonl",
+    "bytes": 2302,
+    "sha256": "ce4e5b92c35a9fc75b5ed76d162cd4f96c486236ee465e23b4ce3b20c2a1f0b7"
+  },
+  {
+    "path": "trinity-requirement-golden-review-20261109/stopped-native-stubs/ci-unit1-annotations.json",
+    "bytes": 2608,
+    "sha256": "7f2c8ff3f66eb815189e66049e3c38ba394486c202cb1d0766b832a70388cee7"
+  },
+  {
+    "path": "trinity-requirement-golden-review-20261109/stopped-native-stubs/ci-unit1.log",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "path": "trinity-requirement-golden-review-20261109/stopped-native-stubs/ci-unit3-annotations.json",
+    "bytes": 6916,
+    "sha256": "57a965f9d354e22f560b6a8f3607e2b48e8c59b5fdfbd67a7378589a781677d8"
+  },
+  {
+    "path": "trinity-requirement-golden-review-20261109/stopped-native-stubs/ci-unit3-raw.log",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "path": "trinity-requirement-golden-review-20261109/stopped-native-stubs/ci-unit3.log",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "path": "trinity-requirement-golden-review-20261109/stopped-native-stubs/compound-boundary-routes.before.ts",
+    "bytes": 83799,
+    "sha256": "ffcbc847e09fc32f6738e58c6b8b1f7f11b62762cfbcd1622504ad2b2f42c718"
+  },
+  {
+    "path": "trinity-requirement-golden-review-20261109/stopped-native-stubs/compound-boundary-routes.trace.ts",
+    "bytes": 84742,
+    "sha256": "9eba162de6f30b72ed2518104a9a421cf6ce19a97377051a664ed9c7e7477e6f"
+  },
+  {
+    "path": "trinity-requirement-golden-review-20261109/stopped-native-stubs/compound-boundary-routes.trimmed.ts",
+    "bytes": 84809,
+    "sha256": "5ec580a2ad982c165ce2fc0fa998b98e865594f1a9a4ce2afb3b985b26a0e87f"
+  },
+  {
+    "path": "trinity-requirement-golden-review-20261109/stopped-native-stubs/compound-lazy-visibility.trace.ts",
+    "bytes": 12736,
+    "sha256": "c2aa95983859f22cabc108b980da094ed111ca718d8505856d078a6783270aaa"
+  },
+  {
+    "path": "trinity-requirement-golden-review-20261109/stopped-native-stubs/compound-sparse-visibility.trace.ts",
+    "bytes": 30044,
+    "sha256": "69c374fbdf4261e459b3406861abd3a39b63acba249a2472ffce5b78d440880d"
+  },
+  {
+    "path": "trinity-requirement-golden-review-20261109/stopped-native-stubs/current-ci-failed.log",
+    "bytes": 74472,
+    "sha256": "cc43bcb441975804cbeac1fc1fa178a70dd57a86223864896b58573f9ea720b5"
+  },
+  {
+    "path": "trinity-requirement-golden-review-20261109/stopped-native-stubs/current-ci.json",
+    "bytes": 48912,
+    "sha256": "94c0b6eede44162eb4dd8ac22aff77e05392326309f53e7040a387b38e0696ac"
+  },
+  {
+    "path": "trinity-requirement-golden-review-20261109/stopped-native-stubs/lazy-job.json",
+    "bytes": 1154,
+    "sha256": "6e0e0d8a6f157e724807f678db1e2e6ebe469651ae99bfdf28cd83b3be03cd54"
+  },
+  {
+    "path": "trinity-requirement-golden-review-20261109/stopped-native-stubs/lazy-trace/RESULT.json",
+    "bytes": 246,
+    "sha256": "41a35fc071d02cb2183891a0ab14521203abe7b6b9d726ae51a9808ad0db3b64"
+  },
+  {
+    "path": "trinity-requirement-golden-review-20261109/stopped-native-stubs/lazy-trace/TRACE.jsonl",
+    "bytes": 235300,
+    "sha256": "caf46454999a8178fdfa2d85d8601ea1ad90c7b056a716b2167823ddafd884db"
+  },
+  {
+    "path": "trinity-requirement-golden-review-20261109/stopped-native-stubs/prepare-lazy-trace.py",
+    "bytes": 2513,
+    "sha256": "59fac20d3a31ae384bae7e36e46ed7654235b5580aa0426a0b042c86d919e868"
+  },
+  {
+    "path": "trinity-requirement-golden-review-20261109/stopped-native-stubs/prepare-trace.py",
+    "bytes": 5458,
+    "sha256": "60ad8a59698232cd1735d87924256df5091afd4fa104c8ba84b30de496932463"
+  },
+  {
+    "path": "trinity-requirement-golden-review-20261109/stopped-native-stubs/profile-before/JOB.json",
+    "bytes": 1106,
+    "sha256": "9b8822a5842613f070dee7c5cf457342ae728c6b04fff9e6d73a9f5d7ec26da4"
+  },
+  {
+    "path": "trinity-requirement-golden-review-20261109/stopped-native-stubs/profile-before/analysis.json",
+    "bytes": 1149835,
+    "sha256": "ea3eb2a9eb736ea54d5dd1556cfcecfdaf453cd32c8f135c017a8e4a38717192"
+  },
+  {
+    "path": "trinity-requirement-golden-review-20261109/stopped-native-stubs/profile-before/analysis.log",
+    "bytes": 7978,
+    "sha256": "0c90810d46475eca6f8721af616e971c2d2dadf5e535985ca5345f6c63aa574e"
+  },
+  {
+    "path": "trinity-requirement-golden-review-20261109/stopped-native-stubs/profile-before/analyze.mjs",
+    "bytes": 11162,
+    "sha256": "9f9c3f885d943c3dfacdc677e5d37c58c80f5b9023b6517ee5f5cf95095a545f"
+  },
+  {
+    "path": "trinity-requirement-golden-review-20261109/stopped-native-stubs/profile-before/native-TB/RESULT.json.gz",
+    "bytes": 1722,
+    "sha256": "49f8d0b28d4e2cc0adc97f9b20027c0ba1d29c9d4b3c04eb67e28b2b54f92aba"
+  },
+  {
+    "path": "trinity-requirement-golden-review-20261109/stopped-native-stubs/profile-before/native-TB/cache-audit.json.gz",
+    "bytes": 244,
+    "sha256": "554d436bb9e1f0c4857e825537f7b4aa1b4b6ce98d67550e2c837b1af7ed1702"
+  },
+  {
+    "path": "trinity-requirement-golden-review-20261109/stopped-native-stubs/profile-before/native-TB/cold-render.row.json.gz",
+    "bytes": 585,
+    "sha256": "b834ac946b19a720c5a1e2197572d4a86734ea3b088c2ece5f1d1595a705c253"
+  },
+  {
+    "path": "trinity-requirement-golden-review-20261109/stopped-native-stubs/profile-before/native-TB/edit.cpuprofile.gz",
+    "bytes": 6968,
+    "sha256": "b5d16e1b9b3be6ee80237df832e001517a33fe73837f816aee26c5f6ce348838"
+  },
+  {
+    "path": "trinity-requirement-golden-review-20261109/stopped-native-stubs/profile-before/native-TB/edit.row.json.gz",
+    "bytes": 638,
+    "sha256": "9c60c9a2f234c5eaa25abbba41c5fbec78b792b805a43412d9f355cb2c8afa90"
+  },
+  {
+    "path": "trinity-requirement-golden-review-20261109/stopped-native-stubs/profile-before/native-TB/repeat1.cpuprofile.gz",
+    "bytes": 8091,
+    "sha256": "d21f539a17b4058a3f285dd9918a276ea0761bcf9e7441ac31fd9bf077c4936e"
+  },
+  {
+    "path": "trinity-requirement-golden-review-20261109/stopped-native-stubs/profile-before/native-TB/repeat1.row.json.gz",
+    "bytes": 667,
+    "sha256": "86d01dcb3841d6e027fad6ed228c6d2bd9b23ed0c423554be67e9a537b373935"
+  },
+  {
+    "path": "trinity-requirement-golden-review-20261109/stopped-native-stubs/profile-before/native-TB/repeat2.cpuprofile.gz",
+    "bytes": 7359,
+    "sha256": "0e342187fca35c508621a17a41cf7e1575fbdcffdc79ce13b91e8e7e14fb9d77"
+  },
+  {
+    "path": "trinity-requirement-golden-review-20261109/stopped-native-stubs/profile-before/native-TB/repeat2.row.json.gz",
+    "bytes": 666,
+    "sha256": "1cc7151ff004af57eae903da5fe494efd69adc654d9c25e29210af41102c1b7e"
+  },
+  {
+    "path": "trinity-requirement-golden-review-20261109/stopped-native-stubs/profile-before/native-TB/source-maps.json.gz",
+    "bytes": 1057491,
+    "sha256": "f9df7557677bc9afced401646176454d16b3d67106b0ab853e9a19891ac86423"
+  },
+  {
+    "path": "trinity-requirement-golden-review-20261109/stopped-native-stubs/profile-before/native-TB/warmup-error.json.gz",
+    "bytes": 400,
+    "sha256": "c904842a4110d4646a7c0a338647fbf92550020799aa4597064df63bf955e37f"
+  },
+  {
+    "path": "trinity-requirement-golden-review-20261109/stopped-native-stubs/profile-before/native-TB-frame-mappings.json",
+    "bytes": 77196,
+    "sha256": "5e61f31117a61bfdf34311f35c17185e4456b5bcb5640f544cc1c5af0d221de9"
+  },
+  {
+    "path": "trinity-requirement-golden-review-20261109/stopped-native-stubs/profile-before/run.log",
+    "bytes": 704,
+    "sha256": "379835ce75851cecd05bc445f332c42b717191b1fdf7dcc26b389e773f7e83a6"
+  },
+  {
+    "path": "trinity-requirement-golden-review-20261109/stopped-native-stubs/profile-before/worker.mjs",
+    "bytes": 7396,
+    "sha256": "d74957248139de10421b0d13a47400a7e3822584387e3966f2e3d5640ead00cf"
+  },
+  {
+    "path": "trinity-requirement-golden-review-20261109/stopped-native-stubs/run-diagnostic.mjs",
+    "bytes": 2550,
+    "sha256": "e3e1f38fbe2105c8ce052c36fe14f3375df22e795f93dd371ace1afde52ebd4d"
+  },
+  {
+    "path": "trinity-requirement-golden-review-20261109/stopped-native-stubs/run-trace.mjs",
+    "bytes": 2650,
+    "sha256": "c0145ad9be11c7966a203270fc0426147f7ce6fc99e0e57aa6734d4fe6402eb8"
+  },
+  {
+    "path": "trinity-requirement-golden-review-20261109/stopped-native-stubs/styled-requirement-red.log",
+    "bytes": 7021,
+    "sha256": "8b403c77cf5bc2f9b5f6b207375dc0600af439d8d2d0564c389e0090f6522ffb"
+  },
+  {
+    "path": "trinity-requirement-golden-review-20261109/stopped-native-stubs/trace/RESULT.json",
+    "bytes": 246,
+    "sha256": "41a35fc071d02cb2183891a0ab14521203abe7b6b9d726ae51a9808ad0db3b64"
+  },
+  {
+    "path": "trinity-requirement-golden-review-20261109/stopped-native-stubs/trace/TRACE.jsonl",
+    "bytes": 163598,
+    "sha256": "8508b686fb47f83011b914718ee6edfaadde92fc2ae7ba46d764cc49806ff2a6"
+  },
+  {
+    "path": "trinity-requirement-golden-review-20261109/stopped-native-stubs/trace-job.json",
+    "bytes": 955,
+    "sha256": "4171651bdcfaf53e5015f32f7bfe56e85edca5637c482d8f68ad6de2bb7b4798"
+  },
+  {
+    "path": "trinity-requirement-golden-review-20261109/stopped-native-stubs/trimmed-TB/RESULT.json",
+    "bytes": 460,
+    "sha256": "7f929516b6d21a92005a64c441b27c30cef0d70ef19d5ce4fe160d5340b03a8f"
+  },
+  {
+    "path": "trinity-requirement-golden-review-20261109/stopped-native-stubs/trimmed-job.json",
+    "bytes": 831,
+    "sha256": "b51718c3fe9ee796bec296f35ccec7726f6dc5ca72f30a41f85e2923419167db"
+  },
+  {
+    "path": "trinity-requirement-golden-review-20261109/styled-green.log",
+    "bytes": 279,
+    "sha256": "73a0c61bb655a1853dd545062537685ce2ae4d563e0f5815abe03bb20ac5afac"
+  },
+  {
+    "path": "trinity-requirement-golden-review-20261109/typecheck.log",
+    "bytes": 225,
+    "sha256": "f24f29e2837198be597c614681ebf33d0fb50d3aeb28485c1e6f6fb5301c91dd"
+  },
+  {
+    "path": "trinity-requirement-golden-review-20261109/visual-scope-review.md",
+    "bytes": 2997,
+    "sha256": "2501bd44a2e73f3c7d5a00a525a8bff790bc6eedeb907174085011e077cc65b6"
+  }
+]
