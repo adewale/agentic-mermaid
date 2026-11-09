@@ -1,0 +1,1457 @@
+[
+  {
+    "path": "trinity-postdelivery-profile-20261109/ABBA-QUALIFICATION.json",
+    "bytes": 79397,
+    "sha256": "5ff695dacff0eb8a4741c2dfc9e83a9698010ad64b92ed2e77c062b6c2819f55"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/ABBA-RUNS.json",
+    "bytes": 1249,
+    "sha256": "b221c839ce65f4cad1a8ea6a55fa1692d920ca6b69e84a43c7e6c5f5ea46df53"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/README.md",
+    "bytes": 7548,
+    "sha256": "13bcbe91522bb7387f5ae6ba5c897dea4b313b7f906dfd1a754123c5952623fc"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/RUNS.json",
+    "bytes": 836,
+    "sha256": "508b5e308c80b9fcf0a8787f611c8e50cb65d01175488b53284794b75cf626cf"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/abba-0-baseline/RESULT.json.gz",
+    "bytes": 1803,
+    "sha256": "63011e129a8326d13e048ee817da05a04a7ef9acc909898ca0c1aa2c91f7cae9"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/abba-0-baseline/cache-audit.json.gz",
+    "bytes": 278,
+    "sha256": "3493f7bccf05d26cdbe9798211049703c46d09c5efac781f3f111fb1dbe4f65e"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/abba-0-baseline/cold-render.row.json.gz",
+    "bytes": 619,
+    "sha256": "b16338dc5cd3e26d7866981ca97535e0aede8c0b9a72c8c1f7b961827ca23968"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/abba-0-baseline/edit.cpuprofile.gz",
+    "bytes": 41,
+    "sha256": "f0bd37867d41bea6d64d7f6235bd223c9c977116a24df687b1d9dd99e5a11be1"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/abba-0-baseline/edit.receipt.json.gz",
+    "bytes": 1205,
+    "sha256": "3d6e978dcbd25a96b494a5ba5d076e6c8a8493e181a318f2d00f0c0106f63e31"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/abba-0-baseline/edit.row.json.gz",
+    "bytes": 645,
+    "sha256": "1b74a779dd1ccc7efc3a7a6f127ef21c2d65cddc5a6995c76e260f8380082041"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/abba-0-baseline/edit.svg.gz",
+    "bytes": 2151,
+    "sha256": "eea69ca1e3ee32979124f3f6751e941ff942f9c52e714268fd578e4115de59f9"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/abba-0-baseline/edit2.cpuprofile.gz",
+    "bytes": 41,
+    "sha256": "f0bd37867d41bea6d64d7f6235bd223c9c977116a24df687b1d9dd99e5a11be1"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/abba-0-baseline/edit2.receipt.json.gz",
+    "bytes": 1205,
+    "sha256": "3d6e978dcbd25a96b494a5ba5d076e6c8a8493e181a318f2d00f0c0106f63e31"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/abba-0-baseline/edit2.row.json.gz",
+    "bytes": 643,
+    "sha256": "277c17e49a9f01129f02f8b405352ac701c152d804e38dda01c8ccbc54df10be"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/abba-0-baseline/edit2.svg.gz",
+    "bytes": 2151,
+    "sha256": "eea69ca1e3ee32979124f3f6751e941ff942f9c52e714268fd578e4115de59f9"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/abba-0-baseline/repeat1.cpuprofile.gz",
+    "bytes": 41,
+    "sha256": "f0bd37867d41bea6d64d7f6235bd223c9c977116a24df687b1d9dd99e5a11be1"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/abba-0-baseline/repeat1.receipt.json.gz",
+    "bytes": 1207,
+    "sha256": "33c8725e4a4da699345625648c8f7f43c510d3635acb1160a7a2c5e487ab1156"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/abba-0-baseline/repeat1.row.json.gz",
+    "bytes": 664,
+    "sha256": "d7241f13258de75cb0e82bfa3de96b0ae9cd39f74af1d8cb67ec2396fd65d3b2"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/abba-0-baseline/repeat1.svg.gz",
+    "bytes": 2122,
+    "sha256": "cbcf01e09801830506ad4bf2dbf22fbd92938d3a6d880b479ac52bc54574d8c6"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/abba-0-baseline/repeat2.cpuprofile.gz",
+    "bytes": 41,
+    "sha256": "f0bd37867d41bea6d64d7f6235bd223c9c977116a24df687b1d9dd99e5a11be1"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/abba-0-baseline/repeat2.receipt.json.gz",
+    "bytes": 1207,
+    "sha256": "33c8725e4a4da699345625648c8f7f43c510d3635acb1160a7a2c5e487ab1156"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/abba-0-baseline/repeat2.row.json.gz",
+    "bytes": 664,
+    "sha256": "f2e119d313ded76c0107e1c5252fb51af6239764b660323f233dcbab2f056a21"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/abba-0-baseline/repeat2.svg.gz",
+    "bytes": 2122,
+    "sha256": "cbcf01e09801830506ad4bf2dbf22fbd92938d3a6d880b479ac52bc54574d8c6"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/abba-0-baseline/source-maps.json.gz",
+    "bytes": 22,
+    "sha256": "73a1b438b0221511fb3dde18e019f5ab045811b2248d25d424e40980c683a9dc"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/abba-0-baseline/warmup.receipt.json.gz",
+    "bytes": 1207,
+    "sha256": "33c8725e4a4da699345625648c8f7f43c510d3635acb1160a7a2c5e487ab1156"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/abba-0-baseline/warmup.svg.gz",
+    "bytes": 2122,
+    "sha256": "cbcf01e09801830506ad4bf2dbf22fbd92938d3a6d880b479ac52bc54574d8c6"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/abba-0-baseline.log",
+    "bytes": 693,
+    "sha256": "8ed547dd15fa0d4c028b8f2cfe28b6c89b158d5c106352880a3b9b38d208db6a"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/abba-1-owned-heap/RESULT.json.gz",
+    "bytes": 1934,
+    "sha256": "a776b9eafb521b1bbfcb36914eebc2ad7729d6c8e733cc4e15754381d1840b67"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/abba-1-owned-heap/cache-audit.json.gz",
+    "bytes": 278,
+    "sha256": "3493f7bccf05d26cdbe9798211049703c46d09c5efac781f3f111fb1dbe4f65e"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/abba-1-owned-heap/cold-render.row.json.gz",
+    "bytes": 618,
+    "sha256": "5de441de3035f4631554ec50c3adf7e6e2b80ad8933ff28e903068e829b559bb"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/abba-1-owned-heap/edit.cpuprofile.gz",
+    "bytes": 41,
+    "sha256": "f0bd37867d41bea6d64d7f6235bd223c9c977116a24df687b1d9dd99e5a11be1"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/abba-1-owned-heap/edit.receipt.json.gz",
+    "bytes": 1205,
+    "sha256": "3d6e978dcbd25a96b494a5ba5d076e6c8a8493e181a318f2d00f0c0106f63e31"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/abba-1-owned-heap/edit.row.json.gz",
+    "bytes": 647,
+    "sha256": "29287f4db2c8e416b497cc114beec09417a4fa1e5486652497ce0304319c5c94"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/abba-1-owned-heap/edit.svg.gz",
+    "bytes": 2151,
+    "sha256": "eea69ca1e3ee32979124f3f6751e941ff942f9c52e714268fd578e4115de59f9"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/abba-1-owned-heap/edit2.cpuprofile.gz",
+    "bytes": 41,
+    "sha256": "f0bd37867d41bea6d64d7f6235bd223c9c977116a24df687b1d9dd99e5a11be1"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/abba-1-owned-heap/edit2.receipt.json.gz",
+    "bytes": 1205,
+    "sha256": "3d6e978dcbd25a96b494a5ba5d076e6c8a8493e181a318f2d00f0c0106f63e31"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/abba-1-owned-heap/edit2.row.json.gz",
+    "bytes": 644,
+    "sha256": "fc414a11246c533ac39f7ff6f053a6c9975c0ad8a5c49a57697820cc7e81d68a"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/abba-1-owned-heap/edit2.svg.gz",
+    "bytes": 2151,
+    "sha256": "eea69ca1e3ee32979124f3f6751e941ff942f9c52e714268fd578e4115de59f9"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/abba-1-owned-heap/repeat1.cpuprofile.gz",
+    "bytes": 41,
+    "sha256": "f0bd37867d41bea6d64d7f6235bd223c9c977116a24df687b1d9dd99e5a11be1"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/abba-1-owned-heap/repeat1.receipt.json.gz",
+    "bytes": 1207,
+    "sha256": "33c8725e4a4da699345625648c8f7f43c510d3635acb1160a7a2c5e487ab1156"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/abba-1-owned-heap/repeat1.row.json.gz",
+    "bytes": 673,
+    "sha256": "b4da9d190713cf78e63457676e77c2ee3b5e81be486b5eb762f97ae966ee1392"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/abba-1-owned-heap/repeat1.svg.gz",
+    "bytes": 2122,
+    "sha256": "cbcf01e09801830506ad4bf2dbf22fbd92938d3a6d880b479ac52bc54574d8c6"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/abba-1-owned-heap/repeat2.cpuprofile.gz",
+    "bytes": 41,
+    "sha256": "f0bd37867d41bea6d64d7f6235bd223c9c977116a24df687b1d9dd99e5a11be1"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/abba-1-owned-heap/repeat2.receipt.json.gz",
+    "bytes": 1207,
+    "sha256": "33c8725e4a4da699345625648c8f7f43c510d3635acb1160a7a2c5e487ab1156"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/abba-1-owned-heap/repeat2.row.json.gz",
+    "bytes": 667,
+    "sha256": "2523cfa0771debdeef3654907eca4e9505d5372931385614fedcd3a713ec732b"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/abba-1-owned-heap/repeat2.svg.gz",
+    "bytes": 2122,
+    "sha256": "cbcf01e09801830506ad4bf2dbf22fbd92938d3a6d880b479ac52bc54574d8c6"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/abba-1-owned-heap/source-maps.json.gz",
+    "bytes": 22,
+    "sha256": "73a1b438b0221511fb3dde18e019f5ab045811b2248d25d424e40980c683a9dc"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/abba-1-owned-heap/warmup.receipt.json.gz",
+    "bytes": 1207,
+    "sha256": "33c8725e4a4da699345625648c8f7f43c510d3635acb1160a7a2c5e487ab1156"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/abba-1-owned-heap/warmup.svg.gz",
+    "bytes": 2122,
+    "sha256": "cbcf01e09801830506ad4bf2dbf22fbd92938d3a6d880b479ac52bc54574d8c6"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/abba-1-owned-heap.log",
+    "bytes": 695,
+    "sha256": "171042a50ddd5202ec114dc14d93a309c6ca290ecc50e756aa3cdde87b4b6167"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/abba-2-owned-heap/RESULT.json.gz",
+    "bytes": 1936,
+    "sha256": "ea108caa4b258f0e21d19060185dbfe4c18487639ebc1912418f4f7351860eb8"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/abba-2-owned-heap/cache-audit.json.gz",
+    "bytes": 278,
+    "sha256": "3493f7bccf05d26cdbe9798211049703c46d09c5efac781f3f111fb1dbe4f65e"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/abba-2-owned-heap/cold-render.row.json.gz",
+    "bytes": 623,
+    "sha256": "4bcf0f9a3eab8cc5b93fbc0df80b894e2c2b0e45335b336c0507d08fc0bf543f"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/abba-2-owned-heap/edit.cpuprofile.gz",
+    "bytes": 41,
+    "sha256": "f0bd37867d41bea6d64d7f6235bd223c9c977116a24df687b1d9dd99e5a11be1"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/abba-2-owned-heap/edit.receipt.json.gz",
+    "bytes": 1205,
+    "sha256": "3d6e978dcbd25a96b494a5ba5d076e6c8a8493e181a318f2d00f0c0106f63e31"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/abba-2-owned-heap/edit.row.json.gz",
+    "bytes": 650,
+    "sha256": "296bd839696f080a05a8ad101d68a8b30de7825f58901c67a8e545adb2169d09"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/abba-2-owned-heap/edit.svg.gz",
+    "bytes": 2151,
+    "sha256": "eea69ca1e3ee32979124f3f6751e941ff942f9c52e714268fd578e4115de59f9"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/abba-2-owned-heap/edit2.cpuprofile.gz",
+    "bytes": 41,
+    "sha256": "f0bd37867d41bea6d64d7f6235bd223c9c977116a24df687b1d9dd99e5a11be1"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/abba-2-owned-heap/edit2.receipt.json.gz",
+    "bytes": 1205,
+    "sha256": "3d6e978dcbd25a96b494a5ba5d076e6c8a8493e181a318f2d00f0c0106f63e31"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/abba-2-owned-heap/edit2.row.json.gz",
+    "bytes": 647,
+    "sha256": "93156145ea2c8881771a574e9868e5a5504099536c2a56a8f6db4f4dbe260bbb"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/abba-2-owned-heap/edit2.svg.gz",
+    "bytes": 2151,
+    "sha256": "eea69ca1e3ee32979124f3f6751e941ff942f9c52e714268fd578e4115de59f9"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/abba-2-owned-heap/repeat1.cpuprofile.gz",
+    "bytes": 41,
+    "sha256": "f0bd37867d41bea6d64d7f6235bd223c9c977116a24df687b1d9dd99e5a11be1"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/abba-2-owned-heap/repeat1.receipt.json.gz",
+    "bytes": 1207,
+    "sha256": "33c8725e4a4da699345625648c8f7f43c510d3635acb1160a7a2c5e487ab1156"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/abba-2-owned-heap/repeat1.row.json.gz",
+    "bytes": 666,
+    "sha256": "efa2740282ef591ea9420595782e8bed55fb1616c4a1427e1c6b9a1d941ef9a9"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/abba-2-owned-heap/repeat1.svg.gz",
+    "bytes": 2122,
+    "sha256": "cbcf01e09801830506ad4bf2dbf22fbd92938d3a6d880b479ac52bc54574d8c6"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/abba-2-owned-heap/repeat2.cpuprofile.gz",
+    "bytes": 41,
+    "sha256": "f0bd37867d41bea6d64d7f6235bd223c9c977116a24df687b1d9dd99e5a11be1"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/abba-2-owned-heap/repeat2.receipt.json.gz",
+    "bytes": 1207,
+    "sha256": "33c8725e4a4da699345625648c8f7f43c510d3635acb1160a7a2c5e487ab1156"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/abba-2-owned-heap/repeat2.row.json.gz",
+    "bytes": 671,
+    "sha256": "a35558ea62d711a41e7e0a3ce365c76d260f100fc0344f8e5e0bd3e56c7c10a3"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/abba-2-owned-heap/repeat2.svg.gz",
+    "bytes": 2122,
+    "sha256": "cbcf01e09801830506ad4bf2dbf22fbd92938d3a6d880b479ac52bc54574d8c6"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/abba-2-owned-heap/source-maps.json.gz",
+    "bytes": 22,
+    "sha256": "73a1b438b0221511fb3dde18e019f5ab045811b2248d25d424e40980c683a9dc"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/abba-2-owned-heap/warmup.receipt.json.gz",
+    "bytes": 1207,
+    "sha256": "33c8725e4a4da699345625648c8f7f43c510d3635acb1160a7a2c5e487ab1156"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/abba-2-owned-heap/warmup.svg.gz",
+    "bytes": 2122,
+    "sha256": "cbcf01e09801830506ad4bf2dbf22fbd92938d3a6d880b479ac52bc54574d8c6"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/abba-2-owned-heap.log",
+    "bytes": 694,
+    "sha256": "60cbeb52a102782a3f49385bd7ce9b8e7c0eb15dd01dc11610098990ccf9cd3f"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/abba-3-baseline/RESULT.json.gz",
+    "bytes": 1807,
+    "sha256": "6c147b0e96e4ee9d229d89c84967e1859832b98d89eda9292cdb427835e78013"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/abba-3-baseline/cache-audit.json.gz",
+    "bytes": 278,
+    "sha256": "3493f7bccf05d26cdbe9798211049703c46d09c5efac781f3f111fb1dbe4f65e"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/abba-3-baseline/cold-render.row.json.gz",
+    "bytes": 619,
+    "sha256": "160239c6143700d67a8d01224e2521cf2c2867ffc95b72a89dc1c679df27681d"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/abba-3-baseline/edit.cpuprofile.gz",
+    "bytes": 41,
+    "sha256": "f0bd37867d41bea6d64d7f6235bd223c9c977116a24df687b1d9dd99e5a11be1"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/abba-3-baseline/edit.receipt.json.gz",
+    "bytes": 1205,
+    "sha256": "3d6e978dcbd25a96b494a5ba5d076e6c8a8493e181a318f2d00f0c0106f63e31"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/abba-3-baseline/edit.row.json.gz",
+    "bytes": 647,
+    "sha256": "8697b8383ceb3d5afb01ae1ab7a97c042bdc442e7ed3ddb60ed93731a78dc476"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/abba-3-baseline/edit.svg.gz",
+    "bytes": 2151,
+    "sha256": "eea69ca1e3ee32979124f3f6751e941ff942f9c52e714268fd578e4115de59f9"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/abba-3-baseline/edit2.cpuprofile.gz",
+    "bytes": 41,
+    "sha256": "f0bd37867d41bea6d64d7f6235bd223c9c977116a24df687b1d9dd99e5a11be1"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/abba-3-baseline/edit2.receipt.json.gz",
+    "bytes": 1205,
+    "sha256": "3d6e978dcbd25a96b494a5ba5d076e6c8a8493e181a318f2d00f0c0106f63e31"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/abba-3-baseline/edit2.row.json.gz",
+    "bytes": 644,
+    "sha256": "52eb01985bf98f2df81099349a7d553b51ba33d81e35d167dd21135039de009e"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/abba-3-baseline/edit2.svg.gz",
+    "bytes": 2151,
+    "sha256": "eea69ca1e3ee32979124f3f6751e941ff942f9c52e714268fd578e4115de59f9"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/abba-3-baseline/repeat1.cpuprofile.gz",
+    "bytes": 41,
+    "sha256": "f0bd37867d41bea6d64d7f6235bd223c9c977116a24df687b1d9dd99e5a11be1"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/abba-3-baseline/repeat1.receipt.json.gz",
+    "bytes": 1207,
+    "sha256": "33c8725e4a4da699345625648c8f7f43c510d3635acb1160a7a2c5e487ab1156"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/abba-3-baseline/repeat1.row.json.gz",
+    "bytes": 672,
+    "sha256": "4b5302ef4fa0b203b0dcf74c5a772b5637744603494276940cb22bc52f7085ed"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/abba-3-baseline/repeat1.svg.gz",
+    "bytes": 2122,
+    "sha256": "cbcf01e09801830506ad4bf2dbf22fbd92938d3a6d880b479ac52bc54574d8c6"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/abba-3-baseline/repeat2.cpuprofile.gz",
+    "bytes": 41,
+    "sha256": "f0bd37867d41bea6d64d7f6235bd223c9c977116a24df687b1d9dd99e5a11be1"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/abba-3-baseline/repeat2.receipt.json.gz",
+    "bytes": 1207,
+    "sha256": "33c8725e4a4da699345625648c8f7f43c510d3635acb1160a7a2c5e487ab1156"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/abba-3-baseline/repeat2.row.json.gz",
+    "bytes": 670,
+    "sha256": "fe364c018691c738111acfd17bff6eeed5190667226193fe18f5b582a8d4de5c"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/abba-3-baseline/repeat2.svg.gz",
+    "bytes": 2122,
+    "sha256": "cbcf01e09801830506ad4bf2dbf22fbd92938d3a6d880b479ac52bc54574d8c6"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/abba-3-baseline/source-maps.json.gz",
+    "bytes": 22,
+    "sha256": "73a1b438b0221511fb3dde18e019f5ab045811b2248d25d424e40980c683a9dc"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/abba-3-baseline/warmup.receipt.json.gz",
+    "bytes": 1207,
+    "sha256": "33c8725e4a4da699345625648c8f7f43c510d3635acb1160a7a2c5e487ab1156"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/abba-3-baseline/warmup.svg.gz",
+    "bytes": 2122,
+    "sha256": "cbcf01e09801830506ad4bf2dbf22fbd92938d3a6d880b479ac52bc54574d8c6"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/abba-3-baseline.log",
+    "bytes": 693,
+    "sha256": "9b5f3c883d2a17f40f47425ff31ba7a52f419676e7815524f22f211d55b15ff9"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/abba-4-owned-heap/RESULT.json.gz",
+    "bytes": 1918,
+    "sha256": "84fc6ca8008b9aa748a6964425e7eedc2b81778d5f6a075c60746a12d5f9940b"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/abba-4-owned-heap/cache-audit.json.gz",
+    "bytes": 278,
+    "sha256": "3493f7bccf05d26cdbe9798211049703c46d09c5efac781f3f111fb1dbe4f65e"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/abba-4-owned-heap/cold-render.row.json.gz",
+    "bytes": 621,
+    "sha256": "f9cc443263ded5a0f85efe0c48512810b441a44bea3e2f1d72b410a481d6cd31"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/abba-4-owned-heap/edit.cpuprofile.gz",
+    "bytes": 41,
+    "sha256": "f0bd37867d41bea6d64d7f6235bd223c9c977116a24df687b1d9dd99e5a11be1"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/abba-4-owned-heap/edit.receipt.json.gz",
+    "bytes": 1205,
+    "sha256": "3d6e978dcbd25a96b494a5ba5d076e6c8a8493e181a318f2d00f0c0106f63e31"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/abba-4-owned-heap/edit.row.json.gz",
+    "bytes": 638,
+    "sha256": "d02b113036591ad7f6c825447bf2bf2daa1c3206dda5e97b9b1f6a193d27a5f2"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/abba-4-owned-heap/edit.svg.gz",
+    "bytes": 2151,
+    "sha256": "eea69ca1e3ee32979124f3f6751e941ff942f9c52e714268fd578e4115de59f9"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/abba-4-owned-heap/edit2.cpuprofile.gz",
+    "bytes": 41,
+    "sha256": "f0bd37867d41bea6d64d7f6235bd223c9c977116a24df687b1d9dd99e5a11be1"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/abba-4-owned-heap/edit2.receipt.json.gz",
+    "bytes": 1205,
+    "sha256": "3d6e978dcbd25a96b494a5ba5d076e6c8a8493e181a318f2d00f0c0106f63e31"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/abba-4-owned-heap/edit2.row.json.gz",
+    "bytes": 647,
+    "sha256": "fc9a825d30af10e990f733f843756a591ac8e2f049bc073db2de5b75c2019347"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/abba-4-owned-heap/edit2.svg.gz",
+    "bytes": 2151,
+    "sha256": "eea69ca1e3ee32979124f3f6751e941ff942f9c52e714268fd578e4115de59f9"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/abba-4-owned-heap/repeat1.cpuprofile.gz",
+    "bytes": 41,
+    "sha256": "f0bd37867d41bea6d64d7f6235bd223c9c977116a24df687b1d9dd99e5a11be1"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/abba-4-owned-heap/repeat1.receipt.json.gz",
+    "bytes": 1207,
+    "sha256": "33c8725e4a4da699345625648c8f7f43c510d3635acb1160a7a2c5e487ab1156"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/abba-4-owned-heap/repeat1.row.json.gz",
+    "bytes": 675,
+    "sha256": "118ed9b91e593dadc8827ee6669eacd5d8991cdcef862db3598d89f8861818b3"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/abba-4-owned-heap/repeat1.svg.gz",
+    "bytes": 2122,
+    "sha256": "cbcf01e09801830506ad4bf2dbf22fbd92938d3a6d880b479ac52bc54574d8c6"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/abba-4-owned-heap/repeat2.cpuprofile.gz",
+    "bytes": 41,
+    "sha256": "f0bd37867d41bea6d64d7f6235bd223c9c977116a24df687b1d9dd99e5a11be1"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/abba-4-owned-heap/repeat2.receipt.json.gz",
+    "bytes": 1207,
+    "sha256": "33c8725e4a4da699345625648c8f7f43c510d3635acb1160a7a2c5e487ab1156"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/abba-4-owned-heap/repeat2.row.json.gz",
+    "bytes": 671,
+    "sha256": "f4b3b97372b0f3da69296830ac2155f01331cab1d2f9ddfee8335b8d54168b30"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/abba-4-owned-heap/repeat2.svg.gz",
+    "bytes": 2122,
+    "sha256": "cbcf01e09801830506ad4bf2dbf22fbd92938d3a6d880b479ac52bc54574d8c6"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/abba-4-owned-heap/source-maps.json.gz",
+    "bytes": 22,
+    "sha256": "73a1b438b0221511fb3dde18e019f5ab045811b2248d25d424e40980c683a9dc"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/abba-4-owned-heap/warmup.receipt.json.gz",
+    "bytes": 1207,
+    "sha256": "33c8725e4a4da699345625648c8f7f43c510d3635acb1160a7a2c5e487ab1156"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/abba-4-owned-heap/warmup.svg.gz",
+    "bytes": 2122,
+    "sha256": "cbcf01e09801830506ad4bf2dbf22fbd92938d3a6d880b479ac52bc54574d8c6"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/abba-4-owned-heap.log",
+    "bytes": 695,
+    "sha256": "5e53480333807b0c9a8a5b81324d64da579a71bb8e0e935dd8da93d0088ac952"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/abba-5-baseline/RESULT.json.gz",
+    "bytes": 1790,
+    "sha256": "faccf20ef8c7b4f2cb5e2262ff13002616601cd9c7191950c47cbe0b5b9a30ff"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/abba-5-baseline/cache-audit.json.gz",
+    "bytes": 278,
+    "sha256": "3493f7bccf05d26cdbe9798211049703c46d09c5efac781f3f111fb1dbe4f65e"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/abba-5-baseline/cold-render.row.json.gz",
+    "bytes": 618,
+    "sha256": "573c1acde9d0cbc103d37115f5fd444ac61d6c1ad65c7c56bcb4c850cc75528a"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/abba-5-baseline/edit.cpuprofile.gz",
+    "bytes": 41,
+    "sha256": "f0bd37867d41bea6d64d7f6235bd223c9c977116a24df687b1d9dd99e5a11be1"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/abba-5-baseline/edit.receipt.json.gz",
+    "bytes": 1205,
+    "sha256": "3d6e978dcbd25a96b494a5ba5d076e6c8a8493e181a318f2d00f0c0106f63e31"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/abba-5-baseline/edit.row.json.gz",
+    "bytes": 641,
+    "sha256": "7fd97aade10006f3615a1af2db39be663319287345d357e05f8a9b3f2a2a8468"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/abba-5-baseline/edit.svg.gz",
+    "bytes": 2151,
+    "sha256": "eea69ca1e3ee32979124f3f6751e941ff942f9c52e714268fd578e4115de59f9"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/abba-5-baseline/edit2.cpuprofile.gz",
+    "bytes": 41,
+    "sha256": "f0bd37867d41bea6d64d7f6235bd223c9c977116a24df687b1d9dd99e5a11be1"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/abba-5-baseline/edit2.receipt.json.gz",
+    "bytes": 1205,
+    "sha256": "3d6e978dcbd25a96b494a5ba5d076e6c8a8493e181a318f2d00f0c0106f63e31"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/abba-5-baseline/edit2.row.json.gz",
+    "bytes": 643,
+    "sha256": "b3a339ad065d3564d28c5b8b4d97c944964f5e53f4dc8f368e0d2e4901a213e8"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/abba-5-baseline/edit2.svg.gz",
+    "bytes": 2151,
+    "sha256": "eea69ca1e3ee32979124f3f6751e941ff942f9c52e714268fd578e4115de59f9"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/abba-5-baseline/repeat1.cpuprofile.gz",
+    "bytes": 41,
+    "sha256": "f0bd37867d41bea6d64d7f6235bd223c9c977116a24df687b1d9dd99e5a11be1"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/abba-5-baseline/repeat1.receipt.json.gz",
+    "bytes": 1207,
+    "sha256": "33c8725e4a4da699345625648c8f7f43c510d3635acb1160a7a2c5e487ab1156"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/abba-5-baseline/repeat1.row.json.gz",
+    "bytes": 675,
+    "sha256": "b3df48816039d5b74e9322f5dcdcf774c528cdb43d81469bfd49c3a3dc5626b2"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/abba-5-baseline/repeat1.svg.gz",
+    "bytes": 2122,
+    "sha256": "cbcf01e09801830506ad4bf2dbf22fbd92938d3a6d880b479ac52bc54574d8c6"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/abba-5-baseline/repeat2.cpuprofile.gz",
+    "bytes": 41,
+    "sha256": "f0bd37867d41bea6d64d7f6235bd223c9c977116a24df687b1d9dd99e5a11be1"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/abba-5-baseline/repeat2.receipt.json.gz",
+    "bytes": 1207,
+    "sha256": "33c8725e4a4da699345625648c8f7f43c510d3635acb1160a7a2c5e487ab1156"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/abba-5-baseline/repeat2.row.json.gz",
+    "bytes": 667,
+    "sha256": "d48587eb5ebf7c1f5019c71f2d654ab5f271afb4f199c7395f575af509c93e13"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/abba-5-baseline/repeat2.svg.gz",
+    "bytes": 2122,
+    "sha256": "cbcf01e09801830506ad4bf2dbf22fbd92938d3a6d880b479ac52bc54574d8c6"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/abba-5-baseline/source-maps.json.gz",
+    "bytes": 22,
+    "sha256": "73a1b438b0221511fb3dde18e019f5ab045811b2248d25d424e40980c683a9dc"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/abba-5-baseline/warmup.receipt.json.gz",
+    "bytes": 1207,
+    "sha256": "33c8725e4a4da699345625648c8f7f43c510d3635acb1160a7a2c5e487ab1156"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/abba-5-baseline/warmup.svg.gz",
+    "bytes": 2122,
+    "sha256": "cbcf01e09801830506ad4bf2dbf22fbd92938d3a6d880b479ac52bc54574d8c6"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/abba-5-baseline.log",
+    "bytes": 694,
+    "sha256": "ebc1b186eafaf4ec5f4508bbeaa67db46036d3ccfdd8283d65851a4206db36b8"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/abba-6-baseline/RESULT.json.gz",
+    "bytes": 1809,
+    "sha256": "998b75ff97f63e724a231d9852379863b288baecbf9c2f5f02cf3a409ede4c54"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/abba-6-baseline/cache-audit.json.gz",
+    "bytes": 278,
+    "sha256": "3493f7bccf05d26cdbe9798211049703c46d09c5efac781f3f111fb1dbe4f65e"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/abba-6-baseline/cold-render.row.json.gz",
+    "bytes": 620,
+    "sha256": "66ca786da29d6e30dc62d2827fe2872f4d4b57a0342b7adc64d1e1a919addcfa"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/abba-6-baseline/edit.cpuprofile.gz",
+    "bytes": 41,
+    "sha256": "f0bd37867d41bea6d64d7f6235bd223c9c977116a24df687b1d9dd99e5a11be1"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/abba-6-baseline/edit.receipt.json.gz",
+    "bytes": 1205,
+    "sha256": "3d6e978dcbd25a96b494a5ba5d076e6c8a8493e181a318f2d00f0c0106f63e31"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/abba-6-baseline/edit.row.json.gz",
+    "bytes": 643,
+    "sha256": "3cdc3cfafc63df3807708b4a65c22e9b2df2c3d3507d8617139804d575a1c938"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/abba-6-baseline/edit.svg.gz",
+    "bytes": 2151,
+    "sha256": "eea69ca1e3ee32979124f3f6751e941ff942f9c52e714268fd578e4115de59f9"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/abba-6-baseline/edit2.cpuprofile.gz",
+    "bytes": 41,
+    "sha256": "f0bd37867d41bea6d64d7f6235bd223c9c977116a24df687b1d9dd99e5a11be1"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/abba-6-baseline/edit2.receipt.json.gz",
+    "bytes": 1205,
+    "sha256": "3d6e978dcbd25a96b494a5ba5d076e6c8a8493e181a318f2d00f0c0106f63e31"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/abba-6-baseline/edit2.row.json.gz",
+    "bytes": 650,
+    "sha256": "cbaba5c5fa633a5fedf97bae736593edd4eba4191a71439d424e93d267b6eeda"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/abba-6-baseline/edit2.svg.gz",
+    "bytes": 2151,
+    "sha256": "eea69ca1e3ee32979124f3f6751e941ff942f9c52e714268fd578e4115de59f9"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/abba-6-baseline/repeat1.cpuprofile.gz",
+    "bytes": 41,
+    "sha256": "f0bd37867d41bea6d64d7f6235bd223c9c977116a24df687b1d9dd99e5a11be1"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/abba-6-baseline/repeat1.receipt.json.gz",
+    "bytes": 1207,
+    "sha256": "33c8725e4a4da699345625648c8f7f43c510d3635acb1160a7a2c5e487ab1156"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/abba-6-baseline/repeat1.row.json.gz",
+    "bytes": 668,
+    "sha256": "b4f7c90f4c116fdaeb564bd74e71a06ae5516f228b0cfe847d2067e5ca7423fa"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/abba-6-baseline/repeat1.svg.gz",
+    "bytes": 2122,
+    "sha256": "cbcf01e09801830506ad4bf2dbf22fbd92938d3a6d880b479ac52bc54574d8c6"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/abba-6-baseline/repeat2.cpuprofile.gz",
+    "bytes": 41,
+    "sha256": "f0bd37867d41bea6d64d7f6235bd223c9c977116a24df687b1d9dd99e5a11be1"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/abba-6-baseline/repeat2.receipt.json.gz",
+    "bytes": 1207,
+    "sha256": "33c8725e4a4da699345625648c8f7f43c510d3635acb1160a7a2c5e487ab1156"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/abba-6-baseline/repeat2.row.json.gz",
+    "bytes": 666,
+    "sha256": "fa713c791b541e75d83b461a1871ef40d75fa4d3b4dc77c5a13540bb0739d76a"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/abba-6-baseline/repeat2.svg.gz",
+    "bytes": 2122,
+    "sha256": "cbcf01e09801830506ad4bf2dbf22fbd92938d3a6d880b479ac52bc54574d8c6"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/abba-6-baseline/source-maps.json.gz",
+    "bytes": 22,
+    "sha256": "73a1b438b0221511fb3dde18e019f5ab045811b2248d25d424e40980c683a9dc"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/abba-6-baseline/warmup.receipt.json.gz",
+    "bytes": 1207,
+    "sha256": "33c8725e4a4da699345625648c8f7f43c510d3635acb1160a7a2c5e487ab1156"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/abba-6-baseline/warmup.svg.gz",
+    "bytes": 2122,
+    "sha256": "cbcf01e09801830506ad4bf2dbf22fbd92938d3a6d880b479ac52bc54574d8c6"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/abba-6-baseline.log",
+    "bytes": 694,
+    "sha256": "0bdeae54df9a8feb765e0489fac15f69bb8e93713848126fcc0a446797ecdbe6"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/abba-7-owned-heap/RESULT.json.gz",
+    "bytes": 1933,
+    "sha256": "7fb3bf06e317309cc74f3740dae1dd8840f55ea5e1fa0f28e5b9a015fe7877db"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/abba-7-owned-heap/cache-audit.json.gz",
+    "bytes": 278,
+    "sha256": "3493f7bccf05d26cdbe9798211049703c46d09c5efac781f3f111fb1dbe4f65e"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/abba-7-owned-heap/cold-render.row.json.gz",
+    "bytes": 619,
+    "sha256": "a8a588e64e0c984831163cc2c193e4a173122f4e4e6212e03eb9e71aaa8c3760"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/abba-7-owned-heap/edit.cpuprofile.gz",
+    "bytes": 41,
+    "sha256": "f0bd37867d41bea6d64d7f6235bd223c9c977116a24df687b1d9dd99e5a11be1"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/abba-7-owned-heap/edit.receipt.json.gz",
+    "bytes": 1205,
+    "sha256": "3d6e978dcbd25a96b494a5ba5d076e6c8a8493e181a318f2d00f0c0106f63e31"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/abba-7-owned-heap/edit.row.json.gz",
+    "bytes": 641,
+    "sha256": "5eddc49483f27f1c8e96a2b2a4ad872589f197518f5afc67de954f27cbc1e28e"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/abba-7-owned-heap/edit.svg.gz",
+    "bytes": 2151,
+    "sha256": "eea69ca1e3ee32979124f3f6751e941ff942f9c52e714268fd578e4115de59f9"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/abba-7-owned-heap/edit2.cpuprofile.gz",
+    "bytes": 41,
+    "sha256": "f0bd37867d41bea6d64d7f6235bd223c9c977116a24df687b1d9dd99e5a11be1"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/abba-7-owned-heap/edit2.receipt.json.gz",
+    "bytes": 1205,
+    "sha256": "3d6e978dcbd25a96b494a5ba5d076e6c8a8493e181a318f2d00f0c0106f63e31"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/abba-7-owned-heap/edit2.row.json.gz",
+    "bytes": 644,
+    "sha256": "e05248595595906ff70dbd2437b673a0e7ca9b0151f3d132f8dc60d3e335b9da"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/abba-7-owned-heap/edit2.svg.gz",
+    "bytes": 2151,
+    "sha256": "eea69ca1e3ee32979124f3f6751e941ff942f9c52e714268fd578e4115de59f9"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/abba-7-owned-heap/repeat1.cpuprofile.gz",
+    "bytes": 41,
+    "sha256": "f0bd37867d41bea6d64d7f6235bd223c9c977116a24df687b1d9dd99e5a11be1"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/abba-7-owned-heap/repeat1.receipt.json.gz",
+    "bytes": 1207,
+    "sha256": "33c8725e4a4da699345625648c8f7f43c510d3635acb1160a7a2c5e487ab1156"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/abba-7-owned-heap/repeat1.row.json.gz",
+    "bytes": 671,
+    "sha256": "f1baafd51c9b2b9958b72321a7f7d0c57fe9c4ec5c08930b70ba80a717f4579e"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/abba-7-owned-heap/repeat1.svg.gz",
+    "bytes": 2122,
+    "sha256": "cbcf01e09801830506ad4bf2dbf22fbd92938d3a6d880b479ac52bc54574d8c6"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/abba-7-owned-heap/repeat2.cpuprofile.gz",
+    "bytes": 41,
+    "sha256": "f0bd37867d41bea6d64d7f6235bd223c9c977116a24df687b1d9dd99e5a11be1"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/abba-7-owned-heap/repeat2.receipt.json.gz",
+    "bytes": 1207,
+    "sha256": "33c8725e4a4da699345625648c8f7f43c510d3635acb1160a7a2c5e487ab1156"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/abba-7-owned-heap/repeat2.row.json.gz",
+    "bytes": 670,
+    "sha256": "73c94c9957dff50011ce5491998fc454275d14f97cf8d81184a7f95ab3cb26cf"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/abba-7-owned-heap/repeat2.svg.gz",
+    "bytes": 2122,
+    "sha256": "cbcf01e09801830506ad4bf2dbf22fbd92938d3a6d880b479ac52bc54574d8c6"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/abba-7-owned-heap/source-maps.json.gz",
+    "bytes": 22,
+    "sha256": "73a1b438b0221511fb3dde18e019f5ab045811b2248d25d424e40980c683a9dc"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/abba-7-owned-heap/warmup.receipt.json.gz",
+    "bytes": 1207,
+    "sha256": "33c8725e4a4da699345625648c8f7f43c510d3635acb1160a7a2c5e487ab1156"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/abba-7-owned-heap/warmup.svg.gz",
+    "bytes": 2122,
+    "sha256": "cbcf01e09801830506ad4bf2dbf22fbd92938d3a6d880b479ac52bc54574d8c6"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/abba-7-owned-heap.log",
+    "bytes": 693,
+    "sha256": "fd0fd36142c2b48f5aa450018f517ce5658fd7a94b287e7d1f612cf0fc485da5"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/abba.log",
+    "bytes": 648,
+    "sha256": "d5e0f82fd6dda23570f9a095e7586377c59f00da2adc0f4e018f526aa556d490"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/agentic-baseline-job.json",
+    "bytes": 1024,
+    "sha256": "d5ff0ed1041e52cb5589b779ff97161795a93e73391f77e535b830a5f9131052"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/agentic-flat-heap-job.json",
+    "bytes": 1243,
+    "sha256": "5797f0fed7b836a91ea2c47eef4b250d19f8e6a3dd05ef363e4baa343afca997"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/analysis.json",
+    "bytes": 6405171,
+    "sha256": "16f21f75fccf3a0fe34b86b5741c77d50a98c07dbdc3766ba39ea769c6613dc6"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/analysis.log",
+    "bytes": 7986,
+    "sha256": "fd498986e0a5c77db8cad0214a1f6119facec376bfc809f1c52808ccfd98c238"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/analyze.mjs",
+    "bytes": 11162,
+    "sha256": "9f9c3f885d943c3dfacdc677e5d37c58c80f5b9023b6517ee5f5cf95095a545f"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/community-ports-agentic/RESULT.json.gz",
+    "bytes": 2113,
+    "sha256": "942b6a0341579b84230b9f91e1acce2df6a0bc05cc02dab9701a642347461f79"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/community-ports-agentic/edit.cpuprofile.gz",
+    "bytes": 6493,
+    "sha256": "137e0fb3ce8ae26b19bc11ac4b61e58c726317716a890a037113c40400ab9228"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/community-ports-agentic/edit.row.json.gz",
+    "bytes": 846,
+    "sha256": "cd7de800dc573ecd45f22bd657b4d8d4cbb343b71d1b0a70c19745857adc25d0"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/community-ports-agentic/repeat1.cpuprofile.gz",
+    "bytes": 16807,
+    "sha256": "da3534f4489376f57e1d9b54d09c9971cc3e127f56220d051859e8bb4f9cd013"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/community-ports-agentic/repeat1.receipt.json.gz",
+    "bytes": 1214,
+    "sha256": "62e87f8a56ab780f381088bbe550b6e5c0ddcd7fd09193667f208174a9ca61df"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/community-ports-agentic/repeat1.row.json.gz",
+    "bytes": 1031,
+    "sha256": "b91dd1369d8ebb50751c2227dc04ec84d8b522b94a53fccf5438ae3c03e40818"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/community-ports-agentic/repeat1.svg.gz",
+    "bytes": 2150,
+    "sha256": "a676e3360b1595dde31aed1b96754f309e29d32aad049367f1c2d2359fc95e13"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/community-ports-agentic/repeat2.cpuprofile.gz",
+    "bytes": 17229,
+    "sha256": "f5f396d3b2d479aff243938a0d263a388565f3b3159c4146dbd25b5d114c51d6"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/community-ports-agentic/repeat2.receipt.json.gz",
+    "bytes": 1214,
+    "sha256": "62e87f8a56ab780f381088bbe550b6e5c0ddcd7fd09193667f208174a9ca61df"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/community-ports-agentic/repeat2.row.json.gz",
+    "bytes": 1033,
+    "sha256": "fc05bc386bb6551a13d0d9dbcd817bec020c0e2b96fa4023d60cab2aea36cc7e"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/community-ports-agentic/repeat2.svg.gz",
+    "bytes": 2150,
+    "sha256": "a676e3360b1595dde31aed1b96754f309e29d32aad049367f1c2d2359fc95e13"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/community-ports-agentic/source-maps.json.gz",
+    "bytes": 1056052,
+    "sha256": "22c6d373e5ee4b72e416d8f677957e841fdf458482f3c1bff1eb3ac0bb5b72cf"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/community-ports-agentic/warmup.receipt.json.gz",
+    "bytes": 1214,
+    "sha256": "62e87f8a56ab780f381088bbe550b6e5c0ddcd7fd09193667f208174a9ca61df"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/community-ports-agentic/warmup?.svg.gz",
+    "bytes": 2150,
+    "sha256": "a676e3360b1595dde31aed1b96754f309e29d32aad049367f1c2d2359fc95e13"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/community-ports-agentic-frame-mappings.json",
+    "bytes": 180349,
+    "sha256": "bd077f0b1b55bf15a782a4c9e9c2da3ded9d1413ba37b726cd538b0a24002f24"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/community-ports-agentic-job.json",
+    "bytes": 936,
+    "sha256": "95eeee009540c07a429bf6eb00b3f614045d2dc349aad334b2b791043b4d0318"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/community-ports-agentic.log",
+    "bytes": 606,
+    "sha256": "e650eba2719acd30e619962c0fab2a1c69984e34b9210e29675c1d0992485876"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/community-ports-elk/RESULT.json.gz",
+    "bytes": 1857,
+    "sha256": "278c106591b31724f46eeaffad425bac353f21b2591a588da0f20d15543a1065"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/community-ports-elk/edit.cpuprofile.gz",
+    "bytes": 34933,
+    "sha256": "213e20a6038617ddd7d334300c756651977eb42be85c63dfcc3c1de36c96e000"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/community-ports-elk/edit.receipt.json.gz",
+    "bytes": 1210,
+    "sha256": "525f372822932541952c4f5c257c74cb995fdda63a4487bc270f3c3285aa7d7e"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/community-ports-elk/edit.row.json.gz",
+    "bytes": 1008,
+    "sha256": "3ef1d8f5580b0c1ca58e5dfb66a3098a4470db9cc91963458d085ded69f0ea5c"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/community-ports-elk/edit.svg.gz",
+    "bytes": 2309,
+    "sha256": "3726996c8e7d03a700f96c21030c5e03b14384858f6b0bd0544c58b41e4bb22c"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/community-ports-elk/repeat1.cpuprofile.gz",
+    "bytes": 35136,
+    "sha256": "0e177dce9b2730d5601886ae058f758dc286714efbb1c6ae83085c1ab3594d0b"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/community-ports-elk/repeat1.receipt.json.gz",
+    "bytes": 1211,
+    "sha256": "c47cd17223a7ce196723d282295c3bfe11696150189ba77c1a2af3f221449e80"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/community-ports-elk/repeat1.row.json.gz",
+    "bytes": 1030,
+    "sha256": "01e8ddd7c58868ffb932170139936c05884a33968858eec29a3e816f1886a6ee"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/community-ports-elk/repeat1.svg.gz",
+    "bytes": 2269,
+    "sha256": "535ef92e6f3534f6e7d8c6ef190cdc5bd46a4ad59a1861ad1d22ec1125cb2f6a"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/community-ports-elk/repeat2.cpuprofile.gz",
+    "bytes": 35223,
+    "sha256": "91b5e84ecf805e15a23b77fbe28239e6060165b548800d44e6f6454f4e619748"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/community-ports-elk/repeat2.receipt.json.gz",
+    "bytes": 1211,
+    "sha256": "c47cd17223a7ce196723d282295c3bfe11696150189ba77c1a2af3f221449e80"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/community-ports-elk/repeat2.row.json.gz",
+    "bytes": 1028,
+    "sha256": "27f29abd835cec7d125af605a417f213155079953f9802d35ef3262b8277d32f"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/community-ports-elk/repeat2.svg.gz",
+    "bytes": 2269,
+    "sha256": "535ef92e6f3534f6e7d8c6ef190cdc5bd46a4ad59a1861ad1d22ec1125cb2f6a"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/community-ports-elk/source-maps.json.gz",
+    "bytes": 1056052,
+    "sha256": "22c6d373e5ee4b72e416d8f677957e841fdf458482f3c1bff1eb3ac0bb5b72cf"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/community-ports-elk/warmup.receipt.json.gz",
+    "bytes": 1211,
+    "sha256": "c47cd17223a7ce196723d282295c3bfe11696150189ba77c1a2af3f221449e80"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/community-ports-elk/warmup?.svg.gz",
+    "bytes": 2269,
+    "sha256": "535ef92e6f3534f6e7d8c6ef190cdc5bd46a4ad59a1861ad1d22ec1125cb2f6a"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/community-ports-elk-frame-mappings.json",
+    "bytes": 172264,
+    "sha256": "e360ca4c50739c380a1d9c007dcff52b8779199e6eb466c5463dc32fa4d4c84d"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/community-ports-elk-job.json",
+    "bytes": 928,
+    "sha256": "c743fa9da42a1642d5175eec1be8dacfd0eea39f95121a0d35914b768ff00af5"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/community-ports-elk.log",
+    "bytes": 598,
+    "sha256": "4a96068f8b9eb655935d3b1093806446777f371735abe1c9936c7015115b7e10"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/community-ports-trinity/RESULT.json.gz",
+    "bytes": 1870,
+    "sha256": "82828efc4e123aec5a37676ef09120dcba58688d10d6600a52f8a840a4fcdf12"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/community-ports-trinity/edit.cpuprofile.gz",
+    "bytes": 14447,
+    "sha256": "8cee8d085c0817b3501ec1fd3ff8ac8076b343bf0ca4f6564f82597b123e82f1"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/community-ports-trinity/edit.receipt.json.gz",
+    "bytes": 1205,
+    "sha256": "3d6e978dcbd25a96b494a5ba5d076e6c8a8493e181a318f2d00f0c0106f63e31"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/community-ports-trinity/edit.row.json.gz",
+    "bytes": 1014,
+    "sha256": "d68f9e30a1c3f24800a707a4846883a293fd9f15575df800001be137ae66b268"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/community-ports-trinity/edit.svg.gz",
+    "bytes": 2151,
+    "sha256": "eea69ca1e3ee32979124f3f6751e941ff942f9c52e714268fd578e4115de59f9"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/community-ports-trinity/repeat1.cpuprofile.gz",
+    "bytes": 14677,
+    "sha256": "262269ff824fdc6e3306f030f4b4a2ea29ded3364b53ecba6a896638256183db"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/community-ports-trinity/repeat1.receipt.json.gz",
+    "bytes": 1207,
+    "sha256": "33c8725e4a4da699345625648c8f7f43c510d3635acb1160a7a2c5e487ab1156"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/community-ports-trinity/repeat1.row.json.gz",
+    "bytes": 1032,
+    "sha256": "64303f45157403a78ec0b46bccda6e441d00c75704574b5af62f27e9f6e54e1a"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/community-ports-trinity/repeat1.svg.gz",
+    "bytes": 2122,
+    "sha256": "cbcf01e09801830506ad4bf2dbf22fbd92938d3a6d880b479ac52bc54574d8c6"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/community-ports-trinity/repeat2.cpuprofile.gz",
+    "bytes": 14120,
+    "sha256": "105676dbee067fdb14fa868e9a4115bf65b90d91b0c4bcb05455f11d14c14dbf"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/community-ports-trinity/repeat2.receipt.json.gz",
+    "bytes": 1207,
+    "sha256": "33c8725e4a4da699345625648c8f7f43c510d3635acb1160a7a2c5e487ab1156"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/community-ports-trinity/repeat2.row.json.gz",
+    "bytes": 1035,
+    "sha256": "4a7a6aa4a906ada00ac86158968b32447140e8032c6b59273179bad23642cea5"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/community-ports-trinity/repeat2.svg.gz",
+    "bytes": 2122,
+    "sha256": "cbcf01e09801830506ad4bf2dbf22fbd92938d3a6d880b479ac52bc54574d8c6"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/community-ports-trinity/source-maps.json.gz",
+    "bytes": 1056052,
+    "sha256": "22c6d373e5ee4b72e416d8f677957e841fdf458482f3c1bff1eb3ac0bb5b72cf"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/community-ports-trinity/warmup.receipt.json.gz",
+    "bytes": 1207,
+    "sha256": "33c8725e4a4da699345625648c8f7f43c510d3635acb1160a7a2c5e487ab1156"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/community-ports-trinity/warmup?.svg.gz",
+    "bytes": 2122,
+    "sha256": "cbcf01e09801830506ad4bf2dbf22fbd92938d3a6d880b479ac52bc54574d8c6"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/community-ports-trinity-frame-mappings.json",
+    "bytes": 176392,
+    "sha256": "057da55e81708500f2f64cf5506e2e9d011058de91369d696c3126bf3e8cccae"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/community-ports-trinity-job.json",
+    "bytes": 936,
+    "sha256": "a23ebb01fc407f45faff31a48c6aa491ba10d8ab239e3dcfcc844080691df510"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/community-ports-trinity.log",
+    "bytes": 608,
+    "sha256": "483aff8f27edb38eda09cae087027e65208e4787b548794ad8ad53970279c4e0"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/compound-lazy-visibility.flat-heap.ts",
+    "bytes": 11799,
+    "sha256": "a3868d10531ad0a104a7344cd9140785e51a33fcbfb3a2884020e706d1beeeda"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/compound-lazy-visibility.owned-heap.ts",
+    "bytes": 11924,
+    "sha256": "54104aa56d15326a2fc90dc2409a6549d17000a30e8f7738c717351eb9ecbed8"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/descriptor-baseline/RESULT.json",
+    "bytes": 286,
+    "sha256": "67ff9af9b539c57c496096a92e7b6b39fe8706ca5f565cc0a480c6840e7de912"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/descriptor-baseline.log",
+    "bytes": 348,
+    "sha256": "869b977934a941789a6f7c0fff50bad8ca24be2dd49153771d251738a8cc4a2c"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/descriptor-candidate/RESULT.json",
+    "bytes": 173,
+    "sha256": "5e93ecd950a5a8a9f6ab8021243d6c921e0517a056ea8b015f3b9d98510259bc"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/descriptor-candidate.log",
+    "bytes": 320,
+    "sha256": "6304cd00795f65efc7d87c31d97391edf2451da93614c32088f630126178f2e4"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/descriptor-probe.mjs",
+    "bytes": 2971,
+    "sha256": "10185da80959635c68e247ad81d2df64f4273e6f548605de68caef79d9ca5ace"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/elk-baseline-job.json",
+    "bytes": 1016,
+    "sha256": "a70dbaa2ca6d40d484cc7e199485ccef8f0f739df1f2c50b412e77d89bb845bc"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/elk-flat-heap-job.json",
+    "bytes": 1235,
+    "sha256": "f160fb99faf6888408804966fea1b873a6e45e4ce2baf64a6d610c8945d007aa"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/flat-heap-first/RESULT.json.gz",
+    "bytes": 1911,
+    "sha256": "2a06e256c6337e3e90852dfad997f054a24ebf9509751bfab1ae155f06304449"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/flat-heap-first/cache-audit.json.gz",
+    "bytes": 278,
+    "sha256": "3493f7bccf05d26cdbe9798211049703c46d09c5efac781f3f111fb1dbe4f65e"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/flat-heap-first/cold-render.row.json.gz",
+    "bytes": 617,
+    "sha256": "e79b734247fc4b33f60f6db4d9ce0c4df277e0fea1c053e6b20ea68a610753d6"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/flat-heap-first/edit.cpuprofile.gz",
+    "bytes": 41,
+    "sha256": "f0bd37867d41bea6d64d7f6235bd223c9c977116a24df687b1d9dd99e5a11be1"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/flat-heap-first/edit.receipt.json.gz",
+    "bytes": 1205,
+    "sha256": "3d6e978dcbd25a96b494a5ba5d076e6c8a8493e181a318f2d00f0c0106f63e31"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/flat-heap-first/edit.row.json.gz",
+    "bytes": 642,
+    "sha256": "82a331a030ed3901890ab077ea0abdcd38467b97b3671239e0fe29525a4cd3de"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/flat-heap-first/edit.svg.gz",
+    "bytes": 2151,
+    "sha256": "eea69ca1e3ee32979124f3f6751e941ff942f9c52e714268fd578e4115de59f9"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/flat-heap-first/edit2.cpuprofile.gz",
+    "bytes": 41,
+    "sha256": "f0bd37867d41bea6d64d7f6235bd223c9c977116a24df687b1d9dd99e5a11be1"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/flat-heap-first/edit2.receipt.json.gz",
+    "bytes": 1205,
+    "sha256": "3d6e978dcbd25a96b494a5ba5d076e6c8a8493e181a318f2d00f0c0106f63e31"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/flat-heap-first/edit2.row.json.gz",
+    "bytes": 639,
+    "sha256": "79b9ce57a857158ebb1b72c603a90e4ef0db51219298c05d4690778a67ec5302"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/flat-heap-first/edit2.svg.gz",
+    "bytes": 2151,
+    "sha256": "eea69ca1e3ee32979124f3f6751e941ff942f9c52e714268fd578e4115de59f9"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/flat-heap-first/repeat1.cpuprofile.gz",
+    "bytes": 41,
+    "sha256": "f0bd37867d41bea6d64d7f6235bd223c9c977116a24df687b1d9dd99e5a11be1"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/flat-heap-first/repeat1.receipt.json.gz",
+    "bytes": 1207,
+    "sha256": "33c8725e4a4da699345625648c8f7f43c510d3635acb1160a7a2c5e487ab1156"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/flat-heap-first/repeat1.row.json.gz",
+    "bytes": 667,
+    "sha256": "b422bbb24f9c9a04f9e4b2c2ac6b313af4e6fdeea0e8a150f03f25bc6156c583"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/flat-heap-first/repeat1.svg.gz",
+    "bytes": 2122,
+    "sha256": "cbcf01e09801830506ad4bf2dbf22fbd92938d3a6d880b479ac52bc54574d8c6"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/flat-heap-first/repeat2.cpuprofile.gz",
+    "bytes": 41,
+    "sha256": "f0bd37867d41bea6d64d7f6235bd223c9c977116a24df687b1d9dd99e5a11be1"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/flat-heap-first/repeat2.receipt.json.gz",
+    "bytes": 1207,
+    "sha256": "33c8725e4a4da699345625648c8f7f43c510d3635acb1160a7a2c5e487ab1156"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/flat-heap-first/repeat2.row.json.gz",
+    "bytes": 673,
+    "sha256": "12a9cc6c4a7cf5a7701ce8d3668c8b5eb8a229e12ae3c56bfe12b396f0d70c70"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/flat-heap-first/repeat2.svg.gz",
+    "bytes": 2122,
+    "sha256": "cbcf01e09801830506ad4bf2dbf22fbd92938d3a6d880b479ac52bc54574d8c6"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/flat-heap-first/source-maps.json.gz",
+    "bytes": 22,
+    "sha256": "73a1b438b0221511fb3dde18e019f5ab045811b2248d25d424e40980c683a9dc"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/flat-heap-first/warmup.receipt.json.gz",
+    "bytes": 1207,
+    "sha256": "33c8725e4a4da699345625648c8f7f43c510d3635acb1160a7a2c5e487ab1156"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/flat-heap-first/warmup.svg.gz",
+    "bytes": 2122,
+    "sha256": "cbcf01e09801830506ad4bf2dbf22fbd92938d3a6d880b479ac52bc54574d8c6"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/flat-heap-first.log",
+    "bytes": 695,
+    "sha256": "a956e54d42109c2963cdba5f788330f7162e0ceea8e5b8a7df5fd010ce042628"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/heap-review.md",
+    "bytes": 3845,
+    "sha256": "fd7396eea598ee31f9f1832cea70c949a74815b23972d7f83f0cb0fec7247204"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/measure.mjs",
+    "bytes": 6425,
+    "sha256": "ac2a979f7788f4aa93ebbb96c096eadc0458f11e65188ade0667a96f7a027028"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/run-abba.py",
+    "bytes": 991,
+    "sha256": "1f14cc15e00c969e9990a1830e804c2d25bd8a334effc1480929c271ba3bb205"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/run.log",
+    "bytes": 179,
+    "sha256": "869ef5e4dcf1f1878ddd66659fe9086c920802f029f4d03c13427de2df2f274b"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/run.py",
+    "bytes": 1268,
+    "sha256": "4fd474c4b6f538829625064702cde15154629d671e0e1004b7b7226398da2b95"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/trinity-baseline-job.json",
+    "bytes": 1024,
+    "sha256": "7792610ad6d425b4a019f39a20543a50fbdbf7ba5ac94cc9340e2bfc6ed2f042"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/trinity-flat-heap-job.json",
+    "bytes": 1243,
+    "sha256": "597c4dd1133e159bba7fc2bbc9a611d011688f1baeb769a76dffc8ff3783f3f1"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/trinity-owned-heap-job.json",
+    "bytes": 1244,
+    "sha256": "8322ef6c9c312940797a23e85c98f8901f07a3a2da9cdfc51b30acc0c5b6f9bd"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/worker.mjs",
+    "bytes": 4886,
+    "sha256": "a38118258aa6f83abe64cbe6734dc7eccfa19633ed24f766ba0039a0a571c34f"
+  },
+  {
+    "path": "trinity-postdelivery-profile-20261109/write-report.py",
+    "bytes": 9128,
+    "sha256": "af27bb500969c3b295a87a88a2d8e3ede6b80ea34b6beccea20feb495b654e89"
+  }
+]

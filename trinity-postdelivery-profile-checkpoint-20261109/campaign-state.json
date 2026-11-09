@@ -1,0 +1,1072 @@
+{
+  "owner": "root-trinity-complete-profile-20261109",
+  "updated_at": "2026-11-09T02:26:59.203245+00:00",
+  "worktree": "/tmp/pr449-main-integration-20261029-762",
+  "branch": "work/pr449-reconstruct-20261103",
+  "recovery_base": "3b56da55e6570908beb5d96c25f4c03c1a828a22",
+  "end": "2026-11-09T20:00:00Z",
+  "note": "Current Trinity outcomes and remaining losses are recorded in trinity_execution and final_comparison; dated records are retained history.",
+  "writers": [
+    "root-trinity-complete-profile-20261109"
+  ],
+  "head": "7834513e894fadf61da913c699b3a94ed6f104d4",
+  "next_fix": "Target actualmatchedBuneditor8194gzipbudgetdeficit. ReadonlymetafilefoundduplicatedcompleteApache/Brotli-MITnotices; offlinecanonicalcompressionceilingpending, no productionchange yet. Do not repeatstoppedheap/imageprobesor shipunsupportedremoval.",
+  "status": "postdelivery-profile-stopped-heap-recovery-pending",
+  "checkpoint": "21194248b21873a87fa72fa545f67cfd8b49dad4",
+  "evidence": "b1b3a397155559016b1a15a912ab30648dd04a7b",
+  "execution_note": "Owner authorized the ten-stage roadmap and existing PR602 pushes. Bounded six-family delivery implemented; broad replacement incomplete. No new PR/issues, no force push/rebase/default/version/cap changes. No continuous execution claimed. Negative probes and raw reports stay on evidence branch; future source commits should group coherent runtime/maintained-contract changes, with no unchanged checks counted as progress.",
+  "evidence_verified": true,
+  "evidence_delta": "7b77d5368ca6c0ec5febbf8b1f0fc7b031f3e3d9",
+  "evidence_delta_verified": true,
+  "previous_owner": "root-sha37-stage-20261107-1105",
+  "previous_checkpoint": "/workspace/pr449-recovery-20261103-155750/checkpoint-8f9ef3da0.bundle",
+  "previous_evidence_delta": "/workspace/pr449-recovery-20261103-155750/evidence-delta-8f9ef3da0.tar.gz",
+  "pull_request": {
+    "number": 602,
+    "url": "https://github.com/adewale/agentic-mermaid/pull/602",
+    "draft": true,
+    "head": "7834513e894fadf61da913c699b3a94ed6f104d4",
+    "head_branch": "work/pr449-reconstruct-20261103",
+    "base": "e7cb05baa7f68154942a9ce9c6e9aaaee163dc94",
+    "base_branch": "main",
+    "main_observed": "e7cb05baa7f68154942a9ce9c6e9aaaee163dc94",
+    "main_integration_qualified": false,
+    "visual_evidence_commit": "196763ac987d368398615669cdcdb265873ce974",
+    "title": "Preserve SVG ownership and ER delivery; add opt-in Trinity layout",
+    "main_observed_at": "2026-11-07T11:41:41.254283+00:00",
+    "current_ci_run": 42547664708,
+    "current_ci_status": "Exactreportheada62cba6766f959dc6aad4709b138a5888906c9a1 CI42547664708 inprogress atlatestobservation; draft/notready.",
+    "description_updated_at": "2026-11-09T01:56:09.933901+00:00",
+    "current_ci_base_note": "Main9fb normalmerge; boundedsource/builtconsumerqualification passed, exactnewmain12+PR15products. CIstillpending, no readiness. Originalcapsstricterthanmainretained.",
+    "description_updated": true
+  },
+  "pr_record_checkpoint": "a2dd5640279dfaa78937ac4490aedcf148fafea7/main-9fb-integration-20261107/final-handoff",
+  "scheduled_end": "2026-11-09T20:00:00Z",
+  "automations_disabled": true,
+  "maintenance": {
+    "owner": "root-pr-cleanup-20261105",
+    "scope": "Owner-authorized PR cleanup and GitHub backup; campaign remains stopped",
+    "started_at": "2026-11-05T13:24:03.573057+00:00",
+    "completed_at": "2026-11-05T13:35:34.412315+00:00",
+    "result": "Committed readable stopped-state handoff and pushed both branches atomically. PR602 description/visuals updated; remote branch SHAs and archive index verified. Runtime/tests unchanged during cleanup. Corrected unrelated upstream tracking. Campaign and deadline-report automations remain disabled."
+  },
+  "remote_checkpoint": "680d01bc579fd4d1ef2b92bceb29fe4f54eb03b9",
+  "resumed_at": "2026-11-09T00:02:35.822502+00:00",
+  "lease_expires_at": "2026-11-09T02:51:16.756976+00:00",
+  "authorization": "Owner renewed objective and specified Monday9November8pm Europe/London; existing PR602 normal commits/pushes remain authorized. No new PR/issues. Old automations stay disabled.",
+  "automation_resume_note": "Owner renewed the active goal in chat through9November20:00UTC. Old automations remain disabled; no new automation scheduled.",
+  "released_at": "2026-11-09T02:05:49.366926+00:00",
+  "stop_history": [
+    {
+      "stopped_at": "2026-11-05T13:20:32.667409+00:00",
+      "stop_reason": "Owner explicitly requested: Stop the campaign",
+      "stop_note": "Campaign and deadline-report automations disabled successfully. All five campaign agents completed; no live git/node/bun/python campaign workers found. Worktree clean at 0a4534ee814d0c380de138b845b0d8e3f5226132. All work, trial drafts and evidence preserved. No further implementation, tests, builds, publication or PR changes performed."
+    },
+    {
+      "at": "2026-11-07T12:50:56.826817+00:00",
+      "reason": "Owner requested cutting waste/drift and stopping if the campaign did not establish worthwhile improvement. Latest patch has three selected ink repairs; broad replacement value is not established. Stop open-ended work.",
+      "source": "62d521fbce155cdd3de928ec62fc5222fa3a8482",
+      "automations_disabled": [
+        "6ae0b82853508191843a984cfb468d5b",
+        "6ae5e528d93881918a13186253dbae8e"
+      ]
+    },
+    {
+      "at": "2026-11-09T00:02:35.822502+00:00",
+      "event": "owner renewed goal",
+      "previousEnd": "2026-11-08T23:59:59Z",
+      "newEnd": "2026-11-09T20:00:00Z",
+      "automationsRemainDisabled": true
+    },
+    {
+      "at": "2026-11-08T23:52:29.002198+00:00",
+      "event": "previous expired-campaign blocked goal",
+      "reason": "Trinity remains24/30delivered versus28/30 forNative/ELK, fourexplicitunsupported inputs, larger routed workloads unqualified, mixed complete-product performance and unresolved distribution budgets. No safe sufficient production intervention fits the remaining original campaign window; source/evidence preserved and no automatic restart authorized beyond deadline."
+    }
+  ],
+  "profile_report": "/tmp/pr449-week-comparison-20261101/weighted-face-780/PROFILE-FIRST.md",
+  "payload_diagnostic": "Main9fb merge completeHTML2203365raw/1323398gzip9/1257035Br11; vspriorPR+16274/+12768/+11924. Original1334500gzipcapP,actualbrowser2P504. LazyFlowbudgeted773456gzip>761500,implicitforestELK775309>761500, otherlimitsretainedinLAZY-PAYLOAD andbudgetlog. Freshmain9fbwholeHTML notbuilt: no currentmainpayloadratio. No timing/memoryratio.",
+  "deadline_report_schedule": "Owner cutoff2026-11-09T20:00:00Z; old hourly/report automations disabled. Stop activegoal and report at cutoff.",
+  "previous_ci": {
+    "head": "3b35c1b3d3387df2d61323071b3c9678b06f1445",
+    "run": 42057059999,
+    "tested_checkout": "d13c5b4f751934c13c46e5ee11fb7ba018df27ed; synthetic merge into mainf9",
+    "result": "completed failure",
+    "passing_repairs": "shards1/2, both reviewedClass/Requirementgoldens",
+    "remaining": "Sparse32 proofcap; payloadceilings; browserClassgolden nowlocallyqualified; CLI Bun download504 before tests"
+  },
+  "campaign_status": "Bounded Trinity implementation and comparison complete; full replacement remains unqualified. Automations disabled; no further run scheduled.",
+  "qualification_milestones": [
+    {
+      "commit": "d4bef7245f44e01f4c6637938acc68dcc04bdc5d",
+      "change": "9 reviewed Class geometry goldens; no runtime change",
+      "verification": "322 records, owning2P; CI42055078526shard1success, overallfailure",
+      "evidence": "5de73796a993e4abee23ad6ee90f85baf4693e34"
+    },
+    {
+      "commit": "3b35c1b3d3387df2d61323071b3c9678b06f1445",
+      "change": "one reviewed Requirement PNG; no runtime change",
+      "verification": "local1RED\u219297P0F in3owningfiles; latestCIpending",
+      "adverse": "PNG+39B, priorwholecandidateproof40698\u2192204313ops",
+      "evidence": "1a8297b9d98b2d7f22e97b59746f56a01ac56668"
+    },
+    {
+      "commit": "69af97a12aefe1140095064312a7f32b3f5e5714",
+      "change": "route-only separated source docks for centered unequal terminal peers",
+      "before_after": "wire463.4375\u2192436.857166666; area165355.6575/bends8 unchanged; residualwire+10.19%ELK",
+      "verification": "4directionalRED\u219244nearby/corpusP+28ownership/CSSP, coretypes/lint; Nativefreshrepeat and ELKbyteexact",
+      "adverse": "proof+980ops, SVG+21gzip/+5Br, pairedstandalone+315gzip",
+      "evidence": "6b5ed81355e05954b11b8a47b10c13627493bd20"
+    },
+    {
+      "commit": "741b80dba91c0e1f4feba9a62695f7820bc79a23",
+      "change": "one reviewed browser Class PNG baseline",
+      "verification": "exactmain/currentDOM+independentreview; onlyClassPNGupdated; unchanged5casebrowserowner1P29assert13.99s",
+      "adverse": "no runtime change in PNGcommit; payloadceilings remain failed",
+      "evidence": "9a60e1cfdd76f635515d17e9a56ba3fd9ccb125d"
+    },
+    {
+      "commit": "970c9f807bd82b6c3e731aadef3585ee6b071523",
+      "change": "One-pass worker compression at existing build producer",
+      "before_after": "HTMLgzip1427769\u21921346874; Brotli1360667\u21921281514; raw2194300\u21922089396",
+      "verification": "Matched complete Bun1.4.4/ELK0.11.1 builds; emitted-worker browser ownerP, minifier2P, coretypesP, lint3filesP; independent scope/value review",
+      "adverse": "Peak buildRSS554312\u2192691384KiB; gzip budget still12374over; six-pass candidate timed out55s and is unshipped",
+      "evidence": "d5db3cea94a798aaa1010b14c6fbbbea597e4b28"
+    },
+    {
+      "commit": "1693c2a2b7fd93cb5da11f1a358d162180fa19cc",
+      "change": "Normal current-main integration; existing ownership/capture and original caps retained",
+      "verification": "522local owner passes, core typing/lint; independent boundary probes.36fresh calls;27returned products exact,9namedrefusals unchanged. Actualemitted workerP/budgetF. Final930CI terminalfailed withsameenrolled loss classes.",
+      "adverse": "Main39\u2192PR1693 completeHTML gzip-74739/Br+183864bytes; peakbuildRSS+252292KiB; CIgzip still4886over. No timingratio.",
+      "evidence": "5958c1c2b42e8e08d0a95d5563688c9976d459f3"
+    },
+    {
+      "commit": "bbda2112af8d791d8628a3769c86084e4cb962b3",
+      "change": "Specialize private standalone dictionary from actual consumed bytes; no renderer or cap change",
+      "before_after": "HTML gzip1348449 to1310748; Brotli1282268 to1245137; raw2091362 to2186915",
+      "verification": "Byte-identical packed/full worker; existing browser/budget2P504assert; focused46P314assert; coretypes0/lintP; exact-head CI original standalone budget and browser-siteP",
+      "adverse": "Raw+95553; main39Brotli still+146733; buildRSS674760KiB, no speed/memory ratio. CI remains failed on Sparse32/lazy/demo/advisory.",
+      "evidence": "9c0e14b18394925a0160812f4bc85e3df07bedcc"
+    },
+    {
+      "commit": "c9dabb20c67aa18587063ea0268fa4e5ebdf7c40",
+      "change": "Document bounded causal profile and stop insufficient packing/terminal shortcuts; no runtime change",
+      "before_after": "No new shipped performance gain. Packet+YAML main196160 toPR230648gzip; matching Bun static sum164917 to199406, concat196990 saves2416 leaves32073.",
+      "verification": "Matched Node24 tsup/ESM+DTS builds; existing reporter on actual bytes; independent review; existing budget gate still fails; diff/visual-lint pass. Python predecessor retained separately.",
+      "adverse": "Common family transfer still larger, despite fewer requests. Newly profiled source contribution counts are not CPU/gzip attribution; new-head CIpending.",
+      "evidence": "8e0adbe90360b6d0bcd4cef07d8381ada6076fff"
+    },
+    {
+      "commit": "14bec477578104a1eab5a279473aa77e747f8476",
+      "change": "Omit unused original marker hull; full served hull/bounds/resource encoding/charges retained",
+      "before_after": "Marker active2ms self/incl7.697/12.499 to6.964/11.241ms; no causal endtoend speedup. AllClass products/receipts exact. ActualHTMLgzip-61/Br-209/raw-156.",
+      "verification": "Profilebeforecode;742owner cases740P pluspermittedchildretry1P, knownSparse32F. Coretypes/lintP; ESM/DTS0; actualstandalonebrowser2P504.18publicsourcecalls15exactreturns/3sameER256refusals. CIterminalfailedonlyknownclasses.",
+      "adverse": "Classlazy+3gzip/Flow+14/raw+10; initialBr+1. MainHTMLBrstill+146524; buildRSS673272KiB. Confounded earlierprofiles retained; no speed/memoryratio. Ambientcallback-count qualification explicit; no reproducedregression.",
+      "evidence": "1635a0ae0acfe1bc9bebc57fc59feb45de5a73ac"
+    },
+    {
+      "commit": "62af995fafa5392364ab2567678f11e59fea9ea6",
+      "change": "Document merge-preserving rebase and Sparse32 first exhausted stage; runtimeunchanged",
+      "before_after": "Rebasehead14bec unchanged; source62af worklog-only. NativeXML firstfailedcharge7 at399994 afterclean337890. BitsetstillU400k andrestored; nofailure removed.",
+      "verification": "ExistingSparseowner2P1F includingactualinkchecks beforelastfailure; all3before/bitsetSVGs exact. Independentreview confirmsrevert.1000/1250labelPpoints descriptiveonly. Docdiff/lintP; no unchangedfullsuite replay.",
+      "adverse": "Original1500label32marker proofcapfailure remains; no speedup, quota increase, acceptance waiver or payload change. DocsCIpending/qualityF; last14runtimeCI remainsfailed.",
+      "evidence": "a5c343e6600185b53679411a2f85575447454d50"
+    },
+    {
+      "commit": "deafff39d427082c233e8caf4917175404f6c248",
+      "change": "Qualify existing Requirement cycle BT/LR/RL actual finalSVG and independent per-occurrence ink; docs-only, no new runtime gain",
+      "before_after": "Historical BT+9.53% doesnotreproduce; currentNative/ELK BTarea-10.4299%,wire-30.3353%,8vs10bends; LR/RLarea-1.4394%,wire-20.2462%,6vs8bends. TBpriorqualificationretained.",
+      "verification": "Sixnewfrozen public Node24 fullSVG/entirereceipt calls allreturnP; each3authoredcards/5orderedrelations+captionowners/10normalcontacts;90textprogram+30arrowcontributions in126offlineInterrasters. Independentread-onlyreview; docdiff/readinessvisual-lintP.",
+      "adverse": "LR/RLwider/shorter970.194x251.95vsELK753.144x329.3; no readability/speedratio. Sparse32notfixed; enlargedname-maskestimate insufficientandstoppedbeforecode. NewCIpending; priorCIfailed.",
+      "evidence": "2b02e8d5970d3e3f695677d0e2fc9620ce064544"
+    },
+    {
+      "commit": "dd365744603143f105c2a8c8accf36203096b1ac",
+      "change": "Record originalCIpaintedcontactcounterexample andstopfourinsufficientrouting/captionprobes; docs-only",
+      "before_after": "Nooriginalfailureclosed. Case276trial6to3crossingsbutPtoUandnew0.580pxcontact, restored. Original1520.823pxpaintoverlap/U353905 unchangedbyallrepairprobes;372/102unchangedU. Selectedoriginal152raster183exposed/61visible/122fullyhidden.",
+      "verification": "Eightnewfullyconsumedpubliccalls; directpassstageandinkrefusaltraces; actualfixedInterfour-maskpixels. OwnerrealRED8P8Fandcandidate28P282diagnosticonly; typecheckP; all4trialfilesrevertedverifiedindependently05:32. Sourceandvisual-lintP.",
+      "adverse": "Noactualworkloadrepair despitehelperpasses. CasesoriginalstillU; crossing-onlycandidateworsepaint. N1costsconfounded/descriptive; no speedratios orpayloadclaim. JSDOMmissing andnpmcacheinstallationautoreviewrejected; usedalreadyinstalledSaxes, noinstall.",
+      "evidence": "84520892f10d78f0c97d05a08e1647c9b138d888"
+    },
+    {
+      "commit": "6aa0ee45d9b6052addcb77036c1f7ba4c13b2cb4",
+      "change": "Revert5ac after whole-CI circle regressions; runtime/tests restored, no net renderer gain.",
+      "before_after": "Selected152 contact fixed in withdrawn5ac, but five P-to-U records/four sources include actual circle overlap0.875/0.125/0.5px. Same-ledger circle-first restores17/33 but leaves152 unfixed. Both stopped.",
+      "verification": "1748 matched CI backend/case records,10changedSVGs retained.42 comparison captures plusowners. Restored17/33/ELK296 SVGexact oldCI/P with correct prefixes;152 SVG/entire receipt exact oldU. Source/tests byteexact dd365; no unchanged broad-suite replay.",
+      "adverse": "Withdrawn wire+6.646/SVG+16gzip/HTML+442gzip+1234Br.505owner passes/8JSDOMloader failures,92nearbyP,types/lint/browser2P504 didnotestablish preservation. RollbackCIpending/qualityF; priorfailed.",
+      "evidence": "62d61e5cc41211f4aa3d5f50c0d8d05c0748e284"
+    },
+    {
+      "commit": "3234fb3183e78840321ab41fe6881b31a0f5d4b2",
+      "change": "Clear one existing circle/shaft contact through existing terminal detour after first ink-rejected band; retain admitted band preference.47aed intermediate crossing cost corrected.",
+      "before_after": "Case230 selectedhiddenpixels41to0/proofU362041toP362293;area/crossingsunchanged;wire+19.156/bends+2.",
+      "verification": "1748matchedCIrecords only1changedSVG/1747exact/all874ELKexact;0newrefusal/0PtoU/1UtoP.18frozen15SVG+receipt exact/3sameER256refusals.4directionalRED47a/GREEN3234,focused8P94assert,full576P18localJSDOMloaderfails,types/lint/actualbrowser2P504. FinalCIterminalfailedonlyretainedclasses. Independent review.",
+      "adverse": "SelectedSVG+7gzip/+0Br; finalHTMLvs14+332raw/-57gzip/+183Br; buildRSS722140KiB descriptive. Sharedrectanglecontacts/Sparse32/ER256/lazy/advisoryremain.",
+      "evidence": "ca23753c6326112a1564a05b95c5e300277ae78a"
+    },
+    {
+      "commit": "6edd3fd3bb70bfa4232d61aba6cd0822b5adc82d",
+      "change": "Stop/revert2f641clearancefloor andintroduced-onlynarrowing; actualfirstcause152foundatmeasuredshortener. No netruntimegain.",
+      "before_after": "Unshipped152 selectedhidden122to0,wire+11.896; Native17actual3markerfillcontactsbutwire-29.87%/area-7.37%,distincttips/readabilityunknown. Rolledbackentiresrctree/4SVG+receipts exact3234.",
+      "verification": "7RED20P328assert;706ownerP18JSDOMloaderfails/types/lintP; independentreview. Partialtrial1428records23changed10UtoP1PtoU0delivery/320unknown; finalrollback1748SVG+layout/proof/deliveryexact3234. FinalCIterminalfailedretainedclassesonly.",
+      "adverse": "UnshippedHTML+560raw/+357gzip/+477Br; build18.98s/RSS658496KiB descriptive. No speedratio/automaticacceptancegate. Original152/372U remain, earlier230repairretained.",
+      "evidence": "a44f4123b35ac1f5c03f9458de3821aa55c4fb0b; finalCIb1964173b298061aea98bb80a4581432d0d7fe5d"
+    },
+    {
+      "commit": "0ff57be43892519224ebff3c3f72169cf12f01b9",
+      "change": "Stop ordinary marker capacity4db9 after introduced actual contacts; entire source/test tree restored6edd/3234. No netruntimegain.",
+      "before_after": "Selected201/241hidden4to0/proofUtoP in withdrawntrial;area+3.46%/-.59%,wire-3%/-1.62%. Whole1748:303NativeSVGchanges58UtoP5PtoU0delivery/all874ELKexact. Fouractualnewcontacts;SHA191conservativewarningonly.",
+      "verification": "6RED10GREEN410assert;701broadP18JSDOMloaderfails;types/lintP;actualstandalonebrowser2P504. FullactualSVG independentadversegeometry review. Rollbackentiresrc treeexact6edd; retained230repair remains, no newgain.",
+      "adverse": "SHA37.625pxstrokecontactalong~100px;381headfill.648px2;229tip/319mitercontacts;trialHTML+79raw/+81gzip/+55Br. All trial outputs restored; original152/372/201/241remain. No speedratio.",
+      "evidence": "c95d1761915df02cc3de0812b9f67912330434ee"
+    },
+    {
+      "commit": "96990f17b36af1dd05c1ce140d3ddf44aedfa8de",
+      "change": "LocateSHA37 firstcontactatshortener; traceNative17 latentrawheadcompression exposedbycandidate ranking. Isolatedrelativefloor stopped; no runtimegain.",
+      "before_after": "SHA37 selectedcompactgap5.125to-.625 atshortener. Relative152P,wire+.087%,bends70to80;17PtoU3actualfillcontacts.120125px2 each,wire-29.06%,area-7.37%. Existingcompact12crossings becomes4 beatingprimary10; headpitchalready4.6125raw.",
+      "verification": "16fullSVG/entirereceiptcalls; exactfullCI37before/trialbinding andexact17before/relativebinding; actualtriangleintersection; independentread-onlyscope/value review; docdiffandvisual-lintP. Runtimeentiresrctreeexact0ff57; no unchangedbroadreplay.",
+      "adverse": "Original152/372/201/241losses remain; no newraster/readability orspeedratio; globalno-op37stillUotherwarning. Relativeveto doesnotensurephysicalclearance andisnotretained.",
+      "evidence": "29eec22e58f4ab9eae3e61e767a604b37656cabe;selection ef90d34b31c2211ce4e2bf4e75b66804703754b7"
+    },
+    {
+      "commit": "780b5f1b04ac7ac5db35cdd442d98df652daf17d",
+      "change": "Normalcurrentmain9fb integration retainingPRink/custody/fit+mainopt-inprofiles/search; no cap/default/versionwaiver.",
+      "before_after": "36newpubliccalls:12main+15PRexactreturnedproducts and6main/3PRsamerefusals;9namedcontrolsSVGexact. Selectedmainrelativegains preserved, notnewgain. HTML+12768gzip/+11924Br to1323398/1257035.",
+      "verification": "Coretypes/lintP; sourceowners908P25initialF then repairedprojection11P/opt10P;18knownJSDOMremain. ESM/DTS/lazy/IIFE/ZenuP,standalone2P504,lazyoptins2P38,dist3P9,actualtar257files publicinventory192/nohelperproblems. Independentboundaryreview no blocker.",
+      "adverse": "LazyceilingsstillF; original152/372/201/241losses/ER256/Sparse32persist. No freshcurrentmainHTMLratio, CPU/RSSspeedup,whole1748comparison ornewrasterqualification. Bunnpmwrapperstdoutfailure retained. CIpending.",
+      "evidence": "bd4ee0eee70227a19e49d661935981bd9e6321e2"
+    }
+  ],
+  "restored_from": "dd7f8e9da:handoff-20261105-1637/handoff.tar.gz; historical lease expired and not reactivated",
+  "integration_status": "Normal merge of main e7cb05baa (#608) into d4e044949 at0c162c446; old published ancestry retained. Combined owners/types/lint/browser and1748 SVG/outcome/route vectors requalified. Exact-head CI in progress, not ready.",
+  "current_ci_status": {
+    "head": "deb1d6971fd11fba4468d61a4655fce925b1e571",
+    "run": 42515853033,
+    "status": "in_progress",
+    "conclusion": null,
+    "ready": false
+  },
+  "last_completed_runtime_ci": {
+    "head": "0c162c446b58ad98d0a5550719592a0d868619f8",
+    "run": 42431021452,
+    "status": "completed",
+    "conclusion": "failure",
+    "ready": false,
+    "failures": [
+      "Sparse32",
+      "lazy browser budgets",
+      "website absolute and relative payload",
+      "generated-layout advisory"
+    ]
+  },
+  "rebase_authorization": "Owner 7 November: Rebase and continue; supersedes prior no-rebase instruction for this requested integration.",
+  "rebase_result": {
+    "request": "Rebase and reconsider",
+    "strategy": "--rebase-merges origin/main; preserve published ancestry for normal push",
+    "before": "d8c8ac879793a586b4b741c178b89d7900bd27ed",
+    "rebased": "a62af0daf24d653554ee440443b01153b05b099e",
+    "after": "a195262036dbb07c7ce4919505d4ff47dea09e63",
+    "main": "c366de0d137e33e123acd84fc99164417c0f3917",
+    "force_push": false,
+    "backup_ref": "backup/pr602-pre-rebase-20261107-d8c8"
+  },
+  "evidence_core": "f88d839dbe2577524ea2ec641d0814728913a0c6",
+  "lease_note": "Classscopes source+costs+rawrecovery pushed; boundedrunlease released. Deadline2026-11-09T20:00:00Z; automationsremainoff, no continuous execution.",
+  "manual_plan": {
+    "base": "62d521fbce155cdd3de928ec62fc5222fa3a8482",
+    "commits": [
+      "b9502e98793c34c82cc397409e935550eefa4e0b",
+      "433b523b86f9017960d8004f3c776d9d8d82dbce"
+    ],
+    "completed_at": "2026-11-07T14:13:36.601289+00:00",
+    "evidence_directory": "/tmp/pr449-week-comparison-20261101/invariant-plan-62d",
+    "new_cpu_or_rss_claim": false,
+    "final_html_delta": {
+      "raw": 222,
+      "gzip9": 372,
+      "brotli11": 202
+    }
+  },
+  "manual_comparison": {
+    "compared_head": "433b523b86f9017960d8004f3c776d9d8d82dbce",
+    "source_checkpoint": "ce15c91b929ccfdfe338e79df8b6a97aaee2e8fa",
+    "fixed_pairs": 874,
+    "both_svg_delivered": 874,
+    "native_vs_elk_area_lower_equal_higher": [
+      667,
+      141,
+      66
+    ],
+    "wire_lower_equal_higher": [
+      644,
+      150,
+      80
+    ],
+    "crossings_lower_equal_higher": [
+      645,
+      228,
+      1
+    ],
+    "final_proof_passed": [
+      740,
+      696
+    ],
+    "final_proof_unverified": [
+      134,
+      178
+    ],
+    "fresh_public_calls": 12,
+    "returned": 10,
+    "refused": 2,
+    "worker_owner": "introduced mock failures reproduced5P2F; corrected full owner44P0F296assertions; core types/lintP",
+    "pipeline_report": "compare-rebase-433b-20261107/REPORT.md",
+    "evidence_commit": "b27ab18671130b1c69555e835f0b5d1daa86ba0c",
+    "limitations": "874 geometry vectors are not independent actual-ink/authored-meaning proof; cold first-render observations only, no ratios; sharedER256 refusal, Sparse32 proof cap and unverified cases retained; pending current CI."
+  },
+  "ranked_tasks": [
+    {
+      "rank": 1,
+      "task": "Native Class area",
+      "status": "shipped",
+      "commit": "aa61c7c736750b85bac8ac813b902707b66a8363",
+      "result": "9areas shrink; Class losses13to11; class2 85680to65400 againstELK61400; all874 requalified, no other quality/delivery/proof regressions."
+    },
+    {
+      "rank": 2,
+      "task": "Shared ER256 delivery",
+      "status": "shipped all four directions through both backends",
+      "result": "BT/RL recovered within original400k atNative385344/ELK371874;8matrixpasses. Main608combinedmatrix8P. Earlier partial result superseded.",
+      "commit": "00938cc04693fe5da7a02a5d226406c3c2848251"
+    },
+    {
+      "rank": 3,
+      "task": "Crossing276",
+      "status": "global candidate rejected; task remains open",
+      "result": "276 gains3crossings52bends withclear n10, but42 introduces39attenuatedpixels.123crossingwins14losses;15PtoU9UtoP. Two33warning pairs lose0pixels."
+    },
+    {
+      "rank": 4,
+      "task": "Sparse256 area",
+      "status": "external prototype only; task remains open",
+      "result": "8column row-major reaches+1.34% versusELK withheight+31.04% andlarger gzipSVG; neitherit norhistorical+.97%backfillships. Implementedgap+5.04%."
+    },
+    {
+      "rank": 5,
+      "task": "Forest wire/area tradeoff",
+      "status": "shipped",
+      "commit": "13143a343e30331b97a1104ea657ed2cba7f0903",
+      "result": "TB actualwire436.8572to397.7072; gapvsELK+10.19to+.31%;area\u22126.43% preserved;8bends0crossingsP. All4directionsimprovewire,LR/RLshrinkarea."
+    },
+    {
+      "rank": 6,
+      "task": "Measured pipeline reuse and costs",
+      "status": "producer-box reuse shipped; other proposals remain open",
+      "result": "SkipNativepeer-sizepreparation,useexistingfanroute-onlymode;complete/scope/ELKprojectioncontexts explicit. No newcache/cap/default/versionchange. HTML+993Bungzip9/+1015Br11. No CPU/RSSwin established; ELK setup restoration and broader bundle/import redesign remain unimplemented. ER256 reuses fixed obstacle index and same-axis parent ordering; standalone gzip-334/Brotli+201; no CPU/RSS claim."
+    }
+  ],
+  "ranked_evidence_commit": "8b0160535aa2818f9454ab4aee013dfd6bceb360",
+  "last_manual_verification": {
+    "owners": "918P, knownSparse32F, sandboxchildF; childretryP; finalER104P;4chainREDtoGREEN",
+    "standalone": "2P/505assertions",
+    "types": "core pass",
+    "lint": "canonical pass",
+    "corpus": "1748 SVG/layout geometry/route vectors exact; delivery/proof statuses unchanged;27last-bit diagnostics retained",
+    "gzipDelta": -334,
+    "brotliDelta": 201,
+    "cpuRssGainEstablished": false
+  },
+  "latest_er_profile": "/tmp/pr449-week-comparison-20261101/er256-dda69/PROFILE-FIRST.md",
+  "er256_milestone": {
+    "source": "d8c8ac879793a586b4b741c178b89d7900bd27ed",
+    "evidence": "027ce160ee147e9a7aea032219298b5b215fe3f7",
+    "archiveSha256": "766a89505666037a9827dab944d3e2fd4356288d8dec70db7e693f09f76d910e",
+    "archiveVerifiedRegularFiles": 192,
+    "publishedBlobsVerified": 26,
+    "positiveDirections": [
+      "LR",
+      "TB"
+    ],
+    "remainingRefusalDirections": [
+      "BT",
+      "RL"
+    ],
+    "sharedRepair": true,
+    "newCaches": false,
+    "capsChanged": false
+  },
+  "native_elk_comparison": {
+    "source": "d8c8ac879793a586b4b741c178b89d7900bd27ed",
+    "evidence": "8ccaf0655cfb596809400dd97600caacf9eb2c89",
+    "rawDataEvidence": "a90f1506e8a52da0c333352eb47a32213b264254",
+    "fixedPairs": 874,
+    "meaningCasesPerBackend": 640,
+    "meaningBackendProductsPassed": 1280,
+    "processes": 96,
+    "timedCalls": 672,
+    "returnedProofPassed": 672,
+    "archiveSha256": "3aeb3433fb1f13f64cdb276b9956bee00a9e74756b3fae96942b806eac15547b",
+    "archiveVerifiedFiles": 3116,
+    "scope": "Selected Native/ELK inside same current pipeline; layout-cache off/on, derived caches can remain warm; Node24source API, not PRvsmain/browser/package. No sourcechanges."
+  },
+  "trident_elk_research": {
+    "source": "d8c8ac879793a586b4b741c178b89d7900bd27ed",
+    "evidence": "7b77d5368ca6c0ec5febbf8b1f0fc7b031f3e3d9",
+    "directory": "/tmp/pr449-week-comparison-20261101/trident-elk-research-20261107",
+    "trident": "f080278e31e4202ca89d524e4ee9e4cf3cbff038",
+    "peerBenchmarkExecuted": false,
+    "productionChanged": false,
+    "astraPublicDiamond": {
+      "height": [
+        227,
+        216
+      ],
+      "bends": [
+        2,
+        4
+      ],
+      "spacingRetained": true,
+      "finalPaintPassed": true,
+      "nonregressingFix": false
+    },
+    "publishedFiles": 48,
+    "remoteVerified": true
+  },
+  "final_head_ci_status": {
+    "head": "3ba57ed22127b03d75b32761120dc2ec80af2ef6",
+    "run": 42485563113,
+    "status": "in_progress",
+    "conclusion": null,
+    "ready": false
+  },
+  "rebase_reconsideration": {
+    "evidence_core": "fb8258f17fadf2996e15aa4c82a0973b1cefae4f",
+    "qualified_runtime": "93c6d75dc1373d5c238cc764d938ca6af91bebfe",
+    "source": "a195262036dbb07c7ce4919505d4ff47dea09e63",
+    "fixed_products": 1748,
+    "delivery_proof_route_vector_changes": 0,
+    "native_proof_passed_unverified": [
+      740,
+      134
+    ],
+    "elk_proof_passed_unverified": [
+      696,
+      178
+    ],
+    "main_to_pr_forest_wire": [
+      700.0375,
+      397.7071667
+    ],
+    "main_to_pr_class2_area": [
+      85680,
+      65400
+    ],
+    "class2_height": [
+      238,
+      327
+    ],
+    "final_html_gzip9": 1386834,
+    "final_html_brotli11": 1318238,
+    "old_gzip_cap": 1334500,
+    "native255_work": 399809,
+    "forest_owners": "49P0F867assertions, stale center assertion corrected; runtime unchanged",
+    "recommendation": "Defer general solver framework; extend existing owning contracts for demonstrated adapter defects. No new CPU/RSS claim.",
+    "pr_description_updated": true,
+    "automations_remain_disabled": true
+  },
+  "outcome_plan": {
+    "source": "00938cc04693fe5da7a02a5d226406c3c2848251",
+    "before": "a195262036dbb07c7ce4919505d4ff47dea09e63",
+    "evidence": "bd731d1d8d72448d9e008cf97bacaa993b42cd22",
+    "implementedRank": 1,
+    "nativeER256Directions": [
+      2,
+      4
+    ],
+    "elkER256Directions": [
+      2,
+      4
+    ],
+    "nativeBT_RLGeometryOperations": 385344,
+    "elkBT_RLGeometryOperations": 371874,
+    "geometryCap": 400000,
+    "nativeTB_LRWork": [
+      397206,
+      343421
+    ],
+    "elkTB_LRWork": [
+      384466,
+      330681
+    ],
+    "fixedProducts": 1748,
+    "allFixedSVGsAndRouteDeliveryProofOutcomesExact": true,
+    "proofPassedUnverified": {
+      "native": [
+        740,
+        134
+      ],
+      "elk": [
+        696,
+        178
+      ]
+    },
+    "htmlGzip9": 1386827,
+    "htmlBrotli11": 1318081,
+    "htmlDelta": {
+      "raw": -148,
+      "gzip9": -7,
+      "brotli11": -157
+    },
+    "originalGzipCap": 1334500,
+    "causalRuntimeMemorySpeedupEstablished": false,
+    "recoveredRefusals": 4,
+    "remainingRankedProposals": [
+      "Sparse32 capture/XML proof work",
+      "actual dependency closures and transfer size",
+      "visible contacts152/372/201/241",
+      "quality frontier crossing276/Class2/Sparse256",
+      "profiled execution work"
+    ],
+    "planFile": "docs/design/system/layout-0.6-qualification.md",
+    "prDescriptionUpdated": true,
+    "limits": "No general replacement/readability claim; no new framework/cache/cap/default/version change; original payload limits remain failed; final CI queued."
+  },
+  "integration_candidate": {
+    "parents": [
+      "d4e044949dd604cc0ca5deb692a6e82218d4b487",
+      "e7cb05baa7f68154942a9ce9c6e9aaaee163dc94"
+    ],
+    "capsRaised": false,
+    "browser": "2P0F657 assertions",
+    "gzip9": 1333923,
+    "originalGzipCap": 1334500
+  },
+  "source": "680d01bc579fd4d1ef2b92bceb29fe4f54eb03b9",
+  "latest_manual_execution": {
+    "source": "0c162c446b58ad98d0a5550719592a0d868619f8",
+    "optionRepair": "d4e044949dd604cc0ca5deb692a6e82218d4b487",
+    "integratedMain": "e7cb05baa7f68154942a9ce9c6e9aaaee163dc94",
+    "sourcePushed": true,
+    "evidence": "06b1960425f9b993017799e7ec8174da7c52c14e",
+    "sparse32": "Still unverified400k; streaming trial insufficient with authority concern, stopped; no XML production change.",
+    "optionExtractionSavings": {
+      "gzip9": 54116,
+      "brotli11": 46024
+    },
+    "main608AdverseDelta": {
+      "gzip9": 1212,
+      "brotli11": 1392
+    },
+    "finalHtml": {
+      "raw": 2112604,
+      "gzip9": 1333923,
+      "brotli11": 1273449,
+      "sha256": "2f99f716672272325ebe472fc7a88081943ed7a34ddb65dda99ac42b19558510",
+      "gzipCap": 1334500
+    },
+    "fixedCorpus": {
+      "agentic": {
+        "count": 874,
+        "changes": [],
+        "proof": {
+          "passed": 740,
+          "unverified": 134
+        }
+      },
+      "elk": {
+        "count": 874,
+        "changes": [],
+        "proof": {
+          "passed": 696,
+          "unverified": 178
+        }
+      }
+    },
+    "verification": "Canonical core/repo types/lintP; owners131P6sandboxF, exactprojectionretry+MCP/Zen76P0F; ER2568P; browser2P657assertions; hostedbuildP; independentreview no actionable regression.",
+    "runtimeBaseline": {
+      "source": "d4e044949dd604cc0ca5deb692a6e82218d4b487",
+      "freshProcesses": 24,
+      "timedCompleteProductsPassed": 168,
+      "actualXMLProductsAudited": 48,
+      "main608TimingsMeasured": false,
+      "blanketNativeSpeedup": false
+    },
+    "remaining": [
+      "Sparse32",
+      "visiblecontacts152/372/201/241",
+      "qualitycrossing276/Class2/Sparse256",
+      "otherdistributionbudgets",
+      "fullcombinedheadCI"
+    ],
+    "archiveSha256": "39cd6080eb54c3d7c3b5553b31e75e5dd5e2d0ade30e10e88a771cc51ebc8945",
+    "archiveVerifiedFiles": 1266,
+    "prDescriptionUpdated": true
+  },
+  "evidence_handoff": "016ae47e00b495b8256c0f7f49b01e59896ee543",
+  "replacement_goal_status": {
+    "objective": "Native viable replacement matching or beating ELK on correctness, performance, memory and bundle size",
+    "outcome": "blocked",
+    "reason": "Trinity supports24/30 frozen inputs versus28/30 forNative/ELK; larger routed domains and broader compounds unsupported. Costs mixed and distributioncaps failed; actualinkunknowns andNativecounterexamples retained.",
+    "completedRuntimeCI": {
+      "head": "fe911360151ebfd534799db7da8d0533931054ec",
+      "run": 42534101146,
+      "status": "completed",
+      "conclusion": "failure",
+      "ready": false,
+      "failures": [
+        "Sparse32",
+        "lazy payload budgets",
+        "website payload budgets",
+        "generated layout advisory",
+        "two stale Class/ER refusal owners, repaired in21194248b"
+      ]
+    },
+    "newProductionRuntimeGain": false,
+    "nativeByteAdvantage": "All nine reported graph-family static/provider closures smaller in raw/gzip/Brotli; more modules; not browser startup or unsupported-case delivery qualification.",
+    "flowchart": {
+      "nativeGzip": 378598,
+      "elkGzip": 746952,
+      "nativeBrotli": 320974,
+      "elkBrotli": 590334,
+      "nativeModules": 29,
+      "elkModules": 25
+    },
+    "stopped": [
+      "forced grouping removal worsens allfamilies",
+      "deferred token alone insufficient forSparse32",
+      "proposed paintreplayfusion notused byownpaint witness"
+    ],
+    "source": "21194248b21873a87fa72fa545f67cfd8b49dad4",
+    "runtimeSource": "fe911360151ebfd534799db7da8d0533931054ec",
+    "evidence": "f88d839dbe2577524ea2ec641d0814728913a0c6",
+    "archiveVerifiedFiles": 521,
+    "archiveSha256": "427af98ef146ac19bbcf01951d4597d189d2a0c3da690124a55c9cb2aa5f6a6d",
+    "prDescriptionUpdated": true,
+    "newCachesOrCaps": false,
+    "tridentEvidencePublished": true
+  },
+  "trident_comparison": {
+    "sourceMeasured": "df133c69480e71d230a0e9256b1103cc5068bd22",
+    "reportSource": "44528195dec34c5e70620222c1156cdddb30e557",
+    "Trident": "f080278e31e4202ca89d524e4ee9e4cf3cbff038",
+    "evidence": "e4e94f685271e330c1e9c998e33c011a48f89f02",
+    "portableCases": 27,
+    "successfulPositivePairs": 25,
+    "workers": 1300,
+    "exploratory": true,
+    "uncachedRepeatLowerHigher": [
+      25,
+      0
+    ],
+    "cachedRepeatLowerHigher": [
+      14,
+      11
+    ],
+    "fidelityCriteria": 613,
+    "fidelityNative": {
+      "passed": 576,
+      "blocked": 28,
+      "failed": 3,
+      "unsupported": 6
+    },
+    "fidelityELK": {
+      "passed": 575,
+      "blocked": 29,
+      "failed": 3,
+      "unsupported": 6
+    },
+    "browserProductGzip": [
+      476485,
+      851989
+    ],
+    "browserProductBrotli": [
+      407052,
+      682687
+    ],
+    "requestsWithBinding": [
+      39,
+      37
+    ],
+    "archiveFilesVerified": 3390,
+    "archiveSHA256": "7186509b0d996df79ea08b7f3e07f7055ba98864a79b06b7ec2c2d1b4d7efd70",
+    "sourceAndEvidenceRemoteVerified": true,
+    "productionChanged": false,
+    "limits": "Partial semantics, incomplete ink, unsupported fontSize, warned offline image placeholder, uncalibrated timing, retention growth; no general replacement claim.",
+    "focusedEvidence": "f88d839dbe2577524ea2ec641d0814728913a0c6",
+    "focusedClass128": {
+      "workers": 30,
+      "rounds": 5,
+      "warmSamples": 31,
+      "cache": 1,
+      "warmRowsPerLaneCalibrated": 4,
+      "coldMeasured": false,
+      "repeatProcessMediansMs": [
+        233.79583901166916,
+        225.45282399654388
+      ],
+      "processMedianRangesMs": [
+        [
+          224.8292419910431,
+          298.89819699525833
+        ],
+        [
+          208.9072189927101,
+          238.0277779996395
+        ]
+      ],
+      "timedSVGExact": 10,
+      "artifactFilesExact": 26,
+      "fixed11PercentLossEstablished": false,
+      "parityOrCausalGainEstablished": false,
+      "archiveFilesVerified": 81,
+      "archiveSha256": "dc4f381095510cab3627eb44eafa984999e1e68634cafd020482261ede8d76c7"
+    }
+  },
+  "last_completed_docs_ci": {
+    "head": "f55a8f8ecdecf2727a2e623749854f0abe52088e",
+    "run": 42464349354,
+    "status": "completed",
+    "conclusion": "failure",
+    "ready": false
+  },
+  "lease": {
+    "owner": "root-trinity-complete-profile-20261109",
+    "expires_at": "2026-11-09T02:51:16.756976+00:00"
+  },
+  "astra_pele_replacement_review": {
+    "nativeSource": "f55a8f8ecdecf2727a2e623749854f0abe52088e",
+    "peleSource": "3a2f075ee0c3d914f0fad3545fc0f193693975ac",
+    "peleVersion": "1.13.0",
+    "liveHeadConfirmed": true,
+    "evidence": "016ae47e00b495b8256c0f7f49b01e59896ee543",
+    "directory": "astra-pele-replacement-f55-20261108",
+    "productionChanged": false,
+    "newBenchmarksOrTests": false,
+    "reportRemoteVerified": true,
+    "conclusion": "Pele operationally replaces external solvers; universal superiority unproven. Native coupled port/route defects and shared proof work remain. Ordinary fitting is not duplicated; cyclic callback/projection duplicate is narrow and unmeasured.",
+    "priorities": [
+      "coupled incident-face capacity and preserved foreign-route clearance",
+      "sufficient XML producer-work subtraction",
+      "narrow duplicate fitting/certification after mutation audit",
+      "clear workload quality policy and truthful candidate provenance"
+    ]
+  },
+  "trinity_design": {
+    "commit": "3ba57ed22127b03d75b32761120dc2ec80af2ef6",
+    "spec": "docs/design/system/trinity-layout.md",
+    "plan": "docs/design/system/layout-0.6-qualification.md",
+    "backlog": "TODO.md#owned-graph-backend-qualification-owner-request-pr-449",
+    "stateMachinesMapped": 11,
+    "metricDimensions": 8,
+    "activePlanLinesBeforeAfter": [
+      178,
+      63
+    ],
+    "historicalRecordsPreserved": true,
+    "sourceAndPRUpdated": true,
+    "remoteVerified": true,
+    "runtimeImplemented": false,
+    "nextImplementationUnit": "Extract neutral measured role-aware placement/routed boundary and delegate existing ELK/Native behavior unchanged; no automatic implementation scheduled.",
+    "verification": "Markdown links/current source owners resolve, historical TODO text preserved except deferred checkbox labels, gitdiffcheck and PR visual evidence lint pass; src/package/lock/buildconfig unchanged.",
+    "defaultsVersionsCapsChanged": false
+  },
+  "trinity_execution": {
+    "stage1": "completed and pushed; neutral type contract, core/repo types/lint and 261 owning tests passed",
+    "stage2": "bf48cee97 pushed; 84 owners pass,24 exactproducts",
+    "no_new_prs_or_issues": true,
+    "stage3": "566234829 committed;847 owners pass,1748 exactproducts; gzip+892/Brotli+1579, originalgzipcap failed315; dedup trial stopped",
+    "stage4": "deb1d6971 committed; bounded private64/128kernel, no publicoption. 18kernel owners plus shared/family checks; core/repo types/lintP;1748SVG/outcome/route vectors exact. Native740P134U,ELK696P178U. Actualdirect-familyRequirement4directions13Tridentcriteria each; area~4.7-4.8%belowELK butNativeTBbetterandTrinitywire/bendsmixed. No publicruntime/RSS comparison. Barekernel6465gzip, actualeditor1335115gzip failsoriginalcap615. Independentreviewfindings addressed inclheterogeneoussupport; allfailedprobes retained.",
+    "review": "trinity-stage3-20261108/review.md; no demonstrated existing-path regression, kernel contract incomplete",
+    "stale_goal_correction": "Requirement+9.53%historicalarea loss already superseded inworklog394; do not treat it ascurrentdeficit or claimnewclosure.",
+    "stage5": "0604aae77 committed and pushed; private known-rectangle/rounded forest placement reuses body producer without discarded routes, 4096/16384 local admission; 210ownersP, core/repo types/lintP, all874NativeSVG/outcome/route vectors exact. Compounds/publicplacementfamilies remain unfinished; no CPU/RSS claim.",
+    "stage4_evidence_pushed": true,
+    "pr_description_updated": true,
+    "stage7": "01497b98f committed/pushed; real publicRequirementwith source/parsed/layout/PNG/lazyadapters, truthfuldeclineandfallback; 52Req+87contractsP, types/lint/buildP. Buneditor1339158gzip, originalcapfails4658; no newcache/default/packageversion/capchange.",
+    "stage6": "Fresh current45complete-productV8profile: self/inclusive five spots and existing cache inventory. Deliberately unsafe diagnostic-path-only ceiling40calls byteexact on successful products, inconsistent costs; stopped. No production optimization or newcache.",
+    "stage8": "300unprofiled completeSVG+entire receipt calls across five inputs (two primary,Class,ER,Architecture),two replicas and two cache settings. All returned/P, repeats/edits exact. Runtime costs mixed;6family actual fetched productgzip ELK856349/Native483797/Tri450550,Br686964/414176/385763;requests41/47/47inclbinding. No general speed/memory/startup superiority. Allunknown/adversecells retained.",
+    "primary": "bbab8283d: sharedglyph/CSSproducer, Nativeprivateflags/cache/work/completion retained; newflatrectangularFlowchart/State viaTrinity. Frozen30cohortTri4to11passedSVGs,unsupported24to17,2inputerrors;Native/ELK28P. CompleteTridentTri354P233U24B2F;otherlanesunchanged.874Nativevectors exact;110graph/cache+15physical/State+27lazyownersP,types/lint/buildP. Curveadmissionguardandactualopaquehalo24pxdemandfix; no visiblecollisionfixclaimed. Editor1339568gzip/1279561Br (+410/-334), originalgzipcapfails5068. Currentcomplete-cost qualification pending; earlierReq014runtimeobservations remain historical.",
+    "stage8_primary": "bbab8283d runtime: 24 serial fresh Node24 processes,120 complete SVG+receipt calls,all returned/proofpassed,repeat/edit determinism. Two cases/two replicas; no general ratio. Three-family actual fetched product gzip ELK763046/Native397062/Trinity361689; Br605263/338188/307871. RSS/heap retained; no memory superiority. Editor original gzip limit still fails5068.",
+    "state": "3cc281f2f pushed: actual shape-owner State circles,141ownersP,15affectedStateproducts withtenNative/ELK and3Trinity exact;coverage12/30,16unsupported,2inputerrors;Trident365P219U27B2F;Buneditor1339699gzip (+131),1279693Br (+132),originalgzipcapfails5199. Evidence d5de37760 pushed; no speed/memory claim.",
+    "er": "bcf5e6bad committed/pushed;20of30SVGs,8unsupported,2errors;tenNative/ELKexact;Trident466P117U28B2F;62ownersP,types/lint/buildP.60completecallsallP;ERcoldTri300.15ms worseNative201.88,ELK343.84;cachecostscloser;five-familyproductgzipTri430049,Native464948,ELK837772. Actualeditor1341432gzip capfails6932. Evidence checkpoint pushed; no generalratio/memorywin.",
+    "class": "a67632464 committed/pushed;16/30 before ER;Classcomplete60calls allP,4-familyactualbrowserallP;269owners+public1P, types/lint/buildsP;source and archive8afca58de plus493a6e695 images pushed. PR602 description refreshed with good-pr/anti-slop.",
+    "architecture": "fe911360151ebfd534799db7da8d0533931054ec committed/pushed; single-container body placement shares scope sizing/projection, actual service/icon/header minima and family routes. Initial53+focused8+final36+compound11 ownersP; types/lint/build/MCP2P. All874Nativevectors exact; finalcapturedleafcount34affectedcompoundvectors exact. EightNative/ELKproducts exact;fournewTri. Frozen30:24P4unsupported2errors;Trident518P65U28B2F. Editor1341338gzip/1281204Br capfails6838.",
+    "stage9": "Decision: retainELK. Trinity24/30 versus28/30 with4unsupported,2sharedinputerrors,broader workload and distribution budgets unqualified. No default/version/cap change or new acceptance gate.",
+    "stage10": "Deferred; noELKretirement. Whole roadmap incomplete.",
+    "test_maintenance": "Latesttestonlyhead repairs two stale Class/ER unsupported assertions. Reproduced2F;51RequirementownersP aftersandboxchildstdinretry;core/repo types/lintP. No runtimegainclaimed.",
+    "compound": {
+      "source": "680d01bc579fd4d1ef2b92bceb29fe4f54eb03b9",
+      "delivery": {
+        "before": 24,
+        "after": 26,
+        "unsupported": 2,
+        "sharedInputErrors": 2
+      },
+      "ledger": {
+        "passed": 549,
+        "unsupported": 34,
+        "blocked": 28,
+        "failed": 2
+      },
+      "reproducedBefore": true,
+      "nativeCompoundVectorsExact": 34,
+      "actualNewSVGInkNoFailedChecks": true,
+      "independentReview": "no actionable blocker",
+      "editorGzip": 1342789,
+      "editorBrotli": 1282069,
+      "gzipCapExcess": 8289,
+      "runtimeCostPending": false,
+      "sourcePushed": true,
+      "automationsRemainOff": true,
+      "completeTimedCalls": 120,
+      "allCompleteProductsPassed": true,
+      "browser": {
+        "productGzip": {
+          "elk": 856351,
+          "agentic": 484006,
+          "trinity": 476281
+        },
+        "productBrotli": {
+          "elk": 687142,
+          "agentic": 415061,
+          "trinity": 408058
+        },
+        "requests": {
+          "elk": 41,
+          "agentic": 47,
+          "trinity": 48
+        },
+        "inputs": 12,
+        "allLanesPassed": true,
+        "compressedWireMeasured": false
+      },
+      "familyConsumers": "231P withcanonical30000ms; prior221P10plainBun5000mstimeouts retained, no cap/test change",
+      "recoveryPending": false,
+      "communityCounterexample": {
+        "source": "Pele PR97 first source block",
+        "subjects": 8,
+        "edges": 8,
+        "trinity": "unsupported local cross-hierarchy visibility-expansion limit",
+        "native": "returned proofpassed",
+        "elk": "returned proofpassed",
+        "independentInk": "notqualified",
+        "addedToFrozen30": false
+      },
+      "evidence": "adc3fb10c9aa01fc304c1d4825d9efb5d7944d1d",
+      "visualEvidence": "b2d1377b215115bf2372d75f827e22df2dce69a1",
+      "archiveVerifiedFiles": 1236,
+      "archiveSha256": "fcafb59f5d2bacb685721a56c254ae4092b95eec93ac6464911344a81b40ca21",
+      "prDescriptionUpdated": true,
+      "ci": {
+        "head": "680d01bc579fd4d1ef2b92bceb29fe4f54eb03b9",
+        "run": 42540793178,
+        "status": "completed",
+        "conclusion": "failure",
+        "ready": false,
+        "unit1Failure": "Sparse32 only",
+        "unit2and3": "passed",
+        "browserAndPackageConsumers": "passed",
+        "otherFailures": [
+          "quality/lazy budgets",
+          "websitepayload",
+          "generated advisory"
+        ]
+      }
+    },
+    "labelled_compound_shaft": {
+      "source": "e928a1847ef773058f62e36122780a81fcd928f7",
+      "reportHead": "96d10ff9551f88178c4262acda5219e11926ccdf",
+      "reproducedBefore": true,
+      "supplementalNewDeliveryDirections": 4,
+      "frozenDelivery": 26,
+      "frozenDenominator": 30,
+      "primaryOwnersPassed": 213,
+      "nearbyOwnersPassed": 212,
+      "redBaseFailures": 4,
+      "allTenReturnedSVGInkNoFailedChecks": true,
+      "nativeCompoundVectorsExact": 33,
+      "nativeCompoundVectors": 34,
+      "nativeClassChanged": {
+        "beforeWire": 640,
+        "afterWire": 618,
+        "beforeBends": 12,
+        "afterBends": 6,
+        "area": 220248,
+        "proofPassed": true,
+        "actualBeforeAfterInkNoFailedChecks": true
+      },
+      "stoppedHypotheses": [
+        "direct-first insufficient",
+        "index2primary subtraction18371 units insufficient"
+      ],
+      "completeTimedAttempts": 60,
+      "returnedProofPassed": 52,
+      "nativeEditRefusals": 8,
+      "equalCompletedRefusedRatiosClaimed": false,
+      "editorGzip": 1342154,
+      "editorBrotli": 1281810,
+      "originalGzipCapExcess": 7654,
+      "browserProductGzip": {
+        "elk": 856357,
+        "agentic": 484084,
+        "trinity": 476359
+      },
+      "browserProductBrotli": {
+        "elk": 687192,
+        "agentic": 415174,
+        "trinity": 408179
+      },
+      "browserInputs": 12,
+      "sourceAndReportPushed": true,
+      "recoveryPending": false,
+      "independentReview": "No blocker after scancharge and original borderescape repair; baselineNativeTB/BTrefusals now reproduced unchanged.",
+      "directory": "trinity-community-ports-20261109",
+      "evidence": "c06e199f462b5e2b2241d395cfc2cc25469c1db5",
+      "visualEvidence": "4a1f62b068e4fbdb5018e84425c599e8eb303674",
+      "archiveMembersVerified": 1134,
+      "archiveSha256": "5222a5d756eaffbfd38b5a583d0283257a10d096a1c5c0c12336d71ddbbbb47d",
+      "originalNativeTB_BTRefusalsReproduced": true,
+      "prDescriptionUpdated": true
+    },
+    "class_scopes": {
+      "source": "4db8570d389246bb5f1eede8c5b1899fe6cd687e",
+      "reportHead": "a62cba6766f959dc6aad4709b138a5888906c9a1",
+      "beforeFrozenReturned": 26,
+      "frozenReturned": 27,
+      "frozenTotal": 30,
+      "unsupported": 1,
+      "sharedInputErrors": 2,
+      "ledger": {
+        "passed": 564,
+        "unsupported": 19,
+        "blocked": 28,
+        "failed": 2
+      },
+      "affectedClassProducts": 15,
+      "priorSVGExact": 14,
+      "newSVGReturnedProofPassed": 1,
+      "actualClassSVGObserversNoFailedChecks": 15,
+      "ownerTestsPassed": 156,
+      "redOldProducerFailures": 5,
+      "nearby": "79P5sandbox childstdinEPERM; targeted10P coverallfivefailedowners",
+      "typesLintBuilds": "passed",
+      "independentReview": "no blocker",
+      "completeTimedCalls": 60,
+      "allCompleteCallsReturnedProofPassed": true,
+      "repeatsAndRepeatedEditsExact": true,
+      "editorGzip": 1342694,
+      "editorBrotli": 1282743,
+      "gzipCapExcess": 8194,
+      "browserInputs": 13,
+      "browserProductGzip": {
+        "elk": 856327,
+        "agentic": 484054,
+        "trinity": 476329
+      },
+      "browserProductBrotli": {
+        "elk": 687180,
+        "agentic": 415162,
+        "trinity": 408167
+      },
+      "sourceAndReportPushed": true,
+      "directory": "trinity-class-scopes-20261109",
+      "recoveryPending": false,
+      "evidence": "b1b3a397155559016b1a15a912ab30648dd04a7b",
+      "visualEvidence": "196763ac987d368398615669cdcdb265873ce974",
+      "archiveMembersVerified": 1056,
+      "archiveSha256": "79ce515bd4a804b546a96ce0b11ccbe7b560db0f9b01db2ee7eba017ed846979",
+      "prDescriptionUpdated": true
+    },
+    "postdelivery_profile": {
+      "source": "d951d78360d45c0260779c8d63207dbe92a85c1b",
+      "reportHead": "7834513e894fadf61da913c699b3a94ed6f104d4",
+      "profileAttempts": 9,
+      "profileReturnedProofPassed": 8,
+      "nativeEditRefusals": 1,
+      "trinityProfileCallsAllComplete": 3,
+      "fiveHotspotsReported": true,
+      "completeABBAAttempts": 40,
+      "allABBAReturnedProofPassed": true,
+      "allWholeProductsExact": true,
+      "arrayDirectoryShipped": false,
+      "stopped": "Mixed/widewholecosts; inherited-descriptor observation reproducedin actualprivate router candidate, baselinepasses. No production/caches/caps changes.",
+      "directory": "trinity-postdelivery-profile-20261109",
+      "recoveryPending": true
+    }
+  },
+  "latest_checkpoint_at": "2026-11-08T18:07:51.384899+00:00",
+  "last_progress_at": "2026-11-09T01:52:56.801676+00:00",
+  "evidence_head": "1c3b34e5014a6487794a8fedec675137e47638d4",
+  "primary_evidence": "a7aa224e9cd6c580bfc0d43d16b6069c3c2b1fdd",
+  "automations_verified_off_at": "2026-11-08T23:48:05.457587+00:00",
+  "runtime_source": "4db8570d389246bb5f1eede8c5b1899fe6cd687e",
+  "final_comparison": {
+    "source": "21194248b21873a87fa72fa545f67cfd8b49dad4",
+    "runtimeSource": "fe911360151ebfd534799db7da8d0533931054ec",
+    "report": "final-comparison-20261108/COMPARISON.md",
+    "rawRuntimeRows": "final-comparison-20261108/COST-ROWS.json",
+    "review": "final-comparison-20261108/review.md",
+    "frozenDelivery": {
+      "elk": 28,
+      "agentic": 28,
+      "trinity": 24,
+      "total": 30
+    },
+    "completeTimedCalls": 300,
+    "profileCalls": 45,
+    "unsafeCeilingCalls": 40,
+    "newProductionPerformanceRewrite": false,
+    "adoption": "retain ELK",
+    "retirement": "deferred",
+    "fullRoadmapComplete": false,
+    "automationsRemainDisabled": true,
+    "leaseReleasedAt": "2026-11-08T23:48:05.457587+00:00",
+    "independentScopeReview": "No material blocker/arithmetic mismatch; no new tests/acquisition. Unknown workload/capacity/ink and adverse costs preserved.",
+    "evidence": "1f7dd5d5e6c92e975b0b0ac0eec59bf3f161ae96",
+    "remoteVerified": true,
+    "automaticGoalOutcome": "blocked",
+    "newQualificationOrRuntimeWorkInAutomaticContinuation": false
+  },
+  "goal_status": "active",
+  "latest_comparison": {
+    "source": "a62cba6766f959dc6aad4709b138a5888906c9a1",
+    "directory": "trinity-class-scopes-20261109",
+    "frozenDelivery": {
+      "elk": 28,
+      "agentic": 28,
+      "trinity": 27,
+      "total": 30
+    },
+    "trident": {
+      "trinity": {
+        "passed": 564,
+        "unsupported": 19,
+        "blocked": 28,
+        "failed": 2
+      }
+    },
+    "completeTimedCalls": 60,
+    "sampleScope": "OnefrozenClassnamespace/note/cardinalityinput,3backends,2cachesettings,2replicas. Earliermeasurementsbindtheirownrevisions; notpooledintocurrentratio.",
+    "newOwnGeometryCache": false,
+    "fullReplacementQualified": false,
+    "end": "2026-11-09T20:00:00Z",
+    "fullRoadmapComplete": false,
+    "runtimeSource": "4db8570d389246bb5f1eede8c5b1899fe6cd687e",
+    "supplementalDirectory": "trinity-community-ports-20261109",
+    "supplementalCompleteAttempts": 60,
+    "supplementalReturnedProofPassed": 52,
+    "supplementalNativeEditRefusals": 8
+  },
+  "controlled_image_cause": {
+    "source": "a62cba6766f959dc6aad4709b138a5888906c9a1",
+    "evidence": "trinity-class-scopes-checkpoint-20261109/evidence.tar.gz:trinity-class-scopes-20261109/next-controlled-image-review.md",
+    "nativeAndElk": "Returned/proofpassed placeholder; retainedactualTridentembedded-images checksfailed, noimageelement",
+    "trinity": "UnsupportedsemanticShape=image",
+    "gateOnlyHypothesis": "stopped; cannotmeetactualimagefidelity",
+    "next": "Reproduce shared omission; defineboundedsharedimagebody/captionmeasurementandactualinlineimageemissioncontract. Preserveexternalimagepolicy, framecontactgeometry, mutable/getter/CSS/definitions/ownershipisolation andallcaps.",
+    "runtimeChanged": false,
+    "opaqueEmissionAttempts": 10,
+    "opaqueEmissionAllRejectedByDefaultSecurity": true,
+    "decodeQualified": false,
+    "decision": "DeferactualPNGfidelity; no gate-only/opaque-content/security/proofshortcut. Separateexplicitsharedmediacontractneeded.",
+    "directory": "trinity-controlled-image-20261109"
+  }
+}
