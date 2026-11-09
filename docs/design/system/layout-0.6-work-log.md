@@ -1449,3 +1449,28 @@ the two duplicated license bodies each2→1. Old producer fails the owning notic
 test;13 scoped codec/notice owners, core/repo types, lint and actual editor build
 pass. Independent review finds no blocker. No runtime/cache/default/version/cap
 change or visible-correctness gain claimed. Evidence `trinity-editor-budget-20261109`.
+
+### Reconcile current metrics and historical contacts — 9 November
+
+At3f2c26bd860eadcfb48746eabb45801ab8e07c7a, complete frozen30 cost acquisition:
+360 serial Node24 processes,1248 timed attempts;1140 returned/P,96 invalid-option
+errors,12 Trinity image refusals. Original332SVGs exact,664returned repeat whole
+products exact,72edit pairs exact;664gzip/Brotli files size/hash/decoded bytes
+verified. This adds cost coverage, not a runtime speedup or new visible repair.
+Cold/first-target/cache/edit, memory limits, adverse cells and six geometry unknowns
+remain explicit. Evidence `trinity-frozen-costs-20261109`; source unchanged.
+
+Correct the stale blanket152/372/201/241 loss list. Committed3b737e930
+(evidence-era62d521) already repaired selected base201/241 heads and152 shaft.
+Current Bun/Node152/372 SVGs match; all four base cases return/P. Current152 SHA
+exactly matches retained repaired ink (183visible/0hidden);201 also binds its
+retained repaired fullSVG. New selected masks: 241 has257visible/0hidden;372 has122/0;
+all selected attenuation counts zero. These are finite-region requalifications,
+not new fixes or whole-diagram parity. Keep oversubscribed201+three invisible
+constraints as a separate historical variant requiring current qualification.
+
+A proposed shaft-preparation reuse has zero eligible duplicate preparations on
+these current paths; stop before implementation. Uncached positioning already
+uses fresh private geometry, so no lost borrowing shortcut was found. No cache,
+cap, default, version or runtime change. Refresh the maintained Trinity metric
+row scopes; current CI remains failed. Evidence `trinity-shared-contact-20261109`.
