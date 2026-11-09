@@ -1737,3 +1737,24 @@ mutation: SDK MermaidNode lacks imageWidth/imageHeight/imageConstraint. Existing
 full CodeMode consumer fails four type diagnostics. Regenerate the canonical
 declaration string and extend its existing typed-consumer fixture;6owners pass.
 No provenance assertion is relaxed; exact integrated CI remains pending.
+
+## ELK source-headed capacity — 9 November
+
+Parent `a8ce05aef637491ee4ab0faae9a95d24cf7d3ffc`: target-only demand
+omits start heads. Separate authored-end pressure from one canonical resource
+measurement; max both proposals from original body size. Actual all10source-head
+hidden pixels683→0 at3×;8ELKU→P/108cells,12mixed-circleU retained. NamedLR
+area283933→284277(+0.12%),wire3125→3040,bends20fixed.456owners/8files,
+core/repo types/lintP; frozen84products+6errors and100peerproducts exact are
+validation. Review catches inherited facts through sparse tuples; public converter
+reproducesRED. Own both slots, keep rejected source/timings and requalify4affected
+ELKcost processes. Final80measuredcalls/8real response streams decode exact.
+Uncached repeat2 wall102.53→123.20ms/CPU179.82→209.27ms is adverse; oldU/newP
+do different work, no ratio. Real13input lazy lanes and repaired sourceLR pass;
+all3+82gzip/+99Brbytes, requests fixed. No cache/cap/default/version change.
+
+ParentCI unit2now4308P/0F verifies SDK/provenance fix; unit1onlySparse32 fails,
+distribution/advisory failures remain. Astra rejects another compound comparator
+probe and the proposed rectangular-only Native halo gate: it cannot affect the
+circle→cylinder offending label. Remaining: those broader contacts/costs and
+sealed Replacement24. Evidence: `elk-source-head-capacity-20261109`.

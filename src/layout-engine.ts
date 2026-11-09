@@ -92,7 +92,7 @@ interface LayoutEngineOptions extends RenderOptions {
   compareRoutePreferences?: boolean
 }
 
-type MarkerPortDemand = { count: number; span: number }
+type MarkerPortDemand = readonly { count: number; span: number }[]
 type ElkConversionOptions = Required<Pick<RenderOptions, 'font' | 'padding' | 'nodeSpacing' | 'layerSpacing'>> &
   Pick<LayoutEngineOptions, 'preserveSubgraphChildOrder' | 'separateHierarchy' | 'disableCorankFanIn' | 'layoutHints' | 'nodeSizes' | 'preferModelOrder'> & { stateVisual?: ResolvedStateVisualConfig; markerPortExtents?: ReadonlyMap<string, MarkerPortDemand> }
 
@@ -415,27 +415,36 @@ function balancingElkLabel(dims: BalancingLabel): NonNullable<ElkExtendedEdge['l
  * resources overlapped. Actual returned dimensions remain the render authority;
  * this sizing proposal is not a replacement for final paint admission. */
 function elkMarkerPortExtents(graph: MermaidGraph, style: ResolvedRenderStyle): ReadonlyMap<string, MarkerPortDemand> {
-  const incoming = new Map<string, { count: number; span: number; known: boolean }>()
+  type Pressure = { count: number; span: number; known: boolean }
+  const ends = new Map<string, [Pressure?, Pressure?]>()
   for (let index = 0; index < graph.edges.length; index++) {
-    const edge = graph.edges[index]!, node = graph.nodes.get(edge.target)
-    if (!node || node.shape !== 'rectangle' || node.semanticShape || edge.style === 'invisible' || edge.source === edge.target) continue
-    const pressure = incoming.get(node.id) ?? { count: 0, span: 0, known: true }
-    pressure.count++
-    // This is a canonical normal-facing resource measurement, not a proposed
-    // rounded/cubic route. Retain the real resource and written width while
-    // avoiding the orientation-unknown radial veto used for actual curves.
+    const edge = graph.edges[index]!
+    if (edge.style === 'invisible' || edge.source === edge.target) continue
+    const source = graph.nodes.get(edge.source), target = graph.nodes.get(edge.target)
+    const sourceEligible = source?.shape === 'rectangle' && !source.semanticShape
+    const targetEligible = target?.shape === 'rectangle' && !target.semanticShape
+    if (!sourceEligible && !targetEligible) continue
+    // Both authored ends reuse the same canonical resource measurement.
     const multiple = edge.style === 'thick' ? 2 : 1
     const width = style.lineWidth * multiple
     const regions = Number.isFinite(width) && width > 0 ? graphEdgeMarkerPaintRegions({ ...edge, curve: undefined, points: [{ x: 0, y: 0 }, { x: 100, y: 0 }], inlineStyle: resolveEdgeInlineStyle(index, graph) }, { ...style, lineWidth: Number(formatSvgNumber(width)) / multiple, edgeBendRadius: 0 }) : undefined
-    const marker = regions?.find(region => region.position === 'end')
-    if (edge.hasArrowEnd && (!marker?.bounds || !Object.values(marker.bounds).every(Number.isFinite))) pressure.known = false
-    else if (marker?.bounds) pressure.span = Math.max(pressure.span, marker.bounds.y1 - marker.bounds.y0)
-    incoming.set(node.id, pressure)
+    for (let end = 0; end < 2; end++) {
+      if (end === 0 ? !sourceEligible : !targetEligible) continue
+      // Both slots are own values: inherited numeric properties are not demand.
+      const id = end === 0 ? edge.source : edge.target, pair = ends.get(id) ?? [undefined, undefined]
+      const pressure = pair[end] ?? { count: 0, span: 0, known: true }
+      pressure.count++
+      const marker = regions?.find(region => region.position === (end === 0 ? 'start' : 'end'))
+      if ((end === 0 ? edge.hasArrowStart : edge.hasArrowEnd) && (!marker?.bounds || !Object.values(marker.bounds).every(Number.isFinite))) pressure.known = false
+      else if (marker?.bounds) pressure.span = Math.max(pressure.span, marker.bounds.y1 - marker.bounds.y0)
+      pair[end] = pressure
+      ends.set(id, pair)
+    }
   }
   const minimums = new Map<string, MarkerPortDemand>()
-  for (const [id, pressure] of incoming) {
-    if (pressure.count < 2 || !pressure.known || pressure.span <= 0) continue
-    minimums.set(id, { count: pressure.count, span: pressure.span })
+  for (const [id, pair] of ends) {
+    const demands = pair.filter((pressure): pressure is Pressure => !!pressure && pressure.count >= 2 && pressure.known && pressure.span > 0)
+    if (demands.length) minimums.set(id, demands)
   }
   return minimums
 }
@@ -939,16 +948,20 @@ function elkPortSide(side: 'N' | 'E' | 'S' | 'W'): 'NORTH' | 'EAST' | 'SOUTH' | 
 function nodeToElkLeaf(id: string, node: MermaidNode, style: ResolvedRenderStyle, hints: RoutePortHints, direction: Direction = 'TB', stateVisual?: ResolvedStateVisualConfig, placementSize?: { width: number; height: number }, markerPortDemand?: MarkerPortDemand): ElkGraphNode {
   const size = placementSize ?? estimateNodeSize(id, resolveLabelContent(node.label, node.labelContent), node.shape, style, direction, stateVisual, node.labelBlock, node)
   const horizontal = direction === 'LR' || direction === 'RL'
-  let crossSize = horizontal ? size.height : size.width
+  const originalCrossSize = horizontal ? size.height : size.width
+  let crossSize = originalCrossSize
   if (!placementSize && markerPortDemand) {
-    const separation = Math.max(markerPortDemand.span, Math.min(style.cornerRadius ?? 0, (horizontal ? size.width : size.height) / 2))
-    // Already-separated nominal seats retain their exact measured dimensions.
-    // Only a crowded face receives a strict one-pixel separator proposal.
-    if (!(crossSize / (markerPortDemand.count + 1) > separation)) {
-      const extent = (markerPortDemand.count + 1) * (separation + 1)
-      if (Number.isFinite(extent) && extent > crossSize) crossSize = extent
+    for (const demand of markerPortDemand) {
+      const separation = Math.max(demand.span, Math.min(style.cornerRadius ?? 0, (horizontal ? size.width : size.height) / 2))
+      // Evaluate each end against the original body: one reservation must not
+      // suppress another crowded end's strict one-pixel separator proposal.
+      if (!(originalCrossSize / (demand.count + 1) > separation)) {
+        const extent = (demand.count + 1) * (separation + 1)
+        if (Number.isFinite(extent) && extent > crossSize) crossSize = extent
+      }
     }
   }
+
   const elkNode: ElkGraphNode = {
     id,
     width: horizontal ? size.width : crossSize,
