@@ -157,8 +157,8 @@ export function prepareMeasuredGraphCandidate(
       return undefined
     } : undefined
     let lead = 0, doubleDepth = 0, maximumStroke = 0, knownClearance = true
-    pay(0, 3 * nodes.length + 5)
-    const portSpans = new Float64Array(nodes.length), incoming = new Uint32Array(nodes.length), outgoing = new Uint32Array(nodes.length)
+    pay(0, 4 * nodes.length + 5)
+    const portSpans = new Float64Array(2 * nodes.length), incoming = new Uint32Array(nodes.length), outgoing = new Uint32Array(nodes.length)
     type MarkerRoom = { start: number; end: number; startSpan: number; endSpan: number; span: number; boundaryInset: number; boundaryHeight: number; boundaryCount: number; startPresent?: boolean; endPresent?: boolean }
     const footprints = new Map<string, MarkerRoom>()
     const numericWidth = (value: string | number): number | undefined => {
@@ -220,10 +220,11 @@ export function prepareMeasuredGraphCandidate(
         }
         const { start: startDepth, end: endDepth, span } = footprint
         if (marked) {
+          pay(4) // Retain source and target marker demand independently.
           lead = Math.max(lead, startDepth + VISIBLE_SHAFT + style.edgeBendRadius, endDepth + VISIBLE_SHAFT + style.edgeBendRadius, span)
           doubleDepth = Math.max(doubleDepth, startDepth + endDepth)
-          if (edge.hasArrowStart && source < nodes.length) portSpans[source] = Math.max(portSpans[source]!, span)
-          if (edge.hasArrowEnd && target < nodes.length) portSpans[target] = Math.max(portSpans[target]!, span)
+          if (edge.hasArrowStart && source < nodes.length) portSpans[2 * source] = Math.max(portSpans[2 * source]!, span)
+          if (edge.hasArrowEnd && target < nodes.length) portSpans[2 * target + 1] = Math.max(portSpans[2 * target + 1]!, span)
         }
       }
       if (edge.style !== 'invisible') {
@@ -305,12 +306,23 @@ export function prepareMeasuredGraphCandidate(
     if (portFaces && knownClearance) pay(0, 1)
     const minimumTerminalLead = lead + margin > Math.max(12, edgeSpacing) ? lead + margin : undefined
     for (let index = 0; !physical && index < nodes.length; index++) {
-      pay(6)
+      pay(12)
       const node = nodes[index]!, authored = graph.nodes.get(node.id)!, degree = Math.max(incoming[index]!, outgoing[index]!)
-      const pitch = portSpans[index]! + maximumStroke
-      if (degree < 2 || portSpans[index]! <= 8 || authored.shape !== 'rectangle' || authored.semanticShape || options.nodeSizes?.has(node.id)) continue
+      const sourceSpan = portSpans[2 * index]!, targetSpan = portSpans[2 * index + 1]!, span = Math.max(sourceSpan, targetSpan)
+      const pitch = span + maximumStroke
+      if (degree < 2 || span <= 0 || authored.shape !== 'rectangle' || authored.semanticShape || options.nodeSizes?.has(node.id)) continue
       const horizontal = (membership.get(node.id)?.direction ?? graph.direction) === 'LR' || (membership.get(node.id)?.direction ?? graph.direction) === 'RL'
-      const size = (degree - 1) * pitch, minimum = size <= 32 ? size * 1.5 : size + 16
+      // Ordinary heads need authored-end capacity before routing. Incoming
+      // markers must not borrow the degree of unrelated outgoing shafts.
+      // Preserve shared fans, roomy rectangles and fixed body dimensions.
+      let required = 0
+      if (span <= 8) {
+        pay(20)
+        if (shareCompleteFans) continue
+        required = Math.max(sourceSpan > 0 ? (outgoing[index]! + 1) * (sourceSpan + maximumStroke) : 0, targetSpan > 0 ? (incoming[index]! + 1) * (targetSpan + maximumStroke) : 0)
+        if ((horizontal ? node.height : node.width) >= required) continue
+      }
+      const size = (degree - 1) * pitch, minimum = span <= 8 ? required : size <= 32 ? size * 1.5 : size + 16
       if (!Number.isFinite(minimum)) bindings.unsupported('agentic marker spacing range')
       if (horizontal) node.height = Math.max(node.height, minimum)
       else node.width = Math.max(node.width, minimum)

@@ -1,5 +1,7 @@
 import { describe, expect, test } from 'bun:test'
 import { SaxesParser } from 'saxes'
+import { Resvg } from '@resvg/resvg-js'
+import { prepareResvgMarkerOrientation } from '../resvg-marker-orientation.ts'
 import { renderMermaidSVG, renderMermaidSVGWithReceipt } from '../index.ts'
 import { colorPixelBox, redPixel, renderSvgPixels } from './helpers/raster.ts'
 
@@ -16,6 +18,42 @@ function edgeEndpoints(svg: string): { startX: number; endX: number; y: number }
 }
 
 describe('raster-safe Flowchart endpoint markers', () => {
+  test.each([{ direction: 'LR', count: 10 }, ...['LR', 'RL', 'TB', 'BT'].map(direction => ({ direction, count: 16 }))])('keeps crowded labelled arrowheads distinct in $direction ($count)', ({ direction, count }) => {
+    const source = `flowchart ${direction}\nT[Target]\n` + Array.from({ length: count }, (_, index) => `s${index}[S${index}] -->|Message ${index}| T`).join('\n')
+    const result = renderMermaidSVGWithReceipt(source, { embedFontImport: false, graphLayout: { backend: 'agentic', fallback: 'none' } })
+    const carriers = [...result.svg.matchAll(/<polyline\b[^>]*\/>/g)].map(match => match[0]).filter(tag => tag.includes('data-to="T"'))
+    expect(carriers).toHaveLength(count)
+    const ends = carriers.map(tag => /points="([^"]+)"/.exec(tag)![1]!.trim().split(/\s+/).at(-1)!.split(',').map(Number))
+    const cross = direction === 'LR' || direction === 'RL' ? 1 : 0
+    const coordinates = ends.map(point => point[cross]!).sort((a, b) => a - b)
+    // Read the emitted marker viewport and stroke, independently of the
+    // producer's footprint or port certificate. Every target head needs room.
+    const marker = /<marker id="arrowhead"[^>]*markerHeight="([^"]+)"/.exec(result.svg)!
+    const shaft = Number(/stroke-width="([^"]+)"/.exec(carriers[0]!)![1])
+    for (let index = 1; index < coordinates.length; index++) expect(coordinates[index]! - coordinates[index - 1]!).toBeGreaterThan(Number(marker[1]) * shaft)
+
+    // Selected-pair subtraction checks actual painted ink as well as anchors.
+    // The other heads, shafts, labels and bodies remain in all four variants.
+    const selected = carriers[0]!, peer = carriers[1]!, strip = (tag: string) => tag.replace(/ marker-end="[^"]*"/, '')
+    const variants = [result.svg, result.svg.replace(selected, strip(selected)), result.svg.replace(peer, strip(peer)), result.svg.replace(selected, strip(selected)).replace(peer, strip(peer))]
+    const images = variants.map(svg => new Resvg(prepareResvgMarkerOrientation(svg), { background: '#ffffff', fitTo: { mode: 'zoom', value: 3 } }).render())
+    const a = ends[0]!, b = ends[1]!, pixels = images.map(image => image.pixels)
+    const delta = (first: Uint8Array, second: Uint8Array, offset: number) => Math.abs(first[offset]! - second[offset]!) + Math.abs(first[offset + 1]! - second[offset + 1]!) + Math.abs(first[offset + 2]! - second[offset + 2]!)
+    let exposed = 0, hidden = 0
+    for (let y = Math.floor((Math.min(a[1]!, b[1]!) - 12) * 3); y < Math.ceil((Math.max(a[1]!, b[1]!) + 12) * 3); y++) {
+      for (let x = Math.floor((Math.min(a[0]!, b[0]!) - 12) * 3); x < Math.ceil((Math.max(a[0]!, b[0]!) + 12) * 3); x++) {
+        const offset = (y * images[0]!.width + x) * 4
+        if (delta(pixels[2]!, pixels[3]!, offset) >= 6) {
+          exposed++
+          if (delta(pixels[0]!, pixels[1]!, offset) < 6) hidden++
+        }
+      }
+    }
+    expect(exposed).toBeGreaterThan(100)
+    expect(hidden).toBe(0)
+    expect(result.receipt.layoutCertification?.status).toBe('passed')
+  })
+
   test.each(['agentic', 'elk'] as const)('%s retains distinct source markers beside formatted Unicode labels', backend => {
     for (const start of ['o', 'x'] as const) {
       const source = `flowchart LR\nA["<b>Read</b> 界 é"] ${start}-->|queue 界| B[Store]\nlinkStyle 0 stroke:#ff0000,stroke-width:2px`
