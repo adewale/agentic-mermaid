@@ -5,6 +5,9 @@ Status: bounded Trinity rectangular Flowchart/State including nested scopes, can
 entry points share the real adapter and decision evidence. Routed admission is
 64subjects/128edges with measured rectangular, closed-scope diamond or fixed singleton-circle contacts. Diamond shafts use the shape owner's exact facets; marked diamond ends require singleton cardinal seating. Their joined stroke support bounds packing, foreign-body and caption clearance. Diamond-containing compound requests require every edge to join sibling leaves, without frame endpoints or boundary artwork; no lifted edge may enter the box-only boundary router. Loops and marked multiport faces remain unsupported. Nested Flowchart/State reuse scope lifting and boundary routing, with Trinity local solves, fixed child frames and retained permitted leaf growth. Unsupported shapes, styled/ordered scopes,
 route paint, State notes/other pseudostates and other families decline unless ELK fallback was requested. The
+explicitly sized rectangular inline PNG slice shares picture/caption measurement
+and actual image emission with Native/ELK. Raster paint remains unmeasured/U;
+viewport geometry grants no pixel proof. Remote/unsupported media stays inert. The
 private placement-only forest slice reuses the existing body producer up to
 existing4096node/16384edge limits. Compound/family migration and adoption remain
 unfinished. Defaults, limits and package versions are
@@ -233,14 +236,16 @@ changes to investigate/implement in the short execution plan, not completed work
 ## Metrics and comparison contract
 
 Trinity now has bounded public Requirement, Flowchart/State, Class/ER and single-container Architecture delivery.
-The frozen 30-case comparison returns 27 SVGs with passed certification through
-Trinity, versus 28 through Native/ELK; Trinity retains one unsupported case and
-the same two input errors. Authored meaning, actual written ink, receipt proof
+At `a8ce05aef`, the frozen30 comparison returns28SVGs through each backend:
+27proof-passed and1raster-unverified, with2shared invalid-option errors. The
+controlled image now emits its authored PNG through all3solvers; it no longer
+counts as Trinity unsupported or a vector placeholder with passing proof. Authored meaning, actual written ink, receipt proof
 and layout quality remain separate. Class scopes reuse family-owned note and
 cardinality completion; interfaces, custom paint and broader capacity remain
-unsupported or unqualified. Controlled Flowchart images remain the frozen loss.
+unsupported or unqualified. A finite frozen cohort does not establish replacement
+coverage for the whole intended workload.
 
-The existing collector has measured 120 complete Flowchart/Requirement SVG+receipt
+The dated collector measured120complete Flowchart/Requirement SVG+receipt
 calls at `bbab8283d`, with cold/cache/edit and memory kept separate. Two cases
 and two replicas establish no general ratio or memory superiority. Actual
 three-family lazy delivery is smaller for Trinity than ELK; the full editor
@@ -259,10 +264,10 @@ No percentage speedup, byte budget or new pass threshold is invented here.
 
 | Key metric | Measure / boundary | Qualified evidence and interpretation |
 | --- | --- | --- |
-| Delivery and authored correctness | Returned, refused, unsupported and erroneous products; retained identities, parents, endpoints, direction, labels and required family features on the same inputs. | At 3f2c26bd8, frozen30 original inputs: ELK28 returned/proof-passed, Native28, Trinity27. Two shared invalid fontSize API inputs remain errors. Trinity declines the controlled image; Native/ELK return placeholders whose actual-image criterion fails. Return/proof counts are not complete correctness. |
+| Delivery and authored correctness | Returned, refused, unsupported and erroneous products; retained identities, parents, endpoints, direction, labels and required family features on the same inputs. | At a8ce05aef, frozen30 original inputs: all3backends28returned,27proof-passed/1raster-unverified,2shared invalid fontSize API errors. Actual sized inline PNG delivery replaces the Native/ELK placeholder and Trinity refusal. Return/proof counts remain distinct from authored correctness. |
 | Actual visible correctness | Independently observed missing/overlapping/clipped ink, node/marker/label attachment and route ownership on finalSVG. Keep unknowns separate. | Base Native152/201/241 selected ink losses were already repaired by committed measured-support/shortening work; current 152/372/201/241 all return/P and selected marginal-ink checks are clear. This is requalification, not new repairs or whole-diagram parity. The separate201+three invisible constraints case is reproduced: Native/ELK return/U; treating invisible peers as zero paint demand repairs Native LR/RL while keeping topology and body sizes. All30 selected directed head-pair raster checks become clear; TB/BT retain a separate head/label-halo warning. Trident 613 criteria: ELK575P/6U/29blocked/3failed; Native576/6/28/3; Trinity564/19/28/2. |
-| Execution cost | Backend-only solve on identical measured input **and** complete public SVG+receipt consumption. Separate import/first use, uncached repeat, cache hit, authored edit and churn. | Current frozen30 cost coverage:360 serial fresh Node24 processes,1248 timed attempts,1140 returned/P,96 invalid-input errors,12 Trinity image refusals. Literal preludes and original edits remain; preconditioned first-target is not cold startup. Costs are mixed: cached Flowchart repeat/edit ELK5.24/15.26ms versus Trinity7.43/31.09. Two replicas/cell; no general ratio or p95. |
-| Memory | Peak worker RSS, API-return/after-GC heap, allocation and retention after the same released/retained workload. Record baseline, expanded vertices, points, scratch and copies separately when profiling. | Portable Flowchart cache0 source-process lifetime RSS ranges: ELK180.7–186.8MiB, Native167.4–168.6, Trinity167.5–183.4. Driver/import/inspector/artifact work contributes. Heap snapshots and older1000-call diagnostics do not establish peak allocation, settled retention, leak behavior or broad memory superiority. |
+| Execution cost | Backend-only solve on identical measured input **and** complete public SVG+receipt consumption. Separate import/first use, uncached repeat, cache hit, authored edit and churn. | Dated pre-image frozen30 costs:360serial fresh Node24 processes,1248timed attempts,1140 returned/P,96 invalid-input errors,12 Trinity image refusals. Literal preludes and original edits remain; preconditioned first-target is not cold startup. Costs are mixed: cached Flowchart repeat/edit ELK5.24/15.26ms versus Trinity7.43/31.09. Two replicas/cell; no general ratio or p95. |
+| Memory | Peak worker RSS, API-return/after-GC heap, allocation and retention after the same released/retained workload. Record baseline, expanded vertices, points, scratch and copies separately when profiling. | Dated portable Flowchart cache0 source-process lifetime RSS ranges: ELK180.7–186.8MiB, Native167.4–168.6, Trinity167.5–183.4. Driver/import/inspector/artifact work contributes. Heap snapshots and older1000-call diagnostics do not establish peak allocation, settled retention, leak behavior or broad memory superiority. |
 | Download and delivery | Actual requested kernel/family/entry union, raw/gzip9/Brotli11 bytes and request count; include binding, host, worker and fallback demands separately. | Shared-containment milestone after39135ac82: observed13-input lazy product gzip858356/486533/479820 and Brotli688758/417134/411067 for ELK/Native/Trinity; requests43/49/50 including binding. This adds24gzip/6Br bytes per lane versus39135ac82 with no request increase. Relative to3d159ad7, gzip grows647/1040/1907bytes and each lane adds two requests. Raw serving/offline compression is not compressed-wire/startup measurement. Exact9ec32417 CI standalone gzip1335329 exceeds original1334500 cap by829. It renders/verifies; the payload check fails. No fresh standalone build for the containment fix. |
 | Output size | Final SVG/receipt raw and compressed bytes, plus retained emitted/prepared data. | Actual complete Flowchart SVG+receipt JSON gzip/Br bytes: ELK2282/1956, Native2286/1959, Trinity2292/1963. Several alternative response sizes are adverse. Retained byte streams are distinct from renderer download and standalone HTML. |
 | Quality and edit stability | Area, wire, bends, crossings, aspect ratio, label conflicts, symmetry and displacement separately; actual viewport/task remains relevant. | Current supplemental fan-in TB: Trinity29 versus ELK13 crossings, with area293974 versus509479. Historical fixed-main Native forest wire397.71 versus396.47/area−6.43%, Class2 area65400 versus61400 and crossing 276: 6 versus 4 retain their recorded scope; Sparse256 implemented historical area gap is+5.04%. No scalar score erases losses. |
@@ -280,6 +285,14 @@ retain all data, definitions and limitations. Calibration belongs to the existin
 protocol and confidence of each result, not a new assistant-created acceptance
 threshold. Per-lane A/A controls do not by themselves estimate a backend effect;
 p95 of adaptive batch means is not individual-call p95. No unequal-work speed ratio.
+
+Current ordinary fan repairs also separate capacity from proof: Native ten-target
+head hidden contribution620→0pixels and ELK ten-source head683→0 at3×. The
+new pressure bookkeeping owns both endpoint slots; inherited array properties
+cannot become demand. Each end proposes against the original body extent before
+taking the maximum. Authored ends are not general post-cycle physical sides.
+The work log and PR602 retain supplemental outcomes, adverse costs and exact
+recovery revisions; no frozen ledger is silently promoted to a new source.
 
 A backend-specific improvement and a shared renderer improvement are different
 claims. XML/capture work, option isolation and Scene ownership can benefit ELK too.

@@ -18,23 +18,23 @@ function edgeEndpoints(svg: string): { startX: number; endX: number; y: number }
 }
 
 describe('raster-safe Flowchart endpoint markers', () => {
-  test.each([{ direction: 'LR', count: 10 }, ...['LR', 'RL', 'TB', 'BT'].map(direction => ({ direction, count: 16 }))])('keeps crowded labelled arrowheads distinct in $direction ($count)', ({ direction, count }) => {
-    const source = `flowchart ${direction}\nT[Target]\n` + Array.from({ length: count }, (_, index) => `s${index}[S${index}] -->|Message ${index}| T`).join('\n')
-    const result = renderMermaidSVGWithReceipt(source, { embedFontImport: false, graphLayout: { backend: 'agentic', fallback: 'none' } })
-    const carriers = [...result.svg.matchAll(/<polyline\b[^>]*\/>/g)].map(match => match[0]).filter(tag => tag.includes('data-to="T"'))
+  test.each(([{ backend: 'agentic', end: 'end' }, { backend: 'elk', end: 'start' }] as const).flatMap(lane => [{ ...lane, direction: 'LR', count: 10 }, ...['LR', 'RL', 'TB', 'BT'].map(direction => ({ ...lane, direction, count: 16 }))]))('$backend keeps crowded $end labelled arrowheads distinct in $direction ($count)', ({ backend, end, direction, count }) => {
+    const source = `flowchart ${direction}\nT[Target]\n` + Array.from({ length: count }, (_, index) => end === 'start' ? `T <-- Message ${index} --- s${index}[S${index}]` : `s${index}[S${index}] -->|Message ${index}| T`).join('\n')
+    const result = renderMermaidSVGWithReceipt(source, { embedFontImport: false, graphLayout: { backend, fallback: 'none' } })
+    const carriers = [...result.svg.matchAll(/<polyline\b[^>]*\/>/g)].map(match => match[0]).filter(tag => tag.includes(end === 'start' ? 'data-from="T"' : 'data-to="T"'))
     expect(carriers).toHaveLength(count)
-    const ends = carriers.map(tag => /points="([^"]+)"/.exec(tag)![1]!.trim().split(/\s+/).at(-1)!.split(',').map(Number))
+    const ends = carriers.map(tag => /points="([^"]+)"/.exec(tag)![1]!.trim().split(/\s+/).at(end === 'start' ? 0 : -1)!.split(',').map(Number))
     const cross = direction === 'LR' || direction === 'RL' ? 1 : 0
     const coordinates = ends.map(point => point[cross]!).sort((a, b) => a - b)
     // Read the emitted marker viewport and stroke, independently of the
     // producer's footprint or port certificate. Every target head needs room.
-    const marker = /<marker id="arrowhead"[^>]*markerHeight="([^"]+)"/.exec(result.svg)!
+    const marker = new RegExp(`<marker id="${end === 'start' ? 'arrowhead-start' : 'arrowhead'}"[^>]*markerHeight="([^"]+)"`).exec(result.svg)!
     const shaft = Number(/stroke-width="([^"]+)"/.exec(carriers[0]!)![1])
     for (let index = 1; index < coordinates.length; index++) expect(coordinates[index]! - coordinates[index - 1]!).toBeGreaterThan(Number(marker[1]) * shaft)
 
     // Selected-pair subtraction checks actual painted ink as well as anchors.
     // The other heads, shafts, labels and bodies remain in all four variants.
-    const selected = carriers[0]!, peer = carriers[1]!, strip = (tag: string) => tag.replace(/ marker-end="[^"]*"/, '')
+    const selected = carriers[0]!, peer = carriers[1]!, strip = (tag: string) => tag.replace(new RegExp(` marker-${end}="[^"]*"`), '')
     const variants = [result.svg, result.svg.replace(selected, strip(selected)), result.svg.replace(peer, strip(peer)), result.svg.replace(selected, strip(selected)).replace(peer, strip(peer))]
     const images = variants.map(svg => new Resvg(prepareResvgMarkerOrientation(svg), { background: '#ffffff', fitTo: { mode: 'zoom', value: 3 } }).render())
     const a = ends[0]!, b = ends[1]!, pixels = images.map(image => image.pixels)
