@@ -234,6 +234,33 @@ test('coalesced SVG consumers retain text, source, ownership and one default bac
   })
 })
 
+test('a loaded image consumer preserves viewport and caption math through the coalesced measurement module', async () => {
+  const measurement = JSON.stringify(join(root, 'src/layout/graph-measurement.ts'))
+  const image = JSON.stringify(join(root, 'src/flowchart-image.ts'))
+  const entry = fixture('image-provider/entry.ts', `export { groupHeaderHeight } from ${measurement}; export const load = () => import('./image.ts'); export const other = () => import('./other.ts');`)
+  fixture('image-provider/image.ts', `
+    import { imageDimension, flowchartImageViewport, flowchartImageContent } from ${image};
+    export function run() {
+      const viewport = flowchartImageViewport({ shape: 'rectangle', image: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGP4z8DwHwAFAAH/iZk9HQAAAABJRU5ErkJggg==', imageWidth: 32, imageHeight: 48 });
+      return [imageDimension('32'), imageDimension(true), viewport, flowchartImageContent(viewport, {width:40,height:16}, {nodePaddingX:20,nodePaddingY:10})];
+    }
+  `)
+  fixture('image-provider/other.ts', `export { imageDimension } from ${image};`)
+  const result = await build({
+    absWorkingDir: temporary, entryPoints: [entry], outdir: join(temporary, 'image-provider/output'),
+    bundle: true, format: 'esm', platform: 'node', splitting: true, write: false, metafile: true,
+    plugins: [runtimeRenderContractPlugin({ coalesceRuntimePrimitives: true })],
+  })
+  const outputs = result.metafile!.outputs
+  const entryOutput = Object.keys(outputs).find(path => outputs[path]!.entryPoint && resolve(temporary, outputs[path]!.entryPoint!) === entry)!
+  for (const file of result.outputFiles!) {
+    mkdirSync(dirname(file.path), { recursive: true })
+    writeFileSync(file.path, file.contents)
+  }
+  const consumer = await import(pathToFileURL(resolve(temporary, entryOutput)).href)
+  expect((await consumer.load()).run()).toEqual([32, undefined, {width:32,height:48,fit:'contain'}, {width:80,height:94,contentHeight:74,labelOffset:66,captionOffset:29}])
+})
+
 test('a loaded backend shares lane and bounds primitives without another provider request', async () => {
   const backend = JSON.stringify(join(root, 'src/layout/backend.ts'))
   const lanes = JSON.stringify(join(root, 'src/shared/node-lane-index.ts'))

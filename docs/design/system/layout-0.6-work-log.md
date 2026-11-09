@@ -1679,3 +1679,26 @@ image browser lanes pass. Distribution failures remain unraised; preceding exact
 head CI fails. Evidence: `trinity-controlled-image-20261109`. Remaining: raster
 proof, Sparse32, Native halo/compound and Trinity compound crossings/costs. Next
 choose a sufficient demonstrated deficit; do not replay the roster as progress.
+
+## Remove the image helper's extra lazy request — 9 November
+
+At parent `e387064d03db1b3e909d9e114aa8aae8dd040d01`, image layout adds an
+801-byte helper chunk. Reuse its existing measurement module in the private lazy
+build, with canonical PNG binding and guarded import/declaration handling. Runtime
+math and Source/Node/IIFE paths stay unchanged; no cache, cap or default change.
+Actual13-input Trident requests E/N/T44/50/51→43/49/50; gzip−181/−163/−191,
+Brotli−44/−67/−66 bytes. Image browser lanes also pass. Initial requests/raw/Brotli
+stay fixed, but gzip+2 is adverse. Sequence-only keeps15 requests, gzip−2 but
+Brotli+22. No latency, memory or visible gain follows.
+
+60 actual Chromium SVG+entire receipt products (12unique) stay exact across both
+load orders and interleaved edits/repeats, all3backends.18 owning build checks,
+repository types and lint pass; independent review finds no blocker. The new math
+owner passes both arms; actual browser data establishes the request reduction.
+Trial costs, sandbox failures and recovered output overlap remain evidence, not
+progress. Preceding exact-head CI still fails standalone1337862/1334500 and demo
+315349/302500 gzip budgets. Evidence: `trinity-image-delivery-cost-20261109`.
+Stopped compound-order cause: frame slot reassignment leaves all8 real reserved
+label cores unchanged; final leaf seats are generated later. No new solver phase
+or replay of the failed source-order/stub hypotheses. Sparse32 and broader losses
+remain. Next require a new sufficient producer-owned subtraction before rewriting.

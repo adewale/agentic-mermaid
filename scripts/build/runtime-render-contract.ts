@@ -92,8 +92,8 @@ interface BrowserBuild {
 
 /** Inline only canonical declaration leaves; runtime imports or initialization
  * statements need an explicit owner instead of silently widening a host. */
-function runtimeDeclarations(path: string, names: readonly string[], localTypeImport?: string): string {
-  const file = ts.createSourceFile(path, readFileSync(path, 'utf8'), ts.ScriptTarget.Latest, true, ts.ScriptKind.TS)
+function runtimeDeclarations(path: string, names: readonly string[], localTypeImport?: string, source = readFileSync(path, 'utf8')): string {
+  const file = ts.createSourceFile(path, source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS)
   const statements = file.statements.filter(statement => {
     if (!ts.isImportDeclaration(statement)) return true
     if (!statement.importClause?.isTypeOnly || !ts.isStringLiteral(statement.moduleSpecifier)) throw new Error(`Unexpected runtime leaf import: ${path}`)
@@ -379,6 +379,19 @@ export function runtimeRenderContractPlugin({ schemaDocumentation = true, termin
           resolve(args.resolveDir, args.path) === admission ? { path: sourceAdmission } : undefined)
       }
       if (coalesceRuntimePrimitives) {
+        const graphMeasurementPath = fileURLToPath(new URL('../../src/layout/graph-measurement.ts', import.meta.url))
+        const imagePath = resolve(dirname(graphMeasurementPath), '../flowchart-image.ts')
+        build.onResolve({ filter: /[\\/]flowchart-image\.ts$/ }, args => resolve(args.resolveDir, args.path) === imagePath ? { path: graphMeasurementPath } : undefined)
+        build.onLoad({ filter: /[\\/]src[\\/]layout[\\/]graph-measurement\.ts$/ }, ({ path }) => {
+          if (path !== graphMeasurementPath) return undefined
+          const measurement = withoutRuntimeImport(readFileSync(path, 'utf8'), path, '../flowchart-image.ts', ['flowchartImageViewport', 'flowchartImageContent'])
+          const image = withoutRuntimeImport(readFileSync(imagePath, 'utf8'), imagePath, './shared/inline-png.ts', ['isInlinePng'])
+          const declarations = runtimeDeclarations(imagePath, ['ImageNode', 'imageDimension', 'flowchartImageViewport', 'flowchartImageContent'], undefined, image)
+          return {
+            contents: `${measurement}\nimport { isInlinePng } from ${JSON.stringify(resolve(dirname(imagePath), 'shared/inline-png.ts'))}\n${declarations}`,
+            loader: 'ts', resolveDir: dirname(path),
+          }
+        })
         const markerBoundsPath = fileURLToPath(new URL('../../src/scene/bounds.ts', import.meta.url))
         const markerTerminalsPath = resolve(dirname(markerBoundsPath), 'marker-terminals.ts')
         build.onResolve({ filter: /[\\/]marker-terminals\.ts$/ }, args => resolve(args.resolveDir, args.path) === markerTerminalsPath ? { path: markerBoundsPath } : undefined)
