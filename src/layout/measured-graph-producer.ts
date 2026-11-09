@@ -31,7 +31,8 @@ export function prepareMeasuredGraphCandidate(
     for (const node of graph.nodes.values()) {
       if (node.shape === 'diamond') diamondContacts = true
       const pseudo = node.shape === 'state-start' || node.shape === 'state-end'
-      if (node.semanticShape && !(node.semanticShape === 'image' && flowchartImageViewport(node)) || node.shape !== 'rectangle' && node.shape !== 'rounded' && node.shape !== 'diamond' && !pseudo) bindings.unsupported('only measured rectangular, rounded, diamond and State circle contacts are supported')
+      if (node.semanticShape && !(node.semanticShape === 'image' && flowchartImageViewport(node)) || node.shape !== 'rectangle' && node.shape !== 'rounded' && node.shape !== 'diamond' && node.shape !== 'circle' && !pseudo) bindings.unsupported('only measured rectangular, rounded, diamond and fixed circle contacts are supported')
+      if (node.shape === 'circle' && graph.subgraphs.length) bindings.unsupported('ordinary circle contacts require a flat measured graph')
       if (pseudo && (node.label || node.labelContent || node.labelBlock?.text || node.icon || node.image)) bindings.unsupported('labelled and media pseudostates are outside the fixed circle slice')
     }
     if (graph.edges.some(edge => edge.curve !== undefined)) bindings.unsupported('authored curve paint is outside the orthogonal measured slice')
@@ -275,13 +276,13 @@ export function prepareMeasuredGraphCandidate(
           node.sizePolicy = options.nodeSizes?.has(id) ? 'fixed' : 'minimum'
           continue
         }
-        if (authored.shape === 'state-start' || authored.shape === 'state-end') {
+        if (authored.shape === 'circle' || authored.shape === 'state-start' || authored.shape === 'state-end') {
           pay(32, 32)
-          const outline = shapeOutline({ ...authored, ...node, x: 0, y: 0 }, { fill: 'var(--_node-fill)', stroke: 'var(--_node-stroke)', strokeWidth: String(width) }, style.cornerRadius)
+          const outline = shapeOutline({ ...authored, ...node, x: 0, y: 0 }, { fill: authored.shape === 'circle' ? inline?.fill ?? 'var(--_node-fill)' : 'var(--_node-fill)', stroke: authored.shape === 'circle' ? inline?.stroke ?? 'var(--_node-stroke)' : 'var(--_node-stroke)', strokeWidth: String(width) }, style.cornerRadius)
           const boundary = outline.routing
-          if (boundary.kind !== 'ellipse' || boundary.cx !== node.width / 2 || boundary.cy !== node.height / 2) bindings.unsupported('pseudostate needs a centered ellipse boundary')
+          if (boundary.kind !== 'ellipse' || boundary.cx !== node.width / 2 || boundary.cy !== node.height / 2) bindings.unsupported('circle needs a centered ellipse boundary')
           const stroke = Math.max(...(outline.childPaints ?? [outline.paint]).map(paint => paint.stroke === 'none' ? 0 : numericWidth(paint.strokeWidth ?? width) ?? NaN))
-          if (!Number.isFinite(stroke)) bindings.unsupported('pseudostate paint needs an absolute stroke measurement')
+          if (!Number.isFinite(stroke)) bindings.unsupported('circle paint needs an absolute stroke measurement')
           node.contact = 'ellipse'
           node.contactEllipse = { rx: boundary.rx, ry: boundary.ry }
           node.paintStrokeWidth = stroke
