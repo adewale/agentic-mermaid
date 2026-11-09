@@ -1,0 +1,182 @@
+[
+  {
+    "path": "trinity-editor-budget-20261109/ACTUAL-BYTE-QUALIFICATION.json",
+    "bytes": 3453,
+    "sha256": "7a2e9041ed4b18981d7012d971c4a63c86bdf5790818de90381e4ee596a9491a"
+  },
+  {
+    "path": "trinity-editor-budget-20261109/NOTICE-CEILING.json",
+    "bytes": 1716,
+    "sha256": "3497cff4aa3090029f48751e9976ccf441d5e9bc6a23a856df7d566854928697"
+  },
+  {
+    "path": "trinity-editor-budget-20261109/NOTICE-RED-STATUS.txt",
+    "bytes": 2,
+    "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865"
+  },
+  {
+    "path": "trinity-editor-budget-20261109/README.md",
+    "bytes": 6075,
+    "sha256": "b3444214d00ca1e92f7a0e248b814951b7ef2a9f04d03fc4e21ed075001924fe"
+  },
+  {
+    "path": "trinity-editor-budget-20261109/bundle-cause.md",
+    "bytes": 7765,
+    "sha256": "7be4b9a2052f1022418e04a4cb5c7ea79cfd792b83baf9ce120e29a03d7fe351"
+  },
+  {
+    "path": "trinity-editor-budget-20261109/candidate-standalone-worker-payload.ts",
+    "bytes": 14827,
+    "sha256": "4d493eee2a393e076dcdfc3797eeddbffef30b0c9ca2377bebf685ca89016580"
+  },
+  {
+    "path": "trinity-editor-budget-20261109/editor-build/BUILD-STATUS.json",
+    "bytes": 289,
+    "sha256": "eb578568db182fef31043e36561f59a50e140403eb5f2a9e7a2a411fe3f28583"
+  },
+  {
+    "path": "trinity-editor-budget-20261109/editor-build/CANONICAL-COMPRESSION.json",
+    "bytes": 412,
+    "sha256": "9f2b27494cda19c3fea61e20d26c5aed899c9a68bf28e2db3b94482804873995"
+  },
+  {
+    "path": "trinity-editor-budget-20261109/editor-build/CANONICAL-FILES.json",
+    "bytes": 1137,
+    "sha256": "3b6d094eb30293136fa2236d7a70fa397bb7186a667f98bd892fb7b34d8ab983"
+  },
+  {
+    "path": "trinity-editor-budget-20261109/editor-build/after-metafile.json",
+    "bytes": 578479,
+    "sha256": "fb9b9a00282275b1771624d6e4ead1e44f74496540f620e472056646ae50df78"
+  },
+  {
+    "path": "trinity-editor-budget-20261109/editor-build/after-production.html.gz",
+    "bytes": 1312703,
+    "sha256": "c10a5e1c73c8961449efc3c596c89920ed19b08b5a2b1aa4c496de6aeffb408b"
+  },
+  {
+    "path": "trinity-editor-budget-20261109/editor-build/after.canonical.br",
+    "bytes": 1281956,
+    "sha256": "78a650a39b388f2b97588a0145dc2f28ca105d7f724440f30055da8725c1c4d5"
+  },
+  {
+    "path": "trinity-editor-budget-20261109/editor-build/after.canonical.gz",
+    "bytes": 1338451,
+    "sha256": "f737bf4d2bab1157e27e55c532b4486b6a73a9653fd08dbef39f9caac89aa299"
+  },
+  {
+    "path": "trinity-editor-budget-20261109/editor-build/before.canonical.br",
+    "bytes": 1282743,
+    "sha256": "a3194f0a6443d3b56f4df7f46864baa5cce0c180cd5e3802862de9e0f0417896"
+  },
+  {
+    "path": "trinity-editor-budget-20261109/editor-build/before.canonical.gz",
+    "bytes": 1342694,
+    "sha256": "295b595900056c5fb2a0cba36ae12d2a53612221470a17da5223e69fcc2915ac"
+  },
+  {
+    "path": "trinity-editor-budget-20261109/editor-build/build-status.log",
+    "bytes": 273,
+    "sha256": "6436c370f6dca493b532a44943ffb778016a7e68e9dfb91d83db704d9bb26d5c"
+  },
+  {
+    "path": "trinity-editor-budget-20261109/editor-build/build.py",
+    "bytes": 1433,
+    "sha256": "3c4fff16d6c9597c78d885eb83c5e1a99962524c03441be3ca448520664125e5"
+  },
+  {
+    "path": "trinity-editor-budget-20261109/editor-build/compress.log",
+    "bytes": 385,
+    "sha256": "5ca4e1990e9684598c4f1ed51bcf64d8b588dc878bd643af95e920e9a7e45014"
+  },
+  {
+    "path": "trinity-editor-budget-20261109/editor-build/compress.ts",
+    "bytes": 740,
+    "sha256": "3b2f26e557f4c81d914ec81257952f73beadfdee30c5639bfb84f2377c4edde1"
+  },
+  {
+    "path": "trinity-editor-budget-20261109/editor-build/production-build.log",
+    "bytes": 101,
+    "sha256": "d2d9bbca335c47d5aba866075847aa1b8f6233282f59dfd9f8a864d9d51171fc"
+  },
+  {
+    "path": "trinity-editor-budget-20261109/editor-build/retain-canonical.log",
+    "bytes": 260,
+    "sha256": "9c21181acdda1a78c70b47f99262ddb7ae02ceb5fda78ef2065114aca03a4f50"
+  },
+  {
+    "path": "trinity-editor-budget-20261109/editor-build/retain-canonical.ts",
+    "bytes": 1112,
+    "sha256": "4b57f91b1bae87312ee0b945239dd420e810c3f34ead87abc1d83a3be314a4b9"
+  },
+  {
+    "path": "trinity-editor-budget-20261109/lint.log",
+    "bytes": 80,
+    "sha256": "57ca83f1fe984463a54ac30d534583cb0c17f5a52b6e7f94378821beb8b07cf9"
+  },
+  {
+    "path": "trinity-editor-budget-20261109/notice-ceiling-after.html",
+    "bytes": 2111449,
+    "sha256": "cfd3a265ad20e0df11ea6aa82537992aa2a2e4717de118ea94ffaa678fb38eca"
+  },
+  {
+    "path": "trinity-editor-budget-20261109/notice-ceiling-after.html.br",
+    "bytes": 1281945,
+    "sha256": "6da686e91413541a34e639b7ece582c30d64826951b6ce9309bb85ea011d5c45"
+  },
+  {
+    "path": "trinity-editor-budget-20261109/notice-ceiling-after.html.gz",
+    "bytes": 1338454,
+    "sha256": "acd5e0f78830dadaa5c303a29b490b50e76888a8ebc6c2e161b20186539789e2"
+  },
+  {
+    "path": "trinity-editor-budget-20261109/notice-ceiling-before.html",
+    "bytes": 2124144,
+    "sha256": "a71755738e3fa31aa1d0531d2a8dd59af819d2474bbec4aa5c5238c9b6512634"
+  },
+  {
+    "path": "trinity-editor-budget-20261109/notice-ceiling-before.html.br",
+    "bytes": 1282743,
+    "sha256": "a3194f0a6443d3b56f4df7f46864baa5cce0c180cd5e3802862de9e0f0417896"
+  },
+  {
+    "path": "trinity-editor-budget-20261109/notice-ceiling-before.html.gz",
+    "bytes": 1342694,
+    "sha256": "295b595900056c5fb2a0cba36ae12d2a53612221470a17da5223e69fcc2915ac"
+  },
+  {
+    "path": "trinity-editor-budget-20261109/notice-ceiling.ts",
+    "bytes": 3634,
+    "sha256": "282561678501d96d85977c38d3218da62fed2e72e8a4b4224def1b6be454c45e"
+  },
+  {
+    "path": "trinity-editor-budget-20261109/notice-owner-first.log",
+    "bytes": 274,
+    "sha256": "0da86638a85cde5cb030bef0730074563876ae7fbbf1593f193b06347dd1f303"
+  },
+  {
+    "path": "trinity-editor-budget-20261109/notice-owners.log",
+    "bytes": 1751,
+    "sha256": "7d56c709e75dd4fa9551c82c581ef33a4e459072034e6a0fa398cb0bcb01454b"
+  },
+  {
+    "path": "trinity-editor-budget-20261109/notice-red.log",
+    "bytes": 946,
+    "sha256": "52815fb1b8067344d2d4ce6470cebc8b11eed5562c0ef1f084087c64fefdb068"
+  },
+  {
+    "path": "trinity-editor-budget-20261109/notice-review.md",
+    "bytes": 4077,
+    "sha256": "145b9bb7e25dd71f2020f2a2518976e0d3b4355a918b6f951c3adaff086a2b06"
+  },
+  {
+    "path": "trinity-editor-budget-20261109/typecheck.log",
+    "bytes": 225,
+    "sha256": "f24f29e2837198be597c614681ebf33d0fb50d3aeb28485c1e6f6fb5301c91dd"
+  },
+  {
+    "path": "trinity-editor-budget-20261109/verify-notice-bytes.py",
+    "bytes": 2700,
+    "sha256": "94a7dfc9d346c788cf76d755d473701c70edb85fe4fff61443427c00f83f52c0"
+  }
+]
