@@ -70,8 +70,11 @@ export interface MermaidNode {
   markdownLabel?: true
   /** Safe local icon token from v11 node metadata. */
   icon?: string
-  /** Authored image URL retained as inert data; the renderer never fetches it. */
+  /** Authored image reference. Explicitly sized inline PNGs draw offline; other URLs stay inert. */
   image?: string
+  imageWidth?: number
+  imageHeight?: number
+  imageConstraint?: 'on' | 'off'
   iconForm?: 'square' | 'circle' | 'rounded'
   /** Safe inert interaction metadata; callbacks and unsafe schemes never enter SVG. */
   href?: string
@@ -226,6 +229,8 @@ export interface PositionedStateNote {
 }
 
 export interface PositionedNode {
+  /** Family-measured image caption center relative to the body center. */
+  imageCaptionOffset?: number
   labelBlock?: PixelTextBlock
   iconFallbackBlock?: PixelTextBlock
   id: string
@@ -246,6 +251,9 @@ export interface PositionedNode {
   classNames?: string[]
   icon?: string
   image?: string
+  imageWidth?: number
+  imageHeight?: number
+  imageConstraint?: 'on' | 'off'
   iconForm?: 'square' | 'circle' | 'rounded'
   href?: string
 }

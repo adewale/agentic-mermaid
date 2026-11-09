@@ -10,6 +10,7 @@
 
 import { createSvgInspector } from './svg-inspection-cache.ts'
 import { xmlTokenAt, xmlSlice, xmlIndexOf as findXmlToken } from './shared/xml-name.ts'
+import { isInlinePng } from './shared/inline-png.ts'
 
 export const OUTPUT_SECURITY_POLICY_VERSION = 2 as const
 export type OutputSecurityMode = 'default' | 'strict'
@@ -322,7 +323,7 @@ export function verifySvgDocumentDataPositions(svg: string, positions: Readonly<
   }
 }
 
-function verifyDocumentEnvelope(svg: string, observeAttribute?: (name: string, rawValue: string) => void, work?: XmlWork, observeData?: (start: number, end: number, inside: boolean) => boolean): boolean {
+function verifyDocumentEnvelope(svg: string, observeAttribute?: (name: string, rawValue: string, element: string) => void, work?: XmlWork, observeData?: (start: number, end: number, inside: boolean) => boolean): boolean {
   const stack = xmlParserList<XmlElementFrame>()
   const shortAttributeNames = xmlParserList<string>()
   let longAttributeNames: Set<string> | undefined
@@ -453,7 +454,7 @@ function verifyDocumentEnvelope(svg: string, observeAttribute?: (name: string, r
           work?.(1)
           namespaceAttributes[namespaceAttributes.length++] = { name: attribute, ...attributeName, value: decodeXmlNamespaceValue(value, work) }
         }
-        observeAttribute?.(attribute, value)
+        observeAttribute?.(attribute, value, name)
       }
       end++
     }
@@ -659,7 +660,7 @@ interface SecurityFindings {
 
 const securityFindings = createSvgInspector('security', inspectSecurity)
 
-function inspectAttributeSecurity(qualified: string, value: string, refs: string[], active: string[]): void {
+function inspectAttributeSecurity(qualified: string, value: string, refs: string[], active: string[], element?: string): void {
   const lower = qualified.toLowerCase()
   const colon = lower.lastIndexOf(':')
   const name = colon < 0 ? lower : lower.slice(colon + 1)
@@ -670,6 +671,7 @@ function inspectAttributeSecurity(qualified: string, value: string, refs: string
   if (lower === 'xml:base') refs.push(`xml:base=${value}`)
   switch (name) {
     case 'href': case 'src': case 'data': {
+      if (element === 'image' && qualified === 'href' && isInlinePng(value)) return
       const normalized = normalizedReference(value)
       if (normalized !== '' && !normalized.startsWith('#')) refs.push(normalized.startsWith('javascript:') ? 'javascript-url' : value)
       if (ACTIVE_REFERENCE_SCHEME.test(normalized)) active.push(`${qualified}=${value}`)
@@ -696,11 +698,31 @@ function inspectSecurity(svg: string): SecurityFindings {
   const refs: string[] = []
   const active: string[] = []
   for (const tag of startTags(markup)) {
+    const element = /^<([^\s/>]+)/.exec(tag)?.[1]
     for (const match of tag.matchAll(new RegExp(ATTRIBUTE.source, 'g'))) {
-      inspectAttributeSecurity(match[1]!, unquoteAttribute(match[2]!), refs, active)
+      inspectAttributeSecurity(match[1]!, unquoteAttribute(match[2]!), refs, active, element)
     }
   }
   return inspectSecurityTail(markup, refs, active)
+}
+
+/** Check this exact tag, so a safe sibling cannot excuse another image or namespace. */
+function inlineImageTagAt(markup: string, start: number): boolean {
+  if (!/^<image(?:\s|\/?>)/.test(markup.slice(start, start + 8))) return false
+  let quote: string | undefined
+  for (let end = start + 6; end < markup.length; end++) {
+    const character = markup[end]!
+    if (quote) { if (character === quote) quote = undefined }
+    else if (character === '"' || character === "'") quote = character
+    else if (character === '>') {
+      const tag = markup.slice(start, end + 1)
+      for (const attribute of tag.matchAll(new RegExp(ATTRIBUTE.source, 'g'))) {
+        if (attribute[1] === 'href' && isInlinePng(unquoteAttribute(attribute[2]!))) return true
+      }
+      return false
+    }
+  }
+  return false
 }
 
 function inspectSecurityTail(markup: string, refs: string[], active: string[]): SecurityFindings {
@@ -716,6 +738,7 @@ function inspectSecurityTail(markup: string, refs: string[], active: string[]): 
   // one finding per tag kind even when hostile markup repeats an element.
   let elementKinds = 0
   for (const match of markup.matchAll(SECURITY_ELEMENT_TAG)) {
+    if (!match[1] && match[2] === 'image' && inlineImageTagAt(markup, match.index!)) continue
     // The raw-reference API also accepts unvalidated markup. Preserve its
     // conservative finding for an unsafe namespace prefix as well as the tag.
     const prefix = match[1] && SECURITY_ELEMENT_NAME.exec(match[1])?.[1]
@@ -743,10 +766,10 @@ const inspectFinalSvg = createSvgInspector('final-security', (svg: string): Secu
   const active: string[] = []
   let failed = false
   let failure: unknown
-  const valid = verifyDocumentEnvelope(svg, (name, rawValue) => {
+  const valid = verifyDocumentEnvelope(svg, (name, rawValue, element) => {
     if (failed) return
     try {
-      inspectAttributeSecurity(name, rawValue, refs, active)
+      inspectAttributeSecurity(name, rawValue, refs, active, element)
     } catch (error) {
       // Finish XML validation before surfacing security errors: malformed
       // envelopes have always taken precedence, including invalid CSS escapes.

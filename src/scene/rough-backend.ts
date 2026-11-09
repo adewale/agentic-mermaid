@@ -523,6 +523,7 @@ function backdropFor(style: StyleSpec | undefined, doc: SceneDoc): string {
 
 function drawNodeStyled(node: SceneNode, walk: Walk): string {
   switch (node.kind) {
+    case 'image':
     case 'document':
       return sceneNodeSerialization(node)
     case 'shape':

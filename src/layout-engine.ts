@@ -7,6 +7,7 @@ import { layoutOptimization } from './layout/optimization-context.ts'
 import { measureLabelConflicts } from './layout/label-conflicts.ts'
 import { resolveLabelContent, type DisplayTextInput } from './shared/display-text.ts'
 import { graphTextBlock } from './graph-text.ts'
+import { flowchartImageViewport, flowchartImageContent } from './flowchart-image.ts'
 import { LABEL_PILL_PADDING } from './shared/edge-label-geometry.ts'
 import { performanceExperimentEnabled } from './experimental-performance.ts'
 import { indexedForestLayout, isIndexedForestGraph } from './experimental/indexed-forest.ts'
@@ -188,9 +189,14 @@ function sourceAwareNodeOrder(nodeIds: string[], edges: Array<Pick<MermaidEdge, 
 // Node sizing (same logic as Dagre adapter)
 // ============================================================================
 
-export function estimateNodeSize(id: string, label: DisplayTextInput, shape: string, style: ResolvedRenderStyle, direction: Direction = 'TB', stateVisual?: ResolvedStateVisualConfig, labelBlock?: PixelTextBlock): { width: number; height: number } {
+export function estimateNodeSize(id: string, label: DisplayTextInput, shape: string, style: ResolvedRenderStyle, direction: Direction = 'TB', stateVisual?: ResolvedStateVisualConfig, labelBlock?: PixelTextBlock, media?: MermaidNode): { width: number; height: number } {
   void id
   const metrics = labelBlock ?? graphTextBlock(label, style, 'node')
+  const image = media && flowchartImageViewport(media)
+  if (image) {
+    const content = flowchartImageContent(image, metrics, style)
+    return { width: Math.max(60, content.width), height: Math.max(36, content.height) }
+  }
 
   // State pseudostates (plan §State 2): fork/join bars run PERPENDICULAR to
   // the flow (wide+thin in vertical flows, tall+thin in horizontal flows);
@@ -931,7 +937,7 @@ function elkPortSide(side: 'N' | 'E' | 'S' | 'W'): 'NORTH' | 'EAST' | 'SOUTH' | 
 }
 
 function nodeToElkLeaf(id: string, node: MermaidNode, style: ResolvedRenderStyle, hints: RoutePortHints, direction: Direction = 'TB', stateVisual?: ResolvedStateVisualConfig, placementSize?: { width: number; height: number }, markerPortDemand?: MarkerPortDemand): ElkGraphNode {
-  const size = placementSize ?? estimateNodeSize(id, resolveLabelContent(node.label, node.labelContent), node.shape, style, direction, stateVisual, node.labelBlock)
+  const size = placementSize ?? estimateNodeSize(id, resolveLabelContent(node.label, node.labelContent), node.shape, style, direction, stateVisual, node.labelBlock, node)
   const horizontal = direction === 'LR' || direction === 'RL'
   let crossSize = horizontal ? size.height : size.width
   if (!placementSize && markerPortDemand) {
@@ -1413,6 +1419,9 @@ function extractNodesAndGroups(
           classNames,
           ...(mNode.icon ? { icon: mNode.icon } : {}),
           ...(mNode.image ? { image: mNode.image } : {}),
+          ...(Object.hasOwn(mNode, 'imageWidth') ? { imageWidth: mNode.imageWidth } : {}),
+          ...(Object.hasOwn(mNode, 'imageHeight') ? { imageHeight: mNode.imageHeight } : {}),
+          ...(Object.hasOwn(mNode, 'imageConstraint') ? { imageConstraint: mNode.imageConstraint } : {}),
           ...(mNode.iconForm ? { iconForm: mNode.iconForm } : {}),
           ...(mNode.href ? { href: mNode.href } : {}),
         })

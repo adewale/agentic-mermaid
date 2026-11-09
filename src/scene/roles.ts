@@ -34,7 +34,7 @@ export type BuiltinSceneRole = CoreSceneRole
 export type NamespacedSceneRole = `${string}:${string}`
 export type SceneRole = BuiltinSceneRole | NamespacedSceneRole
 
-export type SceneMarkKind = 'shape' | 'connector' | 'text' | 'group' | 'document'
+export type SceneMarkKind = 'image' | 'shape' | 'connector' | 'text' | 'group' | 'document'
 export type SceneSketchPolicy = 'shape' | 'connector' | 'none'
 
 export type SceneRoleStyleFallback = 'node' | 'edge' | 'group' | 'label'
@@ -62,7 +62,7 @@ export interface SceneRoleTraits {
   textHalo: boolean
 }
 
-const ANY_MARK: readonly SceneMarkKind[] = ['shape', 'connector', 'text', 'group', 'document']
+const ANY_MARK: readonly SceneMarkKind[] = ['image', 'shape', 'connector', 'text', 'group', 'document']
 const SHAPE: readonly SceneMarkKind[] = ['shape']
 const CONNECTOR: readonly SceneMarkKind[] = ['connector']
 const TEXT: readonly SceneMarkKind[] = ['text']
@@ -103,7 +103,7 @@ function traits(
 /** Exact built-in policy. Backends consume this table; exact style properties
  * and binding-family admission are projected from EXACT_ROLE_STYLE_CONTRACT. */
 export const BUILTIN_SCENE_ROLE_TRAITS: Readonly<Record<BuiltinSceneRole, SceneRoleTraits>> = Object.freeze({
-  node: traits('node', SHAPE_OR_GROUP, 'node', { domIdentity: true, sketch: 'shape' }),
+  node: traits('node', ['image', ...SHAPE_OR_GROUP], 'node', { domIdentity: true, sketch: 'shape' }),
   edge: traits('edge', CONNECTOR, 'edge', { domIdentity: true, relation: true, sketch: 'connector' }),
   'edge-label': traits('edge-label', TEXT_OR_GROUP, 'label'),
   group: traits('group', SHAPE_OR_GROUP, 'group', { domIdentity: true, sketch: 'shape' }),
@@ -144,7 +144,7 @@ export const BUILTIN_SCENE_ROLE_TRAITS: Readonly<Record<BuiltinSceneRole, SceneR
   junction: traits('junction', SHAPE_OR_GROUP, 'node', { domIdentity: true }),
   // Text glyphs a sketch look draws always sit on its page halo; icons and
   // titles can be text too.
-  icon: traits('icon', ['shape', 'text', 'group', 'document'], 'node', { textHalo: true }),
+  icon: traits('icon', ['image', 'shape', 'text', 'group', 'document'], 'node', { textHalo: true }),
   title: traits('title', ANY_MARK, 'label', { domIdentity: true, textHalo: true }),
   defs: traits('defs', DOCUMENT, 'label'),
   prelude: traits('prelude', PRELUDE, 'label'),

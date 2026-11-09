@@ -5,6 +5,7 @@ import { resolveLabelContent } from '../shared/display-text.ts'
 import { preparePixelText } from '../shared/prepared-text.ts'
 import { iconFallbackToken } from '../shared/icon-fallback.ts'
 import { resolveMindmapIcon } from '../mindmap/icons.ts'
+import { flowchartImageViewport, flowchartImageContent } from '../flowchart-image.ts'
 
 /** The width a titled group needs so its header title stays inside the frame.
  * A group with nothing in it is laid out without one: it has no frame to hold
@@ -33,6 +34,8 @@ export function groupHeaderHeight(
 export function retainGraphText(positioned: Pick<PositionedGraph, 'nodes' | 'edges' | 'groups'>, style: ResolvedRenderStyle): void {
   for (const node of positioned.nodes) {
     node.labelBlock ??= graphTextBlock(resolveLabelContent(node.label, node.labelContent), style, 'node')
+    const image = flowchartImageViewport(node)
+    if (image) node.imageCaptionOffset = flowchartImageContent(image, node.labelBlock, style).captionOffset
     if (node.icon && !node.iconFallbackBlock && !resolveMindmapIcon(node.icon)) node.iconFallbackBlock = preparePixelText(iconFallbackToken(node.icon), { fontSize: 10, fontWeight: 400 })
   }
   for (const edge of positioned.edges) if (edge.label !== undefined) edge.labelBlock ??= graphTextBlock(resolveLabelContent(edge.label, edge.labelContent), style, 'edge')

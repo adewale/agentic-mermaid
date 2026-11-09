@@ -2,6 +2,7 @@
 
 export const CORE_SCENE_PRIMITIVES = [
   'document',
+  'image',
   'text',
   'shape',
   'container',
@@ -96,6 +97,13 @@ function essentialCapability(primitive: CoreScenePrimitive, feature: CoreSceneFe
   return Object.freeze({ primitive, feature, operation })
 }
 
+/** Required only when an admitted document actually contains raster artwork. */
+export const IMAGE_SCENE_PRIMITIVE_CAPABILITIES: readonly EssentialScenePrimitiveCapability[] = Object.freeze([
+  essentialCapability('image', 'geometry', 'render'),
+  essentialCapability('image', 'resources', 'serialize'),
+  essentialCapability('image', 'identity', 'serialize'),
+])
+
 /** Minimum feature-level contract required before a backend can truthfully
  * accept a family that emits a primitive. This is intentionally stricter than
  * checking that any claim exists for a primitive/operation pair: geometry
@@ -173,6 +181,7 @@ import type { SceneNode } from './ir.ts'
  */
 export function sceneNodePrimitives(node: SceneNode): readonly CoreScenePrimitive[] {
   switch (node.kind) {
+    case 'image': return ['image']
     case 'text': return ['text']
     case 'shape': return node.channels?.value === undefined ? ['shape'] : ['shape', 'data-mark']
     case 'group': return ['container']
@@ -262,6 +271,11 @@ export function graphicalBackendCapabilityClaims(
     claim.evidence = evidence
     return claim
   })
+  // Raster delivery is an optional capability, not a new registration minimum
+  // for existing vector-only host backends. Pixels have no paint claim.
+  for (const { feature, operation } of IMAGE_SCENE_PRIMITIVE_CAPABILITIES) {
+    claims.push({ target, primitive: 'image', feature, operation, realization: 'native', evidence })
+  }
   // Preserve the established graphical claim order while sharing the canonical
   // capability cells: relation precedes the connector's serialized endpoints.
   const relation = claims.findIndex(claim => claim.primitive === 'connector' && claim.feature === 'relation')

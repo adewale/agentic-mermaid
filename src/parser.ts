@@ -5,6 +5,7 @@ import { resolveStateIdentities, type StateIdentities } from './state/identity.t
 import type { LabelContent } from './shared/display-text.ts'
 import { parseFlowchartLabel, unquoteFlowchartLabel } from './flowchart-labels.ts'
 import { normalizeV11Shape } from './flowchart-shapes.ts'
+import { imageDimension } from './flowchart-image.ts'
 import { normalizeBrTags } from './multiline-utils.ts'
 import { assertDiagramWorkLimit } from './shared/diagram-limits.ts'
 import { appendGraphClass } from './shared/graph-classes.ts'
@@ -1656,10 +1657,17 @@ function applyNodeMetadata(
   const image = metadataField(entries, 'img')
   const form = metadataField(entries, 'form')
   const iconForm: MermaidNode['iconForm'] = form === 'circle' || form === 'rounded' || form === 'square' ? form : undefined
+  const imageWidth = imageDimension(entries.get('w')), imageHeight = imageDimension(entries.get('h'))
+  const constraint = metadataField(entries, 'constraint')
+  const imageConstraint: MermaidNode['imageConstraint'] = constraint === 'on' || constraint === 'off' ? constraint : undefined
   const shapeFields = v11 ? { shape: v11.geometry, semanticShape: v11.canonical, authoredShape: shapeName! }
     : icon || image ? { shape: iconForm === 'circle' ? ('circle' as const) : iconForm === 'rounded' ? ('rounded' as const) : ('rectangle' as const), semanticShape: icon ? 'icon' : 'image' }
     : {}
-  const mediaFields = { ...(icon ? { icon } : {}), ...(image ? { image } : {}), ...(iconForm ? { iconForm } : {}) }
+  const mediaFields = { ...(icon ? { icon } : {}), ...(image ? { image,
+    ...(imageWidth !== undefined ? { imageWidth } : {}),
+    ...(imageHeight !== undefined ? { imageHeight } : {}),
+    ...(imageConstraint !== undefined ? { imageConstraint } : {}),
+  } : {}), ...(iconForm ? { iconForm } : {}) }
   const existing = graph.nodes.get(id)
   if (existing) {
     graph.nodes.set(id, {

@@ -57,7 +57,7 @@ const sources = new WeakMap<ScenePaintGeometry, Exclude<SceneNode, { kind: 'grou
 /** Only fields consumed by final paint certification, never a retained Scene tree. */
 export type NativeConnectorPaintSource = Pick<ConnectorMark, 'kind' | 'lineStyle' | 'endpoints' | 'route' | 'stroke' | 'markers' | 'transform'>
 export type NativePaintSource = Pick<ShapeMark, 'kind' | 'geometry' | 'paint' | 'childPaints' | 'transform'>
-  | NativeConnectorPaintSource | Pick<TextMark, 'kind' | 'paint'> | { readonly kind: 'document' }
+  | NativeConnectorPaintSource | Pick<TextMark, 'kind' | 'paint'> | { readonly kind: 'document' | 'image' }
 const nativeSources = new WeakMap<ScenePaintGeometry, NativePaintSource>()
 const textPaintMap = WeakMap, textPaintSet = WeakSet, textPaintApply = Reflect.apply
 const textPaintGet = WeakMap.prototype.get, textPaintPut = WeakMap.prototype.set
@@ -233,6 +233,7 @@ function nativePaintSource(node: Exclude<SceneNode, { kind: 'group' }>, actualTe
     case 'shape': return freeze({ kind: node.kind, geometry: node.geometry, paint: node.paint, ...(node.childPaints ? { childPaints: node.childPaints } : {}), ...(node.transform ? { transform: node.transform } : {}) })
     case 'connector': return freeze({ kind: node.kind, lineStyle: node.lineStyle, endpoints: node.endpoints, route: node.route, stroke: node.stroke, markers: node.markers, ...(node.transform ? { transform: node.transform } : {}) })
     case 'text': return freeze({ kind: node.kind, paint: actualTextPaint ?? node.paint })
+    case 'image':
     case 'document': return freeze({ kind: node.kind })
   }
 }
@@ -255,7 +256,7 @@ function createPaintRecorder(header: PaintInspectionHeader, retainText?: TextDet
     const parentTransform: SceneTransform | undefined = parent || node.transform ? { kind: 'matrix', a, b, c, d, e, f } : undefined
     const matrix = !parent && !node.transform ? IDENTITY_PAINT_MATRIX : freeze(composeMatrices(parent ?? IDENTITY_MATRIX, transformMatrix(node.transform)))
     const bounds = hidden ? undefined : nodePaintBounds(node, parentTransform, documentFont, actualTextPaint)
-    const measured = !!bounds && finite(bounds)
+    const measured = node.kind !== 'image' && !!bounds && finite(bounds)
     const status = hidden ? 'non-painting' : measured ? 'measured' : 'unmeasured'
     const primitive: ScenePaintGeometry = freeze({
       key, id: node.id, kind: node.kind, role: node.role,
@@ -267,7 +268,7 @@ function createPaintRecorder(header: PaintInspectionHeader, retainText?: TextDet
       ...(conditional || node.visibility === 'conditional' || !Number.isFinite(groupOpacity) ? { visibility: 'conditional' as const } : {}),
       ...(groupOpacity < 1 ? { groupOpacity } : {}),
       ...(measured ? { bounds: freeze(bounds!) } : {}),
-      ...(!hidden && !measured ? { reason: node.kind === 'document' ? 'opaque-visible-content' : 'missing-paint-geometry' } : {}),
+      ...(!hidden && !measured ? { reason: node.kind === 'image' ? 'raster-paint-unavailable' : node.kind === 'document' ? 'opaque-visible-content' : 'missing-paint-geometry' } : {}),
       ...(node.kind === 'text' ? { text: freeze({ measurement: node.measurement ?? 'unavailable', ...retainText?.(node.text, node.block, true) }) } : {}),
     })
     if (source) nativeSources.set(primitive, source)

@@ -8,6 +8,7 @@ import { fitMeasuredLayout } from './fit-measured-layout.ts'
 import { LayoutWorkLimitError } from './backend.ts'
 import { paintedStrokeExtent } from '../scene/bounds.ts'
 import { shapeOutline } from '../shape-outline.ts'
+import { flowchartImageViewport } from '../flowchart-image.ts'
 
 interface ProjectionCompletion { mergeEdges: boolean; sharedEdges?: readonly number[] }
 
@@ -30,7 +31,7 @@ export function prepareMeasuredGraphCandidate(
     for (const node of graph.nodes.values()) {
       if (node.shape === 'diamond') diamondContacts = true
       const pseudo = node.shape === 'state-start' || node.shape === 'state-end'
-      if (node.semanticShape || node.shape !== 'rectangle' && node.shape !== 'rounded' && node.shape !== 'diamond' && !pseudo) bindings.unsupported('only measured rectangular, rounded, diamond and State circle contacts are supported')
+      if (node.semanticShape && !(node.semanticShape === 'image' && flowchartImageViewport(node)) || node.shape !== 'rectangle' && node.shape !== 'rounded' && node.shape !== 'diamond' && !pseudo) bindings.unsupported('only measured rectangular, rounded, diamond and State circle contacts are supported')
       if (pseudo && (node.label || node.labelContent || node.labelBlock?.text || node.icon || node.image)) bindings.unsupported('labelled and media pseudostates are outside the fixed circle slice')
     }
     if (graph.edges.some(edge => edge.curve !== undefined)) bindings.unsupported('authored curve paint is outside the orthogonal measured slice')
@@ -70,10 +71,10 @@ export function prepareMeasuredGraphCandidate(
     if (measurePortFaces) pay(0, graph.nodes.size + 1)
     const portFaces = measurePortFaces ? new Uint8Array(graph.nodes.size) : undefined
     const nodes: MeasuredGraph['nodes'][number][] = [...graph.nodes].map(([id, node], index) => {
-      if (portFaces) portFaces[index] = Number(!node.semanticShape && (node.shape === 'rectangle' || node.shape === 'subroutine' || physical && (node.shape === 'rounded' || node.shape === 'state-start' || node.shape === 'state-end')))
+      if (portFaces) portFaces[index] = Number((!node.semanticShape || !!flowchartImageViewport(node)) && (node.shape === 'rectangle' || node.shape === 'subroutine' || physical && (node.shape === 'rounded' || node.shape === 'state-start' || node.shape === 'state-end')))
       if (groupIndices.has(id)) bindings.unsupported('overlapping node and frame identities')
       const owner = membership.get(id)
-      return { id, ...(owner ? { parent: owner.parent } : {}), ...(options.nodeSizes?.get(id) ?? estimateNodeSize(id, resolveLabelContent(node.label, node.labelContent), node.shape, style, owner?.direction ?? graph.direction, options.stateVisual, node.labelBlock)) }
+      return { id, ...(owner ? { parent: owner.parent } : {}), ...(options.nodeSizes?.get(id) ?? estimateNodeSize(id, resolveLabelContent(node.label, node.labelContent), node.shape, style, owner?.direction ?? graph.direction, options.stateVisual, node.labelBlock, node)) }
     })
     const indices = new Map(nodes.map((node, index) => [node.id, index]))
     for (const [id, index] of groupIndices) indices.set(id, nodes.length + index)

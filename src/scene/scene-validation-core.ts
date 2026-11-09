@@ -1,3 +1,4 @@
+import { isInlinePng } from '../shared/inline-png.ts'
 /** Runtime admission checks for the Scene contract.
  *
  * Validation is deliberately non-mutating. Built-in lowerings carry a
@@ -779,7 +780,7 @@ function validateNode(value: unknown, path: string, state: ValidationState, dept
   }
   const kind = value.kind
   localPaintResourceReferences(value, path, state.paintReferences)
-  if (!['shape', 'connector', 'text', 'group', 'document'].includes(kind)) {
+  if (!['image', 'shape', 'connector', 'text', 'group', 'document'].includes(kind)) {
     add(state.diagnostics, 'SCENE_DOCUMENT', `${path}.kind`, `unknown Scene node kind "${kind}"`)
     return
   }
@@ -789,6 +790,7 @@ function validateNode(value: unknown, path: string, state: ValidationState, dept
   if (state.external) {
     const base = ['kind', 'id', 'role', 'identity', 'accessibility', 'channels', 'transform', 'owner']
     const fields: Record<string, readonly string[]> = {
+      image: [...base, 'href', 'x', 'y', 'width', 'height', 'fit'],
       shape: [...base, 'geometry', 'paint'],
       text: [...base, 'text', 'x', 'y', 'fontSize', 'anchor', 'baselineShift', 'paint', 'fontWeight', 'letterSpacing', 'display', 'textLayout', 'block', 'measurement', 'prepared'],
       group: [...base, 'open', 'close', 'children', 'join'],
@@ -842,7 +844,13 @@ function validateNode(value: unknown, path: string, state: ValidationState, dept
   if (value.visibility !== undefined && value.visibility !== 'conditional') add(state.diagnostics, 'SCENE_DOCUMENT', `${path}.visibility`, 'must be conditional')
   if (value.attributes !== undefined) validateMarkAttributes(value.attributes, `${path}.attributes`, state.diagnostics)
 
-  if (kind === 'shape') {
+  if (kind === 'image') {
+    if (state.external) add(state.diagnostics, 'SCENE_DOCUMENT', path, 'external raster marks are not exposed by the declarative builder')
+    if (!isInlinePng(value.href)) add(state.diagnostics, 'SCENE_DOCUMENT', `${path}.href`, 'must be a self-contained PNG data URI')
+    for (const field of ['x', 'y', 'width', 'height']) finite(value[field], `${path}.${field}`, state.diagnostics, { positive: field === 'width' || field === 'height' })
+    if (value.fit !== 'contain' && value.fit !== 'stretch') add(state.diagnostics, 'SCENE_DOCUMENT', `${path}.fit`, 'must be contain or stretch')
+    return
+  } else if (kind === 'shape') {
     if (value.identity === undefined && typeof value.role === 'string' && hasDomSvgIdentityRole(value.role as SceneRole)) {
       if (state.native && typeof value.id === 'string' && record(value.owner) && typeof value.owner.id === 'string' && value.owner.role === value.role) {
         state.native.artwork.push({ id: value.id, owner: { id: value.owner.id, role: value.role as SceneRole }, path: `${path}.identity` })

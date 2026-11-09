@@ -29,7 +29,8 @@ export function retainedLabelGeometry(block: PixelTextBlock | undefined, x: numb
 function node(n: PositionedNode): RenderedLayoutNode {
   // Nodes, routes, and retained text share positioned precision so public and
   // internal quality predicates use the same physical evidence.
-  return { id: n.id, x: toFinite(n.x), y: toFinite(n.y), w: toFinite(n.width), h: toFinite(n.height), shape: n.shape, label: n.label, ...retainedLabelGeometry(n.labelBlock, n.x + n.width / 2, n.y + n.height / 2, n) }
+  const captionOffset = Object.hasOwn(n, 'imageCaptionOffset') ? n.imageCaptionOffset ?? 0 : 0
+  return { id: n.id, x: toFinite(n.x), y: toFinite(n.y), w: toFinite(n.width), h: toFinite(n.height), shape: n.shape, label: n.label, ...retainedLabelGeometry(n.labelBlock, n.x + n.width / 2, n.y + n.height / 2 + captionOffset, n) }
 }
 
 function edge(e: PositionedEdge, id: string, debug: boolean): RenderedLayoutEdge {

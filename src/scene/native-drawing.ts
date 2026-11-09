@@ -122,6 +122,7 @@ export function drawNative(
         : node.kind !== 'text' || node.measurement === 'prepared' && node.block !== undefined })
   }
   const factory: DrawingFactory<Fragment> = {
+    image: fields => leaf(marks.image(fields)),
     shape: fields => leaf(marks.shape(fields)),
     text: fields => leaf(marks.text(fields)),
     connector: fields => leaf(marks.connector(fields)),

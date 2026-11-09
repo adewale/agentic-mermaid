@@ -492,7 +492,8 @@ export function connectorInlineLabelVisualBounds(
  * routed source points and include stroke, endpoint markers, and label bounds. */
 export function nodeWorldBounds(node: SceneNode): AxisAlignedBox | undefined {
   let local: AxisAlignedBox | undefined
-  if (node.kind === 'shape') local = geometryBounds(node.geometry)
+  if (node.kind === 'image') local = { x0: node.x, y0: node.y, x1: node.x + node.width, y1: node.y + node.height }
+  else if (node.kind === 'shape') local = geometryBounds(node.geometry)
   else if (node.kind === 'connector') local = connectorLocalBounds(node)
   else if (node.kind === 'text') {
     const metrics = node.textLayout ?? preparePixelText(node.text, { display: node.display, fontSize: node.fontSize, fontWeight: node.fontWeight ?? 500, letterSpacing: node.letterSpacing })

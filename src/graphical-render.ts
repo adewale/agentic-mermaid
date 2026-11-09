@@ -34,7 +34,8 @@ import { emitResolvedConfigDiagnostics } from './render-config-diagnostics.ts'
 import { retainedPositionedScene, actualPositionedSceneWriteEligible, retainedNativeDrawing, positionedPaintCertification, beginPositionedBackendEmission, finishPositionedBackendEmission } from './scene/positioned.ts'
 import { PaintLayoutCertificationError, MAX_OCCLUSION_OPERATIONS, MAX_OCCLUSION_PAIRS, type PaintLayoutCertification, type PaintViewport } from './scene/paint-certification.ts'
 import { assertFinalSvgByteBudget } from './scene/scene-validation-core.ts'
-import type { SceneDoc } from './scene/ir.ts'
+import type { SceneDoc, SceneNode } from './scene/ir.ts'
+import { IMAGE_SCENE_PRIMITIVE_CAPABILITIES } from './scene/capabilities.ts'
 import { sceneHasOnlyPreparedText } from './scene/serialization.ts'
 import { withTextMeasurementExecution } from './text-measurement-profile.ts'
 import { withSvgInspectionCache } from './svg-inspection-cache.ts'
@@ -169,6 +170,10 @@ function unavailableActualBackendWrite(scene: SceneDoc): PaintLayoutCertificatio
   } as const)
 }
 
+function containsImage(part: SceneNode): boolean {
+  return part.kind === 'image' || part.kind === 'group' && part.children.some(child => containsImage(child.node))
+}
+
 function renderPositionedWithTextMeasurement(
   request: ResolvedRenderRequest,
   layout: FamilyLayoutResult,
@@ -201,6 +206,10 @@ function renderPositionedWithTextMeasurement(
       if (actualWrite) actualWriteBound = beginPositionedBackendEmission(request, layout, backendContext, layoutCertification!)
       let completed = false
       try {
+        const selected = executionPlan.backend!.backend
+        if (!IMAGE_SCENE_PRIMITIVE_CAPABILITIES.every(required => selected.capabilities.some(claim => claim.primitive === 'image'
+          && claim.feature === required.feature && claim.operation === required.operation && claim.realization !== 'unsupported'))
+          && scene!.parts.some(containsImage)) throw new RenderConfigError(`Backend "${selected.id}" does not support image delivery`)
         const svg = executionPlan.backend!.backend.render(scene!, backendContext)
         if (actualWriteBound) layoutCertification = finishPositionedBackendEmission(request, layout, { kind: 'complete', proof: layoutCertification! }) ?? unavailableActualBackendWrite(scene!)
         completed = true

@@ -11,6 +11,23 @@ import { inspectSvgOnce, withSvgInspectionCache } from '../svg-inspection-cache.
 const svgDocument = (body: string, attributes = '') =>
   `<svg xmlns="http://www.w3.org/2000/svg"${attributes}>${body}</svg>`
 
+test('strict security admits only self-contained PNG hrefs on unprefixed image elements', () => {
+  const png = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGP4z8DwHwAFAAH/iZk9HQAAAABJRU5ErkJggg=='
+  const image = `<image href="${png}" x="0" y="0" width="32" height="32"/>`
+  expect(applyOutputSecurityPolicy(svgDocument(image), 'strict').diagnostics).toEqual([])
+  expect(verifyNoExternalRefs(svgDocument(image))).toEqual({ ok: true, refs: [] })
+  for (const unsafe of [
+    `<use href="${png}"/>`, `<image href="https://example.invalid/p.png"/>`, '<image href="data:image/svg+xml;base64,PHN2Zy8+"/>',
+    `<image href="${png}" onload="alert(1)"/>`, `<image href="${png}" xml:base="https://example.invalid/"/>`,
+    `<image href="${png}" src="https://example.invalid/p.png"/>`, `<image href="${png}"/><image/>`,
+    `<image href="${png}\n"/>`, `<image href="${png.replace('==', '=x')}"/>`,
+    `<image:script href="${png}"/>`,
+  ]) {
+    expect(() => applyOutputSecurityPolicy(svgDocument(unsafe), 'strict')).toThrow()
+    expect(verifyNoExternalRefs(svgDocument(unsafe)).ok).toBe(false)
+  }
+})
+
 describe('public SVG emission defaults', () => {
   test.each(['cold', 'warm'] as const)('%s rendering ignores inherited presentation defaults', phase => {
     const program = `

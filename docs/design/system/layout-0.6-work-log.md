@@ -1649,3 +1649,33 @@ Native producer halo reuse is already falsified: the retained charged trial
 introduces head loss0→13 and3P→U transitions, so it is not rerun. Next inspect
 the shared controlled-image placeholder against its actual authored asset before
 changing admission; no new image capability or proof claim is made here.
+
+## Shared inline PNG delivery — 9 November
+
+At parent `c0099d8cebe2d88b31199ec8d67210b349ae558a`, the frozen controlled-image
+case returns Native/ELK placeholders with proof P, while Trinity refuses. The
+parser drops viewport semantics; the opaque serializer preserves original source.
+Retain positive dimensions/constraint, share picture/caption measurement and public
+label bounds, and emit a distinct typed raster mark. Explicitly sized rectangular
+inline PNGs now draw in all three solvers. Raster paint stays unmeasured/U;
+viewport bounds never grant pixel proof. Remote media remains inert. Strict PNG
+reference admission and actual-use host capability checks preserve other rejection
+paths and ordinary custom backends. No fetch/decoder/cache/cap/default/version change.
+
+221 owning tests across 10 files, core/repo types and lint pass. Public owners cover
+3 solvers × 4 directions × default/rough/hybrid with actual red pixels, separate
+captions, identities/endpoints and deterministic products. Canonical frozen rasters
+move 0→9025–9216 red pixels. Frozen90 retains 81 whole products, adds 3 image/U
+products and keeps 6 errors. Review caught and repaired icon-priority and host
+registration regressions; actual-use host rejection is independently red→green.
+
+100 complete measured calls: 60 image/U, 40 unchanged LR controls/P; 8 unique
+compressed streams decode exactly. Image LR area E/N/T44804/44804/45486, wire
+48/48/48.75; zero bends/crossings. Cache0 repeat2 wall52.75/41.78/28.60ms, but
+repeated-edit40.11/35.05/44.18ms is adverse for Trinity. Two replicas/cell; no general
+ratio/memory claim. Control edit CPU114.77→116.52ms is adverse. Actual13-input lazy
+product gzip grows2288/2353/2351bytes and one request each; all lanes and separate
+image browser lanes pass. Distribution failures remain unraised; preceding exact
+head CI fails. Evidence: `trinity-controlled-image-20261109`. Remaining: raster
+proof, Sparse32, Native halo/compound and Trinity compound crossings/costs. Next
+choose a sufficient demonstrated deficit; do not replay the roster as progress.
