@@ -1,0 +1,38 @@
+{
+  "source": "c0099d8cebe2d88b31199ec8d67210b349ae558a",
+  "baseline": "39135ac82c67d2783e8211ccdb73714e372a4919",
+  "removedLoss": "ELK TB/BT refusal after our symmetry proposal ejects R2.1545px from original frame",
+  "newELKDirectionsReturnedPassed": 2,
+  "priorContainingInsetAfter": 16,
+  "ownersPassed": 393,
+  "owningFiles": 5,
+  "redPublicOwner": {
+    "passed": 2,
+    "failed": 2
+  },
+  "fittingNestedControlsBeforeAfterPassed": 4,
+  "typecheck": "core and repository passed",
+  "lint": "passed",
+  "frozenWholeProductsExact": 83,
+  "inputErrorsRetained": 6,
+  "TrinityImageUnsupportedRetained": 1,
+  "supplementalPreviouslyReturnedArtifactFilesExact": 66,
+  "completeMeasuredCalls": 100,
+  "completeMeasuredProcesses": 20,
+  "allCallsReturnedPassed": true,
+  "allWholeControlProductsExact": true,
+  "allActualResponseStreamsDecodedExact": true,
+  "uniqueCompleteProducts": 8,
+  "actualBrowserPortfolioInputs": 13,
+  "actualBrowserPortfolioLanesPassed": 3,
+  "separateRepairedTBLanesPassed": 3,
+  "actualBrowserDeltaPerLane": {
+    "gzip9": 24,
+    "brotli11": 6,
+    "requests": 0
+  },
+  "newCacheCaptureStorageToleranceCapDefaultVersion": false,
+  "canonicalPNGs": "Pinned Inter; systemfonts off; sampled actual output; before is refusal/no publicSVG",
+  "roughHybrid": "unqualified",
+  "remaining": "Sparse32 emitted proof; images; broader Trinity boundaries; quality/cost; single source-permutation and full Native-halo reuse alreadyfalsified, notrerun"
+}
