@@ -1,0 +1,97 @@
+{
+  "total": 90,
+  "returned": 84,
+  "wholeExact": 81,
+  "images": [
+    [
+      "elk",
+      {
+        "delivery": "returned",
+        "proof": "passed"
+      },
+      {
+        "receiptExact": false,
+        "delivery": "returned",
+        "proof": "unverified",
+        "svgExact": false
+      }
+    ],
+    [
+      "agentic",
+      {
+        "delivery": "returned",
+        "proof": "passed"
+      },
+      {
+        "receiptExact": false,
+        "delivery": "returned",
+        "proof": "unverified",
+        "svgExact": false
+      }
+    ],
+    [
+      "trinity",
+      {
+        "delivery": "unsupported",
+        "proof": "unavailable",
+        "error": "GraphLayoutUnsupportedError: Trinity graph layout does not support this input: only measured rectangular, rounded and State circle contacts are supported"
+      },
+      {
+        "receiptExact": null,
+        "delivery": "returned",
+        "proof": "unverified",
+        "svgExact": null
+      }
+    ]
+  ],
+  "errors": [
+    [
+      "features:flowchart:font-size-reset",
+      "elk",
+      {
+        "delivery": "error",
+        "error": "RenderConfigError: Invalid RenderOptions: unknown render option \"fontSize\""
+      }
+    ],
+    [
+      "features:flowchart:font-size-reset",
+      "agentic",
+      {
+        "delivery": "error",
+        "error": "RenderConfigError: Invalid RenderOptions: unknown render option \"fontSize\""
+      }
+    ],
+    [
+      "features:flowchart:font-size-reset",
+      "trinity",
+      {
+        "delivery": "error",
+        "error": "RenderConfigError: Invalid RenderOptions: unknown render option \"fontSize\""
+      }
+    ],
+    [
+      "features:flowchart:font-size-reset:edit",
+      "elk",
+      {
+        "delivery": "error",
+        "error": "RenderConfigError: Invalid RenderOptions: unknown render option \"fontSize\""
+      }
+    ],
+    [
+      "features:flowchart:font-size-reset:edit",
+      "agentic",
+      {
+        "delivery": "error",
+        "error": "RenderConfigError: Invalid RenderOptions: unknown render option \"fontSize\""
+      }
+    ],
+    [
+      "features:flowchart:font-size-reset:edit",
+      "trinity",
+      {
+        "delivery": "error",
+        "error": "RenderConfigError: Invalid RenderOptions: unknown render option \"fontSize\""
+      }
+    ]
+  ]
+}
