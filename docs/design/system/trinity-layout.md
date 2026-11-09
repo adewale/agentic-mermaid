@@ -1,6 +1,6 @@
 # Trinity: measured layout contract and replacement design
 
-Status: bounded Trinity rectangular Flowchart/State including nested scopes, fixed State start/end circles, flat Class/ER cards, single-container Architecture service forests and Requirement rendering is publicly selectable with
+Status: bounded Trinity rectangular Flowchart/State including nested scopes, fixed State start/end circles, canonical Class scopes with notes/cardinalities, flat ER cards, single-container Architecture service forests and Requirement rendering is publicly selectable with
 `graphLayout: { backend: 'trinity' }`. Source/Node, layout, PNG and lazy browser
 entry points share the real adapter and decision evidence. Routed admission is
 64subjects/128edges with measured rectangular or fixed singleton-circle contacts. Nested Flowchart/State reuse scope lifting and boundary routing, with Trinity local solves, fixed child frames and retained permitted leaf growth. Unsupported shapes, styled/ordered scopes,
@@ -220,11 +220,12 @@ changes to investigate/implement in the short execution plan, not completed work
 ## Metrics and comparison contract
 
 Trinity now has bounded public Requirement, Flowchart/State, Class/ER and single-container Architecture delivery.
-The frozen 30-case comparison returns 24 SVGs with passed certification through
-Trinity, versus 28 through Native/ELK; Trinity retains 4 unsupported cases and
+The frozen 30-case comparison returns 27 SVGs with passed certification through
+Trinity, versus 28 through Native/ELK; Trinity retains one unsupported case and
 the same two input errors. Authored meaning, actual written ink, receipt proof
-and layout quality remain separate. Newly supported State circles and Class/ER
-cards do not establish compound, notes, interface or cardinality support.
+and layout quality remain separate. Class scopes reuse family-owned note and
+cardinality completion; interfaces, custom paint and broader capacity remain
+unsupported or unqualified. Controlled Flowchart images remain the frozen loss.
 
 The existing collector has measured 120 complete Flowchart/Requirement SVG+receipt
 calls at `bbab8283d`, with cold/cache/edit and memory kept separate. Two cases

@@ -1372,3 +1372,28 @@ Trident ink finds no failure. Current runtime CI42545538646 remains pending;
 original budget failure and draft status remain. Next intervention: remaining
 unsupported authored workload or demonstrated adverse crossings, not heap tuning
 from a refused profile. Complete raw cost/ink/probe recovery follows on evidence branch.
+
+### Class namespaces and annotations — 9 November
+
+After `96d10ff9551f88178c4262acda5219e11926ccdf`, the frozen namespace/member/
+cardinality/note case reproduces Trinity refusal at its blanket admission guard.
+Existing measurement already provides canonical frame paint, ancestry, actual
+card sizes and endpoint spans; retain shared Class note/cardinality completion.
+Admit those translated constraints, keep interfaces/custom paint unsupported,
+and count cards plus namespace frames against the unchanged64-subject cap.
+
+Frozen delivery26→27/30; one controlled-image unsupported and two shared input
+errors remain. Trident549→564P,34→19unsupported,28blocked/2failed unchanged.
+Fifteen affected Class products:14 prior SVGs exact, one new Trinity return/P;
+actual finalSVG observers find no failure. Existing harder nested owner now covers
+Trinity in four directions with notes, cardinalities, markers and a self-loop.
+Old producer fails5 new owners; current Class156P. Nearby79P/5sandbox child-stdin
+failures; targeted permitted retries10P cover all five. Core/repo types, lint,
+actual editor/lazy builds pass. Independent source review finds no blocker.
+ELK/Native/Trinity actual SVG area142237/121274/117311, wire137.3/77.3/61,
+bends/crossings/overlaps zero. SVG gzip1928/1924/1929 and Brotli1630/1642/1645:
+retain the adverse output sizes. Editor gzip1342154→1342694 (+540),
+Brotli1281810→1282743 (+933); original gzip cap still fails8194. No new cache,
+default/version/cap changes. Current complete runtime and browser costs follow.
+Evidence `trinity-class-scopes-20261109`; broad capacity/quality and adoption
+remain unqualified. Next fix: controlled image measurement, retaining actual ink.
