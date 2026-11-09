@@ -1,0 +1,2367 @@
+[
+  {
+    "path": "trinity-oversubscribed-contact-20261109/BASELINE-JOB.json",
+    "bytes": 1216,
+    "sha256": "f71425d03256f9932e759d78bfbc75ae5d195765b98b93d687455811d26aab2c"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/BT-RESULT.json",
+    "bytes": 1103,
+    "sha256": "cd8dda1ed427be54877b2bea21ee2c305a24c8c93d6a5b31acdaf63078f73233"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/BT-agentic0.receipt.json.gz",
+    "bytes": 1328,
+    "sha256": "f807ac0134f3a9e995ef7b46427e6d221635029cd3ee5c19e483af869b4ddfdd"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/BT-agentic0.svg.gz",
+    "bytes": 3897,
+    "sha256": "fe86ef860eaca50d2b44359da1d70bae79bec17d193c7452ba01470f248b7e1c"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/BT-agentic1.receipt.json.gz",
+    "bytes": 1328,
+    "sha256": "f807ac0134f3a9e995ef7b46427e6d221635029cd3ee5c19e483af869b4ddfdd"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/BT-agentic1.svg.gz",
+    "bytes": 3897,
+    "sha256": "fe86ef860eaca50d2b44359da1d70bae79bec17d193c7452ba01470f248b7e1c"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/COHORT-COMPARISON.json",
+    "bytes": 534,
+    "sha256": "97190df243c8504f29e49f3f98b81435935265da29409bc3a1d62d2ca79bec20"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/COHORT-JOBS.json",
+    "bytes": 4251,
+    "sha256": "d0b707fe32bda0bec5288f728597f638f9012d9d53b015a22453dfc8ef3d1108"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/COHORT-RUNS-LOADER-ERROR.json",
+    "bytes": 329,
+    "sha256": "a7a0133513d0ccb50e5722c4b24ae307648cf0730e88f6e7379e0aec72cebebf"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/COHORT-RUNS.json",
+    "bytes": 5218,
+    "sha256": "fce6a799700f712e3d097f68770e9d7ff28b2d9277942794753701532b371a43"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/COST-RUNS.json",
+    "bytes": 1507,
+    "sha256": "e2d30cc094cdc701e632b8ef7b5dd9d1de859db50b378e64f99019f1a000da7c"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/COST-SUMMARY.json",
+    "bytes": 13052,
+    "sha256": "0b4daa2f7abcb4de7b2ed7a34934bc75d66435bec9d7c34c39912669d1cf98dc"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/FROZEN-REQUALIFICATION.json",
+    "bytes": 27117,
+    "sha256": "11378ebd709081c097fd821a84a7e9a3683e51ea672335055778940af0ec22c4"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/HARNESS-INVALID-OPTION.json",
+    "bytes": 1221,
+    "sha256": "64788cd166298513725349e67ec909726842e4507339ff5e167c9e98e28bc264"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/INK.json",
+    "bytes": 21276,
+    "sha256": "30bf3a5f6e5e6d366f14ed6d3a831389b2dc967da2967bb837300a0ce1cc5ac4"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/JOB.json",
+    "bytes": 1216,
+    "sha256": "f71425d03256f9932e759d78bfbc75ae5d195765b98b93d687455811d26aab2c"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/LR-RESULT.json",
+    "bytes": 577,
+    "sha256": "258a2e0f9bd1eb6de27ab962066f5d6ed9c45dd119a06499e615cfb70b9260b2"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/LR-agentic0.receipt.json.gz",
+    "bytes": 1214,
+    "sha256": "565ad3c67722a8c9a9ea4efd1e563e4f842b53ac70452d08bf29782bceda9af0"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/LR-agentic0.svg.gz",
+    "bytes": 4019,
+    "sha256": "f8ee4fb81d7b79a8f14ef93e1498888d99a0b8cebfa99d2a9d5a3f895da2e16d"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/LR-agentic1.receipt.json.gz",
+    "bytes": 1214,
+    "sha256": "565ad3c67722a8c9a9ea4efd1e563e4f842b53ac70452d08bf29782bceda9af0"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/LR-agentic1.svg.gz",
+    "bytes": 4019,
+    "sha256": "f8ee4fb81d7b79a8f14ef93e1498888d99a0b8cebfa99d2a9d5a3f895da2e16d"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/PAYLOAD.json",
+    "bytes": 1004,
+    "sha256": "e5aace48a6a0e898ba83253a85d9fce08e60702b1b13cc176359a7c74fbae3ac"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/RASTER-ERROR.log",
+    "bytes": 1129,
+    "sha256": "a1a05b244fa2965e88594fcc0f8043f27ad6063e32a5f0881312e9cfe3930d50"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/README.md",
+    "bytes": 6373,
+    "sha256": "2727612ad9cc801ade8e4ca48ecf929e16cb816923f0a2567739fa7a5c48b5d8"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/RESULT.json",
+    "bytes": 5901,
+    "sha256": "d1eb2a318798bca6a57ef6d7b09bc8f59d21e5ddb6a231e127fa258db566900c"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/SOURCE-BINDING.json",
+    "bytes": 616,
+    "sha256": "af6bb51e5e2761eb9f7a406fee178364d2ad54c59a6c58db3414e110f43eecaa"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/SOURCE-COMMIT.txt",
+    "bytes": 41,
+    "sha256": "298134d8826a511aba7a362221fdc8c3eb2cb02599b1cdeefa432b9cf99f0541"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/STAGE-CAUSE.json",
+    "bytes": 646,
+    "sha256": "1c9df4064eb77e29e17c1d774e876fead088a8498d3f0e80bfe431559817c8ed"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/TB-RESULT.json",
+    "bytes": 1103,
+    "sha256": "41b3717536fed637c0c11e09d2551a1e650321f902046a0012e7c9c6f33fc454"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/TB-agentic0.receipt.json.gz",
+    "bytes": 1332,
+    "sha256": "b5295b221bf7e06a7636e567aaeb66ab7dec12cca4e43e595a75dcf325ad3f6e"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/TB-agentic0.svg.gz",
+    "bytes": 3904,
+    "sha256": "b14eab7dd4147ceb75d5bf19ebb5b9b2f33f005812d7fd64abcafd0f36588633"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/TB-agentic1.receipt.json.gz",
+    "bytes": 1332,
+    "sha256": "b5295b221bf7e06a7636e567aaeb66ab7dec12cca4e43e595a75dcf325ad3f6e"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/TB-agentic1.svg.gz",
+    "bytes": 3904,
+    "sha256": "b14eab7dd4147ceb75d5bf19ebb5b9b2f33f005812d7fd64abcafd0f36588633"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/TRIAL-JOB.json",
+    "bytes": 1435,
+    "sha256": "1a9c8556aed0034b9c21712639a8b6d9aeb22f20454e8401967cbe467d9eabb9"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/after-svg+receipt.br11",
+    "bytes": 4363,
+    "sha256": "c3e06ec6982d35e5f9bc8e443512824fd4c2ab2f10748663a2600dc6de763672"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/after-svg+receipt.gzip9",
+    "bytes": 5255,
+    "sha256": "a887e4dfbeea0ea1a37989aeac80e73f6805706ec1c68bb89d35aa0a7c00cc08"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/after-svg.br11",
+    "bytes": 3277,
+    "sha256": "a2fad878ba5ce9c84d53617301c672c9c4a053ec0a5019423d4548fd90bb3c80"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/after-svg.gzip9",
+    "bytes": 3951,
+    "sha256": "0872b70db07fee9f911989de7e694ad76279fd4789b25d2b9a32ff1b05e5992c"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/agentic-layered-core.before.ts",
+    "bytes": 50129,
+    "sha256": "4e7225bc81e7d107012b2c21c700488748c9e608f742284ac4d3028cade585f6"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/agentic-layered-core.trial.ts",
+    "bytes": 50236,
+    "sha256": "d5388526e23f189efc775406e05b5a9d58df32a1acc3ef664e2442f96bd8d59e"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/agentic0.receipt.json.gz",
+    "bytes": 1341,
+    "sha256": "5362e5175884538d7b5b1ca96eb832ce0d3d0bd755249a8959bb6d00deb380f5"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/agentic0.svg.gz",
+    "bytes": 4028,
+    "sha256": "32cbbd3034bfac0b1937fe58f626475c5948bb11a4d956d4264f73c0a4b60f1f"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/agentic1.receipt.json.gz",
+    "bytes": 1341,
+    "sha256": "5362e5175884538d7b5b1ca96eb832ce0d3d0bd755249a8959bb6d00deb380f5"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/agentic1.svg.gz",
+    "bytes": 4028,
+    "sha256": "32cbbd3034bfac0b1937fe58f626475c5948bb11a4d956d4264f73c0a4b60f1f"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/baseline/0.receipt.json.gz",
+    "bytes": 1341,
+    "sha256": "4b02450c3a971a1393d42657b105f23c768f8a69164efeb8818126c32af06a94"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/baseline/0.svg.gz",
+    "bytes": 4065,
+    "sha256": "7a4facf2d53a75b1360faa87a9c04b44394b6f0929d34b4a242807340ef38acf"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/baseline/1.receipt.json.gz",
+    "bytes": 1341,
+    "sha256": "4b02450c3a971a1393d42657b105f23c768f8a69164efeb8818126c32af06a94"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/baseline/1.svg.gz",
+    "bytes": 4065,
+    "sha256": "7a4facf2d53a75b1360faa87a9c04b44394b6f0929d34b4a242807340ef38acf"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/baseline/RESULT.json",
+    "bytes": 2234,
+    "sha256": "440e83389d7a8531d398575bfc840f2e58910471364142659bf174bc983fd003"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/baseline-crop.svg",
+    "bytes": 32042,
+    "sha256": "7d4992085558cce83c010ba980b975b341a0b520c65decf4117f369b6115fad1"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/baseline-heads.png",
+    "bytes": 271390,
+    "sha256": "2c214f0acf9012a2fba74964d678269226e0fdcc78f2e9bdb6d97b440dd4a5aa"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/before-svg+receipt.br11",
+    "bytes": 4466,
+    "sha256": "3f6b787a70b586e83b9e3c87d3538c17a7f94d6d1b61b1388df342d917bd1a72"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/before-svg+receipt.gzip9",
+    "bytes": 5381,
+    "sha256": "8f736cbd2b7170626fd8e0eedce9d94f432a55417bacd376338d0c93ab5af3de"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/before-svg.br11",
+    "bytes": 3275,
+    "sha256": "66653bc58d37bc92f4f1154a1f7b07daffd28f86729478b99c506eb769603c9d"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/before-svg.gzip9",
+    "bytes": 3956,
+    "sha256": "ab9480e7a5b71e1ac4a73a53ff24f842e5514892e22f8e0de9e2c1daad449019"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/checkpoint-with-images.py",
+    "bytes": 2711,
+    "sha256": "cc1585218a8abccc5a17f3db99eabedea03b5fe522f8cff389e9b7abd93b21ea"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/cohort-0-after/progress.json",
+    "bytes": 29,
+    "sha256": "8c608f66cc034bc54011af55103e388d69843510384dfcbb05ca5cc4869b1156"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/cohort-0-after/snapshot.json",
+    "bytes": 19456775,
+    "sha256": "1f50dcaead93686de7ae1e7988540ec251d9e18f04bf3720ee034d278e9849d1"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/cohort-0-after-job.json",
+    "bytes": 150,
+    "sha256": "d1c19dee93cfb51aa34bb96baa84ae935a3e923ffc68fd19097da3a231a8f20d"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/cohort-0-after.log",
+    "bytes": 259,
+    "sha256": "51a88d584805f3141128b8ac4fd0f0ba9035f426723a4cd529a2720a78a69ffc"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/cohort-0-before/progress.json",
+    "bytes": 29,
+    "sha256": "8c608f66cc034bc54011af55103e388d69843510384dfcbb05ca5cc4869b1156"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/cohort-0-before/snapshot.json",
+    "bytes": 19456775,
+    "sha256": "1f50dcaead93686de7ae1e7988540ec251d9e18f04bf3720ee034d278e9849d1"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/cohort-0-before-job.json",
+    "bytes": 370,
+    "sha256": "6785837c678dc429d39dc3db9f8e2df28024e0d8e968758d2b9b26021d24692a"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/cohort-0-before-loader-error.log",
+    "bytes": 569,
+    "sha256": "f7a997b7cb83a84d94ad0b298500c818c445061a864e84e58e68e2591293177d"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/cohort-0-before.log",
+    "bytes": 259,
+    "sha256": "ec98cf0b70b3cbdf6e989fa5a030d3bee724cc84e42af8ddddc5d711206fc112"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/cohort-1-after/progress.json",
+    "bytes": 29,
+    "sha256": "3cd32d30fa0332f1c7bf792dcf93f0e5e030aeaf4282b7c25631b020dcd1a990"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/cohort-1-after/snapshot.json",
+    "bytes": 10742515,
+    "sha256": "27ba1f78254678ef3040d9e83ff0ca8168de16643b3bcce57cec3c4d7d7a45e5"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/cohort-1-after-job.json",
+    "bytes": 157,
+    "sha256": "7a11920cc4cf7402d3e8e27e2fc4eb69b1c36ff02122684ba2ccd57ebe466379"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/cohort-1-after.log",
+    "bytes": 251,
+    "sha256": "588303e8746ad54bbb94c3d3c83528a2a71cebd47b5522d380bbda7808115d51"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/cohort-1-before/progress.json",
+    "bytes": 29,
+    "sha256": "3cd32d30fa0332f1c7bf792dcf93f0e5e030aeaf4282b7c25631b020dcd1a990"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/cohort-1-before/snapshot.json",
+    "bytes": 10742515,
+    "sha256": "27ba1f78254678ef3040d9e83ff0ca8168de16643b3bcce57cec3c4d7d7a45e5"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/cohort-1-before-job.json",
+    "bytes": 377,
+    "sha256": "57631f25dd449f3d14b5dcc8134dbc86892ecd7a1b05f43dc5e3b87750a7cbdd"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/cohort-1-before.log",
+    "bytes": 251,
+    "sha256": "e12ea15d2b67df29341f4cb79d6d67101f153be098953faf44d6cf3d5a50a8b0"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/cohort-2-after/progress.json",
+    "bytes": 27,
+    "sha256": "3b961bcdaffeac8af867caa8012bac73ba54f7a0f5d6c6af6fdd6f8222ad2b2d"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/cohort-2-after/snapshot.json",
+    "bytes": 4867852,
+    "sha256": "481c3c05de251215a20873cd4f426f67d286f360f6f832113fd5c8797c16db3f"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/cohort-2-after-job.json",
+    "bytes": 170,
+    "sha256": "cb4723883d1cb55187db8cb4b93baf430fb54e89599b93998a2619017ce9fc9d"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/cohort-2-after.log",
+    "bytes": 209,
+    "sha256": "2a0ff35ed4c16fa0105474349926a6d5dd1011408ea87b6fb3e4113e06ebe892"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/cohort-2-before/progress.json",
+    "bytes": 27,
+    "sha256": "3b961bcdaffeac8af867caa8012bac73ba54f7a0f5d6c6af6fdd6f8222ad2b2d"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/cohort-2-before/snapshot.json",
+    "bytes": 4867852,
+    "sha256": "481c3c05de251215a20873cd4f426f67d286f360f6f832113fd5c8797c16db3f"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/cohort-2-before-job.json",
+    "bytes": 390,
+    "sha256": "edc2f0c76770df55f07651527e41734e76a73091ff9f35c5193795616126bf69"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/cohort-2-before.log",
+    "bytes": 209,
+    "sha256": "2423a9fc1fe769dd8e90340351986d2ee5502bd5de8bb86e1be9495f0d42c178"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/cohort-3-after/progress.json",
+    "bytes": 27,
+    "sha256": "3b961bcdaffeac8af867caa8012bac73ba54f7a0f5d6c6af6fdd6f8222ad2b2d"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/cohort-3-after/snapshot.json",
+    "bytes": 4874167,
+    "sha256": "5bbbe78171127a0df9f9234936afffa4bf6082eeb8133a7966ba761d994feb21"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/cohort-3-after-job.json",
+    "bytes": 170,
+    "sha256": "127381835e6328885a4a3d7b8d66711b7c73ab57f75881dcff7b776037c95e29"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/cohort-3-after.log",
+    "bytes": 209,
+    "sha256": "dd438d41f044553ddf274d6d9587942be1409505c6a59b4a048c55ed6da19324"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/cohort-3-before/progress.json",
+    "bytes": 27,
+    "sha256": "3b961bcdaffeac8af867caa8012bac73ba54f7a0f5d6c6af6fdd6f8222ad2b2d"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/cohort-3-before/snapshot.json",
+    "bytes": 4874167,
+    "sha256": "5bbbe78171127a0df9f9234936afffa4bf6082eeb8133a7966ba761d994feb21"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/cohort-3-before-job.json",
+    "bytes": 390,
+    "sha256": "66472af944b431493c53851846b585231ff346429f6d6dd349f148836c00dc62"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/cohort-3-before.log",
+    "bytes": 209,
+    "sha256": "5078d3d76c4fce96399a64863c4f7a7aa5ab9dfbc688513bceb711f51028c819"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/cohort-4-after/progress.json",
+    "bytes": 27,
+    "sha256": "3b961bcdaffeac8af867caa8012bac73ba54f7a0f5d6c6af6fdd6f8222ad2b2d"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/cohort-4-after/snapshot.json",
+    "bytes": 4832442,
+    "sha256": "f7832c7bc04cac5bf3c47533dc0a01f7636c84d1cdb01dab7480b62385377f0e"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/cohort-4-after-job.json",
+    "bytes": 185,
+    "sha256": "8c06fc703366dad7ca333577e53294643e2805e10402d707d19100ed5190e260"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/cohort-4-after.log",
+    "bytes": 209,
+    "sha256": "ffc32b610b9e53fff3edd0dd0ff6f7b1fa54ca3d3f39de2e30454b30214f2d78"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/cohort-4-before/progress.json",
+    "bytes": 27,
+    "sha256": "3b961bcdaffeac8af867caa8012bac73ba54f7a0f5d6c6af6fdd6f8222ad2b2d"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/cohort-4-before/snapshot.json",
+    "bytes": 4832442,
+    "sha256": "f7832c7bc04cac5bf3c47533dc0a01f7636c84d1cdb01dab7480b62385377f0e"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/cohort-4-before-job.json",
+    "bytes": 405,
+    "sha256": "928db3a645c7ec3cc52eb01efb651722911c74795ad40fed67b8ec9c58f27635"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/cohort-4-before.log",
+    "bytes": 209,
+    "sha256": "60f27ecf9914135e9ad7a18e3d8048dcd63c4865fe015b743bcf506dc7b1254c"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/cohort-5-after/progress.json",
+    "bytes": 27,
+    "sha256": "3b961bcdaffeac8af867caa8012bac73ba54f7a0f5d6c6af6fdd6f8222ad2b2d"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/cohort-5-after/snapshot.json",
+    "bytes": 4846779,
+    "sha256": "b5c7d977f2db3397aa91092c9b38710fd42d922399a06c96e499f7d71621453a"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/cohort-5-after-job.json",
+    "bytes": 188,
+    "sha256": "555e8c1ac99a8ace5b409ed6139dc6e1c572de5b5f716aacd00702b5284e7b52"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/cohort-5-after.log",
+    "bytes": 209,
+    "sha256": "279cfbf6be684e1e11a6cca80c7ead440f40c1fc8be564b28e607227dd0c90c9"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/cohort-5-before/progress.json",
+    "bytes": 27,
+    "sha256": "3b961bcdaffeac8af867caa8012bac73ba54f7a0f5d6c6af6fdd6f8222ad2b2d"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/cohort-5-before/snapshot.json",
+    "bytes": 4846779,
+    "sha256": "b5c7d977f2db3397aa91092c9b38710fd42d922399a06c96e499f7d71621453a"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/cohort-5-before-job.json",
+    "bytes": 408,
+    "sha256": "f9df59bdde17a043bcc3e9983c71db11fde8cbae397462b11ded873983e1eed3"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/cohort-5-before.log",
+    "bytes": 209,
+    "sha256": "e5cc2727d82c751309ab15374076331050f7055e0e44c245192fe6622e8b31a4"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/cohort-6-after/progress.json",
+    "bytes": 27,
+    "sha256": "3b961bcdaffeac8af867caa8012bac73ba54f7a0f5d6c6af6fdd6f8222ad2b2d"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/cohort-6-after/snapshot.json",
+    "bytes": 4847208,
+    "sha256": "d4b0239a27d271f785373454c73cae0345aba413cfe1cdb8299ae130bf882ea5"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/cohort-6-after-job.json",
+    "bytes": 188,
+    "sha256": "c62a4f391c136e5a3ddc64d82c816bf09dc5ec270d84ea7189a5b00531799a01"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/cohort-6-after.log",
+    "bytes": 209,
+    "sha256": "dbf8cc9d3bd448d28b85de44ec468a34b8bb874bb4b59162cb50e5616a899aaa"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/cohort-6-before/progress.json",
+    "bytes": 27,
+    "sha256": "3b961bcdaffeac8af867caa8012bac73ba54f7a0f5d6c6af6fdd6f8222ad2b2d"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/cohort-6-before/snapshot.json",
+    "bytes": 4847208,
+    "sha256": "d4b0239a27d271f785373454c73cae0345aba413cfe1cdb8299ae130bf882ea5"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/cohort-6-before-job.json",
+    "bytes": 408,
+    "sha256": "23d0356564009c8ad6e4656b7357c8585e5ebe7b4f4719a228bbd6473b87cdd8"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/cohort-6-before.log",
+    "bytes": 209,
+    "sha256": "afd2166d199aff7d3106e3db8a5f72745a359b89edf5d978e4f45a232f7c8f56"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/cohort-7-after/progress.json",
+    "bytes": 27,
+    "sha256": "3b961bcdaffeac8af867caa8012bac73ba54f7a0f5d6c6af6fdd6f8222ad2b2d"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/cohort-7-after/snapshot.json",
+    "bytes": 4858196,
+    "sha256": "1f3c7a79594ebfa5f47f04372207b36536ebda71326c7e60242237246c26d67b"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/cohort-7-after-job.json",
+    "bytes": 187,
+    "sha256": "629bb04fc259db833b8a8c90effa5902651ac96ed3d814563639393f8e1b4f3b"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/cohort-7-after.log",
+    "bytes": 209,
+    "sha256": "84974420c74a598e27d94dd9642f32952048151b5e569be05826c0942beda643"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/cohort-7-before/progress.json",
+    "bytes": 27,
+    "sha256": "3b961bcdaffeac8af867caa8012bac73ba54f7a0f5d6c6af6fdd6f8222ad2b2d"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/cohort-7-before/snapshot.json",
+    "bytes": 4858196,
+    "sha256": "1f3c7a79594ebfa5f47f04372207b36536ebda71326c7e60242237246c26d67b"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/cohort-7-before-job.json",
+    "bytes": 407,
+    "sha256": "2531941127284ff3367722b4a6c4b81a911fd1d343197557155007d8c80b5dec"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/cohort-7-before.log",
+    "bytes": 209,
+    "sha256": "4d0b7b672b2768212b00d912bbb48f2958452018876ad6f680d33caa1ef2e714"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/compare-cohorts.py",
+    "bytes": 1971,
+    "sha256": "c0303a925a6b8e0b729a649098624dfd6dc97063f567a096a9b6fae112477b3d"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/core-trace-after.ts",
+    "bytes": 50590,
+    "sha256": "1d1d70c048af4582117865cfe6abea9fd8a2d21f02f9a9d0ea67574e545d823b"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/core-trace-before.ts",
+    "bytes": 50393,
+    "sha256": "d3d8c0c7b74b9fdd9a326da310e42117132718c12edf45fb2d0f947ac106b3ce"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/cost-after-job.json",
+    "bytes": 1306,
+    "sha256": "ce29661671cbec4bbe7692c48c70badcf1ceb86e6399d9638f19aa37b6f1d122"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/cost-before-job.json",
+    "bytes": 1526,
+    "sha256": "5b131d9b614e1e4b90f1dfa187f186659a4a60ee6f375b6d2275fa322be19c69"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/cost-cache0-0-before/RESULT.json.gz",
+    "bytes": 2102,
+    "sha256": "b02a6c8c82ed2fa06f661762fe0ef5d4f204a720c17c6c9e1a15a656f6f47818"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/cost-cache0-0-before/cache-audit.json.gz",
+    "bytes": 281,
+    "sha256": "4e4a88ca37858ffd56f9c4fd9e8e52cfea3a759846c1c099d9ff205a86c7d93b"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/cost-cache0-0-before/cold-render.row.json.gz",
+    "bytes": 759,
+    "sha256": "23934b99294ec13ee93e6bc2a9fc859e31b63e61eead4e17d5fdbfa5838a302c"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/cost-cache0-0-before/repeat1.cpuprofile.gz",
+    "bytes": 41,
+    "sha256": "f0bd37867d41bea6d64d7f6235bd223c9c977116a24df687b1d9dd99e5a11be1"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/cost-cache0-0-before/repeat1.receipt.json.gz",
+    "bytes": 1341,
+    "sha256": "4b02450c3a971a1393d42657b105f23c768f8a69164efeb8818126c32af06a94"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/cost-cache0-0-before/repeat1.row.json.gz",
+    "bytes": 803,
+    "sha256": "d0ef142844dc4f842b84b4859f5b6e2090022b26b70120729fd47f502c827663"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/cost-cache0-0-before/repeat1.svg.gz",
+    "bytes": 4065,
+    "sha256": "7a4facf2d53a75b1360faa87a9c04b44394b6f0929d34b4a242807340ef38acf"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/cost-cache0-0-before/repeat2.cpuprofile.gz",
+    "bytes": 41,
+    "sha256": "f0bd37867d41bea6d64d7f6235bd223c9c977116a24df687b1d9dd99e5a11be1"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/cost-cache0-0-before/repeat2.receipt.json.gz",
+    "bytes": 1341,
+    "sha256": "4b02450c3a971a1393d42657b105f23c768f8a69164efeb8818126c32af06a94"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/cost-cache0-0-before/repeat2.row.json.gz",
+    "bytes": 803,
+    "sha256": "4062b538e12074e4b4598293b22bcb518d81663dbdbd8720aca07c90f0c422a5"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/cost-cache0-0-before/repeat2.svg.gz",
+    "bytes": 4065,
+    "sha256": "7a4facf2d53a75b1360faa87a9c04b44394b6f0929d34b4a242807340ef38acf"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/cost-cache0-0-before/source-maps.json.gz",
+    "bytes": 22,
+    "sha256": "73a1b438b0221511fb3dde18e019f5ab045811b2248d25d424e40980c683a9dc"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/cost-cache0-0-before/warmup.receipt.json.gz",
+    "bytes": 1341,
+    "sha256": "4b02450c3a971a1393d42657b105f23c768f8a69164efeb8818126c32af06a94"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/cost-cache0-0-before/warmup.svg.gz",
+    "bytes": 4065,
+    "sha256": "7a4facf2d53a75b1360faa87a9c04b44394b6f0929d34b4a242807340ef38acf"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/cost-cache0-0-before.log",
+    "bytes": 417,
+    "sha256": "6003f2eb9b78de358c1cf776ab272391fe73b7360458a0a744d208b66bb844c9"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/cost-cache0-1-after/RESULT.json.gz",
+    "bytes": 1874,
+    "sha256": "2ffd19c6da3a6bc01f0116f942867bb04efcafd7d1268ccb617e9dc6aa5eaf6b"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/cost-cache0-1-after/cache-audit.json.gz",
+    "bytes": 281,
+    "sha256": "d38dfda10b4bbdab1c58ad2ae221842781c4f090cec4f79b06fc88b2a78f3a6c"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/cost-cache0-1-after/cold-render.row.json.gz",
+    "bytes": 622,
+    "sha256": "3eb4a95e0a2e301dcac4197ce9a0eca788218b6d0a7bae2c42a3026ff846b361"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/cost-cache0-1-after/repeat1.cpuprofile.gz",
+    "bytes": 41,
+    "sha256": "f0bd37867d41bea6d64d7f6235bd223c9c977116a24df687b1d9dd99e5a11be1"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/cost-cache0-1-after/repeat1.receipt.json.gz",
+    "bytes": 1217,
+    "sha256": "3803b970fe7ba49c6e0a2fc67242a9f01968d2efeffee96ee2d225b8cbdcf0ba"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/cost-cache0-1-after/repeat1.row.json.gz",
+    "bytes": 669,
+    "sha256": "cbd9af4b2988be5fd691832496908e141ad405d6873780b1ef013164b798d4aa"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/cost-cache0-1-after/repeat1.svg.gz",
+    "bytes": 4059,
+    "sha256": "54235d11a30c006a76adcfaa3fc8be25aee707cc15cfff7ddbb40316ccecb2c0"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/cost-cache0-1-after/repeat2.cpuprofile.gz",
+    "bytes": 41,
+    "sha256": "f0bd37867d41bea6d64d7f6235bd223c9c977116a24df687b1d9dd99e5a11be1"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/cost-cache0-1-after/repeat2.receipt.json.gz",
+    "bytes": 1217,
+    "sha256": "3803b970fe7ba49c6e0a2fc67242a9f01968d2efeffee96ee2d225b8cbdcf0ba"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/cost-cache0-1-after/repeat2.row.json.gz",
+    "bytes": 663,
+    "sha256": "3372ad1b9256b7075789404a93dc3c02c8a4c2b7587e91b611b4a55e2451942a"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/cost-cache0-1-after/repeat2.svg.gz",
+    "bytes": 4059,
+    "sha256": "54235d11a30c006a76adcfaa3fc8be25aee707cc15cfff7ddbb40316ccecb2c0"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/cost-cache0-1-after/source-maps.json.gz",
+    "bytes": 22,
+    "sha256": "73a1b438b0221511fb3dde18e019f5ab045811b2248d25d424e40980c683a9dc"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/cost-cache0-1-after/warmup.receipt.json.gz",
+    "bytes": 1217,
+    "sha256": "3803b970fe7ba49c6e0a2fc67242a9f01968d2efeffee96ee2d225b8cbdcf0ba"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/cost-cache0-1-after/warmup.svg.gz",
+    "bytes": 4059,
+    "sha256": "54235d11a30c006a76adcfaa3fc8be25aee707cc15cfff7ddbb40316ccecb2c0"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/cost-cache0-1-after.log",
+    "bytes": 416,
+    "sha256": "00427dc6f519f0235bdd742c06a0a9305106c42ed8e680384dd41cb441e75570"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/cost-cache0-2-after/RESULT.json.gz",
+    "bytes": 1868,
+    "sha256": "5ae32d9d4a3793db925b189142aa3cf712975c7276ef9ed454440496d64bdbd6"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/cost-cache0-2-after/cache-audit.json.gz",
+    "bytes": 281,
+    "sha256": "d38dfda10b4bbdab1c58ad2ae221842781c4f090cec4f79b06fc88b2a78f3a6c"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/cost-cache0-2-after/cold-render.row.json.gz",
+    "bytes": 625,
+    "sha256": "2224d08c6c156a08b09c5272fbc6094bd3f70686d71d92e1cce154c51e45c20a"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/cost-cache0-2-after/repeat1.cpuprofile.gz",
+    "bytes": 41,
+    "sha256": "f0bd37867d41bea6d64d7f6235bd223c9c977116a24df687b1d9dd99e5a11be1"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/cost-cache0-2-after/repeat1.receipt.json.gz",
+    "bytes": 1217,
+    "sha256": "3803b970fe7ba49c6e0a2fc67242a9f01968d2efeffee96ee2d225b8cbdcf0ba"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/cost-cache0-2-after/repeat1.row.json.gz",
+    "bytes": 670,
+    "sha256": "0ecb193cec514c4381a3dceba0da8cf2e18103a3524290c4160ec08c6f1c66c0"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/cost-cache0-2-after/repeat1.svg.gz",
+    "bytes": 4059,
+    "sha256": "54235d11a30c006a76adcfaa3fc8be25aee707cc15cfff7ddbb40316ccecb2c0"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/cost-cache0-2-after/repeat2.cpuprofile.gz",
+    "bytes": 41,
+    "sha256": "f0bd37867d41bea6d64d7f6235bd223c9c977116a24df687b1d9dd99e5a11be1"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/cost-cache0-2-after/repeat2.receipt.json.gz",
+    "bytes": 1217,
+    "sha256": "3803b970fe7ba49c6e0a2fc67242a9f01968d2efeffee96ee2d225b8cbdcf0ba"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/cost-cache0-2-after/repeat2.row.json.gz",
+    "bytes": 660,
+    "sha256": "2db38d3981c2de918b62e1e720efb1caacbc891f1dd9eba46f7c4246413c187e"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/cost-cache0-2-after/repeat2.svg.gz",
+    "bytes": 4059,
+    "sha256": "54235d11a30c006a76adcfaa3fc8be25aee707cc15cfff7ddbb40316ccecb2c0"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/cost-cache0-2-after/source-maps.json.gz",
+    "bytes": 22,
+    "sha256": "73a1b438b0221511fb3dde18e019f5ab045811b2248d25d424e40980c683a9dc"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/cost-cache0-2-after/warmup.receipt.json.gz",
+    "bytes": 1217,
+    "sha256": "3803b970fe7ba49c6e0a2fc67242a9f01968d2efeffee96ee2d225b8cbdcf0ba"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/cost-cache0-2-after/warmup.svg.gz",
+    "bytes": 4059,
+    "sha256": "54235d11a30c006a76adcfaa3fc8be25aee707cc15cfff7ddbb40316ccecb2c0"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/cost-cache0-2-after.log",
+    "bytes": 416,
+    "sha256": "b432f2dbed2ce404e1e6bd3b4727d94eef52f5793c11e30c996897cdf3563958"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/cost-cache0-3-before/RESULT.json.gz",
+    "bytes": 2088,
+    "sha256": "2a8ae0fb38e19cf5b5675fd55c4d355af2f95420562cb18ccb4596bc8f5af54d"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/cost-cache0-3-before/cache-audit.json.gz",
+    "bytes": 281,
+    "sha256": "4e4a88ca37858ffd56f9c4fd9e8e52cfea3a759846c1c099d9ff205a86c7d93b"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/cost-cache0-3-before/cold-render.row.json.gz",
+    "bytes": 759,
+    "sha256": "54d0bf61930213e7d9e5b15c4cc0747c3b89dfd82b0526ebf5c2e54eef2fb3ed"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/cost-cache0-3-before/repeat1.cpuprofile.gz",
+    "bytes": 41,
+    "sha256": "f0bd37867d41bea6d64d7f6235bd223c9c977116a24df687b1d9dd99e5a11be1"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/cost-cache0-3-before/repeat1.receipt.json.gz",
+    "bytes": 1341,
+    "sha256": "4b02450c3a971a1393d42657b105f23c768f8a69164efeb8818126c32af06a94"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/cost-cache0-3-before/repeat1.row.json.gz",
+    "bytes": 812,
+    "sha256": "654296503bb4ebe069437ea2f22d5ced1cdb983670cbf75e5a7ac28fe082692c"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/cost-cache0-3-before/repeat1.svg.gz",
+    "bytes": 4065,
+    "sha256": "7a4facf2d53a75b1360faa87a9c04b44394b6f0929d34b4a242807340ef38acf"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/cost-cache0-3-before/repeat2.cpuprofile.gz",
+    "bytes": 41,
+    "sha256": "f0bd37867d41bea6d64d7f6235bd223c9c977116a24df687b1d9dd99e5a11be1"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/cost-cache0-3-before/repeat2.receipt.json.gz",
+    "bytes": 1341,
+    "sha256": "4b02450c3a971a1393d42657b105f23c768f8a69164efeb8818126c32af06a94"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/cost-cache0-3-before/repeat2.row.json.gz",
+    "bytes": 796,
+    "sha256": "8f01582c9f1ccd1bcbc56fc3c680f137a4b10390e608914a2c3c6f3f7804d2a7"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/cost-cache0-3-before/repeat2.svg.gz",
+    "bytes": 4065,
+    "sha256": "7a4facf2d53a75b1360faa87a9c04b44394b6f0929d34b4a242807340ef38acf"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/cost-cache0-3-before/source-maps.json.gz",
+    "bytes": 22,
+    "sha256": "73a1b438b0221511fb3dde18e019f5ab045811b2248d25d424e40980c683a9dc"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/cost-cache0-3-before/warmup.receipt.json.gz",
+    "bytes": 1341,
+    "sha256": "4b02450c3a971a1393d42657b105f23c768f8a69164efeb8818126c32af06a94"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/cost-cache0-3-before/warmup.svg.gz",
+    "bytes": 4065,
+    "sha256": "7a4facf2d53a75b1360faa87a9c04b44394b6f0929d34b4a242807340ef38acf"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/cost-cache0-3-before.log",
+    "bytes": 417,
+    "sha256": "3c4f4cffa923ed3fa4c2882a427cf4e18d98019dff664c984791d2297fa16541"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/cost-cache1-0-before/RESULT.json.gz",
+    "bytes": 2052,
+    "sha256": "4d28f4dfc5d563fe477e62e00ba1a02c270dc643cced6cc51f578c1cdd120396"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/cost-cache1-0-before/cache-audit.json.gz",
+    "bytes": 261,
+    "sha256": "1b1725c7da96c9a860990222c2055e13101cdbb19a28ee9b3741d765e61235a3"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/cost-cache1-0-before/cold-render.row.json.gz",
+    "bytes": 758,
+    "sha256": "f407bbeff9b2b6c5e162987bef83255554cbbee5fa75f1204449674877f038b6"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/cost-cache1-0-before/repeat1.cpuprofile.gz",
+    "bytes": 41,
+    "sha256": "f0bd37867d41bea6d64d7f6235bd223c9c977116a24df687b1d9dd99e5a11be1"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/cost-cache1-0-before/repeat1.receipt.json.gz",
+    "bytes": 1341,
+    "sha256": "4b02450c3a971a1393d42657b105f23c768f8a69164efeb8818126c32af06a94"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/cost-cache1-0-before/repeat1.row.json.gz",
+    "bytes": 791,
+    "sha256": "e949bd7e6e9e4304698e4c14aca5e783957ce66ff97beb5019ddb35e10cfa540"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/cost-cache1-0-before/repeat1.svg.gz",
+    "bytes": 4065,
+    "sha256": "7a4facf2d53a75b1360faa87a9c04b44394b6f0929d34b4a242807340ef38acf"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/cost-cache1-0-before/repeat2.cpuprofile.gz",
+    "bytes": 41,
+    "sha256": "f0bd37867d41bea6d64d7f6235bd223c9c977116a24df687b1d9dd99e5a11be1"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/cost-cache1-0-before/repeat2.receipt.json.gz",
+    "bytes": 1341,
+    "sha256": "4b02450c3a971a1393d42657b105f23c768f8a69164efeb8818126c32af06a94"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/cost-cache1-0-before/repeat2.row.json.gz",
+    "bytes": 785,
+    "sha256": "1badc4347d44dd048b6b74ad76ae0e05dca7d8fbf22fb578cb790919bd82e262"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/cost-cache1-0-before/repeat2.svg.gz",
+    "bytes": 4065,
+    "sha256": "7a4facf2d53a75b1360faa87a9c04b44394b6f0929d34b4a242807340ef38acf"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/cost-cache1-0-before/source-maps.json.gz",
+    "bytes": 22,
+    "sha256": "73a1b438b0221511fb3dde18e019f5ab045811b2248d25d424e40980c683a9dc"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/cost-cache1-0-before/warmup.receipt.json.gz",
+    "bytes": 1341,
+    "sha256": "4b02450c3a971a1393d42657b105f23c768f8a69164efeb8818126c32af06a94"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/cost-cache1-0-before/warmup.svg.gz",
+    "bytes": 4065,
+    "sha256": "7a4facf2d53a75b1360faa87a9c04b44394b6f0929d34b4a242807340ef38acf"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/cost-cache1-0-before.log",
+    "bytes": 416,
+    "sha256": "f6f53f2f48e754ea5bf56fa8b3bf84dd8cea76b9b7ecbe91d3d52a304a7dae4a"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/cost-cache1-1-after/RESULT.json.gz",
+    "bytes": 1836,
+    "sha256": "424cdc38c704f4ed48421d6fa67ff3f5713a202ef15fb0f64eae163ee5d8d126"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/cost-cache1-1-after/cache-audit.json.gz",
+    "bytes": 261,
+    "sha256": "6459aa395e03cb77f3729df5ec39d5a682c7e8d75d3ba41f60c4065fd434e86d"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/cost-cache1-1-after/cold-render.row.json.gz",
+    "bytes": 624,
+    "sha256": "4d32944225d4b05da1f08a32a163c1a3111b98e83efb018a6ae98ac9be6c0a9c"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/cost-cache1-1-after/repeat1.cpuprofile.gz",
+    "bytes": 41,
+    "sha256": "f0bd37867d41bea6d64d7f6235bd223c9c977116a24df687b1d9dd99e5a11be1"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/cost-cache1-1-after/repeat1.receipt.json.gz",
+    "bytes": 1217,
+    "sha256": "3803b970fe7ba49c6e0a2fc67242a9f01968d2efeffee96ee2d225b8cbdcf0ba"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/cost-cache1-1-after/repeat1.row.json.gz",
+    "bytes": 653,
+    "sha256": "5e8f6c79ae1337c298b4878cfdc1c11958cb4f27b583c43b304f083d461abbbd"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/cost-cache1-1-after/repeat1.svg.gz",
+    "bytes": 4059,
+    "sha256": "54235d11a30c006a76adcfaa3fc8be25aee707cc15cfff7ddbb40316ccecb2c0"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/cost-cache1-1-after/repeat2.cpuprofile.gz",
+    "bytes": 41,
+    "sha256": "f0bd37867d41bea6d64d7f6235bd223c9c977116a24df687b1d9dd99e5a11be1"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/cost-cache1-1-after/repeat2.receipt.json.gz",
+    "bytes": 1217,
+    "sha256": "3803b970fe7ba49c6e0a2fc67242a9f01968d2efeffee96ee2d225b8cbdcf0ba"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/cost-cache1-1-after/repeat2.row.json.gz",
+    "bytes": 651,
+    "sha256": "b45479603f1845a612b67778ccfdf47aeca7126d79ba28120632fa9a82cd4538"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/cost-cache1-1-after/repeat2.svg.gz",
+    "bytes": 4059,
+    "sha256": "54235d11a30c006a76adcfaa3fc8be25aee707cc15cfff7ddbb40316ccecb2c0"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/cost-cache1-1-after/source-maps.json.gz",
+    "bytes": 22,
+    "sha256": "73a1b438b0221511fb3dde18e019f5ab045811b2248d25d424e40980c683a9dc"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/cost-cache1-1-after/warmup.receipt.json.gz",
+    "bytes": 1217,
+    "sha256": "3803b970fe7ba49c6e0a2fc67242a9f01968d2efeffee96ee2d225b8cbdcf0ba"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/cost-cache1-1-after/warmup.svg.gz",
+    "bytes": 4059,
+    "sha256": "54235d11a30c006a76adcfaa3fc8be25aee707cc15cfff7ddbb40316ccecb2c0"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/cost-cache1-1-after.log",
+    "bytes": 416,
+    "sha256": "fc205c171b36234ebba9f65d7f55d55d8687559d58bd3db452d637c3d895945e"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/cost-cache1-2-after/RESULT.json.gz",
+    "bytes": 1845,
+    "sha256": "2a9097f05a9c0fd5e19c89bec1adcc5980d98ea1629bc2a15b289eb56ffbebe9"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/cost-cache1-2-after/cache-audit.json.gz",
+    "bytes": 261,
+    "sha256": "6459aa395e03cb77f3729df5ec39d5a682c7e8d75d3ba41f60c4065fd434e86d"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/cost-cache1-2-after/cold-render.row.json.gz",
+    "bytes": 626,
+    "sha256": "309a0e62c053906e39f38894857e59ec37fae4d4fd4561337579c70d3445415e"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/cost-cache1-2-after/repeat1.cpuprofile.gz",
+    "bytes": 41,
+    "sha256": "f0bd37867d41bea6d64d7f6235bd223c9c977116a24df687b1d9dd99e5a11be1"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/cost-cache1-2-after/repeat1.receipt.json.gz",
+    "bytes": 1217,
+    "sha256": "3803b970fe7ba49c6e0a2fc67242a9f01968d2efeffee96ee2d225b8cbdcf0ba"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/cost-cache1-2-after/repeat1.row.json.gz",
+    "bytes": 659,
+    "sha256": "eb43d6ec51c8fe88772d0735aeefbcffe5851f48045f8f70b4d055ed6bbc1aee"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/cost-cache1-2-after/repeat1.svg.gz",
+    "bytes": 4059,
+    "sha256": "54235d11a30c006a76adcfaa3fc8be25aee707cc15cfff7ddbb40316ccecb2c0"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/cost-cache1-2-after/repeat2.cpuprofile.gz",
+    "bytes": 41,
+    "sha256": "f0bd37867d41bea6d64d7f6235bd223c9c977116a24df687b1d9dd99e5a11be1"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/cost-cache1-2-after/repeat2.receipt.json.gz",
+    "bytes": 1217,
+    "sha256": "3803b970fe7ba49c6e0a2fc67242a9f01968d2efeffee96ee2d225b8cbdcf0ba"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/cost-cache1-2-after/repeat2.row.json.gz",
+    "bytes": 650,
+    "sha256": "ef01b1441772420ad07718e59c231fdbe2a4720c0c45b066d9258b0cdb483460"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/cost-cache1-2-after/repeat2.svg.gz",
+    "bytes": 4059,
+    "sha256": "54235d11a30c006a76adcfaa3fc8be25aee707cc15cfff7ddbb40316ccecb2c0"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/cost-cache1-2-after/source-maps.json.gz",
+    "bytes": 22,
+    "sha256": "73a1b438b0221511fb3dde18e019f5ab045811b2248d25d424e40980c683a9dc"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/cost-cache1-2-after/warmup.receipt.json.gz",
+    "bytes": 1217,
+    "sha256": "3803b970fe7ba49c6e0a2fc67242a9f01968d2efeffee96ee2d225b8cbdcf0ba"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/cost-cache1-2-after/warmup.svg.gz",
+    "bytes": 4059,
+    "sha256": "54235d11a30c006a76adcfaa3fc8be25aee707cc15cfff7ddbb40316ccecb2c0"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/cost-cache1-2-after.log",
+    "bytes": 416,
+    "sha256": "ae40076ad9e661763ed19d8e874fa6b0016c62e93a688fc39eab94dacfa19aaf"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/cost-cache1-3-before/RESULT.json.gz",
+    "bytes": 2054,
+    "sha256": "63625492a5ed01687c3563603fb0ede3313bac9999644d4d039fe1057e17d715"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/cost-cache1-3-before/cache-audit.json.gz",
+    "bytes": 261,
+    "sha256": "1b1725c7da96c9a860990222c2055e13101cdbb19a28ee9b3741d765e61235a3"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/cost-cache1-3-before/cold-render.row.json.gz",
+    "bytes": 755,
+    "sha256": "3bd8a8d590cf3526fa85ea50a36291daac8cce929250ffa5c026117a83997245"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/cost-cache1-3-before/repeat1.cpuprofile.gz",
+    "bytes": 41,
+    "sha256": "f0bd37867d41bea6d64d7f6235bd223c9c977116a24df687b1d9dd99e5a11be1"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/cost-cache1-3-before/repeat1.receipt.json.gz",
+    "bytes": 1341,
+    "sha256": "4b02450c3a971a1393d42657b105f23c768f8a69164efeb8818126c32af06a94"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/cost-cache1-3-before/repeat1.row.json.gz",
+    "bytes": 793,
+    "sha256": "f587bcf9bd105d6c78aacfefb14e24a8e04b2ce6ae2f1615492c793c1b5ac097"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/cost-cache1-3-before/repeat1.svg.gz",
+    "bytes": 4065,
+    "sha256": "7a4facf2d53a75b1360faa87a9c04b44394b6f0929d34b4a242807340ef38acf"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/cost-cache1-3-before/repeat2.cpuprofile.gz",
+    "bytes": 41,
+    "sha256": "f0bd37867d41bea6d64d7f6235bd223c9c977116a24df687b1d9dd99e5a11be1"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/cost-cache1-3-before/repeat2.receipt.json.gz",
+    "bytes": 1341,
+    "sha256": "4b02450c3a971a1393d42657b105f23c768f8a69164efeb8818126c32af06a94"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/cost-cache1-3-before/repeat2.row.json.gz",
+    "bytes": 786,
+    "sha256": "b5b8ddf29576afc2f25564383c8b4ac9e451526f9591ee7207da77d8b4bcb499"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/cost-cache1-3-before/repeat2.svg.gz",
+    "bytes": 4065,
+    "sha256": "7a4facf2d53a75b1360faa87a9c04b44394b6f0929d34b4a242807340ef38acf"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/cost-cache1-3-before/source-maps.json.gz",
+    "bytes": 22,
+    "sha256": "73a1b438b0221511fb3dde18e019f5ab045811b2248d25d424e40980c683a9dc"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/cost-cache1-3-before/warmup.receipt.json.gz",
+    "bytes": 1341,
+    "sha256": "4b02450c3a971a1393d42657b105f23c768f8a69164efeb8818126c32af06a94"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/cost-cache1-3-before/warmup.svg.gz",
+    "bytes": 4065,
+    "sha256": "7a4facf2d53a75b1360faa87a9c04b44394b6f0929d34b4a242807340ef38acf"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/cost-cache1-3-before.log",
+    "bytes": 417,
+    "sha256": "27103be87b228e8539fb72d2844fe68ead35f855513ef5037969decbbb6876ac"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/direction.ts",
+    "bytes": 1410,
+    "sha256": "3ba873b0e6b01a0f4ccef2f5052929351bee9a0e1517e72b01d96e172a8b8502"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/elk-heads.png",
+    "bytes": 320608,
+    "sha256": "acb8914e6c6fff77de172a9fccb829c7a069a152e49490be74ef8a4505fc4cdb"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/elk0.receipt.json.gz",
+    "bytes": 1351,
+    "sha256": "73dbfe89be8e60db618eca354f1bcc93e68d785451ffa803ae1dbc9391f99d9f"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/elk0.svg.gz",
+    "bytes": 4043,
+    "sha256": "6a4e300fd52552fe5ffce6101999ceeb448a16668de1cbef10052b4181574a25"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/elk1.receipt.json.gz",
+    "bytes": 1351,
+    "sha256": "73dbfe89be8e60db618eca354f1bcc93e68d785451ffa803ae1dbc9391f99d9f"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/elk1.svg.gz",
+    "bytes": 4043,
+    "sha256": "6a4e300fd52552fe5ffce6101999ceeb448a16668de1cbef10052b4181574a25"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/frozen-products/0-meaning_family_flowchart-agentic.receipt.json",
+    "bytes": 7912,
+    "sha256": "94f96be39a34659e64e4e0dce3f8fe816a81f4531c64f045625822a595d93c76"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/frozen-products/0-meaning_family_flowchart-agentic.svg",
+    "bytes": 3588,
+    "sha256": "8a60671ca3b25d57a7c663fcd7939d603dd6079f0f1cec5a5bbad98f56a2d9e3"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/frozen-products/0-meaning_family_flowchart-elk.receipt.json",
+    "bytes": 7895,
+    "sha256": "9de566bde761a8881dc6100c59a59ac3767299d36453908a26078cfdbc8c161e"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/frozen-products/0-meaning_family_flowchart-elk.svg",
+    "bytes": 3588,
+    "sha256": "8a60671ca3b25d57a7c663fcd7939d603dd6079f0f1cec5a5bbad98f56a2d9e3"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/frozen-products/0-meaning_family_flowchart-trinity.receipt.json",
+    "bytes": 7903,
+    "sha256": "106cd17eab161f5e1082cde6f488c6a3f5a7829813e7d0c29b43e4dce121f27e"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/frozen-products/0-meaning_family_flowchart-trinity.svg",
+    "bytes": 3597,
+    "sha256": "12f8d5a5a54452058ee3f14352efa05b67255e54e71d5564fbb6b2899f37c70f"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/frozen-products/1-meaning_family_state-agentic.receipt.json",
+    "bytes": 7904,
+    "sha256": "c44e7221aa2c36250dc1bdf6a175c6837be12bad57fe43f54b8ad12f6c5c304d"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/frozen-products/1-meaning_family_state-agentic.svg",
+    "bytes": 3249,
+    "sha256": "5e01d14be1b1de8a0ac9717f1ce14d767b0e04f03fe6a65cded197bf4a46eb44"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/frozen-products/1-meaning_family_state-elk.receipt.json",
+    "bytes": 7887,
+    "sha256": "4448c293ddeb29864f1c69c14e16eb2d1eb53e41b0072a6c4a97cefa4d25da2e"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/frozen-products/1-meaning_family_state-elk.svg",
+    "bytes": 3250,
+    "sha256": "7c1ee9cd47b8215a40df9bb1fd84c2dd8b1a57baa997fd76dcee12356aef4876"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/frozen-products/1-meaning_family_state-trinity.receipt.json",
+    "bytes": 7896,
+    "sha256": "462795b21afb45aae24d96e3b2bb63b28d432f85779e6cd1ab3f50eff689bffe"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/frozen-products/1-meaning_family_state-trinity.svg",
+    "bytes": 3270,
+    "sha256": "67f666589981a1e71c30dc82f95bbc41ce4f78564c47b358be1d74dde74ecc4f"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/frozen-products/10-features_state_nesting-reciprocal-alias-agentic.receipt.json",
+    "bytes": 7907,
+    "sha256": "e2674685b5e0cd337595c2b015f910f49e9fa9ecbb22b0d8382596cd7cace3f1"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/frozen-products/10-features_state_nesting-reciprocal-alias-agentic.svg",
+    "bytes": 6571,
+    "sha256": "42179a2408b50b1d35dded4accfd5c857e8a64290ec5a7ac903af091b8cfd852"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/frozen-products/10-features_state_nesting-reciprocal-alias-elk.receipt.json",
+    "bytes": 7891,
+    "sha256": "2ed881b26aab64c60d7b22b1b079ee1c064fb4bfde06e912f38b83d3b34073a3"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/frozen-products/10-features_state_nesting-reciprocal-alias-elk.svg",
+    "bytes": 6670,
+    "sha256": "126249210cd48dca6e78150e131903c39d7ec528b17cb92f32024572526cd62a"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/frozen-products/10-features_state_nesting-reciprocal-alias-trinity.receipt.json",
+    "bytes": 7899,
+    "sha256": "6b99426c6713851fe32a2921d68bad8ecf5d1fc93f36e5c4326a10331950c79d"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/frozen-products/10-features_state_nesting-reciprocal-alias-trinity.svg",
+    "bytes": 6654,
+    "sha256": "d5412205b425caab0b8e6a09844ffe75f93248685fab5c514be667a77fc2e74e"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/frozen-products/11-features_state_initial-final-pseudostates-agentic.receipt.json",
+    "bytes": 7906,
+    "sha256": "e60e98b4dbdea1097784844013b97aeb37528d61b5da017b7493ca805884b8e0"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/frozen-products/11-features_state_initial-final-pseudostates-agentic.svg",
+    "bytes": 4686,
+    "sha256": "32051f7d4059ee553b36b72d8fc76c4689fdd3c3a0997fc25494379ba4ef6d57"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/frozen-products/11-features_state_initial-final-pseudostates-elk.receipt.json",
+    "bytes": 7889,
+    "sha256": "0cd0368d6bc138cea8013e80f8d5f8919fdedc030cca475c10c59bf6a4246e14"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/frozen-products/11-features_state_initial-final-pseudostates-elk.svg",
+    "bytes": 4686,
+    "sha256": "5392c2f9d88f3d68fd28f4b1f46582551fb39b96a76c3686d0b9fd9c4a450eae"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/frozen-products/11-features_state_initial-final-pseudostates-trinity.receipt.json",
+    "bytes": 7898,
+    "sha256": "9f3c189a3713ac2cba1be0e21f55776872172884b4ce62cbcc0bfa009a28efd8"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/frozen-products/11-features_state_initial-final-pseudostates-trinity.svg",
+    "bytes": 4723,
+    "sha256": "9235a6dd9b700f0a09692d801d2f87e74d71bd368e6a17240f56b3db3e6f15e9"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/frozen-products/12-features_er_attributes-identifying-cardinality-agentic.receipt.json",
+    "bytes": 7532,
+    "sha256": "566726474c99f7427542f45939ff178015862e32c898febb6a1baa6a2c93d901"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/frozen-products/12-features_er_attributes-identifying-cardinality-agentic.svg",
+    "bytes": 9043,
+    "sha256": "1a9c08ca5874ceafacfd5846e062b50e80615f71074ec85905f662be39e29618"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/frozen-products/12-features_er_attributes-identifying-cardinality-elk.receipt.json",
+    "bytes": 7515,
+    "sha256": "a6db7cee4f72eccf1c62fee44cb321226d6ec9affde06f6a7498a51b32d8132a"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/frozen-products/12-features_er_attributes-identifying-cardinality-elk.svg",
+    "bytes": 9040,
+    "sha256": "a0d3add7c7291e4cacd6a4152d77c0a3fdfb7caa08903c0ae37715e692c0382f"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/frozen-products/12-features_er_attributes-identifying-cardinality-trinity.receipt.json",
+    "bytes": 7523,
+    "sha256": "89914cc5b627dff82ffb76c3f5fc4e6b8f4e5acc2afcb34f7f18e2cce785b719"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/frozen-products/12-features_er_attributes-identifying-cardinality-trinity.svg",
+    "bytes": 9158,
+    "sha256": "87e2d61d72be1af7e8b764ce6f14dd59f7159e56dcaf69afc2b549e7450e1fbc"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/frozen-products/13-features_requirement_types-risk-relations-agentic.receipt.json",
+    "bytes": 7920,
+    "sha256": "a9c7ed971834bb1bc26318b39541412ec980d897406a39d8f6f3e10bbe4900b0"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/frozen-products/13-features_requirement_types-risk-relations-agentic.svg",
+    "bytes": 8309,
+    "sha256": "82e6392ecf5edad2aa673425d6e852cd2c12fe64e6d32c9a8d13a14ba0509006"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/frozen-products/13-features_requirement_types-risk-relations-elk.receipt.json",
+    "bytes": 7903,
+    "sha256": "bbaac3343b6fcf2d3c4e5c8a416c376a43a88f92e28bcd8e5fde9166d1ce3b3f"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/frozen-products/13-features_requirement_types-risk-relations-elk.svg",
+    "bytes": 8364,
+    "sha256": "1f5b527a45a7fb4f2e7cbafc5d67ad91318ae28dc398f3e2156c04217a68bc97"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/frozen-products/13-features_requirement_types-risk-relations-trinity.receipt.json",
+    "bytes": 7911,
+    "sha256": "c047f858e6c8e1c0f02de8db721ef53845bb8f30369cd9e6194a883ded439ba0"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/frozen-products/13-features_requirement_types-risk-relations-trinity.svg",
+    "bytes": 8491,
+    "sha256": "0a2b0d3042e8660331e608c7f7310ab6a539b62b3def99014cec14500c96cae4"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/frozen-products/14-features_architecture_ports-groups-branching-agentic.receipt.json",
+    "bytes": 7918,
+    "sha256": "1cb2dd1b83e8a28c0ba09eb35b915f28ee43ba7a4e997fa12c110ca61152def8"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/frozen-products/14-features_architecture_ports-groups-branching-agentic.svg",
+    "bytes": 7955,
+    "sha256": "1e423705c26a1e24ad51eff20246577b89a283505498756089c90fc457b16a19"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/frozen-products/14-features_architecture_ports-groups-branching-elk.receipt.json",
+    "bytes": 7901,
+    "sha256": "d2e0b3030c3d7fcb0c79dae53df0e272e01b92ce736d02b0ac4d5b0af71050df"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/frozen-products/14-features_architecture_ports-groups-branching-elk.svg",
+    "bytes": 7927,
+    "sha256": "25ccdfe117d14cf0e69b05b8f27dd19b0db223a8ba804002788df65b7f17a788"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/frozen-products/14-features_architecture_ports-groups-branching-trinity.receipt.json",
+    "bytes": 7909,
+    "sha256": "be3a3c7396b41af99390f6c9a1844281073acfd8a8dc082bc83e98998bab7276"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/frozen-products/14-features_architecture_ports-groups-branching-trinity.svg",
+    "bytes": 7945,
+    "sha256": "26e2ca6996adc12e2a7e4e122e9d98cc37f7ee6377805ad59817f0cf4a1427c9"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/frozen-products/15-meaning_family_flowchart_configuration-reset-agentic.receipt.json",
+    "bytes": 7912,
+    "sha256": "94f96be39a34659e64e4e0dce3f8fe816a81f4531c64f045625822a595d93c76"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/frozen-products/15-meaning_family_flowchart_configuration-reset-agentic.svg",
+    "bytes": 3588,
+    "sha256": "8a60671ca3b25d57a7c663fcd7939d603dd6079f0f1cec5a5bbad98f56a2d9e3"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/frozen-products/15-meaning_family_flowchart_configuration-reset-elk.receipt.json",
+    "bytes": 7895,
+    "sha256": "9de566bde761a8881dc6100c59a59ac3767299d36453908a26078cfdbc8c161e"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/frozen-products/15-meaning_family_flowchart_configuration-reset-elk.svg",
+    "bytes": 3588,
+    "sha256": "8a60671ca3b25d57a7c663fcd7939d603dd6079f0f1cec5a5bbad98f56a2d9e3"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/frozen-products/15-meaning_family_flowchart_configuration-reset-trinity.receipt.json",
+    "bytes": 7903,
+    "sha256": "106cd17eab161f5e1082cde6f488c6a3f5a7829813e7d0c29b43e4dce121f27e"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/frozen-products/15-meaning_family_flowchart_configuration-reset-trinity.svg",
+    "bytes": 3597,
+    "sha256": "12f8d5a5a54452058ee3f14352efa05b67255e54e71d5564fbb6b2899f37c70f"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/frozen-products/16-meaning_family_flowchart_configuration-reset_edit-agentic.receipt.json",
+    "bytes": 7912,
+    "sha256": "21b533f5bd8a573a651702f6e02fc770e31a60e69774cfba222a9aab8a140224"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/frozen-products/16-meaning_family_flowchart_configuration-reset_edit-agentic.svg",
+    "bytes": 3603,
+    "sha256": "747b99c86aa443818764dd3ea98cf6f2524a8adfef4d54f8b0970549ea8a28b7"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/frozen-products/16-meaning_family_flowchart_configuration-reset_edit-elk.receipt.json",
+    "bytes": 7895,
+    "sha256": "a098204c7d311bc4925acdf44e6cbadfdba8ecb553c397460ef8dd2447af8836"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/frozen-products/16-meaning_family_flowchart_configuration-reset_edit-elk.svg",
+    "bytes": 3603,
+    "sha256": "747b99c86aa443818764dd3ea98cf6f2524a8adfef4d54f8b0970549ea8a28b7"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/frozen-products/16-meaning_family_flowchart_configuration-reset_edit-trinity.receipt.json",
+    "bytes": 7903,
+    "sha256": "b7afbefbb305bb03a14b7e6d302f34cb6d8ba552d4715cb09130bbe33a9f6e22"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/frozen-products/16-meaning_family_flowchart_configuration-reset_edit-trinity.svg",
+    "bytes": 3614,
+    "sha256": "570f19d137eb7ccde0225965821b00217b578b18c6939feea5c39f717404988f"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/frozen-products/17-meaning_family_state_configuration-reset-agentic.receipt.json",
+    "bytes": 7904,
+    "sha256": "c44e7221aa2c36250dc1bdf6a175c6837be12bad57fe43f54b8ad12f6c5c304d"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/frozen-products/17-meaning_family_state_configuration-reset-agentic.svg",
+    "bytes": 3249,
+    "sha256": "5e01d14be1b1de8a0ac9717f1ce14d767b0e04f03fe6a65cded197bf4a46eb44"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/frozen-products/17-meaning_family_state_configuration-reset-elk.receipt.json",
+    "bytes": 7887,
+    "sha256": "4448c293ddeb29864f1c69c14e16eb2d1eb53e41b0072a6c4a97cefa4d25da2e"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/frozen-products/17-meaning_family_state_configuration-reset-elk.svg",
+    "bytes": 3250,
+    "sha256": "7c1ee9cd47b8215a40df9bb1fd84c2dd8b1a57baa997fd76dcee12356aef4876"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/frozen-products/17-meaning_family_state_configuration-reset-trinity.receipt.json",
+    "bytes": 7896,
+    "sha256": "462795b21afb45aae24d96e3b2bb63b28d432f85779e6cd1ab3f50eff689bffe"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/frozen-products/17-meaning_family_state_configuration-reset-trinity.svg",
+    "bytes": 3270,
+    "sha256": "67f666589981a1e71c30dc82f95bbc41ce4f78564c47b358be1d74dde74ecc4f"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/frozen-products/18-meaning_family_state_configuration-reset_edit-agentic.receipt.json",
+    "bytes": 7905,
+    "sha256": "4376a9fe3f1838ae55fe73da9559cfa84c0367484f0601189e5c7aed26f12f10"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/frozen-products/18-meaning_family_state_configuration-reset_edit-agentic.svg",
+    "bytes": 3274,
+    "sha256": "d87eccf92fb122e4b07bf6734633d7ae59f1c74b10d3b2424acd54d7bac77f8a"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/frozen-products/18-meaning_family_state_configuration-reset_edit-elk.receipt.json",
+    "bytes": 7888,
+    "sha256": "ce0ab50e24156635afa2e7e93b70d696f658448a7f8eb3f29b6cf73a366dd3f1"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/frozen-products/18-meaning_family_state_configuration-reset_edit-elk.svg",
+    "bytes": 3275,
+    "sha256": "5785fd08fb008bac5a1b4f3816bc5b112d533054ecd2375cc24dabe1f1a4edc7"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/frozen-products/18-meaning_family_state_configuration-reset_edit-trinity.receipt.json",
+    "bytes": 7896,
+    "sha256": "a7e8b7ada4bdfbea1b13dfb9c78dc6c02f1eff71bd99e16629effb0740c59624"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/frozen-products/18-meaning_family_state_configuration-reset_edit-trinity.svg",
+    "bytes": 3293,
+    "sha256": "0fe6bca5c126e772309f0f772a93b0f8c0829fa4f42c4190a9c6257c4db6c258"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/frozen-products/19-meaning_family_class_configuration-reset-agentic.receipt.json",
+    "bytes": 7914,
+    "sha256": "694e994db5d856a22bb877b48cfdfd772a94d297a99663f9307917db164c094b"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/frozen-products/19-meaning_family_class_configuration-reset-agentic.svg",
+    "bytes": 4654,
+    "sha256": "0d2fdbd3844b2563cbf4a630a2a5c319fa714ab6f8b25573ed6454756ca88e95"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/frozen-products/19-meaning_family_class_configuration-reset-elk.receipt.json",
+    "bytes": 7884,
+    "sha256": "37a8ebb22240c438cfafdf186b35681227ff435b5ba8f6b21ef5ce97cfca607d"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/frozen-products/19-meaning_family_class_configuration-reset-elk.svg",
+    "bytes": 4657,
+    "sha256": "1f2da6ace94abf1fd152373d056ac20977abfca11f7c109f9448a239bb25dbb5"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/frozen-products/19-meaning_family_class_configuration-reset-trinity.receipt.json",
+    "bytes": 7892,
+    "sha256": "ae0629cd0d87afce0ae9edc0906e630b2258ac4cf6d76ccff0f7163a16a717ce"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/frozen-products/19-meaning_family_class_configuration-reset-trinity.svg",
+    "bytes": 4699,
+    "sha256": "5dbecc99db5b40e63eb14012e7da1f6ba6e2c9f8cb636e3ec90c3ae1ebc7636b"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/frozen-products/2-meaning_family_class-agentic.receipt.json",
+    "bytes": 7914,
+    "sha256": "694e994db5d856a22bb877b48cfdfd772a94d297a99663f9307917db164c094b"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/frozen-products/2-meaning_family_class-agentic.svg",
+    "bytes": 4654,
+    "sha256": "0d2fdbd3844b2563cbf4a630a2a5c319fa714ab6f8b25573ed6454756ca88e95"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/frozen-products/2-meaning_family_class-elk.receipt.json",
+    "bytes": 7884,
+    "sha256": "37a8ebb22240c438cfafdf186b35681227ff435b5ba8f6b21ef5ce97cfca607d"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/frozen-products/2-meaning_family_class-elk.svg",
+    "bytes": 4657,
+    "sha256": "1f2da6ace94abf1fd152373d056ac20977abfca11f7c109f9448a239bb25dbb5"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/frozen-products/2-meaning_family_class-trinity.receipt.json",
+    "bytes": 7892,
+    "sha256": "ae0629cd0d87afce0ae9edc0906e630b2258ac4cf6d76ccff0f7163a16a717ce"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/frozen-products/2-meaning_family_class-trinity.svg",
+    "bytes": 4699,
+    "sha256": "5dbecc99db5b40e63eb14012e7da1f6ba6e2c9f8cb636e3ec90c3ae1ebc7636b"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/frozen-products/20-meaning_family_class_configuration-reset_edit-agentic.receipt.json",
+    "bytes": 7914,
+    "sha256": "2bbf180ff6c07444aca7d0366357d30ad8c29e8cbd2a886e8ba839b95dfc5489"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/frozen-products/20-meaning_family_class_configuration-reset_edit-agentic.svg",
+    "bytes": 4668,
+    "sha256": "310a95be7caa7969e2d3c1b2fc1fc2aee5a06f197829da79e43d7b1bdeb95c86"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/frozen-products/20-meaning_family_class_configuration-reset_edit-elk.receipt.json",
+    "bytes": 7884,
+    "sha256": "4c8b3157e5d8d176b585e6fdf686ce7f84b493ad3e1166d5b0d2f8e557588502"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/frozen-products/20-meaning_family_class_configuration-reset_edit-elk.svg",
+    "bytes": 4671,
+    "sha256": "580afa60cbb9bf650244350fee2f317db4d3ae5b68ab1ebece53de25f000d745"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/frozen-products/20-meaning_family_class_configuration-reset_edit-trinity.receipt.json",
+    "bytes": 7892,
+    "sha256": "6fc16ffc37d3d5a2e0ae346e610c5d83034270e1dbec8fc2e30716d906247d64"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/frozen-products/20-meaning_family_class_configuration-reset_edit-trinity.svg",
+    "bytes": 4713,
+    "sha256": "beb51bd5acd2d9aa5885b5d1aedcca61ffc974b400473ad3ed432f31e3e503bd"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/frozen-products/21-meaning_family_er_configuration-reset-agentic.receipt.json",
+    "bytes": 7530,
+    "sha256": "fd62fbd59ef981b7da7af36dc802cdebb716c3cd74a867fa9d6ae43b27da0ef7"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/frozen-products/21-meaning_family_er_configuration-reset-agentic.svg",
+    "bytes": 4571,
+    "sha256": "6a3b7f68710b81f6615d9f8628e84e07af41a1547cff82f6451a9c0d9aadf936"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/frozen-products/21-meaning_family_er_configuration-reset-elk.receipt.json",
+    "bytes": 7513,
+    "sha256": "aa8b540f077838de7b28fa924c9b91cf557e4e06a2bdb7c91edcd74345e358db"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/frozen-products/21-meaning_family_er_configuration-reset-elk.svg",
+    "bytes": 4568,
+    "sha256": "e532c8934f3fa1bcb019ff050ca3db209bfd95082afb89b1fb0292ee22c547d4"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/frozen-products/21-meaning_family_er_configuration-reset-trinity.receipt.json",
+    "bytes": 7521,
+    "sha256": "b9d40310f65106705268731ae8e92fa1d24f0cbe3072d06d5f1dca4ecfea07f7"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/frozen-products/21-meaning_family_er_configuration-reset-trinity.svg",
+    "bytes": 4628,
+    "sha256": "5f8e534497e6442e3adf79418e7c85e4a4c780cd21c0254860e0d4137969cd4e"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/frozen-products/22-meaning_family_er_configuration-reset_edit-agentic.receipt.json",
+    "bytes": 7530,
+    "sha256": "00e60b849c28338089e7feed28627f8f0c1e37ba349fcb5648381cb7970c187a"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/frozen-products/22-meaning_family_er_configuration-reset_edit-agentic.svg",
+    "bytes": 4597,
+    "sha256": "64f9b4ebf5becf6fd20ec529bd77fb99fe2df68cd3db17c460952c53467917d5"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/frozen-products/22-meaning_family_er_configuration-reset_edit-elk.receipt.json",
+    "bytes": 7513,
+    "sha256": "4e6f147010b3c7c377ba078ac012d4a4f40e508a376520d2d713b0a8db4e3135"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/frozen-products/22-meaning_family_er_configuration-reset_edit-elk.svg",
+    "bytes": 4594,
+    "sha256": "cffdbd69e59ff985678c9d937a3c836ca15972a49b7b15fb87f5f29583eb6639"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/frozen-products/22-meaning_family_er_configuration-reset_edit-trinity.receipt.json",
+    "bytes": 7521,
+    "sha256": "6ac743884d6a7906b3ded0906168aeeffbc07e8d906dcd89bac69d8cca973bbf"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/frozen-products/22-meaning_family_er_configuration-reset_edit-trinity.svg",
+    "bytes": 4654,
+    "sha256": "410c58a1cd851fbb003b6a955b902aafe4a715d18ca5427e313dcef6c7d59b11"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/frozen-products/23-meaning_family_architecture_configuration-reset-agentic.receipt.json",
+    "bytes": 7914,
+    "sha256": "cf704bb390203af2789bb1047e0fe312095fa60cef2c64e35d659084dbfde621"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/frozen-products/23-meaning_family_architecture_configuration-reset-agentic.svg",
+    "bytes": 6233,
+    "sha256": "8864e089334289bacb44f67df966a65f5011a71e6e8f2106c0f7e9075e4de307"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/frozen-products/23-meaning_family_architecture_configuration-reset-elk.receipt.json",
+    "bytes": 7897,
+    "sha256": "392f5798dc93db61c4e4cc9fae8ca9bc69a9abc35b766ad5c765a34442a58461"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/frozen-products/23-meaning_family_architecture_configuration-reset-elk.svg",
+    "bytes": 6233,
+    "sha256": "8864e089334289bacb44f67df966a65f5011a71e6e8f2106c0f7e9075e4de307"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/frozen-products/23-meaning_family_architecture_configuration-reset-trinity.receipt.json",
+    "bytes": 7905,
+    "sha256": "8824fc7f002a395c6891089616d79068148b5f473bbadafcbb800daa2d20a420"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/frozen-products/23-meaning_family_architecture_configuration-reset-trinity.svg",
+    "bytes": 6247,
+    "sha256": "24603b9fc5268d2bd75f15f17eb0a983df9c2fce05ef37800dba8eae6b59ac3e"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/frozen-products/24-meaning_family_architecture_configuration-reset_edit-agentic.receipt.json",
+    "bytes": 7918,
+    "sha256": "e228f026f5e26f4956a0416cbf10249910d6d4c1a04efde0e77ea0bc398abc23"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/frozen-products/24-meaning_family_architecture_configuration-reset_edit-agentic.svg",
+    "bytes": 6303,
+    "sha256": "e6d8bdbf115d850e48400458fc9a1024e40ab2884af72b480f543e70b77660aa"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/frozen-products/24-meaning_family_architecture_configuration-reset_edit-elk.receipt.json",
+    "bytes": 7901,
+    "sha256": "c4768b8fc0a20df0a5414651a32876ca6a32c985a277d8ab371d7f169379674a"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/frozen-products/24-meaning_family_architecture_configuration-reset_edit-elk.svg",
+    "bytes": 6303,
+    "sha256": "e6d8bdbf115d850e48400458fc9a1024e40ab2884af72b480f543e70b77660aa"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/frozen-products/24-meaning_family_architecture_configuration-reset_edit-trinity.receipt.json",
+    "bytes": 7909,
+    "sha256": "9688f560d26357b699ba7e7f6b8c02c1601153577b0868ee8abee04089e7bd3c"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/frozen-products/24-meaning_family_architecture_configuration-reset_edit-trinity.svg",
+    "bytes": 6317,
+    "sha256": "957a010c51664eb63048555d3279f2085bbde85d1f55c171df2aec8cd41fe85b"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/frozen-products/25-meaning_family_requirement_configuration-reset-agentic.receipt.json",
+    "bytes": 7917,
+    "sha256": "205ee530a5b0ebbc19d45af66de57fd9c378c435fdd37839d65f1150e7fe5652"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/frozen-products/25-meaning_family_requirement_configuration-reset-agentic.svg",
+    "bytes": 5135,
+    "sha256": "fa4b3266cca1cc39eb765546366fb0552d8f14641fb568fdf375b6e3ff5d4779"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/frozen-products/25-meaning_family_requirement_configuration-reset-elk.receipt.json",
+    "bytes": 7900,
+    "sha256": "2fa266427f6904b2fb6fb8858904878860da6f6f6f89c17148e67143dd1daa29"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/frozen-products/25-meaning_family_requirement_configuration-reset-elk.svg",
+    "bytes": 5134,
+    "sha256": "00325fe9782ba093ce736225bb9978db47d2ae55aabc5c4ddf477254bbfc3ec9"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/frozen-products/25-meaning_family_requirement_configuration-reset-trinity.receipt.json",
+    "bytes": 7908,
+    "sha256": "c84c1f98fd6ad4fe67079725c3c0b7e2f5470a1675624ad2e9cb77ed3954a210"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/frozen-products/25-meaning_family_requirement_configuration-reset-trinity.svg",
+    "bytes": 5178,
+    "sha256": "87e695ae2ef555e744fce997c08d3d0faeaa518d579e4724179b388575556fb2"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/frozen-products/26-meaning_family_requirement_configuration-reset_edit-agentic.receipt.json",
+    "bytes": 7917,
+    "sha256": "19e3ad29510f618e86f9c777651c2a21a667b14e51b112ddd606e793ce345207"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/frozen-products/26-meaning_family_requirement_configuration-reset_edit-agentic.svg",
+    "bytes": 5132,
+    "sha256": "15cf0c06be1ffae09f6c943d2a58b228d30383d0646c94d5ad5890c8caa94ac3"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/frozen-products/26-meaning_family_requirement_configuration-reset_edit-elk.receipt.json",
+    "bytes": 7900,
+    "sha256": "8681b0019bac965424135ffa22d2c311db1f2a5b04b1b2b75dff82ddb1aff518"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/frozen-products/26-meaning_family_requirement_configuration-reset_edit-elk.svg",
+    "bytes": 5131,
+    "sha256": "a372cdc8079c14320e9eebaab6c5e9006c14036edc947fb7aa986afa0075049f"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/frozen-products/26-meaning_family_requirement_configuration-reset_edit-trinity.receipt.json",
+    "bytes": 7908,
+    "sha256": "d8817aea2375d15575c08db342a9f49ee1c26cb7cea4ea08f0431168c69e7753"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/frozen-products/26-meaning_family_requirement_configuration-reset_edit-trinity.svg",
+    "bytes": 5175,
+    "sha256": "d5d35d9fa083fabdd6ed779af9e8149c8d03fa9753ded3b4ac0777efaa2bb07e"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/frozen-products/29-features_flowchart_controlled-image-agentic.receipt.json",
+    "bytes": 7912,
+    "sha256": "8e6e80fe084b67194382f1f3f40bf27383a1c7c0373e217c6889601baf42ace2"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/frozen-products/29-features_flowchart_controlled-image-agentic.svg",
+    "bytes": 3250,
+    "sha256": "c5189dd085fafd0f8cb0351ddc7410d11541566d80359b902903af06d443e955"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/frozen-products/29-features_flowchart_controlled-image-elk.receipt.json",
+    "bytes": 7895,
+    "sha256": "ee0aec1786af25cb213dceccc12219948418311657016368d8cabd0e18d4e5ff"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/frozen-products/29-features_flowchart_controlled-image-elk.svg",
+    "bytes": 3250,
+    "sha256": "c5189dd085fafd0f8cb0351ddc7410d11541566d80359b902903af06d443e955"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/frozen-products/3-meaning_family_er-agentic.receipt.json",
+    "bytes": 7530,
+    "sha256": "fd62fbd59ef981b7da7af36dc802cdebb716c3cd74a867fa9d6ae43b27da0ef7"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/frozen-products/3-meaning_family_er-agentic.svg",
+    "bytes": 4571,
+    "sha256": "6a3b7f68710b81f6615d9f8628e84e07af41a1547cff82f6451a9c0d9aadf936"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/frozen-products/3-meaning_family_er-elk.receipt.json",
+    "bytes": 7513,
+    "sha256": "aa8b540f077838de7b28fa924c9b91cf557e4e06a2bdb7c91edcd74345e358db"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/frozen-products/3-meaning_family_er-elk.svg",
+    "bytes": 4568,
+    "sha256": "e532c8934f3fa1bcb019ff050ca3db209bfd95082afb89b1fb0292ee22c547d4"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/frozen-products/3-meaning_family_er-trinity.receipt.json",
+    "bytes": 7521,
+    "sha256": "b9d40310f65106705268731ae8e92fa1d24f0cbe3072d06d5f1dca4ecfea07f7"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/frozen-products/3-meaning_family_er-trinity.svg",
+    "bytes": 4628,
+    "sha256": "5f8e534497e6442e3adf79418e7c85e4a4c780cd21c0254860e0d4137969cd4e"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/frozen-products/4-meaning_family_architecture-agentic.receipt.json",
+    "bytes": 7914,
+    "sha256": "cf704bb390203af2789bb1047e0fe312095fa60cef2c64e35d659084dbfde621"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/frozen-products/4-meaning_family_architecture-agentic.svg",
+    "bytes": 6233,
+    "sha256": "8864e089334289bacb44f67df966a65f5011a71e6e8f2106c0f7e9075e4de307"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/frozen-products/4-meaning_family_architecture-elk.receipt.json",
+    "bytes": 7897,
+    "sha256": "392f5798dc93db61c4e4cc9fae8ca9bc69a9abc35b766ad5c765a34442a58461"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/frozen-products/4-meaning_family_architecture-elk.svg",
+    "bytes": 6233,
+    "sha256": "8864e089334289bacb44f67df966a65f5011a71e6e8f2106c0f7e9075e4de307"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/frozen-products/4-meaning_family_architecture-trinity.receipt.json",
+    "bytes": 7905,
+    "sha256": "8824fc7f002a395c6891089616d79068148b5f473bbadafcbb800daa2d20a420"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/frozen-products/4-meaning_family_architecture-trinity.svg",
+    "bytes": 6247,
+    "sha256": "24603b9fc5268d2bd75f15f17eb0a983df9c2fce05ef37800dba8eae6b59ac3e"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/frozen-products/5-meaning_family_requirement-agentic.receipt.json",
+    "bytes": 7917,
+    "sha256": "205ee530a5b0ebbc19d45af66de57fd9c378c435fdd37839d65f1150e7fe5652"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/frozen-products/5-meaning_family_requirement-agentic.svg",
+    "bytes": 5135,
+    "sha256": "fa4b3266cca1cc39eb765546366fb0552d8f14641fb568fdf375b6e3ff5d4779"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/frozen-products/5-meaning_family_requirement-elk.receipt.json",
+    "bytes": 7900,
+    "sha256": "2fa266427f6904b2fb6fb8858904878860da6f6f6f89c17148e67143dd1daa29"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/frozen-products/5-meaning_family_requirement-elk.svg",
+    "bytes": 5134,
+    "sha256": "00325fe9782ba093ce736225bb9978db47d2ae55aabc5c4ddf477254bbfc3ec9"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/frozen-products/5-meaning_family_requirement-trinity.receipt.json",
+    "bytes": 7908,
+    "sha256": "c84c1f98fd6ad4fe67079725c3c0b7e2f5470a1675624ad2e9cb77ed3954a210"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/frozen-products/5-meaning_family_requirement-trinity.svg",
+    "bytes": 5178,
+    "sha256": "87e695ae2ef555e744fce997c08d3d0faeaa518d579e4724179b388575556fb2"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/frozen-products/6-features_flowchart_nesting-parallel-unicode-agentic.receipt.json",
+    "bytes": 7915,
+    "sha256": "533d89e63a8a17fe619fbaf5f0cfe7614c8cc1dbcbde031953778a677703f272"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/frozen-products/6-features_flowchart_nesting-parallel-unicode-agentic.svg",
+    "bytes": 8158,
+    "sha256": "de249aa1bc18fb10c580aa3932b4e8f4c5fde14cf4750f6f9fbe7fd9e3ef8e80"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/frozen-products/6-features_flowchart_nesting-parallel-unicode-elk.receipt.json",
+    "bytes": 7898,
+    "sha256": "f996cec8ae6f33627f9bb974a8e4dae3dc4f6571cd5d4a05299f01e45b789092"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/frozen-products/6-features_flowchart_nesting-parallel-unicode-elk.svg",
+    "bytes": 8167,
+    "sha256": "b27342f27515fdf6b067eec6c124474d018e60882c0c6b8cfe8e59c44633269d"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/frozen-products/6-features_flowchart_nesting-parallel-unicode-trinity.receipt.json",
+    "bytes": 7907,
+    "sha256": "90d659eb585094dddf8289ecd8081e25bfe5d24e98153d618d1c9a1c92422ddf"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/frozen-products/6-features_flowchart_nesting-parallel-unicode-trinity.svg",
+    "bytes": 8302,
+    "sha256": "026ba9aa3ae39cf8cc5523998452205cb51a39323c343a42a593d017197bfbec"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/frozen-products/7-features_flowchart_two-ended-and-undirected-agentic.receipt.json",
+    "bytes": 7912,
+    "sha256": "e18469a84852b03ab385d6c1f42a96cc2139417f6e77290d1d4cd75c2ca678cb"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/frozen-products/7-features_flowchart_two-ended-and-undirected-agentic.svg",
+    "bytes": 3607,
+    "sha256": "bd4a49bec2516d67e5510370729ba0868857b66989f894caf2a8c9b40326f134"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/frozen-products/7-features_flowchart_two-ended-and-undirected-elk.receipt.json",
+    "bytes": 7895,
+    "sha256": "9779c73e274743e95724e61123b8c9826914e058c2faa7092fd50fc15a79afa9"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/frozen-products/7-features_flowchart_two-ended-and-undirected-elk.svg",
+    "bytes": 3607,
+    "sha256": "bd4a49bec2516d67e5510370729ba0868857b66989f894caf2a8c9b40326f134"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/frozen-products/7-features_flowchart_two-ended-and-undirected-trinity.receipt.json",
+    "bytes": 7903,
+    "sha256": "b9f6c1e70fa79c7e912dc22d1ae7ed5dc289e6e41f2094bf14abea5f5178cc71"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/frozen-products/7-features_flowchart_two-ended-and-undirected-trinity.svg",
+    "bytes": 3616,
+    "sha256": "278020412dae5a0077a0b649ac46c4cecf4c14904d197ef6966f97e4939beb90"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/frozen-products/8-features_class_namespace-members-cardinality-agentic.receipt.json",
+    "bytes": 7906,
+    "sha256": "10f5fbfed276f80c7d475e1182ddfafad16ce735c8b3313aa877b5b7be1fff5d"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/frozen-products/8-features_class_namespace-members-cardinality-agentic.svg",
+    "bytes": 7684,
+    "sha256": "9fddac4bbec0d62af841e5490f031c1f40930fafdc72be822ada11b619287799"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/frozen-products/8-features_class_namespace-members-cardinality-elk.receipt.json",
+    "bytes": 7889,
+    "sha256": "92f3665337c53f8ef243c01e85cfa90dba3ce4502b27f39a710942e1bf9291da"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/frozen-products/8-features_class_namespace-members-cardinality-elk.svg",
+    "bytes": 7688,
+    "sha256": "53963080446d11775665de03a665f927b2d71c6493910d44b5fcaa192a6a3ce3"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/frozen-products/8-features_class_namespace-members-cardinality-trinity.receipt.json",
+    "bytes": 7897,
+    "sha256": "25989a369e28fc23d34d2ac7e67455d828d1ecf230f2f5d87c1f7936836ee396"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/frozen-products/8-features_class_namespace-members-cardinality-trinity.svg",
+    "bytes": 7693,
+    "sha256": "75b68b3af4f27d8cd0fc2a24d7cea46977e70b8a685793d6755c39d7d4a33e4b"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/frozen-products/9-features_class_inheritance-composition-dependency-agentic.receipt.json",
+    "bytes": 7900,
+    "sha256": "073748fa43e7b46317eee6882de46953ec74a7628c553bf72466a9b9ae6f8a17"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/frozen-products/9-features_class_inheritance-composition-dependency-agentic.svg",
+    "bytes": 7620,
+    "sha256": "4b11d24ce15111c175926de1bee1b9eb989b631dc2bc0377dea95594650e4f9b"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/frozen-products/9-features_class_inheritance-composition-dependency-elk.receipt.json",
+    "bytes": 7885,
+    "sha256": "330d22fe2d17829985b929d70e409558a4d4c1b5b8e4153120a3887cb7e81eff"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/frozen-products/9-features_class_inheritance-composition-dependency-elk.svg",
+    "bytes": 7678,
+    "sha256": "0a3a091904c5813f6377b0c82976a8e62e71243f2b4cfabe1d5ae8fb9c74a89f"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/frozen-products/9-features_class_inheritance-composition-dependency-trinity.receipt.json",
+    "bytes": 7891,
+    "sha256": "304a1b9f222914a86975dd7083fdb88e171b7a3156be32a1c39a96d8c6ca7540"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/frozen-products/9-features_class_inheritance-composition-dependency-trinity.svg",
+    "bytes": 7870,
+    "sha256": "0ffa799a4877cc55870133441ddc82c13f7f98a54f02e2b526527ba4d4bfe8b7"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/frozen-requalification.log",
+    "bytes": 2647,
+    "sha256": "148d4eb6b48cbd51a9be745549377336ea719aeee88db6ac48b29cba19acc41c"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/independent-review.md",
+    "bytes": 575,
+    "sha256": "ba1fde3f2ead47c79fa265014944c1f7de50217c280c530ca3eec708a7981726"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/ink-crop-failed.ts",
+    "bytes": 3798,
+    "sha256": "15770108a48ba3aa18a1fb8da418f67f2927f55e3fd861d9950a39f5e61f3863"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/ink.ts",
+    "bytes": 3618,
+    "sha256": "bdbae7ebb74fa0f664e46a7f9b1748015fdedef38db334ded2ef7f9a0776a626"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/lint.log",
+    "bytes": 80,
+    "sha256": "958f1e0feeb3a48f64f68b09782ffd8885b48c502d5aa8013d3c6b5827b025e4"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/measure.mjs",
+    "bytes": 7396,
+    "sha256": "d74957248139de10421b0d13a47400a7e3822584387e3966f2e3d5640ead00cf"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/owners-final.log",
+    "bytes": 32786,
+    "sha256": "85b419c4245e2ea070a6b7629885f833600f6ae16e3b24da0cfab6f843cdb3b7"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/owners-green.log",
+    "bytes": 30904,
+    "sha256": "b6df280326857374e6506bc9e09742a41718ed0305395cbd880614f9961a09b1"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/owners-red.log",
+    "bytes": 10455,
+    "sha256": "54fc45e6d916fe0a27a40a202b0095df4b9adf626f3c5cfb40de66b76f30922c"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/payload.mjs",
+    "bytes": 1153,
+    "sha256": "264b9069eefd8e02dd4a1edb05c72bfa8975ce168f10fd368b91c707a5ce5c87"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/reproduce.ts",
+    "bytes": 1313,
+    "sha256": "50347f64fcdd8843f45c92138ac3e78150d1a0e7ba0b5250ee3cfca3432fce95"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/requalify-frozen.ts",
+    "bytes": 1790,
+    "sha256": "d253df86b843a87a9190be457d872b7dffdf53b5958ea897f3c76a6461e0d603"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/run-cohorts.py",
+    "bytes": 574,
+    "sha256": "5770668738b1c6247e8d8fccc307271598c14bfbaa4680f4c702c5c55d941444"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/run-cost.py",
+    "bytes": 793,
+    "sha256": "ae20f8dcd46a292bf2ac4764d2d322bb81330417244074d2aa1a33afffcfcfce"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/run-diagnostic.mjs",
+    "bytes": 2550,
+    "sha256": "e3e1f38fbe2105c8ce052c36fe14f3375df22e795f93dd371ace1afde52ebd4d"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/run-trace.mjs",
+    "bytes": 2643,
+    "sha256": "4feb9cb74eccd940cd0f4d24c0d9a9320d46e23ea5fc83f99e1aa62e98cb2a3d"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/same-options-LR-RESULT.json",
+    "bytes": 577,
+    "sha256": "258a2e0f9bd1eb6de27ab962066f5d6ed9c45dd119a06499e615cfb70b9260b2"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/same-options-LR-agentic0.receipt.json.gz",
+    "bytes": 1214,
+    "sha256": "565ad3c67722a8c9a9ea4efd1e563e4f842b53ac70452d08bf29782bceda9af0"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/same-options-LR-agentic0.svg.gz",
+    "bytes": 4019,
+    "sha256": "f8ee4fb81d7b79a8f14ef93e1498888d99a0b8cebfa99d2a9d5a3f895da2e16d"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/same-options-LR-agentic1.receipt.json.gz",
+    "bytes": 1214,
+    "sha256": "565ad3c67722a8c9a9ea4efd1e563e4f842b53ac70452d08bf29782bceda9af0"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/same-options-LR-agentic1.svg.gz",
+    "bytes": 4019,
+    "sha256": "f8ee4fb81d7b79a8f14ef93e1498888d99a0b8cebfa99d2a9d5a3f895da2e16d"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/same-options.ts",
+    "bytes": 1433,
+    "sha256": "21c71349b1771d44dc75221a2f4b8b322bea26481facf833d66f3313375dc00a"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/snapshot-probe.mjs",
+    "bytes": 2522,
+    "sha256": "4e0ccb3ded9d1f645af07c9a3dc8b5a30dbb58518208afcbd98805d6d25b90ba"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/summarize-cost.py",
+    "bytes": 2542,
+    "sha256": "b14938160a9ead49d2602c60b578a10077db8c3294325be2a3ce3e7ad261f2d2"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/trace-after/0.receipt.json.gz",
+    "bytes": 1217,
+    "sha256": "3803b970fe7ba49c6e0a2fc67242a9f01968d2efeffee96ee2d225b8cbdcf0ba"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/trace-after/0.svg.gz",
+    "bytes": 4059,
+    "sha256": "54235d11a30c006a76adcfaa3fc8be25aee707cc15cfff7ddbb40316ccecb2c0"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/trace-after/1.receipt.json.gz",
+    "bytes": 1217,
+    "sha256": "3803b970fe7ba49c6e0a2fc67242a9f01968d2efeffee96ee2d225b8cbdcf0ba"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/trace-after/1.svg.gz",
+    "bytes": 4059,
+    "sha256": "54235d11a30c006a76adcfaa3fc8be25aee707cc15cfff7ddbb40316ccecb2c0"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/trace-after/PORT-TRACE.json",
+    "bytes": 31828,
+    "sha256": "e061043cc4637866f644942ed5acda22ca927da9a693ebce28a0b19e926569d7"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/trace-after/RESULT.json",
+    "bytes": 302,
+    "sha256": "58f3c9f684ea209ac569bcb76f1295a1bc1f209ca406351fc2b00ddaa65347c1"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/trace-after-job.json",
+    "bytes": 1425,
+    "sha256": "300f7c690c8078ab7f26c8343df9d8d02fe833e988c62b74927046647c0d4d6a"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/trace-after.log",
+    "bytes": 344,
+    "sha256": "231601292793ec9c54d7c5d61fe5eda53d0b1feb0f40f77019b6b5a207835403"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/trace-before/0.receipt.json.gz",
+    "bytes": 1341,
+    "sha256": "4b02450c3a971a1393d42657b105f23c768f8a69164efeb8818126c32af06a94"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/trace-before/0.svg.gz",
+    "bytes": 4065,
+    "sha256": "7a4facf2d53a75b1360faa87a9c04b44394b6f0929d34b4a242807340ef38acf"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/trace-before/1.receipt.json.gz",
+    "bytes": 1341,
+    "sha256": "4b02450c3a971a1393d42657b105f23c768f8a69164efeb8818126c32af06a94"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/trace-before/1.svg.gz",
+    "bytes": 4065,
+    "sha256": "7a4facf2d53a75b1360faa87a9c04b44394b6f0929d34b4a242807340ef38acf"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/trace-before/PORT-TRACE.json",
+    "bytes": 31828,
+    "sha256": "f7803a6ce74e69b15b1dd2c3d7db53b42ef71083965f212f95a44322cd536a6f"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/trace-before/RESULT.json",
+    "bytes": 2234,
+    "sha256": "440e83389d7a8531d398575bfc840f2e58910471364142659bf174bc983fd003"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/trace-before-job.json",
+    "bytes": 1426,
+    "sha256": "b97f3cd10acb93e5d8966ff299c854a74bffc4d07dd767ac177624978cdc7348"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/trace-before.log",
+    "bytes": 1734,
+    "sha256": "9b6259f72363aca24efed7c429c6a08a5698339853c638aeebce42f3ef06c990"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/trial/0.receipt.json.gz",
+    "bytes": 1217,
+    "sha256": "3803b970fe7ba49c6e0a2fc67242a9f01968d2efeffee96ee2d225b8cbdcf0ba"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/trial/0.svg.gz",
+    "bytes": 4059,
+    "sha256": "54235d11a30c006a76adcfaa3fc8be25aee707cc15cfff7ddbb40316ccecb2c0"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/trial/1.receipt.json.gz",
+    "bytes": 1217,
+    "sha256": "3803b970fe7ba49c6e0a2fc67242a9f01968d2efeffee96ee2d225b8cbdcf0ba"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/trial/1.svg.gz",
+    "bytes": 4059,
+    "sha256": "54235d11a30c006a76adcfaa3fc8be25aee707cc15cfff7ddbb40316ccecb2c0"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/trial/RESULT.json",
+    "bytes": 302,
+    "sha256": "58f3c9f684ea209ac569bcb76f1295a1bc1f209ca406351fc2b00ddaa65347c1"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/trial-heads.png",
+    "bytes": 271683,
+    "sha256": "9329ba95bff6bb73d4639a773c98448ae6e375466f85feb864aae2bfa36238a8"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/typecheck-repo-local.log",
+    "bytes": 142,
+    "sha256": "54df6f7be5ec90ebe27016710278eead4ed715a596909da705c3ea4c559469b6"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/typecheck.log",
+    "bytes": 2012,
+    "sha256": "93914b6be83a968beeb168ba76e37335546e007c8bbae1b2a811ab5ab988d0bd"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/variant-after/snapshot.json",
+    "bytes": 82724,
+    "sha256": "50425040ed2a4f2cd01c89bff231c0ab3ee1aef55a395bdcfcdbb63743c00640"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/variant-after-job.json",
+    "bytes": 170,
+    "sha256": "68499d07c65182e8bf33cc6368933359f2f9dda54b726335c07d3ddeaee813af"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/variant-after.log",
+    "bytes": 196,
+    "sha256": "8d4109e89c06b01d7eabdae3c8038ec643184a6d8862dae24c297948ca154794"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/variant-before/snapshot.json",
+    "bytes": 85502,
+    "sha256": "45d4b3686c01bb14e2106670b69f7b45d6f80c8429968c096b5af59e36af4b8d"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/variant-before-job.json",
+    "bytes": 390,
+    "sha256": "69c975d3fde0829e46b895c98b7abbe85644bfcb56e69730a62ea1a6d31a7ef1"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/variant-before.log",
+    "bytes": 196,
+    "sha256": "2493ea2f8b8629b76cc40f87d82fbd12957688c7a6d13f848ed538a9d560e2e6"
+  },
+  {
+    "path": "trinity-oversubscribed-contact-20261109/variant-cohort.json",
+    "bytes": 1130,
+    "sha256": "915c8bb1d2f8e6c899334a11d25e7ed01c41901a698c7251bc9d31454c63b204"
+  }
+]
