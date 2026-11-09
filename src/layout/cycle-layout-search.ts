@@ -1,7 +1,7 @@
 import { smallFeedbackCuts } from './small-feedback-cuts.ts'
 import type { AgenticLayout, MeasuredGraph, CompleteMeasuredCandidate } from './agentic-layered-core.ts'
 import type { ChannelWork } from './channel-tracks.ts'
-import { depthFirstOrder, feedbackOrder } from './cycle-order.ts'
+import { compareFeedbackOrders, depthFirstOrder, feedbackOrder, groupSourceOrder } from './cycle-order.ts'
 import { countPolylineCrossings } from '../shared/edge-crossings.ts'
 
 /** Optional work is shared across scopes but cannot spend the budget needed
@@ -60,11 +60,20 @@ export function layoutCyclicGraph(
     return complete ? complete(restored, fail, work) : restored
   }
   if (input.authoredCycleOrder) return place(Uint32Array.from(nodes, (_, index) => index), unsupported, routingWork, false, true)
-  const primary = feedbackCount(model) <= feedbackCount(greedy) ? model : greedy
+  const preferred = input.groupCycleEdges?.map(index => edges[index]!)
+  const compareOrder = (a: ArrayLike<number>, b: ArrayLike<number>): number => compareFeedbackOrders(edges, preferred!, a, b)
+  let primary = feedbackCount(model) <= feedbackCount(greedy) ? model : greedy
+  if (preferred?.length) {
+    // These are lifted constraints, not leaf traversal. Preserve the earliest
+    // authored group link when equally small feedback cuts are available.
+    const authored = groupSourceOrder(outgoing, edges, preferred)
+    for (const order of [greedy, authored]) if (compareOrder(order, primary) < 0) primary = order
+  }
   // Only a single cut has the bounded opposite orientation considered below.
   // Other loop/cycle scopes retain their existing helper-placement search.
   if (complete && feedbackCount(primary) !== 1) return layout(input, unsupported, routingWork)
   let best = place(primary, unsupported, routingWork)
+  let bestOrder: ArrayLike<number> = primary
   if (nodes.length > 48 || edges.length > 128 || edges.reduce((sum, edge) => sum + edge.minSpan, 0) > 128
     || (best.expandedVertices ?? 0) > 1024 || search.attempts <= 0) return best
   const score = (candidate: AgenticLayout): number | undefined => {
@@ -127,16 +136,19 @@ export function layoutCyclicGraph(
     const candidateKey = key(order, reverseNodes, reverseEdges)
     if (seen.has(candidateKey)) continue
     seen.add(candidateKey)
+    const preference = preferred?.length ? compareOrder(order, bestOrder) : 0
+    if (preference > 0) continue
     if (localAttempts-- <= 0 || search.attempts-- <= 0 || search.routing.pairs < 0 || search.routing.arcs < 0 || search.routing.swaps < 0) return best
     try {
       const alternative = place(order, reason => { throw new OptionalOrderDecline(reason) }, search.routing, reverseNodes, reverseEdges)
       const value = score(alternative)
       if (value === undefined) return best
       const bends = bendCount(alternative), area = alternative.width * alternative.height
-      // Crossings dominate, followed by bends and area. Exact ties preserve
-      // the earlier candidate; no weighted score trades feasibility away.
-      if (value < bestScore || (value === bestScore && (bends < bestBends || (bends === bestBends && area < bestArea)))) {
+      // Lifted group cut preferences precede crossings, bends and area.
+      // Other scopes retain geometric priority and the earlier exact tie.
+      if (preference < 0 || value < bestScore || (value === bestScore && (bends < bestBends || (bends === bestBends && area < bestArea)))) {
         best = alternative; bestScore = value; bestBends = bends; bestArea = area
+        bestOrder = order
       }
       if (bestScore === 0) return best
     } catch (error) {
