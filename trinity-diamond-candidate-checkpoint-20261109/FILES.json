@@ -1,0 +1,792 @@
+[
+  {
+    "path": "trinity-diamond-candidate-recovery-20261109/BASELINE-JOBS.json",
+    "bytes": 859,
+    "sha256": "83397893ec1a2dd72c1b35ce1c94c533f31ac76d39466c1adb7ac67ce9be23fd"
+  },
+  {
+    "path": "trinity-diamond-candidate-recovery-20261109/BASELINE.json",
+    "bytes": 1186,
+    "sha256": "4f80d071a1448b92845b7c94ddafdfe784a9a86821e2cb45e2e122911208bd59"
+  },
+  {
+    "path": "trinity-diamond-candidate-recovery-20261109/PR-CONTRACT.json",
+    "bytes": 16209,
+    "sha256": "f02b2fb531399b79432dbcf1934c7d9afb22245fe391ba673cb923abec7158a6"
+  },
+  {
+    "path": "trinity-diamond-candidate-recovery-20261109/PR-CONTRACT.md",
+    "bytes": 16008,
+    "sha256": "3c19c7bdb7d6ddfb6d34e9acc43d570e849dc5007213368a9df11629012e826a"
+  },
+  {
+    "path": "trinity-diamond-candidate-recovery-20261109/PROTOTYPE.json",
+    "bytes": 1060,
+    "sha256": "14ba5e8142d485168125f1e1d8e53659889187ddbe4c893e08f02030ac53a04e"
+  },
+  {
+    "path": "trinity-diamond-candidate-recovery-20261109/README.md",
+    "bytes": 1370,
+    "sha256": "353285fd8a18c22632054c7e69de6d1d58789c88dc1b0451c1d332447b16892b"
+  },
+  {
+    "path": "trinity-diamond-candidate-recovery-20261109/agentic.before.receipt.json",
+    "bytes": 11812,
+    "sha256": "3ede19c7845218a8afaad3a15289c405d8255c65b5c1a393c5eab88a09363450"
+  },
+  {
+    "path": "trinity-diamond-candidate-recovery-20261109/agentic.before.svg",
+    "bytes": 6429,
+    "sha256": "f86283f3de8cd929934892a702dd3e7cd2cc5008213c25c8b48b6f6b49e5a330"
+  },
+  {
+    "path": "trinity-diamond-candidate-recovery-20261109/agentic.prototype.receipt.json",
+    "bytes": 11812,
+    "sha256": "3ede19c7845218a8afaad3a15289c405d8255c65b5c1a393c5eab88a09363450"
+  },
+  {
+    "path": "trinity-diamond-candidate-recovery-20261109/agentic.prototype.svg",
+    "bytes": 6429,
+    "sha256": "f86283f3de8cd929934892a702dd3e7cd2cc5008213c25c8b48b6f6b49e5a330"
+  },
+  {
+    "path": "trinity-diamond-candidate-recovery-20261109/astra-causal-review.md",
+    "bytes": 10567,
+    "sha256": "241743aec85d6651fbd567050e38eb2dfe044ca802fd32c7d02f35a98b6c0d18"
+  },
+  {
+    "path": "trinity-diamond-candidate-recovery-20261109/baseline.ts",
+    "bytes": 803,
+    "sha256": "766c880d236e3a0cf2484f012b1f34ed2546962aabc0c128e6e0db0b38a238a7"
+  },
+  {
+    "path": "trinity-diamond-candidate-recovery-20261109/before-directions/DIRECTIONS.json",
+    "bytes": 6802,
+    "sha256": "7035dac6aa95c874396a6bac908e68d1cab2cee5460688097ce93a90d9ae95c6"
+  },
+  {
+    "path": "trinity-diamond-candidate-recovery-20261109/before-directions/products/agentic-BT.layout.json",
+    "bytes": 3647,
+    "sha256": "76de4632ec423c13ea20b2f94aa05b244c811a01e7528099c4dcf9cab4c55def"
+  },
+  {
+    "path": "trinity-diamond-candidate-recovery-20261109/before-directions/products/agentic-BT.receipt.json",
+    "bytes": 11812,
+    "sha256": "d92593aae35d741942e34c5bcf0cfadce512c58313b3495755fff2d27b5671c6"
+  },
+  {
+    "path": "trinity-diamond-candidate-recovery-20261109/before-directions/products/agentic-BT.svg",
+    "bytes": 6411,
+    "sha256": "cde751c0f942f8dd372bf955d12fd1d1ea58a4ff3323d41a2a452fe6141e3869"
+  },
+  {
+    "path": "trinity-diamond-candidate-recovery-20261109/before-directions/products/agentic-LR.layout.json",
+    "bytes": 3569,
+    "sha256": "7d9e7238a19414c8b902ab67612abc3be711663f0cb418993f64dbe267fc9943"
+  },
+  {
+    "path": "trinity-diamond-candidate-recovery-20261109/before-directions/products/agentic-LR.receipt.json",
+    "bytes": 11812,
+    "sha256": "058684dbabda0c0b963952f87f7b8b7f6b41bc9d630db7656bbc31955f0fa39d"
+  },
+  {
+    "path": "trinity-diamond-candidate-recovery-20261109/before-directions/products/agentic-LR.svg",
+    "bytes": 6404,
+    "sha256": "112cd48884ac8ca2bf9819ad30ab9bc8e2085b37e94e34abd10cfb31caf509d5"
+  },
+  {
+    "path": "trinity-diamond-candidate-recovery-20261109/before-directions/products/agentic-RL.layout.json",
+    "bytes": 3740,
+    "sha256": "11013a6ef4a871592ad62f3af2b02ae745ac02eb2338af1b1b2971ea82974c1b"
+  },
+  {
+    "path": "trinity-diamond-candidate-recovery-20261109/before-directions/products/agentic-RL.receipt.json",
+    "bytes": 11812,
+    "sha256": "17654f53d85f541fd71b9c74e64db23cc95505864450851a212455db6d50868c"
+  },
+  {
+    "path": "trinity-diamond-candidate-recovery-20261109/before-directions/products/agentic-RL.svg",
+    "bytes": 6411,
+    "sha256": "c2f8a4abe6a2e99f0a1dc3659b89547a798b171abf83da1787775c3b78b6eb35"
+  },
+  {
+    "path": "trinity-diamond-candidate-recovery-20261109/before-directions/products/agentic-TB.layout.json",
+    "bytes": 3566,
+    "sha256": "9846bf42ed4e10fa5061cce6ebd05a6bb3786da3f57946e9d4a8c57881f92b13"
+  },
+  {
+    "path": "trinity-diamond-candidate-recovery-20261109/before-directions/products/agentic-TB.receipt.json",
+    "bytes": 11812,
+    "sha256": "604f3743c4448ff0e5dda57de2960fe35c2adc07c09b4bec86986f4f9847ea7d"
+  },
+  {
+    "path": "trinity-diamond-candidate-recovery-20261109/before-directions/products/agentic-TB.svg",
+    "bytes": 6429,
+    "sha256": "f86283f3de8cd929934892a702dd3e7cd2cc5008213c25c8b48b6f6b49e5a330"
+  },
+  {
+    "path": "trinity-diamond-candidate-recovery-20261109/before-directions/products/elk-BT.layout.json",
+    "bytes": 4035,
+    "sha256": "94575a69c566c00e2deb391a569efed6de542a660b199b2781ea861aa35263b9"
+  },
+  {
+    "path": "trinity-diamond-candidate-recovery-20261109/before-directions/products/elk-BT.receipt.json",
+    "bytes": 11796,
+    "sha256": "9cd1c1219eb9bbc0683cc39b5f5a716dc13274533784b1cb6fcb582a00c7d3ae"
+  },
+  {
+    "path": "trinity-diamond-candidate-recovery-20261109/before-directions/products/elk-BT.svg",
+    "bytes": 6449,
+    "sha256": "424210bd87a21b17d710f6e261fe48c6b54b36400399cda274af13e507fe58ca"
+  },
+  {
+    "path": "trinity-diamond-candidate-recovery-20261109/before-directions/products/elk-LR.layout.json",
+    "bytes": 3901,
+    "sha256": "8da960440182b48a6d199dff03e2a184e1a51c86375fed90be4490869c09ff25"
+  },
+  {
+    "path": "trinity-diamond-candidate-recovery-20261109/before-directions/products/elk-LR.receipt.json",
+    "bytes": 11795,
+    "sha256": "0d8f2f5c7db9001ca7a7846b47e2a925ff00204b9f647f0af8f3f2c08a012758"
+  },
+  {
+    "path": "trinity-diamond-candidate-recovery-20261109/before-directions/products/elk-LR.svg",
+    "bytes": 6410,
+    "sha256": "720ee51b7500269ec461f7b10855ae1eadebd2f5e659287cbd9c70a2d080e942"
+  },
+  {
+    "path": "trinity-diamond-candidate-recovery-20261109/before-directions/products/elk-RL.layout.json",
+    "bytes": 3804,
+    "sha256": "4809830d27987cac40e305e2164a14ce286930a4496abf3eee7b21187facaaee"
+  },
+  {
+    "path": "trinity-diamond-candidate-recovery-20261109/before-directions/products/elk-RL.receipt.json",
+    "bytes": 11794,
+    "sha256": "eee44e0784c23d1a649fbb1503c2e52bf7bdb385dab19fd398bcc98aed043228"
+  },
+  {
+    "path": "trinity-diamond-candidate-recovery-20261109/before-directions/products/elk-RL.svg",
+    "bytes": 6420,
+    "sha256": "aeb37d383e510b67db67898f07c074ef7e39ebe79451b9c5eac996c9f516b164"
+  },
+  {
+    "path": "trinity-diamond-candidate-recovery-20261109/before-directions/products/elk-TB.layout.json",
+    "bytes": 3630,
+    "sha256": "e6536fb217c1381671fb47f04f9b7049ef9bf5c69ccf6465e622a15743dea81f"
+  },
+  {
+    "path": "trinity-diamond-candidate-recovery-20261109/before-directions/products/elk-TB.receipt.json",
+    "bytes": 11796,
+    "sha256": "82c0b97381a638d227dc546b83220324d769efe8ffb716f6198c25a8320c86b6"
+  },
+  {
+    "path": "trinity-diamond-candidate-recovery-20261109/before-directions/products/elk-TB.svg",
+    "bytes": 6442,
+    "sha256": "14c8b545012f190ab4d192c4cfd55836d1035aee2d014e4fef535fb4ec9c90a7"
+  },
+  {
+    "path": "trinity-diamond-candidate-recovery-20261109/before-directions.log",
+    "bytes": 1121,
+    "sha256": "bc15ce77f5b9d4e41badc52d0269365bfda9f5422fe1c216044803418707d3bc"
+  },
+  {
+    "path": "trinity-diamond-candidate-recovery-20261109/before-preload.ts",
+    "bytes": 1076,
+    "sha256": "c5572e7334604437d71285666650a0a01986593a19fb49ce5ff4879e625b344a"
+  },
+  {
+    "path": "trinity-diamond-candidate-recovery-20261109/candidate-directions/DIRECTIONS.json",
+    "bytes": 7974,
+    "sha256": "7d3efe59e81516baa53be808f56915ecf3777475b3c279956fa5ba5e3872e207"
+  },
+  {
+    "path": "trinity-diamond-candidate-recovery-20261109/candidate-directions/products/agentic-BT.layout.json",
+    "bytes": 3647,
+    "sha256": "76de4632ec423c13ea20b2f94aa05b244c811a01e7528099c4dcf9cab4c55def"
+  },
+  {
+    "path": "trinity-diamond-candidate-recovery-20261109/candidate-directions/products/agentic-BT.receipt.json",
+    "bytes": 11812,
+    "sha256": "d92593aae35d741942e34c5bcf0cfadce512c58313b3495755fff2d27b5671c6"
+  },
+  {
+    "path": "trinity-diamond-candidate-recovery-20261109/candidate-directions/products/agentic-BT.svg",
+    "bytes": 6411,
+    "sha256": "cde751c0f942f8dd372bf955d12fd1d1ea58a4ff3323d41a2a452fe6141e3869"
+  },
+  {
+    "path": "trinity-diamond-candidate-recovery-20261109/candidate-directions/products/agentic-LR.layout.json",
+    "bytes": 3569,
+    "sha256": "7d9e7238a19414c8b902ab67612abc3be711663f0cb418993f64dbe267fc9943"
+  },
+  {
+    "path": "trinity-diamond-candidate-recovery-20261109/candidate-directions/products/agentic-LR.receipt.json",
+    "bytes": 11812,
+    "sha256": "058684dbabda0c0b963952f87f7b8b7f6b41bc9d630db7656bbc31955f0fa39d"
+  },
+  {
+    "path": "trinity-diamond-candidate-recovery-20261109/candidate-directions/products/agentic-LR.svg",
+    "bytes": 6404,
+    "sha256": "112cd48884ac8ca2bf9819ad30ab9bc8e2085b37e94e34abd10cfb31caf509d5"
+  },
+  {
+    "path": "trinity-diamond-candidate-recovery-20261109/candidate-directions/products/agentic-RL.layout.json",
+    "bytes": 3740,
+    "sha256": "11013a6ef4a871592ad62f3af2b02ae745ac02eb2338af1b1b2971ea82974c1b"
+  },
+  {
+    "path": "trinity-diamond-candidate-recovery-20261109/candidate-directions/products/agentic-RL.receipt.json",
+    "bytes": 11812,
+    "sha256": "17654f53d85f541fd71b9c74e64db23cc95505864450851a212455db6d50868c"
+  },
+  {
+    "path": "trinity-diamond-candidate-recovery-20261109/candidate-directions/products/agentic-RL.svg",
+    "bytes": 6411,
+    "sha256": "c2f8a4abe6a2e99f0a1dc3659b89547a798b171abf83da1787775c3b78b6eb35"
+  },
+  {
+    "path": "trinity-diamond-candidate-recovery-20261109/candidate-directions/products/agentic-TB.layout.json",
+    "bytes": 3566,
+    "sha256": "9846bf42ed4e10fa5061cce6ebd05a6bb3786da3f57946e9d4a8c57881f92b13"
+  },
+  {
+    "path": "trinity-diamond-candidate-recovery-20261109/candidate-directions/products/agentic-TB.receipt.json",
+    "bytes": 11812,
+    "sha256": "604f3743c4448ff0e5dda57de2960fe35c2adc07c09b4bec86986f4f9847ea7d"
+  },
+  {
+    "path": "trinity-diamond-candidate-recovery-20261109/candidate-directions/products/agentic-TB.svg",
+    "bytes": 6429,
+    "sha256": "f86283f3de8cd929934892a702dd3e7cd2cc5008213c25c8b48b6f6b49e5a330"
+  },
+  {
+    "path": "trinity-diamond-candidate-recovery-20261109/candidate-directions/products/elk-BT.layout.json",
+    "bytes": 4035,
+    "sha256": "94575a69c566c00e2deb391a569efed6de542a660b199b2781ea861aa35263b9"
+  },
+  {
+    "path": "trinity-diamond-candidate-recovery-20261109/candidate-directions/products/elk-BT.receipt.json",
+    "bytes": 11796,
+    "sha256": "9cd1c1219eb9bbc0683cc39b5f5a716dc13274533784b1cb6fcb582a00c7d3ae"
+  },
+  {
+    "path": "trinity-diamond-candidate-recovery-20261109/candidate-directions/products/elk-BT.svg",
+    "bytes": 6449,
+    "sha256": "424210bd87a21b17d710f6e261fe48c6b54b36400399cda274af13e507fe58ca"
+  },
+  {
+    "path": "trinity-diamond-candidate-recovery-20261109/candidate-directions/products/elk-LR.layout.json",
+    "bytes": 3901,
+    "sha256": "8da960440182b48a6d199dff03e2a184e1a51c86375fed90be4490869c09ff25"
+  },
+  {
+    "path": "trinity-diamond-candidate-recovery-20261109/candidate-directions/products/elk-LR.receipt.json",
+    "bytes": 11795,
+    "sha256": "0d8f2f5c7db9001ca7a7846b47e2a925ff00204b9f647f0af8f3f2c08a012758"
+  },
+  {
+    "path": "trinity-diamond-candidate-recovery-20261109/candidate-directions/products/elk-LR.svg",
+    "bytes": 6410,
+    "sha256": "720ee51b7500269ec461f7b10855ae1eadebd2f5e659287cbd9c70a2d080e942"
+  },
+  {
+    "path": "trinity-diamond-candidate-recovery-20261109/candidate-directions/products/elk-RL.layout.json",
+    "bytes": 3804,
+    "sha256": "4809830d27987cac40e305e2164a14ce286930a4496abf3eee7b21187facaaee"
+  },
+  {
+    "path": "trinity-diamond-candidate-recovery-20261109/candidate-directions/products/elk-RL.receipt.json",
+    "bytes": 11794,
+    "sha256": "eee44e0784c23d1a649fbb1503c2e52bf7bdb385dab19fd398bcc98aed043228"
+  },
+  {
+    "path": "trinity-diamond-candidate-recovery-20261109/candidate-directions/products/elk-RL.svg",
+    "bytes": 6420,
+    "sha256": "aeb37d383e510b67db67898f07c074ef7e39ebe79451b9c5eac996c9f516b164"
+  },
+  {
+    "path": "trinity-diamond-candidate-recovery-20261109/candidate-directions/products/elk-TB.layout.json",
+    "bytes": 3630,
+    "sha256": "e6536fb217c1381671fb47f04f9b7049ef9bf5c69ccf6465e622a15743dea81f"
+  },
+  {
+    "path": "trinity-diamond-candidate-recovery-20261109/candidate-directions/products/elk-TB.receipt.json",
+    "bytes": 11796,
+    "sha256": "82c0b97381a638d227dc546b83220324d769efe8ffb716f6198c25a8320c86b6"
+  },
+  {
+    "path": "trinity-diamond-candidate-recovery-20261109/candidate-directions/products/elk-TB.svg",
+    "bytes": 6442,
+    "sha256": "14c8b545012f190ab4d192c4cfd55836d1035aee2d014e4fef535fb4ec9c90a7"
+  },
+  {
+    "path": "trinity-diamond-candidate-recovery-20261109/candidate-directions/products/trinity-BT.layout.json",
+    "bytes": 3749,
+    "sha256": "608e02e23a3fefc96cdda74de779c62b680e465fd30ff4196539c764f5f1d2b4"
+  },
+  {
+    "path": "trinity-diamond-candidate-recovery-20261109/candidate-directions/products/trinity-BT.receipt.json",
+    "bytes": 11803,
+    "sha256": "a73263029c14e868c0c8ea309e39a3429c904b704b20e9161612102316b8362d"
+  },
+  {
+    "path": "trinity-diamond-candidate-recovery-20261109/candidate-directions/products/trinity-BT.svg",
+    "bytes": 6437,
+    "sha256": "8ac30a053e55836d51376e068aaba40b457e1f821c5cec6b69dd855b981d6459"
+  },
+  {
+    "path": "trinity-diamond-candidate-recovery-20261109/candidate-directions/products/trinity-LR.layout.json",
+    "bytes": 3683,
+    "sha256": "d455b0d0f323b404d22e35193205dcfa59380d50ee7863d22651563aa7f7f171"
+  },
+  {
+    "path": "trinity-diamond-candidate-recovery-20261109/candidate-directions/products/trinity-LR.receipt.json",
+    "bytes": 11802,
+    "sha256": "a18be80b4a3c937870b20f418cc64201c621bd86c696e8f67917a7aa46946609"
+  },
+  {
+    "path": "trinity-diamond-candidate-recovery-20261109/candidate-directions/products/trinity-LR.svg",
+    "bytes": 6401,
+    "sha256": "db5fc4da4ce0e09074353946b1714df8fff9ef045c46de447c411ecfd670bba8"
+  },
+  {
+    "path": "trinity-diamond-candidate-recovery-20261109/candidate-directions/products/trinity-RL.layout.json",
+    "bytes": 3818,
+    "sha256": "203be15e5efccfc8543fed637cb31bf842c228936cbc8c948c88788abeb905c7"
+  },
+  {
+    "path": "trinity-diamond-candidate-recovery-20261109/candidate-directions/products/trinity-RL.receipt.json",
+    "bytes": 11802,
+    "sha256": "9f991071fd195ccc2fd96902d79528ca562ec1d9a4aef1f8827d8cb1a88b4e38"
+  },
+  {
+    "path": "trinity-diamond-candidate-recovery-20261109/candidate-directions/products/trinity-RL.svg",
+    "bytes": 6399,
+    "sha256": "ab8f2dbc63b85d5552eda1ed8976203ef1aae2f654e4bbc291e4399289585251"
+  },
+  {
+    "path": "trinity-diamond-candidate-recovery-20261109/candidate-directions/products/trinity-TB.layout.json",
+    "bytes": 3648,
+    "sha256": "0725ceaeddab9a8c0df68ba9a7f538fab4616bccc4fdb9d6590a0225067f9bce"
+  },
+  {
+    "path": "trinity-diamond-candidate-recovery-20261109/candidate-directions/products/trinity-TB.receipt.json",
+    "bytes": 11803,
+    "sha256": "f312f8485b872a3796278d9d7eaf11d5623653abe45ba679775288b1cbd9dd30"
+  },
+  {
+    "path": "trinity-diamond-candidate-recovery-20261109/candidate-directions/products/trinity-TB.svg",
+    "bytes": 6448,
+    "sha256": "c25ebb551c1d99823e6afeb42ba7dd2eae61c037bb7af85c3ec59087dc7229f8"
+  },
+  {
+    "path": "trinity-diamond-candidate-recovery-20261109/candidate-directions.log",
+    "bytes": 673,
+    "sha256": "29c60c4931e1c0025bf45d27209739c5e5b5b041011b082549778aba3daef4f6"
+  },
+  {
+    "path": "trinity-diamond-candidate-recovery-20261109/candidate-src/src/__tests__/graph-layout-selection.test.ts",
+    "bytes": 65597,
+    "sha256": "078c667835bc8d114f1c2bcf9b0f2198abd27ce208fcd32bb2f9067f3fd6a42e"
+  },
+  {
+    "path": "trinity-diamond-candidate-recovery-20261109/candidate-src/src/__tests__/trinity-layout.test.ts",
+    "bytes": 28364,
+    "sha256": "1589263dfa0f99fb5c8ed40b7a69f90978eb3a401f756cfdd5857a59f13a6304"
+  },
+  {
+    "path": "trinity-diamond-candidate-recovery-20261109/candidate-src/src/layout/agentic-layered-core.ts",
+    "bytes": 50556,
+    "sha256": "53f6e534caa90a9572ac144e07c7f3180505164d115de1e6a63d01dab363ddca"
+  },
+  {
+    "path": "trinity-diamond-candidate-recovery-20261109/candidate-src/src/layout/elk-measured-adapter.ts",
+    "bytes": 11301,
+    "sha256": "094966d481c797976a682d9d606518aff930f410be4ff20415fc3ec42a1fe9d2"
+  },
+  {
+    "path": "trinity-diamond-candidate-recovery-20261109/candidate-src/src/layout/measured-graph-producer.ts",
+    "bytes": 28435,
+    "sha256": "8b81087d435de5f28e076bab71ef5dbbeefc10e03d6e061c8dff4d5d009d03ef"
+  },
+  {
+    "path": "trinity-diamond-candidate-recovery-20261109/candidate-src/src/layout/measured-graph.ts",
+    "bytes": 4806,
+    "sha256": "b5216766d1e49f54d99235c5ae1634d2018fb16ab614d9fe7a1856d1fbb8a9ea"
+  },
+  {
+    "path": "trinity-diamond-candidate-recovery-20261109/candidate-src/src/layout/trinity-compound.ts",
+    "bytes": 4232,
+    "sha256": "e9892c8037cf50589bfa8fea59dc5a9d1ede89e44beebcae08f6f096727f9821"
+  },
+  {
+    "path": "trinity-diamond-candidate-recovery-20261109/candidate-src/src/layout/trinity-placement.ts",
+    "bytes": 4791,
+    "sha256": "d2201207851de6a96f2d575e997f648415c7bda2cf5700da7f27edd21459e86c"
+  },
+  {
+    "path": "trinity-diamond-candidate-recovery-20261109/candidate-src/src/layout/trinity.ts",
+    "bytes": 34009,
+    "sha256": "868fb38c09c83426f5bf1f80414646fccfbdfa918345617cb75a0312556505ab"
+  },
+  {
+    "path": "trinity-diamond-candidate-recovery-20261109/candidate-src/src/shape-outline.ts",
+    "bytes": 24230,
+    "sha256": "331f8c7378dd4af1fef198b8011da48911d28d6b43c5cc6aeabaad8a6b179635"
+  },
+  {
+    "path": "trinity-diamond-candidate-recovery-20261109/candidate-src/src/shared/shape-routing-boundary.ts",
+    "bytes": 6492,
+    "sha256": "0f2e03eae808b32e66473738fcb5c956b4d6392291c59c0726783d220214c1b2"
+  },
+  {
+    "path": "trinity-diamond-candidate-recovery-20261109/candidate.patch",
+    "bytes": 61615,
+    "sha256": "7dcc46d2075a42d87224a95a9b1b4be79fce421f11880d4774fda5e264a960c9"
+  },
+  {
+    "path": "trinity-diamond-candidate-recovery-20261109/elk.before.receipt.json",
+    "bytes": 11796,
+    "sha256": "4522c765e3db9c73e70c716f961824b96bcb658402e3f8359d2c0fdb7260edab"
+  },
+  {
+    "path": "trinity-diamond-candidate-recovery-20261109/elk.before.svg",
+    "bytes": 6442,
+    "sha256": "14c8b545012f190ab4d192c4cfd55836d1035aee2d014e4fef535fb4ec9c90a7"
+  },
+  {
+    "path": "trinity-diamond-candidate-recovery-20261109/elk.prototype.receipt.json",
+    "bytes": 11796,
+    "sha256": "4522c765e3db9c73e70c716f961824b96bcb658402e3f8359d2c0fdb7260edab"
+  },
+  {
+    "path": "trinity-diamond-candidate-recovery-20261109/elk.prototype.svg",
+    "bytes": 6442,
+    "sha256": "14c8b545012f190ab4d192c4cfd55836d1035aee2d014e4fef535fb4ec9c90a7"
+  },
+  {
+    "path": "trinity-diamond-candidate-recovery-20261109/implement.py",
+    "bytes": 11662,
+    "sha256": "ef44ab17ae5e9cde48d042994983407b0723c2f4df60edea67b29400329798ff"
+  },
+  {
+    "path": "trinity-diamond-candidate-recovery-20261109/independent-scope-review.md",
+    "bytes": 9336,
+    "sha256": "86d644061fbc1b2522fd48e0cdeacba51e6a2b1162279b33ff4615f20d07f4fa"
+  },
+  {
+    "path": "trinity-diamond-candidate-recovery-20261109/lint.log",
+    "bytes": 80,
+    "sha256": "60c35a1bc557c5610a69c0832742c69d272597e29229d81f633c3b34175c1dc8"
+  },
+  {
+    "path": "trinity-diamond-candidate-recovery-20261109/measured-graph-producer.before.ts",
+    "bytes": 26359,
+    "sha256": "430266927f805d26c81294c85eb2396524f3acf2f61415434879976370d90012"
+  },
+  {
+    "path": "trinity-diamond-candidate-recovery-20261109/measured-graph-producer.prototype.ts",
+    "bytes": 27656,
+    "sha256": "e189f2cfa7145b6adb584a1605aa254de16a5185abf160dfdc83c6f571f80d26"
+  },
+  {
+    "path": "trinity-diamond-candidate-recovery-20261109/owners-final.log",
+    "bytes": 56476,
+    "sha256": "11019490b3e183452d558cdaf26a9918c30b67718fdcb43b20c3987b05faaeb0"
+  },
+  {
+    "path": "trinity-diamond-candidate-recovery-20261109/owners-first.log",
+    "bytes": 44879,
+    "sha256": "71fa660633ad862494bd6bb124141f0e295efcd5a4b7412b2f80fbd98a83ea8c"
+  },
+  {
+    "path": "trinity-diamond-candidate-recovery-20261109/owners-red.log",
+    "bytes": 15076,
+    "sha256": "e3e5f83c41df121c36ea53a5df385b2c8f72ad875b49e39b49bb9e31f4d2175d"
+  },
+  {
+    "path": "trinity-diamond-candidate-recovery-20261109/owners-repaired.log",
+    "bytes": 26528,
+    "sha256": "7583ddd213774a335d5ec551317b99c5e756ae853a9f2ad4cddc0cec37a01301"
+  },
+  {
+    "path": "trinity-diamond-candidate-recovery-20261109/prepare-prototype.py",
+    "bytes": 8861,
+    "sha256": "b81b29d08bc60a69350cb4ea81f552cd90bd8610ea61de27d51af76752cc38a7"
+  },
+  {
+    "path": "trinity-diamond-candidate-recovery-20261109/production-before/agentic-layered-core.ts",
+    "bytes": 50327,
+    "sha256": "eafd46aa82f245926baf8da5191b1aeffb9255ca6fead01154d1ae6c9eb11eb6"
+  },
+  {
+    "path": "trinity-diamond-candidate-recovery-20261109/production-before/elk-measured-adapter.ts",
+    "bytes": 11178,
+    "sha256": "ccac6f9e045321fd82cb63fbc2e140d4589f74eca82615be13be98993d148b2f"
+  },
+  {
+    "path": "trinity-diamond-candidate-recovery-20261109/production-before/measured-graph-producer.ts",
+    "bytes": 26359,
+    "sha256": "430266927f805d26c81294c85eb2396524f3acf2f61415434879976370d90012"
+  },
+  {
+    "path": "trinity-diamond-candidate-recovery-20261109/production-before/measured-graph.ts",
+    "bytes": 4069,
+    "sha256": "40e9c4dab7318178c36cb4bf6cab455e36ea2360b597324e58c8944359464495"
+  },
+  {
+    "path": "trinity-diamond-candidate-recovery-20261109/production-before/shape-outline.ts",
+    "bytes": 29989,
+    "sha256": "df351583690dcbbe641d265060c02bdf67dd86b3a315a286acf49ddce852103b"
+  },
+  {
+    "path": "trinity-diamond-candidate-recovery-20261109/production-before/trinity-compound.ts",
+    "bytes": 4098,
+    "sha256": "f3fef3b72a1744df53eb8557d456d4ef7583635e002144c684831aab1ae0a297"
+  },
+  {
+    "path": "trinity-diamond-candidate-recovery-20261109/production-before/trinity-placement.ts",
+    "bytes": 4847,
+    "sha256": "d9cc812998e875f5917da120d6e1b74a6c2cfd5f541c2f3bbf16b32912c477d1"
+  },
+  {
+    "path": "trinity-diamond-candidate-recovery-20261109/production-before/trinity.ts",
+    "bytes": 29975,
+    "sha256": "2142c79579a46f13b553d55356302cdc702bc1cea060c26f70ce1afaa8696b84"
+  },
+  {
+    "path": "trinity-diamond-candidate-recovery-20261109/prototype-directions/DIRECTIONS.json",
+    "bytes": 7974,
+    "sha256": "7d3efe59e81516baa53be808f56915ecf3777475b3c279956fa5ba5e3872e207"
+  },
+  {
+    "path": "trinity-diamond-candidate-recovery-20261109/prototype-directions/products/agentic-BT.layout.json",
+    "bytes": 3647,
+    "sha256": "76de4632ec423c13ea20b2f94aa05b244c811a01e7528099c4dcf9cab4c55def"
+  },
+  {
+    "path": "trinity-diamond-candidate-recovery-20261109/prototype-directions/products/agentic-BT.receipt.json",
+    "bytes": 11812,
+    "sha256": "d92593aae35d741942e34c5bcf0cfadce512c58313b3495755fff2d27b5671c6"
+  },
+  {
+    "path": "trinity-diamond-candidate-recovery-20261109/prototype-directions/products/agentic-BT.svg",
+    "bytes": 6411,
+    "sha256": "cde751c0f942f8dd372bf955d12fd1d1ea58a4ff3323d41a2a452fe6141e3869"
+  },
+  {
+    "path": "trinity-diamond-candidate-recovery-20261109/prototype-directions/products/agentic-LR.layout.json",
+    "bytes": 3569,
+    "sha256": "7d9e7238a19414c8b902ab67612abc3be711663f0cb418993f64dbe267fc9943"
+  },
+  {
+    "path": "trinity-diamond-candidate-recovery-20261109/prototype-directions/products/agentic-LR.receipt.json",
+    "bytes": 11812,
+    "sha256": "058684dbabda0c0b963952f87f7b8b7f6b41bc9d630db7656bbc31955f0fa39d"
+  },
+  {
+    "path": "trinity-diamond-candidate-recovery-20261109/prototype-directions/products/agentic-LR.svg",
+    "bytes": 6404,
+    "sha256": "112cd48884ac8ca2bf9819ad30ab9bc8e2085b37e94e34abd10cfb31caf509d5"
+  },
+  {
+    "path": "trinity-diamond-candidate-recovery-20261109/prototype-directions/products/agentic-RL.layout.json",
+    "bytes": 3740,
+    "sha256": "11013a6ef4a871592ad62f3af2b02ae745ac02eb2338af1b1b2971ea82974c1b"
+  },
+  {
+    "path": "trinity-diamond-candidate-recovery-20261109/prototype-directions/products/agentic-RL.receipt.json",
+    "bytes": 11812,
+    "sha256": "17654f53d85f541fd71b9c74e64db23cc95505864450851a212455db6d50868c"
+  },
+  {
+    "path": "trinity-diamond-candidate-recovery-20261109/prototype-directions/products/agentic-RL.svg",
+    "bytes": 6411,
+    "sha256": "c2f8a4abe6a2e99f0a1dc3659b89547a798b171abf83da1787775c3b78b6eb35"
+  },
+  {
+    "path": "trinity-diamond-candidate-recovery-20261109/prototype-directions/products/agentic-TB.layout.json",
+    "bytes": 3566,
+    "sha256": "9846bf42ed4e10fa5061cce6ebd05a6bb3786da3f57946e9d4a8c57881f92b13"
+  },
+  {
+    "path": "trinity-diamond-candidate-recovery-20261109/prototype-directions/products/agentic-TB.receipt.json",
+    "bytes": 11812,
+    "sha256": "604f3743c4448ff0e5dda57de2960fe35c2adc07c09b4bec86986f4f9847ea7d"
+  },
+  {
+    "path": "trinity-diamond-candidate-recovery-20261109/prototype-directions/products/agentic-TB.svg",
+    "bytes": 6429,
+    "sha256": "f86283f3de8cd929934892a702dd3e7cd2cc5008213c25c8b48b6f6b49e5a330"
+  },
+  {
+    "path": "trinity-diamond-candidate-recovery-20261109/prototype-directions/products/elk-BT.layout.json",
+    "bytes": 4035,
+    "sha256": "94575a69c566c00e2deb391a569efed6de542a660b199b2781ea861aa35263b9"
+  },
+  {
+    "path": "trinity-diamond-candidate-recovery-20261109/prototype-directions/products/elk-BT.receipt.json",
+    "bytes": 11796,
+    "sha256": "9cd1c1219eb9bbc0683cc39b5f5a716dc13274533784b1cb6fcb582a00c7d3ae"
+  },
+  {
+    "path": "trinity-diamond-candidate-recovery-20261109/prototype-directions/products/elk-BT.svg",
+    "bytes": 6449,
+    "sha256": "424210bd87a21b17d710f6e261fe48c6b54b36400399cda274af13e507fe58ca"
+  },
+  {
+    "path": "trinity-diamond-candidate-recovery-20261109/prototype-directions/products/elk-LR.layout.json",
+    "bytes": 3901,
+    "sha256": "8da960440182b48a6d199dff03e2a184e1a51c86375fed90be4490869c09ff25"
+  },
+  {
+    "path": "trinity-diamond-candidate-recovery-20261109/prototype-directions/products/elk-LR.receipt.json",
+    "bytes": 11795,
+    "sha256": "0d8f2f5c7db9001ca7a7846b47e2a925ff00204b9f647f0af8f3f2c08a012758"
+  },
+  {
+    "path": "trinity-diamond-candidate-recovery-20261109/prototype-directions/products/elk-LR.svg",
+    "bytes": 6410,
+    "sha256": "720ee51b7500269ec461f7b10855ae1eadebd2f5e659287cbd9c70a2d080e942"
+  },
+  {
+    "path": "trinity-diamond-candidate-recovery-20261109/prototype-directions/products/elk-RL.layout.json",
+    "bytes": 3804,
+    "sha256": "4809830d27987cac40e305e2164a14ce286930a4496abf3eee7b21187facaaee"
+  },
+  {
+    "path": "trinity-diamond-candidate-recovery-20261109/prototype-directions/products/elk-RL.receipt.json",
+    "bytes": 11794,
+    "sha256": "eee44e0784c23d1a649fbb1503c2e52bf7bdb385dab19fd398bcc98aed043228"
+  },
+  {
+    "path": "trinity-diamond-candidate-recovery-20261109/prototype-directions/products/elk-RL.svg",
+    "bytes": 6420,
+    "sha256": "aeb37d383e510b67db67898f07c074ef7e39ebe79451b9c5eac996c9f516b164"
+  },
+  {
+    "path": "trinity-diamond-candidate-recovery-20261109/prototype-directions/products/elk-TB.layout.json",
+    "bytes": 3630,
+    "sha256": "e6536fb217c1381671fb47f04f9b7049ef9bf5c69ccf6465e622a15743dea81f"
+  },
+  {
+    "path": "trinity-diamond-candidate-recovery-20261109/prototype-directions/products/elk-TB.receipt.json",
+    "bytes": 11796,
+    "sha256": "82c0b97381a638d227dc546b83220324d769efe8ffb716f6198c25a8320c86b6"
+  },
+  {
+    "path": "trinity-diamond-candidate-recovery-20261109/prototype-directions/products/elk-TB.svg",
+    "bytes": 6442,
+    "sha256": "14c8b545012f190ab4d192c4cfd55836d1035aee2d014e4fef535fb4ec9c90a7"
+  },
+  {
+    "path": "trinity-diamond-candidate-recovery-20261109/prototype-directions/products/trinity-BT.layout.json",
+    "bytes": 3749,
+    "sha256": "696df13065b52ec466f57207bbc92bb98129aaab5f8f74520da872845485f1d9"
+  },
+  {
+    "path": "trinity-diamond-candidate-recovery-20261109/prototype-directions/products/trinity-BT.receipt.json",
+    "bytes": 11803,
+    "sha256": "97acf5d58ef085bb9545e55a6f42d91ca026a84349932dd4cb468d7edcdfa497"
+  },
+  {
+    "path": "trinity-diamond-candidate-recovery-20261109/prototype-directions/products/trinity-BT.svg",
+    "bytes": 6437,
+    "sha256": "fb127edf3fb4463b53d9c0f11b5675bade6b65645bd40fe5466c2b46913b844b"
+  },
+  {
+    "path": "trinity-diamond-candidate-recovery-20261109/prototype-directions/products/trinity-LR.layout.json",
+    "bytes": 3683,
+    "sha256": "71201d4046c384f6dc7780342801ca5979b89938eb9fa1510d4c69bc204442b9"
+  },
+  {
+    "path": "trinity-diamond-candidate-recovery-20261109/prototype-directions/products/trinity-LR.receipt.json",
+    "bytes": 11802,
+    "sha256": "1465107f5dbe9092d18fa49f02c3992e3d279316be26ab057a5ed2634df6eba9"
+  },
+  {
+    "path": "trinity-diamond-candidate-recovery-20261109/prototype-directions/products/trinity-LR.svg",
+    "bytes": 6401,
+    "sha256": "3392e5d23b89da15bda5a7935caf2733536d2bbb311bfd298c2747a3c120a7d0"
+  },
+  {
+    "path": "trinity-diamond-candidate-recovery-20261109/prototype-directions/products/trinity-RL.layout.json",
+    "bytes": 3818,
+    "sha256": "f433a59039ac6a3a0e13ec59d8a47a6b894c7541b2b0cb0635aefbbcbef94d42"
+  },
+  {
+    "path": "trinity-diamond-candidate-recovery-20261109/prototype-directions/products/trinity-RL.receipt.json",
+    "bytes": 11802,
+    "sha256": "d66e2463e115ee47f97e8d479d4c2c2f270da99801c20290bee8bb0aa9e004ce"
+  },
+  {
+    "path": "trinity-diamond-candidate-recovery-20261109/prototype-directions/products/trinity-RL.svg",
+    "bytes": 6399,
+    "sha256": "9f1ae93231b3ecad6e2eacf5fd1262aca7da11c01da55ec619eb4c2b0699894a"
+  },
+  {
+    "path": "trinity-diamond-candidate-recovery-20261109/prototype-directions/products/trinity-TB.layout.json",
+    "bytes": 3648,
+    "sha256": "5138a35b7ae9b1754f15c76522fae4aaa8942393f9901ab0632f176d2829565f"
+  },
+  {
+    "path": "trinity-diamond-candidate-recovery-20261109/prototype-directions/products/trinity-TB.receipt.json",
+    "bytes": 11803,
+    "sha256": "10cd5ffbd39b1b3c4828d22ea3373dfb6162d975fa0a42373bcc6c22aeb4de78"
+  },
+  {
+    "path": "trinity-diamond-candidate-recovery-20261109/prototype-directions/products/trinity-TB.svg",
+    "bytes": 6448,
+    "sha256": "490fd397350c4fa8b1c97e50e3ad9dc31cefabd5c7ca8e7bb4fcf16237b0134f"
+  },
+  {
+    "path": "trinity-diamond-candidate-recovery-20261109/prototype-directions.log",
+    "bytes": 673,
+    "sha256": "29c60c4931e1c0025bf45d27209739c5e5b5b041011b082549778aba3daef4f6"
+  },
+  {
+    "path": "trinity-diamond-candidate-recovery-20261109/prototype-preload.ts",
+    "bytes": 636,
+    "sha256": "2786b37704f4dbe855d93875fae31cfe5e65becf3b67e533de7d3894c59b1bb1"
+  },
+  {
+    "path": "trinity-diamond-candidate-recovery-20261109/prototype.log",
+    "bytes": 295,
+    "sha256": "15e8457577b944291a4fd233ef254e8e2a01d861751d1853adf51dc025d1e1a6"
+  },
+  {
+    "path": "trinity-diamond-candidate-recovery-20261109/prototype.ts",
+    "bytes": 810,
+    "sha256": "20b5a22c2f7f80eae28db89db132a027f557b380def2b4292184f1b6e57e0f37"
+  },
+  {
+    "path": "trinity-diamond-candidate-recovery-20261109/qualify-directions.ts",
+    "bytes": 1639,
+    "sha256": "d0db3ee26ef338cc9d0df1231d6b04ff09f7c5edf60e5c39bbcb6ed7ae4991af"
+  },
+  {
+    "path": "trinity-diamond-candidate-recovery-20261109/trinity.before.ts",
+    "bytes": 29975,
+    "sha256": "2142c79579a46f13b553d55356302cdc702bc1cea060c26f70ce1afaa8696b84"
+  },
+  {
+    "path": "trinity-diamond-candidate-recovery-20261109/trinity.prototype.receipt.json",
+    "bytes": 11803,
+    "sha256": "14d2460bee171961b7d39a4f6db02633ecc22a2107e53ec0ca03403873b02996"
+  },
+  {
+    "path": "trinity-diamond-candidate-recovery-20261109/trinity.prototype.svg",
+    "bytes": 6448,
+    "sha256": "490fd397350c4fa8b1c97e50e3ad9dc31cefabd5c7ca8e7bb4fcf16237b0134f"
+  },
+  {
+    "path": "trinity-diamond-candidate-recovery-20261109/trinity.prototype.ts",
+    "bytes": 33548,
+    "sha256": "06c968a2bf3a222b135084b0fe7830e14ebd889e6c6c9dcee039435f792a969d"
+  },
+  {
+    "path": "trinity-diamond-candidate-recovery-20261109/typecheck.log",
+    "bytes": 2420,
+    "sha256": "11435ee64c100a012e2bb36c486e6006998df67e802fdc8150625f6b5f413b9d"
+  }
+]
