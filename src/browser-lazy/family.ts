@@ -1,5 +1,5 @@
 import { enrollOwnedFamily } from '../experimental/owned-family.ts'
-import { inheritNativeDrawing } from '../scene/drawing.ts'
+import { inheritNativeDrawing, adaptOwnedSceneLowering } from '../scene/drawing.ts'
 import type {
   FamilyDescriptor,
   FamilyLayoutResult,
@@ -27,7 +27,7 @@ export function positionedView<TPositioned extends PositionedDiagram>(
 export function scene<TPositioned extends PositionedDiagram>(
   lowerer: (ctx: RenderContext<TPositioned>) => ReturnType<NonNullable<FamilyDescriptor['lowerScene']>>,
 ): NonNullable<FamilyDescriptor['lowerScene']> {
-  return inheritNativeDrawing(lowerer, ctx => lowerer(ctx as RenderContext<TPositioned>))
+  return adaptOwnedSceneLowering(lowerer, inheritNativeDrawing(lowerer, ctx => lowerer(ctx as RenderContext<TPositioned>)))
 }
 
 export function layoutResult<TPositioned extends PositionedDiagram>(

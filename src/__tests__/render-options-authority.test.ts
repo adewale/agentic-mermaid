@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test'
 import { DEFAULT_ARCHITECTURE_VISUAL } from '../architecture/config.ts'
-import { createMermaidRenderer, DefaultBackend, registerBackend, renderContractDigest, renderMermaidSVG } from '../index.ts'
+import { createMermaidRenderer, DefaultBackend, registerBackend, registerStyle, renderContractDigest, renderMermaidSVG } from '../index.ts'
 import { renderedSvgDigest } from '../graphical-render.ts'
 import { SCENE_VALIDATION_LIMITS } from '../scene/scene-validation.ts'
 import { renderMermaidASCIIWithReceipt } from '../ascii/index.ts'
@@ -443,4 +443,28 @@ describe('shared RenderOptions authority', () => {
   })
 
 
+})
+
+test('repeated option admission observes mutable values, callbacks and style registry replacement', () => {
+  const source = 'flowchart LR\nA[hello] --> B[world]'
+  const options = { font: 'Inter', style: 'palette:preparation-test' }
+  let release = registerStyle({ formatVersion: 1, name: options.style, colors: { bg: '#ffffff', fg: '#111111' } })
+  try {
+    const first = resolveRenderRequest(source, options)
+    const repeated = resolveRenderRequest(source, options)
+    expect(repeated.appearance).toEqual(first.appearance)
+    options.font = 'monospace'
+    expect(resolveRenderRequest(source, options).appearance.font).toBe('monospace')
+    options.font = 'Inter'
+    release()
+    expect(() => resolveRenderRequest(source, options)).toThrow(/Unknown style/)
+    release = registerStyle({ formatVersion: 1, name: options.style, colors: { bg: '#eeeeee', fg: '#222222' } })
+    expect(resolveRenderRequest(source, options).appearance.colors.bg).toBe('#eeeeee')
+    let reads = 0
+    const accessor = { get font() { return ++reads === 1 ? 'Inter' : 'monospace' } }
+    expect(resolveRenderRequest(source, accessor).appearance.font).toBe('Inter')
+    expect(resolveRenderRequest(source, accessor).appearance.font).toBe('monospace')
+    expect(reads).toBe(2)
+    expect(() => resolveRenderRequest(source, { font: 3 } as never)).toThrow(/font/)
+  } finally { release() }
 })

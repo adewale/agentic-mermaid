@@ -1,3 +1,4 @@
+import { freezeOwnedDrawingData } from './owned-data.ts'
 import type { SceneNode, SceneDoc, ConnectorMark } from './ir.ts'
 import type { ScenePaintGeometryInspection, ScenePaintGeometry } from './inspection.ts'
 import { scanSvgStartTags, decodedSvgAttributeValue } from '../svg-structure.ts'
@@ -22,7 +23,7 @@ export function nativeEmissionWorkOf(inspection: ScenePaintGeometryInspection): 
  * new contact exemption. Every occurrence retains its own immutable fields and
  * are captured BEFORE the single existing writer call, which emits that copy.
  * Accessors/unsupported data or an exhausted capture keep paint conditional. */
-export function createNativePaintEmission(maxOperations: number) {
+export function createNativePaintEmission(maxOperations: number, owned = false) {
   let operations = 0, exhausted = false, uncertain = false
   const resources = new Map<string, string | undefined>()
   const references: NonNullable<Extract<Leaf, { kind: 'connector' }>['markers']['start']>[] = []
@@ -110,14 +111,16 @@ export function createNativePaintEmission(maxOperations: number) {
     return Object.freeze(result)
   }
   const snapshot = <T>(value: T): T | undefined => {
-    try { return copy(value) as T } catch { return undefined }
+    try { return owned ? freezeOwnedDrawingData(value, pay) : copy(value) as T } catch { return undefined }
   }
   // Immutable operands make this a finite field walk, without allocating a
   // second descriptor array or JSON representation before its work is paid.
   const same = (a: unknown, b: unknown): boolean => {
     if (!pay()) return false
     if (typeof a === 'string' && typeof b === 'string') return pay(a.length + b.length) && a === b
-    if (a === b) return true
+    // Preserve the same conservative logical work ledger when owned records
+    // share identities that the defensive path would have copied separately.
+    if (a === b && (!owned || a === null || typeof a !== 'object' || isImmutablePixelTextPart(a))) return true
     if (!a || !b || typeof a !== 'object' || typeof b !== 'object') return false
     let na = 0, nb = 0
     if (!pay(2)) return false

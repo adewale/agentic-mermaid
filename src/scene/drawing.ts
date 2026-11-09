@@ -11,10 +11,19 @@ export type DrawingFactory<T> = {
   pathArtwork(fields: Parameters<typeof marks.pathArtwork>[0]): T
 }
 export type DrawingProducer<P extends PositionedDiagram = PositionedDiagram> = <T>(factory: DrawingFactory<T>, context: RenderContext<P>) => DrawingDocument<T>
+const originalLowerings = new WeakSet<object>()
+export function isOriginalSceneLowering(lower: object | undefined): boolean { return !!lower && originalLowerings.has(lower) }
+/** Only the known type-erasure adapter may transfer constructor ownership;
+ * general native-capability inheritance must not authorize scene finalization. */
+export function adaptOwnedSceneLowering<T extends object>(source: object, target: T): T {
+  if (originalLowerings.has(source)) originalLowerings.add(target)
+  return target
+}
 const nativeDrawings = new WeakMap<object, { readonly original: DrawingProducer; current: DrawingProducer }>()
 
 export function sceneLowering<P extends PositionedDiagram>(draw: DrawingProducer<P>): (context: RenderContext<P>) => SceneDoc {
   const lower = (context: RenderContext<P>): SceneDoc => draw<SceneNode>(marks, context)
+  originalLowerings.add(lower)
   nativeDrawings.set(lower, { original: draw as DrawingProducer, current: draw as DrawingProducer })
   return lower
 }

@@ -9,7 +9,7 @@
 // ============================================================================
 
 import { inspectSvgOnce } from './svg-inspection-cache.ts'
-import { isAsciiXmlNameChar } from './shared/xml-name.ts'
+import { asciiXmlNameEnd } from './shared/xml-name.ts'
 
 export const OUTPUT_SECURITY_POLICY_VERSION = 2 as const
 export type OutputSecurityMode = 'default' | 'strict'
@@ -88,9 +88,7 @@ function isXmlWhitespace(char: string | undefined): boolean {
 function readXmlNameEnd(source: string, start: number): number {
   const code = source.charCodeAt(start), lower = code | 32
   if (!((lower >= 97 && lower <= 122) || code === 95)) return -1
-  let end = start + 1
-  while (isAsciiXmlNameChar(source[end])) end++
-  return end
+  return asciiXmlNameEnd(source, start + 1)
 }
 
 interface XmlQualifiedName {

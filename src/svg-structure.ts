@@ -1,6 +1,6 @@
 import { decodeXML } from 'entities'
 import { inspectSvgOnce } from './svg-inspection-cache.ts'
-import { isAsciiXmlNameChar } from './shared/xml-name.ts'
+import { asciiXmlNameEnd } from './shared/xml-name.ts'
 
 export interface SvgAttributeToken {
   readonly name: string
@@ -72,8 +72,7 @@ function scanStartTags(source: string, cssRanges?: SvgRange[], styleContexts?: S
     }
     const initial = source[start + 1]
     if (!initial || initial === '/' || initial === '!' || initial === '?') continue
-    let nameEnd = start + 1
-    while (isAsciiXmlNameChar(source[nameEnd])) nameEnd++
+    const nameEnd = asciiXmlNameEnd(source, start + 1)
     if (nameEnd === start + 1) continue
     const end = scanTagEnd(source, nameEnd)
     if (end < 0) break
@@ -90,7 +89,7 @@ function scanStartTags(source: string, cssRanges?: SvgRange[], styleContexts?: S
         while (isWhitespace(source[cursor])) cursor++
         if (source[cursor] === '>' || (source[cursor] === '/' && source[cursor + 1] === '>')) break
         const nameStart = cursor
-        while (isAsciiXmlNameChar(source[cursor])) cursor++
+        cursor = asciiXmlNameEnd(source, cursor)
         if (cursor === nameStart) break
         const name = source.slice(nameStart, cursor)
         while (isWhitespace(source[cursor])) cursor++
