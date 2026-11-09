@@ -326,7 +326,8 @@ export function prepareMeasuredGraphCandidate(
       if (!Number.isFinite(minimum)) bindings.unsupported('agentic marker spacing range')
       if (horizontal) node.height = Math.max(node.height, minimum)
       else node.width = Math.max(node.width, minimum)
-      node.minimumPortSpacing = pitch
+      // Thin faces already carry per-edge paint spans for weighted packing.
+      if (span > 8) node.minimumPortSpacing = pitch
     }
     if (!Number.isFinite(doubleDepth + margin) || !Number.isFinite(minimumTerminalLead ?? 0) || !Number.isFinite(2 * (doubleDepth + margin))) bindings.unsupported('agentic marker spacing range')
     return { nodes, groups, edges, shareCompleteFans: physical ? false : shareCompleteFans, direction: graph.direction, padding: opts.padding, nodeSpacing: opts.nodeSpacing,
