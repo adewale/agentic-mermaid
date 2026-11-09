@@ -1,0 +1,68 @@
+[
+  {
+    "backend": "elk",
+    "selected": {
+      "raw": 2768310,
+      "gzip9": 862852,
+      "brotli11": 692428
+    },
+    "stopped": {
+      "raw": 2766228,
+      "gzip9": 862763,
+      "brotli11": 692609
+    },
+    "deltaStoppedMinusSelected": {
+      "raw": -2082,
+      "gzip9": -89,
+      "brotli11": 181
+    },
+    "requests": [
+      43,
+      44
+    ]
+  },
+  {
+    "backend": "agentic",
+    "selected": {
+      "raw": 1486202,
+      "gzip9": 492104,
+      "brotli11": 421732
+    },
+    "stopped": {
+      "raw": 1486459,
+      "gzip9": 492991,
+      "brotli11": 422776
+    },
+    "deltaStoppedMinusSelected": {
+      "raw": 257,
+      "gzip9": 887,
+      "brotli11": 1044
+    },
+    "requests": [
+      49,
+      50
+    ]
+  },
+  {
+    "backend": "trinity",
+    "selected": {
+      "raw": 1465001,
+      "gzip9": 484631,
+      "brotli11": 415045
+    },
+    "stopped": {
+      "raw": 1462930,
+      "gzip9": 484549,
+      "brotli11": 415238
+    },
+    "deltaStoppedMinusSelected": {
+      "raw": -2071,
+      "gzip9": -82,
+      "brotli11": 193
+    },
+    "requests": [
+      50,
+      51
+    ]
+  }
+]

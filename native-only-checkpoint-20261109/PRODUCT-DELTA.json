@@ -1,0 +1,77 @@
+[
+  {
+    "backend": "elk",
+    "beforeRevision": "dee908197a8fe678d05cb6e1c6827d05ae9d4fb7",
+    "afterRevision": "10253d29dba24554008fc61c178abcf7cc0a47cf",
+    "before": {
+      "raw": 2764633,
+      "gzip9": 861487,
+      "brotli11": 691425
+    },
+    "after": {
+      "raw": 2768310,
+      "gzip9": 862852,
+      "brotli11": 692428
+    },
+    "delta": {
+      "raw": 3677,
+      "gzip9": 1365,
+      "brotli11": 1003
+    },
+    "requests": [
+      43,
+      43
+    ],
+    "status": "passed"
+  },
+  {
+    "backend": "agentic",
+    "beforeRevision": "dee908197a8fe678d05cb6e1c6827d05ae9d4fb7",
+    "afterRevision": "10253d29dba24554008fc61c178abcf7cc0a47cf",
+    "before": {
+      "raw": 1480007,
+      "gzip9": 489891,
+      "brotli11": 419955
+    },
+    "after": {
+      "raw": 1486202,
+      "gzip9": 492104,
+      "brotli11": 421732
+    },
+    "delta": {
+      "raw": 6195,
+      "gzip9": 2213,
+      "brotli11": 1777
+    },
+    "requests": [
+      49,
+      49
+    ],
+    "status": "passed"
+  },
+  {
+    "backend": "trinity",
+    "beforeRevision": "dee908197a8fe678d05cb6e1c6827d05ae9d4fb7",
+    "afterRevision": "10253d29dba24554008fc61c178abcf7cc0a47cf",
+    "before": {
+      "raw": 1460943,
+      "gzip9": 483140,
+      "brotli11": 413902
+    },
+    "after": {
+      "raw": 1465001,
+      "gzip9": 484631,
+      "brotli11": 415045
+    },
+    "delta": {
+      "raw": 4058,
+      "gzip9": 1491,
+      "brotli11": 1143
+    },
+    "requests": [
+      50,
+      50
+    ],
+    "status": "passed"
+  }
+]

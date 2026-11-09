@@ -1,0 +1,1422 @@
+[
+  {
+    "backend": "elk",
+    "url": "/entry.mjs",
+    "kind": "Trident binding",
+    "sha256": "8b3cc9f1b2d1c0b825b6f0f1508ad7bf1fd49e8439b1bc9d5432c6a9511ad613",
+    "raw": 501,
+    "archiveFile": "8b3cc9f1b2d1c0b825b6f0f1508ad7bf1fd49e8439b1bc9d5432c6a9511ad613.gz",
+    "gzip9": 321,
+    "brotli11": 257
+  },
+  {
+    "backend": "elk",
+    "url": "/browser-lazy/index.js",
+    "kind": "actual product module",
+    "sha256": "c1709d13b8e5b0bab266dbd367d677a17d4c42e7cd195fb4a66f70134fd82923",
+    "raw": 4363,
+    "archiveFile": "c1709d13b8e5b0bab266dbd367d677a17d4c42e7cd195fb4a66f70134fd82923.gz",
+    "gzip9": 1566,
+    "brotli11": 1326
+  },
+  {
+    "backend": "elk",
+    "url": "/declared-adapter.mjs",
+    "kind": "Trident binding",
+    "sha256": "2db9f4b28ad5d21417101446f0fb5375d6281898daeff495295504eae98cd103",
+    "raw": 965,
+    "archiveFile": "2db9f4b28ad5d21417101446f0fb5375d6281898daeff495295504eae98cd103.gz",
+    "gzip9": 497,
+    "brotli11": 408
+  },
+  {
+    "backend": "elk",
+    "url": "/browser-lazy/chunks/chunk-O4WXINVK.js",
+    "kind": "actual product module",
+    "sha256": "30e5de7004b351e437374ab5ffccba7025aa4ac6b773bda90f2ea90744111b2e",
+    "raw": 5103,
+    "archiveFile": "30e5de7004b351e437374ab5ffccba7025aa4ac6b773bda90f2ea90744111b2e.gz",
+    "gzip9": 2003,
+    "brotli11": 1826
+  },
+  {
+    "backend": "elk",
+    "url": "/browser-lazy/chunks/chunk-D7ACEPSO.js",
+    "kind": "actual product module",
+    "sha256": "0564120dec9fe0cc5f659ada8afa171c37621007ebbdd54d91df1c54c7707d6d",
+    "raw": 6562,
+    "archiveFile": "0564120dec9fe0cc5f659ada8afa171c37621007ebbdd54d91df1c54c7707d6d.gz",
+    "gzip9": 2378,
+    "brotli11": 2175
+  },
+  {
+    "backend": "elk",
+    "url": "/browser-lazy/chunks/chunk-SC76MUQ3.js",
+    "kind": "actual product module",
+    "sha256": "32f2e061f17b0958551c522cf707b97162f11e6f3fdc44667276459410366258",
+    "raw": 440,
+    "archiveFile": "32f2e061f17b0958551c522cf707b97162f11e6f3fdc44667276459410366258.gz",
+    "gzip9": 284,
+    "brotli11": 229
+  },
+  {
+    "backend": "elk",
+    "url": "/browser-lazy/chunks/flowchart-HWR5LJK5.js",
+    "kind": "actual product module",
+    "sha256": "6c8e5894a7edc8e11df09e295877a8b3adcef65de812c2a39416fd5a1b505184",
+    "raw": 5957,
+    "archiveFile": "6c8e5894a7edc8e11df09e295877a8b3adcef65de812c2a39416fd5a1b505184.gz",
+    "gzip9": 1611,
+    "brotli11": 1424
+  },
+  {
+    "backend": "elk",
+    "url": "/browser-lazy/chunks/render-core-CPZ5A6JB.js",
+    "kind": "actual product module",
+    "sha256": "a81b5c36c7c00405f75dcbf95b8822e2f3b22ec4fa04c7ad6462807aed203750",
+    "raw": 183,
+    "archiveFile": "a81b5c36c7c00405f75dcbf95b8822e2f3b22ec4fa04c7ad6462807aed203750.gz",
+    "gzip9": 132,
+    "brotli11": 103
+  },
+  {
+    "backend": "elk",
+    "url": "/browser-lazy/chunks/chunk-CDC4GQBX.js",
+    "kind": "actual product module",
+    "sha256": "c6d59852819934c3191e642f14c0cd28d3832702284d196ab2cf90e36ecfa3db",
+    "raw": 515,
+    "archiveFile": "c6d59852819934c3191e642f14c0cd28d3832702284d196ab2cf90e36ecfa3db.gz",
+    "gzip9": 321,
+    "brotli11": 280
+  },
+  {
+    "backend": "elk",
+    "url": "/browser-lazy/chunks/chunk-OGB2YZWM.js",
+    "kind": "actual product module",
+    "sha256": "be219d28301693b3509806f8002add7ff66819d52ee550911fffc1fb47a837c6",
+    "raw": 163,
+    "archiveFile": "be219d28301693b3509806f8002add7ff66819d52ee550911fffc1fb47a837c6.gz",
+    "gzip9": 145,
+    "brotli11": 110
+  },
+  {
+    "backend": "elk",
+    "url": "/browser-lazy/chunks/chunk-RORDWKTE.js",
+    "kind": "actual product module",
+    "sha256": "4ce40f20cd2d22e16ef1fddad92d8f6ab3d75dfe57b168b309482bea4735d289",
+    "raw": 1688,
+    "archiveFile": "4ce40f20cd2d22e16ef1fddad92d8f6ab3d75dfe57b168b309482bea4735d289.gz",
+    "gzip9": 697,
+    "brotli11": 620
+  },
+  {
+    "backend": "elk",
+    "url": "/browser-lazy/chunks/chunk-XQME22EH.js",
+    "kind": "actual product module",
+    "sha256": "db5fbbc15dad2d72ca44d6a747e74f722f096a1981aeb446f9fa396cada560cf",
+    "raw": 786,
+    "archiveFile": "db5fbbc15dad2d72ca44d6a747e74f722f096a1981aeb446f9fa396cada560cf.gz",
+    "gzip9": 443,
+    "brotli11": 384
+  },
+  {
+    "backend": "elk",
+    "url": "/browser-lazy/chunks/chunk-NFBHWDWY.js",
+    "kind": "actual product module",
+    "sha256": "1999072660abb39f2685fef30ea85a924096e466f8da7acde686ae1e5d3def13",
+    "raw": 59117,
+    "archiveFile": "1999072660abb39f2685fef30ea85a924096e466f8da7acde686ae1e5d3def13.gz",
+    "gzip9": 20263,
+    "brotli11": 18291
+  },
+  {
+    "backend": "elk",
+    "url": "/browser-lazy/chunks/chunk-TMEMYN6C.js",
+    "kind": "actual product module",
+    "sha256": "175ecfe4fd66bb0c99fb0a3727f4469302a8193d6ba6505b1b51027c48912bf6",
+    "raw": 12516,
+    "archiveFile": "175ecfe4fd66bb0c99fb0a3727f4469302a8193d6ba6505b1b51027c48912bf6.gz",
+    "gzip9": 4569,
+    "brotli11": 4138
+  },
+  {
+    "backend": "elk",
+    "url": "/browser-lazy/chunks/chunk-UFTSGO6P.js",
+    "kind": "actual product module",
+    "sha256": "d3abb9a4ca7bd3af9b3ac92f03151757a4d15bbdde50ce0b90737c5d81ed377c",
+    "raw": 865,
+    "archiveFile": "d3abb9a4ca7bd3af9b3ac92f03151757a4d15bbdde50ce0b90737c5d81ed377c.gz",
+    "gzip9": 530,
+    "brotli11": 463
+  },
+  {
+    "backend": "elk",
+    "url": "/browser-lazy/chunks/chunk-QTTRSZS5.js",
+    "kind": "actual product module",
+    "sha256": "899d40bf90c8a9f449737dbd059b4497ff394cf129dbcdcfdfa2fea5a84bfe44",
+    "raw": 118740,
+    "archiveFile": "899d40bf90c8a9f449737dbd059b4497ff394cf129dbcdcfdfa2fea5a84bfe44.gz",
+    "gzip9": 39440,
+    "brotli11": 34286
+  },
+  {
+    "backend": "elk",
+    "url": "/browser-lazy/chunks/chunk-V7BCTL4V.js",
+    "kind": "actual product module",
+    "sha256": "21c6a132f47c66228e06f020251057306c251f36270cba6859976644724de4b3",
+    "raw": 2554,
+    "archiveFile": "21c6a132f47c66228e06f020251057306c251f36270cba6859976644724de4b3.gz",
+    "gzip9": 1314,
+    "brotli11": 1186
+  },
+  {
+    "backend": "elk",
+    "url": "/browser-lazy/chunks/chunk-F5AZUJCX.js",
+    "kind": "actual product module",
+    "sha256": "5ca861a23228e3a93ff5f5a5c3da21599ccbe29bfc151e75e05d54127d75e00e",
+    "raw": 125318,
+    "archiveFile": "5ca861a23228e3a93ff5f5a5c3da21599ccbe29bfc151e75e05d54127d75e00e.gz",
+    "gzip9": 42031,
+    "brotli11": 36430
+  },
+  {
+    "backend": "elk",
+    "url": "/browser-lazy/chunks/chunk-UQ7GTNSR.js",
+    "kind": "actual product module",
+    "sha256": "daae0619bc0ec02d0d90d2108156b16b85d5321dbe6cccf0ad14514944707a5d",
+    "raw": 7633,
+    "archiveFile": "daae0619bc0ec02d0d90d2108156b16b85d5321dbe6cccf0ad14514944707a5d.gz",
+    "gzip9": 1706,
+    "brotli11": 1572
+  },
+  {
+    "backend": "elk",
+    "url": "/browser-lazy/chunks/chunk-CLWWU6PK.js",
+    "kind": "actual product module",
+    "sha256": "8e228b2d11e2c6bfca5b0b6ae36c976d9f129136cb7d67c6c35e8d59713f3959",
+    "raw": 887,
+    "archiveFile": "8e228b2d11e2c6bfca5b0b6ae36c976d9f129136cb7d67c6c35e8d59713f3959.gz",
+    "gzip9": 487,
+    "brotli11": 451
+  },
+  {
+    "backend": "elk",
+    "url": "/browser-lazy/chunks/chunk-BJFFKZKC.js",
+    "kind": "actual product module",
+    "sha256": "29a63403affcb979c1d76045d033788137243ad18735f28cf28bb82c91c5d914",
+    "raw": 2179,
+    "archiveFile": "29a63403affcb979c1d76045d033788137243ad18735f28cf28bb82c91c5d914.gz",
+    "gzip9": 1143,
+    "brotli11": 1042
+  },
+  {
+    "backend": "elk",
+    "url": "/browser-lazy/chunks/chunk-7WYEZDAV.js",
+    "kind": "actual product module",
+    "sha256": "9537136b03638cfeaee3fd895794340115c04b985d0f37a91cb3218ad460289f",
+    "raw": 2947,
+    "archiveFile": "9537136b03638cfeaee3fd895794340115c04b985d0f37a91cb3218ad460289f.gz",
+    "gzip9": 1332,
+    "brotli11": 1238
+  },
+  {
+    "backend": "elk",
+    "url": "/browser-lazy/chunks/chunk-4OWA5PJK.js",
+    "kind": "actual product module",
+    "sha256": "29e91a4cac2d3d2dc0c5b5b5f41a3535cebbc2b067470ed0f9c1b38edaa88f11",
+    "raw": 272,
+    "archiveFile": "29e91a4cac2d3d2dc0c5b5b5f41a3535cebbc2b067470ed0f9c1b38edaa88f11.gz",
+    "gzip9": 225,
+    "brotli11": 204
+  },
+  {
+    "backend": "elk",
+    "url": "/browser-lazy/chunks/chunk-2XBQ27SZ.js",
+    "kind": "actual product module",
+    "sha256": "5f6fdc87c136be53aae32470c49bd338e9ada951bcd36fb0e3b058ba543f8ef6",
+    "raw": 2015,
+    "archiveFile": "5f6fdc87c136be53aae32470c49bd338e9ada951bcd36fb0e3b058ba543f8ef6.gz",
+    "gzip9": 873,
+    "brotli11": 789
+  },
+  {
+    "backend": "elk",
+    "url": "/browser-lazy/chunks/chunk-TXALF2FK.js",
+    "kind": "actual product module",
+    "sha256": "09e4a78804795224819ca40734070069a0977f9c72bd27d06de37b90f7e6c2bf",
+    "raw": 891,
+    "archiveFile": "09e4a78804795224819ca40734070069a0977f9c72bd27d06de37b90f7e6c2bf.gz",
+    "gzip9": 548,
+    "brotli11": 483
+  },
+  {
+    "backend": "elk",
+    "url": "/browser-lazy/chunks/chunk-WPX7GTT7.js",
+    "kind": "actual product module",
+    "sha256": "711c387abe915e1fe0fb63b88b62c9f532e3929ed8b744141574ab5c7f28a53f",
+    "raw": 1618,
+    "archiveFile": "711c387abe915e1fe0fb63b88b62c9f532e3929ed8b744141574ab5c7f28a53f.gz",
+    "gzip9": 677,
+    "brotli11": 622
+  },
+  {
+    "backend": "elk",
+    "url": "/browser-lazy/chunks/chunk-7X62GRYO.js",
+    "kind": "actual product module",
+    "sha256": "bc9243c7c84de8de1e64f44b485dad3f99b66f75179002049b1c578fef2bb321",
+    "raw": 7330,
+    "archiveFile": "bc9243c7c84de8de1e64f44b485dad3f99b66f75179002049b1c578fef2bb321.gz",
+    "gzip9": 3210,
+    "brotli11": 2821
+  },
+  {
+    "backend": "elk",
+    "url": "/browser-lazy/chunks/chunk-O6JTREVE.js",
+    "kind": "actual product module",
+    "sha256": "7b435c8c2111a4a484065b6a64e39c0511404adb78ac4e1c4e58c3ba9d66c24d",
+    "raw": 10891,
+    "archiveFile": "7b435c8c2111a4a484065b6a64e39c0511404adb78ac4e1c4e58c3ba9d66c24d.gz",
+    "gzip9": 3423,
+    "brotli11": 3120
+  },
+  {
+    "backend": "elk",
+    "url": "/browser-lazy/chunks/chunk-T3RBYG26.js",
+    "kind": "actual product module",
+    "sha256": "12d3ec28460975601e41856fa1a10673991f95474c1fd06fa2c12cff82fdd3e6",
+    "raw": 2275,
+    "archiveFile": "12d3ec28460975601e41856fa1a10673991f95474c1fd06fa2c12cff82fdd3e6.gz",
+    "gzip9": 885,
+    "brotli11": 842
+  },
+  {
+    "backend": "elk",
+    "url": "/browser-lazy/chunks/chunk-B3DEFF86.js",
+    "kind": "actual product module",
+    "sha256": "0439c83f03810e4b5bcd3a2d58de059666cad5ea0685d6d6e4e718baf2e8ac12",
+    "raw": 604352,
+    "archiveFile": "0439c83f03810e4b5bcd3a2d58de059666cad5ea0685d6d6e4e718baf2e8ac12.gz",
+    "gzip9": 192677,
+    "brotli11": 158264
+  },
+  {
+    "backend": "elk",
+    "url": "/browser-lazy/chunks/elk.bundled-X5K4KOFH.js",
+    "kind": "actual product module",
+    "sha256": "2422557bc2a76ea5bea842c44c646f82d8d5dd66eeddbb017f3883feffa78ef5",
+    "raw": 1447491,
+    "archiveFile": "2422557bc2a76ea5bea842c44c646f82d8d5dd66eeddbb017f3883feffa78ef5.gz",
+    "gzip9": 428435,
+    "brotli11": 321502
+  },
+  {
+    "backend": "elk",
+    "url": "/browser-lazy/chunks/state-OOUI4WQB.js",
+    "kind": "actual product module",
+    "sha256": "afde5ae3e1e9607d89bcf41f47845db5778a3ce19edf0424e93427607d0f1fd5",
+    "raw": 8005,
+    "archiveFile": "afde5ae3e1e9607d89bcf41f47845db5778a3ce19edf0424e93427607d0f1fd5.gz",
+    "gzip9": 2309,
+    "brotli11": 1997
+  },
+  {
+    "backend": "elk",
+    "url": "/browser-lazy/chunks/class-ZEBG3QEM.js",
+    "kind": "actual product module",
+    "sha256": "c4f7514715c08e24408a84a942fe3a5915888487a15483e94d70c5470476378e",
+    "raw": 119180,
+    "archiveFile": "c4f7514715c08e24408a84a942fe3a5915888487a15483e94d70c5470476378e.gz",
+    "gzip9": 38309,
+    "brotli11": 33227
+  },
+  {
+    "backend": "elk",
+    "url": "/browser-lazy/chunks/chunk-RTUN4I4Z.js",
+    "kind": "actual product module",
+    "sha256": "03fb953b4fe88a36e7f9fa74de487870048adbc3198235a0db353896328ad556",
+    "raw": 261,
+    "archiveFile": "03fb953b4fe88a36e7f9fa74de487870048adbc3198235a0db353896328ad556.gz",
+    "gzip9": 227,
+    "brotli11": 194
+  },
+  {
+    "backend": "elk",
+    "url": "/browser-lazy/chunks/chunk-NBHHPERM.js",
+    "kind": "actual product module",
+    "sha256": "2277bd98607e484ab1afdb62b3841f8fbe797aad24919e97429f1c8417d77389",
+    "raw": 1832,
+    "archiveFile": "2277bd98607e484ab1afdb62b3841f8fbe797aad24919e97429f1c8417d77389.gz",
+    "gzip9": 662,
+    "brotli11": 566
+  },
+  {
+    "backend": "elk",
+    "url": "/browser-lazy/chunks/chunk-PQQWXTBY.js",
+    "kind": "actual product module",
+    "sha256": "6478b6077ff0da15bdfd377614064b88050c010def1b3334ceb2b2d602464057",
+    "raw": 1840,
+    "archiveFile": "6478b6077ff0da15bdfd377614064b88050c010def1b3334ceb2b2d602464057.gz",
+    "gzip9": 901,
+    "brotli11": 806
+  },
+  {
+    "backend": "elk",
+    "url": "/browser-lazy/chunks/chunk-W5ZDKQKA.js",
+    "kind": "actual product module",
+    "sha256": "3dd096c79597c42204d8967959e2427c95d6aac08de1e2272cd28175e107b291",
+    "raw": 20809,
+    "archiveFile": "3dd096c79597c42204d8967959e2427c95d6aac08de1e2272cd28175e107b291.gz",
+    "gzip9": 6929,
+    "brotli11": 6080
+  },
+  {
+    "backend": "elk",
+    "url": "/browser-lazy/chunks/chunk-JVFVBEG7.js",
+    "kind": "actual product module",
+    "sha256": "256171d38d871940de29887398233287ce8c860548956be7aaeb5e4c2fe7967d",
+    "raw": 340,
+    "archiveFile": "256171d38d871940de29887398233287ce8c860548956be7aaeb5e4c2fe7967d.gz",
+    "gzip9": 221,
+    "brotli11": 182
+  },
+  {
+    "backend": "elk",
+    "url": "/browser-lazy/chunks/er-PIGVVIRK.js",
+    "kind": "actual product module",
+    "sha256": "192ec9fc7447774643e995f9af92f39840c5ce32f815d5296d472ae390160360",
+    "raw": 86109,
+    "archiveFile": "192ec9fc7447774643e995f9af92f39840c5ce32f815d5296d472ae390160360.gz",
+    "gzip9": 28999,
+    "brotli11": 25612
+  },
+  {
+    "backend": "elk",
+    "url": "/browser-lazy/chunks/architecture-DQZEZMVR.js",
+    "kind": "actual product module",
+    "sha256": "a561b72e59fce9eaa6163ed3574988fbb066172281448442a960eae58d13bf62",
+    "raw": 58644,
+    "archiveFile": "a561b72e59fce9eaa6163ed3574988fbb066172281448442a960eae58d13bf62.gz",
+    "gzip9": 18243,
+    "brotli11": 16231
+  },
+  {
+    "backend": "elk",
+    "url": "/browser-lazy/chunks/chunk-F3L7DZPZ.js",
+    "kind": "actual product module",
+    "sha256": "f7c5cf74d809a6a6bf832a1b853add85f6bfce1379096717ba0828ea0dd19a8f",
+    "raw": 414,
+    "archiveFile": "f7c5cf74d809a6a6bf832a1b853add85f6bfce1379096717ba0828ea0dd19a8f.gz",
+    "gzip9": 309,
+    "brotli11": 249
+  },
+  {
+    "backend": "elk",
+    "url": "/browser-lazy/chunks/requirement-CIQ5RQ7H.js",
+    "kind": "actual product module",
+    "sha256": "aced5dde3768995b9b0642d697aa173880874ce7386088069948d3b394d0981c",
+    "raw": 35044,
+    "archiveFile": "aced5dde3768995b9b0642d697aa173880874ce7386088069948d3b394d0981c.gz",
+    "gzip9": 12248,
+    "brotli11": 10952
+  },
+  {
+    "backend": "elk",
+    "url": "/browser-lazy/chunks/chunk-ORVTZKXJ.js",
+    "kind": "actual product module",
+    "sha256": "956fa6273972123aa7606ccf3f98cf5f0dac32c1cc749cd0da7f331a11deb55d",
+    "raw": 181,
+    "archiveFile": "956fa6273972123aa7606ccf3f98cf5f0dac32c1cc749cd0da7f331a11deb55d.gz",
+    "gzip9": 147,
+    "brotli11": 111
+  },
+  {
+    "backend": "agentic",
+    "url": "/entry.mjs",
+    "kind": "Trident binding",
+    "sha256": "6bafd8229173fc8a715691f86706881e21f00b058f2922b01ef47e3f59615850",
+    "raw": 505,
+    "archiveFile": "6bafd8229173fc8a715691f86706881e21f00b058f2922b01ef47e3f59615850.gz",
+    "gzip9": 323,
+    "brotli11": 255
+  },
+  {
+    "backend": "agentic",
+    "url": "/browser-lazy/index.js",
+    "kind": "actual product module",
+    "sha256": "c1709d13b8e5b0bab266dbd367d677a17d4c42e7cd195fb4a66f70134fd82923",
+    "raw": 4363,
+    "archiveFile": "c1709d13b8e5b0bab266dbd367d677a17d4c42e7cd195fb4a66f70134fd82923.gz",
+    "gzip9": 1566,
+    "brotli11": 1326
+  },
+  {
+    "backend": "agentic",
+    "url": "/declared-adapter.mjs",
+    "kind": "Trident binding",
+    "sha256": "2db9f4b28ad5d21417101446f0fb5375d6281898daeff495295504eae98cd103",
+    "raw": 965,
+    "archiveFile": "2db9f4b28ad5d21417101446f0fb5375d6281898daeff495295504eae98cd103.gz",
+    "gzip9": 497,
+    "brotli11": 408
+  },
+  {
+    "backend": "agentic",
+    "url": "/browser-lazy/chunks/chunk-O4WXINVK.js",
+    "kind": "actual product module",
+    "sha256": "30e5de7004b351e437374ab5ffccba7025aa4ac6b773bda90f2ea90744111b2e",
+    "raw": 5103,
+    "archiveFile": "30e5de7004b351e437374ab5ffccba7025aa4ac6b773bda90f2ea90744111b2e.gz",
+    "gzip9": 2003,
+    "brotli11": 1826
+  },
+  {
+    "backend": "agentic",
+    "url": "/browser-lazy/chunks/chunk-D7ACEPSO.js",
+    "kind": "actual product module",
+    "sha256": "0564120dec9fe0cc5f659ada8afa171c37621007ebbdd54d91df1c54c7707d6d",
+    "raw": 6562,
+    "archiveFile": "0564120dec9fe0cc5f659ada8afa171c37621007ebbdd54d91df1c54c7707d6d.gz",
+    "gzip9": 2378,
+    "brotli11": 2175
+  },
+  {
+    "backend": "agentic",
+    "url": "/browser-lazy/chunks/chunk-SC76MUQ3.js",
+    "kind": "actual product module",
+    "sha256": "32f2e061f17b0958551c522cf707b97162f11e6f3fdc44667276459410366258",
+    "raw": 440,
+    "archiveFile": "32f2e061f17b0958551c522cf707b97162f11e6f3fdc44667276459410366258.gz",
+    "gzip9": 284,
+    "brotli11": 229
+  },
+  {
+    "backend": "agentic",
+    "url": "/browser-lazy/chunks/flowchart-HWR5LJK5.js",
+    "kind": "actual product module",
+    "sha256": "6c8e5894a7edc8e11df09e295877a8b3adcef65de812c2a39416fd5a1b505184",
+    "raw": 5957,
+    "archiveFile": "6c8e5894a7edc8e11df09e295877a8b3adcef65de812c2a39416fd5a1b505184.gz",
+    "gzip9": 1611,
+    "brotli11": 1424
+  },
+  {
+    "backend": "agentic",
+    "url": "/browser-lazy/chunks/render-core-CPZ5A6JB.js",
+    "kind": "actual product module",
+    "sha256": "a81b5c36c7c00405f75dcbf95b8822e2f3b22ec4fa04c7ad6462807aed203750",
+    "raw": 183,
+    "archiveFile": "a81b5c36c7c00405f75dcbf95b8822e2f3b22ec4fa04c7ad6462807aed203750.gz",
+    "gzip9": 132,
+    "brotli11": 103
+  },
+  {
+    "backend": "agentic",
+    "url": "/browser-lazy/chunks/chunk-CDC4GQBX.js",
+    "kind": "actual product module",
+    "sha256": "c6d59852819934c3191e642f14c0cd28d3832702284d196ab2cf90e36ecfa3db",
+    "raw": 515,
+    "archiveFile": "c6d59852819934c3191e642f14c0cd28d3832702284d196ab2cf90e36ecfa3db.gz",
+    "gzip9": 321,
+    "brotli11": 280
+  },
+  {
+    "backend": "agentic",
+    "url": "/browser-lazy/chunks/chunk-OGB2YZWM.js",
+    "kind": "actual product module",
+    "sha256": "be219d28301693b3509806f8002add7ff66819d52ee550911fffc1fb47a837c6",
+    "raw": 163,
+    "archiveFile": "be219d28301693b3509806f8002add7ff66819d52ee550911fffc1fb47a837c6.gz",
+    "gzip9": 145,
+    "brotli11": 110
+  },
+  {
+    "backend": "agentic",
+    "url": "/browser-lazy/chunks/chunk-RORDWKTE.js",
+    "kind": "actual product module",
+    "sha256": "4ce40f20cd2d22e16ef1fddad92d8f6ab3d75dfe57b168b309482bea4735d289",
+    "raw": 1688,
+    "archiveFile": "4ce40f20cd2d22e16ef1fddad92d8f6ab3d75dfe57b168b309482bea4735d289.gz",
+    "gzip9": 697,
+    "brotli11": 620
+  },
+  {
+    "backend": "agentic",
+    "url": "/browser-lazy/chunks/chunk-XQME22EH.js",
+    "kind": "actual product module",
+    "sha256": "db5fbbc15dad2d72ca44d6a747e74f722f096a1981aeb446f9fa396cada560cf",
+    "raw": 786,
+    "archiveFile": "db5fbbc15dad2d72ca44d6a747e74f722f096a1981aeb446f9fa396cada560cf.gz",
+    "gzip9": 443,
+    "brotli11": 384
+  },
+  {
+    "backend": "agentic",
+    "url": "/browser-lazy/chunks/chunk-NFBHWDWY.js",
+    "kind": "actual product module",
+    "sha256": "1999072660abb39f2685fef30ea85a924096e466f8da7acde686ae1e5d3def13",
+    "raw": 59117,
+    "archiveFile": "1999072660abb39f2685fef30ea85a924096e466f8da7acde686ae1e5d3def13.gz",
+    "gzip9": 20263,
+    "brotli11": 18291
+  },
+  {
+    "backend": "agentic",
+    "url": "/browser-lazy/chunks/chunk-TMEMYN6C.js",
+    "kind": "actual product module",
+    "sha256": "175ecfe4fd66bb0c99fb0a3727f4469302a8193d6ba6505b1b51027c48912bf6",
+    "raw": 12516,
+    "archiveFile": "175ecfe4fd66bb0c99fb0a3727f4469302a8193d6ba6505b1b51027c48912bf6.gz",
+    "gzip9": 4569,
+    "brotli11": 4138
+  },
+  {
+    "backend": "agentic",
+    "url": "/browser-lazy/chunks/chunk-UFTSGO6P.js",
+    "kind": "actual product module",
+    "sha256": "d3abb9a4ca7bd3af9b3ac92f03151757a4d15bbdde50ce0b90737c5d81ed377c",
+    "raw": 865,
+    "archiveFile": "d3abb9a4ca7bd3af9b3ac92f03151757a4d15bbdde50ce0b90737c5d81ed377c.gz",
+    "gzip9": 530,
+    "brotli11": 463
+  },
+  {
+    "backend": "agentic",
+    "url": "/browser-lazy/chunks/chunk-QTTRSZS5.js",
+    "kind": "actual product module",
+    "sha256": "899d40bf90c8a9f449737dbd059b4497ff394cf129dbcdcfdfa2fea5a84bfe44",
+    "raw": 118740,
+    "archiveFile": "899d40bf90c8a9f449737dbd059b4497ff394cf129dbcdcfdfa2fea5a84bfe44.gz",
+    "gzip9": 39440,
+    "brotli11": 34286
+  },
+  {
+    "backend": "agentic",
+    "url": "/browser-lazy/chunks/chunk-V7BCTL4V.js",
+    "kind": "actual product module",
+    "sha256": "21c6a132f47c66228e06f020251057306c251f36270cba6859976644724de4b3",
+    "raw": 2554,
+    "archiveFile": "21c6a132f47c66228e06f020251057306c251f36270cba6859976644724de4b3.gz",
+    "gzip9": 1314,
+    "brotli11": 1186
+  },
+  {
+    "backend": "agentic",
+    "url": "/browser-lazy/chunks/chunk-F5AZUJCX.js",
+    "kind": "actual product module",
+    "sha256": "5ca861a23228e3a93ff5f5a5c3da21599ccbe29bfc151e75e05d54127d75e00e",
+    "raw": 125318,
+    "archiveFile": "5ca861a23228e3a93ff5f5a5c3da21599ccbe29bfc151e75e05d54127d75e00e.gz",
+    "gzip9": 42031,
+    "brotli11": 36430
+  },
+  {
+    "backend": "agentic",
+    "url": "/browser-lazy/chunks/chunk-UQ7GTNSR.js",
+    "kind": "actual product module",
+    "sha256": "daae0619bc0ec02d0d90d2108156b16b85d5321dbe6cccf0ad14514944707a5d",
+    "raw": 7633,
+    "archiveFile": "daae0619bc0ec02d0d90d2108156b16b85d5321dbe6cccf0ad14514944707a5d.gz",
+    "gzip9": 1706,
+    "brotli11": 1572
+  },
+  {
+    "backend": "agentic",
+    "url": "/browser-lazy/chunks/chunk-CLWWU6PK.js",
+    "kind": "actual product module",
+    "sha256": "8e228b2d11e2c6bfca5b0b6ae36c976d9f129136cb7d67c6c35e8d59713f3959",
+    "raw": 887,
+    "archiveFile": "8e228b2d11e2c6bfca5b0b6ae36c976d9f129136cb7d67c6c35e8d59713f3959.gz",
+    "gzip9": 487,
+    "brotli11": 451
+  },
+  {
+    "backend": "agentic",
+    "url": "/browser-lazy/chunks/chunk-BJFFKZKC.js",
+    "kind": "actual product module",
+    "sha256": "29a63403affcb979c1d76045d033788137243ad18735f28cf28bb82c91c5d914",
+    "raw": 2179,
+    "archiveFile": "29a63403affcb979c1d76045d033788137243ad18735f28cf28bb82c91c5d914.gz",
+    "gzip9": 1143,
+    "brotli11": 1042
+  },
+  {
+    "backend": "agentic",
+    "url": "/browser-lazy/chunks/chunk-7WYEZDAV.js",
+    "kind": "actual product module",
+    "sha256": "9537136b03638cfeaee3fd895794340115c04b985d0f37a91cb3218ad460289f",
+    "raw": 2947,
+    "archiveFile": "9537136b03638cfeaee3fd895794340115c04b985d0f37a91cb3218ad460289f.gz",
+    "gzip9": 1332,
+    "brotli11": 1238
+  },
+  {
+    "backend": "agentic",
+    "url": "/browser-lazy/chunks/chunk-4OWA5PJK.js",
+    "kind": "actual product module",
+    "sha256": "29e91a4cac2d3d2dc0c5b5b5f41a3535cebbc2b067470ed0f9c1b38edaa88f11",
+    "raw": 272,
+    "archiveFile": "29e91a4cac2d3d2dc0c5b5b5f41a3535cebbc2b067470ed0f9c1b38edaa88f11.gz",
+    "gzip9": 225,
+    "brotli11": 204
+  },
+  {
+    "backend": "agentic",
+    "url": "/browser-lazy/chunks/chunk-2XBQ27SZ.js",
+    "kind": "actual product module",
+    "sha256": "5f6fdc87c136be53aae32470c49bd338e9ada951bcd36fb0e3b058ba543f8ef6",
+    "raw": 2015,
+    "archiveFile": "5f6fdc87c136be53aae32470c49bd338e9ada951bcd36fb0e3b058ba543f8ef6.gz",
+    "gzip9": 873,
+    "brotli11": 789
+  },
+  {
+    "backend": "agentic",
+    "url": "/browser-lazy/chunks/chunk-TXALF2FK.js",
+    "kind": "actual product module",
+    "sha256": "09e4a78804795224819ca40734070069a0977f9c72bd27d06de37b90f7e6c2bf",
+    "raw": 891,
+    "archiveFile": "09e4a78804795224819ca40734070069a0977f9c72bd27d06de37b90f7e6c2bf.gz",
+    "gzip9": 548,
+    "brotli11": 483
+  },
+  {
+    "backend": "agentic",
+    "url": "/browser-lazy/chunks/chunk-WPX7GTT7.js",
+    "kind": "actual product module",
+    "sha256": "711c387abe915e1fe0fb63b88b62c9f532e3929ed8b744141574ab5c7f28a53f",
+    "raw": 1618,
+    "archiveFile": "711c387abe915e1fe0fb63b88b62c9f532e3929ed8b744141574ab5c7f28a53f.gz",
+    "gzip9": 677,
+    "brotli11": 622
+  },
+  {
+    "backend": "agentic",
+    "url": "/browser-lazy/chunks/chunk-7X62GRYO.js",
+    "kind": "actual product module",
+    "sha256": "bc9243c7c84de8de1e64f44b485dad3f99b66f75179002049b1c578fef2bb321",
+    "raw": 7330,
+    "archiveFile": "bc9243c7c84de8de1e64f44b485dad3f99b66f75179002049b1c578fef2bb321.gz",
+    "gzip9": 3210,
+    "brotli11": 2821
+  },
+  {
+    "backend": "agentic",
+    "url": "/browser-lazy/chunks/chunk-O6JTREVE.js",
+    "kind": "actual product module",
+    "sha256": "7b435c8c2111a4a484065b6a64e39c0511404adb78ac4e1c4e58c3ba9d66c24d",
+    "raw": 10891,
+    "archiveFile": "7b435c8c2111a4a484065b6a64e39c0511404adb78ac4e1c4e58c3ba9d66c24d.gz",
+    "gzip9": 3423,
+    "brotli11": 3120
+  },
+  {
+    "backend": "agentic",
+    "url": "/browser-lazy/chunks/chunk-T3RBYG26.js",
+    "kind": "actual product module",
+    "sha256": "12d3ec28460975601e41856fa1a10673991f95474c1fd06fa2c12cff82fdd3e6",
+    "raw": 2275,
+    "archiveFile": "12d3ec28460975601e41856fa1a10673991f95474c1fd06fa2c12cff82fdd3e6.gz",
+    "gzip9": 885,
+    "brotli11": 842
+  },
+  {
+    "backend": "agentic",
+    "url": "/browser-lazy/chunks/chunk-B3DEFF86.js",
+    "kind": "actual product module",
+    "sha256": "0439c83f03810e4b5bcd3a2d58de059666cad5ea0685d6d6e4e718baf2e8ac12",
+    "raw": 604352,
+    "archiveFile": "0439c83f03810e4b5bcd3a2d58de059666cad5ea0685d6d6e4e718baf2e8ac12.gz",
+    "gzip9": 192677,
+    "brotli11": 158264
+  },
+  {
+    "backend": "agentic",
+    "url": "/browser-lazy/chunks/agentic-producer-core-MOYGSBXT.js",
+    "kind": "actual product module",
+    "sha256": "d98e9926b6992144fe20686730a62d9fb7ee69f747561c894e5592e7b4326924",
+    "raw": 45466,
+    "archiveFile": "d98e9926b6992144fe20686730a62d9fb7ee69f747561c894e5592e7b4326924.gz",
+    "gzip9": 16079,
+    "brotli11": 14407
+  },
+  {
+    "backend": "agentic",
+    "url": "/browser-lazy/chunks/forest-implementation-WIZWGTIE.js",
+    "kind": "actual product module",
+    "sha256": "041b65cfcaa48eba28ab7d56eb2f37e03e89b1f062a3a43e7391acb7468f432c",
+    "raw": 991,
+    "archiveFile": "041b65cfcaa48eba28ab7d56eb2f37e03e89b1f062a3a43e7391acb7468f432c.gz",
+    "gzip9": 583,
+    "brotli11": 522
+  },
+  {
+    "backend": "agentic",
+    "url": "/browser-lazy/chunks/chunk-IH2QCKZZ.js",
+    "kind": "actual product module",
+    "sha256": "8f32d9017a0dcfc605d53fd74a4a623b2f4a134f36204867386cdc8879850531",
+    "raw": 4802,
+    "archiveFile": "8f32d9017a0dcfc605d53fd74a4a623b2f4a134f36204867386cdc8879850531.gz",
+    "gzip9": 2069,
+    "brotli11": 1889
+  },
+  {
+    "backend": "agentic",
+    "url": "/browser-lazy/chunks/chunk-ZCVWVJPK.js",
+    "kind": "actual product module",
+    "sha256": "40212e3af7118d2e1b373850ee1e256a07487908ea10eea8304d5c963f56fc82",
+    "raw": 86377,
+    "archiveFile": "40212e3af7118d2e1b373850ee1e256a07487908ea10eea8304d5c963f56fc82.gz",
+    "gzip9": 28036,
+    "brotli11": 24149
+  },
+  {
+    "backend": "agentic",
+    "url": "/browser-lazy/chunks/chunk-FVRYRGDG.js",
+    "kind": "actual product module",
+    "sha256": "fe0a5f4a636fcc228953808222fea56e2591493a33a0928c63657c83f9dfa30d",
+    "raw": 14345,
+    "archiveFile": "fe0a5f4a636fcc228953808222fea56e2591493a33a0928c63657c83f9dfa30d.gz",
+    "gzip9": 5481,
+    "brotli11": 4964
+  },
+  {
+    "backend": "agentic",
+    "url": "/browser-lazy/chunks/chunk-NU4JOU63.js",
+    "kind": "actual product module",
+    "sha256": "c178c855027ec602f768d67e3cbf5193b6508318f3647750281c99e4216a1314",
+    "raw": 892,
+    "archiveFile": "c178c855027ec602f768d67e3cbf5193b6508318f3647750281c99e4216a1314.gz",
+    "gzip9": 517,
+    "brotli11": 475
+  },
+  {
+    "backend": "agentic",
+    "url": "/browser-lazy/chunks/chunk-ORVTZKXJ.js",
+    "kind": "actual product module",
+    "sha256": "956fa6273972123aa7606ccf3f98cf5f0dac32c1cc749cd0da7f331a11deb55d",
+    "raw": 181,
+    "archiveFile": "956fa6273972123aa7606ccf3f98cf5f0dac32c1cc749cd0da7f331a11deb55d.gz",
+    "gzip9": 147,
+    "brotli11": 111
+  },
+  {
+    "backend": "agentic",
+    "url": "/browser-lazy/chunks/chunk-NGI32NJP.js",
+    "kind": "actual product module",
+    "sha256": "bbdd4280eb44c3e847b4db2384c0aaf33d2be671e48ddac5ba777bbeed66964c",
+    "raw": 12510,
+    "archiveFile": "bbdd4280eb44c3e847b4db2384c0aaf33d2be671e48ddac5ba777bbeed66964c.gz",
+    "gzip9": 4922,
+    "brotli11": 4400
+  },
+  {
+    "backend": "agentic",
+    "url": "/browser-lazy/chunks/chunk-W5ZDKQKA.js",
+    "kind": "actual product module",
+    "sha256": "3dd096c79597c42204d8967959e2427c95d6aac08de1e2272cd28175e107b291",
+    "raw": 20809,
+    "archiveFile": "3dd096c79597c42204d8967959e2427c95d6aac08de1e2272cd28175e107b291.gz",
+    "gzip9": 6929,
+    "brotli11": 6080
+  },
+  {
+    "backend": "agentic",
+    "url": "/browser-lazy/chunks/chunk-JVFVBEG7.js",
+    "kind": "actual product module",
+    "sha256": "256171d38d871940de29887398233287ce8c860548956be7aaeb5e4c2fe7967d",
+    "raw": 340,
+    "archiveFile": "256171d38d871940de29887398233287ce8c860548956be7aaeb5e4c2fe7967d.gz",
+    "gzip9": 221,
+    "brotli11": 182
+  },
+  {
+    "backend": "agentic",
+    "url": "/browser-lazy/chunks/state-OOUI4WQB.js",
+    "kind": "actual product module",
+    "sha256": "afde5ae3e1e9607d89bcf41f47845db5778a3ce19edf0424e93427607d0f1fd5",
+    "raw": 8005,
+    "archiveFile": "afde5ae3e1e9607d89bcf41f47845db5778a3ce19edf0424e93427607d0f1fd5.gz",
+    "gzip9": 2309,
+    "brotli11": 1997
+  },
+  {
+    "backend": "agentic",
+    "url": "/browser-lazy/chunks/class-ZEBG3QEM.js",
+    "kind": "actual product module",
+    "sha256": "c4f7514715c08e24408a84a942fe3a5915888487a15483e94d70c5470476378e",
+    "raw": 119180,
+    "archiveFile": "c4f7514715c08e24408a84a942fe3a5915888487a15483e94d70c5470476378e.gz",
+    "gzip9": 38309,
+    "brotli11": 33227
+  },
+  {
+    "backend": "agentic",
+    "url": "/browser-lazy/chunks/chunk-RTUN4I4Z.js",
+    "kind": "actual product module",
+    "sha256": "03fb953b4fe88a36e7f9fa74de487870048adbc3198235a0db353896328ad556",
+    "raw": 261,
+    "archiveFile": "03fb953b4fe88a36e7f9fa74de487870048adbc3198235a0db353896328ad556.gz",
+    "gzip9": 227,
+    "brotli11": 194
+  },
+  {
+    "backend": "agentic",
+    "url": "/browser-lazy/chunks/chunk-NBHHPERM.js",
+    "kind": "actual product module",
+    "sha256": "2277bd98607e484ab1afdb62b3841f8fbe797aad24919e97429f1c8417d77389",
+    "raw": 1832,
+    "archiveFile": "2277bd98607e484ab1afdb62b3841f8fbe797aad24919e97429f1c8417d77389.gz",
+    "gzip9": 662,
+    "brotli11": 566
+  },
+  {
+    "backend": "agentic",
+    "url": "/browser-lazy/chunks/chunk-PQQWXTBY.js",
+    "kind": "actual product module",
+    "sha256": "6478b6077ff0da15bdfd377614064b88050c010def1b3334ceb2b2d602464057",
+    "raw": 1840,
+    "archiveFile": "6478b6077ff0da15bdfd377614064b88050c010def1b3334ceb2b2d602464057.gz",
+    "gzip9": 901,
+    "brotli11": 806
+  },
+  {
+    "backend": "agentic",
+    "url": "/browser-lazy/chunks/er-PIGVVIRK.js",
+    "kind": "actual product module",
+    "sha256": "192ec9fc7447774643e995f9af92f39840c5ce32f815d5296d472ae390160360",
+    "raw": 86109,
+    "archiveFile": "192ec9fc7447774643e995f9af92f39840c5ce32f815d5296d472ae390160360.gz",
+    "gzip9": 28999,
+    "brotli11": 25612
+  },
+  {
+    "backend": "agentic",
+    "url": "/browser-lazy/chunks/architecture-DQZEZMVR.js",
+    "kind": "actual product module",
+    "sha256": "a561b72e59fce9eaa6163ed3574988fbb066172281448442a960eae58d13bf62",
+    "raw": 58644,
+    "archiveFile": "a561b72e59fce9eaa6163ed3574988fbb066172281448442a960eae58d13bf62.gz",
+    "gzip9": 18243,
+    "brotli11": 16231
+  },
+  {
+    "backend": "agentic",
+    "url": "/browser-lazy/chunks/chunk-F3L7DZPZ.js",
+    "kind": "actual product module",
+    "sha256": "f7c5cf74d809a6a6bf832a1b853add85f6bfce1379096717ba0828ea0dd19a8f",
+    "raw": 414,
+    "archiveFile": "f7c5cf74d809a6a6bf832a1b853add85f6bfce1379096717ba0828ea0dd19a8f.gz",
+    "gzip9": 309,
+    "brotli11": 249
+  },
+  {
+    "backend": "agentic",
+    "url": "/browser-lazy/chunks/requirement-CIQ5RQ7H.js",
+    "kind": "actual product module",
+    "sha256": "aced5dde3768995b9b0642d697aa173880874ce7386088069948d3b394d0981c",
+    "raw": 35044,
+    "archiveFile": "aced5dde3768995b9b0642d697aa173880874ce7386088069948d3b394d0981c.gz",
+    "gzip9": 12248,
+    "brotli11": 10952
+  },
+  {
+    "backend": "trinity",
+    "url": "/entry.mjs",
+    "kind": "Trident binding",
+    "sha256": "b37940c41760071f7c3f4c8e53a4484a87c4eefbbf0570f09de0b160227e2f4b",
+    "raw": 505,
+    "archiveFile": "b37940c41760071f7c3f4c8e53a4484a87c4eefbbf0570f09de0b160227e2f4b.gz",
+    "gzip9": 322,
+    "brotli11": 253
+  },
+  {
+    "backend": "trinity",
+    "url": "/browser-lazy/index.js",
+    "kind": "actual product module",
+    "sha256": "c1709d13b8e5b0bab266dbd367d677a17d4c42e7cd195fb4a66f70134fd82923",
+    "raw": 4363,
+    "archiveFile": "c1709d13b8e5b0bab266dbd367d677a17d4c42e7cd195fb4a66f70134fd82923.gz",
+    "gzip9": 1566,
+    "brotli11": 1326
+  },
+  {
+    "backend": "trinity",
+    "url": "/declared-adapter.mjs",
+    "kind": "Trident binding",
+    "sha256": "2db9f4b28ad5d21417101446f0fb5375d6281898daeff495295504eae98cd103",
+    "raw": 965,
+    "archiveFile": "2db9f4b28ad5d21417101446f0fb5375d6281898daeff495295504eae98cd103.gz",
+    "gzip9": 497,
+    "brotli11": 408
+  },
+  {
+    "backend": "trinity",
+    "url": "/browser-lazy/chunks/chunk-O4WXINVK.js",
+    "kind": "actual product module",
+    "sha256": "30e5de7004b351e437374ab5ffccba7025aa4ac6b773bda90f2ea90744111b2e",
+    "raw": 5103,
+    "archiveFile": "30e5de7004b351e437374ab5ffccba7025aa4ac6b773bda90f2ea90744111b2e.gz",
+    "gzip9": 2003,
+    "brotli11": 1826
+  },
+  {
+    "backend": "trinity",
+    "url": "/browser-lazy/chunks/chunk-D7ACEPSO.js",
+    "kind": "actual product module",
+    "sha256": "0564120dec9fe0cc5f659ada8afa171c37621007ebbdd54d91df1c54c7707d6d",
+    "raw": 6562,
+    "archiveFile": "0564120dec9fe0cc5f659ada8afa171c37621007ebbdd54d91df1c54c7707d6d.gz",
+    "gzip9": 2378,
+    "brotli11": 2175
+  },
+  {
+    "backend": "trinity",
+    "url": "/browser-lazy/chunks/chunk-SC76MUQ3.js",
+    "kind": "actual product module",
+    "sha256": "32f2e061f17b0958551c522cf707b97162f11e6f3fdc44667276459410366258",
+    "raw": 440,
+    "archiveFile": "32f2e061f17b0958551c522cf707b97162f11e6f3fdc44667276459410366258.gz",
+    "gzip9": 284,
+    "brotli11": 229
+  },
+  {
+    "backend": "trinity",
+    "url": "/browser-lazy/chunks/flowchart-HWR5LJK5.js",
+    "kind": "actual product module",
+    "sha256": "6c8e5894a7edc8e11df09e295877a8b3adcef65de812c2a39416fd5a1b505184",
+    "raw": 5957,
+    "archiveFile": "6c8e5894a7edc8e11df09e295877a8b3adcef65de812c2a39416fd5a1b505184.gz",
+    "gzip9": 1611,
+    "brotli11": 1424
+  },
+  {
+    "backend": "trinity",
+    "url": "/browser-lazy/chunks/render-core-CPZ5A6JB.js",
+    "kind": "actual product module",
+    "sha256": "a81b5c36c7c00405f75dcbf95b8822e2f3b22ec4fa04c7ad6462807aed203750",
+    "raw": 183,
+    "archiveFile": "a81b5c36c7c00405f75dcbf95b8822e2f3b22ec4fa04c7ad6462807aed203750.gz",
+    "gzip9": 132,
+    "brotli11": 103
+  },
+  {
+    "backend": "trinity",
+    "url": "/browser-lazy/chunks/chunk-CDC4GQBX.js",
+    "kind": "actual product module",
+    "sha256": "c6d59852819934c3191e642f14c0cd28d3832702284d196ab2cf90e36ecfa3db",
+    "raw": 515,
+    "archiveFile": "c6d59852819934c3191e642f14c0cd28d3832702284d196ab2cf90e36ecfa3db.gz",
+    "gzip9": 321,
+    "brotli11": 280
+  },
+  {
+    "backend": "trinity",
+    "url": "/browser-lazy/chunks/chunk-OGB2YZWM.js",
+    "kind": "actual product module",
+    "sha256": "be219d28301693b3509806f8002add7ff66819d52ee550911fffc1fb47a837c6",
+    "raw": 163,
+    "archiveFile": "be219d28301693b3509806f8002add7ff66819d52ee550911fffc1fb47a837c6.gz",
+    "gzip9": 145,
+    "brotli11": 110
+  },
+  {
+    "backend": "trinity",
+    "url": "/browser-lazy/chunks/chunk-RORDWKTE.js",
+    "kind": "actual product module",
+    "sha256": "4ce40f20cd2d22e16ef1fddad92d8f6ab3d75dfe57b168b309482bea4735d289",
+    "raw": 1688,
+    "archiveFile": "4ce40f20cd2d22e16ef1fddad92d8f6ab3d75dfe57b168b309482bea4735d289.gz",
+    "gzip9": 697,
+    "brotli11": 620
+  },
+  {
+    "backend": "trinity",
+    "url": "/browser-lazy/chunks/chunk-XQME22EH.js",
+    "kind": "actual product module",
+    "sha256": "db5fbbc15dad2d72ca44d6a747e74f722f096a1981aeb446f9fa396cada560cf",
+    "raw": 786,
+    "archiveFile": "db5fbbc15dad2d72ca44d6a747e74f722f096a1981aeb446f9fa396cada560cf.gz",
+    "gzip9": 443,
+    "brotli11": 384
+  },
+  {
+    "backend": "trinity",
+    "url": "/browser-lazy/chunks/chunk-NFBHWDWY.js",
+    "kind": "actual product module",
+    "sha256": "1999072660abb39f2685fef30ea85a924096e466f8da7acde686ae1e5d3def13",
+    "raw": 59117,
+    "archiveFile": "1999072660abb39f2685fef30ea85a924096e466f8da7acde686ae1e5d3def13.gz",
+    "gzip9": 20263,
+    "brotli11": 18291
+  },
+  {
+    "backend": "trinity",
+    "url": "/browser-lazy/chunks/chunk-TMEMYN6C.js",
+    "kind": "actual product module",
+    "sha256": "175ecfe4fd66bb0c99fb0a3727f4469302a8193d6ba6505b1b51027c48912bf6",
+    "raw": 12516,
+    "archiveFile": "175ecfe4fd66bb0c99fb0a3727f4469302a8193d6ba6505b1b51027c48912bf6.gz",
+    "gzip9": 4569,
+    "brotli11": 4138
+  },
+  {
+    "backend": "trinity",
+    "url": "/browser-lazy/chunks/chunk-UFTSGO6P.js",
+    "kind": "actual product module",
+    "sha256": "d3abb9a4ca7bd3af9b3ac92f03151757a4d15bbdde50ce0b90737c5d81ed377c",
+    "raw": 865,
+    "archiveFile": "d3abb9a4ca7bd3af9b3ac92f03151757a4d15bbdde50ce0b90737c5d81ed377c.gz",
+    "gzip9": 530,
+    "brotli11": 463
+  },
+  {
+    "backend": "trinity",
+    "url": "/browser-lazy/chunks/chunk-QTTRSZS5.js",
+    "kind": "actual product module",
+    "sha256": "899d40bf90c8a9f449737dbd059b4497ff394cf129dbcdcfdfa2fea5a84bfe44",
+    "raw": 118740,
+    "archiveFile": "899d40bf90c8a9f449737dbd059b4497ff394cf129dbcdcfdfa2fea5a84bfe44.gz",
+    "gzip9": 39440,
+    "brotli11": 34286
+  },
+  {
+    "backend": "trinity",
+    "url": "/browser-lazy/chunks/chunk-V7BCTL4V.js",
+    "kind": "actual product module",
+    "sha256": "21c6a132f47c66228e06f020251057306c251f36270cba6859976644724de4b3",
+    "raw": 2554,
+    "archiveFile": "21c6a132f47c66228e06f020251057306c251f36270cba6859976644724de4b3.gz",
+    "gzip9": 1314,
+    "brotli11": 1186
+  },
+  {
+    "backend": "trinity",
+    "url": "/browser-lazy/chunks/chunk-F5AZUJCX.js",
+    "kind": "actual product module",
+    "sha256": "5ca861a23228e3a93ff5f5a5c3da21599ccbe29bfc151e75e05d54127d75e00e",
+    "raw": 125318,
+    "archiveFile": "5ca861a23228e3a93ff5f5a5c3da21599ccbe29bfc151e75e05d54127d75e00e.gz",
+    "gzip9": 42031,
+    "brotli11": 36430
+  },
+  {
+    "backend": "trinity",
+    "url": "/browser-lazy/chunks/chunk-UQ7GTNSR.js",
+    "kind": "actual product module",
+    "sha256": "daae0619bc0ec02d0d90d2108156b16b85d5321dbe6cccf0ad14514944707a5d",
+    "raw": 7633,
+    "archiveFile": "daae0619bc0ec02d0d90d2108156b16b85d5321dbe6cccf0ad14514944707a5d.gz",
+    "gzip9": 1706,
+    "brotli11": 1572
+  },
+  {
+    "backend": "trinity",
+    "url": "/browser-lazy/chunks/chunk-CLWWU6PK.js",
+    "kind": "actual product module",
+    "sha256": "8e228b2d11e2c6bfca5b0b6ae36c976d9f129136cb7d67c6c35e8d59713f3959",
+    "raw": 887,
+    "archiveFile": "8e228b2d11e2c6bfca5b0b6ae36c976d9f129136cb7d67c6c35e8d59713f3959.gz",
+    "gzip9": 487,
+    "brotli11": 451
+  },
+  {
+    "backend": "trinity",
+    "url": "/browser-lazy/chunks/chunk-BJFFKZKC.js",
+    "kind": "actual product module",
+    "sha256": "29a63403affcb979c1d76045d033788137243ad18735f28cf28bb82c91c5d914",
+    "raw": 2179,
+    "archiveFile": "29a63403affcb979c1d76045d033788137243ad18735f28cf28bb82c91c5d914.gz",
+    "gzip9": 1143,
+    "brotli11": 1042
+  },
+  {
+    "backend": "trinity",
+    "url": "/browser-lazy/chunks/chunk-7WYEZDAV.js",
+    "kind": "actual product module",
+    "sha256": "9537136b03638cfeaee3fd895794340115c04b985d0f37a91cb3218ad460289f",
+    "raw": 2947,
+    "archiveFile": "9537136b03638cfeaee3fd895794340115c04b985d0f37a91cb3218ad460289f.gz",
+    "gzip9": 1332,
+    "brotli11": 1238
+  },
+  {
+    "backend": "trinity",
+    "url": "/browser-lazy/chunks/chunk-4OWA5PJK.js",
+    "kind": "actual product module",
+    "sha256": "29e91a4cac2d3d2dc0c5b5b5f41a3535cebbc2b067470ed0f9c1b38edaa88f11",
+    "raw": 272,
+    "archiveFile": "29e91a4cac2d3d2dc0c5b5b5f41a3535cebbc2b067470ed0f9c1b38edaa88f11.gz",
+    "gzip9": 225,
+    "brotli11": 204
+  },
+  {
+    "backend": "trinity",
+    "url": "/browser-lazy/chunks/chunk-2XBQ27SZ.js",
+    "kind": "actual product module",
+    "sha256": "5f6fdc87c136be53aae32470c49bd338e9ada951bcd36fb0e3b058ba543f8ef6",
+    "raw": 2015,
+    "archiveFile": "5f6fdc87c136be53aae32470c49bd338e9ada951bcd36fb0e3b058ba543f8ef6.gz",
+    "gzip9": 873,
+    "brotli11": 789
+  },
+  {
+    "backend": "trinity",
+    "url": "/browser-lazy/chunks/chunk-TXALF2FK.js",
+    "kind": "actual product module",
+    "sha256": "09e4a78804795224819ca40734070069a0977f9c72bd27d06de37b90f7e6c2bf",
+    "raw": 891,
+    "archiveFile": "09e4a78804795224819ca40734070069a0977f9c72bd27d06de37b90f7e6c2bf.gz",
+    "gzip9": 548,
+    "brotli11": 483
+  },
+  {
+    "backend": "trinity",
+    "url": "/browser-lazy/chunks/chunk-WPX7GTT7.js",
+    "kind": "actual product module",
+    "sha256": "711c387abe915e1fe0fb63b88b62c9f532e3929ed8b744141574ab5c7f28a53f",
+    "raw": 1618,
+    "archiveFile": "711c387abe915e1fe0fb63b88b62c9f532e3929ed8b744141574ab5c7f28a53f.gz",
+    "gzip9": 677,
+    "brotli11": 622
+  },
+  {
+    "backend": "trinity",
+    "url": "/browser-lazy/chunks/chunk-7X62GRYO.js",
+    "kind": "actual product module",
+    "sha256": "bc9243c7c84de8de1e64f44b485dad3f99b66f75179002049b1c578fef2bb321",
+    "raw": 7330,
+    "archiveFile": "bc9243c7c84de8de1e64f44b485dad3f99b66f75179002049b1c578fef2bb321.gz",
+    "gzip9": 3210,
+    "brotli11": 2821
+  },
+  {
+    "backend": "trinity",
+    "url": "/browser-lazy/chunks/chunk-O6JTREVE.js",
+    "kind": "actual product module",
+    "sha256": "7b435c8c2111a4a484065b6a64e39c0511404adb78ac4e1c4e58c3ba9d66c24d",
+    "raw": 10891,
+    "archiveFile": "7b435c8c2111a4a484065b6a64e39c0511404adb78ac4e1c4e58c3ba9d66c24d.gz",
+    "gzip9": 3423,
+    "brotli11": 3120
+  },
+  {
+    "backend": "trinity",
+    "url": "/browser-lazy/chunks/chunk-T3RBYG26.js",
+    "kind": "actual product module",
+    "sha256": "12d3ec28460975601e41856fa1a10673991f95474c1fd06fa2c12cff82fdd3e6",
+    "raw": 2275,
+    "archiveFile": "12d3ec28460975601e41856fa1a10673991f95474c1fd06fa2c12cff82fdd3e6.gz",
+    "gzip9": 885,
+    "brotli11": 842
+  },
+  {
+    "backend": "trinity",
+    "url": "/browser-lazy/chunks/chunk-B3DEFF86.js",
+    "kind": "actual product module",
+    "sha256": "0439c83f03810e4b5bcd3a2d58de059666cad5ea0685d6d6e4e718baf2e8ac12",
+    "raw": 604352,
+    "archiveFile": "0439c83f03810e4b5bcd3a2d58de059666cad5ea0685d6d6e4e718baf2e8ac12.gz",
+    "gzip9": 192677,
+    "brotli11": 158264
+  },
+  {
+    "backend": "trinity",
+    "url": "/browser-lazy/chunks/trinity-producer-CUFMCNBN.js",
+    "kind": "actual product module",
+    "sha256": "7ceb395b87987bf3e7c65b379f1683b042f514a1db46c60834ca820ba77acc6f",
+    "raw": 2771,
+    "archiveFile": "7ceb395b87987bf3e7c65b379f1683b042f514a1db46c60834ca820ba77acc6f.gz",
+    "gzip9": 1293,
+    "brotli11": 1111
+  },
+  {
+    "backend": "trinity",
+    "url": "/browser-lazy/chunks/trinity-EGLH55JV.js",
+    "kind": "actual product module",
+    "sha256": "0e2f0ca64346739f7e04f6046aaf0dae5097e1807d3db7211d9da25e3aaf868b",
+    "raw": 19361,
+    "archiveFile": "0e2f0ca64346739f7e04f6046aaf0dae5097e1807d3db7211d9da25e3aaf868b.gz",
+    "gzip9": 6636,
+    "brotli11": 6018
+  },
+  {
+    "backend": "trinity",
+    "url": "/browser-lazy/chunks/chunk-FVRYRGDG.js",
+    "kind": "actual product module",
+    "sha256": "fe0a5f4a636fcc228953808222fea56e2591493a33a0928c63657c83f9dfa30d",
+    "raw": 14345,
+    "archiveFile": "fe0a5f4a636fcc228953808222fea56e2591493a33a0928c63657c83f9dfa30d.gz",
+    "gzip9": 5481,
+    "brotli11": 4964
+  },
+  {
+    "backend": "trinity",
+    "url": "/browser-lazy/chunks/chunk-JDTWQUJO.js",
+    "kind": "actual product module",
+    "sha256": "eb9d6246df24c78c75da4af964d693cccec4b62d2826db7cb6ef53121fd4e903",
+    "raw": 3124,
+    "archiveFile": "eb9d6246df24c78c75da4af964d693cccec4b62d2826db7cb6ef53121fd4e903.gz",
+    "gzip9": 1260,
+    "brotli11": 1113
+  },
+  {
+    "backend": "trinity",
+    "url": "/browser-lazy/chunks/chunk-NBHHPERM.js",
+    "kind": "actual product module",
+    "sha256": "2277bd98607e484ab1afdb62b3841f8fbe797aad24919e97429f1c8417d77389",
+    "raw": 1832,
+    "archiveFile": "2277bd98607e484ab1afdb62b3841f8fbe797aad24919e97429f1c8417d77389.gz",
+    "gzip9": 662,
+    "brotli11": 566
+  },
+  {
+    "backend": "trinity",
+    "url": "/browser-lazy/chunks/chunk-NU4JOU63.js",
+    "kind": "actual product module",
+    "sha256": "c178c855027ec602f768d67e3cbf5193b6508318f3647750281c99e4216a1314",
+    "raw": 892,
+    "archiveFile": "c178c855027ec602f768d67e3cbf5193b6508318f3647750281c99e4216a1314.gz",
+    "gzip9": 517,
+    "brotli11": 475
+  },
+  {
+    "backend": "trinity",
+    "url": "/browser-lazy/chunks/chunk-ORVTZKXJ.js",
+    "kind": "actual product module",
+    "sha256": "956fa6273972123aa7606ccf3f98cf5f0dac32c1cc749cd0da7f331a11deb55d",
+    "raw": 181,
+    "archiveFile": "956fa6273972123aa7606ccf3f98cf5f0dac32c1cc749cd0da7f331a11deb55d.gz",
+    "gzip9": 147,
+    "brotli11": 111
+  },
+  {
+    "backend": "trinity",
+    "url": "/browser-lazy/chunks/chunk-IH2QCKZZ.js",
+    "kind": "actual product module",
+    "sha256": "8f32d9017a0dcfc605d53fd74a4a623b2f4a134f36204867386cdc8879850531",
+    "raw": 4802,
+    "archiveFile": "8f32d9017a0dcfc605d53fd74a4a623b2f4a134f36204867386cdc8879850531.gz",
+    "gzip9": 2069,
+    "brotli11": 1889
+  },
+  {
+    "backend": "trinity",
+    "url": "/browser-lazy/chunks/chunk-ZCVWVJPK.js",
+    "kind": "actual product module",
+    "sha256": "40212e3af7118d2e1b373850ee1e256a07487908ea10eea8304d5c963f56fc82",
+    "raw": 86377,
+    "archiveFile": "40212e3af7118d2e1b373850ee1e256a07487908ea10eea8304d5c963f56fc82.gz",
+    "gzip9": 28036,
+    "brotli11": 24149
+  },
+  {
+    "backend": "trinity",
+    "url": "/browser-lazy/chunks/chunk-NGI32NJP.js",
+    "kind": "actual product module",
+    "sha256": "bbdd4280eb44c3e847b4db2384c0aaf33d2be671e48ddac5ba777bbeed66964c",
+    "raw": 12510,
+    "archiveFile": "bbdd4280eb44c3e847b4db2384c0aaf33d2be671e48ddac5ba777bbeed66964c.gz",
+    "gzip9": 4922,
+    "brotli11": 4400
+  },
+  {
+    "backend": "trinity",
+    "url": "/browser-lazy/chunks/chunk-W5ZDKQKA.js",
+    "kind": "actual product module",
+    "sha256": "3dd096c79597c42204d8967959e2427c95d6aac08de1e2272cd28175e107b291",
+    "raw": 20809,
+    "archiveFile": "3dd096c79597c42204d8967959e2427c95d6aac08de1e2272cd28175e107b291.gz",
+    "gzip9": 6929,
+    "brotli11": 6080
+  },
+  {
+    "backend": "trinity",
+    "url": "/browser-lazy/chunks/chunk-JVFVBEG7.js",
+    "kind": "actual product module",
+    "sha256": "256171d38d871940de29887398233287ce8c860548956be7aaeb5e4c2fe7967d",
+    "raw": 340,
+    "archiveFile": "256171d38d871940de29887398233287ce8c860548956be7aaeb5e4c2fe7967d.gz",
+    "gzip9": 221,
+    "brotli11": 182
+  },
+  {
+    "backend": "trinity",
+    "url": "/browser-lazy/chunks/state-OOUI4WQB.js",
+    "kind": "actual product module",
+    "sha256": "afde5ae3e1e9607d89bcf41f47845db5778a3ce19edf0424e93427607d0f1fd5",
+    "raw": 8005,
+    "archiveFile": "afde5ae3e1e9607d89bcf41f47845db5778a3ce19edf0424e93427607d0f1fd5.gz",
+    "gzip9": 2309,
+    "brotli11": 1997
+  },
+  {
+    "backend": "trinity",
+    "url": "/browser-lazy/chunks/class-ZEBG3QEM.js",
+    "kind": "actual product module",
+    "sha256": "c4f7514715c08e24408a84a942fe3a5915888487a15483e94d70c5470476378e",
+    "raw": 119180,
+    "archiveFile": "c4f7514715c08e24408a84a942fe3a5915888487a15483e94d70c5470476378e.gz",
+    "gzip9": 38309,
+    "brotli11": 33227
+  },
+  {
+    "backend": "trinity",
+    "url": "/browser-lazy/chunks/chunk-RTUN4I4Z.js",
+    "kind": "actual product module",
+    "sha256": "03fb953b4fe88a36e7f9fa74de487870048adbc3198235a0db353896328ad556",
+    "raw": 261,
+    "archiveFile": "03fb953b4fe88a36e7f9fa74de487870048adbc3198235a0db353896328ad556.gz",
+    "gzip9": 227,
+    "brotli11": 194
+  },
+  {
+    "backend": "trinity",
+    "url": "/browser-lazy/chunks/chunk-PQQWXTBY.js",
+    "kind": "actual product module",
+    "sha256": "6478b6077ff0da15bdfd377614064b88050c010def1b3334ceb2b2d602464057",
+    "raw": 1840,
+    "archiveFile": "6478b6077ff0da15bdfd377614064b88050c010def1b3334ceb2b2d602464057.gz",
+    "gzip9": 901,
+    "brotli11": 806
+  },
+  {
+    "backend": "trinity",
+    "url": "/browser-lazy/chunks/er-PIGVVIRK.js",
+    "kind": "actual product module",
+    "sha256": "192ec9fc7447774643e995f9af92f39840c5ce32f815d5296d472ae390160360",
+    "raw": 86109,
+    "archiveFile": "192ec9fc7447774643e995f9af92f39840c5ce32f815d5296d472ae390160360.gz",
+    "gzip9": 28999,
+    "brotli11": 25612
+  },
+  {
+    "backend": "trinity",
+    "url": "/browser-lazy/chunks/architecture-DQZEZMVR.js",
+    "kind": "actual product module",
+    "sha256": "a561b72e59fce9eaa6163ed3574988fbb066172281448442a960eae58d13bf62",
+    "raw": 58644,
+    "archiveFile": "a561b72e59fce9eaa6163ed3574988fbb066172281448442a960eae58d13bf62.gz",
+    "gzip9": 18243,
+    "brotli11": 16231
+  },
+  {
+    "backend": "trinity",
+    "url": "/browser-lazy/chunks/chunk-F3L7DZPZ.js",
+    "kind": "actual product module",
+    "sha256": "f7c5cf74d809a6a6bf832a1b853add85f6bfce1379096717ba0828ea0dd19a8f",
+    "raw": 414,
+    "archiveFile": "f7c5cf74d809a6a6bf832a1b853add85f6bfce1379096717ba0828ea0dd19a8f.gz",
+    "gzip9": 309,
+    "brotli11": 249
+  },
+  {
+    "backend": "trinity",
+    "url": "/browser-lazy/chunks/requirement-CIQ5RQ7H.js",
+    "kind": "actual product module",
+    "sha256": "aced5dde3768995b9b0642d697aa173880874ce7386088069948d3b394d0981c",
+    "raw": 35044,
+    "archiveFile": "aced5dde3768995b9b0642d697aa173880874ce7386088069948d3b394d0981c.gz",
+    "gzip9": 12248,
+    "brotli11": 10952
+  }
+]

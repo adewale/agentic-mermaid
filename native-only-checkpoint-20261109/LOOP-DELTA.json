@@ -1,0 +1,62 @@
+[
+  {
+    "id": "fixture/class-backends.mmd",
+    "svgExact": true,
+    "receiptExact": true,
+    "before": {
+      "bends": 12,
+      "length": 692,
+      "area": 204336
+    },
+    "after": {
+      "bends": 12,
+      "length": 692,
+      "area": 204336
+    }
+  },
+  {
+    "id": "fixture/er-backends.mmd",
+    "svgExact": true,
+    "receiptExact": true,
+    "before": {
+      "bends": 8,
+      "length": 1558,
+      "area": 224532
+    },
+    "after": {
+      "bends": 8,
+      "length": 1558,
+      "area": 224532
+    }
+  },
+  {
+    "id": "fixture/requirement-backends.mmd",
+    "svgExact": false,
+    "receiptExact": false,
+    "before": {
+      "bends": 8,
+      "length": 670,
+      "area": 230538
+    },
+    "after": {
+      "bends": 8,
+      "length": 676,
+      "area": 230538
+    }
+  },
+  {
+    "id": "fixture/stress/flowchart-multigraph-24-loops.mmd",
+    "svgExact": true,
+    "receiptExact": true,
+    "before": {
+      "bends": 398,
+      "length": 52711.71665151517,
+      "area": 2214850.6485000006
+    },
+    "after": {
+      "bends": 398,
+      "length": 52711.71665151517,
+      "area": 2214850.6485000006
+    }
+  }
+]

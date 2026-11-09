@@ -1,0 +1,8 @@
+{
+  "source": "10253d29dba24554008fc61c178abcf7cc0a47cf",
+  "files": 903,
+  "uncompressedBytes": 19527636,
+  "archiveBytes": 6100687,
+  "archiveSha256": "e845269c57f49a2e51dd1ec65637f4dce15d7f13a9432a7c8e0f236b289c6769",
+  "verification": "Every archive member reread and verified against original size/SHA256. Actual final fetched bytes retained separately by content SHA and decoded exactly; duplicate derived build trees excluded, retained locally."
+}

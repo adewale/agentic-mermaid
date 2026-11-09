@@ -1,0 +1,29 @@
+{
+  "current": "10253d29dba24554008fc61c178abcf7cc0a47cf",
+  "rows": [
+    {
+      "id": "group-cycle-TB",
+      "svgExact": true,
+      "entireReceiptExact": true,
+      "proof": "passed"
+    },
+    {
+      "id": "group-cycle-BT",
+      "svgExact": true,
+      "entireReceiptExact": true,
+      "proof": "passed"
+    },
+    {
+      "id": "group-cycle-LR",
+      "svgExact": true,
+      "entireReceiptExact": true,
+      "proof": "passed"
+    },
+    {
+      "id": "group-cycle-RL",
+      "svgExact": true,
+      "entireReceiptExact": true,
+      "proof": "passed"
+    }
+  ]
+}
