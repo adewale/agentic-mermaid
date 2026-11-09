@@ -157,7 +157,7 @@ export function circleShaftPaintContext(style: GraphPaintStyle, pay: (units: num
  * writes or host measurement callbacks occur before publication. Labels stay
  * live: each query receives the complete staged positions of its transaction. */
 export function labelSeatPaintContext(nodes: readonly PositionedNode[], edges: readonly PositionedEdge[], groups: readonly PositionedGroup[], style: GraphPaintStyle & { groupLineWidth?: number; groupCornerRadius?: number }, pay: (units: number) => boolean) {
-  if (!pay(16)) return undefined
+  if (!pay(18)) return undefined
   const bodies: AxisAlignedBox[] = [], headers: AxisAlignedBox[] = []
   const routes = new Map<PositionedEdge, NonNullable<ReturnType<typeof edgeInk>>>()
   const labels = new Map<PositionedEdge, { x: number; y: number; box: AxisAlignedBox }>()
@@ -260,5 +260,103 @@ export function labelSeatPaintContext(nodes: readonly PositionedNode[], edges: r
     }
     return labelsClear
   }
-  return { clear, label }
+  // A narrow body gap can be missed by fixed offset samples. Reuse owned paint
+  // to propose one seat; clear() remains the publication authority.
+  const bodyGap = (edge: PositionedEdge, a: Point, b: Point, anchor: Point, limit: number): Point | undefined => {
+    if (!pay(64)) return undefined
+    let exhausted = false
+    const spend = (units: number): boolean => {
+      if (exhausted || !pay(units)) { exhausted = true; return false }
+      return true
+    }
+    const vertical = a.x === b.x && a.y !== b.y
+    if (!vertical && (a.y !== b.y || a.x === b.x)) return undefined
+    const main = vertical ? 'y' : 'x', cross = vertical ? 'x' : 'y'
+    const main0 = vertical ? 'y0' : 'x0', main1 = vertical ? 'y1' : 'x1'
+    const cross0 = vertical ? 'x0' : 'y0', cross1 = vertical ? 'x1' : 'y1'
+    const box = label(edge, anchor)
+    if (!box) return undefined
+    const halfMain = (box[main1] - box[main0]) / 2, halfCross = (box[cross1] - box[cross0]) / 2
+    const start = Math.min(a[main], b[main]), end = Math.max(a[main], b[main])
+    if (anchor[main] < start || anchor[main] > end || !(limit > 0)) return undefined
+    let low = a[cross] - limit, high = a[cross] + limit
+    const bodyGapBoundary = (obstacle: AxisAlignedBox): void => {
+      if (box[main0] >= obstacle[main1] || box[main1] <= obstacle[main0]) return
+      if ((obstacle[cross0] + obstacle[cross1]) / 2 <= anchor[cross]) low = Math.max(low, obstacle[cross1] + halfCross)
+      else high = Math.min(high, obstacle[cross0] - halfCross)
+    }
+    if (!spend(24 * (bodies.length + headers.length))) return undefined
+    for (const body of bodies) bodyGapBoundary(body)
+    for (const header of headers) bodyGapBoundary(header)
+    if (!(low < high)) return undefined
+    const crossPoint = anchor[cross] > low && anchor[cross] < high ? anchor[cross] : (low + high) / 2
+    let capacity = bodies.length + headers.length
+    for (const other of edges) {
+      if (!spend(8)) return undefined
+      const ink = routes.get(other)!
+      capacity += ink.markers.length + (other === edge ? 0 : ink.shafts.length + Number(!!other.label && !!other.labelPosition))
+    }
+    if (!spend(2 * capacity + 16)) return undefined
+    const intervals = new Float64Array(2 * capacity)
+    let used = 0
+    const add = (obstacle: AxisAlignedBox | undefined): boolean => {
+      if (!spend(40) || !finiteBox(obstacle)) return false
+      const error = (Math.abs(box.x0) + Math.abs(box.x1) + Math.abs(box.y0) + Math.abs(box.y1)
+        + Math.abs(obstacle.x0) + Math.abs(obstacle.x1) + Math.abs(obstacle.y0) + Math.abs(obstacle.y1)) * 1e-10 + 1e-9
+      if (crossPoint - halfCross < obstacle[cross1] + error && obstacle[cross0] < crossPoint + halfCross + error) {
+        if (used >= capacity) return false
+        intervals[2 * used] = obstacle[main0] - halfMain - error
+        intervals[2 * used + 1] = obstacle[main1] + halfMain + error
+        used++
+      }
+      return true
+    }
+    for (const body of bodies) if (!add(body)) return undefined
+    for (const header of headers) if (!add(header)) return undefined
+    for (const other of edges) {
+      if (!spend(4)) return undefined
+      const ink = routes.get(other)!
+      for (const marker of ink.markers) if (!add(marker.bounds)) return undefined
+      if (other === edge) continue
+      for (const shaft of ink.shafts) if (!add(shaft)) return undefined
+      if (other.label && other.labelPosition && !add(label(other, other.labelPosition))) return undefined
+    }
+    const separator = (Math.abs(start) + Math.abs(end) + Math.abs(anchor[main]) + halfMain) * 2e-10 + 2e-9
+    const project = (direction: -1 | 1): number | undefined => {
+      let cursor = anchor[main]
+      // Each jump leaves one interval permanently behind in this direction.
+      for (let pass = 0; pass <= used; pass++) {
+        if (!spend(4)) return undefined
+        let moved = false
+        for (let index = 0; index < used; index++) {
+          if (!spend(8)) return undefined
+          const lo = intervals[2 * index]!, hi = intervals[2 * index + 1]!
+          if (cursor >= lo - separator && cursor <= hi + separator) {
+            cursor = direction < 0 ? lo - 2 * separator : hi + 2 * separator
+            moved = true
+          }
+        }
+        if (cursor < start || cursor > end) return undefined
+        if (!moved) {
+          let lo = start, hi = end
+          for (let index = 0; index < used; index++) {
+            if (!spend(8)) return undefined
+            const left = intervals[2 * index]!, right = intervals[2 * index + 1]!
+            if (right < cursor) lo = Math.max(lo, right)
+            if (left > cursor) hi = Math.min(hi, left)
+          }
+          if (!(lo + separator < hi - separator)) return undefined
+          return anchor[main] > lo + separator && anchor[main] < hi - separator ? anchor[main] : (lo + hi) / 2
+        }
+      }
+      return undefined
+    }
+    const left = project(-1)
+    if (exhausted) return undefined
+    const right = project(1)
+    if (exhausted) return undefined
+    const value = left === undefined ? right : right === undefined || Math.abs(left - anchor[main]) <= Math.abs(right - anchor[main]) ? left : right
+    return value === undefined ? undefined : vertical ? { x: crossPoint, y: value } : { x: value, y: crossPoint }
+  }
+  return { clear, label, bodyGap }
 }

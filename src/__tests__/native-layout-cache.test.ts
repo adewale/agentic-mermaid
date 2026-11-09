@@ -359,12 +359,12 @@ n12 --> n13
 n12 -->|edge 32 xxxxxxxxxxxxxxxxxx| n11` }
   ]
   const markerCases = crowdedSources.flatMap(fixture => ['LR', 'RL', 'TB', 'BT'].flatMap(direction => {
-    return (direction === 'LR' || direction === 'RL' ? [false, true] : [false]).map(hidden => ({
+    return [false, true].map(hidden => ({
       ...fixture, source: fixture.source + (hidden ? `\nn0 ~~~ ${fixture.target}\nn0 ~~~ ${fixture.target}\nn0 ~~~ ${fixture.target}` : ''),
       direction, hidden, backend: 'agentic' as const,
     }))
   }))
-  test.each(markerCases)('keeps ordinary heads distinct on the actual subroutine face: $caseId / $direction / hidden=$hidden', ({ source, target, direction, backend }) => {
+  test.each(markerCases)('keeps ordinary heads distinct on the actual subroutine face: $caseId / $direction / hidden=$hidden', ({ caseId, source, target, direction, backend, hidden }) => {
     const product = renderMermaidSVGWithReceipt(source.replace('flowchart LR', 'flowchart ' + direction), { graphLayout: { backend, fallback: 'none' }, embedFontImport: false })
     const tags: Array<{ name: string; attrs: Record<string, string>; text: string }> = [], stack: Array<(typeof tags)[number]> = []
     const xml = new SaxesParser({ xmlns: true })
@@ -383,7 +383,7 @@ n12 -->|edge 32 xxxxxxxxxxxxxxxxxx| n11` }
     const body = tags.find(tag => tag.name === 'rect' && tag.attrs['data-id'] === 'node-shape:' + target)
     expect(body).toBeDefined()
     expect(Number(body!.attrs.height)).toBeCloseTo(36.9, 8)
-    const heads = carriers.filter(tag => tag.attrs['data-to'] === target).map(tag => {
+    const markerVertices = (tag: (typeof tags)[number]) => {
       const points = tag.attrs.points!.split(/\s+/).map(pair => pair.split(',').map(Number))
       const tip = points.at(-1)!, prior = points.at(-2)!
       expect(tip[0] === prior[0] || tip[1] === prior[1]).toBe(true)
@@ -398,7 +398,8 @@ n12 -->|edge 32 xxxxxxxxxxxxxxxxxx| n11` }
       // Independent actual marker vertices: reference (8,2.5), unit shaft
       // width, cardinal SVG auto orientation. The round stroke adds .375px.
       return [[0, 0], [8, 2.5], [0, 5]].map(([x, y]) => ({ x: tip[0]! + (x! - 8) * dx - (y! - 2.5) * dy, y: tip[1]! + (x! - 8) * dy + (y! - 2.5) * dx }))
-    })
+    }
+    const heads = carriers.filter(tag => tag.attrs['data-to'] === target).map(markerVertices)
     expect(heads).toHaveLength(authored.filter(match => match[3] === target).length)
     expect(heads.length).toBeGreaterThan(1)
     for (let i = 0; i < heads.length; i++) for (const other of heads.slice(i + 1)) {
@@ -412,6 +413,17 @@ n12 -->|edge 32 xxxxxxxxxxxxxxxxxx| n11` }
         const a = project(head), b = project(other), stroke = .75 * Math.hypot(axis.x, axis.y)
         return Math.max(...a) + stroke < Math.min(...b) || Math.max(...b) + stroke < Math.min(...a)
       })).toBe(true)
+    }
+    if (caseId === 201 && hidden && (direction === 'TB' || direction === 'BT')) {
+      const carrier = carriers.find(tag => tag.attrs['data-from'] === 'n5' && tag.attrs['data-to'] === 'n3')!
+      const marker = markerVertices(carrier)
+      const label = tags.findIndex(tag => tag.name === 'g' && tag.attrs.class === 'edge-label' && tag.attrs['data-from'] === 'n6' && tag.attrs['data-to'] === 'n2')
+      const halo = tags[label + 1]!
+      expect(halo.attrs.class).toBe('edge-label-halo')
+      const x = Number(halo.attrs.x), y = Number(halo.attrs.y), width = Number(halo.attrs.width), height = Number(halo.attrs.height)
+      // Actual emitted halo and the marker's round stroke must remain separate.
+      expect(Math.max(...marker.map(p => p.x)) + .375 < x || Math.min(...marker.map(p => p.x)) - .375 > x + width
+        || Math.max(...marker.map(p => p.y)) + .375 < y || Math.min(...marker.map(p => p.y)) - .375 > y + height).toBe(true)
     }
     expect(product.receipt.layoutCertification?.status).toBe('passed')
   })
