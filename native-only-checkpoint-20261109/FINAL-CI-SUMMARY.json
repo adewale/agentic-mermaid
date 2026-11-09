@@ -1,0 +1,40 @@
+{
+  "head": "10253d29dba24554008fc61c178abcf7cc0a47cf",
+  "run": 42721236241,
+  "overall": "in_progress_with_failed_required_checks",
+  "failed": {
+    "quality": {
+      "job": 129515775686,
+      "flowchartGzip": 784589,
+      "limit": 761500
+    },
+    "payload": {
+      "job": 129516631289,
+      "demoRaw": 834636,
+      "rawLimit": 788000,
+      "demoGzip": 315347,
+      "gzipLimit": 302500
+    },
+    "browserSite": {
+      "job": 129516631391,
+      "standaloneGzip": 1340895,
+      "limit": 1334500
+    },
+    "advisoryGeneratedLayout": 129515775712
+  },
+  "pending": [
+    "unit1",
+    "unit2",
+    "browser"
+  ],
+  "passed": [
+    "unit3",
+    "semantic",
+    "package consumers",
+    "CLI",
+    "renderer isolation",
+    "MCP conformance",
+    "layout backend review evidence"
+  ],
+  "ready": false
+}
