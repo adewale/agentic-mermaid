@@ -1533,3 +1533,18 @@ products exact; timings/RSS are mixed, including BT cache0repeat2 median32.67→
 browser gzip +52/+14/+219bytes for Native/ELK/Trinity. No cache/cap/default/version
 change. Evidence `trinity-requirement-detours-20261109`. Remaining: Native compound
 fan TB arc refusal/BT corridor refusal; Trinity compound TB crossings29 vs ELK13.
+
+## Requirement golden qualification — 9 November
+
+Parent `705db8562`: align two Requirement geometry entries, watercolor SVG and
+two changed sheet cells with physical spacing from `0597c632`; other 328 geometry
+entries and 130 sheet cells remain exact. Independent native-size review finds no
+lost fields, relationships or new clipping. Basic integer wire 168→174/area+1.18%;
+parallel/reciprocal fixture wire 961→1019/area+2.80% remain adverse. Owning checks:
+59 Requirement, 4 sheet, 2 geometry, 1 watercolor pass; types/lint pass. Initial combined
+run hit sandbox child-stdin EPERM and missing Bun PATH; corrected focused runs
+pass, original log retained. PNG +1171 bytes; runtime unchanged. Separately stop
+pending-stub trimming (actual Native TB still refuses at expansion cap), the
+posthoc crossing-channel witness (needs later geometry/new routing phase), and
+Sparse32 shortcuts without sufficient safe work attribution. Evidence:
+`trinity-requirement-golden-review-20261109`; these are no new layout gains.
