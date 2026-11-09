@@ -1,0 +1,607 @@
+[
+  {
+    "path": "trinity-fanin-quality-20261109/CAUSAL-RESULT.json",
+    "bytes": 43410,
+    "sha256": "fa9278a127526a0abd79a694aae5301bd464744c5f0b57533b471ed5b4b7b355"
+  },
+  {
+    "path": "trinity-fanin-quality-20261109/CI-SPARSE32-EXCERPTS.txt",
+    "bytes": 7598,
+    "sha256": "874fca5e6d0ccc9beaf514b8637ce4bb922eb59216edfe93a1c0c71e159786cf"
+  },
+  {
+    "path": "trinity-fanin-quality-20261109/INTERSECTIONS.json",
+    "bytes": 48788,
+    "sha256": "df615cf5abbf96a3a2d2f5617af459a473e8af48d8569701f3f0922b9eadc42b"
+  },
+  {
+    "path": "trinity-fanin-quality-20261109/README.md",
+    "bytes": 4342,
+    "sha256": "a3654b1f9b26d7f8a2fb045ed5d85bcfc744c6a5c39ab3afef951b4a682f4342"
+  },
+  {
+    "path": "trinity-fanin-quality-20261109/SOURCE-ORDER-RESULT.json",
+    "bytes": 8383,
+    "sha256": "94bfa180431259bc08a01176b6f9addc44409533904575cc9c409e38f4cdbbc5"
+  },
+  {
+    "path": "trinity-fanin-quality-20261109/SPARSE32-REPRO.log",
+    "bytes": 2345,
+    "sha256": "681796878a3309cc48f5b7cb2f674891620e3861720bee65dc82614aff8f5e2c"
+  },
+  {
+    "path": "trinity-fanin-quality-20261109/after/DIRECTIONS.json",
+    "bytes": 13667,
+    "sha256": "1d9eb573bad6f24ab36dc86250ce87381707a7e6bf8c37032f4fd266d958b365"
+  },
+  {
+    "path": "trinity-fanin-quality-20261109/after/SVG-METRICS.json",
+    "bytes": 2553,
+    "sha256": "5755940338e5ff92b8c60ce870b971bf4d784c1ac988294df95d19d4fb0057bc"
+  },
+  {
+    "path": "trinity-fanin-quality-20261109/after/metrics.ts",
+    "bytes": 2410,
+    "sha256": "6f0328ba809139aa09cdc7ecc26b9b8fa177dd2f4847e76af076d2f3827fde2d"
+  },
+  {
+    "path": "trinity-fanin-quality-20261109/after/products/agentic-RL.layout.json",
+    "bytes": 10142,
+    "sha256": "f3e32b40db7083648da27e437aeade0bfb363f181fc7cbd93d6b1940cc5ea0ff"
+  },
+  {
+    "path": "trinity-fanin-quality-20261109/after/products/agentic-RL.receipt.json",
+    "bytes": 11814,
+    "sha256": "720d11627102aa074aa206803b6561487c59f2e49ec1851d5f3d9256b9e38f20"
+  },
+  {
+    "path": "trinity-fanin-quality-20261109/after/products/agentic-RL.svg",
+    "bytes": 15714,
+    "sha256": "f5c0b1ad440e18c8850cddb2af14acefd3ecdf62f6e18baf4742eb15c8823687"
+  },
+  {
+    "path": "trinity-fanin-quality-20261109/after/products/elk-BT.layout.json",
+    "bytes": 9450,
+    "sha256": "529ebd64561da2b004b050a6bec63a1e12c7ae1e074b102ce704e0704baaf4b7"
+  },
+  {
+    "path": "trinity-fanin-quality-20261109/after/products/elk-BT.receipt.json",
+    "bytes": 11797,
+    "sha256": "a9adb3fdc519de2ccf1498c65ef0c8aac881a913f9827d6f99d8495b11556ef9"
+  },
+  {
+    "path": "trinity-fanin-quality-20261109/after/products/elk-BT.svg",
+    "bytes": 15464,
+    "sha256": "5b1635643583b1eae22f7c3306cf67ea1514dc759d62de079c6db9900413326b"
+  },
+  {
+    "path": "trinity-fanin-quality-20261109/after/products/elk-LR.layout.json",
+    "bytes": 11339,
+    "sha256": "1428a07d18304b8860f50ca20a9697ae6eefeb925dd49b9a2634d1c2b973c7a7"
+  },
+  {
+    "path": "trinity-fanin-quality-20261109/after/products/elk-LR.receipt.json",
+    "bytes": 11797,
+    "sha256": "e67c23ee6a5c0502ef1d5b381c448d319abcb5e70c3d260c642d23057f8fc27d"
+  },
+  {
+    "path": "trinity-fanin-quality-20261109/after/products/elk-LR.svg",
+    "bytes": 16583,
+    "sha256": "b4aeed2fe6d488ba76131db25c624081639e47d1b1ac4a02eabeb1a5dfbaf0af"
+  },
+  {
+    "path": "trinity-fanin-quality-20261109/after/products/elk-RL.layout.json",
+    "bytes": 11347,
+    "sha256": "10591571a3db6d5a01dcef67a6c29a521780866953c21466740e840442cc8a1a"
+  },
+  {
+    "path": "trinity-fanin-quality-20261109/after/products/elk-RL.receipt.json",
+    "bytes": 11797,
+    "sha256": "6e10cbb17bfc047f7b1b4c65df4db3913a2fbdbe4e87e7a4b4aa0beb9a3fa2c2"
+  },
+  {
+    "path": "trinity-fanin-quality-20261109/after/products/elk-RL.svg",
+    "bytes": 16627,
+    "sha256": "1cd52a7c663bb9697499ce838cb058f4e3c6548dc6a0eeeded1bccea823de811"
+  },
+  {
+    "path": "trinity-fanin-quality-20261109/after/products/elk-TB.layout.json",
+    "bytes": 9658,
+    "sha256": "39b92be1447884e78a8ca6ceb2c35aa6d53905d16dfa96d3eb8d45ce56095cac"
+  },
+  {
+    "path": "trinity-fanin-quality-20261109/after/products/elk-TB.receipt.json",
+    "bytes": 11798,
+    "sha256": "b556504a43849578def2a3b64c85ea9005746e23cab26507c1345a16c0ad9509"
+  },
+  {
+    "path": "trinity-fanin-quality-20261109/after/products/elk-TB.svg",
+    "bytes": 15582,
+    "sha256": "756b04ff189a476a3223c5a68c52bb26152711f97558e8ddbad7c5346a10e810"
+  },
+  {
+    "path": "trinity-fanin-quality-20261109/after/products/trinity-BT.layout.json",
+    "bytes": 9250,
+    "sha256": "e45150b25ddca632ab1cb47c2ee585e89e9ed9aa0bc825073833d2f3185e9542"
+  },
+  {
+    "path": "trinity-fanin-quality-20261109/after/products/trinity-BT.receipt.json",
+    "bytes": 11806,
+    "sha256": "c112aa7b6d4bae108576339b0aa040dfc0896e55c5d7189e06c3ab357df94364"
+  },
+  {
+    "path": "trinity-fanin-quality-20261109/after/products/trinity-BT.svg",
+    "bytes": 15606,
+    "sha256": "e621a905081c199a0b559fa318cb857898bb9c505beaf45134d746d22520c07f"
+  },
+  {
+    "path": "trinity-fanin-quality-20261109/after/products/trinity-LR.layout.json",
+    "bytes": 9343,
+    "sha256": "8b948c6555c9c76566a72fc1aa94ec25ef70d779871be671bb6fc0a953fac797"
+  },
+  {
+    "path": "trinity-fanin-quality-20261109/after/products/trinity-LR.receipt.json",
+    "bytes": 11805,
+    "sha256": "3a92b8dc547eaa9fbba8affa915a9140b6e9f28865e0f03a1783461696928d88"
+  },
+  {
+    "path": "trinity-fanin-quality-20261109/after/products/trinity-LR.svg",
+    "bytes": 15569,
+    "sha256": "465405aee8e6501c5c5334e8e655cea4bf578412b25f5cf8bfb7930780a69005"
+  },
+  {
+    "path": "trinity-fanin-quality-20261109/after/products/trinity-RL.layout.json",
+    "bytes": 9281,
+    "sha256": "3d2a021604f8b87b13fff073a773cf8078209e0a5d960edcb8dc49383e9bdb07"
+  },
+  {
+    "path": "trinity-fanin-quality-20261109/after/products/trinity-RL.receipt.json",
+    "bytes": 11805,
+    "sha256": "efd00d9663848a8e10d1419383f8c4178c2103567427802b97866d224ea3c460"
+  },
+  {
+    "path": "trinity-fanin-quality-20261109/after/products/trinity-RL.svg",
+    "bytes": 15572,
+    "sha256": "e74e84ff49ae269f833e8452012ecadc65a826808f7b9391cdc0f18cd6e214cd"
+  },
+  {
+    "path": "trinity-fanin-quality-20261109/after/profile-before/community-ports-trinity-job.json",
+    "bytes": 936,
+    "sha256": "a23ebb01fc407f45faff31a48c6aa491ba10d8ab239e3dcfcc844080691df510"
+  },
+  {
+    "path": "trinity-fanin-quality-20261109/after/qualify.ts",
+    "bytes": 1692,
+    "sha256": "2516cb21e256bf8735059ea43c03b5fedaa13b4dadcbe8360ea213ff900a5fd8"
+  },
+  {
+    "path": "trinity-fanin-quality-20261109/after/retry.log",
+    "bytes": 3132,
+    "sha256": "f692f2f6b24a895b40c00067da44163fb0425e68b506dbe369dca35681914f2b"
+  },
+  {
+    "path": "trinity-fanin-quality-20261109/after/run.log",
+    "bytes": 715,
+    "sha256": "f0c777e064c2e08d894091a0fedc5dc962418705c15f64ffa9b185f66a2cf264"
+  },
+  {
+    "path": "trinity-fanin-quality-20261109/after/run.mjs",
+    "bytes": 1819,
+    "sha256": "4598c850d2a7145393e9689956ae7131f54c94cf13cbbcbf71a337b6f54c68f1"
+  },
+  {
+    "path": "trinity-fanin-quality-20261109/baseline-router.ts",
+    "bytes": 83799,
+    "sha256": "ffcbc847e09fc32f6738e58c6b8b1f7f11b62762cfbcd1622504ad2b2f42c718"
+  },
+  {
+    "path": "trinity-fanin-quality-20261109/before/DIRECTIONS.json",
+    "bytes": 15181,
+    "sha256": "089b6077f8c8919bca7017b207a2ba857fea6deec9a782b1effd1aacbb29fead"
+  },
+  {
+    "path": "trinity-fanin-quality-20261109/before/SVG-METRICS.json",
+    "bytes": 3181,
+    "sha256": "eeb351d5e791a295d3e767b41baa62609e39a0dcfc370ace49fc643772e93211"
+  },
+  {
+    "path": "trinity-fanin-quality-20261109/before/metrics.ts",
+    "bytes": 2411,
+    "sha256": "8e48a87bd796ce839ef204b2bedf1201bc6a7d0e705193e41afe878227893f9a"
+  },
+  {
+    "path": "trinity-fanin-quality-20261109/before/products/agentic-LR.layout.json",
+    "bytes": 10181,
+    "sha256": "b7d20a47ba27805b3a27abb3ed41fffa5b3ceb09b6f9a0e421d39646dad8d9ff"
+  },
+  {
+    "path": "trinity-fanin-quality-20261109/before/products/agentic-LR.receipt.json",
+    "bytes": 11814,
+    "sha256": "6f9cbe18db594bd950a6d2faa2c5185ba35096de1f6bfcc429e6e745db550176"
+  },
+  {
+    "path": "trinity-fanin-quality-20261109/before/products/agentic-LR.svg",
+    "bytes": 15644,
+    "sha256": "e543508d50f4c63658d7223937e94d41ce526b8884ea113e486fc6f1b482b698"
+  },
+  {
+    "path": "trinity-fanin-quality-20261109/before/products/agentic-RL.layout.json",
+    "bytes": 10142,
+    "sha256": "f3e32b40db7083648da27e437aeade0bfb363f181fc7cbd93d6b1940cc5ea0ff"
+  },
+  {
+    "path": "trinity-fanin-quality-20261109/before/products/agentic-RL.receipt.json",
+    "bytes": 11814,
+    "sha256": "720d11627102aa074aa206803b6561487c59f2e49ec1851d5f3d9256b9e38f20"
+  },
+  {
+    "path": "trinity-fanin-quality-20261109/before/products/agentic-RL.svg",
+    "bytes": 15714,
+    "sha256": "f5c0b1ad440e18c8850cddb2af14acefd3ecdf62f6e18baf4742eb15c8823687"
+  },
+  {
+    "path": "trinity-fanin-quality-20261109/before/products/elk-BT.layout.json",
+    "bytes": 9450,
+    "sha256": "529ebd64561da2b004b050a6bec63a1e12c7ae1e074b102ce704e0704baaf4b7"
+  },
+  {
+    "path": "trinity-fanin-quality-20261109/before/products/elk-BT.receipt.json",
+    "bytes": 11797,
+    "sha256": "a9adb3fdc519de2ccf1498c65ef0c8aac881a913f9827d6f99d8495b11556ef9"
+  },
+  {
+    "path": "trinity-fanin-quality-20261109/before/products/elk-BT.svg",
+    "bytes": 15464,
+    "sha256": "5b1635643583b1eae22f7c3306cf67ea1514dc759d62de079c6db9900413326b"
+  },
+  {
+    "path": "trinity-fanin-quality-20261109/before/products/elk-LR.layout.json",
+    "bytes": 11339,
+    "sha256": "1428a07d18304b8860f50ca20a9697ae6eefeb925dd49b9a2634d1c2b973c7a7"
+  },
+  {
+    "path": "trinity-fanin-quality-20261109/before/products/elk-LR.receipt.json",
+    "bytes": 11797,
+    "sha256": "e67c23ee6a5c0502ef1d5b381c448d319abcb5e70c3d260c642d23057f8fc27d"
+  },
+  {
+    "path": "trinity-fanin-quality-20261109/before/products/elk-LR.svg",
+    "bytes": 16583,
+    "sha256": "b4aeed2fe6d488ba76131db25c624081639e47d1b1ac4a02eabeb1a5dfbaf0af"
+  },
+  {
+    "path": "trinity-fanin-quality-20261109/before/products/elk-RL.layout.json",
+    "bytes": 11347,
+    "sha256": "10591571a3db6d5a01dcef67a6c29a521780866953c21466740e840442cc8a1a"
+  },
+  {
+    "path": "trinity-fanin-quality-20261109/before/products/elk-RL.receipt.json",
+    "bytes": 11797,
+    "sha256": "6e10cbb17bfc047f7b1b4c65df4db3913a2fbdbe4e87e7a4b4aa0beb9a3fa2c2"
+  },
+  {
+    "path": "trinity-fanin-quality-20261109/before/products/elk-RL.svg",
+    "bytes": 16627,
+    "sha256": "1cd52a7c663bb9697499ce838cb058f4e3c6548dc6a0eeeded1bccea823de811"
+  },
+  {
+    "path": "trinity-fanin-quality-20261109/before/products/elk-TB.layout.json",
+    "bytes": 9658,
+    "sha256": "39b92be1447884e78a8ca6ceb2c35aa6d53905d16dfa96d3eb8d45ce56095cac"
+  },
+  {
+    "path": "trinity-fanin-quality-20261109/before/products/elk-TB.receipt.json",
+    "bytes": 11798,
+    "sha256": "b556504a43849578def2a3b64c85ea9005746e23cab26507c1345a16c0ad9509"
+  },
+  {
+    "path": "trinity-fanin-quality-20261109/before/products/elk-TB.svg",
+    "bytes": 15582,
+    "sha256": "756b04ff189a476a3223c5a68c52bb26152711f97558e8ddbad7c5346a10e810"
+  },
+  {
+    "path": "trinity-fanin-quality-20261109/before/products/trinity-BT.layout.json",
+    "bytes": 9173,
+    "sha256": "75d8069fd803833415b4ab20103e7c339f45041c4a611392d81c21055a5533b8"
+  },
+  {
+    "path": "trinity-fanin-quality-20261109/before/products/trinity-BT.receipt.json",
+    "bytes": 11806,
+    "sha256": "f6e433e85fd1967b97d313f299d2587af412f839c14bf44312700901af15e618"
+  },
+  {
+    "path": "trinity-fanin-quality-20261109/before/products/trinity-BT.svg",
+    "bytes": 15570,
+    "sha256": "956bae10df59149d8030ef351db86b566aa3d35a7ef929efbe7f80680d6f6dc6"
+  },
+  {
+    "path": "trinity-fanin-quality-20261109/before/products/trinity-LR.layout.json",
+    "bytes": 9220,
+    "sha256": "22f5e050563f04aa66d538477e05a57b7bcbb7d661fde6c252ff4aedc4ce2e5d"
+  },
+  {
+    "path": "trinity-fanin-quality-20261109/before/products/trinity-LR.receipt.json",
+    "bytes": 11805,
+    "sha256": "fb69e7f5800a336423254ddf77b3a997156374e5d77a365f5f1ebe08abd2fdf1"
+  },
+  {
+    "path": "trinity-fanin-quality-20261109/before/products/trinity-LR.svg",
+    "bytes": 15530,
+    "sha256": "a171c7e4c79b42eb0a4bd4c9964326b73d20bb8448bba9c82858c84a983092c5"
+  },
+  {
+    "path": "trinity-fanin-quality-20261109/before/products/trinity-RL.layout.json",
+    "bytes": 9165,
+    "sha256": "56cc20ff3d1c1c7618429e3aab56848243f1b3d2325d96506f72536f85193ac2"
+  },
+  {
+    "path": "trinity-fanin-quality-20261109/before/products/trinity-RL.receipt.json",
+    "bytes": 11805,
+    "sha256": "6f380289b39d83b3cdb72a7a374c58dfbbc7f5a10be56de836177d7ad9bf0086"
+  },
+  {
+    "path": "trinity-fanin-quality-20261109/before/products/trinity-RL.svg",
+    "bytes": 15540,
+    "sha256": "14a85bb7f898894fba4df1ede1f287fd72286178f328ce8a406b1cc54019323b"
+  },
+  {
+    "path": "trinity-fanin-quality-20261109/before/products/trinity-TB.layout.json",
+    "bytes": 9612,
+    "sha256": "e7b50a2c85f09c1ed74c60600db1ca69e551fa3823a32a44df4d3c486fe1d5e7"
+  },
+  {
+    "path": "trinity-fanin-quality-20261109/before/products/trinity-TB.receipt.json",
+    "bytes": 11806,
+    "sha256": "1963480f1f69a17532b1027727864624be7aa63ee4f63830e31704218403bee4"
+  },
+  {
+    "path": "trinity-fanin-quality-20261109/before/products/trinity-TB.svg",
+    "bytes": 15695,
+    "sha256": "3f167a8ac64646d97ba924d75ff852c848c4af3a4327622ffa9efca6074129af"
+  },
+  {
+    "path": "trinity-fanin-quality-20261109/before/profile-before/community-ports-trinity-job.json",
+    "bytes": 936,
+    "sha256": "a23ebb01fc407f45faff31a48c6aa491ba10d8ab239e3dcfcc844080691df510"
+  },
+  {
+    "path": "trinity-fanin-quality-20261109/before/qualify.ts",
+    "bytes": 1693,
+    "sha256": "8a073633eff9db02cb9edd323588d3a9524cdb9864814dc8705f94f72568eabe"
+  },
+  {
+    "path": "trinity-fanin-quality-20261109/before/retry.log",
+    "bytes": 3350,
+    "sha256": "1c801aa8c466bb276ac5af921dcb1ae2283821db88f21407d2b1dcc8f76a8fac"
+  },
+  {
+    "path": "trinity-fanin-quality-20261109/before/run.log",
+    "bytes": 717,
+    "sha256": "591df09ebe711c5153257cd6ff1bbfc7652a9278d1d3bdc92f0b9197a0cb70a2"
+  },
+  {
+    "path": "trinity-fanin-quality-20261109/before/run.mjs",
+    "bytes": 1648,
+    "sha256": "587879c84271b9b1d18bdb53154b1b99abd7d97616221f62639d15ce68c8d44f"
+  },
+  {
+    "path": "trinity-fanin-quality-20261109/bundle-cause-review.md",
+    "bytes": 5396,
+    "sha256": "b55a104e7350ea47c7c2ed0b65adf5dc93330017e3a0dc0ee835d714e6661949"
+  },
+  {
+    "path": "trinity-fanin-quality-20261109/candidate-router.ts",
+    "bytes": 83735,
+    "sha256": "2b2da08f334c712dfe5dff5db924f56e2d10d2a5173613632c07b139c2658ba4"
+  },
+  {
+    "path": "trinity-fanin-quality-20261109/causal-review.md",
+    "bytes": 6548,
+    "sha256": "8cfa86756ac0473f6b90397866d419380766d4847a98a07909394e4876ef9674"
+  },
+  {
+    "path": "trinity-fanin-quality-20261109/header-review.md",
+    "bytes": 4362,
+    "sha256": "05e499c7861fbb4519e811002e0d77533d16cc097ff7b31548b25ea1a73782f6"
+  },
+  {
+    "path": "trinity-fanin-quality-20261109/intersections.ts",
+    "bytes": 3289,
+    "sha256": "f8def3aba996efde539a03fc4f8c65fa584e9a4686df227130e4ea1af256411f"
+  },
+  {
+    "path": "trinity-fanin-quality-20261109/order-trial/DIRECTIONS.json",
+    "bytes": 15181,
+    "sha256": "089b6077f8c8919bca7017b207a2ba857fea6deec9a782b1effd1aacbb29fead"
+  },
+  {
+    "path": "trinity-fanin-quality-20261109/order-trial/SVG-METRICS.json",
+    "bytes": 3163,
+    "sha256": "f7f4f2a13c13aa810e9926536cc86db978aea366bcbd41a8e7fb2d896dfc7d7a"
+  },
+  {
+    "path": "trinity-fanin-quality-20261109/order-trial/metrics.ts",
+    "bytes": 2416,
+    "sha256": "8babc11a63936cb7b61642e6ab5ece06ccdae28e98c85e134d84070e4b9a323f"
+  },
+  {
+    "path": "trinity-fanin-quality-20261109/order-trial/products/agentic-LR.layout.json",
+    "bytes": 10181,
+    "sha256": "b7d20a47ba27805b3a27abb3ed41fffa5b3ceb09b6f9a0e421d39646dad8d9ff"
+  },
+  {
+    "path": "trinity-fanin-quality-20261109/order-trial/products/agentic-LR.receipt.json",
+    "bytes": 11814,
+    "sha256": "6f9cbe18db594bd950a6d2faa2c5185ba35096de1f6bfcc429e6e745db550176"
+  },
+  {
+    "path": "trinity-fanin-quality-20261109/order-trial/products/agentic-LR.svg",
+    "bytes": 15644,
+    "sha256": "e543508d50f4c63658d7223937e94d41ce526b8884ea113e486fc6f1b482b698"
+  },
+  {
+    "path": "trinity-fanin-quality-20261109/order-trial/products/agentic-RL.layout.json",
+    "bytes": 10142,
+    "sha256": "f3e32b40db7083648da27e437aeade0bfb363f181fc7cbd93d6b1940cc5ea0ff"
+  },
+  {
+    "path": "trinity-fanin-quality-20261109/order-trial/products/agentic-RL.receipt.json",
+    "bytes": 11814,
+    "sha256": "720d11627102aa074aa206803b6561487c59f2e49ec1851d5f3d9256b9e38f20"
+  },
+  {
+    "path": "trinity-fanin-quality-20261109/order-trial/products/agentic-RL.svg",
+    "bytes": 15714,
+    "sha256": "f5c0b1ad440e18c8850cddb2af14acefd3ecdf62f6e18baf4742eb15c8823687"
+  },
+  {
+    "path": "trinity-fanin-quality-20261109/order-trial/products/elk-BT.layout.json",
+    "bytes": 9450,
+    "sha256": "529ebd64561da2b004b050a6bec63a1e12c7ae1e074b102ce704e0704baaf4b7"
+  },
+  {
+    "path": "trinity-fanin-quality-20261109/order-trial/products/elk-BT.receipt.json",
+    "bytes": 11797,
+    "sha256": "a9adb3fdc519de2ccf1498c65ef0c8aac881a913f9827d6f99d8495b11556ef9"
+  },
+  {
+    "path": "trinity-fanin-quality-20261109/order-trial/products/elk-BT.svg",
+    "bytes": 15464,
+    "sha256": "5b1635643583b1eae22f7c3306cf67ea1514dc759d62de079c6db9900413326b"
+  },
+  {
+    "path": "trinity-fanin-quality-20261109/order-trial/products/elk-LR.layout.json",
+    "bytes": 11339,
+    "sha256": "1428a07d18304b8860f50ca20a9697ae6eefeb925dd49b9a2634d1c2b973c7a7"
+  },
+  {
+    "path": "trinity-fanin-quality-20261109/order-trial/products/elk-LR.receipt.json",
+    "bytes": 11797,
+    "sha256": "e67c23ee6a5c0502ef1d5b381c448d319abcb5e70c3d260c642d23057f8fc27d"
+  },
+  {
+    "path": "trinity-fanin-quality-20261109/order-trial/products/elk-LR.svg",
+    "bytes": 16583,
+    "sha256": "b4aeed2fe6d488ba76131db25c624081639e47d1b1ac4a02eabeb1a5dfbaf0af"
+  },
+  {
+    "path": "trinity-fanin-quality-20261109/order-trial/products/elk-RL.layout.json",
+    "bytes": 11347,
+    "sha256": "10591571a3db6d5a01dcef67a6c29a521780866953c21466740e840442cc8a1a"
+  },
+  {
+    "path": "trinity-fanin-quality-20261109/order-trial/products/elk-RL.receipt.json",
+    "bytes": 11797,
+    "sha256": "6e10cbb17bfc047f7b1b4c65df4db3913a2fbdbe4e87e7a4b4aa0beb9a3fa2c2"
+  },
+  {
+    "path": "trinity-fanin-quality-20261109/order-trial/products/elk-RL.svg",
+    "bytes": 16627,
+    "sha256": "1cd52a7c663bb9697499ce838cb058f4e3c6548dc6a0eeeded1bccea823de811"
+  },
+  {
+    "path": "trinity-fanin-quality-20261109/order-trial/products/elk-TB.layout.json",
+    "bytes": 9658,
+    "sha256": "39b92be1447884e78a8ca6ceb2c35aa6d53905d16dfa96d3eb8d45ce56095cac"
+  },
+  {
+    "path": "trinity-fanin-quality-20261109/order-trial/products/elk-TB.receipt.json",
+    "bytes": 11798,
+    "sha256": "b556504a43849578def2a3b64c85ea9005746e23cab26507c1345a16c0ad9509"
+  },
+  {
+    "path": "trinity-fanin-quality-20261109/order-trial/products/elk-TB.svg",
+    "bytes": 15582,
+    "sha256": "756b04ff189a476a3223c5a68c52bb26152711f97558e8ddbad7c5346a10e810"
+  },
+  {
+    "path": "trinity-fanin-quality-20261109/order-trial/products/trinity-BT.layout.json",
+    "bytes": 9015,
+    "sha256": "e6c37a012054b3d23dd379a95b01d8ebf4341d642ef8506d5325f3e5da81b50b"
+  },
+  {
+    "path": "trinity-fanin-quality-20261109/order-trial/products/trinity-BT.receipt.json",
+    "bytes": 11806,
+    "sha256": "ad870c46b73c4bff9e4d3883af7cda315f49832e773009dfb9022578831ac817"
+  },
+  {
+    "path": "trinity-fanin-quality-20261109/order-trial/products/trinity-BT.svg",
+    "bytes": 15504,
+    "sha256": "0914d8f1c627725c083391f495989ecdd07a35e696d1e3a76960b346d4cc0c20"
+  },
+  {
+    "path": "trinity-fanin-quality-20261109/order-trial/products/trinity-LR.layout.json",
+    "bytes": 9314,
+    "sha256": "aaac3fdc1ea10d7384a22c29a8dd1cd7773215c2ead71ac0e62f0735593c1f70"
+  },
+  {
+    "path": "trinity-fanin-quality-20261109/order-trial/products/trinity-LR.receipt.json",
+    "bytes": 11805,
+    "sha256": "1aeda18fb75a2a39b57ef8900d5a5181a6f625b19e8299f7b5ba5a631b5050e1"
+  },
+  {
+    "path": "trinity-fanin-quality-20261109/order-trial/products/trinity-LR.svg",
+    "bytes": 15564,
+    "sha256": "83a97b81182cd73044529676d4439a75681f3754cb65e789eea78852e889603a"
+  },
+  {
+    "path": "trinity-fanin-quality-20261109/order-trial/products/trinity-RL.layout.json",
+    "bytes": 9299,
+    "sha256": "29165a32624bdec847d1b12a6b2179e0977a819f1866109ec3e464779c53da4b"
+  },
+  {
+    "path": "trinity-fanin-quality-20261109/order-trial/products/trinity-RL.receipt.json",
+    "bytes": 11805,
+    "sha256": "98fa0b61cc5be3f5afd1845975710a9cbb5e1cb4760ffe3afceae22d93539fb1"
+  },
+  {
+    "path": "trinity-fanin-quality-20261109/order-trial/products/trinity-RL.svg",
+    "bytes": 15570,
+    "sha256": "8af8fa28897bed38c81de05d1ae72264cb23fbd2677cac6199338d65b35b594b"
+  },
+  {
+    "path": "trinity-fanin-quality-20261109/order-trial/products/trinity-TB.layout.json",
+    "bytes": 9661,
+    "sha256": "3fd086552273794263177edcd60a173b51b514969e0f5efa900aa7ff4c9fda45"
+  },
+  {
+    "path": "trinity-fanin-quality-20261109/order-trial/products/trinity-TB.receipt.json",
+    "bytes": 11806,
+    "sha256": "73e63426c5091ca13a3bdb899f1aaa8d9d86198617196b3f9900b75560e4a60a"
+  },
+  {
+    "path": "trinity-fanin-quality-20261109/order-trial/products/trinity-TB.svg",
+    "bytes": 15714,
+    "sha256": "32ec734df0bddac5939cc892622865823c73475bad87f68c8db80a83dcd8161f"
+  },
+  {
+    "path": "trinity-fanin-quality-20261109/order-trial/profile-before/community-ports-trinity-job.json",
+    "bytes": 936,
+    "sha256": "a23ebb01fc407f45faff31a48c6aa491ba10d8ab239e3dcfcc844080691df510"
+  },
+  {
+    "path": "trinity-fanin-quality-20261109/order-trial/qualify.ts",
+    "bytes": 1698,
+    "sha256": "d17790e0d7ed3bd577f826da6627278bab56a717467c68eca2f802d8f1a52204"
+  },
+  {
+    "path": "trinity-fanin-quality-20261109/order-trial/run.log",
+    "bytes": 3332,
+    "sha256": "6e5834640c41b08978429560229142cd0aff3d6b707ef375435935b93787d8c4"
+  },
+  {
+    "path": "trinity-fanin-quality-20261109/order-trial/run.mjs",
+    "bytes": 1812,
+    "sha256": "cd4e961ae43e73fcd93851136c6d88bca5a3dba5618d5574f965b013f98acaad"
+  },
+  {
+    "path": "trinity-fanin-quality-20261109/priority-review.md",
+    "bytes": 4443,
+    "sha256": "469f06f08cacc98c886f2214b7ef8f0cd2f23cb7a0f054fde011c048a39d554d"
+  },
+  {
+    "path": "trinity-fanin-quality-20261109/trinity-source-order-trial.ts",
+    "bytes": 29295,
+    "sha256": "571cd5e96452c598b6ebce72764dd84a94b010aab790fc68dbccc1bf6471a722"
+  }
+]
