@@ -1409,3 +1409,17 @@ Brotli687180/415162/408167, requests41/47/48 including binding. Workload adds
 the new Class case; compression follows raw serving, not a network/startup claim.
 Current CI42547381339 pending; draft/notready. All failures/unsupported/unknown
 and actual artifacts retained in the existing evidence branch checkpoint.
+
+### Controlled image boundary: stopped shortcut — 9 November
+
+At `a62cba6766f959dc6aad4709b138a5888906c9a1`, reproduce the frozen image:
+Native/ELK return/proof-pass but emit zero images; actual Trident image checks
+fail. Trinity refuses. A diagnostic using existing document content to emit the
+controlled PNG fails default output security in all ten Native/ELK attempts.
+The IR supplies no measured image primitive; strict policy rejects every image,
+and the typed URL is explicitly inert. Stop gate-only/opaque-emission shortcuts.
+Actual PNG fidelity needs a separate shared media/resource/measurement contract,
+not a solver fix or silent security/proof exemption. No runtime/policy/version/
+cap change; retain the failure/unsupported cells. Independent scope review agrees.
+Evidence `trinity-controlled-image-20261109`; next profile the now-completed
+fan-in products before testing an uncached data-oriented subtraction.
