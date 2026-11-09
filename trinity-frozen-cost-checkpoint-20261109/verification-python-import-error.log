@@ -1,0 +1,3 @@
+Initial artifact-only verification could not import Python brotli:
+ModuleNotFoundError: No module named 'brotli'
+No product acquisition or source code was rerun. The existing Node24 node:zlib codecs verified the retained streams instead; no dependency installed.

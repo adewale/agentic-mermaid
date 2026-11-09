@@ -1,0 +1,17 @@
+[
+  {
+    "case": "features:flowchart:font-size-reset",
+    "name": "RenderConfigError",
+    "timedAttempts": 60
+  },
+  {
+    "case": "features:flowchart:font-size-reset:edit",
+    "name": "RenderConfigError",
+    "timedAttempts": 36
+  },
+  {
+    "case": "features:flowchart:controlled-image",
+    "name": "GraphLayoutUnsupportedError",
+    "timedAttempts": 12
+  }
+]

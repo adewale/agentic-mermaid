@@ -161,4 +161,4 @@ Exact source3f2 CI42552670015 completed with failure: Sparse32 emitted-proof own
 
 Reproduce with the existing Node24 source loader in measure.mjs and exact jobs/*.json; run.py schedules the serial comparison and honors the owner deadline before starting new processes. summarize-cost.mjs and run-svg-metrics.mjs only read acquired products after collection. cost-review.md records independent acquisition review and its limits.
 
-Raw scripts, logs, final products, built assets and failed probes are retained in evidence.tar.gz. FILES.json records verified archive members and SHA256; ARCHIVE.json binds the runtime and archive. No local evidence was deleted.
+All raw scripts/products/costs are retained in evidence.tar.gz; FILES.json and ARCHIVE.json verify7075 archive members. QUALIFICATION.json additionally records size/hash/decompression verification of664 complete JSON gzip/Brotli files. The initial Python Brotli import error and Node verification source are retained separately; acquisition was not rerun.

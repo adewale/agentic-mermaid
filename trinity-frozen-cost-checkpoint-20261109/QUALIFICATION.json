@@ -1,0 +1,24 @@
+{
+  "source": "3f2c26bd860eadcfb48746eabb45801ab8e07c7a",
+  "recordedOutcomes": {
+    "attempts": 1248,
+    "returned": 1140,
+    "proofPassed": 1140,
+    "errors": 108,
+    "repeatPairs": 664,
+    "repeatExact": 664,
+    "editPairs": 72,
+    "editExact": 72,
+    "priorSVGComparisons": 332,
+    "priorSVGExact": 332
+  },
+  "completedProcesses": 360,
+  "compressedPayloadFilesVerified": 664,
+  "everyCompressedFileSizeHashAndDecodedRawHashVerified": true,
+  "rawMatchesTimedSerializedBytes": true,
+  "returnedReplicaProductsExact": true,
+  "processFailures": [],
+  "missing": [],
+  "sourceUnchangedDuringAcquisition": true,
+  "performanceImprovementClaimed": false
+}
