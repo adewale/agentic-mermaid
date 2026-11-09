@@ -215,6 +215,8 @@ describe('Requirement layout backends', () => {
     { backend: 'agentic', direction: 'TB', fanSize: 12 }, { backend: 'agentic', direction: 'LR', fanSize: 12 },
     { backend: 'elk', direction: 'TB', fanSize: 5 }, { backend: 'elk', direction: 'BT', fanSize: 5 },
     { backend: 'elk', direction: 'LR', fanSize: 5 }, { backend: 'elk', direction: 'RL', fanSize: 5 },
+    { backend: 'elk', direction: 'TB', fanSize: 12, expectedProof: 'passed' }, { backend: 'elk', direction: 'BT', fanSize: 12, expectedProof: 'passed' },
+    { backend: 'elk', direction: 'LR', fanSize: 12, expectedProof: 'passed' }, { backend: 'elk', direction: 'RL', fanSize: 12, expectedProof: 'passed' },
   ] as const)('separates actual contains circles in the parallel Requirement fan in $direction ($fanSize occurrences, $backend)', testCase => {
     const { backend, direction, fanSize } = testCase
     const input = `requirementDiagram

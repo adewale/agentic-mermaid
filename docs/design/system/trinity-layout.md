@@ -43,11 +43,16 @@ ranking. See the [Astra review](https://github.com/adewale/agentic-mermaid/blob/
 
 ## One common boundary, three adapters
 
-The existing `layout/backend.ts` selects two callbacks; `measured-backend.ts` is a
-re-export, not a common geometry protocol. `MeasuredGraph` and `AgenticLayout` in
-`agentic-layered-core.ts` are the starting data model. Extract their neutral part
-into a leaf module (proposed `layout/measured-graph.ts`) used by ELK, Native and
-Trinity. Keep the public Native spelling `agentic`; `trinity` is proposed only.
+`layout/measured-graph.ts` owns the neutral request and explicit placement/routed
+results. `measured-backend.ts` checks result roles, correspondence, finite geometry
+and fixed/minimum sizes; `layout/backend.ts` owns selection and typed fallback.
+The public selectors are `elk`, `agentic` and `trinity`.
+Canonical sharp-shaft Requirement diagrams now share one physical request across
+all three solvers. ELK translates measured endpoint support into centered ports,
+spacing and permitted body growth; emitted cards consume only selected geometry.
+CSS-dependent strokes and rounded shafts retain their existing family paths.
+Other families still have backend-specific translations; a shared type alone
+does not establish equivalent demand or complete conformance.
 Layout backend, SVG/style backend and native drawing producer are different roles.
 
 ```text
