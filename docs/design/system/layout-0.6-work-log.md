@@ -1548,3 +1548,18 @@ pending-stub trimming (actual Native TB still refuses at expansion cap), the
 posthoc crossing-channel witness (needs later geometry/new routing phase), and
 Sparse32 shortcuts without sufficient safe work attribution. Evidence:
 `trinity-requirement-golden-review-20261109`; these are no new layout gains.
+
+## Shared lazy-heap operand reuse — 9 November
+
+Parent `ec7583e83547bc95d8d39a5076672bb6a97668a4`: completed profile isolates
+heap/priority lookups. Remove four of six heap reads per swap and duplicate
+priority evaluations; storage, ordering, work ledgers, caps and caches remain.
+40 complete ABBA products are exact. Cache0 repeat2 wall median 124.33→122.85ms;
+edit2 123.50→115.29ms, overlapping ranges, no general speed/memory claim.
+405 owners, core/repo types and lint pass. All 90 enrolled outcomes remain;
+83 entire frozen products and 10 returned fan products/layouts are exact. Both
+Native fan refusals remain. Actual 13-input browser gzip −5/−4/−8 bytes versus
+prior for ELK/Native/Trinity; adverse Brotli +14/+18 bytes for Native/Trinity,
+request counts unchanged. Evidence `trinity-lazy-priority-20261109`. Remaining:
+compound crossings/refusals, image/domain/capacity, Sparse32 and payload budgets.
+No new raster comparison or visible-correctness gain.

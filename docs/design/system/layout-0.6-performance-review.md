@@ -1,42 +1,57 @@
 # Performance review at the integrated PR602 checkpoint
 
-## Completed compound profile and rejected heap directory — 9 November
+## Local heap and priority operand reuse — 9 November
 
-At `d951d78360d45c0260779c8d63207dbe92a85c1b`, the existing Node24/V8 collector
-profiles nine cache0 attempts on the same supplemental fan-in:8 returned/proof-
-passed and one Native edit refusal. All3 Trinity calls now complete emission;
-the earlier refusal profile below cannot establish their hotspot priorities.
-Two Trinity repeats give these raw **self /inclusive elapsed sample-delta ms per
-call**, not exclusive CPU durations or removable time. Inclusive weights overlap;
-the state-page frame includes one gap above5ms. All source maps and sensitivity
-views remain in `trinity-postdelivery-profile-20261109`.
+At source `ec7583e83547bc95d8d39a5076672bb6a97668a4`, the existing Node24/V8
+collector profiles three completed Trinity compound calls: two repeats and the
+existing authored label edit, cache0. All return/proof-pass. These are raw
+**self / inclusive elapsed sample-weight ms per call**, not exclusive CPU or
+removable time. Inclusive values overlap; source maps and gap sensitivity remain
+in `trinity-lazy-priority-20261109`.
 
-| Frame / source location | Self / inclusive ms | Matching case and decision | Expected speedup |
-| --- | ---: | --- | --- |
-| `heap`, `layout/compound-lazy-visibility.ts:113` |6.902 /6.902|Hot hash lookup; heap slots/pages are dense, so test an array page directory.|Unmeasured; trial below rejected.|
-| `less`, same file:129 |6.558 /9.379|Hot sparse state-page lookups; retain sparse storage and unchanged priorities/ties.|Unmeasured.|
-| `copyInner`, `scene/native-paint-emission.ts:105` |5.907 /9.216|None/data-oriented; preserve required mutable/getter/ownership capture. Prior unsafe subtraction remains stopped.|Unmeasured.|
-| `ensure`, first file:96 |5.427 /5.427|Hot hash lookup, but state IDs are sparse and allocation is bounded; no dense state allocation proposed.|Unmeasured.|
-| `swap`, first file:133 |4.622 /12.137|Hot heap lookups; the same directory trial, not another rewrite.|Unmeasured; trial below rejected.|
+| Frame / baseline source location | Self / inclusive ms | Matching case and change |
+| --- | ---: | --- |
+| `heap`, `layout/compound-lazy-visibility.ts:113` |5.697 /5.697|Hot Map reads; retain storage and reuse the two states already read by `swap` at 133.|
+| `less`, same file:129 |4.736 /8.424|Hot priority/state lookups; compute each operand once per comparison.|
+| `ensure`, same file:96 |4.665 /4.665|Sparse typed SoA pages; no representation or allocation change.|
+| `pop`, same file:153 |4.629 /18.561|Includes shared heap helpers; no separate rewrite.|
+| `route`, same file:91 |4.564 /52.407|Includes those helpers; no new routing objective or search strategy.|
 
-The state pages already use typed SoA columns and integer IDs. No independent
-awaits occur here. Page tables own query storage, not cross-request result caches;
-the existing cache inventory remains, with no new slow-design attribution.
+No independent awaits occur here. Expected speedup was unmeasured before the
+trial; inclusive samples supply no numeric ceiling. The existing cache inventory
+below remains applicable. Query pages are work storage, not a new result cache.
+The rejected Map-to-array page directory stays stopped: its mixed full-product
+costs and inherited-descriptor observation are retained in the
+[earlier report](https://github.com/adewale/agentic-mermaid/blob/7834513e894fadf61da913c699b3a94ed6f104d4/docs/design/system/layout-0.6-performance-review.md).
 
-An external array-directory candidate keeps page reservations, IDs, order and
-work charges. Eight serial fresh Node processes in ABBA order consume40 complete
+Local scalar reuse removes four of six heap reads per swap. The first relational
+comparison still needs two priority evaluations; a false comparison now avoids
+repeating both. IDs, tie breaks, debit order, sparse pages and caps stay unchanged.
+Eight serial fresh Node processes in existing ABBA/BAAB order consume 40 complete
 SVG+entire receipts, all returned/proof-passed and byte-exact across variants.
-Baseline/candidate medians: repeat2 wall128.98/125.67ms, CPU344.04/340.34;
-edit2 wall138.21/186.05, CPU396.41/344.70; cold wall357.77/403.70. Ranges are
-wide and costs mixed, so no stable whole-product benefit is established.
+Sampling/observers are off; import, writes, compression and explicit GC are outside
+render timing. Other derived caches remain live. Four replicas per variant on one
+input support no general speedup, p95, throughput or memory-superiority claim.
 
-Independent review also finds that the candidate's ordinary property descriptor
-can observe inherited `get`/`set`. An isolated actual router call under inherited
-`get` returns through the Map baseline (zero observations) and throws through the
-candidate (one observation). A null-prototype descriptor would fix that newly
-introduced protocol risk, but the cost evidence does not justify pursuing this
-rewrite. Stop it; no production storage change, new cache or cap change ships.
-Retain all diagnostic sources, timing products, adverse costs and rejected probes.
+| Phase | Baseline / local wall median ms | Baseline / local CPU median ms |
+| --- | ---: | ---: |
+| First target, import separate |305.48 /288.31|588.91 /543.88|
+| Repeat2 |124.33 /122.85|267.54 /263.83|
+| Authored edit2 |123.50 /115.29|307.03 /247.94|
+
+All five phase medians move favorably, with overlapping ranges retained in raw
+reports. API-return heap and lifetime RSS include harness/import/artifact effects;
+no allocation or retention gain is established. All 40 actual complete-product JSON
+streams match timed lengths and decode exactly from gzip9/Brotli11; two unique
+products remain byte-identical. Actual 13-input lazy browser gzip changes
+−5/−4/−8 bytes for ELK/Native/Trinity, but Brotli changes −23/+14/+18 bytes;
+requests 41/47/48 stay fixed. These are compressed fetched assets under raw serving,
+not compressed-wire startup. No fresh standalone-editor build or budget pass.
+
+405 owning checks pass; frozen 90 outcomes retain 83 entirely exact returned products,
+six input errors and one image unsupported. Ten returned supplemental compound
+products/layouts are exact; Native TB/BT still refuse. This is reduced redundant
+work, with no delivery, visible-correctness or ELK-retirement gain.
 
 ## Labelled compound refusal profile — 9 November
 

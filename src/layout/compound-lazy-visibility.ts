@@ -128,13 +128,14 @@ export function createLazyVisibilityGrid(
     }
     const less = (a: number, b: number): boolean => {
       if (--work.swaps < 0) fail('agentic local cross-hierarchy heap-work limit')
-      return priority(a) < priority(b) || priority(a) === priority(b) && a < b
+      const left = priority(a), right = priority(b)
+      return left < right || left === right && a < b
     }
     const swap = (a: number, b: number): void => {
-      const saved = heap(a)
-      setHeap(a, heap(b)); setHeap(b, saved)
-      ensure(heap(a)).slots[heap(a) % PAGE_SIZE] = a
-      ensure(heap(b)).slots[heap(b) % PAGE_SIZE] = b
+      const left = heap(a), right = heap(b)
+      setHeap(a, right); setHeap(b, left)
+      ensure(right).slots[right % PAGE_SIZE] = a
+      ensure(left).slots[left % PAGE_SIZE] = b
     }
     const enqueue = (state: number): void => {
       let index = slot(state)
