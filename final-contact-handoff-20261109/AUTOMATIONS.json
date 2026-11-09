@@ -1,0 +1,17 @@
+{
+  "observed": "2026-11-09T19:20:00Z",
+  "automations": [
+    {
+      "id": "6ae0b82853508191843a984cfb468d5b",
+      "is_enabled": false,
+      "next_run_time": null,
+      "title": "Improve Agentic against ELK"
+    },
+    {
+      "id": "6ae5e528d93881918a13186253dbae8e",
+      "is_enabled": false,
+      "next_run_time": null,
+      "title": "Report ELK replacement results"
+    }
+  ]
+}

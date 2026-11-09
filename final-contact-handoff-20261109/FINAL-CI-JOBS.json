@@ -1,0 +1,24 @@
+{"conclusion":"success","id":129364932794,"name":"Expire label approvals of earlier heads","status":"completed"}
+{"conclusion":"success","id":129364933356,"name":"Select required checks","status":"completed"}
+{"conclusion":"success","id":129365186909,"name":"Layout backend review evidence","status":"completed"}
+{"conclusion":"success","id":129365187055,"name":"Build portable test artifacts","status":"completed"}
+{"conclusion":"success","id":129365187092,"name":"Renderer isolation (windows-latest)","status":"completed"}
+{"conclusion":"success","id":129365187138,"name":"Renderer isolation (macos-15-intel)","status":"completed"}
+{"conclusion":"success","id":129365187180,"name":"CLI and single-binary tests","status":"completed"}
+{"conclusion":"failure","id":129365187191,"name":"Generated layout diagnostic (advisory)","status":"completed"}
+{"conclusion":"failure","id":129365187201,"name":"Quality gates","status":"completed"}
+{"conclusion":"success","id":129365187374,"name":"MCP conformance","status":"completed"}
+{"conclusion":"success","id":129365187828,"name":"Independent semantic conformance / semantic","status":"completed"}
+{"conclusion":"skipped","id":129365190731,"name":"Documentation checks","status":"completed"}
+{"conclusion":"success","id":129366032932,"name":"Unit tests (2/3)","status":"completed"}
+{"conclusion":"success","id":129366033121,"name":"Unit tests (3/3)","status":"completed"}
+{"conclusion":"failure","id":129366033170,"name":"Unit tests (1/3)","status":"completed"}
+{"conclusion":"success","id":129366033202,"name":"E2E (tarball-consumer-node22)","status":"completed"}
+{"conclusion":"success","id":129366033239,"name":"Installed-package quickstarts","status":"completed"}
+{"conclusion":"success","id":129366033263,"name":"E2E (tarball-consumer)","status":"completed"}
+{"conclusion":"failure","id":129366033496,"name":"E2E (payload)","status":"completed"}
+{"conclusion":"failure","id":129366033502,"name":"E2E (browser-site)","status":"completed"}
+{"conclusion":"success","id":129366033512,"name":"E2E (dist-artifact)","status":"completed"}
+{"conclusion":"success","id":129366033547,"name":"E2E (browser)","status":"completed"}
+{"conclusion":"failure","id":129372252314,"name":"test","status":"completed"}
+{"conclusion":"failure","id":129372308571,"name":"CI complete","status":"completed"}

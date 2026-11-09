@@ -1,0 +1,5 @@
+dee908197a8fe678d05cb6e1c6827d05ae9d4fb7 feat(trinity): preserve canonical flat circle contacts
+e7d8070ebef60c3a546d0f23153c3ae9d69d8233 fix(native): preserve weighted packing for thin marker faces
+fc099cea9e9d44b4df4f20edabc6be148a1ad65e fix(layout): seat narrow-gap captions against owned paint
+15a7ab42108111fc7548d4b006a56644dc0f54e4 fix(elk): reserve source markers without borrowing endpoint demand
+a8ce05aef637491ee4ab0faae9a95d24cf7d3ffc fix(sdk): publish authored image viewport fields

@@ -1,0 +1,9 @@
+# Remaining shared painted-terminal contract
+
+Current production remains dee908197, unchanged by this investigation. The refs-only trial is insufficient and unshipped. The derived paint-tangency SVG knockout removes fully hidden selected ring ink in allthree but does not implement or qualify a public API transaction.
+
+First owners: route-contracts.ts repairMarkerTerminals restores run length and commitReroutedEdge refreshes route facts; Trinity owned geometry bypasses legacy completion in measured-graph-producer.ts. renderer.ts renderEdge→graphEdgeCarrierPaint→Scene connector is shared, but the carrier retains attachment sites and Scene terminal projection receives endpoint identities, not the canonical painted receiver face.
+
+Next coherent implementation: add one owned paint-seating stage after logical route selection and before both public route publication and SVG emission. Reuse the same canonical marker resource and receiver outline/stroke producer; do not add gap constants, shrink glyphs, remeasure host values or route Trinity through all legacy Native completion. Derive idempotent absolute seats from paint support. Update route/contact facts and public geometry together, with staged full clearance and original ledgers/limits. Leave unsupported/unknown paint explicit. Preserve mutable/getter/CSS/definitions isolation and existing arrow point-contact behavior.
+
+Qualify the measured mixed fan in four directions and allthree backends, source/end roles, actual closed-ring contribution and normal-arrow control, public route/ownership correspondence, and relevant font/style/fixed/compound contracts. Keep remaining antialias attenuation, quality/runtime/memory/payload costs and caps. Do not introduce a zero-pixel acceptance gate. No new qualification framework or additional speculative offset probe is needed.
