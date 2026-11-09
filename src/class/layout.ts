@@ -644,13 +644,14 @@ export function layoutClassDiagram(diagram: ClassDiagram, options: RenderOptions
   const hierarchicalNamespaces = options.class?.hierarchicalNamespaces !== false
   let titles: Map<string, string> = new Map()
   const measuredCandidate = (trinity = false): PositionedClassDiagram => {
-      if (trinity && (diagram.namespaces.length || diagram.notes.length || diagram.classes.some(cls => cls.isInterface) || diagram.relationships.some(rel => rel.fromCardinality !== undefined || rel.toCardinality !== undefined)
-        || paintBackendId !== undefined && paintBackendId !== 'backend:default')) throw new GraphLayoutUnsupportedError('flat Class cards require canonical paint without namespaces, notes, interfaces or cardinalities', 'Trinity')
-      if (trinity && (diagram.classes.length > 64 || diagram.relationships.length > 128)) throw new GraphLayoutUnsupportedError('flat slice is limited to 64 nodes and 128 edges', 'Trinity')
+      if (trinity && (diagram.classes.some(cls => cls.isInterface)
+        || paintBackendId !== undefined && paintBackendId !== 'backend:default')) throw new GraphLayoutUnsupportedError('Class cards require canonical paint without interfaces', 'Trinity')
+      if (trinity && (diagram.classes.length > 64 || diagram.relationships.length > 128)) throw new GraphLayoutUnsupportedError('routed slice is limited to 64 subjects and 128 edges', 'Trinity')
       const work = trinity ? { pairs: 1_000_000, arcs: 65536, swaps: 1_000_000 } : undefined
       const pay = (amount: number): void => { work!.pairs -= amount; if (work!.pairs < 0) throw new LayoutWorkLimitError('pairs') }
 
       const namespaces = flattenNamespaces(diagram.namespaces, undefined, hierarchicalNamespaces)
+      if (trinity && diagram.classes.length + namespaces.length > 64) throw new GraphLayoutUnsupportedError('routed slice is limited to 64 subjects and 128 edges', 'Trinity')
       const groupIndices = new Map(namespaces.map((info, index) => [info.path, index]))
       if (groupIndices.size !== namespaces.length) throw new GraphLayoutUnsupportedError('ambiguous Class namespace paths')
       const membership = new Map<string, number>()

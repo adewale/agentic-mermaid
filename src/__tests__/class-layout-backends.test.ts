@@ -56,19 +56,16 @@ describe('Class layout backends', () => {
   })
 
   test.each([
-    'classDiagram\nnamespace Domain {\nclass A\n}\nclass B\nA --> B',
-    'classDiagram\nclass A\nnote for A "Keep note"',
-    'classDiagram\nA "1" --> "*" B',
     'classDiagram\nA --() API',
   ])('Trinity declines untranslated Class constraints and only falls back explicitly: %s', source => {
-    expect(() => renderMermaidSVGWithReceipt(source, { graphLayout: { backend: 'trinity' } })).toThrow('flat Class cards require canonical paint')
+    expect(() => renderMermaidSVGWithReceipt(source, { graphLayout: { backend: 'trinity' } })).toThrow('Class cards require canonical paint')
     const fallback = renderMermaidSVGWithReceipt(source, { graphLayout: { backend: 'trinity', fallback: 'elk' } })
     expect(fallback.svg).toBe(renderMermaidSVGWithReceipt(source, { graphLayout: { backend: 'elk' } }).svg)
     expect(fallback.receipt.layoutDecisions?.[0]).toMatchObject({ requested: 'trinity', selected: 'elk' })
   })
 
   test('Trinity completes the same public Class input across source, parsed, layout and PNG, and preserves hard kernel failures', () => {
-    const source = 'classDiagram\nclass Alpha\nclass Beta\nAlpha --> Beta: uses'
+    const source = 'classDiagram\nnamespace Domain {\nclass User {\n+String name\n+save() bool\n}\nclass Store\n}\nUser "1" --> "*" Store : owns\nnote for User "Keep ownership"'
     const options = { graphLayout: { backend: 'trinity' as const, fallback: 'none' as const } }
     const sourceProduct = renderMermaidSVGWithReceipt(source, options)
     const parsed = parseRegisteredMermaid(source)
@@ -108,7 +105,7 @@ describe('Class layout backends', () => {
     expect(rendered.receipt.layoutCertification?.status).toBe('passed')
   })
 
-  test.each((['agentic', 'elk'] as const).flatMap(backend => ['TB', 'BT', 'LR', 'RL'].map(direction => ({ backend, direction }))))('nested caption seats retain authored meaning and final contacts: $backend $direction', ({ backend, direction }) => {
+  test.each((['agentic', 'elk', 'trinity'] as const).flatMap(backend => ['TB', 'BT', 'LR', 'RL'].map(direction => ({ backend, direction }))))('nested caption seats retain authored meaning and final contacts: $backend $direction', ({ backend, direction }) => {
     const source = "classDiagram\ndirection DIRECTION\nnamespace Root {\n class Gateway {\n  +String key\n }\n namespace Domain {\n  class Draft {\n   +String token\n  }\n  class Sink {\n   +String id\n  }\n }\n}\nGateway \"1\" *-- Draft : opens\nGateway \"*\" ..> Sink : submits\nDraft \"1\" --> Sink : commits\nSink \"0..1\" ..|> Sink : retries\nnote for Gateway \"Keep authored Gateway note\"".replace('DIRECTION', direction)
     const result = renderMermaidSVGWithReceipt(source, { graphLayout: { backend, fallback: 'none' } })
     const boxes = new Map<string, Record<string, string>>(), frames = new Map<string, Record<string, string>>(), namespaces: Array<[string, string | undefined]> = [], carriers: Array<Record<string, string>> = [], textPrograms: Array<{ text: string; attrs: Record<string, string> }> = []
