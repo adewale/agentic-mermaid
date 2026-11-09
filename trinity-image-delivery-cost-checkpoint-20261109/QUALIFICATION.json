@@ -1,0 +1,1544 @@
+{
+  "parent": "e387064d03db1b3e909d9e114aa8aae8dd040d01",
+  "wholeBrowserCalls": 60,
+  "wholeProductsExact": true,
+  "uniqueProducts": 12,
+  "portfolio": [
+    {
+      "backend": "agentic",
+      "status": "passed",
+      "before": {
+        "backend": "agentic",
+        "status": "passed",
+        "requests": 50,
+        "totals": {
+          "raw": 1478139,
+          "gzip9": 489706,
+          "brotli11": 419788
+        },
+        "product": {
+          "raw": 1476669,
+          "gzip9": 488886,
+          "brotli11": 419125
+        },
+        "adapter": {
+          "raw": 1470,
+          "gzip9": 820,
+          "brotli11": 663
+        }
+      },
+      "after": {
+        "backend": "agentic",
+        "status": "passed",
+        "requests": 49,
+        "totals": {
+          "raw": 1477978,
+          "gzip9": 489543,
+          "brotli11": 419721
+        },
+        "product": {
+          "raw": 1476508,
+          "gzip9": 488723,
+          "brotli11": 419058
+        },
+        "adapter": {
+          "raw": 1470,
+          "gzip9": 820,
+          "brotli11": 663
+        }
+      },
+      "requestDelta": -1,
+      "productDelta": {
+        "raw": -161,
+        "gzip9": -163,
+        "brotli11": -67
+      }
+    },
+    {
+      "backend": "elk",
+      "status": "passed",
+      "before": {
+        "backend": "elk",
+        "status": "passed",
+        "requests": 44,
+        "totals": {
+          "raw": 2763235,
+          "gzip9": 861462,
+          "brotli11": 691359
+        },
+        "product": {
+          "raw": 2761769,
+          "gzip9": 860644,
+          "brotli11": 690694
+        },
+        "adapter": {
+          "raw": 1466,
+          "gzip9": 818,
+          "brotli11": 665
+        }
+      },
+      "after": {
+        "backend": "elk",
+        "status": "passed",
+        "requests": 43,
+        "totals": {
+          "raw": 2763023,
+          "gzip9": 861281,
+          "brotli11": 691315
+        },
+        "product": {
+          "raw": 2761557,
+          "gzip9": 860463,
+          "brotli11": 690650
+        },
+        "adapter": {
+          "raw": 1466,
+          "gzip9": 818,
+          "brotli11": 665
+        }
+      },
+      "requestDelta": -1,
+      "productDelta": {
+        "raw": -212,
+        "gzip9": -181,
+        "brotli11": -44
+      }
+    },
+    {
+      "backend": "trinity",
+      "status": "passed",
+      "before": {
+        "backend": "trinity",
+        "status": "passed",
+        "requests": 51,
+        "totals": {
+          "raw": 1459201,
+          "gzip9": 482990,
+          "brotli11": 413721
+        },
+        "product": {
+          "raw": 1457731,
+          "gzip9": 482171,
+          "brotli11": 413060
+        },
+        "adapter": {
+          "raw": 1470,
+          "gzip9": 819,
+          "brotli11": 661
+        }
+      },
+      "after": {
+        "backend": "trinity",
+        "status": "passed",
+        "requests": 50,
+        "totals": {
+          "raw": 1458956,
+          "gzip9": 482799,
+          "brotli11": 413655
+        },
+        "product": {
+          "raw": 1457486,
+          "gzip9": 481980,
+          "brotli11": 412994
+        },
+        "adapter": {
+          "raw": 1470,
+          "gzip9": 819,
+          "brotli11": 661
+        }
+      },
+      "requestDelta": -1,
+      "productDelta": {
+        "raw": -245,
+        "gzip9": -191,
+        "brotli11": -66
+      }
+    }
+  ],
+  "sequence": [
+    {
+      "backend": "agentic",
+      "before": {
+        "backend": "agentic",
+        "status": "passed",
+        "requests": 15,
+        "totals": {
+          "raw": 707085,
+          "gzip9": 227400,
+          "brotli11": 189439
+        },
+        "product": {
+          "raw": 705615,
+          "gzip9": 226580,
+          "brotli11": 188776
+        },
+        "adapter": {
+          "raw": 1470,
+          "gzip9": 820,
+          "brotli11": 663
+        }
+      },
+      "after": {
+        "backend": "agentic",
+        "status": "passed",
+        "requests": 15,
+        "totals": {
+          "raw": 707083,
+          "gzip9": 227398,
+          "brotli11": 189461
+        },
+        "product": {
+          "raw": 705613,
+          "gzip9": 226578,
+          "brotli11": 188798
+        },
+        "adapter": {
+          "raw": 1470,
+          "gzip9": 820,
+          "brotli11": 663
+        }
+      },
+      "requestDelta": 0,
+      "productDelta": {
+        "raw": -2,
+        "gzip9": -2,
+        "brotli11": 22
+      }
+    },
+    {
+      "backend": "elk",
+      "before": {
+        "backend": "elk",
+        "status": "passed",
+        "requests": 15,
+        "totals": {
+          "raw": 707081,
+          "gzip9": 227398,
+          "brotli11": 189441
+        },
+        "product": {
+          "raw": 705615,
+          "gzip9": 226580,
+          "brotli11": 188776
+        },
+        "adapter": {
+          "raw": 1466,
+          "gzip9": 818,
+          "brotli11": 665
+        }
+      },
+      "after": {
+        "backend": "elk",
+        "status": "passed",
+        "requests": 15,
+        "totals": {
+          "raw": 707079,
+          "gzip9": 227396,
+          "brotli11": 189463
+        },
+        "product": {
+          "raw": 705613,
+          "gzip9": 226578,
+          "brotli11": 188798
+        },
+        "adapter": {
+          "raw": 1466,
+          "gzip9": 818,
+          "brotli11": 665
+        }
+      },
+      "requestDelta": 0,
+      "productDelta": {
+        "raw": -2,
+        "gzip9": -2,
+        "brotli11": 22
+      }
+    },
+    {
+      "backend": "trinity",
+      "before": {
+        "backend": "trinity",
+        "status": "passed",
+        "requests": 15,
+        "totals": {
+          "raw": 707085,
+          "gzip9": 227399,
+          "brotli11": 189437
+        },
+        "product": {
+          "raw": 705615,
+          "gzip9": 226580,
+          "brotli11": 188776
+        },
+        "adapter": {
+          "raw": 1470,
+          "gzip9": 819,
+          "brotli11": 661
+        }
+      },
+      "after": {
+        "backend": "trinity",
+        "status": "passed",
+        "requests": 15,
+        "totals": {
+          "raw": 707083,
+          "gzip9": 227397,
+          "brotli11": 189459
+        },
+        "product": {
+          "raw": 705613,
+          "gzip9": 226578,
+          "brotli11": 188798
+        },
+        "adapter": {
+          "raw": 1470,
+          "gzip9": 819,
+          "brotli11": 661
+        }
+      },
+      "requestDelta": 0,
+      "productDelta": {
+        "raw": -2,
+        "gzip9": -2,
+        "brotli11": 22
+      }
+    }
+  ],
+  "owningTests": 18,
+  "owningFiles": 2,
+  "repoTypes": "passed",
+  "lint": "passed",
+  "scope": "Private lazy-browser packaging only; runtime Source/Node/IIFE unchanged. Actual production measurements, not external trial forecasts. Initial4requests/raw/Brotli unchanged; initialgzip+2. No latency or visible-layout gain; baseline/candidate products are validation. Same full consumers, no cap/default/version/cache change.",
+  "source": "60d02d4b6e0dce15bc03d6f38e5c157743b2b787",
+  "packagingCommit": "68adacae141bd00c48e7b611894cbe7959cf721a",
+  "combinedWholeBrowser": {
+    "calls": 60,
+    "uniqueProducts": 12,
+    "wholeSvgAndReceiptExact": true,
+    "scope": "Actual published baseline and guarded-production lazy products in Chromium. Fresh contexts, Sequence-first/Flowchart-first plus interleaved edits/repeats,3explicit graph backends. Initial/final fetched product bytes compressed offline, no latency or wire claim. Runtime equivalence validation, not new layout/visible progress.",
+    "rows": [
+      {
+        "arm": "baseline",
+        "first": "image",
+        "backend": "elk",
+        "calls": [
+          {
+            "name": "image",
+            "bytes": 11202,
+            "sha256": "135aa4cf8f288e03f654b86e3a69e95a4677f445ca1423fb0dee9a4a3063724e",
+            "proof": "unverified"
+          },
+          {
+            "name": "sequence",
+            "bytes": 12688,
+            "sha256": "40154698d91a79de68eafe5a8b6b012b06d087dd11f4355edfd7d9a29f2e6a37",
+            "proof": "passed"
+          },
+          {
+            "name": "imageEdit",
+            "bytes": 11245,
+            "sha256": "e992a7f1e8cdb2bcc1e9ecf75f68d438cea7c22ce9a7ae7d2205c84209456c71",
+            "proof": "unverified"
+          },
+          {
+            "name": "sequenceEdit",
+            "bytes": 12712,
+            "sha256": "dcea9b5daa4219c9f8ae222d7860d4f830e2347ff5a031f7f3abde3ac41c4c76",
+            "proof": "passed"
+          },
+          {
+            "name": "image",
+            "bytes": 11202,
+            "sha256": "135aa4cf8f288e03f654b86e3a69e95a4677f445ca1423fb0dee9a4a3063724e",
+            "proof": "unverified"
+          }
+        ],
+        "initial": {
+          "requests": 4,
+          "raw": 16473,
+          "gzip9": 6229,
+          "brotli11": 5547
+        },
+        "final": {
+          "requests": 34,
+          "raw": 2609231,
+          "gzip9": 807608,
+          "brotli11": 644985
+        },
+        "initialFiles": [
+          "/baseline/index.js",
+          "/baseline/chunks/chunk-O4WXINVK.js",
+          "/baseline/chunks/chunk-D7ACEPSO.js",
+          "/baseline/chunks/chunk-SC76MUQ3.js"
+        ],
+        "allFiles": [
+          "/baseline/index.js",
+          "/baseline/chunks/chunk-O4WXINVK.js",
+          "/baseline/chunks/chunk-D7ACEPSO.js",
+          "/baseline/chunks/chunk-SC76MUQ3.js",
+          "/baseline/chunks/flowchart-JNZOUZF2.js",
+          "/baseline/chunks/render-core-YXONVNH7.js",
+          "/baseline/chunks/chunk-4F3ED516.js",
+          "/baseline/chunks/chunk-CDC4GQBX.js",
+          "/baseline/chunks/chunk-OGB2YZWM.js",
+          "/baseline/chunks/chunk-H3IMTOWD.js",
+          "/baseline/chunks/chunk-ONPHZOPS.js",
+          "/baseline/chunks/chunk-CDZONUKG.js",
+          "/baseline/chunks/chunk-WK73PG2T.js",
+          "/baseline/chunks/chunk-3XOFOLTY.js",
+          "/baseline/chunks/chunk-M6KDGC5M.js",
+          "/baseline/chunks/chunk-NK4VGRCA.js",
+          "/baseline/chunks/chunk-M2ECW2B7.js",
+          "/baseline/chunks/chunk-UQ7GTNSR.js",
+          "/baseline/chunks/chunk-CLWWU6PK.js",
+          "/baseline/chunks/chunk-MGYW36HC.js",
+          "/baseline/chunks/chunk-7WYEZDAV.js",
+          "/baseline/chunks/chunk-SOIFV6JT.js",
+          "/baseline/chunks/chunk-TXALF2FK.js",
+          "/baseline/chunks/chunk-5NAM3ZVP.js",
+          "/baseline/chunks/chunk-7X62GRYO.js",
+          "/baseline/chunks/chunk-76GW7X6V.js",
+          "/baseline/chunks/chunk-HY6PLF2R.js",
+          "/baseline/chunks/chunk-2RJINTCO.js",
+          "/baseline/chunks/chunk-T3RBYG26.js",
+          "/baseline/chunks/mermaid-yaml-runtime-EDAWOZLW.js",
+          "/baseline/chunks/elk.bundled-X5K4KOFH.js",
+          "/baseline/chunks/sequence-PC23MV3S.js",
+          "/baseline/chunks/chunk-VP62UAHT.js",
+          "/baseline/chunks/chunk-NNFEZJAB.js"
+        ]
+      },
+      {
+        "arm": "baseline",
+        "first": "image",
+        "backend": "agentic",
+        "calls": [
+          {
+            "name": "image",
+            "bytes": 11219,
+            "sha256": "1f9506b19b7a1afc4617e96394a50cfc57d87ccd2307cdd5350319e6a43ca3a4",
+            "proof": "unverified"
+          },
+          {
+            "name": "sequence",
+            "bytes": 12688,
+            "sha256": "6ba4d9f54999eac84cf7aa4204c903efed0d9beea19914e4c271e72f42b7044e",
+            "proof": "passed"
+          },
+          {
+            "name": "imageEdit",
+            "bytes": 11262,
+            "sha256": "68faf37be65fa489a5b50f1fb6c3083da2eec87fcb03bd47e16ba7913090a853",
+            "proof": "unverified"
+          },
+          {
+            "name": "sequenceEdit",
+            "bytes": 12712,
+            "sha256": "e269cb5a3370e90f47ab1f7e236a72f360a5b644fc5bdaa601573078e04dd0a6",
+            "proof": "passed"
+          },
+          {
+            "name": "image",
+            "bytes": 11219,
+            "sha256": "1f9506b19b7a1afc4617e96394a50cfc57d87ccd2307cdd5350319e6a43ca3a4",
+            "proof": "unverified"
+          }
+        ],
+        "initial": {
+          "requests": 4,
+          "raw": 16473,
+          "gzip9": 6229,
+          "brotli11": 5547
+        },
+        "final": {
+          "requests": 43,
+          "raw": 1345461,
+          "gzip9": 443146,
+          "brotli11": 379793
+        },
+        "initialFiles": [
+          "/baseline/index.js",
+          "/baseline/chunks/chunk-O4WXINVK.js",
+          "/baseline/chunks/chunk-D7ACEPSO.js",
+          "/baseline/chunks/chunk-SC76MUQ3.js"
+        ],
+        "allFiles": [
+          "/baseline/index.js",
+          "/baseline/chunks/chunk-O4WXINVK.js",
+          "/baseline/chunks/chunk-D7ACEPSO.js",
+          "/baseline/chunks/chunk-SC76MUQ3.js",
+          "/baseline/chunks/flowchart-JNZOUZF2.js",
+          "/baseline/chunks/render-core-YXONVNH7.js",
+          "/baseline/chunks/chunk-CDC4GQBX.js",
+          "/baseline/chunks/chunk-OGB2YZWM.js",
+          "/baseline/chunks/chunk-H3IMTOWD.js",
+          "/baseline/chunks/chunk-ONPHZOPS.js",
+          "/baseline/chunks/chunk-CDZONUKG.js",
+          "/baseline/chunks/chunk-WK73PG2T.js",
+          "/baseline/chunks/chunk-3XOFOLTY.js",
+          "/baseline/chunks/chunk-M6KDGC5M.js",
+          "/baseline/chunks/chunk-NK4VGRCA.js",
+          "/baseline/chunks/chunk-M2ECW2B7.js",
+          "/baseline/chunks/chunk-UQ7GTNSR.js",
+          "/baseline/chunks/chunk-CLWWU6PK.js",
+          "/baseline/chunks/chunk-MGYW36HC.js",
+          "/baseline/chunks/chunk-7WYEZDAV.js",
+          "/baseline/chunks/chunk-SOIFV6JT.js",
+          "/baseline/chunks/chunk-TXALF2FK.js",
+          "/baseline/chunks/chunk-5NAM3ZVP.js",
+          "/baseline/chunks/chunk-7X62GRYO.js",
+          "/baseline/chunks/chunk-76GW7X6V.js",
+          "/baseline/chunks/chunk-HY6PLF2R.js",
+          "/baseline/chunks/chunk-2RJINTCO.js",
+          "/baseline/chunks/chunk-T3RBYG26.js",
+          "/baseline/chunks/chunk-4F3ED516.js",
+          "/baseline/chunks/mermaid-yaml-runtime-EDAWOZLW.js",
+          "/baseline/chunks/agentic-producer-core-K7QC7OPQ.js",
+          "/baseline/chunks/forest-implementation-WIZWGTIE.js",
+          "/baseline/chunks/chunk-IH2QCKZZ.js",
+          "/baseline/chunks/chunk-PO6KADB5.js",
+          "/baseline/chunks/chunk-2U44HTJ7.js",
+          "/baseline/chunks/chunk-NU4JOU63.js",
+          "/baseline/chunks/chunk-ORVTZKXJ.js",
+          "/baseline/chunks/chunk-KEWV42PL.js",
+          "/baseline/chunks/chunk-GLWQRVMW.js",
+          "/baseline/chunks/chunk-JVFVBEG7.js",
+          "/baseline/chunks/sequence-PC23MV3S.js",
+          "/baseline/chunks/chunk-VP62UAHT.js",
+          "/baseline/chunks/chunk-NNFEZJAB.js"
+        ]
+      },
+      {
+        "arm": "baseline",
+        "first": "image",
+        "backend": "trinity",
+        "calls": [
+          {
+            "name": "image",
+            "bytes": 11240,
+            "sha256": "521efca665e0def291d696a50026b509be539e6ef2091f81b84360a6651038e3",
+            "proof": "unverified"
+          },
+          {
+            "name": "sequence",
+            "bytes": 12688,
+            "sha256": "70118f109857c00b74b81ed7b14e19737119f8e149b69da583341a3c6bd62840",
+            "proof": "passed"
+          },
+          {
+            "name": "imageEdit",
+            "bytes": 11263,
+            "sha256": "d84bceed62a9c96092b51507358dc68b4ffd22ad3c44d82b2d9ab0ae616ba753",
+            "proof": "unverified"
+          },
+          {
+            "name": "sequenceEdit",
+            "bytes": 12712,
+            "sha256": "21108086cd067f62b4c4b06ff5e7c83518781c3d22a9c3fb37c3c0bd31ec1222",
+            "proof": "passed"
+          },
+          {
+            "name": "image",
+            "bytes": 11240,
+            "sha256": "521efca665e0def291d696a50026b509be539e6ef2091f81b84360a6651038e3",
+            "proof": "unverified"
+          }
+        ],
+        "initial": {
+          "requests": 4,
+          "raw": 16473,
+          "gzip9": 6229,
+          "brotli11": 5547
+        },
+        "final": {
+          "requests": 45,
+          "raw": 1328355,
+          "gzip9": 437093,
+          "brotli11": 374294
+        },
+        "initialFiles": [
+          "/baseline/index.js",
+          "/baseline/chunks/chunk-O4WXINVK.js",
+          "/baseline/chunks/chunk-D7ACEPSO.js",
+          "/baseline/chunks/chunk-SC76MUQ3.js"
+        ],
+        "allFiles": [
+          "/baseline/index.js",
+          "/baseline/chunks/chunk-O4WXINVK.js",
+          "/baseline/chunks/chunk-D7ACEPSO.js",
+          "/baseline/chunks/chunk-SC76MUQ3.js",
+          "/baseline/chunks/flowchart-JNZOUZF2.js",
+          "/baseline/chunks/render-core-YXONVNH7.js",
+          "/baseline/chunks/chunk-CDC4GQBX.js",
+          "/baseline/chunks/chunk-OGB2YZWM.js",
+          "/baseline/chunks/chunk-H3IMTOWD.js",
+          "/baseline/chunks/chunk-ONPHZOPS.js",
+          "/baseline/chunks/chunk-CDZONUKG.js",
+          "/baseline/chunks/chunk-WK73PG2T.js",
+          "/baseline/chunks/chunk-3XOFOLTY.js",
+          "/baseline/chunks/chunk-M6KDGC5M.js",
+          "/baseline/chunks/chunk-NK4VGRCA.js",
+          "/baseline/chunks/chunk-M2ECW2B7.js",
+          "/baseline/chunks/chunk-UQ7GTNSR.js",
+          "/baseline/chunks/chunk-CLWWU6PK.js",
+          "/baseline/chunks/chunk-MGYW36HC.js",
+          "/baseline/chunks/chunk-7WYEZDAV.js",
+          "/baseline/chunks/chunk-SOIFV6JT.js",
+          "/baseline/chunks/chunk-TXALF2FK.js",
+          "/baseline/chunks/chunk-5NAM3ZVP.js",
+          "/baseline/chunks/chunk-7X62GRYO.js",
+          "/baseline/chunks/chunk-76GW7X6V.js",
+          "/baseline/chunks/chunk-HY6PLF2R.js",
+          "/baseline/chunks/chunk-2RJINTCO.js",
+          "/baseline/chunks/chunk-T3RBYG26.js",
+          "/baseline/chunks/chunk-4F3ED516.js",
+          "/baseline/chunks/mermaid-yaml-runtime-EDAWOZLW.js",
+          "/baseline/chunks/trinity-producer-I2JPDEJS.js",
+          "/baseline/chunks/trinity-DTFDPVYF.js",
+          "/baseline/chunks/chunk-2U44HTJ7.js",
+          "/baseline/chunks/chunk-JDTWQUJO.js",
+          "/baseline/chunks/chunk-NBHHPERM.js",
+          "/baseline/chunks/chunk-NU4JOU63.js",
+          "/baseline/chunks/chunk-ORVTZKXJ.js",
+          "/baseline/chunks/chunk-IH2QCKZZ.js",
+          "/baseline/chunks/chunk-PO6KADB5.js",
+          "/baseline/chunks/chunk-KEWV42PL.js",
+          "/baseline/chunks/chunk-GLWQRVMW.js",
+          "/baseline/chunks/chunk-JVFVBEG7.js",
+          "/baseline/chunks/sequence-PC23MV3S.js",
+          "/baseline/chunks/chunk-VP62UAHT.js",
+          "/baseline/chunks/chunk-NNFEZJAB.js"
+        ]
+      },
+      {
+        "arm": "baseline",
+        "first": "sequence",
+        "backend": "elk",
+        "calls": [
+          {
+            "name": "sequence",
+            "bytes": 12688,
+            "sha256": "40154698d91a79de68eafe5a8b6b012b06d087dd11f4355edfd7d9a29f2e6a37",
+            "proof": "passed"
+          },
+          {
+            "name": "image",
+            "bytes": 11202,
+            "sha256": "135aa4cf8f288e03f654b86e3a69e95a4677f445ca1423fb0dee9a4a3063724e",
+            "proof": "unverified"
+          },
+          {
+            "name": "imageEdit",
+            "bytes": 11245,
+            "sha256": "e992a7f1e8cdb2bcc1e9ecf75f68d438cea7c22ce9a7ae7d2205c84209456c71",
+            "proof": "unverified"
+          },
+          {
+            "name": "sequenceEdit",
+            "bytes": 12712,
+            "sha256": "dcea9b5daa4219c9f8ae222d7860d4f830e2347ff5a031f7f3abde3ac41c4c76",
+            "proof": "passed"
+          },
+          {
+            "name": "image",
+            "bytes": 11202,
+            "sha256": "135aa4cf8f288e03f654b86e3a69e95a4677f445ca1423fb0dee9a4a3063724e",
+            "proof": "unverified"
+          }
+        ],
+        "initial": {
+          "requests": 4,
+          "raw": 16473,
+          "gzip9": 6229,
+          "brotli11": 5547
+        },
+        "final": {
+          "requests": 34,
+          "raw": 2609231,
+          "gzip9": 807608,
+          "brotli11": 644985
+        },
+        "initialFiles": [
+          "/baseline/index.js",
+          "/baseline/chunks/chunk-O4WXINVK.js",
+          "/baseline/chunks/chunk-D7ACEPSO.js",
+          "/baseline/chunks/chunk-SC76MUQ3.js"
+        ],
+        "allFiles": [
+          "/baseline/index.js",
+          "/baseline/chunks/chunk-O4WXINVK.js",
+          "/baseline/chunks/chunk-D7ACEPSO.js",
+          "/baseline/chunks/chunk-SC76MUQ3.js",
+          "/baseline/chunks/sequence-PC23MV3S.js",
+          "/baseline/chunks/render-core-YXONVNH7.js",
+          "/baseline/chunks/chunk-VP62UAHT.js",
+          "/baseline/chunks/chunk-CDC4GQBX.js",
+          "/baseline/chunks/chunk-OGB2YZWM.js",
+          "/baseline/chunks/chunk-H3IMTOWD.js",
+          "/baseline/chunks/chunk-NNFEZJAB.js",
+          "/baseline/chunks/chunk-MGYW36HC.js",
+          "/baseline/chunks/chunk-4F3ED516.js",
+          "/baseline/chunks/flowchart-JNZOUZF2.js",
+          "/baseline/chunks/chunk-ONPHZOPS.js",
+          "/baseline/chunks/chunk-CDZONUKG.js",
+          "/baseline/chunks/chunk-WK73PG2T.js",
+          "/baseline/chunks/chunk-3XOFOLTY.js",
+          "/baseline/chunks/chunk-M6KDGC5M.js",
+          "/baseline/chunks/chunk-NK4VGRCA.js",
+          "/baseline/chunks/chunk-M2ECW2B7.js",
+          "/baseline/chunks/chunk-UQ7GTNSR.js",
+          "/baseline/chunks/chunk-CLWWU6PK.js",
+          "/baseline/chunks/chunk-7WYEZDAV.js",
+          "/baseline/chunks/chunk-SOIFV6JT.js",
+          "/baseline/chunks/chunk-TXALF2FK.js",
+          "/baseline/chunks/chunk-5NAM3ZVP.js",
+          "/baseline/chunks/chunk-7X62GRYO.js",
+          "/baseline/chunks/chunk-76GW7X6V.js",
+          "/baseline/chunks/chunk-HY6PLF2R.js",
+          "/baseline/chunks/chunk-2RJINTCO.js",
+          "/baseline/chunks/chunk-T3RBYG26.js",
+          "/baseline/chunks/mermaid-yaml-runtime-EDAWOZLW.js",
+          "/baseline/chunks/elk.bundled-X5K4KOFH.js"
+        ]
+      },
+      {
+        "arm": "baseline",
+        "first": "sequence",
+        "backend": "agentic",
+        "calls": [
+          {
+            "name": "sequence",
+            "bytes": 12688,
+            "sha256": "6ba4d9f54999eac84cf7aa4204c903efed0d9beea19914e4c271e72f42b7044e",
+            "proof": "passed"
+          },
+          {
+            "name": "image",
+            "bytes": 11219,
+            "sha256": "1f9506b19b7a1afc4617e96394a50cfc57d87ccd2307cdd5350319e6a43ca3a4",
+            "proof": "unverified"
+          },
+          {
+            "name": "imageEdit",
+            "bytes": 11262,
+            "sha256": "68faf37be65fa489a5b50f1fb6c3083da2eec87fcb03bd47e16ba7913090a853",
+            "proof": "unverified"
+          },
+          {
+            "name": "sequenceEdit",
+            "bytes": 12712,
+            "sha256": "e269cb5a3370e90f47ab1f7e236a72f360a5b644fc5bdaa601573078e04dd0a6",
+            "proof": "passed"
+          },
+          {
+            "name": "image",
+            "bytes": 11219,
+            "sha256": "1f9506b19b7a1afc4617e96394a50cfc57d87ccd2307cdd5350319e6a43ca3a4",
+            "proof": "unverified"
+          }
+        ],
+        "initial": {
+          "requests": 4,
+          "raw": 16473,
+          "gzip9": 6229,
+          "brotli11": 5547
+        },
+        "final": {
+          "requests": 43,
+          "raw": 1345461,
+          "gzip9": 443146,
+          "brotli11": 379793
+        },
+        "initialFiles": [
+          "/baseline/index.js",
+          "/baseline/chunks/chunk-O4WXINVK.js",
+          "/baseline/chunks/chunk-D7ACEPSO.js",
+          "/baseline/chunks/chunk-SC76MUQ3.js"
+        ],
+        "allFiles": [
+          "/baseline/index.js",
+          "/baseline/chunks/chunk-O4WXINVK.js",
+          "/baseline/chunks/chunk-D7ACEPSO.js",
+          "/baseline/chunks/chunk-SC76MUQ3.js",
+          "/baseline/chunks/sequence-PC23MV3S.js",
+          "/baseline/chunks/render-core-YXONVNH7.js",
+          "/baseline/chunks/chunk-VP62UAHT.js",
+          "/baseline/chunks/chunk-CDC4GQBX.js",
+          "/baseline/chunks/chunk-OGB2YZWM.js",
+          "/baseline/chunks/chunk-H3IMTOWD.js",
+          "/baseline/chunks/chunk-NNFEZJAB.js",
+          "/baseline/chunks/chunk-MGYW36HC.js",
+          "/baseline/chunks/chunk-4F3ED516.js",
+          "/baseline/chunks/flowchart-JNZOUZF2.js",
+          "/baseline/chunks/chunk-ONPHZOPS.js",
+          "/baseline/chunks/chunk-CDZONUKG.js",
+          "/baseline/chunks/chunk-WK73PG2T.js",
+          "/baseline/chunks/chunk-3XOFOLTY.js",
+          "/baseline/chunks/chunk-M6KDGC5M.js",
+          "/baseline/chunks/chunk-NK4VGRCA.js",
+          "/baseline/chunks/chunk-M2ECW2B7.js",
+          "/baseline/chunks/chunk-UQ7GTNSR.js",
+          "/baseline/chunks/chunk-CLWWU6PK.js",
+          "/baseline/chunks/chunk-7WYEZDAV.js",
+          "/baseline/chunks/chunk-SOIFV6JT.js",
+          "/baseline/chunks/chunk-TXALF2FK.js",
+          "/baseline/chunks/chunk-5NAM3ZVP.js",
+          "/baseline/chunks/chunk-7X62GRYO.js",
+          "/baseline/chunks/chunk-76GW7X6V.js",
+          "/baseline/chunks/chunk-HY6PLF2R.js",
+          "/baseline/chunks/chunk-2RJINTCO.js",
+          "/baseline/chunks/chunk-T3RBYG26.js",
+          "/baseline/chunks/mermaid-yaml-runtime-EDAWOZLW.js",
+          "/baseline/chunks/agentic-producer-core-K7QC7OPQ.js",
+          "/baseline/chunks/forest-implementation-WIZWGTIE.js",
+          "/baseline/chunks/chunk-IH2QCKZZ.js",
+          "/baseline/chunks/chunk-PO6KADB5.js",
+          "/baseline/chunks/chunk-2U44HTJ7.js",
+          "/baseline/chunks/chunk-NU4JOU63.js",
+          "/baseline/chunks/chunk-ORVTZKXJ.js",
+          "/baseline/chunks/chunk-KEWV42PL.js",
+          "/baseline/chunks/chunk-GLWQRVMW.js",
+          "/baseline/chunks/chunk-JVFVBEG7.js"
+        ]
+      },
+      {
+        "arm": "baseline",
+        "first": "sequence",
+        "backend": "trinity",
+        "calls": [
+          {
+            "name": "sequence",
+            "bytes": 12688,
+            "sha256": "70118f109857c00b74b81ed7b14e19737119f8e149b69da583341a3c6bd62840",
+            "proof": "passed"
+          },
+          {
+            "name": "image",
+            "bytes": 11240,
+            "sha256": "521efca665e0def291d696a50026b509be539e6ef2091f81b84360a6651038e3",
+            "proof": "unverified"
+          },
+          {
+            "name": "imageEdit",
+            "bytes": 11263,
+            "sha256": "d84bceed62a9c96092b51507358dc68b4ffd22ad3c44d82b2d9ab0ae616ba753",
+            "proof": "unverified"
+          },
+          {
+            "name": "sequenceEdit",
+            "bytes": 12712,
+            "sha256": "21108086cd067f62b4c4b06ff5e7c83518781c3d22a9c3fb37c3c0bd31ec1222",
+            "proof": "passed"
+          },
+          {
+            "name": "image",
+            "bytes": 11240,
+            "sha256": "521efca665e0def291d696a50026b509be539e6ef2091f81b84360a6651038e3",
+            "proof": "unverified"
+          }
+        ],
+        "initial": {
+          "requests": 4,
+          "raw": 16473,
+          "gzip9": 6229,
+          "brotli11": 5547
+        },
+        "final": {
+          "requests": 45,
+          "raw": 1328355,
+          "gzip9": 437093,
+          "brotli11": 374294
+        },
+        "initialFiles": [
+          "/baseline/index.js",
+          "/baseline/chunks/chunk-O4WXINVK.js",
+          "/baseline/chunks/chunk-D7ACEPSO.js",
+          "/baseline/chunks/chunk-SC76MUQ3.js"
+        ],
+        "allFiles": [
+          "/baseline/index.js",
+          "/baseline/chunks/chunk-O4WXINVK.js",
+          "/baseline/chunks/chunk-D7ACEPSO.js",
+          "/baseline/chunks/chunk-SC76MUQ3.js",
+          "/baseline/chunks/sequence-PC23MV3S.js",
+          "/baseline/chunks/render-core-YXONVNH7.js",
+          "/baseline/chunks/chunk-VP62UAHT.js",
+          "/baseline/chunks/chunk-CDC4GQBX.js",
+          "/baseline/chunks/chunk-OGB2YZWM.js",
+          "/baseline/chunks/chunk-H3IMTOWD.js",
+          "/baseline/chunks/chunk-NNFEZJAB.js",
+          "/baseline/chunks/chunk-MGYW36HC.js",
+          "/baseline/chunks/chunk-4F3ED516.js",
+          "/baseline/chunks/flowchart-JNZOUZF2.js",
+          "/baseline/chunks/chunk-ONPHZOPS.js",
+          "/baseline/chunks/chunk-CDZONUKG.js",
+          "/baseline/chunks/chunk-WK73PG2T.js",
+          "/baseline/chunks/chunk-3XOFOLTY.js",
+          "/baseline/chunks/chunk-M6KDGC5M.js",
+          "/baseline/chunks/chunk-NK4VGRCA.js",
+          "/baseline/chunks/chunk-M2ECW2B7.js",
+          "/baseline/chunks/chunk-UQ7GTNSR.js",
+          "/baseline/chunks/chunk-CLWWU6PK.js",
+          "/baseline/chunks/chunk-7WYEZDAV.js",
+          "/baseline/chunks/chunk-SOIFV6JT.js",
+          "/baseline/chunks/chunk-TXALF2FK.js",
+          "/baseline/chunks/chunk-5NAM3ZVP.js",
+          "/baseline/chunks/chunk-7X62GRYO.js",
+          "/baseline/chunks/chunk-76GW7X6V.js",
+          "/baseline/chunks/chunk-HY6PLF2R.js",
+          "/baseline/chunks/chunk-2RJINTCO.js",
+          "/baseline/chunks/chunk-T3RBYG26.js",
+          "/baseline/chunks/mermaid-yaml-runtime-EDAWOZLW.js",
+          "/baseline/chunks/trinity-producer-I2JPDEJS.js",
+          "/baseline/chunks/trinity-DTFDPVYF.js",
+          "/baseline/chunks/chunk-2U44HTJ7.js",
+          "/baseline/chunks/chunk-JDTWQUJO.js",
+          "/baseline/chunks/chunk-NBHHPERM.js",
+          "/baseline/chunks/chunk-NU4JOU63.js",
+          "/baseline/chunks/chunk-ORVTZKXJ.js",
+          "/baseline/chunks/chunk-IH2QCKZZ.js",
+          "/baseline/chunks/chunk-PO6KADB5.js",
+          "/baseline/chunks/chunk-KEWV42PL.js",
+          "/baseline/chunks/chunk-GLWQRVMW.js",
+          "/baseline/chunks/chunk-JVFVBEG7.js"
+        ]
+      },
+      {
+        "arm": "candidate",
+        "first": "image",
+        "backend": "elk",
+        "calls": [
+          {
+            "name": "image",
+            "bytes": 11202,
+            "sha256": "135aa4cf8f288e03f654b86e3a69e95a4677f445ca1423fb0dee9a4a3063724e",
+            "proof": "unverified"
+          },
+          {
+            "name": "sequence",
+            "bytes": 12688,
+            "sha256": "40154698d91a79de68eafe5a8b6b012b06d087dd11f4355edfd7d9a29f2e6a37",
+            "proof": "passed"
+          },
+          {
+            "name": "imageEdit",
+            "bytes": 11245,
+            "sha256": "e992a7f1e8cdb2bcc1e9ecf75f68d438cea7c22ce9a7ae7d2205c84209456c71",
+            "proof": "unverified"
+          },
+          {
+            "name": "sequenceEdit",
+            "bytes": 12712,
+            "sha256": "dcea9b5daa4219c9f8ae222d7860d4f830e2347ff5a031f7f3abde3ac41c4c76",
+            "proof": "passed"
+          },
+          {
+            "name": "image",
+            "bytes": 11202,
+            "sha256": "135aa4cf8f288e03f654b86e3a69e95a4677f445ca1423fb0dee9a4a3063724e",
+            "proof": "unverified"
+          }
+        ],
+        "initial": {
+          "requests": 4,
+          "raw": 16473,
+          "gzip9": 6231,
+          "brotli11": 5551
+        },
+        "final": {
+          "requests": 33,
+          "raw": 2609230,
+          "gzip9": 807446,
+          "brotli11": 644923
+        },
+        "initialFiles": [
+          "/candidate/index.js",
+          "/candidate/chunks/chunk-O4WXINVK.js",
+          "/candidate/chunks/chunk-D7ACEPSO.js",
+          "/candidate/chunks/chunk-SC76MUQ3.js"
+        ],
+        "allFiles": [
+          "/candidate/index.js",
+          "/candidate/chunks/chunk-O4WXINVK.js",
+          "/candidate/chunks/chunk-D7ACEPSO.js",
+          "/candidate/chunks/chunk-SC76MUQ3.js",
+          "/candidate/chunks/flowchart-P74UD75O.js",
+          "/candidate/chunks/render-core-CPZ5A6JB.js",
+          "/candidate/chunks/chunk-B3DEFF86.js",
+          "/candidate/chunks/chunk-CDC4GQBX.js",
+          "/candidate/chunks/chunk-OGB2YZWM.js",
+          "/candidate/chunks/chunk-RORDWKTE.js",
+          "/candidate/chunks/chunk-XQME22EH.js",
+          "/candidate/chunks/chunk-NFBHWDWY.js",
+          "/candidate/chunks/chunk-AGIKUPED.js",
+          "/candidate/chunks/chunk-UFTSGO6P.js",
+          "/candidate/chunks/chunk-OX4HHMGV.js",
+          "/candidate/chunks/chunk-DZSBLFVU.js",
+          "/candidate/chunks/chunk-TDWU7Y2N.js",
+          "/candidate/chunks/chunk-UQ7GTNSR.js",
+          "/candidate/chunks/chunk-CLWWU6PK.js",
+          "/candidate/chunks/chunk-BJFFKZKC.js",
+          "/candidate/chunks/chunk-7WYEZDAV.js",
+          "/candidate/chunks/chunk-3CP5HVWH.js",
+          "/candidate/chunks/chunk-2XBQ27SZ.js",
+          "/candidate/chunks/chunk-TXALF2FK.js",
+          "/candidate/chunks/chunk-WPX7GTT7.js",
+          "/candidate/chunks/chunk-7X62GRYO.js",
+          "/candidate/chunks/chunk-O6JTREVE.js",
+          "/candidate/chunks/chunk-T3RBYG26.js",
+          "/candidate/chunks/mermaid-yaml-runtime-EDAWOZLW.js",
+          "/candidate/chunks/elk.bundled-X5K4KOFH.js",
+          "/candidate/chunks/sequence-6SDBBGTX.js",
+          "/candidate/chunks/chunk-WXGUXIOL.js",
+          "/candidate/chunks/chunk-PQQWXTBY.js"
+        ]
+      },
+      {
+        "arm": "candidate",
+        "first": "image",
+        "backend": "agentic",
+        "calls": [
+          {
+            "name": "image",
+            "bytes": 11219,
+            "sha256": "1f9506b19b7a1afc4617e96394a50cfc57d87ccd2307cdd5350319e6a43ca3a4",
+            "proof": "unverified"
+          },
+          {
+            "name": "sequence",
+            "bytes": 12688,
+            "sha256": "6ba4d9f54999eac84cf7aa4204c903efed0d9beea19914e4c271e72f42b7044e",
+            "proof": "passed"
+          },
+          {
+            "name": "imageEdit",
+            "bytes": 11262,
+            "sha256": "68faf37be65fa489a5b50f1fb6c3083da2eec87fcb03bd47e16ba7913090a853",
+            "proof": "unverified"
+          },
+          {
+            "name": "sequenceEdit",
+            "bytes": 12712,
+            "sha256": "e269cb5a3370e90f47ab1f7e236a72f360a5b644fc5bdaa601573078e04dd0a6",
+            "proof": "passed"
+          },
+          {
+            "name": "image",
+            "bytes": 11219,
+            "sha256": "1f9506b19b7a1afc4617e96394a50cfc57d87ccd2307cdd5350319e6a43ca3a4",
+            "proof": "unverified"
+          }
+        ],
+        "initial": {
+          "requests": 4,
+          "raw": 16473,
+          "gzip9": 6231,
+          "brotli11": 5551
+        },
+        "final": {
+          "requests": 42,
+          "raw": 1345511,
+          "gzip9": 443003,
+          "brotli11": 379705
+        },
+        "initialFiles": [
+          "/candidate/index.js",
+          "/candidate/chunks/chunk-O4WXINVK.js",
+          "/candidate/chunks/chunk-D7ACEPSO.js",
+          "/candidate/chunks/chunk-SC76MUQ3.js"
+        ],
+        "allFiles": [
+          "/candidate/index.js",
+          "/candidate/chunks/chunk-O4WXINVK.js",
+          "/candidate/chunks/chunk-D7ACEPSO.js",
+          "/candidate/chunks/chunk-SC76MUQ3.js",
+          "/candidate/chunks/flowchart-P74UD75O.js",
+          "/candidate/chunks/render-core-CPZ5A6JB.js",
+          "/candidate/chunks/chunk-CDC4GQBX.js",
+          "/candidate/chunks/chunk-OGB2YZWM.js",
+          "/candidate/chunks/chunk-RORDWKTE.js",
+          "/candidate/chunks/chunk-XQME22EH.js",
+          "/candidate/chunks/chunk-NFBHWDWY.js",
+          "/candidate/chunks/chunk-AGIKUPED.js",
+          "/candidate/chunks/chunk-UFTSGO6P.js",
+          "/candidate/chunks/chunk-OX4HHMGV.js",
+          "/candidate/chunks/chunk-DZSBLFVU.js",
+          "/candidate/chunks/chunk-TDWU7Y2N.js",
+          "/candidate/chunks/chunk-UQ7GTNSR.js",
+          "/candidate/chunks/chunk-CLWWU6PK.js",
+          "/candidate/chunks/chunk-BJFFKZKC.js",
+          "/candidate/chunks/chunk-7WYEZDAV.js",
+          "/candidate/chunks/chunk-3CP5HVWH.js",
+          "/candidate/chunks/chunk-2XBQ27SZ.js",
+          "/candidate/chunks/chunk-TXALF2FK.js",
+          "/candidate/chunks/chunk-WPX7GTT7.js",
+          "/candidate/chunks/chunk-7X62GRYO.js",
+          "/candidate/chunks/chunk-O6JTREVE.js",
+          "/candidate/chunks/chunk-T3RBYG26.js",
+          "/candidate/chunks/chunk-B3DEFF86.js",
+          "/candidate/chunks/mermaid-yaml-runtime-EDAWOZLW.js",
+          "/candidate/chunks/agentic-producer-core-IJI2CZXY.js",
+          "/candidate/chunks/forest-implementation-WIZWGTIE.js",
+          "/candidate/chunks/chunk-IH2QCKZZ.js",
+          "/candidate/chunks/chunk-XHVWR5UF.js",
+          "/candidate/chunks/chunk-RCI5AYBG.js",
+          "/candidate/chunks/chunk-NU4JOU63.js",
+          "/candidate/chunks/chunk-ORVTZKXJ.js",
+          "/candidate/chunks/chunk-NGI32NJP.js",
+          "/candidate/chunks/chunk-W5ZDKQKA.js",
+          "/candidate/chunks/chunk-JVFVBEG7.js",
+          "/candidate/chunks/sequence-6SDBBGTX.js",
+          "/candidate/chunks/chunk-WXGUXIOL.js",
+          "/candidate/chunks/chunk-PQQWXTBY.js"
+        ]
+      },
+      {
+        "arm": "candidate",
+        "first": "image",
+        "backend": "trinity",
+        "calls": [
+          {
+            "name": "image",
+            "bytes": 11240,
+            "sha256": "521efca665e0def291d696a50026b509be539e6ef2091f81b84360a6651038e3",
+            "proof": "unverified"
+          },
+          {
+            "name": "sequence",
+            "bytes": 12688,
+            "sha256": "70118f109857c00b74b81ed7b14e19737119f8e149b69da583341a3c6bd62840",
+            "proof": "passed"
+          },
+          {
+            "name": "imageEdit",
+            "bytes": 11263,
+            "sha256": "d84bceed62a9c96092b51507358dc68b4ffd22ad3c44d82b2d9ab0ae616ba753",
+            "proof": "unverified"
+          },
+          {
+            "name": "sequenceEdit",
+            "bytes": 12712,
+            "sha256": "21108086cd067f62b4c4b06ff5e7c83518781c3d22a9c3fb37c3c0bd31ec1222",
+            "proof": "passed"
+          },
+          {
+            "name": "image",
+            "bytes": 11240,
+            "sha256": "521efca665e0def291d696a50026b509be539e6ef2091f81b84360a6651038e3",
+            "proof": "unverified"
+          }
+        ],
+        "initial": {
+          "requests": 4,
+          "raw": 16473,
+          "gzip9": 6231,
+          "brotli11": 5551
+        },
+        "final": {
+          "requests": 44,
+          "raw": 1328321,
+          "gzip9": 436922,
+          "brotli11": 374207
+        },
+        "initialFiles": [
+          "/candidate/index.js",
+          "/candidate/chunks/chunk-O4WXINVK.js",
+          "/candidate/chunks/chunk-D7ACEPSO.js",
+          "/candidate/chunks/chunk-SC76MUQ3.js"
+        ],
+        "allFiles": [
+          "/candidate/index.js",
+          "/candidate/chunks/chunk-O4WXINVK.js",
+          "/candidate/chunks/chunk-D7ACEPSO.js",
+          "/candidate/chunks/chunk-SC76MUQ3.js",
+          "/candidate/chunks/flowchart-P74UD75O.js",
+          "/candidate/chunks/render-core-CPZ5A6JB.js",
+          "/candidate/chunks/chunk-B3DEFF86.js",
+          "/candidate/chunks/chunk-CDC4GQBX.js",
+          "/candidate/chunks/chunk-OGB2YZWM.js",
+          "/candidate/chunks/chunk-RORDWKTE.js",
+          "/candidate/chunks/chunk-XQME22EH.js",
+          "/candidate/chunks/chunk-NFBHWDWY.js",
+          "/candidate/chunks/chunk-AGIKUPED.js",
+          "/candidate/chunks/chunk-UFTSGO6P.js",
+          "/candidate/chunks/chunk-OX4HHMGV.js",
+          "/candidate/chunks/chunk-DZSBLFVU.js",
+          "/candidate/chunks/chunk-TDWU7Y2N.js",
+          "/candidate/chunks/chunk-UQ7GTNSR.js",
+          "/candidate/chunks/chunk-CLWWU6PK.js",
+          "/candidate/chunks/chunk-BJFFKZKC.js",
+          "/candidate/chunks/chunk-7WYEZDAV.js",
+          "/candidate/chunks/chunk-3CP5HVWH.js",
+          "/candidate/chunks/chunk-2XBQ27SZ.js",
+          "/candidate/chunks/chunk-TXALF2FK.js",
+          "/candidate/chunks/chunk-WPX7GTT7.js",
+          "/candidate/chunks/chunk-7X62GRYO.js",
+          "/candidate/chunks/chunk-O6JTREVE.js",
+          "/candidate/chunks/chunk-T3RBYG26.js",
+          "/candidate/chunks/mermaid-yaml-runtime-EDAWOZLW.js",
+          "/candidate/chunks/trinity-producer-6T5KOGPK.js",
+          "/candidate/chunks/trinity-ZC6TPQNM.js",
+          "/candidate/chunks/chunk-RCI5AYBG.js",
+          "/candidate/chunks/chunk-JDTWQUJO.js",
+          "/candidate/chunks/chunk-NBHHPERM.js",
+          "/candidate/chunks/chunk-NU4JOU63.js",
+          "/candidate/chunks/chunk-ORVTZKXJ.js",
+          "/candidate/chunks/chunk-IH2QCKZZ.js",
+          "/candidate/chunks/chunk-XHVWR5UF.js",
+          "/candidate/chunks/chunk-NGI32NJP.js",
+          "/candidate/chunks/chunk-W5ZDKQKA.js",
+          "/candidate/chunks/chunk-JVFVBEG7.js",
+          "/candidate/chunks/sequence-6SDBBGTX.js",
+          "/candidate/chunks/chunk-WXGUXIOL.js",
+          "/candidate/chunks/chunk-PQQWXTBY.js"
+        ]
+      },
+      {
+        "arm": "candidate",
+        "first": "sequence",
+        "backend": "elk",
+        "calls": [
+          {
+            "name": "sequence",
+            "bytes": 12688,
+            "sha256": "40154698d91a79de68eafe5a8b6b012b06d087dd11f4355edfd7d9a29f2e6a37",
+            "proof": "passed"
+          },
+          {
+            "name": "image",
+            "bytes": 11202,
+            "sha256": "135aa4cf8f288e03f654b86e3a69e95a4677f445ca1423fb0dee9a4a3063724e",
+            "proof": "unverified"
+          },
+          {
+            "name": "imageEdit",
+            "bytes": 11245,
+            "sha256": "e992a7f1e8cdb2bcc1e9ecf75f68d438cea7c22ce9a7ae7d2205c84209456c71",
+            "proof": "unverified"
+          },
+          {
+            "name": "sequenceEdit",
+            "bytes": 12712,
+            "sha256": "dcea9b5daa4219c9f8ae222d7860d4f830e2347ff5a031f7f3abde3ac41c4c76",
+            "proof": "passed"
+          },
+          {
+            "name": "image",
+            "bytes": 11202,
+            "sha256": "135aa4cf8f288e03f654b86e3a69e95a4677f445ca1423fb0dee9a4a3063724e",
+            "proof": "unverified"
+          }
+        ],
+        "initial": {
+          "requests": 4,
+          "raw": 16473,
+          "gzip9": 6231,
+          "brotli11": 5551
+        },
+        "final": {
+          "requests": 33,
+          "raw": 2609230,
+          "gzip9": 807446,
+          "brotli11": 644923
+        },
+        "initialFiles": [
+          "/candidate/index.js",
+          "/candidate/chunks/chunk-O4WXINVK.js",
+          "/candidate/chunks/chunk-D7ACEPSO.js",
+          "/candidate/chunks/chunk-SC76MUQ3.js"
+        ],
+        "allFiles": [
+          "/candidate/index.js",
+          "/candidate/chunks/chunk-O4WXINVK.js",
+          "/candidate/chunks/chunk-D7ACEPSO.js",
+          "/candidate/chunks/chunk-SC76MUQ3.js",
+          "/candidate/chunks/sequence-6SDBBGTX.js",
+          "/candidate/chunks/render-core-CPZ5A6JB.js",
+          "/candidate/chunks/chunk-WXGUXIOL.js",
+          "/candidate/chunks/chunk-CDC4GQBX.js",
+          "/candidate/chunks/chunk-OGB2YZWM.js",
+          "/candidate/chunks/chunk-RORDWKTE.js",
+          "/candidate/chunks/chunk-PQQWXTBY.js",
+          "/candidate/chunks/chunk-BJFFKZKC.js",
+          "/candidate/chunks/chunk-B3DEFF86.js",
+          "/candidate/chunks/flowchart-P74UD75O.js",
+          "/candidate/chunks/chunk-XQME22EH.js",
+          "/candidate/chunks/chunk-NFBHWDWY.js",
+          "/candidate/chunks/chunk-AGIKUPED.js",
+          "/candidate/chunks/chunk-UFTSGO6P.js",
+          "/candidate/chunks/chunk-OX4HHMGV.js",
+          "/candidate/chunks/chunk-DZSBLFVU.js",
+          "/candidate/chunks/chunk-TDWU7Y2N.js",
+          "/candidate/chunks/chunk-UQ7GTNSR.js",
+          "/candidate/chunks/chunk-CLWWU6PK.js",
+          "/candidate/chunks/chunk-7WYEZDAV.js",
+          "/candidate/chunks/chunk-3CP5HVWH.js",
+          "/candidate/chunks/chunk-2XBQ27SZ.js",
+          "/candidate/chunks/chunk-TXALF2FK.js",
+          "/candidate/chunks/chunk-WPX7GTT7.js",
+          "/candidate/chunks/chunk-7X62GRYO.js",
+          "/candidate/chunks/chunk-O6JTREVE.js",
+          "/candidate/chunks/chunk-T3RBYG26.js",
+          "/candidate/chunks/mermaid-yaml-runtime-EDAWOZLW.js",
+          "/candidate/chunks/elk.bundled-X5K4KOFH.js"
+        ]
+      },
+      {
+        "arm": "candidate",
+        "first": "sequence",
+        "backend": "agentic",
+        "calls": [
+          {
+            "name": "sequence",
+            "bytes": 12688,
+            "sha256": "6ba4d9f54999eac84cf7aa4204c903efed0d9beea19914e4c271e72f42b7044e",
+            "proof": "passed"
+          },
+          {
+            "name": "image",
+            "bytes": 11219,
+            "sha256": "1f9506b19b7a1afc4617e96394a50cfc57d87ccd2307cdd5350319e6a43ca3a4",
+            "proof": "unverified"
+          },
+          {
+            "name": "imageEdit",
+            "bytes": 11262,
+            "sha256": "68faf37be65fa489a5b50f1fb6c3083da2eec87fcb03bd47e16ba7913090a853",
+            "proof": "unverified"
+          },
+          {
+            "name": "sequenceEdit",
+            "bytes": 12712,
+            "sha256": "e269cb5a3370e90f47ab1f7e236a72f360a5b644fc5bdaa601573078e04dd0a6",
+            "proof": "passed"
+          },
+          {
+            "name": "image",
+            "bytes": 11219,
+            "sha256": "1f9506b19b7a1afc4617e96394a50cfc57d87ccd2307cdd5350319e6a43ca3a4",
+            "proof": "unverified"
+          }
+        ],
+        "initial": {
+          "requests": 4,
+          "raw": 16473,
+          "gzip9": 6231,
+          "brotli11": 5551
+        },
+        "final": {
+          "requests": 42,
+          "raw": 1345511,
+          "gzip9": 443003,
+          "brotli11": 379705
+        },
+        "initialFiles": [
+          "/candidate/index.js",
+          "/candidate/chunks/chunk-O4WXINVK.js",
+          "/candidate/chunks/chunk-D7ACEPSO.js",
+          "/candidate/chunks/chunk-SC76MUQ3.js"
+        ],
+        "allFiles": [
+          "/candidate/index.js",
+          "/candidate/chunks/chunk-O4WXINVK.js",
+          "/candidate/chunks/chunk-D7ACEPSO.js",
+          "/candidate/chunks/chunk-SC76MUQ3.js",
+          "/candidate/chunks/sequence-6SDBBGTX.js",
+          "/candidate/chunks/render-core-CPZ5A6JB.js",
+          "/candidate/chunks/chunk-WXGUXIOL.js",
+          "/candidate/chunks/chunk-CDC4GQBX.js",
+          "/candidate/chunks/chunk-OGB2YZWM.js",
+          "/candidate/chunks/chunk-RORDWKTE.js",
+          "/candidate/chunks/chunk-PQQWXTBY.js",
+          "/candidate/chunks/chunk-BJFFKZKC.js",
+          "/candidate/chunks/chunk-B3DEFF86.js",
+          "/candidate/chunks/flowchart-P74UD75O.js",
+          "/candidate/chunks/chunk-XQME22EH.js",
+          "/candidate/chunks/chunk-NFBHWDWY.js",
+          "/candidate/chunks/chunk-AGIKUPED.js",
+          "/candidate/chunks/chunk-UFTSGO6P.js",
+          "/candidate/chunks/chunk-OX4HHMGV.js",
+          "/candidate/chunks/chunk-DZSBLFVU.js",
+          "/candidate/chunks/chunk-TDWU7Y2N.js",
+          "/candidate/chunks/chunk-UQ7GTNSR.js",
+          "/candidate/chunks/chunk-CLWWU6PK.js",
+          "/candidate/chunks/chunk-7WYEZDAV.js",
+          "/candidate/chunks/chunk-3CP5HVWH.js",
+          "/candidate/chunks/chunk-2XBQ27SZ.js",
+          "/candidate/chunks/chunk-TXALF2FK.js",
+          "/candidate/chunks/chunk-WPX7GTT7.js",
+          "/candidate/chunks/chunk-7X62GRYO.js",
+          "/candidate/chunks/chunk-O6JTREVE.js",
+          "/candidate/chunks/chunk-T3RBYG26.js",
+          "/candidate/chunks/mermaid-yaml-runtime-EDAWOZLW.js",
+          "/candidate/chunks/agentic-producer-core-IJI2CZXY.js",
+          "/candidate/chunks/forest-implementation-WIZWGTIE.js",
+          "/candidate/chunks/chunk-IH2QCKZZ.js",
+          "/candidate/chunks/chunk-XHVWR5UF.js",
+          "/candidate/chunks/chunk-RCI5AYBG.js",
+          "/candidate/chunks/chunk-NU4JOU63.js",
+          "/candidate/chunks/chunk-ORVTZKXJ.js",
+          "/candidate/chunks/chunk-NGI32NJP.js",
+          "/candidate/chunks/chunk-W5ZDKQKA.js",
+          "/candidate/chunks/chunk-JVFVBEG7.js"
+        ]
+      },
+      {
+        "arm": "candidate",
+        "first": "sequence",
+        "backend": "trinity",
+        "calls": [
+          {
+            "name": "sequence",
+            "bytes": 12688,
+            "sha256": "70118f109857c00b74b81ed7b14e19737119f8e149b69da583341a3c6bd62840",
+            "proof": "passed"
+          },
+          {
+            "name": "image",
+            "bytes": 11240,
+            "sha256": "521efca665e0def291d696a50026b509be539e6ef2091f81b84360a6651038e3",
+            "proof": "unverified"
+          },
+          {
+            "name": "imageEdit",
+            "bytes": 11263,
+            "sha256": "d84bceed62a9c96092b51507358dc68b4ffd22ad3c44d82b2d9ab0ae616ba753",
+            "proof": "unverified"
+          },
+          {
+            "name": "sequenceEdit",
+            "bytes": 12712,
+            "sha256": "21108086cd067f62b4c4b06ff5e7c83518781c3d22a9c3fb37c3c0bd31ec1222",
+            "proof": "passed"
+          },
+          {
+            "name": "image",
+            "bytes": 11240,
+            "sha256": "521efca665e0def291d696a50026b509be539e6ef2091f81b84360a6651038e3",
+            "proof": "unverified"
+          }
+        ],
+        "initial": {
+          "requests": 4,
+          "raw": 16473,
+          "gzip9": 6231,
+          "brotli11": 5551
+        },
+        "final": {
+          "requests": 44,
+          "raw": 1328321,
+          "gzip9": 436922,
+          "brotli11": 374207
+        },
+        "initialFiles": [
+          "/candidate/index.js",
+          "/candidate/chunks/chunk-O4WXINVK.js",
+          "/candidate/chunks/chunk-D7ACEPSO.js",
+          "/candidate/chunks/chunk-SC76MUQ3.js"
+        ],
+        "allFiles": [
+          "/candidate/index.js",
+          "/candidate/chunks/chunk-O4WXINVK.js",
+          "/candidate/chunks/chunk-D7ACEPSO.js",
+          "/candidate/chunks/chunk-SC76MUQ3.js",
+          "/candidate/chunks/sequence-6SDBBGTX.js",
+          "/candidate/chunks/render-core-CPZ5A6JB.js",
+          "/candidate/chunks/chunk-B3DEFF86.js",
+          "/candidate/chunks/chunk-WXGUXIOL.js",
+          "/candidate/chunks/chunk-CDC4GQBX.js",
+          "/candidate/chunks/chunk-OGB2YZWM.js",
+          "/candidate/chunks/chunk-RORDWKTE.js",
+          "/candidate/chunks/chunk-PQQWXTBY.js",
+          "/candidate/chunks/chunk-BJFFKZKC.js",
+          "/candidate/chunks/flowchart-P74UD75O.js",
+          "/candidate/chunks/chunk-XQME22EH.js",
+          "/candidate/chunks/chunk-NFBHWDWY.js",
+          "/candidate/chunks/chunk-AGIKUPED.js",
+          "/candidate/chunks/chunk-UFTSGO6P.js",
+          "/candidate/chunks/chunk-OX4HHMGV.js",
+          "/candidate/chunks/chunk-DZSBLFVU.js",
+          "/candidate/chunks/chunk-TDWU7Y2N.js",
+          "/candidate/chunks/chunk-UQ7GTNSR.js",
+          "/candidate/chunks/chunk-CLWWU6PK.js",
+          "/candidate/chunks/chunk-7WYEZDAV.js",
+          "/candidate/chunks/chunk-3CP5HVWH.js",
+          "/candidate/chunks/chunk-2XBQ27SZ.js",
+          "/candidate/chunks/chunk-TXALF2FK.js",
+          "/candidate/chunks/chunk-WPX7GTT7.js",
+          "/candidate/chunks/chunk-7X62GRYO.js",
+          "/candidate/chunks/chunk-O6JTREVE.js",
+          "/candidate/chunks/chunk-T3RBYG26.js",
+          "/candidate/chunks/mermaid-yaml-runtime-EDAWOZLW.js",
+          "/candidate/chunks/trinity-producer-6T5KOGPK.js",
+          "/candidate/chunks/trinity-ZC6TPQNM.js",
+          "/candidate/chunks/chunk-XHVWR5UF.js",
+          "/candidate/chunks/chunk-JDTWQUJO.js",
+          "/candidate/chunks/chunk-NBHHPERM.js",
+          "/candidate/chunks/chunk-NU4JOU63.js",
+          "/candidate/chunks/chunk-ORVTZKXJ.js",
+          "/candidate/chunks/chunk-NGI32NJP.js",
+          "/candidate/chunks/chunk-W5ZDKQKA.js",
+          "/candidate/chunks/chunk-JVFVBEG7.js",
+          "/candidate/chunks/chunk-IH2QCKZZ.js",
+          "/candidate/chunks/chunk-RCI5AYBG.js"
+        ]
+      }
+    ]
+  },
+  "combinedPortfolio": [
+    {
+      "backend": "agentic",
+      "status": "passed",
+      "requests": 49,
+      "product": {
+        "raw": 1476663,
+        "gzip9": 488731,
+        "brotli11": 419081
+      },
+      "requestDelta": -1,
+      "productDelta": {
+        "raw": -6,
+        "gzip9": -155,
+        "brotli11": -44
+      }
+    },
+    {
+      "backend": "elk",
+      "status": "passed",
+      "requests": 43,
+      "product": {
+        "raw": 2761712,
+        "gzip9": 860471,
+        "brotli11": 690673
+      },
+      "requestDelta": -1,
+      "productDelta": {
+        "raw": -57,
+        "gzip9": -173,
+        "brotli11": -21
+      }
+    },
+    {
+      "backend": "trinity",
+      "status": "passed",
+      "requests": 50,
+      "product": {
+        "raw": 1457641,
+        "gzip9": 481988,
+        "brotli11": 413017
+      },
+      "requestDelta": -1,
+      "productDelta": {
+        "raw": -90,
+        "gzip9": -183,
+        "brotli11": -43
+      }
+    }
+  ],
+  "catalogCheck": "red\u2192green and clean checkout check passed without tracked drift",
+  "familyConformance": "2P after actual image witness; missingicon/image reproduced red",
+  "combinedOwningChecks": 20,
+  "combinedOwningFiles": 3,
+  "combinedTypes": "core/repository passed",
+  "websiteProvenance": "stale tracked catalog regenerated during CI build explains dirty producer stamp vs clean consumer checkout; integration CI pending, provenance check preserved"
+}
