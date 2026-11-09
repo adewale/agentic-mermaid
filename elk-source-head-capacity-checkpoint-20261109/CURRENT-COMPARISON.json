@@ -1,0 +1,1391 @@
+[
+  {
+    "backend": "elk",
+    "quality": {
+      "paintCertification": {
+        "version": 1,
+        "unit": "px",
+        "scope": "native-scene",
+        "status": "passed",
+        "viewport": {
+          "x": 0,
+          "y": 0,
+          "width": 404.636,
+          "height": 702.55
+        },
+        "attempts": 1,
+        "repairs": [],
+        "coverage": {
+          "measured": 62,
+          "unmeasured": 0,
+          "preparedText": 21,
+          "fallbackText": 0,
+          "conditional": 0
+        },
+        "checks": {
+          "primitives": 65,
+          "labels": 11,
+          "occlusionPairs": 350,
+          "maxOcclusionPairs": 100000,
+          "operations": 137172,
+          "maxOperations": 400000,
+          "markers": 10
+        },
+        "issues": [],
+        "limitations": [
+          "Prepared occupied text regions bound native geometry; exact glyph ink depends on the resolved font.",
+          "Declared transparency, intentional data-mark overlap and externally modified CSS are outside this proof."
+        ]
+      },
+      "edgeCrossings": 0,
+      "labelLegibility": 1,
+      "labelMeasurement": {
+        "measuredNodes": 11,
+        "unmeasuredNodes": 0,
+        "hiddenNodes": 0,
+        "semanticNodes": 0,
+        "measuredEdges": 10,
+        "unmeasuredEdges": 0,
+        "measuredLabels": 0,
+        "unmeasuredLabels": 0,
+        "hiddenLabels": 0,
+        "semanticLabels": 0
+      },
+      "whitespaceBalance": 0.09928986458799324,
+      "labelEdgeProximity": 15.334400000000016,
+      "labelConflicts": {
+        "total": 0,
+        "labelLabel": 0,
+        "labelNode": 0,
+        "labelEdge": 0
+      },
+      "routeOverlaps": {
+        "parallel": 0,
+        "opposing": 0
+      },
+      "routeGeometry": {
+        "bends": 20,
+        "length": 3040.4700000000003,
+        "area": 284277.0218
+      },
+      "minimumNodeSpacing": 27.999999999999943,
+      "elementDensity": 0.7387160547493818,
+      "minimumTextContrast": 14.894588477600598,
+      "aspectRatio": 0.575953312931464,
+      "nodeCount": 11,
+      "edgeCount": 10
+    },
+    "importMs": 3337.47577,
+    "cost": {
+      "cold-render": {
+        "wallMs": {
+          "median": 588.157702,
+          "range": [
+            526.0289829999997,
+            650.2864210000002
+          ]
+        },
+        "cpuMs": {
+          "median": 856.3199999999999,
+          "range": [
+            786.587,
+            926.053
+          ]
+        },
+        "peakRssKiB": {
+          "median": 202894.0,
+          "range": [
+            195092,
+            210696
+          ]
+        },
+        "heapUsed": {
+          "median": 69253396.0,
+          "range": [
+            62267664,
+            76239128
+          ]
+        },
+        "rss": {
+          "median": 207763456.0,
+          "range": [
+            199774208,
+            215752704
+          ]
+        }
+      },
+      "repeat1": {
+        "wallMs": {
+          "median": 139.18601950000016,
+          "range": [
+            116.89304399999992,
+            161.4789950000004
+          ]
+        },
+        "cpuMs": {
+          "median": 252.7405,
+          "range": [
+            237.812,
+            267.669
+          ]
+        },
+        "peakRssKiB": {
+          "median": 212296.0,
+          "range": [
+            208916,
+            215676
+          ]
+        },
+        "heapUsed": {
+          "median": 72038036.0,
+          "range": [
+            71626480,
+            72449592
+          ]
+        },
+        "rss": {
+          "median": 217260032.0,
+          "range": [
+            213798912,
+            220721152
+          ]
+        }
+      },
+      "repeat2": {
+        "wallMs": {
+          "median": 123.19868499999984,
+          "range": [
+            96.30717900000036,
+            150.09019099999932
+          ]
+        },
+        "cpuMs": {
+          "median": 209.27499999999998,
+          "range": [
+            183.148,
+            235.402
+          ]
+        },
+        "peakRssKiB": {
+          "median": 212744.0,
+          "range": [
+            209556,
+            215932
+          ]
+        },
+        "heapUsed": {
+          "median": 70383556.0,
+          "range": [
+            70379128,
+            70387984
+          ]
+        },
+        "rss": {
+          "median": 217849856.0,
+          "range": [
+            214585344,
+            221114368
+          ]
+        }
+      },
+      "edit": {
+        "wallMs": {
+          "median": 115.73532149999983,
+          "range": [
+            97.45600699999977,
+            134.01463599999988
+          ]
+        },
+        "cpuMs": {
+          "median": 182.58100000000002,
+          "range": [
+            171.387,
+            193.775
+          ]
+        },
+        "peakRssKiB": {
+          "median": 213064.0,
+          "range": [
+            209812,
+            216316
+          ]
+        },
+        "heapUsed": {
+          "median": 71623856.0,
+          "range": [
+            70829464,
+            72418248
+          ]
+        },
+        "rss": {
+          "median": 218177536.0,
+          "range": [
+            214847488,
+            221507584
+          ]
+        }
+      },
+      "edit2": {
+        "wallMs": {
+          "median": 105.32974850000028,
+          "range": [
+            89.17012599999998,
+            121.48937100000057
+          ]
+        },
+        "cpuMs": {
+          "median": 176.905,
+          "range": [
+            176.665,
+            177.145
+          ]
+        },
+        "peakRssKiB": {
+          "median": 216136.0,
+          "range": [
+            210196,
+            222076
+          ]
+        },
+        "heapUsed": {
+          "median": 71076804.0,
+          "range": [
+            70181000,
+            71972608
+          ]
+        },
+        "rss": {
+          "median": 221323264.0,
+          "range": [
+            215240704,
+            227405824
+          ]
+        }
+      }
+    },
+    "cachedCost": {
+      "cold-render": {
+        "wallMs": {
+          "median": 591.2991259999999,
+          "range": [
+            585.3490829999996,
+            597.2491690000002
+          ]
+        },
+        "cpuMs": {
+          "median": 933.8685,
+          "range": [
+            906.062,
+            961.675
+          ]
+        },
+        "peakRssKiB": {
+          "median": 201008.0,
+          "range": [
+            192916,
+            209100
+          ]
+        },
+        "heapUsed": {
+          "median": 65882056.0,
+          "range": [
+            59755472,
+            72008640
+          ]
+        },
+        "rss": {
+          "median": 205832192.0,
+          "range": [
+            197545984,
+            214118400
+          ]
+        }
+      },
+      "repeat1": {
+        "wallMs": {
+          "median": 51.33207100000027,
+          "range": [
+            48.59312800000043,
+            54.071014000000105
+          ]
+        },
+        "cpuMs": {
+          "median": 105.8315,
+          "range": [
+            97.191,
+            114.472
+          ]
+        },
+        "peakRssKiB": {
+          "median": 202352.0,
+          "range": [
+            193684,
+            211020
+          ]
+        },
+        "heapUsed": {
+          "median": 56652876.0,
+          "range": [
+            56298624,
+            57007128
+          ]
+        },
+        "rss": {
+          "median": 207208448.0,
+          "range": [
+            198332416,
+            216084480
+          ]
+        }
+      },
+      "repeat2": {
+        "wallMs": {
+          "median": 12.36680999999976,
+          "range": [
+            8.848865999999816,
+            15.884753999999703
+          ]
+        },
+        "cpuMs": {
+          "median": 32.3075,
+          "range": [
+            30.998,
+            33.617
+          ]
+        },
+        "peakRssKiB": {
+          "median": 202608.0,
+          "range": [
+            194068,
+            211148
+          ]
+        },
+        "heapUsed": {
+          "median": 49825732.0,
+          "range": [
+            49814432,
+            49837032
+          ]
+        },
+        "rss": {
+          "median": 207470592.0,
+          "range": [
+            198725632,
+            216215552
+          ]
+        }
+      },
+      "edit": {
+        "wallMs": {
+          "median": 127.14345149999963,
+          "range": [
+            125.91634499999964,
+            128.37055799999962
+          ]
+        },
+        "cpuMs": {
+          "median": 238.3205,
+          "range": [
+            211.586,
+            265.055
+          ]
+        },
+        "peakRssKiB": {
+          "median": 211244.0,
+          "range": [
+            206476,
+            216012
+          ]
+        },
+        "heapUsed": {
+          "median": 71700960.0,
+          "range": [
+            71321176,
+            72080744
+          ]
+        },
+        "rss": {
+          "median": 216313856.0,
+          "range": [
+            211431424,
+            221196288
+          ]
+        }
+      },
+      "edit2": {
+        "wallMs": {
+          "median": 49.89640950000012,
+          "range": [
+            44.334289000000354,
+            55.45852999999988
+          ]
+        },
+        "cpuMs": {
+          "median": 100.4125,
+          "range": [
+            73.702,
+            127.123
+          ]
+        },
+        "peakRssKiB": {
+          "median": 213996.0,
+          "range": [
+            206604,
+            221388
+          ]
+        },
+        "heapUsed": {
+          "median": 57177504.0,
+          "range": [
+            57092456,
+            57262552
+          ]
+        },
+        "rss": {
+          "median": 219131904.0,
+          "range": [
+            211562496,
+            226701312
+          ]
+        }
+      }
+    },
+    "payload": {
+      "out": "elk-after-cache0-0",
+      "backend": "elk",
+      "cache": "0",
+      "arm": "after",
+      "phase": "repeat2",
+      "rawBytes": 27311,
+      "rawSHA256": "589aec13c0ad24c88cb0845b6f1a3116139830af0537e6298c01f39ee3c35f84",
+      "gzip9": 3356,
+      "brotli11": 2733
+    }
+  },
+  {
+    "backend": "agentic",
+    "quality": {
+      "paintCertification": {
+        "version": 1,
+        "unit": "px",
+        "scope": "native-scene",
+        "status": "passed",
+        "viewport": {
+          "x": 0,
+          "y": 0,
+          "width": 369.386,
+          "height": 720.85
+        },
+        "attempts": 1,
+        "repairs": [],
+        "coverage": {
+          "measured": 62,
+          "unmeasured": 0,
+          "preparedText": 21,
+          "fallbackText": 0,
+          "conditional": 0
+        },
+        "checks": {
+          "primitives": 65,
+          "labels": 11,
+          "occlusionPairs": 295,
+          "maxOcclusionPairs": 100000,
+          "operations": 137169,
+          "maxOperations": 400000,
+          "markers": 10
+        },
+        "issues": [],
+        "limitations": [
+          "Prepared occupied text regions bound native geometry; exact glyph ink depends on the resolved font.",
+          "Declared transparency, intentional data-mark overlap and externally modified CSS are outside this proof."
+        ]
+      },
+      "edgeCrossings": 0,
+      "labelLegibility": 1,
+      "labelMeasurement": {
+        "measuredNodes": 11,
+        "unmeasuredNodes": 0,
+        "hiddenNodes": 0,
+        "semanticNodes": 0,
+        "measuredEdges": 10,
+        "unmeasuredEdges": 0,
+        "measuredLabels": 0,
+        "unmeasuredLabels": 0,
+        "hiddenLabels": 0,
+        "semanticLabels": 0
+      },
+      "whitespaceBalance": 0.10600377734716723,
+      "labelEdgeProximity": 27.375,
+      "labelConflicts": {
+        "total": 0,
+        "labelLabel": 0,
+        "labelNode": 0,
+        "labelEdge": 0
+      },
+      "routeOverlaps": {
+        "parallel": 0,
+        "opposing": 0
+      },
+      "routeGeometry": {
+        "bends": 22,
+        "length": 2872.4449999999997,
+        "area": 266271.8981
+      },
+      "minimumNodeSpacing": 27.999999999999886,
+      "elementDensity": 0.7886675293129628,
+      "minimumTextContrast": 14.894588477600598,
+      "aspectRatio": 0.5124311576610946,
+      "nodeCount": 11,
+      "edgeCount": 10
+    },
+    "importMs": 2916.334277,
+    "cost": {
+      "cold-render": {
+        "wallMs": {
+          "median": 274.62666000000013,
+          "range": [
+            270.6890309999999,
+            278.5642890000004
+          ]
+        },
+        "cpuMs": {
+          "median": 470.014,
+          "range": [
+            458.778,
+            481.25
+          ]
+        },
+        "peakRssKiB": {
+          "median": 191048.0,
+          "range": [
+            190636,
+            191460
+          ]
+        },
+        "heapUsed": {
+          "median": 52740916.0,
+          "range": [
+            51042992,
+            54438840
+          ]
+        },
+        "rss": {
+          "median": 195633152.0,
+          "range": [
+            195211264,
+            196055040
+          ]
+        }
+      },
+      "repeat1": {
+        "wallMs": {
+          "median": 95.43410100000006,
+          "range": [
+            86.40217699999994,
+            104.46602500000017
+          ]
+        },
+        "cpuMs": {
+          "median": 202.2665,
+          "range": [
+            178.779,
+            225.754
+          ]
+        },
+        "peakRssKiB": {
+          "median": 195968.0,
+          "range": [
+            195884,
+            196052
+          ]
+        },
+        "heapUsed": {
+          "median": 55263528.0,
+          "range": [
+            54913432,
+            55613624
+          ]
+        },
+        "rss": {
+          "median": 200671232.0,
+          "range": [
+            200585216,
+            200757248
+          ]
+        }
+      },
+      "repeat2": {
+        "wallMs": {
+          "median": 76.37240599999996,
+          "range": [
+            73.87203,
+            78.87278199999992
+          ]
+        },
+        "cpuMs": {
+          "median": 113.61449999999999,
+          "range": [
+            111.634,
+            115.595
+          ]
+        },
+        "peakRssKiB": {
+          "median": 196096.0,
+          "range": [
+            196012,
+            196180
+          ]
+        },
+        "heapUsed": {
+          "median": 54509976.0,
+          "range": [
+            54412840,
+            54607112
+          ]
+        },
+        "rss": {
+          "median": 200802304.0,
+          "range": [
+            200716288,
+            200888320
+          ]
+        }
+      },
+      "edit": {
+        "wallMs": {
+          "median": 58.90925449999986,
+          "range": [
+            56.398691999999755,
+            61.419816999999966
+          ]
+        },
+        "cpuMs": {
+          "median": 105.85249999999999,
+          "range": [
+            86.718,
+            124.987
+          ]
+        },
+        "peakRssKiB": {
+          "median": 197248.0,
+          "range": [
+            196308,
+            198188
+          ]
+        },
+        "heapUsed": {
+          "median": 55968780.0,
+          "range": [
+            54759912,
+            57177648
+          ]
+        },
+        "rss": {
+          "median": 201916416.0,
+          "range": [
+            201019392,
+            202813440
+          ]
+        }
+      },
+      "edit2": {
+        "wallMs": {
+          "median": 61.86520250000012,
+          "range": [
+            60.81568000000016,
+            62.91472500000009
+          ]
+        },
+        "cpuMs": {
+          "median": 138.6905,
+          "range": [
+            119.952,
+            157.429
+          ]
+        },
+        "peakRssKiB": {
+          "median": 199168.0,
+          "range": [
+            198444,
+            199892
+          ]
+        },
+        "heapUsed": {
+          "median": 55114484.0,
+          "range": [
+            54327024,
+            55901944
+          ]
+        },
+        "rss": {
+          "median": 203948032.0,
+          "range": [
+            203206656,
+            204689408
+          ]
+        }
+      }
+    },
+    "cachedCost": {
+      "cold-render": {
+        "wallMs": {
+          "median": 297.61135699999977,
+          "range": [
+            250.38019099999974,
+            344.8425229999998
+          ]
+        },
+        "cpuMs": {
+          "median": 461.104,
+          "range": [
+            388.793,
+            533.415
+          ]
+        },
+        "peakRssKiB": {
+          "median": 181280.0,
+          "range": [
+            174592,
+            187968
+          ]
+        },
+        "heapUsed": {
+          "median": 59454960.0,
+          "range": [
+            58884240,
+            60025680
+          ]
+        },
+        "rss": {
+          "median": 185630720.0,
+          "range": [
+            178782208,
+            192479232
+          ]
+        }
+      },
+      "repeat1": {
+        "wallMs": {
+          "median": 61.57067700000016,
+          "range": [
+            51.55152300000009,
+            71.58983100000023
+          ]
+        },
+        "cpuMs": {
+          "median": 102.0235,
+          "range": [
+            98.732,
+            105.315
+          ]
+        },
+        "peakRssKiB": {
+          "median": 182496.0,
+          "range": [
+            175872,
+            189120
+          ]
+        },
+        "heapUsed": {
+          "median": 45443216.0,
+          "range": [
+            45418968,
+            45467464
+          ]
+        },
+        "rss": {
+          "median": 186875904.0,
+          "range": [
+            180092928,
+            193658880
+          ]
+        }
+      },
+      "repeat2": {
+        "wallMs": {
+          "median": 12.221247999999832,
+          "range": [
+            11.840715999999702,
+            12.601779999999962
+          ]
+        },
+        "cpuMs": {
+          "median": 26.7845,
+          "range": [
+            26.763,
+            26.806
+          ]
+        },
+        "peakRssKiB": {
+          "median": 182688.0,
+          "range": [
+            176000,
+            189376
+          ]
+        },
+        "heapUsed": {
+          "median": 38993500.0,
+          "range": [
+            38982144,
+            39004856
+          ]
+        },
+        "rss": {
+          "median": 186961920.0,
+          "range": [
+            180224000,
+            193699840
+          ]
+        }
+      },
+      "edit": {
+        "wallMs": {
+          "median": 84.47817200000009,
+          "range": [
+            76.08388800000012,
+            92.87245600000006
+          ]
+        },
+        "cpuMs": {
+          "median": 161.9715,
+          "range": [
+            150.263,
+            173.68
+          ]
+        },
+        "peakRssKiB": {
+          "median": 187828.0,
+          "range": [
+            179840,
+            195816
+          ]
+        },
+        "heapUsed": {
+          "median": 56007192.0,
+          "range": [
+            55681776,
+            56332608
+          ]
+        },
+        "rss": {
+          "median": 192270336.0,
+          "range": [
+            184156160,
+            200384512
+          ]
+        }
+      },
+      "edit2": {
+        "wallMs": {
+          "median": 60.019702999999936,
+          "range": [
+            38.00055100000009,
+            82.03885499999978
+          ]
+        },
+        "cpuMs": {
+          "median": 81.698,
+          "range": [
+            58.201,
+            105.195
+          ]
+        },
+        "peakRssKiB": {
+          "median": 187956.0,
+          "range": [
+            179968,
+            195944
+          ]
+        },
+        "heapUsed": {
+          "median": 45843056.0,
+          "range": [
+            45833968,
+            45852144
+          ]
+        },
+        "rss": {
+          "median": 192466944.0,
+          "range": [
+            184287232,
+            200646656
+          ]
+        }
+      }
+    },
+    "payload": {
+      "out": "agentic-after-cache0-0",
+      "backend": "agentic",
+      "cache": "0",
+      "arm": "after",
+      "phase": "repeat2",
+      "rawBytes": 27363,
+      "rawSHA256": "1e55960b223fbfd78a2b966db7c82e94a0c1a9c888e6fe5a1c08ca846fd5a17f",
+      "gzip9": 3327,
+      "brotli11": 2704
+    }
+  },
+  {
+    "backend": "trinity",
+    "quality": {
+      "paintCertification": {
+        "version": 1,
+        "unit": "px",
+        "scope": "native-scene",
+        "status": "passed",
+        "viewport": {
+          "x": 0,
+          "y": 0,
+          "width": 365.136,
+          "height": 716
+        },
+        "attempts": 1,
+        "repairs": [],
+        "coverage": {
+          "measured": 62,
+          "unmeasured": 0,
+          "preparedText": 21,
+          "fallbackText": 0,
+          "conditional": 0
+        },
+        "checks": {
+          "primitives": 65,
+          "labels": 11,
+          "occlusionPairs": 309,
+          "maxOcclusionPairs": 100000,
+          "operations": 133994,
+          "maxOperations": 400000,
+          "markers": 10
+        },
+        "issues": [],
+        "limitations": [
+          "Prepared occupied text regions bound native geometry; exact glyph ink depends on the resolved font.",
+          "Declared transparency, intentional data-mark overlap and externally modified CSS are outside this proof."
+        ]
+      },
+      "edgeCrossings": 0,
+      "labelLegibility": 1,
+      "labelMeasurement": {
+        "measuredNodes": 11,
+        "unmeasuredNodes": 0,
+        "hiddenNodes": 0,
+        "semanticNodes": 0,
+        "measuredEdges": 10,
+        "unmeasuredEdges": 0,
+        "measuredLabels": 0,
+        "unmeasuredLabels": 0,
+        "hiddenLabels": 0,
+        "semanticLabels": 0
+      },
+      "whitespaceBalance": 0.12920450976374548,
+      "labelEdgeProximity": 24,
+      "labelConflicts": {
+        "total": 0,
+        "labelLabel": 0,
+        "labelNode": 0,
+        "labelEdge": 0
+      },
+      "routeOverlaps": {
+        "parallel": 0,
+        "opposing": 0
+      },
+      "routeGeometry": {
+        "bends": 20,
+        "length": 2721.7200000000003,
+        "area": 261437.376
+      },
+      "minimumNodeSpacing": 29.39999999999995,
+      "elementDensity": 0.8032516360629324,
+      "minimumTextContrast": 14.894588477600598,
+      "aspectRatio": 0.5099664804469275,
+      "nodeCount": 11,
+      "edgeCount": 10
+    },
+    "importMs": 2681.5374355,
+    "cost": {
+      "cold-render": {
+        "wallMs": {
+          "median": 224.12950049999995,
+          "range": [
+            211.888242,
+            236.3707589999999
+          ]
+        },
+        "cpuMs": {
+          "median": 378.2485,
+          "range": [
+            350.573,
+            405.924
+          ]
+        },
+        "peakRssKiB": {
+          "median": 179742.0,
+          "range": [
+            172608,
+            186876
+          ]
+        },
+        "heapUsed": {
+          "median": 45493852.0,
+          "range": [
+            44250456,
+            46737248
+          ]
+        },
+        "rss": {
+          "median": 184055808.0,
+          "range": [
+            176750592,
+            191361024
+          ]
+        }
+      },
+      "repeat1": {
+        "wallMs": {
+          "median": 128.55804949999992,
+          "range": [
+            126.17412399999967,
+            130.94197500000018
+          ]
+        },
+        "cpuMs": {
+          "median": 195.607,
+          "range": [
+            173.518,
+            217.696
+          ]
+        },
+        "peakRssKiB": {
+          "median": 181072.0,
+          "range": [
+            173632,
+            188512
+          ]
+        },
+        "heapUsed": {
+          "median": 46246116.0,
+          "range": [
+            46236768,
+            46255464
+          ]
+        },
+        "rss": {
+          "median": 185417728.0,
+          "range": [
+            177799168,
+            193036288
+          ]
+        }
+      },
+      "repeat2": {
+        "wallMs": {
+          "median": 96.09599749999984,
+          "range": [
+            68.01745600000004,
+            124.17453899999964
+          ]
+        },
+        "cpuMs": {
+          "median": 134.98149999999998,
+          "range": [
+            108.363,
+            161.6
+          ]
+        },
+        "peakRssKiB": {
+          "median": 181200.0,
+          "range": [
+            173760,
+            188640
+          ]
+        },
+        "heapUsed": {
+          "median": 45729516.0,
+          "range": [
+            45728712,
+            45730320
+          ]
+        },
+        "rss": {
+          "median": 185548800.0,
+          "range": [
+            177930240,
+            193167360
+          ]
+        }
+      },
+      "edit": {
+        "wallMs": {
+          "median": 50.86877950000007,
+          "range": [
+            49.743813000000046,
+            51.9937460000001
+          ]
+        },
+        "cpuMs": {
+          "median": 86.036,
+          "range": [
+            79.681,
+            92.391
+          ]
+        },
+        "peakRssKiB": {
+          "median": 181456.0,
+          "range": [
+            174016,
+            188896
+          ]
+        },
+        "heapUsed": {
+          "median": 46246144.0,
+          "range": [
+            46100760,
+            46391528
+          ]
+        },
+        "rss": {
+          "median": 185810944.0,
+          "range": [
+            178192384,
+            193429504
+          ]
+        }
+      },
+      "edit2": {
+        "wallMs": {
+          "median": 60.59568100000001,
+          "range": [
+            44.295028,
+            76.89633400000002
+          ]
+        },
+        "cpuMs": {
+          "median": 148.8145,
+          "range": [
+            115.643,
+            181.986
+          ]
+        },
+        "peakRssKiB": {
+          "median": 185808.0,
+          "range": [
+            178624,
+            192992
+          ]
+        },
+        "heapUsed": {
+          "median": 46012120.0,
+          "range": [
+            45974336,
+            46049904
+          ]
+        },
+        "rss": {
+          "median": 190201856.0,
+          "range": [
+            182910976,
+            197492736
+          ]
+        }
+      }
+    },
+    "cachedCost": {
+      "cold-render": {
+        "wallMs": {
+          "median": 261.53390650000006,
+          "range": [
+            260.50849800000015,
+            262.55931499999997
+          ]
+        },
+        "cpuMs": {
+          "median": 380.054,
+          "range": [
+            349.687,
+            410.421
+          ]
+        },
+        "peakRssKiB": {
+          "median": 177960.0,
+          "range": [
+            168888,
+            187032
+          ]
+        },
+        "heapUsed": {
+          "median": 52503224.0,
+          "range": [
+            44947200,
+            60059248
+          ]
+        },
+        "rss": {
+          "median": 182231040.0,
+          "range": [
+            172941312,
+            191520768
+          ]
+        }
+      },
+      "repeat1": {
+        "wallMs": {
+          "median": 55.7051905000003,
+          "range": [
+            55.65141100000028,
+            55.75897000000032
+          ]
+        },
+        "cpuMs": {
+          "median": 97.49950000000001,
+          "range": [
+            94.796,
+            100.203
+          ]
+        },
+        "peakRssKiB": {
+          "median": 179304.0,
+          "range": [
+            170040,
+            188568
+          ]
+        },
+        "heapUsed": {
+          "median": 44796384.0,
+          "range": [
+            44751560,
+            44841208
+          ]
+        },
+        "rss": {
+          "median": 183541760.0,
+          "range": [
+            174120960,
+            192962560
+          ]
+        }
+      },
+      "repeat2": {
+        "wallMs": {
+          "median": 11.257476499999939,
+          "range": [
+            10.096950000000106,
+            12.418002999999771
+          ]
+        },
+        "cpuMs": {
+          "median": 22.503999999999998,
+          "range": [
+            17.471,
+            27.537
+          ]
+        },
+        "peakRssKiB": {
+          "median": 179752.0,
+          "range": [
+            170680,
+            188824
+          ]
+        },
+        "heapUsed": {
+          "median": 37897932.0,
+          "range": [
+            37890208,
+            37905656
+          ]
+        },
+        "rss": {
+          "median": 184066048.0,
+          "range": [
+            174776320,
+            193355776
+          ]
+        }
+      },
+      "edit": {
+        "wallMs": {
+          "median": 64.4637224999999,
+          "range": [
+            61.69866000000002,
+            67.22878499999979
+          ]
+        },
+        "cpuMs": {
+          "median": 95.2835,
+          "range": [
+            92.48,
+            98.087
+          ]
+        },
+        "peakRssKiB": {
+          "median": 179816.0,
+          "range": [
+            170680,
+            188952
+          ]
+        },
+        "heapUsed": {
+          "median": 46291304.0,
+          "range": [
+            46251168,
+            46331440
+          ]
+        },
+        "rss": {
+          "median": 184131584.0,
+          "range": [
+            174776320,
+            193486848
+          ]
+        }
+      },
+      "edit2": {
+        "wallMs": {
+          "median": 50.29795949999993,
+          "range": [
+            49.83123899999964,
+            50.764680000000226
+          ]
+        },
+        "cpuMs": {
+          "median": 87.043,
+          "range": [
+            73.313,
+            100.773
+          ]
+        },
+        "peakRssKiB": {
+          "median": 182376.0,
+          "range": [
+            170808,
+            193944
+          ]
+        },
+        "heapUsed": {
+          "median": 44613848.0,
+          "range": [
+            44610056,
+            44617640
+          ]
+        },
+        "rss": {
+          "median": 186753024.0,
+          "range": [
+            174907392,
+            198598656
+          ]
+        }
+      }
+    },
+    "payload": {
+      "out": "trinity-after-cache0-0",
+      "backend": "trinity",
+      "cache": "0",
+      "arm": "after",
+      "phase": "repeat2",
+      "rawBytes": 27223,
+      "rawSHA256": "456f2fe0ccdf25fab318679eb833c11097a8f67a29cfb6c6a2a565847f90d348",
+      "gzip9": 3253,
+      "brotli11": 2657
+    }
+  }
+]

@@ -1,0 +1,84 @@
+{
+  "portfolio": [
+    {
+      "backend": "agentic",
+      "status": "passed",
+      "requests": 49,
+      "product": {
+        "raw": 1477103,
+        "gzip9": 488900,
+        "brotli11": 419146
+      },
+      "requestDelta": 0,
+      "productDelta": {
+        "raw": 261,
+        "gzip9": 82,
+        "brotli11": 99
+      }
+    },
+    {
+      "backend": "elk",
+      "status": "passed",
+      "requests": 43,
+      "product": {
+        "raw": 2761978,
+        "gzip9": 860554,
+        "brotli11": 690669
+      },
+      "requestDelta": 0,
+      "productDelta": {
+        "raw": 261,
+        "gzip9": 82,
+        "brotli11": 99
+      }
+    },
+    {
+      "backend": "trinity",
+      "status": "passed",
+      "requests": 50,
+      "product": {
+        "raw": 1458081,
+        "gzip9": 482156,
+        "brotli11": 413095
+      },
+      "requestDelta": 0,
+      "productDelta": {
+        "raw": 261,
+        "gzip9": 82,
+        "brotli11": 99
+      }
+    }
+  ],
+  "repaired": [
+    {
+      "backend": "agentic",
+      "status": "passed",
+      "requests": 40,
+      "product": {
+        "raw": 1165774,
+        "gzip9": 386686,
+        "brotli11": 329328
+      }
+    },
+    {
+      "backend": "elk",
+      "status": "passed",
+      "requests": 31,
+      "product": {
+        "raw": 2429319,
+        "gzip9": 751043,
+        "brotli11": 594477
+      }
+    },
+    {
+      "backend": "trinity",
+      "status": "passed",
+      "requests": 42,
+      "product": {
+        "raw": 1148584,
+        "gzip9": 380604,
+        "brotli11": 323843
+      }
+    }
+  ]
+}

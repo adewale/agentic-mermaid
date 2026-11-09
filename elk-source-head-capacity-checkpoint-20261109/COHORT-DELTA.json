@@ -1,0 +1,203 @@
+{
+  "baseline": "a8ce05aef637491ee4ab0faae9a95d24cf7d3ffc",
+  "cells": 108,
+  "allReturned": true,
+  "missing": 0,
+  "wholeExactCounts": {
+    "elk": 28,
+    "agentic": 36,
+    "trinity": 36
+  },
+  "changes": [
+    {
+      "id": "labelled-start-LR-6",
+      "backend": "elk",
+      "beforeProof": "unverified",
+      "afterProof": "passed",
+      "before": {
+        "bends": 12,
+        "length": 1416.689142857143,
+        "area": 168602.7162
+      },
+      "after": {
+        "bends": 12,
+        "length": 1403.382,
+        "area": 168602.7162
+      }
+    },
+    {
+      "id": "labelled-start-LR-10",
+      "backend": "elk",
+      "beforeProof": "unverified",
+      "afterProof": "passed",
+      "before": {
+        "bends": 20,
+        "length": 3125.3563636363633,
+        "area": 283933.0812
+      },
+      "after": {
+        "bends": 20,
+        "length": 3040.4700000000003,
+        "area": 284277.0218
+      }
+    },
+    {
+      "id": "labelled-start-LR-16",
+      "backend": "elk",
+      "beforeProof": "unverified",
+      "afterProof": "passed",
+      "before": {
+        "bends": 32,
+        "length": 6841.434352941178,
+        "area": 480777.93960000004
+      },
+      "after": {
+        "bends": 32,
+        "length": 6548.352000000003,
+        "area": 481152.4802
+      }
+    },
+    {
+      "id": "labelled-start-RL-6",
+      "backend": "elk",
+      "beforeProof": "unverified",
+      "afterProof": "passed",
+      "before": {
+        "bends": 12,
+        "length": 1416.689142857143,
+        "area": 168602.7162
+      },
+      "after": {
+        "bends": 12,
+        "length": 1403.382,
+        "area": 168602.7162
+      }
+    },
+    {
+      "id": "labelled-start-RL-10",
+      "backend": "elk",
+      "beforeProof": "unverified",
+      "afterProof": "passed",
+      "before": {
+        "bends": 20,
+        "length": 3125.3563636363633,
+        "area": 283933.0812
+      },
+      "after": {
+        "bends": 20,
+        "length": 3040.4700000000003,
+        "area": 284277.0218
+      }
+    },
+    {
+      "id": "labelled-start-RL-16",
+      "backend": "elk",
+      "beforeProof": "unverified",
+      "afterProof": "passed",
+      "before": {
+        "bends": 32,
+        "length": 6835.354352941176,
+        "area": 480777.9396000001
+      },
+      "after": {
+        "bends": 32,
+        "length": 6542.272000000001,
+        "area": 481152.48020000005
+      }
+    },
+    {
+      "id": "labelled-start-TB-16",
+      "backend": "elk",
+      "beforeProof": "unverified",
+      "afterProof": "passed",
+      "before": {
+        "bends": 32,
+        "length": 7500.645647058825,
+        "area": 495107.76119999995
+      },
+      "after": {
+        "bends": 32,
+        "length": 7377.216,
+        "area": 495107.76119999995
+      }
+    },
+    {
+      "id": "labelled-start-BT-16",
+      "backend": "elk",
+      "beforeProof": "unverified",
+      "afterProof": "passed",
+      "before": {
+        "bends": 32,
+        "length": 7500.645647058825,
+        "area": 495107.76119999995
+      },
+      "after": {
+        "bends": 32,
+        "length": 7377.216,
+        "area": 495107.76119999995
+      }
+    }
+  ],
+  "remaining": [
+    {
+      "id": "mixed-LR-10",
+      "backend": "elk",
+      "proof": "unverified"
+    },
+    {
+      "id": "mixed-LR-10",
+      "backend": "agentic",
+      "proof": "unverified"
+    },
+    {
+      "id": "mixed-LR-10",
+      "backend": "trinity",
+      "proof": "unverified"
+    },
+    {
+      "id": "mixed-RL-10",
+      "backend": "elk",
+      "proof": "unverified"
+    },
+    {
+      "id": "mixed-RL-10",
+      "backend": "agentic",
+      "proof": "unverified"
+    },
+    {
+      "id": "mixed-RL-10",
+      "backend": "trinity",
+      "proof": "unverified"
+    },
+    {
+      "id": "mixed-TB-10",
+      "backend": "elk",
+      "proof": "unverified"
+    },
+    {
+      "id": "mixed-TB-10",
+      "backend": "agentic",
+      "proof": "unverified"
+    },
+    {
+      "id": "mixed-TB-10",
+      "backend": "trinity",
+      "proof": "unverified"
+    },
+    {
+      "id": "mixed-BT-10",
+      "backend": "elk",
+      "proof": "unverified"
+    },
+    {
+      "id": "mixed-BT-10",
+      "backend": "agentic",
+      "proof": "unverified"
+    },
+    {
+      "id": "mixed-BT-10",
+      "backend": "trinity",
+      "proof": "unverified"
+    }
+  ]
+}
