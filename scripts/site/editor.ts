@@ -290,7 +290,8 @@ async function generateEditorHtml(): Promise<string> {
     sourceRuntimeBytes = new TextEncoder().encode(source).byteLength
     bundleJs = await minifyBrowserRuntime(source)
     if (!bundleJs) throw new Error('Standalone runtime compression produced no module')
-    codecNotices = `${standaloneCodecNotices()}\n\n${standaloneWorkerNotices(worker, Object.keys(workerBuild.metafile!.inputs), process.cwd())}`
+    const emittedNotices = new Set<string>()
+    codecNotices = `${standaloneCodecNotices(emittedNotices)}\n\n${standaloneWorkerNotices(worker, Object.keys(workerBuild.metafile!.inputs), process.cwd(), emittedNotices)}`
   }
   console.log(`Browser bundle: ${(bundleJs.length / 1024).toFixed(1)} KB`)
 
