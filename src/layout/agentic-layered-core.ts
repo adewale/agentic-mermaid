@@ -1,3 +1,4 @@
+import { assertMeasuredContactMetadata } from './measured-graph.ts'
 import { assertMarkerPaint } from './compound-marker-seating.ts'
 import { layoutOptimization } from './optimization-context.ts'
 import { refinePrivateChainOrder } from './chain-insertion-order.ts'
@@ -86,7 +87,11 @@ export function layoutLayeredGraph(
   if (input.nodeClearance !== undefined && !finiteSize(input.nodeClearance, false)) throw new TypeError('Invalid measured node clearance')
   if (input.maximumEdgeStrokeWidth !== undefined && !finiteSize(input.maximumEdgeStrokeWidth, true)) throw new TypeError('Measured maximum edge stroke width must be finite and positive')
   if (input.maximumEdgeBendRadius !== undefined && !finiteSize(input.maximumEdgeBendRadius,false)) throw new TypeError('Invalid measured edge bend radius')
-  for (const node of input.nodes) if (node.paintStrokeWidth !== undefined && !finiteSize(node.paintStrokeWidth,true)) throw new TypeError('Invalid measured node paint stroke')
+  for (const node of input.nodes) {
+    assertMeasuredContactMetadata(node)
+    if (node.contact === 'diamond') unsupported('diamond measured contacts require the owning family adapter')
+    if (node.paintStrokeWidth !== undefined && !finiteSize(node.paintStrokeWidth,true)) throw new TypeError('Invalid measured node paint stroke')
+  }
   for (const node of input.nodes) if (node.paintCornerRadius !== undefined && !finiteSize(node.paintCornerRadius,false)) throw new TypeError('Invalid measured node corner radius')
   for (const node of input.nodes) if (node.minimumPortSpacing !== undefined && !finiteSize(node.minimumPortSpacing,true)) throw new TypeError('Invalid measured node port spacing')
   for (const group of input.groups ?? []) if (group.paintStrokeWidth !== undefined && !finiteSize(group.paintStrokeWidth,true)) throw new TypeError('Invalid measured group paint stroke')

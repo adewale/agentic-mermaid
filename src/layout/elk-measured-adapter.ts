@@ -2,7 +2,7 @@ import type { ElkNode } from 'elkjs'
 import { elkLayoutSync } from '../elk-instance.ts'
 import { directionToElk, GraphLayoutUnsupportedError } from './backend.ts'
 import { alignElkRoundoff } from './elk-roundoff.ts'
-import type { MeasuredLayoutAdapter, MeasuredLayoutRequest, MeasuredLayoutResult, MeasuredLayoutRole, MeasuredRoutes } from './measured-graph.ts'
+import { assertMeasuredContactMetadata, type MeasuredLayoutAdapter, type MeasuredLayoutRequest, type MeasuredLayoutResult, type MeasuredLayoutRole, type MeasuredRoutes } from './measured-graph.ts'
 
 /** Existing flat-family ELK policy. Algorithm options do not enter the common IR. */
 export function elkMeasuredAdapter(policy: { rootId: string; edgeNodeSpacing: number; labelText?: readonly string[] }): MeasuredLayoutAdapter<MeasuredLayoutRole> {
@@ -10,7 +10,7 @@ export function elkMeasuredAdapter(policy: { rootId: string; edgeNodeSpacing: nu
     solve(request: MeasuredLayoutRequest): MeasuredLayoutResult {
       const input = request.graph
       const physical = input.maximumEdgeStrokeWidth !== undefined
-      if (input.groups?.length || input.shareCompleteFans || input.nodes.some(n => n.parent !== undefined || n.partition || n.modelOrder !== undefined)
+      if (input.groups?.length || input.shareCompleteFans || input.nodes.some(n => { assertMeasuredContactMetadata(n); return n.contact === 'diamond' || n.parent !== undefined || n.partition || n.modelOrder !== undefined })
         || input.edges.some(e => e.minSpan !== 1 || e.short || e.visible === false || e.markerPaint !== undefined || e.boundaryMarker)
         || (physical ? Number.isFinite(input.maximumEdgeBendRadius) && input.maximumEdgeBendRadius! > 0 : input.edgeSpacing !== undefined || input.nodeClearance !== undefined || input.maximumEdgeBendRadius !== undefined
           || input.nodes.some(n => n.minimumPortSpacing !== undefined || n.paintStrokeWidth !== undefined || n.paintCornerRadius !== undefined)

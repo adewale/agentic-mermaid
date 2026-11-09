@@ -1563,3 +1563,35 @@ prior for ELK/Native/Trinity; adverse Brotli +14/+18 bytes for Native/Trinity,
 request counts unchanged. Evidence `trinity-lazy-priority-20261109`. Remaining:
 compound crossings/refusals, image/domain/capacity, Sparse32 and payload budgets.
 No new raster comparison or visible-correctness gain.
+
+## Flat decision-diamond coverage — 9 November
+
+After `3d159ad7d99a1b29ea9d5c9f1e90d620ec631ce5`, the existing three-out decision
+fan, inlet and feedback gain Trinity delivery in four directions:12 typed refusals
+become12 returned/P products. Shared canonical facets and measured joined stroke
+feed capacity before placement; marked ends require singleton cardinal seating.
+Authored identities/labels and actual written facet contact are checked; sampled
+canonical PNGs retain connected shafts and visible heads. Rough/hybrid ink is
+unqualified. Native/ELK's72 prior directional artifacts and83 frozen whole
+products remain exact; six input errors and the Trinity image refusal remain.
+Frozen30 stays28/28/27, rather than counting the new supplement as an old win.
+
+Decision-fan TB ELK/Native/Trinity area150521/120145/112311, wire696.35/456.51/444.24,
+all4bends/0crossings. Sixty current complete-product calls plus40 corrected
+old-domain controls return/P; all100 compressed response streams decode exactly.
+Two-replica cache0 repeat2 medians81.60/36.81/27.94ms favor Trinity, cache1
+7.68/8.15/8.81 do not; import, CPU, heap/RSS and original edit remain separate.
+No general speed/memory claim. Eight earlier control processes had invalid source
+override paths and are excluded, retained beside corrected controls. Native LR/RL
+area is smaller than Trinity. Actual13-input lazy product gzip/Brotli grows
+ELK+629/+402, Native+1030/+710, Trinity+1771/+1404bytes, each+2requests.
+
+Final497 owning checks across10files, core/repository types and lint pass. The
+old kernel fails nine new owners; table-row aborts limit per-variant red claims.
+Independent review repaired an introduced ellipse-inheritance hole while retaining
+prior ellipse behavior; only the new diamond metadata is own-only. New marker
+facts are captured once into paid private bytes. Existing limits/defaults/versions
+are unchanged. Evidence: `trinity-diamond-contact-20261109`; exact source and
+recovery checkpoint follow in PR602. Compound diamonds, loops and marked multiport
+faces still decline. Next: trace a real compound diamond boundary refusal before
+extending admission; distribution and shared Sparse32 proof losses remain open.

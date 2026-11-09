@@ -6,7 +6,7 @@ export interface MeasuredGraph {
   /** An explicit rounded contact declares paintCornerRadius as a conservative
    * radius bound that remains valid after any permitted size growth.
    * Ordered partitions are local to a sibling scope; omitted values use zero. */
-  nodes: readonly { id: string; width: number; height: number; /** Explicit contact domain; absence remains unknown for new solvers. */ contact?: 'rectangle' | 'rounded-rectangle' | 'ellipse'; /** Centered in the fixed logical body; radii come from the shape owner. */ contactEllipse?: { rx: number; ry: number }; /** Fixed by default; growth must be consumed by the family. */ sizePolicy?: 'fixed' | 'minimum'; paintStrokeWidth?: number; paintCornerRadius?: number; /** Producer-reserved primary port pitch; final paint proofs remain required. */ minimumPortSpacing?: number; parent?: number; partition?: number; modelOrder?: number }[]
+  nodes: readonly { id: string; width: number; height: number; /** Explicit contact domain; absence remains unknown for new solvers. */ contact?: 'rectangle' | 'rounded-rectangle' | 'ellipse' | 'diamond'; /** Canonical cardinal diamond; bounds its actual joined stroke after permitted growth. */ contactDiamond?: { strokeExtent: number }; /** Centered in the fixed logical body; radii come from the shape owner. */ contactEllipse?: { rx: number; ry: number }; /** Fixed by default; growth must be consumed by the family. */ sizePolicy?: 'fixed' | 'minimum'; paintStrokeWidth?: number; paintCornerRadius?: number; /** Producer-reserved primary port pitch; final paint proofs remain required. */ minimumPortSpacing?: number; parent?: number; partition?: number; modelOrder?: number }[]
   /** Edges may address a frame at nodes.length + its group index. */
   groups?: readonly {
     id: string; parent?: number; partition?: number; modelOrder?: number; direction?: Direction; minWidth: number
@@ -21,7 +21,7 @@ export interface MeasuredGraph {
    * the shaft axis, including its stroke. Label dimensions include the occupied painted body. Its own shaft is
    * masked by that body; foreign routes must stay outside it. Loop expansion
    * reserves additional space beside the arc instead of masking its shaft. */
-  edges: readonly { source: number; target: number; minSpan: number; sourcePortSpan?: number; targetPortSpan?: number; short?: true; boundaryMarker?: { inset: number; height: number }; markerPaint?: MarkerPaint; visible?: boolean; label?: { width: number; height: number } }[]
+  edges: readonly { source: number; target: number; minSpan: number; sourcePortSpan?: number; targetPortSpan?: number; /** Explicit marker-roster facts for diamond contacts; false proves shaft-only. */ sourceMarkerPresent?: boolean; targetMarkerPresent?: boolean; short?: true; boundaryMarker?: { inset: number; height: number }; markerPaint?: MarkerPaint; visible?: boolean; label?: { width: number; height: number } }[]
   direction: Direction
   padding: number
   nodeSpacing: number
@@ -63,4 +63,11 @@ export type MeasuredLayoutResult<R extends MeasuredLayoutRole = MeasuredLayoutRo
 /** Dependency loading, backend selection and typed declines belong to adapters. */
 export interface MeasuredLayoutAdapter<R extends MeasuredLayoutRole> {
   solve(request: MeasuredLayoutRequest<R>): MeasuredLayoutResult<R>
+}
+
+const ownsContactMetadata = Object.hasOwn
+
+/** New diamond support is an own declaration, in every solve role. */
+export function assertMeasuredContactMetadata(node: MeasuredGraph['nodes'][number]): void {
+  if (ownsContactMetadata(node, 'contactDiamond') && node.contactDiamond !== undefined && node.contact !== 'diamond') throw new TypeError('Diamond support requires a diamond contact')
 }
