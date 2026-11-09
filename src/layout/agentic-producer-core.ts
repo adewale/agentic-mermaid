@@ -94,16 +94,28 @@ export function layoutLayeredGraph(input: MeasuredGraph, forest: (input: Measure
     routingWork = preparedGraphWork.get(input) ?? routingWork ?? { pairs: 1_000_000, arcs: 65536, swaps: 1_000_000 }
     const shortening = { attempts: 512, comparisons: 8_000_000 }
     let completed = false
+    const sizedInput = (candidate: AgenticLayout): MeasuredGraph => {
+      if (!candidate.nodes.some(node => node.width !== undefined || node.height !== undefined)) return input
+      return { ...input, nodes: input.nodes.map((node, index) => {
+        const actual = candidate.nodes[index]!
+        if (actual.width === undefined && actual.height === undefined) return node
+        if (node.sizePolicy !== 'minimum' || !Number.isFinite(actual.width) || !Number.isFinite(actual.height)
+          || actual.width! < node.width || actual.height! < node.height) throw new TypeError('Native capacity violated body size policy')
+        return { ...node, width: actual.width!, height: actual.height! }
+      }) }
+    }
     const finish = (candidate: AgenticLayout, fail: (reason: string) => never, work: ChannelWork): AgenticLayout => {
-      const final = finalizeFlatMeasuredMarkers(input, candidate, work, MAX_EXPANDED_VERTICES, fail)
-      const result = fitMeasuredLayout(input, shortenMeasuredRoutes(input, final, shortening))
+      const measured = sizedInput(candidate)
+      const final = finalizeFlatMeasuredMarkers(measured, candidate, work, MAX_EXPANDED_VERTICES, fail)
+      const result = fitMeasuredLayout(measured, shortenMeasuredRoutes(measured, final, shortening))
       completed = true
       return result
     }
     const placed = layoutRawGraph(input, forest, unsupported, routingWork, undefined, input.placementOnly ? undefined : finish)
     if (completed || input.placementOnly) return placed
-    const final = finalizeFlatMeasuredMarkers(input, placed, routingWork, MAX_EXPANDED_VERTICES, unsupported)
-    return shortenMeasuredRoutes(input, final, shortening)
+    const measured = sizedInput(placed)
+    const final = finalizeFlatMeasuredMarkers(measured, placed, routingWork, MAX_EXPANDED_VERTICES, unsupported)
+    return shortenMeasuredRoutes(measured, final, shortening)
   } finally {
     if (prepared && explicit && explicit !== prepared) {
       explicit.pairs = prepared.pairs; explicit.arcs = prepared.arcs; explicit.swaps = prepared.swaps

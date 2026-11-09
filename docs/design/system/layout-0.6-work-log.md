@@ -1842,3 +1842,19 @@ dropped; adverse timings retained. Five compound declines remain unresolved.
 Next: port oriented capacity through Native's existing neutral seam, then
 profile a marker-heavy case before per-edge reuse/spatial peers; global nesting
 borders must retain descendant contacts and per-group directions.
+
+### 9 November — Native neutral-request capacity
+
+Parent `d826da70daaa96561ff5edafb24cd6c3a54c0e91`. The existing eight-parallel
+measured-demand case failed Native in four directions: no permitted body growth.
+Explicit rectangular/rounded requests now size oriented faces before coordinates,
+return actual minimum-body growth and decline insufficient fixed bodies. Completion
+uses those sizes; physical loop seats retain pitch and compaction honors requested
+lead40 instead of shortening to24. Existing source API without explicit contact
+keeps its weighted thin-port policy. Four baseline conformance failures become
+passes; 272 owning checks and core/repo types pass. Four enrolled loop products
+requalified: three whole SVG/receipts exact; Requirement loop wire670→676 with
+area230538/bends8 unchanged. This is an adverse cost of preserving its lead.
+Evidence remains `native-only-20261109`; no whole-product speedup or new visible
+coverage claimed. Compound metadata propagation and production seam migration
+remain unfinished; global nesting is the next structural compound intervention.

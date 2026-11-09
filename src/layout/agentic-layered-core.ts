@@ -79,7 +79,8 @@ export function layoutLayeredGraph(
   searchWork: LayoutSearchWork = { attempts: 128, scorePairs: 8_000_000, loopPairs: 2_000_000, rankPairs: 200_000, blockPairs: 2_000_000, routing: { pairs: 500_000, arcs: 32768, swaps: 500_000 } },
   complete?: CompleteMeasuredCandidate,
 ): AgenticLayout {
-  const { nodes, edges, padding, nodeSpacing, layerSpacing } = input
+  let { nodes } = input
+  const { edges, padding, nodeSpacing, layerSpacing } = input
   if (nodes.length > MAX_NODES || edges.length > MAX_EDGES) unsupported('agentic local graph-size limit')
   if (![padding, nodeSpacing, layerSpacing].every(value => finiteSize(value, false))) {
     throw new TypeError('Measured graph spacing must be finite and nonnegative')
@@ -235,9 +236,10 @@ export function layoutLayeredGraph(
     return compactMeasuredLoops(input, projected, searchWork)
   }
 
-  const shared = !partitioned && !hasModelOrder && !hasShortEdges && layoutSharedFan(input, incoming, outgoing, unsupported)
+  const physicalCapacity = nodes.some(node => node.contact === 'rectangle' || node.contact === 'rounded-rectangle')
+  const shared = !physicalCapacity && !partitioned && !hasModelOrder && !hasShortEdges && layoutSharedFan(input, incoming, outgoing, unsupported)
   if (shared) return shared
-  const forest = !partitioned && !hasModelOrder && !hasShortEdges && forestLayout(input)
+  const forest = !physicalCapacity && !partitioned && !hasModelOrder && !hasShortEdges && forestLayout(input)
   if (forest) return { ...forest, expandedVertices: nodes.length }
 
   // The default reserves two private ranks per span. The optional compact
@@ -277,6 +279,34 @@ export function layoutLayeredGraph(
     return layoutCyclicGraph(input, incoming, outgoing,
       (flat, fail, work) => layoutLayeredGraph(flat, forestLayout, fail, work, searchWork),
       unsupported, routingWork, searchWork)
+  }
+  let physicalPortMargins: Float64Array | undefined
+  if (physicalCapacity) {
+    routingWork.arcs -= nodes.length
+    if (routingWork.arcs < 0) unsupported('agentic endpoint capacity work limit')
+    const margins = physicalPortMargins = new Float64Array(nodes.length)
+    // Private orientation is now acyclic. Plan the actual two port faces
+    // before constructing any coordinate or route; fixed bodies never squeeze
+    // known paint demand into a smaller proportional spread.
+    nodes = nodes.map((node, index) => {
+      if (node.contact !== 'rectangle' && node.contact !== 'rounded-rectangle') return node
+      routingWork.pairs -= 8 + outgoing[index]!.length + incoming[index]!.length
+      if (--routingWork.arcs < 0 || routingWork.pairs < 0) unsupported('agentic endpoint capacity work limit')
+      let support = input.maximumEdgeStrokeWidth ?? 0
+      for (const e of outgoing[index]!) support = Math.max(support, sourcePortSpans?.[e] ?? 0)
+      for (const e of incoming[index]!) support = Math.max(support, targetPortSpans?.[e] ?? 0)
+      const count = Math.max(outgoing[index]!.length, incoming[index]!.length)
+      if (!count) return node
+      const margin = Math.max(8, (node.paintCornerRadius ?? 0) + (node.paintStrokeWidth ?? 0) / 2 + support / 2)
+      margins[index] = margin
+      const pitch = Math.max(8, node.minimumPortSpacing ?? 0, support + (input.edgeSpacing ?? 6))
+      const required = 2 * margin + (count - 1) * pitch
+      if (!Number.isFinite(required)) throw new TypeError('Invalid measured endpoint capacity')
+      const cross = horizontal ? node.height : node.width
+      if (cross < required && node.sizePolicy !== 'minimum') unsupported('fixed body has insufficient physical port capacity')
+      const size = Math.max(cross, required)
+      return { ...node, ...(horizontal ? { height: size } : { width: size }), minimumPortSpacing: pitch }
+    })
   }
   const incomingWeight = hasShortEdges ? new Uint32Array(nodes.length) : undefined
   const outgoingWeight = hasShortEdges ? new Uint32Array(nodes.length) : undefined
@@ -701,17 +731,18 @@ export function layoutLayeredGraph(
       })
       const pairs = source ? pairedPorts.get(nodeIndex) : undefined
       if (pairs?.length) {
+        const physicalPitch = physicalPortMargins?.[nodeIndex] ? nodes[nodeIndex]!.minimumPortSpacing : undefined
         const slots = new Map(peers.map((edge, index) => [edge, index]))
         const constraints = pairs.map(([a, b]) => [Math.min(slots.get(a)!, slots.get(b)!), Math.max(slots.get(a)!, slots.get(b)!)] as const)
-        if (constraints.some(([a, b]) => width * (b - a) / (peers.length + 1) < 8)) {
+        if (physicalPitch !== undefined || constraints.some(([a, b]) => width * (b - a) / (peers.length + 1) < 8)) {
           const positions = new Float64Array(peers.length)
           const ends = new Map<number, number[]>()
           for (const [a, b] of constraints) { const starts = ends.get(b) ?? []; starts.push(a); ends.set(b, starts) }
           for (let index = 0; index < peers.length; index++) {
-            positions[index] = index ? positions[index - 1]! + 2 : 0
-            for (const start of ends.get(index) ?? []) positions[index] = Math.max(positions[index]!, positions[start]! + 8)
+            positions[index] = index ? positions[index - 1]! + (physicalPitch ?? 2) : 0
+            for (const start of ends.get(index) ?? []) positions[index] = Math.max(positions[index]!, positions[start]! + (physicalPitch ?? 8))
           }
-          const margin = Math.min(8, width / 6)
+          const margin = physicalPortMargins?.[nodeIndex] || Math.min(8, width / 6)
           const slack = width - 2 * margin - (positions.at(-1) ?? 0)
           if (slack < 0) unsupported('agentic local loop-attachment capacity')
           peers.forEach((edge, index) => { sourcePort[edge] = cross[nodeIndex]! - width / 2 + margin + positions[index]! + slack * (index + 1) / (peers.length + 1) })
@@ -723,7 +754,7 @@ export function layoutLayeredGraph(
       // Dense sides retain the existing proportional spread; loop pairs keep
       // their separately proved attachment separation.
       if(nodes[nodeIndex]!.minimumPortSpacing!==undefined){routingWork.pairs-=3;if(routingWork.pairs<0)unsupported('agentic node port-spacing work limit')}
-      const margin = Math.min(8, width / 6), separation = Math.max(8,nodes[nodeIndex]!.minimumPortSpacing??8)
+      const margin = physicalPortMargins?.[nodeIndex] || Math.min(8, width / 6), separation = Math.max(8,nodes[nodeIndex]!.minimumPortSpacing??8)
       if (!pairs?.length && width - 2 * margin >= (peers.length - 1) * separation) {
         const left = cross[nodeIndex]! - width / 2 + margin, right = cross[nodeIndex]! + width / 2 - margin
         const positions = peers.map((edge, slot) => {
@@ -794,10 +825,11 @@ export function layoutLayeredGraph(
   // arithmetic, and carry each chosen cross coordinate through its lead.
   const positionedNodes = nodes.map((node, index) => {
     const center = point(cross[index]!, main[index]!)
-    return { x: center.x - node.width / 2, y: center.y - node.height / 2 }
+    return { x: center.x - node.width / 2, y: center.y - node.height / 2,
+      ...(node.width !== input.nodes[index]!.width || node.height !== input.nodes[index]!.height ? { width: node.width, height: node.height } : {}) }
   })
   const portCross = (value: number, index: number): number => {
-    const width = vertices[index]!.crossSize, margin = Math.min(8, width / 6)
+    const width = vertices[index]!.crossSize, margin = physicalPortMargins?.[index] || Math.min(8, width / 6)
     const origin = horizontal ? positionedNodes[index]!.y : positionedNodes[index]!.x
     if (value === cross[index]! - width / 2 + margin) return origin + margin
     if (value === cross[index]! + width / 2 - margin) return origin + width - margin
