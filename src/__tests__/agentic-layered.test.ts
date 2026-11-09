@@ -1752,7 +1752,7 @@ describe('Native graph preparation reserves actual styled marker room', () => {
 
 describe('measured endpoint lead admission and work', () => {
   const line = (): MeasuredGraph => ({ nodes: [{id:'A',width:40,height:30},{id:'B',width:40,height:30}], edges:[{source:0,target:1,minSpan:1}], direction:'LR',padding:0,nodeSpacing:24,layerSpacing:48 })
-  for (const invalid of [0,-1,NaN,Infinity]) test(`rejects invalid terminal lead ${invalid}`, () => {
+  for (const invalid of [-1,NaN,Infinity]) test(`rejects invalid terminal lead ${invalid}`, () => {
     expect(() => layoutAgenticGraph({...line(),minimumTerminalLead:invalid})).toThrow(TypeError)
   })
   test('new lead predicates consume the original supplied routing allowance', () => {

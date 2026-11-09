@@ -1493,3 +1493,22 @@ proof statuses unchanged (740P/134U), with no new cap refusal.
 24 complete before/after calls retain mixed costs: cache0 repeat2 median241.60→
 274.61ms with overlapping ranges; cache1 lifetimeRSS adverse196.85–207.77→
 211.92–262.11MiB. No speed/memory gain claimed; two replicas per cell.
+
+## Shared measured Requirement demand — 9 November
+
+Parent7b95: reproduce disjoint internal ELK/Trinity request domains; canonical
+sharp-shaft Requirement now measures once for all3 solvers. ELK translates actual
+support/spacing to centered ports and permitted body growth; selected dimensions
+publish once. Four existing dense ELK contains fans return/U→P; selected actual
+worst LR/RL pair180hidden→0, nearest centers7.67→20px (11px needed). TB/BT clear
+too. ELK LR area337038.54→301441.65/wire6286.25→4862.92. Other inputs retain
+adverse area up to3.85% and wire20.25%; no general quality gain. 515nearby/55Req/
+18final measured owners pass, core/repo types/lint pass; exact before fails10owners.
+Frozen90delivery unchanged; no failed Trident checks on12affectedSVGs, one prior
+ELK ownership unknown remains.64fresh Node processes/240complete calls retain
+mixed timings/RSS and an unattributed132.85ms Native outlier; no speedup claimed.
+Real browser product cost +1374gzip/+1233Br each, requests unchanged; no newcache/
+cap/default/version. Evidence `trinity-common-requirement-20261109`. Remaining:
+same-input Requirement Trinity18bends/1072.96wire versus ELK10/1021.17; diagnose
+placement/routing cause before optimization. The later Native body-gap prototype
+stays withdrawn (+933gzip, no Trinity delivery gain), backed up as892dee0a7.

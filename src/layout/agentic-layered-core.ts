@@ -82,7 +82,7 @@ export function layoutLayeredGraph(
     throw new TypeError('Measured graph spacing must be finite and nonnegative')
   }
   if (input.edgeSpacing !== undefined && !finiteSize(input.edgeSpacing, true)) throw new TypeError('Measured edge spacing must be finite and positive')
-  if (input.minimumTerminalLead !== undefined && !finiteSize(input.minimumTerminalLead, true)) throw new TypeError('Measured terminal lead must be finite and positive')
+  if (input.minimumTerminalLead !== undefined && !finiteSize(input.minimumTerminalLead, false)) throw new TypeError('Measured terminal lead must be finite and nonnegative')
   if (input.nodeClearance !== undefined && !finiteSize(input.nodeClearance, false)) throw new TypeError('Invalid measured node clearance')
   if (input.maximumEdgeStrokeWidth !== undefined && !finiteSize(input.maximumEdgeStrokeWidth, true)) throw new TypeError('Measured maximum edge stroke width must be finite and positive')
   if (input.maximumEdgeBendRadius !== undefined && !finiteSize(input.maximumEdgeBendRadius,false)) throw new TypeError('Invalid measured edge bend radius')

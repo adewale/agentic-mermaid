@@ -3,6 +3,7 @@ import { DeferredDependencyError, GraphLayoutUnsupportedError, LayoutCertificati
 import { runMeasuredGraphBackend, solveMeasuredLayout } from '../layout/measured-backend.ts'
 import { elkMeasuredAdapter } from '../layout/elk-measured-adapter.ts'
 import { nativeMeasuredAdapter } from '../layout/native-measured-adapter.ts'
+import { trinityMeasuredAdapter } from '../layout/trinity.ts'
 import type { MeasuredGraph, MeasuredLayoutResult } from '../layout/measured-graph.ts'
 
 describe('measured family backend selection', () => {
@@ -80,12 +81,12 @@ describe('measured family backend selection', () => {
 
 describe('measured solve boundary', () => {
   const graph: MeasuredGraph = {
-    nodes: [{ id: 'relation-1 漢🙂', width: 100, height: 40 }, { id: 'target', width: 100, height: 40 }],
-    edges: [{ source: 0, target: 1, minSpan: 1, label: { width: 56, height: 20 } }],
-    direction: 'TB', padding: 32, nodeSpacing: 40, layerSpacing: 72,
+    nodes: [{ id: 'relation-1 漢🙂', width: 100, height: 40, contact: 'rectangle', paintStrokeWidth: 2 }, { id: 'target', width: 100, height: 40, contact: 'rectangle', paintStrokeWidth: 2 }],
+    edges: [{ source: 0, target: 1, minSpan: 1, sourcePortSpan: 2, targetPortSpan: 7, label: { width: 56, height: 20 } }],
+    direction: 'TB', padding: 32, nodeSpacing: 40, layerSpacing: 72, edgeSpacing: 8, minimumTerminalLead: 16, maximumEdgeStrokeWidth: 2,
   }
 
-  test.each([['Native', nativeMeasuredAdapter], ['ELK', elkMeasuredAdapter({ rootId: 'measured-test', edgeNodeSpacing: 12 })]] as const)('%s supplies placement and routed geometry without changing measured input', (_name, adapter) => {
+  test.each([['Native', nativeMeasuredAdapter], ['ELK', elkMeasuredAdapter({ rootId: 'measured-test', edgeNodeSpacing: 12 })], ['Trinity', trinityMeasuredAdapter({ pairs: 1_000_000, arcs: 65536, swaps: 1_000_000 })]] as const)('%s supplies placement and routed geometry without changing measured input', (_name, adapter) => {
     const before = structuredClone(graph)
     const placement = solveMeasuredLayout({ role: 'placement', graph }, adapter)
     const routed = solveMeasuredLayout({ role: 'routed', graph }, adapter)
@@ -106,6 +107,8 @@ describe('measured solve boundary', () => {
     expect(first.y).toBeLessThanOrEqual(routed.nodes[0]!.y + 40)
     expect(last.y).toBeGreaterThanOrEqual(routed.nodes[1]!.y)
     expect(last.y).toBeLessThanOrEqual(routed.nodes[1]!.y + 40)
+    const empty = { ...graph, nodes: [], edges: [], minimumTerminalLead: 0 }
+    expect(solveMeasuredLayout({ role: 'routed', graph: empty }, adapter)).toMatchObject({ width: 64, height: 64, nodes: [], edges: [] })
   })
 
   test('rejects wrong roles, lost subjects and invalid extents before family completion', () => {
@@ -127,9 +130,27 @@ describe('measured solve boundary', () => {
   test('ELK measured subset declines constraints it cannot translate instead of dropping them', () => {
     const adapter = elkMeasuredAdapter({ rootId: 'measured-test', edgeNodeSpacing: 12 })
     for (const unsupported of [
-      { ...graph, nodes: [{ ...graph.nodes[0]!, minimumPortSpacing: 24 }, graph.nodes[1]!] },
+      { ...graph, nodes: [{ ...graph.nodes[0]!, contact: 'ellipse' as const, contactEllipse: { rx: 20, ry: 20 } }, graph.nodes[1]!] },
       { ...graph, edges: [{ ...graph.edges[0]!, minSpan: 2 }] },
       { ...graph, maximumEdgeBendRadius: 12 },
     ]) expect(() => solveMeasuredLayout({ role: 'routed', graph: unsupported }, adapter)).toThrow('ELK graph layout does not support this input')
+  })
+
+  test.each(['TB', 'BT', 'LR', 'RL'] as const)('ELK preserves measured body capacity and terminal lead in %s', direction => {
+    const adapter = elkMeasuredAdapter({ rootId: 'measured-test', edgeNodeSpacing: 0 })
+    const demand: MeasuredGraph = { ...graph, direction, minimumTerminalLead: 40,
+      nodes: graph.nodes.map(node => ({ ...node, width: 40, height: 30, sizePolicy: 'minimum' })),
+      edges: Array.from({ length: 8 }, () => ({ source: 0, target: 1, minSpan: 1, sourcePortSpan: 20, targetPortSpan: 12 })),
+    }
+    const before = structuredClone(demand)
+    const result = solveMeasuredLayout({ role: 'routed', graph: demand }, adapter)
+    expect(demand).toEqual(before)
+    const horizontal = direction === 'LR' || direction === 'RL'
+    expect(horizontal ? result.nodes[0]!.height : result.nodes[0]!.width).toBeGreaterThan(horizontal ? 30 : 40)
+    const ports = result.edges.map(edge => horizontal ? edge.points[0]!.y : edge.points[0]!.x).sort((a, b) => a - b)
+    for (let i = 1; i < ports.length; i++) expect(ports[i]! - ports[i - 1]!).toBeGreaterThanOrEqual(28)
+    expect(() => solveMeasuredLayout({ role: 'routed', graph: { ...demand, nodes: demand.nodes.map(node => ({ ...node, sizePolicy: 'fixed' })) } }, adapter)).toThrow(GraphLayoutUnsupportedError)
+    const loop = solveMeasuredLayout({ role: 'routed', graph: { ...demand, nodes: [demand.nodes[0]!], edges: [{ ...demand.edges[0]!, target: 0 }] } }, adapter).edges[0]!.points
+    for (const [a, b] of [[loop[0]!, loop[1]!], [loop.at(-1)!, loop.at(-2)!]] as const) expect(Math.hypot(a.x - b.x, a.y - b.y)).toBeGreaterThanOrEqual(40)
   })
 })

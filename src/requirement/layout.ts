@@ -3,7 +3,7 @@ import { elkMeasuredAdapter } from '../layout/elk-measured-adapter.ts'
 import { nativeMeasuredAdapter } from '../layout/native-measured-adapter.ts'
 import { trinityMeasuredAdapter } from '../layout/trinity.ts'
 import { solveMeasuredLayout } from '../layout/measured-backend.ts'
-import type { MeasuredRoutes } from '../layout/measured-graph.ts'
+import type { MeasuredGraph, MeasuredRoutes } from '../layout/measured-graph.ts'
 import { fitMeasuredLayout } from '../layout/fit-measured-layout.ts'
 import { GraphLayoutUnsupportedError, runMeasuredGraphBackend } from '../layout/backend.ts'
 import { measureRenderStage } from '../render-stages.ts'
@@ -78,74 +78,64 @@ export function layoutRequirementDiagram(model: RequirementBody, options: Render
   const nodeSpacing = options.nodeSpacing ?? metric('nodeSpacing', 40, 0, Infinity),
     layerSpacing = options.layerSpacing ?? metric('rankSpacing', 72, 0, Infinity)
   const terminalLead = model.relations.some(edge => edge.type !== 'contains') ? requirementMarkerTerminal(requirementArrow.id, style.lineWidth, 'end') + style.edgeBendRadius : 0
+  const elkTerminalLead = Math.max(terminalLead, model.relations.some(edge => edge.type === 'contains') ? requirementMarkerTerminal(requirementContains.id, style.lineWidth, 'start') + style.edgeBendRadius : 0)
+  const measuredEdges = model.relations.map((edge, index) => ({ source: indices.get(edge.src)!, target: indices.get(edge.dst)!, minSpan: 1,
+    label: { width: labels[index]!.width + 16, height: labels[index]!.height + 10 } }))
+  const incidences = new Uint32Array(nodes.length), containsSources = new Uint8Array(nodes.length)
+  for (const edge of model.relations) {
+    const source = indices.get(edge.src)!, target = indices.get(edge.dst)!
+    incidences[source] = incidences[source]! + 1; incidences[target] = incidences[target]! + 1
+    if (edge.type === 'contains') containsSources[source] = 1
+  }
+  const horizontal = model.direction === 'LR' || model.direction === 'RL'
+  const capacityNodes = nodes.map((node, index) => {
+    if (!containsSources[index] || incidences[index]! < 2) return { id: node.id, width: node.width, height: node.height }
+    // Feedback can put all incidences on one face. This is measured card
+    // capacity, shared by solvers; no attempt mutates the emitted card.
+    const minimum = (incidences[index]! - 1) * requirementContainsPortSpan + 16
+    return { id: node.id, width: horizontal ? node.width : Math.max(node.width, minimum), height: horizontal ? Math.max(node.height, minimum) : node.height, minimumPortSpacing: requirementContainsPortSpan }
+  })
+  const strokes = nodes.map(node => {
+    const authored = node.style['stroke-width']?.trim()
+    return authored === undefined ? style.nodeLineWidth : /^(?:\d+(?:\.\d*)?|\.\d+)(?:px)?$/.test(authored) ? Number.parseFloat(authored) : NaN
+  })
+  // CSS-dependent paint and rounded shafts retain their existing family paths.
+  // Canonical measured requests carry the same physical demands to all solvers.
+  const physical: MeasuredGraph | undefined = style.lineWidth > 0 && strokes.every(stroke => Number.isFinite(stroke) && stroke > 0) ? {
+    nodes: capacityNodes.map((node, index) => ({ ...node, contact: style.cornerRadius ? 'rounded-rectangle' as const : 'rectangle' as const,
+      sizePolicy: 'minimum', paintCornerRadius: style.cornerRadius ?? 0, paintStrokeWidth: strokes[index]! })),
+    edges: measuredEdges.map((edge, index) => ({ ...edge,
+      sourcePortSpan: model.relations[index]!.type === 'contains' ? Math.max(style.lineWidth, requirementContainsPortSpan) : style.lineWidth,
+      targetPortSpan: model.relations[index]!.type === 'contains' ? style.lineWidth : Math.max(style.lineWidth, requirementArrowPortSpan) })),
+    direction: model.direction, padding: pad, nodeSpacing, layerSpacing, edgeSpacing: Math.max(6, style.lineWidth + 4),
+    minimumTerminalLead: elkTerminalLead, maximumEdgeStrokeWidth: style.lineWidth, maximumEdgeBendRadius: style.edgeBendRadius,
+  } : undefined
+  const measured = style.edgeBendRadius === 0 ? physical : undefined
   const result = runMeasuredGraphBackend<MeasuredRoutes>(options, () => {
     return measureRenderStage('agentic', () => {
-      const incidences = new Uint32Array(nodes.length), containsSources = new Uint8Array(nodes.length)
-      for (const edge of model.relations) {
-        const source = indices.get(edge.src)!, target = indices.get(edge.dst)!
-        incidences[source] = incidences[source]! + 1
-        incidences[target] = incidences[target]! + 1
-        if (edge.type === 'contains') containsSources[source] = 1
-      }
-      const horizontal = model.direction === 'LR' || model.direction === 'RL'
-      const measured = {
-        nodes: nodes.map((node, index) => {
-          if (!containsSources[index] || incidences[index]! < 2) return { id: node.id, width: node.width, height: node.height }
-          // Feedback edges can share a face after private cycle reversal.
-          // Reserve every incidence plus the allocator's two 8px margins.
-          const minimum = (incidences[index]! - 1) * requirementContainsPortSpan + 16
-          return { id: node.id, width: horizontal ? node.width : Math.max(node.width, minimum), height: horizontal ? Math.max(node.height, minimum) : node.height, minimumPortSpacing: requirementContainsPortSpan }
-        }),
-        edges: model.relations.map((edge, index) => ({ source: indices.get(edge.src)!, target: indices.get(edge.dst)!, minSpan: 1,
-          label: { width: labels[index]!.width + 16, height: labels[index]!.height + 10 } })),
+      const demand = measured ?? {
+        nodes: capacityNodes, edges: measuredEdges,
         direction: model.direction, padding: pad, nodeSpacing, layerSpacing, ...(terminalLead ? { minimumTerminalLead: terminalLead } : {}), edgeSpacing: Math.max(6, style.lineWidth + 4),
       }
-      const placed = fitMeasuredLayout(measured, solveMeasuredLayout({ role: 'routed', graph: measured }, nativeMeasuredAdapter))
-      // A declined Native attempt must leave the ELK fallback's measured cards
-      // untouched. Publish capacity growth only with the successful placement.
-      for (const [index, node] of nodes.entries()) {
-        node.width = measured.nodes[index]!.width
-        node.height = measured.nodes[index]!.height
+      const placed = fitMeasuredLayout(demand, solveMeasuredLayout({ role: 'routed', graph: demand }, nativeMeasuredAdapter))
+      for (const [index, at] of placed.nodes.entries()) {
+        at.width ??= demand.nodes[index]!.width
+        at.height ??= demand.nodes[index]!.height
       }
       return placed
     })
   }, () => {
     // Zero clearance lets ELK put the first routing track on the card border.
     // Contains owns a source marker, so it needs its painted terminal lead too.
-    const elkTerminalLead = Math.max(terminalLead, model.relations.some(edge => edge.type === 'contains') ? requirementMarkerTerminal(requirementContains.id, style.lineWidth, 'start') + style.edgeBendRadius : 0)
-    return solveMeasuredLayout({ role: 'routed', graph: {
+    return solveMeasuredLayout({ role: 'routed', graph: measured ?? {
       nodes: nodes.map(node => ({ id: node.id, width: node.width, height: node.height })),
-      edges: model.relations.map((edge, index) => ({ source: indices.get(edge.src)!, target: indices.get(edge.dst)!, minSpan: 1,
-        label: { width: labels[index]!.width + 16, height: labels[index]!.height + 10 } })),
+      edges: measuredEdges,
       direction: model.direction, padding: pad, nodeSpacing, layerSpacing,
     } }, elkMeasuredAdapter({ rootId: 'requirement-layout', edgeNodeSpacing: elkTerminalLead, labelText: labels.map(label => label.text) }))
   }, false, undefined, () => measureRenderStage('trinity', () => {
     if (style.lineWidth <= 0) throw new GraphLayoutUnsupportedError('Requirement zero-width shafts are outside the Trinity slice', 'Trinity')
-    const measured = {
-      nodes: nodes.map(node => {
-        const authoredStroke = node.style['stroke-width']?.trim()
-        // Relative/CSS-dependent paint is unknown here; do not manufacture a
-        // pixel measurement with parseFloat and let it authorize placement.
-        if (authoredStroke !== undefined && !/^(?:\d+(?:\.\d*)?|\.\d+)(?:px)?$/.test(authoredStroke)) throw new GraphLayoutUnsupportedError('Requirement stroke width needs an absolute pixel measurement', 'Trinity')
-        const stroke = authoredStroke === undefined ? style.nodeLineWidth : Number.parseFloat(authoredStroke)
-        if (!Number.isFinite(stroke) || stroke <= 0) throw new GraphLayoutUnsupportedError('Requirement contacts need a finite positive pixel stroke', 'Trinity')
-        return { id: node.id, width: node.width, height: node.height, contact: style.cornerRadius ? 'rounded-rectangle' as const : 'rectangle' as const,
-          sizePolicy: 'minimum' as const, paintCornerRadius: style.cornerRadius ?? 0, paintStrokeWidth: stroke, minimumPortSpacing: requirementContainsPortSpan }
-      }),
-      edges: model.relations.map((edge, index) => ({ source: indices.get(edge.src)!, target: indices.get(edge.dst)!, minSpan: 1,
-        sourcePortSpan: edge.type === 'contains' ? Math.max(style.lineWidth, requirementContainsPortSpan) : style.lineWidth,
-        targetPortSpan: edge.type === 'contains' ? style.lineWidth : Math.max(style.lineWidth, requirementArrowPortSpan),
-        label: { width: labels[index]!.width + 16, height: labels[index]!.height + 10 } })),
-      direction: model.direction, padding: pad, nodeSpacing, layerSpacing, edgeSpacing: Math.max(6, style.lineWidth + 4),
-      minimumTerminalLead: Math.max(terminalLead, model.relations.some(edge => edge.type === 'contains') ? requirementMarkerTerminal(requirementContains.id, style.lineWidth, 'start') + style.edgeBendRadius : 0),
-      maximumEdgeStrokeWidth: style.lineWidth, maximumEdgeBendRadius: style.edgeBendRadius,
-    }
-    const placed = solveMeasuredLayout({ role: 'routed', graph: measured }, trinityMeasuredAdapter({ pairs: 1_000_000, arcs: 65536, swaps: 1_000_000 }))
-    for (const [index, at] of placed.nodes.entries()) {
-      nodes[index]!.width = at.width ?? nodes[index]!.width
-      nodes[index]!.height = at.height ?? nodes[index]!.height
-    }
-    return placed
+    if (!physical) throw new GraphLayoutUnsupportedError('Requirement contacts need finite positive absolute pixel strokes', 'Trinity')
+    return solveMeasuredLayout({ role: 'routed', graph: physical }, trinityMeasuredAdapter({ pairs: 1_000_000, arcs: 65536, swaps: 1_000_000 }))
   }))
   const band = diagramTitleBand(model.title, style),
     titleHeight = band?.height ?? 0
@@ -153,6 +143,10 @@ export function layoutRequirementDiagram(model: RequirementBody, options: Render
     height = (result.height ?? pad * 2) + titleHeight
   for (const [index, position] of result.nodes.entries()) {
     const node = nodes[index]!
+    // Only selected geometry publishes body growth. Declined attempts cannot
+    // leak resized cards into fallback or later emission.
+    node.width = position.width ?? node.width
+    node.height = position.height ?? node.height
     node.x = position.x + (width - result.width) / 2
     node.y = position.y + titleHeight
   }
