@@ -28,6 +28,24 @@ function firstPartyBackends() {
 }
 
 describe('claim-keyed backend capability conformance', () => {
+  test('an existing host backend without raster claims still registers and renders image-free requests', () => {
+    const id = 'backend:test/vector-only-compatibility'
+    const unregister = registerBackend({
+      ...DefaultBackend, id,
+      capabilities: DefaultBackend.capabilities.filter(claim => claim.primitive !== 'image').map(claim => ({ ...claim, target: id })),
+      drawNode(node, context) {
+        if (node.kind === 'image') throw new Error('Raster unsupported by this existing host')
+        return DefaultBackend.drawNode(node, context)
+      },
+    }, BACKEND_REGISTRATION_OPTIONS)
+    try {
+      const renderer = createMermaidRenderer({ backendPolicy: { selectBackend: () => id } })
+      expect(renderer.renderMermaidSVG('flowchart LR\nA[Alpha] --> B[Beta]')).toContain('>Alpha</text>')
+      const png = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGP4z8DwHwAFAAH/iZk9HQAAAABJRU5ErkJggg=='
+      expect(() => renderer.renderMermaidSVG(`flowchart LR\nArt@{ img: "${png}", w: 32, h: 32 }`)).toThrow(/does not support image/)
+    } finally { unregister() }
+  })
+
   test.each(['open', 'close'] as const)('preserves the untouched group field after redefining %s as equal own data', field => {
     for (const { backend } of firstPartyBackends()) {
       const positioned = layoutClassDiagram(parseClassDiagram(['classDiagram', 'class A']))

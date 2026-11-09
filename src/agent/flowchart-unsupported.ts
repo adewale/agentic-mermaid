@@ -7,6 +7,8 @@ import { parseAccessibilityDirective } from '../shared/accessibility-directives.
 import { mermaidEntityPrepass } from '../shared/mermaid-entities.ts'
 import { cleanupMermaidSource } from '../shared/mermaid-cleanup.ts'
 import { parseStyleProps } from '../shared/style-props.ts'
+import { isInlinePng } from '../shared/inline-png.ts'
+import { imageDimension } from '../flowchart-image.ts'
 
 type MetadataEntries = ReadonlyMap<string, unknown>
 
@@ -18,7 +20,7 @@ export interface FlowchartStatement {
 // Edge IDs (`e1@-->`) are MODELED structured edge identity (plan §Flowchart 7)
 // and no longer force the opaque fallback or a lint. Node metadata with only
 // documented node metadata and the closed animate/animation/curve edge set are
-// modeled too. Placement/dimension metadata and undocumented shapes keep the
+// modeled too. Unmodeled placement/dimension metadata and undocumented shapes keep the
 // lossless opaque fallback. Markdown strings render with styled emphasis but
 // stay opaque so the authored quoting round-trips byte-verbatim.
 export function containsFlowchartOpaqueSyntax(source: string): boolean {
@@ -259,20 +261,27 @@ function hasUnmodeledMetadata(statement: string): boolean {
   return metadataObjects(statement).some(entries => !isModeledNodeMetadata(entries) && !isRenderedEdgeMetadata(entries))
 }
 
-/** Metadata remains opaque only when it carries dimensions/placement fields
- * the typed node model cannot reproduce. Icon/image/form and edge
- * animation/curve metadata are closed under the serializer. */
+/** Image dimensions and constraint are typed; other placement/dimension fields
+ * and malformed image values retain their original source. */
 function hasRenderedButSourcePreservedMetadata(statement: string): boolean {
-  return metadataObjects(statement).some(entries => [...entries.keys()].some(key => ['pos', 'h', 'w', 'constraint'].includes(key)))
+  return metadataObjects(statement).some(entries => [...entries.keys()].some(key => {
+    if (key === 'pos') return true
+    if (!['h', 'w', 'constraint'].includes(key)) return false
+    if (!entries.has('img') || entries.has('icon')) return true
+    if (key === 'constraint') return !['on', 'off'].includes(metadataText(entries.get(key)) ?? '')
+    return imageDimension(entries.get(key)) === undefined
+  }))
 }
 
 function isRenderedEdgeMetadata(entries: MetadataEntries): boolean {
   return entries.size > 0 && [...entries.keys()].every(key => key === 'animate' || key === 'animation' || key === 'curve')
 }
 
-/** Image metadata is modeled, but offline output announces its placeholder. */
+/** Only the closed inline-PNG viewport slice replaces the offline placeholder. */
 function hasImageMetadata(statement: string): boolean {
-  return metadataObjects(statement).some(entries => entries.has('img'))
+  return metadataObjects(statement).some(entries => entries.has('img') && !(!entries.has('icon') && isInlinePng(metadataText(entries.get('img')))
+    && imageDimension(entries.get('w')) !== undefined && imageDimension(entries.get('h')) !== undefined
+    && (!entries.has('form') || metadataText(entries.get('form')) === 'square')))
 }
 
 function hasUnmodeledNodeMetadata(statement: string): boolean {

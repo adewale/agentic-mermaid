@@ -7,7 +7,7 @@ import { retainWrittenFields, retainTextAttributes, writeTextOpening, writerEvid
 // typography, transforms, markers, identity and ARIA come from the mark.
 // ============================================================================
 
-import type { ConnectorLabelDescriptor, ConnectorMark, Geometry, MarkAttributes, MarkPaint, ScenePoint, SceneTransform, ShapeMark, TextMark } from './ir.ts'
+import type { ConnectorLabelDescriptor, ConnectorMark, Geometry, ImageMark, MarkAttributes, MarkPaint, ScenePoint, SceneTransform, ShapeMark, TextMark } from './ir.ts'
 import type { SvgSemanticIdentity } from './identity.ts'
 import type { SvgSemanticAccessibility } from './accessibility.ts'
 import { hasDomSvgIdentityRole } from './identity.ts'
@@ -19,6 +19,8 @@ import { connectorUnitTangent } from './connector-geometry.ts'
 import { createWrittenPolyline } from './written-geometry.ts'
 import { indentLines } from './serialization.ts'
 import { verifySvgDocumentEnvelope, verifySvgDocumentDataPositions } from '../output-security.ts'
+import { isInlinePng } from '../shared/inline-png.ts'
+import { SCENE_VALIDATION_LIMITS } from './scene-validation-limits.ts'
 import { MAX_OCCLUSION_OPERATIONS } from './paint-work.ts'
 
 // Fresh written facts must be sealed before ambient hooks can observe them.
@@ -671,6 +673,28 @@ function geometryAttributes(out: SvgWriter, geometry: ElementGeometry, sink?: Sv
       sink?.(geometry, literal === raw ? geometry : { kind: 'path', d: literal })
     }
   }
+}
+
+export function writeImageSvg(node: ImageMark): string
+export function writeImageSvg(node: ImageMark, capture: SvgXmlCapture): SvgXmlWrite
+export function writeImageSvg(node: ImageMark, capture?: SvgXmlCapture): string | SvgXmlWrite {
+  // Validate the values actually emitted, including mutable/getter-backed marks.
+  const { href, x, y, width, height, fit } = node
+  if (typeof href !== 'string' || href.length > SCENE_VALIDATION_LIMITS.maxSerializationBytesPerNode || !isInlinePng(href)) throw new TypeError('Image requires a self-contained PNG data URI')
+  if (![x, y, width, height].every(value => Number.isFinite(value) && Math.abs(value) <= SCENE_VALIDATION_LIMITS.maxExtent)
+    || width <= 0 || height <= 0 || fit !== 'contain' && fit !== 'stretch') throw new TypeError('Invalid image viewport')
+  const out = new SvgWriter(capture)
+  out.element('image')
+  out.attribute('href', href)
+  out.attribute('x', x); out.attribute('y', y)
+  out.attribute('width', width); out.attribute('height', height)
+  out.attribute('preserveAspectRatio', fit === 'contain' ? 'xMidYMid meet' : 'none')
+  hooks(out, node.attributes)
+  transformAttribute(out, node.transform)
+  identityAttributes(out, node.identity, node.accessibility)
+  out.raw(' />')
+  writtenLeafContexts.set(node, { svg: out.value, context: Object.freeze({ transformed: out.transformed }) })
+  return capture ? finishXmlLeaf(capture, node, out.value, out.xml) : out.value
 }
 
 /** Compound geometry writes one element per child, each with its own paint;

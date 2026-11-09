@@ -519,7 +519,7 @@ const BUILTIN_FAMILY_DESCRIPTOR_SEEDS = [
       nativeSceneRole('edge-label', 'container'),
       nativeSceneRole('node', 'container', 'shape'),
       nativeSceneRole('label', 'text'),
-      nativeSceneRole('icon', 'container', 'shape', 'text'),
+      nativeSceneRole('icon', 'container', 'shape', 'text', 'image'),
     ],
     example: 'flowchart TD\n  A[Start] --> B{Ship?}\n  B -->|yes| C[Deploy]\n  B -->|no| D[Fix]',
     editorExample: `flowchart TD

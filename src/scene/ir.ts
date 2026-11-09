@@ -141,6 +141,17 @@ export interface SceneNodeBase {
   attributes?: MarkAttributes
 }
 
+/** A self-contained raster viewport. Pixel availability/alpha are not paint facts. */
+export interface ImageMark extends SceneNodeBase {
+  kind: 'image'
+  href: string
+  x: number
+  y: number
+  width: number
+  height: number
+  fit: 'contain' | 'stretch'
+}
+
 export interface ShapeMark extends SceneNodeBase {
   kind: 'shape'
   geometry: Geometry
@@ -487,7 +498,7 @@ export interface DocumentMark extends SceneNodeBase {
 }
 
 /** A Scene part. Existing *Mark names describe drawing parts, not source nodes. */
-export type SceneNode = ShapeMark | ConnectorMark | TextMark | GroupMark | DocumentMark
+export type SceneNode = ImageMark | ShapeMark | ConnectorMark | TextMark | GroupMark | DocumentMark
 
 /** The lowered document: an ordered flat list of top-level Scene parts. */
 export interface SceneDoc {

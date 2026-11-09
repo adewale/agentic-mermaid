@@ -46,6 +46,7 @@ import {
   documentText,
   group,
   documentOpen,
+  image,
   shape,
   text,
 } from './marks.ts'
@@ -505,7 +506,20 @@ function witnessKey(claim: PrimitiveCapabilityClaim): string {
   return [claim.primitive, claim.feature, claim.operation].join('/')
 }
 
+const IMAGE_HREF = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGP4z8DwHwAFAAH/iZk9HQAAAABJRU5ErkJggg=='
+const imageWitness: ClaimWitness = backend => {
+  const mark = image({ id: 'backend-image', role: 'node', href: IMAGE_HREF, x: 2, y: 3, width: 16, height: 12, fit: 'contain', attributes: { data: { media: 'backend-image' } } })
+  const output = drawn(backend, mark)
+  return outcome(occurrences(output, '<image ') === 1 && output.includes(`href="${IMAGE_HREF}"`)
+    && output.includes('x="2" y="3" width="16" height="12" preserveAspectRatio="xMidYMid meet"')
+    && output.includes('data-id="backend-image"') && output.includes('data-role="node"') && output.includes('data-media="backend-image"'),
+  'typed PNG resource, viewport and identity retained as crisp raster output; pixels remain unmeasured', 'image resource, viewport or identity changed')
+}
+
 const CLAIM_WITNESSES: Readonly<Record<string, ClaimWitness>> = Object.freeze({
+  'image/geometry/render': imageWitness,
+  'image/resources/serialize': imageWitness,
+  'image/identity/serialize': imageWitness,
   'document/identity/serialize': backend => {
     const svg = rendered(backend)
     return outcome(

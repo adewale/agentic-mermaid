@@ -4,7 +4,7 @@ import { isAdmittedSceneDocument } from './scene-admission-state.ts'
 import { isOwnDataSceneSnapshot, isOwnDataSceneSnapshotInert, isOwnDataSceneArrayInert } from './scene-data-snapshot.ts'
 import type { SceneDoc, SceneNode, Geometry, MarkPaint, ShapeMark } from './ir.ts'
 import { compareCodePointStrings } from '../shared/deterministic-order.ts'
-import { writeConnectorSvg, writeShapeSvg, writeTextSvg, type SvgGeometryWriteSink, type SvgXmlCapture, type SvgXmlWrite } from './svg-writer.ts'
+import { writeImageSvg, writeConnectorSvg, writeShapeSvg, writeTextSvg, type SvgGeometryWriteSink, type SvgXmlCapture, type SvgXmlWrite } from './svg-writer.ts'
 import { rectanglePaintFields, writtenPolylineProjectionOf, prepareWrittenCompoundShape, observeWrittenCompoundShape, completeWrittenCompoundShape, type WrittenCompoundInput } from './written-geometry.ts'
 import { createEmissionContext, type EmissionColorResolver } from './emission-context.ts'
 
@@ -596,6 +596,7 @@ function serializeSceneNode(node: SceneNode, sink?: SvgGeometryWriteSink, observ
 
 function writeStructuredSceneNode(node: SceneNode, capture: SvgXmlCapture, sink?: SvgGeometryWriteSink, observer?: SceneSerializationObserver): SvgXmlWrite {
   switch (node.kind) {
+    case 'image': return writeImageSvg(node, capture)
     case 'shape': return writeShapeSvg(node, sink, capture)
     case 'text': return writeTextSvg(node, capture, sink)
     case 'connector': return writeConnectorSvg(node, sink, capture)
@@ -610,6 +611,7 @@ function writeStructuredSceneNode(node: SceneNode, capture: SvgXmlCapture, sink?
 
 function writeSceneNode(node: SceneNode, sink?: SvgGeometryWriteSink, observer?: SceneSerializationObserver, composition?: GroupComposition): string {
   switch (node.kind) {
+    case 'image': return writeImageSvg(node)
     case 'shape': return writeShapeSvg(node, sink)
     case 'text': return writeTextSvg(node)
     case 'connector': return writeConnectorSvg(node, sink)
@@ -778,6 +780,7 @@ export function sceneHasOnlyPreparedText(scene: SceneDoc): boolean {
     if (!WRITABLE_SCENE_NODES.has(node)) return false
     switch (node.kind) {
       case 'text': return node.measurement === 'prepared' && node.block !== undefined
+      case 'image': return true
       case 'shape': return true
       // The connector writer sends every inline label through the prepared
       // shared text writer; companion labels are separate Text marks.

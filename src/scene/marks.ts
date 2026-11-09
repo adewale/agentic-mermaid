@@ -1,3 +1,5 @@
+import { isInlinePng } from '../shared/inline-png.ts'
+import { SCENE_VALIDATION_LIMITS } from './scene-validation-limits.ts'
 import { sanitizeDisplayLines } from '../shared/text-controls.ts'
 // ============================================================================
 // Mark constructors — the only way family lowerings build scene nodes.
@@ -14,7 +16,7 @@ import type {
   ConnectorContourSemantics, ConnectorDash, ConnectorEndpointAnchor, ConnectorEndpoints, ConnectorGeometry,
   ConnectorHitGeometry, ConnectorLabelDescriptor, ConnectorMark, ConnectorRelationship,
   ConnectorRoute, ConnectorStroke, ConnectorTerminalProjection, DocumentMark, GroupMark,
-  Geometry, LinearGradientDescriptor, MarkAttributes, MarkPaint, MarkerDescriptor,
+  Geometry, ImageMark, LinearGradientDescriptor, MarkAttributes, MarkPaint, MarkerDescriptor,
   SceneNode, SceneOwner, SceneRole, SceneTransform, SemanticChannels, ShapeMark, TextMark,
 } from './ir.ts'
 import type { DiagramColors } from '../theme.ts'
@@ -114,6 +116,28 @@ export function shape(fields: {
     ...(fields.childPaints ? { childPaints: fields.childPaints } : {}),
     ...(fields.conditionalPaint ? { conditionalPaint: fields.conditionalPaint } : {}),
     ...(fields.surfaceFragment !== undefined ? { surfaceFragment: fields.surfaceFragment } : {}),
+    ...(fields.channels ? { channels: fields.channels } : {}),
+    ...(fields.transform ? { transform: fields.transform } : {}),
+    ...(fields.attributes ? { attributes: fields.attributes } : {}),
+  })
+}
+
+export function image(fields: Omit<ImageMark, 'kind' | 'identity' | 'accessibility'> & {
+  identity?: Omit<SvgSemanticIdentity, 'role'>
+}): ImageMark {
+  assertMarkAttributes(fields.id, fields.attributes)
+  if (typeof fields.href !== 'string' || fields.href.length > SCENE_VALIDATION_LIMITS.maxSerializationBytesPerNode || !isInlinePng(fields.href)) throw new TypeError('Image requires a self-contained PNG data URI')
+  if (![fields.x, fields.y, fields.width, fields.height].every(value => Number.isFinite(value) && Math.abs(value) <= SCENE_VALIDATION_LIMITS.maxExtent)
+    || fields.width <= 0 || fields.height <= 0 || !['contain', 'stretch'].includes(fields.fit)) throw new TypeError('Image requires a bounded positive viewport and fit')
+  const identity = typedIdentity(fields)
+  const accessibility = relationAccessibility(identity, fields.attributes?.data?.label)
+  if (accessibility && fields.attributes?.ariaLabel !== undefined) throw new TypeError(`Image "${fields.id}" takes its aria-label from typed relation accessibility`)
+  return admitWritableSceneNode({
+    kind: 'image', id: fields.id, role: fields.role, identity,
+    href: fields.href, x: fields.x, y: fields.y, width: fields.width, height: fields.height, fit: fields.fit,
+    ...(fields.owner ? { owner: fields.owner } : {}),
+    ...(fields.visibility ? { visibility: fields.visibility } : {}),
+    ...(accessibility ? { accessibility } : {}),
     ...(fields.channels ? { channels: fields.channels } : {}),
     ...(fields.transform ? { transform: fields.transform } : {}),
     ...(fields.attributes ? { attributes: fields.attributes } : {}),

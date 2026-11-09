@@ -5,7 +5,7 @@ import * as marks from './marks.ts'
 /** One lowering program, with a consumer selected before any marks are built. */
 export interface DrawingDocument<T> extends Omit<SceneDoc, 'parts'> { parts: T[] }
 export type DrawingFactory<T> = {
-  [K in 'shape' | 'text' | 'connector' | 'documentOpen' | 'documentContent' | 'documentText' | 'definitions' | 'documentClose']: (...args: Parameters<typeof marks[K]>) => T
+  [K in 'image' | 'shape' | 'text' | 'connector' | 'documentOpen' | 'documentContent' | 'documentText' | 'definitions' | 'documentClose']: (...args: Parameters<typeof marks[K]>) => T
 } & {
   group(fields: Omit<Parameters<typeof marks.group>[0], 'children'> & { children: Array<{ node: T; indent: number }> }): T
   pathArtwork(fields: Parameters<typeof marks.pathArtwork>[0]): T

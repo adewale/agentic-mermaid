@@ -22,6 +22,37 @@ import { resolveRenderStyle } from '../styles.ts'
 import type { PositionedEdge, PositionedNode } from '../types.ts'
 import { parseMermaid as parseFlowchart } from '../parser.ts'
 import { clearElkLayoutCache } from '../elk-instance.ts'
+import { Resvg } from '@resvg/resvg-js'
+
+test.each(['LR', 'RL', 'TB', 'BT'] as const)('all graph solvers deliver the actual sized inline PNG and separate its caption in %s', direction => {
+  const png = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGP4z8DwHwAFAAH/iZk9HQAAAABJRU5ErkJggg=='
+  const source = `flowchart ${direction}\nArt@{ img: "${png}", label: "Icon 漢🙂", w: 32, h: 48, constraint: "on" }\nArt --> Target[Target]`
+  for (const backend of ['elk', 'agentic', 'trinity'] as const) for (const style of [undefined, 'hand-drawn', 'freehand']) {
+    const options = { graphLayout: { backend, fallback: 'none' as const }, style, embedFontImport: false, security: 'strict' as const }
+    const product = renderMermaidSVGWithReceipt(source, options), layout = layoutMermaidWithReceipt(source, options).layout
+    const tags = scanSvgStartTags(product.svg), image = tags.find(tag => tag.name === 'image')!
+    expect(decodedSvgAttributeValue(image, 'href')).toBe(png)
+    expect(decodedSvgAttributeValue(image, 'width')).toBe('32')
+    expect(decodedSvgAttributeValue(image, 'height')).toBe('48')
+    expect(decodedSvgAttributeValue(image, 'preserveAspectRatio')).toBe('xMidYMid meet')
+    const bottom = Number(decodedSvgAttributeValue(image, 'y')) + 48
+    const art = layout.nodes.find(node => node.id === 'Art')!, caption = art.labelBounds!
+    expect(caption.y).toBeGreaterThan(bottom)
+    expect(caption.y + caption.h).toBeLessThan(art.y + art.h)
+    const text = tags.find(tag => tag.name === 'text' && tag.start > image.end)!
+    expect(Number(decodedSvgAttributeValue(text, 'y'))).toBeCloseTo(caption.y + caption.h / 2, 3)
+    expect(layout.nodes.map(node => [node.id, node.label])).toEqual([['Art', 'Icon 漢🙂'], ['Target', 'Target']])
+    expect(layout.edges.map(edge => [edge.from, edge.to])).toEqual([['Art', 'Target']])
+    expect(product.svg).not.toContain('flowchart-image-placeholder')
+    expect(product.receipt.layoutCertification?.status).toBe('unverified')
+    const raster = new Resvg(product.svg, { font: { loadSystemFonts: false } }).render()
+    let red = 0
+    const pixels = raster.pixels
+    for (let i = 0; i < pixels.length; i += 4) if (pixels[i]! > 245 && pixels[i + 1]! < 10 && pixels[i + 2]! < 10 && pixels[i + 3]! > 245) red++
+    expect(red).toBeGreaterThan(900)
+    expect(renderMermaidSVGWithReceipt(source, options)).toEqual(product)
+  }
+})
 import { renderMermaidSVGWithReceipt, GraphLayoutUnsupportedError } from '../index.ts'
 import { LayoutWorkLimitError } from '../layout/backend.ts'
 import * as trinityKernel from '../layout/trinity.ts'

@@ -278,6 +278,28 @@ describe('v11 shapes — structured agent body + authored round-trip', () => {
 })
 
 describe('v11 shapes — SVG + ops', () => {
+  it('retains image viewport metadata in the typed body and after a label edit', () => {
+    const source = 'flowchart LR\nArt@{ img: "https://example.invalid/a.png", label: "Icon", w: 32, h: 48, constraint: "on" }\nArt --> Target[Target]'
+    const diagram = parseAgent(source)
+    expect(diagram.body.kind).toBe('flowchart')
+    if (diagram.body.kind !== 'flowchart') return
+    expect(diagram.body.graph.nodes.get('Art')).toMatchObject({ imageWidth: 32, imageHeight: 48, imageConstraint: 'on' })
+    const edited = mutate(asFlowchart(diagram)!, { kind: 'set_label', target: 'Art', label: 'Edited' })
+    if (!edited.ok) throw new Error(edited.error.message)
+    const serialized = serializeMermaid(edited.value)
+    expect(serialized).toContain('w: 32, h: 48, constraint: on')
+    expect(parseAgent(serialized).body).toEqual(edited.value.body)
+  })
+
+  it('keeps invalid or ambiguous media metadata source-preserved', () => {
+    for (const dimensions of ['w: true, h: 32', 'w: [32], h: 32', 'w: -1, h: 32', 'w: 32, h: 32, constraint: other', 'icon: "fa:user", w: 32, h: 32']) {
+      const source = `flowchart LR\nArt@{ img: "https://example.invalid/a.png", ${dimensions} }`
+      const diagram = parseAgent(source)
+      expect(diagram.body.kind).toBe('opaque')
+      expect(serializeMermaid(diagram).trim()).toBe(source)
+    }
+  })
+
   it('the SVG names the semantic shape alongside the drawn geometry', () => {
     const svg = renderMermaidSVG(metaSource('manual-input'))
     expect(svg).toMatch(/<g class="node" data-id="A"[^>]*data-shape="[a-z-]+"[^>]*data-semantic-shape="sl-rect"/)
