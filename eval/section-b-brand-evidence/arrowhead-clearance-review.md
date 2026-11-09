@@ -85,3 +85,21 @@ At renderer `0a5acb11`, dependency carriers end at visible mark boundaries, incl
 At renderer `6b9726dec35eb65f69fdf1aed19baf7e6d31443b`, the agent inspected all four changed UseCase cells at native 520×380. The Customer connector reaches the painted person in the sentinel, editorial, technical and dark-operations variants. Captions, palette treatments and ellipse contacts remain intact. Pixel comparison establishes that the other 128 cells are unchanged. The geometry baseline changes only `fixture/usecase-native.mmd`, moving the actor endpoint from its caption envelope to the painted leg; the other 329 entries are identical. The selected architectural-plan SVG changes for the same contact repair.
 
 Separate same-input production captures retain the earlier floating connectors beside the repaired wide-caption actor in default, hand-drawn and architectural-plan looks. Final-SVG regressions independently reconstruct the head, butt-capped strokes and leg miter, checking inward/outward paint contact and matching public endpoint metadata. Rectangular packing envelopes are not certified as actor outlines. Exact rough-backend jitter, coincident authored marks and arbitrary-degree marker separation remain outside this finite review.
+
+## PR #602 Requirement spacing review, 9 November 2026
+
+At renderer `705db8562b7b9729e71e78ebf0da94e6991342f0`, two independent
+agents inspected the technical and dark Requirement cells at native 520×380.
+All field text, forward verifies arrow, caption and card boundaries remain visible
+without new overlap or clipping; the other 130 sheet cells are pixel-identical.
+The watercolor SVG keeps typography, paint and identities while moving the target
+card 6px and lengthening its shaft. These goldens align with the shared physical
+spacing change in `0597c632`; they do not establish a new layout gain.
+
+The two geometry entries retain every node/edge identity, label, endpoint and
+body dimension, including parallel, reciprocal and self relationships. Integer
+basic bounds 246×509→246×515 and wire 168→174; backend-fixture bounds 481×535→
+489×541 and wire 961→1019 are adverse area/wire costs. No other 328 geometry
+entries change. This finite agent review does not claim human approval or
+arbitrary-density correctness. Raw renders and the independent review remain
+in `trinity-requirement-golden-review-20261109` on the evidence branch.
