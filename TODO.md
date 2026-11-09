@@ -319,22 +319,25 @@ A new defect needs a current reproduction at its owning boundary.
 
 ## Owned graph backend qualification (owner request, PR #449)
 
-The owner requested an ELK replacement measured on correctness, execution cost,
-memory and shipped bytes, and on 8 November requested the Trinity design.
-[Trinity specification](docs/design/system/trinity-layout.md) owns the proposed
-interface, state/invariant ownership and metrics.
-[Execution plan](docs/design/system/layout-0.6-qualification.md) is the single active
-work order. The owner's 0.6.0 release target remains planning context; this design
-does not change current versions, backend defaults or publication settings.
-Automation remains off.
+The owner selected Native as the sole replacement candidate on 9 November.
+Trinity feature work is frozen; its existing API remains for compatibility.
+[Native execution plan](docs/design/system/layout-0.6-qualification.md) owns the
+single work order. Keep defaults, versions, publication and work caps unchanged.
+Automations remain off.
+
+- [ ] **NATIVE-1 — Existing neutral seam and early capacity.** Group cycle tie repair and flat physical-request sizing are implemented. Finish production seam adoption and compound metadata propagation without losing Native coverage or weighted thin-marker packing.
+- [ ] **NATIVE-2 — Measured post-placement cost.** Reuse marker views within owned passes and spatially query peers; retain live mutation fallback and exact checks. Target fully consumed 100-node responses under100ms. Shared capture and crossing costs remain measured losses; no cache-hit or solver-only substitution.
+- [ ] **NATIVE-3 — Global compound layering.** Use a nesting graph and border nodes to rank leaves globally. Reserve expansion before allocation; preserve ancestor endpoints and independent group directions through the existing recursive path until supported. Boundary feedback is an alternative, not another parallel backend.
+
+<details>
+<summary>Historical implementation evidence and deferred proposals (not a second execution queue)</summary>
+
+The former Trinity work items are retained history, not active work:
 
 - [ ] **TRINITY-1 — Common measured contract and pipeline ownership.** Extract the role-aware boundary and delegate existing ELK/Native behavior; isolate legacy completion and preserve family-specific finalization.
 - [ ] **TRINITY-2 — Capacity-aware experimental kernel.** Demonstrate an actual-ink repair on the retained crowded-port/shortening failures with adverse controls; keep unsupported constraints and all costs visible.
 - [ ] **TRINITY-3 — Compound/family and public-entry integration.** Add each used constraint at its owning adapter, preserving explicit capability/fallback and emitted-output contracts. No default switch is implied.
 - [ ] **TRINITY-4 — Shared work subtraction and equivalent comparison.** Profile sufficient safe reductions, then compare kernel and fully consumed products with existing Trident; retain correctness, confidence and resource distinctions.
-
-<details>
-<summary>Historical implementation evidence and deferred proposals (not a second execution queue)</summary>
 
 The following records keep their original revision/scope. Deferred proposals are
 not completed and are not automatically scheduled. Promote a concrete deficit

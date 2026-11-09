@@ -1858,3 +1858,23 @@ area230538/bends8 unchanged. This is an adverse cost of preserving its lead.
 Evidence remains `native-only-20261109`; no whole-product speedup or new visible
 coverage claimed. Compound metadata propagation and production seam migration
 remain unfinished; global nesting is the next structural compound intervention.
+
+### 9 November — owned Native marker peers
+
+Parent `cb4204a507492d48daaae0c3c284de3be9827c56`. One Native route pass
+now prepares peer marker views lazily and queries a conservative packed BVH.
+Every owner route write dirties that edge; refits preserve authored blocker order
+and the exact narrow phase. Borrowed/custom/accessor-backed geometry stays live.
+805 owning checks, core/repo types and lint pass; frozen84 SVG/receipts and six
+errors are unchanged. Real cyclic353 executes90 peer queries in five renders;
+16 qualified products passed with32 whole SVG/receipt comparisons exact.
+Isolated96-edge admission falls152–158→13–14ms first pass, but no full-product
+win is established: cyclic353 warm125–176→136–431ms; adverse heap retained.
+Both100-node fans make zero indexed queries;100nodes<100ms remains unmet.
+Final13-case browser products pass all three adapters. Versus `dee908197`,
+ELK/Native/Trinity gzip costs increase1365/2213/1491bytes, requests43/49/50
+unchanged. An attempted Native-only module split added a request to every
+product and worsened Native payload; stopped and preserved outside source.
+No ELK context enablement ships. Trinity feature work is frozen in plan/backlog.
+Evidence: `native-only-20261109`. Remaining: global nesting borders, common
+production seam adoption, shared emission cost/proof cap and mixed-circle ink.

@@ -196,7 +196,7 @@ export function tightenOuterFeedback(edge: PositionedEdge, ctx: LaneContext, nod
       || routeEntersNodeBox(normalized.slice(0, -1), targetBox)) return false
     // Same rule as straightening: tightening may never increase crossings.
     if (routeAddsCrossings(normalized, edge, ctx)) return false
-    if (!routeCandidateMarkersClear(edge, normalized, ctx.edges, ctx.style)) return false
+    if (!routeCandidateMarkersClear(edge, normalized, ctx.edges, ctx.style, edge, ctx.routeMarkerPeers)) return false
     const before = edge.points
     setRoutePoints(ctx, edge, normalized)
     // Re-place the label if its pill sat on a removed segment.
