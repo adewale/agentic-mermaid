@@ -16,10 +16,11 @@ import { parseRegisteredMermaid as parseMermaid, layoutMermaid } from '../agent/
 import { applySymmetricFanoutEmissions } from '../layout/passes/fanout.ts'
 import { parseMermaid as parseGraph } from '../parser.ts'
 import { resolveRenderStyle } from '../styles.ts'
-import type { Direction, Point, PositionedNode, PositionedEdge } from '../types.ts'
-import { renderMermaidSVG } from '../index.ts'
+import type { Direction, Point, PositionedNode, PositionedEdge, PositionedGroup } from '../types.ts'
+import { renderMermaidSVG, renderMermaidSVGWithReceipt } from '../index.ts'
 import { decodedSvgAttributeValue, scanSvgStartTags } from '../svg-structure.ts'
 import { layoutGraphSync } from '../layout-engine.ts'
+import { missingSvgLabels } from './helpers/svg-labels.ts'
 
 const SYM = [
   'flowchart LR',
@@ -139,6 +140,60 @@ end`
     expect(svg).toContain('iPhone')
     expect(svg).toContain('section')
   })
+  test.each(['TB', 'BT', 'LR', 'RL'])('keeps a decision fan inside its written frame in %s', direction => {
+    const source = `flowchart ${direction}\nsubgraph Stage[Choose a path]\nQ{Decision} -->|left| L[Left]\nQ -->|middle| M[Middle]\nQ -.->|right| R[Right]\nend`
+    const options = { graphLayout: { backend: 'elk' as const, fallback: 'none' as const }, embedFontImport: false }
+    const product = renderMermaidSVGWithReceipt(source, options)
+    expect(product.receipt.layoutCertification?.status).toBe('passed')
+    expect(missingSvgLabels(product.svg, ['Decision', 'Left', 'Middle', 'Right', 'left', 'middle', 'right', 'Choose a path'])).toEqual([])
+    const tags = scanSvgStartTags(product.svg)
+    const frameIndex = tags.findIndex(tag => tag.name === 'g' && decodedSvgAttributeValue(tag, 'data-id') === 'Stage' && decodedSvgAttributeValue(tag, 'data-region') === 'subgraph')
+    expect(frameIndex).toBeGreaterThanOrEqual(0)
+    const frame = tags[frameIndex + 1]!
+    expect(frame.name).toBe('rect')
+    const box = (tag: typeof frame) => Object.fromEntries(['x', 'y', 'width', 'height'].map(key => [key, Number(decodedSvgAttributeValue(tag, key))])) as Record<'x' | 'y' | 'width' | 'height', number>
+    const outer = box(frame)
+    for (const id of ['L', 'M', 'R']) {
+      const node = tags.find(tag => decodedSvgAttributeValue(tag, 'data-id') === `node-shape:${id}`)!
+      expect(node.name).toBe('rect')
+      const body = box(node)
+      expect(body.x).toBeGreaterThanOrEqual(outer.x); expect(body.y).toBeGreaterThanOrEqual(outer.y)
+      expect(body.x + body.width).toBeLessThanOrEqual(outer.x + outer.width)
+      expect(body.y + body.height).toBeLessThanOrEqual(outer.y + outer.height)
+    }
+    const edges = tags.filter(tag => decodedSvgAttributeValue(tag, 'data-role') === 'edge')
+    expect(edges.map(tag => [decodedSvgAttributeValue(tag, 'data-from'), decodedSvgAttributeValue(tag, 'data-to'), decodedSvgAttributeValue(tag, 'data-label')])).toEqual([['Q', 'L', 'left'], ['Q', 'M', 'middle'], ['Q', 'R', 'right']])
+    expect(renderMermaidSVGWithReceipt(source, options)).toEqual(product)
+  })
+
+  test.each(['TB', 'BT', 'LR', 'RL'] as const)('retains a fitting nested symmetry proposal and its main-axis frame growth in %s', direction => {
+    const horizontal = direction === 'LR' || direction === 'RL', reverse = direction === 'BT' || direction === 'RL'
+    const orient = (box: { x: number; y: number; width: number; height: number }) => horizontal
+      ? { x: reverse ? 600 - box.y - box.height : box.y, y: box.x, width: box.height, height: box.width }
+      : { ...box, y: reverse ? 600 - box.y - box.height : box.y }
+    const point = (p: Point): Point => horizontal ? { x: reverse ? 600 - p.y : p.y, y: p.x } : { x: p.x, y: reverse ? 600 - p.y : p.y }
+    const nodes: PositionedNode[] = ([
+      { id: 'D', label: 'Decision', shape: 'diamond', x: 220, y: 30, width: 100, height: 80 },
+      { id: 'A', label: 'One', shape: 'rectangle', x: 120, y: 150, width: 80, height: 40 },
+      { id: 'B', label: 'Other', shape: 'rectangle', x: 320, y: 165, width: 60, height: 40 },
+    ] satisfies PositionedNode[]).map(node => ({ ...node, ...orient(node) }))
+    const inner: PositionedGroup = { id: 'Stage', label: 'Stage', ...orient({ x: 20, y: 20, width: 500, height: 220 }), nodeIds: ['D', 'A', 'B'], children: [] }
+    const outer: PositionedGroup = { id: 'Outer', label: 'Outer', ...orient({ x: 0, y: 0, width: 540, height: 260 }), children: [inner] }
+    const edges: PositionedEdge[] = ['A', 'B'].map((target, i) => ({ source: 'D', target, style: 'solid', hasArrowStart: false, hasArrowEnd: true, label: 'A deliberately long outgoing caption',
+      points: [{ x: 270, y: 110 }, { x: 270, y: 130 }, { x: i ? 350 : 160, y: 130 }, { x: i ? 350 : 160, y: i ? 165 : 150 }].map(point) }))
+    const oldExtent = horizontal ? inner.width : inner.height, oldOuterExtent = horizontal ? outer.width : outer.height
+    const graph = parseGraph(`flowchart ${direction}\nsubgraph Outer\nsubgraph Stage\nD{Decision} -->|A deliberately long outgoing caption| A[One]\nD -->|A deliberately long outgoing caption| B[Other]\nend\nend`)
+    applySymmetricFanoutEmissions(nodes, edges, [outer], graph, new Set(), resolveRenderStyle())
+    expect([nodes[1]!.width, nodes[1]!.height]).toEqual([nodes[2]!.width, nodes[2]!.height])
+    expect(horizontal ? inner.width : inner.height).toBeGreaterThan(oldExtent)
+    expect(horizontal ? outer.width : outer.height).toBeGreaterThan(oldOuterExtent)
+    for (const frame of [outer, inner]) for (const body of nodes) {
+      expect(body.x).toBeGreaterThanOrEqual(frame.x); expect(body.y).toBeGreaterThanOrEqual(frame.y)
+      expect(body.x + body.width).toBeLessThanOrEqual(frame.x + frame.width)
+      expect(body.y + body.height).toBeLessThanOrEqual(frame.y + frame.height)
+    }
+  })
+
   test('peers with differing label widths are equalized to a common width and aligned', () => {
     const p = parseMermaid(SYM)
     expect(p.ok).toBe(true)

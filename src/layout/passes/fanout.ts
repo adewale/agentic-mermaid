@@ -180,7 +180,6 @@ export function applySymmetricFanoutEmissions(
     }
 
     const oldTargets = targets.map(t => ({ t, x: t.x, y: t.y, width: t.width, height: t.height }))
-    const targetGroups = new Map(targets.map(target => [target.id, flattenPositionedGroups(groups).filter(group => rectInsideGroup(target, group))]))
     const oldGroups = flattenPositionedGroups(groups).map(group => ({ group, x: group.x, y: group.y, width: group.width, height: group.height }))
     const restoreGeometry = () => {
       for (const old of oldTargets) { old.t.x = old.x; old.t.y = old.y; old.t.width = old.width; old.t.height = old.height }
@@ -215,9 +214,11 @@ export function applySymmetricFanoutEmissions(
       for (let i = 0; i < targets.length; i++) {
         const target = targets[i]!
         if (target.x < 0 || target.y < 0) return false
-        // Late fan-out placement must preserve every original enclosure. Main
-        // axis expansion below may enlarge a group, but never evict a member.
-        if (!targetGroups.get(target.id)!.every(group => rectInsideGroup(target, group))) return false
+        // Keep original containers even after a target has moved. Current
+        // frames may already have grown along the flow axis.
+        for (const prior of oldGroups) {
+          if (rectInsideGroup(oldTargets[i]!, prior) && !rectInsideGroup(target, prior.group)) return false
+        }
         for (let j = i + 1; j < targets.length; j++) {
           if (rectsOverlap(target, targets[j]!, 8)) return false
         }
