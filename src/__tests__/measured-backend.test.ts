@@ -136,8 +136,10 @@ describe('measured solve boundary', () => {
     ]) expect(() => solveMeasuredLayout({ role: 'routed', graph: unsupported }, adapter)).toThrow('ELK graph layout does not support this input')
   })
 
-  test.each(['TB', 'BT', 'LR', 'RL'] as const)('ELK preserves measured body capacity and terminal lead in %s', direction => {
-    const adapter = elkMeasuredAdapter({ rootId: 'measured-test', edgeNodeSpacing: 0 })
+  test.each((['TB', 'BT', 'LR', 'RL'] as const).flatMap(direction => [
+    { direction, name: 'ELK', adapter: elkMeasuredAdapter({ rootId: 'measured-test', edgeNodeSpacing: 0 }) },
+    { direction, name: 'Native', adapter: nativeMeasuredAdapter },
+  ]))('$name preserves measured body capacity and terminal lead in $direction', ({ direction, adapter }) => {
     const demand: MeasuredGraph = { ...graph, direction, minimumTerminalLead: 40,
       nodes: graph.nodes.map(node => ({ ...node, width: 40, height: 30, sizePolicy: 'minimum' })),
       edges: Array.from({ length: 8 }, () => ({ source: 0, target: 1, minSpan: 1, sourcePortSpan: 20, targetPortSpan: 12 })),
@@ -151,6 +153,7 @@ describe('measured solve boundary', () => {
     for (let i = 1; i < ports.length; i++) expect(ports[i]! - ports[i - 1]!).toBeGreaterThanOrEqual(28)
     expect(() => solveMeasuredLayout({ role: 'routed', graph: { ...demand, nodes: demand.nodes.map(node => ({ ...node, sizePolicy: 'fixed' })) } }, adapter)).toThrow(GraphLayoutUnsupportedError)
     const loop = solveMeasuredLayout({ role: 'routed', graph: { ...demand, nodes: [demand.nodes[0]!], edges: [{ ...demand.edges[0]!, target: 0 }] } }, adapter).edges[0]!.points
+    expect(Math.hypot(loop[0]!.x - loop.at(-1)!.x, loop[0]!.y - loop.at(-1)!.y)).toBeGreaterThanOrEqual(20)
     for (const [a, b] of [[loop[0]!, loop[1]!], [loop.at(-1)!, loop.at(-2)!]] as const) expect(Math.hypot(a.x - b.x, a.y - b.y)).toBeGreaterThanOrEqual(40)
   })
 })

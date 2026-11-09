@@ -15,8 +15,9 @@ export function compactMeasuredLoops(input: MeasuredGraph, placed: AgenticLayout
     sign = input.direction === 'RL' || input.direction === 'BT' ? -1 : 1
   const main = horizontal ? 'x' : 'y',
     cross = horizontal ? 'y' : 'x'
+  const lead = Math.max(24, input.minimumTerminalLead ?? 0)
   const point = (m: number, c: number): Point => (horizontal ? { x: m, y: c } : { x: c, y: m })
-  const boxes = input.nodes.map((node, index) => ({ ...placed.nodes[index]!, width: node.width, height: node.height }))
+  const boxes = input.nodes.map((node, index) => ({ ...placed.nodes[index]!, width: placed.nodes[index]!.width ?? node.width, height: placed.nodes[index]!.height ?? node.height }))
   // Final route admission reserves the caption's two-pixel halo too. A
   // cosmetic shortcut must not erase a jog that keeps another halo clear.
   const labels = input.edges.map((edge, index) => {
@@ -43,7 +44,7 @@ export function compactMeasuredLoops(input: MeasuredGraph, placed: AgenticLayout
       end = original.at(-1)!
     if (Math.abs(start[main] - end[main]) > 1e-7 || Math.abs(start[cross] - end[cross]) < 8 - 1e-7) continue
     const occupied = [...boxes, ...labels.filter((box, other): box is MeasuredBox => Boolean(box) && other !== index)]
-    const candidates = [...new Set([...original.map(p => p[main]), ...occupied.flatMap(box => (horizontal ? [box.x - 8, box.x + box.width + 8] : [box.y - 8, box.y + box.height + 8])), start[main] + 24 * sign])].filter(m => (m - start[main]) * sign >= 24)
+    const candidates = [...new Set([...original.map(p => p[main]), ...occupied.flatMap(box => (horizontal ? [box.x - 8, box.x + box.width + 8] : [box.y - 8, box.y + box.height + 8])), start[main] + lead * sign])].filter(m => (m - start[main]) * sign >= lead)
     candidates.sort((a, b) => (a - b) * sign)
     const involved = new Set([index]),
       total = ink.reduce((n, e) => n + e.points.length, 0)
