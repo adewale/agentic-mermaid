@@ -1,0 +1,627 @@
+[
+  {
+    "path": "trinity-shared-contact-20261109/152-INK.json",
+    "bytes": 1448,
+    "sha256": "f155b0704938e4471ce6192536b4a84af49d677c4f5a6cfeff192f3eb6eb110e"
+  },
+  {
+    "path": "trinity-shared-contact-20261109/152-baseline/RESULT.json.gz",
+    "bytes": 2237,
+    "sha256": "b6c0da1b6b4eec7278b910b3cc8e51cc273e751be09a77eff88836ac6cc4eebc"
+  },
+  {
+    "path": "trinity-shared-contact-20261109/152-baseline/edit.cpuprofile.gz",
+    "bytes": 31086,
+    "sha256": "0f3fdba0f02e9ec9c164b25ce586af68d832b643d98a836087f9a598a435a4db"
+  },
+  {
+    "path": "trinity-shared-contact-20261109/152-baseline/edit.receipt.json.gz",
+    "bytes": 1218,
+    "sha256": "b7f348c6330f85949470ab08f42d490993f32eb2ee100c8703d699eb63dfc6a3"
+  },
+  {
+    "path": "trinity-shared-contact-20261109/152-baseline/edit.row.json.gz",
+    "bytes": 1076,
+    "sha256": "88e2dafbd4bff1e3fbd2581a29eeeb0fd58ee17335bc7718ac306666f499616e"
+  },
+  {
+    "path": "trinity-shared-contact-20261109/152-baseline/edit.svg.gz",
+    "bytes": 4351,
+    "sha256": "36a236f4bcce19a05f9a118cf4f413004104715873bd062f7aeb57b5416b0980"
+  },
+  {
+    "path": "trinity-shared-contact-20261109/152-baseline/repeat1.cpuprofile.gz",
+    "bytes": 31104,
+    "sha256": "f20bffd2fa40759ed0796f2581d54694de6ea42246d1e3099dc322903e171264"
+  },
+  {
+    "path": "trinity-shared-contact-20261109/152-baseline/repeat1.receipt.json.gz",
+    "bytes": 1218,
+    "sha256": "b7f348c6330f85949470ab08f42d490993f32eb2ee100c8703d699eb63dfc6a3"
+  },
+  {
+    "path": "trinity-shared-contact-20261109/152-baseline/repeat1.row.json.gz",
+    "bytes": 1103,
+    "sha256": "af6d316d4111af29bee33772f001871f5e5e6231b546be2265cfc292dd03c489"
+  },
+  {
+    "path": "trinity-shared-contact-20261109/152-baseline/repeat1.svg.gz",
+    "bytes": 4351,
+    "sha256": "36a236f4bcce19a05f9a118cf4f413004104715873bd062f7aeb57b5416b0980"
+  },
+  {
+    "path": "trinity-shared-contact-20261109/152-baseline/repeat2.cpuprofile.gz",
+    "bytes": 28232,
+    "sha256": "99b92a825b08ee6d80b02a9514da89af954495a404685c218d624234e4b2e95c"
+  },
+  {
+    "path": "trinity-shared-contact-20261109/152-baseline/repeat2.receipt.json.gz",
+    "bytes": 1218,
+    "sha256": "b7f348c6330f85949470ab08f42d490993f32eb2ee100c8703d699eb63dfc6a3"
+  },
+  {
+    "path": "trinity-shared-contact-20261109/152-baseline/repeat2.row.json.gz",
+    "bytes": 1092,
+    "sha256": "8c124b513eac71dcd4cb5df17f84b1e28035691863d3b5a238edcb3102fb44a5"
+  },
+  {
+    "path": "trinity-shared-contact-20261109/152-baseline/repeat2.svg.gz",
+    "bytes": 4351,
+    "sha256": "36a236f4bcce19a05f9a118cf4f413004104715873bd062f7aeb57b5416b0980"
+  },
+  {
+    "path": "trinity-shared-contact-20261109/152-baseline/source-maps.json.gz",
+    "bytes": 1056052,
+    "sha256": "22c6d373e5ee4b72e416d8f677957e841fdf458482f3c1bff1eb3ac0bb5b72cf"
+  },
+  {
+    "path": "trinity-shared-contact-20261109/152-baseline/warmup.receipt.json.gz",
+    "bytes": 1218,
+    "sha256": "b7f348c6330f85949470ab08f42d490993f32eb2ee100c8703d699eb63dfc6a3"
+  },
+  {
+    "path": "trinity-shared-contact-20261109/152-baseline/warmup?.svg.gz",
+    "bytes": 4351,
+    "sha256": "36a236f4bcce19a05f9a118cf4f413004104715873bd062f7aeb57b5416b0980"
+  },
+  {
+    "path": "trinity-shared-contact-20261109/152-baseline-job.json",
+    "bytes": 2187,
+    "sha256": "6562bc08b28cd69696d0c6d0ec21a1783046d07d23c0c28f055060216c9340db"
+  },
+  {
+    "path": "trinity-shared-contact-20261109/152-baseline.log",
+    "bytes": 658,
+    "sha256": "105937924b7c7911889791fce820ab13249c0a6ce1e5d549edbdb3bae15c0e96"
+  },
+  {
+    "path": "trinity-shared-contact-20261109/152-bun/0.receipt.json.gz",
+    "bytes": 1216,
+    "sha256": "46bef913e892096de1bacd9252bb15e5c51a8e839807b429a641b8cdd2590f4f"
+  },
+  {
+    "path": "trinity-shared-contact-20261109/152-bun/0.svg.gz",
+    "bytes": 4309,
+    "sha256": "e1004494c900142b556d1703f63cca43aaddbd22ca9f6c5d5e79c4c47924b803"
+  },
+  {
+    "path": "trinity-shared-contact-20261109/152-bun/1.receipt.json.gz",
+    "bytes": 1216,
+    "sha256": "46bef913e892096de1bacd9252bb15e5c51a8e839807b429a641b8cdd2590f4f"
+  },
+  {
+    "path": "trinity-shared-contact-20261109/152-bun/1.svg.gz",
+    "bytes": 4309,
+    "sha256": "e1004494c900142b556d1703f63cca43aaddbd22ca9f6c5d5e79c4c47924b803"
+  },
+  {
+    "path": "trinity-shared-contact-20261109/152-bun/RESULT.json",
+    "bytes": 244,
+    "sha256": "662403e3664ae020a3e3b0ae21be1c98615e2d7df7189fb56ba25a389b620289"
+  },
+  {
+    "path": "trinity-shared-contact-20261109/152-current.png",
+    "bytes": 226537,
+    "sha256": "61eaab1aff3bc258376aeff75189ea79366f84f54d95433928a5a8ccf912d0f9"
+  },
+  {
+    "path": "trinity-shared-contact-20261109/152-trace/RESULT.json.gz",
+    "bytes": 2352,
+    "sha256": "065185d96cd40a4875d1f283a41956b0cf953cbcd81c21c68f7b34ef10ea978e"
+  },
+  {
+    "path": "trinity-shared-contact-20261109/152-trace/contact-trace.json.gz",
+    "bytes": 11607,
+    "sha256": "8fb6ac1037db368f29f6c21054981f5db4f7ead46d3368f1c3efbd5413c17157"
+  },
+  {
+    "path": "trinity-shared-contact-20261109/152-trace/edit.cpuprofile.gz",
+    "bytes": 30763,
+    "sha256": "8c12dc99f33be268e8e10c13a338b613b97c116233003addc803ed3d3042cd7c"
+  },
+  {
+    "path": "trinity-shared-contact-20261109/152-trace/edit.receipt.json.gz",
+    "bytes": 1218,
+    "sha256": "b7f348c6330f85949470ab08f42d490993f32eb2ee100c8703d699eb63dfc6a3"
+  },
+  {
+    "path": "trinity-shared-contact-20261109/152-trace/edit.row.json.gz",
+    "bytes": 1076,
+    "sha256": "acd739362b43951c1f12ab459bb4a8a52f2c9c3dd89b1db8a8bb830bce26332b"
+  },
+  {
+    "path": "trinity-shared-contact-20261109/152-trace/edit.svg.gz",
+    "bytes": 4351,
+    "sha256": "36a236f4bcce19a05f9a118cf4f413004104715873bd062f7aeb57b5416b0980"
+  },
+  {
+    "path": "trinity-shared-contact-20261109/152-trace/repeat1.cpuprofile.gz",
+    "bytes": 30623,
+    "sha256": "7d6e954ee9c6cfaee57571b92c1dc698bdec6e702286059b8db16bda2d011e89"
+  },
+  {
+    "path": "trinity-shared-contact-20261109/152-trace/repeat1.receipt.json.gz",
+    "bytes": 1218,
+    "sha256": "b7f348c6330f85949470ab08f42d490993f32eb2ee100c8703d699eb63dfc6a3"
+  },
+  {
+    "path": "trinity-shared-contact-20261109/152-trace/repeat1.row.json.gz",
+    "bytes": 1103,
+    "sha256": "bff124a24a49076da71127fe1137086d30d02b1778e51a4af60f5a615001b8f5"
+  },
+  {
+    "path": "trinity-shared-contact-20261109/152-trace/repeat1.svg.gz",
+    "bytes": 4351,
+    "sha256": "36a236f4bcce19a05f9a118cf4f413004104715873bd062f7aeb57b5416b0980"
+  },
+  {
+    "path": "trinity-shared-contact-20261109/152-trace/repeat2.cpuprofile.gz",
+    "bytes": 27865,
+    "sha256": "a5f8df1123bee826e406fc3fc6bc33e06af250793c2568e3d41b217d66626447"
+  },
+  {
+    "path": "trinity-shared-contact-20261109/152-trace/repeat2.receipt.json.gz",
+    "bytes": 1218,
+    "sha256": "b7f348c6330f85949470ab08f42d490993f32eb2ee100c8703d699eb63dfc6a3"
+  },
+  {
+    "path": "trinity-shared-contact-20261109/152-trace/repeat2.row.json.gz",
+    "bytes": 1095,
+    "sha256": "4dd3ec7bfd7f05684a2cc6d0655b9478861c4a2535d875b5c180d4698dabd4b9"
+  },
+  {
+    "path": "trinity-shared-contact-20261109/152-trace/repeat2.svg.gz",
+    "bytes": 4351,
+    "sha256": "36a236f4bcce19a05f9a118cf4f413004104715873bd062f7aeb57b5416b0980"
+  },
+  {
+    "path": "trinity-shared-contact-20261109/152-trace/source-maps.json.gz",
+    "bytes": 1056246,
+    "sha256": "0457852bd3960d8b99c627933be1e2a5f262471f53a0b49ba38d27a74c4c0454"
+  },
+  {
+    "path": "trinity-shared-contact-20261109/152-trace/warmup.receipt.json.gz",
+    "bytes": 1218,
+    "sha256": "b7f348c6330f85949470ab08f42d490993f32eb2ee100c8703d699eb63dfc6a3"
+  },
+  {
+    "path": "trinity-shared-contact-20261109/152-trace/warmup?.svg.gz",
+    "bytes": 4351,
+    "sha256": "36a236f4bcce19a05f9a118cf4f413004104715873bd062f7aeb57b5416b0980"
+  },
+  {
+    "path": "trinity-shared-contact-20261109/152-trace-job.json",
+    "bytes": 2579,
+    "sha256": "6705eec0f03ce81094bcf9f2a3b2ec25b078fe4cd21235fdb3a1d76492727010"
+  },
+  {
+    "path": "trinity-shared-contact-20261109/152-trace.log",
+    "bytes": 657,
+    "sha256": "06079b03f67ff1afc5c9fd9b0616bffc88e461e21a1e20aad4fc88b891f9ef2f"
+  },
+  {
+    "path": "trinity-shared-contact-20261109/201-baseline-job.json",
+    "bytes": 1148,
+    "sha256": "5c5c0dda43cf0cf615b63474cbde008601f143472d3374a9908fad09b8b6158f"
+  },
+  {
+    "path": "trinity-shared-contact-20261109/201-bun/0.receipt.json.gz",
+    "bytes": 1216,
+    "sha256": "f27b341cd8965187c08e2bec1025b646f6d9dc89ebdb557a596ca21d4066e37c"
+  },
+  {
+    "path": "trinity-shared-contact-20261109/201-bun/0.svg.gz",
+    "bytes": 3899,
+    "sha256": "e8699354af44bee4c902a4a3383abeff130013e5c5654aa837a78a7937c3091b"
+  },
+  {
+    "path": "trinity-shared-contact-20261109/201-bun/1.receipt.json.gz",
+    "bytes": 1216,
+    "sha256": "f27b341cd8965187c08e2bec1025b646f6d9dc89ebdb557a596ca21d4066e37c"
+  },
+  {
+    "path": "trinity-shared-contact-20261109/201-bun/1.svg.gz",
+    "bytes": 3899,
+    "sha256": "e8699354af44bee4c902a4a3383abeff130013e5c5654aa837a78a7937c3091b"
+  },
+  {
+    "path": "trinity-shared-contact-20261109/201-bun/RESULT.json",
+    "bytes": 244,
+    "sha256": "662403e3664ae020a3e3b0ae21be1c98615e2d7df7189fb56ba25a389b620289"
+  },
+  {
+    "path": "trinity-shared-contact-20261109/241-INK.json",
+    "bytes": 1850,
+    "sha256": "139e64afec3962e6d8791da3cf024a50727c62274b640f7c54999a7276784873"
+  },
+  {
+    "path": "trinity-shared-contact-20261109/241-baseline-job.json",
+    "bytes": 1171,
+    "sha256": "369374490c37bf0718e38c7615d6c51eeecbaeee086363d0fdf1a534a5f7ecb3"
+  },
+  {
+    "path": "trinity-shared-contact-20261109/241-bun/0.receipt.json.gz",
+    "bytes": 1213,
+    "sha256": "eb2f19c26e93953cb9e2196a9ec7fa0fafe484b0dba7b8e3312a9d5f097af26c"
+  },
+  {
+    "path": "trinity-shared-contact-20261109/241-bun/0.svg.gz",
+    "bytes": 3888,
+    "sha256": "0dfc32ba2fbda21e31a89b9ed80a3317788f2bdf07106eae84e2cef5f724c500"
+  },
+  {
+    "path": "trinity-shared-contact-20261109/241-bun/1.receipt.json.gz",
+    "bytes": 1213,
+    "sha256": "eb2f19c26e93953cb9e2196a9ec7fa0fafe484b0dba7b8e3312a9d5f097af26c"
+  },
+  {
+    "path": "trinity-shared-contact-20261109/241-bun/1.svg.gz",
+    "bytes": 3888,
+    "sha256": "0dfc32ba2fbda21e31a89b9ed80a3317788f2bdf07106eae84e2cef5f724c500"
+  },
+  {
+    "path": "trinity-shared-contact-20261109/241-bun/RESULT.json",
+    "bytes": 244,
+    "sha256": "662403e3664ae020a3e3b0ae21be1c98615e2d7df7189fb56ba25a389b620289"
+  },
+  {
+    "path": "trinity-shared-contact-20261109/372-INK.json",
+    "bytes": 1409,
+    "sha256": "7fd13064603a5525481c790a65de066bd354d89a7f2e8d53eb529f547e3e5882"
+  },
+  {
+    "path": "trinity-shared-contact-20261109/372-baseline/RESULT.json.gz",
+    "bytes": 2174,
+    "sha256": "9e3a587a854533c8cadeef3ee25575a8d8a110021a16c2c11b35302848d6c25b"
+  },
+  {
+    "path": "trinity-shared-contact-20261109/372-baseline/edit.cpuprofile.gz",
+    "bytes": 30323,
+    "sha256": "e2d39a5f5c825fdc3d7fcaecd9832730bdf03c1de3e192bcd80c586f54d6f307"
+  },
+  {
+    "path": "trinity-shared-contact-20261109/372-baseline/edit.receipt.json.gz",
+    "bytes": 1216,
+    "sha256": "d2f5fef436c9f430e4137756b0556e33952b4b3148c1790ca020f7a2a27d0db4"
+  },
+  {
+    "path": "trinity-shared-contact-20261109/372-baseline/edit.row.json.gz",
+    "bytes": 1086,
+    "sha256": "18dbc303c7165147072f8885d78cd99813dbdb18c5df5478220b7fb5ffd726dd"
+  },
+  {
+    "path": "trinity-shared-contact-20261109/372-baseline/edit.svg.gz",
+    "bytes": 3893,
+    "sha256": "ac1eb5f1a4261a8f4fe8608e5137df2d6d9a56426e56dfe06c9ed79e3f10ff13"
+  },
+  {
+    "path": "trinity-shared-contact-20261109/372-baseline/repeat1.cpuprofile.gz",
+    "bytes": 29755,
+    "sha256": "1452e142202f6b0e1fe7e880ccea67c2a98d2c36364d031b9401a383a482090b"
+  },
+  {
+    "path": "trinity-shared-contact-20261109/372-baseline/repeat1.receipt.json.gz",
+    "bytes": 1216,
+    "sha256": "d2f5fef436c9f430e4137756b0556e33952b4b3148c1790ca020f7a2a27d0db4"
+  },
+  {
+    "path": "trinity-shared-contact-20261109/372-baseline/repeat1.row.json.gz",
+    "bytes": 1094,
+    "sha256": "5ed4370bd155e485ded97d1cf5f644155eeedf7a68ee11ffedb2eb0d060f2bdf"
+  },
+  {
+    "path": "trinity-shared-contact-20261109/372-baseline/repeat1.svg.gz",
+    "bytes": 3893,
+    "sha256": "ac1eb5f1a4261a8f4fe8608e5137df2d6d9a56426e56dfe06c9ed79e3f10ff13"
+  },
+  {
+    "path": "trinity-shared-contact-20261109/372-baseline/repeat2.cpuprofile.gz",
+    "bytes": 28141,
+    "sha256": "9db5910948614120e4f0953c12cacd54f1848b73cfc8f712ad6595d9215e69d6"
+  },
+  {
+    "path": "trinity-shared-contact-20261109/372-baseline/repeat2.receipt.json.gz",
+    "bytes": 1216,
+    "sha256": "d2f5fef436c9f430e4137756b0556e33952b4b3148c1790ca020f7a2a27d0db4"
+  },
+  {
+    "path": "trinity-shared-contact-20261109/372-baseline/repeat2.row.json.gz",
+    "bytes": 1096,
+    "sha256": "50e7abc25326e73a05aa8a28aa755efa9c3f1b15f594082e78cc75864b2145da"
+  },
+  {
+    "path": "trinity-shared-contact-20261109/372-baseline/repeat2.svg.gz",
+    "bytes": 3893,
+    "sha256": "ac1eb5f1a4261a8f4fe8608e5137df2d6d9a56426e56dfe06c9ed79e3f10ff13"
+  },
+  {
+    "path": "trinity-shared-contact-20261109/372-baseline/source-maps.json.gz",
+    "bytes": 1056052,
+    "sha256": "22c6d373e5ee4b72e416d8f677957e841fdf458482f3c1bff1eb3ac0bb5b72cf"
+  },
+  {
+    "path": "trinity-shared-contact-20261109/372-baseline/warmup.receipt.json.gz",
+    "bytes": 1216,
+    "sha256": "d2f5fef436c9f430e4137756b0556e33952b4b3148c1790ca020f7a2a27d0db4"
+  },
+  {
+    "path": "trinity-shared-contact-20261109/372-baseline/warmup?.svg.gz",
+    "bytes": 3893,
+    "sha256": "ac1eb5f1a4261a8f4fe8608e5137df2d6d9a56426e56dfe06c9ed79e3f10ff13"
+  },
+  {
+    "path": "trinity-shared-contact-20261109/372-baseline-job.json",
+    "bytes": 1952,
+    "sha256": "6ae2f404be5cc757591bdb70601785e26fc37ded007e233d99ea27d94b82c861"
+  },
+  {
+    "path": "trinity-shared-contact-20261109/372-baseline.log",
+    "bytes": 624,
+    "sha256": "e91488bb4d01ecf3d2bf96c234f51676d19993db3bcc7e7bdcbc232a73200eff"
+  },
+  {
+    "path": "trinity-shared-contact-20261109/372-bun/0.receipt.json.gz",
+    "bytes": 1214,
+    "sha256": "ce1fdcae3af2b7f37371d9f22ee4ecf4ea91f0b7160ed128bfd0a12994b46631"
+  },
+  {
+    "path": "trinity-shared-contact-20261109/372-bun/0.svg.gz",
+    "bytes": 3869,
+    "sha256": "523a82875501a92dd194751fcd43a994698113c34de8f010559a3f6222614aec"
+  },
+  {
+    "path": "trinity-shared-contact-20261109/372-bun/1.receipt.json.gz",
+    "bytes": 1214,
+    "sha256": "ce1fdcae3af2b7f37371d9f22ee4ecf4ea91f0b7160ed128bfd0a12994b46631"
+  },
+  {
+    "path": "trinity-shared-contact-20261109/372-bun/1.svg.gz",
+    "bytes": 3869,
+    "sha256": "523a82875501a92dd194751fcd43a994698113c34de8f010559a3f6222614aec"
+  },
+  {
+    "path": "trinity-shared-contact-20261109/372-bun/RESULT.json",
+    "bytes": 244,
+    "sha256": "662403e3664ae020a3e3b0ae21be1c98615e2d7df7189fb56ba25a389b620289"
+  },
+  {
+    "path": "trinity-shared-contact-20261109/372-current.png",
+    "bytes": 233343,
+    "sha256": "080c5cb88e236d5de120a5ee2e5eb30c48ec0a4c334490b6cd198783e73824ce"
+  },
+  {
+    "path": "trinity-shared-contact-20261109/372-trace/RESULT.json.gz",
+    "bytes": 2286,
+    "sha256": "c843b04b7357f01cd6ddce57ba5f120a1db466daf9ddbf0dcae80db9d7e21c21"
+  },
+  {
+    "path": "trinity-shared-contact-20261109/372-trace/contact-trace.json.gz",
+    "bytes": 10021,
+    "sha256": "d296bdd8955f1014015a1b8acf0386365c511890aaee2f01e504364063a6d8c5"
+  },
+  {
+    "path": "trinity-shared-contact-20261109/372-trace/edit.cpuprofile.gz",
+    "bytes": 37318,
+    "sha256": "668cfc6c235b571805f97cc476acf5fb598d2bf5042746391aae9a044f3356c8"
+  },
+  {
+    "path": "trinity-shared-contact-20261109/372-trace/edit.receipt.json.gz",
+    "bytes": 1216,
+    "sha256": "d2f5fef436c9f430e4137756b0556e33952b4b3148c1790ca020f7a2a27d0db4"
+  },
+  {
+    "path": "trinity-shared-contact-20261109/372-trace/edit.row.json.gz",
+    "bytes": 1075,
+    "sha256": "4cf923b81b9a9b38535ad84a6a7ec388ce11a452f444dc7bc22734e02d86be16"
+  },
+  {
+    "path": "trinity-shared-contact-20261109/372-trace/edit.svg.gz",
+    "bytes": 3893,
+    "sha256": "ac1eb5f1a4261a8f4fe8608e5137df2d6d9a56426e56dfe06c9ed79e3f10ff13"
+  },
+  {
+    "path": "trinity-shared-contact-20261109/372-trace/repeat1.cpuprofile.gz",
+    "bytes": 34939,
+    "sha256": "e5de768ae92ded4b20e54f0b0d6c6fe42391b7e6494c4d8c12932dbd88508ad9"
+  },
+  {
+    "path": "trinity-shared-contact-20261109/372-trace/repeat1.receipt.json.gz",
+    "bytes": 1216,
+    "sha256": "d2f5fef436c9f430e4137756b0556e33952b4b3148c1790ca020f7a2a27d0db4"
+  },
+  {
+    "path": "trinity-shared-contact-20261109/372-trace/repeat1.row.json.gz",
+    "bytes": 1098,
+    "sha256": "2667fdb8a360f56e9a19e7aaf140873b346d9751a96e6e2ccbe10278d04da8ca"
+  },
+  {
+    "path": "trinity-shared-contact-20261109/372-trace/repeat1.svg.gz",
+    "bytes": 3893,
+    "sha256": "ac1eb5f1a4261a8f4fe8608e5137df2d6d9a56426e56dfe06c9ed79e3f10ff13"
+  },
+  {
+    "path": "trinity-shared-contact-20261109/372-trace/repeat2.cpuprofile.gz",
+    "bytes": 35469,
+    "sha256": "1dd79270a11d9f2555ee088249ed8e6e566e21fa8d5d137d7d60a37f05e64de4"
+  },
+  {
+    "path": "trinity-shared-contact-20261109/372-trace/repeat2.receipt.json.gz",
+    "bytes": 1216,
+    "sha256": "d2f5fef436c9f430e4137756b0556e33952b4b3148c1790ca020f7a2a27d0db4"
+  },
+  {
+    "path": "trinity-shared-contact-20261109/372-trace/repeat2.row.json.gz",
+    "bytes": 1090,
+    "sha256": "4f1f37be228574ada272847dd9ae6fc7959493ed77abb3bcab7ccbadb252d71d"
+  },
+  {
+    "path": "trinity-shared-contact-20261109/372-trace/repeat2.svg.gz",
+    "bytes": 3893,
+    "sha256": "ac1eb5f1a4261a8f4fe8608e5137df2d6d9a56426e56dfe06c9ed79e3f10ff13"
+  },
+  {
+    "path": "trinity-shared-contact-20261109/372-trace/source-maps.json.gz",
+    "bytes": 1056246,
+    "sha256": "0457852bd3960d8b99c627933be1e2a5f262471f53a0b49ba38d27a74c4c0454"
+  },
+  {
+    "path": "trinity-shared-contact-20261109/372-trace/warmup.receipt.json.gz",
+    "bytes": 1216,
+    "sha256": "d2f5fef436c9f430e4137756b0556e33952b4b3148c1790ca020f7a2a27d0db4"
+  },
+  {
+    "path": "trinity-shared-contact-20261109/372-trace/warmup?.svg.gz",
+    "bytes": 3893,
+    "sha256": "ac1eb5f1a4261a8f4fe8608e5137df2d6d9a56426e56dfe06c9ed79e3f10ff13"
+  },
+  {
+    "path": "trinity-shared-contact-20261109/372-trace-job.json",
+    "bytes": 2344,
+    "sha256": "20d33f4800dc14eea70e35b2ddddbebaa41c478e861c4e62924c34c1acd3926a"
+  },
+  {
+    "path": "trinity-shared-contact-20261109/372-trace.log",
+    "bytes": 620,
+    "sha256": "bddf733350e9b5551df6f9989255db769dba874a00f28d3180d0770cfcf920f0"
+  },
+  {
+    "path": "trinity-shared-contact-20261109/CURRENT-HEAD-BINDING.json",
+    "bytes": 3797,
+    "sha256": "45e615f69d2d922df45e596cc337fc094317aef0669f0bf84d21664281a893bc"
+  },
+  {
+    "path": "trinity-shared-contact-20261109/CURRENT-QUALIFICATION.json",
+    "bytes": 1720,
+    "sha256": "a5368f80fe2f4309e1ea758748c307c54c4271abf3dcdd1ba0d022fdf8e4f3f0"
+  },
+  {
+    "path": "trinity-shared-contact-20261109/PREPARATION-COUNTS.json",
+    "bytes": 3046,
+    "sha256": "606ecb974d41bc43c113d42ecf4a90b4c06e4d7af77f4ad78a8dd3738872877e"
+  },
+  {
+    "path": "trinity-shared-contact-20261109/README.md",
+    "bytes": 3975,
+    "sha256": "b6b35a1497f13974a94d5c28741618ef6485a5ff96acc5874f9e3ea2e84a1a4c"
+  },
+  {
+    "path": "trinity-shared-contact-20261109/RUNS.json",
+    "bytes": 678,
+    "sha256": "c6f92be5057425c0aa605f1dfc58fd662a2ae9808a4ccdfe4bf09a0947510a46"
+  },
+  {
+    "path": "trinity-shared-contact-20261109/bun-controls-extra.log",
+    "bytes": 342,
+    "sha256": "9567be72472966ad87e175299fde775710ee12bc9e4e0aefd774ae4138e2e816"
+  },
+  {
+    "path": "trinity-shared-contact-20261109/bun-controls-extra.ts",
+    "bytes": 1039,
+    "sha256": "e2a567b804936c5b2654bd9a826260a31fcca6ce4bfb6ff1ac55ae42a0def07e"
+  },
+  {
+    "path": "trinity-shared-contact-20261109/bun-controls.log",
+    "bytes": 342,
+    "sha256": "ca5aebaaebf6c5b5f42b437e220c7614a3d5855aa39abb090b43324dc65da2bc"
+  },
+  {
+    "path": "trinity-shared-contact-20261109/bun-controls.ts",
+    "bytes": 1039,
+    "sha256": "9a064a1a69b3c0993e48f3f9144483d0fd4a95d5285cf5d9e4e80dda10c06c6b"
+  },
+  {
+    "path": "trinity-shared-contact-20261109/contact-query-review.md",
+    "bytes": 10769,
+    "sha256": "8214905992f99cc41a6f3d26636cd80f4be464f94ff2011b3145aef3e595700a"
+  },
+  {
+    "path": "trinity-shared-contact-20261109/current241.png",
+    "bytes": 262700,
+    "sha256": "b96fb7a3316b70f4c4e0b6b8353d6f8d82a3d55cbc3f36d9948ce3e861773da2"
+  },
+  {
+    "path": "trinity-shared-contact-20261109/graph-paint-support.trace.ts",
+    "bytes": 18246,
+    "sha256": "dd958459eb6466014dc5323730235c8effa1ee10c1c9536701f80eda94d39e58"
+  },
+  {
+    "path": "trinity-shared-contact-20261109/ink152.log",
+    "bytes": 1368,
+    "sha256": "553dbccfef446838de0c9de0c5a6207c967b33844be63a1ab70503f677827b96"
+  },
+  {
+    "path": "trinity-shared-contact-20261109/ink152.ts",
+    "bytes": 3681,
+    "sha256": "11f28d1aafb20bae4dff893c03e73d8bde8da352e01755c7b6192b7237cdf0cc"
+  },
+  {
+    "path": "trinity-shared-contact-20261109/ink241.log",
+    "bytes": 262,
+    "sha256": "818192affb4761bfd0e336f9aa21758584724aa67524351bae3e50312f7caae6"
+  },
+  {
+    "path": "trinity-shared-contact-20261109/ink241.ts",
+    "bytes": 3174,
+    "sha256": "429eaf6253cd9be52a095fedf2af04405634b909156b52a7fc79f769bfdcf8be"
+  },
+  {
+    "path": "trinity-shared-contact-20261109/ink372.log",
+    "bytes": 1329,
+    "sha256": "7daa563a4add9ecde6507531a90b63621b49512e8cd7807f932a96693386839e"
+  },
+  {
+    "path": "trinity-shared-contact-20261109/ink372.ts",
+    "bytes": 3706,
+    "sha256": "ebd6c3a78f5f2b210c95efa3638e856899292ec20a5e670aa9c3e1df3ae3e8cf"
+  },
+  {
+    "path": "trinity-shared-contact-20261109/obstacle-routing.trace.ts",
+    "bytes": 19542,
+    "sha256": "e71ef48b2334917d45c6a6c759a040f4dce2efbfe453faa0909f7a524071feca"
+  },
+  {
+    "path": "trinity-shared-contact-20261109/run.log",
+    "bytes": 182,
+    "sha256": "0a1aa878f4003407ff13e6f7a0789e2faed34d7379f4ce182dac6251a08a8cb5"
+  },
+  {
+    "path": "trinity-shared-contact-20261109/run.py",
+    "bytes": 988,
+    "sha256": "e4365ae6e34709a323fa5d496679428f6b79004ca2a097976d47974bb3c489f1"
+  },
+  {
+    "path": "trinity-shared-contact-20261109/stale-claims-review.md",
+    "bytes": 7064,
+    "sha256": "ad12f42cf436107cb59675b6772a75b6165447d3bb22f98b33b5635e3c86f88c"
+  },
+  {
+    "path": "trinity-shared-contact-20261109/trace-worker.mjs",
+    "bytes": 4971,
+    "sha256": "6e427707fc04018012a50e1e1e804e1cd1e97193d5cb5a2a62609b87547ec446"
+  },
+  {
+    "path": "trinity-shared-contact-20261109/worker.mjs",
+    "bytes": 4886,
+    "sha256": "a38118258aa6f83abe64cbe6734dc7eccfa19633ed24f766ba0039a0a571c34f"
+  }
+]
