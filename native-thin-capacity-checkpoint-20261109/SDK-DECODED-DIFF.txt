@@ -1,0 +1,12 @@
+--- SDK_MODEL_DECLARATIONS old
++++ SDK_MODEL_DECLARATIONS generated
+@@ -36,6 +36,9 @@
+     markdownLabel?: true;
+     icon?: string;
+     image?: string;
++    imageWidth?: number;
++    imageHeight?: number;
++    imageConstraint?: 'on' | 'off';
+     iconForm?: 'square' | 'circle' | 'rounded';
+     href?: string;
+ }

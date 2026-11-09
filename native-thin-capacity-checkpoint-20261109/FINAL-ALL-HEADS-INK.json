@@ -1,0 +1,578 @@
+{
+  "font": "manifest-verified Inter; system fonts off",
+  "zoom": 3,
+  "offlineRasters": 4,
+  "scope": "Each selected head contribution with/without all other target heads; actual SVG geometry, not whole-diagram readability. Coordinates/raster phase differ between layouts.",
+  "rows": [
+    {
+      "case": "elk",
+      "arm": "labelled-final",
+      "selected": "edge:s0-&gt;T#0",
+      "peer": "all other target heads",
+      "sha256": "fd56225b4f8501b2ab22be2fffdaf9b7f3eecab13eecb482f839de54e6c68bee",
+      "roi": {
+        "x0": 812,
+        "x1": 885,
+        "y0": 924,
+        "y1": 997
+      },
+      "exposed": 250,
+      "visible": 250,
+      "attenuated": 0,
+      "hidden": 0,
+      "actualSelected": "<polyline class=\"edge\" data-style=\"solid\" data-arrow-start=\"false\" data-arrow-end=\"true\" data-marker-end=\"arrow\" data-label=\"Message 0\" points=\"124,58.45 270.297,58.45 270.297,320.125 282.672,320.125\" fill=\"none\" stroke=\"#939395\" stroke-width=\"1\" marker-end=\"url(#arrowhead)\" data-relationship=\"flowchart-edge\" data-direction=\"forward\" data-id=\"edge:s0-&gt;T#0\" data-role=\"edge\" data-from=\"s0\" data-to=\"T\" role=\"graphics-symbol\" aria-roledescription=\"relation\" aria-label=\"s0 to T: Message 0\" />",
+      "actualPeer": "<polyline class=\"edge\" data-style=\"solid\" data-arrow-start=\"false\" data-arrow-end=\"true\" data-marker-end=\"arrow\" data-label=\"Message 0\" points=\"124,58.45 270.297,58.45 270.297,320.125 282.672,320.125\" fill=\"none\" stroke=\"#939395\" stroke-width=\"1\" marker-end=\"url(#arrowhead)\" data-relationship=\"flowchart-edge\" data-direction=\"forward\" data-id=\"edge:s0-&gt;T#0\" data-role=\"edge\" data-from=\"s0\" data-to=\"T\" role=\"graphics-symbol\" aria-roledescription=\"relation\" aria-label=\"s0 to T: Message 0\" />"
+    },
+    {
+      "case": "elk",
+      "arm": "labelled-final",
+      "selected": "edge:s1-&gt;T#0",
+      "peer": "all other target heads",
+      "sha256": "fd56225b4f8501b2ab22be2fffdaf9b7f3eecab13eecb482f839de54e6c68bee",
+      "roi": {
+        "x0": 812,
+        "x1": 885,
+        "y0": 944,
+        "y1": 1017
+      },
+      "exposed": 254,
+      "visible": 254,
+      "attenuated": 0,
+      "hidden": 0,
+      "actualSelected": "<polyline class=\"edge\" data-style=\"solid\" data-arrow-start=\"false\" data-arrow-end=\"true\" data-marker-end=\"arrow\" data-label=\"Message 1\" points=\"124,123.35 258.297,123.35 258.297,326.875 282.672,326.875\" fill=\"none\" stroke=\"#939395\" stroke-width=\"1\" marker-end=\"url(#arrowhead)\" data-relationship=\"flowchart-edge\" data-direction=\"forward\" data-id=\"edge:s1-&gt;T#0\" data-role=\"edge\" data-from=\"s1\" data-to=\"T\" role=\"graphics-symbol\" aria-roledescription=\"relation\" aria-label=\"s1 to T: Message 1\" />",
+      "actualPeer": "<polyline class=\"edge\" data-style=\"solid\" data-arrow-start=\"false\" data-arrow-end=\"true\" data-marker-end=\"arrow\" data-label=\"Message 1\" points=\"124,123.35 258.297,123.35 258.297,326.875 282.672,326.875\" fill=\"none\" stroke=\"#939395\" stroke-width=\"1\" marker-end=\"url(#arrowhead)\" data-relationship=\"flowchart-edge\" data-direction=\"forward\" data-id=\"edge:s1-&gt;T#0\" data-role=\"edge\" data-from=\"s1\" data-to=\"T\" role=\"graphics-symbol\" aria-roledescription=\"relation\" aria-label=\"s1 to T: Message 1\" />"
+    },
+    {
+      "case": "elk",
+      "arm": "labelled-final",
+      "selected": "edge:s2-&gt;T#0",
+      "peer": "all other target heads",
+      "sha256": "fd56225b4f8501b2ab22be2fffdaf9b7f3eecab13eecb482f839de54e6c68bee",
+      "roi": {
+        "x0": 812,
+        "x1": 885,
+        "y0": 964,
+        "y1": 1037
+      },
+      "exposed": 254,
+      "visible": 254,
+      "attenuated": 0,
+      "hidden": 0,
+      "actualSelected": "<polyline class=\"edge\" data-style=\"solid\" data-arrow-start=\"false\" data-arrow-end=\"true\" data-marker-end=\"arrow\" data-label=\"Message 2\" points=\"124,188.25 246.297,188.25 246.297,333.625 282.672,333.625\" fill=\"none\" stroke=\"#939395\" stroke-width=\"1\" marker-end=\"url(#arrowhead)\" data-relationship=\"flowchart-edge\" data-direction=\"forward\" data-id=\"edge:s2-&gt;T#0\" data-role=\"edge\" data-from=\"s2\" data-to=\"T\" role=\"graphics-symbol\" aria-roledescription=\"relation\" aria-label=\"s2 to T: Message 2\" />",
+      "actualPeer": "<polyline class=\"edge\" data-style=\"solid\" data-arrow-start=\"false\" data-arrow-end=\"true\" data-marker-end=\"arrow\" data-label=\"Message 2\" points=\"124,188.25 246.297,188.25 246.297,333.625 282.672,333.625\" fill=\"none\" stroke=\"#939395\" stroke-width=\"1\" marker-end=\"url(#arrowhead)\" data-relationship=\"flowchart-edge\" data-direction=\"forward\" data-id=\"edge:s2-&gt;T#0\" data-role=\"edge\" data-from=\"s2\" data-to=\"T\" role=\"graphics-symbol\" aria-roledescription=\"relation\" aria-label=\"s2 to T: Message 2\" />"
+    },
+    {
+      "case": "elk",
+      "arm": "labelled-final",
+      "selected": "edge:s3-&gt;T#0",
+      "peer": "all other target heads",
+      "sha256": "fd56225b4f8501b2ab22be2fffdaf9b7f3eecab13eecb482f839de54e6c68bee",
+      "roi": {
+        "x0": 812,
+        "x1": 885,
+        "y0": 985,
+        "y1": 1058
+      },
+      "exposed": 252,
+      "visible": 252,
+      "attenuated": 0,
+      "hidden": 0,
+      "actualSelected": "<polyline class=\"edge\" data-style=\"solid\" data-arrow-start=\"false\" data-arrow-end=\"true\" data-marker-end=\"arrow\" data-label=\"Message 3\" points=\"124,253.15 234.297,253.15 234.297,340.375 282.672,340.375\" fill=\"none\" stroke=\"#939395\" stroke-width=\"1\" marker-end=\"url(#arrowhead)\" data-relationship=\"flowchart-edge\" data-direction=\"forward\" data-id=\"edge:s3-&gt;T#0\" data-role=\"edge\" data-from=\"s3\" data-to=\"T\" role=\"graphics-symbol\" aria-roledescription=\"relation\" aria-label=\"s3 to T: Message 3\" />",
+      "actualPeer": "<polyline class=\"edge\" data-style=\"solid\" data-arrow-start=\"false\" data-arrow-end=\"true\" data-marker-end=\"arrow\" data-label=\"Message 3\" points=\"124,253.15 234.297,253.15 234.297,340.375 282.672,340.375\" fill=\"none\" stroke=\"#939395\" stroke-width=\"1\" marker-end=\"url(#arrowhead)\" data-relationship=\"flowchart-edge\" data-direction=\"forward\" data-id=\"edge:s3-&gt;T#0\" data-role=\"edge\" data-from=\"s3\" data-to=\"T\" role=\"graphics-symbol\" aria-roledescription=\"relation\" aria-label=\"s3 to T: Message 3\" />"
+    },
+    {
+      "case": "elk",
+      "arm": "labelled-final",
+      "selected": "edge:s4-&gt;T#0",
+      "peer": "all other target heads",
+      "sha256": "fd56225b4f8501b2ab22be2fffdaf9b7f3eecab13eecb482f839de54e6c68bee",
+      "roi": {
+        "x0": 812,
+        "x1": 885,
+        "y0": 1005,
+        "y1": 1078
+      },
+      "exposed": 249,
+      "visible": 249,
+      "attenuated": 0,
+      "hidden": 0,
+      "actualSelected": "<polyline class=\"edge\" data-style=\"solid\" data-arrow-start=\"false\" data-arrow-end=\"true\" data-marker-end=\"arrow\" data-label=\"Message 4\" points=\"124,318.05 203.336,318.05 203.336,347.125 282.672,347.125\" fill=\"none\" stroke=\"#939395\" stroke-width=\"1\" marker-end=\"url(#arrowhead)\" data-relationship=\"flowchart-edge\" data-direction=\"forward\" data-id=\"edge:s4-&gt;T#0\" data-role=\"edge\" data-from=\"s4\" data-to=\"T\" role=\"graphics-symbol\" aria-roledescription=\"relation\" aria-label=\"s4 to T: Message 4\" />",
+      "actualPeer": "<polyline class=\"edge\" data-style=\"solid\" data-arrow-start=\"false\" data-arrow-end=\"true\" data-marker-end=\"arrow\" data-label=\"Message 4\" points=\"124,318.05 203.336,318.05 203.336,347.125 282.672,347.125\" fill=\"none\" stroke=\"#939395\" stroke-width=\"1\" marker-end=\"url(#arrowhead)\" data-relationship=\"flowchart-edge\" data-direction=\"forward\" data-id=\"edge:s4-&gt;T#0\" data-role=\"edge\" data-from=\"s4\" data-to=\"T\" role=\"graphics-symbol\" aria-roledescription=\"relation\" aria-label=\"s4 to T: Message 4\" />"
+    },
+    {
+      "case": "elk",
+      "arm": "labelled-final",
+      "selected": "edge:s5-&gt;T#0",
+      "peer": "all other target heads",
+      "sha256": "fd56225b4f8501b2ab22be2fffdaf9b7f3eecab13eecb482f839de54e6c68bee",
+      "roi": {
+        "x0": 812,
+        "x1": 885,
+        "y0": 1025,
+        "y1": 1098
+      },
+      "exposed": 253,
+      "visible": 253,
+      "attenuated": 0,
+      "hidden": 0,
+      "actualSelected": "<polyline class=\"edge\" data-style=\"solid\" data-arrow-start=\"false\" data-arrow-end=\"true\" data-marker-end=\"arrow\" data-label=\"Message 5\" points=\"124,382.95 203.336,382.95 203.336,353.875 282.672,353.875\" fill=\"none\" stroke=\"#939395\" stroke-width=\"1\" marker-end=\"url(#arrowhead)\" data-relationship=\"flowchart-edge\" data-direction=\"forward\" data-id=\"edge:s5-&gt;T#0\" data-role=\"edge\" data-from=\"s5\" data-to=\"T\" role=\"graphics-symbol\" aria-roledescription=\"relation\" aria-label=\"s5 to T: Message 5\" />",
+      "actualPeer": "<polyline class=\"edge\" data-style=\"solid\" data-arrow-start=\"false\" data-arrow-end=\"true\" data-marker-end=\"arrow\" data-label=\"Message 5\" points=\"124,382.95 203.336,382.95 203.336,353.875 282.672,353.875\" fill=\"none\" stroke=\"#939395\" stroke-width=\"1\" marker-end=\"url(#arrowhead)\" data-relationship=\"flowchart-edge\" data-direction=\"forward\" data-id=\"edge:s5-&gt;T#0\" data-role=\"edge\" data-from=\"s5\" data-to=\"T\" role=\"graphics-symbol\" aria-roledescription=\"relation\" aria-label=\"s5 to T: Message 5\" />"
+    },
+    {
+      "case": "elk",
+      "arm": "labelled-final",
+      "selected": "edge:s6-&gt;T#0",
+      "peer": "all other target heads",
+      "sha256": "fd56225b4f8501b2ab22be2fffdaf9b7f3eecab13eecb482f839de54e6c68bee",
+      "roi": {
+        "x0": 812,
+        "x1": 885,
+        "y0": 1045,
+        "y1": 1118
+      },
+      "exposed": 253,
+      "visible": 253,
+      "attenuated": 0,
+      "hidden": 0,
+      "actualSelected": "<polyline class=\"edge\" data-style=\"solid\" data-arrow-start=\"false\" data-arrow-end=\"true\" data-marker-end=\"arrow\" data-label=\"Message 6\" points=\"124,447.85 234.297,447.85 234.297,360.625 282.672,360.625\" fill=\"none\" stroke=\"#939395\" stroke-width=\"1\" marker-end=\"url(#arrowhead)\" data-relationship=\"flowchart-edge\" data-direction=\"forward\" data-id=\"edge:s6-&gt;T#0\" data-role=\"edge\" data-from=\"s6\" data-to=\"T\" role=\"graphics-symbol\" aria-roledescription=\"relation\" aria-label=\"s6 to T: Message 6\" />",
+      "actualPeer": "<polyline class=\"edge\" data-style=\"solid\" data-arrow-start=\"false\" data-arrow-end=\"true\" data-marker-end=\"arrow\" data-label=\"Message 6\" points=\"124,447.85 234.297,447.85 234.297,360.625 282.672,360.625\" fill=\"none\" stroke=\"#939395\" stroke-width=\"1\" marker-end=\"url(#arrowhead)\" data-relationship=\"flowchart-edge\" data-direction=\"forward\" data-id=\"edge:s6-&gt;T#0\" data-role=\"edge\" data-from=\"s6\" data-to=\"T\" role=\"graphics-symbol\" aria-roledescription=\"relation\" aria-label=\"s6 to T: Message 6\" />"
+    },
+    {
+      "case": "elk",
+      "arm": "labelled-final",
+      "selected": "edge:s7-&gt;T#0",
+      "peer": "all other target heads",
+      "sha256": "fd56225b4f8501b2ab22be2fffdaf9b7f3eecab13eecb482f839de54e6c68bee",
+      "roi": {
+        "x0": 812,
+        "x1": 885,
+        "y0": 1066,
+        "y1": 1139
+      },
+      "exposed": 252,
+      "visible": 252,
+      "attenuated": 0,
+      "hidden": 0,
+      "actualSelected": "<polyline class=\"edge\" data-style=\"solid\" data-arrow-start=\"false\" data-arrow-end=\"true\" data-marker-end=\"arrow\" data-label=\"Message 7\" points=\"124,512.75 246.297,512.75 246.297,367.375 282.672,367.375\" fill=\"none\" stroke=\"#939395\" stroke-width=\"1\" marker-end=\"url(#arrowhead)\" data-relationship=\"flowchart-edge\" data-direction=\"forward\" data-id=\"edge:s7-&gt;T#0\" data-role=\"edge\" data-from=\"s7\" data-to=\"T\" role=\"graphics-symbol\" aria-roledescription=\"relation\" aria-label=\"s7 to T: Message 7\" />",
+      "actualPeer": "<polyline class=\"edge\" data-style=\"solid\" data-arrow-start=\"false\" data-arrow-end=\"true\" data-marker-end=\"arrow\" data-label=\"Message 7\" points=\"124,512.75 246.297,512.75 246.297,367.375 282.672,367.375\" fill=\"none\" stroke=\"#939395\" stroke-width=\"1\" marker-end=\"url(#arrowhead)\" data-relationship=\"flowchart-edge\" data-direction=\"forward\" data-id=\"edge:s7-&gt;T#0\" data-role=\"edge\" data-from=\"s7\" data-to=\"T\" role=\"graphics-symbol\" aria-roledescription=\"relation\" aria-label=\"s7 to T: Message 7\" />"
+    },
+    {
+      "case": "elk",
+      "arm": "labelled-final",
+      "selected": "edge:s8-&gt;T#0",
+      "peer": "all other target heads",
+      "sha256": "fd56225b4f8501b2ab22be2fffdaf9b7f3eecab13eecb482f839de54e6c68bee",
+      "roi": {
+        "x0": 812,
+        "x1": 885,
+        "y0": 1086,
+        "y1": 1159
+      },
+      "exposed": 249,
+      "visible": 249,
+      "attenuated": 0,
+      "hidden": 0,
+      "actualSelected": "<polyline class=\"edge\" data-style=\"solid\" data-arrow-start=\"false\" data-arrow-end=\"true\" data-marker-end=\"arrow\" data-label=\"Message 8\" points=\"124,577.65 258.297,577.65 258.297,374.125 282.672,374.125\" fill=\"none\" stroke=\"#939395\" stroke-width=\"1\" marker-end=\"url(#arrowhead)\" data-relationship=\"flowchart-edge\" data-direction=\"forward\" data-id=\"edge:s8-&gt;T#0\" data-role=\"edge\" data-from=\"s8\" data-to=\"T\" role=\"graphics-symbol\" aria-roledescription=\"relation\" aria-label=\"s8 to T: Message 8\" />",
+      "actualPeer": "<polyline class=\"edge\" data-style=\"solid\" data-arrow-start=\"false\" data-arrow-end=\"true\" data-marker-end=\"arrow\" data-label=\"Message 8\" points=\"124,577.65 258.297,577.65 258.297,374.125 282.672,374.125\" fill=\"none\" stroke=\"#939395\" stroke-width=\"1\" marker-end=\"url(#arrowhead)\" data-relationship=\"flowchart-edge\" data-direction=\"forward\" data-id=\"edge:s8-&gt;T#0\" data-role=\"edge\" data-from=\"s8\" data-to=\"T\" role=\"graphics-symbol\" aria-roledescription=\"relation\" aria-label=\"s8 to T: Message 8\" />"
+    },
+    {
+      "case": "elk",
+      "arm": "labelled-final",
+      "selected": "edge:s9-&gt;T#0",
+      "peer": "all other target heads",
+      "sha256": "fd56225b4f8501b2ab22be2fffdaf9b7f3eecab13eecb482f839de54e6c68bee",
+      "roi": {
+        "x0": 812,
+        "x1": 885,
+        "y0": 1106,
+        "y1": 1179
+      },
+      "exposed": 253,
+      "visible": 253,
+      "attenuated": 0,
+      "hidden": 0,
+      "actualSelected": "<polyline class=\"edge\" data-style=\"solid\" data-arrow-start=\"false\" data-arrow-end=\"true\" data-marker-end=\"arrow\" data-label=\"Message 9\" points=\"124,642.55 270.297,642.55 270.297,380.875 282.672,380.875\" fill=\"none\" stroke=\"#939395\" stroke-width=\"1\" marker-end=\"url(#arrowhead)\" data-relationship=\"flowchart-edge\" data-direction=\"forward\" data-id=\"edge:s9-&gt;T#0\" data-role=\"edge\" data-from=\"s9\" data-to=\"T\" role=\"graphics-symbol\" aria-roledescription=\"relation\" aria-label=\"s9 to T: Message 9\" />",
+      "actualPeer": "<polyline class=\"edge\" data-style=\"solid\" data-arrow-start=\"false\" data-arrow-end=\"true\" data-marker-end=\"arrow\" data-label=\"Message 9\" points=\"124,642.55 270.297,642.55 270.297,380.875 282.672,380.875\" fill=\"none\" stroke=\"#939395\" stroke-width=\"1\" marker-end=\"url(#arrowhead)\" data-relationship=\"flowchart-edge\" data-direction=\"forward\" data-id=\"edge:s9-&gt;T#0\" data-role=\"edge\" data-from=\"s9\" data-to=\"T\" role=\"graphics-symbol\" aria-roledescription=\"relation\" aria-label=\"s9 to T: Message 9\" />"
+    },
+    {
+      "case": "agentic",
+      "arm": "labelled-final",
+      "selected": "edge:s0-&gt;T#0",
+      "peer": "all other target heads",
+      "sha256": "8bb57f7527b6cd24d51aa0c4dbbe96789f584a8ae8f40bb014f39de14c4ad0b3",
+      "roi": {
+        "x0": 706,
+        "x1": 779,
+        "y0": 977,
+        "y1": 1050
+      },
+      "exposed": 254,
+      "visible": 254,
+      "attenuated": 0,
+      "hidden": 0,
+      "actualSelected": "<polyline class=\"edge\" data-style=\"solid\" data-arrow-start=\"false\" data-arrow-end=\"true\" data-marker-end=\"arrow\" data-label=\"Message 0\" points=\"100,58.45 235.047,58.45 235.047,337.975 247.422,337.975\" fill=\"none\" stroke=\"#939395\" stroke-width=\"1\" marker-end=\"url(#arrowhead)\" data-relationship=\"flowchart-edge\" data-direction=\"forward\" data-id=\"edge:s0-&gt;T#0\" data-role=\"edge\" data-from=\"s0\" data-to=\"T\" role=\"graphics-symbol\" aria-roledescription=\"relation\" aria-label=\"s0 to T: Message 0\" />",
+      "actualPeer": "<polyline class=\"edge\" data-style=\"solid\" data-arrow-start=\"false\" data-arrow-end=\"true\" data-marker-end=\"arrow\" data-label=\"Message 0\" points=\"100,58.45 235.047,58.45 235.047,337.975 247.422,337.975\" fill=\"none\" stroke=\"#939395\" stroke-width=\"1\" marker-end=\"url(#arrowhead)\" data-relationship=\"flowchart-edge\" data-direction=\"forward\" data-id=\"edge:s0-&gt;T#0\" data-role=\"edge\" data-from=\"s0\" data-to=\"T\" role=\"graphics-symbol\" aria-roledescription=\"relation\" aria-label=\"s0 to T: Message 0\" />"
+    },
+    {
+      "case": "agentic",
+      "arm": "labelled-final",
+      "selected": "edge:s1-&gt;T#0",
+      "peer": "all other target heads",
+      "sha256": "8bb57f7527b6cd24d51aa0c4dbbe96789f584a8ae8f40bb014f39de14c4ad0b3",
+      "roi": {
+        "x0": 706,
+        "x1": 779,
+        "y0": 998,
+        "y1": 1071
+      },
+      "exposed": 250,
+      "visible": 250,
+      "attenuated": 0,
+      "hidden": 0,
+      "actualSelected": "<polyline class=\"edge\" data-style=\"solid\" data-arrow-start=\"false\" data-arrow-end=\"true\" data-marker-end=\"arrow\" data-label=\"Message 1\" points=\"100,135.65 228.047,135.65 228.047,344.725 247.422,344.725\" fill=\"none\" stroke=\"#939395\" stroke-width=\"1\" marker-end=\"url(#arrowhead)\" data-relationship=\"flowchart-edge\" data-direction=\"forward\" data-id=\"edge:s1-&gt;T#0\" data-role=\"edge\" data-from=\"s1\" data-to=\"T\" role=\"graphics-symbol\" aria-roledescription=\"relation\" aria-label=\"s1 to T: Message 1\" />",
+      "actualPeer": "<polyline class=\"edge\" data-style=\"solid\" data-arrow-start=\"false\" data-arrow-end=\"true\" data-marker-end=\"arrow\" data-label=\"Message 1\" points=\"100,135.65 228.047,135.65 228.047,344.725 247.422,344.725\" fill=\"none\" stroke=\"#939395\" stroke-width=\"1\" marker-end=\"url(#arrowhead)\" data-relationship=\"flowchart-edge\" data-direction=\"forward\" data-id=\"edge:s1-&gt;T#0\" data-role=\"edge\" data-from=\"s1\" data-to=\"T\" role=\"graphics-symbol\" aria-roledescription=\"relation\" aria-label=\"s1 to T: Message 1\" />"
+    },
+    {
+      "case": "agentic",
+      "arm": "labelled-final",
+      "selected": "edge:s2-&gt;T#0",
+      "peer": "all other target heads",
+      "sha256": "8bb57f7527b6cd24d51aa0c4dbbe96789f584a8ae8f40bb014f39de14c4ad0b3",
+      "roi": {
+        "x0": 706,
+        "x1": 779,
+        "y0": 1018,
+        "y1": 1091
+      },
+      "exposed": 254,
+      "visible": 254,
+      "attenuated": 0,
+      "hidden": 0,
+      "actualSelected": "<polyline class=\"edge\" data-style=\"solid\" data-arrow-start=\"false\" data-arrow-end=\"true\" data-marker-end=\"arrow\" data-label=\"Message 2\" points=\"100,200.55 222.047,200.55 222.047,351.475 247.422,351.475\" fill=\"none\" stroke=\"#939395\" stroke-width=\"1\" marker-end=\"url(#arrowhead)\" data-relationship=\"flowchart-edge\" data-direction=\"forward\" data-id=\"edge:s2-&gt;T#0\" data-role=\"edge\" data-from=\"s2\" data-to=\"T\" role=\"graphics-symbol\" aria-roledescription=\"relation\" aria-label=\"s2 to T: Message 2\" />",
+      "actualPeer": "<polyline class=\"edge\" data-style=\"solid\" data-arrow-start=\"false\" data-arrow-end=\"true\" data-marker-end=\"arrow\" data-label=\"Message 2\" points=\"100,200.55 222.047,200.55 222.047,351.475 247.422,351.475\" fill=\"none\" stroke=\"#939395\" stroke-width=\"1\" marker-end=\"url(#arrowhead)\" data-relationship=\"flowchart-edge\" data-direction=\"forward\" data-id=\"edge:s2-&gt;T#0\" data-role=\"edge\" data-from=\"s2\" data-to=\"T\" role=\"graphics-symbol\" aria-roledescription=\"relation\" aria-label=\"s2 to T: Message 2\" />"
+    },
+    {
+      "case": "agentic",
+      "arm": "labelled-final",
+      "selected": "edge:s3-&gt;T#0",
+      "peer": "all other target heads",
+      "sha256": "8bb57f7527b6cd24d51aa0c4dbbe96789f584a8ae8f40bb014f39de14c4ad0b3",
+      "roi": {
+        "x0": 706,
+        "x1": 779,
+        "y0": 1038,
+        "y1": 1111
+      },
+      "exposed": 254,
+      "visible": 254,
+      "attenuated": 0,
+      "hidden": 0,
+      "actualSelected": "<polyline class=\"edge\" data-style=\"solid\" data-arrow-start=\"false\" data-arrow-end=\"true\" data-marker-end=\"arrow\" data-label=\"Message 3\" points=\"100,265.45 216.047,265.45 216.047,358.225 247.422,358.225\" fill=\"none\" stroke=\"#939395\" stroke-width=\"1\" marker-end=\"url(#arrowhead)\" data-relationship=\"flowchart-edge\" data-direction=\"forward\" data-id=\"edge:s3-&gt;T#0\" data-role=\"edge\" data-from=\"s3\" data-to=\"T\" role=\"graphics-symbol\" aria-roledescription=\"relation\" aria-label=\"s3 to T: Message 3\" />",
+      "actualPeer": "<polyline class=\"edge\" data-style=\"solid\" data-arrow-start=\"false\" data-arrow-end=\"true\" data-marker-end=\"arrow\" data-label=\"Message 3\" points=\"100,265.45 216.047,265.45 216.047,358.225 247.422,358.225\" fill=\"none\" stroke=\"#939395\" stroke-width=\"1\" marker-end=\"url(#arrowhead)\" data-relationship=\"flowchart-edge\" data-direction=\"forward\" data-id=\"edge:s3-&gt;T#0\" data-role=\"edge\" data-from=\"s3\" data-to=\"T\" role=\"graphics-symbol\" aria-roledescription=\"relation\" aria-label=\"s3 to T: Message 3\" />"
+    },
+    {
+      "case": "agentic",
+      "arm": "labelled-final",
+      "selected": "edge:s4-&gt;T#0",
+      "peer": "all other target heads",
+      "sha256": "8bb57f7527b6cd24d51aa0c4dbbe96789f584a8ae8f40bb014f39de14c4ad0b3",
+      "roi": {
+        "x0": 706,
+        "x1": 779,
+        "y0": 1058,
+        "y1": 1131
+      },
+      "exposed": 254,
+      "visible": 254,
+      "attenuated": 0,
+      "hidden": 0,
+      "actualSelected": "<polyline class=\"edge\" data-style=\"solid\" data-arrow-start=\"false\" data-arrow-end=\"true\" data-marker-end=\"arrow\" data-label=\"Message 4\" points=\"100,330.35 210.047,330.35 210.047,364.975 247.422,364.975\" fill=\"none\" stroke=\"#939395\" stroke-width=\"1\" marker-end=\"url(#arrowhead)\" data-relationship=\"flowchart-edge\" data-direction=\"forward\" data-id=\"edge:s4-&gt;T#0\" data-role=\"edge\" data-from=\"s4\" data-to=\"T\" role=\"graphics-symbol\" aria-roledescription=\"relation\" aria-label=\"s4 to T: Message 4\" />",
+      "actualPeer": "<polyline class=\"edge\" data-style=\"solid\" data-arrow-start=\"false\" data-arrow-end=\"true\" data-marker-end=\"arrow\" data-label=\"Message 4\" points=\"100,330.35 210.047,330.35 210.047,364.975 247.422,364.975\" fill=\"none\" stroke=\"#939395\" stroke-width=\"1\" marker-end=\"url(#arrowhead)\" data-relationship=\"flowchart-edge\" data-direction=\"forward\" data-id=\"edge:s4-&gt;T#0\" data-role=\"edge\" data-from=\"s4\" data-to=\"T\" role=\"graphics-symbol\" aria-roledescription=\"relation\" aria-label=\"s4 to T: Message 4\" />"
+    },
+    {
+      "case": "agentic",
+      "arm": "labelled-final",
+      "selected": "edge:s5-&gt;T#0",
+      "peer": "all other target heads",
+      "sha256": "8bb57f7527b6cd24d51aa0c4dbbe96789f584a8ae8f40bb014f39de14c4ad0b3",
+      "roi": {
+        "x0": 706,
+        "x1": 779,
+        "y0": 1079,
+        "y1": 1152
+      },
+      "exposed": 250,
+      "visible": 250,
+      "attenuated": 0,
+      "hidden": 0,
+      "actualSelected": "<polyline class=\"edge\" data-style=\"solid\" data-arrow-start=\"false\" data-arrow-end=\"true\" data-marker-end=\"arrow\" data-label=\"Message 5\" points=\"100,382.95 210.047,382.95 210.047,371.725 247.422,371.725\" fill=\"none\" stroke=\"#939395\" stroke-width=\"1\" marker-end=\"url(#arrowhead)\" data-relationship=\"flowchart-edge\" data-direction=\"forward\" data-id=\"edge:s5-&gt;T#0\" data-role=\"edge\" data-from=\"s5\" data-to=\"T\" role=\"graphics-symbol\" aria-roledescription=\"relation\" aria-label=\"s5 to T: Message 5\" />",
+      "actualPeer": "<polyline class=\"edge\" data-style=\"solid\" data-arrow-start=\"false\" data-arrow-end=\"true\" data-marker-end=\"arrow\" data-label=\"Message 5\" points=\"100,382.95 210.047,382.95 210.047,371.725 247.422,371.725\" fill=\"none\" stroke=\"#939395\" stroke-width=\"1\" marker-end=\"url(#arrowhead)\" data-relationship=\"flowchart-edge\" data-direction=\"forward\" data-id=\"edge:s5-&gt;T#0\" data-role=\"edge\" data-from=\"s5\" data-to=\"T\" role=\"graphics-symbol\" aria-roledescription=\"relation\" aria-label=\"s5 to T: Message 5\" />"
+    },
+    {
+      "case": "agentic",
+      "arm": "labelled-final",
+      "selected": "edge:s6-&gt;T#0",
+      "peer": "all other target heads",
+      "sha256": "8bb57f7527b6cd24d51aa0c4dbbe96789f584a8ae8f40bb014f39de14c4ad0b3",
+      "roi": {
+        "x0": 706,
+        "x1": 779,
+        "y0": 1099,
+        "y1": 1172
+      },
+      "exposed": 254,
+      "visible": 254,
+      "attenuated": 0,
+      "hidden": 0,
+      "actualSelected": "<polyline class=\"edge\" data-style=\"solid\" data-arrow-start=\"false\" data-arrow-end=\"true\" data-marker-end=\"arrow\" data-label=\"Message 6\" points=\"100,435.55 216.047,435.55 216.047,378.475 247.422,378.475\" fill=\"none\" stroke=\"#939395\" stroke-width=\"1\" marker-end=\"url(#arrowhead)\" data-relationship=\"flowchart-edge\" data-direction=\"forward\" data-id=\"edge:s6-&gt;T#0\" data-role=\"edge\" data-from=\"s6\" data-to=\"T\" role=\"graphics-symbol\" aria-roledescription=\"relation\" aria-label=\"s6 to T: Message 6\" />",
+      "actualPeer": "<polyline class=\"edge\" data-style=\"solid\" data-arrow-start=\"false\" data-arrow-end=\"true\" data-marker-end=\"arrow\" data-label=\"Message 6\" points=\"100,435.55 216.047,435.55 216.047,378.475 247.422,378.475\" fill=\"none\" stroke=\"#939395\" stroke-width=\"1\" marker-end=\"url(#arrowhead)\" data-relationship=\"flowchart-edge\" data-direction=\"forward\" data-id=\"edge:s6-&gt;T#0\" data-role=\"edge\" data-from=\"s6\" data-to=\"T\" role=\"graphics-symbol\" aria-roledescription=\"relation\" aria-label=\"s6 to T: Message 6\" />"
+    },
+    {
+      "case": "agentic",
+      "arm": "labelled-final",
+      "selected": "edge:s7-&gt;T#0",
+      "peer": "all other target heads",
+      "sha256": "8bb57f7527b6cd24d51aa0c4dbbe96789f584a8ae8f40bb014f39de14c4ad0b3",
+      "roi": {
+        "x0": 706,
+        "x1": 779,
+        "y0": 1119,
+        "y1": 1192
+      },
+      "exposed": 254,
+      "visible": 254,
+      "attenuated": 0,
+      "hidden": 0,
+      "actualSelected": "<polyline class=\"edge\" data-style=\"solid\" data-arrow-start=\"false\" data-arrow-end=\"true\" data-marker-end=\"arrow\" data-label=\"Message 7\" points=\"100,500.45 113.375,500.45 113.375,483.55 222.047,483.55 222.047,385.225 247.422,385.225\" fill=\"none\" stroke=\"#939395\" stroke-width=\"1\" marker-end=\"url(#arrowhead)\" data-relationship=\"flowchart-edge\" data-direction=\"forward\" data-id=\"edge:s7-&gt;T#0\" data-role=\"edge\" data-from=\"s7\" data-to=\"T\" role=\"graphics-symbol\" aria-roledescription=\"relation\" aria-label=\"s7 to T: Message 7\" />",
+      "actualPeer": "<polyline class=\"edge\" data-style=\"solid\" data-arrow-start=\"false\" data-arrow-end=\"true\" data-marker-end=\"arrow\" data-label=\"Message 7\" points=\"100,500.45 113.375,500.45 113.375,483.55 222.047,483.55 222.047,385.225 247.422,385.225\" fill=\"none\" stroke=\"#939395\" stroke-width=\"1\" marker-end=\"url(#arrowhead)\" data-relationship=\"flowchart-edge\" data-direction=\"forward\" data-id=\"edge:s7-&gt;T#0\" data-role=\"edge\" data-from=\"s7\" data-to=\"T\" role=\"graphics-symbol\" aria-roledescription=\"relation\" aria-label=\"s7 to T: Message 7\" />"
+    },
+    {
+      "case": "agentic",
+      "arm": "labelled-final",
+      "selected": "edge:s8-&gt;T#0",
+      "peer": "all other target heads",
+      "sha256": "8bb57f7527b6cd24d51aa0c4dbbe96789f584a8ae8f40bb014f39de14c4ad0b3",
+      "roi": {
+        "x0": 706,
+        "x1": 779,
+        "y0": 1139,
+        "y1": 1212
+      },
+      "exposed": 254,
+      "visible": 254,
+      "attenuated": 0,
+      "hidden": 0,
+      "actualSelected": "<polyline class=\"edge\" data-style=\"solid\" data-arrow-start=\"false\" data-arrow-end=\"true\" data-marker-end=\"arrow\" data-label=\"Message 8\" points=\"100,565.35 113.375,565.35 113.375,533.85 228.047,533.85 228.047,391.975 247.422,391.975\" fill=\"none\" stroke=\"#939395\" stroke-width=\"1\" marker-end=\"url(#arrowhead)\" data-relationship=\"flowchart-edge\" data-direction=\"forward\" data-id=\"edge:s8-&gt;T#0\" data-role=\"edge\" data-from=\"s8\" data-to=\"T\" role=\"graphics-symbol\" aria-roledescription=\"relation\" aria-label=\"s8 to T: Message 8\" />",
+      "actualPeer": "<polyline class=\"edge\" data-style=\"solid\" data-arrow-start=\"false\" data-arrow-end=\"true\" data-marker-end=\"arrow\" data-label=\"Message 8\" points=\"100,565.35 113.375,565.35 113.375,533.85 228.047,533.85 228.047,391.975 247.422,391.975\" fill=\"none\" stroke=\"#939395\" stroke-width=\"1\" marker-end=\"url(#arrowhead)\" data-relationship=\"flowchart-edge\" data-direction=\"forward\" data-id=\"edge:s8-&gt;T#0\" data-role=\"edge\" data-from=\"s8\" data-to=\"T\" role=\"graphics-symbol\" aria-roledescription=\"relation\" aria-label=\"s8 to T: Message 8\" />"
+    },
+    {
+      "case": "agentic",
+      "arm": "labelled-final",
+      "selected": "edge:s9-&gt;T#0",
+      "peer": "all other target heads",
+      "sha256": "8bb57f7527b6cd24d51aa0c4dbbe96789f584a8ae8f40bb014f39de14c4ad0b3",
+      "roi": {
+        "x0": 706,
+        "x1": 779,
+        "y0": 1160,
+        "y1": 1233
+      },
+      "exposed": 250,
+      "visible": 250,
+      "attenuated": 0,
+      "hidden": 0,
+      "actualSelected": "<polyline class=\"edge\" data-style=\"solid\" data-arrow-start=\"false\" data-arrow-end=\"true\" data-marker-end=\"arrow\" data-label=\"Message 9\" points=\"100,684.85 235.047,684.85 235.047,398.725 247.422,398.725\" fill=\"none\" stroke=\"#939395\" stroke-width=\"1\" marker-end=\"url(#arrowhead)\" data-relationship=\"flowchart-edge\" data-direction=\"forward\" data-id=\"edge:s9-&gt;T#0\" data-role=\"edge\" data-from=\"s9\" data-to=\"T\" role=\"graphics-symbol\" aria-roledescription=\"relation\" aria-label=\"s9 to T: Message 9\" />",
+      "actualPeer": "<polyline class=\"edge\" data-style=\"solid\" data-arrow-start=\"false\" data-arrow-end=\"true\" data-marker-end=\"arrow\" data-label=\"Message 9\" points=\"100,684.85 235.047,684.85 235.047,398.725 247.422,398.725\" fill=\"none\" stroke=\"#939395\" stroke-width=\"1\" marker-end=\"url(#arrowhead)\" data-relationship=\"flowchart-edge\" data-direction=\"forward\" data-id=\"edge:s9-&gt;T#0\" data-role=\"edge\" data-from=\"s9\" data-to=\"T\" role=\"graphics-symbol\" aria-roledescription=\"relation\" aria-label=\"s9 to T: Message 9\" />"
+    },
+    {
+      "case": "trinity",
+      "arm": "labelled-final",
+      "selected": "edge:s0-&gt;T#0",
+      "peer": "all other target heads",
+      "sha256": "f41c223f200fe0221843f84f3998721475801de5b4ddfd5fb24f94fa099fd905",
+      "roi": {
+        "x0": 690,
+        "x1": 763,
+        "y0": 849,
+        "y1": 921
+      },
+      "exposed": 264,
+      "visible": 264,
+      "attenuated": 0,
+      "hidden": 0,
+      "actualSelected": "<polyline class=\"edge\" data-style=\"solid\" data-arrow-start=\"false\" data-arrow-end=\"true\" data-marker-end=\"arrow\" data-label=\"Message 0\" points=\"100.875,59.65 228.547,59.65 228.547,295 242.297,295\" fill=\"none\" stroke=\"#939395\" stroke-width=\"1\" marker-end=\"url(#arrowhead)\" data-relationship=\"flowchart-edge\" data-direction=\"forward\" data-id=\"edge:s0-&gt;T#0\" data-role=\"edge\" data-from=\"s0\" data-to=\"T\" role=\"graphics-symbol\" aria-roledescription=\"relation\" aria-label=\"s0 to T: Message 0\" />",
+      "actualPeer": "<polyline class=\"edge\" data-style=\"solid\" data-arrow-start=\"false\" data-arrow-end=\"true\" data-marker-end=\"arrow\" data-label=\"Message 0\" points=\"100.875,59.65 228.547,59.65 228.547,295 242.297,295\" fill=\"none\" stroke=\"#939395\" stroke-width=\"1\" marker-end=\"url(#arrowhead)\" data-relationship=\"flowchart-edge\" data-direction=\"forward\" data-id=\"edge:s0-&gt;T#0\" data-role=\"edge\" data-from=\"s0\" data-to=\"T\" role=\"graphics-symbol\" aria-roledescription=\"relation\" aria-label=\"s0 to T: Message 0\" />"
+    },
+    {
+      "case": "trinity",
+      "arm": "labelled-final",
+      "selected": "edge:s1-&gt;T#0",
+      "peer": "all other target heads",
+      "sha256": "f41c223f200fe0221843f84f3998721475801de5b4ddfd5fb24f94fa099fd905",
+      "roi": {
+        "x0": 690,
+        "x1": 763,
+        "y0": 891,
+        "y1": 963
+      },
+      "exposed": 264,
+      "visible": 264,
+      "attenuated": 0,
+      "hidden": 0,
+      "actualSelected": "<polyline class=\"edge\" data-style=\"solid\" data-arrow-start=\"false\" data-arrow-end=\"true\" data-marker-end=\"arrow\" data-label=\"Message 1\" points=\"100.875,125.95 222.547,125.95 222.547,309 242.297,309\" fill=\"none\" stroke=\"#939395\" stroke-width=\"1\" marker-end=\"url(#arrowhead)\" data-relationship=\"flowchart-edge\" data-direction=\"forward\" data-id=\"edge:s1-&gt;T#0\" data-role=\"edge\" data-from=\"s1\" data-to=\"T\" role=\"graphics-symbol\" aria-roledescription=\"relation\" aria-label=\"s1 to T: Message 1\" />",
+      "actualPeer": "<polyline class=\"edge\" data-style=\"solid\" data-arrow-start=\"false\" data-arrow-end=\"true\" data-marker-end=\"arrow\" data-label=\"Message 1\" points=\"100.875,125.95 222.547,125.95 222.547,309 242.297,309\" fill=\"none\" stroke=\"#939395\" stroke-width=\"1\" marker-end=\"url(#arrowhead)\" data-relationship=\"flowchart-edge\" data-direction=\"forward\" data-id=\"edge:s1-&gt;T#0\" data-role=\"edge\" data-from=\"s1\" data-to=\"T\" role=\"graphics-symbol\" aria-roledescription=\"relation\" aria-label=\"s1 to T: Message 1\" />"
+    },
+    {
+      "case": "trinity",
+      "arm": "labelled-final",
+      "selected": "edge:s2-&gt;T#0",
+      "peer": "all other target heads",
+      "sha256": "f41c223f200fe0221843f84f3998721475801de5b4ddfd5fb24f94fa099fd905",
+      "roi": {
+        "x0": 690,
+        "x1": 763,
+        "y0": 933,
+        "y1": 1005
+      },
+      "exposed": 264,
+      "visible": 264,
+      "attenuated": 0,
+      "hidden": 0,
+      "actualSelected": "<polyline class=\"edge\" data-style=\"solid\" data-arrow-start=\"false\" data-arrow-end=\"true\" data-marker-end=\"arrow\" data-label=\"Message 2\" points=\"100.875,192.25 216.547,192.25 216.547,323 242.297,323\" fill=\"none\" stroke=\"#939395\" stroke-width=\"1\" marker-end=\"url(#arrowhead)\" data-relationship=\"flowchart-edge\" data-direction=\"forward\" data-id=\"edge:s2-&gt;T#0\" data-role=\"edge\" data-from=\"s2\" data-to=\"T\" role=\"graphics-symbol\" aria-roledescription=\"relation\" aria-label=\"s2 to T: Message 2\" />",
+      "actualPeer": "<polyline class=\"edge\" data-style=\"solid\" data-arrow-start=\"false\" data-arrow-end=\"true\" data-marker-end=\"arrow\" data-label=\"Message 2\" points=\"100.875,192.25 216.547,192.25 216.547,323 242.297,323\" fill=\"none\" stroke=\"#939395\" stroke-width=\"1\" marker-end=\"url(#arrowhead)\" data-relationship=\"flowchart-edge\" data-direction=\"forward\" data-id=\"edge:s2-&gt;T#0\" data-role=\"edge\" data-from=\"s2\" data-to=\"T\" role=\"graphics-symbol\" aria-roledescription=\"relation\" aria-label=\"s2 to T: Message 2\" />"
+    },
+    {
+      "case": "trinity",
+      "arm": "labelled-final",
+      "selected": "edge:s3-&gt;T#0",
+      "peer": "all other target heads",
+      "sha256": "f41c223f200fe0221843f84f3998721475801de5b4ddfd5fb24f94fa099fd905",
+      "roi": {
+        "x0": 690,
+        "x1": 763,
+        "y0": 975,
+        "y1": 1047
+      },
+      "exposed": 264,
+      "visible": 264,
+      "attenuated": 0,
+      "hidden": 0,
+      "actualSelected": "<polyline class=\"edge\" data-style=\"solid\" data-arrow-start=\"false\" data-arrow-end=\"true\" data-marker-end=\"arrow\" data-label=\"Message 3\" points=\"100.875,258.55 114.625,258.55 114.625,258.55 210.547,258.55 210.547,337 242.297,337\" fill=\"none\" stroke=\"#939395\" stroke-width=\"1\" marker-end=\"url(#arrowhead)\" data-relationship=\"flowchart-edge\" data-direction=\"forward\" data-id=\"edge:s3-&gt;T#0\" data-role=\"edge\" data-from=\"s3\" data-to=\"T\" role=\"graphics-symbol\" aria-roledescription=\"relation\" aria-label=\"s3 to T: Message 3\" />",
+      "actualPeer": "<polyline class=\"edge\" data-style=\"solid\" data-arrow-start=\"false\" data-arrow-end=\"true\" data-marker-end=\"arrow\" data-label=\"Message 3\" points=\"100.875,258.55 114.625,258.55 114.625,258.55 210.547,258.55 210.547,337 242.297,337\" fill=\"none\" stroke=\"#939395\" stroke-width=\"1\" marker-end=\"url(#arrowhead)\" data-relationship=\"flowchart-edge\" data-direction=\"forward\" data-id=\"edge:s3-&gt;T#0\" data-role=\"edge\" data-from=\"s3\" data-to=\"T\" role=\"graphics-symbol\" aria-roledescription=\"relation\" aria-label=\"s3 to T: Message 3\" />"
+    },
+    {
+      "case": "trinity",
+      "arm": "labelled-final",
+      "selected": "edge:s4-&gt;T#0",
+      "peer": "all other target heads",
+      "sha256": "f41c223f200fe0221843f84f3998721475801de5b4ddfd5fb24f94fa099fd905",
+      "roi": {
+        "x0": 690,
+        "x1": 763,
+        "y0": 1017,
+        "y1": 1089
+      },
+      "exposed": 264,
+      "visible": 264,
+      "attenuated": 0,
+      "hidden": 0,
+      "actualSelected": "<polyline class=\"edge\" data-style=\"solid\" data-arrow-start=\"false\" data-arrow-end=\"true\" data-marker-end=\"arrow\" data-label=\"Message 4\" points=\"100.875,324.85 204.547,324.85 204.547,351 242.297,351\" fill=\"none\" stroke=\"#939395\" stroke-width=\"1\" marker-end=\"url(#arrowhead)\" data-relationship=\"flowchart-edge\" data-direction=\"forward\" data-id=\"edge:s4-&gt;T#0\" data-role=\"edge\" data-from=\"s4\" data-to=\"T\" role=\"graphics-symbol\" aria-roledescription=\"relation\" aria-label=\"s4 to T: Message 4\" />",
+      "actualPeer": "<polyline class=\"edge\" data-style=\"solid\" data-arrow-start=\"false\" data-arrow-end=\"true\" data-marker-end=\"arrow\" data-label=\"Message 4\" points=\"100.875,324.85 204.547,324.85 204.547,351 242.297,351\" fill=\"none\" stroke=\"#939395\" stroke-width=\"1\" marker-end=\"url(#arrowhead)\" data-relationship=\"flowchart-edge\" data-direction=\"forward\" data-id=\"edge:s4-&gt;T#0\" data-role=\"edge\" data-from=\"s4\" data-to=\"T\" role=\"graphics-symbol\" aria-roledescription=\"relation\" aria-label=\"s4 to T: Message 4\" />"
+    },
+    {
+      "case": "trinity",
+      "arm": "labelled-final",
+      "selected": "edge:s5-&gt;T#0",
+      "peer": "all other target heads",
+      "sha256": "f41c223f200fe0221843f84f3998721475801de5b4ddfd5fb24f94fa099fd905",
+      "roi": {
+        "x0": 690,
+        "x1": 763,
+        "y0": 1059,
+        "y1": 1131
+      },
+      "exposed": 264,
+      "visible": 264,
+      "attenuated": 0,
+      "hidden": 0,
+      "actualSelected": "<polyline class=\"edge\" data-style=\"solid\" data-arrow-start=\"false\" data-arrow-end=\"true\" data-marker-end=\"arrow\" data-label=\"Message 5\" points=\"100.875,391.15 204.547,391.15 204.547,365 242.297,365\" fill=\"none\" stroke=\"#939395\" stroke-width=\"1\" marker-end=\"url(#arrowhead)\" data-relationship=\"flowchart-edge\" data-direction=\"forward\" data-id=\"edge:s5-&gt;T#0\" data-role=\"edge\" data-from=\"s5\" data-to=\"T\" role=\"graphics-symbol\" aria-roledescription=\"relation\" aria-label=\"s5 to T: Message 5\" />",
+      "actualPeer": "<polyline class=\"edge\" data-style=\"solid\" data-arrow-start=\"false\" data-arrow-end=\"true\" data-marker-end=\"arrow\" data-label=\"Message 5\" points=\"100.875,391.15 204.547,391.15 204.547,365 242.297,365\" fill=\"none\" stroke=\"#939395\" stroke-width=\"1\" marker-end=\"url(#arrowhead)\" data-relationship=\"flowchart-edge\" data-direction=\"forward\" data-id=\"edge:s5-&gt;T#0\" data-role=\"edge\" data-from=\"s5\" data-to=\"T\" role=\"graphics-symbol\" aria-roledescription=\"relation\" aria-label=\"s5 to T: Message 5\" />"
+    },
+    {
+      "case": "trinity",
+      "arm": "labelled-final",
+      "selected": "edge:s6-&gt;T#0",
+      "peer": "all other target heads",
+      "sha256": "f41c223f200fe0221843f84f3998721475801de5b4ddfd5fb24f94fa099fd905",
+      "roi": {
+        "x0": 690,
+        "x1": 763,
+        "y0": 1101,
+        "y1": 1173
+      },
+      "exposed": 264,
+      "visible": 264,
+      "attenuated": 0,
+      "hidden": 0,
+      "actualSelected": "<polyline class=\"edge\" data-style=\"solid\" data-arrow-start=\"false\" data-arrow-end=\"true\" data-marker-end=\"arrow\" data-label=\"Message 6\" points=\"100.875,457.45 210.547,457.45 210.547,379 242.297,379\" fill=\"none\" stroke=\"#939395\" stroke-width=\"1\" marker-end=\"url(#arrowhead)\" data-relationship=\"flowchart-edge\" data-direction=\"forward\" data-id=\"edge:s6-&gt;T#0\" data-role=\"edge\" data-from=\"s6\" data-to=\"T\" role=\"graphics-symbol\" aria-roledescription=\"relation\" aria-label=\"s6 to T: Message 6\" />",
+      "actualPeer": "<polyline class=\"edge\" data-style=\"solid\" data-arrow-start=\"false\" data-arrow-end=\"true\" data-marker-end=\"arrow\" data-label=\"Message 6\" points=\"100.875,457.45 210.547,457.45 210.547,379 242.297,379\" fill=\"none\" stroke=\"#939395\" stroke-width=\"1\" marker-end=\"url(#arrowhead)\" data-relationship=\"flowchart-edge\" data-direction=\"forward\" data-id=\"edge:s6-&gt;T#0\" data-role=\"edge\" data-from=\"s6\" data-to=\"T\" role=\"graphics-symbol\" aria-roledescription=\"relation\" aria-label=\"s6 to T: Message 6\" />"
+    },
+    {
+      "case": "trinity",
+      "arm": "labelled-final",
+      "selected": "edge:s7-&gt;T#0",
+      "peer": "all other target heads",
+      "sha256": "f41c223f200fe0221843f84f3998721475801de5b4ddfd5fb24f94fa099fd905",
+      "roi": {
+        "x0": 690,
+        "x1": 763,
+        "y0": 1143,
+        "y1": 1215
+      },
+      "exposed": 264,
+      "visible": 264,
+      "attenuated": 0,
+      "hidden": 0,
+      "actualSelected": "<polyline class=\"edge\" data-style=\"solid\" data-arrow-start=\"false\" data-arrow-end=\"true\" data-marker-end=\"arrow\" data-label=\"Message 7\" points=\"100.875,523.75 216.547,523.75 216.547,393 242.297,393\" fill=\"none\" stroke=\"#939395\" stroke-width=\"1\" marker-end=\"url(#arrowhead)\" data-relationship=\"flowchart-edge\" data-direction=\"forward\" data-id=\"edge:s7-&gt;T#0\" data-role=\"edge\" data-from=\"s7\" data-to=\"T\" role=\"graphics-symbol\" aria-roledescription=\"relation\" aria-label=\"s7 to T: Message 7\" />",
+      "actualPeer": "<polyline class=\"edge\" data-style=\"solid\" data-arrow-start=\"false\" data-arrow-end=\"true\" data-marker-end=\"arrow\" data-label=\"Message 7\" points=\"100.875,523.75 216.547,523.75 216.547,393 242.297,393\" fill=\"none\" stroke=\"#939395\" stroke-width=\"1\" marker-end=\"url(#arrowhead)\" data-relationship=\"flowchart-edge\" data-direction=\"forward\" data-id=\"edge:s7-&gt;T#0\" data-role=\"edge\" data-from=\"s7\" data-to=\"T\" role=\"graphics-symbol\" aria-roledescription=\"relation\" aria-label=\"s7 to T: Message 7\" />"
+    },
+    {
+      "case": "trinity",
+      "arm": "labelled-final",
+      "selected": "edge:s8-&gt;T#0",
+      "peer": "all other target heads",
+      "sha256": "f41c223f200fe0221843f84f3998721475801de5b4ddfd5fb24f94fa099fd905",
+      "roi": {
+        "x0": 690,
+        "x1": 763,
+        "y0": 1185,
+        "y1": 1257
+      },
+      "exposed": 264,
+      "visible": 264,
+      "attenuated": 0,
+      "hidden": 0,
+      "actualSelected": "<polyline class=\"edge\" data-style=\"solid\" data-arrow-start=\"false\" data-arrow-end=\"true\" data-marker-end=\"arrow\" data-label=\"Message 8\" points=\"100.875,590.05 222.547,590.05 222.547,407 242.297,407\" fill=\"none\" stroke=\"#939395\" stroke-width=\"1\" marker-end=\"url(#arrowhead)\" data-relationship=\"flowchart-edge\" data-direction=\"forward\" data-id=\"edge:s8-&gt;T#0\" data-role=\"edge\" data-from=\"s8\" data-to=\"T\" role=\"graphics-symbol\" aria-roledescription=\"relation\" aria-label=\"s8 to T: Message 8\" />",
+      "actualPeer": "<polyline class=\"edge\" data-style=\"solid\" data-arrow-start=\"false\" data-arrow-end=\"true\" data-marker-end=\"arrow\" data-label=\"Message 8\" points=\"100.875,590.05 222.547,590.05 222.547,407 242.297,407\" fill=\"none\" stroke=\"#939395\" stroke-width=\"1\" marker-end=\"url(#arrowhead)\" data-relationship=\"flowchart-edge\" data-direction=\"forward\" data-id=\"edge:s8-&gt;T#0\" data-role=\"edge\" data-from=\"s8\" data-to=\"T\" role=\"graphics-symbol\" aria-roledescription=\"relation\" aria-label=\"s8 to T: Message 8\" />"
+    },
+    {
+      "case": "trinity",
+      "arm": "labelled-final",
+      "selected": "edge:s9-&gt;T#0",
+      "peer": "all other target heads",
+      "sha256": "f41c223f200fe0221843f84f3998721475801de5b4ddfd5fb24f94fa099fd905",
+      "roi": {
+        "x0": 690,
+        "x1": 763,
+        "y0": 1227,
+        "y1": 1299
+      },
+      "exposed": 264,
+      "visible": 264,
+      "attenuated": 0,
+      "hidden": 0,
+      "actualSelected": "<polyline class=\"edge\" data-style=\"solid\" data-arrow-start=\"false\" data-arrow-end=\"true\" data-marker-end=\"arrow\" data-label=\"Message 9\" points=\"100.875,656.35 228.547,656.35 228.547,421 242.297,421\" fill=\"none\" stroke=\"#939395\" stroke-width=\"1\" marker-end=\"url(#arrowhead)\" data-relationship=\"flowchart-edge\" data-direction=\"forward\" data-id=\"edge:s9-&gt;T#0\" data-role=\"edge\" data-from=\"s9\" data-to=\"T\" role=\"graphics-symbol\" aria-roledescription=\"relation\" aria-label=\"s9 to T: Message 9\" />",
+      "actualPeer": "<polyline class=\"edge\" data-style=\"solid\" data-arrow-start=\"false\" data-arrow-end=\"true\" data-marker-end=\"arrow\" data-label=\"Message 9\" points=\"100.875,656.35 228.547,656.35 228.547,421 242.297,421\" fill=\"none\" stroke=\"#939395\" stroke-width=\"1\" marker-end=\"url(#arrowhead)\" data-relationship=\"flowchart-edge\" data-direction=\"forward\" data-id=\"edge:s9-&gt;T#0\" data-role=\"edge\" data-from=\"s9\" data-to=\"T\" role=\"graphics-symbol\" aria-roledescription=\"relation\" aria-label=\"s9 to T: Message 9\" />"
+    }
+  ]
+}

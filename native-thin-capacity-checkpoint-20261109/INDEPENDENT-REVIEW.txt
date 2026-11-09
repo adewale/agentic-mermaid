@@ -1,0 +1,1 @@
+Independent authority_review_8h reviewed final role-split diff. No blocker. Preserve old per-role footprint span and fat formula; all mutation is owned before layout; accounting/caps intact. Actual14U→P plus all10-head recovery justify bounded correction. Keep20U, adverse costs, no general cycle-side proof or performance ratio.

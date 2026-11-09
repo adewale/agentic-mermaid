@@ -1,0 +1,8 @@
+{
+  "source": "a8ce05aef637491ee4ab0faae9a95d24cf7d3ffc",
+  "files": 2233,
+  "uncompressedBytes": 37423310,
+  "archiveBytes": 11787141,
+  "archiveSha256": "bc67a160d7cc5e24144b3b2593a149dac081c5cb6a4b600ebd745404fb686afb",
+  "verification": "Every archive member reread and verified against original length and SHA256. No symlink duplicates."
+}
