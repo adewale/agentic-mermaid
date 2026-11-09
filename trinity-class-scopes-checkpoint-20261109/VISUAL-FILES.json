@@ -1,0 +1,21 @@
+{
+  "runtime": "4db8570d389246bb5f1eede8c5b1899fe6cd687e",
+  "files": [
+    {
+      "path": "agentic-class-scopes.png",
+      "sha256": "b85348fce701581e0ab616890d01eb6cc9c6b2a49c6dfc98120f63eb9e2f7837",
+      "bytes": 8697
+    },
+    {
+      "path": "elk-class-scopes.png",
+      "sha256": "dbbd6f8e42d70162323651864fe6bf10af01055711ceee0abe946d722f7a2a60",
+      "bytes": 8900
+    },
+    {
+      "path": "trinity-class-scopes.png",
+      "sha256": "47527a7b28157c4db4ba0546a0ee6e236bb08565e3c9d39df7bdd22908878197",
+      "bytes": 8583
+    }
+  ],
+  "scope": "ActualChromiumscreenshotsofequalfrozenClasssource; fullSVG/receipt/Tridentchecks retainedinarchive."
+}
