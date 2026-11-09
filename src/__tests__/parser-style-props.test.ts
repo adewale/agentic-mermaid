@@ -6,7 +6,7 @@ import { parseMermaid } from '../parser.ts'
 import { renderMermaidSVG } from '../index.ts'
 import { mutate, parseRegisteredMermaid, renderMermaidSVG as renderDiagramSVG, serializeMermaid, verifyMermaid } from '../agent/index.ts'
 import { startUpstreamMermaid } from './helpers/upstream-mermaid.ts'
-import { parseClassLikeStyleProps } from '../shared/class-like-style.ts'
+import { parseClassLikeStyleProps, serializeClassLikeStyleProps } from '../shared/class-like-style.ts'
 
 test('Class and State retain hex CSS tokens before semicolon delimiters independently of property name', () => {
   for (const [name, value] of [['background', '#bbb'], ['border', '1px solid #abc'], ['outline-color', '#123456'], ['--paint', '#1234']]) {
@@ -24,6 +24,9 @@ test('Class and State retain hex CSS tokens before semicolon delimiters independ
       expect(again.value.body.classDefs?.hot?.[name!]).toBe(value!)
     }
   }
+  expect(parseClassLikeStyleProps('font-family: #100;irection TB#44;serif,background:#123;')).toEqual({ 'font-family': 'direction TB,serif', background: '#123' })
+  const encoded = { 'font-family': 'direction TB, "Inter, Text", serif', custom: '\u2028\u2029', background: '#123' }
+  expect(parseClassLikeStyleProps(serializeClassLikeStyleProps(encoded))).toEqual(encoded)
 })
 
 function nodeStyle(line: string, id = 'A'): Record<string, string> | undefined {

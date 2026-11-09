@@ -18,7 +18,9 @@ function classLikeStyleFields(source: string): string[] {
     // escaped hash becomes a marker, and its semicolon is never punctuation.
     if (char === '#') {
       const entity = /^#\w+;/.exec(source.slice(index))?.[0]
-      const cssHex = entity && !quote && depth === 0 && /[:\s]/.test(source[index - 1] ?? '') && tryParseCssColor(entity.slice(0, -1)) !== null
+      const after = entity ? source.slice(index + entity.length) : ''
+      const cssDelimiter = /^\s*(?:$|[,;]|[-\w]+\s*:)/.test(after)
+      const cssHex = entity && cssDelimiter && !quote && depth === 0 && /[:\s]/.test(source[index - 1] ?? '') && tryParseCssColor(entity.slice(0, -1)) !== null
       if (entity && !cssHex) {
         index += entity.length - 1
         escaped = false
@@ -84,6 +86,10 @@ function writeStyleText(value: string): string {
   // Both lexers recognize this complete-line production before STYLE and
   // CLASSDEF, even when "direction" begins inside another word or value.
   return text.replace(/direction(?=\s+(?:TB|BT|RL|LR))/gi, word => `#${word.codePointAt(0)!};${word.slice(1)}`)
+    // A generated decimal entity must not also spell a complete hex CSS
+    // token. Leading zeroes preserve its code point in Mermaid and keep the
+    // field reader's semicolon classification unambiguous.
+    .replace(/#(\d+);/g, (token, digits: string) => tryParseCssColor('#' + digits) === null ? token : '#' + digits.padStart(digits.length < 5 ? 5 : digits.length + 1, '0') + ';')
 }
 
 /** When any field needs entities, every syntax colon needs a space barrier:
