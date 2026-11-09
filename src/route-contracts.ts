@@ -1890,6 +1890,35 @@ export function separateEdgeLabelPills(
     if (conflicts === 0) { rescuePaintSeats(); break }
     if (sweep === 2) rescuePaintSeats()
   }
+  // Existing repairs retain their full allowance before optional flat gap proposals.
+  // Nested frames need perimeter supports in addition to the retained headers.
+  if (customTextMeasurementActive() || positioned.groups.length > 0 || routeWork <= 0 || !paint) return
+  const gapPaint = paint
+  for (const edge of labeled) {
+    if (!pay(64 + (edge.label?.length ?? 0) * 12 + 2 * positioned.edges.length)) return
+    const rect = rectOf(edge), anchor = edge.labelPosition
+    if (!rect || !anchor || !overlapsMarker(rect)) continue
+    if (!pay(edge.points.length + 2)) return
+    if (edge.curve || (style.edgeBendRadius ?? 0) !== 0 || edge.source === edge.target || edge.points.some((point, index) => index > 0 && point.x !== edge.points[index - 1]!.x && point.y !== edge.points[index - 1]!.y)) continue
+    const segs = orderedLabelSegments(edge, pay)
+    if (!segs) return
+    const footprint = gapPaint.label(edge, anchor)
+    if (!footprint || !pay(12)) return
+    const halo = labelHaloPadding(edge, style)
+    const pw = footprint.x1 - footprint.x0 - 2 * halo, ph = footprint.y1 - footprint.y0 - 2 * halo
+    for (const segment of segs) {
+      if (!pay(24)) return
+      const limit = Math.min(ph / 2 + 3, (segment.vertical ? pw : ph) / 2 - 1)
+      if (Math.abs(anchor[segment.vertical ? 'x' : 'y'] - segment.a[segment.vertical ? 'x' : 'y']) > limit) continue
+      const point = gapPaint.bodyGap(edge, segment.a, segment.b, anchor, limit)
+      if (!point) continue
+      if (!pay(12)) return
+      const positions = new Map<PositionedEdge, Point>([[edge, point]])
+      if (!gapPaint.clear(edge, point, positions)) continue
+      edge.labelPosition = point
+      break
+    }
+  }
 }
 
 /** Remove a sub-pixel terminal run along an open rectangle face. The preceding

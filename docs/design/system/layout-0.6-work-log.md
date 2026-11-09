@@ -1758,3 +1758,24 @@ distribution/advisory failures remain. Astra rejects another compound comparator
 probe and the proposed rectangular-only Native halo gate: it cannot affect the
 circle→cylinder offending label. Remaining: those broader contacts/costs and
 sealed Replacement24. Evidence: `elk-source-head-capacity-20261109`.
+
+## Native narrow body-gap caption seating — 9 November
+
+Parent `15a7ab42108111fc7548d4b006a56644dc0f54e4`: recover the remaining
+201+three-invisible-constraints TB/BT marker contribution: each66hidden/72attenuated
+pixels→0 at3×, with manifest-verified Inter. Reuse owned paint supports for one
+late interval seat and retain full staged admission/shared1m work allowance. Only
+the caption moves16.8px along/0.5px across its route; node/route/viewport retained.
+Two owner failures→16P;643 owning checks, core/repository types and lint pass.
+Frozen84 entire products+six invalid-option errors remain exact. Current874 inputs
+are unchanged by this repair in every backend: Native735P/139U, ELK696P/178U;
+Trinity122returned/P and752unsupported. Historical Native740/134 is not current:
+five marker-envelope proof losses predate this repair and remain under diagnosis.
+Serial56process/280attempt costs retain200P/40U/40Trinity errors;240actual response
+streams/18unique decode exactly. Labelled-star cache0 repeat2 ELK/Native/Trinity
+91.38/59.57/42.69ms; N=2/cell, mixed phase costs, no general speed/memory claim.
+Actual13-input browser all3pass; each closure+933gzip/+727Brotli bytes, no request
+increase. ELK clears the selected201 pair; Trinity still refuses mixed contacts.
+Parent CI still fails Sparse32 proof and original lazy/website/editor payload budgets.
+No cache/cap/default/version change. Evidence `native-current-halo-201-20261109`;
+next: identify the five historical marker losses before expanding circle admission.
