@@ -646,6 +646,27 @@ describe('owned measured layered layout', () => {
     expect(() => layoutAgenticGraph({ ...input, nodes: input.nodes.map(node => ({ ...node, partition: -1 })) })).toThrow('Invalid measured partition')
   })
 
+  test.each((['TB', 'BT', 'LR', 'RL'] as const).flatMap(direction => [false, true].flatMap(partitioned => [false, true].map(majority => ({ direction, partitioned, majority })))))('lifted group cycle cuts respect count then source order: %j', ({ direction, partitioned, majority }) => {
+    const padding = { top: 40, right: 24, bottom: 24, left: 24 }
+    const input = measured({ direction,
+      nodes: [{ id: 'a', width: 64, height: 36, parent: 0 }, { id: 'b', width: 64, height: 36, parent: 1 }],
+      groups: [{ id: 'A', minWidth: 96, padding, ...(partitioned ? { partition: 0 } : {}) }, { id: 'B', minWidth: 96, padding, ...(partitioned ? { partition: 0 } : {}) }],
+      edges: [{ source: 1, target: 0, minSpan: 1 }, { source: 0, target: 1, minSpan: 1 }, ...(majority ? [{ source: 0, target: 1, minSpan: 1 }] : [])],
+    })
+    const result = layoutAgenticGraph(input)
+    const [a, b] = result.groups!
+    const horizontal = direction === 'LR' || direction === 'RL'
+    const before = horizontal ? b!.x + b!.width <= a!.x : b!.y + b!.height <= a!.y
+    const after = horizontal ? a!.x + a!.width <= b!.x : a!.y + a!.height <= b!.y
+    expect(direction === 'BT' || direction === 'RL' ? after : before).toBe(!majority)
+    for (const [index, route] of result.edges.entries()) {
+      const edge = input.edges[index]!
+      expect(onOutline(route.points[0]!, { ...input.nodes[edge.source]!, ...result.nodes[edge.source]! })).toBe(true)
+      expect(onOutline(route.points.at(-1)!, { ...input.nodes[edge.target]!, ...result.nodes[edge.target]! })).toBe(true)
+    }
+    expect(layoutAgenticGraph(input)).toEqual(result)
+  })
+
   test('direct compound corridors retain more than sixteen authored cross-scope leaf contacts', () => {
     const padding = { top: 40, right: 24, bottom: 24, left: 24 }
     const input = measured({ direction: 'LR', nodes: Array.from({ length: 34 }, (_, index) => ({

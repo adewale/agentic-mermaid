@@ -95,7 +95,10 @@ export function layoutCompoundGraph(
       return { ...edge, source: local.get(endpoints.source)!, target: local.get(endpoints.target)! }
     })
     const flat: MeasuredGraph = { nodes, edges, padding: 0, direction, nodeSpacing: input.nodeSpacing, layerSpacing: input.layerSpacing, edgeSpacing: input.edgeSpacing, ...(input.minimumTerminalLead !== undefined ? { minimumTerminalLead: input.minimumTerminalLead } : {}), ...(input.placementOnly ? { placementOnly: true } : {}) }
-    if (lifted.size && hosted[scope]!.some(index => lifted.has(index))) flat.compactPrivateRanks = true
+    if (lifted.size && hosted[scope]!.some(index => lifted.has(index))) {
+      flat.compactPrivateRanks = true
+      flat.groupCycleEdges = hosted[scope]!.flatMap((index, local) => lifted.has(index) ? [local] : [])
+    }
     const placed = layout(flat)
     expandedVertices += placed.expandedVertices ?? nodes.length
     if (expandedVertices > expansionLimit) unsupported('agentic local compound-expansion limit')

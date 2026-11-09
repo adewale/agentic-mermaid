@@ -1,6 +1,6 @@
 # Native layout recovery: results and handoff
 
-Current work order: [Trinity and shared layout plan](layout-0.6-qualification.md).
+Current work order: [Native replacement plan](layout-0.6-qualification.md).
 The dated records below are historical evidence; earlier “next” statements do not
 create parallel active queues. No retained experiment or output is discarded.
 
@@ -1824,3 +1824,21 @@ Stop the unrequested-solver-import hypothesis: actual fetched modules/metafile
 show only the selected solver, with legitimate shared orchestration. No newcache,
 cap/default/version. Evidence `trinity-ordinary-circle-20261109`; broaderdomain,
 Sparse32/payloadCI and retirement remain unresolved; keepELK/Replacement24sealed.
+
+### 9 November — Native-only group cycle repair
+
+Parent `dee908197a8fe678d05cb6e1c6827d05ae9d4fb7`. Owner selected Native;
+Trinity feature growth is frozen. Lifted group cycles now prefer fewer cuts
+among bounded candidates, then earlier authored group links; ranked sibling
+scopes obey the same rule. Four original directional cases fail before repair.
+16 count/order/direction/rank cases pass; 273 owning checks, core/repo types and
+lint pass. Four actual public SVGs retain meaning and passed receipts: TB/BT
+area/wire/bends unchanged; LR/RL wire133.55→121.55, bends8→4, area unchanged.
+Manifest-verified Inter rasters inspected; unavailable image not reproduced.
+Evidence: `/tmp/pr449-week-comparison-20261101/native-only-20261109`.
+100-node uncached full products remain146–357ms with unverified budget-limited
+receipts. The parallel-crossing subtraction had no reliable ABBA win and was
+dropped; adverse timings retained. Five compound declines remain unresolved.
+Next: port oriented capacity through Native's existing neutral seam, then
+profile a marker-heavy case before per-edge reuse/spatial peers; global nesting
+borders must retain descendant contacts and per-group directions.

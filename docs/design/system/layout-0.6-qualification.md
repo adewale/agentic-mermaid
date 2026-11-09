@@ -1,4 +1,34 @@
-# Trinity and shared layout: execution plan
+# Native replacement: execution plan
+
+The owner's new instruction on 9 November selects Native as the sole replacement
+candidate. Trinity feature work is frozen; its existing public API remains for
+compatibility. The neutral request contract already feeds Native. Port useful
+early endpoint-capacity planning into that producer rather than growing a third
+solver. ELK remains available; no default, version or work-cap change is implied.
+
+Work order:
+
+1. Repair lifted group cycles: prefer fewer reversed constraints among the
+   bounded candidates, then preserve the earliest authored group edge on ties. Leaf-only scopes and authored
+   endpoint identities remain unchanged. This does not recover the five compound
+   declines or establish that the unavailable screenshot is fixed.
+2. Profile fully consumed 100-node responses. Reuse marker views within owned
+   route passes and index spatial peers where measurements justify the work.
+   Keep exact narrow-phase checks, live mutation invalidation and existing caps.
+   Target under 100ms; report cold, uncached warm and cache hits separately.
+3. Replace recursive child-box ranking with global leaf ranks and nesting
+   borders, then order group intervals and derive frames from those borders.
+   Reserve total border expansion before allocation. Keep the recursive path
+   for container-to-descendant links and independent group directions until
+   the global strategy preserves those existing supported contracts. Boundary
+   feedback is a fallback design alternative, not a parallel backend project.
+
+Authored meaning and final SVG remain the correctness boundary. Retain adverse
+wire, area, runtime, memory and payload changes. Automations remain disabled.
+The previous effort ended at 20:00 UTC; this new direct instruction does not
+restart its schedule. The completed-stage record below is historical.
+
+## Earlier Trinity work
 
 Updated 9 November 2026. Owner renewed work through20:00UTC; old automations remain off. The owner requested a Trinity specification, common
 ELK/Native/Trinity interface, metrics, state/invariant ownership and plan cleanup.

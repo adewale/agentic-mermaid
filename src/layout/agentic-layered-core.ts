@@ -9,7 +9,7 @@ import type { MeasuredGraph as SharedMeasuredGraph, MeasuredRoutes } from './mea
 import { layoutSharedFan } from './shared-fan-core.ts'
 import { layoutCyclicGraph, orientMeasuredEdge, type LayoutSearchWork } from './cycle-layout-search.ts'
 import { layoutCompoundGraph } from './agentic-compound-core.ts'
-import { feedbackOrder } from './cycle-order.ts'
+import { compareFeedbackOrders, depthFirstOrder, feedbackOrder, groupSourceOrder } from './cycle-order.ts'
 import { assignChannelTracks, orderedPortCoordinate, type ChannelStep, type ChannelWork } from './channel-tracks.ts'
 import { AGENTIC_MAX_NODES as MAX_NODES, AGENTIC_MAX_EDGES as MAX_EDGES, AGENTIC_MAX_EXPANDED_VERTICES as MAX_EXPANDED_VERTICES } from './agentic-limits.ts'
 
@@ -19,6 +19,8 @@ export interface MeasuredGraph extends SharedMeasuredGraph {
   loopPorts?: readonly (readonly [number, number])[]
   /** Private single-candidate refinement; authored arrow direction is restored. */
   authoredCycleOrder?: boolean
+  /** Lifted group cycles preserve earlier authored links when cut counts tie. */
+  groupCycleEdges?: readonly number[]
   /** Optional compact candidate: only labelled links need an extra private rank. */
   compactPrivateRanks?: boolean
   /** Bounded optional coordinate refinement using the selected port offsets. */
@@ -259,7 +261,14 @@ export function layoutLayeredGraph(
     if (partitioned) {
       // Cross-partition links already point forward. A total private order
       // inside each partition breaks its cycles without reversing that order.
-      const order = input.authoredCycleOrder ? Uint32Array.from(nodes, (_, index) => index) : feedbackOrder(incoming, outgoing, edges)
+      let order = input.authoredCycleOrder ? Uint32Array.from(nodes, (_, index) => index) : feedbackOrder(incoming, outgoing, edges)
+      if (!input.authoredCycleOrder && input.groupCycleEdges?.length) {
+        const samePartition = (edge: MeasuredGraph['edges'][number]) => (nodes[edge.source]!.partition ?? 0) === (nodes[edge.target]!.partition ?? 0)
+        const localEdges = edges.filter(samePartition), preferred = input.groupCycleEdges.map(index => edges[index]!).filter(samePartition)
+        for (const candidate of [depthFirstOrder(outgoing, edges), groupSourceOrder(outgoing, edges, preferred)]) {
+          if (compareFeedbackOrders(localEdges, preferred, candidate, order) < 0) order = candidate
+        }
+      }
       const reversed = edges.map(edge => (nodes[edge.source]!.partition ?? 0) === (nodes[edge.target]!.partition ?? 0) && order[edge.source]! > order[edge.target]!)
       const placed = layoutLayeredGraph({ ...input, cycleOriented: true, edges: edges.map((edge, index) => reversed[index]
         ? orientMeasuredEdge(edge, edge.target, edge.source, true) : edge) }, forestLayout, unsupported, routingWork, searchWork)

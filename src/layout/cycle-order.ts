@@ -2,11 +2,12 @@ import type { MeasuredGraph } from './agentic-layered.ts'
 
 /** Reverse DFS finish order preserves authored traversal when feedback counts
  * tie. Iterative traversal keeps deep state-machine chains off the JS stack. */
-export function depthFirstOrder(outgoing: readonly number[][], edges: MeasuredGraph['edges']): Int32Array {
+export function depthFirstOrder(outgoing: readonly number[][], edges: MeasuredGraph['edges'], roots?: readonly number[]): Int32Array {
   const state = new Uint8Array(outgoing.length), cursor = new Uint32Array(outgoing.length)
   const order = new Int32Array(outgoing.length), stack: number[] = []
   let remaining = outgoing.length - 1
-  for (let root = 0; root < outgoing.length; root++) {
+  for (let rootIndex = 0; rootIndex < outgoing.length; rootIndex++) {
+    const root = roots?.[rootIndex] ?? rootIndex
     if (state[root]) continue
     state[root] = 1; stack.push(root)
     while (stack.length) {
@@ -21,6 +22,23 @@ export function depthFirstOrder(outgoing: readonly number[][], edges: MeasuredGr
     }
   }
   return order
+}
+
+/** Feedback count precedes source-order preferences on lifted constraints. */
+export function compareFeedbackOrders(edges: MeasuredGraph['edges'], preferred: MeasuredGraph['edges'], a: ArrayLike<number>, b: ArrayLike<number>): number {
+  let difference = 0
+  for (const edge of edges) difference += Number(a[edge.source]! > a[edge.target]!) - Number(b[edge.source]! > b[edge.target]!)
+  if (difference) return difference
+  for (const edge of preferred) {
+    difference = Number(a[edge.source]! > a[edge.target]!) - Number(b[edge.source]! > b[edge.target]!)
+    if (difference) return difference
+  }
+  return 0
+}
+
+export function groupSourceOrder(outgoing: readonly number[][], edges: MeasuredGraph['edges'], preferred: MeasuredGraph['edges']): Int32Array {
+  const roots = [...new Set([...preferred.map(edge => edge.source), ...outgoing.map((_, index) => index)])]
+  return depthFirstOrder(outgoing, edges, roots)
 }
 
 /** Greedy feedback-arc ordering (Eades–Lin–Smyth): peel sinks/sources, then
