@@ -1,0 +1,74 @@
+[
+  {
+    "backend": "elk",
+    "phase": "warmup",
+    "product": "svg",
+    "byteExact": true
+  },
+  {
+    "backend": "elk",
+    "phase": "warmup",
+    "product": "receipt.json",
+    "byteExact": true
+  },
+  {
+    "backend": "elk",
+    "phase": "edit2",
+    "product": "svg",
+    "byteExact": true
+  },
+  {
+    "backend": "elk",
+    "phase": "edit2",
+    "product": "receipt.json",
+    "byteExact": true
+  },
+  {
+    "backend": "agentic",
+    "phase": "warmup",
+    "product": "svg",
+    "byteExact": true
+  },
+  {
+    "backend": "agentic",
+    "phase": "warmup",
+    "product": "receipt.json",
+    "byteExact": true
+  },
+  {
+    "backend": "agentic",
+    "phase": "edit2",
+    "product": "svg",
+    "byteExact": true
+  },
+  {
+    "backend": "agentic",
+    "phase": "edit2",
+    "product": "receipt.json",
+    "byteExact": true
+  },
+  {
+    "backend": "trinity",
+    "phase": "warmup",
+    "product": "svg",
+    "byteExact": true
+  },
+  {
+    "backend": "trinity",
+    "phase": "warmup",
+    "product": "receipt.json",
+    "byteExact": true
+  },
+  {
+    "backend": "trinity",
+    "phase": "edit2",
+    "product": "svg",
+    "byteExact": true
+  },
+  {
+    "backend": "trinity",
+    "phase": "edit2",
+    "product": "receipt.json",
+    "byteExact": true
+  }
+]

@@ -1,0 +1,1023 @@
+[
+  {
+    "cohort": 0,
+    "id": "generated-cyclic:3",
+    "family": "flowchart",
+    "proof": [
+      "passed",
+      "unverified"
+    ],
+    "beforeMetrics": {
+      "paintCertification": {
+        "version": 1,
+        "unit": "px",
+        "scope": "native-scene",
+        "status": "passed",
+        "viewport": {
+          "x": 0,
+          "y": 0,
+          "width": 1440.906,
+          "height": 551.72
+        },
+        "attempts": 1,
+        "repairs": [],
+        "coverage": {
+          "measured": 68,
+          "unmeasured": 0,
+          "preparedText": 18,
+          "fallbackText": 0,
+          "conditional": 0
+        },
+        "checks": {
+          "primitives": 71,
+          "labels": 11,
+          "occlusionPairs": 714,
+          "maxOcclusionPairs": 100000,
+          "operations": 276081,
+          "maxOperations": 400000,
+          "markers": 25
+        },
+        "issues": [],
+        "limitations": [
+          "Prepared occupied text regions bound native geometry; exact glyph ink depends on the resolved font.",
+          "Declared transparency, intentional data-mark overlap and externally modified CSS are outside this proof."
+        ]
+      },
+      "edgeCrossings": 1,
+      "labelLegibility": 1,
+      "labelMeasurement": {
+        "measuredNodes": 11,
+        "unmeasuredNodes": 0,
+        "hiddenNodes": 0,
+        "semanticNodes": 0,
+        "measuredEdges": 7,
+        "unmeasuredEdges": 0,
+        "measuredLabels": 0,
+        "unmeasuredLabels": 0,
+        "hiddenLabels": 0,
+        "semanticLabels": 0
+      },
+      "whitespaceBalance": 0.09928459512609854,
+      "labelEdgeProximity": 20,
+      "labelConflicts": {
+        "total": 0,
+        "labelLabel": 0,
+        "labelNode": 0,
+        "labelEdge": 0
+      },
+      "routeOverlaps": {
+        "parallel": 0,
+        "opposing": 0
+      },
+      "routeGeometry": {
+        "bends": 58,
+        "length": 9520.299689703472,
+        "area": 794976.6583200003
+      },
+      "minimumNodeSpacing": 26.75,
+      "elementDensity": 0.45284348443736316,
+      "minimumTextContrast": 14.894588477600598,
+      "aspectRatio": 2.611661712462845,
+      "nodeCount": 11,
+      "edgeCount": 25
+    },
+    "afterMetrics": {
+      "paintCertification": {
+        "version": 1,
+        "unit": "px",
+        "scope": "native-scene",
+        "status": "unverified",
+        "viewport": {
+          "x": 0,
+          "y": 0,
+          "width": 1440.906,
+          "height": 551.72
+        },
+        "attempts": 1,
+        "repairs": [],
+        "coverage": {
+          "measured": 68,
+          "unmeasured": 0,
+          "preparedText": 18,
+          "fallbackText": 0,
+          "conditional": 0
+        },
+        "checks": {
+          "primitives": 71,
+          "labels": 11,
+          "occlusionPairs": 717,
+          "maxOcclusionPairs": 100000,
+          "operations": 275956,
+          "maxOperations": 400000,
+          "markers": 25
+        },
+        "issues": [
+          {
+            "code": "POTENTIAL_OCCLUSION",
+            "id": "edge:n0->n3#0",
+            "by": "edge:n9->n3#0",
+            "message": "Distinct endpoint-marker envelopes overlap; actual marker ink separation is unverified."
+          },
+          {
+            "code": "POTENTIAL_OCCLUSION",
+            "id": "edge:n5->n3#0",
+            "by": "edge:n5->n3#1",
+            "message": "Distinct endpoint-marker envelopes overlap; actual marker ink separation is unverified."
+          },
+          {
+            "code": "POTENTIAL_OCCLUSION",
+            "id": "edge:n5->n3#1",
+            "by": "edge:n5->n3#2",
+            "message": "Distinct endpoint-marker envelopes overlap; actual marker ink separation is unverified."
+          }
+        ],
+        "limitations": [
+          "Prepared occupied text regions bound native geometry; exact glyph ink depends on the resolved font.",
+          "Declared transparency, intentional data-mark overlap and externally modified CSS are outside this proof."
+        ]
+      },
+      "edgeCrossings": 1,
+      "labelLegibility": 1,
+      "labelMeasurement": {
+        "measuredNodes": 11,
+        "unmeasuredNodes": 0,
+        "hiddenNodes": 0,
+        "semanticNodes": 0,
+        "measuredEdges": 7,
+        "unmeasuredEdges": 0,
+        "measuredLabels": 0,
+        "unmeasuredLabels": 0,
+        "hiddenLabels": 0,
+        "semanticLabels": 0
+      },
+      "whitespaceBalance": 0.10050606117775854,
+      "labelEdgeProximity": 20,
+      "labelConflicts": {
+        "total": 0,
+        "labelLabel": 0,
+        "labelNode": 0,
+        "labelEdge": 0
+      },
+      "routeOverlaps": {
+        "parallel": 0,
+        "opposing": 0
+      },
+      "routeGeometry": {
+        "bends": 58,
+        "length": 9504.43024525903,
+        "area": 794976.6583200003
+      },
+      "minimumNodeSpacing": 26.75,
+      "elementDensity": 0.45284348443736316,
+      "minimumTextContrast": 14.894588477600598,
+      "aspectRatio": 2.611661712462845,
+      "nodeCount": 11,
+      "edgeCount": 25
+    },
+    "beforeIssues": [],
+    "afterIssues": [
+      {
+        "code": "POTENTIAL_OCCLUSION",
+        "id": "edge:n0->n3#0",
+        "by": "edge:n9->n3#0",
+        "message": "Distinct endpoint-marker envelopes overlap; actual marker ink separation is unverified."
+      },
+      {
+        "code": "POTENTIAL_OCCLUSION",
+        "id": "edge:n5->n3#0",
+        "by": "edge:n5->n3#1",
+        "message": "Distinct endpoint-marker envelopes overlap; actual marker ink separation is unverified."
+      },
+      {
+        "code": "POTENTIAL_OCCLUSION",
+        "id": "edge:n5->n3#1",
+        "by": "edge:n5->n3#2",
+        "message": "Distinct endpoint-marker envelopes overlap; actual marker ink separation is unverified."
+      }
+    ],
+    "source": "flowchart RL\nn0((Node 3-0))\nn1[[Node 3-1]]\nn2[(Node 3-2)]\nn3[Node 3-3]\nn4{Node 3-4}\nn5(Node 3-5)\nn6((Node 3-6))\nn7[[Node 3-7]]\nn8[(Node 3-8)]\nn9[Node 3-9]\nn10{Node 3-10}\nn0 -->|edge 0 xxx| n3\nn3 --> n1\nn4 --> n2\nn2 --> n3\nn7 -->|edge 4 xxxxxxx| n5\nn1 --> n10\nn1 --> n2\nn4 --> n7\nn3 -->|edge 8 xxxxxxxxxxx| n1\nn8 --> n4\nn5 --> n3\nn10 --> n2\nn5 -->|edge 12 xxxxxxxxxxxxxxx| n3\nn6 --> n0\nn9 --> n7\nn8 --> n9\nn5 -->|edge 16 xxxxxxxxxxxxxxxxxxx| n3\nn2 --> n5\nn0 --> n9\nn9 --> n3\nn7 -->|edge 20 xxxxxx| n10\nn3 --> n8\nn7 --> n8\nn3 --> n6\nn3 -->|edge 24 xxxxxxxxxx| n4",
+    "oldOptions": {
+      "graphLayout": {
+        "backend": "agentic"
+      }
+    },
+    "newOptions": {
+      "graphLayout": {
+        "backend": "agentic",
+        "fallback": "none"
+      }
+    }
+  },
+  {
+    "cohort": 3,
+    "id": "generated-cyclic:353",
+    "family": "flowchart",
+    "proof": [
+      "passed",
+      "unverified"
+    ],
+    "beforeMetrics": {
+      "paintCertification": {
+        "version": 1,
+        "unit": "px",
+        "scope": "native-scene",
+        "status": "passed",
+        "viewport": {
+          "x": 0,
+          "y": 0,
+          "width": 1322.434,
+          "height": 460.84
+        },
+        "attempts": 1,
+        "repairs": [],
+        "coverage": {
+          "measured": 61,
+          "unmeasured": 0,
+          "preparedText": 16,
+          "fallbackText": 0,
+          "conditional": 0
+        },
+        "checks": {
+          "primitives": 64,
+          "labels": 10,
+          "occlusionPairs": 519,
+          "maxOcclusionPairs": 100000,
+          "operations": 243869,
+          "maxOperations": 400000,
+          "markers": 23
+        },
+        "issues": [],
+        "limitations": [
+          "Prepared occupied text regions bound native geometry; exact glyph ink depends on the resolved font.",
+          "Declared transparency, intentional data-mark overlap and externally modified CSS are outside this proof."
+        ]
+      },
+      "edgeCrossings": 3,
+      "labelLegibility": 1,
+      "labelMeasurement": {
+        "measuredNodes": 10,
+        "unmeasuredNodes": 0,
+        "hiddenNodes": 0,
+        "semanticNodes": 0,
+        "measuredEdges": 6,
+        "unmeasuredEdges": 0,
+        "measuredLabels": 0,
+        "unmeasuredLabels": 0,
+        "hiddenLabels": 0,
+        "semanticLabels": 0
+      },
+      "whitespaceBalance": 0.13332991351534565,
+      "labelEdgeProximity": 19.99999999999997,
+      "labelConflicts": {
+        "total": 0,
+        "labelLabel": 0,
+        "labelNode": 0,
+        "labelEdge": 0
+      },
+      "routeOverlaps": {
+        "parallel": 0,
+        "opposing": 0
+      },
+      "routeGeometry": {
+        "bends": 42,
+        "length": 7884.984216001372,
+        "area": 609430.48456
+      },
+      "minimumNodeSpacing": 27.999999999999943,
+      "elementDensity": 0.5414891580920098,
+      "minimumTextContrast": 14.894588477600598,
+      "aspectRatio": 2.869616352747158,
+      "nodeCount": 10,
+      "edgeCount": 23
+    },
+    "afterMetrics": {
+      "paintCertification": {
+        "version": 1,
+        "unit": "px",
+        "scope": "native-scene",
+        "status": "unverified",
+        "viewport": {
+          "x": 0,
+          "y": 0,
+          "width": 1328.434,
+          "height": 460.84
+        },
+        "attempts": 1,
+        "repairs": [],
+        "coverage": {
+          "measured": 61,
+          "unmeasured": 0,
+          "preparedText": 16,
+          "fallbackText": 0,
+          "conditional": 0
+        },
+        "checks": {
+          "primitives": 64,
+          "labels": 10,
+          "occlusionPairs": 476,
+          "maxOcclusionPairs": 100000,
+          "operations": 243462,
+          "maxOperations": 400000,
+          "markers": 23
+        },
+        "issues": [
+          {
+            "code": "POTENTIAL_OCCLUSION",
+            "id": "edge:n9->n1#0",
+            "by": "edge:n3->n1#0",
+            "message": "Distinct endpoint-marker envelopes overlap; actual marker ink separation is unverified."
+          },
+          {
+            "code": "POTENTIAL_OCCLUSION",
+            "id": "edge:n3->n1#0",
+            "by": "edge:n3->n1#1",
+            "message": "Distinct endpoint-marker envelopes overlap; actual marker ink separation is unverified."
+          },
+          {
+            "code": "POTENTIAL_OCCLUSION",
+            "id": "edge:n3->n1#1",
+            "by": "edge:n3->n1#2",
+            "message": "Distinct endpoint-marker envelopes overlap; actual marker ink separation is unverified."
+          }
+        ],
+        "limitations": [
+          "Prepared occupied text regions bound native geometry; exact glyph ink depends on the resolved font.",
+          "Declared transparency, intentional data-mark overlap and externally modified CSS are outside this proof."
+        ]
+      },
+      "edgeCrossings": 3,
+      "labelLegibility": 1,
+      "labelMeasurement": {
+        "measuredNodes": 10,
+        "unmeasuredNodes": 0,
+        "hiddenNodes": 0,
+        "semanticNodes": 0,
+        "measuredEdges": 6,
+        "unmeasuredEdges": 0,
+        "measuredLabels": 0,
+        "unmeasuredLabels": 0,
+        "hiddenLabels": 0,
+        "semanticLabels": 0
+      },
+      "whitespaceBalance": 0.13334042626115208,
+      "labelEdgeProximity": 19.99999999999997,
+      "labelConflicts": {
+        "total": 0,
+        "labelLabel": 0,
+        "labelNode": 0,
+        "labelEdge": 0
+      },
+      "routeOverlaps": {
+        "parallel": 0,
+        "opposing": 0
+      },
+      "routeGeometry": {
+        "bends": 40,
+        "length": 7933.4203271124825,
+        "area": 612195.52456
+      },
+      "minimumNodeSpacing": 27.999999999999943,
+      "elementDensity": 0.5390434702004382,
+      "minimumTextContrast": 14.894588477600598,
+      "aspectRatio": 2.882636055897926,
+      "nodeCount": 10,
+      "edgeCount": 23
+    },
+    "beforeIssues": [],
+    "afterIssues": [
+      {
+        "code": "POTENTIAL_OCCLUSION",
+        "id": "edge:n9->n1#0",
+        "by": "edge:n3->n1#0",
+        "message": "Distinct endpoint-marker envelopes overlap; actual marker ink separation is unverified."
+      },
+      {
+        "code": "POTENTIAL_OCCLUSION",
+        "id": "edge:n3->n1#0",
+        "by": "edge:n3->n1#1",
+        "message": "Distinct endpoint-marker envelopes overlap; actual marker ink separation is unverified."
+      },
+      {
+        "code": "POTENTIAL_OCCLUSION",
+        "id": "edge:n3->n1#1",
+        "by": "edge:n3->n1#2",
+        "message": "Distinct endpoint-marker envelopes overlap; actual marker ink separation is unverified."
+      }
+    ],
+    "source": "flowchart LR\nn0[(Node 353-0)]\nn1[Node 353-1]\nn2{Node 353-2}\nn3(Node 353-3)\nn4((Node 353-4))\nn5[[Node 353-5]]\nn6[(Node 353-6)]\nn7[Node 353-7]\nn8{Node 353-8}\nn9(Node 353-9)\nn3 -->|edge 0 xxx| n4\nn7 --> n9\nn5 --> n8\nn5 --> n0\nn7 -->|edge 4 xxxxxxx| n6\nn5 --> n3\nn7 --> n5\nn9 --> n1\nn1 -->|edge 8 xxxxxxxxxxx| n5\nn7 --> n8\nn3 --> n1\nn1 --> n2\nn1 -->|edge 12 xxxxxxxxxxxxxxx| n4\nn7 --> n9\nn7 --> n1\nn3 --> n9\nn9 -->|edge 16 xxxxxxxxxxxxxxxxxxx| n0\nn3 --> n4\nn9 --> n3\nn5 --> n7\nn5 -->|edge 20 xxxxxx| n7\nn3 --> n1\nn3 --> n1",
+    "oldOptions": {
+      "graphLayout": {
+        "backend": "agentic"
+      }
+    },
+    "newOptions": {
+      "graphLayout": {
+        "backend": "agentic",
+        "fallback": "none"
+      }
+    }
+  },
+  {
+    "cohort": 4,
+    "id": "generated-sha256-counter-v1:17",
+    "family": "flowchart",
+    "proof": [
+      "passed",
+      "unverified"
+    ],
+    "beforeMetrics": {
+      "paintCertification": {
+        "version": 1,
+        "unit": "px",
+        "scope": "native-scene",
+        "status": "passed",
+        "viewport": {
+          "x": 0,
+          "y": 0,
+          "width": 1542.018,
+          "height": 358.5
+        },
+        "attempts": 1,
+        "repairs": [],
+        "coverage": {
+          "measured": 72,
+          "unmeasured": 0,
+          "preparedText": 19,
+          "fallbackText": 0,
+          "conditional": 0
+        },
+        "checks": {
+          "primitives": 75,
+          "labels": 12,
+          "occlusionPairs": 657,
+          "maxOcclusionPairs": 100000,
+          "operations": 276762,
+          "maxOperations": 400000,
+          "markers": 27
+        },
+        "issues": [],
+        "limitations": [
+          "Prepared occupied text regions bound native geometry; exact glyph ink depends on the resolved font.",
+          "Declared transparency, intentional data-mark overlap and externally modified CSS are outside this proof."
+        ]
+      },
+      "edgeCrossings": 5,
+      "labelLegibility": 1,
+      "labelMeasurement": {
+        "measuredNodes": 12,
+        "unmeasuredNodes": 0,
+        "hiddenNodes": 0,
+        "semanticNodes": 0,
+        "measuredEdges": 7,
+        "unmeasuredEdges": 0,
+        "measuredLabels": 0,
+        "unmeasuredLabels": 0,
+        "hiddenLabels": 0,
+        "semanticLabels": 0
+      },
+      "whitespaceBalance": 0.1555830351907156,
+      "labelEdgeProximity": 13.200000000000017,
+      "labelConflicts": {
+        "total": 0,
+        "labelLabel": 0,
+        "labelNode": 0,
+        "labelEdge": 0
+      },
+      "routeOverlaps": {
+        "parallel": 0,
+        "opposing": 0
+      },
+      "routeGeometry": {
+        "bends": 58,
+        "length": 10599.081398754335,
+        "area": 552813.453
+      },
+      "minimumNodeSpacing": 26.75,
+      "elementDensity": 0.7054821077228741,
+      "minimumTextContrast": 14.894588477600598,
+      "aspectRatio": 4.3013054393305445,
+      "nodeCount": 12,
+      "edgeCount": 27
+    },
+    "afterMetrics": {
+      "paintCertification": {
+        "version": 1,
+        "unit": "px",
+        "scope": "native-scene",
+        "status": "unverified",
+        "viewport": {
+          "x": 0,
+          "y": 0,
+          "width": 1453.344,
+          "height": 463.834
+        },
+        "attempts": 1,
+        "repairs": [],
+        "coverage": {
+          "measured": 72,
+          "unmeasured": 0,
+          "preparedText": 19,
+          "fallbackText": 0,
+          "conditional": 0
+        },
+        "checks": {
+          "primitives": 75,
+          "labels": 12,
+          "occlusionPairs": 708,
+          "maxOcclusionPairs": 100000,
+          "operations": 277876,
+          "maxOperations": 400000,
+          "markers": 27
+        },
+        "issues": [
+          {
+            "code": "POTENTIAL_OCCLUSION",
+            "id": "edge:n3->n1#0",
+            "by": "edge:n3->n1#1",
+            "message": "Distinct endpoint-marker envelopes overlap; actual marker ink separation is unverified."
+          },
+          {
+            "code": "POTENTIAL_OCCLUSION",
+            "id": "edge:n3->n1#0",
+            "by": "edge:n4->n1#0",
+            "message": "Distinct endpoint-marker envelopes overlap; actual marker ink separation is unverified."
+          },
+          {
+            "code": "POTENTIAL_OCCLUSION",
+            "id": "edge:n0->n1#0",
+            "by": "edge:n4->n1#0",
+            "message": "Distinct endpoint-marker envelopes overlap; actual marker ink separation is unverified."
+          }
+        ],
+        "limitations": [
+          "Prepared occupied text regions bound native geometry; exact glyph ink depends on the resolved font.",
+          "Declared transparency, intentional data-mark overlap and externally modified CSS are outside this proof."
+        ]
+      },
+      "edgeCrossings": 4,
+      "labelLegibility": 1,
+      "labelMeasurement": {
+        "measuredNodes": 12,
+        "unmeasuredNodes": 0,
+        "hiddenNodes": 0,
+        "semanticNodes": 0,
+        "measuredEdges": 7,
+        "unmeasuredEdges": 0,
+        "measuredLabels": 0,
+        "unmeasuredLabels": 0,
+        "hiddenLabels": 0,
+        "semanticLabels": 0
+      },
+      "whitespaceBalance": 0.12808112249934758,
+      "labelEdgeProximity": 11.607999999999976,
+      "labelConflicts": {
+        "total": 0,
+        "labelLabel": 0,
+        "labelNode": 0,
+        "labelEdge": 0
+      },
+      "routeOverlaps": {
+        "parallel": 0,
+        "opposing": 0
+      },
+      "routeGeometry": {
+        "bends": 52,
+        "length": 9290.00699153033,
+        "area": 674110.360896
+      },
+      "minimumNodeSpacing": 26.749999999999886,
+      "elementDensity": 0.5785402845338675,
+      "minimumTextContrast": 14.894588477600598,
+      "aspectRatio": 3.1333278716092394,
+      "nodeCount": 12,
+      "edgeCount": 27
+    },
+    "beforeIssues": [],
+    "afterIssues": [
+      {
+        "code": "POTENTIAL_OCCLUSION",
+        "id": "edge:n3->n1#0",
+        "by": "edge:n3->n1#1",
+        "message": "Distinct endpoint-marker envelopes overlap; actual marker ink separation is unverified."
+      },
+      {
+        "code": "POTENTIAL_OCCLUSION",
+        "id": "edge:n3->n1#0",
+        "by": "edge:n4->n1#0",
+        "message": "Distinct endpoint-marker envelopes overlap; actual marker ink separation is unverified."
+      },
+      {
+        "code": "POTENTIAL_OCCLUSION",
+        "id": "edge:n0->n1#0",
+        "by": "edge:n4->n1#0",
+        "message": "Distinct endpoint-marker envelopes overlap; actual marker ink separation is unverified."
+      }
+    ],
+    "source": "flowchart LR\nn0[(Node 17-0)]\nn1[Node 17-1]\nn2{Node 17-2}\nn3(Node 17-3)\nn4((Node 17-4))\nn5[[Node 17-5]]\nn6[(Node 17-6)]\nn7[Node 17-7]\nn8{Node 17-8}\nn9(Node 17-9)\nn10((Node 17-10))\nn11[[Node 17-11]]\nn10 -->|edge 0 xxx| n11\nn4 --> n7\nn1 --> n11\nn6 --> n3\nn9 -->|edge 4 xxxxxxx| n10\nn3 --> n1\nn0 --> n1\nn1 --> n6\nn4 -->|edge 8 xxxxxxxxxxx| n0\nn8 --> n5\nn7 --> n0\nn9 --> n1\nn8 -->|edge 12 xxxxxxxxxxxxxxx| n7\nn3 --> n1\nn4 --> n3\nn10 --> n5\nn3 -->|edge 16 xxxxxxxxxxxxxxxxxxx| n4\nn3 --> n5\nn10 --> n8\nn3 --> n10\nn11 -->|edge 20 xxxxxx| n9\nn2 --> n11\nn6 --> n8\nn4 --> n1\nn10 -->|edge 24 xxxxxxxxxx| n7\nn8 --> n2\nn4 --> n3",
+    "oldOptions": {
+      "graphLayout": {
+        "backend": "agentic"
+      }
+    },
+    "newOptions": {
+      "graphLayout": {
+        "backend": "agentic",
+        "fallback": "none"
+      }
+    }
+  },
+  {
+    "cohort": 7,
+    "id": "generated-sha256-counter-v1:109",
+    "family": "flowchart",
+    "proof": [
+      "passed",
+      "unverified"
+    ],
+    "beforeMetrics": {
+      "paintCertification": {
+        "version": 1,
+        "unit": "px",
+        "scope": "native-scene",
+        "status": "passed",
+        "viewport": {
+          "x": 0,
+          "y": 0,
+          "width": 2175.89,
+          "height": 388.95
+        },
+        "attempts": 1,
+        "repairs": [],
+        "coverage": {
+          "measured": 80,
+          "unmeasured": 0,
+          "preparedText": 21,
+          "fallbackText": 0,
+          "conditional": 0
+        },
+        "checks": {
+          "primitives": 83,
+          "labels": 13,
+          "occlusionPairs": 791,
+          "maxOcclusionPairs": 100000,
+          "operations": 314606,
+          "maxOperations": 400000,
+          "markers": 30
+        },
+        "issues": [],
+        "limitations": [
+          "Prepared occupied text regions bound native geometry; exact glyph ink depends on the resolved font.",
+          "Declared transparency, intentional data-mark overlap and externally modified CSS are outside this proof."
+        ]
+      },
+      "edgeCrossings": 8,
+      "labelLegibility": 1,
+      "labelMeasurement": {
+        "measuredNodes": 13,
+        "unmeasuredNodes": 0,
+        "hiddenNodes": 0,
+        "semanticNodes": 0,
+        "measuredEdges": 8,
+        "unmeasuredEdges": 0,
+        "measuredLabels": 0,
+        "unmeasuredLabels": 0,
+        "hiddenLabels": 0,
+        "semanticLabels": 0
+      },
+      "whitespaceBalance": 0.13233818550308157,
+      "labelEdgeProximity": 17.177000000000135,
+      "labelConflicts": {
+        "total": 0,
+        "labelLabel": 0,
+        "labelNode": 0,
+        "labelEdge": 0
+      },
+      "routeOverlaps": {
+        "parallel": 0,
+        "opposing": 0
+      },
+      "routeGeometry": {
+        "bends": 60,
+        "length": 17083.152213044123,
+        "area": 846312.4154999998
+      },
+      "minimumNodeSpacing": 26.75,
+      "elementDensity": 0.508086602683191,
+      "minimumTextContrast": 14.894588477600598,
+      "aspectRatio": 5.594266615246176,
+      "nodeCount": 13,
+      "edgeCount": 30
+    },
+    "afterMetrics": {
+      "paintCertification": {
+        "version": 1,
+        "unit": "px",
+        "scope": "native-scene",
+        "status": "unverified",
+        "viewport": {
+          "x": 0,
+          "y": 0,
+          "width": 2175.89,
+          "height": 388.95
+        },
+        "attempts": 1,
+        "repairs": [],
+        "coverage": {
+          "measured": 80,
+          "unmeasured": 0,
+          "preparedText": 21,
+          "fallbackText": 0,
+          "conditional": 0
+        },
+        "checks": {
+          "primitives": 83,
+          "labels": 13,
+          "occlusionPairs": 793,
+          "maxOcclusionPairs": 100000,
+          "operations": 315168,
+          "maxOperations": 400000,
+          "markers": 30
+        },
+        "issues": [
+          {
+            "code": "POTENTIAL_OCCLUSION",
+            "id": "edge:n12->n11#0",
+            "by": "edge:n10->n11#0",
+            "message": "Distinct endpoint-marker envelopes overlap; actual marker ink separation is unverified."
+          },
+          {
+            "code": "POTENTIAL_OCCLUSION",
+            "id": "edge:n9->n11#0",
+            "by": "edge:n9->n11#1",
+            "message": "Distinct endpoint-marker envelopes overlap; actual marker ink separation is unverified."
+          }
+        ],
+        "limitations": [
+          "Prepared occupied text regions bound native geometry; exact glyph ink depends on the resolved font.",
+          "Declared transparency, intentional data-mark overlap and externally modified CSS are outside this proof."
+        ]
+      },
+      "edgeCrossings": 8,
+      "labelLegibility": 1,
+      "labelMeasurement": {
+        "measuredNodes": 13,
+        "unmeasuredNodes": 0,
+        "hiddenNodes": 0,
+        "semanticNodes": 0,
+        "measuredEdges": 8,
+        "unmeasuredEdges": 0,
+        "measuredLabels": 0,
+        "unmeasuredLabels": 0,
+        "hiddenLabels": 0,
+        "semanticLabels": 0
+      },
+      "whitespaceBalance": 0.1327750964986287,
+      "labelEdgeProximity": 17.177000000000135,
+      "labelConflicts": {
+        "total": 0,
+        "labelLabel": 0,
+        "labelNode": 0,
+        "labelEdge": 0
+      },
+      "routeOverlaps": {
+        "parallel": 0,
+        "opposing": 0
+      },
+      "routeGeometry": {
+        "bends": 60,
+        "length": 17087.271524492964,
+        "area": 846312.4154999998
+      },
+      "minimumNodeSpacing": 26.75,
+      "elementDensity": 0.508086602683191,
+      "minimumTextContrast": 14.894588477600598,
+      "aspectRatio": 5.594266615246176,
+      "nodeCount": 13,
+      "edgeCount": 30
+    },
+    "beforeIssues": [],
+    "afterIssues": [
+      {
+        "code": "POTENTIAL_OCCLUSION",
+        "id": "edge:n12->n11#0",
+        "by": "edge:n10->n11#0",
+        "message": "Distinct endpoint-marker envelopes overlap; actual marker ink separation is unverified."
+      },
+      {
+        "code": "POTENTIAL_OCCLUSION",
+        "id": "edge:n9->n11#0",
+        "by": "edge:n9->n11#1",
+        "message": "Distinct endpoint-marker envelopes overlap; actual marker ink separation is unverified."
+      }
+    ],
+    "source": "flowchart LR\nn0{Node 109-0}\nn1(Node 109-1)\nn2((Node 109-2))\nn3[[Node 109-3]]\nn4[(Node 109-4)]\nn5[Node 109-5]\nn6{Node 109-6}\nn7(Node 109-7)\nn8((Node 109-8))\nn9[[Node 109-9]]\nn10[(Node 109-10)]\nn11[Node 109-11]\nn12{Node 109-12}\nn10 -->|edge 0 xxx| n2\nn0 --> n4\nn12 --> n5\nn4 --> n3\nn8 -->|edge 4 xxxxxxx| n7\nn11 --> n10\nn6 --> n12\nn12 --> n8\nn11 -->|edge 8 xxxxxxxxxxx| n3\nn9 --> n0\nn5 --> n6\nn12 --> n11\nn12 -->|edge 12 xxxxxxxxxxxxxxx| n6\nn10 --> n11\nn7 --> n3\nn2 --> n3\nn0 -->|edge 16 xxxxxxxxxxxxxxxxxxx| n12\nn4 --> n10\nn0 --> n10\nn9 --> n5\nn4 -->|edge 20 xxxxxx| n12\nn7 --> n6\nn1 --> n2\nn2 --> n11\nn8 -->|edge 24 xxxxxxxxxx| n5\nn5 --> n10\nn10 --> n3\nn11 --> n4\nn9 -->|edge 28 xxxxxxxxxxxxxx| n11\nn9 --> n11",
+    "oldOptions": {
+      "graphLayout": {
+        "backend": "agentic"
+      }
+    },
+    "newOptions": {
+      "graphLayout": {
+        "backend": "agentic",
+        "fallback": "none"
+      }
+    }
+  },
+  {
+    "cohort": 7,
+    "id": "generated-sha256-counter-v1:127",
+    "family": "flowchart",
+    "proof": [
+      "passed",
+      "unverified"
+    ],
+    "beforeMetrics": {
+      "paintCertification": {
+        "version": 1,
+        "unit": "px",
+        "scope": "native-scene",
+        "status": "passed",
+        "viewport": {
+          "x": 0,
+          "y": 0,
+          "width": 2589.24,
+          "height": 612.029
+        },
+        "attempts": 1,
+        "repairs": [],
+        "coverage": {
+          "measured": 103,
+          "unmeasured": 0,
+          "preparedText": 28,
+          "fallbackText": 0,
+          "conditional": 0
+        },
+        "checks": {
+          "primitives": 106,
+          "labels": 18,
+          "occlusionPairs": 723,
+          "maxOcclusionPairs": 100000,
+          "operations": 394753,
+          "maxOperations": 400000,
+          "markers": 37
+        },
+        "issues": [],
+        "limitations": [
+          "Prepared occupied text regions bound native geometry; exact glyph ink depends on the resolved font.",
+          "Declared transparency, intentional data-mark overlap and externally modified CSS are outside this proof."
+        ]
+      },
+      "edgeCrossings": 8,
+      "labelLegibility": 1,
+      "labelMeasurement": {
+        "measuredNodes": 18,
+        "unmeasuredNodes": 0,
+        "hiddenNodes": 0,
+        "semanticNodes": 0,
+        "measuredEdges": 10,
+        "unmeasuredEdges": 0,
+        "measuredLabels": 0,
+        "unmeasuredLabels": 0,
+        "hiddenLabels": 0,
+        "semanticLabels": 0
+      },
+      "whitespaceBalance": 0.09099583208798348,
+      "labelEdgeProximity": 17.850000000000023,
+      "labelConflicts": {
+        "total": 0,
+        "labelLabel": 0,
+        "labelNode": 0,
+        "labelEdge": 0
+      },
+      "routeOverlaps": {
+        "parallel": 0,
+        "opposing": 0
+      },
+      "routeGeometry": {
+        "bends": 84,
+        "length": 24590.310347903505,
+        "area": 1584689.9679599996
+      },
+      "minimumNodeSpacing": 23.999999999999943,
+      "elementDensity": 0.34707104299273445,
+      "minimumTextContrast": 14.894588477600598,
+      "aspectRatio": 4.230583844883168,
+      "nodeCount": 18,
+      "edgeCount": 37
+    },
+    "afterMetrics": {
+      "paintCertification": {
+        "version": 1,
+        "unit": "px",
+        "scope": "native-scene",
+        "status": "unverified",
+        "viewport": {
+          "x": 0,
+          "y": 0,
+          "width": 2589.24,
+          "height": 612.029
+        },
+        "attempts": 1,
+        "repairs": [],
+        "coverage": {
+          "measured": 103,
+          "unmeasured": 0,
+          "preparedText": 28,
+          "fallbackText": 0,
+          "conditional": 0
+        },
+        "checks": {
+          "primitives": 106,
+          "labels": 18,
+          "occlusionPairs": 725,
+          "maxOcclusionPairs": 100000,
+          "operations": 394848,
+          "maxOperations": 400000,
+          "markers": 37
+        },
+        "issues": [
+          {
+            "code": "POTENTIAL_OCCLUSION",
+            "id": "edge:n16->n11#0",
+            "by": "edge:n13->n11#0",
+            "message": "Distinct endpoint-marker envelopes overlap; actual marker ink separation is unverified."
+          },
+          {
+            "code": "POTENTIAL_OCCLUSION",
+            "id": "edge:n13->n11#0",
+            "by": "edge:n13->n11#1",
+            "message": "Distinct endpoint-marker envelopes overlap; actual marker ink separation is unverified."
+          }
+        ],
+        "limitations": [
+          "Prepared occupied text regions bound native geometry; exact glyph ink depends on the resolved font.",
+          "Declared transparency, intentional data-mark overlap and externally modified CSS are outside this proof."
+        ]
+      },
+      "edgeCrossings": 8,
+      "labelLegibility": 1,
+      "labelMeasurement": {
+        "measuredNodes": 18,
+        "unmeasuredNodes": 0,
+        "hiddenNodes": 0,
+        "semanticNodes": 0,
+        "measuredEdges": 10,
+        "unmeasuredEdges": 0,
+        "measuredLabels": 0,
+        "unmeasuredLabels": 0,
+        "hiddenLabels": 0,
+        "semanticLabels": 0
+      },
+      "whitespaceBalance": 0.09122916681431864,
+      "labelEdgeProximity": 17.850000000000023,
+      "labelConflicts": {
+        "total": 0,
+        "labelLabel": 0,
+        "labelNode": 0,
+        "labelEdge": 0
+      },
+      "routeOverlaps": {
+        "parallel": 0,
+        "opposing": 0
+      },
+      "routeGeometry": {
+        "bends": 84,
+        "length": 24582.835347903507,
+        "area": 1584689.9679599996
+      },
+      "minimumNodeSpacing": 23.999999999999943,
+      "elementDensity": 0.34707104299273445,
+      "minimumTextContrast": 14.894588477600598,
+      "aspectRatio": 4.230583844883168,
+      "nodeCount": 18,
+      "edgeCount": 37
+    },
+    "beforeIssues": [],
+    "afterIssues": [
+      {
+        "code": "POTENTIAL_OCCLUSION",
+        "id": "edge:n16->n11#0",
+        "by": "edge:n13->n11#0",
+        "message": "Distinct endpoint-marker envelopes overlap; actual marker ink separation is unverified."
+      },
+      {
+        "code": "POTENTIAL_OCCLUSION",
+        "id": "edge:n13->n11#0",
+        "by": "edge:n13->n11#1",
+        "message": "Distinct endpoint-marker envelopes overlap; actual marker ink separation is unverified."
+      }
+    ],
+    "source": "flowchart RL\nn0{Node 127-0}\nn1(Node 127-1)\nn2((Node 127-2))\nn3[[Node 127-3]]\nn4[(Node 127-4)]\nn5[Node 127-5]\nn6{Node 127-6}\nn7(Node 127-7)\nn8((Node 127-8))\nn9[[Node 127-9]]\nn10[(Node 127-10)]\nn11[Node 127-11]\nn12{Node 127-12}\nn13(Node 127-13)\nn14((Node 127-14))\nn15[[Node 127-15]]\nn16[(Node 127-16)]\nn17[Node 127-17]\nn16 -->|edge 0 xxx| n15\nn11 --> n4\nn5 --> n4\nn11 --> n16\nn17 -->|edge 4 xxxxxxx| n9\nn2 --> n16\nn1 --> n7\nn4 --> n6\nn11 -->|edge 8 xxxxxxxxxxx| n17\nn4 --> n8\nn8 --> n17\nn1 --> n15\nn7 -->|edge 12 xxxxxxxxxxxxxxx| n12\nn16 --> n11\nn16 --> n14\nn15 --> n11\nn17 -->|edge 16 xxxxxxxxxxxxxxxxxxx| n1\nn13 --> n11\nn10 --> n1\nn16 --> n14\nn8 -->|edge 20 xxxxxx| n0\nn5 --> n11\nn5 --> n8\nn10 --> n2\nn13 -->|edge 24 xxxxxxxxxx| n10\nn7 --> n8\nn7 --> n3\nn5 --> n15\nn5 -->|edge 28 xxxxxxxxxxxxxx| n0\nn9 --> n14\nn15 --> n9\nn9 --> n1\nn8 -->|edge 32 xxxxxxxxxxxxxxxxxx| n3\nn2 --> n16\nn13 --> n16\nn13 --> n11\nn9 -->|edge 36 xxxxx| n2",
+    "oldOptions": {
+      "graphLayout": {
+        "backend": "agentic"
+      }
+    },
+    "newOptions": {
+      "graphLayout": {
+        "backend": "agentic",
+        "fallback": "none"
+      }
+    }
+  }
+]

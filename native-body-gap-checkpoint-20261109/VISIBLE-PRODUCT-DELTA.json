@@ -1,0 +1,45 @@
+{
+  "scope": "Geometry comparison only. Caption moves also change its content-bound CSSscope; raw whole products retained and not declared byteexact. Only own observedroot scope token normalized, then edge-label groups removed. All node/route/definition markup and viewport otherwise exact.",
+  "rows": [
+    {
+      "direction": "TB",
+      "backend": "agentic",
+      "nodeRouteDefsMarkupExactAfterOwnScopeNormalization": true,
+      "scopeBefore": "am-0o6b4yx0d4xb62",
+      "scopeAfter": "am-1shahsv1w1h7k0",
+      "wholeSVGExact": false,
+      "beforeProof": "unverified",
+      "afterProof": "passed"
+    },
+    {
+      "direction": "TB",
+      "backend": "elk",
+      "nodeRouteDefsMarkupExactAfterOwnScopeNormalization": true,
+      "scopeBefore": "am-1v7q0u514mlekr",
+      "scopeAfter": "am-1v7q0u514mlekr",
+      "wholeSVGExact": true,
+      "beforeProof": "passed",
+      "afterProof": "passed"
+    },
+    {
+      "direction": "BT",
+      "backend": "agentic",
+      "nodeRouteDefsMarkupExactAfterOwnScopeNormalization": true,
+      "scopeBefore": "am-1mzwcqw0mavb58",
+      "scopeAfter": "am-0zkatol1c4hek1",
+      "wholeSVGExact": false,
+      "beforeProof": "unverified",
+      "afterProof": "passed"
+    },
+    {
+      "direction": "BT",
+      "backend": "elk",
+      "nodeRouteDefsMarkupExactAfterOwnScopeNormalization": true,
+      "scopeBefore": "am-1b587770wedie8",
+      "scopeAfter": "am-1b587770wedie8",
+      "wholeSVGExact": true,
+      "beforeProof": "passed",
+      "afterProof": "passed"
+    }
+  ]
+}
