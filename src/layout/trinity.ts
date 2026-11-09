@@ -4,7 +4,7 @@ import { solveTrinityCompound } from './trinity-compound.ts'
 import { tryTrinityForestPlacement } from './trinity-placement.ts'
 import { GraphLayoutUnsupportedError, LayoutWorkLimitError } from './backend.ts'
 import { AGENTIC_MAX_RANKS, AGENTIC_MAX_EXPANDED_VERTICES } from './agentic-limits.ts'
-import { assignChannelTracks, type ChannelStep, type ChannelWork } from './channel-tracks.ts'
+import { assignChannelTracks, orderedPortCoordinate, type ChannelStep, type ChannelWork } from './channel-tracks.ts'
 import type { MeasuredGraph, MeasuredLayoutAdapter, MeasuredLayoutRequest, MeasuredLayoutResult, MeasuredLayoutRole, MeasuredRoutes } from './measured-graph.ts'
 
 const decline = (reason: string): never => { throw new GraphLayoutUnsupportedError(reason, 'Trinity') }
@@ -15,7 +15,7 @@ const size = (value: number, positive = false): boolean => Number.isFinite(value
 export function trinityMeasuredAdapter(work: ChannelWork): MeasuredLayoutAdapter<MeasuredLayoutRole> {
   return {
     solve(request: MeasuredLayoutRequest): MeasuredLayoutResult {
-      if (request.role === 'routed' && request.graph.groups?.length) return { kind: 'routed', geometry: solveTrinityCompound(request.graph, work, local => solveTrinity(local, work, 'routed')) }
+      if (request.role === 'routed' && request.graph.groups?.length) return { kind: 'routed', geometry: solveTrinityCompound(request.graph, work, local => solveTrinity(local, work, 'routed', 'scope')) }
       if (request.role === 'placement') {
         const geometry = tryTrinityForestPlacement(request.graph, work)
         if (geometry) return { kind: 'placed', geometry }
@@ -26,7 +26,7 @@ export function trinityMeasuredAdapter(work: ChannelWork): MeasuredLayoutAdapter
   }
 }
 
-function solveTrinity(input: MeasuredGraph, work: ChannelWork, role: MeasuredLayoutRole): MeasuredRoutes & { expandedVertices: number } {
+function solveTrinity(input: MeasuredGraph, work: ChannelWork, role: MeasuredLayoutRole, context: 'root' | 'scope' = 'root'): MeasuredRoutes & { expandedVertices: number } {
   assertTrinityWork(work)
   const n = input.nodes.length, m = input.edges.length
   // This first slice has deliberately local admission, not a larger product cap.
@@ -261,6 +261,26 @@ function solveTrinity(input: MeasuredGraph, work: ChannelWork, role: MeasuredLay
   let origin = Infinity
   for (const value of cross) origin = Math.min(origin, value)
   for (let vertex = 0; vertex < cross.length; vertex++) { cross[vertex] = cross[vertex]! - origin; if (!Number.isFinite(cross[vertex])) throw new TypeError('Trinity coordinate overflow') }
+  // Both roles share contact placement and channel-derived body positions.
+  // Root contacts can follow reserved neighbor lanes. Compound locals also
+  // have external attachments whose corridors are absent from this projection;
+  // retain their centered ports until those constraints are represented here.
+  for (let node = 0; context === 'root' && node < n; node++) {
+    spend()
+    if (input.nodes[node]!.contact === 'ellipse') continue
+    const left = cross[node]! + margin[node]!, right = cross[node]! + widths[node]! - margin[node]!
+    for (const [peers, offsets, source] of [[forward[node]!, sourceOffsets, true], [incoming[node]!, targetOffsets, false]] as const) {
+      let previous = -Infinity
+      for (let i = 0; i < peers.length; i++) {
+        spend(6)
+        const e = peers[i]!, neighbor = source ? paths[e]![1]! : paths[e]!.at(-2)!
+        const desired = cross[neighbor]! + widths[neighbor]! / 2
+        const at = Math.max(previous + pitch[node]!, orderedPortCoordinate(desired, left, right, i, peers.length, pitch[node]!))
+        offsets[e] = at - cross[node]! - widths[node]! / 2
+        previous = at
+      }
+    }
+  }
   let crossExtent = 0
   for (let v = 0; v < widths.length; v++) crossExtent = Math.max(crossExtent, cross[v]! + footprints[v]!)
   const channels: ChannelStep[][] = Array.from({ length: Math.max(0, levels.length - 1) }, () => []), steps: ChannelStep[][] = paths.map(() => [])

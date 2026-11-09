@@ -11,6 +11,12 @@ export interface ChannelStep {
 
 export interface ChannelWork { pairs: number; arcs: number; swaps: number }
 
+/** A neighbor lane clipped to the remaining ordered face capacity. Callers own
+ * physical margins/pitch and the forward separation pass. */
+export function orderedPortCoordinate(desired: number, left: number, right: number, slot: number, count: number, separation: number): number {
+  return Math.max(left + slot * separation, Math.min(right - (count - 1 - slot) * separation, desired))
+}
+
 /** Order horizontal runs by their vertical constraints. Intersecting runs
  * receive separate tracks; a cyclic terminal constraint gets a visible dogleg
  * rather than concealing a crossing in coincident vertical ink. */

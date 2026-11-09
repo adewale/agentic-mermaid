@@ -155,6 +155,28 @@ describe('Trinity flat measured solve', () => {
     expect(solveMeasuredLayout({ role: 'routed', graph: input }, trinityMeasuredAdapter(ledger())).edges).toHaveLength(2)
   })
 
+  test.each(['TB', 'BT', 'LR', 'RL'] as const)('keeps unequal feedback supports inside a full fixed rounded face in %s', direction => {
+    const input: MeasuredGraph = { ...base(), direction, nodes: [
+      { ...node('relation-1 漢🙂', 140), height: 140 }, { ...node('B', 140), height: 140 },
+      { ...node('C', 74), height: 74, contact: 'rounded-rectangle', paintCornerRadius: 8 },
+    ], edges: [
+      { source: 0, target: 1, minSpan: 1, sourcePortSpan: 2, targetPortSpan: 2, label: { width: 90, height: 24 } },
+      { source: 0, target: 2, minSpan: 1, sourcePortSpan: 2, targetPortSpan: 2 },
+      { source: 2, target: 0, minSpan: 1, sourcePortSpan: 24, targetPortSpan: 8 },
+    ] }
+    const before = structuredClone(input), result = solveMeasuredLayout({ role: 'routed', graph: input }, trinityMeasuredAdapter(ledger()))
+    expect(input).toEqual(before)
+    const body = result.nodes[2]!, a = result.edges[1]!.points.at(-1)!, b = result.edges[2]!.points[0]!
+    const horizontal = direction === 'LR' || direction === 'RL', start = horizontal ? body.y : body.x
+    expect([body.width, body.height]).toEqual([74, 74])
+    expect(Math.abs(horizontal ? a.y - b.y : a.x - b.x)).toBeGreaterThanOrEqual(32)
+    for (const [point, half] of [[a, 1], [b, 12]] as const) {
+      const at = horizontal ? point.y : point.x
+      expect(at - half).toBeGreaterThanOrEqual(start + 9)
+      expect(at + half).toBeLessThanOrEqual(start + 74 - 9)
+    }
+  })
+
   test('declines unknown paint/support and unused long-loop constraints explicitly', () => {
     for (const input of [
       { ...base(), maximumEdgeStrokeWidth: undefined },
