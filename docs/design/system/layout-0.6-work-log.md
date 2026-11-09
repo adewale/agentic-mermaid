@@ -1397,3 +1397,15 @@ Brotli1281810→1282743 (+933); original gzip cap still fails8194. No new cache,
 default/version/cap changes. Current complete runtime and browser costs follow.
 Evidence `trinity-class-scopes-20261109`; broad capacity/quality and adoption
 remain unqualified. Next fix: controlled image measurement, retaining actual ink.
+
+Runtime `4db8570d389246bb5f1eede8c5b1899fe6cd687e` pushed. Twelve serial fresh
+Node24 processes,60 complete SVG+receipt calls, all returned/proof-passed;
+original repeats and repeated edits exact, notes edits change output. ELK/Native/
+Trinity cache0 cold/repeat2/edit2 medians730.52/43.59/74.09,
+201.94/43.30/26.14,180.32/24.59/20.88ms. Cache1 repeats20.61/19.75/23.33ms
+are adverse for Trinity. Two replicas/one input give no general ratio or memory
+superiority. Equal13-input lazy browser lanes all pass: gzip856327/484054/476329,
+Brotli687180/415162/408167, requests41/47/48 including binding. Workload adds
+the new Class case; compression follows raw serving, not a network/startup claim.
+Current CI42547381339 pending; draft/notready. All failures/unsupported/unknown
+and actual artifacts retained in the existing evidence branch checkpoint.
