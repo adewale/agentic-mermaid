@@ -1731,3 +1731,9 @@ charged. Remaining: cycle reversal/rounded capacity,20supplementalU, Sparse32 an
 distribution failures. Clean SDK-generation probe finds3missing exported image
 fields, explaining the still-failed website dirty stamp; next regenerate that
 canonical output. Evidence: `native-thin-capacity-20261109`.
+
+SDK follow-up at `03b7b35d3`: clean60d02 generation reproduces one tracked
+mutation: SDK MermaidNode lacks imageWidth/imageHeight/imageConstraint. Existing
+full CodeMode consumer fails four type diagnostics. Regenerate the canonical
+declaration string and extend its existing typed-consumer fixture;6owners pass.
+No provenance assertion is relaxed; exact integrated CI remains pending.
