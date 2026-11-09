@@ -645,7 +645,7 @@ export function finalizeFlatMeasuredMarkers(input: MeasuredGraph, placed: Agenti
     if(expanded+amount>expansionLimit)fail('agentic local cross-hierarchy visibility-expansion limit')
     expanded+=amount
   }
-  const nodes=placed.nodes.map((point,index):RoutingBox=>({...point,width:input.nodes[index]!.width,height:input.nodes[index]!.height})),subjects=[...nodes]
+  const nodes=placed.nodes.map((point,index):RoutingBox=>({...point,width:point.width??input.nodes[index]!.width,height:point.height??input.nodes[index]!.height})),subjects=[...nodes]
   const frames:RoutingBox[]=[],headerGroups:NonNullable<MeasuredGraph['groups']>=[],rescued=new Set<number>()
   for(let index=0;index<edges;index++)rescued.add(index)
   // Forest producers may retain duplicate/monotone subdivision vertices.
@@ -708,7 +708,7 @@ export function routeCrossHierarchy(
   let markerPaint = false
   if(widthProof!==undefined)for(const edge of input.edges){if(--work.pairs<0)fail('agentic marker metadata work limit');if(edge.markerPaint?.start?.length||edge.markerPaint?.end?.length){markerPaint=true;break}}
   const clearance = Math.max(8, input.edgeSpacing ?? 6)
-  const nodes = placed.nodes.map((point, index): RoutingBox => ({ ...point, width: input.nodes[index]!.width, height: input.nodes[index]!.height }))
+  const nodes = placed.nodes.map((point, index): RoutingBox => ({ ...point, width: point.width ?? input.nodes[index]!.width, height: point.height ?? input.nodes[index]!.height }))
   const subjects = [...nodes, ...frames]
   const completed = new Set<number>()
   const rescued = new Set<number>()

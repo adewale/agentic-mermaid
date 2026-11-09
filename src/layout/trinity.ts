@@ -1,5 +1,6 @@
 import { assertMarkerPaint } from './compound-marker-seating.ts'
 import { assertTrinityWork } from './trinity-work.ts'
+import { solveTrinityCompound } from './trinity-compound.ts'
 import { tryTrinityForestPlacement } from './trinity-placement.ts'
 import { GraphLayoutUnsupportedError, LayoutWorkLimitError } from './backend.ts'
 import { AGENTIC_MAX_RANKS, AGENTIC_MAX_EXPANDED_VERTICES } from './agentic-limits.ts'
@@ -14,6 +15,7 @@ const size = (value: number, positive = false): boolean => Number.isFinite(value
 export function trinityMeasuredAdapter(work: ChannelWork): MeasuredLayoutAdapter<MeasuredLayoutRole> {
   return {
     solve(request: MeasuredLayoutRequest): MeasuredLayoutResult {
+      if (request.role === 'routed' && request.graph.groups?.length) return { kind: 'routed', geometry: solveTrinityCompound(request.graph, work, local => solveTrinity(local, work, 'routed')) }
       if (request.role === 'placement') {
         const geometry = tryTrinityForestPlacement(request.graph, work)
         if (geometry) return { kind: 'placed', geometry }
@@ -24,7 +26,7 @@ export function trinityMeasuredAdapter(work: ChannelWork): MeasuredLayoutAdapter
   }
 }
 
-function solveTrinity(input: MeasuredGraph, work: ChannelWork, role: MeasuredLayoutRole): MeasuredRoutes {
+function solveTrinity(input: MeasuredGraph, work: ChannelWork, role: MeasuredLayoutRole): MeasuredRoutes & { expandedVertices: number } {
   assertTrinityWork(work)
   const n = input.nodes.length, m = input.edges.length
   // This first slice has deliberately local admission, not a larger product cap.
@@ -85,7 +87,7 @@ function solveTrinity(input: MeasuredGraph, work: ChannelWork, role: MeasuredLay
     if (edge.source === edge.target) loops[edge.source]!.push(e)
     else outgoing[edge.source]!.push(e)
   }
-  if (!n) { const extent = input.padding * 2; if (!Number.isFinite(extent)) throw new TypeError('Trinity extent overflow'); return { width: extent, height: extent, nodes: [], edges: [] } }
+  if (!n) { const extent = input.padding * 2; if (!Number.isFinite(extent)) throw new TypeError('Trinity extent overflow'); return { width: extent, height: extent, nodes: [], edges: [], expandedVertices: 0 } }
 
   // Condense cycles before choosing a private order. External inlets are
   // placed late and external outlets early inside an SCC, avoiding an extra
@@ -280,7 +282,7 @@ function solveTrinity(input: MeasuredGraph, work: ChannelWork, role: MeasuredLay
       })
     }
   }
-  const project = (routes: MeasuredRoutes['edges']): MeasuredRoutes => {
+  const project = (routes: MeasuredRoutes['edges']): MeasuredRoutes & { expandedVertices: number } => {
     const projectPoint = (point: { x: number; y: number }): void => {
       const x = point.x, y = reverse ? extent - point.y : point.y
       point.x = canvasPadding + (horizontal ? y : x)
@@ -292,7 +294,7 @@ function solveTrinity(input: MeasuredGraph, work: ChannelWork, role: MeasuredLay
       return node
     })
     for (const route of routes) { route.points.forEach(projectPoint); if (route.labelPosition) projectPoint(route.labelPosition) }
-    const result = { width: (horizontal ? extent : crossExtent) + canvasPadding * 2, height: (horizontal ? crossExtent : extent) + canvasPadding * 2, nodes, edges: routes }
+    const result = { width: (horizontal ? extent : crossExtent) + canvasPadding * 2, height: (horizontal ? crossExtent : extent) + canvasPadding * 2, nodes, edges: routes, expandedVertices: widths.length }
     if (!size(result.width) || !size(result.height)) throw new TypeError('Trinity extent overflow')
     return result
   }

@@ -23,8 +23,8 @@ export function prepareMeasuredGraphCandidate(
   const { edgeSelectorIndices, graphEdgeMarkerPaintRegions, DEFAULTS, LABEL_PILL_PADDING, measureRenderStage, graphTextBlock, resolveLabelContent, groupTitleWidth, groupHeaderHeight, estimateNodeSize, resolveNodeInlineStyle, resolveEdgeInlineStyle, resolveClassInlineStyle, containsNonFiniteNumber, finishGraphGeometry } = bindings
   if (options.preserveSubgraphChildOrder) bindings.unsupported('family-specific graph geometry')
   if (physical) {
-    if (graph.subgraphs.length || graph.stateNotes?.length || graph.floatingStateNotes?.length) bindings.unsupported('compound and note geometry are outside the flat measured slice')
-    if (graph.nodes.size > 64 || graph.edges.length > 128) bindings.unsupported('flat slice is limited to 64 nodes and 128 edges')
+    if (graph.stateNotes?.length || graph.floatingStateNotes?.length) bindings.unsupported('note geometry is outside the measured slice')
+    if (graph.nodes.size > 64 || graph.edges.length > 128) bindings.unsupported('routed slice is limited to 64 subjects and 128 edges')
     for (const node of graph.nodes.values()) {
       const pseudo = node.shape === 'state-start' || node.shape === 'state-end'
       if (node.semanticShape || node.shape !== 'rectangle' && node.shape !== 'rounded' && !pseudo) bindings.unsupported('only measured rectangular, rounded and State circle contacts are supported')
@@ -48,19 +48,22 @@ export function prepareMeasuredGraphCandidate(
     const groupIndices = new Map<string, number>()
     const membership = new Map<string, { parent: number; direction: Direction }>()
     const visit = (source: MermaidSubgraph, parent: number | undefined, inherited: Direction): void => {
+      if (physical && graph.nodes.size + groups.length >= 64) bindings.unsupported('routed slice is limited to 64 subjects and 128 edges')
       const index = groups.length, direction = source.direction ?? inherited
       const header = groupHeaderHeight(source, style)
       const divider = source.concurrencyRegion ? (options.stateVisual?.dividerMargin ?? 0) : 0
       groupIndices.set(source.id, index); groupSources.push(source)
+      if (physical && graph.classAssignments.has(source.id)) bindings.unsupported('styled compound frames require measured paint')
       groups.push({ id: source.id, parent, direction, minWidth: groupTitleWidth(source, style), headerHeight: header, padding: {
         top: header + style.groupPaddingY + divider, bottom: style.groupPaddingY + divider,
         left: style.groupPaddingX + divider, right: style.groupPaddingX + divider,
-      } })
+      }, ...(physical ? { paintStrokeWidth: style.groupLineWidth, paintCornerRadius: style.groupCornerRadius } : {}) })
       for (const id of source.nodeIds) membership.set(id, { parent: index, direction })
       source.children.forEach(child => visit(child, index, direction))
     }
     graph.subgraphs.forEach(group => visit(group, undefined, graph.direction))
-    const measurePortFaces = !groups.length && !placementOnly && (!options.stateVisual || physical)
+    if (physical && graph.nodes.size + groups.length > 64) bindings.unsupported('routed slice is limited to 64 subjects and 128 edges')
+    const measurePortFaces = !placementOnly && (physical || !groups.length && !options.stateVisual)
     if (measurePortFaces) pay(0, graph.nodes.size + 1)
     const portFaces = measurePortFaces ? new Uint8Array(graph.nodes.size) : undefined
     const nodes: MeasuredGraph['nodes'][number][] = [...graph.nodes].map(([id, node], index) => {
@@ -233,8 +236,8 @@ export function prepareMeasuredGraphCandidate(
         : boundaryEnd ? Math.max(4, style.lineWidth * (edge.style === 'thick' ? 2 : 1) * 2) : 0 : 0
       pay(0, 2)
       const endpointSpans = shaft !== undefined && (source !== target || physical) ? {
-        ...(portFaces?.[source] ? { sourcePortSpan: Math.max(shaft, footprint?.startSpan ?? 0) } : {}),
-        ...(portFaces?.[target] ? { targetPortSpan: Math.max(shaft, footprint?.endSpan ?? 0) } : {}),
+        ...(physical || portFaces?.[source] ? { sourcePortSpan: Math.max(shaft, footprint?.startSpan ?? 0) } : {}),
+        ...(physical || portFaces?.[target] ? { targetPortSpan: Math.max(shaft, footprint?.endSpan ?? 0) } : {}),
       } : {}
       return { source, target, ...endpointSpans, minSpan: edge.length ?? 1, ...(preferred?.has(index) ? { short: true as const } : {}), ...(boundaryMarker ? { boundaryMarker } : {}), ...(edge.style === 'invisible' ? { visible: false } : {}), ...(block ? { label: { width: block.width + 2 * LABEL_PILL_PADDING + 2 * halo, height: block.height + 2 * LABEL_PILL_PADDING + 2 * halo } } : {}) }
     })
@@ -331,7 +334,7 @@ export function prepareMeasuredGraphCandidate(
       ...(source.stateComposite ? { inlineStyle: resolveClassInlineStyle(source.id, graph) } : {}),
     }
     // Family rendering consumes the measured strip without generic cleanup.
-    if (placementOnly) frame.headerHeight = measured.groups[index]!.headerHeight
+    if (placementOnly || physical) frame.headerHeight = measured.groups[index]!.headerHeight
     return frame
   })
   const groups: PositionedGroup[] = []

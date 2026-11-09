@@ -231,6 +231,14 @@ describe('flat measured marker finalization', () => {
     if(bottom===0.1+0.2){const placed=finalizeFlatMeasuredMarkers(input,raw,{pairs:1_000_000,arcs:65536,swaps:1_000_000},32768,fail);expect(placed.edges[0]!.points[0]!.y).toBe(.3)}
     else expect(()=>finalizeFlatMeasuredMarkers(input,raw,{pairs:1_000_000,arcs:65536,swaps:1_000_000},32768,fail)).toThrow()
   })
+  test('flat marker closure uses the retained grown body rather than its smaller measured minimum',()=>{
+    const input:MeasuredGraph={nodes:[{id:'A',width:1,height:.3,sizePolicy:'minimum'},{id:'B',width:1,height:.3}],edges:[{source:0,target:1,minSpan:1,markerPaint:{start:[{kind:'circle',cx:.02,cy:0,r:.001}]}}],direction:'TB',padding:1,nodeSpacing:1,layerSpacing:1,maximumEdgeStrokeWidth:.001}
+    const raw:AgenticLayout={topology:'forest',width:5,height:5,nodes:[{x:1,y:0,width:1,height:.5},{x:1,y:3}],edges:[{points:[{x:1.5,y:.5},{x:1.5,y:3}]}]}
+    const placed=finalizeFlatMeasuredMarkers(input,raw,{pairs:1_000_000,arcs:65536,swaps:1_000_000},32768,fail)
+    expect(placed.nodes[0]!.height).toBe(.5)
+    expect(placed.edges[0]!.points[0]!.y).toBe(.5)
+    expect(input.nodes[0]!.height).toBe(.3)
+  })
   test('preserves a real loop caption beside its shaft while closing all routes',()=>{
     const input=graph(),raw=scene()
     input.edges=[...input.edges,{source:0,target:0,minSpan:1,label:{width:4,height:4}}]
