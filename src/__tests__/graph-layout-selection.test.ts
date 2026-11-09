@@ -164,21 +164,21 @@ describe('Trinity primary measured producer', () => {
     expect(layout.nodes.map(node => [node.id, node.label])).toEqual([['A', 'Alpha'], ['B', 'Beta']])
     expect(layout.edges.map(edge => [edge.from, edge.to, edge.label?.text])).toEqual([['A', 'B', 'advance']])
   })
-  test.each(['TB', 'BT', 'LR', 'RL'].flatMap(direction => [false, true].map(nested => ({ direction, nested }))))('seats State pseudostates on their actual written circles in $direction (nested=$nested)', ({ direction, nested }) => {
+  test.each(['TB', 'BT', 'LR', 'RL'].flatMap(direction => [...[false, true].map(nested => ({ direction, nested, ordinary: false })), { direction, nested: false, ordinary: true }]))('seats circle contacts on their actual written outlines in $direction (nested=$nested, ordinary=$ordinary)', ({ direction, nested, ordinary }) => {
     const body = '[*] --> Idle\nIdle --> Done: complete\nDone --> [*]'
-    const source = `stateDiagram-v2\ndirection ${direction}\n${nested ? `state Active {\n${body}\n}\nActive --> Closed: finish` : body}`
+    const source = ordinary ? `flowchart ${direction}\nA((Label)) --> Idle[Idle]\nIdle -->|complete| B((End))` : `stateDiagram-v2\ndirection ${direction}\n${nested ? `state Active {\n${body}\n}\nActive --> Closed: finish` : body}`
     const options = { graphLayout: { backend: 'trinity' as const }, embedFontImport: false }
     const product = renderMermaidSVGWithReceipt(source, options)
     expect(product.receipt.layoutCertification?.status).toBe('passed')
     const { layout } = layoutMermaidWithReceipt(source, options)
     const circles = scanSvgStartTags(product.svg).filter(tag => tag.name === 'circle')
     const carriers = scanSvgStartTags(product.svg).filter(tag => tag.name === 'polyline' && decodedSvgAttributeValue(tag, 'data-role') === 'edge')
-    for (const node of layout.nodes.filter(node => node.shape === 'state-start' || node.shape === 'state-end')) {
+    for (const node of layout.nodes.filter(node => node.shape === 'circle' || node.shape === 'state-start' || node.shape === 'state-end')) {
       const cx = node.x + node.w / 2, cy = node.y + node.h / 2
       const ink = circles.filter(tag => Math.abs(Number(decodedSvgAttributeValue(tag, 'cx')) - cx) < .001 && Math.abs(Number(decodedSvgAttributeValue(tag, 'cy')) - cy) < .001)
-      expect(ink.length).toBe(node.shape === 'state-start' ? 1 : 2)
+      expect(ink.length).toBe(node.shape === 'state-end' ? 2 : 1)
       const radius = Math.max(...ink.map(tag => Number(decodedSvgAttributeValue(tag, 'r'))))
-      expect(radius).toBe(Math.min(node.w, node.h) / 2 - 2)
+      expect(radius).toBe(Math.min(node.w, node.h) / 2 - (ordinary ? 0 : 2))
       for (const edge of carriers) {
         const from = decodedSvgAttributeValue(edge, 'data-from'), to = decodedSvgAttributeValue(edge, 'data-to')
         if (from !== node.id && to !== node.id) continue
@@ -188,7 +188,11 @@ describe('Trinity primary measured producer', () => {
         expect(Math.abs(at[0]! - cx) < .001 || Math.abs(at[1]! - cy) < .001).toBe(true)
       }
     }
-    expect(carriers).toHaveLength(nested ? 4 : 3)
+    expect(carriers).toHaveLength(ordinary ? 2 : nested ? 4 : 3)
+    if (ordinary) {
+      expect(layout.nodes.map(node => [node.id, node.label])).toEqual([['A', 'Label'], ['Idle', 'Idle'], ['B', 'End']])
+      expect(layout.edges.map(edge => [edge.from, edge.to, edge.label?.text])).toEqual([['A', 'Idle', undefined], ['Idle', 'B', 'complete']])
+    }
   })
   test('keeps fixed nonsquare circle bodies and declines typed pseudostate labels/media', () => {
     const graph = parseFlowchart('flowchart TB\nA --> B')
@@ -239,7 +243,7 @@ describe('Trinity primary measured producer', () => {
     for (const text of ['Release', 'Review', 'run', 'again', 'back', 'loop']) expect(rendered.svg).toContain(text)
   })
 
-  test.each(['flowchart TB\nA((Decision))-->B[Body]','flowchart TB\nS[Start] --> Q{Decision}\nsubgraph Stage[Choose a path]\nQ --> L[Left]\nend', 'flowchart TB\nsubgraph Stage\nQ{Decision}\nA[Inside]\nend\nA --> B[Outside]', 'flowchart TB\nsubgraph Stage\nQ{Decision} --- A[Body]\nend\nStage --> B[Outside]',  'flowchart LR\nA e1@--> B\nA-->C\ne1@{curve: natural}', 'stateDiagram-v2\nA-->B\nnote right of A: Note', 'stateDiagram-v2\nstate Active {\nA-->B\n}\nclassDef wide stroke-width:8px\nclass Active wide'])('declines untranslated geometry and keeps fallback explicit: %s', source => {
+  test.each(['flowchart TB\nA((Decision))-->B[Body]\nA-->C[Other]', 'flowchart TB\nsubgraph G[Group]\nA((Label))-->B[Body]\nend','flowchart TB\nS[Start] --> Q{Decision}\nsubgraph Stage[Choose a path]\nQ --> L[Left]\nend', 'flowchart TB\nsubgraph Stage\nQ{Decision}\nA[Inside]\nend\nA --> B[Outside]', 'flowchart TB\nsubgraph Stage\nQ{Decision} --- A[Body]\nend\nStage --> B[Outside]',  'flowchart LR\nA e1@--> B\nA-->C\ne1@{curve: natural}', 'stateDiagram-v2\nA-->B\nnote right of A: Note', 'stateDiagram-v2\nstate Active {\nA-->B\n}\nclassDef wide stroke-width:8px\nclass Active wide'])('declines untranslated geometry and keeps fallback explicit: %s', source => {
     expect(() => renderMermaidSVGWithReceipt(source, { graphLayout: { backend: 'trinity' } })).toThrow(GraphLayoutUnsupportedError)
     const fallback = renderMermaidSVGWithReceipt(source, { graphLayout: { backend: 'trinity', fallback: 'elk' } })
     expect(fallback.svg).toBe(renderMermaidSVGWithReceipt(source, { graphLayout: { backend: 'elk' } }).svg)

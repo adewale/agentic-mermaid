@@ -1798,5 +1798,29 @@ Serial24process/120calls retain100P/20oldNativeU and actual compressed responses
 no U→P speed ratio. Current star uncached repeat ELK115.68/Native57.94/Trinity48.58ms;
 Native cached repeat7.94→22.01ms is adverse, N=2/cell. Browser13all3pass;
 ELK/Native/Trinity gzip delta0/+7/+7bytes, Brotli+110/+121/+110, no requestincrease.
-No allocation/cache/cap/default/version change. Evidence `native-thin-weighted-20261109`;
+No added storage/cache/cap/default/version. Evidence `native-thin-weighted-20261109`;
 remaining:133NativeU,752Trinityunsupported, Sparse32 and payload CI failures.
+
+## Flat ordinary-circle contacts — 9 November
+
+Parent `e7d8070ebef60c3a546d0f23153c3ae9d69d8233`: Trinity's State-only
+admission rejected ordinary labelled circles; producer-only admission then fails
+the kernel's stroke-inside-body assumption. Reuse canonical shapeOutline radii,
+keep fixed bodies/singleton contacts and reserve stroke separately like rectangles.
+Ordinary circle compounds still decline before box-boundary lifting; loop/multiport
+and all original caps remain. Existing State geometry is unchanged. Eight owner
+failures become green;414owners, core/repository types and lint pass.
+Trinity874now123returned/P and751unsupported, recovering the existing labelled
+circle row;122priorwholeproducts exact. Frozen84wholeproducts/sixerrors exact.
+Four-direction actual SVG/PNG source+target circle chains preserve labels, IDs,
+cardinal endpoints and canonical radii; manifest-verified Inter/systemfonts off.
+Seven circle controls deliver; three multiout/loop/compound controls remain refused.
+Current60fullSVG+receipt calls/12serialfreshNode24processes allP; sixactualgzip/Br
+response streams decodeexact. CircleTBuncachedrepeat ELK47.83/Native36.73/Trinity33.99ms,
+but Trinityfirsttarget222.96>Native186.88ms andedit2 27.12>25.78ms; N=2/cell, no
+general speed/memory claim. Actual13inputbrowser and four newcircle directions
+pass all3; gzipdelta0/+51/+44, Brotli−81/−39/−30bytes, requests unchanged.
+Stop the unrequested-solver-import hypothesis: actual fetched modules/metafile
+show only the selected solver, with legitimate shared orchestration. No newcache,
+cap/default/version. Evidence `trinity-ordinary-circle-20261109`; broaderdomain,
+Sparse32/payloadCI and retirement remain unresolved; keepELK/Replacement24sealed.

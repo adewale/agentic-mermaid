@@ -137,7 +137,7 @@ describe('Trinity flat measured solve', () => {
     const input: MeasuredGraph = { ...base(), direction, nodes: [
       { id: 'initial', width: 44, height: 28, contact: 'ellipse', contactEllipse: { rx: 12, ry: 12 }, paintStrokeWidth: 0 },
       node('body'),
-      { id: 'final', width: 32, height: 40, contact: 'ellipse', contactEllipse: { rx: 14, ry: 14 }, paintStrokeWidth: 1.5 },
+      { id: 'final', width: 32, height: 40, contact: 'ellipse', contactEllipse: { rx: 16, ry: 20 }, paintStrokeWidth: 1.5 },
     ], edges: [{ source: 0, target: 1, minSpan: 1, sourcePortSpan: 2, targetPortSpan: 7 }, { source: 1, target: 2, minSpan: 1, sourcePortSpan: 2, targetPortSpan: 7 }] }
     const before = structuredClone(input)
     const result = solveMeasuredLayout({ role: 'routed', graph: input }, trinityMeasuredAdapter(ledger()))

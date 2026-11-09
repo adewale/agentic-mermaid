@@ -62,7 +62,8 @@ function solveTrinity(input: MeasuredGraph, work: ChannelWork, role: MeasuredLay
     if (node.contact === 'ellipse') {
       const ellipse = node.contactEllipse!
       if (!ellipse) decline('ellipse contact radii must be measured')
-      if (!size(ellipse.rx, true) || !size(ellipse.ry, true) || ellipse.rx + node.paintStrokeWidth! / 2 > node.width / 2 || ellipse.ry + node.paintStrokeWidth! / 2 > node.height / 2) throw new TypeError('Invalid measured ellipse contact')
+      // Radii describe the canonical centerline; spacing and padding reserve its stroke.
+      if (!size(ellipse.rx, true) || !size(ellipse.ry, true) || ellipse.rx > node.width / 2 || ellipse.ry > node.height / 2) throw new TypeError('Invalid measured ellipse contact')
       if (node.sizePolicy === 'minimum') decline('ellipse contact requires a fixed body')
       if (node.paintCornerRadius) throw new TypeError('Ellipse contact has a rounded paint radius')
     } else if (node.contactEllipse !== undefined) throw new TypeError('Ellipse radii require an ellipse contact')
