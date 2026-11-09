@@ -1359,3 +1359,16 @@ Brotli1282069→1281810; original gzip cap still fails7654. Independent review
 finds no remaining blocker. Evidence `trinity-community-ports-20261109` retains
 failed trials. Complete runtime/fetched payload qualification follows; remaining
 losses include Class namespace/cardinality/note and controlled image. Retain ELK.
+
+Runtime `e928a1847ef773058f62e36122780a81fcd928f7` pushed to PR602. Twelve serial
+fresh Node24 processes record60 attempts:52 returned/proof-passed,8 Native edit
+refusals retained. ELK/Trinity cache0 cold/repeat2/edit2 medians625.94/199.99/145.75
+and323.40/163.59/127.91ms; cache1 edits41.99/49.91ms favor ELK. Two replicas,
+one input, full SVG+receipt; no general ratio or refused/completed comparison.
+Same12-input actual lazy product gzip ELK856357/Native484084/Trinity476359,
+Brotli687192/415174/408179, requests41/47/48 including binding. Files compressed
+after observation; no compressed-wire/startup claim. Class before/after actual
+Trident ink finds no failure. Current runtime CI42545538646 remains pending;
+original budget failure and draft status remain. Next intervention: remaining
+unsupported authored workload or demonstrated adverse crossings, not heap tuning
+from a refused profile. Complete raw cost/ink/probe recovery follows on evidence branch.

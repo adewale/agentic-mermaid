@@ -1,5 +1,43 @@
 # Performance review at the integrated PR602 checkpoint
 
+## Labelled compound refusal profile — 9 November
+
+Source `680d01bc579fd4d1ef2b92bceb29fe4f54eb03b9`, before the delivery repair
+`e928a1847ef773058f62e36122780a81fcd928f7`. Existing Node24/V8 collector:
+one supplemental six-leaf/eight-edge community input, three backends, two repeats
+and one label edit, cache0, nine profiled attempts. Successful calls consume SVG
+and the entire receipt; all three Trinity attempts refuse before emission. They
+cannot establish a completed-work performance ratio. Raw source maps, sample-gap
+sensitivity and all outcomes remain in `trinity-community-ports-20261109/profile-before`.
+
+Five largest Trinity repeat frames, **self / inclusive elapsed sample-delta ms per
+attempt**, averaged over two refused repeats; these are not exclusive CPU times
+or removable wall time. Inclusive rows overlap. Locations are in
+`src/layout/compound-lazy-visibility.ts` at the profiled revision.
+
+| Frame / line | Self / inclusive ms | Matching case / possible change | Expected speedup |
+| --- | ---: | --- | --- |
+| `less`:129 |12.534 /15.363|Hot hash lookups through `priority`/`distance`; consider indexed page directories.|Unmeasured.|
+| `route`:91 |9.770 /82.873|Hot hash lookups in the existing typed state columns; retain sparse page allocation and every reservation.|Unmeasured.|
+| `swap`:133 |9.491 /16.468|Hot hash lookups through heap and slot page access; the same directory change, not a separate rewrite.|Unmeasured.|
+| `pop`:153 |8.838 /33.086|Hot hash lookups through the same heap/state pages; measure the whole completed render first.|Unmeasured.|
+| `heap`:113 |6.433 /6.433|Replace the bounded page-number Map lookup with a flat page-reference directory only if it improves a measured uncached product.|Unmeasured.|
+
+The existing state pages already use typed SoA columns and integer state IDs;
+another AoS-to-SoA rewrite or packed-ID scheme is not justified. These synchronous
+frames contain no independent awaits. Page Maps own current search storage, not
+cross-request result caches. The cache inventory below remains applicable; this
+run identifies no new cache hiding a slow design and adds none.
+
+First test whether subtracting search can actually restore delivery. Direct-first
+and an index-specific diagnostic removing18,371 expansion units both still fail
+the last edge's measured peer contact. Stop those proposed repairs. The shipped
+geometry change preserves the label shaft instead of temporary ancestor-port
+bends and returns in four directions without raising caps. This is a delivery
+gain, not an equivalent-work speedup. Do not ship a page-directory optimization
+from the refused profile; current completed products need their own causal cost
+comparison. The diagnostic overlays and failed outcomes remain recovery evidence.
+
 Source: `99ed1d23853661966448ee9ee47c560cab910e63`, after integrating main
 `f9ec8c115de14020d3c182d5d7f2e7e70bfcdefb`. This is a report before any performance
 rewrite. The private-point sealing repair was a reproduced correctness fix.
