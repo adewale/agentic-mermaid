@@ -1,0 +1,5051 @@
+{
+  "calls": 60,
+  "processes": 12,
+  "outcomes": [
+    {
+      "delivery": "returned",
+      "proof": "passed",
+      "count": 60
+    }
+  ],
+  "allWholeProductsExactWithinArmAndAcrossCacheStates": true,
+  "metrics": {
+    "CURRENT:elk:after:cache0": {
+      "cold-render": {
+        "wallMs": {
+          "median": 411.0383064999992,
+          "range": [
+            388.21242900000016,
+            433.8641839999982
+          ]
+        },
+        "cpuMs": {
+          "median": 533.72,
+          "range": [
+            487.472,
+            579.968
+          ]
+        },
+        "peakRssKiB": {
+          "median": 183240.0,
+          "range": [
+            180048,
+            186432
+          ]
+        },
+        "heapUsed": {
+          "median": 64845336.0,
+          "range": [
+            63254952,
+            66435720
+          ]
+        },
+        "rss": {
+          "median": 187637760.0,
+          "range": [
+            184369152,
+            190906368
+          ]
+        }
+      },
+      "repeat1": {
+        "wallMs": {
+          "median": 84.44831000000022,
+          "range": [
+            51.88443300000017,
+            117.01218700000027
+          ]
+        },
+        "cpuMs": {
+          "median": 131.131,
+          "range": [
+            89.768,
+            172.494
+          ]
+        },
+        "peakRssKiB": {
+          "median": 185096.0,
+          "range": [
+            182864,
+            187328
+          ]
+        },
+        "heapUsed": {
+          "median": 50429096.0,
+          "range": [
+            50414064,
+            50444128
+          ]
+        },
+        "rss": {
+          "median": 189538304.0,
+          "range": [
+            187252736,
+            191823872
+          ]
+        }
+      },
+      "repeat2": {
+        "wallMs": {
+          "median": 47.82525450000094,
+          "range": [
+            45.04988599999979,
+            50.60062300000209
+          ]
+        },
+        "cpuMs": {
+          "median": 88.5245,
+          "range": [
+            78.244,
+            98.805
+          ]
+        },
+        "peakRssKiB": {
+          "median": 186120.0,
+          "range": [
+            183632,
+            188608
+          ]
+        },
+        "heapUsed": {
+          "median": 51394556.0,
+          "range": [
+            51358120,
+            51430992
+          ]
+        },
+        "rss": {
+          "median": 190455808.0,
+          "range": [
+            187908096,
+            193003520
+          ]
+        }
+      },
+      "edit": {
+        "wallMs": {
+          "median": 87.96016999999983,
+          "range": [
+            42.11213899999984,
+            133.80820099999983
+          ]
+        },
+        "cpuMs": {
+          "median": 191.29500000000002,
+          "range": [
+            73.977,
+            308.613
+          ]
+        },
+        "peakRssKiB": {
+          "median": 186440.0,
+          "range": [
+            184144,
+            188736
+          ]
+        },
+        "heapUsed": {
+          "median": 52032988.0,
+          "range": [
+            52000360,
+            52065616
+          ]
+        },
+        "rss": {
+          "median": 190849024.0,
+          "range": [
+            188432384,
+            193265664
+          ]
+        }
+      },
+      "edit2": {
+        "wallMs": {
+          "median": 56.07854749999933,
+          "range": [
+            32.32945599999948,
+            79.82763899999918
+          ]
+        },
+        "cpuMs": {
+          "median": 90.8955,
+          "range": [
+            55.87,
+            125.921
+          ]
+        },
+        "peakRssKiB": {
+          "median": 187016.0,
+          "range": [
+            184656,
+            189376
+          ]
+        },
+        "heapUsed": {
+          "median": 52567552.0,
+          "range": [
+            52560912,
+            52574192
+          ]
+        },
+        "rss": {
+          "median": 191504384.0,
+          "range": [
+            189087744,
+            193921024
+          ]
+        }
+      }
+    },
+    "CURRENT:agentic:after:cache0": {
+      "cold-render": {
+        "wallMs": {
+          "median": 186.88336549999985,
+          "range": [
+            175.5983329999999,
+            198.1683979999998
+          ]
+        },
+        "cpuMs": {
+          "median": 250.748,
+          "range": [
+            218.297,
+            283.199
+          ]
+        },
+        "peakRssKiB": {
+          "median": 185620.0,
+          "range": [
+            185536,
+            185704
+          ]
+        },
+        "heapUsed": {
+          "median": 42024348.0,
+          "range": [
+            41994800,
+            42053896
+          ]
+        },
+        "rss": {
+          "median": 190074880.0,
+          "range": [
+            189988864,
+            190160896
+          ]
+        }
+      },
+      "repeat1": {
+        "wallMs": {
+          "median": 28.266216000000213,
+          "range": [
+            25.25771700000041,
+            31.274715000000015
+          ]
+        },
+        "cpuMs": {
+          "median": 46.864,
+          "range": [
+            45.416,
+            48.312
+          ]
+        },
+        "peakRssKiB": {
+          "median": 186516.0,
+          "range": [
+            186344,
+            186688
+          ]
+        },
+        "heapUsed": {
+          "median": 38905496.0,
+          "range": [
+            38904120,
+            38906872
+          ]
+        },
+        "rss": {
+          "median": 190992384.0,
+          "range": [
+            190816256,
+            191168512
+          ]
+        }
+      },
+      "repeat2": {
+        "wallMs": {
+          "median": 36.731862500000034,
+          "range": [
+            24.769296999999824,
+            48.694428000000244
+          ]
+        },
+        "cpuMs": {
+          "median": 57.28,
+          "range": [
+            47.719,
+            66.841
+          ]
+        },
+        "peakRssKiB": {
+          "median": 186964.0,
+          "range": [
+            186728,
+            187200
+          ]
+        },
+        "heapUsed": {
+          "median": 39360460.0,
+          "range": [
+            39357216,
+            39363704
+          ]
+        },
+        "rss": {
+          "median": 191385600.0,
+          "range": [
+            191209472,
+            191561728
+          ]
+        }
+      },
+      "edit": {
+        "wallMs": {
+          "median": 26.33163649999983,
+          "range": [
+            25.257661999999982,
+            27.40561099999968
+          ]
+        },
+        "cpuMs": {
+          "median": 50.0895,
+          "range": [
+            46.668,
+            53.511
+          ]
+        },
+        "peakRssKiB": {
+          "median": 187348.0,
+          "range": [
+            187240,
+            187456
+          ]
+        },
+        "heapUsed": {
+          "median": 39904176.0,
+          "range": [
+            39899736,
+            39908616
+          ]
+        },
+        "rss": {
+          "median": 191844352.0,
+          "range": [
+            191733760,
+            191954944
+          ]
+        }
+      },
+      "edit2": {
+        "wallMs": {
+          "median": 25.776317500000005,
+          "range": [
+            15.20981699999993,
+            36.34281800000008
+          ]
+        },
+        "cpuMs": {
+          "median": 49.177499999999995,
+          "range": [
+            32.823,
+            65.532
+          ]
+        },
+        "peakRssKiB": {
+          "median": 187732.0,
+          "range": [
+            187368,
+            188096
+          ]
+        },
+        "heapUsed": {
+          "median": 40292176.0,
+          "range": [
+            40291664,
+            40292688
+          ]
+        },
+        "rss": {
+          "median": 192237568.0,
+          "range": [
+            191864832,
+            192610304
+          ]
+        }
+      }
+    },
+    "CURRENT:trinity:after:cache0": {
+      "cold-render": {
+        "wallMs": {
+          "median": 222.96008049999955,
+          "range": [
+            199.75424899999962,
+            246.16591199999948
+          ]
+        },
+        "cpuMs": {
+          "median": 292.95399999999995,
+          "range": [
+            246.902,
+            339.006
+          ]
+        },
+        "peakRssKiB": {
+          "median": 174760.0,
+          "range": [
+            170380,
+            179140
+          ]
+        },
+        "heapUsed": {
+          "median": 39472592.0,
+          "range": [
+            37376280,
+            41568904
+          ]
+        },
+        "rss": {
+          "median": 178954240.0,
+          "range": [
+            174469120,
+            183439360
+          ]
+        }
+      },
+      "repeat1": {
+        "wallMs": {
+          "median": 42.91640150000012,
+          "range": [
+            29.719246999999996,
+            56.113556000000244
+          ]
+        },
+        "cpuMs": {
+          "median": 70.5205,
+          "range": [
+            50.05,
+            90.991
+          ]
+        },
+        "peakRssKiB": {
+          "median": 175848.0,
+          "range": [
+            171148,
+            180548
+          ]
+        },
+        "heapUsed": {
+          "median": 38155580.0,
+          "range": [
+            38125136,
+            38186024
+          ]
+        },
+        "rss": {
+          "median": 180068352.0,
+          "range": [
+            175255552,
+            184881152
+          ]
+        }
+      },
+      "repeat2": {
+        "wallMs": {
+          "median": 33.99041299999999,
+          "range": [
+            23.115107999999964,
+            44.865718000000015
+          ]
+        },
+        "cpuMs": {
+          "median": 59.4945,
+          "range": [
+            41.156,
+            77.833
+          ]
+        },
+        "peakRssKiB": {
+          "median": 176232.0,
+          "range": [
+            171404,
+            181060
+          ]
+        },
+        "heapUsed": {
+          "median": 38508760.0,
+          "range": [
+            38483544,
+            38533976
+          ]
+        },
+        "rss": {
+          "median": 180461568.0,
+          "range": [
+            175517696,
+            185405440
+          ]
+        }
+      },
+      "edit": {
+        "wallMs": {
+          "median": 25.485874500000136,
+          "range": [
+            19.13835199999994,
+            31.833397000000332
+          ]
+        },
+        "cpuMs": {
+          "median": 48.227999999999994,
+          "range": [
+            39.958,
+            56.498
+          ]
+        },
+        "peakRssKiB": {
+          "median": 176552.0,
+          "range": [
+            171788,
+            181316
+          ]
+        },
+        "heapUsed": {
+          "median": 38979932.0,
+          "range": [
+            38919752,
+            39040112
+          ]
+        },
+        "rss": {
+          "median": 180789248.0,
+          "range": [
+            175910912,
+            185667584
+          ]
+        }
+      },
+      "edit2": {
+        "wallMs": {
+          "median": 27.119001500000195,
+          "range": [
+            17.021614000000227,
+            37.21638900000016
+          ]
+        },
+        "cpuMs": {
+          "median": 46.065,
+          "range": [
+            33.383,
+            58.747
+          ]
+        },
+        "peakRssKiB": {
+          "median": 176872.0,
+          "range": [
+            172044,
+            181700
+          ]
+        },
+        "heapUsed": {
+          "median": 39292000.0,
+          "range": [
+            39276712,
+            39307288
+          ]
+        },
+        "rss": {
+          "median": 181116928.0,
+          "range": [
+            176173056,
+            186060800
+          ]
+        }
+      }
+    },
+    "CURRENT:elk:after:cache1": {
+      "cold-render": {
+        "wallMs": {
+          "median": 350.7133795,
+          "range": [
+            318.49676,
+            382.92999899999995
+          ]
+        },
+        "cpuMs": {
+          "median": 498.5045,
+          "range": [
+            470.425,
+            526.584
+          ]
+        },
+        "peakRssKiB": {
+          "median": 191424.0,
+          "range": [
+            190620,
+            192228
+          ]
+        },
+        "heapUsed": {
+          "median": 55174656.0,
+          "range": [
+            55123696,
+            55225616
+          ]
+        },
+        "rss": {
+          "median": 196018176.0,
+          "range": [
+            195194880,
+            196841472
+          ]
+        }
+      },
+      "repeat1": {
+        "wallMs": {
+          "median": 20.46552849999989,
+          "range": [
+            19.939428999999564,
+            20.99162800000022
+          ]
+        },
+        "cpuMs": {
+          "median": 40.756,
+          "range": [
+            39.82,
+            41.692
+          ]
+        },
+        "peakRssKiB": {
+          "median": 192192.0,
+          "range": [
+            191388,
+            192996
+          ]
+        },
+        "heapUsed": {
+          "median": 47485660.0,
+          "range": [
+            47483728,
+            47487592
+          ]
+        },
+        "rss": {
+          "median": 196804608.0,
+          "range": [
+            195981312,
+            197627904
+          ]
+        }
+      },
+      "repeat2": {
+        "wallMs": {
+          "median": 6.558387000000039,
+          "range": [
+            5.297170000000278,
+            7.819603999999799
+          ]
+        },
+        "cpuMs": {
+          "median": 21.6,
+          "range": [
+            17.248,
+            25.952
+          ]
+        },
+        "peakRssKiB": {
+          "median": 192384.0,
+          "range": [
+            191516,
+            193252
+          ]
+        },
+        "heapUsed": {
+          "median": 45997848.0,
+          "range": [
+            45996624,
+            45999072
+          ]
+        },
+        "rss": {
+          "median": 196935680.0,
+          "range": [
+            196112384,
+            197758976
+          ]
+        }
+      },
+      "edit": {
+        "wallMs": {
+          "median": 55.11780500000009,
+          "range": [
+            42.41770600000018,
+            67.817904
+          ]
+        },
+        "cpuMs": {
+          "median": 91.57900000000001,
+          "range": [
+            74.986,
+            108.172
+          ]
+        },
+        "peakRssKiB": {
+          "median": 193600.0,
+          "range": [
+            193180,
+            194020
+          ]
+        },
+        "heapUsed": {
+          "median": 50871344.0,
+          "range": [
+            50871112,
+            50871576
+          ]
+        },
+        "rss": {
+          "median": 198115328.0,
+          "range": [
+            197554176,
+            198676480
+          ]
+        }
+      },
+      "edit2": {
+        "wallMs": {
+          "median": 18.376453000000083,
+          "range": [
+            15.696452000000136,
+            21.05645400000003
+          ]
+        },
+        "cpuMs": {
+          "median": 39.188,
+          "range": [
+            37.416,
+            40.96
+          ]
+        },
+        "peakRssKiB": {
+          "median": 193664.0,
+          "range": [
+            193180,
+            194148
+          ]
+        },
+        "heapUsed": {
+          "median": 48813980.0,
+          "range": [
+            48798000,
+            48829960
+          ]
+        },
+        "rss": {
+          "median": 198311936.0,
+          "range": [
+            197816320,
+            198807552
+          ]
+        }
+      }
+    },
+    "CURRENT:agentic:after:cache1": {
+      "cold-render": {
+        "wallMs": {
+          "median": 154.05865300000005,
+          "range": [
+            149.561686,
+            158.5556200000001
+          ]
+        },
+        "cpuMs": {
+          "median": 248.4485,
+          "range": [
+            242.679,
+            254.218
+          ]
+        },
+        "peakRssKiB": {
+          "median": 179532.0,
+          "range": [
+            171424,
+            187640
+          ]
+        },
+        "heapUsed": {
+          "median": 37750048.0,
+          "range": [
+            37747176,
+            37752920
+          ]
+        },
+        "rss": {
+          "median": 183840768.0,
+          "range": [
+            175538176,
+            192143360
+          ]
+        }
+      },
+      "repeat1": {
+        "wallMs": {
+          "median": 17.949147000000266,
+          "range": [
+            17.635931000000255,
+            18.262363000000278
+          ]
+        },
+        "cpuMs": {
+          "median": 34.1565,
+          "range": [
+            33.052,
+            35.261
+          ]
+        },
+        "peakRssKiB": {
+          "median": 180108.0,
+          "range": [
+            171808,
+            188408
+          ]
+        },
+        "heapUsed": {
+          "median": 38027732.0,
+          "range": [
+            38024024,
+            38031440
+          ]
+        },
+        "rss": {
+          "median": 184430592.0,
+          "range": [
+            175931392,
+            192929792
+          ]
+        }
+      },
+      "repeat2": {
+        "wallMs": {
+          "median": 5.195283000000018,
+          "range": [
+            4.877379000000019,
+            5.513187000000016
+          ]
+        },
+        "cpuMs": {
+          "median": 14.928,
+          "range": [
+            13.274,
+            16.582
+          ]
+        },
+        "peakRssKiB": {
+          "median": 180364.0,
+          "range": [
+            172192,
+            188536
+          ]
+        },
+        "heapUsed": {
+          "median": 36618480.0,
+          "range": [
+            36618192,
+            36618768
+          ]
+        },
+        "rss": {
+          "median": 184627200.0,
+          "range": [
+            176193536,
+            193060864
+          ]
+        }
+      },
+      "edit": {
+        "wallMs": {
+          "median": 23.58120599999984,
+          "range": [
+            22.45861799999966,
+            24.703794000000016
+          ]
+        },
+        "cpuMs": {
+          "median": 42.9645,
+          "range": [
+            39.818,
+            46.111
+          ]
+        },
+        "peakRssKiB": {
+          "median": 180876.0,
+          "range": [
+            172576,
+            189176
+          ]
+        },
+        "heapUsed": {
+          "median": 39607104.0,
+          "range": [
+            39444672,
+            39769536
+          ]
+        },
+        "rss": {
+          "median": 185217024.0,
+          "range": [
+            176717824,
+            193716224
+          ]
+        }
+      },
+      "edit2": {
+        "wallMs": {
+          "median": 15.220452499999965,
+          "range": [
+            14.495316000000003,
+            15.945588999999927
+          ]
+        },
+        "cpuMs": {
+          "median": 35.858000000000004,
+          "range": [
+            28.561,
+            43.155
+          ]
+        },
+        "peakRssKiB": {
+          "median": 181132.0,
+          "range": [
+            172704,
+            189560
+          ]
+        },
+        "heapUsed": {
+          "median": 38882028.0,
+          "range": [
+            38847088,
+            38916968
+          ]
+        },
+        "rss": {
+          "median": 185479168.0,
+          "range": [
+            176848896,
+            194109440
+          ]
+        }
+      }
+    },
+    "CURRENT:trinity:after:cache1": {
+      "cold-render": {
+        "wallMs": {
+          "median": 133.0396394999998,
+          "range": [
+            126.29293099999995,
+            139.78634799999963
+          ]
+        },
+        "cpuMs": {
+          "median": 221.918,
+          "range": [
+            207.598,
+            236.238
+          ]
+        },
+        "peakRssKiB": {
+          "median": 178170.0,
+          "range": [
+            169864,
+            186476
+          ]
+        },
+        "heapUsed": {
+          "median": 36795620.0,
+          "range": [
+            36265040,
+            37326200
+          ]
+        },
+        "rss": {
+          "median": 182446080.0,
+          "range": [
+            173940736,
+            190951424
+          ]
+        }
+      },
+      "repeat1": {
+        "wallMs": {
+          "median": 19.15053899999998,
+          "range": [
+            17.640606999999818,
+            20.660471000000143
+          ]
+        },
+        "cpuMs": {
+          "median": 35.7315,
+          "range": [
+            33.574,
+            37.889
+          ]
+        },
+        "peakRssKiB": {
+          "median": 179066.0,
+          "range": [
+            170504,
+            187628
+          ]
+        },
+        "heapUsed": {
+          "median": 37581564.0,
+          "range": [
+            37576584,
+            37586544
+          ]
+        },
+        "rss": {
+          "median": 183363584.0,
+          "range": [
+            174596096,
+            192131072
+          ]
+        }
+      },
+      "repeat2": {
+        "wallMs": {
+          "median": 5.20402799999988,
+          "range": [
+            4.877880000000005,
+            5.530175999999756
+          ]
+        },
+        "cpuMs": {
+          "median": 14.1435,
+          "range": [
+            13.895,
+            14.392
+          ]
+        },
+        "peakRssKiB": {
+          "median": 179386.0,
+          "range": [
+            170888,
+            187884
+          ]
+        },
+        "heapUsed": {
+          "median": 36176984.0,
+          "range": [
+            36175008,
+            36178960
+          ]
+        },
+        "rss": {
+          "median": 183625728.0,
+          "range": [
+            174989312,
+            192262144
+          ]
+        }
+      },
+      "edit": {
+        "wallMs": {
+          "median": 24.335185999999794,
+          "range": [
+            22.086972999999944,
+            26.583398999999645
+          ]
+        },
+        "cpuMs": {
+          "median": 50.2205,
+          "range": [
+            49.804,
+            50.637
+          ]
+        },
+        "peakRssKiB": {
+          "median": 179642.0,
+          "range": [
+            171144,
+            188140
+          ]
+        },
+        "heapUsed": {
+          "median": 38653436.0,
+          "range": [
+            38652792,
+            38654080
+          ]
+        },
+        "rss": {
+          "median": 183953408.0,
+          "range": [
+            175251456,
+            192655360
+          ]
+        }
+      },
+      "edit2": {
+        "wallMs": {
+          "median": 15.309753499999943,
+          "range": [
+            14.66382399999975,
+            15.955683000000136
+          ]
+        },
+        "cpuMs": {
+          "median": 34.153999999999996,
+          "range": [
+            32.035,
+            36.273
+          ]
+        },
+        "peakRssKiB": {
+          "median": 180026.0,
+          "range": [
+            171400,
+            188652
+          ]
+        },
+        "heapUsed": {
+          "median": 38461704.0,
+          "range": [
+            38460496,
+            38462912
+          ]
+        },
+        "rss": {
+          "median": 184346624.0,
+          "range": [
+            175513600,
+            193179648
+          ]
+        }
+      }
+    }
+  },
+  "runs": [
+    {
+      "run": {
+        "direction": "CURRENT",
+        "backend": "elk",
+        "arm": "after",
+        "cache": "0",
+        "replica": 0,
+        "directory": "CURRENT-elk-after-cache0-0",
+        "exit": 0
+      },
+      "rows": [
+        {
+          "phase": "cold-render",
+          "status": "returned",
+          "wallMs": 433.8641839999982,
+          "cpuMs": 579.968,
+          "before": {
+            "rss": 164839424,
+            "heapTotal": 130658304,
+            "heapUsed": 37299624,
+            "external": 15801539,
+            "arrayBuffers": 164604
+          },
+          "after": {
+            "rss": 184369152,
+            "heapTotal": 136773632,
+            "heapUsed": 63254952,
+            "external": 15670523,
+            "arrayBuffers": 164620
+          },
+          "peakRssKiB": 180048,
+          "bytes": 12431,
+          "proof": {
+            "version": 1,
+            "unit": "px",
+            "scope": "native-scene",
+            "status": "passed",
+            "viewport": {
+              "x": 0,
+              "y": 0,
+              "width": 186.115,
+              "height": 458.2
+            },
+            "attempts": 1,
+            "repairs": [],
+            "coverage": {
+              "measured": 11,
+              "unmeasured": 0,
+              "preparedText": 4,
+              "fallbackText": 0,
+              "conditional": 0
+            },
+            "checks": {
+              "primitives": 14,
+              "labels": 3,
+              "occlusionPairs": 12,
+              "maxOcclusionPairs": 100000,
+              "operations": 64608,
+              "maxOperations": 400000,
+              "markers": 2
+            },
+            "issues": [],
+            "limitations": [
+              "Prepared occupied text regions bound native geometry; exact glyph ink depends on the resolved font.",
+              "Declared transparency, intentional data-mark overlap and externally modified CSS are outside this proof."
+            ],
+            "outputDigest": "fnv1a64:fb0a4cf635f47ac8"
+          }
+        },
+        {
+          "phase": "repeat1",
+          "status": "returned",
+          "wallMs": 117.01218700000027,
+          "cpuMs": 172.494,
+          "before": {
+            "rss": 186073088,
+            "heapTotal": 132841472,
+            "heapUsed": 44641488,
+            "external": 15801619,
+            "arrayBuffers": 164620
+          },
+          "after": {
+            "rss": 187252736,
+            "heapTotal": 134291456,
+            "heapUsed": 50444128,
+            "external": 15801619,
+            "arrayBuffers": 164620
+          },
+          "peakRssKiB": 182864,
+          "bytes": 12431,
+          "wholeSvgExactWarmup": true,
+          "entireReceiptExactWarmup": true,
+          "proof": {
+            "version": 1,
+            "unit": "px",
+            "scope": "native-scene",
+            "status": "passed",
+            "viewport": {
+              "x": 0,
+              "y": 0,
+              "width": 186.115,
+              "height": 458.2
+            },
+            "attempts": 1,
+            "repairs": [],
+            "coverage": {
+              "measured": 11,
+              "unmeasured": 0,
+              "preparedText": 4,
+              "fallbackText": 0,
+              "conditional": 0
+            },
+            "checks": {
+              "primitives": 14,
+              "labels": 3,
+              "occlusionPairs": 12,
+              "maxOcclusionPairs": 100000,
+              "operations": 64608,
+              "maxOperations": 400000,
+              "markers": 2
+            },
+            "issues": [],
+            "limitations": [
+              "Prepared occupied text regions bound native geometry; exact glyph ink depends on the resolved font.",
+              "Declared transparency, intentional data-mark overlap and externally modified CSS are outside this proof."
+            ],
+            "outputDigest": "fnv1a64:fb0a4cf635f47ac8"
+          },
+          "stages": [],
+          "events": [],
+          "profileStart": 0,
+          "profileEnd": 0
+        },
+        {
+          "phase": "repeat2",
+          "status": "returned",
+          "wallMs": 50.60062300000209,
+          "cpuMs": 98.805,
+          "before": {
+            "rss": 187252736,
+            "heapTotal": 134553600,
+            "heapUsed": 45861888,
+            "external": 15736091,
+            "arrayBuffers": 164620
+          },
+          "after": {
+            "rss": 187908096,
+            "heapTotal": 135077888,
+            "heapUsed": 51430992,
+            "external": 15736091,
+            "arrayBuffers": 164620
+          },
+          "peakRssKiB": 183632,
+          "bytes": 12431,
+          "wholeSvgExactWarmup": true,
+          "entireReceiptExactWarmup": true,
+          "proof": {
+            "version": 1,
+            "unit": "px",
+            "scope": "native-scene",
+            "status": "passed",
+            "viewport": {
+              "x": 0,
+              "y": 0,
+              "width": 186.115,
+              "height": 458.2
+            },
+            "attempts": 1,
+            "repairs": [],
+            "coverage": {
+              "measured": 11,
+              "unmeasured": 0,
+              "preparedText": 4,
+              "fallbackText": 0,
+              "conditional": 0
+            },
+            "checks": {
+              "primitives": 14,
+              "labels": 3,
+              "occlusionPairs": 12,
+              "maxOcclusionPairs": 100000,
+              "operations": 64608,
+              "maxOperations": 400000,
+              "markers": 2
+            },
+            "issues": [],
+            "limitations": [
+              "Prepared occupied text regions bound native geometry; exact glyph ink depends on the resolved font.",
+              "Declared transparency, intentional data-mark overlap and externally modified CSS are outside this proof."
+            ],
+            "outputDigest": "fnv1a64:fb0a4cf635f47ac8"
+          },
+          "stages": [],
+          "events": [],
+          "profileStart": 0,
+          "profileEnd": 0
+        },
+        {
+          "phase": "edit",
+          "status": "returned",
+          "wallMs": 133.80820099999983,
+          "cpuMs": 308.613,
+          "before": {
+            "rss": 188039168,
+            "heapTotal": 135340032,
+            "heapUsed": 47032760,
+            "external": 15736091,
+            "arrayBuffers": 164620
+          },
+          "after": {
+            "rss": 188432384,
+            "heapTotal": 136388608,
+            "heapUsed": 52065616,
+            "external": 15736091,
+            "arrayBuffers": 164620
+          },
+          "peakRssKiB": 184144,
+          "bytes": 12458,
+          "editChanged": true,
+          "proof": {
+            "version": 1,
+            "unit": "px",
+            "scope": "native-scene",
+            "status": "passed",
+            "viewport": {
+              "x": 0,
+              "y": 0,
+              "width": 186.292,
+              "height": 458.2
+            },
+            "attempts": 1,
+            "repairs": [],
+            "coverage": {
+              "measured": 11,
+              "unmeasured": 0,
+              "preparedText": 4,
+              "fallbackText": 0,
+              "conditional": 0
+            },
+            "checks": {
+              "primitives": 14,
+              "labels": 3,
+              "occlusionPairs": 12,
+              "maxOcclusionPairs": 100000,
+              "operations": 64833,
+              "maxOperations": 400000,
+              "markers": 2
+            },
+            "issues": [],
+            "limitations": [
+              "Prepared occupied text regions bound native geometry; exact glyph ink depends on the resolved font.",
+              "Declared transparency, intentional data-mark overlap and externally modified CSS are outside this proof."
+            ],
+            "outputDigest": "fnv1a64:78ebc2291052bdc1"
+          },
+          "stages": [],
+          "events": [],
+          "profileStart": 0,
+          "profileEnd": 0
+        },
+        {
+          "phase": "edit2",
+          "status": "returned",
+          "wallMs": 79.82763899999918,
+          "cpuMs": 125.921,
+          "before": {
+            "rss": 188563456,
+            "heapTotal": 136912896,
+            "heapUsed": 47591432,
+            "external": 15801627,
+            "arrayBuffers": 164620
+          },
+          "after": {
+            "rss": 189087744,
+            "heapTotal": 137437184,
+            "heapUsed": 52560912,
+            "external": 15801627,
+            "arrayBuffers": 164620
+          },
+          "peakRssKiB": 184656,
+          "bytes": 12458,
+          "editChanged": true,
+          "proof": {
+            "version": 1,
+            "unit": "px",
+            "scope": "native-scene",
+            "status": "passed",
+            "viewport": {
+              "x": 0,
+              "y": 0,
+              "width": 186.292,
+              "height": 458.2
+            },
+            "attempts": 1,
+            "repairs": [],
+            "coverage": {
+              "measured": 11,
+              "unmeasured": 0,
+              "preparedText": 4,
+              "fallbackText": 0,
+              "conditional": 0
+            },
+            "checks": {
+              "primitives": 14,
+              "labels": 3,
+              "occlusionPairs": 12,
+              "maxOcclusionPairs": 100000,
+              "operations": 64833,
+              "maxOperations": 400000,
+              "markers": 2
+            },
+            "issues": [],
+            "limitations": [
+              "Prepared occupied text regions bound native geometry; exact glyph ink depends on the resolved font.",
+              "Declared transparency, intentional data-mark overlap and externally modified CSS are outside this proof."
+            ],
+            "outputDigest": "fnv1a64:78ebc2291052bdc1"
+          },
+          "stages": [],
+          "events": [],
+          "profileStart": 0,
+          "profileEnd": 0
+        }
+      ],
+      "importMs": 18505.364597
+    },
+    {
+      "run": {
+        "direction": "CURRENT",
+        "backend": "agentic",
+        "arm": "after",
+        "cache": "0",
+        "replica": 0,
+        "directory": "CURRENT-agentic-after-cache0-0",
+        "exit": 0
+      },
+      "rows": [
+        {
+          "phase": "cold-render",
+          "status": "returned",
+          "wallMs": 198.1683979999998,
+          "cpuMs": 283.199,
+          "before": {
+            "rss": 187330560,
+            "heapTotal": 109834240,
+            "heapUsed": 49715848,
+            "external": 15801539,
+            "arrayBuffers": 295676
+          },
+          "after": {
+            "rss": 190160896,
+            "heapTotal": 115453952,
+            "heapUsed": 42053896,
+            "external": 15801595,
+            "arrayBuffers": 164620
+          },
+          "peakRssKiB": 185704,
+          "bytes": 12444,
+          "proof": {
+            "version": 1,
+            "unit": "px",
+            "scope": "native-scene",
+            "status": "passed",
+            "viewport": {
+              "x": 0,
+              "y": 0,
+              "width": 186.5,
+              "height": 420.2
+            },
+            "attempts": 1,
+            "repairs": [],
+            "coverage": {
+              "measured": 11,
+              "unmeasured": 0,
+              "preparedText": 4,
+              "fallbackText": 0,
+              "conditional": 0
+            },
+            "checks": {
+              "primitives": 14,
+              "labels": 3,
+              "occlusionPairs": 12,
+              "maxOcclusionPairs": 100000,
+              "operations": 64140,
+              "maxOperations": 400000,
+              "markers": 2
+            },
+            "issues": [],
+            "limitations": [
+              "Prepared occupied text regions bound native geometry; exact glyph ink depends on the resolved font.",
+              "Declared transparency, intentional data-mark overlap and externally modified CSS are outside this proof."
+            ],
+            "outputDigest": "fnv1a64:32c58fcad95c539e"
+          }
+        },
+        {
+          "phase": "repeat1",
+          "status": "returned",
+          "wallMs": 25.25771700000041,
+          "cpuMs": 45.416,
+          "before": {
+            "rss": 190291968,
+            "heapTotal": 107589632,
+            "heapUsed": 35118240,
+            "external": 15801619,
+            "arrayBuffers": 164620
+          },
+          "after": {
+            "rss": 190816256,
+            "heapTotal": 108253184,
+            "heapUsed": 38904120,
+            "external": 15801619,
+            "arrayBuffers": 164620
+          },
+          "peakRssKiB": 186344,
+          "bytes": 12444,
+          "wholeSvgExactWarmup": true,
+          "entireReceiptExactWarmup": true,
+          "proof": {
+            "version": 1,
+            "unit": "px",
+            "scope": "native-scene",
+            "status": "passed",
+            "viewport": {
+              "x": 0,
+              "y": 0,
+              "width": 186.5,
+              "height": 420.2
+            },
+            "attempts": 1,
+            "repairs": [],
+            "coverage": {
+              "measured": 11,
+              "unmeasured": 0,
+              "preparedText": 4,
+              "fallbackText": 0,
+              "conditional": 0
+            },
+            "checks": {
+              "primitives": 14,
+              "labels": 3,
+              "occlusionPairs": 12,
+              "maxOcclusionPairs": 100000,
+              "operations": 64140,
+              "maxOperations": 400000,
+              "markers": 2
+            },
+            "issues": [],
+            "limitations": [
+              "Prepared occupied text regions bound native geometry; exact glyph ink depends on the resolved font.",
+              "Declared transparency, intentional data-mark overlap and externally modified CSS are outside this proof."
+            ],
+            "outputDigest": "fnv1a64:32c58fcad95c539e"
+          },
+          "stages": [],
+          "events": [],
+          "profileStart": 0,
+          "profileEnd": 0
+        },
+        {
+          "phase": "repeat2",
+          "status": "returned",
+          "wallMs": 24.769296999999824,
+          "cpuMs": 47.719,
+          "before": {
+            "rss": 190947328,
+            "heapTotal": 108253184,
+            "heapUsed": 35916888,
+            "external": 15736091,
+            "arrayBuffers": 164620
+          },
+          "after": {
+            "rss": 191209472,
+            "heapTotal": 108253184,
+            "heapUsed": 39357216,
+            "external": 15736091,
+            "arrayBuffers": 164620
+          },
+          "peakRssKiB": 186728,
+          "bytes": 12444,
+          "wholeSvgExactWarmup": true,
+          "entireReceiptExactWarmup": true,
+          "proof": {
+            "version": 1,
+            "unit": "px",
+            "scope": "native-scene",
+            "status": "passed",
+            "viewport": {
+              "x": 0,
+              "y": 0,
+              "width": 186.5,
+              "height": 420.2
+            },
+            "attempts": 1,
+            "repairs": [],
+            "coverage": {
+              "measured": 11,
+              "unmeasured": 0,
+              "preparedText": 4,
+              "fallbackText": 0,
+              "conditional": 0
+            },
+            "checks": {
+              "primitives": 14,
+              "labels": 3,
+              "occlusionPairs": 12,
+              "maxOcclusionPairs": 100000,
+              "operations": 64140,
+              "maxOperations": 400000,
+              "markers": 2
+            },
+            "issues": [],
+            "limitations": [
+              "Prepared occupied text regions bound native geometry; exact glyph ink depends on the resolved font.",
+              "Declared transparency, intentional data-mark overlap and externally modified CSS are outside this proof."
+            ],
+            "outputDigest": "fnv1a64:32c58fcad95c539e"
+          },
+          "stages": [],
+          "events": [],
+          "profileStart": 0,
+          "profileEnd": 0
+        },
+        {
+          "phase": "edit",
+          "status": "returned",
+          "wallMs": 25.257661999999982,
+          "cpuMs": 46.668,
+          "before": {
+            "rss": 191209472,
+            "heapTotal": 108253184,
+            "heapUsed": 36495224,
+            "external": 15736091,
+            "arrayBuffers": 164620
+          },
+          "after": {
+            "rss": 191733760,
+            "heapTotal": 108515328,
+            "heapUsed": 39899736,
+            "external": 15736091,
+            "arrayBuffers": 164620
+          },
+          "peakRssKiB": 187240,
+          "bytes": 12471,
+          "editChanged": true,
+          "proof": {
+            "version": 1,
+            "unit": "px",
+            "scope": "native-scene",
+            "status": "passed",
+            "viewport": {
+              "x": 0,
+              "y": 0,
+              "width": 186.5,
+              "height": 420.2
+            },
+            "attempts": 1,
+            "repairs": [],
+            "coverage": {
+              "measured": 11,
+              "unmeasured": 0,
+              "preparedText": 4,
+              "fallbackText": 0,
+              "conditional": 0
+            },
+            "checks": {
+              "primitives": 14,
+              "labels": 3,
+              "occlusionPairs": 12,
+              "maxOcclusionPairs": 100000,
+              "operations": 64365,
+              "maxOperations": 400000,
+              "markers": 2
+            },
+            "issues": [],
+            "limitations": [
+              "Prepared occupied text regions bound native geometry; exact glyph ink depends on the resolved font.",
+              "Declared transparency, intentional data-mark overlap and externally modified CSS are outside this proof."
+            ],
+            "outputDigest": "fnv1a64:097e5616f60e89ed"
+          },
+          "stages": [],
+          "events": [],
+          "profileStart": 0,
+          "profileEnd": 0
+        },
+        {
+          "phase": "edit2",
+          "status": "returned",
+          "wallMs": 15.20981699999993,
+          "cpuMs": 32.823,
+          "before": {
+            "rss": 191733760,
+            "heapTotal": 108515328,
+            "heapUsed": 36996024,
+            "external": 15801627,
+            "arrayBuffers": 164620
+          },
+          "after": {
+            "rss": 191864832,
+            "heapTotal": 109301760,
+            "heapUsed": 40292688,
+            "external": 15801627,
+            "arrayBuffers": 164620
+          },
+          "peakRssKiB": 187368,
+          "bytes": 12471,
+          "editChanged": true,
+          "proof": {
+            "version": 1,
+            "unit": "px",
+            "scope": "native-scene",
+            "status": "passed",
+            "viewport": {
+              "x": 0,
+              "y": 0,
+              "width": 186.5,
+              "height": 420.2
+            },
+            "attempts": 1,
+            "repairs": [],
+            "coverage": {
+              "measured": 11,
+              "unmeasured": 0,
+              "preparedText": 4,
+              "fallbackText": 0,
+              "conditional": 0
+            },
+            "checks": {
+              "primitives": 14,
+              "labels": 3,
+              "occlusionPairs": 12,
+              "maxOcclusionPairs": 100000,
+              "operations": 64365,
+              "maxOperations": 400000,
+              "markers": 2
+            },
+            "issues": [],
+            "limitations": [
+              "Prepared occupied text regions bound native geometry; exact glyph ink depends on the resolved font.",
+              "Declared transparency, intentional data-mark overlap and externally modified CSS are outside this proof."
+            ],
+            "outputDigest": "fnv1a64:097e5616f60e89ed"
+          },
+          "stages": [],
+          "events": [],
+          "profileStart": 0,
+          "profileEnd": 0
+        }
+      ],
+      "importMs": 3883.58477
+    },
+    {
+      "run": {
+        "direction": "CURRENT",
+        "backend": "trinity",
+        "arm": "after",
+        "cache": "0",
+        "replica": 0,
+        "directory": "CURRENT-trinity-after-cache0-0",
+        "exit": 0
+      },
+      "rows": [
+        {
+          "phase": "cold-render",
+          "status": "returned",
+          "wallMs": 246.16591199999948,
+          "cpuMs": 339.006,
+          "before": {
+            "rss": 170962944,
+            "heapTotal": 109744128,
+            "heapUsed": 49918024,
+            "external": 15802028,
+            "arrayBuffers": 295676
+          },
+          "after": {
+            "rss": 174469120,
+            "heapTotal": 116502528,
+            "heapUsed": 37376280,
+            "external": 15801595,
+            "arrayBuffers": 164620
+          },
+          "peakRssKiB": 170380,
+          "bytes": 12439,
+          "proof": {
+            "version": 1,
+            "unit": "px",
+            "scope": "native-scene",
+            "status": "passed",
+            "viewport": {
+              "x": 0,
+              "y": 0,
+              "width": 174,
+              "height": 422.2
+            },
+            "attempts": 1,
+            "repairs": [],
+            "coverage": {
+              "measured": 11,
+              "unmeasured": 0,
+              "preparedText": 4,
+              "fallbackText": 0,
+              "conditional": 0
+            },
+            "checks": {
+              "primitives": 14,
+              "labels": 3,
+              "occlusionPairs": 12,
+              "maxOcclusionPairs": 100000,
+              "operations": 64082,
+              "maxOperations": 400000,
+              "markers": 2
+            },
+            "issues": [],
+            "limitations": [
+              "Prepared occupied text regions bound native geometry; exact glyph ink depends on the resolved font.",
+              "Declared transparency, intentional data-mark overlap and externally modified CSS are outside this proof."
+            ],
+            "outputDigest": "fnv1a64:e534eb5a49727ab1"
+          }
+        },
+        {
+          "phase": "repeat1",
+          "status": "returned",
+          "wallMs": 29.719246999999996,
+          "cpuMs": 50.05,
+          "before": {
+            "rss": 174731264,
+            "heapTotal": 107589632,
+            "heapUsed": 34604536,
+            "external": 15801619,
+            "arrayBuffers": 164620
+          },
+          "after": {
+            "rss": 175255552,
+            "heapTotal": 107991040,
+            "heapUsed": 38125136,
+            "external": 15801619,
+            "arrayBuffers": 164620
+          },
+          "peakRssKiB": 171148,
+          "bytes": 12439,
+          "wholeSvgExactWarmup": true,
+          "entireReceiptExactWarmup": true,
+          "proof": {
+            "version": 1,
+            "unit": "px",
+            "scope": "native-scene",
+            "status": "passed",
+            "viewport": {
+              "x": 0,
+              "y": 0,
+              "width": 174,
+              "height": 422.2
+            },
+            "attempts": 1,
+            "repairs": [],
+            "coverage": {
+              "measured": 11,
+              "unmeasured": 0,
+              "preparedText": 4,
+              "fallbackText": 0,
+              "conditional": 0
+            },
+            "checks": {
+              "primitives": 14,
+              "labels": 3,
+              "occlusionPairs": 12,
+              "maxOcclusionPairs": 100000,
+              "operations": 64082,
+              "maxOperations": 400000,
+              "markers": 2
+            },
+            "issues": [],
+            "limitations": [
+              "Prepared occupied text regions bound native geometry; exact glyph ink depends on the resolved font.",
+              "Declared transparency, intentional data-mark overlap and externally modified CSS are outside this proof."
+            ],
+            "outputDigest": "fnv1a64:e534eb5a49727ab1"
+          },
+          "stages": [],
+          "events": [],
+          "profileStart": 0,
+          "profileEnd": 0
+        },
+        {
+          "phase": "repeat2",
+          "status": "returned",
+          "wallMs": 23.115107999999964,
+          "cpuMs": 41.156,
+          "before": {
+            "rss": 175255552,
+            "heapTotal": 108253184,
+            "heapUsed": 35461648,
+            "external": 15736091,
+            "arrayBuffers": 164620
+          },
+          "after": {
+            "rss": 175517696,
+            "heapTotal": 108253184,
+            "heapUsed": 38533976,
+            "external": 15736091,
+            "arrayBuffers": 164620
+          },
+          "peakRssKiB": 171404,
+          "bytes": 12439,
+          "wholeSvgExactWarmup": true,
+          "entireReceiptExactWarmup": true,
+          "proof": {
+            "version": 1,
+            "unit": "px",
+            "scope": "native-scene",
+            "status": "passed",
+            "viewport": {
+              "x": 0,
+              "y": 0,
+              "width": 174,
+              "height": 422.2
+            },
+            "attempts": 1,
+            "repairs": [],
+            "coverage": {
+              "measured": 11,
+              "unmeasured": 0,
+              "preparedText": 4,
+              "fallbackText": 0,
+              "conditional": 0
+            },
+            "checks": {
+              "primitives": 14,
+              "labels": 3,
+              "occlusionPairs": 12,
+              "maxOcclusionPairs": 100000,
+              "operations": 64082,
+              "maxOperations": 400000,
+              "markers": 2
+            },
+            "issues": [],
+            "limitations": [
+              "Prepared occupied text regions bound native geometry; exact glyph ink depends on the resolved font.",
+              "Declared transparency, intentional data-mark overlap and externally modified CSS are outside this proof."
+            ],
+            "outputDigest": "fnv1a64:e534eb5a49727ab1"
+          },
+          "stages": [],
+          "events": [],
+          "profileStart": 0,
+          "profileEnd": 0
+        },
+        {
+          "phase": "edit",
+          "status": "returned",
+          "wallMs": 31.833397000000332,
+          "cpuMs": 56.498,
+          "before": {
+            "rss": 175517696,
+            "heapTotal": 108777472,
+            "heapUsed": 35961768,
+            "external": 15736091,
+            "arrayBuffers": 164620
+          },
+          "after": {
+            "rss": 175910912,
+            "heapTotal": 109301760,
+            "heapUsed": 39040112,
+            "external": 15736091,
+            "arrayBuffers": 164620
+          },
+          "peakRssKiB": 171788,
+          "bytes": 12466,
+          "editChanged": true,
+          "proof": {
+            "version": 1,
+            "unit": "px",
+            "scope": "native-scene",
+            "status": "passed",
+            "viewport": {
+              "x": 0,
+              "y": 0,
+              "width": 174,
+              "height": 422.2
+            },
+            "attempts": 1,
+            "repairs": [],
+            "coverage": {
+              "measured": 11,
+              "unmeasured": 0,
+              "preparedText": 4,
+              "fallbackText": 0,
+              "conditional": 0
+            },
+            "checks": {
+              "primitives": 14,
+              "labels": 3,
+              "occlusionPairs": 12,
+              "maxOcclusionPairs": 100000,
+              "operations": 64307,
+              "maxOperations": 400000,
+              "markers": 2
+            },
+            "issues": [],
+            "limitations": [
+              "Prepared occupied text regions bound native geometry; exact glyph ink depends on the resolved font.",
+              "Declared transparency, intentional data-mark overlap and externally modified CSS are outside this proof."
+            ],
+            "outputDigest": "fnv1a64:69fd535bc27b488c"
+          },
+          "stages": [],
+          "events": [],
+          "profileStart": 0,
+          "profileEnd": 0
+        },
+        {
+          "phase": "edit2",
+          "status": "returned",
+          "wallMs": 17.021614000000227,
+          "cpuMs": 33.383,
+          "before": {
+            "rss": 175910912,
+            "heapTotal": 109563904,
+            "heapUsed": 36332688,
+            "external": 15801627,
+            "arrayBuffers": 164620
+          },
+          "after": {
+            "rss": 176173056,
+            "heapTotal": 109563904,
+            "heapUsed": 39276712,
+            "external": 15801627,
+            "arrayBuffers": 164620
+          },
+          "peakRssKiB": 172044,
+          "bytes": 12466,
+          "editChanged": true,
+          "proof": {
+            "version": 1,
+            "unit": "px",
+            "scope": "native-scene",
+            "status": "passed",
+            "viewport": {
+              "x": 0,
+              "y": 0,
+              "width": 174,
+              "height": 422.2
+            },
+            "attempts": 1,
+            "repairs": [],
+            "coverage": {
+              "measured": 11,
+              "unmeasured": 0,
+              "preparedText": 4,
+              "fallbackText": 0,
+              "conditional": 0
+            },
+            "checks": {
+              "primitives": 14,
+              "labels": 3,
+              "occlusionPairs": 12,
+              "maxOcclusionPairs": 100000,
+              "operations": 64307,
+              "maxOperations": 400000,
+              "markers": 2
+            },
+            "issues": [],
+            "limitations": [
+              "Prepared occupied text regions bound native geometry; exact glyph ink depends on the resolved font.",
+              "Declared transparency, intentional data-mark overlap and externally modified CSS are outside this proof."
+            ],
+            "outputDigest": "fnv1a64:69fd535bc27b488c"
+          },
+          "stages": [],
+          "events": [],
+          "profileStart": 0,
+          "profileEnd": 0
+        }
+      ],
+      "importMs": 4483.976568
+    },
+    {
+      "run": {
+        "direction": "CURRENT",
+        "backend": "trinity",
+        "arm": "after",
+        "cache": "0",
+        "replica": 1,
+        "directory": "CURRENT-trinity-after-cache0-1",
+        "exit": 0
+      },
+      "rows": [
+        {
+          "phase": "cold-render",
+          "status": "returned",
+          "wallMs": 199.75424899999962,
+          "cpuMs": 246.902,
+          "before": {
+            "rss": 177541120,
+            "heapTotal": 103919616,
+            "heapUsed": 58040576,
+            "external": 15736492,
+            "arrayBuffers": 230629
+          },
+          "after": {
+            "rss": 183439360,
+            "heapTotal": 106278912,
+            "heapUsed": 41568904,
+            "external": 15736548,
+            "arrayBuffers": 230156
+          },
+          "peakRssKiB": 179140,
+          "bytes": 12439,
+          "proof": {
+            "version": 1,
+            "unit": "px",
+            "scope": "native-scene",
+            "status": "passed",
+            "viewport": {
+              "x": 0,
+              "y": 0,
+              "width": 174,
+              "height": 422.2
+            },
+            "attempts": 1,
+            "repairs": [],
+            "coverage": {
+              "measured": 11,
+              "unmeasured": 0,
+              "preparedText": 4,
+              "fallbackText": 0,
+              "conditional": 0
+            },
+            "checks": {
+              "primitives": 14,
+              "labels": 3,
+              "occlusionPairs": 12,
+              "maxOcclusionPairs": 100000,
+              "operations": 64082,
+              "maxOperations": 400000,
+              "markers": 2
+            },
+            "issues": [],
+            "limitations": [
+              "Prepared occupied text regions bound native geometry; exact glyph ink depends on the resolved font.",
+              "Declared transparency, intentional data-mark overlap and externally modified CSS are outside this proof."
+            ],
+            "outputDigest": "fnv1a64:e534eb5a49727ab1"
+          }
+        },
+        {
+          "phase": "repeat1",
+          "status": "returned",
+          "wallMs": 56.113556000000244,
+          "cpuMs": 90.991,
+          "before": {
+            "rss": 184225792,
+            "heapTotal": 105754624,
+            "heapUsed": 34722304,
+            "external": 15867155,
+            "arrayBuffers": 164620
+          },
+          "after": {
+            "rss": 184881152,
+            "heapTotal": 106418176,
+            "heapUsed": 38186024,
+            "external": 15867155,
+            "arrayBuffers": 164620
+          },
+          "peakRssKiB": 180548,
+          "bytes": 12439,
+          "wholeSvgExactWarmup": true,
+          "entireReceiptExactWarmup": true,
+          "proof": {
+            "version": 1,
+            "unit": "px",
+            "scope": "native-scene",
+            "status": "passed",
+            "viewport": {
+              "x": 0,
+              "y": 0,
+              "width": 174,
+              "height": 422.2
+            },
+            "attempts": 1,
+            "repairs": [],
+            "coverage": {
+              "measured": 11,
+              "unmeasured": 0,
+              "preparedText": 4,
+              "fallbackText": 0,
+              "conditional": 0
+            },
+            "checks": {
+              "primitives": 14,
+              "labels": 3,
+              "occlusionPairs": 12,
+              "maxOcclusionPairs": 100000,
+              "operations": 64082,
+              "maxOperations": 400000,
+              "markers": 2
+            },
+            "issues": [],
+            "limitations": [
+              "Prepared occupied text regions bound native geometry; exact glyph ink depends on the resolved font.",
+              "Declared transparency, intentional data-mark overlap and externally modified CSS are outside this proof."
+            ],
+            "outputDigest": "fnv1a64:e534eb5a49727ab1"
+          },
+          "stages": [],
+          "events": [],
+          "profileStart": 0,
+          "profileEnd": 0
+        },
+        {
+          "phase": "repeat2",
+          "status": "returned",
+          "wallMs": 44.865718000000015,
+          "cpuMs": 77.833,
+          "before": {
+            "rss": 185143296,
+            "heapTotal": 106418176,
+            "heapUsed": 35459768,
+            "external": 15736091,
+            "arrayBuffers": 164620
+          },
+          "after": {
+            "rss": 185405440,
+            "heapTotal": 106418176,
+            "heapUsed": 38483544,
+            "external": 15736091,
+            "arrayBuffers": 164620
+          },
+          "peakRssKiB": 181060,
+          "bytes": 12439,
+          "wholeSvgExactWarmup": true,
+          "entireReceiptExactWarmup": true,
+          "proof": {
+            "version": 1,
+            "unit": "px",
+            "scope": "native-scene",
+            "status": "passed",
+            "viewport": {
+              "x": 0,
+              "y": 0,
+              "width": 174,
+              "height": 422.2
+            },
+            "attempts": 1,
+            "repairs": [],
+            "coverage": {
+              "measured": 11,
+              "unmeasured": 0,
+              "preparedText": 4,
+              "fallbackText": 0,
+              "conditional": 0
+            },
+            "checks": {
+              "primitives": 14,
+              "labels": 3,
+              "occlusionPairs": 12,
+              "maxOcclusionPairs": 100000,
+              "operations": 64082,
+              "maxOperations": 400000,
+              "markers": 2
+            },
+            "issues": [],
+            "limitations": [
+              "Prepared occupied text regions bound native geometry; exact glyph ink depends on the resolved font.",
+              "Declared transparency, intentional data-mark overlap and externally modified CSS are outside this proof."
+            ],
+            "outputDigest": "fnv1a64:e534eb5a49727ab1"
+          },
+          "stages": [],
+          "events": [],
+          "profileStart": 0,
+          "profileEnd": 0
+        },
+        {
+          "phase": "edit",
+          "status": "returned",
+          "wallMs": 19.13835199999994,
+          "cpuMs": 39.958,
+          "before": {
+            "rss": 185405440,
+            "heapTotal": 106942464,
+            "heapUsed": 35933096,
+            "external": 15736091,
+            "arrayBuffers": 164620
+          },
+          "after": {
+            "rss": 185667584,
+            "heapTotal": 107204608,
+            "heapUsed": 38919752,
+            "external": 15736091,
+            "arrayBuffers": 164620
+          },
+          "peakRssKiB": 181316,
+          "bytes": 12466,
+          "editChanged": true,
+          "proof": {
+            "version": 1,
+            "unit": "px",
+            "scope": "native-scene",
+            "status": "passed",
+            "viewport": {
+              "x": 0,
+              "y": 0,
+              "width": 174,
+              "height": 422.2
+            },
+            "attempts": 1,
+            "repairs": [],
+            "coverage": {
+              "measured": 11,
+              "unmeasured": 0,
+              "preparedText": 4,
+              "fallbackText": 0,
+              "conditional": 0
+            },
+            "checks": {
+              "primitives": 14,
+              "labels": 3,
+              "occlusionPairs": 12,
+              "maxOcclusionPairs": 100000,
+              "operations": 64307,
+              "maxOperations": 400000,
+              "markers": 2
+            },
+            "issues": [],
+            "limitations": [
+              "Prepared occupied text regions bound native geometry; exact glyph ink depends on the resolved font.",
+              "Declared transparency, intentional data-mark overlap and externally modified CSS are outside this proof."
+            ],
+            "outputDigest": "fnv1a64:69fd535bc27b488c"
+          },
+          "stages": [],
+          "events": [],
+          "profileStart": 0,
+          "profileEnd": 0
+        },
+        {
+          "phase": "edit2",
+          "status": "returned",
+          "wallMs": 37.21638900000016,
+          "cpuMs": 58.747,
+          "before": {
+            "rss": 185667584,
+            "heapTotal": 107204608,
+            "heapUsed": 36339000,
+            "external": 15801627,
+            "arrayBuffers": 164620
+          },
+          "after": {
+            "rss": 186060800,
+            "heapTotal": 107466752,
+            "heapUsed": 39307288,
+            "external": 15801627,
+            "arrayBuffers": 164620
+          },
+          "peakRssKiB": 181700,
+          "bytes": 12466,
+          "editChanged": true,
+          "proof": {
+            "version": 1,
+            "unit": "px",
+            "scope": "native-scene",
+            "status": "passed",
+            "viewport": {
+              "x": 0,
+              "y": 0,
+              "width": 174,
+              "height": 422.2
+            },
+            "attempts": 1,
+            "repairs": [],
+            "coverage": {
+              "measured": 11,
+              "unmeasured": 0,
+              "preparedText": 4,
+              "fallbackText": 0,
+              "conditional": 0
+            },
+            "checks": {
+              "primitives": 14,
+              "labels": 3,
+              "occlusionPairs": 12,
+              "maxOcclusionPairs": 100000,
+              "operations": 64307,
+              "maxOperations": 400000,
+              "markers": 2
+            },
+            "issues": [],
+            "limitations": [
+              "Prepared occupied text regions bound native geometry; exact glyph ink depends on the resolved font.",
+              "Declared transparency, intentional data-mark overlap and externally modified CSS are outside this proof."
+            ],
+            "outputDigest": "fnv1a64:69fd535bc27b488c"
+          },
+          "stages": [],
+          "events": [],
+          "profileStart": 0,
+          "profileEnd": 0
+        }
+      ],
+      "importMs": 4572.304081
+    },
+    {
+      "run": {
+        "direction": "CURRENT",
+        "backend": "agentic",
+        "arm": "after",
+        "cache": "0",
+        "replica": 1,
+        "directory": "CURRENT-agentic-after-cache0-1",
+        "exit": 0
+      },
+      "rows": [
+        {
+          "phase": "cold-render",
+          "status": "returned",
+          "wallMs": 175.5983329999999,
+          "cpuMs": 218.297,
+          "before": {
+            "rss": 187531264,
+            "heapTotal": 110358528,
+            "heapUsed": 49793936,
+            "external": 15801539,
+            "arrayBuffers": 295676
+          },
+          "after": {
+            "rss": 189988864,
+            "heapTotal": 115716096,
+            "heapUsed": 41994800,
+            "external": 15801595,
+            "arrayBuffers": 164620
+          },
+          "peakRssKiB": 185536,
+          "bytes": 12444,
+          "proof": {
+            "version": 1,
+            "unit": "px",
+            "scope": "native-scene",
+            "status": "passed",
+            "viewport": {
+              "x": 0,
+              "y": 0,
+              "width": 186.5,
+              "height": 420.2
+            },
+            "attempts": 1,
+            "repairs": [],
+            "coverage": {
+              "measured": 11,
+              "unmeasured": 0,
+              "preparedText": 4,
+              "fallbackText": 0,
+              "conditional": 0
+            },
+            "checks": {
+              "primitives": 14,
+              "labels": 3,
+              "occlusionPairs": 12,
+              "maxOcclusionPairs": 100000,
+              "operations": 64140,
+              "maxOperations": 400000,
+              "markers": 2
+            },
+            "issues": [],
+            "limitations": [
+              "Prepared occupied text regions bound native geometry; exact glyph ink depends on the resolved font.",
+              "Declared transparency, intentional data-mark overlap and externally modified CSS are outside this proof."
+            ],
+            "outputDigest": "fnv1a64:32c58fcad95c539e"
+          }
+        },
+        {
+          "phase": "repeat1",
+          "status": "returned",
+          "wallMs": 31.274715000000015,
+          "cpuMs": 48.312,
+          "before": {
+            "rss": 190382080,
+            "heapTotal": 107065344,
+            "heapUsed": 35120416,
+            "external": 15801619,
+            "arrayBuffers": 164620
+          },
+          "after": {
+            "rss": 191168512,
+            "heapTotal": 107466752,
+            "heapUsed": 38906872,
+            "external": 15801619,
+            "arrayBuffers": 164620
+          },
+          "peakRssKiB": 186688,
+          "bytes": 12444,
+          "wholeSvgExactWarmup": true,
+          "entireReceiptExactWarmup": true,
+          "proof": {
+            "version": 1,
+            "unit": "px",
+            "scope": "native-scene",
+            "status": "passed",
+            "viewport": {
+              "x": 0,
+              "y": 0,
+              "width": 186.5,
+              "height": 420.2
+            },
+            "attempts": 1,
+            "repairs": [],
+            "coverage": {
+              "measured": 11,
+              "unmeasured": 0,
+              "preparedText": 4,
+              "fallbackText": 0,
+              "conditional": 0
+            },
+            "checks": {
+              "primitives": 14,
+              "labels": 3,
+              "occlusionPairs": 12,
+              "maxOcclusionPairs": 100000,
+              "operations": 64140,
+              "maxOperations": 400000,
+              "markers": 2
+            },
+            "issues": [],
+            "limitations": [
+              "Prepared occupied text regions bound native geometry; exact glyph ink depends on the resolved font.",
+              "Declared transparency, intentional data-mark overlap and externally modified CSS are outside this proof."
+            ],
+            "outputDigest": "fnv1a64:32c58fcad95c539e"
+          },
+          "stages": [],
+          "events": [],
+          "profileStart": 0,
+          "profileEnd": 0
+        },
+        {
+          "phase": "repeat2",
+          "status": "returned",
+          "wallMs": 48.694428000000244,
+          "cpuMs": 66.841,
+          "before": {
+            "rss": 191168512,
+            "heapTotal": 107728896,
+            "heapUsed": 35917312,
+            "external": 15736091,
+            "arrayBuffers": 164620
+          },
+          "after": {
+            "rss": 191561728,
+            "heapTotal": 107991040,
+            "heapUsed": 39363704,
+            "external": 15736091,
+            "arrayBuffers": 164620
+          },
+          "peakRssKiB": 187200,
+          "bytes": 12444,
+          "wholeSvgExactWarmup": true,
+          "entireReceiptExactWarmup": true,
+          "proof": {
+            "version": 1,
+            "unit": "px",
+            "scope": "native-scene",
+            "status": "passed",
+            "viewport": {
+              "x": 0,
+              "y": 0,
+              "width": 186.5,
+              "height": 420.2
+            },
+            "attempts": 1,
+            "repairs": [],
+            "coverage": {
+              "measured": 11,
+              "unmeasured": 0,
+              "preparedText": 4,
+              "fallbackText": 0,
+              "conditional": 0
+            },
+            "checks": {
+              "primitives": 14,
+              "labels": 3,
+              "occlusionPairs": 12,
+              "maxOcclusionPairs": 100000,
+              "operations": 64140,
+              "maxOperations": 400000,
+              "markers": 2
+            },
+            "issues": [],
+            "limitations": [
+              "Prepared occupied text regions bound native geometry; exact glyph ink depends on the resolved font.",
+              "Declared transparency, intentional data-mark overlap and externally modified CSS are outside this proof."
+            ],
+            "outputDigest": "fnv1a64:32c58fcad95c539e"
+          },
+          "stages": [],
+          "events": [],
+          "profileStart": 0,
+          "profileEnd": 0
+        },
+        {
+          "phase": "edit",
+          "status": "returned",
+          "wallMs": 27.40561099999968,
+          "cpuMs": 53.511,
+          "before": {
+            "rss": 191692800,
+            "heapTotal": 108253184,
+            "heapUsed": 36492480,
+            "external": 15736091,
+            "arrayBuffers": 230188
+          },
+          "after": {
+            "rss": 191954944,
+            "heapTotal": 108515328,
+            "heapUsed": 39908616,
+            "external": 15736091,
+            "arrayBuffers": 164620
+          },
+          "peakRssKiB": 187456,
+          "bytes": 12471,
+          "editChanged": true,
+          "proof": {
+            "version": 1,
+            "unit": "px",
+            "scope": "native-scene",
+            "status": "passed",
+            "viewport": {
+              "x": 0,
+              "y": 0,
+              "width": 186.5,
+              "height": 420.2
+            },
+            "attempts": 1,
+            "repairs": [],
+            "coverage": {
+              "measured": 11,
+              "unmeasured": 0,
+              "preparedText": 4,
+              "fallbackText": 0,
+              "conditional": 0
+            },
+            "checks": {
+              "primitives": 14,
+              "labels": 3,
+              "occlusionPairs": 12,
+              "maxOcclusionPairs": 100000,
+              "operations": 64365,
+              "maxOperations": 400000,
+              "markers": 2
+            },
+            "issues": [],
+            "limitations": [
+              "Prepared occupied text regions bound native geometry; exact glyph ink depends on the resolved font.",
+              "Declared transparency, intentional data-mark overlap and externally modified CSS are outside this proof."
+            ],
+            "outputDigest": "fnv1a64:097e5616f60e89ed"
+          },
+          "stages": [],
+          "events": [],
+          "profileStart": 0,
+          "profileEnd": 0
+        },
+        {
+          "phase": "edit2",
+          "status": "returned",
+          "wallMs": 36.34281800000008,
+          "cpuMs": 65.532,
+          "before": {
+            "rss": 191954944,
+            "heapTotal": 108777472,
+            "heapUsed": 36996296,
+            "external": 15801627,
+            "arrayBuffers": 230172
+          },
+          "after": {
+            "rss": 192610304,
+            "heapTotal": 109039616,
+            "heapUsed": 40291664,
+            "external": 15801627,
+            "arrayBuffers": 164620
+          },
+          "peakRssKiB": 188096,
+          "bytes": 12471,
+          "editChanged": true,
+          "proof": {
+            "version": 1,
+            "unit": "px",
+            "scope": "native-scene",
+            "status": "passed",
+            "viewport": {
+              "x": 0,
+              "y": 0,
+              "width": 186.5,
+              "height": 420.2
+            },
+            "attempts": 1,
+            "repairs": [],
+            "coverage": {
+              "measured": 11,
+              "unmeasured": 0,
+              "preparedText": 4,
+              "fallbackText": 0,
+              "conditional": 0
+            },
+            "checks": {
+              "primitives": 14,
+              "labels": 3,
+              "occlusionPairs": 12,
+              "maxOcclusionPairs": 100000,
+              "operations": 64365,
+              "maxOperations": 400000,
+              "markers": 2
+            },
+            "issues": [],
+            "limitations": [
+              "Prepared occupied text regions bound native geometry; exact glyph ink depends on the resolved font.",
+              "Declared transparency, intentional data-mark overlap and externally modified CSS are outside this proof."
+            ],
+            "outputDigest": "fnv1a64:097e5616f60e89ed"
+          },
+          "stages": [],
+          "events": [],
+          "profileStart": 0,
+          "profileEnd": 0
+        }
+      ],
+      "importMs": 2754.278999
+    },
+    {
+      "run": {
+        "direction": "CURRENT",
+        "backend": "elk",
+        "arm": "after",
+        "cache": "0",
+        "replica": 1,
+        "directory": "CURRENT-elk-after-cache0-1",
+        "exit": 0
+      },
+      "rows": [
+        {
+          "phase": "cold-render",
+          "status": "returned",
+          "wallMs": 388.21242900000016,
+          "cpuMs": 487.472,
+          "before": {
+            "rss": 158531584,
+            "heapTotal": 101036032,
+            "heapUsed": 62985680,
+            "external": 15736411,
+            "arrayBuffers": 230548
+          },
+          "after": {
+            "rss": 190906368,
+            "heapTotal": 116588544,
+            "heapUsed": 66435720,
+            "external": 15736467,
+            "arrayBuffers": 230156
+          },
+          "peakRssKiB": 186432,
+          "bytes": 12431,
+          "proof": {
+            "version": 1,
+            "unit": "px",
+            "scope": "native-scene",
+            "status": "passed",
+            "viewport": {
+              "x": 0,
+              "y": 0,
+              "width": 186.115,
+              "height": 458.2
+            },
+            "attempts": 1,
+            "repairs": [],
+            "coverage": {
+              "measured": 11,
+              "unmeasured": 0,
+              "preparedText": 4,
+              "fallbackText": 0,
+              "conditional": 0
+            },
+            "checks": {
+              "primitives": 14,
+              "labels": 3,
+              "occlusionPairs": 12,
+              "maxOcclusionPairs": 100000,
+              "operations": 64608,
+              "maxOperations": 400000,
+              "markers": 2
+            },
+            "issues": [],
+            "limitations": [
+              "Prepared occupied text regions bound native geometry; exact glyph ink depends on the resolved font.",
+              "Declared transparency, intentional data-mark overlap and externally modified CSS are outside this proof."
+            ],
+            "outputDigest": "fnv1a64:fb0a4cf635f47ac8"
+          }
+        },
+        {
+          "phase": "repeat1",
+          "status": "returned",
+          "wallMs": 51.88443300000017,
+          "cpuMs": 89.768,
+          "before": {
+            "rss": 191168512,
+            "heapTotal": 121307136,
+            "heapUsed": 44610344,
+            "external": 15867155,
+            "arrayBuffers": 164620
+          },
+          "after": {
+            "rss": 191823872,
+            "heapTotal": 122232832,
+            "heapUsed": 50414064,
+            "external": 15867155,
+            "arrayBuffers": 164620
+          },
+          "peakRssKiB": 187328,
+          "bytes": 12431,
+          "wholeSvgExactWarmup": true,
+          "entireReceiptExactWarmup": true,
+          "proof": {
+            "version": 1,
+            "unit": "px",
+            "scope": "native-scene",
+            "status": "passed",
+            "viewport": {
+              "x": 0,
+              "y": 0,
+              "width": 186.115,
+              "height": 458.2
+            },
+            "attempts": 1,
+            "repairs": [],
+            "coverage": {
+              "measured": 11,
+              "unmeasured": 0,
+              "preparedText": 4,
+              "fallbackText": 0,
+              "conditional": 0
+            },
+            "checks": {
+              "primitives": 14,
+              "labels": 3,
+              "occlusionPairs": 12,
+              "maxOcclusionPairs": 100000,
+              "operations": 64608,
+              "maxOperations": 400000,
+              "markers": 2
+            },
+            "issues": [],
+            "limitations": [
+              "Prepared occupied text regions bound native geometry; exact glyph ink depends on the resolved font.",
+              "Declared transparency, intentional data-mark overlap and externally modified CSS are outside this proof."
+            ],
+            "outputDigest": "fnv1a64:fb0a4cf635f47ac8"
+          },
+          "stages": [],
+          "events": [],
+          "profileStart": 0,
+          "profileEnd": 0
+        },
+        {
+          "phase": "repeat2",
+          "status": "returned",
+          "wallMs": 45.04988599999979,
+          "cpuMs": 78.244,
+          "before": {
+            "rss": 192217088,
+            "heapTotal": 119087104,
+            "heapUsed": 45799536,
+            "external": 15736091,
+            "arrayBuffers": 164620
+          },
+          "after": {
+            "rss": 193003520,
+            "heapTotal": 119611392,
+            "heapUsed": 51358120,
+            "external": 15736091,
+            "arrayBuffers": 164620
+          },
+          "peakRssKiB": 188608,
+          "bytes": 12431,
+          "wholeSvgExactWarmup": true,
+          "entireReceiptExactWarmup": true,
+          "proof": {
+            "version": 1,
+            "unit": "px",
+            "scope": "native-scene",
+            "status": "passed",
+            "viewport": {
+              "x": 0,
+              "y": 0,
+              "width": 186.115,
+              "height": 458.2
+            },
+            "attempts": 1,
+            "repairs": [],
+            "coverage": {
+              "measured": 11,
+              "unmeasured": 0,
+              "preparedText": 4,
+              "fallbackText": 0,
+              "conditional": 0
+            },
+            "checks": {
+              "primitives": 14,
+              "labels": 3,
+              "occlusionPairs": 12,
+              "maxOcclusionPairs": 100000,
+              "operations": 64608,
+              "maxOperations": 400000,
+              "markers": 2
+            },
+            "issues": [],
+            "limitations": [
+              "Prepared occupied text regions bound native geometry; exact glyph ink depends on the resolved font.",
+              "Declared transparency, intentional data-mark overlap and externally modified CSS are outside this proof."
+            ],
+            "outputDigest": "fnv1a64:fb0a4cf635f47ac8"
+          },
+          "stages": [],
+          "events": [],
+          "profileStart": 0,
+          "profileEnd": 0
+        },
+        {
+          "phase": "edit",
+          "status": "returned",
+          "wallMs": 42.11213899999984,
+          "cpuMs": 73.977,
+          "before": {
+            "rss": 193134592,
+            "heapTotal": 119611392,
+            "heapUsed": 46971520,
+            "external": 15736091,
+            "arrayBuffers": 164620
+          },
+          "after": {
+            "rss": 193265664,
+            "heapTotal": 120397824,
+            "heapUsed": 52000360,
+            "external": 15736091,
+            "arrayBuffers": 164620
+          },
+          "peakRssKiB": 188736,
+          "bytes": 12458,
+          "editChanged": true,
+          "proof": {
+            "version": 1,
+            "unit": "px",
+            "scope": "native-scene",
+            "status": "passed",
+            "viewport": {
+              "x": 0,
+              "y": 0,
+              "width": 186.292,
+              "height": 458.2
+            },
+            "attempts": 1,
+            "repairs": [],
+            "coverage": {
+              "measured": 11,
+              "unmeasured": 0,
+              "preparedText": 4,
+              "fallbackText": 0,
+              "conditional": 0
+            },
+            "checks": {
+              "primitives": 14,
+              "labels": 3,
+              "occlusionPairs": 12,
+              "maxOcclusionPairs": 100000,
+              "operations": 64833,
+              "maxOperations": 400000,
+              "markers": 2
+            },
+            "issues": [],
+            "limitations": [
+              "Prepared occupied text regions bound native geometry; exact glyph ink depends on the resolved font.",
+              "Declared transparency, intentional data-mark overlap and externally modified CSS are outside this proof."
+            ],
+            "outputDigest": "fnv1a64:78ebc2291052bdc1"
+          },
+          "stages": [],
+          "events": [],
+          "profileStart": 0,
+          "profileEnd": 0
+        },
+        {
+          "phase": "edit2",
+          "status": "returned",
+          "wallMs": 32.32945599999948,
+          "cpuMs": 55.87,
+          "before": {
+            "rss": 193527808,
+            "heapTotal": 120135680,
+            "heapUsed": 47588600,
+            "external": 15801627,
+            "arrayBuffers": 164620
+          },
+          "after": {
+            "rss": 193921024,
+            "heapTotal": 120659968,
+            "heapUsed": 52574192,
+            "external": 15801627,
+            "arrayBuffers": 164620
+          },
+          "peakRssKiB": 189376,
+          "bytes": 12458,
+          "editChanged": true,
+          "proof": {
+            "version": 1,
+            "unit": "px",
+            "scope": "native-scene",
+            "status": "passed",
+            "viewport": {
+              "x": 0,
+              "y": 0,
+              "width": 186.292,
+              "height": 458.2
+            },
+            "attempts": 1,
+            "repairs": [],
+            "coverage": {
+              "measured": 11,
+              "unmeasured": 0,
+              "preparedText": 4,
+              "fallbackText": 0,
+              "conditional": 0
+            },
+            "checks": {
+              "primitives": 14,
+              "labels": 3,
+              "occlusionPairs": 12,
+              "maxOcclusionPairs": 100000,
+              "operations": 64833,
+              "maxOperations": 400000,
+              "markers": 2
+            },
+            "issues": [],
+            "limitations": [
+              "Prepared occupied text regions bound native geometry; exact glyph ink depends on the resolved font.",
+              "Declared transparency, intentional data-mark overlap and externally modified CSS are outside this proof."
+            ],
+            "outputDigest": "fnv1a64:78ebc2291052bdc1"
+          },
+          "stages": [],
+          "events": [],
+          "profileStart": 0,
+          "profileEnd": 0
+        }
+      ],
+      "importMs": 7057.077241999999
+    },
+    {
+      "run": {
+        "direction": "CURRENT",
+        "backend": "elk",
+        "arm": "after",
+        "cache": "1",
+        "replica": 0,
+        "directory": "CURRENT-elk-after-cache1-0",
+        "exit": 0
+      },
+      "rows": [
+        {
+          "phase": "cold-render",
+          "status": "returned",
+          "wallMs": 382.92999899999995,
+          "cpuMs": 526.584,
+          "before": {
+            "rss": 185495552,
+            "heapTotal": 109834240,
+            "heapUsed": 49904960,
+            "external": 15802028,
+            "arrayBuffers": 295676
+          },
+          "after": {
+            "rss": 195194880,
+            "heapTotal": 125501440,
+            "heapUsed": 55123696,
+            "external": 15801595,
+            "arrayBuffers": 164620
+          },
+          "peakRssKiB": 190620,
+          "bytes": 12431,
+          "proof": {
+            "version": 1,
+            "unit": "px",
+            "scope": "native-scene",
+            "status": "passed",
+            "viewport": {
+              "x": 0,
+              "y": 0,
+              "width": 186.115,
+              "height": 458.2
+            },
+            "attempts": 1,
+            "repairs": [],
+            "coverage": {
+              "measured": 11,
+              "unmeasured": 0,
+              "preparedText": 4,
+              "fallbackText": 0,
+              "conditional": 0
+            },
+            "checks": {
+              "primitives": 14,
+              "labels": 3,
+              "occlusionPairs": 12,
+              "maxOcclusionPairs": 100000,
+              "operations": 64608,
+              "maxOperations": 400000,
+              "markers": 2
+            },
+            "issues": [],
+            "limitations": [
+              "Prepared occupied text regions bound native geometry; exact glyph ink depends on the resolved font.",
+              "Declared transparency, intentional data-mark overlap and externally modified CSS are outside this proof."
+            ],
+            "outputDigest": "fnv1a64:fb0a4cf635f47ac8"
+          }
+        },
+        {
+          "phase": "repeat1",
+          "status": "returned",
+          "wallMs": 20.99162800000022,
+          "cpuMs": 39.82,
+          "before": {
+            "rss": 195457024,
+            "heapTotal": 117112832,
+            "heapUsed": 44562648,
+            "external": 15801619,
+            "arrayBuffers": 164620
+          },
+          "after": {
+            "rss": 195981312,
+            "heapTotal": 117514240,
+            "heapUsed": 47483728,
+            "external": 15801619,
+            "arrayBuffers": 164620
+          },
+          "peakRssKiB": 191388,
+          "bytes": 12431,
+          "wholeSvgExactWarmup": true,
+          "entireReceiptExactWarmup": true,
+          "proof": {
+            "version": 1,
+            "unit": "px",
+            "scope": "native-scene",
+            "status": "passed",
+            "viewport": {
+              "x": 0,
+              "y": 0,
+              "width": 186.115,
+              "height": 458.2
+            },
+            "attempts": 1,
+            "repairs": [],
+            "coverage": {
+              "measured": 11,
+              "unmeasured": 0,
+              "preparedText": 4,
+              "fallbackText": 0,
+              "conditional": 0
+            },
+            "checks": {
+              "primitives": 14,
+              "labels": 3,
+              "occlusionPairs": 12,
+              "maxOcclusionPairs": 100000,
+              "operations": 64608,
+              "maxOperations": 400000,
+              "markers": 2
+            },
+            "issues": [],
+            "limitations": [
+              "Prepared occupied text regions bound native geometry; exact glyph ink depends on the resolved font.",
+              "Declared transparency, intentional data-mark overlap and externally modified CSS are outside this proof."
+            ],
+            "outputDigest": "fnv1a64:fb0a4cf635f47ac8"
+          },
+          "stages": [],
+          "events": [],
+          "profileStart": 0,
+          "profileEnd": 0
+        },
+        {
+          "phase": "repeat2",
+          "status": "returned",
+          "wallMs": 7.819603999999799,
+          "cpuMs": 25.952,
+          "before": {
+            "rss": 196112384,
+            "heapTotal": 117776384,
+            "heapUsed": 45127072,
+            "external": 15736091,
+            "arrayBuffers": 164620
+          },
+          "after": {
+            "rss": 196112384,
+            "heapTotal": 117776384,
+            "heapUsed": 45996624,
+            "external": 15736091,
+            "arrayBuffers": 164620
+          },
+          "peakRssKiB": 191516,
+          "bytes": 12431,
+          "wholeSvgExactWarmup": true,
+          "entireReceiptExactWarmup": true,
+          "proof": {
+            "version": 1,
+            "unit": "px",
+            "scope": "native-scene",
+            "status": "passed",
+            "viewport": {
+              "x": 0,
+              "y": 0,
+              "width": 186.115,
+              "height": 458.2
+            },
+            "attempts": 1,
+            "repairs": [],
+            "coverage": {
+              "measured": 11,
+              "unmeasured": 0,
+              "preparedText": 4,
+              "fallbackText": 0,
+              "conditional": 0
+            },
+            "checks": {
+              "primitives": 14,
+              "labels": 3,
+              "occlusionPairs": 12,
+              "maxOcclusionPairs": 100000,
+              "operations": 64608,
+              "maxOperations": 400000,
+              "markers": 2
+            },
+            "issues": [],
+            "limitations": [
+              "Prepared occupied text regions bound native geometry; exact glyph ink depends on the resolved font.",
+              "Declared transparency, intentional data-mark overlap and externally modified CSS are outside this proof."
+            ],
+            "outputDigest": "fnv1a64:fb0a4cf635f47ac8"
+          },
+          "stages": [],
+          "events": [],
+          "profileStart": 0,
+          "profileEnd": 0
+        },
+        {
+          "phase": "edit",
+          "status": "returned",
+          "wallMs": 67.817904,
+          "cpuMs": 108.172,
+          "before": {
+            "rss": 196112384,
+            "heapTotal": 117514240,
+            "heapUsed": 45184768,
+            "external": 15736091,
+            "arrayBuffers": 164620
+          },
+          "after": {
+            "rss": 197554176,
+            "heapTotal": 118300672,
+            "heapUsed": 50871112,
+            "external": 15736091,
+            "arrayBuffers": 164620
+          },
+          "peakRssKiB": 193180,
+          "bytes": 12458,
+          "editChanged": true,
+          "proof": {
+            "version": 1,
+            "unit": "px",
+            "scope": "native-scene",
+            "status": "passed",
+            "viewport": {
+              "x": 0,
+              "y": 0,
+              "width": 186.292,
+              "height": 458.2
+            },
+            "attempts": 1,
+            "repairs": [],
+            "coverage": {
+              "measured": 11,
+              "unmeasured": 0,
+              "preparedText": 4,
+              "fallbackText": 0,
+              "conditional": 0
+            },
+            "checks": {
+              "primitives": 14,
+              "labels": 3,
+              "occlusionPairs": 12,
+              "maxOcclusionPairs": 100000,
+              "operations": 64833,
+              "maxOperations": 400000,
+              "markers": 2
+            },
+            "issues": [],
+            "limitations": [
+              "Prepared occupied text regions bound native geometry; exact glyph ink depends on the resolved font.",
+              "Declared transparency, intentional data-mark overlap and externally modified CSS are outside this proof."
+            ],
+            "outputDigest": "fnv1a64:78ebc2291052bdc1"
+          },
+          "stages": [],
+          "events": [],
+          "profileStart": 0,
+          "profileEnd": 0
+        },
+        {
+          "phase": "edit2",
+          "status": "returned",
+          "wallMs": 21.05645400000003,
+          "cpuMs": 40.96,
+          "before": {
+            "rss": 197816320,
+            "heapTotal": 118562816,
+            "heapUsed": 46343672,
+            "external": 15801627,
+            "arrayBuffers": 164620
+          },
+          "after": {
+            "rss": 197816320,
+            "heapTotal": 118824960,
+            "heapUsed": 48798000,
+            "external": 15801627,
+            "arrayBuffers": 164620
+          },
+          "peakRssKiB": 193180,
+          "bytes": 12458,
+          "editChanged": true,
+          "proof": {
+            "version": 1,
+            "unit": "px",
+            "scope": "native-scene",
+            "status": "passed",
+            "viewport": {
+              "x": 0,
+              "y": 0,
+              "width": 186.292,
+              "height": 458.2
+            },
+            "attempts": 1,
+            "repairs": [],
+            "coverage": {
+              "measured": 11,
+              "unmeasured": 0,
+              "preparedText": 4,
+              "fallbackText": 0,
+              "conditional": 0
+            },
+            "checks": {
+              "primitives": 14,
+              "labels": 3,
+              "occlusionPairs": 12,
+              "maxOcclusionPairs": 100000,
+              "operations": 64833,
+              "maxOperations": 400000,
+              "markers": 2
+            },
+            "issues": [],
+            "limitations": [
+              "Prepared occupied text regions bound native geometry; exact glyph ink depends on the resolved font.",
+              "Declared transparency, intentional data-mark overlap and externally modified CSS are outside this proof."
+            ],
+            "outputDigest": "fnv1a64:78ebc2291052bdc1"
+          },
+          "stages": [],
+          "events": [],
+          "profileStart": 0,
+          "profileEnd": 0
+        }
+      ],
+      "importMs": 2681.954989
+    },
+    {
+      "run": {
+        "direction": "CURRENT",
+        "backend": "agentic",
+        "arm": "after",
+        "cache": "1",
+        "replica": 0,
+        "directory": "CURRENT-agentic-after-cache1-0",
+        "exit": 0
+      },
+      "rows": [
+        {
+          "phase": "cold-render",
+          "status": "returned",
+          "wallMs": 149.561686,
+          "cpuMs": 254.218,
+          "before": {
+            "rss": 187555840,
+            "heapTotal": 109834240,
+            "heapUsed": 49718304,
+            "external": 15802028,
+            "arrayBuffers": 295676
+          },
+          "after": {
+            "rss": 192143360,
+            "heapTotal": 117288960,
+            "heapUsed": 37747176,
+            "external": 15801595,
+            "arrayBuffers": 164620
+          },
+          "peakRssKiB": 187640,
+          "bytes": 12444,
+          "proof": {
+            "version": 1,
+            "unit": "px",
+            "scope": "native-scene",
+            "status": "passed",
+            "viewport": {
+              "x": 0,
+              "y": 0,
+              "width": 186.5,
+              "height": 420.2
+            },
+            "attempts": 1,
+            "repairs": [],
+            "coverage": {
+              "measured": 11,
+              "unmeasured": 0,
+              "preparedText": 4,
+              "fallbackText": 0,
+              "conditional": 0
+            },
+            "checks": {
+              "primitives": 14,
+              "labels": 3,
+              "occlusionPairs": 12,
+              "maxOcclusionPairs": 100000,
+              "operations": 64140,
+              "maxOperations": 400000,
+              "markers": 2
+            },
+            "issues": [],
+            "limitations": [
+              "Prepared occupied text regions bound native geometry; exact glyph ink depends on the resolved font.",
+              "Declared transparency, intentional data-mark overlap and externally modified CSS are outside this proof."
+            ],
+            "outputDigest": "fnv1a64:32c58fcad95c539e"
+          }
+        },
+        {
+          "phase": "repeat1",
+          "status": "returned",
+          "wallMs": 18.262363000000278,
+          "cpuMs": 35.261,
+          "before": {
+            "rss": 192667648,
+            "heapTotal": 108376064,
+            "heapUsed": 35108256,
+            "external": 15801619,
+            "arrayBuffers": 164620
+          },
+          "after": {
+            "rss": 192929792,
+            "heapTotal": 108777472,
+            "heapUsed": 38031440,
+            "external": 15801619,
+            "arrayBuffers": 164620
+          },
+          "peakRssKiB": 188408,
+          "bytes": 12444,
+          "wholeSvgExactWarmup": true,
+          "entireReceiptExactWarmup": true,
+          "proof": {
+            "version": 1,
+            "unit": "px",
+            "scope": "native-scene",
+            "status": "passed",
+            "viewport": {
+              "x": 0,
+              "y": 0,
+              "width": 186.5,
+              "height": 420.2
+            },
+            "attempts": 1,
+            "repairs": [],
+            "coverage": {
+              "measured": 11,
+              "unmeasured": 0,
+              "preparedText": 4,
+              "fallbackText": 0,
+              "conditional": 0
+            },
+            "checks": {
+              "primitives": 14,
+              "labels": 3,
+              "occlusionPairs": 12,
+              "maxOcclusionPairs": 100000,
+              "operations": 64140,
+              "maxOperations": 400000,
+              "markers": 2
+            },
+            "issues": [],
+            "limitations": [
+              "Prepared occupied text regions bound native geometry; exact glyph ink depends on the resolved font.",
+              "Declared transparency, intentional data-mark overlap and externally modified CSS are outside this proof."
+            ],
+            "outputDigest": "fnv1a64:32c58fcad95c539e"
+          },
+          "stages": [],
+          "events": [],
+          "profileStart": 0,
+          "profileEnd": 0
+        },
+        {
+          "phase": "repeat2",
+          "status": "returned",
+          "wallMs": 4.877379000000019,
+          "cpuMs": 13.274,
+          "before": {
+            "rss": 193060864,
+            "heapTotal": 108777472,
+            "heapUsed": 35748032,
+            "external": 15736091,
+            "arrayBuffers": 164620
+          },
+          "after": {
+            "rss": 193060864,
+            "heapTotal": 108777472,
+            "heapUsed": 36618192,
+            "external": 15736091,
+            "arrayBuffers": 164620
+          },
+          "peakRssKiB": 188536,
+          "bytes": 12444,
+          "wholeSvgExactWarmup": true,
+          "entireReceiptExactWarmup": true,
+          "proof": {
+            "version": 1,
+            "unit": "px",
+            "scope": "native-scene",
+            "status": "passed",
+            "viewport": {
+              "x": 0,
+              "y": 0,
+              "width": 186.5,
+              "height": 420.2
+            },
+            "attempts": 1,
+            "repairs": [],
+            "coverage": {
+              "measured": 11,
+              "unmeasured": 0,
+              "preparedText": 4,
+              "fallbackText": 0,
+              "conditional": 0
+            },
+            "checks": {
+              "primitives": 14,
+              "labels": 3,
+              "occlusionPairs": 12,
+              "maxOcclusionPairs": 100000,
+              "operations": 64140,
+              "maxOperations": 400000,
+              "markers": 2
+            },
+            "issues": [],
+            "limitations": [
+              "Prepared occupied text regions bound native geometry; exact glyph ink depends on the resolved font.",
+              "Declared transparency, intentional data-mark overlap and externally modified CSS are outside this proof."
+            ],
+            "outputDigest": "fnv1a64:32c58fcad95c539e"
+          },
+          "stages": [],
+          "events": [],
+          "profileStart": 0,
+          "profileEnd": 0
+        },
+        {
+          "phase": "edit",
+          "status": "returned",
+          "wallMs": 22.45861799999966,
+          "cpuMs": 39.818,
+          "before": {
+            "rss": 193060864,
+            "heapTotal": 108777472,
+            "heapUsed": 35805472,
+            "external": 15736091,
+            "arrayBuffers": 164620
+          },
+          "after": {
+            "rss": 193716224,
+            "heapTotal": 109039616,
+            "heapUsed": 39444672,
+            "external": 15736091,
+            "arrayBuffers": 164620
+          },
+          "peakRssKiB": 189176,
+          "bytes": 12471,
+          "editChanged": true,
+          "proof": {
+            "version": 1,
+            "unit": "px",
+            "scope": "native-scene",
+            "status": "passed",
+            "viewport": {
+              "x": 0,
+              "y": 0,
+              "width": 186.5,
+              "height": 420.2
+            },
+            "attempts": 1,
+            "repairs": [],
+            "coverage": {
+              "measured": 11,
+              "unmeasured": 0,
+              "preparedText": 4,
+              "fallbackText": 0,
+              "conditional": 0
+            },
+            "checks": {
+              "primitives": 14,
+              "labels": 3,
+              "occlusionPairs": 12,
+              "maxOcclusionPairs": 100000,
+              "operations": 64365,
+              "maxOperations": 400000,
+              "markers": 2
+            },
+            "issues": [],
+            "limitations": [
+              "Prepared occupied text regions bound native geometry; exact glyph ink depends on the resolved font.",
+              "Declared transparency, intentional data-mark overlap and externally modified CSS are outside this proof."
+            ],
+            "outputDigest": "fnv1a64:097e5616f60e89ed"
+          },
+          "stages": [],
+          "events": [],
+          "profileStart": 0,
+          "profileEnd": 0
+        },
+        {
+          "phase": "edit2",
+          "status": "returned",
+          "wallMs": 15.945588999999927,
+          "cpuMs": 43.155,
+          "before": {
+            "rss": 193847296,
+            "heapTotal": 109039616,
+            "heapUsed": 36462464,
+            "external": 15801627,
+            "arrayBuffers": 164620
+          },
+          "after": {
+            "rss": 194109440,
+            "heapTotal": 109301760,
+            "heapUsed": 38916968,
+            "external": 15801627,
+            "arrayBuffers": 164620
+          },
+          "peakRssKiB": 189560,
+          "bytes": 12471,
+          "editChanged": true,
+          "proof": {
+            "version": 1,
+            "unit": "px",
+            "scope": "native-scene",
+            "status": "passed",
+            "viewport": {
+              "x": 0,
+              "y": 0,
+              "width": 186.5,
+              "height": 420.2
+            },
+            "attempts": 1,
+            "repairs": [],
+            "coverage": {
+              "measured": 11,
+              "unmeasured": 0,
+              "preparedText": 4,
+              "fallbackText": 0,
+              "conditional": 0
+            },
+            "checks": {
+              "primitives": 14,
+              "labels": 3,
+              "occlusionPairs": 12,
+              "maxOcclusionPairs": 100000,
+              "operations": 64365,
+              "maxOperations": 400000,
+              "markers": 2
+            },
+            "issues": [],
+            "limitations": [
+              "Prepared occupied text regions bound native geometry; exact glyph ink depends on the resolved font.",
+              "Declared transparency, intentional data-mark overlap and externally modified CSS are outside this proof."
+            ],
+            "outputDigest": "fnv1a64:097e5616f60e89ed"
+          },
+          "stages": [],
+          "events": [],
+          "profileStart": 0,
+          "profileEnd": 0
+        }
+      ],
+      "importMs": 2102.1793869999997
+    },
+    {
+      "run": {
+        "direction": "CURRENT",
+        "backend": "trinity",
+        "arm": "after",
+        "cache": "1",
+        "replica": 0,
+        "directory": "CURRENT-trinity-after-cache1-0",
+        "exit": 0
+      },
+      "rows": [
+        {
+          "phase": "cold-render",
+          "status": "returned",
+          "wallMs": 139.78634799999963,
+          "cpuMs": 236.238,
+          "before": {
+            "rss": 170180608,
+            "heapTotal": 110120960,
+            "heapUsed": 49659320,
+            "external": 15802028,
+            "arrayBuffers": 295676
+          },
+          "after": {
+            "rss": 173940736,
+            "heapTotal": 116240384,
+            "heapUsed": 36265040,
+            "external": 15801595,
+            "arrayBuffers": 164620
+          },
+          "peakRssKiB": 169864,
+          "bytes": 12439,
+          "proof": {
+            "version": 1,
+            "unit": "px",
+            "scope": "native-scene",
+            "status": "passed",
+            "viewport": {
+              "x": 0,
+              "y": 0,
+              "width": 174,
+              "height": 422.2
+            },
+            "attempts": 1,
+            "repairs": [],
+            "coverage": {
+              "measured": 11,
+              "unmeasured": 0,
+              "preparedText": 4,
+              "fallbackText": 0,
+              "conditional": 0
+            },
+            "checks": {
+              "primitives": 14,
+              "labels": 3,
+              "occlusionPairs": 12,
+              "maxOcclusionPairs": 100000,
+              "operations": 64082,
+              "maxOperations": 400000,
+              "markers": 2
+            },
+            "issues": [],
+            "limitations": [
+              "Prepared occupied text regions bound native geometry; exact glyph ink depends on the resolved font.",
+              "Declared transparency, intentional data-mark overlap and externally modified CSS are outside this proof."
+            ],
+            "outputDigest": "fnv1a64:e534eb5a49727ab1"
+          }
+        },
+        {
+          "phase": "repeat1",
+          "status": "returned",
+          "wallMs": 17.640606999999818,
+          "cpuMs": 33.574,
+          "before": {
+            "rss": 174071808,
+            "heapTotal": 106541056,
+            "heapUsed": 34629360,
+            "external": 15801619,
+            "arrayBuffers": 164620
+          },
+          "after": {
+            "rss": 174596096,
+            "heapTotal": 107204608,
+            "heapUsed": 37576584,
+            "external": 15801619,
+            "arrayBuffers": 164620
+          },
+          "peakRssKiB": 170504,
+          "bytes": 12439,
+          "wholeSvgExactWarmup": true,
+          "entireReceiptExactWarmup": true,
+          "proof": {
+            "version": 1,
+            "unit": "px",
+            "scope": "native-scene",
+            "status": "passed",
+            "viewport": {
+              "x": 0,
+              "y": 0,
+              "width": 174,
+              "height": 422.2
+            },
+            "attempts": 1,
+            "repairs": [],
+            "coverage": {
+              "measured": 11,
+              "unmeasured": 0,
+              "preparedText": 4,
+              "fallbackText": 0,
+              "conditional": 0
+            },
+            "checks": {
+              "primitives": 14,
+              "labels": 3,
+              "occlusionPairs": 12,
+              "maxOcclusionPairs": 100000,
+              "operations": 64082,
+              "maxOperations": 400000,
+              "markers": 2
+            },
+            "issues": [],
+            "limitations": [
+              "Prepared occupied text regions bound native geometry; exact glyph ink depends on the resolved font.",
+              "Declared transparency, intentional data-mark overlap and externally modified CSS are outside this proof."
+            ],
+            "outputDigest": "fnv1a64:e534eb5a49727ab1"
+          },
+          "stages": [],
+          "events": [],
+          "profileStart": 0,
+          "profileEnd": 0
+        },
+        {
+          "phase": "repeat2",
+          "status": "returned",
+          "wallMs": 4.877880000000005,
+          "cpuMs": 13.895,
+          "before": {
+            "rss": 174989312,
+            "heapTotal": 107466752,
+            "heapUsed": 35306032,
+            "external": 15736091,
+            "arrayBuffers": 164620
+          },
+          "after": {
+            "rss": 174989312,
+            "heapTotal": 107466752,
+            "heapUsed": 36175008,
+            "external": 15736091,
+            "arrayBuffers": 164620
+          },
+          "peakRssKiB": 170888,
+          "bytes": 12439,
+          "wholeSvgExactWarmup": true,
+          "entireReceiptExactWarmup": true,
+          "proof": {
+            "version": 1,
+            "unit": "px",
+            "scope": "native-scene",
+            "status": "passed",
+            "viewport": {
+              "x": 0,
+              "y": 0,
+              "width": 174,
+              "height": 422.2
+            },
+            "attempts": 1,
+            "repairs": [],
+            "coverage": {
+              "measured": 11,
+              "unmeasured": 0,
+              "preparedText": 4,
+              "fallbackText": 0,
+              "conditional": 0
+            },
+            "checks": {
+              "primitives": 14,
+              "labels": 3,
+              "occlusionPairs": 12,
+              "maxOcclusionPairs": 100000,
+              "operations": 64082,
+              "maxOperations": 400000,
+              "markers": 2
+            },
+            "issues": [],
+            "limitations": [
+              "Prepared occupied text regions bound native geometry; exact glyph ink depends on the resolved font.",
+              "Declared transparency, intentional data-mark overlap and externally modified CSS are outside this proof."
+            ],
+            "outputDigest": "fnv1a64:e534eb5a49727ab1"
+          },
+          "stages": [],
+          "events": [],
+          "profileStart": 0,
+          "profileEnd": 0
+        },
+        {
+          "phase": "edit",
+          "status": "returned",
+          "wallMs": 26.583398999999645,
+          "cpuMs": 49.804,
+          "before": {
+            "rss": 174989312,
+            "heapTotal": 107204608,
+            "heapUsed": 35362160,
+            "external": 15736091,
+            "arrayBuffers": 164620
+          },
+          "after": {
+            "rss": 175251456,
+            "heapTotal": 107466752,
+            "heapUsed": 38652792,
+            "external": 15736091,
+            "arrayBuffers": 164620
+          },
+          "peakRssKiB": 171144,
+          "bytes": 12466,
+          "editChanged": true,
+          "proof": {
+            "version": 1,
+            "unit": "px",
+            "scope": "native-scene",
+            "status": "passed",
+            "viewport": {
+              "x": 0,
+              "y": 0,
+              "width": 174,
+              "height": 422.2
+            },
+            "attempts": 1,
+            "repairs": [],
+            "coverage": {
+              "measured": 11,
+              "unmeasured": 0,
+              "preparedText": 4,
+              "fallbackText": 0,
+              "conditional": 0
+            },
+            "checks": {
+              "primitives": 14,
+              "labels": 3,
+              "occlusionPairs": 12,
+              "maxOcclusionPairs": 100000,
+              "operations": 64307,
+              "maxOperations": 400000,
+              "markers": 2
+            },
+            "issues": [],
+            "limitations": [
+              "Prepared occupied text regions bound native geometry; exact glyph ink depends on the resolved font.",
+              "Declared transparency, intentional data-mark overlap and externally modified CSS are outside this proof."
+            ],
+            "outputDigest": "fnv1a64:69fd535bc27b488c"
+          },
+          "stages": [],
+          "events": [],
+          "profileStart": 0,
+          "profileEnd": 0
+        },
+        {
+          "phase": "edit2",
+          "status": "returned",
+          "wallMs": 14.66382399999975,
+          "cpuMs": 32.035,
+          "before": {
+            "rss": 175251456,
+            "heapTotal": 107728896,
+            "heapUsed": 35997360,
+            "external": 15801627,
+            "arrayBuffers": 164620
+          },
+          "after": {
+            "rss": 175513600,
+            "heapTotal": 108253184,
+            "heapUsed": 38460496,
+            "external": 15801627,
+            "arrayBuffers": 164620
+          },
+          "peakRssKiB": 171400,
+          "bytes": 12466,
+          "editChanged": true,
+          "proof": {
+            "version": 1,
+            "unit": "px",
+            "scope": "native-scene",
+            "status": "passed",
+            "viewport": {
+              "x": 0,
+              "y": 0,
+              "width": 174,
+              "height": 422.2
+            },
+            "attempts": 1,
+            "repairs": [],
+            "coverage": {
+              "measured": 11,
+              "unmeasured": 0,
+              "preparedText": 4,
+              "fallbackText": 0,
+              "conditional": 0
+            },
+            "checks": {
+              "primitives": 14,
+              "labels": 3,
+              "occlusionPairs": 12,
+              "maxOcclusionPairs": 100000,
+              "operations": 64307,
+              "maxOperations": 400000,
+              "markers": 2
+            },
+            "issues": [],
+            "limitations": [
+              "Prepared occupied text regions bound native geometry; exact glyph ink depends on the resolved font.",
+              "Declared transparency, intentional data-mark overlap and externally modified CSS are outside this proof."
+            ],
+            "outputDigest": "fnv1a64:69fd535bc27b488c"
+          },
+          "stages": [],
+          "events": [],
+          "profileStart": 0,
+          "profileEnd": 0
+        }
+      ],
+      "importMs": 2101.122206
+    },
+    {
+      "run": {
+        "direction": "CURRENT",
+        "backend": "trinity",
+        "arm": "after",
+        "cache": "1",
+        "replica": 1,
+        "directory": "CURRENT-trinity-after-cache1-1",
+        "exit": 0
+      },
+      "rows": [
+        {
+          "phase": "cold-render",
+          "status": "returned",
+          "wallMs": 126.29293099999995,
+          "cpuMs": 207.598,
+          "before": {
+            "rss": 186937344,
+            "heapTotal": 110006272,
+            "heapUsed": 49915088,
+            "external": 15802028,
+            "arrayBuffers": 295676
+          },
+          "after": {
+            "rss": 190951424,
+            "heapTotal": 116502528,
+            "heapUsed": 37326200,
+            "external": 15801595,
+            "arrayBuffers": 164620
+          },
+          "peakRssKiB": 186476,
+          "bytes": 12439,
+          "proof": {
+            "version": 1,
+            "unit": "px",
+            "scope": "native-scene",
+            "status": "passed",
+            "viewport": {
+              "x": 0,
+              "y": 0,
+              "width": 174,
+              "height": 422.2
+            },
+            "attempts": 1,
+            "repairs": [],
+            "coverage": {
+              "measured": 11,
+              "unmeasured": 0,
+              "preparedText": 4,
+              "fallbackText": 0,
+              "conditional": 0
+            },
+            "checks": {
+              "primitives": 14,
+              "labels": 3,
+              "occlusionPairs": 12,
+              "maxOcclusionPairs": 100000,
+              "operations": 64082,
+              "maxOperations": 400000,
+              "markers": 2
+            },
+            "issues": [],
+            "limitations": [
+              "Prepared occupied text regions bound native geometry; exact glyph ink depends on the resolved font.",
+              "Declared transparency, intentional data-mark overlap and externally modified CSS are outside this proof."
+            ],
+            "outputDigest": "fnv1a64:e534eb5a49727ab1"
+          }
+        },
+        {
+          "phase": "repeat1",
+          "status": "returned",
+          "wallMs": 20.660471000000143,
+          "cpuMs": 37.889,
+          "before": {
+            "rss": 191737856,
+            "heapTotal": 106278912,
+            "heapUsed": 34642400,
+            "external": 15801619,
+            "arrayBuffers": 164620
+          },
+          "after": {
+            "rss": 192131072,
+            "heapTotal": 106942464,
+            "heapUsed": 37586544,
+            "external": 15801619,
+            "arrayBuffers": 164620
+          },
+          "peakRssKiB": 187628,
+          "bytes": 12439,
+          "wholeSvgExactWarmup": true,
+          "entireReceiptExactWarmup": true,
+          "proof": {
+            "version": 1,
+            "unit": "px",
+            "scope": "native-scene",
+            "status": "passed",
+            "viewport": {
+              "x": 0,
+              "y": 0,
+              "width": 174,
+              "height": 422.2
+            },
+            "attempts": 1,
+            "repairs": [],
+            "coverage": {
+              "measured": 11,
+              "unmeasured": 0,
+              "preparedText": 4,
+              "fallbackText": 0,
+              "conditional": 0
+            },
+            "checks": {
+              "primitives": 14,
+              "labels": 3,
+              "occlusionPairs": 12,
+              "maxOcclusionPairs": 100000,
+              "operations": 64082,
+              "maxOperations": 400000,
+              "markers": 2
+            },
+            "issues": [],
+            "limitations": [
+              "Prepared occupied text regions bound native geometry; exact glyph ink depends on the resolved font.",
+              "Declared transparency, intentional data-mark overlap and externally modified CSS are outside this proof."
+            ],
+            "outputDigest": "fnv1a64:e534eb5a49727ab1"
+          },
+          "stages": [],
+          "events": [],
+          "profileStart": 0,
+          "profileEnd": 0
+        },
+        {
+          "phase": "repeat2",
+          "status": "returned",
+          "wallMs": 5.530175999999756,
+          "cpuMs": 14.392,
+          "before": {
+            "rss": 192262144,
+            "heapTotal": 107204608,
+            "heapUsed": 35309536,
+            "external": 15736091,
+            "arrayBuffers": 164620
+          },
+          "after": {
+            "rss": 192262144,
+            "heapTotal": 107204608,
+            "heapUsed": 36178960,
+            "external": 15736091,
+            "arrayBuffers": 164620
+          },
+          "peakRssKiB": 187884,
+          "bytes": 12439,
+          "wholeSvgExactWarmup": true,
+          "entireReceiptExactWarmup": true,
+          "proof": {
+            "version": 1,
+            "unit": "px",
+            "scope": "native-scene",
+            "status": "passed",
+            "viewport": {
+              "x": 0,
+              "y": 0,
+              "width": 174,
+              "height": 422.2
+            },
+            "attempts": 1,
+            "repairs": [],
+            "coverage": {
+              "measured": 11,
+              "unmeasured": 0,
+              "preparedText": 4,
+              "fallbackText": 0,
+              "conditional": 0
+            },
+            "checks": {
+              "primitives": 14,
+              "labels": 3,
+              "occlusionPairs": 12,
+              "maxOcclusionPairs": 100000,
+              "operations": 64082,
+              "maxOperations": 400000,
+              "markers": 2
+            },
+            "issues": [],
+            "limitations": [
+              "Prepared occupied text regions bound native geometry; exact glyph ink depends on the resolved font.",
+              "Declared transparency, intentional data-mark overlap and externally modified CSS are outside this proof."
+            ],
+            "outputDigest": "fnv1a64:e534eb5a49727ab1"
+          },
+          "stages": [],
+          "events": [],
+          "profileStart": 0,
+          "profileEnd": 0
+        },
+        {
+          "phase": "edit",
+          "status": "returned",
+          "wallMs": 22.086972999999944,
+          "cpuMs": 50.637,
+          "before": {
+            "rss": 192393216,
+            "heapTotal": 107204608,
+            "heapUsed": 35365216,
+            "external": 15736091,
+            "arrayBuffers": 164620
+          },
+          "after": {
+            "rss": 192655360,
+            "heapTotal": 107466752,
+            "heapUsed": 38654080,
+            "external": 15736091,
+            "arrayBuffers": 164620
+          },
+          "peakRssKiB": 188140,
+          "bytes": 12466,
+          "editChanged": true,
+          "proof": {
+            "version": 1,
+            "unit": "px",
+            "scope": "native-scene",
+            "status": "passed",
+            "viewport": {
+              "x": 0,
+              "y": 0,
+              "width": 174,
+              "height": 422.2
+            },
+            "attempts": 1,
+            "repairs": [],
+            "coverage": {
+              "measured": 11,
+              "unmeasured": 0,
+              "preparedText": 4,
+              "fallbackText": 0,
+              "conditional": 0
+            },
+            "checks": {
+              "primitives": 14,
+              "labels": 3,
+              "occlusionPairs": 12,
+              "maxOcclusionPairs": 100000,
+              "operations": 64307,
+              "maxOperations": 400000,
+              "markers": 2
+            },
+            "issues": [],
+            "limitations": [
+              "Prepared occupied text regions bound native geometry; exact glyph ink depends on the resolved font.",
+              "Declared transparency, intentional data-mark overlap and externally modified CSS are outside this proof."
+            ],
+            "outputDigest": "fnv1a64:69fd535bc27b488c"
+          },
+          "stages": [],
+          "events": [],
+          "profileStart": 0,
+          "profileEnd": 0
+        },
+        {
+          "phase": "edit2",
+          "status": "returned",
+          "wallMs": 15.955683000000136,
+          "cpuMs": 36.273,
+          "before": {
+            "rss": 192786432,
+            "heapTotal": 107466752,
+            "heapUsed": 35993392,
+            "external": 15801627,
+            "arrayBuffers": 164620
+          },
+          "after": {
+            "rss": 193179648,
+            "heapTotal": 107466752,
+            "heapUsed": 38462912,
+            "external": 15801627,
+            "arrayBuffers": 164620
+          },
+          "peakRssKiB": 188652,
+          "bytes": 12466,
+          "editChanged": true,
+          "proof": {
+            "version": 1,
+            "unit": "px",
+            "scope": "native-scene",
+            "status": "passed",
+            "viewport": {
+              "x": 0,
+              "y": 0,
+              "width": 174,
+              "height": 422.2
+            },
+            "attempts": 1,
+            "repairs": [],
+            "coverage": {
+              "measured": 11,
+              "unmeasured": 0,
+              "preparedText": 4,
+              "fallbackText": 0,
+              "conditional": 0
+            },
+            "checks": {
+              "primitives": 14,
+              "labels": 3,
+              "occlusionPairs": 12,
+              "maxOcclusionPairs": 100000,
+              "operations": 64307,
+              "maxOperations": 400000,
+              "markers": 2
+            },
+            "issues": [],
+            "limitations": [
+              "Prepared occupied text regions bound native geometry; exact glyph ink depends on the resolved font.",
+              "Declared transparency, intentional data-mark overlap and externally modified CSS are outside this proof."
+            ],
+            "outputDigest": "fnv1a64:69fd535bc27b488c"
+          },
+          "stages": [],
+          "events": [],
+          "profileStart": 0,
+          "profileEnd": 0
+        }
+      ],
+      "importMs": 2131.7914579999997
+    },
+    {
+      "run": {
+        "direction": "CURRENT",
+        "backend": "agentic",
+        "arm": "after",
+        "cache": "1",
+        "replica": 1,
+        "directory": "CURRENT-agentic-after-cache1-1",
+        "exit": 0
+      },
+      "rows": [
+        {
+          "phase": "cold-render",
+          "status": "returned",
+          "wallMs": 158.5556200000001,
+          "cpuMs": 242.679,
+          "before": {
+            "rss": 171376640,
+            "heapTotal": 110006272,
+            "heapUsed": 49825160,
+            "external": 15802028,
+            "arrayBuffers": 295676
+          },
+          "after": {
+            "rss": 175538176,
+            "heapTotal": 117288960,
+            "heapUsed": 37752920,
+            "external": 15801595,
+            "arrayBuffers": 164620
+          },
+          "peakRssKiB": 171424,
+          "bytes": 12444,
+          "proof": {
+            "version": 1,
+            "unit": "px",
+            "scope": "native-scene",
+            "status": "passed",
+            "viewport": {
+              "x": 0,
+              "y": 0,
+              "width": 186.5,
+              "height": 420.2
+            },
+            "attempts": 1,
+            "repairs": [],
+            "coverage": {
+              "measured": 11,
+              "unmeasured": 0,
+              "preparedText": 4,
+              "fallbackText": 0,
+              "conditional": 0
+            },
+            "checks": {
+              "primitives": 14,
+              "labels": 3,
+              "occlusionPairs": 12,
+              "maxOcclusionPairs": 100000,
+              "operations": 64140,
+              "maxOperations": 400000,
+              "markers": 2
+            },
+            "issues": [],
+            "limitations": [
+              "Prepared occupied text regions bound native geometry; exact glyph ink depends on the resolved font.",
+              "Declared transparency, intentional data-mark overlap and externally modified CSS are outside this proof."
+            ],
+            "outputDigest": "fnv1a64:32c58fcad95c539e"
+          }
+        },
+        {
+          "phase": "repeat1",
+          "status": "returned",
+          "wallMs": 17.635931000000255,
+          "cpuMs": 33.052,
+          "before": {
+            "rss": 175669248,
+            "heapTotal": 107327488,
+            "heapUsed": 35108672,
+            "external": 15801619,
+            "arrayBuffers": 164620
+          },
+          "after": {
+            "rss": 175931392,
+            "heapTotal": 108253184,
+            "heapUsed": 38024024,
+            "external": 15801619,
+            "arrayBuffers": 164620
+          },
+          "peakRssKiB": 171808,
+          "bytes": 12444,
+          "wholeSvgExactWarmup": true,
+          "entireReceiptExactWarmup": true,
+          "proof": {
+            "version": 1,
+            "unit": "px",
+            "scope": "native-scene",
+            "status": "passed",
+            "viewport": {
+              "x": 0,
+              "y": 0,
+              "width": 186.5,
+              "height": 420.2
+            },
+            "attempts": 1,
+            "repairs": [],
+            "coverage": {
+              "measured": 11,
+              "unmeasured": 0,
+              "preparedText": 4,
+              "fallbackText": 0,
+              "conditional": 0
+            },
+            "checks": {
+              "primitives": 14,
+              "labels": 3,
+              "occlusionPairs": 12,
+              "maxOcclusionPairs": 100000,
+              "operations": 64140,
+              "maxOperations": 400000,
+              "markers": 2
+            },
+            "issues": [],
+            "limitations": [
+              "Prepared occupied text regions bound native geometry; exact glyph ink depends on the resolved font.",
+              "Declared transparency, intentional data-mark overlap and externally modified CSS are outside this proof."
+            ],
+            "outputDigest": "fnv1a64:32c58fcad95c539e"
+          },
+          "stages": [],
+          "events": [],
+          "profileStart": 0,
+          "profileEnd": 0
+        },
+        {
+          "phase": "repeat2",
+          "status": "returned",
+          "wallMs": 5.513187000000016,
+          "cpuMs": 16.582,
+          "before": {
+            "rss": 176062464,
+            "heapTotal": 108253184,
+            "heapUsed": 35748680,
+            "external": 15736091,
+            "arrayBuffers": 164620
+          },
+          "after": {
+            "rss": 176193536,
+            "heapTotal": 108253184,
+            "heapUsed": 36618768,
+            "external": 15736091,
+            "arrayBuffers": 164620
+          },
+          "peakRssKiB": 172192,
+          "bytes": 12444,
+          "wholeSvgExactWarmup": true,
+          "entireReceiptExactWarmup": true,
+          "proof": {
+            "version": 1,
+            "unit": "px",
+            "scope": "native-scene",
+            "status": "passed",
+            "viewport": {
+              "x": 0,
+              "y": 0,
+              "width": 186.5,
+              "height": 420.2
+            },
+            "attempts": 1,
+            "repairs": [],
+            "coverage": {
+              "measured": 11,
+              "unmeasured": 0,
+              "preparedText": 4,
+              "fallbackText": 0,
+              "conditional": 0
+            },
+            "checks": {
+              "primitives": 14,
+              "labels": 3,
+              "occlusionPairs": 12,
+              "maxOcclusionPairs": 100000,
+              "operations": 64140,
+              "maxOperations": 400000,
+              "markers": 2
+            },
+            "issues": [],
+            "limitations": [
+              "Prepared occupied text regions bound native geometry; exact glyph ink depends on the resolved font.",
+              "Declared transparency, intentional data-mark overlap and externally modified CSS are outside this proof."
+            ],
+            "outputDigest": "fnv1a64:32c58fcad95c539e"
+          },
+          "stages": [],
+          "events": [],
+          "profileStart": 0,
+          "profileEnd": 0
+        },
+        {
+          "phase": "edit",
+          "status": "returned",
+          "wallMs": 24.703794000000016,
+          "cpuMs": 46.111,
+          "before": {
+            "rss": 176324608,
+            "heapTotal": 108253184,
+            "heapUsed": 35805344,
+            "external": 15736091,
+            "arrayBuffers": 164620
+          },
+          "after": {
+            "rss": 176717824,
+            "heapTotal": 108515328,
+            "heapUsed": 39769536,
+            "external": 15736091,
+            "arrayBuffers": 164620
+          },
+          "peakRssKiB": 172576,
+          "bytes": 12471,
+          "editChanged": true,
+          "proof": {
+            "version": 1,
+            "unit": "px",
+            "scope": "native-scene",
+            "status": "passed",
+            "viewport": {
+              "x": 0,
+              "y": 0,
+              "width": 186.5,
+              "height": 420.2
+            },
+            "attempts": 1,
+            "repairs": [],
+            "coverage": {
+              "measured": 11,
+              "unmeasured": 0,
+              "preparedText": 4,
+              "fallbackText": 0,
+              "conditional": 0
+            },
+            "checks": {
+              "primitives": 14,
+              "labels": 3,
+              "occlusionPairs": 12,
+              "maxOcclusionPairs": 100000,
+              "operations": 64365,
+              "maxOperations": 400000,
+              "markers": 2
+            },
+            "issues": [],
+            "limitations": [
+              "Prepared occupied text regions bound native geometry; exact glyph ink depends on the resolved font.",
+              "Declared transparency, intentional data-mark overlap and externally modified CSS are outside this proof."
+            ],
+            "outputDigest": "fnv1a64:097e5616f60e89ed"
+          },
+          "stages": [],
+          "events": [],
+          "profileStart": 0,
+          "profileEnd": 0
+        },
+        {
+          "phase": "edit2",
+          "status": "returned",
+          "wallMs": 14.495316000000003,
+          "cpuMs": 28.561,
+          "before": {
+            "rss": 176717824,
+            "heapTotal": 109039616,
+            "heapUsed": 36418096,
+            "external": 15801627,
+            "arrayBuffers": 164620
+          },
+          "after": {
+            "rss": 176848896,
+            "heapTotal": 109563904,
+            "heapUsed": 38847088,
+            "external": 15801627,
+            "arrayBuffers": 164620
+          },
+          "peakRssKiB": 172704,
+          "bytes": 12471,
+          "editChanged": true,
+          "proof": {
+            "version": 1,
+            "unit": "px",
+            "scope": "native-scene",
+            "status": "passed",
+            "viewport": {
+              "x": 0,
+              "y": 0,
+              "width": 186.5,
+              "height": 420.2
+            },
+            "attempts": 1,
+            "repairs": [],
+            "coverage": {
+              "measured": 11,
+              "unmeasured": 0,
+              "preparedText": 4,
+              "fallbackText": 0,
+              "conditional": 0
+            },
+            "checks": {
+              "primitives": 14,
+              "labels": 3,
+              "occlusionPairs": 12,
+              "maxOcclusionPairs": 100000,
+              "operations": 64365,
+              "maxOperations": 400000,
+              "markers": 2
+            },
+            "issues": [],
+            "limitations": [
+              "Prepared occupied text regions bound native geometry; exact glyph ink depends on the resolved font.",
+              "Declared transparency, intentional data-mark overlap and externally modified CSS are outside this proof."
+            ],
+            "outputDigest": "fnv1a64:097e5616f60e89ed"
+          },
+          "stages": [],
+          "events": [],
+          "profileStart": 0,
+          "profileEnd": 0
+        }
+      ],
+      "importMs": 2017.5826369999997
+    },
+    {
+      "run": {
+        "direction": "CURRENT",
+        "backend": "elk",
+        "arm": "after",
+        "cache": "1",
+        "replica": 1,
+        "directory": "CURRENT-elk-after-cache1-1",
+        "exit": 0
+      },
+      "rows": [
+        {
+          "phase": "cold-render",
+          "status": "returned",
+          "wallMs": 318.49676,
+          "cpuMs": 470.425,
+          "before": {
+            "rss": 187858944,
+            "heapTotal": 110006272,
+            "heapUsed": 49910504,
+            "external": 15802028,
+            "arrayBuffers": 295676
+          },
+          "after": {
+            "rss": 196841472,
+            "heapTotal": 123666432,
+            "heapUsed": 55225616,
+            "external": 15801595,
+            "arrayBuffers": 164620
+          },
+          "peakRssKiB": 192228,
+          "bytes": 12431,
+          "proof": {
+            "version": 1,
+            "unit": "px",
+            "scope": "native-scene",
+            "status": "passed",
+            "viewport": {
+              "x": 0,
+              "y": 0,
+              "width": 186.115,
+              "height": 458.2
+            },
+            "attempts": 1,
+            "repairs": [],
+            "coverage": {
+              "measured": 11,
+              "unmeasured": 0,
+              "preparedText": 4,
+              "fallbackText": 0,
+              "conditional": 0
+            },
+            "checks": {
+              "primitives": 14,
+              "labels": 3,
+              "occlusionPairs": 12,
+              "maxOcclusionPairs": 100000,
+              "operations": 64608,
+              "maxOperations": 400000,
+              "markers": 2
+            },
+            "issues": [],
+            "limitations": [
+              "Prepared occupied text regions bound native geometry; exact glyph ink depends on the resolved font.",
+              "Declared transparency, intentional data-mark overlap and externally modified CSS are outside this proof."
+            ],
+            "outputDigest": "fnv1a64:fb0a4cf635f47ac8"
+          }
+        },
+        {
+          "phase": "repeat1",
+          "status": "returned",
+          "wallMs": 19.939428999999564,
+          "cpuMs": 41.692,
+          "before": {
+            "rss": 197365760,
+            "heapTotal": 118423552,
+            "heapUsed": 44560792,
+            "external": 15801619,
+            "arrayBuffers": 164620
+          },
+          "after": {
+            "rss": 197627904,
+            "heapTotal": 119087104,
+            "heapUsed": 47487592,
+            "external": 15801619,
+            "arrayBuffers": 164620
+          },
+          "peakRssKiB": 192996,
+          "bytes": 12431,
+          "wholeSvgExactWarmup": true,
+          "entireReceiptExactWarmup": true,
+          "proof": {
+            "version": 1,
+            "unit": "px",
+            "scope": "native-scene",
+            "status": "passed",
+            "viewport": {
+              "x": 0,
+              "y": 0,
+              "width": 186.115,
+              "height": 458.2
+            },
+            "attempts": 1,
+            "repairs": [],
+            "coverage": {
+              "measured": 11,
+              "unmeasured": 0,
+              "preparedText": 4,
+              "fallbackText": 0,
+              "conditional": 0
+            },
+            "checks": {
+              "primitives": 14,
+              "labels": 3,
+              "occlusionPairs": 12,
+              "maxOcclusionPairs": 100000,
+              "operations": 64608,
+              "maxOperations": 400000,
+              "markers": 2
+            },
+            "issues": [],
+            "limitations": [
+              "Prepared occupied text regions bound native geometry; exact glyph ink depends on the resolved font.",
+              "Declared transparency, intentional data-mark overlap and externally modified CSS are outside this proof."
+            ],
+            "outputDigest": "fnv1a64:fb0a4cf635f47ac8"
+          },
+          "stages": [],
+          "events": [],
+          "profileStart": 0,
+          "profileEnd": 0
+        },
+        {
+          "phase": "repeat2",
+          "status": "returned",
+          "wallMs": 5.297170000000278,
+          "cpuMs": 17.248,
+          "before": {
+            "rss": 197627904,
+            "heapTotal": 119087104,
+            "heapUsed": 45129376,
+            "external": 15736091,
+            "arrayBuffers": 164620
+          },
+          "after": {
+            "rss": 197758976,
+            "heapTotal": 119087104,
+            "heapUsed": 45999072,
+            "external": 15736091,
+            "arrayBuffers": 164620
+          },
+          "peakRssKiB": 193252,
+          "bytes": 12431,
+          "wholeSvgExactWarmup": true,
+          "entireReceiptExactWarmup": true,
+          "proof": {
+            "version": 1,
+            "unit": "px",
+            "scope": "native-scene",
+            "status": "passed",
+            "viewport": {
+              "x": 0,
+              "y": 0,
+              "width": 186.115,
+              "height": 458.2
+            },
+            "attempts": 1,
+            "repairs": [],
+            "coverage": {
+              "measured": 11,
+              "unmeasured": 0,
+              "preparedText": 4,
+              "fallbackText": 0,
+              "conditional": 0
+            },
+            "checks": {
+              "primitives": 14,
+              "labels": 3,
+              "occlusionPairs": 12,
+              "maxOcclusionPairs": 100000,
+              "operations": 64608,
+              "maxOperations": 400000,
+              "markers": 2
+            },
+            "issues": [],
+            "limitations": [
+              "Prepared occupied text regions bound native geometry; exact glyph ink depends on the resolved font.",
+              "Declared transparency, intentional data-mark overlap and externally modified CSS are outside this proof."
+            ],
+            "outputDigest": "fnv1a64:fb0a4cf635f47ac8"
+          },
+          "stages": [],
+          "events": [],
+          "profileStart": 0,
+          "profileEnd": 0
+        },
+        {
+          "phase": "edit",
+          "status": "returned",
+          "wallMs": 42.41770600000018,
+          "cpuMs": 74.986,
+          "before": {
+            "rss": 197890048,
+            "heapTotal": 119087104,
+            "heapUsed": 45185904,
+            "external": 15736091,
+            "arrayBuffers": 164620
+          },
+          "after": {
+            "rss": 198676480,
+            "heapTotal": 119611392,
+            "heapUsed": 50871576,
+            "external": 15736091,
+            "arrayBuffers": 164620
+          },
+          "peakRssKiB": 194020,
+          "bytes": 12458,
+          "editChanged": true,
+          "proof": {
+            "version": 1,
+            "unit": "px",
+            "scope": "native-scene",
+            "status": "passed",
+            "viewport": {
+              "x": 0,
+              "y": 0,
+              "width": 186.292,
+              "height": 458.2
+            },
+            "attempts": 1,
+            "repairs": [],
+            "coverage": {
+              "measured": 11,
+              "unmeasured": 0,
+              "preparedText": 4,
+              "fallbackText": 0,
+              "conditional": 0
+            },
+            "checks": {
+              "primitives": 14,
+              "labels": 3,
+              "occlusionPairs": 12,
+              "maxOcclusionPairs": 100000,
+              "operations": 64833,
+              "maxOperations": 400000,
+              "markers": 2
+            },
+            "issues": [],
+            "limitations": [
+              "Prepared occupied text regions bound native geometry; exact glyph ink depends on the resolved font.",
+              "Declared transparency, intentional data-mark overlap and externally modified CSS are outside this proof."
+            ],
+            "outputDigest": "fnv1a64:78ebc2291052bdc1"
+          },
+          "stages": [],
+          "events": [],
+          "profileStart": 0,
+          "profileEnd": 0
+        },
+        {
+          "phase": "edit2",
+          "status": "returned",
+          "wallMs": 15.696452000000136,
+          "cpuMs": 37.416,
+          "before": {
+            "rss": 198676480,
+            "heapTotal": 120397824,
+            "heapUsed": 46360408,
+            "external": 15801627,
+            "arrayBuffers": 164620
+          },
+          "after": {
+            "rss": 198807552,
+            "heapTotal": 120659968,
+            "heapUsed": 48829960,
+            "external": 15801627,
+            "arrayBuffers": 164620
+          },
+          "peakRssKiB": 194148,
+          "bytes": 12458,
+          "editChanged": true,
+          "proof": {
+            "version": 1,
+            "unit": "px",
+            "scope": "native-scene",
+            "status": "passed",
+            "viewport": {
+              "x": 0,
+              "y": 0,
+              "width": 186.292,
+              "height": 458.2
+            },
+            "attempts": 1,
+            "repairs": [],
+            "coverage": {
+              "measured": 11,
+              "unmeasured": 0,
+              "preparedText": 4,
+              "fallbackText": 0,
+              "conditional": 0
+            },
+            "checks": {
+              "primitives": 14,
+              "labels": 3,
+              "occlusionPairs": 12,
+              "maxOcclusionPairs": 100000,
+              "operations": 64833,
+              "maxOperations": 400000,
+              "markers": 2
+            },
+            "issues": [],
+            "limitations": [
+              "Prepared occupied text regions bound native geometry; exact glyph ink depends on the resolved font.",
+              "Declared transparency, intentional data-mark overlap and externally modified CSS are outside this proof."
+            ],
+            "outputDigest": "fnv1a64:78ebc2291052bdc1"
+          },
+          "stages": [],
+          "events": [],
+          "profileStart": 0,
+          "profileEnd": 0
+        }
+      ],
+      "importMs": 2135.9109150000004
+    }
+  ],
+  "scope": "All3 current fullSVG+entireReceipt. Currentall3dual-circleallreturned; no unsupportedbeforeTrinityspeedratio. Cache setting/layoutcache only, other derivedcaches remain does different geometry/proof work: no speedup ratio.2 serial fresh Node24 replicas/cell; import separate; no concurrent checks/build. Existing layoutcache0/1, no newcache. RSS includes harness/import/compression lifetime; n too smallforgeneral/p95/memorywinner."
+}

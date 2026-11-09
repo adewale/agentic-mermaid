@@ -1,0 +1,12 @@
+{
+  "id": "corpus/flowchart/10",
+  "source": "flowchart LR\n    id1((This is the text in the circle))",
+  "svgSha256": "1dad6a16fbba97cc07725fefcdf2769f2bb9c94565a757aa8a42bda0b9090812",
+  "pngSha256": "605fedbf1230224690269f5e52fd60df787e375fc148a4f239f6ad0cd5269af6",
+  "font": "manifest-verifiedInter/systemfontsoff",
+  "zoom": 1,
+  "proof": "passed",
+  "width": 287,
+  "height": 286,
+  "scope": "Actualnewlydeliveredoriginal874input; no whole-workloadpixelcertificate."
+}

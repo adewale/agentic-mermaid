@@ -1,0 +1,138 @@
+{
+  "font": "manifest-verifiedInter/systemfontsoff",
+  "zoom": 1,
+  "rows": [
+    {
+      "backend": "elk",
+      "id": "dual-labelled-circle-TB",
+      "source": "flowchart TB\nA((Label)) --> Idle[Idle]\nIdle -->|complete| B((End))",
+      "svgSha256": "ff8788149dc1f39f26689ada083f0eeb1cc6586f62044d0aca9005b82d71e82a",
+      "pngSha256": "cafc2d3142a69a9020ce34ddd9b1a3ce3fadcd135f0c1399549cbee38173f35b",
+      "width": 186,
+      "height": 458,
+      "proof": "passed",
+      "scope": "ActualcompleteSVG/native-sizePNG, canonicalInterbytesmanifestverified/systemfontsoff. Publicownerchecksactualoutlineradius/endpointcardinality, identities/labels separately. Notwholeglyphfidelity/pixelcertificate."
+    },
+    {
+      "backend": "elk",
+      "id": "dual-labelled-circle-BT",
+      "source": "flowchart BT\nA((Label)) --> Idle[Idle]\nIdle -->|complete| B((End))",
+      "svgSha256": "9c8d9317ed65809f886a015e06f341159d0a45fe174d4481d69aec793b8474de",
+      "pngSha256": "cebd763bbb991bee8db0ed92377bca31f49a361180d7ee09c2e68a4ac5518f4b",
+      "width": 186,
+      "height": 458,
+      "proof": "passed",
+      "scope": "ActualcompleteSVG/native-sizePNG, canonicalInterbytesmanifestverified/systemfontsoff. Publicownerchecksactualoutlineradius/endpointcardinality, identities/labels separately. Notwholeglyphfidelity/pixelcertificate."
+    },
+    {
+      "backend": "elk",
+      "id": "dual-labelled-circle-LR",
+      "source": "flowchart LR\nA((Label)) --> Idle[Idle]\nIdle -->|complete| B((End))",
+      "svgSha256": "95f7f403477b8591e41c4691b78dfb26beb7f789d7893200dfdea9463e4b51a1",
+      "pngSha256": "f8812ed0acf5a83bd99c504279f43ef68ff376a2719ed12f608a3dd3ec5149a7",
+      "width": 515,
+      "height": 173,
+      "proof": "passed",
+      "scope": "ActualcompleteSVG/native-sizePNG, canonicalInterbytesmanifestverified/systemfontsoff. Publicownerchecksactualoutlineradius/endpointcardinality, identities/labels separately. Notwholeglyphfidelity/pixelcertificate."
+    },
+    {
+      "backend": "elk",
+      "id": "dual-labelled-circle-RL",
+      "source": "flowchart RL\nA((Label)) --> Idle[Idle]\nIdle -->|complete| B((End))",
+      "svgSha256": "00575eca0baad1dbf1f94f708478626d0903f7cd3dace3424e7360366c91ae20",
+      "pngSha256": "3c33fcef4ebbe55eb5e5cafc88f074663083f3b8a67cd2bed1cd84b4d1f39e14",
+      "width": 515,
+      "height": 173,
+      "proof": "passed",
+      "scope": "ActualcompleteSVG/native-sizePNG, canonicalInterbytesmanifestverified/systemfontsoff. Publicownerchecksactualoutlineradius/endpointcardinality, identities/labels separately. Notwholeglyphfidelity/pixelcertificate."
+    },
+    {
+      "backend": "agentic",
+      "id": "dual-labelled-circle-TB",
+      "source": "flowchart TB\nA((Label)) --> Idle[Idle]\nIdle -->|complete| B((End))",
+      "svgSha256": "095ec18e9fd15c10a02eb24956a026904c81361e4e977de680da76f8190523c4",
+      "pngSha256": "4bc760c00339134f68bc2cb8a2da1f76fc2b9a3f069fff1affae6737814e4369",
+      "width": 187,
+      "height": 420,
+      "proof": "passed",
+      "scope": "ActualcompleteSVG/native-sizePNG, canonicalInterbytesmanifestverified/systemfontsoff. Publicownerchecksactualoutlineradius/endpointcardinality, identities/labels separately. Notwholeglyphfidelity/pixelcertificate."
+    },
+    {
+      "backend": "agentic",
+      "id": "dual-labelled-circle-BT",
+      "source": "flowchart BT\nA((Label)) --> Idle[Idle]\nIdle -->|complete| B((End))",
+      "svgSha256": "b4dc4cb6599f604ae5376c7708785520c2c2562de8357d25e4b216d1755bd522",
+      "pngSha256": "80ac5a841b17effd6ed5ab0ef6fb133b7cb636b1eaa6ed9c11e36c23b51b11f4",
+      "width": 187,
+      "height": 420,
+      "proof": "passed",
+      "scope": "ActualcompleteSVG/native-sizePNG, canonicalInterbytesmanifestverified/systemfontsoff. Publicownerchecksactualoutlineradius/endpointcardinality, identities/labels separately. Notwholeglyphfidelity/pixelcertificate."
+    },
+    {
+      "backend": "agentic",
+      "id": "dual-labelled-circle-LR",
+      "source": "flowchart LR\nA((Label)) --> Idle[Idle]\nIdle -->|complete| B((End))",
+      "svgSha256": "7aaba4940b18d71045eec757c26f43b4e59c6610c7f74d720eb52b9455394796",
+      "pngSha256": "2e88eeb08b5b794bf0e328a92c8b51b889c8b225349a1f703eaa8032609f9f2b",
+      "width": 475,
+      "height": 173,
+      "proof": "passed",
+      "scope": "ActualcompleteSVG/native-sizePNG, canonicalInterbytesmanifestverified/systemfontsoff. Publicownerchecksactualoutlineradius/endpointcardinality, identities/labels separately. Notwholeglyphfidelity/pixelcertificate."
+    },
+    {
+      "backend": "agentic",
+      "id": "dual-labelled-circle-RL",
+      "source": "flowchart RL\nA((Label)) --> Idle[Idle]\nIdle -->|complete| B((End))",
+      "svgSha256": "0b9517682ee2c4fc9866447bf4af98f9e7e73f2fd2c0a625083a12ffa3e38610",
+      "pngSha256": "9aba0af1b33f41d7a3b60537a58ffaec485e86fc7c8ce95970745f37a84d56d4",
+      "width": 475,
+      "height": 173,
+      "proof": "passed",
+      "scope": "ActualcompleteSVG/native-sizePNG, canonicalInterbytesmanifestverified/systemfontsoff. Publicownerchecksactualoutlineradius/endpointcardinality, identities/labels separately. Notwholeglyphfidelity/pixelcertificate."
+    },
+    {
+      "backend": "trinity",
+      "id": "dual-labelled-circle-TB",
+      "source": "flowchart TB\nA((Label)) --> Idle[Idle]\nIdle -->|complete| B((End))",
+      "svgSha256": "92e5b0627fb497386dc6f9d941c8714d2eee70fb3bc3e68f70b6c8382a68dc70",
+      "pngSha256": "f7156593dfce79455ff0ffe2352a18d3efa1d9be95075f513bdcc7da32de9f34",
+      "width": 174,
+      "height": 422,
+      "proof": "passed",
+      "scope": "ActualcompleteSVG/native-sizePNG, canonicalInterbytesmanifestverified/systemfontsoff. Publicownerchecksactualoutlineradius/endpointcardinality, identities/labels separately. Notwholeglyphfidelity/pixelcertificate."
+    },
+    {
+      "backend": "trinity",
+      "id": "dual-labelled-circle-BT",
+      "source": "flowchart BT\nA((Label)) --> Idle[Idle]\nIdle -->|complete| B((End))",
+      "svgSha256": "7bfa1332eed8523095465f2f434aaddcec827af6ad04a5140ca8bd21d204ea65",
+      "pngSha256": "153b605d699fc360b0d8afa963dcbf556415e6b6ac8afa37c445c4be0ee40589",
+      "width": 174,
+      "height": 422,
+      "proof": "passed",
+      "scope": "ActualcompleteSVG/native-sizePNG, canonicalInterbytesmanifestverified/systemfontsoff. Publicownerchecksactualoutlineradius/endpointcardinality, identities/labels separately. Notwholeglyphfidelity/pixelcertificate."
+    },
+    {
+      "backend": "trinity",
+      "id": "dual-labelled-circle-LR",
+      "source": "flowchart LR\nA((Label)) --> Idle[Idle]\nIdle -->|complete| B((End))",
+      "svgSha256": "c0ed24a094fb55bca682ad7622fcd8de3ed17bff8669041e513a379afe997fa2",
+      "pngSha256": "11ad20c4b91c85e19bc6a118a741686f3c54cb3575dc24962b9d13d80d55d799",
+      "width": 477,
+      "height": 174,
+      "proof": "passed",
+      "scope": "ActualcompleteSVG/native-sizePNG, canonicalInterbytesmanifestverified/systemfontsoff. Publicownerchecksactualoutlineradius/endpointcardinality, identities/labels separately. Notwholeglyphfidelity/pixelcertificate."
+    },
+    {
+      "backend": "trinity",
+      "id": "dual-labelled-circle-RL",
+      "source": "flowchart RL\nA((Label)) --> Idle[Idle]\nIdle -->|complete| B((End))",
+      "svgSha256": "ed37c5c7c2a45aea952876241e6c78afc1bc7a5df1bcfc01d7bc5c344ab38d8f",
+      "pngSha256": "a134a791add8d749db5ee9ce57e56d73c96a338b47c5294fd66e106f79fccfda",
+      "width": 477,
+      "height": 174,
+      "proof": "passed",
+      "scope": "ActualcompleteSVG/native-sizePNG, canonicalInterbytesmanifestverified/systemfontsoff. Publicownerchecksactualoutlineradius/endpointcardinality, identities/labels separately. Notwholeglyphfidelity/pixelcertificate."
+    }
+  ]
+}
