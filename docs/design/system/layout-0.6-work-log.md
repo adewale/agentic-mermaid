@@ -1474,3 +1474,22 @@ these current paths; stop before implementation. Uncached positioning already
 uses fresh private geometry, so no lost borrowing shortcut was found. No cache,
 cap, default, version or runtime change. Refresh the maintained Trinity metric
 row scopes; current CI remains failed. Evidence `trinity-shared-contact-20261109`.
+
+### Invisible endpoint demand — 9 November
+
+After af92dd1473cb7e4e5b7e5cf75856d7506a34a807, reproduce exact201 plus three
+`n0 ~~~ n7` constraints: Native/ELK return/U, Trinity declines contact shapes.
+Trace36.9px face demand38.5→35.5 by treating invisible peers as known zero paint;
+retain topology, order, ports and positive visible supports. Existing LR owner
+exemption removed and hidden RL coverage added; selected30 directed head-pair masks all clear (worst baseline
+pair36hidden/49attenuated→0/0). Node geometry/area/bends/crossings exact;
+wire15760.07→15749.37. SVG Brotli+2bytes; complete response Brotli−103bytes.
+263 focused owners, core/repo types and lint pass; independent review no blocker.
+Frozen90 cells:83 returned SVGs exact, original errors/refusal unchanged.
+TB/BT retain a separate n5→n3 marker / n6→n2 label-halo warning. Extra reads are
+charged at original caps; no cache or domain growth. Evidence
+`trinity-oversubscribed-contact-20261109`; all874 enrolled Native SVGs/delivery/
+proof statuses unchanged (740P/134U), with no new cap refusal.
+24 complete before/after calls retain mixed costs: cache0 repeat2 median241.60→
+274.61ms with overlapping ranges; cache1 lifetimeRSS adverse196.85–207.77→
+211.92–262.11MiB. No speed/memory gain claimed; two replicas per cell.

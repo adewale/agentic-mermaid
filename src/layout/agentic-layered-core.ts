@@ -722,15 +722,16 @@ export function layoutLayeredGraph(
       }
       const spans = source ? sourcePortSpans : targetPortSpans
       if (!pairs?.length && nodes[nodeIndex]!.minimumPortSpacing === undefined && spans && peers.length > 1) {
-        routingWork.pairs -= 4 * peers.length
+        routingWork.pairs -= 6 * peers.length
         if (routingWork.pairs < 0) unsupported('agentic endpoint port-span work limit')
+        // Invisible constraints retain their ordered ports without consuming paint room.
         let used = 0, known = true
-        for (const edge of peers) { const span = spans[edge]!; used += span; known &&= span > 0 }
+        for (const edge of peers) { const hidden = edges[edge]!.visible === false; const span = hidden ? 0 : spans[edge]!; used += span; known &&= hidden || span > 0 }
         const gap = (width - used) / (peers.length + 1)
         if (known && gap > (Math.abs(cross[nodeIndex]!) + width + used) * 1e-10 + 1e-9) {
           let cursor = cross[nodeIndex]! - width / 2 + gap
           for (const edge of peers) {
-            const span = spans[edge]!
+            const span = edges[edge]!.visible === false ? 0 : spans[edge]!
             ;(source ? sourcePort : targetPort)[edge] = cursor + span / 2
             cursor += span + gap
           }

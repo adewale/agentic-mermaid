@@ -359,12 +359,12 @@ n12 --> n13
 n12 -->|edge 32 xxxxxxxxxxxxxxxxxx| n11` }
   ]
   const markerCases = crowdedSources.flatMap(fixture => ['LR', 'RL', 'TB', 'BT'].flatMap(direction => {
-    return (direction === 'LR' ? [false, true] : [false]).map(hidden => ({
+    return (direction === 'LR' || direction === 'RL' ? [false, true] : [false]).map(hidden => ({
       ...fixture, source: fixture.source + (hidden ? `\nn0 ~~~ ${fixture.target}\nn0 ~~~ ${fixture.target}\nn0 ~~~ ${fixture.target}` : ''),
-      direction, hidden, fits: !(fixture.caseId === 201 && hidden), backend: 'agentic' as const,
+      direction, hidden, backend: 'agentic' as const,
     }))
   }))
-  test.each(markerCases)('keeps ordinary heads distinct on the actual subroutine face: $caseId / $direction / hidden=$hidden', ({ source, target, direction, backend, fits }) => {
+  test.each(markerCases)('keeps ordinary heads distinct on the actual subroutine face: $caseId / $direction / hidden=$hidden', ({ source, target, direction, backend }) => {
     const product = renderMermaidSVGWithReceipt(source.replace('flowchart LR', 'flowchart ' + direction), { graphLayout: { backend, fallback: 'none' }, embedFontImport: false })
     const tags: Array<{ name: string; attrs: Record<string, string>; text: string }> = [], stack: Array<(typeof tags)[number]> = []
     const xml = new SaxesParser({ xmlns: true })
@@ -401,7 +401,7 @@ n12 -->|edge 32 xxxxxxxxxxxxxxxxxx| n11` }
     })
     expect(heads).toHaveLength(authored.filter(match => match[3] === target).length)
     expect(heads.length).toBeGreaterThan(1)
-    if (fits) for (let i = 0; i < heads.length; i++) for (const other of heads.slice(i + 1)) {
+    for (let i = 0; i < heads.length; i++) for (const other of heads.slice(i + 1)) {
       const head = heads[i]!
       const axes = [head, other].flatMap(polygon => polygon.map((point, index) => {
         const next = polygon[(index + 1) % polygon.length]!
@@ -413,7 +413,7 @@ n12 -->|edge 32 xxxxxxxxxxxxxxxxxx| n11` }
         return Math.max(...a) + stroke < Math.min(...b) || Math.max(...b) + stroke < Math.min(...a)
       })).toBe(true)
     }
-    if (fits) expect(product.receipt.layoutCertification?.status).toBe('passed')
+    expect(product.receipt.layoutCertification?.status).toBe('passed')
   })
 
 
