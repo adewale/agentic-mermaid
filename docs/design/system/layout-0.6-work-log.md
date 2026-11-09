@@ -1779,3 +1779,24 @@ increase. ELK clears the selected201 pair; Trinity still refuses mixed contacts.
 Parent CI still fails Sparse32 proof and original lazy/website/editor payload budgets.
 No cache/cap/default/version change. Evidence `native-current-halo-201-20261109`;
 next: identify the five historical marker losses before expanding circle admission.
+
+## Restore weighted thin-head packing — 9 November
+
+Parent `fc099cea9e9d44b4df4f20edabc6be148a1ad65e`: isolate five Native
+740/134→735/139 historical proof losses to03b7b35d3. Its thin-head scalar hint
+disabled existing per-occurrence weighted packing. Retain body growth and spans;
+keep the hint only on the preexisting wide-head branch. Cyclic353 actual selected
+ink8hidden/18attenuated→0/0; three other selected heads4attenuated→0, while the
+sampled cyclic3 head remains clear. All10target and10source fan heads stay0/0;
+the preceding TB/BT halo repair and five independently rastered outputs bind byte-exact.
+Public geometry owner1red→green;644owners, core/repository types and lint pass.
+Frozen84wholeproducts/six errors exact. Native874all return:741P/133U, sixU→P,
+no P→U;835wholeproducts exact,39layouts change. Preserve adverse2→3crossings
+on cyclic291, two+2bend cases and three slightly longer wires; area never grows.
+Fan36retains32P/4U perbackend with no missing labels;72peer products stay exact.
+Serial24process/120calls retain100P/20oldNativeU and actual compressed responses;
+no U→P speed ratio. Current star uncached repeat ELK115.68/Native57.94/Trinity48.58ms;
+Native cached repeat7.94→22.01ms is adverse, N=2/cell. Browser13all3pass;
+ELK/Native/Trinity gzip delta0/+7/+7bytes, Brotli+110/+121/+110, no requestincrease.
+No allocation/cache/cap/default/version change. Evidence `native-thin-weighted-20261109`;
+remaining:133NativeU,752Trinityunsupported, Sparse32 and payload CI failures.
