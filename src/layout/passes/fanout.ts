@@ -212,6 +212,11 @@ export function applySymmetricFanoutEmissions(
       for (let i = 0; i < targets.length; i++) {
         const target = targets[i]!
         if (target.x < 0 || target.y < 0) return false
+        // Keep original containers even after a target has moved. Current
+        // frames may already have grown along the flow axis.
+        for (const prior of oldGroups) {
+          if (rectInsideGroup(oldTargets[i]!, prior) && !rectInsideGroup(target, prior.group)) return false
+        }
         for (let j = i + 1; j < targets.length; j++) {
           if (rectsOverlap(target, targets[j]!, 8)) return false
         }

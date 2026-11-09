@@ -1621,3 +1621,31 @@ scope; these are supplements, not new credit there. Evidence:
 `trinity-compound-diamond-20261109`. Next shared defect is demonstrated:
 fanout finishing moves ELK R2.1545px outside its frame after correct raw layout.
 An external existing-rollback guard repairs2refusals; it is not shipped here.
+
+## Shared fanout containment transaction — 9 November
+
+At parent `39135ac82c67d2783e8211ccdb73714e372a4919`, raw ELK geometry contains
+every member, but our optional symmetry pass moves R2.1545px outside Stage.
+TB/BT then refuse all4attempts. Reuse existing oldTargets/oldGroups, containment
+predicate and rollback to reject that proposal before route/label publication.
+Those2refusals become returned/P with original body/frame dimensions retained.
+The actual finalSVG/Inter rasters retain frame/header, all branch labels and heads.
+No new cache/storage, tolerance, clipping, cap or default/version change.
+
+393 owning checks across5files, core/repo types and lint pass. The new public
+owner is2P/2F before; fitting nested proposals/main-axis growth remainP in4dirs
+before/after.83 frozen whole products and66 previously returned supplemental
+SVG/receipt/layout files stay exact; original6errors/1image refusal remain.
+100 timed complete products return/P, all8unique gzip9/Br11 streams decode
+exactly. CurrentTB area ELK/Native/Trinity159633/148833/146775; wire545.49/
+456.51/444.24; bends4/4/6, crossings0. Cache0repeat2 wall62.30/34.70/35.48ms;
+cache1 11.62/8.40/7.30. Two replicas/cell; no general ratio/memory claim.
+Old returned LR controls remain exact; edit CPU106.19→106.79ms is adverse.
+All three actual13-input lazy unions grow24gzip/6Br bytes, requests unchanged.
+Prior9ec CI confirms standalone1335329gzip exceeds1334500 by829, with its
+render/verify contractP; Sparse32 remains the sole failed unit owner.
+Evidence: `trinity-fanout-containment-20261109`. Replacement24 stays sealed.
+Native producer halo reuse is already falsified: the retained charged trial
+introduces head loss0→13 and3P→U transitions, so it is not rerun. Next inspect
+the shared controlled-image placeholder against its actual authored asset before
+changing admission; no new image capability or proof claim is made here.
