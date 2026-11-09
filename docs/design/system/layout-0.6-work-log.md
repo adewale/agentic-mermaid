@@ -5,8 +5,9 @@ The dated records below are historical evidence; earlier “next” statements d
 create parallel active queues. No retained experiment or output is discarded.
 
 The owner resumed the campaign on **5 November 2026 at 13:48 UTC**, authorizing
-regular commits and pushes to PR #602. The deadline remains **8 November 2026 at
-23:59:59 UTC**. Work runs in bounded sessions with a coordination lease; continuous
+regular commits and pushes to PR #602. After the original8November deadline, the
+owner renewed the goal through **9 November 2026 at20:00 UTC (8pm London)**.
+The old automations remain disabled. Work runs in bounded sessions with a coordination lease; continuous
 execution is not claimed. The earlier stop and backup remain in Git history.
 
 Draft [PR #602](https://github.com/adewale/agentic-mermaid/pull/602) preserves the
@@ -1303,3 +1304,35 @@ untranslated-constraint refusal and explicit-fallback coverage. No runtime outpu
 or new coverage gain is claimed for this test maintenance. Types/lint verified
 with the commit; no acceptance ceilings raised. Next work requires a new bounded
 owner-directed intervention on actual unsupported workload or measured cost.
+
+### Nested Flowchart/State delivery — 9 November
+
+After `21194248b`, both enrolled nested cases reproduce Trinity refusal while
+Native/ELK deliver. Reuse shared hierarchy sizing/lifting/boundary routing through
+the measured adapter, with actual Trinity local solves and one cumulative ledger.
+Measure leaf/frame endpoint support and canonical frame paint; keep child frames
+fixed after sizing. Local fixed-leaf trial fails LR/RL capacity. Permitted growth
+then exposes shared consumers dropping/overwriting returned dimensions; retain
+actual sizes through scope projection and flat/cross-hierarchy routing boxes.
+Actual normalized vertex counts retain the32768 expansion limit. Routed admission
+remains64subjects/128edges; unsupported styles/order/notes and hard work stay explicit.
+
+Frozen cohort24→26 delivered,4→2 unsupported, two shared input errors unchanged.
+Trident518→549P,65→34unsupported,28blocked/2failed unchanged. Actual written-SVG
+observers find no failure on either new case; unknowns stay enrolled. All affected
+previous SVGs and34 Native compound SVG/outcome/route vectors remain exact.
+Restoring old admission fails9 owners; removing growth projection or flat actual-size
+consumption fails each owning regression. All-direction nested and actual-circle
+contacts pass; existing wide-title/frame-endpoint owner now covers Trinity too.
+235-owner run234P/1cache timeout during overlapping jobs; isolated cache file53P,
+final focused primary owners35P, core/repo types/lint and actual builds pass.
+Independent read-only review finds no blocker. No new cache/default/version/cap.
+
+Quality remains mixed: nested Flowchart area ELK158409/Native177675/Trinity167481,
+wire606.15/500.11/588.57 and bends7/9/14. Nested State area107068/107859/100210,
+wire390.68/308.66/363.91 and bends8/4/8. All observed crossings/parallel/opposing
+counts zero. Editor gzip1341338→1342789 (+1451), Brotli1281204→1282069 (+865);
+original gzip cap still fails8289. Complete runtime/memory/lazy costs follow;
+no performance gain or replacement readiness claim. Evidence:
+`trinity-compound-20261109`. Remaining enrolled losses are Class namespace/
+cardinality/note and controlled image; wider workload/quality/resource losses remain.

@@ -23,10 +23,54 @@ import type { PositionedEdge, PositionedNode } from '../types.ts'
 import { parseMermaid as parseFlowchart } from '../parser.ts'
 import { clearElkLayoutCache } from '../elk-instance.ts'
 import { renderMermaidSVGWithReceipt, GraphLayoutUnsupportedError } from '../index.ts'
+import { LayoutWorkLimitError } from '../layout/backend.ts'
 import * as trinityKernel from '../layout/trinity.ts'
 import type { MeasuredGraph } from '../layout/measured-graph.ts'
 
 describe('Trinity primary measured producer', () => {
+  test('compound work exhaustion stays hard when ELK fallback is allowed', () => {
+    const factory = trinityKernel.trinityMeasuredAdapter
+    const observed = spyOn(trinityKernel, 'trinityMeasuredAdapter').mockImplementation(work => {
+      work.arcs = 1
+      return factory(work)
+    })
+    try {
+      expect(() => renderMermaidSVGWithReceipt('flowchart TB\nsubgraph G[Group]\nA-->B\nend', { graphLayout: { backend: 'trinity', fallback: 'elk' } })).toThrow(LayoutWorkLimitError)
+    } finally { observed.mockRestore() }
+  })
+  test.each((['flowchart', 'state'] as const).flatMap(family => ['TB', 'BT', 'LR', 'RL'].map(direction => ({ family, direction }))))('retains nested authored scopes and crossing relationships with $family in $direction', ({ family, direction }) => {
+    const source = family === 'flowchart'
+      ? `flowchart ${direction}\nsubgraph Outer[Outer group]\nsubgraph Inner[Inner group]\nA["工程"]\nB[Beta]\nend\nC[Gamma]\nend\nA -->|send| B\nA -->|again| B\nB -->|reply| A\nB -->|finish| C`
+      : `stateDiagram-v2\ndirection ${direction}\nstate Active {\nstate "Waiting" as Idle\nIdle --> Busy: begin\nBusy --> Idle: reset\n}\nActive --> Done: finish`
+    const options = { graphLayout: { backend: 'trinity' as const, fallback: 'none' as const }, embedFontImport: false }
+    const product = renderMermaidSVGWithReceipt(source, options)
+    expect(product.receipt.layoutDecisions?.[0]).toMatchObject({ requested: 'trinity', selected: 'trinity' })
+    expect(product.receipt.layoutCertification?.status).toBe('passed')
+    const { layout } = layoutMermaidWithReceipt(source, options)
+    expect(layout.nodes.map(node => [node.id, node.label])).toEqual(family === 'flowchart' ? [['A', '工程'], ['B', 'Beta'], ['C', 'Gamma']] : [['Idle', 'Waiting'], ['Busy', 'Busy'], ['Done', 'Done']])
+    expect(layout.edges.map(edge => [edge.from, edge.to, edge.label?.text])).toEqual(family === 'flowchart'
+      ? [['A', 'B', 'send'], ['A', 'B', 'again'], ['B', 'A', 'reply'], ['B', 'C', 'finish']]
+      : [['Idle', 'Busy', 'begin'], ['Busy', 'Idle', 'reset'], ['Active', 'Done', 'finish']])
+    expect(layout.groups?.map(group => [group.id, group.parentId, group.members])).toEqual(family === 'flowchart'
+      ? [['Outer', undefined, ['C']], ['Inner', 'Outer', ['A', 'B']]] : [['Active', undefined, ['Idle', 'Busy']]])
+    const tags = scanSvgStartTags(product.svg)
+    const frames = (layout.groups ?? []).map(group => {
+      const open = tags.findIndex(tag => tag.name === 'g' && decodedSvgAttributeValue(tag, 'data-id') === group.id && decodedSvgAttributeValue(tag, 'data-region') === 'subgraph')
+      expect(open).toBeGreaterThanOrEqual(0)
+      const rect = tags[open + 1]!
+      expect(rect.name).toBe('rect')
+      return { id: group.id, x: Number(decodedSvgAttributeValue(rect, 'x')), y: Number(decodedSvgAttributeValue(rect, 'y')), w: Number(decodedSvgAttributeValue(rect, 'width')), h: Number(decodedSvgAttributeValue(rect, 'height')) }
+    })
+    if (family === 'flowchart') {
+      const outer = frames.find(frame => frame.id === 'Outer')!, inner = frames.find(frame => frame.id === 'Inner')!
+      expect(inner.x).toBeGreaterThan(outer.x)
+      expect(inner.y).toBeGreaterThan(outer.y)
+      expect(inner.x + inner.w).toBeLessThan(outer.x + outer.w)
+      expect(inner.y + inner.h).toBeLessThan(outer.y + outer.h)
+    }
+    expect(tags.filter(tag => tag.name === 'polyline' && decodedSvgAttributeValue(tag, 'data-role') === 'edge')).toHaveLength(family === 'flowchart' ? 4 : 3)
+    expect(renderMermaidSVGWithReceipt(source, options)).toEqual(product)
+  })
   test.each(['TB', 'BT', 'LR', 'RL'])('shares the resolved State measurement for ordinary rounded bodies in %s', direction => {
     const source = `stateDiagram-v2\ndirection ${direction}\nstate "Alpha" as A\nstate "Beta" as B\nA --> B: advance`
     const options = { graphLayout: { backend: 'trinity' as const } }
@@ -37,8 +81,9 @@ describe('Trinity primary measured producer', () => {
     expect(layout.nodes.map(node => [node.id, node.label])).toEqual([['A', 'Alpha'], ['B', 'Beta']])
     expect(layout.edges.map(edge => [edge.from, edge.to, edge.label?.text])).toEqual([['A', 'B', 'advance']])
   })
-  test.each(['TB', 'BT', 'LR', 'RL'])('seats State pseudostates on their actual written circles in %s', direction => {
-    const source = `stateDiagram-v2\ndirection ${direction}\n[*] --> Idle\nIdle --> Done: complete\nDone --> [*]`
+  test.each(['TB', 'BT', 'LR', 'RL'].flatMap(direction => [false, true].map(nested => ({ direction, nested }))))('seats State pseudostates on their actual written circles in $direction (nested=$nested)', ({ direction, nested }) => {
+    const body = '[*] --> Idle\nIdle --> Done: complete\nDone --> [*]'
+    const source = `stateDiagram-v2\ndirection ${direction}\n${nested ? `state Active {\n${body}\n}\nActive --> Closed: finish` : body}`
     const options = { graphLayout: { backend: 'trinity' as const }, embedFontImport: false }
     const product = renderMermaidSVGWithReceipt(source, options)
     expect(product.receipt.layoutCertification?.status).toBe('passed')
@@ -60,7 +105,7 @@ describe('Trinity primary measured producer', () => {
         expect(Math.abs(at[0]! - cx) < .001 || Math.abs(at[1]! - cy) < .001).toBe(true)
       }
     }
-    expect(carriers).toHaveLength(3)
+    expect(carriers).toHaveLength(nested ? 4 : 3)
   })
   test('keeps fixed nonsquare circle bodies and declines typed pseudostate labels/media', () => {
     const graph = parseFlowchart('flowchart TB\nA --> B')
@@ -111,7 +156,7 @@ describe('Trinity primary measured producer', () => {
     for (const text of ['Release', 'Review', 'run', 'again', 'back', 'loop']) expect(rendered.svg).toContain(text)
   })
 
-  test.each(['flowchart TB\nA{Decision}-->B[Body]', 'flowchart TB\nsubgraph g[Group]\nA-->B\nend', 'flowchart LR\nA e1@--> B\nA-->C\ne1@{curve: natural}', 'stateDiagram-v2\nA-->B\nnote right of A: Note'])('declines untranslated geometry and keeps fallback explicit: %s', source => {
+  test.each(['flowchart TB\nA{Decision}-->B[Body]', 'flowchart LR\nA e1@--> B\nA-->C\ne1@{curve: natural}', 'stateDiagram-v2\nA-->B\nnote right of A: Note', 'stateDiagram-v2\nstate Active {\nA-->B\n}\nclassDef wide stroke-width:8px\nclass Active wide'])('declines untranslated geometry and keeps fallback explicit: %s', source => {
     expect(() => renderMermaidSVGWithReceipt(source, { graphLayout: { backend: 'trinity' } })).toThrow(GraphLayoutUnsupportedError)
     const fallback = renderMermaidSVGWithReceipt(source, { graphLayout: { backend: 'trinity', fallback: 'elk' } })
     expect(fallback.svg).toBe(renderMermaidSVGWithReceipt(source, { graphLayout: { backend: 'elk' } }).svg)
@@ -451,7 +496,7 @@ GuardStart[G] guard@--> GuardEnd[H]`
     JSON.stringify(native.receipt)
   })
 
-  test.each(['elk', 'agentic'] as const)('contains wide nested headers in %s without changing frame endpoints', async backend => {
+  test.each(['elk', 'agentic', 'trinity'] as const)('contains wide nested headers in %s without changing frame endpoints', async backend => {
     const source = await Bun.file(new URL('../../eval/layout-compare/fixtures/nested-wide-titles.mmd', import.meta.url)).text()
     const options = { graphLayout: { backend } }
     const rendered = renderMermaidSVGWithReceipt(source, options)

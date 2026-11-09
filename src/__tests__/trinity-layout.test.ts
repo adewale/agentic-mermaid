@@ -124,6 +124,29 @@ describe('Trinity flat measured solve', () => {
     expect(port.x + 50).toBeLessThanOrEqual(body.x + body.width! - 1)
   })
 
+  test('compound placement retains grown leaf dimensions through scope projection and contact closure', () => {
+    const input: MeasuredGraph = { ...base(), nodes: [
+      { ...node('root', 20), parent: 0, sizePolicy: 'minimum' }, { ...node('B'), parent: 0 }, { ...node('C'), parent: 0 },
+    ], groups: [{ id: 'scope', minWidth: 100, headerHeight: 24, padding: { top: 40, bottom: 16, left: 16, right: 16 }, paintStrokeWidth: 1, paintCornerRadius: 4 }], edges: [
+      { source: 0, target: 1, minSpan: 1, sourcePortSpan: 24, targetPortSpan: 2 },
+      { source: 0, target: 2, minSpan: 1, sourcePortSpan: 24, targetPortSpan: 2 },
+    ] }
+    const original = structuredClone(input)
+    const result = solveMeasuredLayout({ role: 'routed', graph: input }, trinityMeasuredAdapter(ledger()))
+    const root = result.nodes[0]!, frame = result.groups![0]!
+    expect(root.width).toBeGreaterThan(20)
+    expect(root.height).toBe(60)
+    expect(root.x).toBeGreaterThan(frame.x)
+    expect(root.x + root.width!).toBeLessThan(frame.x + frame.width)
+    expect(root.y).toBeGreaterThanOrEqual(frame.y + 40)
+    for (const edge of result.edges) {
+      expect(edge.points[0]!.y).toBeCloseTo(root.y + root.height!, 8)
+      expect(edge.points[0]!.x - 12).toBeGreaterThan(root.x)
+      expect(edge.points[0]!.x + 12).toBeLessThan(root.x + root.width!)
+    }
+    expect(input).toEqual(original)
+  })
+
   test('accepts measured thin-edge supports beside an unrelated thicker edge', () => {
     const input: MeasuredGraph = { ...base(), maximumEdgeStrokeWidth: 10, nodes: ['A', 'B', 'C', 'D'].map(id => node(id)), edges: [
       { source: 0, target: 1, minSpan: 1, sourcePortSpan: 2, targetPortSpan: 2 },

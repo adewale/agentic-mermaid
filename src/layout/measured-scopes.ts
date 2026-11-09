@@ -30,7 +30,7 @@ export function placeMeasuredScopes<P extends MeasuredPlacement>(
     const value = scopes[scope]!, dx = x + value.dx, dy = y + value.dy
     children[scope]!.forEach((id, index) => {
       const point = value.placed.nodes[index]!, location = { x: point.x + dx, y: point.y + dy }
-      if (id < leafCount) nodes[id] = location
+      if (id < leafCount) nodes[id] = { ...location, ...(point.width === undefined ? {} : { width: point.width }), ...(point.height === undefined ? {} : { height: point.height }) }
       else {
         const groupIndex = id - leafCount, child = scopes[groupIndex + 1]!
         frames[groupIndex] = { ...location, width: child.width, height: child.height }
