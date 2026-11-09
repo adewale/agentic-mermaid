@@ -214,6 +214,15 @@ const descriptorData = Object.freeze({
     },
     {
       "role": "icon",
+      "primitive": "image",
+      "applicability": "applicable",
+      "realization": "native",
+      "evidence": [
+        "src/__tests__/section-a-family-descriptor-conformance.test.ts"
+      ]
+    },
+    {
+      "role": "icon",
       "primitive": "text",
       "applicability": "applicable",
       "realization": "native",
