@@ -1711,3 +1711,23 @@ from its canonical descriptor; the existing catalog check passes. CI's build had
 regenerated this tracked file before website generation, producing a truthful
 `-dirty` stamp that disagreed with the fresh unit checkout. Preserve the provenance
 check. Its integrated CI result remains pending; budgets/Sparse32 remain separate.
+
+## Native ordinary labelled-head capacity — 9 November
+
+Parent `60d02d4b6e0dce15bc03d6f38e5c157743b2b787`: ten actual arrowheads
+are compressed to3.3545px pitch. Retain authored-end demand separately and reserve
+only crowded, resizable rectangles before layout. Native actual all10-head hidden
+pixels620→0 at3×; supplemental14U→P,20U retained, no missing captions. NamedLR
+area274565→275137(+0.21%),wire2944→2884,bends24 unchanged. Scratch+8bytes/node;
+uncached repeat2 wall59.04→73.47ms/CPU98.25→137.74ms is adverse; oldU/currentP
+do different work, no ratio.80fully consumed calls,8actual response streams decode
+exact.490owners/7files, core/repo types/lint pass; independent review no blocker.
+Frozen84wholeproducts+6errors and72peerproducts exact are validation.
+
+Stop node-wide trial: cyclic9LR/RL45→54bends. It mixed3incoming heads with5
+outgoing unmarked shafts; authored-end counts restore all4cyclic layouts exactly.
+No quality assertion weakened. Fixed/shared/fat paths retained, all caps/accounting
+charged. Remaining: cycle reversal/rounded capacity,20supplementalU, Sparse32 and
+distribution failures. Clean SDK-generation probe finds3missing exported image
+fields, explaining the still-failed website dirty stamp; next regenerate that
+canonical output. Evidence: `native-thin-capacity-20261109`.
