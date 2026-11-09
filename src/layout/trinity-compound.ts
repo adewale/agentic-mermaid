@@ -23,7 +23,10 @@ export function solveTrinityCompound(
   if (input.shareCompleteFans || input.edges.some(edge => edge.short || edge.markerPaint || edge.visible === false)) unsupported('shared fans, short edges, raw artwork and invisible constraints are outside the compound slice')
   const pay = (pairs: number, slots: number): void => { work.pairs -= pairs; work.arcs -= slots; assertTrinityWork(work) }
   pay(4 * (input.nodes.length + groups.length) + 8, 4 * (input.nodes.length + groups.length) + 4)
-  const leaves = new Map(input.nodes.map(node => [node.id, node])), frames = new Map(groups.map(group => [group.id, group]))
+  const leaves = new Map(input.nodes.map(node => {
+    if (node.contact === 'diamond') unsupported('diamond compound contacts are outside the measured slice')
+    return [node.id, node] as const
+  })), frames = new Map(groups.map(group => [group.id, group]))
   return layoutCompoundGraph(input, flat => {
     pay(flat.nodes.length * 32 + flat.edges.length * 8 + 32, flat.nodes.length * 24 + flat.edges.length * 2 + 24)
     const nodes = flat.nodes.map(node => {

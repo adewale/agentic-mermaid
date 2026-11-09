@@ -1,3 +1,4 @@
+import { cardinalDiamondPoints, pointOnRoutingBoundary, DIAMOND_VERTEX_MARGIN } from '../shared/shape-routing-boundary.ts'
 import { assertMarkerPaint } from './compound-marker-seating.ts'
 import { assertTrinityWork } from './trinity-work.ts'
 import { solveTrinityCompound } from './trinity-compound.ts'
@@ -5,12 +6,12 @@ import { tryTrinityForestPlacement } from './trinity-placement.ts'
 import { GraphLayoutUnsupportedError, LayoutWorkLimitError } from './backend.ts'
 import { AGENTIC_MAX_RANKS, AGENTIC_MAX_EXPANDED_VERTICES } from './agentic-limits.ts'
 import { assignChannelTracks, orderedPortCoordinate, type ChannelStep, type ChannelWork } from './channel-tracks.ts'
-import type { MeasuredGraph, MeasuredLayoutAdapter, MeasuredLayoutRequest, MeasuredLayoutResult, MeasuredLayoutRole, MeasuredRoutes } from './measured-graph.ts'
+import { assertMeasuredContactMetadata, type MeasuredGraph, type MeasuredLayoutAdapter, type MeasuredLayoutRequest, type MeasuredLayoutResult, type MeasuredLayoutRole, type MeasuredRoutes } from './measured-graph.ts'
 
 const decline = (reason: string): never => { throw new GraphLayoutUnsupportedError(reason, 'Trinity') }
 const size = (value: number, positive = false): boolean => Number.isFinite(value) && (positive ? value > 0 : value >= 0)
 
-/** A bounded, uncached flat rectangular kernel. Its caller owns the ledger across
+/** A bounded, uncached flat measured kernel. Its caller owns the ledger across
  * attempts. No legacy completion or private Native search flag enters here. */
 export function trinityMeasuredAdapter(work: ChannelWork): MeasuredLayoutAdapter<MeasuredLayoutRole> {
   return {
@@ -45,15 +46,17 @@ function solveTrinity(input: MeasuredGraph, work: ChannelWork, role: MeasuredLay
   if (input.maximumEdgeBendRadius) decline('rounded route paint is not implemented')
   const ids = new Set<string>()
   const widths: number[] = [], heights: number[] = []
+  let diamond: { cross: Float64Array; main: Float64Array; outset: Float64Array; sourceCardinal: Uint8Array; targetCardinal: Uint8Array; markerEnds: Uint8Array } | undefined
   for (const node of input.nodes) {
     if (node.paintStrokeWidth === undefined) decline('explicit node stroke measurements are required')
     if (typeof node.id !== 'string' || ids.has(node.id)) throw new TypeError('Measured node identities must be unique strings')
     ids.add(node.id)
     if (!size(node.width, true) || !size(node.height, true)) throw new TypeError('Invalid measured body size')
     if (node.parent !== undefined || node.partition !== undefined || node.modelOrder !== undefined) decline('scope and authored ordering constraints are not implemented')
-    if (node.contact !== 'rectangle' && node.contact !== 'rounded-rectangle' && node.contact !== 'ellipse') decline('explicit contact geometry is required')
+    assertMeasuredContactMetadata(node)
+    if (node.contact !== 'rectangle' && node.contact !== 'rounded-rectangle' && node.contact !== 'ellipse' && node.contact !== 'diamond') decline('explicit contact geometry is required')
     if (node.sizePolicy !== undefined && node.sizePolicy !== 'fixed' && node.sizePolicy !== 'minimum') throw new TypeError('Invalid measured size policy')
-    if (!size(node.paintStrokeWidth!, node.contact !== 'ellipse')) throw new TypeError('Invalid measured contact demand')
+    if (!size(node.paintStrokeWidth!, node.contact !== 'ellipse' && node.contact !== 'diamond')) throw new TypeError('Invalid measured contact demand')
     if (node.minimumPortSpacing !== undefined && !size(node.minimumPortSpacing, true)) throw new TypeError('Invalid measured contact demand')
     if (node.paintCornerRadius !== undefined && !size(node.paintCornerRadius)) throw new TypeError('Invalid measured contact radius')
     if (node.contact === 'ellipse') {
@@ -65,7 +68,17 @@ function solveTrinity(input: MeasuredGraph, work: ChannelWork, role: MeasuredLay
     } else if (node.contactEllipse !== undefined) throw new TypeError('Ellipse radii require an ellipse contact')
     if (node.contact === 'rounded-rectangle' && node.paintCornerRadius === undefined) decline('rounded contact radius must be measured')
     if (node.contact === 'rectangle' && node.paintCornerRadius) throw new TypeError('Rectangular contact has a rounded paint radius')
-    widths.push(horizontal ? node.height : node.width); heights.push(horizontal ? node.width : node.height)
+    if (node.contact === 'diamond') {
+      const extent = Object.hasOwn(node, 'contactDiamond') ? node.contactDiamond?.strokeExtent : undefined
+      if (extent === undefined || !size(extent) || extent < node.paintStrokeWidth! / 2 || node.paintCornerRadius) throw new TypeError('Invalid measured diamond paint support')
+      if (!diamond) { spend(n * 5 + m + 7); work.arcs -= n * 5 + m; assertTrinityWork(work); diamond = { cross: new Float64Array(n), main: new Float64Array(n), outset: new Float64Array(n), sourceCardinal: new Uint8Array(n), targetCardinal: new Uint8Array(n), markerEnds: new Uint8Array(m) } }
+      const i = widths.length; diamond.outset[i] = extent; diamond.cross[i] = horizontal ? node.height : node.width; diamond.main[i] = horizontal ? node.width : node.height
+      const crossSize = diamond.cross[i]! + 2 * extent, mainSize = diamond.main[i]! + 2 * extent
+      if (!size(crossSize, true) || !size(mainSize, true)) throw new TypeError('Diamond paint bounds overflow')
+      widths.push(crossSize); heights.push(mainSize)
+    } else {
+      widths.push(horizontal ? node.height : node.width); heights.push(horizontal ? node.width : node.height)
+    }
   }
   const sourceSupports = new Float64Array(m), targetSupports = new Float64Array(m)
   const outgoing: number[][] = Array.from({ length: n }, () => []), loops: number[][] = Array.from({ length: n }, () => [])
@@ -84,6 +97,13 @@ function solveTrinity(input: MeasuredGraph, work: ChannelWork, role: MeasuredLay
     if (edge.markerPaint !== undefined) assertMarkerPaint(edge.markerPaint)
     if (edge.short !== undefined && edge.short !== true || edge.visible !== undefined && typeof edge.visible !== 'boolean') throw new TypeError('Invalid measured edge preference')
     if (edge.short || edge.boundaryMarker || edge.markerPaint || edge.visible === false) decline('short edges, boundary artwork and invisible constraints are not implemented')
+    if (input.nodes[edge.source]!.contact === 'diamond' || input.nodes[edge.target]!.contact === 'diamond') for (const [subject, field, bit] of [[edge.source, 'sourceMarkerPresent', 1], [edge.target, 'targetMarkerPresent', 2]] as const) if (input.nodes[subject]!.contact === 'diamond') {
+      spend(6)
+      const marker = Object.hasOwn(edge, field) ? edge[field] : undefined
+      if (typeof marker !== 'boolean') decline('diamond endpoints require explicit marker presence')
+      if (edge.source === edge.target) decline('diamond loops are outside the contact slice')
+      if (marker) diamond!.markerEnds[e] = diamond!.markerEnds[e]! | bit
+    }
     if (edge.source === edge.target) loops[edge.source]!.push(e)
     else outgoing[edge.source]!.push(e)
   }
@@ -139,8 +159,8 @@ function solveTrinity(input: MeasuredGraph, work: ChannelWork, role: MeasuredLay
   const pitch = new Float64Array(n), margin = new Float64Array(n), loopPitch = new Float64Array(n), loopStride = new Float64Array(n), loopOrdinal = new Uint32Array(m)
   for (let node = 0; node < n; node++) {
     const body = input.nodes[node]!
-    const cornerMargin = (body.paintCornerRadius ?? 0) + body.paintStrokeWidth! / 2
-    margin[node] = Math.max(8, cornerMargin)
+    const cornerMargin = (body.paintCornerRadius ?? 0) + (body.contact === 'diamond' ? diamond!.outset[node]! : body.paintStrokeWidth! / 2)
+    margin[node] = Math.max(8, cornerMargin, body.contact === 'diamond' ? diamond!.outset[node]! + DIAMOND_VERTEX_MARGIN : 0)
     let demand = Math.max(8, body.minimumPortSpacing ?? 0)
     for (const e of forward[node]!) demand = Math.max(demand, (backward[e] ? targetSupports[e] : sourceSupports[e]) ?? 0)
     for (const e of incoming[node]!) demand = Math.max(demand, (backward[e] ? sourceSupports[e] : targetSupports[e]) ?? 0)
@@ -156,6 +176,12 @@ function solveTrinity(input: MeasuredGraph, work: ChannelWork, role: MeasuredLay
       // to satisfy a rectangular port-packing rule.
       if (count > 1 || loops[node]!.length || support > widths[node]! || (body.minimumPortSpacing ?? 0) > widths[node]!) decline('fixed ellipse has insufficient physical port capacity')
       continue
+    }
+    if (body.contact === 'diamond') for (const [peers, cardinal] of [[forward[node]!, diamond!.sourceCardinal], [incoming[node]!, diamond!.targetCardinal]] as const) for (const e of peers) {
+      spend(3)
+      const edge = input.edges[e]!, marked = (diamond!.markerEnds[e]! & (edge.source === node ? 1 : 2)) !== 0
+      if (marked && peers.length !== 1) decline('marked diamond contacts require singleton cardinal seating')
+      if (marked) cardinal[node] = 1
     }
     const required = count > 1 ? (count - 1) * pitch[node]! + margin[node]! * 2 : margin[node]! * 2
     if (count && widths[node]! < required) {
@@ -180,6 +206,12 @@ function solveTrinity(input: MeasuredGraph, work: ChannelWork, role: MeasuredLay
     }
   }
 
+  if (diamond) for (let i = 0; i < n; i++) if (input.nodes[i]!.contact === 'diamond') {
+    spend(8)
+    const inset = diamond.outset[i]!, original = horizontal ? input.nodes[i]!.height : input.nodes[i]!.width
+    diamond.cross[i] = widths[i] === original + 2 * inset ? original : Math.max(original, widths[i]! - 2 * inset)
+    widths[i] = diamond.cross[i]! + 2 * inset
+  }
   const paths: number[][] = [], labelVertices = new Int32Array(m).fill(-1)
   for (let e = 0; e < m; e++) {
     if (sources[e] === targets[e]) { paths.push([sources[e]!]); continue }
@@ -270,6 +302,7 @@ function solveTrinity(input: MeasuredGraph, work: ChannelWork, role: MeasuredLay
     if (input.nodes[node]!.contact === 'ellipse') continue
     const left = cross[node]! + margin[node]!, right = cross[node]! + widths[node]! - margin[node]!
     for (const [peers, offsets, source] of [[forward[node]!, sourceOffsets, true], [incoming[node]!, targetOffsets, false]] as const) {
+      if (input.nodes[node]!.contact === 'diamond' && (source ? diamond!.sourceCardinal[node] : diamond!.targetCardinal[node])) continue
       let previous = -Infinity
       for (let i = 0; i < peers.length; i++) {
         spend(6)
@@ -309,7 +342,9 @@ function solveTrinity(input: MeasuredGraph, work: ChannelWork, role: MeasuredLay
       point.y = canvasPadding + (horizontal ? x : y)
     }
     const nodes = input.nodes.map((_, i) => {
-      const node = { x: cross[i]!, y: reverse ? main[i]! + heights[i]! : main[i]!, width: horizontal ? heights[i]! : widths[i]!, height: horizontal ? widths[i]! : heights[i]! }
+      const d = input.nodes[i]!.contact === 'diamond', inset = d ? diamond!.outset[i]! : 0
+      const bodyCross = d ? diamond!.cross[i]! : widths[i]!, bodyMain = d ? diamond!.main[i]! : heights[i]!
+      const node = { x: cross[i]! + inset, y: reverse ? main[i]! + heights[i]! - inset : main[i]! + inset, width: horizontal ? bodyMain : bodyCross, height: horizontal ? bodyCross : bodyMain }
       projectPoint(node)
       return node
     })
@@ -319,6 +354,15 @@ function solveTrinity(input: MeasuredGraph, work: ChannelWork, role: MeasuredLay
     return result
   }
   if (role === 'placement') return project([])
+  const facet = (node: number, coordinate: number, positive: boolean): number | undefined => {
+    if (input.nodes[node]?.contact !== 'diamond') return undefined
+    spend(96); work.arcs -= 48; assertTrinityWork(work)
+    const inset = diamond!.outset[node]!, width = diamond!.cross[node]!, height = diamond!.main[node]!
+    const boundary = { kind: 'polygon' as const, points: cardinalDiamondPoints(cross[node]! + inset + width / 2, main[node]! + inset + height / 2, width, height) }
+    const at = pointOnRoutingBoundary(boundary, positive ? 'S' : 'N', coordinate)
+    if (!at) return decline('diamond contact is outside its measured facet')
+    return at.y
+  }
   const routes: MeasuredRoutes['edges'] = []
   for (let e = 0; e < m; e++) {
     const path = paths[e]!, points: Array<{ x: number; y: number }> = []
@@ -346,11 +390,11 @@ function solveTrinity(input: MeasuredGraph, work: ChannelWork, role: MeasuredLay
       const targetEllipse = i + 1 === path.length ? input.nodes[b]?.contactEllipse : undefined
       const sourceInset = sourceEllipse ? heights[a]! / 2 - (horizontal ? sourceEllipse.rx : sourceEllipse.ry) : 0
       const targetInset = targetEllipse ? heights[b]! / 2 - (horizontal ? targetEllipse.rx : targetEllipse.ry) : 0
-      append(ax, main[a]! + heights[a]! - sourceInset); append(ax, track)
+      append(ax, (i === 1 ? facet(a, ax, true) : undefined) ?? main[a]! + heights[a]! - sourceInset); append(ax, track)
       if (step.targetEscape !== undefined) {
         append(step.targetEscape, track); append(step.targetEscape, gapStarts[rank]! + step.targetExit!); append(bx, gapStarts[rank]! + step.targetExit!)
       } else append(bx, track)
-      append(bx, main[b]! + targetInset)
+      append(bx, (i + 1 === path.length ? facet(b, bx, false) : undefined) ?? main[b]! + targetInset)
     }
     if (backward[e]) points.reverse()
     const label = labelVertices[e]!
@@ -363,7 +407,7 @@ function solveTrinity(input: MeasuredGraph, work: ChannelWork, role: MeasuredLay
     if (!label || !at) continue
     const width = horizontal ? label.height : label.width, height = horizontal ? label.width : label.height
     const overlaps = (x: number, y: number, w: number, h: number, pad: number): boolean => at.x + width / 2 > x - pad && at.x - width / 2 < x + w + pad && at.y + height / 2 > y - pad && at.y - height / 2 < y + h + pad
-    for (let node = 0; node < n; node++) { spend(); if (overlaps(cross[node]!, main[node]!, widths[node]!, heights[node]!, input.nodes[node]!.paintStrokeWidth! / 2)) decline('caption overlaps a painted body') }
+    for (let node = 0; node < n; node++) { spend(); if (overlaps(cross[node]!, main[node]!, widths[node]!, heights[node]!, (input.nodes[node]!.contact === 'diamond' ? 0 : input.nodes[node]!.paintStrokeWidth! / 2))) decline('caption overlaps a painted body') }
     for (let other = 0; other < e; other++) {
       const body = input.edges[other]!.label, anchor = routes[other]!.labelPosition
       if (!body || !anchor) continue
@@ -381,7 +425,7 @@ function solveTrinity(input: MeasuredGraph, work: ChannelWork, role: MeasuredLay
         Math.max(a.x, b.x) > left - pad && Math.min(a.x, b.x) < left + width + pad && Math.max(a.y, b.y) > top - pad && Math.min(a.y, b.y) < top + height + pad
       for (let vertex = 0; vertex < n; vertex++) {
         spend(); if (vertex === edge.source || vertex === edge.target) continue
-        const pad = clearance + (input.nodes[vertex]!.paintStrokeWidth ?? 1) / 2
+        const pad = clearance + (input.nodes[vertex]!.contact === 'diamond' ? 0 : (input.nodes[vertex]!.paintStrokeWidth ?? 1) / 2)
         if (enters(cross[vertex]!, main[vertex]!, widths[vertex]!, heights[vertex]!, pad)) decline('foreign body clearance could not be preserved')
       }
       for (let other = 0; other < m; other++) {

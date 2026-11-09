@@ -1,7 +1,7 @@
 import { GraphLayoutUnsupportedError, LayoutWorkLimitError } from './backend.ts'
 import { AGENTIC_MAX_NODES, AGENTIC_MAX_EDGES } from './agentic-limits.ts'
 import type { ChannelWork } from './channel-tracks.ts'
-import type { MeasuredGraph, MeasuredPlacement, MeasuredLayoutAdapter } from './measured-graph.ts'
+import { assertMeasuredContactMetadata, type MeasuredGraph, type MeasuredPlacement, type MeasuredLayoutAdapter } from './measured-graph.ts'
 import { placeMeasuredForest } from './measured-forest.ts'
 import { assertTrinityWork } from './trinity-work.ts'
 
@@ -27,6 +27,7 @@ export function tryTrinityForestPlacement(input: MeasuredGraph, work: ChannelWor
     if (typeof node.id !== 'string' || ids.has(node.id)) throw new TypeError('Measured node identities must be unique strings')
     ids.add(node.id)
     if (node.contactEllipse !== undefined && node.contact !== 'ellipse') throw new TypeError('Ellipse radii require an ellipse contact')
+    assertMeasuredContactMetadata(node)
     if (node.contact !== 'rectangle' && node.contact !== 'rounded-rectangle') return undefined
     if (![node.width, node.height].every(value => Number.isFinite(value) && value > 0)) throw new TypeError('Invalid measured body size')
     if (node.paintStrokeWidth === undefined) return undefined

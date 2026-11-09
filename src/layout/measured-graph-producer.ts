@@ -6,6 +6,7 @@ import type { AgenticGraphBindings, AgenticGraphOptions } from '../layout-engine
 import type { MeasuredGraph, MeasuredRoutes } from './measured-graph.ts'
 import { fitMeasuredLayout } from './fit-measured-layout.ts'
 import { LayoutWorkLimitError } from './backend.ts'
+import { paintedStrokeExtent } from '../scene/bounds.ts'
 import { shapeOutline } from '../shape-outline.ts'
 
 interface ProjectionCompletion { mergeEdges: boolean; sharedEdges?: readonly number[] }
@@ -20,16 +21,19 @@ export function prepareMeasuredGraphCandidate(
   const ownedPlacement = purpose === 'owned-placement'
   const placementOnly = purpose === 'legacy-placement' || ownedPlacement
   const physical = purpose === 'owned-routed'
+  let diamondContacts = false
   const { edgeSelectorIndices, graphEdgeMarkerPaintRegions, DEFAULTS, LABEL_PILL_PADDING, measureRenderStage, graphTextBlock, resolveLabelContent, groupTitleWidth, groupHeaderHeight, estimateNodeSize, resolveNodeInlineStyle, resolveEdgeInlineStyle, resolveClassInlineStyle, containsNonFiniteNumber, finishGraphGeometry } = bindings
   if (options.preserveSubgraphChildOrder) bindings.unsupported('family-specific graph geometry')
   if (physical) {
     if (graph.stateNotes?.length || graph.floatingStateNotes?.length) bindings.unsupported('note geometry is outside the measured slice')
     if (graph.nodes.size > 64 || graph.edges.length > 128) bindings.unsupported('routed slice is limited to 64 subjects and 128 edges')
     for (const node of graph.nodes.values()) {
+      if (node.shape === 'diamond') diamondContacts = true
       const pseudo = node.shape === 'state-start' || node.shape === 'state-end'
-      if (node.semanticShape || node.shape !== 'rectangle' && node.shape !== 'rounded' && !pseudo) bindings.unsupported('only measured rectangular, rounded and State circle contacts are supported')
+      if (node.semanticShape || node.shape !== 'rectangle' && node.shape !== 'rounded' && node.shape !== 'diamond' && !pseudo) bindings.unsupported('only measured rectangular, rounded, diamond and State circle contacts are supported')
       if (pseudo && (node.label || node.labelContent || node.labelBlock?.text || node.icon || node.image)) bindings.unsupported('labelled and media pseudostates are outside the fixed circle slice')
     }
+    if (diamondContacts && graph.subgraphs.length) bindings.unsupported('diamond compound contacts are outside the measured slice')
     if (graph.edges.some(edge => edge.curve !== undefined)) bindings.unsupported('authored curve paint is outside the orthogonal measured slice')
     if (style.lineWidth <= 0) bindings.unsupported('zero-width shafts are outside the flat measured slice')
   }
@@ -155,7 +159,7 @@ export function prepareMeasuredGraphCandidate(
     let lead = 0, doubleDepth = 0, maximumStroke = 0, knownClearance = true
     pay(0, 3 * nodes.length + 5)
     const portSpans = new Float64Array(nodes.length), incoming = new Uint32Array(nodes.length), outgoing = new Uint32Array(nodes.length)
-    type MarkerRoom = { start: number; end: number; startSpan: number; endSpan: number; span: number; boundaryInset: number; boundaryHeight: number; boundaryCount: number }
+    type MarkerRoom = { start: number; end: number; startSpan: number; endSpan: number; span: number; boundaryInset: number; boundaryHeight: number; boundaryCount: number; startPresent?: boolean; endPresent?: boolean }
     const footprints = new Map<string, MarkerRoom>()
     const numericWidth = (value: string | number): number | undefined => {
       pay(4 + (typeof value === 'string' ? value.length : 0), 1)
@@ -194,8 +198,10 @@ export function prepareMeasuredGraphCandidate(
             inlineStyle: fixed ? { 'stroke-width': '1' } : undefined },
           { lineWidth: style.lineWidth, ...(emptyStroke ? { edgeStrokeColor: 'none' } : {}) })
           let start = 0, end = 0, startSpan = 0, endSpan = 0, span = 0, boundaryInset = 0, boundaryHeight = 0, boundaryCount = 0
+          let startPresent = false, endPresent = false
           for (const marker of markers) {
             pay(18)
+            if (diamondContacts) { pay(2); if (marker.position === 'start') startPresent = true; if (marker.position === 'end') endPresent = true }
             const box = marker.bounds
             if (!box || !Number.isFinite(box.x0) || !Number.isFinite(box.x1) || !Number.isFinite(box.y0) || !Number.isFinite(box.y1) || box.x0 > box.x1 || box.y0 > box.y1) bindings.unsupported('agentic marker paint bounds')
             const depth = marker.position === 'start' ? (boundaryEnd === 'end' ? 1 - box.x0 : box.x1) : (boundaryEnd === 'end' ? box.x1 : 1 - box.x0)
@@ -208,8 +214,8 @@ export function prepareMeasuredGraphCandidate(
               boundaryHeight = Math.max(boundaryHeight, 2 * Math.max(Math.abs(box.y0), Math.abs(box.y1)))
             }
           }
-          pay(0, 9)
-          footprint = { start, end, startSpan, endSpan, span, boundaryInset, boundaryHeight, boundaryCount }
+          pay(diamondContacts ? 2 : 0, diamondContacts ? 13 : 9)
+          footprint = { start, end, startSpan, endSpan, span, boundaryInset, boundaryHeight, boundaryCount, ...(diamondContacts ? { startPresent, endPresent } : undefined) }
           footprints.set(key, footprint)
         }
         const { start: startDepth, end: endDepth, span } = footprint
@@ -239,7 +245,7 @@ export function prepareMeasuredGraphCandidate(
         ...(physical || portFaces?.[source] ? { sourcePortSpan: Math.max(shaft, footprint?.startSpan ?? 0) } : {}),
         ...(physical || portFaces?.[target] ? { targetPortSpan: Math.max(shaft, footprint?.endSpan ?? 0) } : {}),
       } : {}
-      return { source, target, ...endpointSpans, minSpan: edge.length ?? 1, ...(preferred?.has(index) ? { short: true as const } : {}), ...(boundaryMarker ? { boundaryMarker } : {}), ...(edge.style === 'invisible' ? { visible: false } : {}), ...(block ? { label: { width: block.width + 2 * LABEL_PILL_PADDING + 2 * halo, height: block.height + 2 * LABEL_PILL_PADDING + 2 * halo } } : {}) }
+      return { source, target, ...(diamondContacts && graph.nodes.get(nodes[source]!.id)?.shape === 'diamond' ? { sourceMarkerPresent: footprint ? footprint.startPresent : false } : {}), ...(diamondContacts && graph.nodes.get(nodes[target]!.id)?.shape === 'diamond' ? { targetMarkerPresent: footprint ? footprint.endPresent : false } : {}), ...endpointSpans, minSpan: edge.length ?? 1, ...(preferred?.has(index) ? { short: true as const } : {}), ...(boundaryMarker ? { boundaryMarker } : {}), ...(edge.style === 'invisible' ? { visible: false } : {}), ...(block ? { label: { width: block.width + 2 * LABEL_PILL_PADDING + 2 * halo, height: block.height + 2 * LABEL_PILL_PADDING + 2 * halo } } : {}) }
     })
     const shareCompleteFans = !options.stateVisual && !groups.length && [...graph.nodes.values()].every(node => node.shape === 'rectangle' && !node.semanticShape)
       && graph.edges.every((edge, index) => {
@@ -249,13 +255,24 @@ export function prepareMeasuredGraphCandidate(
       })
     let border = Math.max(style.nodeLineWidth, style.groupLineWidth) / 2
     for (const [id] of graph.nodes) {
-      const width = numericWidth(resolveNodeInlineStyle(id, graph)?.['stroke-width'] ?? style.nodeLineWidth)
+      const inline = resolveNodeInlineStyle(id, graph)
+      const width = numericWidth(inline?.['stroke-width'] ?? style.nodeLineWidth)
       pay(3)
       if (width !== undefined) border = Math.max(border, width / 2)
       else knownClearance = false
       if (physical && width !== undefined) {
         pay(8, 4)
         const node = nodes[indices.get(id)!]!, authored = graph.nodes.get(id)!
+        if (authored.shape === 'diamond') {
+          pay(96, 64)
+          const outline = shapeOutline({ ...authored, ...node, x: 0, y: 0 }, { fill: inline?.fill ?? style.nodeFillColor ?? 'var(--_node-fill)', stroke: inline?.stroke ?? style.nodeBorderColor ?? 'var(--_node-stroke)', strokeWidth: inline?.['stroke-width'] ?? String(style.nodeLineWidth) }, style.cornerRadius)
+          pay(3 + (outline.paint.strokeWidth?.length ?? 0) + (outline.paint.stroke?.length ?? 0))
+          const extent = paintedStrokeExtent(outline.paint, true)
+          if (outline.routing.kind !== 'polygon' || outline.routing.points.length !== 4 || extent === undefined || !Number.isFinite(extent) || extent < 0) bindings.unsupported('diamond needs measured polygon stroke support')
+          node.contact = 'diamond'; node.contactDiamond = { strokeExtent: extent }; node.paintStrokeWidth = extent === 0 ? 0 : width; node.paintCornerRadius = 0
+          node.sizePolicy = options.nodeSizes?.has(id) ? 'fixed' : 'minimum'
+          continue
+        }
         if (authored.shape === 'state-start' || authored.shape === 'state-end') {
           pay(32, 32)
           const outline = shapeOutline({ ...authored, ...node, x: 0, y: 0 }, { fill: 'var(--_node-fill)', stroke: 'var(--_node-stroke)', strokeWidth: String(width) }, style.cornerRadius)

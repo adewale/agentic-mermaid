@@ -1,4 +1,6 @@
 import { describe, expect, test } from 'bun:test'
+import { nativeMeasuredAdapter } from '../layout/native-measured-adapter.ts'
+import { elkMeasuredAdapter } from '../layout/elk-measured-adapter.ts'
 import { fitMeasuredLayout } from '../layout/fit-measured-layout.ts'
 import { GraphLayoutUnsupportedError, LayoutWorkLimitError, runMeasuredGraphBackend } from '../layout/backend.ts'
 import type { MeasuredGraph } from '../layout/measured-graph.ts'
@@ -15,6 +17,69 @@ const base = (): MeasuredGraph => ({
 })
 
 describe('Trinity flat measured solve', () => {
+  test.each(['TB', 'BT', 'LR', 'RL'] as const)('keeps fixed diamond limits and publishes permitted body growth once in %s', direction => {
+    const input: MeasuredGraph = { ...base(), direction, nodes: [
+      { id: 'Q 漢🙂', width: 36.125, height: 20.25, contact: 'diamond', contactDiamond: { strokeExtent: 4 }, paintStrokeWidth: 2, sizePolicy: 'fixed' }, node('A'), node('B'), node('C'),
+    ], edges: [1, 2, 3].map(target => ({ source: 0, target, minSpan: 1, sourcePortSpan: 2, targetPortSpan: 12, sourceMarkerPresent: false })) }
+    const before = structuredClone(input)
+    expect(() => trinityMeasuredAdapter(ledger()).solve({ role: 'routed', graph: input })).toThrow(GraphLayoutUnsupportedError)
+    expect(input).toEqual(before)
+    const growing = { ...input, nodes: input.nodes.map((body, i) => i ? body : { ...body, sizePolicy: 'minimum' as const }) }, original = structuredClone(growing)
+    const routed = solveMeasuredLayout({ role: 'routed', graph: growing }, trinityMeasuredAdapter(ledger()))
+    const placed = solveMeasuredLayout({ role: 'placement', graph: growing }, trinityMeasuredAdapter(ledger()))
+    expect(placed.nodes).toEqual(routed.nodes)
+    expect(growing).toEqual(original)
+    const q = routed.nodes[0]!
+    expect(q.width).toBeGreaterThanOrEqual(36.125); expect(q.height).toBeGreaterThanOrEqual(20.25)
+    expect(direction === 'LR' || direction === 'RL' ? q.width : q.height).toBe(direction === 'LR' || direction === 'RL' ? 36.125 : 20.25)
+    expect(new Set(routed.edges.map(edge => { const at = edge.points[0]!; return `${at.x},${at.y}` })).size).toBe(3)
+  })
+
+  test('all placement consumers reject contradictory contact metadata', () => {
+    const input: MeasuredGraph = { nodes: [{ ...node('rectangle'), contactDiamond: { strokeExtent: NaN } }], edges: [], direction: 'TB', padding: 32, nodeSpacing: 40, layerSpacing: 72 }
+    const before = structuredClone(input), request = { role: 'placement' as const, graph: input }
+    for (const adapter of [trinityPlacementAdapter(ledger()), trinityMeasuredAdapter(ledger()), nativeMeasuredAdapter, elkMeasuredAdapter({ rootId: 'contradictory', edgeNodeSpacing: 6 })]) expect(() => adapter.solve(request)).toThrow(TypeError)
+    expect(input).toEqual(before)
+    let observations = 0
+    const inherited = Object.assign(Object.create({ get contactDiamond() { observations++; return { strokeExtent: NaN } } }), node('inherited'))
+    const graph = { ...input, nodes: [inherited] }, plainRequest = { role: 'placement' as const, graph }
+    trinityPlacementAdapter(ledger()).solve(plainRequest)
+    trinityMeasuredAdapter(ledger()).solve(plainRequest)
+    nativeMeasuredAdapter.solve(plainRequest)
+    elkMeasuredAdapter({ rootId: 'inherited', edgeNodeSpacing: 6 }).solve({ role: 'placement', graph: { ...graph, edgeSpacing: 8, minimumTerminalLead: 0, nodeClearance: 0, maximumEdgeStrokeWidth: 2, maximumEdgeBendRadius: 0 } })
+    expect(observations).toBe(0)
+    const inheritedEllipse = Object.assign(Object.create({ contactEllipse: { rx: 1, ry: 1 } }), node('rectangle'))
+    const ellipseRequest = { role: 'placement' as const, graph: { ...base(), nodes: [inheritedEllipse], edges: [] } }
+    expect(() => trinityPlacementAdapter(ledger()).solve({ ...ellipseRequest, graph: { ...ellipseRequest.graph, edgeSpacing: undefined, minimumTerminalLead: undefined, maximumEdgeStrokeWidth: undefined } })).toThrow(TypeError)
+    expect(() => trinityMeasuredAdapter(ledger()).solve(ellipseRequest)).toThrow(TypeError)
+    expect(() => trinityMeasuredAdapter(ledger()).solve({ ...ellipseRequest, role: 'routed' })).toThrow(TypeError)
+  })
+
+  test('diamond marker facts, unsupported consumers and exhausted work stay distinct', () => {
+    const input: MeasuredGraph = { ...base(), nodes: [
+      { id: 'Q', width: 100, height: 100, contact: 'diamond', contactDiamond: { strokeExtent: 4 }, paintStrokeWidth: 2 }, node('A'), node('B'),
+    ], edges: [{ source: 0, target: 1, minSpan: 1, sourcePortSpan: 2, targetPortSpan: 12, sourceMarkerPresent: false }, { source: 0, target: 2, minSpan: 1, sourcePortSpan: 2, targetPortSpan: 12, sourceMarkerPresent: false }] }
+    const missing = { ...input, edges: input.edges.map(({ sourceMarkerPresent: _, ...edge }) => edge) }
+    expect(() => trinityMeasuredAdapter(ledger()).solve({ role: 'routed', graph: missing })).toThrow(GraphLayoutUnsupportedError)
+    let inheritedReads = 0
+    const inheritedFacts = { ...input, edges: missing.edges.map(edge => Object.assign(Object.create({ get sourceMarkerPresent() { inheritedReads++; return false } }), edge)) }
+    expect(() => trinityMeasuredAdapter(ledger()).solve({ role: 'routed', graph: inheritedFacts })).toThrow(GraphLayoutUnsupportedError)
+    expect(inheritedReads).toBe(0)
+    const marked = { ...input, edges: input.edges.map((edge, i) => i ? edge : { ...edge, sourceMarkerPresent: true }) }
+    expect(() => trinityMeasuredAdapter(ledger()).solve({ role: 'routed', graph: marked })).toThrow(GraphLayoutUnsupportedError)
+    const loop = { ...input, edges: [{ ...input.edges[0]!, target: 0, targetMarkerPresent: false }] }
+    expect(() => trinityMeasuredAdapter(ledger()).solve({ role: 'routed', graph: loop })).toThrow(GraphLayoutUnsupportedError)
+    const malformed = { ...input, nodes: input.nodes.map((body, i) => i ? body : { ...body, contactDiamond: { strokeExtent: NaN } }) }
+    expect(() => trinityMeasuredAdapter(ledger()).solve({ role: 'routed', graph: malformed })).toThrow(TypeError)
+    expect(() => trinityMeasuredAdapter({ ...ledger(), arcs: 1 }).solve({ role: 'routed', graph: input })).toThrow(LayoutWorkLimitError)
+    for (const role of ['placement', 'routed'] as const) {
+      expect(() => nativeMeasuredAdapter.solve({ role, graph: input })).toThrow(GraphLayoutUnsupportedError)
+      expect(() => elkMeasuredAdapter({ rootId: 'diamond', edgeNodeSpacing: 6 }).solve({ role, graph: input })).toThrow(GraphLayoutUnsupportedError)
+    }
+    const thin = { ...input, nodes: input.nodes.map(({ paintStrokeWidth: _, ...body }) => body), edges: input.edges.map(({ sourcePortSpan: _, targetPortSpan: __, ...edge }) => edge), edgeSpacing: undefined, nodeClearance: undefined, maximumEdgeStrokeWidth: undefined, maximumEdgeBendRadius: undefined }
+    expect(() => elkMeasuredAdapter({ rootId: 'diamond-thin', edgeNodeSpacing: 6 }).solve({ role: 'routed', graph: thin })).toThrow(GraphLayoutUnsupportedError)
+  })
+
   test.each(['TB', 'BT', 'LR', 'RL'] as const)('retains cyclic authored endpoints, label anchors and fixed bodies in %s', direction => {
     const input = { ...base(), direction }, before = structuredClone(input), adapter = trinityMeasuredAdapter(ledger())
     const result = solveMeasuredLayout({ role: 'routed', graph: input }, adapter)

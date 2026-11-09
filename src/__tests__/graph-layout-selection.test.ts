@@ -28,6 +28,40 @@ import * as trinityKernel from '../layout/trinity.ts'
 import type { MeasuredGraph } from '../layout/measured-graph.ts'
 
 describe('Trinity primary measured producer', () => {
+  test.each(['LR', 'RL', 'TB', 'BT'])('retains decision fan facets, cardinal heads and feedback identities in %s', direction => {
+    const fan = 'Q{Decision} -->|left| L[Left]\nQ -->|middle| M[Middle]\nQ -.->|right| R[Right]'
+    for (const [body, ids, expected] of [
+      [fan, ['L', 'M', 'Q', 'R'], [['Q', 'L', 'left'], ['Q', 'M', 'middle'], ['Q', 'R', 'right']]],
+      ['S[Start] --> Q{Decision}\n' + fan, ['L', 'M', 'Q', 'R', 'S'], [['S', 'Q', undefined], ['Q', 'L', 'left'], ['Q', 'M', 'middle'], ['Q', 'R', 'right']]],
+      ['Q{Decision} -->|go| A[Task]\nA ---|back| Q', ['A', 'Q'], [['Q', 'A', 'go'], ['A', 'Q', 'back']]],
+    ] as const) {
+      const source = `flowchart ${direction}\n${body}`, options = { graphLayout: { backend: 'trinity' as const, fallback: 'none' as const }, embedFontImport: false }
+      const product = renderMermaidSVGWithReceipt(source, options), layout = layoutMermaidWithReceipt(source, options).layout
+      expect(layout.nodes.map(node => node.id).sort()).toEqual([...ids])
+      expect(layout.edges.map(edge => [edge.from, edge.to, edge.label?.text])).toEqual(expected.map(edge => [...edge]))
+      expect(missingSvgLabels(product.svg, body === fan ? ['Decision', 'Left', 'Middle', 'Right', 'left', 'middle', 'right'] : body.startsWith('S[') ? ['Start', 'Decision', 'Left', 'Middle', 'Right', 'left', 'middle', 'right'] : ['Decision', 'Task', 'go', 'back'])).toEqual([])
+      const tags = scanSvgStartTags(product.svg), polygon = tags.find(tag => decodedSvgAttributeValue(tag, 'data-id') === 'node-shape:Q')!
+      expect(polygon.name).toBe('polygon')
+      const vertices = decodedSvgAttributeValue(polygon, 'points')!.trim().split(/\s+/).map(pair => pair.split(',').map(Number))
+      expect(vertices).toHaveLength(4)
+      const carriers = tags.filter(tag => decodedSvgAttributeValue(tag, 'data-role') === 'edge')
+      expect(carriers.map(tag => [decodedSvgAttributeValue(tag, 'data-from'), decodedSvgAttributeValue(tag, 'data-to')])).toEqual(expected.map(edge => edge.slice(0, 2)))
+      for (const tag of carriers) {
+        const points = decodedSvgAttributeValue(tag, 'points')!.trim().split(/\s+/).map(pair => pair.split(',').map(Number))
+        const attached = decodedSvgAttributeValue(tag, 'data-from') === 'Q' ? points[0]! : decodedSvgAttributeValue(tag, 'marker-end') ? undefined : points.at(-1)!
+        if (!attached) continue
+        // Inspect the actual written contour and shaft, independently of the
+        // solver's declared body/port certificate. This fails box seating.
+        expect(vertices.some((a, i) => {
+          const b = vertices[(i + 1) % vertices.length]!, dx = b[0]! - a[0]!, dy = b[1]! - a[1]!, x = attached[0]! - a[0]!, y = attached[1]! - a[1]!, length = Math.hypot(dx, dy)
+          return Math.abs(x * dy - y * dx) <= 0.002 * length && x * dx + y * dy >= -0.002 * length && x * dx + y * dy <= length * length + 0.002 * length
+        })).toBe(true)
+      }
+      expect(product.receipt.layoutCertification?.status).toBe('passed')
+      expect(renderMermaidSVGWithReceipt(source, options)).toEqual(product)
+    }
+  })
+
   test.each(['LR', 'RL', 'TB', 'BT'])('connects labelled cross-group fan-in to leaves in %s', direction => {
     const source = `flowchart ${direction}\nsubgraph A\na1\na2\nend\nsubgraph B\nb1["b1<br/>two<br/>three"]\nb2["b2<br/>two<br/>three"]\nb3["b3<br/>two<br/>three"]\nb4["b4<br/>two<br/>three<br/>four"]\nend\na1 -->|label| b1\na2 -->|label| b1\na1 -->|label| b2\na2 -->|label| b2\na1 -->|label| b3\na2 -->|label| b3\na1 -->|label| b4\na2 -->|label| b4`
     const options = { graphLayout: { backend: 'trinity' as const, fallback: 'none' as const }, embedFontImport: false }
@@ -170,7 +204,7 @@ describe('Trinity primary measured producer', () => {
     for (const text of ['Release', 'Review', 'run', 'again', 'back', 'loop']) expect(rendered.svg).toContain(text)
   })
 
-  test.each(['flowchart TB\nA{Decision}-->B[Body]', 'flowchart LR\nA e1@--> B\nA-->C\ne1@{curve: natural}', 'stateDiagram-v2\nA-->B\nnote right of A: Note', 'stateDiagram-v2\nstate Active {\nA-->B\n}\nclassDef wide stroke-width:8px\nclass Active wide'])('declines untranslated geometry and keeps fallback explicit: %s', source => {
+  test.each(['flowchart TB\nA((Decision))-->B[Body]', 'flowchart LR\nA e1@--> B\nA-->C\ne1@{curve: natural}', 'stateDiagram-v2\nA-->B\nnote right of A: Note', 'stateDiagram-v2\nstate Active {\nA-->B\n}\nclassDef wide stroke-width:8px\nclass Active wide'])('declines untranslated geometry and keeps fallback explicit: %s', source => {
     expect(() => renderMermaidSVGWithReceipt(source, { graphLayout: { backend: 'trinity' } })).toThrow(GraphLayoutUnsupportedError)
     const fallback = renderMermaidSVGWithReceipt(source, { graphLayout: { backend: 'trinity', fallback: 'elk' } })
     expect(fallback.svg).toBe(renderMermaidSVGWithReceipt(source, { graphLayout: { backend: 'elk' } }).svg)
