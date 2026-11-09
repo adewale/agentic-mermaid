@@ -1,7 +1,7 @@
 import { describe, expect, spyOn, test } from 'bun:test'
 import { fileURLToPath } from 'node:url'
 import { runInNewContext } from 'node:vm'
-import { boundStandaloneCodec, packStandaloneWorker, standaloneCodecPlugin, standaloneWorkerNotices } from '../../scripts/build/standalone-worker-payload.ts'
+import { boundStandaloneCodec, packStandaloneWorker, standaloneCodecNotices, standaloneCodecPlugin, standaloneWorkerNotices } from '../../scripts/build/standalone-worker-payload.ts'
 import { minifyBrowserRuntime } from '../../scripts/build/runtime-minify.ts'
 import { getFamily, knownBuiltinFamilies, replaceFamilyForTest } from '../agent/families.ts'
 import { renderAndVerifyMermaid, verifyMermaid } from '../agent/verify.ts'
@@ -825,9 +825,22 @@ test('codec charging preserves labelled continue, unbraced loops and strict dire
 })
 
 
-test('standalone notices retain actual legal comments after regex quotes without promoting string contents', () => {
-  const source = `const pattern = /['"]/; /*! @license retained-after-regexp */ const inert = '/* @license inert-string */';`
-  const notices = standaloneWorkerNotices(source, [], process.cwd())
-  expect(notices).toContain('/*! @license retained-after-regexp */')
+test('standalone notices share exact license texts while retaining attribution and escaped legal comments', async () => {
+  const source = `const pattern = /['"]/; /*! @license retained-after-regexp </script> */ const inert = '/* @license inert-string */';`
+  const buildNotices = () => {
+    const emitted = new Set<string>()
+    return `${standaloneCodecNotices(emitted)}\n\n${standaloneWorkerNotices(source, [], process.cwd(), emitted)}`
+  }
+  const notices = buildNotices()
+  expect(notices).toContain('/*! @license retained-after-regexp ')
   expect(notices).not.toContain('/* @license inert-string */')
+  expect(notices).toContain('<\\/script>')
+  for (const name of ['Apache-2.0.txt', 'Brotli-MIT.txt']) {
+    const text = (await Bun.file(new URL(`../../LICENSES/${name}`, import.meta.url)).text()).replace(/<\//g, '<\\/')
+    expect(notices.split(text)).toHaveLength(2)
+  }
+  expect(notices).toContain('Agentic Mermaid modifies the bundled decoder, base64 and CRC sources')
+  expect(notices).toContain('Brotli decoder: Copyright 2013 Google Inc. All Rights Reserved.')
+  expect(buildNotices()).toBe(notices)
+  expect(standaloneCodecNotices()).toBe(standaloneCodecNotices())
 })

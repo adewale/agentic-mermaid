@@ -158,14 +158,24 @@ export function standaloneCodecPlugin(dictionary?: string): Bun.BunPlugin {
   }
 }
 
+function formatStandaloneNotices(texts: Iterable<string>, emitted: Set<string>): string {
+  const unique: string[] = []
+  for (const text of texts) {
+    if (emitted.has(text)) continue
+    emitted.add(text)
+    unique.push(text)
+  }
+  return unique.join('\n\n').replace(/<\//g, '<\\/')
+}
+
 /** Opaque worker/decoder packing must not hide upstream attribution. */
-export function standaloneCodecNotices(): string {
+export function standaloneCodecNotices(emitted: Set<string> = new Set()): string {
   const brotli = dirname(require.resolve('brotli/package.json'))
   const base64 = dirname(createRequire(join(brotli, 'package.json')).resolve('base64-js/package.json'))
   const pako = dirname(dirname(dirname(createRequire(require.resolve('upng-js/package.json')).resolve('pako/lib/zlib/crc32.js'))))
   const header = readFileSync(join(pako, 'lib/zlib/crc32.js'), 'utf8').match(/\/\/ \(C\) 1995[\s\S]*?\/\/ 3\.[^\n]*(?:\n|$)/)?.[0]
   if (!header) throw new Error('Pinned Pako CRC attribution missing')
-  return [
+  return formatStandaloneNotices([
     'Agentic Mermaid modifies the bundled decoder, base64 and CRC sources by adding loop-budget, output-allocation and window guards; the compressed format is unchanged. For the private build-owned worker, unused dictionary bytes are zeroed at their original offsets and the complete decoded bytes are rechecked.',
     'Brotli.js 1.3.3 — package/README declare MIT; author Devon Govett. No upstream LICENSE file is supplied. MIT terms are reproduced below without an invented copyright year.',
     readFileSync(new URL('../../LICENSES/Brotli-MIT.txt', import.meta.url), 'utf8'),
@@ -173,10 +183,10 @@ export function standaloneCodecNotices(): string {
     readFileSync(new URL('../../LICENSES/Apache-2.0.txt', import.meta.url), 'utf8'),
     'base64-js 1.5.1:', readFileSync(join(base64, 'LICENSE'), 'utf8'),
     'Pako 1.0.11 (MIT AND Zlib):', readFileSync(join(pako, 'LICENSE'), 'utf8'), header,
-  ].join('\n\n').replace(/<\//g, '<\\/')
+  ], emitted)
 }
 
-export function standaloneWorkerNotices(source: string, inputs: readonly string[], workingDirectory: string): string {
+export function standaloneWorkerNotices(source: string, inputs: readonly string[], workingDirectory: string, emitted: Set<string> = new Set()): string {
   if (inputs.length > 10_000) throw new Error('Standalone worker notice input limit exceeded')
   const notices = new Set<string>()
   let noticeBytes = 0
@@ -237,5 +247,5 @@ export function standaloneWorkerNotices(source: string, inputs: readonly string[
   for (const name of readdirSync(join(root, 'LICENSES')).sort()) {
     if (statSync(join(root, 'LICENSES', name)).isFile()) add(readNotice(join(root, 'LICENSES', name)))
   }
-  return [...notices].join('\n\n').replace(/<\//g, '<\\/')
+  return formatStandaloneNotices(notices, emitted)
 }

@@ -1434,3 +1434,18 @@ Independent review and actual router probe also expose inherited-descriptor
 observation introduced by the candidate: Map baseline returns, candidate throws.
 Stop the rewrite; production/caches/caps unchanged. Evidence
 `trinity-postdelivery-profile-20261109`; no visible-correctness gain claimed.
+
+### Standalone notice payload — 9 November
+
+After `7834513e894fadf61da913c699b3a94ed6f104d4`, actual editor HTML repeats
+complete Apache/Brotli-MIT license texts across codec/worker producers. Matched
+Bun offline subtraction saves4240gzip bytes; share exact-text formatting through
+one fresh per-HTML Set, after unchanged collection/read/budget checks.
+Actual raw2124144→2111445, gzip1342694→1338451 (−4243),
+Brotli1282743→1281956 (−787). Original gzip cap still fails3951; no budget pass.
+Worker, facade and all HTML outside inert notices are byte-exact. All637 distinct
+nonblank notice lines and previously emitted complete maintained licenses remain;
+the two duplicated license bodies each2→1. Old producer fails the owning notice
+test;13 scoped codec/notice owners, core/repo types, lint and actual editor build
+pass. Independent review finds no blocker. No runtime/cache/default/version/cap
+change or visible-correctness gain claimed. Evidence `trinity-editor-budget-20261109`.
