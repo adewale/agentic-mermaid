@@ -1,3 +1,5 @@
+Correction for the remaining-loss sentence below: at unchanged runtime3f2, base Native152/372/201/241 return/proof-pass and finite selected marginal-ink checks are clear. These requalify existing committed repairs, not new fixes or whole-diagram parity. The oversubscribed201+three invisible constraints is a separate historical variant awaiting current qualification. Source documentation af92dd147 corrects this stale blanket claim; all frozen30 cost/data tables remain unchanged. [Current bindings and actual masks](https://github.com/adewale/agentic-mermaid/blob/7a4ff6535d1de28e4fb5adf36664cd52691f1553/trinity-contact-claims-checkpoint-20261109/README.md).
+
 # ELK, Native and Trinity: frozen-workload costs
 
 Source **3f2c26bd860eadcfb48746eabb45801ab8e07c7a**; layout runtime4db8570d389246bb5f1eede8c5b1899fe6cd687e. Source was unchanged during acquisition. Existing draftPR602; deadline9November2026,20:00UTC. This adds the first complete frozen30 cost coverage; it is not an optimization or new visible-correctness gain. Overlap with earlier selected-case timings is validation, not a claimed improvement.
