@@ -1595,3 +1595,29 @@ are unchanged. Evidence: `trinity-diamond-contact-20261109`; exact source and
 recovery checkpoint follow in PR602. Compound diamonds, loops and marked multiport
 faces still decline. Next: trace a real compound diamond boundary refusal before
 extending admission; distribution and shared Sparse32 proof losses remain open.
+
+## Closed-scope decision workflows — 9 November
+
+After `9ec32417a7a0fafa340b9bf05db1ae66e029fa42`, enclosed and nested/mixed-direction
+decision fans gain8 returned/P Trinity products from typed refusals. A paid
+all-edge sibling-leaf guard reuses existing local facets, growth and scope
+translation; any lifted edge, even unrelated to the diamond, still declines.
+No shared boundary router changes. Blanket admission failed TB at an actual
+box endpoint; a cardinal-only trial passed that example but leaves late-terminal
+and miter-obstacle gaps, so both broader trials remain unshipped.
+
+225 owning checks, types/lint pass; the previous producer fails4 extended public
+owners at the first enclosed row. Written facets, header/group membership and
+sampled canonical PNGs are checked.66 Native/ELK artifact files stay exact;
+ELK's2 TB/BT contained refusals remain. LR area ELK/Native/Trinity149483/137022/
+129116, wire658.85/437.44/434.99, all4bends/0crossings. Trinity TB has6bends
+versus Native4, retained.100 fully serialized timed products return/P and decode
+exactly:60 current three-way calls plus40 unchanged flat controls. Two-replica
+cache0repeat2 medians65.13/36.23/29.15ms; flat control cold170.87→177.15 and
+edit2 wall22.30→25.83ms are adverse, with overlapping ranges; no general ratio
+or memory gain. Actual13-input lazy gzip/Br delta ELK−6/+7, Native−14/+31,
+Trinity+112/+113bytes, requests unchanged. Frozen30 retains its prior28/28/27
+scope; these are supplements, not new credit there. Evidence:
+`trinity-compound-diamond-20261109`. Next shared defect is demonstrated:
+fanout finishing moves ELK R2.1545px outside its frame after correct raw layout.
+An external existing-rollback guard repairs2refusals; it is not shipped here.

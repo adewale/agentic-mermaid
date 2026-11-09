@@ -23,10 +23,21 @@ export function solveTrinityCompound(
   if (input.shareCompleteFans || input.edges.some(edge => edge.short || edge.markerPaint || edge.visible === false)) unsupported('shared fans, short edges, raw artwork and invisible constraints are outside the compound slice')
   const pay = (pairs: number, slots: number): void => { work.pairs -= pairs; work.arcs -= slots; assertTrinityWork(work) }
   pay(4 * (input.nodes.length + groups.length) + 8, 4 * (input.nodes.length + groups.length) + 4)
+  let diamondContacts = false
   const leaves = new Map(input.nodes.map(node => {
-    if (node.contact === 'diamond') unsupported('diamond compound contacts are outside the measured slice')
+    if (node.contact === 'diamond') diamondContacts = true
     return [node.id, node] as const
   })), frames = new Map(groups.map(group => [group.id, group]))
+  if (diamondContacts) {
+    pay(12 * input.edges.length + 1, 0)
+    for (const edge of input.edges) {
+      const source = edge.source, target = edge.target, count = input.nodes.length + groups.length
+      if (!Number.isInteger(source) || !Number.isInteger(target) || source < 0 || target < 0 || source >= count || target >= count) throw new TypeError('Invalid measured compound endpoint')
+      // Any lifted edge enters the shared box-only boundary router, including
+      // edges unrelated to the diamond. Keep the complete request local.
+      if (source >= input.nodes.length || target >= input.nodes.length || (input.nodes[source]!.parent ?? -1) !== (input.nodes[target]!.parent ?? -1) || edge.boundaryMarker) unsupported('diamond compounds require sibling leaf edges without boundary artwork')
+    }
+  }
   return layoutCompoundGraph(input, flat => {
     pay(flat.nodes.length * 32 + flat.edges.length * 8 + 32, flat.nodes.length * 24 + flat.edges.length * 2 + 24)
     const nodes = flat.nodes.map(node => {

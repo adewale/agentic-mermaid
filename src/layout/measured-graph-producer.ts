@@ -33,7 +33,6 @@ export function prepareMeasuredGraphCandidate(
       if (node.semanticShape || node.shape !== 'rectangle' && node.shape !== 'rounded' && node.shape !== 'diamond' && !pseudo) bindings.unsupported('only measured rectangular, rounded, diamond and State circle contacts are supported')
       if (pseudo && (node.label || node.labelContent || node.labelBlock?.text || node.icon || node.image)) bindings.unsupported('labelled and media pseudostates are outside the fixed circle slice')
     }
-    if (diamondContacts && graph.subgraphs.length) bindings.unsupported('diamond compound contacts are outside the measured slice')
     if (graph.edges.some(edge => edge.curve !== undefined)) bindings.unsupported('authored curve paint is outside the orthogonal measured slice')
     if (style.lineWidth <= 0) bindings.unsupported('zero-width shafts are outside the flat measured slice')
   }
@@ -241,11 +240,12 @@ export function prepareMeasuredGraphCandidate(
       const halo = block ? physical ? labelHaloExtension(edge, style.lineWidth)
         : boundaryEnd ? Math.max(4, style.lineWidth * (edge.style === 'thick' ? 2 : 1) * 2) : 0 : 0
       pay(0, 2)
+      if (diamondContacts) pay(2) // Bounds checks before leaf-only marker metadata.
       const endpointSpans = shaft !== undefined && (source !== target || physical) ? {
         ...(physical || portFaces?.[source] ? { sourcePortSpan: Math.max(shaft, footprint?.startSpan ?? 0) } : {}),
         ...(physical || portFaces?.[target] ? { targetPortSpan: Math.max(shaft, footprint?.endSpan ?? 0) } : {}),
       } : {}
-      return { source, target, ...(diamondContacts && graph.nodes.get(nodes[source]!.id)?.shape === 'diamond' ? { sourceMarkerPresent: footprint ? footprint.startPresent : false } : {}), ...(diamondContacts && graph.nodes.get(nodes[target]!.id)?.shape === 'diamond' ? { targetMarkerPresent: footprint ? footprint.endPresent : false } : {}), ...endpointSpans, minSpan: edge.length ?? 1, ...(preferred?.has(index) ? { short: true as const } : {}), ...(boundaryMarker ? { boundaryMarker } : {}), ...(edge.style === 'invisible' ? { visible: false } : {}), ...(block ? { label: { width: block.width + 2 * LABEL_PILL_PADDING + 2 * halo, height: block.height + 2 * LABEL_PILL_PADDING + 2 * halo } } : {}) }
+      return { source, target, ...(diamondContacts && source < nodes.length && graph.nodes.get(nodes[source]!.id)?.shape === 'diamond' ? { sourceMarkerPresent: footprint ? footprint.startPresent : false } : {}), ...(diamondContacts && target < nodes.length && graph.nodes.get(nodes[target]!.id)?.shape === 'diamond' ? { targetMarkerPresent: footprint ? footprint.endPresent : false } : {}), ...endpointSpans, minSpan: edge.length ?? 1, ...(preferred?.has(index) ? { short: true as const } : {}), ...(boundaryMarker ? { boundaryMarker } : {}), ...(edge.style === 'invisible' ? { visible: false } : {}), ...(block ? { label: { width: block.width + 2 * LABEL_PILL_PADDING + 2 * halo, height: block.height + 2 * LABEL_PILL_PADDING + 2 * halo } } : {}) }
     })
     const shareCompleteFans = !options.stateVisual && !groups.length && [...graph.nodes.values()].every(node => node.shape === 'rectangle' && !node.semanticShape)
       && graph.edges.every((edge, index) => {
