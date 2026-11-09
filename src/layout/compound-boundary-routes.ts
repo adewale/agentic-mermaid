@@ -735,9 +735,16 @@ export function routeCrossHierarchy(
         const length = Math.abs(a.x - b.x) + Math.abs(a.y - b.y), offset = Math.min(distance, length / 2)
         return { x: a.x + Math.sign(b.x - a.x) * offset, y: a.y + Math.sign(b.y - a.y) * offset }
       }
-      const start = crossingSource ? escape(quotient[0]!, quotient[1]!) : quotient[0]!
-      const end = crossingTarget ? escape(quotient.at(-1)!, quotient.at(-2)!) : quotient.at(-1)!
-      const core = [start, ...quotient.slice(1, -1), end]
+      // The label shaft is reserved; quotient bends to ancestor ports are
+      // temporary and must not constrain the final descendant connections.
+      let labelShaft = -1
+      if (widthProof !== undefined && edge.label && crossingSource && crossingTarget) for (let cursor = 1; cursor < quotient.length; cursor++) {
+        if (--work.pairs < 0) fail('agentic local cross-hierarchy obstacle-work limit')
+        if (onSegment(raw.labelPosition!, quotient[cursor - 1]!, quotient[cursor]!)) { labelShaft = cursor; break }
+      }
+      const start = labelShaft > 1 ? quotient[labelShaft - 1]! : crossingSource ? escape(quotient[0]!, quotient[1]!) : quotient[0]!
+      const end = labelShaft > 0 && labelShaft < quotient.length - 1 ? quotient[labelShaft]! : crossingTarget ? escape(quotient.at(-1)!, quotient.at(-2)!) : quotient.at(-1)!
+      const core = labelShaft > 0 ? [start, end] : [start, ...quotient.slice(1, -1), end]
       const related = new Set<number>()
       for (const endpoint of [edge.source, edge.target]) for (let parent = owners[endpoint]!; parent >= 0; parent = owners[leafCount + parent]!) related.add(parent)
       const obstacles: RoutingBox[] = nodes.map((box, node) => node === edge.source || node === edge.target ? box : inflate(box, clearance))
@@ -829,9 +836,9 @@ export function routeCrossHierarchy(
       }
       if (!points) {
         const probes = { pairs: Math.min(16384, Math.floor(work.pairs / 8)), candidates: 64 }
-        let routeStart = crossingSource ? escape(quotient[0]!, quotient[1]!, clearance * 2) : start
-        let routeEnd = crossingTarget ? escape(quotient.at(-1)!, quotient.at(-2)!, clearance * 2) : end
-        let routeCore = [routeStart, ...quotient.slice(1, -1), routeEnd]
+        let routeStart = labelShaft > 0 ? start : crossingSource ? escape(quotient[0]!, quotient[1]!, clearance * 2) : start
+        let routeEnd = labelShaft > 0 ? end : crossingTarget ? escape(quotient.at(-1)!, quotient.at(-2)!, clearance * 2) : end
+        let routeCore = labelShaft > 0 ? [routeStart, routeEnd] : [routeStart, ...quotient.slice(1, -1), routeEnd]
         if (edge.label && !routeCore.some((point, cursor) => cursor > 0 && onSegment(raw.labelPosition!, routeCore[cursor - 1]!, point))) {
           routeStart = start
           routeEnd = end

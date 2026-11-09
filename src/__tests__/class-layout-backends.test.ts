@@ -562,6 +562,27 @@ note for Duck "can fly<br>can swim<br>can dive<br>can help in debugging"`
     const flat = layoutClassDiagram(parseClassDiagram(toMermaidLines(compoundFixture)), { ...native, class: { hierarchicalNamespaces: false } })
     expect(flat.namespaces).toHaveLength(3)
     expect(flat.namespaces.every(ns => ns.parentId === undefined)).toBe(true)
+    const labelled = `classDiagram
+namespace Company.Engineering.Backend {
+class Developer {
++writeCode()
+}
+}
+namespace Company.Engineering.Frontend {
+class Designer {
++createMockup()
+}
+}
+namespace Company {
+class CEO {
++makeDecisions()
+}
+}
+CEO --> Developer : oversees
+CEO --> Designer : oversees`
+    const labelledFlat = renderMermaidSVGWithReceipt(labelled, { ...native, class: { hierarchicalNamespaces: false } })
+    expect(labelledFlat.receipt.layoutCertification?.status).toBe('passed')
+    expect(missingSvgLabels(labelledFlat.svg, ['Developer', 'Designer', 'CEO', 'oversees', '+ writeCode()', '+ createMockup()', '+ makeDecisions()'])).toEqual([])
     for (const source of ['classDiagram\nnamespace Empty {\n}', '---\ntitle: Empty namespaces\n---\nclassDiagram\nnamespace Outer {\nnamespace Inner {\n}\n}']) {
       const empty = renderMermaidSVGWithReceipt(source, { graphLayout: { backend: 'agentic', fallback: 'elk' } })
       expect(empty.receipt.layoutDecisions?.[0]?.selected).toBe('agentic')
