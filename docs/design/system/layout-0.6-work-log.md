@@ -1702,3 +1702,12 @@ Stopped compound-order cause: frame slot reassignment leaves all8 real reserved
 label cores unchanged; final leaf seats are generated later. No new solver phase
 or replay of the failed source-order/stub hypotheses. Sparse32 and broader losses
 remain. Next require a new sufficient producer-owned subtraction before rewriting.
+
+CI follow-up at `68adacae141bd00c48e7b611894cbe7959cf721a`: the image feature
+omitted its positive `icon/image` conformance witness and generated Flowchart
+catalog refresh. Both owners reproduce red. Add an actual sized PNG to the existing
+rich fixture; both family conformance owners pass. Regenerate the runtime catalog
+from its canonical descriptor; the existing catalog check passes. CI's build had
+regenerated this tracked file before website generation, producing a truthful
+`-dirty` stamp that disagreed with the fresh unit checkout. Preserve the provenance
+check. Its integrated CI result remains pending; budgets/Sparse32 remain separate.
