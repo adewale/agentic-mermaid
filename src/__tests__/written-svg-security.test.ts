@@ -1,5 +1,6 @@
 import { renderMultilineText } from '../multiline-utils.ts'
 import { expect, test } from 'bun:test'
+import { useTestChildren } from './helpers/test-child.ts'
 import { shape, text } from '../scene/marks.ts'
 import { sceneNodeSerialization } from '../scene/serialization.ts'
 import { inlineResolvedColors } from '../theme.ts'
@@ -8,6 +9,8 @@ import { scopeSvgStyles } from '../svg-style-scope.ts'
 import { applyOutputSecurityPolicy, applyWrittenOutputSecurityPolicy } from '../output-security.ts'
 import { transformSvgAttributes, scanSvgStartTags } from '../svg-structure.ts'
 import { writtenTagOf, withWrittenSvgSecurity } from '../svg-writer-evidence.ts'
+
+const runChild = useTestChildren(20_000)
 
 const document = (body: string, attrs = '') => `<svg xmlns="http://www.w3.org/2000/svg" ${attrs}>${body}</svg>`
 const mark = (fill = 'var(--ink)', stroke = 'none') => sceneNodeSerialization(shape({
@@ -110,3 +113,39 @@ test('forged text attribute evidence cannot authorize an event handler', () => w
   const svg = document(renderMultilineText('safe', 0, 0, 12, attrs, 0, false, forged))
   expect(() => applyWrittenOutputSecurityPolicy(svg)).toThrow(/active content/)
 }))
+
+// Exercise Node's substring storage, where visible string length does not
+// bound retained parent bytes. The wide margin checks source lifetime rather
+// than pinning the allocator's exact heap size.
+test('bounded writer evidence does not retain large parents of short fields', async () => {
+  const child = await runChild('node', ['--expose-gc', '--input-type=module', '-e', `
+    import assert from 'node:assert/strict'
+    import { getHeapStatistics } from 'node:v8'
+    import { retainWrittenFields, withWrittenSvgSecurity } from './src/svg-writer-evidence.ts'
+    import { applyWrittenOutputSecurityPolicy } from './src/output-security.ts'
+    const used = () => { for (let i = 0; i < 3; i++) globalThis.gc(); return getHeapStatistics().used_heap_size }
+    for (const field of ['paint', 'name']) {
+      const before = used()
+      withWrittenSvgSecurity(true, () => {
+        for (let i = 0; i < 64; i++) {
+          const prefix = field === 'paint' ? 'url(https://example.com/' + i + ')' : 'data-key-' + String(i).padStart(10, '0')
+          const source = prefix + ' '.repeat(1_000_000)
+          source.charCodeAt(source.length - 1)
+          const slice = source.slice(0, prefix.length)
+          const name = field === 'paint' ? 'fill' : slice
+          const value = field === 'paint' ? slice : 'safe'
+          retainWrittenFields('<rect ' + name + '="' + value + '" />', 'rect', [name, value], true)
+        }
+      })
+      const retained = used() - before
+      assert.ok(retained < 16 * 1024 * 1024, field + ' pinned large source strings: ' + retained)
+    }
+    const svg = '<svg xmlns="http://www.w3.org/2000/svg"><rect fill="url(https://example.com/0)" /></svg>'
+    assert.throws(() => applyWrittenOutputSecurityPolicy(svg, 'strict'), /strict/)
+    assert.deepEqual(applyWrittenOutputSecurityPolicy(svg).diagnostics, [
+      { code: 'EXTERNAL_REFERENCE', reference: 'fill=url(https://example.com/0)' },
+    ])
+  `], { cwd: `${import.meta.dir}/../..` })
+  expect(child.stderr).toBe('')
+  expect(child.status).toBe(0)
+})

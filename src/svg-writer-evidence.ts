@@ -36,7 +36,19 @@ export function retainWrittenTag(tag: string, evidence: WrittenTag): void {
   if (cost > MAX_WEIGHT) return
   // Detach slices from compound marks. Lookups never replace this key with a
   // slice retaining an entire SVG. FIFO eviction has no per-hit key mutation.
-  tags.set(JSON.parse(JSON.stringify(tag)) as string, Object.freeze({ ...evidence, weight: cost }))
+  // Field names and findings can also hold short slices of a much larger
+  // source, including diagnostic ropes. Detach every retained string payload.
+  const names = Object.freeze(JSON.parse(JSON.stringify(evidence.names)) as string[])
+  // Ordinary scalar tags have no findings and need no extra copying here.
+  const attributes = evidence.attributes.length
+    ? JSON.parse(JSON.stringify(evidence.attributes)) as WrittenAttribute[] : evidence.attributes
+  if (attributes !== evidence.attributes) {
+    for (const attribute of attributes) {
+      Object.freeze(attribute.refs); Object.freeze(attribute.active); Object.freeze(attribute)
+    }
+    Object.freeze(attributes)
+  }
+  tags.set(JSON.parse(JSON.stringify(tag)) as string, Object.freeze({ ...evidence, names, attributes, weight: cost }))
   weight += cost
   while (tags.size > 4096 || weight > MAX_WEIGHT) {
     const oldest = tags.keys().next().value!
