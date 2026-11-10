@@ -108,7 +108,11 @@ export function symmetricFanout(
   const targets = sorted.map(e => nodeMap.get(e.target)!).filter(Boolean)
   if (targets.length !== sorted.length) return undefined
   const scope = routeOnly ? containingGroups(source, groups) : ''
-  if (!targets.every(t => t.shape === 'rectangle' && (routeOnly ? containingGroups(t, groups) === scope : source.shape === 'diamond' || !nodeInsideGroups(t, groups)))) return undefined
+  // Placement-changing fan-outs may widen and move targets across the flow
+  // axis. Main-axis group expansion below cannot refit that change. Keep
+  // grouped targets in their producer's placement, including diamond forks;
+  // the grouped-rectangle route-only path remains eligible in its own scope.
+  if (!targets.every(t => t.shape === 'rectangle' && (routeOnly ? containingGroups(t, groups) === scope : !nodeInsideGroups(t, groups)))) return undefined
   // Same-rank gate. Fan-out targets drift apart on the main axis when their
   // label widths differ ("warnings" 97px vs "ok" 60px → ~32px apart), so the
   // tolerance must clear that width-driven drift to see them as peers — while
