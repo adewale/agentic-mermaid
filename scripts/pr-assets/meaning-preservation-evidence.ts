@@ -225,6 +225,11 @@ assets/ icon(folder)
 ]
 const fixtures: Fixture[] = [
   {
+    id: 'reviewed-bordered-literal-shape', title: 'Bordered rectangle retains slash-delimited literal text',
+    source: 'flowchart LR\nA[|borders:lt|/Lean/] --> B[Done]', captureLayout: true,
+    cue: 'Read the complete /Lean/ label and inspect the authored left/top borders. Recognizing a rectangle border prefix must not reinterpret the slash text as a parallelogram. The layout sidecar retains rectangle identity; owning tests also cover backslashes, trapezoid-like text, quoting and canonical reload.',
+  },
+  {
     id: 'reviewed-agentflow-curve-export', title: 'AgentFlow export keeps interpolation out of connector declarations',
     source: 'agentflow-beta TB\nconnector C[Connector]\nglobal\nG[Guide]\nend\nC --> A[Action]\nG --> A\nlinkStyle default interpolate basis',
     mutation: { kind: 'rename_node', from: 'C', to: 'API' }, captureLayout: true,
@@ -1334,6 +1339,11 @@ const fixtures: Fixture[] = [
   },
 ]
 const terminalFixtures = [
+  {
+    id: 'reviewed-terminal-note-parity', title: 'Short terminal over-note contains both stems at odd separation',
+    source: 'sequenceDiagram\nparticipant A as ABCDEFGHIJK\nparticipant B\nNote over A,B: x',
+    cue: 'Follow each real lifeline below the participant cards into the note interval. Both stems must lie strictly between its walls, including B on the right. The owning regression checks even/odd spacing, reversed endpoints and ASCII/Unicode; participant range endpoints are not used as stem coordinates.',
+  },
   {
     id: 'reviewed-terminal-over-note',
     source: 'sequenceDiagram\nparticipant A as Alice\nparticipant B as Bob\nparticipant C as Carol\nA->>C: Hello\nloop Owned\nNote over A,C: Shared<br>note\nend\nC-->>A: Done',
