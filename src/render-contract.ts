@@ -1335,7 +1335,8 @@ type PreparedOptionStyle = ReturnType<typeof resolveStyleStackWithFace>
 const NO_OPTION_STYLE: PreparedOptionStyle = Object.freeze({})
 // Keys come only from admitted own-data snapshots, never live caller objects.
 // Source, host callbacks, backend resolution and family defaults stay per call.
-const preparedOptions = new WeightedLru<string, PreparedOptionStyle>(32, 256 * 1024)
+const PREPARED_OPTIONS_MAX_WEIGHT = 256 * 1024
+const preparedOptions = new WeightedLru<string, PreparedOptionStyle>(32, PREPARED_OPTIONS_MAX_WEIGHT)
 let preparedOptionsRevision = -1
 
 function prepareOptionStyle(admitted: AdmittedRenderOptions): PreparedOptionStyle {
@@ -1354,13 +1355,20 @@ function prepareOptionStyle(admitted: AdmittedRenderOptions): PreparedOptionStyl
   if (previous) return previous
   // Keep the established StyleInput error boundary ahead of option schema
   // failures. Only successful preparations can be reused by later requests.
-  const resolved = immutableSnapshot(resolveStyleStackWithFace(admitted.serializable.style))
+  const resolved = resolveStyleStackWithFace(admitted.serializable.style)
   const problems = validateSerializableRenderOptions(candidate)
   if (problems.length) throw new RenderConfigError(`Invalid RenderOptions: ${problems.join('; ')}`)
   if (key !== undefined && revision === styleRegistryRevision()) {
-    preparedOptions.set(key, resolved, (key.length + JSON.stringify(resolved).length) * 2 + 256)
+    const weight = (key.length + JSON.stringify(resolved).length) * 2 + 256
+    if (weight <= PREPARED_OPTIONS_MAX_WEIGHT) {
+      // Native cloning owns the retained strings (including sliced parents)
+      // without normalizing optional fields, shared aliases or signed zero.
+      const retained = immutableSnapshot(structuredClone(resolved))
+      preparedOptions.set(key, retained, weight)
+      return retained
+    }
   }
-  return resolved
+  return immutableSnapshot(resolved)
 }
 
 function namedStyleReferences(input: RenderOptions['style']): readonly ResolvedStyleReference[] {

@@ -1,4 +1,10 @@
 import { describe, expect, test } from 'bun:test'
+import { useTestChildren } from './helpers/test-child.ts'
+import { useTempDirs } from './helpers/temp-dir.ts'
+import { symlinkSync } from 'node:fs'
+import { join } from 'node:path'
+import { pathToFileURL } from 'node:url'
+import packageJson from '../../package.json' with { type: 'json' }
 import { DEFAULT_ARCHITECTURE_VISUAL } from '../architecture/config.ts'
 import { createMermaidRenderer, DefaultBackend, registerBackend, registerStyle, renderContractDigest, renderMermaidSVG } from '../index.ts'
 import { renderedSvgDigest } from '../graphical-render.ts'
@@ -15,6 +21,9 @@ import {
   resolveRenderRequest,
   validateSerializableRenderOptions,
 } from '../render-contract.ts'
+
+const runChild = useTestChildren(20_000)
+const temp = useTempDirs('option-style-retention-')
 
 describe('shared RenderOptions authority', () => {
   test('projects every descriptor schema verbatim with terminal metadata', () => {
@@ -503,4 +512,47 @@ test('option preparation rejects non-JSON leaves before keys or family callbacks
     }
     expect(normalizations).toBe(0)
   } finally { restore() }
+})
+
+
+// A short primitive can retain a much larger parent in Node. The cache owns
+// resolved styles after the caller and every returned artifact are released.
+test('option preparation does not retain large parents of short inline style values', async () => {
+  const directory = temp.dir()
+  const built = await Bun.build({
+    entrypoints: [join(import.meta.dir, '..', 'index.ts')],
+    outdir: directory,
+    target: 'node',
+    format: 'esm',
+    naming: 'renderer.mjs',
+    external: Object.keys(packageJson.dependencies),
+  })
+  expect(built.success, built.logs.map(log => log.message).join('\n')).toBe(true)
+  symlinkSync(join(import.meta.dir, '..', '..', 'node_modules'), join(directory, 'node_modules'), 'dir')
+  const moduleUrl = pathToFileURL(join(directory, 'renderer.mjs')).href
+  const child = await runChild('node', ['--expose-gc', '--input-type=module', '-e', `
+    import assert from 'node:assert/strict'
+    import { renderMermaidSVG } from ${JSON.stringify(moduleUrl)}
+    const used = () => { globalThis.gc(); globalThis.gc(); return process.memoryUsage().heapUsed }
+    const before = used()
+    const source = 'flowchart LR\\nA --> B'
+    function populate() {
+      for (let i = 0; i < 32; i++) {
+        const prefix = 'rgb(' + (100 + i) + ', 100, 100)'
+        const parent = prefix + ' '.repeat(1_000_000)
+        parent.charCodeAt(parent.length - 1)
+        const color = parent.slice(0, prefix.length)
+        const options = { style: { formatVersion: 1, colors: { bg: color }, roles: { node: { fillColor: color } } } }
+        const first = renderMermaidSVG(source, options)
+        assert.ok(first.startsWith('<svg'))
+        assert.equal(renderMermaidSVG(source, options), first)
+      }
+    }
+    populate()
+    await new Promise(resolve => setImmediate(resolve))
+    const retained = used() - before
+    assert.ok(retained < 16 * 1024 * 1024, 'short cached styles pinned large source strings: ' + retained)
+  `], { cwd: `${import.meta.dir}/../..` })
+  expect(child.stderr).toBe('')
+  expect(child.status).toBe(0)
 })
