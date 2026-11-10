@@ -183,7 +183,7 @@
     },
     "wardley": {
       "requests": 31,
-      "raw": 642000,
+      "raw": 643000,
       "gzip": 212000,
       "brotli": 188000
     },
