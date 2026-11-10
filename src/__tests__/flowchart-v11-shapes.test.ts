@@ -34,12 +34,22 @@ const metaSource = (shape: string) => `flowchart TD\n  A@{ shape: ${shape}, labe
 
 it('rectangle border properties retain their label, sides and identity through edits and both renderers', async () => {
   const written: string[] = []
-  for (const label of ['Deploy', '"Deploy ] safely"']) {
-    const source = `flowchart LR\nA --> B[|borders:lt|${label}] --> C`
+  const cases = [
+    { syntax: 'Deploy', label: 'Deploy' },
+    { syntax: '"Deploy ] safely"', label: 'Deploy ] safely' },
+    ...['/Lean/', '\\Lean\\', '/Trap\\', '\\Trap/'].flatMap(label => [{ syntax: label, label }, { syntax: `"${label}"`, label }]),
+  ]
+  for (const { syntax, label } of cases) {
+    const source = `flowchart LR\nA --> B[|borders:lt|${syntax}] --> C`
     const graph = parseGraph(source)
-    expect(graph.nodes.get('B')).toMatchObject({ label: label.startsWith('"') ? 'Deploy ] safely' : 'Deploy', borders: 'lt', shape: 'rectangle' })
+    expect(graph.nodes.get('B')).toMatchObject({ label, borders: 'lt', shape: 'rectangle' })
     expect(graph.edges.map(edge => [edge.source, edge.target])).toEqual([['A', 'B'], ['B', 'C']])
     const parsed = parseAgent(source)
+    const canonical = serializeMermaid(parsed)
+    written.push(canonical)
+    expect(parseGraph(canonical).nodes.get('B')).toMatchObject({ label, borders: 'lt', shape: 'rectangle' })
+    expect(renderMermaidSVG(canonical)).toContain(label)
+    expect(renderMermaidASCII(canonical)).toContain(label)
     const edited = mutate(parsed, { kind: 'set_label', target: 'B', label: 'Release' })
     if (!edited.ok) throw Error(JSON.stringify(edited.error))
     const serialized = serializeMermaid(edited.value)

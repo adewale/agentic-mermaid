@@ -1740,6 +1740,7 @@ function consumeQuotedShapeNode(
   const border = rectangleBorderLabel(text.slice(identifier.length))
   const suffix = border.text
   for (const spec of QUOTED_SHAPE_DELIMITERS) {
+    if (border.borders !== undefined && spec.shape !== 'rectangle') continue
     if (!suffix.startsWith(`${spec.open}"`)) continue
     const quoteStart = spec.open.length
     const quoteEnd = suffix.indexOf('"', quoteStart + 1)
@@ -1807,6 +1808,9 @@ function consumeNode(
   const border = rectangleBorderLabel(identifier ? text.slice(identifier.length) : '')
   const shapeText = border.text
   for (const { regex, shape } of identifier ? NODE_PATTERNS : []) {
+    // The property prefix has already selected a rectangle. Delimiter-like
+    // text after it is the label, not another shape's opening production.
+    if (border.borders !== undefined && shape !== 'rectangle') continue
     const match = shapeText.match(regex)
     if (match) {
       id = identifier!.id
