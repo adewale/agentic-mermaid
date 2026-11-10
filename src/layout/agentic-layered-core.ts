@@ -266,6 +266,7 @@ export function layoutLayeredGraph(
     }
   }
   if (queue.length !== nodes.length) {
+    if (nesting) throw new TypeError('Native nesting constraints must remain acyclic')
     if (partitioned) {
       // Cross-partition links already point forward. A total private order
       // inside each partition breaks its cycles without reversing that order.

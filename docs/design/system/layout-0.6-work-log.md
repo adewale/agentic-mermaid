@@ -1917,3 +1917,25 @@ instead of old group centers/frame-top coordinates. 984core owners and extended
 compound comparison retains outcomes in the first24rows; final opaque case is
 still being checked. Sparse32/payloadCI and100-node full-response target remain
 unresolved. Evidence stays in `native-complete-checkpoint-20261110`.
+
+### 10 November — stop broad compound re-layout
+
+After `6c8f3d5f6eb4ecf456a43d0bc97e61144ae8d0ab`, qualification found nine
+quality regressions among25 existing compounds with no forward-flow repair.
+Global nesting now applies only when acyclic authored leaves have a cyclic full
+scope quotient; ordinary hosted edges participate in that check. Other compounds
+retain recursive placement. Remove border precedence that could invent a private
+cycle; enforce private DAG and placement-only route invariants. All25 whole SVGs
+and receipts now match `10253d29dba24554008fc61c178abcf7cc0a47cf` exactly,
+removing the nine regressions;24P/one originalU. Eight targeted false-cycle inputs
+retain flow0→8 and delivery7→8, with passed actual SVG receipts. TB area/wire
+61828/130→97162/355 remain adverse versus old Native; previously reported
+Architecture gains were from the stopped broad trial and do not ship.
+1290 affected owners pass (three sandbox pipe failures passed on exact retry),
+core/repo types and lint pass; frozen84SVG/receipts exact plus six same errors.
+Actual13-input browser portfolio passes allthree. Native gzip495758 bytes,
++3654 versus102; ELK862865, Trinity484920; requests49/43/50 unchanged.
+Private placement for D→B→A→C passes four directions, but full LR/RL routing
+still declines. No performance trial ships:100-node<100ms, shared capture proof,
+Sparse32 and original payload limits remain unresolved. Evidence preserves broad
+trial costs, final qualification and rejected performance probes.

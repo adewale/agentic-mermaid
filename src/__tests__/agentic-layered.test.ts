@@ -727,20 +727,22 @@ describe('owned measured layered layout', () => {
 
   test.each(['TB', 'BT', 'LR', 'RL'] as const)('private nesting borders do not consume fixed leaf port capacity in %s', direction => {
     const padding = { top: 20, right: 16, bottom: 16, left: 16 }
-    const input = measured({ direction, nodes: [0, 1].map(i => ({ id: String(i), parent: i, width: 16, height: 16,
+    const input = measured({ direction, nodes: [0, 1, 2].map(i => ({ id: String(i), ...(i < 2 ? { parent: 0 } : {}), width: 16, height: 16,
       contact: 'rectangle' as const, sizePolicy: 'fixed' as const, paintStrokeWidth: 1, paintCornerRadius: 0 })),
-    groups: [0, 1].map(i => ({ id: `G${i}`, minWidth: 48, padding })), maximumEdgeStrokeWidth: 1, maximumEdgeBendRadius: 0,
-    edges: [{ source: 0, target: 1, minSpan: 1, sourcePortSpan: 1, targetPortSpan: 1 }] })
+    groups: [{ id: 'G', minWidth: 48, padding }], maximumEdgeStrokeWidth: 1, maximumEdgeBendRadius: 0,
+    edges: [{ source: 0, target: 2, minSpan: 1, sourcePortSpan: 1, targetPortSpan: 1 }, { source: 2, target: 1, minSpan: 1, sourcePortSpan: 1, targetPortSpan: 1 }] })
     const original = structuredClone(input), output = layoutAgenticGraph(input)
     expect(input).toEqual(original)
-    expect(output.nodes).toHaveLength(2)
-    expect(output.edges).toHaveLength(1)
+    expect(output.nodes).toHaveLength(3)
+    expect(output.edges).toHaveLength(2)
     for (const [i, point] of output.nodes.entries()) {
       expect(point.width ?? input.nodes[i]!.width).toBe(16)
       expect(point.height ?? input.nodes[i]!.height).toBe(16)
     }
-    expect(onOutline(output.edges[0]!.points[0]!, { ...input.nodes[0]!, ...output.nodes[0]! })).toBe(true)
-    expect(onOutline(output.edges[0]!.points.at(-1)!, { ...input.nodes[1]!, ...output.nodes[1]! })).toBe(true)
+    for (const [i, route] of output.edges.entries()) {
+      expect(onOutline(route.points[0]!, { ...input.nodes[input.edges[i]!.source]!, ...output.nodes[input.edges[i]!.source]! })).toBe(true)
+      expect(onOutline(route.points.at(-1)!, { ...input.nodes[input.edges[i]!.target]!, ...output.nodes[input.edges[i]!.target]! })).toBe(true)
+    }
   })
 
   test.each((['TB', 'BT', 'LR', 'RL'] as const).flatMap(direction => [false, true].flatMap(labelled => [false, true].map(longChild => ({ direction, labelled, longChild })))))('connected siblings stay on one side of an unrelated nested frame: %j', ({ direction, labelled, longChild }) => {
@@ -759,6 +761,28 @@ describe('owned measured layered layout', () => {
       for (const frame of output.groups!) expect(crossesInterior(path[i - 1]!, path[i]!, { ...frame, height: padding.top })).toBe(false)
     }
     if (labelled) expect(output.edges[0]!.labelPosition).toBeDefined()
+  })
+
+  test.each(['TB', 'BT', 'LR', 'RL'] as const)('placement retains ordinary hosted edges when detecting a false quotient cycle in %s', direction => {
+    const padding = { top: 36, right: 16, bottom: 16, left: 16 }
+    const input = measured({ direction, placementOnly: true, nodes: [
+      { id: 'A', width: 60, height: 32, parent: 0 }, { id: 'C', width: 60, height: 32, parent: 1 },
+      { id: 'B', width: 60, height: 32, parent: 0 }, { id: 'D', width: 60, height: 32, parent: 1 },
+    ], groups: [{ id: 'Parent', minWidth: 0, padding }, { id: 'Child', parent: 0, minWidth: 0, padding }],
+    edges: [{ source: 2, target: 0, minSpan: 1, label: { width: 40, height: 20 } }, { source: 0, target: 1, minSpan: 1 }, { source: 3, target: 2, minSpan: 3 }] })
+    // D→B→A→C is acyclic. Omitting ordinary B→A from the scope quotient
+    // mistakes Child→B and A→Child for a DAG and invents cyclic border ranks.
+    const original = structuredClone(input), output = layoutAgenticGraph(input)
+    expect(input).toEqual(original)
+    expect(output.edges).toEqual(input.edges.map(() => ({ points: [] })))
+    const boxes = output.nodes.map((point, i) => ({ ...input.nodes[i]!, ...point }))
+    const horizontal = direction === 'LR' || direction === 'RL', reverse = direction === 'BT' || direction === 'RL'
+    for (const [source, target] of [[3, 2], [2, 0], [0, 1]]) {
+      const a = boxes[source!]!, b = boxes[target!]!
+      expect(reverse ? (horizontal ? a.x : a.y) >= (horizontal ? b.x + b.width : b.y + b.height)
+        : (horizontal ? a.x + a.width : a.y + a.height) <= (horizontal ? b.x : b.y)).toBe(true)
+    }
+    for (const i of [0, 2]) expect(intersects(boxes[i]!, output.groups![1]!)).toBe(false)
   })
 
   test('direct compound corridors retain more than sixteen authored cross-scope leaf contacts', () => {
