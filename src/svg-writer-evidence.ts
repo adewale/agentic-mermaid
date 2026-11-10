@@ -13,27 +13,56 @@ export interface WrittenTag {
   readonly names: readonly string[]
   readonly attributes: readonly WrittenAttribute[]
 }
+type StoredWrittenTag = WrittenTag & { readonly bytes: string; readonly weight: number }
+interface WrittenScope { readonly tags: Map<string, StoredWrittenTag>; weight: number }
+let current: WrittenScope | undefined
 let enabled = false
 export function writerEvidenceEnabled(): boolean { return enabled }
 /** Opaque/nested backends cannot inherit a surrounding writer's authority or
  * pay its evidence-construction cost. Only synchronous owned rendering enters. */
 export function withWrittenSvgSecurity<T>(collect: boolean, run: () => T): T {
-  const previous = enabled
+  const previous = enabled, previousScope = current
   enabled = collect
-  try { return run() } finally { enabled = previous }
+  current = collect ? { tags: new Map(), weight: 0 } : undefined
+  try { return run() } finally { enabled = previous; current = previousScope }
 }
 
 // Exact immutable bytes are the key, including after a projection. No backend
 // name, caller freeze or document prefix grants evidence. Bounds include values.
-const tags = new Map<string, WrittenTag & { readonly weight: number }>()
+const tags = new Map<string, StoredWrittenTag>()
 let weight = 0
 const MAX_WEIGHT = 2 * 1024 * 1024
-export function writtenTagOf(tag: string): WrittenTag | undefined { return tags.get(tag) }
+const MAX_SCOPE_WEIGHT = 4 * 1024 * 1024
+let pressureAdmissions = 0
+
+function rememberCurrent(record: StoredWrittenTag): void {
+  if (!current || record.weight > MAX_SCOPE_WEIGHT || current.tags.has(record.bytes)) return
+  current.tags.set(record.bytes, record)
+  current.weight += record.weight
+  while (current.tags.size > 8192 || current.weight > MAX_SCOPE_WEIGHT) {
+    const first = current.tags.keys().next().value!
+    current.weight -= current.tags.get(first)!.weight
+    current.tags.delete(first)
+  }
+}
+
+export function writtenTagOf(tag: string): WrittenTag | undefined {
+  const record = tags.get(tag)
+  if (record) rememberCurrent(record)
+  return record ?? current?.tags.get(tag)
+}
 
 export function retainWrittenTag(tag: string, evidence: WrittenTag): void {
-  if (tags.has(tag)) return
+  if (writtenTagOf(tag)) return
   const cost = tag.length * 2 + evidence.names.length * 16 + evidence.attributes.reduce((sum, item) => sum + (item.name.length + item.value.length + item.refs.join('').length + item.active.join('').length) * 2 + 96, 128)
-  if (cost > MAX_WEIGHT) return
+  // A FIFO cache just smaller than a repeated diagram can miss on every tag.
+  // Keep this execution's findings until admission, independent of global
+  // eviction. Under pressure admit alternate new global keys so cyclic scans
+  // retain useful hits instead of rebuilding the entire cache on every draw.
+  const fitsGlobal = cost <= MAX_WEIGHT
+  const pressure = tags.size >= 4096 || weight + cost > MAX_WEIGHT
+  const retainGlobal = fitsGlobal && (!pressure || ++pressureAdmissions % 2 === 0)
+  if (!retainGlobal && (!current || cost > MAX_SCOPE_WEIGHT)) return
   // Detach slices from compound marks. Lookups never replace this key with a
   // slice retaining an entire SVG. FIFO eviction has no per-hit key mutation.
   // Field names and findings can also hold short slices of a much larger
@@ -48,7 +77,11 @@ export function retainWrittenTag(tag: string, evidence: WrittenTag): void {
     }
     Object.freeze(attributes)
   }
-  tags.set(JSON.parse(JSON.stringify(tag)) as string, Object.freeze({ ...evidence, names, attributes, weight: cost }))
+  const bytes = JSON.parse(JSON.stringify(tag)) as string
+  const record = Object.freeze({ ...evidence, names, attributes, bytes, weight: cost })
+  rememberCurrent(record)
+  if (!retainGlobal) return
+  tags.set(bytes, record)
   weight += cost
   while (tags.size > 4096 || weight > MAX_WEIGHT) {
     const oldest = tags.keys().next().value!
@@ -60,7 +93,7 @@ export function retainWrittenTag(tag: string, evidence: WrittenTag): void {
 /** The writer owns quoting and literal escaping. Duplicate names or unsupported
  * namespace syntax decline evidence rather than weakening final admission. */
 export function retainWrittenFields(tag: string, name: string, fields: readonly string[], selfClosing: boolean): void {
-  if (!enabled || tags.has(tag) || !/^(?:rect|circle|ellipse|line|polygon|polyline|path|text|tspan)$/.test(name)) return
+  if (!enabled || writtenTagOf(tag) || !/^(?:rect|circle|ellipse|line|polygon|polyline|path|text|tspan)$/.test(name)) return
   const attributes = writtenAttributesFindings(fields)
   if (attributes) retainWrittenTag(tag, { name, attributes, selfClosing, names: Object.freeze(fields.filter((_, index) => index % 2 === 0)) })
 }
@@ -78,7 +111,7 @@ export function projectWrittenTag(source: string, range: WrittenTagRange, change
     if (!change.name || change.start < range.start || change.end > range.end) return
     text = text.slice(0, change.start - range.start) + change.value + text.slice(change.end - range.start)
   }
-  if (tags.has(text)) return
+  if (writtenTagOf(text)) return
   const attributes = range.tag.attributes.filter(attribute => !changes.some(change => change.name === attribute.name))
   for (const change of changes) {
     const order = range.tag.names.indexOf(change.name!)
@@ -109,7 +142,7 @@ export function writeTextOpening(name: 'text' | 'tspan', prefix: readonly Writte
   if (bodySpace) tag += ` ${body}`
   for (const [field, value] of suffix) tag += ` ${field}="${value}"`
   tag += '>'
-  if (enabled && !tags.has(tag) && (!body || inherited && textAttributes.has(inherited) && inherited.text === body)) {
+  if (enabled && !writtenTagOf(tag) && (!body || inherited && textAttributes.has(inherited) && inherited.text === body)) {
     retainWrittenFields(tag, name, [...prefix.flat(), ...inherited?.fields ?? [], ...suffix.flat()], false)
   }
   return tag
@@ -119,7 +152,7 @@ export function textAttributeFields(bundle: WrittenTextAttributes | undefined, t
   return bundle && textAttributes.has(bundle) && bundle.text === text ? bundle.fields : undefined
 }
 export function recordTextOpening(tag: string, name: 'text' | 'tspan', fields: () => readonly string[] | undefined): string {
-  if (enabled && !tags.has(tag)) {
+  if (enabled && !writtenTagOf(tag)) {
     const values = fields()
     if (values) retainWrittenFields(tag, name, values, false)
   }

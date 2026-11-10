@@ -8,7 +8,7 @@ import { formatSvgNumbers, namespaceSvgIds, compactSvg } from '../svg-postproces
 import { scopeSvgStyles } from '../svg-style-scope.ts'
 import { applyOutputSecurityPolicy, applyWrittenOutputSecurityPolicy } from '../output-security.ts'
 import { transformSvgAttributes, scanSvgStartTags } from '../svg-structure.ts'
-import { writtenTagOf, withWrittenSvgSecurity } from '../svg-writer-evidence.ts'
+import { writtenTagOf, withWrittenSvgSecurity, retainWrittenFields } from '../svg-writer-evidence.ts'
 
 const runChild = useTestChildren(20_000)
 
@@ -96,7 +96,7 @@ test('typed multiline, formatted and fragmented text retain literal and XML sema
 
 test('evicted writer evidence falls back to full admission with the same denied reference', () => withWrittenSvgSecurity(true, () => {
   const first = mark('url(https://example.com/evicted)')
-  for (let i = 0; i < 96; i++) sceneNodeSerialization(shape({ id: `pressure-${i}`, role: 'node',
+  for (let i = 0; i < 192; i++) sceneNodeSerialization(shape({ id: `pressure-${i}`, role: 'node',
     geometry: { kind: 'rect', x: i, y: 0, width: 1, height: 1 }, paint: { fill: 'none' },
     attributes: { data: { pressure: `${i}:${'x'.repeat(16384)}` } },
   }))
@@ -148,4 +148,30 @@ test('bounded writer evidence does not retain large parents of short fields', as
   `], { cwd: `${import.meta.dir}/../..` })
   expect(child.stderr).toBe('')
   expect(child.status).toBe(0)
+})
+
+
+test('current SVG findings expire with execution and restore after an opaque nested call', () => {
+  const payload = 'x'.repeat(1100000)
+  const opening = `<rect data-note="${payload}" fill="url(https://example.com/scoped)" />`
+  withWrittenSvgSecurity(true, () => {
+    retainWrittenFields(opening, 'rect', ['data-note', payload, 'fill', 'url(https://example.com/scoped)'], true)
+    expect(writtenTagOf(opening)).toBeDefined()
+    expect(() => applyWrittenOutputSecurityPolicy(document(opening), 'strict')).toThrow(/strict/)
+    expect(() => withWrittenSvgSecurity(false, () => {
+      expect(writtenTagOf(opening)).toBeUndefined()
+      throw new Error('opaque backend failed')
+    })).toThrow('opaque backend failed')
+    expect(writtenTagOf(opening)).toBeDefined()
+    const inner = opening.replace('/scoped)', '/nested)')
+    withWrittenSvgSecurity(true, () => {
+      expect(writtenTagOf(opening)).toBeUndefined()
+      retainWrittenFields(inner, 'rect', ['data-note', payload, 'fill', 'url(https://example.com/nested)'], true)
+      expect(writtenTagOf(inner)).toBeDefined()
+    })
+    expect(writtenTagOf(opening)).toBeDefined()
+    expect(writtenTagOf(inner)).toBeUndefined()
+  })
+  expect(writtenTagOf(opening)).toBeUndefined()
+  expect(() => applyOutputSecurityPolicy(document(opening), 'strict')).toThrow(/strict/)
 })
