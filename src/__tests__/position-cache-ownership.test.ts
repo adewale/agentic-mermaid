@@ -3,7 +3,7 @@ import { useTestChildren } from './helpers/test-child.ts'
 
 const runChild = useTestChildren(20_000)
 
-test('copied native snapshots skip drawing and certification replay without exposing cached geometry', async () => {
+test('copied snapshots preserve Scene delivery and Native reuse without exposing cached geometry', async () => {
   const child = await runChild(process.execPath, ['-e', `
     import assert from 'node:assert/strict'
     import { spyOn } from 'bun:test'
@@ -21,27 +21,29 @@ test('copied native snapshots skip drawing and certification replay without expo
     ]
     const options = { embedFontImport: false }
     for (const lines of cases) {
+      // ER and Class retain the PR's actual Scene writer lane.
+      const native = lines[0] === 'packet-beta'
       const source = lines.join(String.fromCharCode(10))
       const before = draw.mock.calls.length
       const expected = render(source, options)
       assert.deepEqual(render(source, options), expected)
-      assert.equal(draw.mock.calls.length, before + 2)
+      assert.equal(draw.mock.calls.length, before + (native ? 2 : 0))
       const drawn = draw.mock.calls.length, certified = certify.mock.calls.length
       for (let repeat = 0; repeat < 3; repeat++) assert.deepEqual(render(source, options), expected)
       assert.equal(draw.mock.calls.length, drawn, 'warm render rebuilt drawing: ' + lines[0])
-      assert.equal(certify.mock.calls.length, certified, 'warm render repeated certification: ' + lines[0])
+      assert.equal(certify.mock.calls.length, certified + (native ? 0 : 3), 'Scene writes keep fresh certification; Native may reuse: ' + lines[0])
       const exposed = layoutMermaidWithReceipt(source, options)
       exposed.layout.nodes.length = 0
       const layout = positionFamilyForNativeRender(resolveRenderRequestForExecution(source, options, 'svg'))
       const sceneInput = positionedForSceneLowering(layout)
-      assert.notEqual(sceneInput, layout.positioned)
+      if (native) assert.notEqual(sceneInput, layout.positioned)
       for (const key of Object.keys(sceneInput)) delete sceneInput[key]
       assert.deepEqual(render(source, options), expected)
       const beforeControl = draw.mock.calls.length, certificationBeforeControl = certify.mock.calls.length
       process.env.AGENTIC_MERMAID_ELK_CACHE = '0'
       try { assert.deepEqual(render(source, options), expected) }
       finally { process.env.AGENTIC_MERMAID_ELK_CACHE = '1' }
-      assert.equal(draw.mock.calls.length, beforeControl + 1, 'uncached control must construct a drawing')
+      assert.equal(draw.mock.calls.length, beforeControl + (native ? 1 : 0), 'uncached control follows its family writer')
       assert.equal(certify.mock.calls.length, certificationBeforeControl + 1)
     }
   `], { cwd: `${import.meta.dir}/../..`, env: { ...process.env, AGENTIC_MERMAID_SCENE_ASSERTIONS: '0', AGENTIC_MERMAID_ELK_CACHE: '1' } })

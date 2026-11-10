@@ -66,6 +66,7 @@ export function retainedPositionedScene(request: ResolvedRenderRequest, layout: 
     ? createSceneWriteCapture(MAX_OCCLUSION_OPERATIONS, { fractionalCircleOutput: !request.appearance.styled && !request.appearance.colors.shadow, pageUnderlay: request.appearance.styled }, actualBackendWrite) : undefined
   const lower = () => {
     const scene = plan.family.lowerScene!({ positioned: positionedForSceneLowering(layout), colors, resolved: resolvedFamilyRenderContextOf(request) })
+    // Actual-write proof requires its own defensive snapshot provenance.
     return !writes && isOwnedFamily(plan.family) && isOriginalSceneLowering(plan.family.lowerScene) ? finalizeOwnedScene(scene) : scene
   }
   const scene = withTextMeasurementExecution(plan.textMeasurement, () => admitFamilyScene(plan.family,

@@ -261,7 +261,6 @@ export function edgesMayShareTerminal(a: PositionedEdge, b: PositionedEdge): boo
   return true
 }
 
-type MarkerView = ReturnType<typeof markerView>
 interface PeerView { peer: PositionedEdge; view: MarkerView; known: boolean; order: number }
 interface RetainedPeer extends PeerView { values: unknown[]; coordinates: number[] }
 interface MarkerPeers { entries: RetainedPeer[]; query?: (bounds: InkBounds) => PeerView[]; uncertain: PeerView[] }

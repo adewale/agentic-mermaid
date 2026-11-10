@@ -2007,3 +2007,21 @@ recipes, private-method binding and generic descriptor reuse are rejected and
 retained outside the source diff. Evidence:`pipeline-dedup-20261110`. Remaining:
 Sparse32 exhaustion, distinct mutable-resource correspondence and writer work
 bounds; next substantive change needs producer-owned paid writing, not a cache.
+
+### 10 November — owner-requested rebase onto current main
+
+Rebase `ff18d23eb2b25ffb84aa492170d4ef0005411b7e` onto
+`4260292397d4bca7624a30c34649eb943a5f8e0c`, preserving merge history.
+Integration parent `10b14b1b7a04fb0631db2f25ff6aea43aa075c18`.
+Keep defensive Native capture and Scene snapshot provenance on proof paths;
+main's writer findings serve unmetered final security only. Preserve both
+marker-peer contexts and ER/Class actual-write certification. Reproduce inherited
+`styleStart=0` admitting element children in style text; own parser fields reject
+it (red→green). Regenerate SDK declarations and reconcile editor imports.
+
+Final affected owners1345P,1 retained Sparse32 budget failure; Native routing32P;
+core/repo types and lintP. Frozen90 against ff18:84 exact whole SVGs,6 retained
+errors, no delivery/proof-status changes;57 receipts differ only in paid operations.
+Evidence:`rebase-20261110`. These are integration checks; runtime and browser
+payload numbers from ff18 remain historical. No speedup or replacement-readiness
+claim. Sparse32 remains the next known proof loss; automations stay off.

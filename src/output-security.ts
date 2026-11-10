@@ -406,7 +406,7 @@ function verifyDocumentEnvelope(svg: string, observeAttribute?: (name: string, r
         for (const attribute of written.attributes) observeWritten?.(attribute.refs, attribute.active)
         if (!written.selfClosing) {
           const namespaces = stack[stack.length - 1]!.namespaces
-          stack[stack.length++] = { name, namespaces }
+          stack[stack.length++] = { name, namespaces, styleStart: undefined }
         }
         cursor = close + 1
         continue
@@ -566,7 +566,7 @@ function verifyDocumentEnvelope(svg: string, observeAttribute?: (name: string, r
     } else {
       work?.(1)
       if (isStyle) styleDepth++
-      stack[stack.length++] = { name, namespaces, ...(isStyle ? { styleStart } : {}) }
+      stack[stack.length++] = { name, namespaces, styleStart: isStyle ? styleStart : undefined }
     }
   }
 
@@ -859,7 +859,7 @@ function inspectFinalDocument(svg: string, useWritten = false): SecurityFindings
   return inspectSecurityTail(svg.replace(/<!--[\s\S]*?-->/g, ''), refs, active)
 }
 const inspectFinalSvg = createSvgInspector('final-security', inspectFinalDocument)
-const inspectFinalWrittenSvg = createSvgInspector('final-security-written', svg => inspectFinalDocument(svg, true))
+const inspectFinalWrittenSvg = createSvgInspector('final-security', svg => inspectFinalDocument(svg, true))
 
 function applySecurityPolicy(svg: string, mode: OutputSecurityMode, useWritten: boolean): OutputSecurityResult {
   const inspection = useWritten ? inspectFinalWrittenSvg(svg) : inspectFinalSvg(svg)
