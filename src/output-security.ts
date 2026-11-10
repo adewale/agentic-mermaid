@@ -206,7 +206,7 @@ function verifyDocumentEnvelope(svg: string, observeAttribute?: (name: string, r
       if (svg[end] !== '>' || frame?.name !== name) return false
       if (frame.styleStart !== undefined) {
         styleDepth--
-        if (svg.slice(cursor, end + 1).toLowerCase() === '</style>') document!.styleEnds.push({ start: cursor, end: end + 1 })
+        document!.styleEnds.push({ start: cursor, end: end + 1 })
       }
       cursor = end + 1
       if (stack.length === 0) {
@@ -535,7 +535,7 @@ function inspectSecurityTail(markup: string, refs: string[], active: string[], k
   // the XML/CSS consumers interpret them. Do not decode the complete document:
   // escaped label text such as `&lt;script&gt;` remains text in XML and must not
   // be mistaken for a structural element.
-  for (const style of markup.matchAll(/<style\b[^>]*>([\s\S]*?)<\/style>/gi)) {
+  for (const style of markup.matchAll(/<style\b[^>]*>([\s\S]*?)<\/style[\t\n\r ]*>/gi)) {
     if (unsafeActiveCss(style[1]!)) active.push('active-css')
     refs.push(...unsafeCssReferences(style[1]!))
   }

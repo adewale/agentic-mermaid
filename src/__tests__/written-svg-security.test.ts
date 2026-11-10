@@ -83,6 +83,22 @@ test('opaque styles, comments and namespace references agree with full scanning'
   expect(() => applyWrittenOutputSecurityPolicy(cases[0]!, 'strict')).toThrow(/strict/)
 }))
 
+test('writer-assisted admission inspects styles closed with XML whitespace', () => withWrittenSvgSecurity(true, () => {
+  for (const whitespace of [' ', '\t', '\r', '\n', ' \t\r\n']) {
+    const style = (css: string) => document(`<style>.a{fill:${css}}</style${whitespace}>${mark('none')}`)
+    const safe = style('url(#local)')
+    expect(applyWrittenOutputSecurityPolicy(safe, 'strict')).toEqual({ svg: safe, diagnostics: [] })
+    const external = style('url(https://example.invalid/style.svg)')
+    expect(applyWrittenOutputSecurityPolicy(external).diagnostics).toEqual([
+      { code: 'EXTERNAL_REFERENCE', reference: 'url(https://example.invalid/style.svg)' },
+    ])
+    expect(() => applyWrittenOutputSecurityPolicy(external, 'strict')).toThrow(/strict/)
+    for (const mode of ['default', 'strict'] as const) {
+      expect(() => applyWrittenOutputSecurityPolicy(style('url(javascript:alert(1))'), mode)).toThrow(/active content/)
+    }
+  }
+}))
+
 test('typed multiline, formatted and fragmented text retain literal and XML semantics', () => withWrittenSvgSecurity(true, () => {
   for (const value of ['<script>& var(--fg)', 'line one\nline two', '東京 👩‍💻 &amp;', 'plain **bold** text']) {
     const rendered = sceneNodeSerialization(text({ id: 'written-label', role: 'label', text: value, x: 10, y: 10, fontSize: 12,

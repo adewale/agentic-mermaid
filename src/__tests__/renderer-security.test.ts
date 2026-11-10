@@ -198,6 +198,21 @@ xychart
     }
   })
 
+  test.each([' ', '\t', '\n', '\r', ' \t\r\n'])('style closing XML whitespace %j preserves CSS security decisions', whitespace => {
+    const style = (css: string) => svgDocument(`<style>rect{fill:${css}}</style${whitespace}>`)
+    const safe = style('url(#local)')
+    expect(applyOutputSecurityPolicy(safe, 'strict')).toEqual({ svg: safe, diagnostics: [] })
+    const external = style('url(https://example.invalid/paint.svg)')
+    expect(verifyNoExternalRefs(external)).toEqual({ ok: false, refs: ['url(https://example.invalid/paint.svg)'] })
+    expect(applyOutputSecurityPolicy(external).diagnostics).toEqual([
+      { code: 'EXTERNAL_REFERENCE', reference: 'url(https://example.invalid/paint.svg)' },
+    ])
+    expect(() => applyOutputSecurityPolicy(external, 'strict')).toThrow(/strict/)
+    for (const mode of ['default', 'strict'] as const) {
+      expect(() => applyOutputSecurityPolicy(style('url(javascript:alert(1))'), mode)).toThrow(/active content/)
+    }
+  })
+
   test('strict mode works across families', () => {
     for (const src of [
       'sequenceDiagram\n A->>B: hi',
