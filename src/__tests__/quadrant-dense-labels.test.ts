@@ -58,6 +58,39 @@ function assertLabelInvariants(positioned: PositionedQuadrantChart): void {
   }
 }
 
+describe('section captions keep their own space beside fixed data points', () => {
+  for (const radius of [6, 22]) it(`keeps captions clear of centered points with radius ${radius}`, () => {
+    const source = `quadrantChart
+quadrant-1 Plan
+quadrant-2 Do now
+quadrant-3 Maybe
+quadrant-4 Drop
+Alpha: [0.25, 0.75] radius: ${radius}
+Beta: [0.75, 0.75] radius: ${radius}
+Gamma: [0.25, 0.25] radius: ${radius}
+Delta: [0.75, 0.25] radius: ${radius}`
+    const chart = layout(source)
+    expect(chart.points.map(point => [point.nx, point.ny])).toEqual([[.25, .75], [.75, .75], [.25, .25], [.75, .25]])
+    expect(chart.points.every(point => !point.labelHidden)).toBe(true)
+    assertLabelInvariants(chart)
+    for (const region of chart.regions) {
+      const block = region.labelBlock!
+      const box = { x0: region.labelX - block.width / 2, y0: region.labelY - block.height / 2, x1: region.labelX + block.width / 2, y1: region.labelY + block.height / 2 }
+      expect(box.x0).toBeGreaterThanOrEqual(region.x)
+      expect(box.x1).toBeLessThanOrEqual(region.x + region.width)
+      expect(box.y0).toBeGreaterThanOrEqual(region.y)
+      expect(box.y1).toBeLessThanOrEqual(region.y + region.height)
+      for (const point of chart.points) {
+        expect(overlaps(box, { x0: point.cx - point.radius, y0: point.cy - point.radius, x1: point.cx + point.radius, y1: point.cy + point.radius })).toBe(false)
+        expect(overlaps(box, point.labelBox!)).toBe(false)
+      }
+    }
+    expect(layout(source)).toEqual(chart)
+    const svg = renderMermaidSVG(source)
+    for (const text of ['Plan', 'Do now', 'Maybe', 'Drop', 'Alpha', 'Beta', 'Gamma', 'Delta']) expect(svg).toContain(text)
+  })
+})
+
 // The quad-20 probe: 20 labeled points bunched into two clusters.
 const QUAD20 = `quadrantChart
   title Feature priorities
