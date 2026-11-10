@@ -25,7 +25,7 @@ export function placeNativeNesting(
   const direction = input.direction === 'TD' ? 'TB' : input.direction
   // These existing contracts retain the recursive implementation. No edge or
   // local direction is silently translated into the new common-direction solve.
-  if (!n || groups.some((group, i) => !children[i + 1]!.length || group.partition !== undefined || group.modelOrder !== undefined
+  if (!n || !lifted.size || groups.some((group, i) => !children[i + 1]!.length || group.partition !== undefined || group.modelOrder !== undefined
     || group.direction !== undefined && (group.direction === 'TD' ? 'TB' : group.direction) !== direction)
     || input.nodes.some(node => node.partition !== undefined || node.modelOrder !== undefined)
     || input.edges.some(edge => edge.source >= n || edge.target >= n || edge.source === edge.target)) return undefined
@@ -35,7 +35,29 @@ export function placeNativeNesting(
     if (work.pairs < 0 || work.arcs < 0) fail('agentic global nesting work limit')
   }
   if (size > limit) fail('agentic local compound-expansion limit')
-  if (work.pairs < 24 * (size + input.edges.length) || work.arcs < 2 * size + 4 * g + input.edges.length) return undefined
+  const subjects = n + g, edgeCount = input.edges.length
+  const quotientPairs = 2 * subjects + 4 * edgeCount, quotientSlots = 3 * subjects + 2 * edgeCount
+  if (work.pairs < quotientPairs + 24 * (size + edgeCount) || work.arcs < quotientSlots + 2 * size + 4 * g + edgeCount) return undefined
+  reserve(quotientPairs, quotientSlots)
+  // Grouping is harmless when every sibling quotient is acyclic: retain the
+  // established compact placement there. Global ranks repair the structural
+  // loss when collapsing distinct leaves invents a cycle. Include ordinary
+  // hosted edges too; lifted edges alone can miss A→B→group→A.
+  const heads = new Uint32Array(subjects), next = new Uint32Array(edgeCount), targets = new Uint32Array(edgeCount)
+  const degree = new Uint32Array(subjects), queue = new Uint32Array(subjects)
+  for (let i = 0; i < edgeCount; i++) {
+    const edge = lifted.get(i) ?? input.edges[i]!
+    next[i] = heads[edge.source]!; targets[i] = edge.target; heads[edge.source] = i + 1
+    degree[edge.target] = degree[edge.target]! + 1
+  }
+  let queued = 0
+  for (let i = 0; i < subjects; i++) if (!degree[i]) queue[queued++] = i
+  for (let cursor = 0; cursor < queued; cursor++) for (let link = heads[queue[cursor]!]!; link; link = next[link - 1]!) {
+    const target = targets[link - 1]!
+    degree[target] = degree[target]! - 1
+    if (!degree[target]) queue[queued++] = target
+  }
+  if (queued === subjects) return undefined
   reserve(24 * (size + input.edges.length), 2 * size + 4 * g + input.edges.length)
   // This strategy admits acyclic leaf constraints. Do not run feedback-order
   // searches only to discard every cyclic result into recursive compatibility.
@@ -82,20 +104,6 @@ export function placeNativeNesting(
     const start = child < n ? child : top[child - n]!, end = child < n ? child : bottom[child - n]!
     if (scope) { add(top[scope - 1]!, start); add(end, bottom[scope - 1]!) }
     else add(root, start)
-  }
-  // Retain an already acyclic sibling ordering as border precedence. Without
-  // it, a reverse child chain can put two whole frames at the same ranks and
-  // force their otherwise clear external connector across internal edges.
-  // A false lifted cycle supplies no such ordering: its leaves rank globally.
-  reserve(2 * (n + g) + 4 * lifted.size, 3 * (n + g) + lifted.size)
-  const degree = new Uint32Array(n + g), successors: number[][] = Array.from({ length: n + g }, () => [])
-  for (const edge of lifted.values()) { successors[edge.source]!.push(edge.target); degree[edge.target] = degree[edge.target]! + 1 }
-  const queue: number[] = []
-  for (let i = 0; i < degree.length; i++) if (!degree[i]) queue.push(i)
-  for (let i = 0; i < queue.length; i++) for (const target of successors[queue[i]!]!) { degree[target] = degree[target]! - 1; if (!degree[target]) queue.push(target) }
-  if (queue.length === degree.length) for (const edge of lifted.values()) {
-    const source = edge.source < n ? edge.source : bottom[edge.source - n]!, target = edge.target < n ? edge.target : top[edge.target - n]!
-    add(source, target)
   }
   const flat: MeasuredGraph = { ...input, nodes, edges, layerSpacing: input.layerSpacing / factor, groups: undefined, compactPrivateRanks: true, cycleOriented: true }
   pending.set(flat, { input, parent, top, bottom, order: groupOrder })
