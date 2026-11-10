@@ -1,3 +1,4 @@
+import { writtenTagOf, projectWrittenTag, writerEvidenceEnabled, type WrittenTagRange, type WrittenReplacement } from './svg-writer-evidence.ts'
 import { decodeXML } from 'entities'
 import { inspectSvgOnce } from './svg-inspection-cache.ts'
 import { asciiXmlNameEnd } from './shared/xml-name.ts'
@@ -61,7 +62,7 @@ export function visitSvgFirstTagAttributes(source: string, expectedName: string,
 }
 
 // One lexical owner: inventory, CSS values/contexts, or style bodies only.
-function scanStartTags(source: string, cssRanges?: SvgRange[], styleContexts?: SvgRange[], first?: { attribute(name: string, value: string): void; expectedName: string; name: string | undefined }): readonly SvgStartTagToken[] | undefined {
+function scanStartTags(source: string, cssRanges?: SvgRange[], styleContexts?: SvgRange[], first?: { attribute(name: string, value: string): void; expectedName: string; name: string | undefined }, written?: WrittenTagRange[], cssNames?: Map<number, string>): readonly SvgStartTagToken[] | undefined {
   const tags: SvgStartTagToken[] | undefined = cssRanges || styleContexts || first ? undefined : []
   for (let start = source.indexOf('<'); start >= 0; start = source.indexOf('<', start + 1)) {
     if (source.startsWith('<!--', start)) {
@@ -76,6 +77,8 @@ function scanStartTags(source: string, cssRanges?: SvgRange[], styleContexts?: S
     if (nameEnd === start + 1) continue
     const end = scanTagEnd(source, nameEnd)
     if (end < 0) break
+    const writerTag = written ? writtenTagOf(source.slice(start, end)) : undefined
+    if (writerTag) written!.push({ start, end, tag: writerTag })
     // `/\s*>` at the end of the tag, read backwards without slicing it.
     let beforeClose = end - 2
     while (beforeClose > start && isWhitespace(source[beforeClose])) beforeClose--
@@ -108,6 +111,7 @@ function scanStartTags(source: string, cssRanges?: SvgRange[], styleContexts?: S
         else if (cssRanges && CSS_VALUE_ATTRIBUTES.has(name)) {
           const range = { start: valueStart, end: cursor }
           cssRanges.push(range)
+          if (writerTag) cssNames!.set(valueStart, name)
           if (name === 'style') styleContexts!.push(range)
         }
         cursor++
@@ -157,6 +161,7 @@ interface Replacement {
   readonly start: number
   readonly end: number
   readonly value: string
+  readonly name?: string
 }
 
 // Replacement ranges are normally disjoint (attribute values, style text), so
@@ -181,17 +186,33 @@ function applyReplacements(source: string, replacements: readonly Replacement[])
   return parts.reverse().join('')
 }
 
+function carryWrittenTags(source: string, tags: readonly WrittenTagRange[], changes: readonly WrittenReplacement[]): void {
+  let cursor = 0
+  for (const tag of tags) {
+    while (cursor < changes.length && changes[cursor]!.end <= tag.start) cursor++
+    const owned: WrittenReplacement[] = []
+    for (let i = cursor; i < changes.length && changes[i]!.start < tag.end; i++) owned.push(changes[i]!)
+    projectWrittenTag(source, tag, owned)
+  }
+}
+
 export function transformSvgAttributes(
   source: string,
   transform: (attribute: SvgAttributeToken, tag: SvgStartTagToken) => string | undefined,
 ): string {
   const replacements: Replacement[] = []
   for (const tag of scanSvgStartTags(source)) {
+    const changes: Replacement[] | undefined = writerEvidenceEnabled() ? [] : undefined
     for (const attribute of tag.attributes) {
       const value = transform(attribute, tag)
       if (value !== undefined && value !== attribute.value) {
-        replacements.push({ start: attribute.valueStart, end: attribute.valueEnd, value })
+        const change = { start: attribute.valueStart, end: attribute.valueEnd, value, name: attribute.name }
+        replacements.push(change); changes?.push(change)
       }
+    }
+    if (changes?.length) {
+      const evidence = writtenTagOf(source.slice(tag.start, tag.end))
+      if (evidence) projectWrittenTag(source, { start: tag.start, end: tag.end, tag: evidence }, changes)
     }
   }
   return applyReplacements(source, replacements)
@@ -214,13 +235,21 @@ export interface SvgCssProjection {
   readonly source: string
   readonly cssRanges: readonly SvgRange[]
   readonly styleContexts: readonly SvgRange[]
+  readonly writtenTags?: readonly WrittenTagRange[]
+  readonly cssNames?: ReadonlyMap<number, string>
 }
 
 export function projectSvgCss(source: string): SvgCssProjection {
   const cssRanges: SvgRange[] = []
   const styleContexts: SvgRange[] = []
-  scanStartTags(source, cssRanges, styleContexts)
-  return { source, cssRanges, styleContexts }
+  if (!writerEvidenceEnabled()) {
+    scanStartTags(source, cssRanges, styleContexts)
+    return { source, cssRanges, styleContexts }
+  }
+  const writtenTags: WrittenTagRange[] = []
+  const cssNames = new Map<number, string>()
+  scanStartTags(source, cssRanges, styleContexts, undefined, writtenTags, cssNames)
+  return { source, cssRanges, styleContexts, writtenTags, cssNames }
 }
 
 /** Style bodies only: skip attribute parsing and retain no tag inventory. */
@@ -240,10 +269,14 @@ export function transformSvgCssValues(
   projection: SvgCssProjection = projectSvgCss(source),
 ): string {
   if (projection.source !== source) throw new Error('SVG CSS projection does not match its source')
-  return applyReplacements(source, projection.cssRanges.map(range => ({
-    ...range,
-    value: transform(source.slice(range.start, range.end)),
-  })))
+  const changes: Replacement[] = []
+  for (const range of projection.cssRanges) {
+    const original = source.slice(range.start, range.end)
+    const value = transform(original)
+    if (value !== original) changes.push({ ...range, value, name: projection.cssNames?.get(range.start) })
+  }
+  if (projection.writtenTags) carryWrittenTags(source, projection.writtenTags, changes)
+  return applyReplacements(source, changes)
 }
 
 export function replaceSvgRootStartTag(
