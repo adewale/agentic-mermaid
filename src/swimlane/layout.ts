@@ -3,6 +3,9 @@ import { resolveEdgeInlineStyle, resolveNodeInlineStyle } from '../color-resolve
 import { graphClassNames } from '../shared/graph-classes.ts'
 import { assertMermaidGraphWork } from '../shared/diagram-limits.ts'
 import { graphTextBlock } from '../graph-text.ts'
+import { paintedStrokeExtent } from '../scene/bounds.ts'
+import { shapeOutline } from '../shape-outline.ts'
+import { groupHeaderHeight } from '../layout/graph-measurement.ts'
 import { graphEdgeMarkerPaintRegions } from '../graph-connectors.ts'
 import { resolveLabelContent } from '../shared/display-text.ts'
 import { diagramTitleBand, positionDiagramTitle, resolveRenderStyle } from '../styles.ts'
@@ -73,11 +76,42 @@ export function layoutSwimlane(graph: MermaidGraph, options: NonNullable<Paramet
       contentGap = Math.max(contentGap, corridor); layerGap = Math.max(layerGap, corridor)
     }
   }
-  const clearance = occurrences.size ? Math.max(8, (style.edgeBendRadius ?? 0) + style.lineWidth / 2) : 0
-  const stubGap = Math.max(12, clearance + 4)
   const nodeSizes = occurrences.size ? occurrenceNodeSizes(graph, occurrences, owners, horizontal, style, options.nodeSizes) : options.nodeSizes
+  let clearance = occurrences.size ? 8 : 0
+  if (occurrences.size) {
+    let shaft = 0, body = 0
+    for (const edge of edges) if (edge.style !== 'invisible') {
+      const raw = edge.inlineStyle?.['stroke-width'] ?? String(style.lineWidth * (edge.style === 'thick' ? 2 : 1))
+      shaft = Math.max(shaft, paintedStrokeExtent({ stroke: edge.inlineStyle?.stroke ?? style.edgeStrokeColor ?? 'var(--_line)', strokeWidth: raw }, true) ?? style.lineWidth * 2)
+    }
+    for (const [id, node] of graph.nodes) {
+      const inline = resolveNodeInlineStyle(id, graph)
+      const size = nodeSizes?.get(id) ?? estimateNodeSize(id, resolveLabelContent(node.label, node.labelContent), node.shape, style, graph.direction, undefined, node.labelBlock, node)
+      const outline = shapeOutline({ ...node, ...size, x: 0, y: 0 }, {
+        fill: inline?.fill ?? style.nodeFillColor ?? 'var(--_node-fill)', stroke: inline?.stroke ?? style.nodeBorderColor ?? 'var(--_node-stroke)',
+        strokeWidth: inline?.['stroke-width'] ?? String(style.nodeLineWidth),
+      }, style.cornerRadius)
+      const joined = ['polygon', 'polyline', 'path', 'compound'].includes(outline.geometry.kind)
+      for (const paint of outline.childPaints ?? [outline.paint]) body = Math.max(body, paintedStrokeExtent(paint, joined) ?? style.nodeLineWidth * 2)
+    }
+    // A rounded return uses a control hull plus the actual cap/join support,
+    // not only the centerline and half a default shaft. Unknown CSS remains
+    // conditional at emission; these fallbacks do not grant paint authority.
+    clearance = Math.max(clearance, (style.edgeBendRadius ?? 0) + shaft + body)
+  }
+  const stubGap = Math.max(12, clearance + 4)
+  let headingPadding = style.groupPaddingY
+  if (occurrences.size) for (const group of sourceGroups.values()) {
+    const block = graphTextBlock(resolveLabelContent(group.label, group.labelContent), style, 'group')
+    // Match addHeader's6px occupied-text envelope and the2px obstacle inset.
+    // Reserve a whole-pixel upper bound so fractional arithmetic cannot put a
+    // terminal just inside the heading it was intended to clear.
+    headingPadding = Math.max(headingPadding, Math.ceil(stubGap + (block.height - groupHeaderHeight(group, style, block)) / 2 + 8))
+  }
+  const placementOptions = headingPadding > style.groupPaddingY
+    ? { ...options, styleFace: { ...options.styleFace, group: { ...options.styleFace?.group, paddingY: headingPadding } } } : options
   const measured = lanes.map((lane, index) => {
-    const local = layoutNativeGraphPlacementSync(inputs[index]!, { ...options, padding: inset, nodeSpacing: contentGap, layerSpacing: layerGap, nodeSizes })
+    const local = layoutNativeGraphPlacementSync(inputs[index]!, { ...placementOptions, padding: inset, nodeSpacing: contentGap, layerSpacing: layerGap, nodeSizes })
     // An isolated task is a complete component, not a new process row. Pack
     // independent components along the authored process direction inside the
     // lane so matching hand-offs retain separate, short crossing channels.

@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'bun:test'
+import { formatSvgNumber } from '../shared/svg-number.ts'
 import fc from 'fast-check'
 import { collectSamples } from '../../eval/layout-compare/run.ts'
 import { fcParameters } from './helpers/fc-parameters.ts'
@@ -507,20 +508,22 @@ describe('layoutArchitectureDiagram', () => {
 })
 
 
-// The literal band/contacts below are independent of the route-obstacle helper.
+// Actual band/contact checks remain independent of the route-obstacle helper.
 it.each(['agentic', 'elk'] as const)('keeps %s item-side shafts outside their own ancestor header in final SVG', backend => {
   const source = 'architecture-beta\ngroup g(cloud)[Group]\nservice a(server)[A] in g\nservice b(server)[B]\na:T --> B:b'
   const options = { graphLayout: { backend, fallback: 'none' as const } }
   const positioned = layoutArchitectureDiagram(parse(source), options)
   const group = positioned.groups[0]!, edge = positioned.edges[0]!
-  expect({ x: group.x, y: group.y, width: group.width, height: group.headerHeight }).toEqual({ x: 38, y: 124, width: 156, height: 28 })
+  const cardA = positioned.services.find(service => service.id === 'a')!, cardB = positioned.services.find(service => service.id === 'b')!
+  expect(group.headerHeight).toBeGreaterThan(0)
   expect(edge.source).toEqual({ id: 'a', boundary: 'item', side: 'T' })
   expect(edge.target).toEqual({ id: 'b', boundary: 'item', side: 'B' })
-  expect(edge.points[0]).toEqual({ x: 116, y: 168 })
-  expect(edge.points.at(-1)).toEqual({ x: 116, y: 88 })
+  expect(edge.points[0]).toEqual({ x: cardA.x + cardA.width / 2, y: cardA.y })
+  expect(edge.points.at(-1)).toEqual({ x: cardB.x + cardB.width / 2, y: cardB.y + cardB.height })
   expect(edge.obstacleFree).toBe(true)
   const rendered = renderMermaidSVGWithReceipt(source, { ...options, idPrefix: `owned-header-${backend}-` })
-  expect(rendered.svg).toContain('d="M38,124 H194 V152 H38 Z"')
+  const band = { x: group.x, y: group.y, right: group.x + group.width, bottom: group.y + group.headerHeight! }
+  expect(rendered.svg).toContain(`d="M${formatSvgNumber(band.x)},${formatSvgNumber(band.y)} H${formatSvgNumber(band.right)} V${formatSvgNumber(band.bottom)} H${formatSvgNumber(band.x)} Z"`)
   const tag = [...rendered.svg.matchAll(/<polyline\b[^>]*>/g)].map(match => match[0]).find(value => value.includes('data-from="a"') && value.includes('data-to="b"'))!
   expect(tag).toContain('data-from-side="T"')
   expect(tag).toContain('data-to-side="B"')
@@ -531,12 +534,14 @@ it.each(['agentic', 'elk'] as const)('keeps %s item-side shafts outside their ow
   expect(points).toEqual(edge.points)
   for (let index = 1; index < points.length; index++) {
     const a = points[index - 1]!, b = points[index]!
-    const entersLiteralBand = Math.max(a.x, b.x) > 38 && Math.min(a.x, b.x) < 194
-      && Math.max(a.y, b.y) > 124 && Math.min(a.y, b.y) < 152
+    const entersLiteralBand = Math.max(a.x, b.x) > band.x && Math.min(a.x, b.x) < band.right
+      && Math.max(a.y, b.y) > band.y && Math.min(a.y, b.y) < band.bottom
     expect(entersLiteralBand).toBe(false)
   }
-  expect(edge.points[1]).toEqual({ x: 116, y: 152 })
-  expect(edge.points.at(-2)).toEqual({ x: 116, y: 104 })
+  expect(edge.points[1]!.x).toBe(cardA.x + cardA.width / 2)
+  expect(edge.points[1]!.y).toBeLessThanOrEqual(cardA.y - 16)
+  expect(edge.points.at(-2)!.x).toBe(cardB.x + cardB.width / 2)
+  expect(edge.points.at(-2)!.y).toBeGreaterThanOrEqual(cardB.y + cardB.height + 16)
 })
 
 

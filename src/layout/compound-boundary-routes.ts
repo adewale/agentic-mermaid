@@ -743,8 +743,21 @@ export function routeCrossHierarchy(
         if (--work.pairs < 0) fail('agentic local cross-hierarchy obstacle-work limit')
         if (onSegment(raw.labelPosition!, quotient[cursor - 1]!, quotient[cursor]!)) { labelShaft = cursor; break }
       }
-      const start = labelShaft > 1 && crossingSource ? quotient[labelShaft - 1]! : crossingSource ? escape(quotient[0]!, quotient[1]!) : quotient[0]!
-      const end = labelShaft > 0 && labelShaft < quotient.length - 1 ? quotient[labelShaft]! : crossingTarget ? escape(quotient.at(-1)!, quotient.at(-2)!) : quotient.at(-1)!
+      let start = labelShaft > 1 && crossingSource ? quotient[labelShaft - 1]! : crossingSource ? escape(quotient[0]!, quotient[1]!) : quotient[0]!
+      let end = labelShaft > 0 && labelShaft < quotient.length - 1 ? quotient[labelShaft]! : crossingTarget ? escape(quotient.at(-1)!, quotient.at(-2)!) : quotient.at(-1)!
+      if (leafPaths && labelShaft > 0 && crossingSource && crossingTarget) {
+        // Only the occupied label body owns a retained shaft. A global long
+        // segment can also cross a frame header; preserving that whole segment
+        // would make every otherwise clear endpoint repair impossible.
+        work.pairs -= 16; work.arcs -= 4
+        if (work.pairs < 0 || work.arcs < 0) fail('agentic global label shaft work limit')
+        reserveExpanded(2)
+        const a = quotient[labelShaft - 1]!, b = quotient[labelShaft]!, label = raw.labelPosition!
+        const dx = Math.sign(b.x - a.x), dy = Math.sign(b.y - a.y), length = Math.abs(b.x - a.x) + Math.abs(b.y - a.y)
+        const center = Math.abs(label.x - a.x) + Math.abs(label.y - a.y), half = (dx ? edge.label!.width : edge.label!.height) / 2 + clearance
+        const before = Math.max(0, center - half), after = Math.min(length, center + half)
+        start = { x: a.x + dx * before, y: a.y + dy * before }; end = { x: a.x + dx * after, y: a.y + dy * after }
+      }
       const core = labelShaft > 0 ? crossingSource ? [start, end] : quotient.slice(0, labelShaft + 1) : [start, ...quotient.slice(1, -1), end]
       const related = new Set<number>()
       for (const endpoint of [edge.source, edge.target]) for (let parent = owners[endpoint]!; parent >= 0; parent = owners[leafCount + parent]!) related.add(parent)
@@ -1095,7 +1108,12 @@ export function routeCrossHierarchy(
             if(widthProof!==undefined){work.pairs-=2;if(work.pairs<0)fail('agentic local cross-hierarchy crossing-work limit')}
             if(!points&&legacyDirect)legacyDirect()
             if (!points) {
-            const frameFor = (endpoint: number): RoutingBox => owners[endpoint]! < 0 ? subjects[endpoint]! : frames[owners[endpoint]!]!
+            const frameFor = (endpoint: number): RoutingBox => leafPaths
+              // A global label anchor can precede every target ancestor. Its
+              // endpoint window must include the lifted representative's
+              // perimeter, not stop inside an outer ancestor's solid header.
+              ? subjects[endpoint === edge.source ? endpoints.source : endpoints.target]!
+              : owners[endpoint]! < 0 ? subjects[endpoint]! : frames[owners[endpoint]!]!
             type Suffixes = { roots: readonly Terminal[]; interiorChannels: boolean; late?: boolean; graph?: ReturnType<typeof createEndpointSparseVisibilityGraph>; paths: Point[][]; complete: boolean }
             const ordinary: Suffixes = { roots: ends, interiorChannels: false, paths: [], complete: false }
             const guided: Suffixes = { roots: ends, interiorChannels: true, paths: [], complete: false }

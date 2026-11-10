@@ -173,8 +173,12 @@ describe('Architecture layout backends', () => {
         for (const [id, side, boundary, x, y] of [[relation.from, relation.fromSide, relation.fromBoundary, numbers[0]!, numbers[1]!], [relation.to, relation.toSide, relation.toBoundary, numbers.at(-2)!, numbers.at(-1)!]] as const) {
           const owner = boundary === 'group' ? interaction.services.find(service => service.id === id)!.parent! : id
           const box = actualBoxes.get(owner)!
-          expect(x).toBeCloseTo(side === 'L' ? box.x : side === 'R' ? box.x + box.w : box.x + box.w / 2, 5)
-          expect(y).toBeCloseTo(side === 'T' ? box.y : side === 'B' ? box.y + box.h : box.y + box.h / 2, 5)
+          // A group boundary retains the referenced service's identity: its
+          // center projects onto the enclosing face rather than changing to
+          // an unrelated group-center port when placement is asymmetric.
+          const reference = actualBoxes.get(id)!
+          expect(x).toBeCloseTo(side === 'L' ? box.x : side === 'R' ? box.x + box.w : reference.x + reference.w / 2, 5)
+          expect(y).toBeCloseTo(side === 'T' ? box.y : side === 'B' ? box.y + box.h : reference.y + reference.h / 2, 5)
         }
       }
       const captions = [...document.querySelectorAll('text.architecture-edge-label-text')]
