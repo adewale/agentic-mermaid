@@ -1,0 +1,16 @@
+{
+  "main": "4260292397d4bca7624a30c34649eb943a5f8e0c",
+  "before": "ff18d23eb2b25ffb84aa492170d4ef0005411b7e",
+  "rebased_parent": "10b14b1b7a04fb0631db2f25ff6aea43aa075c18",
+  "method": "git rebase --rebase-merges --onto origin/main e7cb05baa7f68154942a9ce9c6e9aaaee163dc94",
+  "contracts": [
+    "retain defensive native emission snapshots; owned freezing cannot grant paint authority",
+    "preserve Scene own-data snapshots on serialization-observer proof lane",
+    "written tag reuse only for unmetered final security; paid XML and DATA-position checks remain fresh",
+    "main and Native marker-peer contexts preserve live fallback and route invalidation",
+    "ER/Class use actual Scene writes with fresh certification; eligible Native families retain private cached reuse"
+  ],
+  "new_failure_reproduced": "inherited styleStart=0 let parser accept <g></g><style><path /></style>; own frame metadata rejects it",
+  "qualification_scope": "rebase/integration correctness only; no equivalent fully consumed runtime or browser payload remeasurement",
+  "automations_resumed": false
+}
