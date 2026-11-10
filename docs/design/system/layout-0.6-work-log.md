@@ -1878,3 +1878,22 @@ product and worsened Native payload; stopped and preserved outside source.
 No ELK context enablement ships. Trinity feature work is frozen in plan/backlog.
 Evidence: `native-only-20261109`. Remaining: global nesting borders, common
 production seam adoption, shared emission cost/proof cap and mixed-circle ink.
+
+### 10 November — Native global compound ranks and production contract
+
+`ce65ff5b65f8532509f3f7f4038d9fc95e63e015` (parent `10253d29d`).
+Native production now uses the common result validator and early wide-face
+capacity; thin weighted/confluent faces retain their policy. Common-direction
+acyclic leaf compounds use nesting borders, rank-aware long-edge ownership and
+contiguous sibling components. Recursive compatibility keeps cycles, local
+instructions and frame endpoints. Eight public grouped a→c→b cases: delivery7→8,
+monotone leaf flow0→8, actual SVG receipts allP. Tradeoff TB area61828→97162,
+wire130→355, bends4→8; Architecture branching improves area151076→114784,
+wire358→276, bends4→2. 984owners, core/repo types and lintP; frozen84products/
+sixerrors retain outcomes. Four Architecture SVGs change;80wholeproducts exact.
+Actual13-input browser portfolioP allthree; Native gzip+3479bytes, requests49
+unchanged. No performance trial ships: text-copy, literal-only and removal of
+legacy completion are insufficient;100-node responses still exceed100ms and
+capture400k before occlusion. Costs/failed probes retained in
+`native-complete-checkpoint-20261110`. Remaining: shared capture/resource/context/
+XML subtraction, original compound declines and sealed replacement qualification.
