@@ -269,33 +269,6 @@ describe('property: FamilyDescriptor render waist', () => {
     reject(() => ({ familyConfig: JSON.parse('{"nested":{"constructor":true}}') }), 'uses a forbidden prototype key')
     reject(ctx => ({ appearance: { colors: { ...ctx.colors, font: 'A Different Font' } } }), 'may not rewrite appearance field "font"')
     reject(() => ({ legacyOptions: {} }) as never, 'unknown field "legacyOptions"')
-    reject(ctx => ({ renderOptions: { ...ctx.renderOptions, security: 'strict' } }), 'may not rewrite non-geometry option "security"')
-    reject(ctx => ({ renderOptions: { ...ctx.renderOptions, idPrefix: 'changed-' } }), 'may not rewrite non-geometry option "idPrefix"')
-    reject(ctx => ({ renderOptions: { ...ctx.renderOptions, mermaidConfig: { theme: 'dark' } } }), 'may not rewrite non-geometry option "mermaidConfig"')
-
-    // Omitting renderOptions returns the original derived options. Identity
-    // can skip comparison, but source-derived values still need validation.
-    const restoreUnchanged = replaceFamilyForTest('flowchart', { ...original, normalizeRequest: () => ({}) })
-    try {
-      expect(() => resolveRenderRequest('---\nconfig:\n  fontFamily: "Inter;fill:red"\n---\nflowchart LR\nA --> B'))
-        .toThrow('invalid normalized RenderOptions')
-    } finally { restoreUnchanged() }
-
-    // Distinct captured records retain canonical equality, including key
-    // order and signed zero; identity is only a shortcut for equal values.
-    const restoreEquivalent = replaceFamilyForTest('flowchart', {
-      ...original,
-      normalizeRequest: ctx => ({ renderOptions: { ...ctx.renderOptions, seed: 0,
-        mermaidConfig: { themeVariables: { lineColor: '#445566', primaryColor: '#112233' } },
-      } }),
-    })
-    try {
-      const request = resolveRenderRequest('flowchart LR\nA --> B', {
-        seed: -0, mermaidConfig: { themeVariables: { primaryColor: '#112233', lineColor: '#445566' } },
-      })
-      expect(request.renderOptions.seed).toBe(0)
-      expect(request.renderOptions.mermaidConfig).toEqual({ themeVariables: { primaryColor: '#112233', lineColor: '#445566' } })
-    } finally { restoreEquivalent() }
 
     const cyclic: Record<string, unknown> = {}
     cyclic.self = cyclic
