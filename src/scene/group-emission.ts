@@ -15,23 +15,13 @@ type Visitor = typeof visitSvgFirstTagAttributes
 // Private operands are pinned before any ambient sealing callback can see
 // them. Keep their exact literal receiver; a freeze return is no authority.
 const groupDefine = Object.defineProperties, groupSlot = Object.defineProperty, groupPrevent = Object.preventExtensions
-const groupFreeze = Object.freeze, groupDescriptor = Object.getOwnPropertyDescriptor, groupPrototype = Object.prototype
-function ordinaryDescriptorDefaults(): boolean {
-  // Legacy descriptor operands inherit these four fields. Preserve that
-  // observable path when a caller supplies defaults or accessor hooks.
-  return groupDescriptor(groupPrototype, 'get') === undefined && groupDescriptor(groupPrototype, 'set') === undefined
-    && groupDescriptor(groupPrototype, 'writable') === undefined && groupDescriptor(groupPrototype, 'configurable') === undefined
-}
-function frozenGroupRecord<T extends object>(record: T): Readonly<T> { groupFreeze(record); return record }
 function attributeRecord(name: string, value: string, quote: '"' | "'", nameStart: number, valueStart: number, valueEnd: number): SvgAttributeToken {
-  if (ordinaryDescriptorDefaults()) return frozenGroupRecord({ name, value, quote, nameStart, valueStart, valueEnd })
   return groupPrevent(groupDefine({}, {
     name: { value: name, enumerable: true }, value: { value, enumerable: true }, quote: { value: quote, enumerable: true },
     nameStart: { value: nameStart, enumerable: true }, valueStart: { value: valueStart, enumerable: true }, valueEnd: { value: valueEnd, enumerable: true },
   })) as SvgAttributeToken
 }
 function tagRecord(name: string, start: number, end: number, selfClosing: boolean, attributes: readonly SvgAttributeToken[]): SvgStartTagToken {
-  if (ordinaryDescriptorDefaults()) return frozenGroupRecord({ name, start, end, selfClosing, attributes })
   return groupPrevent(groupDefine({}, {
     name: { value: name, enumerable: true }, start: { value: start, enumerable: true }, end: { value: end, enumerable: true },
     selfClosing: { value: selfClosing, enumerable: true }, attributes: { value: attributes, enumerable: true },
@@ -82,7 +72,6 @@ export interface NativeGroupParse {
 interface GroupEmission { readonly open: string; readonly opacity: string | undefined; readonly style: boolean; readonly matrix: ReturnType<typeof parseSvgTransform>; readonly nativeParse?: NativeGroupParse }
 const groupEmission = new WeakMap<object, GroupEmission>()
 function emissionRecord(open: string, opacity: string | undefined, style: boolean, matrix: ReturnType<typeof parseSvgTransform>, nativeParse?: NativeGroupParse): GroupEmission {
-  if (ordinaryDescriptorDefaults()) return frozenGroupRecord({ open, opacity, style, matrix, nativeParse })
   return groupPrevent(groupDefine({}, {
     open: { value: open, enumerable: true }, opacity: { value: opacity, enumerable: true }, style: { value: style, enumerable: true },
     matrix: { value: matrix, enumerable: true }, nativeParse: { value: nativeParse, enumerable: true },
@@ -140,7 +129,6 @@ function nativeParseRecord(source: string, firstName: string | undefined, tags: 
       }
       return closeRoster(result)
   }
-  if (ordinaryDescriptorDefaults()) return frozenGroupRecord({ open: source, firstName, materialize })
   return groupPrevent(groupDefine({}, { open: { value: source, enumerable: true }, firstName: { value: firstName, enumerable: true }, materialize: { value: materialize, enumerable: true } })) as NativeGroupParse
 }
 

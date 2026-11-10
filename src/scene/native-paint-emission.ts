@@ -2,7 +2,7 @@ import { nativeTextPaintWriteOf, ownedTextPaintRoster } from './inspection.ts'
 import type { SceneNode, SceneDoc, ConnectorMark, Geometry, MarkPaint, ShapeMark } from './ir.ts'
 import type { ScenePaintGeometryInspection, ScenePaintGeometry } from './inspection.ts'
 import { scanSvgStartTags, decodedSvgAttributeValue } from '../svg-structure.ts'
-import { serializeMarkerResource } from './marker-resources.ts'
+import { markerResourceMarkupCost, serializeMarkerResource } from './marker-resources.ts'
 import { transferRetainedPixelText, isOwnedPixelTextPart } from '../shared/prepared-text.ts'
 import { formatSvgNumber } from '../shared/svg-number.ts'
 import { safeCssFontFamily } from '../shared/css-font.ts'
@@ -53,7 +53,7 @@ export function createNativePaintEmission(maxOperations: number) {
     operations += count
     return true
   }
-  const context = createEmissionContext(pay, { resources: false })
+  const emissionContext = createEmissionContext(pay, { resources: false })
   const xml = createSvgXmlCapture(pay)
   const failed = Symbol('unsupported-emission')
   const capturedLeaves = new WeakMap<object, Leaf>()
@@ -62,7 +62,7 @@ export function createNativePaintEmission(maxOperations: number) {
   let ownedPartRosters: WeakSet<object> | undefined
   type CaptureContext = 'leaf' | 'route' | 'geometry' | 'points' | 'point' | 'pixel-part' | 'text-paint'
   interface TextCopyPlan { readonly source: object; readonly array: boolean; readonly slots: readonly TextCopySlot[]; readonly length: number | undefined; readonly height: number }
-  interface TextCopySlot { readonly key: string; readonly enumerable: boolean; readonly value: unknown; readonly child: TextCopyPlan | undefined }
+  interface TextCopySlot { readonly key: string; readonly enumerable: boolean; value: unknown; readonly child: TextCopyPlan | undefined; readonly writable: false; readonly configurable: false }
   const textPlans = new textPaintMap<object, { plan: TextCopyPlan | undefined }>()
   let copyingFirstText = false
   let planningText: { readonly plans: WeakMap<object, TextCopyPlan>; pure: boolean } | undefined
@@ -93,7 +93,16 @@ export function createNativePaintEmission(maxOperations: number) {
       if (!pay()) throw failed
       const slot = plan.slots[index]!
       const value = slot.child ? materializeText(slot.child, depth + 1) : slot.value
-      Object.defineProperty(result, slot.key, { value, enumerable: slot.enumerable, configurable: false, writable: false })
+      const owner = Object, define = owner.defineProperty
+      if (define === textPaintDefine && typeof slot.key === 'string'
+        && !('get' in textPaintPrototype) && !('set' in textPaintPrototype)) {
+        // No callback can observe this private operand on the native path.
+        // Keep only the original instruction after writing a fresh child.
+        const previous = slot.value
+        slot.value = value
+        try { define(result, slot.key, slot) } finally { slot.value = previous }
+      } else if (define === textPaintDefine) define(result, slot.key, { value, enumerable: slot.enumerable, configurable: false, writable: false })
+      else textPaintApply(define, owner, [result, slot.key, { value, enumerable: slot.enumerable, configurable: false, writable: false }])
     }
     if (plan.array) {
       if (!pay()) throw failed
@@ -201,7 +210,7 @@ export function createNativePaintEmission(maxOperations: number) {
         // Private instructions must not escape through caller-dispatched
         // registration or inherited descriptor fields. Actual receiver copies
         // below retain their ordinary observable definition operations.
-        textPaintDefine(planSlots, String(planSlots.length), { __proto__: null, value: { key, enumerable: descriptor.enumerable!, value: child ? undefined : copied, child }, enumerable: true } as PropertyDescriptor)
+        textPaintDefine(planSlots, String(planSlots.length), { __proto__: null, value: { key, enumerable: descriptor.enumerable!, value: child ? undefined : copied, child, writable: false, configurable: false }, enumerable: true } as PropertyDescriptor)
       }
       Object.defineProperty(result, key, { value: copied, enumerable: descriptor.enumerable, configurable: false, writable: false })
     }
@@ -235,6 +244,15 @@ export function createNativePaintEmission(maxOperations: number) {
       textPaintApply(textPaintPut, planningText!.plans, [result, { source: value, array: Array.isArray(value), slots: planSlots, length: arrayLength?.value, height: planHeight }])
     }
     const retained = Object.preventExtensions(result)
+    // Only the actual local capture receiver can reuse its document role.
+    // Foreign preventExtensions returns keep their original getter path.
+    if (context === 'leaf' && kind === 'document' && retained === result && pay(3)) {
+      const element = textPaintDescriptor(result, 'element')
+      if (element && textPaintOwn(element, 'value') && element.value === 'definitions'
+        && !element.writable && !element.configurable && !textPaintExtensible(result)) {
+        emissionContext.capturedDefinition(result as unknown as Extract<Leaf, { kind: 'document' }>)
+      }
+    }
     // Literal allocation and exact returned identity exclude an interposed proxy.
     // Shared bookkeeping can expose the clone, so inspect only after sealing.
     if (context === 'text-paint' && retained === result) retainTextPaintPresence(result)
@@ -428,29 +446,6 @@ export function createNativePaintEmission(maxOperations: number) {
     for (let keyIndex = 0; keyIndex < bk.length; keyIndex++) { if (!pay()) return false; if (Object.hasOwn(b, bk[keyIndex]!)) nb++ }
     return na === nb
   }
-  // Upper bound for one resource serialization. Fields are already inert and
-  // immutable; pay the walk and resulting markup BEFORE calling the writer.
-  const markupCost = (value: unknown): number | undefined => {
-    if (!pay()) return undefined
-    if (typeof value === 'string') return value.length * 6 + 2
-    if (typeof value === 'number') return 32
-    if (!value || typeof value !== 'object') return 8
-    let cost = 64
-    if (!pay()) return undefined
-    const keys = Object.getOwnPropertyNames(value)
-    if (!pay(keys.length)) return undefined
-    for (let keyIndex = 0; keyIndex < keys.length; keyIndex++) {
-      const key = keys[keyIndex]!
-      if (!pay(3)) return undefined
-      const descriptor = Object.getOwnPropertyDescriptor(value, key)
-      if (!descriptor || !Object.hasOwn(descriptor, 'value')) return undefined
-      const child = markupCost(descriptor.value)
-      if (child === undefined) return undefined
-      cost += key.length + 16 + child
-      if (!Number.isSafeInteger(cost) || cost > maxOperations) return undefined
-    }
-    return cost
-  }
   return {
     xml,
     snapshot,
@@ -542,7 +537,7 @@ export function createNativePaintEmission(maxOperations: number) {
     groupValidation(shell: Extract<SceneNode, { kind: 'group' }>) { captureNativeGroupEmission(shell, pay) },
     group(shell: Extract<SceneNode, { kind: 'group' }>) {
       closedMarkerContext = false
-      const actual = context.nativeGroup(shell)
+      const actual = emissionContext.nativeGroup(shell)
       if (actual?.uncertain) uncertain = true
       return actual?.matrix
     },
@@ -552,8 +547,8 @@ export function createNativePaintEmission(maxOperations: number) {
       // Every inline label can add one primitive; noninline labels only make
       // this a conservative upper bound. Failed reservations are conditional.
       if (!pay(2 * (1 + (node.kind === 'connector' ? node.labels.length : 0)))) return false
-      if (node.kind === 'document') context.document(node, svg)
-      else if (node.kind === 'connector') context.connector(node)
+      if (node.kind === 'document') emissionContext.document(node, svg)
+      else if (node.kind === 'connector') emissionContext.connector(node)
       const opens = node.kind === 'document' && node.element === 'open'
       if (opens ? rootOpens !== 0 || rootCloses !== 0 : rootOpens !== 1 || rootCloses !== 0) closedMarkerContext = false
       if (node.kind === 'connector') {
@@ -633,7 +628,7 @@ export function createNativePaintEmission(maxOperations: number) {
                 const fact = node.kind === 'text' && paintWrite && pay(6) && matchesSvgTextPaintWrite(paintWrite, xml, xmlWrite, node, svg) ? paintWrite : undefined
                 if (fact && readSvgTextPaintWrite(fact, node, svg) && pay(2)) {
                   textPaintApply(textPaintAdd, observedTextPaintWrites, [fact]); usedTextPaint = true
-                  context.requireTextPaintContext()
+                  emissionContext.requireTextPaintContext()
                   actualTextPaint = fact
                 } else uncertain = true
               }
@@ -657,9 +652,9 @@ export function createNativePaintEmission(maxOperations: number) {
             }
           }
         }
-        context.hint(node)
-        if (node.kind !== 'document') context.leaf(capturedLeaves.get(node)!, svg)
-      } else context.invalidateFractionalCircle()
+        emissionContext.hint(node)
+        if (node.kind !== 'document') emissionContext.leaf(capturedLeaves.get(node)!, svg)
+      } else emissionContext.invalidateFractionalCircle()
       return exhausted ? false : actualTextPaint ?? true
     },
     leaf(node: Leaf, write: (node: Leaf, sink?: SvgGeometryWriteSink) => string | SvgXmlWrite): { node: Leaf; paintNode: Leaf; svg: string; xmlWrite: SvgXmlWrite | undefined; textPaint?: SvgTextPaintWrite; conditional: boolean } {
@@ -767,7 +762,7 @@ export function createNativePaintEmission(maxOperations: number) {
           if (!pay(2)) break
           const prior = checked.get(marker.id)
           if (prior && same(prior, marker)) continue
-          const cost = markupCost(marker)
+          const cost = markerResourceMarkupCost(marker, pay, { maxCost: maxOperations, maxDepth: undefined, iterableKeys: false })
           if (cost === undefined || !pay(cost * 2)) { uncertain = true; break }
           const expected = serializeMarkerResource(marker, { indent: 0 }).replace(/(^|\n)[ \t]+(?=<)/g, '$1')
           if (!pay(expected.length * 3) || resources.get(marker.id) !== expected) uncertain = true
@@ -778,7 +773,7 @@ export function createNativePaintEmission(maxOperations: number) {
       // could contain a shadowing child ID or malformed XML. The new closed
       // domain admits only resources checked against declarations or references.
       if (closedMarkerContext && definitionsClosed && (!pay() || resources.size !== checked.size)) closedMarkerContext = false
-      const checkedContext = context.finish(header)
+      const checkedContext = emissionContext.finish(header)
       if (checkedContext.uncertain || pendingCustomRootStyle && !checkedContext.resolveColor) uncertain = true
       // A resolver is issued only for a validated marker-bearing context.
       // Every declared resource in that context needs actual-byte custody;
