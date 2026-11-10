@@ -79,7 +79,7 @@ Legend: “parse” means recognized and preserved by the family parser. “rend
 | `gantt` header | parse + render | Add `gantt` to registered `FamilyId` detection, CLI/MCP capabilities, docs, gallery, and editor examples. |
 | `title ...` | parse + render | Also included in label extraction and accessibility summary. |
 | `accTitle`, `accDescr` | parse + render | Use existing SVG accessibility injection. Do not duplicate family-owned ARIA. |
-| `dateFormat ...` | parse + render | Required for date parsing. Default is `YYYY-MM-DD`; test the docs claim behind [#5655](https://github.com/mermaid-js/mermaid/issues/5655). |
+| `dateFormat ...` | parse + render | Default is `YYYY-MM-DD`; task start/end dates also admit a bare four-digit year as January 1. Calendar exclusions and explicit other formats remain strict; test the docs claim behind [#5655](https://github.com/mermaid-js/mermaid/issues/5655). |
 | `axisFormat ...` | parse + render | SVG and ASCII may format differently when terminal space is constrained; both must use the same resolved tick instants. |
 | `tickInterval ...` | parse + render, bounded | Must validate interval count before generating ticks. Regression source: [PR #7197](https://github.com/mermaid-js/mermaid/pull/7197). |
 | `inclusiveEndDates` | parse + render | Apply at scheduling boundary, not by stretching bars in renderer code. |
