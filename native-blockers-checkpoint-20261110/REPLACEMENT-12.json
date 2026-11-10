@@ -1,0 +1,205 @@
+{
+  "label": "Replacement grouped12, not recovered original lost12",
+  "rev": "7257faa9299a69948645a7574e185300b7841f75",
+  "createdAt": "2026-11-10",
+  "renderOptions": {
+    "embedFontImport": false
+  },
+  "samples": [
+    {
+      "id": "nested-hosted-chain-TB",
+      "family": "flowchart",
+      "source": "flowchart TB\nsubgraph Parent\nA\nsubgraph Child\nC\nD\nend\nB\nend\nB -->|handoff| A\nA --> C\nD ----> B",
+      "flowEdges": [
+        [
+          "D",
+          "B"
+        ],
+        [
+          "B",
+          "A"
+        ],
+        [
+          "A",
+          "C"
+        ]
+      ],
+      "direction": "TB"
+    },
+    {
+      "id": "nested-hosted-chain-BT",
+      "family": "flowchart",
+      "source": "flowchart BT\nsubgraph Parent\nA\nsubgraph Child\nC\nD\nend\nB\nend\nB -->|handoff| A\nA --> C\nD ----> B",
+      "flowEdges": [
+        [
+          "D",
+          "B"
+        ],
+        [
+          "B",
+          "A"
+        ],
+        [
+          "A",
+          "C"
+        ]
+      ],
+      "direction": "BT"
+    },
+    {
+      "id": "nested-hosted-chain-LR",
+      "family": "flowchart",
+      "source": "flowchart LR\nsubgraph Parent\nA\nsubgraph Child\nC\nD\nend\nB\nend\nB -->|handoff| A\nA --> C\nD ----> B",
+      "flowEdges": [
+        [
+          "D",
+          "B"
+        ],
+        [
+          "B",
+          "A"
+        ],
+        [
+          "A",
+          "C"
+        ]
+      ],
+      "direction": "LR"
+    },
+    {
+      "id": "nested-hosted-chain-RL",
+      "family": "flowchart",
+      "source": "flowchart RL\nsubgraph Parent\nA\nsubgraph Child\nC\nD\nend\nB\nend\nB -->|handoff| A\nA --> C\nD ----> B",
+      "flowEdges": [
+        [
+          "D",
+          "B"
+        ],
+        [
+          "B",
+          "A"
+        ],
+        [
+          "A",
+          "C"
+        ]
+      ],
+      "direction": "RL"
+    },
+    {
+      "id": "leave-reenter-TB",
+      "family": "flowchart",
+      "source": "flowchart TB\nsubgraph G[Processing group]\na[First]\nb[Last]\nend\na -->|leave| c[Outside]\nc -->|return| b",
+      "flowEdges": [
+        [
+          "a",
+          "c"
+        ],
+        [
+          "c",
+          "b"
+        ]
+      ],
+      "direction": "TB"
+    },
+    {
+      "id": "leave-reenter-BT",
+      "family": "flowchart",
+      "source": "flowchart BT\nsubgraph G[Processing group]\na[First]\nb[Last]\nend\na -->|leave| c[Outside]\nc -->|return| b",
+      "flowEdges": [
+        [
+          "a",
+          "c"
+        ],
+        [
+          "c",
+          "b"
+        ]
+      ],
+      "direction": "BT"
+    },
+    {
+      "id": "leave-reenter-LR",
+      "family": "flowchart",
+      "source": "flowchart LR\nsubgraph G[Processing group]\na[First]\nb[Last]\nend\na -->|leave| c[Outside]\nc -->|return| b",
+      "flowEdges": [
+        [
+          "a",
+          "c"
+        ],
+        [
+          "c",
+          "b"
+        ]
+      ],
+      "direction": "LR"
+    },
+    {
+      "id": "leave-reenter-RL",
+      "family": "flowchart",
+      "source": "flowchart RL\nsubgraph G[Processing group]\na[First]\nb[Last]\nend\na -->|leave| c[Outside]\nc -->|return| b",
+      "flowEdges": [
+        [
+          "a",
+          "c"
+        ],
+        [
+          "c",
+          "b"
+        ]
+      ],
+      "direction": "RL"
+    },
+    {
+      "id": "mixed-local-directions",
+      "family": "flowchart",
+      "source": "flowchart TB\nsubgraph Outer[Outer process]\ndirection LR\nA -->|local| B\nsubgraph Inner[Inner process]\ndirection BT\nC -->|upward| D\nend\nB --> C\nend\nD --> X[Outside]",
+      "flowEdges": [
+        [
+          "A",
+          "B"
+        ]
+      ],
+      "direction": "LR"
+    },
+    {
+      "id": "container-descendant-labelled",
+      "family": "flowchart",
+      "source": "flowchart LR\nsubgraph Outer[Outer scope]\nsubgraph Inner[Inner scope]\nA --> B\nend\nend\nOuter -->|enter| A\nB -->|exit| Outer",
+      "flowEdges": [
+        [
+          "A",
+          "B"
+        ]
+      ],
+      "direction": "LR"
+    },
+    {
+      "id": "sibling-frame-contacts",
+      "family": "flowchart",
+      "source": "flowchart RL\nsubgraph Left[Left scope]\nA --> B\nend\nsubgraph Right[Right scope]\nC --> D\nend\nLeft -->|handoff| Right\nB -->|leaf handoff| C",
+      "flowEdges": [
+        [
+          "A",
+          "B"
+        ],
+        [
+          "C",
+          "D"
+        ],
+        [
+          "B",
+          "C"
+        ]
+      ],
+      "direction": "RL"
+    },
+    {
+      "id": "grouped-labelled-cycle",
+      "family": "flowchart",
+      "source": "flowchart BT\nsubgraph One[First scope]\nA -->|prepare| B\nend\nsubgraph Two[Second scope]\nC -->|complete| D\nend\nB -->|send| C\nD -->|retry| A",
+      "flowEdges": [],
+      "direction": "BT"
+    }
+  ]
+}

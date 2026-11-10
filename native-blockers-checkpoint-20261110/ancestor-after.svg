@@ -1,0 +1,59 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="416.098" height="367" viewBox="0 0 416.098 367" style="--bg:#FFFFFF;--fg:#27272A;--font:Inter;background:#FFFFFF" class="am-0jv4n9p09gdpfb">
+<style>
+  svg.am-0jv4n9p09gdpfb { font-family: var(--font, 'Inter'), system-ui, sans-serif; }
+  svg.am-0jv4n9p09gdpfb {
+    /* Derived from --bg and --fg (overridable via --line, --accent, etc.) */
+    --_text:          #27272A;
+    --_text-sec:      #575759;
+    --_text-muted:    #707072;
+    --_text-faint:    #8a8a8c;
+    --_line:          #939395;
+    --_arrow:         #47474a;
+    --_node-fill:     #f9f9f9;
+    --_node-stroke:   #d4d4d4;
+    --_group-fill:    #FFFFFF;
+    --_group-hdr:     #f4f4f4;
+    --_inner-stroke:  #e5e5e5;
+    --_key-badge:     #e9e9ea;
+  }
+</style>
+<defs>
+  <marker id="lc9-arrowhead" markerWidth="8" markerHeight="5" refX="8" refY="2.5" orient="auto">
+    <polygon points="0 0, 8 2.5, 0 5" fill="#47474a" stroke="#47474a" stroke-width="0.75" stroke-linejoin="round" />
+  </marker>
+  <marker id="lc9-arrowhead-start" markerWidth="8" markerHeight="5" refX="0" refY="2.5" orient="auto">
+    <polygon points="8 0, 0 2.5, 8 5" fill="#47474a" stroke="#47474a" stroke-width="0.75" stroke-linejoin="round" />
+  </marker>
+</defs>
+<g class="subgraph" data-id="Outer" data-region="subgraph" data-label="Outer scope" data-role="group">
+  <rect x="40" y="40" width="336.098" height="287" rx="0" ry="0" fill="#FFFFFF" stroke="#949495" stroke-width="1" data-id="group-rect:Outer" data-role="group" />
+  <path d="M40,40 H376.098 V68 H40 Z" fill="#f4f4f4" stroke="#949495" stroke-width="1" />
+  <text x="52" y="54" text-anchor="start" font-size="12" font-weight="600" fill="#575759" data-prepared-text="true" dy="4.2" textLength="71.64" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Outer scope</text>
+<g class="subgraph" data-id="Inner" data-region="subgraph" data-label="Inner scope" data-parent-id="Outer" data-role="group">
+  <rect x="160.098" y="214.1" width="200" height="96.9" rx="0" ry="0" fill="#FFFFFF" stroke="#949495" stroke-width="1" data-id="group-rect:Inner" data-role="group" />
+  <path d="M160.098,214.1 H360.098 V242.1 H160.098 Z" fill="#f4f4f4" stroke="#949495" stroke-width="1" />
+  <text x="172.098" y="228.1" text-anchor="start" font-size="12" font-weight="600" fill="#575759" data-prepared-text="true" dy="4.2" textLength="70.2" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Inner scope</text>
+</g>
+</g>
+<polyline class="edge" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" points="236.098,276.55 284.098,276.55" fill="none" stroke="#939395" stroke-width="1" marker-end="url(#lc9-arrowhead)" data-relationship="flowchart-edge" data-direction="forward" data-id="edge:A-&gt;B#0" data-role="edge" data-from="A" data-to="B" role="graphics-symbol" aria-roledescription="relation" aria-label="A to B" />
+<polyline class="edge" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" data-label="enter" points="40,116.525 148.723,116.525 148.723,267.325 176.098,267.325" fill="none" stroke="#939395" stroke-width="1" marker-end="url(#lc9-arrowhead)" data-relationship="flowchart-edge" data-direction="forward" data-id="edge:Outer-&gt;A#0" data-role="edge" data-from="Outer" data-to="A" role="graphics-symbol" aria-roledescription="relation" aria-label="Outer to A: enter" />
+<polyline class="edge" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" data-label="exit" points="299.098,295 299.098,308.375 146.723,308.375 146.723,181.575 40,181.575" fill="none" stroke="#939395" stroke-width="1" marker-end="url(#lc9-arrowhead)" data-relationship="flowchart-edge" data-direction="forward" data-id="edge:B-&gt;Outer#0" data-role="edge" data-from="B" data-to="Outer" role="graphics-symbol" aria-roledescription="relation" aria-label="B to Outer: exit" />
+<g class="edge-label" data-from="Outer" data-to="A" data-label="enter">
+  <rect class="edge-label-halo" x="66.75" y="97.375" width="50.598" height="38.3" rx="4" ry="4" fill="#FFFFFF" stroke="none" />
+  <rect x="70.75" y="101.375" width="42.598" height="30.3" rx="2" ry="2" fill="#FFFFFF" stroke="#e5e5e5" stroke-width="1" />
+  <text x="92.049" y="116.525" text-anchor="middle" font-size="11" font-weight="400" fill="#575759" data-prepared-text="true" dy="3.85" textLength="26.598" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">enter</text>
+</g>
+<g class="edge-label" data-from="B" data-to="Outer" data-label="exit">
+  <rect class="edge-label-halo" x="66.75" y="162.425" width="42.282" height="38.3" rx="4" ry="4" fill="#FFFFFF" stroke="none" />
+  <rect x="70.75" y="166.425" width="34.282" height="30.3" rx="2" ry="2" fill="#FFFFFF" stroke="#e5e5e5" stroke-width="1" />
+  <text x="87.891" y="181.575" text-anchor="middle" font-size="11" font-weight="400" fill="#575759" data-prepared-text="true" dy="3.85" textLength="18.282" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">exit</text>
+</g>
+<g class="node" data-id="A" data-label="A" data-shape="rectangle" data-role="node">
+  <rect x="176.098" y="258.1" width="60" height="36.9" rx="0" ry="0" fill="#f9f9f9" stroke="#949495" stroke-width="0.75" data-id="node-shape:A" data-role="node" />
+  <text x="206.098" y="276.55" text-anchor="middle" font-size="13" font-weight="500" fill="#27272A" data-prepared-text="true" dy="4.55" textLength="10.842" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">A</text>
+</g>
+<g class="node" data-id="B" data-label="B" data-shape="rectangle" data-role="node">
+  <rect x="284.098" y="258.1" width="60" height="36.9" rx="0" ry="0" fill="#f9f9f9" stroke="#949495" stroke-width="0.75" data-id="node-shape:B" data-role="node" />
+  <text x="314.098" y="276.55" text-anchor="middle" font-size="13" font-weight="500" fill="#27272A" data-prepared-text="true" dy="4.55" textLength="10.842" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">B</text>
+</g>
+</svg>

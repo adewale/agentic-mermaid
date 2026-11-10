@@ -1,0 +1,12 @@
+{
+  "source": "17f157fae6a6f97295ebb10f215d2c2326710b6b",
+  "baseline": "7257faa9299a69948645a7574e185300b7841f75",
+  "main": "e7cb05baa7f68154942a9ce9c6e9aaaee163dc94",
+  "original12": "Owner confirms lost; replacement set explicitly frozen before fixes",
+  "actualFinalQualification": "correctness-final; only two compound production modules differ; all new performance trials reverted",
+  "sourceFiles": {
+    "src/layout/ancestor-boundary-routes.ts": "7e5d30e74254a96c8d412f3ec4f358a0915e9bfa7968088b805093a763923341",
+    "src/layout/compound-boundary-routes.ts": "640299766768790fd284314df5c0b7c3da76dfad1b307006d955c7b721d73af5"
+  },
+  "generatedAt": "2026-11-10T06:51:31.753554+00:00"
+}

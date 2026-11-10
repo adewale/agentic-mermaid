@@ -1,0 +1,32 @@
+[
+  {
+    "backend": "agentic",
+    "status": "passed",
+    "requests": 49,
+    "product": {
+      "raw": 1498968,
+      "gzip9": 496402,
+      "brotli11": 425690
+    }
+  },
+  {
+    "backend": "elk",
+    "status": "passed",
+    "requests": 43,
+    "product": {
+      "raw": 2768320,
+      "gzip9": 862860,
+      "brotli11": 692545
+    }
+  },
+  {
+    "backend": "trinity",
+    "status": "passed",
+    "requests": 50,
+    "product": {
+      "raw": 1467751,
+      "gzip9": 485562,
+      "brotli11": 415991
+    }
+  }
+]

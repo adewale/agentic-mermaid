@@ -1,0 +1,68 @@
+{
+  "chain100": {
+    "before": {
+      "heapUsedAfterMB": [
+        51.993288,
+        63.33444
+      ],
+      "peakRssKiB": [
+        191932,
+        215556
+      ]
+    },
+    "CSR": {
+      "heapUsedAfterMB": [
+        52.311456,
+        63.186776
+      ],
+      "peakRssKiB": [
+        205124,
+        218092
+      ]
+    }
+  },
+  "fanin100": {
+    "before": {
+      "heapUsedAfterMB": [
+        49.281104,
+        74.129048
+      ],
+      "peakRssKiB": [
+        205708,
+        213952
+      ]
+    },
+    "CSR": {
+      "heapUsedAfterMB": [
+        46.755376,
+        102.214456
+      ],
+      "peakRssKiB": [
+        209196,
+        277420
+      ]
+    }
+  },
+  "chain300": {
+    "before": {
+      "heapUsedAfterMB": [
+        56.612408,
+        108.581168
+      ],
+      "peakRssKiB": [
+        219112,
+        293552
+      ]
+    },
+    "CSR": {
+      "heapUsedAfterMB": [
+        57.15688,
+        111.652424
+      ],
+      "peakRssKiB": [
+        221324,
+        292080
+      ]
+    }
+  }
+}

@@ -1,0 +1,124 @@
+{
+  "before": {
+    "cold": [
+      694.7738085000003,
+      660.5513560000004,
+      728.9962610000002
+    ],
+    "warm": [
+      432.839146,
+      416.6901389999998,
+      450.91347300000007
+    ],
+    "edit": [
+      377.92578149999963,
+      357.1332190000003,
+      434.92385899999954
+    ],
+    "status": [
+      [
+        "returned",
+        "unverified"
+      ],
+      [
+        "returned",
+        "unverified"
+      ],
+      [
+        "returned",
+        "unverified"
+      ],
+      [
+        "returned",
+        "unverified"
+      ],
+      [
+        "returned",
+        "unverified"
+      ],
+      [
+        "returned",
+        "unverified"
+      ],
+      [
+        "returned",
+        "unverified"
+      ],
+      [
+        "returned",
+        "unverified"
+      ],
+      [
+        "returned",
+        "unverified"
+      ],
+      [
+        "returned",
+        "unverified"
+      ]
+    ]
+  },
+  "CSR": {
+    "cold": [
+      647.392474,
+      635.681634,
+      659.103314
+    ],
+    "warm": [
+      428.3449190000001,
+      323.9247009999999,
+      522.2793450000004
+    ],
+    "edit": [
+      402.9223599999998,
+      326.7220419999994,
+      441.53381400000035
+    ],
+    "status": [
+      [
+        "returned",
+        "unverified"
+      ],
+      [
+        "returned",
+        "unverified"
+      ],
+      [
+        "returned",
+        "unverified"
+      ],
+      [
+        "returned",
+        "unverified"
+      ],
+      [
+        "returned",
+        "unverified"
+      ],
+      [
+        "returned",
+        "unverified"
+      ],
+      [
+        "returned",
+        "unverified"
+      ],
+      [
+        "returned",
+        "unverified"
+      ],
+      [
+        "returned",
+        "unverified"
+      ],
+      [
+        "returned",
+        "unverified"
+      ]
+    ]
+  },
+  "pairedStreamsEqual": [
+    20,
+    20
+  ]
+}
