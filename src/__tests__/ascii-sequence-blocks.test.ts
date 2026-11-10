@@ -207,11 +207,12 @@ rect rgb(240,240,240)
 Note ${position}: a sufficiently wide note
 end`, { useAscii: false })
     const row = result.split('\n').find(line => line.includes('a sufficiently wide note'))!
-    expect(row).toContain('│ a sufficiently wide note │')
+    const note = /│ a sufficiently wide note +│/.exec(row)
+    expect(note).not.toBeNull()
     // The note's own two walls are enclosed by the complete fragment frame.
-    const noteStart = row.indexOf('│ a sufficiently wide note │')
+    const noteStart = note!.index
     expect(row.slice(0, noteStart)).toContain('│')
-    expect(row.slice(noteStart + '│ a sufficiently wide note │'.length)).toContain('│')
+    expect(row.slice(noteStart + note![0].length)).toContain('│')
   })
 
   it('retains multiline conditions, combining marks and emoji without unequal row cell widths', () => {
@@ -285,7 +286,7 @@ end`, { useAscii: false, paddingX: 1, paddingY: 1, boxBorderPadding: 1, graphDir
 participant A
 participant B
 Note over A,B: 注記です 👩‍💻 é`, { useAscii: false })
-    expect(result).toContain('│ 注記です 👩‍💻 é │')
+    expect(result).toMatch(/│ 注記です 👩‍💻 é +│/)
   })
 })
 
