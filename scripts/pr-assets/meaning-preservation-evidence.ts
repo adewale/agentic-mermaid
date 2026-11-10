@@ -225,6 +225,24 @@ assets/ icon(folder)
 ]
 const fixtures: Fixture[] = [
   {
+    id: 'reviewed-quadrant-clearance', title: 'Fixed quadrant points do not cover section captions',
+    source: 'quadrantChart\ntitle Value vs. cost\nquadrant-1 Plan\nquadrant-2 Do now\nquadrant-3 Maybe\nquadrant-4 Drop\nAlpha: [0.25, 0.75]\nBeta: [0.7, 0.8]\nGamma: [0.3, 0.3]\nDelta: [0.75, 0.25]',
+    pngScale: 1, captureLayout: true,
+    cue: 'Alpha and Delta keep their authored coordinates. Inspect their markers and the Do now/Drop captions: the captions move within their own regions instead of being covered. Point-label and caption geometry are independently checked; this finite example does not guarantee clearance in an arbitrarily overfull fixed canvas.',
+  },
+  {
+    id: 'reviewed-wrap-conservation', title: 'Emergency wrapping preserves rectangle without an invented hyphen',
+    source: '---\nconfig:\n  layout: elk\n  look: handDrawn\n  handDrawnSeed: 1\n  htmlLabels: false\n  flowchart:\n    htmlLabels: false\n    minNodeWidth: 180\n    wrappingWidth: 56\n    padding: 16\n---\nflowchart LR\nA((Small<br>circle)) --> B(((Small<br>double<br>circle))) --> R[Small<br>rectangle]',
+    pngScale: 1, captureLayout: true,
+    cue: 'Read the wrapped rectangle label. The baseline inserts an unauthored hyphen inside the word; the candidate wraps its original graphemes. Authored soft hyphens remain supported and have separate tests.',
+  },
+  {
+    id: 'reviewed-grouped-fanout', title: 'A grouped diamond fan-out retains certified containment',
+    source: 'graph TD\nA[Christmas] -->|Get money| B(Go shopping)\nB --> C{Let me think}\nB --> G[/Another/]\nC ==>|One| D[Laptop]\nC -->|Two| E[iPhone]\nC -->|Three| F[fa:fa-car Car]\nsubgraph section\nC\nD\nE\nF\nG\nend',
+    pngScale: 1, captureLayout: true,
+    cue: 'The actual baseline certification error is retained. The candidate keeps C, D, E, F and G inside section and renders the original edges, labels and headers. The optimization no longer moves grouped targets beyond their unchanged frame; final certificates remain enabled.',
+  },
+  {
     id: 'reviewed-rectangle-borders', title: 'Rectangle border properties retain display text',
     source: 'flowchart LR\nA[Build] --> B[|borders:lt|Deploy] --> C[Done]',
     pngScale: 1, captureLayout: true,
@@ -1292,6 +1310,11 @@ const fixtures: Fixture[] = [
   },
 ]
 const terminalFixtures = [
+  {
+    id: 'reviewed-terminal-over-note',
+    source: 'sequenceDiagram\nparticipant A as Alice\nparticipant B as Bob\nparticipant C as Carol\nA->>C: Hello\nloop Owned\nNote over A,C: Shared<br>note\nend\nC-->>A: Done',
+    cue: 'The short Shared/note box spans Alice and Carol, including Bob between them, in ASCII and Unicode output. It remains inside Owned and before Done. Inspect its actual borders and metadata; the old text-sized box sat between the addressed lifelines instead of owning them.',
+  },
   ...nativeFamilyFixtures.map(({ id, source, cue }) => ({ id: `terminal-${id}`, source, cue })),
   {
     id: 'terminal-class-notes-only',
