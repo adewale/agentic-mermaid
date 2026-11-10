@@ -6,7 +6,7 @@ import { drawNative, type NativeDrawing } from './native-drawing.ts'
 import type { FamilyLayoutResult } from '../agent/families.ts'
 import type { ResolvedRenderRequest } from '../render-contract.ts'
 import { resolvedFamilyRenderContextOf, resolvedRenderExecutionPlanOf } from '../render-contract.ts'
-import { positionedForNativeProducer, retainedFamilyProjection } from '../positioning.ts'
+import { positionedForNativeProducer, positionedForSceneLowering, retainedFamilyProjection } from '../positioning.ts'
 import { withTextMeasurementExecution } from '../text-measurement-profile.ts'
 import { admitFamilyScene } from './admission.ts'
 import { sceneAssertionsEnabled } from './assertions.ts'
@@ -47,7 +47,7 @@ export function retainedPositionedScene(request: ResolvedRenderRequest, layout: 
     ? { ...request.appearance.colors, embedFontImport: false } : request.appearance.colors
   const assertions = sceneAssertionsEnabled(request)
   const lower = () => {
-    const scene = plan.family.lowerScene!({ positioned: layout.positioned, colors, resolved: resolvedFamilyRenderContextOf(request) })
+    const scene = plan.family.lowerScene!({ positioned: positionedForSceneLowering(layout), colors, resolved: resolvedFamilyRenderContextOf(request) })
     // Freeze only the unwrapped constructor program's result, directly at its
     // owning boundary. Replaced/inherited hooks retain external-data copying.
     return isOwnedFamily(plan.family) && isOriginalSceneLowering(plan.family.lowerScene) ? finalizeOwnedScene(scene) : scene

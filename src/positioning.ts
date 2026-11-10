@@ -3,7 +3,7 @@ import { isOriginalEnrolledDefaultBackend } from './scene/backend.ts'
 import { nativeDrawingOf, originalNativeDrawingOf, type DrawingProducer } from './scene/drawing.ts'
 import { sceneAssertionsEnabled } from './scene/assertions.ts'
 import { PERFORMANCE_EXPERIMENTS, performanceExperimentEnabled } from './experimental-performance.ts'
-import { borrowedPositioned, cachedPositioned, clonePositioned, isRetainedPositionedSnapshot, retainOwnedNativeSvgPositioned, retainPositioned } from './experimental/position-cache.ts'
+import { borrowedPositioned, cachedPositioned, clonePositioned, isRetainedPositionedSnapshot, positionedDrawingNeedsCopy, retainOwnedNativeSvgPositioned, retainPositioned } from './experimental/position-cache.ts'
 import { observeCache } from './performance-observations.ts'
 // Canonical resolved-request -> positioned-artifact seam.
 //
@@ -72,11 +72,16 @@ export function positionFamilyForNativeRender(request: ResolvedRenderRequest): F
 }
 
 /** A stage/cache observer can replace the native capability after positioning.
- * Clone only our known raw cache graph before handing it to a different
- * producer. Public positioned inputs keep their original getter observations. */
+ * Detach borrowed geometry before replacement producers, and captured copies
+ * before any producer. Public inputs keep their original getter observations. */
 export function positionedForNativeProducer(layout: FamilyLayoutResult, producer: DrawingProducer): PositionedDiagram {
   const original = borrowedNativeProducers.get(layout)
-  return original && original !== producer ? clonePositioned(layout.positioned, true) : layout.positioned
+  return original && (original !== producer || positionedDrawingNeedsCopy(layout)) ? clonePositioned(layout.positioned, true) : layout.positioned
+}
+
+/** Scene lowering can retain aliases; never hand it borrowed cache geometry. */
+export function positionedForSceneLowering(layout: FamilyLayoutResult): PositionedDiagram {
+  return borrowedNativeProducers.has(layout) ? clonePositioned(layout.positioned, true) : layout.positioned
 }
 
 function positionFamily(familyId: FamilyId, request: ResolvedRenderRequest, source: Readonly<NormalizedMermaidSource>, projectionOptions: FamilyPositionedProjectionOptions, borrow: boolean, immutableText = false): FamilyLayoutResult {
@@ -114,7 +119,7 @@ function positionFamily(familyId: FamilyId, request: ResolvedRenderRequest, sour
   const position = () => withTextMeasurementExecution(executionPlan.textMeasurement, () => {
     const role = request.output === 'ascii' || request.output === 'unicode' || request.output === 'html' ? 'companion' : 'primary'
     if (borrow && boundedKey !== undefined) {
-      const snapshot = borrowedPositioned(descriptor, boundedKey, request.output === 'svg' ? request : undefined)
+      const snapshot = borrowedPositioned(descriptor, boundedKey, request.output === 'svg' ? request : undefined, true)
       if (snapshot?.projection) {
         for (const decision of graphLayoutDecisionsOf(snapshot.result)) retainRequestGraphLayoutDecision(request, decision, role)
         retainedProjections.set(snapshot.result, snapshot.projection)

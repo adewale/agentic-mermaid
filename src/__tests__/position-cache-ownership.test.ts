@@ -3,6 +3,52 @@ import { useTestChildren } from './helpers/test-child.ts'
 
 const runChild = useTestChildren(20_000)
 
+test('copied native snapshots skip drawing and certification replay without exposing cached geometry', async () => {
+  const child = await runChild(process.execPath, ['-e', `
+    import assert from 'node:assert/strict'
+    import { spyOn } from 'bun:test'
+    import * as drawing from './src/scene/native-drawing.ts'
+    import * as paint from './src/scene/paint-certification.ts'
+    import { renderMermaidSVGWithReceipt as render } from './src/index.ts'
+    import { layoutMermaidWithReceipt } from './src/agent/index.ts'
+    import { resolveRenderRequestForExecution } from './src/render-contract.ts'
+    import { positionFamilyForNativeRender, positionedForSceneLowering } from './src/positioning.ts'
+    const draw = spyOn(drawing, 'drawNative'), certify = spyOn(paint, 'certifyNativePaint')
+    const cases = [
+      ['classDiagram', 'StageClassA --> StageClassB'],
+      ['erDiagram', 'STAGE_OWNER ||--o{ STAGE_ITEM : owns'],
+      ['packet-beta', '0-7: "Stage packet"'],
+    ]
+    const options = { embedFontImport: false }
+    for (const lines of cases) {
+      const source = lines.join(String.fromCharCode(10))
+      const before = draw.mock.calls.length
+      const expected = render(source, options)
+      assert.deepEqual(render(source, options), expected)
+      assert.equal(draw.mock.calls.length, before + 2)
+      const drawn = draw.mock.calls.length, certified = certify.mock.calls.length
+      for (let repeat = 0; repeat < 3; repeat++) assert.deepEqual(render(source, options), expected)
+      assert.equal(draw.mock.calls.length, drawn, 'warm render rebuilt drawing: ' + lines[0])
+      assert.equal(certify.mock.calls.length, certified, 'warm render repeated certification: ' + lines[0])
+      const exposed = layoutMermaidWithReceipt(source, options)
+      exposed.layout.nodes.length = 0
+      const layout = positionFamilyForNativeRender(resolveRenderRequestForExecution(source, options, 'svg'))
+      const sceneInput = positionedForSceneLowering(layout)
+      assert.notEqual(sceneInput, layout.positioned)
+      for (const key of Object.keys(sceneInput)) delete sceneInput[key]
+      assert.deepEqual(render(source, options), expected)
+      const beforeControl = draw.mock.calls.length, certificationBeforeControl = certify.mock.calls.length
+      process.env.AGENTIC_MERMAID_ELK_CACHE = '0'
+      try { assert.deepEqual(render(source, options), expected) }
+      finally { process.env.AGENTIC_MERMAID_ELK_CACHE = '1' }
+      assert.equal(draw.mock.calls.length, beforeControl + 1, 'uncached control must construct a drawing')
+      assert.equal(certify.mock.calls.length, certificationBeforeControl + 1)
+    }
+  `], { cwd: `${import.meta.dir}/../..`, env: { ...process.env, AGENTIC_MERMAID_SCENE_ASSERTIONS: '0', AGENTIC_MERMAID_ELK_CACHE: '1' } })
+  expect(child.stderr).toBe('')
+  expect(child.status).toBe(0)
+})
+
 test('private cache copies preserve text custody without trusting mutable measurement aliases', async () => {
   const child = await runChild(process.execPath, ['-e', `
     import assert from 'node:assert/strict'
@@ -174,6 +220,15 @@ test('native drawing admission retains only certified artifacts without burdenin
     retainPositioned(family, 'public', layout)
     const publicLayout = borrowedPositioned(family, 'public', publicRequest).result
     retainNativeDrawing(publicRequest, publicLayout, inaccessible)
+    const optedIn = {}
+    const captured = borrowedPositioned(family, 'public', optedIn, true).result
+    const compact = { svg: '<svg/>', preparedText: true, certification: {} }
+    retainNativeDrawing(optedIn, captured, compact)
+    const genericRequest = {}, genericLayout = borrowedPositioned(family, 'public', genericRequest).result
+    assert.equal(cachedNativeDrawing(genericRequest, genericLayout, true), undefined)
+    retainNativeDrawing(genericRequest, genericLayout, inaccessible)
+    const privateRequest = {}, privateLayout = borrowedPositioned(family, 'public', privateRequest, true).result
+    assert.equal(cachedNativeDrawing(privateRequest, privateLayout, true), compact)
     const repeatedLayout = borrowedPositioned(family, 'private', repeated).result
     assert.equal(repeatedLayout.positioned, layout.positioned)
     retainNativeDrawing(repeated, repeatedLayout, drawing)

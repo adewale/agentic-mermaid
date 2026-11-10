@@ -24,6 +24,7 @@ const DRAWING_REPLACEMENT_AGE = 128
 const drawings = new WeightedLru<string, { owner: PositionedSnapshot; drawing: RetainedNativeDrawing }>(128, DRAWING_WEIGHT)
 const results = new WeightedLru<string, PositionedSnapshot>(128, MAX_WEIGHT, key => { drawings.delete(key) })
 const retainedResults = new WeakSet<object>()
+const copiedResults = new WeakSet<object>()
 function isolatedKey(family: object, key: string): string {
   let id = familyIds.get(family)
   if (id === undefined) { id = nextFamilyId++; familyIds.set(family, id) }
@@ -195,6 +196,8 @@ export function clonePositioned<T>(source: T, immutableText = false): T {
 /** Membership records actual private cache geometry, including its operation
  * wrappers, never a caller brand. */
 export function isRetainedPositionedSnapshot(result: object): boolean { return retainedResults.has(result) }
+/** Captured geometry stays cache-private even when a drawing must be rebuilt. */
+export function positionedDrawingNeedsCopy(result: object): boolean { return copiedResults.has(result) }
 export function cachedPositioned(family: object, key: string, alreadyObserved = false, immutableText = false): FamilyLayoutResult | undefined {
   const value = results.get(isolatedKey(family, key))
   if (!alreadyObserved) observeCache('positioned-layout', value ? 'hit' : 'miss')
@@ -204,17 +207,24 @@ export function cachedPositioned(family: object, key: string, alreadyObserved = 
   return copy
 }
 /** Only the private native renderer may borrow this certified snapshot. */
-export function borrowedPositioned(family: object, key: string, nativeSvgRequest?: object): PositionedSnapshot | undefined {
+export function borrowedPositioned(family: object, key: string, nativeSvgRequest?: object, reuseCapturedDrawing = false): PositionedSnapshot | undefined {
   const isolated = isolatedKey(family, key)
   const value = results.get(isolated)
   observeCache('positioned-layout', value ? 'hit' : 'miss')
-  if (nativeSvgRequest && value && nativeResidency.has(value)) {
+  // Only the private renderer opts in after checking the captured family,
+  // backend, native producer and metric identities. Generic/public cache
+  // users do not acquire a drawing capability by supplying a request object.
+  if (reuseCapturedDrawing && nativeSvgRequest && value && !nativeResidency.has(value)) {
+    nativeResidency.set(value, { locallyRepeated: false })
+  }
+  if (nativeSvgRequest && value && nativeResidency.has(value) && (reuseCapturedDrawing || !copiedResults.has(value.result))) {
     // The operation owns this wrapper. A retained request cannot keep the
     // cache graph alive through its proof after eviction or an early exit.
     const result = Object.freeze({ ...value.result })
     transferGraphLayoutDecisions(value.result, result)
     nativeOwners.set(result, { key: isolated, snapshot: value, request: nativeSvgRequest })
     retainedResults.add(result)
+    if (copiedResults.has(value.result)) copiedResults.add(result)
     return { ...value, result }
   }
   return value
@@ -243,6 +253,7 @@ function retainSnapshot(family: object, key: string, value: FamilyLayoutResult, 
   if (!copy) nativeResidency.set(retained, { locallyRepeated: false })
   results.set(isolatedKey(family, key), retained, weight)
   retainedResults.add(retained.result)
+  if (copy) copiedResults.add(retained.result)
 }
 
 /** The request acquired this entry through the full private positioning key.
