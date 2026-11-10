@@ -156,4 +156,19 @@ describe('measured solve boundary', () => {
     expect(Math.hypot(loop[0]!.x - loop.at(-1)!.x, loop[0]!.y - loop.at(-1)!.y)).toBeGreaterThanOrEqual(20)
     for (const [a, b] of [[loop[0]!, loop[1]!], [loop.at(-1)!, loop.at(-2)!]] as const) expect(Math.hypot(a.x - b.x, a.y - b.y)).toBeGreaterThanOrEqual(40)
   })
+  test.each(['TB', 'BT', 'LR', 'RL'] as const)('Native production hands wide ordinary faces to the early capacity planner in %s', async direction => {
+    const { parseMermaid } = await import('../parser.ts')
+    const { layoutGraphSync } = await import('../layout-engine.ts')
+    const model = parseMermaid(`flowchart ${direction}\nA --> T\nB --> T`)
+    const options = { graphLayout: { backend: 'agentic' as const, fallback: 'none' as const },
+      styleFace: { edge: { lineWidth: 4 }, node: { cornerRadius: 0 } } }
+    const before = structuredClone(model), output = layoutGraphSync(model, options), target = output.nodes.find(node => node.id === 'T')!
+    expect(model).toEqual(before)
+    expect(output.edges).toHaveLength(2)
+    expect(direction === 'LR' || direction === 'RL' ? target.height : target.width).toBeGreaterThanOrEqual(42)
+    const fixed = new Map([['T', { width: 30, height: 30 }]])
+    expect(() => layoutGraphSync(model, { ...options, nodeSizes: fixed })).toThrow('fixed body has insufficient physical port capacity')
+    expect(fixed.get('T')).toEqual({ width: 30, height: 30 })
+  })
+
 })

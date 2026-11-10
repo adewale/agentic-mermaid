@@ -1,3 +1,4 @@
+import { solveMeasuredLayout } from './measured-backend.ts'
 import { prepareMeasuredGraphCandidate } from './measured-graph-producer.ts'
 import { finalizeFlatMeasuredMarkers } from './compound-boundary-routes.ts'
 import type { ChannelWork } from './channel-tracks.ts'
@@ -132,15 +133,26 @@ function placeNativeGraphCandidate(
   placementOnly = false,
   order: NativeOrder = 'primary',
 ): PositionedGraph {
-  const prepared = prepareMeasuredGraphCandidate(graph, options, style, bindings, placementOnly ? 'legacy-placement' : 'legacy-routed')
+  const prepared = prepareMeasuredGraphCandidate(graph, options, style, bindings, placementOnly ? 'legacy-placement' : 'native-routed')
   const measured: MeasuredGraph = prepared.measured
   if (order === 'authored') measured.authoredCycleOrder = true
   else if (order === 'compact') measured.compactPrivateRanks = true
   else if (order === 'ports') measured.portAwarePlacement = true
   if (placementOnly) measured.placementOnly = true
   preparedGraphWork.set(measured, prepared.routingWork)
-  let geometry: AgenticLayout
-  try { layoutOptimization()?.recordLayoutProducer(); geometry = bindings.measureRenderStage('agentic', () => layoutAgenticGraph(measured)) }
+  let geometry!: AgenticLayout
+  try {
+    layoutOptimization()?.recordLayoutProducer()
+    bindings.measureRenderStage('agentic', () => solveMeasuredLayout({ role: placementOnly ? 'placement' : 'routed', graph: measured }, {
+      solve: () => {
+        // Keep private work/search custody on the original request object. The
+        // common boundary validates roles, correspondence and permitted growth;
+        // Native topology metadata remains private to its family completion.
+        geometry = layoutAgenticGraph(measured)
+        return placementOnly ? { kind: 'placed', geometry } : { kind: 'routed', geometry }
+      },
+    }))
+  }
   finally { preparedGraphWork.delete(measured) }
   return prepared.project(geometry, { mergeEdges: geometry.topology === 'forest', sharedEdges: geometry.sharedEdges })
 }

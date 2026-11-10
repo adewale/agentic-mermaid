@@ -17,11 +17,12 @@ interface ProjectionCompletion { mergeEdges: boolean; sharedEdges?: readonly num
 export function prepareMeasuredGraphCandidate(
   graph: MermaidGraph, options: AgenticGraphOptions, style: ResolvedRenderStyle,
   bindings: AgenticGraphBindings,
-  purpose: 'legacy-routed' | 'legacy-placement' | 'owned-routed' | 'owned-placement' = 'legacy-routed',
+  purpose: 'legacy-routed' | 'legacy-placement' | 'native-routed' | 'owned-routed' | 'owned-placement' = 'legacy-routed',
 ) {
   const ownedPlacement = purpose === 'owned-placement'
   const placementOnly = purpose === 'legacy-placement' || ownedPlacement
   const physical = purpose === 'owned-routed'
+  const nativeCapacity = purpose === 'native-routed'
   let diamondContacts = false
   const { edgeSelectorIndices, graphEdgeMarkerPaintRegions, DEFAULTS, LABEL_PILL_PADDING, measureRenderStage, graphTextBlock, resolveLabelContent, groupTitleWidth, groupHeaderHeight, estimateNodeSize, resolveNodeInlineStyle, resolveEdgeInlineStyle, resolveClassInlineStyle, containsNonFiniteNumber, finishGraphGeometry } = bindings
   if (options.preserveSubgraphChildOrder) bindings.unsupported('family-specific graph geometry')
@@ -68,11 +69,11 @@ export function prepareMeasuredGraphCandidate(
     }
     graph.subgraphs.forEach(group => visit(group, undefined, graph.direction))
     if (physical && graph.nodes.size + groups.length > 64) bindings.unsupported('routed slice is limited to 64 subjects and 128 edges')
-    const measurePortFaces = !placementOnly && (physical || !groups.length && !options.stateVisual)
+    const measurePortFaces = !placementOnly && (physical || nativeCapacity || !groups.length && !options.stateVisual)
     if (measurePortFaces) pay(0, graph.nodes.size + 1)
     const portFaces = measurePortFaces ? new Uint8Array(graph.nodes.size) : undefined
     const nodes: MeasuredGraph['nodes'][number][] = [...graph.nodes].map(([id, node], index) => {
-      if (portFaces) portFaces[index] = Number((!node.semanticShape || !!flowchartImageViewport(node)) && (node.shape === 'rectangle' || node.shape === 'subroutine' || physical && (node.shape === 'rounded' || node.shape === 'state-start' || node.shape === 'state-end')))
+      if (portFaces) portFaces[index] = Number((!node.semanticShape || !!flowchartImageViewport(node)) && (node.shape === 'rectangle' || node.shape === 'subroutine' || nativeCapacity && node.shape === 'rounded' || physical && (node.shape === 'rounded' || node.shape === 'state-start' || node.shape === 'state-end')))
       if (groupIndices.has(id)) bindings.unsupported('overlapping node and frame identities')
       const owner = membership.get(id)
       return { id, ...(owner ? { parent: owner.parent } : {}), ...(options.nodeSizes?.get(id) ?? estimateNodeSize(id, resolveLabelContent(node.label, node.labelContent), node.shape, style, owner?.direction ?? graph.direction, options.stateVisual, node.labelBlock, node)) }
@@ -263,7 +264,14 @@ export function prepareMeasuredGraphCandidate(
       pay(3)
       if (width !== undefined) border = Math.max(border, width / 2)
       else knownClearance = false
-      if (physical && width !== undefined) {
+      // Native retains its broad producer and caps. Adopt the same physical
+      // planner only for measured canonical bodies; compatible confluent fans
+      // and thin weighted faces keep their established packing contract.
+      if (nativeCapacity) pay(8)
+      const nativeFace = nativeCapacity && !options.stateVisual && !graph.nodes.get(id)!.semanticShape
+        && (graph.nodes.get(id)!.shape === 'rectangle' || graph.nodes.get(id)!.shape === 'rounded')
+        && Math.max(portSpans[2 * indices.get(id)!]!, portSpans[2 * indices.get(id)! + 1]!) > 8
+      if ((physical || nativeFace) && width !== undefined) {
         pay(8, 4)
         const node = nodes[indices.get(id)!]!, authored = graph.nodes.get(id)!
         if (authored.shape === 'diamond') {
@@ -311,7 +319,7 @@ export function prepareMeasuredGraphCandidate(
       const node = nodes[index]!, authored = graph.nodes.get(node.id)!, degree = Math.max(incoming[index]!, outgoing[index]!)
       const sourceSpan = portSpans[2 * index]!, targetSpan = portSpans[2 * index + 1]!, span = Math.max(sourceSpan, targetSpan)
       const pitch = span + maximumStroke
-      if (degree < 2 || span <= 0 || authored.shape !== 'rectangle' || authored.semanticShape || options.nodeSizes?.has(node.id)) continue
+      if (node.contact || degree < 2 || span <= 0 || authored.shape !== 'rectangle' || authored.semanticShape || options.nodeSizes?.has(node.id)) continue
       const horizontal = (membership.get(node.id)?.direction ?? graph.direction) === 'LR' || (membership.get(node.id)?.direction ?? graph.direction) === 'RL'
       // Ordinary heads need authored-end capacity before routing. Incoming
       // markers must not borrow the degree of unrelated outgoing shafts.
