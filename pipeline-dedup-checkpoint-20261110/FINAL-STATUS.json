@@ -1,0 +1,83 @@
+{
+  "owner": "root-pipeline-dedup-20261110",
+  "started_at": "2026-11-10T18:02:09.481587+00:00",
+  "completed_at": "2026-11-10T20:53:17.996126+00:00",
+  "source_revision": "ff18d23eb2b25ffb84aa492170d4ef0005411b7e",
+  "evidence_revision": "ac8c8066fe2b5e719c3f87cb85d943050c0ef0ce",
+  "source_pushed": true,
+  "evidence_pushed": true,
+  "pr": 602,
+  "pr_description_updated": true,
+  "automation_resumed": false,
+  "shipped": [
+    "shared immutable XML write/read record and private existing-registry state",
+    "removed redundant XML boundary scanner/cache and private projection sealing",
+    "existing text-plan operand reuse and captured definitions prefix fast path",
+    "shared resource work estimator preserving distinct traversal/bounds",
+    "pinned group records fix false monospace font proof"
+  ],
+  "verification": {
+    "affected_suite": {
+      "passed": 1089,
+      "failed": 1,
+      "remaining_failure": "pre-existing Sparse32 emitted proof budget"
+    },
+    "typecheck": "core and repository passed",
+    "lint": "passed",
+    "frozen": {
+      "enrolled": 90,
+      "returned_whole_svg_exact": 84,
+      "retained_errors": 6,
+      "delivery_or_proof_status_changes": 0,
+      "receipts_exact": 27,
+      "receipts_operation_count_only": 57
+    },
+    "browser": "13 public-product inputs passed each for Native, ELK and frozen Trinity",
+    "font_scope": "false passed -> unverified/OUTPUT_SCOPE; nine SVGs exact"
+  },
+  "costs": {
+    "warm_ms": {
+      "chain100": 157.9,
+      "fanin100": 222.7,
+      "chain300": 368.4
+    },
+    "edit_ms": {
+      "chain100": 141.1,
+      "fanin100": 202.2,
+      "chain300": 318.8
+    },
+    "native_gzip9_bytes": 496644,
+    "native_brotli11_bytes": 425893,
+    "native_parent_payload_delta_bytes": {
+      "gzip9": 61,
+      "brotli11": -74
+    },
+    "consistent_speedup_demonstrated": false,
+    "under_100ms_target_met": false
+  },
+  "remaining": [
+    "Sparse32 proof exhaustion",
+    "distinct mutable-resource correspondence and pre-serialization work bounds",
+    "100-node under100ms not met",
+    "current main not integrated; PR conflicts; no full CI for final source"
+  ],
+  "stopped_trials": [
+    "constructor recipe/provenance metadata",
+    "private-method binding",
+    "generic copy descriptor recycling",
+    "private class/issuer XML packet replaced by simpler flat record"
+  ],
+  "readiness": {
+    "draft": true,
+    "mergeable": false,
+    "recorded_base": "e7cb05baa7f68154942a9ce9c6e9aaaee163dc94",
+    "observed_live_main": "4260292397d4bca7624a30c34649eb943a5f8e0c",
+    "full_final_CI": "not run",
+    "push_action_pinning": {
+      "run": 42898061847,
+      "conclusion": "success"
+    },
+    "ready": false
+  },
+  "report": "https://github.com/adewale/agentic-mermaid/blob/ac8c8066fe2b5e719c3f87cb85d943050c0ef0ce/pipeline-dedup-checkpoint-20261110/RESULT.md"
+}
