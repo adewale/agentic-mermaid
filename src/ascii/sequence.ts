@@ -115,7 +115,9 @@ export function renderSequenceDiagramTerminal(input: SequenceDiagram, config: As
     // the caption is short. Centering a text-sized box between them loses its
     // visible owners; include both endpoints and all intervening lifelines.
     const width = Math.max(Math.max(0, ...noteLines[index]!.map(visualWidth)) + 4, note.position === 'over' ? Math.abs(last - first) + 3 : 0)
-    const x = note.position === 'left' ? first - width - 1 : note.position === 'right' ? first + 2 : Math.floor((first + last) / 2) - Math.floor(width / 2)
+    // Cell-box centers use (width - 1) / 2; width / 2 loses the right
+    // interior margin when the addressed lifelines have odd separation.
+    const x = note.position === 'left' ? first - width - 1 : note.position === 'right' ? first + 2 : Math.floor((first + last - width + 1) / 2)
     return { x: Math.max(0, x), width }
   })
   const frameSpans = new Map<number, { x: number; width: number }>()

@@ -23,13 +23,18 @@ const bottom = (region: TerminalRegion) => region.canvasRow + (region.rowSpan ??
 const right = (region: TerminalRegion) => region.canvasColEnd
 
 describe('Sequence terminal ordered ownership and measured fragment bounds', () => {
-  for (const useAscii of [false, true]) for (const endpoints of ['A,C', 'C,A']) test(`over-notes span their addressed lifelines (${endpoints}, ascii=${useAscii})`, () => {
-    const { output, region, doc } = render(`A->>C: hello\nloop owned\nNote over ${endpoints}: 短<br/>note\nend\nC->>A: done`, useAscii)
+  for (const useAscii of [false, true]) for (const endpoints of ['A,C', 'C,A']) for (const alias of ['A', 'ABCDEFGHIJ', 'ABCDEFGHIJK']) test(`over-notes span their addressed lifelines (${endpoints}, ascii=${useAscii}, alias=${alias})`, () => {
+    const { output, region, doc } = render(`participant A as ${alias}\nA->>C: hello\nloop owned\nNote over ${endpoints}: 短<br/>note\nend\nC->>A: done`, useAscii)
     const note = region('note:0')
     for (const id of ['A', 'B', 'C']) {
-      const actor = region(id), center = (actor.canvasColStart + actor.canvasColEnd) / 2
-      expect(note.canvasColStart).toBeLessThan(center)
-      expect(note.canvasColEnd).toBeGreaterThan(center)
+      const actor = region(id)
+      // These one-line participant cards expose their actual lifelines in the
+      // first row below the header. Exclusive bounds are not stem coordinates.
+      const stems = [...output.split('\n')[actor.canvasRow + 3]!].flatMap((char, column) => column > actor.canvasColStart && column < actor.canvasColEnd - 1 && char === (useAscii ? '|' : '│') ? [column] : [])
+      expect(stems).toHaveLength(1)
+      const stem = stems[0]!
+      expect(note.canvasColStart).toBeLessThan(stem)
+      expect(note.canvasColEnd - 1).toBeGreaterThan(stem)
     }
     expect(region('message:1').canvasRow).toBeGreaterThan(bottom(note))
     expect(note.parentId).toBe('block:0')
