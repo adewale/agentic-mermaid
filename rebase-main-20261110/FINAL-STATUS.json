@@ -1,0 +1,70 @@
+{
+  "source": "599bee58db7cb54293866cc8aa86c887ef93e9a4",
+  "before": "ff18d23eb2b25ffb84aa492170d4ef0005411b7e",
+  "main": "4260292397d4bca7624a30c34649eb943a5f8e0c",
+  "at": "2026-11-10T22:40:07.610107+00:00",
+  "affected_tests": {
+    "pass": 1345,
+    "fail": 1,
+    "remaining": "existing Sparse32 emitted proof budget"
+  },
+  "native_routing": {
+    "pass": 32,
+    "fail": 0
+  },
+  "typecheck": "core and repo passed using existing pinned TRIDENT_ROOT",
+  "lint": "passed",
+  "frozen90": {
+    "returned_svg_exact": 84,
+    "retained_errors": 6,
+    "delivery_or_proof_status_transitions": 0,
+    "receipts_exact": 27,
+    "receipts_operation_count_only": 57
+  },
+  "new_bug": "inherited parser styleStart allowed element children inside style text; own frame fields reject it",
+  "runtime_and_browser_payload_remeasured": false,
+  "automations_resumed": false,
+  "completed_at": "2026-11-10T22:42:42.412670+00:00",
+  "source_pushed": true,
+  "evidence_pushed": true,
+  "evidence": "0d77487314ac526b944428499960024dfa0e3b23",
+  "source_push": "exact force-with-lease against ff18 after remote original/rebased histories recovery push",
+  "draft": true,
+  "mergeable": true,
+  "ci": [
+    {
+      "conclusion": null,
+      "event": "pull_request",
+      "html_url": "https://github.com/adewale/agentic-mermaid/actions/runs/42916751713",
+      "id": 42916751713,
+      "name": "CI",
+      "status": "in_progress"
+    },
+    {
+      "conclusion": "success",
+      "event": "pull_request",
+      "html_url": "https://github.com/adewale/agentic-mermaid/actions/runs/42916751637",
+      "id": 42916751637,
+      "name": "Ruff",
+      "status": "completed"
+    },
+    {
+      "conclusion": "success",
+      "event": "pull_request",
+      "html_url": "https://github.com/adewale/agentic-mermaid/actions/runs/42916751630",
+      "id": 42916751630,
+      "name": "Action pinning",
+      "status": "completed"
+    },
+    {
+      "conclusion": "success",
+      "event": "push",
+      "html_url": "https://github.com/adewale/agentic-mermaid/actions/runs/42916740575",
+      "id": 42916740575,
+      "name": "Action pinning",
+      "status": "completed"
+    }
+  ],
+  "ready": false,
+  "pr_description_updated": true
+}
