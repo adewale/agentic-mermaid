@@ -1966,3 +1966,19 @@ costs and a Class child timeout are retained; restored Class retry passes.
 No new performance source/cache ships, no full-render speedup is claimed, and
 100nodes<100ms remains unmet. Shared drawing/capture alone exceeded100ms in
 the fresh profile; repeating marker/lane-only hypotheses cannot close that loss.
+
+### 10 November — reduce private emission allocations
+
+Parent `17f157fae6a6f97295ebb10f215d2c2326710b6b`. Private group records use
+literal sealing; inherited descriptor defaults retain the old constructor.
+XML indentation reuses matching whole strings while preserving every original
+getter read. Frozen full-response pairs:54/54 whole SVGs and receipts exact.
+Median warm heap growth: chain100 23.4→21.9MB, fan100 27.7→23.5MB,
+chain300 40.4→38.3MB. Fan peakRSS256→269MiB remains adverse.
+Runtime is mixed: warm167→167/232→241/348→361ms;
+edits155→158/203→195/345→341ms. No speedup claim; all retain capture-budgetU.
+341 affected owners pass on exact retry after six sandbox stdin failures;
+core/repo types and lint pass. Constructor-held text-copy plans and lexical
+write facts are rejected: cold/retention cost and +1854–2318 proof operations,
+respectively. Evidence: `native-emission-reuse-20261110`. Remaining: repeated
+resource comparisons, capture exhaustion and the100ms full-response target.

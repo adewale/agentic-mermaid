@@ -82,7 +82,6 @@ interface XmlWriteFact {
 }
 const xmlCaptures = new WeakMap<SvgXmlCapture, XmlCaptureState>()
 const xmlWrites = new WeakMap<SvgXmlWrite, XmlWriteFact>()
-
 export function createSvgXmlCapture(work: (operations: number) => boolean): SvgXmlCapture {
   const names = new Map<string, boolean>(), attributes = new Map<string, boolean>(), texts = new Map<string, boolean>(), boundaries = new Map<string, boolean>()
   let exhausted = false
@@ -231,16 +230,26 @@ export function createSvgXmlCapture(work: (operations: number) => boolean): SvgX
     indent(write: SvgXmlWrite, spaces: number): SvgXmlWrite {
       const found = factOf(write)
       if (!found) throw new TypeError('XML indentation requires this capture’s actual write')
-      if (spaces <= 0 || found.record.svg === '') return write
+      if (spaces <= 0) return write
+      const firstSvg = found.record.svg
+      if (firstSvg === '') return write
       if (typeof spaces !== 'number' || spaces === 1 / 0 || spaces > MAX_OCCLUSION_OPERATIONS) { const svg = indentLines(found.record.svg, spaces); return issue(svg, svg) }
       // Primitive numeric indentation is private construction. Generic values,
       // nonfinite errors and padding beyond the proof allowance keep the
       // established helper path, whose exact actual result remains raw.
       const padding = spaces !== spaces ? 0 : spaces - spaces % 1
-      let pad = '', svg = ''
+      let pad = '', svg = '', characters = 0
       for (let i = 0; i < padding; i++) pad += ' '
-      svg += pad
-      for (let i = 0; i < found.record.svg.length; i++) { const character = found.record.svg[i]!; svg += character; if (character === '\n') svg += pad }
+      svg = pad
+      let whole = typeof firstSvg === 'string'
+      for (let i = 0; i < found.record.svg.length; i++) {
+        const character = found.record.svg[i]!
+        if (whole && i < firstSvg.length && character === firstSvg[i] && (padding === 0 || character !== '\n')) { characters++; continue }
+        if (whole) { svg += xmlRange(firstSvg, 0, i); whole = false }
+        svg += character
+        if (character === '\n') svg += pad
+      }
+      if (whole) svg += characters === firstSvg.length ? firstSvg : xmlRange(firstSvg, 0, characters)
       return issue(svg, () => {
         if (!pay(1)) return undefined
         const checked = projectFact(found)

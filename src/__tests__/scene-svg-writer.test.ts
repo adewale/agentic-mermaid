@@ -13,6 +13,62 @@ import type { SceneNode } from '../scene/ir.ts'
 // typed fields, so paint certification, which reads those fields, describes
 // the bytes. Families add only inert hooks.
 describe('typed Scene SVG writer', () => {
+  test('private indentation preserves primitive bytes through hooks installed before the writer loads', async () => {
+    const source = '<g data-test="native-indent-preimport">A😀</g>', prefix = ' '.repeat(17)
+    const split = Object.getOwnPropertyDescriptor(String.prototype, 'split')!, repeat = Object.getOwnPropertyDescriptor(String.prototype, 'repeat')!, join = Object.getOwnPropertyDescriptor(Array.prototype, 'join')!
+    let single = '', multiline = '', zero = ''
+    try {
+      Object.defineProperty(String.prototype, 'split', { ...split, value: function(this: string, ...args: unknown[]) {
+        return String(this).includes('native-indent-preimport') ? ['forged'] : Reflect.apply(split.value, this, args)
+      } })
+      Object.defineProperty(String.prototype, 'repeat', { ...repeat, value: function(this: string, count: number) {
+        return String(this) === ' ' && count === 17 ? 'forged' : Reflect.apply(repeat.value, this, [count])
+      } })
+      Object.defineProperty(Array.prototype, 'join', { ...join, value: function(this: unknown[], ...args: unknown[]) {
+        return typeof this[0] === 'string' && this[0].includes('native-indent-preimport') ? 'forged' : Reflect.apply(join.value, this, args)
+      } })
+      const modulePath = '../scene/svg-writer.ts?private-indent-owner'
+      const fresh = await import(modulePath) as typeof import('../scene/svg-writer.ts')
+      const capture = fresh.createSvgXmlCapture(() => true)
+      single = capture.indent(capture.raw(source), 17).svg
+      multiline = capture.indent(capture.raw(source + '\r\n' + source + '\n'), 17).svg
+      zero = capture.indent(capture.raw(source + '\n'), NaN).svg
+    } finally {
+      Object.defineProperty(String.prototype, 'split', split)
+      Object.defineProperty(String.prototype, 'repeat', repeat)
+      Object.defineProperty(Array.prototype, 'join', join)
+    }
+    expect(single).toBe(prefix + source)
+    expect(multiline).toBe(prefix + source + '\r\n' + prefix + source + '\n' + prefix)
+    expect(zero).toBe(source + '\n')
+  })
+
+  test.each([
+    { name: 'stable', values: ['ABC', 'ABC', 'ABC', 'ABC', 'ABC', 'ABC', 'ABC', 'ABC'], expected: '  ABC' },
+    { name: 'changing characters', values: ['ABC', 'ABC', 'XBC', 'ABC', 'AYC', 'ABC', 'ABZ', 'ABC'], expected: '  XYZ' },
+    { name: 'shorter length', values: ['ABC', 'A', 'A', ''], expected: '  A' },
+    { name: 'longer length', values: ['A', 'ABC', 'ABC', 'ABC', 'ABC', 'ABC', 'ABC', 'ABC'], expected: '  ABC' },
+    { name: 'line break', values: ['A\nC', 'A\nC', 'A\nC', 'A\nC', 'A\nC', 'A\nC', 'A\nC', 'A\nC'], expected: '  A\n  C' },
+  ])('private indentation preserves foreign record getter observations: $name', ({ values, expected }) => {
+    const capture = createSvgXmlCapture(() => true), source = {}, freeze = Object.getOwnPropertyDescriptor(Object, 'freeze')!
+    const reads: string[] = []
+    let actual = ''
+    try {
+      Object.defineProperty(Object, 'freeze', { ...freeze, value(value: object) {
+        if (Object.getOwnPropertyDescriptor(value, 'node')?.value === source) return new Proxy(value, { get(target, key, receiver) {
+          if (key !== 'svg') return Reflect.get(target, key, receiver)
+          const result = values[reads.length] ?? values.at(-1)!
+          reads.push(result)
+          return result
+        } })
+        return Reflect.apply(freeze.value, Object, [value])
+      } })
+      actual = capture.indent(capture.raw('ABC', source), 2).svg
+    } finally { Object.defineProperty(Object, 'freeze', freeze) }
+    expect(actual).toBe(expected)
+    expect<readonly string[]>(reads).toEqual(values)
+  })
+
   test('proves prepared text only when no opaque fragment can introduce fallback text', () => {
     const block = preparePixelText('Prepared', { fontSize: 12, fontWeight: 400, letterSpacing: 0 })
     const text = marks.text({ id: 'label', role: 'label', text: block.text, block, x: 10, y: 10, fontSize: 12, anchor: 'start', paint: {} })
