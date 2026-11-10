@@ -99,6 +99,20 @@ test('writer-assisted admission inspects styles closed with XML whitespace', () 
   }
 }))
 
+test('style element children cannot inherit writer evidence or hide outer CSS', () => withWrittenSvgSecurity(true, () => {
+  for (const body of [
+    '<style><style></style>.x{fill:url(https://example.invalid/outer.svg)}</style>',
+    '<style><style></style>.x{fill:url(javascript:alert(1))}</style>',
+    `<style>.x{fill:ur${mark('none')}l(https://example.invalid/split.svg)}</style>`,
+  ]) {
+    for (const mode of ['default', 'strict'] as const) {
+      expect(() => applyWrittenOutputSecurityPolicy(document(body), mode)).toThrow(/invalid SVG document envelope/)
+    }
+  }
+  const safe = document(`<style><!-- <style> -->.x{fill:url(#local)}</style >${mark('none')}`)
+  expect(applyWrittenOutputSecurityPolicy(safe, 'strict')).toEqual({ svg: safe, diagnostics: [] })
+}))
+
 test('typed multiline, formatted and fragmented text retain literal and XML semantics', () => withWrittenSvgSecurity(true, () => {
   for (const value of ['<script>& var(--fg)', 'line one\nline two', '東京 👩‍💻 &amp;', 'plain **bold** text']) {
     const rendered = sceneNodeSerialization(text({ id: 'written-label', role: 'label', text: value, x: 10, y: 10, fontSize: 12,

@@ -137,6 +137,8 @@ describe('claim-keyed backend capability conformance', () => {
           ['<style>rect{fill:expre/**/ssion(alert(1))}</style>', 'active content'],
           ['<style>rect{fill:url(javascript:alert(1))}</style >', 'active content'],
           ['<style>rect{fill:url(javascript:alert(1))}</style\t\r\n>', 'active content'],
+          ['<style><style></style>.x{fill:url(javascript:alert(1))}</style>', 'invalid SVG document envelope'],
+          ['<style>.x{fill:ur<g/>l(https://example.invalid/split.svg)}</style>', 'invalid SVG document envelope'],
           ['<rect x="1" x="2"/>', 'invalid SVG document envelope'],
           ['<text>\ud800</text>', 'invalid SVG document envelope'],
           ['<script>&#xFFFF;</script>', 'invalid SVG document envelope'],
@@ -168,6 +170,18 @@ describe('claim-keyed backend capability conformance', () => {
     } finally {
       unregister()
     }
+  })
+
+  test('rejects backend style children that hide a CSS tail', () => {
+    const id = 'backend:test/nested-style-css'
+    expect(() => registerBackend({
+      ...DefaultBackend, id,
+      capabilities: DefaultBackend.capabilities.map(claim => ({ ...claim, target: id })),
+      render(document, context) {
+        return DefaultBackend.render(document, context)
+          .replace('</svg>', '<style><style></style>.x{fill:url(javascript:alert(1))}</style></svg>')
+      },
+    }, BACKEND_REGISTRATION_OPTIONS)).toThrow(/envelope|output-security/i)
   })
 
   test('rejects malformed XML during backend admission and final envelope validation', () => {

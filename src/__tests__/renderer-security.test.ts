@@ -213,6 +213,22 @@ xychart
     }
   })
 
+  test('style element children cannot hide an active or external CSS tail', () => {
+    for (const body of [
+      '<style><style></style>.x{fill:url(https://example.invalid/outer.svg)}</style>',
+      '<style><style></style>.x{fill:url(javascript:alert(1))}</style>',
+      '<style>.x{fill:ur<g/>l(https://example.invalid/split.svg)}</style>',
+    ]) {
+      const svg = svgDocument(body)
+      expect(verifyNoExternalRefs(svg).ok).toBe(false)
+      for (const mode of ['default', 'strict'] as const) {
+        expect(() => applyOutputSecurityPolicy(svg, mode)).toThrow(/invalid SVG document envelope/)
+      }
+    }
+    const safe = svgDocument('<style><!-- XML comment --><!-- <style> -->.x{fill:url(#local)}</style >')
+    expect(applyOutputSecurityPolicy(safe, 'strict')).toEqual({ svg: safe, diagnostics: [] })
+  })
+
   test('strict mode works across families', () => {
     for (const src of [
       'sequenceDiagram\n A->>B: hi',

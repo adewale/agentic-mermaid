@@ -206,7 +206,7 @@ function verifyDocumentEnvelope(svg: string, observeAttribute?: (name: string, r
       if (svg[end] !== '>' || frame?.name !== name) return false
       if (frame.styleStart !== undefined) {
         styleDepth--
-        document!.styleEnds.push({ start: cursor, end: end + 1 })
+        document?.styleEnds.push({ start: cursor, end: end + 1 })
       }
       cursor = end + 1
       if (stack.length === 0) {
@@ -216,6 +216,9 @@ function verifyDocumentEnvelope(svg: string, observeAttribute?: (name: string, r
       continue
     }
 
+    // SVG styles have text content. Element children can truncate a lexical
+    // CSS scan or join CSS tokens differently from their serialized markup.
+    if (styleDepth > 0) return false
     const nameEnd = readXmlNameEnd(svg, cursor + 1)
     // The admitted serializer subset has only unprefixed SVG elements.
     // Qualified-name objects are needed for attributes, never for elements.
@@ -239,7 +242,7 @@ function verifyDocumentEnvelope(svg: string, observeAttribute?: (name: string, r
     }
 
     const styleStart = cursor
-    const isStyle = !!document && name.toLowerCase() === 'style'
+    const isStyle = name.toLowerCase() === 'style'
     if (document) {
       if (/^style\b/i.test(name)) document.styleStarts.push(styleStart)
       const unsafe = SECURITY_ELEMENT_NAME.exec(name)?.[1]
@@ -526,6 +529,11 @@ function inspectSecurity(svg: string): SecurityFindings {
     for (const match of tag.matchAll(new RegExp(ATTRIBUTE.source, 'g'))) {
       inspectAttributeSecurity(match[1]!, unquoteAttribute(match[2]!), refs, active)
     }
+  }
+  // This raw-reference API accepts unvalidated markup. Element-bearing CSS
+  // cannot prove safe references; final admission rejects it at the XML gate.
+  for (const style of markup.matchAll(/<style\b[^>]*>([\s\S]*?)<\/style[\t\n\r ]*>/gi)) {
+    if (/<[^\s!?/<>]/.test(style[1]!)) { refs.push('style-element-content'); active.push('style-element-content') }
   }
   return inspectSecurityTail(markup, refs, active)
 }
