@@ -1,0 +1,271 @@
+[
+  {
+    "cohort": "final12",
+    "rows": [
+      {
+        "id": "nested-hosted-chain-TB",
+        "delivery": true,
+        "svg": true,
+        "svgReceipt": true,
+        "layoutReceipt": true
+      },
+      {
+        "id": "nested-hosted-chain-BT",
+        "delivery": true,
+        "svg": true,
+        "svgReceipt": true,
+        "layoutReceipt": true
+      },
+      {
+        "id": "nested-hosted-chain-LR",
+        "delivery": true,
+        "svg": true,
+        "svgReceipt": true,
+        "layoutReceipt": true
+      },
+      {
+        "id": "nested-hosted-chain-RL",
+        "delivery": true,
+        "svg": true,
+        "svgReceipt": true,
+        "layoutReceipt": true
+      },
+      {
+        "id": "leave-reenter-TB",
+        "delivery": true,
+        "svg": true,
+        "svgReceipt": true,
+        "layoutReceipt": true
+      },
+      {
+        "id": "leave-reenter-BT",
+        "delivery": true,
+        "svg": true,
+        "svgReceipt": true,
+        "layoutReceipt": true
+      },
+      {
+        "id": "leave-reenter-LR",
+        "delivery": true,
+        "svg": true,
+        "svgReceipt": true,
+        "layoutReceipt": true
+      },
+      {
+        "id": "leave-reenter-RL",
+        "delivery": true,
+        "svg": true,
+        "svgReceipt": true,
+        "layoutReceipt": true
+      },
+      {
+        "id": "mixed-local-directions",
+        "delivery": true,
+        "svg": true,
+        "svgReceipt": true,
+        "layoutReceipt": true
+      },
+      {
+        "id": "container-descendant-labelled",
+        "delivery": true,
+        "svg": true,
+        "svgReceipt": true,
+        "layoutReceipt": true
+      },
+      {
+        "id": "sibling-frame-contacts",
+        "delivery": true,
+        "svg": true,
+        "svgReceipt": true,
+        "layoutReceipt": true
+      },
+      {
+        "id": "grouped-labelled-cycle",
+        "delivery": true,
+        "svg": true,
+        "svgReceipt": true,
+        "layoutReceipt": true
+      }
+    ]
+  },
+  {
+    "cohort": "final25",
+    "rows": [
+      {
+        "id": "corpus/flowchart/94",
+        "delivery": true,
+        "svg": true,
+        "svgReceipt": true,
+        "layoutReceipt": true
+      },
+      {
+        "id": "corpus/flowchart/95",
+        "delivery": true,
+        "svg": true,
+        "svgReceipt": true,
+        "layoutReceipt": true
+      },
+      {
+        "id": "corpus/flowchart/96",
+        "delivery": true,
+        "svg": true,
+        "svgReceipt": true,
+        "layoutReceipt": true
+      },
+      {
+        "id": "corpus/flowchart/97",
+        "delivery": true,
+        "svg": true,
+        "svgReceipt": true,
+        "layoutReceipt": true
+      },
+      {
+        "id": "corpus/flowchart/98",
+        "delivery": true,
+        "svg": true,
+        "svgReceipt": true,
+        "layoutReceipt": true
+      },
+      {
+        "id": "corpus/flowchart/99",
+        "delivery": true,
+        "svg": true,
+        "svgReceipt": true,
+        "layoutReceipt": true
+      },
+      {
+        "id": "corpus/state/8",
+        "delivery": true,
+        "svg": true,
+        "svgReceipt": true,
+        "layoutReceipt": true
+      },
+      {
+        "id": "corpus/state/9",
+        "delivery": true,
+        "svg": true,
+        "svgReceipt": true,
+        "layoutReceipt": true
+      },
+      {
+        "id": "corpus/state/10",
+        "delivery": true,
+        "svg": true,
+        "svgReceipt": true,
+        "layoutReceipt": true
+      },
+      {
+        "id": "corpus/state/14",
+        "delivery": true,
+        "svg": true,
+        "svgReceipt": true,
+        "layoutReceipt": true
+      },
+      {
+        "id": "corpus/state/15",
+        "delivery": true,
+        "svg": true,
+        "svgReceipt": true,
+        "layoutReceipt": true
+      },
+      {
+        "id": "corpus/class/15",
+        "delivery": true,
+        "svg": true,
+        "svgReceipt": true,
+        "layoutReceipt": true
+      },
+      {
+        "id": "corpus/class/16",
+        "delivery": true,
+        "svg": true,
+        "svgReceipt": true,
+        "layoutReceipt": true
+      },
+      {
+        "id": "corpus/class/17",
+        "delivery": true,
+        "svg": true,
+        "svgReceipt": true,
+        "layoutReceipt": true
+      },
+      {
+        "id": "corpus/class/18",
+        "delivery": true,
+        "svg": true,
+        "svgReceipt": true,
+        "layoutReceipt": true
+      },
+      {
+        "id": "corpus/class/19",
+        "delivery": true,
+        "svg": true,
+        "svgReceipt": true,
+        "layoutReceipt": true
+      },
+      {
+        "id": "corpus/architecture/0",
+        "delivery": true,
+        "svg": true,
+        "svgReceipt": true,
+        "layoutReceipt": true
+      },
+      {
+        "id": "corpus/architecture/1",
+        "delivery": true,
+        "svg": true,
+        "svgReceipt": true,
+        "layoutReceipt": true
+      },
+      {
+        "id": "corpus/architecture/3",
+        "delivery": true,
+        "svg": true,
+        "svgReceipt": true,
+        "layoutReceipt": true
+      },
+      {
+        "id": "corpus/architecture/5",
+        "delivery": true,
+        "svg": true,
+        "svgReceipt": true,
+        "layoutReceipt": true
+      },
+      {
+        "id": "fixture/architecture-basic.mmd",
+        "delivery": true,
+        "svg": true,
+        "svgReceipt": true,
+        "layoutReceipt": true
+      },
+      {
+        "id": "fixture/class-compound-backends.mmd",
+        "delivery": true,
+        "svg": true,
+        "svgReceipt": true,
+        "layoutReceipt": true
+      },
+      {
+        "id": "fixture/nested-wide-titles.mmd",
+        "delivery": true,
+        "svg": true,
+        "svgReceipt": true,
+        "layoutReceipt": true
+      },
+      {
+        "id": "fixture/subgraph-direction.mmd",
+        "delivery": true,
+        "svg": true,
+        "svgReceipt": true,
+        "layoutReceipt": true
+      },
+      {
+        "id": "fixture/stress/flowchart-subgraphs-12x8.mmd",
+        "delivery": true,
+        "svg": true,
+        "svgReceipt": true,
+        "layoutReceipt": true
+      }
+    ]
+  }
+]

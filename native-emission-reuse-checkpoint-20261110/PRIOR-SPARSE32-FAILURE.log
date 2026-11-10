@@ -1,0 +1,62 @@
+2026-11-10T06:52:11.0729999Z (pass) class — parse > Class style cascade survives typed edits, JSON and reload: margin:0,margin-left:8px [794.93ms]
+2026-11-10T06:52:11.8476746Z (pass) class — parse > Class repeated styles keep the final declaration at its authored position across source statements [774.39ms]
+2026-11-10T06:52:12.6852068Z (pass) class — parse > Class preserves repeated CSS values, priority and fallback: {"fields":["font:24px monospace!important","font:12px serif"]} [837.64ms]
+2026-11-10T06:52:13.5133101Z (pass) class — parse > Class preserves repeated CSS values, priority and fallback: {"fields":["font:24px monospace","font:bogus"]} [828.19ms]
+2026-11-10T06:52:14.0430062Z 
+2026-11-10T06:52:14.0431315Z ##[endgroup]
+2026-11-10T06:52:14.0431545Z 
+2026-11-10T06:52:14.0432028Z ##[group]src/__tests__/paint-certification.test.ts:
+2026-11-10T06:52:14.0432572Z 162 |   }
+2026-11-10T06:52:14.0433305Z 163 |   expect(certifyScenePaint(producer(marks, context))).toMatchObject({ status: 'passed', issues: [] })
+2026-11-10T06:52:14.0434280Z 164 |   const proof = certifyNativePaint(drawing.header, drawing.paint)
+2026-11-10T06:52:14.0435001Z 165 |   expect(proof.checks.maxOperations).toBe(400000)
+2026-11-10T06:52:14.0435595Z 166 |   expect(proof.checks.operations).toBeLessThanOrEqual(400000)
+2026-11-10T06:52:14.0436222Z 167 |   expect(proof).toMatchObject({ status: 'passed', issues: [] })
+2026-11-10T06:52:14.0436734Z                       ^
+2026-11-10T06:52:14.0437098Z error: expect(received).toMatchObject(expected)
+2026-11-10T06:52:14.0437410Z 
+2026-11-10T06:52:14.0437515Z   {
+2026-11-10T06:52:14.0437766Z -   "issues": [],
++   "status": "unverified",
++   "unit": "px",
++   "version": 1,
++   "viewport": {
++     "height": 31000,
++     "width": 200,
++     "x": 0,
++     "y": 0,
++   },
+  }
+
+- Expected  - 2
++ Received  + 42
+
+      at <anonymous> (/home/runner/work/agentic-mermaid/agentic-mermaid/src/__tests__/paint-certification.test.ts:167:17)
+2026-11-10T06:52:14.0514440Z (fail) sparse decorative markers preserve completed direct and emitted text proof (32 markers, definitions=true) [5163.05ms]
+2026-11-10T06:52:14.4404110Z 
+2026-11-10T06:52:14.4426743Z ##[endgroup]
+2026-11-10T06:52:14.4455354Z 
+2026-11-10T06:59:53.9875426Z (skip) website browser accessibility smoke > editor loads every self-hosted diagram font face it advertises
+2026-11-10T06:59:53.9876230Z (skip) website browser accessibility smoke > SVG export embeds canonical full Inter TTFs and never public subsets
+2026-11-10T06:59:53.9877345Z (skip) website browser accessibility smoke > editor share links cannot inject active SVG through render config
+2026-11-10T06:59:53.9877994Z (skip) website browser accessibility smoke > editor share links restore style state and styled label fonts
+2026-11-10T06:59:53.9878671Z (skip) website browser accessibility smoke > editor share links apply compact schematic label typography in the browser
+2026-11-10T06:59:53.9879351Z (skip) website browser accessibility smoke > editor mobile preview controls stay reachable at phone width
+2026-11-10T06:59:53.9880038Z (skip) website browser accessibility smoke > editor popovers are keyboard-operable, inert when closed, and restore focus
+2026-11-10T06:59:53.9880782Z (skip) website browser accessibility smoke > (unnamed)
+2026-11-10T06:59:53.9881211Z (skip) editor theme switcher re-themes the diagram, never the chrome > (unnamed)
+2026-11-10T06:59:53.9882156Z (skip) editor theme switcher re-themes the diagram, never the chrome > Paper → tokyo-night → Paper tracks in the artwork while the chrome stays Kiln
+2026-11-10T06:59:53.9883017Z (skip) editor theme switcher re-themes the diagram, never the chrome > verification is the authority gate for export, copy, and share links
+2026-11-10T06:59:53.9883859Z (skip) editor theme switcher re-themes the diagram, never the chrome > storage-denied browsers still boot and render the default diagram
+2026-11-10T06:59:53.9884504Z (skip) editor theme switcher re-themes the diagram, never the chrome > (unnamed)
+2026-11-10T06:59:53.9885347Z 
+2026-11-10T06:59:53.9885365Z 
+2026-11-10T06:59:53.9885484Z 1 tests failed:
+2026-11-10T06:59:53.9886117Z (fail) sparse decorative markers preserve completed direct and emitted text proof (32 markers, definitions=true) [5163.05ms]
+2026-11-10T06:59:53.9886819Z 
+2026-11-10T06:59:53.9886951Z  7147 pass
+2026-11-10T06:59:53.9887151Z  43 skip
+2026-11-10T06:59:53.9887324Z  1 fail
+2026-11-10T06:59:53.9887506Z  445725 expect() calls
+2026-11-10T06:59:53.9887745Z Ran 7191 tests across 203 files. [505.38s]
+2026-11-10T06:59:53.9888036Z error: script "test" exited with code 1
