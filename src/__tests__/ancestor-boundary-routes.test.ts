@@ -6,6 +6,7 @@ import { pointOnMeasuredSegment, scoreMeasuredRouteCrossings, segmentEntersMeasu
 import { layoutMermaidWithReceipt } from '../agent/core.ts'
 import { renderMermaidSVGWithReceipt } from '../index.ts'
 import { scanSvgStartTags } from '../svg-structure.ts'
+import { measureQuality } from '../agent/quality.ts'
 
 const fail = (reason: string): never => { throw new GraphLayoutUnsupportedError(reason) }
 const work = () => ({ pairs: 500_000, arcs: 65536, swaps: 500_000 })
@@ -44,6 +45,20 @@ test.each(['G --> A', 'A --> G'])('public Native retains a real containing-frame
   const svg = renderMermaidSVGWithReceipt(source, native)
   expect(svg.svg).toContain('data-from="' + edge.from + '" data-to="' + edge.to + '"')
   expect(svg.receipt.layoutCertification?.status).toBe('passed')
+})
+
+test.each(['TB', 'BT', 'LR', 'RL'])('ancestor entry and exit preserve the inner chain without crossing in %s', direction => {
+  const source = `flowchart ${direction}\nsubgraph Outer[Outer scope]\nsubgraph Inner[Inner scope]\nA --> B\nend\nend\nOuter -->|enter| A\nB -->|exit| Outer`
+  const native = { graphLayout: { backend: 'agentic' as const, fallback: 'none' as const } }
+  const { layout } = layoutMermaidWithReceipt(source, native)
+  expect(layout.nodes.map(node => [node.id, node.parentId])).toEqual([['A', 'Inner'], ['B', 'Inner']])
+  expect(layout.groups!.map(group => [group.id, group.parentId])).toEqual([['Outer', undefined], ['Inner', 'Outer']])
+  expect(layout.edges.map(edge => [edge.from, edge.to, edge.label?.text])).toEqual([['A', 'B', undefined], ['Outer', 'A', 'enter'], ['B', 'Outer', 'exit']])
+  const quality = measureQuality(layout)
+  expect(quality.edgeCrossings).toBe(0)
+  expect(quality.routeOverlaps).toEqual({ opposing: 0, parallel: 0 })
+  expect(layoutMermaidWithReceipt(source, native).layout).toEqual(layout)
+  expect(renderMermaidSVGWithReceipt(source, native).receipt.layoutCertification?.status).toBe('passed')
 })
 
 test('public Native composes an ancestor label corridor with ordinary and lifted relationships', () => {
@@ -120,8 +135,8 @@ A ${arrow}|reports| Outer${suffix}`
   expect(svg.receipt.layoutCertification?.status).toBe('passed')
 })
 
-test('ancestor corridors preserve nested physical contacts, reciprocal/parallel occurrences, labels and authored input', () => {
-  const input = fixture(), before = structuredClone(input), owners = new Int32Array([1, -1, 0]), budget = work()
+test.each([500_000, 200_000])('ancestor corridors preserve reciprocal/parallel occurrences and later contacts with %i pairs', pairs => {
+  const input = fixture(), before = structuredClone(input), owners = new Int32Array([1, -1, 0]), budget = { ...work(), pairs }
   const plan = planAncestorBoundaryConnections(input, owners, budget, fail)
   expect([...plan.connections.keys()]).toEqual([0, 1, 2, 3])
   expect(plan.groups[0]!.padding.top).toBeGreaterThan(padding.top)
@@ -135,8 +150,9 @@ test('ancestor corridors preserve nested physical contacts, reciprocal/parallel 
   for (const index of plan.connections.keys()) {
     const route = routeAncestorBoundaryConnection(input, placed, owners, plan, index, {
       work: budget, remainingVertices: 32768 - allocated, reserveVertices: reserve, fail,
-      accept: candidate => scoreMeasuredRouteCrossings(candidate.points, index,
-        placed.edges.map((edge, other) => ({ ...edge, style: finished.has(other) ? 'solid' : 'invisible' })), input) !== undefined,
+      score: candidate => scoreMeasuredRouteCrossings(candidate.points, index,
+        placed.edges.map((edge, other) => ({ ...edge, style: finished.has(other) ? 'solid' : 'invisible' })), input),
+      proposalPairs: 128,
     })
     placed.edges[index] = route; finished.add(index)
     const connection = plan.connections.get(index)!, frame = placed.groups![connection.container]!
@@ -158,6 +174,7 @@ test('ancestor corridors preserve nested physical contacts, reciprocal/parallel 
   const all = placed.edges.map(edge => ({ ...edge, style: 'solid' }))
   for (const [index, route] of placed.edges.entries()) expect(scoreMeasuredRouteCrossings(route.points, index, all, input)).toBeDefined()
   expect(input).toEqual(before)
+  expect(budget.pairs).toBeGreaterThanOrEqual(0)
   expect(allocated).toBeLessThanOrEqual(32768)
   expect(layoutAgenticGraph(input).boundaryRoutes).toEqual([0, 1, 2, 3])
 })
@@ -174,7 +191,7 @@ test('ancestor reservations retain original groups without incidence and keep al
   placed.edges = input.edges.map((_, index) => projectAncestorBoundaryPlaceholder(plan, index, placed.groups!))
   let allocated = 0
   expect(() => routeAncestorBoundaryConnection(input, placed, owners, plan, 0, {
-    work: work(), remainingVertices: 64, reserveVertices: amount => { allocated += amount }, fail, accept: () => true,
+    work: work(), remainingVertices: 64, reserveVertices: amount => { allocated += amount }, fail, score: () => 0,
   })).toThrow('visibility-expansion limit')
   expect(allocated).toBeLessThanOrEqual(64)
 })

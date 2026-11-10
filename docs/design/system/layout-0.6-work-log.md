@@ -1939,3 +1939,30 @@ Private placement for D→B→A→C passes four directions, but full LR/RL routi
 still declines. No performance trial ships:100-node<100ms, shared capture proof,
 Sparse32 and original payload limits remain unresolved. Evidence preserves broad
 trial costs, final qualification and rejected performance probes.
+
+### 10 November — close enrolled compound delivery and crossing losses
+
+Parent `7257faa9299a69948645a7574e185300b7841f75`. Owner confirms original
+12 grouped sources/image are lost. Freeze a new representative12 before fixes:
+Native10→12 delivered, actual SVG receipts12P, declared leaf flow25/25,
+crossings0 in all12 (ELK0 except mixed-local1). No recovered-original/Pele claim.
+LR/RL false-quotient routes now use legal host padding after the content-domain
+miss; painted metadata/unknown-radius refusals retain their owner. Ancestor
+routes retain the original feasible path, then bounded, fully checked elbows
+prefer fewer crossings and protect future inward strips. Four-direction ancestor
+crossings2/1/2/3→0; labelled LR wire695.496→734.171 (+5.56%), bends6→5,
+area unchanged. Optional work uses existing ledgers/caps. Low200k reciprocal
+case stays served; original20k refusal retained. Six new owner assertions fail
+on7257 and pass now;247 compound/ancestor plus762 adjacent owners pass,
+three isolated Class/Architecture checks pass, core/repo types and lint pass.
+Existing25 compounds and frozen84 whole SVG/receipts remain exact; six errors
+remain. Evidence: `native-blockers-20261110/correctness-final`.
+
+New lane/label BVH and global crossing-index trials were NOT sufficient and
+are reverted. Final trial100-node warm medians: chain176→179ms, fan242→234ms;
+edits177→184/250→277ms. Chain300 warm433→428, edit378→403ms. All60 paired
+SVG/receipt streams exact, all timed products retain capture-budgetU. Dense BVH
+costs and a Class child timeout are retained; restored Class retry passes.
+No new performance source/cache ships, no full-render speedup is claimed, and
+100nodes<100ms remains unmet. Shared drawing/capture alone exceeded100ms in
+the fresh profile; repeating marker/lane-only hypotheses cannot close that loss.
