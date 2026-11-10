@@ -225,6 +225,24 @@ assets/ icon(folder)
 ]
 const fixtures: Fixture[] = [
   {
+    id: 'reviewed-agentflow-curve-export', title: 'AgentFlow export keeps interpolation out of connector declarations',
+    source: 'agentflow-beta TB\nconnector C[Connector]\nglobal\nG[Guide]\nend\nC --> A[Action]\nG --> A\nlinkStyle default interpolate basis',
+    mutation: { kind: 'rename_node', from: 'C', to: 'API' }, captureLayout: true,
+    cue: 'Both revisions rename the connector to API and export/reload it. Inspect the saved source and connector inventory: no connector named linkStyle may appear, and the graph-level curve directive occurs once. An unsupported original baseline retains its actual error; owning tests independently assert identities, roles and all curve directives.',
+  },
+  {
+    id: 'reviewed-agentflow-collapsed-curves', title: 'Collapsed AgentFlow retains the surviving edge curve and color',
+    source: 'agentflow-beta TB\nflow F[Flow]\nA --> B\nend\nB --> C\nF@{ view: collapsed }\nlinkStyle 0 interpolate linear stroke:red\nlinkStyle 1 interpolate basis stroke:blue',
+    captureLayout: true,
+    cue: 'The red internal edge is hidden by collapse. Inspect the surviving Flow-to-C edge: it keeps its authored blue paint and basis curve rather than inheriting the removed first edge\'s red/linear style. The editable model retains both original edges and their style indices.',
+  },
+  {
+    id: 'reviewed-swimlane-legacy-curves', title: 'Swimlane preserves legacy curve precedence',
+    source: 'swimlane-beta LR\nsubgraph One\nA\nB\nend\nsubgraph Two\nC\nD\nend\nA e0@--> B\nB e1@--> C\nC e2@--> D\nlinkStyle default interpolate basis\nlinkStyle 1 interpolate cardinal\ne1@{ curve: linear }',
+    captureLayout: true,
+    cue: 'Inspect the public layout sidecar: the three curves are basis, linear, basis. Explicit e1 metadata overrides indexed cardinal, while the other two retain the default. Owning layout/reload tests also cover indexed-only curves and immutable inputs; these finite renders do not promise identical geometry to Mermaid.',
+  },
+  {
     id: 'reviewed-gantt-year', title: 'Documented bare-year task dates retain their calendar meaning',
     source: 'gantt\nsection Waffle\nIron :1982, 3y\nHouse :1986, 3y',
     pngScale: 1, captureLayout: true,

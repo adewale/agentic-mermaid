@@ -45,7 +45,7 @@ export function renderAgentflow(body: AgentflowBody): string {
   const declaration = (id: string): string[] => {
     const node = graph.nodes.get(id)
     if (!node) return []
-    const lines = protectLabelComments(renderFlowchart({ ...graph, nodes: new Map([[id, node]]), edges: [], subgraphs: [], classDefs: new Map(), classAssignments: new Map(), nodeStyles: new Map(), linkStyles: new Map() }, 'flowchart'))
+    const lines = protectLabelComments(renderFlowchart({ ...graph, nodes: new Map([[id, node]]), edges: [], subgraphs: [], classDefs: new Map(), classAssignments: new Map(), nodeStyles: new Map(), linkStyles: new Map(), linkCurves: new Map() }, 'flowchart'))
       .trimEnd()
       .split('\n')
       .slice(1)
