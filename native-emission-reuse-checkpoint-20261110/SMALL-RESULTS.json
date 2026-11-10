@@ -1,0 +1,1291 @@
+{
+  "scope": "Frozen all runtime overrides, Node24 fully consumed SVG+entire serialized receipt+response; profiling/observers disabled; explicitGC/artifactcompression outside timed windows. 4-process ABBA,4repeat+4edit windows/process. Small record+indent candidate. Samples noisy; no speedup claim.",
+  "lanes": [
+    {
+      "case": "chain100",
+      "side": "small-before",
+      "cold-render": {
+        "n": 2,
+        "medianWallMs": 371.208699,
+        "minWallMs": 371.08409600000005,
+        "maxWallMs": 371.333302,
+        "medianHeapDelta": 4784904.0,
+        "maxPeakRssKiB": 205836,
+        "outcomes": [
+          {
+            "status": "returned",
+            "proof": "unverified",
+            "operations": 400000
+          },
+          {
+            "status": "returned",
+            "proof": "unverified",
+            "operations": 400000
+          }
+        ]
+      },
+      "repeat": {
+        "n": 8,
+        "medianWallMs": 167.387336,
+        "minWallMs": 147.12310899999966,
+        "maxWallMs": 184.1835140000003,
+        "medianHeapDelta": 23400064.0,
+        "maxPeakRssKiB": 213724,
+        "outcomes": [
+          {
+            "status": "returned",
+            "proof": "unverified",
+            "operations": 400000
+          },
+          {
+            "status": "returned",
+            "proof": "unverified",
+            "operations": 400000
+          },
+          {
+            "status": "returned",
+            "proof": "unverified",
+            "operations": 400000
+          },
+          {
+            "status": "returned",
+            "proof": "unverified",
+            "operations": 400000
+          },
+          {
+            "status": "returned",
+            "proof": "unverified",
+            "operations": 400000
+          },
+          {
+            "status": "returned",
+            "proof": "unverified",
+            "operations": 400000
+          },
+          {
+            "status": "returned",
+            "proof": "unverified",
+            "operations": 400000
+          },
+          {
+            "status": "returned",
+            "proof": "unverified",
+            "operations": 400000
+          }
+        ]
+      },
+      "edit": {
+        "n": 8,
+        "medianWallMs": 155.339117,
+        "minWallMs": 136.32591899999989,
+        "maxWallMs": 179.8875640000001,
+        "medianHeapDelta": 57182720.0,
+        "maxPeakRssKiB": 261084,
+        "outcomes": [
+          {
+            "status": "returned",
+            "proof": "unverified",
+            "operations": 400000
+          },
+          {
+            "status": "returned",
+            "proof": "unverified",
+            "operations": 400000
+          },
+          {
+            "status": "returned",
+            "proof": "unverified",
+            "operations": 400000
+          },
+          {
+            "status": "returned",
+            "proof": "unverified",
+            "operations": 400000
+          },
+          {
+            "status": "returned",
+            "proof": "unverified",
+            "operations": 400000
+          },
+          {
+            "status": "returned",
+            "proof": "unverified",
+            "operations": 400000
+          },
+          {
+            "status": "returned",
+            "proof": "unverified",
+            "operations": 400000
+          },
+          {
+            "status": "returned",
+            "proof": "unverified",
+            "operations": 400000
+          }
+        ]
+      }
+    },
+    {
+      "case": "chain100",
+      "side": "small-after",
+      "cold-render": {
+        "n": 2,
+        "medianWallMs": 364.78197249999994,
+        "minWallMs": 360.950386,
+        "maxWallMs": 368.6135589999999,
+        "medianHeapDelta": 471884.0,
+        "maxPeakRssKiB": 204684,
+        "outcomes": [
+          {
+            "status": "returned",
+            "proof": "unverified",
+            "operations": 400000
+          },
+          {
+            "status": "returned",
+            "proof": "unverified",
+            "operations": 400000
+          }
+        ]
+      },
+      "repeat": {
+        "n": 8,
+        "medianWallMs": 167.16142899999977,
+        "minWallMs": 145.87251500000002,
+        "maxWallMs": 183.6930739999998,
+        "medianHeapDelta": 21943192.0,
+        "maxPeakRssKiB": 210700,
+        "outcomes": [
+          {
+            "status": "returned",
+            "proof": "unverified",
+            "operations": 400000
+          },
+          {
+            "status": "returned",
+            "proof": "unverified",
+            "operations": 400000
+          },
+          {
+            "status": "returned",
+            "proof": "unverified",
+            "operations": 400000
+          },
+          {
+            "status": "returned",
+            "proof": "unverified",
+            "operations": 400000
+          },
+          {
+            "status": "returned",
+            "proof": "unverified",
+            "operations": 400000
+          },
+          {
+            "status": "returned",
+            "proof": "unverified",
+            "operations": 400000
+          },
+          {
+            "status": "returned",
+            "proof": "unverified",
+            "operations": 400000
+          },
+          {
+            "status": "returned",
+            "proof": "unverified",
+            "operations": 400000
+          }
+        ]
+      },
+      "edit": {
+        "n": 8,
+        "medianWallMs": 158.08071550000022,
+        "minWallMs": 136.93107400000008,
+        "maxWallMs": 177.64710800000012,
+        "medianHeapDelta": 25952300.0,
+        "maxPeakRssKiB": 237472,
+        "outcomes": [
+          {
+            "status": "returned",
+            "proof": "unverified",
+            "operations": 400000
+          },
+          {
+            "status": "returned",
+            "proof": "unverified",
+            "operations": 400000
+          },
+          {
+            "status": "returned",
+            "proof": "unverified",
+            "operations": 400000
+          },
+          {
+            "status": "returned",
+            "proof": "unverified",
+            "operations": 400000
+          },
+          {
+            "status": "returned",
+            "proof": "unverified",
+            "operations": 400000
+          },
+          {
+            "status": "returned",
+            "proof": "unverified",
+            "operations": 400000
+          },
+          {
+            "status": "returned",
+            "proof": "unverified",
+            "operations": 400000
+          },
+          {
+            "status": "returned",
+            "proof": "unverified",
+            "operations": 400000
+          }
+        ]
+      }
+    },
+    {
+      "case": "fanin100",
+      "side": "small-before",
+      "cold-render": {
+        "n": 2,
+        "medianWallMs": 449.45052050000004,
+        "minWallMs": 440.49230099999977,
+        "maxWallMs": 458.4087400000003,
+        "medianHeapDelta": 8438172.0,
+        "maxPeakRssKiB": 197232,
+        "outcomes": [
+          {
+            "status": "returned",
+            "proof": "unverified",
+            "operations": 400000
+          },
+          {
+            "status": "returned",
+            "proof": "unverified",
+            "operations": 400000
+          }
+        ]
+      },
+      "repeat": {
+        "n": 8,
+        "medianWallMs": 231.60502949999977,
+        "minWallMs": 187.27526099999977,
+        "maxWallMs": 264.3236079999997,
+        "medianHeapDelta": 27661472.0,
+        "maxPeakRssKiB": 261872,
+        "outcomes": [
+          {
+            "status": "returned",
+            "proof": "unverified",
+            "operations": 400000
+          },
+          {
+            "status": "returned",
+            "proof": "unverified",
+            "operations": 400000
+          },
+          {
+            "status": "returned",
+            "proof": "unverified",
+            "operations": 400000
+          },
+          {
+            "status": "returned",
+            "proof": "unverified",
+            "operations": 400000
+          },
+          {
+            "status": "returned",
+            "proof": "unverified",
+            "operations": 400000
+          },
+          {
+            "status": "returned",
+            "proof": "unverified",
+            "operations": 400000
+          },
+          {
+            "status": "returned",
+            "proof": "unverified",
+            "operations": 400000
+          },
+          {
+            "status": "returned",
+            "proof": "unverified",
+            "operations": 400000
+          }
+        ]
+      },
+      "edit": {
+        "n": 8,
+        "medianWallMs": 203.0802255000001,
+        "minWallMs": 196.2090819999994,
+        "maxWallMs": 241.4911030000003,
+        "medianHeapDelta": 25940408.0,
+        "maxPeakRssKiB": 262128,
+        "outcomes": [
+          {
+            "status": "returned",
+            "proof": "unverified",
+            "operations": 400000
+          },
+          {
+            "status": "returned",
+            "proof": "unverified",
+            "operations": 400000
+          },
+          {
+            "status": "returned",
+            "proof": "unverified",
+            "operations": 400000
+          },
+          {
+            "status": "returned",
+            "proof": "unverified",
+            "operations": 400000
+          },
+          {
+            "status": "returned",
+            "proof": "unverified",
+            "operations": 400000
+          },
+          {
+            "status": "returned",
+            "proof": "unverified",
+            "operations": 400000
+          },
+          {
+            "status": "returned",
+            "proof": "unverified",
+            "operations": 400000
+          },
+          {
+            "status": "returned",
+            "proof": "unverified",
+            "operations": 400000
+          }
+        ]
+      }
+    },
+    {
+      "case": "fanin100",
+      "side": "small-after",
+      "cold-render": {
+        "n": 2,
+        "medianWallMs": 466.34298050000007,
+        "minWallMs": 459.1930790000001,
+        "maxWallMs": 473.492882,
+        "medianHeapDelta": 5300668.0,
+        "maxPeakRssKiB": 208752,
+        "outcomes": [
+          {
+            "status": "returned",
+            "proof": "unverified",
+            "operations": 400000
+          },
+          {
+            "status": "returned",
+            "proof": "unverified",
+            "operations": 400000
+          }
+        ]
+      },
+      "repeat": {
+        "n": 8,
+        "medianWallMs": 241.4608320000002,
+        "minWallMs": 189.32924699999967,
+        "maxWallMs": 280.17940899999985,
+        "medianHeapDelta": 23528352.0,
+        "maxPeakRssKiB": 259112,
+        "outcomes": [
+          {
+            "status": "returned",
+            "proof": "unverified",
+            "operations": 400000
+          },
+          {
+            "status": "returned",
+            "proof": "unverified",
+            "operations": 400000
+          },
+          {
+            "status": "returned",
+            "proof": "unverified",
+            "operations": 400000
+          },
+          {
+            "status": "returned",
+            "proof": "unverified",
+            "operations": 400000
+          },
+          {
+            "status": "returned",
+            "proof": "unverified",
+            "operations": 400000
+          },
+          {
+            "status": "returned",
+            "proof": "unverified",
+            "operations": 400000
+          },
+          {
+            "status": "returned",
+            "proof": "unverified",
+            "operations": 400000
+          },
+          {
+            "status": "returned",
+            "proof": "unverified",
+            "operations": 400000
+          }
+        ]
+      },
+      "edit": {
+        "n": 8,
+        "medianWallMs": 194.75323049999997,
+        "minWallMs": 174.332805,
+        "maxWallMs": 249.03787999999986,
+        "medianHeapDelta": 21842412.0,
+        "maxPeakRssKiB": 275028,
+        "outcomes": [
+          {
+            "status": "returned",
+            "proof": "unverified",
+            "operations": 400000
+          },
+          {
+            "status": "returned",
+            "proof": "unverified",
+            "operations": 400000
+          },
+          {
+            "status": "returned",
+            "proof": "unverified",
+            "operations": 400000
+          },
+          {
+            "status": "returned",
+            "proof": "unverified",
+            "operations": 400000
+          },
+          {
+            "status": "returned",
+            "proof": "unverified",
+            "operations": 400000
+          },
+          {
+            "status": "returned",
+            "proof": "unverified",
+            "operations": 400000
+          },
+          {
+            "status": "returned",
+            "proof": "unverified",
+            "operations": 400000
+          },
+          {
+            "status": "returned",
+            "proof": "unverified",
+            "operations": 400000
+          }
+        ]
+      }
+    },
+    {
+      "case": "chain300",
+      "side": "small-before",
+      "cold-render": {
+        "n": 2,
+        "medianWallMs": 616.1301914999999,
+        "minWallMs": 571.4261189999997,
+        "maxWallMs": 660.8342640000001,
+        "medianHeapDelta": 4886232.0,
+        "maxPeakRssKiB": 224124,
+        "outcomes": [
+          {
+            "status": "returned",
+            "proof": "unverified",
+            "operations": 400000
+          },
+          {
+            "status": "returned",
+            "proof": "unverified",
+            "operations": 400000
+          }
+        ]
+      },
+      "repeat": {
+        "n": 8,
+        "medianWallMs": 347.686907,
+        "minWallMs": 322.32976600000075,
+        "maxWallMs": 528.9486449999999,
+        "medianHeapDelta": 40396168.0,
+        "maxPeakRssKiB": 294736,
+        "outcomes": [
+          {
+            "status": "returned",
+            "proof": "unverified",
+            "operations": 400000
+          },
+          {
+            "status": "returned",
+            "proof": "unverified",
+            "operations": 400000
+          },
+          {
+            "status": "returned",
+            "proof": "unverified",
+            "operations": 400000
+          },
+          {
+            "status": "returned",
+            "proof": "unverified",
+            "operations": 400000
+          },
+          {
+            "status": "returned",
+            "proof": "unverified",
+            "operations": 400000
+          },
+          {
+            "status": "returned",
+            "proof": "unverified",
+            "operations": 400000
+          },
+          {
+            "status": "returned",
+            "proof": "unverified",
+            "operations": 400000
+          },
+          {
+            "status": "returned",
+            "proof": "unverified",
+            "operations": 400000
+          }
+        ]
+      },
+      "edit": {
+        "n": 8,
+        "medianWallMs": 344.73661649999985,
+        "minWallMs": 330.4587110000002,
+        "maxWallMs": 389.70805199999995,
+        "medianHeapDelta": 40570716.0,
+        "maxPeakRssKiB": 294772,
+        "outcomes": [
+          {
+            "status": "returned",
+            "proof": "unverified",
+            "operations": 400000
+          },
+          {
+            "status": "returned",
+            "proof": "unverified",
+            "operations": 400000
+          },
+          {
+            "status": "returned",
+            "proof": "unverified",
+            "operations": 400000
+          },
+          {
+            "status": "returned",
+            "proof": "unverified",
+            "operations": 400000
+          },
+          {
+            "status": "returned",
+            "proof": "unverified",
+            "operations": 400000
+          },
+          {
+            "status": "returned",
+            "proof": "unverified",
+            "operations": 400000
+          },
+          {
+            "status": "returned",
+            "proof": "unverified",
+            "operations": 400000
+          },
+          {
+            "status": "returned",
+            "proof": "unverified",
+            "operations": 400000
+          }
+        ]
+      }
+    },
+    {
+      "case": "chain300",
+      "side": "small-after",
+      "cold-render": {
+        "n": 2,
+        "medianWallMs": 591.1373189999999,
+        "minWallMs": 567.8063039999997,
+        "maxWallMs": 614.4683340000001,
+        "medianHeapDelta": 5105016.0,
+        "maxPeakRssKiB": 204788,
+        "outcomes": [
+          {
+            "status": "returned",
+            "proof": "unverified",
+            "operations": 400000
+          },
+          {
+            "status": "returned",
+            "proof": "unverified",
+            "operations": 400000
+          }
+        ]
+      },
+      "repeat": {
+        "n": 8,
+        "medianWallMs": 361.3056824999999,
+        "minWallMs": 315.4323760000002,
+        "maxWallMs": 458.4448239999997,
+        "medianHeapDelta": 38309732.0,
+        "maxPeakRssKiB": 280128,
+        "outcomes": [
+          {
+            "status": "returned",
+            "proof": "unverified",
+            "operations": 400000
+          },
+          {
+            "status": "returned",
+            "proof": "unverified",
+            "operations": 400000
+          },
+          {
+            "status": "returned",
+            "proof": "unverified",
+            "operations": 400000
+          },
+          {
+            "status": "returned",
+            "proof": "unverified",
+            "operations": 400000
+          },
+          {
+            "status": "returned",
+            "proof": "unverified",
+            "operations": 400000
+          },
+          {
+            "status": "returned",
+            "proof": "unverified",
+            "operations": 400000
+          },
+          {
+            "status": "returned",
+            "proof": "unverified",
+            "operations": 400000
+          },
+          {
+            "status": "returned",
+            "proof": "unverified",
+            "operations": 400000
+          }
+        ]
+      },
+      "edit": {
+        "n": 8,
+        "medianWallMs": 341.21262499999966,
+        "minWallMs": 287.4722410000004,
+        "maxWallMs": 508.568405,
+        "medianHeapDelta": 37085236.0,
+        "maxPeakRssKiB": 280812,
+        "outcomes": [
+          {
+            "status": "returned",
+            "proof": "unverified",
+            "operations": 400000
+          },
+          {
+            "status": "returned",
+            "proof": "unverified",
+            "operations": 400000
+          },
+          {
+            "status": "returned",
+            "proof": "unverified",
+            "operations": 400000
+          },
+          {
+            "status": "returned",
+            "proof": "unverified",
+            "operations": 400000
+          },
+          {
+            "status": "returned",
+            "proof": "unverified",
+            "operations": 400000
+          },
+          {
+            "status": "returned",
+            "proof": "unverified",
+            "operations": 400000
+          },
+          {
+            "status": "returned",
+            "proof": "unverified",
+            "operations": 400000
+          },
+          {
+            "status": "returned",
+            "proof": "unverified",
+            "operations": 400000
+          }
+        ]
+      }
+    }
+  ],
+  "exactProducts": [
+    {
+      "case": "chain100",
+      "pair": [
+        0,
+        1
+      ],
+      "phase": "warmup",
+      "svg": true,
+      "receipt": true
+    },
+    {
+      "case": "chain100",
+      "pair": [
+        0,
+        1
+      ],
+      "phase": "repeat1",
+      "svg": true,
+      "receipt": true
+    },
+    {
+      "case": "chain100",
+      "pair": [
+        0,
+        1
+      ],
+      "phase": "repeat2",
+      "svg": true,
+      "receipt": true
+    },
+    {
+      "case": "chain100",
+      "pair": [
+        0,
+        1
+      ],
+      "phase": "repeat3",
+      "svg": true,
+      "receipt": true
+    },
+    {
+      "case": "chain100",
+      "pair": [
+        0,
+        1
+      ],
+      "phase": "repeat4",
+      "svg": true,
+      "receipt": true
+    },
+    {
+      "case": "chain100",
+      "pair": [
+        0,
+        1
+      ],
+      "phase": "edit",
+      "svg": true,
+      "receipt": true
+    },
+    {
+      "case": "chain100",
+      "pair": [
+        0,
+        1
+      ],
+      "phase": "edit2",
+      "svg": true,
+      "receipt": true
+    },
+    {
+      "case": "chain100",
+      "pair": [
+        0,
+        1
+      ],
+      "phase": "edit3",
+      "svg": true,
+      "receipt": true
+    },
+    {
+      "case": "chain100",
+      "pair": [
+        0,
+        1
+      ],
+      "phase": "edit4",
+      "svg": true,
+      "receipt": true
+    },
+    {
+      "case": "chain100",
+      "pair": [
+        3,
+        2
+      ],
+      "phase": "warmup",
+      "svg": true,
+      "receipt": true
+    },
+    {
+      "case": "chain100",
+      "pair": [
+        3,
+        2
+      ],
+      "phase": "repeat1",
+      "svg": true,
+      "receipt": true
+    },
+    {
+      "case": "chain100",
+      "pair": [
+        3,
+        2
+      ],
+      "phase": "repeat2",
+      "svg": true,
+      "receipt": true
+    },
+    {
+      "case": "chain100",
+      "pair": [
+        3,
+        2
+      ],
+      "phase": "repeat3",
+      "svg": true,
+      "receipt": true
+    },
+    {
+      "case": "chain100",
+      "pair": [
+        3,
+        2
+      ],
+      "phase": "repeat4",
+      "svg": true,
+      "receipt": true
+    },
+    {
+      "case": "chain100",
+      "pair": [
+        3,
+        2
+      ],
+      "phase": "edit",
+      "svg": true,
+      "receipt": true
+    },
+    {
+      "case": "chain100",
+      "pair": [
+        3,
+        2
+      ],
+      "phase": "edit2",
+      "svg": true,
+      "receipt": true
+    },
+    {
+      "case": "chain100",
+      "pair": [
+        3,
+        2
+      ],
+      "phase": "edit3",
+      "svg": true,
+      "receipt": true
+    },
+    {
+      "case": "chain100",
+      "pair": [
+        3,
+        2
+      ],
+      "phase": "edit4",
+      "svg": true,
+      "receipt": true
+    },
+    {
+      "case": "fanin100",
+      "pair": [
+        0,
+        1
+      ],
+      "phase": "warmup",
+      "svg": true,
+      "receipt": true
+    },
+    {
+      "case": "fanin100",
+      "pair": [
+        0,
+        1
+      ],
+      "phase": "repeat1",
+      "svg": true,
+      "receipt": true
+    },
+    {
+      "case": "fanin100",
+      "pair": [
+        0,
+        1
+      ],
+      "phase": "repeat2",
+      "svg": true,
+      "receipt": true
+    },
+    {
+      "case": "fanin100",
+      "pair": [
+        0,
+        1
+      ],
+      "phase": "repeat3",
+      "svg": true,
+      "receipt": true
+    },
+    {
+      "case": "fanin100",
+      "pair": [
+        0,
+        1
+      ],
+      "phase": "repeat4",
+      "svg": true,
+      "receipt": true
+    },
+    {
+      "case": "fanin100",
+      "pair": [
+        0,
+        1
+      ],
+      "phase": "edit",
+      "svg": true,
+      "receipt": true
+    },
+    {
+      "case": "fanin100",
+      "pair": [
+        0,
+        1
+      ],
+      "phase": "edit2",
+      "svg": true,
+      "receipt": true
+    },
+    {
+      "case": "fanin100",
+      "pair": [
+        0,
+        1
+      ],
+      "phase": "edit3",
+      "svg": true,
+      "receipt": true
+    },
+    {
+      "case": "fanin100",
+      "pair": [
+        0,
+        1
+      ],
+      "phase": "edit4",
+      "svg": true,
+      "receipt": true
+    },
+    {
+      "case": "fanin100",
+      "pair": [
+        3,
+        2
+      ],
+      "phase": "warmup",
+      "svg": true,
+      "receipt": true
+    },
+    {
+      "case": "fanin100",
+      "pair": [
+        3,
+        2
+      ],
+      "phase": "repeat1",
+      "svg": true,
+      "receipt": true
+    },
+    {
+      "case": "fanin100",
+      "pair": [
+        3,
+        2
+      ],
+      "phase": "repeat2",
+      "svg": true,
+      "receipt": true
+    },
+    {
+      "case": "fanin100",
+      "pair": [
+        3,
+        2
+      ],
+      "phase": "repeat3",
+      "svg": true,
+      "receipt": true
+    },
+    {
+      "case": "fanin100",
+      "pair": [
+        3,
+        2
+      ],
+      "phase": "repeat4",
+      "svg": true,
+      "receipt": true
+    },
+    {
+      "case": "fanin100",
+      "pair": [
+        3,
+        2
+      ],
+      "phase": "edit",
+      "svg": true,
+      "receipt": true
+    },
+    {
+      "case": "fanin100",
+      "pair": [
+        3,
+        2
+      ],
+      "phase": "edit2",
+      "svg": true,
+      "receipt": true
+    },
+    {
+      "case": "fanin100",
+      "pair": [
+        3,
+        2
+      ],
+      "phase": "edit3",
+      "svg": true,
+      "receipt": true
+    },
+    {
+      "case": "fanin100",
+      "pair": [
+        3,
+        2
+      ],
+      "phase": "edit4",
+      "svg": true,
+      "receipt": true
+    },
+    {
+      "case": "chain300",
+      "pair": [
+        0,
+        1
+      ],
+      "phase": "warmup",
+      "svg": true,
+      "receipt": true
+    },
+    {
+      "case": "chain300",
+      "pair": [
+        0,
+        1
+      ],
+      "phase": "repeat1",
+      "svg": true,
+      "receipt": true
+    },
+    {
+      "case": "chain300",
+      "pair": [
+        0,
+        1
+      ],
+      "phase": "repeat2",
+      "svg": true,
+      "receipt": true
+    },
+    {
+      "case": "chain300",
+      "pair": [
+        0,
+        1
+      ],
+      "phase": "repeat3",
+      "svg": true,
+      "receipt": true
+    },
+    {
+      "case": "chain300",
+      "pair": [
+        0,
+        1
+      ],
+      "phase": "repeat4",
+      "svg": true,
+      "receipt": true
+    },
+    {
+      "case": "chain300",
+      "pair": [
+        0,
+        1
+      ],
+      "phase": "edit",
+      "svg": true,
+      "receipt": true
+    },
+    {
+      "case": "chain300",
+      "pair": [
+        0,
+        1
+      ],
+      "phase": "edit2",
+      "svg": true,
+      "receipt": true
+    },
+    {
+      "case": "chain300",
+      "pair": [
+        0,
+        1
+      ],
+      "phase": "edit3",
+      "svg": true,
+      "receipt": true
+    },
+    {
+      "case": "chain300",
+      "pair": [
+        0,
+        1
+      ],
+      "phase": "edit4",
+      "svg": true,
+      "receipt": true
+    },
+    {
+      "case": "chain300",
+      "pair": [
+        3,
+        2
+      ],
+      "phase": "warmup",
+      "svg": true,
+      "receipt": true
+    },
+    {
+      "case": "chain300",
+      "pair": [
+        3,
+        2
+      ],
+      "phase": "repeat1",
+      "svg": true,
+      "receipt": true
+    },
+    {
+      "case": "chain300",
+      "pair": [
+        3,
+        2
+      ],
+      "phase": "repeat2",
+      "svg": true,
+      "receipt": true
+    },
+    {
+      "case": "chain300",
+      "pair": [
+        3,
+        2
+      ],
+      "phase": "repeat3",
+      "svg": true,
+      "receipt": true
+    },
+    {
+      "case": "chain300",
+      "pair": [
+        3,
+        2
+      ],
+      "phase": "repeat4",
+      "svg": true,
+      "receipt": true
+    },
+    {
+      "case": "chain300",
+      "pair": [
+        3,
+        2
+      ],
+      "phase": "edit",
+      "svg": true,
+      "receipt": true
+    },
+    {
+      "case": "chain300",
+      "pair": [
+        3,
+        2
+      ],
+      "phase": "edit2",
+      "svg": true,
+      "receipt": true
+    },
+    {
+      "case": "chain300",
+      "pair": [
+        3,
+        2
+      ],
+      "phase": "edit3",
+      "svg": true,
+      "receipt": true
+    },
+    {
+      "case": "chain300",
+      "pair": [
+        3,
+        2
+      ],
+      "phase": "edit4",
+      "svg": true,
+      "receipt": true
+    }
+  ]
+}
