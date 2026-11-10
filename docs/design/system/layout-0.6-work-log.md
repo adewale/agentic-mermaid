@@ -1890,10 +1890,30 @@ instructions and frame endpoints. Eight public grouped a→c→b cases: delivery
 monotone leaf flow0→8, actual SVG receipts allP. Tradeoff TB area61828→97162,
 wire130→355, bends4→8; Architecture branching improves area151076→114784,
 wire358→276, bends4→2. 984owners, core/repo types and lintP; frozen84products/
-sixerrors retain outcomes. Four Architecture SVGs change;80wholeproducts exact.
+sixerrors retain outcomes. Four Architecture SVGs change;80SVGs/79receipts exact. The unchanged Class
+namespace SVG uses56378→57380 proof operations, stillP.
 Actual13-input browser portfolioP allthree; Native gzip+3479bytes, requests49
 unchanged. No performance trial ships: text-copy, literal-only and removal of
 legacy completion are insufficient;100-node responses still exceed100ms and
 capture400k before occlusion. Costs/failed probes retained in
 `native-complete-checkpoint-20261110`. Remaining: shared capture/resource/context/
 XML subtraction, original compound declines and sealed replacement qualification.
+
+### 10 November — close full-CI Native integration regressions
+
+After `ce65ff5b65f8532509f3f7f4038d9fc95e63e015`, fullCI exposed authored
+curve, labelled Class and placement-role regressions beyond local owners.
+Curves retain the legacy knot owner (wholeSVG/receipt exact with102producer).
+Global Class repair retains only occupied label shafts and opens endpoint windows
+around the lifted outer frame; acyclic placement omits temporary routes. Global
+eligibility uses a linear DAG check instead of discarded feedback searches.
+Swimlane now reserves the renderer's joined-stroke/outline envelope and measured
+heading space: high-contrast nested-loop proofU→P, without changing caps. This
+was potential-envelope overlap at130467/400k, not proven pixel occlusion.
+Architecture checks now assert actual authored faces and endpoint separation,
+instead of old group centers/frame-top coordinates. 984core owners and extended
+524family/compound cases pass (three pipe-blocked cases pass on exact retry);
+98curve/capacity checks, core/repo types and lint pass. Sets overlap. The existing
+compound comparison retains outcomes in the first24rows; final opaque case is
+still being checked. Sparse32/payloadCI and100-node full-response target remain
+unresolved. Evidence stays in `native-complete-checkpoint-20261110`.

@@ -892,7 +892,7 @@ export function layoutLayeredGraph(
   // Cycle selection and loop compaction still depend on temporary route
   // geometry. Ordinary acyclic placement needs channels/gaps but no point
   // arrays: the family will build the actual side-constrained routes.
-  const positionedEdges = input.placementOnly && !input.cycleOriented && !input.loopPorts?.length
+  const positionedEdges = input.placementOnly && (!input.cycleOriented || nesting !== undefined) && !input.loopPorts?.length
     ? edges.map(() => ({ points: [] as Point[] })) : edges.map((_, edgeIndex) => {
     if (nesting && edgeIndex >= nesting.input.edges.length) return { points: [] as Point[] }
     const chain = chains[edgeIndex]!

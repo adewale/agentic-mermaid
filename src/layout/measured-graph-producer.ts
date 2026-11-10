@@ -22,7 +22,9 @@ export function prepareMeasuredGraphCandidate(
   const ownedPlacement = purpose === 'owned-placement'
   const placementOnly = purpose === 'legacy-placement' || ownedPlacement
   const physical = purpose === 'owned-routed'
-  const nativeCapacity = purpose === 'native-routed'
+  // Authored curves keep their existing knot/terminal projection. The early
+  // physical capacity request describes only translated orthogonal routes.
+  const nativeCapacity = purpose === 'native-routed' && graph.edges.every(edge => edge.curve === undefined)
   let diamondContacts = false
   const { edgeSelectorIndices, graphEdgeMarkerPaintRegions, DEFAULTS, LABEL_PILL_PADDING, measureRenderStage, graphTextBlock, resolveLabelContent, groupTitleWidth, groupHeaderHeight, estimateNodeSize, resolveNodeInlineStyle, resolveEdgeInlineStyle, resolveClassInlineStyle, containsNonFiniteNumber, finishGraphGeometry } = bindings
   if (options.preserveSubgraphChildOrder) bindings.unsupported('family-specific graph geometry')

@@ -1,7 +1,5 @@
 import type { AgenticLayout, MeasuredGraph } from './agentic-layered-core.ts'
 import type { ChannelWork } from './channel-tracks.ts'
-import { compareFeedbackOrders, depthFirstOrder, feedbackOrder, groupSourceOrder } from './cycle-order.ts'
-import { orientMeasuredEdge } from './cycle-layout-search.ts'
 import { routeCrossHierarchy } from './compound-boundary-routes.ts'
 
 interface Nesting {
@@ -10,7 +8,6 @@ interface Nesting {
   top: Uint32Array
   bottom: Uint32Array
   order: Float64Array
-  reversed: Uint8Array
 }
 
 // Custody belongs to one synchronous Native solve. Public measured requests
@@ -40,16 +37,17 @@ export function placeNativeNesting(
   if (size > limit) fail('agentic local compound-expansion limit')
   if (work.pairs < 24 * (size + input.edges.length) || work.arcs < 2 * size + 4 * g + input.edges.length) return undefined
   reserve(24 * (size + input.edges.length), 2 * size + 4 * g + input.edges.length)
-  const incoming: number[][] = Array.from({ length: n }, () => []), outgoing: number[][] = Array.from({ length: n }, () => [])
-  input.edges.forEach((edge, i) => { incoming[edge.target]!.push(i); outgoing[edge.source]!.push(i) })
-  let order = depthFirstOrder(outgoing, input.edges)
-  for (const candidate of [feedbackOrder(incoming, outgoing, input.edges), groupSourceOrder(outgoing, input.edges, input.edges)]) {
-    if (compareFeedbackOrders(input.edges, input.edges, candidate, order) < 0) order = candidate
+  // This strategy admits acyclic leaf constraints. Do not run feedback-order
+  // searches only to discard every cyclic result into recursive compatibility.
+  const outgoing: number[][] = Array.from({ length: n }, () => []), leafDegree = new Uint32Array(n), leafQueue: number[] = []
+  input.edges.forEach((edge, i) => { outgoing[edge.source]!.push(i); leafDegree[edge.target] = leafDegree[edge.target]! + 1 })
+  for (let leaf = 0; leaf < n; leaf++) if (!leafDegree[leaf]) leafQueue.push(leaf)
+  for (let cursor = 0; cursor < leafQueue.length; cursor++) for (const i of outgoing[leafQueue[cursor]!]!) {
+    const target = input.edges[i]!.target
+    leafDegree[target] = leafDegree[target]! - 1
+    if (!leafDegree[target]) leafQueue.push(target)
   }
-  const reversed = Uint8Array.from(input.edges, edge => Number(order[edge.source]! > order[edge.target]!))
-  // Preserve the established feedback-edge routing until its reverse channels
-  // are represented by nesting borders as well as forward rank constraints.
-  if (reversed.some(Boolean)) return undefined
+  if (leafQueue.length !== n) return undefined
   const parent = new Int32Array(size).fill(-1), top = new Uint32Array(g), bottom = new Uint32Array(g)
   const groupOrder = new Float64Array(g).fill(Infinity)
   let maxDepth = 0
@@ -78,7 +76,7 @@ export function placeNativeNesting(
   nodes.push({ id: identity(), width: 0, height: 0 })
   const factor = 2 * maxDepth + 1
   if (input.edges.some(edge => edge.minSpan * factor * 2 >= 4096)) return undefined
-  const edges = input.edges.map((edge, i) => ({ ...(reversed[i] ? orientMeasuredEdge(edge, edge.target, edge.source, true) : edge), minSpan: edge.minSpan * factor }))
+  const edges = input.edges.map(edge => ({ ...edge, minSpan: edge.minSpan * factor }))
   const add = (source: number, target: number) => { reserve(2, 1); edges.push({ source, target, minSpan: 1, visible: false }) }
   for (let scope = 0; scope < children.length; scope++) for (const child of children[scope]!) {
     const start = child < n ? child : top[child - n]!, end = child < n ? child : bottom[child - n]!
@@ -100,11 +98,10 @@ export function placeNativeNesting(
     add(source, target)
   }
   const flat: MeasuredGraph = { ...input, nodes, edges, layerSpacing: input.layerSpacing / factor, groups: undefined, compactPrivateRanks: true, cycleOriented: true }
-  pending.set(flat, { input, parent, top, bottom, order: groupOrder, reversed })
+  pending.set(flat, { input, parent, top, bottom, order: groupOrder })
   let placed: AgenticLayout
   try { placed = layout(flat) } finally { pending.delete(flat) }
-  const result: AgenticLayout = { ...placed, nodes: placed.nodes.slice(0, n), edges: placed.edges.slice(0, input.edges.length).map((edge, i) =>
-    reversed[i] ? { ...edge, points: [...edge.points].reverse() } : edge) }
+  const result: AgenticLayout = { ...placed, nodes: placed.nodes.slice(0, n), edges: placed.edges.slice(0, input.edges.length) }
   if (input.placementOnly) return result
   if (!lifted.size && input.maximumEdgeStrokeWidth === undefined) return result
   const measured = { ...input, nodes: input.nodes.map((node, i) => ({ ...node, ...(result.nodes[i]!.width === undefined ? {} : { width: result.nodes[i]!.width!, height: result.nodes[i]!.height! }) })) }
