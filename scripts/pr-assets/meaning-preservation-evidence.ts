@@ -240,7 +240,7 @@ const fixtures: Fixture[] = [
     id: 'reviewed-swimlane-legacy-curves', title: 'Swimlane preserves legacy curve precedence',
     source: 'swimlane-beta LR\nsubgraph One\nA\nB\nend\nsubgraph Two\nC\nD\nend\nA e0@--> B\nB e1@--> C\nC e2@--> D\nlinkStyle default interpolate basis\nlinkStyle 1 interpolate cardinal\ne1@{ curve: linear }',
     captureLayout: true,
-    cue: 'Inspect the public layout sidecar: the three curves are basis, linear, basis. Explicit e1 metadata overrides indexed cardinal, while the other two retain the default. Owning layout/reload tests also cover indexed-only curves and immutable inputs; these finite renders do not promise identical geometry to Mermaid.',
+    cue: 'Inspect the rendered edge paths; explicit e1 metadata remains the linear control while the other two edges use the default curve. The layout sidecar retains edge identities and paths, not curve-name fields. Owning layout/reload tests independently assert basis, linear, basis and cover indexed-only curves and immutable inputs; these finite renders do not promise identical geometry to Mermaid.',
   },
   {
     id: 'reviewed-gantt-year', title: 'Documented bare-year task dates retain their calendar meaning',
