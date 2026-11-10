@@ -54,6 +54,7 @@ export function convertToAsciiGraph(parsed: MermaidGraph, config: AsciiConfig, c
       displayLabel: label(resolveLabelContent(mNode.label, mNode.labelContent)),
       // Preserve shape from parser for shape-aware rendering
       shape: mNode.shape,
+      ...(mNode.borders !== undefined ? { borders: mNode.borders } : {}),
       index,
       gridCoord: null,
       drawingCoord: null,

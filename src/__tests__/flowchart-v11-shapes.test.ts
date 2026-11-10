@@ -19,9 +19,10 @@
 import { describe, it, expect } from 'bun:test'
 
 import { parseMermaid as parseGraph } from '../parser.ts'
-import { renderMermaidSVG } from '../index.ts'
+import { renderMermaidASCII, renderMermaidSVG } from '../index.ts'
 import { asFlowchart, mutate, parseRegisteredMermaid as parseMermaid, serializeMermaid, verifyMermaid } from '../agent/index.ts'
 import { FLOWCHART_V11_SHAPES, normalizeV11Shape } from '../flowchart-shapes.ts'
+import { startUpstreamMermaid } from './helpers/upstream-mermaid.ts'
 
 function parseAgent(source: string) {
   const parsed = parseMermaid(source)
@@ -30,6 +31,49 @@ function parseAgent(source: string) {
 }
 
 const metaSource = (shape: string) => `flowchart TD\n  A@{ shape: ${shape}, label: "X" }\n  A --> B\n`
+
+it('rectangle border properties retain their label, sides and identity through edits and both renderers', async () => {
+  const written: string[] = []
+  const cases = [
+    { syntax: 'Deploy', label: 'Deploy' },
+    { syntax: '"Deploy ] safely"', label: 'Deploy ] safely' },
+    ...['/Lean/', '\\Lean\\', '/Trap\\', '\\Trap/'].flatMap(label => [{ syntax: label, label }, { syntax: `"${label}"`, label }]),
+  ]
+  for (const { syntax, label } of cases) {
+    const source = `flowchart LR\nA --> B[|borders:lt|${syntax}] --> C`
+    const graph = parseGraph(source)
+    expect(graph.nodes.get('B')).toMatchObject({ label, borders: 'lt', shape: 'rectangle' })
+    expect(graph.edges.map(edge => [edge.source, edge.target])).toEqual([['A', 'B'], ['B', 'C']])
+    const parsed = parseAgent(source)
+    const canonical = serializeMermaid(parsed)
+    written.push(canonical)
+    expect(parseGraph(canonical).nodes.get('B')).toMatchObject({ label, borders: 'lt', shape: 'rectangle' })
+    expect(renderMermaidSVG(canonical)).toContain(label)
+    expect(renderMermaidASCII(canonical)).toContain(label)
+    const edited = mutate(parsed, { kind: 'set_label', target: 'B', label: 'Release' })
+    if (!edited.ok) throw Error(JSON.stringify(edited.error))
+    const serialized = serializeMermaid(edited.value)
+    written.push(serialized)
+    expect(parseGraph(serialized).nodes.get('B')).toMatchObject({ label: 'Release', borders: 'lt' })
+    const svg = renderMermaidSVG(serialized)
+    expect(svg).toContain('Release')
+    expect(svg).not.toContain('borders:')
+    const terminal = renderMermaidASCII('flowchart TD\nB[|borders:lt|Release]')
+    expect(terminal).toContain('Release')
+    expect(terminal).not.toContain('borders:')
+    expect(terminal).not.toContain('┘')
+    expect(terminal).not.toContain('┐')
+  }
+  expect(parseGraph('flowchart TD\nB --> C\nB[|borders:lt|Deploy]').nodes.get('B')?.borders).toBe('lt')
+  expect(parseGraph('flowchart TD\nB[|borders:lt|Deploy]\nB[Full]').nodes.get('B')?.borders).toBeUndefined()
+  const borderless = parseAgent('flowchart TD\nB[|borders:none|Deploy]')
+  const borderlessSource = serializeMermaid(borderless)
+  expect(parseGraph(borderlessSource).nodes.get('B')?.borders).toBe('')
+  const upstream = startUpstreamMermaid()
+  try {
+    for (const source of [...written, borderlessSource]) expect((await upstream.parse(source)).ok).toBe(true)
+  } finally { upstream.close() }
+})
 
 // The documented vocabulary, straight from the upstream shape table
 // (issue #44 carries the same list). canonical → aliases.

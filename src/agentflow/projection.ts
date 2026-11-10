@@ -35,14 +35,24 @@ export function projectAgentflowGraph(body: AgentflowBody): MermaidGraph {
     if (role === 'refdoc') { node.semanticShape = 'lin-doc'; node.authoredShape = 'lin-doc' }
     graph.classAssignments.set(id, [graph.classAssignments.get(id), `agentflow-${role ?? 'flow'}`].filter(Boolean).join(' '))
   }
-  graph.edges = graph.edges.flatMap(edge => {
+  const projectedIndices = new Map<number, number>()
+  graph.edges = graph.edges.flatMap((edge, index) => {
     const source = owner.get(edge.source) ?? edge.source, target = owner.get(edge.target) ?? edge.target
     if (source === target && edge.source !== edge.target) return []
+    projectedIndices.set(index, projectedIndices.size)
     const data = edge.id ? body.metadata.get(edge.id) : undefined
     return [{ ...edge, source, target,
       ...(typeof data?.curve === 'string' ? { curve: data.curve } : {}),
       ...(typeof data?.animate === 'boolean' ? { animate: data.animate } : {}),
       ...(data?.animation === 'fast' || data?.animation === 'slow' ? { animation: data.animation } : {}) }]
   })
+  // Indexed presentation belongs to the original edge, even when a preceding
+  // internal edge disappears during collapse. The editable graph is untouched.
+  const remapIndices = <T>(values: Map<number | 'default', T>) => new Map([...values].flatMap(([target, value]) => {
+    const index = target === 'default' ? 'default' : projectedIndices.get(target)
+    return index === undefined ? [] : [[index, value] as const]
+  }))
+  graph.linkStyles = remapIndices(graph.linkStyles)
+  if (graph.linkCurves) graph.linkCurves = remapIndices(graph.linkCurves)
   return graph
 }

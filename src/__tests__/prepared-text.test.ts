@@ -137,15 +137,15 @@ describe('prepared display text', () => {
     const source = 'antidisestablishmentarianism'
     const block = preparePixelText(source, { ...typography, transform: 'capitalize', maxWidth: 80 })
     expect(block.lines.length).toBeGreaterThan(1)
-    expect(block.lines.map(line => line.replace(/-$/, '')).join('')).toBe('Antidisestablishmentarianism')
-    expect(block.breaks.every(b => b.kind === 'hyphen')).toBe(true)
+    expect(block.lines.join('')).toBe('Antidisestablishmentarianism')
+    expect(block.breaks.every(b => b.kind === 'wrap')).toBe(true)
     expect(block.lineBlocks.every(line => line.width <= 80)).toBe(true)
   })
 
-  for (const source of ['漢字ひらがな漢字ひらがな', 'cafécafécafé', '👩🏽‍💻👨‍👩‍👧‍👦🇨🇳']) {
+  for (const source of ['rectangle', 'παραλληλόγραμμο', 'прямоугольник', '漢字ひらがな漢字ひらがな', 'cafécafécafé', '👩🏽‍💻👨‍👩‍👧‍👦🇨🇳']) {
     it(`wraps whole visible graphemes: ${source}`, () => {
       const block = preparePixelText(source, { ...typography, display: 'literal', maxWidth: 75 })
-      expect(block.lines.join('').replace(/-/g, '')).toBe(source)
+      expect(block.lines.join('')).toBe(source)
       const boundaries = new Set([0, ...Array.from(new Intl.Segmenter('en', { granularity: 'grapheme' }).segment(source), part => part.index + part.segment.length)])
       let offset = 0
       for (const line of block.lines) {

@@ -23,6 +23,30 @@ B handoff@-->|paid| C
 C --> D
 D -.-> B`
 
+test('Swimlane preserves default, indexed and explicit edge interpolation precedence', () => {
+  const graphSource = 'swimlane-beta LR\nsubgraph One\nA\nB\nend\nsubgraph Two\nC\nD\nend\nA e0@--> B\nB e1@--> C\nC e2@--> D'
+  for (const [directives, expected] of [
+    ['linkStyle default interpolate basis', ['basis', 'basis', 'basis']],
+    ['linkStyle default interpolate basis\nlinkStyle 1 interpolate cardinal', ['basis', 'cardinal', 'basis']],
+    ['linkStyle default interpolate basis\nlinkStyle 1 interpolate cardinal\ne1@{ curve: linear }', ['basis', 'linear', 'basis']],
+    ['linkStyle 1 interpolate cardinal', [undefined, 'cardinal', undefined]],
+  ] as const) {
+    const input = graphSource + '\n' + directives, graph = parseSwimlane(input)
+    const original = structuredClone(graph)
+    expect(layoutSwimlane(graph).edges.map(edge => edge.curve)).toEqual([...expected])
+    expect(graph).toEqual(original)
+    const parsed = parseRegisteredMermaid(input)
+    if (!parsed.ok || parsed.value.body.kind !== 'swimlane') throw new Error('Expected native Swimlane')
+    const reloaded = parseSwimlane(serializeMermaid(parsed.value))
+    expect(layoutSwimlane(reloaded).edges.map(edge => edge.curve)).toEqual([...expected])
+    const explicit = graphSource + '\n' + expected.flatMap((curve, index) => curve === undefined ? [] : [`e${index}@{ curve: ${curve} }`]).join('\n')
+    const renderedEdges = (svg: string) => svg.match(/<(?:path|polyline)\b(?=[^>]*\bclass="edge")(?=[^>]*\bdata-id="e[012]")[^>]*>/g)
+    const actualEdges = renderedEdges(renderMermaidSVG(input))
+    expect(actualEdges).toHaveLength(3)
+    expect(actualEdges).toEqual(renderedEdges(renderMermaidSVG(explicit)))
+  }
+})
+
 test('native Swimlane edits retain family, nested membership, shapes and cross-lane edge identities', () => {
   const parsed = parseRegisteredMermaid(source)
   expect(parsed.ok).toBe(true)

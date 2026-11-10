@@ -51,6 +51,7 @@ interface CachedShapeRoutingProfile {
   height: number
   shape: PositionedNode['shape']
   semanticShape: PositionedNode['semanticShape']
+  borders: PositionedNode['borders']
   profile: ShapeRoutingProfile
 }
 
@@ -96,6 +97,21 @@ export function shapeOutline(
   if (semantic) return semantic
   const { x, y, width: w, height: h } = node
   const cx = x + w / 2, cy = y + h / 2
+  if (node.shape === 'rectangle' && node.borders !== undefined && !['l', 'r', 't', 'b'].every(side => node.borders!.includes(side))) {
+    const sides: Array<[string, Geometry]> = [
+      ['l', { kind: 'line', x1: x, y1: y, x2: x, y2: y + h }],
+      ['r', { kind: 'line', x1: x + w, y1: y, x2: x + w, y2: y + h }],
+      ['t', { kind: 'line', x1: x, y1: y, x2: x + w, y2: y }],
+      ['b', { kind: 'line', x1: x, y1: y + h, x2: x + w, y2: y + h }],
+    ]
+    const selected = sides.filter(([side]) => node.borders!.includes(side))
+    return {
+      geometry: { kind: 'compound', children: [{ kind: 'rect', x, y, width: w, height: h }, ...selected.map(([, geometry]) => geometry)] },
+      paint: surface(paint),
+      childPaints: [{ fill: paint.fill, stroke: 'none' }, ...selected.map(() => outline(paint))],
+      routing: { kind: 'envelope', x, y, width: w, height: h, reason: 'Partial rectangle borders use the content envelope' },
+    }
+  }
   switch (node.shape) {
     case 'state-note': {
       const fold = Math.min(12, w / 6, h / 4)
@@ -164,7 +180,7 @@ export function shapeOutline(
 export function shapeRoutingProfile(node: PositionedNode): ShapeRoutingProfile {
   const cached = ROUTING_PROFILE_CACHE.get(node)
   if (cached && cached.x === node.x && cached.y === node.y && cached.width === node.width &&
-    cached.height === node.height && cached.shape === node.shape && cached.semanticShape === node.semanticShape) {
+    cached.height === node.height && cached.shape === node.shape && cached.semanticShape === node.semanticShape && cached.borders === node.borders) {
     return cached.profile
   }
   const boundary = shapeOutline(node, { fill: '', stroke: '', strokeWidth: '' }).routing
@@ -194,6 +210,7 @@ export function shapeRoutingProfile(node: PositionedNode): ShapeRoutingProfile {
     height: node.height,
     shape: node.shape,
     semanticShape: node.semanticShape,
+    borders: node.borders,
     profile,
   })
   return profile
