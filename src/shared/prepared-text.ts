@@ -295,12 +295,11 @@ export function preparePixelText(source: DisplayTextInput, options: PixelTextOpt
         else replacedText = clusters.slice(paintEnd, end).map(run => run.text).join('')
       }
       else {
+        // Emergency wrapping is a grapheme boundary, not an authored soft
+        // hyphen. Inserting '-' here changes the visible/copyable word (for
+        // example rectangle becomes rectangl-e). The explicit discretionary
+        // break branch above remains the only producer of inserted hyphens.
         end = Math.max(start + 1, end)
-        const latinBreak = (at: number) => /[\p{Script=Latin}\p{Script=Greek}\p{Script=Cyrillic}]/u.test(clusters[at - 1]?.text ?? '') && /\p{L}/u.test(clusters[at]?.text ?? '')
-        if (latinBreak(end)) {
-          while (end > start + 1 && advance([...clusters.slice(start, end), hyphenRun(clusters[end - 1]!)], options) > maxWidth) end--
-          hyphen = advance([...clusters.slice(start, end), hyphenRun(clusters[end - 1]!)], options) <= maxWidth
-        }
       }
       const line = coalesce(clusters.slice(start, paintEnd ?? end))
       const sourceOffset = spans?.offsets[end] ?? clusters[end]?.sourceStart ?? prepared.source.length

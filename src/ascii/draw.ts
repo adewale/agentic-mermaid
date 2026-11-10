@@ -142,13 +142,14 @@ function drawBoxWithGridDimensions(node: AsciiNode, graph: AsciiGraph): Canvas {
   // State-end uses double border to differentiate from state-start
   const isDoubleBox = node.shape === 'state-end'
   const border = { ascii: useAscii, role: 'border' as const, style: isDoubleBox ? 'double' as const : 'solid' as const }
+  const sides = node.shape === 'rectangle' ? node.borders ?? 'lrtb' : 'lrtb'
   for (let x = from.x + 1; x < to.x; x++) {
-    box.stroke(x, from.y, 10, border)
-    box.stroke(x, to.y, 10, border)
+    if (sides.includes('t')) box.stroke(x, from.y, 10, border)
+    if (sides.includes('b')) box.stroke(x, to.y, 10, border)
   }
   for (let y = from.y + 1; y < to.y; y++) {
-    box.stroke(from.x, y, 5, border)
-    box.stroke(to.x, y, 5, border)
+    if (sides.includes('l')) box.stroke(from.x, y, 5, border)
+    if (sides.includes('r')) box.stroke(to.x, y, 5, border)
   }
   const standard = node.shape === 'rectangle' || node.shape === 'service'
   const rounded = !useAscii && (node.shape === 'rounded' || node.shape === 'cylinder')
@@ -156,9 +157,12 @@ function drawBoxWithGridDimensions(node: AsciiNode, graph: AsciiGraph): Canvas {
     ? useAscii ? { tl: '#', tr: '#', bl: '#', br: '#' } : { tl: '╔', tr: '╗', bl: '╚', br: '╝' }
     : corners
   for (const [x, y, mask, glyph] of [
-    [from.x, from.y, 6, effectiveCorners.tl], [to.x, from.y, 12, effectiveCorners.tr],
-    [from.x, to.y, 3, effectiveCorners.bl], [to.x, to.y, 9, effectiveCorners.br],
+    [from.x, from.y, (sides.includes('t') ? 2 : 0) | (sides.includes('l') ? 4 : 0), effectiveCorners.tl],
+    [to.x, from.y, (sides.includes('t') ? 8 : 0) | (sides.includes('r') ? 4 : 0), effectiveCorners.tr],
+    [from.x, to.y, (sides.includes('b') ? 2 : 0) | (sides.includes('l') ? 1 : 0), effectiveCorners.bl],
+    [to.x, to.y, (sides.includes('b') ? 8 : 0) | (sides.includes('r') ? 1 : 0), effectiveCorners.br],
   ] as const) {
+    if (mask === 0) continue
     if (standard || rounded || (isDoubleBox && !useAscii)) box.stroke(x, y, mask, { ...border, rounded })
     else box.put(x, y, glyph, { role: 'border', kind: 'marker' })
   }

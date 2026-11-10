@@ -80,7 +80,8 @@ test('ASCII fitting preserves entity and transformed source spans and falls back
     }
     const options = { fontSize: 12, fontWeight: 400, maxWidth: 30 }
     const result = experiments(['text-spans'], () => preparePixelText(source, options))
-    expect(result.breaks.map(value => value.sourceOffset)).toEqual([offset + 3, offset + 6, offset + 9, offset + 12])
+    expect(result.breaks.map(value => value.sourceOffset)).toEqual([offset + 3, offset + 6, offset + 10])
+    expect(result.lines.join('')).toBe(text)
     expect(result).toEqual(experiments([], () => preparePixelText(source, options)))
   }
 })

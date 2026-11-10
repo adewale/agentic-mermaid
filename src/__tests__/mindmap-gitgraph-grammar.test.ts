@@ -268,6 +268,26 @@ describe('GitGraph grammar and identity', () => {
     ])
   })
 
+  test('explicit empty cherry-pick tags draw no decoration and stay empty after serialization and edits', () => {
+    const prefix = 'gitGraph\ncommit id:"base"\nbranch feature\ncommit id:"A"\ncheckout main\n'
+    for (const source of [
+      prefix + 'cherry-pick id:"A" tag:""',
+      'gitGraph\ncommit id:"base"\nbranch feature\nbranch release\ncheckout feature\ncommit id:"A"\ncheckout main\nmerge feature id:"M"\ncheckout release\ncommit id:"C"\ncherry-pick id:"M" parent:"base" tag:""',
+    ]) {
+      const diagram = parseGitGraph(source)
+      expect(diagram.commits.at(-1)!.tags).toEqual([])
+      expect(renderMermaidSVG(source)).not.toContain('class="git-tag-background"')
+      expect(parseGitGraph(serializeGitGraph(diagram)).commits.at(-1)!.tags).toEqual([])
+      const parsed = parseRegisteredMermaid(source)
+      if (!parsed.ok) throw Error(JSON.stringify(parsed.error))
+      const edited = mutate(parsed.value, { kind: 'set_commit_tags', id: diagram.commits.at(-1)!.id, tags: [] })
+      if (!edited.ok) throw Error(JSON.stringify(edited.error))
+      expect(parseGitGraph(serializeMermaid(edited.value)).commits.at(-1)!.tags).toEqual([])
+    }
+    expect(parseGitGraph(prefix + 'cherry-pick id:"A"').commits.at(-1)!.tags).toEqual(['cherry-pick:A'])
+    expect(parseGitGraph(prefix + 'cherry-pick id:"A" tag:"" tag:"real"').commits.at(-1)!.tags).toEqual(['real'])
+  })
+
   test('rejects cherry-picking a commit already reachable through inherited branch history', () => {
     expect(() =>
       parseGitGraph(`gitGraph

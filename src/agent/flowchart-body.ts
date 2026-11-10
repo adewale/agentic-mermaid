@@ -567,6 +567,10 @@ export function renderFlowchart(graph: MermaidGraph, headerKind: 'flowchart' | '
   for (const [idx, style] of graph.linkStyles) {
     if (idx === 'default' || idx < graph.edges.length) lines.push(`  linkStyle ${idx} ${styleProps(style)}`)
   }
+  for (const [idx, curve] of graph.linkCurves ?? []) {
+    if (!/^[a-z][a-z0-9-]*$/i.test(curve)) throw new Error('Link interpolation must be a curve name')
+    if (idx === 'default' || idx < graph.edges.length) lines.push(`  linkStyle ${idx} interpolate ${curve}`)
+  }
   for (const node of graph.nodes.values()) {
     if (node.href) lines.push(`  click ${node.id} href ${quoteValue(node.href)}`)
   }
@@ -575,7 +579,7 @@ export function renderFlowchart(graph: MermaidGraph, headerKind: 'flowchart' | '
 }
 
 function needsExplicitDeclaration(node: MermaidNode): boolean {
-  return node.label !== node.id || node.shape !== 'rectangle' || node.authoredShape !== undefined || node.icon !== undefined || node.image !== undefined
+  return node.label !== node.id || node.shape !== 'rectangle' || node.borders !== undefined || node.authoredShape !== undefined || node.icon !== undefined || node.image !== undefined
 }
 
 function renderShape(node: MermaidNode): string {
@@ -597,6 +601,10 @@ function renderShape(node: MermaidNode): string {
     return `@{ shape: ${node.authoredShape}${label} }`
   }
   const lbl = escapeNodeLabel(node.label, node.labelContent)
+  if (node.shape === 'rectangle' && node.borders !== undefined) {
+    if (!/^[lrtb]*$/.test(node.borders)) throw new Error('Rectangle borders must contain only l, r, t and b')
+    return `[|borders:${node.borders || 'none'}|${lbl}]`
+  }
   switch (node.shape) {
     case 'rectangle': return `[${lbl}]`
     case 'rounded': return `(${lbl})`
@@ -924,6 +932,7 @@ function mutateFlowchartGraph(graph: MermaidGraph, op: FlowchartMutationOp): Res
         shape: resolved.shape,
         semanticShape: resolved.semanticShape,
         authoredShape: resolved.authoredShape,
+        borders: undefined,
       })
       return done()
     }
@@ -1118,6 +1127,11 @@ function retainEdges(
   }
   graph.edges = edges
   graph.linkStyles = linkStyles
+  if (graph.linkCurves) graph.linkCurves = new Map([...graph.linkCurves].flatMap(([target, curve]) => {
+    if (target === 'default' || !Number.isInteger(target) || target < 0 || target >= oldEdges.length) return [[target, curve] as const]
+    const remapped = oldToNew.get(target)
+    return remapped === undefined ? [] : [[remapped, curve] as const]
+  }))
 }
 
 export function edgeIdOf(edge: MermaidEdge, idx = 0): string {
@@ -1158,6 +1172,7 @@ function cloneGraph(graph: MermaidGraph): MermaidGraph {
     classAssignments: new Map(graph.classAssignments),
     nodeStyles: new Map(Array.from(graph.nodeStyles, ([k, v]) => [k, { ...v }])),
     linkStyles: new Map(Array.from(graph.linkStyles, ([k, v]) => [k, { ...v }])),
+    ...(graph.linkCurves ? { linkCurves: new Map(graph.linkCurves) } : {}),
   }
 }
 function cloneSubgraph(sg: MermaidGraph['subgraphs'][number]): MermaidGraph['subgraphs'][number] {

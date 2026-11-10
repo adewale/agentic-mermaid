@@ -1951,6 +1951,7 @@ function extractNodesAndGroups(
           ...(mNode.labelContent ? { labelContent: mNode.labelContent } : {}),
           ...(mNode.labelBlock ? { labelBlock: mNode.labelBlock } : {}),
           shape: mNode.shape,
+          ...(mNode.borders !== undefined ? { borders: mNode.borders } : {}),
           ...(mNode.floatingNoteId !== undefined ? { floatingNoteId: mNode.floatingNoteId } : {}),
           ...(mNode.semanticShape !== undefined ? { semanticShape: mNode.semanticShape } : {}),
           x,
@@ -2010,6 +2011,10 @@ export function layoutGraphSync(
   graph: MermaidGraph,
   options: LayoutEngineOptions = {}
 ): PositionedGraph {
+  if (graph.linkCurves?.size) graph = {
+    ...graph,
+    edges: graph.edges.map((edge, index) => ({ ...edge, curve: edge.curve ?? graph.linkCurves!.get(index) ?? graph.linkCurves!.get('default') })),
+  }
   const optimization = layoutOptimization(Boolean(options.graphLayout?.quality || options.graphLayout?.viewport))
   return optimization ? optimization.withLayoutOptimizationBudget(graph, options.graphLayout, () => layoutGraphWithBudget(graph, options)) : layoutGraphWithBudget(graph, options)
 }
