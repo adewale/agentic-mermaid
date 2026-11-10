@@ -89,8 +89,10 @@ export interface AncestorBoundaryRoutingOptions {
   reserveVertices: (amount: number) => void
   queryWorkspaces?: SparseQueryWorkspacePool
   fail: (reason: string) => never
-  /** The owning boundary router checks exact contacts with finalized peers. */
-  accept: (candidate: AncestorBoundaryRoute) => boolean
+  /** Undefined rejects unsafe contacts; proper crossings rank feasible routes. */
+  score: (candidate: AncestorBoundaryRoute) => number | undefined
+  /** Upper bound for the owning full candidate check, for optional elbows. */
+  proposalPairs?: number
 }
 
 /** Reuse the bounded visibility kernel with one deliberately inward frame
@@ -162,6 +164,7 @@ export function routeAncestorBoundaryConnection(
   const graph = createSparseVisibilityGraph(bounds, obstacles, terminals, [anchor], c, work, options.remainingVertices, kernelFail, reserve, false, undefined, options.queryWorkspaces)
   for (const terminal of terminals) {
     let accepted: AncestorBoundaryRoute | undefined
+    let crossings = Infinity
     const leadAllows = (a: Point, b: Point): boolean => {
       charge()
       const { port, stub } = terminal
@@ -179,7 +182,7 @@ export function routeAncestorBoundaryConnection(
       return !contact || x === stub.x && y === stub.y
     }
     try {
-      graph.route([terminal], anchor, path => {
+      const acceptPath = (path: Point[]): boolean => {
         const ordered = connection.containerEnd === 'source' ? [framePort, ...path.toReversed()] : [...path, framePort]
         let count = 0, previous: Point | undefined
         for (const p of ordered) { charge(); if (!previous || previous.x !== p.x || previous.y !== p.y) count++; previous = p }
@@ -203,10 +206,82 @@ export function routeAncestorBoundaryConnection(
           for (let i = 1; i < points.length; i++) { charge(); if (header > 0 && segmentEntersMeasuredBox(points[i - 1]!, points[i]!, { ...frame, height: header })) return false }
         }
         const candidate = { points, ...(labelPosition ? { labelPosition } : {}) }
-        if (!options.accept(candidate)) return false
+        const score = options.score(candidate)
+        if (score === undefined) return false
         accepted = candidate
+        crossings = score
         return true
-      }, leadAllows)
+      }
+      graph.route([terminal], anchor, acceptPath, leadAllows)
+      if (accepted && options.proposalPairs !== undefined && input.maximumEdgeStrokeWidth === undefined) {
+        // Keep the original feasible route before optional quality work. Short
+        // corridors can avoid later inward strips without another graph search.
+        const initialPairs = work.pairs, initialArcs = work.arcs, initialVertices = allocated
+        const pairAllowance = Math.min(16384, Math.floor(initialPairs / 16))
+        const arcAllowance = Math.floor(initialArcs / 16), vertexAllowance = Math.floor((options.remainingVertices - allocated) / 16)
+        if (plan.connections.size > pairAllowance) return accepted
+        work.pairs -= plan.connections.size
+        let futureCount = 0
+        for (const index of plan.connections.keys()) if (index > edgeIndex) futureCount++
+        const setup = 2 * plan.connections.size + 5 * futureCount + (accepted.points.length - 1) * (futureCount + 1)
+        if (setup > pairAllowance || 2 * futureCount + 1 > arcAllowance) return accepted
+        work.arcs--
+        const future: RoutingBox[] = []
+        let stripColumn = anchor.x
+        for (const [index, pending] of plan.connections) {
+          charge()
+          if (index <= edgeIndex) continue
+          work.arcs -= 2; work.pairs -= 5
+          const frame = frames[pending.container]!
+          future.push({ x: frame.x - 2, y: frame.y + pending.rowOffset - 2,
+            width: plan.groups[pending.container]!.padding.left - c + 4, height: 4 })
+          if (pending.container === connection.container) stripColumn = anchor.x + 2
+        }
+        const conflicts = (points: readonly Point[]): number => {
+          let count = 0
+          for (const strip of future) for (let i = 1; i < points.length; i++) {
+            charge()
+            if (segmentEntersMeasuredBox(points[i - 1]!, points[i]!, strip)) count++
+          }
+          return count
+        }
+        let best = accepted, bestCrossings = crossings, bestFuture = conflicts(best.points)
+        if (!bestCrossings && !bestFuture) return best
+        const length = (points: readonly Point[]): number => {
+          let total = 0
+          for (let i = 1; i < points.length; i++) { charge(); total += Math.abs(points[i]!.x - points[i - 1]!.x) + Math.abs(points[i]!.y - points[i - 1]!.y) }
+          return total
+        }
+        let bestLength = length(best.points)
+        const candidatePairs = options.proposalPairs + 5 * obstacles.length + 5 * frames.length + 5 * future.length + 64
+        for (const root of terminals) for (let bend = 0; bend < 4; bend++) {
+          if (initialPairs - work.pairs + candidatePairs > pairAllowance || initialArcs - work.arcs + 8 > arcAllowance
+            || allocated - initialVertices + 9 > vertexAllowance) return best
+          work.arcs -= bend >= 2 ? 8 : 6
+          const path = bend === 3
+            ? [root.port, root.stub, point(root.stub.x, bounds.y + bounds.height - c), point(anchor.x, bounds.y + bounds.height - c), anchor]
+            : bend === 2
+              ? [root.port, root.stub, point(stripColumn, root.stub.y), point(stripColumn, anchor.y), anchor]
+              : [root.port, root.stub, point(bend ? anchor.x : root.stub.x, bend ? root.stub.y : anchor.y), anchor]
+          let clear = true
+          for (let i = 0; i < path.length; i++) {
+            charge()
+            const p = path[i]!
+            if (p.x < bounds.x || p.x > bounds.x + bounds.width || p.y < bounds.y || p.y > bounds.y + bounds.height) { clear = false; break }
+            if (i) for (const box of obstacles) {
+              charge()
+              if (segmentEntersMeasuredBox(path[i - 1]!, p, box)) { clear = false; break }
+            }
+            if (!clear) break
+          }
+          if (!clear || !acceptPath(path)) continue
+          const pending = conflicts(accepted.points), distance = length(accepted.points)
+          if (crossings < bestCrossings || crossings === bestCrossings && (pending < bestFuture || pending === bestFuture && distance < bestLength)) {
+            best = accepted; bestCrossings = crossings; bestFuture = pending; bestLength = distance
+          }
+        }
+        return best
+      }
     } catch (error) {
       // Only a topological miss is another bounded terminal candidate. Budget
       // failures and producer exceptions retain their original identity.

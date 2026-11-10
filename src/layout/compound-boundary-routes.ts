@@ -811,7 +811,8 @@ export function routeCrossHierarchy(
       work.pairs -= 8 // Painted host eligibility, stroke/corner inset and domain selection.
       if (work.pairs < 0) fail('agentic local cross-hierarchy obstacle-work limit')
       const hostRadius = host < 0 ? undefined : groups[host]!.paintCornerRadius
-      const paddingInset = widthProof === undefined || hostRadius === undefined ? Infinity : (widthProof + (groups[host]!.paintStrokeWidth ?? 0)) / 2 + hostRadius + 1
+      const paddingInset = leafPaths && widthProof === undefined ? clearance
+        : widthProof === undefined || hostRadius === undefined ? Infinity : (widthProof + (groups[host]!.paintStrokeWidth ?? 0)) / 2 + hostRadius + 1
       const bounds = frame && pad ? paddingAttempt === 0
         ? { x: frame.x + pad.left, y: frame.y + pad.top, width: frame.width - pad.left - pad.right, height: frame.height - pad.top - pad.bottom }
         : { x: frame.x + paddingInset, y: frame.y + pad.top, width: frame.width - 2 * paddingInset, height: frame.height - pad.top - paddingInset }
@@ -1196,11 +1197,13 @@ export function routeCrossHierarchy(
         if (!points) {
           // Content padding is blank routing space. Retry inside the host's
           // painted border (including corners) only after the original content
-          // domain is blocked. Missing canonical radius keeps the old refusal.
+          // domain is blocked. Unpainted global requests own centerlines only;
+          // painted requests still require the canonical stroke/corner inset.
           // Each strategy has bounded probes; both attempts share the original
           // cumulative work/vertex ledgers without replenishing any global cap.
-          if (paddingAttempt === 0 && frame && pad && widthProof !== undefined
-            && groups[host]!.paintStrokeWidth !== undefined && paddingInset < pad.left
+          if (paddingAttempt === 0 && frame && pad
+            && (leafPaths && widthProof === undefined || widthProof !== undefined && groups[host]!.paintStrokeWidth !== undefined)
+            && paddingInset < pad.left
             && paddingInset < pad.right && paddingInset < pad.bottom
             && decline === 'cross-hierarchy route has no bounded clear corridor') continue
           fail(decline)
@@ -1245,31 +1248,32 @@ export function routeCrossHierarchy(
       }
       const result = routeAncestorBoundaryConnection(input, placed, owners, ancestorPlan, index, {
         work, remainingVertices: expansionLimit - expanded, reserveVertices: reserveExpanded, queryWorkspaces: sparseWorkspaces(), fail,
-        accept(candidate) {
+        proposalPairs: 64 + 6 * forbidden.length + (5 * measuredRouteContactPairBudget(input, 'proposal') + 1) * peerSegments,
+        score(candidate) {
           const points = candidate.points
           if (points.length < 2 || points.some((point, cursor) => !Number.isFinite(point.x + point.y)
             || cursor > 0 && point.x !== points[cursor - 1]!.x && point.y !== points[cursor - 1]!.y)) throw new TypeError('Ancestor boundary producer returned invalid points')
-          if (selfContact(points, work, fail)) return false
+          if (selfContact(points, work, fail)) return undefined
           const start = connection.containerEnd === 'source', frame = frames[connection.container]!
           const port = start ? points[0]! : points.at(-1)!, toward = start ? points[1]! : points.at(-2)!
           const header = headerGroups[connection.container]!.headerHeight ?? headerGroups[connection.container]!.padding.top
           if (Math.abs(port.x - frame.x) > 1e-7 || port.y < frame.y + header || port.y > frame.y + frame.height
-            || toward.y !== port.y || toward.x - port.x < connection.minimumLead) return false
+            || toward.y !== port.y || toward.x - port.x < connection.minimumLead) return undefined
           const body = start ? points.at(-1)! : points[0]!, next = start ? points.at(-2)! : points[1]!, box = subjects[connection.interior]!
-          if (body.x < box.x - 1e-7 || body.x > box.x + box.width + 1e-7 || body.y < box.y - 1e-7 || body.y > box.y + box.height + 1e-7) return false
+          if (body.x < box.x - 1e-7 || body.x > box.x + box.width + 1e-7 || body.y < box.y - 1e-7 || body.y > box.y + box.height + 1e-7) return undefined
           const outward = Math.abs(body.x - box.x) < 1e-7 && next.y === body.y && next.x < body.x
             || Math.abs(body.x - box.x - box.width) < 1e-7 && next.y === body.y && next.x > body.x
             || Math.abs(body.y - box.y) < 1e-7 && next.x === body.x && next.y < body.y
             || Math.abs(body.y - box.y - box.height) < 1e-7 && next.x === body.x && next.y > body.y
-          if (!outward || Math.abs(next.x - body.x) + Math.abs(next.y - body.y) < ancestorPlan.clearance) return false
-          if (edge.label && (!candidate.labelPosition || !points.some((point, cursor) => cursor > 0 && onSegment(candidate.labelPosition!, points[cursor - 1]!, point)))) return false
+          if (!outward || Math.abs(next.x - body.x) + Math.abs(next.y - body.y) < ancestorPlan.clearance) return undefined
+          if (edge.label && (!candidate.labelPosition || !points.some((point, cursor) => cursor > 0 && onSegment(candidate.labelPosition!, points[cursor - 1]!, point)))) return undefined
           for (let cursor = 1; cursor < points.length; cursor++) for (const obstacle of forbidden) {
             if (--work.pairs < 0) fail('agentic local cross-hierarchy obstacle-work limit')
-            if (segmentEntersMeasuredBox(points[cursor - 1]!, points[cursor]!, obstacle)) return false
+            if (segmentEntersMeasuredBox(points[cursor - 1]!, points[cursor]!, obstacle)) return undefined
           }
           work.pairs -= measuredRouteContactPairBudget(input,'proposal') * Math.max(0, points.length - 1) * peerSegments + points.length + peerSegments
           if (work.pairs < 0) fail('agentic local cross-hierarchy crossing-work limit')
-          return scoreMeasuredRouteProposalCrossings(points, index, routes, input, chargePhysicalContact, reservePhysicalContact) !== undefined
+          return scoreMeasuredRouteProposalCrossings(points, index, routes, input, chargePhysicalContact, reservePhysicalContact)
         },
       })
       routePoints += result.points.length - raw.points.length

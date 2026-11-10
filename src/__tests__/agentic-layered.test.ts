@@ -763,9 +763,9 @@ describe('owned measured layered layout', () => {
     if (labelled) expect(output.edges[0]!.labelPosition).toBeDefined()
   })
 
-  test.each(['TB', 'BT', 'LR', 'RL'] as const)('placement retains ordinary hosted edges when detecting a false quotient cycle in %s', direction => {
+  test.each((['TB', 'BT', 'LR', 'RL'] as const).flatMap(direction => [false, true].map(placementOnly => ({ direction, placementOnly }))))('retains ordinary hosted edges in a false quotient cycle: %j', ({ direction, placementOnly }) => {
     const padding = { top: 36, right: 16, bottom: 16, left: 16 }
-    const input = measured({ direction, placementOnly: true, nodes: [
+    const input = measured({ direction, ...(placementOnly ? { placementOnly: true } : {}), nodes: [
       { id: 'A', width: 60, height: 32, parent: 0 }, { id: 'C', width: 60, height: 32, parent: 1 },
       { id: 'B', width: 60, height: 32, parent: 0 }, { id: 'D', width: 60, height: 32, parent: 1 },
     ], groups: [{ id: 'Parent', minWidth: 0, padding }, { id: 'Child', parent: 0, minWidth: 0, padding }],
@@ -774,7 +774,15 @@ describe('owned measured layered layout', () => {
     // mistakes Child→B and A→Child for a DAG and invents cyclic border ranks.
     const original = structuredClone(input), output = layoutAgenticGraph(input)
     expect(input).toEqual(original)
-    expect(output.edges).toEqual(input.edges.map(() => ({ points: [] })))
+    if (placementOnly) expect(output.edges).toEqual(input.edges.map(() => ({ points: [] })))
+    else for (const [i, route] of output.edges.entries()) {
+      expect(onOutline(route.points[0]!, { ...input.nodes[input.edges[i]!.source]!, ...output.nodes[input.edges[i]!.source]! })).toBe(true)
+      expect(onOutline(route.points.at(-1)!, { ...input.nodes[input.edges[i]!.target]!, ...output.nodes[input.edges[i]!.target]! })).toBe(true)
+      for (let j = 1; j < route.points.length; j++) {
+        for (let k = 0; k < input.nodes.length; k++) expect(crossesInterior(route.points[j - 1]!, route.points[j]!, { ...input.nodes[k]!, ...output.nodes[k]! })).toBe(false)
+        for (const frame of output.groups!) expect(crossesInterior(route.points[j - 1]!, route.points[j]!, { ...frame, height: padding.top })).toBe(false)
+      }
+    }
     const boxes = output.nodes.map((point, i) => ({ ...input.nodes[i]!, ...point }))
     const horizontal = direction === 'LR' || direction === 'RL', reverse = direction === 'BT' || direction === 'RL'
     for (const [source, target] of [[3, 2], [2, 0], [0, 1]]) {
