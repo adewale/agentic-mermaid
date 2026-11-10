@@ -866,11 +866,15 @@ function assertFamilyGeometryOptions(
     // what fail here (an unsafe theme font, an out-of-range size).
     throw new RenderConfigError(`Family "${family.id}" returned invalid normalized RenderOptions: ${problems.join('; ')}`)
   }
-  const beforeSerializable = serializableOptions(before)
-  const afterSerializable = serializableOptions(after)
+  // The normalizer result was captured before validation. Unchanged values
+  // cannot rewrite an option: avoid two projected records and serializing
+  // every absent/scalar field, while distinct records keep canonical equality.
+  if (before === after) return
   for (const field of SHARED_RENDER_OPTION_FIELDS) {
     if (FAMILY_NORMALIZABLE_OPTION_FIELDS.has(field)) continue
-    if (canonicalJson(beforeSerializable[field]) !== canonicalJson(afterSerializable[field])) {
+    const previous = before[field], current = after[field]
+    if (previous === current) continue
+    if (canonicalJson(previous) !== canonicalJson(current)) {
       throw new TypeError(`Family "${family.id}" request normalizer may not rewrite non-geometry option "${field}"`)
     }
   }
