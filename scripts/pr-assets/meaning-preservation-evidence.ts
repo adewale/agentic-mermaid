@@ -225,6 +225,12 @@ assets/ icon(folder)
 ]
 const fixtures: Fixture[] = [
   {
+    id: 'reviewed-gantt-year', title: 'Documented bare-year task dates retain their calendar meaning',
+    source: 'gantt\nsection Waffle\nIron :1982, 3y\nHouse :1986, 3y',
+    pngScale: 1, captureLayout: true,
+    cue: 'The actual baseline scheduling error is retained. The candidate schedules Iron from January 1, 1982 to January 1, 1985, and House from January 1, 1986 to January 1, 1989. Inspect the bar positions, labels and resolved layout; invalid calendar words and custom date formats remain strict.',
+  },
+  {
     id: 'reviewed-quadrant-clearance', title: 'Fixed quadrant points do not cover section captions',
     source: 'quadrantChart\ntitle Value vs. cost\nquadrant-1 Plan\nquadrant-2 Do now\nquadrant-3 Maybe\nquadrant-4 Drop\nAlpha: [0.25, 0.75]\nBeta: [0.7, 0.8]\nGamma: [0.3, 0.3]\nDelta: [0.75, 0.25]',
     pngScale: 1, captureLayout: true,
