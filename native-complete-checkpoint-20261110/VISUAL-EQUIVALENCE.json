@@ -1,0 +1,82 @@
+[
+  {
+    "file": "RL-nested-elk-after.svg",
+    "svgExactToRasterSource": true,
+    "sha256": "511968e42fac5ba9ea5b51eb35166ab03a3387afdedc7f084c8d2ed2f6b412ba"
+  },
+  {
+    "file": "RL-nested-agentic-after.svg",
+    "svgExactToRasterSource": true,
+    "sha256": "1b3d46cdf6f98533b0ada5d49adba0ad2b1613fc457ce9be19c7ee459a817c67"
+  },
+  {
+    "file": "RL-one-elk-after.svg",
+    "svgExactToRasterSource": true,
+    "sha256": "0dfca894179c6fe87d3a898f285007338f824425c838c3c48b986de580431303"
+  },
+  {
+    "file": "RL-one-agentic-after.svg",
+    "svgExactToRasterSource": true,
+    "sha256": "609c678c46033afe14a86401eaf490fe697e84f24e6d232d87592d660dc8a0e2"
+  },
+  {
+    "file": "LR-nested-elk-after.svg",
+    "svgExactToRasterSource": true,
+    "sha256": "de3e48338cc0936ac032e643d6e0f4f16ed0a43e6dccdb960027baf3fbbfbff3"
+  },
+  {
+    "file": "LR-nested-agentic-after.svg",
+    "svgExactToRasterSource": true,
+    "sha256": "ce3c3b3e83cde6c2f09bea0a492acd2c4a31b4819e6b7a3ca42c1d07896149c9"
+  },
+  {
+    "file": "LR-one-elk-after.svg",
+    "svgExactToRasterSource": true,
+    "sha256": "9e402092bd2afefa0afef4e56ee09e9c9910fa1c5483171302a2c49587729973"
+  },
+  {
+    "file": "LR-one-agentic-after.svg",
+    "svgExactToRasterSource": true,
+    "sha256": "cf0a6cf914d370d78c5c53226999597a6a61da707fd5e294aa3f36edb5e53101"
+  },
+  {
+    "file": "BT-nested-elk-after.svg",
+    "svgExactToRasterSource": true,
+    "sha256": "fea24b96ae8439f85a7875fb89eb406078e9afc958b5a3356d6e5c6a9598e177"
+  },
+  {
+    "file": "BT-nested-agentic-after.svg",
+    "svgExactToRasterSource": true,
+    "sha256": "a76243f3b9765d1327fdf8ae4bcd62dd5de908a9e2d9cc7d66e08da0f0f1a8cc"
+  },
+  {
+    "file": "BT-one-elk-after.svg",
+    "svgExactToRasterSource": true,
+    "sha256": "40e0858678397d8849a7b3f457d4edea46659b703058747f8ffcd67970ad6cec"
+  },
+  {
+    "file": "BT-one-agentic-after.svg",
+    "svgExactToRasterSource": true,
+    "sha256": "a3c509929d49c1019d723bdb0ec7dd25b25bf68cec12d8191b6c0a32f1867de8"
+  },
+  {
+    "file": "TB-nested-elk-after.svg",
+    "svgExactToRasterSource": true,
+    "sha256": "72e9541d26bc24470bf15ac0f1c445301c56481b3e0f75f1854e084f48e1ec46"
+  },
+  {
+    "file": "TB-nested-agentic-after.svg",
+    "svgExactToRasterSource": true,
+    "sha256": "564c5edd2d2749b005b46288180d53a852fe12790077dd434d4947ac851570fc"
+  },
+  {
+    "file": "TB-one-elk-after.svg",
+    "svgExactToRasterSource": true,
+    "sha256": "9d3da09acc0d07f5922520354e025c50a0fd150e549bbaab99f27533d2c5d333"
+  },
+  {
+    "file": "TB-one-agentic-after.svg",
+    "svgExactToRasterSource": true,
+    "sha256": "688072c5345ace25ebc223dd213e41577234c1856b578788e83a4bdc943d6128"
+  }
+]

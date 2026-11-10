@@ -1,0 +1,505 @@
+{
+  "files": [
+    {
+      "path": "FINAL-REPORT.md",
+      "bytes": 6859,
+      "sha256": "5ae20794c70c9d78a36e1a35aec805fe253534e5dfc3a18aabdf4f9bcd1504cc"
+    },
+    {
+      "path": "PERFORMANCE-REPORT.md",
+      "bytes": 9468,
+      "sha256": "433b23387f6e41ff7e1431ad009afd826ebf24bbd981facead2a6ca686b3fe97"
+    },
+    {
+      "path": "PROVENANCE.json",
+      "bytes": 1505,
+      "sha256": "9ce9b89e62b00108eb4ccf4749ec90d10fa5a01e6d03ace5a1af1ea47fc32efa"
+    },
+    {
+      "path": "RASTER-FONTS.json",
+      "bytes": 3062,
+      "sha256": "9b8b2f50bd2418f2a9550a6084ceb785b26cf4fd201006779a151a160b254216"
+    },
+    {
+      "path": "README.md",
+      "bytes": 6859,
+      "sha256": "5ae20794c70c9d78a36e1a35aec805fe253534e5dfc3a18aabdf4f9bcd1504cc"
+    },
+    {
+      "path": "VISUAL-EQUIVALENCE.json",
+      "bytes": 2651,
+      "sha256": "580f65b237f388a59ea89031107366c69a5573697609710e11a0623d34860eee"
+    },
+    {
+      "path": "campaign-state.json",
+      "bytes": 97709,
+      "sha256": "1d4f01755a8be5122b2022c9b12ae1d3e7f2355b9728a1dbc6314377852f31da"
+    },
+    {
+      "path": "evidence.tar.gz",
+      "bytes": 17757382,
+      "sha256": "0ea3db1c4ff2203db527c9c6c079e271a2b923dcd8486e9a2a72039d72679c7c"
+    },
+    {
+      "path": "nesting-products/BT-nested-agentic-after.layout.json",
+      "bytes": 3305,
+      "sha256": "c10e80d69f872ee1d105ea8f6974c30c1cf254f85e1a149d16128ae4515292cc"
+    },
+    {
+      "path": "nesting-products/BT-nested-agentic-after.png",
+      "bytes": 21020,
+      "sha256": "02ec11e67e6e466c4e7b2374740c3b51a34905a85ff5c9c6ac94aa1468a860ab"
+    },
+    {
+      "path": "nesting-products/BT-nested-agentic-after.receipt.json",
+      "bytes": 7915,
+      "sha256": "a34701819f82b25361bd188718c85dc65e2359be9a8e225d1b6ee6b63d8d2d34"
+    },
+    {
+      "path": "nesting-products/BT-nested-agentic-after.svg",
+      "bytes": 5414,
+      "sha256": "a76243f3b9765d1327fdf8ae4bcd62dd5de908a9e2d9cc7d66e08da0f0f1a8cc"
+    },
+    {
+      "path": "nesting-products/BT-nested-elk-after.layout.json",
+      "bytes": 3201,
+      "sha256": "ef70b2c7401bd215232ff1bef29b5583e93a6b74e5bee018087ed64f17a3225b"
+    },
+    {
+      "path": "nesting-products/BT-nested-elk-after.png",
+      "bytes": 23077,
+      "sha256": "d2499f8d824b7cfaec4ebfab61035b550d0defcb7f16446c6fda3b1fbd38957d"
+    },
+    {
+      "path": "nesting-products/BT-nested-elk-after.receipt.json",
+      "bytes": 7899,
+      "sha256": "b503c578bbc233aa1deed1a7ceb90b8f4f312a248ce8ef017021532a268ac3fc"
+    },
+    {
+      "path": "nesting-products/BT-nested-elk-after.svg",
+      "bytes": 5411,
+      "sha256": "fea24b96ae8439f85a7875fb89eb406078e9afc958b5a3356d6e5c6a9598e177"
+    },
+    {
+      "path": "nesting-products/BT-one-agentic-after.layout.json",
+      "bytes": 3193,
+      "sha256": "eb4d808f3e5534fd3e7636110667e6a9511455945c51eff0e9b83a885bbba378"
+    },
+    {
+      "path": "nesting-products/BT-one-agentic-after.png",
+      "bytes": 11582,
+      "sha256": "2aca088f6c407aad0f4e1543b6e61ae3ad79797c16105777c489a85cc47bd1c7"
+    },
+    {
+      "path": "nesting-products/BT-one-agentic-after.receipt.json",
+      "bytes": 7910,
+      "sha256": "852df11adcfa6da08c7f8d28a7023d31ca351371cff0f411c0d0aaa7dce095e1"
+    },
+    {
+      "path": "nesting-products/BT-one-agentic-after.svg",
+      "bytes": 4179,
+      "sha256": "a3c509929d49c1019d723bdb0ec7dd25b25bf68cec12d8191b6c0a32f1867de8"
+    },
+    {
+      "path": "nesting-products/BT-one-agentic-before.layout.json",
+      "bytes": 2977,
+      "sha256": "4aa4f9ddaf2bdf5e9c07a1925ab0ec496b547e461c84d7f967d175d29883b3e6"
+    },
+    {
+      "path": "nesting-products/BT-one-agentic-before.png",
+      "bytes": 8392,
+      "sha256": "4ae87269b355a4cf2b23f2c7d6f69e91abca65c7d26e2f5fecc7e07ecc9904a9"
+    },
+    {
+      "path": "nesting-products/BT-one-agentic-before.receipt.json",
+      "bytes": 7910,
+      "sha256": "4ae9695f8511fdca53bbc6f64fbecfba8f2a16f158cc2e96e16e61a3acdf85f9"
+    },
+    {
+      "path": "nesting-products/BT-one-agentic-before.svg",
+      "bytes": 4163,
+      "sha256": "350b1996f8d7489d01dd6001113e2d48105fb4e3ff3c99d12408b30513ec88ba"
+    },
+    {
+      "path": "nesting-products/BT-one-elk-after.layout.json",
+      "bytes": 3048,
+      "sha256": "7d8594c982111ed27735bfa655cc3c7832d2c441a8d6166857aba4a010a04475"
+    },
+    {
+      "path": "nesting-products/BT-one-elk-after.png",
+      "bytes": 12744,
+      "sha256": "f841e49daeb7e50ebe8ff25a55ed1227a5caaa32567e959ad54df64ba407c3f3"
+    },
+    {
+      "path": "nesting-products/BT-one-elk-after.receipt.json",
+      "bytes": 7894,
+      "sha256": "c7e20142197fb3bda6fe6d69fc14d6dac2659cc34c54025193df47aee96d0be4"
+    },
+    {
+      "path": "nesting-products/BT-one-elk-after.svg",
+      "bytes": 4190,
+      "sha256": "40e0858678397d8849a7b3f457d4edea46659b703058747f8ffcd67970ad6cec"
+    },
+    {
+      "path": "nesting-products/LR-nested-agentic-after.layout.json",
+      "bytes": 3383,
+      "sha256": "b12380d1631aa9521e94e8b901d846720ea6414354c7c9d77dc7f39b6767dab0"
+    },
+    {
+      "path": "nesting-products/LR-nested-agentic-after.png",
+      "bytes": 17544,
+      "sha256": "4c86325db7e2b80e5cc0432da52b4a809a4eb598745fdbaa7bced0665c760441"
+    },
+    {
+      "path": "nesting-products/LR-nested-agentic-after.receipt.json",
+      "bytes": 7914,
+      "sha256": "b3236355d50bed81bcd1192ff460c4690c4b074a12faf34c1033b272049f4ac9"
+    },
+    {
+      "path": "nesting-products/LR-nested-agentic-after.svg",
+      "bytes": 5397,
+      "sha256": "ce3c3b3e83cde6c2f09bea0a492acd2c4a31b4819e6b7a3ca42c1d07896149c9"
+    },
+    {
+      "path": "nesting-products/LR-nested-agentic-before.layout.json",
+      "bytes": 3345,
+      "sha256": "b4bbc67351dd6aa9c088cf00f9e9b61f81dc7033d3cb92bb5df6f2411efa1d10"
+    },
+    {
+      "path": "nesting-products/LR-nested-agentic-before.png",
+      "bytes": 15641,
+      "sha256": "52b728d963fd94cc3717c93bc9d8b7b9eace36cb65f1004b1146686bd67528c9"
+    },
+    {
+      "path": "nesting-products/LR-nested-agentic-before.receipt.json",
+      "bytes": 7914,
+      "sha256": "9af6eca5bb25df10b354511dc87f91423e992a0cba0367b9af19b4f0f1c66103"
+    },
+    {
+      "path": "nesting-products/LR-nested-agentic-before.svg",
+      "bytes": 5398,
+      "sha256": "02d1dc4fb061f5489344f363bd39e29391971fd6faca74d968f1bf4ff617c01e"
+    },
+    {
+      "path": "nesting-products/LR-nested-elk-after.layout.json",
+      "bytes": 3267,
+      "sha256": "fbf012b4939ef4057297e5f970001f534283bec8bc0519718f98e311a733a210"
+    },
+    {
+      "path": "nesting-products/LR-nested-elk-after.png",
+      "bytes": 17181,
+      "sha256": "d9ee243954612e4f2ef18b7af42f7e0bb6a295350c56ced3899bd6e963389e36"
+    },
+    {
+      "path": "nesting-products/LR-nested-elk-after.receipt.json",
+      "bytes": 7897,
+      "sha256": "ed3d042df8d1f4b30f3e23846186123c0dec3813dd3bb38e7690589047270754"
+    },
+    {
+      "path": "nesting-products/LR-nested-elk-after.svg",
+      "bytes": 5453,
+      "sha256": "de3e48338cc0936ac032e643d6e0f4f16ed0a43e6dccdb960027baf3fbbfbff3"
+    },
+    {
+      "path": "nesting-products/LR-one-agentic-after.layout.json",
+      "bytes": 2963,
+      "sha256": "3573e6b3e15a9ee9a31050295a76e5104d8aade48d6b242588d57f438e3434fa"
+    },
+    {
+      "path": "nesting-products/LR-one-agentic-after.png",
+      "bytes": 9773,
+      "sha256": "903ca588dba5dcc46ccd27b943c4e3a861f9d7a9dfb645dfa8d14d30ac493c37"
+    },
+    {
+      "path": "nesting-products/LR-one-agentic-after.receipt.json",
+      "bytes": 7910,
+      "sha256": "a6dc6f9081969a19287de81ed3292b7ea5c8837b52e460ae90b3e56e34e1bf15"
+    },
+    {
+      "path": "nesting-products/LR-one-agentic-after.svg",
+      "bytes": 4162,
+      "sha256": "cf0a6cf914d370d78c5c53226999597a6a61da707fd5e294aa3f36edb5e53101"
+    },
+    {
+      "path": "nesting-products/LR-one-agentic-before.layout.json",
+      "bytes": 2878,
+      "sha256": "fb4631621f85d0f325e683be421591da577e13e9d827414a8f1411e3232755dd"
+    },
+    {
+      "path": "nesting-products/LR-one-agentic-before.png",
+      "bytes": 8222,
+      "sha256": "38695c2c22b8f78ba5450b4585c3459e4d8f86448c8f062f600b96af03c071aa"
+    },
+    {
+      "path": "nesting-products/LR-one-agentic-before.receipt.json",
+      "bytes": 7910,
+      "sha256": "693146d0f521024a7fd14b557f043880cc7908c06b59fefb231c4a1d7b486687"
+    },
+    {
+      "path": "nesting-products/LR-one-agentic-before.svg",
+      "bytes": 4125,
+      "sha256": "fb727d552bb27018d4c4ac2e1b70574fbdfb22384d937a5f54b1189ea8c60a3a"
+    },
+    {
+      "path": "nesting-products/LR-one-elk-after.layout.json",
+      "bytes": 2964,
+      "sha256": "3ebd88c8f10b5e2e6233fbd868eba6c6dec7eeb18016888bb17bfeed039b0806"
+    },
+    {
+      "path": "nesting-products/LR-one-elk-after.png",
+      "bytes": 8488,
+      "sha256": "6393f4958f4a9f47cc328178207bacf4f20a716400b1a8ef1a4253bcfc6da3d3"
+    },
+    {
+      "path": "nesting-products/LR-one-elk-after.receipt.json",
+      "bytes": 7896,
+      "sha256": "25f631a6b3c0177282217cab822832bd4fc964c3ee73552b4af9f148e6d8679c"
+    },
+    {
+      "path": "nesting-products/LR-one-elk-after.svg",
+      "bytes": 4208,
+      "sha256": "9e402092bd2afefa0afef4e56ee09e9c9910fa1c5483171302a2c49587729973"
+    },
+    {
+      "path": "nesting-products/RL-nested-agentic-after.layout.json",
+      "bytes": 3397,
+      "sha256": "499600474cf2c4afcad42036f94b2721e36211b8f245e4538399d190bbed5dc5"
+    },
+    {
+      "path": "nesting-products/RL-nested-agentic-after.png",
+      "bytes": 17825,
+      "sha256": "7783415b7315fbd99f6cd94bd5ed7630ea7bc1e52b010b14ae3aa27b4cab054d"
+    },
+    {
+      "path": "nesting-products/RL-nested-agentic-after.receipt.json",
+      "bytes": 7914,
+      "sha256": "7b5ca4244889f9a74c10e535eef0beaf7151ce11c55ec39524adb94041a3a168"
+    },
+    {
+      "path": "nesting-products/RL-nested-agentic-after.svg",
+      "bytes": 5395,
+      "sha256": "1b3d46cdf6f98533b0ada5d49adba0ad2b1613fc457ce9be19c7ee459a817c67"
+    },
+    {
+      "path": "nesting-products/RL-nested-agentic-before.layout.json",
+      "bytes": 3410,
+      "sha256": "25f7310cca1bd00ad82d6aee9b005355482ad6fdc3d122cb2e0384da154c01f6"
+    },
+    {
+      "path": "nesting-products/RL-nested-agentic-before.png",
+      "bytes": 15041,
+      "sha256": "9a0b5b503e886c24484c24619dcd8547f40651d4e0fc5ba6e7107ff3480526f8"
+    },
+    {
+      "path": "nesting-products/RL-nested-agentic-before.receipt.json",
+      "bytes": 7914,
+      "sha256": "7adfd892ab8797b5414dcd26f4c504c08a803ef1ceb95d60d807a055f11fe3a9"
+    },
+    {
+      "path": "nesting-products/RL-nested-agentic-before.svg",
+      "bytes": 5452,
+      "sha256": "4fc21afc7f4d7c5ae587d6159356090ef5683afdb276b09c969c3fd15c56c052"
+    },
+    {
+      "path": "nesting-products/RL-nested-elk-after.layout.json",
+      "bytes": 3293,
+      "sha256": "23300a50fbdbd7d613817170ad3ee94e03275085c953a78587c999f08aecd808"
+    },
+    {
+      "path": "nesting-products/RL-nested-elk-after.png",
+      "bytes": 17204,
+      "sha256": "243ea397d70bb19086417a3a71550b99fd6e467287c68acb9538f2d943898b9e"
+    },
+    {
+      "path": "nesting-products/RL-nested-elk-after.receipt.json",
+      "bytes": 7897,
+      "sha256": "882b350a727f280b84e0235d6aabf6ae1ee73d7bcdfbf939095650871b318583"
+    },
+    {
+      "path": "nesting-products/RL-nested-elk-after.svg",
+      "bytes": 5444,
+      "sha256": "511968e42fac5ba9ea5b51eb35166ab03a3387afdedc7f084c8d2ed2f6b412ba"
+    },
+    {
+      "path": "nesting-products/RL-one-agentic-after.layout.json",
+      "bytes": 2963,
+      "sha256": "7eaebc4848318c49998c6c1b738f57dc0b067c3c7937b653914ba7fee67f65b4"
+    },
+    {
+      "path": "nesting-products/RL-one-agentic-after.png",
+      "bytes": 9266,
+      "sha256": "5d68bca62960fcd999c374c1876df1b7cab359ea01a887f26e477b409a4ee678"
+    },
+    {
+      "path": "nesting-products/RL-one-agentic-after.receipt.json",
+      "bytes": 7910,
+      "sha256": "a0b9d19a41c0c069f609929e2235a5a201c77f15cd8b6f076ba7f8c821d8db48"
+    },
+    {
+      "path": "nesting-products/RL-one-agentic-after.svg",
+      "bytes": 4162,
+      "sha256": "609c678c46033afe14a86401eaf490fe697e84f24e6d232d87592d660dc8a0e2"
+    },
+    {
+      "path": "nesting-products/RL-one-agentic-before.layout.json",
+      "bytes": 2871,
+      "sha256": "ca3e2f0714c05719a22cb6b646b91cba8b84b11c0a81233766facb4092090cbc"
+    },
+    {
+      "path": "nesting-products/RL-one-agentic-before.png",
+      "bytes": 8126,
+      "sha256": "34eafeeb831db777faf96ae7254b9a80e092f11d49eb85dfd9ed74e9295fe184"
+    },
+    {
+      "path": "nesting-products/RL-one-agentic-before.receipt.json",
+      "bytes": 7910,
+      "sha256": "a5e5cadbe73251f54e6d737577ef24d58dd169c6a2aa8e2554fcf78d1716b505"
+    },
+    {
+      "path": "nesting-products/RL-one-agentic-before.svg",
+      "bytes": 4131,
+      "sha256": "ae567a85c1630d9ddadccef937e9e34b8548d33ed6b2cf9319b06fd14010ed51"
+    },
+    {
+      "path": "nesting-products/RL-one-elk-after.layout.json",
+      "bytes": 2957,
+      "sha256": "664d666da915ee7e02018d469e5f1f330a842fb05d08020649c819ecf383ff76"
+    },
+    {
+      "path": "nesting-products/RL-one-elk-after.png",
+      "bytes": 9006,
+      "sha256": "4d979ee8404c977d7896b759da556e949b21a5a9bf2a1e98eb32170493825f08"
+    },
+    {
+      "path": "nesting-products/RL-one-elk-after.receipt.json",
+      "bytes": 7896,
+      "sha256": "eb5b226b92ca54d50c89e55d9ee2712433c56d713093752ec13974c218efdce6"
+    },
+    {
+      "path": "nesting-products/RL-one-elk-after.svg",
+      "bytes": 4212,
+      "sha256": "0dfca894179c6fe87d3a898f285007338f824425c838c3c48b986de580431303"
+    },
+    {
+      "path": "nesting-products/TB-nested-agentic-after.layout.json",
+      "bytes": 3440,
+      "sha256": "4c3e21b2e64e1bbeafc4a20fb8deb915567256d9174a930725dd87ca8a895f63"
+    },
+    {
+      "path": "nesting-products/TB-nested-agentic-after.png",
+      "bytes": 20915,
+      "sha256": "7bce7b40c42348553725541955b722e8c6bca233e7aca88c4c29183a43108e3f"
+    },
+    {
+      "path": "nesting-products/TB-nested-agentic-after.receipt.json",
+      "bytes": 7915,
+      "sha256": "f8efdc4805f48b822d7f1acde5ac75a7a4ad0bcf6f257550a8966b4c7f48b18a"
+    },
+    {
+      "path": "nesting-products/TB-nested-agentic-after.svg",
+      "bytes": 5415,
+      "sha256": "564c5edd2d2749b005b46288180d53a852fe12790077dd434d4947ac851570fc"
+    },
+    {
+      "path": "nesting-products/TB-nested-agentic-before.layout.json",
+      "bytes": 3146,
+      "sha256": "e883a88e6f4647785733f9df47b921f46aad203c835b120f0b2d09c3b089bb72"
+    },
+    {
+      "path": "nesting-products/TB-nested-agentic-before.png",
+      "bytes": 16182,
+      "sha256": "e16eaa7c321949c444fa89ff8cfd967b562dc874e52de4c4d77fe6764af76845"
+    },
+    {
+      "path": "nesting-products/TB-nested-agentic-before.receipt.json",
+      "bytes": 7911,
+      "sha256": "0df6aed5aeb78170c72c3725863782d84d0ddae59880032d79453cb0e9ea5bba"
+    },
+    {
+      "path": "nesting-products/TB-nested-agentic-before.svg",
+      "bytes": 5381,
+      "sha256": "9e9b390df7f183f0a719177ea3e2992a56ebdde9c387d71496f9b0413ed3d566"
+    },
+    {
+      "path": "nesting-products/TB-nested-elk-after.layout.json",
+      "bytes": 3098,
+      "sha256": "e84bc390feee8d24b2ab432ff75af7fba87b39081ec147e3752c6f7778a41127"
+    },
+    {
+      "path": "nesting-products/TB-nested-elk-after.png",
+      "bytes": 21305,
+      "sha256": "b72ebe686a11f2417ca52b427687441c1b8f61b5538b01367a8e2351bc75b2be"
+    },
+    {
+      "path": "nesting-products/TB-nested-elk-after.receipt.json",
+      "bytes": 7891,
+      "sha256": "98afed85c14a90d1fe362249d43a2e52253f00e6072230818129b570af621c81"
+    },
+    {
+      "path": "nesting-products/TB-nested-elk-after.svg",
+      "bytes": 5344,
+      "sha256": "72e9541d26bc24470bf15ac0f1c445301c56481b3e0f75f1854e084f48e1ec46"
+    },
+    {
+      "path": "nesting-products/TB-one-agentic-after.layout.json",
+      "bytes": 2995,
+      "sha256": "642c23aa23ada9c6dbccd8d5a57d5effa961a2b7e6377bd9ce2528694c15254e"
+    },
+    {
+      "path": "nesting-products/TB-one-agentic-after.png",
+      "bytes": 11572,
+      "sha256": "fb00cfa85859efd9233ff3e297150f288615fdbda3d51afaecc9b2a62938e69d"
+    },
+    {
+      "path": "nesting-products/TB-one-agentic-after.receipt.json",
+      "bytes": 7910,
+      "sha256": "15baa7be85fe7efa401f0ac8fbfb72a5d190ad311106ed4acd0495dad288dadf"
+    },
+    {
+      "path": "nesting-products/TB-one-agentic-after.svg",
+      "bytes": 4179,
+      "sha256": "688072c5345ace25ebc223dd213e41577234c1856b578788e83a4bdc943d6128"
+    },
+    {
+      "path": "nesting-products/TB-one-agentic-before.layout.json",
+      "bytes": 2920,
+      "sha256": "2020982e6b711918a2eebca780f1f108cb78b965356cd7854e9be61b417c8a00"
+    },
+    {
+      "path": "nesting-products/TB-one-agentic-before.png",
+      "bytes": 8200,
+      "sha256": "6d450685141199d98b93206eafa721a7a48ee0c9cef64d8ac97686ec624b8fa9"
+    },
+    {
+      "path": "nesting-products/TB-one-agentic-before.receipt.json",
+      "bytes": 7910,
+      "sha256": "0ccf334711830431755dc6d983f2a03a3f77b64ab5815739a09c312e9166b02b"
+    },
+    {
+      "path": "nesting-products/TB-one-agentic-before.svg",
+      "bytes": 4130,
+      "sha256": "01534175d8f28ec46ae02e3a6a6649e4019ded5f442d9d2ccb87b0aaf46662c3"
+    },
+    {
+      "path": "nesting-products/TB-one-elk-after.layout.json",
+      "bytes": 3068,
+      "sha256": "26c1c65d00a7e67991c0dc1594bc01fef273c076a5dae74e153fa53f24ecdb35"
+    },
+    {
+      "path": "nesting-products/TB-one-elk-after.png",
+      "bytes": 11639,
+      "sha256": "262877c28c3994b01602a645030a9bd0cff1202df47395747d3a872ef4fcb6a4"
+    },
+    {
+      "path": "nesting-products/TB-one-elk-after.receipt.json",
+      "bytes": 7898,
+      "sha256": "a06a518500d7bc87a37d28fd745dd90fdd1732a612c6a9ec58a22575947d24f7"
+    },
+    {
+      "path": "nesting-products/TB-one-elk-after.svg",
+      "bytes": 4194,
+      "sha256": "9d3da09acc0d07f5922520354e025c50a0fd150e549bbaab99f27533d2c5d333"
+    }
+  ],
+  "source": "7257faa9299a69948645a7574e185300b7841f75"
+}

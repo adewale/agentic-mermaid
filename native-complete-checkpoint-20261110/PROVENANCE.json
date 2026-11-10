@@ -1,0 +1,19 @@
+{
+  "source": "7257faa9299a69948645a7574e185300b7841f75",
+  "baseline": "10253d29dba24554008fc61c178abcf7cc0a47cf",
+  "main": "e7cb05baa7f68154942a9ce9c6e9aaaee163dc94",
+  "final_source_hashes": {
+    "src/layout/native-nesting.ts": "6ab5c2ddbe8ccf759154ef1d861a30959d8a9ba054a8bc72ab6f8d594dd8f8c6",
+    "src/layout/agentic-layered-core.ts": "931166172754b5c0bbc6f92c20d554dfa1a35114465683b7940382d99af07bb6",
+    "src/layout/compound-boundary-routes.ts": "91fc06efb623ea22cf732bc7b0485cd3b801aaaf9740c811cf344a82779eee0b",
+    "src/layout/agentic-producer-core.ts": "3a4d6c3fd48f4877bfac9595d5cf786f9634f071318e4fda3e33062747b82365",
+    "src/layout/measured-graph-producer.ts": "20a98fe9bdf8514e02fabe94e47e8128955736e082189c7cb581647194c5dbe8",
+    "src/layout/agentic-compound-core.ts": "5aa8b607b03a63d07fda68c61e92db9d9670b593379b4a5662b17e97e744f275",
+    "src/swimlane/layout.ts": "dc39bbf47939a5f60c1ef38e668d009a6c2095a7938b44801f2051cdae8664ee",
+    "src/__tests__/agentic-layered.test.ts": "f8a6b789051ce8732e36e8a4796096d0558a4c0adee50220cfd1054c58a22b63",
+    "docs/design/system/layout-0.6-work-log.md": "21c8cce9e05195092da2ed21d2c7bebe93c362e837adccfa850a94fc6d04e60c"
+  },
+  "prior_broad_trial": "ce65ff5b65f8532509f3f7f4038d9fc95e63e015",
+  "profile_scope": "Frozen job overrides in perf; no performance change shipped; not claimed final-head timing.",
+  "scope": "Finite owner Native completion; no new automation or Trinity development; original caps/defaults/versions preserved."
+}
