@@ -1,0 +1,18 @@
+{
+  "source": "ff18d23eb2b25ffb84aa492170d4ef0005411b7e",
+  "recordedPrBase": "e7cb05baa7f68154942a9ce9c6e9aaaee163dc94",
+  "liveMain": "4260292397d4bca7624a30c34649eb943a5f8e0c",
+  "sourcePush": "verified",
+  "pushRun": {
+    "id": 42898061847,
+    "name": "Action pinning",
+    "conclusion": "success"
+  },
+  "fullCI": "not run for this head; PR remains conflicted/draft",
+  "localAffectedSuite": {
+    "passed": 1089,
+    "failed": 1,
+    "remainingFailure": "pre-existing Sparse32 emitted proof budget"
+  },
+  "archiveSHA256": "d20a213f86589fcc73893b15ce1f7df4541361cf5d9409370a0334c17a6c97f5"
+}

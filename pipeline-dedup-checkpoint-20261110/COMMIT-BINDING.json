@@ -1,0 +1,15 @@
+{
+  "source": "ff18d23eb2b25ffb84aa492170d4ef0005411b7e",
+  "parent": "c3dc4630881bd904ed08c7d2a8696c248e684146",
+  "prBase": "e7cb05baa7f68154942a9ce9c6e9aaaee163dc94",
+  "pr": 602,
+  "runtime": {
+    "src/scene/native-paint-emission.ts": "840dbfb85056c23048014b7f7aa3c2ba1caf497b4337e484a85c78a1e08de43d",
+    "src/scene/svg-writer.ts": "5f293cf7ad189eaef7d9b9090b0a16d114abb661ae3e8a43acdebfd5d019041e",
+    "src/scene/emission-context.ts": "720e3252a393d13329c227236fb6e2ec3c097089ef15e2f9fbd1b6eb12b261f9",
+    "src/scene/marker-resources.ts": "791ffe2dbd15e7a11bde4317a148e7330f4bce7cee38acbe4cefb2fecb175f07",
+    "src/scene/group-emission.ts": "170e8a76a312d0c7c5667d6037949351937b9033f81e6f1e33fcfdbc089c95ab"
+  },
+  "browserDelivery": "qualification/browser-final-flat/BROWSER-COMPLETED.json",
+  "qualifiedScope": "Final flat-record source; source commit adds brief work log only after runtime qualification; no backend/default/version change."
+}
