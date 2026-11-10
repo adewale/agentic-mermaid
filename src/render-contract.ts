@@ -1344,12 +1344,14 @@ function prepareOptionStyle(admitted: AdmittedRenderOptions): PreparedOptionStyl
   const revision = styleRegistryRevision()
   if (revision !== preparedOptionsRevision) { preparedOptions.clear(); preparedOptionsRevision = revision }
   const candidate = admitted.serializable as Readonly<Record<string, unknown>>
+  // JSON serialization drops callable/symbol leaves and can invoke toJSON on
+  // them. Reject non-JSON data before deriving a key or dispatching a family.
+  const admissionProblems = renderOptionsAdmissionMessages(candidate)
+  if (admissionProblems.length) throw new RenderConfigError(`Invalid RenderOptions: ${admissionProblems.join('; ')}`)
   const serialized = JSON.stringify(candidate)
   const key = serialized.length <= 4096 ? serialized : undefined
   const previous = key === undefined ? undefined : preparedOptions.get(key)
   if (previous) return previous
-  const admissionProblems = renderOptionsAdmissionMessages(candidate)
-  if (admissionProblems.length) throw new RenderConfigError(`Invalid RenderOptions: ${admissionProblems.join('; ')}`)
   // Keep the established StyleInput error boundary ahead of option schema
   // failures. Only successful preparations can be reused by later requests.
   const resolved = immutableSnapshot(resolveStyleStackWithFace(admitted.serializable.style))

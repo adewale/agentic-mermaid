@@ -468,3 +468,39 @@ test('repeated option admission observes mutable values, callbacks and style reg
     expect(() => resolveRenderRequest(source, { font: 3 } as never)).toThrow(/font/)
   } finally { release() }
 })
+
+// Cache keys must preserve the JSON admission boundary: callable/symbol leaves
+// disappear during JSON serialization and can otherwise alias valid options.
+test('option preparation rejects non-JSON leaves before keys or family callbacks', async () => {
+  const { getFamily, replaceFamilyForTest } = await import('../agent/families.ts')
+  const original = getFamily('flowchart')!
+  const source = 'flowchart LR\nA[admission] --> B[boundary]'
+  let normalizations = 0, jsonHookReads = 0
+  const restore = replaceFamilyForTest('flowchart', {
+    ...original,
+    normalizeRequest(context) {
+      normalizations++
+      // A family can ignore unknown input while preserving its known fields.
+      // Shared admission must reject it before this callback is dispatched.
+      const renderOptions = Object.fromEntries(Object.entries(context.renderOptions).filter(([key]) => key !== 'unexpected'))
+      return original.normalizeRequest!({ ...context, renderOptions })
+    },
+  })
+  const callable = () => 1
+  Object.defineProperty(callable, 'toJSON', { get() { jsonHookReads++; return () => undefined } })
+  try {
+    resolveRenderRequest(source, { font: 'Inter' })
+    normalizations = 0
+    for (const unexpected of [() => 1, Symbol('invalid option'), callable]) {
+      expect(() => resolveRenderRequest(source, { font: 'Inter', unexpected } as never)).toThrow(/Invalid RenderOptions:.*must be a JSON value/)
+    }
+    expect(normalizations).toBe(0)
+    expect(jsonHookReads).toBe(0)
+    resolveRenderRequest(source, { font: 'Inter', mermaidConfig: { auditValue: null } })
+    normalizations = 0
+    for (const auditValue of [Number.NaN, Number.POSITIVE_INFINITY, Number.NEGATIVE_INFINITY]) {
+      expect(() => resolveRenderRequest(source, { font: 'Inter', mermaidConfig: { auditValue } })).toThrow(/Invalid RenderOptions:.*must be a finite number/)
+    }
+    expect(normalizations).toBe(0)
+  } finally { restore() }
+})
