@@ -110,8 +110,11 @@ export function renderSequenceDiagramTerminal(input: SequenceDiagram, config: As
     return { x, width: Math.max(from, to, labelX + width - 1) - x + 1 }
   })
   const noteSpans = diagram.notes.map((note, index) => {
-    const width = Math.max(0, ...noteLines[index]!.map(visualWidth)) + 4
     const first = llX[actorIndex.get(note.actorIds[0]!) ?? 0]!, last = llX[actorIndex.get(note.actorIds.at(-1)!) ?? 0]!
+    // An over-note's addressed lifelines are part of its geometry, even when
+    // the caption is short. Centering a text-sized box between them loses its
+    // visible owners; include both endpoints and all intervening lifelines.
+    const width = Math.max(Math.max(0, ...noteLines[index]!.map(visualWidth)) + 4, note.position === 'over' ? Math.abs(last - first) + 3 : 0)
     const x = note.position === 'left' ? first - width - 1 : note.position === 'right' ? first + 2 : Math.floor((first + last) / 2) - Math.floor(width / 2)
     return { x: Math.max(0, x), width }
   })

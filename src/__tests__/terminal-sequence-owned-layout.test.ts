@@ -23,6 +23,20 @@ const bottom = (region: TerminalRegion) => region.canvasRow + (region.rowSpan ??
 const right = (region: TerminalRegion) => region.canvasColEnd
 
 describe('Sequence terminal ordered ownership and measured fragment bounds', () => {
+  for (const useAscii of [false, true]) for (const endpoints of ['A,C', 'C,A']) test(`over-notes span their addressed lifelines (${endpoints}, ascii=${useAscii})`, () => {
+    const { output, region, doc } = render(`A->>C: hello\nloop owned\nNote over ${endpoints}: 短<br/>note\nend\nC->>A: done`, useAscii)
+    const note = region('note:0')
+    for (const id of ['A', 'B', 'C']) {
+      const actor = region(id), center = (actor.canvasColStart + actor.canvasColEnd) / 2
+      expect(note.canvasColStart).toBeLessThan(center)
+      expect(note.canvasColEnd).toBeGreaterThan(center)
+    }
+    expect(region('message:1').canvasRow).toBeGreaterThan(bottom(note))
+    expect(note.parentId).toBe('block:0')
+    expect(note.projectedText).toBe('短\nnote')
+    expect(output).toContain('note')
+    expect(doc.diagnostics.filter(item => item.code === 'TERMINAL_TEXT_COLLISION')).toEqual([])
+  })
   test('parallel overlays share rows for independent branches and join below their complete owned ink', () => {
     const { output, doc, region, block } = render('participant D\npar_over Independent\nA->>B: first\nA->>B: longest\nand Other\nC->>D: second\nend\nA->>D: joined')
     const lines = output.split('\n')
