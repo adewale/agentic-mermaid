@@ -43,30 +43,70 @@ describe('typed Scene SVG writer', () => {
     expect(zero).toBe(source + '\n')
   })
 
-  test.each([
-    { name: 'stable', values: ['ABC', 'ABC', 'ABC', 'ABC', 'ABC', 'ABC', 'ABC', 'ABC'], expected: '  ABC' },
-    { name: 'changing characters', values: ['ABC', 'ABC', 'XBC', 'ABC', 'AYC', 'ABC', 'ABZ', 'ABC'], expected: '  XYZ' },
-    { name: 'shorter length', values: ['ABC', 'A', 'A', ''], expected: '  A' },
-    { name: 'longer length', values: ['A', 'ABC', 'ABC', 'ABC', 'ABC', 'ABC', 'ABC', 'ABC'], expected: '  ABC' },
-    { name: 'line break', values: ['A\nC', 'A\nC', 'A\nC', 'A\nC', 'A\nC', 'A\nC', 'A\nC', 'A\nC'], expected: '  A\n  C' },
-  ])('private indentation preserves foreign record getter observations: $name', ({ values, expected }) => {
-    const capture = createSvgXmlCapture(() => true), source = {}, freeze = Object.getOwnPropertyDescriptor(Object, 'freeze')!
-    const reads: string[] = []
-    let actual = ''
+  test('private XML packets are not exposed to ambient construction hooks', () => {
+    const freeze = Object.getOwnPropertyDescriptor(Object, 'freeze')!, create = Object.getOwnPropertyDescriptor(Object, 'create')!, assign = Object.getOwnPropertyDescriptor(Object, 'assign')!
+    let calls = 0, actual = ''
+    try {
+      for (const [name, descriptor] of [['freeze', freeze], ['create', create], ['assign', assign]] as const) Object.defineProperty(Object, name, { ...descriptor, value(...args: unknown[]) {
+        calls++
+        return Reflect.apply(descriptor.value, Object, args)
+      } })
+      const capture = createSvgXmlCapture(() => true)
+      const write = capture.raw('ABC', {})
+      expect<object | undefined>(capture.read(write)).toBe(write)
+      expect(Object.getPrototypeOf(write)).toBeNull()
+      expect(Object.isFrozen(write)).toBe(true)
+      actual = capture.indent(write, 2).svg
+    } finally {
+      Object.defineProperty(Object, 'freeze', freeze)
+      Object.defineProperty(Object, 'create', create)
+      Object.defineProperty(Object, 'assign', assign)
+    }
+    expect(actual).toBe('  ABC')
+    expect(calls).toBe(0)
+  })
+
+  test('sealing hooks installed before import cannot replace private XML bytes or positions', async () => {
+    const source = marks.shape({ id: 'private-packet', role: 'node', geometry: { kind: 'rect', x: 1, y: 1, width: 2, height: 2 }, paint: { fill: '#111' } })
+    const freeze = Object.getOwnPropertyDescriptor(Object, 'freeze')!
+    let attempts = 0, actual = '', accepted = false
     try {
       Object.defineProperty(Object, 'freeze', { ...freeze, value(value: object) {
-        if (Object.getOwnPropertyDescriptor(value, 'node')?.value === source) return new Proxy(value, { get(target, key, receiver) {
-          if (key !== 'svg') return Reflect.get(target, key, receiver)
-          const result = values[reads.length] ?? values.at(-1)!
-          reads.push(result)
-          return result
-        } })
+        if (value && (Object.hasOwn(value, 'svg') && Object.hasOwn(value, 'node') || Object.hasOwn(value, 'skeleton') && Object.hasOwn(value, 'occupied'))) {
+          attempts++
+          Reflect.set(value, 'svg', '<forged>')
+          const occupied = Reflect.get(value, 'occupied')
+          if (occupied) Reflect.set(occupied, 'length', 0)
+        }
         return Reflect.apply(freeze.value, Object, [value])
       } })
-      actual = capture.indent(capture.raw('ABC', source), 2).svg
+      const modulePath = '../scene/svg-writer.ts?private-packet-sealing-owner'
+      const fresh = await import(modulePath) as typeof import('../scene/svg-writer.ts')
+      const capture = fresh.createSvgXmlCapture(() => true)
+      const whole = capture.join([capture.raw('<svg xmlns="http://www.w3.org/2000/svg">'), fresh.writeShapeSvg(source, undefined, capture), capture.raw('</svg>')], '')
+      actual = capture.read(whole)!.svg
+      accepted = capture.verify(whole)
     } finally { Object.defineProperty(Object, 'freeze', freeze) }
-    expect(actual).toBe(expected)
-    expect<readonly string[]>(reads).toEqual(values)
+    expect(attempts).toBe(0)
+    expect(actual).toContain('data-id="private-packet"')
+    expect(verifySvgDocumentEnvelope(actual)).toBe(true)
+    expect(accepted).toBe(true)
+  })
+
+  test('generic indentation keeps non-string helper operands out of the primitive fast path', () => {
+    const capture = createSvgXmlCapture(() => true)
+    const repeat = Object.getOwnPropertyDescriptor(String.prototype, 'repeat')!, replace = Object.getOwnPropertyDescriptor(String.prototype, 'replace')!
+    let opaque: SvgXmlWrite
+    try {
+      Object.defineProperty(String.prototype, 'repeat', { ...repeat, value: () => 1 })
+      Object.defineProperty(String.prototype, 'replace', { ...replace, value: () => 2 })
+      opaque = capture.indent(capture.raw('x'), { valueOf: () => 2 } as unknown as number)
+    } finally {
+      Object.defineProperty(String.prototype, 'repeat', repeat)
+      Object.defineProperty(String.prototype, 'replace', replace)
+    }
+    expect(opaque!.svg as unknown).toBe(3)
+    expect(capture.indent(opaque!, 2).svg).toBe('  ')
   })
 
   test('proves prepared text only when no opaque fragment can introduce fallback text', () => {
@@ -215,6 +255,67 @@ describe('typed Scene SVG writer', () => {
     const canonical = canonicalizeSceneNodeSerialization(authored)
     expect(canonical).toBe('<svg xmlns="http://www.w3.org/2000/svg" width="3" height="2" viewBox="0 0 3 2">')
     expect(canonical).not.toBe(authored)
+  })
+
+  test.each(['freeze-roster', 'replace-fact'] as const)('private XML insertion positions survive an ambient %s hook', attack => {
+    const capture = createSvgXmlCapture(() => true)
+    const freeze = Object.getOwnPropertyDescriptor(Object, 'freeze')!
+    const set = Object.getOwnPropertyDescriptor(WeakMap.prototype, 'set')!
+    const compose = () => {
+      const shape = writeShapeSvg(marks.shape({ id: 'bad--comment', role: 'node',
+        geometry: { kind: 'rect', x: 1, y: 1, width: 2, height: 2 }, paint: { fill: '#111' } }), undefined, capture)
+      return capture.join([capture.raw('<svg xmlns="http://www.w3.org/2000/svg"><!--'), shape, capture.raw('--></svg>')], '')
+    }
+    let actual = '', accepted = true, whole = attack === 'freeze-roster' ? compose() : undefined
+    try {
+      if (attack === 'freeze-roster') Object.defineProperty(Object, 'freeze', { ...freeze, value(value: object) {
+        if (Object.getOwnPropertyDescriptor(value, 'length')?.writable === true) Reflect.set(value, 'length', 0)
+        return Reflect.apply(freeze.value, Object, [value])
+      } })
+      else Object.defineProperty(WeakMap.prototype, 'set', { ...set, value(this: WeakMap<object, unknown>, key: object, value: { capture?: unknown; projection?: unknown }) {
+        if (value?.capture === capture) value.projection = { skeleton: '<svg xmlns="http://www.w3.org/2000/svg"></svg>', occupied: { length: 0 } }
+        return Reflect.apply(set.value, this, [key, value])
+      } })
+      whole ??= compose()
+      actual = capture.read(whole)!.svg
+      accepted = capture.verify(whole)
+    } finally {
+      Object.defineProperty(Object, 'freeze', freeze)
+      Object.defineProperty(WeakMap.prototype, 'set', set)
+    }
+    expect(actual).toContain('bad--comment')
+    expect(verifySvgDocumentEnvelope(actual)).toBe(false)
+    expect(accepted).toBe(false)
+  })
+
+  test('the final XML parser owns raw chunk boundaries and typed insertion positions', () => {
+    const root = '<svg xmlns="http://www.w3.org/2000/svg">'
+    const bodies = ['<g data-name="a &amp; b">😀</g>', '<!-- comment -->', '<g>]]&gt;</g>',
+      '<g xmlns:x="urn:x" x:a="1" />', '<g>before &amp; after</g>', '<g>&bad;</g>',
+      '<g data-name="unterminated>', '<g>]]></g>', '<g>\ud800</g>']
+    for (const body of bodies) {
+      const source = root + body + '</svg>'
+      const valid = verifySvgDocumentEnvelope(source)
+      for (let split = root.length; split <= root.length + body.length; split++) {
+        const capture = createSvgXmlCapture(() => true)
+        const empty = capture.raw('')
+        const chunks = capture.join([capture.raw(source.slice(0, split)), empty, capture.raw(source.slice(split))], '')
+        expect(capture.read(chunks)!.svg).toBe(source)
+        expect(capture.verify(chunks)).toBe(valid)
+        const typed = writeShapeSvg(marks.shape({ id: 'inserted', role: 'node',
+          geometry: { kind: 'rect', x: 1, y: 1, width: 2, height: 2 }, paint: { fill: '#111' } }), undefined, capture)
+        const inserted = capture.join([capture.raw(source.slice(0, split)), typed, capture.raw(source.slice(split))], '')
+        if (capture.verify(inserted)) {
+          const actual = capture.read(inserted)!.svg
+          expect(verifySvgDocumentEnvelope(actual)).toBe(true)
+          let parsed = true
+          const parser = new SaxesParser({ xmlns: true })
+          parser.on('error', () => { parsed = false })
+          try { parser.write(actual).close() } catch { parsed = false }
+          expect(parsed).toBe(true)
+        }
+      }
+    }
   })
 
   test('actual XML construction preserves malformed raw context, scalars and empty boundaries', () => {

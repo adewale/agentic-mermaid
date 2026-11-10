@@ -26,10 +26,78 @@ import { admitSceneDocument } from '../scene/external-data-snapshot.ts'
 import { createSceneWriteCapture } from '../scene/serialization.ts'
 import { DefaultBackend } from '../scene/backend.ts'
 import { inspectScenePaintGeometry } from '../scene/inspection.ts'
-import { MAX_OCCLUSION_OPERATIONS } from '../scene/native-paint-emission.ts'
+import { MAX_OCCLUSION_OPERATIONS, createNativePaintEmission } from '../scene/native-paint-emission.ts'
+import { writeTextSvg } from '../scene/svg-writer.ts'
 
 beforeAll(() => renderedTextReady())
 const typography = { fontSize: 18, fontWeight: 600 }
+
+it.each(['foreign-define', 'inherited-get', 'coercible-key'] as const)('retained text operands preserve fresh descriptor observations for %s', mode => {
+  const block = preparePixelText('slot', { fontSize: 14, fontWeight: 400 })
+  const node = marks.text({ id: 'slot-text', role: 'label', text: block.text, block, x: 20, y: 30, fontSize: 14, anchor: 'start', paint: { fill: '#111' } })
+  const emission = createNativePaintEmission(MAX_OCCLUSION_OPERATIONS)
+  const capture = () => emission.leaf(node, source => source.kind === 'text' ? emission.xml.raw(writeTextSvg(source), source) : '')
+  const define = Object.getOwnPropertyDescriptor(Object, 'defineProperty')!, names = Object.getOwnPropertyDescriptor(Object, 'getOwnPropertyNames')!
+  const has = Object.getOwnPropertyDescriptor(WeakSet.prototype, 'has')!, originalGet = Object.getOwnPropertyDescriptor(Object.prototype, 'get')
+  const span = block.prepared.lines[0]![0]!.clusters![0]!
+  const observations: string[][] = [], descriptors: object[] = [], receivers: object[] = [], owners: unknown[] = []
+  let installed = false, attack = false
+  const installGet = () => {
+    if (installed) return
+    installed = true
+    Reflect.apply(define.value, Object, [Object.prototype, 'get', { configurable: true, get(this: object) {
+      observations.push(Reflect.apply(names.value, Object, [this]))
+      Reflect.deleteProperty(Object.prototype, 'get')
+      return undefined
+    } }])
+  }
+  try {
+    capture()
+    if (mode === 'coercible-key') {
+      const key = { [Symbol.toPrimitive]() { if (attack) installGet(); return 'text' } }
+      Reflect.apply(define.value, Object, [Object, 'getOwnPropertyNames', { ...names, value(value: object) {
+        return value === span ? [key, 'sourceStart', 'sourceEnd'] : Reflect.apply(names.value, Object, [value])
+      } }])
+    }
+    capture()
+    Reflect.apply(define.value, Object, [Object, 'getOwnPropertyNames', names])
+    if (mode === 'foreign-define') Reflect.apply(define.value, Object, [Object, 'defineProperty', { ...define, value(this: unknown, target: Record<string, unknown>, key: PropertyKey, descriptor: PropertyDescriptor) {
+      if (key === 'sourceStart' && target.text === 'slot') {
+        observations.push(Reflect.apply(names.value, Object, [descriptor]))
+        descriptors.push(descriptor); receivers.push(target); owners.push(this)
+      }
+      return Reflect.apply(define.value, this, [target, key, descriptor])
+    } }])
+    if (mode === 'inherited-get') Reflect.apply(define.value, Object, [WeakSet.prototype, 'has', { ...has, value(this: WeakSet<object>, value: object) {
+      if (value === span) installGet()
+      return Reflect.apply(has.value, this, [value])
+    } }])
+    attack = true
+    const captured = capture()
+    expect(observations.length).toBeGreaterThan(0)
+    expect(observations.every(keys => keys.join(',') === 'value,enumerable,configurable,writable')).toBe(true)
+    if (mode === 'foreign-define') {
+      expect(new Set(descriptors).size).toBe(descriptors.length)
+      expect(new Set(receivers).size).toBe(receivers.length)
+      expect(owners.every(owner => owner === Object)).toBe(true)
+      expect(captured.node).not.toBe(node)
+    } else expect(captured.node).toBe(node)
+  } finally {
+    Reflect.deleteProperty(Object.prototype, 'get')
+    Reflect.apply(define.value, Object, [Object, 'defineProperty', define])
+    Reflect.apply(define.value, Object, [Object, 'getOwnPropertyNames', names])
+    Reflect.apply(define.value, Object, [WeakSet.prototype, 'has', has])
+    if (originalGet) Reflect.apply(define.value, Object, [Object.prototype, 'get', originalGet])
+  }
+  const first = capture().node, second = capture().node
+  expect(first).not.toBe(second)
+  if (first.kind !== 'text' || second.kind !== 'text') throw new Error('Expected text captures')
+  expect(first.block).not.toBe(block)
+  expect(first.block).not.toBe(second.block)
+  expect(first.block!.prepared.lines[0]![0]!.clusters![0]).not.toBe(second.block!.prepared.lines[0]![0]!.clusters![0])
+  expect(Object.getPrototypeOf(first.block)).toBe(Object.prototype)
+  expect(Object.getOwnPropertyDescriptor(first.block, 'prepared')).toMatchObject({ enumerable: true, writable: false, configurable: false })
+})
 
 it.each([
   'data-text-anchor="end" text-anchor="start"',

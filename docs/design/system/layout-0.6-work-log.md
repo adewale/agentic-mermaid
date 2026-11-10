@@ -1982,3 +1982,28 @@ core/repo types and lint pass. Constructor-held text-copy plans and lexical
 write facts are rejected: cold/retention cost and +1854–2318 proof operations,
 respectively. Evidence: `native-emission-reuse-20261110`. Remaining: repeated
 resource comparisons, capture exhaustion and the100ms full-response target.
+
+
+### 10 November — consolidate emission ownership and repair font proof
+
+Parent `c3dc4630881bd904ed08c7d2a8696c248e684146`. One immutable XML record
+now serves the write handle and read view; private projection state stays with
+its owner. Remove the boundary scan/cache and repeated private sealing, reuse
+existing text-plan descriptor operands, and share resource-cost rules with each
+consumer's original bounds/iteration. Private construction hooks cannot replace
+XML evidence; caller getter/coercion paths remain. Restore pinned group operands:
+pre-import sealing hooks falsely certified actual monospace text against Inter
+measurements. The named case changes false-pass→unverified/OUTPUT_SCOPE; all9
+SVGs stay exact. No layout/visible-output improvement is claimed.
+
+Final affected suite1089P,1 retained Sparse32 budget failure; core/repo types and
+lint pass. Frozen90:84 exact wholeSVGs,6 retained errors, no outcome transitions;
+57 receipts differ only in paid operation count. All13 browser inputs pass on
+Native/ELK/frozenTrinity. Native product gzip496644B(+61), Brotli425893B(−74);
+request counts unchanged49/43/50. Final fully consumed warm/edit ms: chain100
+158/141, fan100223/202, chain300368/319; cold379/574/561ms. Host variation and
+adverse costs prevent a speedup claim;100nodes<100ms remains unmet. Constructor
+recipes, private-method binding and generic descriptor reuse are rejected and
+retained outside the source diff. Evidence:`pipeline-dedup-20261110`. Remaining:
+Sparse32 exhaustion, distinct mutable-resource correspondence and writer work
+bounds; next substantive change needs producer-owned paid writing, not a cache.

@@ -24,6 +24,8 @@ import { MAX_OCCLUSION_OPERATIONS } from './paint-work.ts'
 
 // Fresh written facts must be sealed before ambient hooks can observe them.
 const writtenFactFreeze = Object.freeze, writtenFactDefine = Object.defineProperty, writtenFactSeal = Object.preventExtensions
+const xmlFactMap = WeakMap, xmlFactApply = Reflect.apply
+const xmlFactGet = WeakMap.prototype.get, xmlFactSet = WeakMap.prototype.set
 
 /** XML construction belongs to one actual writer transaction. Raw chunks and
  * cached bytes retain their full markup in the validation projection. */
@@ -42,10 +44,10 @@ export interface SvgXmlCapture {
   verify(write: SvgXmlWrite): boolean
 }
 interface XmlList<T> { length: number; [index: number]: T }
-function xmlList<T>(): XmlList<T> { const list = Object.create(null) as XmlList<T>; list.length = 0; return list }
+function xmlList<T>(): XmlList<T> { return { __proto__: null, length: 0 } as XmlList<T> }
 interface XmlProjection { readonly skeleton: string; readonly occupied: Readonly<ArrayLike<number>> }
-const EMPTY_XML_OCCUPIED: Readonly<ArrayLike<number>> = Object.freeze(Object.assign(Object.create(null), { length: 0 }))
-const OCCUPIED_XML_LEAF: XmlProjection = Object.freeze({ skeleton: ' ', occupied: Object.freeze(Object.assign(Object.create(null), { 0: 0, length: 1 })) })
+const EMPTY_XML_OCCUPIED = { __proto__: null, length: 0 } as Readonly<ArrayLike<number>>
+const OCCUPIED_XML_LEAF: XmlProjection = { skeleton: ' ', occupied: { __proto__: null, 0: 0, length: 1 } as Readonly<ArrayLike<number>> }
 // Proof reads use primitive indexing, including under hooks installed before
 // this module loads. No ambient String/RegExp method can rewrite the facts.
 function xmlRange(value: string, start: number, end = value.length): string {
@@ -71,18 +73,25 @@ interface XmlCaptureState {
   name(value: string): boolean
   prepared(): boolean
   project(write: SvgXmlWrite): boolean
-  boundary(value: string): boolean
   issue(svg: string, skeleton: string | (() => XmlProjectionResult), node?: object): SvgXmlWrite
+}
+// The actual handle is also its immutable read record. Only this private
+// registry owns the lazy validation state; caller hooks never see its entries.
+const xmlSlot = { __proto__: null, value: undefined as unknown, enumerable: true, writable: false, configurable: false }
+function pinXmlSlot(target: object, key: string, value: unknown): void {
+  xmlSlot.value = value
+  try { writtenFactDefine(target, key, xmlSlot) } finally { xmlSlot.value = undefined }
 }
 interface XmlWriteFact {
   readonly capture: SvgXmlCapture
   readonly record: SvgXmlWriteRecord
-  projection: string | (() => XmlProjectionResult) | XmlProjection
+  projection: string | (() => XmlProjectionResult) | XmlProjection | undefined
 }
-const xmlCaptures = new WeakMap<SvgXmlCapture, XmlCaptureState>()
-const xmlWrites = new WeakMap<SvgXmlWrite, XmlWriteFact>()
+const xmlCaptures = new xmlFactMap<SvgXmlCapture, XmlCaptureState>()
+const xmlWrites = new xmlFactMap<SvgXmlWrite, XmlWriteFact>()
+function xmlCaptureState(capture: SvgXmlCapture): XmlCaptureState | undefined { return xmlFactApply(xmlFactGet, xmlCaptures, [capture]) }
 export function createSvgXmlCapture(work: (operations: number) => boolean): SvgXmlCapture {
-  const names = new Map<string, boolean>(), attributes = new Map<string, boolean>(), texts = new Map<string, boolean>(), boundaries = new Map<string, boolean>()
+  const names = new Map<string, boolean>(), attributes = new Map<string, boolean>(), texts = new Map<string, boolean>()
   let exhausted = false
   const pay = (count: number): boolean => {
     if (exhausted || !Number.isSafeInteger(count) || count < 0 || work(count) !== true) { exhausted = true; return false }
@@ -90,55 +99,31 @@ export function createSvgXmlCapture(work: (operations: number) => boolean): SvgX
   }
   let capture: SvgXmlCapture
   const issue = (svg: string, projection: string | (() => XmlProjectionResult), node?: object): SvgXmlWrite => {
-    pay(1)
-    const write = Object.freeze(Object.assign(Object.create(null), { svg })) as SvgXmlWrite
-    const record = Object.freeze(Object.assign(Object.create(null), { svg, node })) as SvgXmlWriteRecord
-    xmlWrites.set(write, { capture, record, projection })
+    const funded = pay(1)
+    const record = { __proto__: null, svg, node } as SvgXmlWriteRecord
+    pinXmlSlot(record, 'svg', svg); pinXmlSlot(record, 'node', node)
+    writtenFactSeal(record)
+    const write = record as unknown as SvgXmlWrite
+    xmlFactApply(xmlFactSet, xmlWrites, [write, { capture, record, projection: funded && typeof svg === 'string' ? projection : undefined }])
     return write
   }
   const factOf = (write: SvgXmlWrite): XmlWriteFact | undefined => {
     pay(1)
-    if (typeof write !== 'object' || write === null) return undefined
-    const found = xmlWrites.get(write)
-    return found?.capture === capture ? found : undefined
+    if (write === null || typeof write !== 'object') return undefined
+    const fact = xmlFactApply(xmlFactGet, xmlWrites, [write]) as XmlWriteFact | undefined
+    return fact?.capture === capture ? fact : undefined
   }
-  // Opaque fragments must finish their lexical tokens before a typed element
-  // can be substituted. Element nesting/namespaces stay with the final parser.
-  const boundary = (value: string): boolean => {
-    if (!pay(2)) return false
-    const retained = boundaries.get(value)
-    if (retained !== undefined) return retained
-    if (!pay(value.length * 2 + 2)) return false
-    let tag = false, reference = false, quote: '"' | "'" | undefined, valid = true
-    for (let i = 0; i < value.length; i++) {
-      const character = value[i]!
-      if (reference) { if (character === ';') reference = false; continue }
-      if (character === '&') { reference = true; continue }
-      if (!tag) {
-        if (character === '<') {
-          const next = i + 1 < value.length ? value[i + 1] : undefined
-          if (!next || next === '!' || next === '?') { valid = false; break }
-          tag = true
-        }
-      } else if (quote) {
-        if (character === quote) quote = undefined
-        else if (character === '<') { valid = false; break }
-      } else if (character === '"' || character === "'") quote = character
-      else if (character === '>') tag = false
-      else if (character === '<') { valid = false; break }
-    }
-    valid &&= !tag && !reference && quote === undefined
-    boundaries.set(value, valid)
-    return valid
-  }
+  // Raw fragments and separators remain verbatim. The final parser owns
+  // token boundaries across chunks; every substituted typed leaf must land
+  // in parsed DATA, never inside a tag, attribute, comment or reference.
   const projectFact = (fact: XmlWriteFact): XmlProjection | undefined => {
     if (!pay(2)) return undefined
     const pending = fact.projection
-    if (typeof pending === 'object') return pending
-    const projected = typeof pending === 'string' ? boundary(pending) ? pending : undefined : pending()
+    if (typeof pending === 'object' || pending === undefined) return pending
+    const projected = typeof pending === 'string' ? pending : pending()
     if (projected === undefined || exhausted) return undefined
     return fact.projection = typeof projected === 'string'
-      ? Object.freeze({ skeleton: projected, occupied: EMPTY_XML_OCCUPIED }) : projected
+      ? { skeleton: projected, occupied: EMPTY_XML_OCCUPIED } : projected
   }
   const literal = (value: string, attribute: boolean): boolean => {
     if (!pay(2)) return false
@@ -190,7 +175,7 @@ export function createSvgXmlCapture(work: (operations: number) => boolean): SvgX
     preparedChecked = true
     return true
   }
-  capture = Object.freeze(Object.assign(Object.create(null), {
+  capture = { __proto__: null,
     raw(svg: string, node?: object): SvgXmlWrite {
       if (typeof svg !== 'string') throw new TypeError('XML raw chunks require a string')
       return issue(svg, svg, node)
@@ -209,7 +194,7 @@ export function createSvgXmlCapture(work: (operations: number) => boolean): SvgX
         if (children) children[children.length++] = found
       }
       return issue(svg, children ? () => {
-        if (children.length > 1 && !boundary(separator) || !pay(1)) return undefined
+        if (!pay(1)) return undefined
         const occupied = xmlList<number>()
         let skeleton = ''
         for (let i = 0; i < children.length; i++) {
@@ -223,7 +208,7 @@ export function createSvgXmlCapture(work: (operations: number) => boolean): SvgX
           skeleton += checked.skeleton
         }
         if (!pay(children.length + skeleton.length + occupied.length + 2)) return undefined
-        return Object.freeze({ skeleton, occupied: Object.freeze(occupied) })
+        return { skeleton, occupied }
       } : svg)
     },
     indent(write: SvgXmlWrite, spaces: number): SvgXmlWrite {
@@ -237,18 +222,24 @@ export function createSvgXmlCapture(work: (operations: number) => boolean): SvgX
       // nonfinite errors and padding beyond the proof allowance keep the
       // established helper path, whose exact actual result remains raw.
       const padding = spaces !== spaces ? 0 : spaces - spaces % 1
-      let pad = '', svg = '', characters = 0
+      let pad = '', svg = '', start = 0
       for (let i = 0; i < padding; i++) pad += ' '
       svg = pad
-      let whole = typeof firstSvg === 'string'
-      for (let i = 0; i < found.record.svg.length; i++) {
-        const character = found.record.svg[i]!
-        if (whole && i < firstSvg.length && character === firstSvg[i] && (padding === 0 || character !== '\n')) { characters++; continue }
-        if (whole) { svg += xmlRange(firstSvg, 0, i); whole = false }
-        svg += character
-        if (character === '\n') svg += pad
+      if (typeof firstSvg === 'string') {
+        // A primitive packet is stable: one LF scan can append whole spans.
+        for (let i = 0; i < firstSvg.length; i++) if (firstSvg[i] === '\n') {
+          svg += xmlRange(firstSvg, start, i + 1) + pad; start = i + 1
+        }
+        svg += start === 0 ? firstSvg : xmlRange(firstSvg, start)
+      } else {
+        // Generic indentation helpers can return non-string operands. Keep
+        // their original repeated length/index/coercion observations.
+        for (let i = 0; i < found.record.svg.length; i++) {
+          const character = found.record.svg[i]!
+          svg += character
+          if (character === '\n') svg += pad
+        }
       }
-      if (whole) svg += characters === firstSvg.length ? firstSvg : xmlRange(firstSvg, 0, characters)
       return issue(svg, () => {
         if (!pay(1)) return undefined
         const checked = projectFact(found)
@@ -265,7 +256,7 @@ export function createSvgXmlCapture(work: (operations: number) => boolean): SvgX
           if (character === '\n') { if (!pay(padding)) return undefined; skeleton += pad }
         }
         if (!pay(occupied.length + 2)) return undefined
-        return Object.freeze({ skeleton, occupied: Object.freeze(occupied) })
+        return { skeleton, occupied }
       })
     },
     read(write: SvgXmlWrite, expectedNode?: object): SvgXmlWriteRecord | undefined {
@@ -280,23 +271,26 @@ export function createSvgXmlCapture(work: (operations: number) => boolean): SvgX
         ? verifySvgDocumentDataPositions(projected.skeleton, projected.occupied, pay)
         : verifySvgDocumentEnvelope(found.record.svg, pay)
     },
-  })) as SvgXmlCapture
-  xmlCaptures.set(capture, { pay, literal, name, prepared, boundary, issue, project(write) {
+  } as unknown as SvgXmlCapture
+  pinXmlSlot(capture, 'raw', capture.raw); pinXmlSlot(capture, 'join', capture.join)
+  pinXmlSlot(capture, 'indent', capture.indent); pinXmlSlot(capture, 'read', capture.read); pinXmlSlot(capture, 'verify', capture.verify)
+  writtenFactSeal(capture)
+  xmlFactApply(xmlFactSet, xmlCaptures, [capture, { pay, literal, name, prepared, issue, project(write: SvgXmlWrite) {
     const found = factOf(write)
     return !!found && projectFact(found) !== undefined
-  } })
+  } } satisfies XmlCaptureState])
   return capture
 }
 
 function finishXmlLeaf(capture: SvgXmlCapture, node: object, svg: string, xml: XmlLeafWrite | undefined, eligible = true, additional?: Readonly<ArrayLike<XmlLeafWrite>>, completion?: XmlLeafWrite): SvgXmlWrite {
-  const state = xmlCaptures.get(capture)
+  const state = xmlCaptureState(capture)
   if (!state) throw new TypeError('Unknown XML capture')
   // Empty output cannot insert a delimiter between adjacent raw text spans.
   return state.issue(svg, svg && eligible && xml ? () => {
     let valid = xml.check()
     for (let i = 0; valid && additional && i < additional.length; i++) valid = additional[i]!.check()
     if (valid && completion) markXmlLeafComplete(completion)
-    return valid ? OCCUPIED_XML_LEAF : state.boundary(svg) ? svg : undefined
+    return valid ? OCCUPIED_XML_LEAF : svg
   } : svg, node)
 }
 
@@ -427,7 +421,7 @@ class ActualTextPaintWrite implements SvgTextPaintWrite {
   }
   static close(value: unknown, capture: SvgXmlCapture): boolean {
     if (typeof value !== 'object' || value === null || !(#source in value) || value.#capture !== capture) return false
-    return xmlCaptures.get(capture)?.project(value.#write) === true && xmlLeafCompleted(value.#xml)
+    return xmlCaptureState(capture)?.project(value.#write) === true && xmlLeafCompleted(value.#xml)
   }
   static read(value: unknown, source: object, svg: string, capture?: SvgXmlCapture, write?: SvgXmlWrite): MarkPaint | undefined {
     if (typeof value !== 'object' || value === null || !(#source in value)) return undefined
@@ -481,7 +475,7 @@ class SvgWriter {
   readonly xml?: XmlLeafWrite
 
   constructor(capture?: SvgXmlCapture, text = false) {
-    const state = capture && xmlCaptures.get(capture)
+    const state = capture && xmlCaptureState(capture)
     if (state) { this.xml = new XmlLeafWrite(state); if (text) this.xml.element('text') }
   }
 
@@ -748,7 +742,7 @@ export function writeTextSvg(node: TextMark, capture?: SvgXmlCapture, sink?: Svg
   hooks(out, node.attributes)
   typographyAttributes(out, node)
   const report = capture && sink?.textPaint
-  const state = report && xmlCaptures.get(capture!)
+  const state = report && xmlCaptureState(capture!)
   let inheritedPaint = false
   let paintReceiver: MarkPaint
   if (state) out.observePaint = field => {

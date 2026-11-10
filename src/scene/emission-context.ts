@@ -7,7 +7,7 @@ import { isWellFormedSvgText } from '../output-security.ts'
 import { formatSvgNumber, formatSvgNumericAttribute } from '../shared/svg-number.ts'
 import { decodedSvgAttributeValue, scanSvgStartTags, svgClassHasTokenFresh, type SvgStartTagToken } from '../svg-structure.ts'
 import type { ConnectorMark, DocumentMark, MarkerDescriptor, SceneDoc, SceneNode, TextMark } from './ir.ts'
-import { serializeMarkerResource } from './marker-resources.ts'
+import { markerResourceMarkupCost, serializeMarkerResource } from './marker-resources.ts'
 import { parseSvgTransform, transformMatrix, type AffineMatrix } from './transforms.ts'
 import { writtenLeafContextOf } from './svg-writer.ts'
 import { decodeXML } from 'entities'
@@ -15,6 +15,7 @@ import { retainedGroupEmission, freshNativeGroupTags } from './group-emission.ts
 
 type Header = Pick<SceneDoc, 'width' | 'height' | 'colors'>
 const emissionContextFreeze = Object.freeze
+const contextWeakSet = WeakSet, contextHas = WeakSet.prototype.has, contextAdd = WeakSet.prototype.add, contextApply = Reflect.apply
 type Pay = (operations: number) => boolean
 export type EmissionColorResolver = (value: string) => string | undefined
 
@@ -28,6 +29,7 @@ export function createEmissionContext(pay: Pay, options: { resources?: boolean; 
   let needsVariables = false, needsDerivedVariables = false, canonicalStyles = 0, roots = 0
   let pagePrelude: DocumentMark | undefined, pageWidth: string | undefined, pageHeight: string | undefined
   const documents: Array<{ node: DocumentMark; svg: string }> = []
+  let nativeDefinitions: WeakSet<DocumentMark> | undefined
   const texts: Array<{ node: TextMark; svg: string }> = []
   const leaves: Array<{ node: SceneNode; svg: string }> = []
   const groups: Array<Extract<SceneNode, { kind: 'group' }>> = []
@@ -265,26 +267,6 @@ export function createEmissionContext(pay: Pay, options: { resources?: boolean; 
     }
     if (!/^[ \t\r\n]*<\/defs>[ \t\r\n]*$/.test(svg.slice(cursor))) uncertain = true
   }
-  const markupCost = (value: unknown, depth = 0): number | undefined => {
-    if (!reserve(1) || depth > 64) return undefined
-    if (typeof value === 'string') return value.length * 6 + 2
-    if (typeof value === 'number') return 32
-    if (!value || typeof value !== 'object') return 8
-    if (!reserve(1)) return undefined
-    const keys = Object.getOwnPropertyNames(value)
-    if (!reserve(keys.length)) return undefined
-    let cost = 64
-    for (const key of keys) {
-      if (!reserve(3)) return undefined
-      const descriptor = Object.getOwnPropertyDescriptor(value, key)
-      if (!descriptor || !Object.hasOwn(descriptor, 'value')) return undefined
-      const child = markupCost(descriptor.value, depth + 1)
-      if (child === undefined) return undefined
-      cost += key.length + 16 + child
-      if (!Number.isSafeInteger(cost)) return undefined
-    }
-    return cost
-  }
   const same = (left: unknown, right: unknown): boolean => {
     if (!reserve(1)) return false
     if (typeof left === 'string' && typeof right === 'string') return reserve(left.length + right.length) && left === right
@@ -301,6 +283,11 @@ export function createEmissionContext(pay: Pay, options: { resources?: boolean; 
   }
   return {
     requireTextPaintContext(): void { if (reserve(1)) hasTextPaintContext = true },
+    /** Called by Native's capture producer only for its actual readonly
+     * literal receiver. Foreign/mutable snapshots keep the full context path. */
+    capturedDefinition(node: DocumentMark): void {
+      if (options.resources === false && reserve(4)) contextApply(contextAdd, nativeDefinitions ??= new contextWeakSet(), [node])
+    },
     document(node: DocumentMark, svg: string): void {
       if (!reserve(3)) return
       if (node.element === 'open') {
@@ -434,6 +421,23 @@ export function createEmissionContext(pay: Pay, options: { resources?: boolean; 
         return Object.freeze({ uncertain: true, fractionalCircleContext: false, resolveColor: undefined })
       }
       for (const { node, svg } of documents) {
+        if (typeof svg === 'string' && nativeDefinitions && contextApply(contextHas, nativeDefinitions, [node])) {
+          if (!reserve(svg.length * 2 + 16)) break
+          // A negative check needs no attribute/tag inventory. Positive
+          // prefixes keep the complete existing CSS/directive path, including
+          // comments, malformed names and styles inside marker resources.
+          let prefix = -1, styleOrDirective = false
+          for (let index = 0; index < svg.length; index++) {
+            const character = svg[index]!
+            if (prefix === 0 && (character === '?' || character === '!')) { styleOrDirective = true; break }
+            if (character === '<') prefix = 0
+            else if (prefix >= 0) {
+              if (character !== 'style'[prefix]) prefix = -1
+              else if (++prefix === 5) { styleOrDirective = true; break }
+            }
+          }
+          if (!styleOrDirective) continue
+        }
         if (!reserve(svg.length * 8 + 128)) break
         if (svg.includes('<?') || svg.includes('<!')) { uncertain = true; continue }
         const tags = scanSvgStartTags(svg)
@@ -575,7 +579,7 @@ export function createEmissionContext(pay: Pay, options: { resources?: boolean; 
             if (!same(prior, marker)) uncertain = true
             continue
           }
-          const cost = markupCost(marker)
+          const cost = markerResourceMarkupCost(marker, reserve, { maxCost: undefined, maxDepth: 64, iterableKeys: true })
           if (cost === undefined || !reserve(cost * 2)) { uncertain = true; break }
           try {
             const expected = serializeMarkerResource(marker, { indent: 0 }).replace(/(^|\n)[ \t]+(?=<)/g, '$1')

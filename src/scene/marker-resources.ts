@@ -9,6 +9,35 @@ export interface MarkerSerializationOptions {
   readonly indent?: number
 }
 
+/** Prepay resource serialization from one own-data inventory. The two
+ * consumers retain their existing bounds and key-iteration observations. */
+export function markerResourceMarkupCost(value: unknown, pay: (operations: number) => boolean,
+  limits: { readonly maxCost: number | undefined; readonly maxDepth: number | undefined; readonly iterableKeys: boolean }, depth = 0): number | undefined {
+  if (!pay(1) || limits.maxDepth !== undefined && depth > limits.maxDepth) return undefined
+  if (typeof value === 'string') return value.length * 6 + 2
+  if (typeof value === 'number') return 32
+  if (!value || typeof value !== 'object') return 8
+  if (!pay(1)) return undefined
+  const keys = Object.getOwnPropertyNames(value)
+  if (!pay(keys.length)) return undefined
+  let cost = 64
+  const visit = (key: string): boolean => {
+    if (!pay(3)) return false
+    const descriptor = Object.getOwnPropertyDescriptor(value, key)
+    if (!descriptor || !Object.hasOwn(descriptor, 'value')) return false
+    const child = markerResourceMarkupCost(descriptor.value, pay, limits, depth + 1)
+    if (child === undefined) return false
+    cost += key.length + 16 + child
+    return !(!Number.isSafeInteger(cost) || limits.maxCost !== undefined && cost > limits.maxCost)
+  }
+  if (limits.iterableKeys) {
+    for (const key of keys) if (!visit(key)) return undefined
+  } else {
+    for (let index = 0; index < keys.length; index++) if (!visit(keys[index]!)) return undefined
+  }
+  return cost
+}
+
 /** For families whose triangular arrow tip must coincide with the route end.
  * The endpoint determines geometry, reference and orientation together; callers
  * cannot reverse the polygon and SVG orientation independently. Other marker
