@@ -35,8 +35,8 @@ const MAX_WEIGHT = 2 * 1024 * 1024
 const MAX_SCOPE_WEIGHT = 4 * 1024 * 1024
 let pressureAdmissions = 0
 
-function rememberCurrent(record: StoredWrittenTag): void {
-  if (!current || record.weight > MAX_SCOPE_WEIGHT || current.tags.has(record.bytes)) return
+function rememberCurrent(record: StoredWrittenTag, absent = false): void {
+  if (!current || record.weight > MAX_SCOPE_WEIGHT || !absent && current.tags.has(record.bytes)) return
   current.tags.set(record.bytes, record)
   current.weight += record.weight
   while (current.tags.size > 8192 || current.weight > MAX_SCOPE_WEIGHT) {
@@ -47,9 +47,13 @@ function rememberCurrent(record: StoredWrittenTag): void {
 }
 
 export function writtenTagOf(tag: string): WrittenTag | undefined {
+  const scoped = current?.tags.get(tag)
+  if (scoped) return scoped
   const record = tags.get(tag)
-  if (record) rememberCurrent(record)
-  return record ?? current?.tags.get(tag)
+  // The execution lookup already proved absence. Repeated writer/projection/
+  // admission reads need neither a global lookup nor another promotion check.
+  if (record) rememberCurrent(record, true)
+  return record
 }
 
 export function retainWrittenTag(tag: string, evidence: WrittenTag): void {
