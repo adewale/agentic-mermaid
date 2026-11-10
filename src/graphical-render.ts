@@ -1,3 +1,4 @@
+import { withWrittenSvgSecurity } from './svg-writer-evidence.ts'
 // Internal resolved-request + positioned-artifact graphical execution.
 //
 // This module is intentionally absent from every public package barrel. It is
@@ -7,6 +8,8 @@
 
 import './scene/default-backend.ts'
 
+import { isOriginalEnrolledDefaultBackend } from './scene/backend.ts'
+import { isOwnedFamily } from './experimental/owned-family.ts'
 import { compactSvg, formatSvgNumbers, namespaceSvgIds } from './svg-postprocess.ts'
 import { fitUncalibratedSvgText } from './custom-font-geometry.ts'
 import type { FamilyLayoutResult } from './agent/families.ts'
@@ -26,7 +29,7 @@ import {
   type RenderRequestReceipt,
   type ResolvedRenderRequest,
 } from './render-contract.ts'
-import { applyOutputSecurityPolicy } from './output-security.ts'
+import { applyOutputSecurityPolicy, applyWrittenOutputSecurityPolicy } from './output-security.ts'
 import type { OutputSecurityDiagnostic } from './output-security.ts'
 import { replaceSvgRootStartTag, svgAttribute, svgRootStartTag } from './svg-structure.ts'
 import { scopeSvgStyles } from './svg-style-scope.ts'
@@ -143,8 +146,10 @@ export function renderPositionedMermaidSVG(
   securityDiagnostics: OutputSecurityDiagnostic[],
   capture?: ScenePartCapture,
 ): ResolvedGraphicalExecution {
-  return withTextMeasurementExecution(resolvedRenderExecutionPlanOf(request).textMeasurement, () =>
-    renderPositionedWithTextMeasurement(request, layout, securityDiagnostics, capture))
+  const plan = resolvedRenderExecutionPlanOf(request)
+  const written = isOwnedFamily(plan.family) && isOriginalEnrolledDefaultBackend(plan.backend?.backend)
+  return withTextMeasurementExecution(plan.textMeasurement, () => withWrittenSvgSecurity(written, () =>
+    renderPositionedWithTextMeasurement(request, layout, securityDiagnostics, capture)))
 }
 
 function renderPositionedWithTextMeasurement(
@@ -218,7 +223,8 @@ function renderPositionedWithTextMeasurement(
   // security intent, while no native/WASM/browser rasterizer can receive a
   // fetching reference from a conditional host backend.
   const outputSecurity = request.output === 'png' ? 'strict' : effectiveOptions.security
-  const secured = measureRenderStage('svg-security', () => applyOutputSecurityPolicy(svg, outputSecurity))
+  const securityPolicy = isOwnedFamily(family) && isOriginalEnrolledDefaultBackend(executionPlan.backend?.backend) ? applyWrittenOutputSecurityPolicy : applyOutputSecurityPolicy
+  const secured = measureRenderStage('svg-security', () => securityPolicy(svg, outputSecurity))
   securityDiagnostics.push(...secured.diagnostics)
   svg = secured.svg
   assertFinalSvgByteBudget(svg, 'final SVG output')

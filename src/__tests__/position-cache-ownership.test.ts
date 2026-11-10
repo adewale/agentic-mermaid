@@ -3,6 +3,52 @@ import { useTestChildren } from './helpers/test-child.ts'
 
 const runChild = useTestChildren(20_000)
 
+test('copied native snapshots skip drawing and certification replay without exposing cached geometry', async () => {
+  const child = await runChild(process.execPath, ['-e', `
+    import assert from 'node:assert/strict'
+    import { spyOn } from 'bun:test'
+    import * as drawing from './src/scene/native-drawing.ts'
+    import * as paint from './src/scene/paint-certification.ts'
+    import { renderMermaidSVGWithReceipt as render } from './src/index.ts'
+    import { layoutMermaidWithReceipt } from './src/agent/index.ts'
+    import { resolveRenderRequestForExecution } from './src/render-contract.ts'
+    import { positionFamilyForNativeRender, positionedForSceneLowering } from './src/positioning.ts'
+    const draw = spyOn(drawing, 'drawNative'), certify = spyOn(paint, 'certifyNativePaint')
+    const cases = [
+      ['classDiagram', 'StageClassA --> StageClassB'],
+      ['erDiagram', 'STAGE_OWNER ||--o{ STAGE_ITEM : owns'],
+      ['packet-beta', '0-7: "Stage packet"'],
+    ]
+    const options = { embedFontImport: false }
+    for (const lines of cases) {
+      const source = lines.join(String.fromCharCode(10))
+      const before = draw.mock.calls.length
+      const expected = render(source, options)
+      assert.deepEqual(render(source, options), expected)
+      assert.equal(draw.mock.calls.length, before + 2)
+      const drawn = draw.mock.calls.length, certified = certify.mock.calls.length
+      for (let repeat = 0; repeat < 3; repeat++) assert.deepEqual(render(source, options), expected)
+      assert.equal(draw.mock.calls.length, drawn, 'warm render rebuilt drawing: ' + lines[0])
+      assert.equal(certify.mock.calls.length, certified, 'warm render repeated certification: ' + lines[0])
+      const exposed = layoutMermaidWithReceipt(source, options)
+      exposed.layout.nodes.length = 0
+      const layout = positionFamilyForNativeRender(resolveRenderRequestForExecution(source, options, 'svg'))
+      const sceneInput = positionedForSceneLowering(layout)
+      assert.notEqual(sceneInput, layout.positioned)
+      for (const key of Object.keys(sceneInput)) delete sceneInput[key]
+      assert.deepEqual(render(source, options), expected)
+      const beforeControl = draw.mock.calls.length, certificationBeforeControl = certify.mock.calls.length
+      process.env.AGENTIC_MERMAID_ELK_CACHE = '0'
+      try { assert.deepEqual(render(source, options), expected) }
+      finally { process.env.AGENTIC_MERMAID_ELK_CACHE = '1' }
+      assert.equal(draw.mock.calls.length, beforeControl + 1, 'uncached control must construct a drawing')
+      assert.equal(certify.mock.calls.length, certificationBeforeControl + 1)
+    }
+  `], { cwd: `${import.meta.dir}/../..`, env: { ...process.env, AGENTIC_MERMAID_SCENE_ASSERTIONS: '0', AGENTIC_MERMAID_ELK_CACHE: '1' } })
+  expect(child.stderr).toBe('')
+  expect(child.status).toBe(0)
+})
+
 test('private cache copies preserve text custody without trusting mutable measurement aliases', async () => {
   const child = await runChild(process.execPath, ['-e', `
     import assert from 'node:assert/strict'
@@ -174,6 +220,15 @@ test('native drawing admission retains only certified artifacts without burdenin
     retainPositioned(family, 'public', layout)
     const publicLayout = borrowedPositioned(family, 'public', publicRequest).result
     retainNativeDrawing(publicRequest, publicLayout, inaccessible)
+    const optedIn = {}
+    const captured = borrowedPositioned(family, 'public', optedIn, true).result
+    const compact = { svg: '<svg/>', preparedText: true, certification: {} }
+    retainNativeDrawing(optedIn, captured, compact)
+    const genericRequest = {}, genericLayout = borrowedPositioned(family, 'public', genericRequest).result
+    assert.equal(cachedNativeDrawing(genericRequest, genericLayout, true), undefined)
+    retainNativeDrawing(genericRequest, genericLayout, inaccessible)
+    const privateRequest = {}, privateLayout = borrowedPositioned(family, 'public', privateRequest, true).result
+    assert.equal(cachedNativeDrawing(privateRequest, privateLayout, true), compact)
     const repeatedLayout = borrowedPositioned(family, 'private', repeated).result
     assert.equal(repeatedLayout.positioned, layout.positioned)
     retainNativeDrawing(repeated, repeatedLayout, drawing)
@@ -1064,3 +1119,65 @@ test.each([process.execPath, 'node'])('unrelated native and accessor siblings pr
   expect(child.stderr).toBe('')
   expect(child.status).toBe(0)
 })
+
+test('copied-family SVG reuse survives PNG and resolved Scene consumers', async () => {
+  const child = await runChild(process.execPath, ['-e', `
+    import assert from 'node:assert/strict'
+    import { renderMermaidSVGWithReceipt as svg, renderResolvedScene } from './src/index.ts'
+    import { renderMermaidPNGWithReceipt as png } from './src/agent/index.ts'
+    import { PERFORMANCE_EXPERIMENTS, withPerformanceExperiments } from './src/experimental-performance.ts'
+    const withoutPositionCache = run => withPerformanceExperiments(
+      PERFORMANCE_EXPERIMENTS.filter(name => name !== 'position-cache'), run)
+    const options = { embedFontImport: false }
+    for (const lines of [
+      ['classDiagram', 'CopiedPngClassA --> CopiedPngClassB'],
+      ['packet-beta', '0-7: "Copied PNG packet"'],
+    ]) {
+      const source = lines.join(String.fromCharCode(10))
+      const expected = withoutPositionCache(() => svg(source, options))
+      for (let repeat = 0; repeat < 3; repeat++) assert.deepEqual(svg(source, options), expected)
+      const pngOptions = { ...options, scale: 0.1, loadSystemFonts: false, onWarning: () => {} }
+      const expectedPng = withoutPositionCache(() => png(source, pngOptions))
+      assert.deepEqual(png(source, pngOptions), expectedPng)
+      assert.deepEqual(svg(source, options), expected)
+      const expectedScene = withoutPositionCache(() => renderResolvedScene(source, options))
+      const captured = renderResolvedScene(source, options)
+      assert.deepEqual(captured, expectedScene)
+      assert.equal(captured.svg, expected.svg)
+      assert.ok(captured.parts.length > 0)
+      captured.parts[0].primitives.length = 0
+      captured.parts.length = 0
+      captured.frame.length = 0
+      assert.deepEqual(svg(source, options), expected)
+      assert.deepEqual(png(source, pngOptions), expectedPng)
+      assert.deepEqual(renderResolvedScene(source, options), expectedScene)
+    }
+
+    // This public ER input exceeds native paint custody capacity, so a warm
+    // copied layout must still lower and certify its immutable Scene.
+    const erSource = ['erDiagram', 'CopiedSceneER0 ||--|| CopiedSceneER1 : owns',
+      ...Array.from({ length: 257 }, (_, index) => 'CopiedSceneER' + index)].join(String.fromCharCode(10))
+    const erExpected = withoutPositionCache(() => svg(erSource, options))
+    assert.equal(erExpected.receipt.layoutCertification.status, 'passed')
+    for (let repeat = 0; repeat < 3; repeat++) assert.deepEqual(svg(erSource, options), erExpected)
+    const erSceneExpected = withoutPositionCache(() => renderResolvedScene(erSource, options))
+    const erCaptured = renderResolvedScene(erSource, options)
+    assert.deepEqual(erCaptured, erSceneExpected)
+    assert.equal(erCaptured.svg, erExpected.svg)
+    const entities = erCaptured.parts.filter(part => part.role === 'entity')
+    assert.equal(entities.length, 257)
+    const entity = entities[0].node
+    assert.equal(entity.kind, 'group')
+    const box = entity.children[0].node
+    assert.equal(box.kind, 'shape')
+    assert.equal(box.geometry.kind, 'rect')
+    box.geometry.x += 1000
+    entity.children.length = 0
+    erCaptured.parts.length = 0
+    erCaptured.frame.length = 0
+    assert.deepEqual(svg(erSource, options), erExpected)
+    assert.deepEqual(renderResolvedScene(erSource, options), erSceneExpected)
+  `], { cwd: `${import.meta.dir}/../..`, env: { ...process.env, AGENTIC_MERMAID_SCENE_ASSERTIONS: '0', AGENTIC_MERMAID_ELK_CACHE: '1' } })
+  expect(child.stderr).toBe('')
+  expect(child.status).toBe(0)
+}, 30_000)

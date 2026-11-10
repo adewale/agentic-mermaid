@@ -1,6 +1,12 @@
 import { describe, expect, test } from 'bun:test'
+import { useTestChildren } from './helpers/test-child.ts'
+import { useTempDirs } from './helpers/temp-dir.ts'
+import { symlinkSync } from 'node:fs'
+import { join } from 'node:path'
+import { pathToFileURL } from 'node:url'
+import packageJson from '../../package.json' with { type: 'json' }
 import { DEFAULT_ARCHITECTURE_VISUAL } from '../architecture/config.ts'
-import { createMermaidRenderer, DefaultBackend, registerBackend, renderContractDigest, renderMermaidSVG } from '../index.ts'
+import { createMermaidRenderer, DefaultBackend, registerBackend, registerStyle, renderContractDigest, renderMermaidSVG } from '../index.ts'
 import { renderedSvgDigest } from '../graphical-render.ts'
 import { SCENE_VALIDATION_LIMITS } from '../scene/scene-validation.ts'
 import { renderMermaidASCIIWithReceipt } from '../ascii/index.ts'
@@ -15,6 +21,9 @@ import {
   resolveRenderRequest,
   validateSerializableRenderOptions,
 } from '../render-contract.ts'
+
+const runChild = useTestChildren(20_000)
+const temp = useTempDirs('option-style-retention-')
 
 describe('shared RenderOptions authority', () => {
   test('projects every descriptor schema verbatim with terminal metadata', () => {
@@ -443,4 +452,107 @@ describe('shared RenderOptions authority', () => {
   })
 
 
+})
+
+test('repeated option admission observes mutable values, callbacks and style registry replacement', () => {
+  const source = 'flowchart LR\nA[hello] --> B[world]'
+  const options = { font: 'Inter', style: 'palette:preparation-test' }
+  let release = registerStyle({ formatVersion: 1, name: options.style, colors: { bg: '#ffffff', fg: '#111111' } })
+  try {
+    const first = resolveRenderRequest(source, options)
+    const repeated = resolveRenderRequest(source, options)
+    expect(repeated.appearance).toEqual(first.appearance)
+    options.font = 'monospace'
+    expect(resolveRenderRequest(source, options).appearance.font).toBe('monospace')
+    options.font = 'Inter'
+    release()
+    expect(() => resolveRenderRequest(source, options)).toThrow(/Unknown style/)
+    release = registerStyle({ formatVersion: 1, name: options.style, colors: { bg: '#eeeeee', fg: '#222222' } })
+    expect(resolveRenderRequest(source, options).appearance.colors.bg).toBe('#eeeeee')
+    let reads = 0
+    const accessor = { get font() { return ++reads === 1 ? 'Inter' : 'monospace' } }
+    expect(resolveRenderRequest(source, accessor).appearance.font).toBe('Inter')
+    expect(resolveRenderRequest(source, accessor).appearance.font).toBe('monospace')
+    expect(reads).toBe(2)
+    expect(() => resolveRenderRequest(source, { font: 3 } as never)).toThrow(/font/)
+  } finally { release() }
+})
+
+// Cache keys must preserve the JSON admission boundary: callable/symbol leaves
+// disappear during JSON serialization and can otherwise alias valid options.
+test('option preparation rejects non-JSON leaves before keys or family callbacks', async () => {
+  const { getFamily, replaceFamilyForTest } = await import('../agent/families.ts')
+  const original = getFamily('flowchart')!
+  const source = 'flowchart LR\nA[admission] --> B[boundary]'
+  let normalizations = 0, jsonHookReads = 0
+  const restore = replaceFamilyForTest('flowchart', {
+    ...original,
+    normalizeRequest(context) {
+      normalizations++
+      // A family can ignore unknown input while preserving its known fields.
+      // Shared admission must reject it before this callback is dispatched.
+      const renderOptions = Object.fromEntries(Object.entries(context.renderOptions).filter(([key]) => key !== 'unexpected'))
+      return original.normalizeRequest!({ ...context, renderOptions })
+    },
+  })
+  const callable = () => 1
+  Object.defineProperty(callable, 'toJSON', { get() { jsonHookReads++; return () => undefined } })
+  try {
+    resolveRenderRequest(source, { font: 'Inter' })
+    normalizations = 0
+    for (const unexpected of [() => 1, Symbol('invalid option'), callable]) {
+      expect(() => resolveRenderRequest(source, { font: 'Inter', unexpected } as never)).toThrow(/Invalid RenderOptions:.*must be a JSON value/)
+    }
+    expect(normalizations).toBe(0)
+    expect(jsonHookReads).toBe(0)
+    resolveRenderRequest(source, { font: 'Inter', mermaidConfig: { auditValue: null } })
+    normalizations = 0
+    for (const auditValue of [Number.NaN, Number.POSITIVE_INFINITY, Number.NEGATIVE_INFINITY]) {
+      expect(() => resolveRenderRequest(source, { font: 'Inter', mermaidConfig: { auditValue } })).toThrow(/Invalid RenderOptions:.*must be a finite number/)
+    }
+    expect(normalizations).toBe(0)
+  } finally { restore() }
+})
+
+
+// A short primitive can retain a much larger parent in Node. The cache owns
+// resolved styles after the caller and every returned artifact are released.
+test('option preparation does not retain large parents of short inline style values', async () => {
+  const directory = temp.dir()
+  const built = await Bun.build({
+    entrypoints: [join(import.meta.dir, '..', 'index.ts')],
+    outdir: directory,
+    target: 'node',
+    format: 'esm',
+    naming: 'renderer.mjs',
+    external: Object.keys(packageJson.dependencies),
+  })
+  expect(built.success, built.logs.map(log => log.message).join('\n')).toBe(true)
+  symlinkSync(join(import.meta.dir, '..', '..', 'node_modules'), join(directory, 'node_modules'), 'dir')
+  const moduleUrl = pathToFileURL(join(directory, 'renderer.mjs')).href
+  const child = await runChild('node', ['--expose-gc', '--input-type=module', '-e', `
+    import assert from 'node:assert/strict'
+    import { renderMermaidSVG } from ${JSON.stringify(moduleUrl)}
+    const used = () => { globalThis.gc(); globalThis.gc(); return process.memoryUsage().heapUsed }
+    const before = used()
+    const source = 'flowchart LR\\nA --> B'
+    function populate() {
+      for (let i = 0; i < 32; i++) {
+        const prefix = 'rgb(' + (100 + i) + ', 100, 100)'
+        const parent = prefix + ' '.repeat(1_000_000)
+        parent.charCodeAt(parent.length - 1)
+        const color = parent.slice(0, prefix.length)
+        const options = { style: { formatVersion: 1, colors: { bg: color }, roles: { node: { fillColor: color } } } }
+        const first = renderMermaidSVG(source, options)
+        assert.ok(first.startsWith('<svg'))
+        assert.equal(renderMermaidSVG(source, options), first)
+      }
+    }
+    populate()
+    await new Promise(resolve => setImmediate(resolve))
+    const retained = used() - before
+    assert.ok(retained < 16 * 1024 * 1024, 'short cached styles pinned large source strings: ' + retained)
+  `], { cwd: `${import.meta.dir}/../..` })
+  expect(child.stderr).toBe('')
+  expect(child.status).toBe(0)
 })

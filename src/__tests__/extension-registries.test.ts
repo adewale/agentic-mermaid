@@ -46,53 +46,66 @@ const registerBackendFromJs = registerBackend as unknown as (
   options?: { readonly compatibility?: Readonly<Record<string, string>> },
 ) => () => void
 
-test('Sequence geometry captured by a replaced native producer cannot poison later original rendering', async () => {
+test('geometry captured by a replaced native producer cannot poison later original rendering', async () => {
   const child = await runChild(process.execPath, ['-e', `
     import assert from 'node:assert/strict'
     import { renderMermaidSVGWithReceipt } from './src/index.ts'
     import { getFamily, replaceFamilyForTest } from './src/agent/families.ts'
     import { sceneLowering, nativeDrawingOf, inheritNativeDrawing } from './src/scene/drawing.ts'
     import { withRenderStageObserver } from './src/render-stages.ts'
-    const original = getFamily('sequence'), lower = original.lowerScene
-    const producer = nativeDrawingOf(lower), originalSource = sceneLowering(producer)
     const options = { embedFontImport: false }
-    for (const late of [false, true]) for (const warm of [0, 1, 3]) {
-      const source = 'sequenceDiagram\\nProducer' + late + warm + 'A->>Producer' + late + warm + 'B: isolated'
-      const restoreFamily = replaceFamilyForTest('sequence', { ...original })
-      let expected
-      try { expected = renderMermaidSVGWithReceipt(source, options) } finally { restoreFamily() }
-      for (let index = 0; index < warm; index++) assert.deepEqual(renderMermaidSVGWithReceipt(source, options), expected)
-      let captured, calls = 0
-      const custom = sceneLowering((factory, context) => {
-        calls++
-        captured = context.positioned
-        return producer(factory, context)
-      })
-      if (!late) inheritNativeDrawing(custom, lower)
-      try {
-        const actual = withRenderStageObserver(sample => {
-          if (late && sample.stage === 'layout') inheritNativeDrawing(custom, lower)
-        }, () => renderMermaidSVGWithReceipt(source, options))
-        assert.deepEqual(actual, expected)
+    const cases = [
+      { kind: 'sequence', source: id => 'sequenceDiagram\\nProducer' + id + 'A->>Producer' + id + 'B: isolated',
+        coordinate: positioned => positioned.messages[0].points[0] },
+      { kind: 'class', source: id => 'classDiagram\\nProducer' + id + 'A --> Producer' + id + 'B',
+        coordinate: positioned => positioned.classes[0] },
+      { kind: 'er', source: id => 'erDiagram\\nProducer' + id + 'A ||--o{ Producer' + id + 'B : isolated',
+        coordinate: positioned => positioned.entities[0] },
+      { kind: 'packet', source: id => 'packet\\n0-7: "isolated ' + id + '"',
+        coordinate: positioned => positioned.fields[0] },
+    ]
+    for (const entry of cases) {
+      const original = getFamily(entry.kind), lower = original.lowerScene
+      const producer = nativeDrawingOf(lower), originalSource = sceneLowering(producer)
+      for (const late of [false, true]) for (const warm of [0, 1, 3]) {
+        const source = entry.source(late + String(warm))
+        const restoreFamily = replaceFamilyForTest(entry.kind, { ...original })
+        let expected
+        try { expected = renderMermaidSVGWithReceipt(source, options) } finally { restoreFamily() }
+        for (let index = 0; index < warm; index++) assert.deepEqual(renderMermaidSVGWithReceipt(source, options), expected)
+        let captured, calls = 0
+        const custom = sceneLowering((factory, context) => {
+          calls++
+          captured = context.positioned
+          return producer(factory, context)
+        })
+        if (!late) inheritNativeDrawing(custom, lower)
+        try {
+          const actual = withRenderStageObserver(sample => {
+            if (late && sample.stage === 'layout') inheritNativeDrawing(custom, lower)
+          }, () => renderMermaidSVGWithReceipt(source, options))
+          assert.deepEqual(actual, expected)
+        }
+        finally { inheritNativeDrawing(originalSource, lower) }
+        assert.equal(calls, 1)
+        assert.equal(nativeDrawingOf(lower), producer)
+        const reads = []
+        Object.defineProperty(entry.coordinate(captured), 'x', { enumerable: true, get() {
+          reads.push('escaped coordinate')
+          throw new Error('escaped caller geometry')
+        } })
+        let restored
+        assert.doesNotThrow(() => { restored = renderMermaidSVGWithReceipt(source, options) })
+        assert.deepEqual(restored, expected)
+        const { layoutMermaidWithReceipt } = await import('./src/agent/index.ts')
+        assert.equal(layoutMermaidWithReceipt(source, options).layout.kind, entry.kind)
+        assert.deepEqual(reads, [])
       }
-      finally { inheritNativeDrawing(originalSource, lower) }
-      assert.equal(calls, 1)
-      const reads = []
-      Object.defineProperty(captured.messages[0].points[0], 'x', { enumerable: true, get() {
-        reads.push('escaped coordinate')
-        throw new Error('escaped caller geometry')
-      } })
-      let restored
-      assert.doesNotThrow(() => { restored = renderMermaidSVGWithReceipt(source, options) })
-      assert.deepEqual(restored, expected)
-      const { layoutMermaidWithReceipt } = await import('./src/agent/index.ts')
-      assert.equal(layoutMermaidWithReceipt(source, options).layout.kind, 'sequence')
-      assert.deepEqual(reads, [])
     }
   `], { cwd: `${import.meta.dir}/../..`, env: { ...process.env, AGENTIC_MERMAID_SCENE_ASSERTIONS: '0', AGENTIC_MERMAID_ELK_CACHE: '1' } })
   expect(child.stderr).toBe('')
   expect(child.status).toBe(0)
-})
+}, 30_000)
 
 describe('shared extension identity', () => {
   test('requires kind-qualified IDs and rejects replacement with owner evidence', () => {

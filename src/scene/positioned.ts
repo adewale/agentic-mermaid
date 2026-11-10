@@ -1,10 +1,12 @@
+import { isOwnedFamily } from '../experimental/owned-family.ts'
+import { finalizeOwnedScene } from './owned-data.ts'
 import { assertBackendConformance, isBuiltinDefaultBackend } from './backend.ts'
-import { nativeDrawingOf, originalNativeDrawingOf, type DrawingProducer } from './drawing.ts'
+import { nativeDrawingOf, originalNativeDrawingOf, isOriginalSceneLowering, type DrawingProducer } from './drawing.ts'
 import { drawNative, type NativeDrawing } from './native-drawing.ts'
 import type { FamilyLayoutResult } from '../agent/families.ts'
 import type { ResolvedRenderRequest } from '../render-contract.ts'
 import { resolvedFamilyRenderContextOf, resolvedRenderExecutionPlanOf } from '../render-contract.ts'
-import { positionedForNativeProducer, retainedFamilyProjection } from '../positioning.ts'
+import { positionedForNativeProducer, positionedForSceneLowering, retainedFamilyProjection } from '../positioning.ts'
 import { withTextMeasurementExecution } from '../text-measurement-profile.ts'
 import { admitFamilyScene } from './admission.ts'
 import { sceneAssertionsEnabled } from './assertions.ts'
@@ -44,7 +46,12 @@ export function retainedPositionedScene(request: ResolvedRenderRequest, layout: 
   const colors = request.output === 'png' && request.appearance.colors.embedFontImport !== false
     ? { ...request.appearance.colors, embedFontImport: false } : request.appearance.colors
   const assertions = sceneAssertionsEnabled(request)
-  const lower = () => plan.family.lowerScene!({ positioned: layout.positioned, colors, resolved: resolvedFamilyRenderContextOf(request) })
+  const lower = () => {
+    const scene = plan.family.lowerScene!({ positioned: positionedForSceneLowering(layout), colors, resolved: resolvedFamilyRenderContextOf(request) })
+    // Freeze only the unwrapped constructor program's result, directly at its
+    // owning boundary. Replaced/inherited hooks retain external-data copying.
+    return isOwnedFamily(plan.family) && isOriginalSceneLowering(plan.family.lowerScene) ? finalizeOwnedScene(scene) : scene
+  }
   const scene = withTextMeasurementExecution(plan.textMeasurement, () => admitFamilyScene(plan.family,
     !assertions && !plan.family.id.startsWith('family:') ? withDeferredTerminalProjections(lower) : lower(), assertions))
   requests.set(request, { scene, crossChecks: assertions })
@@ -106,7 +113,7 @@ export function retainedNativeDrawing(request: ResolvedRenderRequest, layout: Fa
   const colors = request.output === 'png' && request.appearance.colors.embedFontImport !== false
     ? { ...request.appearance.colors, embedFontImport: false } : request.appearance.colors
   const drawing = withTextMeasurementExecution(plan.textMeasurement, () => drawNative(drawingProducer,
-    { positioned: positionedForNativeProducer(layout, drawingProducer), colors, resolved: resolvedFamilyRenderContextOf(request) }, plan.family.id, request.appearance.styled ? request.appearance.style : undefined))
+    { positioned: positionedForNativeProducer(layout, drawingProducer), colors, resolved: resolvedFamilyRenderContextOf(request) }, plan.family.id, request.appearance.styled ? request.appearance.style : undefined, isOwnedFamily(plan.family) && drawingProducer === originalNativeDrawingOf(plan.family.lowerScene)))
   requests.set(request, { drawing, producer: drawingProducer, evidence: drawing })
   return drawing
 }

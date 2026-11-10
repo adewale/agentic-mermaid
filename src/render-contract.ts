@@ -1,3 +1,4 @@
+import { WeightedLru } from './experimental/weighted-lru.ts'
 // ============================================================================
 // Canonical render-request waist.
 //
@@ -23,6 +24,7 @@ import {
   resolveStyleReference,
   resolveStyleStack,
   resolveStyleStackWithFace,
+  styleRegistryRevision,
   type InternalStyleFace,
   type StyleSpec,
 } from './scene/style-registry.ts'
@@ -1329,6 +1331,46 @@ function admitRenderOptionsInput(untrusted: RenderOptions): AdmittedRenderOption
   })
 }
 
+type PreparedOptionStyle = ReturnType<typeof resolveStyleStackWithFace>
+const NO_OPTION_STYLE: PreparedOptionStyle = Object.freeze({})
+// Keys come only from admitted own-data snapshots, never live caller objects.
+// Source, host callbacks, backend resolution and family defaults stay per call.
+const PREPARED_OPTIONS_MAX_WEIGHT = 256 * 1024
+const preparedOptions = new WeightedLru<string, PreparedOptionStyle>(32, PREPARED_OPTIONS_MAX_WEIGHT)
+let preparedOptionsRevision = -1
+
+function prepareOptionStyle(admitted: AdmittedRenderOptions): PreparedOptionStyle {
+  if (admitted.capturedStyle) return admitted.capturedStyle
+  if (admitted === EMPTY_ADMITTED_OPTIONS) return NO_OPTION_STYLE
+  const revision = styleRegistryRevision()
+  if (revision !== preparedOptionsRevision) { preparedOptions.clear(); preparedOptionsRevision = revision }
+  const candidate = admitted.serializable as Readonly<Record<string, unknown>>
+  // JSON serialization drops callable/symbol leaves and can invoke toJSON on
+  // them. Reject non-JSON data before deriving a key or dispatching a family.
+  const admissionProblems = renderOptionsAdmissionMessages(candidate)
+  if (admissionProblems.length) throw new RenderConfigError(`Invalid RenderOptions: ${admissionProblems.join('; ')}`)
+  const serialized = JSON.stringify(candidate)
+  const key = serialized.length <= 4096 ? serialized : undefined
+  const previous = key === undefined ? undefined : preparedOptions.get(key)
+  if (previous) return previous
+  // Keep the established StyleInput error boundary ahead of option schema
+  // failures. Only successful preparations can be reused by later requests.
+  const resolved = resolveStyleStackWithFace(admitted.serializable.style)
+  const problems = validateSerializableRenderOptions(candidate)
+  if (problems.length) throw new RenderConfigError(`Invalid RenderOptions: ${problems.join('; ')}`)
+  if (key !== undefined && revision === styleRegistryRevision()) {
+    const weight = (key.length + JSON.stringify(resolved).length) * 2 + 256
+    if (weight <= PREPARED_OPTIONS_MAX_WEIGHT) {
+      // Native cloning owns the retained strings (including sliced parents)
+      // without normalizing optional fields, shared aliases or signed zero.
+      const retained = immutableSnapshot(structuredClone(resolved))
+      preparedOptions.set(key, retained, weight)
+      return retained
+    }
+  }
+  return immutableSnapshot(resolved)
+}
+
 function namedStyleReferences(input: RenderOptions['style']): readonly ResolvedStyleReference[] {
   const entries = input === undefined ? [] : Array.isArray(input) ? input : [input]
   return immutableSnapshot(entries.flatMap((entry): ResolvedStyleReference[] => {
@@ -1748,27 +1790,9 @@ export function resolveRenderRequestForExecution(
 ): ResolvedRenderRequest {
   const admitted = admitRenderOptionsInput(options)
   const admittedOptions = admitted.serializable as RenderOptions
-  const serializableOptionsCandidate = admittedOptions as Readonly<Record<string, unknown>>
-  // Enforce aggregate/depth bounds before Style resolution or any other
-  // request-specific walker. Full schema validation remains below so the
-  // established StyleInput error boundary is preserved for bounded values.
-  const admissionProblems = renderOptionsAdmissionMessages(serializableOptionsCandidate)
-  if (admissionProblems.length > 0) {
-    throw new RenderConfigError(`Invalid RenderOptions: ${admissionProblems.join('; ')}`)
-  }
-  // Keep StyleInput's established public error boundary. The shared options
-  // schema still validates the field below (and every host surface uses that
-  // validator), but resolving it first means an invalid inline StyleSpec is
-  // reported as `Invalid style spec` instead of being relabelled as a generic
-  // RenderOptions failure. It also avoids resolving mutable registry state
-  // twice while constructing one canonical request.
-  const resolvedStyle = admitted.capturedStyle ?? resolveStyleStackWithFace(admittedOptions.style)
+  const resolvedStyle = prepareOptionStyle(admitted)
   const style = resolvedStyle.style
   const face = immutableSnapshot(resolvedStyle.face)
-  const optionProblems = admitted.capturedStyle ? [] : validateSerializableRenderOptions(serializableOptionsCandidate)
-  if (optionProblems.length > 0) {
-    throw new RenderConfigError(`Invalid RenderOptions: ${optionProblems.join('; ')}`)
-  }
 
   // Markdown/HTML parsers commonly hand renderers entity-encoded Mermaid.
   // Decode at the shared request waist so SVG, PNG, layout and terminal
