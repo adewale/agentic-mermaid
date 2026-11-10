@@ -12,6 +12,7 @@ export function layoutCompoundGraph(
   unsupported: (reason: string) => never,
   expansionLimit: number,
   routingWork: ChannelWork,
+  global?: (owners: Int32Array, children: number[][], lifted: ReadonlyMap<number, { source: number; target: number; host: number }>) => AgenticLayout | undefined,
 ): AgenticLayout {
   let groups = input.groups!
   const leafCount = input.nodes.length
@@ -72,6 +73,8 @@ export function layoutCompoundGraph(
     }
     hosted[owner + 1]!.push(index)
   }
+  const globallyPlaced = global?.(owners, children, lifted)
+  if (globallyPlaced) return globallyPlaced
   const ancestorPlan = ancestorEdges ? planAncestorBoundaryConnections(input, owners, routingWork, unsupported) : undefined
   if (ancestorPlan) {
     if (ancestorEdges!.some(index => !ancestorPlan.connections.has(index))) throw new TypeError('Ancestor planner lost an authored endpoint occurrence')
@@ -83,8 +86,8 @@ export function layoutCompoundGraph(
     const members = children[scope]!, local = new Map(members.map((id, index) => [id, index]))
     const nodes = members.map(id => {
       if (id < leafCount) {
-        const { id: identity, width, height, partition, modelOrder, minimumPortSpacing } = input.nodes[id]!
-        return { id: identity, width, height, partition, modelOrder, ...(minimumPortSpacing!==undefined?{minimumPortSpacing}:{}) }
+        const { parent: _parent, ...node } = input.nodes[id]!
+        return node
       }
       const child = placeChild(id)
       return { id: groups[id - leafCount]!.id, width: child.width, height: child.height, partition: groups[id - leafCount]!.partition, modelOrder: groups[id - leafCount]!.modelOrder }

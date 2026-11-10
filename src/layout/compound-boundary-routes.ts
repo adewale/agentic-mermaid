@@ -670,6 +670,7 @@ export function routeCrossHierarchy(
   lifted: ReadonlyMap<number, { source: number; target: number; host: number }>, directions: readonly Direction[],
   work: ChannelWork, expansionLimit: number, fail: (reason: string) => never,
   ancestorPlan?: AncestorBoundaryPlan,
+  leafPaths = false,
 ): AgenticLayout {
   const leafCount = input.nodes.length, frames = placed.groups!, groups = input.groups!
   const headerGroups = ancestorPlan?.groups ?? groups
@@ -738,13 +739,13 @@ export function routeCrossHierarchy(
       // The label shaft is reserved; quotient bends to ancestor ports are
       // temporary and must not constrain the final descendant connections.
       let labelShaft = -1
-      if (widthProof !== undefined && edge.label && crossingSource && crossingTarget) for (let cursor = 1; cursor < quotient.length; cursor++) {
+      if ((leafPaths || widthProof !== undefined) && edge.label && crossingTarget && (crossingSource || leafPaths)) for (let cursor = 1; cursor < quotient.length; cursor++) {
         if (--work.pairs < 0) fail('agentic local cross-hierarchy obstacle-work limit')
         if (onSegment(raw.labelPosition!, quotient[cursor - 1]!, quotient[cursor]!)) { labelShaft = cursor; break }
       }
-      const start = labelShaft > 1 ? quotient[labelShaft - 1]! : crossingSource ? escape(quotient[0]!, quotient[1]!) : quotient[0]!
+      const start = labelShaft > 1 && crossingSource ? quotient[labelShaft - 1]! : crossingSource ? escape(quotient[0]!, quotient[1]!) : quotient[0]!
       const end = labelShaft > 0 && labelShaft < quotient.length - 1 ? quotient[labelShaft]! : crossingTarget ? escape(quotient.at(-1)!, quotient.at(-2)!) : quotient.at(-1)!
-      const core = labelShaft > 0 ? [start, end] : [start, ...quotient.slice(1, -1), end]
+      const core = labelShaft > 0 ? crossingSource ? [start, end] : quotient.slice(0, labelShaft + 1) : [start, ...quotient.slice(1, -1), end]
       const related = new Set<number>()
       for (const endpoint of [edge.source, edge.target]) for (let parent = owners[endpoint]!; parent >= 0; parent = owners[leafCount + parent]!) related.add(parent)
       const obstacles: RoutingBox[] = nodes.map((box, node) => node === edge.source || node === edge.target ? box : inflate(box, clearance))
@@ -777,6 +778,22 @@ export function routeCrossHierarchy(
       }
       let solidIndex: CompoundObstacleQueries | undefined
       const solidQueries = () => solidIndex ??= (solidIndexFactory ??= createOwnedCompoundObstacleIndexFactory(work, fail))(solidObstacles)
+      const leafPathClear = (path: readonly Point[]): boolean => {
+        if (!ownReservedLabel) {
+          for (let cursor = 1; cursor < path.length; cursor++) {
+            const a = path[cursor - 1]!, b = path[cursor]!
+            if (solidQueries().entersSegment(a.x, a.y, b.x, b.y)) return false
+          }
+          return true
+        }
+        for (let cursor = 1; cursor < path.length; cursor++) for (const obstacle of solidObstacles) {
+          if (--work.pairs < 0) fail('agentic local cross-hierarchy obstacle-work limit')
+          // The reserved label shaft is deliberately retained inside its own
+          // label halo. Every other label and every body/header remains solid.
+          if (obstacle !== ownReservedLabel && segmentEntersMeasuredBox(path[cursor - 1]!, path[cursor]!, obstacle)) return false
+        }
+        return true
+      }
       const host = endpoints.host, frame = host < 0 ? undefined : frames[host], pad = host < 0 ? undefined : headerGroups[host]!.padding
       work.pairs -= 8 // Painted host eligibility, stroke/corner inset and domain selection.
       if (work.pairs < 0) fail('agentic local cross-hierarchy obstacle-work limit')
@@ -805,7 +822,14 @@ export function routeCrossHierarchy(
           || reason === 'cross-hierarchy route needs an unsupported self-contact repair') throw new BoundaryRouteDecline(reason)
         return fail(reason)
       }
-      if (!directOnly) try {
+      const clearLeafPath = leafPaths && leafPathClear(quotient)
+      if (clearLeafPath && !selfContact(quotient, work, fail)) points = quotient
+      if (!points && !directOnly) try {
+        // A globally ranked route already joins the actual leaves. Its middle
+        // cannot inherit the recursive quotient's assumption that headers were
+        // obstacles during placement. Reject that core before trying to attach
+        // new terminals to it; the same bounded full-path search owns repair.
+        if (leafPaths && !clearLeafPath) throw new BoundaryRouteDecline('cross-hierarchy route has no bounded clear corridor')
         let first = crossingSource ? undefined : [start]
         let last = crossingTarget ? undefined : [end]
         if (leafCount > 64) {
@@ -838,7 +862,7 @@ export function routeCrossHierarchy(
         const probes = { pairs: Math.min(16384, Math.floor(work.pairs / 8)), candidates: 64 }
         let routeStart = labelShaft > 0 ? start : crossingSource ? escape(quotient[0]!, quotient[1]!, clearance * 2) : start
         let routeEnd = labelShaft > 0 ? end : crossingTarget ? escape(quotient.at(-1)!, quotient.at(-2)!, clearance * 2) : end
-        let routeCore = labelShaft > 0 ? [routeStart, routeEnd] : [routeStart, ...quotient.slice(1, -1), routeEnd]
+        let routeCore = labelShaft > 0 ? crossingSource ? [routeStart, routeEnd] : core : [routeStart, ...quotient.slice(1, -1), routeEnd]
         if (edge.label && !routeCore.some((point, cursor) => cursor > 0 && onSegment(raw.labelPosition!, routeCore[cursor - 1]!, point))) {
           routeStart = start
           routeEnd = end
@@ -851,6 +875,7 @@ export function routeCrossHierarchy(
         const accept = (path: Point[]): Point[] | undefined => {
           const candidate = selfContact(path, work, fail) ? removeClosedExcursions(path, work, fail) : path
           if (candidate.length < 2) return
+          if (leafPaths && !leafPathClear(candidate)) return
           for (const source of [true, false]) {
             work.pairs -= 4
             if (work.pairs < 0) fail('agentic local cross-hierarchy self-check limit')

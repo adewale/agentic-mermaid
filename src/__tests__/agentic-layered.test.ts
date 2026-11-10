@@ -667,6 +667,100 @@ describe('owned measured layered layout', () => {
     expect(layoutAgenticGraph(input)).toEqual(result)
   })
 
+  test.each(['TB', 'BT', 'LR', 'RL'] as const)('global leaf ranks do not inherit a lifted group cycle in %s', direction => {
+    const input = measured({ direction,
+      nodes: [{ id: 'a', width: 60, height: 36, parent: 0 }, { id: 'b', width: 60, height: 36, parent: 0 }, { id: 'c', width: 60, height: 36 }],
+      groups: [{ id: 'G', minWidth: 100, headerHeight: 24, padding: { top: 40, right: 20, bottom: 20, left: 20 } }],
+      edges: [{ source: 0, target: 2, minSpan: 1 }, { source: 2, target: 1, minSpan: 1 }],
+    })
+    const output = layoutAgenticGraph(input)
+    const boxes = input.nodes.map((node, i) => ({ ...node, ...output.nodes[i]! }))
+    const before = (a: typeof boxes[number], b: typeof boxes[number]) => direction === 'LR' ? a.x + a.width <= b.x : direction === 'RL' ? b.x + b.width <= a.x : direction === 'BT' ? b.y + b.height <= a.y : a.y + a.height <= b.y
+    expect(before(boxes[0]!, boxes[2]!)).toBe(true)
+    expect(before(boxes[2]!, boxes[1]!)).toBe(true)
+    const frame = output.groups![0]!
+    for (const box of [boxes[0]!, boxes[1]!]) {
+      expect(box.x).toBeGreaterThanOrEqual(frame.x + 20)
+      expect(box.x + box.width).toBeLessThanOrEqual(frame.x + frame.width - 20)
+      expect(box.y + 1e-7).toBeGreaterThanOrEqual(frame.y + 40)
+      expect(box.y + box.height).toBeLessThanOrEqual(frame.y + frame.height - 20)
+    }
+    const outside = boxes[2]!
+    expect(outside.x + outside.width <= frame.x || outside.x >= frame.x + frame.width || outside.y + outside.height <= frame.y || outside.y >= frame.y + frame.height).toBe(true)
+    for (const [index, route] of output.edges.entries()) {
+      expect(onOutline(route.points[0]!, boxes[input.edges[index]!.source]!)).toBe(true)
+      expect(onOutline(route.points.at(-1)!, boxes[input.edges[index]!.target]!)).toBe(true)
+    }
+  })
+
+  test.each(['TB', 'BT', 'LR', 'RL'] as const)('nested global ranks preserve an acyclic labelled leaf chain in %s', direction => {
+    const outer = { top: 43, right: 27, bottom: 19, left: 23 }, inner = { top: 37, right: 21, bottom: 17, left: 25 }
+    const input = measured({ direction, nodes: [
+      { id: 'a', width: 60, height: 32, parent: 1 }, { id: 'b', width: 74, height: 42, parent: 1 }, { id: 'c', width: 52, height: 28, parent: 0 },
+    ], groups: [{ id: 'Outer', minWidth: 100, padding: outer }, { id: 'Inner', parent: 0, minWidth: 90, padding: inner }],
+    edges: [{ source: 0, target: 2, minSpan: 2, label: { width: 30, height: 12 } }, { source: 2, target: 1, minSpan: 1 }] })
+    const before = structuredClone(input), output = layoutAgenticGraph(input), boxes = output.nodes.map((point, i) => ({ ...input.nodes[i]!, ...point }))
+    expect(input).toEqual(before)
+    expect(layoutAgenticGraph(input)).toEqual(output)
+    const horizontal = direction === 'LR' || direction === 'RL', reverse = direction === 'BT' || direction === 'RL'
+    const precedes = (a: Box, b: Box) => reverse ? (horizontal ? a.x : a.y) >= (horizontal ? b.x + b.width : b.y + b.height)
+      : (horizontal ? a.x + a.width : a.y + a.height) <= (horizontal ? b.x : b.y)
+    expect(precedes(boxes[0]!, boxes[2]!)).toBe(true)
+    expect(precedes(boxes[2]!, boxes[1]!)).toBe(true)
+    for (const [box, frame, pad] of [[boxes[0]!, output.groups![1]!, inner], [boxes[1]!, output.groups![1]!, inner], [boxes[2]!, output.groups![0]!, outer], [output.groups![1]!, output.groups![0]!, outer]] as const) {
+      expect(box.x + 1e-7).toBeGreaterThanOrEqual(frame.x + pad.left)
+      expect(box.x + box.width - 1e-7).toBeLessThanOrEqual(frame.x + frame.width - pad.right)
+      expect(box.y + 1e-7).toBeGreaterThanOrEqual(frame.y + pad.top)
+      expect(box.y + box.height - 1e-7).toBeLessThanOrEqual(frame.y + frame.height - pad.bottom)
+    }
+    expect(intersects(boxes[2]!, output.groups![1]!)).toBe(false)
+    for (const [i, route] of output.edges.entries()) {
+      expect(onOutline(route.points[0]!, boxes[input.edges[i]!.source]!)).toBe(true)
+      expect(onOutline(route.points.at(-1)!, boxes[input.edges[i]!.target]!)).toBe(true)
+      for (let j = 1; j < route.points.length; j++) {
+        for (const box of boxes) expect(crossesInterior(route.points[j - 1]!, route.points[j]!, box)).toBe(false)
+        for (const [k, frame] of output.groups!.entries()) expect(crossesInterior(route.points[j - 1]!, route.points[j]!, { ...frame, height: input.groups![k]!.padding.top })).toBe(false)
+      }
+    }
+    expect(output.edges[0]!.labelPosition).toBeDefined()
+  })
+
+  test.each(['TB', 'BT', 'LR', 'RL'] as const)('private nesting borders do not consume fixed leaf port capacity in %s', direction => {
+    const padding = { top: 20, right: 16, bottom: 16, left: 16 }
+    const input = measured({ direction, nodes: [0, 1].map(i => ({ id: String(i), parent: i, width: 16, height: 16,
+      contact: 'rectangle' as const, sizePolicy: 'fixed' as const, paintStrokeWidth: 1, paintCornerRadius: 0 })),
+    groups: [0, 1].map(i => ({ id: `G${i}`, minWidth: 48, padding })), maximumEdgeStrokeWidth: 1, maximumEdgeBendRadius: 0,
+    edges: [{ source: 0, target: 1, minSpan: 1, sourcePortSpan: 1, targetPortSpan: 1 }] })
+    const original = structuredClone(input), output = layoutAgenticGraph(input)
+    expect(input).toEqual(original)
+    expect(output.nodes).toHaveLength(2)
+    expect(output.edges).toHaveLength(1)
+    for (const [i, point] of output.nodes.entries()) {
+      expect(point.width ?? input.nodes[i]!.width).toBe(16)
+      expect(point.height ?? input.nodes[i]!.height).toBe(16)
+    }
+    expect(onOutline(output.edges[0]!.points[0]!, { ...input.nodes[0]!, ...output.nodes[0]! })).toBe(true)
+    expect(onOutline(output.edges[0]!.points.at(-1)!, { ...input.nodes[1]!, ...output.nodes[1]! })).toBe(true)
+  })
+
+  test.each((['TB', 'BT', 'LR', 'RL'] as const).flatMap(direction => [false, true].flatMap(labelled => [false, true].map(longChild => ({ direction, labelled, longChild })))))('connected siblings stay on one side of an unrelated nested frame: %j', ({ direction, labelled, longChild }) => {
+    const padding = { top: 36, right: 16, bottom: 16, left: 16 }
+    const input = measured({ direction, nodes: [
+      { id: 'A', width: 60, height: 32, parent: 0 }, { id: 'C', width: 60, height: 32, parent: 1 }, { id: 'B', width: 60, height: 32, parent: 0 },
+      ...(longChild ? [{ id: 'D', width: 60, height: 32, parent: 1 }] : []),
+    ], groups: [{ id: 'Parent', minWidth: 0, padding }, { id: 'Child', parent: 0, minWidth: 0, padding }],
+    edges: [{ source: 2, target: 0, minSpan: 1, ...(labelled ? { label: { width: 40, height: 20 } } : {}) }, ...(longChild ? [{ source: 1, target: 3, minSpan: 3 }] : [])] })
+    const before = structuredClone(input), output = layoutAgenticGraph(input), path = output.edges[0]!.points
+    expect(input).toEqual(before)
+    expect(onOutline(path[0]!, { ...input.nodes[2]!, ...output.nodes[2]! })).toBe(true)
+    expect(onOutline(path.at(-1)!, { ...input.nodes[0]!, ...output.nodes[0]! })).toBe(true)
+    for (let i = 1; i < path.length; i++) {
+      expect(crossesInterior(path[i - 1]!, path[i]!, output.groups![1]!)).toBe(false)
+      for (const frame of output.groups!) expect(crossesInterior(path[i - 1]!, path[i]!, { ...frame, height: padding.top })).toBe(false)
+    }
+    if (labelled) expect(output.edges[0]!.labelPosition).toBeDefined()
+  })
+
   test('direct compound corridors retain more than sixteen authored cross-scope leaf contacts', () => {
     const padding = { top: 40, right: 24, bottom: 24, left: 24 }
     const input = measured({ direction: 'LR', nodes: Array.from({ length: 34 }, (_, index) => ({
@@ -1842,23 +1936,31 @@ describe('painted host padding corridors', () => {
   })
   const fail = (reason: string): never => { throw new GraphLayoutUnsupportedError(reason) }
   const budget = () => ({ pairs: 1_000_000, arcs: 65536, swaps: 1_000_000 })
+  // Keep this boundary-consumer fixture on the recursive placement that needs
+  // a padding retry. Global ranks can fit it in the original content domain.
+  const recursive = (graph: MeasuredGraph, work = budget()) => layoutCompoundGraph(graph,
+    flat => layoutLayeredGraph(flat, () => undefined, fail, work), fail, 16384, work)
 
-  test.each([{ radius: 0 }, { radius: 4 }])('routes through blank padding inside the actual radius-$radius host outline', ({ radius }) => {
-    const graph = input(radius), before = structuredClone(graph)
-    const output = layoutLayeredGraph(graph, () => undefined, fail), host = output.groups![0]!, route = output.edges[0]!
+
+  test.each([0, 4].flatMap(radius => [false, true].flatMap(global => (global ? [false, true] : [false]).map(reverse => ({ radius, global, reverse })))))('keeps ink inside the radius-$radius host outline, global=$global, reverse=$reverse', ({ radius, global, reverse }) => {
+    const graph = input(radius)
+    if (reverse) graph.edges = graph.edges.map(edge => ({ ...edge, source: edge.target, target: edge.source }))
+    const before = structuredClone(graph)
+    const solve = global ? (graph: MeasuredGraph) => layoutLayeredGraph(graph, () => undefined, fail) : recursive
+    const output = solve(graph), host = output.groups![0]!, route = output.edges[0]!
     expect(graph).toEqual(before)
     expect(output.nodes).toHaveLength(2)
     expect(output.groups).toHaveLength(2)
     expect(output.edges).toHaveLength(1)
     expect(output.boundaryRoutes).toEqual([0])
-    expect(layoutLayeredGraph(graph, () => undefined, fail)).toEqual(output)
+    expect(solve(graph)).toEqual(output)
     const nodes = output.nodes.map((point, index) => ({ ...graph.nodes[index]!, ...point }))
-    for (const [point, node] of [[route.points[0]!, nodes[0]!], [route.points.at(-1)!, nodes[1]!]] as const) {
+    for (const [point, node] of [[route.points[0]!, nodes[graph.edges[0]!.source]!], [route.points.at(-1)!, nodes[graph.edges[0]!.target]!]] as const) {
       expect(point.x >= node.x && point.x <= node.x + node.width && point.y >= node.y && point.y <= node.y + node.height).toBe(true)
       expect(point.x === node.x || point.x === node.x + node.width || point.y === node.y || point.y === node.y + node.height).toBe(true)
     }
     // This route really uses the side padding excluded by the original domain.
-    expect(route.points.some(point => point.x > host.x + host.width - 16 || point.x < host.x + 16)).toBe(true)
+    if (!global) expect(route.points.some(point => point.x > host.x + host.width - 16 || point.x < host.x + 16)).toBe(true)
     const insidePaintedHost = (point: Point) => {
       // Remove the frame's half-stroke. Testing every vertex of each expanded
       // sharp segment rectangle proves its entire ink is in this convex inset.
@@ -1885,7 +1987,7 @@ describe('painted host padding corridors', () => {
     const graph = input(0)
     delete graph.groups![0]!.paintCornerRadius
     const before = structuredClone(graph)
-    expect(() => layoutLayeredGraph(graph, () => undefined, fail)).toThrow('cross-hierarchy route has no bounded clear corridor')
+    expect(() => recursive(graph)).toThrow('cross-hierarchy route has no bounded clear corridor')
     expect(graph).toEqual(before)
   })
 
@@ -1893,10 +1995,10 @@ describe('painted host padding corridors', () => {
     const unknown = input(0)
     delete unknown.groups![0]!.paintCornerRadius
     const firstAttempt = { ...budget(), arcs: 2400 }
-    expect(() => layoutLayeredGraph(unknown, () => undefined, fail, firstAttempt)).toThrow('cross-hierarchy route has no bounded clear corridor')
+    expect(() => recursive(unknown, firstAttempt)).toThrow('cross-hierarchy route has no bounded clear corridor')
     expect(firstAttempt.arcs).toBeGreaterThan(0)
     const retry = { ...budget(), arcs: 2400 }
-    expect(() => layoutLayeredGraph(input(0), () => undefined, fail, retry)).toThrow('cross-hierarchy visibility-arc limit')
+    expect(() => recursive(input(0), retry)).toThrow('cross-hierarchy visibility-arc limit')
     expect(retry.arcs).toBeLessThan(0)
     expect(retry.pairs).toBeLessThan(firstAttempt.pairs)
     expect(retry.swaps).toBeLessThan(firstAttempt.swaps)

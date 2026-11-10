@@ -2,9 +2,9 @@
 
 The owner's new instruction on 9 November selects Native as the sole replacement
 candidate. Trinity feature work is frozen; its existing public API remains for
-compatibility. The neutral request contract already feeds Native. Port useful
-early endpoint-capacity planning into that producer rather than growing a third
-solver. ELK remains available; no default, version or work-cap change is implied.
+compatibility. Native production now uses the neutral request/result validator.
+Canonical wide rectangular/rounded faces enter early physical capacity planning;
+weighted thin faces and compatible confluent fans retain their existing packing. ELK remains available; no default, version or work-cap change is implied.
 
 Work order:
 
@@ -16,12 +16,21 @@ Work order:
    route passes and index spatial peers where measurements justify the work.
    Keep exact narrow-phase checks, live mutation invalidation and existing caps.
    Target under 100ms; report cold, uncached warm and cache hits separately.
-3. Replace recursive child-box ranking with global leaf ranks and nesting
-   borders, then order group intervals and derive frames from those borders.
-   Reserve total border expansion before allocation. Keep the recursive path
-   for container-to-descendant links and independent group directions until
-   the global strategy preserves those existing supported contracts. Boundary
-   feedback is a fallback design alternative, not a parallel backend project.
+3. Common-direction acyclic leaf compounds now use global ranks and linked
+   nesting borders. Long-edge subdivisions follow their source/LCA/target scopes;
+   connected sibling components stay contiguous beside unrelated child frames.
+   Keep the recursive compatibility path for authored cycles/loops, container
+   endpoints, independent group directions and explicit ordering. No cap changes.
+   Boundary feedback remains an alternative, not another backend project.
+
+10 November verification: the eight authored a→c→b grouped witnesses now all
+preserve leaf flow and pass actual SVG receipts; one previous refusal is removed.
+Area/wire costs often rise versus the compressed previous layout. Frozen30
+retains all delivery/proof outcomes. Marker indexing is shipped, but neither it
+nor the rejected capture-copy trials establish a full-response speedup. Fully
+consumed100-node responses still exceed100ms and the400k capture-work limit;
+solving that shared producer/consumer cost remains unfinished. See the brief
+[work log](layout-0.6-work-log.md) and PR evidence for measured tradeoffs.
 
 Authored meaning and final SVG remain the correctness boundary. Retain adverse
 wire, area, runtime, memory and payload changes. Automations remain disabled.

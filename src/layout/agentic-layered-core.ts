@@ -9,6 +9,7 @@ import type { MeasuredGraph as SharedMeasuredGraph, MeasuredRoutes } from './mea
 import { layoutSharedFan } from './shared-fan-core.ts'
 import { layoutCyclicGraph, orientMeasuredEdge, type LayoutSearchWork } from './cycle-layout-search.ts'
 import { layoutCompoundGraph } from './agentic-compound-core.ts'
+import { nativeNestingOf, placeNativeNesting, prepareNestingBands } from './native-nesting.ts'
 import { compareFeedbackOrders, depthFirstOrder, feedbackOrder, groupSourceOrder } from './cycle-order.ts'
 import { assignChannelTracks, orderedPortCoordinate, type ChannelStep, type ChannelWork } from './channel-tracks.ts'
 import { AGENTIC_MAX_NODES as MAX_NODES, AGENTIC_MAX_EDGES as MAX_EDGES, AGENTIC_MAX_EXPANDED_VERTICES as MAX_EXPANDED_VERTICES } from './agentic-limits.ts'
@@ -81,7 +82,9 @@ export function layoutLayeredGraph(
 ): AgenticLayout {
   let { nodes } = input
   const { edges, padding, nodeSpacing, layerSpacing } = input
-  if (nodes.length > MAX_NODES || edges.length > MAX_EDGES) unsupported('agentic local graph-size limit')
+  const nesting = nativeNestingOf(input)
+  if ((nesting ? nesting.input.nodes.length + nesting.input.groups!.length : nodes.length) > MAX_NODES
+    || (nesting ? nesting.input.edges.length : edges.length) > MAX_EDGES) unsupported('agentic local graph-size limit')
   if (![padding, nodeSpacing, layerSpacing].every(value => finiteSize(value, false))) {
     throw new TypeError('Measured graph spacing must be finite and nonnegative')
   }
@@ -105,13 +108,15 @@ export function layoutLayeredGraph(
     if (nodes.length + input.groups.length > MAX_NODES) unsupported('agentic local compound-size limit')
     // Local components can have authored contacts outside this projection.
     // Preserve their corridor arrangement until the parent restores those edges.
-    return layoutCompoundGraph(input, flat => layoutLayeredGraph(flat, local => forestLayout(local, 'scope'), unsupported, routingWork, searchWork), unsupported, MAX_EXPANDED_VERTICES, routingWork)
+    const place = (flat: MeasuredGraph) => layoutLayeredGraph(flat, local => forestLayout(local, 'scope'), unsupported, routingWork, searchWork)
+    return layoutCompoundGraph(input, place, unsupported, MAX_EXPANDED_VERTICES, routingWork,
+      (owners, children, lifted) => placeNativeNesting(input, owners, children, lifted, place, routingWork, MAX_EXPANDED_VERTICES, unsupported))
   }
   const horizontal = input.direction === 'LR' || input.direction === 'RL'
   const reverse = input.direction === 'BT' || input.direction === 'RL'
   const ids = new Set<string>()
   let hasModelOrder = false
-  for (const node of nodes) {
+  for (const [nodeIndex, node] of nodes.entries()) {
     if (node.parent !== undefined) throw new TypeError('Measured parent requires a compound scope')
     if (node.modelOrder !== undefined) {
       if (!Number.isSafeInteger(node.modelOrder) || node.modelOrder < 0) throw new TypeError('Invalid measured model order')
@@ -120,7 +125,8 @@ export function layoutLayeredGraph(
     if (node.partition !== undefined && (!Number.isSafeInteger(node.partition) || node.partition < 0 || node.partition > 10000)) throw new TypeError('Invalid measured partition')
     if (ids.has(node.id)) throw new TypeError('Measured graph node identities must be unique')
     ids.add(node.id)
-    if (!finiteSize(node.width, true) || !finiteSize(node.height, true)) throw new TypeError('Measured node dimensions must be finite and positive')
+    const privateBorder = nesting !== undefined && nodeIndex >= nesting.input.nodes.length
+    if (!finiteSize(node.width, !privateBorder) || !finiteSize(node.height, !privateBorder)) throw new TypeError('Measured node dimensions must be finite and positive')
   }
   const incoming: number[][] = nodes.map(() => [])
   const outgoing: number[][] = nodes.map(() => [])
@@ -237,9 +243,9 @@ export function layoutLayeredGraph(
   }
 
   const physicalCapacity = nodes.some(node => node.contact === 'rectangle' || node.contact === 'rounded-rectangle')
-  const shared = !physicalCapacity && !partitioned && !hasModelOrder && !hasShortEdges && layoutSharedFan(input, incoming, outgoing, unsupported)
+  const shared = !nesting && !physicalCapacity && !partitioned && !hasModelOrder && !hasShortEdges && layoutSharedFan(input, incoming, outgoing, unsupported)
   if (shared) return shared
-  const forest = !physicalCapacity && !partitioned && !hasModelOrder && !hasShortEdges && forestLayout(input)
+  const forest = !nesting && !physicalCapacity && !partitioned && !hasModelOrder && !hasShortEdges && forestLayout(input)
   if (forest) return { ...forest, expandedVertices: nodes.length }
 
   // The default reserves two private ranks per span. The optional compact
@@ -280,6 +286,13 @@ export function layoutLayeredGraph(
       (flat, fail, work) => layoutLayeredGraph(flat, forestLayout, fail, work, searchWork),
       unsupported, routingWork, searchWork)
   }
+  if (nesting) {
+    routingWork.pairs -= 2 * edges.length
+    routingWork.arcs -= 2 * nodes.length + 2 * nesting.input.edges.length
+    if (routingWork.pairs < 0 || routingWork.arcs < 0) unsupported('agentic global port adjacency work limit')
+  }
+  const portIncoming = nesting ? incoming.map(peers => peers.filter(index => index < nesting.input.edges.length)) : incoming
+  const portOutgoing = nesting ? outgoing.map(peers => peers.filter(index => index < nesting.input.edges.length)) : outgoing
   let physicalPortMargins: Float64Array | undefined
   if (physicalCapacity) {
     routingWork.arcs -= nodes.length
@@ -290,12 +303,12 @@ export function layoutLayeredGraph(
     // known paint demand into a smaller proportional spread.
     nodes = nodes.map((node, index) => {
       if (node.contact !== 'rectangle' && node.contact !== 'rounded-rectangle') return node
-      routingWork.pairs -= 8 + outgoing[index]!.length + incoming[index]!.length
+      routingWork.pairs -= 8 + portOutgoing[index]!.length + portIncoming[index]!.length
       if (--routingWork.arcs < 0 || routingWork.pairs < 0) unsupported('agentic endpoint capacity work limit')
       let support = input.maximumEdgeStrokeWidth ?? 0
-      for (const e of outgoing[index]!) support = Math.max(support, sourcePortSpans?.[e] ?? 0)
-      for (const e of incoming[index]!) support = Math.max(support, targetPortSpans?.[e] ?? 0)
-      const count = Math.max(outgoing[index]!.length, incoming[index]!.length)
+      for (const e of portOutgoing[index]!) support = Math.max(support, sourcePortSpans?.[e] ?? 0)
+      for (const e of portIncoming[index]!) support = Math.max(support, targetPortSpans?.[e] ?? 0)
+      const count = Math.max(portOutgoing[index]!.length, portIncoming[index]!.length)
       if (!count) return node
       const margin = Math.max(8, (node.paintCornerRadius ?? 0) + (node.paintStrokeWidth ?? 0) / 2 + support / 2)
       margins[index] = margin
@@ -380,9 +393,26 @@ export function layoutLayeredGraph(
   }
   const optimalRanks = !partitioned && minimumSpanRanks(input, searchWork, hasShortEdges)
   if (optimalRanks) rank.set(optimalRanks)
+  if (nesting) {
+    const groups = nesting.input.groups!
+    routingWork.pairs -= 4 * nesting.input.nodes.length + groups.length * (64 + Math.ceil(Math.log2(groups.length + 1)))
+    routingWork.arcs -= 4 * groups.length
+    if (routingWork.pairs < 0 || routingWork.arcs < 0) unsupported('agentic nesting rank compaction work limit')
+    const order = groups.map((_, index) => index), depth = new Uint8Array(groups.length)
+    for (let group = 0; group < groups.length; group++) for (let p = group; p >= 0; p = groups[p]!.parent ?? -1) depth[group] = depth[group]! + 1
+    order.sort((a, b) => depth[b]! - depth[a]! || a - b)
+    const first = new Float64Array(groups.length).fill(Infinity), last = new Float64Array(groups.length).fill(-Infinity)
+    nesting.input.nodes.forEach((node, i) => { const parent = node.parent; if (parent !== undefined) { first[parent] = Math.min(first[parent]!, rank[i]!); last[parent] = Math.max(last[parent]!, rank[i]!) } })
+    for (const group of order) {
+      rank[nesting.top[group]!] = first[group]! - 1
+      rank[nesting.bottom[group]!] = last[group]! + 1
+      const parent = groups[group]!.parent
+      if (parent !== undefined) { first[parent] = Math.min(first[parent]!, rank[nesting.top[group]!]!); last[parent] = Math.max(last[parent]!, rank[nesting.bottom[group]!]!) }
+    }
+  }
   maxRank = rank.reduce((maximum, value) => Math.max(maximum, value), 0)
   let expandedSize = nodes.length
-  for (const edge of edges) {
+  for (const edge of nesting ? edges.slice(0, nesting.input.edges.length) : edges) {
     expandedSize += rank[edge.target]! - rank[edge.source]! - 1
     if (expandedSize > MAX_EXPANDED_VERTICES) unsupported('agentic local expanded-graph limit')
   }
@@ -399,6 +429,7 @@ export function layoutLayeredGraph(
   const labelVertices: (number | undefined)[] = []
   for (let edgeIndex = 0; edgeIndex < edges.length; edgeIndex++) {
     const edge = edges[edgeIndex]!
+    if (nesting && edgeIndex >= nesting.input.edges.length) { chains.push([]); continue }
     const chain = [edge.source]
     const labelRank = edge.label ? Math.floor((rank[edge.source]! + rank[edge.target]!) / 2) : -1
     for (let currentRank = rank[edge.source]! + 1; currentRank < rank[edge.target]!; currentRank++) {
@@ -422,10 +453,12 @@ export function layoutLayeredGraph(
     chains.push(chain)
   }
 
+  const nestedBands = nesting ? prepareNestingBands(nesting, vertices, rank, chains, routingWork, MAX_EXPANDED_VERTICES, unsupported) : undefined
   const bands: number[][] = Array.from({ length: maxRank + 1 }, () => [])
   const bandWidths = new Float64Array(bands.length)
   const bandHeights = new Float64Array(bands.length)
   for (let index = 0; index < vertices.length; index++) bands[vertices[index]!.rank]!.push(index)
+  if (nestedBands) for (const band of bands) nestedBands.canonicalize(band)
   const preserveModelOrder = hasModelOrder ? (band: number[]): void => {
     const ordered = band.filter(index => nodes[index]?.modelOrder !== undefined)
     ordered.sort((a, b) => nodes[a]!.modelOrder! - nodes[b]!.modelOrder!)
@@ -484,6 +517,7 @@ export function layoutLayeredGraph(
       }
     } else band.sort((a, b) => barycenters[a]! - barycenters[b]! || a - b)
     preserveModelOrder?.(band)
+    nestedBands?.canonicalize(band)
     assignBand(index)
   }
   const orderSlots = new Uint32Array(vertices.length)
@@ -562,10 +596,10 @@ export function layoutLayeredGraph(
       if (!changed) break
     }
   }
-  switchAdjacentRanks()
+  if (!nesting) switchAdjacentRanks()
   // Move a long edge's private vertices together. Single-rank switches can
   // stall when their temporary crossings conceal an improving joint move.
-  if (input.compactPrivateRanks && nodes.length <= 20 && edges.length <= 64 && vertices.length <= 256) {
+  if (!nesting && input.compactPrivateRanks && nodes.length <= 20 && edges.length <= 64 && vertices.length <= 256) {
     const slotDescriptor = { __proto__: null, value: undefined as [number, number[]] | undefined, writable: true, enumerable: true, configurable: true }
     let value = crossingScore(), trials = 128
     const blocks = chains.map(chain => chain.slice(1, -1)).filter(block => block.length > 1).sort((a, b) => b.length - a.length)
@@ -617,12 +651,12 @@ export function layoutLayeredGraph(
   // Tiny cyclic graphs already enumerate every cycle-search start. Keep that
   // tuned policy: chain inversion gains there can add physical route bends.
   // DAGs can refine long chains at every size without changing cycle placement.
-  if (input.compactPrivateRanks && (nodes.length > 12 || !input.cycleOriented) && nodes.length <= 20 && edges.length <= 64 && vertices.length <= 256) {
+  if (!nesting && input.compactPrivateRanks && (nodes.length > 12 || !input.cycleOriented) && nodes.length <= 20 && edges.length <= 64 && vertices.length <= 256) {
     refinePrivateChainOrder(bands, vertices, chains, searchWork)
   }
   // On a DAG, joint moves can make previously blocked local swaps improving
   // again. Keep the separately validated cycle-placement policy intact.
-  if (input.compactPrivateRanks && !input.cycleOriented) switchAdjacentRanks()
+  if (!nesting && input.compactPrivateRanks && !input.cycleOriented) switchAdjacentRanks()
   for (let index = 0; index < bands.length; index++) assignBand(index)
 
   // Median coordinate descent reduces adjacent-rank L1 span within the
@@ -637,7 +671,7 @@ export function layoutLayeredGraph(
   }
   let medianScratch = new Float64Array(0)
   const coordinateGap = Math.min(4, nodeSpacing)
-  for (let sweep = 0; sweep < 4; sweep++) for (const forward of [true, false]) {
+  for (let sweep = 0; !nesting && sweep < 4; sweep++) for (const forward of [true, false]) {
     for (let row = 0; row < bands.length; row++) {
       const band = bands[forward ? row : bands.length - 1 - row]!
       for (let cursor = 0; cursor < band.length; cursor++) {
@@ -720,6 +754,7 @@ export function layoutLayeredGraph(
     const pairs = pairedPorts.get(a.source) ?? []
     pairs.push(pair); pairedPorts.set(a.source, pairs)
   }
+  if (nestedBands) crossExtent = nestedBands.coordinates(bands, cross)
   for (let nodeIndex = 0; nodeIndex < nodes.length; nodeIndex++) {
     const width = vertices[nodeIndex]!.crossSize
     const assignPorts = (indices: number[], source: boolean): void => {
@@ -788,8 +823,8 @@ export function layoutLayeredGraph(
         ;(source ? sourcePort : targetPort)[peers[index]!] = position
       }
     }
-    assignPorts(outgoing[nodeIndex]!, true)
-    assignPorts(incoming[nodeIndex]!, false)
+    assignPorts(portOutgoing[nodeIndex]!, true)
+    assignPorts(portIncoming[nodeIndex]!, false)
   }
 
   if (input.portAwarePlacement) layoutOptimization(true)!.improvePortCoordinates(vertices, bands, chains, cross, sourcePort, targetPort, nodes.length, nodeSpacing, crossExtent, previousReal, nextReal)
@@ -805,12 +840,26 @@ export function layoutLayeredGraph(
     return step
   }))
   const gaps = channels.map(channel => {
+    if (nesting && !channel.length) return 0
     if (input.minimumTerminalLead !== undefined) { routingWork.pairs -= 3; if (routingWork.pairs < 0) unsupported('agentic terminal-lead work limit') }
     return assignChannelTracks(channel, halfGap, input.edgeSpacing ?? 6, crossExtent, routingWork, unsupported, input.minimumTerminalLead)
   })
+  let bottomGroups: number[][] | undefined
+  if (nesting && horizontal) {
+    routingWork.arcs -= bands.length + 2 * nesting.top.length
+    routingWork.pairs -= bands.length + nesting.top.length
+    if (routingWork.arcs < 0 || routingWork.pairs < 0) unsupported('agentic nesting extent work limit')
+    bottomGroups = Array.from({ length: bands.length }, () => [])
+    for (let group = 0; group < nesting.top.length; group++) bottomGroups[rank[nesting.bottom[group]!]!]!.push(group)
+  }
   const main = new Float64Array(vertices.length)
   let mainExtent = 0
   for (let index = 0; index < bands.length; index++) {
+    if (nesting && bottomGroups) for (const group of bottomGroups[index]!) {
+      mainExtent = Math.max(mainExtent,
+        main[nesting.top[group]!]! - vertices[nesting.top[group]!]!.mainSize / 2 + nesting.input.groups![group]!.minWidth
+        - vertices[nesting.bottom[group]!]!.mainSize / 2 - bandHeights[index]! / 2)
+    }
     for (const vertexIndex of bands[index]!) main[vertexIndex] = mainExtent + bandHeights[index]! / 2
     mainExtent += bandHeights[index]! + (gaps[index] ?? 0)
   }
@@ -845,6 +894,7 @@ export function layoutLayeredGraph(
   // arrays: the family will build the actual side-constrained routes.
   const positionedEdges = input.placementOnly && !input.cycleOriented && !input.loopPorts?.length
     ? edges.map(() => ({ points: [] as Point[] })) : edges.map((_, edgeIndex) => {
+    if (nesting && edgeIndex >= nesting.input.edges.length) return { points: [] as Point[] }
     const chain = chains[edgeIndex]!
     const points: Point[] = []
     const append = (crossValue: number, mainValue: number, projectedCross?: number, projectedMain?: number): void => {
@@ -888,5 +938,13 @@ export function layoutLayeredGraph(
     height: 2 * padding + (horizontal ? crossExtent : mainExtent),
     nodes: positionedNodes,
     edges: positionedEdges,
+    ...(nesting && nestedBands ? { groups: nesting.input.groups!.map((_, group) => {
+      const top = nesting.top[group]!, bottom = nesting.bottom[group]!
+      const start = main[top]! - vertices[top]!.mainSize / 2, end = main[bottom]! + vertices[bottom]!.mainSize / 2
+      const low = cross[nestedBands.left[group]!]!, high = cross[nestedBands.right[group]!]!
+      const mainStart = padding + (reverse ? mainExtent - end : start)
+      return horizontal ? { x: mainStart, y: padding + low, width: end - start, height: high - low }
+        : { x: padding + low, y: mainStart, width: high - low, height: end - start }
+    }) } : {}),
   }
 }
