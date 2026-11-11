@@ -1,0 +1,9 @@
+{
+  "purpose": "Bound actual repeated resource-only work before implementing fresh completed-resource paint reuse",
+  "method": "Instrument existing markerPaintIdentity, markerMayHaveOpaqueFill and stablePathMarker work callbacks. UNSAFE labelled diagnostic suppresses emission addition solely to finish downstream cost attribution; it is not a production proof or delivery result.",
+  "chain100": { "emission": 343841, "downstream": 57602, "combined": 401443, "deficit": 1443, "paintIdentityCalls": 99, "paintIdentityWork": 24750, "firstPaintIdentityWork": 250, "repeatWorkUpperBound": 24500 },
+  "Sparse32": { "emission": 388840, "nativeDownstream": 13318, "combined": 402158, "deficit": 2158, "nativePaintIdentityCalls": 32, "nativePaintIdentityWork": 4480, "firstPaintIdentityWork": 140, "repeatWorkUpperBound": 4340, "qualification": "The 64 calls in the combined raw log also include 32 separate direct Scene calls; they are not all Native calls." },
+  "otherResourceWork": { "markerMayHaveOpaqueFill": "2 work per occurrence; insufficient alone", "stablePathMarker": "No calls in chain100 or Sparse32", "prepareMarkerPolygonInk": "Sparse chrome markers do not enter semantic polygon proof; polygon-only optimization would not fix Sparse32." },
+  "proposedSubtraction": "Compile the same paid marker paint result once from actual checked resource declaration/closed context, bind each current descriptor via already required same()/actual-definition correspondence, consume completed primitive paint facts per occurrence; keep pose/width/transform and generic live reads unchanged.",
+  "limitations": ["Bounds precede new producer and occurrence binding costs; actual production proof must include those costs.", "No runtime, RSS, 100ms or all-12-capacity success is established.", "Flowchart128, Sequence128 and chain300 larger emission/capture failures remain separately unresolved."]
+}

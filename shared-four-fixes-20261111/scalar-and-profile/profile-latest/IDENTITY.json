@@ -1,0 +1,39 @@
+{
+  "sourceCommit": "48d62e103e9b8a6d6d8fe3159ebe384880721609",
+  "compiledBeforeCommit": true,
+  "sourceMapProjectSourceComparisons": 735,
+  "sourceMapProjectSourceMismatches": [],
+  "artifacts": [
+    {
+      "path": "/tmp/pr449-main-integration-20261029-762/dist/chunk-5LNHV6WC.js",
+      "bytes": 20977,
+      "sha256": "36932855b93d6cdb1efefa7c8ac31c13e85255003c48ab8c598811f530331b59"
+    },
+    {
+      "path": "/tmp/pr449-main-integration-20261029-762/dist/chunk-5LNHV6WC.js.map",
+      "bytes": 100760,
+      "sha256": "c525b2521ab17113bc68cb79eb0f3f064e96cbf2e4d5969a228a88ebaac999f0"
+    },
+    {
+      "path": "/tmp/pr449-main-integration-20261029-762/dist/chunk-VKKKNLBA.js",
+      "bytes": 3656719,
+      "sha256": "305b14422ea955c82fab7188cdf27399376b92623b6025058d21c0246e21595a"
+    },
+    {
+      "path": "/tmp/pr449-main-integration-20261029-762/dist/chunk-VKKKNLBA.js.map",
+      "bytes": 14612424,
+      "sha256": "a9bde4870a7162ac2fdde679bc012d08b4c4eb75b9ccf847a6548163954aa829"
+    },
+    {
+      "path": "/workspace/agentic-mermaid/node_modules/entities/dist/esm/decode.js",
+      "bytes": 23157,
+      "sha256": "06160cb9a7a627238074dcc3b7f362e63ff418cb3554668ea29ab237a3c8494c"
+    },
+    {
+      "path": "/workspace/agentic-mermaid/node_modules/entities/dist/esm/decode.js.map",
+      "bytes": 13761,
+      "sha256": "51e3350b418f233af49b0b9d43a0354248aa94d1a788f5c25a17f15bbfb35b76"
+    }
+  ],
+  "scope": "Actual loaded dist URLs from three CPU profiles; not whole bundle payload or uninstrumented latency. Source-map project bytes checked against recorded commit."
+}

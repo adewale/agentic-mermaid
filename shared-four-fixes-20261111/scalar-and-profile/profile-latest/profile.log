@@ -1,0 +1,3 @@
+{"case":"diagnostic:chain100","backend":"agentic","phase":"repeat1","status":"returned","wallMs":232.47426299999995,"cpuMs":386.028,"samples":695}
+{"case":"diagnostic:chain100","backend":"agentic","phase":"repeat2","status":"returned","wallMs":187.88312999999994,"cpuMs":393.933,"samples":528}
+{"case":"diagnostic:chain100","backend":"agentic","phase":"edit1","status":"returned","wallMs":211.43722300000013,"cpuMs":328.263,"samples":517}

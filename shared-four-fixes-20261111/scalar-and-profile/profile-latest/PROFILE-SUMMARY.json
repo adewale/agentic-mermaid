@@ -1,0 +1,1184 @@
+[
+  {
+    "phase": "repeat1",
+    "durationMs": 337.779,
+    "scope": "Sampled built public SVG+entire receipt; self/inclusive separate; recursive source frames counted once per sample in inclusive totals. Not an uninstrumented latency measurement.",
+    "topSelf": [
+      {
+        "file": "node:inspector",
+        "line": 115,
+        "name": "post",
+        "selfMs": 104.148,
+        "inclusiveMs": 104.634
+      },
+      {
+        "file": "../src/scene/native-paint-emission.ts",
+        "line": 109,
+        "name": "v",
+        "selfMs": 29.07500000000001,
+        "inclusiveMs": 34.30300000000001
+      },
+      {
+        "file": "../src/layout-rubric.ts",
+        "line": 493,
+        "name": "assessLayoutGeometry",
+        "selfMs": 7.06,
+        "inclusiveMs": 13.107000000000001
+      },
+      {
+        "file": "",
+        "line": 0,
+        "name": "(garbage collector)",
+        "selfMs": 6.376999999999999,
+        "inclusiveMs": 6.376999999999999
+      },
+      {
+        "file": "../src/scene/scene-validation-core.ts",
+        "line": 768,
+        "name": "validateNode",
+        "selfMs": 6.363,
+        "inclusiveMs": 13.379
+      },
+      {
+        "file": "../src/layout-rubric.ts",
+        "line": 650,
+        "name": "measureRubricMetrics",
+        "selfMs": 5.340000000000001,
+        "inclusiveMs": 24.458999999999996
+      },
+      {
+        "file": "../src/scene/svg-writer.ts",
+        "line": 719,
+        "name": "attribute",
+        "selfMs": 4.97,
+        "inclusiveMs": 6.3580000000000005
+      },
+      {
+        "file": "../src/svg-writer-evidence.ts",
+        "line": 49,
+        "name": "writtenTagOf",
+        "selfMs": 4.898,
+        "inclusiveMs": 5.191999999999999
+      },
+      {
+        "file": "../src/scene/scene-validation-core.ts",
+        "line": 1511,
+        "name": "write",
+        "selfMs": 3.297,
+        "inclusiveMs": 33.413
+      },
+      {
+        "file": "../src/scene/bounds.ts",
+        "line": 358,
+        "name": "d",
+        "selfMs": 2.9779999999999998,
+        "inclusiveMs": 6.369999999999999
+      },
+      {
+        "file": "../src/svg-style-scope.ts",
+        "line": 27,
+        "name": "scopeHash",
+        "selfMs": 2.789,
+        "inclusiveMs": 2.789
+      },
+      {
+        "file": "../src/svg-structure.ts",
+        "line": 121,
+        "name": "scanStartTags",
+        "selfMs": 2.7280000000000006,
+        "inclusiveMs": 8.551000000000002
+      },
+      {
+        "file": "../src/scene/native-paint-emission.ts",
+        "line": 656,
+        "name": "leaf",
+        "selfMs": 2.6270000000000002,
+        "inclusiveMs": 72.12899999999996
+      },
+      {
+        "file": "../src/scene/paint-certification.ts",
+        "line": 1491,
+        "name": "certifyNativePaint",
+        "selfMs": 2.558,
+        "inclusiveMs": 22.106999999999992
+      },
+      {
+        "file": "../src/scene/group-emission.ts",
+        "line": 263,
+        "name": "attribute",
+        "selfMs": 2.3970000000000002,
+        "inclusiveMs": 2.3970000000000002
+      },
+      {
+        "file": "../src/shared/color-math.ts",
+        "line": 160,
+        "name": "tryParseCssColor",
+        "selfMs": 2.298,
+        "inclusiveMs": 2.298
+      },
+      {
+        "file": "../src/shared/edge-crossings.ts",
+        "line": 131,
+        "name": "countPolylineCrossings",
+        "selfMs": 2.2720000000000002,
+        "inclusiveMs": 2.2720000000000002
+      },
+      {
+        "file": "../src/shape-outline.ts",
+        "line": 167,
+        "name": "shapeRoutingProfile",
+        "selfMs": 2.219,
+        "inclusiveMs": 2.833
+      },
+      {
+        "file": "../src/parser.ts",
+        "line": 1600,
+        "name": "consumeNodeGroup",
+        "selfMs": 2.104,
+        "inclusiveMs": 3.4000000000000004
+      },
+      {
+        "file": "../src/scene/native-paint-emission.ts",
+        "line": 256,
+        "name": "R",
+        "selfMs": 2.045,
+        "inclusiveMs": 34.90300000000002
+      },
+      {
+        "file": "../src/renderer.ts",
+        "line": 349,
+        "name": "renderEdge",
+        "selfMs": 2.004,
+        "inclusiveMs": 35.63899999999998
+      },
+      {
+        "file": "../src/layout-rubric.ts",
+        "line": 310,
+        "name": "portEndpointRate",
+        "selfMs": 1.991,
+        "inclusiveMs": 3.1630000000000003
+      },
+      {
+        "file": "../src/scene/identity.ts",
+        "line": 52,
+        "name": "name",
+        "selfMs": 1.968,
+        "inclusiveMs": 1.968
+      },
+      {
+        "file": "../src/parser.ts",
+        "line": 660,
+        "name": "collectFlowchartSubgraphDeclarations",
+        "selfMs": 1.8929999999999998,
+        "inclusiveMs": 2.729
+      },
+      {
+        "file": "../src/scene/deferred-terminal-projection.ts",
+        "line": 39,
+        "name": "install",
+        "selfMs": 1.737,
+        "inclusiveMs": 1.737
+      },
+      {
+        "file": "../src/svg-style-scope.ts",
+        "line": 175,
+        "name": "scopeSvgStyles",
+        "selfMs": 1.6660000000000001,
+        "inclusiveMs": 5.343999999999999
+      },
+      {
+        "file": "../src/flowchart-lexer.ts",
+        "line": 407,
+        "name": "lex",
+        "selfMs": 1.633,
+        "inclusiveMs": 1.924
+      },
+      {
+        "file": "../src/scene/native-paint-emission.ts",
+        "line": 424,
+        "name": "A",
+        "selfMs": 1.593,
+        "inclusiveMs": 1.593
+      },
+      {
+        "file": "../src/scene/bounds.ts",
+        "line": 565,
+        "name": "paintedBox",
+        "selfMs": 1.524,
+        "inclusiveMs": 1.524
+      },
+      {
+        "file": "../src/scene/bounds.ts",
+        "line": 10,
+        "name": "pointsBounds",
+        "selfMs": 1.521,
+        "inclusiveMs": 1.521
+      }
+    ],
+    "productSelf": [
+      {
+        "file": "../src/scene/native-paint-emission.ts",
+        "line": 109,
+        "name": "v",
+        "selfMs": 29.07500000000001,
+        "inclusiveMs": 34.30300000000001
+      },
+      {
+        "file": "../src/layout-rubric.ts",
+        "line": 493,
+        "name": "assessLayoutGeometry",
+        "selfMs": 7.06,
+        "inclusiveMs": 13.107000000000001
+      },
+      {
+        "file": "../src/scene/scene-validation-core.ts",
+        "line": 768,
+        "name": "validateNode",
+        "selfMs": 6.363,
+        "inclusiveMs": 13.379
+      },
+      {
+        "file": "../src/layout-rubric.ts",
+        "line": 650,
+        "name": "measureRubricMetrics",
+        "selfMs": 5.340000000000001,
+        "inclusiveMs": 24.458999999999996
+      },
+      {
+        "file": "../src/scene/svg-writer.ts",
+        "line": 719,
+        "name": "attribute",
+        "selfMs": 4.97,
+        "inclusiveMs": 6.3580000000000005
+      },
+      {
+        "file": "../src/svg-writer-evidence.ts",
+        "line": 49,
+        "name": "writtenTagOf",
+        "selfMs": 4.898,
+        "inclusiveMs": 5.191999999999999
+      },
+      {
+        "file": "../src/scene/scene-validation-core.ts",
+        "line": 1511,
+        "name": "write",
+        "selfMs": 3.297,
+        "inclusiveMs": 33.413
+      },
+      {
+        "file": "../src/scene/bounds.ts",
+        "line": 358,
+        "name": "d",
+        "selfMs": 2.9779999999999998,
+        "inclusiveMs": 6.369999999999999
+      },
+      {
+        "file": "../src/svg-style-scope.ts",
+        "line": 27,
+        "name": "scopeHash",
+        "selfMs": 2.789,
+        "inclusiveMs": 2.789
+      },
+      {
+        "file": "../src/svg-structure.ts",
+        "line": 121,
+        "name": "scanStartTags",
+        "selfMs": 2.7280000000000006,
+        "inclusiveMs": 8.551000000000002
+      },
+      {
+        "file": "../src/scene/native-paint-emission.ts",
+        "line": 656,
+        "name": "leaf",
+        "selfMs": 2.6270000000000002,
+        "inclusiveMs": 72.12899999999996
+      },
+      {
+        "file": "../src/scene/paint-certification.ts",
+        "line": 1491,
+        "name": "certifyNativePaint",
+        "selfMs": 2.558,
+        "inclusiveMs": 22.106999999999992
+      },
+      {
+        "file": "../src/scene/group-emission.ts",
+        "line": 263,
+        "name": "attribute",
+        "selfMs": 2.3970000000000002,
+        "inclusiveMs": 2.3970000000000002
+      },
+      {
+        "file": "../src/shared/color-math.ts",
+        "line": 160,
+        "name": "tryParseCssColor",
+        "selfMs": 2.298,
+        "inclusiveMs": 2.298
+      },
+      {
+        "file": "../src/shared/edge-crossings.ts",
+        "line": 131,
+        "name": "countPolylineCrossings",
+        "selfMs": 2.2720000000000002,
+        "inclusiveMs": 2.2720000000000002
+      },
+      {
+        "file": "../src/shape-outline.ts",
+        "line": 167,
+        "name": "shapeRoutingProfile",
+        "selfMs": 2.219,
+        "inclusiveMs": 2.833
+      },
+      {
+        "file": "../src/parser.ts",
+        "line": 1600,
+        "name": "consumeNodeGroup",
+        "selfMs": 2.104,
+        "inclusiveMs": 3.4000000000000004
+      },
+      {
+        "file": "../src/scene/native-paint-emission.ts",
+        "line": 256,
+        "name": "R",
+        "selfMs": 2.045,
+        "inclusiveMs": 34.90300000000002
+      },
+      {
+        "file": "../src/renderer.ts",
+        "line": 349,
+        "name": "renderEdge",
+        "selfMs": 2.004,
+        "inclusiveMs": 35.63899999999998
+      },
+      {
+        "file": "../src/layout-rubric.ts",
+        "line": 310,
+        "name": "portEndpointRate",
+        "selfMs": 1.991,
+        "inclusiveMs": 3.1630000000000003
+      },
+      {
+        "file": "../src/scene/identity.ts",
+        "line": 52,
+        "name": "name",
+        "selfMs": 1.968,
+        "inclusiveMs": 1.968
+      },
+      {
+        "file": "../src/parser.ts",
+        "line": 660,
+        "name": "collectFlowchartSubgraphDeclarations",
+        "selfMs": 1.8929999999999998,
+        "inclusiveMs": 2.729
+      },
+      {
+        "file": "../src/scene/deferred-terminal-projection.ts",
+        "line": 39,
+        "name": "install",
+        "selfMs": 1.737,
+        "inclusiveMs": 1.737
+      },
+      {
+        "file": "../src/svg-style-scope.ts",
+        "line": 175,
+        "name": "scopeSvgStyles",
+        "selfMs": 1.6660000000000001,
+        "inclusiveMs": 5.343999999999999
+      },
+      {
+        "file": "../src/flowchart-lexer.ts",
+        "line": 407,
+        "name": "lex",
+        "selfMs": 1.633,
+        "inclusiveMs": 1.924
+      }
+    ]
+  },
+  {
+    "phase": "repeat2",
+    "durationMs": 226.936,
+    "scope": "Sampled built public SVG+entire receipt; self/inclusive separate; recursive source frames counted once per sample in inclusive totals. Not an uninstrumented latency measurement.",
+    "topSelf": [
+      {
+        "file": "node:inspector",
+        "line": 115,
+        "name": "post",
+        "selfMs": 37.477,
+        "inclusiveMs": 37.477
+      },
+      {
+        "file": "../src/scene/native-paint-emission.ts",
+        "line": 109,
+        "name": "v",
+        "selfMs": 25.726999999999997,
+        "inclusiveMs": 30.418999999999986
+      },
+      {
+        "file": "",
+        "line": 0,
+        "name": "(garbage collector)",
+        "selfMs": 7.394,
+        "inclusiveMs": 7.394
+      },
+      {
+        "file": "../src/layout-rubric.ts",
+        "line": 493,
+        "name": "assessLayoutGeometry",
+        "selfMs": 4.964,
+        "inclusiveMs": 6.1480000000000015
+      },
+      {
+        "file": "../src/layout/measured-graph-producer.ts",
+        "line": 174,
+        "name": "",
+        "selfMs": 4.749,
+        "inclusiveMs": 4.749
+      },
+      {
+        "file": "../src/svg-style-scope.ts",
+        "line": 175,
+        "name": "scopeSvgStyles",
+        "selfMs": 4.126,
+        "inclusiveMs": 5.333000000000001
+      },
+      {
+        "file": "../src/route-contracts.ts",
+        "line": 150,
+        "name": "applyRouteContracts",
+        "selfMs": 3.7640000000000002,
+        "inclusiveMs": 5.871999999999999
+      },
+      {
+        "file": "../src/scene/scene-validation-core.ts",
+        "line": 768,
+        "name": "validateNode",
+        "selfMs": 3.7189999999999994,
+        "inclusiveMs": 8.723
+      },
+      {
+        "file": "../src/scene/native-paint-emission.ts",
+        "line": 256,
+        "name": "R",
+        "selfMs": 3.718,
+        "inclusiveMs": 30.982999999999986
+      },
+      {
+        "file": "../src/scene/paint-certification.ts",
+        "line": 1491,
+        "name": "certifyNativePaint",
+        "selfMs": 3.3680000000000003,
+        "inclusiveMs": 18.811999999999998
+      },
+      {
+        "file": "../src/render-contract.ts",
+        "line": 758,
+        "name": "canonicalTextDigest",
+        "selfMs": 3.0370000000000004,
+        "inclusiveMs": 3.0370000000000004
+      },
+      {
+        "file": "../src/scene/svg-writer.ts",
+        "line": 811,
+        "name": "nativePolylineAttributes",
+        "selfMs": 2.759,
+        "inclusiveMs": 4.655
+      },
+      {
+        "file": "../src/scene/native-paint-emission.ts",
+        "line": 333,
+        "name": "D",
+        "selfMs": 2.283,
+        "inclusiveMs": 2.283
+      },
+      {
+        "file": "../src/svg-structure.ts",
+        "line": 121,
+        "name": "scanStartTags",
+        "selfMs": 2.231,
+        "inclusiveMs": 5.683
+      },
+      {
+        "file": "../src/layout/geometry.ts",
+        "line": 22,
+        "name": "graphReachability",
+        "selfMs": 2.148,
+        "inclusiveMs": 2.148
+      },
+      {
+        "file": "../src/svg-writer-evidence.ts",
+        "line": 49,
+        "name": "writtenTagOf",
+        "selfMs": 2.101,
+        "inclusiveMs": 2.101
+      },
+      {
+        "file": "../src/scene/bounds.ts",
+        "line": 358,
+        "name": "d",
+        "selfMs": 2.098,
+        "inclusiveMs": 3.75
+      },
+      {
+        "file": "../src/scene/native-paint-emission.ts",
+        "line": 656,
+        "name": "leaf",
+        "selfMs": 1.895,
+        "inclusiveMs": 60.80999999999997
+      },
+      {
+        "file": "../src/scene/svg-writer.ts",
+        "line": 118,
+        "name": "r",
+        "selfMs": 1.835,
+        "inclusiveMs": 1.835
+      },
+      {
+        "file": "../src/scene/svg-writer.ts",
+        "line": 738,
+        "name": "fixedAttribute",
+        "selfMs": 1.767,
+        "inclusiveMs": 4.24
+      },
+      {
+        "file": "../src/shared/color-math.ts",
+        "line": 160,
+        "name": "tryParseCssColor",
+        "selfMs": 1.758,
+        "inclusiveMs": 1.758
+      },
+      {
+        "file": "../src/scene/svg-writer.ts",
+        "line": 164,
+        "name": "u",
+        "selfMs": 1.734,
+        "inclusiveMs": 1.734
+      },
+      {
+        "file": "../src/theme.ts",
+        "line": 724,
+        "name": "l",
+        "selfMs": 1.7269999999999999,
+        "inclusiveMs": 1.7269999999999999
+      },
+      {
+        "file": "../src/scene/bounds.ts",
+        "line": 10,
+        "name": "pointsBounds",
+        "selfMs": 1.6870000000000003,
+        "inclusiveMs": 1.6870000000000003
+      },
+      {
+        "file": "../src/renderer.ts",
+        "line": 65,
+        "name": "lowerGraphDrawing",
+        "selfMs": 1.589,
+        "inclusiveMs": 95.69300000000017
+      },
+      {
+        "file": "../src/scene/scene-validation-core.ts",
+        "line": 1496,
+        "name": "node",
+        "selfMs": 1.574,
+        "inclusiveMs": 4.2829999999999995
+      },
+      {
+        "file": "../src/scene/marks.ts",
+        "line": 253,
+        "name": "connector",
+        "selfMs": 1.519,
+        "inclusiveMs": 3.0070000000000006
+      },
+      {
+        "file": "../src/layout-rubric.ts",
+        "line": 650,
+        "name": "measureRubricMetrics",
+        "selfMs": 1.498,
+        "inclusiveMs": 9.325000000000001
+      },
+      {
+        "file": "../src/scene/native-drawing.ts",
+        "line": 118,
+        "name": "node",
+        "selfMs": 1.452,
+        "inclusiveMs": 62.26199999999998
+      },
+      {
+        "file": "../src/scene/svg-writer.ts",
+        "line": 540,
+        "name": "check",
+        "selfMs": 1.411,
+        "inclusiveMs": 2.865
+      }
+    ],
+    "productSelf": [
+      {
+        "file": "../src/scene/native-paint-emission.ts",
+        "line": 109,
+        "name": "v",
+        "selfMs": 25.726999999999997,
+        "inclusiveMs": 30.418999999999986
+      },
+      {
+        "file": "../src/layout-rubric.ts",
+        "line": 493,
+        "name": "assessLayoutGeometry",
+        "selfMs": 4.964,
+        "inclusiveMs": 6.1480000000000015
+      },
+      {
+        "file": "../src/layout/measured-graph-producer.ts",
+        "line": 174,
+        "name": "",
+        "selfMs": 4.749,
+        "inclusiveMs": 4.749
+      },
+      {
+        "file": "../src/svg-style-scope.ts",
+        "line": 175,
+        "name": "scopeSvgStyles",
+        "selfMs": 4.126,
+        "inclusiveMs": 5.333000000000001
+      },
+      {
+        "file": "../src/route-contracts.ts",
+        "line": 150,
+        "name": "applyRouteContracts",
+        "selfMs": 3.7640000000000002,
+        "inclusiveMs": 5.871999999999999
+      },
+      {
+        "file": "../src/scene/scene-validation-core.ts",
+        "line": 768,
+        "name": "validateNode",
+        "selfMs": 3.7189999999999994,
+        "inclusiveMs": 8.723
+      },
+      {
+        "file": "../src/scene/native-paint-emission.ts",
+        "line": 256,
+        "name": "R",
+        "selfMs": 3.718,
+        "inclusiveMs": 30.982999999999986
+      },
+      {
+        "file": "../src/scene/paint-certification.ts",
+        "line": 1491,
+        "name": "certifyNativePaint",
+        "selfMs": 3.3680000000000003,
+        "inclusiveMs": 18.811999999999998
+      },
+      {
+        "file": "../src/render-contract.ts",
+        "line": 758,
+        "name": "canonicalTextDigest",
+        "selfMs": 3.0370000000000004,
+        "inclusiveMs": 3.0370000000000004
+      },
+      {
+        "file": "../src/scene/svg-writer.ts",
+        "line": 811,
+        "name": "nativePolylineAttributes",
+        "selfMs": 2.759,
+        "inclusiveMs": 4.655
+      },
+      {
+        "file": "../src/scene/native-paint-emission.ts",
+        "line": 333,
+        "name": "D",
+        "selfMs": 2.283,
+        "inclusiveMs": 2.283
+      },
+      {
+        "file": "../src/svg-structure.ts",
+        "line": 121,
+        "name": "scanStartTags",
+        "selfMs": 2.231,
+        "inclusiveMs": 5.683
+      },
+      {
+        "file": "../src/layout/geometry.ts",
+        "line": 22,
+        "name": "graphReachability",
+        "selfMs": 2.148,
+        "inclusiveMs": 2.148
+      },
+      {
+        "file": "../src/svg-writer-evidence.ts",
+        "line": 49,
+        "name": "writtenTagOf",
+        "selfMs": 2.101,
+        "inclusiveMs": 2.101
+      },
+      {
+        "file": "../src/scene/bounds.ts",
+        "line": 358,
+        "name": "d",
+        "selfMs": 2.098,
+        "inclusiveMs": 3.75
+      },
+      {
+        "file": "../src/scene/native-paint-emission.ts",
+        "line": 656,
+        "name": "leaf",
+        "selfMs": 1.895,
+        "inclusiveMs": 60.80999999999997
+      },
+      {
+        "file": "../src/scene/svg-writer.ts",
+        "line": 118,
+        "name": "r",
+        "selfMs": 1.835,
+        "inclusiveMs": 1.835
+      },
+      {
+        "file": "../src/scene/svg-writer.ts",
+        "line": 738,
+        "name": "fixedAttribute",
+        "selfMs": 1.767,
+        "inclusiveMs": 4.24
+      },
+      {
+        "file": "../src/shared/color-math.ts",
+        "line": 160,
+        "name": "tryParseCssColor",
+        "selfMs": 1.758,
+        "inclusiveMs": 1.758
+      },
+      {
+        "file": "../src/scene/svg-writer.ts",
+        "line": 164,
+        "name": "u",
+        "selfMs": 1.734,
+        "inclusiveMs": 1.734
+      },
+      {
+        "file": "../src/theme.ts",
+        "line": 724,
+        "name": "l",
+        "selfMs": 1.7269999999999999,
+        "inclusiveMs": 1.7269999999999999
+      },
+      {
+        "file": "../src/scene/bounds.ts",
+        "line": 10,
+        "name": "pointsBounds",
+        "selfMs": 1.6870000000000003,
+        "inclusiveMs": 1.6870000000000003
+      },
+      {
+        "file": "../src/renderer.ts",
+        "line": 65,
+        "name": "lowerGraphDrawing",
+        "selfMs": 1.589,
+        "inclusiveMs": 95.69300000000017
+      },
+      {
+        "file": "../src/scene/scene-validation-core.ts",
+        "line": 1496,
+        "name": "node",
+        "selfMs": 1.574,
+        "inclusiveMs": 4.2829999999999995
+      },
+      {
+        "file": "../src/scene/marks.ts",
+        "line": 253,
+        "name": "connector",
+        "selfMs": 1.519,
+        "inclusiveMs": 3.0070000000000006
+      }
+    ]
+  },
+  {
+    "phase": "edit1",
+    "durationMs": 247.257,
+    "scope": "Sampled built public SVG+entire receipt; self/inclusive separate; recursive source frames counted once per sample in inclusive totals. Not an uninstrumented latency measurement.",
+    "topSelf": [
+      {
+        "file": "node:inspector",
+        "line": 115,
+        "name": "post",
+        "selfMs": 35.306,
+        "inclusiveMs": 35.306
+      },
+      {
+        "file": "../src/scene/native-paint-emission.ts",
+        "line": 109,
+        "name": "v",
+        "selfMs": 24.603000000000005,
+        "inclusiveMs": 36.27600000000001
+      },
+      {
+        "file": "../src/scene/native-paint-emission.ts",
+        "line": 256,
+        "name": "R",
+        "selfMs": 11.178999999999998,
+        "inclusiveMs": 36.83400000000001
+      },
+      {
+        "file": "../src/scene/paint-certification.ts",
+        "line": 1796,
+        "name": "part",
+        "selfMs": 10.624,
+        "inclusiveMs": 10.928
+      },
+      {
+        "file": "../src/scene/emission-context.ts",
+        "line": 328,
+        "name": "hint",
+        "selfMs": 8.315,
+        "inclusiveMs": 8.315
+      },
+      {
+        "file": "",
+        "line": 0,
+        "name": "(garbage collector)",
+        "selfMs": 7.745000000000002,
+        "inclusiveMs": 7.745000000000002
+      },
+      {
+        "file": "../src/renderer.ts",
+        "line": 65,
+        "name": "lowerGraphDrawing",
+        "selfMs": 4.369,
+        "inclusiveMs": 121.69600000000005
+      },
+      {
+        "file": "../src/scene/scene-validation-core.ts",
+        "line": 768,
+        "name": "validateNode",
+        "selfMs": 4.21,
+        "inclusiveMs": 9.896999999999998
+      },
+      {
+        "file": "../src/layout-rubric.ts",
+        "line": 493,
+        "name": "assessLayoutGeometry",
+        "selfMs": 4.043,
+        "inclusiveMs": 5.689
+      },
+      {
+        "file": "../src/svg-writer-evidence.ts",
+        "line": 55,
+        "name": "retainWrittenTag",
+        "selfMs": 3.9769999999999994,
+        "inclusiveMs": 4.260999999999999
+      },
+      {
+        "file": "../src/output-security.ts",
+        "line": 662,
+        "name": "unsafeCssReferences",
+        "selfMs": 3.7820000000000005,
+        "inclusiveMs": 3.7820000000000005
+      },
+      {
+        "file": "../src/svg-writer-evidence.ts",
+        "line": 106,
+        "name": "projectWrittenTag",
+        "selfMs": 3.562,
+        "inclusiveMs": 3.904
+      },
+      {
+        "file": "../src/layout-rubric.ts",
+        "line": 650,
+        "name": "measureRubricMetrics",
+        "selfMs": 3.5169999999999995,
+        "inclusiveMs": 10.506
+      },
+      {
+        "file": "../src/scene/svg-writer.ts",
+        "line": 271,
+        "name": "indent",
+        "selfMs": 3.2270000000000003,
+        "inclusiveMs": 4.101
+      },
+      {
+        "file": "../src/output-security.ts",
+        "line": 703,
+        "name": "writtenAttributesFindings",
+        "selfMs": 3.2039999999999997,
+        "inclusiveMs": 9.299000000000001
+      },
+      {
+        "file": "../src/scene/bounds.ts",
+        "line": 10,
+        "name": "pointsBounds",
+        "selfMs": 3.1940000000000004,
+        "inclusiveMs": 3.1940000000000004
+      },
+      {
+        "file": "../src/scene/native-paint-emission.ts",
+        "line": 656,
+        "name": "leaf",
+        "selfMs": 2.585,
+        "inclusiveMs": 79.93399999999998
+      },
+      {
+        "file": "../src/svg-structure.ts",
+        "line": 121,
+        "name": "scanStartTags",
+        "selfMs": 2.45,
+        "inclusiveMs": 3.3650000000000007
+      },
+      {
+        "file": "../src/renderer.ts",
+        "line": 673,
+        "name": "nodeTextInk",
+        "selfMs": 2.373,
+        "inclusiveMs": 5.2730000000000015
+      },
+      {
+        "file": "../src/scene/paint-certification.ts",
+        "line": 1491,
+        "name": "certifyNativePaint",
+        "selfMs": 2.191,
+        "inclusiveMs": 25.927999999999994
+      },
+      {
+        "file": "../src/scene/svg-writer.ts",
+        "line": 1047,
+        "name": "writeShapeSvg",
+        "selfMs": 2.117,
+        "inclusiveMs": 10.749
+      },
+      {
+        "file": "",
+        "line": 0,
+        "name": "(program)",
+        "selfMs": 2.114,
+        "inclusiveMs": 2.114
+      },
+      {
+        "file": "../src/shared/text-controls.ts",
+        "line": 22,
+        "name": "sanitizeDisplayLines",
+        "selfMs": 2.0869999999999997,
+        "inclusiveMs": 2.0869999999999997
+      },
+      {
+        "file": "../src/svg-writer-evidence.ts",
+        "line": 49,
+        "name": "writtenTagOf",
+        "selfMs": 1.9700000000000002,
+        "inclusiveMs": 1.9700000000000002
+      },
+      {
+        "file": "../src/layout/passes/peers.ts",
+        "line": 396,
+        "name": "corankFanInSpokes",
+        "selfMs": 1.883,
+        "inclusiveMs": 1.883
+      },
+      {
+        "file": "../src/layout/passes/obstacle-routing.ts",
+        "line": 80,
+        "name": "rerouteEdgesThroughNodes",
+        "selfMs": 1.85,
+        "inclusiveMs": 1.85
+      },
+      {
+        "file": "../src/scene/bounds.ts",
+        "line": 232,
+        "name": "markerBoundsAt",
+        "selfMs": 1.749,
+        "inclusiveMs": 2.8840000000000003
+      },
+      {
+        "file": "../src/scene/native-drawing.ts",
+        "line": 143,
+        "name": "group",
+        "selfMs": 1.556,
+        "inclusiveMs": 21.636000000000003
+      },
+      {
+        "file": "../src/output-security.ts",
+        "line": 29,
+        "name": "normalizeCssObfuscation",
+        "selfMs": 1.4569999999999999,
+        "inclusiveMs": 1.4569999999999999
+      },
+      {
+        "file": "../src/scene/scene-validation-core.ts",
+        "line": 667,
+        "name": "handle",
+        "selfMs": 1.418,
+        "inclusiveMs": 1.418
+      }
+    ],
+    "productSelf": [
+      {
+        "file": "../src/scene/native-paint-emission.ts",
+        "line": 109,
+        "name": "v",
+        "selfMs": 24.603000000000005,
+        "inclusiveMs": 36.27600000000001
+      },
+      {
+        "file": "../src/scene/native-paint-emission.ts",
+        "line": 256,
+        "name": "R",
+        "selfMs": 11.178999999999998,
+        "inclusiveMs": 36.83400000000001
+      },
+      {
+        "file": "../src/scene/paint-certification.ts",
+        "line": 1796,
+        "name": "part",
+        "selfMs": 10.624,
+        "inclusiveMs": 10.928
+      },
+      {
+        "file": "../src/scene/emission-context.ts",
+        "line": 328,
+        "name": "hint",
+        "selfMs": 8.315,
+        "inclusiveMs": 8.315
+      },
+      {
+        "file": "../src/renderer.ts",
+        "line": 65,
+        "name": "lowerGraphDrawing",
+        "selfMs": 4.369,
+        "inclusiveMs": 121.69600000000005
+      },
+      {
+        "file": "../src/scene/scene-validation-core.ts",
+        "line": 768,
+        "name": "validateNode",
+        "selfMs": 4.21,
+        "inclusiveMs": 9.896999999999998
+      },
+      {
+        "file": "../src/layout-rubric.ts",
+        "line": 493,
+        "name": "assessLayoutGeometry",
+        "selfMs": 4.043,
+        "inclusiveMs": 5.689
+      },
+      {
+        "file": "../src/svg-writer-evidence.ts",
+        "line": 55,
+        "name": "retainWrittenTag",
+        "selfMs": 3.9769999999999994,
+        "inclusiveMs": 4.260999999999999
+      },
+      {
+        "file": "../src/output-security.ts",
+        "line": 662,
+        "name": "unsafeCssReferences",
+        "selfMs": 3.7820000000000005,
+        "inclusiveMs": 3.7820000000000005
+      },
+      {
+        "file": "../src/svg-writer-evidence.ts",
+        "line": 106,
+        "name": "projectWrittenTag",
+        "selfMs": 3.562,
+        "inclusiveMs": 3.904
+      },
+      {
+        "file": "../src/layout-rubric.ts",
+        "line": 650,
+        "name": "measureRubricMetrics",
+        "selfMs": 3.5169999999999995,
+        "inclusiveMs": 10.506
+      },
+      {
+        "file": "../src/scene/svg-writer.ts",
+        "line": 271,
+        "name": "indent",
+        "selfMs": 3.2270000000000003,
+        "inclusiveMs": 4.101
+      },
+      {
+        "file": "../src/output-security.ts",
+        "line": 703,
+        "name": "writtenAttributesFindings",
+        "selfMs": 3.2039999999999997,
+        "inclusiveMs": 9.299000000000001
+      },
+      {
+        "file": "../src/scene/bounds.ts",
+        "line": 10,
+        "name": "pointsBounds",
+        "selfMs": 3.1940000000000004,
+        "inclusiveMs": 3.1940000000000004
+      },
+      {
+        "file": "../src/scene/native-paint-emission.ts",
+        "line": 656,
+        "name": "leaf",
+        "selfMs": 2.585,
+        "inclusiveMs": 79.93399999999998
+      },
+      {
+        "file": "../src/svg-structure.ts",
+        "line": 121,
+        "name": "scanStartTags",
+        "selfMs": 2.45,
+        "inclusiveMs": 3.3650000000000007
+      },
+      {
+        "file": "../src/renderer.ts",
+        "line": 673,
+        "name": "nodeTextInk",
+        "selfMs": 2.373,
+        "inclusiveMs": 5.2730000000000015
+      },
+      {
+        "file": "../src/scene/paint-certification.ts",
+        "line": 1491,
+        "name": "certifyNativePaint",
+        "selfMs": 2.191,
+        "inclusiveMs": 25.927999999999994
+      },
+      {
+        "file": "../src/scene/svg-writer.ts",
+        "line": 1047,
+        "name": "writeShapeSvg",
+        "selfMs": 2.117,
+        "inclusiveMs": 10.749
+      },
+      {
+        "file": "../src/shared/text-controls.ts",
+        "line": 22,
+        "name": "sanitizeDisplayLines",
+        "selfMs": 2.0869999999999997,
+        "inclusiveMs": 2.0869999999999997
+      },
+      {
+        "file": "../src/svg-writer-evidence.ts",
+        "line": 49,
+        "name": "writtenTagOf",
+        "selfMs": 1.9700000000000002,
+        "inclusiveMs": 1.9700000000000002
+      },
+      {
+        "file": "../src/layout/passes/peers.ts",
+        "line": 396,
+        "name": "corankFanInSpokes",
+        "selfMs": 1.883,
+        "inclusiveMs": 1.883
+      },
+      {
+        "file": "../src/layout/passes/obstacle-routing.ts",
+        "line": 80,
+        "name": "rerouteEdgesThroughNodes",
+        "selfMs": 1.85,
+        "inclusiveMs": 1.85
+      },
+      {
+        "file": "../src/scene/bounds.ts",
+        "line": 232,
+        "name": "markerBoundsAt",
+        "selfMs": 1.749,
+        "inclusiveMs": 2.8840000000000003
+      },
+      {
+        "file": "../src/scene/native-drawing.ts",
+        "line": 143,
+        "name": "group",
+        "selfMs": 1.556,
+        "inclusiveMs": 21.636000000000003
+      }
+    ]
+  }
+]
