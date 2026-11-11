@@ -11,6 +11,7 @@ import {
   agentCodeLocation,
   codeModeExpressionPayload,
   codeModeStatementBody,
+  codeModeStatementWrap,
   createTracingMermaid,
   firstStackFrame,
   marshalCodeModeResult,
@@ -114,12 +115,13 @@ export function userModuleSources(code: string): { expr: string; stmt: string } 
   // than run injected top-level module code (e.g. `import ... from
   // 'cloudflare:sockets'`). Dynamic `import(` is separately blocked by
   // unsupportedCodeReason. A comma+IIFE tail can still run at eval time, but
-  // only against hardenIsolateGlobals()-stripped capabilities. The body sits
-  // in `try { } finally { }` exactly as in expressionFirstWraps, so the two
-  // runners share scoping and no top-level return is a tail call.
+  // only against hardenIsolateGlobals()-stripped capabilities. The body is
+  // wrapped exactly as in expressionFirstWraps (codeModeStatementWrap), so the
+  // two runners share scoping and no top-level return is a tail call.
+  const [open, close] = codeModeStatementWrap(code)
   return {
     expr: `export default (function (${params}) { try { return (\n${stripped}\n) } finally {} })\n`,
-    stmt: `export default (function (${params}) { try {\n${codeModeStatementBody(code)}\n} finally {} })\n`,
+    stmt: `export default (function (${params}) { ${open}\n${codeModeStatementBody(code)}\n${close} })\n`,
   }
 }
 

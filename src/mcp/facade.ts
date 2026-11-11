@@ -879,10 +879,14 @@ function codeModeSyntaxLocation(code: string): CodeModeLocation | undefined {
  * synchronous: allowing Promise jobs after `vm.runInContext` lets sandbox code
  * block the host event loop outside the VM timeout.
  *
- * The body sits in `try { } finally { }` so no top-level `return f(...)` is a
- * tail call: JavaScriptCore (Bun) performs proper tail calls in strict mode,
- * which would drop the agent's frame from the stack of an error thrown inside
- * f and leave nothing to locate.
+ * The statement body sits in `try { } finally { }` so no top-level
+ * `return f(...)` is a tail call: JavaScriptCore (Bun) performs proper tail
+ * calls in strict mode, which would drop the agent's frame from the stack of
+ * an error thrown inside f and leave nothing to locate. A block changes one
+ * thing about strict code: a top-level function declaration that shares its
+ * name with a `var` or another function declaration is an early error there.
+ * Such code keeps the plain function body (codeModeStatementWrap), where it
+ * is valid; only an error inside a tail call it makes may lack a location.
  */
 export function expressionFirstWraps(code: string): { source: string; form: CodeModeWrapForm } {
   const stripped = codeModeExpressionPayload(code)
@@ -894,8 +898,55 @@ export function expressionFirstWraps(code: string): { source: string; form: Code
     new Function(`"use strict"; return (\n${stripped}\n)`)
     return { source: `(function (mermaid, console) { "use strict"; try { return (\n${stripped}\n) } finally {} })(mermaid, console)`, form: 'expression' }
   } catch {
-    return { source: `(function (mermaid, console) { "use strict"; try {\n${codeModeStatementBody(code)}\n} finally {} })(mermaid, console)`, form: 'statement' }
+    const [open, close] = codeModeStatementWrap(code)
+    return { source: `(function (mermaid, console) { "use strict"; ${open}\n${codeModeStatementBody(code)}\n${close} })(mermaid, console)`, form: 'statement' }
   }
+}
+
+/**
+ * The text around a statement body: `try {` … `} finally {}` unless that block
+ * would reject the code's own declarations (see expressionFirstWraps), in
+ * which case the body stays at function scope. Shared by the local and hosted
+ * runners so both scope agent code alike.
+ */
+export function codeModeStatementWrap(code: string): readonly [open: string, close: string] {
+  return blockRejectsDeclarations(code) ? ['', ''] : ['try {', '} finally {}']
+}
+
+/** Whether a top-level function declaration shares its name with another
+ *  function declaration or with a `var` anywhere in the function body. */
+function blockRejectsDeclarations(code: string): boolean {
+  let ast: AcornNode
+  try { ast = parseJavaScript(`${STATEMENT_PARSE_PREFIX}${code}\n}`, { ecmaVersion: 'latest', sourceType: 'script' }) } catch { return false }
+  const body = ((ast as unknown as { body: Array<{ body: { body: Array<AcornNode & Record<string, unknown>> } }> }).body[0]!.body.body)
+  const functions: string[] = []
+  for (const statement of body) {
+    if (statement.type === 'FunctionDeclaration') functions.push((statement.id as { name: string }).name)
+  }
+  if (functions.length === 0) return false
+  if (new Set(functions).size !== functions.length) return true
+  const vars = new Set<string>()
+  const bind = (pattern: unknown): void => {
+    if (!isAcornNode(pattern)) return
+    const node = pattern as AcornNode & Record<string, unknown>
+    if (node.type === 'Identifier') vars.add(node.name as string)
+    else if (node.type === 'ObjectPattern') for (const property of node.properties as unknown[]) bind((property as { value?: unknown; argument?: unknown }).value ?? (property as { argument?: unknown }).argument)
+    else if (node.type === 'ArrayPattern') for (const element of node.elements as unknown[]) bind(element)
+    else if (node.type === 'AssignmentPattern') bind(node.left)
+    else if (node.type === 'RestElement') bind(node.argument)
+  }
+  const visit = (node: AcornNode & Record<string, unknown>): void => {
+    if (node.type === 'VariableDeclaration' && node.kind === 'var') for (const declaration of node.declarations as Array<{ id: unknown }>) bind(declaration.id)
+    for (const [key, value] of Object.entries(node)) {
+      if (key === 'start' || key === 'end' || key === 'type') continue
+      for (const child of Array.isArray(value) ? value : [value]) {
+        // A var inside a nested function belongs to that function.
+        if (isAcornNode(child) && !/Function|Class/.test(child.type)) visit(child as AcornNode & Record<string, unknown>)
+      }
+    }
+  }
+  for (const statement of body) if (statement.type !== 'FunctionDeclaration') visit(statement)
+  return functions.some(name => vars.has(name))
 }
 
 const SYNTAX_REASON = 'Code Mode syntax must be a strict JavaScript expression or function body'

@@ -389,6 +389,20 @@ describe('bounded local/hosted Code Mode output', () => {
     expect(result.logs).toEqual(['🙂', LOGS_TRUNCATED_MARKER])
   })
 
+  // A function declaration that a var or another declaration of the same
+  // name redeclares is valid in a strict function body; both runners keep
+  // agent code at function scope for it (review of #611: a try block around
+  // the body made it a compile error).
+  test.each([
+    ['function f(){return 1;} var f; f()', 1],
+    ['function f(){return 1;} var f; return f()', 1],
+    ['function f(){return 1;} function f(){return 2;} return f()', 2],
+    ['var { f } = { f: 0 }; function f(){return 3;} return typeof f', 'number'],
+    ['for (var f = 0; f < 1; f++) {} function f(){} return f', 1],
+  ] as const)('both runners accept %s', async (code, value) => {
+    for (const result of [await executeInSandbox(code), await executeHosted(code)]) expect(result).toMatchObject({ ok: true, value })
+  })
+
   test('implicit global writes fail in both strict execution bodies', async () => {
     const code = 'x = 1; return x'
     const local = await executeInSandbox(code)
