@@ -1,4 +1,5 @@
-import { pageRectFor, isBuiltinDefaultBackend, isOriginalEnrolledDefaultBackend } from './backend.ts'
+import { isBuiltinDefaultBackend, isOriginalEnrolledDefaultBackend } from './backend.ts'
+import { pageRectFor } from './drawing-page.ts'
 import { isOwnedFamily } from '../experimental/owned-family.ts'
 import { nativeDrawingOf, originalNativeDrawingOf } from './drawing.ts'
 import { hasPrivateNativePositionedInput, positionedForNativeProducer } from '../positioning.ts'
@@ -120,8 +121,8 @@ let originalDrawingDepth = 0
  * request ownership. Replacement producers and SDK calls keep their snapshot. */
 export function drawOriginalPositionedNative(request: ResolvedRenderRequest, layout: FamilyLayoutResult, producer: DrawingProducer): NativeDrawing | undefined {
   const plan = resolvedRenderExecutionPlanOf(request)
-  if (originalDrawingDepth || plan.mode !== 'scene' || !plan.backend || !isOwnedFamily(plan.family)
-    || !isBuiltinDefaultBackend(plan.backend.backend) || !isOriginalEnrolledDefaultBackend(plan.backend.backend)
+  if (originalDrawingDepth || plan.mode !== 'scene' || !isOwnedFamily(plan.family)
+    || !(plan.consumer?.kind === 'native-drawing' || plan.backend && isBuiltinDefaultBackend(plan.backend.backend) && isOriginalEnrolledDefaultBackend(plan.backend.backend))
     || sceneAssertionsEnabled(request) || producer !== nativeDrawingOf(plan.family.lowerScene)
     || producer !== originalNativeDrawingOf(plan.family.lowerScene) || !hasPrivateNativePositionedInput(layout, producer)
     || plan.textMeasurement && textMeasurementCacheIdentity(plan.textMeasurement) === undefined) return undefined

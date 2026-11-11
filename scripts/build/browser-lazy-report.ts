@@ -109,10 +109,10 @@ const entry = requireOne(
 const dynamicImports = metafile.outputs[entry]!.imports
   .filter(imported => imported.kind === 'dynamic-import')
   .map(imported => imported.path)
-const renderCore = requireOne(
-  dynamicImports.filter(path => /\/render-core-[A-Z0-9]+\.js$/.test(path)),
-  'shared render core',
-)
+// Older browser artifacts expose a separate core facade. Current family
+// entries already own the complete rendering closure and need no such request.
+const renderCore = dynamicImports.filter(path => /\/render-core-[A-Z0-9]+\.js$/.test(path))
+if (renderCore.length > 1) throw new Error('Async browser graph has multiple render core facades')
 const MEASURED_FAMILY_IDS = MEASURE_ONLY
   ? BROWSER_BUILTIN_FAMILY_IDS.filter(id => dynamicImports.some(path => new RegExp(`/${id}-[A-Z0-9]+\\.js$`).test(path)))
   : BROWSER_BUILTIN_FAMILY_IDS
@@ -121,8 +121,8 @@ const familyOutputs = Object.fromEntries(MEASURED_FAMILY_IDS.map(id => [id, requ
   `${id} loader`,
 )])) as Record<BrowserBuiltinFamilyId, string>
 
-if (!MEASURE_ONLY && dynamicImports.length !== BROWSER_BUILTIN_FAMILY_IDS.length + 1) {
-  throw new Error(`Async entry has ${dynamicImports.length} dynamic imports; expected one core plus ${BROWSER_BUILTIN_FAMILY_IDS.length} families`)
+if (!MEASURE_ONLY && dynamicImports.length !== BROWSER_BUILTIN_FAMILY_IDS.length + renderCore.length) {
+  throw new Error(`Async entry has ${dynamicImports.length} dynamic imports; expected ${renderCore.length} legacy core facades plus ${BROWSER_BUILTIN_FAMILY_IDS.length} families`)
 }
 
 const forbiddenInputs = Object.keys(metafile.inputs).filter(path =>
@@ -142,7 +142,7 @@ if (!MEASURE_ONLY && elkLoaders.length !== 1) throw new Error('ELK must have one
 const initialFiles = staticClosure([entry])
 const staticFamilyFiles = Object.fromEntries(MEASURED_FAMILY_IDS.map(id => [
   id,
-  staticClosure([entry, renderCore, familyOutputs[id]]),
+  staticClosure([entry, ...renderCore, familyOutputs[id]]),
 ])) as Record<BrowserBuiltinFamilyId, string[]>
 const agenticOutputs = outputNames.filter(path =>
   Object.keys(metafile.outputs[path]!.inputs).some(input => input.endsWith('/layout/agentic-layered-core.ts')))
@@ -159,9 +159,9 @@ if (!MEASURE_ONLY && forestOutputs.some(output => initialFiles.includes(output) 
 }
 const agenticFamilyFiles = Object.fromEntries(MEASURED_FAMILY_IDS.map(id => [id,
   agenticLoaders.some(loader => staticFamilyFiles[id].includes(loader))
-    ? staticClosure([entry, renderCore, familyOutputs[id], ...agenticOutputs, ...forestOutputs]) : undefined,
+    ? staticClosure([entry, ...renderCore, familyOutputs[id], ...agenticOutputs, ...forestOutputs]) : undefined,
 ]))
-const implicitForestFiles = MEASURED_FAMILY_IDS.includes('flowchart') ? staticClosure([entry, renderCore, familyOutputs.flowchart, ...forestOutputs]) : undefined
+const implicitForestFiles = MEASURED_FAMILY_IDS.includes('flowchart') ? staticClosure([entry, ...renderCore, familyOutputs.flowchart, ...forestOutputs]) : undefined
 const implicitForestFallbackFiles = implicitForestFiles ? staticClosure([...implicitForestFiles, elkOutput]) : undefined
 const elkFiles = staticClosure([elkOutput])
 const observedElkFamilies = MEASURED_FAMILY_IDS.filter(id => staticFamilyFiles[id].includes(elkOutput)
@@ -170,7 +170,7 @@ const observedElkFamilies = MEASURED_FAMILY_IDS.filter(id => staticFamilyFiles[i
 // pay for ELK when it is selected. Also report the static/native closure so
 // demand loading cannot masquerade as a smaller default ELK render.
 const familyFiles = Object.fromEntries(MEASURED_FAMILY_IDS.map(id => [id,
-  staticClosure([entry, renderCore, familyOutputs[id], ...(observedElkFamilies.includes(id) ? [elkOutput] : [])]),
+  staticClosure([entry, ...renderCore, familyOutputs[id], ...(observedElkFamilies.includes(id) ? [elkOutput] : [])]),
 ])) as Record<BrowserBuiltinFamilyId, string[]>
 const yamlOutputs = outputNames.filter(path =>
   Object.keys(metafile.outputs[path]!.inputs).some(input => input.includes('node_modules/yaml/')))

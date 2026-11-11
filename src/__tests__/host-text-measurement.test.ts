@@ -20,7 +20,12 @@ import { createMermaidPNGRenderer } from '../agent/png.ts'
 import { BUILTIN_FAMILY_METADATA } from '../agent/families.ts'
 import { positionResolvedFamilyArtifact } from '../agent/family-layouts.ts'
 import { layoutMermaidWithReceipt } from '../agent/core.ts'
-import { receiptOf, resolveRenderRequestForExecution } from '../render-contract.ts'
+import { receiptOf, resolveRenderRequestForExecution, resolvedRenderExecutionPlanOf } from '../render-contract.ts'
+import { FIRST_PARTY_DRAWING_CONSUMER } from '../scene/default-drawing-consumer.ts'
+import { executeResolvedGraphicalRequest, executeResolvedSourceGraphicalRequest } from '../graphical-render.ts'
+import { assertScenesOf } from '../scene/assertions.ts'
+import { getBackendDescriptor } from '../scene/backend.ts'
+import { withRenderStageObserver } from '../render-stages.ts'
 import type { PositionedRadarChart } from '../radar/types.ts'
 import { pngFixture } from './helpers/png-fixture.ts'
 import { createTextMeasurementExecution } from '../text-measurement-profile.ts'
@@ -35,6 +40,51 @@ function profile(measure: TextMeasurementProfile['measure'] = ({ text }) => [...
 }
 
 describe('trusted host pixel measurement profiles', () => {
+  test('a source Native consumer awaits a real Scene fallback without replaying input, layout or custom metrics', async () => {
+    const source = 'flowchart LR\nA[Hello] --> B[World]'
+    // Compare both consumers with the same SDK proof state; first-use SDK
+    // witnesses are separately owned by backend conformance tests.
+    expect(getBackendDescriptor('default')!.conformance.passed).toBe(true)
+    const prepare = (native: boolean) => {
+      const observations = { optionReads: 0, measureReads: 0, measures: [] as string[], diagnostics: [] as unknown[] }
+      const options = { get padding() { observations.optionReads++; return 30 },
+        mermaidConfig: { flowchart: { nodeSpacing: -1 } },
+        onConfigDiagnostic: (value: unknown) => observations.diagnostics.push(value),
+      }
+      const textMeasurement = { id: 'test:source-fallback', version: '1.0.0', get measure() {
+        observations.measureReads++
+        return (input: ProfileTextMeasurementInput) => { observations.measures.push(JSON.stringify(input)); return [...input.text].length * 10 }
+      } }
+      const request = resolveRenderRequestForExecution(source, options, 'svg', undefined, {
+        textMeasurement, ...(native ? { drawingConsumer: FIRST_PARTY_DRAWING_CONSUMER } : {}),
+      })
+      // A stronger consumer can be selected after admission, as inspection does.
+      assertScenesOf(request)
+      return { request, observations }
+    }
+    const control = prepare(false), candidate = prepare(true)
+    const selected = resolvedRenderExecutionPlanOf(candidate.request)
+    expect(selected.backend).toBeUndefined()
+    expect(selected.consumer?.kind).toBe('native-drawing')
+    expect(selected.consumer && 'conformance' in selected.consumer).toBe(false)
+    expect(selected.consumer && 'render' in selected.consumer).toBe(false)
+    const expected = JSON.parse(JSON.stringify(executeResolvedGraphicalRequest(control.request)))
+    let acquired = 0
+    const layouts: string[] = []
+    const operation = withRenderStageObserver(sample => { if (sample.stage === 'layout') layouts.push(sample.stage) }, () =>
+      executeResolvedSourceGraphicalRequest(candidate.request, async () => { acquired++; await Promise.resolve() }))
+    const actual = JSON.parse(JSON.stringify(await operation))
+    expect(actual).toEqual(expected)
+    expect(acquired).toBe(1)
+    expect(layouts).toEqual(['layout'])
+    expect(candidate.observations).toEqual(control.observations)
+    expect(candidate.observations.optionReads).toBe(1)
+    expect(candidate.observations.measureReads).toBe(1)
+    expect(candidate.observations.measures.length).toBeGreaterThan(0)
+    expect(resolvedRenderExecutionPlanOf(candidate.request).consumer?.kind).toBe('scene-backend')
+    expect(resolvedRenderExecutionPlanOf(candidate.request).backend?.conformance.passed).toBe(true)
+  })
+
   test('public fitted bold ink keeps its authored glyph and allocation through Native and Scene', () => {
     const id = 'backend:test/shaped-ink-public'
     const unregister = registerBackend({ ...DefaultBackend, id, capabilities: DefaultBackend.capabilities.map(claim => ({ ...claim, target: id })) }, {

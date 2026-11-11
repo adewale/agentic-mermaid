@@ -63,7 +63,7 @@ export function positionFamilyForNativeRender(request: ResolvedRenderRequest): F
   // later restored original producer never borrows caller-retained geometry.
   const producer = nativeDrawingOf(plan.family.lowerScene)
   const reusableMetrics = !plan.textMeasurement || textMeasurementCacheIdentity(plan.textMeasurement) !== undefined
-  const borrow = plan.mode === 'scene' && isOriginalEnrolledDefaultBackend(plan.backend?.backend)
+  const borrow = plan.mode === 'scene' && (plan.consumer?.kind === 'native-drawing' || isOriginalEnrolledDefaultBackend(plan.backend?.backend))
     && isOwnedFamily(plan.family) && !preferSceneDrawing(plan.family.id) && reusableMetrics
     && !!producer && producer === originalNativeDrawingOf(plan.family.lowerScene) && !sceneAssertionsEnabled(request)
   const result = positionFamily(plan.family.id, request, request.source, {}, borrow, true)

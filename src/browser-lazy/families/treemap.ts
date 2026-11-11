@@ -3,3 +3,5 @@ import { createBrowserFamilyDescriptor } from '../family.ts'
 import { TREEMAP_SVG_HOOKS } from '../../svg-family-hooks/treemap.ts'
 
 export default createBrowserFamilyDescriptor(descriptorData, TREEMAP_SVG_HOOKS)
+
+export { renderLoadedFamilySvgWithReceipt } from '../render-core.ts'

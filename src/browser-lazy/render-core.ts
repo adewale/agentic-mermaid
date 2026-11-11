@@ -1,6 +1,11 @@
 import type { FamilyDescriptor } from '../agent/families.ts'
 import { installLoadedFamilyDescriptor } from '../agent/family-router.ts'
-import { executeResolvedGraphicalRequest } from '../graphical-render.ts'
+import { executeResolvedSourceGraphicalRequest } from '../graphical-render.ts'
+import { loadSceneBackend } from './scene-backend.ts'
+import { FIRST_PARTY_DRAWING_CONSUMER } from '../scene/default-drawing-consumer.ts'
+import { isOwnedFamily } from '../experimental/owned-family.ts'
+import { nativeDrawingOf, originalNativeDrawingOf, preferSceneDrawing } from '../scene/drawing.ts'
+import { sceneAssertionsEnabled } from '../scene/assertions.ts'
 import type { HtmlEntityTableNotLoadedError } from '../shared/html-entity-table.ts'
 import type { RenderOptions } from '../types.ts'
 import type { GraphicalSvgArtifact } from '../graphical-render.ts'
@@ -28,12 +33,19 @@ export async function renderLoadedFamilySvgWithReceipt(
   for (;;) {
     try {
       options = captureRenderOptions(options)
-      if (capturedRenderBackend(options) !== 'default') await import('../scene/builtin-backends.ts')
+      const backend = capturedRenderBackend(options)
+      const producer = nativeDrawingOf(family.lowerScene)
+      const drawingConsumer = backend === 'default' && isOwnedFamily(family) && producer
+        && producer === originalNativeDrawingOf(family.lowerScene) && !preferSceneDrawing(family.id)
+        && !sceneAssertionsEnabled() && options.layoutSafety !== 'strict' ? FIRST_PARTY_DRAWING_CONSUMER : undefined
+      if (!drawingConsumer) await loadSceneBackend()
+      if (backend !== 'default') await import('../scene/builtin-backends.ts')
       request ??= measureRenderStage('request', () => resolveRenderRequestForExecution(source, options, 'svg', undefined, {
         expectedFamilyId: family.id,
         familyDescriptor: family,
+        ...(drawingConsumer ? { drawingConsumer } : {}),
       }))
-      return executeResolvedGraphicalRequest(request)
+      return await executeResolvedSourceGraphicalRequest(request, loadSceneBackend)
     } catch (error) {
       // Only the dependency demanded by this render is fetched. Replay the
       // admitted request so callbacks, options and host registrations retain

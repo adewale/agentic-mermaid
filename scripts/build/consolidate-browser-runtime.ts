@@ -10,11 +10,11 @@ import { minifyBrowserRuntime } from './runtime-minify.ts'
  * Rollup links live ESM bindings; no function or class is copied into a facade. */
 interface BrowserRuntimeGraph {
   entry: string
-  core: string
+  core?: string
   families: string
 }
 const publicSvgGraph: BrowserRuntimeGraph = {
-  entry: 'src/browser-lazy.ts', core: 'src/browser-lazy/render-core.ts', families: 'src/browser-lazy/families/',
+  entry: 'src/browser-lazy.ts', families: 'src/browser-lazy/families/',
 }
 const editorWorkerGraph: BrowserRuntimeGraph = {
   entry: 'src/browser-preview-worker.ts', core: 'src/agent/verify.ts', families: 'src/browser-lazy/generated/verified/',
@@ -25,9 +25,9 @@ export async function consolidateBrowserRuntime(result: Pick<BuildResult, 'outpu
   const entries = Object.entries(meta.outputs)
   const entry = entries.find(([, output]) => output.entryPoint === graph.entry)
   if (!entry) return // The optional ZenUML build owns a different public graph.
-  const core = entries.find(([, output]) => output.entryPoint === graph.core)!
+  const core = graph.core ? entries.find(([, output]) => output.entryPoint === graph.core) : undefined
   const families = entries.filter(([, output]) => output.entryPoint?.startsWith(graph.families))
-  if (!core || !families.length) throw new Error('Browser consolidation requires the render core and family entrypoints')
+  if (graph.core && !core || !families.length) throw new Error('Browser consolidation requires its declared core and family entrypoints')
   const closure = (roots: string[]) => {
     const seen = new Set<string>()
     const visit = (path: string) => {
@@ -39,7 +39,7 @@ export async function consolidateBrowserRuntime(result: Pick<BuildResult, 'outpu
     return seen
   }
   const initial = closure([entry[0]])
-  const closures = families.map(([path]) => closure([core[0], path]))
+  const closures = families.map(([path]) => closure(core ? [core[0], path] : [path]))
   const shared = new Set([...closures[0]!].filter(path => !initial.has(path) && !meta.outputs[path]!.entryPoint && closures.every(group => group.has(path))))
   if (shared.size < 2) return
   const files = new Map(result.outputFiles!.filter(file => file.path.endsWith('.js')).map(file => [file.path, file]))

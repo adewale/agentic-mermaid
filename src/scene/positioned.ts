@@ -97,11 +97,14 @@ export function finishPositionedBackendEmission(request: ResolvedRenderRequest, 
  * alternate backends deliberately retain the extension-facing Scene adapter. */
 export function retainedNativeDrawing(request: ResolvedRenderRequest, layout: FamilyLayoutResult): RenderableNativeDrawing | undefined {
   const plan = resolvedRenderExecutionPlanOf(request)
+  // A completed async fallback selected the Scene consumer for this operand.
+  // A later producer change cannot replace its proof with a new Native write.
+  if (plan.consumer?.kind === 'scene-backend') return undefined
   // Once ER lowered a Scene, later observers cannot switch its actual operand.
   if (preferSceneDrawing(plan.family.id) && !native.get(layout)?.has(request) && retained.get(layout)?.has(request)) return undefined
   let bypass = sceneAssertionsEnabled(request) ? 'scene-assertions' : plan.family.id.startsWith('family:') ? 'external-family'
-    : plan.backend && !isBuiltinDefaultBackend(plan.backend.backend) ? 'alternate-backend'
-      : !(plan.mode === 'layout' ? request.appearance.inferredBackend === 'default' : plan.mode === 'scene' && plan.backend?.inputName === 'default') ? 'unsupported-mode' : undefined
+    : plan.consumer?.kind !== 'native-drawing' && plan.backend && !isBuiltinDefaultBackend(plan.backend.backend) ? 'alternate-backend'
+      : !(plan.mode === 'layout' ? request.appearance.inferredBackend === 'default' : plan.mode === 'scene' && (plan.consumer?.kind === 'native-drawing' || plan.backend?.inputName === 'default')) ? 'unsupported-mode' : undefined
   if (!bypass && plan.family.id === 'er' && (retainedFamilyProjection(layout)?.nodes.length ?? 0) > ER_NATIVE_PAINT_NODE_CAPACITY) bypass = 'paint-proof-capacity'
   let producer = bypass ? undefined : nativeDrawingOf(plan.family.lowerScene)
   if (!bypass && preferSceneDrawing(plan.family.id) && producer && producer === originalNativeDrawingOf(plan.family.lowerScene)) bypass = 'owned-scene-geometry'
@@ -122,7 +125,8 @@ export function retainedNativeDrawing(request: ResolvedRenderRequest, layout: Fa
     observeCache('native-drawing', 'bypass', 'changed-producer')
     requests.delete(request)
   }
-  // Reading conformance proves the same default writer capability as render().
+  // The Scene SPI proves its broad backend contract. A selected Native
+  // consumer instead proves the actual requested XML/paint write below.
   if (plan.backend) assertBackendConformance(plan.backend.conformance, plan.backend.inputName)
   // Positioning's ownership proof must still hold after layout observers run.
   // A changed producer executes on its detached graph and cannot publish a
@@ -185,7 +189,7 @@ export function positionedPaintCertification(request: ResolvedRenderRequest, lay
   observeCache('paint-certification', entry.certification ? 'hit' : 'miss', undefined, 'scene')
   if (entry.certification) return entry.certification
   const plan = resolvedRenderExecutionPlanOf(request)
-  const supported = !request.appearance.colors.shadow && (plan.mode === 'layout' ? request.appearance.inferredBackend === 'default' : plan.mode === 'scene' && plan.backend?.inputName === 'default')
+  const supported = !request.appearance.colors.shadow && (plan.mode === 'layout' ? request.appearance.inferredBackend === 'default' : plan.mode === 'scene' && (plan.consumer?.kind === 'native-drawing' || plan.backend?.inputName === 'default'))
   const writer = plan.backend ?? (plan.mode === 'layout' && request.appearance.inferredBackend === 'default' ? getBackendDescriptor('default') : undefined)
   const written = supported && writer && isBuiltinDefaultBackend(writer.backend) && isOriginalEnrolledDefaultBackend(writer.backend)
   return entry.certification = certifyScenePaint(scene, retainedFamilyProjection(layout), { outputSupported: supported, sceneWriteReceipt: written ? entry.writes : undefined })

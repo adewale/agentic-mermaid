@@ -21,6 +21,22 @@ export const lazyBrowserStyles: Plugin = {
   },
 }
 
+/** Only the source-only async entry selects a Native drawing consumer. The
+ * canonical Scene SPI remains a real on-demand module, never a stub backend. */
+export const lazyBrowserDrawingConsumer: Plugin = {
+  name: 'lazy-browser-drawing-consumer',
+  setup(build) {
+    const backend = resolve(import.meta.dirname, 'src/scene/backend.ts')
+    const runtime = resolve(import.meta.dirname, 'src/browser-lazy/scene-backend-runtime.ts')
+    const defaultBackend = resolve(import.meta.dirname, 'src/scene/default-backend.ts')
+    const facade = resolve(import.meta.dirname, 'src/browser-lazy/scene-backend.ts')
+    build.onResolve({ filter: /\/(?:backend|default-backend)\.ts$/ }, args => {
+      const path = resolve(args.resolveDir, args.path)
+      return args.importer !== runtime && (path === backend || path === defaultBackend) ? { path: facade } : undefined
+    })
+  },
+}
+
 // Framework-neutral ESM renderer. The entry contains source normalization and
 // the generated family catalog; family implementations and the shared SVG
 // backend arrive through native dynamic import only when requested.
@@ -43,17 +59,9 @@ export default defineConfig({
   external: [],
   // ELK, YAML and the HTML5 entity table load only when a diagram needs them.
   // Build-only facade twins preserve the synchronous source/Node APIs.
-  esbuildPlugins: [runtimeRenderContractPlugin({ schemaDocumentation: false, terminalAdapter: false, conformanceObservations: false, coalesceRuntimePrimitives: true, sourceOnlySceneAdmission: true, lazyLayoutOptimization: true }), lazyBrowserStyles, {
+  esbuildPlugins: [lazyBrowserDrawingConsumer, runtimeRenderContractPlugin({ schemaDocumentation: false, terminalAdapter: false, conformanceObservations: false, coalesceRuntimePrimitives: true, sourceOnlySceneAdmission: true, lazyLayoutOptimization: true }), lazyBrowserStyles, {
     name: 'lazy-browser-dependencies',
     setup(build) {
-      // Every public render awaits this core together with its selected family.
-      // Express that complete union in each private facade so shared core code
-      // has one reachability set and can ship in fewer compressed chunks.
-      build.onLoad({ filter: /\/src\/browser-lazy\/families\/[^/]+\.ts$/ }, async args => ({
-        contents: `${await readFile(args.path, 'utf8')}\nexport { renderLoadedFamilySvgWithReceipt } from '../render-core.ts'\n`,
-        loader: 'ts',
-        resolveDir: dirname(args.path),
-      }))
       // Styled and Native providers are requested after that same core has
       // loaded. Keep their shared primitives in the complete render union.
       build.onLoad({ filter: /\/src\/(?:scene\/builtin-backends|layout\/agentic-producer-core)\.ts$/ }, async args => ({

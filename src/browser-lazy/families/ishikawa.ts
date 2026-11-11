@@ -3,3 +3,5 @@ import { createBrowserFamilyDescriptor } from '../family.ts'
 import { ISHIKAWA_SVG_HOOKS } from '../../svg-family-hooks/ishikawa.ts'
 
 export default createBrowserFamilyDescriptor(descriptorData, ISHIKAWA_SVG_HOOKS)
+
+export { renderLoadedFamilySvgWithReceipt } from '../render-core.ts'

@@ -3,3 +3,5 @@ import { createBrowserFamilyDescriptor } from '../family.ts'
 import { ARCHITECTURE_SVG_HOOKS } from '../../svg-family-hooks/architecture.ts'
 
 export default createBrowserFamilyDescriptor(descriptorData, ARCHITECTURE_SVG_HOOKS)
+
+export { renderLoadedFamilySvgWithReceipt } from '../render-core.ts'

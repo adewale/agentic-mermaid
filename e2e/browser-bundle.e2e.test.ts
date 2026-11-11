@@ -26,8 +26,9 @@ import { describe, test, expect, beforeAll, afterAll } from 'bun:test'
 import { spawnSync } from 'node:child_process'
 import { deserialize } from 'node:v8'
 import { inflateRawSync } from 'node:zlib'
-import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
-import { join } from 'node:path'
+import { existsSync, readdirSync, readFileSync, realpathSync, statSync } from 'node:fs'
+import { join, resolve } from 'node:path'
+import { createRequire } from 'node:module'
 import { chromium, firefox, webkit, type Browser, type Page, type Route } from 'playwright'
 import { BUILTIN_FAMILY_METADATA } from '../src/agent/families.ts'
 import { registerStyle, resolveStyleStack, renderMermaidSVG, sharedRenderOptionsJsonSchema, type RenderOptions } from '../src/index.ts'
@@ -131,8 +132,10 @@ function lazyImplementationChunk(input = 'node_modules/elkjs/'): string {
   const metafile = JSON.parse(readFileSync(LAZY_METAFILE, 'utf8')) as {
     outputs: Record<string, { inputs: Record<string, unknown> }>
   }
+  const elkImplementation = input === 'node_modules/elkjs/'
+    ? realpathSync(createRequire(join(REPO, 'package.json')).resolve('elkjs/lib/elk.bundled.js')) : undefined
   const matches = Object.entries(metafile.outputs).filter(([, output]) =>
-    Object.keys(output.inputs).some(path => path.includes(input)))
+    Object.keys(output.inputs).some(path => path.includes(input) || elkImplementation !== undefined && resolve(REPO, path) === elkImplementation))
   expect(matches.length).toBe(1)
   return matches[0]![0].replace(/^dist\//, '')
 }
@@ -526,6 +529,37 @@ describe('async family-loaded browser renderer', () => {
   afterAll(async () => {
     server?.stop(true)
     await browser?.close()
+  })
+
+  test.each(['elk', 'agentic'] as const)('%s strict Scene requests acquire the canonical SPI before callbacks and read options once', async backend => {
+    const page = await browser.newPage(), requests: string[] = []
+    page.on('request', request => requests.push(new URL(request.url()).pathname.replace(/^\/dist\//, '')))
+    const source = 'flowchart LR\nA[Hello] --> B[World]'
+    const options = { padding: 35, security: 'strict' as const, layoutSafety: 'strict' as const,
+      mermaidConfig: { flowchart: { nodeSpacing: -1 } }, graphLayout: { backend, fallback: 'none' as const } }
+    const implementation = lazyImplementationChunk('/scene/backend.ts')
+    try {
+      await page.goto(`${base}/blank.html`)
+      const actual = await page.evaluate(async ({ entry, source, options, implementation }) => {
+        const api = await import(entry), diagnostics: unknown[] = [], ready: boolean[] = []
+        let reads = 0
+        const supplied = { ...options, get padding() { reads++; return options.padding }, onConfigDiagnostic(value: unknown) {
+          diagnostics.push(value)
+          ready.push(performance.getEntriesByType('resource').some(item => item.name.endsWith('/dist/' + implementation)))
+        } }
+        const first = await api.renderMermaidSVGWithReceiptAsync(source, supplied)
+        const second = await api.renderMermaidSVGWithReceiptAsync(source, supplied)
+        return { first, second, reads, diagnostics, ready }
+      }, { entry: `${base}/dist/browser-lazy/index.js`, source, options, implementation })
+      const diagnostics: unknown[] = []
+      const expected = JSON.parse(JSON.stringify(await sourceSVGWithReceipt(source, options, diagnostics)))
+      expect(actual.first).toEqual(expected)
+      expect(actual.second).toEqual(expected)
+      expect(actual.reads).toBe(2)
+      expect(actual.diagnostics).toEqual([...diagnostics, ...diagnostics])
+      expect(actual.ready).toEqual([true, true])
+      expect(requests.filter(path => path === implementation)).toHaveLength(1)
+    } finally { await page.close() }
   })
 
   for (const [engineName, engine] of [

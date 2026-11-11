@@ -2141,3 +2141,18 @@ StandaloneZen style deferral is now scoped out: existing emitted owner1P2F→3P
 products exact; browser0open, requests unchanged. Gzip−1…+12B/Brotli−29…+66B
 and mixedheap retained; outputbytes differ, no byteidentityclaim. Canonicaltypes,
 6manifestowners andscopedlint pass; actualZen inventory16chunks.
+
+Consumer milestone on `30006080d71efd0eac1f6759449ad1333a048f92`: first-party
+Native/ELK drawing consumes its actual write without acquiring generic Scene SPI;
+SDK fallback retains the same request/layout and actual conformance. Remove the
+redundant core facade through33 owning family exports. Trident124/198:310returned
+whole products and all meaning/ink/quality vectors exact;12same errors retained.
+Browser68closed/136whole products exact:31of33families save one request, median
+gzip−6663B both engines; heap−418704/−411628B. Class/ER cost+2245…2248gzipB
+and27968…33300heapB; handdrawn+2245gzipB/+15812heapB, requests unchanged.
+Mixedgzip791746→785071 still exceeds761500. Existing request owner39→38 still
+exceeds37; source/compiled proof+18 predates this change. Owning types/lint,
+27source/SDK/backend contracts pass; emitted21P/2baseline failures retained.
+ER256all8 actual-ink lanes and complete products exact599. No new ER repair or
+API timing claim. Native100/4large proof lanes remain open; next intervention
+is one producer of complete actual writer facts instead of prewrite recapture.

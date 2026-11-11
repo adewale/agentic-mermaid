@@ -4,7 +4,7 @@ import type { RenderOptions } from './types.ts'
 import { detectBrowserBuiltinFamilyFromFirstLine, type BrowserBuiltinFamilyId } from './browser-lazy/generated/catalog.ts'
 import { mermaidFirstLine } from './mermaid-source-wrapper.ts'
 
-type FamilyModule = { default: FamilyDescriptor }
+type FamilyModule = { default: FamilyDescriptor; renderLoadedFamilySvgWithReceipt: typeof import('./browser-lazy/render-core.ts').renderLoadedFamilySvgWithReceipt }
 type FamilyLoader = () => Promise<FamilyModule>
 
 const FAMILY_LOADERS = Object.freeze({
@@ -71,7 +71,7 @@ export async function renderMermaidSVGAsync(source: string, options: RenderOptio
 /** Receipt-bearing lazy rendering retains the complete canonical contract. */
 export async function renderMermaidSVGWithReceiptAsync(source: string, options: RenderOptions = {}): Promise<import('./svg-api.ts').RenderedSvg> {
   const familyId = detectFamily(source)
-  const [{ default: family }, { renderLoadedFamilySvgWithReceipt }] = await Promise.all([FAMILY_LOADERS[familyId](), import('./browser-lazy/render-core.ts')])
+  const { default: family, renderLoadedFamilySvgWithReceipt } = await FAMILY_LOADERS[familyId]()
   return renderLoadedFamilySvgWithReceipt(source, options, family)
 }
 

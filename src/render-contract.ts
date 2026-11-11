@@ -48,6 +48,9 @@ import type {
 import type { DiagramKind, FamilyId } from './agent/types.ts'
 import { classifyMermaidFamilyDescriptorFromFirstLine, familyDetectionDiagnostic, MermaidFamilyDetectionError } from './family-detection.ts'
 import { getBackendDescriptor } from './scene/backend.ts'
+import { FIRST_PARTY_DRAWING_CONSUMER, type FirstPartyDrawingConsumer } from './scene/default-drawing-consumer.ts'
+import { isOwnedFamily } from './experimental/owned-family.ts'
+import { nativeDrawingOf, originalNativeDrawingOf, preferSceneDrawing } from './scene/drawing.ts'
 import type { BackendDescriptor, HostBackendPolicy } from './scene/backend.ts'
 import {
   ESSENTIAL_SCENE_PRIMITIVE_CAPABILITIES,
@@ -173,6 +176,8 @@ export interface RenderExecutionDecision {
 
 /** Trusted, non-serializable inputs used while freezing an execution plan. */
 export interface RenderExecutionResolutionOptions {
+  /** Private source-only consumer; this is not a SceneBackend descriptor. */
+  readonly drawingConsumer?: FirstPartyDrawingConsumer
   readonly backendPolicy?: HostBackendPolicy
   readonly textMeasurement?: TextMeasurementProfile
   /** Internal identity assertion carried by ParsedDiagram adapters. */
@@ -206,6 +211,7 @@ export interface InternalRenderExecutionPlan {
   readonly mode: 'scene' | 'family-svg' | 'terminal' | 'layout'
   readonly family: FamilyDescriptor
   readonly backend?: BackendDescriptor
+  readonly consumer: FirstPartyDrawingConsumer | { readonly kind: 'scene-backend' } | undefined
   readonly requestedBackendId?: string
   /** Immutable diagnostics computed from the exact admitted pre-normalization
    * config while this family execution plan is captured. */
@@ -365,7 +371,8 @@ export function resolvedFamilyRenderContextOf(
 ): ResolvedFamilyRenderContext {
   const prior = FAMILY_CONTEXT_BY_REQUEST.get(request)
   if (prior) return prior
-  const paintBackendId = EXECUTION_PLAN_BY_REQUEST.get(request)?.backend?.identity.id
+  const plan = EXECUTION_PLAN_BY_REQUEST.get(request)
+  const paintBackendId = (plan?.consumer?.kind === 'native-drawing' ? plan.consumer.identity.id : plan?.backend?.identity.id)
     ?? (request.output === 'layout' ? `backend:${request.appearance.inferredBackend}` : undefined)
   const context = Object.freeze({
     renderOptions: request.renderOptions,
@@ -1107,14 +1114,14 @@ function executionCapabilityDecision(output: RenderOutput, offers: readonly Capa
 const DESCRIPTOR_CAPABILITY_DECISIONS = new WeakMap<FamilyDescriptor, WeakMap<object, Map<string, CapabilityDecision>>>()
 const NO_EXECUTION_BACKEND = Object.freeze({})
 
-function descriptorCapabilityDecision(family: FamilyDescriptor, backend: BackendDescriptor | undefined, mode: InternalRenderExecutionPlan['mode'], output: RenderOutput): CapabilityDecision {
+function descriptorCapabilityDecision(family: FamilyDescriptor, backend: BackendDescriptor | undefined, mode: InternalRenderExecutionPlan['mode'], output: RenderOutput, drawingConsumer?: FirstPartyDrawingConsumer): CapabilityDecision {
   const cacheable = Object.isFrozen(family) && (backend === undefined || Object.isFrozen(backend))
   let decisions: Map<string, CapabilityDecision> | undefined
   const key = `${mode}:${output}`
   if (cacheable) {
     let backends = DESCRIPTOR_CAPABILITY_DECISIONS.get(family)
     if (!backends) DESCRIPTOR_CAPABILITY_DECISIONS.set(family, backends = new WeakMap())
-    const owner = backend ?? NO_EXECUTION_BACKEND
+    const owner = drawingConsumer ?? backend ?? NO_EXECUTION_BACKEND
     decisions = backends.get(owner)
     if (!decisions) backends.set(owner, decisions = new Map())
     const retained = decisions.get(key)
@@ -1126,11 +1133,13 @@ function descriptorCapabilityDecision(family: FamilyDescriptor, backend: Backend
   const backendCapabilityRequirements = mode === 'scene'
     ? requiredBackendCapabilities(family)
     : []
-  const backendCapabilityOffers = backend
-    ? backendCapabilityRequirements.flatMap(requirement => executionOffer(
-        primitiveCapabilityId(requirement),
-        backendSupportsCapability(backend, requirement),
-      ))
+  const supports = (requirement: EssentialScenePrimitiveCapability): boolean => drawingConsumer
+    ? drawingConsumer.capabilities.some(claim => claim.primitive === requirement.primitive && claim.feature === requirement.feature
+      && claim.operation === requirement.operation && claim.realization !== 'unsupported')
+    : backend !== undefined && backendSupportsCapability(backend, requirement)
+  const selected = drawingConsumer ?? backend
+  const backendCapabilityOffers = selected
+    ? backendCapabilityRequirements.flatMap(requirement => executionOffer(primitiveCapabilityId(requirement), supports(requirement)))
     : []
 
   const offers: CapabilityOffer[] = [
@@ -1141,7 +1150,7 @@ function descriptorCapabilityDecision(family: FamilyDescriptor, backend: Backend
     ...executionOffer('operation:render-svg', family.renderSvg !== undefined),
     ...executionOffer('operation:render-terminal', family.renderAscii !== undefined),
     ...executionOffer('core:scene', mode === 'scene'),
-    ...executionOffer('backend:scene-renderer', backend !== undefined, backend?.identity.version),
+    ...executionOffer('backend:scene-renderer', selected !== undefined, selected?.identity.version),
     ...backendCapabilityOffers,
   ]
   const requirements: CapabilityRequirement[] = [
@@ -1155,14 +1164,14 @@ function descriptorCapabilityDecision(family: FamilyDescriptor, backend: Backend
         executionRequirement('core:scene'),
         executionRequirement('operation:layout'),
         executionRequirement('operation:lower-scene'),
-        executionRequirement('backend:scene-renderer', backend?.identity.version ?? EXECUTION_CAPABILITY_VERSION),
+        executionRequirement('backend:scene-renderer', selected?.identity.version ?? EXECUTION_CAPABILITY_VERSION),
         ...backendCapabilityRequirements.map(requirement => executionRequirement(primitiveCapabilityId(requirement))),
       )
       outputAvailable = Boolean(
         family.layout
         && family.lowerScene
-        && backend
-        && backendCapabilityRequirements.every(requirement => backendSupportsCapability(backend, requirement)),
+        && selected
+        && backendCapabilityRequirements.every(supports),
       )
       break
     case 'family-svg':
@@ -1201,12 +1210,17 @@ function resolveExecutionPlan(
 ): InternalRenderExecutionPlan {
   let mode: InternalRenderExecutionPlan['mode']
   let backend: BackendDescriptor | undefined
+  let drawingConsumer: FirstPartyDrawingConsumer | undefined
   let requestedBackendId: string | undefined
   if (output === 'svg' || output === 'png') {
     mode = appearance.styled || family.lowerScene ? 'scene' : 'family-svg'
     if (mode === 'scene') {
       requestedBackendId = appearance.styled ? appearance.inferredBackend : 'default'
-      backend = getBackendDescriptor(requestedBackendId, resolutionOptions.backendPolicy)
+      const requestedConsumer = Object.hasOwn(resolutionOptions, 'drawingConsumer') ? resolutionOptions.drawingConsumer : undefined
+      const producer = requestedConsumer === FIRST_PARTY_DRAWING_CONSUMER && isOwnedFamily(family) ? nativeDrawingOf(family.lowerScene) : undefined
+      if (output === 'svg' && requestedBackendId === 'default' && !resolutionOptions.backendPolicy
+        && producer && producer === originalNativeDrawingOf(family.lowerScene) && !preferSceneDrawing(family.id)) drawingConsumer = requestedConsumer
+      else backend = getBackendDescriptor(requestedBackendId, resolutionOptions.backendPolicy)
     }
   } else if (output === 'layout') {
     mode = 'layout'
@@ -1214,7 +1228,7 @@ function resolveExecutionPlan(
     mode = 'terminal'
   }
 
-  const capabilityDecision = descriptorCapabilityDecision(family, backend, mode, output)
+  const capabilityDecision = descriptorCapabilityDecision(family, backend, mode, output, drawingConsumer)
   if (!capabilityDecision.accepted) {
     throw executionCapabilityError(output, family, appearance, mode, backend, capabilityDecision)
   }
@@ -1229,8 +1243,8 @@ function resolveExecutionPlan(
       ? Object.freeze({
           mode: 'scene' as const,
           requestedId: requestedBackendId!,
-          selectedId: backend!.identity.id,
-          version: backend!.identity.version,
+          selectedId: (drawingConsumer ?? backend)!.identity.id,
+          version: (drawingConsumer ?? backend)!.identity.version,
           hostPolicy: resolutionOptions.backendPolicy !== undefined,
         })
       : Object.freeze({ mode: 'family-svg' as const })
@@ -1255,6 +1269,7 @@ function resolveExecutionPlan(
     mode,
     family,
     ...(backend ? { backend } : {}),
+    consumer: drawingConsumer,
     ...(requestedBackendId ? { requestedBackendId } : {}),
     ...(configDiagnostics === undefined ? {} : { configDiagnostics }),
     ...(onConfigDiagnostic ? { onConfigDiagnostic } : {}),
@@ -1262,6 +1277,20 @@ function resolveExecutionPlan(
     ...(executionDecision ? { executionDecision } : {}),
     ...(textMeasurement ? { textMeasurement } : {}),
   })
+}
+
+/** Complete a genuinely required source Scene fallback without resolving
+ * options, invoking config callbacks, or positioning a second time. */
+export function selectSourceSceneFallback(request: ResolvedRenderRequest): void {
+  const plan = resolvedRenderExecutionPlanOf(request)
+  if (plan.consumer?.kind !== 'native-drawing') throw new Error('Source drawing fallback requires its Native consumer')
+  const backend = getBackendDescriptor('default')
+  const decision = descriptorCapabilityDecision(plan.family, backend, plan.mode, plan.output)
+  if (!decision.accepted) throw executionCapabilityError(plan.output, plan.family, request.appearance, plan.mode, backend, decision)
+  if (!backend || backend.identity.id !== plan.consumer.identity.id || backend.identity.version !== plan.consumer.identity.version) {
+    throw new Error('Source Scene fallback changed the selected rendering identity')
+  }
+  EXECUTION_PLAN_BY_REQUEST.set(request, Object.freeze({ ...plan, backend, consumer: Object.freeze({ kind: 'scene-backend' as const }) }))
 }
 
 function isSharedCapabilityResolution(resolution: CapabilityResolution): boolean {

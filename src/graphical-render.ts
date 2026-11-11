@@ -23,6 +23,7 @@ import {
   resolveRenderRequestForExecution,
   resolvedFamilyRenderContextOf,
   resolvedRenderExecutionPlanOf,
+  selectSourceSceneFallback,
   RenderConfigError,
   type RenderExecutionDecision,
   type RenderExecutionResolutionOptions,
@@ -158,8 +159,14 @@ export function renderPositionedMermaidSVG(
   securityDiagnostics: OutputSecurityDiagnostic[],
   capture?: ScenePartCapture,
 ): ResolvedGraphicalExecution {
+  const rendered = renderPositionedConsumer(request, layout, securityDiagnostics, capture)
+  if (!rendered) throw new Error('The source Native consumer requires asynchronous Scene acquisition')
+  return rendered
+}
+
+function renderPositionedConsumer(request: ResolvedRenderRequest, layout: FamilyLayoutResult, securityDiagnostics: OutputSecurityDiagnostic[], capture?: ScenePartCapture): ResolvedGraphicalExecution | undefined {
   const plan = resolvedRenderExecutionPlanOf(request)
-  const written = isOwnedFamily(plan.family) && isOriginalEnrolledDefaultBackend(plan.backend?.backend)
+  const written = isOwnedFamily(plan.family) && (plan.consumer?.kind === 'native-drawing' || isOriginalEnrolledDefaultBackend(plan.backend?.backend))
   return withTextMeasurementExecution(plan.textMeasurement, () => withWrittenSvgSecurity(written, () =>
     renderPositionedWithTextMeasurement(request, layout, securityDiagnostics, capture)), request.appearance.font)
 }
@@ -184,7 +191,7 @@ function renderPositionedWithTextMeasurement(
   layout: FamilyLayoutResult,
   securityDiagnostics: OutputSecurityDiagnostic[],
   capture?: ScenePartCapture,
-): ResolvedGraphicalExecution {
+): ResolvedGraphicalExecution | undefined {
   const executionPlan = resolvedRenderExecutionPlanOf(request)
   if ((executionPlan.mode !== 'scene' && executionPlan.mode !== 'family-svg') || !executionPlan.executionDecision) {
     throw new Error(`Resolved ${request.output} request has no graphical execution plan`)
@@ -196,11 +203,12 @@ function renderPositionedWithTextMeasurement(
   let preparedText = false
   let layoutCertification: PaintLayoutCertification | undefined
   if (executionPlan.mode === 'scene') {
-    const drawing = capture ? undefined : measureRenderStage('drawing', () => retainedNativeDrawing(request, layout))
+    const drawing = capture || executionPlan.consumer?.kind === 'scene-backend' ? undefined : measureRenderStage('drawing', () => retainedNativeDrawing(request, layout))
+    if (!drawing && executionPlan.consumer?.kind === 'native-drawing') return undefined
     const actualWrite = !drawing && !capture && actualPositionedSceneWriteEligible(request)
     const scene = drawing ? undefined : measureRenderStage('scene', () => lowerPositionedFamilyScene(request, layout))
     layoutCertification = measureRenderStage('paint-certification', () => positionedPaintCertification(request, layout))
-    if (layoutCertification && ((effectiveOptions.layoutSafety === 'strict' && layoutCertification.status !== 'passed') || (layoutCertification.status === 'failed' && executionPlan.backend?.inputName === 'default'))) throw new PaintLayoutCertificationError(layoutCertification)
+    if (layoutCertification && ((effectiveOptions.layoutSafety === 'strict' && layoutCertification.status !== 'passed') || (layoutCertification.status === 'failed' && (executionPlan.consumer?.kind === 'native-drawing' || executionPlan.backend?.inputName === 'default')))) throw new PaintLayoutCertificationError(layoutCertification)
     let actualWriteBound = false
     rawSvg = drawing?.svg ?? measureRenderStage('backend', () => {
       const backendContext = {
@@ -227,7 +235,7 @@ function renderPositionedWithTextMeasurement(
       if (!actualWriteBound) layoutCertification = unavailableActualBackendWrite(scene!)
       if ((effectiveOptions.layoutSafety === 'strict' && layoutCertification.status !== 'passed') || layoutCertification.status === 'failed') throw new PaintLayoutCertificationError(layoutCertification)
     }
-    preparedText = executionPlan.backend?.inputName === 'default'
+    preparedText = (executionPlan.consumer?.kind === 'native-drawing' || executionPlan.backend?.inputName === 'default')
       && !family.id.startsWith('family:') && (drawing?.preparedText ?? sceneHasOnlyPreparedText(scene!))
   } else {
     if (effectiveOptions.layoutSafety === 'strict') throw new RenderConfigError('Strict layout safety requires native Scene evidence')
@@ -236,7 +244,7 @@ function renderPositionedWithTextMeasurement(
   assertFinalSvgByteBudget(rawSvg, 'backend/family SVG output')
 
   let svg = inlineResolvedColors(rawSvg, context.colors)
-  if (layoutCertification?.repairs.length && executionPlan.backend?.inputName === 'default') svg = expandSvgViewport(svg, layoutCertification.viewport)
+  if (layoutCertification?.repairs.length && (executionPlan.consumer?.kind === 'native-drawing' || executionPlan.backend?.inputName === 'default')) svg = expandSvgViewport(svg, layoutCertification.viewport)
   assertFinalSvgByteBudget(svg, 'color-resolved SVG output')
   if (!preparedText) svg = fitUncalibratedSvgText(svg, request.appearance.font)
   assertFinalSvgByteBudget(svg, 'font-geometry-fitted SVG output')
@@ -269,7 +277,7 @@ function renderPositionedWithTextMeasurement(
   // security intent, while no native/WASM/browser rasterizer can receive a
   // fetching reference from a conditional host backend.
   const outputSecurity = request.output === 'png' ? 'strict' : effectiveOptions.security
-  const securityPolicy = isOwnedFamily(family) && isOriginalEnrolledDefaultBackend(executionPlan.backend?.backend) ? applyWrittenOutputSecurityPolicy : applyOutputSecurityPolicy
+  const securityPolicy = isOwnedFamily(family) && (executionPlan.consumer?.kind === 'native-drawing' || isOriginalEnrolledDefaultBackend(executionPlan.backend?.backend)) ? applyWrittenOutputSecurityPolicy : applyOutputSecurityPolicy
   const secured = measureRenderStage('svg-security', () => securityPolicy(svg, outputSecurity))
   securityDiagnostics.push(...secured.diagnostics)
   svg = secured.svg
@@ -330,6 +338,25 @@ function executeInspectedGraphicalRequest(
  * Diagnostics and lazy receipts consume that same admitted identity. */
 export function executeResolvedGraphicalRequest(request: ResolvedRenderRequest): GraphicalSvgArtifact {
   return withSvgInspectionCache(() => consumeResolvedGraphicalRequest(request))
+}
+
+/** Async source adapter: acquire a genuinely needed SPI after positioning,
+ * retaining that exact layout and captured request across the await. */
+export async function executeResolvedSourceGraphicalRequest(request: ResolvedRenderRequest, loadSceneBackend: () => Promise<void>): Promise<GraphicalSvgArtifact> {
+  const plan = resolvedRenderExecutionPlanOf(request)
+  if (plan.consumer?.kind !== 'native-drawing') return executeResolvedGraphicalRequest(request)
+  emitResolvedConfigDiagnostics(request)
+  const layout = measureRenderStage('layout', () => positionFamilyForNativeRender(request))
+  const securityDiagnostics: OutputSecurityDiagnostic[] = []
+  let rendered = withSvgInspectionCache(() => renderPositionedConsumer(request, layout, securityDiagnostics))
+  // Only the actual unavailable-consumer return can acquire the SPI. Caller
+  // exceptions propagate unchanged, including undefined and Symbol values.
+  if (!rendered) {
+    await loadSceneBackend()
+    selectSourceSceneFallback(request)
+    rendered = withSvgInspectionCache(() => renderPositionedMermaidSVG(request, layout, securityDiagnostics))
+  }
+  return graphicalSvgArtifact(request, rendered, securityDiagnostics)
 }
 
 function consumeResolvedGraphicalRequest(request: ResolvedRenderRequest, consumeLayout?: GraphicalLayoutConsumer): GraphicalSvgArtifact {
