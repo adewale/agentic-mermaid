@@ -16,9 +16,10 @@ describe('am capabilities', () => {
     expect(Array.isArray(cap.families)).toBe(true)
     expect(Array.isArray(cap.warningCodes)).toBe(true)
     expect(cap.outputFormats).toEqual([...CLI_RENDER_FORMATS])
-    // Thirty-three native families publish their actual operation schemas and
-    // examples. Keep discovery below 128 KiB; imported corpora stay out.
-    expect(Buffer.byteLength(JSON.stringify(cap), 'utf8')).toBeLessThan(128 * 1024)
+    // Thirty-three native families publish their actual operation schemas,
+    // nested record fields and examples. Keep discovery below 136 KiB;
+    // imported corpora stay out.
+    expect(Buffer.byteLength(JSON.stringify(cap), 'utf8')).toBeLessThan(136 * 1024)
   })
 
   it('includes every registered family in the families list', () => {

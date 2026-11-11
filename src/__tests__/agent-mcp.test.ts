@@ -748,9 +748,10 @@ describe('MCP — JSON-RPC happy + sad', () => {
     }
     expect(tools[0].description).toContain('interface RenderRequestReceipt')
     expect(tools[0].description).toMatch(/interface RenderRequestReceipt\s*\{\s*version:\s*2;/)
-    // Include metrics, layout selectors and parse positions without increasing
-    // the context limit; family edit schemas stay progressively loaded.
-    expect(new TextEncoder().encode(tools[0].description).length).toBeLessThan(15_150)
+    // Include metrics, layout selectors, parse positions and nested op field
+    // docs (OpFieldDoc) within this limit; family edit schemas stay
+    // progressively loaded.
+    expect(new TextEncoder().encode(tools[0].description).length).toBeLessThan(15_250)
   })
   test('tools/call execute', async () => {
     const r = await handleRequest({ jsonrpc: '2.0', id: 3, method: 'tools/call', params: { name: 'execute', arguments: { code: 'return mermaid.verifyMermaid("flowchart TD\\n A --> B").ok' } } })

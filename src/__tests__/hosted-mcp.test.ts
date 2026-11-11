@@ -562,9 +562,10 @@ describe('hosted declarative mutate/build tools', () => {
     const execute = HOSTED_TOOLS.find(t => t.name === 'execute')!
     const mutate = HOSTED_TOOLS.find(t => t.name === 'mutate')!
     const build = HOSTED_TOOLS.find(t => t.name === 'build')!
-    // Include metrics, layout selectors and parse positions without increasing
-    // the context limit; family edit schemas stay progressively loaded.
-    expect(new TextEncoder().encode(execute.description).length).toBeLessThan(15_250)
+    // Include metrics, layout selectors, parse positions and nested op field
+    // docs (OpFieldDoc) within this limit; family edit schemas stay
+    // progressively loaded.
+    expect(new TextEncoder().encode(execute.description).length).toBeLessThan(15_350)
     expect(mutate.description).toContain('describe_sdk')
     expect(build.description).toContain('describe_sdk')
     expect(mutate.description).not.toContain('add_class(id, label?, generic?, members?, namespace?)')

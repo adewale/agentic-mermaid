@@ -1,7 +1,7 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="832.94" height="564.45" viewBox="0 0 832.94 564.45" style="--bg:#fffdf8;--fg:#171512;--line:#24211d;--accent:#1d4ed8;--muted:#5f5a52;--surface:#faf5ea;--border:#24211d;--font:EB Garamond;background:#fffdf8" class="am-1jd88la0q1z6ys">
+<svg xmlns="http://www.w3.org/2000/svg" width="832.94" height="564.45" viewBox="0 0 832.94 564.45" style="--bg:#fffdf8;--fg:#171512;--line:#24211d;--accent:#1d4ed8;--muted:#5f5a52;--surface:#faf5ea;--border:#24211d;--font:EB Garamond;background:#fffdf8" class="am-0tq7y9d0cfz0sl">
 <style>
-  svg.am-1jd88la0q1z6ys { font-family: var(--font, 'EB Garamond'), system-ui, sans-serif; }
-  svg.am-1jd88la0q1z6ys {
+  svg.am-0tq7y9d0cfz0sl { font-family: var(--font, 'EB Garamond'), system-ui, sans-serif; }
+  svg.am-0tq7y9d0cfz0sl {
     /* Derived from --bg and --fg (overridable via --line, --accent, etc.) */
     --_text:          #171512;
     --_text-sec:      #5f5a52;
@@ -30,8 +30,8 @@
 <polyline points="464.94,104.45 464.94,468.45" fill="none" stroke="#24211d" stroke-opacity="0.4" stroke-width="1" stroke-dasharray="6 4" data-relationship="rail" data-direction="undirected" />
 <polyline points="632.94,104.45 632.94,468.45" fill="none" stroke="#24211d" stroke-opacity="0.4" stroke-width="1" stroke-dasharray="6 4" data-relationship="rail" data-direction="undirected" />
 <rect x="318.54" y="238.05" width="292.8" height="24" rx="12" fill="none" stroke="#171512" stroke-width="1.35" data-id="pipeline:Service" data-role="group" />
-<polyline points="203.12063432,125.958529808 456.152081714,245.884892896" fill="none" stroke="#171512" stroke-width="1.45" data-relationship="dependency" data-direction="undirected" data-id="dependency:0" data-role="edge" data-from="Customer" data-to="Service" role="graphics-symbol" aria-roledescription="relation" aria-label="Customer to Service" />
-<polyline points="472.823855496,255.743895636 661.898861417,392.298066579" fill="none" stroke="#171512" stroke-width="1.45" stroke-dasharray="6 4" marker-start="url(#wardley-arrow-start)" marker-end="url(#wardley-arrow)" data-relationship="dependency" data-direction="bidirectional" data-id="dependency:1" data-role="edge" data-from="Service" data-to="Power" role="graphics-symbol" aria-roledescription="relation" aria-label="Service to Power" />
+<polyline points="203.12063432,125.958529808 456.152081714,245.884892896" fill="none" stroke="#171512" stroke-width="1.45" data-relationship="dependency" data-direction="undirected" data-id="dependency:0" data-role="edge" data-from="Customer" data-to="Service" role="graphics-symbol" aria-roledescription="relation" aria-label="between Customer and Service" />
+<polyline points="472.823855496,255.743895636 661.898861417,392.298066579" fill="none" stroke="#171512" stroke-width="1.45" stroke-dasharray="6 4" marker-start="url(#wardley-arrow-start)" marker-end="url(#wardley-arrow)" data-relationship="dependency" data-direction="bidirectional" data-id="dependency:1" data-role="edge" data-from="Service" data-to="Power" role="graphics-symbol" aria-roledescription="relation" aria-label="between Service and Power in both directions" />
 <text x="565.74" y="322.85" text-anchor="middle" font-family="EB Garamond" font-size="12" font-weight="600" fill="#171512" stroke="#fffdf8" stroke-width="3" stroke-linejoin="round" paint-order="stroke" data-prepared-text="true" dy="4.2" textLength="49.32" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">delivery</text>
 <polyline points="474.665,250.05 733.74,250.05" fill="none" stroke="#171512" stroke-width="1.45" stroke-dasharray="6 4" marker-end="url(#wardley-arrow)" data-relationship="evolution" data-direction="forward" data-id="evolve:0" data-role="edge" data-from="Service" data-to="Service" role="graphics-symbol" aria-roledescription="relation" aria-label="Service to Service" />
 <g data-id="Customer" data-role="node">

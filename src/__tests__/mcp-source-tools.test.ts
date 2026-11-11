@@ -212,7 +212,7 @@ parentPort.postMessage({type:'ready'});`)
 
   test.each([
     ['sequenceDiagram\ninvalid ???', { diagramType: 'sequence', line: 2, column: 1 }],
-    ['---\ntitle: Invalid\n---\nmindmap\n  Root\n    x[A]\n    x[B]', { diagramType: 'mindmap', line: 7 }],
+    ['---\ntitle: Invalid\n---\nmindmap\n  Root\n  Other', { diagramType: 'mindmap', line: 6 }],
     ['---\ntitle: Invalid\n---\ngitGraph\n  commit\n  checkout missing', { diagramType: 'gitgraph', line: 6 }],
   ])('preserves source errors across the process boundary: %s', async (source, location) => {
     const bad = await call('render_svg', { source })
