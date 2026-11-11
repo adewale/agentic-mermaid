@@ -1,0 +1,9 @@
+{
+  "source": "9109d4373035cc1c18f395ac0e19dfdbba9e73fc",
+  "ae_source": "ae1e84c6e2b6bc383fadd848d3e2ef45ec763b8c",
+  "control": "07a51fc9e1c06902fdf851abc1b05b9aa838e531",
+  "previous_evidence": "695bb569f7a0be010c9a8c2c8fd36f1760b0078b",
+  "bytes": 13114110,
+  "sha256": "dc55079c52d98ec0a5819a5b4c15abf220a3cdbc33e53d1fd6c446ed8683f39e",
+  "scope": "AE actual Node portable248/fidelity396/browser132, all errors/adverse/unknown retained; C4 red/green69owners37styles; current capacity red WIP; final9109 emitted qualification and clocks pending. Old partial clocks ABORTED/unqualified. Source/config recover from Git revisions, exact compiled Node/browser bytes retained; installed deps/fonts/scratch files reproducible and omitted, not deleted."
+}
