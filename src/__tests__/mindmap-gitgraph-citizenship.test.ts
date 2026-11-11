@@ -850,6 +850,27 @@ describe('GitGraph full-family citizenship', () => {
       expect(verify.warnings.filter(warning => warning.code === 'LAYOUT_UNCERTIFIED')).toEqual([])
     })
 
+    // Geometry too large to bucket (here a 1e20 label font size) must neither
+    // hang the index nor hide a crossing from it (review of #611: bucket
+    // indices beyond 2^53 never advanced).
+    test('route checks stay exact and finite for unbucketable geometry', () => {
+      // The same picture bucketed (1e4) and unbucketable (1e20).
+      for (const far of [1e4, 1e20]) {
+        const commits = [
+          { id: 'a', lane: 0, x: 0, y: 0 }, { id: 'mid', lane: 0, x: far / 2, y: 0 }, { id: 'b', lane: 0, x: far, y: 0 },
+          { id: 'c', lane: 1, x: far / 4, y: 100 }, { id: 'd', lane: 1, x: (3 * far) / 4, y: 100 },
+        ]
+        const edges = [
+          { from: 'a', to: 'b', kind: 'parent' as const, points: [{ x: 0, y: 0 }, { x: far, y: 0 }] },
+          { from: 'c', to: 'd', kind: 'merge' as const, points: [{ x: far / 4, y: 100 }, { x: far / 4, y: 0 }, { x: (3 * far) / 4, y: 0 }, { x: (3 * far) / 4, y: 100 }] },
+        ]
+        const found = gitGraphRouteViolations(commits, edges).map(violation => [violation.kind, ...violation.targets])
+        expect(found, String(far)).toContainEqual(['edgeThroughNode', 'a->b', 'mid'])
+        expect(found, String(far)).toContainEqual(['collinearEdges', 'a->b', 'c->d'])
+      }
+      expect(() => renderMermaidSVG('gitGraph\ncommit', { mermaidConfig: { themeVariables: { commitLabelFontSize: 1e20 } } } as never)).toThrow('No certified layout')
+    })
+
     // Routing and certification check each connector against nearby commits
     // and connectors only. Scanning every commit and every earlier connector
     // took 17 s for a 5,000-commit linear history (0.18 s before routing).

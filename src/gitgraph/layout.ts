@@ -338,6 +338,9 @@ function distanceToSegment(p: RoutePoint, a: RoutePoint, b: RoutePoint): number 
 
 /** Side of the square buckets that index commits and connector segments. */
 const ROUTE_CELL = 64
+/** Most buckets one segment is entered into; a larger, unsafe or non-finite
+ *  span is kept in a list every check scans instead. */
+const ROUTE_CELL_LIMIT = 4096
 
 /**
  * Uniform buckets over commits and placed connector segments, so each route
@@ -345,13 +348,18 @@ const ROUTE_CELL = 64
  * connector. A commit a segment passes lies within the segment's bounding box
  * widened by COMMIT_CLEARANCE, and two connectors share collinear ink only
  * where their boxes overlap, so the bucket search finds exactly what a full
- * scan finds; ties resolve by original order, as a scan would.
+ * scan finds; ties resolve by original order, as a scan would. Geometry too
+ * large to bucket (huge configured sizes) falls back to scanning, so the
+ * index never enumerates an unbounded or non-advancing range of buckets.
  */
 class RouteSpace {
   private readonly commitCells = new Map<string, number[]>()
   private readonly edgeCells = new Map<string, number[]>()
+  private readonly commitWide: number[] = []
+  private readonly edgeWide: number[] = []
+  private readonly edges: number[] = []
   constructor(private readonly commits: readonly RouteCommit[]) {
-    commits.forEach((commit, index) => this.bucket(this.commitCells, commit, commit, 0, index))
+    commits.forEach((commit, index) => this.bucket(this.commitCells, this.commitWide, commit, commit, 0, index))
   }
 
   /** The first commit in document order, other than its own two, that the
@@ -360,7 +368,7 @@ class RouteSpace {
     for (let i = 1; i < edge.points.length; i++) {
       const a = edge.points[i - 1]!, b = edge.points[i]!
       let first = Infinity
-      this.visit(this.commitCells, a, b, COMMIT_CLEARANCE, index => {
+      this.visit(this.commitCells, this.commitWide, () => this.commits.keys(), a, b, COMMIT_CLEARANCE, index => {
         const commit = this.commits[index]!
         if (index < first && commit.id !== edge.from && commit.id !== edge.to && distanceToSegment(commit, a, b) < COMMIT_CLEARANCE) first = index
       })
@@ -370,32 +378,46 @@ class RouteSpace {
   }
 
   addEdge(edge: PositionedGitGraphEdge, index: number): void {
-    for (let i = 1; i < edge.points.length; i++) this.bucket(this.edgeCells, edge.points[i - 1]!, edge.points[i]!, 1, index)
+    this.edges.push(index)
+    for (let i = 1; i < edge.points.length; i++) this.bucket(this.edgeCells, this.edgeWide, edge.points[i - 1]!, edge.points[i]!, 1, index)
   }
 
   /** Indices of added connectors with a segment near one of this edge's, ascending. */
   nearbyEdges(edge: PositionedGitGraphEdge): number[] {
     const found = new Set<number>()
-    for (let i = 1; i < edge.points.length; i++) this.visit(this.edgeCells, edge.points[i - 1]!, edge.points[i]!, 1, index => found.add(index))
+    for (let i = 1; i < edge.points.length; i++) this.visit(this.edgeCells, this.edgeWide, () => this.edges.values(), edge.points[i - 1]!, edge.points[i]!, 1, index => found.add(index))
     return [...found].sort((a, b) => a - b)
   }
 
-  private cells(a: RoutePoint, b: RoutePoint, margin: number, each: (key: string) => void): void {
+  /** The buckets a segment's widened box touches, or false when there are too
+   *  many to enumerate (or its coordinates are not finite). */
+  private cells(a: RoutePoint, b: RoutePoint, margin: number, each: (key: string) => void): boolean {
     const x0 = Math.floor((Math.min(a.x, b.x) - margin) / ROUTE_CELL), x1 = Math.floor((Math.max(a.x, b.x) + margin) / ROUTE_CELL)
     const y0 = Math.floor((Math.min(a.y, b.y) - margin) / ROUTE_CELL), y1 = Math.floor((Math.max(a.y, b.y) + margin) / ROUTE_CELL)
+    if (![x0, x1, y0, y1].every(Number.isSafeInteger) || (x1 - x0 + 1) * (y1 - y0 + 1) > ROUTE_CELL_LIMIT) return false
     for (let x = x0; x <= x1; x++) for (let y = y0; y <= y1; y++) each(`${x},${y}`)
+    return true
   }
 
-  private bucket(cells: Map<string, number[]>, a: RoutePoint, b: RoutePoint, margin: number, index: number): void {
-    this.cells(a, b, margin, key => {
+  private bucket(cells: Map<string, number[]>, wide: number[], a: RoutePoint, b: RoutePoint, margin: number, index: number): void {
+    const bucketed = this.cells(a, b, margin, key => {
       const list = cells.get(key)
       if (!list) cells.set(key, [index])
       else if (list.at(-1) !== index) list.push(index)
     })
+    if (!bucketed && wide.at(-1) !== index) wide.push(index)
   }
 
-  private visit(cells: ReadonlyMap<string, number[]>, a: RoutePoint, b: RoutePoint, margin: number, each: (index: number) => void): void {
-    this.cells(a, b, margin, key => { for (const index of cells.get(key) ?? []) each(index) })
+  /** Every item that may lie near the segment: its buckets' items and the
+   *  unbucketed ones, or every item when the segment itself is too large. */
+  private visit(cells: ReadonlyMap<string, number[]>, wide: readonly number[], all: () => Iterable<number>, a: RoutePoint, b: RoutePoint, margin: number, each: (index: number) => void): void {
+    const keys: string[] = []
+    if (!this.cells(a, b, margin, key => keys.push(key))) {
+      for (const index of all()) each(index)
+      return
+    }
+    for (const key of keys) for (const index of cells.get(key) ?? []) each(index)
+    for (const index of wide) each(index)
   }
 }
 
