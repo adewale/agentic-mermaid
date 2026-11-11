@@ -4,6 +4,34 @@ Current work order: [Native replacement plan](layout-0.6-qualification.md).
 The dated records below are historical evidence; earlier “next” statements do not
 create parallel active queues. No retained experiment or output is discarded.
 
+Latest owner-requested work, 11 November, baseline
+`599bee58db7cb54293866cc8aa86c887ef93e9a4`, runtime through
+`07a51fc9e1c06902fdf851abc1b05b9aa838e531`: shared producer/XML/group and
+marker-resource reuse restores Sparse32 proof (399,076/400,000) and both
+Chain100 lanes (Native380,960). Ten larger proof lanes and100ms remain open.
+Trident621:124 portable calls retain116 exactSVG/eight errors;198 actual
+meaning/ink observations retain194 exactSVG/four option errors. Only Chain100
+proof changes U→P. ER256 already delivers8/8 backend/direction proof-passed
+products at baseline; its stale refusal claim was a reporting error.
+
+Net621 browser Flowchart gzip−2,058B each backend; Agentflow+5,038B and
+retained heap rises across33 families. Full-response Native Chain100 repeat
+173.2→178.9ms versus599; no speedup claim. e56 removes20,680 duplicate meter
+checks without changing operations/products;07a repairs foreign source custody
+and observes the third capture failure (falseP→U, SVG unchanged). e770 corrects
+per-path test controls while retaining the historical producer-borrowing failure.
+Allthree unit CI shards pass07a; browser/payload budgets, Windows EBUSY cleanup
+and advisory layout still fail. Core/repo types and owning guards pass.
+
+Constructor instructions, bulk copy batching, normalized marker reuse, direct
+marker-pose extraction and the broad Scene-path trial remain unshipped after
+mixed/adverse costs. Each built A/B retained81 exactSVG pairs; unchanged output
+is validation. Scene first edits improve, but fan/300 repeats worsen and their
+proofs stayU400k. Evidence checkpoint695bb569f7a0be010c9a8c2c8fd36f1760b0078b
+preserves actual products, costs and stopped sources. Next: subtract copying at
+qualified complete text producers and repeated actual XML literal work. No new
+cache/cap/default/version change; Replacement24 sealed; automations stay off.
+
 The owner resumed the campaign on **5 November 2026 at 13:48 UTC**, authorizing
 regular commits and pushes to PR #602. After the original8November deadline, the
 owner renewed the goal through **9 November 2026 at20:00 UTC (8pm London)**.
