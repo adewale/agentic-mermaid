@@ -22,7 +22,7 @@ import type { SvgSemanticIdentity } from './identity.ts'
 import { ensureSvgIdentity, semanticChildId, semanticIdentityForSvg } from './identity.ts'
 import { relationAccessibility } from './accessibility.ts'
 import { displayText, escapeAttr, escapeXml } from '../multiline-utils.ts'
-import { resolveLabelContent } from '../shared/display-text.ts'
+import { displayLineBlocksValue, resolveLabelContent } from '../shared/display-text.ts'
 import type { LabelDisplay } from '../multiline-utils.ts'
 import { preparePixelText, type PixelTextBlock } from '../shared/prepared-text.ts'
 import {
@@ -311,7 +311,7 @@ export function connector(fields: ConnectorFields): ConnectorMark {
   }
   const firstLabel = labels[0]
   const accessibleLabel = firstLabel?.visual?.kind === 'inline'
-    ? connectorInlineLabelText(firstLabel).lineBlocks.map(line => line.runs.map(run => run.text).join('')).join('\n')
+    ? displayLineBlocksValue(connectorInlineLabelText(firstLabel).lineBlocks)
     : firstLabel ? displayText(resolveLabelContent(firstLabel.text, firstLabel.textContent), firstLabel.display ?? 'literal') : undefined
   const accessibility = relationAccessibility(identity, accessibleLabel)
   assertMarkAttributes(fields.id, fields.attributes)

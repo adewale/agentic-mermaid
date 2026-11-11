@@ -8,7 +8,7 @@ import { encodeMermaidAuthoredEntities } from '../shared/mermaid-entities.ts'
 import { protectMetadataEntities, readMetadataBlock } from '../shared/metadata-yaml.ts'
 import { scanMetadataBlock } from '../shared/metadata-block-scan.ts'
 import { DeferredDependencyError } from '../layout/certification-error.ts'
-import { observeParserMutation, observeParserStatement, parserMutationObservationActive, parserObservationActive, withParserObservation } from '../shared/parser-observation.ts'
+import { observeParserMutation, observeParserStatement, parserObservationActive, withParserObservation } from '../shared/parser-observation.ts'
 import { syntaxError } from '../shared/syntax-error.ts'
 import { stripTrailingComment, trailingCommentStart } from '../shared/trailing-comment.ts'
 import type { KanbanBody, KanbanColumn, KanbanItem } from './types.ts'
@@ -139,7 +139,7 @@ export function parseKanbanDiagram(input: readonly string[] | string, accessibil
       }
       observeParserStatement('kanban', text.startsWith(':::') ? 'class' : 'icon', line, { line: index + bodyLine, unit: 'normalized' })
       const mutation = text.startsWith(':::') ? 'set-class' : 'set-icon'
-      if (parserMutationObservationActive('kanban', mutation)) observeParserMutation('kanban', mutation, { id: previous.id, sourceId: previous.sourceId, value: text.startsWith(':::') ? previous.className : previous.icon })
+      if (parserObservationActive('kanban', mutation)) observeParserMutation('kanban', mutation, { id: previous.id, sourceId: previous.sourceId, value: text.startsWith(':::') ? previous.className : previous.icon })
       continue
     }
     let rawId = '',
@@ -205,7 +205,7 @@ export function parseKanbanDiagram(input: readonly string[] | string, accessibil
         throw fail(`Invalid Kanban metadata (${parsed.message})`, metadataCol, 'a closed @{ key: value } metadata mapping', startIndex + metadataLine)
       }
       metadata = Object.fromEntries(parsed.entries)
-      if (parserMutationObservationActive('kanban', indent === (baseIndent ?? indent) ? 'add-column' : 'add-task')) ranges = metadataRanges(block, metadataOffset)
+      if (parserObservationActive('kanban', indent === (baseIndent ?? indent) ? 'add-column' : 'add-task')) ranges = metadataRanges(block, metadataOffset)
       suffix = block.slice(parsed.end + 1).trim()
       if (metadata.shape && (typeof metadata.shape !== 'string' || metadata.shape !== metadata.shape.toLowerCase() || metadata.shape.includes('_'))) throw fail('Invalid Kanban metadata shape', indent, 'a lowercase shape without underscores')
       if (metadata.label) label = String(metadata.label)
@@ -230,12 +230,12 @@ export function parseKanbanDiagram(input: readonly string[] | string, accessibil
       column = { ...item, tasks: [] }
       body.columns.push(column)
       previous = column
-      if (parserMutationObservationActive('kanban', 'add-column')) observeParserMutation('kanban', 'add-column', { ...item, indent, declaredStart: linePrefix + indent, declaredLabel, declaredLabelStart: linePrefix + declaredLabelStart, ...(ranges ? { metadataSpans: ranges } : {}) })
+      if (parserObservationActive('kanban', 'add-column')) observeParserMutation('kanban', 'add-column', { ...item, indent, declaredStart: linePrefix + indent, declaredLabel, declaredLabelStart: linePrefix + declaredLabelStart, ...(ranges ? { metadataSpans: ranges } : {}) })
     } else {
       if (!column) throw new Error('Kanban card has no column')
       column.tasks.push(item)
       previous = item
-      if (parserMutationObservationActive('kanban', 'add-task')) observeParserMutation('kanban', 'add-task', { ...item, indent, declaredStart: linePrefix + indent, declaredLabel, declaredLabelStart: linePrefix + declaredLabelStart, parentId: column.sourceId, ...(ranges ? { metadataSpans: ranges } : {}) })
+      if (parserObservationActive('kanban', 'add-task')) observeParserMutation('kanban', 'add-task', { ...item, indent, declaredStart: linePrefix + indent, declaredLabel, declaredLabelStart: linePrefix + declaredLabelStart, parentId: column.sourceId, ...(ranges ? { metadataSpans: ranges } : {}) })
     }
     assertDiagramWorkLimit('nodes', used.size)
   }

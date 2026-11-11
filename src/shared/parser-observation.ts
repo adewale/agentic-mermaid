@@ -31,17 +31,12 @@ interface Scope {
 }
 let active: Scope | undefined
 
-/** True only within the selected synchronous scope. Guard event construction
- * with this function so ordinary parsing does no snapshot or allocation work.
+/** True only within the selected synchronous scope. An optional mutation kind
+ * also selects its payload before snapshot or allocation work.
  */
-export function parserObservationActive(family: string): boolean {
-  return active?.family === family
-}
-
-/** Guard optional mutation payload work with the same selection as delivery. */
-export function parserMutationObservationActive(family: string, kind: string): boolean {
+export function parserObservationActive(family: string, mutationKind?: string): boolean {
   const scope = active
-  return scope?.family === family && (!scope.mutations || scope.mutations.has(kind))
+  return scope?.family === family && (mutationKind === undefined || !scope.mutations || scope.mutations.has(mutationKind))
 }
 
 /** Nested scopes replace, then restore, their caller's observer. Async work is
@@ -136,6 +131,6 @@ export function observeParserToken(family: string, kind: string, text: string, s
 export function observeParserMutation(family: string, kind: string, value: unknown, source?: ParserObservationSource): void {
   // Select before copying: source-map consumers need only generated identities,
   // not snapshots of every still-unprocessed nested subtree.
-  if (!parserMutationObservationActive(family, kind)) return
+  if (!parserObservationActive(family, kind)) return
   deliver(family, { family, unit: 'mutation', kind, value: snapshot(value), ...(source ? { source: { ...source } } : {}) })
 }

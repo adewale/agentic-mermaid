@@ -7,7 +7,7 @@ import type { TextTransform } from '../types.ts'
 import { LINE_HEIGHT_RATIO, measureTextWidth, measureSystemFontSafeTextWidth, measureMonospaceTextWidth, getCharWidth, isKnownMonospaceFontFamily } from '../text-metrics.ts'
 import { graphemes } from './graphemes.ts'
 import { serializeStyledSegment } from './inline-format.ts'
-import { isImmutableDisplayTextPart, prepareDisplayText, type DisplayRun, type DisplayTextInput, type PreparedDisplayText } from './display-text.ts'
+import { isImmutableDisplayTextPart, prepareDisplayText, preparedDisplayTextValue, type DisplayRun, type DisplayTextInput, type PreparedDisplayText } from './display-text.ts'
 import { createImmutableParts } from './immutable-parts.ts'
 import { customTextMeasurementActive, withTextMeasurementExecution } from '../text-measurement-profile.ts'
 
@@ -316,8 +316,9 @@ export function preparePixelText(source: DisplayTextInput, options: PixelTextOpt
   // The Latin baseline band cannot enclose joining-script ascents or stacked
   // diacritics. Reserve a native shaping band before family placement; marks
   // may extend ink even when they contribute no horizontal advance.
-  const visible = prepared.lines.map(runs => runs.map(run => run.text).join('')).join('\n')
-  const maxMarks = /\p{M}/u.test(visible.normalize('NFD').replace(/[\uFE0E\uFE0F]/g, '')) ? graphemes(visible.normalize('NFD')).reduce((max, cluster) => Math.max(max, (cluster.replace(/[\uFE0E\uFE0F]/g, '').match(/\p{M}/gu) ?? []).length), 0) : 0
+  const visible = preparedDisplayTextValue(prepared)
+  const decomposed = visible.normalize('NFD')
+  const maxMarks = /\p{M}/u.test(decomposed.replace(/[\uFE0E\uFE0F]/g, '')) ? graphemes(decomposed).reduce((max, cluster) => Math.max(max, cluster.replace(/[\uFE0E\uFE0F]/g, '').match(/\p{M}/gu)?.length ?? 0), 0) : 0
   const lineHeight = options.fontSize * Math.max(LINE_HEIGHT_RATIO, /[\p{Script=Arabic}\p{Script=Hebrew}]/u.test(visible) ? 2.4 : 0, maxMarks ? LINE_HEIGHT_RATIO + maxMarks * 0.6 : 0)
   const lineBlocks = broken.map((runs, i) => {
     const text = runs.map(run => prepared.display === 'literal' ? run.text : serializeStyledSegment(run)).join('')

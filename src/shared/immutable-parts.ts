@@ -3,7 +3,7 @@
 export function createImmutableParts(known: (value: object) => boolean = () => false) {
   // Keep ownership on each value rather than retaining a weak table's capacity.
   class OwnedPart extends class { constructor(value: object) { return value } } {
-    #owned = true
+    #owned: undefined
     static has(value: unknown): boolean {
       return (typeof value === 'object' && value !== null || typeof value === 'function') && #owned in value
     }

@@ -60,6 +60,10 @@ export function preparedDisplayTextValue(prepared: PreparedDisplayText): string 
   return prepared.lines.map(line => line.map(run => run.text).join('')).join('\n')
 }
 
+export function displayLineBlocksValue(lines: readonly { readonly runs: readonly Pick<DisplayRun, 'text'>[] }[], lineBreak = '\n'): string {
+  return lines.map(line => line.runs.map(run => run.text).join('')).join(lineBreak)
+}
+
 /** Decode tokens only after formatting has been read. A replacement retains
  * the whole token's span in the normalized, pre-expansion source. */
 export function replaceDisplayTextTokens(prepared: PreparedDisplayText, pattern: RegExp, replace: (token: string) => string): PreparedDisplayText {

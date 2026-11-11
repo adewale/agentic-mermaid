@@ -5,6 +5,7 @@ import { composeMatrices, IDENTITY_MATRIX, transformMatrix, type AffineMatrix } 
 import { sceneNodeSerialization } from './serialization.ts'
 import { assertInertGroup } from './group-emission.ts'
 import type { AxisAlignedBox } from '../shared/transformed-bounds.ts'
+import { displayLineBlocksValue } from '../shared/display-text.ts'
 
 export interface ScenePaintPrimitive {
   readonly key: string
@@ -123,7 +124,7 @@ function nonPainting(node: SceneNode): boolean {
 export function inspectScenePrimitives(scene: SceneDoc): ScenePaintInspection {
   return inspectScene(scene, (text, block, includeFont) => ({
     source: block?.prepared.source ?? text,
-    displayed: block ? block.lineBlocks.map(line => line.runs.map(run => run.text).join('')).join('\n') : text,
+    displayed: block ? displayLineBlocksValue(block.lineBlocks) : text,
     ...(includeFont && block?.fontFamily ? { fontFamily: block.fontFamily } : {}),
   })) as ScenePaintInspection
 }

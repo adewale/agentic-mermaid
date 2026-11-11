@@ -10,7 +10,7 @@ import { recordTextOpening, textAttributeFields, type WrittenTextAttributes } fr
 import { LINE_HEIGHT_RATIO } from './text-metrics.ts'
 import { formatSvgNumber } from './shared/svg-number.ts'
 import { HAS_FORMAT_TAGS } from './shared/inline-format.ts'
-import { prepareDisplayText, type DisplayRun, type DisplayTextInput } from './shared/display-text.ts'
+import { displayLineBlocksValue, prepareDisplayText, preparedDisplayTextValue, type DisplayRun, type DisplayTextInput } from './shared/display-text.ts'
 import type { PixelTextBlock } from './shared/prepared-text.ts'
 import { sanitizeDisplayLines } from './shared/text-controls.ts'
 
@@ -78,7 +78,7 @@ export type LabelDisplay = 'formatted' | 'literal'
  * are formatting and which are text.
  */
 export function displayText(label: DisplayTextInput, display: LabelDisplay = 'formatted'): string {
-  return prepareDisplayText(label, display).lines.map(runs => runs.map(run => run.text).join('')).join('\n')
+  return preparedDisplayTextValue(prepareDisplayText(label, display))
 }
 
 const XML_SPECIAL = /[&<>"']/
@@ -227,7 +227,7 @@ export function renderMultilineText(
   const lines = block ? block.lines : value.split('\n')
   const display = block?.prepared.display ?? (literalText ? 'literal' : 'formatted')
   const anchor = attrs.match(/\btext-anchor="([^"]*)"/)?.[1] ?? 'start'
-  const nativeShaping = block && /[^\x20-\x7e]/u.test(block.lineBlocks.map(line => line.runs.map(run => run.text).join('')).join(''))
+  const nativeShaping = block && /[^\x20-\x7e]/u.test(displayLineBlocksValue(block.lineBlocks, ''))
   const fragmented = block && (block.letterSpacing !== 0 || nativeShaping)
   const renderLine = (line: string, index: number) => block
     ? renderPreparedLine(block, index, cx, anchor)
@@ -235,7 +235,7 @@ export function renderMultilineText(
   const inheritedText = attrs
   const literal = display === 'literal' && HAS_FORMAT_TAGS.test(value) && !attrs.includes('data-literal-text=')
   if (literal) attrs += ' data-literal-text="true"'
-  const visible = block ? block.lineBlocks.map(line => line.runs.map(run => run.text).join('')).join('\n') : displayText(value, display)
+  const visible = block ? displayLineBlocksValue(block.lineBlocks) : displayText(value, display)
   const preserve = /(?:^ | $| {2}|\t)/m.test(visible) && !attrs.includes('xml:space=')
   if (preserve) attrs += ' xml:space="preserve"'
   if (block) attrs += ' data-prepared-text="true"'
