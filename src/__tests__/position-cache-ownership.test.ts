@@ -3,6 +3,20 @@ import { useTestChildren } from './helpers/test-child.ts'
 
 const runChild = useTestChildren(20_000)
 
+// Original private closure and replacement-producer capture perform different
+// paid work. Their actual output and every other proof field must still agree.
+const crossProducerAssertion = `
+    const assertCrossProducerProduct = (actual, expected) => {
+      const comparable = product => {
+        const receipt = product.receipt, proof = receipt.layoutCertification
+        assert.ok(Number.isSafeInteger(proof.checks.operations) && proof.checks.operations >= 0 && proof.checks.operations <= 400000)
+        return { ...product, receipt: { ...receipt, layoutCertification: { ...proof,
+          checks: { ...proof.checks, operations: undefined } } } }
+      }
+      assert.deepEqual(comparable(actual), comparable(expected))
+    }
+`
+
 test('copied snapshots preserve Scene delivery and Native reuse without exposing cached geometry', async () => {
   const child = await runChild(process.execPath, ['-e', `
     import assert from 'node:assert/strict'
@@ -13,7 +27,9 @@ test('copied snapshots preserve Scene delivery and Native reuse without exposing
     import { layoutMermaidWithReceipt } from './src/agent/index.ts'
     import { resolveRenderRequestForExecution } from './src/render-contract.ts'
     import { positionFamilyForNativeRender, positionedForSceneLowering } from './src/positioning.ts'
-    const draw = spyOn(drawing, 'drawNative'), certify = spyOn(paint, 'certifyNativePaint')
+    const publicDraw = spyOn(drawing, 'drawNative'), privateDraw = spyOn(drawing, 'drawOriginalPositionedNative')
+    const certify = spyOn(paint, 'certifyNativePaint')
+    const draw = { get calls() { return publicDraw.mock.calls.length + privateDraw.mock.results.filter(result => result.type === 'return' && result.value !== undefined).length } }
     const cases = [
       ['classDiagram', 'StageClassA --> StageClassB'],
       ['erDiagram', 'STAGE_OWNER ||--o{ STAGE_ITEM : owns'],
@@ -24,13 +40,13 @@ test('copied snapshots preserve Scene delivery and Native reuse without exposing
       // ER and Class retain the PR's actual Scene writer lane.
       const native = lines[0] === 'packet-beta'
       const source = lines.join(String.fromCharCode(10))
-      const before = draw.mock.calls.length
+      const before = draw.calls
       const expected = render(source, options)
       assert.deepEqual(render(source, options), expected)
-      assert.equal(draw.mock.calls.length, before + (native ? 2 : 0))
-      const drawn = draw.mock.calls.length, certified = certify.mock.calls.length
+      assert.equal(draw.calls, before + (native ? 2 : 0))
+      const drawn = draw.calls, certified = certify.mock.calls.length
       for (let repeat = 0; repeat < 3; repeat++) assert.deepEqual(render(source, options), expected)
-      assert.equal(draw.mock.calls.length, drawn, 'warm render rebuilt drawing: ' + lines[0])
+      assert.equal(draw.calls, drawn, 'warm render rebuilt drawing: ' + lines[0])
       assert.equal(certify.mock.calls.length, certified + (native ? 0 : 3), 'Scene writes keep fresh certification; Native may reuse: ' + lines[0])
       const exposed = layoutMermaidWithReceipt(source, options)
       exposed.layout.nodes.length = 0
@@ -39,11 +55,11 @@ test('copied snapshots preserve Scene delivery and Native reuse without exposing
       if (native) assert.notEqual(sceneInput, layout.positioned)
       for (const key of Object.keys(sceneInput)) delete sceneInput[key]
       assert.deepEqual(render(source, options), expected)
-      const beforeControl = draw.mock.calls.length, certificationBeforeControl = certify.mock.calls.length
+      const beforeControl = draw.calls, certificationBeforeControl = certify.mock.calls.length
       process.env.AGENTIC_MERMAID_ELK_CACHE = '0'
       try { assert.deepEqual(render(source, options), expected) }
       finally { process.env.AGENTIC_MERMAID_ELK_CACHE = '1' }
-      assert.equal(draw.mock.calls.length, beforeControl + (native ? 1 : 0), 'uncached control follows its family writer')
+      assert.equal(draw.calls, beforeControl + (native ? 1 : 0), 'uncached control follows its family writer')
       assert.equal(certify.mock.calls.length, certificationBeforeControl + 1)
     }
   `], { cwd: `${import.meta.dir}/../..`, env: { ...process.env, AGENTIC_MERMAID_SCENE_ASSERTIONS: '0', AGENTIC_MERMAID_ELK_CACHE: '1' } })
@@ -425,6 +441,7 @@ test('repeated private native drawings preserve receipts, policy and final secur
 test('a producer changed between drawing and certification cannot publish a retained artifact', async () => {
   const child = await runChild(process.execPath, ['-e', `
     import assert from 'node:assert/strict'
+    ${crossProducerAssertion}
     import { renderMermaidSVGWithReceipt } from './src/index.ts'
     import { getFamily } from './src/agent/families.ts'
     import { inheritNativeDrawing, nativeDrawingOf, sceneLowering } from './src/scene/drawing.ts'
@@ -460,7 +477,7 @@ test('a producer changed between drawing and certification cannot publish a reta
     assert.deepEqual(raced.result, warm.result)
     const changedProducer = render(() => renderMermaidSVGWithReceipt(source))
     assert.equal(customCalls, 1, 'the installed replacement must construct its own drawing')
-    assert.deepEqual(changedProducer.result, warm.result)
+    assertCrossProducerProduct(changedProducer.result, warm.result)
     inheritNativeDrawing(originalSource, lower)
     const restoredMiss = render(() => renderMermaidSVGWithReceipt(source))
     assert.equal(restoredMiss.events.filter(event => event.owner === 'native-drawing' && event.detail === 'positioned-owner').length, 0,
@@ -483,7 +500,8 @@ test('a producer changed between drawing and certification cannot publish a reta
     inheritNativeDrawing(originalSource, lower)
     assert.ok(warm.events.some(event => event.owner === 'svg-inspection' && event.detail === 'final-security'))
     for (const [name, sample] of Object.entries({ raced, changedProducer, restoredMiss, restoredHit, hitRace })) {
-      assert.deepEqual(sample.result, warm.result)
+      if (name === 'changedProducer' || name === 'hitRace') assertCrossProducerProduct(sample.result, warm.result)
+      else assert.deepEqual(sample.result, warm.result)
       assert.equal(sample.events.filter(event => event.owner === 'svg-inspection' && event.detail === 'final-security').length, 1, name)
     }
     delete globalThis[symbol]
@@ -636,6 +654,7 @@ for (const family of ['flowchart', 'state'] as const) {
   for (const backend of ['elk', 'agentic', ...(family === 'flowchart' ? ['fallback'] : [])]) test(`${backend} ${family} geometry stays isolated across private/public/PNG order and replacement hooks`, async () => {
     const child = await runChild(process.execPath, ['-e', `
       import assert from 'node:assert/strict'
+      ${crossProducerAssertion}
       import { renderMermaidSVGWithReceipt } from './src/index.ts'
       import { renderMermaidPNGWithReceipt } from './src/agent/index.ts'
       import { resolveRenderRequestForExecution } from './src/render-contract.ts'
@@ -705,10 +724,11 @@ for (const family of ['flowchart', 'state'] as const) {
         }
       })
       try {
-        assert.deepEqual(renderMermaidSVGWithReceipt(source, options), first)
+        const replacement = renderMermaidSVGWithReceipt(source, options)
+        assertCrossProducerProduct(replacement, first)
         callerOwned.positioned.nodes[0].label = 'poisoned replacement node'
         callerOwned.positioned.edges[0].points[0].x = NaN
-        assert.deepEqual(renderMermaidSVGWithReceipt(source, options), first)
+        assert.deepEqual(renderMermaidSVGWithReceipt(source, options), replacement)
         assert.equal(projections, 2)
         invalid = true
         assert.throws(() => renderMermaidSVGWithReceipt(source, options), { code: 'LAYOUT_CERTIFICATION_FAILED' })
@@ -723,6 +743,7 @@ for (const family of ['flowchart', 'state'] as const) {
 test('native cached rendering stays isolated from public geometry and replacement projectors', async () => {
   const child = await runChild(process.execPath, ['-e', `
     import assert from 'node:assert/strict'
+    ${crossProducerAssertion}
     import { createMermaidRenderer, parseRegisteredMermaid, renderMermaidSVGWithReceipt } from './src/index.ts'
     import { resolveRenderRequestForExecution } from './src/render-contract.ts'
     import { positionResolvedFamily, retainedFamilyProjection } from './src/positioning.ts'
@@ -794,10 +815,11 @@ test('native cached rendering stays isolated from public geometry and replacemen
       }
     })
     try {
-      assert.deepEqual(renderMermaidSVGWithReceipt(source, options), first)
+      const replacement = renderMermaidSVGWithReceipt(source, options)
+      assertCrossProducerProduct(replacement, first)
       callerOwned.positioned.actors[0].label = 'poisoned replacement-owned participant'
       callerOwned.positioned.notes[0].actors[0] = 'poisoned'
-      assert.deepEqual(renderMermaidSVGWithReceipt(source, options), first)
+      assert.deepEqual(renderMermaidSVGWithReceipt(source, options), replacement)
       assert.equal(projections, 2)
       invalid = true
       assert.throws(() => renderMermaidSVGWithReceipt(source, options), { code: 'LAYOUT_CERTIFICATION_FAILED' })
@@ -1112,6 +1134,7 @@ test.each([process.execPath, 'node'])('native snapshots retain mutable descripto
 test('private Pie ownership survives public mutation, replacement producers and immutable metrics', async () => {
   const child = await runChild(process.execPath, ['-e', `
     import assert from 'node:assert/strict'
+    ${crossProducerAssertion}
     import { renderMermaidSVGWithReceipt, createMermaidRenderer } from './src/index.ts'
     import { resolveRenderRequestForExecution } from './src/render-contract.ts'
     import { positionResolvedFamily } from './src/positioning.ts'
@@ -1136,7 +1159,7 @@ test('private Pie ownership survives public mutation, replacement producers and 
         held = context.positioned
         return original(factory, context)
       }), lower)
-      try { assert.deepEqual(renderMermaidSVGWithReceipt(source, options), reference) }
+      try { assertCrossProducerProduct(renderMermaidSVGWithReceipt(source, options), reference) }
       finally { inheritNativeDrawing(sceneLowering(original), lower) }
       held.legend[0].label = 'poisoned replacement text'
       held.slices.length = 0
