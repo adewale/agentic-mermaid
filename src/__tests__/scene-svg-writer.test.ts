@@ -4,7 +4,7 @@ import * as marks from '../scene/marks.ts'
 import { canonicalizeSceneNodeSerialization, sceneNodeSerialization, sceneHasOnlyPreparedText, sceneNodeWrite, transferSceneNodeSerialization } from '../scene/serialization.ts'
 import { validateSceneDoc } from '../scene/scene-validation.ts'
 import { preparePixelText } from '../shared/prepared-text.ts'
-import { createSvgXmlCapture, writeShapeSvg, writeTextSvg, writeConnectorSvg, type SvgXmlWrite, type SvgXmlCapture } from '../scene/svg-writer.ts'
+import { createSvgXmlCapture, createNativeXmlWork, writeShapeSvg, writeTextSvg, writeConnectorSvg, type SvgXmlWrite, type SvgXmlCapture } from '../scene/svg-writer.ts'
 import { verifySvgDocumentEnvelope } from '../output-security.ts'
 import { createNativeSceneValidator } from '../scene/scene-validation-core.ts'
 import type { SceneNode } from '../scene/ir.ts'
@@ -13,6 +13,45 @@ import type { SceneNode } from '../scene/ir.ts'
 // typed fields, so paint certification, which reads those fields, describes
 // the bytes. Families add only inert hooks.
 describe('typed Scene SVG writer', () => {
+  test('closed Native text writes fit their original allowance without copying each indentation witness', () => {
+    const block = preparePixelText('Label', { fontSize: 12, fontWeight: 400 })
+    const work = createNativeXmlWork(8000), capture = work.capture()
+    let genericOperations = 0
+    const generic = createSvgXmlCapture(count => (genericOperations += count) <= 8000)
+    const write = (xml: SvgXmlCapture) => {
+      const parts = [xml.raw('<svg xmlns="http://www.w3.org/2000/svg">')]
+      for (let index = 0; index < 100; index++) {
+        const node = marks.text({ id: `node${index}`, role: 'label', text: block.text, block, x: 10, y: index * 20 + 10, fontSize: 12, anchor: 'start', paint: { fill: '#111' } })
+        parts.push(xml.indent(writeTextSvg(node, xml), 2))
+      }
+      parts.push(xml.raw('</svg>'))
+      return xml.join(parts, '\n')
+    }
+    const native = write(capture), callback = write(generic)
+    expect(native.svg).toBe(callback.svg)
+    expect(verifySvgDocumentEnvelope(native.svg)).toBe(true)
+    expect(capture.verify(native)).toBe(true)
+    expect(work.exhausted()).toBe(false)
+    expect(work.operations()).toBeLessThanOrEqual(8000)
+    expect(generic.verify(callback)).toBe(false)
+  })
+
+  test.each(['valid', 'duplicate', 'invalid-name', 'surrogate', 'comment', 'attribute', 'outside'] as const)('Native closed text composition retains actual XML obligations: %s', mode => {
+    const work = createNativeXmlWork(400000), capture = work.capture()
+    const block = preparePixelText('Label', { fontSize: 12, fontWeight: 400 })
+    const text = marks.text({ id: 'label', role: 'node', text: block.text, block, x: 10, y: 10, fontSize: 12, anchor: 'start', paint: { fill: '#111' } })
+    if (mode === 'duplicate') text.attributes = { data: { id: 'forged' } }
+    if (mode === 'invalid-name') text.attributes = { data: { 'bad name': 'forged' } }
+    if (mode === 'surrogate') text.identity!.id = 'invalid\ud800'
+    const written = writeTextSvg(text, capture)
+    const pair = capture.indent(capture.join([written, written], ' \t\r\n'), 3)
+    const open = '<svg xmlns="http://www.w3.org/2000/svg">'
+    const whole = mode === 'outside' ? capture.join([pair, capture.raw(open + '</svg>')], '')
+      : capture.join([capture.raw(open + (mode === 'comment' ? '<!--' : mode === 'attribute' ? '<g data-value="' : '')), pair,
+        capture.raw((mode === 'comment' ? '-->' : mode === 'attribute' ? '"></g>' : '') + '</svg>')], '')
+    expect(capture.verify(whole)).toBe(mode === 'valid')
+  })
+
   test('private indentation preserves primitive bytes through hooks installed before the writer loads', async () => {
     const source = '<g data-test="native-indent-preimport">A😀</g>', prefix = ' '.repeat(17)
     const split = Object.getOwnPropertyDescriptor(String.prototype, 'split')!, repeat = Object.getOwnPropertyDescriptor(String.prototype, 'repeat')!, join = Object.getOwnPropertyDescriptor(Array.prototype, 'join')!

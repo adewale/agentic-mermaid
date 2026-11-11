@@ -8,7 +8,7 @@ import { formatSvgNumber } from '../shared/svg-number.ts'
 import { safeCssFontFamily } from '../shared/css-font.ts'
 import { deferredTerminalProjectionInput, copyDeferredTerminalProjection } from './deferred-terminal-projection.ts'
 import { transferSceneNodeSerialization } from './serialization.ts'
-import { createSvgXmlCapture, hasInheritedSvgTextPaint, closeSvgTextPaintWrite, hasSvgTextPaintClosure, matchesSvgTextPaintWrite, readSvgTextPaintWrite, type SvgTextPaintWrite, type SvgGeometryWriteSink, type SvgXmlWrite } from './svg-writer.ts'
+import { createNativeXmlWork, hasInheritedSvgTextPaint, closeSvgTextPaintWrite, hasSvgTextPaintClosure, matchesSvgTextPaintWrite, readSvgTextPaintWrite, type SvgTextPaintWrite, type SvgGeometryWriteSink, type SvgXmlWrite } from './svg-writer.ts'
 import { connectorContourSemantics } from './connector-geometry.ts'
 import { rectanglePaintFields, writtenPolylineProjectionOf, prepareWrittenCompoundShape, observeWrittenCompoundShape, completeWrittenCompoundShape } from './written-geometry.ts'
 import { MAX_OCCLUSION_OPERATIONS } from './paint-work.ts'
@@ -40,21 +40,16 @@ export function nativeEmissionWorkOf(inspection: ScenePaintGeometryInspection): 
  * the original operands still supply validation and SVG serialization.
  * Accessors/unsupported data or an exhausted capture keep paint conditional. */
 export function createNativePaintEmission(maxOperations: number) {
-  if (!Number.isSafeInteger(maxOperations) || maxOperations < 0 || maxOperations > MAX_OCCLUSION_OPERATIONS) throw new RangeError('Invalid Native emission work allowance')
-  let operations = 0, exhausted = false, uncertain = false, pendingCustomRootStyle = false, hasMarkedConnector = false
+  const work = createNativeXmlWork(maxOperations)
+  let uncertain = false, pendingCustomRootStyle = false, hasMarkedConnector = false
   // A deliberately smaller admission domain for new served marker proofs.
   // Existing proofs do not depend on this flat, stylesheet-free context.
   let closedMarkerContext = true, definitionsClosed = true, rootOpens = 0, rootCloses = 0
   const resources = new Map<string, string | undefined>()
   const references: NonNullable<Extract<Leaf, { kind: 'connector' }>['markers']['start']>[] = []
-  const pay = (count = 1): boolean => {
-    if (exhausted) return false
-    if (!Number.isSafeInteger(count) || count < 0 || count > maxOperations - operations) { exhausted = true; return false }
-    operations += count
-    return true
-  }
+  const pay = work.pay
   const emissionContext = createEmissionContext(pay, { resources: false })
-  const xml = createSvgXmlCapture(pay)
+  const xml = work.capture()
   const failed = Symbol('unsupported-emission')
   const capturedLeaves = new WeakMap<object, Leaf>()
   const observedTextPaintWrites = new textPaintSet<SvgTextPaintWrite>()
@@ -655,7 +650,7 @@ export function createNativePaintEmission(maxOperations: number) {
         emissionContext.hint(node)
         if (node.kind !== 'document') emissionContext.leaf(capturedLeaves.get(node)!, svg)
       } else emissionContext.invalidateFractionalCircle()
-      return exhausted ? false : actualTextPaint ?? true
+      return work.exhausted() ? false : actualTextPaint ?? true
     },
     leaf(node: Leaf, write: (node: Leaf, sink?: SvgGeometryWriteSink) => string | SvgXmlWrite): { node: Leaf; paintNode: Leaf; svg: string; xmlWrite: SvgXmlWrite | undefined; textPaint?: SvgTextPaintWrite; conditional: boolean } {
       const serialize = (source: Leaf, sink?: SvgGeometryWriteSink): { svg: string; xmlWrite: SvgXmlWrite | undefined } => {
@@ -806,6 +801,7 @@ export function createNativePaintEmission(maxOperations: number) {
       if (actualPaintRoster === true) {
         for (let i = 0; i < inspection.primitives.length; i++) occurrence(inspection.primitives[i]!)
       } else for (const primitive of inspection.primitives) occurrence(primitive)
+      const operations = work.operations(), exhausted = work.exhausted()
       textPaintApply(textPaintPut, emissionWork, [inspection, (usedTextPaint ? textPaintFreeze : Object.freeze)({ operations, exhausted, uncertain,
         closedMarkerContext: closedMarkerContext && definitionsClosed && !unrecordedPaint && rootOpens === 1 && rootCloses === 1 && !uncertain && !exhausted,
         fractionalCircleContext: checkedContext.fractionalCircleContext && definitionsClosed && resources.size === checked.size

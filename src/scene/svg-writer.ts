@@ -69,6 +69,7 @@ function xmlReferenceLength(value: string, start: number): number {
 function xmlAsciiLetter(character: string): boolean { return character >= 'A' && character <= 'Z' || character >= 'a' && character <= 'z' }
 type XmlProjectionResult = string | XmlProjection | undefined
 interface XmlCaptureState {
+  readonly nativeComposition: boolean
   pay(operations: number): boolean
   literal(value: string, attribute: boolean): boolean
   name(value: string): boolean
@@ -91,7 +92,23 @@ interface XmlWriteFact {
 const xmlCaptures = new xmlFactMap<SvgXmlCapture, XmlCaptureState>()
 const xmlWrites = new xmlFactMap<SvgXmlWrite, XmlWriteFact>()
 function xmlCaptureState(capture: SvgXmlCapture): XmlCaptureState | undefined { return xmlFactApply(xmlFactGet, xmlCaptures, [capture]) }
-export function createSvgXmlCapture(work: (operations: number) => boolean): SvgXmlCapture {
+/** Native owns this allowance; no caller-dispatched work callback participates
+ * in its late composition. Generic captures keep their original callback path. */
+export function createNativeXmlWork(maxOperations: number) {
+  if (!Number.isSafeInteger(maxOperations) || maxOperations < 0 || maxOperations > MAX_OCCLUSION_OPERATIONS) throw new RangeError('Invalid Native emission work allowance')
+  let operations = 0, exhausted = false
+  const pay = (count = 1): boolean => {
+    if (exhausted) return false
+    if (!Number.isSafeInteger(count) || count < 0 || count > maxOperations - operations) { exhausted = true; return false }
+    operations += count
+    return true
+  }
+  return { pay, operations: () => operations, exhausted: () => exhausted, capture: () => createXmlCapture(pay, true) }
+}
+
+export function createSvgXmlCapture(work: (operations: number) => boolean): SvgXmlCapture { return createXmlCapture(work, false) }
+
+function createXmlCapture(work: (operations: number) => boolean, nativeComposition: boolean): SvgXmlCapture {
   const names = new Map<string, boolean>(), attributes = new Map<string, boolean>(), texts = new Map<string, boolean>()
   let exhausted = false
   const pay = (count: number): boolean => {
@@ -196,19 +213,33 @@ export function createSvgXmlCapture(work: (operations: number) => boolean): SvgX
       }
       return issue(svg, children ? () => {
         if (!pay(1)) return undefined
+        let whitespace = nativeComposition
+        if (whitespace) {
+          if (!pay(separator.length + 1)) return undefined
+          for (let i = 0; i < separator.length; i++) {
+            const character = separator[i]!
+            if (character !== ' ' && character !== '\t' && character !== '\r' && character !== '\n') { whitespace = false; break }
+          }
+        }
         const occupied = xmlList<number>()
-        let skeleton = ''
+        let skeleton = '', previousOccupied = false
         for (let i = 0; i < children.length; i++) {
-          if (i) skeleton += separator
           const checked = projectFact(children[i]!)
           if (!checked) return undefined
+          // Each child has completed its original late lexical checks. Adjacent
+          // closed leaves separated only by XML whitespace occupy the same DATA
+          // interval; one insertion witness proves that interval for all of them.
+          if (whitespace && previousOccupied && checked === OCCUPIED_XML_LEAF) continue
+          if (i) skeleton += separator
           for (let j = 0; j < checked.occupied.length; j++) {
             if (!pay(1)) return undefined
             occupied[occupied.length++] = skeleton.length + checked.occupied[j]!
           }
           skeleton += checked.skeleton
+          previousOccupied = checked === OCCUPIED_XML_LEAF
         }
         if (!pay(children.length + skeleton.length + occupied.length + 2)) return undefined
+        if (nativeComposition && previousOccupied && occupied.length === 1 && skeleton === ' ') return OCCUPIED_XML_LEAF
         return { skeleton, occupied }
       } : svg)
     },
@@ -244,6 +275,9 @@ export function createSvgXmlCapture(work: (operations: number) => boolean): SvgX
       return issue(svg, () => {
         if (!pay(1)) return undefined
         const checked = projectFact(found)
+        // Indentation cannot move a whole closed leaf out of DATA. Keep its
+        // canonical insertion witness instead of copying padding and offsets.
+        if (nativeComposition && checked === OCCUPIED_XML_LEAF) return checked
         if (!checked || !pay(checked.skeleton.length + padding + 3)) return undefined
         const occupied = xmlList<number>()
         let skeleton = pad, next = 0
@@ -276,7 +310,7 @@ export function createSvgXmlCapture(work: (operations: number) => boolean): SvgX
   pinXmlSlot(capture, 'raw', capture.raw); pinXmlSlot(capture, 'join', capture.join)
   pinXmlSlot(capture, 'indent', capture.indent); pinXmlSlot(capture, 'read', capture.read); pinXmlSlot(capture, 'verify', capture.verify)
   writtenFactSeal(capture)
-  xmlFactApply(xmlFactSet, xmlCaptures, [capture, { pay, literal, name, prepared, issue, project(write: SvgXmlWrite) {
+  xmlFactApply(xmlFactSet, xmlCaptures, [capture, { nativeComposition, pay, literal, name, prepared, issue, project(write: SvgXmlWrite) {
     const found = factOf(write)
     return !!found && projectFact(found) !== undefined
   } } satisfies XmlCaptureState])
@@ -295,7 +329,38 @@ function finishXmlLeaf(capture: SvgXmlCapture, node: object, svg: string, xml: X
   } : svg, node)
 }
 
-type XmlWriteEvent = readonly ['element', string] | readonly ['attribute', string, string, (keyof MarkPaint)?] | readonly ['text', string] | readonly ['prepared', string, string, string, string, string]
+// These names reach the private writer only as module-owned literals.
+type FixedXmlAttributeName = 'aria-hidden' | 'aria-label' | 'aria-roledescription' | 'class' | 'cx' | 'cy' | 'd' | 'data-connector-label-for' | 'data-direction' | 'data-from' | 'data-id' | 'data-relationship' | 'data-role' | 'data-to' | 'dominant-baseline' | 'fill' | 'fill-opacity' | 'font-family' | 'font-size' | 'font-style' | 'font-weight' | 'height' | 'href' | 'letter-spacing' | 'marker-end' | 'marker-mid' | 'marker-start' | 'opacity' | 'paint-order' | 'pathLength' | 'pointer-events' | 'points' | 'preserveAspectRatio' | 'r' | 'role' | 'rx' | 'ry' | 'stroke' | 'stroke-dasharray' | 'stroke-dashoffset' | 'stroke-linecap' | 'stroke-linejoin' | 'stroke-miterlimit' | 'stroke-opacity' | 'stroke-width' | 'style' | 'tabindex' | 'text-anchor' | 'text-decoration' | 'transform' | 'vector-effect' | 'width' | 'x' | 'x1' | 'x2' | 'y' | 'y1' | 'y2'
+type XmlWriteEvent = readonly ['element', string] | readonly ['attribute' | 'fixed-attribute', string, string, (keyof MarkPaint)?] | readonly ['text', string] | readonly ['prepared', string, string, string, string, string]
+function fixedAttributeBit(name: string): number {
+  switch (name) {
+    case 'x': return 1
+    case 'y': return 2
+    case 'dy': return 4
+    case 'textLength': return 8
+    case 'data-prepared-text': return 16
+    case 'lengthAdjust': return 32
+    case 'data-font-metrics': return 64
+    case 'text-anchor': return 128
+    case 'font-size': return 256
+    case 'font-weight': return 512
+    case 'data-id': return 1024
+    case 'data-role': return 2048
+    case 'fill': return 4096
+    case 'stroke': return 8192
+    case 'font-family': return 16384
+    case 'class': return 32768
+    case 'aria-label': return 65536
+    case 'aria-hidden': return 131072
+    case 'tabindex': return 262144
+    case 'font-style': return 524288
+    case 'text-decoration': return 1048576
+    case 'dominant-baseline': return 2097152
+    case 'letter-spacing': return 4194304
+    case 'transform': return 8388608
+    default: return 0
+  }
+}
 class XmlLeafWrite {
   readonly #state: XmlCaptureState
   readonly #events: XmlList<XmlWriteEvent> | undefined
@@ -309,16 +374,16 @@ class XmlLeafWrite {
   element(name: string): void {
     if (this.valid) { this.valid = this.#state.pay(1); if (this.valid) this.#events![this.#events!.length++] = ['element', name] }
   }
-  attribute(name: string, escaped: unknown): void {
-    if (this.valid) { this.valid = typeof escaped === 'string' && this.#state.pay(1); if (this.valid) this.#events![this.#events!.length++] = ['attribute', name, escaped as string] }
+  attribute(name: string, escaped: unknown, fixed = false): void {
+    if (this.valid) { this.valid = typeof escaped === 'string' && this.#state.pay(1); if (this.valid) this.#events![this.#events!.length++] = [fixed && this.#state.nativeComposition ? 'fixed-attribute' : 'attribute', name, escaped as string] }
   }
   recordPaintField(field: keyof MarkPaint): void {
     if (!this.valid) return
     this.valid = this.#state.pay(1)
     if (!this.valid) return
     const index = this.#events!.length - 1, event = this.#events![index]
-    if (!event || event[0] !== 'attribute' || event.length !== 3) { this.valid = false; return }
-    this.#events![index] = ['attribute', event[1], event[2], field]
+    if (!event || event[0] !== 'attribute' && event[0] !== 'fixed-attribute' || event.length !== 3) { this.valid = false; return }
+    this.#events![index] = [event[0], event[1], event[2], field]
   }
   text(content: string): void {
     if (this.valid) { this.valid = typeof content === 'string' && this.#state.pay(1); if (this.valid) this.#events![this.#events!.length++] = ['text', content] }
@@ -340,7 +405,7 @@ class XmlLeafWrite {
     for (let i = 0; i < xml.#events!.length; i++) {
       if (!xml.#state.pay(2)) return undefined
       const event = xml.#events![i]!
-      if (event[0] === 'attribute' && event.length === 4) {
+      if ((event[0] === 'attribute' || event[0] === 'fixed-attribute') && event.length === 4) {
         const field = event[3], escaped = event[2]
         if (field === undefined || !xml.#state.pay(2 + escaped.length)) return undefined
         for (let j = 0; j < escaped.length; j++) if (escaped[j] === '&') return undefined
@@ -357,18 +422,37 @@ class XmlLeafWrite {
   check(): boolean {
     if (!this.valid || !this.#state.pay(1)) return false
     const attributes = new Set<string>()
+    let fixedNames = 0, preparedSeen = false
     for (let i = 0; i < this.#events!.length; i++) {
       const event = this.#events![i]!
-      if (!this.#state.pay(2)) return false
+      const attribute = event[0] === 'attribute' || event[0] === 'fixed-attribute'
+      const bit = attribute && this.#state.nativeComposition ? fixedAttributeBit(event[1]) : 0
+      // One fixed vocabulary bit replaces the two general Set operations.
+      if (!this.#state.pay(bit ? 1 : 2)) return false
       if (event[0] === 'element') {
         attributes.clear()
+        fixedNames = 0; preparedSeen = false
         const name = event[1]
         if (name !== 'rect' && name !== 'circle' && name !== 'ellipse' && name !== 'line' && name !== 'polygon' && name !== 'polyline' && name !== 'path' && name !== 'text') return false
-      } else if (event[0] === 'attribute') {
-        if (attributes.has(event[1]) || !this.#state.name(event[1]) || !this.#state.literal(event[2], true)) return false
-        attributes.add(event[1])
+      } else if (event[0] === 'attribute' || event[0] === 'fixed-attribute') {
+        if (bit ? fixedNames & bit : attributes.has(event[1])) return false
+        if (event[0] === 'attribute' && !this.#state.name(event[1]) || !this.#state.literal(event[2], true)) return false
+        if (bit) fixedNames |= bit
+        else attributes.add(event[1])
       } else if (event[0] === 'prepared') {
         if (!this.#state.prepared()) return false
+        if (this.#state.nativeComposition) {
+          // The multiline producer emitted these seven distinct fixed names.
+          // The existing outer-attribute visit owns conflict discovery; only
+          // the four actual variable literals and content still need checking.
+          if (!this.#state.pay(2) || fixedNames & 127 || preparedSeen) return false
+          preparedSeen = true
+          fixedNames |= 127
+          if (!this.#state.literal(event[1], true) || !this.#state.literal(event[2], true)
+            || !this.#state.literal(event[3], true) || !this.#state.literal(event[4], true)
+            || !this.#state.literal(event[5], false)) return false
+          continue
+        }
         const attribute = (name: string, value?: string): boolean => {
           if (!this.#state.pay(2) || attributes.has(name)) return false
           attributes.add(name)
@@ -480,7 +564,12 @@ class SvgWriter {
 
   constructor(capture?: SvgXmlCapture, text = false) {
     const state = capture && xmlCaptureState(capture)
-    if (state) { this.xml = new XmlLeafWrite(state); if (text) this.xml.element('text') }
+    if (state) {
+      this.xml = new XmlLeafWrite(state)
+      // The prepared multiline producer's opening name is the literal `text`.
+      // This leaf has no earlier element or attributes to reset/revalidate.
+      if (text && !state.nativeComposition) this.xml.element('text')
+    }
   }
 
   element(name: string): void {
@@ -502,19 +591,20 @@ class SvgWriter {
 
   raw(text: string): void { this.value += text }
 
-  attribute(name: string, value: string | number, changedToken?: (offset: number, literal: string) => boolean | void, numericToken?: (literal: string, raw: string) => boolean | void, paintField?: keyof MarkPaint): string {
+  attribute(name: string, value: string | number, changedToken?: (offset: number, literal: string) => boolean | void, numericToken?: (literal: string, raw: string) => boolean | void, paintField?: keyof MarkPaint, fixed = false): string {
     const literal = typeof value === 'number' ? formatSvgNumber(value) : formatSvgNumericAttribute(name, value, changedToken, numericToken)
     const escaped = typeof value === 'number' ? literal : escapeAttr(literal)
     this.attributes?.push(name, escaped)
     this.value += ` ${name}="${escaped}"`
-    this.xml?.attribute(name, escaped)
+    this.xml?.attribute(name, escaped, fixed)
     if (paintField !== undefined && this.observePaint) this.xml?.recordPaintField(paintField)
     if (name === 'transform') this.transformed = true
     this.observeAttributes?.(name, literal)
     if (paintField !== undefined) this.observePaint?.(paintField, literal, escaped)
     return literal
   }
-  paintAttribute(field: keyof MarkPaint, name: string, value: string): void { this.attribute(name, value, undefined, undefined, field) }
+  fixedAttribute(name: FixedXmlAttributeName, value: string | number, changedToken?: (offset: number, literal: string) => boolean | void, numericToken?: (literal: string, raw: string) => boolean | void): string { return this.attribute(name, value, changedToken, numericToken, undefined, true) }
+  paintAttribute(field: keyof MarkPaint, name: FixedXmlAttributeName, value: string): void { this.attribute(name, value, undefined, undefined, field, true) }
 }
 
 /** `data-*` keys the writer derives from typed fields, or that the shared
@@ -528,11 +618,11 @@ export const MARK_DATA_KEY = /^[a-z][a-z0-9-]*$/
 
 function hooks(out: SvgWriter, attributes: MarkAttributes | undefined): void {
   if (!attributes) return
-  if (attributes.className) out.attribute('class', attributes.className)
+  if (attributes.className) out.fixedAttribute('class', attributes.className)
   if (attributes.data) for (const key of Object.keys(attributes.data)) out.attribute(`data-${key}`, attributes.data[key]!)
-  if (attributes.ariaHidden) out.attribute('aria-hidden', 'true')
-  if (attributes.tabIndex === 0) out.attribute('tabindex', 0)
-  if (attributes.ariaLabel !== undefined) out.attribute('aria-label', attributes.ariaLabel)
+  if (attributes.ariaHidden) out.fixedAttribute('aria-hidden', 'true')
+  if (attributes.tabIndex === 0) out.fixedAttribute('tabindex', 0)
+  if (attributes.ariaLabel !== undefined) out.fixedAttribute('aria-label', attributes.ariaLabel)
 }
 
 function paintAttributes(out: SvgWriter, paint: MarkPaint): void {
@@ -552,21 +642,21 @@ function paintAttributes(out: SvgWriter, paint: MarkPaint): void {
 }
 
 function transformAttribute(out: SvgWriter, transform: SceneTransform | undefined): void {
-  if (transform) out.attribute('transform', serializeTransform(transform))
+  if (transform) out.fixedAttribute('transform', serializeTransform(transform))
 }
 
 /** Identity on the roles whose DOM contract carries it, then relation ARIA. */
 function identityAttributes(out: SvgWriter, identity: SvgSemanticIdentity | undefined, accessibility: SvgSemanticAccessibility | undefined): void {
   if (identity && hasDomSvgIdentityRole(identity.role)) {
-    out.attribute('data-id', identity.id)
-    out.attribute('data-role', identity.role)
-    if (identity.from !== undefined) out.attribute('data-from', identity.from)
-    if (identity.to !== undefined) out.attribute('data-to', identity.to)
+    out.fixedAttribute('data-id', identity.id)
+    out.fixedAttribute('data-role', identity.role)
+    if (identity.from !== undefined) out.fixedAttribute('data-from', identity.from)
+    if (identity.to !== undefined) out.fixedAttribute('data-to', identity.to)
   }
   if (accessibility) {
-    out.attribute('role', accessibility.role)
-    out.attribute('aria-roledescription', accessibility.roleDescription)
-    out.attribute('aria-label', accessibility.label)
+    out.fixedAttribute('role', accessibility.role)
+    out.fixedAttribute('aria-roledescription', accessibility.roleDescription)
+    out.fixedAttribute('aria-label', accessibility.label)
   }
 }
 
@@ -575,15 +665,15 @@ type ElementGeometry = Exclude<Geometry, { kind: 'compound' }> | Exclude<Connect
 function geometryAttributes(out: SvgWriter, geometry: ElementGeometry, sink?: SvgGeometryWriteSink): void {
   switch (geometry.kind) {
     case 'rect': {
-      const rawX = geometry.x, x = out.attribute('x', rawX)
-      const rawY = geometry.y, y = out.attribute('y', rawY)
-      const rawWidth = geometry.width, width = out.attribute('width', rawWidth)
-      const rawHeight = geometry.height, height = out.attribute('height', rawHeight)
+      const rawX = geometry.x, x = out.fixedAttribute('x', rawX)
+      const rawY = geometry.y, y = out.fixedAttribute('y', rawY)
+      const rawWidth = geometry.width, width = out.fixedAttribute('width', rawWidth)
+      const rawHeight = geometry.height, height = out.fixedAttribute('height', rawHeight)
       let rawRx: number | undefined, rawRy: number | undefined, rx: string | undefined, ry: string | undefined
       // Keep the optional fields' original conditional/read order, including
       // generic getter callers. The receipt retains only actual attribute reads.
-      if (geometry.rx !== undefined) { rawRx = geometry.rx; rx = out.attribute('rx', rawRx) }
-      if (geometry.ry !== undefined) { rawRy = geometry.ry; ry = out.attribute('ry', rawRy) }
+      if (geometry.rx !== undefined) { rawRx = geometry.rx; rx = out.fixedAttribute('rx', rawRx) }
+      if (geometry.ry !== undefined) { rawRy = geometry.ry; ry = out.fixedAttribute('ry', rawRy) }
       if (sink) sink(geometry, {
         kind: 'rect', x: Number(x), y: Number(y), width: Number(width), height: Number(height),
         ...(rx === undefined ? {} : { rx: Number(rx) }), ...(ry === undefined ? {} : { ry: Number(ry) }),
@@ -591,21 +681,21 @@ function geometryAttributes(out: SvgWriter, geometry: ElementGeometry, sink?: Sv
       return
     }
     case 'circle':
-      out.attribute('cx', geometry.cx)
-      out.attribute('cy', geometry.cy)
-      out.attribute('r', geometry.r)
+      out.fixedAttribute('cx', geometry.cx)
+      out.fixedAttribute('cy', geometry.cy)
+      out.fixedAttribute('r', geometry.r)
       return
     case 'ellipse':
-      out.attribute('cx', geometry.cx)
-      out.attribute('cy', geometry.cy)
-      out.attribute('rx', geometry.rx)
-      out.attribute('ry', geometry.ry)
+      out.fixedAttribute('cx', geometry.cx)
+      out.fixedAttribute('cy', geometry.cy)
+      out.fixedAttribute('rx', geometry.rx)
+      out.fixedAttribute('ry', geometry.ry)
       return
     case 'line': {
-      const rawX1 = geometry.x1, x1 = out.attribute('x1', rawX1)
-      const rawY1 = geometry.y1, y1 = out.attribute('y1', rawY1)
-      const rawX2 = geometry.x2, x2 = out.attribute('x2', rawX2)
-      const rawY2 = geometry.y2, y2 = out.attribute('y2', rawY2)
+      const rawX1 = geometry.x1, x1 = out.fixedAttribute('x1', rawX1)
+      const rawY1 = geometry.y1, y1 = out.fixedAttribute('y1', rawY1)
+      const rawX2 = geometry.x2, x2 = out.fixedAttribute('x2', rawX2)
+      const rawY2 = geometry.y2, y2 = out.fixedAttribute('y2', rawY2)
       if (sink) sink(geometry, Number(x1) === rawX1 && Number(y1) === rawY1 && Number(x2) === rawX2 && Number(y2) === rawY2
         ? geometry : { kind: 'line', x1: Number(x1), y1: Number(y1), x2: Number(x2), y2: Number(y2) })
       return
@@ -626,7 +716,7 @@ function geometryAttributes(out: SvgWriter, geometry: ElementGeometry, sink?: Sv
       let rawPrevious: ScenePoint | undefined, rawFirstTangent: ScenePoint | undefined, rawLastTangent: ScenePoint | undefined
       let rawX0 = Infinity, rawY0 = Infinity, rawX1 = -Infinity, rawY1 = -Infinity
       let rawStartX = 0, rawStartY = 0, rawEndX = 0, rawEndY = 0
-      const literal = out.attribute('points', points, undefined, observed ? (literal, raw) => {
+      const literal = out.fixedAttribute('points', points, undefined, observed ? (literal, raw) => {
         if (tokens === 0) {
           const cost = pointCount * 48 + 128
           if (!Number.isSafeInteger(pointCount) || pointCount < 2 || !Number.isSafeInteger(cost) || !observed.reserveProjection?.(geometry, cost)) { understood = false; return false }
@@ -672,7 +762,7 @@ function geometryAttributes(out: SvgWriter, geometry: ElementGeometry, sink?: Sv
       return
     }
     case 'path': {
-      const raw = geometry.d, literal = out.attribute('d', raw)
+      const raw = geometry.d, literal = out.fixedAttribute('d', raw)
       sink?.(geometry, literal === raw ? geometry : { kind: 'path', d: literal })
     }
   }
@@ -688,10 +778,10 @@ export function writeImageSvg(node: ImageMark, capture?: SvgXmlCapture): string 
     || width <= 0 || height <= 0 || fit !== 'contain' && fit !== 'stretch') throw new TypeError('Invalid image viewport')
   const out = new SvgWriter(capture)
   out.element('image')
-  out.attribute('href', href)
-  out.attribute('x', x); out.attribute('y', y)
-  out.attribute('width', width); out.attribute('height', height)
-  out.attribute('preserveAspectRatio', fit === 'contain' ? 'xMidYMid meet' : 'none')
+  out.fixedAttribute('href', href)
+  out.fixedAttribute('x', x); out.fixedAttribute('y', y)
+  out.fixedAttribute('width', width); out.fixedAttribute('height', height)
+  out.fixedAttribute('preserveAspectRatio', fit === 'contain' ? 'xMidYMid meet' : 'none')
   hooks(out, node.attributes)
   transformAttribute(out, node.transform)
   identityAttributes(out, node.identity, node.accessibility)
@@ -737,15 +827,15 @@ export function writeShapeSvg(node: ShapeMark, sink?: SvgGeometryWriteSink, capt
 }
 
 function typographyAttributes(out: SvgWriter, node: TextMark): void {
-  out.attribute('text-anchor', node.anchor)
-  if (node.dominantBaseline) out.attribute('dominant-baseline', node.dominantBaseline)
+  out.fixedAttribute('text-anchor', node.anchor)
+  if (node.dominantBaseline) out.fixedAttribute('dominant-baseline', node.dominantBaseline)
   // A block measured in a named face is drawn in it; otherwise the document font applies.
-  if (node.block?.fontFamily) out.attribute('font-family', node.block.fontFamily)
-  out.attribute('font-size', node.fontSize)
-  out.attribute('font-weight', node.fontWeight ?? node.block?.fontWeight ?? 400)
-  if ((node.letterSpacing ?? 0) !== 0) out.attribute('letter-spacing', node.letterSpacing!)
-  if (node.fontStyle) out.attribute('font-style', node.fontStyle)
-  if (node.textDecoration) out.attribute('text-decoration', node.textDecoration)
+  if (node.block?.fontFamily) out.fixedAttribute('font-family', node.block.fontFamily)
+  out.fixedAttribute('font-size', node.fontSize)
+  out.fixedAttribute('font-weight', node.fontWeight ?? node.block?.fontWeight ?? 400)
+  if ((node.letterSpacing ?? 0) !== 0) out.fixedAttribute('letter-spacing', node.letterSpacing!)
+  if (node.fontStyle) out.fixedAttribute('font-style', node.fontStyle)
+  if (node.textDecoration) out.fixedAttribute('text-decoration', node.textDecoration)
 }
 
 /** Text goes through the shared multi-line writer, which owns line wrappers,
@@ -814,13 +904,13 @@ function connectorInlineLabelSvg(node: ConnectorMark, label: ConnectorLabelDescr
     } : {}),
   }
   const out = new SvgWriter(capture, true)
-  out.attribute('data-id', label.id ?? `${node.id}-label-${index + 1}`)
-  out.attribute('data-role', 'label')
-  out.attribute('data-connector-label-for', node.id)
-  out.attribute('font-size', block.fontSize)
-  out.attribute('font-weight', block.fontWeight)
-  if (block.letterSpacing) out.attribute('letter-spacing', block.letterSpacing)
-  out.attribute('text-anchor', label.textAnchor)
+  out.fixedAttribute('data-id', label.id ?? `${node.id}-label-${index + 1}`)
+  out.fixedAttribute('data-role', 'label')
+  out.fixedAttribute('data-connector-label-for', node.id)
+  out.fixedAttribute('font-size', block.fontSize)
+  out.fixedAttribute('font-weight', block.fontWeight)
+  if (block.letterSpacing) out.fixedAttribute('letter-spacing', block.letterSpacing)
+  out.fixedAttribute('text-anchor', label.textAnchor)
   transformAttribute(out, node.transform)
   paintAttributes(out, paint)
   let complete = false, attrs = ''
@@ -848,26 +938,26 @@ export function writeConnectorSvg(node: ConnectorMark, sink?: SvgGeometryWriteSi
     out.element(geometry.kind)
     hooks(out, node.attributes)
     geometryAttributes(out, geometry, sink)
-    if (geometry.kind !== 'line') out.attribute('fill', 'none')
-    out.attribute('stroke', stroke.color)
-    if (stroke.opacity !== undefined) out.attribute('stroke-opacity', stroke.opacity)
-    out.attribute('stroke-width', stroke.width)
-    if (dash) out.attribute('stroke-dasharray', typeof dash.array === 'string' ? dash.array : dash.array.join(' '))
-    if (dash?.offset !== undefined) out.attribute('stroke-dashoffset', dash.offset)
-    if (stroke.lineCap !== 'butt') out.attribute('stroke-linecap', stroke.lineCap)
-    if (stroke.lineJoin !== 'miter') out.attribute('stroke-linejoin', stroke.lineJoin)
-    if (stroke.miterLimit !== 4) out.attribute('stroke-miterlimit', stroke.miterLimit)
-    if (stroke.pathLength !== undefined) out.attribute('pathLength', stroke.pathLength)
-    if (stroke.paintOrder !== undefined) out.attribute('paint-order', stroke.paintOrder)
-    if (stroke.nonScaling) out.attribute('vector-effect', 'non-scaling-stroke')
-    if (stroke.mixBlendMode) out.attribute('style', `mix-blend-mode:${stroke.mixBlendMode}`)
-    if (markers.start) out.attribute('marker-start', `url(#${markers.start.id})`)
-    if (midMarker) out.attribute('marker-mid', `url(#${midMarker.id})`)
-    if (markers.end) out.attribute('marker-end', `url(#${markers.end.id})`)
-    if (node.hit.pointerEvents === 'none') out.attribute('pointer-events', 'none')
+    if (geometry.kind !== 'line') out.fixedAttribute('fill', 'none')
+    out.fixedAttribute('stroke', stroke.color)
+    if (stroke.opacity !== undefined) out.fixedAttribute('stroke-opacity', stroke.opacity)
+    out.fixedAttribute('stroke-width', stroke.width)
+    if (dash) out.fixedAttribute('stroke-dasharray', typeof dash.array === 'string' ? dash.array : dash.array.join(' '))
+    if (dash?.offset !== undefined) out.fixedAttribute('stroke-dashoffset', dash.offset)
+    if (stroke.lineCap !== 'butt') out.fixedAttribute('stroke-linecap', stroke.lineCap)
+    if (stroke.lineJoin !== 'miter') out.fixedAttribute('stroke-linejoin', stroke.lineJoin)
+    if (stroke.miterLimit !== 4) out.fixedAttribute('stroke-miterlimit', stroke.miterLimit)
+    if (stroke.pathLength !== undefined) out.fixedAttribute('pathLength', stroke.pathLength)
+    if (stroke.paintOrder !== undefined) out.fixedAttribute('paint-order', stroke.paintOrder)
+    if (stroke.nonScaling) out.fixedAttribute('vector-effect', 'non-scaling-stroke')
+    if (stroke.mixBlendMode) out.fixedAttribute('style', `mix-blend-mode:${stroke.mixBlendMode}`)
+    if (markers.start) out.fixedAttribute('marker-start', `url(#${markers.start.id})`)
+    if (midMarker) out.fixedAttribute('marker-mid', `url(#${midMarker.id})`)
+    if (markers.end) out.fixedAttribute('marker-end', `url(#${markers.end.id})`)
+    if (node.hit.pointerEvents === 'none') out.fixedAttribute('pointer-events', 'none')
     transformAttribute(out, node.transform)
-    out.attribute('data-relationship', node.relationship.kind)
-    out.attribute('data-direction', node.relationship.direction)
+    out.fixedAttribute('data-relationship', node.relationship.kind)
+    out.fixedAttribute('data-direction', node.relationship.direction)
     identityAttributes(out, node.identity, node.accessibility)
     out.close()
   }

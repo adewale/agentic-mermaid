@@ -32,6 +32,41 @@ import { writeTextSvg } from '../scene/svg-writer.ts'
 beforeAll(() => renderedTextReady())
 const typography = { fontSize: 18, fontWeight: 600 }
 
+it.each(['map', 'seal'] as const)('Native actual text retains complete receiver data through an interposed %s', mode => {
+  const block = preparePixelText('Read', { fontSize: 18, fontWeight: 400 })
+  const map = Object.getOwnPropertyDescriptor(Array.prototype, 'map')!, seal = Object.getOwnPropertyDescriptor(Object, 'preventExtensions')!
+  const width = 300, height = 100, colors = { bg: '#fff', fg: '#111' }
+  let drawing: ReturnType<typeof drawNative>
+  try {
+    if (mode === 'map') Object.defineProperty(Array.prototype, 'map', { ...map, value(this: object, ...args: unknown[]) {
+      const run = Object.getOwnPropertyDescriptor(this, '0')?.value
+      const result = Reflect.apply(map.value, this, args)
+      if (run && Object.getOwnPropertyDescriptor(run, 'text')?.value === 'Read'
+        && typeof Object.getOwnPropertyDescriptor(run, 'bold')?.value === 'boolean' && !Object.hasOwn(run, 'clusters')) {
+        return Reflect.apply(map.value, result, [(value: unknown) => typeof value === 'string' ? value.replaceAll('Read', 'Lost') : value])
+      }
+      return result
+    } })
+    else Object.defineProperty(Object, 'preventExtensions', { ...seal, value(value: object) {
+      if (Object.getOwnPropertyDescriptor(value, 'source')?.value === 'Read'
+        && Object.hasOwn(value, 'display') && !Object.hasOwn(value, 'lines')) return undefined
+      return Reflect.apply(seal.value, Object, [value])
+    } })
+    const producer: DrawingProducer = factory => ({ family: 'flowchart', width, height, colors, transparent: false, parts: [
+      factory.documentOpen({ id: 'root', width, height, colors, transparent: false, font: 'Inter', hasMonoFont: false }, '<svg xmlns="http://www.w3.org/2000/svg" width="300" height="100">'),
+      factory.text({ id: 'label', role: 'label', text: 'Read', block, x: 20, y: 40, fontSize: 18, anchor: 'start', paint: { fill: '#111' } }),
+      factory.documentClose(),
+    ] })
+    drawing = drawNative(producer, { positioned: { width, height }, colors, resolved: { renderOptions: {} } } as Parameters<typeof drawNative>[1], 'flowchart')
+  } finally {
+    Object.defineProperty(Array.prototype, 'map', map)
+    Object.defineProperty(Object, 'preventExtensions', seal)
+  }
+  expect(drawing.svg).toContain('>Read</text>')
+  expect(drawing.svg).not.toContain('Lost')
+  expect(certifyNativePaint(drawing.header, drawing.paint).status).toBe('passed')
+})
+
 it.each(['foreign-define', 'inherited-get', 'coercible-key'] as const)('retained text operands preserve fresh descriptor observations for %s', mode => {
   const block = preparePixelText('slot', { fontSize: 14, fontWeight: 400 })
   const node = marks.text({ id: 'slot-text', role: 'label', text: block.text, block, x: 20, y: 30, fontSize: 14, anchor: 'start', paint: { fill: '#111' } })
