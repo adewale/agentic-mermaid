@@ -1,0 +1,1707 @@
+diff --git a/docs/design/system/layout-0.6-work-log.md b/docs/design/system/layout-0.6-work-log.md
+index 405f10a86..e6b98219b 100644
+--- a/docs/design/system/layout-0.6-work-log.md
++++ b/docs/design/system/layout-0.6-work-log.md
+@@ -4,6 +4,17 @@ Current work order: [Native replacement plan](layout-0.6-qualification.md).
+ The dated records below are historical evidence; earlier “next” statements do not
+ create parallel active queues. No retained experiment or output is discarded.
+ 
++Latest bounded work, 11 November: the owner requested four shared-pipeline
++repairs from baseline `599bee58db7cb54293866cc8aa86c887ef93e9a4`.
++Current public ER256 delivery is already fixed: Native/ELK in TB/BT/LR/RL all
++return proof-passed SVGs with 256 entities, 255 labelled relations and 510
++cardinality carriers/normal contacts. Earlier refusal statements below are
++historical; carrying them into the latest proposal was a reporting error.
++The separate ER agent requalified existing owners (79 passes plus two exact
++canonical-timeout retry passes); no new runtime or duplicate test change is
++claimed. Evidence: `shared-four-fixes-20261111/task3`. Producer reuse, proof
++capacity and browser payload repairs remain active; automations stay off.
++
+ The owner resumed the campaign on **5 November 2026 at 13:48 UTC**, authorizing
+ regular commits and pushes to PR #602. After the original8November deadline, the
+ owner renewed the goal through **9 November 2026 at20:00 UTC (8pm London)**.
+diff --git a/src/__tests__/paint-certification.test.ts b/src/__tests__/paint-certification.test.ts
+index 9c4ab15fa..123550390 100644
+--- a/src/__tests__/paint-certification.test.ts
++++ b/src/__tests__/paint-certification.test.ts
+@@ -2612,6 +2612,50 @@ test.each(['shape', 'text'] as const)('aliased Scene %s occurrences cannot borro
+   expect(drawing.proof.status).toBe('unverified')
+ })
+ 
++const proofCapacityChain = (count: number, diagnostic = false, fanin = false): string => [
++  diagnostic ? 'flowchart TB' : 'flowchart LR',
++  ...Array.from({ length: count }, (_, index) => diagnostic ? `n${index}[Node ${index}]` : `N${index}[N${index}]`),
++  ...Array.from({ length: count - 1 }, (_, index) => diagnostic ? `n${index} --> n${fanin ? count - 1 : index + 1}` : `N${index} --> N${index + 1}`),
++].join('\n')
++const proofCapacityCases = [
++  { name: 'flowchart128', source: proofCapacityChain(128), labels: Array.from({ length: 128 }, (_, index) => `N${index}`) },
++  { name: 'sequence128', source: ['sequenceDiagram', 'participant A as Alpha', 'participant B as Beta', ...Array.from({ length: 128 }, (_, index) => `${index % 2 ? 'B-->>A' : 'A->>B'}: N${index}`)].join('\n'), labels: ['Alpha', 'Beta', ...Array.from({ length: 128 }, (_, index) => `N${index}`)] },
++  { name: 'state128', source: ['stateDiagram-v2', ...Array.from({ length: 127 }, (_, index) => `N${index} --> N${index + 1}`)].join('\n'), labels: Array.from({ length: 128 }, (_, index) => `N${index}`) },
++  { name: 'chain100', source: proofCapacityChain(100, true), labels: Array.from({ length: 100 }, (_, index) => `Node ${index}`) },
++  { name: 'fanin100', source: proofCapacityChain(100, true, true), labels: Array.from({ length: 100 }, (_, index) => `Node ${index}`) },
++  { name: 'chain300', source: proofCapacityChain(300, true), labels: Array.from({ length: 300 }, (_, index) => `Node ${index}`) },
++]
++test.each(proofCapacityCases.flatMap(value => (['agentic', 'elk'] as const).map(backend => ({ ...value, backend }))))('public $backend $name repeated labels and markers complete proof within the original allowance', async ({ name, source, labels, backend }) => {
++  const child = await runTextReceiverChild(process.execPath, ['--eval', String.raw`
++const { readFileSync } = await import('node:fs')
++const { renderMermaidSVGWithReceipt } = await import('./src/index.ts')
++console.log(JSON.stringify(renderMermaidSVGWithReceipt(readFileSync(0, 'utf8'), { graphLayout: { backend: process.env.AM_PAINT_CAPACITY_BACKEND, fallback: 'none' } })))
++`], { cwd: fileURLToPath(new URL('../../', import.meta.url)), env: { ...process.env, AGENTIC_MERMAID_SCENE_ASSERTIONS: '0', AGENTIC_MERMAID_ELK_CACHE: '0', AM_PAINT_CAPACITY_BACKEND: backend }, input: source })
++  expect({ status: child.status, error: child.stderr }).toEqual({ status: 0, error: '' })
++  const result = JSON.parse(child.stdout) as ReturnType<typeof renderMermaidSVGWithReceipt>
++  const shown: string[] = [], carriers: string[][] = []
++  let text: string | undefined
++  const parser = new SaxesParser({ xmlns: true })
++  parser.on('opentag', tag => {
++    if (tag.local === 'text') text = ''
++    const from = tag.attributes['data-from'], to = tag.attributes['data-to']
++    if (from && to && ['line', 'polyline', 'path'].includes(tag.local)) {
++      carriers.push([from.value, to.value])
++      expect(tag.attributes['marker-end']?.value, `${backend} ${name} actual marker`).toMatch(/^url\(#.+\)$/)
++    }
++  })
++  parser.on('text', value => { if (text !== undefined) text += value })
++  parser.on('closetag', tag => { if (tag.local === 'text') { shown.push(text!); text = undefined } })
++  parser.write(result.svg).close()
++  for (const label of labels) expect(shown, `${backend} ${name} actual text`).toContain(label)
++  const authoredPairs = [...source.matchAll(/^(\w+)\s*(?:-->>|->>|-->)\s*(\w+)/gm)].map(match => [match[1]!, match[2]!])
++  expect(carriers, `${backend} ${name} actual endpoints`).toEqual(authoredPairs)
++  expect(result.receipt.layoutCertification, `${backend} ${name}`).toMatchObject({
++    status: 'passed', outputDigest: renderedSvgDigest(result.svg),
++    checks: { maxOperations: 400000, maxOcclusionPairs: 100000 }, issues: [],
++  })
++}, 30000)
++
+ test.each(['agentic', 'elk'] as const)('public %s thick-arrow and borderless-state markers retain clipping and actual meaning', backend => {
+   for (const source of ['flowchart LR\nA ==> B', 'stateDiagram-v2\nstate fork_state <<fork>>\n[*] --> fork_state\nfork_state --> State2\nfork_state --> State3\nstate join_state <<join>>\nState2 --> join_state\nState3 --> join_state\njoin_state --> State4\nState4 --> [*]']) {
+     const result = renderMermaidSVGWithReceipt(source, { graphLayout: { backend, fallback: 'none' } })
+diff --git a/src/__tests__/prepared-text.test.ts b/src/__tests__/prepared-text.test.ts
+index 18fc9c262..c9c5afcc3 100644
+--- a/src/__tests__/prepared-text.test.ts
++++ b/src/__tests__/prepared-text.test.ts
+@@ -7,7 +7,7 @@ import { decodeMermaidEntities } from '../shared/mermaid-entity-display.ts'
+ import { encodeMermaidEntities } from '../shared/mermaid-entities.ts'
+ import { prepareCellText } from '../ascii/prepared-text.ts'
+ import { labelDisplayLength } from '../agent/label-metrics.ts'
+-import { preparePixelText, fitPixelText, pixelTextLine } from '../shared/prepared-text.ts'
++import { preparePixelText, fitPixelText, pixelTextLine, transferRetainedPixelText } from '../shared/prepared-text.ts'
+ import { renderMultilineText } from '../multiline-utils.ts'
+ import { nodeWorldBounds } from '../scene/bounds.ts'
+ import { drawNative } from '../scene/native-drawing.ts'
+@@ -27,11 +27,61 @@ import { createSceneWriteCapture } from '../scene/serialization.ts'
+ import { DefaultBackend } from '../scene/backend.ts'
+ import { inspectScenePaintGeometry } from '../scene/inspection.ts'
+ import { MAX_OCCLUSION_OPERATIONS, createNativePaintEmission } from '../scene/native-paint-emission.ts'
+-import { writeTextSvg } from '../scene/svg-writer.ts'
++import { writeTextSvg, writeNativeTextSvg } from '../scene/svg-writer.ts'
+ 
+ beforeAll(() => renderedTextReady())
+ const typography = { fontSize: 18, fontWeight: 600 }
+ 
++it.each(['owned', 'mutable', 'shallow-frozen', 'accessor', 'proxy'] as const)('Native paint projects unused interpretation only for owned pixel data (%s)', mode => {
++  const original = preparePixelText('owned source', { fontSize: 14, fontWeight: 400 })
++  const borrowed = structuredClone(original)
++  const block = mode === 'owned' ? original : mode === 'proxy' ? new Proxy(borrowed, {}) : borrowed
++  if (mode !== 'owned') transferRetainedPixelText(original, block)
++  if (mode === 'shallow-frozen') Object.freeze(block)
++  if (mode === 'accessor') Object.defineProperty(block.prepared, 'source', { get: () => original.prepared.source, enumerable: true })
++  const node = marks.text({ id: 'paint-projection', role: 'label', text: block.text, block, x: 20, y: 30, fontSize: 14, anchor: 'start', paint: { fill: '#111' } })
++  const emission = createNativePaintEmission(MAX_OCCLUSION_OPERATIONS)
++  const painted = emission.paintLeaf(node, (source, sink) => source.kind === 'text' ? writeNativeTextSvg(source, emission.xml, sink) : '')
++  expect(painted.svg).toBe(writeTextSvg(node))
++  if (painted.node.kind !== 'text') throw new Error('Expected text')
++  if (mode === 'accessor') {
++    expect(painted.node).toBe(node)
++    expect(painted.conditional).toBe(true)
++  } else {
++    expect(painted.node.block).not.toBe(block)
++    expect(painted.node.block!.prepared).toMatchObject({ source: original.prepared.source, display: original.prepared.display })
++    expect('lines' in painted.node.block!.prepared).toBe(mode !== 'owned')
++    expect(painted.node.block!.lineBlocks).not.toBe(block.lineBlocks)
++    expect(painted.node.block!.lineBlocks[0]!.runs).not.toBe(block.lineBlocks[0]!.runs)
++  }
++  // The complete snapshot/leaf surface remains a fresh full interpretation.
++  if (mode !== 'accessor') {
++    const complete = emission.snapshot({ block })!
++    expect(complete.block.prepared.lines).toEqual(block.prepared.lines)
++    expect(complete.block.prepared.lines).not.toBe(block.prepared.lines)
++  }
++})
++
++it('Native paint keeps pixel writer array receivers fresh through repeated retained plans', () => {
++  const block = preparePixelText('fresh pixels', { fontSize: 14, fontWeight: 400 })
++  const node = marks.text({ id: 'fresh-paint', role: 'label', text: block.text, block, x: 20, y: 30, fontSize: 14, anchor: 'start', paint: { fill: '#111' } })
++  const expected = writeTextSvg(node), emission = createNativePaintEmission(MAX_OCCLUSION_OPERATIONS)
++  const map = Object.getOwnPropertyDescriptor(Array.prototype, 'map')!, receivers: object[] = []
++  try {
++    Object.defineProperty(Array.prototype, 'map', { ...map, value(this: object, ...args: unknown[]) {
++      receivers.push(this)
++      return Reflect.apply(map.value, this, args)
++    } })
++    for (let occurrence = 0; occurrence < 4; occurrence++) {
++      const painted = emission.paintLeaf(node, (source, sink) => source.kind === 'text' ? writeNativeTextSvg(source, emission.xml, sink) : '')
++      expect(painted.svg).toBe(expected)
++    }
++  } finally { Object.defineProperty(Array.prototype, 'map', map) }
++  expect(receivers.length).toBeGreaterThan(0)
++  expect(receivers).not.toContain(block.lineBlocks)
++  expect(receivers).not.toContain(block.lineBlocks[0]!.runs)
++})
++
+ it.each(['foreign-define', 'inherited-get', 'coercible-key'] as const)('retained text operands preserve fresh descriptor observations for %s', mode => {
+   const block = preparePixelText('slot', { fontSize: 14, fontWeight: 400 })
+   const node = marks.text({ id: 'slot-text', role: 'label', text: block.text, block, x: 20, y: 30, fontSize: 14, anchor: 'start', paint: { fill: '#111' } })
+diff --git a/src/__tests__/scene-svg-writer.test.ts b/src/__tests__/scene-svg-writer.test.ts
+index b6bae9a9a..fbd9a2ce4 100644
+--- a/src/__tests__/scene-svg-writer.test.ts
++++ b/src/__tests__/scene-svg-writer.test.ts
+@@ -4,7 +4,7 @@ import * as marks from '../scene/marks.ts'
+ import { canonicalizeSceneNodeSerialization, sceneNodeSerialization, sceneHasOnlyPreparedText, sceneNodeWrite, transferSceneNodeSerialization } from '../scene/serialization.ts'
+ import { validateSceneDoc } from '../scene/scene-validation.ts'
+ import { preparePixelText } from '../shared/prepared-text.ts'
+-import { createSvgXmlCapture, writeShapeSvg, writeTextSvg, writeConnectorSvg, type SvgXmlWrite, type SvgXmlCapture } from '../scene/svg-writer.ts'
++import { createSvgXmlCapture, createNativeXmlWork, writeShapeSvg, writeTextSvg, writeConnectorSvg, type SvgXmlWrite, type SvgXmlCapture } from '../scene/svg-writer.ts'
+ import { verifySvgDocumentEnvelope } from '../output-security.ts'
+ import { createNativeSceneValidator } from '../scene/scene-validation-core.ts'
+ import type { SceneNode } from '../scene/ir.ts'
+@@ -13,6 +13,45 @@ import type { SceneNode } from '../scene/ir.ts'
+ // typed fields, so paint certification, which reads those fields, describes
+ // the bytes. Families add only inert hooks.
+ describe('typed Scene SVG writer', () => {
++  test('closed Native text writes fit their original allowance without copying each indentation witness', () => {
++    const block = preparePixelText('Label', { fontSize: 12, fontWeight: 400 })
++    const work = createNativeXmlWork(8000), capture = work.capture()
++    let genericOperations = 0
++    const generic = createSvgXmlCapture(count => (genericOperations += count) <= 8000)
++    const write = (xml: SvgXmlCapture) => {
++      const parts = [xml.raw('<svg xmlns="http://www.w3.org/2000/svg">')]
++      for (let index = 0; index < 100; index++) {
++        const node = marks.text({ id: `node${index}`, role: 'label', text: block.text, block, x: 10, y: index * 20 + 10, fontSize: 12, anchor: 'start', paint: { fill: '#111' } })
++        parts.push(xml.indent(writeTextSvg(node, xml), 2))
++      }
++      parts.push(xml.raw('</svg>'))
++      return xml.join(parts, '\n')
++    }
++    const native = write(capture), callback = write(generic)
++    expect(native.svg).toBe(callback.svg)
++    expect(verifySvgDocumentEnvelope(native.svg)).toBe(true)
++    expect(capture.verify(native)).toBe(true)
++    expect(work.exhausted()).toBe(false)
++    expect(work.operations()).toBeLessThanOrEqual(8000)
++    expect(generic.verify(callback)).toBe(false)
++  })
++
++  test.each(['valid', 'duplicate', 'invalid-name', 'surrogate', 'comment', 'attribute', 'outside'] as const)('Native closed text composition retains actual XML obligations: %s', mode => {
++    const work = createNativeXmlWork(400000), capture = work.capture()
++    const block = preparePixelText('Label', { fontSize: 12, fontWeight: 400 })
++    const text = marks.text({ id: 'label', role: 'node', text: block.text, block, x: 10, y: 10, fontSize: 12, anchor: 'start', paint: { fill: '#111' } })
++    if (mode === 'duplicate') text.attributes = { data: { id: 'forged' } }
++    if (mode === 'invalid-name') text.attributes = { data: { 'bad name': 'forged' } }
++    if (mode === 'surrogate') text.identity!.id = 'invalid\ud800'
++    const written = writeTextSvg(text, capture)
++    const pair = capture.indent(capture.join([written, written], ' \t\r\n'), 3)
++    const open = '<svg xmlns="http://www.w3.org/2000/svg">'
++    const whole = mode === 'outside' ? capture.join([pair, capture.raw(open + '</svg>')], '')
++      : capture.join([capture.raw(open + (mode === 'comment' ? '<!--' : mode === 'attribute' ? '<g data-value="' : '')), pair,
++        capture.raw((mode === 'comment' ? '-->' : mode === 'attribute' ? '"></g>' : '') + '</svg>')], '')
++    expect(capture.verify(whole)).toBe(mode === 'valid')
++  })
++
+   test('private indentation preserves primitive bytes through hooks installed before the writer loads', async () => {
+     const source = '<g data-test="native-indent-preimport">A😀</g>', prefix = ' '.repeat(17)
+     const split = Object.getOwnPropertyDescriptor(String.prototype, 'split')!, repeat = Object.getOwnPropertyDescriptor(String.prototype, 'repeat')!, join = Object.getOwnPropertyDescriptor(Array.prototype, 'join')!
+diff --git a/src/multiline-utils.ts b/src/multiline-utils.ts
+index 67ba970c2..4a4ff0b2e 100644
+--- a/src/multiline-utils.ts
++++ b/src/multiline-utils.ts
+@@ -11,7 +11,7 @@ import { LINE_HEIGHT_RATIO } from './text-metrics.ts'
+ import { formatSvgNumber } from './shared/svg-number.ts'
+ import { HAS_FORMAT_TAGS } from './shared/inline-format.ts'
+ import { prepareDisplayText, type DisplayRun, type DisplayTextInput } from './shared/display-text.ts'
+-import { hasPreparedTextInk, preparedTextLineGeometry, type PixelTextBlock } from './shared/prepared-text.ts'
++import { hasPreparedTextInk, preparedTextLineGeometry, type PixelTextBlock, type PixelTextPaintBlock } from './shared/prepared-text.ts'
+ import { sanitizeDisplayLines } from './shared/text-controls.ts'
+ import { scanSvgStartTagsFresh, decodedSvgAttributeValue } from './svg-structure.ts'
+ import { isWellFormedSvgText } from './output-security.ts'
+@@ -176,7 +176,7 @@ function renderDisplayRuns(segments: readonly DisplayRun[], fontWeight = 400): s
+ /** Tracking and fallback shaping are not uniformly included in textLength by
+  * SVG rasterizers. Position these graphemes in the measured band explicitly;
+  * ordinary untracked single-font runs keep their continuous shaping. */
+-function renderPreparedLine(block: PixelTextBlock, index: number, cx: number, anchor: string, baseline?: number, served?: ReturnType<typeof preparedTextLineGeometry>): string {
++function renderPreparedLine(block: PixelTextPaintBlock, index: number, cx: number, anchor: string, baseline?: number, served?: ReturnType<typeof preparedTextLineGeometry>): string {
+   const line = block.lineBlocks[index]!
+   // Keep the complete logical line in one shaping context. In particular,
+   // spaces do not separate RTL words into left-to-right positioned fragments,
+@@ -256,6 +256,22 @@ export function renderMultilineText(
+   observerOrAttributes?: ((written: PreparedSingleLineWrite) => void) | WrittenTextAttributes,
+   typedAnchor?: 'start' | 'middle' | 'end',
+   suppliedWriterAttributes?: WrittenTextAttributes,
++): string {
++  return renderMultilinePaintText(text, cx, cy, fontSize, attrs, baselineShift, literalText, observerOrAttributes, typedAnchor, suppliedWriterAttributes)
++}
++
++/** Internal paint-only text input; public text still accepts the full block. */
++export function renderMultilinePaintText(
++  text: string | PixelTextPaintBlock,
++  cx: number,
++  cy: number,
++  fontSize: number,
++  attrs: string,
++  baselineShift: number = 0.35,
++  literalText = false,
++  observerOrAttributes?: ((written: PreparedSingleLineWrite) => void) | WrittenTextAttributes,
++  typedAnchor?: 'start' | 'middle' | 'end',
++  suppliedWriterAttributes?: WrittenTextAttributes,
+ ): string {
+   // Keep both the generic writer's evidence bundle and Native's actual-write
+   // observer calling convention; neither substitutes for the other authority.
+diff --git a/src/scene/bounds.ts b/src/scene/bounds.ts
+index d73c84901..806ef087a 100644
+--- a/src/scene/bounds.ts
++++ b/src/scene/bounds.ts
+@@ -1,6 +1,6 @@
+ import { tryParseCssColor } from '../shared/color-math.ts'
+ import { rotateBoxBounds, type AxisAlignedBox } from '../shared/transformed-bounds.ts'
+-import type { ConnectorContourSemantics, ConnectorLabelDescriptor, ConnectorMark, Geometry, MarkPaint, MarkerDescriptor, SceneNode, ScenePoint, SceneTransform } from './ir.ts'
++import type { ConnectorContourSemantics, ConnectorLabelDescriptor, ConnectorMark, Geometry, MarkPaint, MarkerDescriptor, SceneNode, NativeSceneNode, ScenePoint, SceneTransform } from './ir.ts'
+ import { connectorEndpointAnchors, connectorMidpoints } from './connector-geometry.ts'
+ import { preparePixelText, preparedTextInkBounds, preparedInterTextBounds, hasPreparedInterTextEnvelope, type PixelTextBlock } from '../shared/prepared-text.ts'
+ import { resolveLabelContent } from '../shared/display-text.ts'
+@@ -490,7 +490,7 @@ export function connectorInlineLabelVisualBounds(
+ 
+ /** World-space visual bounds for typed Scene geometry. Connector paths use
+  * routed source points and include stroke, endpoint markers, and label bounds. */
+-export function nodeWorldBounds(node: SceneNode): AxisAlignedBox | undefined {
++export function nodeWorldBounds(node: NativeSceneNode): AxisAlignedBox | undefined {
+   let local: AxisAlignedBox | undefined
+   if (node.kind === 'image') local = { x0: node.x, y0: node.y, x1: node.x + node.width, y1: node.y + node.height }
+   else if (node.kind === 'shape') local = geometryBounds(node.geometry)
+@@ -675,11 +675,11 @@ function connectorPaintBounds(node: ConnectorMark, transform?: SceneTransform):
+ /** Conservative painted bounds, independent of legacy layout/hit envelopes.
+  * Pass the ancestor transform before stroke expansion, so non-scaling strokes
+  * retain their world-space width. Unknown artwork is wholly unmeasured. */
+-export function nodePaintBounds(node: SceneNode, parentTransform?: SceneTransform, documentFont?: string, actualTextPaint?: MarkPaint): AxisAlignedBox | undefined {
++export function nodePaintBounds(node: NativeSceneNode, parentTransform?: SceneTransform, documentFont?: string, actualTextPaint?: MarkPaint): AxisAlignedBox | undefined {
+   return paintBounds(node, parentTransform, documentFont, actualTextPaint)
+ }
+ 
+-function paintBounds(node: SceneNode, parentTransform?: SceneTransform, documentFont?: string, actualTextPaint?: MarkPaint): AxisAlignedBox | undefined {
++function paintBounds(node: NativeSceneNode, parentTransform?: SceneTransform, documentFont?: string, actualTextPaint?: MarkPaint): AxisAlignedBox | undefined {
+   const transform = composedTransform(parentTransform, node.transform)
+   if (transform && !inverseMatrix(transformMatrix(transform))) return undefined
+   let local: AxisAlignedBox | undefined
+diff --git a/src/scene/emission-context.ts b/src/scene/emission-context.ts
+index efee26314..a9d1f176a 100644
+--- a/src/scene/emission-context.ts
++++ b/src/scene/emission-context.ts
+@@ -6,7 +6,7 @@ import { escapeXml } from '../multiline-utils.ts'
+ import { isWellFormedSvgText } from '../output-security.ts'
+ import { formatSvgNumber, formatSvgNumericAttribute } from '../shared/svg-number.ts'
+ import { decodedSvgAttributeValue, scanSvgStartTags, svgClassHasTokenFresh, type SvgStartTagToken } from '../svg-structure.ts'
+-import type { ConnectorMark, DocumentMark, MarkerDescriptor, SceneDoc, SceneNode, TextMark } from './ir.ts'
++import type { ConnectorMark, DocumentMark, MarkerDescriptor, SceneDoc, SceneNode, NativeSceneNode, NativeTextPaintMark, TextMark } from './ir.ts'
+ import { markerResourceMarkupCost, serializeMarkerResource } from './marker-resources.ts'
+ import { parseSvgTransform, transformMatrix, type AffineMatrix } from './transforms.ts'
+ import { writtenLeafContextOf } from './svg-writer.ts'
+@@ -30,8 +30,8 @@ export function createEmissionContext(pay: Pay, options: { resources?: boolean;
+   let pagePrelude: DocumentMark | undefined, pageWidth: string | undefined, pageHeight: string | undefined
+   const documents: Array<{ node: DocumentMark; svg: string }> = []
+   let nativeDefinitions: WeakSet<DocumentMark> | undefined
+-  const texts: Array<{ node: TextMark; svg: string }> = []
+-  const leaves: Array<{ node: SceneNode; svg: string }> = []
++  const texts: Array<{ node: NativeTextPaintMark; svg: string }> = []
++  const leaves: Array<{ node: NativeSceneNode; svg: string }> = []
+   const groups: Array<Extract<SceneNode, { kind: 'group' }>> = []
+   type NativeGroup = { readonly svg: string; readonly tags: readonly SvgStartTagToken[]; readonly opacity: string | undefined; readonly transform: string | undefined; readonly matrix: AffineMatrix | undefined }
+   const nativeGroups = new WeakMap<Extract<SceneNode, { kind: 'group' }>, NativeGroup>()
+@@ -68,13 +68,13 @@ export function createEmissionContext(pay: Pay, options: { resources?: boolean;
+   // The fractional ring slice reuses the checked canonical document context.
+   // Its disjoint text bounds additionally need correspondence with this write,
+   // rather than a promise made by a caller's prepared-text metadata.
+-  const ringTextWrite = (node: TextMark, svg: string): boolean => {
++  const ringTextWrite = (node: NativeTextPaintMark, svg: string): boolean => {
+     const own = (value: object, name: string): unknown => {
+       if (!reserve(4)) return unsupportedFractionalLeaf
+       const descriptor = Object.getOwnPropertyDescriptor(value, name)
+       return descriptor ? Object.hasOwn(descriptor, 'value') ? descriptor.value : unsupportedFractionalLeaf : name in value ? unsupportedFractionalLeaf : undefined
+     }
+-    const block = own(node, 'block') as TextMark['block']
++    const block = own(node, 'block') as NativeTextPaintMark['block']
+     if (!block || typeof block !== 'object' || !isRetainedPixelText(block)
+       || own(node, 'measurement') !== 'prepared' || block.monospace || block.letterSpacing !== 0
+       || block.lineBlocks.length !== 1 || block.lines.length !== 1 || block.lineBlocks[0]!.fragments
+@@ -325,7 +325,7 @@ export function createEmissionContext(pay: Pay, options: { resources?: boolean;
+     },
+     /** Call only for an owned captured leaf. A hint requests an actual write;
+      * it grants no geometry or paint authority by itself. */
+-    hint(node: SceneNode): boolean {
++    hint(node: NativeSceneNode): boolean {
+       if (!reserve(2)) return false
+       if (node.kind === 'connector') {
+         const reference = (marker: MarkerDescriptor | undefined): void => {
+@@ -357,7 +357,7 @@ export function createEmissionContext(pay: Pay, options: { resources?: boolean;
+     /** Observe only an admitted owned leaf's actual write. The writer's
+      * private receipt closes its structure and actual transform emission;
+      * it grants no geometry authority. A later leaf can activate this domain. */
+-    leaf(node: SceneNode, svg: string): void {
++    leaf(node: NativeSceneNode, svg: string): void {
+       if (!reserve(2)) return
+       if (node.kind === 'text') texts.push({ node, svg })
+       else if (node.kind !== 'document' && node.kind !== 'group') leaves.push({ node, svg })
+diff --git a/src/scene/inspection.ts b/src/scene/inspection.ts
+index ebeb67f1b..b8950648a 100644
+--- a/src/scene/inspection.ts
++++ b/src/scene/inspection.ts
+@@ -1,7 +1,7 @@
+ import { readSvgTextPaintWrite, type SvgTextPaintWrite } from './svg-writer.ts'
+ import { isAdmittedSceneDocument } from './scene-admission-state.ts'
+ import { tryParseCssColor } from '../shared/color-math.ts'
+-import type { ConnectorMark, MarkPaint, SceneDoc, SceneNode, SceneOwner, SceneRole, SceneTransform, ShapeMark, TextMark } from './ir.ts'
++import type { ConnectorMark, MarkPaint, SceneDoc, SceneNode, NativeSceneNode, SceneOwner, SceneRole, SceneTransform, ShapeMark, TextMark } from './ir.ts'
+ import { connectorInlineLabelVisualBounds, nodePaintBounds, transformedBounds } from './bounds.ts'
+ import { composeMatrices, IDENTITY_MATRIX, transformMatrix, type AffineMatrix } from './transforms.ts'
+ import { sceneNodeSerialization, beginSceneWriteInspection, type SceneWriteReceipt, type SceneWriteWork } from './serialization.ts'
+@@ -130,7 +130,7 @@ export function shapeSurfacePaint(node: Pick<ShapeMark, 'paint' | 'childPaints'>
+   return node.childPaints?.find(paint => !absentPaint(paint.fill) && Number(paint.opacity ?? 1) !== 0) ?? node.paint
+ }
+ 
+-function nonPainting(node: SceneNode, actualTextPaint?: MarkPaint): boolean {
++function nonPainting(node: NativeSceneNode, actualTextPaint?: MarkPaint): boolean {
+   if (node.kind === 'document') return node.element !== 'content' || node.nonPaint !== undefined || sceneNodeSerialization(node).trim() === ''
+   if (node.kind === 'text') return !textPaints(hasDisplayedText(node.block, node.text), actualTextPaint ?? node.paint)
+   if (node.kind === 'connector') return node.lineStyle === 'invisible'
+@@ -162,17 +162,17 @@ export function inspectScenePaintGeometry(scene: SceneDoc, receipt?: SceneWriteR
+   return inspection
+ }
+ 
+-function hasDisplayedText(block: Extract<SceneNode, { kind: 'text' }>['block'], text: string): boolean {
++function hasDisplayedText(block: Extract<NativeSceneNode, { kind: 'text' }>['block'], text: string): boolean {
+   return block ? block.lineBlocks.some(line => line.runs.some(run => run.text.trim() !== '')) : text.trim() !== ''
+ }
+ 
+-type TextDetails = (text: string, block: Extract<SceneNode, { kind: 'text' }>['block'], includeFont?: true) => Omit<NonNullable<ScenePaintPrimitive['text']>, 'measurement'>
++type TextDetails = (text: string, block: Extract<NativeSceneNode, { kind: 'text' }>['block'], includeFont?: true) => Omit<NonNullable<ScenePaintPrimitive['text']>, 'measurement'>
+ 
+ /** A native drawing supplies leaves and the inherited group context explicitly.
+  * Leaves must already pass the drawing factory's bounded admission. No group
+  * or SceneDoc is built or retained by this API. */
+ export interface NativePaintEntry {
+-  readonly node: Exclude<SceneNode, { kind: 'group' }>
++  readonly node: Exclude<NativeSceneNode, { kind: 'group' }>
+   readonly key?: string
+   readonly parentMatrix?: AffineMatrix
+   readonly ancestors?: readonly SceneOwner[]
+@@ -228,7 +228,7 @@ export function inspectNativePaintGeometry(header: PaintInspectionHeader, entrie
+   return recorder.finish()
+ }
+ 
+-function nativePaintSource(node: Exclude<SceneNode, { kind: 'group' }>, actualTextPaint?: MarkPaint, freeze = textPaintFreeze): NativePaintSource {
++function nativePaintSource(node: Exclude<NativeSceneNode, { kind: 'group' }>, actualTextPaint?: MarkPaint, freeze = textPaintFreeze): NativePaintSource {
+   switch (node.kind) {
+     case 'shape': return freeze({ kind: node.kind, geometry: node.geometry, paint: node.paint, ...(node.childPaints ? { childPaints: node.childPaints } : {}), ...(node.transform ? { transform: node.transform } : {}) })
+     case 'connector': return freeze({ kind: node.kind, lineStyle: node.lineStyle, endpoints: node.endpoints, route: node.route, stroke: node.stroke, markers: node.markers, ...(node.transform ? { transform: node.transform } : {}) })
+@@ -247,7 +247,7 @@ function createPaintRecorder(header: PaintInspectionHeader, retainText?: TextDet
+   }
+   const primitives: ScenePaintGeometry[] = []
+   const coverage = { measured: 0, unmeasured: 0, nonPainting: 0, preparedText: 0, fallbackText: 0 }
+-  const leaf = (semanticNode: Exclude<SceneNode, { kind: 'group' }>, key: string, parent: AffineMatrix | undefined, ancestors: readonly SceneOwner[], conditional: boolean, groupOpacity: number, explicitOwner?: SceneOwner, servedNode?: Exclude<SceneNode, { kind: 'group' }>, pathAuthority = false, untransformed = parent === undefined, actualTextPaint?: MarkPaint, actualPaintWrite?: SvgTextPaintWrite): void => {
++  const leaf = (semanticNode: Exclude<NativeSceneNode, { kind: 'group' }>, key: string, parent: AffineMatrix | undefined, ancestors: readonly SceneOwner[], conditional: boolean, groupOpacity: number, explicitOwner?: SceneOwner, servedNode?: Exclude<NativeSceneNode, { kind: 'group' }>, pathAuthority = false, untransformed = parent === undefined, actualTextPaint?: MarkPaint, actualPaintWrite?: SvgTextPaintWrite, sceneSource?: Exclude<SceneNode, { kind: 'group' }>): void => {
+     const node = servedNode ?? semanticNode
+     const owner = explicitOwner ?? node.owner ?? ancestors.at(-1) ?? node.identity ?? { id: node.id, role: node.role }
+     const source = native || servedNode ? nativePaintSource(node, actualTextPaint, freeze) : undefined
+@@ -274,7 +274,7 @@ function createPaintRecorder(header: PaintInspectionHeader, retainText?: TextDet
+     if (source) nativeSources.set(primitive, source)
+     if (actualPaintWrite) hasActualPaint = true
+     if (actualPaintWrite) textPaintApply(textPaintPut, nativeTextPaintWrites, [primitive, actualPaintWrite])
+-    if (!native) sources.set(primitive, semanticNode)
++    if (!native && sceneSource) sources.set(primitive, sceneSource)
+     if (servedNode && primitive.visibility !== 'conditional') sceneWriteOccurrences.add(primitive)
+     if (pathAuthority && primitive.visibility !== 'conditional') scenePathOccurrences.add(primitive)
+     worldMatrices.set(primitive, matrix)
+@@ -305,7 +305,7 @@ function createPaintRecorder(header: PaintInspectionHeader, retainText?: TextDet
+         text: freeze({ measurement: label.block ? 'prepared' : 'fallback', ...retainText?.(label.text, label.block) }),
+       })
+       if (source) nativeSources.set(inline, source)
+-      if (!native) sources.set(inline, semanticNode)
++      if (!native && sceneSource) sources.set(inline, sceneSource)
+       worldMatrices.set(inline, matrix)
+       append(inline)
+       if (hidden) coverage.nonPainting++
+@@ -343,7 +343,7 @@ function inspectScene(scene: SceneDoc, retainText?: TextDetails, writes?: Return
+         // label diagnostics. Explicit receipts and marked carriers remain strict.
+         const missingWrite = requireWritten && node.kind === 'connector' && node.lineStyle !== 'invisible' && !written
+           && (requireWritten === 'all' || !!node.markers.start || !!node.markers.end || node.markers.mid.length > 0)
+-        recorder.leaf(node, key, parent, ancestors, conditional || !!written?.conditional || !!missingWrite, groupOpacity, undefined, written?.served, written?.path, untransformed)
++        recorder.leaf(node, key, parent, ancestors, conditional || !!written?.conditional || !!missingWrite, groupOpacity, undefined, written?.served, written?.path, untransformed, undefined, undefined, node)
+       }
+     })
+   }
+diff --git a/src/scene/ir.ts b/src/scene/ir.ts
+index fb63835fb..5682102d4 100644
+--- a/src/scene/ir.ts
++++ b/src/scene/ir.ts
+@@ -17,7 +17,7 @@ import type { SvgSemanticIdentity } from './identity.ts'
+ import type { SvgSemanticAccessibility } from './accessibility.ts'
+ import type { PrimitiveRealization } from './capabilities.ts'
+ import type { LabelDisplay } from '../multiline-utils.ts'
+-import type { PixelTextBlock } from '../shared/prepared-text.ts'
++import type { PixelTextBlock, PixelTextPaintBlock } from '../shared/prepared-text.ts'
+ import type { DisplayRun, LabelContent } from '../shared/display-text.ts'
+ 
+ /** Version of the extension-facing Scene document/part behavioral contract. */
+@@ -500,6 +500,11 @@ export interface DocumentMark extends SceneNodeBase {
+ /** A Scene part. Existing *Mark names describe drawing parts, not source nodes. */
+ export type SceneNode = ImageMark | ShapeMark | ConnectorMark | TextMark | GroupMark | DocumentMark
+ 
++/** Internal Native writer input. Public Scene text retains the complete source
++ * interpretation; paint consumes its captured scalar context and pixel runs. */
++export type NativeTextPaintMark = Omit<TextMark, 'block'> & { block?: PixelTextPaintBlock }
++export type NativeSceneNode = Exclude<SceneNode, TextMark> | NativeTextPaintMark
++
+ /** The lowered document: an ordered flat list of top-level Scene parts. */
+ export interface SceneDoc {
+   family: string
+diff --git a/src/scene/native-drawing.ts b/src/scene/native-drawing.ts
+index 60271166e..30d01d837 100644
+--- a/src/scene/native-drawing.ts
++++ b/src/scene/native-drawing.ts
+@@ -2,7 +2,7 @@ import { pageRectFor } from './backend.ts'
+ import type { StyleSpec } from './style-registry.ts'
+ import type { DrawingDocument, DrawingFactory, DrawingProducer } from './drawing.ts'
+ import type { PositionedDiagram, RenderContext } from '../types.ts'
+-import type { SceneDoc, SceneNode } from './ir.ts'
++import type { SceneDoc, SceneNode, NativeSceneNode } from './ir.ts'
+ import * as marks from './marks.ts'
+ import { formatSvgNumber } from '../shared/svg-number.ts'
+ import { indentLines } from './serialization.ts'
+@@ -20,7 +20,7 @@ interface FragmentData {
+   readonly depth: number
+   readonly prepared: boolean
+ }
+-type LeafNode = Exclude<SceneNode, { kind: 'group' }>
++type LeafNode = Exclude<NativeSceneNode, { kind: 'group' }>
+ interface GroupFragment extends FragmentData {
+   readonly kind: 'group'
+   readonly children: readonly Fragment[]
+@@ -114,8 +114,8 @@ export function drawNative(
+   const validator = createNativeSceneValidator(header, { groupValidation: emission.groupValidation })
+   const ownedFragments = new WeakSet<object>()
+   const ownFragment = <T extends Fragment>(fragment: T): T => { if (emission.retainFragment()) ownedFragments.add(fragment); return Object.freeze(fragment) }
+-  const leaf = (node: LeafNode): Fragment => {
+-    const captured = emission.leaf(node, (captured, sink) => validator.write(captured, xml, 0, sink))
++  const leaf = (node: Exclude<SceneNode, { kind: 'group' }>): Fragment => {
++    const captured = emission.paintLeaf(node, (captured, sink) => validator.write(captured, xml, 0, sink))
+     const svg = captured.svg
+     return ownFragment({ kind: 'leaf', node: captured.paintNode, svg, xmlWrite: captured.xmlWrite!, textPaint: captured.textPaint, conditional: captured.conditional, nodeCount: 1, depth: 0,
+       prepared: node.kind === 'document' ? !/<\s*text/i.test(svg)
+diff --git a/src/scene/native-paint-emission.ts b/src/scene/native-paint-emission.ts
+index 3749f50cd..2c2950cb5 100644
+--- a/src/scene/native-paint-emission.ts
++++ b/src/scene/native-paint-emission.ts
+@@ -1,5 +1,5 @@
+ import { nativeTextPaintWriteOf, ownedTextPaintRoster } from './inspection.ts'
+-import type { SceneNode, SceneDoc, ConnectorMark, Geometry, MarkPaint, ShapeMark } from './ir.ts'
++import type { SceneNode, NativeSceneNode, SceneDoc, ConnectorMark, Geometry, MarkPaint, ShapeMark } from './ir.ts'
+ import type { ScenePaintGeometryInspection, ScenePaintGeometry } from './inspection.ts'
+ import { scanSvgStartTags, decodedSvgAttributeValue } from '../svg-structure.ts'
+ import { markerResourceMarkupCost, serializeMarkerResource } from './marker-resources.ts'
+@@ -8,7 +8,7 @@ import { formatSvgNumber } from '../shared/svg-number.ts'
+ import { safeCssFontFamily } from '../shared/css-font.ts'
+ import { deferredTerminalProjectionInput, copyDeferredTerminalProjection } from './deferred-terminal-projection.ts'
+ import { transferSceneNodeSerialization } from './serialization.ts'
+-import { createSvgXmlCapture, hasInheritedSvgTextPaint, closeSvgTextPaintWrite, hasSvgTextPaintClosure, matchesSvgTextPaintWrite, readSvgTextPaintWrite, type SvgTextPaintWrite, type SvgGeometryWriteSink, type SvgXmlWrite } from './svg-writer.ts'
++import { createNativeXmlWork, hasInheritedSvgTextPaint, closeSvgTextPaintWrite, hasSvgTextPaintClosure, matchesSvgTextPaintWrite, readSvgTextPaintWrite, type SvgTextPaintWrite, type SvgGeometryWriteSink, type SvgXmlWrite } from './svg-writer.ts'
+ import { connectorContourSemantics } from './connector-geometry.ts'
+ import { rectanglePaintFields, writtenPolylineProjectionOf, prepareWrittenCompoundShape, observeWrittenCompoundShape, completeWrittenCompoundShape } from './written-geometry.ts'
+ import { MAX_OCCLUSION_OPERATIONS } from './paint-work.ts'
+@@ -18,7 +18,10 @@ import { captureNativeGroupEmission, transferNativeGroupEmission } from './group
+ 
+ export { MAX_OCCLUSION_OPERATIONS } from './paint-work.ts'
+ 
+-type Leaf = Exclude<SceneNode, { kind: 'group' }>
++type Leaf = Exclude<NativeSceneNode, { kind: 'group' }>
++type FullLeaf = Exclude<SceneNode, { kind: 'group' }>
++type LeafWriter<N extends Leaf> = (node: N, sink?: SvgGeometryWriteSink) => string | SvgXmlWrite
++interface RetainedLeaf<N extends Leaf> { node: N; paintNode: N; svg: string; xmlWrite: SvgXmlWrite | undefined; textPaint?: SvgTextPaintWrite; conditional: boolean }
+ export interface NativeEmissionWork { readonly operations: number; readonly exhausted: boolean; readonly uncertain: boolean; readonly closedMarkerContext: boolean; readonly fractionalCircleContext: boolean; readonly header: Omit<SceneDoc, 'parts'>; readonly resolveColor?: EmissionColorResolver }
+ const textPaintSet = WeakSet, textPaintMap = WeakMap, textPaintApply = Reflect.apply
+ const textPaintGet = WeakMap.prototype.get, textPaintPut = WeakMap.prototype.set
+@@ -40,30 +43,25 @@ export function nativeEmissionWorkOf(inspection: ScenePaintGeometryInspection):
+  * the original operands still supply validation and SVG serialization.
+  * Accessors/unsupported data or an exhausted capture keep paint conditional. */
+ export function createNativePaintEmission(maxOperations: number) {
+-  if (!Number.isSafeInteger(maxOperations) || maxOperations < 0 || maxOperations > MAX_OCCLUSION_OPERATIONS) throw new RangeError('Invalid Native emission work allowance')
+-  let operations = 0, exhausted = false, uncertain = false, pendingCustomRootStyle = false, hasMarkedConnector = false
++  const work = createNativeXmlWork(maxOperations)
++  let uncertain = false, pendingCustomRootStyle = false, hasMarkedConnector = false
+   // A deliberately smaller admission domain for new served marker proofs.
+   // Existing proofs do not depend on this flat, stylesheet-free context.
+   let closedMarkerContext = true, definitionsClosed = true, rootOpens = 0, rootCloses = 0
+   const resources = new Map<string, string | undefined>()
+   const references: NonNullable<Extract<Leaf, { kind: 'connector' }>['markers']['start']>[] = []
+-  const pay = (count = 1): boolean => {
+-    if (exhausted) return false
+-    if (!Number.isSafeInteger(count) || count < 0 || count > maxOperations - operations) { exhausted = true; return false }
+-    operations += count
+-    return true
+-  }
++  const pay = work.pay
+   const emissionContext = createEmissionContext(pay, { resources: false })
+-  const xml = createSvgXmlCapture(pay)
++  const xml = work.capture()
+   const failed = Symbol('unsupported-emission')
+   const capturedLeaves = new WeakMap<object, Leaf>()
+   const observedTextPaintWrites = new textPaintSet<SvgTextPaintWrite>()
+   let usedTextPaint = false
+   let ownedPartRosters: WeakSet<object> | undefined
+-  type CaptureContext = 'leaf' | 'route' | 'geometry' | 'points' | 'point' | 'pixel-part' | 'text-paint'
++  type CaptureContext = 'leaf' | 'paint-leaf' | 'route' | 'geometry' | 'points' | 'point' | 'pixel-part' | 'text-paint' | 'paint-block' | 'paint-block-owned' | 'paint-display' | 'paint-lines' | 'paint-line' | 'paint-runs' | 'paint-run'
+   interface TextCopyPlan { readonly source: object; readonly array: boolean; readonly slots: readonly TextCopySlot[]; readonly length: number | undefined; readonly height: number }
+   interface TextCopySlot { readonly key: string; readonly enumerable: boolean; value: unknown; readonly child: TextCopyPlan | undefined; readonly writable: false; readonly configurable: false }
+-  const textPlans = new textPaintMap<object, { plan: TextCopyPlan | undefined }>()
++  const textPlans = new textPaintMap<object, { plan: TextCopyPlan | undefined; paintOnly: boolean }>()
+   let copyingFirstText = false
+   let planningText: { readonly plans: WeakMap<object, TextCopyPlan>; pure: boolean } | undefined
+   const capturedTextPaint = new textPaintMap<object, number>()
+@@ -153,15 +151,19 @@ export function createNativePaintEmission(maxOperations: number) {
+     }
+     parents.add(value)
+     const result: Record<string, unknown> | unknown[] = Array.isArray(value) ? [] : {}
+-    const kindSlot = context === 'leaf' || context === 'geometry' ? Object.getOwnPropertyDescriptor(value, 'kind') : undefined
++    const kindSlot = (context === 'leaf' || context === 'paint-leaf') || context === 'geometry' ? Object.getOwnPropertyDescriptor(value, 'kind') : undefined
+     const kind = kindSlot && Object.hasOwn(kindSlot, 'value') ? kindSlot.value : undefined
+-    if ((context === 'leaf' || context === 'geometry') && typeof kind !== 'string') throw failed
++    if (((context === 'leaf' || context === 'paint-leaf') || context === 'geometry') && typeof kind !== 'string') throw failed
+     let planSlots: TextCopySlot[] | undefined, planHeight = 0
+     if (planningText) { if (!pay(2)) throw failed; planSlots = [] }
+     let ownedFields = 0, ownedPointSlots = 0
+     let arrayLength: PropertyDescriptor | undefined
+     for (let index = 0; index < keys.length; index++) {
+       const key = keys[index]!
++      // Native paint consumes authored scalar context and the measured pixel
++      // runs. Interpretation spans are not used by writing or paint proof.
++      if (context === 'paint-display' && key !== 'source' && key !== 'display' && key !== 'transform'
++        || context === 'paint-run' && key === 'clusters') continue
+       // This property visit owns descriptor retention and scalar assignment;
+       // a primitive needs no second visit or numeric formatting/replay.
+       let descriptor: PropertyDescriptor | undefined
+@@ -192,14 +194,20 @@ export function createNativePaintEmission(maxOperations: number) {
+           else if (key === 'width') ownedFields |= 4
+           else if (key === 'height') ownedFields |= 8
+         } else if (kind === 'path' && key === 'd' || kind === 'polyline' && key === 'points') ownedFields |= 1
+-      } else if (context === 'leaf' && (kind === 'connector' && key === 'route' || kind === 'shape' && key === 'geometry')
++      } else if ((context === 'leaf' || context === 'paint-leaf') && (kind === 'connector' && key === 'route' || kind === 'shape' && key === 'geometry')
+         || context === 'route' && key === 'geometry') ownedFields |= 1
+       const pointSlot = context === 'points' && /^(?:0|[1-9]\d*)$/.test(key) && Number(key) < 0xffff_ffff
+       if (pointSlot) ownedPointSlots++
+-      const childContext = context === 'leaf' && kind === 'text' && key === 'paint' ? 'text-paint'
+-        : context === 'pixel-part' || context === 'leaf' && kind === 'text' && (key === 'block' || key === 'preparedLines') ? 'pixel-part'
+-        : context === 'leaf' && kind === 'connector' && key === 'route' ? 'route'
+-        : (context === 'leaf' && kind === 'shape' || context === 'route') && key === 'geometry' ? 'geometry' : context === 'geometry' && kind === 'polyline' && key === 'points' ? 'points' : pointSlot ? 'point' : undefined
++      const childContext = context === 'paint-block-owned' && key === 'prepared' ? 'paint-display'
++        : context === 'paint-block-owned' && key === 'lineBlocks' ? 'paint-lines'
++        : context === 'paint-lines' && key !== 'length' ? 'paint-line'
++        : context === 'paint-line' && key === 'runs' ? 'paint-runs'
++        : context === 'paint-runs' && key !== 'length' ? 'paint-run'
++        : context === 'paint-leaf' && kind === 'text' && key === 'block' ? 'paint-block'
++        : (context === 'leaf' || context === 'paint-leaf') && kind === 'text' && key === 'paint' ? 'text-paint'
++        : context === 'pixel-part' || context === 'paint-block-owned' || context === 'paint-line' || context === 'paint-run' || context === 'paint-display' || (context === 'leaf' || context === 'paint-leaf') && kind === 'text' && (key === 'block' || key === 'preparedLines') ? 'pixel-part'
++        : (context === 'leaf' || context === 'paint-leaf') && kind === 'connector' && key === 'route' ? 'route'
++        : ((context === 'leaf' || context === 'paint-leaf') && kind === 'shape' || context === 'route') && key === 'geometry' ? 'geometry' : context === 'geometry' && kind === 'polyline' && key === 'points' ? 'points' : pointSlot ? 'point' : undefined
+       const copied = copy(descriptor.value, depth + 1, parents, childContext)
+       if (planSlots) {
+         if (!pay(2)) throw failed
+@@ -215,7 +223,7 @@ export function createNativePaintEmission(maxOperations: number) {
+       Object.defineProperty(result, key, { value: copied, enumerable: descriptor.enumerable, configurable: false, writable: false })
+     }
+     const requiredFields = context === 'point' ? 3 : context === 'geometry' ? kind === 'line' || kind === 'rect' ? 15 : kind === 'polyline' || kind === 'path' ? 1 : 0
+-      : context === 'route' || context === 'leaf' && (kind === 'shape' || kind === 'connector') ? 1 : 0
++      : context === 'route' || (context === 'leaf' || context === 'paint-leaf') && (kind === 'shape' || kind === 'connector') ? 1 : 0
+     if (ownedFields !== requiredFields) throw failed
+     if (Array.isArray(value)) {
+       if (!arrayLength || !Object.hasOwn(arrayLength, 'value')) throw failed
+@@ -231,7 +239,7 @@ export function createNativePaintEmission(maxOperations: number) {
+     transferRetainedPixelText(value, result)
+     // A hostile proxy can change its kind between reflective observations.
+     // Never attach a line projection to a different captured geometry kind.
+-    if (context === 'leaf' || context === 'geometry') {
++    if ((context === 'leaf' || context === 'paint-leaf') || context === 'geometry') {
+       const kindSlot = Object.getOwnPropertyDescriptor(result, 'kind')
+       if (!kindSlot || !Object.hasOwn(kindSlot, 'value') || kindSlot.value !== kind) throw failed
+     }
+@@ -246,7 +254,7 @@ export function createNativePaintEmission(maxOperations: number) {
+     const retained = Object.preventExtensions(result)
+     // Only the actual local capture receiver can reuse its document role.
+     // Foreign preventExtensions returns keep their original getter path.
+-    if (context === 'leaf' && kind === 'document' && retained === result && pay(3)) {
++    if ((context === 'leaf' || context === 'paint-leaf') && kind === 'document' && retained === result && pay(3)) {
+       const element = textPaintDescriptor(result, 'element')
+       if (element && textPaintOwn(element, 'value') && element.value === 'definitions'
+         && !element.writable && !element.configurable && !textPaintExtensible(result)) {
+@@ -260,20 +268,23 @@ export function createNativePaintEmission(maxOperations: number) {
+   }
+   const copy = (value: unknown, depth = 0, parents = new Set<object>(), context?: CaptureContext): unknown => {
+     if (depth > 64) throw failed
+-    if (planningText || copyingFirstText || context !== 'pixel-part' || !value || typeof value !== 'object') return copyInner(value, depth, parents, context)
++    if (planningText || copyingFirstText || context !== 'pixel-part' && context !== 'paint-block' || !value || typeof value !== 'object') return copyInner(value, depth, parents, context)
+     // Ownership allows retaining reflection instructions; it never authorizes
+     // sharing the receivers observed by inherited getters or array methods.
+     if (!pay(2)) throw failed
+-    if (!isOwnedPixelTextPart(value)) return copyInner(value, depth, parents, context)
++    if (!isOwnedPixelTextPart(value)) return copyInner(value, depth, parents, context === 'paint-block' ? 'pixel-part' : context)
++    if (context === 'paint-block') context = 'paint-block-owned'
+     if (!pay(2)) throw failed
+-    const previous = textPaintApply(textPaintGet, textPlans, [value]) as { plan: TextCopyPlan | undefined } | undefined
++    const paintOnly = context === 'paint-block-owned'
++    let previous = textPaintApply(textPaintGet, textPlans, [value]) as { plan: TextCopyPlan | undefined; paintOnly: boolean } | undefined
++    if (previous?.paintOnly !== paintOnly) previous = undefined
+     if (previous?.plan) return materializeText(previous.plan, depth)
+     if (!previous) {
+       copyingFirstText = true
+       try {
+         const result = copyInner(value, depth, parents, context)
+         if (!pay(2)) throw failed
+-        textPaintApply(textPaintPut, textPlans, [value, { plan: undefined }])
++        textPaintApply(textPaintPut, textPlans, [value, { plan: undefined, paintOnly }])
+         return result
+       } finally { copyingFirstText = false }
+     }
+@@ -446,6 +457,99 @@ export function createNativePaintEmission(maxOperations: number) {
+     for (let keyIndex = 0; keyIndex < bk.length; keyIndex++) { if (!pay()) return false; if (Object.hasOwn(b, bk[keyIndex]!)) nb++ }
+     return na === nb
+   }
++  const retainLeaf = (node: FullLeaf, write: LeafWriter<Leaf>, captureContext: 'leaf' | 'paint-leaf'): RetainedLeaf<Leaf> => {
++      const serialize = (source: Leaf, sink?: SvgGeometryWriteSink): { svg: string; xmlWrite: SvgXmlWrite | undefined } => {
++        const written = write(source, sink)
++        if (typeof written === 'string') return { svg: written, xmlWrite: undefined }
++        const record = xml.read(written, source)
++        if (!record) throw new TypeError('Native XML output must belong to its actual captured leaf')
++        return { svg: record.svg, xmlWrite: written }
++      }
++      let captured: Leaf | undefined
++      try { captured = copy(node, 0, new Set(), captureContext) as Leaf } catch { /* Strict mutable fallback. */ }
++      if (!captured) return { node, paintNode: node, ...serialize(node), conditional: true }
++      transferSceneNodeSerialization(node, captured)
++      const geometry = captured.kind === 'shape' ? captured.geometry : captured.kind === 'connector' && captured.lineStyle !== 'invisible' ? captured.route.geometry : undefined
++      // Eligibility is decided before validation/writing can observe inherited
++      // caller hooks. Unsupported rectangles retain their legacy inspection.
++      const rectangle = captured.kind === 'shape' && geometry?.kind === 'rect' ? rectangleInput(captured, geometry) : undefined
++      const compound = captured.kind === 'shape' && geometry?.kind === 'compound' ? prepareWrittenCompoundShape(captured, pay) : undefined
++      const supported = !!compound || geometry?.kind === 'line' || geometry?.kind === 'polyline' || !!rectangle || captured.kind === 'connector' && geometry?.kind === 'path'
++      // Constant custody is separate from variable projection work. The writer
++      // reserves the entire token stream before allocating its first point.
++      const reserved = supported && pay(192)
++      let received = false, invalid = false, projectionReserved = false, served: Geometry | undefined
++      let attributesReceived = false, invalidAttributes = false, attributes: Readonly<Record<string, string>> | undefined
++      let textPaintReceived = false, textPaintInvalid = false, textPaint: SvgTextPaintWrite | undefined
++      const sink: SvgGeometryWriteSink | undefined = reserved || captured.kind === 'text' ? Object.assign((source: Geometry, written: Geometry | undefined) => {
++        if (compound) { observeWrittenCompoundShape(compound, source, written, pay); return }
++        if (source !== geometry || received) { invalid = true; return }
++        received = true
++        // The writer's fresh rectangle record owns actual optional radii too.
++        // Seal it before later attribute hooks can change Object.prototype.
++        served = rectangle && written ? inertRectangleRecord(written) : written
++      }, { reserveProjection: (source: Geometry, operations: number) => {
++        if (source !== geometry || projectionReserved) { invalid = true; return false }
++        projectionReserved = true
++        return pay(operations)
++      }, textPaint: captured.kind === 'text' ? (source: object, fact: SvgTextPaintWrite | undefined): void => {
++        if (source !== captured || textPaintReceived) { textPaintInvalid = true; return }
++        textPaintReceived = true; textPaint = fact
++      } : undefined, rectangleAttributes: rectangle ? (source: ShapeMark, written: Readonly<Record<string, string>> | undefined): void => {
++        if (source !== captured || attributesReceived) { invalidAttributes = true; return }
++        attributesReceived = true
++        attributes = written
++      } : undefined }) : undefined
++      const { svg, xmlWrite } = serialize(captured, sink)
++      const textPaintCandidate = textPaintReceived && !textPaintInvalid ? textPaint : undefined
++      if (pay()) capturedLeaves.set(captured, captured)
++      const retained = { node: captured, paintNode: captured, svg, xmlWrite, textPaint: textPaintCandidate, conditional: false }
++      if (!supported) return retained
++      if (compound && captured.kind === 'shape' && geometry) {
++        const projection = reserved && completeWrittenCompoundShape(compound, geometry, svg, pay)
++        // Missing fresh callbacks or mismatched bytes cannot create the new
++        // compound projection; existing general compound proofs stay intact.
++        if (!projection) return retained
++        const paintNode = inertRectangleRecord(captured, 'geometry', projection.geometry, 'childPaints', projection.childPaints)
++        return paintNode ? { ...retained, paintNode } : retained
++      }
++      // A cached serialization, missing/duplicate receipt, failed capture or
++      // unsupported numeric projection cannot borrow another write's proof.
++      if (!reserved || !received || invalid || !served || !geometry || served.kind !== geometry.kind) return { ...retained, conditional: true }
++      if (rectangle && captured.kind === 'shape' && served.kind === 'rect') {
++        if (!attributesReceived || invalidAttributes || !attributes || !sameRectanglePaint(rectangle.paint, attributes)) return { ...retained, conditional: true }
++        // A rectangle has extent, not a line's start/end topology. Never
++        // borrow the line-collapse branch or pre-write radii for served ink.
++        if (!(served.width > 0 && served.height > 0) || (served.rx ?? 0) !== 0 || (served.ry ?? 0) !== 0) return { ...retained, conditional: true }
++        const paintNode = inertRectangleRecord(captured, 'geometry', served, 'paint', rectangle.paint)
++        return paintNode ? { ...retained, paintNode, conditional: false } : { ...retained, conditional: true }
++      }
++      if (served === geometry) return retained
++      if (captured.transform || captured.kind === 'connector' && (captured.route.closed || served.kind === 'polyline' && captured.markers.mid.length !== 0)) return { ...retained, conditional: true }
++      if (!pay(48)) return { ...retained, conditional: true }
++      // A path receipt owns only the actual d literal. Keep the already paid,
++      // immutable routing metadata; the certifier measures actual d segments.
++      const path = captured.kind === 'connector' && captured.route.geometry.kind === 'path' && served.kind === 'path'
++        ? replaceField(captured.route.geometry, 'd', served.d) : undefined
++      if (served.kind === 'path' && !path) return { ...retained, conditional: true }
++      const projection = served.kind === 'polyline' ? writtenPolylineProjectionOf(served) : undefined
++      const frozen = path ?? (served.kind === 'polyline' ? projection && served : snapshot(served))
++      if (!frozen) return { ...retained, conditional: true }
++      const start = frozen.kind === 'line' ? { x: frozen.x1, y: frozen.y1 } : frozen.kind === 'polyline' ? frozen.points[0] : undefined
++      const end = frozen.kind === 'line' ? { x: frozen.x2, y: frozen.y2 } : frozen.kind === 'polyline' ? frozen.points.at(-1) : undefined
++      const collapsed = !start || !end || (frozen.kind === 'polyline'
++        ? projection!.collapsed
++        : start.x === end.x && start.y === end.y)
++      if (captured.kind === 'shape') return { ...retained, paintNode: Object.freeze({ ...captured, geometry: frozen }), conditional: collapsed }
++      if (captured.kind !== 'connector' || !pay(64)) return { ...retained, conditional: true }
++      // Rebuild directions from served coordinates, never round unit tangents.
++      const contours = path ? captured.route.contours : projection?.contours ?? snapshot(connectorContourSemantics(frozen as typeof captured.route.geometry, false))
++      if (!contours) return { ...retained, conditional: true }
++      const route = Object.freeze({ ...captured.route, geometry: frozen, contours,
++        startTangent: contours[0]?.startTangent, endTangent: contours.at(-1)?.endTangent })
++      const paintNode = replaceField(captured, 'route', route)
++      return paintNode ? { ...retained, paintNode, conditional: !path && collapsed } : { ...retained, conditional: true }
++  }
+   return {
+     xml,
+     snapshot,
+@@ -655,101 +759,13 @@ export function createNativePaintEmission(maxOperations: number) {
+         emissionContext.hint(node)
+         if (node.kind !== 'document') emissionContext.leaf(capturedLeaves.get(node)!, svg)
+       } else emissionContext.invalidateFractionalCircle()
+-      return exhausted ? false : actualTextPaint ?? true
++      return work.exhausted() ? false : actualTextPaint ?? true
+     },
+-    leaf(node: Leaf, write: (node: Leaf, sink?: SvgGeometryWriteSink) => string | SvgXmlWrite): { node: Leaf; paintNode: Leaf; svg: string; xmlWrite: SvgXmlWrite | undefined; textPaint?: SvgTextPaintWrite; conditional: boolean } {
+-      const serialize = (source: Leaf, sink?: SvgGeometryWriteSink): { svg: string; xmlWrite: SvgXmlWrite | undefined } => {
+-        const written = write(source, sink)
+-        if (typeof written === 'string') return { svg: written, xmlWrite: undefined }
+-        const record = xml.read(written, source)
+-        if (!record) throw new TypeError('Native XML output must belong to its actual captured leaf')
+-        return { svg: record.svg, xmlWrite: written }
+-      }
+-      let captured: Leaf | undefined
+-      try { captured = copy(node, 0, new Set(), 'leaf') as Leaf } catch { /* Strict mutable fallback. */ }
+-      if (!captured) return { node, paintNode: node, ...serialize(node), conditional: true }
+-      transferSceneNodeSerialization(node, captured)
+-      const geometry = captured.kind === 'shape' ? captured.geometry : captured.kind === 'connector' && captured.lineStyle !== 'invisible' ? captured.route.geometry : undefined
+-      // Eligibility is decided before validation/writing can observe inherited
+-      // caller hooks. Unsupported rectangles retain their legacy inspection.
+-      const rectangle = captured.kind === 'shape' && geometry?.kind === 'rect' ? rectangleInput(captured, geometry) : undefined
+-      const compound = captured.kind === 'shape' && geometry?.kind === 'compound' ? prepareWrittenCompoundShape(captured, pay) : undefined
+-      const supported = !!compound || geometry?.kind === 'line' || geometry?.kind === 'polyline' || !!rectangle || captured.kind === 'connector' && geometry?.kind === 'path'
+-      // Constant custody is separate from variable projection work. The writer
+-      // reserves the entire token stream before allocating its first point.
+-      const reserved = supported && pay(192)
+-      let received = false, invalid = false, projectionReserved = false, served: Geometry | undefined
+-      let attributesReceived = false, invalidAttributes = false, attributes: Readonly<Record<string, string>> | undefined
+-      let textPaintReceived = false, textPaintInvalid = false, textPaint: SvgTextPaintWrite | undefined
+-      const sink: SvgGeometryWriteSink | undefined = reserved || captured.kind === 'text' ? Object.assign((source: Geometry, written: Geometry | undefined) => {
+-        if (compound) { observeWrittenCompoundShape(compound, source, written, pay); return }
+-        if (source !== geometry || received) { invalid = true; return }
+-        received = true
+-        // The writer's fresh rectangle record owns actual optional radii too.
+-        // Seal it before later attribute hooks can change Object.prototype.
+-        served = rectangle && written ? inertRectangleRecord(written) : written
+-      }, { reserveProjection: (source: Geometry, operations: number) => {
+-        if (source !== geometry || projectionReserved) { invalid = true; return false }
+-        projectionReserved = true
+-        return pay(operations)
+-      }, textPaint: captured.kind === 'text' ? (source: object, fact: SvgTextPaintWrite | undefined): void => {
+-        if (source !== captured || textPaintReceived) { textPaintInvalid = true; return }
+-        textPaintReceived = true; textPaint = fact
+-      } : undefined, rectangleAttributes: rectangle ? (source: ShapeMark, written: Readonly<Record<string, string>> | undefined): void => {
+-        if (source !== captured || attributesReceived) { invalidAttributes = true; return }
+-        attributesReceived = true
+-        attributes = written
+-      } : undefined }) : undefined
+-      const { svg, xmlWrite } = serialize(captured, sink)
+-      const textPaintCandidate = textPaintReceived && !textPaintInvalid ? textPaint : undefined
+-      if (pay()) capturedLeaves.set(captured, captured)
+-      const retained = { node: captured, paintNode: captured, svg, xmlWrite, textPaint: textPaintCandidate, conditional: false }
+-      if (!supported) return retained
+-      if (compound && captured.kind === 'shape' && geometry) {
+-        const projection = reserved && completeWrittenCompoundShape(compound, geometry, svg, pay)
+-        // Missing fresh callbacks or mismatched bytes cannot create the new
+-        // compound projection; existing general compound proofs stay intact.
+-        if (!projection) return retained
+-        const paintNode = inertRectangleRecord(captured, 'geometry', projection.geometry, 'childPaints', projection.childPaints)
+-        return paintNode ? { ...retained, paintNode } : retained
+-      }
+-      // A cached serialization, missing/duplicate receipt, failed capture or
+-      // unsupported numeric projection cannot borrow another write's proof.
+-      if (!reserved || !received || invalid || !served || !geometry || served.kind !== geometry.kind) return { ...retained, conditional: true }
+-      if (rectangle && captured.kind === 'shape' && served.kind === 'rect') {
+-        if (!attributesReceived || invalidAttributes || !attributes || !sameRectanglePaint(rectangle.paint, attributes)) return { ...retained, conditional: true }
+-        // A rectangle has extent, not a line's start/end topology. Never
+-        // borrow the line-collapse branch or pre-write radii for served ink.
+-        if (!(served.width > 0 && served.height > 0) || (served.rx ?? 0) !== 0 || (served.ry ?? 0) !== 0) return { ...retained, conditional: true }
+-        const paintNode = inertRectangleRecord(captured, 'geometry', served, 'paint', rectangle.paint)
+-        return paintNode ? { ...retained, paintNode, conditional: false } : { ...retained, conditional: true }
+-      }
+-      if (served === geometry) return retained
+-      if (captured.transform || captured.kind === 'connector' && (captured.route.closed || served.kind === 'polyline' && captured.markers.mid.length !== 0)) return { ...retained, conditional: true }
+-      if (!pay(48)) return { ...retained, conditional: true }
+-      // A path receipt owns only the actual d literal. Keep the already paid,
+-      // immutable routing metadata; the certifier measures actual d segments.
+-      const path = captured.kind === 'connector' && captured.route.geometry.kind === 'path' && served.kind === 'path'
+-        ? replaceField(captured.route.geometry, 'd', served.d) : undefined
+-      if (served.kind === 'path' && !path) return { ...retained, conditional: true }
+-      const projection = served.kind === 'polyline' ? writtenPolylineProjectionOf(served) : undefined
+-      const frozen = path ?? (served.kind === 'polyline' ? projection && served : snapshot(served))
+-      if (!frozen) return { ...retained, conditional: true }
+-      const start = frozen.kind === 'line' ? { x: frozen.x1, y: frozen.y1 } : frozen.kind === 'polyline' ? frozen.points[0] : undefined
+-      const end = frozen.kind === 'line' ? { x: frozen.x2, y: frozen.y2 } : frozen.kind === 'polyline' ? frozen.points.at(-1) : undefined
+-      const collapsed = !start || !end || (frozen.kind === 'polyline'
+-        ? projection!.collapsed
+-        : start.x === end.x && start.y === end.y)
+-      if (captured.kind === 'shape') return { ...retained, paintNode: Object.freeze({ ...captured, geometry: frozen }), conditional: collapsed }
+-      if (captured.kind !== 'connector' || !pay(64)) return { ...retained, conditional: true }
+-      // Rebuild directions from served coordinates, never round unit tangents.
+-      const contours = path ? captured.route.contours : projection?.contours ?? snapshot(connectorContourSemantics(frozen as typeof captured.route.geometry, false))
+-      if (!contours) return { ...retained, conditional: true }
+-      const route = Object.freeze({ ...captured.route, geometry: frozen, contours,
+-        startTangent: contours[0]?.startTangent, endTangent: contours.at(-1)?.endTangent })
+-      const paintNode = replaceField(captured, 'route', route)
+-      return paintNode ? { ...retained, paintNode, conditional: !path && collapsed } : { ...retained, conditional: true }
++    leaf(node: FullLeaf, write: LeafWriter<FullLeaf>): RetainedLeaf<FullLeaf> {
++      // This mode copies the complete submitted graph, as snapshot does.
++      return retainLeaf(node, write as LeafWriter<Leaf>, 'leaf') as RetainedLeaf<FullLeaf>
+     },
++    paintLeaf(node: FullLeaf, write: LeafWriter<Leaf>): RetainedLeaf<Leaf> { return retainLeaf(node, write, 'paint-leaf') },
+     finish(inspection: ScenePaintGeometryInspection, header: Omit<SceneDoc, 'parts'>, output: string | SvgXmlWrite, unrecordedPaint = false): void {
+       // An issued inspection cannot be resealed with another document. Nor can
+       // a wrapper around its already-issued occurrences borrow fresh custody.
+@@ -806,6 +822,7 @@ export function createNativePaintEmission(maxOperations: number) {
+       if (actualPaintRoster === true) {
+         for (let i = 0; i < inspection.primitives.length; i++) occurrence(inspection.primitives[i]!)
+       } else for (const primitive of inspection.primitives) occurrence(primitive)
++      const operations = work.operations(), exhausted = work.exhausted()
+       textPaintApply(textPaintPut, emissionWork, [inspection, (usedTextPaint ? textPaintFreeze : Object.freeze)({ operations, exhausted, uncertain,
+         closedMarkerContext: closedMarkerContext && definitionsClosed && !unrecordedPaint && rootOpens === 1 && rootCloses === 1 && !uncertain && !exhausted,
+         fractionalCircleContext: checkedContext.fractionalCircleContext && definitionsClosed && resources.size === checked.size
+diff --git a/src/scene/scene-validation-core.ts b/src/scene/scene-validation-core.ts
+index f8bd18613..0fa555e96 100644
+--- a/src/scene/scene-validation-core.ts
++++ b/src/scene/scene-validation-core.ts
+@@ -24,6 +24,7 @@ import type {
+   MarkerDescriptor,
+   SceneDoc,
+   SceneNode,
++  NativeSceneNode,
+   SceneRole,
+   SemanticChannels,
+   SceneOwner,
+@@ -1462,7 +1463,7 @@ export function sceneValidationMode(value: unknown, options: SceneValidationOpti
+ export interface NativeSceneValidator {
+   /** Rejects invalid source fields before writing; groups must have children: []. */
+   node(node: SceneNode, depth?: number, sink?: SvgGeometryWriteSink): string
+-  write(node: SceneNode, capture: SvgXmlCapture, depth?: number, sink?: SvgGeometryWriteSink): SvgXmlWrite
++  write(node: NativeSceneNode, capture: SvgXmlCapture, depth?: number, sink?: SvgGeometryWriteSink): SvgXmlWrite
+   depth(depth: number): void
+   enclosure(artworkId: string, owner: SceneOwner): void
+   /** Checks the full composed group limit without recounting its child bytes. */
+diff --git a/src/scene/serialization.ts b/src/scene/serialization.ts
+index cd3058909..177c15d2e 100644
+--- a/src/scene/serialization.ts
++++ b/src/scene/serialization.ts
+@@ -2,9 +2,9 @@ import { MAX_OCCLUSION_OPERATIONS } from './paint-work.ts'
+ import { connectorContourSemantics } from './connector-geometry.ts'
+ import { isAdmittedSceneDocument } from './scene-admission-state.ts'
+ import { isOwnDataSceneSnapshot, isOwnDataSceneSnapshotInert, isOwnDataSceneArrayInert } from './scene-data-snapshot.ts'
+-import type { SceneDoc, SceneNode, Geometry, MarkPaint, ShapeMark } from './ir.ts'
++import type { SceneDoc, NativeSceneNode, Geometry, MarkPaint, ShapeMark } from './ir.ts'
+ import { compareCodePointStrings } from '../shared/deterministic-order.ts'
+-import { writeImageSvg, writeConnectorSvg, writeShapeSvg, writeTextSvg, type SvgGeometryWriteSink, type SvgXmlCapture, type SvgXmlWrite } from './svg-writer.ts'
++import { writeImageSvg, writeConnectorSvg, writeShapeSvg, writeTextSvg, writeNativeTextSvg, type SvgGeometryWriteSink, type SvgXmlCapture, type SvgXmlWrite } from './svg-writer.ts'
+ import { rectanglePaintFields, writtenPolylineProjectionOf, prepareWrittenCompoundShape, observeWrittenCompoundShape, completeWrittenCompoundShape, type WrittenCompoundInput } from './written-geometry.ts'
+ import { createEmissionContext, type EmissionColorResolver } from './emission-context.ts'
+ 
+@@ -32,22 +32,22 @@ const POSSIBLE_FITTED_TEXT = /<\s*text/i
+  * proof cache. A later request cannot borrow an earlier cached serialization. */
+ declare const sceneWriteObserver: unique symbol
+ export interface SceneSerializationObserver { readonly [sceneWriteObserver]: true }
+-type SceneWriteCallback = (node: SceneNode, source: Geometry, served: Geometry | undefined, svg: string) => void
++type SceneWriteCallback = (node: NativeSceneNode, source: Geometry, served: Geometry | undefined, svg: string) => void
+ interface SceneWriteRecorder {
+-  string(node: Exclude<SceneNode, { kind: 'group' }>, svg: string): void
++  string(node: Exclude<NativeSceneNode, { kind: 'group' }>, svg: string): void
+   root(scene: SceneDoc): { readonly composition: GroupComposition; underlay(svg: string): void; complete(sealed: boolean): void } | undefined
+   reserve(): boolean
+   reserveProjection(operations: number): boolean
+-  document(node: Extract<SceneNode, { kind: 'document' }>, svg: string): void
++  document(node: Extract<NativeSceneNode, { kind: 'document' }>, svg: string): void
+   connector(node: ConnectorNode): void
+-  group(node: Extract<SceneNode, { kind: 'group' }>): { readonly composition: GroupComposition | undefined; complete(sealed: boolean): void } | undefined
+-  hint(node: SceneNode): boolean
++  group(node: Extract<NativeSceneNode, { kind: 'group' }>): { readonly composition: GroupComposition | undefined; complete(sealed: boolean): void } | undefined
++  hint(node: NativeSceneNode): boolean
+   compound(node: ShapeMark): WrittenCompoundInput | undefined
+   compoundRecord(node: ShapeMark, input: WrittenCompoundInput, svg: string): void
+   rectangle(node: ShapeMark): boolean
+   rectangleRecord(node: ShapeMark, source: Geometry, served: Geometry | undefined, attributes: Readonly<Record<string, string>> | undefined, svg: string): void
+-  contextLeaf(node: Exclude<SceneNode, { kind: 'group' }>, svg: string): void
+-  leaf(node: Exclude<SceneNode, { kind: 'group' }>, svg: string): void
++  contextLeaf(node: Exclude<NativeSceneNode, { kind: 'group' }>, svg: string): void
++  leaf(node: Exclude<NativeSceneNode, { kind: 'group' }>, svg: string): void
+   record: SceneWriteCallback
+ }
+ // Explicit transaction tokens identify recorders; there is no active global
+@@ -60,8 +60,8 @@ function readSceneWriteObserver(observer: SceneSerializationObserver): SceneWrit
+ const backendWriteObservers = new WeakMap<object, SceneSerializationObserver>()
+ export function sceneBackendWriteObserver(context: object): SceneSerializationObserver | undefined { return sceneObserverApply(sceneObserverGet, backendWriteObservers, [context]) }
+ export function sceneDocumentComposition(observer: SceneSerializationObserver, scene: SceneDoc) { return sceneObserverApply(sceneObserverGet, sceneWriteObservers, [observer])?.root(scene) }
+-type ConnectorNode = Extract<SceneNode, { kind: 'connector' }>
+-interface WrittenPath { readonly source: Geometry | undefined; readonly svg: string; readonly served: Exclude<SceneNode, { kind: 'group' }>; readonly conditional: boolean; readonly path: boolean }
++type ConnectorNode = Extract<NativeSceneNode, { kind: 'connector' }>
++interface WrittenPath { readonly source: Geometry | undefined; readonly svg: string; readonly served: Exclude<NativeSceneNode, { kind: 'group' }>; readonly conditional: boolean; readonly path: boolean }
+ export interface SceneWriteWork { readonly scene: SceneDoc; readonly operations: number; readonly exhausted: boolean; readonly uncertain: boolean; readonly fractionalCircleContext: boolean; readonly resolveColor?: EmissionColorResolver }
+ 
+ const ownValue = (value: object, key: string): unknown => {
+@@ -71,23 +71,23 @@ const ownValue = (value: object, key: string): unknown => {
+ 
+ class CapturedSceneWrites {
+   readonly #scene: SceneDoc
+-  readonly #paths: ReadonlyMap<SceneNode, WrittenPath>
++  readonly #paths: ReadonlyMap<NativeSceneNode, WrittenPath>
+   readonly #operations: number
+   readonly #exhausted: boolean
+   readonly #maxOperations: number
+   readonly #uncertain: boolean
+   readonly #resolveColor: EmissionColorResolver | undefined
+   readonly #fractionalCircleContext: boolean
+-  constructor(scene: SceneDoc, paths: ReadonlyMap<SceneNode, WrittenPath>, operations: number, exhausted: boolean, maxOperations: number, uncertain: boolean, fractionalCircleContext: boolean, resolveColor?: EmissionColorResolver) {
++  constructor(scene: SceneDoc, paths: ReadonlyMap<NativeSceneNode, WrittenPath>, operations: number, exhausted: boolean, maxOperations: number, uncertain: boolean, fractionalCircleContext: boolean, resolveColor?: EmissionColorResolver) {
+     this.#scene = scene; this.#paths = paths; this.#operations = operations; this.#exhausted = exhausted; this.#maxOperations = maxOperations; this.#uncertain = uncertain; this.#fractionalCircleContext = fractionalCircleContext; this.#resolveColor = resolveColor
+   }
+ 
+   begin(scene: SceneDoc) {
+     if (scene !== this.#scene) return undefined
+     let operations = this.#operations, exhausted = this.#exhausted
+-    const consumed = new Set<SceneNode>()
++    const consumed = new Set<NativeSceneNode>()
+     return {
+-      node: (node: Exclude<SceneNode, { kind: 'group' }>): WrittenPath | undefined => {
++      node: (node: Exclude<NativeSceneNode, { kind: 'group' }>): WrittenPath | undefined => {
+         if (exhausted || operations > this.#maxOperations - 16) { exhausted = true; return undefined }
+         operations += 16
+         const written = this.#paths.get(node)
+@@ -120,7 +120,7 @@ export function createSceneWriteCapture(maxOperations: number, options: { fracti
+   const fractionalCircleOutput = !!option && Object.hasOwn(option, 'value') && option.value === true
+   let operations = 0, exhausted = false
+   let phase: 'collecting' | 'prepared' | 'emitting' | 'finished' = 'collecting'
+-  const paths = new Map<SceneNode, WrittenPath>()
++  const paths = new Map<NativeSceneNode, WrittenPath>()
+   const pay = (count: number): boolean => {
+     if (exhausted || !(actualBackendWrite ? groupSafeInteger(count) : Number.isSafeInteger(count)) || count < 0 || count > maxOperations - operations) { exhausted = true; return false }
+     operations += count
+@@ -132,7 +132,7 @@ export function createSceneWriteCapture(maxOperations: number, options: { fracti
+   let backendContext: object | undefined
+   let activeProof: import('./paint-certification.ts').PaintLayoutCertification | undefined
+   let actualRoots = 0, actualRootCompleted = false, actualClosed = true
+-  const string = (node: Exclude<SceneNode, { kind: 'group' }>, svg: string): void => {
++  const string = (node: Exclude<NativeSceneNode, { kind: 'group' }>, svg: string): void => {
+     if (!actualBackendWrite || phase === 'finished') return
+     if (phase !== 'emitting') {
+       if (!pay(1)) return
+@@ -148,7 +148,7 @@ export function createSceneWriteCapture(maxOperations: number, options: { fracti
+     if (!pinned || pinned.kind !== node.kind || typeof svg !== 'string' || pinned.svg !== svg) actualClosed = false
+   }
+   const rectangles = new WeakSet<ShapeMark>()
+-  const fractional = new WeakSet<SceneNode>()
++  const fractional = new WeakSet<NativeSceneNode>()
+   const inert = <T extends object>(source: T, field?: string, value?: unknown): T | undefined => {
+     if (!pay(2)) return undefined
+     const keys = Object.getOwnPropertyNames(source)
+@@ -164,7 +164,7 @@ export function createSceneWriteCapture(maxOperations: number, options: { fracti
+     if (field !== undefined && !replaced) return undefined
+     return Object.preventExtensions(result)
+   }
+-  const hint = (node: SceneNode): boolean => {
++  const hint = (node: NativeSceneNode): boolean => {
+     if (phase === 'finished' || !fractionalCircleOutput || actualBackendWrite && phase === 'emitting') return false
+     // No extra property access or reflection reaches an ordinary raw mark.
+     if (!TRANSFERRED_WRITABLE_NODES.has(node)) { context.invalidateFractionalCircle(); return false }
+@@ -494,36 +494,36 @@ export function canonicalizeSceneNodeSerialization(svg: string): string {
+ 
+ /** Attach a document mark's markup. Every other mark's SVG is written from
+  * its fields, so what paint certification reads is what the output shows. */
+-export function attachSceneNodeSerialization<T extends SceneNode>(node: T, svg: string): T {
++export function attachSceneNodeSerialization<T extends NativeSceneNode>(node: T, svg: string): T {
+   if (node.kind !== 'document') throw new TypeError(`Scene ${node.kind} "${node.id}" is written from its fields, not stored markup`)
+   SERIALIZED_SCENE_NODES.set(node, canonicalizeSceneNodeSerialization(svg))
+   return node
+ }
+ 
+ /** Record that a mark constructor built `node`, so the writer may draw it. */
+-export function admitWritableSceneNode<T extends SceneNode>(node: T): T {
++export function admitWritableSceneNode<T extends NativeSceneNode>(node: T): T {
+   WRITABLE_SCENE_NODES.add(node)
+   return node
+ }
+ 
+-export function sceneNodeSerialization(node: SceneNode): string {
++export function sceneNodeSerialization(node: NativeSceneNode): string {
+   return serializeSceneNode(node)
+ }
+ 
+ /** Observe only this actual write. Cached markup supplies no new receipt. */
+-export function sceneNodeSerializationObserved(node: SceneNode, sink?: SvgGeometryWriteSink, observer?: SceneSerializationObserver): string {
++export function sceneNodeSerializationObserved(node: NativeSceneNode, sink?: SvgGeometryWriteSink, observer?: SceneSerializationObserver): string {
+   return serializeSceneNode(node, sink, observer)
+ }
+ 
+ /** One actual typed write supplies both the bytes and its XML construction fact.
+  * Stored/mutable/cached markup keeps its complete XML in the projection. */
+-export function sceneNodeWrite(node: SceneNode, capture: SvgXmlCapture, sink?: SvgGeometryWriteSink, observer?: SceneSerializationObserver): SvgXmlWrite {
++export function sceneNodeWrite(node: NativeSceneNode, capture: SvgXmlCapture, sink?: SvgGeometryWriteSink, observer?: SceneSerializationObserver): SvgXmlWrite {
+   return serializeSceneNode(node, sink, observer, capture)
+ }
+ 
+-function serializeSceneNode(node: SceneNode, sink?: SvgGeometryWriteSink, observer?: SceneSerializationObserver): string
+-function serializeSceneNode(node: SceneNode, sink: SvgGeometryWriteSink | undefined, observer: SceneSerializationObserver | undefined, capture: SvgXmlCapture): SvgXmlWrite
+-function serializeSceneNode(node: SceneNode, sink?: SvgGeometryWriteSink, observer?: SceneSerializationObserver, capture?: SvgXmlCapture): string | SvgXmlWrite {
++function serializeSceneNode(node: NativeSceneNode, sink?: SvgGeometryWriteSink, observer?: SceneSerializationObserver): string
++function serializeSceneNode(node: NativeSceneNode, sink: SvgGeometryWriteSink | undefined, observer: SceneSerializationObserver | undefined, capture: SvgXmlCapture): SvgXmlWrite
++function serializeSceneNode(node: NativeSceneNode, sink?: SvgGeometryWriteSink, observer?: SceneSerializationObserver, capture?: SvgXmlCapture): string | SvgXmlWrite {
+   const recorder = observer && readSceneWriteObserver(observer)
+   const stored = SERIALIZED_SCENE_NODES.get(node)
+   if (stored !== undefined) {
+@@ -594,11 +594,11 @@ function serializeSceneNode(node: SceneNode, sink?: SvgGeometryWriteSink, observ
+   return capture ? output as SvgXmlWrite : svg
+ }
+ 
+-function writeStructuredSceneNode(node: SceneNode, capture: SvgXmlCapture, sink?: SvgGeometryWriteSink, observer?: SceneSerializationObserver): SvgXmlWrite {
++function writeStructuredSceneNode(node: NativeSceneNode, capture: SvgXmlCapture, sink?: SvgGeometryWriteSink, observer?: SceneSerializationObserver): SvgXmlWrite {
+   switch (node.kind) {
+     case 'image': return writeImageSvg(node, capture)
+     case 'shape': return writeShapeSvg(node, sink, capture)
+-    case 'text': return writeTextSvg(node, capture, sink)
++    case 'text': return writeNativeTextSvg(node, capture, sink)
+     case 'connector': return writeConnectorSvg(node, sink, capture)
+     case 'group': return capture.join([
+       capture.raw(node.open),
+@@ -609,11 +609,11 @@ function writeStructuredSceneNode(node: SceneNode, capture: SvgXmlCapture, sink?
+   }
+ }
+ 
+-function writeSceneNode(node: SceneNode, sink?: SvgGeometryWriteSink, observer?: SceneSerializationObserver, composition?: GroupComposition): string {
++function writeSceneNode(node: NativeSceneNode, sink?: SvgGeometryWriteSink, observer?: SceneSerializationObserver, composition?: GroupComposition): string {
+   switch (node.kind) {
+     case 'image': return writeImageSvg(node)
+     case 'shape': return writeShapeSvg(node, sink)
+-    case 'text': return writeTextSvg(node)
++    case 'text': return writeNativeTextSvg(node)
+     case 'connector': return writeConnectorSvg(node, sink)
+     case 'group': {
+       if (!composition) return [
+@@ -666,7 +666,7 @@ interface GroupComposition {
+   beforeJoin(parts: unknown): void
+   indent(svg: string, spaces: number): string
+ }
+-function groupComposition(node: Extract<SceneNode, { kind: 'group' }>, pay: (count: number) => boolean, root = false): GroupComposition {
++function groupComposition(node: Extract<NativeSceneNode, { kind: 'group' }>, pay: (count: number) => boolean, root = false): GroupComposition {
+   let valid = true
+   const charge = (count = 1): boolean => { if (valid && !pay(count)) valid = false; return valid }
+   const descriptor = (source: object, key: PropertyKey): PropertyDescriptor | undefined => charge() ? groupOwnDescriptor(source, key) : undefined
+@@ -772,7 +772,7 @@ export function hasSceneNodeSerialization(value: object): boolean {
+ export function sceneHasOnlyPreparedText(scene: SceneDoc): boolean {
+   // The fitting pass accepts whitespace after '<' and compares names without
+   // case. Opaque fragments must conservatively cover that same lexical model.
+-  const prepared = (node: SceneNode): boolean => {
++  const prepared = (node: NativeSceneNode): boolean => {
+     if (node.kind === 'document') {
+       const svg = SERIALIZED_SCENE_NODES.get(node)
+       return svg !== undefined && !POSSIBLE_FITTED_TEXT.test(svg)
+diff --git a/src/scene/svg-writer.ts b/src/scene/svg-writer.ts
+index 0e9c292fc..163a59ebb 100644
+--- a/src/scene/svg-writer.ts
++++ b/src/scene/svg-writer.ts
+@@ -7,13 +7,13 @@ import { retainWrittenFields, retainTextAttributes, writeTextOpening, writerEvid
+ // typography, transforms, markers, identity and ARIA come from the mark.
+ // ============================================================================
+ 
+-import type { ConnectorLabelDescriptor, ConnectorMark, Geometry, ImageMark, MarkAttributes, MarkPaint, ScenePoint, SceneTransform, ShapeMark, TextMark } from './ir.ts'
++import type { ConnectorLabelDescriptor, ConnectorMark, Geometry, ImageMark, MarkAttributes, MarkPaint, ScenePoint, SceneTransform, ShapeMark, TextMark, NativeTextPaintMark } from './ir.ts'
+ import type { SvgSemanticIdentity } from './identity.ts'
+ import type { SvgSemanticAccessibility } from './accessibility.ts'
+ import { hasDomSvgIdentityRole } from './identity.ts'
+ import { serializeTransform } from './transforms.ts'
+ import { connectorInlineLabelText } from './bounds.ts'
+-import { escapeAttr, escapeXml, renderMultilineText, type PreparedSingleLineWrite } from '../multiline-utils.ts'
++import { escapeAttr, escapeXml, renderMultilinePaintText, type PreparedSingleLineWrite } from '../multiline-utils.ts'
+ import { formatSvgNumber, formatSvgNumericAttribute } from '../shared/svg-number.ts'
+ import { connectorUnitTangent } from './connector-geometry.ts'
+ import { createWrittenPolyline } from './written-geometry.ts'
+@@ -69,6 +69,7 @@ function xmlReferenceLength(value: string, start: number): number {
+ function xmlAsciiLetter(character: string): boolean { return character >= 'A' && character <= 'Z' || character >= 'a' && character <= 'z' }
+ type XmlProjectionResult = string | XmlProjection | undefined
+ interface XmlCaptureState {
++  readonly nativeComposition: boolean
+   pay(operations: number): boolean
+   literal(value: string, attribute: boolean): boolean
+   name(value: string): boolean
+@@ -91,7 +92,23 @@ interface XmlWriteFact {
+ const xmlCaptures = new xmlFactMap<SvgXmlCapture, XmlCaptureState>()
+ const xmlWrites = new xmlFactMap<SvgXmlWrite, XmlWriteFact>()
+ function xmlCaptureState(capture: SvgXmlCapture): XmlCaptureState | undefined { return xmlFactApply(xmlFactGet, xmlCaptures, [capture]) }
+-export function createSvgXmlCapture(work: (operations: number) => boolean): SvgXmlCapture {
++/** Native owns this allowance; no caller-dispatched work callback participates
++ * in its late composition. Generic captures keep their original callback path. */
++export function createNativeXmlWork(maxOperations: number) {
++  if (!Number.isSafeInteger(maxOperations) || maxOperations < 0 || maxOperations > MAX_OCCLUSION_OPERATIONS) throw new RangeError('Invalid Native emission work allowance')
++  let operations = 0, exhausted = false
++  const pay = (count = 1): boolean => {
++    if (exhausted) return false
++    if (!Number.isSafeInteger(count) || count < 0 || count > maxOperations - operations) { exhausted = true; return false }
++    operations += count
++    return true
++  }
++  return { pay, operations: () => operations, exhausted: () => exhausted, capture: () => createXmlCapture(pay, true) }
++}
++
++export function createSvgXmlCapture(work: (operations: number) => boolean): SvgXmlCapture { return createXmlCapture(work, false) }
++
++function createXmlCapture(work: (operations: number) => boolean, nativeComposition: boolean): SvgXmlCapture {
+   const names = new Map<string, boolean>(), attributes = new Map<string, boolean>(), texts = new Map<string, boolean>()
+   let exhausted = false
+   const pay = (count: number): boolean => {
+@@ -196,19 +213,33 @@ export function createSvgXmlCapture(work: (operations: number) => boolean): SvgX
+       }
+       return issue(svg, children ? () => {
+         if (!pay(1)) return undefined
++        let whitespace = nativeComposition
++        if (whitespace) {
++          if (!pay(separator.length + 1)) return undefined
++          for (let i = 0; i < separator.length; i++) {
++            const character = separator[i]!
++            if (character !== ' ' && character !== '\t' && character !== '\r' && character !== '\n') { whitespace = false; break }
++          }
++        }
+         const occupied = xmlList<number>()
+-        let skeleton = ''
++        let skeleton = '', previousOccupied = false
+         for (let i = 0; i < children.length; i++) {
+-          if (i) skeleton += separator
+           const checked = projectFact(children[i]!)
+           if (!checked) return undefined
++          // Each child has completed its original late lexical checks. Adjacent
++          // closed leaves separated only by XML whitespace occupy the same DATA
++          // interval; one insertion witness proves that interval for all of them.
++          if (whitespace && previousOccupied && checked === OCCUPIED_XML_LEAF) continue
++          if (i) skeleton += separator
+           for (let j = 0; j < checked.occupied.length; j++) {
+             if (!pay(1)) return undefined
+             occupied[occupied.length++] = skeleton.length + checked.occupied[j]!
+           }
+           skeleton += checked.skeleton
++          previousOccupied = checked === OCCUPIED_XML_LEAF
+         }
+         if (!pay(children.length + skeleton.length + occupied.length + 2)) return undefined
++        if (nativeComposition && previousOccupied && occupied.length === 1 && skeleton === ' ') return OCCUPIED_XML_LEAF
+         return { skeleton, occupied }
+       } : svg)
+     },
+@@ -244,6 +275,9 @@ export function createSvgXmlCapture(work: (operations: number) => boolean): SvgX
+       return issue(svg, () => {
+         if (!pay(1)) return undefined
+         const checked = projectFact(found)
++        // Indentation cannot move a whole closed leaf out of DATA. Keep its
++        // canonical insertion witness instead of copying padding and offsets.
++        if (nativeComposition && checked === OCCUPIED_XML_LEAF) return checked
+         if (!checked || !pay(checked.skeleton.length + padding + 3)) return undefined
+         const occupied = xmlList<number>()
+         let skeleton = pad, next = 0
+@@ -276,7 +310,7 @@ export function createSvgXmlCapture(work: (operations: number) => boolean): SvgX
+   pinXmlSlot(capture, 'raw', capture.raw); pinXmlSlot(capture, 'join', capture.join)
+   pinXmlSlot(capture, 'indent', capture.indent); pinXmlSlot(capture, 'read', capture.read); pinXmlSlot(capture, 'verify', capture.verify)
+   writtenFactSeal(capture)
+-  xmlFactApply(xmlFactSet, xmlCaptures, [capture, { pay, literal, name, prepared, issue, project(write: SvgXmlWrite) {
++  xmlFactApply(xmlFactSet, xmlCaptures, [capture, { nativeComposition, pay, literal, name, prepared, issue, project(write: SvgXmlWrite) {
+     const found = factOf(write)
+     return !!found && projectFact(found) !== undefined
+   } } satisfies XmlCaptureState])
+@@ -295,7 +329,38 @@ function finishXmlLeaf(capture: SvgXmlCapture, node: object, svg: string, xml: X
+   } : svg, node)
+ }
+ 
+-type XmlWriteEvent = readonly ['element', string] | readonly ['attribute', string, string, (keyof MarkPaint)?] | readonly ['text', string] | readonly ['prepared', string, string, string, string, string]
++// These names reach the private writer only as module-owned literals.
++type FixedXmlAttributeName = 'aria-hidden' | 'aria-label' | 'aria-roledescription' | 'class' | 'cx' | 'cy' | 'd' | 'data-connector-label-for' | 'data-direction' | 'data-from' | 'data-id' | 'data-relationship' | 'data-role' | 'data-to' | 'dominant-baseline' | 'fill' | 'fill-opacity' | 'font-family' | 'font-size' | 'font-style' | 'font-weight' | 'height' | 'href' | 'letter-spacing' | 'marker-end' | 'marker-mid' | 'marker-start' | 'opacity' | 'paint-order' | 'pathLength' | 'pointer-events' | 'points' | 'preserveAspectRatio' | 'r' | 'role' | 'rx' | 'ry' | 'stroke' | 'stroke-dasharray' | 'stroke-dashoffset' | 'stroke-linecap' | 'stroke-linejoin' | 'stroke-miterlimit' | 'stroke-opacity' | 'stroke-width' | 'style' | 'tabindex' | 'text-anchor' | 'text-decoration' | 'transform' | 'vector-effect' | 'width' | 'x' | 'x1' | 'x2' | 'y' | 'y1' | 'y2'
++type XmlWriteEvent = readonly ['element', string] | readonly ['attribute' | 'fixed-attribute', string, string, (keyof MarkPaint)?] | readonly ['text', string] | readonly ['prepared', string, string, string, string, string]
++function fixedAttributeBit(name: string): number {
++  switch (name) {
++    case 'x': return 1
++    case 'y': return 2
++    case 'dy': return 4
++    case 'textLength': return 8
++    case 'data-prepared-text': return 16
++    case 'lengthAdjust': return 32
++    case 'data-font-metrics': return 64
++    case 'text-anchor': return 128
++    case 'font-size': return 256
++    case 'font-weight': return 512
++    case 'data-id': return 1024
++    case 'data-role': return 2048
++    case 'fill': return 4096
++    case 'stroke': return 8192
++    case 'font-family': return 16384
++    case 'class': return 32768
++    case 'aria-label': return 65536
++    case 'aria-hidden': return 131072
++    case 'tabindex': return 262144
++    case 'font-style': return 524288
++    case 'text-decoration': return 1048576
++    case 'dominant-baseline': return 2097152
++    case 'letter-spacing': return 4194304
++    case 'transform': return 8388608
++    default: return 0
++  }
++}
+ class XmlLeafWrite {
+   readonly #state: XmlCaptureState
+   readonly #events: XmlList<XmlWriteEvent> | undefined
+@@ -309,16 +374,16 @@ class XmlLeafWrite {
+   element(name: string): void {
+     if (this.valid) { this.valid = this.#state.pay(1); if (this.valid) this.#events![this.#events!.length++] = ['element', name] }
+   }
+-  attribute(name: string, escaped: unknown): void {
+-    if (this.valid) { this.valid = typeof escaped === 'string' && this.#state.pay(1); if (this.valid) this.#events![this.#events!.length++] = ['attribute', name, escaped as string] }
++  attribute(name: string, escaped: unknown, fixed = false): void {
++    if (this.valid) { this.valid = typeof escaped === 'string' && this.#state.pay(1); if (this.valid) this.#events![this.#events!.length++] = [fixed && this.#state.nativeComposition ? 'fixed-attribute' : 'attribute', name, escaped as string] }
+   }
+   recordPaintField(field: keyof MarkPaint): void {
+     if (!this.valid) return
+     this.valid = this.#state.pay(1)
+     if (!this.valid) return
+     const index = this.#events!.length - 1, event = this.#events![index]
+-    if (!event || event[0] !== 'attribute' || event.length !== 3) { this.valid = false; return }
+-    this.#events![index] = ['attribute', event[1], event[2], field]
++    if (!event || event[0] !== 'attribute' && event[0] !== 'fixed-attribute' || event.length !== 3) { this.valid = false; return }
++    this.#events![index] = [event[0], event[1], event[2], field]
+   }
+   text(content: string): void {
+     if (this.valid) { this.valid = typeof content === 'string' && this.#state.pay(1); if (this.valid) this.#events![this.#events!.length++] = ['text', content] }
+@@ -340,7 +405,7 @@ class XmlLeafWrite {
+     for (let i = 0; i < xml.#events!.length; i++) {
+       if (!xml.#state.pay(2)) return undefined
+       const event = xml.#events![i]!
+-      if (event[0] === 'attribute' && event.length === 4) {
++      if ((event[0] === 'attribute' || event[0] === 'fixed-attribute') && event.length === 4) {
+         const field = event[3], escaped = event[2]
+         if (field === undefined || !xml.#state.pay(2 + escaped.length)) return undefined
+         for (let j = 0; j < escaped.length; j++) if (escaped[j] === '&') return undefined
+@@ -357,18 +422,37 @@ class XmlLeafWrite {
+   check(): boolean {
+     if (!this.valid || !this.#state.pay(1)) return false
+     const attributes = new Set<string>()
++    let fixedNames = 0, preparedSeen = false
+     for (let i = 0; i < this.#events!.length; i++) {
+       const event = this.#events![i]!
+-      if (!this.#state.pay(2)) return false
++      const attribute = event[0] === 'attribute' || event[0] === 'fixed-attribute'
++      const bit = attribute && this.#state.nativeComposition ? fixedAttributeBit(event[1]) : 0
++      // One fixed vocabulary bit replaces the two general Set operations.
++      if (!this.#state.pay(bit ? 1 : 2)) return false
+       if (event[0] === 'element') {
+         attributes.clear()
++        fixedNames = 0; preparedSeen = false
+         const name = event[1]
+         if (name !== 'rect' && name !== 'circle' && name !== 'ellipse' && name !== 'line' && name !== 'polygon' && name !== 'polyline' && name !== 'path' && name !== 'text') return false
+-      } else if (event[0] === 'attribute') {
+-        if (attributes.has(event[1]) || !this.#state.name(event[1]) || !this.#state.literal(event[2], true)) return false
+-        attributes.add(event[1])
++      } else if (event[0] === 'attribute' || event[0] === 'fixed-attribute') {
++        if (bit ? fixedNames & bit : attributes.has(event[1])) return false
++        if (event[0] === 'attribute' && !this.#state.name(event[1]) || !this.#state.literal(event[2], true)) return false
++        if (bit) fixedNames |= bit
++        else attributes.add(event[1])
+       } else if (event[0] === 'prepared') {
+         if (!this.#state.prepared()) return false
++        if (this.#state.nativeComposition) {
++          // The multiline producer emitted these seven distinct fixed names.
++          // The existing outer-attribute visit owns conflict discovery; only
++          // the four actual variable literals and content still need checking.
++          if (!this.#state.pay(2) || fixedNames & 127 || preparedSeen) return false
++          preparedSeen = true
++          fixedNames |= 127
++          if (!this.#state.literal(event[1], true) || !this.#state.literal(event[2], true)
++            || !this.#state.literal(event[3], true) || !this.#state.literal(event[4], true)
++            || !this.#state.literal(event[5], false)) return false
++          continue
++        }
+         const attribute = (name: string, value?: string): boolean => {
+           if (!this.#state.pay(2) || attributes.has(name)) return false
+           attributes.add(name)
+@@ -393,13 +477,13 @@ class ActualTextPaintWrite implements SvgTextPaintWrite {
+   declare readonly [svgTextPaintWrite]: true
+   readonly #capture: SvgXmlCapture
+   readonly #write: SvgXmlWrite
+-  readonly #source: TextMark
++  readonly #source: NativeTextPaintMark
+   readonly #svg: string
+   #paint: MarkPaint | undefined
+   #paintRead = false
+   readonly #xml: XmlLeafWrite | undefined
+   readonly #inherited: boolean
+-  constructor(issuer: object, capture: SvgXmlCapture, write: SvgXmlWrite, source: TextMark, svg: string, xml: XmlLeafWrite | undefined, inherited: boolean) {
++  constructor(issuer: object, capture: SvgXmlCapture, write: SvgXmlWrite, source: NativeTextPaintMark, svg: string, xml: XmlLeafWrite | undefined, inherited: boolean) {
+     if (issuer !== textPaintIssuer) throw new TypeError('Actual text paint requires its writer')
+     this.#capture = capture; this.#write = write; this.#source = source; this.#svg = svg; this.#xml = xml; this.#inherited = inherited
+   }
+@@ -452,7 +536,7 @@ export type SvgGeometryWriteSink = ((source: Geometry, served: Geometry | undefi
+   /** One complete shape write's actual paint literals and transform presence.
+    * Undefined means the bounded attribute receipt could not be retained. */
+   readonly rectangleAttributes?: (source: ShapeMark, attributes: Readonly<Record<string, string>> | undefined) => void
+-  readonly textPaint?: (source: TextMark, fact: SvgTextPaintWrite | undefined) => void
++  readonly textPaint?: (source: NativeTextPaintMark, fact: SvgTextPaintWrite | undefined) => void
+ }
+ 
+ interface WrittenLeafContext { readonly transformed: boolean }
+@@ -480,7 +564,12 @@ class SvgWriter {
+ 
+   constructor(capture?: SvgXmlCapture, text = false) {
+     const state = capture && xmlCaptureState(capture)
+-    if (state) { this.xml = new XmlLeafWrite(state); if (text) this.xml.element('text') }
++    if (state) {
++      this.xml = new XmlLeafWrite(state)
++      // The prepared multiline producer's opening name is the literal `text`.
++      // This leaf has no earlier element or attributes to reset/revalidate.
++      if (text && !state.nativeComposition) this.xml.element('text')
++    }
+   }
+ 
+   element(name: string): void {
+@@ -502,19 +591,20 @@ class SvgWriter {
+ 
+   raw(text: string): void { this.value += text }
+ 
+-  attribute(name: string, value: string | number, changedToken?: (offset: number, literal: string) => boolean | void, numericToken?: (literal: string, raw: string) => boolean | void, paintField?: keyof MarkPaint): string {
++  attribute(name: string, value: string | number, changedToken?: (offset: number, literal: string) => boolean | void, numericToken?: (literal: string, raw: string) => boolean | void, paintField?: keyof MarkPaint, fixed = false): string {
+     const literal = typeof value === 'number' ? formatSvgNumber(value) : formatSvgNumericAttribute(name, value, changedToken, numericToken)
+     const escaped = typeof value === 'number' ? literal : escapeAttr(literal)
+     this.attributes?.push(name, escaped)
+     this.value += ` ${name}="${escaped}"`
+-    this.xml?.attribute(name, escaped)
++    this.xml?.attribute(name, escaped, fixed)
+     if (paintField !== undefined && this.observePaint) this.xml?.recordPaintField(paintField)
+     if (name === 'transform') this.transformed = true
+     this.observeAttributes?.(name, literal)
+     if (paintField !== undefined) this.observePaint?.(paintField, literal, escaped)
+     return literal
+   }
+-  paintAttribute(field: keyof MarkPaint, name: string, value: string): void { this.attribute(name, value, undefined, undefined, field) }
++  fixedAttribute(name: FixedXmlAttributeName, value: string | number, changedToken?: (offset: number, literal: string) => boolean | void, numericToken?: (literal: string, raw: string) => boolean | void): string { return this.attribute(name, value, changedToken, numericToken, undefined, true) }
++  paintAttribute(field: keyof MarkPaint, name: FixedXmlAttributeName, value: string): void { this.attribute(name, value, undefined, undefined, field, true) }
+ }
+ 
+ /** `data-*` keys the writer derives from typed fields, or that the shared
+@@ -528,11 +618,11 @@ export const MARK_DATA_KEY = /^[a-z][a-z0-9-]*$/
+ 
+ function hooks(out: SvgWriter, attributes: MarkAttributes | undefined): void {
+   if (!attributes) return
+-  if (attributes.className) out.attribute('class', attributes.className)
++  if (attributes.className) out.fixedAttribute('class', attributes.className)
+   if (attributes.data) for (const key of Object.keys(attributes.data)) out.attribute(`data-${key}`, attributes.data[key]!)
+-  if (attributes.ariaHidden) out.attribute('aria-hidden', 'true')
+-  if (attributes.tabIndex === 0) out.attribute('tabindex', 0)
+-  if (attributes.ariaLabel !== undefined) out.attribute('aria-label', attributes.ariaLabel)
++  if (attributes.ariaHidden) out.fixedAttribute('aria-hidden', 'true')
++  if (attributes.tabIndex === 0) out.fixedAttribute('tabindex', 0)
++  if (attributes.ariaLabel !== undefined) out.fixedAttribute('aria-label', attributes.ariaLabel)
+ }
+ 
+ function paintAttributes(out: SvgWriter, paint: MarkPaint): void {
+@@ -552,21 +642,21 @@ function paintAttributes(out: SvgWriter, paint: MarkPaint): void {
+ }
+ 
+ function transformAttribute(out: SvgWriter, transform: SceneTransform | undefined): void {
+-  if (transform) out.attribute('transform', serializeTransform(transform))
++  if (transform) out.fixedAttribute('transform', serializeTransform(transform))
+ }
+ 
+ /** Identity on the roles whose DOM contract carries it, then relation ARIA. */
+ function identityAttributes(out: SvgWriter, identity: SvgSemanticIdentity | undefined, accessibility: SvgSemanticAccessibility | undefined): void {
+   if (identity && hasDomSvgIdentityRole(identity.role)) {
+-    out.attribute('data-id', identity.id)
+-    out.attribute('data-role', identity.role)
+-    if (identity.from !== undefined) out.attribute('data-from', identity.from)
+-    if (identity.to !== undefined) out.attribute('data-to', identity.to)
++    out.fixedAttribute('data-id', identity.id)
++    out.fixedAttribute('data-role', identity.role)
++    if (identity.from !== undefined) out.fixedAttribute('data-from', identity.from)
++    if (identity.to !== undefined) out.fixedAttribute('data-to', identity.to)
+   }
+   if (accessibility) {
+-    out.attribute('role', accessibility.role)
+-    out.attribute('aria-roledescription', accessibility.roleDescription)
+-    out.attribute('aria-label', accessibility.label)
++    out.fixedAttribute('role', accessibility.role)
++    out.fixedAttribute('aria-roledescription', accessibility.roleDescription)
++    out.fixedAttribute('aria-label', accessibility.label)
+   }
+ }
+ 
+@@ -575,15 +665,15 @@ type ElementGeometry = Exclude<Geometry, { kind: 'compound' }> | Exclude<Connect
+ function geometryAttributes(out: SvgWriter, geometry: ElementGeometry, sink?: SvgGeometryWriteSink): void {
+   switch (geometry.kind) {
+     case 'rect': {
+-      const rawX = geometry.x, x = out.attribute('x', rawX)
+-      const rawY = geometry.y, y = out.attribute('y', rawY)
+-      const rawWidth = geometry.width, width = out.attribute('width', rawWidth)
+-      const rawHeight = geometry.height, height = out.attribute('height', rawHeight)
++      const rawX = geometry.x, x = out.fixedAttribute('x', rawX)
++      const rawY = geometry.y, y = out.fixedAttribute('y', rawY)
++      const rawWidth = geometry.width, width = out.fixedAttribute('width', rawWidth)
++      const rawHeight = geometry.height, height = out.fixedAttribute('height', rawHeight)
+       let rawRx: number | undefined, rawRy: number | undefined, rx: string | undefined, ry: string | undefined
+       // Keep the optional fields' original conditional/read order, including
+       // generic getter callers. The receipt retains only actual attribute reads.
+-      if (geometry.rx !== undefined) { rawRx = geometry.rx; rx = out.attribute('rx', rawRx) }
+-      if (geometry.ry !== undefined) { rawRy = geometry.ry; ry = out.attribute('ry', rawRy) }
++      if (geometry.rx !== undefined) { rawRx = geometry.rx; rx = out.fixedAttribute('rx', rawRx) }
++      if (geometry.ry !== undefined) { rawRy = geometry.ry; ry = out.fixedAttribute('ry', rawRy) }
+       if (sink) sink(geometry, {
+         kind: 'rect', x: Number(x), y: Number(y), width: Number(width), height: Number(height),
+         ...(rx === undefined ? {} : { rx: Number(rx) }), ...(ry === undefined ? {} : { ry: Number(ry) }),
+@@ -591,21 +681,21 @@ function geometryAttributes(out: SvgWriter, geometry: ElementGeometry, sink?: Sv
+       return
+     }
+     case 'circle':
+-      out.attribute('cx', geometry.cx)
+-      out.attribute('cy', geometry.cy)
+-      out.attribute('r', geometry.r)
++      out.fixedAttribute('cx', geometry.cx)
++      out.fixedAttribute('cy', geometry.cy)
++      out.fixedAttribute('r', geometry.r)
+       return
+     case 'ellipse':
+-      out.attribute('cx', geometry.cx)
+-      out.attribute('cy', geometry.cy)
+-      out.attribute('rx', geometry.rx)
+-      out.attribute('ry', geometry.ry)
++      out.fixedAttribute('cx', geometry.cx)
++      out.fixedAttribute('cy', geometry.cy)
++      out.fixedAttribute('rx', geometry.rx)
++      out.fixedAttribute('ry', geometry.ry)
+       return
+     case 'line': {
+-      const rawX1 = geometry.x1, x1 = out.attribute('x1', rawX1)
+-      const rawY1 = geometry.y1, y1 = out.attribute('y1', rawY1)
+-      const rawX2 = geometry.x2, x2 = out.attribute('x2', rawX2)
+-      const rawY2 = geometry.y2, y2 = out.attribute('y2', rawY2)
++      const rawX1 = geometry.x1, x1 = out.fixedAttribute('x1', rawX1)
++      const rawY1 = geometry.y1, y1 = out.fixedAttribute('y1', rawY1)
++      const rawX2 = geometry.x2, x2 = out.fixedAttribute('x2', rawX2)
++      const rawY2 = geometry.y2, y2 = out.fixedAttribute('y2', rawY2)
+       if (sink) sink(geometry, Number(x1) === rawX1 && Number(y1) === rawY1 && Number(x2) === rawX2 && Number(y2) === rawY2
+         ? geometry : { kind: 'line', x1: Number(x1), y1: Number(y1), x2: Number(x2), y2: Number(y2) })
+       return
+@@ -626,7 +716,7 @@ function geometryAttributes(out: SvgWriter, geometry: ElementGeometry, sink?: Sv
+       let rawPrevious: ScenePoint | undefined, rawFirstTangent: ScenePoint | undefined, rawLastTangent: ScenePoint | undefined
+       let rawX0 = Infinity, rawY0 = Infinity, rawX1 = -Infinity, rawY1 = -Infinity
+       let rawStartX = 0, rawStartY = 0, rawEndX = 0, rawEndY = 0
+-      const literal = out.attribute('points', points, undefined, observed ? (literal, raw) => {
++      const literal = out.fixedAttribute('points', points, undefined, observed ? (literal, raw) => {
+         if (tokens === 0) {
+           const cost = pointCount * 48 + 128
+           if (!Number.isSafeInteger(pointCount) || pointCount < 2 || !Number.isSafeInteger(cost) || !observed.reserveProjection?.(geometry, cost)) { understood = false; return false }
+@@ -672,7 +762,7 @@ function geometryAttributes(out: SvgWriter, geometry: ElementGeometry, sink?: Sv
+       return
+     }
+     case 'path': {
+-      const raw = geometry.d, literal = out.attribute('d', raw)
++      const raw = geometry.d, literal = out.fixedAttribute('d', raw)
+       sink?.(geometry, literal === raw ? geometry : { kind: 'path', d: literal })
+     }
+   }
+@@ -688,10 +778,10 @@ export function writeImageSvg(node: ImageMark, capture?: SvgXmlCapture): string
+     || width <= 0 || height <= 0 || fit !== 'contain' && fit !== 'stretch') throw new TypeError('Invalid image viewport')
+   const out = new SvgWriter(capture)
+   out.element('image')
+-  out.attribute('href', href)
+-  out.attribute('x', x); out.attribute('y', y)
+-  out.attribute('width', width); out.attribute('height', height)
+-  out.attribute('preserveAspectRatio', fit === 'contain' ? 'xMidYMid meet' : 'none')
++  out.fixedAttribute('href', href)
++  out.fixedAttribute('x', x); out.fixedAttribute('y', y)
++  out.fixedAttribute('width', width); out.fixedAttribute('height', height)
++  out.fixedAttribute('preserveAspectRatio', fit === 'contain' ? 'xMidYMid meet' : 'none')
+   hooks(out, node.attributes)
+   transformAttribute(out, node.transform)
+   identityAttributes(out, node.identity, node.accessibility)
+@@ -736,16 +826,16 @@ export function writeShapeSvg(node: ShapeMark, sink?: SvgGeometryWriteSink, capt
+   return capture ? finishXmlLeaf(capture, node, out.value, out.xml) : out.value
+ }
+ 
+-function typographyAttributes(out: SvgWriter, node: TextMark): void {
+-  out.attribute('text-anchor', node.anchor)
+-  if (node.dominantBaseline) out.attribute('dominant-baseline', node.dominantBaseline)
++function typographyAttributes(out: SvgWriter, node: NativeTextPaintMark): void {
++  out.fixedAttribute('text-anchor', node.anchor)
++  if (node.dominantBaseline) out.fixedAttribute('dominant-baseline', node.dominantBaseline)
+   // A block measured in a named face is drawn in it; otherwise the document font applies.
+-  if (node.block?.fontFamily) out.attribute('font-family', node.block.fontFamily)
+-  out.attribute('font-size', node.fontSize)
+-  out.attribute('font-weight', node.fontWeight ?? node.block?.fontWeight ?? 400)
+-  if ((node.letterSpacing ?? 0) !== 0) out.attribute('letter-spacing', node.letterSpacing!)
+-  if (node.fontStyle) out.attribute('font-style', node.fontStyle)
+-  if (node.textDecoration) out.attribute('text-decoration', node.textDecoration)
++  if (node.block?.fontFamily) out.fixedAttribute('font-family', node.block.fontFamily)
++  out.fixedAttribute('font-size', node.fontSize)
++  out.fixedAttribute('font-weight', node.fontWeight ?? node.block?.fontWeight ?? 400)
++  if ((node.letterSpacing ?? 0) !== 0) out.fixedAttribute('letter-spacing', node.letterSpacing!)
++  if (node.fontStyle) out.fixedAttribute('font-style', node.fontStyle)
++  if (node.textDecoration) out.fixedAttribute('text-decoration', node.textDecoration)
+ }
+ 
+ /** Text goes through the shared multi-line writer, which owns line wrappers,
+@@ -753,7 +843,14 @@ function typographyAttributes(out: SvgWriter, node: TextMark): void {
+  * its source text, as families wrote unprepared labels. */
+ export function writeTextSvg(node: TextMark): string
+ export function writeTextSvg(node: TextMark, capture: SvgXmlCapture, sink?: SvgGeometryWriteSink): SvgXmlWrite
+-export function writeTextSvg(node: TextMark, capture?: SvgXmlCapture, sink?: SvgGeometryWriteSink): string | SvgXmlWrite {
++export function writeTextSvg(node: TextMark, capture?: SvgXmlCapture, sink?: SvgGeometryWriteSink): string | SvgXmlWrite { return writePaintText(node, capture, sink) }
++
++/** Internal Native paint projection, never a public incomplete Scene mark. */
++export function writeNativeTextSvg(node: NativeTextPaintMark): string
++export function writeNativeTextSvg(node: NativeTextPaintMark, capture: SvgXmlCapture, sink?: SvgGeometryWriteSink): SvgXmlWrite
++export function writeNativeTextSvg(node: NativeTextPaintMark, capture?: SvgXmlCapture, sink?: SvgGeometryWriteSink): string | SvgXmlWrite { return writePaintText(node, capture, sink) }
++
++function writePaintText(node: NativeTextPaintMark, capture?: SvgXmlCapture, sink?: SvgGeometryWriteSink): string | SvgXmlWrite {
+   const out = new SvgWriter(capture, true)
+   hooks(out, node.attributes)
+   typographyAttributes(out, node)
+@@ -772,7 +869,7 @@ export function writeTextSvg(node: TextMark, capture?: SvgXmlCapture, sink?: Svg
+   const attrs = capture ? xmlRange(out.value, 1) : out.value.slice(1)
+   const prepared = node.measurement === 'prepared' && node.block
+   let observed = false
+-  const svg = renderMultilineText(prepared ? node.block! : node.text, node.x, node.y, node.fontSize, attrs, node.baselineShift ?? 0.35, node.display === 'literal', out.xml ? written => {
++  const svg = renderMultilinePaintText(prepared ? node.block! : node.text, node.x, node.y, node.fontSize, attrs, node.baselineShift ?? 0.35, node.display === 'literal', out.xml ? written => {
+     observed = true
+     out.xml!.prepared(written)
+     if (report) out.xml!.markPaintPrepared(written)
+@@ -814,17 +911,17 @@ function connectorInlineLabelSvg(node: ConnectorMark, label: ConnectorLabelDescr
+     } : {}),
+   }
+   const out = new SvgWriter(capture, true)
+-  out.attribute('data-id', label.id ?? `${node.id}-label-${index + 1}`)
+-  out.attribute('data-role', 'label')
+-  out.attribute('data-connector-label-for', node.id)
+-  out.attribute('font-size', block.fontSize)
+-  out.attribute('font-weight', block.fontWeight)
+-  if (block.letterSpacing) out.attribute('letter-spacing', block.letterSpacing)
+-  out.attribute('text-anchor', label.textAnchor)
++  out.fixedAttribute('data-id', label.id ?? `${node.id}-label-${index + 1}`)
++  out.fixedAttribute('data-role', 'label')
++  out.fixedAttribute('data-connector-label-for', node.id)
++  out.fixedAttribute('font-size', block.fontSize)
++  out.fixedAttribute('font-weight', block.fontWeight)
++  if (block.letterSpacing) out.fixedAttribute('letter-spacing', block.letterSpacing)
++  out.fixedAttribute('text-anchor', label.textAnchor)
+   transformAttribute(out, node.transform)
+   paintAttributes(out, paint)
+   let complete = false, attrs = ''
+-  const svg = renderMultilineText(block, label.anchor.x, label.anchor.y - Math.max(0, label.clearance ?? 0), block.fontSize, attrs = capture ? xmlRange(out.value, 1) : out.value.slice(1), 0, false, out.xml ? written => {
++  const svg = renderMultilinePaintText(block, label.anchor.x, label.anchor.y - Math.max(0, label.clearance ?? 0), block.fontSize, attrs = capture ? xmlRange(out.value, 1) : out.value.slice(1), 0, false, out.xml ? written => {
+     complete = true
+     out.xml!.prepared(written)
+   } : undefined, label.textAnchor, out.textEvidence(attrs))
+@@ -848,26 +945,26 @@ export function writeConnectorSvg(node: ConnectorMark, sink?: SvgGeometryWriteSi
+     out.element(geometry.kind)
+     hooks(out, node.attributes)
+     geometryAttributes(out, geometry, sink)
+-    if (geometry.kind !== 'line') out.attribute('fill', 'none')
+-    out.attribute('stroke', stroke.color)
+-    if (stroke.opacity !== undefined) out.attribute('stroke-opacity', stroke.opacity)
+-    out.attribute('stroke-width', stroke.width)
+-    if (dash) out.attribute('stroke-dasharray', typeof dash.array === 'string' ? dash.array : dash.array.join(' '))
+-    if (dash?.offset !== undefined) out.attribute('stroke-dashoffset', dash.offset)
+-    if (stroke.lineCap !== 'butt') out.attribute('stroke-linecap', stroke.lineCap)
+-    if (stroke.lineJoin !== 'miter') out.attribute('stroke-linejoin', stroke.lineJoin)
+-    if (stroke.miterLimit !== 4) out.attribute('stroke-miterlimit', stroke.miterLimit)
+-    if (stroke.pathLength !== undefined) out.attribute('pathLength', stroke.pathLength)
+-    if (stroke.paintOrder !== undefined) out.attribute('paint-order', stroke.paintOrder)
+-    if (stroke.nonScaling) out.attribute('vector-effect', 'non-scaling-stroke')
+-    if (stroke.mixBlendMode) out.attribute('style', `mix-blend-mode:${stroke.mixBlendMode}`)
+-    if (markers.start) out.attribute('marker-start', `url(#${markers.start.id})`)
+-    if (midMarker) out.attribute('marker-mid', `url(#${midMarker.id})`)
+-    if (markers.end) out.attribute('marker-end', `url(#${markers.end.id})`)
+-    if (node.hit.pointerEvents === 'none') out.attribute('pointer-events', 'none')
++    if (geometry.kind !== 'line') out.fixedAttribute('fill', 'none')
++    out.fixedAttribute('stroke', stroke.color)
++    if (stroke.opacity !== undefined) out.fixedAttribute('stroke-opacity', stroke.opacity)
++    out.fixedAttribute('stroke-width', stroke.width)
++    if (dash) out.fixedAttribute('stroke-dasharray', typeof dash.array === 'string' ? dash.array : dash.array.join(' '))
++    if (dash?.offset !== undefined) out.fixedAttribute('stroke-dashoffset', dash.offset)
++    if (stroke.lineCap !== 'butt') out.fixedAttribute('stroke-linecap', stroke.lineCap)
++    if (stroke.lineJoin !== 'miter') out.fixedAttribute('stroke-linejoin', stroke.lineJoin)
++    if (stroke.miterLimit !== 4) out.fixedAttribute('stroke-miterlimit', stroke.miterLimit)
++    if (stroke.pathLength !== undefined) out.fixedAttribute('pathLength', stroke.pathLength)
++    if (stroke.paintOrder !== undefined) out.fixedAttribute('paint-order', stroke.paintOrder)
++    if (stroke.nonScaling) out.fixedAttribute('vector-effect', 'non-scaling-stroke')
++    if (stroke.mixBlendMode) out.fixedAttribute('style', `mix-blend-mode:${stroke.mixBlendMode}`)
++    if (markers.start) out.fixedAttribute('marker-start', `url(#${markers.start.id})`)
++    if (midMarker) out.fixedAttribute('marker-mid', `url(#${midMarker.id})`)
++    if (markers.end) out.fixedAttribute('marker-end', `url(#${markers.end.id})`)
++    if (node.hit.pointerEvents === 'none') out.fixedAttribute('pointer-events', 'none')
+     transformAttribute(out, node.transform)
+-    out.attribute('data-relationship', node.relationship.kind)
+-    out.attribute('data-direction', node.relationship.direction)
++    out.fixedAttribute('data-relationship', node.relationship.kind)
++    out.fixedAttribute('data-direction', node.relationship.direction)
+     identityAttributes(out, node.identity, node.accessibility)
+     out.close()
+   }
+diff --git a/src/shared/prepared-text.ts b/src/shared/prepared-text.ts
+index 8521e2f8b..5a0224200 100644
+--- a/src/shared/prepared-text.ts
++++ b/src/shared/prepared-text.ts
+@@ -70,6 +70,12 @@ export interface PixelTextBlock {
+   readonly fontFamily?: string
+ }
+ 
++/** Internal paint input. Source-span interpretation belongs to preparation and
++ * public transport; writing consumes authored scalar context and pixel runs. */
++export type PixelTextPaintBlock = Omit<PixelTextBlock, 'prepared'> & {
++  readonly prepared: Pick<PreparedDisplayText, 'source' | 'display' | 'transform'>
++}
++
+ // This evidence belongs to actual preparation, not to a caller-supplied copy
+ // of the metrics. Scene admission carries it across its own immutable snapshot.
+ const pixelBlocks = new WeightedLru<string, PixelTextBlock>(256, 8 * 1024 * 1024)
+@@ -91,12 +97,12 @@ export function transferRetainedPixelText(source: object, snapshot: object): voi
+   if (interEnvelopeBlocks.has(source)) interEnvelopeBlocks.add(snapshot)
+ }
+ 
+-export function hasPreparedTextInk(block: PixelTextBlock): boolean { return shapedInkBlocks.has(block) }
+-export function hasPreparedInterTextEnvelope(block: PixelTextBlock): boolean { return interEnvelopeBlocks.has(block) }
++export function hasPreparedTextInk(block: PixelTextPaintBlock): boolean { return shapedInkBlocks.has(block) }
++export function hasPreparedInterTextEnvelope(block: PixelTextPaintBlock): boolean { return interEnvelopeBlocks.has(block) }
+ 
+ /** Bundled normal Inter has a conservative Latin envelope distinct from a
+  * host's exact shaped ink. It never grants the host-shaped measurement brand. */
+-export function preparedInterTextBounds(block: PixelTextBlock, cx: number, cy: number, anchor: string, baselineShift = 0.35, documentFont?: string): AxisAlignedBox | undefined {
++export function preparedInterTextBounds(block: PixelTextPaintBlock, cx: number, cy: number, anchor: string, baselineShift = 0.35, documentFont?: string): AxisAlignedBox | undefined {
+   if (!interEnvelopeBlocks.has(block) || (block.fontFamily ?? documentFont) !== 'Inter') return undefined
+   let result: AxisAlignedBox | undefined
+   const size = Number(formatSvgNumber(block.fontSize))
+@@ -129,7 +135,7 @@ export function preparedInterTextBounds(block: PixelTextBlock, cx: number, cy: n
+ 
+ /** The served fitted operands are shared by emission and occupied geometry.
+  * Advance allocation remains separate from the host's actual outline bounds. */
+-export function preparedTextLineGeometry(block: PixelTextBlock, index: number, cx: number, cy: number, anchor: string, baselineShift = 0.35) {
++export function preparedTextLineGeometry(block: PixelTextPaintBlock, index: number, cx: number, cy: number, anchor: string, baselineShift = 0.35) {
+   const line = block.lineBlocks[index]!, count = block.lineBlocks.length
+   const firstDy = -((count - 1) / 2) * block.lineHeight + block.fontSize * baselineShift
+   const x = formatSvgNumber(cx), y = formatSvgNumber(cy)
+@@ -144,7 +150,7 @@ export function preparedTextLineGeometry(block: PixelTextBlock, index: number, c
+ 
+ /** Only an actual retained host-shaped preparation can supply this envelope.
+  * Native-shaped logical lines and decorations have no fitted-run authority. */
+-export function preparedTextInkBounds(block: PixelTextBlock, cx: number, cy: number, anchor: string, baselineShift = 0.35): AxisAlignedBox | undefined {
++export function preparedTextInkBounds(block: PixelTextPaintBlock, cx: number, cy: number, anchor: string, baselineShift = 0.35): AxisAlignedBox | undefined {
+   if (!hasPreparedTextInk(block)) return undefined
+   let result: AxisAlignedBox | undefined
+   const include = (ink: ProfileTextInkMeasurement, x: number, width: number, baseline: number): void => {

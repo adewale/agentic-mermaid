@@ -1,0 +1,1 @@
+Verified browser provider fix pushed at88a5376bd. Final4-family Trident8candidate observations and18configuration rows qualify; exactfullproducts and actualbytes retained. SharedXML/textSparsefix remainsuncommitted; all12shippingcapacitycasesremainredand100mstargetmisses. No overallcompletionclaim. Sourcepatch+Task1frozen sourcesallowrecovery; currentoldautomationsoff.

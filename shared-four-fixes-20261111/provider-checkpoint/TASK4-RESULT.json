@@ -1,0 +1,395 @@
+{
+  "sourceBase": "599bee58db7cb54293866cc8aa86c887ef93e9a4",
+  "scope": "Same frozen Native source snapshot as firstdraft; only Task4 config provider and final guarded bare-wrap changes differ from original control. Not final combined scene candidate. Actual fetched per-module bytes compressed offline gzip9/Brotli11, bindings separate, no wire/package/portfolio-sum/timing claim.",
+  "qualifiedFinalObservations": 8,
+  "exactFinalProductsAgainstOriginalControl": 16,
+  "configFreshRealmComparisons": 18,
+  "wrapCanonicalComparisons": 28,
+  "deltas": [
+    {
+      "backend": "agentic",
+      "family": "flowchart",
+      "requests": [
+        41,
+        41
+      ],
+      "controlProduct": {
+        "raw": 1202801,
+        "gzip9": 399400,
+        "brotli11": 340338
+      },
+      "candidateProduct": {
+        "raw": 1180352,
+        "gzip9": 392522,
+        "brotli11": 334649
+      },
+      "delta": {
+        "raw": -22449,
+        "gzip9": -6878,
+        "brotli11": -5689
+      },
+      "heapBytes": [
+        5933840,
+        5933616
+      ]
+    },
+    {
+      "backend": "agentic",
+      "family": "sequence",
+      "requests": [
+        15,
+        15
+      ],
+      "controlProduct": {
+        "raw": 715692,
+        "gzip9": 229935,
+        "brotli11": 191783
+      },
+      "candidateProduct": {
+        "raw": 693223,
+        "gzip9": 223051,
+        "brotli11": 186163
+      },
+      "delta": {
+        "raw": -22469,
+        "gzip9": -6884,
+        "brotli11": -5620
+      },
+      "heapBytes": [
+        5030748,
+        5031116
+      ]
+    },
+    {
+      "backend": "agentic",
+      "family": "timeline",
+      "requests": [
+        11,
+        11
+      ],
+      "controlProduct": {
+        "raw": 656368,
+        "gzip9": 211021,
+        "brotli11": 174738
+      },
+      "candidateProduct": {
+        "raw": 633914,
+        "gzip9": 204139,
+        "brotli11": 169131
+      },
+      "delta": {
+        "raw": -22454,
+        "gzip9": -6882,
+        "brotli11": -5607
+      },
+      "heapBytes": [
+        4394788,
+        4397596
+      ]
+    },
+    {
+      "backend": "agentic",
+      "family": "sankey",
+      "requests": [
+        14,
+        14
+      ],
+      "controlProduct": {
+        "raw": 676434,
+        "gzip9": 218891,
+        "brotli11": 181833
+      },
+      "candidateProduct": {
+        "raw": 653975,
+        "gzip9": 212005,
+        "brotli11": 176219
+      },
+      "delta": {
+        "raw": -22459,
+        "gzip9": -6886,
+        "brotli11": -5614
+      },
+      "heapBytes": [
+        4661980,
+        4661484
+      ]
+    },
+    {
+      "backend": "elk",
+      "family": "flowchart",
+      "requests": [
+        31,
+        31
+      ],
+      "controlProduct": {
+        "raw": 2467813,
+        "gzip9": 763334,
+        "brotli11": 604259
+      },
+      "candidateProduct": {
+        "raw": 2445359,
+        "gzip9": 756455,
+        "brotli11": 598582
+      },
+      "delta": {
+        "raw": -22454,
+        "gzip9": -6879,
+        "brotli11": -5677
+      },
+      "heapBytes": [
+        11258148,
+        11255800
+      ]
+    },
+    {
+      "backend": "elk",
+      "family": "sequence",
+      "requests": [
+        15,
+        15
+      ],
+      "controlProduct": {
+        "raw": 715692,
+        "gzip9": 229935,
+        "brotli11": 191783
+      },
+      "candidateProduct": {
+        "raw": 693223,
+        "gzip9": 223051,
+        "brotli11": 186163
+      },
+      "delta": {
+        "raw": -22469,
+        "gzip9": -6884,
+        "brotli11": -5620
+      },
+      "heapBytes": [
+        5034152,
+        5024348
+      ]
+    },
+    {
+      "backend": "elk",
+      "family": "timeline",
+      "requests": [
+        11,
+        11
+      ],
+      "controlProduct": {
+        "raw": 656368,
+        "gzip9": 211021,
+        "brotli11": 174738
+      },
+      "candidateProduct": {
+        "raw": 633914,
+        "gzip9": 204139,
+        "brotli11": 169131
+      },
+      "delta": {
+        "raw": -22454,
+        "gzip9": -6882,
+        "brotli11": -5607
+      },
+      "heapBytes": [
+        4394140,
+        4397720
+      ]
+    },
+    {
+      "backend": "elk",
+      "family": "sankey",
+      "requests": [
+        14,
+        14
+      ],
+      "controlProduct": {
+        "raw": 676434,
+        "gzip9": 218891,
+        "brotli11": 181833
+      },
+      "candidateProduct": {
+        "raw": 653975,
+        "gzip9": 212005,
+        "brotli11": 176219
+      },
+      "delta": {
+        "raw": -22459,
+        "gzip9": -6886,
+        "brotli11": -5614
+      },
+      "heapBytes": [
+        4661300,
+        4661240
+      ]
+    }
+  ],
+  "configurationDeltas": [
+    {
+      "id": "ordinary",
+      "requests": [
+        13,
+        13
+      ],
+      "getterProxyReads": [
+        0,
+        0
+      ],
+      "delta": {
+        "raw": -22469,
+        "gzip9": -6884,
+        "brotli11": -5620
+      }
+    },
+    {
+      "id": "frontmatter",
+      "requests": [
+        14,
+        14
+      ],
+      "getterProxyReads": [
+        0,
+        0
+      ],
+      "delta": {
+        "raw": 308,
+        "gzip9": 205,
+        "brotli11": 460
+      }
+    },
+    {
+      "id": "init",
+      "requests": [
+        14,
+        14
+      ],
+      "getterProxyReads": [
+        0,
+        0
+      ],
+      "delta": {
+        "raw": 308,
+        "gzip9": 205,
+        "brotli11": 460
+      }
+    },
+    {
+      "id": "wrap",
+      "requests": [
+        13,
+        13
+      ],
+      "getterProxyReads": [
+        0,
+        0
+      ],
+      "delta": {
+        "raw": -22469,
+        "gzip9": -6884,
+        "brotli11": -5620
+      }
+    },
+    {
+      "id": "direct-options",
+      "requests": [
+        13,
+        13
+      ],
+      "getterProxyReads": [
+        2,
+        2
+      ],
+      "delta": {
+        "raw": -22469,
+        "gzip9": -6884,
+        "brotli11": -5620
+      }
+    },
+    {
+      "id": "multi-init-remap",
+      "requests": [
+        14,
+        14
+      ],
+      "getterProxyReads": [
+        0,
+        0
+      ],
+      "delta": {
+        "raw": 308,
+        "gzip9": 205,
+        "brotli11": 460
+      }
+    },
+    {
+      "id": "unicode-and-xml",
+      "requests": [
+        14,
+        14
+      ],
+      "getterProxyReads": [
+        0,
+        0
+      ],
+      "delta": {
+        "raw": 308,
+        "gzip9": 205,
+        "brotli11": 460
+      }
+    },
+    {
+      "id": "malformed-frontmatter",
+      "requests": [
+        14,
+        14
+      ],
+      "getterProxyReads": [
+        0,
+        0
+      ],
+      "delta": {
+        "raw": 308,
+        "gzip9": 205,
+        "brotli11": 460
+      }
+    },
+    {
+      "id": "generous-init",
+      "requests": [
+        14,
+        14
+      ],
+      "getterProxyReads": [
+        0,
+        0
+      ],
+      "delta": {
+        "raw": 308,
+        "gzip9": 205,
+        "brotli11": 460
+      }
+    }
+  ],
+  "checks": {
+    "focusedWrapOwners": "4 passed,8 assertions",
+    "emittedBrowserOwners": "9 passed,92 assertions",
+    "ambientEveryRegression": "2 fail on unguarded shortcut; pass with indexed private-layer scan",
+    "focusedTypecheck": "passed for all changed source/build/owning-test files and imported dependencies",
+    "canonicalCombinedTypecheck": "not qualified here; partial isolated tree lacks unrelated eval/website/script fixtures. Failed broad attempt retained in core-types.log. Root owns full combined core/repo checks.",
+    "lint": "7 files pass",
+    "diffCheck": "pass"
+  },
+  "closed": {
+    "browserOpened": 8,
+    "browserClosed": 8,
+    "openBrowsers": 0,
+    "rows": 8,
+    "total": 8,
+    "scope": "Every standard suite closes its browser and local server; any retained browser explicitly closed in collector finally. No browser processes intentionally retained."
+  },
+  "limits": [
+    "Original firstdraft overfetch artifacts remain preserved. Final bare no-argument wrap does not fetch YAML.",
+    "Already-YAML source config paths retain same requests but cost +308raw/+205gzip9/+460Br11 bytes for examined Sequence inputs.",
+    "Forced-GC JS heap is mixed; Native Timeline +2808B and ELK Timeline +3580B are adverse.",
+    "Remaining common safety/proof growth is not claimed eliminated. Root owns final combined33family qualification."
+  ]
+}
