@@ -101,15 +101,19 @@ const CSS_PAINT_KEYWORDS = new Set(['currentcolor', 'none'])
 /**
  * False only for a spelling this runtime can judge and knows is no color: an
  * identifier that names no CSS color or paint keyword (`notacolor`, `blurple`)
- * or a malformed rgb()/hsl(). Other color functions and var() references are
- * resolved by the host and pass through, as safeCssPaint admitted them.
- * Every palette token and render-option paint applies this, so SVG and PNG
- * refuse the same input up front instead of drawing different fallbacks.
+ * or an rgb()/hsl() whose literal components are malformed (`rgb(1,2)`,
+ * `rgb(nope)`). Components the host resolves, a var() or another function
+ * inside the arguments or relative color syntax (`rgb(from red r g b)`), pass
+ * through, as do other color functions and var() references, as safeCssPaint
+ * admitted them. Every palette token and render-option paint applies this, so
+ * SVG and PNG refuse the same input up front instead of drawing different
+ * fallbacks.
  */
 export function isRecognizableCssColor(value: string): boolean {
   const color = value.trim().toLowerCase()
   if (/^[a-z][a-z0-9-]*$/.test(color)) return CSS_PAINT_KEYWORDS.has(color) || tryParseCssColor(color) !== null
-  if (/^(?:rgba?|hsla?)\s*\(/.test(color)) return tryParseCssColor(color) !== null
+  const legacy = /^(?:rgba?|hsla?)\s*\(([\s\S]*)\)$/.exec(color)
+  if (legacy && !/\(|^\s*from\b/.test(legacy[1]!)) return tryParseCssColor(color) !== null
   return true
 }
 

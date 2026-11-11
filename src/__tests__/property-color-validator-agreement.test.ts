@@ -345,6 +345,20 @@ describe('a request color is drawn alike on every output, or refused up front', 
       ]),
     }))
   }, 120_000)
+
+  // Components the host resolves are valid CSS this runtime cannot evaluate:
+  // a var() inside rgb()/hsl() and relative color syntax. A render option
+  // keeps them for the host, as it keeps a bare var(); a literal component
+  // that is no number is still refused (review of #611: rgb(var(--red) 0 0)
+  // was refused). Style tokens and roles admit no var() at all.
+  test.each(Object.keys(REQUEST_PLACEMENTS).filter(placement => placement.startsWith('option ')))('%s keeps host-resolved color components', placement => {
+    const { field, mcpField = field, options: optionsFor } = REQUEST_PLACEMENTS[placement]!
+    for (const color of ['rgb(var(--red) 0 0)', 'hsl(var(--hue) 50% 50%)', 'rgb(255 0 0 / var(--alpha))', 'rgb(from red r g b)']) {
+      expect(() => renderMermaidSVG(FLOWCHART, optionsFor(color)), `${placement}: ${color}`).not.toThrow()
+      expect(validateMcpToolArguments(localPngTool, { source: FLOWCHART, options: optionsFor(color) }).filter(problem => problem.includes(mcpField)), `${placement}: ${color}`).toEqual([])
+    }
+    for (const color of ['rgb(nope)', 'rgb(1,2)', 'hsl(red 1 2)']) expect(() => renderMermaidSVG(FLOWCHART, optionsFor(color)), `${placement}: ${color}`).toThrow(field)
+  })
 })
 
 // The direct sources are independently authored counterparts to the typed ops.
