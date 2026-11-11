@@ -1,0 +1,44 @@
+{
+  "source": "d4d3f37195c69cfe09fc8976ff96073847eeb959",
+  "parent": "51e6cfca63c8d70180b3cff293da8f9582f5153e",
+  "archive": "group-qualification.tar.gz",
+  "bytes": 7281872,
+  "sha256": "9e064e17aa40c4e2fd47900b32da1c358260cdeae18b59b889bad07da0741c7c",
+  "sourceFreeze": {
+    "base": "51e6cfca63c8d70180b3cff293da8f9582f5153e",
+    "root": "/dev/shm/pr449-four-final-20261111/chain-proof-candidate",
+    "files": [
+      {
+        "path": "src/scene/group-emission.ts",
+        "sha256": "56882dfd47eaf61d806b91a783121368e2e37ecf7b189b104b7eb766d5df0f24",
+        "baseSha256": "83b40edb9b528b67a5bbf8f60cf43f781d3525845391597aae53d3f8e9923da5"
+      },
+      {
+        "path": "src/scene/emission-context.ts",
+        "sha256": "2ad486c9c6478fd10b3d7bbf9f11aeb6ad58931ad777bb9c93eb7a6ef8c5e170",
+        "baseSha256": "822559c9640456e38e8da8b0bc3c752edc89fda260993609d4350513e035420d"
+      },
+      {
+        "path": "src/scene/svg-writer.ts",
+        "sha256": "874eba163bbdfd3a582dd1be56984a88203d6c94ae0f92673af4cd445433a1df",
+        "baseSha256": "19c55aa09f8e57cb9812563eef4cfe3f79f2dd7d5e08fcd884baa3bddca35bba"
+      },
+      {
+        "path": "src/shared/xml-literal.ts",
+        "sha256": "81dce63680a0847d42b60a04976d3d06d6b3b6d0f80c0bb07a6b08da8f92b594",
+        "baseSha256": null
+      },
+      {
+        "path": "src/__tests__/scene-svg-writer.test.ts",
+        "sha256": "ef51cf5ce6e7ae678f7666c7a1eb8a1948920d78d7c3640acdc3b87854c58b6d",
+        "baseSha256": "0ffc3d910b5f069401b07e29efc30fcb0bd07b4d79e803fa6448a9e712a6891b"
+      }
+    ],
+    "runtimeFrozen": true,
+    "qualified": false,
+    "scope": "Group producer reuse with actual immutable receiver custody repair;3owningcontrolsP/12assertions; types/broadowners/build/clocks notrun"
+  },
+  "ciRun": 43117973024,
+  "ciStatus": "in_progress atcheckpoint",
+  "allGoalsComplete": false
+}
