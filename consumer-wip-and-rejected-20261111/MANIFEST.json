@@ -1,0 +1,24 @@
+{
+  "at": "2026-11-11T17:47:35.462535+00:00",
+  "sourceHead": "30006080d71efd0eac1f6759449ad1333a048f92",
+  "adopted": false,
+  "allFourResolved": false,
+  "files": {
+    "REPORT.md": {
+      "bytes": 1232,
+      "sha256": "d1bca38b355f2878a731ef084ca5e133e3c840f25b07a35a345b33c27a8d77a3"
+    },
+    "causal-trials-and-consumer.tar.gz": {
+      "bytes": 1502833,
+      "sha256": "501228025455e355363b57bc5e351ebe241695b1c136e5ccae69b2b43fd48a07"
+    },
+    "source-WIP.tar.gz": {
+      "bytes": 172632,
+      "sha256": "8478b9dbc5a3f1d054213f2f97156ee07737ad03df2721f6b5e24d271630b454"
+    },
+    "tracked-wip.patch": {
+      "bytes": 68333,
+      "sha256": "a4a691a813990b96d254b772de70ecb7a3be52b8086377317e66e3010ce46ada"
+    }
+  }
+}

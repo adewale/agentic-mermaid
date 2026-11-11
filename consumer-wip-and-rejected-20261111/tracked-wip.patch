@@ -1,0 +1,1092 @@
+diff --git a/e2e/browser-bundle.e2e.test.ts b/e2e/browser-bundle.e2e.test.ts
+index 06709ea47..be7eda831 100644
+--- a/e2e/browser-bundle.e2e.test.ts
++++ b/e2e/browser-bundle.e2e.test.ts
+@@ -26,8 +26,9 @@ import { describe, test, expect, beforeAll, afterAll } from 'bun:test'
+ import { spawnSync } from 'node:child_process'
+ import { deserialize } from 'node:v8'
+ import { inflateRawSync } from 'node:zlib'
+-import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
+-import { join } from 'node:path'
++import { existsSync, readdirSync, readFileSync, realpathSync, statSync } from 'node:fs'
++import { join, resolve } from 'node:path'
++import { createRequire } from 'node:module'
+ import { chromium, firefox, webkit, type Browser, type Page, type Route } from 'playwright'
+ import { BUILTIN_FAMILY_METADATA } from '../src/agent/families.ts'
+ import { registerStyle, resolveStyleStack, renderMermaidSVG, sharedRenderOptionsJsonSchema, type RenderOptions } from '../src/index.ts'
+@@ -131,8 +132,10 @@ function lazyImplementationChunk(input = 'node_modules/elkjs/'): string {
+   const metafile = JSON.parse(readFileSync(LAZY_METAFILE, 'utf8')) as {
+     outputs: Record<string, { inputs: Record<string, unknown> }>
+   }
++  const elkImplementation = input === 'node_modules/elkjs/'
++    ? realpathSync(createRequire(join(REPO, 'package.json')).resolve('elkjs/lib/elk.bundled.js')) : undefined
+   const matches = Object.entries(metafile.outputs).filter(([, output]) =>
+-    Object.keys(output.inputs).some(path => path.includes(input)))
++    Object.keys(output.inputs).some(path => path.includes(input) || elkImplementation !== undefined && resolve(REPO, path) === elkImplementation))
+   expect(matches.length).toBe(1)
+   return matches[0]![0].replace(/^dist\//, '')
+ }
+@@ -528,6 +531,37 @@ describe('async family-loaded browser renderer', () => {
+     await browser?.close()
+   })
+ 
++  test.each(['elk', 'agentic'] as const)('%s strict Scene requests acquire the canonical SPI before callbacks and read options once', async backend => {
++    const page = await browser.newPage(), requests: string[] = []
++    page.on('request', request => requests.push(new URL(request.url()).pathname.replace(/^\/dist\//, '')))
++    const source = 'flowchart LR\nA[Hello] --> B[World]'
++    const options = { padding: 35, security: 'strict' as const, layoutSafety: 'strict' as const,
++      mermaidConfig: { flowchart: { nodeSpacing: -1 } }, graphLayout: { backend, fallback: 'none' as const } }
++    const implementation = lazyImplementationChunk('/scene/backend.ts')
++    try {
++      await page.goto(`${base}/blank.html`)
++      const actual = await page.evaluate(async ({ entry, source, options, implementation }) => {
++        const api = await import(entry), diagnostics: unknown[] = [], ready: boolean[] = []
++        let reads = 0
++        const supplied = { ...options, get padding() { reads++; return options.padding }, onConfigDiagnostic(value: unknown) {
++          diagnostics.push(value)
++          ready.push(performance.getEntriesByType('resource').some(item => item.name.endsWith('/dist/' + implementation)))
++        } }
++        const first = await api.renderMermaidSVGWithReceiptAsync(source, supplied)
++        const second = await api.renderMermaidSVGWithReceiptAsync(source, supplied)
++        return { first, second, reads, diagnostics, ready }
++      }, { entry: `${base}/dist/browser-lazy/index.js`, source, options, implementation })
++      const diagnostics: unknown[] = []
++      const expected = JSON.parse(JSON.stringify(await sourceSVGWithReceipt(source, options, diagnostics)))
++      expect(actual.first).toEqual(expected)
++      expect(actual.second).toEqual(expected)
++      expect(actual.reads).toBe(2)
++      expect(actual.diagnostics).toEqual([...diagnostics, ...diagnostics])
++      expect(actual.ready).toEqual([true, true])
++      expect(requests.filter(path => path === implementation)).toHaveLength(1)
++    } finally { await page.close() }
++  })
++
+   for (const [engineName, engine] of [
+     ['Firefox', firefox],
+     ['WebKit', webkit],
+diff --git a/src/__tests__/host-text-measurement.test.ts b/src/__tests__/host-text-measurement.test.ts
+index a1f2a2f37..c57e66959 100644
+--- a/src/__tests__/host-text-measurement.test.ts
++++ b/src/__tests__/host-text-measurement.test.ts
+@@ -20,7 +20,12 @@ import { createMermaidPNGRenderer } from '../agent/png.ts'
+ import { BUILTIN_FAMILY_METADATA } from '../agent/families.ts'
+ import { positionResolvedFamilyArtifact } from '../agent/family-layouts.ts'
+ import { layoutMermaidWithReceipt } from '../agent/core.ts'
+-import { receiptOf, resolveRenderRequestForExecution } from '../render-contract.ts'
++import { receiptOf, resolveRenderRequestForExecution, resolvedRenderExecutionPlanOf } from '../render-contract.ts'
++import { FIRST_PARTY_DRAWING_CONSUMER } from '../scene/default-drawing-consumer.ts'
++import { executeResolvedGraphicalRequest, executeResolvedSourceGraphicalRequest } from '../graphical-render.ts'
++import { assertScenesOf } from '../scene/assertions.ts'
++import { getBackendDescriptor } from '../scene/backend.ts'
++import { withRenderStageObserver } from '../render-stages.ts'
+ import type { PositionedRadarChart } from '../radar/types.ts'
+ import { pngFixture } from './helpers/png-fixture.ts'
+ import { createTextMeasurementExecution } from '../text-measurement-profile.ts'
+@@ -35,6 +40,51 @@ function profile(measure: TextMeasurementProfile['measure'] = ({ text }) => [...
+ }
+ 
+ describe('trusted host pixel measurement profiles', () => {
++  test('a source Native consumer awaits a real Scene fallback without replaying input, layout or custom metrics', async () => {
++    const source = 'flowchart LR\nA[Hello] --> B[World]'
++    // Compare both consumers with the same SDK proof state; first-use SDK
++    // witnesses are separately owned by backend conformance tests.
++    expect(getBackendDescriptor('default')!.conformance.passed).toBe(true)
++    const prepare = (native: boolean) => {
++      const observations = { optionReads: 0, measureReads: 0, measures: [] as string[], diagnostics: [] as unknown[] }
++      const options = { get padding() { observations.optionReads++; return 30 },
++        mermaidConfig: { flowchart: { nodeSpacing: -1 } },
++        onConfigDiagnostic: (value: unknown) => observations.diagnostics.push(value),
++      }
++      const textMeasurement = { id: 'test:source-fallback', version: '1.0.0', get measure() {
++        observations.measureReads++
++        return (input: ProfileTextMeasurementInput) => { observations.measures.push(JSON.stringify(input)); return [...input.text].length * 10 }
++      } }
++      const request = resolveRenderRequestForExecution(source, options, 'svg', undefined, {
++        textMeasurement, ...(native ? { drawingConsumer: FIRST_PARTY_DRAWING_CONSUMER } : {}),
++      })
++      // A stronger consumer can be selected after admission, as inspection does.
++      assertScenesOf(request)
++      return { request, observations }
++    }
++    const control = prepare(false), candidate = prepare(true)
++    const selected = resolvedRenderExecutionPlanOf(candidate.request)
++    expect(selected.backend).toBeUndefined()
++    expect(selected.consumer?.kind).toBe('native-drawing')
++    expect(selected.consumer && 'conformance' in selected.consumer).toBe(false)
++    expect(selected.consumer && 'render' in selected.consumer).toBe(false)
++    const expected = JSON.parse(JSON.stringify(executeResolvedGraphicalRequest(control.request)))
++    let acquired = 0
++    const layouts: string[] = []
++    const operation = withRenderStageObserver(sample => { if (sample.stage === 'layout') layouts.push(sample.stage) }, () =>
++      executeResolvedSourceGraphicalRequest(candidate.request, async () => { acquired++; await Promise.resolve() }))
++    const actual = JSON.parse(JSON.stringify(await operation))
++    expect(actual).toEqual(expected)
++    expect(acquired).toBe(1)
++    expect(layouts).toEqual(['layout'])
++    expect(candidate.observations).toEqual(control.observations)
++    expect(candidate.observations.optionReads).toBe(1)
++    expect(candidate.observations.measureReads).toBe(1)
++    expect(candidate.observations.measures.length).toBeGreaterThan(0)
++    expect(resolvedRenderExecutionPlanOf(candidate.request).consumer?.kind).toBe('scene-backend')
++    expect(resolvedRenderExecutionPlanOf(candidate.request).backend?.conformance.passed).toBe(true)
++  })
++
+   test('public fitted bold ink keeps its authored glyph and allocation through Native and Scene', () => {
+     const id = 'backend:test/shaped-ink-public'
+     const unregister = registerBackend({ ...DefaultBackend, id, capabilities: DefaultBackend.capabilities.map(claim => ({ ...claim, target: id })) }, {
+diff --git a/src/__tests__/paint-certification.test.ts b/src/__tests__/paint-certification.test.ts
+index facb2ddf6..e3e095e9c 100644
+--- a/src/__tests__/paint-certification.test.ts
++++ b/src/__tests__/paint-certification.test.ts
+@@ -2622,6 +2622,8 @@ const proofCapacityCases = [
+   { name: 'sequence128', source: ['sequenceDiagram', 'participant A as Alpha', 'participant B as Beta', ...Array.from({ length: 128 }, (_, index) => `${index % 2 ? 'B-->>A' : 'A->>B'}: N${index}`)].join('\n'), labels: ['Alpha', 'Beta', ...Array.from({ length: 128 }, (_, index) => `N${index}`)] },
+   { name: 'state128', source: ['stateDiagram-v2', ...Array.from({ length: 127 }, (_, index) => `N${index} --> N${index + 1}`)].join('\n'), labels: Array.from({ length: 128 }, (_, index) => `N${index}`) },
+   { name: 'chain100', source: proofCapacityChain(100, true), labels: Array.from({ length: 100 }, (_, index) => `Node ${index}`) },
++  { name: 'fanin100', source: proofCapacityChain(100, true, true), labels: Array.from({ length: 100 }, (_, index) => `Node ${index}`) },
++  { name: 'chain300', source: proofCapacityChain(300, true), labels: Array.from({ length: 300 }, (_, index) => `Node ${index}`) },
+ ]
+ test.each(proofCapacityCases.flatMap(value => (['agentic', 'elk'] as const).map(backend => ({ ...value, backend }))))('public $backend $name repeated labels and markers complete proof within the original allowance', async ({ name, source, labels, backend }) => {
+   const child = await runTextReceiverChild(process.execPath, ['--eval', String.raw`
+diff --git a/src/__tests__/render-options-authority.test.ts b/src/__tests__/render-options-authority.test.ts
+index 9694c64a6..d302227ea 100644
+--- a/src/__tests__/render-options-authority.test.ts
++++ b/src/__tests__/render-options-authority.test.ts
+@@ -9,6 +9,8 @@ import packageJson from '../../package.json' with { type: 'json' }
+ import { DEFAULT_ARCHITECTURE_VISUAL } from '../architecture/config.ts'
+ import { createMermaidRenderer, DefaultBackend, registerBackend, registerStyle, renderContractDigest, renderMermaidSVG } from '../index.ts'
+ import { renderedSvgDigest } from '../graphical-render.ts'
++import { FIRST_PARTY_DRAWING_CONSUMER } from '../scene/default-drawing-consumer.ts'
++import { resolveRenderRequestForExecution, resolvedRenderExecutionPlanOf } from '../render-contract.ts'
+ import { SCENE_VALIDATION_LIMITS } from '../scene/scene-validation.ts'
+ import { renderMermaidASCIIWithReceipt } from '../ascii/index.ts'
+ import { layoutMermaidWithReceipt } from '../agent/core.ts'
+@@ -30,6 +32,57 @@ const runChild = useTestChildren(20_000)
+ const temp = useTempDirs('option-style-retention-')
+ 
+ describe('shared RenderOptions authority', () => {
++  test('inherited consumer fields cannot select a private source consumer for SDK requests', () => {
++    const fields = ['consumer', 'drawingConsumer'] as const
++    const before = fields.map(field => Object.getOwnPropertyDescriptor(Object.prototype, field))
++    const reads: string[] = []
++    try {
++      for (const field of fields) Object.defineProperty(Object.prototype, field, {
++        configurable: true, get() { reads.push(field); return FIRST_PARTY_DRAWING_CONSUMER },
++      })
++      const request = resolveRenderRequestForExecution('flowchart LR\nA --> B', {}, 'svg')
++      const plan = resolvedRenderExecutionPlanOf(request)
++      expect(Object.hasOwn(plan, 'consumer')).toBe(true)
++      expect(plan.consumer).toBeUndefined()
++      expect(plan.backend?.inputName).toBe('default')
++      expect(reads).toEqual([])
++    } finally {
++      fields.forEach((field, index) => {
++        const descriptor = before[index]
++        if (descriptor) Object.defineProperty(Object.prototype, field, descriptor)
++        else delete (Object.prototype as Record<string, unknown>)[field]
++      })
++    }
++  })
++
++  test('source consumer callbacks cannot turn thrown values into Scene fallbacks', async () => {
++    const child = await runChild(process.execPath, ['--eval', `
++      await import('./src/index.ts')
++      const { resolveRenderRequestForExecution, resolvedRenderExecutionPlanOf } = await import('./src/render-contract.ts')
++      const { FIRST_PARTY_DRAWING_CONSUMER } = await import('./src/scene/default-drawing-consumer.ts')
++      const { executeResolvedSourceGraphicalRequest } = await import('./src/graphical-render.ts')
++      const { sceneLowering, inheritNativeDrawing, originalNativeDrawingOf } = await import('./src/scene/drawing.ts')
++      const rows = []
++      for (const thrown of [undefined, Symbol('source Scene consumer required'), { code: 'NODE_BUDGET_EXCEEDED' }]) {
++        const request = resolveRenderRequestForExecution('flowchart LR\\nA --> B', {}, 'svg', undefined, { drawingConsumer: FIRST_PARTY_DRAWING_CONSUMER })
++        const lower = resolvedRenderExecutionPlanOf(request).family.lowerScene
++        const original = originalNativeDrawingOf(lower), restore = sceneLowering(original)
++        inheritNativeDrawing(sceneLowering(() => { throw thrown }), lower)
++        let acquired = 0, propagated = false
++        try {
++          await executeResolvedSourceGraphicalRequest(request, async () => { acquired++ })
++        } catch (error) { propagated = error === thrown }
++        finally { inheritNativeDrawing(restore, lower) }
++        rows.push({ acquired, propagated })
++      }
++      console.log(JSON.stringify(rows))
++    `], { cwd: join(import.meta.dirname, '../..'), env: { ...process.env, AGENTIC_MERMAID_SCENE_ASSERTIONS: '0' } })
++    expect(child.status, child.stderr).toBe(0)
++    expect(JSON.parse(child.stdout)).toEqual([
++      { acquired: 0, propagated: true }, { acquired: 0, propagated: true }, { acquired: 0, propagated: true },
++    ])
++  })
++
+   test('input-only capture preserves getter observations and requires style completion before backend use', () => {
+     const reads: string[] = []
+     let color = '#123456'
+diff --git a/src/browser-lazy.ts b/src/browser-lazy.ts
+index b1573a05c..ae6611ed0 100644
+--- a/src/browser-lazy.ts
++++ b/src/browser-lazy.ts
+@@ -4,7 +4,7 @@ import type { RenderOptions } from './types.ts'
+ import { detectBrowserBuiltinFamilyFromFirstLine, type BrowserBuiltinFamilyId } from './browser-lazy/generated/catalog.ts'
+ import { mermaidFirstLine } from './mermaid-source-wrapper.ts'
+ 
+-type FamilyModule = { default: FamilyDescriptor }
++type FamilyModule = { default: FamilyDescriptor; renderLoadedFamilySvgWithReceipt: typeof import('./browser-lazy/render-core.ts').renderLoadedFamilySvgWithReceipt }
+ type FamilyLoader = () => Promise<FamilyModule>
+ 
+ const FAMILY_LOADERS = Object.freeze({
+@@ -71,7 +71,7 @@ export async function renderMermaidSVGAsync(source: string, options: RenderOptio
+ /** Receipt-bearing lazy rendering retains the complete canonical contract. */
+ export async function renderMermaidSVGWithReceiptAsync(source: string, options: RenderOptions = {}): Promise<import('./svg-api.ts').RenderedSvg> {
+   const familyId = detectFamily(source)
+-  const [{ default: family }, { renderLoadedFamilySvgWithReceipt }] = await Promise.all([FAMILY_LOADERS[familyId](), import('./browser-lazy/render-core.ts')])
++  const { default: family, renderLoadedFamilySvgWithReceipt } = await FAMILY_LOADERS[familyId]()
+   return renderLoadedFamilySvgWithReceipt(source, options, family)
+ }
+ 
+diff --git a/src/browser-lazy/families/agentflow.ts b/src/browser-lazy/families/agentflow.ts
+index da1de02d2..002174ca3 100644
+--- a/src/browser-lazy/families/agentflow.ts
++++ b/src/browser-lazy/families/agentflow.ts
+@@ -3,3 +3,5 @@ import { createBrowserFamilyDescriptor } from '../family.ts'
+ import { AGENTFLOW_SVG_HOOKS } from '../../svg-family-hooks/agentflow.ts'
+ 
+ export default createBrowserFamilyDescriptor(descriptorData, AGENTFLOW_SVG_HOOKS)
++
++export { renderLoadedFamilySvgWithReceipt } from '../render-core.ts'
+diff --git a/src/browser-lazy/families/architecture.ts b/src/browser-lazy/families/architecture.ts
+index 81f76fe3b..048e69939 100644
+--- a/src/browser-lazy/families/architecture.ts
++++ b/src/browser-lazy/families/architecture.ts
+@@ -3,3 +3,5 @@ import { createBrowserFamilyDescriptor } from '../family.ts'
+ import { ARCHITECTURE_SVG_HOOKS } from '../../svg-family-hooks/architecture.ts'
+ 
+ export default createBrowserFamilyDescriptor(descriptorData, ARCHITECTURE_SVG_HOOKS)
++
++export { renderLoadedFamilySvgWithReceipt } from '../render-core.ts'
+diff --git a/src/browser-lazy/families/block.ts b/src/browser-lazy/families/block.ts
+index d37c76f37..ac3b39496 100644
+--- a/src/browser-lazy/families/block.ts
++++ b/src/browser-lazy/families/block.ts
+@@ -3,3 +3,5 @@ import { createBrowserFamilyDescriptor } from '../family.ts'
+ import { BLOCK_SVG_HOOKS } from '../../svg-family-hooks/block.ts'
+ 
+ export default createBrowserFamilyDescriptor(descriptorData, BLOCK_SVG_HOOKS)
++
++export { renderLoadedFamilySvgWithReceipt } from '../render-core.ts'
+diff --git a/src/browser-lazy/families/c4.ts b/src/browser-lazy/families/c4.ts
+index 5cf6373ac..4f3419f06 100644
+--- a/src/browser-lazy/families/c4.ts
++++ b/src/browser-lazy/families/c4.ts
+@@ -3,3 +3,5 @@ import { createBrowserFamilyDescriptor } from '../family.ts'
+ import { C4_SVG_HOOKS } from '../../svg-family-hooks/c4.ts'
+ 
+ export default createBrowserFamilyDescriptor(descriptorData, C4_SVG_HOOKS)
++
++export { renderLoadedFamilySvgWithReceipt } from '../render-core.ts'
+diff --git a/src/browser-lazy/families/class.ts b/src/browser-lazy/families/class.ts
+index 6e6109e02..8b1fe7750 100644
+--- a/src/browser-lazy/families/class.ts
++++ b/src/browser-lazy/families/class.ts
+@@ -3,3 +3,5 @@ import { createBrowserFamilyDescriptor } from '../family.ts'
+ import { CLASS_SVG_HOOKS } from '../../svg-family-hooks/class.ts'
+ 
+ export default createBrowserFamilyDescriptor(descriptorData, CLASS_SVG_HOOKS)
++
++export { renderLoadedFamilySvgWithReceipt } from '../render-core.ts'
+diff --git a/src/browser-lazy/families/cynefin.ts b/src/browser-lazy/families/cynefin.ts
+index 55becb4a3..23b8da23d 100644
+--- a/src/browser-lazy/families/cynefin.ts
++++ b/src/browser-lazy/families/cynefin.ts
+@@ -2,3 +2,5 @@ import descriptorData from '../generated/descriptors/cynefin.ts'
+ import { createBrowserFamilyDescriptor } from '../family.ts'
+ import { CYNEFIN_SVG_HOOKS } from '../../svg-family-hooks/cynefin.ts'
+ export default createBrowserFamilyDescriptor(descriptorData, CYNEFIN_SVG_HOOKS)
++
++export { renderLoadedFamilySvgWithReceipt } from '../render-core.ts'
+diff --git a/src/browser-lazy/families/er.ts b/src/browser-lazy/families/er.ts
+index f4f93bafb..b87f635a9 100644
+--- a/src/browser-lazy/families/er.ts
++++ b/src/browser-lazy/families/er.ts
+@@ -3,3 +3,5 @@ import { createBrowserFamilyDescriptor } from '../family.ts'
+ import { ER_SVG_HOOKS } from '../../svg-family-hooks/er.ts'
+ 
+ export default createBrowserFamilyDescriptor(descriptorData, ER_SVG_HOOKS)
++
++export { renderLoadedFamilySvgWithReceipt } from '../render-core.ts'
+diff --git a/src/browser-lazy/families/eventmodeling.ts b/src/browser-lazy/families/eventmodeling.ts
+index 569c80b5f..8e06260c0 100644
+--- a/src/browser-lazy/families/eventmodeling.ts
++++ b/src/browser-lazy/families/eventmodeling.ts
+@@ -2,3 +2,5 @@ import data from '../generated/descriptors/eventmodeling.ts'
+ import { EVENTMODELING_SVG_HOOKS } from '../../svg-family-hooks/eventmodeling.ts'
+ import { createBrowserFamilyDescriptor } from '../family.ts'
+ export default createBrowserFamilyDescriptor(data, EVENTMODELING_SVG_HOOKS)
++
++export { renderLoadedFamilySvgWithReceipt } from '../render-core.ts'
+diff --git a/src/browser-lazy/families/flowchart.ts b/src/browser-lazy/families/flowchart.ts
+index cbc3b3063..ee3af1e09 100644
+--- a/src/browser-lazy/families/flowchart.ts
++++ b/src/browser-lazy/families/flowchart.ts
+@@ -3,3 +3,5 @@ import { createBrowserFamilyDescriptor } from '../family.ts'
+ import { FLOWCHART_SVG_HOOKS } from '../../svg-family-hooks/flowchart.ts'
+ 
+ export default createBrowserFamilyDescriptor(descriptorData, FLOWCHART_SVG_HOOKS)
++
++export { renderLoadedFamilySvgWithReceipt } from '../render-core.ts'
+diff --git a/src/browser-lazy/families/gantt.ts b/src/browser-lazy/families/gantt.ts
+index 5bafd90c2..f6cada3e1 100644
+--- a/src/browser-lazy/families/gantt.ts
++++ b/src/browser-lazy/families/gantt.ts
+@@ -3,3 +3,5 @@ import { createBrowserFamilyDescriptor } from '../family.ts'
+ import { GANTT_SVG_HOOKS } from '../../svg-family-hooks/gantt.ts'
+ 
+ export default createBrowserFamilyDescriptor(descriptorData, GANTT_SVG_HOOKS)
++
++export { renderLoadedFamilySvgWithReceipt } from '../render-core.ts'
+diff --git a/src/browser-lazy/families/gitgraph.ts b/src/browser-lazy/families/gitgraph.ts
+index 2f43e0a34..72247008c 100644
+--- a/src/browser-lazy/families/gitgraph.ts
++++ b/src/browser-lazy/families/gitgraph.ts
+@@ -3,3 +3,5 @@ import { createBrowserFamilyDescriptor } from '../family.ts'
+ import { GITGRAPH_SVG_HOOKS } from '../../svg-family-hooks/gitgraph.ts'
+ 
+ export default createBrowserFamilyDescriptor(descriptorData, GITGRAPH_SVG_HOOKS)
++
++export { renderLoadedFamilySvgWithReceipt } from '../render-core.ts'
+diff --git a/src/browser-lazy/families/ishikawa.ts b/src/browser-lazy/families/ishikawa.ts
+index a18fe4f7f..ea4515bfa 100644
+--- a/src/browser-lazy/families/ishikawa.ts
++++ b/src/browser-lazy/families/ishikawa.ts
+@@ -3,3 +3,5 @@ import { createBrowserFamilyDescriptor } from '../family.ts'
+ import { ISHIKAWA_SVG_HOOKS } from '../../svg-family-hooks/ishikawa.ts'
+ 
+ export default createBrowserFamilyDescriptor(descriptorData, ISHIKAWA_SVG_HOOKS)
++
++export { renderLoadedFamilySvgWithReceipt } from '../render-core.ts'
+diff --git a/src/browser-lazy/families/journey.ts b/src/browser-lazy/families/journey.ts
+index d59e0edb4..1fd9e531e 100644
+--- a/src/browser-lazy/families/journey.ts
++++ b/src/browser-lazy/families/journey.ts
+@@ -3,3 +3,5 @@ import { createBrowserFamilyDescriptor } from '../family.ts'
+ import { JOURNEY_SVG_HOOKS } from '../../svg-family-hooks/journey.ts'
+ 
+ export default createBrowserFamilyDescriptor(descriptorData, JOURNEY_SVG_HOOKS)
++
++export { renderLoadedFamilySvgWithReceipt } from '../render-core.ts'
+diff --git a/src/browser-lazy/families/kanban.ts b/src/browser-lazy/families/kanban.ts
+index 4569c0dd9..deb79bc4f 100644
+--- a/src/browser-lazy/families/kanban.ts
++++ b/src/browser-lazy/families/kanban.ts
+@@ -3,3 +3,5 @@ import { createBrowserFamilyDescriptor } from '../family.ts'
+ import { KANBAN_SVG_HOOKS } from '../../svg-family-hooks/kanban.ts'
+ 
+ export default createBrowserFamilyDescriptor(descriptorData, KANBAN_SVG_HOOKS)
++
++export { renderLoadedFamilySvgWithReceipt } from '../render-core.ts'
+diff --git a/src/browser-lazy/families/mindmap.ts b/src/browser-lazy/families/mindmap.ts
+index ac12ed55c..00a100fe1 100644
+--- a/src/browser-lazy/families/mindmap.ts
++++ b/src/browser-lazy/families/mindmap.ts
+@@ -3,3 +3,5 @@ import { createBrowserFamilyDescriptor } from '../family.ts'
+ import { MINDMAP_SVG_HOOKS } from '../../svg-family-hooks/mindmap.ts'
+ 
+ export default createBrowserFamilyDescriptor(descriptorData, MINDMAP_SVG_HOOKS)
++
++export { renderLoadedFamilySvgWithReceipt } from '../render-core.ts'
+diff --git a/src/browser-lazy/families/packet.ts b/src/browser-lazy/families/packet.ts
+index 5ebb97151..d9ebc432b 100644
+--- a/src/browser-lazy/families/packet.ts
++++ b/src/browser-lazy/families/packet.ts
+@@ -3,3 +3,5 @@ import { createBrowserFamilyDescriptor } from '../family.ts'
+ import { PACKET_SVG_HOOKS } from '../../svg-family-hooks/packet.ts'
+ 
+ export default createBrowserFamilyDescriptor(descriptorData, PACKET_SVG_HOOKS)
++
++export { renderLoadedFamilySvgWithReceipt } from '../render-core.ts'
+diff --git a/src/browser-lazy/families/pie.ts b/src/browser-lazy/families/pie.ts
+index cc843d714..eb9180793 100644
+--- a/src/browser-lazy/families/pie.ts
++++ b/src/browser-lazy/families/pie.ts
+@@ -3,3 +3,5 @@ import { createBrowserFamilyDescriptor } from '../family.ts'
+ import { PIE_SVG_HOOKS } from '../../svg-family-hooks/pie.ts'
+ 
+ export default createBrowserFamilyDescriptor(descriptorData, PIE_SVG_HOOKS)
++
++export { renderLoadedFamilySvgWithReceipt } from '../render-core.ts'
+diff --git a/src/browser-lazy/families/quadrant.ts b/src/browser-lazy/families/quadrant.ts
+index 8e343631c..0882b7949 100644
+--- a/src/browser-lazy/families/quadrant.ts
++++ b/src/browser-lazy/families/quadrant.ts
+@@ -3,3 +3,5 @@ import { createBrowserFamilyDescriptor } from '../family.ts'
+ import { QUADRANT_SVG_HOOKS } from '../../svg-family-hooks/quadrant.ts'
+ 
+ export default createBrowserFamilyDescriptor(descriptorData, QUADRANT_SVG_HOOKS)
++
++export { renderLoadedFamilySvgWithReceipt } from '../render-core.ts'
+diff --git a/src/browser-lazy/families/radar.ts b/src/browser-lazy/families/radar.ts
+index 2725fbf06..5292b361c 100644
+--- a/src/browser-lazy/families/radar.ts
++++ b/src/browser-lazy/families/radar.ts
+@@ -3,3 +3,5 @@ import { createBrowserFamilyDescriptor } from '../family.ts'
+ import { RADAR_SVG_HOOKS } from '../../svg-family-hooks/radar.ts'
+ 
+ export default createBrowserFamilyDescriptor(descriptorData, RADAR_SVG_HOOKS)
++
++export { renderLoadedFamilySvgWithReceipt } from '../render-core.ts'
+diff --git a/src/browser-lazy/families/railroad.ts b/src/browser-lazy/families/railroad.ts
+index 6c23e05cb..10884c94d 100644
+--- a/src/browser-lazy/families/railroad.ts
++++ b/src/browser-lazy/families/railroad.ts
+@@ -3,3 +3,5 @@ import { createBrowserFamilyDescriptor } from '../family.ts'
+ import { RAILROAD_SVG_HOOKS } from '../../svg-family-hooks/railroad.ts'
+ 
+ export default createBrowserFamilyDescriptor(descriptorData, RAILROAD_SVG_HOOKS)
++
++export { renderLoadedFamilySvgWithReceipt } from '../render-core.ts'
+diff --git a/src/browser-lazy/families/requirement.ts b/src/browser-lazy/families/requirement.ts
+index ab3ec36ae..9f56a3809 100644
+--- a/src/browser-lazy/families/requirement.ts
++++ b/src/browser-lazy/families/requirement.ts
+@@ -3,3 +3,5 @@ import { createBrowserFamilyDescriptor } from '../family.ts'
+ import { REQUIREMENT_SVG_HOOKS } from '../../svg-family-hooks/requirement.ts'
+ 
+ export default createBrowserFamilyDescriptor(descriptorData, REQUIREMENT_SVG_HOOKS)
++
++export { renderLoadedFamilySvgWithReceipt } from '../render-core.ts'
+diff --git a/src/browser-lazy/families/sankey.ts b/src/browser-lazy/families/sankey.ts
+index e98e1cb22..023e7798b 100644
+--- a/src/browser-lazy/families/sankey.ts
++++ b/src/browser-lazy/families/sankey.ts
+@@ -3,3 +3,5 @@ import { createBrowserFamilyDescriptor } from '../family.ts'
+ import { SANKEY_SVG_HOOKS } from '../../svg-family-hooks/sankey.ts'
+ 
+ export default createBrowserFamilyDescriptor(descriptorData, SANKEY_SVG_HOOKS)
++
++export { renderLoadedFamilySvgWithReceipt } from '../render-core.ts'
+diff --git a/src/browser-lazy/families/sequence.ts b/src/browser-lazy/families/sequence.ts
+index 830716b37..70b6f8b2e 100644
+--- a/src/browser-lazy/families/sequence.ts
++++ b/src/browser-lazy/families/sequence.ts
+@@ -3,3 +3,5 @@ import { createBrowserFamilyDescriptor } from '../family.ts'
+ import { SEQUENCE_SVG_HOOKS } from '../../svg-family-hooks/sequence.ts'
+ 
+ export default createBrowserFamilyDescriptor(descriptorData, SEQUENCE_SVG_HOOKS)
++
++export { renderLoadedFamilySvgWithReceipt } from '../render-core.ts'
+diff --git a/src/browser-lazy/families/state.ts b/src/browser-lazy/families/state.ts
+index d13a2a114..38d43d134 100644
+--- a/src/browser-lazy/families/state.ts
++++ b/src/browser-lazy/families/state.ts
+@@ -3,3 +3,5 @@ import { createBrowserFamilyDescriptor } from '../family.ts'
+ import { STATE_SVG_HOOKS } from '../../svg-family-hooks/state.ts'
+ 
+ export default createBrowserFamilyDescriptor(descriptorData, STATE_SVG_HOOKS)
++
++export { renderLoadedFamilySvgWithReceipt } from '../render-core.ts'
+diff --git a/src/browser-lazy/families/swimlane.ts b/src/browser-lazy/families/swimlane.ts
+index 6c5c06eae..ec3c8b772 100644
+--- a/src/browser-lazy/families/swimlane.ts
++++ b/src/browser-lazy/families/swimlane.ts
+@@ -3,3 +3,5 @@ import { createBrowserFamilyDescriptor } from '../family.ts'
+ import { SWIMLANE_SVG_HOOKS } from '../../svg-family-hooks/swimlane.ts'
+ 
+ export default createBrowserFamilyDescriptor(descriptorData, SWIMLANE_SVG_HOOKS)
++
++export { renderLoadedFamilySvgWithReceipt } from '../render-core.ts'
+diff --git a/src/browser-lazy/families/timeline.ts b/src/browser-lazy/families/timeline.ts
+index 35ec0f21f..f8f5ad446 100644
+--- a/src/browser-lazy/families/timeline.ts
++++ b/src/browser-lazy/families/timeline.ts
+@@ -3,3 +3,5 @@ import { createBrowserFamilyDescriptor } from '../family.ts'
+ import { TIMELINE_SVG_HOOKS } from '../../svg-family-hooks/timeline.ts'
+ 
+ export default createBrowserFamilyDescriptor(descriptorData, TIMELINE_SVG_HOOKS)
++
++export { renderLoadedFamilySvgWithReceipt } from '../render-core.ts'
+diff --git a/src/browser-lazy/families/treemap.ts b/src/browser-lazy/families/treemap.ts
+index 67b0074be..2f6b9c56b 100644
+--- a/src/browser-lazy/families/treemap.ts
++++ b/src/browser-lazy/families/treemap.ts
+@@ -3,3 +3,5 @@ import { createBrowserFamilyDescriptor } from '../family.ts'
+ import { TREEMAP_SVG_HOOKS } from '../../svg-family-hooks/treemap.ts'
+ 
+ export default createBrowserFamilyDescriptor(descriptorData, TREEMAP_SVG_HOOKS)
++
++export { renderLoadedFamilySvgWithReceipt } from '../render-core.ts'
+diff --git a/src/browser-lazy/families/treeview.ts b/src/browser-lazy/families/treeview.ts
+index fc9a46785..316153209 100644
+--- a/src/browser-lazy/families/treeview.ts
++++ b/src/browser-lazy/families/treeview.ts
+@@ -3,3 +3,5 @@ import { createBrowserFamilyDescriptor } from '../family.ts'
+ import { TREEVIEW_SVG_HOOKS } from '../../svg-family-hooks/treeview.ts'
+ 
+ export default createBrowserFamilyDescriptor(descriptorData, TREEVIEW_SVG_HOOKS)
++
++export { renderLoadedFamilySvgWithReceipt } from '../render-core.ts'
+diff --git a/src/browser-lazy/families/usecase.ts b/src/browser-lazy/families/usecase.ts
+index 2246efcb1..287c1fc09 100644
+--- a/src/browser-lazy/families/usecase.ts
++++ b/src/browser-lazy/families/usecase.ts
+@@ -3,3 +3,5 @@ import { createBrowserFamilyDescriptor } from '../family.ts'
+ import { USECASE_SVG_HOOKS } from '../../svg-family-hooks/usecase.ts'
+ 
+ export default createBrowserFamilyDescriptor(descriptorData, USECASE_SVG_HOOKS)
++
++export { renderLoadedFamilySvgWithReceipt } from '../render-core.ts'
+diff --git a/src/browser-lazy/families/venn.ts b/src/browser-lazy/families/venn.ts
+index 1f46bbc3e..fa2ebc703 100644
+--- a/src/browser-lazy/families/venn.ts
++++ b/src/browser-lazy/families/venn.ts
+@@ -3,3 +3,5 @@ import { createBrowserFamilyDescriptor } from '../family.ts'
+ import { VENN_SVG_HOOKS } from '../../svg-family-hooks/venn.ts'
+ 
+ export default createBrowserFamilyDescriptor(descriptorData, VENN_SVG_HOOKS)
++
++export { renderLoadedFamilySvgWithReceipt } from '../render-core.ts'
+diff --git a/src/browser-lazy/families/wardley.ts b/src/browser-lazy/families/wardley.ts
+index 78b642ba7..f24fb6ab9 100644
+--- a/src/browser-lazy/families/wardley.ts
++++ b/src/browser-lazy/families/wardley.ts
+@@ -2,3 +2,5 @@ import descriptorData from '../generated/descriptors/wardley.ts'
+ import { createBrowserFamilyDescriptor } from '../family.ts'
+ import { WARDLEY_SVG_HOOKS } from '../../svg-family-hooks/wardley.ts'
+ export default createBrowserFamilyDescriptor(descriptorData, WARDLEY_SVG_HOOKS)
++
++export { renderLoadedFamilySvgWithReceipt } from '../render-core.ts'
+diff --git a/src/browser-lazy/families/xychart.ts b/src/browser-lazy/families/xychart.ts
+index 46b38cea3..9f2840eb1 100644
+--- a/src/browser-lazy/families/xychart.ts
++++ b/src/browser-lazy/families/xychart.ts
+@@ -3,3 +3,5 @@ import { createBrowserFamilyDescriptor } from '../family.ts'
+ import { XYCHART_SVG_HOOKS } from '../../svg-family-hooks/xychart.ts'
+ 
+ export default createBrowserFamilyDescriptor(descriptorData, XYCHART_SVG_HOOKS)
++
++export { renderLoadedFamilySvgWithReceipt } from '../render-core.ts'
+diff --git a/src/browser-lazy/families/zenuml.ts b/src/browser-lazy/families/zenuml.ts
+index 3aa1f7f0b..1517f9a77 100644
+--- a/src/browser-lazy/families/zenuml.ts
++++ b/src/browser-lazy/families/zenuml.ts
+@@ -2,3 +2,5 @@ import data from '../generated/descriptors/zenuml.ts'
+ import { ZENUML_SVG_HOOKS } from '../../svg-family-hooks/zenuml.ts'
+ import { createBrowserFamilyDescriptor } from '../family.ts'
+ export default createBrowserFamilyDescriptor(data, ZENUML_SVG_HOOKS)
++
++export { renderLoadedFamilySvgWithReceipt } from '../render-core.ts'
+diff --git a/src/browser-lazy/render-core.ts b/src/browser-lazy/render-core.ts
+index 8e86e0b35..ffaea99ac 100644
+--- a/src/browser-lazy/render-core.ts
++++ b/src/browser-lazy/render-core.ts
+@@ -1,6 +1,11 @@
+ import type { FamilyDescriptor } from '../agent/families.ts'
+ import { installLoadedFamilyDescriptor } from '../agent/family-router.ts'
+-import { executeResolvedGraphicalRequest } from '../graphical-render.ts'
++import { executeResolvedSourceGraphicalRequest } from '../graphical-render.ts'
++import { loadSceneBackend } from './scene-backend.ts'
++import { FIRST_PARTY_DRAWING_CONSUMER } from '../scene/default-drawing-consumer.ts'
++import { isOwnedFamily } from '../experimental/owned-family.ts'
++import { nativeDrawingOf, originalNativeDrawingOf, preferSceneDrawing } from '../scene/drawing.ts'
++import { sceneAssertionsEnabled } from '../scene/assertions.ts'
+ import type { HtmlEntityTableNotLoadedError } from '../shared/html-entity-table.ts'
+ import type { RenderOptions } from '../types.ts'
+ import type { GraphicalSvgArtifact } from '../graphical-render.ts'
+@@ -28,12 +33,19 @@ export async function renderLoadedFamilySvgWithReceipt(
+   for (;;) {
+     try {
+       options = captureRenderOptions(options)
+-      if (capturedRenderBackend(options) !== 'default') await import('../scene/builtin-backends.ts')
++      const backend = capturedRenderBackend(options)
++      const producer = nativeDrawingOf(family.lowerScene)
++      const drawingConsumer = backend === 'default' && isOwnedFamily(family) && producer
++        && producer === originalNativeDrawingOf(family.lowerScene) && !preferSceneDrawing(family.id)
++        && !sceneAssertionsEnabled() && options.layoutSafety !== 'strict' ? FIRST_PARTY_DRAWING_CONSUMER : undefined
++      if (!drawingConsumer) await loadSceneBackend()
++      if (backend !== 'default') await import('../scene/builtin-backends.ts')
+       request ??= measureRenderStage('request', () => resolveRenderRequestForExecution(source, options, 'svg', undefined, {
+         expectedFamilyId: family.id,
+         familyDescriptor: family,
++        ...(drawingConsumer ? { drawingConsumer } : {}),
+       }))
+-      return executeResolvedGraphicalRequest(request)
++      return await executeResolvedSourceGraphicalRequest(request, loadSceneBackend)
+     } catch (error) {
+       // Only the dependency demanded by this render is fetched. Replay the
+       // admitted request so callbacks, options and host registrations retain
+diff --git a/src/graphical-render.ts b/src/graphical-render.ts
+index 520fd1597..8ea4ab685 100644
+--- a/src/graphical-render.ts
++++ b/src/graphical-render.ts
+@@ -23,6 +23,7 @@ import {
+   resolveRenderRequestForExecution,
+   resolvedFamilyRenderContextOf,
+   resolvedRenderExecutionPlanOf,
++  selectSourceSceneFallback,
+   RenderConfigError,
+   type RenderExecutionDecision,
+   type RenderExecutionResolutionOptions,
+@@ -158,8 +159,14 @@ export function renderPositionedMermaidSVG(
+   securityDiagnostics: OutputSecurityDiagnostic[],
+   capture?: ScenePartCapture,
+ ): ResolvedGraphicalExecution {
++  const rendered = renderPositionedConsumer(request, layout, securityDiagnostics, capture)
++  if (!rendered) throw new Error('The source Native consumer requires asynchronous Scene acquisition')
++  return rendered
++}
++
++function renderPositionedConsumer(request: ResolvedRenderRequest, layout: FamilyLayoutResult, securityDiagnostics: OutputSecurityDiagnostic[], capture?: ScenePartCapture): ResolvedGraphicalExecution | undefined {
+   const plan = resolvedRenderExecutionPlanOf(request)
+-  const written = isOwnedFamily(plan.family) && isOriginalEnrolledDefaultBackend(plan.backend?.backend)
++  const written = isOwnedFamily(plan.family) && (plan.consumer?.kind === 'native-drawing' || isOriginalEnrolledDefaultBackend(plan.backend?.backend))
+   return withTextMeasurementExecution(plan.textMeasurement, () => withWrittenSvgSecurity(written, () =>
+     renderPositionedWithTextMeasurement(request, layout, securityDiagnostics, capture)), request.appearance.font)
+ }
+@@ -184,7 +191,7 @@ function renderPositionedWithTextMeasurement(
+   layout: FamilyLayoutResult,
+   securityDiagnostics: OutputSecurityDiagnostic[],
+   capture?: ScenePartCapture,
+-): ResolvedGraphicalExecution {
++): ResolvedGraphicalExecution | undefined {
+   const executionPlan = resolvedRenderExecutionPlanOf(request)
+   if ((executionPlan.mode !== 'scene' && executionPlan.mode !== 'family-svg') || !executionPlan.executionDecision) {
+     throw new Error(`Resolved ${request.output} request has no graphical execution plan`)
+@@ -196,11 +203,12 @@ function renderPositionedWithTextMeasurement(
+   let preparedText = false
+   let layoutCertification: PaintLayoutCertification | undefined
+   if (executionPlan.mode === 'scene') {
+-    const drawing = capture ? undefined : measureRenderStage('drawing', () => retainedNativeDrawing(request, layout))
++    const drawing = capture || executionPlan.consumer?.kind === 'scene-backend' ? undefined : measureRenderStage('drawing', () => retainedNativeDrawing(request, layout))
++    if (!drawing && executionPlan.consumer?.kind === 'native-drawing') return undefined
+     const actualWrite = !drawing && !capture && actualPositionedSceneWriteEligible(request)
+     const scene = drawing ? undefined : measureRenderStage('scene', () => lowerPositionedFamilyScene(request, layout))
+     layoutCertification = measureRenderStage('paint-certification', () => positionedPaintCertification(request, layout))
+-    if (layoutCertification && ((effectiveOptions.layoutSafety === 'strict' && layoutCertification.status !== 'passed') || (layoutCertification.status === 'failed' && executionPlan.backend?.inputName === 'default'))) throw new PaintLayoutCertificationError(layoutCertification)
++    if (layoutCertification && ((effectiveOptions.layoutSafety === 'strict' && layoutCertification.status !== 'passed') || (layoutCertification.status === 'failed' && (executionPlan.consumer?.kind === 'native-drawing' || executionPlan.backend?.inputName === 'default')))) throw new PaintLayoutCertificationError(layoutCertification)
+     let actualWriteBound = false
+     rawSvg = drawing?.svg ?? measureRenderStage('backend', () => {
+       const backendContext = {
+@@ -227,7 +235,7 @@ function renderPositionedWithTextMeasurement(
+       if (!actualWriteBound) layoutCertification = unavailableActualBackendWrite(scene!)
+       if ((effectiveOptions.layoutSafety === 'strict' && layoutCertification.status !== 'passed') || layoutCertification.status === 'failed') throw new PaintLayoutCertificationError(layoutCertification)
+     }
+-    preparedText = executionPlan.backend?.inputName === 'default'
++    preparedText = (executionPlan.consumer?.kind === 'native-drawing' || executionPlan.backend?.inputName === 'default')
+       && !family.id.startsWith('family:') && (drawing?.preparedText ?? sceneHasOnlyPreparedText(scene!))
+   } else {
+     if (effectiveOptions.layoutSafety === 'strict') throw new RenderConfigError('Strict layout safety requires native Scene evidence')
+@@ -236,7 +244,7 @@ function renderPositionedWithTextMeasurement(
+   assertFinalSvgByteBudget(rawSvg, 'backend/family SVG output')
+ 
+   let svg = inlineResolvedColors(rawSvg, context.colors)
+-  if (layoutCertification?.repairs.length && executionPlan.backend?.inputName === 'default') svg = expandSvgViewport(svg, layoutCertification.viewport)
++  if (layoutCertification?.repairs.length && (executionPlan.consumer?.kind === 'native-drawing' || executionPlan.backend?.inputName === 'default')) svg = expandSvgViewport(svg, layoutCertification.viewport)
+   assertFinalSvgByteBudget(svg, 'color-resolved SVG output')
+   if (!preparedText) svg = fitUncalibratedSvgText(svg, request.appearance.font)
+   assertFinalSvgByteBudget(svg, 'font-geometry-fitted SVG output')
+@@ -269,7 +277,7 @@ function renderPositionedWithTextMeasurement(
+   // security intent, while no native/WASM/browser rasterizer can receive a
+   // fetching reference from a conditional host backend.
+   const outputSecurity = request.output === 'png' ? 'strict' : effectiveOptions.security
+-  const securityPolicy = isOwnedFamily(family) && isOriginalEnrolledDefaultBackend(executionPlan.backend?.backend) ? applyWrittenOutputSecurityPolicy : applyOutputSecurityPolicy
++  const securityPolicy = isOwnedFamily(family) && (executionPlan.consumer?.kind === 'native-drawing' || isOriginalEnrolledDefaultBackend(executionPlan.backend?.backend)) ? applyWrittenOutputSecurityPolicy : applyOutputSecurityPolicy
+   const secured = measureRenderStage('svg-security', () => securityPolicy(svg, outputSecurity))
+   securityDiagnostics.push(...secured.diagnostics)
+   svg = secured.svg
+@@ -332,6 +340,25 @@ export function executeResolvedGraphicalRequest(request: ResolvedRenderRequest):
+   return withSvgInspectionCache(() => consumeResolvedGraphicalRequest(request))
+ }
+ 
++/** Async source adapter: acquire a genuinely needed SPI after positioning,
++ * retaining that exact layout and captured request across the await. */
++export async function executeResolvedSourceGraphicalRequest(request: ResolvedRenderRequest, loadSceneBackend: () => Promise<void>): Promise<GraphicalSvgArtifact> {
++  const plan = resolvedRenderExecutionPlanOf(request)
++  if (plan.consumer?.kind !== 'native-drawing') return executeResolvedGraphicalRequest(request)
++  emitResolvedConfigDiagnostics(request)
++  const layout = measureRenderStage('layout', () => positionFamilyForNativeRender(request))
++  const securityDiagnostics: OutputSecurityDiagnostic[] = []
++  let rendered = withSvgInspectionCache(() => renderPositionedConsumer(request, layout, securityDiagnostics))
++  // Only the actual unavailable-consumer return can acquire the SPI. Caller
++  // exceptions propagate unchanged, including undefined and Symbol values.
++  if (!rendered) {
++    await loadSceneBackend()
++    selectSourceSceneFallback(request)
++    rendered = withSvgInspectionCache(() => renderPositionedMermaidSVG(request, layout, securityDiagnostics))
++  }
++  return graphicalSvgArtifact(request, rendered, securityDiagnostics)
++}
++
+ function consumeResolvedGraphicalRequest(request: ResolvedRenderRequest, consumeLayout?: GraphicalLayoutConsumer): GraphicalSvgArtifact {
+   emitResolvedConfigDiagnostics(request)
+   consumeLayout?.validate(request)
+diff --git a/src/positioning.ts b/src/positioning.ts
+index e3ae87719..b90caf36e 100644
+--- a/src/positioning.ts
++++ b/src/positioning.ts
+@@ -63,7 +63,7 @@ export function positionFamilyForNativeRender(request: ResolvedRenderRequest): F
+   // later restored original producer never borrows caller-retained geometry.
+   const producer = nativeDrawingOf(plan.family.lowerScene)
+   const reusableMetrics = !plan.textMeasurement || textMeasurementCacheIdentity(plan.textMeasurement) !== undefined
+-  const borrow = plan.mode === 'scene' && isOriginalEnrolledDefaultBackend(plan.backend?.backend)
++  const borrow = plan.mode === 'scene' && (plan.consumer?.kind === 'native-drawing' || isOriginalEnrolledDefaultBackend(plan.backend?.backend))
+     && isOwnedFamily(plan.family) && !preferSceneDrawing(plan.family.id) && reusableMetrics
+     && !!producer && producer === originalNativeDrawingOf(plan.family.lowerScene) && !sceneAssertionsEnabled(request)
+   const result = positionFamily(plan.family.id, request, request.source, {}, borrow, true)
+diff --git a/src/render-contract.ts b/src/render-contract.ts
+index d4ded07bf..cc3900adf 100644
+--- a/src/render-contract.ts
++++ b/src/render-contract.ts
+@@ -48,6 +48,9 @@ import type {
+ import type { DiagramKind, FamilyId } from './agent/types.ts'
+ import { classifyMermaidFamilyDescriptorFromFirstLine, familyDetectionDiagnostic, MermaidFamilyDetectionError } from './family-detection.ts'
+ import { getBackendDescriptor } from './scene/backend.ts'
++import { FIRST_PARTY_DRAWING_CONSUMER, type FirstPartyDrawingConsumer } from './scene/default-drawing-consumer.ts'
++import { isOwnedFamily } from './experimental/owned-family.ts'
++import { nativeDrawingOf, originalNativeDrawingOf, preferSceneDrawing } from './scene/drawing.ts'
+ import type { BackendDescriptor, HostBackendPolicy } from './scene/backend.ts'
+ import {
+   ESSENTIAL_SCENE_PRIMITIVE_CAPABILITIES,
+@@ -173,6 +176,8 @@ export interface RenderExecutionDecision {
+ 
+ /** Trusted, non-serializable inputs used while freezing an execution plan. */
+ export interface RenderExecutionResolutionOptions {
++  /** Private source-only consumer; this is not a SceneBackend descriptor. */
++  readonly drawingConsumer?: FirstPartyDrawingConsumer
+   readonly backendPolicy?: HostBackendPolicy
+   readonly textMeasurement?: TextMeasurementProfile
+   /** Internal identity assertion carried by ParsedDiagram adapters. */
+@@ -206,6 +211,7 @@ export interface InternalRenderExecutionPlan {
+   readonly mode: 'scene' | 'family-svg' | 'terminal' | 'layout'
+   readonly family: FamilyDescriptor
+   readonly backend?: BackendDescriptor
++  readonly consumer: FirstPartyDrawingConsumer | { readonly kind: 'scene-backend' } | undefined
+   readonly requestedBackendId?: string
+   /** Immutable diagnostics computed from the exact admitted pre-normalization
+    * config while this family execution plan is captured. */
+@@ -365,7 +371,8 @@ export function resolvedFamilyRenderContextOf(
+ ): ResolvedFamilyRenderContext {
+   const prior = FAMILY_CONTEXT_BY_REQUEST.get(request)
+   if (prior) return prior
+-  const paintBackendId = EXECUTION_PLAN_BY_REQUEST.get(request)?.backend?.identity.id
++  const plan = EXECUTION_PLAN_BY_REQUEST.get(request)
++  const paintBackendId = (plan?.consumer?.kind === 'native-drawing' ? plan.consumer.identity.id : plan?.backend?.identity.id)
+     ?? (request.output === 'layout' ? `backend:${request.appearance.inferredBackend}` : undefined)
+   const context = Object.freeze({
+     renderOptions: request.renderOptions,
+@@ -1107,14 +1114,14 @@ function executionCapabilityDecision(output: RenderOutput, offers: readonly Capa
+ const DESCRIPTOR_CAPABILITY_DECISIONS = new WeakMap<FamilyDescriptor, WeakMap<object, Map<string, CapabilityDecision>>>()
+ const NO_EXECUTION_BACKEND = Object.freeze({})
+ 
+-function descriptorCapabilityDecision(family: FamilyDescriptor, backend: BackendDescriptor | undefined, mode: InternalRenderExecutionPlan['mode'], output: RenderOutput): CapabilityDecision {
++function descriptorCapabilityDecision(family: FamilyDescriptor, backend: BackendDescriptor | undefined, mode: InternalRenderExecutionPlan['mode'], output: RenderOutput, drawingConsumer?: FirstPartyDrawingConsumer): CapabilityDecision {
+   const cacheable = Object.isFrozen(family) && (backend === undefined || Object.isFrozen(backend))
+   let decisions: Map<string, CapabilityDecision> | undefined
+   const key = `${mode}:${output}`
+   if (cacheable) {
+     let backends = DESCRIPTOR_CAPABILITY_DECISIONS.get(family)
+     if (!backends) DESCRIPTOR_CAPABILITY_DECISIONS.set(family, backends = new WeakMap())
+-    const owner = backend ?? NO_EXECUTION_BACKEND
++    const owner = drawingConsumer ?? backend ?? NO_EXECUTION_BACKEND
+     decisions = backends.get(owner)
+     if (!decisions) backends.set(owner, decisions = new Map())
+     const retained = decisions.get(key)
+@@ -1126,11 +1133,13 @@ function descriptorCapabilityDecision(family: FamilyDescriptor, backend: Backend
+   const backendCapabilityRequirements = mode === 'scene'
+     ? requiredBackendCapabilities(family)
+     : []
+-  const backendCapabilityOffers = backend
+-    ? backendCapabilityRequirements.flatMap(requirement => executionOffer(
+-        primitiveCapabilityId(requirement),
+-        backendSupportsCapability(backend, requirement),
+-      ))
++  const supports = (requirement: EssentialScenePrimitiveCapability): boolean => drawingConsumer
++    ? drawingConsumer.capabilities.some(claim => claim.primitive === requirement.primitive && claim.feature === requirement.feature
++      && claim.operation === requirement.operation && claim.realization !== 'unsupported')
++    : backend !== undefined && backendSupportsCapability(backend, requirement)
++  const selected = drawingConsumer ?? backend
++  const backendCapabilityOffers = selected
++    ? backendCapabilityRequirements.flatMap(requirement => executionOffer(primitiveCapabilityId(requirement), supports(requirement)))
+     : []
+ 
+   const offers: CapabilityOffer[] = [
+@@ -1141,7 +1150,7 @@ function descriptorCapabilityDecision(family: FamilyDescriptor, backend: Backend
+     ...executionOffer('operation:render-svg', family.renderSvg !== undefined),
+     ...executionOffer('operation:render-terminal', family.renderAscii !== undefined),
+     ...executionOffer('core:scene', mode === 'scene'),
+-    ...executionOffer('backend:scene-renderer', backend !== undefined, backend?.identity.version),
++    ...executionOffer('backend:scene-renderer', selected !== undefined, selected?.identity.version),
+     ...backendCapabilityOffers,
+   ]
+   const requirements: CapabilityRequirement[] = [
+@@ -1155,14 +1164,14 @@ function descriptorCapabilityDecision(family: FamilyDescriptor, backend: Backend
+         executionRequirement('core:scene'),
+         executionRequirement('operation:layout'),
+         executionRequirement('operation:lower-scene'),
+-        executionRequirement('backend:scene-renderer', backend?.identity.version ?? EXECUTION_CAPABILITY_VERSION),
++        executionRequirement('backend:scene-renderer', selected?.identity.version ?? EXECUTION_CAPABILITY_VERSION),
+         ...backendCapabilityRequirements.map(requirement => executionRequirement(primitiveCapabilityId(requirement))),
+       )
+       outputAvailable = Boolean(
+         family.layout
+         && family.lowerScene
+-        && backend
+-        && backendCapabilityRequirements.every(requirement => backendSupportsCapability(backend, requirement)),
++        && selected
++        && backendCapabilityRequirements.every(supports),
+       )
+       break
+     case 'family-svg':
+@@ -1201,12 +1210,17 @@ function resolveExecutionPlan(
+ ): InternalRenderExecutionPlan {
+   let mode: InternalRenderExecutionPlan['mode']
+   let backend: BackendDescriptor | undefined
++  let drawingConsumer: FirstPartyDrawingConsumer | undefined
+   let requestedBackendId: string | undefined
+   if (output === 'svg' || output === 'png') {
+     mode = appearance.styled || family.lowerScene ? 'scene' : 'family-svg'
+     if (mode === 'scene') {
+       requestedBackendId = appearance.styled ? appearance.inferredBackend : 'default'
+-      backend = getBackendDescriptor(requestedBackendId, resolutionOptions.backendPolicy)
++      const requestedConsumer = Object.hasOwn(resolutionOptions, 'drawingConsumer') ? resolutionOptions.drawingConsumer : undefined
++      const producer = requestedConsumer === FIRST_PARTY_DRAWING_CONSUMER && isOwnedFamily(family) ? nativeDrawingOf(family.lowerScene) : undefined
++      if (output === 'svg' && requestedBackendId === 'default' && !resolutionOptions.backendPolicy
++        && producer && producer === originalNativeDrawingOf(family.lowerScene) && !preferSceneDrawing(family.id)) drawingConsumer = requestedConsumer
++      else backend = getBackendDescriptor(requestedBackendId, resolutionOptions.backendPolicy)
+     }
+   } else if (output === 'layout') {
+     mode = 'layout'
+@@ -1214,7 +1228,7 @@ function resolveExecutionPlan(
+     mode = 'terminal'
+   }
+ 
+-  const capabilityDecision = descriptorCapabilityDecision(family, backend, mode, output)
++  const capabilityDecision = descriptorCapabilityDecision(family, backend, mode, output, drawingConsumer)
+   if (!capabilityDecision.accepted) {
+     throw executionCapabilityError(output, family, appearance, mode, backend, capabilityDecision)
+   }
+@@ -1229,8 +1243,8 @@ function resolveExecutionPlan(
+       ? Object.freeze({
+           mode: 'scene' as const,
+           requestedId: requestedBackendId!,
+-          selectedId: backend!.identity.id,
+-          version: backend!.identity.version,
++          selectedId: (drawingConsumer ?? backend)!.identity.id,
++          version: (drawingConsumer ?? backend)!.identity.version,
+           hostPolicy: resolutionOptions.backendPolicy !== undefined,
+         })
+       : Object.freeze({ mode: 'family-svg' as const })
+@@ -1255,6 +1269,7 @@ function resolveExecutionPlan(
+     mode,
+     family,
+     ...(backend ? { backend } : {}),
++    consumer: drawingConsumer,
+     ...(requestedBackendId ? { requestedBackendId } : {}),
+     ...(configDiagnostics === undefined ? {} : { configDiagnostics }),
+     ...(onConfigDiagnostic ? { onConfigDiagnostic } : {}),
+@@ -1264,6 +1279,20 @@ function resolveExecutionPlan(
+   })
+ }
+ 
++/** Complete a genuinely required source Scene fallback without resolving
++ * options, invoking config callbacks, or positioning a second time. */
++export function selectSourceSceneFallback(request: ResolvedRenderRequest): void {
++  const plan = resolvedRenderExecutionPlanOf(request)
++  if (plan.consumer?.kind !== 'native-drawing') throw new Error('Source drawing fallback requires its Native consumer')
++  const backend = getBackendDescriptor('default')
++  const decision = descriptorCapabilityDecision(plan.family, backend, plan.mode, plan.output)
++  if (!decision.accepted) throw executionCapabilityError(plan.output, plan.family, request.appearance, plan.mode, backend, decision)
++  if (!backend || backend.identity.id !== plan.consumer.identity.id || backend.identity.version !== plan.consumer.identity.version) {
++    throw new Error('Source Scene fallback changed the selected rendering identity')
++  }
++  EXECUTION_PLAN_BY_REQUEST.set(request, Object.freeze({ ...plan, backend, consumer: Object.freeze({ kind: 'scene-backend' as const }) }))
++}
++
+ function isSharedCapabilityResolution(resolution: CapabilityResolution): boolean {
+   return !resolution.id.startsWith('output:')
+     && !resolution.id.startsWith('operation:')
+diff --git a/src/scene/backend.ts b/src/scene/backend.ts
+index 6eab7184c..c8bdb4191 100644
+--- a/src/scene/backend.ts
++++ b/src/scene/backend.ts
+@@ -1,6 +1,8 @@
+ import { PACKAGE_VERSION } from '../version.ts'
+ import { observeCache } from '../performance-observations.ts'
+-import { formatSvgNumber } from '../shared/svg-number.ts'
++import { pageRectFor } from './drawing-page.ts'
++export { pageRectFor } from './drawing-page.ts'
++import { DEFAULT_DRAWING_CAPABILITIES, DEFAULT_DRAWING_IDENTITY } from './default-drawing-consumer.ts'
+ // ============================================================================
+ // StyleBackend interface + DefaultBackend + backend registry (SPEC §3.2).
+ //
+@@ -18,13 +20,13 @@ import { backendWithAdmittedConformanceFixture, runBackendConformance } from './
+ import type { BackendConformanceReport } from './backend-conformance.ts'
+ import {
+   ESSENTIAL_SCENE_PRIMITIVE_CAPABILITIES,
+-  graphicalBackendCapabilityClaims,
+   validatePrimitiveCapabilities,
+ } from './capabilities.ts'
+ import type { PrimitiveCapabilityClaim } from './capabilities.ts'
+ import { admitBackendSceneDocument } from './external-data-snapshot.ts'
+ import { sceneNodeSerialization as unobservedSceneNodeSerialization, sceneNodeSerializationObserved, sceneBackendWriteObserver, sceneDocumentComposition } from './serialization.ts'
+ import { capturedPart as unobservedCapturedPart } from './part-capture.ts'
++export { capturedPart } from './part-capture.ts'
+ import {
+   canonicalExtensionId,
+   createExtensionIdentity,
+@@ -130,14 +132,10 @@ export function composeGroup(
+ /** Styled documents carry an explicit page rect after the prelude — resvg
+  *  does not paint the root style="background:…" CSS (SPEC §10). Emitted by
+  *  every backend when a style is active and the document isn't transparent. */
+-export function pageRectFor(doc: Pick<SceneDoc, 'width' | 'height' | 'transparent'>, ctx: StyleBackendContext): string {
+-  if (!ctx.style || doc.transparent) return ''
+-  return `<rect width="${formatSvgNumber(doc.width)}" height="${formatSvgNumber(doc.height)}" fill="var(--bg)" data-backdrop="page" />`
+-}
+ 
+ export const DefaultBackend: StyleBackend = {
+   id: 'default',
+-  capabilities: graphicalBackendCapabilityClaims('backend:default', 'crisp'),
++  capabilities: DEFAULT_DRAWING_CAPABILITIES,
+   drawNode(node: SceneNode): string {
+     return unobservedSceneNodeSerialization(node)
+   },
+@@ -469,7 +467,7 @@ export function registerBuiltInBackend(backend: StyleBackend): void {
+     const conformance = lazyBuiltInConformance(backend, id, originalDefault)
+     const frozen = freezeBuiltInBackend(refuseUntilConforming(backend, inputName, conformance))
+     registerExtension(BACKENDS, {
+-      identity: backendIdentity(id, {
++      identity: inputName === 'default' ? DEFAULT_DRAWING_IDENTITY : backendIdentity(id, {
+         version: CORE_BACKEND_VERSION,
+         compatibility: CORE_BACKEND_COMPATIBILITY,
+         provenance: CORE_BACKEND_PROVENANCE,
+diff --git a/src/scene/native-drawing.ts b/src/scene/native-drawing.ts
+index f253739bd..b6148cfae 100644
+--- a/src/scene/native-drawing.ts
++++ b/src/scene/native-drawing.ts
+@@ -1,4 +1,5 @@
+-import { pageRectFor, isBuiltinDefaultBackend, isOriginalEnrolledDefaultBackend } from './backend.ts'
++import { isBuiltinDefaultBackend, isOriginalEnrolledDefaultBackend } from './backend.ts'
++import { pageRectFor } from './drawing-page.ts'
+ import { isOwnedFamily } from '../experimental/owned-family.ts'
+ import { nativeDrawingOf, originalNativeDrawingOf } from './drawing.ts'
+ import { hasPrivateNativePositionedInput, positionedForNativeProducer } from '../positioning.ts'
+@@ -120,8 +121,8 @@ let originalDrawingDepth = 0
+  * request ownership. Replacement producers and SDK calls keep their snapshot. */
+ export function drawOriginalPositionedNative(request: ResolvedRenderRequest, layout: FamilyLayoutResult, producer: DrawingProducer): NativeDrawing | undefined {
+   const plan = resolvedRenderExecutionPlanOf(request)
+-  if (originalDrawingDepth || plan.mode !== 'scene' || !plan.backend || !isOwnedFamily(plan.family)
+-    || !isBuiltinDefaultBackend(plan.backend.backend) || !isOriginalEnrolledDefaultBackend(plan.backend.backend)
++  if (originalDrawingDepth || plan.mode !== 'scene' || !isOwnedFamily(plan.family)
++    || !(plan.consumer?.kind === 'native-drawing' || plan.backend && isBuiltinDefaultBackend(plan.backend.backend) && isOriginalEnrolledDefaultBackend(plan.backend.backend))
+     || sceneAssertionsEnabled(request) || producer !== nativeDrawingOf(plan.family.lowerScene)
+     || producer !== originalNativeDrawingOf(plan.family.lowerScene) || !hasPrivateNativePositionedInput(layout, producer)
+     || plan.textMeasurement && textMeasurementCacheIdentity(plan.textMeasurement) === undefined) return undefined
+diff --git a/src/scene/positioned.ts b/src/scene/positioned.ts
+index d751648e5..d9529c8c5 100644
+--- a/src/scene/positioned.ts
++++ b/src/scene/positioned.ts
+@@ -97,11 +97,14 @@ export function finishPositionedBackendEmission(request: ResolvedRenderRequest,
+  * alternate backends deliberately retain the extension-facing Scene adapter. */
+ export function retainedNativeDrawing(request: ResolvedRenderRequest, layout: FamilyLayoutResult): RenderableNativeDrawing | undefined {
+   const plan = resolvedRenderExecutionPlanOf(request)
++  // A completed async fallback selected the Scene consumer for this operand.
++  // A later producer change cannot replace its proof with a new Native write.
++  if (plan.consumer?.kind === 'scene-backend') return undefined
+   // Once ER lowered a Scene, later observers cannot switch its actual operand.
+   if (preferSceneDrawing(plan.family.id) && !native.get(layout)?.has(request) && retained.get(layout)?.has(request)) return undefined
+   let bypass = sceneAssertionsEnabled(request) ? 'scene-assertions' : plan.family.id.startsWith('family:') ? 'external-family'
+-    : plan.backend && !isBuiltinDefaultBackend(plan.backend.backend) ? 'alternate-backend'
+-      : !(plan.mode === 'layout' ? request.appearance.inferredBackend === 'default' : plan.mode === 'scene' && plan.backend?.inputName === 'default') ? 'unsupported-mode' : undefined
++    : plan.consumer?.kind !== 'native-drawing' && plan.backend && !isBuiltinDefaultBackend(plan.backend.backend) ? 'alternate-backend'
++      : !(plan.mode === 'layout' ? request.appearance.inferredBackend === 'default' : plan.mode === 'scene' && (plan.consumer?.kind === 'native-drawing' || plan.backend?.inputName === 'default')) ? 'unsupported-mode' : undefined
+   if (!bypass && plan.family.id === 'er' && (retainedFamilyProjection(layout)?.nodes.length ?? 0) > ER_NATIVE_PAINT_NODE_CAPACITY) bypass = 'paint-proof-capacity'
+   let producer = bypass ? undefined : nativeDrawingOf(plan.family.lowerScene)
+   if (!bypass && preferSceneDrawing(plan.family.id) && producer && producer === originalNativeDrawingOf(plan.family.lowerScene)) bypass = 'owned-scene-geometry'
+@@ -122,7 +125,8 @@ export function retainedNativeDrawing(request: ResolvedRenderRequest, layout: Fa
+     observeCache('native-drawing', 'bypass', 'changed-producer')
+     requests.delete(request)
+   }
+-  // Reading conformance proves the same default writer capability as render().
++  // The Scene SPI proves its broad backend contract. A selected Native
++  // consumer instead proves the actual requested XML/paint write below.
+   if (plan.backend) assertBackendConformance(plan.backend.conformance, plan.backend.inputName)
+   // Positioning's ownership proof must still hold after layout observers run.
+   // A changed producer executes on its detached graph and cannot publish a
+@@ -185,7 +189,7 @@ export function positionedPaintCertification(request: ResolvedRenderRequest, lay
+   observeCache('paint-certification', entry.certification ? 'hit' : 'miss', undefined, 'scene')
+   if (entry.certification) return entry.certification
+   const plan = resolvedRenderExecutionPlanOf(request)
+-  const supported = !request.appearance.colors.shadow && (plan.mode === 'layout' ? request.appearance.inferredBackend === 'default' : plan.mode === 'scene' && plan.backend?.inputName === 'default')
++  const supported = !request.appearance.colors.shadow && (plan.mode === 'layout' ? request.appearance.inferredBackend === 'default' : plan.mode === 'scene' && (plan.consumer?.kind === 'native-drawing' || plan.backend?.inputName === 'default'))
+   const writer = plan.backend ?? (plan.mode === 'layout' && request.appearance.inferredBackend === 'default' ? getBackendDescriptor('default') : undefined)
+   const written = supported && writer && isBuiltinDefaultBackend(writer.backend) && isOriginalEnrolledDefaultBackend(writer.backend)
+   return entry.certification = certifyScenePaint(scene, retainedFamilyProjection(layout), { outputSupported: supported, sceneWriteReceipt: written ? entry.writes : undefined })
+diff --git a/src/scene/rough-backend.ts b/src/scene/rough-backend.ts
+index 7483eee72..b2d88e2c2 100644
+--- a/src/scene/rough-backend.ts
++++ b/src/scene/rough-backend.ts
+@@ -1,5 +1,5 @@
+ import { serializeTransform } from './transforms.ts'
+-import { capturedPart } from './part-capture.ts'
++import { capturedPart } from './backend.ts'
+ import { formatSvgNumber } from '../shared/svg-number.ts'
+ // ============================================================================
+ // RoughBackend (SPEC §3.2/§11 phase 3) — rough.js-backed sketch serialization
+diff --git a/tsup.browser-lazy.config.ts b/tsup.browser-lazy.config.ts
+index 750224131..d6d094b0a 100644
+--- a/tsup.browser-lazy.config.ts
++++ b/tsup.browser-lazy.config.ts
+@@ -21,6 +21,22 @@ export const lazyBrowserStyles: Plugin = {
+   },
+ }
+ 
++/** Only the source-only async entry selects a Native drawing consumer. The
++ * canonical Scene SPI remains a real on-demand module, never a stub backend. */
++export const lazyBrowserDrawingConsumer: Plugin = {
++  name: 'lazy-browser-drawing-consumer',
++  setup(build) {
++    const backend = resolve(import.meta.dirname, 'src/scene/backend.ts')
++    const runtime = resolve(import.meta.dirname, 'src/browser-lazy/scene-backend-runtime.ts')
++    const defaultBackend = resolve(import.meta.dirname, 'src/scene/default-backend.ts')
++    const facade = resolve(import.meta.dirname, 'src/browser-lazy/scene-backend.ts')
++    build.onResolve({ filter: /\/(?:backend|default-backend)\.ts$/ }, args => {
++      const path = resolve(args.resolveDir, args.path)
++      return args.importer !== runtime && (path === backend || path === defaultBackend) ? { path: facade } : undefined
++    })
++  },
++}
++
+ // Framework-neutral ESM renderer. The entry contains source normalization and
+ // the generated family catalog; family implementations and the shared SVG
+ // backend arrive through native dynamic import only when requested.
+@@ -43,17 +59,9 @@ export default defineConfig({
+   external: [],
+   // ELK, YAML and the HTML5 entity table load only when a diagram needs them.
+   // Build-only facade twins preserve the synchronous source/Node APIs.
+-  esbuildPlugins: [runtimeRenderContractPlugin({ schemaDocumentation: false, terminalAdapter: false, conformanceObservations: false, coalesceRuntimePrimitives: true, sourceOnlySceneAdmission: true, lazyLayoutOptimization: true }), lazyBrowserStyles, {
++  esbuildPlugins: [lazyBrowserDrawingConsumer, runtimeRenderContractPlugin({ schemaDocumentation: false, terminalAdapter: false, conformanceObservations: false, coalesceRuntimePrimitives: true, sourceOnlySceneAdmission: true, lazyLayoutOptimization: true }), lazyBrowserStyles, {
+     name: 'lazy-browser-dependencies',
+     setup(build) {
+-      // Every public render awaits this core together with its selected family.
+-      // Express that complete union in each private facade so shared core code
+-      // has one reachability set and can ship in fewer compressed chunks.
+-      build.onLoad({ filter: /\/src\/browser-lazy\/families\/[^/]+\.ts$/ }, async args => ({
+-        contents: `${await readFile(args.path, 'utf8')}\nexport { renderLoadedFamilySvgWithReceipt } from '../render-core.ts'\n`,
+-        loader: 'ts',
+-        resolveDir: dirname(args.path),
+-      }))
+       // Styled and Native providers are requested after that same core has
+       // loaded. Keep their shared primitives in the complete render union.
+       build.onLoad({ filter: /\/src\/(?:scene\/builtin-backends|layout\/agentic-producer-core)\.ts$/ }, async args => ({
+diff --git a/tsup.zenuml.config.ts b/tsup.zenuml.config.ts
+index 95a7ffd44..601c1e989 100644
+--- a/tsup.zenuml.config.ts
++++ b/tsup.zenuml.config.ts
+@@ -1,11 +1,11 @@
+ import { defineConfig, type Options } from 'tsup'
+-import browserLazyConfig, { lazyBrowserStyles } from './tsup.browser-lazy.config.ts'
++import browserLazyConfig, { lazyBrowserStyles, lazyBrowserDrawingConsumer } from './tsup.browser-lazy.config.ts'
+ const nativeBrowser = browserLazyConfig as Options
+ export default defineConfig([{
+   // Reuse browser dependencies and validation, while keeping styles present
+   // for this entry's synchronous admission before work is queued.
+   ...nativeBrowser,
+-  esbuildPlugins: nativeBrowser.esbuildPlugins?.filter(plugin => plugin !== lazyBrowserStyles),
++  esbuildPlugins: nativeBrowser.esbuildPlugins?.filter(plugin => plugin !== lazyBrowserStyles && plugin !== lazyBrowserDrawingConsumer),
+   entry: { zenuml: 'src/zenuml/index.ts' },
+   dts: false,
+   // The canonical browser-lazy graph owns dist/metafile-esm.json.
