@@ -546,6 +546,7 @@ function nativeFamilyCases(): MicroCase[] {
       const parsed = api.parseRegisteredMermaid(source)
       if (!parsed.ok || parsed.value.body.kind !== family) throw Error(`${family} has no native model at this revision`)
       const encoder = new TextEncoder()
+      let validatedSvg: string | undefined
       const call = () => {
         let input = source
         if (operation === 'edit') {
@@ -566,9 +567,15 @@ function nativeFamilyCases(): MicroCase[] {
         consume: (result: unknown) => {
           const value = result as { bytes: Uint8Array; receipt: string }
           const svg = new TextDecoder().decode(value.bytes)
-          const image = new Resvg(svg)
-          if (!(image.width > 0 && image.height > 0) || !value.receipt.includes('requestDigest')) throw Error('Incomplete public render')
+          let validDimensions = true
+          if (svg !== validatedSvg) {
+            const image = new Resvg(svg)
+            validDimensions = image.width > 0 && image.height > 0
+          }
+          if (!validDimensions || !value.receipt.includes('requestDigest')) throw Error('Incomplete public render')
           if (operation === 'edit' && !svg.includes('Edited family title')) throw Error('Edited family text was omitted')
+          // Bound per-case validation reuse; every changed or oversized SVG is parsed.
+          validatedSvg = svg.length <= 512 * 1024 ? svg : undefined
         },
         evidence: { family, operation, source, security: 'strict', output: 'UTF-8 SVG and JSON receipt', nativeAdmission: true },
       }
