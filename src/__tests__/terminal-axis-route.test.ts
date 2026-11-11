@@ -47,10 +47,15 @@ describe('verified axis routes', () => {
   test('box detours cross straight prior ink perpendicularly without sharing turns or marker approaches', () => {
     const boxes = [{ id: 'A', x: 8, y: 8, width: 14, height: 14 }, { id: 'B', x: 8, y: 45, width: 8, height: 8 },
       { id: 'Lane', x: 3, y: 38, width: 40, height: 22, container: true, headerHeight: 3 }]
-    const routes = allocateBoxRoutes(boxes, [{ id: 'retry', from: 'A', to: 'A' }, { id: 'send', from: 'A', to: 'B' }, { id: 'back', from: 'B', to: 'A' }], 'LR')
-    expect(routes.map(route => route.relation.id)).toEqual(['retry', 'send', 'back'])
+    const laneRoutes = allocateBoxRoutes(boxes, [{ id: 'retry', from: 'A', to: 'A' }, { id: 'send', from: 'A', to: 'B' }, { id: 'back', from: 'B', to: 'A' }], 'LR')
+    expect(laneRoutes.map(route => route.relation.id)).toEqual(['retry', 'send', 'back'])
+    // A self-loop takes its own corner slot, so the lane may need no crossing.
+    // Here a full-width card below and a source at the top edge leave no way
+    // around the vertical route: the horizontal one must cross it.
+    const forced = allocateBoxRoutes([{ id: 'C', x: 30, y: 0, width: 8, height: 6 }, { id: 'D', x: 0, y: 40, width: 90, height: 6 },
+      { id: 'E', x: 4, y: 20, width: 8, height: 6 }, { id: 'F', x: 60, y: 20, width: 8, height: 6 }], [{ id: 'down', from: 'C', to: 'D' }, { id: 'across', from: 'E', to: 'F' }], 'LR')
     let crossings = 0
-    for (const [index, route] of routes.entries()) {
+    for (const routes of [laneRoutes, forced]) for (const [index, route] of routes.entries()) {
       for (const other of routes.slice(index + 1)) {
         for (const [at, point] of route.points.entries()) {
           const otherAt = other.points.findIndex(candidate => candidate.x === point.x && candidate.y === point.y)
