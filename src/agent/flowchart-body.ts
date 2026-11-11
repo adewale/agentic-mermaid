@@ -107,7 +107,7 @@ function nonportableNodeId(graph: MermaidGraph): string | undefined {
 function nodeIdError(id: string): MutationError | undefined {
   if (NONPORTABLE_NODE_ID.test(id)) return { code: 'INVALID_OP', message: `Flowchart node id "${id}" is read as a reserved token by Mermaid and has no portable vertex spelling` }
   if (!readsBackAs(id, `flowchart TD\n  ${id}\n`, graph => graph.nodes.size === 1 && !graph.subgraphs.length && graph.nodes.get(id)?.label === id)) {
-    return { code: 'INVALID_OP', message: `Flowchart node id ${JSON.stringify(id)} does not read back as one node id; an id cannot hold edge whitespace, line breaks, statement separators, brackets, quotes, link operators or comment markers` }
+    return { code: 'INVALID_OP', message: `Flowchart node id ${JSON.stringify(id)} does not read back as one node id; an id cannot hold edge whitespace, line breaks, statement separators, brackets, quotes, link operators, comment markers or non-ASCII characters other than letters` }
   }
   return undefined
 }
@@ -116,11 +116,14 @@ function nodeIdError(id: string): MutationError | undefined {
 function subgraphIdError(id: string): MutationError | undefined {
   return readsBackAs(id, `flowchart TD\n  subgraph ${id}\n  end\n`, graph => !graph.nodes.size && graph.subgraphs.length === 1 && graph.subgraphs[0]!.id === id && graph.subgraphs[0]!.label === id)
     ? undefined
-    : { code: 'INVALID_OP', message: `Flowchart subgraph id ${JSON.stringify(id)} does not read back as one subgraph id; an id cannot hold edge whitespace, line breaks, brackets, quotes or comment markers (put display text in label)` }
+    : { code: 'INVALID_OP', message: `Flowchart subgraph id ${JSON.stringify(id)} does not read back as one subgraph id; an id cannot hold edge whitespace, line breaks, brackets, quotes, comment markers or non-ASCII characters other than letters (put display text in label)` }
 }
 
 function readsBackAs(id: string, source: string, same: (graph: MermaidGraph) => boolean): boolean {
-  if (/[\r\n\u2028\u2029]/.test(id)) return false
+  // Our reader is generous; Mermaid 12.2.0's flowchart lexer reads a
+  // non-ASCII identifier character only when it is a letter (not `¹`, `٣`,
+  // a combining mark, an emoji or a joiner).
+  if (/[\r\n\u2028\u2029]|[^\x00-\x7F\p{L}]/u.test(id)) return false
   try {
     return same(parseFlowchartLegacy(source))
   } catch {
