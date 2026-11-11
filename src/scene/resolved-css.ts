@@ -11,8 +11,9 @@ export interface SvgElement {
   owner: number
 }
 
-export function svgTree(svg: string, owners: readonly number[] = []): SvgElement {
+export function svgTree(svg: string, owners: readonly number[] = [], checkOwnerCount?: (count: number) => void): SvgElement {
   const starts = scanSvgStartTags(svg)
+  checkOwnerCount?.(starts.length)
   const closes = [...svg.matchAll(/<\/([A-Za-z][\w:-]*)\s*>/g)]
   const stack: { node: SvgElement; start: number }[] = []
   let closeIndex = 0
@@ -163,7 +164,55 @@ export function resolveVars(value: string, style: Record<string, string>, depth 
   }
 }
 
+/** A resolver owns its immutable reuse state for one SVG document. Matching is
+ * still performed against each actual element and its ancestry before reuse. */
+export function createComputedStyleResolver(rules: Rule[]): (node: SvgElement, parent: Record<string, string> | undefined) => Record<string, string> {
+  const parsed = new Map<string, Declaration[]>()
+  const styles = new Map<string, Record<string, string>>()
+  const identities = new WeakMap<object, number>()
+  let nextIdentity = 0, retainedCharacters = 0
+  const inlineDeclarations = (text: string): Declaration[] => {
+    const prior = parsed.get(text)
+    if (prior) return prior
+    const value = declarations(text)
+    if (parsed.size < 128 && text.length <= 4096 && retainedCharacters + text.length < 262144) {
+      retainedCharacters += text.length
+      parsed.set(text, value)
+    }
+    return value
+  }
+  return (node, parent) => {
+    let parentIdentity = 0
+    if (parent) {
+      const prior = identities.get(parent)
+      if (prior !== undefined) parentIdentity = prior
+      else { parentIdentity = ++nextIdentity; identities.set(parent, parentIdentity) }
+    }
+    const attributes = Object.entries(node.attrs).filter(([key]) => key in CSS_DEFAULTS)
+    const matched: Rule[] = [], indices: number[] = []
+    rules.forEach((rule, index) => { if (matches(node, rule.selector)) { matched.push(rule); indices.push(index) } })
+    const inline = node.attrs.style ?? ''
+    // Parent identity includes computed custom properties and font-relative
+    // values. Rule occurrence/order includes selector and cascade precedence.
+    const key = JSON.stringify([parentIdentity, attributes, indices, inline])
+    const prior = styles.get(key)
+    if (prior) return prior
+    const style = Object.freeze(cascadeStyle(parent, attributes, matched, inlineDeclarations(inline)))
+    const weight = key.length + Object.entries(style).reduce((sum, [name, value]) => sum + name.length + value.length + 16, 0)
+    if (styles.size < 512 && retainedCharacters + weight <= 262144) {
+      retainedCharacters += weight
+      styles.set(key, style)
+    }
+    return style
+  }
+}
+
 export function computedStyle(node: SvgElement, parent: Record<string, string> | undefined, rules: Rule[]): Record<string, string> {
+  return cascadeStyle(parent, Object.entries(node.attrs).filter(([key]) => key in CSS_DEFAULTS),
+    rules.filter(rule => matches(node, rule.selector)), declarations(node.attrs.style ?? ''))
+}
+
+function cascadeStyle(parent: Record<string, string> | undefined, attributes: Array<[string, string]>, rules: Rule[], inline: Declaration[]): Record<string, string> {
   const style: Record<string, string> = { ...CSS_DEFAULTS }
   if (parent) for (const [key, value] of Object.entries(parent)) if (!NON_INHERITED.has(key)) style[key] = value
   const ranks = new Map<string, number>()
@@ -175,16 +224,22 @@ export function computedStyle(node: SvgElement, parent: Record<string, string> |
       ? parent?.[decl.key] ?? CSS_DEFAULTS[decl.key] ?? ''
       : decl.value === 'initial' || decl.value === 'unset' ? CSS_DEFAULTS[decl.key] ?? '' : decl.value
   }
-  for (const [key, value] of Object.entries(node.attrs)) if (key in CSS_DEFAULTS) apply({ key, value, important: false }, 0)
-  for (const rule of rules) if (matches(node, rule.selector)) for (const decl of rule.declarations) apply(decl, rule.specificity + 1)
-  for (const decl of declarations(node.attrs.style ?? '')) apply(decl, 10000)
+  for (const [key, value] of attributes) apply({ key, value, important: false }, 0)
+  for (const rule of rules) for (const decl of rule.declarations) apply(decl, rule.specificity + 1)
+  for (const decl of inline) apply(decl, 10000)
   // Custom properties inherit their computed value, so a child's override
   // cannot change an alias that was already resolved on an ancestor.
-  const custom = { ...style }
-  for (const [key, value] of Object.entries(custom)) if (key.startsWith('--')) {
-    try { style[key] = resolveVars(value, custom) } catch { delete style[key] }
+  const customKeys = Object.keys(style).filter(key => key.startsWith('--'))
+  if (customKeys.length) {
+    const custom = { ...style }
+    for (const key of customKeys) {
+      const value = custom[key]!
+      if (value.includes('var(')) {
+        try { style[key] = resolveVars(value, custom) } catch { delete style[key] }
+      }
+    }
   }
-  for (const [key, value] of Object.entries(style)) if (!key.startsWith('--')) style[key] = resolveVars(value, style)
+  for (const key of Object.keys(style)) if (!key.startsWith('--') && (typeof style[key] !== 'string' || style[key]!.includes('var('))) style[key] = resolveVars(style[key]!, style)
   // Resolve font-relative values here, before descendants inherit them.
   const size = style['font-size']!
   style['font-size'] = computedNumber(cssLength(size, Number(parent?.['font-size'] ?? 16), 16))

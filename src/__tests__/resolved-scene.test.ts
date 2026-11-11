@@ -130,6 +130,42 @@ function resolve(svg: string) {
 }
 
 describe('resolved SVG values', () => {
+  test('checks postprocessed ownership before parsing the final SVG tree', () => {
+    expect(() => resolveSvgScene('<svg><g></svg>', doc, [], true)).toThrow('Resolved Scene ownership changed during SVG postprocessing')
+    expect(() => resolveSvgScene('<svg><g></svg>', doc, [])).toThrow('Malformed resolved SVG tree')
+  })
+
+  test('publishes detached JSON values for shared Scene data and non-finite computed text', () => {
+    const geometry = { kind: 'rect' as const, x: -0, y: 0, width: 20, height: 10 }
+    const scene: SceneDoc = { ...doc, colors: { ...doc.colors }, parts: [
+      { id: 'first', kind: 'shape', role: 'node', geometry, paint: { fill: undefined } },
+      { id: 'second', kind: 'shape', role: 'node', geometry, paint: {} },
+    ] }
+    const svg = '<svg><text font-weight="invalid">Label</text></svg>'
+    const result = resolveSvgScene(svg, scene, [0, 0])
+    const first = result.parts[0]!.node, second = result.parts[1]!.node
+    if (first.kind !== 'shape' || second.kind !== 'shape' || first.geometry.kind !== 'rect' || second.geometry.kind !== 'rect') throw new Error('Expected retained rectangles')
+    expect(Object.is(first.geometry.x, -0)).toBe(false)
+    expect(Object.hasOwn(first.paint, 'fill')).toBe(false)
+    expect(result.parts[0]!.primitives[0]).toMatchObject({ kind: 'text', fontWeight: null })
+    first.geometry.width = 99
+    result.colors.bg = '#123456'
+    expect(second.geometry.width).toBe(20)
+    expect(geometry.width).toBe(20)
+    expect(scene.colors.bg).toBe('#ffffff')
+    const legacy = resolveSvgScene(svg, { ...scene, family: undefined as unknown as string }, [0, 0])
+    expect(Object.hasOwn(legacy, 'family')).toBe(false)
+  })
+
+  test('keeps reused declarations separate across selector ancestry and public paint', () => {
+    const primitives = resolve(`<svg><style>.left rect { fill: red } .right rect { fill: blue !important }</style>
+      <g class="left"><rect width="2" height="2" fill="green" style="stroke:black" /><rect width="3" height="3" fill="green" style="stroke:black" /></g>
+      <g class="right"><rect width="4" height="4" fill="green" style="stroke:black" /></g></svg>`)
+    expect(primitives.map(primitive => primitive.paint.fill)).toEqual(['#ff0000', '#ff0000', '#0000ff'])
+    primitives[0]!.paint.fill = '#ffffff'
+    expect(primitives[1]!.paint.fill).toBe('#ff0000')
+  })
+
   test('refuses missing backend ownership instead of misclassifying a part as frame ink', () => {
     const capture = createScenePartCapture()
     capture.begin({ seed: 0 }, doc)

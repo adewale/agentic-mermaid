@@ -10,7 +10,6 @@ import { withSvgInspectionCache } from './svg-inspection-cache.ts'
 import { createScenePartCapture } from './scene/part-capture.ts'
 import { resolveSvgScene } from './scene/resolve-svg.ts'
 import type { ResolvedScene } from './scene/resolved-types.ts'
-import { scanSvgStartTags } from './svg-structure.ts'
 
 /**
  * Render a diagram as final backend-painted paths and text, in root user
@@ -28,7 +27,6 @@ export function renderResolvedScene(text: ParsedDiagram | string, options: Rende
     const capture = createScenePartCapture()
     const { svg, layoutCertification } = renderPositionedMermaidSVG(request, layout, [], capture)
     if (!capture.scene || !capture.owners) throw new ResolvedSceneError('RESOLVED_SCENE_UNAVAILABLE', 'frame', 'ownership', 'Backend did not provide resolved Scene ownership')
-    if (scanSvgStartTags(svg).length !== capture.owners.length) throw new ResolvedSceneError('RESOLVED_SCENE_UNAVAILABLE', 'frame', 'ownership', 'Resolved Scene ownership changed during SVG postprocessing')
     // Certification may expand the final SVG viewport around painted strokes.
     // Keep the reported canvas tied to that projection, not its pre-repair Scene.
     const viewport = plan.backend?.inputName === 'default' && layoutCertification?.repairs.length
@@ -38,6 +36,6 @@ export function renderResolvedScene(text: ParsedDiagram | string, options: Rende
       family: plan.family.id,
       ...(viewport ? { width: viewport.width, height: viewport.height } : {}),
     }
-    return resolveSvgScene(svg, scene, capture.owners)
+    return resolveSvgScene(svg, scene, capture.owners, true)
   })
 }
