@@ -175,7 +175,7 @@ This experiment supplies no basis to expand Native to more diagram families or
 remove ELK fallback. Earlier DAG-only restriction lost seven Native-only successes;
 there is no new evidence to impose it. Pele and the community tools have different
 contracts; their published numbers cannot qualify an equal-workload victory here.
-See the [community comparison](layout-community-comparison.md) for historical
+See the [community comparison](../../../design/system/layout-community-comparison.md) for historical
 crossings, route complexity, Architecture and editing trade-offs, still unresolved.
 
 Main advanced to `dce89b73d00bf9d4b8f847b1ab261d9c58e06083` during this benchmark

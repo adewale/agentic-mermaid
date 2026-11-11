@@ -38,6 +38,9 @@ source, CI, registry publication and verified production deployment.
 The [archive](archive/) retains dated evidence without claiming it describes
 today's build, protocol, CI or deployment. In particular:
 
+- The [PR #449 research archive](archive/pr-449/README.md) retains the October
+  backend experiments, failed controls and offline packet verifiers. Current
+  changes do not need to regenerate those reports or repeat their campaigns.
 - The [30 October documentation audit](archive/documentation-audit-2026-10-30.md)
   records the cleanup, five simplification decisions, implementation CI and
   the boundary between prepared source and published releases.

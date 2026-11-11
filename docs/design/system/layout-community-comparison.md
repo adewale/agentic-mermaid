@@ -16,8 +16,8 @@ historical [follow-up evidence](layout-followup-results.md). The current accepte
 source is `678af21d8f2fc4de62f6dcf98d7f0489c8cde9c0`, published through reporting
 head `8ac0040d8002952edd1c4e6c66adad97f510398e`. Each campaign retains its original
 revision and date; earlier timing and memory ratios do not qualify this current
-source. The [accepted forest delivery report](pr449-forest-boundary-2026-10-23.md)
-and [complete cost controls](pr449-controls-2026-10-23.md) record the newer evidence.
+source. The [accepted forest delivery report](../../project/archive/pr-449/pr449-forest-boundary-2026-10-23.md)
+and [complete cost controls](../../project/archive/pr-449/pr449-controls-2026-10-23.md) record the newer evidence.
 
 | Evidence by source and scope | What is established | What is still missing |
 | --- | --- | --- |

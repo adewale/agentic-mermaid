@@ -64,9 +64,9 @@ bun run bin/am.ts render docs/design/system/architecture.mmd --format svg --outp
 
 Per-family implementation notes live in [`../families/`](../families/README.md).
 The [project index](../../project/README.md) separates active plans from historical
-records. Dated backend experiments, including the PR #449 studies, retain their
-original revisions and limitations; start with [layout follow-up results](layout-followup-results.md)
-when investigating that research. For performance comparisons, use the
+records. The [PR #449 research archive](../../project/archive/pr-449/README.md)
+retains dated backend studies and their original limitations; these are not
+additional validation steps. For performance comparisons, use the
 [measured results](https://github.com/adewale/trident/blob/main/RESULTS.md).
 
 Raw historical measurement packets and their verification instructions remain in the
