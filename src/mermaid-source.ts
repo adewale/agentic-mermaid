@@ -11,7 +11,7 @@ import { decodeXML } from 'entities'
 //   - normalized, trimmed diagram lines for downstream parsers
 // ============================================================================
 
-import { mergeConfigSource, configDirective } from './shared/pinned-mermaid-config/merge.js'
+import { mergeConfigSource, configDirective } from './shared/mermaid-config-merge.ts'
 import { pinnedMermaidDiagramType } from './shared/pinned-mermaid-diagram-type.ts'
 import { scanStateComments } from './state/comment.ts'
 import { readAuthoredGrammarAccessibility, readGrammarAccessibility } from './shared/grammar-text.ts'
@@ -1131,9 +1131,18 @@ function extractInitDirectives(text: string, base: MermaidFrontmatterMap, family
   if (layers.length === 0 && Object.keys(base).length === 0) return { body, frontmatter: base }
   const inits = layers.filter(layer => /(?:init\b)|(?:initialize\b)/.test(layer.kind)).map(layer => layer.payload)
   const wrap = layers.some(layer => layer.kind === 'wrap')
+  // A bare wrap directive contributes one already-interpreted boolean. An
+  // empty base has no configuration to clone, sanitize or merge again.
+  let bareWrap = Object.keys(base).length === 0
+  for (let index = 0; bareWrap && index < layers.length; index++) {
+    const layer = layers[index]!
+    bareWrap = layer.kind === 'wrap' && !layer.hasArgs
+  }
+  if (bareWrap) return { body, frontmatter: { wrap } }
   try {
     return { body, frontmatter: mergeConfigSource(base, layers.map(layer => configDirective(layer.kind, layer.payload, layer.hasArgs)).join('\n'), detected, true) as MermaidFrontmatterMap }
-  } catch {
+  } catch (error) {
+    if (error instanceof DeferredDependencyError) throw error
     // Invalid consumed values still need a generous read for repair. Canonical
     // admission reports the actual failure separately. Do not activate a legacy
     // config block that the multi-init sanitizer would discard before remapping.

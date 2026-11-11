@@ -62,6 +62,8 @@ export default defineConfig({
         ({ path: resolve(args.resolveDir, args.path.replace(/\.ts$/, '.lazy.ts')) }))
       build.onResolve({ filter: /\/mermaid-yaml\.ts$/ }, args =>
         ({ path: resolve(args.resolveDir, args.path.replace(/\.ts$/, '.lazy.ts')) }))
+      build.onResolve({ filter: /\/mermaid-config-merge\.ts$/ }, args =>
+        ({ path: resolve(args.resolveDir, args.path.replace(/mermaid-config-merge\.ts$/, 'mermaid-yaml.lazy.ts')) }))
       build.onResolve({ filter: /\/elk-constructor\.ts$/ }, args =>
         ({ path: resolve(args.resolveDir, args.path.replace(/\.ts$/, '.lazy.ts')) }))
       build.onResolve({ filter: /\/edge-crossing-pair\.ts$/ }, args =>

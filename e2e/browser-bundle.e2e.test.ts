@@ -114,12 +114,13 @@ function newestBuildInputMtime(): number {
   return newest
 }
 
-function ensureBrowserBundle(target: 'complete' | 'zenuml' = 'complete') {
-  const outputs = target === 'zenuml' ? [ZENUML_ENTRY, ZENUML_FRAME] : [BUNDLE, LAZY_ENTRY, LAZY_METAFILE, ZENUML_ENTRY, ZENUML_FRAME]
+function ensureBrowserBundle(target: 'complete' | 'zenuml' | 'lazy' = 'complete') {
+  const outputs = target === 'zenuml' ? [ZENUML_ENTRY, ZENUML_FRAME]
+    : target === 'lazy' ? [LAZY_ENTRY, LAZY_METAFILE] : [BUNDLE, LAZY_ENTRY, LAZY_METAFILE, ZENUML_ENTRY, ZENUML_FRAME]
   // Reuse a local dist only when it is newer than every input: a stale bundle
   // could otherwise fake parity with (or mask a break in) the current source.
   if (outputs.every(existsSync) && Math.min(...outputs.map(path => statSync(path).mtimeMs)) >= newestBuildInputMtime()) return
-  const command = target === 'zenuml' ? 'build:zenuml' : 'build'
+  const command = target === 'zenuml' ? 'build:zenuml' : target === 'lazy' ? 'build:browser:lazy' : 'build'
   const build = spawnSync('bun', ['run', command], { cwd: REPO, encoding: 'utf8', timeout: BUILD_TIMEOUT_MS })
   if (build.status !== 0 || !outputs.every(existsSync)) {
     throw new Error(`\`bun run ${command}\` did not produce ${outputs[0]} (status ${build.status}).\n${build.stderr ?? ''}`)
@@ -502,7 +503,7 @@ describe('async family-loaded browser renderer', () => {
   let browser: Browser
 
   beforeAll(async () => {
-    ensureBrowserBundle()
+    ensureBrowserBundle('lazy')
     const served = serveWithAvailablePort({
       preferredPort: 4721,
       async fetch(request) {
@@ -859,34 +860,39 @@ describe('async family-loaded browser renderer', () => {
     } finally { await page.close() }
   })
 
-  for (const [syntax, source] of [
+  for (const [syntax, source, config] of [
     ['init directive', '%%{init: {"theme": "base"}}%%\nsequenceDiagram\n  Alice->>Bob: Configured'],
+    ['wrap directive', '%%{wrap}%%\nsequenceDiagram\n  Alice->>Bob: Wrapped'],
+    ['runtime configuration', 'sequenceDiagram\n  Alice->>Bob: Configured', { sequence: { actorMargin: 75 } }],
     ['flowchart metadata', 'flowchart LR\n  A@{ shape: rect, label: "Meta &amp; data" } --> B'],
     ['sequence metadata', 'sequenceDiagram\n  participant A@{ "type": "database", "alias": "Metadata" }\n  A->>B: Ready'],
     ['Kanban metadata boundaries', 'kanban\nTodo\n  t[Work]@{assigned: Alice, ticket: ID-42}\nDone'],
     ['invalid frontmatter', '---\ntitle: [unclosed\n---\nsequenceDiagram\n  A->>B: Refused'],
     ['invalid metadata', 'sequenceDiagram\n  participant A@{ "type": [unclosed }\n  A->>B: Refused'],
   ] as const) {
-    test(`first-use ${syntax} retains synchronous output or error after loading YAML`, async () => {
+    test(`first-use ${syntax} retains synchronous output or error across configuration acquisition`, async () => {
       const page = await browser.newPage()
       const requests: string[] = []
       page.on('request', request => requests.push(new URL(request.url()).pathname.replace(/^\/dist\//, '')))
       try {
         await page.goto(`${base}/blank.html`)
-        const actual = await page.evaluate(async ([entryUrl, source]) => {
+        const options = { security: 'strict' as const, ...(config ? { mermaidConfig: config } : {}) }
+        const actual = await page.evaluate(async ([entryUrl, source, options]) => {
           const api = await import(entryUrl)
           try {
-            const result = await api.renderMermaidSVGWithReceiptAsync(source, { security: 'strict' })
-            return { svg: result.svg, receipt: result.receipt }
+            const result = await api.renderMermaidSVGWithReceiptAsync(source, options)
+            const repeated = await api.renderMermaidSVGWithReceiptAsync(source, options)
+            return { svg: result.svg, receipt: result.receipt, repeated }
           } catch (error) { return { error: String(error) } }
-        }, [`${base}/dist/browser-lazy/index.js`, source] as const)
+        }, [`${base}/dist/browser-lazy/index.js`, source, options] as const)
         let expected
         try {
-          const result = await sourceSVGWithReceipt(source, { security: 'strict' })
-          expected = { svg: result.svg, receipt: result.receipt }
+          const result = await sourceSVGWithReceipt(source, options)
+          expected = { svg: result.svg, receipt: result.receipt, repeated: result }
         } catch (error) { expected = { error: String(error) } }
         expect(actual).toEqual(expected)
-        for (const chunk of lazyYamlChunks()) expect(requests.filter(path => path === chunk)).toHaveLength(1)
+        const yamlRequests = config || syntax === 'wrap directive' ? 0 : 1
+        for (const chunk of lazyYamlChunks()) expect(requests.filter(path => path === chunk)).toHaveLength(yamlRequests)
       } finally { await page.close() }
     })
   }
