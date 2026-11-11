@@ -62,7 +62,7 @@ import type { ExtractedLabel, FamilyOperations } from './families.ts'
 import { extractLabelsGeneric } from './family-labels.ts'
 import { buildFlowchartSourceMap, type FlowchartBody, parseFlowchartBody, renderFlowchart } from './flowchart-body.ts'
 import { containsFlowchartOpaqueSyntax } from './flowchart-unsupported.ts'
-import { parseGanttBody, renderGantt, verifyGantt } from './gantt-body.ts'
+import { ganttAxisFormatWrittenAsConfig, parseGanttBody, renderGantt, verifyGantt } from './gantt-body.ts'
 import { parseGitGraphBody, renderGitGraphBody, verifyGitGraph } from './gitgraph-body.ts'
 import { parseJourneyBody, renderJourney, verifyJourney } from './journey-body.ts'
 import { mindmapSerializationProblem, parseMindmapBody, renderMindmapBody, verifyMindmap } from './mindmap-body.ts'
@@ -1269,6 +1269,26 @@ export const GANTT_SOURCE_HOOKS = {
     const axisFormat = getFrontmatterScalar<string>(source.frontmatter, ['gantt', 'axisFormat'])
     if (body && body.axisFormat === undefined && typeof axisFormat === 'string') body.axisFormat = axisFormat
     return ok(body ?? { kind: 'opaque', family: 'gantt', source: opaqueSource })
+  },
+  // The writer states a body axisFormat it cannot spell as a statement in its
+  // own init directive. A re-read takes that value into the body again, so an
+  // authored directive that restates exactly that format is the body's, not
+  // separate metadata: keeping both would add one copy per write.
+  bodyMeta: (body, meta) => {
+    if (body.kind !== 'gantt' || body.axisFormat === undefined || !ganttAxisFormatWrittenAsConfig(body.axisFormat)) return meta
+    const format = body.axisFormat
+    const restatesFormat = (parsed: Record<string, unknown>) => {
+      const keys = Object.keys(parsed), gantt = parsed.gantt
+      return keys.length === 1 && keys[0] === 'gantt' && typeof gantt === 'object' && gantt !== null && !Array.isArray(gantt)
+        && Object.keys(gantt).length === 1 && (gantt as Record<string, unknown>).axisFormat === format
+    }
+    const restating = meta.initDirectives.filter(directive => restatesFormat(directive.parsed))
+    if (restating.length === 0) return meta
+    // The verbatim wrapper carries the same directive bytes.
+    let wrapperSource = meta.wrapperSource
+    for (const directive of restating) if (wrapperSource?.includes(directive.raw)) wrapperSource = wrapperSource.replace(directive.raw, '')
+    const initDirectives = meta.initDirectives.filter(directive => !restating.includes(directive))
+    return { ...meta, initDirectives, ...(wrapperSource === undefined ? {} : { wrapperSource }) }
   },
   serialize: body => {
     if (body.kind !== 'gantt') throw new Error(`gantt serializer received body kind ${body.kind}`)

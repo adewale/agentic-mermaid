@@ -161,13 +161,18 @@ function renderTaskLine(task: GanttBodyTask): string {
   return `  ${label}${GANTT_ADJACENT_TASK_COLON.test(label) ? '' : ' '}:${metadata.startsWith('%') ? ' ' : ''}${metadata}`
 }
 
+/** The statement token excludes #, semicolons and physical line breaks, so
+ * such a format is written as configuration (`%%{init: {"gantt": …}}%%`),
+ * which holds the identical string without a text codec. */
+export function ganttAxisFormatWrittenAsConfig(format: string): boolean {
+  return /[#;\r\n]|%%\{/.test(format)
+}
+
 export function renderGantt(body: GanttBody): string {
   const lines: string[] = ['gantt']
   if (body.axisFormat !== undefined) {
     if (typeof body.axisFormat !== 'string' || !body.axisFormat.trim()) throw new Error('Gantt axisFormat must be nonempty text')
-    // The statement token excludes #, semicolons and physical line breaks.
-    // Configuration holds the identical format string without a text codec.
-    if (/[#;\r\n]|%%\{/.test(body.axisFormat)) lines.unshift(`%%{init: ${JSON.stringify({ gantt: { axisFormat: body.axisFormat } }).replace(/%/g, '\\u0025')}}%%`)
+    if (ganttAxisFormatWrittenAsConfig(body.axisFormat)) lines.unshift(`%%{init: ${JSON.stringify({ gantt: { axisFormat: body.axisFormat } }).replace(/%/g, '\\u0025')}}%%`)
     else lines.push(`  axisFormat ${body.axisFormat}`)
   }
 
