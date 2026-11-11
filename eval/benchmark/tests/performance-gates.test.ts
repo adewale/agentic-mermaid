@@ -5,7 +5,30 @@ import type { SemanticPerformanceShard } from '../performance-gates.ts'
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { summarizePipelineStages } from '../pipeline-stage-summary.ts'
 const aggregateSemanticPerformance = (shards: readonly SemanticPerformanceShard[]) => campaignGates.aggregateSemanticPerformance(shards)
+
+test('pipeline attribution keeps repeated nested occurrences separate and counts a root ELK call', () => {
+  const result = summarizePipelineStages([
+    { stage: 'request', ms: 4, depth: 0 },
+    { stage: 'elk', ms: 2, depth: 2, parent: 'agentic' },
+    { stage: 'agentic', ms: 5, depth: 1, parent: 'layout' },
+    { stage: 'graph-preparation', ms: 3, depth: 1, parent: 'layout' },
+    { stage: 'layout', ms: 12, depth: 0 },
+    { stage: 'elk', ms: 7, depth: 0 },
+    { stage: 'agentic', ms: 4, depth: 1, parent: 'layout' },
+    { stage: 'layout', ms: 6, depth: 0 },
+  ])
+  expect(result.rootMs).toBe(29)
+  expect(result.stages).toEqual({
+    request: { inclusiveMs: 4, exclusiveMs: 4, occurrences: 1, nestedOccurrences: 0 },
+    elk: { inclusiveMs: 9, exclusiveMs: 9, occurrences: 2, nestedOccurrences: 1 },
+    agentic: { inclusiveMs: 9, exclusiveMs: 7, occurrences: 2, nestedOccurrences: 2 },
+    'graph-preparation': { inclusiveMs: 3, exclusiveMs: 3, occurrences: 1, nestedOccurrences: 1 },
+    layout: { inclusiveMs: 18, exclusiveMs: 6, occurrences: 2, nestedOccurrences: 0 },
+  })
+  expect(31 - result.rootMs).toBe(2)
+})
 
 const beforeSha = 'a'.repeat(64), afterSha = 'b'.repeat(64)
 function report(id: string, aa = false, scope?: PerformanceScope): PerformanceReport {

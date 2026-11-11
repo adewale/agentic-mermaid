@@ -7,7 +7,8 @@ import { join, resolve } from 'node:path'
 import { cpus } from 'node:os'
 import { MICRO_WORKLOADS } from './micro-bench-cases.ts'
 import { ROOT, workingRevision } from './revision-tree.ts'
-import type { RenderStage } from '../../src/render-stages.ts'
+import type { RenderStage, RenderStageSample } from '../../src/render-stages.ts'
+import { summarizePipelineStages, type PipelineStageSummary } from './pipeline-stage-summary.ts'
 
 const options = new Map<string, string>()
 const allowed = new Set(['out', 'rounds', 'reps', 'cache'])
@@ -37,21 +38,36 @@ const child = spawnSync('node', [bundle, job], {
   cwd: ROOT, stdio: 'inherit', env: { ...process.env, AGENTIC_MERMAID_ELK_CACHE: cache === 'on' ? '1' : '0', AGENTIC_MERMAID_SCENE_ASSERTIONS: '0' },
 })
 if (child.status !== 0) throw new Error(`Pipeline worker exited ${child.status ?? child.signal}`)
-interface Sample { id: string; round: number; totalMs: number; error?: string; stages: Array<{ stage: RenderStage; ms: number }> }
+interface Sample { id: string; round: number; totalMs: number; error?: string; stages: RenderStageSample[] }
 const raw = JSON.parse(readFileSync(output, 'utf8')) as { samples: Sample[]; runtime: Record<string, string> }
 const cases = Object.keys(MICRO_WORKLOADS).map(id => {
   const samples = raw.samples.filter(sample => sample.id === id)
   const good = samples.filter(sample => !sample.error)
   const totalMs = good.reduce((n, sample) => n + sample.totalMs, 0)
-  const stages: Partial<Record<RenderStage, number>> = {}
-  for (const sample of good) for (const stage of sample.stages) stages[stage.stage] = (stages[stage.stage] ?? 0) + stage.ms
-  const measured = Object.entries(stages).filter(([stage]) => stage !== 'elk').reduce((n, [, ms]) => n + ms, 0)
+  const stages: PipelineStageSummary['stages'] = {}
+  let measured = 0
+  for (const sample of good) {
+    const summary = summarizePipelineStages(sample.stages)
+    measured += summary.rootMs
+    for (const [name, value] of Object.entries(summary.stages)) {
+      const stage = name as RenderStage
+      const total = stages[stage] ??= { inclusiveMs: 0, exclusiveMs: 0, occurrences: 0, nestedOccurrences: 0 }
+      total.inclusiveMs += value.inclusiveMs
+      total.exclusiveMs += value.exclusiveMs
+      total.occurrences += value.occurrences
+      total.nestedOccurrences += value.nestedOccurrences
+    }
+  }
   return { id, completed: good.length, attempted: samples.length, meanMs: totalMs / good.length,
-    stages: Object.fromEntries(Object.entries(stages).map(([stage, ms]) => [stage, { meanMs: ms / good.length, fraction: ms / totalMs, nested: stage === 'elk' }])),
+    stages: Object.fromEntries(Object.entries(stages).map(([stage, value]) => [stage, {
+      meanMs: value.inclusiveMs / good.length, fraction: value.inclusiveMs / totalMs,
+      exclusiveMeanMs: value.exclusiveMs / good.length, exclusiveFraction: value.exclusiveMs / totalMs,
+      occurrences: value.occurrences, nestedOccurrences: value.nestedOccurrences, nested: value.nestedOccurrences > 0,
+    }])),
     otherMeanMs: (totalMs - measured) / good.length, errors: samples.filter(sample => sample.error).map(sample => sample.error) }
 })
 const report = { diagnostic: true, revision: workingRevision(), cpu: cpus()[0]?.model, cache, rounds, reps, runtime: raw.runtime,
-  note: 'Stage clocks and Node CPU sampling add overhead. CPU profile excludes imports and warm-up. Layout includes parsing, repair and certification; ELK is nested, never additive. No visual-fidelity or peer-stage claim.', cases }
+  note: 'Stage clocks and Node CPU sampling add overhead. CPU profile excludes imports and warm-up. Table stage times are inclusive and can overlap. Other subtracts only root occurrences; JSON exclusive times subtract immediate children of each occurrence. No visual-fidelity or peer-stage claim.', cases }
 writeFileSync(join(out, 'report.json'), JSON.stringify(report, null, 2))
 const lines = ['# Current pipeline stages (diagnostic)', '', `Source ${report.revision}; ELK result cache ${cache}; ${rounds} rounds × ${reps} renders per workload.`, '',
   '| Workload | Total ms | Request | Layout (ELK) | Scene | Drawing | Paint proof | SVG security | Backend | Other |', '|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|']
