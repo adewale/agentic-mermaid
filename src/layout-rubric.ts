@@ -525,8 +525,8 @@ function assessLayoutGeometry(graph: MermaidGraph, positioned: PositionedGraph, 
     // penalty and the HARD hitch-invariant AGREE on what is justified. This does
     // NOT touch unexplainedBends (which fires only on 'straight'-certified edges,
     // and a bundle edge is never 'straight') or hitches (HARD, unchanged).
-    const justifiedConvergenceBend = hasBundleRouteExemption(e)
-    if (e.style !== 'invisible' && !justifiedConvergenceBend) {
+    const justifiedConvergenceBend = withSoftMetrics && hasBundleRouteExemption(e)
+    if (withSoftMetrics && e.style !== 'invisible' && !justifiedConvergenceBend) {
       totalBends += bends
       maxBends = Math.max(maxBends, bends)
     }
@@ -555,10 +555,12 @@ function assessLayoutGeometry(graph: MermaidGraph, positioned: PositionedGraph, 
         violations.push({ metric: 'offOutlineEndpoints', detail: pt ? `${id} ${label} on ${nodeId}(${node.shape}) at (${pt.x.toFixed(1)},${pt.y.toFixed(1)})` : `${id} missing ${label} endpoint on ${nodeId}` })
       }
     }
-    const srcNode = nodeMap.get(e.source)
-    const tgtNode = nodeMap.get(e.target)
-    const onPort = (node: PositionedNode | undefined, pt: Point | undefined) => node && pt ? onDesignatedPort(node, pt) : false
-    if (onPort(srcNode, e.points[0]!) || onPort(tgtNode, e.points[e.points.length - 1]!)) portAnchoredEdges++
+    if (withSoftMetrics) {
+      const srcNode = nodeMap.get(e.source)
+      const tgtNode = nodeMap.get(e.target)
+      const onPort = (node: PositionedNode | undefined, pt: Point | undefined) => node && pt ? onDesignatedPort(node, pt) : false
+      if (onPort(srcNode, e.points[0]!) || onPort(tgtNode, e.points[e.points.length - 1]!)) portAnchoredEdges++
+    }
 
     if (e.label && e.labelPosition && e.points.length >= 2) {
       // Layout retains the text the renderer actually draws. The explicit
@@ -632,7 +634,7 @@ function assessLayoutGeometry(graph: MermaidGraph, positioned: PositionedGraph, 
       edgeCrossings: crossings,
       totalBends,
       maxBendsPerEdge: maxBends,
-      portEndpointRate: portEndpointRate(positioned),
+      portEndpointRate: withSoftMetrics ? portEndpointRate(positioned) : 0,
       portAnchoredEdgeRate: positioned.edges.length === 0 ? 1 : portAnchoredEdges / positioned.edges.length,
       peerBarycenterDelta: withSoftMetrics ? peerBarycenterDelta(positioned, graph) : 0,
       worstLabelOffset,
