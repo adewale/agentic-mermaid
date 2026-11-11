@@ -1,0 +1,2495 @@
+{
+  "candidate": "621d596088be5a08e03656eaacb3a52c934bac33",
+  "baseline": "599bee58db7cb54293866cc8aa86c887ef93e9a4",
+  "main": "4260292397d4bca7624a30c34649eb943a5f8e0c",
+  "newWorkers": 18,
+  "baselineReplays": 0,
+  "jobSourceOptionsPhasesExact": true,
+  "scope": "Cache0 actualfullyconsumed publicbuiltSVG+entire receipt,3freshNode24processes\u00d74repeatcalls; cold/firsteditseparate. RSSwholeprocessincludingimport/harness/evidence. NewcandidateproofcanpasswherebaselineU; noequivalentlyprovedthroughputratio. SVGprotocolsetupfailedbeforeanyrenderworker, errorretained, noSVGtimingclaimyet.",
+  "rows": [
+    {
+      "target": "pr",
+      "backend": "agentic",
+      "id": "diagnostic:chain100",
+      "processes": 3,
+      "coldMs": 378.63537299999996,
+      "repeatMs": 173.16675049999998,
+      "edit1Ms": 179.90286700000001,
+      "peakRssMiB": 149.91015625,
+      "rawProcesses": [
+        {
+          "replica": 0,
+          "coldMs": 1087.500391,
+          "repeatsMs": [
+            227.04148600000008,
+            177.27857100000006,
+            157.40111600000023,
+            168.62220500000012
+          ],
+          "edit1Ms": 167.6427020000001,
+          "repeatedEditsMs": [
+            186.63354600000002,
+            134.190474,
+            147.04745400000002
+          ],
+          "peakRssMiB": 159.0546875,
+          "proofStatuses": [
+            "unverified",
+            "unverified",
+            "unverified",
+            "unverified",
+            "unverified",
+            "unverified",
+            "unverified",
+            "unverified",
+            "unverified"
+          ],
+          "before": {
+            "rss": 74899456,
+            "heapTotal": 22310912,
+            "heapUsed": 13729072,
+            "external": 9658699,
+            "arrayBuffers": 282683
+          },
+          "after": {
+            "rss": 166780928,
+            "heapTotal": 92700672,
+            "heapUsed": 42981688,
+            "external": 9557116,
+            "arrayBuffers": 171512
+          }
+        },
+        {
+          "replica": 1,
+          "coldMs": 378.63537299999996,
+          "repeatsMs": [
+            178.30833799999994,
+            159.59229800000014,
+            186.62632099999996,
+            168.02516300000002
+          ],
+          "edit1Ms": 183.62219600000003,
+          "repeatedEditsMs": [
+            163.971227,
+            166.01639499999987,
+            172.1249200000002
+          ],
+          "peakRssMiB": 149.91015625,
+          "proofStatuses": [
+            "unverified",
+            "unverified",
+            "unverified",
+            "unverified",
+            "unverified",
+            "unverified",
+            "unverified",
+            "unverified",
+            "unverified"
+          ],
+          "before": {
+            "rss": 73961472,
+            "heapTotal": 21524480,
+            "heapUsed": 16356040,
+            "external": 9658699,
+            "arrayBuffers": 282683
+          },
+          "after": {
+            "rss": 157192192,
+            "heapTotal": 92700672,
+            "heapUsed": 40103080,
+            "external": 9557116,
+            "arrayBuffers": 171512
+          }
+        },
+        {
+          "replica": 2,
+          "coldMs": 373.91486100000003,
+          "repeatsMs": [
+            199.76367600000003,
+            198.59093300000006,
+            195.007065,
+            161.91773200000011
+          ],
+          "edit1Ms": 179.90286700000001,
+          "repeatedEditsMs": [
+            137.31800199999998,
+            157.6825389999999,
+            168.82670400000006
+          ],
+          "peakRssMiB": 148.77734375,
+          "proofStatuses": [
+            "unverified",
+            "unverified",
+            "unverified",
+            "unverified",
+            "unverified",
+            "unverified",
+            "unverified",
+            "unverified",
+            "unverified"
+          ],
+          "before": {
+            "rss": 74215424,
+            "heapTotal": 21786624,
+            "heapUsed": 16423408,
+            "external": 9658699,
+            "arrayBuffers": 282683
+          },
+          "after": {
+            "rss": 156004352,
+            "heapTotal": 93224960,
+            "heapUsed": 43343320,
+            "external": 9557116,
+            "arrayBuffers": 171512
+          }
+        }
+      ]
+    },
+    {
+      "target": "main",
+      "backend": "elk",
+      "id": "diagnostic:chain100",
+      "processes": 3,
+      "coldMs": 1065.291749,
+      "repeatMs": 221.78844349999997,
+      "edit1Ms": 209.033318,
+      "peakRssMiB": 224.02734375,
+      "rawProcesses": [
+        {
+          "replica": 0,
+          "coldMs": 1065.291749,
+          "repeatsMs": [
+            251.64399200000003,
+            327.4521229999998,
+            189.80753000000004,
+            191.93289499999992
+          ],
+          "edit1Ms": 207.21708799999988,
+          "repeatedEditsMs": [
+            218.05975799999987,
+            333.1224699999998,
+            169.92527900000005
+          ],
+          "peakRssMiB": 214.87109375,
+          "proofStatuses": [
+            "passed",
+            "passed",
+            "passed",
+            "passed",
+            "passed",
+            "passed",
+            "passed",
+            "passed",
+            "passed"
+          ],
+          "before": {
+            "rss": 73310208,
+            "heapTotal": 22040576,
+            "heapUsed": 14302000,
+            "external": 9156688,
+            "arrayBuffers": 230136
+          },
+          "after": {
+            "rss": 225308672,
+            "heapTotal": 177352704,
+            "heapUsed": 104912928,
+            "external": 9100340,
+            "arrayBuffers": 171412
+          }
+        },
+        {
+          "replica": 1,
+          "coldMs": 1307.0467469999999,
+          "repeatsMs": [
+            287.376802,
+            331.2390620000001,
+            248.0471990000001,
+            287.6018039999999
+          ],
+          "edit1Ms": 247.3217050000003,
+          "repeatedEditsMs": [
+            212.59832800000004,
+            280.7874139999999,
+            222.09728899999982
+          ],
+          "peakRssMiB": 224.02734375,
+          "proofStatuses": [
+            "passed",
+            "passed",
+            "passed",
+            "passed",
+            "passed",
+            "passed",
+            "passed",
+            "passed",
+            "passed"
+          ],
+          "before": {
+            "rss": 73805824,
+            "heapTotal": 22040576,
+            "heapUsed": 14803368,
+            "external": 9156688,
+            "arrayBuffers": 230136
+          },
+          "after": {
+            "rss": 234909696,
+            "heapTotal": 178139136,
+            "heapUsed": 46008784,
+            "external": 9100340,
+            "arrayBuffers": 167012
+          }
+        },
+        {
+          "replica": 2,
+          "coldMs": 631.911684,
+          "repeatsMs": [
+            236.158229,
+            264.505983,
+            192.96203500000001,
+            182.307904
+          ],
+          "edit1Ms": 209.033318,
+          "repeatedEditsMs": [
+            218.04240000000027,
+            200.17427999999973,
+            181.73632300000008
+          ],
+          "peakRssMiB": 226.9765625,
+          "proofStatuses": [
+            "passed",
+            "passed",
+            "passed",
+            "passed",
+            "passed",
+            "passed",
+            "passed",
+            "passed",
+            "passed"
+          ],
+          "before": {
+            "rss": 73990144,
+            "heapTotal": 21778432,
+            "heapUsed": 14735344,
+            "external": 9156688,
+            "arrayBuffers": 230136
+          },
+          "after": {
+            "rss": 238002176,
+            "heapTotal": 178139136,
+            "heapUsed": 45989168,
+            "external": 9100340,
+            "arrayBuffers": 167012
+          }
+        }
+      ]
+    },
+    {
+      "target": "pr",
+      "backend": "elk",
+      "id": "diagnostic:chain100",
+      "processes": 3,
+      "coldMs": 869.3732500000001,
+      "repeatMs": 387.79111050000006,
+      "edit1Ms": 282.59921699999995,
+      "peakRssMiB": 214.00390625,
+      "rawProcesses": [
+        {
+          "replica": 0,
+          "coldMs": 787.140562,
+          "repeatsMs": [
+            321.61561299999994,
+            286.4858119999999,
+            276.74199799999997,
+            268.487881
+          ],
+          "edit1Ms": 282.2404489999999,
+          "repeatedEditsMs": [
+            275.79535899999973,
+            304.17537600000014,
+            283.16649099999995
+          ],
+          "peakRssMiB": 210.890625,
+          "proofStatuses": [
+            "unverified",
+            "unverified",
+            "unverified",
+            "unverified",
+            "unverified",
+            "unverified",
+            "unverified",
+            "unverified",
+            "unverified"
+          ],
+          "before": {
+            "rss": 73748480,
+            "heapTotal": 21786624,
+            "heapUsed": 16178632,
+            "external": 9658699,
+            "arrayBuffers": 282683
+          },
+          "after": {
+            "rss": 221134848,
+            "heapTotal": 179068928,
+            "heapUsed": 55763832,
+            "external": 9549804,
+            "arrayBuffers": 167012
+          }
+        },
+        {
+          "replica": 1,
+          "coldMs": 946.9904160000001,
+          "repeatsMs": [
+            605.2703690000001,
+            436.5740390000001,
+            279.949431,
+            411.4090980000001
+          ],
+          "edit1Ms": 282.59921699999995,
+          "repeatedEditsMs": [
+            357.43660599999976,
+            253.47571699999935,
+            244.6302740000001
+          ],
+          "peakRssMiB": 218.79296875,
+          "proofStatuses": [
+            "unverified",
+            "unverified",
+            "unverified",
+            "unverified",
+            "unverified",
+            "unverified",
+            "unverified",
+            "unverified",
+            "unverified"
+          ],
+          "before": {
+            "rss": 74293248,
+            "heapTotal": 21786624,
+            "heapUsed": 16172504,
+            "external": 9658699,
+            "arrayBuffers": 282683
+          },
+          "after": {
+            "rss": 229421056,
+            "heapTotal": 181428224,
+            "heapUsed": 55146448,
+            "external": 9549804,
+            "arrayBuffers": 167012
+          }
+        },
+        {
+          "replica": 2,
+          "coldMs": 869.3732500000001,
+          "repeatsMs": [
+            393.1304319999999,
+            367.1967760000002,
+            382.4517890000002,
+            415.12647300000026
+          ],
+          "edit1Ms": 361.4371900000001,
+          "repeatedEditsMs": [
+            314.9946749999999,
+            270.50852699999996,
+            280.86852899999985
+          ],
+          "peakRssMiB": 214.00390625,
+          "proofStatuses": [
+            "unverified",
+            "unverified",
+            "unverified",
+            "unverified",
+            "unverified",
+            "unverified",
+            "unverified",
+            "unverified",
+            "unverified"
+          ],
+          "before": {
+            "rss": 75485184,
+            "heapTotal": 30699520,
+            "heapUsed": 12194688,
+            "external": 9658699,
+            "arrayBuffers": 164600
+          },
+          "after": {
+            "rss": 224399360,
+            "heapTotal": 179855360,
+            "heapUsed": 55441216,
+            "external": 9549804,
+            "arrayBuffers": 167012
+          }
+        }
+      ]
+    },
+    {
+      "target": "main",
+      "backend": "agentic",
+      "id": "diagnostic:chain100",
+      "processes": 3,
+      "coldMs": 309.145655,
+      "repeatMs": 107.46838350000002,
+      "edit1Ms": 110.1852429999999,
+      "peakRssMiB": 120.296875,
+      "rawProcesses": [
+        {
+          "replica": 0,
+          "coldMs": 328.31563400000005,
+          "repeatsMs": [
+            113.61650699999996,
+            117.89815399999998,
+            99.42562399999986,
+            91.89888199999996
+          ],
+          "edit1Ms": 93.187277,
+          "repeatedEditsMs": [
+            77.70677,
+            101.57202400000006,
+            75.27432900000008
+          ],
+          "peakRssMiB": 122.05859375,
+          "proofStatuses": [
+            "passed",
+            "passed",
+            "passed",
+            "passed",
+            "passed",
+            "passed",
+            "passed",
+            "passed",
+            "passed"
+          ],
+          "before": {
+            "rss": 73986048,
+            "heapTotal": 22564864,
+            "heapUsed": 14832688,
+            "external": 9156688,
+            "arrayBuffers": 230136
+          },
+          "after": {
+            "rss": 125501440,
+            "heapTotal": 57430016,
+            "heapUsed": 36240824,
+            "external": 9097568,
+            "arrayBuffers": 170612
+          }
+        },
+        {
+          "replica": 1,
+          "coldMs": 307.78872400000006,
+          "repeatsMs": [
+            115.31012899999996,
+            108.533635,
+            132.89587500000005,
+            164.77295000000004
+          ],
+          "edit1Ms": 122.1068009999999,
+          "repeatedEditsMs": [
+            174.69381700000008,
+            180.43446799999992,
+            108.37020900000016
+          ],
+          "peakRssMiB": 120.296875,
+          "proofStatuses": [
+            "passed",
+            "passed",
+            "passed",
+            "passed",
+            "passed",
+            "passed",
+            "passed",
+            "passed",
+            "passed"
+          ],
+          "before": {
+            "rss": 71614464,
+            "heapTotal": 21778432,
+            "heapUsed": 13667928,
+            "external": 9156652,
+            "arrayBuffers": 230136
+          },
+          "after": {
+            "rss": 126140416,
+            "heapTotal": 90460160,
+            "heapUsed": 22710456,
+            "external": 9097168,
+            "arrayBuffers": 170612
+          }
+        },
+        {
+          "replica": 2,
+          "coldMs": 309.145655,
+          "repeatsMs": [
+            101.70296599999995,
+            116.51051299999995,
+            113.23380100000008,
+            76.78989799999988
+          ],
+          "edit1Ms": 110.1852429999999,
+          "repeatedEditsMs": [
+            90.83137899999997,
+            75.33303300000011,
+            74.28366299999993
+          ],
+          "peakRssMiB": 116.67578125,
+          "proofStatuses": [
+            "passed",
+            "passed",
+            "passed",
+            "passed",
+            "passed",
+            "passed",
+            "passed",
+            "passed",
+            "passed"
+          ],
+          "before": {
+            "rss": 73453568,
+            "heapTotal": 21778432,
+            "heapUsed": 14679528,
+            "external": 9156688,
+            "arrayBuffers": 230136
+          },
+          "after": {
+            "rss": 122343424,
+            "heapTotal": 56905728,
+            "heapUsed": 35758832,
+            "external": 9097568,
+            "arrayBuffers": 170612
+          }
+        }
+      ]
+    },
+    {
+      "target": "main",
+      "backend": "elk",
+      "id": "diagnostic:fanin100",
+      "processes": 3,
+      "coldMs": 855.221006,
+      "repeatMs": 437.9598450000001,
+      "edit1Ms": 423.93971299999976,
+      "peakRssMiB": 244.68359375,
+      "rawProcesses": [
+        {
+          "replica": 0,
+          "coldMs": 855.221006,
+          "repeatsMs": [
+            456.9255640000001,
+            418.99412600000005,
+            529.6799299999998,
+            399.25253599999996
+          ],
+          "edit1Ms": 420.97973200000024,
+          "repeatedEditsMs": [
+            478.81726700000036,
+            416.45629299999973,
+            545.9352090000002
+          ],
+          "peakRssMiB": 244.68359375,
+          "proofStatuses": [
+            "passed",
+            "passed",
+            "passed",
+            "passed",
+            "passed",
+            "passed",
+            "passed",
+            "passed",
+            "passed"
+          ],
+          "before": {
+            "rss": 72826880,
+            "heapTotal": 22040576,
+            "heapUsed": 13100816,
+            "external": 9156652,
+            "arrayBuffers": 230136
+          },
+          "after": {
+            "rss": 256569344,
+            "heapTotal": 181551104,
+            "heapUsed": 48497888,
+            "external": 9096340,
+            "arrayBuffers": 167012
+          }
+        },
+        {
+          "replica": 1,
+          "coldMs": 938.132212,
+          "repeatsMs": [
+            491.0051350000001,
+            431.16415900000015,
+            408.33396900000025,
+            454.572862
+          ],
+          "edit1Ms": 423.93971299999976,
+          "repeatedEditsMs": [
+            413.38221599999997,
+            455.33938499999977,
+            393.5851279999997
+          ],
+          "peakRssMiB": 243.4296875,
+          "proofStatuses": [
+            "passed",
+            "passed",
+            "passed",
+            "passed",
+            "passed",
+            "passed",
+            "passed",
+            "passed",
+            "passed"
+          ],
+          "before": {
+            "rss": 72155136,
+            "heapTotal": 22040576,
+            "heapUsed": 13712296,
+            "external": 9156652,
+            "arrayBuffers": 230136
+          },
+          "after": {
+            "rss": 255254528,
+            "heapTotal": 181026816,
+            "heapUsed": 48017536,
+            "external": 9096340,
+            "arrayBuffers": 167012
+          }
+        },
+        {
+          "replica": 2,
+          "coldMs": 782.629271,
+          "repeatsMs": [
+            407.9718579999999,
+            370.814472,
+            603.6454710000003,
+            393.1633850000003
+          ],
+          "edit1Ms": 455.71430899999996,
+          "repeatedEditsMs": [
+            513.8682599999997,
+            444.4884569999999,
+            444.15600300000006
+          ],
+          "peakRssMiB": 246.94921875,
+          "proofStatuses": [
+            "passed",
+            "passed",
+            "passed",
+            "passed",
+            "passed",
+            "passed",
+            "passed",
+            "passed",
+            "passed"
+          ],
+          "before": {
+            "rss": 73973760,
+            "heapTotal": 31215616,
+            "heapUsed": 13518104,
+            "external": 9156688,
+            "arrayBuffers": 230136
+          },
+          "after": {
+            "rss": 258945024,
+            "heapTotal": 181288960,
+            "heapUsed": 45320592,
+            "external": 9096340,
+            "arrayBuffers": 167012
+          }
+        }
+      ]
+    },
+    {
+      "target": "pr",
+      "backend": "elk",
+      "id": "diagnostic:fanin100",
+      "processes": 3,
+      "coldMs": 1092.164482,
+      "repeatMs": 509.573392,
+      "edit1Ms": 524.0398359999995,
+      "peakRssMiB": 252.09375,
+      "rawProcesses": [
+        {
+          "replica": 0,
+          "coldMs": 1092.164482,
+          "repeatsMs": [
+            741.5314309999999,
+            540.5869910000001,
+            658.1039180000002,
+            531.389795
+          ],
+          "edit1Ms": 524.0398359999995,
+          "repeatedEditsMs": [
+            547.154391,
+            498.81373600000006,
+            522.0904789999995
+          ],
+          "peakRssMiB": 253.203125,
+          "proofStatuses": [
+            "unverified",
+            "unverified",
+            "unverified",
+            "unverified",
+            "unverified",
+            "unverified",
+            "unverified",
+            "unverified",
+            "unverified"
+          ],
+          "before": {
+            "rss": 74158080,
+            "heapTotal": 21524480,
+            "heapUsed": 15456200,
+            "external": 9658663,
+            "arrayBuffers": 282683
+          },
+          "after": {
+            "rss": 265502720,
+            "heapTotal": 183791616,
+            "heapUsed": 54335784,
+            "external": 9545804,
+            "arrayBuffers": 167012
+          }
+        },
+        {
+          "replica": 1,
+          "coldMs": 1111.8971980000001,
+          "repeatsMs": [
+            581.3167760000001,
+            495.3141419999997,
+            523.8326420000003,
+            458.6789600000002
+          ],
+          "edit1Ms": 565.1157400000002,
+          "repeatedEditsMs": [
+            473.6137979999994,
+            473.83008900000004,
+            453.1111229999997
+          ],
+          "peakRssMiB": 252.09375,
+          "proofStatuses": [
+            "unverified",
+            "unverified",
+            "unverified",
+            "unverified",
+            "unverified",
+            "unverified",
+            "unverified",
+            "unverified",
+            "unverified"
+          ],
+          "before": {
+            "rss": 74674176,
+            "heapTotal": 22573056,
+            "heapUsed": 16230832,
+            "external": 9658699,
+            "arrayBuffers": 282683
+          },
+          "after": {
+            "rss": 264339456,
+            "heapTotal": 183267328,
+            "heapUsed": 53019192,
+            "external": 9545804,
+            "arrayBuffers": 167012
+          }
+        },
+        {
+          "replica": 2,
+          "coldMs": 846.413409,
+          "repeatsMs": [
+            500.16811499999994,
+            417.269495,
+            435.93607199999997,
+            406.3162010000001
+          ],
+          "edit1Ms": 417.7981789999999,
+          "repeatedEditsMs": [
+            469.572447,
+            399.89150400000017,
+            394.8305420000006
+          ],
+          "peakRssMiB": 248.11328125,
+          "proofStatuses": [
+            "unverified",
+            "unverified",
+            "unverified",
+            "unverified",
+            "unverified",
+            "unverified",
+            "unverified",
+            "unverified",
+            "unverified"
+          ],
+          "before": {
+            "rss": 74289152,
+            "heapTotal": 22573056,
+            "heapUsed": 14829200,
+            "external": 9658699,
+            "arrayBuffers": 282719
+          },
+          "after": {
+            "rss": 260165632,
+            "heapTotal": 183267328,
+            "heapUsed": 56133656,
+            "external": 9545804,
+            "arrayBuffers": 167012
+          }
+        }
+      ]
+    },
+    {
+      "target": "main",
+      "backend": "agentic",
+      "id": "diagnostic:fanin100",
+      "processes": 3,
+      "coldMs": 386.057484,
+      "repeatMs": 164.98183649999993,
+      "edit1Ms": 158.382838,
+      "peakRssMiB": 155.015625,
+      "rawProcesses": [
+        {
+          "replica": 0,
+          "coldMs": 411.77631299999996,
+          "repeatsMs": [
+            174.44918399999995,
+            155.5144889999999,
+            186.52720900000008,
+            132.5562779999998
+          ],
+          "edit1Ms": 158.382838,
+          "repeatedEditsMs": [
+            170.31199500000002,
+            141.68888500000003,
+            131.38952199999994
+          ],
+          "peakRssMiB": 147.09765625,
+          "proofStatuses": [
+            "passed",
+            "passed",
+            "passed",
+            "passed",
+            "passed",
+            "passed",
+            "passed",
+            "passed",
+            "passed"
+          ],
+          "before": {
+            "rss": 71327744,
+            "heapTotal": 21254144,
+            "heapUsed": 13787208,
+            "external": 9156652,
+            "arrayBuffers": 230136
+          },
+          "after": {
+            "rss": 154243072,
+            "heapTotal": 90198016,
+            "heapUsed": 35262120,
+            "external": 9100860,
+            "arrayBuffers": 171276
+          }
+        },
+        {
+          "replica": 1,
+          "coldMs": 322.795183,
+          "repeatsMs": [
+            148.67332799999997,
+            123.90678300000002,
+            156.96010999999987,
+            123.91099299999996
+          ],
+          "edit1Ms": 130.49825899999996,
+          "repeatedEditsMs": [
+            120.17006500000002,
+            163.03559199999995,
+            113.39181700000017
+          ],
+          "peakRssMiB": 157.234375,
+          "proofStatuses": [
+            "passed",
+            "passed",
+            "passed",
+            "passed",
+            "passed",
+            "passed",
+            "passed",
+            "passed",
+            "passed"
+          ],
+          "before": {
+            "rss": 73121792,
+            "heapTotal": 22302720,
+            "heapUsed": 13058240,
+            "external": 9156652,
+            "arrayBuffers": 230136
+          },
+          "after": {
+            "rss": 164872192,
+            "heapTotal": 90722304,
+            "heapUsed": 38063080,
+            "external": 9100860,
+            "arrayBuffers": 171276
+          }
+        },
+        {
+          "replica": 2,
+          "coldMs": 386.057484,
+          "repeatsMs": [
+            173.34846300000004,
+            172.35795299999995,
+            191.98239999999987,
+            133.16603699999996
+          ],
+          "edit1Ms": 159.23455799999988,
+          "repeatedEditsMs": [
+            181.58798000000002,
+            146.73062200000004,
+            130.95273999999995
+          ],
+          "peakRssMiB": 155.015625,
+          "proofStatuses": [
+            "passed",
+            "passed",
+            "passed",
+            "passed",
+            "passed",
+            "passed",
+            "passed",
+            "passed",
+            "passed"
+          ],
+          "before": {
+            "rss": 71712768,
+            "heapTotal": 22302720,
+            "heapUsed": 13732944,
+            "external": 9156652,
+            "arrayBuffers": 230136
+          },
+          "after": {
+            "rss": 162545664,
+            "heapTotal": 90460160,
+            "heapUsed": 35356936,
+            "external": 9100860,
+            "arrayBuffers": 171276
+          }
+        }
+      ]
+    },
+    {
+      "target": "pr",
+      "backend": "agentic",
+      "id": "diagnostic:fanin100",
+      "processes": 3,
+      "coldMs": 461.498062,
+      "repeatMs": 239.11368149999998,
+      "edit1Ms": 231.77628600000025,
+      "peakRssMiB": 159.1171875,
+      "rawProcesses": [
+        {
+          "replica": 0,
+          "coldMs": 499.41032,
+          "repeatsMs": [
+            263.17688799999996,
+            219.46324800000002,
+            258.76411499999995,
+            210.8771509999999
+          ],
+          "edit1Ms": 231.77628600000025,
+          "repeatedEditsMs": [
+            234.9757599999998,
+            192.29941499999995,
+            193.30675699999983
+          ],
+          "peakRssMiB": 157.02734375,
+          "proofStatuses": [
+            "unverified",
+            "unverified",
+            "unverified",
+            "unverified",
+            "unverified",
+            "unverified",
+            "unverified",
+            "unverified",
+            "unverified"
+          ],
+          "before": {
+            "rss": 74739712,
+            "heapTotal": 30961664,
+            "heapUsed": 12930888,
+            "external": 9658663,
+            "arrayBuffers": 282683
+          },
+          "after": {
+            "rss": 164655104,
+            "heapTotal": 92176384,
+            "heapUsed": 42165744,
+            "external": 9551224,
+            "arrayBuffers": 172176
+          }
+        },
+        {
+          "replica": 1,
+          "coldMs": 460.070834,
+          "repeatsMs": [
+            220.1381120000001,
+            210.80126600000017,
+            268.1409510000001,
+            283.08233999999993
+          ],
+          "edit1Ms": 319.50505299999986,
+          "repeatedEditsMs": [
+            218.07605599999988,
+            182.49031400000013,
+            205.70077400000037
+          ],
+          "peakRssMiB": 160.3671875,
+          "proofStatuses": [
+            "unverified",
+            "unverified",
+            "unverified",
+            "unverified",
+            "unverified",
+            "unverified",
+            "unverified",
+            "unverified",
+            "unverified"
+          ],
+          "before": {
+            "rss": 74309632,
+            "heapTotal": 21786624,
+            "heapUsed": 15513752,
+            "external": 9658663,
+            "arrayBuffers": 282683
+          },
+          "after": {
+            "rss": 168157184,
+            "heapTotal": 92438528,
+            "heapUsed": 44068432,
+            "external": 9551224,
+            "arrayBuffers": 172176
+          }
+        },
+        {
+          "replica": 2,
+          "coldMs": 461.498062,
+          "repeatsMs": [
+            226.2959249999999,
+            203.62574600000016,
+            185.88604299999997,
+            197.94981000000007
+          ],
+          "edit1Ms": 207.99273799999992,
+          "repeatedEditsMs": [
+            232.2096120000001,
+            229.5245719999998,
+            165.9949120000001
+          ],
+          "peakRssMiB": 159.1171875,
+          "proofStatuses": [
+            "unverified",
+            "unverified",
+            "unverified",
+            "unverified",
+            "unverified",
+            "unverified",
+            "unverified",
+            "unverified",
+            "unverified"
+          ],
+          "before": {
+            "rss": 74571776,
+            "heapTotal": 22048768,
+            "heapUsed": 14864624,
+            "external": 9658699,
+            "arrayBuffers": 282719
+          },
+          "after": {
+            "rss": 166846464,
+            "heapTotal": 92700672,
+            "heapUsed": 40336504,
+            "external": 9551224,
+            "arrayBuffers": 172176
+          }
+        }
+      ]
+    },
+    {
+      "target": "pr",
+      "backend": "elk",
+      "id": "diagnostic:chain300",
+      "processes": 3,
+      "coldMs": 1437.740189,
+      "repeatMs": 714.541138,
+      "edit1Ms": 716.8085869999995,
+      "peakRssMiB": 273.1015625,
+      "rawProcesses": [
+        {
+          "replica": 0,
+          "coldMs": 1437.740189,
+          "repeatsMs": [
+            796.8172940000002,
+            691.556333,
+            751.8322600000001,
+            662.628737
+          ],
+          "edit1Ms": 716.8085869999995,
+          "repeatedEditsMs": [
+            638.7031780000007,
+            706.9214750000001,
+            639.1200960000006
+          ],
+          "peakRssMiB": 277.98828125,
+          "proofStatuses": [
+            "unverified",
+            "unverified",
+            "unverified",
+            "unverified",
+            "unverified",
+            "unverified",
+            "unverified",
+            "unverified",
+            "unverified"
+          ],
+          "before": {
+            "rss": 74555392,
+            "heapTotal": 21524480,
+            "heapUsed": 14959680,
+            "external": 9658699,
+            "arrayBuffers": 282719
+          },
+          "after": {
+            "rss": 291491840,
+            "heapTotal": 200392704,
+            "heapUsed": 103440400,
+            "external": 9551404,
+            "arrayBuffers": 171812
+          }
+        },
+        {
+          "replica": 1,
+          "coldMs": 1489.2491440000001,
+          "repeatsMs": [
+            818.022555,
+            701.2835559999999,
+            727.7987200000002,
+            617.1744369999997
+          ],
+          "edit1Ms": 943.565044,
+          "repeatedEditsMs": [
+            654.2489949999999,
+            763.9496369999997,
+            709.5306380000002
+          ],
+          "peakRssMiB": 272.609375,
+          "proofStatuses": [
+            "unverified",
+            "unverified",
+            "unverified",
+            "unverified",
+            "unverified",
+            "unverified",
+            "unverified",
+            "unverified",
+            "unverified"
+          ],
+          "before": {
+            "rss": 74735616,
+            "heapTotal": 30437376,
+            "heapUsed": 12727328,
+            "external": 9658663,
+            "arrayBuffers": 282683
+          },
+          "after": {
+            "rss": 285851648,
+            "heapTotal": 200392704,
+            "heapUsed": 104416064,
+            "external": 9551404,
+            "arrayBuffers": 171812
+          }
+        },
+        {
+          "replica": 2,
+          "coldMs": 1107.2711669999999,
+          "repeatsMs": [
+            657.1672639999999,
+            551.790786,
+            535.286666,
+            514.8446880000001
+          ],
+          "edit1Ms": 565.1819459999997,
+          "repeatedEditsMs": [
+            1076.8713509999998,
+            720.5451269999994,
+            1529.2752209999999
+          ],
+          "peakRssMiB": 273.1015625,
+          "proofStatuses": [
+            "unverified",
+            "unverified",
+            "unverified",
+            "unverified",
+            "unverified",
+            "unverified",
+            "unverified",
+            "unverified",
+            "unverified"
+          ],
+          "before": {
+            "rss": 75370496,
+            "heapTotal": 30961664,
+            "heapUsed": 14902344,
+            "external": 9658699,
+            "arrayBuffers": 282683
+          },
+          "after": {
+            "rss": 286285824,
+            "heapTotal": 200654848,
+            "heapUsed": 97749480,
+            "external": 9551404,
+            "arrayBuffers": 171812
+          }
+        }
+      ]
+    },
+    {
+      "target": "main",
+      "backend": "agentic",
+      "id": "diagnostic:chain300",
+      "processes": 3,
+      "coldMs": 555.573456,
+      "repeatMs": 285.58504600000003,
+      "edit1Ms": 335.82527200000004,
+      "peakRssMiB": 228.1171875,
+      "rawProcesses": [
+        {
+          "replica": 0,
+          "coldMs": 451.43527600000004,
+          "repeatsMs": [
+            302.38830799999994,
+            281.44679300000007,
+            289.723299,
+            251.56683999999996
+          ],
+          "edit1Ms": 306.8449810000002,
+          "repeatedEditsMs": [
+            320.01983100000007,
+            291.44990099999995,
+            286.5380259999997
+          ],
+          "peakRssMiB": 228.63671875,
+          "proofStatuses": [
+            "passed",
+            "passed",
+            "passed",
+            "passed",
+            "passed",
+            "passed",
+            "passed",
+            "passed",
+            "passed"
+          ],
+          "before": {
+            "rss": 72441856,
+            "heapTotal": 22827008,
+            "heapUsed": 13178592,
+            "external": 9156652,
+            "arrayBuffers": 230136
+          },
+          "after": {
+            "rss": 239722496,
+            "heapTotal": 164728832,
+            "heapUsed": 56954400,
+            "external": 9110368,
+            "arrayBuffers": 182612
+          }
+        },
+        {
+          "replica": 1,
+          "coldMs": 555.573456,
+          "repeatsMs": [
+            314.359725,
+            253.41118899999992,
+            289.19211999999993,
+            247.84071100000006
+          ],
+          "edit1Ms": 347.24204699999973,
+          "repeatedEditsMs": [
+            323.6084350000001,
+            283.40659900000037,
+            320.14312599999994
+          ],
+          "peakRssMiB": 228.1171875,
+          "proofStatuses": [
+            "passed",
+            "passed",
+            "passed",
+            "passed",
+            "passed",
+            "passed",
+            "passed",
+            "passed",
+            "passed"
+          ],
+          "before": {
+            "rss": 74248192,
+            "heapTotal": 30429184,
+            "heapUsed": 14434456,
+            "external": 9156688,
+            "arrayBuffers": 230136
+          },
+          "after": {
+            "rss": 239198208,
+            "heapTotal": 164204544,
+            "heapUsed": 53906624,
+            "external": 9110368,
+            "arrayBuffers": 182612
+          }
+        },
+        {
+          "replica": 2,
+          "coldMs": 670.1661250000001,
+          "repeatsMs": [
+            387.5942799999998,
+            455.17649100000017,
+            343.56531099999984,
+            309.3663019999999
+          ],
+          "edit1Ms": 335.82527200000004,
+          "repeatedEditsMs": [
+            412.75131899999997,
+            255.71975799999973,
+            268.96377200000006
+          ],
+          "peakRssMiB": 227.65625,
+          "proofStatuses": [
+            "passed",
+            "passed",
+            "passed",
+            "passed",
+            "passed",
+            "passed",
+            "passed",
+            "passed",
+            "passed"
+          ],
+          "before": {
+            "rss": 71450624,
+            "heapTotal": 21516288,
+            "heapUsed": 13784280,
+            "external": 9156652,
+            "arrayBuffers": 230136
+          },
+          "after": {
+            "rss": 238288896,
+            "heapTotal": 164466688,
+            "heapUsed": 55886808,
+            "external": 9110368,
+            "arrayBuffers": 182612
+          }
+        }
+      ]
+    },
+    {
+      "target": "pr",
+      "backend": "agentic",
+      "id": "diagnostic:chain300",
+      "processes": 3,
+      "coldMs": 710.1872820000001,
+      "repeatMs": 385.93534999999997,
+      "edit1Ms": 510.2356289999998,
+      "peakRssMiB": 232.4609375,
+      "rawProcesses": [
+        {
+          "replica": 0,
+          "coldMs": 748.610948,
+          "repeatsMs": [
+            396.78621599999997,
+            435.75956199999996,
+            418.2381599999999,
+            518.882865
+          ],
+          "edit1Ms": 554.8148219999998,
+          "repeatedEditsMs": [
+            350.913043,
+            375.94456699999955,
+            419.34520799999973
+          ],
+          "peakRssMiB": 232.3515625,
+          "proofStatuses": [
+            "unverified",
+            "unverified",
+            "unverified",
+            "unverified",
+            "unverified",
+            "unverified",
+            "unverified",
+            "unverified",
+            "unverified"
+          ],
+          "before": {
+            "rss": 74350592,
+            "heapTotal": 22048768,
+            "heapUsed": 14874856,
+            "external": 9658699,
+            "arrayBuffers": 282719
+          },
+          "after": {
+            "rss": 243638272,
+            "heapTotal": 166191104,
+            "heapUsed": 52418752,
+            "external": 9562532,
+            "arrayBuffers": 185312
+          }
+        },
+        {
+          "replica": 1,
+          "coldMs": 564.572968,
+          "repeatsMs": [
+            360.6275629999999,
+            319.63771199999996,
+            276.97751900000003,
+            267.515545
+          ],
+          "edit1Ms": 358.97265800000014,
+          "repeatedEditsMs": [
+            285.69941900000003,
+            344.7250769999996,
+            291.0825540000001
+          ],
+          "peakRssMiB": 233.109375,
+          "proofStatuses": [
+            "unverified",
+            "unverified",
+            "unverified",
+            "unverified",
+            "unverified",
+            "unverified",
+            "unverified",
+            "unverified",
+            "unverified"
+          ],
+          "before": {
+            "rss": 75083776,
+            "heapTotal": 30699520,
+            "heapUsed": 15604832,
+            "external": 9658699,
+            "arrayBuffers": 282683
+          },
+          "after": {
+            "rss": 244432896,
+            "heapTotal": 166977536,
+            "heapUsed": 62477168,
+            "external": 9562532,
+            "arrayBuffers": 185312
+          }
+        },
+        {
+          "replica": 2,
+          "coldMs": 710.1872820000001,
+          "repeatsMs": [
+            421.23479199999997,
+            398.350367,
+            330.7588660000001,
+            373.52033299999994
+          ],
+          "edit1Ms": 510.2356289999998,
+          "repeatedEditsMs": [
+            353.1732039999997,
+            359.8599439999998,
+            447.45651899999984
+          ],
+          "peakRssMiB": 232.4609375,
+          "proofStatuses": [
+            "unverified",
+            "unverified",
+            "unverified",
+            "unverified",
+            "unverified",
+            "unverified",
+            "unverified",
+            "unverified",
+            "unverified"
+          ],
+          "before": {
+            "rss": 75382784,
+            "heapTotal": 30437376,
+            "heapUsed": 14028200,
+            "external": 9658699,
+            "arrayBuffers": 282683
+          },
+          "after": {
+            "rss": 243752960,
+            "heapTotal": 165928960,
+            "heapUsed": 51247360,
+            "external": 9562532,
+            "arrayBuffers": 185312
+          }
+        }
+      ]
+    },
+    {
+      "target": "main",
+      "backend": "elk",
+      "id": "diagnostic:chain300",
+      "processes": 3,
+      "coldMs": 1276.887224,
+      "repeatMs": 649.4263535,
+      "edit1Ms": 595.7704729999996,
+      "peakRssMiB": 267.33203125,
+      "rawProcesses": [
+        {
+          "replica": 0,
+          "coldMs": 1135.209758,
+          "repeatsMs": [
+            553.330937,
+            506.7747720000002,
+            557.4770279999998,
+            450.170967
+          ],
+          "edit1Ms": 514.8237520000002,
+          "repeatedEditsMs": [
+            516.3229869999996,
+            462.0544980000004,
+            486.4422599999998
+          ],
+          "peakRssMiB": 267.33203125,
+          "proofStatuses": [
+            "passed",
+            "passed",
+            "passed",
+            "passed",
+            "passed",
+            "passed",
+            "passed",
+            "passed",
+            "passed"
+          ],
+          "before": {
+            "rss": 72941568,
+            "heapTotal": 22302720,
+            "heapUsed": 13504392,
+            "external": 9156652,
+            "arrayBuffers": 230136
+          },
+          "after": {
+            "rss": 280317952,
+            "heapTotal": 198406144,
+            "heapUsed": 99040792,
+            "external": 9101940,
+            "arrayBuffers": 171812
+          }
+        },
+        {
+          "replica": 1,
+          "coldMs": 1276.887224,
+          "repeatsMs": [
+            759.3287040000002,
+            623.6771699999999,
+            679.472777,
+            623.9446370000001
+          ],
+          "edit1Ms": 601.9552999999996,
+          "repeatedEditsMs": [
+            557.4750039999999,
+            588.4322919999995,
+            626.055652
+          ],
+          "peakRssMiB": 267.9609375,
+          "proofStatuses": [
+            "passed",
+            "passed",
+            "passed",
+            "passed",
+            "passed",
+            "passed",
+            "passed",
+            "passed",
+            "passed"
+          ],
+          "before": {
+            "rss": 73580544,
+            "heapTotal": 21254144,
+            "heapUsed": 15079104,
+            "external": 9156688,
+            "arrayBuffers": 230136
+          },
+          "after": {
+            "rss": 280797184,
+            "heapTotal": 198144000,
+            "heapUsed": 97670848,
+            "external": 9101940,
+            "arrayBuffers": 171812
+          }
+        },
+        {
+          "replica": 2,
+          "coldMs": 1315.377631,
+          "repeatsMs": [
+            732.0942239999999,
+            664.6481079999999,
+            634.2045990000001,
+            574.9034950000005
+          ],
+          "edit1Ms": 595.7704729999996,
+          "repeatedEditsMs": [
+            667.1623650000001,
+            589.8072069999998,
+            655.0130739999995
+          ],
+          "peakRssMiB": 266.00390625,
+          "proofStatuses": [
+            "passed",
+            "passed",
+            "passed",
+            "passed",
+            "passed",
+            "passed",
+            "passed",
+            "passed",
+            "passed"
+          ],
+          "before": {
+            "rss": 72777728,
+            "heapTotal": 22040576,
+            "heapUsed": 13597072,
+            "external": 9156688,
+            "arrayBuffers": 230172
+          },
+          "after": {
+            "rss": 278925312,
+            "heapTotal": 197619712,
+            "heapUsed": 97641072,
+            "external": 9101940,
+            "arrayBuffers": 171812
+          }
+        }
+      ]
+    },
+    {
+      "target": "candidate621",
+      "backend": "agentic",
+      "id": "diagnostic:chain100",
+      "processes": 3,
+      "coldMs": 395.1907029999999,
+      "repeatMs": 178.8690620000001,
+      "edit1Ms": 178.937052,
+      "peakRssMiB": 160.33203125,
+      "rawProcesses": [
+        {
+          "replica": 0,
+          "coldMs": 477.755982,
+          "repeatsMs": [
+            196.66703100000007,
+            156.37407700000017,
+            176.5059389999999,
+            174.79456200000004
+          ],
+          "edit1Ms": 175.7250379999998,
+          "repeatedEditsMs": [
+            146.36248300000034,
+            189.2120100000002,
+            142.59938100000045
+          ],
+          "peakRssMiB": 160.59765625,
+          "proofStatuses": [
+            "passed",
+            "passed",
+            "passed",
+            "passed",
+            "passed",
+            "passed",
+            "passed",
+            "passed",
+            "passed"
+          ],
+          "before": {
+            "rss": 74420224,
+            "heapTotal": 21790720,
+            "heapUsed": 14652608,
+            "external": 9608993,
+            "arrayBuffers": 282719
+          },
+          "after": {
+            "rss": 168398848,
+            "heapTotal": 92966912,
+            "heapUsed": 51229272,
+            "external": 9507410,
+            "arrayBuffers": 171512
+          }
+        },
+        {
+          "replica": 1,
+          "coldMs": 391.07557,
+          "repeatsMs": [
+            208.05987100000004,
+            191.78437400000007,
+            165.9084089999999,
+            165.95375000000013
+          ],
+          "edit1Ms": 197.82607300000018,
+          "repeatedEditsMs": [
+            149.66446599999995,
+            154.142245,
+            144.97756800000002
+          ],
+          "peakRssMiB": 159.92578125,
+          "proofStatuses": [
+            "passed",
+            "passed",
+            "passed",
+            "passed",
+            "passed",
+            "passed",
+            "passed",
+            "passed",
+            "passed"
+          ],
+          "before": {
+            "rss": 74633216,
+            "heapTotal": 22052864,
+            "heapUsed": 15481312,
+            "external": 9608993,
+            "arrayBuffers": 282683
+          },
+          "after": {
+            "rss": 167694336,
+            "heapTotal": 92704768,
+            "heapUsed": 48223400,
+            "external": 9507410,
+            "arrayBuffers": 171512
+          }
+        },
+        {
+          "replica": 2,
+          "coldMs": 395.1907029999999,
+          "repeatsMs": [
+            160.789358,
+            185.32333099999994,
+            197.607309,
+            179.84502299999986
+          ],
+          "edit1Ms": 178.937052,
+          "repeatedEditsMs": [
+            148.3297540000001,
+            178.12782000000016,
+            145.11700099999962
+          ],
+          "peakRssMiB": 160.33203125,
+          "proofStatuses": [
+            "passed",
+            "passed",
+            "passed",
+            "passed",
+            "passed",
+            "passed",
+            "passed",
+            "passed",
+            "passed"
+          ],
+          "before": {
+            "rss": 74928128,
+            "heapTotal": 30703616,
+            "heapUsed": 14791592,
+            "external": 9608993,
+            "arrayBuffers": 282683
+          },
+          "after": {
+            "rss": 168120320,
+            "heapTotal": 94015488,
+            "heapUsed": 50117688,
+            "external": 9507410,
+            "arrayBuffers": 171512
+          }
+        }
+      ]
+    },
+    {
+      "target": "candidate621",
+      "backend": "elk",
+      "id": "diagnostic:chain100",
+      "processes": 3,
+      "coldMs": 800.094738,
+      "repeatMs": 280.915349,
+      "edit1Ms": 317.81428400000004,
+      "peakRssMiB": 226.4609375,
+      "rawProcesses": [
+        {
+          "replica": 0,
+          "coldMs": 892.7652939999998,
+          "repeatsMs": [
+            555.7649569999999,
+            420.02520000000004,
+            276.55141300000014,
+            273.89118599999983
+          ],
+          "edit1Ms": 334.3215489999998,
+          "repeatedEditsMs": [
+            274.714739,
+            266.01813300000003,
+            269.2970679999994
+          ],
+          "peakRssMiB": 229.89453125,
+          "proofStatuses": [
+            "passed",
+            "passed",
+            "passed",
+            "passed",
+            "passed",
+            "passed",
+            "passed",
+            "passed",
+            "passed"
+          ],
+          "before": {
+            "rss": 74379264,
+            "heapTotal": 29917184,
+            "heapUsed": 15094880,
+            "external": 9608993,
+            "arrayBuffers": 282683
+          },
+          "after": {
+            "rss": 241061888,
+            "heapTotal": 181694464,
+            "heapUsed": 61927496,
+            "external": 9500098,
+            "arrayBuffers": 167012
+          }
+        },
+        {
+          "replica": 1,
+          "coldMs": 800.094738,
+          "repeatsMs": [
+            335.42184199999997,
+            294.313977,
+            267.51672099999996,
+            258.46501100000023
+          ],
+          "edit1Ms": 310.1694419999999,
+          "repeatedEditsMs": [
+            283.8119550000001,
+            247.93645000000015,
+            254.9180080000001
+          ],
+          "peakRssMiB": 226.4609375,
+          "proofStatuses": [
+            "passed",
+            "passed",
+            "passed",
+            "passed",
+            "passed",
+            "passed",
+            "passed",
+            "passed",
+            "passed"
+          ],
+          "before": {
+            "rss": 74903552,
+            "heapTotal": 22315008,
+            "heapUsed": 16190528,
+            "external": 9608993,
+            "arrayBuffers": 282683
+          },
+          "after": {
+            "rss": 237461504,
+            "heapTotal": 179597312,
+            "heapUsed": 59545112,
+            "external": 9500098,
+            "arrayBuffers": 167012
+          }
+        },
+        {
+          "replica": 2,
+          "coldMs": 694.5276680000001,
+          "repeatsMs": [
+            307.0688479999999,
+            268.83320100000014,
+            262.89034600000014,
+            244.89584200000013
+          ],
+          "edit1Ms": 317.81428400000004,
+          "repeatedEditsMs": [
+            255.07140299999992,
+            255.44604600000002,
+            241.59954800000014
+          ],
+          "peakRssMiB": 218.65234375,
+          "proofStatuses": [
+            "passed",
+            "passed",
+            "passed",
+            "passed",
+            "passed",
+            "passed",
+            "passed",
+            "passed",
+            "passed"
+          ],
+          "before": {
+            "rss": 74379264,
+            "heapTotal": 22315008,
+            "heapUsed": 14762840,
+            "external": 9608993,
+            "arrayBuffers": 282719
+          },
+          "after": {
+            "rss": 229273600,
+            "heapTotal": 181956608,
+            "heapUsed": 55190664,
+            "external": 9500098,
+            "arrayBuffers": 167012
+          }
+        }
+      ]
+    },
+    {
+      "target": "candidate621",
+      "backend": "elk",
+      "id": "diagnostic:fanin100",
+      "processes": 3,
+      "coldMs": 1016.027819,
+      "repeatMs": 525.8395184999999,
+      "edit1Ms": 544.2752249999999,
+      "peakRssMiB": 252.21484375,
+      "rawProcesses": [
+        {
+          "replica": 0,
+          "coldMs": 934.384585,
+          "repeatsMs": [
+            523.372206,
+            476.92245800000023,
+            540.7010209999999,
+            519.4265349999996
+          ],
+          "edit1Ms": 439.8550909999999,
+          "repeatedEditsMs": [
+            528.1380799999997,
+            437.78152800000043,
+            434.916706
+          ],
+          "peakRssMiB": 250.17578125,
+          "proofStatuses": [
+            "unverified",
+            "unverified",
+            "unverified",
+            "unverified",
+            "unverified",
+            "unverified",
+            "unverified",
+            "unverified",
+            "unverified"
+          ],
+          "before": {
+            "rss": 74817536,
+            "heapTotal": 30703616,
+            "heapUsed": 14594944,
+            "external": 9608993,
+            "arrayBuffers": 282683
+          },
+          "after": {
+            "rss": 262328320,
+            "heapTotal": 183795712,
+            "heapUsed": 61928280,
+            "external": 9496098,
+            "arrayBuffers": 167012
+          }
+        },
+        {
+          "replica": 1,
+          "coldMs": 1383.1148910000002,
+          "repeatsMs": [
+            731.0745140000001,
+            630.840322,
+            689.1736659999997,
+            617.8148530000003
+          ],
+          "edit1Ms": 731.970523,
+          "repeatedEditsMs": [
+            660.7637050000003,
+            612.8133660000003,
+            607.9088840000004
+          ],
+          "peakRssMiB": 252.21484375,
+          "proofStatuses": [
+            "unverified",
+            "unverified",
+            "unverified",
+            "unverified",
+            "unverified",
+            "unverified",
+            "unverified",
+            "unverified",
+            "unverified"
+          ],
+          "before": {
+            "rss": 73613312,
+            "heapTotal": 21528576,
+            "heapUsed": 15846280,
+            "external": 9608993,
+            "arrayBuffers": 282683
+          },
+          "after": {
+            "rss": 264466432,
+            "heapTotal": 184320000,
+            "heapUsed": 59130464,
+            "external": 9496098,
+            "arrayBuffers": 167012
+          }
+        },
+        {
+          "replica": 2,
+          "coldMs": 1016.027819,
+          "repeatsMs": [
+            546.005938,
+            545.741732,
+            505.9373049999999,
+            444.053621
+          ],
+          "edit1Ms": 544.2752249999999,
+          "repeatedEditsMs": [
+            459.6295210000003,
+            506.27336000000014,
+            478.68086999999923
+          ],
+          "peakRssMiB": 256.375,
+          "proofStatuses": [
+            "unverified",
+            "unverified",
+            "unverified",
+            "unverified",
+            "unverified",
+            "unverified",
+            "unverified",
+            "unverified",
+            "unverified"
+          ],
+          "before": {
+            "rss": 75431936,
+            "heapTotal": 31490048,
+            "heapUsed": 14618640,
+            "external": 9608993,
+            "arrayBuffers": 282683
+          },
+          "after": {
+            "rss": 268828672,
+            "heapTotal": 186679296,
+            "heapUsed": 64867408,
+            "external": 9496098,
+            "arrayBuffers": 167012
+          }
+        }
+      ]
+    },
+    {
+      "target": "candidate621",
+      "backend": "agentic",
+      "id": "diagnostic:fanin100",
+      "processes": 3,
+      "coldMs": 690.2376720000001,
+      "repeatMs": 294.80814499999997,
+      "edit1Ms": 300.4222910000003,
+      "peakRssMiB": 160.3515625,
+      "rawProcesses": [
+        {
+          "replica": 0,
+          "coldMs": 727.1993229999999,
+          "repeatsMs": [
+            333.9683949999999,
+            293.51384299999995,
+            286.5724110000001,
+            282.64487999999983
+          ],
+          "edit1Ms": 363.8152829999999,
+          "repeatedEditsMs": [
+            276.29481499999974,
+            255.95136300000013,
+            258.86119800000006
+          ],
+          "peakRssMiB": 160.3515625,
+          "proofStatuses": [
+            "unverified",
+            "unverified",
+            "unverified",
+            "unverified",
+            "unverified",
+            "unverified",
+            "unverified",
+            "unverified",
+            "unverified"
+          ],
+          "before": {
+            "rss": 74031104,
+            "heapTotal": 22052864,
+            "heapUsed": 15603768,
+            "external": 9608993,
+            "arrayBuffers": 282683
+          },
+          "after": {
+            "rss": 168140800,
+            "heapTotal": 93753344,
+            "heapUsed": 46713232,
+            "external": 9501518,
+            "arrayBuffers": 172176
+          }
+        },
+        {
+          "replica": 1,
+          "coldMs": 690.2376720000001,
+          "repeatsMs": [
+            297.5836290000002,
+            275.51456899999994,
+            292.9598389999999,
+            297.89398300000016
+          ],
+          "edit1Ms": 300.4222910000003,
+          "repeatedEditsMs": [
+            273.4821740000002,
+            354.1329999999998,
+            288.1232399999999
+          ],
+          "peakRssMiB": 160.30078125,
+          "proofStatuses": [
+            "unverified",
+            "unverified",
+            "unverified",
+            "unverified",
+            "unverified",
+            "unverified",
+            "unverified",
+            "unverified",
+            "unverified"
+          ],
+          "before": {
+            "rss": 74502144,
+            "heapTotal": 21790720,
+            "heapUsed": 15456800,
+            "external": 9608993,
+            "arrayBuffers": 282683
+          },
+          "after": {
+            "rss": 168087552,
+            "heapTotal": 94015488,
+            "heapUsed": 49215248,
+            "external": 9501518,
+            "arrayBuffers": 172176
+          }
+        },
+        {
+          "replica": 2,
+          "coldMs": 513.460715,
+          "repeatsMs": [
+            317.137471,
+            272.47881899999993,
+            329.8045319999999,
+            231.244776
+          ],
+          "edit1Ms": 236.04326300000002,
+          "repeatedEditsMs": [
+            193.5469509999998,
+            361.1170500000003,
+            197.23783299999968
+          ],
+          "peakRssMiB": 163.046875,
+          "proofStatuses": [
+            "unverified",
+            "unverified",
+            "unverified",
+            "unverified",
+            "unverified",
+            "unverified",
+            "unverified",
+            "unverified",
+            "unverified"
+          ],
+          "before": {
+            "rss": 74498048,
+            "heapTotal": 30703616,
+            "heapUsed": 13994608,
+            "external": 9608993,
+            "arrayBuffers": 282683
+          },
+          "after": {
+            "rss": 167268352,
+            "heapTotal": 93491200,
+            "heapUsed": 49462704,
+            "external": 9501518,
+            "arrayBuffers": 172176
+          }
+        }
+      ]
+    },
+    {
+      "target": "candidate621",
+      "backend": "agentic",
+      "id": "diagnostic:chain300",
+      "processes": 3,
+      "coldMs": 847.8915820000001,
+      "repeatMs": 330.36025599999994,
+      "edit1Ms": 388.4743010000002,
+      "peakRssMiB": 235.80078125,
+      "rawProcesses": [
+        {
+          "replica": 0,
+          "coldMs": 1025.189981,
+          "repeatsMs": [
+            545.7650980000001,
+            514.313623,
+            527.6260769999999,
+            600.0787300000002
+          ],
+          "edit1Ms": 684.5329690000003,
+          "repeatedEditsMs": [
+            447.6181750000005,
+            790.6579809999994,
+            520.1119989999997
+          ],
+          "peakRssMiB": 237.87109375,
+          "proofStatuses": [
+            "unverified",
+            "unverified",
+            "unverified",
+            "unverified",
+            "unverified",
+            "unverified",
+            "unverified",
+            "unverified",
+            "unverified"
+          ],
+          "before": {
+            "rss": 74313728,
+            "heapTotal": 22052864,
+            "heapUsed": 14736688,
+            "external": 9608993,
+            "arrayBuffers": 282719
+          },
+          "after": {
+            "rss": 244727808,
+            "heapTotal": 166457344,
+            "heapUsed": 61803416,
+            "external": 9512826,
+            "arrayBuffers": 185312
+          }
+        },
+        {
+          "replica": 1,
+          "coldMs": 847.8915820000001,
+          "repeatsMs": [
+            405.7363419999999,
+            317.0181,
+            334.80450300000007,
+            320.67010900000014
+          ],
+          "edit1Ms": 388.4743010000002,
+          "repeatedEditsMs": [
+            343.08404800000017,
+            318.2156319999999,
+            371.3213350000001
+          ],
+          "peakRssMiB": 235.80078125,
+          "proofStatuses": [
+            "unverified",
+            "unverified",
+            "unverified",
+            "unverified",
+            "unverified",
+            "unverified",
+            "unverified",
+            "unverified",
+            "unverified"
+          ],
+          "before": {
+            "rss": 74977280,
+            "heapTotal": 30965760,
+            "heapUsed": 14105224,
+            "external": 9608993,
+            "arrayBuffers": 282683
+          },
+          "after": {
+            "rss": 243245056,
+            "heapTotal": 167243776,
+            "heapUsed": 67461200,
+            "external": 9512826,
+            "arrayBuffers": 185312
+          }
+        },
+        {
+          "replica": 2,
+          "coldMs": 709.6625349999999,
+          "repeatsMs": [
+            403.90749300000016,
+            323.6658789999999,
+            337.05463299999997,
+            311.00577599999997
+          ],
+          "edit1Ms": 360.6952570000003,
+          "repeatedEditsMs": [
+            374.2035740000001,
+            324.16955099999996,
+            297.9142820000002
+          ],
+          "peakRssMiB": 234.66796875,
+          "proofStatuses": [
+            "unverified",
+            "unverified",
+            "unverified",
+            "unverified",
+            "unverified",
+            "unverified",
+            "unverified",
+            "unverified",
+            "unverified"
+          ],
+          "before": {
+            "rss": 74534912,
+            "heapTotal": 21528576,
+            "heapUsed": 14736176,
+            "external": 9608993,
+            "arrayBuffers": 282719
+          },
+          "after": {
+            "rss": 238710784,
+            "heapTotal": 166457344,
+            "heapUsed": 58326768,
+            "external": 9512826,
+            "arrayBuffers": 185312
+          }
+        }
+      ]
+    },
+    {
+      "target": "candidate621",
+      "backend": "elk",
+      "id": "diagnostic:chain300",
+      "processes": 3,
+      "coldMs": 1575.0378190000001,
+      "repeatMs": 867.1309079999999,
+      "edit1Ms": 829.5530310000004,
+      "peakRssMiB": 274.359375,
+      "rawProcesses": [
+        {
+          "replica": 0,
+          "coldMs": 1959.9662429999998,
+          "repeatsMs": [
+            963.3124479999997,
+            899.2385140000001,
+            844.5709230000002,
+            869.616935
+          ],
+          "edit1Ms": 829.5530310000004,
+          "repeatedEditsMs": [
+            798.0402649999996,
+            774.0320730000003,
+            810.2107599999999
+          ],
+          "peakRssMiB": 273.890625,
+          "proofStatuses": [
+            "unverified",
+            "unverified",
+            "unverified",
+            "unverified",
+            "unverified",
+            "unverified",
+            "unverified",
+            "unverified",
+            "unverified"
+          ],
+          "before": {
+            "rss": 74432512,
+            "heapTotal": 22052864,
+            "heapUsed": 14847664,
+            "external": 9608993,
+            "arrayBuffers": 282719
+          },
+          "after": {
+            "rss": 283570176,
+            "heapTotal": 201183232,
+            "heapUsed": 99080360,
+            "external": 9501698,
+            "arrayBuffers": 171812
+          }
+        },
+        {
+          "replica": 1,
+          "coldMs": 1575.0378190000001,
+          "repeatsMs": [
+            993.0755649999999,
+            917.3614929999999,
+            816.8094130000004,
+            816.9003229999998
+          ],
+          "edit1Ms": 944.2267260000008,
+          "repeatedEditsMs": [
+            809.14239,
+            802.6003819999996,
+            753.1500589999996
+          ],
+          "peakRssMiB": 274.359375,
+          "proofStatuses": [
+            "unverified",
+            "unverified",
+            "unverified",
+            "unverified",
+            "unverified",
+            "unverified",
+            "unverified",
+            "unverified",
+            "unverified"
+          ],
+          "before": {
+            "rss": 74383360,
+            "heapTotal": 22052864,
+            "heapUsed": 15099024,
+            "external": 9608993,
+            "arrayBuffers": 282719
+          },
+          "after": {
+            "rss": 287510528,
+            "heapTotal": 201183232,
+            "heapUsed": 100349848,
+            "external": 9501698,
+            "arrayBuffers": 171812
+          }
+        },
+        {
+          "replica": 2,
+          "coldMs": 1313.376887,
+          "repeatsMs": [
+            903.9323649999999,
+            620.7565250000002,
+            659.5477190000001,
+            579.4373299999997
+          ],
+          "edit1Ms": 629.3125389999996,
+          "repeatedEditsMs": [
+            614.8878499999992,
+            596.9585809999999,
+            578.9069090000003
+          ],
+          "peakRssMiB": 274.984375,
+          "proofStatuses": [
+            "unverified",
+            "unverified",
+            "unverified",
+            "unverified",
+            "unverified",
+            "unverified",
+            "unverified",
+            "unverified",
+            "unverified"
+          ],
+          "before": {
+            "rss": 74018816,
+            "heapTotal": 23101440,
+            "heapUsed": 14700576,
+            "external": 9608993,
+            "arrayBuffers": 282719
+          },
+          "after": {
+            "rss": 288022528,
+            "heapTotal": 200134656,
+            "heapUsed": 101028240,
+            "external": 9501698,
+            "arrayBuffers": 171812
+          }
+        }
+      ]
+    }
+  ]
+}

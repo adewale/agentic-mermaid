@@ -1,0 +1,943 @@
+{
+  "sourceBase": "621d596088be5a08e03656eaacb3a52c934bac33",
+  "candidate": "Uncommitted4fileSOURCE.patch, frozenartifact /tmp/pr449-four-instructions-20261111",
+  "workers": 18,
+  "rows": [
+    {
+      "id": "diagnostic:chain100",
+      "target": "control",
+      "coldMs": 520.004805,
+      "repeatMs": 217.514723,
+      "edit1Ms": 258.6347109999999,
+      "peakRssMiB": 158.79296875,
+      "heapAfterEdit4": 48737528,
+      "rawProcesses": [
+        {
+          "replica": 0,
+          "coldMs": 548.649225,
+          "repeatMs": [
+            228.05373699999996,
+            258.6674609999998,
+            240.09886100000017,
+            241.81683599999997
+          ],
+          "edit1Ms": 258.6347109999999,
+          "peakRssMiB": 158.79296875,
+          "heapAfterEdit4": 48251072,
+          "proof": [
+            "passed",
+            "passed",
+            "passed",
+            "passed",
+            "passed",
+            "passed",
+            "passed",
+            "passed",
+            "passed"
+          ]
+        },
+        {
+          "replica": 1,
+          "coldMs": 520.004805,
+          "repeatMs": [
+            222.25705800000014,
+            199.17567299999996,
+            212.77238799999986,
+            246.114828
+          ],
+          "edit1Ms": 290.31824800000004,
+          "peakRssMiB": 154.984375,
+          "heapAfterEdit4": 48737528,
+          "proof": [
+            "passed",
+            "passed",
+            "passed",
+            "passed",
+            "passed",
+            "passed",
+            "passed",
+            "passed",
+            "passed"
+          ]
+        },
+        {
+          "replica": 2,
+          "coldMs": 460.410764,
+          "repeatMs": [
+            237.1567060000001,
+            210.50294800000006,
+            212.77064899999982,
+            206.73799099999997
+          ],
+          "edit1Ms": 257.582805,
+          "peakRssMiB": 159.33984375,
+          "heapAfterEdit4": 50104176,
+          "proof": [
+            "passed",
+            "passed",
+            "passed",
+            "passed",
+            "passed",
+            "passed",
+            "passed",
+            "passed",
+            "passed"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "diagnostic:chain100",
+      "target": "candidate",
+      "coldMs": 528.200496,
+      "repeatMs": 268.35573,
+      "edit1Ms": 249.03973300000007,
+      "peakRssMiB": 157.06640625,
+      "heapAfterEdit4": 47671496,
+      "rawProcesses": [
+        {
+          "replica": 0,
+          "coldMs": 455.037733,
+          "repeatMs": [
+            329.895168,
+            2934.8297269999994,
+            1790.2453180000002,
+            436.273784
+          ],
+          "edit1Ms": 462.032596,
+          "peakRssMiB": 160.43359375,
+          "heapAfterEdit4": 47671496,
+          "proof": [
+            "passed",
+            "passed",
+            "passed",
+            "passed",
+            "passed",
+            "passed",
+            "passed",
+            "passed",
+            "passed"
+          ]
+        },
+        {
+          "replica": 1,
+          "coldMs": 546.156396,
+          "repeatMs": [
+            216.14264300000013,
+            209.05989399999999,
+            187.01677100000006,
+            209.83424300000001
+          ],
+          "edit1Ms": 180.41832099999988,
+          "peakRssMiB": 156.4140625,
+          "heapAfterEdit4": 46472224,
+          "proof": [
+            "passed",
+            "passed",
+            "passed",
+            "passed",
+            "passed",
+            "passed",
+            "passed",
+            "passed",
+            "passed"
+          ]
+        },
+        {
+          "replica": 2,
+          "coldMs": 528.200496,
+          "repeatMs": [
+            285.23349700000006,
+            265.5274979999999,
+            271.18396200000007,
+            226.37102600000003
+          ],
+          "edit1Ms": 249.03973300000007,
+          "peakRssMiB": 157.06640625,
+          "heapAfterEdit4": 48275240,
+          "proof": [
+            "passed",
+            "passed",
+            "passed",
+            "passed",
+            "passed",
+            "passed",
+            "passed",
+            "passed",
+            "passed"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "diagnostic:fanin100",
+      "target": "candidate",
+      "coldMs": 608.924991,
+      "repeatMs": 263.0348150000001,
+      "edit1Ms": 262.91804200000024,
+      "peakRssMiB": 158.9453125,
+      "heapAfterEdit4": 47421984,
+      "rawProcesses": [
+        {
+          "replica": 0,
+          "coldMs": 575.070774,
+          "repeatMs": [
+            279.87421199999994,
+            221.52809100000013,
+            224.58625499999994,
+            272.7052249999999
+          ],
+          "edit1Ms": 381.2934899999998,
+          "peakRssMiB": 158.9453125,
+          "heapAfterEdit4": 46173200,
+          "proof": [
+            "unverified",
+            "unverified",
+            "unverified",
+            "unverified",
+            "unverified",
+            "unverified",
+            "unverified",
+            "unverified",
+            "unverified"
+          ]
+        },
+        {
+          "replica": 1,
+          "coldMs": 608.924991,
+          "repeatMs": [
+            325.5495819999999,
+            249.684125,
+            237.72925499999997,
+            276.3855050000002
+          ],
+          "edit1Ms": 250.82056199999988,
+          "peakRssMiB": 162.8359375,
+          "heapAfterEdit4": 47421984,
+          "proof": [
+            "unverified",
+            "unverified",
+            "unverified",
+            "unverified",
+            "unverified",
+            "unverified",
+            "unverified",
+            "unverified",
+            "unverified"
+          ]
+        },
+        {
+          "replica": 2,
+          "coldMs": 665.3108159999999,
+          "repeatMs": [
+            312.8978279999999,
+            278.032727,
+            289.6194130000001,
+            301.804631
+          ],
+          "edit1Ms": 262.91804200000024,
+          "peakRssMiB": 158.21875,
+          "heapAfterEdit4": 48207280,
+          "proof": [
+            "unverified",
+            "unverified",
+            "unverified",
+            "unverified",
+            "unverified",
+            "unverified",
+            "unverified",
+            "unverified",
+            "unverified"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "diagnostic:fanin100",
+      "target": "control",
+      "coldMs": 596.717962,
+      "repeatMs": 285.39573649999994,
+      "edit1Ms": 343.41346499999963,
+      "peakRssMiB": 159.05078125,
+      "heapAfterEdit4": 48416016,
+      "rawProcesses": [
+        {
+          "replica": 0,
+          "coldMs": 596.717962,
+          "repeatMs": [
+            336.66829800000005,
+            274.12652500000013,
+            308.46607399999994,
+            295.76201700000024
+          ],
+          "edit1Ms": 382.88108599999987,
+          "peakRssMiB": 157.8515625,
+          "heapAfterEdit4": 48416016,
+          "proof": [
+            "unverified",
+            "unverified",
+            "unverified",
+            "unverified",
+            "unverified",
+            "unverified",
+            "unverified",
+            "unverified",
+            "unverified"
+          ]
+        },
+        {
+          "replica": 1,
+          "coldMs": 555.3009220000001,
+          "repeatMs": [
+            287.272969,
+            310.14617599999997,
+            262.57891800000016,
+            283.5185039999999
+          ],
+          "edit1Ms": 320.1850260000001,
+          "peakRssMiB": 159.05078125,
+          "heapAfterEdit4": 47514288,
+          "proof": [
+            "unverified",
+            "unverified",
+            "unverified",
+            "unverified",
+            "unverified",
+            "unverified",
+            "unverified",
+            "unverified",
+            "unverified"
+          ]
+        },
+        {
+          "replica": 2,
+          "coldMs": 617.198452,
+          "repeatMs": [
+            302.50506200000007,
+            280.6337040000001,
+            268.83747399999993,
+            239.00272999999993
+          ],
+          "edit1Ms": 343.41346499999963,
+          "peakRssMiB": 162.83984375,
+          "heapAfterEdit4": 48665480,
+          "proof": [
+            "unverified",
+            "unverified",
+            "unverified",
+            "unverified",
+            "unverified",
+            "unverified",
+            "unverified",
+            "unverified",
+            "unverified"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "diagnostic:chain300",
+      "target": "control",
+      "coldMs": 865.2672889999999,
+      "repeatMs": 436.77109500000006,
+      "edit1Ms": 462.2637669999999,
+      "peakRssMiB": 234.26953125,
+      "heapAfterEdit4": 61344824,
+      "rawProcesses": [
+        {
+          "replica": 0,
+          "coldMs": 1200.249412,
+          "repeatMs": [
+            673.3904540000001,
+            441.7534679999999,
+            383.3073770000001,
+            610.3336840000002
+          ],
+          "edit1Ms": 672.0446789999996,
+          "peakRssMiB": 234.8984375,
+          "heapAfterEdit4": 61687128,
+          "proof": [
+            "unverified",
+            "unverified",
+            "unverified",
+            "unverified",
+            "unverified",
+            "unverified",
+            "unverified",
+            "unverified",
+            "unverified"
+          ]
+        },
+        {
+          "replica": 1,
+          "coldMs": 865.2672889999999,
+          "repeatMs": [
+            394.0377329999999,
+            398.628821,
+            367.49030300000004,
+            401.6725379999998
+          ],
+          "edit1Ms": 399.4559180000001,
+          "peakRssMiB": 234.26953125,
+          "heapAfterEdit4": 58239008,
+          "proof": [
+            "unverified",
+            "unverified",
+            "unverified",
+            "unverified",
+            "unverified",
+            "unverified",
+            "unverified",
+            "unverified",
+            "unverified"
+          ]
+        },
+        {
+          "replica": 2,
+          "coldMs": 789.5815120000001,
+          "repeatMs": [
+            447.33493499999986,
+            426.20725500000026,
+            456.82370900000024,
+            409.744635
+          ],
+          "edit1Ms": 462.2637669999999,
+          "peakRssMiB": 232.98828125,
+          "heapAfterEdit4": 61344824,
+          "proof": [
+            "unverified",
+            "unverified",
+            "unverified",
+            "unverified",
+            "unverified",
+            "unverified",
+            "unverified",
+            "unverified",
+            "unverified"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "diagnostic:chain300",
+      "target": "candidate",
+      "coldMs": 776.2308149999999,
+      "repeatMs": 425.6007710000001,
+      "edit1Ms": 547.439574,
+      "peakRssMiB": 233.87890625,
+      "heapAfterEdit4": 63334072,
+      "rawProcesses": [
+        {
+          "replica": 0,
+          "coldMs": 841.535585,
+          "repeatMs": [
+            440.42465100000004,
+            496.879044,
+            435.0261849999997,
+            440.60489400000006
+          ],
+          "edit1Ms": 489.048237,
+          "peakRssMiB": 237.39453125,
+          "heapAfterEdit4": 63334072,
+          "proof": [
+            "unverified",
+            "unverified",
+            "unverified",
+            "unverified",
+            "unverified",
+            "unverified",
+            "unverified",
+            "unverified",
+            "unverified"
+          ]
+        },
+        {
+          "replica": 1,
+          "coldMs": 776.2308149999999,
+          "repeatMs": [
+            436.38592900000003,
+            409.1080629999999,
+            414.8156130000002,
+            505.58480800000007
+          ],
+          "edit1Ms": 547.439574,
+          "peakRssMiB": 233.87890625,
+          "heapAfterEdit4": 60007672,
+          "proof": [
+            "unverified",
+            "unverified",
+            "unverified",
+            "unverified",
+            "unverified",
+            "unverified",
+            "unverified",
+            "unverified",
+            "unverified"
+          ]
+        },
+        {
+          "replica": 2,
+          "coldMs": 692.032782,
+          "repeatMs": [
+            422.96576200000004,
+            390.478752,
+            383.5202609999999,
+            430.8541130000003
+          ],
+          "edit1Ms": 572.4322939999997,
+          "peakRssMiB": 233.703125,
+          "heapAfterEdit4": 70308448,
+          "proof": [
+            "unverified",
+            "unverified",
+            "unverified",
+            "unverified",
+            "unverified",
+            "unverified",
+            "unverified",
+            "unverified",
+            "unverified"
+          ]
+        }
+      ]
+    }
+  ],
+  "wholeSVGExact": 81,
+  "differentSVGs": [],
+  "proofDifferences": [
+    {
+      "id": "diagnostic:chain100",
+      "replica": 0,
+      "phase": "cold-render",
+      "proofDifferences": [
+        ".checks.operations"
+      ]
+    },
+    {
+      "id": "diagnostic:chain100",
+      "replica": 0,
+      "phase": "repeat1",
+      "proofDifferences": [
+        ".checks.operations"
+      ]
+    },
+    {
+      "id": "diagnostic:chain100",
+      "replica": 0,
+      "phase": "repeat2",
+      "proofDifferences": [
+        ".checks.operations"
+      ]
+    },
+    {
+      "id": "diagnostic:chain100",
+      "replica": 0,
+      "phase": "repeat3",
+      "proofDifferences": [
+        ".checks.operations"
+      ]
+    },
+    {
+      "id": "diagnostic:chain100",
+      "replica": 0,
+      "phase": "repeat4",
+      "proofDifferences": [
+        ".checks.operations"
+      ]
+    },
+    {
+      "id": "diagnostic:chain100",
+      "replica": 0,
+      "phase": "edit1",
+      "proofDifferences": [
+        ".checks.operations"
+      ]
+    },
+    {
+      "id": "diagnostic:chain100",
+      "replica": 0,
+      "phase": "edit2",
+      "proofDifferences": [
+        ".checks.operations"
+      ]
+    },
+    {
+      "id": "diagnostic:chain100",
+      "replica": 0,
+      "phase": "edit3",
+      "proofDifferences": [
+        ".checks.operations"
+      ]
+    },
+    {
+      "id": "diagnostic:chain100",
+      "replica": 0,
+      "phase": "edit4",
+      "proofDifferences": [
+        ".checks.operations"
+      ]
+    },
+    {
+      "id": "diagnostic:chain100",
+      "replica": 1,
+      "phase": "cold-render",
+      "proofDifferences": [
+        ".checks.operations"
+      ]
+    },
+    {
+      "id": "diagnostic:chain100",
+      "replica": 1,
+      "phase": "repeat1",
+      "proofDifferences": [
+        ".checks.operations"
+      ]
+    },
+    {
+      "id": "diagnostic:chain100",
+      "replica": 1,
+      "phase": "repeat2",
+      "proofDifferences": [
+        ".checks.operations"
+      ]
+    },
+    {
+      "id": "diagnostic:chain100",
+      "replica": 1,
+      "phase": "repeat3",
+      "proofDifferences": [
+        ".checks.operations"
+      ]
+    },
+    {
+      "id": "diagnostic:chain100",
+      "replica": 1,
+      "phase": "repeat4",
+      "proofDifferences": [
+        ".checks.operations"
+      ]
+    },
+    {
+      "id": "diagnostic:chain100",
+      "replica": 1,
+      "phase": "edit1",
+      "proofDifferences": [
+        ".checks.operations"
+      ]
+    },
+    {
+      "id": "diagnostic:chain100",
+      "replica": 1,
+      "phase": "edit2",
+      "proofDifferences": [
+        ".checks.operations"
+      ]
+    },
+    {
+      "id": "diagnostic:chain100",
+      "replica": 1,
+      "phase": "edit3",
+      "proofDifferences": [
+        ".checks.operations"
+      ]
+    },
+    {
+      "id": "diagnostic:chain100",
+      "replica": 1,
+      "phase": "edit4",
+      "proofDifferences": [
+        ".checks.operations"
+      ]
+    },
+    {
+      "id": "diagnostic:chain100",
+      "replica": 2,
+      "phase": "cold-render",
+      "proofDifferences": [
+        ".checks.operations"
+      ]
+    },
+    {
+      "id": "diagnostic:chain100",
+      "replica": 2,
+      "phase": "repeat1",
+      "proofDifferences": [
+        ".checks.operations"
+      ]
+    },
+    {
+      "id": "diagnostic:chain100",
+      "replica": 2,
+      "phase": "repeat2",
+      "proofDifferences": [
+        ".checks.operations"
+      ]
+    },
+    {
+      "id": "diagnostic:chain100",
+      "replica": 2,
+      "phase": "repeat3",
+      "proofDifferences": [
+        ".checks.operations"
+      ]
+    },
+    {
+      "id": "diagnostic:chain100",
+      "replica": 2,
+      "phase": "repeat4",
+      "proofDifferences": [
+        ".checks.operations"
+      ]
+    },
+    {
+      "id": "diagnostic:chain100",
+      "replica": 2,
+      "phase": "edit1",
+      "proofDifferences": [
+        ".checks.operations"
+      ]
+    },
+    {
+      "id": "diagnostic:chain100",
+      "replica": 2,
+      "phase": "edit2",
+      "proofDifferences": [
+        ".checks.operations"
+      ]
+    },
+    {
+      "id": "diagnostic:chain100",
+      "replica": 2,
+      "phase": "edit3",
+      "proofDifferences": [
+        ".checks.operations"
+      ]
+    },
+    {
+      "id": "diagnostic:chain100",
+      "replica": 2,
+      "phase": "edit4",
+      "proofDifferences": [
+        ".checks.operations"
+      ]
+    },
+    {
+      "id": "diagnostic:fanin100",
+      "replica": 0,
+      "phase": "cold-render",
+      "proofDifferences": [
+        ".issues"
+      ]
+    },
+    {
+      "id": "diagnostic:fanin100",
+      "replica": 0,
+      "phase": "repeat1",
+      "proofDifferences": [
+        ".issues"
+      ]
+    },
+    {
+      "id": "diagnostic:fanin100",
+      "replica": 0,
+      "phase": "repeat2",
+      "proofDifferences": [
+        ".issues"
+      ]
+    },
+    {
+      "id": "diagnostic:fanin100",
+      "replica": 0,
+      "phase": "repeat3",
+      "proofDifferences": [
+        ".issues"
+      ]
+    },
+    {
+      "id": "diagnostic:fanin100",
+      "replica": 0,
+      "phase": "repeat4",
+      "proofDifferences": [
+        ".issues"
+      ]
+    },
+    {
+      "id": "diagnostic:fanin100",
+      "replica": 0,
+      "phase": "edit1",
+      "proofDifferences": [
+        ".issues"
+      ]
+    },
+    {
+      "id": "diagnostic:fanin100",
+      "replica": 0,
+      "phase": "edit2",
+      "proofDifferences": [
+        ".issues"
+      ]
+    },
+    {
+      "id": "diagnostic:fanin100",
+      "replica": 0,
+      "phase": "edit3",
+      "proofDifferences": [
+        ".issues"
+      ]
+    },
+    {
+      "id": "diagnostic:fanin100",
+      "replica": 0,
+      "phase": "edit4",
+      "proofDifferences": [
+        ".issues"
+      ]
+    },
+    {
+      "id": "diagnostic:fanin100",
+      "replica": 1,
+      "phase": "cold-render",
+      "proofDifferences": [
+        ".issues"
+      ]
+    },
+    {
+      "id": "diagnostic:fanin100",
+      "replica": 1,
+      "phase": "repeat1",
+      "proofDifferences": [
+        ".issues"
+      ]
+    },
+    {
+      "id": "diagnostic:fanin100",
+      "replica": 1,
+      "phase": "repeat2",
+      "proofDifferences": [
+        ".issues"
+      ]
+    },
+    {
+      "id": "diagnostic:fanin100",
+      "replica": 1,
+      "phase": "repeat3",
+      "proofDifferences": [
+        ".issues"
+      ]
+    },
+    {
+      "id": "diagnostic:fanin100",
+      "replica": 1,
+      "phase": "repeat4",
+      "proofDifferences": [
+        ".issues"
+      ]
+    },
+    {
+      "id": "diagnostic:fanin100",
+      "replica": 1,
+      "phase": "edit1",
+      "proofDifferences": [
+        ".issues"
+      ]
+    },
+    {
+      "id": "diagnostic:fanin100",
+      "replica": 1,
+      "phase": "edit2",
+      "proofDifferences": [
+        ".issues"
+      ]
+    },
+    {
+      "id": "diagnostic:fanin100",
+      "replica": 1,
+      "phase": "edit3",
+      "proofDifferences": [
+        ".issues"
+      ]
+    },
+    {
+      "id": "diagnostic:fanin100",
+      "replica": 1,
+      "phase": "edit4",
+      "proofDifferences": [
+        ".issues"
+      ]
+    },
+    {
+      "id": "diagnostic:fanin100",
+      "replica": 2,
+      "phase": "cold-render",
+      "proofDifferences": [
+        ".issues"
+      ]
+    },
+    {
+      "id": "diagnostic:fanin100",
+      "replica": 2,
+      "phase": "repeat1",
+      "proofDifferences": [
+        ".issues"
+      ]
+    },
+    {
+      "id": "diagnostic:fanin100",
+      "replica": 2,
+      "phase": "repeat2",
+      "proofDifferences": [
+        ".issues"
+      ]
+    },
+    {
+      "id": "diagnostic:fanin100",
+      "replica": 2,
+      "phase": "repeat3",
+      "proofDifferences": [
+        ".issues"
+      ]
+    },
+    {
+      "id": "diagnostic:fanin100",
+      "replica": 2,
+      "phase": "repeat4",
+      "proofDifferences": [
+        ".issues"
+      ]
+    },
+    {
+      "id": "diagnostic:fanin100",
+      "replica": 2,
+      "phase": "edit1",
+      "proofDifferences": [
+        ".issues"
+      ]
+    },
+    {
+      "id": "diagnostic:fanin100",
+      "replica": 2,
+      "phase": "edit2",
+      "proofDifferences": [
+        ".issues"
+      ]
+    },
+    {
+      "id": "diagnostic:fanin100",
+      "replica": 2,
+      "phase": "edit3",
+      "proofDifferences": [
+        ".issues"
+      ]
+    },
+    {
+      "id": "diagnostic:fanin100",
+      "replica": 2,
+      "phase": "edit4",
+      "proofDifferences": [
+        ".issues"
+      ]
+    }
+  ],
+  "sameInputsOptionsPhases": true,
+  "scope": "ContemporaneousbalancedactualbuiltNodeNativepublicSVG+entire receipt consumer, cache0,3freshprocesses/arm/case,4repeats+firstedit separate; allrawcosts and proof availability retained; RSSincludesimport/harness/retainedproducts. Notfullyprovedthroughputratio forUproducts."
+}
