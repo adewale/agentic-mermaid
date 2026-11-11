@@ -51,7 +51,7 @@ test('geometry captured by a replaced native producer cannot poison later origin
   const child = await runChild(process.execPath, ['-e', `
     import assert from 'node:assert/strict'
     import { renderMermaidSVGWithReceipt } from './src/index.ts'
-    import { getFamily, replaceFamilyForTest } from './src/agent/families.ts'
+    import { getFamily } from './src/agent/families.ts'
     import { sceneLowering, nativeDrawingOf, inheritNativeDrawing } from './src/scene/drawing.ts'
     import { withRenderStageObserver } from './src/render-stages.ts'
     const options = { embedFontImport: false }
@@ -70,10 +70,25 @@ test('geometry captured by a replaced native producer cannot poison later origin
       const producer = nativeDrawingOf(lower), originalSource = sceneLowering(producer)
       for (const late of [false, true]) for (const warm of [0, 1, 3]) {
         const source = entry.source(late + String(warm))
-        const restoreFamily = replaceFamilyForTest(entry.kind, { ...original })
-        let expected
-        try { expected = renderMermaidSVGWithReceipt(source, options) } finally { restoreFamily() }
-        for (let index = 0; index < warm; index++) assert.deepEqual(renderMermaidSVGWithReceipt(source, options), expected)
+        // Controls keep the exact producer path with position caching off.
+        // Actual calls have 0, 1 or 3 prior original renders with caching.
+        const cache = process.env.AGENTIC_MERMAID_ELK_CACHE
+        process.env.AGENTIC_MERMAID_ELK_CACHE = '0'
+        let expectedOriginal, expectedNative
+        try {
+          expectedOriginal = renderMermaidSVGWithReceipt(source, options)
+          // Class/ER Scene and replaced Native writes have different paid
+          // proof work and served viewport rounding, despite identical SVG.
+          const delegated = sceneLowering((factory, context) => producer(factory, context))
+          inheritNativeDrawing(delegated, lower)
+          try { expectedNative = renderMermaidSVGWithReceipt(source, options) }
+          finally { inheritNativeDrawing(originalSource, lower) }
+        } finally {
+          if (cache === undefined) delete process.env.AGENTIC_MERMAID_ELK_CACHE
+          else process.env.AGENTIC_MERMAID_ELK_CACHE = cache
+        }
+        assert.equal(expectedNative.svg, expectedOriginal.svg)
+        for (let index = 0; index < warm; index++) assert.deepEqual(renderMermaidSVGWithReceipt(source, options), expectedOriginal)
         let captured, calls = 0
         const custom = sceneLowering((factory, context) => {
           calls++
@@ -85,7 +100,7 @@ test('geometry captured by a replaced native producer cannot poison later origin
           const actual = withRenderStageObserver(sample => {
             if (late && sample.stage === 'layout') inheritNativeDrawing(custom, lower)
           }, () => renderMermaidSVGWithReceipt(source, options))
-          assert.deepEqual(actual, expected)
+          assert.deepEqual(actual, expectedNative)
         }
         finally { inheritNativeDrawing(originalSource, lower) }
         assert.equal(calls, 1)
@@ -97,7 +112,7 @@ test('geometry captured by a replaced native producer cannot poison later origin
         } })
         let restored
         assert.doesNotThrow(() => { restored = renderMermaidSVGWithReceipt(source, options) })
-        assert.deepEqual(restored, expected)
+        assert.deepEqual(restored, expectedOriginal)
         const { layoutMermaidWithReceipt } = await import('./src/agent/index.ts')
         assert.equal(layoutMermaidWithReceipt(source, options).layout.kind, entry.kind)
         assert.deepEqual(reads, [])
