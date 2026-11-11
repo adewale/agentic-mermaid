@@ -1,0 +1,15 @@
+{
+  "at": "2026-11-11T18:08:40.405715+00:00",
+  "sourceHead": "c685b5deec7126ff9d0af0276dada80244b6796a",
+  "allFourResolved": false,
+  "files": {
+    "REPORT.md": {
+      "bytes": 2922,
+      "sha256": "76052bf91ce31c29d90c723d41aa1a9a6075505033bcba9352455fde732f3b1f"
+    },
+    "consumer-qualification.tar.gz": {
+      "bytes": 5855711,
+      "sha256": "980bf9fd5972db080f18d39dff7d4f1f0d43a918ff8bca3e962b2060f6eb155e"
+    }
+  }
+}
