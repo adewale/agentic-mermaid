@@ -10,6 +10,7 @@ import { composeMatrices, IDENTITY_MATRIX, transformMatrix } from './transforms.
 import { createOwnedNativePaintRecorder, multiplySceneOpacity, nativePaintAncestors, sceneGroupOpacity, type NativePaintEntry, type PaintInspectionHeader, type ScenePaintGeometryInspection } from './inspection.ts'
 import { createNativeSceneValidator, SceneValidationError, SCENE_VALIDATION_LIMITS, assertFinalSvgByteBudget } from './scene-validation-core.ts'
 import { withDeferredTerminalProjections } from './deferred-terminal-projection.ts'
+import { retainedGroupEmission } from './group-emission.ts'
 import { createNativePaintEmission, MAX_OCCLUSION_OPERATIONS } from './native-paint-emission.ts'
 import type { SvgTextPaintWrite, SvgXmlWrite } from './svg-writer.ts'
 
@@ -115,7 +116,7 @@ export function drawNative(
   const ownedFragments = new WeakSet<object>()
   const ownFragment = <T extends Fragment>(fragment: T): T => { if (emission.retainFragment()) ownedFragments.add(fragment); return Object.freeze(fragment) }
   const leaf = (node: LeafNode): Fragment => {
-    const captured = emission.leaf(node, (captured, sink) => validator.write(captured, xml, 0, sink))
+    const captured = emission.leaf(node, (captured, sink) => validator.write(captured, xml, 0, sink), xml)
     const svg = captured.svg
     return ownFragment({ kind: 'leaf', node: captured.paintNode, svg, xmlWrite: captured.xmlWrite!, textPaint: captured.textPaint, conditional: captured.conditional, nodeCount: 1, depth: 0,
       prepared: node.kind === 'document' ? !/<\s*text/i.test(svg)
@@ -169,6 +170,7 @@ export function drawNative(
       validator.depth(depth)
       const capturedShell = emission.snapshot(shell)
       if (!capturedShell) emission.uncertain()
+      if (capturedShell) emission.bindGroup(capturedShell)
       const matrix = capturedShell ? emission.group(capturedShell) : undefined
       const own = capturedShell?.identity ?? { id: shell.id, role: shell.role }
       for (let index = 0; index < children.length; index++) {
@@ -182,12 +184,12 @@ export function drawNative(
       const writtenShell = allOwned && capturedShell ? capturedShell : shell
       let xmlWrite: SvgXmlWrite
       if (allOwned) {
-        xmlWrite = xml.join(privateValues(childParts.length + 2, index => {
+        xmlWrite = xml.group(privateValues(childParts.length + 2, index => {
           if (index === 0) return xml.raw(writtenShell.open)
           if (index === childParts.length + 1) return xml.raw(writtenShell.close)
           const child = childParts[index - 1]!
           return xml.indent(child.node.xmlWrite, child.indent)
-        }), writtenShell.join)
+        }), retainedGroupEmission(writtenShell)?.nativeParse, writtenShell.join)
       } else {
         // Keep the legacy read/coercion order for foreign fragment values.
         const fragments = [shell.open]

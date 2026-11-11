@@ -8,13 +8,13 @@ import { formatSvgNumber } from '../shared/svg-number.ts'
 import { safeCssFontFamily } from '../shared/css-font.ts'
 import { deferredTerminalProjectionInput, copyDeferredTerminalProjection } from './deferred-terminal-projection.ts'
 import { transferSceneNodeSerialization } from './serialization.ts'
-import { createNativeXmlWork, hasInheritedSvgTextPaint, closeSvgTextPaintWrite, hasSvgTextPaintClosure, matchesSvgTextPaintWrite, readSvgTextPaintWrite, type SvgTextPaintWrite, type SvgGeometryWriteSink, type SvgXmlWrite } from './svg-writer.ts'
+import { createNativeXmlWork, readSvgGeometryProjection, readSvgGeometryWrite, readSvgRectangleWrite, matchesSvgRectangleWrite, hasInheritedSvgTextPaint, closeSvgTextPaintWrite, hasSvgTextPaintClosure, matchesSvgTextPaintWrite, readSvgTextPaintWrite, type SvgTextPaintWrite, type SvgGeometryWriteSink, type SvgXmlCapture, type SvgXmlWrite } from './svg-writer.ts'
 import { connectorContourSemantics } from './connector-geometry.ts'
 import { rectanglePaintFields, writtenPolylineProjectionOf, prepareWrittenCompoundShape, observeWrittenCompoundShape, completeWrittenCompoundShape } from './written-geometry.ts'
 import { MAX_OCCLUSION_OPERATIONS } from './paint-work.ts'
 import { createEmissionContext, type EmissionColorResolver } from './emission-context.ts'
 import { verifySvgDocumentEnvelope } from '../output-security.ts'
-import { captureNativeGroupEmission, transferNativeGroupEmission } from './group-emission.ts'
+import { bindNativeGroupEmission, captureNativeGroupEmission, transferNativeGroupEmission } from './group-emission.ts'
 
 export { MAX_OCCLUSION_OPERATIONS } from './paint-work.ts'
 
@@ -529,6 +529,7 @@ export function createNativePaintEmission(maxOperations: number) {
       return captured
     },
     groupRegistration: pay,
+    bindGroup(shell: Extract<SceneNode, { kind: 'group' }>) { bindNativeGroupEmission(shell, shell.open, pay) },
     groupValidation(shell: Extract<SceneNode, { kind: 'group' }>) { captureNativeGroupEmission(shell, pay) },
     group(shell: Extract<SceneNode, { kind: 'group' }>) {
       closedMarkerContext = false
@@ -652,7 +653,7 @@ export function createNativePaintEmission(maxOperations: number) {
       } else emissionContext.invalidateFractionalCircle()
       return work.exhausted() ? false : actualTextPaint ?? true
     },
-    leaf(node: Leaf, write: (node: Leaf, sink?: SvgGeometryWriteSink) => string | SvgXmlWrite): { node: Leaf; paintNode: Leaf; svg: string; xmlWrite: SvgXmlWrite | undefined; textPaint?: SvgTextPaintWrite; conditional: boolean } {
+    leaf(node: Leaf, write: (node: Leaf, sink?: SvgGeometryWriteSink) => string | SvgXmlWrite, actualCapture?: SvgXmlCapture): { node: Leaf; paintNode: Leaf; svg: string; xmlWrite: SvgXmlWrite | undefined; textPaint?: SvgTextPaintWrite; conditional: boolean } {
       const serialize = (source: Leaf, sink?: SvgGeometryWriteSink): { svg: string; xmlWrite: SvgXmlWrite | undefined } => {
         const written = write(source, sink)
         if (typeof written === 'string') return { svg: written, xmlWrite: undefined }
@@ -672,7 +673,9 @@ export function createNativePaintEmission(maxOperations: number) {
       const supported = !!compound || geometry?.kind === 'line' || geometry?.kind === 'polyline' || !!rectangle || captured.kind === 'connector' && geometry?.kind === 'path'
       // Constant custody is separate from variable projection work. The writer
       // reserves the entire token stream before allocating its first point.
-      const reserved = supported && pay(192)
+      const directRectangle = !!rectangle && actualCapture === xml
+      const directGeometry = !compound && supported && actualCapture === xml
+      let reserved = supported && !directGeometry && pay(192)
       let received = false, invalid = false, projectionReserved = false, served: Geometry | undefined
       let attributesReceived = false, invalidAttributes = false, attributes: Readonly<Record<string, string>> | undefined
       let textPaintReceived = false, textPaintInvalid = false, textPaint: SvgTextPaintWrite | undefined
@@ -696,6 +699,15 @@ export function createNativePaintEmission(maxOperations: number) {
         attributes = written
       } : undefined }) : undefined
       const { svg, xmlWrite } = serialize(captured, sink)
+      if (directRectangle && geometry && captured.kind === 'shape') {
+        const actual = readSvgRectangleWrite(xml, xmlWrite, captured, geometry)
+        served = actual && inertRectangleRecord(actual)
+        reserved = received = !!served
+        if (!served || served.kind !== 'rect' || !matchesSvgRectangleWrite(xml, xmlWrite, captured, geometry, served, rectangle!.paint, pay)) invalid = true
+      } else if (directGeometry && geometry) {
+        if (pay(4)) served = readSvgGeometryWrite(xml, xmlWrite, captured, geometry)
+        reserved = received = !!served
+      }
       const textPaintCandidate = textPaintReceived && !textPaintInvalid ? textPaint : undefined
       if (pay()) capturedLeaves.set(captured, captured)
       const retained = { node: captured, paintNode: captured, svg, xmlWrite, textPaint: textPaintCandidate, conditional: false }
@@ -712,7 +724,7 @@ export function createNativePaintEmission(maxOperations: number) {
       // unsupported numeric projection cannot borrow another write's proof.
       if (!reserved || !received || invalid || !served || !geometry || served.kind !== geometry.kind) return { ...retained, conditional: true }
       if (rectangle && captured.kind === 'shape' && served.kind === 'rect') {
-        if (!attributesReceived || invalidAttributes || !attributes || !sameRectanglePaint(rectangle.paint, attributes)) return { ...retained, conditional: true }
+        if (!directRectangle && (!attributesReceived || invalidAttributes || !attributes || !sameRectanglePaint(rectangle.paint, attributes))) return { ...retained, conditional: true }
         // A rectangle has extent, not a line's start/end topology. Never
         // borrow the line-collapse branch or pre-write radii for served ink.
         if (!(served.width > 0 && served.height > 0) || (served.rx ?? 0) !== 0 || (served.ry ?? 0) !== 0) return { ...retained, conditional: true }
@@ -727,7 +739,7 @@ export function createNativePaintEmission(maxOperations: number) {
       const path = captured.kind === 'connector' && captured.route.geometry.kind === 'path' && served.kind === 'path'
         ? replaceField(captured.route.geometry, 'd', served.d) : undefined
       if (served.kind === 'path' && !path) return { ...retained, conditional: true }
-      const projection = served.kind === 'polyline' ? writtenPolylineProjectionOf(served) : undefined
+      const projection = served.kind === 'polyline' ? directGeometry && geometry ? readSvgGeometryProjection(xml, xmlWrite, captured, geometry) : writtenPolylineProjectionOf(served) : undefined
       const frozen = path ?? (served.kind === 'polyline' ? projection && served : snapshot(served))
       if (!frozen) return { ...retained, conditional: true }
       const start = frozen.kind === 'line' ? { x: frozen.x1, y: frozen.y1 } : frozen.kind === 'polyline' ? frozen.points[0] : undefined

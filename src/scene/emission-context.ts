@@ -11,7 +11,7 @@ import { markerResourceMarkupCost, serializeMarkerResource } from './marker-reso
 import { parseSvgTransform, transformMatrix, type AffineMatrix } from './transforms.ts'
 import { writtenLeafContextOf } from './svg-writer.ts'
 import { decodeXML } from 'entities'
-import { retainedGroupEmission, freshNativeGroupTags } from './group-emission.ts'
+import { retainedGroupEmission, freshNativeGroupTags, consumeNativeGroupEmission } from './group-emission.ts'
 
 type Header = Pick<SceneDoc, 'width' | 'height' | 'colors'>
 const emissionContextFreeze = Object.freeze
@@ -33,7 +33,7 @@ export function createEmissionContext(pay: Pay, options: { resources?: boolean; 
   const texts: Array<{ node: TextMark; svg: string }> = []
   const leaves: Array<{ node: SceneNode; svg: string }> = []
   const groups: Array<Extract<SceneNode, { kind: 'group' }>> = []
-  type NativeGroup = { readonly svg: string; readonly tags: readonly SvgStartTagToken[]; readonly opacity: string | undefined; readonly transform: string | undefined; readonly matrix: AffineMatrix | undefined }
+  type NativeGroup = { readonly svg: string; readonly tags?: readonly SvgStartTagToken[]; readonly plain?: true; readonly fractional?: boolean; readonly opacity: string | undefined; readonly transform: string | undefined; readonly matrix: AffineMatrix | undefined }
   const nativeGroups = new WeakMap<Extract<SceneNode, { kind: 'group' }>, NativeGroup>()
   let hasNativeGroups = false
   const references: MarkerDescriptor[] = []
@@ -378,6 +378,14 @@ export function createEmissionContext(pay: Pay, options: { resources?: boolean; 
       const svg = pinned ? open.value as string : shell.open
       if (!reserve(4)) return undefined
       const parsed = pinned ? retainedGroupEmission(shell)?.nativeParse : undefined
+      const plain = pinned ? consumeNativeGroupEmission(shell, svg, pay) : undefined
+      if (plain) {
+        // Final validation's exact plain opening already owns its names,
+        // duplicates and class bytes. No lexical token receivers or repeated
+        // decoding are needed by the deferred context consumer.
+        if (!plain.uncertain) nativeGroups.set(shell, { svg, plain: true, fractional: plain.fractional, opacity: undefined, transform: undefined, matrix: undefined })
+        return Object.freeze(Object.assign(Object.create(null), { uncertain: plain.uncertain, matrix: plain.matrix }))
+      }
       let tags: readonly SvgStartTagToken[] | undefined
       if (parsed) {
         if (!reserve(svg.length * 2 + 4)) return undefined
@@ -487,9 +495,17 @@ export function createEmissionContext(pay: Pay, options: { resources?: boolean; 
           if (!reserve(2)) break
           retained = nativeGroups.get(shell)
         }
+        if (retained?.plain) {
+          // A bound final plain shell cannot carry a transform or inherited
+          // paint, and its lexer accepted only one exact XML <g> opening.
+          // Its eager context result also excluded the actual mono class.
+          if (!reserve(4)) break
+          if (hasRingConnector && !retained.fractional) fractionalCircleContext = false
+          continue
+        }
         const svg = retained ? retained.svg : shell.open
         if (!reserve((retained ? 0 : svg.length * 8) + 64)) break
-        const tags = retained ? retained.tags : scanSvgStartTags(svg), tag = tags[0]
+        const tags = retained ? retained.tags! : scanSvgStartTags(svg), tag = tags[0]
         if (retained && tag) {
           // The removed pass included these remaining variable checks too.
           // Pay their actual attribute queries, name grammar and value scans;

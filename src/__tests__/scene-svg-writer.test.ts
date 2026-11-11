@@ -1,10 +1,14 @@
 import { describe, expect, test } from 'bun:test'
 import { SaxesParser } from 'saxes'
+import { fileURLToPath } from 'node:url'
+import { useTestChildren } from './helpers/test-child.ts'
 import * as marks from '../scene/marks.ts'
 import { canonicalizeSceneNodeSerialization, sceneNodeSerialization, sceneHasOnlyPreparedText, sceneNodeWrite, transferSceneNodeSerialization } from '../scene/serialization.ts'
 import { validateSceneDoc } from '../scene/scene-validation.ts'
 import { preparePixelText } from '../shared/prepared-text.ts'
 import { createSvgXmlCapture, createNativeXmlWork, writeShapeSvg, writeTextSvg, writeConnectorSvg, type SvgXmlWrite, type SvgXmlCapture } from '../scene/svg-writer.ts'
+import { captureNativeGroupParse } from '../scene/group-emission.ts'
+import { createNativePaintEmission } from '../scene/native-paint-emission.ts'
 import { verifySvgDocumentEnvelope } from '../output-security.ts'
 import { createNativeSceneValidator } from '../scene/scene-validation-core.ts'
 import type { SceneNode } from '../scene/ir.ts'
@@ -12,7 +16,74 @@ import type { SceneNode } from '../scene/ir.ts'
 // The default backend writes shape, text and connector elements from their
 // typed fields, so paint certification, which reads those fields, describes
 // the bytes. Families add only inert hooks.
+const runWriterChild = useTestChildren(20000)
 describe('typed Scene SVG writer', () => {
+  test.each([0, -0, 1e-20, 1e20, 999999.9999999999, 12345.123456789012, 1.2345678901255, -1.2345678901255])('Native scalar point writing retains whole SVG bytes for %s', coordinate => {
+    const shape = marks.shape({ id: 'numeric', role: 'chrome', geometry: { kind: 'polyline', points: [{ x: coordinate, y: 0 }, { x: 3.456789012345678, y: 20 }] }, paint: { fill: 'none', stroke: '#111', strokeWidth: '1' } })
+    const expected = writeShapeSvg(shape)
+    const work = createNativeXmlWork(400000)
+    expect(writeShapeSvg(shape, undefined, work.capture()).svg).toBe(expected)
+  })
+
+  test.each(['projection', 'point', 'contour', 'geometry'] as const)('private actual geometry retains collapse under a pre-import %s freeze hook', async mode => {
+    const child = await runWriterChild(process.execPath, ['--eval', String.raw`
+const mode = process.env.AM_NATIVE_GEOMETRY_HOOK
+const original = Object.getOwnPropertyDescriptor(Object, 'freeze')
+Object.defineProperty(Object, 'freeze', { ...original, value(value) {
+  if (mode === 'projection' && value && Object.hasOwn(value, 'contours') && Object.hasOwn(value, 'collapsed') && !Object.hasOwn(value, 'rawBounds')) {
+    return Reflect.apply(original.value, Object, [{ ...value, collapsed: false }])
+  }
+  if (mode === 'point' && value && Object.hasOwn(value, 'x') && Object.hasOwn(value, 'y') && new Error().stack?.includes('nativePolylineAttributes')) return Reflect.apply(original.value, Object, [{ ...value, x: 200 }])
+  if (mode === 'contour' && value && Object.hasOwn(value, 'start') && Object.hasOwn(value, 'end') && Object.hasOwn(value, 'closed')) return Reflect.apply(original.value, Object, [{ ...value, start: { x: 200, y: 20 } }])
+  if (mode === 'geometry' && value?.kind === 'polyline' && new Error().stack?.includes('createActualWrittenPolyline')) return Reflect.apply(original.value, Object, [{ ...value, points: [{ x: 200, y: 20 }, { x: 300, y: 20 }] }])
+  return Reflect.apply(original.value, Object, [value])
+} })
+const { drawNative } = await import('./src/scene/native-drawing.ts')
+const { certifyNativePaint } = await import('./src/scene/paint-certification.ts')
+const colors = { bg: '#fff', fg: '#111' }, width = 200, height = 100
+const drawing = drawNative(factory => ({ family: 'flowchart', width, height, colors, transparent: false, parts: [
+  factory.documentOpen({ id: 'root', width, height, colors, transparent: false, font: 'Inter', hasMonoFont: false }, '<svg xmlns="http://www.w3.org/2000/svg" width="200" height="100">'),
+  factory.shape({ id: 'line', role: 'chrome', geometry: { kind: 'polyline', points: [{ x: 10.00000000000001, y: 20 }, { x: 10.00000000000002, y: 20 }] }, paint: { fill: 'none', stroke: '#111', strokeWidth: '1' } }),
+  factory.documentClose()
+] }), { positioned: { width, height }, colors, resolved: { renderOptions: {} } }, 'flowchart')
+console.log(JSON.stringify({ svg: drawing.svg, proof: certifyNativePaint(drawing.header, drawing.paint) }))
+`], { cwd: fileURLToPath(new URL('../../', import.meta.url)), env: { ...process.env, AM_NATIVE_GEOMETRY_HOOK: mode } })
+    expect({ status: child.status, error: child.stderr }).toEqual({ status: 0, error: '' })
+    const value = JSON.parse(child.stdout)
+    expect(value.svg).toContain('points="10,20 10,20"')
+    expect(value.proof).toMatchObject({ status: 'unverified', coverage: { conditional: 1 }, issues: [expect.objectContaining({ code: 'CONDITIONAL_PAINT' })] })
+  })
+
+  test('source-bound plain group facts cannot be forged through their discoverable constructor', () => {
+    const parsed = captureNativeGroupParse({ id: 'actual', open: '<g>', close: '</g>', join: '\n' }, () => true)!
+    const Constructor = Object.getPrototypeOf(parsed).constructor as new (...args: unknown[]) => unknown
+    const open = '<g xmlns="urn:not-svg">'
+    expect(() => new Constructor({}, open, { valid: true, values: { length: 0 } })).toThrow(TypeError)
+    const work = createNativeXmlWork(400000), capture = work.capture()
+    const shape = marks.shape({ id: 'rect', role: 'node', geometry: { kind: 'rect', x: 0, y: 0, width: 10, height: 10 }, paint: { fill: '#111' } })
+    const group = capture.group([capture.raw(open), writeShapeSvg(shape, undefined, capture), capture.raw('</g>')], parsed)
+    const whole = capture.join([capture.raw('<svg xmlns="http://www.w3.org/2000/svg">'), group, capture.raw('</svg>')])
+    expect(verifySvgDocumentEnvelope(whole.svg)).toBe(false)
+    expect(capture.verify(whole)).toBe(false)
+  })
+
+  test.each(['actual', 'raw'] as const)('Native geometry consumes only this actual writer receipt: %s', mode => {
+    const emission = createNativePaintEmission(400000)
+    const node = marks.shape({ id: 'rect', role: 'node', geometry: { kind: 'rect', x: 1.23456789012345, y: 0, width: 10, height: 10 }, paint: { fill: '#111' } })
+    const retained = emission.leaf(node, source => {
+      if (source.kind !== 'shape') throw new Error('Expected shape')
+      const write = writeShapeSvg(source, undefined, emission.xml)
+      return mode === 'actual' ? write : emission.xml.raw(write.svg, source)
+    }, emission.xml)
+    expect(retained.svg).toContain('x="1.23456789012"')
+    expect(retained.conditional).toBe(mode !== 'actual')
+    if (mode === 'actual' && retained.paintNode.kind === 'shape' && retained.paintNode.geometry.kind === 'rect') {
+      expect(retained.paintNode.geometry.x).toBe(1.23456789012)
+      expect(Object.getOwnPropertyDescriptor(retained.paintNode.geometry, 'x')?.writable).toBe(false)
+    }
+    expect(node.geometry.kind === 'rect' && node.geometry.x).toBe(1.23456789012345)
+  })
+
   test('closed Native text writes fit their original allowance without copying each indentation witness', () => {
     const block = preparePixelText('Label', { fontSize: 12, fontWeight: 400 })
     const work = createNativeXmlWork(8000), capture = work.capture()

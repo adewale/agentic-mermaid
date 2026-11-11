@@ -16,15 +16,21 @@ import { connectorInlineLabelText } from './bounds.ts'
 import { escapeAttr, escapeXml, renderMultilineText, type PreparedSingleLineWrite } from '../multiline-utils.ts'
 import { formatSvgNumber, formatSvgNumericAttribute } from '../shared/svg-number.ts'
 import { connectorUnitTangent } from './connector-geometry.ts'
-import { createWrittenPolyline } from './written-geometry.ts'
+import { createWrittenPolyline, createActualWrittenPolyline, rectanglePaintFields, type WrittenPolylineProjection } from './written-geometry.ts'
 import { indentLines } from './serialization.ts'
 import { verifySvgDocumentEnvelope, verifySvgDocumentDataPositions } from '../output-security.ts'
 import { isInlinePng } from '../shared/inline-png.ts'
 import { SCENE_VALIDATION_LIMITS } from './scene-validation-limits.ts'
 import { MAX_OCCLUSION_OPERATIONS } from './paint-work.ts'
+import { validatePlainNativeGroup } from './group-emission.ts'
 
 // Fresh written facts must be sealed before ambient hooks can observe them.
 const writtenFactFreeze = Object.freeze, writtenFactDefine = Object.defineProperty, writtenFactSeal = Object.preventExtensions
+const writtenFactDescriptor = Object.getOwnPropertyDescriptor, writtenFactOwn = Object.hasOwn
+function closedWrittenSlot(value: object, key: string, expected: unknown): boolean {
+  const slot = writtenFactDescriptor(value, key)
+  return !!slot && writtenFactOwn(slot, 'value') && slot.value === expected && slot.writable === false && slot.configurable === false
+}
 const xmlFactMap = WeakMap, xmlFactApply = Reflect.apply
 const xmlFactGet = WeakMap.prototype.get, xmlFactSet = WeakMap.prototype.set
 
@@ -38,6 +44,8 @@ export interface SvgXmlCapture {
   readonly [svgXmlCapture]: true
   raw(svg: string, node?: object): SvgXmlWrite
   join(writes: Iterable<SvgXmlWrite>, separator?: string): SvgXmlWrite
+  /** Source-bound plain group syntax; every actual child still closes late. */
+  group(writes: Iterable<SvgXmlWrite>, parsed: unknown, separator?: string): SvgXmlWrite
   indent(write: SvgXmlWrite, spaces: number): SvgXmlWrite
   /** Identity and actual bytes only; exhaustion cannot discard emitted output. */
   read(write: SvgXmlWrite, expectedNode?: object): SvgXmlWriteRecord | undefined
@@ -84,10 +92,20 @@ function pinXmlSlot(target: object, key: string, value: unknown): void {
   xmlSlot.value = value
   try { writtenFactDefine(target, key, xmlSlot) } finally { xmlSlot.value = undefined }
 }
+interface WrittenRectangle {
+  readonly source: Geometry
+  readonly x: number; readonly y: number; readonly width: number; readonly height: number
+  readonly rx: number | undefined; readonly ry: number | undefined
+  readonly attributes: Record<string, string>
+  count: number
+  valid: boolean
+}
+interface WrittenGeometry { readonly source: Geometry; served: Geometry | undefined; valid: boolean; received: boolean; reserved: boolean; projection?: WrittenPolylineProjection }
 interface XmlWriteFact {
   readonly capture: SvgXmlCapture
   readonly record: SvgXmlWriteRecord
   projection: string | (() => XmlProjectionResult) | XmlProjection | undefined
+  geometry?: ActualGeometryWrite
 }
 const xmlCaptures = new xmlFactMap<SvgXmlCapture, XmlCaptureState>()
 const xmlWrites = new xmlFactMap<SvgXmlWrite, XmlWriteFact>()
@@ -193,17 +211,10 @@ function createXmlCapture(work: (operations: number) => boolean, nativeCompositi
     preparedChecked = true
     return true
   }
-  capture = { __proto__: null,
-    raw(svg: string, node?: object): SvgXmlWrite {
-      if (typeof svg !== 'string') throw new TypeError('XML raw chunks require a string')
-      return issue(svg, svg, node)
-    },
-    join(writes: Iterable<SvgXmlWrite>, separator = '\n'): SvgXmlWrite {
+  const compose = (writes: Iterable<SvgXmlWrite>, separator = '\n', group?: unknown): SvgXmlWrite => {
       if (typeof separator !== 'string') throw new TypeError('XML joins require a string separator')
       const children = pay(1) ? xmlList<XmlWriteFact>() : undefined
       let svg = '', count = 0
-      // Input iteration is public behavior. The retained private roster and
-      // actual bytes use own slots/concatenation, never inherited array hooks.
       for (const write of writes) {
         const found = factOf(write)
         if (!found) throw new TypeError('XML composition requires this capture’s actual writes')
@@ -221,14 +232,21 @@ function createXmlCapture(work: (operations: number) => boolean, nativeCompositi
             if (character !== ' ' && character !== '\t' && character !== '\r' && character !== '\n') { whitespace = false; break }
           }
         }
+        if (group && whitespace && children.length >= 2 && children[children.length - 1]!.record.svg === '</g>'
+          && validatePlainNativeGroup(group, children[0]!.record.svg, value => literal(value, true), pay)) {
+          let closed = true
+          for (let index = 1; index < children.length - 1; index++) {
+            const child = projectFact(children[index]!)
+            if (!child) return undefined
+            if (child !== OCCUPIED_XML_LEAF) closed = false
+          }
+          if (closed && pay(4)) return OCCUPIED_XML_LEAF
+        }
         const occupied = xmlList<number>()
         let skeleton = '', previousOccupied = false
         for (let i = 0; i < children.length; i++) {
           const checked = projectFact(children[i]!)
           if (!checked) return undefined
-          // Each child has completed its original late lexical checks. Adjacent
-          // closed leaves separated only by XML whitespace occupy the same DATA
-          // interval; one insertion witness proves that interval for all of them.
           if (whitespace && previousOccupied && checked === OCCUPIED_XML_LEAF) continue
           if (i) skeleton += separator
           for (let j = 0; j < checked.occupied.length; j++) {
@@ -242,7 +260,14 @@ function createXmlCapture(work: (operations: number) => boolean, nativeCompositi
         if (nativeComposition && previousOccupied && occupied.length === 1 && skeleton === ' ') return OCCUPIED_XML_LEAF
         return { skeleton, occupied }
       } : svg)
+  }
+  capture = { __proto__: null,
+    raw(svg: string, node?: object): SvgXmlWrite {
+      if (typeof svg !== 'string') throw new TypeError('XML raw chunks require a string')
+      return issue(svg, svg, node)
     },
+    join(writes: Iterable<SvgXmlWrite>, separator = '\n'): SvgXmlWrite { return compose(writes, separator) },
+    group(writes: Iterable<SvgXmlWrite>, parsed: unknown, separator = '\n'): SvgXmlWrite { return compose(writes, separator, parsed) },
     indent(write: SvgXmlWrite, spaces: number): SvgXmlWrite {
       const found = factOf(write)
       if (!found) throw new TypeError('XML indentation requires this capture’s actual write')
@@ -307,7 +332,7 @@ function createXmlCapture(work: (operations: number) => boolean, nativeCompositi
         : verifySvgDocumentEnvelope(found.record.svg, pay)
     },
   } as unknown as SvgXmlCapture
-  pinXmlSlot(capture, 'raw', capture.raw); pinXmlSlot(capture, 'join', capture.join)
+  pinXmlSlot(capture, 'raw', capture.raw); pinXmlSlot(capture, 'join', capture.join); pinXmlSlot(capture, 'group', capture.group)
   pinXmlSlot(capture, 'indent', capture.indent); pinXmlSlot(capture, 'read', capture.read); pinXmlSlot(capture, 'verify', capture.verify)
   writtenFactSeal(capture)
   xmlFactApply(xmlFactSet, xmlCaptures, [capture, { nativeComposition, pay, literal, name, prepared, issue, project(write: SvgXmlWrite) {
@@ -321,17 +346,74 @@ function finishXmlLeaf(capture: SvgXmlCapture, node: object, svg: string, xml: X
   const state = xmlCaptureState(capture)
   if (!state) throw new TypeError('Unknown XML capture')
   // Empty output cannot insert a delimiter between adjacent raw text spans.
-  return state.issue(svg, svg && eligible && xml ? () => {
+  const write = state.issue(svg, svg && eligible && xml ? () => {
     let valid = xml.check()
     for (let i = 0; valid && additional && i < additional.length; i++) valid = additional[i]!.check()
     if (valid && completion) markXmlLeafComplete(completion)
     return valid ? OCCUPIED_XML_LEAF : svg
   } : svg, node)
+  const rectangle = xml && XmlLeafWrite.rectangle(xml)
+  const geometry = xml && XmlLeafWrite.geometry(xml)
+  if (rectangle || geometry) {
+    const fact = xmlFactApply(xmlFactGet, xmlWrites, [write]) as XmlWriteFact | undefined
+    if (fact) fact.geometry = new ActualGeometryWrite(geometryWriteIssuer, capture, write, node, xml!)
+  }
+  return write
 }
+
+const geometryWriteIssuer = { __proto__: null }
+/** This handle contains actual writer data, not caller-sealed metadata. Its
+ * discoverable constructor cannot issue geometry for another occurrence. */
+class ActualGeometryWrite {
+  readonly #capture: SvgXmlCapture
+  readonly #write: SvgXmlWrite
+  readonly #node: object
+  readonly #xml: XmlLeafWrite
+  constructor(issuer: object, capture: SvgXmlCapture, write: SvgXmlWrite, node: object, xml: XmlLeafWrite) {
+    if (issuer !== geometryWriteIssuer) throw new TypeError('Actual geometry requires its writer')
+    this.#capture = capture; this.#write = write; this.#node = node; this.#xml = xml
+  }
+  static geometry(value: unknown, capture: SvgXmlCapture, write: SvgXmlWrite | undefined, node: object, source: Geometry): Geometry | undefined {
+    if (!value || typeof value !== 'object' || !(#capture in value) || value.#capture !== capture || value.#write !== write || value.#node !== node) return undefined
+    const actual = XmlLeafWrite.geometry(value.#xml)
+    return actual?.valid && actual.received && actual.source === source ? actual.served : undefined
+  }
+  static projection(value: unknown, capture: SvgXmlCapture, write: SvgXmlWrite | undefined, node: object, source: Geometry): WrittenPolylineProjection | undefined {
+    if (!value || typeof value !== 'object' || !(#capture in value) || value.#capture !== capture || value.#write !== write || value.#node !== node) return undefined
+    const actual = XmlLeafWrite.geometry(value.#xml)
+    return actual?.valid && actual.received && actual.source === source && actual.projection ? { contours: actual.projection.contours, collapsed: actual.projection.collapsed } : undefined
+  }
+  static rectangle(value: unknown, capture: SvgXmlCapture, write: SvgXmlWrite | undefined, node: object, source: Geometry): Extract<Geometry, { kind: 'rect' }> | undefined {
+    if (!value || typeof value !== 'object' || !(#capture in value) || value.#capture !== capture || value.#write !== write || value.#node !== node) return undefined
+    const actual = XmlLeafWrite.rectangle(value.#xml)
+    if (!actual?.valid || actual.source !== source) return undefined
+    return { kind: 'rect', x: actual.x, y: actual.y, width: actual.width, height: actual.height,
+      ...(actual.rx === undefined ? {} : { rx: actual.rx }), ...(actual.ry === undefined ? {} : { ry: actual.ry }) }
+  }
+  static matches(value: unknown, capture: SvgXmlCapture, write: SvgXmlWrite | undefined, node: object, source: Geometry, served: Extract<Geometry, { kind: 'rect' }>, paint: MarkPaint, pay: (operations: number) => boolean): boolean {
+    if (!value || typeof value !== 'object' || !(#capture in value) || value.#capture !== capture || value.#write !== write || value.#node !== node) return false
+    const actual = XmlLeafWrite.rectangle(value.#xml)
+    if (!actual?.valid || actual.source !== source || !pay(16)) return false
+    if (served.kind !== 'rect' || served.x !== actual.x || served.y !== actual.y || served.width !== actual.width || served.height !== actual.height || served.rx !== actual.rx || served.ry !== actual.ry || actual.attributes.transform !== undefined) return false
+    let matched = 0
+    for (const field of Object.keys(rectanglePaintFields) as (keyof MarkPaint)[]) {
+      const expected = paint[field], literal = actual.attributes[rectanglePaintFields[field].attribute]
+      if (!pay(4 + (expected?.length ?? 0) + (literal?.length ?? 0)) || literal !== expected) return false
+      if (literal !== undefined) matched++
+    }
+    return actual.count === matched
+  }
+}
+const actualWrittenProjection = ActualGeometryWrite.projection, actualWrittenGeometry = ActualGeometryWrite.geometry, actualWrittenRectangle = ActualGeometryWrite.rectangle, matchesWrittenRectangle = ActualGeometryWrite.matches
+function geometryFact(write: SvgXmlWrite | undefined): unknown { return write && (xmlFactApply(xmlFactGet, xmlWrites, [write]) as XmlWriteFact | undefined)?.geometry }
+export function readSvgGeometryProjection(capture: SvgXmlCapture, write: SvgXmlWrite | undefined, node: object, source: Geometry): WrittenPolylineProjection | undefined { return actualWrittenProjection(geometryFact(write), capture, write, node, source) }
+export function readSvgGeometryWrite(capture: SvgXmlCapture, write: SvgXmlWrite | undefined, node: object, source: Geometry): Geometry | undefined { return actualWrittenGeometry(geometryFact(write), capture, write, node, source) }
+export function readSvgRectangleWrite(capture: SvgXmlCapture, write: SvgXmlWrite | undefined, node: object, source: Geometry): Extract<Geometry, { kind: 'rect' }> | undefined { return actualWrittenRectangle(geometryFact(write), capture, write, node, source) }
+export function matchesSvgRectangleWrite(capture: SvgXmlCapture, write: SvgXmlWrite | undefined, node: object, source: Geometry, served: Extract<Geometry, { kind: 'rect' }>, paint: MarkPaint, pay: (operations: number) => boolean): boolean { return matchesWrittenRectangle(geometryFact(write), capture, write, node, source, served, paint, pay) }
 
 // These names reach the private writer only as module-owned literals.
 type FixedXmlAttributeName = 'aria-hidden' | 'aria-label' | 'aria-roledescription' | 'class' | 'cx' | 'cy' | 'd' | 'data-connector-label-for' | 'data-direction' | 'data-from' | 'data-id' | 'data-relationship' | 'data-role' | 'data-to' | 'dominant-baseline' | 'fill' | 'fill-opacity' | 'font-family' | 'font-size' | 'font-style' | 'font-weight' | 'height' | 'href' | 'letter-spacing' | 'marker-end' | 'marker-mid' | 'marker-start' | 'opacity' | 'paint-order' | 'pathLength' | 'pointer-events' | 'points' | 'preserveAspectRatio' | 'r' | 'role' | 'rx' | 'ry' | 'stroke' | 'stroke-dasharray' | 'stroke-dashoffset' | 'stroke-linecap' | 'stroke-linejoin' | 'stroke-miterlimit' | 'stroke-opacity' | 'stroke-width' | 'style' | 'tabindex' | 'text-anchor' | 'text-decoration' | 'transform' | 'vector-effect' | 'width' | 'x' | 'x1' | 'x2' | 'y' | 'y1' | 'y2'
-type XmlWriteEvent = readonly ['element', string] | readonly ['attribute' | 'fixed-attribute', string, string, (keyof MarkPaint)?] | readonly ['text', string] | readonly ['prepared', string, string, string, string, string]
+type XmlWriteEvent = readonly ['numeric-attribute', string, boolean] | readonly ['element', string] | readonly ['attribute' | 'fixed-attribute', string, string, (keyof MarkPaint)?] | readonly ['text', string] | readonly ['prepared', string, string, string, string, string]
 function fixedAttributeBit(name: string): number {
   switch (name) {
     case 'x': return 1
@@ -367,6 +449,42 @@ class XmlLeafWrite {
   valid = true
   #paintPrepared = false
   #complete = false
+  #geometry: WrittenGeometry | undefined
+  static geometry(xml: XmlLeafWrite): WrittenGeometry | undefined { return xml.#geometry }
+  beginGeometry(source: Geometry): boolean {
+    if (!this.#state.nativeComposition || !this.#state.pay(8)) return false
+    this.#geometry = { source, served: undefined, valid: true, received: false, reserved: false }
+    return true
+  }
+  reserveGeometry(source: Geometry, operations: number): boolean {
+    const actual = this.#geometry
+    if (!actual || actual.source !== source || actual.reserved) { if (actual) actual.valid = false; return false }
+    actual.reserved = true
+    return this.#state.pay(operations)
+  }
+  geometryWritten(source: Geometry, served: Geometry | undefined, projection?: WrittenPolylineProjection): void {
+    const actual = this.#geometry
+    if (!actual || actual.source !== source || actual.received) { if (actual) actual.valid = false; return }
+    actual.received = true; actual.served = served; actual.projection = projection
+  }
+  #rectangle: WrittenRectangle | undefined
+  #rectanglePhase = false
+  static rectangle(xml: XmlLeafWrite): WrittenRectangle | undefined { return xml.#rectangle }
+  retainRectangle(source: Geometry, x: string, y: string, width: string, height: string, rx: string | undefined, ry: string | undefined): void {
+    if (!this.#state.nativeComposition || !this.#state.pay(24) || typeof x !== 'string' || typeof y !== 'string' || typeof width !== 'string' || typeof height !== 'string' || rx !== undefined && typeof rx !== 'string' || ry !== undefined && typeof ry !== 'string') return
+    this.#rectangle = { source, x: +x, y: +y, width: +width, height: +height, rx: rx === undefined ? undefined : +rx, ry: ry === undefined ? undefined : +ry, attributes: { __proto__: null } as unknown as Record<string, string>, count: 0, valid: true }
+  }
+  numericPoints(value: string, valid: boolean): void {
+    if (this.valid) { this.valid = this.#state.pay(1); if (this.valid) this.#events![this.#events!.length++] = ['numeric-attribute', 'points', valid] }
+  }
+  reserveScalarWork(operations: number): boolean { return this.#state.pay(operations) }
+  rectanglePhase(active: boolean): void { this.#rectanglePhase = active }
+  rectangleAttribute(name: string, literal: string, escaped: unknown): void {
+    const actual = this.#rectangle
+    if (!this.#rectanglePhase || !actual || !actual.valid) return
+    if (!this.#state.pay(2) || ++actual.count > 14 || actual.attributes[name] !== undefined || literal !== escaped) { actual.valid = false; return }
+    actual.attributes[name] = literal
+  }
   static markComplete(xml: XmlLeafWrite): void { xml.#complete = true }
   static completed(xml: XmlLeafWrite | undefined): boolean { return xml !== undefined && xml.#complete }
   constructor(state: XmlCaptureState) { this.#state = state; this.valid = state.pay(1); this.#events = this.valid ? xmlList() : undefined }
@@ -425,7 +543,7 @@ class XmlLeafWrite {
     let fixedNames = 0, preparedSeen = false
     for (let i = 0; i < this.#events!.length; i++) {
       const event = this.#events![i]!
-      const attribute = event[0] === 'attribute' || event[0] === 'fixed-attribute'
+      const attribute = event[0] === 'attribute' || event[0] === 'fixed-attribute' || event[0] === 'numeric-attribute'
       const bit = attribute && this.#state.nativeComposition ? fixedAttributeBit(event[1]) : 0
       // One fixed vocabulary bit replaces the two general Set operations.
       if (!this.#state.pay(bit ? 1 : 2)) return false
@@ -434,8 +552,14 @@ class XmlLeafWrite {
         fixedNames = 0; preparedSeen = false
         const name = event[1]
         if (name !== 'rect' && name !== 'circle' && name !== 'ellipse' && name !== 'line' && name !== 'polygon' && name !== 'polyline' && name !== 'path' && name !== 'text') return false
-      } else if (event[0] === 'attribute' || event[0] === 'fixed-attribute') {
+      } else if (event[0] === 'attribute' || event[0] === 'fixed-attribute' || event[0] === 'numeric-attribute') {
         if (bit ? fixedNames & bit : attributes.has(event[1])) return false
+        if (event[0] === 'numeric-attribute') {
+          if (!event[2]) return false
+          if (bit) fixedNames |= bit
+          else attributes.add(event[1])
+          continue
+        }
         if (event[0] === 'attribute' && !this.#state.name(event[1]) || !this.#state.literal(event[2], true)) return false
         if (bit) fixedNames |= bit
         else attributes.add(event[1])
@@ -558,6 +682,7 @@ class SvgWriter {
   private start = 0
   private attributes: string[] | undefined = writerEvidenceEnabled() ? [] : undefined
   transformed = false
+  ownedGeometry = false
   observeAttributes?: (name: string, literal: string) => void
   observePaint?: (field: keyof MarkPaint, literal: string, escaped: unknown) => void
   readonly xml?: XmlLeafWrite
@@ -597,11 +722,18 @@ class SvgWriter {
     this.attributes?.push(name, escaped)
     this.value += ` ${name}="${escaped}"`
     this.xml?.attribute(name, escaped, fixed)
+    this.xml?.rectangleAttribute(name, literal, escaped)
     if (paintField !== undefined && this.observePaint) this.xml?.recordPaintField(paintField)
     if (name === 'transform') this.transformed = true
     this.observeAttributes?.(name, literal)
     if (paintField !== undefined) this.observePaint?.(paintField, literal, escaped)
     return literal
+  }
+  numericPoints(value: string, valid: boolean): void {
+    if (!valid) { this.fixedAttribute('points', value); return }
+    this.attributes?.push('points', value)
+    this.value += ` points="${value}"`
+    this.xml?.numericPoints(value, valid)
   }
   fixedAttribute(name: FixedXmlAttributeName, value: string | number, changedToken?: (offset: number, literal: string) => boolean | void, numericToken?: (literal: string, raw: string) => boolean | void): string { return this.attribute(name, value, changedToken, numericToken, undefined, true) }
   paintAttribute(field: keyof MarkPaint, name: FixedXmlAttributeName, value: string): void { this.attribute(name, value, undefined, undefined, field, true) }
@@ -662,6 +794,110 @@ function identityAttributes(out: SvgWriter, identity: SvgSemanticIdentity | unde
 
 type ElementGeometry = Exclude<Geometry, { kind: 'compound' }> | Exclude<ConnectorMark['route']['geometry'], { kind: 'line' }> | { kind: 'line'; x1: number; y1: number; x2: number; y2: number }
 
+/** The private Native writer reads source coordinates in their original order,
+ * then formats each actual scalar once. No combined numeric string is rebuilt,
+ * regex-rewritten and token-parsed to recover those same operands. */
+function longPointDecimal(value: string): boolean {
+  if (value.length < 14) return false
+  let decimals = -1
+  for (let index = 0; index < value.length; index++) {
+    const character = value[index]!
+    if (character === '.') decimals = 0
+    else if (decimals >= 0 && character >= '0' && character <= '9') { if (++decimals >= 12) return true }
+    else decimals = -1
+  }
+  return false
+}
+function nativePolylineAttributes(out: SvgWriter, geometry: Extract<ElementGeometry, { kind: 'polyline' }>): void {
+  const operands = xmlList<number | string>()
+  let pointCount = 0, needsNormalization = false
+  for (; pointCount < geometry.points.length; pointCount++) {
+    const point = geometry.points[pointCount]!
+    const x = point.x, rawX = `${x}`, y = point.y, rawY = `${y}`
+    needsNormalization ||= longPointDecimal(rawX) || longPointDecimal(rawY)
+    operands[operands.length++] = x; operands[operands.length++] = rawX
+    operands[operands.length++] = y; operands[operands.length++] = rawY
+  }
+  if (!needsNormalization) {
+    let points = '', finite = true
+    for (let index = 0; index < pointCount; index++) {
+      const x = operands[index * 4], y = operands[index * 4 + 2]
+      finite &&= typeof x === 'number' && x >= -SCENE_VALIDATION_LIMITS.maxExtent && x <= SCENE_VALIDATION_LIMITS.maxExtent
+        && typeof y === 'number' && y >= -SCENE_VALIDATION_LIMITS.maxExtent && y <= SCENE_VALIDATION_LIMITS.maxExtent
+      points += `${index ? ' ' : ''}${operands[index * 4 + 1]},${operands[index * 4 + 3]}`
+    }
+    // Primitive finite Number-to-string has only numeric ASCII. These exact
+    // source operands are appended with private numeric punctuation, so no
+    // escape/combined-string formatter or second character walk is needed.
+    if (finite) out.numericPoints(points, true)
+    else out.fixedAttribute('points', points)
+    out.xml?.geometryWritten(geometry, finite ? geometry : undefined)
+    return
+  }
+  let valid = pointCount >= 2 && !!out.xml?.reserveGeometry(geometry, pointCount * 20 + 64)
+  let markup = '', changed = false, previous: ScenePoint | undefined
+  let firstTangent: ScenePoint | undefined, lastTangent: ScenePoint | undefined
+  const points: ScenePoint[] | undefined = valid ? [] : undefined
+  let scalarLiteral = ''
+  const scalar = (operand: number | string, raw: string): number => {
+    const formatted = typeof operand === 'number' ? formatSvgNumber(operand) : raw
+    const literal = typeof formatted === 'string' ? formatted : `${formatted}`
+    let understood = typeof operand === 'number' && typeof formatted === 'string' && literal.length > 0
+      && !!out.xml?.reserveScalarWork(literal.length + 1)
+    if (understood) for (let index = 0; index < literal.length; index++) {
+      const character = literal[index]!
+      if (!(character >= '0' && character <= '9') && character !== '-' && character !== '+' && character !== '.' && character !== 'e' && character !== 'E') { understood = false; break }
+    }
+    const value = understood ? +literal : NaN
+    understood &&= value >= -SCENE_VALIDATION_LIMITS.maxExtent && value <= SCENE_VALIDATION_LIMITS.maxExtent
+      && typeof operand === 'number' && operand >= -SCENE_VALIDATION_LIMITS.maxExtent && operand <= SCENE_VALIDATION_LIMITS.maxExtent
+    valid &&= understood
+    changed ||= literal !== raw
+    scalarLiteral = literal
+    return value
+  }
+  for (let index = 0; index < pointCount; index++) {
+    const x = scalar(operands[index * 4]!, operands[index * 4 + 1] as string), xLiteral = scalarLiteral
+    const y = scalar(operands[index * 4 + 2]!, operands[index * 4 + 3] as string), yLiteral = scalarLiteral
+    if (index) markup += ' '
+    markup += `${xLiteral},${yLiteral}`
+    if (!valid) continue
+    const input = { x, y }, point = writtenFactFreeze(input)
+    if (point !== input || !closedWrittenSlot(point, 'x', x) || !closedWrittenSlot(point, 'y', y)) { valid = false; continue }
+    writtenFactDefine(points, index, { __proto__: null, value: point, enumerable: true, writable: false, configurable: false } as PropertyDescriptor)
+    if (previous) {
+      const tangent = connectorUnitTangent(previous, point)
+      if (tangent) {
+        const x = tangent.x, y = tangent.y, sealed = writtenFactFreeze(tangent)
+        if (sealed !== tangent || !closedWrittenSlot(sealed, 'x', x) || !closedWrittenSlot(sealed, 'y', y)) { valid = false; continue }
+        lastTangent = sealed; firstTangent ??= lastTangent
+      }
+    }
+    if (!closedWrittenSlot(points!, String(index), point)) { valid = false; continue }
+    previous = point
+  }
+  out.numericPoints(markup, valid)
+  let served: Geometry | undefined = valid && !changed ? geometry : undefined
+  let projection: WrittenPolylineProjection | undefined
+  if (valid && changed && points?.length === pointCount) {
+    writtenFactDefine(points, 'length', { __proto__: null, writable: false } as PropertyDescriptor)
+    writtenFactSeal(points)
+    const start = points[0]!, end = points[points.length - 1]!
+    const input = { start, end, closed: false,
+      ...(firstTangent ? { startTangent: firstTangent } : {}), ...(lastTangent ? { endTangent: lastTangent } : {}) }
+    const contour = writtenFactFreeze(input), list = [contour], contours = writtenFactFreeze(list)
+    if (contour === input && contours === list && closedWrittenSlot(points, 'length', pointCount) && closedWrittenSlot(contour, 'start', start)
+      && closedWrittenSlot(contour, 'end', end) && closedWrittenSlot(contour, 'closed', false)
+      && (!firstTangent || closedWrittenSlot(contour, 'startTangent', firstTangent))
+      && (!lastTangent || closedWrittenSlot(contour, 'endTangent', lastTangent))
+      && closedWrittenSlot(contours, '0', contour) && closedWrittenSlot(contours, 'length', 1)) {
+      projection = { contours, collapsed: !firstTangent }
+      served = createActualWrittenPolyline(points, contours, !firstTangent)
+    }
+  }
+  out.xml?.geometryWritten(geometry, served, projection)
+}
+
 function geometryAttributes(out: SvgWriter, geometry: ElementGeometry, sink?: SvgGeometryWriteSink): void {
   switch (geometry.kind) {
     case 'rect': {
@@ -674,6 +910,7 @@ function geometryAttributes(out: SvgWriter, geometry: ElementGeometry, sink?: Sv
       // generic getter callers. The receipt retains only actual attribute reads.
       if (geometry.rx !== undefined) { rawRx = geometry.rx; rx = out.fixedAttribute('rx', rawRx) }
       if (geometry.ry !== undefined) { rawRy = geometry.ry; ry = out.fixedAttribute('ry', rawRy) }
+      if (!sink) out.xml?.retainRectangle(geometry, x, y, width, height, rx, ry)
       if (sink) sink(geometry, {
         kind: 'rect', x: Number(x), y: Number(y), width: Number(width), height: Number(height),
         ...(rx === undefined ? {} : { rx: Number(rx) }), ...(ry === undefined ? {} : { ry: Number(ry) }),
@@ -696,14 +933,19 @@ function geometryAttributes(out: SvgWriter, geometry: ElementGeometry, sink?: Sv
       const rawY1 = geometry.y1, y1 = out.fixedAttribute('y1', rawY1)
       const rawX2 = geometry.x2, x2 = out.fixedAttribute('x2', rawX2)
       const rawY2 = geometry.y2, y2 = out.fixedAttribute('y2', rawY2)
-      if (sink) sink(geometry, Number(x1) === rawX1 && Number(y1) === rawY1 && Number(x2) === rawX2 && Number(y2) === rawY2
-        ? geometry : { kind: 'line', x1: Number(x1), y1: Number(y1), x2: Number(x2), y2: Number(y2) })
+      if (sink || out.ownedGeometry) {
+        const served = Number(x1) === rawX1 && Number(y1) === rawY1 && Number(x2) === rawX2 && Number(y2) === rawY2
+          ? geometry : { kind: 'line' as const, x1: Number(x1), y1: Number(y1), x2: Number(x2), y2: Number(y2) }
+        if (sink) sink(geometry, served)
+        else out.xml?.geometryWritten(geometry, served)
+      }
       return
     }
     case 'polygon':
     case 'polyline': {
+      if (geometry.kind === 'polyline' && out.ownedGeometry) { nativePolylineAttributes(out, geometry); return }
       let points = ''
-      const observed = geometry.kind === 'polyline' ? sink : undefined
+      const observed = geometry.kind === 'polyline' && (sink !== undefined || out.ownedGeometry)
       let pointCount = 0
       for (; pointCount < geometry.points.length; pointCount++) {
         const point = geometry.points[pointCount]!
@@ -718,8 +960,8 @@ function geometryAttributes(out: SvgWriter, geometry: ElementGeometry, sink?: Sv
       let rawStartX = 0, rawStartY = 0, rawEndX = 0, rawEndY = 0
       const literal = out.fixedAttribute('points', points, undefined, observed ? (literal, raw) => {
         if (tokens === 0) {
-          const cost = pointCount * 48 + 128
-          if (!Number.isSafeInteger(pointCount) || pointCount < 2 || !Number.isSafeInteger(cost) || !observed.reserveProjection?.(geometry, cost)) { understood = false; return false }
+          const cost = out.ownedGeometry ? pointCount * 32 + 112 : pointCount * 48 + 128
+          if (!Number.isSafeInteger(pointCount) || pointCount < 2 || !Number.isSafeInteger(cost) || !(sink ? sink.reserveProjection?.(geometry, cost) : out.xml?.reserveGeometry(geometry, cost))) { understood = false; return false }
           projected = []
         }
         if (tokens >= pointCount * 2) { understood = false; return false }
@@ -728,42 +970,50 @@ function geometryAttributes(out: SvgWriter, geometry: ElementGeometry, sink?: Sv
         changed ||= value !== original
         if (tokens++ % 2 === 0) { x = value; rawX = original; return }
         const point = writtenFactFreeze({ x, y: value })
-        const rawPoint = writtenFactFreeze({ x: rawX, y: original })
+        const rawPoint = out.ownedGeometry ? undefined : writtenFactFreeze({ x: rawX, y: original })
         writtenFactDefine(projected, tokens / 2 - 1, { __proto__: null, value: point, enumerable: true, writable: false, configurable: false } as PropertyDescriptor)
         if (previous) {
           const tangent = connectorUnitTangent(previous, point)
           if (tangent) { lastTangent = writtenFactFreeze(tangent); firstTangent ??= lastTangent }
         }
-        if (rawPrevious) {
+        if (rawPrevious && rawPoint) {
           const tangent = connectorUnitTangent(rawPrevious, rawPoint)
           if (tangent) { rawLastTangent = writtenFactFreeze(tangent); rawFirstTangent ??= rawLastTangent }
         }
         previous = point
         rawPrevious = rawPoint
-        rawX0 = Math.min(rawX0, rawX); rawY0 = Math.min(rawY0, original)
-        rawX1 = Math.max(rawX1, rawX); rawY1 = Math.max(rawY1, original)
-        if (tokens === 2) { rawStartX = rawX; rawStartY = original }
-        rawEndX = rawX; rawEndY = original
+        if (!out.ownedGeometry) {
+          rawX0 = Math.min(rawX0, rawX); rawY0 = Math.min(rawY0, original)
+          rawX1 = Math.max(rawX1, rawX); rawY1 = Math.max(rawY1, original)
+          if (tokens === 2) { rawStartX = rawX; rawStartY = original }
+          rawEndX = rawX; rawEndY = original
+        }
       } : undefined)
       if (observed) {
+        let actualProjection: WrittenPolylineProjection | undefined
         let served: Geometry | undefined = literal === points ? geometry : undefined
         if (changed && understood && tokens === pointCount * 2 && projected?.length === pointCount) {
           writtenFactDefine(projected, 'length', { __proto__: null, writable: false } as PropertyDescriptor)
           writtenFactSeal(projected)
           const contour = writtenFactFreeze({ start: projected[0]!, end: projected[projected.length - 1]!, closed: false,
             ...(firstTangent ? { startTangent: firstTangent } : {}), ...(lastTangent ? { endTangent: lastTangent } : {}) })
-          served = createWrittenPolyline(projected, { contours: writtenFactFreeze([contour]), collapsed: !firstTangent,
+          const contours = writtenFactFreeze([contour])
+          if (out.ownedGeometry) actualProjection = { contours, collapsed: !firstTangent }
+          served = out.ownedGeometry ? createActualWrittenPolyline(projected, contours, !firstTangent) : createWrittenPolyline(projected, { contours, collapsed: !firstTangent,
             rawBounds: writtenFactFreeze({ x0: rawX0, y0: rawY0, x1: rawX1, y1: rawY1 }),
             rawStart: writtenFactFreeze({ x: rawStartX, y: rawStartY }), rawEnd: writtenFactFreeze({ x: rawEndX, y: rawEndY }),
             ...(rawFirstTangent ? { rawStartTangent: rawFirstTangent } : {}), ...(rawLastTangent ? { rawEndTangent: rawLastTangent } : {}) })
         }
-        observed(geometry, served)
+        if (sink) sink(geometry, served)
+        else out.xml?.geometryWritten(geometry, served, actualProjection)
       }
       return
     }
     case 'path': {
       const raw = geometry.d, literal = out.fixedAttribute('d', raw)
-      sink?.(geometry, literal === raw ? geometry : { kind: 'path', d: literal })
+      const served = literal === raw ? geometry : { kind: 'path' as const, d: literal }
+      if (sink) sink(geometry, served)
+      else out.xml?.geometryWritten(geometry, served)
     }
   }
 }
@@ -811,13 +1061,16 @@ export function writeShapeSvg(node: ShapeMark, sink?: SvgGeometryWriteSink, capt
     if (index) out.raw('\n')
     out.element(piece.kind)
     if (index === 0) hooks(out, node.attributes)
+    if (!sink && !compound && piece.kind !== 'rect') out.ownedGeometry = out.xml?.beginGeometry(piece) ?? false
     geometryAttributes(out, piece, sink)
     // Only the13 paint fields and one transform can enter this receipt.
     // Data/identity hooks stay outside the observed writer phase entirely.
     out.observeAttributes = observe
+    if (!compound && !sink) out.xml?.rectanglePhase(true)
     paintAttributes(out, compound ? node.childPaints?.[index] ?? node.paint : node.paint)
     transformAttribute(out, node.transform)
     out.observeAttributes = undefined
+    out.xml?.rectanglePhase(false)
     if (index === 0) identityAttributes(out, node.identity, node.accessibility)
     out.close()
   }
@@ -937,6 +1190,7 @@ export function writeConnectorSvg(node: ConnectorMark, sink?: SvgGeometryWriteSi
     const geometry = node.route.geometry
     out.element(geometry.kind)
     hooks(out, node.attributes)
+    if (!sink) out.ownedGeometry = out.xml?.beginGeometry(geometry) ?? false
     geometryAttributes(out, geometry, sink)
     if (geometry.kind !== 'line') out.fixedAttribute('fill', 'none')
     out.fixedAttribute('stroke', stroke.color)

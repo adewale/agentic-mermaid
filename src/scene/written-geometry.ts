@@ -17,16 +17,30 @@ export const rectanglePaintFields: Record<keyof MarkPaint, { readonly attribute:
 export interface WrittenPolylineProjection {
   readonly contours: readonly ConnectorContourSemantics[]
   readonly collapsed: boolean
-  readonly rawBounds: { readonly x0: number; readonly y0: number; readonly x1: number; readonly y1: number }
-  readonly rawStart: ScenePoint
-  readonly rawEnd: ScenePoint
+  readonly rawBounds?: { readonly x0: number; readonly y0: number; readonly x1: number; readonly y1: number }
+  readonly rawStart?: ScenePoint
+  readonly rawEnd?: ScenePoint
   readonly rawStartTangent?: ScenePoint
   readonly rawEndTangent?: ScenePoint
 }
 
+const polylineOwn = Object.getOwnPropertyDescriptor, polylineHas = Object.hasOwn
 const polylineFreeze = Object.freeze, polylineMap = WeakMap, polylineApply = Reflect.apply
 const polylineGet = WeakMap.prototype.get, polylinePut = WeakMap.prototype.set
-const projections = new polylineMap<object, WrittenPolylineProjection>()
+const actualPolylineIssuer = { __proto__: null }
+class ActualPolylineProjection {
+  readonly #contours: readonly ConnectorContourSemantics[]
+  readonly #collapsed: boolean
+  constructor(issuer: object, contours: readonly ConnectorContourSemantics[], collapsed: boolean) {
+    if (issuer !== actualPolylineIssuer) throw new TypeError('Actual polyline metadata requires its writer')
+    this.#contours = contours; this.#collapsed = collapsed
+  }
+  static read(value: unknown): WrittenPolylineProjection | undefined {
+    return value && typeof value === 'object' && #contours in value ? { contours: value.#contours, collapsed: value.#collapsed } : undefined
+  }
+}
+const actualPolylineProjection = ActualPolylineProjection.read
+const projections = new polylineMap<object, WrittenPolylineProjection | ActualPolylineProjection>()
 
 /** Only a fresh geometry receives metadata. Existing projections cannot be
  * overwritten, and this derived data alone supplies no write/context custody.
@@ -37,7 +51,21 @@ export function createWrittenPolyline(points: ScenePoint[], projection: WrittenP
   return geometry
 }
 
-export function writtenPolylineProjectionOf(geometry: object): WrittenPolylineProjection | undefined { return polylineApply(polylineGet, projections, [geometry]) }
+/** Native's actual operands never expose a partial derivative to ambient
+ * freeze helpers. The existing registry owns the private class, not its view. */
+export function createActualWrittenPolyline(points: ScenePoint[], contours: readonly ConnectorContourSemantics[], collapsed: boolean): Extract<Geometry, { kind: 'polyline' }> | undefined {
+  const input = { kind: 'polyline' as const, points }, geometry = polylineFreeze(input)
+  if (geometry !== input) return undefined
+  const kind = polylineOwn(geometry, 'kind'), vertices = polylineOwn(geometry, 'points')
+  if (!kind || !vertices || !polylineHas(kind, 'value') || !polylineHas(vertices, 'value') || kind.value !== 'polyline' || vertices.value !== points
+    || kind.writable || kind.configurable || vertices.writable || vertices.configurable) return undefined
+  polylineApply(polylinePut, projections, [geometry, new ActualPolylineProjection(actualPolylineIssuer, contours, collapsed)])
+  return geometry
+}
+export function writtenPolylineProjectionOf(geometry: object): WrittenPolylineProjection | undefined {
+  const value = polylineApply(polylineGet, projections, [geometry]) as WrittenPolylineProjection | ActualPolylineProjection | undefined
+  return actualPolylineProjection(value) ?? value as WrittenPolylineProjection | undefined
+}
 
 type Pay = (count: number) => boolean
 interface Piece { readonly kind: 'rect' | 'line' | 'ellipse'; readonly geometry: Readonly<Record<string, number>>; readonly paint: MarkPaint }

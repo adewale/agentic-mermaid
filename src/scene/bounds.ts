@@ -649,8 +649,8 @@ function connectorPaintBounds(node: ConnectorMark, transform?: SceneTransform): 
   ]
   const written = geometry.kind === 'polyline' ? writtenPolylineProjectionOf(geometry) : undefined
   if (written) {
-    if (node.markers.start) markers.push({ marker: node.markers.start, anchor: written.rawStart })
-    if (node.markers.end) markers.push({ marker: node.markers.end, anchor: written.rawEnd })
+    if (node.markers.start && written.rawStart) markers.push({ marker: node.markers.start, anchor: written.rawStart })
+    if (node.markers.end && written.rawEnd) markers.push({ marker: node.markers.end, anchor: written.rawEnd })
   }
   for (const { marker, anchor } of markers) {
     const bounds = markerBoundsAt(marker, anchor, width, true)
