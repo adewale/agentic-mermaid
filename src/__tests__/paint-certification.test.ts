@@ -2622,6 +2622,7 @@ const proofCapacityCases = [
   { name: 'sequence128', source: ['sequenceDiagram', 'participant A as Alpha', 'participant B as Beta', ...Array.from({ length: 128 }, (_, index) => `${index % 2 ? 'B-->>A' : 'A->>B'}: N${index}`)].join('\n'), labels: ['Alpha', 'Beta', ...Array.from({ length: 128 }, (_, index) => `N${index}`)] },
   { name: 'state128', source: ['stateDiagram-v2', ...Array.from({ length: 127 }, (_, index) => `N${index} --> N${index + 1}`)].join('\n'), labels: Array.from({ length: 128 }, (_, index) => `N${index}`) },
   { name: 'chain100', source: proofCapacityChain(100, true), labels: Array.from({ length: 100 }, (_, index) => `Node ${index}`) },
+  { name: 'fanin100', source: proofCapacityChain(100, true, true), labels: Array.from({ length: 100 }, (_, index) => `Node ${index}`) },
 ]
 test.each(proofCapacityCases.flatMap(value => (['agentic', 'elk'] as const).map(backend => ({ ...value, backend }))))('public $backend $name repeated labels and markers complete proof within the original allowance', async ({ name, source, labels, backend }) => {
   const child = await runTextReceiverChild(process.execPath, ['--eval', String.raw`

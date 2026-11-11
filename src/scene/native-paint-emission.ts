@@ -40,6 +40,7 @@ export function nativeEmissionWorkOf(inspection: ScenePaintGeometryInspection): 
 const markerPaintIssuer = { __proto__: null }
 const markerFactMap = Map, markerFactGet = Map.prototype.get, markerFactSet = Map.prototype.set
 const markerPaintFields = ['fill', 'stroke', 'opacity', 'strokeWidth', 'strokeMiterlimit', 'strokeLinecap', 'strokeLinejoin', 'strokeDasharray', 'strokeDashoffset', 'paintOrder'] as const
+type CompletedMarkerPaintEvidence = MarkerPaintEvidence & { readonly nativePaintOperand: object }
 class CompletedMarkerPaint {
   readonly #value: MarkerPaintEvidence
   readonly #mask: number
@@ -53,15 +54,18 @@ class CompletedMarkerPaint {
     this.#mask = mask
   }
   static mask(value: CompletedMarkerPaint): number { return value.#mask }
-  static read(source: CompletedMarkerPaint, work: () => boolean): MarkerPaintEvidence | undefined {
-    for (let index = 0; index < 18; index++) if (!work()) return undefined
+  static same(first: unknown, second: unknown): boolean { return !!first && first === second && typeof first === 'object' && #value in first }
+  static read(source: CompletedMarkerPaint, work: () => boolean): CompletedMarkerPaintEvidence | undefined {
+    for (let index = 0; index < 19; index++) if (!work()) return undefined
     const value = source.#value
     return { identity: value.identity, fillColor: value.fillColor && [value.fillColor[0], value.fillColor[1], value.fillColor[2], value.fillColor[3]],
       strokeColor: value.strokeColor && [value.strokeColor[0], value.strokeColor[1], value.strokeColor[2], value.strokeColor[3]],
-      strokeVisible: value.strokeVisible, survivingFill: value.survivingFill, transparent: value.transparent }
+      strokeVisible: value.strokeVisible, survivingFill: value.survivingFill, transparent: value.transparent, nativePaintOperand: source }
   }
 }
-const completedMarkerMask = CompletedMarkerPaint.mask, completedMarkerView = CompletedMarkerPaint.read
+const completedMarkerMask = CompletedMarkerPaint.mask, completedMarkerView = CompletedMarkerPaint.read, sameCompletedMarkerPaint = CompletedMarkerPaint.same
+/** Same completed actual-resource paint, never a caller id or frozen lookalike. */
+export function sameNativeMarkerPaintOperand(first: unknown, second: unknown): boolean { return sameCompletedMarkerPaint(first, second) }
 class CheckedMarkerResource {
   readonly #marker: MarkerDescriptor
   #prepared = false
@@ -114,7 +118,7 @@ class NativeMarkerPaintReference {
     if (!paint || !Object.hasOwn(paint, 'value') || paint.writable || paint.configurable || !paint.value || typeof paint.value !== 'object' || Object.isExtensible(paint.value)) return
     value.#paint = paint.value
   }
-  static read(value: unknown, inspection: ScenePaintGeometryInspection, marker: MarkerDescriptor, resolver: EmissionColorResolver, work: () => boolean): MarkerPaintEvidence | undefined {
+  static read(value: unknown, inspection: ScenePaintGeometryInspection, marker: MarkerDescriptor, resolver: EmissionColorResolver, work: () => boolean): CompletedMarkerPaintEvidence | undefined {
     if (!value || typeof value !== 'object' || !(#marker in value) || value.#inspection !== inspection || value.#marker !== marker || !value.#paint) return undefined
     const paint = checkedMarkerPaint(value.#resource, resolver)
     if (!paint || !work()) return undefined
@@ -126,7 +130,7 @@ class NativeMarkerPaintReference {
   }
 }
 const readNativeMarkerPaint = NativeMarkerPaintReference.read, completeNativeMarkerPaint = NativeMarkerPaintReference.complete
-export function nativeMarkerPaintEvidenceOf(inspection: ScenePaintGeometryInspection, marker: MarkerDescriptor | undefined, boundColor: EmissionColorResolver | undefined, work: () => boolean): MarkerPaintEvidence | undefined {
+export function nativeMarkerPaintEvidenceOf(inspection: ScenePaintGeometryInspection, marker: MarkerDescriptor | undefined, boundColor: EmissionColorResolver | undefined, work: () => boolean): CompletedMarkerPaintEvidence | undefined {
   if (!marker || !boundColor || !work()) return undefined
   const context = nativeEmissionWorkOf(inspection)
   if (!context || context.uncertain || context.exhausted || context.resolveColor !== boundColor) return undefined

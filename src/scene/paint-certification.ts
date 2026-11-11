@@ -15,7 +15,7 @@ import { computeMarkerPaintEvidence } from './marker-paint-identity.ts'
 import { connectorContourSemantics } from './connector-geometry.ts'
 import { hasWrittenCompoundProjection } from './written-geometry.ts'
 import { exactCompoundContact, prepareExactCompoundBody, type PreparedExactCompoundBody } from './exact-compound-contact.ts'
-import { nativeEmissionWorkOf, nativeMarkerPaintEvidenceOf, hasNativeEmissionOccurrence, MAX_OCCLUSION_OPERATIONS } from './native-paint-emission.ts'
+import { nativeEmissionWorkOf, nativeMarkerPaintEvidenceOf, sameNativeMarkerPaintOperand, hasNativeEmissionOccurrence, MAX_OCCLUSION_OPERATIONS } from './native-paint-emission.ts'
 export { MAX_OCCLUSION_OPERATIONS } from './native-paint-emission.ts'
 
 export interface PaintViewport { readonly x: number; readonly y: number; readonly width: number; readonly height: number }
@@ -1395,8 +1395,9 @@ function markerMayHaveOpaqueFill(resolveColor: (value: string) => string | undef
 }
 
 
-function sameMarkerPaint(first: string | undefined, second: string | undefined, work: () => boolean): boolean {
+function sameMarkerPaint(first: string | undefined, second: string | undefined, work: () => boolean, firstOperand?: object, secondOperand?: object): boolean {
   if (first === undefined || second === undefined) return false
+  if (firstOperand && secondOperand && work() && sameNativeMarkerPaintOperand(firstOperand, secondOperand)) return true
   for (let i = 0; i < first.length + second.length; i++) if (!work()) return false
   return first === second
 }
@@ -1794,7 +1795,7 @@ export function certifyNativePaint(scene: NativePaintHeader, inspection: ScenePa
     if (shaftParts?.length && !exhausted && (hasNativeEmissionOccurrence(primitive)
       || (geometry.kind === 'path' ? hasScenePathEmissionOccurrence(primitive) : hasSceneWriteEmissionOccurrence(primitive)))) actualShaftParts.set(primitive, shaftParts)
   }
-  type MarkerTarget = { primitive: ScenePaintPrimitive; position: 'start' | 'mid' | 'end'; clipEligible: boolean; clipCarrier?: NativeConnectorPaintSource; clipMarker?: MarkerDescriptor; clipped?: AxisAlignedBox; cylinderContacts: Set<ScenePaintPrimitive> | undefined; anchor: ScenePoint; repaint: string; bounds: AxisAlignedBox; hull?: readonly ScenePoint[]; padding?: number; witnesses?: readonly ScenePoint[]; actualInk: boolean; paintIdentity?: string; strokeProof?: MarkerPolygonProof; circleStroke?: CircleStrokeProof; semantic: boolean; mayFill: boolean }
+  type MarkerTarget = { primitive: ScenePaintPrimitive; position: 'start' | 'mid' | 'end'; clipEligible: boolean; clipCarrier?: NativeConnectorPaintSource; clipMarker?: MarkerDescriptor; clipped?: AxisAlignedBox; cylinderContacts: Set<ScenePaintPrimitive> | undefined; anchor: ScenePoint; repaint: string; bounds: AxisAlignedBox; hull?: readonly ScenePoint[]; padding?: number; witnesses?: readonly ScenePoint[]; actualInk: boolean; paintIdentity?: string; paintOperand?: object; strokeProof?: MarkerPolygonProof; circleStroke?: CircleStrokeProof; semantic: boolean; mayFill: boolean }
   const lastMarkers = new Map<string, MarkerTarget>()
   const reserveMarkerGeometry = (geometry: Geometry | undefined): boolean => {
     for (let i = 0; i < 32; i++) if (!work()) return false
@@ -1972,11 +1973,13 @@ export function certifyNativePaint(scene: NativePaintHeader, inspection: ScenePa
       // Identity describes resource colors; existing visibility and alpha
       // checks still own the enclosing group's composite opacity.
       const resolveVariables = primitive.ancestors.length === 0 || boundGroupPalette
-      const paintEvidence = Number.isFinite(primitive.groupOpacity ?? 1) && (primitive.groupOpacity ?? 1) > 0 && (!node.stroke.mixBlendMode || node.stroke.mixBlendMode === 'normal')
-        ? (emissionWork && boundColor && resolveVariables ? nativeMarkerPaintEvidenceOf(inspection, descriptor, boundColor, work) : undefined)
-          ?? computeMarkerPaintEvidence(descriptor, resolvePaintColor, work, resolveVariables) : undefined
+      const readablePaint = Number.isFinite(primitive.groupOpacity ?? 1) && (primitive.groupOpacity ?? 1) > 0 && (!node.stroke.mixBlendMode || node.stroke.mixBlendMode === 'normal')
+      const nativePaintEvidence = readablePaint && emissionWork && boundColor && resolveVariables
+        ? nativeMarkerPaintEvidenceOf(inspection, descriptor, boundColor, work) : undefined
+      const paintEvidence = readablePaint ? nativePaintEvidence ?? computeMarkerPaintEvidence(descriptor, resolvePaintColor, work, resolveVariables) : undefined
       const paintIdentity = semantic ? paintEvidence?.identity : undefined
-      if (previous && (previous.semantic || semantic) && !sameMarkerPaint(previous.paintIdentity, paintIdentity, work)) {
+      const paintOperand = semantic ? nativePaintEvidence?.nativePaintOperand : undefined
+      if (previous && (previous.semantic || semantic) && !sameMarkerPaint(previous.paintIdentity, paintIdentity, work, previous.paintOperand, paintOperand)) {
         issue({ code: 'POTENTIAL_OCCLUSION', id: previous.primitive.id, by: primitive.id, message: 'Coincident endpoint markers have no proved equal paint at their carriers' })
       }
       const matrix = scenePrimitiveMatrix(primitive)
@@ -2071,7 +2074,7 @@ export function certifyNativePaint(scene: NativePaintHeader, inspection: ScenePa
       }
       lastMarkers.set(key, { primitive, position: marker.position, clipEligible: semantic && exactWorld && knownMapping,
         clipCarrier: actualPose?.node, clipMarker: actualPose?.marker, clipped: emitted?.clipped, cylinderContacts: undefined,
-        anchor: region.anchor, repaint: region.repaint, bounds, hull: region.hull, padding: region.padding, witnesses, actualInk, paintIdentity, strokeProof, circleStroke, semantic, mayFill })
+        anchor: region.anchor, repaint: region.repaint, bounds, hull: region.hull, padding: region.padding, witnesses, actualInk, paintIdentity, paintOperand, strokeProof, circleStroke, semantic, mayFill })
     }
   }
   const markerCheck = (branch: Tree | undefined, target: MarkerTarget): void => {
@@ -2240,7 +2243,7 @@ export function certifyNativePaint(scene: NativePaintHeader, inspection: ScenePa
         for (const other of markerTargets) {
           if (!pay(4)) { clear = false; break }
           if (other === target || other.anchor.x === target.anchor.x && other.anchor.y === target.anchor.y
-            && other.repaint === target.repaint && sameMarkerPaint(other.paintIdentity, target.paintIdentity, work)) continue
+            && other.repaint === target.repaint && sameMarkerPaint(other.paintIdentity, target.paintIdentity, work, other.paintOperand, target.paintOperand)) continue
           if (!outside(witness, other.bounds, 3 / 2000)) { clear = false; break }
         }
         return clear
@@ -2318,10 +2321,10 @@ export function certifyNativePaint(scene: NativePaintHeader, inspection: ScenePa
       if (!work()) break
       const earlierRepaint = earlier.strokeProof?.repaint, laterRepaint = later.strokeProof?.repaint
       if (!later.semantic || later.primitive.visibility === 'conditional' || later.primitive.order <= earlier.primitive.order
-        || earlier.anchor.x === later.anchor.x && earlier.anchor.y === later.anchor.y && earlier.repaint === later.repaint && sameMarkerPaint(earlier.paintIdentity, later.paintIdentity, work)
+        || earlier.anchor.x === later.anchor.x && earlier.anchor.y === later.anchor.y && earlier.repaint === later.repaint && sameMarkerPaint(earlier.paintIdentity, later.paintIdentity, work, earlier.paintOperand, later.paintOperand)
         || earlierRepaint && laterRepaint && earlierRepaint.geometry === laterRepaint.geometry
           && earlierRepaint.anchor.x === laterRepaint.anchor.x && earlierRepaint.anchor.y === laterRepaint.anchor.y
-          && sameMarkerPaint(earlier.paintIdentity, later.paintIdentity, work) && sameMarkerPaint(earlierRepaint.resource, laterRepaint.resource, work)
+          && sameMarkerPaint(earlier.paintIdentity, later.paintIdentity, work, earlier.paintOperand, later.paintOperand) && sameMarkerPaint(earlierRepaint.resource, laterRepaint.resource, work)
         || !overlaps(earlier.bounds, later.bounds)) continue
       if (++pairs > MAX_OCCLUSION_PAIRS) { exhausted = true; break }
       let startWitness = 0, result: 'covered' | 'clear' | 'unknown' = 'unknown'

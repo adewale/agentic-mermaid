@@ -2169,3 +2169,22 @@ Mixedgzip785125 still exceeds761500 by23625. Declarations unavailable after137
 and Node worker OOM; no more retries; fulltarball/IIFE remains CI-only. Native
 writer prototype is unqualified; first public probe identifies missing owned
 polyline/paint/base/typography bindings. No new Native latency or proof gain.
+
+### 11 November — complete Fan100 proof without repeated paint-string work
+
+Parent`285427d6186453066e11245c1a9a2d4516e0e22b`: reuse the existing private
+completed marker-paint operand at its bound actual write. Fan100 Native/ELK
+400000/U→340773/P and342302/P; unchanged400000-operation/100000-pair caps.
+Full12table8P4U→10P2U; allSVG/non-cert receipts exact. Other cases pay+1op/marker
+(Chain100+99). Owning tests2RED→2P;731paint/writer owners, canonicaltypes/lintP.
+Trident124/198:310SVG/non-cert products exact,12sameerrors; portable proof108P8U
+→110P6U, authoredmeaning/actualChromiumink/quality unchanged. No layout gain.
+Matched7-entry builds/24workers: Native100SVG115.26→107.89ms, full138.98→139.31;
+100ms unmet. Fan fullNative191.94/U→193.64/P, ELK485.04/U→499.55/P: unequal
+completed proof, no speedup ratio. FanRSS160.27→170.58/251.00→264.80MiB adverse.
+Correct-root browser4products exact except+2ops; requests unchanged, mixedgzip
+785125→785229>761500 (+104), Br625373→625522. Earlier mixed-build timings and
+wrong-script-root browser results remain retained/disqualified for attribution.
+Chain300both stillU; isolated copy/group/Scene-switch shortcuts insufficient.
+Next: larger shared capture/validation subtraction; keep Native100/payload losses.
+
