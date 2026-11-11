@@ -1,0 +1,397 @@
+diff --git a/docs/design/system/layout-0.6-work-log.md b/docs/design/system/layout-0.6-work-log.md
+index 405f10a86..e6b98219b 100644
+--- a/docs/design/system/layout-0.6-work-log.md
++++ b/docs/design/system/layout-0.6-work-log.md
+@@ -4,6 +4,17 @@ Current work order: [Native replacement plan](layout-0.6-qualification.md).
+ The dated records below are historical evidence; earlier “next” statements do not
+ create parallel active queues. No retained experiment or output is discarded.
+ 
++Latest bounded work, 11 November: the owner requested four shared-pipeline
++repairs from baseline `599bee58db7cb54293866cc8aa86c887ef93e9a4`.
++Current public ER256 delivery is already fixed: Native/ELK in TB/BT/LR/RL all
++return proof-passed SVGs with 256 entities, 255 labelled relations and 510
++cardinality carriers/normal contacts. Earlier refusal statements below are
++historical; carrying them into the latest proposal was a reporting error.
++The separate ER agent requalified existing owners (79 passes plus two exact
++canonical-timeout retry passes); no new runtime or duplicate test change is
++claimed. Evidence: `shared-four-fixes-20261111/task3`. Producer reuse, proof
++capacity and browser payload repairs remain active; automations stay off.
++
+ The owner resumed the campaign on **5 November 2026 at 13:48 UTC**, authorizing
+ regular commits and pushes to PR #602. After the original8November deadline, the
+ owner renewed the goal through **9 November 2026 at20:00 UTC (8pm London)**.
+diff --git a/src/__tests__/layout-rubric.test.ts b/src/__tests__/layout-rubric.test.ts
+index 9a4b6be84..794371a3b 100644
+--- a/src/__tests__/layout-rubric.test.ts
++++ b/src/__tests__/layout-rubric.test.ts
+@@ -14,7 +14,7 @@ import fc from 'fast-check'
+ import { fcParameters } from './helpers/fc-parameters.ts'
+ import { layoutGraphSync } from '../layout-engine.ts'
+ import { parseMermaid } from '../parser.ts'
+-import { assessLayout, countParallelRouteOverlaps, hardViolations, onShapeOutline } from '../layout-rubric.ts'
++import { assessLayout, countParallelRouteOverlaps, hardViolations, measureRubricMetrics, onShapeOutline } from '../layout-rubric.ts'
+ import { graphReachability } from '../layout/geometry.ts'
+ import { shapePorts, diamondFacetPorts } from '../route-contracts.ts'
+ 
+@@ -36,6 +36,19 @@ import { EDGE_FORMS, renderEdgeLine } from './helpers/edge-vocabulary.ts'
+ import { complicatedFixtures, simpleFixtures } from '../../eval/visual-rubric/fixtures.ts'
+ import { scoreFixture } from '../../eval/visual-rubric/run.ts'
+ import { resolveStyleStackWithFace } from '../scene/style-registry.ts'
++import { resolveRenderStyle } from '../styles.ts'
++import type { PositionedGraph } from '../types.ts'
++
++it('hard-only pass measurement retains actual defects and every separately requested metric', () => {
++  const graph = parseMermaid('flowchart LR\nA --> B\nC')
++  const positioned: PositionedGraph = { width: 120, height: 20, groups: [],
++    nodes: ['A', 'C', 'B'].map((id, index) => ({ id, label: '', shape: 'rectangle', x: index * 50, y: 0, width: 20, height: 20 })),
++    edges: [{ source: 'A', target: 'B', style: 'solid', hasArrowStart: false, hasArrowEnd: true, points: [{ x: 20, y: 10 }, { x: 100, y: 10 }] }],
++  }
++  const expected = { hard: 1, crossings: 0, portRate: 1, symErr: 0, parallelOverlaps: 0, opposingOverlaps: 0, endpointApproaches: 0, bends: 0, straight: 1 }
++  expect(measureRubricMetrics(graph, positioned, ['hard', 'crossings', 'portRate', 'symErr', 'parallelOverlaps', 'opposingOverlaps', 'endpointApproaches', 'bends', 'straight'], resolveRenderStyle({}), new Set())).toEqual(expected)
++  expect(assessLayout(graph, positioned).violations).toEqual([{ metric: 'edgeThroughNode', detail: 'A->B segment 1 through C', severity: 'primary' }])
++})
+ 
+ describe('visual rubric — simple battery (every pattern x direction x shape)', () => {
+   for (const fixture of simpleFixtures()) {
+diff --git a/src/__tests__/paint-certification.test.ts b/src/__tests__/paint-certification.test.ts
+index 9c4ab15fa..123550390 100644
+--- a/src/__tests__/paint-certification.test.ts
++++ b/src/__tests__/paint-certification.test.ts
+@@ -2612,6 +2612,50 @@ test.each(['shape', 'text'] as const)('aliased Scene %s occurrences cannot borro
+   expect(drawing.proof.status).toBe('unverified')
+ })
+ 
++const proofCapacityChain = (count: number, diagnostic = false, fanin = false): string => [
++  diagnostic ? 'flowchart TB' : 'flowchart LR',
++  ...Array.from({ length: count }, (_, index) => diagnostic ? `n${index}[Node ${index}]` : `N${index}[N${index}]`),
++  ...Array.from({ length: count - 1 }, (_, index) => diagnostic ? `n${index} --> n${fanin ? count - 1 : index + 1}` : `N${index} --> N${index + 1}`),
++].join('\n')
++const proofCapacityCases = [
++  { name: 'flowchart128', source: proofCapacityChain(128), labels: Array.from({ length: 128 }, (_, index) => `N${index}`) },
++  { name: 'sequence128', source: ['sequenceDiagram', 'participant A as Alpha', 'participant B as Beta', ...Array.from({ length: 128 }, (_, index) => `${index % 2 ? 'B-->>A' : 'A->>B'}: N${index}`)].join('\n'), labels: ['Alpha', 'Beta', ...Array.from({ length: 128 }, (_, index) => `N${index}`)] },
++  { name: 'state128', source: ['stateDiagram-v2', ...Array.from({ length: 127 }, (_, index) => `N${index} --> N${index + 1}`)].join('\n'), labels: Array.from({ length: 128 }, (_, index) => `N${index}`) },
++  { name: 'chain100', source: proofCapacityChain(100, true), labels: Array.from({ length: 100 }, (_, index) => `Node ${index}`) },
++  { name: 'fanin100', source: proofCapacityChain(100, true, true), labels: Array.from({ length: 100 }, (_, index) => `Node ${index}`) },
++  { name: 'chain300', source: proofCapacityChain(300, true), labels: Array.from({ length: 300 }, (_, index) => `Node ${index}`) },
++]
++test.each(proofCapacityCases.flatMap(value => (['agentic', 'elk'] as const).map(backend => ({ ...value, backend }))))('public $backend $name repeated labels and markers complete proof within the original allowance', async ({ name, source, labels, backend }) => {
++  const child = await runTextReceiverChild(process.execPath, ['--eval', String.raw`
++const { readFileSync } = await import('node:fs')
++const { renderMermaidSVGWithReceipt } = await import('./src/index.ts')
++console.log(JSON.stringify(renderMermaidSVGWithReceipt(readFileSync(0, 'utf8'), { graphLayout: { backend: process.env.AM_PAINT_CAPACITY_BACKEND, fallback: 'none' } })))
++`], { cwd: fileURLToPath(new URL('../../', import.meta.url)), env: { ...process.env, AGENTIC_MERMAID_SCENE_ASSERTIONS: '0', AGENTIC_MERMAID_ELK_CACHE: '0', AM_PAINT_CAPACITY_BACKEND: backend }, input: source })
++  expect({ status: child.status, error: child.stderr }).toEqual({ status: 0, error: '' })
++  const result = JSON.parse(child.stdout) as ReturnType<typeof renderMermaidSVGWithReceipt>
++  const shown: string[] = [], carriers: string[][] = []
++  let text: string | undefined
++  const parser = new SaxesParser({ xmlns: true })
++  parser.on('opentag', tag => {
++    if (tag.local === 'text') text = ''
++    const from = tag.attributes['data-from'], to = tag.attributes['data-to']
++    if (from && to && ['line', 'polyline', 'path'].includes(tag.local)) {
++      carriers.push([from.value, to.value])
++      expect(tag.attributes['marker-end']?.value, `${backend} ${name} actual marker`).toMatch(/^url\(#.+\)$/)
++    }
++  })
++  parser.on('text', value => { if (text !== undefined) text += value })
++  parser.on('closetag', tag => { if (tag.local === 'text') { shown.push(text!); text = undefined } })
++  parser.write(result.svg).close()
++  for (const label of labels) expect(shown, `${backend} ${name} actual text`).toContain(label)
++  const authoredPairs = [...source.matchAll(/^(\w+)\s*(?:-->>|->>|-->)\s*(\w+)/gm)].map(match => [match[1]!, match[2]!])
++  expect(carriers, `${backend} ${name} actual endpoints`).toEqual(authoredPairs)
++  expect(result.receipt.layoutCertification, `${backend} ${name}`).toMatchObject({
++    status: 'passed', outputDigest: renderedSvgDigest(result.svg),
++    checks: { maxOperations: 400000, maxOcclusionPairs: 100000 }, issues: [],
++  })
++}, 30000)
++
+ test.each(['agentic', 'elk'] as const)('public %s thick-arrow and borderless-state markers retain clipping and actual meaning', backend => {
+   for (const source of ['flowchart LR\nA ==> B', 'stateDiagram-v2\nstate fork_state <<fork>>\n[*] --> fork_state\nfork_state --> State2\nfork_state --> State3\nstate join_state <<join>>\nState2 --> join_state\nState3 --> join_state\njoin_state --> State4\nState4 --> [*]']) {
+     const result = renderMermaidSVGWithReceipt(source, { graphLayout: { backend, fallback: 'none' } })
+diff --git a/src/layout-rubric.ts b/src/layout-rubric.ts
+index e64788722..190adae38 100644
+--- a/src/layout-rubric.ts
++++ b/src/layout-rubric.ts
+@@ -525,8 +525,8 @@ function assessLayoutGeometry(graph: MermaidGraph, positioned: PositionedGraph,
+     // penalty and the HARD hitch-invariant AGREE on what is justified. This does
+     // NOT touch unexplainedBends (which fires only on 'straight'-certified edges,
+     // and a bundle edge is never 'straight') or hitches (HARD, unchanged).
+-    const justifiedConvergenceBend = hasBundleRouteExemption(e)
+-    if (e.style !== 'invisible' && !justifiedConvergenceBend) {
++    const justifiedConvergenceBend = withSoftMetrics && hasBundleRouteExemption(e)
++    if (withSoftMetrics && e.style !== 'invisible' && !justifiedConvergenceBend) {
+       totalBends += bends
+       maxBends = Math.max(maxBends, bends)
+     }
+@@ -555,10 +555,12 @@ function assessLayoutGeometry(graph: MermaidGraph, positioned: PositionedGraph,
+         violations.push({ metric: 'offOutlineEndpoints', detail: pt ? `${id} ${label} on ${nodeId}(${node.shape}) at (${pt.x.toFixed(1)},${pt.y.toFixed(1)})` : `${id} missing ${label} endpoint on ${nodeId}` })
+       }
+     }
+-    const srcNode = nodeMap.get(e.source)
+-    const tgtNode = nodeMap.get(e.target)
+-    const onPort = (node: PositionedNode | undefined, pt: Point | undefined) => node && pt ? onDesignatedPort(node, pt) : false
+-    if (onPort(srcNode, e.points[0]!) || onPort(tgtNode, e.points[e.points.length - 1]!)) portAnchoredEdges++
++    if (withSoftMetrics) {
++      const srcNode = nodeMap.get(e.source)
++      const tgtNode = nodeMap.get(e.target)
++      const onPort = (node: PositionedNode | undefined, pt: Point | undefined) => node && pt ? onDesignatedPort(node, pt) : false
++      if (onPort(srcNode, e.points[0]!) || onPort(tgtNode, e.points[e.points.length - 1]!)) portAnchoredEdges++
++    }
+ 
+     if (e.label && e.labelPosition && e.points.length >= 2) {
+       // Layout retains the text the renderer actually draws. The explicit
+@@ -632,7 +634,7 @@ function assessLayoutGeometry(graph: MermaidGraph, positioned: PositionedGraph,
+       edgeCrossings: crossings,
+       totalBends,
+       maxBendsPerEdge: maxBends,
+-      portEndpointRate: portEndpointRate(positioned),
++      portEndpointRate: withSoftMetrics ? portEndpointRate(positioned) : 0,
+       portAnchoredEdgeRate: positioned.edges.length === 0 ? 1 : portAnchoredEdges / positioned.edges.length,
+       peerBarycenterDelta: withSoftMetrics ? peerBarycenterDelta(positioned, graph) : 0,
+       worstLabelOffset,
+diff --git a/src/scene/group-emission.ts b/src/scene/group-emission.ts
+index 7de6ba934..46bf4359d 100644
+--- a/src/scene/group-emission.ts
++++ b/src/scene/group-emission.ts
+@@ -69,6 +69,48 @@ export interface NativeGroupParse {
+   materialize(pay: Pay): readonly SvgStartTagToken[] | undefined
+ }
+ 
++interface PlainGroupInput {
++  valid: boolean
++  start: number
++  end: number
++  cursor: number
++  readonly values: { length: number; [index: number]: string }
++}
++/** Actual primitive lexer operands, independent of ambient record/seal helpers.
++ * The ordinary token roster remains complete for existing foreign observers. */
++class ParsedNativeGroup {
++  declare readonly open: string
++  declare readonly firstName: string | undefined
++  declare readonly materialize: NativeGroupParse['materialize']
++  readonly #source: string
++  readonly #plain: PlainGroupInput | undefined
++  constructor(source: string, plain: PlainGroupInput | undefined) { this.#source = source; this.#plain = plain }
++  static validate(value: unknown, source: string, literal: (value: string) => boolean, pay: Pay): boolean {
++    if (!value || typeof value !== 'object' || !(#source in value) || !value.#plain?.valid) return false
++    if (!pay(source.length * 2 + 4) || value.#source !== source) return false
++    for (let index = 0; index < value.#plain.values.length; index++) {
++      if (!pay(1) || !literal(value.#plain.values[index]!)) return false
++    }
++    return true
++  }
++}
++const validateParsedNativeGroup = ParsedNativeGroup.validate
++export function validatePlainNativeGroup(value: unknown, source: string, literal: (value: string) => boolean, pay: Pay): boolean { return validateParsedNativeGroup(value, source, literal, pay) }
++
++function groupXmlSpace(character: string | undefined): boolean { return character === ' ' || character === '\t' || character === '\r' || character === '\n' }
++
++function plainGroupName(name: string): boolean {
++  if (name === 'class' || name === 'role' || name === 'tabindex' || name === 'pointer-events') return true
++  const data = name[0] === 'd' && name[1] === 'a' && name[2] === 't' && name[3] === 'a' && name[4] === '-'
++  const aria = name[0] === 'a' && name[1] === 'r' && name[2] === 'i' && name[3] === 'a' && name[4] === '-'
++  if ((!data && !aria) || name.length === 5) return false
++  for (let index = 5; index < name.length; index++) {
++    const character = name[index]!
++    if (!(character >= 'a' && character <= 'z') && !(data && index > 5 && (character >= '0' && character <= '9' || character === '-'))) return false
++  }
++  return true
++}
++
+ interface GroupEmission { readonly open: string; readonly opacity: string | undefined; readonly style: boolean; readonly matrix: ReturnType<typeof parseSvgTransform>; readonly nativeParse?: NativeGroupParse }
+ const groupEmission = new WeakMap<object, GroupEmission>()
+ function emissionRecord(open: string, opacity: string | undefined, style: boolean, matrix: ReturnType<typeof parseSvgTransform>, nativeParse?: NativeGroupParse): GroupEmission {
+@@ -113,7 +155,7 @@ export function transferNativeGroupEmission(source: object, target: object, pay:
+ 
+ /** The retained closure is created outside the producing ledger scope; it
+  * captures only private rows and primitive source operands. */
+-function nativeParseRecord(source: string, firstName: string | undefined, tags: readonly SvgStartTagToken[], attributeCount: number): NativeGroupParse {
++function nativeParseRecord(source: string, firstName: string | undefined, tags: readonly SvgStartTagToken[], attributeCount: number, plain?: PlainGroupInput): NativeGroupParse {
+   const materialize = (pay: Pay): readonly SvgStartTagToken[] | undefined => {
+       if (!pay(tags.length * 24 + attributeCount * 24 + 8)) return undefined
+       const result: SvgStartTagToken[] = []
+@@ -129,7 +171,7 @@ function nativeParseRecord(source: string, firstName: string | undefined, tags:
+       }
+       return closeRoster(result)
+   }
+-  return groupPrevent(groupDefine({}, { open: { value: source, enumerable: true }, firstName: { value: firstName, enumerable: true }, materialize: { value: materialize, enumerable: true } })) as NativeGroupParse
++  return groupPrevent(groupDefine(new ParsedNativeGroup(source, plain), { open: { value: source, enumerable: true }, firstName: { value: firstName, enumerable: true }, materialize: { value: materialize, enumerable: true } })) as NativeGroupParse
+ }
+ 
+ /** Existing validation already visits these lexical operands. Retention adds
+@@ -143,9 +185,14 @@ function collectNativeGroup(source: string, pay: Pay, check?: (name: string, val
+   if (!pay(12)) return undefined
+   const tags: Array<{ name: string; start: number; end: number; selfClosing: boolean; attributes: SvgAttributeToken[] }> = []
+   let current: (typeof tags)[number] | undefined, firstName: string | undefined, complete = true, attributeCount = 0, tagCount = 0
++  const plain: PlainGroupInput | undefined = check ? { valid: true, start: 0, end: 0, cursor: 0, values: { __proto__: null, length: 0 } as unknown as PlainGroupInput['values'] } : undefined
++  const names = { __proto__: null } as unknown as Record<string, true>
+   visitSvgStartTagsFresh(source, {
+     tag(name, start, end, selfClosing) {
+-      if (tagCount++ === 0) { firstName = name; first?.(name) }
++      if (tagCount++ === 0) {
++        firstName = name; first?.(name)
++        if (plain) { plain.start = start; plain.end = end; plain.cursor = start + 2; plain.valid = name === 'g' && !selfClosing }
++      } else if (plain) plain.valid = false
+       if (!complete || !pay(24)) { complete = false; current = undefined; return }
+       const attributes: SvgAttributeToken[] = []
+       current = tagRecord(name, start, end, selfClosing, attributes) as (typeof tags)[number]
+@@ -154,6 +201,24 @@ function collectNativeGroup(source: string, pay: Pay, check?: (name: string, val
+     attribute(name, value, quote, nameStart, valueStart, valueEnd) {
+       // Validation continues even if retaining its additional operands fails.
+       if (tagCount === 1 && firstName === 'g') check?.(name, value)
++      if (plain?.valid) {
++        if (!pay(nameStart - plain.cursor + valueStart - nameStart + name.length + 6)) plain.valid = false
++        else {
++          if (names[name] || !plainGroupName(name)) plain.valid = false
++          names[name] = true
++          let cursor = plain.cursor
++          if (cursor >= nameStart) plain.valid = false
++          while (cursor < nameStart && groupXmlSpace(source[cursor])) cursor++
++          if (cursor !== nameStart) plain.valid = false
++          cursor = nameStart + name.length
++          while (cursor < valueStart - 1 && groupXmlSpace(source[cursor])) cursor++
++          if (source[cursor++] !== '=') plain.valid = false
++          while (cursor < valueStart - 1 && groupXmlSpace(source[cursor])) cursor++
++          if (cursor !== valueStart - 1 || source[cursor] !== quote || source[valueEnd] !== quote) plain.valid = false
++          plain.cursor = valueEnd + 1
++          plain.values[plain.values.length++] = value
++        }
++      }
+       if (!complete || !current || !pay(16)) { complete = false; return }
+       const attribute = attributeRecord(name, value, quote, nameStart, valueStart, valueEnd)
+       groupSlot(current.attributes, current.attributes.length, { value: attribute, enumerable: true })
+@@ -163,7 +228,16 @@ function collectNativeGroup(source: string, pay: Pay, check?: (name: string, val
+   if (!complete || !pay(tags.length * 2 + attributeCount + 12)) return undefined
+   for (let i = 0; i < tags.length; i++) closeRoster(tags[i]!.attributes)
+   closeRoster(tags)
+-  return nativeParseRecord(source, firstName, tags, attributeCount)
++  if (plain?.valid) {
++    if (!pay(plain.start + source.length - plain.cursor + 1)) plain.valid = false
++    else for (let index = 0; index < source.length; index++) {
++      if (index >= plain.start && index < plain.cursor) { index = plain.cursor - 1; continue }
++      if (index === plain.end - 1 && source[index] === '>') continue
++      const character = source[index]!
++      if (!groupXmlSpace(character)) { plain.valid = false; break }
++    }
++  }
++  return nativeParseRecord(source, firstName, tags, attributeCount, plain)
+ }
+ 
+ /** Only the final Native validator uses this primitive visitor. The public
+diff --git a/src/scene/native-drawing.ts b/src/scene/native-drawing.ts
+index 60271166e..3d707f96f 100644
+--- a/src/scene/native-drawing.ts
++++ b/src/scene/native-drawing.ts
+@@ -10,6 +10,7 @@ import { composeMatrices, IDENTITY_MATRIX, transformMatrix } from './transforms.
+ import { createOwnedNativePaintRecorder, multiplySceneOpacity, nativePaintAncestors, sceneGroupOpacity, type NativePaintEntry, type PaintInspectionHeader, type ScenePaintGeometryInspection } from './inspection.ts'
+ import { createNativeSceneValidator, SceneValidationError, SCENE_VALIDATION_LIMITS, assertFinalSvgByteBudget } from './scene-validation-core.ts'
+ import { withDeferredTerminalProjections } from './deferred-terminal-projection.ts'
++import { retainedGroupEmission } from './group-emission.ts'
+ import { createNativePaintEmission, MAX_OCCLUSION_OPERATIONS } from './native-paint-emission.ts'
+ import type { SvgTextPaintWrite, SvgXmlWrite } from './svg-writer.ts'
+ 
+@@ -182,12 +183,12 @@ export function drawNative(
+       const writtenShell = allOwned && capturedShell ? capturedShell : shell
+       let xmlWrite: SvgXmlWrite
+       if (allOwned) {
+-        xmlWrite = xml.join(privateValues(childParts.length + 2, index => {
++        xmlWrite = xml.group(privateValues(childParts.length + 2, index => {
+           if (index === 0) return xml.raw(writtenShell.open)
+           if (index === childParts.length + 1) return xml.raw(writtenShell.close)
+           const child = childParts[index - 1]!
+           return xml.indent(child.node.xmlWrite, child.indent)
+-        }), writtenShell.join)
++        }), retainedGroupEmission(writtenShell)?.nativeParse, writtenShell.join)
+       } else {
+         // Keep the legacy read/coercion order for foreign fragment values.
+         const fragments = [shell.open]
+diff --git a/src/scene/svg-writer.ts b/src/scene/svg-writer.ts
+index de033de9d..b3f4f93ee 100644
+--- a/src/scene/svg-writer.ts
++++ b/src/scene/svg-writer.ts
+@@ -22,6 +22,7 @@ import { verifySvgDocumentEnvelope, verifySvgDocumentDataPositions } from '../ou
+ import { isInlinePng } from '../shared/inline-png.ts'
+ import { SCENE_VALIDATION_LIMITS } from './scene-validation-limits.ts'
+ import { MAX_OCCLUSION_OPERATIONS } from './paint-work.ts'
++import { validatePlainNativeGroup } from './group-emission.ts'
+ 
+ // Fresh written facts must be sealed before ambient hooks can observe them.
+ const writtenFactFreeze = Object.freeze, writtenFactDefine = Object.defineProperty, writtenFactSeal = Object.preventExtensions
+@@ -38,6 +39,8 @@ export interface SvgXmlCapture {
+   readonly [svgXmlCapture]: true
+   raw(svg: string, node?: object): SvgXmlWrite
+   join(writes: Iterable<SvgXmlWrite>, separator?: string): SvgXmlWrite
++  /** Source-bound plain group syntax; every actual child still closes late. */
++  group(writes: Iterable<SvgXmlWrite>, parsed: unknown, separator?: string): SvgXmlWrite
+   indent(write: SvgXmlWrite, spaces: number): SvgXmlWrite
+   /** Identity and actual bytes only; exhaustion cannot discard emitted output. */
+   read(write: SvgXmlWrite, expectedNode?: object): SvgXmlWriteRecord | undefined
+@@ -193,17 +196,10 @@ function createXmlCapture(work: (operations: number) => boolean, nativeCompositi
+     preparedChecked = true
+     return true
+   }
+-  capture = { __proto__: null,
+-    raw(svg: string, node?: object): SvgXmlWrite {
+-      if (typeof svg !== 'string') throw new TypeError('XML raw chunks require a string')
+-      return issue(svg, svg, node)
+-    },
+-    join(writes: Iterable<SvgXmlWrite>, separator = '\n'): SvgXmlWrite {
++  const compose = (writes: Iterable<SvgXmlWrite>, separator = '\n', group?: unknown): SvgXmlWrite => {
+       if (typeof separator !== 'string') throw new TypeError('XML joins require a string separator')
+       const children = pay(1) ? xmlList<XmlWriteFact>() : undefined
+       let svg = '', count = 0
+-      // Input iteration is public behavior. The retained private roster and
+-      // actual bytes use own slots/concatenation, never inherited array hooks.
+       for (const write of writes) {
+         const found = factOf(write)
+         if (!found) throw new TypeError('XML composition requires this capture’s actual writes')
+@@ -221,14 +217,21 @@ function createXmlCapture(work: (operations: number) => boolean, nativeCompositi
+             if (character !== ' ' && character !== '\t' && character !== '\r' && character !== '\n') { whitespace = false; break }
+           }
+         }
++        if (group && whitespace && children.length >= 2 && children[children.length - 1]!.record.svg === '</g>'
++          && validatePlainNativeGroup(group, children[0]!.record.svg, value => literal(value, true), pay)) {
++          let closed = true
++          for (let index = 1; index < children.length - 1; index++) {
++            const child = projectFact(children[index]!)
++            if (!child) return undefined
++            if (child !== OCCUPIED_XML_LEAF) closed = false
++          }
++          if (closed && pay(4)) return OCCUPIED_XML_LEAF
++        }
+         const occupied = xmlList<number>()
+         let skeleton = '', previousOccupied = false
+         for (let i = 0; i < children.length; i++) {
+           const checked = projectFact(children[i]!)
+           if (!checked) return undefined
+-          // Each child has completed its original late lexical checks. Adjacent
+-          // closed leaves separated only by XML whitespace occupy the same DATA
+-          // interval; one insertion witness proves that interval for all of them.
+           if (whitespace && previousOccupied && checked === OCCUPIED_XML_LEAF) continue
+           if (i) skeleton += separator
+           for (let j = 0; j < checked.occupied.length; j++) {
+@@ -242,7 +245,14 @@ function createXmlCapture(work: (operations: number) => boolean, nativeCompositi
+         if (nativeComposition && previousOccupied && occupied.length === 1 && skeleton === ' ') return OCCUPIED_XML_LEAF
+         return { skeleton, occupied }
+       } : svg)
++  }
++  capture = { __proto__: null,
++    raw(svg: string, node?: object): SvgXmlWrite {
++      if (typeof svg !== 'string') throw new TypeError('XML raw chunks require a string')
++      return issue(svg, svg, node)
+     },
++    join(writes: Iterable<SvgXmlWrite>, separator = '\n'): SvgXmlWrite { return compose(writes, separator) },
++    group(writes: Iterable<SvgXmlWrite>, parsed: unknown, separator = '\n'): SvgXmlWrite { return compose(writes, separator, parsed) },
+     indent(write: SvgXmlWrite, spaces: number): SvgXmlWrite {
+       const found = factOf(write)
+       if (!found) throw new TypeError('XML indentation requires this capture’s actual write')
+@@ -307,7 +317,7 @@ function createXmlCapture(work: (operations: number) => boolean, nativeCompositi
+         : verifySvgDocumentEnvelope(found.record.svg, pay)
+     },
+   } as unknown as SvgXmlCapture
+-  pinXmlSlot(capture, 'raw', capture.raw); pinXmlSlot(capture, 'join', capture.join)
++  pinXmlSlot(capture, 'raw', capture.raw); pinXmlSlot(capture, 'join', capture.join); pinXmlSlot(capture, 'group', capture.group)
+   pinXmlSlot(capture, 'indent', capture.indent); pinXmlSlot(capture, 'read', capture.read); pinXmlSlot(capture, 'verify', capture.verify)
+   writtenFactSeal(capture)
+   xmlFactApply(xmlFactSet, xmlCaptures, [capture, { nativeComposition, pay, literal, name, prepared, issue, project(write: SvgXmlWrite) {
