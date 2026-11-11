@@ -289,7 +289,7 @@ function routeGitGraphEdges(
   const point = (along: number, across: number): RoutePoint => (lr ? { x: along, y: across } : { x: across, y: along })
   const along = (commit: RouteCommit) => (lr ? commit.x : commit.y)
   const across = (commit: RouteCommit) => (lr ? commit.y : commit.x)
-  const commits = [...commitById.values()]
+  const space = new RouteSpace([...commitById.values()])
   const routed: Array<PositionedGitGraphEdge | undefined> = relations.map(() => undefined)
   const accepted: PositionedGitGraphEdge[] = []
   const candidatesFor = (relation: Omit<PositionedGitGraphEdge, 'points'>): RoutePoint[][] => {
@@ -320,10 +320,11 @@ function routeGitGraphEdges(
     const candidates = candidatesFor(relation)
     const clear = candidates.find(points => {
       const edge = { ...relation, points }
-      return !connectorPassesCommit(edge, commits) && accepted.every(other => !connectorsShareInk(edge, other, commitById))
+      return !space.passedCommit(edge) && space.nearbyEdges(edge).every(other => !connectorsShareInk(edge, accepted[other]!, commitById))
     })
     const edge = { ...relation, points: clear ?? candidates[0]! }
     routed[index] = edge
+    space.addEdge(edge, accepted.length)
     accepted.push(edge)
   }
   return routed as PositionedGitGraphEdge[]
@@ -335,14 +336,67 @@ function distanceToSegment(p: RoutePoint, a: RoutePoint, b: RoutePoint): number 
   return Math.hypot(p.x - a.x - t * dx, p.y - a.y - t * dy)
 }
 
-/** The first commit, other than its own two, that the connector passes. */
-function connectorPassesCommit(edge: PositionedGitGraphEdge, commits: readonly RouteCommit[]): RouteCommit | undefined {
-  for (let i = 1; i < edge.points.length; i++) {
-    const a = edge.points[i - 1]!, b = edge.points[i]!
-    const hit = commits.find(commit => commit.id !== edge.from && commit.id !== edge.to && distanceToSegment(commit, a, b) < COMMIT_CLEARANCE)
-    if (hit) return hit
+/** Side of the square buckets that index commits and connector segments. */
+const ROUTE_CELL = 64
+
+/**
+ * Uniform buckets over commits and placed connector segments, so each route
+ * check visits only nearby ink instead of every commit and every earlier
+ * connector. A commit a segment passes lies within the segment's bounding box
+ * widened by COMMIT_CLEARANCE, and two connectors share collinear ink only
+ * where their boxes overlap, so the bucket search finds exactly what a full
+ * scan finds; ties resolve by original order, as a scan would.
+ */
+class RouteSpace {
+  private readonly commitCells = new Map<string, number[]>()
+  private readonly edgeCells = new Map<string, number[]>()
+  constructor(private readonly commits: readonly RouteCommit[]) {
+    commits.forEach((commit, index) => this.bucket(this.commitCells, commit, commit, 0, index))
   }
-  return undefined
+
+  /** The first commit in document order, other than its own two, that the
+   *  connector passes on its first segment that passes any. */
+  passedCommit(edge: PositionedGitGraphEdge): RouteCommit | undefined {
+    for (let i = 1; i < edge.points.length; i++) {
+      const a = edge.points[i - 1]!, b = edge.points[i]!
+      let first = Infinity
+      this.visit(this.commitCells, a, b, COMMIT_CLEARANCE, index => {
+        const commit = this.commits[index]!
+        if (index < first && commit.id !== edge.from && commit.id !== edge.to && distanceToSegment(commit, a, b) < COMMIT_CLEARANCE) first = index
+      })
+      if (first !== Infinity) return this.commits[first]
+    }
+    return undefined
+  }
+
+  addEdge(edge: PositionedGitGraphEdge, index: number): void {
+    for (let i = 1; i < edge.points.length; i++) this.bucket(this.edgeCells, edge.points[i - 1]!, edge.points[i]!, 1, index)
+  }
+
+  /** Indices of added connectors with a segment near one of this edge's, ascending. */
+  nearbyEdges(edge: PositionedGitGraphEdge): number[] {
+    const found = new Set<number>()
+    for (let i = 1; i < edge.points.length; i++) this.visit(this.edgeCells, edge.points[i - 1]!, edge.points[i]!, 1, index => found.add(index))
+    return [...found].sort((a, b) => a - b)
+  }
+
+  private cells(a: RoutePoint, b: RoutePoint, margin: number, each: (key: string) => void): void {
+    const x0 = Math.floor((Math.min(a.x, b.x) - margin) / ROUTE_CELL), x1 = Math.floor((Math.max(a.x, b.x) + margin) / ROUTE_CELL)
+    const y0 = Math.floor((Math.min(a.y, b.y) - margin) / ROUTE_CELL), y1 = Math.floor((Math.max(a.y, b.y) + margin) / ROUTE_CELL)
+    for (let x = x0; x <= x1; x++) for (let y = y0; y <= y1; y++) each(`${x},${y}`)
+  }
+
+  private bucket(cells: Map<string, number[]>, a: RoutePoint, b: RoutePoint, margin: number, index: number): void {
+    this.cells(a, b, margin, key => {
+      const list = cells.get(key)
+      if (!list) cells.set(key, [index])
+      else if (list.at(-1) !== index) list.push(index)
+    })
+  }
+
+  private visit(cells: ReadonlyMap<string, number[]>, a: RoutePoint, b: RoutePoint, margin: number, each: (index: number) => void): void {
+    this.cells(a, b, margin, key => { for (const index of cells.get(key) ?? []) each(index) })
+  }
 }
 
 /** Whether two connectors draw collinear ink anywhere other than a trunk
@@ -414,11 +468,14 @@ export function gitGraphRouteViolations(commits: readonly RouteCommit[], edges: 
   const commitById = new Map(commits.map(commit => [commit.id, commit]))
   const name = (edge: PositionedGitGraphEdge) => `${edge.from}->${edge.to}`
   const violations: LayoutCertificationViolation[] = []
+  const space = new RouteSpace(commits)
+  edges.forEach((edge, index) => space.addEdge(edge, index))
   edges.forEach((edge, index) => {
-    const passed = connectorPassesCommit(edge, commits)
+    const passed = space.passedCommit(edge)
     if (passed) violations.push({ kind: 'edgeThroughNode', targets: [name(edge), passed.id], detail: `${name(edge)} passes commit ${passed.id}` })
-    for (const other of edges.slice(index + 1)) {
-      if (connectorsShareInk(edge, other, commitById)) violations.push({ kind: 'collinearEdges', targets: [name(edge), name(other)], detail: `${name(edge)} runs along ${name(other)}` })
+    for (const otherIndex of space.nearbyEdges(edge)) {
+      const other = edges[otherIndex]!
+      if (otherIndex > index && connectorsShareInk(edge, other, commitById)) violations.push({ kind: 'collinearEdges', targets: [name(edge), name(other)], detail: `${name(edge)} runs along ${name(other)}` })
     }
   })
   return violations

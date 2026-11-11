@@ -15,6 +15,7 @@ import { DEFAULTS } from '../theme.ts'
 import { scanSvgStartTags } from '../svg-structure.ts'
 import { BUILTIN_PALETTE_DEFINITIONS } from '../palette-catalog.ts'
 import { connectorUnitTangent } from '../scene/connector-geometry.ts'
+import { expectNearLinearGrowth } from './helpers/complexity.ts'
 import { fcParameters } from './helpers/fc-parameters.ts'
 import { startUpstreamMermaid } from './helpers/upstream-mermaid.ts'
 
@@ -847,6 +848,19 @@ describe('GitGraph full-family citizenship', () => {
       expect(found).toContainEqual(['collinearEdges', 'f2->m1', 'f1->pick'])
       const verify = verifyMermaid('gitGraph\n  commit id:"c1"\n  branch develop\n  commit id:"d1"\n  branch feature/login\n  commit id:"f1"\n  commit id:"f2"\n  checkout develop\n  merge feature/login id:"m1"\n  checkout main\n  cherry-pick id:"f1"\n  commit id:"hotfix"\n  merge develop id:"c8"')
       expect(verify.warnings.filter(warning => warning.code === 'LAYOUT_UNCERTIFIED')).toEqual([])
+    })
+
+    // Routing and certification check each connector against nearby commits
+    // and connectors only. Scanning every commit and every earlier connector
+    // took 17 s for a 5,000-commit linear history (0.18 s before routing).
+    test.each([
+      ['a linear history', (n: number) => Array.from({ length: n }, (_, i) => `  commit id:"c${i}"`)],
+      ['a long branch merged back', (n: number) => ['  commit id:"root"', '  branch feature', ...Array.from({ length: n }, (_, i) => `  commit id:"f${i}"`), '  checkout main', '  merge feature id:"m"']],
+    ] as const)('routes and certifies %s in near-linear time', (_name, statements) => {
+      expectNearLinearGrowth('gitgraph routing', n => {
+        const layout = layoutGitGraph(parseGitGraph(['gitGraph', ...statements(n)].join('\n')))
+        expect(layout.edges.length).toBeGreaterThanOrEqual(n - 1)
+      }, 4_000)
     })
   })
 
