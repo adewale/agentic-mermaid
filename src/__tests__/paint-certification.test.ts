@@ -3920,13 +3920,23 @@ test('shaft checks use composed final transforms and preserve only incident card
   expect(certifyScenePaint(scene([edge, ownCard])).status).toBe('passed')
 })
 
-test('typed shaft parsing shares the finite final-check work budget', () => {
+test('typed shaft and endpoint-role lookup share the finite final-check work budget', () => {
   const d = `M5 5${' L95 5 L5 5'.repeat(35_000)}`
   const edge = marks.connector({ id: 'long-route', role: 'edge', lineStyle: 'solid', geometry: { kind: 'path', d, points: [{ x: 5, y: 5 }, { x: 95, y: 5 }, { x: 5, y: 5 }] }, paint: { stroke: '#111' }, endpoints: { from: 'A', to: 'B' } })
   const proof = certifyScenePaint(scene([edge, surface()]))
   expect(proof.status).toBe('unverified')
   expect(proof.checks.operations).toBeLessThanOrEqual(proof.checks.maxOperations)
   expect(proof.issues).toContainEqual(expect.objectContaining({ code: 'CHECK_BUDGET' }))
+  // This valid path reaches its incident card while only the endpoint-role
+  // inventory remains. Exhaustion is unknown ownership, not unrelated ink.
+  const related = marks.connector({ id: 'related-route', role: 'edge', lineStyle: 'solid',
+    geometry: { kind: 'path', d: `M5 30${' '.repeat(399_969)}L95 30`, points: [{ x: 5, y: 30 }, { x: 95, y: 30 }] },
+    paint: { stroke: '#111' }, endpoints: { from: 'A', to: 'B' } })
+  const ownCard = marks.shape({ ...surface(), owner: { id: 'A', role: 'node' } })
+  const incomplete = certifyScenePaint(scene([related, ownCard]))
+  expect(incomplete.status).toBe('unverified')
+  expect(incomplete.checks.operations).toBe(incomplete.checks.maxOperations)
+  expect(incomplete.issues.map(issue => issue.code)).toEqual(['CHECK_BUDGET'])
 })
 
 test('drawing or repainting a semantic shaft above an unrelated card does not excuse the crossing', () => {

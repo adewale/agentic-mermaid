@@ -1678,19 +1678,25 @@ export function certifyNativePaint(scene: NativePaintHeader, inspection: ScenePa
     }
   }
   if (!retainedRoster) collectEndpointRoles()
-  const ambiguousEndpoint = (id: string): boolean => {
+  const ambiguousEndpoint = (id: string): boolean | undefined => {
     if (!endpointRoles) collectEndpointRoles()
-    return exhausted || (endpointRoles!.get(id)?.size ?? 0) > 1
+    return exhausted ? undefined : (endpointRoles!.get(id)?.size ?? 0) > 1
   }
-  const endpointRelation = (connector: NativeConnectorPaintSource, owner: SceneOwner): 'attached' | 'unrelated' | 'ambiguous' => {
+  const endpointRelation = (connector: NativeConnectorPaintSource, owner: SceneOwner): 'attached' | 'unrelated' | 'ambiguous' | 'unknown' => {
     let ambiguous = false
     for (const [id, anchor] of [[connector.endpoints.from, connector.endpoints.start], [connector.endpoints.to, connector.endpoints.end]] as const) {
       if (id !== owner.id) continue
       if (anchor?.owner) {
         if (anchor.owner.id !== id) { ambiguous = true; continue }
         if (anchor.owner.role === owner.role) return 'attached'
-      } else if (ambiguousEndpoint(id)) ambiguous = true
-      else return 'attached'
+      } else {
+        const conflict = ambiguousEndpoint(id)
+        // A partial inventory establishes neither attachment nor unrelated
+        // artwork. CHECK_BUDGET reports the unfinished query separately.
+        if (conflict === undefined) return 'unknown'
+        if (conflict) ambiguous = true
+        else return 'attached'
+      }
     }
     return ambiguous ? 'ambiguous' : 'unrelated'
   }
@@ -1814,6 +1820,7 @@ export function certifyNativePaint(scene: NativePaintHeader, inspection: ScenePa
           const noteCore = exactInk && surface.primitive.role === 'note' && !!surface.interiors?.length
           if ((!CARD_ROLES.has(surface.primitive.role) && !noteCore) || surface.primitive.owner.id === primitive.owner.id && surface.primitive.owner.role === primitive.owner.role || !overlaps(surface.bounds, bounds)) continue
           const relation = endpointRelation(node, surface.primitive.owner)
+          if (relation === 'unknown') return
           if (relation === 'attached') continue
           if (exactInk && line && separatedOrthogonalStroke(line, surface.bounds, node.stroke, width, extent!, matrix, work)) continue
           if (exactInk && relation === 'unrelated' && line && surface.interiors?.some(interior => work() && lineCrossesInterior(line, interior))) issue({ code: 'CONNECTOR_CARD_CROSSING', id: primitive.id, by: surface.primitive.id, message: `Final connector shaft crosses opaque artwork owned by unrelated ${noteCore ? 'note' : 'card'} ${surface.primitive.owner.id}` }, true)
@@ -2140,7 +2147,9 @@ export function certifyNativePaint(scene: NativePaintHeader, inspection: ScenePa
         continue
       }
       const connector = paintPrimitiveSource(target.primitive)
-      const attached = connector?.kind === 'connector' && endpointRelation(connector, surface.primitive.owner) === 'attached'
+      const relation = connector?.kind === 'connector' ? endpointRelation(connector, surface.primitive.owner) : undefined
+      if (relation === 'unknown') return
+      const attached = relation === 'attached'
       if (outsideFilledBody(surface, target.bounds, attached, target.hull, target.padding, work, target.witnesses, target.anchor)) continue
       if (target.clipped && outsideFilledBody(surface, target.clipped, attached, undefined, 0, work, target.witnesses, target.anchor, true)) continue
       if (target.clipEligible && connector?.kind === 'connector') {
