@@ -1,6 +1,6 @@
 {
-  "stage": "svg-complete",
-  "at": "2026-11-11T00:30:45.834727+00:00",
+  "stage": "final",
+  "at": "2026-11-11T00:52:49.473651+00:00",
   "files": [
     {
       "path": "BROWSER-CLOSED.json",
@@ -24,8 +24,23 @@
     },
     {
       "path": "CHECKPOINT.md",
-      "bytes": 607,
-      "sha256": "25cf2f3ebbdbf5c83d2ca2f07fd5550b35b54938184f7a00c6586c7874ebabf2"
+      "bytes": 584,
+      "sha256": "e9c238f877b924313656d5e532f8cb7fbaf32927601f3abdafa8baa309fe6172"
+    },
+    {
+      "path": "COMPARISONS.csv",
+      "bytes": 260130,
+      "sha256": "8fd637c4e351bc530c5ef1efee5b7d8555c9ed9252a7e5acb6780d5487cd18dc"
+    },
+    {
+      "path": "FAMILY-METRICS.csv",
+      "bytes": 211450,
+      "sha256": "9d831f1ee4ae418e3ca4d73083aa6a19b6527a0292719e749569102d164a3dc4"
+    },
+    {
+      "path": "FAMILY-METRICS.json",
+      "bytes": 461242,
+      "sha256": "f447d54a848f950b1232014df6b4c22209bcf3507f6cb72e556c016704a05223"
     },
     {
       "path": "FAMILY-REGISTRY.json",
@@ -58,6 +73,16 @@
       "sha256": "bec70ade8ce57bdce1a11730a2ee7284d5ded6bcab03befa79a4f6a45707077a"
     },
     {
+      "path": "OUTPUT-STABILITY-SUMMARY.json",
+      "bytes": 433,
+      "sha256": "7275a2f4dda47ae2dbe948d05683c6df15f0898d0a39b1be04cb1297787437d5"
+    },
+    {
+      "path": "OUTPUT-STABILITY.json",
+      "bytes": 81235,
+      "sha256": "ac32a8487ac037674be9753c2143942ff0e253d640e4af643ab9bb45741e3288"
+    },
+    {
       "path": "PERFORMANCE-COMPLETED.json",
       "bytes": 195,
       "sha256": "b2526e5c95918e70871e0a7f4a13c4e272cbec356dd7b5af10c2c2604cea17a7"
@@ -78,14 +103,64 @@
       "sha256": "8bb19da66e42c08508749b151e86f0f2b431331a13a80281d4e4b1cc3bee2f4b"
     },
     {
+      "path": "POSTVERIFY.json",
+      "bytes": 358087,
+      "sha256": "d6faf944341d64b8a0b29a4e46bac2645e7d990cf1d904f31df227bdf327fd8d"
+    },
+    {
       "path": "QUALIFICATION-ANNOTATIONS.json",
       "bytes": 17753,
       "sha256": "069e7a72d09a7a7ea95b7630f5df60b5150b27a82e63ea8cec5b4b0f3d617a3e"
     },
     {
+      "path": "RECEIPT-METRICS.csv",
+      "bytes": 1225178,
+      "sha256": "dcb28d9c286f34ae94633096044c8dae6f271c8a56beca175b24288f39329a5c"
+    },
+    {
+      "path": "RECEIPT-METRICS.json",
+      "bytes": 2121968,
+      "sha256": "56adb445e58d6a2914f1aa00eb41176cc902557cf7ae065788a94f58bb5e7a7a"
+    },
+    {
+      "path": "RECEIPT-PERFORMANCE-COMPLETED.json",
+      "bytes": 529,
+      "sha256": "557a238f05ed04167e99c7ebd3b31e1d59913fa84b9d8d3c9f962a526e149403"
+    },
+    {
+      "path": "RECOVERY-svg-complete-evidence-index-query.json",
+      "bytes": 266655,
+      "sha256": "10db76c213b7a0e01ce8186d8856fbfd5fd5d6af11883c7d72f29241ef6a6852"
+    },
+    {
+      "path": "RECOVERY-svg-complete.json",
+      "bytes": 556,
+      "sha256": "cc1a762d7c699c27913a7c87b5ea0533f92dc328cb525975a111a7da86f23ffa"
+    },
+    {
+      "path": "REDUCER-COMPLETED.json",
+      "bytes": 1862,
+      "sha256": "0025487fba2bb78fee0fae730c6fe028a318961b25d5810a09727a0aa974649c"
+    },
+    {
+      "path": "REPORT.md",
+      "bytes": 22791,
+      "sha256": "2a0dd0e89cbe0933b55156ea7c862dc5420400e0bf30c161e78c3e87456c4175"
+    },
+    {
       "path": "REPRODUCE.md",
       "bytes": 4765,
       "sha256": "7eaeeb1749306b32c8fb237acd90f01dbfad0a0baf46776be33a3943490d7475"
+    },
+    {
+      "path": "SVG-METRICS.csv",
+      "bytes": 1430000,
+      "sha256": "eb3bb84538728d9e644d4c6ac773a23e1fada18e9e1ee7eb582969de2b7ff5cb"
+    },
+    {
+      "path": "SVG-METRICS.json",
+      "bytes": 2440001,
+      "sha256": "7ccf8ce5e64675dd8f507d9bcee03c7633993e221405f104a299cbda34a47a9c"
     },
     {
       "path": "browser/FAMILY-PAYLOAD.csv",
@@ -119,8 +194,8 @@
     },
     {
       "path": "campaign-state-at-checkpoint.json",
-      "bytes": 114305,
-      "sha256": "20d4ca4e6e439c2d0b8cc80af9ef1edf3b20bc80d1013be1b90b0183e055119e"
+      "bytes": 115299,
+      "sha256": "07da6f5360559ceb14a2ab9236ae3aff4f6c329f916c8ed19b330c995763f779"
     },
     {
       "path": "checkpoint.py",
@@ -129,13 +204,13 @@
     },
     {
       "path": "commit-checkpoint.py",
-      "bytes": 1861,
-      "sha256": "f2a19656e439b92500f26c96be9cb61a9e9da8e2b1ae5fff4f749ae15bee9e70"
+      "bytes": 2048,
+      "sha256": "f0aa9c20797ffc4c0c3acfbc12cfa4fca6af89e874bba8b18419b59546937f1a"
     },
     {
       "path": "evidence.tar.gz",
-      "bytes": 29245593,
-      "sha256": "e8116471a7d9f99ae9e19e43edee31e623095388234792a1f068c7080cf3fa9e"
+      "bytes": 44572926,
+      "sha256": "78f7e9be9a396b3733f58111d4c7a3a5ad0c9b01476055b26d5f4adb831308d3"
     },
     {
       "path": "fidelity/FAMILY-RESULTS.csv",
@@ -214,8 +289,8 @@
     },
     {
       "path": "reduce.py",
-      "bytes": 29494,
-      "sha256": "5ee578a744e701291d784065786a14ce12ad6eaa3a443ab7084f869ec37f3459"
+      "bytes": 33694,
+      "sha256": "2ce1978a2de9439c8632173f89efceeded6ba00ab4ee8630e18dcd6cee67b8c4"
     },
     {
       "path": "trident-source.tar",

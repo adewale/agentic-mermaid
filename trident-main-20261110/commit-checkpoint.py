@@ -30,8 +30,10 @@ commit = git('commit-tree', tree, '-p', old, '-m',
              ('Checkpoint complete 33-family Main/PR Native and ELK SVG observations'
               if stage == 'svg-complete' else 'Report frozen Main/PR Native and ELK correctness and execution costs'))
 git('update-ref', branch, commit, old)
+source_env = {k: v for k, v in os.environ.items() if k != 'GIT_INDEX_FILE'}
+source_status = subprocess.check_output(['git', '-C', str(repo), 'status', '--porcelain'], text=True, env=source_env).strip()
 result = {'stage': stage, 'previousEvidence': old, 'evidence': commit, 'packet': str(packet),
-          'sourceHead': git('rev-parse', 'HEAD'), 'sourceStatus': git('status', '--porcelain'), 'pushed': False}
+          'sourceHead': git('rev-parse', 'HEAD'), 'sourceStatus': source_status, 'pushed': False}
 destination = Path(__file__).parent / ('RECOVERY-' + stage + '.json')
 destination.write_text(json.dumps(result, indent=2) + '\n')
 print(json.dumps(result))

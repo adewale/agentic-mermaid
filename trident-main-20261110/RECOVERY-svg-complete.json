@@ -1,0 +1,11 @@
+{
+  "stage": "svg-complete",
+  "previousEvidence": "e955244b8ce9ee2f457a8081698a34a4e4d30362",
+  "evidence": "dc5e4abd5348b6df555ae98266ec4cc035ee3424",
+  "packet": "/tmp/pr449-trident-main-checkpoints-20261111/svg-complete",
+  "sourceHead": "599bee58db7cb54293866cc8aa86c887ef93e9a4",
+  "sourceStatus": "",
+  "pushed": true,
+  "metadataCorrection": "Prior status query used the evidence-only alternate index. Original observation retained separately; actual source index and files were never changed.",
+  "pushed_at": "2026-11-11T00:32:03.447284+00:00"
+}

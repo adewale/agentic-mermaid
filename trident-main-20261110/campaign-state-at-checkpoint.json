@@ -2633,8 +2633,8 @@
   "previous_rebase_authorization": "Owner 7 November: Rebase and continue; supersedes prior no-rebase instruction for this requested integration.",
   "trident_main_20261110": {
     "started_at": "2026-11-10T22:46:40.298637+00:00",
-    "updated_at": "2026-11-11T00:30:32.391739+00:00",
-    "status": "SVG measurements complete; preparing recovery checkpoint, then full-product receipt measurements",
+    "updated_at": "2026-11-11T00:52:32.533705+00:00",
+    "status": "All measurements and independent review complete; final evidence backup in progress",
     "source": {
       "main": "4260292397d4bca7624a30c34649eb943a5f8e0c",
       "pr": "599bee58db7cb54293866cc8aa86c887ef93e9a4"
@@ -2687,14 +2687,29 @@
       }
     },
     "receipt_timing": {
-      "status": "pending after Trident completion",
+      "status": "completed",
       "driver": "receipt-performance.ts",
       "cases": 36,
-      "boundary": "actual built public receipt API, one full response JSON/UTF8 consumption; retained receipt evidence encoding outside clocks; no profiler or observer"
+      "boundary": "actual built public receipt API, one full response JSON/UTF8 consumption; retained receipt evidence encoding outside clocks; no profiler or observer",
+      "session_id": 13964,
+      "completion": {
+        "completed": 864,
+        "failed": 0,
+        "boundary": "Actual built public receipt API, entire SVG+receipt serialized once and UTF8-counted. First source render/import separate. edit1 is first edited source; edit2-4 are repeats of edited source, never treated as fresh-edit cost. Existing product worker adapted for built entry, one-response serialization, no diagnostic cache-audit render, disabled source observers and no sampling session. Retained receipt evidence encoding outside API clocks. No empty profile files emitted."
+      }
     },
     "calibration": "exploratory below full5round/31warm/20cold settings; no qualified overall ratio",
     "source_changes": false,
     "automation_resumed": false,
-    "report_review": "Independent reviewer completed; actual-failure ratios suppressed, failed products cannot compare equal, labels-only paint scope explicit. Corrections applied before full-receipt phase."
+    "report_review": "Independent reviewer completed; actual-failure ratios suppressed, failed products cannot compare equal, labels-only paint scope explicit. Corrections applied before full-receipt phase.",
+    "checkpoint_evidence_head": "dc5e4abd5348b6df555ae98266ec4cc035ee3424",
+    "checkpoint_pushed_at": "2026-11-11T00:32:03.447284+00:00",
+    "postverify": {
+      "files": 1434,
+      "mismatches": 0,
+      "allSourceHeadsMatch": true,
+      "allSourceWorktreesClean": true
+    },
+    "environment_interruption": "Transient exec-server disconnect after all clocks/review; reconnected with all raw results intact. No reruns."
   }
 }

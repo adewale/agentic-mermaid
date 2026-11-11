@@ -1,0 +1,5 @@
+{
+  "completed": 864,
+  "failed": 0,
+  "boundary": "Actual built public receipt API, entire SVG+receipt serialized once and UTF8-counted. First source render/import separate. edit1 is first edited source; edit2-4 are repeats of edited source, never treated as fresh-edit cost. Existing product worker adapted for built entry, one-response serialization, no diagnostic cache-audit render, disabled source observers and no sampling session. Retained receipt evidence encoding outside API clocks. No empty profile files emitted."
+}

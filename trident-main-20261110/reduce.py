@@ -237,7 +237,8 @@ def main():
                        "leftActualAcceptedCounts": a['actualAcceptedCounts'], "rightActualAcceptedCounts": b['actualAcceptedCounts'],
                        "leftStatusCounts": a['statusCounts'], "rightStatusCounts": b['statusCounts']}
                 comparable = c['expected']['accept'] and a['allMeasuredOutputsReturnedWithNoKnownDeclaredFailure'] and b['allMeasuredOutputsReturnedWithNoKnownDeclaredFailure']
-                row['observedSuccessfulLayoutComparison'] = comparable
+                row['bothReturnedWithoutKnownDeclaredFailure'] = comparable
+                row['outcomeScope'] = 'Observed API return/XML/declared-label checks; not a complete correctness or layout-quality qualification'
                 for field in ["warmMs", "coldMs", "alternatingEditMs", "wholeProcessPeakRssBytes", "atReturn_heapUsedBytes"]:
                     row[field + "Left"] = number(a, field)
                     row[field + "Right"] = number(b, field)
@@ -247,6 +248,9 @@ def main():
 
     lines = ["# Native and ELK: frozen PR versus Main", "",
              "Main `4260292397d4bca7624a30c34649eb943a5f8e0c`; PR `599bee58db7cb54293866cc8aa86c887ef93e9a4`; Trident `f080278e31e4202ca89d524e4ee9e4cf3cbff038`.", "",
+             "Native has lower observed layout-cache-disabled SVG and full-product runtime medians than ELK on all eight graph-family representatives, and smaller fetched browser closures. Main already has that Native advantage. These small examples do not establish workload-wide replacement correctness.", "",
+             f"The PR is not a general performance improvement over current Main. For the100-node chain, full SVG+receipt repeat medians with layout cache disabled are {fmt(number(receipt_lookup['main','agentic',0,'diagnostic:chain100'],'repeat_wallMs'))}ms on Main Native and {fmt(number(receipt_lookup['pr','agentic',0,'diagnostic:chain100'],'repeat_wallMs'))}ms on PR Native. With the existing cache enabled, the PR's repeated-source median is {fmt(number(receipt_lookup['pr','agentic',1,'diagnostic:chain100'],'repeat_wallMs'))}ms, but its first authored edit costs {fmt(number(receipt_lookup['pr','agentic',1,'diagnostic:chain100'],'firstEdit_wallMs'))}ms. The100ms fresh-work target remains unmet. PR diagnostic products are proof-unverified while Main's pass; raw execution costs are not rates of equivalently proved diagrams.", "",
+             "The demonstrated visible gain versus Main is controlled embedded-image delivery, shared by both backends. It comes alongside larger browser payloads and six additional unverified larger outputs in the62-case seed cohort. Native/ELK quality tradeoffs and unavailable geometry remain separate below.", "",
              "All33 family representatives return SVG in all four arms. Only eight representatives record a graph-solver choice; the other25 have identical Native/ELK SVGs and provide shared-renderer coverage, not an algorithm contest. Native is `agentic` in raw results. Fallback is disabled in every arm.", "",
              "Measurements are exploratory: three fresh process replicas and seven adaptive warm batch means, one round; below Trident's full calibration. Numbers are medians of process medians in milliseconds. Raw process min/max and all samples remain available; no broad calibrated replacement or speed-ratio claim. The SVG-only public API and the entire consumed SVG+receipt API are separate boundaries. Cold excludes import; import is separately recorded. Cache0 disables the layout cache, not every application/module cache. Cache1 enables it. Alternating edits revisit two authored source variants; comment variants may normalize to the same cache key. Receipt first-edit is the first edited source, while later edited calls are repeats.", "",
              "## Correctness and availability", "",
@@ -306,7 +310,27 @@ def main():
               "[All family metrics](FAMILY-METRICS.csv), [all SVG timing/resource cells](SVG-METRICS.csv), [all full-product cells](RECEIPT-METRICS.csv), [same-input observed deltas](COMPARISONS.csv). These include cold/import, warm, edits, both cache regimes, CPU, Node heap/external/ArrayBuffer snapshots, baseline-adjusted retained memory, process RSS and serialized sizes. Raw samples and process spread are in JSON and performance/results.jsonl; render/refusal costs remain enrolled, and invalid-input timing is not a successful-layout win.", "",
               "[Authored meaning and actual ink](fidelity/SUMMARY.md), [all396 fidelity rows](fidelity/RESULTS.json), [per-family fidelity coverage](fidelity/FAMILY-RESULTS.csv), [browser closures](browser/FAMILY-PAYLOAD.csv), [frozen identity](IDENTITY.json), [protocol](PLAN.json), [pilot receipts](PILOT.json), [original Trident calibration/p95](CALIBRATION.json), [output stability](OUTPUT-STABILITY.json). Frozen input literals, all returned SVGs/receipts, failures and unknowns are retained. The failed oracle-path setup and both worker smoke checks are retained outside measurement results. No production source changes, optimizer, new cache, or acceptance gate was introduced. Scoped Node/browser artifacts are not a complete package build. The lost original12 grouped inputs and original campaign baseline/pinned peer renderer comparisons were not recovered or claimed. Replacement24 remains sealed. The old automation remains disabled.", "",
               "Small family representatives do not requalify historical larger counterexamples: forest wire +16.89% with area −6.43%, Requirement TB/BT area +9.53%, implemented Sparse256 area +5.04% (the +0.97% candidate is unshipped). Sparse32's proof-budget limitation and the shared ER256 relationship-chain refusal remain separate known limitations. Those are retained historical results, not new measurements on these frozen heads.", ""]
-    (ROOT / 'REPORT.md').write_text('\n'.join(lines))
+    outcomes = Counter(row.get('status') for process in receipt_rows for row in process['data']['rows'])
+    proofs = Counter(row.get('proof', {}).get('status', 'no-receipt') for process in receipt_rows for row in process['data']['rows'])
+    stability_summary = {'crossLayoutCacheSvg': dict(Counter(str(r['cacheBytesEqual']) for r in stability)),
+                         'publicSvgVersusReceiptSvg': dict(Counter(str(r['publicSvgVersusReceiptSvgEqual']) for r in stability)),
+                         'repeatSvgExactWarmup': dict(sum((Counter(r['repeatSvgExactWarmup']) for r in receipts), Counter())),
+                         'repeatReceiptExactWarmup': dict(sum((Counter(r['repeatReceiptExactWarmup']) for r in receipts), Counter())),
+                         'editedSvgChanged': dict(sum((Counter(r['editedSvgChanged']) for r in receipts), Counter())),
+                         'fullProductOutcomes': dict(outcomes), 'fullProductProofStatuses': dict(proofs)}
+    write('OUTPUT-STABILITY-SUMMARY.json', stability_summary)
+    lines += ['## Product outcomes and stability', '',
+              f"The864 full-product workers performed {sum(outcomes.values())} measured calls: {dict(outcomes)}. Proof status totals across those calls are {dict(proofs)}; repeated/cached calls are not additional independent diagrams.", '',
+              f"Exact same-input SVG comparisons across layout-cache modes and public SVG/receipt APIs: {stability_summary['crossLayoutCacheSvg']} and {stability_summary['publicSvgVersusReceiptSvg']}, respectively. The16 unavailable rows are actual errors/refusals and do not compare equal. Same-process warm repeats preserve complete SVG and receipt bytes in all3456 observations. All3456 edit outputs change bytes; byte change alone does not prove authored edit semantics. See OUTPUT-STABILITY-SUMMARY.json and the retained declared checks.", '']
+    report = '\n'.join(lines)
+    for before, after in {'All33': 'All 33', 'other25': 'other 25', 'Independent99': 'Independent 99',
+            'including91': 'including 91', 'and8 ': 'and 8 ', 'record21': 'record 21', 'and6 ': 'and 6 ',
+            'the99-case': 'the 99-case', 'not21 ': 'not 21 ', 'Separate62': 'Separate 62', 'cohort:58': 'cohort: 58',
+            'Main56': 'Main 56', 'PR50': 'PR 50', 'original12': 'original 12', 'the100-node': 'the 100-node',
+            'The100ms': 'The 100 ms', 'the62-case': 'the 62-case', 'The864': 'The 864', 'The16': 'The 16',
+            'all3456': 'all 3456', 'All3456': 'All 3456', 'and100/300': 'and 100/300'}.items():
+        report = report.replace(before, after)
+    (ROOT / 'REPORT.md').write_text(report)
     write('REDUCER-COMPLETED.json', {'svgWorkers': len(observations), 'receiptWorkers': len(receipt_rows),
           'familyRows': len(family_rows), 'sourceChanged': False, 'calibration': 'exploratory',
           'matchedIndependentSources': source_match})
