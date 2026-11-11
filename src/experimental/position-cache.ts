@@ -1,3 +1,4 @@
+import { NativeWeakMap, NativeWeakSet, weakMapDelete, weakMapGet, weakMapHas, weakMapSet, weakSetAdd, weakSetHas } from '../shared/intrinsics.ts'
 import type { FamilyLayoutResult, FamilyPositionedView } from '../agent/families.ts'
 import { graphLayoutDecisionsOf, transferGraphLayoutDecisions } from '../layout/decision-evidence.ts'
 import { observeCache } from '../performance-observations.ts'
@@ -6,7 +7,7 @@ import { isImmutablePixelTextPart, isRetainedPixelText, transferRetainedPixelTex
 import { estimatedResidency } from './cache-residency.ts'
 import { WeightedLru } from './weighted-lru.ts'
 
-const familyIds = new WeakMap<object, number>()
+const familyIds = new NativeWeakMap<object, number>()
 let nextFamilyId = 0
 interface PositionedSnapshot { result: FamilyLayoutResult; projection?: FamilyPositionedView }
 interface NativeResidency { lastUse?: number; locallyRepeated: boolean; drawingWeight?: number; oversized?: boolean }
@@ -15,9 +16,9 @@ export interface RetainedNativeDrawing {
   readonly preparedText: boolean
   readonly certification: PaintLayoutCertification
 }
-const nativeResidency = new WeakMap<PositionedSnapshot, NativeResidency>()
+const nativeResidency = new NativeWeakMap<PositionedSnapshot, NativeResidency>()
 let nativeUse = 0
-const nativeOwners = new WeakMap<FamilyLayoutResult, { key: string; snapshot: PositionedSnapshot; request: object }>()
+const nativeOwners = new NativeWeakMap<FamilyLayoutResult, { key: string; snapshot: PositionedSnapshot; request: object }>()
 const MAX_WEIGHT = 16 * 1024 * 1024
 const DRAWING_WEIGHT = 8 * 1024 * 1024
 const DRAWING_REPLACEMENT_AGE = 128
@@ -28,20 +29,11 @@ interface RetainedPaintArtifact {
 }
 const drawings = new WeightedLru<string, RetainedPaintArtifact>(128, DRAWING_WEIGHT)
 const results = new WeightedLru<string, PositionedSnapshot>(128, MAX_WEIGHT, key => { drawings.delete(key) })
-const retainedResults = new WeakSet<object>()
-const copiedResults = new WeakSet<object>()
-// Roots are either detached native snapshots or fresh original geometry whose
-// private renderer owns the complete graph. Keep custody on the root itself.
-class PrivatePositionedData extends class { constructor(value: object) { return value } } {
-  #owned: undefined
-  static has(value: unknown): boolean { return typeof value === 'object' && value !== null && #owned in value }
-}
-function retainPrivatePositionedData(value: object): void {
-  if (!PrivatePositionedData.has(value)) new PrivatePositionedData(value)
-}
+const retainedResults = new NativeWeakSet<object>()
+const copiedResults = new NativeWeakSet<object>()
 function isolatedKey(family: object, key: string): string {
-  let id = familyIds.get(family)
-  if (id === undefined) { id = nextFamilyId++; familyIds.set(family, id) }
+  let id = weakMapGet(familyIds, family)
+  if (id === undefined) { id = nextFamilyId++; weakMapSet(familyIds, family, id) }
   return `${id}:${key}`
 }
 // Intrinsic collection iterators ignore caller overrides and mutable prototypes.
@@ -68,55 +60,16 @@ function setSnapshot(value: object): unknown[] {
   return entries
 }
 
-const UNSUPPORTED_PRIVATE_COPY = Symbol('unsupported private positioned copy')
-/** The source is a detached, cache-private native snapshot. Copy mutable
- * containers once, preserving aliases while sharing qualified text up front.
- * Opaque native values keep the ordinary structuredClone admission path. */
-function copyPrivatePositioned<T>(source: T): T | undefined {
-  const seen = new Map<object, unknown>()
-  const copy = (value: unknown): unknown => {
-    if (typeof value === 'function' || typeof value === 'symbol') throw UNSUPPORTED_PRIVATE_COPY
-    if (value === null || typeof value !== 'object') return value
-    if (isImmutablePixelTextPart(value)) return value
-    if (seen.has(value)) return seen.get(value)
-    const kind = clonedKind(value)
-    if (kind === 'native') throw UNSUPPORTED_PRIVATE_COPY
-    const result = kind === 'map' ? new Map() : kind === 'set' ? new Set()
-      : kind === 'array' ? new Array((value as unknown[]).length) : {}
-    seen.set(value, result)
-    if (kind === 'map') {
-      for (const [key, item] of mapSnapshot(value)) (result as Map<unknown, unknown>).set(copy(key), copy(item))
-    } else if (kind === 'set') {
-      for (const item of setSnapshot(value)) (result as Set<unknown>).add(copy(item))
-    } else {
-      const descriptors = Object.getOwnPropertyDescriptors(value)
-      for (const key of Object.keys(descriptors)) {
-        const descriptor = descriptors[key]!
-        if (!descriptor.enumerable) continue
-        if (!('value' in descriptor)) throw UNSUPPORTED_PRIVATE_COPY
-        // Define own properties so __proto__ stays data, as in native cloning.
-        Object.defineProperty(result, key, { value: copy(descriptor.value), writable: true, enumerable: true, configurable: true })
-      }
-    }
-    transferRetainedPixelText(value, result)
-    return result
-  }
-  try { return copy(source) as T } catch (error) {
-    if (error !== UNSUPPORTED_PRIVATE_COPY) throw error
-    return undefined
-  }
-}
-
 /** A complete value/alias witness permits original immutable substitutions.
  * A failed witness never changes the native snapshot. */
 function positionedCustodyProof(source: unknown, copy: unknown, immutableText: boolean) {
-  const originals = new WeakMap<object, object>(), snapshots = new WeakMap<object, object>()
-  const replacements = new WeakMap<object, object>(), metadata: Array<[object, object]> = []
+  const originals = new NativeWeakMap<object, object>(), snapshots = new NativeWeakMap<object, object>()
+  const replacements = new NativeWeakMap<object, object>(), metadata: Array<[object, object]> = []
   let hasReplacements = false
   const prove = (a: unknown, b: unknown): boolean => {
     if (a === null || typeof a !== 'object' || b === null || typeof b !== 'object') return Object.is(a, b)
-    if (originals.has(a) || snapshots.has(b)) return originals.get(a) === b && snapshots.get(b) === a
-    originals.set(a, b); snapshots.set(b, a)
+    if (weakMapHas(originals, a) || weakMapHas(snapshots, b)) return weakMapGet(originals, a) === b && weakMapGet(snapshots, b) === a
+    weakMapSet(originals, a, b); weakMapSet(snapshots, b, a)
     const kind = clonedKind(b)
     const immutable = isImmutablePixelTextPart(a)
     // Opaque native objects keep their authoritative native snapshot. Optional
@@ -151,7 +104,7 @@ function positionedCustodyProof(source: unknown, copy: unknown, immutableText: b
       }
     }
     if (isRetainedPixelText(a)) metadata.push([a, b])
-    if (immutableText && immutable) { replacements.set(b, a); hasReplacements = true }
+    if (immutableText && immutable) { weakMapSet(replacements, b, a); hasReplacements = true }
     return true
   }
   let proved = false
@@ -167,10 +120,10 @@ function positionedCustodyProof(source: unknown, copy: unknown, immutableText: b
  * native value or accessor prevents whole-graph reuse, independently prove each
  * retained text subtree before transferring its preparation authority. */
 function transferIndependentTextCustody(source: unknown, copy: unknown): void {
-  const seen = new WeakSet<object>()
+  const seen = new NativeWeakSet<object>()
   const visit = (a: unknown, b: unknown): void => {
-    if (a === null || typeof a !== 'object' || b === null || typeof b !== 'object' || seen.has(b)) return
-    seen.add(b)
+    if (a === null || typeof a !== 'object' || b === null || typeof b !== 'object' || weakSetHas(seen, b)) return
+    weakSetAdd(seen, b)
     if (isRetainedPixelText(a)) {
       const proof = positionedCustodyProof(a, b, false)
       if (proof) {
@@ -203,10 +156,6 @@ function transferIndependentTextCustody(source: unknown, copy: unknown): void {
 /** Public copies remain independent mutable snapshots. Private native copies
  * may share only constructor-owned immutable text, preserving custody cost. */
 export function clonePositioned<T>(source: T, immutableText = false): T {
-  if (immutableText && PrivatePositionedData.has(source)) {
-    const copy = copyPrivatePositioned(source)
-    if (copy !== undefined) return copy
-  }
   // Native admission must precede reflection: even a descriptor trap can
   // delete an uncloneable Proxy before structuredClone gets to reject it.
   const copy = structuredClone(source)
@@ -215,13 +164,13 @@ export function clonePositioned<T>(source: T, immutableText = false): T {
   const { metadata, replacements, hasReplacements } = proof
   for (const [a, b] of metadata) transferRetainedPixelText(a, b)
   if (!hasReplacements) return copy
-  const seen = new WeakSet<object>()
+  const seen = new NativeWeakSet<object>()
   const retain = (value: unknown): unknown => {
     if (value === null || typeof value !== 'object') return value
-    const replacement = replacements.get(value)
+    const replacement = weakMapGet(replacements, value)
     if (replacement) return replacement
-    if (seen.has(value)) return value
-    seen.add(value)
+    if (weakSetHas(seen, value)) return value
+    weakSetAdd(seen, value)
     const kind = clonedKind(value)
     if (kind === 'map') {
       const entries = mapSnapshot(value), target = value as Map<unknown, unknown>
@@ -252,9 +201,9 @@ export function clonePositioned<T>(source: T, immutableText = false): T {
 }
 /** Membership records actual private cache geometry, including its operation
  * wrappers, never a caller brand. */
-export function isRetainedPositionedSnapshot(result: object): boolean { return retainedResults.has(result) }
+export function isRetainedPositionedSnapshot(result: object): boolean { return weakSetHas(retainedResults, result) }
 /** Captured geometry stays cache-private even when a drawing must be rebuilt. */
-export function positionedDrawingNeedsCopy(result: object): boolean { return copiedResults.has(result) }
+export function positionedDrawingNeedsCopy(result: object): boolean { return weakSetHas(copiedResults, result) }
 export function cachedPositioned(family: object, key: string, alreadyObserved = false, immutableText = false): FamilyLayoutResult | undefined {
   const value = results.get(isolatedKey(family, key))
   if (!alreadyObserved) observeCache('positioned-layout', value ? 'hit' : 'miss')
@@ -271,17 +220,17 @@ export function borrowedPositioned(family: object, key: string, nativeSvgRequest
   // Only the private renderer opts in after checking the captured family,
   // backend, native producer and metric identities. Generic/public cache
   // users do not acquire a drawing capability by supplying a request object.
-  if (reuseCapturedDrawing && nativeSvgRequest && value && !nativeResidency.has(value)) {
-    nativeResidency.set(value, { locallyRepeated: false })
+  if (reuseCapturedDrawing && nativeSvgRequest && value && !weakMapHas(nativeResidency, value)) {
+    weakMapSet(nativeResidency, value, { locallyRepeated: false })
   }
-  if (nativeSvgRequest && value && nativeResidency.has(value) && (reuseCapturedDrawing || !copiedResults.has(value.result))) {
+  if (nativeSvgRequest && value && weakMapHas(nativeResidency, value) && (reuseCapturedDrawing || !weakSetHas(copiedResults, value.result))) {
     // The operation owns this wrapper. A retained request cannot keep the
     // cache graph alive through its proof after eviction or an early exit.
     const result = Object.freeze({ ...value.result })
     transferGraphLayoutDecisions(value.result, result)
-    nativeOwners.set(result, { key: isolated, snapshot: value, request: nativeSvgRequest })
-    retainedResults.add(result)
-    if (copiedResults.has(value.result)) copiedResults.add(result)
+    weakMapSet(nativeOwners, result, { key: isolated, snapshot: value, request: nativeSvgRequest })
+    weakSetAdd(retainedResults, result)
+    if (weakSetHas(copiedResults, value.result)) weakSetAdd(copiedResults, result)
     return { ...value, result }
   }
   return value
@@ -307,25 +256,23 @@ function retainSnapshot(family: object, key: string, value: FamilyLayoutResult, 
     }
     transferGraphLayoutDecisions(value, retained.result)
   }
-  retainPrivatePositionedData(retained.result)
-  retainPrivatePositionedData(retained.result.positioned)
-  if (!copy) nativeResidency.set(retained, { locallyRepeated: false })
+  if (!copy) weakMapSet(nativeResidency, retained, { locallyRepeated: false })
   results.set(isolatedKey(family, key), retained, weight)
-  retainedResults.add(retained.result)
-  if (copy) copiedResults.add(retained.result)
+  weakSetAdd(retainedResults, retained.result)
+  if (copy) weakSetAdd(copiedResults, retained.result)
 }
 
 /** The request acquired this entry through the full private positioning key.
  * A public layout copy or arbitrary request/layout pair cannot inherit it. */
 export function cachedNativeDrawing(request: object, layout: FamilyLayoutResult, originalProducer: boolean): RetainedNativeDrawing | undefined {
-  const entry = nativeOwners.get(layout)
+  const entry = weakMapGet(nativeOwners, layout)
   if (!originalProducer) {
-    nativeOwners.delete(layout)
+    weakMapDelete(nativeOwners, layout)
     return undefined
   }
   if (!entry || entry.request !== request || results.get(entry.key) !== entry.snapshot) return undefined
   const serial = ++nativeUse
-  const residency = nativeResidency.get(entry.snapshot)!
+  const residency = weakMapGet(nativeResidency, entry.snapshot)!
   residency.locallyRepeated = residency.lastUse === serial - 1
   residency.lastUse = serial
   const retained = drawings.get(entry.key)
@@ -335,7 +282,7 @@ export function cachedNativeDrawing(request: object, layout: FamilyLayoutResult,
 /** A Scene-only proof cannot authorize native SVG. Its exact lowering and
  * positioned owner are checked independently of an optional native drawing. */
 export function cachedScenePaintCertification(request: object, layout: FamilyLayoutResult, lowering: object): PaintLayoutCertification | undefined {
-  const entry = nativeOwners.get(layout)
+  const entry = weakMapGet(nativeOwners, layout)
   if (!entry || entry.request !== request || results.get(entry.key) !== entry.snapshot) return undefined
   const retained = drawings.get(entry.key)
   return retained?.owner === entry.snapshot && retained.scene?.lowering === lowering ? retained.scene.certification : undefined
@@ -344,13 +291,13 @@ export function cachedScenePaintCertification(request: object, layout: FamilyLay
 /** Share the existing bounded drawing tier, including key and proof weight.
  * A Scene-only proof must never displace an already reusable native artifact. */
 export function retainScenePaintCertification(request: object, layout: FamilyLayoutResult, lowering: object, certification: PaintLayoutCertification): void {
-  const entry = nativeOwners.get(layout)
+  const entry = weakMapGet(nativeOwners, layout)
   if (!entry || entry.request !== request || results.get(entry.key) !== entry.snapshot) return
   const previous = drawings.get(entry.key)
   if (previous?.owner === entry.snapshot && previous.drawing) return
-  const residency = nativeResidency.get(entry.snapshot)!
+  const residency = weakMapGet(nativeResidency, entry.snapshot)!
   const oldest = drawings.leastRecentlyUsed()
-  const oldestUse = oldest && nativeResidency.get(oldest.owner)?.lastUse
+  const oldestUse = oldest && weakMapGet(nativeResidency, oldest.owner)?.lastUse
   const canReplaceAged = oldestUse !== undefined && nativeUse - oldestUse >= DRAWING_REPLACEMENT_AGE
   const minimumWeight = entry.key.length * 2 + 1024
   if (!residency.locallyRepeated && !canReplaceAged && !drawings.canFit(entry.key, minimumWeight)) {
@@ -369,13 +316,13 @@ export function retainScenePaintCertification(request: object, layout: FamilyLay
  * change that leaves the oldest drawing unused may replace drawings.
  * Evicting geometry invalidates its dependent certified drawing artifact. */
 export function retainNativeDrawing(request: object, layout: FamilyLayoutResult, drawing: RetainedNativeDrawing): void {
-  const entry = nativeOwners.get(layout)
+  const entry = weakMapGet(nativeOwners, layout)
   if (!entry || entry.request !== request || results.get(entry.key) !== entry.snapshot) return
-  const residency = nativeResidency.get(entry.snapshot)!
+  const residency = weakMapGet(nativeResidency, entry.snapshot)!
   if (residency.oversized) { observeCache('native-drawing', 'store-skipped', 'weight-limit'); return }
   const lowerBound = residency.drawingWeight ?? entry.key.length * 2 + drawing.svg.length * 4 + 1024
   const oldest = drawings.leastRecentlyUsed()
-  const oldestUse = oldest && nativeResidency.get(oldest.owner)?.lastUse
+  const oldestUse = oldest && weakMapGet(nativeResidency, oldest.owner)?.lastUse
   const canReplaceAged = oldestUse !== undefined && nativeUse - oldestUse >= DRAWING_REPLACEMENT_AGE
   if (!residency.locallyRepeated && !canReplaceAged && !drawings.canFit(entry.key, lowerBound)) {
     observeCache('native-drawing', 'store-skipped', 'drawing-budget'); return

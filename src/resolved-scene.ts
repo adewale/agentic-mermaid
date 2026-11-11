@@ -8,6 +8,8 @@ import { renderPositionedMermaidSVG } from './graphical-render.ts'
 import { emitResolvedConfigDiagnostics } from './render-config-diagnostics.ts'
 import { withSvgInspectionCache } from './svg-inspection-cache.ts'
 import { createScenePartCapture } from './scene/part-capture.ts'
+import { positionedCapturedPaintCertification } from './scene/positioned.ts'
+import { copyOwnedPositioned } from './scene/copy-owned-positioned.ts'
 import { resolveSvgScene } from './scene/resolve-svg.ts'
 import type { ResolvedScene } from './scene/resolved-types.ts'
 
@@ -24,7 +26,7 @@ export function renderResolvedScene(text: ParsedDiagram | string, options: Rende
     if (plan.mode !== 'scene') throw new ResolvedSceneError('RESOLVED_SCENE_UNAVAILABLE', 'frame', 'scene-lowering', 'Resolved Scene requires a family with Scene lowering')
     emitResolvedConfigDiagnostics(request)
     const layout = positionFamilyForNativeRender(request)
-    const capture = createScenePartCapture()
+    const capture = createScenePartCapture(positionedCapturedPaintCertification, copyOwnedPositioned)
     const { svg, layoutCertification } = renderPositionedMermaidSVG(request, layout, [], capture)
     if (!capture.scene || !capture.owners) throw new ResolvedSceneError('RESOLVED_SCENE_UNAVAILABLE', 'frame', 'ownership', 'Backend did not provide resolved Scene ownership')
     // Certification may expand the final SVG viewport around painted strokes.

@@ -958,6 +958,113 @@ test.each([process.execPath, 'node'])('private cache copies preserve intrinsic n
   expect(child.status).toBe(0)
 })
 
+test.each([process.execPath, 'node'])('private cached copies do not expose geometry through replaced collection and reflection helpers (%s)', async runtime => {
+  const child = await runChild(runtime, ['-e', `
+    import assert from 'node:assert/strict'
+    import { retainPositioned, cachedPositioned, borrowedPositioned } from './src/experimental/position-cache.ts'
+    import { copyOwnedPositioned } from './src/scene/copy-owned-positioned.ts'
+    import { transferGraphLayoutDecisions } from './src/layout/decision-evidence.ts'
+    const apply = Reflect.apply, define = Object.defineProperty, descriptor = Object.getOwnPropertyDescriptor, array = Array.isArray
+    const groups = [
+      [[Map.prototype, 'has'], [Map.prototype, 'get'], [Map.prototype, 'set'], [Set.prototype, 'add']],
+      [[Array.prototype, 'push'], [Array.prototype, Symbol.iterator]],
+      [[Object, 'getPrototypeOf'], [Object, 'getOwnPropertyDescriptors'], [Object, 'keys'], [Object, 'defineProperty']],
+      [[WeakSet.prototype, 'has'], [WeakSet.prototype, 'add']],
+      [[WeakMap.prototype, 'get'], [WeakMap.prototype, 'set']],
+    ]
+    for (let group = 0; group < groups.length; group++) {
+      const point = { privateCopyMarker: 'owned', x: 20, y: 30 }, family = {}
+      const geometry = { privateCopyMarker: 'owned', width: 100, height: 80, point,
+        list: [point], map: new Map([['point', point]]), set: new Set([point]) }
+      geometry.self = geometry
+      retainPositioned(family, 'private-callback-' + group, { positioned: geometry })
+      let exposures = 0
+      const observe = (value, depth = 0) => {
+        if (!value || typeof value !== 'object' || depth > 2) return
+        if (value.privateCopyMarker === 'owned') {
+          exposures++
+          if ('width' in value) value.width = 999
+          if ('x' in value) value.x = 999
+        } else if (value.privateCopyMarker?.value === 'owned') {
+          exposures++
+          if (value.width) value.width.value = 999
+          if (value.x) value.x.value = 999
+        }
+        if (value.value?.result?.positioned) observe(value.value.result.positioned, depth + 1)
+        if (array(value)) for (let index = 0; index < Math.min(2, value.length); index++) observe(value[index], depth + 1)
+      }
+      const restores = []
+      for (let index = 0; index < groups[group].length; index++) {
+        const target = groups[group][index][0], key = groups[group][index][1], previous = descriptor(target, key)
+        restores[restores.length] = [target, key, previous]
+        define(target, key, { ...previous, value: function(...args) {
+          observe(this)
+          for (let arg = 0; arg < args.length; arg++) observe(args[arg])
+          return apply(previous.value, this, args)
+        } })
+      }
+      let copied
+      try {
+        const snapshot = borrowedPositioned(family, 'private-callback-' + group)
+        copied = copyOwnedPositioned(snapshot.result.positioned)
+        transferGraphLayoutDecisions(snapshot.result, { positioned: copied })
+      }
+      finally { for (let index = restores.length - 1; index >= 0; index--) define(restores[index][0], restores[index][1], restores[index][2]) }
+      assert.equal(exposures, 0, 'private callback group ' + group)
+      assert.equal(copied.width, 100)
+      assert.equal(copied.point.x, 20)
+      assert.equal(copied.list[0], copied.point)
+      assert.equal(copied.map.get('point'), copied.point)
+      assert.ok(copied.set.has(copied.point))
+      assert.equal(copied.self, copied)
+      copied.point.x = 400
+      const later = cachedPositioned(family, 'private-callback-' + group).positioned
+      assert.equal(later.width, 100)
+      assert.equal(later.point.x, 20)
+      assert.equal(point.x, 20)
+    }
+  `], { cwd: `${import.meta.dir}/../..` })
+  expect(child.stderr).toBe('')
+  expect(child.status).toBe(0)
+})
+
+test('warm public renders do not lend cached geometry to prototype instrumentation', async () => {
+  const child = await runChild(process.execPath, ['-e', `
+    import assert from 'node:assert/strict'
+    import { renderMermaidSVGWithReceipt, renderResolvedScene } from './src/index.ts'
+    const apply = Reflect.apply, define = Object.defineProperty, descriptor = Object.getOwnPropertyDescriptor
+    for (const projection of ['svg', 'resolved']) {
+      const source = 'pie\\n"Owned loan ' + projection + '":4\\n"Other":6', options = { embedFontImport: false }
+      let expectedSvg
+      for (let warm = 0; warm < 3; warm++) expectedSvg = renderMermaidSVGWithReceipt(source, options)
+      const expectedScene = renderResolvedScene(source, options), captured = [], restores = []
+      const observe = value => {
+        const positioned = value?.positioned ?? value?.result?.positioned ?? value?.snapshot?.result?.positioned
+        if (positioned && typeof positioned.width === 'number') captured.push(positioned)
+      }
+      for (const [prototype, methods] of [[WeakMap.prototype, ['get', 'set', 'has', 'delete']], [WeakSet.prototype, ['has', 'add']]]) {
+        for (const key of methods) {
+          const previous = descriptor(prototype, key)
+          restores.push([prototype, key, previous])
+          define(prototype, key, { ...previous, value: function(...args) {
+            for (const argument of args) observe(argument)
+            return apply(previous.value, this, args)
+          } })
+        }
+      }
+      let observed
+      try { observed = projection === 'svg' ? renderMermaidSVGWithReceipt(source, options) : renderResolvedScene(source, options) }
+      finally { for (let index = restores.length - 1; index >= 0; index--) define(restores[index][0], restores[index][1], restores[index][2]) }
+      assert.deepEqual(observed, projection === 'svg' ? expectedSvg : expectedScene)
+      for (const geometry of captured) geometry.width = Number.NaN
+      assert.deepEqual(renderMermaidSVGWithReceipt(source, options), expectedSvg)
+      assert.deepEqual(renderResolvedScene(source, options), expectedScene)
+    }
+  `], { cwd: `${import.meta.dir}/../..`, env: { ...process.env, AGENTIC_MERMAID_SCENE_ASSERTIONS: '0', AGENTIC_MERMAID_ELK_CACHE: '1' } })
+  expect(child.stderr).toBe('')
+  expect(child.status).toBe(0)
+})
+
 test.each([process.execPath, 'node'])('native snapshots capture getters once and reject later uncloneable values (%s)', async runtime => {
   const child = await runChild(runtime, ['-e', `
     import assert from 'node:assert/strict'

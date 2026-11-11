@@ -1,3 +1,4 @@
+import { NativeWeakMap, NativeWeakSet, weakMapGet, weakMapHas, weakMapSet, weakSetAdd, weakSetHas } from './shared/intrinsics.ts'
 import { isOwnedFamily } from './experimental/owned-family.ts'
 import { isOriginalEnrolledDefaultBackend } from './scene/backend.ts'
 import { nativeDrawingOf, originalNativeDrawingOf, type DrawingProducer } from './scene/drawing.ts'
@@ -25,9 +26,9 @@ import type { PositionedDiagram } from './types.ts'
 
 // A certification and its consumers use one projection of the same final
 // artifact. Keep this internal evidence outside descriptor-owned return data.
-const retainedProjections = new WeakMap<FamilyLayoutResult, FamilyPositionedView>()
-const borrowedNativeProducers = new WeakMap<FamilyLayoutResult, DrawingProducer>()
-const reportedFallbacks = new WeakSet<ResolvedRenderRequest>()
+const retainedProjections = new NativeWeakMap<FamilyLayoutResult, FamilyPositionedView>()
+const borrowedNativeProducers = new NativeWeakMap<FamilyLayoutResult, DrawingProducer>()
+const reportedFallbacks = new NativeWeakSet<ResolvedRenderRequest>()
 // The complete source envelope repeats several text views. Admit useful exact
 // keys while the positioned/drawing tiers still account for their residency.
 const MAX_POSITIONED_KEY_CHARACTERS = 256 * 1024
@@ -35,8 +36,8 @@ const MAX_POSITIONED_KEY_CHARACTERS = 256 * 1024
 /** Pixel dependencies in terminal renderers use the same evidence boundary. */
 export function retainRequestGraphLayoutDecision(request: ResolvedRenderRequest, decision: GraphLayoutDecision, role: 'primary' | 'companion'): void {
   retainGraphLayoutDecision(request, { ...decision, role })
-  if (decision.requested !== 'agentic' || decision.selected !== 'elk' || reportedFallbacks.has(request)) return
-  reportedFallbacks.add(request)
+  if (decision.requested !== 'agentic' || decision.selected !== 'elk' || weakSetHas(reportedFallbacks, request)) return
+  weakSetAdd(reportedFallbacks, request)
   const diagnostic = {
     code: 'INEFFECTIVE_CONFIG' as const,
     field: 'graphLayout.backend',
@@ -47,7 +48,7 @@ export function retainRequestGraphLayoutDecision(request: ResolvedRenderRequest,
 }
 
 export function retainedFamilyProjection(result: FamilyLayoutResult): FamilyPositionedView | undefined {
-  return retainedProjections.get(result)
+  return weakMapGet(retainedProjections, result)
 }
 
 export function normalizeFamilyLayoutResult(result: FamilyLayoutResult | PositionedDiagram): FamilyLayoutResult {
@@ -70,7 +71,7 @@ export function positionFamilyForNativeRender(request: ResolvedRenderRequest): F
     && isOwnedFamily(plan.family) && reusableMetrics
     && !!producer && producer === originalNativeDrawingOf(plan.family.lowerScene) && !sceneAssertionsEnabled(request)
   const result = positionFamily(plan.family.id, request, request.source, {}, borrow, true)
-  if (borrow && isRetainedPositionedSnapshot(result)) borrowedNativeProducers.set(result, producer!)
+  if (borrow && isRetainedPositionedSnapshot(result)) weakMapSet(borrowedNativeProducers, result, producer!)
   return result
 }
 
@@ -78,13 +79,14 @@ export function positionFamilyForNativeRender(request: ResolvedRenderRequest): F
  * Detach borrowed geometry before replacement producers, and captured copies
  * before any producer. Public inputs keep their original getter observations. */
 export function positionedForNativeProducer(layout: FamilyLayoutResult, producer: DrawingProducer): PositionedDiagram {
-  const original = borrowedNativeProducers.get(layout)
+  const original = weakMapGet(borrowedNativeProducers, layout)
   return original && (original !== producer || positionedDrawingNeedsCopy(layout)) ? clonePositioned(layout.positioned, true) : layout.positioned
 }
 
 /** Scene lowering can retain aliases; never hand it borrowed cache geometry. */
-export function positionedForSceneLowering(layout: FamilyLayoutResult): PositionedDiagram {
-  return borrowedNativeProducers.has(layout) ? clonePositioned(layout.positioned, true) : layout.positioned
+export function positionedForSceneLowering(layout: FamilyLayoutResult, copy?: (positioned: PositionedDiagram) => PositionedDiagram): PositionedDiagram {
+  if (!weakMapHas(borrowedNativeProducers, layout)) return layout.positioned
+  return copy ? copy(layout.positioned) : clonePositioned(layout.positioned, true)
 }
 
 function positionFamily(familyId: FamilyId, request: ResolvedRenderRequest, source: Readonly<NormalizedMermaidSource>, projectionOptions: FamilyPositionedProjectionOptions, borrow: boolean, immutableText = false): FamilyLayoutResult {
@@ -125,7 +127,7 @@ function positionFamily(familyId: FamilyId, request: ResolvedRenderRequest, sour
       const snapshot = borrowedPositioned(descriptor, boundedKey, request.output === 'svg' ? request : undefined, true)
       if (snapshot?.projection) {
         for (const decision of graphLayoutDecisionsOf(snapshot.result)) retainRequestGraphLayoutDecision(request, decision, role)
-        retainedProjections.set(snapshot.result, snapshot.projection)
+        weakMapSet(retainedProjections, snapshot.result, snapshot.projection)
         return snapshot.result
       }
     }
@@ -156,7 +158,7 @@ function positionFamily(familyId: FamilyId, request: ResolvedRenderRequest, sour
         const view = descriptor.projectPositioned!({ positioned: result.positioned, options: projectionOptions })
         const violations = assessRenderedLayoutHardViolations({ ...view, kind: familyId })
         if (violations.length) throw new LayoutCertificationError([{ strategy, violations: violations.map(value => `${value.metric}: ${value.detail}`) }])
-        retainedProjections.set(result, view)
+        weakMapSet(retainedProjections, result, view)
       } catch (error) {
         if (error instanceof LayoutCertificationError) throw error
         throw new LayoutCertificationError([{ strategy, violations: [error instanceof Error ? error.message : String(error)] }])
@@ -168,7 +170,7 @@ function positionFamily(familyId: FamilyId, request: ResolvedRenderRequest, sour
       const retain = borrow && request.output === 'svg'
         && (familyId === 'sequence' || familyId === 'flowchart' || familyId === 'state' || familyId === 'pie')
         ? retainOwnedNativeSvgPositioned : retainPositioned
-      retain(descriptor, boundedKey, result, retainedProjections.get(result))
+      retain(descriptor, boundedKey, result, weakMapGet(retainedProjections, result))
     }
     return result
   })

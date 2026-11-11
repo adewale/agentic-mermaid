@@ -1,3 +1,7 @@
+import type { FamilyLayoutResult } from '../agent/families.ts'
+import type { ResolvedRenderRequest } from '../render-contract.ts'
+import type { PaintLayoutCertification } from './paint-certification.ts'
+import type { PositionedDiagram } from '../types.ts'
 import type { StyleBackendContext } from './backend.ts'
 import type { SceneDoc, SceneNode } from './ir.ts'
 import { scanSvgStartTags } from '../svg-structure.ts'
@@ -6,6 +10,8 @@ import { scanSvgStartTags } from '../svg-structure.ts'
 export interface ScenePartCapture {
   scene?: SceneDoc
   owners?: number[]
+  certify?: (request: ResolvedRenderRequest, layout: FamilyLayoutResult, scene: SceneDoc) => PaintLayoutCertification
+  copyPositioned?: (positioned: PositionedDiagram) => PositionedDiagram
   begin(context: StyleBackendContext, scene: SceneDoc): void
   finish(svg: string): string
 }
@@ -13,8 +19,10 @@ export interface ScenePartCapture {
 const capturePart = Symbol()
 type CapturingContext = StyleBackendContext & { [capturePart]?: (node: SceneNode, svg: string) => string }
 
-export function createScenePartCapture(): ScenePartCapture {
+export function createScenePartCapture(certify?: ScenePartCapture['certify'], copyPositioned?: ScenePartCapture['copyPositioned']): ScenePartCapture {
   const capture: ScenePartCapture = {
+    ...(certify ? { certify } : {}),
+    ...(copyPositioned ? { copyPositioned } : {}),
     begin(context, scene) {
       capture.scene = scene
       const owners = new Map(scene.parts.map((node, index) => [node, index]))

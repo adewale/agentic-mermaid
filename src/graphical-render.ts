@@ -92,10 +92,11 @@ function renderContextForPositionedFamily(
 export function lowerPositionedFamilyScene(
   request: ResolvedRenderRequest,
   layout: FamilyLayoutResult,
+  copyPositioned?: ScenePartCapture['copyPositioned'],
 ): SceneDoc {
   const executionPlan = resolvedRenderExecutionPlanOf(request)
   if (executionPlan.mode !== 'scene') throw new Error(`Resolved ${request.output} request has no Scene execution plan`)
-  return retainedPositionedScene(request, layout)
+  return retainedPositionedScene(request, layout, copyPositioned)
 }
 
 function escapeXmlText(value: string): string {
@@ -170,8 +171,8 @@ function renderPositionedWithTextMeasurement(
   let layoutCertification: PaintLayoutCertification | undefined
   if (executionPlan.mode === 'scene') {
     const drawing = capture ? undefined : measureRenderStage('drawing', () => retainedNativeDrawing(request, layout))
-    const scene = drawing ? undefined : measureRenderStage('scene', () => lowerPositionedFamilyScene(request, layout))
-    layoutCertification = measureRenderStage('paint-certification', () => positionedPaintCertification(request, layout, capture ? scene : undefined))
+    const scene = drawing ? undefined : measureRenderStage('scene', () => lowerPositionedFamilyScene(request, layout, capture?.copyPositioned))
+    layoutCertification = measureRenderStage('paint-certification', () => capture?.certify?.(request, layout, scene!) ?? positionedPaintCertification(request, layout))
     if ((effectiveOptions.layoutSafety === 'strict' && layoutCertification.status !== 'passed') || (layoutCertification.status === 'failed' && executionPlan.backend?.inputName === 'default')) throw new PaintLayoutCertificationError(layoutCertification)
     rawSvg = drawing?.svg ?? measureRenderStage('backend', () => {
       const backendContext = {

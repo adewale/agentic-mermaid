@@ -12,15 +12,17 @@ import { admitFamilyScene } from './admission.ts'
 import { sceneAssertionsEnabled } from './assertions.ts'
 import { withDeferredTerminalProjections } from './deferred-terminal-projection.ts'
 import type { SceneDoc } from './ir.ts'
+import type { PositionedDiagram } from '../types.ts'
 import { certifyNativePaint, certifyScenePaint, type PaintLayoutCertification } from './paint-certification.ts'
 import { observeCache, observeFallback } from '../performance-observations.ts'
 import { cachedNativeDrawing, retainNativeDrawing, cachedScenePaintCertification, retainScenePaintCertification, type RetainedNativeDrawing } from '../experimental/position-cache.ts'
+import { NativeWeakMap, weakMapGet, weakMapSet, weakMapDelete } from '../shared/intrinsics.ts'
 
 interface PositionedScene { scene: SceneDoc; lowering: object; crossChecks: boolean; certification?: PaintLayoutCertification }
 type RenderableNativeDrawing = Pick<NativeDrawing, 'svg' | 'preparedText'>
 interface PositionedNative { drawing: RenderableNativeDrawing; producer: DrawingProducer; evidence?: NativeDrawing; certification?: PaintLayoutCertification }
-const native = new WeakMap<FamilyLayoutResult, WeakMap<ResolvedRenderRequest, PositionedNative>>()
-const retained = new WeakMap<FamilyLayoutResult, WeakMap<ResolvedRenderRequest, PositionedScene>>()
+const native = new NativeWeakMap<FamilyLayoutResult, WeakMap<ResolvedRenderRequest, PositionedNative>>()
+const retained = new NativeWeakMap<FamilyLayoutResult, WeakMap<ResolvedRenderRequest, PositionedScene>>()
 // Above this conservative native custody capacity, retain one immutable Scene
 // before drawing. This avoids spending the paint allowance on an abandoned
 // native capture; both adapters certify under the same unchanged limits.
@@ -28,10 +30,10 @@ const ER_NATIVE_PAINT_NODE_CAPACITY = 256
 
 /** Lower once from the actual positioned artifact, shared by SVG, layout,
  * verification and receipt consumers. No source parse or layout is repeated. */
-export function retainedPositionedScene(request: ResolvedRenderRequest, layout: FamilyLayoutResult): SceneDoc {
-  let requests = retained.get(layout)
-  if (!requests) { requests = new WeakMap(); retained.set(layout, requests) }
-  const prior = requests.get(request)
+export function retainedPositionedScene(request: ResolvedRenderRequest, layout: FamilyLayoutResult, copyPositioned?: (positioned: PositionedDiagram) => PositionedDiagram): SceneDoc {
+  let requests = weakMapGet(retained, layout)
+  if (!requests) { requests = new NativeWeakMap(); weakMapSet(retained, layout, requests) }
+  const prior = weakMapGet(requests, request)
   if (prior) {
     observeCache('positioned-scene', 'hit')
     if (sceneAssertionsEnabled(request) && !prior.crossChecks) {
@@ -48,14 +50,14 @@ export function retainedPositionedScene(request: ResolvedRenderRequest, layout: 
     ? { ...request.appearance.colors, embedFontImport: false } : request.appearance.colors
   const assertions = sceneAssertionsEnabled(request)
   const lower = () => {
-    const scene = lowering({ positioned: positionedForSceneLowering(layout), colors, resolved: resolvedFamilyRenderContextOf(request) })
+    const scene = lowering({ positioned: positionedForSceneLowering(layout, copyPositioned), colors, resolved: resolvedFamilyRenderContextOf(request) })
     // Freeze only the unwrapped constructor program's result, directly at its
     // owning boundary. Replaced/inherited hooks retain external-data copying.
     return isOwnedFamily(plan.family) && isOriginalSceneLowering(lowering) ? finalizeOwnedScene(scene) : scene
   }
   const scene = withTextMeasurementExecution(plan.textMeasurement, () => admitFamilyScene(plan.family,
     !assertions && !plan.family.id.startsWith('family:') ? withDeferredTerminalProjections(lower) : lower(), assertions))
-  requests.set(request, { scene, lowering, crossChecks: assertions })
+  weakMapSet(requests, request, { scene, lowering, crossChecks: assertions })
   return scene
 }
 
@@ -74,14 +76,14 @@ export function retainedNativeDrawing(request: ResolvedRenderRequest, layout: Fa
     observeFallback('native-drawing', bypass)
     return undefined
   }
-  let requests = native.get(layout)
-  if (!requests) { requests = new WeakMap(); native.set(layout, requests) }
-  const prior = requests.get(request)
+  let requests = weakMapGet(native, layout)
+  if (!requests) { requests = new NativeWeakMap(); weakMapSet(native, layout, requests) }
+  const prior = weakMapGet(requests, request)
   if (prior) {
     observeCache('native-drawing', 'hit')
     if (prior.producer === nativeDrawingOf(plan.family.lowerScene)) return prior.drawing
     observeCache('native-drawing', 'bypass', 'changed-producer')
-    requests.delete(request)
+    weakMapDelete(requests, request)
   }
   // Reading conformance proves the same default writer capability as render().
   if (plan.backend) assertBackendConformance(plan.backend.conformance, plan.backend.inputName)
@@ -94,7 +96,7 @@ export function retainedNativeDrawing(request: ResolvedRenderRequest, layout: Fa
     observeCache('native-drawing', 'hit', undefined, 'positioned-owner')
     const cachedProducer = producer
     if (cachedProducer && cachedProducer === nativeDrawingOf(plan.family.lowerScene) && cachedProducer === originalNativeDrawingOf(plan.family.lowerScene)) {
-      requests.set(request, { drawing: cached, producer: cachedProducer, certification: cached.certification })
+      weakMapSet(requests, request, { drawing: cached, producer: cachedProducer, certification: cached.certification })
       return cached
     }
     // An observation callback changed the producer after the lookup. Revoke
@@ -118,41 +120,58 @@ export function retainedNativeDrawing(request: ResolvedRenderRequest, layout: Fa
     ? { ...request.appearance.colors, embedFontImport: false } : request.appearance.colors
   const drawing = withTextMeasurementExecution(plan.textMeasurement, () => drawNative(drawingProducer,
     { positioned: positionedForNativeProducer(layout, drawingProducer), colors, resolved: resolvedFamilyRenderContextOf(request) }, plan.family.id, request.appearance.styled ? request.appearance.style : undefined, isOwnedFamily(plan.family) && drawingProducer === originalNativeDrawingOf(plan.family.lowerScene)))
-  requests.set(request, { drawing, producer: drawingProducer, evidence: drawing })
+  weakMapSet(requests, request, { drawing, producer: drawingProducer, evidence: drawing })
   return drawing
 }
 
-export function positionedPaintCertification(request: ResolvedRenderRequest, layout: FamilyLayoutResult, capturedScene?: SceneDoc): PaintLayoutCertification {
-  const existing = native.get(layout)?.get(request)
-  const drawing = existing?.drawing ?? retainedNativeDrawing(request, layout, capturedScene !== undefined)
-  if (drawing) {
-    const entry = native.get(layout)!.get(request)!
-    observeCache('paint-certification', entry.certification ? 'hit' : 'miss', undefined, 'native')
-    if (entry.certification) return entry.certification
-    const evidence = entry.evidence!
-    const certification = certifyNativePaint(evidence.header, evidence.paint, retainedFamilyProjection(layout), { outputSupported: !request.appearance.colors.shadow })
-    entry.certification = certification
-    const retained: RetainedNativeDrawing = Object.freeze({ svg: drawing.svg, preparedText: drawing.preparedText, certification })
-    const lower = resolvedRenderExecutionPlanOf(request).family.lowerScene
-    if (entry.producer === nativeDrawingOf(lower) && entry.producer === originalNativeDrawingOf(lower)) retainNativeDrawing(request, layout, retained)
-    else {
-      observeCache('native-drawing', 'store-skipped', 'changed-producer')
-      cachedNativeDrawing(request, layout, false)
-    }
-    return certification
+function certifyPositionedNative(request: ResolvedRenderRequest, layout: FamilyLayoutResult, drawing: RenderableNativeDrawing): PaintLayoutCertification {
+  const entry = weakMapGet(weakMapGet(native, layout)!, request)!
+  observeCache('paint-certification', entry.certification ? 'hit' : 'miss', undefined, 'native')
+  if (entry.certification) return entry.certification
+  const evidence = entry.evidence!
+  const certification = certifyNativePaint(evidence.header, evidence.paint, retainedFamilyProjection(layout), { outputSupported: !request.appearance.colors.shadow })
+  entry.certification = certification
+  const retained: RetainedNativeDrawing = Object.freeze({ svg: drawing.svg, preparedText: drawing.preparedText, certification })
+  const lower = resolvedRenderExecutionPlanOf(request).family.lowerScene
+  if (entry.producer === nativeDrawingOf(lower) && entry.producer === originalNativeDrawingOf(lower)) retainNativeDrawing(request, layout, retained)
+  else {
+    observeCache('native-drawing', 'store-skipped', 'changed-producer')
+    cachedNativeDrawing(request, layout, false)
   }
-  const scene = capturedScene ?? retainedPositionedScene(request, layout)
-  const entry = retained.get(layout)!.get(request)!
+  return certification
+}
+
+function certifyPositionedScene(request: ResolvedRenderRequest, layout: FamilyLayoutResult, scene: SceneDoc): PaintLayoutCertification {
+  const entry = weakMapGet(weakMapGet(retained, layout)!, request)!
+  observeCache('paint-certification', entry.certification ? 'hit' : 'miss', undefined, 'scene')
+  if (entry.certification) return entry.certification
   const plan = resolvedRenderExecutionPlanOf(request)
-  const reusableScene = () => capturedScene !== undefined && isOwnedFamily(plan.family)
+  const supported = !request.appearance.colors.shadow && (plan.mode === 'layout' ? request.appearance.inferredBackend === 'default' : plan.mode === 'scene' && plan.backend?.inputName === 'default')
+  return entry.certification = certifyScenePaint(scene, retainedFamilyProjection(layout), { outputSupported: supported })
+}
+
+export function positionedPaintCertification(request: ResolvedRenderRequest, layout: FamilyLayoutResult): PaintLayoutCertification {
+  const requests = weakMapGet(native, layout)
+  const drawing = (requests && weakMapGet(requests, request)?.drawing) ?? retainedNativeDrawing(request, layout)
+  return drawing ? certifyPositionedNative(request, layout, drawing)
+    : certifyPositionedScene(request, layout, retainedPositionedScene(request, layout))
+}
+
+/** Resolved capture supplies this private callback. Ordinary SVG rendering
+ * does not depend on the capture-only certificate-cache path. */
+export function positionedCapturedPaintCertification(request: ResolvedRenderRequest, layout: FamilyLayoutResult, scene: SceneDoc): PaintLayoutCertification {
+  const requests = weakMapGet(native, layout)
+  const drawing = (requests && weakMapGet(requests, request)?.drawing) ?? retainedNativeDrawing(request, layout, true)
+  if (drawing) return certifyPositionedNative(request, layout, drawing)
+  const entry = weakMapGet(weakMapGet(retained, layout)!, request)!
+  const plan = resolvedRenderExecutionPlanOf(request)
+  const reusableScene = () => isOwnedFamily(plan.family)
     && entry.lowering === plan.family.lowerScene && isOriginalSceneLowering(entry.lowering)
     && nativeDrawingOf(entry.lowering) === originalNativeDrawingOf(entry.lowering)
     && originalNativeDrawingOf(entry.lowering) !== undefined
   if (!entry.certification && reusableScene()) entry.certification = cachedScenePaintCertification(request, layout, entry.lowering)
-  observeCache('paint-certification', entry.certification ? 'hit' : 'miss', undefined, 'scene')
-  if (entry.certification) return entry.certification
-  const supported = !request.appearance.colors.shadow && (plan.mode === 'layout' ? request.appearance.inferredBackend === 'default' : plan.mode === 'scene' && plan.backend?.inputName === 'default')
-  const certification = entry.certification = certifyScenePaint(scene, retainedFamilyProjection(layout), { outputSupported: supported })
-  if (reusableScene()) retainScenePaintCertification(request, layout, entry.lowering, certification)
+  const alreadyCertified = entry.certification !== undefined
+  const certification = certifyPositionedScene(request, layout, scene)
+  if (!alreadyCertified && reusableScene()) retainScenePaintCertification(request, layout, entry.lowering, certification)
   return certification
 }
