@@ -1,4 +1,11 @@
-import { pageRectFor } from './backend.ts'
+import { pageRectFor, isBuiltinDefaultBackend, isOriginalEnrolledDefaultBackend } from './backend.ts'
+import { isOwnedFamily } from '../experimental/owned-family.ts'
+import { nativeDrawingOf, originalNativeDrawingOf } from './drawing.ts'
+import { hasPrivateNativePositionedInput, positionedForNativeProducer } from '../positioning.ts'
+import { resolvedFamilyRenderContextOf, resolvedRenderExecutionPlanOf, type ResolvedRenderRequest } from '../render-contract.ts'
+import type { FamilyLayoutResult } from '../agent/families.ts'
+import { textMeasurementCacheIdentity } from '../text-measurement-profile.ts'
+import { sceneAssertionsEnabled } from './assertions.ts'
 import type { StyleSpec } from './style-registry.ts'
 import type { DrawingDocument, DrawingFactory, DrawingProducer } from './drawing.ts'
 import type { PositionedDiagram, RenderContext } from '../types.ts'
@@ -11,7 +18,7 @@ import { createOwnedNativePaintRecorder, multiplySceneOpacity, nativePaintAncest
 import { createNativeSceneValidator, SceneValidationError, SCENE_VALIDATION_LIMITS, assertFinalSvgByteBudget } from './scene-validation-core.ts'
 import { withDeferredTerminalProjections } from './deferred-terminal-projection.ts'
 import { retainedGroupEmission } from './group-emission.ts'
-import { createNativePaintEmission, MAX_OCCLUSION_OPERATIONS } from './native-paint-emission.ts'
+import { createNativePaintEmission, createOriginalNativePaintEmission, MAX_OCCLUSION_OPERATIONS } from './native-paint-emission.ts'
 import type { SvgTextPaintWrite, SvgXmlWrite } from './svg-writer.ts'
 
 interface FragmentData {
@@ -106,9 +113,30 @@ export function drawNative(
   context: RenderContext<PositionedDiagram>,
   family: string,
   style?: StyleSpec,
-): NativeDrawing {
+): NativeDrawing { return drawNativeImplementation(producer, context, family, style, false) }
+
+let originalDrawingDepth = 0
+/** Private resolved-operation adapter; no caller context or RenderOption can
+ * request ownership. Replacement producers and SDK calls keep their snapshot. */
+export function drawOriginalPositionedNative(request: ResolvedRenderRequest, layout: FamilyLayoutResult, producer: DrawingProducer): NativeDrawing | undefined {
+  const plan = resolvedRenderExecutionPlanOf(request)
+  if (originalDrawingDepth || plan.mode !== 'scene' || !plan.backend || !isOwnedFamily(plan.family)
+    || !isBuiltinDefaultBackend(plan.backend.backend) || !isOriginalEnrolledDefaultBackend(plan.backend.backend)
+    || sceneAssertionsEnabled(request) || producer !== nativeDrawingOf(plan.family.lowerScene)
+    || producer !== originalNativeDrawingOf(plan.family.lowerScene) || !hasPrivateNativePositionedInput(layout, producer)
+    || plan.textMeasurement && textMeasurementCacheIdentity(plan.textMeasurement) === undefined) return undefined
+  const colors = request.output === 'png' && request.appearance.colors.embedFontImport !== false
+    ? { ...request.appearance.colors, embedFontImport: false } : request.appearance.colors
+  originalDrawingDepth++
+  try {
+    return drawNativeImplementation(producer, { positioned: positionedForNativeProducer(layout, producer), colors,
+      resolved: resolvedFamilyRenderContextOf(request) }, plan.family.id, request.appearance.styled ? request.appearance.style : undefined, true)
+  } finally { originalDrawingDepth-- }
+}
+
+function drawNativeImplementation(producer: DrawingProducer, context: RenderContext<PositionedDiagram>, family: string, style: StyleSpec | undefined, closeLeaves: boolean): NativeDrawing {
   const header = { family, width: context.positioned.width, height: context.positioned.height, colors: context.colors, transparent: context.resolved.renderOptions.transparent ?? false }
-  const emission = createNativePaintEmission(MAX_OCCLUSION_OPERATIONS)
+  const emission = closeLeaves ? createOriginalNativePaintEmission(MAX_OCCLUSION_OPERATIONS) : createNativePaintEmission(MAX_OCCLUSION_OPERATIONS)
   const xml = emission.xml
   if (family.startsWith('family:')) emission.uncertain()
   let emittedHeader = emission.snapshot(header)

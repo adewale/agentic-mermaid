@@ -3,7 +3,7 @@ import { isOriginalEnrolledDefaultBackend } from './scene/backend.ts'
 import { nativeDrawingOf, originalNativeDrawingOf, preferSceneDrawing, type DrawingProducer } from './scene/drawing.ts'
 import { sceneAssertionsEnabled } from './scene/assertions.ts'
 import { PERFORMANCE_EXPERIMENTS, performanceExperimentEnabled } from './experimental-performance.ts'
-import { borrowedPositioned, cachedPositioned, clonePositioned, isRetainedPositionedSnapshot, positionedDrawingNeedsCopy, retainOwnedNativeSvgPositioned, retainPositioned } from './experimental/position-cache.ts'
+import { borrowedPositioned, cachedPositioned, clonePositioned, positionedDrawingNeedsCopy, retainOwnedNativeSvgPositioned, retainPositioned } from './experimental/position-cache.ts'
 import { observeCache } from './performance-observations.ts'
 // Canonical resolved-request -> positioned-artifact seam.
 //
@@ -67,8 +67,14 @@ export function positionFamilyForNativeRender(request: ResolvedRenderRequest): F
     && isOwnedFamily(plan.family) && !preferSceneDrawing(plan.family.id) && reusableMetrics
     && !!producer && producer === originalNativeDrawingOf(plan.family.lowerScene) && !sceneAssertionsEnabled(request)
   const result = positionFamily(plan.family.id, request, request.source, {}, borrow, true)
-  if (borrow && isRetainedPositionedSnapshot(result)) borrowedNativeProducers.set(result, producer!)
+  if (borrow) borrowedNativeProducers.set(result, producer!)
   return result
+}
+
+/** The selected original owns this private result; the drawing adapter still
+ * detaches results marked as needing a copy before giving them to a producer. */
+export function hasPrivateNativePositionedInput(layout: FamilyLayoutResult, producer: DrawingProducer): boolean {
+  return borrowedNativeProducers.get(layout) === producer
 }
 
 /** A stage/cache observer can replace the native capability after positioning.

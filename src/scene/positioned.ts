@@ -4,7 +4,7 @@ import { createSceneWriteCapture, type SceneWriteReceipt } from './serialization
 import { MAX_OCCLUSION_OPERATIONS } from './native-paint-emission.ts'
 import { assertBackendConformance, isBuiltinDefaultBackend, isOriginalEnrolledDefaultBackend, getBackendDescriptor } from './backend.ts'
 import { nativeDrawingOf, originalNativeDrawingOf, isOriginalSceneLowering, preferSceneDrawing, type DrawingProducer } from './drawing.ts'
-import { drawNative, type NativeDrawing } from './native-drawing.ts'
+import { drawNative, drawOriginalPositionedNative, type NativeDrawing } from './native-drawing.ts'
 import type { FamilyLayoutResult } from '../agent/families.ts'
 import type { ResolvedRenderRequest } from '../render-contract.ts'
 import { resolvedFamilyRenderContextOf, resolvedRenderExecutionPlanOf } from '../render-contract.ts'
@@ -152,7 +152,7 @@ export function retainedNativeDrawing(request: ResolvedRenderRequest, layout: Fa
   const drawingProducer = producer
   const colors = request.output === 'png' && request.appearance.colors.embedFontImport !== false
     ? { ...request.appearance.colors, embedFontImport: false } : request.appearance.colors
-  const drawing = withTextMeasurementExecution(plan.textMeasurement, () => drawNative(drawingProducer,
+  const drawing = withTextMeasurementExecution(plan.textMeasurement, () => drawOriginalPositionedNative(request, layout, drawingProducer) ?? drawNative(drawingProducer,
     { positioned: positionedForNativeProducer(layout, drawingProducer), colors, resolved: resolvedFamilyRenderContextOf(request) }, plan.family.id, request.appearance.styled ? request.appearance.style : undefined))
   requests.set(request, { phase: 'captured', drawing, producer: drawingProducer, evidence: drawing })
   return drawing

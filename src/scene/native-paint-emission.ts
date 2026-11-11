@@ -137,7 +137,13 @@ export function nativeMarkerPaintEvidenceOf(inspection: ScenePaintGeometryInspec
  * call. Lines and polylines retain that actual write's numeric operands;
  * the original operands still supply validation and SVG serialization.
  * Accessors/unsupported data or an exhausted capture keep paint conditional. */
-export function createNativePaintEmission(maxOperations: number) {
+export function createNativePaintEmission(maxOperations: number) { return createPaintEmission(maxOperations, false) }
+
+/** Internal original-producer entry. The request/positioning adapter selects
+ * this only for its private input; the SDK capture factory stays generic. */
+export function createOriginalNativePaintEmission(maxOperations: number) { return createPaintEmission(maxOperations, true) }
+
+function createPaintEmission(maxOperations: number, closeLeaves: boolean) {
   const work = createNativeXmlWork(maxOperations)
   let uncertain = false, pendingCustomRootStyle = false, hasMarkedConnector = false
   // A deliberately smaller admission domain for new served marker proofs.
@@ -146,6 +152,8 @@ export function createNativePaintEmission(maxOperations: number) {
   const resources = new Map<string, string | undefined>()
   const references: NonNullable<Extract<Leaf, { kind: 'connector' }>['markers']['start']>[] = []
   const pay = work.pay
+  // Fixed request/backend/family/producer/position/measurement admission checks.
+  if (closeLeaves && !pay(16)) uncertain = true
   const emissionContext = createEmissionContext(pay, { resources: false })
   const xml = work.capture()
   const failed = Symbol('unsupported-emission')
@@ -204,17 +212,30 @@ export function createNativePaintEmission(maxOperations: number) {
     transferRetainedPixelText(plan.source, result)
     return Object.preventExtensions(result)
   }
-  const copyInner = (value: unknown, depth: number, parents: Set<object>, context?: CaptureContext): unknown => {
+  const copyInner = (value: unknown, depth: number, parents: Set<object>, context?: CaptureContext, close = false): unknown => {
     if (depth > 64) throw failed
     if (value === null || value === undefined || typeof value === 'boolean') return value
     if (typeof value === 'number' || typeof value === 'string') return value
     if (typeof value !== 'object' || !pay() || parents.has(value)) throw failed
-    const prototype = Object.getPrototypeOf(value)
+    if (close) {
+      const retained = Object.preventExtensions(value)
+      if (retained !== value || textPaintExtensible(value)) throw failed
+    }
+    const prototype = close ? textPaintProto(value) : Object.getPrototypeOf(value)
     if (prototype !== Object.prototype && prototype !== null && prototype !== Array.prototype) throw failed
     // The object-entry visit covers constant prototype/reflection work. Key
     // slots and subsequent descriptor/copy visits are distinct paid work.
-    const keys = Object.getOwnPropertyNames(value)
+    const keys = close ? textPaintKeys(value) as readonly string[] : Object.getOwnPropertyNames(value)
     if (!pay(keys.length)) throw failed
+    if (close) {
+      // The original field visit covered descriptor observation and a native
+      // readonly definition. Prepay those same visits before bulk sealing.
+      if (!pay(keys.length)) throw failed
+      if (textPaintFreeze(value) !== value) throw failed
+      // V8 can leave empty-array length writable after preventExtensions +
+      // freeze. Keep the generic walk's explicit readonly length definition.
+      if (Array.isArray(value)) Object.defineProperty(value, 'length', { writable: false })
+    }
     const deferredProjection = deferredTerminalProjectionInput(value)
     // Pay before reading caller data and reuse each descriptor if the typed
     // constructor declines, so fallback cannot repeat uncharged proxy work.
@@ -225,7 +246,7 @@ export function createNativePaintEmission(maxOperations: number) {
     // field can acquire immutable authority through this constructor.
     // A point shortcut may not skip leaf/geometry custody or a text plan's
     // required child instructions. Exact x/y slots already prove point custody.
-    if (!planningText && (context === undefined || context === 'point')
+    if (!close && !planningText && (context === undefined || context === 'point')
       && !deferredProjection && depth < 64 && keys.length === 2 && keys[0] === 'x' && keys[1] === 'y') {
       if (!pay()) throw failed
       x = Object.getOwnPropertyDescriptor(value, 'x')
@@ -245,8 +266,8 @@ export function createNativePaintEmission(maxOperations: number) {
       }
     }
     parents.add(value)
-    const result: Record<string, unknown> | unknown[] = Array.isArray(value) ? [] : {}
-    const kindSlot = context === 'leaf' || context === 'geometry' ? Object.getOwnPropertyDescriptor(value, 'kind') : undefined
+    const result: Record<string, unknown> | unknown[] = close ? value as Record<string, unknown> : Array.isArray(value) ? [] : {}
+    const kindSlot = context === 'leaf' || context === 'geometry' ? (close ? textPaintDescriptor(value, 'kind') : Object.getOwnPropertyDescriptor(value, 'kind')) : undefined
     const kind = kindSlot && Object.hasOwn(kindSlot, 'value') ? kindSlot.value : undefined
     if ((context === 'leaf' || context === 'geometry') && typeof kind !== 'string') throw failed
     let planSlots: TextCopySlot[] | undefined, planHeight = 0
@@ -255,15 +276,17 @@ export function createNativePaintEmission(maxOperations: number) {
     let arrayLength: PropertyDescriptor | undefined
     for (let index = 0; index < keys.length; index++) {
       const key = keys[index]!
+      if (close && typeof key !== 'string') throw failed
       // This property visit owns descriptor retention and scalar assignment;
       // a primitive needs no second visit or numeric formatting/replay.
       let descriptor: PropertyDescriptor | undefined
       if (index < inspected) descriptor = index === 0 ? x : y
       else {
-        if (!pay()) throw failed
-        descriptor = Object.getOwnPropertyDescriptor(value, key)
+        if (!close && !pay()) throw failed
+        descriptor = close ? textPaintDescriptor(value, key) : Object.getOwnPropertyDescriptor(value, key)
       }
       if (!descriptor) continue
+      if (close && (descriptor.writable || descriptor.configurable)) throw failed
       if (key === 'length' && Array.isArray(value)) { arrayLength = descriptor; continue }
       // Deferred terminal geometry is neither read nor used by paint writing.
       if (key === 'terminalProjection' && deferredProjection) continue
@@ -293,7 +316,7 @@ export function createNativePaintEmission(maxOperations: number) {
         : context === 'pixel-part' || context === 'leaf' && kind === 'text' && (key === 'block' || key === 'preparedLines') ? 'pixel-part'
         : context === 'leaf' && kind === 'connector' && key === 'route' ? 'route'
         : (context === 'leaf' && kind === 'shape' || context === 'route') && key === 'geometry' ? 'geometry' : context === 'geometry' && kind === 'polyline' && key === 'points' ? 'points' : pointSlot ? 'point' : undefined
-      const copied = copy(descriptor.value, depth + 1, parents, childContext)
+      const copied = copy(descriptor.value, depth + 1, parents, childContext, close)
       if (planSlots) {
         if (!pay(2)) throw failed
         const child = copied && typeof copied === 'object' ? textPaintApply(textPaintGet, planningText!.plans, [copied]) as TextCopyPlan | undefined : undefined
@@ -305,7 +328,8 @@ export function createNativePaintEmission(maxOperations: number) {
         // below retain their ordinary observable definition operations.
         textPaintDefine(planSlots, String(planSlots.length), { __proto__: null, value: { key, enumerable: descriptor.enumerable!, value: child ? undefined : copied, child, writable: false, configurable: false }, enumerable: true } as PropertyDescriptor)
       }
-      Object.defineProperty(result, key, { value: copied, enumerable: descriptor.enumerable, configurable: false, writable: false })
+      if (!close) Object.defineProperty(result, key, { value: copied, enumerable: descriptor.enumerable, configurable: false, writable: false })
+      else if (copied !== descriptor.value) throw failed
     }
     const requiredFields = context === 'point' ? 3 : context === 'geometry' ? kind === 'line' || kind === 'rect' ? 15 : kind === 'polyline' || kind === 'path' ? 1 : 0
       : context === 'route' || context === 'leaf' && (kind === 'shape' || kind === 'connector') ? 1 : 0
@@ -313,15 +337,15 @@ export function createNativePaintEmission(maxOperations: number) {
     if (Array.isArray(value)) {
       if (!arrayLength || !Object.hasOwn(arrayLength, 'value')) throw failed
       if (context === 'points' && ownedPointSlots !== arrayLength.value) throw failed
-      Object.defineProperty(result, 'length', { value: arrayLength.value, writable: false })
+      if (!close) Object.defineProperty(result, 'length', { value: arrayLength.value, writable: false })
     }
-    if (deferredProjection) {
+    if (deferredProjection && !close) {
       if (planningText) { if (!pay()) throw failed; planningText.pure = false }
       if (!pay(3) || !copyDeferredTerminalProjection(value, result as unknown as ConnectorMark)) throw failed
       const descriptor = Object.getOwnPropertyDescriptor(result, 'terminalProjection')!
       Object.defineProperty(result, 'terminalProjection', { ...descriptor, configurable: false })
     }
-    transferRetainedPixelText(value, result)
+    if (!close) transferRetainedPixelText(value, result)
     // A hostile proxy can change its kind between reflective observations.
     // Never attach a line projection to a different captured geometry kind.
     if (context === 'leaf' || context === 'geometry') {
@@ -336,7 +360,7 @@ export function createNativePaintEmission(maxOperations: number) {
       if (!pay(2)) throw failed
       textPaintApply(textPaintPut, planningText!.plans, [result, { source: value, array: Array.isArray(value), slots: planSlots, length: arrayLength?.value, height: planHeight }])
     }
-    const retained = Object.preventExtensions(result)
+    const retained = close ? result : Object.preventExtensions(result)
     // Only the actual local capture receiver can reuse its document role.
     // Foreign preventExtensions returns keep their original getter path.
     if (context === 'leaf' && kind === 'document' && retained === result && pay(3)) {
@@ -351,8 +375,15 @@ export function createNativePaintEmission(maxOperations: number) {
     if (context === 'text-paint' && retained === result) retainTextPaintPresence(result)
     return retained
   }
-  const copy = (value: unknown, depth = 0, parents = new Set<object>(), context?: CaptureContext): unknown => {
+  const copy = (value: unknown, depth = 0, parents = new Set<object>(), context?: CaptureContext, close = false): unknown => {
     if (depth > 64) throw failed
+    if (close) {
+      if (context === 'pixel-part' && value && typeof value === 'object') {
+        if (!pay(2)) throw failed
+        if (isOwnedPixelTextPart(value)) return value
+      }
+      return copyInner(value, depth, parents, context, true)
+    }
     if (planningText || copyingFirstText || context !== 'pixel-part' || !value || typeof value !== 'object') return copyInner(value, depth, parents, context)
     // Ownership allows retaining reflection instructions; it never authorizes
     // sharing the receivers observed by inherited getters or array methods.
@@ -761,7 +792,7 @@ export function createNativePaintEmission(maxOperations: number) {
         return { svg: record.svg, xmlWrite: written }
       }
       let captured: Leaf | undefined
-      try { captured = copy(node, 0, new Set(), 'leaf') as Leaf } catch { /* Strict mutable fallback. */ }
+      try { captured = copy(node, 0, new Set(), 'leaf', closeLeaves) as Leaf } catch { /* Strict mutable fallback. */ }
       if (!captured) return { node, paintNode: node, ...serialize(node), conditional: true }
       transferSceneNodeSerialization(node, captured)
       const geometry = captured.kind === 'shape' ? captured.geometry : captured.kind === 'connector' && captured.lineStyle !== 'invisible' ? captured.route.geometry : undefined
