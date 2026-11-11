@@ -1,5 +1,5 @@
 import { nativeTextPaintWriteOf, ownedTextPaintRoster } from './inspection.ts'
-import type { SceneNode, SceneDoc, ConnectorMark, Geometry, MarkPaint, ShapeMark } from './ir.ts'
+import type { SceneNode, SceneDoc, ConnectorMark, Geometry, MarkPaint, ShapeMark, MarkerDescriptor } from './ir.ts'
 import type { ScenePaintGeometryInspection, ScenePaintGeometry } from './inspection.ts'
 import { scanSvgStartTags, decodedSvgAttributeValue } from '../svg-structure.ts'
 import { markerResourceMarkupCost, serializeMarkerResource } from './marker-resources.ts'
@@ -16,10 +16,12 @@ import { createEmissionContext, type EmissionColorResolver } from './emission-co
 import { verifySvgDocumentEnvelope } from '../output-security.ts'
 import { bindNativeGroupEmission, captureNativeGroupEmission, transferNativeGroupEmission } from './group-emission.ts'
 
+import { computeMarkerPaintEvidence, type MarkerPaintEvidence } from './marker-paint-identity.ts'
+
 export { MAX_OCCLUSION_OPERATIONS } from './paint-work.ts'
 
 type Leaf = Exclude<SceneNode, { kind: 'group' }>
-export interface NativeEmissionWork { readonly operations: number; readonly exhausted: boolean; readonly uncertain: boolean; readonly closedMarkerContext: boolean; readonly fractionalCircleContext: boolean; readonly header: Omit<SceneDoc, 'parts'>; readonly resolveColor?: EmissionColorResolver }
+export interface NativeEmissionWork { readonly operations: number; readonly exhausted: boolean; readonly uncertain: boolean; readonly closedMarkerContext: boolean; readonly fractionalCircleContext: boolean; readonly header: Omit<SceneDoc, 'parts'>; readonly resolveColor?: EmissionColorResolver; readonly markerPaint?: (marker: MarkerDescriptor) => unknown }
 const textPaintSet = WeakSet, textPaintMap = WeakMap, textPaintApply = Reflect.apply
 const textPaintGet = WeakMap.prototype.get, textPaintPut = WeakMap.prototype.set
 const textPaintAdd = WeakSet.prototype.add, textPaintHas = WeakSet.prototype.has, textPaintFreeze = Object.freeze
@@ -34,6 +36,102 @@ const emittedOccurrences = new WeakSet<ScenePaintGeometry>()
 export function hasNativeEmissionOccurrence(primitive: ScenePaintGeometry): boolean { return emittedOccurrences.has(primitive) }
 const emissionWork = new textPaintMap<ScenePaintGeometryInspection, NativeEmissionWork>()
 export function nativeEmissionWorkOf(inspection: ScenePaintGeometryInspection): NativeEmissionWork | undefined { return textPaintApply(textPaintGet, emissionWork, [inspection]) }
+
+const markerPaintIssuer = { __proto__: null }
+const markerFactMap = Map, markerFactGet = Map.prototype.get, markerFactSet = Map.prototype.set
+const markerPaintFields = ['fill', 'stroke', 'opacity', 'strokeWidth', 'strokeMiterlimit', 'strokeLinecap', 'strokeLinejoin', 'strokeDasharray', 'strokeDashoffset', 'paintOrder'] as const
+class CompletedMarkerPaint {
+  readonly #value: MarkerPaintEvidence
+  readonly #mask: number
+  constructor(issuer: object, value: MarkerPaintEvidence, mask: number) {
+    if (issuer !== markerPaintIssuer) throw new TypeError('Completed marker paint requires its resource write')
+    // Only private scalar/color operands are retained; no sealing callback can
+    // replace or mutate this completed value after another reference reads it.
+    this.#value = { identity: value.identity, fillColor: value.fillColor && [value.fillColor[0], value.fillColor[1], value.fillColor[2], value.fillColor[3]],
+      strokeColor: value.strokeColor && [value.strokeColor[0], value.strokeColor[1], value.strokeColor[2], value.strokeColor[3]],
+      strokeVisible: value.strokeVisible, survivingFill: value.survivingFill, transparent: value.transparent }
+    this.#mask = mask
+  }
+  static mask(value: CompletedMarkerPaint): number { return value.#mask }
+  static read(source: CompletedMarkerPaint, work: () => boolean): MarkerPaintEvidence | undefined {
+    for (let index = 0; index < 18; index++) if (!work()) return undefined
+    const value = source.#value
+    return { identity: value.identity, fillColor: value.fillColor && [value.fillColor[0], value.fillColor[1], value.fillColor[2], value.fillColor[3]],
+      strokeColor: value.strokeColor && [value.strokeColor[0], value.strokeColor[1], value.strokeColor[2], value.strokeColor[3]],
+      strokeVisible: value.strokeVisible, survivingFill: value.survivingFill, transparent: value.transparent }
+  }
+}
+const completedMarkerMask = CompletedMarkerPaint.mask, completedMarkerView = CompletedMarkerPaint.read
+class CheckedMarkerResource {
+  readonly #marker: MarkerDescriptor
+  #prepared = false
+  #paint: CompletedMarkerPaint | undefined
+  #resolver: EmissionColorResolver | undefined
+  constructor(issuer: object, marker: MarkerDescriptor) {
+    if (issuer !== markerPaintIssuer) throw new TypeError('Checked marker resource requires its actual definition')
+    this.#marker = marker
+  }
+  static marker(value: unknown): MarkerDescriptor | undefined { return value && typeof value === 'object' && #marker in value ? value.#marker : undefined }
+  static prepare(issuer: object, value: CheckedMarkerResource, resolver: EmissionColorResolver, pay: (count?: number) => boolean): void {
+    if (issuer !== markerPaintIssuer) throw new TypeError('Completed marker paint requires its resource write')
+    if (value.#prepared) return
+    value.#prepared = true; value.#resolver = resolver
+    if (!pay(4)) return
+    const descriptor = Object.getOwnPropertyDescriptor(value.#marker, 'paint')
+    if (!descriptor || !Object.hasOwn(descriptor, 'value') || descriptor.writable || descriptor.configurable || !descriptor.value || typeof descriptor.value !== 'object') return
+    const paint = descriptor.value as MarkPaint
+    if (!pay(2) || Object.isExtensible(paint)) return
+    let mask = 0
+    for (let index = 0; index < markerPaintFields.length; index++) {
+      if (!pay()) return
+      const field = markerPaintFields[index]!, slot = Object.getOwnPropertyDescriptor(paint, field)
+      if (!slot) { if (field in paint) return; continue }
+      if (!Object.hasOwn(slot, 'value') || slot.writable || slot.configurable || slot.value !== undefined && typeof slot.value !== 'string') return
+      mask |= 1 << index
+    }
+    const prepared = computeMarkerPaintEvidence(value.#marker, resolver, () => pay(), true)
+    if (prepared && pay(24)) value.#paint = new CompletedMarkerPaint(markerPaintIssuer, prepared, mask)
+  }
+  static paint(value: CheckedMarkerResource, resolver: EmissionColorResolver): CompletedMarkerPaint | undefined { return value.#resolver === resolver ? value.#paint : undefined }
+}
+const checkedMarkerSource = CheckedMarkerResource.marker, prepareCheckedMarker = CheckedMarkerResource.prepare, checkedMarkerPaint = CheckedMarkerResource.paint
+class NativeMarkerPaintReference {
+  readonly #inspection: ScenePaintGeometryInspection
+  readonly #marker: MarkerDescriptor
+  readonly #resource: CheckedMarkerResource
+  #paint: MarkPaint | undefined
+  readonly #closed: boolean
+  constructor(issuer: object, inspection: ScenePaintGeometryInspection, marker: MarkerDescriptor, resource: CheckedMarkerResource, closed: boolean) {
+    if (issuer !== markerPaintIssuer) throw new TypeError('Marker paint requires its actual reference')
+    this.#inspection = inspection; this.#marker = marker; this.#resource = resource; this.#closed = closed
+  }
+  static complete(issuer: object, value: unknown, inspection: ScenePaintGeometryInspection, marker: MarkerDescriptor, resolver: EmissionColorResolver, pay: (count?: number) => boolean): void {
+    if (issuer !== markerPaintIssuer) throw new TypeError('Marker paint requires its actual reference')
+    if (!value || typeof value !== 'object' || !(#marker in value) || value.#inspection !== inspection || value.#marker !== marker || !value.#closed) return
+    prepareCheckedMarker(markerPaintIssuer, value.#resource, resolver, pay)
+    if (!checkedMarkerPaint(value.#resource, resolver) || !pay(4)) return
+    const paint = Object.getOwnPropertyDescriptor(marker, 'paint')
+    if (!paint || !Object.hasOwn(paint, 'value') || paint.writable || paint.configurable || !paint.value || typeof paint.value !== 'object' || Object.isExtensible(paint.value)) return
+    value.#paint = paint.value
+  }
+  static read(value: unknown, inspection: ScenePaintGeometryInspection, marker: MarkerDescriptor, resolver: EmissionColorResolver, work: () => boolean): MarkerPaintEvidence | undefined {
+    if (!value || typeof value !== 'object' || !(#marker in value) || value.#inspection !== inspection || value.#marker !== marker || !value.#paint) return undefined
+    const paint = checkedMarkerPaint(value.#resource, resolver)
+    if (!paint || !work()) return undefined
+    for (let index = 0; index < markerPaintFields.length; index++) {
+      if (completedMarkerMask(paint) & (1 << index)) continue
+      if (!work() || markerPaintFields[index]! in value.#paint) return undefined
+    }
+    return completedMarkerView(paint, work)
+  }
+}
+const readNativeMarkerPaint = NativeMarkerPaintReference.read, completeNativeMarkerPaint = NativeMarkerPaintReference.complete
+export function nativeMarkerPaintEvidenceOf(inspection: ScenePaintGeometryInspection, marker: MarkerDescriptor | undefined, boundColor: EmissionColorResolver | undefined, work: () => boolean): MarkerPaintEvidence | undefined {
+  if (!marker || !boundColor || !work()) return undefined
+  const context = nativeEmissionWorkOf(inspection)
+  if (!context || context.uncertain || context.exhausted || context.resolveColor !== boundColor) return undefined
+  try { return readNativeMarkerPaint(context.markerPaint?.(marker), inspection, marker, boundColor, work) } catch { return undefined }
+}
 
 /** Every occurrence retains immutable operands BEFORE the existing writer
  * call. Lines and polylines retain that actual write's numeric operands;
@@ -421,7 +519,7 @@ export function createNativePaintEmission(maxOperations: number) {
   }
   // Immutable operands make this a finite field walk, without allocating a
   // second descriptor array or JSON representation before its work is paid.
-  const same = (a: unknown, b: unknown): boolean => {
+  const same = (a: unknown, b: unknown, closed?: { valid: boolean }): boolean => {
     if (!pay()) return false
     if (typeof a === 'string' && typeof b === 'string') return pay(a.length + b.length) && a === b
     if (a === b) return true
@@ -436,7 +534,8 @@ export function createNativePaintEmission(maxOperations: number) {
       const da = Object.getOwnPropertyDescriptor(a, key), db = Object.getOwnPropertyDescriptor(b, key)
       if (!da) continue
       na++
-      if (!db || !Object.hasOwn(da, 'value') || !Object.hasOwn(db, 'value') || da.enumerable !== db.enumerable || !same(da.value, db.value)) return false
+      if (closed && db && (db.writable || db.configurable)) closed.valid = false
+      if (!db || !Object.hasOwn(da, 'value') || !Object.hasOwn(db, 'value') || da.enumerable !== db.enumerable || !same(da.value, db.value, closed)) return false
     }
     for (let keyIndex = 0; keyIndex < bk.length; keyIndex++) { if (!pay()) return false; if (Object.hasOwn(b, bk[keyIndex]!)) nb++ }
     return na === nb
@@ -762,18 +861,34 @@ export function createNativePaintEmission(maxOperations: number) {
       // a wrapper around its already-issued occurrences borrow fresh custody.
       if (emissionWork.has(inspection)) return
       if (pay(inspection.primitives.length) && inspection.primitives.some(primitive => emittedOccurrences.has(primitive))) uncertain = true
-      const checked = new Map<string, (typeof references)[number]>()
+      const checked = new Map<string, CheckedMarkerResource>()
+      let markerPaintReferences: Map<MarkerDescriptor, NativeMarkerPaintReference> | undefined
+      try { if (references.length && pay(2)) markerPaintReferences = new markerFactMap() } catch { /* Optional correspondence; the generic proof remains. */ }
+      const retainMarkerPaint = (marker: MarkerDescriptor, reference: NativeMarkerPaintReference): void => {
+        try { if (markerPaintReferences) textPaintApply(markerFactSet, markerPaintReferences, [marker, reference]) } catch { /* No completed fact. */ }
+      }
+      const retainedMarkerPaint = (marker: MarkerDescriptor): unknown => {
+        try { return markerPaintReferences && textPaintApply(markerFactGet, markerPaintReferences, [marker]) } catch { return undefined }
+      }
       for (const marker of references) {
         if (!pay()) break
         try {
           if (!pay(2)) break
-          const prior = checked.get(marker.id)
-          if (prior && same(prior, marker)) continue
+          const entry = checked.get(marker.id), prior = checkedMarkerSource(entry)
+          const closure = { valid: true }
+          if (prior && same(prior, marker, closure)) {
+            if (pay(4)) retainMarkerPaint(marker, new NativeMarkerPaintReference(markerPaintIssuer, inspection, marker, entry!, closure.valid))
+            continue
+          }
           const cost = markerResourceMarkupCost(marker, pay, { maxCost: maxOperations, maxDepth: undefined, iterableKeys: false })
           if (cost === undefined || !pay(cost * 2)) { uncertain = true; break }
           const expected = serializeMarkerResource(marker, { indent: 0 }).replace(/(^|\n)[ \t]+(?=<)/g, '$1')
           if (!pay(expected.length * 3) || resources.get(marker.id) !== expected) uncertain = true
-          else if (pay(2)) checked.set(marker.id, marker)
+          else if (pay(6)) {
+            const resource = new CheckedMarkerResource(markerPaintIssuer, marker)
+            checked.set(marker.id, resource)
+            retainMarkerPaint(marker, new NativeMarkerPaintReference(markerPaintIssuer, inspection, marker, resource, true))
+          }
         } catch { uncertain = true }
       }
       // Unbound opaque resources have no descriptor/byte comparison and
@@ -813,12 +928,20 @@ export function createNativePaintEmission(maxOperations: number) {
       if (actualPaintRoster === true) {
         for (let i = 0; i < inspection.primitives.length; i++) occurrence(inspection.primitives[i]!)
       } else for (const primitive of inspection.primitives) occurrence(primitive)
+      const boundResolver = checkedContext.resolveColor
+      if (!uncertain && !work.exhausted() && definitionsClosed && boundResolver) {
+        for (const marker of references) {
+          if (!pay(3)) break
+          const entry = retainedMarkerPaint(marker)
+          try { completeNativeMarkerPaint(markerPaintIssuer, entry, inspection, marker, boundResolver, pay) } catch { /* Foreign helpers retain their live proof fallback. */ }
+        }
+      }
       const operations = work.operations(), exhausted = work.exhausted()
       textPaintApply(textPaintPut, emissionWork, [inspection, (usedTextPaint ? textPaintFreeze : Object.freeze)({ operations, exhausted, uncertain,
         closedMarkerContext: closedMarkerContext && definitionsClosed && !unrecordedPaint && rootOpens === 1 && rootCloses === 1 && !uncertain && !exhausted,
         fractionalCircleContext: checkedContext.fractionalCircleContext && definitionsClosed && resources.size === checked.size
           && !unrecordedPaint && rootOpens === 1 && rootCloses === 1 && !uncertain && !exhausted,
-        header, resolveColor: uncertain ? undefined : checkedContext.resolveColor })])
+        header, resolveColor: uncertain ? undefined : checkedContext.resolveColor, markerPaint: retainedMarkerPaint })])
     },
   }
 }
