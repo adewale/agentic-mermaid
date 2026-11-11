@@ -2188,3 +2188,24 @@ wrong-script-root browser results remain retained/disqualified for attribution.
 Chain300both stillU; isolated copy/group/Scene-switch shortcuts insufficient.
 Next: larger shared capture/validation subtraction; keep Native100/payload losses.
 
+### 11 November — reuse final Native group checks across context and XML
+
+Parent `51e6cfca63c8d70180b3cff293da8f9582f5153e`: one bound attribute roster
+owns final plain-group checks; context/XML reuse it. Share the existing UTF16
+literal reader. Borrowed fields and reflection/registry interposition cannot
+mint actual-write custody: draft 1P/2F → repaired 3P. Generic paths stay fresh.
+734 owner tests, canonical types/lint pass; 12-case table stays10P2U, all SVG/
+non-cert receipts exact. Work falls16,501 per Chain100/Fan100 engine; Sequence
+128 falls53,872. Chain300 still exhausts; these counters are not CPU timings.
+Trident124/198:310SVG/non-cert products and proof vectors except work exact51e6;
+12sameerrors; authored meaning/actual Chromium ink/quality/statuses unchanged.
+Matched12workers: Native100 SVG process medians120.45/144.97/98.81 →94.74/112.24/
+95.86ms; median95.86, oneprocess still>100. Full155.79→133.63ms, but p95186.01→
+224.92; firstedit169.02→199.80; fresh-source SVG83.84→94.04; RSS157.45→158.76MiB
+andheap42.02→43.36 adverse. No reliable universal100ms or Chain closure claim.
+Browser4products exact exceptwork; requests unchanged; mixedgzip785229→785864
+(+635), Brotli625522→625965; caps still fail. JS heap drops13/15KB. Independent
+value review supports the bounded warm benefit with these explicit costs.
+Next: co-produce structural closure facts for semantic validation, without
+waiving bounds/CSS/references/budgets; remove remaining actual pipeline work.
+

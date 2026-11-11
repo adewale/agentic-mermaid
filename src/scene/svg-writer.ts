@@ -1,3 +1,4 @@
+import { xmlLiteralSpan } from '../shared/xml-literal.ts'
 import { retainWrittenFields, retainTextAttributes, writeTextOpening, writerEvidenceEnabled } from '../svg-writer-evidence.ts'
 // ============================================================================
 // The default backend's SVG writer: each shape, text and connector mark's
@@ -64,16 +65,6 @@ function xmlRange(value: string, start: number, end = value.length): string {
   let result = ''
   for (let i = start; i < end; i++) result += value[i]!
   return result
-}
-function xmlReferenceLength(value: string, start: number): number {
-  const marker = start + 1 < value.length ? value[start + 1] : undefined
-  if (marker === 'a') return start + 5 <= value.length && value[start + 2] === 'm' && value[start + 3] === 'p' && value[start + 4] === ';' ? 5 : 0
-  if (marker === 'l' || marker === 'g') return start + 4 <= value.length && value[start + 2] === 't' && value[start + 3] === ';' ? 4 : 0
-  if (marker === 'q') return start + 6 <= value.length && value[start + 2] === 'u' && value[start + 3] === 'o' && value[start + 4] === 't' && value[start + 5] === ';' ? 6 : 0
-  if (marker !== '#' || start + 2 >= value.length) return 0
-  const digit = value[start + 2]
-  if (digit === '9') return start + 4 <= value.length && value[start + 3] === ';' ? 4 : 0
-  return start + 5 <= value.length && (digit === '3' && value[start + 3] === '9' || digit === '1' && (value[start + 3] === '0' || value[start + 3] === '3')) && value[start + 4] === ';' ? 5 : 0
 }
 function xmlAsciiLetter(character: string): boolean { return character >= 'A' && character <= 'Z' || character >= 'a' && character <= 'z' }
 type XmlProjectionResult = string | XmlProjection | undefined
@@ -178,18 +169,10 @@ function createXmlCapture(work: (operations: number) => boolean, nativeCompositi
     if (retained !== undefined) return retained
     if (!pay(value.length + 2)) return false
     let valid = true
-    for (let i = 0; i < value.length; i++) {
-      const character = value[i]!
-      if (character === '<' || !attribute && character === '>' && i >= 2 && value[i - 1] === ']' && value[i - 2] === ']' || attribute && character === '"' || character < '\u0020' && character !== '\t' && character !== '\n' && character !== '\r' || character === '\ufffe' || character === '\uffff') { valid = false; break }
-      if (character >= '\ud800' && character <= '\udbff') {
-        const next = ++i < value.length ? value[i]! : ''
-        if (!(next >= '\udc00' && next <= '\udfff')) { valid = false; break }
-      } else if (character >= '\udc00' && character <= '\udfff') { valid = false; break }
-      if (character === '&') {
-        const length = xmlReferenceLength(value, i)
-        if (!length) { valid = false; break }
-        i += length - 1
-      }
+    for (let index = 0; index < value.length;) {
+      const span = xmlLiteralSpan(value, index, attribute)
+      if (!span) { valid = false; break }
+      index += span
     }
     cache.set(value, valid)
     return valid

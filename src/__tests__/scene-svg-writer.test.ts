@@ -7,7 +7,7 @@ import { canonicalizeSceneNodeSerialization, sceneNodeSerialization, sceneHasOnl
 import { validateSceneDoc } from '../scene/scene-validation.ts'
 import { preparePixelText } from '../shared/prepared-text.ts'
 import { createSvgXmlCapture, createNativeXmlWork, writeNativeGroupOpening, writeShapeSvg, writeTextSvg, writeConnectorSvg, type SvgXmlWrite, type SvgXmlCapture } from '../scene/svg-writer.ts'
-import { bindNativeGroupEmission, captureNativeGroupParse } from '../scene/group-emission.ts'
+import { bindNativeGroupEmission, captureNativeGroupParse, consumeWrittenNativeGroupEmission } from '../scene/group-emission.ts'
 import { createNativePaintEmission, createOriginalNativePaintEmission } from '../scene/native-paint-emission.ts'
 import { tipAnchoredArrow, serializeMarkerResources } from '../scene/marker-resources.ts'
 import { withDeferredTerminalProjections } from '../scene/deferred-terminal-projection.ts'
@@ -108,6 +108,49 @@ console.log(JSON.stringify({ svg: drawing.svg, proof: certifyNativePaint(drawing
     const value = JSON.parse(child.stdout)
     expect(value.svg).toContain('points="10,20 10,20"')
     expect(value.proof).toMatchObject({ status: 'unverified', coverage: { conditional: 1 }, issues: [expect.objectContaining({ code: 'CONDITIONAL_PAINT' })] })
+  })
+
+  test.each(['actual', 'borrowed-fields', 'post-init-reflection'] as const)('actual Native group opening retains receiver custody under %s', mode => {
+    const work = createNativeXmlWork(400000), capture = work.capture()
+    const shell = marks.group({ id: 'actual-group', role: 'group', open: '<g class="wrap">', close: '</g>', children: [] }, work.pay)
+    if (mode !== 'post-init-reflection') Object.freeze(shell)
+    const original = mode === 'post-init-reflection' ? undefined : bindNativeGroupEmission(shell, shell.open, work.pay)!
+    const descriptor = Object.getOwnPropertyDescriptor, extensible = Object.isExtensible, get = WeakMap.prototype.get
+    let parsed: ReturnType<typeof captureNativeGroupParse>, opening: ReturnType<typeof writeNativeGroupOpening>, context: ReturnType<typeof consumeWrittenNativeGroupEmission>
+    try {
+      if (mode === 'post-init-reflection') {
+        Object.getOwnPropertyDescriptor = ((value: object, key: PropertyKey) => {
+          const slot = descriptor(value, key)
+          return value === shell && key === 'open' && slot ? { ...slot, writable: false, configurable: false } : slot
+        }) as typeof Object.getOwnPropertyDescriptor
+        Object.isExtensible = ((value: object) => value === shell ? false : extensible(value)) as typeof Object.isExtensible
+      }
+      parsed = mode === 'actual' ? original : captureNativeGroupParse(
+        mode === 'borrowed-fields' ? { ...shell, open: '<g class="wrap" data-id="borrowed">' } : shell, work.pay, shell)
+      if (mode !== 'actual') {
+        WeakMap.prototype.get = function(this: WeakMap<object, unknown>, key: object) {
+          const value = Reflect.apply(get, this, [key])
+          return key === shell && value && typeof value === 'object' && descriptor(value, 'open')
+            ? { ...value, nativeParse: parsed } : value
+        } as typeof WeakMap.prototype.get
+      }
+      context = consumeWrittenNativeGroupEmission(shell, work.pay)
+      opening = writeNativeGroupOpening(capture, shell, parsed)
+    } finally {
+      Object.getOwnPropertyDescriptor = descriptor; Object.isExtensible = extensible; WeakMap.prototype.get = get
+    }
+    if (mode === 'actual') {
+      expect(context).toMatchObject({ uncertain: false })
+      expect(opening?.svg).toBe(shell.open)
+    } else {
+      expect(context).toBeUndefined()
+      expect(opening).toBeUndefined()
+    }
+    // Denying forged custody leaves actual caller bytes available to the raw
+    // path; no borrowed data-id can replace this group's authored identity.
+    const raw = capture.raw(shell.open, shell)
+    expect(capture.read(raw, shell)?.svg).toContain('data-id="actual-group"')
+    expect(capture.read(raw, shell)?.svg).not.toContain('data-id="borrowed"')
   })
 
   test('source-bound plain group facts cannot be forged through their discoverable constructor', async () => {

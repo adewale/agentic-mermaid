@@ -11,10 +11,11 @@ import { markerResourceMarkupCost, serializeMarkerResource } from './marker-reso
 import { parseSvgTransform, transformMatrix, type AffineMatrix } from './transforms.ts'
 import { writtenLeafContextOf } from './svg-writer.ts'
 import { decodeXML } from 'entities'
-import { retainedGroupEmission, freshNativeGroupTags, consumeNativeGroupEmission } from './group-emission.ts'
+import { retainedGroupEmission, freshNativeGroupTags, consumeWrittenNativeGroupEmission } from './group-emission.ts'
 
 type Header = Pick<SceneDoc, 'width' | 'height' | 'colors'>
 const emissionContextFreeze = Object.freeze
+const nativeGroupDescriptor = Object.getOwnPropertyDescriptor, nativeGroupOwn = Object.hasOwn, nativeGroupExtensible = Object.isExtensible
 const contextWeakSet = WeakSet, contextHas = WeakSet.prototype.has, contextAdd = WeakSet.prototype.add, contextApply = Reflect.apply
 type Pay = (operations: number) => boolean
 export type EmissionColorResolver = (value: string) => string | undefined
@@ -373,12 +374,12 @@ export function createEmissionContext(pay: Pay, options: { resources?: boolean; 
       groups.push(shell)
       hasNativeGroups = true
       if (!reserve(4)) return undefined
-      const open = Object.getOwnPropertyDescriptor(shell, 'open')
-      const pinned = !!open && Object.hasOwn(open, 'value') && typeof open.value === 'string' && !open.writable && !open.configurable && !Object.isExtensible(shell)
+      const open = nativeGroupDescriptor(shell, 'open')
+      const pinned = !!open && nativeGroupOwn(open, 'value') && typeof open.value === 'string' && !open.writable && !open.configurable && !nativeGroupExtensible(shell)
       const svg = pinned ? open.value as string : shell.open
       if (!reserve(4)) return undefined
       const parsed = pinned ? retainedGroupEmission(shell)?.nativeParse : undefined
-      const plain = pinned ? consumeNativeGroupEmission(shell, svg, pay) : undefined
+      const plain = pinned ? consumeWrittenNativeGroupEmission(shell, pay) : undefined
       if (plain) {
         // Final validation's exact plain opening already owns its names,
         // duplicates and class bytes. No lexical token receivers or repeated

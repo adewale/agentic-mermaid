@@ -1,3 +1,4 @@
+import { xmlLiteralSpan } from '../shared/xml-literal.ts'
 import { decodeXML } from 'entities'
 import { visitSvgFirstTagAttributes, visitSvgStartTagsFresh, svgClassHasTokenFresh, type SvgStartTagToken, type SvgAttributeToken } from '../svg-structure.ts'
 import { parseSvgTransform, transformMatrix } from './transforms.ts'
@@ -15,6 +16,7 @@ type Visitor = typeof visitSvgFirstTagAttributes
 // Private operands are pinned before any ambient sealing callback can see
 // them. Keep their exact literal receiver; a freeze return is no authority.
 const groupDefine = Object.defineProperties, groupSlot = Object.defineProperty, groupPrevent = Object.preventExtensions
+const groupDescriptor = Object.getOwnPropertyDescriptor, groupOwn = Object.hasOwn, groupExtensible = Object.isExtensible
 function attributeRecord(name: string, value: string, quote: '"' | "'", nameStart: number, valueStart: number, valueEnd: number): SvgAttributeToken {
   return groupPrevent(groupDefine({}, {
     name: { value: name, enumerable: true }, value: { value, enumerable: true }, quote: { value: quote, enumerable: true },
@@ -78,8 +80,8 @@ interface PlainGroupInput {
   start: number
   end: number
   cursor: number
-  readonly values: { length: number; [index: number]: string }
-  readonly names: { [index: number]: string }
+  readonly attributes: PrimitiveGroupList<SvgAttributeToken>
+  readonly xml?: boolean
 }
 const nativeGroupParseIssuer = { __proto__: null }
 /** Actual primitive lexer operands, independent of ambient record/seal helpers.
@@ -103,23 +105,24 @@ class ParsedNativeGroup {
   static validateOpening(value: unknown, node: object, literal: (value: string) => boolean, pay: Pay): boolean {
     if (!pay(4) || !value || typeof value !== 'object' || !(#source in value) || !value.#plain?.valid
       || value.#node !== node || groupEmission.get(node)?.nativeParse !== value) return false
-    for (let index = 0; index < value.#plain.values.length; index++) {
-      if (!pay(1) || !literal(value.#plain.values[index]!)) return false
+    if (value.#plain.xml !== undefined) return pay(1) && value.#plain.xml
+    for (let index = 0; index < value.#plain.attributes.length; index++) {
+      if (!pay(1) || !literal(value.#plain.attributes[index]!.value)) return false
     }
     return true
   }
-  static context(value: unknown, node: GroupMark, source: string, pay: Pay): NativePlainGroupContext | undefined {
+  static context(value: unknown, node: GroupMark, source: string | undefined, pay: Pay): NativePlainGroupContext | undefined {
     if (!value || typeof value !== 'object' || !(#source in value) || value.#node !== node || !value.#plain?.valid
-      || !pay(source.length * 2 + 8) || value.#source !== source || groupEmission.get(node)?.nativeParse !== value) return undefined
+      || !(source === undefined ? pay(8) : pay(source.length * 2 + 8) && value.#source === source) || groupEmission.get(node)?.nativeParse !== value) return undefined
     // The strict plain lexer already checked every name, duplicate and exact
     // quote/separator boundary. Context needs only the actual class literal;
     // plain groups cannot carry paint, style, transforms or nested markup.
     let mono = false
     const plain = value.#plain
-    for (let index = 0; index < plain.values.length; index++) {
+    for (let index = 0; index < plain.attributes.length; index++) {
       if (!pay(2)) return undefined
-      if (plain.names[index] === 'class') {
-        const raw = plain.values[index]!
+      if (plain.attributes[index]!.name === 'class') {
+        const raw = plain.attributes[index]!.value
         if (!pay(raw.length * 8 + 4)) return undefined
         mono = svgClassHasTokenFresh(decodeXML(raw), 'mono')
       }
@@ -135,14 +138,19 @@ class ParsedNativeGroup {
   static validate(value: unknown, source: string, literal: (value: string) => boolean, pay: Pay): boolean {
     if (!value || typeof value !== 'object' || !(#source in value) || !value.#plain?.valid || !value.#node || groupEmission.get(value.#node)?.nativeParse !== value) return false
     if (!pay(source.length * 2 + 4) || value.#source !== source) return false
-    for (let index = 0; index < value.#plain.values.length; index++) {
-      if (!pay(1) || !literal(value.#plain.values[index]!)) return false
+    for (let index = 0; index < value.#plain.attributes.length; index++) {
+      if (!pay(1) || !literal(value.#plain.attributes[index]!.value)) return false
     }
     return true
   }
 }
 export interface NativePlainGroupContext { readonly uncertain: boolean; readonly matrix: undefined; readonly fractional: boolean }
 const nativeParsedContext = ParsedNativeGroup.context
+/** The same immutable final shell and its actual source-producing lexer. */
+export function consumeWrittenNativeGroupEmission(node: GroupMark, pay: Pay): NativePlainGroupContext | undefined {
+  if (!pay(2)) return undefined
+  return nativeParsedContext(groupEmission.get(node)?.nativeParse, node, undefined, pay)
+}
 export function consumeNativeGroupEmission(node: GroupMark, open: string, pay: Pay): NativePlainGroupContext | undefined {
   if (!pay(2)) return undefined
   return nativeParsedContext(groupEmission.get(node)?.nativeParse, node, open, pay)
@@ -262,11 +270,69 @@ function nativeParseRecord(source: string, firstName: string | undefined, tags: 
  * Each private row/list append is paid before allocation. Generic consumers
  * still materialize complete fresh public tokens and pay their original
  * descriptor/closing work; bound plain context and XML consume private rows. */
+function collectPlainNativeGroup(source: string, pay: Pay, check: (name: string, value: string) => void, first: ((name: string) => void) | undefined, node: object): NativeGroupParse | undefined {
+  // Scan, retain and check each literal together. The old scanner found the
+  // tag end, found each quote, copied each span, then XML read those spans again.
+  if (!pay(source.length * 2 + 24)) return undefined
+  let cursor = 0, xml = true
+  while (groupXmlSpace(source[cursor])) cursor++
+  const start = cursor
+  if (source[cursor++] !== '<' || source[cursor++] !== 'g') return undefined
+  const attributes = primitiveGroupList<SvgAttributeToken>(), names = { __proto__: null } as unknown as Record<string, true>
+  while (cursor < source.length) {
+    const before = cursor
+    while (groupXmlSpace(source[cursor])) cursor++
+    if (source[cursor] === '>') {
+      const end = ++cursor
+      while (groupXmlSpace(source[cursor])) cursor++
+      if (cursor !== source.length || !pay(20)) return undefined
+      const tags = primitiveGroupList<PrimitiveGroupTag>()
+      tags[tags.length++] = { name: 'g', start, end, selfClosing: false, attributes }
+      first?.('g')
+      for (let index = 0; index < attributes.length; index++) check(attributes[index]!.name, attributes[index]!.value)
+      return nativeParseRecord(source, 'g', tags, attributes.length, { valid: true, start, end, cursor: end - 1, attributes, xml }, node)
+    }
+    if (cursor === before) return undefined
+    const nameStart = cursor, firstCharacter = source[cursor]
+    const expected = firstCharacter === 'c' ? 'class' : firstCharacter === 'r' ? 'role' : firstCharacter === 't' ? 'tabindex'
+      : firstCharacter === 'p' ? 'pointer-events' : firstCharacter === 'd' ? 'data-' : firstCharacter === 'a' ? 'aria-' : undefined
+    if (!expected) return undefined
+    let name = '', validName = true
+    while (cursor < source.length) {
+      const character = source[cursor]!
+      if (!(character >= 'a' && character <= 'z' || character >= '0' && character <= '9' || character === '-')) break
+      const offset = cursor - nameStart
+      if (offset < expected.length ? character !== expected[offset]
+        : expected === 'data-' ? !(character >= 'a' && character <= 'z' || offset > 5 && (character >= '0' && character <= '9' || character === '-'))
+          : expected === 'aria-' ? !(character >= 'a' && character <= 'z') : true) validName = false
+      name += character; cursor++
+    }
+    if (!validName || (expected === 'data-' || expected === 'aria-' ? name.length <= 5 : name.length !== expected.length) || names[name]) return undefined
+    names[name] = true
+    while (groupXmlSpace(source[cursor])) cursor++
+    if (source[cursor++] !== '=') return undefined
+    while (groupXmlSpace(source[cursor])) cursor++
+    const quote = source[cursor++]
+    if (quote !== '"' && quote !== "'") return undefined
+    const valueStart = cursor
+    let value = ''
+    while (cursor < source.length && source[cursor] !== quote) {
+      const span = xmlLiteralSpan(source, cursor, true)
+      if (!span) { xml = false; value += source[cursor++]!; continue }
+      for (let index = 0; index < span; index++) value += source[cursor++]!
+    }
+    if (source[cursor] !== quote || !pay(8)) return undefined
+    attributes[attributes.length++] = { name, value, quote, nameStart, valueStart, valueEnd: cursor++ }
+  }
+  return undefined
+}
+
 function collectNativeGroup(source: string, pay: Pay, check?: (name: string, value: string) => void, first?: (name: string) => void, node?: object): NativeGroupParse | undefined {
+  if (check && node) { const plain = collectPlainNativeGroup(source, pay, check, first, node); if (plain) return plain }
   if (!pay(12)) return undefined
   const tags = primitiveGroupList<PrimitiveGroupTag>()
   let current: PrimitiveGroupTag | undefined, firstName: string | undefined, complete = true, attributeCount = 0, tagCount = 0
-  const plain: PlainGroupInput | undefined = check ? { valid: true, start: 0, end: 0, cursor: 0, values: { __proto__: null, length: 0 } as unknown as PlainGroupInput['values'], names: { __proto__: null } as unknown as PlainGroupInput['names'] } : undefined
+  const plain: PlainGroupInput | undefined = check ? { valid: true, start: 0, end: 0, cursor: 0, attributes: primitiveGroupList<SvgAttributeToken>() } : undefined
   const names = { __proto__: null } as unknown as Record<string, true>
   visitSvgStartTagsFresh(source, {
     tag(name, start, end, selfClosing) {
@@ -275,7 +341,7 @@ function collectNativeGroup(source: string, pay: Pay, check?: (name: string, val
         if (plain) { plain.start = start; plain.end = end; plain.cursor = start + 2; plain.valid = name === 'g' && !selfClosing }
       } else if (plain) plain.valid = false
       if (!complete || !pay(12)) { complete = false; current = undefined; return }
-      current = { name, start, end, selfClosing, attributes: primitiveGroupList() }
+      current = { name, start, end, selfClosing, attributes: tags.length === 0 && plain ? plain.attributes : primitiveGroupList() }
       tags[tags.length++] = current
     },
     attribute(name, value, quote, nameStart, valueStart, valueEnd) {
@@ -296,8 +362,6 @@ function collectNativeGroup(source: string, pay: Pay, check?: (name: string, val
           while (cursor < valueStart - 1 && groupXmlSpace(source[cursor])) cursor++
           if (cursor !== valueStart - 1 || source[cursor] !== quote || source[valueEnd] !== quote) plain.valid = false
           plain.cursor = valueEnd + 1
-          plain.names[plain.values.length] = name
-          plain.values[plain.values.length++] = value
         }
       }
       if (!complete || !current || !pay(12)) { complete = false; return }
@@ -321,10 +385,16 @@ function collectNativeGroup(source: string, pay: Pay, check?: (name: string, val
 /** Only the final Native validator uses this primitive visitor. The public
  * constructor and generic admission retain their original callback behavior. */
 export function captureNativeGroupParse(fields: GroupFields, pay: Pay, node?: object): NativeGroupParse | undefined {
-  let parsed: NativeGroupParse | undefined
+  let parsed: NativeGroupParse | undefined, actualNode: object | undefined, actualOpen: string | undefined
+  if (fields === node && node && pay(6)) {
+    const open = groupDescriptor(node, 'open')
+    if (open && groupOwn(open, 'value') && typeof open.value === 'string' && !open.writable && !open.configurable && !groupExtensible(node)) {
+      actualNode = node; actualOpen = open.value
+    }
+  }
   checkInertGroup(fields, (source, expected, check) => {
     let visited = false, firstName: string | undefined
-    parsed = collectNativeGroup(source, pay, check, name => { visited = true; firstName = name }, node)
+    parsed = collectNativeGroup(actualOpen ?? source, pay, check, name => { visited = true; firstName = name }, actualNode)
     // Retention failure cannot replay a partly completed validator callback.
     // When collection started, its required validation still ran to completion.
     return visited ? firstName : visitSvgFirstTagAttributes(source, expected, check)
