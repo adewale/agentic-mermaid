@@ -7,8 +7,81 @@ import { readFileSync } from 'node:fs'
 import raynerTitles from './testdata/rayner-528/xy-axis-titles.json'
 import raynerGroups from './testdata/rayner-528/architecture-groups.json'
 import { createScenePartCapture } from '../scene/part-capture.ts'
+import { useTestChildren } from './helpers/test-child.ts'
+
+const runChild = useTestChildren(30_000)
 
 describe('renderResolvedScene', () => {
+  test('uncached C4 identity planners preserve resolved delivery and public geometry isolation', async () => {
+    const source = readFileSync(new URL('../../eval/layout-compare/fixtures/c4-basic.mmd', import.meta.url), 'utf8')
+    const child = await runChild(process.execPath, ['-e', `
+      import assert from 'node:assert/strict'
+      import { renderResolvedScene, renderMermaidSVGWithReceipt } from './src/index.ts'
+      import { getFamily } from './src/agent/families.ts'
+      import { inheritNativeDrawing, nativeDrawingOf, sceneLowering } from './src/scene/drawing.ts'
+      import { withRenderStageObserver } from './src/render-stages.ts'
+      import { resolveRenderRequestForExecution } from './src/render-contract.ts'
+      import { positionFamilyForNativeRender, positionedForNativeProducer, hasPrivateNativePositionedInput } from './src/positioning.ts'
+      const source = ${JSON.stringify(source)}
+      for (const style of [undefined, 'crisp', 'paper', 'publication-figure']) {
+        const options = style ? { style } : {}
+        const scene = renderResolvedScene(source, options)
+        const product = renderMermaidSVGWithReceipt(source, options)
+        assert.equal(scene.svg, product.svg)
+        assert.deepEqual(structuredClone(scene), scene)
+        assert.deepEqual(JSON.parse(JSON.stringify(scene)), scene)
+        const text = scene.parts.flatMap(part => part.primitives).filter(p => p.kind === 'text').map(p => p.text).join(' ').replace(/\\s+/g, ' ').toLowerCase()
+        for (const label of ['Customer', 'API', 'Store', 'Application platform', 'Submits request', 'Reads', 'Writes']) assert.ok(text.includes(label.toLowerCase()), label)
+        assert.deepEqual(scene.parts.filter(part => part.node.kind === 'connector').map(part => {
+          const { from, to } = part.node.endpoints
+          return { from, to }
+        }), [
+          { from: 'customer', to: 'api' }, { from: 'api', to: 'db' }, { from: 'api', to: 'db' },
+        ])
+        const expected = JSON.stringify(scene)
+        scene.parts[0].id = 'changed by consumer'
+        scene.parts[0].primitives.length = 0
+        scene.colors.bg = '#abcdef'
+        assert.equal(JSON.stringify(renderResolvedScene(source, options)), expected)
+        assert.deepEqual(renderMermaidSVGWithReceipt(source, options), product)
+      }
+      const lower = getFamily('c4').lowerScene, producer = nativeDrawingOf(lower)
+      const original = sceneLowering(producer)
+      let installed = false, calls = 0, exposed
+      const replacement = sceneLowering((factory, context) => {
+        calls++; exposed = context.positioned
+        return producer(factory, context)
+      })
+      const plain = renderMermaidSVGWithReceipt(source)
+      let changed
+      try {
+        changed = withRenderStageObserver(sample => {
+          if (sample.stage === 'layout' && !installed) { installed = true; inheritNativeDrawing(replacement, lower) }
+        }, () => renderMermaidSVGWithReceipt(source))
+      } finally { inheritNativeDrawing(original, lower) }
+      assert.ok(installed)
+      assert.equal(calls, 1)
+      // Generic capture and private construction pay different work; every
+      // delivered value and proof field besides that charge must still agree.
+      const comparable = product => {
+        const proof = product.receipt.layoutCertification
+        assert.ok(Number.isSafeInteger(proof.checks.operations) && proof.checks.operations >= 0 && proof.checks.operations <= 400000)
+        return { ...product, receipt: { ...product.receipt, layoutCertification: { ...proof,
+          checks: { ...proof.checks, operations: undefined } } } }
+      }
+      assert.deepEqual(comparable(changed), comparable(plain))
+      for (const key of Object.keys(exposed)) delete exposed[key]
+      assert.deepEqual(renderMermaidSVGWithReceipt(source), plain)
+      const layout = positionFamilyForNativeRender(resolveRenderRequestForExecution(source, {}, 'svg'))
+      assert.equal(typeof layout.positioned.identities.generated, 'function')
+      assert.ok(hasPrivateNativePositionedInput(layout, producer))
+      assert.equal(positionedForNativeProducer(layout, nativeDrawingOf(replacement)), layout.positioned)
+      assert.equal(hasPrivateNativePositionedInput(layout, producer), false,
+        'restoring the original producer cannot reacquire exposed private input')
+    `], { cwd: `${import.meta.dir}/../..`, env: { ...process.env, AGENTIC_MERMAID_SCENE_ASSERTIONS: '0', AGENTIC_MERMAID_ELK_CACHE: '1' } })
+    expect(child.status, child.stderr).toBe(0)
+  })
+
   test('Venn resolves the requested accent beside authored fill and retains lossless JSON paint', () => {
     const source = 'venn-beta\nset A["Authored fill"]:20\nset B["Requested accent"]:12\nunion A,B["Shared"]:3\nstyle A fill:#e2e8f0'
     for (const accent of ['#2b6cb0', '#b83280']) {

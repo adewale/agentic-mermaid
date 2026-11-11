@@ -3,7 +3,7 @@ import { isOriginalEnrolledDefaultBackend } from './scene/backend.ts'
 import { nativeDrawingOf, originalNativeDrawingOf, preferSceneDrawing, type DrawingProducer } from './scene/drawing.ts'
 import { sceneAssertionsEnabled } from './scene/assertions.ts'
 import { PERFORMANCE_EXPERIMENTS, performanceExperimentEnabled } from './experimental-performance.ts'
-import { borrowedPositioned, cachedPositioned, clonePositioned, positionedDrawingNeedsCopy, retainOwnedNativeSvgPositioned, retainPositioned } from './experimental/position-cache.ts'
+import { borrowedPositioned, cachedPositioned, clonePositioned, isRetainedPositionedSnapshot, positionedDrawingNeedsCopy, retainOwnedNativeSvgPositioned, retainPositioned } from './experimental/position-cache.ts'
 import { observeCache } from './performance-observations.ts'
 // Canonical resolved-request -> positioned-artifact seam.
 //
@@ -82,12 +82,19 @@ export function hasPrivateNativePositionedInput(layout: FamilyLayoutResult, prod
  * before any producer. Public inputs keep their original getter observations. */
 export function positionedForNativeProducer(layout: FamilyLayoutResult, producer: DrawingProducer): PositionedDiagram {
   const original = borrowedNativeProducers.get(layout)
+  if (original && original !== producer && !isRetainedPositionedSnapshot(layout) && !positionedDrawingNeedsCopy(layout)) {
+    // Fresh exclusive geometry needs no alias-detaching copy. Once exposed,
+    // it cannot regain original-producer custody even if that producer returns.
+    borrowedNativeProducers.delete(layout)
+    return layout.positioned
+  }
   return original && (original !== producer || positionedDrawingNeedsCopy(layout)) ? clonePositioned(layout.positioned, true) : layout.positioned
 }
 
-/** Scene lowering can retain aliases; never hand it borrowed cache geometry. */
+/** Scene lowering can retain aliases; never hand it borrowed cache geometry.
+ * Fresh uncached results may contain family-owned planners, not cloneable data. */
 export function positionedForSceneLowering(layout: FamilyLayoutResult): PositionedDiagram {
-  return borrowedNativeProducers.has(layout) ? clonePositioned(layout.positioned, true) : layout.positioned
+  return borrowedNativeProducers.has(layout) && isRetainedPositionedSnapshot(layout) ? clonePositioned(layout.positioned, true) : layout.positioned
 }
 
 function positionFamily(familyId: FamilyId, request: ResolvedRenderRequest, source: Readonly<NormalizedMermaidSource>, projectionOptions: FamilyPositionedProjectionOptions, borrow: boolean, immutableText = false): FamilyLayoutResult {
