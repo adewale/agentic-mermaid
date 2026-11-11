@@ -471,7 +471,7 @@ export function runtimeRenderContractPlugin({ schemaDocumentation = true, termin
         const numbersPath = resolve(dirname(multilinePath), 'shared/svg-number.ts')
         build.onResolve({ filter: /[\\/]svg-number\.ts$/ }, args => resolve(args.resolveDir, args.path) === numbersPath ? { path: multilinePath } : undefined)
         build.onLoad({ filter: /[\\/]src[\\/]multiline-utils\.ts$/ }, ({ path }) => path !== multilinePath ? undefined : ({
-          contents: `${withoutRuntimeImport(readFileSync(path, 'utf8'), path, './shared/svg-number.ts', ['formatSvgNumber'])}\n${runtimeDeclarations(numbersPath, ['SVG_NUMBER', 'SVG_LONG_DECIMAL', 'SCALAR_SVG_NUMBER', 'SVG_NUMERIC_ATTRIBUTES', 'numberSpellings', 'attributeSpellings', 'formatSvgNumber', 'formatSvgNumericAttribute'])}`, loader: 'ts', resolveDir: dirname(path),
+          contents: `${withoutRuntimeImport(readFileSync(path, 'utf8'), path, './shared/svg-number.ts', ['formatSvgNumber'])}\n${runtimeDeclarations(numbersPath, ['SVG_NUMBER', 'SVG_LONG_DECIMAL', 'SCALAR_SVG_NUMBER', 'SVG_NUMERIC_ATTRIBUTES', 'attributeSpellings', 'formatSvgNumber', 'formatSvgNumericAttribute'])}`, loader: 'ts', resolveDir: dirname(path),
         }))
         const renderContractPath = fileURLToPath(new URL('../../src/render-contract.ts', import.meta.url))
         const diagnosticsPath = resolve(dirname(renderContractPath), 'shared/family-config-diagnostics.ts')

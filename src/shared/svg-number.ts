@@ -8,21 +8,16 @@ const SVG_NUMERIC_ATTRIBUTES = new Set([
   'font-size', 'font-weight', 'letter-spacing', 'textLength',
   'opacity', 'fill-opacity', 'stroke-opacity', 'stop-opacity', 'offset',
 ])
-// Spellings depend only on primitive numbers. Bound retention across unrelated
-// documents; repeated coordinates and text metrics share their conversion.
-const numberSpellings = new Map<number, string>()
 const attributeSpellings = new Map<string, string>()
 
 /** Write numeric SVG fields at twelve significant digits only when their decimal spelling has a long tail. */
 export function formatSvgNumber(value: number): string {
-  const cached = numberSpellings.get(value)
-  if (cached !== undefined) return cached
-  const text = String(value)
-  const formatted = text.length >= 14 && SVG_LONG_DECIMAL.test(text) && Number.isFinite(value)
-    ? String(Number(value.toPrecision(12))) : text
-  if (numberSpellings.size >= 1024) numberSpellings.clear()
-  numberSpellings.set(value, formatted)
-  return formatted
+  // Primitive Number-to-string yields only ASCII, independently of ambient
+  // String constructors or collection methods. Normalize the precision result
+  // back to a number before spelling it, including under a replaced method.
+  const text = `${value}`
+  return text.length >= 14 && SVG_LONG_DECIMAL.test(text) && Number.isFinite(value)
+    ? `${+value.toPrecision(12)}` : text
 }
 
 /** Numeric SVG payloads share one spelling; semantic strings stay verbatim. */

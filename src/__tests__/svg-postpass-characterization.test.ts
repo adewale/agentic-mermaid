@@ -6,6 +6,10 @@ import { createInlineColorAttributeResolver, inlineFontVarForRaster, inlineResol
 import { escapeAttr } from '../multiline-utils.ts'
 import { decodedSvgAttributeValue, scanSvgStartTags } from '../svg-structure.ts'
 import * as svgPostprocess from '../svg-postprocess.ts'
+import { formatSvgNumber } from '../shared/svg-number.ts'
+import { useTestChildren } from './helpers/test-child.ts'
+
+const runNumericChild = useTestChildren(30_000)
 
 const SOURCE = `flowchart TD
   accTitle: Post pass contract
@@ -14,6 +18,65 @@ const SOURCE = `flowchart TD
   click A "https://example.com/private"`
 
 describe('SVG post-pass interaction contract', () => {
+  test('numeric spelling keeps standard precision without dispatching through ambient numeric caches or constructors', () => {
+    const numbers = [0, -0, 1.234567890123456, 36.900000000000006, 1.000000000001,
+      1000000000000.125, -1.23456789012345e-19, Number.MIN_VALUE, Number.MAX_VALUE, Infinity, -Infinity, NaN]
+    const originalString = globalThis.String
+    const originalNumber = globalThis.Number
+    const getSlot = Object.getOwnPropertyDescriptor(Map.prototype, 'get')!
+    let constructorCalls = 0, cacheCalls = 0
+    let actual: string[]
+    try {
+      globalThis.String = new Proxy(originalString, { apply(target, receiver, args) {
+        if (typeof args[0] === 'number') { constructorCalls++; return '\ud800" data-forged="true' }
+        return Reflect.apply(target, receiver, args)
+      } })
+      globalThis.Number = new Proxy(originalNumber, { apply() { constructorCalls++; return '\ud800" data-forged="true' } })
+      Object.defineProperty(Map.prototype, 'get', { ...getSlot, value: function(this: Map<unknown, unknown>, key: unknown) {
+        if (typeof key === 'number') { cacheCalls++; return '\ud800" data-forged="true' }
+        return Reflect.apply(getSlot.value, this, [key])
+      } })
+      actual = numbers.map(formatSvgNumber)
+    } finally {
+      globalThis.String = originalString
+      globalThis.Number = originalNumber
+      Object.defineProperty(Map.prototype, 'get', getSlot)
+    }
+    expect(actual).toEqual(['0', '0', '1.23456789012', '36.9', '1', '1000000000000.125',
+      '-1.23456789012e-19', '5e-324', '1.79769313486e+308', 'Infinity', '-Infinity', 'NaN'])
+    expect(constructorCalls).toBe(0)
+    expect(cacheCalls).toBe(0)
+  })
+
+  test('ASCII numeric spelling does not certify geometry from a malformed precision method', async () => {
+    const result = await runNumericChild(process.execPath, ['--eval', `
+      const { renderMermaidSVGWithReceipt } = await import(${JSON.stringify(new URL('../index.ts', import.meta.url).href)});
+      const { withRenderStageObserver } = await import(${JSON.stringify(new URL('../render-stages.ts', import.meta.url).href)});
+      renderMermaidSVGWithReceipt('flowchart LR\\nWarm --> Ready');
+      const precision = Object.getOwnPropertyDescriptor(Number.prototype, 'toPrecision');
+      let installed = false, calls = 0, failure;
+      try {
+        withRenderStageObserver(sample => {
+          if (sample.stage !== 'layout' || installed) return;
+          installed = true;
+          Object.defineProperty(Number.prototype, 'toPrecision', { ...precision, value() {
+            calls++;
+            return '\\ud800" data-forged="true';
+          } });
+        }, () => renderMermaidSVGWithReceipt('flowchart LR\\nA --> B', {
+          padding: 32.12345678912345, graphLayout: { backend: 'agentic', fallback: 'none' }, embedFontImport: false,
+        }));
+      } catch (error) { failure = { name: error.name, status: error.certification?.status }; }
+      finally { Object.defineProperty(Number.prototype, 'toPrecision', precision); }
+      console.log(JSON.stringify({ installed, calls, failure }));
+    `], { env: { ...process.env, AGENTIC_MERMAID_SCENE_ASSERTIONS: '0' } })
+    expect(result.status, result.stderr).toBe(0)
+    const actual = JSON.parse(result.stdout)
+    expect(actual.installed).toBe(true)
+    expect(actual.calls).toBeGreaterThan(0)
+    expect(actual.failure).toEqual({ name: 'PaintLayoutCertificationError', status: 'failed' })
+  })
+
   test('numeric serialization preserves authored text, IDs, CSS and adjacent path tokens', () => {
     const authored = '36.900000000000006'
     const input = `<svg viewBox="0 0 ${authored} 100" data-value="${authored}">`

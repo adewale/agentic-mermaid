@@ -494,8 +494,13 @@ class XmlLeafWrite {
   element(name: string): void {
     if (this.valid) { this.valid = this.#state.pay(1); if (this.valid) this.#events![this.#events!.length++] = ['element', name] }
   }
-  attribute(name: string, escaped: unknown, fixed = false): void {
-    if (this.valid) { this.valid = typeof escaped === 'string' && this.#state.pay(1); if (this.valid) this.#events![this.#events!.length++] = [fixed && this.#state.nativeComposition ? 'fixed-attribute' : 'attribute', name, escaped as string] }
+  attribute(name: string, escaped: unknown, fixed = false, numeric = false): void {
+    if (this.valid) {
+      this.valid = typeof escaped === 'string' && this.#state.pay(1)
+      if (this.valid) this.#events![this.#events!.length++] = fixed && this.#state.nativeComposition && numeric
+        ? ['numeric-attribute', name, true]
+        : [fixed && this.#state.nativeComposition ? 'fixed-attribute' : 'attribute', name, escaped as string]
+    }
   }
   recordPaintField(field: keyof MarkPaint): void {
     if (!this.valid) return
@@ -723,7 +728,10 @@ class SvgWriter {
     const escaped = typeof value === 'number' ? literal : escapeAttr(literal)
     this.attributes?.push(name, escaped)
     this.value += ` ${name}="${escaped}"`
-    this.xml?.attribute(name, escaped, fixed)
+    // The numeric producer spells primitive numbers with intrinsic ToString.
+    // Its ASCII fact closes only XML syntax, never finite geometry or paint.
+    // Paint observations retain their actual literal for the existing reader.
+    this.xml?.attribute(name, escaped, fixed, typeof value === 'number' && paintField === undefined)
     this.xml?.rectangleAttribute(name, literal, escaped)
     if (paintField !== undefined && this.observePaint) this.xml?.recordPaintField(paintField)
     if (name === 'transform') this.transformed = true

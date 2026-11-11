@@ -4859,7 +4859,7 @@ for (const backend of ['agentic', 'elk'] as const) test(`actual ${backend} cache
   }
 })
 
-for (const backend of ['agentic', 'elk'] as const) test(`actual ${backend} styled underlay binds its returned size to the served prelude`, () => {
+for (const backend of ['agentic', 'elk'] as const) test(`actual ${backend} styled underlay ignores forged numeric spelling cache lookups`, () => {
   const oldAssertions = process.env.AGENTIC_MERMAID_SCENE_ASSERTIONS
   const getSlot = Object.getOwnPropertyDescriptor(Map.prototype, 'get')!, get = getSlot.value
   let installed = false, mutations = 0
@@ -4883,12 +4883,10 @@ for (const backend of ['agentic', 'elk'] as const) test(`actual ${backend} style
     }, () => renderMermaidSVGWithReceipt(source, options))
     Object.defineProperty(Map.prototype, 'get', getSlot)
     expect(installed).toBe(true)
-    expect(mutations).toBe(1)
+    expect(mutations).toBe(0)
     expect(plain.receipt.layoutCertification?.status).toBe('passed')
     expect(actualCompositionMarkerPixels(plain.svg)).toBeGreaterThan(0)
-    expect(attacked.svg).toContain('<rect width="0"')
-    expect(attacked.receipt.layoutCertification?.status).not.toBe('passed')
-    expect(attacked.receipt.layoutCertification?.issues.some(issue => issue.code === 'OUTPUT_SCOPE')).toBe(true)
+    expect(attacked).toEqual(plain)
   } finally {
     Object.defineProperty(Map.prototype, 'get', getSlot)
     if (oldAssertions === undefined) delete process.env.AGENTIC_MERMAID_SCENE_ASSERTIONS
