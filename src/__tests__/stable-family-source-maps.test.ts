@@ -67,6 +67,18 @@ describe('stable-family authored declaration source maps', () => {
     expect(metadata?.get('task')?.get('tags')?.value.start.line).toBe(8)
     expect(span(source, diagram, 'nodes', 'task')).toBe('task[Work]@{\n      "assigned": "Iris"\n      tags: [parser, "日本"]\n      priority: High\n    }')
   })
+  test('Kanban metadata spans use the same scalar-key schema as their semantic mapping', () => {
+    const source = 'kanban\nTodo\n  card[Work]@{ -.5: negative, 0_1: separated, .5: positive, null: nil }'
+    const diagram = parsed(source)
+    if (diagram.body.kind !== 'kanban') throw new Error('Expected Kanban body')
+    expect(diagram.body.columns[0]!.tasks[0]!.metadata).toEqual({ '-.5': 'negative', '0_1': 'separated', '0.5': 'positive', null: 'nil' })
+    const fields = diagram.source.spans?.metadata?.get('card')
+    expect(text(source, fields?.get('-.5')?.key)).toBe('-.5')
+    expect(text(source, fields?.get('-.5')?.value)).toBe('negative')
+    expect(text(source, fields?.get('0_1')?.key)).toBe('0_1')
+    expect(text(source, fields?.get('0.5')?.key)).toBe('.5')
+    expect(text(source, fields?.get('null')?.key)).toBe('null')
+  })
   test.each(['\n', '\r\n'])('Kanban folded metadata spans retain authored blocks and repeated owners through %j cleanup', newline => {
     const card = 'card[Work]@{\n      folded: >-\n        one\n        two&#10;        three\n      nested: &shared\n        note: |+\n          keep\n\n      alias: *shared\n      scalar: &scalar !!str 23\n      scalarAlias: *scalar\n      "quoted #quot;": "A&amp;amp; B"\n    }'
     const source = ['---', 'title: Delivery', '---', '%% wrapper', 'kanban', '  Todo', '%%{init: {"theme":"base"}}%%', `    ${card}`, '  Done', '    card[Review]@{ assigned: "Iris" }'].join('\n').replaceAll('\n', newline)

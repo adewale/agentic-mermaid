@@ -1,7 +1,7 @@
 import { unknownOpMessage } from './mutation-ops.ts'
 import YAML from 'yaml'
 import { preservedMermaidFamilyText, type NormalizedMermaidSource } from '../mermaid-source.ts'
-import { kanbanMetadataLabel, parseKanbanDiagram } from '../kanban/parser.ts'
+import { kanbanMetadataLabel, parseKanbanDiagram, type KanbanDeclaration } from '../kanban/parser.ts'
 import type { KanbanBody, KanbanItem, KanbanMutationOp } from '../kanban/types.ts'
 import { encodeMermaidEntities } from '../shared/mermaid-entities.ts'
 import { quoteMetadataString } from '../shared/metadata-yaml.ts'
@@ -12,10 +12,30 @@ import { labelOverflowCollector } from './body-utils.ts'
 import type { LayoutWarning, MutationError, Result, VerifyOptions } from './types.ts'
 import { err, ok } from './types.ts'
 
-export function parseKanbanBody(lines: readonly string[] | string, source?: NormalizedMermaidSource): KanbanBody | null {
+const parsedProvenance = new WeakMap<KanbanBody, { text: string; records: readonly KanbanDeclaration[] }>()
+
+/** A body-producing parse hands its fresh lexical evidence directly to the
+ * source-map consumer. Never reconstruct events or retain public body data. */
+export function takeKanbanProvenance(body: KanbanBody, text: string): readonly KanbanDeclaration[] | undefined {
+  const captured = parsedProvenance.get(body)
+  parsedProvenance.delete(body)
+  return captured?.text === text ? captured.records : undefined
+}
+
+export function parseKanbanBody(lines: readonly string[] | string, source?: NormalizedMermaidSource, sourceMap = false): KanbanBody | null {
   try {
-    const input = source ? preservedMermaidFamilyText(source).replace(/^[^\r\n]*/, 'kanban') : lines
-    return parseKanbanDiagram(input, source?.accessibility, source)
+    const payload = source ? preservedMermaidFamilyText(source) : undefined
+    const input = payload === undefined ? lines : payload.replace(/^[^\r\n]*/, 'kanban')
+    // The compatibility header rewrite changes offsets but no body tokens.
+    // A non-native header must keep the independent source-map reader.
+    const header = payload?.match(/^[^\r\n]*/)![0]
+    const records = sourceMap && header !== undefined && /^kanban\s*(?:%%.*)?$/i.test(header.trim()) ? [] as KanbanDeclaration[] : undefined
+    const body = parseKanbanDiagram(input, source?.accessibility, source, undefined, records ? record => records.push(record) : undefined)
+    if (records && payload !== undefined) {
+      const delta = header!.length - 'kanban'.length
+      parsedProvenance.set(body, { text: payload, records: delta ? records.map(record => ({ ...record, start: record.start + delta, end: record.end + delta })) : records })
+    }
+    return body
   } catch (error) {
     if (error instanceof DiagramWorkLimitError && error.resource === 'sourceCharacters') throw error
     return null

@@ -1,11 +1,10 @@
-import { readYamlMappingRanges } from '../shared/mermaid-yaml.ts'
 import type { Accessibility } from '../agent/types.ts'
 import type { NormalizedMermaidSource } from '../mermaid-source.ts'
 import { parseAccessibilityDirective } from '../shared/accessibility-directives.ts'
 import { assertDiagramWorkLimit } from '../shared/diagram-limits.ts'
 import { decodeMermaidEntities } from '../shared/mermaid-entity-display.ts'
 import { encodeMermaidAuthoredEntities } from '../shared/mermaid-entities.ts'
-import { protectMetadataEntities, readMetadataBlock } from '../shared/metadata-yaml.ts'
+import { readMetadataBlock, type MetadataBlock } from '../shared/metadata-yaml.ts'
 import { scanMetadataBlock } from '../shared/metadata-block-scan.ts'
 import { DeferredDependencyError } from '../layout/certification-error.ts'
 import { observeParserMutation, observeParserStatement, parserObservationActive, withParserObservation } from '../shared/parser-observation.ts'
@@ -21,40 +20,26 @@ export function kanbanMetadataLabel(value: unknown): string | undefined {
   return value ? decodeMermaidEntities(encodeMermaidAuthoredEntities(String(value))) : undefined
 }
 
-/** Lexical ranges are observed only when a caller requests parser provenance.
- * YAML still has one semantic authority: readMetadataBlock above. */
-function metadataRanges(block: string, offset: number): Array<{ name: string; keyStart: number; keyEnd: number; valueStart: number; valueEnd: number }> {
-  let edits: Array<{ start: number; end: number; sourceStart: number; sourceEnd: number }> | undefined, delta = 0
-  const scanned = scanMetadataBlock(block, 1, 'flowchart', (start, end, length) => {
-    const at = start - 2 + delta
-    ;(edits ??= []).push({ start: at, end: at + length, sourceStart: start - 2, sourceEnd: end - 2 })
-    delta += length - (end - start)
-  })
-  if (scanned.kind !== 'closed') return []
-  const result: Array<{ name: string; keyStart: number; keyEnd: number; valueStart: number; valueEnd: number }> = []
-  // Use the same entity prepass as metadata YAML: a bare #quot; must not
-  // become a YAML comment. Retain the edits to recover original byte ranges.
-  const protectedBody = protectMetadataEntities(scanned.body)
-  const multiline = protectedBody.text.includes('\n'), prefix = multiline ? 0 : 2
-  const yaml = multiline ? `${protectedBody.text}\n` : `{\n${protectedBody.text}\n}`
-  const authored = (at: number): number => {
-    // YAML framing can finish a block scalar, but contributes no authored
-    // bytes. Its synthetic newline must not claim the closing metadata brace.
-    const position = protectedBody.sourceOffset(Math.max(0, Math.min(protectedBody.text.length, at - prefix)))
-    let low = 0, high = edits?.length ?? 0
-    while (low < high) { const middle = (low + high) >>> 1; if (edits![middle]!.start <= position) low = middle + 1; else high = middle }
-    const edit = edits?.[low - 1]
-    return offset + 2 + (edit ? position < edit.end ? edit.sourceStart : position - edit.end + edit.sourceEnd : position)
-  }
-  for (const range of readYamlMappingRanges(yaml)) {
-    result.push({ name: protectedBody.restore(range.name), keyStart: authored(range.keyStart), keyEnd: authored(range.keyEnd), valueStart: authored(range.valueStart), valueEnd: authored(range.valueEnd) })
-  }
-  return result
+export interface KanbanDeclaration {
+  readonly id: string
+  readonly group: boolean
+  readonly start: number
+  readonly end: number
+  readonly line: number
+  readonly endLine: number
+  readonly declaredStart: number
+  readonly declaredLabel: string
+  readonly declaredLabelStart: number
+  readonly metadataSpans?: readonly { name: string; keyStart: number; keyEnd: number; valueStart: number; valueEnd: number }[]
 }
 
 /** The first node's indentation defines the column level. All deeper levels
  * belong to the most recent column, including levels deeper than one card. */
-export function parseKanbanDiagram(input: readonly string[] | string, accessibility: Accessibility = {}, origin?: Pick<NormalizedMermaidSource, 'originalText' | 'wrapperSource'>, onComment?: (text: string, line: number, range: { start: number; end: number }) => void): KanbanBody {
+export function parseKanbanDiagram(input: readonly string[] | string, accessibility: Accessibility = {}, origin?: Pick<NormalizedMermaidSource, 'originalText' | 'wrapperSource'>, onComment?: (text: string, line: number, range: { start: number; end: number }) => void, onDeclaration?: (record: KanbanDeclaration) => void): KanbanBody {
+  return readKanbanDiagram(input, accessibility, origin, onComment, onDeclaration)
+}
+
+function readKanbanDiagram(input: readonly string[] | string, accessibility: Accessibility, origin?: Pick<NormalizedMermaidSource, 'originalText' | 'wrapperSource'>, onComment?: (text: string, line: number, range: { start: number; end: number }) => void, onDeclaration?: (record: KanbanDeclaration) => void, boundariesOnly = false): KanbanBody {
   const source = typeof input === 'string' ? input : input.join('\n')
   // Shared payload views have normalized CRLF already. A remaining CR beside
   // LF is payload, so never combine those characters a second time.
@@ -78,7 +63,7 @@ export function parseKanbanDiagram(input: readonly string[] | string, accessibil
   reportComment(header, bodyLine - 1, headerOffset)
   endings.shift()
   let offset = bodyOffset
-  const offsets = parserObservationActive('kanban') || onComment ? lines.map((line, index) => {
+  const offsets = parserObservationActive('kanban') || onComment || onDeclaration ? lines.map((line, index) => {
     const start = offset
     offset += line.length + (endings[index]?.length ?? 0)
     return start
@@ -188,15 +173,26 @@ export function parseKanbanDiagram(input: readonly string[] | string, accessibil
     if (!rawId || !label) throw fail('Empty Kanban item', indent, 'a column or card with a non-empty label')
     const declaredLabel = label
     let metadata: Record<string, unknown> = {}
-    let ranges: ReturnType<typeof metadataRanges> | undefined
+    let ranges: KanbanDeclaration['metadataSpans'] | undefined
     if (suffix.startsWith('@{')) {
       const before = lines.slice(startIndex, index + 1).join('\n'),
         metadataOffset = before.lastIndexOf(suffix)
+      const wantsRanges = !boundariesOnly && (!!onDeclaration || parserObservationActive('kanban', indent === (baseIndent ?? indent) ? 'add-column' : 'add-task'))
+      const readBlock = (block: string): MetadataBlock => {
+        if (boundariesOnly) {
+          const scan = scanMetadataBlock(block, 1, 'flowchart')
+          return scan.kind === 'closed' ? { ok: true, end: scan.end, entries: new Map() }
+            : { ok: false, unclosed: scan.kind === 'unclosed', message: scan.kind === 'invalid' ? scan.message : 'unclosed @{ metadata block' }
+        }
+        return readMetadataBlock(block, 1, 'flowchart', wantsRanges ? fields => {
+          ranges = fields.map(field => ({ name: field.name, keyStart: metadataOffset + field.keyStart, keyEnd: metadataOffset + field.keyEnd, valueStart: metadataOffset + field.valueStart, valueEnd: metadataOffset + field.valueEnd }))
+        } : undefined)
+      }
       let block = suffix,
-        parsed = readMetadataBlock(block, 1, 'flowchart')
+        parsed = readBlock(block)
       while (!parsed.ok && parsed.unclosed && index + 1 < lines.length) {
         block += '\n' + lines[++index]!
-        parsed = readMetadataBlock(block, 1, 'flowchart')
+        parsed = readBlock(block)
       }
       if (!parsed.ok) {
         const prefix = before.slice(0, metadataOffset),
@@ -205,7 +201,6 @@ export function parseKanbanDiagram(input: readonly string[] | string, accessibil
         throw fail(`Invalid Kanban metadata (${parsed.message})`, metadataCol, 'a closed @{ key: value } metadata mapping', startIndex + metadataLine)
       }
       metadata = Object.fromEntries(parsed.entries)
-      if (parserObservationActive('kanban', indent === (baseIndent ?? indent) ? 'add-column' : 'add-task')) ranges = metadataRanges(block, metadataOffset)
       suffix = block.slice(parsed.end + 1).trim()
       if (metadata.shape && (typeof metadata.shape !== 'string' || metadata.shape !== metadata.shape.toLowerCase() || metadata.shape.includes('_'))) throw fail('Invalid Kanban metadata shape', indent, 'a lowercase shape without underscores')
       if (metadata.label) label = String(metadata.label)
@@ -237,6 +232,7 @@ export function parseKanbanDiagram(input: readonly string[] | string, accessibil
       previous = item
       if (parserObservationActive('kanban', 'add-task')) observeParserMutation('kanban', 'add-task', { ...item, indent, declaredStart: linePrefix + indent, declaredLabel, declaredLabelStart: linePrefix + declaredLabelStart, parentId: column.sourceId, ...(ranges ? { metadataSpans: ranges } : {}) })
     }
+    onDeclaration?.({ id, group: indent === baseIndent, start: offsets![startIndex]!, end: offsets![index]! + lines[index]!.length, line: startIndex + bodyLine, endLine: index + bodyLine, declaredStart: linePrefix + indent, declaredLabel, declaredLabelStart: linePrefix + declaredLabelStart, ...(ranges ? { metadataSpans: ranges } : {}) })
     assertDiagramWorkLimit('nodes', used.size)
   }
   return body
@@ -247,6 +243,22 @@ export function parseKanbanDiagram(input: readonly string[] | string, accessibil
  * than treating directive-looking lines inside a label as envelope metadata. */
 export function kanbanStatementEnds(lines: readonly string[]): number[] {
   const ends = lines.map((_, index) => index)
+  let spanning = false
+  // A single-line roster has the identity boundary map even if a later
+  // semantic error rejects it. Reuse the real reader's record consumption,
+  // without loading YAML just to discover that identity map.
+  withParserObservation('kanban', () => {}, () => {
+    try {
+      readKanbanDiagram(lines, {}, undefined, undefined, record => {
+        if (record.line !== record.endLine) spanning = true
+      }, true)
+    } catch (error) {
+      if (error instanceof DeferredDependencyError) throw error
+    }
+  }, { mutations: [] })
+  if (!spanning) return ends
+  // For spanning records, semantic rejection determines how far the historic
+  // recovery map progressed. Keep that ordering for malformed metadata.
   try {
     withParserObservation('kanban', event => {
       if (event.unit !== 'statement' || event.kind !== 'node' || !event.source?.line || event.text === undefined) return
@@ -255,7 +267,6 @@ export function kanbanStatementEnds(lines: readonly string[]): number[] {
     }, () => parseKanbanDiagram(lines), { mutations: [] })
   } catch (error) {
     if (error instanceof DeferredDependencyError) throw error
-    // Invalid records remain family-visible; retain bounds of completed ones.
   }
   return ends
 }

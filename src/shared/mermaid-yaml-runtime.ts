@@ -160,11 +160,14 @@ function indentQuotedContinuations(text: string): string | undefined {
   return changed ? lines.join('\n') : undefined
 }
 
-function readYamlDocument(text: string): MermaidYamlResult {
-  const parsed = parseDocument(text, { ...MERMAID_YAML_OPTIONS, logLevel: 'silent' })
+function readYamlDocument(text: string, onRanges?: (ranges: YamlMappingRange[]) => void): MermaidYamlResult {
+  const parsed = parseDocument(text, { ...MERMAID_YAML_OPTIONS, logLevel: 'silent', ...(onRanges ? { keepSourceTokens: true } : {}) })
   const problem = parsed.errors.find(error => !jsYamlAccepts(error, text)) ?? parsed.warnings[0]
   if (problem) return { ok: false, message: problem.message.split('\n')[0]!, offset: problem.pos[0] }
   if (hasEmptyBlockKey(parsed, text)) return { ok: false, message: 'a block mapping entry has no key' }
+  // The null-key compatibility rewrite below replaces its Scalar. Capture
+  // authored ranges before that rewrite, from this same canonical document.
+  const ranges = onRanges ? mappingRanges(parsed) : undefined
   let numericTagError: string | undefined
   // js-yaml names a null key `null` (String(null)); the yaml package, ``.
   visit(parsed, {
@@ -180,7 +183,9 @@ function readYamlDocument(text: string): MermaidYamlResult {
   })
   if (numericTagError) return { ok: false, message: numericTagError }
   try {
-    return { ok: true, value: parsed.toJS() }
+    const value = parsed.toJS()
+    if (ranges) onRanges!(ranges)
+    return { ok: true, value }
   } catch (error) {
     return { ok: false, message: error instanceof Error ? error.message : String(error) }
   }
@@ -189,14 +194,20 @@ function readYamlDocument(text: string): MermaidYamlResult {
 /** Parse one YAML document as upstream's js-yaml `JSON_SCHEMA` load does.
  * An empty document is `null`. Errors and warnings (an unknown tag, say) are
  * both failures, since js-yaml throws on each. */
-export function parseMermaidYaml(source: string): MermaidYamlResult {
+export function parseMermaidYaml(source: string, onRanges?: (ranges: YamlMappingRange[]) => void): MermaidYamlResult {
   // js-yaml's loader ends its input with a line break when it lacks one.
   const text = source.length > 0 && !/[\n\r]$/.test(source) ? `${source}\n` : source
-  const result = readYamlDocument(text)
+  const result = readYamlDocument(text, onRanges)
   if (result.ok) return result
   const reindented = indentQuotedContinuations(text)
   const retried = reindented === undefined ? undefined : readYamlDocument(reindented)
-  return retried?.ok ? retried : result
+  if (retried?.ok) {
+    // Compatibility indentation changes offsets. Retain original lexical
+    // ranges on this uncommon retry instead of publishing shifted positions.
+    if (onRanges) onRanges(readYamlMappingRanges(source))
+    return retried
+  }
+  return result
 }
 
 /** Init directives retain the yaml package's default schema and loose-object
@@ -217,6 +228,10 @@ export interface YamlMappingRange {
  * second eager package edge in the Kanban family. Offsets are source-local. */
 export function readYamlMappingRanges(source: string): YamlMappingRange[] {
   const document = parseDocument(source, { keepSourceTokens: true })
+  return mappingRanges(document)
+}
+
+function mappingRanges(document: Document): YamlMappingRange[] {
   const ranges: YamlMappingRange[] = []
   if (!isMap(document.contents)) return ranges
   for (const pair of document.contents.items) {

@@ -18,7 +18,7 @@
  * body as a block document, as upstream does.
  */
 
-import { parseMermaidYaml } from './mermaid-yaml.ts'
+import { parseMermaidYaml, type YamlMappingRange } from './mermaid-yaml.ts'
 import { scanMetadataBlock, type MetadataGrammar } from './metadata-block-scan.ts'
 import { assertDiagramWorkLimit } from './diagram-limits.ts'
 
@@ -88,11 +88,12 @@ export function protectMetadataEntities(source: string) {
  * that a flowchart block whose document is empty or `null` is rejected:
  * upstream reads `doc.shape` from it and throws.
  */
-export function parseMetadataBody(body: string, grammar: MetadataGrammar): MetadataEntries {
+export function parseMetadataBody(body: string, grammar: MetadataGrammar, onRanges?: (ranges: YamlMappingRange[]) => void): MetadataEntries {
   const protectedBody = protectMetadataEntities(body)
   const marked = protectedBody.text
   const multiline = marked.includes('\n')
-  const parsed = parseMermaidYaml(multiline ? `${marked}\n` : `{\n${marked}\n}`)
+  let ranges: YamlMappingRange[] | undefined
+  const parsed = parseMermaidYaml(multiline ? `${marked}\n` : `{\n${marked}\n}`, onRanges ? value => { ranges = value } : undefined)
   if (!parsed.ok) return parsed.offset === undefined ? parsed : { ...parsed, offset: Math.max(0, Math.min(body.length, protectedBody.sourceOffset(parsed.offset - (multiline ? 0 : 2)))) }
   const value = parsed.value
   if (grammar === 'flowchart' && (value === null || value === undefined)) {
@@ -105,6 +106,10 @@ export function parseMetadataBody(body: string, grammar: MetadataGrammar): Metad
     } catch (error) {
       return { ok: false, message: error instanceof Error ? error.message : String(error) }
     }
+  }
+  if (ranges) {
+    const authored = (at: number): number => protectedBody.sourceOffset(Math.max(0, Math.min(marked.length, at - (multiline ? 0 : 2))))
+    onRanges!(ranges.map(range => ({ name: protectedBody.restore(range.name), keyStart: authored(range.keyStart), keyEnd: authored(range.keyEnd), valueStart: authored(range.valueStart), valueEnd: authored(range.valueEnd) })))
   }
   return { ok: true, entries }
 }
@@ -130,11 +135,22 @@ export type MetadataBlock =
   | { ok: false; unclosed: boolean; message: string }
 
 /** `scanMetadataBlock`, then `parseMetadataBody`: the whole upstream read. */
-export function readMetadataBlock(text: string, open: number, grammar: MetadataGrammar): MetadataBlock {
-  const scan = scanMetadataBlock(text, open, grammar)
+export function readMetadataBlock(text: string, open: number, grammar: MetadataGrammar, onRanges?: (ranges: YamlMappingRange[]) => void): MetadataBlock {
+  let edits: Array<{ start: number; end: number; sourceStart: number; sourceEnd: number }> | undefined, delta = 0
+  const scan = scanMetadataBlock(text, open, grammar, onRanges ? (start, end, length) => {
+    const at = start - open - 1 + delta
+    ;(edits ??= []).push({ start: at, end: at + length, sourceStart: start - open - 1, sourceEnd: end - open - 1 })
+    delta += length - (end - start)
+  } : undefined)
   if (scan.kind === 'unclosed') return { ok: false, unclosed: true, message: 'unclosed @{ metadata block' }
   if (scan.kind === 'invalid') return { ok: false, unclosed: false, message: scan.message }
-  const parsed = parseMetadataBody(scan.body, grammar)
+  const authored = (position: number): number => {
+    let low = 0, high = edits?.length ?? 0
+    while (low < high) { const middle = (low + high) >>> 1; if (edits![middle]!.start <= position) low = middle + 1; else high = middle }
+    const edit = edits?.[low - 1]
+    return open + 1 + (edit ? position < edit.end ? edit.sourceStart : position - edit.end + edit.sourceEnd : position)
+  }
+  const parsed = parseMetadataBody(scan.body, grammar, onRanges ? ranges => onRanges(ranges.map(range => ({ name: range.name, keyStart: authored(range.keyStart), keyEnd: authored(range.keyEnd), valueStart: authored(range.valueStart), valueEnd: authored(range.valueEnd) }))) : undefined)
   return parsed.ok ? { ok: true, end: scan.end, entries: parsed.entries } : { ok: false, unclosed: false, message: parsed.message }
 }
 
