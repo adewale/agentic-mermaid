@@ -5,7 +5,7 @@ import { bendCount } from '../layout/route-geometry.ts'
 import { routeCandidateMarkerBlocker } from '../layout/route-marker-clearance.ts'
 import { buildRoutePortHints, layoutGraphSync } from '../layout-engine.ts'
 import { parseMermaid } from '../parser.ts'
-import { applyRouteContracts, auditRouteContracts, classifyRoutes, closeRouteContracts, diamondFacetPorts, directLaneBlockers, findLabelSlot, findRouteHitches, laneContextFor, straightLaneFor, recertifyReroutedEdge, shapePorts, simplifyPolyline, repairLabelsOffOwnRoute, repairLabelsOnSharedTrunks, separateEdgeLabelPills } from '../route-contracts.ts'
+import { applyOwnedRouteContracts, applyRouteContracts, auditRouteContracts, classifyRoutes, closeRouteContracts, diamondFacetPorts, directLaneBlockers, findLabelSlot, findRouteHitches, laneContextFor, straightLaneFor, recertifyReroutedEdge, shapePorts, simplifyPolyline, repairLabelsOffOwnRoute, repairLabelsOnSharedTrunks, separateEdgeLabelPills } from '../route-contracts.ts'
 import { assessLayout, countEdgeCrossings, countOpposingRouteOverlaps, countParallelRouteOverlaps, hardViolations, measureRubricMetrics, onShapeOutline, segmentThroughShape } from '../layout-rubric.ts'
 import { measureMultilineText } from '../text-metrics.ts'
 import { layoutMermaid, parseRegisteredMermaid as agentParse, verifyMermaid } from '../agent/index.ts'
@@ -134,7 +134,7 @@ describe('outward exact endpoint approaches', () => {
 })
 
 
-it('keeps route clearance live when trusted label measurement moves an obstacle', () => {
+it.each([['generic', applyRouteContracts], ['native', applyOwnedRouteContracts]] as const)('keeps %s route clearance live when trusted label measurement moves an obstacle', (_name, apply) => {
   const graph = parseMermaid('flowchart TD\nA[start]\nB[end]\nC[obstacle]\nA-->|yes|B\nB-->|retry|A\nA-->B\nC-->B')
   const nodes: PositionedNode[] = [
     { id: 'A', label: 'A', shape: 'rectangle', x: 20, y: 40, width: 80, height: 40 },
@@ -157,7 +157,7 @@ it('keeps route clearance live when trusted label measurement moves an obstacle'
     obstacle.y = 200
     return 24
   } }, 'Inter')
-  withTextMeasurementExecution(execution, () => applyRouteContracts({ nodes, edges, groups: [] }, graph, new Set(), resolveRenderStyle()))
+  withTextMeasurementExecution(execution, () => apply({ nodes, edges, groups: [] }, graph, new Set(), resolveRenderStyle()))
   expect([obstacle.x, obstacle.y]).toEqual([40, 200])
   const route = edges[3]!.points
   for (let i = 1; i < route.length; i++) {

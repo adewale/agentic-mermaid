@@ -13,7 +13,8 @@ import { layoutGraphSync } from '../layout-engine.ts'
 import { assessLayout, hardViolations } from '../layout-rubric.ts'
 import { applyRouteContracts, closeRouteContracts, findRouteHitches } from '../route-contracts.ts'
 import { graphEdgeMarkerPaintRegions } from '../graph-connectors.ts'
-import { routeCandidateMarkerBlocker, routeCandidateMarkersClear, withRouteMarkerCache } from '../layout/route-marker-clearance.ts'
+import { routeCandidateMarkerBlocker, routeCandidateMarkersClear, withOwnedRouteMarkerPhase, withRouteMarkerCache } from '../layout/route-marker-clearance.ts'
+import { setRoutePoints } from '../layout/route-geometry.ts'
 import { laneContextFor, repairRectLikeEndpointOverflow, tryStraighten } from '../layout/route-lanes.ts'
 import type { Point, PositionedEdge, PositionedNode } from '../types.ts'
 import { routeMarkerPaintRegions } from '../layout/route-marker-clearance.ts'
@@ -316,6 +317,30 @@ test('marker indexing retains live peer geometry, unknown blockers and diagnosti
     expect(routeCandidateMarkersClear(edge, route, peers, style)).toBe(false)
     delete peer.inlineStyle
     expect(() => withRouteMarkerCache(() => { throw new Error('nested layout') })).toThrow('nested layout')
+    expect(routeCandidateMarkersClear(edge, route, peers, style)).toBe(true)
+  })
+})
+
+test('owned marker phases invalidate route replacements and rollbacks, and recheck after nested execution', () => {
+  const edge = marked('A', 'T', [{ x: 200, y: 10 }, { x: 100, y: 10 }])
+  const peer = marked('B', 'T', [{ x: 200, y: 26 }, { x: 100, y: 26 }])
+  const peers = [edge, ...Array.from({ length: 20 }, (_, i) => marked(`P${i}`, `Q${i}`, [{ x: 500 + i * 50, y: 300 }, { x: 520 + i * 50, y: 300 }])), peer]
+  const route = [{ x: 200, y: 20 }, { x: 100, y: 20 }]
+  const style = { ...markerStyle }, original = peer.points
+  withOwnedRouteMarkerPhase(peers, style, () => {
+    expect(routeCandidateMarkersClear(edge, route, peers, style)).toBe(true)
+    setRoutePoints({}, peer, [{ x: 200, y: 24.3 }, { x: 100, y: 24.3 }])
+    expect(routeCandidateMarkerBlocker(edge, route, peers, style)?.id).toContain('peer-marker:B->T')
+    setRoutePoints({}, peer, original)
+    expect(routeCandidateMarkersClear(edge, route, peers, style)).toBe(true)
+    expect(routeCandidateMarkersClear(edge, route, peers, { ...style, lineWidth: 2 })).toBe(false)
+    expect(routeCandidateMarkersClear(edge, route, peers, style)).toBe(true)
+    expect(() => withRouteMarkerCache(() => {
+      peer.points[0]!.y = peer.points[1]!.y = 24.3
+      throw new Error('nested execution')
+    })).toThrow('nested execution')
+    expect(routeCandidateMarkersClear(edge, route, peers, style)).toBe(false)
+    setRoutePoints({}, peer, [{ x: 200, y: 26 }, { x: 100, y: 26 }])
     expect(routeCandidateMarkersClear(edge, route, peers, style)).toBe(true)
   })
 })

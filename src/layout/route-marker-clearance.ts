@@ -1,6 +1,7 @@
 import { graphEdgeMarkerPaintRegions } from '../graph-connectors.ts'
 import { createInkIndex, type InkBounds } from '../shared/ink-index.ts'
 import { formatSvgNumber } from '../shared/svg-number.ts'
+import { customTextMeasurementActive } from '../text-measurement-profile.ts'
 import type { Point, PositionedEdge, RouteBlocker } from '../types.ts'
 import type { LabelMetricsStyle } from './route-geometry.ts'
 
@@ -131,13 +132,47 @@ interface PeerView { peer: PositionedEdge; view: MarkerView; known: boolean; ord
 interface RetainedPeer extends PeerView { values: unknown[]; coordinates: number[] }
 interface MarkerPeers { entries: RetainedPeer[]; query?: (bounds: InkBounds) => PeerView[]; uncertain: PeerView[] }
 let markerExecutions: WeakMap<readonly PositionedEdge[], MarkerPeers> | undefined
+interface OwnedMarkerPhase {
+  peers: readonly PositionedEdge[]
+  style: LabelMetricsStyle
+  orders: Map<PositionedEdge, number>
+  dirty: Set<PositionedEdge>
+  retained?: MarkerPeers
+}
+let ownedMarkerPhase: OwnedMarkerPhase | undefined
 
 /** Geometry reuse belongs to one synchronous layout, never to caller identity.
  * Nested layouts restore their parent's index even when a producer throws. */
 export function withRouteMarkerCache<T>(run: () => T): T {
   const previous = markerExecutions
+  const previousPhase = ownedMarkerPhase
   markerExecutions = new WeakMap()
-  try { return run() } finally { markerExecutions = previous }
+  ownedMarkerPhase = undefined
+  try { return run() } finally {
+    markerExecutions = previous
+    ownedMarkerPhase = previousPhase
+    // A nested execution can run host code. Re-establish the outer witness
+    // instead of assuming its routes stayed untouched during reentrancy.
+    if (previousPhase) previousPhase.retained = undefined
+  }
+}
+
+/** Private producer phase: roster, marker configuration and style stay fixed;
+ * every route replacement goes through setRoutePoints. Generic/public route
+ * helpers never enter this scope and continue checking live coordinates. */
+export function withOwnedRouteMarkerPhase<T>(peers: readonly PositionedEdge[], style: LabelMetricsStyle, run: () => T): T {
+  if (customTextMeasurementActive()) return run()
+  return withRouteMarkerCache(() => {
+    const orders = new Map(peers.map((peer, order) => [peer, order]))
+    if (orders.size !== peers.length) return run()
+    ownedMarkerPhase = { peers, style, orders, dirty: new Set() }
+    return run()
+  })
+}
+
+/** The producer invalidates before replacing a route, including rollbacks. */
+export function invalidateRouteMarkerGeometry(edge: PositionedEdge): void {
+  if (ownedMarkerPhase?.orders.has(edge)) ownedMarkerPhase.dirty.add(edge)
 }
 
 // The broad phase must include the arithmetic uncertainty used by separated().
@@ -150,10 +185,15 @@ function markerQueryBounds(bounds: InkBounds): InkBounds | undefined {
 
 function indexedMarkerPeers(peers: readonly PositionedEdge[], style: LabelMetricsStyle): MarkerPeers | undefined {
   if (!markerExecutions) return undefined
-  let retained = markerExecutions.get(peers)
-  if (!retained) { retained = { entries: [], uncertain: [] }; markerExecutions.set(peers, retained) }
+  const existing = markerExecutions.get(peers)
+  const retained: MarkerPeers = existing ?? { entries: [], uncertain: [] }
+  if (!existing) markerExecutions.set(peers, retained)
+  const phase = ownedMarkerPhase?.peers === peers && ownedMarkerPhase.style === style && ownedMarkerPhase.orders.size === peers.length && !customTextMeasurementActive() ? ownedMarkerPhase : undefined
+  if (ownedMarkerPhase?.peers === peers && !phase) ownedMarkerPhase.retained = undefined
+  const current = phase?.retained === retained
+  if (phase && current && !phase.dirty.size) return retained
   let changed = retained.entries.length !== peers.length
-  for (let order = 0; order < peers.length; order++) {
+  const refresh = (order: number): void => {
     const peer = peers[order]!
     const prior = retained.entries[order]
     // These are all the inputs to mappingKnown/markerView. Endpoint identity,
@@ -166,13 +206,15 @@ function indexedMarkerPeers(peers: readonly PositionedEdge[], style: LabelMetric
       const point = peer.points[i]!
       if (!Object.is(point.x, prior!.coordinates[2 * i]) || !Object.is(point.y, prior!.coordinates[2 * i + 1])) { same = false; break }
     }
-    if (same) continue
+    if (same) return
     changed = true
     const visible = peer.style !== 'invisible' && !!(peer.hasArrowStart || peer.hasArrowEnd)
     const known = !visible || mappingKnown(peer, style)
     const view = visible && known ? markerView(peer, style, false) : { regions: [], points: [], directional: false }
     retained.entries[order] = { peer, order, values, known, view, coordinates: peer.points.flatMap(point => [point.x, point.y]) }
   }
+  if (phase && current) for (const peer of phase.dirty) refresh(phase.orders.get(peer)!)
+  else for (let order = 0; order < peers.length; order++) refresh(order)
   retained.entries.length = peers.length
   if (changed || !retained.query) {
     const bounded: Array<{ entry: PeerView; bounds: InkBounds }> = []
@@ -194,6 +236,7 @@ function indexedMarkerPeers(peers: readonly PositionedEdge[], style: LabelMetric
       return [...found].sort((a, b) => a.order - b.order)
     }
   }
+  if (phase) { phase.retained = retained; phase.dirty.clear() }
   return retained
 }
 

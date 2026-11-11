@@ -31,7 +31,7 @@ import { DeferredDependencyError, runMeasuredGraphBackend, GraphLayoutUnsupporte
 import { measureRenderStage } from './render-stages.ts'
 import { clipEdgeToShape } from './shape-clipping.ts'
 import { measureRubricMetrics, countEdgeCrossings, countOpposingRouteOverlaps, countParallelRouteOverlaps } from './layout-rubric.ts'
-import { applyRouteContracts, closeRouteContracts, repairMarkerTerminals, labelRect, repairLabelsOffOwnRoute, repairLabelsOnSharedTrunks, separateEdgeLabelPills, trimBoundaryEndpointRuns } from './route-contracts.ts'
+import { applyOwnedRouteContracts, closeRouteContracts, repairMarkerTerminals, labelRect, repairLabelsOffOwnRoute, repairLabelsOnSharedTrunks, separateEdgeLabelPills, trimBoundaryEndpointRuns } from './route-contracts.ts'
 import { bundleRouteBeforeRewrite, retainBundleRouteAfterRewrite } from './layout/bundle-routes.ts'
 import { resolveClassInlineStyle, resolveEdgeInlineStyle, resolveNodeInlineStyle } from './color-resolver.ts'
 import { runPipeline } from './layout/pass.ts'
@@ -280,7 +280,7 @@ export const LAYOUT_PIPELINE: ReadonlyArray<LayoutPass<LayoutPassContext>> = [
       bends: { worsenBy: 4, whenImproves: ['hard', 'crossings', 'endpointApproaches'], perImprovement: true },
       portRate: { worsenBy: 1, whenImproves: ['hard', 'crossings', 'bends', 'endpointApproaches', 'opposingOverlaps'] },
     },
-    run: c => { applyRouteContracts({ nodes: c.nodes, edges: c.edges, groups: c.groups }, c.graph, c.bundled, c.style, c.elkResult ? undefined : { preserveSelfLoops: true, preserveLabels: true, preserveStraightRoutes: true }) },
+    run: c => { applyOwnedRouteContracts({ nodes: c.nodes, edges: c.edges, groups: c.groups }, c.graph, c.bundled, c.style, c.elkResult ? undefined : { preserveSelfLoops: true, preserveLabels: true, preserveStraightRoutes: true }) },
   },
   {
     id: 'reanchorOffOutlineEndpoints', doc: 're-route an edge whose endpoint dangles off a moved node onto that node\'s flow port (edge-only, freeze-safe)',

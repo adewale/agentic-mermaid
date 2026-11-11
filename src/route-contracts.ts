@@ -75,7 +75,7 @@ import {
 } from './layout/route-lanes.ts'
 import { tightenOuterFeedback, feedbackDetourKind } from './layout/route-feedback.ts'
 import { createSelfLoopRouter } from './layout/route-self-loops.ts'
-import { edgesMayShareTerminal, routeCandidateMarkersClear, routeMarkerPaintRegions } from './layout/route-marker-clearance.ts'
+import { edgesMayShareTerminal, routeCandidateMarkersClear, routeMarkerPaintRegions, withOwnedRouteMarkerPhase } from './layout/route-marker-clearance.ts'
 export { PORT_EXACT, shapePorts, diamondFacetPorts, invalidEndpointApproaches, trimBoundaryEndpointRuns, type LabelMetricsStyle, classifyRoutes, simplifyPolyline, type RoutePortAllocation, allocateRoutePorts } from './layout/route-geometry.ts'
 export { directLaneBlockers, findLabelSlot, straightLaneFor, laneContextFor } from './layout/route-lanes.ts'
 export { labelRect } from './shared/edge-label-geometry.ts'
@@ -102,6 +102,13 @@ function markStraightDraft(cert: DraftRouteCertificate, mutated = false): void {
   cert.directLaneClear = true
   if (mutated) cert.straightened = true
   cert.directLaneBlockedBy = undefined
+}
+
+/** The native pass owns its roster and marker settings. Its only coordinate
+ * writes (including feedback rollback and self-loop repair) use setRoutePoints;
+ * the phase ends before late passes with different mutation protocols. */
+export function applyOwnedRouteContracts(...args: Parameters<typeof applyRouteContracts>): RouteCertificate[] {
+  return withOwnedRouteMarkerPhase(args[0].edges, args[3], () => applyRouteContracts(...args))
 }
 
 /**

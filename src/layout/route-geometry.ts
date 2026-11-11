@@ -8,6 +8,7 @@ import { pointOnShapeSide, shapeCardinalPorts, shapeRoutingProfile } from '../sh
 import { renderedEndpointContact } from '../rendered-endpoint-diagnostics.ts'
 import { labelRect } from '../shared/edge-label-geometry.ts'
 import { graphEdgeTerminalClearance } from '../graph-connectors.ts'
+import { invalidateRouteMarkerGeometry } from './route-marker-clearance.ts'
 
 // Quality exploration is deterministic and bounded independently of machine
 // speed. Larger graphs keep the existing first-certified fallback behavior.
@@ -564,6 +565,7 @@ export function invalidateRouteGeometry(ctx: Pick<LaneContext, 'routeChannelGeom
 
 export function setRoutePoints(ctx: Pick<LaneContext, 'routeChannelGeometry'>, edge: PositionedEdge, points: Point[]): void {
   invalidateRouteGeometry(ctx, edge)
+  invalidateRouteMarkerGeometry(edge)
   edge.points = points
 }
 
