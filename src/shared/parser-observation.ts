@@ -38,6 +38,12 @@ export function parserObservationActive(family: string): boolean {
   return active?.family === family
 }
 
+/** Guard optional mutation payload work with the same selection as delivery. */
+export function parserMutationObservationActive(family: string, kind: string): boolean {
+  const scope = active
+  return scope?.family === family && (!scope.mutations || scope.mutations.has(kind))
+}
+
 /** Nested scopes replace, then restore, their caller's observer. Async work is
  * deliberately outside this contract: no parser context survives a promise.
  */
@@ -128,9 +134,8 @@ export function observeParserToken(family: string, kind: string, text: string, s
  * rewrite an earlier event. Semantic parent/membership fields are retained.
  */
 export function observeParserMutation(family: string, kind: string, value: unknown, source?: ParserObservationSource): void {
-  if (!parserObservationActive(family)) return
   // Select before copying: source-map consumers need only generated identities,
   // not snapshots of every still-unprocessed nested subtree.
-  if (active?.mutations && !active.mutations.has(kind)) return
+  if (!parserMutationObservationActive(family, kind)) return
   deliver(family, { family, unit: 'mutation', kind, value: snapshot(value), ...(source ? { source: { ...source } } : {}) })
 }
