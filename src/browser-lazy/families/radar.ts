@@ -3,5 +3,3 @@ import { createBrowserFamilyDescriptor } from '../family.ts'
 import { RADAR_SVG_HOOKS } from '../../svg-family-hooks/radar.ts'
 
 export default createBrowserFamilyDescriptor(descriptorData, RADAR_SVG_HOOKS)
-
-export { renderLoadedFamilySvgWithReceipt } from '../render-core.ts'

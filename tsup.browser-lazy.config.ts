@@ -26,6 +26,17 @@ export const lazyBrowserStyles: Plugin = {
 export const lazyBrowserDrawingConsumer: Plugin = {
   name: 'lazy-browser-drawing-consumer',
   setup(build) {
+    // These source/SDK leaves remain canonical outside this async-only graph.
+    for (const leaf of ['load-family', 'render-consumer']) {
+      const canonical = resolve(import.meta.dirname, `src/browser-lazy/${leaf}.ts`)
+      build.onResolve({ filter: new RegExp(`/${leaf}\\.ts$`) }, args =>
+        resolve(args.resolveDir, args.path) === canonical
+          ? { path: resolve(import.meta.dirname, `src/browser-lazy/${leaf}.browser.ts`) } : undefined)
+    }
+    build.onLoad({ filter: /\/src\/browser-lazy\/families\/[^/]+\.ts$/ }, async args => ({
+      contents: `${await readFile(args.path, 'utf8')}\nexport { renderLoadedFamilySvgWithReceipt } from '../render-core.ts'\n`,
+      loader: 'ts', resolveDir: dirname(args.path),
+    }))
     const backend = resolve(import.meta.dirname, 'src/scene/backend.ts')
     const runtime = resolve(import.meta.dirname, 'src/browser-lazy/scene-backend-runtime.ts')
     const defaultBackend = resolve(import.meta.dirname, 'src/scene/default-backend.ts')

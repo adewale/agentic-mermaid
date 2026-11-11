@@ -531,6 +531,29 @@ describe('async family-loaded browser renderer', () => {
     await browser?.close()
   })
 
+  test.each(['elk', 'agentic'] as const)('%s warm plain preparation preserves diagnostics before option microtasks', async backend => {
+    const page = await browser.newPage()
+    try {
+      await page.goto(`${base}/blank.html`)
+      const result = await page.evaluate(async ({ entry, backend }) => {
+        const api = await import(entry), source = 'flowchart LR\nA[Ready] --> B[Done]'
+        const config = { flowchart: { defaultRenderer: 'dagre' } }
+        const options = { graphLayout: { backend, fallback: 'none' }, embedFontImport: false }
+        const expected = await api.renderMermaidSVGWithReceiptAsync(source, { ...options, mermaidConfig: config })
+        const events: string[] = []; let reads = 0
+        const actual = await api.renderMermaidSVGWithReceiptAsync(source, { ...options,
+          get mermaidConfig() { reads++; events.push('capture'); queueMicrotask(() => events.push('microtask')); return config },
+          onConfigDiagnostic(value: { field: string }) { events.push(`diagnostic:${value.field}`) },
+        })
+        return { exact: JSON.stringify(actual) === JSON.stringify(expected), reads, events }
+      }, { entry: `${base}/dist/browser-lazy/index.js`, backend })
+      expect(result.exact).toBe(true)
+      expect(result.reads).toBe(1)
+      expect(result.events).toContain('diagnostic:flowchart.defaultRenderer')
+      expect(result.events.indexOf('diagnostic:flowchart.defaultRenderer')).toBeLessThan(result.events.indexOf('microtask'))
+    } finally { await page.close() }
+  })
+
   test.each(['elk', 'agentic'] as const)('%s strict Scene requests acquire the canonical SPI before callbacks and read options once', async backend => {
     const page = await browser.newPage(), requests: string[] = []
     page.on('request', request => requests.push(new URL(request.url()).pathname.replace(/^\/dist\//, '')))

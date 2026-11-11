@@ -95,6 +95,7 @@
     "dist/zenuml/chunks/chunk-[hash].js",
     "dist/zenuml/chunks/chunk-[hash].js",
     "dist/zenuml/chunks/chunk-[hash].js",
+    "dist/zenuml/chunks/chunk-[hash].js",
     "dist/zenuml/chunks/decode-[hash].js",
     "dist/zenuml/chunks/inter-metrics-kernel-[hash].js",
     "dist/zenuml/chunks/mermaid-yaml-runtime-[hash].js",

@@ -3,5 +3,3 @@ import { createBrowserFamilyDescriptor } from '../family.ts'
 import { MINDMAP_SVG_HOOKS } from '../../svg-family-hooks/mindmap.ts'
 
 export default createBrowserFamilyDescriptor(descriptorData, MINDMAP_SVG_HOOKS)
-
-export { renderLoadedFamilySvgWithReceipt } from '../render-core.ts'

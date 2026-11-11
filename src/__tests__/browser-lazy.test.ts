@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'bun:test'
 import { getFamily, knownBuiltinFamilies } from '../agent/families.ts'
 import type { FamilyDescriptor } from '../agent/families.ts'
-import { BrowserFamilyDetectionError, renderMermaidSVGAsync } from '../browser-lazy.ts'
+import { BrowserFamilyDetectionError, renderMermaidSVGAsync, renderMermaidSVGWithReceiptAsync } from '../browser-lazy.ts'
 import { detectBrowserBuiltinFamilyFromFirstLine } from '../browser-lazy/generated/catalog.ts'
 import { renderLoadedFamilySvg, renderLoadedFamilySvgWithReceipt } from '../browser-lazy/render-core.ts'
 import { registerStyle } from '../scene/style-registry.ts'
@@ -15,6 +15,23 @@ import type { ConfigDiagnostic } from '../types.ts'
 import type { MermaidRuntimeConfig } from '../mermaid-source.ts'
 
 describe('async browser SVG entry', () => {
+  test('warm default preparation preserves diagnostics before option microtasks', async () => {
+    const source = 'flowchart LR\nA[Ready] --> B[Done]'
+    const config = { flowchart: { defaultRenderer: 'dagre' } }
+    const base = { graphLayout: { backend: 'agentic' as const, fallback: 'none' as const }, embedFontImport: false }
+    const expected = await renderMermaidSVGWithReceiptAsync(source, { ...base, mermaidConfig: config })
+    const events: string[] = []
+    let reads = 0
+    const actual = await renderMermaidSVGWithReceiptAsync(source, { ...base,
+      get mermaidConfig() { reads++; events.push('capture'); queueMicrotask(() => events.push('microtask')); return config },
+      onConfigDiagnostic(value) { events.push(`diagnostic:${value.field}`) },
+    })
+    expect(actual).toEqual(expected)
+    expect(reads).toBe(1)
+    expect(events).toContain('diagnostic:flowchart.defaultRenderer')
+    expect(events.indexOf('diagnostic:flowchart.defaultRenderer')).toBeLessThan(events.indexOf('microtask'))
+  })
+
   test('deferred authored positions replay the real Sequence grammar trace', async () => {
     const facade = await import('../shared/parser-source.lazy.ts')
     const source = normalizeMermaidSource('---\ntitle: T\n---\nsequenceDiagram\n  A->>B: &amp;nbsp;; accDescr { Meta\n};  A->>B: second')

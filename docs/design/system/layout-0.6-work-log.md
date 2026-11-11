@@ -2156,3 +2156,16 @@ exceeds37; source/compiled proof+18 predates this change. Owning types/lint,
 ER256all8 actual-ink lanes and complete products exact599. No new ER repair or
 API timing claim. Native100/4large proof lanes remain open; next intervention
 is one producer of complete actual writer facts instead of prewrite recapture.
+
+Repair consumer packaging on `c685b5deec7126ff9d0af0276dada80244b6796a`: restore
+descriptor-only facades and scope provider twins to async browser; one shared
+capture/retry owner. All5 introduced runtime inventory errors removed; actual
+162JS files match. Required Zen admission partition7→8 adds1request/1783gzipB
+versus old7; no browser SPI leak. Public queued-getter diagnostic ordering
+source/Native/ELK RED→GREEN; await only actual acquisition. Types/lint,145source
+SDK owners pass; emitted23P/2baseline failures;28affected products/proofs exact.
+Previous66 injection observations remain separate; Node42JS/CJS files byteexact.
+Mixedgzip785125 still exceeds761500 by23625. Declarations unavailable after137
+and Node worker OOM; no more retries; fulltarball/IIFE remains CI-only. Native
+writer prototype is unqualified; first public probe identifies missing owned
+polyline/paint/base/typography bindings. No new Native latency or proof gain.
