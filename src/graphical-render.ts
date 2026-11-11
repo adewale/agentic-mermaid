@@ -171,7 +171,7 @@ function renderPositionedWithTextMeasurement(
   if (executionPlan.mode === 'scene') {
     const drawing = capture ? undefined : measureRenderStage('drawing', () => retainedNativeDrawing(request, layout))
     const scene = drawing ? undefined : measureRenderStage('scene', () => lowerPositionedFamilyScene(request, layout))
-    layoutCertification = measureRenderStage('paint-certification', () => positionedPaintCertification(request, layout))
+    layoutCertification = measureRenderStage('paint-certification', () => positionedPaintCertification(request, layout, capture ? scene : undefined))
     if ((effectiveOptions.layoutSafety === 'strict' && layoutCertification.status !== 'passed') || (layoutCertification.status === 'failed' && executionPlan.backend?.inputName === 'default')) throw new PaintLayoutCertificationError(layoutCertification)
     rawSvg = drawing?.svg ?? measureRenderStage('backend', () => {
       const backendContext = {

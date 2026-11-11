@@ -14,9 +14,9 @@ import { withDeferredTerminalProjections } from './deferred-terminal-projection.
 import type { SceneDoc } from './ir.ts'
 import { certifyNativePaint, certifyScenePaint, type PaintLayoutCertification } from './paint-certification.ts'
 import { observeCache, observeFallback } from '../performance-observations.ts'
-import { cachedNativeDrawing, retainNativeDrawing, type RetainedNativeDrawing } from '../experimental/position-cache.ts'
+import { cachedNativeDrawing, retainNativeDrawing, cachedScenePaintCertification, retainScenePaintCertification, type RetainedNativeDrawing } from '../experimental/position-cache.ts'
 
-interface PositionedScene { scene: SceneDoc; crossChecks: boolean; certification?: PaintLayoutCertification }
+interface PositionedScene { scene: SceneDoc; lowering: object; crossChecks: boolean; certification?: PaintLayoutCertification }
 type RenderableNativeDrawing = Pick<NativeDrawing, 'svg' | 'preparedText'>
 interface PositionedNative { drawing: RenderableNativeDrawing; producer: DrawingProducer; evidence?: NativeDrawing; certification?: PaintLayoutCertification }
 const native = new WeakMap<FamilyLayoutResult, WeakMap<ResolvedRenderRequest, PositionedNative>>()
@@ -43,24 +43,25 @@ export function retainedPositionedScene(request: ResolvedRenderRequest, layout: 
   observeCache('positioned-scene', 'miss')
   const plan = resolvedRenderExecutionPlanOf(request)
   if (!plan.family.lowerScene) throw new Error(`Resolved ${request.output} family has no Scene lowering`)
+  const lowering = plan.family.lowerScene
   const colors = request.output === 'png' && request.appearance.colors.embedFontImport !== false
     ? { ...request.appearance.colors, embedFontImport: false } : request.appearance.colors
   const assertions = sceneAssertionsEnabled(request)
   const lower = () => {
-    const scene = plan.family.lowerScene!({ positioned: positionedForSceneLowering(layout), colors, resolved: resolvedFamilyRenderContextOf(request) })
+    const scene = lowering({ positioned: positionedForSceneLowering(layout), colors, resolved: resolvedFamilyRenderContextOf(request) })
     // Freeze only the unwrapped constructor program's result, directly at its
     // owning boundary. Replaced/inherited hooks retain external-data copying.
-    return isOwnedFamily(plan.family) && isOriginalSceneLowering(plan.family.lowerScene) ? finalizeOwnedScene(scene) : scene
+    return isOwnedFamily(plan.family) && isOriginalSceneLowering(lowering) ? finalizeOwnedScene(scene) : scene
   }
   const scene = withTextMeasurementExecution(plan.textMeasurement, () => admitFamilyScene(plan.family,
     !assertions && !plan.family.id.startsWith('family:') ? withDeferredTerminalProjections(lower) : lower(), assertions))
-  requests.set(request, { scene, crossChecks: assertions })
+  requests.set(request, { scene, lowering, crossChecks: assertions })
   return scene
 }
 
 /** Native crisp work has no Scene document/group tree. Strong evidence and
  * alternate backends deliberately retain the extension-facing Scene adapter. */
-export function retainedNativeDrawing(request: ResolvedRenderRequest, layout: FamilyLayoutResult): RenderableNativeDrawing | undefined {
+export function retainedNativeDrawing(request: ResolvedRenderRequest, layout: FamilyLayoutResult, reuseOnly = false): RenderableNativeDrawing | undefined {
   const plan = resolvedRenderExecutionPlanOf(request)
   let bypass = sceneAssertionsEnabled(request) ? 'scene-assertions' : plan.family.id.startsWith('family:') ? 'external-family'
     : plan.backend && !isBuiltinDefaultBackend(plan.backend.backend) ? 'alternate-backend'
@@ -103,6 +104,9 @@ export function retainedNativeDrawing(request: ResolvedRenderRequest, layout: Fa
     producer = nativeDrawingOf(plan.family.lowerScene)
   }
   observeCache('native-drawing', 'miss')
+  // Resolved capture already owns an admitted Scene. Its certificate lookup
+  // may reuse an exact native artifact but must not construct a second drawing.
+  if (reuseOnly) return undefined
   producer = nativeDrawingOf(plan.family.lowerScene)
   if (!producer) {
     observeCache('native-drawing', 'bypass', 'no-native-producer')
@@ -118,9 +122,9 @@ export function retainedNativeDrawing(request: ResolvedRenderRequest, layout: Fa
   return drawing
 }
 
-export function positionedPaintCertification(request: ResolvedRenderRequest, layout: FamilyLayoutResult): PaintLayoutCertification {
+export function positionedPaintCertification(request: ResolvedRenderRequest, layout: FamilyLayoutResult, capturedScene?: SceneDoc): PaintLayoutCertification {
   const existing = native.get(layout)?.get(request)
-  const drawing = existing?.drawing ?? retainedNativeDrawing(request, layout)
+  const drawing = existing?.drawing ?? retainedNativeDrawing(request, layout, capturedScene !== undefined)
   if (drawing) {
     const entry = native.get(layout)!.get(request)!
     observeCache('paint-certification', entry.certification ? 'hit' : 'miss', undefined, 'native')
@@ -137,11 +141,18 @@ export function positionedPaintCertification(request: ResolvedRenderRequest, lay
     }
     return certification
   }
-  const scene = retainedPositionedScene(request, layout)
+  const scene = capturedScene ?? retainedPositionedScene(request, layout)
   const entry = retained.get(layout)!.get(request)!
+  const plan = resolvedRenderExecutionPlanOf(request)
+  const reusableScene = () => capturedScene !== undefined && isOwnedFamily(plan.family)
+    && entry.lowering === plan.family.lowerScene && isOriginalSceneLowering(entry.lowering)
+    && nativeDrawingOf(entry.lowering) === originalNativeDrawingOf(entry.lowering)
+    && originalNativeDrawingOf(entry.lowering) !== undefined
+  if (!entry.certification && reusableScene()) entry.certification = cachedScenePaintCertification(request, layout, entry.lowering)
   observeCache('paint-certification', entry.certification ? 'hit' : 'miss', undefined, 'scene')
   if (entry.certification) return entry.certification
-  const plan = resolvedRenderExecutionPlanOf(request)
   const supported = !request.appearance.colors.shadow && (plan.mode === 'layout' ? request.appearance.inferredBackend === 'default' : plan.mode === 'scene' && plan.backend?.inputName === 'default')
-  return entry.certification = certifyScenePaint(scene, retainedFamilyProjection(layout), { outputSupported: supported })
+  const certification = entry.certification = certifyScenePaint(scene, retainedFamilyProjection(layout), { outputSupported: supported })
+  if (reusableScene()) retainScenePaintCertification(request, layout, entry.lowering, certification)
+  return certification
 }

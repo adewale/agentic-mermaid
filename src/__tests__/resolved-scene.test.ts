@@ -9,6 +9,40 @@ import raynerGroups from './testdata/rayner-528/architecture-groups.json'
 import { createScenePartCapture } from '../scene/part-capture.ts'
 
 describe('renderResolvedScene', () => {
+  test.each(['0', '1'])('capture certifies its Scene without constructing another drawing with cache %s', cache => {
+    const entry = (path: string) => JSON.stringify(new URL(path, import.meta.url).href)
+    const code = `
+      import { spyOn } from 'bun:test'
+      import { renderResolvedScene, renderMermaidSVGWithReceipt } from ${entry('../index.ts')}
+      import * as drawing from ${entry('../scene/native-drawing.ts')}
+      import { withPerformanceObserver } from ${entry('../performance-observations.ts')}
+      renderMermaidSVGWithReceipt('pie\\n"Warmup": 1')
+      const source = 'pie\\n"Read": 4\\n"Other": 6'
+      const draw = spyOn(drawing, 'drawNative'), events = []
+      const first = withPerformanceObserver(event => events.push(event), () => renderResolvedScene(source))
+      const firstDraws = draw.mock.calls.length
+      renderResolvedScene(source)
+      events.length = 0
+      const repeated = withPerformanceObserver(event => events.push(event), () => renderResolvedScene(source))
+      const repeatedDraws = draw.mock.calls.length
+      const repeatedCertificate = events.find(event => event.kind === 'cache' && event.owner === 'paint-certification')
+      const rendered = renderMermaidSVGWithReceipt(source)
+      const beforeReplay = draw.mock.calls.length
+      events.length = 0
+      const replay = withPerformanceObserver(event => events.push(event), () => renderResolvedScene(source))
+      console.log(JSON.stringify({ firstDraws, repeatedDraws, repeatedCertificate, beforeReplay, afterReplay: draw.mock.calls.length,
+        sameSvg: first.svg === rendered.svg && repeated.svg === rendered.svg && replay.svg === rendered.svg,
+        certificate: events.find(event => event.kind === 'cache' && event.owner === 'paint-certification') }))
+    `
+    const result = Bun.spawnSync([process.execPath, '--eval', code], {
+      env: { ...process.env, AGENTIC_MERMAID_SCENE_ASSERTIONS: '0', AGENTIC_MERMAID_ELK_CACHE: cache }, stdout: 'pipe', stderr: 'pipe',
+    })
+    expect({ status: result.exitCode, error: new TextDecoder().decode(result.stderr) }).toEqual({ status: 0, error: '' })
+    expect(JSON.parse(new TextDecoder().decode(result.stdout))).toMatchObject({ firstDraws: 0, repeatedDraws: 0, beforeReplay: 1, afterReplay: 1,
+      repeatedCertificate: { detail: 'scene', outcome: cache === '1' ? 'hit' : 'miss' },
+      sameSvg: true, certificate: { detail: cache === '1' ? 'native' : 'scene', outcome: cache === '1' ? 'hit' : 'miss' } })
+  })
+
   test('Venn resolves the requested accent beside authored fill and retains lossless JSON paint', () => {
     const source = 'venn-beta\nset A["Authored fill"]:20\nset B["Requested accent"]:12\nunion A,B["Shared"]:3\nstyle A fill:#e2e8f0'
     for (const accent of ['#2b6cb0', '#b83280']) {
