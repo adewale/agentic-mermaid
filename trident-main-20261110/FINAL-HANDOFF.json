@@ -1,0 +1,21 @@
+{
+  "at": "2026-11-11T01:00:17.628412+00:00",
+  "source": {
+    "main": "4260292397d4bca7624a30c34649eb943a5f8e0c",
+    "pr": "599bee58db7cb54293866cc8aa86c887ef93e9a4"
+  },
+  "evidence": "4fea9394f097ca8112bcabfc3a594a5cc248d729",
+  "report": "https://github.com/adewale/agentic-mermaid/blob/4fea9394f097ca8112bcabfc3a594a5cc248d729/trident-main-20261110/REPORT.md",
+  "lease": "released",
+  "writers": [],
+  "timingWorkers": {
+    "svg": 5952,
+    "fullReceipt": 864
+  },
+  "sourceUnchanged": true,
+  "PR": 602,
+  "draft": true,
+  "CI": "failure",
+  "automationsResumed": false,
+  "environmentInterruption": "Transient disconnect after clocks; reconnected; all data intact and now backed up"
+}

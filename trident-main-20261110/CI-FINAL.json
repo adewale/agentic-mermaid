@@ -1,0 +1,226 @@
+{
+  "source": "599bee58db7cb54293866cc8aa86c887ef93e9a4",
+  "run": 42916751713,
+  "status": "completed",
+  "conclusion": "failure",
+  "runs": [
+    {
+      "id": 42916751630,
+      "name": "Action pinning",
+      "status": "completed",
+      "conclusion": "success",
+      "run_number": 345,
+      "jobs_url": "https://api.github.com/repos/adewale/agentic-mermaid/actions/runs/42916751630/jobs",
+      "logs_url": "https://api.github.com/repos/adewale/agentic-mermaid/actions/runs/42916751630/logs",
+      "workflow_id": 408103852
+    },
+    {
+      "id": 42916751637,
+      "name": "Ruff",
+      "status": "completed",
+      "conclusion": "success",
+      "run_number": 3390,
+      "jobs_url": "https://api.github.com/repos/adewale/agentic-mermaid/actions/runs/42916751637/jobs",
+      "logs_url": "https://api.github.com/repos/adewale/agentic-mermaid/actions/runs/42916751637/logs",
+      "workflow_id": 320800112
+    },
+    {
+      "id": 42916751713,
+      "name": "CI",
+      "status": "completed",
+      "conclusion": "failure",
+      "run_number": 3167,
+      "jobs_url": "https://api.github.com/repos/adewale/agentic-mermaid/actions/runs/42916751713/jobs",
+      "logs_url": "https://api.github.com/repos/adewale/agentic-mermaid/actions/runs/42916751713/logs",
+      "workflow_id": 246384063
+    }
+  ],
+  "jobs": [
+    {
+      "id": 130181051266,
+      "name": "Select required checks",
+      "status": "completed",
+      "conclusion": "success",
+      "failedSteps": []
+    },
+    {
+      "id": 130181051718,
+      "name": "Expire label approvals of earlier heads",
+      "status": "completed",
+      "conclusion": "success",
+      "failedSteps": []
+    },
+    {
+      "id": 130181308151,
+      "name": "Quality gates",
+      "status": "completed",
+      "conclusion": "failure",
+      "failedSteps": [
+        "Run the complete local and CI quality suite"
+      ]
+    },
+    {
+      "id": 130181308176,
+      "name": "Generated layout diagnostic (advisory)",
+      "status": "completed",
+      "conclusion": "failure",
+      "failedSteps": [
+        "Compare backend readability and retain geometric tradeoffs"
+      ]
+    },
+    {
+      "id": 130181308193,
+      "name": "MCP conformance",
+      "status": "completed",
+      "conclusion": "success",
+      "failedSteps": []
+    },
+    {
+      "id": 130181308224,
+      "name": "CLI and single-binary tests",
+      "status": "completed",
+      "conclusion": "success",
+      "failedSteps": []
+    },
+    {
+      "id": 130181308297,
+      "name": "Layout backend review evidence",
+      "status": "completed",
+      "conclusion": "success",
+      "failedSteps": []
+    },
+    {
+      "id": 130181308305,
+      "name": "Renderer isolation (windows-latest)",
+      "status": "completed",
+      "conclusion": "success",
+      "failedSteps": []
+    },
+    {
+      "id": 130181308349,
+      "name": "Build portable test artifacts",
+      "status": "completed",
+      "conclusion": "success",
+      "failedSteps": []
+    },
+    {
+      "id": 130181308532,
+      "name": "Renderer isolation (macos-15-intel)",
+      "status": "completed",
+      "conclusion": "success",
+      "failedSteps": []
+    },
+    {
+      "id": 130181308594,
+      "name": "Independent semantic conformance / semantic",
+      "status": "completed",
+      "conclusion": "success",
+      "failedSteps": []
+    },
+    {
+      "id": 130181311253,
+      "name": "Documentation checks",
+      "status": "completed",
+      "conclusion": "skipped",
+      "failedSteps": []
+    },
+    {
+      "id": 130182490113,
+      "name": "Installed-package quickstarts",
+      "status": "completed",
+      "conclusion": "success",
+      "failedSteps": []
+    },
+    {
+      "id": 130182490216,
+      "name": "Unit tests (1/3)",
+      "status": "completed",
+      "conclusion": "failure",
+      "failedSteps": [
+        "Run test shard"
+      ]
+    },
+    {
+      "id": 130182490296,
+      "name": "Unit tests (3/3)",
+      "status": "completed",
+      "conclusion": "failure",
+      "failedSteps": [
+        "Run test shard"
+      ]
+    },
+    {
+      "id": 130182490341,
+      "name": "E2E (tarball-consumer)",
+      "status": "completed",
+      "conclusion": "success",
+      "failedSteps": []
+    },
+    {
+      "id": 130182490361,
+      "name": "E2E (browser)",
+      "status": "completed",
+      "conclusion": "success",
+      "failedSteps": []
+    },
+    {
+      "id": 130182490406,
+      "name": "E2E (dist-artifact)",
+      "status": "completed",
+      "conclusion": "success",
+      "failedSteps": []
+    },
+    {
+      "id": 130182490423,
+      "name": "Unit tests (2/3)",
+      "status": "completed",
+      "conclusion": "success",
+      "failedSteps": []
+    },
+    {
+      "id": 130182490433,
+      "name": "E2E (payload)",
+      "status": "completed",
+      "conclusion": "failure",
+      "failedSteps": [
+        "Verify website payload request graphs and budgets",
+        "Compare payload with the base branch"
+      ]
+    },
+    {
+      "id": 130182490447,
+      "name": "E2E (tarball-consumer-node22)",
+      "status": "completed",
+      "conclusion": "success",
+      "failedSteps": []
+    },
+    {
+      "id": 130182490620,
+      "name": "E2E (browser-site)",
+      "status": "completed",
+      "conclusion": "failure",
+      "failedSteps": [
+        "Run canonical browser contracts"
+      ]
+    },
+    {
+      "id": 130188346489,
+      "name": "test",
+      "status": "completed",
+      "conclusion": "failure",
+      "failedSteps": [
+        "Require every runtime lane to pass"
+      ]
+    },
+    {
+      "id": 130188389479,
+      "name": "CI complete",
+      "status": "completed",
+      "conclusion": "failure",
+      "failedSteps": [
+        "Require every selected CI lane to pass"
+      ]
+    }
+  ],
+  "manualDispatch": false
+}
