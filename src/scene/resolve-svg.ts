@@ -5,34 +5,6 @@ import { IDENTITY, multiply, pathData, pathEndpoints, svgMatrix } from './resolv
 import { RESOLVED_SCENE_VERSION, type Matrix, type ResolvedPaint, type ResolvedPart, type ResolvedPrimitive, type ResolvedScene, type ResolvedText } from './resolved-types.ts'
 import type { SceneDoc } from './ir.ts'
 
-/** Scene admission has already captured bounded, acyclic own data. Copy only
- * retained data; newly constructed primitives can be normalized in place.
- * Repeated aliases are deliberately expanded, as in the published JSON form. */
-function publishJson<T>(value: T, detach: boolean): T {
-  if (typeof value === 'number') return (Number.isFinite(value) ? value === 0 ? 0 : value : null) as T
-  if (value === null || typeof value !== 'object') {
-    if (typeof value === 'bigint') throw new TypeError('Cannot serialize a BigInt')
-    return (typeof value === 'function' || typeof value === 'symbol' ? undefined : value) as T
-  }
-  if (Array.isArray(value)) {
-    const result = detach ? new Array(value.length) : value
-    for (let index = 0; index < value.length; index++) {
-      const child = publishJson(value[index], detach) ?? null
-      if (detach && String(index) in Array.prototype) Object.defineProperty(result, index, { value: child, enumerable: true, configurable: true, writable: true })
-      else result[index] = child
-    }
-    return result as T
-  }
-  const result = (detach ? {} : value) as Record<string, unknown>
-  for (const key of Object.keys(value)) {
-    const child = publishJson((value as Record<string, unknown>)[key], detach)
-    if (child === undefined) { if (!detach) delete result[key] }
-    else if (detach && key in Object.prototype) Object.defineProperty(result, key, { value: child, enumerable: true, configurable: true, writable: true })
-    else result[key] = child
-  }
-  return result as T
-}
-
 /** Resolve the emitted SVG, not the Scene's idealized geometry. */
 export function resolveSvgScene(svg: string, scene: SceneDoc, owners: readonly number[], exactOwners = false): ResolvedScene {
   const root = svgTree(svg, owners, exactOwners ? count => {
@@ -113,7 +85,7 @@ export function resolveSvgScene(svg: string, scene: SceneDoc, owners: readonly n
       }),
     }
   }
-  const push = (owner: number, primitive: ResolvedPrimitive) => (partByIndex.get(owner)?.primitives ?? frame).push(publishJson(primitive, false))
+  const push = (owner: number, primitive: ResolvedPrimitive) => (partByIndex.get(owner)?.primitives ?? frame).push(primitive)
   const markerStack = new Set<SvgElement>()
   const visit = (node: SvgElement, parentMatrix: Matrix, inheritedOpacity: number, givenOwner?: number, marker = false): void => {
     const tag = node.tag
@@ -194,12 +166,17 @@ export function resolveSvgScene(svg: string, scene: SceneDoc, owners: readonly n
     if (error instanceof ResolvedSceneError) throw error
     fail('geometry', (error as Error).message)
   }
-  // Detach retained Scene data only after successful SVG resolution, preserving
-  // error ordering. Primitives and their arrays are already operation-owned.
-  for (const part of parts) part.node = publishJson(part.node, true)
+  // Compact the published data without serializing the SVG string. JSON
+  // publication also expands aliases and normalizes sparse arrays and numbers.
+  const published = JSON.parse(JSON.stringify({
+    family: scene.family, width: scene.width, height: scene.height,
+    colors: scene.colors, parts, frame,
+  })) as Omit<ResolvedScene, 'version' | 'svg'>
+  // Materialize the returned SVG without a JSON escape/parse pass over it.
+  const publishedSvg = (' ' + svg).slice(1)
   const result = {
-    version: RESOLVED_SCENE_VERSION, family: publishJson(scene.family, false), width: publishJson(scene.width, false), height: publishJson(scene.height, false),
-    svg, colors: publishJson(scene.colors, true), parts, frame,
+    version: RESOLVED_SCENE_VERSION, family: published.family, width: published.width, height: published.height,
+    svg: publishedSvg, colors: published.colors, parts: published.parts, frame: published.frame,
   }
   // Preserve JSON omission for direct internal callers as well, without
   // traversing already published parts a second time.

@@ -5,7 +5,8 @@ import { composeMatrices, parseSvgTransform } from './transforms.ts'
 
 export const IDENTITY: Matrix = [1, 0, 0, 1, 0, 0]
 export const multiply = (a: Matrix, b: Matrix): Matrix => {
-  const matrix: Matrix = [...composeMatrices(a, b)]
+  // composeMatrices already allocates a fresh numeric tuple.
+  const matrix = composeMatrices(a, b) as Matrix
   if (!matrix.every(Number.isFinite)) throw new Error('Non-finite transform')
   return matrix
 }
