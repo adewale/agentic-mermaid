@@ -692,6 +692,49 @@ describe('async family-loaded browser renderer', () => {
     }
   })
 
+  test('plain delivery defers style implementation while styled capture preserves products and getter order', async () => {
+    const source = 'flowchart LR\nA[Ready] --> B[Done]'
+    const inputs = [
+      { style: 'paper' },
+      { style: 'hand-drawn' },
+      { style: { colors: { fg: '#123456' }, roles: { node: { cornerRadius: 4 } } } },
+      { style: ['paper', { colors: { accent: '#0055aa' } }] },
+      { style: 'missing-cold-style', padding: -1 },
+      { style: { colors: { fg: 'url(https://example.invalid/paint)' } } },
+    ]
+    const baseOptions = { graphLayout: { backend: 'agentic', fallback: 'none' }, embedFontImport: false } as const
+    const expected = await sourceSVGsWithReceipts(inputs.map(options => ({ source, options: { ...baseOptions, padding: 40, ...options } as RenderOptions })))
+    const styleChunk = lazyImplementationChunk('src/scene/style-registry.ts')
+    for (const [index, input] of inputs.entries()) {
+      const page = await browser.newPage(), requests: string[] = []
+      page.on('request', request => requests.push(new URL(request.url()).pathname.replace(/^\/dist\//, '')))
+      try {
+        await page.goto(`${base}/blank.html`)
+        await page.evaluate(async ({ entry, source, options }) => {
+          const api = await import(entry)
+          await api.renderMermaidSVGWithReceiptAsync(source, options)
+        }, { entry: `${base}/dist/browser-lazy/index.js`, source, options: baseOptions })
+        expect(requests).not.toContain(styleChunk)
+        const actual = await page.evaluate(async ({ entry, source, input, baseOptions }) => {
+          const api = await import(entry), reads: string[] = []
+          const options = { ...baseOptions,
+            get style() { reads.push('style'); return input.style },
+            get padding() { reads.push('padding'); return input.padding ?? 40 },
+          }
+          try {
+            const product = await api.renderMermaidSVGWithReceiptAsync(source, options)
+            return { product: JSON.parse(JSON.stringify(product)), reads }
+          } catch (error) { return { error: String(error), reads } }
+        }, { entry: `${base}/dist/browser-lazy/index.js`, source, input: { ...input, padding: 'padding' in input ? input.padding : 40 }, baseOptions })
+        expect(actual.reads).toEqual(['style', 'padding'])
+        const reference = expected[index]!
+        expect('error' in actual ? { error: actual.error } : { product: actual.product }).toEqual(
+          'error' in reference ? { error: String(reference.error) } : { product: JSON.parse(JSON.stringify(reference.rendered)) })
+        expect(requests.filter(path => path === styleChunk)).toHaveLength(1)
+      } finally { await page.close() }
+    }
+  }, 30_000)
+
   test.each(['elk', 'agentic'] as const)('%s-backed families fetch and reuse only the selected solver', async backend => {
     const page = await browser.newPage()
     const requests: string[] = []

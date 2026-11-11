@@ -852,19 +852,28 @@ const EMPTY_ADMITTED_OPTIONS: AdmittedRenderOptions = Object.freeze({
 const CAPTURED_OPTIONS = new WeakMap<object, AdmittedRenderOptions>()
 const CAPTURED_STYLE_REFERENCES = new WeakMap<object, readonly ResolvedStyleReference[]>()
 
+/** Own caller data before an async provider can suspend style admission. */
+export function captureRenderOptionsInput(options: RenderOptions): Readonly<RenderOptions> {
+  if (CAPTURED_OPTIONS.has(options)) return options
+  const admitted = admitRenderOptionsInput(options)
+  const captured = Object.freeze({ ...admitted.serializable, ...(admitted.onConfigDiagnostic ? { onConfigDiagnostic: admitted.onConfigDiagnostic } : {}) })
+  CAPTURED_OPTIONS.set(captured, admitted)
+  return captured
+}
+
 /** Snapshot once before an async feature load. Only this private membership,
  * never a caller's freeze or object identity, authorizes admission reuse. */
 export function captureRenderOptions(options: RenderOptions): Readonly<RenderOptions> {
-  if (CAPTURED_OPTIONS.has(options)) return options
-  const admitted = admitRenderOptionsInput(options)
+  options = captureRenderOptionsInput(options)
+  const admitted = CAPTURED_OPTIONS.get(options)!
+  if (admitted.capturedStyle !== undefined) return options
   const capturedStyle = immutableSnapshot(resolveStyleStackWithFace(admitted.serializable.style))
   const problems = validateSerializableRenderOptions(admitted.serializable)
   if (problems.length) throw new RenderConfigError(`Invalid RenderOptions: ${problems.join('; ')}`)
   const references = namedStyleReferences(admitted.serializable.style)
-  const captured = Object.freeze({ ...admitted.serializable, ...(admitted.onConfigDiagnostic ? { onConfigDiagnostic: admitted.onConfigDiagnostic } : {}) })
-  CAPTURED_OPTIONS.set(captured, Object.freeze({ ...admitted, capturedStyle }))
+  CAPTURED_OPTIONS.set(options, Object.freeze({ ...admitted, capturedStyle }))
   CAPTURED_STYLE_REFERENCES.set(admitted.serializable, references)
-  return captured
+  return options
 }
 
 export function capturedRenderBackend(options: RenderOptions): string {

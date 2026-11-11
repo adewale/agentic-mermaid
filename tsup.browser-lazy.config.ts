@@ -32,6 +32,11 @@ export default defineConfig({
   esbuildPlugins: [runtimeRenderContractPlugin({ schemaDocumentation: false, terminalAdapter: false, conformanceObservations: false, coalesceRuntimePrimitives: true, sourceOnlySceneAdmission: true, lazyLayoutOptimization: true }), {
     name: 'lazy-browser-dependencies',
     setup(build) {
+      const styleRegistry = resolve(import.meta.dirname, 'src/scene/style-registry.ts')
+      const styleRuntime = resolve(import.meta.dirname, 'src/browser-lazy/style-runtime.ts')
+      build.onResolve({ filter: /\/style-registry\.ts$/ }, args =>
+        args.importer !== styleRuntime && args.kind !== 'dynamic-import' && resolve(args.resolveDir, args.path) === styleRegistry
+          ? { path: resolve(import.meta.dirname, 'src/browser-lazy/style-registry.ts') } : undefined)
       // Every public render awaits this core together with its selected family.
       // Express that complete union in each private facade so shared core code
       // has one reachability set and can ship in fewer compressed chunks.

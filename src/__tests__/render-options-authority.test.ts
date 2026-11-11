@@ -19,6 +19,9 @@ import {
   sharedRenderOptionsJsonSchema,
   styleInputJsonSchema,
   deferredRenderContractDigest,
+  captureRenderOptionsInput,
+  captureRenderOptions,
+  capturedRenderBackend,
   resolveRenderRequest,
   validateSerializableRenderOptions,
 } from '../render-contract.ts'
@@ -27,6 +30,34 @@ const runChild = useTestChildren(20_000)
 const temp = useTempDirs('option-style-retention-')
 
 describe('shared RenderOptions authority', () => {
+  test('input-only capture preserves getter observations and requires style completion before backend use', () => {
+    const reads: string[] = []
+    let color = '#123456'
+    const options = {
+      get style() { reads.push('style'); return { get colors() { reads.push('colors'); return { get fg() { reads.push('fg'); return color } } } } },
+      get padding() { reads.push('padding'); return 30 },
+    }
+    const input = captureRenderOptionsInput(options)
+    expect(reads).toEqual(['style', 'padding', 'colors', 'fg'])
+    expect(() => capturedRenderBackend(input)).toThrow('Render options have not been captured')
+    color = '#abcdef'
+    expect(captureRenderOptionsInput(input)).toBe(input)
+    expect(captureRenderOptions(input)).toBe(input)
+    expect(capturedRenderBackend(input)).toBe('default')
+    expect(resolveRenderRequest('pie\n "One" : 1', input).appearance.style?.colors?.fg).toBe('#123456')
+    expect(reads).toEqual(['style', 'padding', 'colors', 'fg'])
+  })
+
+  test.each([
+    [{ padding: -1 }, /padding/],
+    [{ style: 'missing-captured-style', padding: -1 }, /Unknown style/],
+  ] as const)('input-only membership cannot bypass render option admission (%j)', (options, message) => {
+    const input = captureRenderOptionsInput(options)
+    expect(() => capturedRenderBackend(input)).toThrow('Render options have not been captured')
+    expect(() => captureRenderOptions(input)).toThrow(message)
+    expect(() => resolveRenderRequest('pie\n "One" : 1', input)).toThrow(message)
+  })
+
   test('projects every descriptor schema verbatim with terminal metadata', () => {
     const schema = sharedRenderOptionsJsonSchema() as {
       additionalProperties: boolean
