@@ -1,0 +1,29 @@
+{
+  "at": "2026-11-11T20:01:41.007533+00:00",
+  "source": "285427d6186453066e11245c1a9a2d4516e0e22b",
+  "allFourResolved": false,
+  "nativeDraftFiles": [
+    "src/scene/actual-write-records.ts",
+    "src/scene/svg-writer.ts",
+    "src/scene/serialization.ts",
+    "src/scene/scene-validation-core.ts",
+    "src/scene/native-paint-emission.ts",
+    "src/scene/native-drawing.ts",
+    "src/scene/marks.ts",
+    "src/__tests__/scene-svg-writer.test.ts"
+  ],
+  "files": {
+    "REPORT.md": {
+      "bytes": 3024,
+      "sha256": "af8fbb4df6c016832ccb54d6dc47f186ae2bf31d2db565933b0f6445747b0529"
+    },
+    "native-active-draft.tar.gz": {
+      "bytes": 205692,
+      "sha256": "d2e382d0a0d687b85a8d0c34f3f9f13ca3f164d78aeca24f8cd9200f42a27aa6"
+    },
+    "qualification.tar.gz": {
+      "bytes": 4517157,
+      "sha256": "1ab5a99b1863c17caab1c6432e2de93cfaa42d26847eeb113f22df4d13862693"
+    }
+  }
+}

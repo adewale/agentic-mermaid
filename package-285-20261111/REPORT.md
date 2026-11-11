@@ -1,0 +1,15 @@
+# Current repair285427d6186453066e11245c1a9a2d4516e0e22b
+
+Committed and normally pushed to PR602. All five introduced runtime package inventory errors are removed. Node returns to20chunks and removes browser SPI spill; Zen keeps one required admission partition (7→8). The measured+1783gzip/+2066Br/+1request Zen cost belongs to the predecessor41-file repair, not this final43-file source. FinalZen transfer is not extrapolated.
+
+An unconditional preparation await was caught before adopting the repair: queued option-getter effects overtook diagnostics in source and both compiled engines. Existing public owners reproduce RED thenGREEN after synchronous own consumer/ready records and awaiting only required acquisition. One shared capture/retry loop remains; descriptor facades are descriptor-only; browser injection is owned by the async-only build.
+
+Current exact-head Trident124portable/198authored+Chromium:310returnedwholeproducts exact to retainedc685, allmeaning/paint/quality vectors unchanged,12sameerrors,0observererrors/browserclosed. This is qualification, no newlayoutgain. The full66family+2styled injection qualification is the preceding41-file repair; this43-file ordering revision requalifies12affectedfamily/backend+2styles observations with28exactwhole/noncert/proofproducts. Node42JS/CJSfiles are byteidentical to the priorqualifiedrepair; no unchanged rerender counted as progress.
+
+Core/repo types and43-filelint pass;145source/SDKowners pass; emitted23P/2localbaselinefails (request38>37 and source/compiled+18operations). Actual runtimeJSinventory162/162/0problems. Newwrapper cost versus41:35–70raw/14–43gzip bytes in affectedobservations, requestsunchanged. Strictmixedraw2526401>2430000,gzip785125>761500,Br625373>618000; gap23625gzip. All adverse/unknowns retained.
+
+CI43088250237 completedFAIL overall: all3unitshards, browsercontracts, build/package, installedquickstarts, Node22/24tarball, dist/MCP/CLI/semantic andplatformisolation PASS. Payload, browser-site standalone editor andadvisorylayout FAIL. CI mixedgzip785147>761500; standaloneeditor1354954>1334500. Localdeclarationprobes137/NodeworkerOOM remain resourcefailures, no retries; CI now covers successful build/package/tarball validation. No readinessclaim.
+
+Native draft remains UNADOPTED: tinyA→B has exactSVG/noncert,Pproof andactualrectangle+preparedtext paths, but connectors remainoldcapture. Reviewer found inherited optional metadata and missing actualrectfinite/range authority. Structuralfixes are inprogress; owningnegatives/nestedmetadata closure incomplete. No Native100 timing/capacity gain is qualified. The draft archive preserves allsrcdifferences against285 andrawpilot logs; file snapshots may spanactiveedits, not a frozenreviewcandidate.
+
+Authoritative source is remote285. Primary GitHEAD300/index remainpreserved because diskfull; all new source commits/evidence use separateRAMbareGit. Initialfailedadd mayleaveunreferencedblobs, none deleted/relocated. Allfourtargets remainopen; automations off.
