@@ -542,7 +542,7 @@ describe('quadrant repeated point labels and refused coordinates', () => {
     ['non-numeric', 'A: [x, 0]', 'Quadrant point "A" has non-numeric coordinate "x"'],
   ])('a coordinate that is %s is a parse failure with its reason, not unmodeled syntax', (_name, statement, reason) => {
     const source = `quadrantChart\n  x-axis Low --> High\n  ${statement}`
-    expect(parseMermaid(source)).toEqual({ ok: false, error: [{ code: 'PARSE_FAILED', message: expect.stringContaining(reason) }] })
+    expect(parseMermaid(source)).toMatchObject({ ok: false, error: [{ code: 'PARSE_FAILED', diagramType: 'quadrant', message: expect.stringContaining(reason) }] })
     const warnings = verifyMermaid(source).warnings
     expect(warnings).toEqual([{ code: 'RENDER_FAILED', origin: 'source', reason: expect.stringContaining(reason) }])
   })
