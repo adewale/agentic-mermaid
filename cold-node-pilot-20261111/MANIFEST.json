@@ -1,0 +1,35 @@
+{
+  "source": "285427d6186453066e11245c1a9a2d4516e0e22b",
+  "adopted": false,
+  "archive": "cold-node-pilot.tar.gz",
+  "bytes": 268511,
+  "sha256": "3f3048b1452b4f38f88d733ba8c17fd569d64a7d6d69a77fe09d521b59117dab",
+  "runtimeFreeze": {
+    "base": "285427d6186453066e11245c1a9a2d4516e0e22b",
+    "root": "/dev/shm/pr449-four-final-20261111/node-drawing-consumer-pilot",
+    "files": [
+      {
+        "path": "src/index.ts",
+        "sha256": "826744711d92f1d44ff20e7ccf04e9ea3cc7ea035c6a3385a6817314d688ac2f",
+        "baseSha256": "dcb2db500c2fa713919334ab9e9b898cb60e6d8a7263a68932a6f403610bc3af"
+      },
+      {
+        "path": "src/scene/backend.ts",
+        "sha256": "f0ee3b3b2917c6462ae9fdb2cba21af3a22a84de5f722157a2ea0c90ecaa5b0e",
+        "baseSha256": "6d3d7810bddb80724d2dc439be95a6fb7780a0c660fc84f096904ae4cdc565ff"
+      },
+      {
+        "path": "src/graphical-render.ts",
+        "sha256": "21405cc68b7b04f58f500514d1c5d3081ff2069fc9b0dd3af3bbca418cb3e8cf",
+        "baseSha256": "b47894faf0feef50f5d5737435f9a95028a4fc510cb2037cf9d7fbb71ec3a76b"
+      },
+      {
+        "path": "src/scene/positioned.ts",
+        "sha256": "14868aac8d9a056fa300f157cd7c3c5c8cd3e8c86f56db31010e680912b8c838",
+        "baseSha256": "6f5f6f9522068139b0e99e2066c4de0e12831a44704d26e43fdd106492752b58"
+      }
+    ],
+    "rejectedEarlier": "rejected-suppressed-producer",
+    "runtimeFrozen": true
+  }
+}
