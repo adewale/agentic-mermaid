@@ -1,0 +1,25 @@
+{
+  "at": "2026-11-11T19:10:52.639627+00:00",
+  "parent": "c685b5deec7126ff9d0af0276dada80244b6796a",
+  "adopted": false,
+  "nativeDraftFiles": [
+    "src/scene/marks.ts",
+    "src/scene/svg-writer.ts",
+    "src/scene/serialization.ts"
+  ],
+  "packageDraftFiles": 41,
+  "files": {
+    "REPORT.md": {
+      "bytes": 2131,
+      "sha256": "1faa5df499922fdedd8d4bde37472713a1071c77bb4099605969c4dcb6a95eef"
+    },
+    "package-qualification.tar.gz": {
+      "bytes": 35898681,
+      "sha256": "a6b089ee442f42c3f6257c81fd3ab952e0448ea0e165079884ad1853857a1d2b"
+    },
+    "source-drafts.tar.gz": {
+      "bytes": 49387,
+      "sha256": "4bd7a13ba6fe8ecf87ed8638476dfa09ee5d5550495c7a52823f3b734d8104e0"
+    }
+  }
+}
