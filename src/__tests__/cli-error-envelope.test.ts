@@ -154,7 +154,7 @@ describe('render failure diagnostics agree across render surfaces', () => {
     {
       name: 'a statement the render parser refuses',
       source: 'sequenceDiagram\n  A->>B hi no colon',
-      expected: { code: 'RENDER_FAILED', origin: 'source', message: expect.stringContaining('A->>B hi no colon') },
+      expected: { code: 'MERMAID_SYNTAX_ERROR', diagramType: 'sequence', line: 2, column: 3, message: expect.stringContaining('A->>B hi no colon') },
       exit: 2, cli: ['svg', 'ascii', 'layout', 'png'], tools: textTools, markdown: true, codeMode: true,
     },
     {
@@ -217,7 +217,7 @@ describe('render failure diagnostics agree across render surfaces', () => {
         const stdio = await handleRequest({ jsonrpc: '2.0', id: 1, method: 'tools/call', params: { name: 'render_png', arguments: { source } } })
         expect(JSON.parse((stdio!.result as { content: Array<{ text: string }> }).content[0]!.text), `${name} stdio render_png`).toEqual({ ok: false, error: expected })
         if (codeMode) {
-          const sandbox = await executeInSandbox(`try { mermaid.renderMermaidSVG(${JSON.stringify(source)}); return null } catch (e) { return { code: e.code, origin: e.origin, message: e.message, details: e.details } }`)
+          const sandbox = await executeInSandbox(`try { mermaid.renderMermaidSVG(${JSON.stringify(source)}); return null } catch (e) { return { code: e.code, origin: e.origin, message: e.message, details: e.details, ...(e.code === 'MERMAID_SYNTAX_ERROR' ? { diagramType: e.diagramType, line: e.line, column: e.column } : {}) } }`)
           expect(JSON.parse(JSON.stringify(sandbox.value)), `${name} Code Mode`).toEqual(expected)
         }
         if (markdown) {

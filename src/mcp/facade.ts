@@ -116,7 +116,11 @@ export function createTracingMermaid(trace?: ExecutionTraceCall[], makeSandboxEr
     try {
       return fn()
     } catch (e) {
-      const fields = structuredErrorFields(e) ?? (renderFailure ? { name: 'RenderError', ...projectRenderErrorDiagnostic(e, renderFailure) } : undefined)
+      // A syntax error in source the registered parser rejects is reported as
+      // that parse failure, as on every other render surface.
+      const parseFailure = renderFailure && projectKnownRenderErrorDiagnostic(e)?.code === 'MERMAID_SYNTAX_ERROR' ? projectRenderErrorDiagnostic(e, renderFailure) : undefined
+      const fields = (parseFailure?.code === 'PARSE_FAILED' ? { name: 'RenderError', ...parseFailure } : undefined)
+        ?? structuredErrorFields(e) ?? (renderFailure ? { name: 'RenderError', ...projectRenderErrorDiagnostic(e, renderFailure) } : undefined)
       const wrapped = sandboxError((fields?.message as string) ?? (e as Error).message)
       if (fields) {
         structuredErrorMetadata.set(wrapped, fields)

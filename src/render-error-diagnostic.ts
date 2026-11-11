@@ -238,8 +238,19 @@ function registeredParseErrors(source: string | undefined): readonly ParseError[
  * message, and a thrown non-Error value gets the generic fallback, so neither
  * host internals nor a forged object reach a response.
  */
-export function projectRenderErrorDiagnostic(error: unknown, context: RenderErrorContext = {}): RenderErrorDiagnostic {
+export function projectRenderErrorDiagnostic(thrown: unknown, context: RenderErrorContext = {}): RenderErrorDiagnostic {
+  // A family layout hook's typed refusal (a syntax error found while laying
+  // out) is reported as itself, not as the FamilyLayoutError wrapping it, so
+  // layout output agrees with SVG and terminal output.
+  const error = thrown instanceof Error && thrown.name === 'FamilyLayoutError' && projectKnownRenderErrorDiagnostic(thrown.cause) ? thrown.cause : thrown
   const known = projectKnownRenderErrorDiagnostic(error)
+  // A syntax error in source the registered parser also rejects is that
+  // parse failure (step 4), as verify and the CLI preflight report it; its
+  // details keep the line, column and family.
+  if (known?.code === 'MERMAID_SYNTAX_ERROR') {
+    const parseErrors = registeredParseErrors(context.source)
+    if (parseErrors) return parseFailedDiagnostic(parseErrors)
+  }
   if (known) return known
   if (error instanceof PngRasterBudgetError) {
     return {

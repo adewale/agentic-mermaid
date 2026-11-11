@@ -211,13 +211,16 @@ parentPort.postMessage({type:'ready'});`)
   }, 30_000)
 
   test.each([
-    ['sequenceDiagram\ninvalid ???', { diagramType: 'sequence', line: 2, column: 1 }],
-    ['---\ntitle: Invalid\n---\nmindmap\n  Root\n  Other', { diagramType: 'mindmap', line: 6 }],
-    ['---\ntitle: Invalid\n---\ngitGraph\n  commit\n  checkout missing', { diagramType: 'gitgraph', line: 6 }],
-  ])('preserves source errors across the process boundary: %s', async (source, location) => {
+    // A statement only the renderer refuses is a syntax error at its location;
+    // source the registered parser rejects is that parse failure, as verify
+    // and the CLI report it.
+    ['sequenceDiagram\ninvalid ???', { code: 'MERMAID_SYNTAX_ERROR', diagramType: 'sequence', line: 2, column: 1 }],
+    ['---\ntitle: Invalid\n---\nmindmap\n  Root\n  Other', { code: 'PARSE_FAILED', details: [{ diagramType: 'mindmap', line: 6 }] }],
+    ['---\ntitle: Invalid\n---\ngitGraph\n  commit\n  checkout missing', { code: 'PARSE_FAILED', details: [{ diagramType: 'gitgraph', line: 6 }] }],
+  ])('preserves source errors across the process boundary: %s', async (source, error) => {
     const bad = await call('render_svg', { source })
     expect(bad.isError).toBe(true)
-    expect(bad.structuredContent).toMatchObject({ ok: false, error: { code: 'MERMAID_SYNTAX_ERROR', ...location } })
+    expect(bad.structuredContent).toMatchObject({ ok: false, error })
   }, 30_000)
 
   test('rejects invalid arguments at admission', async () => {
