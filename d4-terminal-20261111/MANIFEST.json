@@ -1,0 +1,9 @@
+{
+  "source": "d4d3f37195c69cfe09fc8976ff96073847eeb959",
+  "ciRun": 43117973024,
+  "ciConclusion": "failure",
+  "allGoalsComplete": false,
+  "archive": "terminal-and-stopped-bounds.tar.gz",
+  "bytes": 129226,
+  "sha256": "8cf04447429c1ba4fd5c5c3124b14f65f91603d7b337157bb10316d17fdafb42"
+}

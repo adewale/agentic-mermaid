@@ -1,0 +1,11 @@
+# Exact-head terminal CI and stopped follow-ups
+
+Source d4d3f37195c69cfe09fc8976ff96073847eeb959 and both verified milestones are pushed to PR602. Detailed actual Trident/runtime/browser qualification is in group-d4d3-20261111/REPORT.md at3f36b7ae554a88c79ff1eae3a4af0ccd6df18eb5; Fan proof recovery is atb079894898ef848483600135e9bd6595336335cf. This checkpoint changes no production source.
+
+ExactheadCI43117973024 is terminalfailure, notready. All3unitshards, browser, portable/package build, installedquickstarts, Node22/24tarballs, dist, CLI/singlebinary, MCP, semantic andplatformisolation pass. Quality/payload/browser-sitebudgets andadvisorylayout fail. CI mixedgzip785848>761500; demo816286raw/312058gzip>788000/302500; editor1355538>1334500. Testaggregators reflectthosefailures. Localmixed785864 is separatelybound. No label/cap/default/version change, dispatch, newPR/issue or publication.
+
+Actual latestresults: all310returnedSVG/non-certification products and authoredmeaning/actualChromiumink/qualityvectors exact51e6,12sameerrors; largerprooftable10P2U (Fanboth recovered, Chain300bothunknown); matchedwarmNative100SVGmedian95.86ms withone112.24ms process, fullmedian133.63ms. Firstedit/tails/RSS/heapandpayloadadversecosts remainexplicit inmainreport. Allfourissues are NOT100percentresolved; no universalunder100ms, Chain300closure, payloadsuccess or replacement-readiness claim.
+
+Twofinalfollow-up boundsfalsify cheap fixes, withno runtimeedits: NativeChain300marker capture alreadyreuses299of299completedreferences;2declarations126ops+references1196=1322operations, insufficient. Native100has0line-contourderivations;99immediatepolylineguards reserve3960work. Existingfirst/lastnonzerotangents cannotproveimmediateterminalsegments nonzero. Chain300alreadyexhausts beforethoseguards. No newfacts/representation, cache, waiver orcapdiscount wasadded. Sourcehashes/exactproducts/counters preserved.
+
+PRdescription updatedusinggood-pr/anti-slop-writing; existinghistoricalvisualprovenance unchanged, mechanicallintpassed. Allsubagents/jobs/browsersclosedafterboundedwork; no continuousexecutionorbackgroundprogressclaim. Automations remainoff. Campaign-state recordsauthoritativeGitheadandremaininglosses; primaryfullfilesystem'ssource/index/refwork ispreserved. Coordinationlease isreleased afterthisrecoverypush.
