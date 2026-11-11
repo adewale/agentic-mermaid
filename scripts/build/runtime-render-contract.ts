@@ -328,6 +328,28 @@ function runtimeFamilyEditorSource(source: string, path: string): string {
   } finally { transformed.dispose() }
 }
 
+/** The lazy SVG entry offers rendering and receipts, not Style discovery.
+ * Public Style snapshots already omit this registry-only label. Keep palettes,
+ * names, blurbs and all rendering/digest fields unchanged. */
+function runtimeStyleDiscoverySource(source: string, path: string): string {
+  const file = ts.createSourceFile(path, source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS)
+  const transformed = ts.transform(file, [context => root => {
+    const visit: ts.Visitor = node => {
+      if (ts.isObjectLiteralExpression(node)) return ts.visitEachChild(ts.factory.updateObjectLiteralExpression(node,
+        node.properties.filter(property => {
+          if (!ts.isPropertyAssignment(property) || !ts.isIdentifier(property.name) || property.name.text !== 'displayLabel') return true
+          // Keep every computed initializer: this projection only omits pure
+          // literal seed data and cannot suppress an observable property read.
+          return !ts.isStringLiteral(property.initializer)
+        })), visit, context)
+      return ts.visitEachChild(node, visit, context)
+    }
+    return ts.visitNode(root, visit) as ts.SourceFile
+  }])
+  try { return ts.createPrinter().printFile(transformed.transformed[0]!) }
+  finally { transformed.dispose() }
+}
+
 /** The private editor validates mutation shapes but does not expose SDK op
  * discovery. Omit only literal notes from the owned pure annotation helper. */
 function runtimeMutationSchemaSource(source: string, path: string): string {
@@ -360,10 +382,13 @@ function runtimeMutationSchemaSource(source: string, path: string): string {
 }
 
 /** Structural plugin interface works in both esbuild and Bun builds. */
-export function runtimeRenderContractPlugin({ schemaDocumentation = true, terminalAdapter = true, conformanceObservations = true, familyEditorMetadata = true, coalesceRuntimePrimitives = false, sourceOnlySceneAdmission = false, lazyLayoutOptimization = false } = {}) {
+export function runtimeRenderContractPlugin({ schemaDocumentation = true, terminalAdapter = true, conformanceObservations = true, familyEditorMetadata = true, styleDiscoveryMetadata = true, coalesceRuntimePrimitives = false, sourceOnlySceneAdmission = false, lazyLayoutOptimization = false } = {}) {
   return {
     name: 'runtime-render-contract',
     setup(build: BrowserBuild) {
+      if (!styleDiscoveryMetadata) build.onLoad({ filter: /[\\/]src[\\/](?:palette-catalog|scene[\\/]style-registry)\.ts$/ }, ({ path }) => ({
+        contents: runtimeStyleDiscoverySource(readFileSync(path, 'utf8'), path), loader: 'ts', resolveDir: dirname(path),
+      }))
       if (sourceOnlySceneAdmission && !schemaDocumentation) build.onLoad({ filter: /[\\/]src[\\/]agent[\\/]op-schema-definitions\.ts$/ }, ({ path }) => ({
         contents: runtimeMutationSchemaSource(readFileSync(path, 'utf8'), path), loader: 'ts', resolveDir: dirname(path),
       }))
