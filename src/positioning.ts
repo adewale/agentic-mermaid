@@ -28,6 +28,9 @@ import type { PositionedDiagram } from './types.ts'
 const retainedProjections = new WeakMap<FamilyLayoutResult, FamilyPositionedView>()
 const borrowedNativeProducers = new WeakMap<FamilyLayoutResult, DrawingProducer>()
 const reportedFallbacks = new WeakSet<ResolvedRenderRequest>()
+// The complete source envelope repeats several text views. Admit useful exact
+// keys while the positioned/drawing tiers still account for their residency.
+const MAX_POSITIONED_KEY_CHARACTERS = 256 * 1024
 
 /** Pixel dependencies in terminal renderers use the same evidence boundary. */
 export function retainRequestGraphLayoutDecision(request: ResolvedRenderRequest, decision: GraphLayoutDecision, role: 'primary' | 'companion'): void {
@@ -111,7 +114,7 @@ function positionFamily(familyId: FamilyId, request: ResolvedRenderRequest, sour
     Object.entries(environment ?? {}).filter(([key]) => key.startsWith('APL_')).sort(), PERFORMANCE_EXPERIMENTS.map(performanceExperimentEnabled)] : undefined
   if (metricsIdentity !== undefined) cacheParts?.push(metricsIdentity)
   const cacheKey = cacheParts === undefined ? undefined : JSON.stringify(cacheParts)
-  const boundedKey = cacheKey !== undefined && cacheKey.length <= 65536 ? cacheKey : undefined
+  const boundedKey = cacheKey !== undefined && cacheKey.length <= MAX_POSITIONED_KEY_CHARACTERS ? cacheKey : undefined
   if (boundedKey === undefined) observeCache('positioned-layout', 'bypass',
     !performanceExperimentEnabled('position-cache') ? 'disabled' : !certifyFinal ? 'external-family'
       : familyId === 'gantt' ? 'time-dependent-family' : !reusableMetrics ? 'custom-text-measurement'

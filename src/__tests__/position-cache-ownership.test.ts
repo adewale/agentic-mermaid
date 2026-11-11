@@ -3,6 +3,41 @@ import { useTestChildren } from './helpers/test-child.ts'
 
 const runChild = useTestChildren(20_000)
 
+test('long source envelopes reuse exact admitted requests while oversized keys remain uncached', async () => {
+  const child = await runChild(process.execPath, ['-e', `
+    import assert from 'node:assert/strict'
+    import { renderMermaidSVGWithReceipt } from './src/index.ts'
+    import { withPerformanceObserver } from './src/performance-observations.ts'
+    const source = 'pie\\n "Kept label" : 1\\n%% ' + 'x'.repeat(25_000)
+    const capture = (text, options = {}) => {
+      const events = []
+      const value = withPerformanceObserver(event => {
+        if (event.kind === 'cache' && event.owner === 'positioned-layout') events.push(event)
+      }, () => renderMermaidSVGWithReceipt(text, options))
+      return { value, events }
+    }
+    const first = capture(source), repeated = capture(source)
+    assert.ok(first.events.some(event => event.outcome === 'miss'))
+    assert.ok(repeated.events.some(event => event.outcome === 'hit'))
+    assert.deepEqual(repeated.value, first.value)
+    const otherSource = source + 'y', other = capture(otherSource)
+    assert.ok(other.events.some(event => event.outcome === 'miss'), 'authored source stays in the exact key')
+    assert.equal(other.value.svg, first.value.svg)
+    assert.notEqual(other.value.receipt.requestDigest, first.value.receipt.requestDigest)
+    assert.deepEqual(capture(otherSource).value, other.value)
+    const options = capture(source, { compact: true })
+    assert.ok(options.events.some(event => event.outcome === 'miss'), 'current options stay in the key')
+    const oversized = 'pie\\n "Kept label" : 1\\n%% ' + 'x'.repeat(100_000)
+    for (let repeat = 0; repeat < 2; repeat++) {
+      const actual = capture(oversized)
+      assert.equal(actual.value.svg, first.value.svg)
+      assert.ok(actual.events.some(event => event.outcome === 'bypass' && event.reason === 'key-limit'))
+    }
+  `], { cwd: `${import.meta.dir}/../..`, env: { ...process.env, AGENTIC_MERMAID_SCENE_ASSERTIONS: '0', AGENTIC_MERMAID_ELK_CACHE: '1' } })
+  expect(child.stderr).toBe('')
+  expect(child.status).toBe(0)
+})
+
 test('copied native snapshots skip drawing and certification replay without exposing cached geometry', async () => {
   const child = await runChild(process.execPath, ['-e', `
     import assert from 'node:assert/strict'
@@ -87,7 +122,7 @@ test('private cache copies preserve text custody without trusting mutable measur
 test('private text reuse preserves every frozen descendant alias independent of traversal order', async () => {
   const child = await runChild(process.execPath, ['-e', `
     import assert from 'node:assert/strict'
-    import { clonePositioned } from './src/experimental/position-cache.ts'
+    import { clonePositioned, retainPositioned, cachedPositioned } from './src/experimental/position-cache.ts'
     import { preparePixelText, pixelTextLine } from './src/shared/prepared-text.ts'
     const block = preparePixelText('Alpha <b>bold</b> Beta', { fontSize: 12, fontWeight: 400, maxWidth: 70 })
     const projected = pixelTextLine(block, 0), parts = [], seen = new WeakSet()
@@ -97,13 +132,15 @@ test('private text reuse preserves every frozen descendant alias independent of 
       for (const key of Object.keys(value)) collect(value[key], [...path, key])
     }
     collect(block)
-    for (const rootFirst of [false, true]) for (const privateMode of [false, true]) {
+    for (const fromCache of [false, true]) for (const rootFirst of [false, true]) for (const privateMode of [false, true]) {
       const links = parts.map(part => part.value), mutable = { x: 20 }
       const graph = rootFirst ? { block, projected, links } : { links, block, projected }
       graph.map = new Map(parts.map(({ value }, index) => [value, index]))
       graph.set = new Set(links); graph.mutable = mutable; graph.self = graph
       graph.map.set(graph.map, graph)
-      const copy = clonePositioned(graph, privateMode)
+      const family = {}
+      if (fromCache) retainPositioned(family, 'descendant-aliases', { positioned: graph })
+      const copy = fromCache ? cachedPositioned(family, 'descendant-aliases', false, privateMode).positioned : clonePositioned(graph, privateMode)
       assert.equal(copy.self, copy)
       assert.equal(copy.map.get(copy.map), copy)
       assert.equal(copy.block === block, privateMode)
@@ -1001,17 +1038,19 @@ test.each([process.execPath, 'node'])('native admission precedes custody reflect
 test.each([process.execPath, 'node'])('native snapshots retain mutable descriptors, sparse arrays and own prototype-named aliases (%s)', async runtime => {
   const child = await runChild(runtime, ['-e', `
     import assert from 'node:assert/strict'
-    import { clonePositioned } from './src/experimental/position-cache.ts'
+    import { clonePositioned, retainPositioned, cachedPositioned } from './src/experimental/position-cache.ts'
     import { preparePixelText, isRetainedPixelText } from './src/shared/prepared-text.ts'
     const block = preparePixelText('Read', { fontSize: 12, fontWeight: 400 })
-    for (const privateMode of [false, true]) for (const text of [false, true]) {
+    for (const fromCache of [false, true]) for (const privateMode of [false, true]) for (const text of [false, true]) {
       const item = text ? block : Object.freeze({ label: 'ordinary frozen caller data' })
       const sparse = new Array(5)
       sparse[2] = item
       const source = { item, sparse }
       Object.defineProperty(source, '__proto__', { value: item, enumerable: true })
       Object.defineProperty(source, 'readonly', { value: 7, enumerable: true })
-      const copy = clonePositioned(source, privateMode)
+      const family = {}
+      if (fromCache) retainPositioned(family, 'sparse-aliases', { positioned: source })
+      const copy = fromCache ? cachedPositioned(family, 'sparse-aliases', false, privateMode).positioned : clonePositioned(source, privateMode)
       assert.equal(Object.getPrototypeOf(copy), Object.prototype)
       assert.equal(Object.getOwnPropertyDescriptor(copy, '__proto__').value, copy.item)
       assert.equal(copy.sparse[2], copy.item)

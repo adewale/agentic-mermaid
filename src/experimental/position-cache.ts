@@ -21,10 +21,24 @@ const nativeOwners = new WeakMap<FamilyLayoutResult, { key: string; snapshot: Po
 const MAX_WEIGHT = 16 * 1024 * 1024
 const DRAWING_WEIGHT = 8 * 1024 * 1024
 const DRAWING_REPLACEMENT_AGE = 128
-const drawings = new WeightedLru<string, { owner: PositionedSnapshot; drawing: RetainedNativeDrawing }>(128, DRAWING_WEIGHT)
+interface RetainedPaintArtifact {
+  owner: PositionedSnapshot
+  drawing?: RetainedNativeDrawing
+  scene?: { lowering: object; certification: PaintLayoutCertification }
+}
+const drawings = new WeightedLru<string, RetainedPaintArtifact>(128, DRAWING_WEIGHT)
 const results = new WeightedLru<string, PositionedSnapshot>(128, MAX_WEIGHT, key => { drawings.delete(key) })
 const retainedResults = new WeakSet<object>()
 const copiedResults = new WeakSet<object>()
+// Roots are either detached native snapshots or fresh original geometry whose
+// private renderer owns the complete graph. Keep custody on the root itself.
+class PrivatePositionedData extends class { constructor(value: object) { return value } } {
+  #owned: undefined
+  static has(value: unknown): boolean { return typeof value === 'object' && value !== null && #owned in value }
+}
+function retainPrivatePositionedData(value: object): void {
+  if (!PrivatePositionedData.has(value)) new PrivatePositionedData(value)
+}
 function isolatedKey(family: object, key: string): string {
   let id = familyIds.get(family)
   if (id === undefined) { id = nextFamilyId++; familyIds.set(family, id) }
@@ -52,6 +66,45 @@ function setSnapshot(value: object): unknown[] {
   const iterator = setValues.call(value as Set<unknown>), entries: unknown[] = []
   for (let next = setNext.call(iterator); !next.done; next = setNext.call(iterator)) entries.push(next.value)
   return entries
+}
+
+const UNSUPPORTED_PRIVATE_COPY = Symbol('unsupported private positioned copy')
+/** The source is a detached, cache-private native snapshot. Copy mutable
+ * containers once, preserving aliases while sharing qualified text up front.
+ * Opaque native values keep the ordinary structuredClone admission path. */
+function copyPrivatePositioned<T>(source: T): T | undefined {
+  const seen = new Map<object, unknown>()
+  const copy = (value: unknown): unknown => {
+    if (typeof value === 'function' || typeof value === 'symbol') throw UNSUPPORTED_PRIVATE_COPY
+    if (value === null || typeof value !== 'object') return value
+    if (isImmutablePixelTextPart(value)) return value
+    if (seen.has(value)) return seen.get(value)
+    const kind = clonedKind(value)
+    if (kind === 'native') throw UNSUPPORTED_PRIVATE_COPY
+    const result = kind === 'map' ? new Map() : kind === 'set' ? new Set()
+      : kind === 'array' ? new Array((value as unknown[]).length) : {}
+    seen.set(value, result)
+    if (kind === 'map') {
+      for (const [key, item] of mapSnapshot(value)) (result as Map<unknown, unknown>).set(copy(key), copy(item))
+    } else if (kind === 'set') {
+      for (const item of setSnapshot(value)) (result as Set<unknown>).add(copy(item))
+    } else {
+      const descriptors = Object.getOwnPropertyDescriptors(value)
+      for (const key of Object.keys(descriptors)) {
+        const descriptor = descriptors[key]!
+        if (!descriptor.enumerable) continue
+        if (!('value' in descriptor)) throw UNSUPPORTED_PRIVATE_COPY
+        // Define own properties so __proto__ stays data, as in native cloning.
+        Object.defineProperty(result, key, { value: copy(descriptor.value), writable: true, enumerable: true, configurable: true })
+      }
+    }
+    transferRetainedPixelText(value, result)
+    return result
+  }
+  try { return copy(source) as T } catch (error) {
+    if (error !== UNSUPPORTED_PRIVATE_COPY) throw error
+    return undefined
+  }
 }
 
 /** A complete value/alias witness permits original immutable substitutions.
@@ -150,6 +203,10 @@ function transferIndependentTextCustody(source: unknown, copy: unknown): void {
 /** Public copies remain independent mutable snapshots. Private native copies
  * may share only constructor-owned immutable text, preserving custody cost. */
 export function clonePositioned<T>(source: T, immutableText = false): T {
+  if (immutableText && PrivatePositionedData.has(source)) {
+    const copy = copyPrivatePositioned(source)
+    if (copy !== undefined) return copy
+  }
   // Native admission must precede reflection: even a descriptor trap can
   // delete an uncloneable Proxy before structuredClone gets to reject it.
   const copy = structuredClone(source)
@@ -250,6 +307,8 @@ function retainSnapshot(family: object, key: string, value: FamilyLayoutResult, 
     }
     transferGraphLayoutDecisions(value, retained.result)
   }
+  retainPrivatePositionedData(retained.result)
+  retainPrivatePositionedData(retained.result.positioned)
   if (!copy) nativeResidency.set(retained, { locallyRepeated: false })
   results.set(isolatedKey(family, key), retained, weight)
   retainedResults.add(retained.result)
@@ -271,6 +330,38 @@ export function cachedNativeDrawing(request: object, layout: FamilyLayoutResult,
   residency.lastUse = serial
   const retained = drawings.get(entry.key)
   return retained?.owner === entry.snapshot ? retained.drawing : undefined
+}
+
+/** A Scene-only proof cannot authorize native SVG. Its exact lowering and
+ * positioned owner are checked independently of an optional native drawing. */
+export function cachedScenePaintCertification(request: object, layout: FamilyLayoutResult, lowering: object): PaintLayoutCertification | undefined {
+  const entry = nativeOwners.get(layout)
+  if (!entry || entry.request !== request || results.get(entry.key) !== entry.snapshot) return undefined
+  const retained = drawings.get(entry.key)
+  return retained?.owner === entry.snapshot && retained.scene?.lowering === lowering ? retained.scene.certification : undefined
+}
+
+/** Share the existing bounded drawing tier, including key and proof weight.
+ * A Scene-only proof must never displace an already reusable native artifact. */
+export function retainScenePaintCertification(request: object, layout: FamilyLayoutResult, lowering: object, certification: PaintLayoutCertification): void {
+  const entry = nativeOwners.get(layout)
+  if (!entry || entry.request !== request || results.get(entry.key) !== entry.snapshot) return
+  const previous = drawings.get(entry.key)
+  if (previous?.owner === entry.snapshot && previous.drawing) return
+  const residency = nativeResidency.get(entry.snapshot)!
+  const oldest = drawings.leastRecentlyUsed()
+  const oldestUse = oldest && nativeResidency.get(oldest.owner)?.lastUse
+  const canReplaceAged = oldestUse !== undefined && nativeUse - oldestUse >= DRAWING_REPLACEMENT_AGE
+  const minimumWeight = entry.key.length * 2 + 1024
+  if (!residency.locallyRepeated && !canReplaceAged && !drawings.canFit(entry.key, minimumWeight)) {
+    observeCache('paint-certification', 'store-skipped', 'drawing-budget', 'scene'); return
+  }
+  const weight = entry.key.length * 2 + estimatedResidency(certification, DRAWING_WEIGHT) + 1024
+  if (weight > DRAWING_WEIGHT) { observeCache('paint-certification', 'store-skipped', 'weight-limit', 'scene'); return }
+  if (!residency.locallyRepeated && !canReplaceAged && !drawings.canFit(entry.key, weight)) {
+    observeCache('paint-certification', 'store-skipped', 'drawing-budget', 'scene'); return
+  }
+  drawings.set(entry.key, { owner: entry.snapshot, scene: { lowering, certification } }, weight)
 }
 
 /** Derived drawings have their own bounded tier and cannot evict geometry.
