@@ -13,6 +13,15 @@ import type { LayoutWarning, MutationError, Result, VerifyOptions } from './type
 import { err, ok } from './types.ts'
 
 const parsedProvenance = new WeakMap<KanbanBody, { text: string; records: readonly KanbanDeclaration[] }>()
+let provenanceSource: NormalizedMermaidSource | undefined
+
+/** Only the core parse-and-source-map operation requests this handoff. Direct
+ * descriptor parsing and graphical/body-only consumers keep ranges optional. */
+export function withKanbanProvenance<T>(source: NormalizedMermaidSource, parse: () => T): T {
+  const previous = provenanceSource
+  provenanceSource = source
+  try { return parse() } finally { provenanceSource = previous }
+}
 
 /** A body-producing parse hands its fresh lexical evidence directly to the
  * source-map consumer. Never reconstruct events or retain public body data. */
@@ -22,14 +31,14 @@ export function takeKanbanProvenance(body: KanbanBody, text: string): readonly K
   return captured?.text === text ? captured.records : undefined
 }
 
-export function parseKanbanBody(lines: readonly string[] | string, source?: NormalizedMermaidSource, sourceMap = false): KanbanBody | null {
+export function parseKanbanBody(lines: readonly string[] | string, source?: NormalizedMermaidSource): KanbanBody | null {
   try {
     const payload = source ? preservedMermaidFamilyText(source) : undefined
     const input = payload === undefined ? lines : payload.replace(/^[^\r\n]*/, 'kanban')
     // The compatibility header rewrite changes offsets but no body tokens.
     // A non-native header must keep the independent source-map reader.
-    const header = payload?.match(/^[^\r\n]*/)![0]
-    const records = sourceMap && header !== undefined && /^kanban\s*(?:%%.*)?$/i.test(header.trim()) ? [] as KanbanDeclaration[] : undefined
+    const header = payload?.match(/^[^\r\n]*/)?.[0]
+    const records = source && provenanceSource === source && header !== undefined && /^kanban\s*(?:%%.*)?$/i.test(header.trim()) ? [] as KanbanDeclaration[] : undefined
     const body = parseKanbanDiagram(input, source?.accessibility, source, undefined, records ? record => records.push(record) : undefined)
     if (records && payload !== undefined) {
       const delta = header!.length - 'kanban'.length

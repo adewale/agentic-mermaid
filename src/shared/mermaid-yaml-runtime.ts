@@ -235,9 +235,11 @@ function mappingRanges(document: Document): YamlMappingRange[] {
   const ranges: YamlMappingRange[] = []
   if (!isMap(document.contents)) return ranges
   for (const pair of document.contents.items) {
-    if (!isScalar(pair.key) || !pair.key.range || !pair.value || !('range' in pair.value) || !pair.value.range) continue
+    if (!isScalar(pair.key) || !pair.key.range || !pair.value || typeof pair.value !== 'object' || !('range' in pair.value)) continue
+    const range = pair.value.range
+    if (!Array.isArray(range) || typeof range[0] !== 'number' || typeof range[1] !== 'number') continue
     const property = pair.srcToken?.sep?.find(token => token.type === 'anchor' || token.type === 'tag')
-    ranges.push({ name: String(pair.key.value), keyStart: pair.key.range[0], keyEnd: pair.key.range[1], valueStart: property?.offset ?? pair.value.range[0], valueEnd: pair.value.range[1] })
+    ranges.push({ name: String(pair.key.value), keyStart: pair.key.range[0], keyEnd: pair.key.range[1], valueStart: property?.offset ?? range[0], valueEnd: range[1] })
   }
   return ranges
 }

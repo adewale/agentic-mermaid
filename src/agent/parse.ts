@@ -17,6 +17,7 @@ import { classCommentStart, readClassStatements, type ClassStatementNode } from 
 import { tokenize as tokenizeBlock } from '../block/lexer.ts'
 import { tokenize as tokenizeRequirement } from '../requirement/lexer.ts'
 import { parseKanbanDiagram } from '../kanban/parser.ts'
+import { withKanbanProvenance } from './kanban-body.ts'
 import { readGanttStatements } from '../gantt/parser.ts'
 import { statementText, trailingCommentStart } from '../shared/trailing-comment.ts'
 import { parseAccessibilityDirective, statementEndAt } from '../shared/accessibility-directives.ts'
@@ -321,7 +322,7 @@ export function parseRegisteredMermaid(source: string): Result<ParsedDiagram, Pa
     }
     let parsed: ReturnType<NonNullable<typeof plugin.parse>>
     try {
-      parsed = plugin.parse(context)
+      parsed = kind === 'kanban' ? withKanbanProvenance(normalized, () => plugin.parse!(context)) : plugin.parse(context)
     } catch (error) {
       // A registered family's hook throwing is a fault in its descriptor,
       // reported as one; a built-in parser's throw stays ours to surface.

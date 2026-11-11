@@ -408,7 +408,7 @@ function sourceAdapter<K extends StableBody['kind']>(
   parse: (lines: string[], accessibility?: Accessibility) => Extract<StableBody, { kind: K }> | null,
   serialize: (body: Extract<StableBody, { kind: K }>) => string,
   verify: (body: Extract<StableBody, { kind: K }>, opts: VerifyOptions) => LayoutWarning[],
-  parseSource?: (source: string, normalized?: NormalizedMermaidSource, accessibility?: Accessibility, sourceMap?: boolean) => Extract<StableBody, { kind: K }> | null,
+  parseSource?: (source: string, normalized?: NormalizedMermaidSource, accessibility?: Accessibility) => Extract<StableBody, { kind: K }> | null,
   ownsAccessibility = false,
 ): { operations: Omit<FamilyOperations, 'mutate'>; readSource: (source: string) => Extract<StableBody, { kind: K }> | null; serialize: typeof serialize } {
   // familyBody retains indentation and can retain wrapper comments after
@@ -426,7 +426,7 @@ function sourceAdapter<K extends StableBody['kind']>(
     operations: {
       bodyAccessibility: ownBodyAccessibility(kind, kind === 'block' || kind === 'ishikawa' ? 'native' : 'statement'),
       parse: ctx => {
-        const body = parseSource ? parseSource(ctx.source.familyBody, ctx.source, ctx.meta.accessibility, true) : parse(headerLines(ctx.source.familyBody), ctx.meta.accessibility)
+        const body = parseSource ? parseSource(ctx.source.familyBody, ctx.source, ctx.meta.accessibility) : parse(headerLines(ctx.source.familyBody), ctx.meta.accessibility)
         if (body && ownsAccessibility) {
           const logical = readAuthoredGrammarAccessibility(ctx.meta.accessibility)
           ctx.meta.accessibility = logical
@@ -452,7 +452,7 @@ function sourceAdapter<K extends StableBody['kind']>(
 export const PACKET_SOURCE_ADAPTER = /* @__PURE__ */ sourceAdapter('packet', parsePacketBody, renderPacket, verifyPacket)
 export const PACKET_SOURCE_HOOKS = PACKET_SOURCE_ADAPTER.operations
 
-export const KANBAN_SOURCE_ADAPTER = /* @__PURE__ */ sourceAdapter('kanban', lines => parseKanbanBody(lines), renderKanban, verifyKanban, (text, source, _accessibility, sourceMap) => parseKanbanBody(text, source ?? normalizeMermaidSource(text), sourceMap))
+export const KANBAN_SOURCE_ADAPTER = /* @__PURE__ */ sourceAdapter('kanban', lines => parseKanbanBody(lines), renderKanban, verifyKanban, (text, source) => parseKanbanBody(text, source ?? normalizeMermaidSource(text)))
 export const KANBAN_SOURCE_HOOKS = KANBAN_SOURCE_ADAPTER.operations
 
 export const REQUIREMENT_SOURCE_ADAPTER = /* @__PURE__ */ sourceAdapter('requirement', lines => parseRequirementBody(lines.slice(1)), renderRequirement, verifyRequirement, (text, source, accessibility) => parseRequirementBody(source ? preservedMermaidFamilyText(source, 'authored') : cleanupMermaidSource(text).authoredPayloadText, accessibility))
