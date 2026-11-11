@@ -75,6 +75,9 @@ const FAMILY_SCOPED_OPTION_VALUES = {
 // too small to show it (or the probe value is the default). Keyed field/family.
 const OPTION_EFFECT_PROBES: Readonly<Record<string, { source?: string; value?: unknown }>> = {
   'layoutHints/state': { source: 'stateDiagram-v2\n  [*] --> A\n  [*] --> B\n  A --> C\n  B --> C', value: { adjacent: [['B', 'A']] } },
+  'layoutHints/usecase': { source: 'usecase-beta\nactor A\nactor B\nC("c")\nA --> C\nB --> C' },
+  'layoutHints/swimlane': { source: 'swimlane-beta LR\nsubgraph lane[Team]\nA[a] --> C[c]\nB[b] --> C\nend' },
+  'layoutHints/agentflow': { value: { adjacent: [['B', 'A']] } },
   'graphLayout/flowchart': { source: 'flowchart TD\n  A --> B\n  A --> C\n  B --> D\n  C --> D', value: { backend: 'agentic' } },
   'graphLayout/state': { source: 'stateDiagram-v2\n  [*] --> A\n  A --> B\n  A --> C\n  B --> D\n  C --> D', value: { backend: 'agentic' } },
   'graphLayout/class': { source: 'classDiagram\n  A <|-- B\n  A <|-- C\n  B --> D\n  C --> D', value: { backend: 'agentic' } },
