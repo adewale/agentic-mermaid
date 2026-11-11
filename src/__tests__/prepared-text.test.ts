@@ -28,9 +28,94 @@ import { DefaultBackend } from '../scene/backend.ts'
 import { inspectScenePaintGeometry } from '../scene/inspection.ts'
 import { MAX_OCCLUSION_OPERATIONS, createNativePaintEmission } from '../scene/native-paint-emission.ts'
 import { writeTextSvg } from '../scene/svg-writer.ts'
+import { fileURLToPath } from 'node:url'
+import { useTestChildren } from './helpers/test-child.ts'
 
 beforeAll(() => renderedTextReady())
 const typography = { fontSize: 18, fontWeight: 600 }
+const runPreparedChild = useTestChildren(20000)
+
+it.each(['span', 'break', 'runs'] as const)('Native capture retains ordered source observations for a foreign frozen %s', async mode => {
+  const child = await runPreparedChild(process.execPath, ['--eval', String.raw`
+const mode = process.env.AM_FOREIGN_PIXEL_PART
+const freeze = Object.getOwnPropertyDescriptor(Object, 'freeze'), define = Object.getOwnPropertyDescriptor(Object, 'defineProperty'), names = Object.getOwnPropertyDescriptor(Object, 'getOwnPropertyNames'), each = Object.getOwnPropertyDescriptor(Array.prototype, 'forEach'), push = Object.getOwnPropertyDescriptor(Array.prototype, 'push')
+let span, active = false, defined = false, traps = 0, markIndex = 0, thirdReads = 0
+const sourceCaptures = []
+Object.defineProperty(Object, 'freeze', { ...freeze, value(value) {
+  const closed = Reflect.apply(freeze.value, Object, [value])
+  if (mode === 'span' && value && value.text === 'R' && Object.hasOwn(value, 'sourceStart') && Object.hasOwn(value, 'sourceEnd') && !Object.hasOwn(value, 'bold')) {
+    span = new Proxy(closed, { getOwnPropertyDescriptor(target, key) {
+      if (active && markIndex === 2 && key === 'sourceStart') { thirdReads++; traps++; throw Error('third source capture is unsupported') }
+      if (active && key === 'text') defined = false
+      if (active && key === 'sourceStart' && !defined) { traps++; throw Error('source observed before prior destination write') }
+      return Reflect.getOwnPropertyDescriptor(target, key)
+    } })
+    return span
+  }
+  return closed
+} })
+if (mode === 'break') Object.defineProperty(Array.prototype, 'forEach', { ...each, value(callback, ...args) {
+  if (this[0]?.kind === 'wrap' && Object.hasOwn(this[0], 'sourceOffset')) {
+    span = new Proxy(this[0], { getOwnPropertyDescriptor(target, key) {
+      if (active && key === 'kind') defined = false
+      if (active && key === 'sourceOffset' && !defined) { traps++; throw Error('source observed before prior destination write') }
+      return Reflect.getOwnPropertyDescriptor(target, key)
+    } })
+    this[0] = span
+  }
+  return Reflect.apply(each.value, this, [callback, ...args])
+} })
+if (mode === 'runs') Object.defineProperty(Array.prototype, 'push', { ...push, value(...args) {
+  const item = args[0]
+  if (args.length === 1 && Array.isArray(item) && !Object.isFrozen(item) && item.length === 1 && item[0]?.text === 'R'
+    && typeof item[0]?.bold === 'boolean' && new Error().stack?.includes('preparePixelText')) {
+    span = new Proxy(item, { getOwnPropertyDescriptor(target, key) {
+      if (active && key === '0') defined = false
+      if (active && key === 'length' && !defined) { traps++; throw Error('source observed before prior destination write') }
+      return Reflect.getOwnPropertyDescriptor(target, key)
+    } })
+    return Reflect.apply(push.value, this, [span])
+  }
+  return Reflect.apply(push.value, this, args)
+} })
+const { preparePixelText, isOwnedPixelTextPart } = await import('./src/shared/prepared-text.ts')
+const { drawNative } = await import('./src/scene/native-drawing.ts')
+const { certifyNativePaint } = await import('./src/scene/paint-certification.ts')
+const block = preparePixelText(mode === 'break' ? 'RR' : 'R', { fontSize: 18, fontWeight: 400, maxWidth: mode === 'break' ? 15 : undefined })
+const owned = isOwnedPixelTextPart(span), frozen = Object.isFrozen(span)
+Reflect.apply(define.value, Object, [Object, 'defineProperty', { ...define, value(target, key, descriptor) {
+  if (mode === 'span' ? key === 'text' && descriptor.value === 'R' : mode === 'break' ? key === 'kind' && descriptor.value === 'wrap' : key === '0' && descriptor.value?.text === 'R') defined = true
+  return Reflect.apply(define.value, Object, [target, key, descriptor])
+} }])
+Reflect.apply(define.value, Object, [Object, 'getOwnPropertyNames', { ...names, value(value) {
+  if (value === span) { active = true; sourceCaptures.push(markIndex) }
+  return Reflect.apply(names.value, Object, [value])
+} }])
+const colors = { bg: '#fff', fg: '#111' }, width = 300, height = 100
+const drawing = drawNative(factory => {
+  const parts = [factory.documentOpen({ id: 'root', width, height, colors, transparent: false, font: 'Inter', hasMonoFont: false }, '<svg xmlns="http://www.w3.org/2000/svg" width="300" height="100">')]
+  for (markIndex = 0; markIndex < (mode === 'span' ? 3 : 1); markIndex++) {
+    parts.push(factory.text({ id: 'label:' + markIndex, role: 'label', text: block.text, block, x: 20 + markIndex * 80, y: 40, fontSize: 18, anchor: 'start', paint: { fill: '#111' } }))
+  }
+  parts.push(factory.documentClose())
+  return { family: 'flowchart', width, height, colors, transparent: false, parts }
+}, { positioned: { width, height }, colors, resolved: { renderOptions: {} } }, 'flowchart')
+const proof = certifyNativePaint(drawing.header, drawing.paint)
+console.log(JSON.stringify({ owned, frozen, traps, thirdReads, sourceCaptures, svg: drawing.svg, status: proof.status, coverage: proof.coverage, issues: proof.issues }))
+`], { cwd: fileURLToPath(new URL('../../', import.meta.url)), env: { ...process.env, AM_FOREIGN_PIXEL_PART: mode } })
+  expect({ status: child.status, stderr: child.stderr }).toEqual({ status: 0, stderr: '' })
+  const result = JSON.parse(child.stdout)
+  if (mode === 'span') {
+    expect(result).toMatchObject({ frozen: true, owned: false, traps: 1, thirdReads: 1, status: 'unverified', coverage: { conditional: 1 } })
+    expect(new Set(result.sourceCaptures)).toEqual(new Set([0, 1, 2]))
+    expect(result.issues.map((issue: { code: string }) => issue.code)).toContain('CONDITIONAL_PAINT')
+    expect(result.svg.match(/>R<\/text>/g)).toHaveLength(3)
+  } else {
+    expect(result).toMatchObject({ frozen: true, traps: 0, status: 'passed' })
+    if (mode === 'break') expect(result.owned).toBe(false)
+    expect(result.svg).toContain('>R<')
+  }
+})
 
 it.each(['map', 'seal'] as const)('Native actual text retains complete receiver data through an interposed %s', mode => {
   const block = preparePixelText('Read', { fontSize: 18, fontWeight: 400 })

@@ -434,7 +434,8 @@ export function preparePixelText(source: DisplayTextInput, options: PixelTextOpt
           if (!measured) completeInk = false
           return immutablePixelParts.freezeOwned({ ...fragment, ...(measured ? { ink: measured } : {}) })
         })
-        allocation = { ...allocation, fragments: immutablePixelParts.freezeOwned(fragments) }
+        // map can return a caller-supplied array or Proxy (including species).
+        allocation = { ...allocation, fragments: immutablePixelParts.freeze(fragments) }
       } else {
         ink = preparedRunInk(runs.map(run => run.text).join(''), undefined, options)
         if (!ink) completeInk = false
@@ -445,7 +446,8 @@ export function preparePixelText(source: DisplayTextInput, options: PixelTextOpt
   const lines: string[] = []
   for (const line of lineBlocks) lines.push(line.text)
   immutablePixelParts.freezeOwned(lines)
-  breaks.forEach(immutablePixelParts.freezeOwned)
+  // The dispatched callback can receive foreign records supplied by a hook.
+  breaks.forEach(immutablePixelParts.freeze)
   const width = lineBlocks.reduce((max, line) => Math.max(max, line.width), 0)
   // A shaped block may be reused under another document. Its measured face
   // must remain an emitted override rather than inheriting that new root.

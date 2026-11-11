@@ -32,15 +32,20 @@ export function createImmutableParts(known: (value: object) => boolean = () => f
   // Only call at a known local allocation. Caller-dispatched map results and
   // other supplied objects may use freeze, but cannot mint this provenance.
   const freezeOwned = <T extends object>(value: T): Readonly<T> => qualify(value, true)
-  // Locally allocated scalar spans need no recursive field qualification. The
-  // captured freeze keeps an interposed public constructor from seeing or
-  // substituting this private allocation.
+  // A sealing hook may return a foreign object. Preserve that result, but
+  // local-allocation provenance belongs only to the actual closed literal.
   const sourceSpan = (text: string, sourceStart: number, sourceEnd: number) => {
     if (typeof text !== 'string' || typeof sourceStart !== 'number' || typeof sourceEnd !== 'number') throw new TypeError('Source spans require scalar text and offsets')
-    const span = immutableFreeze({ text, sourceStart, sourceEnd })
+    const allocated = { text, sourceStart, sourceEnd }
+    const span = immutableFreeze(allocated)
     if (immutableFrozen(span)) {
       immutableApply(immutableAdd, parts, [span])
-      immutableApply(immutableAdd, ownedParts, [span])
+      if (span === allocated && immutableKeys(span).length === 3) {
+        const textSlot = immutableDescriptor(span, 'text'), startSlot = immutableDescriptor(span, 'sourceStart'), endSlot = immutableDescriptor(span, 'sourceEnd')
+        if (textSlot && immutableOwn(textSlot, 'value') && typeof textSlot.value === 'string'
+          && startSlot && immutableOwn(startSlot, 'value') && typeof startSlot.value === 'number'
+          && endSlot && immutableOwn(endSlot, 'value') && typeof endSlot.value === 'number') immutableApply(immutableAdd, ownedParts, [span])
+      }
     }
     return span
   }
