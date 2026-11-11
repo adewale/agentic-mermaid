@@ -1,0 +1,583 @@
+{
+  "eventmodeling": {
+    "classification": "observer-schema-mismatch; deeper qualification unavailable through pinned adapter, raw failures retained",
+    "adapter": "fidelity/adapters.ts:268-275 reads boxes/relations for both tools; actual Agentic public model uses frames",
+    "sourceCase": "meaning:required:eventmodeling",
+    "observations": [
+      {
+        "target": "pr",
+        "backend": "elk",
+        "actualRawFrames": [
+          {
+            "id": "01",
+            "reset": false,
+            "type": "ui",
+            "entity": "CartUI",
+            "sources": []
+          },
+          {
+            "id": "02",
+            "reset": false,
+            "type": "command",
+            "entity": "AddItem",
+            "sources": []
+          },
+          {
+            "id": "03",
+            "reset": false,
+            "type": "event",
+            "entity": "ItemAdded",
+            "sources": []
+          }
+        ],
+        "projectedMeaning": {
+          "family": "eventmodeling",
+          "facts": {
+            "frame-order": []
+          },
+          "unavailable": {},
+          "nodes": [],
+          "edges": []
+        },
+        "rawMeaningChecks": {
+          "complete": true,
+          "passed": false,
+          "checks": [
+            {
+              "criterion": "family",
+              "status": "passed",
+              "expected": "eventmodeling",
+              "actual": "eventmodeling",
+              "scope": "Returned native family; a source-preservation envelope is not native admission."
+            },
+            {
+              "criterion": "identities",
+              "status": "failed",
+              "expected": [
+                "\"01\"",
+                "\"02\"",
+                "\"03\""
+              ],
+              "actual": [],
+              "scope": "Exact authored identity multiset, including duplicate and omitted identities."
+            },
+            {
+              "criterion": "node-labels",
+              "status": "failed",
+              "expected": [
+                "{\"id\":\"01\",\"label\":\"CartUI\"}",
+                "{\"id\":\"02\",\"label\":\"AddItem\"}",
+                "{\"id\":\"03\",\"label\":\"ItemAdded\"}"
+              ],
+              "actual": [],
+              "scope": "Authored identity-to-label binding; NFC/whitespace normalization applies to display labels, never identity strings."
+            },
+            {
+              "criterion": "relationships",
+              "status": "failed",
+              "expected": [
+                "{\"directed\":true,\"label\":\"\",\"source\":\"01\",\"target\":\"02\"}",
+                "{\"directed\":true,\"label\":\"\",\"source\":\"02\",\"target\":\"03\"}"
+              ],
+              "actual": [],
+              "scope": "Exact endpoint/direction/declared-marker/label multiset; parallel and reciprocal relationships remain distinct."
+            },
+            {
+              "criterion": "fact:frame-order",
+              "status": "failed",
+              "expected": [
+                "CartUI",
+                "AddItem",
+                "ItemAdded"
+              ],
+              "actual": [],
+              "scope": "Independently declared family content with meaningful ordering retained."
+            }
+          ]
+        },
+        "actualPaintComplete": true,
+        "actualPaintPassed": true,
+        "paintNodes": [
+          {
+            "id": "01",
+            "label": "CartUI",
+            "box": {
+              "x": 184.49256896972656,
+              "y": 68.37744903564453,
+              "width": 119.99842834472656,
+              "height": 63.999168395996094
+            }
+          },
+          {
+            "id": "02",
+            "label": "AddItem",
+            "box": {
+              "x": 392.4898376464844,
+              "y": 213.12554931640625,
+              "width": 151.89804077148438,
+              "height": 63.999176025390625
+            }
+          },
+          {
+            "id": "03",
+            "label": "ItemAdded",
+            "box": {
+              "x": 600.4871215820312,
+              "y": 357.8736572265625,
+              "width": 125.76837158203125,
+              "height": 63.9991455078125
+            }
+          }
+        ],
+        "paintConnections": [
+          {
+            "source": "01",
+            "target": "02",
+            "directed": true,
+            "startMarker": "none",
+            "endMarker": "arrow"
+          },
+          {
+            "source": "02",
+            "target": "03",
+            "directed": true,
+            "startMarker": "none",
+            "endMarker": "arrow"
+          }
+        ]
+      },
+      {
+        "target": "pr",
+        "backend": "agentic",
+        "actualRawFrames": [
+          {
+            "id": "01",
+            "reset": false,
+            "type": "ui",
+            "entity": "CartUI",
+            "sources": []
+          },
+          {
+            "id": "02",
+            "reset": false,
+            "type": "command",
+            "entity": "AddItem",
+            "sources": []
+          },
+          {
+            "id": "03",
+            "reset": false,
+            "type": "event",
+            "entity": "ItemAdded",
+            "sources": []
+          }
+        ],
+        "projectedMeaning": {
+          "family": "eventmodeling",
+          "facts": {
+            "frame-order": []
+          },
+          "unavailable": {},
+          "nodes": [],
+          "edges": []
+        },
+        "rawMeaningChecks": {
+          "complete": true,
+          "passed": false,
+          "checks": [
+            {
+              "criterion": "family",
+              "status": "passed",
+              "expected": "eventmodeling",
+              "actual": "eventmodeling",
+              "scope": "Returned native family; a source-preservation envelope is not native admission."
+            },
+            {
+              "criterion": "identities",
+              "status": "failed",
+              "expected": [
+                "\"01\"",
+                "\"02\"",
+                "\"03\""
+              ],
+              "actual": [],
+              "scope": "Exact authored identity multiset, including duplicate and omitted identities."
+            },
+            {
+              "criterion": "node-labels",
+              "status": "failed",
+              "expected": [
+                "{\"id\":\"01\",\"label\":\"CartUI\"}",
+                "{\"id\":\"02\",\"label\":\"AddItem\"}",
+                "{\"id\":\"03\",\"label\":\"ItemAdded\"}"
+              ],
+              "actual": [],
+              "scope": "Authored identity-to-label binding; NFC/whitespace normalization applies to display labels, never identity strings."
+            },
+            {
+              "criterion": "relationships",
+              "status": "failed",
+              "expected": [
+                "{\"directed\":true,\"label\":\"\",\"source\":\"01\",\"target\":\"02\"}",
+                "{\"directed\":true,\"label\":\"\",\"source\":\"02\",\"target\":\"03\"}"
+              ],
+              "actual": [],
+              "scope": "Exact endpoint/direction/declared-marker/label multiset; parallel and reciprocal relationships remain distinct."
+            },
+            {
+              "criterion": "fact:frame-order",
+              "status": "failed",
+              "expected": [
+                "CartUI",
+                "AddItem",
+                "ItemAdded"
+              ],
+              "actual": [],
+              "scope": "Independently declared family content with meaningful ordering retained."
+            }
+          ]
+        },
+        "actualPaintComplete": true,
+        "actualPaintPassed": true,
+        "paintNodes": [
+          {
+            "id": "01",
+            "label": "CartUI",
+            "box": {
+              "x": 184.49256896972656,
+              "y": 68.37744903564453,
+              "width": 119.99842834472656,
+              "height": 63.999168395996094
+            }
+          },
+          {
+            "id": "02",
+            "label": "AddItem",
+            "box": {
+              "x": 392.4898376464844,
+              "y": 213.12554931640625,
+              "width": 151.89804077148438,
+              "height": 63.999176025390625
+            }
+          },
+          {
+            "id": "03",
+            "label": "ItemAdded",
+            "box": {
+              "x": 600.4871215820312,
+              "y": 357.8736572265625,
+              "width": 125.76837158203125,
+              "height": 63.9991455078125
+            }
+          }
+        ],
+        "paintConnections": [
+          {
+            "source": "01",
+            "target": "02",
+            "directed": true,
+            "startMarker": "none",
+            "endMarker": "arrow"
+          },
+          {
+            "source": "02",
+            "target": "03",
+            "directed": true,
+            "startMarker": "none",
+            "endMarker": "arrow"
+          }
+        ]
+      },
+      {
+        "target": "main",
+        "backend": "elk",
+        "actualRawFrames": [
+          {
+            "id": "01",
+            "reset": false,
+            "type": "ui",
+            "entity": "CartUI",
+            "sources": []
+          },
+          {
+            "id": "02",
+            "reset": false,
+            "type": "command",
+            "entity": "AddItem",
+            "sources": []
+          },
+          {
+            "id": "03",
+            "reset": false,
+            "type": "event",
+            "entity": "ItemAdded",
+            "sources": []
+          }
+        ],
+        "projectedMeaning": {
+          "family": "eventmodeling",
+          "facts": {
+            "frame-order": []
+          },
+          "unavailable": {},
+          "nodes": [],
+          "edges": []
+        },
+        "rawMeaningChecks": {
+          "complete": true,
+          "passed": false,
+          "checks": [
+            {
+              "criterion": "family",
+              "status": "passed",
+              "expected": "eventmodeling",
+              "actual": "eventmodeling",
+              "scope": "Returned native family; a source-preservation envelope is not native admission."
+            },
+            {
+              "criterion": "identities",
+              "status": "failed",
+              "expected": [
+                "\"01\"",
+                "\"02\"",
+                "\"03\""
+              ],
+              "actual": [],
+              "scope": "Exact authored identity multiset, including duplicate and omitted identities."
+            },
+            {
+              "criterion": "node-labels",
+              "status": "failed",
+              "expected": [
+                "{\"id\":\"01\",\"label\":\"CartUI\"}",
+                "{\"id\":\"02\",\"label\":\"AddItem\"}",
+                "{\"id\":\"03\",\"label\":\"ItemAdded\"}"
+              ],
+              "actual": [],
+              "scope": "Authored identity-to-label binding; NFC/whitespace normalization applies to display labels, never identity strings."
+            },
+            {
+              "criterion": "relationships",
+              "status": "failed",
+              "expected": [
+                "{\"directed\":true,\"label\":\"\",\"source\":\"01\",\"target\":\"02\"}",
+                "{\"directed\":true,\"label\":\"\",\"source\":\"02\",\"target\":\"03\"}"
+              ],
+              "actual": [],
+              "scope": "Exact endpoint/direction/declared-marker/label multiset; parallel and reciprocal relationships remain distinct."
+            },
+            {
+              "criterion": "fact:frame-order",
+              "status": "failed",
+              "expected": [
+                "CartUI",
+                "AddItem",
+                "ItemAdded"
+              ],
+              "actual": [],
+              "scope": "Independently declared family content with meaningful ordering retained."
+            }
+          ]
+        },
+        "actualPaintComplete": true,
+        "actualPaintPassed": true,
+        "paintNodes": [
+          {
+            "id": "01",
+            "label": "CartUI",
+            "box": {
+              "x": 184.49256896972656,
+              "y": 68.37744903564453,
+              "width": 119.99842834472656,
+              "height": 63.999168395996094
+            }
+          },
+          {
+            "id": "02",
+            "label": "AddItem",
+            "box": {
+              "x": 392.4898376464844,
+              "y": 213.12554931640625,
+              "width": 151.89804077148438,
+              "height": 63.999176025390625
+            }
+          },
+          {
+            "id": "03",
+            "label": "ItemAdded",
+            "box": {
+              "x": 600.4871215820312,
+              "y": 357.8736572265625,
+              "width": 125.76837158203125,
+              "height": 63.9991455078125
+            }
+          }
+        ],
+        "paintConnections": [
+          {
+            "source": "01",
+            "target": "02",
+            "directed": true,
+            "startMarker": "none",
+            "endMarker": "arrow"
+          },
+          {
+            "source": "02",
+            "target": "03",
+            "directed": true,
+            "startMarker": "none",
+            "endMarker": "arrow"
+          }
+        ]
+      },
+      {
+        "target": "main",
+        "backend": "agentic",
+        "actualRawFrames": [
+          {
+            "id": "01",
+            "reset": false,
+            "type": "ui",
+            "entity": "CartUI",
+            "sources": []
+          },
+          {
+            "id": "02",
+            "reset": false,
+            "type": "command",
+            "entity": "AddItem",
+            "sources": []
+          },
+          {
+            "id": "03",
+            "reset": false,
+            "type": "event",
+            "entity": "ItemAdded",
+            "sources": []
+          }
+        ],
+        "projectedMeaning": {
+          "family": "eventmodeling",
+          "facts": {
+            "frame-order": []
+          },
+          "unavailable": {},
+          "nodes": [],
+          "edges": []
+        },
+        "rawMeaningChecks": {
+          "complete": true,
+          "passed": false,
+          "checks": [
+            {
+              "criterion": "family",
+              "status": "passed",
+              "expected": "eventmodeling",
+              "actual": "eventmodeling",
+              "scope": "Returned native family; a source-preservation envelope is not native admission."
+            },
+            {
+              "criterion": "identities",
+              "status": "failed",
+              "expected": [
+                "\"01\"",
+                "\"02\"",
+                "\"03\""
+              ],
+              "actual": [],
+              "scope": "Exact authored identity multiset, including duplicate and omitted identities."
+            },
+            {
+              "criterion": "node-labels",
+              "status": "failed",
+              "expected": [
+                "{\"id\":\"01\",\"label\":\"CartUI\"}",
+                "{\"id\":\"02\",\"label\":\"AddItem\"}",
+                "{\"id\":\"03\",\"label\":\"ItemAdded\"}"
+              ],
+              "actual": [],
+              "scope": "Authored identity-to-label binding; NFC/whitespace normalization applies to display labels, never identity strings."
+            },
+            {
+              "criterion": "relationships",
+              "status": "failed",
+              "expected": [
+                "{\"directed\":true,\"label\":\"\",\"source\":\"01\",\"target\":\"02\"}",
+                "{\"directed\":true,\"label\":\"\",\"source\":\"02\",\"target\":\"03\"}"
+              ],
+              "actual": [],
+              "scope": "Exact endpoint/direction/declared-marker/label multiset; parallel and reciprocal relationships remain distinct."
+            },
+            {
+              "criterion": "fact:frame-order",
+              "status": "failed",
+              "expected": [
+                "CartUI",
+                "AddItem",
+                "ItemAdded"
+              ],
+              "actual": [],
+              "scope": "Independently declared family content with meaningful ordering retained."
+            }
+          ]
+        },
+        "actualPaintComplete": true,
+        "actualPaintPassed": true,
+        "paintNodes": [
+          {
+            "id": "01",
+            "label": "CartUI",
+            "box": {
+              "x": 184.49256896972656,
+              "y": 68.37744903564453,
+              "width": 119.99842834472656,
+              "height": 63.999168395996094
+            }
+          },
+          {
+            "id": "02",
+            "label": "AddItem",
+            "box": {
+              "x": 392.4898376464844,
+              "y": 213.12554931640625,
+              "width": 151.89804077148438,
+              "height": 63.999176025390625
+            }
+          },
+          {
+            "id": "03",
+            "label": "ItemAdded",
+            "box": {
+              "x": 600.4871215820312,
+              "y": 357.8736572265625,
+              "width": 125.76837158203125,
+              "height": 63.9991455078125
+            }
+          }
+        ],
+        "paintConnections": [
+          {
+            "source": "01",
+            "target": "02",
+            "directed": true,
+            "startMarker": "none",
+            "endMarker": "arrow"
+          },
+          {
+            "source": "02",
+            "target": "03",
+            "directed": true,
+            "startMarker": "none",
+            "endMarker": "arrow"
+          }
+        ]
+      }
+    ]
+  },
+  "otherCommonMeaningUnknowns": [
+    "features:sequence:notes-loop-reciprocal: fact:notes unavailable",
+    "meaning:required:zenuml: structured identities/relationships/message order unavailable"
+  ],
+  "rescoring": false,
+  "rendererOrExpectationChanges": false
+}

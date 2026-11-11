@@ -1,0 +1,497 @@
+[
+  {
+    "family": "flowchart",
+    "id": "family:flowchart",
+    "main_native_elk_svg_exact": true,
+    "pr_native_elk_svg_exact": true,
+    "main_pr_native_svg_exact": true,
+    "main_pr_elk_svg_exact": true,
+    "decision_recorded": true,
+    "proofs": {
+      "main-agentic": "passed",
+      "main-elk": "passed",
+      "pr-agentic": "passed",
+      "pr-elk": "passed"
+    }
+  },
+  {
+    "family": "sequence",
+    "id": "family:sequence",
+    "main_native_elk_svg_exact": true,
+    "pr_native_elk_svg_exact": true,
+    "main_pr_native_svg_exact": true,
+    "main_pr_elk_svg_exact": true,
+    "decision_recorded": false,
+    "proofs": {
+      "main-agentic": "passed",
+      "main-elk": "passed",
+      "pr-agentic": "passed",
+      "pr-elk": "passed"
+    }
+  },
+  {
+    "family": "state",
+    "id": "family:state",
+    "main_native_elk_svg_exact": false,
+    "pr_native_elk_svg_exact": false,
+    "main_pr_native_svg_exact": true,
+    "main_pr_elk_svg_exact": true,
+    "decision_recorded": true,
+    "proofs": {
+      "main-agentic": "passed",
+      "main-elk": "passed",
+      "pr-agentic": "passed",
+      "pr-elk": "passed"
+    }
+  },
+  {
+    "family": "class",
+    "id": "family:class",
+    "main_native_elk_svg_exact": false,
+    "pr_native_elk_svg_exact": false,
+    "main_pr_native_svg_exact": true,
+    "main_pr_elk_svg_exact": true,
+    "decision_recorded": true,
+    "proofs": {
+      "main-agentic": "passed",
+      "main-elk": "passed",
+      "pr-agentic": "passed",
+      "pr-elk": "passed"
+    }
+  },
+  {
+    "family": "er",
+    "id": "family:er",
+    "main_native_elk_svg_exact": false,
+    "pr_native_elk_svg_exact": false,
+    "main_pr_native_svg_exact": false,
+    "main_pr_elk_svg_exact": false,
+    "decision_recorded": true,
+    "proofs": {
+      "main-agentic": "passed",
+      "main-elk": "passed",
+      "pr-agentic": "passed",
+      "pr-elk": "passed"
+    }
+  },
+  {
+    "family": "timeline",
+    "id": "family:timeline",
+    "main_native_elk_svg_exact": true,
+    "pr_native_elk_svg_exact": true,
+    "main_pr_native_svg_exact": true,
+    "main_pr_elk_svg_exact": true,
+    "decision_recorded": false,
+    "proofs": {
+      "main-agentic": "unverified",
+      "main-elk": "unverified",
+      "pr-agentic": "unverified",
+      "pr-elk": "unverified"
+    }
+  },
+  {
+    "family": "journey",
+    "id": "family:journey",
+    "main_native_elk_svg_exact": true,
+    "pr_native_elk_svg_exact": true,
+    "main_pr_native_svg_exact": true,
+    "main_pr_elk_svg_exact": true,
+    "decision_recorded": false,
+    "proofs": {
+      "main-agentic": "passed",
+      "main-elk": "passed",
+      "pr-agentic": "passed",
+      "pr-elk": "passed"
+    }
+  },
+  {
+    "family": "architecture",
+    "id": "family:architecture",
+    "main_native_elk_svg_exact": true,
+    "pr_native_elk_svg_exact": true,
+    "main_pr_native_svg_exact": true,
+    "main_pr_elk_svg_exact": true,
+    "decision_recorded": true,
+    "proofs": {
+      "main-agentic": "passed",
+      "main-elk": "passed",
+      "pr-agentic": "passed",
+      "pr-elk": "passed"
+    }
+  },
+  {
+    "family": "xychart",
+    "id": "family:xychart",
+    "main_native_elk_svg_exact": true,
+    "pr_native_elk_svg_exact": true,
+    "main_pr_native_svg_exact": true,
+    "main_pr_elk_svg_exact": true,
+    "decision_recorded": false,
+    "proofs": {
+      "main-agentic": "unverified",
+      "main-elk": "unverified",
+      "pr-agentic": "unverified",
+      "pr-elk": "unverified"
+    }
+  },
+  {
+    "family": "pie",
+    "id": "family:pie",
+    "main_native_elk_svg_exact": true,
+    "pr_native_elk_svg_exact": true,
+    "main_pr_native_svg_exact": true,
+    "main_pr_elk_svg_exact": true,
+    "decision_recorded": false,
+    "proofs": {
+      "main-agentic": "passed",
+      "main-elk": "passed",
+      "pr-agentic": "passed",
+      "pr-elk": "passed"
+    }
+  },
+  {
+    "family": "quadrant",
+    "id": "family:quadrant",
+    "main_native_elk_svg_exact": true,
+    "pr_native_elk_svg_exact": true,
+    "main_pr_native_svg_exact": true,
+    "main_pr_elk_svg_exact": true,
+    "decision_recorded": false,
+    "proofs": {
+      "main-agentic": "passed",
+      "main-elk": "passed",
+      "pr-agentic": "passed",
+      "pr-elk": "passed"
+    }
+  },
+  {
+    "family": "gantt",
+    "id": "family:gantt",
+    "main_native_elk_svg_exact": true,
+    "pr_native_elk_svg_exact": true,
+    "main_pr_native_svg_exact": true,
+    "main_pr_elk_svg_exact": true,
+    "decision_recorded": false,
+    "proofs": {
+      "main-agentic": "passed",
+      "main-elk": "passed",
+      "pr-agentic": "passed",
+      "pr-elk": "passed"
+    }
+  },
+  {
+    "family": "mindmap",
+    "id": "family:mindmap",
+    "main_native_elk_svg_exact": true,
+    "pr_native_elk_svg_exact": true,
+    "main_pr_native_svg_exact": true,
+    "main_pr_elk_svg_exact": true,
+    "decision_recorded": false,
+    "proofs": {
+      "main-agentic": "passed",
+      "main-elk": "passed",
+      "pr-agentic": "passed",
+      "pr-elk": "passed"
+    }
+  },
+  {
+    "family": "gitgraph",
+    "id": "family:gitgraph",
+    "main_native_elk_svg_exact": true,
+    "pr_native_elk_svg_exact": true,
+    "main_pr_native_svg_exact": true,
+    "main_pr_elk_svg_exact": true,
+    "decision_recorded": false,
+    "proofs": {
+      "main-agentic": "passed",
+      "main-elk": "passed",
+      "pr-agentic": "passed",
+      "pr-elk": "passed"
+    }
+  },
+  {
+    "family": "radar",
+    "id": "family:radar",
+    "main_native_elk_svg_exact": true,
+    "pr_native_elk_svg_exact": true,
+    "main_pr_native_svg_exact": true,
+    "main_pr_elk_svg_exact": true,
+    "decision_recorded": false,
+    "proofs": {
+      "main-agentic": "passed",
+      "main-elk": "passed",
+      "pr-agentic": "passed",
+      "pr-elk": "passed"
+    }
+  },
+  {
+    "family": "sankey",
+    "id": "family:sankey",
+    "main_native_elk_svg_exact": true,
+    "pr_native_elk_svg_exact": true,
+    "main_pr_native_svg_exact": true,
+    "main_pr_elk_svg_exact": true,
+    "decision_recorded": false,
+    "proofs": {
+      "main-agentic": "passed",
+      "main-elk": "passed",
+      "pr-agentic": "passed",
+      "pr-elk": "passed"
+    }
+  },
+  {
+    "family": "c4",
+    "id": "family:c4",
+    "main_native_elk_svg_exact": true,
+    "pr_native_elk_svg_exact": true,
+    "main_pr_native_svg_exact": true,
+    "main_pr_elk_svg_exact": true,
+    "decision_recorded": false,
+    "proofs": {
+      "main-agentic": "passed",
+      "main-elk": "passed",
+      "pr-agentic": "passed",
+      "pr-elk": "passed"
+    }
+  },
+  {
+    "family": "packet",
+    "id": "family:packet",
+    "main_native_elk_svg_exact": true,
+    "pr_native_elk_svg_exact": true,
+    "main_pr_native_svg_exact": true,
+    "main_pr_elk_svg_exact": true,
+    "decision_recorded": false,
+    "proofs": {
+      "main-agentic": "passed",
+      "main-elk": "passed",
+      "pr-agentic": "passed",
+      "pr-elk": "passed"
+    }
+  },
+  {
+    "family": "kanban",
+    "id": "family:kanban",
+    "main_native_elk_svg_exact": true,
+    "pr_native_elk_svg_exact": true,
+    "main_pr_native_svg_exact": true,
+    "main_pr_elk_svg_exact": true,
+    "decision_recorded": false,
+    "proofs": {
+      "main-agentic": "passed",
+      "main-elk": "passed",
+      "pr-agentic": "passed",
+      "pr-elk": "passed"
+    }
+  },
+  {
+    "family": "requirement",
+    "id": "family:requirement",
+    "main_native_elk_svg_exact": false,
+    "pr_native_elk_svg_exact": false,
+    "main_pr_native_svg_exact": false,
+    "main_pr_elk_svg_exact": false,
+    "decision_recorded": true,
+    "proofs": {
+      "main-agentic": "passed",
+      "main-elk": "passed",
+      "pr-agentic": "passed",
+      "pr-elk": "passed"
+    }
+  },
+  {
+    "family": "treemap",
+    "id": "family:treemap",
+    "main_native_elk_svg_exact": true,
+    "pr_native_elk_svg_exact": true,
+    "main_pr_native_svg_exact": true,
+    "main_pr_elk_svg_exact": true,
+    "decision_recorded": false,
+    "proofs": {
+      "main-agentic": "passed",
+      "main-elk": "passed",
+      "pr-agentic": "passed",
+      "pr-elk": "passed"
+    }
+  },
+  {
+    "family": "ishikawa",
+    "id": "family:ishikawa",
+    "main_native_elk_svg_exact": true,
+    "pr_native_elk_svg_exact": true,
+    "main_pr_native_svg_exact": true,
+    "main_pr_elk_svg_exact": true,
+    "decision_recorded": false,
+    "proofs": {
+      "main-agentic": "passed",
+      "main-elk": "passed",
+      "pr-agentic": "passed",
+      "pr-elk": "passed"
+    }
+  },
+  {
+    "family": "block",
+    "id": "family:block",
+    "main_native_elk_svg_exact": true,
+    "pr_native_elk_svg_exact": true,
+    "main_pr_native_svg_exact": true,
+    "main_pr_elk_svg_exact": true,
+    "decision_recorded": false,
+    "proofs": {
+      "main-agentic": "passed",
+      "main-elk": "passed",
+      "pr-agentic": "passed",
+      "pr-elk": "passed"
+    }
+  },
+  {
+    "family": "eventmodeling",
+    "id": "family-support:eventmodeling",
+    "main_native_elk_svg_exact": true,
+    "pr_native_elk_svg_exact": true,
+    "main_pr_native_svg_exact": true,
+    "main_pr_elk_svg_exact": true,
+    "decision_recorded": false,
+    "proofs": {
+      "main-agentic": "passed",
+      "main-elk": "passed",
+      "pr-agentic": "passed",
+      "pr-elk": "passed"
+    }
+  },
+  {
+    "family": "zenuml",
+    "id": "family-support:zenuml",
+    "main_native_elk_svg_exact": true,
+    "pr_native_elk_svg_exact": true,
+    "main_pr_native_svg_exact": true,
+    "main_pr_elk_svg_exact": true,
+    "decision_recorded": false,
+    "proofs": {
+      "main-agentic": "passed",
+      "main-elk": "passed",
+      "pr-agentic": "passed",
+      "pr-elk": "passed"
+    }
+  },
+  {
+    "family": "railroad",
+    "id": "family-support:railroad",
+    "main_native_elk_svg_exact": true,
+    "pr_native_elk_svg_exact": true,
+    "main_pr_native_svg_exact": true,
+    "main_pr_elk_svg_exact": true,
+    "decision_recorded": false,
+    "proofs": {
+      "main-agentic": "passed",
+      "main-elk": "passed",
+      "pr-agentic": "passed",
+      "pr-elk": "passed"
+    }
+  },
+  {
+    "family": "cynefin",
+    "id": "family-support:cynefin",
+    "main_native_elk_svg_exact": true,
+    "pr_native_elk_svg_exact": true,
+    "main_pr_native_svg_exact": true,
+    "main_pr_elk_svg_exact": true,
+    "decision_recorded": false,
+    "proofs": {
+      "main-agentic": "passed",
+      "main-elk": "passed",
+      "pr-agentic": "passed",
+      "pr-elk": "passed"
+    }
+  },
+  {
+    "family": "agentflow",
+    "id": "family-support:agentflow",
+    "main_native_elk_svg_exact": true,
+    "pr_native_elk_svg_exact": true,
+    "main_pr_native_svg_exact": true,
+    "main_pr_elk_svg_exact": true,
+    "decision_recorded": true,
+    "proofs": {
+      "main-agentic": "passed",
+      "main-elk": "passed",
+      "pr-agentic": "passed",
+      "pr-elk": "passed"
+    }
+  },
+  {
+    "family": "usecase",
+    "id": "family-support:usecase",
+    "main_native_elk_svg_exact": false,
+    "pr_native_elk_svg_exact": false,
+    "main_pr_native_svg_exact": true,
+    "main_pr_elk_svg_exact": true,
+    "decision_recorded": true,
+    "proofs": {
+      "main-agentic": "passed",
+      "main-elk": "passed",
+      "pr-agentic": "passed",
+      "pr-elk": "passed"
+    }
+  },
+  {
+    "family": "wardley",
+    "id": "family-support:wardley",
+    "main_native_elk_svg_exact": true,
+    "pr_native_elk_svg_exact": true,
+    "main_pr_native_svg_exact": true,
+    "main_pr_elk_svg_exact": true,
+    "decision_recorded": false,
+    "proofs": {
+      "main-agentic": "passed",
+      "main-elk": "passed",
+      "pr-agentic": "passed",
+      "pr-elk": "passed"
+    }
+  },
+  {
+    "family": "venn",
+    "id": "family-support:venn",
+    "main_native_elk_svg_exact": true,
+    "pr_native_elk_svg_exact": true,
+    "main_pr_native_svg_exact": true,
+    "main_pr_elk_svg_exact": true,
+    "decision_recorded": false,
+    "proofs": {
+      "main-agentic": "passed",
+      "main-elk": "passed",
+      "pr-agentic": "passed",
+      "pr-elk": "passed"
+    }
+  },
+  {
+    "family": "swimlane",
+    "id": "family-support:swimlane",
+    "main_native_elk_svg_exact": true,
+    "pr_native_elk_svg_exact": true,
+    "main_pr_native_svg_exact": true,
+    "main_pr_elk_svg_exact": true,
+    "decision_recorded": false,
+    "proofs": {
+      "main-agentic": "passed",
+      "main-elk": "passed",
+      "pr-agentic": "passed",
+      "pr-elk": "passed"
+    }
+  },
+  {
+    "family": "treeview",
+    "id": "family-support:treeview",
+    "main_native_elk_svg_exact": true,
+    "pr_native_elk_svg_exact": true,
+    "main_pr_native_svg_exact": true,
+    "main_pr_elk_svg_exact": true,
+    "decision_recorded": false,
+    "proofs": {
+      "main-agentic": "passed",
+      "main-elk": "passed",
+      "pr-agentic": "passed",
+      "pr-elk": "passed"
+    }
+  }
+]

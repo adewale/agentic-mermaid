@@ -1,0 +1,1 @@
+{"root": "/tmp/pr449-bench-pr-599b-20261110", "case": "family:flowchart", "backend": "agentic", "source": "flowchart LR\nA[Alpha] --> B[Beta]\nB --> C[Gamma]", "edit": "flowchart LR\nA[AlphaEdited] --> B[Beta]\nB --> C[Gamma]", "options": {"graphLayout": {"backend": "agentic", "fallback": "none"}}, "profile": false, "observers": false, "phases": ["repeat1", "edit1", "edit2"]}

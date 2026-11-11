@@ -1,0 +1,226 @@
+{
+  "stage": "svg-complete",
+  "at": "2026-11-11T00:30:45.834727+00:00",
+  "files": [
+    {
+      "path": "BROWSER-CLOSED.json",
+      "bytes": 372,
+      "sha256": "001544d0bf1b39bf6e506df81f152ff5a7f52a948eb11049f19adbb3728ccde4"
+    },
+    {
+      "path": "CALIBRATION.json",
+      "bytes": 3226845,
+      "sha256": "430d6f1310277c9fd512533abbf60d70eaf95fc7fffe264931cbf9a579c5170a"
+    },
+    {
+      "path": "CANONICAL-PILOT-COMPARISON.json",
+      "bytes": 12653,
+      "sha256": "cc3d54f84cc6e405a4fc1c90b2b00f84683b58d003eb77493e12cfc3b578a0e7"
+    },
+    {
+      "path": "CASES.json",
+      "bytes": 374034,
+      "sha256": "feecbdd0ec31f4db7cf270bf469df4375dc7d0b567d755ac1f8b4d30eaecc628"
+    },
+    {
+      "path": "CHECKPOINT.md",
+      "bytes": 607,
+      "sha256": "25cf2f3ebbdbf5c83d2ca2f07fd5550b35b54938184f7a00c6586c7874ebabf2"
+    },
+    {
+      "path": "FAMILY-REGISTRY.json",
+      "bytes": 4345,
+      "sha256": "00b05967351775e42325c25ba3235342cdc8bdc2ebd28c70a53aaca1552a749b"
+    },
+    {
+      "path": "FIDELITY-CASES.json",
+      "bytes": 322361,
+      "sha256": "5882749190ec13fcce5bc83b73c09a475e6a2605c051c6d264c9df05c9f4ddd9"
+    },
+    {
+      "path": "IDENTITY-before-browser-complete.json",
+      "bytes": 427597,
+      "sha256": "8209a4b9ba21478f3038fbc5e9d29a4264badd0e5ca00a7007b1d05f2a204881"
+    },
+    {
+      "path": "IDENTITY.json",
+      "bytes": 468185,
+      "sha256": "9bdea60f9a5b14225fcb7048428c8caf268349fbaa023cc5a67e9f216a86d270"
+    },
+    {
+      "path": "MEASUREMENT-CASES.json",
+      "bytes": 201800,
+      "sha256": "6d2fb3cf5bf967e433c3d6f31a7863174a8b5b745546411cd411bb59e0dec0c9"
+    },
+    {
+      "path": "MEASUREMENT-REVIEW.md",
+      "bytes": 1768,
+      "sha256": "bec70ade8ce57bdce1a11730a2ee7284d5ded6bcab03befa79a4f6a45707077a"
+    },
+    {
+      "path": "PERFORMANCE-COMPLETED.json",
+      "bytes": 195,
+      "sha256": "b2526e5c95918e70871e0a7f4a13c4e272cbec356dd7b5af10c2c2604cea17a7"
+    },
+    {
+      "path": "PERFORMANCE-PROGRESS.json",
+      "bytes": 59,
+      "sha256": "08c9c56019cda12891e42e88bba52d00204dc50d815a57001ccf59829976c87b"
+    },
+    {
+      "path": "PILOT.json",
+      "bytes": 1961221,
+      "sha256": "e5e0bfb7e78cc19bad4c13a659613baceb253b8416e3b1df261af2ac2446958a"
+    },
+    {
+      "path": "PLAN.json",
+      "bytes": 2244,
+      "sha256": "8bb19da66e42c08508749b151e86f0f2b431331a13a80281d4e4b1cc3bee2f4b"
+    },
+    {
+      "path": "QUALIFICATION-ANNOTATIONS.json",
+      "bytes": 17753,
+      "sha256": "069e7a72d09a7a7ea95b7630f5df60b5150b27a82e63ea8cec5b4b0f3d617a3e"
+    },
+    {
+      "path": "REPRODUCE.md",
+      "bytes": 4765,
+      "sha256": "7eaeeb1749306b32c8fb237acd90f01dbfad0a0baf46776be33a3943490d7475"
+    },
+    {
+      "path": "browser/FAMILY-PAYLOAD.csv",
+      "bytes": 20713,
+      "sha256": "a0e4a1004aaee3bce76108150e1b613a5a7263f65c0c0173707385c0a2bcae62"
+    },
+    {
+      "path": "browser/SUMMARY.md",
+      "bytes": 6729,
+      "sha256": "0f5364de7b639bcc513f22ca93e7df21a98aca6310aa113cfdd01697bb252877"
+    },
+    {
+      "path": "browser-delivery.ts",
+      "bytes": 11347,
+      "sha256": "32590a6d3d1935a9e0e6e9efba5ab657d7a74aa9f132daa55c9f91b3dce6aa8b"
+    },
+    {
+      "path": "build-browser.ts",
+      "bytes": 490,
+      "sha256": "eb978a3b22a9f107b7a7e767e5eefcb6932798c8c51d9b0a3972fe728f7ef5cb"
+    },
+    {
+      "path": "build-node.ts",
+      "bytes": 682,
+      "sha256": "b56695be9ff0b5f0ec8d6ce6f3484b9e1825408c74488a44e870fbe23432c769"
+    },
+    {
+      "path": "calibrate-results.ts",
+      "bytes": 1914,
+      "sha256": "23fc3f0d229a990f9f7850656c92e1847ece227c0b39e8810f261d03315a1067"
+    },
+    {
+      "path": "campaign-state-at-checkpoint.json",
+      "bytes": 114305,
+      "sha256": "20d4ca4e6e439c2d0b8cc80af9ef1edf3b20bc80d1013be1b90b0183e055119e"
+    },
+    {
+      "path": "checkpoint.py",
+      "bytes": 3623,
+      "sha256": "d85e3cf06b7fc71882ea5e573990f473208d2c9824acb3866f772bfc61a168bd"
+    },
+    {
+      "path": "commit-checkpoint.py",
+      "bytes": 1861,
+      "sha256": "f2a19656e439b92500f26c96be9cb61a9e9da8e2b1ae5fff4f749ae15bee9e70"
+    },
+    {
+      "path": "evidence.tar.gz",
+      "bytes": 29245593,
+      "sha256": "e8116471a7d9f99ae9e19e43edee31e623095388234792a1f068c7080cf3fa9e"
+    },
+    {
+      "path": "fidelity/FAMILY-RESULTS.csv",
+      "bytes": 15273,
+      "sha256": "21ac98dbb32039b03f4d3f82bd4e4387b83fdb8de7d3420369fcb9e3d520d633"
+    },
+    {
+      "path": "fidelity/KNOWN-FAILURES.json",
+      "bytes": 10373,
+      "sha256": "898e97eb8c85caf10f71426e6b2718d806b3f383a8bf676817cc0955294d8e98"
+    },
+    {
+      "path": "fidelity/PROOF-UNVERIFIED-AND-ERRORS.json",
+      "bytes": 32424,
+      "sha256": "42e5653ff02254b5a776e1d587de1dd440cd42c8ae5fc9c05e39da63c2c0e647"
+    },
+    {
+      "path": "fidelity/RESULTS.json",
+      "bytes": 10965861,
+      "sha256": "a9c87fea9a945378da434068f55ed4bc2f6f78f4b5ce2ee633a9d7a7533190a9"
+    },
+    {
+      "path": "fidelity/SUMMARY.md",
+      "bytes": 3195,
+      "sha256": "49b557aa52a6293382f2568fd314ca6917104578aa8a3d4a9bd1a91b50d23ce6"
+    },
+    {
+      "path": "fidelity.ts",
+      "bytes": 8064,
+      "sha256": "67f1b1bcea5c962c85244d8f99a4cc509450d83e0f92509be4fe7f0e27550a19"
+    },
+    {
+      "path": "freeze-measurement.ts",
+      "bytes": 2866,
+      "sha256": "00291747b0a78fce18b175c837f7aba11c9a4e6ffc9eb065effc817188836452"
+    },
+    {
+      "path": "performance/ENVIRONMENT.json",
+      "bytes": 818,
+      "sha256": "9e4cf5b67472bdf357639379042805d54796932c79c9d68f53fe29d32e9c00c7"
+    },
+    {
+      "path": "performance.ts",
+      "bytes": 4250,
+      "sha256": "e8961f26faebaf96f74b82df657f172f1e84234076e68261642feae6d149e291"
+    },
+    {
+      "path": "pilot.ts",
+      "bytes": 2249,
+      "sha256": "995ec9d735d82fb8808ba39bdfc49fe6709caf81b2d1e0c8ef9db32b3c47c126"
+    },
+    {
+      "path": "postverify.py",
+      "bytes": 3453,
+      "sha256": "b6269a1a0c7c4caa0fc509464747889cadb95501ce30d13c73da0bcc5d668620"
+    },
+    {
+      "path": "prepare.ts",
+      "bytes": 3365,
+      "sha256": "77bbba66418ec6eeda74b0b1e390bed23acfd2251f9f2c0d07a3d49ce84054af"
+    },
+    {
+      "path": "receipt-performance.ts",
+      "bytes": 2975,
+      "sha256": "e210f352616599dfdb4478356f2488d1d4b13e37ec11811039f37886883c9a2f"
+    },
+    {
+      "path": "receipt-pilot.job.json",
+      "bytes": 379,
+      "sha256": "7d17c1cbb5f1f6728a8d7201277cc497a7fbc413f01bd0e0e0315cafd941fca2"
+    },
+    {
+      "path": "receipt-worker.mjs",
+      "bytes": 4971,
+      "sha256": "3eee8e6d34847686fac9d43cd609747422f9689d641a39d52450a5608f3e88dd"
+    },
+    {
+      "path": "reduce.py",
+      "bytes": 29494,
+      "sha256": "5ee578a744e701291d784065786a14ce12ad6eaa3a443ab7084f869ec37f3459"
+    },
+    {
+      "path": "trident-source.tar",
+      "bytes": 3788800,
+      "sha256": "f306229e732f5266f3cdd8a90a1c0fcfca671c90e929cad1e053236b07ba7ba5"
+    }
+  ]
+}

@@ -1,0 +1,16 @@
+{
+  "closedAt": "2026-11-10T23:15:47.753851+00:00",
+  "fidelityRows": 396,
+  "browserRows": 132,
+  "browserOpened": 132,
+  "browserClosed": 132,
+  "openBrowsers": 0,
+  "fidelityBrowserClosed": true,
+  "collectorProcessesExited": true,
+  "nodeTimingCpuReleased": true,
+  "optional12NotRun": true,
+  "evidence": [
+    "fidelity/CLOSED.json",
+    "browser/CLOSED.json"
+  ]
+}

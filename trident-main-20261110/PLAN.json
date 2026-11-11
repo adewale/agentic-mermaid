@@ -1,0 +1,75 @@
+{
+  "sources": {
+    "main": "4260292397d4bca7624a30c34649eb943a5f8e0c",
+    "pr": "599bee58db7cb54293866cc8aa86c887ef93e9a4"
+  },
+  "trident": "f080278e31e4202ca89d524e4ee9e4cf3cbff038",
+  "familyCount": 33,
+  "caseCount": 62,
+  "arms": [
+    "main-agentic",
+    "main-elk",
+    "pr-agentic",
+    "pr-elk"
+  ],
+  "cacheRegimes": [
+    0,
+    1
+  ],
+  "portable": {
+    "protocol": "unchanged portable-svg-processes-v3",
+    "boundary": "Public renderMermaidSVG + SVG UTF8 byte count; receipt costs excluded",
+    "warm": {
+      "rounds": 1,
+      "replicas": [
+        "A0",
+        "A1",
+        "B"
+      ],
+      "samples": 7,
+      "minSampleMs": 4
+    },
+    "cold": {
+      "replicas": [
+        "A0",
+        "A1",
+        "B"
+      ],
+      "preparationConcurrency": 3,
+      "oneCallPerProcess": true
+    },
+    "resources": {
+      "memoryAndBaselineReplicas": [
+        "A0",
+        "A1",
+        "B"
+      ],
+      "observer": "existing GNUtime1.9",
+      "scope": "whole process peakRSS/CPU, separate API memory return/afterGC snapshots"
+    }
+  },
+  "fullyConsumed": {
+    "boundary": "Actual built public renderMermaidSVGWithReceipt + one full-response JSON serialization/UTF8 byte count; retained receipt evidence encoded only after measured clocks",
+    "cases": "All33 family representatives +3 existing100/300node diagnostics",
+    "replicas": 3,
+    "phases": [
+      "repeat1",
+      "repeat2",
+      "repeat3",
+      "repeat4",
+      "edit1",
+      "edit2",
+      "edit3",
+      "edit4"
+    ],
+    "importSeparate": true,
+    "profile": false,
+    "observers": false
+  },
+  "ordering": "No timing overlaps builds/browser/profiling. Alternate/rotate arms and replicas. Cold import preparation may overlap but measured APIs serialize at Trident barrier.",
+  "qualification": "Exploratory below standard full calibration5round/31warm/20cold; retain A/A/control spread, failures, unavailable, refusal and unknown. No broad qualified replacement ratio.",
+  "unchangedCaps": true,
+  "productionChanges": false,
+  "automation": false,
+  "editScope": "Authored source edits; some rename identities as well as display labels. Trident warm-edit alternates two sources; receipt edit1 is first edited source, edit2-4 repeat it."
+}

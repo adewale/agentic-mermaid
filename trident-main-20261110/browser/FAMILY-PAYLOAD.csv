@@ -1,0 +1,133 @@
+target,backend,family,status,requests,productRaw,productGzip9,productBrotli11,bindingRaw,bindingGzip9,bindingBrotli11,jsHeapUsedBytes,publicReceiptStatus,receiptProof,layoutSelected,layoutApplicability
+main,agentic,flowchart,passed,32,1008559,334335,287005,1870,927,767,5404256,returned,passed,agentic,observed decision
+main,agentic,sequence,passed,16,580631,186197,158378,1870,927,767,4372528,returned,passed,,no graph-layout decision observed; do not infer this backend laid out the family
+main,agentic,state,passed,28,1007618,333437,286198,1870,927,767,5101556,returned,passed,agentic,observed decision
+main,agentic,class,passed,25,799797,261683,223233,1870,927,767,4892644,returned,passed,agentic,observed decision
+main,agentic,er,passed,26,883141,290773,249019,1870,927,767,4776560,returned,passed,agentic,observed decision
+main,agentic,timeline,passed,12,521303,167265,141298,1870,927,767,3960276,returned,unverified,,no graph-layout decision observed; do not infer this backend laid out the family
+main,agentic,journey,passed,13,542281,174648,148005,1870,927,767,4495476,returned,passed,,no graph-layout decision observed; do not infer this backend laid out the family
+main,agentic,architecture,passed,29,987247,324942,278219,1870,927,767,4831160,returned,passed,agentic,observed decision
+main,agentic,xychart,passed,16,564589,182238,154553,1870,927,767,4532820,returned,unverified,,no graph-layout decision observed; do not infer this backend laid out the family
+main,agentic,pie,passed,18,533888,174138,147435,1870,927,767,4009972,returned,passed,,no graph-layout decision observed; do not infer this backend laid out the family
+main,agentic,quadrant,passed,15,530876,171703,145227,1870,927,767,4160428,returned,passed,,no graph-layout decision observed; do not infer this backend laid out the family
+main,agentic,gantt,passed,12,548325,176599,149719,1870,927,767,4214092,returned,passed,,no graph-layout decision observed; do not infer this backend laid out the family
+main,agentic,mindmap,passed,17,537511,176231,149299,1870,927,767,4235188,returned,passed,,no graph-layout decision observed; do not infer this backend laid out the family
+main,agentic,gitgraph,passed,15,536352,174186,147457,1870,927,767,4362408,returned,passed,,no graph-layout decision observed; do not infer this backend laid out the family
+main,agentic,radar,passed,17,540301,175964,149081,1870,927,767,4143616,returned,passed,,no graph-layout decision observed; do not infer this backend laid out the family
+main,agentic,sankey,passed,14,533684,173402,146785,1870,927,767,4254868,returned,passed,,no graph-layout decision observed; do not infer this backend laid out the family
+main,agentic,c4,passed,20,719592,234260,200199,1870,927,767,5063336,returned,passed,,no graph-layout decision observed; do not infer this backend laid out the family
+main,agentic,packet,passed,13,508736,164198,138593,1870,927,767,3936388,returned,passed,,no graph-layout decision observed; do not infer this backend laid out the family
+main,agentic,kanban,passed,14,517363,167670,141683,1870,927,767,4047352,returned,passed,,no graph-layout decision observed; do not infer this backend laid out the family
+main,agentic,requirement,passed,20,707003,232063,197784,1870,927,767,4668864,returned,passed,agentic,observed decision
+main,agentic,treemap,passed,15,527632,172163,145786,1870,927,767,3969852,returned,passed,,no graph-layout decision observed; do not infer this backend laid out the family
+main,agentic,ishikawa,passed,14,510340,164695,139047,1870,927,767,4218976,returned,passed,,no graph-layout decision observed; do not infer this backend laid out the family
+main,agentic,block,passed,17,662157,216111,184173,1870,927,767,4298528,returned,passed,,no graph-layout decision observed; do not infer this backend laid out the family
+main,agentic,eventmodeling,passed,12,517619,166726,140878,1870,927,767,4373920,returned,passed,,no graph-layout decision observed; do not infer this backend laid out the family
+main,agentic,zenuml,passed,15,594637,191405,163108,1870,927,767,4381768,returned,passed,,no graph-layout decision observed; do not infer this backend laid out the family
+main,agentic,railroad,passed,14,525900,169787,143587,1870,927,767,4035744,returned,passed,,no graph-layout decision observed; do not infer this backend laid out the family
+main,agentic,cynefin,passed,14,513734,165998,140185,1870,927,767,4272472,returned,passed,,no graph-layout decision observed; do not infer this backend laid out the family
+main,agentic,agentflow,passed,31,1118316,369681,318634,1870,927,767,5637392,returned,passed,agentic,observed decision
+main,agentic,usecase,passed,26,974765,322152,275886,1870,927,767,5089460,returned,passed,agentic,observed decision
+main,agentic,wardley,passed,15,542041,175107,148410,1870,927,767,4343208,returned,passed,,no graph-layout decision observed; do not infer this backend laid out the family
+main,agentic,venn,passed,13,522706,169493,143375,1870,927,767,3911644,returned,passed,,no graph-layout decision observed; do not infer this backend laid out the family
+main,agentic,swimlane,passed,29,1015483,336984,289475,1870,927,767,5138312,returned,passed,,no graph-layout decision observed; do not infer this backend laid out the family
+main,agentic,treeview,passed,15,518361,168224,142110,1870,927,767,3893188,returned,passed,,no graph-layout decision observed; do not infer this backend laid out the family
+main,elk,flowchart,passed,28,2284043,704475,557945,1866,925,769,10713552,returned,passed,elk,observed decision
+main,elk,sequence,passed,16,580631,186197,158378,1866,925,769,4372732,returned,passed,,no graph-layout decision observed; do not infer this backend laid out the family
+main,elk,state,passed,24,2283102,703577,557138,1866,925,769,10458032,returned,passed,elk,observed decision
+main,elk,class,passed,22,2093756,637881,499453,1866,925,769,9687116,returned,passed,elk,observed decision
+main,elk,er,passed,22,2158625,660913,519959,1866,925,769,9622088,returned,passed,elk,observed decision
+main,elk,timeline,passed,12,521303,167265,141298,1866,925,769,3960728,returned,unverified,,no graph-layout decision observed; do not infer this backend laid out the family
+main,elk,journey,passed,13,542281,174648,148005,1866,925,769,4495288,returned,passed,,no graph-layout decision observed; do not infer this backend laid out the family
+main,elk,architecture,passed,25,2262731,695082,549159,1866,925,769,10563328,returned,passed,elk,observed decision
+main,elk,xychart,passed,16,564589,182238,154553,1866,925,769,4531904,returned,unverified,,no graph-layout decision observed; do not infer this backend laid out the family
+main,elk,pie,passed,18,533888,174138,147435,1866,925,769,4010168,returned,passed,,no graph-layout decision observed; do not infer this backend laid out the family
+main,elk,quadrant,passed,15,530876,171703,145227,1866,925,769,4160476,returned,passed,,no graph-layout decision observed; do not infer this backend laid out the family
+main,elk,gantt,passed,12,548325,176599,149719,1866,925,769,4214284,returned,passed,,no graph-layout decision observed; do not infer this backend laid out the family
+main,elk,mindmap,passed,17,537511,176231,149299,1866,925,769,4235076,returned,passed,,no graph-layout decision observed; do not infer this backend laid out the family
+main,elk,gitgraph,passed,15,536352,174186,147457,1866,925,769,4358696,returned,passed,,no graph-layout decision observed; do not infer this backend laid out the family
+main,elk,radar,passed,17,540301,175964,149081,1866,925,769,4140252,returned,passed,,no graph-layout decision observed; do not infer this backend laid out the family
+main,elk,sankey,passed,14,533684,173402,146785,1866,925,769,4255312,returned,passed,,no graph-layout decision observed; do not infer this backend laid out the family
+main,elk,c4,passed,20,719592,234260,200199,1866,925,769,5063248,returned,passed,,no graph-layout decision observed; do not infer this backend laid out the family
+main,elk,packet,passed,13,508736,164198,138593,1866,925,769,3936236,returned,passed,,no graph-layout decision observed; do not infer this backend laid out the family
+main,elk,kanban,passed,14,517363,167670,141683,1866,925,769,4046152,returned,passed,,no graph-layout decision observed; do not infer this backend laid out the family
+main,elk,requirement,passed,14,1976867,599780,466492,1866,925,769,9485276,returned,passed,elk,observed decision
+main,elk,treemap,passed,15,527632,172163,145786,1866,925,769,3970020,returned,passed,,no graph-layout decision observed; do not infer this backend laid out the family
+main,elk,ishikawa,passed,14,510340,164695,139047,1866,925,769,4218956,returned,passed,,no graph-layout decision observed; do not infer this backend laid out the family
+main,elk,block,passed,17,662157,216111,184173,1866,925,769,4298216,returned,passed,,no graph-layout decision observed; do not infer this backend laid out the family
+main,elk,eventmodeling,passed,12,517619,166726,140878,1866,925,769,4373952,returned,passed,,no graph-layout decision observed; do not infer this backend laid out the family
+main,elk,zenuml,passed,15,594637,191405,163108,1866,925,769,4379652,returned,passed,,no graph-layout decision observed; do not infer this backend laid out the family
+main,elk,railroad,passed,14,525900,169787,143587,1866,925,769,4036152,returned,passed,,no graph-layout decision observed; do not infer this backend laid out the family
+main,elk,cynefin,passed,14,513734,165998,140185,1866,925,769,4271704,returned,passed,,no graph-layout decision observed; do not infer this backend laid out the family
+main,elk,agentflow,passed,27,2393800,739821,589574,1866,925,769,11037204,returned,passed,elk,observed decision
+main,elk,usecase,passed,23,2250589,692513,547008,1866,925,769,10365852,returned,passed,elk,observed decision
+main,elk,wardley,passed,15,542041,175107,148410,1866,925,769,4342432,returned,passed,,no graph-layout decision observed; do not infer this backend laid out the family
+main,elk,venn,passed,13,522706,169493,143375,1866,925,769,3911460,returned,passed,,no graph-layout decision observed; do not infer this backend laid out the family
+main,elk,swimlane,passed,29,1015483,336984,289475,1866,925,769,5126940,returned,passed,,no graph-layout decision observed; do not infer this backend laid out the family
+main,elk,treeview,passed,15,518361,168224,142110,1866,925,769,3895252,returned,passed,,no graph-layout decision observed; do not infer this backend laid out the family
+pr,agentic,flowchart,passed,41,1201286,398975,340084,1870,927,767,5927852,returned,passed,agentic,observed decision
+pr,agentic,sequence,passed,15,714152,229514,191486,1870,927,767,5028160,returned,passed,,no graph-layout decision observed; do not infer this backend laid out the family
+pr,agentic,state,passed,37,1200182,398068,339305,1870,927,767,5727536,returned,passed,agentic,observed decision
+pr,agentic,class,passed,36,987700,326206,275976,1870,927,767,5353496,returned,passed,agentic,observed decision
+pr,agentic,er,passed,37,1088442,360794,306370,1870,927,767,5238248,returned,passed,agentic,observed decision
+pr,agentic,timeline,passed,11,654833,210599,174426,1870,927,767,4392608,returned,unverified,,no graph-layout decision observed; do not infer this backend laid out the family
+pr,agentic,journey,passed,12,675813,217986,181136,1870,927,767,5177292,returned,passed,,no graph-layout decision observed; do not infer this backend laid out the family
+pr,agentic,architecture,passed,38,1180057,389620,331407,1870,927,767,5387952,returned,passed,agentic,observed decision
+pr,agentic,xychart,passed,15,698130,225586,187716,1870,927,767,5058384,returned,unverified,,no graph-layout decision observed; do not infer this backend laid out the family
+pr,agentic,pie,passed,17,667435,217482,180524,1870,927,767,4363712,returned,passed,,no graph-layout decision observed; do not infer this backend laid out the family
+pr,agentic,quadrant,passed,14,664413,215037,178364,1870,927,767,4571624,returned,passed,,no graph-layout decision observed; do not infer this backend laid out the family
+pr,agentic,gantt,passed,11,681843,219935,182833,1870,927,767,4625296,returned,passed,,no graph-layout decision observed; do not infer this backend laid out the family
+pr,agentic,mindmap,passed,16,671027,219555,182390,1870,927,767,4672824,returned,passed,,no graph-layout decision observed; do not infer this backend laid out the family
+pr,agentic,gitgraph,passed,14,669893,217529,180564,1870,927,767,4750364,returned,passed,,no graph-layout decision observed; do not infer this backend laid out the family
+pr,agentic,radar,passed,16,673852,219305,182241,1870,927,767,4519024,returned,passed,,no graph-layout decision observed; do not infer this backend laid out the family
+pr,agentic,sankey,passed,14,674889,218463,181515,1870,927,767,4658272,returned,passed,,no graph-layout decision observed; do not infer this backend laid out the family
+pr,agentic,c4,passed,22,881813,286789,241332,1870,927,767,5588888,returned,passed,,no graph-layout decision observed; do not infer this backend laid out the family
+pr,agentic,packet,passed,12,642265,207533,171726,1870,927,767,4381928,returned,passed,,no graph-layout decision observed; do not infer this backend laid out the family
+pr,agentic,kanban,passed,13,650885,211001,174802,1870,927,767,4488868,returned,passed,,no graph-layout decision observed; do not infer this backend laid out the family
+pr,agentic,requirement,passed,31,900832,298412,252197,1870,927,767,5358628,returned,passed,agentic,observed decision
+pr,agentic,treemap,passed,14,661163,215498,178920,1870,927,767,4409396,returned,passed,,no graph-layout decision observed; do not infer this backend laid out the family
+pr,agentic,ishikawa,passed,13,643858,208025,172171,1870,927,767,4880468,returned,passed,,no graph-layout decision observed; do not infer this backend laid out the family
+pr,agentic,block,passed,18,821747,267608,224399,1870,927,767,4830464,returned,passed,,no graph-layout decision observed; do not infer this backend laid out the family
+pr,agentic,eventmodeling,passed,11,651139,210036,174004,1870,927,767,5012696,returned,passed,,no graph-layout decision observed; do not infer this backend laid out the family
+pr,agentic,zenuml,passed,14,728158,234722,196247,1870,927,767,5040056,returned,passed,,no graph-layout decision observed; do not infer this backend laid out the family
+pr,agentic,railroad,passed,13,659433,213110,176740,1870,927,767,4464772,returned,passed,,no graph-layout decision observed; do not infer this backend laid out the family
+pr,agentic,cynefin,passed,13,647294,209346,173343,1870,927,767,4724140,returned,passed,,no graph-layout decision observed; do not infer this backend laid out the family
+pr,agentic,agentflow,passed,40,1311021,434358,371734,1870,927,767,6338344,returned,passed,agentic,observed decision
+pr,agentic,usecase,passed,35,1166545,386491,328772,1870,927,767,5714200,returned,passed,agentic,observed decision
+pr,agentic,wardley,passed,15,675721,218698,181839,1870,927,767,4877876,returned,passed,,no graph-layout decision observed; do not infer this backend laid out the family
+pr,agentic,venn,passed,12,656255,212871,176552,1870,927,767,4318556,returned,passed,,no graph-layout decision observed; do not infer this backend laid out the family
+pr,agentic,swimlane,passed,38,1209102,401998,342918,1870,927,767,5798808,returned,passed,,no graph-layout decision observed; do not infer this backend laid out the family
+pr,agentic,treeview,passed,14,651913,211577,175294,1870,927,767,4295476,returned,passed,,no graph-layout decision observed; do not infer this backend laid out the family
+pr,elk,flowchart,passed,31,2447481,757480,599941,1866,925,769,11218360,returned,passed,elk,observed decision
+pr,elk,sequence,passed,15,714152,229514,191486,1866,925,769,5026776,returned,passed,,no graph-layout decision observed; do not infer this backend laid out the family
+pr,elk,state,passed,27,2446377,756573,599162,1866,925,769,11009028,returned,passed,elk,observed decision
+pr,elk,class,passed,23,2231213,682719,533825,1866,925,769,10052464,returned,passed,elk,observed decision
+pr,elk,er,passed,25,2326233,715332,562702,1866,925,769,10000012,returned,passed,elk,observed decision
+pr,elk,timeline,passed,11,654833,210599,174426,1866,925,769,4391860,returned,unverified,,no graph-layout decision observed; do not infer this backend laid out the family
+pr,elk,journey,passed,12,675813,217986,181136,1866,925,769,5177320,returned,passed,,no graph-layout decision observed; do not infer this backend laid out the family
+pr,elk,architecture,passed,28,2426252,748125,591264,1866,925,769,11077936,returned,passed,elk,observed decision
+pr,elk,xychart,passed,15,698130,225586,187716,1866,925,769,5058172,returned,unverified,,no graph-layout decision observed; do not infer this backend laid out the family
+pr,elk,pie,passed,17,667435,217482,180524,1866,925,769,4363428,returned,passed,,no graph-layout decision observed; do not infer this backend laid out the family
+pr,elk,quadrant,passed,14,664413,215037,178364,1866,925,769,4571684,returned,passed,,no graph-layout decision observed; do not infer this backend laid out the family
+pr,elk,gantt,passed,11,681843,219935,182833,1866,925,769,4624092,returned,passed,,no graph-layout decision observed; do not infer this backend laid out the family
+pr,elk,mindmap,passed,16,671027,219555,182390,1866,925,769,4673144,returned,passed,,no graph-layout decision observed; do not infer this backend laid out the family
+pr,elk,gitgraph,passed,14,669893,217529,180564,1866,925,769,4750096,returned,passed,,no graph-layout decision observed; do not infer this backend laid out the family
+pr,elk,radar,passed,16,673852,219305,182241,1866,925,769,4520108,returned,passed,,no graph-layout decision observed; do not infer this backend laid out the family
+pr,elk,sankey,passed,14,674889,218463,181515,1866,925,769,4659412,returned,passed,,no graph-layout decision observed; do not infer this backend laid out the family
+pr,elk,c4,passed,22,881813,286789,241332,1866,925,769,5589604,returned,passed,,no graph-layout decision observed; do not infer this backend laid out the family
+pr,elk,packet,passed,12,642265,207533,171726,1866,925,769,4381816,returned,passed,,no graph-layout decision observed; do not infer this backend laid out the family
+pr,elk,kanban,passed,13,650885,211001,174802,1866,925,769,4489656,returned,passed,,no graph-layout decision observed; do not infer this backend laid out the family
+pr,elk,requirement,passed,16,2120435,646595,502652,1866,925,769,10129568,returned,passed,elk,observed decision
+pr,elk,treemap,passed,14,661163,215498,178920,1866,925,769,4409704,returned,passed,,no graph-layout decision observed; do not infer this backend laid out the family
+pr,elk,ishikawa,passed,13,643858,208025,172171,1866,925,769,4870288,returned,passed,,no graph-layout decision observed; do not infer this backend laid out the family
+pr,elk,block,passed,18,821747,267608,224399,1866,925,769,4829212,returned,passed,,no graph-layout decision observed; do not infer this backend laid out the family
+pr,elk,eventmodeling,passed,11,651139,210036,174004,1866,925,769,5013140,returned,passed,,no graph-layout decision observed; do not infer this backend laid out the family
+pr,elk,zenuml,passed,14,728158,234722,196247,1866,925,769,5040404,returned,passed,,no graph-layout decision observed; do not infer this backend laid out the family
+pr,elk,railroad,passed,13,659433,213110,176740,1866,925,769,4464504,returned,passed,,no graph-layout decision observed; do not infer this backend laid out the family
+pr,elk,cynefin,passed,13,647294,209346,173343,1866,925,769,4713556,returned,passed,,no graph-layout decision observed; do not infer this backend laid out the family
+pr,elk,agentflow,passed,30,2557216,792863,631591,1866,925,769,11674908,returned,passed,elk,observed decision
+pr,elk,usecase,passed,26,2413080,745217,588811,1866,925,769,10934328,returned,passed,elk,observed decision
+pr,elk,wardley,passed,15,675721,218698,181839,1866,925,769,4879400,returned,passed,,no graph-layout decision observed; do not infer this backend laid out the family
+pr,elk,venn,passed,12,656255,212871,176552,1866,925,769,4318072,returned,passed,,no graph-layout decision observed; do not infer this backend laid out the family
+pr,elk,swimlane,passed,38,1209102,401998,342918,1866,925,769,5798508,returned,passed,,no graph-layout decision observed; do not infer this backend laid out the family
+pr,elk,treeview,passed,14,651913,211577,175294,1866,925,769,4294908,returned,passed,,no graph-layout decision observed; do not infer this backend laid out the family
