@@ -1,0 +1,38 @@
+{
+  "baseline": "599bee58db7cb54293866cc8aa86c887ef93e9a4",
+  "candidate": "621d596088be5a08e03656eaacb3a52c934bac33",
+  "trident": "f080278e31e4202ca89d524e4ee9e4cf3cbff038",
+  "enrolled": 124,
+  "delivery": {
+    "returned": 116,
+    "error": 8
+  },
+  "proof": {
+    "passed": 102,
+    "unverified": 14,
+    "unavailable": 8
+  },
+  "changedOutcomes": [
+    {
+      "id": "diagnostic:chain100",
+      "backend": "elk",
+      "beforeDelivery": "returned",
+      "afterDelivery": "returned",
+      "beforeProof": "unverified",
+      "afterProof": "passed",
+      "qualificationSame": true
+    },
+    {
+      "id": "diagnostic:chain100",
+      "backend": "agentic",
+      "beforeDelivery": "returned",
+      "afterDelivery": "returned",
+      "beforeProof": "unverified",
+      "afterProof": "passed",
+      "qualificationSame": true
+    }
+  ],
+  "byteIdenticalSVGs": 116,
+  "differentSVGs": [],
+  "scope": "Original62sameinputs/options portableTrident qualifiers, candidate-only Native/ELK withfallback:none, fullactualSVG+receipt consumed. Raw declaredqualifieroutcomes retained, actualink/fidelity separate. No latencyclaim."
+}

@@ -1,0 +1,44 @@
+{
+  "source": "621d596088be5a08e03656eaacb3a52c934bac33",
+  "baseline": "599bee58db7cb54293866cc8aa86c887ef93e9a4",
+  "rows": 198,
+  "returned": 194,
+  "wholeSVGExact": 194,
+  "wholeSVGDifferences": [],
+  "deliveryChanges": [],
+  "proofStatusChanges": [],
+  "observerDifferences": {
+    "meaning": [],
+    "paint": [],
+    "quantitative": [],
+    "quality": []
+  },
+  "limitedMeaningRows": 16,
+  "errors": [
+    {
+      "id": "features:flowchart:font-size-reset",
+      "backend": "agentic",
+      "error": "RenderConfigError: Invalid RenderOptions: unknown render option \"fontSize\"",
+      "observerError": null
+    },
+    {
+      "id": "features:flowchart:font-size-reset",
+      "backend": "elk",
+      "error": "RenderConfigError: Invalid RenderOptions: unknown render option \"fontSize\"",
+      "observerError": null
+    },
+    {
+      "id": "features:flowchart:font-size-reset:edit",
+      "backend": "elk",
+      "error": "RenderConfigError: Invalid RenderOptions: unknown render option \"fontSize\"",
+      "observerError": null
+    },
+    {
+      "id": "features:flowchart:font-size-reset:edit",
+      "backend": "agentic",
+      "error": "RenderConfigError: Invalid RenderOptions: unknown render option \"fontSize\"",
+      "observerError": null
+    }
+  ],
+  "scope": "Existing198Trident authored meaning/Chromium actualink/quality observations; no newcriteria. Separate16labels-only rows, allrawfailuresandunknownsretained. Exactobserverscopeunchanged, nooverallcorrectnesspercentage."
+}

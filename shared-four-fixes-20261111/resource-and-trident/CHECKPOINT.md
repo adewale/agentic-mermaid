@@ -1,0 +1,11 @@
+# Restored real fresh proof and changed-candidate Trident qualification
+
+Source621d596088be5a08e03656eaacb3a52c934bac33 is normally pushed to existing PR602. It consumes the already-completed paint identity of an actually checked marker definition through exact per-reference/inspection/resolver custody. Each occurrence still receives a fresh result; width, pose, transforms and generic/live proof remain separate. No new result cache, cap, default or version change.
+
+Real unchanged-cap Native proofs: Chain100380960/400000 with99markers814pairs, Sparse32399076/400000 with32markers. Sparse existing owner red→green; both public Chain100 lanes pass.52 scoped adjacent guards470 assertions pass; canonical core/repository types and affected lint pass. The12-case diagnostic table retains10 failures; it is not weakened or called complete.
+
+Existing pinned Trident f080278e31e4202ca89d524e4ee9e4cf3cbff038 portable62sameinputs × bothbackends =124calls.116 returned whole SVGs are byte-identical to frozen599bee58db7cb54293866cc8aa86c887ef93e9a4; eight identical inputerrors. Only Chain100 bothbackends changes proof U→P. Authored-meaning/Chromium actualink99cases × bothbackends =198observations:194 exact SVGs, all meaning/paint/quantitative/quality vectors unchanged, four identical fontSize option errors. Sixteen label-only rows retain deeper unknowns. This is qualification with two proof-availability gains; no visible quality gain or overall correctness percentage is claimed.
+
+Frozen committed source archive/Node artifact is /tmp/pr449-four-candidate-621-20261111. Owning seven-entry scoped build; actual module/package/dependency identity is in the archive. Compiled identity view uses actual hardlinks and unchanged helper, with runtime path explicitly rebound only after same-byte/dependency confirmation. No fake git marker or source-tree hash substitutes for revision.
+
+All33family browser closures are collecting separately at checkpoint time.100ms, ten larger capacity cases and net combined runtime/payload remain unresolved. Task1 now co-produces full copy instructions at the immutable producer; old automations remainoff. Raw unsupported/failure/unknown/adverse evidence is retained in this and preceding checkpoints.
