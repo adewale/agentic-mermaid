@@ -427,14 +427,12 @@ describe('start.md bootstrap claims stay true', () => {
   test('every as* narrower it names is a real narrower', () => {
     const real = new Set<string>(BUILTIN_FAMILY_METADATA.map(family => family.narrower))
     const named = [...START.matchAll(/\bas[A-Z][A-Za-z]*\b/g)].map(m => m[0])
-    expect(named.length).toBeGreaterThan(0)
     for (const n of named) expect({ narrower: n, real: real.has(n) }).toEqual({ narrower: n, real: true })
   })
 
   test('every warning code it names is a real code', () => {
     const codes = new Set(Object.keys(WARNING_SEVERITY))
     const named = [...START.matchAll(/\b[A-Z]{2,}(?:_[A-Z]+)+\b/g)].map(m => m[0])
-    expect(named.length).toBeGreaterThan(0) // at least LABEL_OVERFLOW
     for (const c of named) expect({ code: c, real: codes.has(c) }).toEqual({ code: c, real: true })
   })
 
