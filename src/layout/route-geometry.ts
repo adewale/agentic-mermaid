@@ -751,3 +751,28 @@ export function simpleOrthogonal(pts: readonly Point[], chargeWork?: (operations
   }
   return true
 }
+
+/** Shared settled-geometry predicates used by route repair and final audit. */
+export function onRectPerimeter(p: Point, x: number, y: number, w: number, h: number, tol: number): boolean {
+  const onVertical = (Math.abs(p.x - x) <= tol || Math.abs(p.x - (x + w)) <= tol) && p.y >= y - tol && p.y <= y + h + tol
+  const onHorizontal = (Math.abs(p.y - y) <= tol || Math.abs(p.y - (y + h)) <= tol) && p.x >= x - tol && p.x <= x + w + tol
+  return onVertical || onHorizontal
+}
+
+export function flattenGroups(groups: PositionedGroup[], out: Map<string, PositionedGroup> = new Map()): Map<string, PositionedGroup> {
+  for (const g of groups) {
+    out.set(g.id, g)
+    flattenGroups(g.children, out)
+  }
+  return out
+}
+
+export function segmentHitsLoopLabel(a: Point, b: Point, rect: { x: number; y: number; w: number; h: number }): boolean {
+  if (Math.abs(a.x - b.x) <= EPS) {
+    return a.x > rect.x + EPS && a.x < rect.x + rect.w - EPS && Math.min(Math.max(a.y, b.y), rect.y + rect.h) - Math.max(Math.min(a.y, b.y), rect.y) > EPS
+  }
+  if (Math.abs(a.y - b.y) <= EPS) {
+    return a.y > rect.y + EPS && a.y < rect.y + rect.h - EPS && Math.min(Math.max(a.x, b.x), rect.x + rect.w) - Math.max(Math.min(a.x, b.x), rect.x) > EPS
+  }
+  return false
+}
