@@ -4,7 +4,43 @@ Current work order: [Native replacement plan](layout-0.6-qualification.md).
 The dated records below are historical evidence; earlier “next” statements do not
 create parallel active queues. No retained experiment or output is discarded.
 
-Latest owner-requested work, 11 November, baseline
+Current follow-up at `004c2a7330e82bc25c85d750edf9fd5c1733e00a`:
+async-only style deferral fixes the introduced ZenUML style-acquisition failure
+(existing emitted owner 1P/2F→3P/0F). Plain-browser payload/heap gains persist;
+styled Flowchart adds one request and ~1.1KB gzip. CI on this exact head stops
+before unit/browser tests because Ubuntu font downloads fail DNS; not ready.
+Evidence `3c6d7d60db4637793bf04e16baa49e10ff7f46d4` preserves the repair and
+withdrawn point/bbox trials, whose actual clocks did not justify adoption.
+
+Completed marker definitions are now reused by exact operand identity within
+the same original Native capture transaction (parent `004c2a7330e82bc25c85d750edf9fd5c1733e00a`).
+Deeper references, foreign copies/accessors and SDK capture keep the full walk;
+per-reference validation and actual definitions/XML correspondence remain.
+Owning109 tests/core+repo types/lint pass. Trident candidate-only124 portable and
+198 fidelity:116/194 returned SVGs and non-certification fields exact, all
+meaning/paint/quality vectors unchanged; same12 errors, no delivery/proof-status
+transitions. Larger table stays8P/4U. Chain100 work292,559→286,728; caps unchanged.
+
+Twelve isolated workers: full-repeat216.20→187.72ms, SVG145.58→136.38ms,
+cold473.91→381.40ms, first edit207.33→185.51ms. Adverse: RSS155.47→160.02MiB,
+edited-repeat p95213.04→713.49ms, fresh-source SVG100.84→103.36ms; one ofthree
+repeat process medians worsens in each protocol. Heap42.38→41.69MiB. All27
+paired SVG/non-certification/proof fields except actual operation counts exact;
+no general speedup or100ms claim. Evidence `marker-operand-trident`,
+`runtime-marker-operand`; browser delivery/payload qualification is running.
+Next: subtract repeated resource validation at its producer/consumer boundary.
+
+Projected-node/placement metric reuse is withdrawn. The first candidate's
+faster clocks were invalidated by a reproduced public-graph getter-order change
+(symmetry20→0). The corrected candidate preserves27 complete products/proofs but
+full-response repeat162.69→172.27ms and stock SVG117.67→138.28ms worsen; allthree
+stock process medians worsen, RSS158.58→160.03MiB and heap42.51→43.17MiB. Caps
+unchanged. Source/patch/raw retained in `rubric-order-repair/rejected-corrected`
+and `runtime-rubric-order`; no production change adopted. Native100 remains
+above100ms; larger proof table8P/4U. Next: reuse the actual completed marker
+definitions operand during connector capture; remove styled-browser chunk cost.
+
+Earlier 11 November checkpoint, baseline
 `599bee58db7cb54293866cc8aa86c887ef93e9a4`, runtime through
 `07a51fc9e1c06902fdf851abc1b05b9aa838e531`: shared producer/XML/group and
 marker-resource reuse restores Sparse32 proof (399,076/400,000) and both

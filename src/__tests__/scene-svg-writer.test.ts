@@ -8,7 +8,9 @@ import { validateSceneDoc } from '../scene/scene-validation.ts'
 import { preparePixelText } from '../shared/prepared-text.ts'
 import { createSvgXmlCapture, createNativeXmlWork, writeNativeGroupOpening, writeShapeSvg, writeTextSvg, writeConnectorSvg, type SvgXmlWrite, type SvgXmlCapture } from '../scene/svg-writer.ts'
 import { bindNativeGroupEmission, captureNativeGroupParse } from '../scene/group-emission.ts'
-import { createNativePaintEmission } from '../scene/native-paint-emission.ts'
+import { createNativePaintEmission, createOriginalNativePaintEmission } from '../scene/native-paint-emission.ts'
+import { tipAnchoredArrow, serializeMarkerResources } from '../scene/marker-resources.ts'
+import { withDeferredTerminalProjections } from '../scene/deferred-terminal-projection.ts'
 import { verifySvgDocumentEnvelope } from '../output-security.ts'
 import { createNativeSceneValidator } from '../scene/scene-validation-core.ts'
 import type { SceneNode } from '../scene/ir.ts'
@@ -18,6 +20,42 @@ import type { SceneNode } from '../scene/ir.ts'
 // the bytes. Families add only inert hooks.
 const runWriterChild = useTestChildren(20000)
 describe('typed Scene SVG writer', () => {
+  test.each(['same-depth', 'deeper', 'foreign-copy', 'accessor-copy', 'many-declarations'] as const)('completed definition operands retain actual resource custody: %s', mode => {
+    const emission = createOriginalNativePaintEmission(400000)
+    const marker = tipAnchoredArrow('arrow', { width: 8, height: 5 }, 'end', { fill: '#111', stroke: '#111', strokeWidth: '1' })
+    // The first definition fits depth64. A mid-marker occurrence introduces
+    // one more array level and must not borrow that shallower completion.
+    let metadata: object = { leaf: true }
+    for (let depth = 0; depth < 60; depth++) metadata = { child: metadata }
+    if (mode !== 'many-declarations') Object.defineProperty(marker, 'metadata', { value: metadata, enumerable: true })
+    const markers = mode === 'many-declarations'
+      ? Array.from({ length: 64 }, (_, index) => tipAnchoredArrow(`arrow:${index}`, { width: 8, height: 5 }, 'end', { fill: '#111', stroke: '#111', strokeWidth: '1' }))
+      : [marker]
+    const definitions = marks.definitions({ id: 'defs', markerResources: markers }, `<defs>\n${serializeMarkerResources(markers)}\n</defs>`)
+    const retainedDefinitions = emission.leaf(definitions, source => emission.xml.raw(sceneNodeSerialization(source), source), emission.xml)
+    expect(retainedDefinitions.conditional).toBe(false)
+    let reads = 0
+    const selected = mode === 'many-declarations' ? markers[0]! : mode === 'foreign-copy' || mode === 'accessor-copy'
+      ? { ...marker, paint: { ...marker.paint, fill: '#e00' } } : marker
+    if (mode === 'accessor-copy') Object.defineProperty(selected, 'metadata', { get() { reads++; throw new Error('Foreign accessor must not run') }, enumerable: true })
+    const connector = withDeferredTerminalProjections(() => marks.connector({ id: 'edge', role: 'edge', lineStyle: 'solid',
+      geometry: { kind: 'polyline', points: [{ x: 0, y: 20 }, { x: 20, y: 20 }, { x: 40, y: 20 }] },
+      paint: { stroke: '#111', strokeWidth: '1' }, markers: mode === 'deeper' ? { mid: [selected] } : { end: selected } }))
+    const written = emission.leaf(connector, (source, sink) => {
+      if (source.kind !== 'connector') throw new Error('Expected connector')
+      return writeConnectorSvg(source, sink, emission.xml)
+    }, emission.xml)
+    expect(written.svg).toBe(writeConnectorSvg(connector))
+    expect(written.svg).toContain(mode === 'deeper' ? 'marker-mid="url(#arrow)"' : `marker-end="url(#${selected.id})"`)
+    expect(written.conditional).toBe(mode === 'deeper' || mode === 'accessor-copy')
+    expect(reads).toBe(0)
+    if (mode === 'foreign-copy') {
+      expect(marker.paint?.fill).toBe('#111')
+      expect(selected.paint?.fill).toBe('#e00')
+      expect(Object.isFrozen(selected.paint)).toBe(true)
+    }
+  })
+
   test.each([0, 1, 2, 7, 32, 128, 512])('Native XML admission retains the generic meter boundary at %s operations', allowance => {
     const work = createNativeXmlWork(allowance), native = work.capture()
     let operations = 0, exhausted = false

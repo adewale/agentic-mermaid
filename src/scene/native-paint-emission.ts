@@ -161,7 +161,16 @@ function createPaintEmission(maxOperations: number, closeLeaves: boolean) {
   const observedTextPaintWrites = new textPaintSet<SvgTextPaintWrite>()
   let usedTextPaint = false
   let ownedPartRosters: WeakSet<object> | undefined
-  type CaptureContext = 'leaf' | 'route' | 'geometry' | 'points' | 'point' | 'pixel-part' | 'text-paint'
+  type CaptureContext = 'leaf' | 'route' | 'geometry' | 'points' | 'point' | 'pixel-part' | 'text-paint' | 'markers' | 'marker-list' | 'marker' | 'marker-declarations'
+  // Completed operands of an actual definitions capture, not a cache keyed by
+  // caller identity or a claim that arbitrary frozen resources are immutable.
+  // These private links never pass through a caller-dispatched collection or
+  // sealing helper. A later occurrence still validates and binds its resource
+  // to the actual definition bytes in finish().
+  interface ClosedMarkerOperand { readonly value: object; readonly depth: number; readonly prior: ClosedMarkerOperand | undefined }
+  interface ClosingDeclarations { readonly source: object; head: ClosedMarkerOperand | undefined; deferred: boolean }
+  let closedMarkerOperands: ClosedMarkerOperand | undefined
+  let closingDeclarations: ClosingDeclarations | undefined, completedDeclarations: ClosingDeclarations | undefined
   interface TextCopyPlan { readonly source: object; readonly array: boolean; readonly slots: readonly TextCopySlot[]; readonly length: number | undefined; readonly height: number }
   interface TextCopySlot { readonly key: string; readonly enumerable: boolean; value: unknown; readonly child: TextCopyPlan | undefined; readonly writable: false; readonly configurable: false }
   const textPlans = new textPaintMap<object, { plan: TextCopyPlan | undefined }>()
@@ -237,6 +246,7 @@ function createPaintEmission(maxOperations: number, closeLeaves: boolean) {
       if (Array.isArray(value)) Object.defineProperty(value, 'length', { writable: false })
     }
     const deferredProjection = deferredTerminalProjectionInput(value)
+    if (closingDeclarations && deferredProjection) closingDeclarations.deferred = true
     // Pay before reading caller data and reuse each descriptor if the typed
     // constructor declines, so fallback cannot repeat uncharged proxy work.
     let inspected = 0
@@ -312,11 +322,29 @@ function createPaintEmission(maxOperations: number, closeLeaves: boolean) {
         || context === 'route' && key === 'geometry') ownedFields |= 1
       const pointSlot = context === 'points' && /^(?:0|[1-9]\d*)$/.test(key) && Number(key) < 0xffff_ffff
       if (pointSlot) ownedPointSlots++
+      const markerSlot = close && (context === 'marker-list' || context === 'marker-declarations') && /^(?:0|[1-9]\d*)$/.test(key) && Number(key) < 0xffff_ffff
       const childContext = context === 'leaf' && kind === 'text' && key === 'paint' ? 'text-paint'
         : context === 'pixel-part' || context === 'leaf' && kind === 'text' && (key === 'block' || key === 'preparedLines') ? 'pixel-part'
+        : close && context === 'leaf' && kind === 'document' && key === 'markerResources' ? 'marker-declarations'
+        : close && context === 'leaf' && kind === 'connector' && key === 'markers' ? 'markers'
+        : context === 'markers' && key === 'mid' ? 'marker-list'
+        : context === 'markers' && (key === 'start' || key === 'end') || markerSlot ? 'marker'
         : context === 'leaf' && kind === 'connector' && key === 'route' ? 'route'
         : (context === 'leaf' && kind === 'shape' || context === 'route') && key === 'geometry' ? 'geometry' : context === 'geometry' && kind === 'polyline' && key === 'points' ? 'points' : pointSlot ? 'point' : undefined
-      const copied = copy(descriptor.value, depth + 1, parents, childContext, close)
+      let copied: unknown
+      if (close && childContext === 'marker-declarations') {
+        if (!pay(3)) throw failed
+        const previous = closingDeclarations
+        const declaration: ClosingDeclarations = { source: value, head: closedMarkerOperands, deferred: false }
+        closingDeclarations = declaration
+        try { copied = copy(descriptor.value, depth + 1, parents, childContext, close) }
+        finally { closingDeclarations = previous }
+        completedDeclarations = declaration
+      } else copied = copy(descriptor.value, depth + 1, parents, childContext, close)
+      if (close && context === 'marker-declarations' && markerSlot && copied && typeof copied === 'object' && closingDeclarations) {
+        if (!pay(3)) throw failed
+        closingDeclarations.head = { value: copied, depth: depth + 1, prior: closingDeclarations.head }
+      }
       if (planSlots) {
         if (!pay(2)) throw failed
         const child = copied && typeof copied === 'object' ? textPaintApply(textPaintGet, planningText!.plans, [copied]) as TextCopyPlan | undefined : undefined
@@ -378,6 +406,15 @@ function createPaintEmission(maxOperations: number, closeLeaves: boolean) {
   const copy = (value: unknown, depth = 0, parents = new Set<object>(), context?: CaptureContext, close = false): unknown => {
     if (depth > 64) throw failed
     if (close) {
+      if (context === 'marker' && value && typeof value === 'object' && closedMarkerOperands) {
+        if (!pay(2) || parents.has(value)) throw failed
+        for (let operand: ClosedMarkerOperand | undefined = closedMarkerOperands; operand; operand = operand.prior) {
+          if (!pay()) throw failed
+          // The first completed walk proves the whole descendant depth only
+          // at that depth or shallower. Deeper references keep the full walk.
+          if (operand.value === value && depth <= operand.depth) return value
+        }
+      }
       if (context === 'pixel-part' && value && typeof value === 'object') {
         if (!pay(2)) throw failed
         if (isOwnedPixelTextPart(value)) return value
@@ -831,6 +868,9 @@ function createPaintEmission(maxOperations: number, closeLeaves: boolean) {
         attributes = written
       } : undefined }) : undefined
       const { svg, xmlWrite } = serialize(captured, sink)
+      if (closeLeaves && captured.kind === 'document' && captured.element === 'definitions'
+        && completedDeclarations?.source === captured && !completedDeclarations.deferred
+        && actualCapture === xml && xmlWrite && pay()) closedMarkerOperands = completedDeclarations.head
       if (directRectangle && geometry && captured.kind === 'shape') {
         const actual = readSvgRectangleWrite(xml, xmlWrite, captured, geometry)
         served = actual && inertRectangleRecord(actual)
