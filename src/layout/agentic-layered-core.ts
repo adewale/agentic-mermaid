@@ -1,4 +1,5 @@
 import { assertMarkerPaint, type MarkerPaint } from './compound-marker-seating.ts'
+import { layoutOptimization } from './optimization-context.ts'
 import { refinePrivateChainOrder } from './chain-insertion-order.ts'
 import { minimumSpanRanks, privateRankSpan, MAX_MEASURED_RANKS as MAX_RANKS } from './minimum-span-ranks.ts'
 import { compactMeasuredLoops } from './compact-measured-loops.ts'
@@ -8,6 +9,7 @@ import { layoutCyclicGraph, type LayoutSearchWork } from './cycle-layout-search.
 import { layoutCompoundGraph } from './agentic-compound-core.ts'
 import { feedbackOrder } from './cycle-order.ts'
 import { assignChannelTracks, type ChannelStep, type ChannelWork } from './channel-tracks.ts'
+import { AGENTIC_MAX_NODES as MAX_NODES, AGENTIC_MAX_EDGES as MAX_EDGES, AGENTIC_MAX_EXPANDED_VERTICES as MAX_EXPANDED_VERTICES } from './agentic-limits.ts'
 
 export interface MeasuredGraph {
   /** Ordered partitions are local to a sibling scope; omitted values use zero. */
@@ -44,6 +46,8 @@ export interface MeasuredGraph {
   authoredCycleOrder?: boolean
   /** Optional compact candidate: only labelled links need an extra private rank. */
   compactPrivateRanks?: boolean
+  /** Bounded optional coordinate refinement using the selected port offsets. */
+  portAwarePlacement?: true
   /** Private acyclic projection; its parent restores authored cycle directions. */
   cycleOriented?: true
   /** Internal family contract: retain placement constraints, omit final routes.
@@ -74,10 +78,7 @@ interface Vertex {
   outgoing: number[]
 }
 
-// These are local solver bounds, not a replacement for request admission.
-const MAX_NODES = 4096
-const MAX_EDGES = 16384
-export const MAX_EXPANDED_VERTICES = 32768
+export { MAX_EXPANDED_VERTICES }
 const SWEEP_PAIRS = 4
 const LABEL_GAP = 8
 
@@ -703,6 +704,8 @@ export function layoutLayeredGraph(
     assignPorts(outgoing[nodeIndex]!, true)
     assignPorts(incoming[nodeIndex]!, false)
   }
+
+  if (input.portAwarePlacement) layoutOptimization(true)!.improvePortCoordinates(vertices, bands, chains, cross, sourcePort, targetPort, nodes.length, nodeSpacing, crossExtent, previousReal, nextReal)
 
   // Even zero requested spacing needs a channel in which a fan can turn.
   const halfGap = Math.max(4, layerSpacing / 2)

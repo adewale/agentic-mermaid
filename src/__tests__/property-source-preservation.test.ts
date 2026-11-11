@@ -14,7 +14,7 @@ function parse(source: string): ParsedDiagram {
 }
 
 function reload(diagram: ParsedDiagram): ParsedDiagram {
-  const payload = JSON.parse(JSON.stringify(diagram, (_key, value) => value instanceof Map ? Object.fromEntries(value) : value))
+  const payload = JSON.parse(JSON.stringify(diagram, (_key, value) => value instanceof Map ? Object.fromEntries(value) : value instanceof Set ? [...value] : value))
   const result = synthesizeFromGraph(payload)
   if (!result.ok) throw new Error(JSON.stringify(result.error))
   const source = serializeMermaid(result.value)

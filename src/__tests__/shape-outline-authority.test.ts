@@ -35,6 +35,20 @@ const GEOMETRIC_SHAPES = Object.keys({
 } satisfies Record<NodeShape, 1>) as NodeShape[]
 
 describe('canonical shape outline authority', () => {
+  test('partial rectangle borders paint exactly the requested sides and expose an honest routing envelope', () => {
+    const positioned = { ...node('rectangle'), borders: 'lt' }
+    const outline = shapeOutline(positioned, PAINT)
+    expect(outline.geometry).toEqual({ kind: 'compound', children: [
+      { kind: 'rect', x: 10, y: 20, width: 100, height: 40 },
+      { kind: 'line', x1: 10, y1: 20, x2: 10, y2: 60 },
+      { kind: 'line', x1: 10, y1: 20, x2: 110, y2: 20 },
+    ] })
+    expect(outline.childPaints?.[0]).toEqual({ fill: '#fff', stroke: 'none' })
+    expect(outline.childPaints?.slice(1)).toEqual([{ stroke: '#000', strokeWidth: '1' }, { stroke: '#000', strokeWidth: '1' }])
+    expect(shapeRoutingProfile(positioned).boundary.kind).toBe('envelope')
+    positioned.borders = 'lrtb'
+    expect(shapeRoutingProfile(positioned).boundary.kind).toBe('rect')
+  })
   test('ellipse paint and every routed endpoint share the same curved boundary', () => {
     const ellipse = node('ellipse')
     const expected = { kind: 'ellipse' as const, cx: 60, cy: 40, rx: 50, ry: 20 }

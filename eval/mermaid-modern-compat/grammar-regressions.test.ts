@@ -5,7 +5,7 @@ import { dirname, join } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import { getFamily } from '../../src/agent/core.ts'
 import type { DiagramKind } from '../../src/agent/types.ts'
-import { inspectAgenticGrammar } from './grammar-agentic.ts'
+import { inspectAgenticGrammar, parseNativeModel } from './grammar-agentic.ts'
 import { projectReferenceSemantic } from './grammar-native-semantics.ts'
 import { startGrammarReference } from './grammar-reference.ts'
 import { admitCurrentReference, startModernReference } from './reference.ts'
@@ -111,6 +111,38 @@ test('grammar triage agrees with public source rendering on typed/native admissi
     try { renders = native.renderMermaidSVG(source).includes('<svg') } catch { /* Public admission is the independent expectation. */ }
     const result = await triageGrammarWitness({ family, source }, (selected, text) => grammar.parse(selected, text))
     expect(result.defects.some(item => item.kind === 'native-admission')).toBe(!renders)
+  }
+})
+
+test('native chart observations retain the renderer input inside multiline labels', async () => {
+  const label = 'First\n  Indented\n\nLast'
+  for (const [family, source, expected] of [
+    ['radar', `---\ntitle: Skills\n---\nradar-beta\naxis a["${label}"],b\ncurve x["${label}"]{1,2}`, { title: 'Skills', axes: [{ id: 'a', label }, { id: 'b', label: 'b' }], curves: [{ id: 'x', label, values: [1, 2] }] }],
+    ['xychart', `xychart-beta\nx-axis ["${label}", second]\nbar [1,2]`, { xAxis: { categories: [label, 'second'] } }],
+    ['quadrant', `quadrantChart\n"${label}": [0.2,0.3]`, { points: [{ label, x: 0.2, y: 0.3 }] }],
+  ] as const) {
+    const before = inspectAgenticGrammar(family, source).native.observation
+    expect(before.semantic?.value).toMatchObject(expected)
+    const parsed = am.parseRegisteredMermaid(source)
+    if (!parsed.ok) throw new Error(`${family} must retain structured labels`)
+    const canonical = am.serializeMermaid(parsed.value, { wrapper: 'canonical' })
+    await grammar.prepare(family, getFamily(family)!.example)
+    const written = await grammar.parse(family, canonical)
+    expect(written.accepted).toBe(true)
+    expect(projectReferenceSemantic(family, written)?.value).toMatchObject(expected)
+    const after = inspectAgenticGrammar(family, canonical).native.observation
+    expect(after.semantic?.value).toMatchObject(expected)
+    expect(nativeMeaningChanged(family, before, after)).toBe(false)
+  }
+})
+
+test('native chart observations carry the renderer envelope fields', () => {
+  for (const [family, body, expected] of [
+    ['pie', 'pie\n"Slice": 1', { title: 'Envelope' }],
+    ['xychart', 'xychart-beta\naccTitle: Accessible\naccDescr: Description\nbar [1]', { title: 'Envelope', accessibility: { title: 'Accessible', description: 'Description' } }],
+    ['quadrant', 'quadrantChart\naccTitle: Accessible\naccDescr: Description\nA: [0.2,0.3]', { title: 'Envelope', accessibility: { title: 'Accessible', description: 'Description' } }],
+  ] as const) {
+    expect(parseNativeModel(family, `---\ntitle: Envelope\n---\n${body}`)).toMatchObject(expected)
   }
 })
 

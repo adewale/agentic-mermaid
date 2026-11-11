@@ -4,6 +4,16 @@ Current implementation decisions that differ from, or materially narrow, the bro
 
 ## What still matters
 
+Top-level State layout hints (`scale N width`, `hide empty description`) remain visible
+in verification as unapplied renderer settings. They now survive typed edits
+and serialization as `layoutDirectives`, without making the complete state
+machine opaque. Their source spelling does not control local geometry.
+Nested hints remain source-only until the typed model can retain their scope.
+State identities keep combining marks instead of splitting a Hebrew or
+decomposed Latin name; ER declarations and relationship endpoints accept
+Unicode names through the shared entity lexer. Neither reader normalizes an
+authored identity to a different Unicode sequence.
+
 ### Grammar finder triage (#461)
 
 The triage covers all 1,283 distinct inputs retained in four linked workflow
@@ -781,7 +791,7 @@ its apostrophe/backslash counterexample remains in `agent-source-map.test.ts`.
 
 These are retained only because they explain guardrails that may otherwise look excessive:
 
-- **Opaque fidelity:** opaque bodies serialize from preserved `body.source`, not normalized `canonicalSource`, so indentation/comments/source text survive parse → serialize.
+- **Opaque fidelity:** opaque bodies serialize from preserved `body.source` rather than reconstructing it from `canonicalSource`, so indentation/comments/source text survive parse → serialize.
 - **`am parse | am serialize`:** JSON payloads preserve flowchart styling maps and defensively normalize loose SDK-shaped subgraphs.
 - **Subgraph payload hardening:** `synthesizeFromGraph` tolerates missing `children`, null entries, cyclic references, non-tuple map arrays, and non-integer linkStyle keys.
 - **Timeline mutation:** timeline edits update `canonicalSource`, validate mutation text, allocate unique IDs, and fall back to opaque for header-suffix/lossy syntax.
@@ -1062,3 +1072,44 @@ different facts (a direction holding a statement, an id holding a newline, an
 edge to an undeclared node, a style for an undeclared node) is refused with
 `INVALID_PAYLOAD`. A source-preserved body is its own source and is reparsed
 as before.
+
+### AgentFlow retains literal percent pairs in labels
+
+Mermaid 12.2.0 accepts multiline unquoted square, ellipse and trapezoid labels
+but strips `%%` and the rest of that label line. Agentic retains those
+characters in the native model, SVG and ASCII. The three original
+`agentflow-comments.spec.ts` assertions expecting that truncation remain
+intentional reader divergences.
+
+Canonical AgentFlow export shields percent characters in classified label
+tokens with Mermaid's `#37;` escape. The pinned public parser accepts these
+writes and retains the complete logical label on readback. Full-line comments
+remain comments, including any semicolons they contain.
+
+### Cynefin retains authored self-transitions
+
+Mermaid 12.2.0 accepts Cynefin self-transitions but drops them from its database,
+including their labels. Agentic retains them in its native model, source maps,
+SVG, terminal output and checked edits. Each loop has its own routed contacts
+and caption. Canonical exports include the authored loop statements; Mermaid
+accepts that syntax and continues to discard those transitions on its readback.
+The two original `cynefin.integration.spec.ts` assertions expecting loops to
+vanish remain intentional data-retention divergences.
+
+### Wardley preserves pipeline scopes without overwriting authored components
+
+Mermaid 12.2.0 generates a pipeline child's ID by joining its parent and label
+with an underscore. An authored `Service_Custom` component is therefore
+overwritten by `Custom` in pipeline `Service`, changing both coordinates and
+dependency targets. Agentic reserves authored IDs before allocating generated
+ones and keeps separate parent/label pairs distinct. Generated drawing groups
+use the same reserved namespace in layout and source maps.
+
+Reopening a pipeline retains its earlier members; redeclaring the same child
+updates that child without duplicating membership. Mermaid resets the member
+list on each opening. Native exports retain declaration order by reopening
+scopes when necessary. Mermaid accepts those writes but still exhibits its
+content losses. Dependencies use an unambiguous source name; checked edits
+refuse atomically when no such reference exists, including evolution of a
+collision-disambiguated child. Generated IDs may change after structural edits;
+authored IDs, labels and references retain their meaning.

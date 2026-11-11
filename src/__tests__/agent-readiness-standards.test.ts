@@ -7,12 +7,13 @@ import { useTestChildren } from './helpers/test-child.ts'
 
 const runChild = useTestChildren(20_000)
 
-ensureWebsiteBuilt()
-
 const REPO = join(import.meta.dir, '..', '..')
 const SITE = join(REPO, 'website', 'public')
 
+// Workflow-only checks do not need website generation.
+let siteReady = false
 function read(rel: string) {
+  if (!siteReady) { ensureWebsiteBuilt(); siteReady = true }
   return readFileSync(join(SITE, rel), 'utf8')
 }
 
@@ -108,7 +109,12 @@ describe('agent-readiness standards syntax', () => {
     // The attestation and packing scripts are exercised directly by
     // release-identity.test.ts and verify-publish-package.test.ts; the
     // attestation's CI query by release-publish-steps.test.ts.
-    expect(runsOf(publish.jobs[root]!).some(run => run.includes('scripts/ci/release-identity.ts'))).toBe(true)
+    const identity = ids.find(id => runsOf(publish.jobs[id]!).some(run => run.includes('scripts/ci/release-identity.ts')))
+    expect(identity).toBeDefined()
+    for (const id of ids.filter(other => other !== root && other !== identity)) {
+      expect({ job: id, validatedIdentity: upstreamOf(publish.jobs, id).has(identity!) })
+        .toEqual({ job: id, validatedIdentity: true })
+    }
     const uploaders = ids.filter(id => (publish.jobs[id]!.steps ?? []).some(step => step.uses?.startsWith('actions/upload-artifact@')))
     expect(uploaders.length).toBeGreaterThan(0)
     for (const id of uploaders) {

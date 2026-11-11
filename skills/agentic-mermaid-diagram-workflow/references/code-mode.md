@@ -2,7 +2,8 @@
 
 <!-- complete: local-mcp-tools -->
 `agentic-mermaid-mcp` exposes a primary Code Mode tool, `execute(code)`, plus
-narrow `describe_sdk`, `render_png`, and `describe` helpers. The initial
+narrow `describe_sdk`, `render_png`, and `describe` helpers, plus declarative
+`mutate` and `build` tools. The initial
 `execute` declaration contains only the core SDK. Call
 `describe_sdk({ family, detail: 'fields' })` before an unfamiliar mutation to
 load that family's exact schema; use `detail: 'signatures'` for a compact menu.
@@ -102,4 +103,13 @@ return sources.map(src => {
 Conventions: return the final value; do not use imports or type annotations in
 Code Mode; do not use `async`/`await` or Promise jobs; for new diagrams, author
 source then parse/verify; for existing modeled diagrams, narrow before mutate and
-verify before every serialize; `verify.ok` is structural rather than visual or semantic, so inspect layout/render artifacts for visual tasks and use `checkMermaid` facts for task-critical meaning; for an opaque-fallback body (any unmodeled syntax, where the narrower returns null), return an explicit unsupported-family result unless the task requested source-level editing and you can re-parse + verify afterward.
+verify before every serialize.
+
+<!-- BEGIN GENERATED: verify-result -->
+`verify.ok` means no unsuppressed error was detected, including measured content occlusion and explicit error policies. It is not a visual-quality or semantic-correctness score.
+<!-- END GENERATED: verify-result -->
+
+Inspect layout/render artifacts for visual tasks and use `checkMermaid` facts
+for task-critical meaning. For an opaque-fallback body (unmodeled syntax where
+the narrower returns null), return an explicit unsupported-family result unless
+the task requested source-level editing and you can re-parse and verify afterward.

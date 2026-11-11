@@ -32,6 +32,7 @@ import { classInterfaceSide, createClassInterfaceAllocator } from '../class/inte
 // ============================================================================
 
 import { decodeXML } from 'entities'
+import { appendClassName } from '../shared/graph-classes.ts'
 import type { ClassStatementNode } from '../class/parser.ts'
 import { classCommentRejections, classDiagramHasStatement, classStatementEnds, MERMAID_DIRECTIVE_RE, parseClassBodyAnnotationToken, parseClassDiagram, parseClassMember, parseClassRelationship, readClassStatements, readsAsClassName, supportedRelationEndpoint, withoutStyleComment } from '../class/parser.ts'
 import { classTextLabel, decodeClassText, hasClassDirectionToken, memberToString, writeClassText } from '../class/text.ts'
@@ -154,10 +155,11 @@ export function parseClassRelationSyntax(line: string): (ClassRelation & { fromG
   return shared ? projectClassRelation(shared) : null
 }
 
-export function parseClassBody(lines: string[]): ClassBody | null {
+export function parseClassBody(lines: string[], source?: string): ClassBody | null {
   const tree = readClassStatements(lines)
   if (tree.diagnostics.length > 0) return null
   const body: ClassBody = { kind: 'class', classes: [], relations: [], notes: [] }
+  let preservesStatements = false
   const classMap = new Map<string, ClassNode>()
   const allocateInterface = createClassInterfaceAllocator(tree.statements)
   const laterCssClasses: Array<{ id: string; name: string }> = []
@@ -206,9 +208,11 @@ export function parseClassBody(lines: string[]): ClassBody | null {
         case 'close':
           break
         case 'direction':
-        case 'unknown':
         case 'source-only':
-          return false // no typed slot; whole-body opaque is lossless
+          preservesStatements = true
+          break
+        case 'unknown':
+          return false
         case 'namespace': {
           // The typed model uses dotted paths, so a literal dot inside one
           // quoted atom has no lossless typed representation.
@@ -228,7 +232,7 @@ export function parseClassBody(lines: string[]): ClassBody | null {
         case 'class': {
           const declaration = value.declaration
           const cls = upsert(declaration.id, declaration.label, declaration.generic)
-          if (declaration.className !== undefined) cls.className = declaration.className
+          if (declaration.className !== undefined) cls.className = appendClassName(cls.className, declaration.className)
           if (declaration.annotation !== undefined && !addAnnotation(cls, declaration.annotation)) return false
           if (!claim(cls, path)) return false
           if (node.children) frames.push({ nodes: node.children, path, owner: cls, index: 0 })
@@ -246,7 +250,7 @@ export function parseClassBody(lines: string[]): ClassBody | null {
           const annotation = value.annotation
           if (annotation.placement === 'separate' && !classMap.has(annotation.id)) return false
           const cls = upsert(annotation.id, annotation.label, annotation.generic)
-          if (annotation.className !== undefined) cls.className = annotation.className
+          if (annotation.className !== undefined) cls.className = appendClassName(cls.className, annotation.className)
           if (!addAnnotation(cls, annotation.annotation)) return false
           if (!claim(cls, path)) return false
           break
@@ -311,12 +315,12 @@ export function parseClassBody(lines: string[]): ClassBody | null {
             // it, and declares none (src/class/parser.ts).
             if (value.kind === 'assignment' && value.form.startsWith('cssClass')) {
               const existing = classMap.get(reference.id)
-              if (existing) existing.className = value.name
+              if (existing) existing.className = appendClassName(existing.className, value.name)
               else laterCssClasses.push({ id: reference.id, name: value.name })
               continue
             }
             const cls = upsert(reference.id, undefined, reference.generic)
-            if (value.kind === 'assignment') cls.className = value.name
+            if (value.kind === 'assignment') cls.className = appendClassName(cls.className, value.name)
             else {
               const props = portableClassStyleProps(value.props, value.declarations)
               if (!props) return false
@@ -333,9 +337,10 @@ export function parseClassBody(lines: string[]): ClassBody | null {
     return true
   }
   if (!visit(tree.statements)) return null
-  for (const { id, name } of laterCssClasses) {
+  for (let index = laterCssClasses.length - 1; index >= 0; index--) {
+    const { id, name } = laterCssClasses[index]!
     const cls = classMap.get(id)
-    if (cls && cls.className === undefined) cls.className = name
+    if (cls) cls.className = appendClassName(name, cls.className ?? '')
   }
   if (namespaces.length > 0) body.namespaces = namespaces
   if (classBodyWriteProblem(body)) return null
@@ -343,6 +348,7 @@ export function parseClassBody(lines: string[]): ClassBody | null {
   // ones verbatim instead of promising a portable structured edit.
   if (namespaces.some(namespace => !namespaceHasClasses(body, namespace.name))) return null
   body.classes = body.classes.filter(node => !node.isInterface).concat(body.classes.filter(node => node.isInterface))
+  if (preservesStatements) body.source = source ?? `classDiagram\n${lines.join('\n')}`
   return body
 }
 
@@ -475,6 +481,7 @@ function pushClassLines(lines: string[], c: ClassNode, indent: string, deferredM
 /** `writeTitle` false when the title is written as the frontmatter `title:`,
  * the only title Mermaid's Class grammar reads. */
 export function renderClass(body: ClassBody, writeTitle = true): string {
+  if (body.source !== undefined) return body.source
   const problem = classBodyWriteProblem(body)
   if (problem) throw new Error(problem)
   const lines: string[] = ['classDiagram']
@@ -686,6 +693,33 @@ function declareNamespaceOn(b: ClassBody, path: string): void {
 }
 
 export function mutateClass(body: ClassBody, op: ClassMutationOp): Result<ClassBody, MutationError> {
+  if (body.source !== undefined) {
+    const original = normalizeMermaidSource(body.source)
+    const baseline = parseClassBody(original.familyLines.slice(1), body.source)
+    if (!baseline || !sameSourceMeaning(baseline, body)) {
+      return err({ code: 'INVALID_OP', message: 'Class source does not match its typed body' })
+    }
+
+    if (op.kind === 'rename_class' || op.kind === 'remove_class') {
+      const id = op.kind === 'rename_class' ? op.from : op.id
+      // Inert actions and future statements can still name this identity.
+      // A typed cascade cannot establish their reference grammar.
+      const nodes = [...readClassStatements(body.source.split(/\r?\n/), undefined, false).statements]
+      for (let index = 0; index < nodes.length; index++) {
+        const node = nodes[index]!
+        if (node.children) nodes.push(...node.children)
+        if ((node.value.kind === 'source-only' || node.value.kind === 'unknown') && node.text.includes(id)) {
+          return err({ code: 'INVALID_OP', message: `Cannot ${op.kind} ${JSON.stringify(id)} while an unmodeled statement may reference it` })
+        }
+      }
+    }
+    const result = mutateClassSource(body.source, op)
+    if (!result.ok) return result
+    const source = applySourceEdits(body.source, result.value)
+    const normalized = normalizeMermaidSource(source)
+    const next = parseClassBody(normalized.familyLines.slice(1), source)
+    return next ? ok(next) : err({ code: 'INVALID_OP', message: 'The source edit lost Class statement ownership' })
+  }
   const problem = classBodyWriteProblem(body)
   if (problem) return err({ code: 'INVALID_OP', message: problem })
   const targetId = 'class' in op ? op.class : op.kind === 'rename_class' ? op.from : op.kind === 'add_note' ? op.for : undefined
@@ -759,7 +793,7 @@ function classMemberSourceEdit(source: string, id: string, index: number, target
 
 /** Edit owned member source while retaining every unrelated native field. */
 export function mutateClassSource(source: string, op: ClassMutationOp): Result<readonly SourceEdit[], MutationError> {
-  if (op.kind !== 'add_member' && op.kind !== 'remove_member') return err({ code: 'INVALID_OP', message: 'Source-preserving Class edits support add_member and owned whole-line remove_member only' })
+  if (op.kind !== 'add_member' && op.kind !== 'remove_member' && op.kind !== 'rename_class' && op.kind !== 'remove_class') return err({ code: 'INVALID_OP', message: 'Source-preserving Class edits support member edits and owned class rename/removal only' })
   const read = (text: string) => {
     const normalized = normalizeMermaidSource(text, {}, 'render')
     // Without a distinct authored grammar, the native reader already uses
@@ -767,11 +801,34 @@ export function mutateClassSource(source: string, op: ClassMutationOp): Result<r
     return withFrontmatterTitle(withAccessibilityFields(parseClassDiagram(normalized.familyLines, normalized.authoredFamilyLines), normalized.accessibility), normalized.frontmatter)
   }
   try {
-    const before = read(source), target = before.classes.find(node => node.id === op.class)
-    if (!target) return err({ code: 'CLASS_NOT_FOUND', message: `class ${op.class} not found` })
+    const id = op.kind === 'rename_class' ? op.from : op.kind === 'remove_class' ? op.id : op.class
+    const before = read(source), target = before.classes.find(node => node.id === id)
+    if (!target) return err({ code: 'CLASS_NOT_FOUND', message: `class ${id} not found` })
     if (target.isInterface) return err({ code: 'INVALID_OP', message: 'An interface occurrence has no class member compartment' })
     let edits: readonly SourceEdit[], expected = before
-    if (op.kind === 'add_member') {
+    if (op.kind === 'rename_class' || op.kind === 'remove_class') {
+      if (op.kind === 'rename_class') {
+        const invalid = validateClassId(op.to)
+        if (invalid) return err(invalid)
+        if (before.classes.some(node => node.id === op.to)) return err({ code: 'DUPLICATE_CLASS', message: `class ${op.to} already exists` })
+      }
+      const planned = classIdentitySourceEdits(source, id, op.kind === 'rename_class' ? op.to : undefined)
+      if (!planned.ok) return planned
+      edits = planned.value
+      const rename = (value: string): string => value === id && op.kind === 'rename_class' ? op.to : value
+      const namespaces = (items: typeof before.namespaces): typeof before.namespaces => items.map(namespace => ({
+        ...namespace,
+        classIds: namespace.classIds.filter(value => op.kind !== 'remove_class' || value !== id).map(rename),
+        children: namespaces(namespace.children),
+      }))
+      expected = {
+        ...before,
+        classes: before.classes.filter(node => op.kind !== 'remove_class' || node.id !== id).map(node => node === target ? { ...node, id: rename(node.id), ...(node.label === id ? { label: rename(node.label) } : {}) } : node),
+        relationships: before.relationships.filter(relation => op.kind !== 'remove_class' || relation.from !== id && relation.to !== id).map(relation => ({ ...relation, from: rename(relation.from), to: rename(relation.to) })),
+        notes: before.notes.filter(note => op.kind !== 'remove_class' || note.for !== id).map(note => note.for ? { ...note, for: rename(note.for) } : note),
+        namespaces: namespaces(before.namespaces),
+      }
+    } else if (op.kind === 'add_member') {
       const invalid = validateClassMembers([op.text])
       if (invalid) return err(invalid)
       const member = parseClassMember(op.text)
@@ -789,11 +846,62 @@ export function mutateClassSource(source: string, op: ClassMutationOp): Result<r
       edits = [edit]
     }
     const candidate = applySourceEdits(source, edits)
-    if (!sameSourceMeaning(read(candidate), expected)) return err({ code: 'INVALID_OP', message: 'The source edit would change Class meaning beyond the requested member' })
+    if (!sameSourceMeaning(read(candidate), expected)) return err({ code: 'INVALID_OP', message: 'The source edit would change Class meaning beyond the requested operation' })
     return ok(edits)
   } catch (error) {
     return err({ code: 'INVALID_OP', message: error instanceof Error ? error.message : String(error) })
   }
+}
+
+/** Reference edits require one complete statement per physical line. Compact
+ * fragments and shared style declarations are refused rather than guessed. */
+function classIdentitySourceEdits(source: string, id: string, replacement?: string): Result<readonly SourceEdit[], MutationError> {
+  const refuse = (message: string): Result<never, MutationError> => err({ code: 'INVALID_OP', message })
+  const payload = preservedMermaidFamilySource(normalizeMermaidSource(source), 'authored')
+  const lines = payload.text.split('\n'), scanned = scanAccessibilityDirectives(lines, classStatementEnds(lines))
+  const tree = readClassStatements(scanned.familyLines, undefined, false)
+  if (tree.diagnostics.length || scanned.unclosedIndex !== undefined) return refuse('Class edit requires complete statement ownership')
+  const edits: SourceEdit[] = [], starts = sourceLineStarts(source), payloadStarts = sourceLineStarts(payload.text)
+  const token = /`[^`]+`|"[^"\r\n]*"|[\w$]+/g
+  const frames = [...tree.statements]
+  for (let index = 0; index < frames.length; index++) {
+    const node = frames[index]!, value = node.value
+    if ((value.kind === 'source-only' || value.kind === 'unknown') && node.text.includes(id)) return refuse(`An unmodeled Class statement may reference ${JSON.stringify(id)}`)
+    if (value.kind === 'namespace') { frames.push(...node.children!); continue }
+    const declaration = value.kind === 'class' && value.declaration.id === id
+    const references = value.kind === 'class' ? declaration
+      : value.kind === 'member' ? value.reference?.id === id
+      : value.kind === 'annotation' ? value.annotation.id === id
+      : value.kind === 'interaction' ? value.interaction.id === id
+      : value.kind === 'note' ? value.reference?.id === id
+      : value.kind === 'relationship' ? value.relationship.from === id || value.relationship.to === id
+      : value.kind === 'assignment' || value.kind === 'style' ? value.references.some(reference => reference.id === id)
+      : false
+    if (node.children && !(declaration && replacement === undefined)) frames.push(...node.children)
+    if (!references) continue
+    const row = node.source.line - 1, raw = scanned.familyLines[row]!
+    if (node.raw.trim() !== raw.trim() || node.text !== raw.trim() || node.compactSemicolon) return refuse('Class identity edits require exclusive whole-line statement ownership')
+    if (replacement === undefined && (value.kind === 'assignment' || value.kind === 'style') && value.references.some(reference => reference.id !== id)) return refuse('Removing this Class would discard a shared style statement')
+    const origin = scanned.familyOrigins[row]!, position = payload.sourceOffset(payloadStarts[origin]!, 'end')
+    const authoredRow = sourcePointAt(starts, position).line - 1, start = starts[authoredRow]!
+    if (position !== start) return refuse('Class identity statement has ambiguous authored boundaries')
+    if (replacement === undefined) {
+      const endOrigin = declaration && node.closing ? scanned.familyOrigins[node.closing.source.line - 1]! : origin
+      const endPosition = payload.sourceOffset(payloadStarts[endOrigin]!, 'end')
+      const endRow = sourcePointAt(starts, endPosition).line - 1
+      edits.push({ start, end: starts[endRow + 1] ?? source.length, text: '' })
+    } else {
+      const end = starts[authoredRow + 1] ?? source.length, authored = source.slice(start, end)
+      // Member payloads are text: only their explicit receiver is a reference.
+      const labelDelimiter = value.kind === 'relationship' ? /\s+:\s*/.exec(authored)?.index : undefined
+      const boundary = value.kind === 'member' ? authored.indexOf(':') : labelDelimiter ?? authored.length
+      const prefix = authored.slice(0, boundary)
+      const text = prefix.replace(token, spelling => spelling.startsWith('"') ? spelling : (spelling.startsWith('`') ? spelling.slice(1, -1) : spelling) === id ? quoteIfNeeded(replacement) : spelling) + authored.slice(boundary)
+      if (text === authored) return refuse('Class reference cannot be addressed without rewriting its statement')
+      edits.push({ start, end, text })
+    }
+  }
+  return ok(edits)
 }
 
 function mutateClassBody(body: ClassBody, op: ClassMutationOp): Result<ClassBody, MutationError> {

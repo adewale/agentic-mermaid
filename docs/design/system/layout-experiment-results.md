@@ -38,7 +38,7 @@ certification is unchanged and may still return `unverified`.
 
 ## Retained quality results
 
-The retained [quality summary](layout-experiment-results.json)
+The retained [quality summary](https://github.com/adewale/agentic-mermaid/blob/a6b9b14161bd281804d5f2c9149320dfd882eb0f/docs/design/system/layout-experiment-results.json)
 records source and generated before/after populations, per-case differences,
 failures and certificate outcomes.
 
@@ -264,7 +264,7 @@ rankings remain those of the separately pinned community experiment; this
 follow-up does not rebenchmark or establish superiority over those renderers.
 
 The [community comparison](layout-community-comparison.md) and
-[Mermaid Community inventory](../../mermaid-community.json) distinguish shared
+[Mermaid Community inventory](https://github.com/adewale/agentic-mermaid/blob/ee9c9dc32f9bc3b47de2f5990bc1466b55815649/docs/mermaid-community.json) distinguish shared
 lineages, published claims and same-input measurements. Useful ideas include
 Pele/Ondine's family boundaries and build-time compilation, Zombie's explicitly
 narrow optional solver, and Merman's ownership of runtime lifecycle and request
@@ -276,7 +276,7 @@ The retained investigation provides the underlying proposals and cautions:
 - [Literature and layout algorithms](layout-exploration/layout-literature.md): routing, ordering, label placement and scope-specific opportunities.
 - [Community feedback](layout-exploration/community-feedback.md) and [primary evidence](layout-exploration/community-primary-evidence.json): fidelity expectations and concrete reported failures.
 - [Scope and subtraction](layout-exploration/scope-subtraction.md): fewer passes, narrower guarantees and family eligibility counterfactuals.
-- [Profiling strategy](layout-exploration/profiling-strategy.md), [profile review](layout-exploration/profile-review.md) and [profile results](layout-exploration/profile-results.json): sampled observations, causal experiments, cache controls and A/A limits.
+- [Profiling strategy](layout-exploration/profiling-strategy.md), [profile review](layout-exploration/profile-review.md) and [profile results](https://github.com/adewale/agentic-mermaid/blob/a6b9b14161bd281804d5f2c9149320dfd882eb0f/docs/design/system/layout-exploration/profile-results.json): sampled observations, causal experiments, cache controls and A/A limits.
 - [Stability and certification](layout-exploration/stability-certification.md): task-specific mental-map literature, exact predicate/construction distinctions, shared final geometry and retained proof scope.
 
 These sources favor explicit constraints, authoritative geometry, measured
@@ -284,22 +284,15 @@ subtraction and task-specific evidence. Removing a redundant scan or rejecting
 an ineffective guard advances that approach; removing labels, authored ports,
 required certification or adverse cases would weaken the goal.
 
-## Reproducing the cost experiment
+## Reproduction limits of the recorded cost experiment
 
-Build the candidate and retain an independent frozen runtime22 package. The
-[portable runner](../../../eval/benchmark/layout-change-ablation.py) and
-[enrolled inputs](../../../eval/benchmark/layout-change-ablation-inputs.json)
-preserve the five-case population. Run without competing workloads:
+The original `layout-change-ablation.py`, enrolled-input file and summarizer
+were workspace artifacts and are not retained in this repository's Git history.
+The former repository links and commands could not reproduce the campaign from
+a clean checkout. The measured five-case population, declared 600-second bound,
+driver identities and worker results remain in the accompanying evidence; this
+record does not claim a current runnable reproduction.
 
-```sh
-python3 eval/benchmark/layout-change-ablation.py \
-  --baseline /path/to/frozen-runtime22-package \
-  --inputs eval/benchmark/layout-change-ablation-inputs.json \
-  --out /path/to/new-results
-python3 eval/benchmark/summarize-layout-change-ablation.py /path/to/new-results
-```
-
-The default shared bound is 600 seconds. The portable runner records its own
-hash; it is a portability wrapper around the frozen measured driver, whose hash
-and full worker data remain in the accompanying evidence. It does not turn a
-rerun into the original campaign or replace the complete release qualification.
+For new measurements, use the pinned [Trident runner](../../../eval/trident/README.md)
+and the current [local release benchmark procedure](../../contributing/releasing.md#local-release-benchmarks).
+A new run has its own source/input identities and does not replace this campaign.

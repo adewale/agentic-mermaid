@@ -1,4 +1,5 @@
 import { assertErDiagramWork } from '../shared/diagram-limits.ts'
+import { locateSyntaxError, MermaidSyntaxError } from '../shared/syntax-error.ts'
 import { parserObservationActive, observeParserStatement, observeParserMutation } from '../shared/parser-observation.ts'
 import type { ErDiagram, ErEntity, ErAttribute, ErRelationship, Cardinality } from './types.ts'
 import type { Direction } from '../types.ts'
@@ -18,7 +19,7 @@ import { decodeErText, erTextLabel, erTextContent, type ErQuotedTextReport, read
 // Mermaid's ER lexer takes every non-ASCII code unit as a name character
 // (`éx`, `x٣`, `一¼`, `a😀`), so astral characters count through their
 // surrogate halves.
-const ER_BARE_ENTITY_ID_SOURCE = String.raw`[A-Za-z0-9_\u0080-\uFFFF][\w.\-\u0080-\uFFFF]*(?![\w.\-\u0080-\uFFFF])`
+const ER_BARE_ENTITY_ID_SOURCE = String.raw`(?:[^\x00-\x7F]|[A-Za-z0-9_])(?:[^\x00-\x7F]|[\w.-])*(?!(?:[^\x00-\x7F]|[\w.-]))`
 // A quoted name as the lexer hands it over. A `\"` stays inside the token, and
 // readErQuotedName reads it as `"` (Mermaid ER quoted text has no escapes).
 const ER_QUOTED_NAME_SOURCE = String.raw`"(?:\\.|[^"\\])*"`
@@ -287,11 +288,11 @@ export function readErStatement(line: string, inGroup: boolean, report?: ErQuote
   }
   const classAssignment = parseErClassAssignment(line, report)
   if (classAssignment) return { kind: 'class', ...classAssignment }
-  if (/^class(?:[ \t]|$)/i.test(line)) throw new Error(`Invalid ER class assignment: ${line}`)
+  if (/^class(?:[ \t]|$)/i.test(line)) throw new MermaidSyntaxError(`Invalid ER class assignment: ${line}`, { diagramType: 'er' })
   const inlineStyle = line.match(/^style\s+(.+?)\s+(.+)$/is)
   if (inlineStyle) {
     const references = inlineStyle[1]!.split(',').map(value => parseErEntityReference(value.trim(), report))
-    if (references.some(reference => reference === null)) throw new Error(`Invalid ER style assignment: ${line}`)
+    if (references.some(reference => reference === null)) throw new MermaidSyntaxError(`Invalid ER style assignment: ${line}`, { diagramType: 'er' })
     const ids = references.map(reference => reference!.id)
     return { kind: 'style', ids, props: readErStyleText(inlineStyle[2]!) }
   }
@@ -698,8 +699,13 @@ function findErStatements(lines: readonly string[], report?: (what: string, port
         block = undefined
         at = skipSpace(runEnd + 1)
       } else {
-        const statements = readErOuterStatements(raw.slice(at, stop), groupDepth > 0,
-          report ? (what, portable) => report(what, portable, line) : undefined)
+        let statements: ReturnType<typeof readErOuterStatements>
+        try { statements = readErOuterStatements(raw.slice(at, stop), groupDepth > 0,
+          report ? (what, portable) => report(what, portable, line) : undefined) }
+        catch (error) {
+          if (error instanceof MermaidSyntaxError) throw locateSyntaxError(error, { diagramType: 'er', line: line + 2, column: at + 1 })
+          throw error
+        }
         for (const { syntax, start, end } of statements) {
           found.push({ syntax, line, start: at + start, endLine: line, end: at + end })
           if (syntax.kind === 'group-open') groupDepth++
@@ -799,7 +805,10 @@ export function readErStatements(lines: readonly string[], report?: (what: strin
         break
     }
   }
-  if (entityId !== undefined) throw new Error(`ER_UNCLOSED_ENTITY: entity '${entityId}' needs a closing }`)
+  if (entityId !== undefined) {
+    const opener = statements.findLast(statement => statement.syntax.kind === 'block-open')!
+    throw new MermaidSyntaxError(`ER_UNCLOSED_ENTITY: entity '${entityId}' needs a closing }`, { diagramType: 'er', line: opener.line + 2, column: opener.column + opener.raw.search(/\S/) + 1 })
+  }
   const placement = fold.finish()
   if (parserObservationActive('er')) observeParserMutation('er', 'resolvePlacement', placement)
   return { statements, placement, continuedComments }
@@ -854,7 +863,7 @@ export function parseErDiagram(lines: string[]): ErDiagram {
     const statement = entry.syntax
     switch (statement.kind) {
       case 'unknown':
-        throw new Error(`ER_UNSUPPORTED_STATEMENT: line ${entry.line + 2}: ${entry.raw.trim()}`)
+        throw new MermaidSyntaxError(`ER_UNSUPPORTED_STATEMENT: line ${entry.line + 2}: ${entry.raw.trim()}`, { diagramType: 'er', line: entry.line + 2, column: entry.column + entry.raw.search(/\S/) + 1 })
       case 'attribute':
         entityMap.get(entry.entityId!)!.attributes.push(statement.attribute)
         if (parserObservationActive('er')) observeParserMutation('er', 'addAttribute', { entityId: entry.entityId, attribute: statement.attribute }, { line: entry.line + 2, unit: 'normalized' })
@@ -898,7 +907,11 @@ export function parseErDiagram(lines: string[]): ErDiagram {
         declare(statement.reference)
         break
       case 'relation': {
-        diagram.relationships.push(relationshipFrom(statement.relation, entry.raw))
+        try { diagram.relationships.push(relationshipFrom(statement.relation, entry.raw)) }
+        catch (error) {
+          if (error instanceof MermaidSyntaxError) throw locateSyntaxError(error, { diagramType: 'er', line: entry.line + 2, column: entry.column + entry.raw.search(/\S/) + 1 })
+          throw error
+        }
         if (parserObservationActive('er')) observeParserMutation('er', 'addRelationship', diagram.relationships.at(-1), { line: entry.line + 2, unit: 'normalized' })
         // Group endpoints retain group identity instead of minting phantom entities.
         for (const end of [statement.relation.entity1, statement.relation.entity2]) {
@@ -1105,7 +1118,7 @@ function relationshipFrom(syntax: ParsedErRelationshipSyntax, line: string): ErR
   const cardinality2 = parseErCardinality(syntax.rightToken)
 
   if (!cardinality1 || !cardinality2) {
-    throw new Error(
+    throw new MermaidSyntaxError(
       `Invalid ER cardinality "${syntax.leftToken}${syntax.identifying ? '--' : '..'}${syntax.rightToken}" in "${line}" ` +
       `(valid tokens include ||, |o, o|, }o, o{, }|, |{ and Mermaid's word/numeric aliases)`,
     )

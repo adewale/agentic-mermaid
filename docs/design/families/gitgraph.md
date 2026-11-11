@@ -9,6 +9,10 @@ that commit an ancestor of the receiving branch. The same merge can therefore
 be picked relative to different immediate parents, as in the pinned Mermaid
 test. Picking an actual ancestor inherited by the branch remains refused.
 
+An explicit `tag:""` draws no tag decoration. On a cherry-pick it suppresses
+the automatic source tag; omitting `tag:` still requests that automatic tag.
+Serialization retains this distinction, including after typed tag clearing.
+
 The imported upstream-spec corpus retains Mermaid commit `f3dea58385fd5c7dd1f4e9c9c1876751ae6943cc`; the current syntax target is recorded separately in [`upstream-mermaid-policy.json`](../../project/upstream-mermaid-policy.json). The checked oracle accounts for all 69 direct blocks in upstream `gitGraph.spec.ts`: portable/error blocks execute and five config-accessor blocks are source-inexpressible. Its historical repeated-cherry-pick divergence now passes; the current test checks both parent selections instead of freezing the old refusal. Duplicate commit declarations retain every occurrence. Unlike upstream random generated ids, omitted ids are deterministic `c<N>` values. The source-file hash, cases, and historical divergence rationale live in `eval/mermaid-upstream-suite-bench/mindmap-gitgraph-f3dea583.json`. The harvest added legacy `commit "message"`, multiline `accDescr`, and pinned mixed explicit/implicit branch-order compatibility. Current documentation parity additionally covers frontmatter titles, positive explicit branch orders, stable source-order tiebreaks, merge-parent cherry-picks, and 45° commit labels.
 
 ## Visual evidence

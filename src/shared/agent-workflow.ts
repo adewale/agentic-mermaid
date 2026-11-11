@@ -15,5 +15,7 @@ export const DIAGRAM_TERMINOLOGY = 'A **family** is a Mermaid diagram type, such
 
 export const FAMILY_NARROWING_NOTE = 'Narrowing selects a structured, typed family with an as* helper. It does not select one element or freeze layout coordinates.'
 
+export const VERIFY_RESULT_MEANING = '`verify.ok` means no unsuppressed error was detected, including measured content occlusion and explicit error policies. It is not a visual-quality or semantic-correctness score.'
+
 /** The new-diagram rule and when typed construction applies instead. */
 export const NEW_DIAGRAM_POLICY = `${NEW_DIAGRAM_WORKFLOW} ${PROGRAMMATIC_BUILD_NOTE}`

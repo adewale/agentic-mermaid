@@ -16,6 +16,21 @@ export interface NativeOperationProjection {
   unmappedOperands: Record<string, number>
 }
 
+/** These parsers expose actual models and independent semantic scopes, but
+ * no reviewed mapping of ordered write operands is claimed for them yet.
+ * Keeping this gap explicit prevents returned models from becoming fake traces. */
+const UNAVAILABLE_ORDERED_SCOPES: Readonly<Record<string, string>> = {
+  treeview: 'TreeView native add-node observations have no reviewed ordered Mermaid builder projection',
+  usecase: 'UseCase native grammar publication has no reviewed ordered Mermaid builder projection',
+  swimlane: 'Swimlane Flowchart composition has no reviewed family-specific ordered builder projection',
+  agentflow: 'AgentFlow metadata and container writes have no reviewed ordered Mermaid builder projection',
+  wardley: 'Wardley native builder observations have no reviewed ordered Mermaid builder projection',
+  cynefin: 'Cynefin native domain and transition observations have no reviewed ordered Mermaid builder projection',
+  venn: 'Venn native database writes are observed, but their ordered Mermaid operand projection is not qualified',
+  railroad: 'Railroad grammar alternatives publish typed expressions without a homologous ordered builder projection',
+}
+export function unavailableOrderedOperationScope(family: string): string | undefined { return UNAVAILABLE_ORDERED_SCOPES[family] }
+
 const SCOPES: Readonly<Record<string, readonly string[]>> = {
   flowchart: ['ordered links: endpoints, authored ID, labels, shaft and both markers', 'ordered individual class appends; node/group construction omitted'],
   state: ['ordered group open/close and transitions: scoped pseudostates, endpoints and labels; batch document operands expanded'],

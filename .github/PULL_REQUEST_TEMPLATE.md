@@ -34,10 +34,10 @@ The checklist below covers changes that need a human decision.
 - [ ] **Golden snapshots:** the description lists each changed golden under
       `src/__tests__/testdata/` and why it changed (see
       [docs/contributing/visual-review-evidence.md](../docs/contributing/visual-review-evidence.md)).
-- [ ] **Red → green:** at least one changed test fails without the production
-      change (CI's `red-green` job runs them against the base branch) **— OR —**
-      this is a pure refactor and the PR is labelled `no-red-green` (applied
-      after the latest push; CI removes it when new commits arrive).
+- [ ] **Regression evidence:** bug fixes show the intended failure before the
+      repair and a passing owning-boundary test after it. The optional
+      `scripts/ci/red-green.ts --base <sha>` diagnostic can help. Refactors
+      preserve behavior and need no failing-base assertion or opt-out label.
 - [ ] **Payload growth:** no website route or lazy family grows by more than
       2% and 1 KiB gzip against the base branch **— OR —** the growth is
       intended and the PR is labelled `payload-growth-approved` (applied after

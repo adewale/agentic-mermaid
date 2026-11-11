@@ -20,8 +20,54 @@ Choose the task, then use the matching surface:
 
 Agents with a shell can use `am capabilities --json` and `am styles --json` to
 discover installed support. In MCP, use `describe_sdk` for mutation fields and
-`execute` for the documented Code Mode functions. Resolved scenes are currently
-available from the main library entry only, not Code Mode.
+`execute` for the documented Code Mode functions. Resolved scenes are available
+from the library and Code Mode; use `describe_sdk` with
+`{ "capability": "resolved-scene" }` for their types and runtime limits.
+
+## Typed parsers
+
+`parseClassDiagram(source)`, `parseErDiagram(source)` and
+`parseSequenceDiagram(source)` are exported from `agentic-mermaid`,
+`agentic-mermaid/agent` and `agentic-mermaid/agent/core`. They accept complete
+Mermaid source, including YAML front matter, init directives and accessibility
+metadata, and return the renderer's typed model without running layout.
+
+```ts
+import { parseClassDiagram, parseErDiagram, parseSequenceDiagram } from 'agentic-mermaid'
+
+const classes = parseClassDiagram('classDiagram\nclass Reader {\n<<interface>>\n+read(id: int) String\n}')
+console.log(classes.classes[0].annotation, classes.classes[0].methods[0].params)
+
+const er = parseErDiagram('erDiagram\nUSER {\nint id PK "primary key"\n}')
+console.log(er.entities[0].attributes[0]) // { type, name, keys, comment, ... }
+
+const sequence = parseSequenceDiagram('sequenceDiagram\nNote over A: Ready\nA->>B: Hello')
+console.log(sequence.notes, sequence.activationEvents, sequence.boxes)
+```
+
+Class attributes and methods have visibility, type, static/abstract flags and
+method parameters; annotations are separate. Relationships preserve marker and
+line distinctions, including `--` versus `-->`. Sequence actors carry
+`createMessageIndex` and `destroyMessageIndex` lifecycle bindings; notes and
+standalone activations carry message-boundary indices. Titles are available on
+each model. Class and ER style definitions are `Map` values.
+
+The same entry points export `parseUsecaseModel(source)` and
+`parseAgentflowModel(source)` for strict grammar inspection. UseCase returns
+declaration Maps, relationships, JSON nodes and source statements; AgentFlow
+returns its graph, metadata and source mappings, including endpoint occurrences
+and complete container ranges. UseCase spans index the returned `source`; AgentFlow mappings address
+the family payload after frontmatter and init removal. Neither helper uses the
+editor's opaque fallback. Both use `MermaidSyntaxError` for authored-input
+refusals and map known error positions against the original input. AgentFlow
+metadata YAML and shape failures carry authored positions, including wrappers;
+positions remain optional for other syntax failures.
+
+These models are inspection data. Continue using `parseRegisteredMermaid` and
+`as*` helpers for mutation and serialization. Class, ER and Sequence syntax failures use
+`MermaidSyntaxError`; statement failures expose `diagramType`, `line` and
+`column` when known. Public source parsers map known positions back to the input;
+positions that cannot be mapped are omitted.
 
 ## Vocabulary
 
@@ -56,7 +102,7 @@ The resolved-scene API's separate `marker-mid` limitation still applies.
 ## Versions
 
 <!-- BEGIN GENERATED: api-versions -->
-This reference describes source version **0.5.4**. The latest release recorded in the [changelog](../CHANGELOG.md) is **0.5.4** (2026-10-30). [Read that version's reference](https://github.com/adewale/agentic-mermaid/blob/v0.5.4/docs/api.md). Changes under **Unreleased**, including new exports, are not part of that recorded release.
+This reference describes source version **0.5.7**. The latest release recorded in the [changelog](../CHANGELOG.md) is **0.5.6** (2026-11-02). [Read that version's reference](https://github.com/adewale/agentic-mermaid/blob/v0.5.6/docs/api.md). Changes under **Unreleased**, including new exports, are not part of that recorded release.
 <!-- END GENERATED: api-versions -->
 
 ```bash
@@ -118,6 +164,39 @@ without changing the semantic layout.
 
 ### Graph layout selection
 
+For general use, retain the default layout policy. Treat `quality: 'balanced'`
+and viewport-guided wrapping as experimental opt-ins, evaluated on your own
+diagrams. Alternatives require additional computation and are accepted only
+when they improve complete geometry without worsening any certified preference,
+canvas width or height, routed wire length, or discretionary hyphen count.
+This conservative policy rejects improvements that require an aesthetic tradeoff.
+Combining the options does not guarantee that their gains compose.
+
+Graph callers can opt into bounded quality exploration with
+`graphLayout: { backend: 'elk', quality: 'balanced' }`. ELK may prefer source
+order instead of fixing it when the original result has crossings or label
+conflicts. Explicit adjacency and family-owned child order remain authoritative.
+The Agentic graph producer can compare port-aware coordinate blocks on flat
+graphs with at most 64 nodes and 128 edges when the primary has rubric bends.
+The complete final geometry must pass certification and the non-regression
+comparison. ELK exploration runs after the complete existing recovery policy;
+it cannot displace a mandatory fallback.
+
+For Flowchart, `graphLayout.viewport: { width: 800, height: 600 }` selects among
+the original layout and up to two measured wrapping widths using the complete
+diagram and title. It maximizes fit scale without increasing crossings or label
+conflicts from the primary result, subject to the same non-regression comparison.
+It does not rescale the output, change font
+size, or replace an explicit `wrappingWidth`. Authored labels and hard line
+breaks retain their provenance. Large graphs retain the primary result.
+
+Ordering, port placement and wrapping share an allowance of two additional
+logical producer calls; existing mandatory fallbacks are separately accounted.
+`receipt.layoutOptimization` reports the work and strategies accepted during
+that execution. Cached positioned output can perform no new optional work.
+Nested public renders have separate allowances. All these choices are opt-in;
+omitting them preserves the existing layout policy.
+
 Omitting `graphLayout` retains the existing automatic policy, including the
 guarded forest optimization. Force ELK with `graphLayout: { backend: 'elk' }`,
 or opt into the owned producer:
@@ -150,6 +229,22 @@ selection in `layoutDecisions` and emits a fallback diagnostic. An ELK fallback
 is not an Agentic completion. Unexpected engine defects and global work limits
 are not hidden by fallback.
 
+<!-- BEGIN GENERATED: graph-layout-limits -->
+| Scope | Limit |
+| --- | --- |
+| Host nodes, including group frames | 5,000 |
+| Host edges | 5,000 |
+| Agentic measured nodes, including group frames | 4,096 |
+| Agentic internal edges | 16,384 |
+| Agentic internal ranks | 4,096 |
+| Agentic expanded workspace vertices | 32,768 |
+<!-- END GENERATED: graph-layout-limits -->
+
+Groups and self-loop helpers consume Agentic capacity. Separate expansion,
+routing and certification allowances can refuse smaller diagrams. Exceeding
+the Agentic ceiling raises `GraphLayoutUnsupportedError`; explicit ELK fallback
+retains the host limits above. These limits cannot be raised by source config.
+
 The async `agentic-mermaid/browser/lazy` entry downloads ELK only when the
 selected layout actually needs it. A successful strict Agentic render does not
 fetch ELK; requested fallback still loads it when native placement declines.
@@ -161,7 +256,7 @@ The CLI accepts `am render diagram.mmd --graph-layout agentic
 --graph-layout-fallback elk`. Mermaid source configuration is preserved and is
 not an alias for these options. Terminal-cell placement retains its family
 rules; optional graphical companions and Architecture's pixel placement honor
-the selector. See the [backend design](https://github.com/adewale/agentic-mermaid/blob/ce240587211b90395a820115d2503b73bf5ff4e3/docs/design/system/layout-backends.md) for
+the selector. See the [backend design](https://github.com/adewale/agentic-mermaid/blob/main/docs/design/system/layout-backends.md) for
 qualification and comparative measurement.
 
 ## Resolved paths and text
@@ -218,6 +313,69 @@ profiles. Its [types](https://github.com/adewale/agentic-mermaid/blob/main/src/s
 field; the [changelog](../CHANGELOG.md) records availability. Default Sankey
 gradients require a solid-color configuration under this version's paint-server
 limitation.
+
+### Agent discovery and failures
+
+The discovery additions and Code Mode method in this section are included in
+**0.5.5**. Check the installed `am capabilities --json`
+`resolvedScene` field, then call `describe_sdk` with
+`{ "capability": "resolved-scene" }` for painted primitive fields, error fields
+and limits. The existing family mutation discovery remains unchanged.
+
+Code Mode exposes the same synchronous `mermaid.renderResolvedScene` API.
+Library calls are runtime-neutral and do not fetch resources. Code Mode's
+default serialized result limit is 2 MiB; hosts may lower it. Return only needed
+parts rather than the complete SVG and Scene. Filtering the return value does
+not reduce the work of rendering the scene; existing host admission and CPU
+limits still apply.
+
+Unsupported artwork throws `ResolvedSceneError` with
+`code: 'RESOLVED_SCENE_UNSUPPORTED_ARTWORK'`, `partId`, `feature` and the existing
+readable `message`. `feature` distinguishes cases such as `filter` and
+`paint-server`. Missing Scene lowering or ownership uses
+`RESOLVED_SCENE_UNAVAILABLE`. A failure returns no partial scene and does not
+modify a previously returned artifact.
+
+Pass this JavaScript body to Code Mode's `execute` tool to return selected
+fields or a typed refusal:
+
+```js
+const source = 'flowchart LR; A-->B'
+try {
+  const scene = mermaid.renderResolvedScene(source)
+  return { version: scene.version, parts: scene.parts.map(p => ({ id: p.id, primitives: p.primitives })) }
+} catch (error) {
+  return { ok: false, code: error.code, partId: error.partId, feature: error.feature, message: error.message }
+}
+```
+
+Uncaught Code Mode failures retain the existing text error envelope. The on-demand
+declarations augment the compact SDK declaration with typed parts and primitives. Discovery
+keeps `part.node` opaque to bound its declaration size; library users can import
+the complete `ResolvedScene` type. A Scene part ID such as `node:A` is distinct
+from the authored node ID `A`.
+
+### Checking diagrams in Markdown
+
+```bash
+am verify README.md --markdown --json
+```
+
+This opt-in mode runs the existing verifier on top-level Mermaid code fences and
+returns `{ok,file,blocks}`. It checks all blocks even when one fails and uses
+the normal verification exit status. Backtick and tilde fences of three or more
+characters are supported, including longer fences around Markdown examples.
+Non-Mermaid fenced examples and HTML blocks/comments are skipped as whole blocks.
+Fences nested in lists or blockquotes require extraction by the host; this CLI
+mode does not provide a full Markdown AST or whole-document coverage of them.
+
+Each block reports its first physical source line. Warning lines are mapped to
+the Markdown file; `lineIsBlockStart: true` explicitly marks the fallback when
+no precise diagnostic location is available. CRLF files retain their physical
+line numbering. An unclosed fence extends to EOF in static Markdown; streaming
+hosts should decide when input is complete before invoking verification.
+`render-markdown` still continues past invalid diagrams; verification is the
+mode that fails for invalid blocks. No Markdown plugin is required.
 
 ## Editing
 
@@ -279,8 +437,9 @@ for precedence and custom looks. This table is generated from runtime descriptor
 <!-- BEGIN GENERATED: render-options -->
 | Option | Type | Default | Meaning and applicability |
 |---|---|---|---|
+| `fontMetrics` | `'estimate' \| 'bundled-inter'` | `estimate` | Optional pinned Inter ASCII advances and pair corrections. Does not load fonts; unsupported runs retain estimates. Not consumed by terminal output. |
 | `layoutHints` | `{ ranks?: Record<string, number>; adjacent?: string[][]; shortEdges?: string[] }` | unset | Relative ranks, sibling adjacency and short-edge preferences. Built-in families: flowchart, state. Not consumed by terminal output. |
-| `graphLayout` | `{ backend: 'elk' \| 'agentic'; fallback?: 'none' \| 'elk' }` | `elk`, no fallback | Graph geometry producer and explicit Agentic fallback policy. Built-in families: flowchart, state, architecture, class, er, requirement. |
+| `graphLayout` | `{ backend: 'elk' \| 'agentic'; fallback?: 'none' \| 'elk'; quality?: 'balanced'; viewport?: { width: number; height: number } }` | `elk`, no fallback | Graph geometry producer and explicit Agentic fallback policy. Built-in families: flowchart, state, architecture, class, er, requirement. |
 | `layoutSafety` | `'report' \| 'strict'` | `report` | Report bounded layout evidence, still drawing a layout that fails certification only on drawable checks (verify then fails), or require a passed final certificate. Strict mode rejects missing, unverified or failed evidence. |
 | `bg` | `string` | `#FFFFFF` | Background color or CSS variable. |
 | `fg` | `string` | `#27272A` | Primary foreground and text color. |

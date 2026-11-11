@@ -88,11 +88,12 @@ describe('SVG is well-formed XML for labels full of XML metacharacters', () => {
           // surrogate reached SVG markup in every family.
           ['label \ufffe', { compact: false, transparent: false, style: 'crisp', seed: 0, embedFontImport: false }],
           ['label \ud800', { compact: false, transparent: false, style: 'crisp', seed: 0, embedFontImport: false }],
+          ...(family === 'usecase' ? [['label </text><script>inert</script>\uE000', { compact: false, transparent: false, style: 'crisp', seed: 0, embedFontImport: false }] as [string, typeof optionsArb extends fc.Arbitrary<infer T> ? T : never]] : []),
         ],
       }),
     )
     // Keep fast-check's shrunk replay details while exposing an assertion to
-    // Bun's JUnit report, which the base-branch red-green gate requires.
+    // Bun's JUnit report, which the optional base-production diagnostic reads.
     assert.equal(result.failed, false, fc.defaultReportMessage(result))
   })
 

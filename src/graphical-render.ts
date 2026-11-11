@@ -1,3 +1,4 @@
+import { withWrittenSvgSecurity } from './svg-writer-evidence.ts'
 // Internal resolved-request + positioned-artifact graphical execution.
 //
 // This module is intentionally absent from every public package barrel. It is
@@ -7,6 +8,8 @@
 
 import './scene/default-backend.ts'
 
+import { isOriginalEnrolledDefaultBackend } from './scene/backend.ts'
+import { isOwnedFamily } from './experimental/owned-family.ts'
 import { compactSvg, formatSvgNumbers, namespaceSvgIds } from './svg-postprocess.ts'
 import { fitUncalibratedSvgText } from './custom-font-geometry.ts'
 import type { FamilyLayoutResult } from './agent/families.ts'
@@ -26,7 +29,7 @@ import {
   type RenderRequestReceipt,
   type ResolvedRenderRequest,
 } from './render-contract.ts'
-import { applyOutputSecurityPolicy } from './output-security.ts'
+import { applyOutputSecurityPolicy, applyWrittenOutputSecurityPolicy } from './output-security.ts'
 import type { OutputSecurityDiagnostic } from './output-security.ts'
 import { replaceSvgRootStartTag, svgAttribute, svgRootStartTag } from './svg-structure.ts'
 import { scopeSvgStyles } from './svg-style-scope.ts'
@@ -53,6 +56,12 @@ export interface ResolvedGraphicalExecution {
 export interface GraphicalSvgArtifact {
   readonly svg: string
   readonly receipt: RenderRequestReceipt
+}
+
+/** Internal projections consume owned positioning, never public evidence. */
+export interface GraphicalLayoutConsumer {
+  validate(request: ResolvedRenderRequest): void
+  consume(request: ResolvedRenderRequest, layout: FamilyLayoutResult): void
 }
 
 /** Internal receipt digest for a completed graphical output. SVG already has
@@ -157,8 +166,10 @@ export function renderPositionedMermaidSVG(
   securityDiagnostics: OutputSecurityDiagnostic[],
   capture?: ScenePartCapture,
 ): ResolvedGraphicalExecution {
-  return withTextMeasurementExecution(resolvedRenderExecutionPlanOf(request).textMeasurement, () =>
-    renderPositionedWithTextMeasurement(request, layout, securityDiagnostics, capture))
+  const plan = resolvedRenderExecutionPlanOf(request)
+  const written = isOwnedFamily(plan.family) && isOriginalEnrolledDefaultBackend(plan.backend?.backend)
+  return withTextMeasurementExecution(plan.textMeasurement, () => withWrittenSvgSecurity(written, () =>
+    renderPositionedWithTextMeasurement(request, layout, securityDiagnostics, capture)))
 }
 
 function renderPositionedWithTextMeasurement(
@@ -239,7 +250,8 @@ function renderPositionedWithTextMeasurement(
   // security intent, while no native/WASM/browser rasterizer can receive a
   // fetching reference from a conditional host backend.
   const outputSecurity = request.output === 'png' ? 'strict' : effectiveOptions.security
-  const secured = measureRenderStage('svg-security', () => applyOutputSecurityPolicy(svg, outputSecurity))
+  const securityPolicy = isOwnedFamily(family) && isOriginalEnrolledDefaultBackend(executionPlan.backend?.backend) ? applyWrittenOutputSecurityPolicy : applyOutputSecurityPolicy
+  const secured = measureRenderStage('svg-security', () => securityPolicy(svg, outputSecurity))
   securityDiagnostics.push(...secured.diagnostics)
   svg = secured.svg
   assertFinalSvgByteBudget(svg, 'final SVG output')
@@ -254,12 +266,11 @@ function renderPositionedWithTextMeasurement(
 export function renderResolvedMermaidSVG(
   request: ResolvedRenderRequest,
   securityDiagnostics: OutputSecurityDiagnostic[],
+  consumeLayout?: GraphicalLayoutConsumer,
 ): ResolvedGraphicalExecution {
-  return renderPositionedMermaidSVG(
-    request,
-    measureRenderStage('layout', () => positionFamilyForNativeRender(request)),
-    securityDiagnostics,
-  )
+  const layout = measureRenderStage('layout', () => positionFamilyForNativeRender(request))
+  consumeLayout?.consume(request, layout)
+  return renderPositionedMermaidSVG(request, layout, securityDiagnostics)
 }
 
 /**
@@ -273,8 +284,9 @@ export function executeGraphicalRequest(
   output: 'svg' | 'png',
   outputOptions?: unknown,
   resolutionOptions: RenderExecutionResolutionOptions = {},
+  consumeLayout?: GraphicalLayoutConsumer,
 ): GraphicalSvgArtifact {
-  return withSvgInspectionCache(() => executeInspectedGraphicalRequest(text, options, output, outputOptions, resolutionOptions))
+  return withSvgInspectionCache(() => executeInspectedGraphicalRequest(text, options, output, outputOptions, resolutionOptions, consumeLayout))
 }
 
 function executeInspectedGraphicalRequest(
@@ -283,6 +295,7 @@ function executeInspectedGraphicalRequest(
   output: 'svg' | 'png',
   outputOptions: unknown,
   resolutionOptions: RenderExecutionResolutionOptions,
+  consumeLayout?: GraphicalLayoutConsumer,
 ): GraphicalSvgArtifact {
   const request = measureRenderStage('request', () => resolveRenderRequestForExecution(
     text,
@@ -291,7 +304,7 @@ function executeInspectedGraphicalRequest(
     outputOptions,
     resolutionOptions,
   ))
-  return consumeResolvedGraphicalRequest(request)
+  return consumeResolvedGraphicalRequest(request, consumeLayout)
 }
 
 /** Async entries retain one immutable request across dependency loading.
@@ -300,10 +313,11 @@ export function executeResolvedGraphicalRequest(request: ResolvedRenderRequest):
   return withSvgInspectionCache(() => consumeResolvedGraphicalRequest(request))
 }
 
-function consumeResolvedGraphicalRequest(request: ResolvedRenderRequest): GraphicalSvgArtifact {
+function consumeResolvedGraphicalRequest(request: ResolvedRenderRequest, consumeLayout?: GraphicalLayoutConsumer): GraphicalSvgArtifact {
   emitResolvedConfigDiagnostics(request)
+  consumeLayout?.validate(request)
   const securityDiagnostics: OutputSecurityDiagnostic[] = []
-  const rendered = renderResolvedMermaidSVG(request, securityDiagnostics)
+  const rendered = renderResolvedMermaidSVG(request, securityDiagnostics, consumeLayout)
   return graphicalSvgArtifact(request, rendered, securityDiagnostics)
 }
 

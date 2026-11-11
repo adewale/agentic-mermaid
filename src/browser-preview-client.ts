@@ -1,20 +1,26 @@
-import type { RenderOptions } from './types.ts'
-import type { AsciiRenderOptions, RenderedAscii } from './ascii/index.ts'
-import type { BrowserPngDiagnostic, BrowserPngRasterizer, BrowserPngRuntimeProvenance, RenderedBrowserPng } from './browser-png.ts'
-import type { PortablePngOutputOptions } from './png-contract.ts'
 import type { ApplyOpsInput, OpEnvelope } from './agent/apply.ts'
+import type { AsciiRenderOptions, RenderedAscii } from './ascii/index.ts'
 import type { EditorWorkerArtifact, EditorWorkerOperation, PreviewArtifact, PreviewWorkerRequest, PreviewWorkerResponse } from './browser-editor-protocol.ts'
+import { assertEditorSource, takeEditorOperation } from './browser-editor-snapshot.ts'
 import { assertBrowserPngByteBudget, browserRuntimeProvenance, intrinsicTypedArrayByteLength } from './browser-png-runtime.ts'
-import { DIAGRAM_WORK_LIMITS } from './shared/diagram-limits.ts'
-import { PreviewSupersededError, PreviewRuntimeLoadError } from './browser-preview-errors.ts'
+import type { BrowserPngDiagnostic, BrowserPngRasterizer, BrowserPngRuntimeProvenance, RenderedBrowserPng } from './browser-png.ts'
+import { PreviewRuntimeLoadError, PreviewSupersededError } from './browser-preview-errors.ts'
+import { estimatedResidency } from './experimental/cache-residency.ts'
+import type { PortablePngOutputOptions } from './png-contract.ts'
+import { createSettlement } from './shared/settlement.ts'
+import type { RenderOptions } from './types.ts'
+
+export type { PreviewArtifact,PreviewWorkerRequest,PreviewWorkerResponse } from './browser-editor-protocol.ts'
 export { PreviewSupersededError } from './browser-preview-errors.ts'
-export type { PreviewArtifact, PreviewWorkerRequest, PreviewWorkerResponse } from './browser-editor-protocol.ts'
 
 type PreviewWorker = Pick<Worker, 'postMessage' | 'terminate' | 'onmessage' | 'onerror' | 'onmessageerror'>
+const EXPORT_QUEUE_BYTES = 16 * 1024 * 1024
+const PREVIEW_BYTES = 12 * 1024 * 1024
+
 interface Pending {
+  bytes: number
   request: PreviewWorkerRequest
-  resolve: (artifact: EditorWorkerArtifact) => void
-  reject: (error: Error) => void
+  finish: (outcome: { ok: true; artifact: EditorWorkerArtifact } | { ok: false; error: Error }) => boolean
   rasterize?: BrowserPngRasterizer
   rasterizing?: boolean
   superseded?: boolean
@@ -22,6 +28,8 @@ interface Pending {
 }
 
 /** One active operation, one replaceable preview and at most four exports.
+ * Waiting exports share a 16 MiB residency estimate; previews have a separate
+ * 12 MiB admission limit and cannot be crowded out by queued exports.
  * Monotonic request IDs order exports fairly with the newest pending preview.
  * PNG's main-thread Canvas callback stays inside the active transaction. */
 export class PreviewWorkerClient {
@@ -31,6 +39,7 @@ export class PreviewWorkerClient {
   private exports: Pending[] = []
   private timer?: ReturnType<typeof setTimeout>
   private nextId = 0
+  private exportBytes = 0
 
   constructor(private readonly createWorker: () => PreviewWorker, private readonly timeoutMs = 30_000) {}
 
@@ -50,22 +59,32 @@ export class PreviewWorkerClient {
     return this.submit({ operation: 'png', source, options, output }, rasterize)
   }
 
-  private submit<T extends EditorWorkerArtifact>(operation: EditorWorkerOperation, rasterize?: BrowserPngRasterizer): Promise<T> {
+  submit<T extends EditorWorkerArtifact>(operation: EditorWorkerOperation, rasterize?: BrowserPngRasterizer): Promise<T> {
     return new Promise((resolve, reject) => {
-      if (typeof operation.source !== 'string' || operation.source.length > DIAGRAM_WORK_LIMITS.sourceCharacters) throw new Error('Editor source must be a string within the diagram source budget')
+      assertEditorSource(operation.source)
       if (operation.operation === 'png' && typeof rasterize !== 'function') throw new TypeError('browser PNG rasterizer must be a function')
-      const snapshot = structuredClone(operation)
+      // Reject saturated exports before allocating their private copy.
+      if (operation.operation !== 'preview' && (this.exports.length >= 4 || this.exportBytes >= EXPORT_QUEUE_BYTES)) throw new Error('Background export queue is full; wait for the current export')
+      const snapshot = takeEditorOperation(operation)
+      assertEditorSource(snapshot.source)
+      if (snapshot.operation === 'png' && typeof rasterize !== 'function') throw new TypeError('browser PNG rasterizer must be a function')
+      // Cloning caller-owned getters can reenter submission and fill the queue.
+      if (snapshot.operation !== 'preview' && this.exports.length >= 4) throw new Error('Background export queue is full; wait for the current export')
+      const limit = snapshot.operation === 'preview' ? PREVIEW_BYTES : EXPORT_QUEUE_BYTES
+      const bytes = estimatedResidency(snapshot, limit)
+      if (bytes > limit || (snapshot.operation !== 'preview' && this.exportBytes + bytes > limit)) throw new Error('Background request exceeds the queued payload budget; simplify the diagram or wait for the current export')
       if (snapshot.operation === 'preview') this.cancelPending()
-      else if (this.exports.length >= 4) throw new Error('Background export queue is full; wait for the current export')
-      const pending: Pending = { request: { ...snapshot, id: ++this.nextId }, resolve: value => resolve(value as T), reject, rasterize }
+      const completion = createSettlement<{ ok: true; artifact: EditorWorkerArtifact } | { ok: false; error: Error }>(outcome => outcome.ok ? resolve(outcome.artifact as T) : reject(outcome.error))
+      const pending: Pending = { bytes, request: { ...snapshot, id: ++this.nextId }, finish: completion.finish, rasterize }
+      completion.onCleanup(() => { pending.rasterize = undefined; pending.rasterResult = undefined })
       if (snapshot.operation === 'preview') this.queued = pending
-      else this.exports.push(pending)
+      else { this.exports.push(pending); this.exportBytes += bytes }
       this.drain()
     })
   }
 
   cancelPending(): void {
-    this.queued?.reject(new PreviewSupersededError())
+    this.queued?.finish({ ok: false, error: new PreviewSupersededError() })
     this.queued = undefined
   }
 
@@ -73,8 +92,9 @@ export class PreviewWorkerClient {
    * finish, but a waiting Canvas callback cannot hold up the newest preview. */
   invalidate(): void {
     this.cancelPending()
-    for (const pending of this.exports) pending.reject(new PreviewSupersededError())
+    for (const pending of this.exports) pending.finish({ ok: false, error: new PreviewSupersededError() })
     this.exports = []
+    this.exportBytes = 0
     const active = this.active
     if (active && active.request.operation !== 'preview') {
       active.superseded = true
@@ -89,16 +109,17 @@ export class PreviewWorkerClient {
     this.timer = undefined
     this.worker?.terminate()
     this.worker = undefined
-    this.active?.reject(error)
-    this.queued?.reject(error)
-    for (const pending of this.exports) pending.reject(error)
+    this.active?.finish({ ok: false, error })
+    this.queued?.finish({ ok: false, error })
+    for (const pending of this.exports) pending.finish({ ok: false, error })
     this.active = this.queued = undefined
     this.exports = []
+    this.exportBytes = 0
   }
 
   private drain(): void {
     if (this.active || (!this.queued && !this.exports.length)) return
-    if (this.exports.length && (!this.queued || this.exports[0]!.request.id < this.queued.request.id)) this.active = this.exports.shift()
+    if (this.exports.length && (!this.queued || this.exports[0]!.request.id < this.queued.request.id)) { this.active = this.exports.shift(); this.exportBytes -= this.active!.bytes }
     else { this.active = this.queued; this.queued = undefined }
     try {
       if (!this.worker) {
@@ -133,7 +154,7 @@ export class PreviewWorkerClient {
       if (!response.ok && response.dependencyLoadFailed) { worker.terminate(); this.worker = undefined }
       if (pending.superseded) {
         clearTimeout(this.timer); this.timer = undefined; this.active = undefined
-        pending.reject(new PreviewSupersededError()); this.drain(); return
+        pending.finish({ ok: false, error: new PreviewSupersededError() }); this.drain(); return
       }
       if (response.ok) {
         if (pending.request.operation === 'mutate') {
@@ -150,8 +171,8 @@ export class PreviewWorkerClient {
       }
       clearTimeout(this.timer); this.timer = undefined
       this.active = undefined
-      if (response.ok) pending.resolve(response.artifact)
-      else pending.reject(response.dependencyLoadFailed ? new PreviewRuntimeLoadError(response.error) : new Error(response.error))
+      if (response.ok) pending.finish({ ok: true, artifact: response.artifact })
+      else pending.finish({ ok: false, error: response.dependencyLoadFailed ? new PreviewRuntimeLoadError(response.error) : new Error(response.error) })
       this.drain()
     } catch (error) { this.dispose(error instanceof Error ? error : new Error(String(error))) }
   }

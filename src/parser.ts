@@ -29,12 +29,12 @@ import type { Direction, EdgeMarker, EdgeStyle, MermaidEdge, MermaidGraph, Merma
 export { parseStyleProps } from './shared/style-props.ts'
 import { detectCompatibilityGraphFamilyFromFirstLine } from './agent/family-router.ts'
 import { classifyMermaidFamilyFromFirstLine } from './family-detection.ts'
-import { checkedFlowchartStyleProps, coalesceFlowchartLines, commaInNodeId, continuesNodeId, findTextArrow, FLOWCHART_EDGE_ID_SOURCE, FLOWCHART_LINK_SOURCE, flowchartNodeIdLength, flowchartRegionAt, flowchartStatementSpans, labelReferencesAsEntityCodes, labelTextHoldsDelimiter, matchFlowchartLink, matchTextArrow, subgraphTitleUnreadable } from './flowchart-lexer.ts'
+import { checkedFlowchartStyleProps, coalesceFlowchartLines, flowchartGroupPosition, type FlowchartLineGroup, commaInNodeId, continuesNodeId, findTextArrow, FLOWCHART_EDGE_ID_PREFIX_SOURCE, flowchartNodeIdLength, flowchartRegionAt, flowchartStatementSpans, labelReferencesAsEntityCodes, labelTextHoldsDelimiter, matchFlowchartLink, matchTextArrow, subgraphTitleUnreadable } from './flowchart-lexer.ts'
 import { consumeClassShorthandPrefix,
   MERMAID_IDENTIFIER_SOURCE, parseClassShorthandStatement } from './shared/mermaid-identifiers.ts'
 import { metadataText, readMetadataBlock } from './shared/metadata-yaml.ts'
 import { DeferredDependencyError } from './layout/certification-error.ts'
-import { syntaxError } from './shared/syntax-error.ts'
+import { locateSyntaxError, MermaidSyntaxError, syntaxError, type MermaidSyntaxErrorLocation } from './shared/syntax-error.ts'
 
 // ============================================================================
 // Mermaid parser — flowcharts and state diagrams
@@ -104,7 +104,20 @@ export function parseMermaid(text: string): MermaidGraph {
   if (familyId === 'state') {
     return parseStateDiagram(lines)
   }
-  if (familyId === 'flowchart') return parseFlowchart(lines, breaks)
+  if (familyId === 'flowchart') return parseFlowchart(lines, breaks, (index, start) => {
+    const statement = statements[index <= headerStatements ? 0 : index - headerStatements]!
+    let offset = statement.source.text.length - statement.source.text.trimStart().length
+    if (index > 0 && index <= headerStatements) {
+      const expanded = splitInlineHeaderStatements(statement.text)!
+      let cursor = expanded.header.length
+      for (let at = 0; at < index; at++) {
+        offset = statement.source.text.indexOf(expanded.statements[at]!, cursor)
+        cursor = offset + expanded.statements[at]!.length
+      }
+    }
+    const point = flowchartGroupPosition(statement.source, offset + start)
+    return { diagramType: 'flowchart', line: point.line + 1, column: point.col + 1 }
+  })
 
   if (detection.kind === 'unknown') throw new Error(`Unknown Mermaid diagram header: ${header}`)
   const detectedFamilyId = detection.kind === 'registered' ? detection.familyId : detection.match.family.id
@@ -140,13 +153,13 @@ export function splitInlineHeaderStatements(line: string): { header: string; sta
  * pipeline's canonical line-break token — so the single-line shape grammars
  * keep matching and the label normalizer restores '\n'.
  */
-function coalesceStatementLines(lines: string[]): Array<{ text: string; breaks?: number[] }> {
+function coalesceStatementLines(lines: string[]): Array<{ text: string; source: FlowchartLineGroup; breaks?: number[] }> {
   return coalesceFlowchartLines(lines).flatMap(group => {
     const text = group.text.trim()
     if (!text || text.startsWith('%%')) return []
     // Where each later line joined on, in the trimmed text.
     const lead = group.text.length - group.text.trimStart().length
-    return [{ text, ...(group.joined ? { breaks: group.joined.map(piece => piece.at - lead) } : {}) }]
+    return [{ text, source: group, ...(group.joined ? { breaks: group.joined.map(piece => piece.at - lead) } : {}) }]
   })
 }
 
@@ -309,7 +322,7 @@ function assertGraphNodeInsertion(graph: MermaidGraph): void {
   assertDiagramWorkLimit('nodes', graph.nodes.size + (graphContainerCounts.get(graph) ?? 0) + 1)
 }
 
-function parseFlowchart(lines: string[], breaks: ReadonlyArray<readonly number[] | undefined> = []): MermaidGraph {
+function parseFlowchart(lines: string[], breaks: ReadonlyArray<readonly number[] | undefined> = [], locationAt?: (index: number, offset: number) => MermaidSyntaxErrorLocation): MermaidGraph {
   const headerMatch = lines[0]!.match(/^(?:(?:graph|swimlane)\s+(TD|TB|LR|BT|RL|[<>^v])|flowchart(?:\s+(TD|TB|LR|BT|RL|[<>^v]))?)\s*$/i)
   if (!headerMatch) {
     throw new Error(`Invalid mermaid header: "${lines[0]}". Expected "graph TD", "flowchart LR", "stateDiagram-v2", etc.`)
@@ -336,7 +349,7 @@ function parseFlowchart(lines: string[], breaks: ReadonlyArray<readonly number[]
   const subgraphStack: MermaidSubgraph[] = []
   const subgraphsById = new Map<string, MermaidSubgraph>()
   const placedSubgraphs = new Set<string>()
-  const declarations = collectFlowchartSubgraphDeclarations(lines.slice(1), breaks.slice(1))
+  const declarations = collectFlowchartSubgraphDeclarations(lines.slice(1), breaks.slice(1), (index, offset) => locationAt?.(index + 1, offset) ?? { diagramType: 'flowchart', line: index + 2, column: offset + 1 })
   let nextDeclaration = 0
   const declaredSubgraphIds = new Set([...declarations.values()].map(group => group.id))
   // Upstream's membership rule: the first subgraph to close keeps a node.
@@ -370,8 +383,9 @@ function parseFlowchart(lines: string[], breaks: ReadonlyArray<readonly number[]
   }
 
   for (let i = 1; i < lines.length; i++) {
-    for (const line of splitFlowchartStatements(lines[i]!)) {
+    for (const { text: line, start: statementStart } of flowchartStatementSpans(lines[i]!)) {
       if (parserObservationActive('flowchart')) observeParserStatement('flowchart', 'statement', line, { line: i + 1, unit: 'normalized' })
+      try {
       // --- source-level directives that do not affect local layout ---
       if (isFlowchartInteractionDirective(line)) {
         applyFlowchartInteraction(graph, line)
@@ -390,7 +404,8 @@ function parseFlowchart(lines: string[], breaks: ReadonlyArray<readonly number[]
         const props = checkedFlowchartStyleProps(parseStyleProps(classDefMatch[2]!))
         if (Object.keys(props).length === 0) continue
         for (const name of names) {
-          graph.classDefs.set(name, props)
+          const prior = graph.classDefs.get(name)
+          graph.classDefs.set(name, prior ? mergeStyleProps(prior, props) : props)
           if (parserObservationActive('flowchart')) observeParserMutation('flowchart', 'define-class', { name, props })
         }
         continue
@@ -433,7 +448,12 @@ function parseFlowchart(lines: string[], breaks: ReadonlyArray<readonly number[]
         // above the line. Ours styles that link wherever it is defined, and a
         // style whose index names no link draws nothing; verify reports both
         // (agent/flowchart-unsupported.ts).
-        const props = checkedFlowchartStyleProps(parseStyleProps(linkStyleMatch[2]!))
+        const interpolation = /^interpolate\s+([a-z][a-z0-9-]*)(?:\s+|$)([\s\S]*)/i.exec(linkStyleMatch[2]!)
+        if (interpolation) {
+          graph.linkCurves ??= new Map()
+          for (const index of target === 'default' ? ['default' as const] : indices) graph.linkCurves.set(index, interpolation[1]!)
+        }
+        const props = checkedFlowchartStyleProps(parseStyleProps(interpolation ? interpolation[2]! : linkStyleMatch[2]!))
         if (Object.keys(props).length === 0) continue
         if (target === 'default') {
           graph.linkStyles.set('default', { ...graph.linkStyles.get('default'), ...props })
@@ -492,7 +512,14 @@ function parseFlowchart(lines: string[], breaks: ReadonlyArray<readonly number[]
 
       // --- Edge/node definitions ---
       const parsed = parseEdgeLine(line, graph, subgraphStack, declaredSubgraphIds)
-      if (!parsed.ok) throw invalidFlowchartStatement(line, parsed)
+      if (!parsed.ok) {
+        const stop = line.endsWith(parsed.remaining) ? line.length - parsed.remaining.length : 0
+        throw locateSyntaxError(invalidFlowchartStatement(line, parsed), locationAt?.(i, statementStart + stop) ?? { diagramType: 'flowchart', line: i + 1, column: statementStart + stop + 1 })
+      }
+      } catch (error) {
+        if (error instanceof MermaidSyntaxError) throw locateSyntaxError(error, locationAt?.(i, statementStart) ?? { diagramType: 'flowchart', line: i + 1, column: statementStart + 1 })
+        throw error
+      }
     }
   }
 
@@ -629,7 +656,7 @@ function commaIdStop(line: string, parsed: Extract<EdgeLineParseResult, { ok: fa
  * One holding whitespace, or a line break (`breaks`: for each line, the
  * offsets where a line joined on, coalesceFlowchartLines), names no group:
  * each such block is a group of its own, as upstream's `subGraphN`. */
-function collectFlowchartSubgraphDeclarations(lines: string[], breaks: ReadonlyArray<readonly number[] | undefined> = []): SubgraphDeclaration[] {
+function collectFlowchartSubgraphDeclarations(lines: string[], breaks: ReadonlyArray<readonly number[] | undefined> = [], locationAt?: (index: number, offset: number) => MermaidSyntaxErrorLocation): SubgraphDeclaration[] {
   const declarations: SubgraphDeclaration[] = []
   const distinct = new Set<SubgraphDeclaration>()
   const reserved = new Set<string>()
@@ -638,7 +665,12 @@ function collectFlowchartSubgraphDeclarations(lines: string[], breaks: ReadonlyA
       const match = line.match(/^subgraph\s+(.+)$/)
       if (match) {
         const rest = match[1]!.trim()
-        const declaration = parseFlowchartSubgraphDeclaration(rest)
+        let declaration: SubgraphDeclaration
+        try { declaration = parseFlowchartSubgraphDeclaration(rest) }
+        catch (error) {
+          if (error instanceof MermaidSyntaxError || (error instanceof Error && error.constructor === Error)) throw locateSyntaxError(error, locationAt?.(lineIndex, start) ?? { diagramType: 'flowchart', line: lineIndex + 2, column: start + 1 })
+          throw error
+        }
         declarations.push(declaration)
         if (!declaration.generated) reserved.add(declaration.id)
         else if (!declaration.titled && (/\s/.test(declaration.identity) || breaks[lineIndex]?.some(at => at > start && at < start + line.length))) distinct.add(declaration)
@@ -1384,7 +1416,7 @@ function consumeBareNodeId(text: string): { id: string; length: number } | null 
   return length > 0 ? { id: text.slice(0, length), length } : null
 }
 
-const EDGE_ID_PREFIX_REGEX = new RegExp(String.raw`^(${FLOWCHART_EDGE_ID_SOURCE})@\s*(?=${FLOWCHART_LINK_SOURCE}|(?:-{2,}|-\.+|={2,})\s+)`, 'u')
+const EDGE_ID_PREFIX_REGEX = new RegExp(`^${FLOWCHART_EDGE_ID_PREFIX_SOURCE}`, 'u')
 
 /** Where a statement's parse stopped expecting a link, a link label opened
  * with an `x` or `o` start marker and closed by a link with another end
@@ -1693,6 +1725,11 @@ const QUOTED_SHAPE_DELIMITERS: Array<{ open: string; close: string; shape: NodeS
  * token needs a character, and it rejects the label. */
 const EMPTY_STRING_LABEL_RE = /^\s*""\s*$/
 
+function rectangleBorderLabel(suffix: string): { text: string; borders?: string; offset: number } {
+  const prefix = /^\[\|borders:([lrtb]+|none)\|/.exec(suffix)
+  return prefix ? { text: '[' + suffix.slice(prefix[0].length), borders: prefix[1] === 'none' ? '' : [...new Set(prefix[1])].join(''), offset: prefix[0].length - 1 } : { text: suffix, offset: 0 }
+}
+
 function consumeQuotedShapeNode(
   text: string,
   graph: MermaidGraph,
@@ -1700,8 +1737,10 @@ function consumeQuotedShapeNode(
   notes?: FlowchartNodeNotes): ConsumedNode | null {
   const identifier = consumeBareNodeId(text)
   if (!identifier) return null
-  const suffix = text.slice(identifier.length)
+  const border = rectangleBorderLabel(text.slice(identifier.length))
+  const suffix = border.text
   for (const spec of QUOTED_SHAPE_DELIMITERS) {
+    if (border.borders !== undefined && spec.shape !== 'rectangle') continue
     if (!suffix.startsWith(`${spec.open}"`)) continue
     const quoteStart = spec.open.length
     const quoteEnd = suffix.indexOf('"', quoteStart + 1)
@@ -1713,9 +1752,10 @@ function consumeQuotedShapeNode(
       label: parsed.text,
       ...(parsed.labelContent ? { labelContent: parsed.labelContent } : {}),
       shape: spec.shape,
+      ...(border.borders !== undefined ? { borders: border.borders } : {}),
       ...(parsed.markdown ? { markdownLabel: true as const } : {}),
     })
-    const consumed = identifier.length + quoteEnd + 1 + spec.close.length
+    const consumed = identifier.length + quoteEnd + 1 + spec.close.length + border.offset
     return { id: identifier.id, remaining: text.slice(consumed) }
   }
   return null
@@ -1765,16 +1805,20 @@ function consumeNode(
 
   // Try each node pattern (shape-qualified)
   const identifier = consumeBareNodeId(text)
-  const shapeText = identifier ? text.slice(identifier.length) : ''
+  const border = rectangleBorderLabel(identifier ? text.slice(identifier.length) : '')
+  const shapeText = border.text
   for (const { regex, shape } of identifier ? NODE_PATTERNS : []) {
+    // The property prefix has already selected a rectangle. Delimiter-like
+    // text after it is the label, not another shape's opening production.
+    if (border.borders !== undefined && shape !== 'rectangle') continue
     const match = shapeText.match(regex)
     if (match) {
       id = identifier!.id
       if (labelTextHoldsDelimiter(match[1]!, TRAPEZOID_SHAPES.has(shape) ? 'trapezoid' : 'text')) notes?.add('label-delimiter')
       if (EMPTY_STRING_LABEL_RE.test(match[1]!)) notes?.add('empty-string')
       const { text: label, markdown, labelContent } = parseFlowchartLabel(match[1]!)
-      defineNode(graph, subgraphStack, { id, label, shape, ...(markdown ? { markdownLabel: true as const } : {}), ...(labelContent ? { labelContent } : {}) })
-      remaining = shapeText.slice(match[0].length)
+      defineNode(graph, subgraphStack, { id, label, shape, ...(border.borders !== undefined ? { borders: border.borders } : {}), ...(markdown ? { markdownLabel: true as const } : {}), ...(labelContent ? { labelContent } : {}) })
+      remaining = text.slice(identifier!.length + match[0].length + border.offset)
       break
     }
   }
@@ -1859,8 +1903,8 @@ function defineNode(
     registerNode(graph, subgraphStack, node)
     return
   }
-  const { markdownLabel: _markdown, semanticShape: _semantic, authoredShape: _authored, labelContent: _content, ...kept } = existing
-  graph.nodes.set(node.id, { ...kept, label: node.label, shape: node.shape, ...(node.markdownLabel ? { markdownLabel: true as const } : {}), ...(node.labelContent ? { labelContent: node.labelContent } : {}) })
+  const { markdownLabel: _markdown, semanticShape: _semantic, authoredShape: _authored, labelContent: _content, borders: _borders, ...kept } = existing
+  graph.nodes.set(node.id, { ...kept, label: node.label, shape: node.shape, ...(node.borders !== undefined ? { borders: node.borders } : {}), ...(node.markdownLabel ? { markdownLabel: true as const } : {}), ...(node.labelContent ? { labelContent: node.labelContent } : {}) })
   if (parserObservationActive('flowchart')) observeParserMutation('flowchart', 'define-node', graph.nodes.get(node.id))
   trackInSubgraph(subgraphStack, node.id)
 }

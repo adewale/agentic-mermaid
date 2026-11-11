@@ -76,6 +76,7 @@ export default defineConfig({
     include: files.map(file => file.path),
     globals: true,
     environment: 'jsdom',
+    isolate: false,
     setupFiles: [resolve(import.meta.dirname, 'setup.ts')],
     fileParallelism: false,
     maxWorkers: 1,

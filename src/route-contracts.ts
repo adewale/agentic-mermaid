@@ -128,6 +128,34 @@ export function applyRouteContracts(
   )
   ctx.fixedLabels = Boolean(options?.preserveLabels)
   const nodeMap = indexRouteNodes(positioned.nodes)
+  // Endpoint identities stay fixed during this pass; only their geometry
+  // moves. Resolve strings once, then traverse live nodes and incoming edges
+  // by ordinal. Public sparse/reordered edges retain the map fallback.
+  const ordinals = new Map(positioned.nodes.map((node, index) => [node.id, index]))
+  const sources = new Int32Array(positioned.edges.length).fill(-1)
+  const targets = new Int32Array(positioned.edges.length).fill(-1)
+  const offsets = new Uint32Array(positioned.nodes.length + 1)
+  positioned.edges.forEach((edge, index) => {
+    sources[index] = ordinals.get(edge.source) ?? -1
+    const target = targets[index] = ordinals.get(edge.target) ?? -1
+    if (target >= 0) offsets[target + 1] = offsets[target + 1]! + 1
+  })
+  for (let i = 1; i < offsets.length; i++) offsets[i] = offsets[i]! + offsets[i - 1]!
+  const incoming = new Uint32Array(positioned.edges.length)
+  const cursor = offsets.slice()
+  targets.forEach((target, index) => {
+    if (target >= 0) { const at = cursor[target]!; incoming[at] = index; cursor[target] = at + 1 }
+  })
+  const sourceOf = (edge: PositionedEdge) => edge.edgeIndex !== undefined && positioned.edges[edge.edgeIndex] === edge
+    ? positioned.nodes[sources[edge.edgeIndex]!] : nodeMap.get(edge.source)
+  const targetOf = (edge: PositionedEdge) => edge.edgeIndex !== undefined && positioned.edges[edge.edgeIndex] === edge
+    ? positioned.nodes[targets[edge.edgeIndex]!] : nodeMap.get(edge.target)
+  const someIncoming = (edge: PositionedEdge, test: (peer: PositionedEdge) => boolean): boolean => {
+    const target = edge.edgeIndex !== undefined && positioned.edges[edge.edgeIndex] === edge ? targets[edge.edgeIndex]! : -1
+    if (target < 0) return positioned.edges.some(test)
+    for (let i = offsets[target]!; i < offsets[target + 1]!; i++) if (test(positioned.edges[incoming[i]!]!)) return true
+    return false
+  }
   const groupMap = flattenGroups(positioned.groups)
   const drafts: Array<{ edge: PositionedEdge; cert: DraftRouteCertificate }> = []
   let unlabelledContainerRepair: boolean | undefined
@@ -140,8 +168,8 @@ export function applyRouteContracts(
   // not-yet-repaired geometry).
   const attemptStraighten = (edge: PositionedEdge, cert: DraftRouteCertificate): { applied: boolean; mutated: boolean; upgradeable?: boolean } => {
     const edgeAxis: Axis = cert.routeClass === 'feedback' ? { ...axis, sign: axis.sign === 1 ? -1 : 1 } : axis
-    const source = nodeMap.get(edge.source)
-    const target = nodeMap.get(edge.target)
+    const source = sourceOf(edge)
+    const target = targetOf(edge)
     // Feedback loops from ELK's feedbackEdges routing start by moving AWAY
     // from the target (around the nodes), so they are never monotone; the
     // lane proof alone gates whether they may collapse onto a parallel
@@ -257,15 +285,15 @@ export function applyRouteContracts(
   }
 
   /** Another terminal this route may not share already ends on `lane`. */
-  const portHeldAgainst = (edge: PositionedEdge, lane: number, axis: Axis): boolean => ctx.edges.some(peer =>
+  const portHeldAgainst = (edge: PositionedEdge, lane: number, axis: Axis): boolean => someIncoming(edge, peer =>
     peer !== edge && peer.target === edge.target && peer.points.length > 1
     && Math.abs(peer.points.at(-1)![axis.cross] - lane) <= PORT_TOLERANCE && !edgesMayShareTerminal(edge, peer))
 
   /** A peer this route may not share a terminal with ends on the target's
    * port lane, or emits on it and so can enter it straight. */
-  const portClaimedAgainst = (edge: PositionedEdge, lane: number, axis: Axis): boolean => portHeldAgainst(edge, lane, axis) || ctx.edges.some(peer => {
+  const portClaimedAgainst = (edge: PositionedEdge, lane: number, axis: Axis): boolean => portHeldAgainst(edge, lane, axis) || someIncoming(edge, peer => {
     if (peer === edge || peer.target !== edge.target || peer.source === edge.target || edgesMayShareTerminal(edge, peer)) return false
-    const emitter = nodeMap.get(peer.source)
+    const emitter = sourceOf(peer)
     return emitter !== undefined && Math.abs(emitter[axis.cross] + (axis.cross === 'y' ? emitter.height : emitter.width) / 2 - lane) <= PORT_TOLERANCE
   })
 
@@ -277,7 +305,7 @@ export function applyRouteContracts(
    * beside the held port. Proof-gated like the Z; failure keeps the route.
    */
   function tryCrossSideEntry(edge: PositionedEdge, target: PositionedNode, ctx: LaneContext, axis: Axis): boolean {
-    if (edge.points.length < 3 || !ctx.edges.some(peer => peer !== edge && peer.target === edge.target)) return false
+    if (edge.points.length < 3 || !someIncoming(edge, peer => peer !== edge && peer.target === edge.target)) return false
     const ports = shapePorts(target)
     const flowPort = ports[facingSide(axis, -1)]
     if (!portClaimedAgainst(edge, flowPort[axis.cross], axis)) return false
@@ -360,9 +388,9 @@ export function applyRouteContracts(
       // emits on the target's port lane, that peer can enter straight, so the
       // port goes to it and this route keeps its own entry first.
       const portLane = target[axis.cross] + (axis.cross === 'y' ? target.height : target.width) / 2
-      const peerOwnsPort = ctx.edges.some(peer => {
+      const peerOwnsPort = someIncoming(edge, peer => {
         if (peer === edge || peer.target !== edge.target || peer.source === edge.target || edgesMayShareTerminal(edge, peer)) return false
-        const emitter = nodeMap.get(peer.source)
+        const emitter = sourceOf(peer)
         return emitter !== undefined && Math.abs(emitter[axis.cross] + (axis.cross === 'y' ? emitter.height : emitter.width) / 2 - portLane) <= PORT_TOLERANCE
       })
       if (peerOwnsPort) pushTo(c2s, edge.points[edge.points.length - 1]![axis.cross])
@@ -725,7 +753,7 @@ export function applyRouteContracts(
     // point makes this order-independent: a hook taken before the sibling
     // settles is re-proved and downgraded on the next round.
     const entryPort = shapePorts(target)[facingSide(axis, -1)]
-    const mergeAvailable = ctx.edges.some(
+    const mergeAvailable = someIncoming(edge,
       other => other !== edge && other.target === edge.target && other.source !== edge.source && other.points.length > 0 && edgesMayShareTerminal(edge, other) && Math.abs(other.points[other.points.length - 1]!.x - entryPort.x) <= PORT_TOLERANCE && Math.abs(other.points[other.points.length - 1]!.y - entryPort.y) <= PORT_TOLERANCE,
     )
     if (mergeAvailable) return false
@@ -759,7 +787,7 @@ export function applyRouteContracts(
   for (const edge of positioned.edges) {
     const bundle = bundled.has(edge) ? bundleRouteBeforeRewrite(edge) : undefined
     let normalized = simplifyPolyline(orthogonalizeResidualDiagonals(edge.points))
-    const source = nodeMap.get(edge.source), target = nodeMap.get(edge.target)
+    const source = sourceOf(edge), target = targetOf(edge)
     if (source) normalized = trimOccludedShapeEndpoint(normalized, source, true)
     if (target) normalized = trimOccludedShapeEndpoint(normalized, target, false)
     if (routeCandidateMarkersClear(edge, normalized, ctx.edges, ctx.style)) setRoutePoints(ctx, edge, normalized)
@@ -779,7 +807,7 @@ export function applyRouteContracts(
     } else if (routeClass === 'self-loop') {
       let retained: PortSide | undefined
       if (options?.preserveSelfLoops) {
-        const node = nodeMap.get(edge.source)
+        const node = sourceOf(edge)
         const outwardSide = (a: Point, b: Point): PortSide | undefined => {
           if (Math.abs(a.x - b.x) <= EPS && Math.abs(a.y - b.y) > EPS) return b.y > a.y ? 'S' : 'N'
           if (Math.abs(a.y - b.y) <= EPS && Math.abs(a.x - b.x) > EPS) return b.x > a.x ? 'E' : 'W'
@@ -837,8 +865,8 @@ export function applyRouteContracts(
         // through the ports when that proves clear — the candidate order
         // tries the target port first and falls back to the current lane,
         // so a blocked port lane leaves the edge untouched.
-        const sourceNode = nodeMap.get(edge.source)
-        const targetNode = nodeMap.get(edge.target)
+        const sourceNode = sourceOf(edge)
+        const targetNode = targetOf(edge)
         // A reciprocal-pair member must enroll even when straight and
         // on-port: its contract lane is the symmetric one (center ± SEP/2),
         // not the port lane, and the symmetric lane often only clears after
@@ -880,8 +908,8 @@ export function applyRouteContracts(
 
   for (const edge of positioned.edges) {
     const bundle = bundled.has(edge) ? bundleRouteBeforeRewrite(edge) : undefined
-    const sourceNode = nodeMap.get(edge.source)
-    const targetNode = nodeMap.get(edge.target)
+    const sourceNode = sourceOf(edge)
+    const targetNode = targetOf(edge)
     if (sourceNode) repairRectLikeEndpointOverflow(edge, sourceNode, true, ctx)
     if (targetNode) repairRectLikeEndpointOverflow(edge, targetNode, false, ctx)
     let normalized = edge.points
@@ -895,8 +923,8 @@ export function applyRouteContracts(
   const finalPortPlan = allocateRoutePorts(positioned, graph, classes)
   const finalizeCertificate = (edge: PositionedEdge, draft: DraftRouteCertificate): RouteCertificate => {
     const bendCountFinal = bendCount(edge.points)
-    const sourceNode = nodeMap.get(edge.source)
-    const targetNode = nodeMap.get(edge.target)
+    const sourceNode = sourceOf(edge)
+    const targetNode = targetOf(edge)
     const portAssignment = finalPortPlan.byEdge.get(edge)
     const base = {
       edgeIndex: draft.edgeIndex,

@@ -215,6 +215,14 @@ describe('op-boundary fuzz: typed text edits round-trip or are refused', () => {
     block: { source: 'block\n  a b\n  a --> b\n', ids: ['a', 'b'] },
     zenuml: { ids: [] },
     eventmodeling: { ids: [] },
+    usecase: { ids: [] },
+    wardley: { ids: [] },
+    venn: { ids: [] },
+    cynefin: { ids: [] },
+    railroad: { ids: [] },
+    treeview: { ids: [] },
+    agentflow: { ids: [] },
+    swimlane: { ids: [] },
   }
   const base = (family: MutableFamilyId): ParsedDiagram => {
     const source = FIXTURES[family].source

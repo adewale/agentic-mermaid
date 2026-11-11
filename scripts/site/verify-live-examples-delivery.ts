@@ -27,11 +27,11 @@ async function live(path: string, expectedType: string, immutable = false) {
 }
 
 const localIndex = readFileSync(join(PUBLIC, 'examples', 'index.html'), 'utf8')
-const expectedAssets = Array.from(localIndex.matchAll(/(?:href|src)="\/(examples-[a-f0-9]{12}\.(?:css|js))"|data-example-fragment="\/(examples\/fragments\/(?:style-palette|corpus)-[a-f0-9]{12})"/g))
+const expectedAssets = Array.from(localIndex.matchAll(/(?:href|src)="\/(examples-[a-f0-9]{12}\.(?:css|js))"|data-example-fragment="\/(examples\/fragments\/(?:diagrams|style-palette|corpus)-[a-f0-9]{12})"/g))
   .map(match => match[1] || match[2])
   .filter((asset): asset is string => Boolean(asset))
   .sort()
-requireCondition(expectedAssets.length === 4, `local Examples index exposes ${expectedAssets.length} hashed assets, expected 4`)
+requireCondition(expectedAssets.length === 5, `local Examples index exposes ${expectedAssets.length} hashed assets, expected 5`)
 
 const indexResponse = await live('/examples/', 'text/html')
 const liveIndex = await indexResponse.text()
@@ -39,7 +39,7 @@ for (const asset of expectedAssets) requireCondition(liveIndex.includes(`/${asse
 requireCondition(!liveIndex.includes('<article class="example-sample" id="style-palette-flowchart"'), '/examples/: Style × Palette payload is eager')
 requireCondition(!liveIndex.includes('<article class="example-sample" id="rich-agentic-mermaid"'), '/examples/: corpus payload is eager')
 
-for (const route of ['/examples/style-palette/', '/examples/corpus/']) {
+for (const route of ['/examples/diagrams/', '/examples/style-palette/', '/examples/corpus/']) {
   const response = await live(route, 'text/html')
   const html = await response.text()
   requireCondition(html.includes(`<link rel="canonical" href="${CANONICAL_ORIGIN}${route}">`), `${route}: canonical metadata mismatch`)

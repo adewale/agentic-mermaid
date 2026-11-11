@@ -1,3 +1,10 @@
+import { RAILROAD_OP_SCHEMAS } from '../railroad/ops.ts'
+import { CYNEFIN_OP_SCHEMAS } from '../cynefin/ops.ts'
+import { VENN_OP_SCHEMAS } from '../venn/ops.ts'
+import { WARDLEY_OP_SCHEMAS } from '../wardley/ops.ts'
+import { USECASE_OP_SCHEMAS } from '../usecase/ops.ts'
+import { AGENTFLOW_EXTRA_OP_SCHEMAS } from '../agentflow/ops.ts'
+import { TREEVIEW_OP_SCHEMAS } from '../treeview/ops.ts'
 import { ZENUML_OP_SCHEMAS } from '../zenuml/native-ops.ts'
 import { EVENTMODELING_OP_SCHEMAS } from '../eventmodeling/ops.ts'
 import { KANBAN_OP_SCHEMAS } from '../kanban/ops.ts'
@@ -125,21 +132,23 @@ const STATE_DIRECTIONS = ['TD', 'TB', 'LR', 'BT', 'RL'] as const
 const STATE_NOTE_SIDES = ['left', 'right'] as const
 
 const STATE_SCHEMA: Record<string, OpSpec> = {
-  add_state: { fields: { id: str(), label: strOrNull(false), parent: strOrNull(false), region: num(false) } },
+  add_region: { fields: { parent: str(), index: withNote(num(false), 'insert an empty parallel region at this zero-based index; omitted appends') } },
+  remove_region: { fields: { parent: str(), index: withNote(num(), 'remove an empty region; the sole remaining region becomes a non-concurrent scope') } },
+  add_state: { fields: { id: str(), label: strOrNull(false), parent: strOrNull(false), region: withNote(num(false), 'zero-based region; equal to the current scope count appends a parallel region to a composite parent') } },
   remove_state: { fields: { id: str(), recursive: withNote(bool(false), 'default false: refuse a non-empty composite; true removes the whole subtree (transitions + notes cascade)') } },
   rename_state: { fields: { from: str(), to: str() } },
   set_state_label: { fields: { id: str(), label: strOrNull() } },
-  add_transition: { fields: { from: withNote(str(), 'a state id, "[*]", or a history ref like "X[H]"'), to: withNote(str(), 'a state id, "[*]", or a history ref like "X[H]"'), label: strOrNull(false), parent: strOrNull(false), region: num(false) } },
+  add_transition: { fields: { from: withNote(str(), 'a state id, "[*]", or a history ref like "X[H]"'), to: withNote(str(), 'a state id, "[*]", or a history ref like "X[H]"'), label: strOrNull(false), parent: strOrNull(false), region: withNote(num(false), 'zero-based region; equal to the current scope count appends a parallel region to a composite parent') } },
   remove_transition: { fields: { index: num(false), from: str(false), to: str(false), parent: strOrNull(false), region: num(false) }, requireOneOf: ['index', 'from', 'to'] },
   set_transition_label: { fields: { index: num(false), from: str(false), to: str(false), label: strOrNull(), parent: strOrNull(false), region: num(false) }, requireOneOf: ['index', 'from', 'to'] },
   make_composite: { fields: { id: str(), members: strArr(), label: strOrNull(false) } },
   set_direction: { fields: { direction: oneOf(STATE_DIRECTIONS), state: withNote(strOrNull(false), "omit to set the diagram direction; a composite id sets that composite's direction override") } },
-  move_state: { fields: { id: str(), parent: withNote(strOrNull(), 'target composite id; null moves the state to the top level'), region: num(false) } },
+  move_state: { fields: { id: str(), parent: withNote(strOrNull(), 'target composite id; null moves the state to the top level'), region: withNote(num(false), 'zero-based region; equal to the current scope count appends a parallel region to a composite parent') } },
   dissolve_composite: { fields: { id: withNote(str(), 'children and inner transitions hoist into the parent scope; rejects while transitions/notes still reference the composite') } },
   add_note: { fields: { target: str(), side: withNote(oneOf(STATE_NOTE_SIDES, false), 'default: right'), text: withNote(str(), 'multi-line text serializes as a block note') } },
   remove_note: { fields: { index: num() } },
   set_note_text: { fields: { index: num(), text: str() } },
-  add_floating_note: { fields: { id: str(), text: str(), parent: strOrNull(false), region: num(false) } },
+  add_floating_note: { fields: { id: str(), text: str(), parent: strOrNull(false), region: withNote(num(false), 'zero-based region; equal to the current scope count appends a parallel region to a composite parent') } },
   remove_floating_note: { fields: { id: str() } },
   set_floating_note_text: { fields: { id: str(), text: str() } },
   define_class: { fields: { name: str(), style: withNote(str(), 'CSS-like pairs, e.g. "fill:#f96,stroke:#333"') } },
@@ -446,6 +455,14 @@ export const OP_SCHEMAS: Record<DiagramKind, Record<string, OpSpec>> = {
   zenuml: ZENUML_OP_SCHEMAS,
   eventmodeling: EVENTMODELING_OP_SCHEMAS,
   flowchart: FLOWCHART_SCHEMA,
+  swimlane: FLOWCHART_SCHEMA,
+  treeview: TREEVIEW_OP_SCHEMAS,
+  cynefin: CYNEFIN_OP_SCHEMAS,
+  railroad: RAILROAD_OP_SCHEMAS,
+  venn: VENN_OP_SCHEMAS,
+  wardley: WARDLEY_OP_SCHEMAS,
+  usecase: USECASE_OP_SCHEMAS,
+  agentflow: { ...FLOWCHART_SCHEMA, ...AGENTFLOW_EXTRA_OP_SCHEMAS },
   state: STATE_SCHEMA,
   sequence: SEQUENCE_SCHEMA,
   timeline: TIMELINE_SCHEMA,

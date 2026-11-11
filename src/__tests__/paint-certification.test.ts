@@ -607,6 +607,60 @@ test.each(['mutable', 'shallow-frozen', 'accessor'] as const)('a transferred tex
   }
 })
 
+test('native capture detaches sparse data and keeps prototype-like keys inert', () => {
+  const points = new Array(4)
+  points[2] = { x: 12, y: 34 }
+  const input = Object.create(null)
+  Object.defineProperty(input, '__proto__', { value: { points }, enumerable: true })
+  Object.defineProperty(input, 'hidden', { value: { color: '#fff' }, enumerable: false })
+  const captured = createNativePaintEmission(10000).snapshot(input)!
+  points[2].x = 99
+  input.hidden.color = '#000'
+  expect(Object.hasOwn(captured, '__proto__')).toBe(true)
+  expect(Object.getPrototypeOf(captured)).toBe(Object.prototype)
+  expect(captured.__proto__.points).toHaveLength(4)
+  expect(Object.hasOwn(captured.__proto__.points, 0)).toBe(false)
+  expect(captured.__proto__.points[2]).toEqual({ x: 12, y: 34 })
+  expect(captured.hidden.color).toBe('#fff')
+  expect(Object.getOwnPropertyDescriptor(captured, 'hidden')!.enumerable).toBe(false)
+  expect(Object.isFrozen(captured.__proto__.points)).toBe(true)
+  expect(Object.isFrozen(captured.hidden)).toBe(true)
+})
+
+test.each([[63, true], [64, false], [65, false]] as const)('numeric point capture respects the depth cutoff at %i wrappers', (depth, accepted) => {
+  for (const point of [{ x: 1, y: 2 }, { y: 2, x: 1 }]) {
+    let value: object = point
+    for (let index = 0; index < depth; index++) value = { child: value }
+    expect(createNativePaintEmission(10000).snapshot(value) !== undefined).toBe(accepted)
+  }
+})
+
+test.each([
+  ['numeric', 3, false, 0],
+  ['numeric', 4, false, 1],
+  ['numeric', 5, true, 2],
+  ['nested', 20, true, 2],
+  ['accessor', 4, false, 1],
+] as const)('native capture charges descriptor work before reading %s input with budget %i', (kind, budget, accepted, reads) => {
+  let descriptors = 0
+  const input = kind === 'numeric' ? { x: 1, y: 2 } : kind === 'nested' ? { x: { a: 1 }, y: 2 }
+    : { get x() { throw new Error('Accessors must not run') }, y: 2 }
+  const value = new Proxy(input, { getOwnPropertyDescriptor(target, key) { descriptors++; return Reflect.getOwnPropertyDescriptor(target, key) } })
+  expect(createNativePaintEmission(budget).snapshot(value) !== undefined).toBe(accepted)
+  expect(descriptors).toBe(reads)
+})
+
+test.each([false, true])('native capture keeps the final source validity check when revocation is %s', revokeAtEnd => {
+  const { proxy, revoke } = Proxy.revocable({ x: 1, y: 2 }, {
+    getOwnPropertyDescriptor(target, key) {
+      const descriptor = Reflect.getOwnPropertyDescriptor(target, key)
+      if (key === 'y' && revokeAtEnd) revoke()
+      return descriptor
+    },
+  })
+  expect(createNativePaintEmission(10000).snapshot(proxy) !== undefined).toBe(!revokeAtEnd)
+})
+
 test.each(['full', 'compound', 'fill-opacity-zero', 'thin', 'partial', 'repaint', 'dashed', 'translucent', 'unknown-width', 'unknown-opacity', 'non-scaling', 'scaled', 'rotated', 'sheared', 'circle', 'ellipse', 'polygon', 'marker-none', 'marker-unknown'] as const)('%s endpoint stroke cannot hide a fully covered marker behind its contact exemption', mode => {
   const marker = tipAnchoredArrow('arrow', { width: 8, height: 5 }, 'end', { fill: mode === 'marker-none' ? 'none' : mode === 'marker-unknown' ? 'var(--unknown)' : '#000' }, 'userSpaceOnUse')
   const context = { positioned: { width: 100, height: 80 }, colors: { bg: '#fff', fg: '#111' }, resolved: { renderOptions: {} } }
@@ -809,7 +863,7 @@ test('the Ishikawa spine declares its actual effect-head contact', () => {
   expect(sceneNodeSerialization(spine)).toContain(`points="${first.x},${first.y} ${effect.x},${effect.y + effect.height / 2}"`)
 })
 
-test.each(['transparent', 'translucent', 'dashed', 'group-opacity', 'compound-piece'] as const)('%s outlines cannot certify the filled endpoint border band as visible', mode => {
+test.each((['transparent', 'translucent', 'dashed', 'group-opacity', 'compound-piece'] as const).flatMap(mode => [0, 12].map(distant => ({ mode, distant }))))('$mode outlines cannot certify the filled endpoint border band among $distant same-owner outlines', ({ mode, distant }) => {
   const marker = tipAnchoredArrow('arrow', { width: 8, height: 5 }, 'end', { fill: '#111' }, 'userSpaceOnUse')
   const edge = marks.connector({ id: 'edge', role: 'edge', lineStyle: 'solid', geometry: { kind: 'line', x1: 10, y1: 40, x2: 40.4, y2: 40 }, paint: { stroke: '#111' }, endpoints: { from: 'outside', to: 'node' }, markers: { end: marker } })
   const geometry = { kind: 'rect' as const, x: 40, y: 10, width: 50, height: 60 }
@@ -820,11 +874,28 @@ test.each(['transparent', 'translucent', 'dashed', 'group-opacity', 'compound-pi
     const outline = marks.shape({ id: 'outline', role: 'node', owner: { id: 'node', role: 'node' }, geometry, paint: { ...paint, fill: 'none' } })
     parts.push(marks.group({ id: 'translucent-outline', role: 'chrome', open: '<g>', close: '</g>', paint: { opacity: '0.5' }, children: [{ node: outline, indent: 0 }] }))
   }
+  for (let index = 0; index < distant; index++) parts.push(marks.shape({ id: `distant-outline:${index}`, role: 'node', owner: { id: 'node', role: 'node' },
+    geometry: { kind: 'rect', x: 200 + index * 20, y: 10, width: 10, height: 20 }, paint: { fill: 'none', stroke: '#111', strokeWidth: '10' } }))
   // The triangle tip enters the opaque fill by 0.4px. A transparent,
   // translucent or dashed outline supplies no continuous opaque border band.
   const emitted = parts.map(sceneNodeSerialization).join('\n')
   expect(emitted).toContain(mode === 'dashed' ? 'stroke-dasharray="1 100"' : mode === 'group-opacity' ? '<g opacity="0.5">' : mode === 'compound-piece' ? 'stroke="none"' : `stroke-opacity="${paint.strokeOpacity}"`)
   expect(certifyScenePaint(scene(parts))).toMatchObject({ status: 'unverified', issues: [expect.objectContaining({ code: 'POTENTIAL_OCCLUSION', id: 'edge', by: 'node' })] })
+})
+
+test.each([0, 6, 7, 8, 12])('outline matching keeps the last physical width across key order and %s distant same-owner outlines', distant => {
+  const marker = tipAnchoredArrow('arrow', { width: 8, height: 5 }, 'end', { fill: '#111' }, 'userSpaceOnUse')
+  const edge = marks.connector({ id: 'edge', role: 'edge', lineStyle: 'solid', geometry: { kind: 'line', x1: 10, y1: 40, x2: 44, y2: 40 }, paint: { stroke: '#111' }, endpoints: { from: 'outside', to: 'node' }, markers: { end: marker } })
+  const geometry = { kind: 'rect' as const, x: 40, y: 10, width: 50, height: 60 }
+  const reordered = { kind: 'rect' as const, y: 10, x: 40, width: 50, height: 60 }
+  const parts: SceneNode[] = [edge,
+    marks.shape({ id: 'node', role: 'node', geometry, paint: { fill: '#fff' } }),
+    marks.shape({ id: 'thick', role: 'node', owner: { id: 'node', role: 'node' }, geometry, paint: { fill: 'none', stroke: '#111', strokeWidth: '10' } }),
+    marks.shape({ id: 'thin', role: 'node', owner: { id: 'node', role: 'node' }, geometry: reordered, paint: { fill: 'none', stroke: '#111', strokeWidth: '2' } }),
+  ]
+  for (let index = 0; index < distant; index++) parts.push(marks.shape({ id: `distant:${index}`, role: 'node', owner: { id: 'node', role: 'node' }, geometry: { kind: 'rect', x: 200 + index * 20, y: 10, width: 10, height: 20 }, paint: { fill: 'none', stroke: '#111', strokeWidth: '10' } }))
+  const proof = certifyScenePaint({ ...scene(parts), width: 600, height: 100 })
+  expect(proof.issues).toContainEqual(expect.objectContaining({ code: 'POTENTIAL_OCCLUSION', id: 'edge', by: 'node' }))
 })
 
 test.each(['before', 'after'] as const)('separated artwork painted %s text retains the actual traversal obligation', order => {

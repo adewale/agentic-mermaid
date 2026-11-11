@@ -28,11 +28,11 @@ The integration also propagates family-owned custom placement sizes and updates
 exactly one default geometry golden: the new PR fixture's junction ring is now
 16×16 at its actual outline instead of its old 28×28 allocation box.
 
-The [machine-readable evidence](layout-guidance-results.json) retains all pilot
+The [machine-readable evidence](https://github.com/adewale/agentic-mermaid/blob/a6b9b14161bd281804d5f2c9149320dfd882eb0f/docs/design/system/layout-guidance-results.json) retains all pilot
 rounds, rejected arms, quality/admission changes, adverse metric cases, edit
 comparison and raw-file hashes. The [runtime23 report](layout-experiment-results.md)
 remains historical evidence, not a relabelled runtime24 benchmark.
-The [final benchmark evidence (gzip JSON)](layout-guidance-benchmarks.json.gz) retains the
+The [final benchmark evidence (gzip JSON)](https://raw.githubusercontent.com/adewale/agentic-mermaid/a6b9b14161bd281804d5f2c9149320dfd882eb0f/docs/design/system/layout-guidance-benchmarks.json.gz) retains the
 dedicated hosted campaigns, independent CI canary, per-case rounds and tails,
 missing/failed gates, churn observations, artifact provenance and the separate
 whole 27-input memory-only declaration and results.
@@ -147,7 +147,7 @@ illustrates edit-order disruption. These motivate ownership and witnesses, not
 weaker geometry checks.
 
 The [community comparison](layout-community-comparison.md) and
-[inventory](../../mermaid-community.json) still distinguish complete renderer
+[inventory](https://github.com/adewale/agentic-mermaid/blob/ee9c9dc32f9bc3b47de2f5990bc1466b55815649/docs/mermaid-community.json) still distinguish complete renderer
 costs from small mount runtimes. Pele/Ondine suggest family boundaries and
 compilation; Zombie demonstrates explicitly narrower optional solving; Merman
 demonstrates lifecycle/request ownership and selected-family builds. This
@@ -161,7 +161,7 @@ opt-in scope; neither expansion nor a default switch is justified.
 The corrected renderer is frozen at review head `890abfa5`, with runtime source
 at `d645c8c5`. All four hosted campaigns' 20 Node JavaScript hashes match the
 local corrected24 snapshot; their baseline hashes match integrated23. The
-[review protocol](../../../eval/benchmark/layout-runtime-review.md) fixes three
+recorded review protocol (`layout-runtime-review.md`, not retained in this checkout) fixes three
 rounds, 25 timing repetitions and 480,000ms per cache-policy campaign. No failed
 campaign was retried, reduced or given a longer deadline.
 
@@ -216,8 +216,9 @@ release memory worker, all 27 historical inputs in every worker, five arms
 (ELK, ELK A/A, native23, native23 A/A, native24), three fresh rounds and the same
 480,000ms shared deadline per policy. It completes **30/30 workers**, in 114.4s
 off and 77.6s normal, with artifacts unchanged. The
-[portable runner](../../../eval/benchmark/layout-memory-only.py) and exact
-declaration/input envelope are retained. There were no competing local builds,
+original `layout-memory-only.py` runner is not retained in repository history;
+the declaration/input envelope and recorded results remain in the evidence.
+This is a reproducibility gap, not an available command in a clean checkout. There were no competing local builds,
 tests or benchmark workers. This local Node 24.19.0 experiment is separate from
 the hosted Node 24.21.0 campaigns and Node 24.22.0 CI canary.
 

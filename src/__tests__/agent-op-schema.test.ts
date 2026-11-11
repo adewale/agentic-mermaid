@@ -226,6 +226,19 @@ describe('one shared choke point — byte-identical rejection (§6)', () => {
     expect(errMsg(checked.error)).toBe(errMsg(declarative.error))
   })
 
+  test('CLI edit batches admit region topology changes and retain content in the selected scope', () => {
+    const result = mutateSource('stateDiagram-v2\nstate on { idle --> busy }', [
+      { kind: 'add_region', parent: 'on', index: 0 },
+      { kind: 'add_state', id: 'milk', parent: 'on', region: 0 },
+      { kind: 'add_region', parent: 'on' },
+      { kind: 'remove_region', parent: 'on', index: 2 },
+    ])
+    expect(result.ok).toBe(true)
+    if (!result.ok) throw new Error(result.error.message)
+    expect(result.source).toBe('stateDiagram-v2\n  state on {\n    milk\n    --\n    idle --> busy\n  }\n')
+    expect(result.verify.ok).toBe(true)
+  })
+
   test('the CLI --op/--ops path shares the choke point (no silent mangle)', () => {
     // mutateSource backs `am mutate`; its ops arrive as untyped JSON. It must
     // reject the same bad op the same way, not build `class undefined`.
@@ -290,6 +303,14 @@ describe('schema covers every mutable family (§11)', () => {
   // A representative op per family that must pass shape validation and build.
   const REPRESENTATIVE: Record<string, Record<string, unknown> | Record<string, unknown>[]> = {
     flowchart: { kind: 'add_node', id: 'a', label: 'A' },
+    swimlane: { kind: 'add_node', id: 'a', label: 'A' },
+    agentflow: { kind: 'add_node', id: 'a', label: 'A' },
+    usecase: { kind: 'add_actor', id: 'customer', label: 'Customer' },
+    wardley: { kind: 'add_component', id: 'API', x: 30, y: 60 },
+    venn: { kind: 'set_subset', sets: ['A'], size: 10 },
+    cynefin: { kind: 'add_item', domain: 'clear', label: 'Operate' },
+    railroad: { kind: 'add_rule', name: 'entry', definition: { type: 'terminal', value: 'start' } },
+    treeview: { kind: 'add_node', label: 'src', nodeType: 'directory' },
     state: { kind: 'add_state', id: 's' },
     sequence: { kind: 'add_participant', id: 'A' },
     timeline: { kind: 'add_section', label: 'S' },

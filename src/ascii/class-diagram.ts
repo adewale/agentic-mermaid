@@ -8,8 +8,7 @@ import { displayText, normalizeBrTags } from '../multiline-utils.ts'
 import { compareCodePointStrings } from '../shared/deterministic-order.ts'
 import { type DisplayTextInput, resolveLabelContent } from '../shared/display-text.ts'
 import { checkAllClassLikeAuthoredStyles } from '../shared/style-props.ts'
-import { allocateBoxRoutes, allocateConstructiveClassRoutes, TerminalBoxRouteUnavailable, type BoxRoute, BOX_ROUTE_APPROACH_DISTANCE, type BoxRelation, type BoxSide, boxFaceDemands, boxFaceSizes, classLikePaint, paintBoxRoute, paintBoxText, reverseBoxes, type TerminalBox } from './class-like-layout.ts'
-import { drawMultiBox } from './draw.ts'
+import { allocateBoxRoutes, allocateConstructiveClassRoutes, TerminalBoxRouteUnavailable, type BoxRoute, BOX_ROUTE_APPROACH_DISTANCE, type BoxRelation, type BoxSide, boxFaceDemands, boxFaceSizes, paintClassLikeCard, paintBoxRoute, paintBoxText, reverseBoxes, type TerminalBox } from './class-like-layout.ts'
 import { terminalIds } from './identity.ts'
 import { type TerminalArtifact, terminalArtifact } from './terminal-artifact.ts'
 import { TerminalDocument, type TerminalMarker, type TerminalOwner } from './terminal-document.ts'
@@ -406,24 +405,7 @@ export function renderClassTerminal(text: string, config: AsciiConfig, colorMode
       lines.forEach((line, index) => doc.text(box.x + Math.floor((box.width - visualWidth(line)) / 2), top + index, line, { owner }))
       continue
     }
-    doc.region(owner, { x: box.x, y: box.y, width: box.width, height: box.height })
-    doc.fill(box.x, box.y, box.width, box.height, { owner, kind: 'surface' })
-    const card = drawMultiBox(box.sections, ascii, 1, { width: box.width, height: box.height })
-    const style = Object.assign({}, diagram.classDefs.get('default'), ...(box.cls.className ?? '').split(/\s+/).map(name => diagram.classDefs.get(name)), box.cls.inlineStyle)
-    const paint = classLikePaint(doc, 'class', box.id, style)
-    for (const [, , cell] of card.entries()) {
-      const color = cell.kind === 'text' ? paint.text : paint.stroke
-      if (color) cell.color = color
-    }
-    let y = 1
-    box.sections.forEach((section, index) => {
-      const bounds = { x: 1, y, width: box.width - 2, height: Math.max(1, section.length) },
-        compartment: TerminalOwner = { id: generated(`${box.id}:compartment:${index}`), kind: 'compartment', parent: { id: box.id, kind: 'node' } }
-      card.attributeWithin(compartment, bounds)
-      card.region(compartment, bounds)
-      y += bounds.height + 1
-    })
-    doc.scope(owner, () => doc.overlay(card, box.x, box.y))
+    paintClassLikeCard(doc, box, owner, 'class', ascii, diagram.classDefs, box.cls, generated)
   }
   for (const box of noteBoxes) {
     const owner = doc.element({ id: box.id, kind: 'node', annotationTarget: box.targetId === undefined ? undefined : { id: box.targetId, kind: 'node' } })

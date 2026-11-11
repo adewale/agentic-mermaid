@@ -16,6 +16,7 @@
 // ============================================================================
 
 import { parseMermaid as parseFlowchartLegacy } from '../parser.ts'
+import { MermaidSyntaxError } from '../shared/syntax-error.ts'
 import { DiagramWorkLimitError } from '../shared/diagram-limits.ts'
 import { parseMutableStyleProps, unsafeStylePaintError } from '../shared/style-props.ts'
 import { unknownOpMessage } from './mutation-ops.ts'
@@ -51,6 +52,8 @@ export type FlowchartBody = Extract<DiagramBody, { kind: 'flowchart' }>
 
 interface SourceStatementSegment {
   readonly text: string
+  /** A dialect-owned declaration prefix is not a vertex occurrence. */
+  readonly nodePrefixEnd?: number
   /** Where the statement begins in its group's text. */
   readonly start: number
   /** The lines the parser reads as one (coalesceFlowchartLines). */
@@ -132,7 +135,7 @@ export function parseFlowchartBody(canonicalSource: string, opaqueSource = canon
     return ok({ kind: 'flowchart', graph })
   } catch (e) {
     if (e instanceof DiagramWorkLimitError && e.resource === 'sourceCharacters') throw e
-    return err([{ code: 'PARSE_FAILED', message: e instanceof Error ? e.message : String(e) }])
+    return err([{ code: 'PARSE_FAILED', message: e instanceof Error ? e.message : String(e), ...(e instanceof MermaidSyntaxError ? { line: e.line, column: e.column, col: e.column, diagramType: e.diagramType } : {}) }])
   }
 }
 
@@ -162,12 +165,16 @@ function flowchartSourceSegments(lines: readonly string[]): SourceStatementSegme
     }))
 }
 
-export function buildFlowchartSourceMap(body: FlowchartBody, canonicalSource: string): SourceMap {
+export function buildFlowchartSourceMap(body: FlowchartBody, canonicalSource: string, groupKeyword: 'subgraph' | 'flow' = 'subgraph'): SourceMap {
   const map: SourceMap = { nodes: new Map(), edges: new Map(), groups: new Map(), labels: new Map() }
   const lines = canonicalSource.split(/\r?\n/)
   // Statements as the parser reads them: a label, string or link may run on
   // across lines. Each location is placed on the line its text came from.
-  const sourceSegments = flowchartSourceSegments(lines)
+  const sourceSegments = flowchartSourceSegments(lines).slice(1).filter(segment => groupKeyword !== 'flow' || !/^\s*(?:flow(?=\s|@|$)|global\s*$)/.test(segment.text))
+  if (groupKeyword === 'flow') for (const segment of sourceSegments) {
+    const prefix = /^\s*connector\s+/.exec(segment.text)
+    if (prefix) Object.assign(segment, { nodePrefixEnd: prefix[0].length })
+  }
 
   const nodeIdTrie = buildNodeIdTrie(body.graph.nodes.keys())
   const nodeSegments = new Map<string, SourceStatementSegment[]>()
@@ -193,7 +200,7 @@ export function buildFlowchartSourceMap(body: FlowchartBody, canonicalSource: st
     }
   }
 
-  for (const sg of body.graph.subgraphs) mapSubgraphSource(sg, lines, map)
+  for (const sg of body.graph.subgraphs) mapSubgraphSource(sg, lines, map, groupKeyword)
 
   const edgeOccurrences = new Map<string, number>()
   const edgeMatches = new Map<string, Array<{
@@ -325,7 +332,7 @@ function nodeTokenAt(
   start: number,
 ): boolean {
   const { text: line, topLevel, textLabelRanges: labelRanges, operatorStarts, operatorEnds } = segment
-  if (nonNodeStatement(line) || !topLevel[start]) return false
+  if (nonNodeStatement(line) || !topLevel[start] || start < (segment.nodePrefixEnd ?? 0)) return false
   if (labelRanges.some(range => start >= range.start && start < range.end)) return false
   const before = line[start - 1]
   const idEnd = start + id.length
@@ -504,18 +511,19 @@ function nodeLabelColumn(segment: SourceStatementSegment, label: string, afterCo
   return labelColumnInRanges(segment.text, label, ranges.reverse())
 }
 
-function mapSubgraphSource(sg: MermaidSubgraph, lines: string[], map: SourceMap): void {
-  const re = new RegExp(`^\\s*subgraph\\s+${escapeRegex(sg.id)}(?=\\s|\\[|$)`, 'i')
+function mapSubgraphSource(sg: MermaidSubgraph, lines: string[], map: SourceMap, groupKeyword: 'subgraph' | 'flow'): void {
+  const re = new RegExp(`^(\\s*${groupKeyword}\\s+)${escapeRegex(sg.id)}(?=\\s|\\[|$)`, 'i')
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i]!
-    if (!re.test(line)) continue
-    const col = line.indexOf(sg.id)
+    const declaration = re.exec(line)
+    if (!declaration) continue
+    const col = declaration[1]!.length
     map.groups.set(sg.id, { line: i + 1, col: col + 1 })
     const labelCol = sg.label && sg.label !== sg.id ? titleColumn(line, sg.label, col + sg.id.length) : -1
     if (labelCol >= 0) map.labels.set(`group:${sg.id}`, { line: i + 1, col: labelCol + 1 })
     break
   }
-  for (const child of sg.children) mapSubgraphSource(child, lines, map)
+  for (const child of sg.children) mapSubgraphSource(child, lines, map, groupKeyword)
 }
 
 function escapeRegex(s: string): string { return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') }
@@ -582,6 +590,10 @@ export function renderFlowchart(graph: MermaidGraph, headerKind: 'flowchart' | '
   for (const [idx, style] of graph.linkStyles) {
     if (idx === 'default' || idx < graph.edges.length) lines.push(`  linkStyle ${idx} ${styleProps(style)}`)
   }
+  for (const [idx, curve] of graph.linkCurves ?? []) {
+    if (!/^[a-z][a-z0-9-]*$/i.test(curve)) throw new Error('Link interpolation must be a curve name')
+    if (idx === 'default' || idx < graph.edges.length) lines.push(`  linkStyle ${idx} interpolate ${curve}`)
+  }
   for (const node of graph.nodes.values()) {
     if (node.href) lines.push(`  click ${node.id} href ${quoteValue(node.href)}`)
   }
@@ -590,7 +602,7 @@ export function renderFlowchart(graph: MermaidGraph, headerKind: 'flowchart' | '
 }
 
 function needsExplicitDeclaration(node: MermaidNode): boolean {
-  return node.label !== node.id || node.shape !== 'rectangle' || node.authoredShape !== undefined || node.icon !== undefined || node.image !== undefined
+  return node.label !== node.id || node.shape !== 'rectangle' || node.borders !== undefined || node.authoredShape !== undefined || node.icon !== undefined || node.image !== undefined
 }
 
 function renderShape(node: MermaidNode): string {
@@ -612,6 +624,10 @@ function renderShape(node: MermaidNode): string {
     return `@{ shape: ${node.authoredShape}${label} }`
   }
   const lbl = escapeNodeLabel(node.label, node.labelContent)
+  if (node.shape === 'rectangle' && node.borders !== undefined) {
+    if (!/^[lrtb]*$/.test(node.borders)) throw new Error('Rectangle borders must contain only l, r, t and b')
+    return `[|borders:${node.borders || 'none'}|${lbl}]`
+  }
   switch (node.shape) {
     case 'rectangle': return `[${lbl}]`
     case 'rounded': return `(${lbl})`
@@ -641,9 +657,9 @@ function renderShape(node: MermaidNode): string {
   }
 }
 
-/** The pinned lexer recognizes direction on the whole line before strings. */
-function protectLabelDirection(text: string): string {
-  return text.replace(/direction(?=\s+(?:TB|BT|RL|LR|TD))/g, '#100;irection')
+/** Preprocessing recognizes directives and direction before quoted labels. */
+function protectLabelSyntax(text: string): string {
+  return text.replace(/%%(?=\{)/g, '%#37;').replace(/direction(?=\s+(?:TB|BT|RL|LR|TD))/g, '#100;irection')
 }
 
 /** The ONE quoted-label form for bracket, pipe and subgraph labels: the
@@ -651,7 +667,7 @@ function protectLabelDirection(text: string): string {
  *  because upstream's quoted strings have no escapes. A leading backtick is
  *  written `#96;`: `"` and a backtick open a markdown string. */
 function quoteLabel(label: string, content?: LabelContent): string {
-  const text = protectLabelDirection(writeFlowchartLabelText(label, content))
+  const text = protectLabelSyntax(writeFlowchartLabelText(label, content))
   const authoredMarkdown = content?.value === label && content.authored?.startsWith('`') && content.authored.endsWith('`')
   return `"${text.startsWith('`') && !authoredMarkdown ? `#96;${text.slice(1)}` : text}"`
 }
@@ -680,7 +696,7 @@ function escapeLabel(label: string, content?: LabelContent): string {
   // A bare label also ends at a U+2028/U+2029 line terminator, which the
   // quoted form holds.
   if (/[\[\]{}()|"@\u2028\u2029]|^~~~/.test(label) || (content?.value === label && content.authored?.startsWith('`'))) return quoteLabel(label, content)
-  return protectLabelDirection(writeFlowchartLabelText(label, content))
+  return protectLabelSyntax(writeFlowchartLabelText(label, content))
 }
 
 /** `;` separates statements and no bracket shields it in an asymmetric
@@ -943,6 +959,7 @@ function mutateFlowchartGraph(graph: MermaidGraph, op: FlowchartMutationOp): Res
         shape: resolved.shape,
         semanticShape: resolved.semanticShape,
         authoredShape: resolved.authoredShape,
+        borders: undefined,
       })
       return done()
     }
@@ -1140,6 +1157,11 @@ function retainEdges(
   }
   graph.edges = edges
   graph.linkStyles = linkStyles
+  if (graph.linkCurves) graph.linkCurves = new Map([...graph.linkCurves].flatMap(([target, curve]) => {
+    if (target === 'default' || !Number.isInteger(target) || target < 0 || target >= oldEdges.length) return [[target, curve] as const]
+    const remapped = oldToNew.get(target)
+    return remapped === undefined ? [] : [[remapped, curve] as const]
+  }))
 }
 
 export function edgeIdOf(edge: MermaidEdge, idx = 0): string {
@@ -1180,6 +1202,7 @@ function cloneGraph(graph: MermaidGraph): MermaidGraph {
     classAssignments: new Map(graph.classAssignments),
     nodeStyles: new Map(Array.from(graph.nodeStyles, ([k, v]) => [k, { ...v }])),
     linkStyles: new Map(Array.from(graph.linkStyles, ([k, v]) => [k, { ...v }])),
+    ...(graph.linkCurves ? { linkCurves: new Map(graph.linkCurves) } : {}),
   }
 }
 function cloneSubgraph(sg: MermaidGraph['subgraphs'][number]): MermaidGraph['subgraphs'][number] {

@@ -8,15 +8,15 @@ import { executeInSandbox } from '../mcp/sandbox.ts'
 
 const CASES = [
   {
-    source: '---\ntitle: Preserved Swimlane\n---\n%%{init: {"theme":"base"}}%%\n%% keep me\nswimlane-beta\n  opaque { bytes }\n',
+    source: '---\ntitle: Preserved ELK flowchart\n---\n%%{init: {"theme":"base"}}%%\n%% keep me\nflowchart-elk\n  A --> B\n',
     code: 'UNSUPPORTED_FAMILY',
     classification: 'unsupported',
     representation: 'opaque',
-    header: 'swimlane-beta',
-    family: 'swimlane',
+    header: 'flowchart-elk',
+    family: 'flowchart',
   },
   {
-    source: '\uFEFF\n%% untouched\nfutureDiagram-v99\n  opaque { bytes }\n',
+    source: '\uFEFF\n%% untouched\nfutureDiagram-v99\n  A --> B\n',
     code: 'UNKNOWN_HEADER',
     classification: 'unknown',
     representation: 'unknown',
@@ -117,9 +117,9 @@ describe('forward-compatible unregistered family envelopes', () => {
         code: 'UNKNOWN_HEADER',
       },
       {
-        source: 'swimlane&#45;beta\n  opaque { bytes }\n',
-        authoredHeader: 'swimlane&#45;beta',
-        semanticHeader: 'swimlane-beta',
+        source: 'flowchart&#45;elk\n  A --> B\n',
+        authoredHeader: 'flowchart&#45;elk',
+        semanticHeader: 'flowchart-elk',
         code: 'UNSUPPORTED_FAMILY',
       },
     ] as const
@@ -178,7 +178,7 @@ describe('forward-compatible unregistered family envelopes', () => {
   })
 
   test('runtime preservation and diagnostics match the unregistered capability states', () => {
-    const source = 'swimlane-beta\n  lane A\n'
+    const source = 'flowchart-elk\n  A --> B\n'
     expect(UNREGISTERED_FAMILY_CAPABILITY_STATES).toMatchObject({
       detection: 'diagnosed',
       'source-preservation': 'source-preserved',

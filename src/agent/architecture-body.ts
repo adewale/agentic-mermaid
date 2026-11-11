@@ -45,11 +45,6 @@ function normalizeText(value: string): string {
   return value.split(/\r?\n/).map(part => part.trim()).filter(Boolean).join(' ')
 }
 
-/** A label read from source keeps the line breaks a quoted title runs across. */
-function sourceLabel(value: string): string {
-  return value.split(/\r?\n/).map(part => part.trim()).filter(Boolean).join('\n')
-}
-
 /**
  * Parse architecture body lines (header excluded). Returns a structured body
  * only if EVERY non-blank, non-comment line is a modeled group, service,
@@ -97,7 +92,7 @@ export function parseArchitectureBody(
       if (ids.has(id) || (parentId && !groupIds.has(parentId))) return null
       ids.add(id)
       groupIds.add(id)
-      const label = sourceLabel(declared.title)
+      const label = declared.title
       groups.push({ id, label, icon, parentId })
       continue
     }
@@ -109,7 +104,7 @@ export function parseArchitectureBody(
       if (ids.has(id) || (parentId && !groupIds.has(parentId))) return null
       ids.add(id)
       endpointIds.add(id)
-      const label = sourceLabel(declared.title)
+      const label = declared.title
       services.push({ id, label, icon, ...(iconText !== undefined ? { iconText } : {}), parentId })
       continue
     }
@@ -139,7 +134,7 @@ export function parseArchitectureBody(
     if (statement.kind === 'edge') {
       const { edge } = statement
       if (!endpointIds.has(edge.source.id) || !endpointIds.has(edge.target.id)) return null
-      const label = edge.label === undefined ? undefined : sourceLabel(edge.label)
+      const label = edge.label
       if (label && (label.includes('[') || label.includes(']'))) return null
       const endpoint = (value: typeof edge.source): ArchitectureEdge['source'] => ({ id: value.id, side: value.side, ...(value.boundary === 'group' ? { boundary: 'group' as const } : {}) })
       edges.push({ source: endpoint(edge.source), target: endpoint(edge.target), label, hasArrowStart: edge.hasArrowStart, hasArrowEnd: edge.hasArrowEnd })
@@ -289,7 +284,7 @@ function validIcon(value: unknown, field: string): Result<string | undefined, Mu
 
 function normalizeLabel(value: string, field: string): Result<string, MutationError> {
   if (typeof value !== 'string') return err({ code: 'INVALID_OP', message: `Architecture ${field} must be a string` })
-  const normalized = normalizeText(value)
+  const normalized = value.trim()
   // Labels are rendered inside [...]; a bracket would break round-trip.
   if (!normalized || normalized.includes('[') || normalized.includes(']')) {
     return err({ code: 'INVALID_OP', message: `Architecture ${field} must be non-empty and must not contain [ or ]` })

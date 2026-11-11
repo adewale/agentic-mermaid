@@ -100,6 +100,14 @@ export function describeMermaidSource(source: string, opts: DescribeOptions = {}
 export function describeMermaid(d: ParsedDiagram, opts: DescribeOptions = {}): string {
   if (opts.format === 'json') return JSON.stringify(describeMermaidTree(d))
   if (opts.format === 'facts') return describeMermaidFacts(d).join('\n')
+  if (d.body.kind === 'agentflow') return `An AgentFlow diagram with ${d.body.graph.nodes.size} tasks, ${d.body.graph.edges.length} connections and ${d.body.metadata.size} metadata records.`
+  if (d.body.kind === 'usecase') return `A use case diagram with ${d.body.nodes.length} actors and use cases, ${d.body.boundaries.length} boundaries and ${d.body.relationships.length} relationships.`
+  if (d.body.kind === 'wardley') return `A Wardley map with ${d.body.nodes.length} components at authored evolution and visibility coordinates and ${d.body.links.length} dependencies.`
+  if (d.body.kind === 'venn') return `A Venn diagram with ${d.body.subsets.filter(subset => subset.sets.length === 1).length} sets and ${d.body.subsets.filter(subset => subset.sets.length > 1).length} intersections.`
+  if (d.body.kind === 'swimlane') return `A Swimlane diagram with ${d.body.graph.nodes.size} tasks and ${d.body.graph.subgraphs.length} lanes.`
+  if (d.body.kind === 'cynefin') return `A Cynefin diagram with ${d.body.domains.reduce((sum, domain) => sum + domain.items.length, 0)} items in five decision domains and ${d.body.transitions.length} transitions.`
+  if (d.body.kind === 'railroad') return `A railroad grammar in ${d.body.notation} notation with ${d.body.rules.length} ordered rules.`
+  if (d.body.kind === 'treeview') return `A file tree with ${d.body.nodes.length} ordered files and folders.`
   if (d.body.kind === 'flowchart') return describeFlowchart(d as FlowchartValidDiagram)
   if (d.body.kind === 'state') return describeState(d.body)
   if (d.body.kind === 'sequence') return describeSequence(d as SequenceValidDiagram)
@@ -157,7 +165,7 @@ export function describeMermaid(d: ParsedDiagram, opts: DescribeOptions = {}): s
  */
 export function describeMermaidTree(d: ParsedDiagram): DescribeTree {
   const tree: DescribeTree = { kind: d.kind, nodes: [], edges: [], entryPoints: [], sinks: [] }
-  if (d.body.kind === 'flowchart') {
+  if (d.body.kind === 'flowchart' || d.body.kind === 'swimlane' || d.body.kind === 'agentflow') {
     const g = d.body.graph
     const parentOf = flowchartParents(g.subgraphs)
     const visitGroups = (groups: typeof g.subgraphs, parentId?: string): void => {
@@ -172,6 +180,22 @@ export function describeMermaidTree(d: ParsedDiagram): DescribeTree {
       tree.nodes.push({ id: n.id, label: n.label || n.id, ...(parentId ? { parentId } : {}) })
     }
     for (const e of g.edges) tree.edges.push({ from: e.source, to: e.target, label: e.label || undefined, ...treeDirection(arrowheadDirection(e.hasArrowStart, e.hasArrowEnd)) })
+  } else if (d.body.kind === 'usecase') {
+    tree.nodes.push(...d.body.boundaries.map(node => ({ id: node.id, label: node.label ?? node.id })), ...d.body.nodes.map(node => ({ id: node.id, label: node.label ?? node.id, ...(node.parentId ? { parentId: node.parentId } : {}) })))
+    tree.edges.push(...d.body.relationships.map(edge => ({ from: edge.source, to: edge.target, label: edge.label ?? edge.type })))
+  } else if (d.body.kind === 'wardley') {
+    tree.nodes.push(...d.body.nodes.map(node => ({ id: node.id, label: `${node.label} [visibility ${node.y}%, evolution ${node.x}%]` })))
+    tree.edges.push(...d.body.links.map(link => ({ from: link.source, to: link.target, ...(link.label ? { label: link.label } : {}) })))
+  } else if (d.body.kind === 'venn') {
+    tree.nodes.push(...d.body.subsets.map(subset => ({ id: JSON.stringify(subset.sets), label: subset.label ?? subset.sets.join(' ∩ '), value: subset.size })), ...d.body.textNodes.map(node => ({ id: node.id, label: node.label ?? node.id, parentId: JSON.stringify(node.sets) })))
+  } else if (d.body.kind === 'cynefin') {
+    tree.nodes.push(...d.body.domains.flatMap(domain => [{ id: domain.name, label: domain.name }, ...domain.items.map((item,index) => ({ id: `${domain.name}:${index}`, label: item.label, parentId: domain.name }))]))
+    tree.edges.push(...d.body.transitions.map(transition => ({ from: transition.from, to: transition.to, ...(transition.label ? { label: transition.label } : {}) })))
+  } else if (d.body.kind === 'railroad') {
+    tree.nodes.push(...d.body.rules.map((rule, index) => ({ id: `rule#${index}:${rule.name}`, label: rule.name })))
+  } else if (d.body.kind === 'treeview') {
+    tree.nodes.push(...d.body.nodes.map(node => ({ id: node.id, label: node.label, ...(node.parentId ? { parentId: node.parentId } : {}) })))
+    tree.edges.push(...d.body.nodes.flatMap(node => node.parentId ? [{ from: node.parentId, to: node.id }] : []))
   } else if (d.body.kind === 'state') {
     const visit = (states: import('./types.ts').StateNode[], transitions: import('./types.ts').StateTransition[], parentId?: string) => {
       for (const s of states) {

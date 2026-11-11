@@ -1,4 +1,4 @@
-import type { AnyMutationOp, ParsedDiagram, SourceMap, StateBody, StateNode, StateTransition, ValidDiagramMeta } from './types.ts'
+import type { AnyMutationOp, ParsedDiagram, SourceMap, StateBody, StateMutationOp, StateNode, StateTransition, ValidDiagramMeta } from './types.ts'
 import { readStateStatements, matchTransitionLine, matchStateDeclarationLine, matchStereotypeDecl, isConcurrencySeparator, STATE_ALIAS_RE, STATE_COMPOSITE_OPEN_RE, STATE_DESCRIPTION_RE } from '../state/parse-core.ts'
 import { scanStateComments } from '../state/comment.ts'
 import { normalizeMermaidSource } from '../mermaid-source.ts'
@@ -72,13 +72,23 @@ export function rebaseBodyComments(diagram: ParsedDiagram, next: ParsedDiagram['
       if (occurrence === 0) edges.set(pair, target)
     }
   } else if (diagram.body.kind === 'state' && next.kind === 'state') {
+    const stateOp = op as StateMutationOp
     const afterScopes = stateScopes(next)
-    for (const scope of stateScopes(diagram.body)) {
+    const beforeScopes = stateScopes(diagram.body)
+    for (const scope of beforeScopes) {
       const parent = scope.parent === null ? null : rename(scope.parent)
-      const afterScope = afterScopes.find(candidate => candidate.parent === parent && candidate.region === scope.region)
+      let region = scope.region
+      if (op.kind === 'add_region' && op.parent === scope.parent) {
+        const inserted = op.index ?? beforeScopes.filter(candidate => candidate.parent === scope.parent).length
+        if (region >= inserted) region++
+      } else if (op.kind === 'remove_region' && op.parent === scope.parent) {
+        if (region === op.index) continue
+        if (region > op.index) region--
+      }
+      const afterScope = afterScopes.find(candidate => candidate.parent === parent && candidate.region === region)
       if (!afterScope) continue
-      const removed = op.kind === 'remove_transition' && (op.parent ?? null) === scope.parent && (op.region ?? 0) === scope.region
-        ? op.index ?? scope.transitions.findIndex(transition => transition.from === op.from && transition.to === op.to) : -1
+      const removed = stateOp.kind === 'remove_transition' && (stateOp.parent ?? null) === scope.parent && (stateOp.region ?? 0) === scope.region
+        ? stateOp.index ?? scope.transitions.findIndex(transition => transition.from === stateOp.from && transition.to === stateOp.to) : -1
       const beforeOccurrences = new Map<string, number>()
       const afterOccurrences = new Map<string, number>()
       const afterPairs = new Set(afterScope.transitions.map(transition => JSON.stringify([transition.from, transition.to])))
@@ -91,7 +101,7 @@ export function rebaseBodyComments(diagram: ParsedDiagram, next: ParsedDiagram['
         const afterPair = JSON.stringify([from, to])
         const afterOccurrence = afterOccurrences.get(afterPair) ?? 0
         afterOccurrences.set(afterPair, afterOccurrence + 1)
-        edges.set(stateEdgeAnchor(scope.parent, scope.region, transition.from, transition.to, occurrence), stateEdgeAnchor(parent, scope.region, from, to, afterOccurrence))
+        edges.set(stateEdgeAnchor(scope.parent, scope.region, transition.from, transition.to, occurrence), stateEdgeAnchor(parent, region, from, to, afterOccurrence))
       }
     }
   }

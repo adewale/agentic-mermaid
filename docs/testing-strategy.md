@@ -8,10 +8,10 @@ flattering one.
 
 For the *definition* of "good looking" and the determinism guarantees, see
 [`quality.md`](./quality.md). For the layout/visual
-contracts, see [`layout-characterization/README.md`](./layout-characterization/README.md).
+contracts, see [`layout-characterization/README.md`](https://github.com/adewale/agentic-mermaid/blob/f2b3fd0ab50af0841175681f87a0b40090b9c9f5/docs/layout-characterization/README.md).
 The complexity-aware and registry-derived interaction portfolio is implemented
 in `src/__tests__/render-conformance-plan.test.ts` and its helpers. The
-[July migration record](./project/archive/complexity-aware-test-portfolio-plan.md)
+[July migration record](https://github.com/adewale/agentic-mermaid/blob/f2b3fd0ab50af0841175681f87a0b40090b9c9f5/docs/project/archive/complexity-aware-test-portfolio-plan.md)
 is historical; its removed reports and receipts are not current requirements.
 
 ## Local CI parity
@@ -27,20 +27,40 @@ Run `bun run quality:check` to execute the complete GitHub **Quality gates**
 job locally. The command installs the frozen dependency graph and then runs
 the dependency audit, the font-subset, lazy browser-family catalog, and website
 regeneration checks, the whole-corpus audit, lint,
-repository-wide typechecking, and hero freshness (the
+repository-wide typechecking (the
 list is `QUALITY_CHECKS` in `scripts/ci/quality-gates.ts`). The workflow calls
 this same entry point, so the local list and CI list cannot diverge.
 
-The E2E lanes build their own inputs and start alongside unit tests; only the
-final `CI complete` gate waits for every lane. Package manifest and export/type
-checks run after the Node 24 tarball consumer has built the package, rather
-than rebuilding all browser artifacts in a unit shard. Unit shards build only
-the Node bundle. Browser contracts run in two disjoint file shards, retaining
-one test process per file. Payload measurement has its own lane: each site
-build supplies the lazy bundle for comparison, so neither head nor base needs
-a second full package build. Generic PR render evidence is generated on demand
-with `scripts/pr-assets/meaning-preservation-evidence.ts BASE_SHA HEAD_SHA OUT_DIR`;
-automatic rendering of the same fixtures is no longer appended to every PR.
+CI's artifact job builds the portable bundles, website fixture and verified
+tarball once. Unit and E2E lanes consume those artifacts from the same checkout;
+the final `CI complete` gate waits for every selected lane. Package manifest and
+export/type checks inspect the packed artifact without rebuilding it in a unit
+shard. The `browser-site` job runs all canonical browser contracts, with one test
+process per file; the `browser` job runs resolved-scene comparisons. Payload
+measurement reuses the head build and builds the base website separately for
+comparison.
+
+The canonical unit collection is owned by `scripts/ci/unit-test-files.ts` and
+shared with the order finder. `bun run test` prepares website fixtures before
+starting its workers. Focused `bun test <file>` commands build on first use in
+that process. Re-run the command after editing build inputs. For concurrent
+focused commands in one checkout, prepare the fixture once and pass its owning
+checkout explicitly:
+
+```bash
+bun scripts/site/prepare-website-fixture.ts
+AM_WEBSITE_FIXTURE_ROOT="$(pwd -P)" bun test <files> --parallel=2
+```
+
+CI validates transferred fixtures with `--reuse`; `--reuse-lazy` is reserved for
+the artifact producer immediately after its portable bundle build. No source
+fingerprints or persistent freshness sentinels decide whether output is current.
+
+The payload lane retains before/after witnesses for rendering changes; they can
+also be generated on demand with
+`scripts/pr-assets/meaning-preservation-evidence.ts BASE_SHA HEAD_SHA OUT_DIR`.
+Scene comparisons cover the full selected corpus. Comparer fault checks run
+once on the first eligible scene for each case, with progress logged per scene.
 
 Both tarball-consumer lanes also execute the Getting Started commands from the
 built website's shell blocks and `docs/getting-started.md`'s bash fences in fresh
@@ -57,8 +77,8 @@ gates: regenerate one with its `gallery:*` command when the rendering is
 reviewed again. Where an evidence script carried a real assertion, the unit
 suite now runs it against current code (for example the issue #87 link-rank
 gaps and the Section B sheet, which is regenerated in memory and
-byte-compared). Generated runtime modules are the narrow committed exception
-when production code imports them. Other derived discovery views are generated
+byte-compared). Generated runtime modules and published reference documentation are committed
+when one maintained source owns them. Other derived discovery views are generated
 at delivery: `am llms-txt` and the website use current registries, while the
 repository's authored `llms.txt` points readers to those sources. A second
 committed capability roster and its snapshot-freshness test are unnecessary.
@@ -126,12 +146,14 @@ rendering, layout regions and uncached determinism. This closes the former gap
 where a minimal count fixture passed citizenship while richer inputs appeared
 only in the separate rendering portfolio. Source length and node counts do not
 establish representativeness; the interacting domain features do. See the
-[citizenship review contract](./contributing/diagram-family-citizenship.md#representative-examples-are-mandatory).
+[citizenship review contract](https://github.com/adewale/agentic-mermaid/blob/f2b3fd0ab50af0841175681f87a0b40090b9c9f5/docs/contributing/diagram-family-citizenship.md#representative-examples-are-mandatory).
 
 **Runs:** every PR (`bun run test`, including the canonical 30-second per-test budget).
-**Does not prove:** that the diagram is *visually* good. `verify.ok` is
-structural only — stated repeatedly because it has burned us (the Auth
-Flow episode, Loop 15).
+**Does not prove:** that the diagram is *visually* good.
+
+<!-- BEGIN GENERATED: verify-result -->
+`verify.ok` means no unsuppressed error was detected, including measured content occlusion and explicit error policies. It is not a visual-quality or semantic-correctness score.
+<!-- END GENERATED: verify-result -->
 
 ## 2. Derived oracles — goldens and snapshots
 
@@ -157,6 +179,13 @@ Chromium/server hooks cannot overlap and exhaust a constrained hosted runner. Th
 package and CI both invoke `e2e/run-browser-contracts.ts`, whose canonical file
 list also fails if any contract executes zero positive tests, while independent
 lanes run the CLI/single-binary, dist-artifact, and tarball-consumer suites.
+Bundle receipt comparisons run their source reference in a fresh production
+process. Launching a browser test from the repository root loads the unit-test
+preload, which forces Scene assertions before source imports; the browser uses
+the production native path. Comparing those different evidence paths produces
+false receipt mismatches in work counts and viewport precision. Keep full receipt
+equality, diagnostics and parser locations, and compare explicit strict layout
+safety separately, including its refusal of conditional paint.
 Broad contact-sheet rendering is periodic/triggered rather than a per-PR sweep.
 Human review is recommended for visual releases, but it is advisory rather than
 a package-publication gate.
@@ -205,6 +234,10 @@ beautiful. Inspect the current planner, verifier and actual assertions for the
 retained obligations; there is no published candidate report to serve as a gate.
 
 ## 3. Derived oracles — differential corpora
+
+The [correctness policy](https://github.com/adewale/agentic-mermaid/blob/3937fed6cb651914a70da6c8a6ecbda6f8cf181d/docs/project/correctness-policy.md) explains how differences
+found by these oracles become product fixes or deliberate divergences. Keep
+the original comparison results visible in either case.
 
 The strongest defense against our own blind spots is testing against
 sources we did not write:
@@ -320,7 +353,7 @@ reference projections to close that gap for the covered behavior.
 **Runs:** every PR (corpus + seqbench + upstream-suite ratchet); a separate CI
 job installs the pinned modern reference for the selected semantic gate when
 its code inputs change. Its broader
-[`eval/mermaid-modern-compat`](../eval/mermaid-modern-compat/README.md) runner
+[`eval/mermaid-modern-compat`](https://github.com/adewale/agentic-mermaid/blob/f2b3fd0ab50af0841175681f87a0b40090b9c9f5/eval/mermaid-modern-compat/README.md) runner
 reports documentation coverage across every modern core family, including
 unsupported families. Optional extracted spec literals and seeded mutations
 remain diagnostic seed corpora. Extracted test titles, CSS fragments and empty
@@ -492,22 +525,14 @@ mistake. Do not silently trim a generator or relax an assertion after it fails.
 Tests can be green while missing faults. The red-green-refactor cycle is the
 defence: write the test, watch it fail for the right reason, then fix.
 
-- **Red → green** (`scripts/ci/red-green.ts`, the `red-green` CI job) — when a
-  pull request changes production source and tests, at least one changed test
-  must produce an assertion failure attributed to a test location against base
-  production. Missing imports, non-assertion setup errors, unlocated suite-hook
-  assertions, timeouts and aborted runners are not
-  behavioral evidence; the gate reads the pinned Bun runner's JUnit report.
-  Unexpected production exceptions need an explicit `toThrow` / `not.toThrow`
-  assertion. This mechanically
-  checks the "tests that fail when the fix is reverted" rule for every PR,
-  instead of a hand-written probe per fix. Pure refactors opt out with the
-  `no-red-green` label. Like `payload-growth-approved`, it approves only the
-  head it was applied to (`scripts/ci/label-approval.ts`): CI ignores a label
-  applied before the latest push and removes it when new commits arrive.
-  Bun's JUnit report cannot distinguish located per-test hook assertions from
-  test-body assertions. Review their meaning: this gate is fault evidence, not
-  a substitute for auditing whether each assertion exercises production behavior.
+- **Red → green** is evidence for a bug fix, not a universal PR formality.
+  Run `bun scripts/ci/red-green.ts --base <sha>` when comparing changed tests
+  with base production helps demonstrate the intended regression. It is an
+  opt-in diagnostic: missing imports, setup failures, timeouts and aborted
+  runners do not count as behavioral evidence. A located assertion failure
+  still needs review; one unrelated red test cannot establish coverage for all
+  changed contracts. Refactors preserve behavior and need no failing-base
+  assertion or approval label.
 
 **Why this matters:** line coverage is collected weekly and on manual dispatch
 by `coverage.yml`, as one merged LCOV artifact assembled from three unit shards.
@@ -547,7 +572,7 @@ This is where we approximate aesthetics deterministically:
   registered style, rasterized by resvg: WCAG contrast against the pixels
   around its glyphs, glyphs on the canvas, authored text drawn or reported by
   `verify`, and the same reading in every style
-  ([`design/system/chart-honesty.md`](design/system/chart-honesty.md)).
+  ([`design/system/chart-honesty.md`](https://github.com/adewale/agentic-mermaid/blob/f2b3fd0ab50af0841175681f87a0b40090b9c9f5/docs/design/system/chart-honesty.md)).
 
 **Runs:** `measureQuality`, ugly-detector, the layout rubric, the
 heuristic-tracker ratchet, and the chart-honesty oracle all gate per PR.
@@ -588,28 +613,22 @@ threads a golden anchor (reference-guided scoring).
 `ci.yml` is the source of truth for what gates each PR — read it rather than a
 table here, which would drift. In broad strokes:
 
-- **Per-PR (`ci.yml`):** the three-shard unit/property suite (`bun run test`) —
-  Tier-1 verify, goldens, the differential + faithfulness + metamorphic gates,
-  `measureQuality`/whole-corpus ugly-detector/layout-rubric, the heuristic-tracker ratchet,
-  the corpus/seqbench/upstream benches — plus the high/critical dependency audit,
-  type check, the hero check, the parallel browser/CLI/binary/fuzz e2e matrix (whose
-  browser lane checks route payload budgets and, on pull requests, the gzip
-  delta against the base branch built on the same runner), and the
-  red → green changed-test check. Each unit shard runs its files with
-  `--parallel=2` (isolated worker processes), so a test file cannot depend on
-  another file's imports. CI prepares the shared website fixture in a separate
-  two-minute step before starting those workers, so parallel consumers reuse
-  a completed build instead of competing to generate it. A final `CI complete` job waits for the required
-  test aggregate, every E2E matrix job and red → green, providing one
-  protectable result that cannot turn green early.
+- **Per change (`ci.yml`):** recognized Markdown-only edits run documentation,
+  executable-example and website checks. Other changes and manual dispatches run
+  full runtime qualification. Compatible consumers reuse built artifacts; native
+  builds and independent installations retain their own contracts. Required
+  checks must pass; additional passing checks do not invalidate the run.
+- **Layout review:** relevant PR changes select the advisory image and generated
+  layout campaigns. A full manual dispatch can request them with `layout_evidence`.
+- **Release and deployment:** follow the [release guide](https://github.com/adewale/agentic-mermaid/blob/f2b3fd0ab50af0841175681f87a0b40090b9c9f5/docs/contributing/releasing.md)
+  for full qualification and the distinction between CI success and delivery.
 - **Weekly (`contract-discovery.yml`):** one bounded model/grammar discovery job;
   findings remain replay artifacts for human triage, without automated issues.
-- **Per deploy (`deploy-cloudflare.yml`, release to-do):** when the deploy
-  skips because `package.json` names a version that is not on npm, it opens
-  one `release-todo` issue for that version, and a verified deploy of the
-  version closes it (`scripts/ci/release-todo.ts`, tested with a fake `gh` in
-  `release-todo.test.ts`). It adds no schedule and never fails a run. **Does
-  not prove:** what production serves; it only reports the skip.
+- **Per deploy (`deploy-cloudflare.yml`):** an unpublished package version
+  skips deployment with a warning and Actions summary. It opens no issues.
+  Verified promotion can close an existing release-to-do issue. Candidate
+  website/MCP probes, production identity checks and rollback protect actual
+  promotion; a green skipped workflow is not deployment evidence.
 - **Local performance campaigns:** benchmark suites are excluded from CI,
   scheduled workflows, hosted manual Actions and publication dependencies.
   `bun run bench:release` retains the matched Node corpus, scaling, agent edit,
@@ -619,7 +638,7 @@ table here, which would drift. In broad strokes:
   tests live in [Trident](https://github.com/adewale/trident) and run through `bun run bench:test`.
   Normal product correctness, distribution and pinned-Mermaid semantic tests
   remain CI gates. See [Trident](https://github.com/adewale/trident/blob/main/README.md), its
-  [unified runner](https://github.com/adewale/trident/blob/main/unified/README.md) and [the launcher](../eval/trident/README.md) for invocation coverage,
+  [unified runner](https://github.com/adewale/trident/blob/main/unified/README.md) and [the launcher](https://github.com/adewale/agentic-mermaid/blob/f2b3fd0ab50af0841175681f87a0b40090b9c9f5/eval/trident/README.md) for invocation coverage,
   project updates and explicit gaps.
 - **Normal local benchmarks:** `bun run bench` runs the bounded unified smoke
   profile; `bun run bench:all` selects the full maintained catalog.
@@ -706,7 +725,10 @@ table here, which would drift. In broad strokes:
   font/Canvas callback and transfers an allocation-bounded copy of its bytes
   back for canonical PNG validation. Callback buffers are never detached.
   One operation is active, with one replaceable preview and four queued exports;
-  source/config changes cancel stale work, including a PNG awaiting font/Canvas
+  waiting exports share a 16 MiB payload residency estimate, while preview
+  admission has a separate 12 MiB estimate. These are admission estimates, not
+  process heap limits.
+  Source/config changes cancel stale work, including a PNG awaiting font/Canvas
   I/O, so a new preview can proceed. Timeouts and crashes reject all waiters and
   the next operation starts a fresh worker.
 
@@ -838,7 +860,7 @@ boundaries where TypeScript cannot enforce the wire contract.
 
 The dated provenance and prevention analysis, including the reviews of PRs
 #157 and #160, is recorded in
-[`project/agent-interface-contract-audit-2026-07.md`](./project/agent-interface-contract-audit-2026-07.md).
+[`project/agent-interface-contract-audit-2026-07.md`](https://github.com/adewale/agentic-mermaid/blob/f2b3fd0ab50af0841175681f87a0b40090b9c9f5/docs/project/agent-interface-contract-audit-2026-07.md).
 
 The validation rule for future cross-surface changes is: enumerate every
 public consumer first, then require at least one non-vacuous proof at the

@@ -24,12 +24,16 @@ import { flowchartSubgraphs } from '../eval/shared/graph-fixtures.ts'
 
 import { describe, test, expect, beforeAll, afterAll } from 'bun:test'
 import { spawnSync } from 'node:child_process'
+import { deserialize } from 'node:v8'
+import { inflateRawSync } from 'node:zlib'
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 import { chromium, firefox, webkit, type Browser, type Page, type Route } from 'playwright'
 import { BUILTIN_FAMILY_METADATA } from '../src/agent/families.ts'
-import { registerStyle, resolveStyleStack, renderMermaidSVG, renderMermaidSVGWithReceipt, sharedRenderOptionsJsonSchema } from '../src/index.ts'
+import { registerStyle, resolveStyleStack, renderMermaidSVG, sharedRenderOptionsJsonSchema, type RenderOptions } from '../src/index.ts'
+import { useTestChildren } from '../src/__tests__/helpers/test-child.ts'
 import { serveWithAvailablePort } from './test-port.ts'
+import { compareScenes } from '../scripts/resolved-scene-oracle.ts'
 
 const REPO = join(import.meta.dir, '..')
 const BUNDLE = join(REPO, 'dist', 'browser.global.js')
@@ -40,6 +44,46 @@ const ZENUML_FRAME = join(REPO, 'dist', 'zenuml-frame.global.js')
 const BUILD_TIMEOUT_MS = 300_000
 /** The IIFE's `globalName`. Changing it is a breaking change for script-tag consumers. */
 const GLOBAL = 'agenticMermaid'
+const runSourceChild = useTestChildren(30_000)
+
+/** The root unit-test preload forces Scene assertions before source imports.
+ * Compare the shipped browser against a fresh production source realm instead;
+ * explicit layoutSafety options still select their requested evidence path. */
+type SourceSVG = ReturnType<typeof import('../src/index.ts').renderMermaidSVGWithReceipt>
+type SourceSVGResult = { rendered: SourceSVG; diagnostics: unknown[] } | { error: unknown }
+async function sourceSVGsWithReceipts(inputs: readonly { source: string; options?: Omit<RenderOptions, 'onConfigDiagnostic'> }[]): Promise<SourceSVGResult[]> {
+  const child = await runSourceChild(process.execPath, ['--eval', `
+    const { serialize } = await import('node:v8')
+    const { deflateRawSync } = await import('node:zlib')
+    const { renderMermaidSVGWithReceipt } = await import('./src/index.ts')
+    const inputs = JSON.parse(await Bun.stdin.text())
+    const output = inputs.map(({ source, options }) => {
+      try {
+        const diagnostics = []
+        const rendered = renderMermaidSVGWithReceipt(source, {
+          ...options, onConfigDiagnostic: value => diagnostics.push(value),
+        })
+        return { rendered, diagnostics }
+      } catch (error) {
+        return { error, errorFields: error instanceof Error ? { ...error, name: error.name } : undefined }
+      }
+    })
+    process.stdout.write(deflateRawSync(serialize(output)).toString('base64'))
+  `], { cwd: REPO, env: { ...process.env, AGENTIC_MERMAID_SCENE_ASSERTIONS: '0' }, input: JSON.stringify(inputs) })
+  expect(child.status, child.stderr).toBe(0)
+  expect(child.signal).toBeNull()
+  // Keep optional undefined fields and full-precision numbers in the reference.
+  const results: (SourceSVGResult & { errorFields?: object })[] = deserialize(inflateRawSync(Buffer.from(child.stdout, 'base64')))
+  for (const result of results) if ('error' in result && result.errorFields) Object.assign(result.error as object, result.errorFields)
+  return results
+}
+
+async function sourceSVGWithReceipt(source: string, options: Omit<RenderOptions, 'onConfigDiagnostic'> = {}, diagnostics?: unknown[]): Promise<SourceSVG> {
+  const result = (await sourceSVGsWithReceipts([{ source, options }]))[0]!
+  if ('error' in result) throw result.error
+  diagnostics?.push(...result.diagnostics)
+  return result.rendered
+}
 
 // Exercise the vocabulary whose documentation prose is omitted only from the
 // lazy build. Authored labels/accessibility and executable shape metadata must
@@ -168,6 +212,38 @@ describe('browser bundle', () => {
     expect(schema).toEqual(sharedRenderOptionsJsonSchema())
   })
 
+  test.each([
+    { name: 'closed path reversed', d: 'M10 10h95v47h-95Z', other: 'M105 57V10H10V57Z', dash: [7, 5], equal: false },
+    { name: 'closed path rotated', d: 'M10 10h95v47h-95Z', other: 'M105 57H10V10H105Z', dash: [7, 5], equal: false },
+    { name: 'open path reversed', d: 'M10 10H105', other: 'M105 10H10', dash: [7, 5], equal: false },
+    { name: 'commands rewritten', d: 'M10 10h95v47h-95Z', other: 'M10 10L105 10L105 57L10 57Z', dash: [7, 5], equal: true },
+    { name: 'symmetric dashes reversed', d: 'M10 10H29', other: 'M29 10H10', dash: [7, 5], equal: true },
+    { name: 'subpaths reordered', d: 'M10 10h19M10 30h17', other: 'M10 30h17M10 10h19', dash: [7, 5], equal: true },
+    { name: 'subpath dashes reversed', d: 'M10 10h19M10 30h17', other: 'M29 10H10M27 30H10', dash: [7, 5], equal: false },
+    { name: 'offset dashes reversed', d: 'M10 10H105', other: 'M105 10H10', dash: [7, 5], offset: 3, equal: false },
+    { name: 'round caps reversed', d: 'M10 10H105', other: 'M105 10H10', dash: [7, 5], cap: 'round', equal: false },
+    { name: 'nonuniform transform', d: 'M10 10h95v47h-95Z', other: 'M105 57V10H10V57Z', dash: [7, 5], sx: 2, sy: 0.5, equal: false },
+    { name: 'solid path reversed', d: 'M10 10h95v47h-95Z', other: 'M105 57V10H10V57Z', dash: [], equal: true },
+    { name: 'zero dash array', d: 'M10 10h95v47h-95Z', other: 'M105 57V10H10V57Z', dash: [0, 0], equal: true },
+  ])('resolved-scene comparer checks painted dashes: $name', async ({ d, other, dash, equal, offset = 0, cap = 'butt', sx = 1, sy = 1 }) => {
+    const reference: Parameters<typeof compareScenes>[1] = {
+      version: 2, family: 'flowchart', width: 240, height: 140, svg: '', colors: {}, parts: [],
+      frame: [{
+        kind: 'path', d, matrix: [sx, 0, 0, sy, 4, 3],
+        paint: {
+          fill: 'none', fillOpacity: 1, stroke: '#000000', strokeOpacity: 1, strokeWidth: 2,
+          opacity: 1, lineCap: cap, lineJoin: 'miter', miterLimit: 4, fillRule: 'nonzero',
+          paintOrder: 'normal', dashArray: [...dash], dashOffset: offset,
+        },
+      }],
+    }
+    const candidate = structuredClone(reference)
+    if (candidate.frame[0]!.kind === 'path') candidate.frame[0]!.d = other
+    const differences = await compareScenes(page, candidate, reference)
+    if (equal) expect(differences, `${d} vs ${other}`).toEqual([])
+    else expect(differences, `${d} vs ${other}`).not.toEqual([])
+  })
+
   test.each(['elk', 'agentic'] as const)('IIFE preserves shape metadata SVG, receipt and diagnostics (%s)', async backend => {
     for (const input of SHAPE_METADATA_PARITY_CASES) {
       const options = {
@@ -183,9 +259,7 @@ describe('browser bundle', () => {
         return { svg: rendered.svg, receipt: JSON.parse(JSON.stringify(rendered.receipt)), diagnostics }
       }, { name: GLOBAL, source: input.source, options })
       const diagnostics: unknown[] = []
-      const expected = renderMermaidSVGWithReceipt(input.source, {
-        ...options, onConfigDiagnostic: value => diagnostics.push(value),
-      })
+      const expected = await sourceSVGWithReceipt(input.source, options, diagnostics)
       expect(diagnostics.length, `${input.name} must exercise config diagnostics`).toBeGreaterThan(0)
       expect(actual, input.name).toEqual({ svg: expected.svg, receipt: JSON.parse(JSON.stringify(expected.receipt)), diagnostics })
     }
@@ -476,22 +550,36 @@ describe('async family-loaded browser renderer', () => {
     }, BUILD_TIMEOUT_MS)
   }
 
-  test.each([undefined, 'hand-drawn', 'watercolor'] as const)('renders every family with exact strict-mode parity (%s)', async style => {
+  test.each([
+    { name: 'default', options: {} },
+    { name: 'hand-drawn', options: { style: 'hand-drawn' } },
+    { name: 'watercolor', options: { style: 'watercolor' } },
+    { name: 'strict layout safety', options: { layoutSafety: 'strict' } },
+  ] as const)('renders every family with exact strict-mode parity ($name)', async ({ options }) => {
     const page = await browser.newPage()
     try {
       await page.goto(`${base}/blank.html`)
-      for (const family of BUILTIN_FAMILY_METADATA) {
-        const result = await page.evaluate(async ([entryUrl, source, style]) => {
+      const references = await sourceSVGsWithReceipts(BUILTIN_FAMILY_METADATA.map(family => ({ source: family.example, options: { security: 'strict', ...options } })))
+      for (const [index, family] of BUILTIN_FAMILY_METADATA.entries()) {
+        const result = await page.evaluate(async ([entryUrl, source, options]) => {
           try {
             const api = await import(entryUrl)
-            const result = await api.renderMermaidSVGWithReceiptAsync(source, { security: 'strict', ...(style ? { style } : {}) })
+            const result = await api.renderMermaidSVGWithReceiptAsync(source, { security: 'strict', ...options })
             return { svg: result.svg, receipt: result.receipt, error: null }
           } catch (error) {
             return { svg: null, receipt: null, error: String(error) }
           }
-        }, [`${base}/dist/browser-lazy/index.js`, family.example, style] as const)
+        }, [`${base}/dist/browser-lazy/index.js`, family.example, options] as const)
+        const reference = references[index]!
+        if ('error' in reference) {
+          // Strong safety may refuse conditional paint, and must retain that
+          // refusal rather than silently falling back to production evidence.
+          if (!('layoutSafety' in options)) throw reference.error
+          expect(result, family.id).toEqual({ svg: null, receipt: null, error: String(reference.error) })
+          continue
+        }
         expect(result.error, `${family.id} threw in the async browser entry`).toBeNull()
-        const expected = renderMermaidSVGWithReceipt(family.example, { security: 'strict', ...(style ? { style } : {}) })
+        const expected = reference.rendered
         expect(result.svg).toBe(expected.svg)
         expect(result.receipt).toEqual(expected.receipt)
       }
@@ -513,7 +601,7 @@ describe('async family-loaded browser renderer', () => {
     try {
       await page.goto(`${base}/blank.html`)
       const authored = { style: { blurb: 'Authored runtime style metadata', colors: { accent: '#0055AA' } } }
-      const expected = renderMermaidSVGWithReceipt('flowchart TD\nA --> B', authored)
+      const expected = await sourceSVGWithReceipt('flowchart TD\nA --> B', authored)
       const rendered = await page.evaluate(async ({ entryUrl, options }) => {
         const api = await import(entryUrl)
         return api.renderMermaidSVGWithReceiptAsync('flowchart TD\nA --> B', options)
@@ -553,9 +641,7 @@ describe('async family-loaded browser renderer', () => {
           return { svg: rendered.svg, receipt: JSON.parse(JSON.stringify(rendered.receipt)), diagnostics }
         }, { entryUrl: `${base}/dist/browser-lazy/index.js`, source: input.source, options })
         const diagnostics: unknown[] = []
-        const expected = renderMermaidSVGWithReceipt(input.source, {
-          ...options, onConfigDiagnostic: value => diagnostics.push(value),
-        })
+        const expected = await sourceSVGWithReceipt(input.source, options, diagnostics)
         expect(diagnostics.length, `${input.name} must exercise config diagnostics`).toBeGreaterThan(0)
         expect(actual, input.name).toEqual({ svg: expected.svg, receipt: JSON.parse(JSON.stringify(expected.receipt)), diagnostics })
         if (input.name === 'authored descriptions') {
@@ -684,6 +770,95 @@ describe('async family-loaded browser renderer', () => {
     }
   })
 
+  test.each(['elk', 'agentic'] as const)('%s preserves opt-in layout evidence and font metrics across dependency replay', async backend => {
+    const page = await browser.newPage()
+    const requests: string[] = []
+    page.on('request', request => requests.push(new URL(request.url()).pathname.replace(/^\/dist\//, '')))
+    const source = 'flowchart TD\nA[One]\nB[Two]\nC[Three]\nD[Four]\nA --> D\nB --> C'
+    const options = { security: 'strict' as const, fontMetrics: 'bundled-inter' as const,
+      graphLayout: { backend, quality: 'balanced' as const, viewport: { width: 800, height: 600 } } }
+    try {
+      await page.goto(`${base}/blank.html`)
+      await page.evaluate(async ({ entry, source, backend }) => {
+        const api = await import(entry)
+        await api.renderMermaidSVGWithReceiptAsync(source, { security: 'strict', graphLayout: { backend } })
+      }, { entry: `${base}/dist/browser-lazy/index.js`, source, backend })
+      const fontChunk = lazyImplementationChunk('src/inter-metrics-data.ts')
+      const optionalChunk = lazyImplementationChunk('src/layout/optimization-budget.ts')
+      expect(requests).not.toContain(fontChunk)
+      expect(requests).not.toContain(optionalChunk)
+      // Same source and explicit producer as the measured main-branch ceiling.
+      expect(requests.filter(path => path.endsWith('.js')).length).toBeLessThanOrEqual(backend === 'elk' ? 35 : 37)
+      await page.evaluate(async ({ entry, source, options, backend }) => {
+        const api = await import(entry)
+        const selected = backend === 'elk'
+          ? { security: 'strict', fontMetrics: 'bundled-inter', graphLayout: { backend } }
+          : { security: 'strict', graphLayout: options.graphLayout }
+        await api.renderMermaidSVGWithReceiptAsync(source, selected)
+      }, { entry: `${base}/dist/browser-lazy/index.js`, source, options, backend })
+      expect(requests.filter(path => path === fontChunk)).toHaveLength(backend === 'elk' ? 1 : 0)
+      expect(requests.filter(path => path === optionalChunk)).toHaveLength(backend === 'agentic' ? 1 : 0)
+      const actual = await page.evaluate(async ({ entry, source, options }) => {
+        const api = await import(entry)
+        const cold = await api.renderMermaidSVGWithReceiptAsync(source, options)
+        const warm = await api.renderMermaidSVGWithReceiptAsync(source, options)
+        return { cold, warm }
+      }, { entry: `${base}/dist/browser-lazy/index.js`, source, options })
+      const expected = await sourceSVGWithReceipt(source, options)
+      expect(expected.receipt.layoutOptimization).toBeDefined()
+      expect(actual.cold.svg).toBe(expected.svg)
+      expect(actual.cold.receipt.layoutOptimization).toEqual(JSON.parse(JSON.stringify(expected.receipt.layoutOptimization)))
+      expect(actual.cold.receipt.textMeasurement).toEqual(expected.receipt.textMeasurement)
+      expect(actual.cold.receipt.layoutCertification?.status).toBe('passed')
+      expect(actual.warm.svg).toBe(expected.svg)
+      expect(actual.warm.receipt.textMeasurement).toEqual(expected.receipt.textMeasurement)
+      expect(actual.warm.receipt.requestDigest).toBe(actual.cold.receipt.requestDigest)
+      expect(actual.warm.receipt.layoutCertification?.status).toBe('passed')
+      expect(actual.warm.receipt.layoutOptimization.additionalProducerCalls).toBeLessThanOrEqual(2)
+      expect(requests.filter(path => path === fontChunk)).toHaveLength(1)
+      expect(requests.filter(path => path === optionalChunk)).toHaveLength(1)
+    } finally { await page.close() }
+  })
+
+  test('loads authored positions only on demand and preserves cold and warm errors', async () => {
+    const page = await browser.newPage()
+    const requests: string[] = []
+    const source = '---\ntitle: Broken\n---\n\n%% comment\nflowchart TD\n\n  B --> [oops'
+    page.on('request', request => requests.push(new URL(request.url()).pathname.replace(/^\/dist\//, '')))
+    try {
+      await page.goto(`${base}/blank.html`)
+      await page.evaluate(async entry => {
+        const api = await import(entry)
+        await api.renderMermaidSVGWithReceiptAsync('flowchart TD\nA --> B', { security: 'strict' })
+      }, `${base}/dist/browser-lazy/index.js`)
+      const positions = lazyImplementationChunk('src/shared/parser-source.ts')
+      expect(requests.filter(path => path === positions)).toHaveLength(0)
+      const actual = await page.evaluate(async ({ entry, source }) => {
+        const api = await import(entry)
+        const errors = []
+        for (let attempt = 0; attempt < 2; attempt++) {
+          try { await api.renderMermaidSVGWithReceiptAsync(source, { security: 'strict' }) } catch (error) {
+            const located = error as Error & { line?: number; column?: number; diagramType?: string }
+            errors.push({ error: String(error), line: located.line, column: located.column, diagramType: located.diagramType })
+          }
+        }
+        const recovered = await api.renderMermaidSVGWithReceiptAsync('flowchart TD\nA --> B', { security: 'strict' })
+        return { errors, recovered }
+      }, { entry: `${base}/dist/browser-lazy/index.js`, source })
+      let expected
+      try { await sourceSVGWithReceipt(source, { security: 'strict' }) } catch (error) {
+        const located = error as Error & { line?: number; column?: number; diagramType?: string }
+        expected = { error: String(error), line: located.line, column: located.column, diagramType: located.diagramType }
+      }
+      if (!expected) throw new Error('Expected synchronous parser failure')
+      expect(expected).toMatchObject({ line: 8, column: 9, diagramType: 'flowchart' })
+      expect(actual.errors).toEqual([expected, expected])
+      expect(actual.recovered.svg).toBe((await sourceSVGWithReceipt('flowchart TD\nA --> B', { security: 'strict' })).svg)
+      expect(actual.recovered.receipt.layoutCertification?.status).toBe('passed')
+      expect(requests.filter(path => path === positions)).toHaveLength(1)
+    } finally { await page.close() }
+  })
+
   for (const [syntax, source] of [
     ['init directive', '%%{init: {"theme": "base"}}%%\nsequenceDiagram\n  Alice->>Bob: Configured'],
     ['flowchart metadata', 'flowchart LR\n  A@{ shape: rect, label: "Meta &amp; data" } --> B'],
@@ -707,7 +882,7 @@ describe('async family-loaded browser renderer', () => {
         }, [`${base}/dist/browser-lazy/index.js`, source] as const)
         let expected
         try {
-          const result = renderMermaidSVGWithReceipt(source, { security: 'strict' })
+          const result = await sourceSVGWithReceipt(source, { security: 'strict' })
           expected = { svg: result.svg, receipt: result.receipt }
         } catch (error) { expected = { error: String(error) } }
         expect(actual).toEqual(expected)
@@ -741,7 +916,7 @@ describe('async family-loaded browser renderer', () => {
         return { svg: rendered.svg, receipt: JSON.parse(JSON.stringify(rendered.receipt)), diagnostics }
       }, { entry: `${base}/dist/browser-lazy/index.js`, source, options })
       const diagnostics: unknown[] = []
-      const expected = renderMermaidSVGWithReceipt(source, { ...options, onConfigDiagnostic: value => diagnostics.push(value) })
+      const expected = await sourceSVGWithReceipt(source, options, diagnostics)
       expect(result).toEqual({ svg: expected.svg, receipt: JSON.parse(JSON.stringify(expected.receipt)), diagnostics })
       expect(requests.filter(path => path === lazyImplementationChunk())).toHaveLength(fallback ? 1 : 0)
       expect(requests.filter(path => path === lazyImplementationChunk('/layout/agentic-layered-core.ts'))).toHaveLength(1)
@@ -776,7 +951,7 @@ describe('async family-loaded browser renderer', () => {
         const result = await api.renderMermaidSVGWithReceiptAsync(source, options)
         return { svg: result.svg, receipt: result.receipt }
       }, { entry: `${base}/dist/browser-lazy/index.js`, source, options })
-      const expected = renderMermaidSVGWithReceipt(source, options)
+      const expected = await sourceSVGWithReceipt(source, options)
       expect(recovered).toEqual({ svg: expected.svg, receipt: expected.receipt })
       expect(attempts).toBe(2)
       expect(requests).not.toContain(lazyImplementationChunk())

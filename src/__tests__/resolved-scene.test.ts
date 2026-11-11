@@ -9,6 +9,19 @@ import raynerGroups from './testdata/rayner-528/architecture-groups.json'
 import { createScenePartCapture } from '../scene/part-capture.ts'
 
 describe('renderResolvedScene', () => {
+  test('Venn resolves the requested accent beside authored fill and retains lossless JSON paint', () => {
+    const source = 'venn-beta\nset A["Authored fill"]:20\nset B["Requested accent"]:12\nunion A,B["Shared"]:3\nstyle A fill:#e2e8f0'
+    for (const accent of ['#2b6cb0', '#b83280']) {
+      const options = { accent, bg: '#ffffff', fg: '#102030', seed: 7 }
+      const result = renderResolvedScene(source, options)
+      expect(result.svg).toBe(renderMermaidSVG(source, options))
+      const pathPaint = (id: string) => result.parts.find(part => part.id === id)?.primitives.find(primitive => primitive.kind === 'path')?.paint
+      expect(pathPaint('A')).toMatchObject({ fill: '#e2e8f0', fillOpacity: 0.16 })
+      expect(pathPaint('B')).toMatchObject({ fill: accent, fillOpacity: 0.16 })
+      expect(result).toEqual(JSON.parse(JSON.stringify(result)))
+    }
+  })
+
   test.each([...raynerTitles, ...raynerGroups])('keeps original Rayner $id as a resolved-scene acceptance case', ({ source, style }) => {
     const result = renderResolvedScene(source, { style })
     expect(result.svg).toBe(renderMermaidSVG(source, { style }))
@@ -143,6 +156,13 @@ describe('resolved SVG values', () => {
     expect(primitives[1]).toMatchObject({ kind: 'text', text: 'Shown', paint: { fill: '#ff0000' } })
   })
 
+  test('copies an omitted corner radius before clamping each rectangle axis', () => {
+    // Native Chromium fill for width 20, height 30, rx 12 retains ry=12,
+    // while limiting rx to 10. Copying the limited rx would change its ink.
+    const [rounded] = resolve('<svg><rect width="20" height="30" rx="12" /></svg>')
+    expect(rounded).toMatchObject({ kind: 'path', d: 'M10 0H10A10 12 0 0 1 20 12V18A10 12 0 0 1 10 30H10A10 12 0 0 1 0 18V12A10 12 0 0 1 10 0Z' })
+  })
+
   test('keeps rem relative to the initial document font while em follows each element', () => {
     const [rect, text] = resolve('<svg font-size="20"><rect width="1rem" height="1em" /><text x="1rem" y="1em" font-size="10">Units</text></svg>')
     expect(rect).toMatchObject({ kind: 'path', d: 'M0 0h16v20h-16Z' })
@@ -200,6 +220,23 @@ describe('resolved SVG values', () => {
     expect(primitives[4]).toMatchObject({ kind: 'text', text: 'Two', x: 8, y: 27, paint: { fill: '#ff0000' } })
   })
 
+  test('keeps diagonal marker rotation aligned with float-distance endpoint samples', () => {
+    // Chromium SVGGeometryElement returns endpoint (572,306.8671569824219)
+    // and the point 0.1 units before it (571.90625,306.832275390625).
+    const primitives = resolve(`<svg><defs><marker id="tip" orient="auto"
+      markerUnits="userSpaceOnUse" markerWidth="8" markerHeight="8" viewBox="0 0 8 8" refX="0" refY="0">
+      <path d="M0 0L8 4L0 8Z" />
+    </marker></defs><polyline points="274,195.932846715 572,306.867153285" marker-end="url(#tip)" /></svg>`)
+    const marker = primitives[1]!
+    expect(marker).toMatchObject({ marker: true })
+    const dx = 572 - 571.90625, dy = 306.8671569824219 - 306.832275390625
+    const length = Math.hypot(dx, dy)
+    expect(marker.matrix[0]).toBeCloseTo(dx / length, 12)
+    expect(marker.matrix[1]).toBeCloseTo(dy / length, 12)
+    expect(marker.matrix[2]).toBeCloseTo(-dy / length, 12)
+    expect(marker.matrix[3]).toBeCloseTo(dx / length, 12)
+  })
+
   test('matches Chromium marker orientation for nearly vertical fractional routes', () => {
     const primitives = resolve(`<svg><defs><marker id="tip" orient="auto-start-reverse">
       <path d="M0 0L12 5L0 10Z" />
@@ -222,4 +259,27 @@ describe('resolved SVG values', () => {
   ])('names the owning part and refused %s feature', (feature, fragment) => {
     expect(() => resolve(`<svg>${fragment}</svg>`)).toThrow(new RegExp(`owned-ink.*${feature}`))
   })
+})
+
+
+test('unsupported resolved artwork exposes a stable code, part and feature', () => {
+  try {
+    renderResolvedScene('flowchart LR\n A --> B', { shadow: true })
+    throw new Error('expected refusal')
+  } catch (error) {
+    expect(error).toMatchObject({ code: 'RESOLVED_SCENE_UNSUPPORTED_ARTWORK', partId: 'node:A', feature: 'filter' })
+    expect((error as Error).message).toMatch(/part.*A.*filter/)
+  }
+})
+
+
+test('gradient refusal carries the consuming part and paint-server feature', () => {
+  const source = readFileSync(new URL('../../eval/layout-compare/fixtures/sankey-basic.mmd', import.meta.url), 'utf8')
+  const ordinary = renderMermaidSVG(source)
+  try { renderResolvedScene(source); throw new Error('expected gradient refusal') }
+  catch (error) {
+    expect(error).toMatchObject({ code: 'RESOLVED_SCENE_UNSUPPORTED_ARTWORK', feature: 'paint-server' })
+    expect((error as {partId:string}).partId).toMatch(/link/)
+    expect(renderMermaidSVG(source)).toBe(ordinary)
+  }
 })

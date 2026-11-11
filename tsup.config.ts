@@ -1,5 +1,6 @@
 import { copyFileSync } from 'node:fs'
 import { defineConfig } from 'tsup'
+import { build } from 'esbuild'
 
 export default defineConfig({
   entry: {
@@ -11,8 +12,14 @@ export default defineConfig({
     // Node-runnable bins for npm consumers (shebang preserved from source).
     am: 'src/cli/am-bin.ts',
     'agentic-mermaid-mcp': 'src/mcp/mcp-bin.ts',
+    'source-worker': 'src/mcp/source-worker.ts',
+    'source-supervisor': 'src/mcp/source-supervisor.ts',
     // The default target of package.json `#elk-constructor`; see the plugin below.
     'elk-constructor': 'src/elk-constructor.ts',
+    'builtin-font-metrics': 'src/builtin-font-metrics.ts',
+    'builtin-font-metrics.node': 'src/builtin-font-metrics.node.ts',
+    'layout-optimization': 'src/layout/optimization-context.ts',
+    'layout-optimization.node': 'src/layout/optimization-context.node.ts',
   },
   format: ['esm'],
   // Type declarations only for importable library entries, not CLI bins.
@@ -37,15 +44,30 @@ export default defineConfig({
   // cannot resolve roughjs' extensionless bin/generator subpath. They remain
   // development inputs, not runtime dependencies of the published artifact.
   noExternal: ['roughjs', 'perfect-freehand'],
-  external: ['@resvg/resvg-js', 'elkjs', 'entities', 'node:vm', 'node:fs', 'node:path', 'node:url', 'node:http', 'node:crypto', 'node:os'],
+  external: ['./inter-metrics-kernel.cjs', './layout-optimization.cjs', '@resvg/resvg-js', 'elkjs', 'entities', 'node:vm', 'node:fs', 'node:path', 'node:url', 'node:http', 'node:crypto', 'node:os'],
   // Leave the ELK constructor to the consumer's resolver: under the `node`
   // condition Node and Bun load elkjs on first use, while browser and workerd
   // bundlers of these entries still bundle it. The Node twin is copied as is,
   // because bundling would hide its literal require from a consumer's bundler.
-  onSuccess: async () => copyFileSync('src/elk-constructor.node.js', 'dist/elk-constructor.node.js'),
+  onSuccess: async () => {
+    copyFileSync('src/elk-constructor.node.js', 'dist/elk-constructor.node.js')
+    copyFileSync('src/optional-kernels.node.js', 'dist/optional-kernels.node.js')
+    for (const [entry, output] of [['src/inter-metrics-kernel.ts', 'inter-metrics-kernel'], ['src/layout/optimization-runtime.ts', 'layout-optimization']]) {
+      await build({ entryPoints: [entry!], outfile: `dist/${output}.cjs`, bundle: true, platform: 'node', format: 'cjs', target: 'es2022', minify: true })
+    }
+  },
   esbuildPlugins: [{
-    name: 'conditional-elk-constructor',
+    name: 'conditional-runtime-providers',
     setup(build) {
+      // Reuse the pure kernels for synchronous non-Node consumers too.
+      // Their bundler resolves CJS; installed Node still defers its require.
+      build.onResolve({ filter: /\/inter-metrics-kernel\.ts$/ }, () => ({ path: './inter-metrics-kernel.cjs', external: true }))
+      build.onResolve({ filter: /\/optimization-runtime\.ts$/ }, () => ({ path: './layout-optimization.cjs', external: true }))
+      build.onResolve({ filter: /\/optional-kernels\.node\.js$/ }, () => ({ path: '#optional-kernels', external: true }))
+      build.onResolve({ filter: /\/builtin-font-metrics\.ts$/ }, args =>
+        args.kind === 'entry-point' ? undefined : { path: '#builtin-font-metrics', external: true })
+      build.onResolve({ filter: /\/optimization-context\.ts$/ }, args =>
+        args.kind === 'entry-point' ? undefined : { path: '#layout-optimization', external: true })
       build.onResolve({ filter: /\/elk-constructor\.ts$/ }, args =>
         args.kind === 'entry-point' ? undefined : { path: '#elk-constructor', external: true })
     },

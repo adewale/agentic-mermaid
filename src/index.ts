@@ -1,3 +1,4 @@
+export { ResolvedSceneError, type ResolvedSceneFeature } from './scene/resolved-error.ts'
 export { PaintLayoutCertificationError, type PaintLayoutCertification } from './scene/paint-certification.ts'
 // ============================================================================
 // Agentic Mermaid — public API (published as agentic-mermaid)
@@ -31,6 +32,7 @@ export type { DiagramColors, ResolvedColors } from './theme.ts'
 export { fromShikiTheme, DEFAULTS, resolveColors, inlineResolvedColors } from './theme.ts'
 export { resolveDiagramColors } from './color-resolver.ts'
 export { parseRegisteredMermaid } from './agent/parse.ts'
+export * from './diagram-parsers.ts'
 export type {
   ParsedDiagram,
   ExtensionValidDiagram,
@@ -312,11 +314,11 @@ export function createMermaidRenderer(hostOptions: MermaidRendererHostOptions = 
   return Object.freeze({
     renderMermaidSVG(text: ParsedDiagram | string, options: RenderOptions = {}): string {
       const input = prepareRenderInput(text)
-      return executeGraphicalRequest(input.source, options, 'svg', undefined, { ...host, expectedFamilyId: input.expectedFamilyId }).svg
+      return executeGraphicalRequest(input.source, options, 'svg', undefined, { ...host, ...input.resolutionOptions }).svg
     },
     renderMermaidSVGWithReceipt(text: ParsedDiagram | string, options: RenderOptions = {}): RenderedSvg {
       const input = prepareRenderInput(text)
-      return executeGraphicalRequest(input.source, options, 'svg', undefined, { ...host, expectedFamilyId: input.expectedFamilyId })
+      return executeGraphicalRequest(input.source, options, 'svg', undefined, { ...host, ...input.resolutionOptions })
     },
   })
 }
@@ -326,7 +328,7 @@ export function renderMermaidSVGWithReceipt(
   options: RenderOptions = {},
 ): RenderedSvg {
   const input = prepareRenderInput(text)
-  return executeGraphicalRequest(input.source, options, 'svg', undefined, { expectedFamilyId: input.expectedFamilyId })
+  return executeGraphicalRequest(input.source, options, 'svg', undefined, input.resolutionOptions)
 }
 
 /**

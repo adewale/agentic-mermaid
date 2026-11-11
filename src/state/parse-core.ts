@@ -61,7 +61,7 @@ export function matchStateDeclarationLine(line: string): string | null {
 }
 
 /** Upstream accepts these layout directives without declaring states/edges.
- * Preserve them in opaque source; our renderer uses its own layout policy. */
+ * Preserve them through typed editing; our renderer uses its own layout policy. */
 export function matchStateLayoutDirective(line: string): 'scale' | 'hide_empty_description' | null {
   if (/^scale\s+\d+\s+width$/i.test(line)) return 'scale'
   if (/^hide empty description$/i.test(line)) return 'hide_empty_description'
@@ -306,11 +306,16 @@ function quotedRunEnd(lines: readonly StateSourceLine[], start: number): number 
   return end
 }
 
+const STATE_SPANNING_TOKEN_RE = /"|note/i
+
 /** For each source line, the last line of the statement that starts there:
  *  Mermaid's State lexer reads a quoted name or note text to its closing
  *  quote, and block-note text to its `end note`, across line breaks. Source
  *  normalization reads no line inside one as an accTitle/accDescr. */
 export function stateStatementEnds(source: readonly string[]): number[] {
+  // A spanning string needs a quote; both shared block-note openers need
+  // `note`. This only selects candidates: the scanner still owns grammar.
+  if (!source.some(line => STATE_SPANNING_TOKEN_RE.test(line))) return source.map((_, index) => index)
   const lines = scanStateComments(source)
   return lines.map((line, index) => {
     if (!line.noteOpen) return quotedRunEnd(lines, index)

@@ -1,4 +1,4 @@
-import { classRelationshipTerminalClearance, classEndpointTextCandidates } from './relationship-paint.ts'
+import { classRelationshipTerminalClearance, classEndpointTextCandidates, RELATION_LABEL_HALO_WIDTH } from './relationship-paint.ts'
 import { measuredRouteContactPairBudget, scoreMeasuredRouteCrossings, createOwnedMeasuredRouteContactValidator, type OwnedMeasuredRouteNumericSeed } from '../layout/measured-route-safety.ts'
 import type { MeasuredGraph } from '../layout/agentic-layered-core.ts'
 import { resolveDiagramColors } from '../color-resolver.ts'
@@ -53,7 +53,8 @@ import { getFrontmatterScalar } from '../mermaid-source.ts'
 import { measureRenderStage } from '../render-stages.ts'
 import type { InternalStyleFace } from '../scene/style-registry.ts'
 import { generatedIds } from '../shared/generated-identity.ts'
-import { checkedAuthoredStyle } from '../shared/style-props.ts'
+import { checkedAuthoredStyle, mergeStyleProps } from '../shared/style-props.ts'
+import { graphClassNames } from '../shared/graph-classes.ts'
 import type { RenderStyleDefaults, ResolvedRenderStyle } from '../styles.ts'
 import { diagramTitleBand, FONT_SIZES, FONT_WEIGHTS, positionDiagramTitle, resolveRenderStyle, STROKE_WIDTHS, titleOnlyCanvas } from '../styles.ts'
 import { LINE_HEIGHT_RATIO } from '../text-metrics.ts'
@@ -318,7 +319,7 @@ function buildClassElkGraph(diagram: ClassDiagram, options: RenderOptions, class
       // Empty formatted text has no painted label. ELK can leave its label
       // box at the origin, which would invent off-canvas text geometry.
       if (metrics.lineBlocks.some(line => line.runs.some(run => run.text.trim().length > 0))) {
-        edge.labels = [{ text: metrics.text, width: metrics.width + 8, height: metrics.height + 6 }]
+        edge.labels = [{ text: metrics.text, width: metrics.width + 8, height: metrics.height + RELATION_LABEL_HALO_WIDTH }]
       }
     }
     const fromChain = namespaceOfClass.get(rel.from)?.ancestors ?? []
@@ -381,13 +382,19 @@ function projectClassElkPlacement(result: ElkNode, namespaceLayouts: ReadonlyMap
 }
 
 /** Project either measured placement through Class-owned card/marker rules. */
-/** Renderer class cards inherit default paint, then their one assigned class,
- * then inline paint. The source grammar stores a single assigned class name;
- * repeated assignments already resolve to the last one in the parser.
+/** Renderer class cards inherit default paint, their ordered assigned classes,
+ * then inline paint. Single-class and unstyled cards need no class-list draft.
  * Generated interface occurrences use their separate circle/label renderer. */
 function classNodePaint(diagram: ClassDiagram, cls: ClassNode): Record<string, string> | undefined {
-  const defaults = cls.isInterface ? undefined : diagram.classDefs.get('default'),
-    named = cls.className ? diagram.classDefs.get(cls.className) : undefined
+  if (!diagram.classDefs.size && !cls.inlineStyle) return undefined
+  const defaults = cls.isInterface ? undefined : diagram.classDefs.get('default')
+  let named = cls.className ? diagram.classDefs.get(cls.className) : undefined
+  if (cls.className && !named && /\s/.test(cls.className)) {
+    for (const name of graphClassNames(cls.className)) {
+      const next = checkedAuthoredStyle(diagram.classDefs.get(name), `classDef ${name}`)
+      if (next) named = named ? mergeStyleProps(named, next) : next
+    }
+  }
   if (!defaults && !named && !cls.inlineStyle) return undefined
   return {
     ...checkedAuthoredStyle(defaults, 'classDef default'),
@@ -670,7 +677,7 @@ function layoutClassDiagramWithin(inkWork: ClassMarkerAdmissionWork, diagram: Cl
       const indices = new Map(diagram.classes.map((cls, index) => [cls.id, index]))
       const labels = diagram.relationships.map(rel => {
         const block = rel.label ? classTextBlock(resolveLabelContent(rel.label, rel.labelContent), style, 'edge') : undefined
-        return block?.lineBlocks.some(line => line.runs.some(run => run.text.trim())) ? { width: block.width + 8, height: block.height + 6 } : undefined
+        return block?.lineBlocks.some(line => line.runs.some(run => run.text.trim())) ? { width: block.width + 8, height: block.height + RELATION_LABEL_HALO_WIDTH } : undefined
       })
       const markerTemplates = buildClassEndpointMarkerTemplates(diagram.relationships, style)
       // One Native placement, using copied minima. Extra vertical reservation

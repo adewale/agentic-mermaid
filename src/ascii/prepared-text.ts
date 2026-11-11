@@ -1,3 +1,4 @@
+import { discretionaryBreakKind, stripDiscretionaryBreaks } from '../shared/discretionary-breaks.ts'
 import { prepareDisplayText, type DisplayTextInput, type PreparedDisplayText } from '../shared/display-text.ts'
 import type { LabelDisplay } from '../multiline-utils.ts'
 import type { TextTransform } from '../types.ts'
@@ -35,7 +36,7 @@ export function prepareCellText(source: DisplayTextInput, options: CellTextOptio
   for (const [lineIndex, runs] of prepared.lines.entries()) {
     if (lineIndex > 0) breaks.push({ kind: 'authored', sourceOffset: prepared.lineStarts[lineIndex]! - 1 })
     const text = runs.map(run => run.text).join('')
-    if (visualWidth(text) <= limit) { lines.push(text); continue }
+    if (visualWidth(stripDiscretionaryBreaks(text)) <= limit) { lines.push(stripDiscretionaryBreaks(text)); continue }
     const clusters = graphemes(text)
     // Sources may contain formatting tags or casing expansions. Map visible
     // graphemes through prepared source spans, never through serialized markup.
@@ -53,19 +54,27 @@ export function prepareCellText(source: DisplayTextInput, options: CellTextOptio
     }
     let start = 0
     while (start < clusters.length) {
-      let end = start, width = 0, separator = -1
-      while (end < clusters.length && width + visualWidth(clusters[end]!) <= limit) {
-        width += visualWidth(clusters[end]!)
+      while (start < clusters.length && discretionaryBreakKind(clusters[start]!)) start++
+      if (start === clusters.length) break
+      let end = start, width = 0, separator = -1, hint = -1
+      while (end < clusters.length && width + visualWidth(stripDiscretionaryBreaks(clusters[end]!)) <= limit) {
+        width += visualWidth(stripDiscretionaryBreaks(clusters[end]!))
         if (/\s/u.test(clusters[end]!)) separator = end + 1
+        const kind = discretionaryBreakKind(clusters[end]!)
+        if (kind && end > start && width + (kind === 'hyphen' ? 1 : 0) <= limit) hint = end + 1
         end++
       }
-      if (end === clusters.length) { lines.push(clusters.slice(start).join('')); break }
+      if (end === clusters.length) { lines.push(stripDiscretionaryBreaks(clusters.slice(start).join(''))); break }
       if (end > start && !/\s/u.test(clusters[end - 1]!) && /\s/u.test(clusters[end] ?? '')) {
         separator = end
         while (separator < clusters.length && /\s/u.test(clusters[separator]!)) separator++
       }
       let paintEnd = end, replacedText: string | undefined, hyphen = false
-      if (separator > start) {
+      if (hint > start && hint >= separator) {
+        end = hint; paintEnd = end - 1
+        replacedText = clusters[end - 1]!
+        hyphen = discretionaryBreakKind(replacedText) === 'hyphen'
+      } else if (separator > start) {
         if (clusters.slice(start, separator).some(cluster => !/\s/u.test(cluster))) while (separator < clusters.length && /\s/u.test(clusters[separator]!)) separator++
         end = separator; paintEnd = end
         while (paintEnd > start && /\s/u.test(clusters[paintEnd - 1]!)) paintEnd--
@@ -74,11 +83,11 @@ export function prepareCellText(source: DisplayTextInput, options: CellTextOptio
       } else {
         end = Math.max(start + 1, end)
         const needsHyphen = (at: number) => options.hyphenate !== false && at < clusters.length && !(visualWidth(clusters[at - 1]!) === 2 && visualWidth(clusters[at]!) === 2)
-        while (end > start + 1 && needsHyphen(end) && visualWidth(clusters.slice(start, end).join('')) + 1 > limit) end--
+        while (end > start + 1 && needsHyphen(end) && visualWidth(stripDiscretionaryBreaks(clusters.slice(start, end).join(''))) + 1 > limit) end--
         paintEnd = end
-        hyphen = needsHyphen(end) && visualWidth(clusters.slice(start, end).join('')) + 1 <= limit
+        hyphen = needsHyphen(end) && visualWidth(stripDiscretionaryBreaks(clusters.slice(start, end).join(''))) + 1 <= limit
       }
-      lines.push(clusters.slice(start, paintEnd).join('') + (hyphen ? '-' : ''))
+      lines.push(stripDiscretionaryBreaks(clusters.slice(start, paintEnd).join('')) + (hyphen ? '-' : ''))
       if (end < clusters.length) breaks.push(Object.freeze({ kind: hyphen ? 'hyphen' : 'wrap', sourceOffset: sourceOffsets[end]!, ...(replacedText ? { replacedText } : {}) }))
       start = end
     }

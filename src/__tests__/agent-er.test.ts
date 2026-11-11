@@ -17,6 +17,24 @@ const parse = (s: string) => {
 }
 
 describe('ER — parse', () => {
+  test('retains Unicode entity identities through relationships, attributes and typed edits', async () => {
+    const source = 'erDiagram\n顧客 ||--o{ 注文 : 発注\n顧客 {\n string 番号 PK\n}\n注文 {\n string 状態\n}'
+    const diagram = asEr(parse(source))!
+    expect(diagram?.body.entities.map(entity => entity.id)).toEqual(['顧客', '注文'])
+    expect(diagram.body.relations).toContainEqual(expect.objectContaining({ from: '顧客', to: '注文', label: '発注' }))
+    expect(parseErDiagram(source.split('\n')).entities.map(entity => entity.id)).toEqual(['顧客', '注文'])
+    const edited = mutate(diagram, { kind: 'rename_entity', from: '注文', to: 'ご注文' })
+    expect(edited.ok).toBe(true)
+    if (!edited.ok) return
+    const output = serializeMermaid(edited.value)
+    expect(asEr(parse(output))!.body).toEqual(edited.value.body)
+    expect(renderMermaidSVG(output)).toContain('ご注文')
+    expect(renderMermaidASCII(output)).toContain('ご注文')
+    const upstream = startUpstreamMermaid()
+    try { expect(await upstream.accepts(output)).toBe(true) }
+    finally { upstream.close() }
+  })
+
   test('quotes entity 1 before another declaration without changing numeric identities or group ownership', async () => {
     const source = 'erDiagram\nsubgraph "Some Title"\nArDiagram\n1\nB\nend'
     const upstream = startUpstreamMermaid()

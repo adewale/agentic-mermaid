@@ -18,6 +18,14 @@ import * as agentTypes from '../agent/types.ts'
 
 /** A label-carrying edit each family accepts; `text` is the label under test. */
 const LABEL_EDIT_BY_FAMILY: Record<DiagramKind, (text: string) => Record<string, unknown>> = {
+  agentflow: text => ({ kind: 'add_node', id: 'Zebra', label: text }),
+  usecase: text => ({ kind: 'add_actor', id: 'Zebra', label: text }),
+  wardley: text => ({ kind: 'add_note', text, x: 30, y: 70 }),
+  venn: text => ({ kind: 'set_subset', sets: ['Zebra'], size: 5, label: text }),
+  cynefin: text => ({ kind: 'add_item', domain: 'complex', label: text }),
+  railroad: text => ({ kind: 'add_rule', name: 'Zebra', definition: { type: 'terminal', value: text } }),
+  swimlane: text => ({ kind: 'add_node', id: 'Zebra', label: text }),
+  treeview: text => ({ kind: 'add_node', label: text, nodeType: 'file' }),
   zenuml: text => ({ kind: 'insert_statement', statement: { kind: 'message', id: 'added', from: 'Zebra', to: 'Other', label: text, reply: false } }),
   eventmodeling: text => ({ kind: 'insert_frame', frame: { id: '99', reset: true, type: 'event', entity: 'Zebra', sources: [], data: { text } } }),
   packet: text => ({ kind: 'add_field', label: text, bits: 8 }),

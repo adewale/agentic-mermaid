@@ -479,7 +479,10 @@ function renderParticipant(p: SequenceParticipant, redeclared: boolean): string 
 
 function assertParticipantDeclarations(source: ReturnType<typeof readSequenceStatements>): void {
   const problem = source.issues.find(issue => issue.syntax === 'sequence_participant_id' || issue.syntax === 'sequence_participant_id_extension')
-  if (problem) throw new SequenceParticipantIdError(problem.message)
+  if (problem) {
+    const statement = source.statements.find(entry => entry.line === problem.line && entry.error instanceof SequenceParticipantIdError)
+    throw new SequenceParticipantIdError(problem.message, { diagramType: 'sequence', line: problem.line + 1, column: statement === undefined ? undefined : statement.column + statement.raw.search(/\S/) + 1 })
+  }
 }
 
 /** The participant ids a statement names, in the order Mermaid meets them. */

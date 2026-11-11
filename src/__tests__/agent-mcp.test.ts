@@ -12,6 +12,7 @@ import { runCli, runBatchLine } from '../cli/index.ts'
 import { MCP_CLI_HELP, parseMcpCliOptions, runMcpCli } from '../mcp/mcp-cli.ts'
 import { executeInSandbox } from '../mcp/sandbox.ts'
 import { createStdioMessageProcessor, handleRequest, LOCAL_TOOLS } from '../mcp/server.ts'
+import { LOCAL_MCP_TOOL_NAMES } from '../mcp/tool-names.ts'
 import { captureCli as capture } from './helpers/cli-capture.ts'
 import { useTempDirs } from './helpers/temp-dir.ts'
 import { useTestChildren } from './helpers/test-child.ts'
@@ -74,6 +75,21 @@ describe('source-preserving edits across agent channels', () => {
 })
 
 describe('sandbox — happy', () => {
+  test('verification snapshots nested render options across the sandbox boundary', async () => {
+    const source = 'venn-beta\nset A["Alpha"]:20\nset B["Beta"]:12\nunion A,B["Shared"]:3'
+    for (const [options, expected] of [
+      [undefined, { ok: true, warningCodes: [] }],
+      [{ renderOptions: { style: { colors: { bg: '#ffffff', fg: '#111111' }, roles: { node: { fontSize: 18 } } } } }, { ok: true, warningCodes: [] }],
+      [{ renderOptions: { style: { roles: { node: { fontSize: 'wide' } } } } }, { ok: false, warningCodes: ['RENDER_FAILED'] }],
+    ] as const) {
+      const result = await executeInSandbox(`
+const parsed = mermaid.parseRegisteredMermaid(${JSON.stringify(source)});
+const verified = mermaid.verifyMermaid(parsed.value, ${JSON.stringify(options) ?? 'undefined'});
+return { ok: verified.ok, warningCodes: verified.warnings.map(warning => warning.code) };`)
+      expect(result).toMatchObject({ ok: true, value: expected })
+    }
+  })
+
   test('flowchart workflow', async () => {
     const r = await executeInSandbox(`
       const r0 = mermaid.parseRegisteredMermaid('flowchart TD\\n  A --> B')
@@ -722,7 +738,7 @@ describe('MCP — JSON-RPC happy + sad', () => {
     const r = await handleRequest({ jsonrpc: '2.0', id: 2, method: 'tools/list' })
     const tools = (r!.result as any).tools
     expect(tools).toBe(LOCAL_TOOLS)
-    expect(tools.map((t: any) => t.name)).toEqual(['execute', 'describe_sdk', 'render_png', 'describe', 'mutate', 'build'])
+    expect(tools.map((t: any) => t.name)).toEqual([...LOCAL_MCP_TOOL_NAMES])
     for (const token of [...BUILTIN_FAMILY_METADATA.map(f => f.narrower), 'MutationOp']) {
       expect(tools[0].description).toContain(token)
     }
@@ -732,9 +748,9 @@ describe('MCP — JSON-RPC happy + sad', () => {
     }
     expect(tools[0].description).toContain('interface RenderRequestReceipt')
     expect(tools[0].description).toMatch(/interface RenderRequestReceipt\s*\{\s*version:\s*2;/)
-    // Includes strict StyleSpec and native family narrowers (15,004 bytes);
-    // retain only 46 bytes of headroom for the compact contract.
-    expect(new TextEncoder().encode(tools[0].description).length).toBeLessThan(15_050)
+    // Include metrics, layout selectors and parse positions without increasing
+    // the context limit; family edit schemas stay progressively loaded.
+    expect(new TextEncoder().encode(tools[0].description).length).toBeLessThan(15_150)
   })
   test('tools/call execute', async () => {
     const r = await handleRequest({ jsonrpc: '2.0', id: 3, method: 'tools/call', params: { name: 'execute', arguments: { code: 'return mermaid.verifyMermaid("flowchart TD\\n A --> B").ok' } } })

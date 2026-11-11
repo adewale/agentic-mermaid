@@ -1,3 +1,4 @@
+import { freezeOwnedDrawingData } from './owned-data.ts'
 import type { SceneNode, SceneDoc, ConnectorMark } from './ir.ts'
 import type { ScenePaintGeometryInspection, ScenePaintGeometry } from './inspection.ts'
 import { scanSvgStartTags, decodedSvgAttributeValue } from '../svg-structure.ts'
@@ -22,7 +23,7 @@ export function nativeEmissionWorkOf(inspection: ScenePaintGeometryInspection): 
  * new contact exemption. Every occurrence retains its own immutable fields and
  * are captured BEFORE the single existing writer call, which emits that copy.
  * Accessors/unsupported data or an exhausted capture keep paint conditional. */
-export function createNativePaintEmission(maxOperations: number) {
+export function createNativePaintEmission(maxOperations: number, owned = false) {
   let operations = 0, exhausted = false, uncertain = false
   const resources = new Map<string, string | undefined>()
   const references: NonNullable<Extract<Leaf, { kind: 'connector' }>['markers']['start']>[] = []
@@ -33,11 +34,11 @@ export function createNativePaintEmission(maxOperations: number) {
     return true
   }
   const failed = Symbol('unsupported-emission')
-  const copy = (value: unknown, depth = 0, parents = new Set<object>()): unknown => {
+  const copy = (value: unknown, depth = 0, parents: object[] = []): unknown => {
     if (depth > 64) throw failed
     if (value === null || value === undefined || typeof value === 'boolean') return value
     if (typeof value === 'number' || typeof value === 'string') return value
-    if (typeof value !== 'object' || !pay() || parents.has(value)) throw failed
+    if (typeof value !== 'object' || !pay() || parents.includes(value)) throw failed
     if (isImmutablePixelTextPart(value)) return value
     const prototype = Object.getPrototypeOf(value)
     if (prototype !== Object.prototype && prototype !== null && prototype !== Array.prototype) throw failed
@@ -45,21 +46,56 @@ export function createNativePaintEmission(maxOperations: number) {
     // slots and subsequent descriptor/copy visits are distinct paid work.
     const keys = Object.getOwnPropertyNames(value)
     if (!pay(keys.length)) throw failed
-    parents.add(value)
+    const deferredProjection = deferredTerminalProjectionInput(value)
+    // Pay before reading caller data and reuse each descriptor if the typed
+    // constructor declines, so fallback cannot repeat uncharged proxy work.
+    let inspected = 0
+    let x: PropertyDescriptor | undefined, y: PropertyDescriptor | undefined
+    // Coordinate buffers dominate native geometry. Capture their fixed scalar
+    // records directly; descriptors still prove that no accessor or hidden
+    // field can acquire immutable authority through this constructor.
+    if (!deferredProjection && depth < 64 && keys.length === 2 && keys[0] === 'x' && keys[1] === 'y') {
+      if (!pay()) throw failed
+      x = Object.getOwnPropertyDescriptor(value, 'x')
+      inspected = 1
+      if (x && 'value' in x && x.enumerable && typeof x.value === 'number') {
+        if (!pay()) throw failed
+        y = Object.getOwnPropertyDescriptor(value, 'y')
+        inspected = 2
+        if (y && 'value' in y && y.enumerable && typeof y.value === 'number') {
+          // Keep the generic path's final validity check: the last descriptor
+          // trap may have revoked its source Proxy after returning the data.
+          if (Array.isArray(value)) throw failed
+          const point = Object.freeze({ x: x.value as number, y: y.value as number })
+          transferRetainedPixelText(value, point)
+          return point
+        }
+      }
+    }
+    parents.push(value)
     const result: Record<string, unknown> | unknown[] = Array.isArray(value) ? [] : {}
     let arrayLength: PropertyDescriptor | undefined
-    const deferredProjection = deferredTerminalProjectionInput(value)
-    for (const key of keys) {
-      if (!pay()) throw failed
+    for (let index = 0; index < keys.length; index++) {
+      const key = keys[index]!
       // This property visit owns descriptor retention and scalar assignment;
       // a primitive needs no second visit or numeric formatting/replay.
-      const descriptor = Object.getOwnPropertyDescriptor(value, key)
+      let descriptor: PropertyDescriptor | undefined
+      if (index < inspected) descriptor = index === 0 ? x : y
+      else {
+        if (!pay()) throw failed
+        descriptor = Object.getOwnPropertyDescriptor(value, key)
+      }
       if (!descriptor) continue
       if (key === 'length' && Array.isArray(value)) { arrayLength = descriptor; continue }
       // Deferred terminal geometry is neither read nor used by paint writing.
       if (key === 'terminalProjection' && deferredProjection) continue
       if (!('value' in descriptor)) throw failed
-      Object.defineProperty(result, key, { value: copy(descriptor.value, depth + 1, parents), enumerable: descriptor.enumerable, configurable: false, writable: false })
+      const captured = copy(descriptor.value, depth + 1, parents)
+      // Own data keys cannot invoke inherited setters. Keep descriptor writes
+      // for arrays, hidden fields and names installed on Object.prototype.
+      if (!Array.isArray(result) && descriptor.enumerable && !Object.hasOwn(Object.prototype, key)) {
+        (result as Record<string, unknown>)[key] = captured
+      } else Object.defineProperty(result, key, { value: captured, enumerable: descriptor.enumerable, configurable: true, writable: true })
     }
     if (Array.isArray(value)) {
       if (!arrayLength || !('value' in arrayLength)) throw failed
@@ -71,21 +107,20 @@ export function createNativePaintEmission(maxOperations: number) {
       Object.defineProperty(result, 'terminalProjection', { ...descriptor, configurable: false })
     }
     transferRetainedPixelText(value, result)
-    parents.delete(value)
-    // Every retained data property is already nonwritable/nonconfigurable;
-    // arrays also own readonly length. Prevent extensions without rescanning
-    // the same fields a second time through Object.freeze.
-    return Object.preventExtensions(result)
+    parents.pop()
+    return Object.freeze(result)
   }
   const snapshot = <T>(value: T): T | undefined => {
-    try { return copy(value) as T } catch { return undefined }
+    try { return owned ? freezeOwnedDrawingData(value, pay) : copy(value) as T } catch { return undefined }
   }
   // Immutable operands make this a finite field walk, without allocating a
   // second descriptor array or JSON representation before its work is paid.
   const same = (a: unknown, b: unknown): boolean => {
     if (!pay()) return false
     if (typeof a === 'string' && typeof b === 'string') return pay(a.length + b.length) && a === b
-    if (a === b) return true
+    // Preserve the same conservative logical work ledger when owned records
+    // share identities that the defensive path would have copied separately.
+    if (a === b && (!owned || a === null || typeof a !== 'object' || isImmutablePixelTextPart(a))) return true
     if (!a || !b || typeof a !== 'object' || typeof b !== 'object') return false
     let na = 0, nb = 0
     if (!pay(2)) return false

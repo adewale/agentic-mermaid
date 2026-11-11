@@ -218,6 +218,11 @@ function registrationIdentity(
   })
 }
 
+// Private invalidation for request option preparation; registry callbacks and
+// captured requests retain their existing mutation/identity rules.
+let registryRevision = 0
+export function styleRegistryRevision(): number { return registryRevision }
+
 function registerCanonicalStyle(
   spec: InternalStyleSpec,
   kind: StyleRegistryKind,
@@ -239,6 +244,7 @@ function registerCanonicalStyle(
     identity,
     value: stored,
   })
+  registryRevision++
   if (inputName !== undefined) {
     const existing = STYLE_INPUT_NAMES.get(inputName)
     const canonicalOwner = STYLE_REGISTRY.has(inputName) && inputName !== id ? inputName : undefined
@@ -253,6 +259,7 @@ function registerCanonicalStyle(
     const current = STYLE_REGISTRY.get(id)
     if (current?.identity !== identity) return false
     const removed = STYLE_REGISTRY.delete(id)
+    if (removed) registryRevision++
     if (removed && inputName !== undefined && STYLE_INPUT_NAMES.get(inputName) === id) {
       STYLE_INPUT_NAMES.delete(inputName)
     }

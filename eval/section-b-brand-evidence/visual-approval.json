@@ -2,9 +2,9 @@
   "schemaVersion": 1,
   "status": "approved",
   "artifact": "src/__tests__/testdata/section-b-brand-evidence.png",
-  "artifactSha256": "685f0752f06676d020903eed66883040f11a5f4bd20e23b12273b4e7a50547ef",
-  "reviewedAt": "2026-10-30",
-  "reviewer": "Claude agent, AX campaign GitGraph routing and gantt ink review",
-  "scope": "Agent review of the 8 changed cells at native size in the 1560x14024 sheet: GitGraph and Gantt across four variants. Old/current crops show the work-to-merge connector no longer passing through the release commit and gantt bars changing ink only. All other cells are pixel-identical. This finite review is not human approval, deployed-site parity or exhaustive geometry proof.",
-  "audit": "eval/section-b-brand-evidence/gitgraph-routing-gantt-ink-review.md"
+  "artifactSha256": "f4045f4e8351c61beb2e79bfe3f1510892974448ec23d8f5c931237c907a267b",
+  "reviewedAt": "2026-11-11",
+  "reviewer": "Claude agent, merge of main into claude/agentic-mermaid-ax-assessment-brrxnj",
+  "scope": "Retains the prior reviews, including PR #601. After merging main into the AX-assessment branch, a pixel diff against main\u2019s approved sheet changes only the Gantt and GitGraph cells in each of the four variants (eight cells). Inspected them at native 520\u00d7380 and 4\u00d7 zoom. Gantt: task bars now paint over the day gridlines instead of under them (the branch\u2019s opaque task ink); labels, axis and bar geometry are unchanged. GitGraph: the feature\u2192main merge edge now ends at the merge commit rather than at release, and the branch leg leaves nearer its base commit, matching the commit graph; labels and colours are unchanged. The other 124 cells are pixel-identical. This is agent review, not human approval, deployed-site parity or an arbitrary-density guarantee.",
+  "audit": "eval/section-b-brand-evidence/arrowhead-clearance-review.md"
 }

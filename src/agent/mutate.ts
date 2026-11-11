@@ -1,8 +1,9 @@
-import { withBodyTitleMeta } from './body-title-meta.ts'
-import { eventModelingMeta } from '../eventmodeling/body.ts'
+import type { MutationOpForDiagram } from './family-mutation-types.ts'
+import type { AgentflowValidDiagram, AgentflowMutationOp, CynefinValidDiagram, CynefinMutationOp, RailroadValidDiagram, RailroadMutationOp, SwimlaneValidDiagram, SwimlaneMutationOp, TreeviewValidDiagram, TreeviewMutationOp, UsecaseValidDiagram, UsecaseMutationOp, VennValidDiagram, VennMutationOp, WardleyValidDiagram, WardleyMutationOp } from './types.ts'
 import type { EventModelingValidDiagram, EventModelingMutationOp } from './types.ts'
 import { rebaseBodyComments, restoreBodyComments, snapshotBodyCommentAnchors } from './body-comments.ts'
 import { beginMutationDraft, type MutationDraft } from './mutation-draft.ts'
+import { transferParsedRenderModel } from './owned-render-model.ts'
 import type { PacketMutationOp, PacketValidDiagram, KanbanMutationOp, KanbanValidDiagram, RequirementMutationOp, RequirementValidDiagram, TreemapMutationOp, TreemapValidDiagram, IshikawaMutationOp, IshikawaValidDiagram, BlockMutationOp, BlockValidDiagram } from './types.ts'
 import type { C4MutationOp, C4ValidDiagram } from './types.ts'
 // ============================================================================
@@ -49,7 +50,7 @@ import { serializeMermaid, wrapperPrefix } from './serialize.ts'
 import { logToolInvocation } from './trace-log.ts'
 import { getFamily } from './families.ts'
 import { admitOpRecord, validateOp, hasOpSchema } from './op-schema.ts'
-import { AccessibilityTextError, accessibilityFromBody, ensureAccessibilityLines, normalizeBodyAccessibility } from './accessibility-envelope.ts'
+import { AccessibilityTextError, accessibilityFromBody, metadataFromBody, ensureAccessibilityLines, normalizeBodyAccessibility } from './accessibility-envelope.ts'
 import { parseRegisteredMermaid as parseMermaid } from './parse.ts'
 import { applySourceEdits, sameSourceMeaning } from './source-mutation.ts'
 import { serializationDrift } from './serialization-closure.ts'
@@ -76,11 +77,18 @@ export function mutate(d: TreemapValidDiagram, op: TreemapMutationOp): Result<Tr
 export function mutate(d: EventModelingValidDiagram, op: EventModelingMutationOp): Result<EventModelingValidDiagram, MutationError>
 export function mutate(d: IshikawaValidDiagram, op: IshikawaMutationOp): Result<IshikawaValidDiagram, MutationError>
 export function mutate(d: BlockValidDiagram, op: BlockMutationOp): Result<BlockValidDiagram, MutationError>
+export function mutate(d: AgentflowValidDiagram, op: AgentflowMutationOp): Result<AgentflowValidDiagram, MutationError>
+export function mutate(d: CynefinValidDiagram, op: CynefinMutationOp): Result<CynefinValidDiagram, MutationError>
+export function mutate(d: RailroadValidDiagram, op: RailroadMutationOp): Result<RailroadValidDiagram, MutationError>
+export function mutate(d: SwimlaneValidDiagram, op: SwimlaneMutationOp): Result<SwimlaneValidDiagram, MutationError>
+export function mutate(d: TreeviewValidDiagram, op: TreeviewMutationOp): Result<TreeviewValidDiagram, MutationError>
+export function mutate(d: UsecaseValidDiagram, op: UsecaseMutationOp): Result<UsecaseValidDiagram, MutationError>
+export function mutate(d: VennValidDiagram, op: VennMutationOp): Result<VennValidDiagram, MutationError>
+export function mutate(d: WardleyValidDiagram, op: WardleyMutationOp): Result<WardleyValidDiagram, MutationError>
 // General form for callers holding the union (e.g. the CLI): dispatch is by
 // registry at runtime either way, so kind-agnostic call sites don't need a
 // per-family narrowing cascade.
-export function mutate(d: MutableValidDiagram, op: AnyMutationOp): Result<MutableValidDiagram, MutationError>
-export function mutate(d: ParsedDiagram, op: AnyMutationOp): Result<ParsedDiagram, MutationError>
+export function mutate<D extends ParsedDiagram>(d: D, op: MutationOpForDiagram<NoInfer<D>>): Result<D, MutationError>
 export function mutate(d: ParsedDiagram, op: AnyMutationOp): Result<ParsedDiagram, MutationError> {
   // Log the OUTCOME (not just the call): an `{ok:false}` trace line records a
   // failed op attempt — the observable signal the agent-usage eval reads to
@@ -126,7 +134,7 @@ function applyOneMutation(d: ParsedDiagram, op: AnyMutationOp, deferSerializatio
     const r = draft?.apply ? draft.apply(op) : plugin.mutate(d.body, op)
     if (!r.ok) return r
     try {
-      r.value = normalizeBodyAccessibility(r.value)
+      r.value = normalizeBodyAccessibility(r.value, op.kind !== 'set_accessibility_title')
     } catch (error) {
       if (!(error instanceof AccessibilityTextError)) throw error
       return err({ code: 'INVALID_OP', message: error.message })
@@ -146,16 +154,19 @@ function commitMutation(d: ParsedDiagram, body: ParsedDiagram['body']): Result<P
   // 1C wrapper policy: a mutated diagram keeps its leading wrapper
   // (frontmatter/directives/comments) byte-verbatim; only the body changes.
   const bodyAccessibility = accessibilityFromBody(body)
-  const accessibilityMeta = bodyAccessibility === undefined ? d.meta : { ...d.meta, accessibility: bodyAccessibility }
-  let meta = accessibilityMeta
+  let meta = d.meta
   try {
-    if (body.kind === 'eventmodeling') meta = eventModelingMeta(body, accessibilityMeta)
-    if (body.kind === 'zenuml') meta = withBodyTitleMeta(body.title, accessibilityMeta, d.body.kind === 'zenuml' && body.title === d.body.title)
-    if (body.kind === 'class') meta = withBodyTitleMeta(body.title, accessibilityMeta, d.body.kind === 'class' && body.title === d.body.title)
+    meta = metadataFromBody(body, d.meta, d.body)
   } catch (error) {
     return err({ code: 'INVALID_OP', message: error instanceof Error ? error.message : String(error) })
   }
-  const bodySource = restoreBodyComments(ensureAccessibilityLines(plugin.serialize!(body, meta), meta.accessibility), d.kind, body, meta)
+  let bodySource: string
+  try {
+    bodySource = restoreBodyComments(ensureAccessibilityLines(plugin.serialize!(body, meta), meta.accessibility), d.kind, body, meta)
+  } catch (error) {
+    if (!(error instanceof AccessibilityTextError)) throw error
+    return err({ code: 'INVALID_OP', message: error.message })
+  }
   const canonicalSource = wrapperPrefix(meta, 'verbatim', bodySource, d.kind) + bodySource
   // Source locations, exact authored spans, and wrapper ownership describe a
   // particular source artifact. Rebuild all three from the mutated
@@ -182,6 +193,9 @@ function commitMutation(d: ParsedDiagram, body: ParsedDiagram['body']): Result<P
       code: 'INVALID_OP',
       message: `Mutation changed semantic family while reparsing: expected ${d.kind}/${body.kind}, got ${reparsed.value.kind}/${reparsed.value.body.kind}`,
     })
+  }
+  if (plugin.bodyMeta && meta.frontmatter?.title !== reparsed.value.meta.frontmatter?.title) {
+    return err({ code: 'INVALID_OP', message: 'Mutation did not retain the requested title metadata through its final source envelope' })
   }
   if (bodyAccessibility && (bodyAccessibility.title !== reparsed.value.meta.accessibility.title || bodyAccessibility.descr !== reparsed.value.meta.accessibility.descr)) {
     return err({
@@ -210,7 +224,7 @@ function commitMutation(d: ParsedDiagram, body: ParsedDiagram['body']): Result<P
       committed = { body: reparsed.value.body, canonicalSource: formatted, reread: settled.value }
     }
   }
-  return ok({
+  const diagram = {
     ...d,
     body: committed.body,
     meta: {
@@ -222,7 +236,9 @@ function commitMutation(d: ParsedDiagram, body: ParsedDiagram['body']): Result<P
     },
     canonicalSource: committed.canonicalSource,
     source: committed.reread.source,
-  } as ParsedDiagram)
+  } as ParsedDiagram
+  transferParsedRenderModel(committed.reread, diagram)
+  return ok(diagram)
 }
 
 export type MutationBatchError = MutationError & { opIndex: number }
@@ -256,8 +272,7 @@ export function applyMutationBatch(d: ParsedDiagram, ops: readonly unknown[]): R
  * runs second on a shape-proven op. Result shape is identical to `mutate`, so
  * this is a drop-in wherever the raw mutator was called with untyped ops.
  */
-export function mutateChecked(d: MutableValidDiagram, op: unknown): Result<MutableValidDiagram, MutationError>
-export function mutateChecked(d: ParsedDiagram, op: unknown): Result<ParsedDiagram, MutationError>
+export function mutateChecked<D extends ParsedDiagram>(d: D, op: unknown): Result<D, MutationError>
 export function mutateChecked(d: ParsedDiagram, op: unknown): Result<ParsedDiagram, MutationError> {
   return checkedMutation(d, op, false)
 }

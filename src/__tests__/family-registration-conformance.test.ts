@@ -145,6 +145,16 @@ function expectRejected(descriptor: FamilyDescriptor, message: RegExp): void {
 }
 
 describe('external family executable registration conformance', () => {
+  test('admits the preserved canonical source policy and rejects unknown policy names', () => {
+    const base = directDescriptor('canonical-source-policy')
+    const unregister = registerFamily({ ...base, canonicalSource: 'preserved' })
+    try {
+      const parsed = parseRegisteredMermaid(base.example)
+      if (!parsed.ok) throw Error('Expected registered preserved source')
+      expect(parsed.value.canonicalSource).toBe(base.example)
+    } finally { unregister() }
+    expect(() => registerFamily({ ...base, canonicalSource: 'trimmed' as never })).toThrow(/canonicalSource must name the preserved source policy/)
+  })
   test('known source-loss evidence survives failures injected into each family execution phase', () => {
     let phase: 'verify' | 'layout' | 'projection' | 'svg' | undefined
     const base = directDescriptor('source-evidence-faults')

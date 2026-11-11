@@ -15,7 +15,7 @@ import { runAmCli } from '../cli/run-entrypoint.ts'
 import { MCP_CLI_HELP, MCP_FLAG_SPECS, parseMcpCliOptions } from '../mcp/mcp-cli.ts'
 import { isCliRenderFormat } from '../render-contract.ts'
 import { captureCli, captureCliAsync } from './helpers/cli-capture.ts'
-import { handMaintainedText, maintainedMarkdownFiles, REPO_ROOT } from './helpers/maintained-docs.ts'
+import { handMaintainedText, maintainedMarkdownFiles, REPO_ROOT } from '../../scripts/docs/maintained-docs.ts'
 
 // ---------------------------------------------------------------------------
 // Extraction: doc text → shell-ish snippets → words → invocations

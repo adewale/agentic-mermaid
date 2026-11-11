@@ -1,4 +1,4 @@
-import { describe, expect, test } from 'bun:test'
+import { describe, expect, spyOn, test } from 'bun:test'
 import { fileURLToPath } from 'node:url'
 import { getFamily, knownBuiltinFamilies, replaceFamilyForTest } from '../agent/families.ts'
 import { renderAndVerifyMermaid, verifyMermaid } from '../agent/verify.ts'
@@ -27,6 +27,10 @@ describe('one positioned artifact for preview and verification', () => {
     const text = await built.outputs[0]!.text()
     const sourceModule = await import(`data:text/javascript;base64,${Buffer.from(text).toString('base64')}`) as {
       BUILTIN_SOURCE_HOOKS: Record<string, { parse?: unknown; serialize?: unknown; buildSourceMap?: unknown; mutate?: unknown }>
+    }
+    for (const family of knownBuiltinFamilies()) {
+      expect(sourceModule.BUILTIN_SOURCE_HOOKS[family]?.mutate, family).toBeUndefined()
+      expect(typeof getFamily(family)!.mutate, family).toBe('function')
     }
     for (const family of ['eventmodeling', 'zenuml']) {
       const hook = sourceModule.BUILTIN_SOURCE_HOOKS[family]!
@@ -174,6 +178,129 @@ function workerHarness(timeout = 30_000) {
 }
 
 describe('persistent preview worker queue', () => {
+  test.each(['non-string', 'oversized'])('invalid %s adapter source is refused before copying or inspecting its payload', async kind => {
+    const h = workerHarness(), adapter = createBrowserEditorAdapter(() => h.client)
+    const clone = globalThis.structuredClone
+    let reads = 0
+    const copy = spyOn(globalThis, 'structuredClone').mockImplementation(((value: unknown, options?: StructuredSerializeOptions) => {
+      if (value && typeof value === 'object' && 'source' in value && typeof value.source === 'string' && value.source.length > 2_000_000) {
+        throw new Error('oversized source reached the copying boundary')
+      }
+      return clone(value, options)
+    }) as typeof structuredClone)
+    try {
+      const malformed = { get content() { reads++; return 'not a source string' } }
+      const source = kind === 'non-string' ? malformed as unknown as string : 'x'.repeat(2_000_001)
+      await expect(adapter.renderMermaidSVGWithReceipt(source)).rejects.toThrow('Editor source must be a string within the diagram source budget')
+      expect(reads).toBe(0)
+      expect(h.workers).toHaveLength(0)
+    } finally { copy.mockRestore(); h.client.dispose() }
+  })
+
+  test.each(['non-string', 'oversized'])('direct submit validates the %s source captured by cloning', async kind => {
+    const h = workerHarness()
+    let reads = 0
+    const operation = {
+      operation: 'preview' as const,
+      options: {},
+      get source() {
+        if (++reads === 1) return 'valid'
+        return (kind === 'non-string' ? 42 : 'x'.repeat(2_000_001)) as unknown as string
+      },
+    }
+    try {
+      const result = h.client.submit(operation).catch(error => error)
+      if (h.sent.length) h.reply(h.sent[0]!.id)
+      const outcome = await result
+      expect(outcome).toBeInstanceOf(Error)
+      expect(outcome.message).toContain('Editor source must be a string within the diagram source budget')
+      expect(h.sent).toEqual([])
+    } finally { h.client.dispose() }
+  })
+
+  test('direct submit validates PNG callback requirements against the captured operation', async () => {
+    const h = workerHarness()
+    let reads = 0
+    const operation = {
+      source: 'valid', options: {}, output: 1,
+      get operation() { return (++reads < 3 ? 'preview' : 'png') as 'png' },
+    }
+    try {
+      const result = h.client.submit(operation).catch(error => error)
+      if (h.sent.length) h.client.dispose()
+      const error = await result
+      expect(error).toBeInstanceOf(TypeError)
+      expect(error.message).toBe('browser PNG rasterizer must be a function')
+      expect(h.sent).toEqual([])
+    } finally { h.client.dispose() }
+  })
+
+  test('captures caller options before a cold adapter finishes loading', async () => {
+    const h = workerHarness()
+    let load!: (client: PreviewWorkerClient) => void
+    const adapter = createBrowserEditorAdapter(() => new Promise(resolve => { load = resolve }))
+    const options = { mermaidConfig: { flowchart: { padding: 12 } } }
+    const result = adapter.renderMermaidSVGWithReceipt('flowchart TD\nA-->B', options)
+    options.mermaidConfig.flowchart.padding = 99
+    load(h.client)
+    await Promise.resolve()
+    expect(h.sent[0]?.options).toEqual({ mermaidConfig: { flowchart: { padding: 12 } } })
+    h.reply(1)
+    await result
+    h.client.dispose()
+  })
+
+  test('bounds queued export payloads and restores capacity after invalidation', async () => {
+    const h = workerHarness()
+    const active = h.client.render('active', {}).catch(error => error)
+    const large = 'x'.repeat(1_500_000)
+    const first = h.client.renderText(large, {}, true).catch(error => error)
+    const second = h.client.renderText(large, {}, true).catch(error => error)
+    await expect(h.client.renderText(large, {}, true)).rejects.toThrow('payload budget')
+    h.client.invalidate()
+    expect(await first).toBeInstanceOf(PreviewSupersededError)
+    expect(await second).toBeInstanceOf(PreviewSupersededError)
+    const recovered = h.client.renderText(large, {}, true).catch(error => error)
+    // Cancellation releases bytes before the active preview finishes.
+    const other = h.client.renderText(large, {}, true).catch(error => error)
+    h.client.dispose()
+    for (const result of await Promise.all([active, recovered, other])) expect(result.message).toBe('Background renderer stopped')
+  })
+
+  test('a count-saturated queue refuses input before invoking its clone getters', async () => {
+    const h = workerHarness()
+    const jobs = [h.client.render('active', {}).catch(error => error)]
+    for (let index = 0; index < 4; index++) jobs.push(h.client.renderText('queued', {}, true).catch(error => error))
+    let reads = 0
+    await expect(h.client.renderText('refused', { get padding() { reads++; return 12 } }, true)).rejects.toThrow('queue is full')
+    expect(reads).toBe(0)
+    h.client.dispose()
+    await Promise.all(jobs)
+  })
+
+  test('reentrant option getters cannot admit a fifth waiting export', async () => {
+    const h = workerHarness(), nested: Array<Promise<unknown>> = []
+    try {
+      const active = h.client.render('active', {})
+      const outer = h.client.renderText('outer', {
+        get padding() {
+          for (let index = 0; index < 4; index++) nested.push(h.client.renderText(`nested-${index}`, {}, true))
+          return 12
+        },
+      }, true).catch(error => error)
+      h.reply(1)
+      await active
+      // Each completed request may dispatch the next queued request.
+      for (let index = 1; index < h.sent.length; index++) {
+        h.replyArtifact(h.sent[index]!.id, { text: 'done', receipt: { output: 'ascii' } })
+      }
+      await Promise.all(nested)
+      expect(await outer).toBeInstanceOf(Error)
+      expect((await outer).message).toContain('queue is full')
+      expect(h.sent.map(request => request.source)).toEqual(['active', 'nested-0', 'nested-1', 'nested-2', 'nested-3'])
+    } finally { h.client.dispose() }
+  })
+
   test('preparing opt-in editor fitting keeps the worker idle and preserves authored budgets', async () => {
     const h = workerHarness(), adapter = createBrowserEditorAdapter(() => h.client)
     const dependencies = { allowedFields: adapter.SHARED_RENDER_OPTION_FIELDS, validate: adapter.validateSerializableRenderOptions, resolvePaletteInput: () => '' }

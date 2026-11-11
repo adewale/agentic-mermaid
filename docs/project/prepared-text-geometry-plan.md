@@ -4,8 +4,8 @@ Status: landed in [PR 395](https://github.com/adewale/agentic-mermaid/pull/395)
 on 2026-10-17 at `53056ec569781d6f5153f90b5bd563aa70f8c5c7`.
 BUILD-36 and BUG-62–64 are complete. This is the acceptance and verification
 record; the [delivery reconciliation](archive/prepared-text-geometry-delivery-2026-10.md)
-distinguishes merged source from the still-unpublished release. The root
-backlog owns unfinished work.
+retains the October source/delivery distinction. This work shipped by
+[0.5.4](archive/releases.md#054--2026-10-30); the root backlog owns unfinished work.
 
 PR 394 landed the terminal compositor, chronology and numbering foundation
 (T8, T10 and T11). PR 395 contributed prepared display/pixel/cell
@@ -29,7 +29,7 @@ are evaluated at their own semantic boundary before painting.
 | T4 Allocate containers | Complete title/header/legend/label space before placing content | Independent resvg on-canvas/contrast checks, header-to-content clearance, naturally expanding versus fixed canvases, both chart orientations |
 | T5 Carry graphical geometry | Scene text and connector labels retain complete typography and occupied bounds | Emitted SVG fidelity, multiline/rotated bounds, bold/tracking, styled backends, external Scene admission remains enforced |
 | T6 Project SVG advances | Prepared emission owns advances; compatibility projection respects literal content | Short and wrapped literal tags, continuous formatted runs, custom fonts, exact visible characters, renderer does not transform a positioned block again |
-| T7 Cover every family role | Registry-wide family probes and directed supported-role cases | All 16 built-in families, titles and applicable nodes/edges/groups/notes/compartments/axes/legends, no title-only exemption |
+| T7 Cover every family role | Registry-wide family probes and directed supported-role cases | The registry-declared built-in families, titles and applicable nodes/edges/groups/notes/compartments/axes/legends, no title-only exemption |
 | T8 Own terminal cells | Reuse #386 compositor for text spaces, padding, glyph continuations and structural marks | Label-on-stroke, punctuation-only labels, duplicate/wrapped labels, opaque notes, shared corridors, corners/arrowheads, region identity and color-mode parity |
 | T9 Quantize numeric values once | XY ticks/bars/lines/baseline share one domain and scale | Explicit 1..14 range, zero baseline, negative and mixed signs, zero-length bars, half/whole cells, horizontal mode, coarse ticks and bar/line overlap |
 | T10 Preserve sequence chronology | Lexical event ownership and complete cell bounds | Notes before/after end, nested and empty/note-only fragments, long alt/else headers, CJK notes and note padding |

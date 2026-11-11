@@ -12,6 +12,7 @@ import { toMermaidLines } from '../mermaid-source.ts'
 import { withRenderStageObserver } from '../render-stages.ts'
 import { missingSvgLabels } from './helpers/svg-labels.ts'
 import { measureQuality } from '../agent/quality.ts'
+import { scanSvgStartTags } from '../svg-structure.ts'
 
 import * as agenticProducer from '../layout/agentic-layered.ts'
 import * as elkProducer from '../elk-instance.ts'
@@ -38,14 +39,18 @@ describe('ER layout backends', () => {
     expect(rendered.receipt.layoutDecisions).toEqual([expect.objectContaining({ selected: 'elk', fallback: 'none', attempts: [{ backend: 'elk', outcome: 'selected' }] })])
   })
 
-  test.each(['elk', 'agentic'].flatMap(backend => ['TB', 'BT', 'LR', 'RL'].map(direction => ({ backend, direction }))))('finishes a 128-entity chain within the shared geometry allowance with $backend in $direction', ({ backend, direction }) => {
-    const source = `erDiagram\ndirection ${direction}\n` + Array.from({ length: 127 }, (_, i) => `N${i} ||--o{ N${i + 1} : owns`).join('\n')
+  test.each([
+    ...['elk', 'agentic'].flatMap(backend => ['TB', 'BT', 'LR', 'RL'].map(direction => ({ backend, direction, size: 128 }))),
+    ...['TB', 'BT', 'LR', 'RL'].map(direction => ({ backend: 'elk', direction, size: 208 })),
+    ...['TB', 'LR'].map(direction => ({ backend: 'elk', direction, size: 256 })),
+  ])('finishes a $size-entity chain within the shared geometry allowance with $backend in $direction', ({ backend, direction, size }) => {
+    const source = `erDiagram\ndirection ${direction}\n` + Array.from({ length: size - 1 }, (_, i) => `N${i} ||--o{ N${i + 1} : owns`).join('\n')
     const options = { graphLayout: { backend: backend as 'elk' | 'agentic', fallback: 'none' as const } }
     let result!: ReturnType<typeof layoutMermaidWithReceipt>
     expect(() => { result = layoutMermaidWithReceipt(source, options) }).not.toThrow()
     const { layout, receipt } = result
-    expect(layout.nodes.map(node => node.id)).toEqual(Array.from({ length: 128 }, (_, i) => `N${i}`))
-    expect(layout.edges.map(edge => [edge.from, edge.to])).toEqual(Array.from({ length: 127 }, (_, i) => [`N${i}`, `N${i + 1}`]))
+    expect(layout.nodes.map(node => node.id)).toEqual(Array.from({ length: size }, (_, i) => `N${i}`))
+    expect(layout.edges.map(edge => [edge.from, edge.to])).toEqual(Array.from({ length: size - 1 }, (_, i) => [`N${i}`, `N${i + 1}`]))
     const quality = measureQuality(layout)
     expect(quality.edgeCrossings).toBe(0)
     expect(quality.routeOverlaps).toEqual({ parallel: 0, opposing: 0 })
@@ -53,7 +58,16 @@ describe('ER layout backends', () => {
     expect(receipt.layoutDecisions).toEqual([expect.objectContaining({ selected: backend, fallback: 'none' })])
     const rendered = renderMermaidSVGWithReceipt(source, options)
     expect(rendered.receipt.layoutCertification?.status).toBe('passed')
-    expect(rendered.svg.match(/class="er-relationship"/g)).toHaveLength(127)
+    const tags = scanSvgStartTags(rendered.svg).map(tag => ({ name: tag.name, attrs: Object.fromEntries(tag.attributes.map(attr => [attr.name, attr.value])) }))
+    expect(tags.filter(tag => tag.attrs.class === 'entity').map(tag => tag.attrs['data-id'])).toEqual(Array.from({ length: size }, (_, i) => `N${i}`))
+    expect(tags.filter(tag => tag.attrs.class === 'er-relationship').map(tag => [tag.attrs['data-from'], tag.attrs['data-to']])).toEqual(Array.from({ length: size - 1 }, (_, i) => [`N${i}`, `N${i + 1}`]))
+    expect(tags.filter(tag => tag.attrs['data-role'] === 'cardinality')).toHaveLength((size - 1) * 2)
+    expect(rendered.svg.match(/>owns<\/text>/g)).toHaveLength(size - 1)
+  })
+
+  test.each(['BT', 'RL'])('still refuses an unproved 256-entity ELK chain in %s at the original limit', direction => {
+    const source = `erDiagram\ndirection ${direction}\n` + Array.from({ length: 255 }, (_, i) => `N${i} ||--o{ N${i + 1} : owns`).join('\n')
+    expect(() => renderMermaidSVGWithReceipt(source, { graphLayout: { backend: 'elk', fallback: 'none' } })).toThrow('ER_ROUTE_WORK_LIMIT')
   })
 
   test.each(['TB', 'BT', 'LR', 'RL'])('reserves cardinality leads without crossing a neighbouring tree route in %s', direction => {

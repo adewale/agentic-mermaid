@@ -87,7 +87,7 @@ function runtimeSource(source: string, path: string, schemaDocumentation: boolea
 
 interface BrowserBuild {
   onLoad(options: { filter: RegExp }, callback: (args: { path: string }) => { contents: string; loader: 'ts'; resolveDir: string } | undefined): void
-  onResolve(options: { filter: RegExp }, callback: (args: { path: string; resolveDir: string }) => { path: string } | undefined): void
+  onResolve(options: { filter: RegExp }, callback: (args: { path: string; resolveDir: string; kind?: string }) => { path: string } | undefined): void
 }
 
 /** Inline only canonical declaration leaves; runtime imports or initialization
@@ -165,7 +165,7 @@ function runtimeDefaultBackendSource(source: string, path: string): string {
 /** Share canonical runtime primitives through the existing browser backend
  * chunk. Error and generated-identity leaves keep one module identity without
  * separate requests. Source and Node retain their original modules. */
-function runtimeLayoutBackendSource(source: string, path: string): string {
+function runtimeLayoutBackendSource(source: string, path: string, lazyLayoutOptimization: boolean): string {
   const errorPath = resolve(dirname(path), 'certification-error.ts')
   const errors = readFileSync(errorPath, 'utf8')
   const leaf = ts.createSourceFile(errorPath, errors, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS)
@@ -201,7 +201,29 @@ function runtimeLayoutBackendSource(source: string, path: string): string {
   }
   const gaps = readFileSync(resolve(dirname(path), 'link-rank-gap.ts'), 'utf8')
   const seeds = runtimeDeclarations(resolve(dirname(path), '../scene/seed.ts'), ['seedFrom', 'hashId', 'makeRng', 'nodeSeed', 'nodeRng'])
-  return `${errors}\n${identities}\n${gaps}\n${seeds}\n${ts.createPrinter().printFile(ts.factory.updateSourceFile(file, statements))}`
+  const order = runtimeDeclarations(resolve(dirname(path), '../shared/deterministic-order.ts'), ['compareCodePointStrings'])
+  const plainData = runtimeDeclarations(resolve(dirname(path), '../shared/plain-data.ts'), ['isPlainRecord', 'deepFreeze'])
+  const utf8 = runtimeDeclarations(resolve(dirname(path), '../shared/utf8.ts'), ['boundedUtf8ByteLength'])
+  const ink = runtimeDeclarations(resolve(dirname(path), '../shared/ink-index.ts'), ['InkBounds', 'InkTree', 'chargeInkSort', 'buildInkTree', 'createInkIndex'])
+  const optimization = lazyLayoutOptimization ? withoutRuntimeImport(readFileSync(resolve(dirname(path), 'optimization-context.lazy.ts'), 'utf8'), path, './certification-error.ts', ['DeferredDependencyError']) : ''
+  return `${errors}\n${identities}\n${gaps}\n${seeds}\n${order}\n${plainData}\n${utf8}\n${ink}\n${optimization}\n${ts.createPrinter().printFile(ts.factory.updateSourceFile(file, statements))}`
+}
+
+/** Marker-terminal supports use the same resource bank in the browser; keep
+ * this small canonical leaf beside its bounds implementation instead of another request. */
+function runtimeMarkerBoundsSource(source: string, path: string): string {
+  const leafPath = resolve(dirname(path), 'marker-terminals.ts')
+  const leaf = ts.createSourceFile(leafPath, readFileSync(leafPath, 'utf8'), ts.ScriptTarget.Latest, true, ts.ScriptKind.TS)
+  const declarations = leaf.statements.filter(statement => !ts.isImportDeclaration(statement))
+  if (declarations.length !== 1 || !ts.isFunctionDeclaration(declarations[0]!) || declarations[0]!.name?.text !== 'prepareMarkerTerminals') throw new Error('Unsupported canonical marker-terminal declarations')
+  const imports = leaf.statements.filter(ts.isImportDeclaration)
+  const expected = ['../shared/edge-label-geometry.ts', './bounds.ts', './ir.ts']
+  if (imports.length !== expected.length || imports.some((statement, index) => !ts.isStringLiteral(statement.moduleSpecifier) || statement.moduleSpecifier.text !== expected[index])) throw new Error('Unsupported canonical marker-terminal imports')
+  const labelPath = resolve(dirname(path), '../shared/edge-label-geometry.ts')
+  const labels = ts.createSourceFile(labelPath, readFileSync(labelPath, 'utf8'), ts.ScriptTarget.Latest, true, ts.ScriptKind.TS)
+  const shaft = labels.statements.find(statement => ts.isVariableStatement(statement) && statement.declarationList.declarations.length === 1 && ts.isIdentifier(statement.declarationList.declarations[0]!.name) && statement.declarationList.declarations[0]!.name.text === 'VISIBLE_SHAFT')
+  if (!shaft || !ts.isVariableStatement(shaft) || !shaft.declarationList.declarations[0]!.initializer || !ts.isNumericLiteral(shaft.declarationList.declarations[0]!.initializer!)) throw new Error('Unsupported canonical visible-shaft constant')
+  return `${source}\n${ts.createPrinter().printNode(ts.EmitHint.Unspecified, shaft, labels)}\n${ts.createPrinter().printNode(ts.EmitHint.Unspecified, declarations[0]!, leaf)}`
 }
 
 /** Pipeline prose is for Node-side inspection and generated documentation.
@@ -306,11 +328,45 @@ function runtimeFamilyEditorSource(source: string, path: string): string {
   } finally { transformed.dispose() }
 }
 
+/** The private editor validates mutation shapes but does not expose SDK op
+ * discovery. Omit only literal notes from the owned pure annotation helper. */
+function runtimeMutationSchemaSource(source: string, path: string): string {
+  const file = ts.createSourceFile(path, source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS)
+  const helpers = file.statements.flatMap(statement => ts.isVariableStatement(statement)
+    ? statement.declarationList.declarations.filter(declaration => ts.isIdentifier(declaration.name) && declaration.name.text === 'withNote') : [])
+  const helper = helpers[0]?.initializer
+  const body = helper && ts.isArrowFunction(helper) && ts.isParenthesizedExpression(helper.body) ? helper.body.expression : undefined
+  if (helpers.length !== 1 || !helper || !ts.isArrowFunction(helper) || helper.modifiers?.length
+    || helper.parameters.length !== 2 || helper.parameters.some((parameter, index) => !ts.isIdentifier(parameter.name)
+      || parameter.name.text !== ['spec', 'note'][index] || parameter.initializer || parameter.dotDotDotToken)
+    || !body || !ts.isObjectLiteralExpression(body) || body.properties.length !== 2
+    || !ts.isSpreadAssignment(body.properties[0]!) || !ts.isIdentifier(body.properties[0]!.expression) || body.properties[0]!.expression.text !== 'spec'
+    || !ts.isShorthandPropertyAssignment(body.properties[1]!) || body.properties[1]!.name.text !== 'note') {
+    throw new Error('Unsupported mutation schema note helper')
+  }
+  const transformed = ts.transform(file, [context => root => {
+    const visit: ts.Visitor = node => {
+      if (ts.isCallExpression(node) && ts.isIdentifier(node.expression) && node.expression.text === 'withNote'
+        && node.arguments.length === 2 && !ts.isSpreadElement(node.arguments[0]!)
+        && (ts.isStringLiteral(node.arguments[1]!) || ts.isNoSubstitutionTemplateLiteral(node.arguments[1]!))) {
+        return ts.factory.createObjectLiteralExpression([ts.factory.createSpreadAssignment(ts.visitNode(node.arguments[0]!, visit) as ts.Expression)])
+      }
+      return ts.visitEachChild(node, visit, context)
+    }
+    return ts.visitNode(root, visit) as ts.SourceFile
+  }])
+  try { return ts.createPrinter().printFile(transformed.transformed[0]!) }
+  finally { transformed.dispose() }
+}
+
 /** Structural plugin interface works in both esbuild and Bun builds. */
-export function runtimeRenderContractPlugin({ schemaDocumentation = true, terminalAdapter = true, conformanceObservations = true, familyEditorMetadata = true, coalesceRuntimePrimitives = false, sourceOnlySceneAdmission = false } = {}) {
+export function runtimeRenderContractPlugin({ schemaDocumentation = true, terminalAdapter = true, conformanceObservations = true, familyEditorMetadata = true, coalesceRuntimePrimitives = false, sourceOnlySceneAdmission = false, lazyLayoutOptimization = false } = {}) {
   return {
     name: 'runtime-render-contract',
     setup(build: BrowserBuild) {
+      if (sourceOnlySceneAdmission && !schemaDocumentation) build.onLoad({ filter: /[\\/]src[\\/]agent[\\/]op-schema-definitions\.ts$/ }, ({ path }) => ({
+        contents: runtimeMutationSchemaSource(readFileSync(path, 'utf8'), path), loader: 'ts', resolveDir: dirname(path),
+      }))
       if (sourceOnlySceneAdmission) {
         // These private consumers accept source/options/output operations,
         // never Scene input or extension registration. Share native checks;
@@ -321,6 +377,31 @@ export function runtimeRenderContractPlugin({ schemaDocumentation = true, termin
           resolve(args.resolveDir, args.path) === admission ? { path: sourceAdmission } : undefined)
       }
       if (coalesceRuntimePrimitives) {
+        const markerBoundsPath = fileURLToPath(new URL('../../src/scene/bounds.ts', import.meta.url))
+        const markerTerminalsPath = resolve(dirname(markerBoundsPath), 'marker-terminals.ts')
+        build.onResolve({ filter: /[\\/]marker-terminals\.ts$/ }, args => resolve(args.resolveDir, args.path) === markerTerminalsPath ? { path: markerBoundsPath } : undefined)
+        build.onLoad({ filter: /[\\/]src[\\/]scene[\\/]bounds\.ts$/ }, ({ path }) => path !== markerBoundsPath ? undefined : ({
+          contents: runtimeMarkerBoundsSource(readFileSync(path, 'utf8'), path), loader: 'ts', resolveDir: dirname(path),
+        }))
+        if (lazyLayoutOptimization) {
+          // Marker interpretation and the lazy HTML decoder are one owner.
+          // Keeping their imports together avoids extra default SVG requests.
+          const entityPath = fileURLToPath(new URL('../../src/shared/mermaid-entities.ts', import.meta.url))
+          const displayPath = resolve(dirname(entityPath), 'mermaid-entity-display.ts')
+          const tablePath = resolve(dirname(entityPath), 'html-entity-table.ts')
+          build.onResolve({ filter: /[\\/](?:mermaid-entity-display|html-entity-table)\.ts$/ }, args =>
+            [displayPath, tablePath].includes(resolve(args.resolveDir, args.path)) ? { path: entityPath } : undefined)
+          build.onLoad({ filter: /[\\/]src[\\/]shared[\\/]mermaid-entities\.ts$/ }, ({ path }) => path !== entityPath ? undefined : ({
+            contents: `${readFileSync(path, 'utf8')}\n${readFileSync(resolve(dirname(path), 'html-entity-table.lazy.ts'), 'utf8')}\n${withoutRuntimeImport(withoutRuntimeImport(readFileSync(displayPath, 'utf8'), path, './mermaid-entities.ts', ['ENTITY_MARKER_RE', 'TERMINAL_CONTROL_RE', 'toEntityMarkers', 'XML_NAMED_ENTITIES']), path, './html-entity-table.ts', ['decodeHtmlEntityReference'])}`,
+            loader: 'ts', resolveDir: dirname(path),
+          }))
+        }
+        const structurePath = fileURLToPath(new URL('../../src/svg-structure.ts', import.meta.url))
+        const postprocessPath = resolve(dirname(structurePath), 'svg-postprocess.ts')
+        build.onResolve({ filter: /[\\/]svg-postprocess\.ts$/ }, args => resolve(args.resolveDir, args.path) === postprocessPath ? { path: structurePath } : undefined)
+        build.onLoad({ filter: /[\\/]src[\\/]svg-structure\.ts$/ }, ({ path }) => path !== structurePath ? undefined : ({
+          contents: `${readFileSync(path, 'utf8')}\n${withoutRuntimeImport(readFileSync(postprocessPath, 'utf8'), path, './svg-structure.ts', ['scanSvgStartTags', 'transformSvgAttributes', 'transformSvgCssValues'])}`, loader: 'ts', resolveDir: dirname(path),
+        }))
         const grammarPath = fileURLToPath(new URL('../../src/shared/grammar-text.ts', import.meta.url))
         const syntaxPath = resolve(dirname(grammarPath), 'syntax-error.ts')
         const spansPath = resolve(dirname(grammarPath), 'source-spans.ts')
@@ -332,16 +413,26 @@ export function runtimeRenderContractPlugin({ schemaDocumentation = true, termin
           contents: `${readFileSync(path, 'utf8')}\n${readFileSync(syntaxPath, 'utf8')}\n${runtimeDeclarations(spansPath, ['sourceLineStarts', 'sourcePointAt', 'sourceSpan'])}\n${runtimeDeclarations(membershipPath, ['SubgraphMembers', 'resolveSubgraphMembership', 'SubgraphMembership', 'createSubgraphMembership'])}`, loader: 'ts', resolveDir: dirname(path),
         }))
         const backendPath = fileURLToPath(new URL('../../src/layout/backend.ts', import.meta.url))
+        if (lazyLayoutOptimization) build.onResolve({ filter: /[\\/]optimization-context\.ts$/ }, args =>
+          resolve(args.resolveDir, args.path) === resolve(dirname(backendPath), 'optimization-context.ts') ? { path: backendPath } : undefined)
         const errorPath = resolve(dirname(backendPath), 'certification-error.ts')
         const identityPath = resolve(dirname(backendPath), '../shared/generated-identity.ts')
         const gapPath = resolve(dirname(backendPath), 'link-rank-gap.ts')
         const seedPath = resolve(dirname(backendPath), '../scene/seed.ts')
+        const orderPath = resolve(dirname(backendPath), '../shared/deterministic-order.ts')
+        const inkPath = resolve(dirname(backendPath), '../shared/ink-index.ts')
+        build.onResolve({ filter: /[\\/]ink-index\.ts$/ }, args => resolve(args.resolveDir, args.path) === inkPath ? { path: backendPath } : undefined)
+        build.onResolve({ filter: /[\\/]deterministic-order\.ts$/ }, args => resolve(args.resolveDir, args.path) === orderPath ? { path: backendPath } : undefined)
+        for (const name of ['plain-data', 'utf8']) {
+          const leafPath = resolve(dirname(backendPath), '../shared/' + name + '.ts')
+          build.onResolve({ filter: new RegExp('[\\\\/]' + name + '\\.ts$') }, args => resolve(args.resolveDir, args.path) === leafPath ? { path: backendPath } : undefined)
+        }
         build.onResolve({ filter: /[\\/]link-rank-gap\.ts$/ }, args => resolve(args.resolveDir, args.path) === gapPath ? { path: backendPath } : undefined)
         build.onResolve({ filter: /[\\/]generated-identity\.ts$/ }, args => resolve(args.resolveDir, args.path) === identityPath ? { path: backendPath } : undefined)
         build.onResolve({ filter: /[\\/]certification-error\.ts$/ }, args => resolve(args.resolveDir, args.path) === errorPath ? { path: backendPath } : undefined)
         build.onResolve({ filter: /[\\/]seed\.ts$/ }, args => resolve(args.resolveDir, args.path) === seedPath ? { path: backendPath } : undefined)
         build.onLoad({ filter: /[\\/]src[\\/]layout[\\/]backend\.ts$/ }, ({ path }) => path !== backendPath ? undefined : ({
-          contents: runtimeLayoutBackendSource(readFileSync(path, 'utf8'), path), loader: 'ts', resolveDir: dirname(path),
+          contents: runtimeLayoutBackendSource(readFileSync(path, 'utf8'), path, lazyLayoutOptimization), loader: 'ts', resolveDir: dirname(path),
         }))
         const preparedTextPath = fileURLToPath(new URL('../../src/shared/prepared-text.ts', import.meta.url))
         const rowsPath = resolve(dirname(preparedTextPath), 'text-rows.ts')

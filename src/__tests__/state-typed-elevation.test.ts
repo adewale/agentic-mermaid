@@ -435,10 +435,19 @@ describe('typed State residual elevation (B07)', () => {
     }
     const parsed = parseMermaid(source)
     if (!parsed.ok) throw new Error(JSON.stringify(parsed.error))
-    expect(parsed.value.body.kind).toBe('opaque')
-    expect(serializeMermaid(parsed.value).trimEnd()).toBe(source)
-    expect(parseRenderGraph(source).edges.map(edge => [edge.source, edge.target])).toEqual([['A', 'B']])
-    expect(renderMermaidSVG(source)).toContain('>A</text>')
+    const diagram = asState(parsed.value)!
+    expect(diagram.body.layoutDirectives).toEqual([directive])
+    const edited = mutate(diagram, { kind: 'rename_state', from: 'A', to: 'Ready' })
+    expect(edited.ok).toBe(true)
+    if (!edited.ok) return
+    const output = serializeMermaid(edited.value)
+    expect(output).toContain(directive)
+    expect(state(output).body).toEqual(edited.value.body)
+    expect(parseRenderGraph(output).edges.map(edge => [edge.source, edge.target])).toEqual([['Ready', 'B']])
+    expect(renderMermaidSVG(output)).toContain('>Ready</text>')
+    const reference = startUpstreamMermaid()
+    try { expect(await reference.accepts(output)).toBe(true) }
+    finally { reference.close() }
     const verified = verifyMermaid(source)
     expect(verified.ok).toBe(true)
     expect(verified.warnings).toContainEqual(
@@ -465,6 +474,14 @@ describe('typed State residual elevation (B07)', () => {
     for (const directive of ['scale diagonal width', 'hide empty description extra']) {
       expect(() => renderMermaidSVG(`stateDiagram-v2\nA --> B\n${directive}`)).toThrow(`Unsupported state syntax: "${directive}"`)
     }
+    const nested = 'stateDiagram-v2\nstate Outer {\nscale 350 width\nA --> B\n}'
+    const preserved = parseMermaid(nested)
+    if (!preserved.ok) throw new Error(JSON.stringify(preserved.error))
+    expect(preserved.value.body.kind).toBe('opaque')
+    expect(serializeMermaid(preserved.value).trimEnd()).toBe(nested)
+    const injected = state('stateDiagram-v2\nA --> B')
+    injected.body.layoutDirectives = ['scale 350 width\nC --> D']
+    expect(() => serializeMermaid(injected)).toThrow('Invalid State layout directive')
   })
 
   test.each(['state "First<br/>second" as A\nA --> B', 'A --> B : First<br/>second'])('writes normalized label breaks without introducing unknown body lines: %s', body => {
@@ -666,6 +683,20 @@ stateDiagram-v2
     expect(serialized.indexOf('Audit')).toBeGreaterThan(serialized.indexOf('  --'))
     expect(parseRenderGraph(serialized).subgraphs[0]!.children).toHaveLength(2)
     expect(state(serialized).body.states[0]!.regions![1]!.transitions).toContainEqual({ from: 'Right', to: 'Audit' })
+  })
+
+  test('writes inserted empty regions and collapsed scopes as accepted Mermaid', async () => {
+    const upstream = startUpstreamMermaid()
+    try {
+      let d = state('stateDiagram-v2\nstate on {\ndirection LR\nidle --> busy\n}')
+      d = apply(d, { kind: 'add_region', parent: 'on', index: 0 })
+      const inserted = serializeMermaid(d)
+      expect(await upstream.accepts(inserted)).toBe(true)
+      expect(parseRenderGraph(inserted).subgraphs[0]!.children).toHaveLength(2)
+      d = apply(d, { kind: 'remove_region', parent: 'on', index: 0 })
+      expect(await upstream.accepts(serializeMermaid(d))).toBe(true)
+      expect(state(serializeMermaid(d)).body).toEqual(d.body)
+    } finally { upstream.close() }
   })
 
   test('models classDef, class/cssClass, inline style, and linkStyle paint', () => {

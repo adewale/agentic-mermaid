@@ -43,6 +43,15 @@ function flowchartSubgraphs(groups: number, perGroup: number): string {
 // A new native family must supply a real scaling workload at this owning
 // boundary. The type closes enrollment without a second family inventory.
 const WORKLOADS = {
+  swimlane: [{ id: '4-lanes-40-tasks', source: ['swimlane-beta LR', ...Array.from({ length: 4 }, (_, lane) => [`subgraph lane${lane}[Team ${lane}]`, ...Array.from({ length: 10 }, (_, item) => `n${lane}_${item}[Task ${lane}.${item}]`), 'end']), ...Array.from({ length: 10 }, (_, item) => Array.from({ length: 3 }, (_, lane) => `n${lane}_${item} --> n${lane + 1}_${item}`))].flat(2).join('\n') }],
+  treeview: [{ id: '20-directories-200-files', source: lines('treeView-beta', 20, directory => [`folder${directory}/`, ...Array.from({ length: 10 }, (_, file) => `    file${directory}_${file}.ts`)]), expectedSvgLabels: Array.from({ length: 20 }, (_, directory) => Array.from({ length: 10 }, (_, file) => `file${directory}_${file}.ts`)).flat() }],
+  usecase: [{ id: '20-actors-20-cases', source: lines('usecase-beta\ndirection LR', 20, i => [`actor A${i}("Actor ${i}")`, `U${i}("Action ${i}")`, `A${i} --> U${i}`]) }],
+  agentflow: [{ id: '100-tasks-with-metadata', source: lines('agentflow-beta TB', 100, i => [`n${i}[Task ${i}]@{ shape: task, retries: ${i % 4}, tags: ["authoring", "execution"] }`, ...(i ? [`n${i - 1} --> n${i}`] : [])]), expectedSvgLabels: Array.from({ length: 100 }, (_, i) => `Task ${i}`) }],
+  wardley: [{ id: '30-positioned-components', source: lines('wardley-beta', 30, i => `component Component${i} [${(0.1 + Math.floor(i / 10) * 0.35).toFixed(2)}, ${(0.05 + i % 10 * 0.1).toFixed(2)}]`), expectedSvgLabels: Array.from({ length: 30 }, (_, i) => `Component${i}`) }],
+  cynefin: [{ id: '5-domains-100-items', source: ['cynefin-beta', ...['complex', 'complicated', 'clear', 'chaotic', 'confusion'].flatMap(domain => [domain, ...Array.from({ length: 20 }, (_, i) => `  "${domain} item ${i}"`)])].join('\n') }],
+  railroad: [{ id: '40-branching-rules', source: lines('railroad-beta', 40, i => `rule${i} = sequence(terminal("start${i}"), choice(terminal("left${i}"), optional(terminal("right${i}"))), zeroOrMore(terminal(",")));`), expectedSvgLabels: Array.from({ length: 40 }, (_, i) => [`start${i}`, `left${i}`, `right${i}`]).flat() }],
+  venn: [{ id: '32-sets-with-owned-text', source: lines('venn-beta', 32, i => [`set S${i}["Set ${i}"]:${10 + i}`, `  text note${i}["Owned text ${i}"]`]), expectedSvgLabels: Array.from({ length: 32 }, (_, i) => [`Set ${i}`, `Owned text ${i}`]).flat() }],
+
   // Scale variable-width bit encoding with complete field names; narrow flag
   // wrapping has separate family tests. Authored bitWidth keeps one-bit names
   // readable without changing the encoded inclusive ranges or label oracle.

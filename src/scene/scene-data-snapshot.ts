@@ -1,3 +1,4 @@
+import { isOwnedScene } from './owned-data.ts'
 /**
  * One bounded immutable snapshot for external Scene data.
  *
@@ -218,7 +219,8 @@ export function snapshotBoundedExternalData(
 
 /**
  * Documents that passed admission, with the rule set they passed. Every document
- * is a recursively frozen own-data snapshot, including any registered built-in
+ * is recursively frozen, from external own-data admission or a private
+ * constructor-owned graph, including any registered built-in
  * terminal projection. Its validation result cannot change: passing it through
  * another admission gate re-proves nothing. Only this module records documents,
  * so a caller cannot forge membership.
@@ -249,7 +251,8 @@ export function admitSceneDocumentWith(value: unknown, mode: 'internal' | 'exter
     }
     return value as SceneDoc
   }
-  const admitted = snapshotBoundedExternalData(value, EXTERNAL_SCENE_DOCUMENT_SNAPSHOT_LIMITS, 'scene')
+  const admitted = mode === 'internal' && typeof value === 'object' && value !== null && isOwnedScene(value)
+    ? value : snapshotBoundedExternalData(value, EXTERNAL_SCENE_DOCUMENT_SNAPSHOT_LIMITS, 'scene')
   if (internalOnly && sceneValidationMode(admitted) === 'external') refuseExternalBrowserScene()
   validate(admitted, mode, mode !== 'internal' || crossChecks)
   recordAdmittedScene(admitted as SceneDoc, mode ?? sceneValidationMode(admitted), requiredChecks)

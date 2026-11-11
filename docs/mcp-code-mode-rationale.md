@@ -6,10 +6,12 @@ and `build` tools. Prefer them for ordered structured edits: JSON ops go through
 one shared validator, transaction, and verify-before-emit gate. `execute(code)`
 remains available for custom synchronous logic against `mermaid.*`. Locally it
 runs in `node:vm`, which is not an OS/container security boundary.
-The local helpers are `describe_sdk`, `render_png`, and `describe`.
+The local helpers are `describe_sdk`, `render_svg`, `render_ascii`, `render_png`,
+`verify`, and `describe`. Direct SVG/text/verify calls share one render subprocess with a sampled memory budget; see
+the [transport guide](./mcp-http-transport.md#direct-rendering-and-verification) for limits.
 
 <!-- complete: hosted-mcp-tools -->
-There is now also a **hosted** MCP at `https://agentic-mermaid.dev/mcp` (stateless Streamable HTTP; see the [as-built record](./project/archive/hosted-mcp-cloudflare-plan.md)). It keeps `execute` but runs agent code in a per-request Cloudflare Dynamic Worker isolate (`globalOutbound: null`, empty env, `cpuMs` budget) instead of a local `node:vm` — there the isolate configuration *is* the security boundary — and adds `describe_sdk` plus direct `render_svg`/`render_ascii`/`render_png`/`verify`/`describe` tools so schema discovery and common render/verify paths avoid a billable isolate, plus the declarative `mutate`/`build` tools (see below). Both share the same hardened `mermaid.*` facade; their semantics are pinned against each other by a differential test suite, with one explicit host-policy divergence: both hosted `renderMermaidSVG*` execute methods and the direct `render_svg` tool force `security: 'strict'` and `embedFontImport: false`, even if agent code asks for weaker values. Local Code Mode retains the library's caller-selectable policy.
+There is now also a **hosted** MCP at `https://agentic-mermaid.dev/mcp` (stateless Streamable HTTP; see the [as-built record](https://github.com/adewale/agentic-mermaid/blob/f2b3fd0ab50af0841175681f87a0b40090b9c9f5/docs/project/archive/hosted-mcp-cloudflare-plan.md)). It keeps `execute` but runs agent code in a per-request Cloudflare Dynamic Worker isolate (`globalOutbound: null`, empty env, `cpuMs` budget) instead of a local `node:vm` — there the isolate configuration *is* the security boundary — and adds `describe_sdk` plus direct `render_svg`/`render_ascii`/`render_png`/`verify`/`describe` tools so schema discovery and common render/verify paths avoid a billable isolate, plus the declarative `mutate`/`build` tools (see below). Both share the same hardened `mermaid.*` facade; their semantics are pinned against each other by a differential test suite, with one explicit host-policy divergence: both hosted `renderMermaidSVG*` execute methods and the direct `render_svg` tool force `security: 'strict'` and `embedFontImport: false`, even if agent code asks for weaker values. Local Code Mode retains the library's caller-selectable policy.
 
 ## Why the MCP server exists
 

@@ -27,7 +27,7 @@
     },
     "timeline": {
       "requests": 32,
-      "raw": 617000,
+      "raw": 623000,
       "gzip": 214500,
       "brotli": 190500
     },
@@ -45,7 +45,7 @@
     },
     "journey": {
       "requests": 33,
-      "raw": 637000,
+      "raw": 643000,
       "gzip": 222750,
       "brotli": 198000
     },
@@ -69,13 +69,13 @@
     },
     "quadrant": {
       "requests": 34,
-      "raw": 622000,
+      "raw": 631000,
       "gzip": 218250,
       "brotli": 194000
     },
     "gantt": {
       "requests": 32,
-      "raw": 642000,
+      "raw": 649000,
       "gzip": 225000,
       "brotli": 200250
     },
@@ -87,19 +87,19 @@
     },
     "gitgraph": {
       "requests": 33,
-      "raw": 629000,
+      "raw": 637000,
       "gzip": 220750,
       "brotli": 196250
     },
     "radar": {
       "requests": 35,
-      "raw": 632000,
+      "raw": 641000,
       "gzip": 223000,
       "brotli": 198500
     },
     "sankey": {
       "requests": 33,
-      "raw": 624000,
+      "raw": 634000,
       "gzip": 220000,
       "brotli": 195500
     },
@@ -156,6 +156,54 @@
       "raw": 719000,
       "gzip": 239250,
       "brotli": 213000
+    },
+    "railroad": {
+      "requests": 31,
+      "raw": 642000,
+      "gzip": 212000,
+      "brotli": 188000
+    },
+    "cynefin": {
+      "requests": 31,
+      "raw": 629000,
+      "gzip": 208000,
+      "brotli": 185000
+    },
+    "agentflow": {
+      "requests": 42,
+      "raw": 2492000,
+      "gzip": 774000,
+      "brotli": 624000
+    },
+    "usecase": {
+      "requests": 37,
+      "raw": 2448000,
+      "gzip": 758000,
+      "brotli": 609000
+    },
+    "wardley": {
+      "requests": 31,
+      "raw": 643000,
+      "gzip": 212000,
+      "brotli": 188000
+    },
+    "venn": {
+      "requests": 31,
+      "raw": 640000,
+      "gzip": 212000,
+      "brotli": 188000
+    },
+    "swimlane": {
+      "requests": 44,
+      "raw": 2524000,
+      "gzip": 785000,
+      "brotli": 634000
+    },
+    "treeview": {
+      "requests": 31,
+      "raw": 628000,
+      "gzip": 208000,
+      "brotli": 184000
     }
   }
 }

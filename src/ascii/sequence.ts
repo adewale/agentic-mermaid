@@ -23,8 +23,8 @@ function messageLabelX(message: PositionedMessage, line: string): number {
   return message.fromX === message.toX ? message.x : Math.min(message.fromX, message.toX) + Math.floor((Math.abs(message.toX - message.fromX) - visualWidth(line)) / 2)
 }
 
-export function renderSequenceTerminal(text: string, config: AsciiConfig, colorMode?: ColorMode, theme?: AsciiTheme, seqConfig: ResolvedSequenceConfig = {}, targetWidth?: number, authoredLine?: (index: number) => number | undefined): TerminalArtifact {
-  const diagram = parseSequenceDiagram(text.split('\n').map(line => line.trim()).filter(line => line && !line.startsWith('%%')), { ...seqConfig, ...(authoredLine ? { authoredLine } : {}) })
+export function renderSequenceTerminal(text: string, config: AsciiConfig, colorMode?: ColorMode, theme?: AsciiTheme, seqConfig: ResolvedSequenceConfig = {}, targetWidth?: number, authoredLine?: (index: number) => number | undefined, authoredColumn?: (index: number, column: number) => number | undefined): TerminalArtifact {
+  const diagram = parseSequenceDiagram(text.split('\n').map(line => line.trim()).filter(line => line && !line.startsWith('%%')), { ...seqConfig, ...(authoredLine ? { authoredLine } : {}), ...(authoredColumn ? { authoredColumn } : {}) })
   return renderSequenceDiagramTerminal(diagram, config, colorMode, theme, seqConfig, targetWidth)
 }
 
@@ -110,9 +110,14 @@ export function renderSequenceDiagramTerminal(input: SequenceDiagram, config: As
     return { x, width: Math.max(from, to, labelX + width - 1) - x + 1 }
   })
   const noteSpans = diagram.notes.map((note, index) => {
-    const width = Math.max(0, ...noteLines[index]!.map(visualWidth)) + 4
     const first = llX[actorIndex.get(note.actorIds[0]!) ?? 0]!, last = llX[actorIndex.get(note.actorIds.at(-1)!) ?? 0]!
-    const x = note.position === 'left' ? first - width - 1 : note.position === 'right' ? first + 2 : Math.floor((first + last) / 2) - Math.floor(width / 2)
+    // An over-note's addressed lifelines are part of its geometry, even when
+    // the caption is short. Centering a text-sized box between them loses its
+    // visible owners; include both endpoints and all intervening lifelines.
+    const width = Math.max(Math.max(0, ...noteLines[index]!.map(visualWidth)) + 4, note.position === 'over' ? Math.abs(last - first) + 3 : 0)
+    // Cell-box centers use (width - 1) / 2; width / 2 loses the right
+    // interior margin when the addressed lifelines have odd separation.
+    const x = note.position === 'left' ? first - width - 1 : note.position === 'right' ? first + 2 : Math.floor((first + last - width + 1) / 2)
     return { x: Math.max(0, x), width }
   })
   const frameSpans = new Map<number, { x: number; width: number }>()

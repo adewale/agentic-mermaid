@@ -3,17 +3,19 @@ import { readFileSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import { resolve } from 'node:path'
 import type { Plugin } from 'esbuild'
+import { consolidateBrowserRuntime } from './consolidate-browser-runtime.ts'
 import { minifyBrowserRuntime } from './runtime-minify.ts'
 
 const require = createRequire(import.meta.url)
+const rollupVersion = (require('rollup/package.json') as { version: string }).version
 const swcVersion = (require('@swc/core/package.json') as { version: string }).version
 
 /** esbuild computes chunk names before onEnd. Put the complete optimizer
  * recipe in its input banner so an optimizer change also changes those names.
  * The ordinary non-license comment is removed by the following compressor. */
 export function browserOptimizerRecipe(): string {
-  const recipe = createHash('sha256').update(swcVersion)
-  for (const name of ['compact-browser-modules.ts', 'runtime-minify.ts']) {
+  const recipe = createHash('sha256').update(swcVersion).update(rollupVersion)
+  for (const name of ['compact-browser-modules.ts', 'runtime-minify.ts', 'consolidate-browser-runtime.ts']) {
     recipe.update(name).update('\0').update(readFileSync(new URL(name, import.meta.url)))
   }
   return recipe.digest('hex')
@@ -50,12 +52,14 @@ export function compactBrowserModulesPlugin(): Plugin {
             hash: createHash('sha256').update(contents).digest('hex') }
           output.bytes = contents.byteLength
         }
-        // Input contributions and import edges describe the esbuild stage;
-        // output byte counts describe the bytes the following writer receives.
+        await consolidateBrowserRuntime(result, workingDirectory, recipe)
+        // Linking retains esbuild input provenance; import edges and byte counts
+        // describe the final modules that the following writer receives.
         Object.assign(result.metafile, { browserCompaction: {
           optimizer: `@swc/core@${swcVersion}`, recipe,
-          inputContributions: 'esbuild-before-compaction', importEdges: 'esbuild-before-compaction',
-          outputBytes: 'after-compaction', modules: sizes,
+          inputContributions: 'esbuild-before-compaction', importEdges: 'final-emitted-modules',
+          outputBytes: 'final-emitted-modules', beforeLinking: sizes,
+          modules: Object.fromEntries(result.outputFiles.filter(file => /\.m?js$/.test(file.path)).map(file => [file.path, { afterBytes: file.contents.byteLength }])),
         } })
       })
     },

@@ -265,7 +265,10 @@ provide typed authoring/editing without forcing an opaque fallback.
 backtick identities, so decoration cannot mint a phantom class. The shared
 `src/shared/style-props.ts` grammar models `classDef`, `class`/`cssClass`,
 shorthand, and inline paint on both parser surfaces; classDef paint resolves
-before Scene/SVG/terminal rendering and inline properties win.
+before Scene/SVG/terminal rendering and inline properties win. Repeated `:::`
+and `cssClass` assignments retain their names in source order: each definition
+contributes paint, and later assignments override overlapping properties. The
+typed `set_css_class` edit replaces the assigned names.
 
 Single-line namespace forms (`namespace X { class A; class B }`) expand through
 one parser-owned statement grammar. `hierarchicalNamespaces: false` is wired:

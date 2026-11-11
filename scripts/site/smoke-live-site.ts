@@ -102,7 +102,8 @@ export async function runSiteSmoke(options: SiteSmokeOptions = {}) {
   await html('/', '/', '<main id="main"')
   const editor = await html('/editor/?empty=1', '/editor/', 'id="code-editor"')
   await html('/docs/', '/docs/', '<main id="main"')
-  await html('/examples/', '/examples/', 'class="example-sample"')
+  await html('/examples/', '/examples/', 'data-example-kind="diagrams"')
+  await html('/examples/diagrams/', '/examples/diagrams/', 'class="example-sample"')
   await html('/comparisons/', '/comparisons/', 'data-comparison-engine="agentic"')
 
   const markdown = await text('/', ['text/markdown'], { headers: { accept: 'text/markdown' } })

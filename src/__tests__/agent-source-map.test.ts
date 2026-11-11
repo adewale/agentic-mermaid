@@ -1,8 +1,16 @@
 import { describe, expect, test } from 'bun:test'
 import { parseRegisteredMermaid as parseMermaid } from '../agent/parse.ts'
-import { mutate } from '../agent/mutate.ts'
-import type { SourceSpan } from '../agent/types.ts'
-import { sourcePreservationSpans } from '../family-detection.ts'
+import { serializeMermaid } from '../agent/serialize.ts'
+import { attachSourceMapSpans, mapObservedSource, recordAuthoredSourceMapSpans } from '../agent/source-map-spans.ts'
+import { withParserObservation } from '../shared/parser-observation.ts'
+import { parseWardleyBody } from '../wardley/body.ts'
+import { layoutWardley } from '../wardley/layout.ts'
+import { layoutCynefin } from '../cynefin/layout.ts'
+import { layoutRailroad } from '../railroad/layout.ts'
+import { getFamily } from '../agent/families.ts'
+import { mutate, mutateChecked } from '../agent/mutate.ts'
+import type { SourceMapSpans, SourceSpan } from '../agent/types.ts'
+import { sourceLineStarts, sourcePreservationSpans, sourceSpan } from '../family-detection.ts'
 import { DIAGRAM_WORK_LIMITS } from '../shared/diagram-limits.ts'
 import { expectNearLinearGrowth, LINEAR_GROWTH_CEILING, measureGrowth } from './helpers/complexity.ts'
 
@@ -872,8 +880,8 @@ foo[Node]`
     try {
       for (const [source, tokens, labels] of [
         ['quadrantChart\n title quadrant: [fake]\n quadrant: [0.2,0.3]', ['quadrant'], ['quadrant']],
-        ['quadrantChart\n"First\n    Second":[0.2,0.3]; Last:[0.6,0.7]', ['"First\n    Second"', 'Last'], ['First\nSecond', 'Last']],
-        ['quadrantChart\n "A&amp;amp; B\n    C":::hot:[0.2,0.3]radius:10; "Tail&amp;amp; D":[0.6,0.7]\nclassDef hot color:#112233', ['"A&amp;amp; B\n    C"', '"Tail&amp;amp; D"'], ['A&amp; B\nC', 'Tail&amp; D']],
+        ['quadrantChart\n"First\n    Second":[0.2,0.3]; Last:[0.6,0.7]', ['"First\n    Second"', 'Last'], ['First\n    Second', 'Last']],
+        ['quadrantChart\n "A&amp;amp; B\n    C":::hot:[0.2,0.3]radius:10; "Tail&amp;amp; D":[0.6,0.7]\nclassDef hot color:#112233', ['"A&amp;amp; B\n    C"', '"Tail&amp;amp; D"'], ['A&amp; B\n    C', 'Tail&amp; D']],
       ] as const) {
         const parsed = parseMermaid(source)
         expect(parsed.ok).toBe(true)
@@ -931,5 +939,285 @@ foo[Node]`
       expect(bare.value.source.nodes.get('erDiagram')).toEqual({ line: 2, col: 1 })
       expect(textAt('erDiagram\nerDiagram', bare.value.source.spans?.nodes.get('erDiagram'))).toBe('erDiagram')
     }
+  })
+})
+
+
+test('exact span categories including empty maps retain authority while absent categories fall back', () => {
+  const source = 'flowchart LR\nsubgraph S[Group]\nA[Login] -->|yes| B[Done]\nend'
+  const parsed = parseMermaid(source)
+  if (!parsed.ok) throw new Error(JSON.stringify(parsed.error))
+  const map = parsed.value.source
+  const starts = sourceLineStarts(source)
+  const exactNodes = new Map([
+    ['A', sourceSpan(starts, source.indexOf('A[Login]'), source.indexOf('A[Login]') + 8)],
+    ['B', sourceSpan(starts, source.indexOf('B[Done]'), source.indexOf('B[Done]') + 7)],
+  ])
+  const exactLabels = new Map<string, SourceSpan>()
+  const metadata: NonNullable<SourceMapSpans['metadata']> = new Map()
+  recordAuthoredSourceMapSpans(map, { nodes: exactNodes, labels: exactLabels, metadata })
+  attachSourceMapSpans(map, source, source, sourcePreservationSpans(source, 'flowchart LR'), 'flowchart')
+  expect(map.spans!.nodes).toBe(exactNodes)
+  expect([...map.spans!.nodes].map(([id, span]) => [id, textAt(source, span)])).toEqual([['A', 'A[Login]'], ['B', 'B[Done]']])
+  expect(map.spans!.labels).toBe(exactLabels)
+  expect([...map.spans!.labels]).toEqual([])
+  expect([...map.labels.keys()]).toEqual(['node:A', 'node:B', 'group:S', 'edge#0:A->B'])
+  expect([...map.spans!.edges].map(([id, span]) => [id, textAt(source, span)])).toEqual([['edge#0:A->B', 'A[Login] -->|yes| B[Done]'], ['A->B', 'A[Login] -->|yes| B[Done]']])
+  expect([...map.spans!.groups].map(([id, span]) => [id, textAt(source, span)])).toEqual([['S', 'subgraph S[Group]']])
+  expect(map.spans!.metadata).toBe(metadata)
+  expect([...map.nodes]).toEqual([['A', { line: 3, col: 1 }], ['B', { line: 3, col: 19 }]])
+})
+
+test.each([
+  ['without authored context', '', false, 1, false],
+  ['unwrapped identical', '', false, 1, true],
+  ['wrapped identical', '---\r\ntitle: Wrapper\r\n---\r\n', false, 1, true],
+  ['wrapped different', '---\r\ntitle: Wrapper\r\n---\r\n', true, 2, true],
+] as const)('observed maps read %s bytes without losing coordinate projections', (_name, wrapper, different, expectedReads, withContext) => {
+  const source = [
+    'wardley-beta', 'component A [80.0, 30.0]', 'component B [20.0, 70.0]',
+    'component A [60.0, 40.0]', 'pipeline A {', 'component C [50.0]', '}', 'A -> B ;needs',
+  ].join('\r\n')
+  const authored = different ? source.replace('component A [60.0, 40.0]', 'component "A" [60.0, 40.0]') : source
+  const original = wrapper + authored
+  const reads: string[] = []
+  const map = mapObservedSource(source, withContext ? { originalText: original, wrapperSource: wrapper } : undefined, (text, range) => {
+    reads.push(text)
+    let link = 0
+    withParserObservation('wardley', event => {
+      if (event.unit !== 'mutation' || event.source?.offset === undefined || event.source.endOffset === undefined) return
+      const add = range(event.source.offset, event.source.endOffset)
+      if (event.kind === 'add-node') {
+        const { id } = event.value as { id: string }
+        add('nodes', id); add('labels', `node:${id}`)
+      } else if (event.kind === 'start-pipeline') add('groups', `pipeline:${(event.value as { nodeId: string }).nodeId}`)
+      else if (event.kind === 'add-link') add('edges', `dependency:${link++}`)
+    }, () => parseWardleyBody(text))
+  })
+  expect(reads).toEqual(expectedReads === 1 ? [source] : [source, authored.replaceAll('\r\n', '\n')])
+  expect([...map.nodes]).toEqual([['A', { line: 4, col: 1 }], ['B', { line: 3, col: 1 }], ['A_C', { line: 6, col: 1 }]])
+  expect([...map.groups]).toEqual([['pipeline:A', { line: 5, col: 1 }]])
+  expect([...map.edges]).toEqual([['dependency:0', { line: 8, col: 1 }]])
+  expect([...map.labels.keys()]).toEqual(['node:A', 'node:B', 'node:A_C'])
+  const canonicalLocation = map.nodes.get('A')!
+  expect(Object.keys(canonicalLocation)).toEqual(['line', 'col'])
+  expect(Object.isFrozen(canonicalLocation)).toBe(false)
+  attachSourceMapSpans(map, source, original, sourcePreservationSpans(original, 'wardley-beta', wrapper.length))
+  const spans = map.spans!
+  expect([...spans.nodes].map(([id, span]) => [id, textAt(original, span)])).toEqual([
+    ['A', different ? 'component "A" [60.0, 40.0]' : 'component A [60.0, 40.0]'], ['B', 'component B [20.0, 70.0]'], ['A_C', 'component C [50.0]'],
+  ])
+  expect(textAt(original, spans.groups.get('pipeline:A'))).toBe('pipeline A {\r\ncomponent C [50.0]\r\n}')
+  expect(textAt(original, spans.edges.get('dependency:0'))).toBe('A -> B ;needs')
+  expect([...spans.labels].map(([id, span]) => [id, textAt(original, span)])).toEqual([
+    ['node:A', different ? 'component "A" [60.0, 40.0]' : 'component A [60.0, 40.0]'], ['node:B', 'component B [20.0, 70.0]'], ['node:A_C', 'component C [50.0]'],
+  ])
+  const point = spans.nodes.get('A')!
+  expect(point.start).toEqual({ offset: original.indexOf(different ? 'component "A"' : 'component A [60'), line: wrapper ? 7 : 4, col: 1 })
+  for (const span of [point, spans.labels.get('node:A')!]) {
+    expect(Object.isFrozen(span)).toBe(true)
+    expect(Object.isFrozen(span.start)).toBe(true)
+    expect(Object.isFrozen(span.end)).toBe(true)
+    expect(Reflect.set(span.start, 'col', 77)).toBe(false)
+  }
+  canonicalLocation.col = 99
+  expect(point.start.col).toBe(1)
+  expect(map.labels.get('node:A')!.col).toBe(1)
+  map.labels.get('node:A')!.line = 77
+  expect(canonicalLocation.line).toBe(4)
+  expect(spans.labels.get('node:A')!.start.col).toBe(1)
+})
+
+test('observed source readers preserve native refusals in either coordinate input', () => {
+  const invalid = 'wardley-beta\ncomponent A'
+  for (const [source, expectedReads] of [[invalid, 1], ['wardley-beta\ncomponent A [80.0, 30.0]', 2]] as const) {
+    let reads = 0
+    expect(() => mapObservedSource(source, { originalText: invalid }, text => {
+      reads++
+      parseWardleyBody(text)
+    })).toThrow('wardley syntax error at 2:12:')
+    expect(reads).toBe(expectedReads)
+  }
+})
+
+test.each([
+  ['venn-beta', 'set A["First\n%%{init: {"theme":"dark"}}%%\nLast"]:10', 'A'],
+  ['railroad-beta', 'entry = terminal("First\n%%{init: {"theme":"dark"}}%%\nLast");', 'rule#0:entry'],
+] as const)('%s source maps consume admitted grammar while retaining authored directive boundaries', (header, statement, id) => {
+  const source = `---\r\ntitle: Wrapper\r\n---\r\n${header}\r\n${statement.replaceAll('\n', '\r\n')}`
+  const parsed = parseMermaid(source)
+  if (!parsed.ok || parsed.value.body.kind === 'opaque') throw Error('Expected admitted native source')
+  const spans = parsed.value.source.spans!
+  const span = header === 'venn-beta' ? spans.nodes.get(id) : spans.groups.get(id)
+  expect(textAt(source, span)).toBe(statement.replaceAll('\n', '\r\n'))
+  expect(span?.start).toEqual({ offset: source.indexOf(statement.split('\n')[0]!), line: 5, col: 1 })
+  expect(serializeMermaid(parsed.value)).toContain('First')
+})
+
+test.each([
+  ['railroad-beta', 'entry = terminal("a");', 'groups', ['rule#0:entry'], true, false],
+  ['railroad-beta', 'entry = terminal("a");', 'groups', ['rule#0:entry'], false, true],
+  ['venn-beta', 'set A:10', 'nodes', ['A'], true, true],
+  ['wardley-beta', 'component A [80.0, 30.0]', 'nodes', ['A'], true, true],
+  ['railroad-beta', 'entry = sequence(terminal("a"), optional(terminal("b")));', 'groups', ['rule#0:entry', 'rule#1:entry'], true, true],
+] as const)('%s observed token boundaries exclude adjacent init directives (%s)', (header, token, category, ids, leading, trailing) => {
+  const directive = '%%{init: {"theme":"dark"}}%%'
+  const statement = (leading ? directive + directive : '') + token + (trailing ? directive : '')
+  const source = ['---', 'title: Wrapper', '---', header, ...ids.map(() => statement)].join('\r\n')
+  const parsed = parseMermaid(source)
+  if (!parsed.ok || parsed.value.body.kind === 'opaque') throw Error('Expected admitted native source')
+  let cursor = 0
+  for (const [index, id] of ids.entries()) {
+    const span = parsed.value.source.spans![category].get(id)!
+    const start = source.indexOf(token, cursor)
+    expect(textAt(source, span)).toBe(token)
+    expect(span.start).toEqual({ offset: start, line: index + 5, col: leading ? directive.length * 2 + 1 : 1 })
+    expect(span.end.offset).toBe(start + token.length)
+    cursor = start + token.length
+  }
+})
+
+test('Wardley observed source maps follow final component writes, pipelines and native annotation owners', () => {
+  const source = [
+    '---', 'config:', '  theme: dark', '---', '%% wrapper', 'wardley-beta',
+    '  title Supply chain', '  evolution "Build" -> "Buy"',
+    '  component "Service API" [80.0, 30.0]',
+    '  component "Service API" [75.0, 35.0] (build)',
+    '  component Storage [30.0, 70.0]',
+    '  pipeline "Service API" {', '    component "Custom part" [40.0]', '    component Utility [60.0]', '  }',
+    '  "Custom part" -> Storage ;replicated', '  evolve Storage 90.0',
+    '  note "Review\n    exact text" [45.0, 55.0]',
+    '  annotation 1, [40, 60] "Risk"',
+    '  accelerator Demand [80.0, 80.0]', '  deaccelerator Drag [20.0, 20.0]',
+  ].join('\r\n')
+  const parsed = parseMermaid(source)
+  if (!parsed.ok || parsed.value.body.kind !== 'wardley') throw new Error('Expected typed Wardley')
+  const map = parsed.value.source, spans = map.spans!
+  expect([...map.nodes.keys()]).toEqual(['Service API', 'Storage', 'Service API_Custom part', 'Service API_Utility'])
+  expect(map.nodes.get('Service API')).toEqual({ line: 5, col: 1 })
+  expect(textAt(source, spans.nodes.get('Service API'))).toBe('component "Service API" [75.0, 35.0] (build)')
+  expect(textAt(source, spans.nodes.get('Service API_Custom part'))).toBe('component "Custom part" [40.0]')
+  expect(textAt(source, spans.groups.get('pipeline:Service API'))).toBe('pipeline "Service API" {\r\n    component "Custom part" [40.0]\r\n    component Utility [60.0]\r\n  }')
+  expect(textAt(source, spans.edges.get('dependency:0'))).toBe('"Custom part" -> Storage ;replicated')
+  expect(textAt(source, spans.edges.get('evolve:0'))).toBe('evolve Storage 90.0')
+  expect(textAt(source, spans.labels.get('note:0'))).toBe('note "Review\n    exact text" [45.0, 55.0]')
+  expect(textAt(source, spans.labels.get('annotation-text:0'))).toBe('annotation 1, [40, 60] "Risk"')
+  expect(textAt(source, spans.labels.get('stage:0'))).toBe('evolution "Build" -> "Buy"')
+  expect(textAt(source, spans.labels.get('strategy:Service API'))).toBe('component "Service API" [75.0, 35.0] (build)')
+  const chart = layoutWardley(parsed.value.body)
+  expect(chart.nodes.every(node => spans.nodes.has(node.id))).toBe(true)
+  expect(chart.edges.every(edge => spans.edges.has(edge.id))).toBe(true)
+  expect(chart.pipelines.every(group => spans.groups.has(group.id))).toBe(true)
+  const edited = mutateChecked(parsed.value, { kind: 'set_component_position', id: 'Storage', x: 65, y: 25 })
+  if (!edited.ok) throw new Error(JSON.stringify(edited.error))
+  const saved = serializeMermaid(edited.value)
+  expect(textAt(saved, edited.value.source.spans?.nodes.get('Storage'))).toBe('component "Storage" [25.0, 65.0]')
+})
+
+test('Cynefin observed maps retain multiline items, repeated transition occurrences and editable self loops', () => {
+  const source = '---\ntitle: Wrapper\n---\n%% retained\ncynefin-beta\n  complex\n    "Explore\n      with care"\n  clear\n    "Apply"\n  complex --> clear: "Learn"\n  clear --> clear: "Reassess"\n  complex --> clear: "Learn"'
+  const parsed = parseMermaid(source)
+  if (!parsed.ok || parsed.value.body.kind !== 'cynefin') throw new Error('Expected typed Cynefin including self loop')
+  const map = parsed.value.source, spans = map.spans!
+  expect([...map.nodes.keys()]).toEqual(['complex:0', 'clear:0'])
+  expect([...map.groups.keys()]).toEqual(['complex', 'clear'])
+  expect(map.nodes.get('complex:0')).toEqual({ line: 3, col: 1 })
+  expect(textAt(source, spans.nodes.get('complex:0'))).toBe('"Explore\n      with care"')
+  expect(spans.nodes.get('complex:0')!.start).toEqual({ line: 7, col: 5, offset: source.indexOf('"Explore') })
+  expect(textAt(source, spans.edges.get('transition:1'))).toBe('clear --> clear: "Reassess"')
+  expect(spans.edges.get('transition:0')!.start.offset).toBe(source.indexOf('complex --> clear'))
+  expect(spans.edges.get('transition:2')!.start.offset).toBe(source.lastIndexOf('complex --> clear'))
+  const chart = layoutCynefin(parsed.value.body)
+  expect(chart.domains.flatMap(domain => domain.items).every(item => spans.nodes.has(item.id))).toBe(true)
+  expect(chart.transitions.every(transition => spans.edges.has(transition.id))).toBe(true)
+  const edited = mutate(parsed.value, { kind: 'add_transition', from: 'complex', to: 'complex', label: 'Probe again' })
+  if (!edited.ok || edited.value.body.kind !== 'cynefin') throw new Error(JSON.stringify(edited))
+  expect(edited.value.body.transitions.at(-1)).toEqual({ from: 'complex', to: 'complex', label: 'Probe again' })
+  const saved = serializeMermaid(edited.value)
+  expect(textAt(saved, edited.value.source.spans?.edges.get('transition:3'))).toBe('complex --> complex: "Probe again"')
+  const reload = parseMermaid(saved)
+  if (!reload.ok) throw new Error(JSON.stringify(reload.error))
+  expect(reload.value.body).toEqual(edited.value.body)
+})
+
+test.each([
+  ['railroad-beta', 'entry = sequence(terminal("a"), optional(nonterminal("item")));', 'entry = terminal("b");'],
+  ['railroad-ebnf-beta', 'entry = "a", [item];', 'entry = base - reserved;'],
+  ['railroad-abnf-beta', 'entry = 1*3("a" / item);', 'entry = %x41;'],
+  ['railroad-peg-beta', 'entry <- &item ("a" / .)*;', 'entry <- !"reserved" item;'],
+] as const)('%s maps actual rule occurrences and all rendered expression owners', (header, first, second) => {
+  // IR, EBNF and PEG permit two productions on one line; ABNF closes
+  // productions at line end. A wrapped first expression exercises each reader.
+  const split = first.indexOf(' = ') >= 0 ? first.replace(' = ', ' = \n    ') : first.replace(' <- ', ' <- \n    ')
+  const separator = header === 'railroad-abnf-beta' ? '\n  ' : ' '
+  const source = `---\ntitle: Grammar wrapper\n---\n%% retained\n${header}\n  ${split}${separator}${second}`
+  const parsed = parseMermaid(source)
+  if (!parsed.ok || parsed.value.body.kind !== 'railroad') throw new Error('Expected typed Railroad')
+  const map = parsed.value.source, spans = map.spans!, chart = layoutRailroad(parsed.value.body)
+  expect([...map.groups.keys()]).toEqual(['rule#0:entry', 'rule#1:entry'])
+  expect(textAt(source, spans.groups.get('rule#0:entry'))).toBe(split)
+  expect(textAt(source, spans.groups.get('rule#1:entry'))).toBe(second)
+  expect(spans.groups.get('rule#0:entry')!.start.offset).toBe(source.indexOf('entry'))
+  expect(spans.groups.get('rule#1:entry')!.start.offset).toBe(source.lastIndexOf('entry'))
+  // Decorative rails belong to the production group, not an authored edge.
+  expect(map.edges.size).toBe(0)
+  const leafIds = chart.labels.filter(label => label.kind !== 'annotation').map(label => label.id)
+  expect([...map.nodes.keys()]).toEqual(leafIds)
+  for (const id of leafIds) expect(textAt(source, spans.nodes.get(id))).toBe(id.startsWith('rule#0:') ? split : second)
+  const extracted = getFamily('railroad')!.extractLabels!(source)
+  expect(extracted.map(label => label.target)).toEqual(chart.rules.flatMap(rule => [rule.id, ...chart.labels.filter(label => label.ruleId === rule.id && label.kind !== 'annotation').map(label => label.id)]))
+  const edited = mutateChecked(parsed.value, { kind: 'replace_rule', index: 1, definition: { type: 'terminal', value: 'changed' } })
+  if (!edited.ok) throw new Error(JSON.stringify(edited.error))
+  const saved = serializeMermaid(edited.value)
+  expect(textAt(saved, edited.value.source.spans?.groups.get('rule#1:entry'))).toContain('changed')
+  expect(edited.value.source.groups.size).toBe(2)
+})
+
+describe('graph dialect source-map coordinate ownership', () => {
+  test.each([
+    ['agentflow-beta', 'flow flow[Scope]', 'flow', 6],
+    ['flowchart TD', 'subgraph sub[Scope]', 'sub', 10],
+  ] as const)('%s group IDs resembling the grammar prefix map to the authored identity', (header, declaration, id, col) => {
+    const source = `${header}\n${declaration}\na[A]\nend`, parsed = parseMermaid(source)
+    if (!parsed.ok) throw Error(JSON.stringify(parsed.error))
+    const location = parsed.value.source.groups.get(id)
+    expect(location).toEqual({ line: 2, col })
+    expect(declaration.slice(location!.col - 1, location!.col - 1 + id.length)).toBe(id)
+    expect(textAt(source, parsed.value.source.spans?.groups.get(id))).toBe(declaration)
+  })
+
+  test.each(['\n', '\r\n'])('AgentFlow maps declarations in its executable post-wrapper source with %j endings', newline => {
+    const source = ['---', 'title: Workflow', '---', '%% wrapper', 'agentflow-beta TB', '', 'flow demo', '  helper["Helper"]', 'end', '', 'helper@{ instruction: "Answer precisely." }'].join(newline)
+    const result = parseMermaid(source)
+    if (!result.ok || result.value.body.kind !== 'agentflow') throw Error('Expected native AgentFlow')
+    const map = result.value.source
+    expect(map.nodes.get('helper')).toEqual({ line: 4, col: 3 })
+    expect(result.value.canonicalSource.split(/\r?\n/)[3]!.slice(2)).toBe('helper["Helper"]')
+    expect(textAt(source, map.spans?.nodes.get('helper'))).toBe('helper["Helper"]')
+    expect(textAt(source, map.spans?.groups.get('demo'))).toBe('flow demo')
+    expect(textAt(source, map.spans?.labels.get('node:helper'))).toBe('Helper')
+    const edited = mutateChecked(result.value, { kind: 'set_label', target: 'helper', label: 'Renamed' })
+    if (!edited.ok) throw Error(JSON.stringify(edited.error))
+    const saved = serializeMermaid(edited.value)
+    expect(saved).toContain('%% wrapper')
+    const again = parseMermaid(saved)
+    if (!again.ok || again.value.body.kind !== 'agentflow') throw Error('Expected edited native AgentFlow')
+    expect(again.value.body.graph.nodes.get('helper')?.label).toBe('Renamed')
+    expect(textAt(saved, again.value.source.spans?.labels.get('node:helper'))).toBe('Renamed')
+  })
+  test.each([
+    ['agentflow-beta TB', 'flow scope[Scope]'],
+    ['swimlane-beta TB', 'subgraph scope[Scope]'],
+  ])('%s shares multiline and inline-endpoint source identities', (header, container) => {
+    const source = `${header}\n\n${container}\n  a["wide\nlabel"] handoff@--> b["Beta"]\nend`
+    const result = parseMermaid(source)
+    if (!result.ok || !['agentflow', 'swimlane'].includes(result.value.body.kind)) throw Error('Expected graph dialect')
+    const map = result.value.source
+    for (const id of ['a', 'b']) expect(textAt(source, map.spans?.nodes.get(id))).toBe('a["wide\nlabel"] handoff@--> b["Beta"]')
+    expect(textAt(source, map.spans?.labels.get('node:a'))).toBe('wide\nlabel')
+    expect(textAt(source, map.spans?.labels.get('node:b'))).toBe('Beta')
+    expect(textAt(source, map.spans?.edges.get('edge#0:a->b'))).toBe('a["wide\nlabel"] handoff@--> b["Beta"]')
+    if (header.startsWith('agentflow')) expect(map.edges.get('handoff')).toEqual(map.edges.get('edge#0:a->b'))
+    expect(textAt(source, map.spans?.groups.get('scope'))).toBe(container)
   })
 })

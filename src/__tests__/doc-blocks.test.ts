@@ -8,7 +8,7 @@ import { HOSTED_MCP_TOOL_NAMES, LOCAL_MCP_TOOL_NAMES } from '../mcp/tool-names.t
 import { HOSTED_TOOLS } from '../mcp/hosted-server.ts'
 import { LOCAL_TOOLS } from '../mcp/server.ts'
 import { syncDocBlocks } from '../../scripts/docs/doc-blocks.ts'
-import { maintainedMarkdownFiles, REPO_ROOT } from './helpers/maintained-docs.ts'
+import { maintainedMarkdownFiles, REPO_ROOT } from '../../scripts/docs/maintained-docs.ts'
 
 describe('generated doc blocks', () => {
   test('every block in every maintained doc is current', () => {

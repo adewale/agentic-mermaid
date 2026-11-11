@@ -4,6 +4,7 @@ import { SaxesParser } from 'saxes'
 import { fcParameters } from './helpers/fc-parameters.ts'
 import { classDevelopmentCase } from './helpers/family-conformance-profiles.ts'
 import { parseRegisteredMermaid } from '../agent/parse.ts'
+import { serializeMermaid } from '../agent/serialize.ts'
 import { renderMermaidSVGWithReceipt } from '../index.ts'
 import * as classLayout from '../class/layout.ts'
 import { normalizeMermaidSource } from '../mermaid-source.ts'
@@ -213,16 +214,9 @@ describe('property-based class parsing', () => {
         const parsed = parseRegisteredMermaid(sample.source)
         expect(parsed.ok).toBe(true)
         if (!parsed.ok) throw new Error('Authored Class source must parse')
-        if (directed) {
-          // The typed Class body has no direction slot: preserve this supported
-          // renderer syntax exactly instead of silently dropping its direction.
-          expect(parsed.value.body.kind).toBe('opaque')
-          if (parsed.value.body.kind !== 'opaque') throw new Error('Expected lossless direction boundary')
-          expect(parsed.value.body.source).toBe(sample.bodySource)
-          return
-        }
-        if (parsed.value.body.kind !== 'class') throw new Error('Undirected Class source must remain structured')
+        if (parsed.value.body.kind !== 'class') throw new Error('Authored Class source must remain structured')
         const body = parsed.value.body
+        expect(parseClassDiagram(normalizeMermaidSource(serializeMermaid(parsed.value)).familyLines).direction ?? 'TB').toBe(sample.expected.direction)
         expect(body.classes.map(cls => ({ id: cls.id, label: cls.label, namespace: cls.namespace, members: cls.members }))).toEqual(sample.expected.classes.map(cls => ({ id: cls.id, label: cls.label, namespace: cls.namespace, members: [cls.attribute, cls.method] })))
         expect(body.namespaces?.map(ns => ns.name)).toEqual(sample.expected.namespaces.map(ns => ns.id))
         expect(body.relations.map(rel => [rel.from, rel.to, rel.kind, rel.markerAt, rel.label, rel.fromCardinality, rel.toCardinality])).toEqual(sample.expected.relationships.map(rel => [rel.from, rel.to, rel.type, rel.markerAt, rel.label, rel.fromCardinality, rel.toCardinality]))

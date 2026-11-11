@@ -99,15 +99,15 @@ describe('claim-keyed backend capability conformance', () => {
     }, BACKEND_REGISTRATION_OPTIONS)).toThrow(/capability-claims: shape\/paint\/render/)
   })
 
-  test('rejects a backend that would fail the final always-on output policy', () => {
-    const id = 'backend:test/active-css'
+  test.each(['', ' ', '\t', '\r', '\n', ' \t\r\n'])('rejects active backend CSS with closing whitespace %j', whitespace => {
+    const id = `backend:test/active-css-${[...whitespace].map(char => char.charCodeAt(0)).join('-') || 'none'}`
     expect(() => registerBackend({
       ...DefaultBackend,
       id,
       capabilities: DefaultBackend.capabilities.map(claim => ({ ...claim, target: id })),
       render(doc, context) {
         return DefaultBackend.render(doc, context)
-          .replace('</svg>', '<style>.x{color:javascript:alert(1)}</style></svg>')
+          .replace('</svg>', `<style>.x{color:javascript:alert(1)}</style${whitespace}></svg>`)
       },
     }, BACKEND_REGISTRATION_OPTIONS)).toThrow(/output-security.*active content/i)
   })
@@ -135,6 +135,10 @@ describe('claim-keyed backend capability conformance', () => {
           ['<a href="javascript&#x3a;alert(1)"><rect/></a>', 'active content'],
           [String.raw`<rect style="fill:java\73 cript:alert(1)"/>`, 'active content'],
           ['<style>rect{fill:expre/**/ssion(alert(1))}</style>', 'active content'],
+          ['<style>rect{fill:url(javascript:alert(1))}</style >', 'active content'],
+          ['<style>rect{fill:url(javascript:alert(1))}</style\t\r\n>', 'active content'],
+          ['<style><style></style>.x{fill:url(javascript:alert(1))}</style>', 'invalid SVG document envelope'],
+          ['<style>.x{fill:ur<g/>l(https://example.invalid/split.svg)}</style>', 'invalid SVG document envelope'],
           ['<rect x="1" x="2"/>', 'invalid SVG document envelope'],
           ['<text>\ud800</text>', 'invalid SVG document envelope'],
           ['<script>&#xFFFF;</script>', 'invalid SVG document envelope'],
@@ -146,15 +150,17 @@ describe('claim-keyed backend capability conformance', () => {
           expect(renderer.renderMermaidSVG(source, { security })).toBe(safe)
         }
       }
-      for (const [markup, reference] of [
+      for (const [markup, reference, retained = markup] of [
         ['<a href="https://example.invalid/host-link"><rect/></a>', 'https://example.invalid/host-link'],
+        ['<style>rect{fill:url(https://example.invalid/style.svg)}</style\n>', 'url(https://example.invalid/style.svg)',
+          'rect{fill:url(https://example.invalid/style.svg)}</style\n>'],
         [String.raw`<rect fill="u\2f\2a x\2a\2f rl(https://example.invalid/fill.svg)"/>`,
           String.raw`fill=u\2f\2a x\2a\2f rl(https://example.invalid/fill.svg)`],
         [String.raw`<rect fill="\26 #117;rl(relative.svg)"/>`, String.raw`fill=\26 #117;rl(relative.svg)`],
       ] as const) {
         content = markup
         const external = renderer.renderMermaidSVGWithReceipt(source)
-        expect(external.svg).toContain(content)
+        expect(external.svg).toContain(retained)
         expect(external.receipt.diagnostics).toContainEqual({ code: 'EXTERNAL_REFERENCE', reference })
         expect(() => renderer.renderMermaidSVG(source, { security: 'strict' })).toThrow('strict verification failed')
         expect(() => renderer.renderMermaidSVGWithReceipt(source, { security: 'strict' })).toThrow('strict verification failed')
@@ -164,6 +170,18 @@ describe('claim-keyed backend capability conformance', () => {
     } finally {
       unregister()
     }
+  })
+
+  test('rejects backend style children that hide a CSS tail', () => {
+    const id = 'backend:test/nested-style-css'
+    expect(() => registerBackend({
+      ...DefaultBackend, id,
+      capabilities: DefaultBackend.capabilities.map(claim => ({ ...claim, target: id })),
+      render(document, context) {
+        return DefaultBackend.render(document, context)
+          .replace('</svg>', '<style><style></style>.x{fill:url(javascript:alert(1))}</style></svg>')
+      },
+    }, BACKEND_REGISTRATION_OPTIONS)).toThrow(/envelope|output-security/i)
   })
 
   test('rejects malformed XML during backend admission and final envelope validation', () => {
@@ -183,7 +201,11 @@ describe('claim-keyed backend capability conformance', () => {
     // Child bindings are inherited by descendants, then restored for siblings.
     expect(verifySvgDocumentEnvelope(`<svg ${xmlns} xmlns:a="urn:outer" xmlns:b="urn:inner"><g xmlns:a="urn:inner"><rect a:x="1" /></g><rect a:x="1" b:x="2" /></svg>`)).toBe(true)
     expect(verifySvgDocumentEnvelope(`<svg ${xmlns} xmlns:a="urn:outer" xmlns:b="urn:inner" xml:lang="en"><g xmlns:a="urn:inner" /><rect x="0" a:x="1" b:x="2" /></svg>`)).toBe(true)
+    const manyAttributes = Array.from({ length: 32 }, (_, index) => `data-${index}="${index}"`).join(' ')
+    expect(verifySvgDocumentEnvelope(`<svg ${xmlns}><rect ${manyAttributes}/><g data-0="sibling"><rect ${manyAttributes}/></g></svg>`)).toBe(true)
     const malformedDocuments = [
+      `<svg ${xmlns}><rect ${manyAttributes} data-0="duplicate"/></svg>`,
+      `<svg ${xmlns}><rect ${manyAttributes} data-last="one" data-last="two"/></svg>`,
       '<svg><rect /></svg>',
       `<svg ${xmlns}><text>&</text></svg>`,
       `<svg ${xmlns}><rect broken /></svg>`,

@@ -1,4 +1,15 @@
+import { RAILROAD_SOURCE_HOOKS } from './railroad-body.ts'
+import { CYNEFIN_SOURCE_HOOKS } from './cynefin-body.ts'
+import { VENN_SOURCE_HOOKS } from './venn-body.ts'
+import { WARDLEY_SOURCE_HOOKS } from './wardley-body.ts'
+import { USECASE_SOURCE_HOOKS } from './usecase-body.ts'
+import { AGENTFLOW_SOURCE_HOOKS } from './agentflow-body.ts'
+import { TREEVIEW_SOURCE_HOOKS } from './treeview-body.ts'
+import { SWIMLANE_SOURCE_HOOKS } from './swimlane-body.ts'
+import { authoredSyntaxLocation } from '../shared/parser-source.ts'
+import { LocatedParserError } from '../shared/syntax-error.ts'
 import { ZENUML_SOURCE_HOOKS } from './zenuml-body.ts'
+import { withBodyTitleMeta } from './body-title-meta.ts'
 import { EVENTMODELING_SOURCE_HOOKS } from './eventmodeling-body.ts'
 import { readAuthoredGrammarAccessibility } from '../shared/grammar-text.ts'
 import { C4AmbiguousArgumentError, parseC4Diagram } from '../c4/parser.ts'
@@ -36,12 +47,13 @@ import { parseQuadrantChart, QuadrantCoordinateError } from '../quadrant/parser.
 import { sourceLineStarts, sourcePointAt } from '../family-detection.ts'
 import { cleanupMermaidSource, originalMermaidOffset } from '../shared/mermaid-cleanup.ts'
 import { sequenceFamilySource } from '../sequence/family-source.ts'
+import { familyParserLines } from '../shared/parser-source.ts'
 import { SequenceParticipantIdError } from '../sequence/parser.ts'
 import { splitSequenceStatementLines } from '../sequence/statements.ts'
 import { parseDirectionStatement } from '../shared/direction-statement.ts'
 import { joinQuotedTextLines, stripTrailingComment } from '../shared/trailing-comment.ts'
 import { isTimelineCommentLine, parseTimelineHeader } from '../timeline/parse-core.ts'
-import { adoptStatementAccessibility } from './accessibility-envelope.ts'
+import { adoptStatementAccessibility, ownBodyAccessibility } from './accessibility-envelope.ts'
 import { grammarAccessibilityFields } from '../shared/grammar-text.ts'
 import { parseArchitectureBody, renderArchitecture, verifyArchitecture, verifyOpaqueArchitectureIcons } from './architecture-body.ts'
 import { parseClassBody, renderClass, verifyClass } from './class-body.ts'
@@ -140,6 +152,7 @@ function flowchartFamilyHooks(): Pick<FamilyOperations, 'parse' | 'buildSourceMa
 }
 
 export const FLOWCHART_SOURCE_HOOKS = {
+  sourceMapGrammar: 'flowchart',
   renderSource: () => 'canonical',
   extractLabels: extractFlowchartLabels,
   .../* @__PURE__ */ flowchartFamilyHooks(),
@@ -239,7 +252,7 @@ export const SEQUENCE_SOURCE_HOOKS = {
       return ok(body ?? { kind: 'opaque', family: 'sequence', source: opaqueSource })
     } catch (error) {
       if (!(error instanceof SequenceParticipantIdError)) throw error
-      return err([{ code: 'PARSE_FAILED', message: error.message }])
+      return err([{ code: 'PARSE_FAILED', message: error.message, ...authoredSyntaxLocation(authored, rawBodyLines, error) }])
     }
   },
   serialize: body => {
@@ -298,14 +311,13 @@ function verifyOpaqueTimeline(body: FamilyParsedBody): LayoutWarning[] {
 }
 
 export const TIMELINE_SOURCE_HOOKS = {
+  bodyAccessibility: ownBodyAccessibility('timeline'),
   renderSource: () => 'serialized',
   extractLabels: extractTimelineLabels,
   verify: body => verifyOpaqueTimeline(body),
   parse: ({ lines, opaqueSource, meta }) => {
     const header = parseTimelineHeader(lines[0] ?? '')
-    // Native rendering accepts inline header comments, but the structured
-    // serializer does not retain them. Preserve authored source instead.
-    const body = header?.kind === 'supported' && !header.hasInlineComment ? parseTimelineBody(lines.slice(1), meta.accessibility) : null
+    const body = header?.kind === 'supported' ? parseTimelineBody(lines.slice(1), meta.accessibility, header.hasInlineComment ? opaqueSource : undefined) : null
     if (body) meta.accessibility = {
       ...(body.accessibilityTitle !== undefined ? { title: body.accessibilityTitle } : {}),
       ...(body.accessibilityDescription !== undefined ? { descr: body.accessibilityDescription } : {}),
@@ -758,8 +770,6 @@ function extractClassLabels(source: string): ExtractedLabel[] {
   return out
 }
 
-const CLASS_STRUCTURED_HOOKS = /* @__PURE__ */ structuredFamilyHooks('class', { parseBody: parseClassBody, serialize: renderClass })
-
 export const CLASS_SOURCE_HOOKS = {
   renderSource: () => 'canonical',
   extractLabels: extractClassLabels,
@@ -771,13 +781,14 @@ export const CLASS_SOURCE_HOOKS = {
   // Mermaid's Class grammar has no title statement: it ignores `title …` or
   // rejects it. The title is the frontmatter `title:`, which Mermaid draws;
   // a body statement, read generously, wins as it does when rendering.
-  parse: ctx => {
-    const parsed = CLASS_STRUCTURED_HOOKS.parse!(ctx)
-    if (parsed.ok && parsed.value.kind === 'class' && parsed.value.title === undefined && typeof ctx.source.frontmatter.title === 'string') parsed.value.title = ctx.source.frontmatter.title
-    return parsed
+  parse: ({ lines, opaqueSource, source }) => {
+    const body = parseClassBody(lines.slice(1), opaqueSource)
+    if (body && body.title === undefined && typeof source.frontmatter.title === 'string') body.title = source.frontmatter.title
+    return ok(body ?? { kind: 'opaque', family: 'class', source: opaqueSource })
   },
   // The commit and serialize paths write the title into the frontmatter
-  // (withBodyTitleMeta); the body keeps it only when that wrapper cannot.
+  // (bodyMeta); the body keeps it only when that wrapper cannot.
+  bodyMeta: (body, meta, previous) => body.kind === 'class' ? withBodyTitleMeta(body.title, meta, previous === undefined || (previous.kind === 'class' && body.title === previous.title)) : meta,
   serialize: (body, meta) => {
     if (body.kind !== 'class') throw new Error(`class serializer received body kind ${body.kind}`)
     return renderClass(body, meta === undefined || meta.frontmatter?.title !== body.title)
@@ -885,6 +896,7 @@ function verifyOpaqueJourney(body: DiagramBody): LayoutWarning[] {
 }
 
 export const JOURNEY_SOURCE_HOOKS = {
+  bodyAccessibility: ownBodyAccessibility('journey'),
   renderSource: () => 'canonical',
   extractLabels: extractJourneyLabels,
   // BUILD-15: journey is structured-when-narrowed. The verify hook covers the
@@ -1000,6 +1012,7 @@ function splitXyLabelStatements(line: string): string[] {
 }
 
 export const XYCHART_SOURCE_HOOKS = {
+  bodyAccessibility: ownBodyAccessibility('xychart'),
   renderSource: body => (body.kind === 'opaque' ? 'canonical' : 'serialized'),
   extractLabels: extractXyChartLabels,
   // BUILD-16: xychart is structured-when-narrowed. The verify hook covers the
@@ -1013,8 +1026,8 @@ export const XYCHART_SOURCE_HOOKS = {
   // Pass the complete family source to the shared XY grammar. Header spelling,
   // orientation, and same-line semicolon statements therefore have one parser
   // authority instead of a second regex in the agent projection.
-  parse: ({ lines, opaqueSource, meta }) => {
-    const body = parseXyChartBody(lines)
+  parse: ({ source, opaqueSource, meta }) => {
+    const body = parseXyChartBody(familyParserLines(source))
     if (!body) return ok({ kind: 'opaque', family: 'xychart', source: opaqueSource })
     // The family reads an accessibility directive written after a statement
     // on its line, which the envelope (directives that start a line) misses:
@@ -1081,6 +1094,7 @@ function parsePieHeader(header: string): { showData: boolean; title?: string } |
 }
 
 export const PIE_SOURCE_HOOKS = {
+  bodyAccessibility: ownBodyAccessibility('pie'),
   renderSource: body => (body.kind === 'opaque' ? 'canonical' : 'serialized'),
   extractLabels: extractPieLabels,
   // Pie is structured-when-narrowed. The verify hook covers the structured
@@ -1089,7 +1103,8 @@ export const PIE_SOURCE_HOOKS = {
   // xychart) — serialize/mutate stay identical to every other structured family.
   verify: (body, opts) => (body.kind === 'pie' ? verifyPie(body, opts) : []),
   buildSourceMap: buildChartSourceMap,
-  parse: ({ lines, opaqueSource }) => {
+  parse: ({ source, opaqueSource }) => {
+    const lines = familyParserLines(source)
     const header = parsePieHeader(stripTrailingComment(lines[0]?.trim() ?? ''))
     const bodyLines = lines.slice(1).map(line => {
       const title = splitAuthoredPieTitleLine(line, 'body')
@@ -1190,6 +1205,7 @@ function verifyOpaqueQuadrant(body: DiagramBody): LayoutWarning[] {
 }
 
 export const QUADRANT_SOURCE_HOOKS = {
+  bodyAccessibility: ownBodyAccessibility('quadrant'),
   renderSource: body => (body.kind === 'opaque' ? 'canonical' : 'serialized'),
   extractLabels: extractQuadrantLabels,
   // Quadrant is structured-when-narrowed. The verify hook covers the structured
@@ -1201,7 +1217,7 @@ export const QUADRANT_SOURCE_HOOKS = {
     const source = normalizeMermaidSource(ctx.source.originalText, {}, 'render')
     let body: QuadrantBody | null
     try {
-      body = /^quadrant(?:chart)?\s*$/i.test(stripTrailingComment(source.familyLines[0] ?? '')) ? parseQuadrantBody(source.familyLines.slice(1)) : null
+      body = /^quadrant(?:chart)?\s*$/i.test(stripTrailingComment(source.familyLines[0] ?? '')) ? parseQuadrantBody(familyParserLines(source).slice(1)) : null
     } catch (error) {
       if (error instanceof QuadrantCoordinateError) return err([{ code: 'PARSE_FAILED', message: error.message }])
       throw error
@@ -1274,6 +1290,7 @@ function extractArchitectureLabels(source: string): ExtractedLabel[] {
 }
 
 export const ARCHITECTURE_SOURCE_HOOKS = {
+  bodyAccessibility: ownBodyAccessibility('architecture'),
   renderSource: () => 'canonical',
   extractLabels: extractArchitectureLabels,
   // BUILD-17: architecture is structured-when-narrowed. The verify hook covers
@@ -1289,6 +1306,8 @@ export const ARCHITECTURE_SOURCE_HOOKS = {
 
 // ---- Mindmap ---------------------------------------------------------------
 export const MINDMAP_SOURCE_HOOKS = {
+  canonicalSource: 'preserved',
+  bodyAccessibility: ownBodyAccessibility('mindmap', 'native'),
   renderSource: () => 'serialized',
   extractLabels: extractLabelsGeneric,
   parse: ({ source, opaqueSource, meta }) => {
@@ -1298,7 +1317,7 @@ export const MINDMAP_SOURCE_HOOKS = {
       const body = parseMindmapBody(source.familyBody, opaqueSource)
       return ok(mindmapSerializationProblem(body, opaqueSource) ? { kind: 'opaque', family: 'mindmap', source: opaqueSource } : body)
     } catch (error) {
-      return err([{ code: 'PARSE_FAILED', message: error instanceof Error ? error.message : String(error) }])
+      return err([{ code: 'PARSE_FAILED', message: error instanceof Error ? error.message : String(error), ...(error instanceof LocatedParserError ? { line: error.line, column: error.column, col: error.column, diagramType: error.diagramType } : {}) }])
     }
   },
   serialize: body => {
@@ -1310,6 +1329,7 @@ export const MINDMAP_SOURCE_HOOKS = {
 
 // ---- GitGraph --------------------------------------------------------------
 export const GITGRAPH_SOURCE_HOOKS = {
+  bodyAccessibility: ownBodyAccessibility('gitgraph'),
   renderSource: () => 'serialized',
   extractLabels: extractLabelsGeneric,
   parse: ({ source, meta }) => {
@@ -1324,7 +1344,7 @@ export const GITGRAPH_SOURCE_HOOKS = {
       })
       return ok(body)
     } catch (error) {
-      return err([{ code: 'PARSE_FAILED', message: error instanceof Error ? error.message : String(error) }])
+      return err([{ code: 'PARSE_FAILED', message: error instanceof Error ? error.message : String(error), ...(error instanceof LocatedParserError ? { line: error.line, column: error.column, col: error.column, diagramType: error.diagramType } : {}) }])
     }
   },
   serialize: body => {
@@ -1368,7 +1388,8 @@ export const RADAR_SOURCE_HOOKS = {
   buildSourceMap: buildChartSourceMap,
   // The grammar reads an accessibility directive after a statement on its
   // line, which the envelope adopts, as for XYChart.
-  parse: ({ lines, opaqueSource, meta }) => {
+  parse: ({ source, opaqueSource, meta }) => {
+    const lines = familyParserLines(source)
     const parsed = /^radar-beta\s*:?\s*$/i.test(stripTrailingComment(lines[0]?.trim() ?? '')) ? parseRadarBody(lines.slice(1)) : null
     if (!parsed || !adoptStatementAccessibility(meta, parsed.accessibility)) return ok({ kind: 'opaque', family: 'radar', source: opaqueSource })
     return ok(parsed.body)
@@ -1422,6 +1443,7 @@ export const SANKEY_SOURCE_HOOKS = {
 } satisfies Omit<FamilyOperations, 'mutate'>
 
 export const C4_SOURCE_HOOKS = {
+  bodyAccessibility: ownBodyAccessibility('c4'),
   renderSource: body => (body.kind === 'opaque' ? 'canonical' : 'serialized'),
   parse: ctx => {
     try { return ok(parseC4Body(ctx.opaqueSource, ctx.meta.accessibility) ?? { kind: 'opaque', family: 'c4', source: ctx.opaqueSource }) }
@@ -1453,6 +1475,14 @@ export const C4_SOURCE_HOOKS = {
 
 export const BUILTIN_SOURCE_HOOKS = /* @__PURE__ */ Object.freeze({
   flowchart: FLOWCHART_SOURCE_HOOKS,
+  treeview: TREEVIEW_SOURCE_HOOKS,
+  cynefin: CYNEFIN_SOURCE_HOOKS,
+  railroad: RAILROAD_SOURCE_HOOKS,
+  venn: VENN_SOURCE_HOOKS,
+  wardley: WARDLEY_SOURCE_HOOKS,
+  usecase: USECASE_SOURCE_HOOKS,
+  agentflow: AGENTFLOW_SOURCE_HOOKS,
+  swimlane: SWIMLANE_SOURCE_HOOKS,
   state: STATE_SOURCE_HOOKS,
   sequence: SEQUENCE_SOURCE_HOOKS,
   timeline: TIMELINE_SOURCE_HOOKS,
@@ -1475,3 +1505,19 @@ export const BUILTIN_SOURCE_HOOKS = /* @__PURE__ */ Object.freeze({
 }) satisfies Readonly<Record<DiagramKind, Omit<FamilyOperations, 'mutate'>>>
 export { EVENTMODELING_SOURCE_HOOKS } from './eventmodeling-body.ts'
 export { ZENUML_SOURCE_HOOKS } from './zenuml-body.ts'
+
+export { SWIMLANE_SOURCE_HOOKS } from './swimlane-body.ts'
+
+export { TREEVIEW_SOURCE_HOOKS } from './treeview-body.ts'
+
+export { AGENTFLOW_SOURCE_HOOKS } from './agentflow-body.ts'
+
+export { USECASE_SOURCE_HOOKS } from './usecase-body.ts'
+
+export { WARDLEY_SOURCE_HOOKS } from './wardley-body.ts'
+
+export { VENN_SOURCE_HOOKS } from './venn-body.ts'
+
+export { CYNEFIN_SOURCE_HOOKS } from './cynefin-body.ts'
+
+export { RAILROAD_SOURCE_HOOKS } from './railroad-body.ts'

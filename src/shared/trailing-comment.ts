@@ -58,6 +58,8 @@ export function stripTrailingComment(line: string): string {
 // opens is the rule above.
 
 export interface QuotedTextRule {
+  /** Retain physical whitespace inside spanning tokens instead of dedenting. */
+  preserveWhitespace?: boolean
   /** The quotes whose strings run across line breaks (default `"`). A line
    * that ends inside another quote's string ends its statement. */
   spanning?: string
@@ -133,9 +135,10 @@ export function quotedTextEnds(lines: readonly string[], rule: QuotedTextRule = 
   return ends
 }
 
-/** The statement on `lines[start..end]`: the line break kept, not the indentation. */
-export function statementText(lines: readonly string[], start: number, end: number): string {
+/** Join a spanning statement; reviewed grammars can retain physical whitespace. */
+export function statementText(lines: readonly string[], start: number, end: number, preserveWhitespace = false): string {
   if (end === start) return lines[start]!
+  if (preserveWhitespace) return lines.slice(start, end + 1).join('\n')
   return [lines[start]!.trimEnd(), ...lines.slice(start + 1, end + 1).map(line => line.trim())].join('\n')
 }
 
@@ -144,12 +147,12 @@ export function statementText(lines: readonly string[], start: number, end: numb
  * its first line, and the lines it took left empty, so an index is still a
  * line number.
  */
-export function joinStatementLines(lines: readonly string[], ends: readonly number[]): string[] {
+export function joinStatementLines(lines: readonly string[], ends: readonly number[], preserveWhitespace = false): string[] {
   const joined = [...lines]
   for (let index = 0; index < lines.length; index++) {
     const end = ends[index]!
     if (end === index) continue
-    joined[index] = statementText(lines, index, end)
+    joined[index] = statementText(lines, index, end, preserveWhitespace)
     joined.fill('', index + 1, end + 1)
     index = end
   }
@@ -158,5 +161,5 @@ export function joinStatementLines(lines: readonly string[], ends: readonly numb
 
 /** `lines` with each statement whose quoted text runs onto later lines joined (joinStatementLines). */
 export function joinQuotedTextLines(lines: readonly string[], rule: QuotedTextRule = {}): string[] {
-  return joinStatementLines(lines, quotedTextEnds(lines, rule))
+  return joinStatementLines(lines, quotedTextEnds(lines, rule), rule.preserveWhitespace)
 }

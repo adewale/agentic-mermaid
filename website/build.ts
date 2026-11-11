@@ -25,6 +25,7 @@ import { namespaceSvgIds } from '../src/renderer.ts'
 import { HOSTED_MCP_SERVER_NAME, HOSTED_TOOLS, SUPPORTED_PROTOCOL_VERSIONS } from '../src/mcp/hosted-server.ts'
 import { MCP_SERVER_VERSION, validateMcpToolArguments } from '../src/mcp/tool-surface.ts'
 import { LOCAL_TOOLS } from '../src/mcp/server.ts'
+import { HOSTED_MCP_TOOL_NAMES, LOCAL_MCP_TOOL_NAMES } from '../src/mcp/tool-names.ts'
 import { resolveBuildGitSha } from './build-provenance.ts'
 import { AI_CATALOG_RESOURCES } from './agent-resource-inventory.ts'
 import { CLEAN_PAGE_ROUTES, DYNAMIC_CLEAN_REDIRECT_LINES, markdownAlternative, staticRedirectLines } from './src/site-routes.ts'
@@ -112,6 +113,10 @@ const relatedAgentLinks = [
   '<link rel="ai-catalog" type="application/json" href="/.well-known/ai-catalog.json">',
 ].join('\n')
 
+function toolNamesHtml(names: readonly string[]): string {
+  return names.map(name => `<code>${escapeHtml(name)}</code>`).join(', ')
+}
+
 function agentDiscoveryLinks(route: string): string {
   const markdownPath = markdownAlternative(route)
   return (markdownPath ? `<link rel="alternate" type="text/markdown" href="${markdownPath}">\n` : '') + relatedAgentLinks
@@ -190,7 +195,9 @@ function transformEditorHtml(html: string): string {
 }
 
 async function readSourcePage(path: string) {
-  return await Bun.file(join(SOURCE_PAGES, path)).text()
+  return (await Bun.file(join(SOURCE_PAGES, path)).text())
+    .replaceAll('{{LOCAL_MCP_TOOLS}}', toolNamesHtml(LOCAL_MCP_TOOL_NAMES))
+    .replaceAll('{{HOSTED_MCP_TOOLS}}', toolNamesHtml(HOSTED_MCP_TOOL_NAMES))
 }
 
 async function readSourceDiagram(path: string) {
@@ -322,7 +329,7 @@ async function externalizeExecutableInlineScripts(html: string) {
 
 async function emitShell(rel: string, title: string, lead: string, body: string, currentHref = '', meta = '', actions = '') {
   let html = pageShell(title, lead, body, currentHref, meta, actions, '/' + rel.replace(/index\.html$/, ''))
-  if (rel === 'examples/index.html' || rel.startsWith('examples/style-palette/') || rel.startsWith('examples/corpus/')) {
+  if (rel === 'examples/index.html' || rel.startsWith('examples/diagrams/') || rel.startsWith('examples/style-palette/') || rel.startsWith('examples/corpus/')) {
     html = html.replace('</head>', `<link rel="stylesheet" href="/${EXAMPLES_STYLE_REL}">\n</head>`)
   }
   await emit(rel, await externalizeExecutableInlineScripts(html))
@@ -450,6 +457,15 @@ function renderRichExampleSvg(sample: any, id: string, request = richExampleRend
 // Examples page carries the agentic narrative — prompt, trace, render, deep
 // link — rather than a bare source dump. Keyed by family id.
 const FAMILY_AGENT_TASK: Record<BuiltinFamilyId, { prompt: string; trace: string }> = {
+  swimlane: { prompt: 'Rename the review task while keeping each handoff attached to its task.', trace: 'asSwimlane · mutate(set_label) · verify · serialize' },
+  treeview: { prompt: 'Add a test file beneath the widgets directory and keep the hierarchy intact.', trace: 'asTreeview · mutate(add_node) · verify · serialize' },
+  usecase: { prompt: 'Add a checkout use case inside the storefront and connect the customer actor.', trace: 'asUsecase · mutate(add_usecase/add_relationship) · verify · serialize' },
+  agentflow: { prompt: 'Change a task into a tool call while retaining its connector and reference document.', trace: 'asAgentflow · mutate(set_role/set_metadata) · verify · serialize' },
+  wardley: { prompt: 'Move a component toward commodity evolution without changing its dependencies.', trace: 'asWardley · mutate(set_component_position) · verify · serialize' },
+  cynefin: { prompt: 'Add a learning transition from Complex to Clear and preserve all domain items.', trace: 'asCynefin · mutate(add_transition) · verify · serialize' },
+  railroad: { prompt: 'Add an optional grammar branch without changing ordered choices or repetition bounds.', trace: 'asRailroad · mutate(replace_rule) · verify · serialize' },
+  venn: { prompt: 'Rename a set and keep intersection values and region notes attached to it.', trace: 'asVenn · mutate(rename_set) · verify · serialize' },
+
   flowchart: { prompt: 'Add a labeled failure branch and verify that every decision exit is named.', trace: 'asFlowchart · mutate(add_edge/set_label) · verify' },
   zenuml: { prompt: 'Model nested checkout calls with a stock decision and explicit replies.', trace: 'asZenUML · mutate(rename_participant/insert_statement) · verify' },
   eventmodeling: { prompt: 'Insert an event frame and keep explicit source references attached to their authored IDs.', trace: 'asEventModeling · mutate(insert_frame/set_frame) · verify' },
@@ -494,6 +510,15 @@ function exampleFamilyDescription(familyId: string, fallback: string) {
 }
 
 const STYLE_THEME_PAIR_BY_FAMILY: Record<BuiltinFamilyId, { look: string; theme: string; seed: number }> = {
+  swimlane: { look: 'ops-schematic', theme: 'github-light', seed: 21 },
+  treeview: { look: 'pen-and-ink', theme: 'paper', seed: 22 },
+  usecase: { look: 'architectural-plan', theme: 'github-light', seed: 23 },
+  agentflow: { look: 'status-dashboard', theme: 'nord', seed: 24 },
+  wardley: { look: 'publication-figure', theme: 'github-light', seed: 25 },
+  cynefin: { look: 'watercolor', theme: 'paper', seed: 26 },
+  railroad: { look: 'ops-schematic', theme: 'paper', seed: 27 },
+  venn: { look: 'hand-drawn', theme: 'catppuccin-latte', seed: 28 },
+
   flowchart: { look: 'watercolor', theme: 'paper', seed: 4 },
   zenuml: { look: 'hand-drawn', theme: 'dracula', seed: 17 },
   eventmodeling: { look: 'publication-figure', theme: 'github-light', seed: 0 },
@@ -569,7 +594,7 @@ function styleThemeExampleRenderState(combo: ReturnType<typeof styleThemeExample
 // Examples is now the family-discovery surface: jump cards replace the removed
 // Diagram families page and the old search box.
 function exampleJumpCard(example: any, description: string) {
-  return `<a class="example-jump-card" href="#${escapeAttr(exampleAnchor(example))}"><strong>${escapeHtml(example.label)}</strong><span>${escapeHtml(description)}</span></a>`
+  return `<a class="example-jump-card" data-example-deferred="diagrams" href="/examples/diagrams/#${escapeAttr(exampleAnchor(example))}"><strong>${escapeHtml(example.label)}</strong><span>${escapeHtml(description)}</span></a>`
 }
 function examplesJumpHtml(groups: Map<string, any[]>, styleThemeCombos: ReturnType<typeof styleThemeExamples>, richExamples = RICH_EXAMPLES) {
   const sections: string[] = []
@@ -686,9 +711,11 @@ ${combos
 </section>`
 }
 
-type ExampleFragmentKind = 'style-palette' | 'corpus'
+type ExampleFragmentKind = 'diagrams' | 'style-palette' | 'corpus'
 interface ExamplesDeliveryProjection {
   main: string
+  diagramsStandalone: string
+  diagramsFragment: { rel: string; html: string }
   styleStandalone: string
   corpusStandalone: string
   styleFragment: { rel: string; html: string }
@@ -697,7 +724,7 @@ interface ExamplesDeliveryProjection {
 let examplesDeliveryProjectionCache: ExamplesDeliveryProjection | undefined
 
 function exampleAliasTarget(id: string, kind: ExampleFragmentKind, canonical: string, standalone: string) {
-  return `<div class="example-legacy-target" id="${escapeAttr(id)}" data-example-alias data-example-kind="${kind}" data-example-canonical="${escapeAttr(canonical)}"><p>This example moved to <a href="${standalone}#${escapeAttr(canonical)}">the complete ${kind === 'corpus' ? 'corpus' : 'Style × Palette'} page</a>.</p></div>`
+  return `<div class="example-legacy-target" id="${escapeAttr(id)}" data-example-alias data-example-kind="${kind}" data-example-canonical="${escapeAttr(canonical)}"><p>This example moved to <a href="${standalone}#${escapeAttr(canonical)}">the complete ${kind === 'corpus' ? 'corpus' : kind === 'diagrams' ? 'diagram examples' : 'Style × Palette'} page</a>.</p></div>`
 }
 
 function examplesDeliveryProjection(): ExamplesDeliveryProjection {
@@ -746,6 +773,10 @@ ${examples
 </section>`,
   ).join('\n')
 
+  const diagramsHtml = makePreFocusable(`<div data-example-fragment-root="diagrams">${familySections}</div>`)
+  const diagramsFragment = { rel: `examples/fragments/diagrams-${sha256(diagramsHtml).slice(0, 12)}.html`, html: diagramsHtml }
+  const diagramTargets = [...Array.from(groups.keys(), exampleCategoryId), ...editorExamples.map(exampleAnchor)]
+  const diagramsAliases = [...new Set(diagramTargets)].map(id => exampleAliasTarget(id, 'diagrams', id, '/examples/diagrams/')).join('\n')
   const styleHtml = makePreFocusable(styleThemeExamplesHtml(combos))
   const corpusHtml = makePreFocusable(richExamplesHtml(RICH_EXAMPLES))
   const styleFragment = { rel: `examples/fragments/style-palette-${sha256(styleHtml).slice(0, 12)}.html`, html: styleHtml }
@@ -759,7 +790,14 @@ ${examples
     .map(([id, canonical]) => exampleAliasTarget(id, 'corpus', canonical, '/examples/corpus/'))
     .join('\n')
   const script = `<script src="/${EXAMPLES_LOADER_REL}" defer></script>`
-  const deferred = `${styleAliases}\n${corpusCurrentAliases}\n${corpusLegacyAliases}
+  const deferred = `${diagramsAliases}\n${styleAliases}\n${corpusCurrentAliases}\n${corpusLegacyAliases}
+<section class="example-deferred" data-example-kind="diagrams" data-example-fragment="/${diagramsFragment.rel.replace(/\.html$/, '')}" data-example-state="idle" aria-labelledby="examples-diagrams-deferred-title">
+  <h2 id="examples-diagrams-deferred-title">Diagram family examples</h2>
+  <p>Choose a family above or load the complete set of build-time proofs, with their source and Editor links.</p>
+  <p data-example-status role="status" aria-live="polite">Examples are not loaded yet.</p>
+  <div class="example-deferred-actions"><button type="button" data-example-load hidden>Load examples</button><a href="/examples/diagrams/">Open complete diagram examples page</a></div>
+  <div data-example-content></div>
+</section>
 <section class="example-deferred" data-example-kind="style-palette" data-example-fragment="/${styleFragment.rel.replace(/\.html$/, '')}" data-example-state="idle" aria-labelledby="examples-style-palette-deferred-title">
   <h2 id="examples-style-palette-deferred-title">Style × Palette combinations</h2>
   <p>The complete rendered matrix is available on its standalone page and can also load here on request.</p>
@@ -775,7 +813,9 @@ ${examples
   <div data-example-content></div>
 </section>`
   examplesDeliveryProjectionCache = {
-    main: `<div class="example-showcase">${examplesJumpHtml(groups, combos, RICH_EXAMPLES)}${familySections}\n${deferred}\n${script}</div>`,
+    main: `<div class="example-showcase">${examplesJumpHtml(groups, combos, RICH_EXAMPLES)}\n${deferred}\n${script}</div>`,
+    diagramsStandalone: `<div class="example-showcase">${diagramsHtml}\n${script}</div>`,
+    diagramsFragment,
     styleStandalone: `<div class="example-showcase">${styleHtml}\n${script}</div>`,
     corpusStandalone: `<div class="example-showcase">${corpusLegacyAliases}\n${corpusHtml}\n${script}</div>`,
     styleFragment,
@@ -1714,7 +1754,7 @@ for (const [source, target] of pageOutputs) {
   if (source !== 'home.html') html = injectWorkflowSvg(html)
   if (source === 'home.html') {
     // The agent pointer (primary CTA) is intentionally a single fetch instruction;
-    // start.md stays the canonical protocol instead of being duplicated inline.
+    // start.md routes to the maintained guide instead of duplicating it inline.
     html = html.replace('{{AGENT_POINTER}}', escapeAttr(HOMEPAGE_AGENT_POINTER))
     html = injectHeroStyleFigure(html)
     html = html.replace('{{WORKFLOW_FIGURE}}', workflowFigureHtml())
@@ -1737,14 +1777,15 @@ await emit('editor/index.html', await generateEditorHtml())
 // content-addressed chunks. The browser therefore fetches only the family used
 // by the page, without a bundler, import map, or framework adapter.
 //
-// Rebuild even when the ignored artifact already exists. Otherwise a local or
-// manual site build can silently copy browser bytes from an older checkout.
+// Ordinary builds regenerate lazy bundles. CI can consume bundles produced in
+// this same checkout; --check still regenerates independently.
 async function emitLazyBrowserDemo() {
   const artifactDirectory = join(ROOT, 'dist', 'browser-lazy')
   const artifact = join(artifactDirectory, 'index.js')
-  const built = Bun.spawnSync(['bun', 'run', 'build:browser:lazy'], { cwd: ROOT, stdout: 'pipe', stderr: 'pipe' })
-  if (!built.success || !existsSync(artifact)) {
-    throw new Error(`browser demo needs dist/browser-lazy/index.js; \`bun run build:browser:lazy\` failed:\n${built.stderr}`)
+  const built = process.env.AM_CI_ARTIFACTS === '1' && !CHECK ? null
+    : Bun.spawnSync(['bun', 'run', 'build:browser:lazy'], { cwd: ROOT, stdout: 'pipe', stderr: 'pipe' })
+  if ((built && !built.success) || !existsSync(artifact)) {
+    throw new Error(`browser demo needs dist/browser-lazy/index.js; \`bun run build:browser:lazy\` failed:\n${built?.stderr ?? 'missing transferred artifact'}`)
   }
   const script = await Bun.file(artifact).text()
   if (!script.includes('renderMermaidSVGAsync')) {
@@ -1896,10 +1937,10 @@ const examples = {
       description: example.description ?? example.label,
       headers: family.headers,
       source: String(example.source ?? '').trim(),
-      renderUrl: `/examples/#${exampleAnchor(example)}`,
+      renderUrl: `/examples/diagrams/#${exampleAnchor(example)}`,
       editorUrl: editorStateHref(request.editorState),
       outputs: capabilities.outputFormats,
-      docs: `/examples/#${family.id}`,
+      docs: `/examples/diagrams/#${family.id}`,
     }
   }),
   richExamples: RICH_EXAMPLES.map(sample => ({
@@ -2160,28 +2201,14 @@ function checkHostedRequestExamples(markdown: string, where: string): void {
   }
 }
 
-// The served skill is SKILL.md plus every top-level reference it ships. Repo-
-// relative references the bundle does not include (references/upstream/*,
-// docs/*) must point at GitHub in the served copy — an agent following a served
-// 404 wastes a turn — so any other reference a served skill file names must be
-// one of the published files, or the build fails.
+// The served skill is SKILL.md plus every top-level reference it ships.
 const SKILL_DIR = join(ROOT, 'skills/agentic-mermaid-diagram-workflow')
 const skillFiles = ['SKILL.md', ...(await readdir(join(SKILL_DIR, 'references'), { withFileTypes: true }))
   .filter(entry => entry.isFile() && entry.name.endsWith('.md'))
   .map(entry => `references/${entry.name}`)
   .sort()]
-const SKILL_REPO_BLOB = 'https://github.com/adewale/agentic-mermaid/blob/main'
-function rewriteServedSkillRefs(text: string) {
-  return text.replaceAll(/`(docs\/[^`]+)`/g, (_, path: string) => `[${path}](${SKILL_REPO_BLOB}/${path})`).replaceAll(/`(references\/upstream\/[^`]*)`/g, (_, path: string) => `[${path}](${SKILL_REPO_BLOB}/skills/agentic-mermaid-diagram-workflow/${path})`)
-}
 for (const file of skillFiles) {
-  const text = await Bun.file(join(SKILL_DIR, file)).text()
-  const served = agentFacingMarkdown(file === 'SKILL.md' ? rewriteServedSkillRefs(text) : text)
-  const unpublished = Array.from(served.matchAll(/`(references\/[^`\s]+)`/g), match => match[1]!)
-    .filter(ref => !skillFiles.includes(ref))
-  if (unpublished.length > 0) {
-    throw new Error(`website/build: served skill ${file} names ${unpublished.join(', ')}, which the site does not publish`)
-  }
+  const served = agentFacingMarkdown(await Bun.file(join(SKILL_DIR, file)).text())
   if (file === 'SKILL.md' || file === 'references/hosted-mcp.md') checkHostedRequestExamples(served, `skills/agentic-mermaid-diagram-workflow/${file}`)
   await emit(`skills/agentic-mermaid-diagram-workflow/${file}`, served)
 }
@@ -2208,7 +2235,7 @@ Styling: every render accepts style (a renderer treatment like hand-drawn, water
 
 ## Start Here
 
-- [Agent bootstrap](https://agentic-mermaid.dev/start.md): copy-and-follow workflow for one diagram task.
+- [Agent bootstrap](https://agentic-mermaid.dev/start.md): choose a channel and open the operating guide.
 - [Hosted MCP endpoint](https://agentic-mermaid.dev/mcp): stateless Streamable HTTP JSON-RPC with ${HOSTED_TOOLS.map(tool => tool.name).join(', ')}.
 - [MCP server card](https://agentic-mermaid.dev/.well-known/mcp/server-card.json): pre-connection metadata for the hosted MCP server.
 - [MCP manifest](https://agentic-mermaid.dev/.well-known/mcp.json): compact tool manifest for agents and scanners.
@@ -2572,6 +2599,7 @@ const forkAddedFamilyList = BUILTIN_FAMILY_METADATA.filter(family => !BEAUTIFUL_
 const EXAMPLES_DELIVERY = examplesDeliveryProjection()
 await emit(EXAMPLES_LOADER_REL, EXAMPLES_LOADER_SOURCE)
 await emit(EXAMPLES_STYLE_REL, EXAMPLES_STYLE_SOURCE)
+await emit(EXAMPLES_DELIVERY.diagramsFragment.rel, EXAMPLES_DELIVERY.diagramsFragment.html)
 await emit(EXAMPLES_DELIVERY.styleFragment.rel, EXAMPLES_DELIVERY.styleFragment.html)
 await emit(EXAMPLES_DELIVERY.corpusFragment.rel, EXAMPLES_DELIVERY.corpusFragment.html)
 
@@ -2604,7 +2632,7 @@ const docPages: DocPage[] = [
     'docs/mcp/index.html',
     'MCP',
     'Hosted MCP at /mcp, plus a local stdio server.',
-    "<p>The hosted MCP endpoint is <code>https://agentic-mermaid.dev/mcp</code>: stateless streamable HTTP (JSON-RPC over POST, no sessions). Hosted tools: " + HOSTED_MCP_TOOLS_HTML + ". Call <code>describe_sdk</code> for one family's compact signatures or exact mutation fields; pass <code>format: &quot;facts&quot;</code> to <code>describe</code> for deterministic semantic read-back. Successful deterministic pure-tool results may be reused by a private server-side compute cache for up to 24 hours; <code>execute</code>, <code>mutate</code>, and <code>build</code> bypass it. The JSON-RPC response itself is always <code>cache-control: no-store</code>, and <code>x-agentic-mermaid-compute-cache</code> reports reuse. Inputs are capped at 64KB, and Code Mode <code>execute</code> runs in an isolated on-demand Worker with network access disabled and a CPU budget.</p><p>The local MCP tools are " + LOCAL_MCP_TOOLS_HTML + ". Multi-step parse/narrow/mutate/verify workflows run inside <code>execute(code)</code>; local <code>describe_sdk</code> returns version-matched mutation schemas and <code>describe</code> supports <code>format: &quot;facts&quot;</code>. For file/URL PNG artifacts, diagrams beyond the hosted caps, or offline use, run the installed package locally: <code>npx --no-install agentic-mermaid mcp</code>.</p><p><strong>Privacy:</strong> every hosted tool call sends your diagram source (or Code Mode code) to this site\u2019s server. For diagrams that must not leave your machine, use the library, the CLI, or the local stdio server \u2014 the pipeline is fully local and needs no network.</p><p><strong>Response framing:</strong> the hosted <code>/mcp</code> endpoint always replies with plain <code>application/json</code> \u2014 no SSE <code>data:</code> framing \u2014 so scripts can parse the body directly. The local HTTP transport\u2019s <code>/sse</code> + <code>/message</code> pair delivers responses as SSE events on the open stream; script writers who want unframed JSON should POST to its <code>/rpc</code> endpoint instead.</p>" +
+    "<p>The hosted MCP endpoint is <code>https://agentic-mermaid.dev/mcp</code>: stateless streamable HTTP (JSON-RPC over POST, no sessions). Hosted tools: " + toolNamesHtml(HOSTED_MCP_TOOL_NAMES) + ". Call <code>describe_sdk</code> for one family's compact signatures or exact mutation fields; pass <code>format: &quot;facts&quot;</code> to <code>describe</code> for deterministic semantic read-back. Successful deterministic pure-tool results may be reused by a private server-side compute cache for up to 24 hours; <code>execute</code>, <code>mutate</code>, and <code>build</code> bypass it. The JSON-RPC response itself is always <code>cache-control: no-store</code>, and <code>x-agentic-mermaid-compute-cache</code> reports reuse. Inputs are capped at 64KB, and Code Mode <code>execute</code> runs in an isolated on-demand Worker with network access disabled and a CPU budget.</p><p>The local MCP tools are " + toolNamesHtml(LOCAL_MCP_TOOL_NAMES) + ". Use <code>mutate</code> and <code>build</code> for declarative JSON edit batches, or <code>execute(code)</code> for custom multi-step logic; local <code>describe_sdk</code> returns version-matched mutation schemas and <code>describe</code> supports <code>format: &quot;facts&quot;</code>. For file/URL PNG artifacts, diagrams beyond the hosted caps, or offline use, run the installed package locally: <code>npx --no-install agentic-mermaid mcp</code>.</p><p><strong>Privacy:</strong> every hosted tool call sends your diagram source (or Code Mode code) to this site\u2019s server. For diagrams that must not leave your machine, use the library, the CLI, or the local stdio server \u2014 the pipeline is fully local and needs no network.</p><p><strong>Response framing:</strong> the hosted <code>/mcp</code> endpoint always replies with plain <code>application/json</code> \u2014 no SSE <code>data:</code> framing \u2014 so scripts can parse the body directly. The local HTTP transport\u2019s <code>/sse</code> + <code>/message</code> pair delivers responses as SSE events on the open stream; script writers who want unframed JSON should POST to its <code>/rpc</code> endpoint instead.</p>" +
       docsIndex,
   ],
   [
@@ -2638,6 +2666,7 @@ const docPages: DocPage[] = [
       docsIndex,
   ],
   ['examples/index.html', 'Examples', examplesLead, EXAMPLES_DELIVERY.main, '/examples/'],
+  ['examples/diagrams/index.html', 'Diagram family examples', 'Every supported family with source, build-time proof and Editor links.', EXAMPLES_DELIVERY.diagramsStandalone, '/examples/'],
   ['examples/style-palette/index.html', 'Style × Palette examples', 'Every supported family rendered with a named style and palette.', EXAMPLES_DELIVERY.styleStandalone, '/examples/'],
   ['examples/corpus/index.html', 'Rich example corpus', 'The complete shared project corpus with stable links and Editor handoffs.', EXAMPLES_DELIVERY.corpusStandalone, '/examples/'],
   ['comparisons/index.html', 'Comparisons', 'One source per family, rendered three ways.', comparisonsHtml(), '/comparisons/'],

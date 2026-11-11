@@ -1,6 +1,6 @@
 # Features — capability inventory
 
-What Agentic Mermaid can do, organized by capability area. The npm import paths are `agentic-mermaid` and `agentic-mermaid/agent`; audit and trusted host-resource helpers remain repository tooling. Implementation history lives in [`project/divergences.md`](./project/divergences.md); active backlog is only [`../TODO.md`](../TODO.md).
+What Agentic Mermaid can do, organized by capability area. The npm import paths are `agentic-mermaid` and `agentic-mermaid/agent`; audit and trusted host-resource helpers remain repository tooling. Implementation history lives in [`project/divergences.md`](https://github.com/adewale/agentic-mermaid/blob/f2b3fd0ab50af0841175681f87a0b40090b9c9f5/docs/project/divergences.md); active backlog is only [`../TODO.md`](https://github.com/adewale/agentic-mermaid/blob/f2b3fd0ab50af0841175681f87a0b40090b9c9f5/TODO.md).
 
 ## Core IR & editing loop
 
@@ -71,7 +71,7 @@ Agentic Mermaid outputs **SVG, PNG, ASCII, Unicode, and JSON layout** from the s
 
 - **Tier 1 (structural, universal):** <!-- BEGIN GENERATED: warning-codes:structural -->`EMPTY_DIAGRAM`, `EDGE_MISANCHORED`, `OFF_CANVAS`, `GROUP_BREACH`, `UNKNOWN_SHAPE`, `LABEL_OVERFLOW`, `UNRESOLVABLE_SCHEDULE`, `RENDER_FAILED`, `INTERNAL_ERROR`<!-- END GENERATED: warning-codes:structural -->. `RENDER_FAILED` is structural, so a clean verify proves the source actually renders.
 - **Tier 2 (geometric — route tripwires for flowchart/state, anchor/overlap checks for class/ER):** <!-- BEGIN GENERATED: warning-codes:geometric -->`NODE_OVERLAP`, `CONTENT_OCCLUDED`, `LAYOUT_LIMIT_EXCEEDED`, `LAYOUT_UNCERTIFIED`, `ROUTE_SELF_CROSS`, `ROUTE_HITCH`, `ROUTE_UNEXPLAINED_BEND`, `ROUTE_LABEL_ON_SHARED_TRUNK`, `ROUTE_SELF_LOOP_OCCUPANCY`, `ROUTE_CONTAINER_MISANCHOR`, `ROUTE_SHAPE_MISANCHOR`, `ROUTE_STALE_AFTER_NODE_MOVE`<!-- END GENERATED: warning-codes:geometric -->.
-- **Tier 3 (lint and inspect-only policy):** <!-- BEGIN GENERATED: warning-codes:lint -->`DUPLICATE_EDGE`, `UNREACHABLE_NODE`, `DECISION_BRANCH_UNLABELED`, `FLOW_IMBALANCE`, `COMMENT_DROPPED`, `UNSUPPORTED_SYNTAX`, `CONTENT_DROPPED_ON_ROUNDTRIP`, `EVENT_SOURCE_TYPE`, `INEFFECTIVE_CONFIG`, `LOW_CONTRAST`, `LABELS_HIDDEN`, `SCALE_RANGE_EXCLUDES_ZERO`, `BAR_RANGE_EXCLUDES_ZERO`, `VALUES_OUTSIDE_RANGE`, `BRAND_CONSTRAINT_WARNING`, `BRAND_CONSTRAINT_ERROR`<!-- END GENERATED: warning-codes:lint -->. Only the caller-selected `action: "error"` Brand constraint code flips `verify.ok`.
+- **Tier 3 (lint and inspect-only policy):** <!-- BEGIN GENERATED: warning-codes:lint -->`DUPLICATE_EDGE`, `UNREACHABLE_NODE`, `DECISION_BRANCH_UNLABELED`, `FLOW_IMBALANCE`, `COMMENT_DROPPED`, `VENN_APPROXIMATION`, `UNSUPPORTED_SYNTAX`, `CONTENT_DROPPED_ON_ROUNDTRIP`, `EVENT_SOURCE_TYPE`, `INEFFECTIVE_CONFIG`, `LOW_CONTRAST`, `LABELS_HIDDEN`, `SCALE_RANGE_EXCLUDES_ZERO`, `BAR_RANGE_EXCLUDES_ZERO`, `VALUES_OUTSIDE_RANGE`, `BRAND_CONSTRAINT_WARNING`, `BRAND_CONSTRAINT_ERROR`<!-- END GENERATED: warning-codes:lint -->. Only the caller-selected `action: "error"` Brand constraint code flips `verify.ok`.
 - **Perceptual quality** — `measureQuality` / `checkQuality` (edge
   crossings, label legibility, whitespace balance, …). See [`quality.md`](./quality.md).
 
@@ -132,7 +132,9 @@ endpoint is a convenience surface rather than a REST render API.
 
 - npm library (`agentic-mermaid` and `agentic-mermaid/agent`) with Node-runnable bins (`am`, the package-runner alias `agentic-mermaid`, and `agentic-mermaid-mcp`).
 - **Single binary** — `bun run build:binary` → `dist/am`, standalone
-  executable, no runtime dependency (#1018).
+  executable for rendering and local MCP (#1018), including `render_svg`,
+  `render_ascii` and `verify` without an external Node installation. See the
+  [process and memory budgets](./mcp-http-transport.md#direct-rendering-and-verification).
 - **llms.txt** agent-discovery digest, derived from capabilities.
 
 ## Guarantees & evidence

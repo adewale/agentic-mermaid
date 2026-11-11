@@ -1,3 +1,19 @@
+import type { RailroadBody, RailroadMutationOp } from '../railroad/types.ts'
+export type { RailroadBody, RailroadMutationOp, RailroadNode, RailroadRule, Notation as RailroadNotation } from '../railroad/types.ts'
+import type { CynefinBody, CynefinMutationOp } from '../cynefin/types.ts'
+export type { CynefinBody, CynefinMutationOp } from '../cynefin/types.ts'
+import type { VennBody, VennMutationOp } from '../venn/types.ts'
+export type { VennBody, VennMutationOp } from '../venn/types.ts'
+import type { WardleyBody, WardleyMutationOp } from '../wardley/types.ts'
+export type { WardleyBody, WardleyMutationOp } from '../wardley/types.ts'
+import type { UsecaseBody, UsecaseMutationOp } from '../usecase/types.ts'
+export type { UsecaseBody, UsecaseMutationOp } from '../usecase/types.ts'
+import type { AgentflowBody, AgentflowMutationOp } from '../agentflow/types.ts'
+export type { AgentflowBody, AgentflowMutationOp } from '../agentflow/types.ts'
+import type { SwimlaneBody, SwimlaneMutationOp } from '../swimlane/types.ts'
+import type { TreeviewBody, TreeviewMutationOp } from '../treeview/types.ts'
+export type { SwimlaneBody, SwimlaneMutationOp } from '../swimlane/types.ts'
+export type { TreeviewBody, TreeviewNode, TreeviewMutationOp } from '../treeview/types.ts'
 import type { ZenUMLBody, ZenUMLMutationOp } from '../zenuml/native-types.ts'
 export type { ZenUMLBody, ZenUMLMutationOp, ZenUMLParticipant, ZenUMLStatement, ZenUMLBranch } from '../zenuml/native-types.ts'
 import type { EventModelingBody, EventModelingMutationOp } from '../eventmodeling/types.ts'
@@ -49,7 +65,7 @@ export function err<E, T = never>(error: E): Result<T, E> {
 
 // ---- Families -------------------------------------------------------------
 
-export type DiagramKind = 'flowchart' | 'state' | 'sequence' | 'class' | 'er' | 'timeline' | 'journey' | 'xychart' | 'architecture' | 'pie' | 'quadrant' | 'gantt' | 'mindmap' | 'gitgraph' | 'radar' | 'sankey' | 'c4' | 'packet' | 'kanban' | 'requirement' | 'treemap' | 'ishikawa' | 'block' | 'eventmodeling' | 'zenuml'
+export type DiagramKind = 'flowchart' | 'state' | 'sequence' | 'class' | 'er' | 'timeline' | 'journey' | 'xychart' | 'architecture' | 'pie' | 'quadrant' | 'gantt' | 'mindmap' | 'gitgraph' | 'radar' | 'sankey' | 'c4' | 'packet' | 'kanban' | 'requirement' | 'treemap' | 'ishikawa' | 'block' | 'eventmodeling' | 'zenuml' | 'agentflow' | 'usecase' | 'wardley' | 'venn' | 'cynefin' | 'railroad' | 'swimlane' | 'treeview'
 
 /** Runtime extensions are open but must pass the registry's namespace validator. */
 export type ExternalFamilyId = `family:${string}`
@@ -203,6 +219,8 @@ export interface TimelineSection {
 
 export interface TimelineBody {
   kind: 'timeline'
+  /** Authored family source when statement spelling cannot be canonicalized safely. */
+  source?: string
   /** Explicit header direction token (`timeline TD` / `timeline LR`,
    *  upstream PR #7270). Undefined = bare header (LR default). */
   direction?: 'LR' | 'TD'
@@ -328,6 +346,8 @@ export interface ClassNote {
 
 export interface ClassBody {
   kind: 'class'
+  /** Authored family source retaining unmodeled statements and their block ownership. */
+  source?: string
   title?: string
   classes: ClassNode[]
   relations: ClassRelation[]
@@ -768,6 +788,8 @@ export interface StateNote {
 }
 
 export interface StateBody {
+  /** Authored Mermaid layout hints retained through editing; geometry remains renderer-owned. */
+  layoutDirectives?: string[]
   /** Class assignments awaiting an actual state declaration; they never create a state. */
   unresolvedClasses?: Array<{ id: string; className: string }>
   /** Inline styles awaiting an actual state declaration. */
@@ -935,6 +957,14 @@ export interface DiagramAnalysis {
 
 export type DiagramBody =
   | { kind: 'flowchart'; graph: MermaidGraph }
+  | AgentflowBody
+  | UsecaseBody
+  | WardleyBody
+  | VennBody
+  | CynefinBody
+  | RailroadBody
+  | SwimlaneBody
+  | TreeviewBody
   | StateBody
   | SequenceBody
   | TimelineBody
@@ -1041,6 +1071,8 @@ export interface ValidDiagram {
    * grammar reads indentation as structure (mindmap, kanban, treemap,
    * ishikawa) keep each line's indentation, so parsing `canonicalSource`
    * reads the same diagram; other families' lines are trimmed.
+   * AgentFlow preserves indentation in this source because flattening YAML
+   * changes its meaning; copied parsed envelopes must remain executable.
    *
    * For OPAQUE bodies, the serializer emits `body.source` directly (NOT
    * `canonicalSource`) so original indentation and blank lines round-trip
@@ -1079,6 +1111,14 @@ export interface PreservedValidDiagram {
 export type ParsedDiagram = ValidDiagram | ExtensionValidDiagram | PreservedValidDiagram
 
 export type FlowchartValidDiagram = ValidDiagram & { body: { kind: 'flowchart'; graph: MermaidGraph } }
+export type SwimlaneValidDiagram = ValidDiagram & { body: SwimlaneBody }
+export type TreeviewValidDiagram = ValidDiagram & { body: TreeviewBody }
+export function asSwimlane(d: ParsedDiagram): SwimlaneValidDiagram | null {
+  return d.body.kind === 'swimlane' ? d as SwimlaneValidDiagram : null
+}
+export function asTreeview(d: ParsedDiagram): TreeviewValidDiagram | null {
+  return d.body.kind === 'treeview' ? d as TreeviewValidDiagram : null
+}
 export type StateValidDiagram = ValidDiagram & { body: StateBody }
 export type SequenceValidDiagram = ValidDiagram & { body: SequenceBody }
 export type TimelineValidDiagram = ValidDiagram & { body: TimelineBody }
@@ -1105,6 +1145,14 @@ export type IshikawaValidDiagram = ValidDiagram & { body: IshikawaBody }
 export type BlockValidDiagram = ValidDiagram & { body: BlockBody }
 export type MutableValidDiagram =
   | FlowchartValidDiagram
+  | AgentflowValidDiagram
+  | UsecaseValidDiagram
+  | WardleyValidDiagram
+  | VennValidDiagram
+  | CynefinValidDiagram
+  | RailroadValidDiagram
+  | SwimlaneValidDiagram
+  | TreeviewValidDiagram
   | StateValidDiagram
   | SequenceValidDiagram
   | TimelineValidDiagram
@@ -1234,6 +1282,9 @@ export interface ParseError {
   message: string
   line?: number
   col?: number
+  /** One-based column; col is retained as a compatibility alias. */
+  column?: number
+  diagramType?: string
   /** Present when parsing cannot proceed but no authored bytes were discarded. */
   preservation?: SourcePreservationReceipt
   help?: string
@@ -1437,7 +1488,15 @@ export type ArchitectureMutationOp =
   | { kind: 'update_edge'; index: number; from?: string; to?: string; fromSide?: ArchitectureSide; toSide?: ArchitectureSide; fromBoundary?: ArchitectureEndpointBoundary; toBoundary?: ArchitectureEndpointBoundary; label?: string | null; hasArrowStart?: boolean; hasArrowEnd?: boolean }
   | { kind: 'remove_edge'; index?: number; id?: string }
 
+// For content-producing edits (add_state, add_transition, move_state and
+// add_floating_note), region equal to the parent's current scope
+// count appends a parallel region (one for a non-concurrent composite).
+// Other region-addressed operations require an existing region.
 export type StateMutationOp =
+  // Insert an empty region (default append); region indexes of existing
+  // content shift with it. Removal requires an empty region, retaining one scope.
+  | { kind: 'add_region'; parent: string; index?: number }
+  | { kind: 'remove_region'; parent: string; index: number }
   | { kind: 'add_state'; id: string; label?: string | null; parent?: string | null; region?: number }
   // recursive: true removes a non-empty composite with its whole subtree
   // (default refuses, naming the flag); transitions and notes touching any
@@ -1580,7 +1639,14 @@ export type GanttMutationOp =
   | { kind: 'move_section'; from: number; to: number }
 
 export type AnyMutationOp =
-  | FlowchartMutationOp
+  | SwimlaneMutationOp | FlowchartMutationOp
+  | AgentflowMutationOp
+  | UsecaseMutationOp
+  | WardleyMutationOp
+  | VennMutationOp
+  | CynefinMutationOp
+  | RailroadMutationOp
+  | TreeviewMutationOp
   | StateMutationOp
   | SequenceMutationOp
   | TimelineMutationOp
@@ -1635,6 +1701,7 @@ export type Tier3WarningCode =
   | 'UNREACHABLE_NODE'
   | 'DECISION_BRANCH_UNLABELED'
   | 'FLOW_IMBALANCE'
+  | 'VENN_APPROXIMATION'
   | 'COMMENT_DROPPED'
   | 'UNSUPPORTED_SYNTAX'
   | 'CONTENT_DROPPED_ON_ROUNDTRIP'
@@ -1649,6 +1716,7 @@ export type Tier3WarningCode =
 export type WarningCode = Tier1WarningCode | Tier2WarningCode | Tier3WarningCode | BrandConstraintWarningCode
 
 export type LayoutWarning =
+  | { code: 'VENN_APPROXIMATION'; message: string }
   | { code: 'EMPTY_DIAGRAM' }
   | { code: 'EDGE_MISANCHORED'; edge: EdgeId; from?: NodeId; to?: NodeId }
   | { code: 'OFF_CANVAS'; target: NodeId | EdgeId; axis: 'x' | 'y' }
@@ -1774,6 +1842,7 @@ export type LayoutWarning =
     }
 
 export const WARNING_SEVERITY: Record<WarningCode, WarningSeverity> = {
+  VENN_APPROXIMATION: 'warning',
   EMPTY_DIAGRAM: 'error',
   UNRESOLVABLE_SCHEDULE: 'error',
   RENDER_FAILED: 'error',
@@ -1814,6 +1883,7 @@ export const WARNING_SEVERITY: Record<WarningCode, WarningSeverity> = {
 }
 
 export const WARNING_TIER: Record<WarningCode, WarningTier> = {
+  VENN_APPROXIMATION: 'lint',
   EMPTY_DIAGRAM: 'structural',
   UNRESOLVABLE_SCHEDULE: 'structural',
   RENDER_FAILED: 'structural',
@@ -2001,6 +2071,7 @@ export interface SerializedFlowchartGraph {
   classAssignments?: unknown
   nodeStyles?: unknown
   linkStyles?: unknown
+  linkCurves?: unknown
 }
 
 export interface ValidDiagramPayload {
@@ -2010,6 +2081,20 @@ export interface ValidDiagramPayload {
   meta?: Partial<ValidDiagramMeta>
   body:
     | { kind: 'flowchart'; graph: SerializedFlowchartGraph }
+    | (Omit<AgentflowBody, 'graph' | 'metadata' | 'roles' | 'connectors' | 'globals'> & {
+        graph: SerializedFlowchartGraph | import('../types.ts').MermaidGraph
+        metadata: AgentflowBody['metadata'] | Record<string, Record<string, unknown>> | Array<[string, Record<string, unknown>]>
+        roles: AgentflowBody['roles'] | Record<string, import('../agentflow/types.ts').AgentflowRole> | Array<[string, import('../agentflow/types.ts').AgentflowRole]>
+        connectors: Set<string> | string[]
+        globals: Set<string> | string[]
+      })
+    | UsecaseBody
+    | WardleyBody
+    | VennBody
+    | CynefinBody
+    | RailroadBody
+    | { kind: 'swimlane'; graph: SerializedFlowchartGraph | import('../types.ts').MermaidGraph }
+    | TreeviewBody
     | StateBody
     | SequenceBody
     | TimelineBody
@@ -2045,3 +2130,29 @@ export function asEventModeling(d: ParsedDiagram): EventModelingValidDiagram | n
 export function asZenUML(d: ParsedDiagram): ZenUMLValidDiagram | null {
   return d.body.kind === 'zenuml' ? d as ZenUMLValidDiagram : null
 }
+
+export type AgentflowValidDiagram = ValidDiagram & { body: AgentflowBody }
+export function asAgentflow(d: ParsedDiagram): AgentflowValidDiagram | null {
+  return d.body.kind === 'agentflow' ? d as AgentflowValidDiagram : null
+}
+
+export type UsecaseValidDiagram = ValidDiagram & { body: UsecaseBody }
+export function asUsecase(d: ParsedDiagram): UsecaseValidDiagram | null {
+  return d.body.kind === 'usecase' ? d as UsecaseValidDiagram : null
+}
+
+export type WardleyValidDiagram = ValidDiagram & { body: WardleyBody }
+export function asWardley(d: ParsedDiagram): WardleyValidDiagram | null {
+  return d.body.kind === 'wardley' ? d as WardleyValidDiagram : null
+}
+
+export type VennValidDiagram = ValidDiagram & { body: VennBody }
+export function asVenn(d: ParsedDiagram): VennValidDiagram | null {
+  return d.body.kind === 'venn' ? d as VennValidDiagram : null
+}
+
+export type CynefinValidDiagram = ValidDiagram & { body: CynefinBody }
+export function asCynefin(d: ParsedDiagram): CynefinValidDiagram | null { return d.body.kind === 'cynefin' ? d as CynefinValidDiagram : null }
+
+export type RailroadValidDiagram = ValidDiagram & { body: RailroadBody }
+export function asRailroad(d: ParsedDiagram): RailroadValidDiagram | null { return d.body.kind === 'railroad' ? d as RailroadValidDiagram : null }

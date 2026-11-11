@@ -71,6 +71,7 @@ export interface AsciiNode {
   displayLabel: string
   /** Node shape from the parser (e.g. "rectangle", "diamond", "circle"). */
   shape: AsciiNodeShape
+  borders?: string
   index: number
   gridCoord: GridCoord | null
   drawingCoord: DrawingCoord | null

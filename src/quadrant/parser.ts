@@ -209,7 +209,7 @@ export function parseQuadrantChart(lines: string[], report?: QuadrantTextReport,
   const scanned = scanAccessibilityDirectives(lines, quadrantStatementEnds(lines))
   requireClosedAccessibility(scanned)
   const physicalLines = scanned.familyLines
-  lines = joinStatementLines(physicalLines, quadrantStatementEnds(physicalLines))
+  lines = joinStatementLines(physicalLines, quadrantStatementEnds(physicalLines), true)
   if (lines.length === 0) {
     throw new Error('Quadrant chart is empty')
   }
@@ -312,16 +312,14 @@ export function parseQuadrantChart(lines: string[], report?: QuadrantTextReport,
         }
         points.push(point)
         if (onPoint) {
-          // Logical statements retain line breaks but trim continuation indent.
-          // Translate token boundaries back through that grammar-owned join.
+          // Joined statements retain physical continuation rows verbatim.
           const offset = (column: number): number => {
             while (nextBreak >= 0 && nextBreak < column) {
               sourceLine++
               sourceLineAt = nextBreak + 1
               nextBreak = lines[i]!.indexOf('\n', sourceLineAt)
             }
-            const indent = sourceLine === i ? 0 : physicalLines[sourceLine]!.length - physicalLines[sourceLine]!.trimStart().length
-            return lineStarts![sourceLine]! + indent + column - sourceLineAt
+            return lineStarts![sourceLine]! + column - sourceLineAt
           }
           const start = at + line.indexOf(rawLabel)
           onPoint(point, { start: offset(start), end: offset(start + rawLabel.length) })

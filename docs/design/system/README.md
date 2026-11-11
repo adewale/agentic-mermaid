@@ -68,3 +68,8 @@ records. Dated backend experiments, including the PR #449 studies, retain their
 original revisions and limitations; start with [layout follow-up results](layout-followup-results.md)
 when investigating that research. For performance comparisons, use the
 [measured results](https://github.com/adewale/trident/blob/main/RESULTS.md).
+
+Raw historical measurement packets and their verification instructions remain in the
+[immutable evidence snapshot](https://github.com/adewale/agentic-mermaid/tree/a6b9b14161bd281804d5f2c9149320dfd882eb0f/docs/design/system/).
+Use that snapshot when replaying dated report commands or checking recorded hashes;
+the current checkout retains the findings and original measurement limits.

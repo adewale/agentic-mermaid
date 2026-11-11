@@ -14,6 +14,10 @@ retain their evidence. Candidate implementation does not establish merge,
 publication or deployment; a closed issue is not completion evidence when its
 acceptance conditions still fail. Plans supply design context, never additional
 queues. Retired IDs are not reused.
+Completed publication and production verification are recorded in the
+[release record](docs/project/archive/releases.md), including retired release
+and agent-workflow tasks. AGENT-1 consolidation is delivered in 0.5.6;
+AGENT-2 remains deferred to 0.6.0.
 CONS-43 is retired: `src/layout/passes/index.ts` contains only re-exports;
 cohesive implementations already live in their owning pass modules. Further
 route-contract extraction preserves the existing pipeline manifest and order.
@@ -38,38 +42,6 @@ route-contract extraction preserves the existing pipeline manifest and order.
   explicit geometry/proof ownership. Keep the
   [campaign preservation contract](docs/design/system/performance-campaign.md).
 
-- [ ] **REL-1 — Qualify, publish and verify 0.5.4** (`todo`). The release
-  target and source version are 0.5.4, including #580's Class/ER rendering
-  fixes and #393's directory guidance and deployment automation changes.
-  Version 0.5.3 was published to npm and the MCP Registry and deployed on
-  29 October ([publication](https://github.com/adewale/agentic-mermaid/actions/runs/40940647568),
-  [deployment](https://github.com/adewale/agentic-mermaid/actions/runs/40943546603));
-  [#378](https://github.com/adewale/agentic-mermaid/issues/378) is closed.
-  Its immutable package cannot include these later fixes. The
-  0.5.0 and 0.5.2 source tags are retained after their blocked publications.
-  The macOS release gate uses a standard Intel macOS 26 host after GitHub's
-  arm64 pool could not acquire the 0.5.2 job. Retain the
-  documented source-edit/export limits and run
-  canonical CI, including its independent semantic and packed-consumer checks,
-  on the actual immutable release candidate. The publication workflow also
-  requires platform smoke tests and the verified package artifact. Following
-  #492, benchmarks run separately in explicit local sessions; they do not block
-  or authorize publication. Keep performance claims within their measured scope
-  under PERF-1. Follow `docs/contributing/releasing.md`,
-  publish the verified artifact, then verify npm/MCP Registry metadata and the
-  matching deployed site/MCP identity and a live capability. Automatic
-  release-issue creation is disabled; an unpublished version leaves a warning
-  and Actions summary while production retains the previous published build.
-  #410's Class work, #418's ER/Journey/empty-edit/YAML repairs, #419's text
-  preservation and #416's config ownership are merged. #363, #367 and #372
-  are closed; they are no longer pending source integrations. Qualify release
-  claims with the [remaining export limits](docs/project/divergences.md#mermaid-input-decisions-363)
-  and output-specific projection limits. Green source CI alone does not prove
-  publication or hosted delivery; #477 and #478 remain delivery concerns.
-  The owner's 27 October decision defers #449's Native-layout qualification
-  to 0.6.0; it is not a 0.5 publication condition. ELK remains the default.
-  The owner's 29 October decision also moves AGENT-1, AGENT-2 and AGENT-3
-  to 0.6.0. Those improvements remain open and are not 0.5.4 release claims.
 - [ ] **DEC-6 — Decide the hosted `execute` boundary from usage evidence**
   (`owner-decision`, [#204](https://github.com/adewale/agentic-mermaid/issues/204)).
   Compare hosted direct tools, hosted Code Mode and local Code Mode for real
@@ -119,15 +91,6 @@ route-contract extraction preserves the existing pipeline manifest and order.
 
 ## Ready build backlog
 
-- [ ] **AGENT-1 — Consolidate the agent starting guide** (`todo`, owner
-  requested 2026-10-27; deferred to 0.6.0 by the owner on 2026-10-29).
-  Make `/start.md` a short task/channel
-  router into one maintained operating guide and version-matched references.
-  Generate overlapping instructions for the CLI, installed drop-in and website
-  from that guide. Preserve useful channel entry points while removing repeated
-  rules and competing mini-tutorials. Validate with fresh-agent tasks that choose
-  a channel once and reach the relevant operation details without reconciling
-  multiple guides.
 - [ ] **AGENT-2 — Reduce library import decisions** (`todo`, owner requested
   2026-10-27; deferred to 0.6.0 by the owner on 2026-10-29). Recommend one
   portable agent entry for parsing,
@@ -136,17 +99,6 @@ route-contract extraction preserves the existing pipeline manifest and order.
   import paths and aliases. Reuse the current entries rather than adding another
   SDK layer, and verify shipped declarations/runtime behavior in Node, Bun,
   browsers and Workers before changing the recommendation.
-- [ ] **AGENT-3 — Make resolved scenes discoverable and failures actionable**
-  (`todo`, owner requested 2026-10-27; deferred to 0.6.0 by the owner on
-  2026-10-29). Expose resolved-scene
-  support through existing agent discovery and the Code Mode SDK, with explicit
-  result-size/runtime limits. Give unsupported-artwork failures stable typed
-  fields such as `code`, `partId` and `feature`, preserving readable messages
-  and the prior artifact on failure. Test supported artwork and named unsupported
-  features such as gradients through installed library and agent boundaries.
-  Document released availability so agents can select a supported representation
-  or report the precise limitation without parsing English error messages.
-
 - [ ] **BUILD-27 — MCP Apps support** (`todo`). Expose an interactive
   in-agent diagram UI through MCP Apps: `ui://` resources, correct
   `text/html;profile=mcp-app` resource MIME type, tool `_meta.ui.resourceUri`
@@ -191,7 +143,15 @@ route-contract extraction preserves the existing pipeline manifest and order.
   add a failing fixture or capability-evidence case, name its owning TODO ID,
   and define the parity outcome. Unpromoted issue lists are deliberately not
   retained in this backlog.
-- [ ] **BUILD-6 — Native upstream Mermaid family adoption** (`todo`). Select
+- [ ] **BUILD-6 — Native upstream Mermaid family adoption** (`todo`).
+  The owner requested delivery of Swimlane, TreeView, UseCase, AgentFlow,
+  Wardley, Cynefin, Railroad and Venn in one PR on 5 November 2026, alongside
+  SRC-1 source-preserving edits, production-backed Mermaid model projections
+  and upstream assertions, and measured reuse under PERF-1. These eight native
+  families and bounded Class/Timeline statement preservation are implemented in
+  [PR #601](https://github.com/adewale/agentic-mermaid/pull/601).
+  Keep final qualification and evidence in that PR rather than new issues
+  or generated tracking documents. Select subsequent
   work from the pinned upstream syntax references, current family descriptors
   and `am capabilities --json`, using demand, maturity, syntax stability and
   semantic leverage; the former upstream manifest/report was removed in #361.
@@ -333,7 +293,7 @@ route-contract extraction preserves the existing pipeline manifest and order.
 
 TRIAGE-2 and CONS-46 are retired after merged #418/#419. The wholesale ER
 serializer WIP and Flowchart rejection proposal are superseded by the existing
-declaration planner and read-and-warn codecs. Publication remains under REL-1;
+declaration planner and read-and-warn codecs. Publication completed with [0.5.4](docs/project/archive/releases.md#054--2026-10-30);
 terminal convergence remains under CONS-45.
 
 ## Export limits
@@ -408,7 +368,7 @@ experiments are paused during this work.
 - [x] Test rank-first, detached band-snapshot reuse and ray views separately against accepted26. All three miss their primary target on all6required uncached tails, with18/16/18successful workers out of36 and no cached candidate results. Rank-first raises cyclic19allocation14.8%; band/ray whole27allocation is1.000648×/1.002351×. Keep these variants outside production, preserve missing controls/output comparisons and all failed deadlines; see [current cyclic experiments](docs/design/system/layout-followup-results.md#further-cyclic-attribution-on-frozen-runtime-26).
 - [x] Measure a separately predeclared combined ray-view/query-local-record prototype directly against accepted26 and current-artifactELK. All30memory workers and108exact fullSVG/receipt/certificate/layout/edit comparisons pass, but0/6uncached tails reach5%less allocation and whole27is0.998425×26, missing the0.98target. Reject the prototype; standalone/Architecture payload reserve would fall to306/108bytes. Keep accepted26 unchanged and preserve complete raw controls, failures, exact source patches and profile-premise correction in the [follow-up evidence](docs/design/system/layout-followup-results.md#combined-query-local-crossing-records-complete-negative-experiment).
 - [x] Test subtraction from Architecture refinement before retaining its cost. First-return preserves quality but misses its declared15% allocation target (14.7966% saving), so reject it. Complete single-crossing cleanup saves44.3% on source4 and4.5% on the whole13-input uncached pass versus25. Final direct26/24 whole13 allocation is1.001647×uncached/1.000278×cached, with healthy allocation controls: effectively flat, retaining0/5 repairs while surrendering4's costly partial improvement. The repaired0/5 occurrences themselves cost2.3%/4.7% more uncached allocation; drifting time controls establish no speedup.
-- [x] Freeze runtime26 artifacts and declare untouched Flowchart512–575 and Architecture0–63 cohorts before inspection, then qualify all enrolled outputs. Retain2418 known/new Flowchart observations with only the declared source4 rollback from25, seven unchanged ELK failures and234 unchanged original edits. The separately declared64 Architecture bases/edit/undo sequences produce1536 successful observations across24/25/26/ELK and both cache policies, with512 exact SVG/layout undos and no measured semantic discrepancies. Preserve every case and full proof evidence in [runtime26 quality](docs/design/system/layout-runtime26-quality.json.gz); this completes evaluation, not ELK parity.
+- [x] Freeze runtime26 artifacts and declare untouched Flowchart512–575 and Architecture0–63 cohorts before inspection, then qualify all enrolled outputs. Retain2418 known/new Flowchart observations with only the declared source4 rollback from25, seven unchanged ELK failures and234 unchanged original edits. The separately declared64 Architecture bases/edit/undo sequences produce1536 successful observations across24/25/26/ELK and both cache policies, with512 exact SVG/layout undos and no measured semantic discrepancies. Preserve every case and full proof evidence in [runtime26 quality](https://raw.githubusercontent.com/adewale/agentic-mermaid/a6b9b14161bd281804d5f2c9149320dfd882eb0f/docs/design/system/layout-runtime26-quality.json.gz); this completes evaluation, not ELK parity.
 - [ ] Close the prospective Architecture quality and threshold-coverage gaps without hiding adverse data. Fresh64 native bases have21 crossing,6 bend,32 length,13 area and4 opposing-overlap losses versus ELK; aligned edit motion is worse on48/128 transitions. The one observed cleanup removes a crossing but adds84 route-length units. Only1 base/3 edits meet inferred single-cross guard admission, no direct1↔2 edit occurs, and25/26 outputs tie throughout this cohort. Preserve these64 as evaluated data; require a separately declared future cohort for any new holdout claim. See [final quality results](docs/design/system/layout-followup-results.md#prospective-architecture-quality-and-edit-stability).
 - [ ] Compare candidate selection under explicit bend/area budgets and retain the crossing/bend/area frontier rather than claim all-metric domination.
 - [ ] Reduce repeated cyclic candidate/normalization cost using the current artifact's attribution and exact operation counters. Rank-first, band reuse, lazy orders, lane indexing and immediate proof reuse have already failed their declared experiments; do not relist them as untouched recommendations. Preserve relationships, fallback, search bounds/budgets and independent final proofs, and measure a new owning mechanism directly before adoption.

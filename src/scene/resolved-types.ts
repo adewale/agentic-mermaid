@@ -77,3 +77,12 @@ export interface ResolvedText {
   matrix: Matrix
   paint: ResolvedPaint
 }
+
+
+/** Shared discovery for the existing runtime-neutral projection. */
+export const RESOLVED_SCENE_CAPABILITY = Object.freeze({
+  api: 'renderResolvedScene', version: RESOLVED_SCENE_VERSION,
+  synchronous: true, runtime: 'runtime-neutral', coordinates: 'primitive-local', matrix: 'local-to-root-user-space',
+  geometry: 'backend-painted', unsupportedArtwork: 'refused-atomically',
+  discovery: Object.freeze({ tool: 'describe_sdk', arguments: Object.freeze({ capability: 'resolved-scene' }) }),
+} as const)

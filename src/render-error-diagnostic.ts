@@ -1,6 +1,8 @@
 import { renderErrorOrigin } from './agent/error-origin.ts'
 import { parseRegisteredMermaid } from './agent/parse.ts'
 import type { ParseError } from './agent/types.ts'
+import { ResolvedSceneError } from './scene/resolved-error.ts'
+import { LocatedParserError, type MermaidSyntaxErrorLocation } from './shared/syntax-error.ts'
 import { AsciiWidthError } from './ascii/index.ts'
 import {
   MermaidFamilyDetectionError,
@@ -49,7 +51,6 @@ export type RenderOptionColorDiagnostic = Readonly<{
   value: string
 }>
 
-export type KnownRenderErrorDiagnostic = FamilyDetectionDiagnostic | AsciiWidthErrorDiagnostic | AuthoredStyleColorDiagnostic | ThemeVariableColorDiagnostic | FamilyConfigColorDiagnostic | RenderOptionColorDiagnostic
 
 /** The registered parser rejects the source; `details` are its errors. */
 export type ParseFailedDiagnostic = Readonly<{
@@ -81,6 +82,9 @@ export type InternalRenderErrorDiagnostic = Readonly<{
   code: 'INTERNAL_ERROR'
   message: string
 }>
+export type MermaidSyntaxErrorDiagnostic = Readonly<MermaidSyntaxErrorLocation & { code: 'MERMAID_SYNTAX_ERROR'; message: string }>
+export type KnownRenderErrorDiagnostic = MermaidSyntaxErrorDiagnostic | ResolvedSceneDiagnostic | FamilyDetectionDiagnostic | AsciiWidthErrorDiagnostic | AuthoredStyleColorDiagnostic | ThemeVariableColorDiagnostic | FamilyConfigColorDiagnostic | RenderOptionColorDiagnostic
+export type ResolvedSceneDiagnostic = Readonly<{ code: ResolvedSceneError['code']; message: string; partId: string; feature: ResolvedSceneError['feature'] }>
 
 export type RenderErrorDiagnostic = KnownRenderErrorDiagnostic
   | ParseFailedDiagnostic
@@ -103,6 +107,9 @@ export interface RenderErrorContext {
  * transport-specific error vocabulary into a CLI/MCP response.
  */
 export function projectKnownRenderErrorDiagnostic(error: unknown): KnownRenderErrorDiagnostic | undefined {
+  if (error instanceof LocatedParserError) return { code: 'MERMAID_SYNTAX_ERROR', message: error.message, ...(error.line === undefined ? {} : { line: error.line }), ...(error.column === undefined ? {} : { column: error.column }), ...(error.diagramType === undefined ? {} : { diagramType: error.diagramType }) }
+  if (error instanceof ResolvedSceneError) return { code: error.code, message: error.message, partId: error.partId, feature: error.feature }
+
   if (error instanceof MermaidFamilyDetectionError) {
     return {
       code: error.code,

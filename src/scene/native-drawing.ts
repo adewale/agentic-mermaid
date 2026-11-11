@@ -84,9 +84,10 @@ export function drawNative(
   context: RenderContext<PositionedDiagram>,
   family: string,
   style?: StyleSpec,
+  owned = false,
 ): NativeDrawing {
   const header = { family, width: context.positioned.width, height: context.positioned.height, colors: context.colors, transparent: context.resolved.renderOptions.transparent ?? false }
-  const emission = createNativePaintEmission(MAX_OCCLUSION_OPERATIONS)
+  const emission = createNativePaintEmission(MAX_OCCLUSION_OPERATIONS, owned)
   if (family.startsWith('family:')) emission.uncertain()
   let emittedHeader = emission.snapshot(header)
   const validator = createNativeSceneValidator(header)

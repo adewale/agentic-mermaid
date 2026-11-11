@@ -20,27 +20,28 @@ function mutation<K extends StableBody['kind']>(kind: K, adapter: { readSource: 
     if (body.kind !== kind) return err({ code: 'UNSUPPORTED_FAMILY', message: `${kind} contains unmodeled syntax and remains preserved verbatim` })
     const changed = mutate(body as Extract<StableBody, { kind: K }>, op as never)
     if (!changed.ok) return changed
-    try { changed.value = normalizeBodyAccessibility(changed.value) }
-    catch (error) {
+    try {
+      changed.value = normalizeBodyAccessibility(changed.value, op.kind !== 'set_accessibility_title')
+      // Generated occurrence IDs belong to the resulting source artifact.
+      // Publish the same identities/order that its renderer and source map see.
+      const source = serialize(changed.value)
+      const normalized = readSource(source)
+      // The re-read replaces the edited body, so the commit's fact closure sees
+      // only what was written: a value the writer drops (a Packet title `%%`,
+      // read back as a comment) would vanish unseen. The written source must
+      // read back as itself.
+      if (normalized && serialize(normalized) !== source) {
+        return err({ code: 'INVALID_OP', message: `The edit cannot be written faithfully: the ${kind} source written for it reads back differently` })
+      }
+      if (normalized && (changed.value.accessibilityTitle !== normalized.accessibilityTitle
+        || changed.value.accessibilityDescription !== normalized.accessibilityDescription)) {
+        return err({ code: 'INVALID_OP', message: `${kind} accessibility text cannot be serialized without changing its value` })
+      }
+      return normalized ? ok(normalized) : err({ code: 'INVALID_OP', message: `${kind} edit could not preserve its structured representation` })
+    } catch (error) {
       if (!(error instanceof AccessibilityTextError)) throw error
       return err({ code: 'INVALID_OP', message: error.message })
     }
-    // Generated occurrence IDs belong to the resulting source artifact.
-    // Publish the same identities/order that its renderer and source map see.
-    const source = serialize(changed.value)
-    const normalized = readSource(source)
-    // The re-read replaces the edited body, so the commit's fact closure sees
-    // only what was written: a value the writer drops (a Packet title `%%`,
-    // read back as a comment) would vanish unseen. The written source must
-    // read back as itself.
-    if (normalized && serialize(normalized) !== source) {
-      return err({ code: 'INVALID_OP', message: `The edit cannot be written faithfully: the ${kind} source written for it reads back differently` })
-    }
-    if (normalized && (changed.value.accessibilityTitle !== normalized.accessibilityTitle
-      || changed.value.accessibilityDescription !== normalized.accessibilityDescription)) {
-      return err({ code: 'INVALID_OP', message: `${kind} accessibility text cannot be serialized without changing its value` })
-    }
-    return normalized ? ok(normalized) : err({ code: 'INVALID_OP', message: `${kind} edit could not preserve its structured representation` })
   }
 }
 

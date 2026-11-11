@@ -397,7 +397,12 @@ function exportHarness(options: {
   const downloads: Blob[] = []
   const revokedUrls: string[] = []
   const adapter = options.adapter ?? (async () => ({ png: new Uint8Array([1]), diagnostics: [], receipt: { output: 'png', sharedRequestDigest: 'digest-current' } }))
-  const api = evaluateBrowserScript<ExportApi>(`var renderRequestVersion = 1;\n${editorScript('export.js')}`, {
+  let generation = 1
+  const record = { generation, source: editor.value.trim(), options: options.previewOptions ?? { security: 'strict', embedFontImport: false },
+    artifact: options.svgArtifact ?? { svg: '<svg/>', receipt: { sharedRequestDigest: 'digest-current' } } }
+  const current = () => options.verified !== false && generation === record.generation && editor.value.trim() === record.source
+    && previewInner.dataset.sharedRequestDigest === record.artifact.receipt.sharedRequestDigest ? record : null
+  const api = evaluateBrowserScript<ExportApi>(editorScript('export.js'), {
     document,
     window: { __mermaid: { verifyNoExternalRefs } },
     createPopupController: () => ({ setOpen() {}, isOpen: () => false }),
@@ -406,8 +411,9 @@ function exportHarness(options: {
     previewInner,
     buildOptions: () => ({ security: 'strict', embedFontImport: false }),
     renderMermaidPngInBrowserWithReceipt: (...args: unknown[]) => { adapterCalls.push(args); return adapter(...args) },
-    lastRenderedSvgArtifact: options.svgArtifact ?? null,
-    lastRenderedSvgOptions: options.previewOptions ?? null,
+    currentVerifiedRender: current,
+    isCurrentVerifiedRender: (candidate: unknown) => !!candidate && current() === candidate,
+    setVersion: (version: number) => { generation = version },
     URL: class extends URL {
       static createObjectURL(blob: Blob) { downloads.push(blob); return `blob:export-${downloads.length}` }
       static revokeObjectURL(url: string) { revokedUrls.push(url) }
@@ -430,7 +436,7 @@ function exportHarness(options: {
   }, `{
     currentPngOutputOptions, embeddedFontCss, serializeCanonicalSvg, canonicalBrowserPng,
     exportPNG, exportSVG, copyPNG,
-    setRenderRequestVersion: function(version) { renderRequestVersion = version; },
+    setRenderRequestVersion: function(version) { setVersion(version); },
   }`)
   return { api, document, pills, scalePills, fitMode, fitValue, backgroundMode, backgroundColor, previewInner, editor, toasts, adapterCalls, fetched, downloads, revokedUrls }
 }
@@ -553,11 +559,11 @@ describe('editor PNG export contract', () => {
 
     const unverifiedPreview = exportHarness()
     delete unverifiedPreview.previewInner.dataset.sharedRequestDigest
-    await expect(unverifiedPreview.api.canonicalBrowserPng({ scale: 2 })).rejects.toThrow('do not describe the same render request')
+    await expect(unverifiedPreview.api.canonicalBrowserPng({ scale: 2 })).rejects.toThrow('Render and verify')
 
     let previewChanged: ReturnType<typeof exportHarness> | undefined
     previewChanged = exportHarness({ adapter: async () => { previewChanged!.previewInner.dataset.sharedRequestDigest = 'digest-rerendered'; return receipt() } })
-    await expect(previewChanged.api.canonicalBrowserPng({ scale: 2 })).rejects.toThrow('do not describe the same render request')
+    await expect(previewChanged.api.canonicalBrowserPng({ scale: 2 })).rejects.toThrow('Diagram changed')
 
     let versionBumped: ReturnType<typeof exportHarness> | undefined
     versionBumped = exportHarness({ adapter: async () => { versionBumped!.api.setRenderRequestVersion(2); return receipt() } })

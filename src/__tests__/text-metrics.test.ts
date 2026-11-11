@@ -4,12 +4,23 @@
 import { describe, it, expect } from 'bun:test'
 import {
   getCharWidth,
+  isKnownMonospaceFontFamily,
+  MONO_FONT,
   measureMonospaceTextWidth,
   measureSystemFontSafeTextWidth,
   measureText,
   measureTextWidth,
   TEXT_MEASUREMENT_CONTRACT,
 } from '../text-metrics'
+
+describe('explicit font family classification', () => {
+  it.each([MONO_FONT, " 'Share Tech Mono' , sans-serif", '"JetBrains Mono", serif', 'SHARE   TECH MONO, sans-serif', 'monospace, sans-serif', 'ui-monospace'])('recognizes the selected known mono family %s', font => {
+    expect(isKnownMonospaceFontFamily(font)).toBe(true)
+  })
+  it.each(['Inter, monospace', 'Unknown Font, monospace', '"Unknown, JetBrains Mono", monospace', '"monospace", serif', '" Share Tech Mono ", monospace', '"Share  Tech Mono", monospace', '"JetBrains Mono" trailing, monospace', ''])('does not infer mono from an unknown name or fallback in %s', font => {
+    expect(isKnownMonospaceFontFamily(font)).toBe(false)
+  })
+})
 
 // ============================================================================
 // Shared contract
@@ -315,4 +326,11 @@ describe('real-world text examples', () => {
     const percentDiff = Math.abs(width - unaccented) / unaccented
     expect(percentDiff).toBeLessThan(0.05)
   })
+})
+
+
+it('gives unused discretionary line-break hints no glyph advance', () => {
+  expect(getCharWidth('\u00ad')).toBe(0)
+  expect(getCharWidth('\u200b')).toBe(0)
+  expect(measureTextWidth('ab\u00adcd', 14, 400)).toBe(measureTextWidth('abcd', 14, 400))
 })

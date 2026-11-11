@@ -1,10 +1,12 @@
 import { normalizeBrTags } from '../multiline-utils.ts'
 import type { NormalizedMermaidSource } from '../mermaid-source.ts'
+import { authoredParserColumn, authoredParserLine } from '../shared/parser-source.ts'
+import { sequenceGrammarTrace } from './family-source.ts'
 import { splitHeaderStatement } from '../mermaid-source-wrapper.ts'
 import { scanAccessibilityDirectives } from '../shared/accessibility-directives.ts'
 import { metadataText, readMetadataBlock } from '../shared/metadata-yaml.ts'
 import { observeParserMutation, observeParserStatement, parserObservationActive } from '../shared/parser-observation.ts'
-import { MermaidSyntaxError, syntaxError } from '../shared/syntax-error.ts'
+import { locateSyntaxError, MermaidSyntaxError, syntaxError } from '../shared/syntax-error.ts'
 import { toEntityMarkers } from '../shared/mermaid-entities.ts'
 import { DeferredDependencyError } from '../layout/certification-error.ts'
 import { continuationBelongsToBlock, parseSequenceBlockContinuation, parseSequenceBlockOpener, type SequenceBlockContinuation, type SequenceBlockOpener } from './block-keywords.ts'
@@ -277,16 +279,19 @@ export function parseSequenceMessageLine(line: string): ParsedSequenceMessageLin
  * the caller knows where its lines were authored (see authoredSequenceLine),
  * else its position in `lines`.
  */
-export function parseSequenceDiagram(lines: string[], opts: { showSequenceNumbers?: boolean; wrap?: boolean; authoredLine?: (index: number) => number | undefined } = {}): SequenceDiagram {
+export function parseSequenceDiagram(lines: string[], opts: { showSequenceNumbers?: boolean; wrap?: boolean; authoredLine?: (index: number) => number | undefined; authoredColumn?: (index: number, column: number) => number | undefined } = {}): SequenceDiagram {
   const spans = scanSequenceStatementLines(lines)
   const accessibility = scanAccessibilityDirectives(spans.map(span => span.raw))
-  const kept = accessibility.familyLines.flatMap((line, index) => line.trim() ? [{ text: line.trim(), origin: spans[accessibility.familyOrigins[index]!]!.line }] : [])
+  const kept = accessibility.familyLines.flatMap((line, index) => line.trim() ? [{ text: line.trim(), origin: spans[accessibility.familyOrigins[index]!]!.line, column: spans[accessibility.familyOrigins[index]!]!.column + line.search(/\S/) }] : [])
   lines = kept.map(line => line.text)
   // The statement at `index` of `lines` (the header is 0) on its authored line.
-  const lineOf = (index: number): number => {
+  const lineOf = (index: number): number | undefined => {
     const origin = kept[index]?.origin ?? index
-    return opts.authoredLine?.(origin) ?? origin + 1
+    return opts.authoredLine ? opts.authoredLine(origin) : origin + 1
   }
+  const columnOf = (index: number, column = 0): number | undefined => opts.authoredColumn
+    ? opts.authoredColumn(kept[index]?.origin ?? index, (kept[index]?.column ?? 0) + column)
+    : (kept[index]?.column ?? 0) + column + 1
   if (parserObservationActive('sequence') && lines[0] !== undefined) observeParserStatement('sequence', 'header', lines[0], { line: 1, unit: 'normalized' })
   const diagram: SequenceDiagram = {
     actors: [],
@@ -310,7 +315,7 @@ export function parseSequenceDiagram(lines: string[], opts: { showSequenceNumber
   const destroyedAt = new Map<string, number>()
   const source = readSequenceStatements(lines.slice(1))
   const boundaryIssue = source.issues.find(issue => issue.syntax === 'sequence_block_boundary')
-  if (boundaryIssue) throw new Error(`SEQUENCE_BLOCK_BOUNDARY: line ${lineOf(boundaryIssue.line + 1)}: ${boundaryIssue.message}`)
+  if (boundaryIssue) throw new MermaidSyntaxError(`SEQUENCE_BLOCK_BOUNDARY: line ${lineOf(boundaryIssue.line + 1) ?? 'unknown'}: ${boundaryIssue.message}`, { diagramType: 'sequence', line: lineOf(boundaryIssue.line + 1), column: columnOf(boundaryIssue.line + 1) })
   // Render data is keyed by shared statement identity, not another scope parser.
   const blocks = new Map<number, { type: Block['type']; wrap?: boolean; label: string; labelContent?: LabelContent; color?: string; startIndex: number; dividers: Block['dividers']; dividerNoteIndices: number[]; parent?: number; parentSection: number; noteIndices: number[]; childBlockIndices: number[]; childSectionIndices: number[] }>()
   const boundaries: Array<Omit<SequenceBlockBoundary, 'blockIndex'> & { blockId: number }> = []
@@ -366,15 +371,18 @@ export function parseSequenceDiagram(lines: string[], opts: { showSequenceNumber
 
   for (const [index, entry] of source.statements.entries()) {
     const line = entry.raw.trim()
-    if (parserObservationActive('sequence')) observeParserStatement('sequence', entry.syntax?.kind ?? 'unrecognized', entry.raw, { line: entry.line + 2, column: entry.column + 1, unit: 'normalized' })
-    if (entry.error) throw entry.error
+    if (parserObservationActive('sequence')) observeParserStatement('sequence', entry.syntax?.kind ?? 'unrecognized', entry.raw, { line: entry.line + 2, column: entry.column + 1, unit: 'normalized' }, entry.syntax ?? undefined)
+    if (entry.error) {
+      if (!(entry.error instanceof MermaidSyntaxError)) throw entry.error
+      throw locateSyntaxError(entry.error, { diagramType: 'sequence', line: lineOf(entry.line + 1), column: columnOf(entry.line + 1, entry.column) })
+    }
     const statement = entry.syntax
     if (!statement) {
       // Sequence's existing generous universal-directive policy keeps valid
       // messages after an unclosed accDescr opener; verify diagnoses the
       // preserved opener rather than treating it as family syntax.
       if (accessibility.unclosedIndex !== undefined && line === accessibility.familyLines[accessibility.unclosedIndex]?.trim()) continue
-      if (line && !isSequenceCommentLine(line)) throw new Error(`SEQUENCE_UNSUPPORTED_STATEMENT: line ${lineOf(entry.line + 1)}: ${line}`)
+      if (line && !isSequenceCommentLine(line)) throw new MermaidSyntaxError(`SEQUENCE_UNSUPPORTED_STATEMENT: line ${lineOf(entry.line + 1) ?? 'unknown'}: ${line}`, { diagramType: 'sequence', line: lineOf(entry.line + 1), column: columnOf(entry.line + 1, entry.column) })
       continue
     }
     for (const event of participantEventsOf(statement)) {
@@ -486,7 +494,7 @@ export function parseSequenceDiagram(lines: string[], opts: { showSequenceNumber
       const rectArgument = opener.type === 'rect' && opener.label.startsWith('#') ? '' : opener.label
       const color = opener.type === 'rect' ? sequenceRectColor(rectArgument) : undefined
       if (opener.type === 'rect' && rectArgument && !color) {
-        throw new Error('SEQUENCE_RECT_COLOR_UNSUPPORTED: rect requires a safe concrete CSS color')
+        throw new MermaidSyntaxError('SEQUENCE_RECT_COLOR_UNSUPPORTED: rect requires a safe concrete CSS color', { diagramType: 'sequence', line: lineOf(entry.line + 1), column: columnOf(entry.line + 1, entry.column) })
       }
       blocks.set(index, {
         type: blockType,
@@ -591,30 +599,12 @@ export function parseSequenceDiagram(lines: string[], opts: { showSequenceNumber
 /** The authored line of `source.familyLines[index]`, matched in order from
  * the family header as verify matches canonical lines to authored ones, so a
  * renderer's error names the line verify reports. Computed on first use. */
-export function authoredSequenceLine(source: Pick<NormalizedMermaidSource, 'familyLines' | 'originalText' | 'wrapperSource'>): (index: number) => number | undefined {
-  let lines: (number | undefined)[] | undefined
-  return index => {
-    if (!lines) {
-      const physical = source.originalText.split(/\r?\n/)
-      const header = source.wrapperSource ? source.wrapperSource.split(/\r?\n/).length - 1 : 0
-      // A statement on the header line is a family line of its own.
-      const authored = physical.slice(header).flatMap((text, offset) =>
-        (offset === 0 ? splitHeaderStatement(text).split('\n') : [text]).map(part => ({ text: part.trim(), line: header + offset + 1 })))
-      let cursor = 0
-      lines = source.familyLines.map(line => {
-        const wanted = line.trim()
-        for (let at = cursor; at < authored.length; at++) {
-          // Text after an accDescr block's `}` is a family line of its own.
-          const candidate = authored[at]!.text
-          if (candidate !== wanted && candidate.slice(candidate.indexOf('}') + 1).trim() !== wanted) continue
-          cursor = at + 1
-          return authored[at]!.line
-        }
-        return undefined
-      })
-    }
-    return lines[index]
-  }
+export function authoredSequenceLine(source: NormalizedMermaidSource): (index: number) => number | undefined {
+  return authoredParserLine(source, sequenceGrammarTrace)
+}
+
+export function authoredSequenceColumn(source: NormalizedMermaidSource): (index: number, column: number) => number | undefined {
+  return authoredParserColumn(source, sequenceGrammarTrace)
 }
 
 /** One sequence statement, classified by the grammar the renderer parser and
@@ -847,7 +837,12 @@ export function parseActorDeclaration(line: string): ParsedActorDeclaration | nu
     const { entries } = block
     const requestedType = entries.get('type')
     const requested = typeof requestedType === 'string' ? requestedType.toLowerCase() : baseType
-    if (!ACTOR_TYPES.has(requested as SequenceActorType)) throw new Error(`Unknown sequence actor type '${requested}'`)
+    if (!ACTOR_TYPES.has(requested as SequenceActorType)) throw syntaxError({
+      what: `Unknown sequence actor type '${requested}'`,
+      expectedForm: 'a supported actor type',
+      example: 'participant DB@{ type: database }',
+      known: [...ACTOR_TYPES],
+    })
     const type = requested as SequenceActorType
     // Upstream's `addActor`: a truthy metadata alias names the actor unless
     // `as` gives a text other than the id (`B@{ "alias": "Y" } as B` is Y).

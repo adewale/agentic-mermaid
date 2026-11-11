@@ -17,6 +17,15 @@ const htmlDisplayWidth = (output: string): number =>
   )
 
 const LONG_FEASIBLE_SOURCE: Record<DiagramKind, string> = {
+  agentflow: 'agentflow-beta TB\nflow team[Publishing]\nA[A very descriptive 界 tool task with several words]@{shape:tool}\nend',
+  usecase: 'usecase-beta\nactor Customer("A very descriptive 界 customer actor with several words")\nCheckout("Checkout")\nCustomer --> Checkout',
+  wardley: 'wardley-beta\ncomponent A [0.8,0.3]\nnote "A very descriptive 界 Wardley annotation with several words" [0.4,0.6]',
+  venn: 'venn-beta\nset A["A very descriptive 界 set label with several words"]:10',
+  cynefin: 'cynefin-beta\ncomplex\n  "A very descriptive 界 decision item with several words"',
+  railroad: 'railroad-beta\nentry = terminal("A very descriptive 界 grammar literal with several words");',
+  swimlane: 'swimlane-beta LR\nsubgraph lane[Operations]\nA[A very descriptive 界 lane task with several words]\nend',
+  treeview: 'treeView-beta\nsrc/\n    "A very descriptive 界 file name with several words.ts"',
+
   zenuml: 'zenuml\nA->B: A very descriptive message with several words',
   eventmodeling: 'eventmodeling\ntf 01 ui CartUI { A very descriptive frame label with several words }',
   packet: '---\nconfig:\n  packet:\n    bitsPerRow: 8\n---\npacket\n+8: "A very descriptive packet field label with several words"',

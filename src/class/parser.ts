@@ -1,4 +1,5 @@
 import { decodeXML } from 'entities'
+import { appendClassName } from '../shared/graph-classes.ts'
 import { normalizeBrTags } from '../multiline-utils.ts'
 import { isSafeActionHref } from '../output-security.ts'
 import { parseAccessibilityDirective, requireClosedAccessibility, scanAccessibilityDirectives } from '../shared/accessibility-directives.ts'
@@ -7,7 +8,7 @@ import { parseDirectionStatement } from '../shared/direction-statement.ts'
 import { observeParserMutation, observeParserStatement, parserObservationActive } from '../shared/parser-observation.ts'
 import { parseClassLikeStyleDeclarations, parseClassLikeStyleProps } from '../shared/class-like-style.ts'
 import { mergeStyleProps } from '../shared/style-props.ts'
-import { syntaxError } from '../shared/syntax-error.ts'
+import { locateSyntaxError, MermaidSyntaxError, syntaxError } from '../shared/syntax-error.ts'
 import { classInterfaceSide, createClassInterfaceAllocator } from './interface-occurrences.ts'
 import { classTextLabel, decodeClassText } from './text.ts'
 import type { ClassDiagram, ClassMember, ClassNamespace, ClassNode, ClassRelationship, RelationshipType } from './types.ts'
@@ -645,6 +646,14 @@ function splitClassBlockStatement(text: string, inNamespace: boolean): string[] 
  */
 export function classStatementEnds(lines: readonly string[]): number[] {
   const ends = lines.map((_, index) => index)
+  if (!parserObservationActive('class')) {
+    // Only continuesClassText can join physical rows, and it requires an
+    // open ASCII double quote. Scope-free input needs no statement tree walk.
+    if (!lines.some(line => line.includes('"'))) return ends
+    try { scanClassStatements(lines, undefined, false, ends) }
+    catch { for (let index = 0; index < ends.length; index++) ends[index] = index }
+    return ends
+  }
   let tree: ClassStatementTree
   try {
     tree = readClassStatements(lines)
@@ -690,19 +699,26 @@ export function classStyleStatementLines(lines: readonly string[]): ReadonlySet<
 }
 
 export function readClassStatements(lines: readonly string[], authoredLines?: readonly (string | undefined)[], observe = true): ClassStatementTree {
-  const tree: ClassStatementTree = { source: lines.join('\n'), statements: [], diagnostics: [] }
+  return scanClassStatements(lines, authoredLines, observe)!
+}
+
+/** The statement walk also projects physical ownership without retaining a
+ * syntax tree. Classification and scope boundaries stay in this one reader. */
+function scanClassStatements(lines: readonly string[], authoredLines: readonly (string | undefined)[] | undefined, observe: boolean, ends?: number[]): ClassStatementTree | undefined {
+  const tree: ClassStatementTree | undefined = ends ? undefined : { source: lines.join('\n'), statements: [], diagnostics: [] }
   const stack: ClassStatementNode[] = []
   let offset = 0
   for (let lineIndex = 0; lineIndex < lines.length; lineIndex++) {
     const line = lines[lineIndex]!
-    const span = { line: lineIndex + 1, column: 1, start: offset, end: offset + line.length }
+    const firstLine = lineIndex, startOffset = offset
+    const span = tree ? { line: lineIndex + 1, column: 1, start: offset, end: offset + line.length } : undefined
     offset += line.length + 1
     // Read the line as Mermaid's grammar meets it, without its directives.
     let raw = line.replace(MERMAID_DIRECTIVE_RE, '')
-    const authored = authoredLines ? authoredLines[lineIndex]?.replace(MERMAID_DIRECTIVE_RE, '') : raw
+    const authored = ends ? undefined : authoredLines ? authoredLines[lineIndex]?.replace(MERMAID_DIRECTIVE_RE, '') : raw
     const scanned = scanInlineNamespaceStatement(raw.trim())
     const authoredParts = authored === undefined ? [] : expandInlineNamespaceStatement(authored.trim())
-    let fragments: Array<ClassStatementFragment & { authored?: string }> = scanned.map((fragment, index) => ({ ...fragment, authored: authoredParts.length === scanned.length ? authoredParts[index] : undefined }))
+    let fragments: Array<ClassStatementFragment & { authored?: string }> = ends ? scanned : scanned.map((fragment, index) => ({ ...fragment, authored: authoredParts.length === scanned.length ? authoredParts[index] : undefined }))
     // Mermaid's string runs on across line breaks. Where it holds a note, a
     // cardinality or a label, read the lines it spans as one statement with
     // `<br>`, the label line break, for each break, as flowchart does for
@@ -722,11 +738,12 @@ export function readClassStatements(lines: readonly string[], authoredLines?: re
     }
     if (end > lineIndex) {
       for (const line of lines.slice(lineIndex + 1, end + 1)) offset += line.length + 1
-      span.end = offset - 1
+      if (span) span.end = offset - 1
       lineIndex = end
       raw = statement
       fragments = [...fragments.slice(0, -1), ...scanInlineNamespaceStatement(statement).map(fragment => ({ ...last, ...fragment, authored: undefined }))]
     }
+    if (ends) ends[firstLine] = end
     // Fragments still to read, the next one last, so a statement read apart
     // puts its parts back in its place in time linear in the line.
     const pending = fragments.reverse()
@@ -752,6 +769,9 @@ export function readClassStatements(lines: readonly string[], authoredLines?: re
         continue
       }
       const text = inClass && !source.startsWith('}') ? source : classStatement(source)
+      // Members cannot open a scope. Their closing brace was consumed above;
+      // a scope-only caller needs no member classification or syntax value.
+      if (ends && inClass && text !== '}') continue
       let value: ClassSyntaxValue
       if (!source || source.startsWith('%%')) value = { kind: 'trivia' }
       else if (inClass && text !== '}') {
@@ -769,8 +789,15 @@ export function readClassStatements(lines: readonly string[], authoredLines?: re
         putBack(fragment, parts)
         continue
       }
-      const node: ClassStatementNode = { raw: whole && !split ? raw : source, text, source: span, value }
-      if (observe && parserObservationActive('class')) observeParserStatement('class', value.kind, text, { line: span.line, column: span.column, offset: span.start, endOffset: span.end, unit: 'normalized' })
+      if (!tree) {
+        if (value.kind === 'close') stack.pop()
+        else if (value.kind === 'namespace' || (value.kind === 'class' && value.declaration.opensBody)) {
+          stack.push({ raw: '', text: '', source: { line: firstLine + 1, column: 1, start: startOffset, end: offset - 1 }, value })
+        }
+        continue
+      }
+      const node: ClassStatementNode = { raw: whole && !split ? raw : source, text, source: span!, value }
+      if (observe && parserObservationActive('class')) observeParserStatement('class', value.kind, text, { line: span!.line, column: span!.column, offset: span!.start, endOffset: span!.end, unit: 'normalized' })
       if (fragment.followsNamespaceCloseOnSameLine || (closedOnLine === 'namespace' && value.kind !== 'trivia' && value.kind !== 'close')) node.followsNamespaceCloseOnSameLine = true
       else if (closedOnLine === 'class' && value.kind !== 'trivia' && value.kind !== 'close') node.followsClassCloseOnSameLine = true
       if (value.kind === 'close' && owner) closedOnLine = inClass ? 'class' : 'namespace'
@@ -781,20 +808,20 @@ export function readClassStatements(lines: readonly string[], authoredLines?: re
           stack.pop()
         } else {
           tree.statements.push(node)
-          tree.diagnostics.push({ reason: 'Unexpected closing brace in class diagram', source: span })
+          tree.diagnostics.push({ reason: 'Unexpected closing brace in class diagram', source: span! })
         }
         continue
       }
       const siblings = owner ? owner.children! : tree.statements
       siblings.push(node)
-      if (value.kind === 'unknown') tree.diagnostics.push({ reason: value.reason, source: span })
+      if (value.kind === 'unknown') tree.diagnostics.push({ reason: value.reason, source: span! })
       if (value.kind === 'namespace' || (value.kind === 'class' && value.declaration.opensBody)) {
         node.children = []
         stack.push(node)
       }
     }
   }
-  for (const owner of stack)
+  if (tree) for (const owner of stack)
     tree.diagnostics.push({
       reason: `Unclosed ${owner.value.kind === 'namespace' ? 'namespace' : 'class'} block`,
       source: owner.source,
@@ -994,6 +1021,7 @@ export function parseClassDiagram(lines: string[], authoredLines?: string[]): Cl
     const diagnostic = tree.diagnostics[0]!
     throw syntaxError({
       what: `${diagnostic.reason} at line ${diagnostic.source.line}`,
+      location: { diagramType: 'class', line: diagnostic.source.line, column: diagnostic.source.column },
       expectedForm: 'supported class statements and balanced class/namespace blocks',
       example: 'class A\nA --> B : linked',
     })
@@ -1055,6 +1083,7 @@ export function parseClassDiagram(lines: string[], authoredLines?: string[]): Cl
       if (parserObservationActive('class')) observeParserMutation('class', 'add-member', { id: node.id, method: member.isMethod, member: member.member })
     }
   }
+  let activeStatement: ClassStatementNode | undefined
   const visit = (nodes: ClassStatementNode[], path = '', owner?: ClassNode): void => {
     const frames = [{ nodes, path, owner, index: 0 }]
     while (frames.length) {
@@ -1064,6 +1093,7 @@ export function parseClassDiagram(lines: string[], authoredLines?: string[]): Cl
         continue
       }
       const node = frame.nodes[frame.index++]!
+      activeStatement = node
       const { path, owner } = frame
       const value = node.value
       switch (value.kind) {
@@ -1082,7 +1112,7 @@ export function parseClassDiagram(lines: string[], authoredLines?: string[]): Cl
             delete cls.labelContent
             Object.assign(cls, classTextLabel(declaration.label))
           }
-          if (declaration.className !== undefined) cls.className = declaration.className
+          if (declaration.className !== undefined) cls.className = appendClassName(cls.className, declaration.className)
           if (parserObservationActive('class')) observeParserMutation('class', 'declare-class', cls, { line: node.source.line, unit: 'normalized' })
           if (declaration.annotation !== undefined) {
             applyClassAnnotation(cls, declaration.annotation)
@@ -1111,7 +1141,7 @@ export function parseClassDiagram(lines: string[], authoredLines?: string[]): Cl
             delete cls.labelContent
             Object.assign(cls, classTextLabel(annotation.label))
           }
-          if (annotation.className !== undefined) cls.className = annotation.className
+          if (annotation.className !== undefined) cls.className = appendClassName(cls.className, annotation.className)
           applyClassAnnotation(cls, annotation.annotation)
           if (parserObservationActive('class')) observeParserMutation('class', 'set-annotation', { id: cls.id, annotation: cls.annotation, label: cls.label })
           claim(cls.id, path)
@@ -1175,12 +1205,12 @@ export function parseClassDiagram(lines: string[], authoredLines?: string[]): Cl
             // it, and declares none.
             if (value.kind === 'assignment' && value.form.startsWith('cssClass')) {
               const existing = classMap.get(reference.id)
-              if (existing) existing.className = value.name
+              if (existing) existing.className = appendClassName(existing.className, value.name)
               else laterCssClasses.push({ id: reference.id, name: value.name })
               continue
             }
             const cls = ensureClass(classMap, reference.id, reference.generic)
-            if (value.kind === 'assignment') cls.className = value.name
+            if (value.kind === 'assignment') cls.className = appendClassName(cls.className, value.name)
             else cls.inlineStyle = mergeStyleProps(cls.inlineStyle, value.props)
             if (parserObservationActive('class')) observeParserMutation('class', value.kind === 'assignment' ? 'assign-class' : 'set-style', cls)
             claim(cls.id, path)
@@ -1191,10 +1221,14 @@ export function parseClassDiagram(lines: string[], authoredLines?: string[]): Cl
       }
     }
   }
-  visit(tree.statements)
-  for (const { id, name } of laterCssClasses) {
+  try { visit(tree.statements) } catch (error) {
+    if (error instanceof MermaidSyntaxError && activeStatement) throw locateSyntaxError(error, { diagramType: 'class', line: activeStatement.source.line, column: activeStatement.source.column })
+    throw error
+  }
+  for (let index = laterCssClasses.length - 1; index >= 0; index--) {
+    const { id, name } = laterCssClasses[index]!
     const cls = classMap.get(id)
-    if (cls && cls.className === undefined) cls.className = name
+    if (cls) cls.className = appendClassName(name, cls.className ?? '')
   }
   diagram.classes = [...classMap.values()].filter(node => !node.isInterface).concat([...classMap.values()].filter(node => node.isInterface))
   assertClassDiagramWork(diagram)

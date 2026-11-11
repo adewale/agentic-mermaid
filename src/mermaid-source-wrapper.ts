@@ -94,9 +94,9 @@ export function stripMermaidDirectives(text: string, onInit?: (payload: string |
   return body.replace(MERMAID_DIRECTIVE_REGEX, '')
 }
 
-export function toMermaidLines(text: string): string[] {
-  return text
-    .split(/\r\n?|\n/)
+export function toMermaidLines(text: string | readonly string[]): string[] {
+  const lines = typeof text === 'string' ? text.split(/\r\n?|\n/) : text
+  return lines
     .map(line => line.trim())
     .filter(line => line && !line.startsWith('%%'))
 }

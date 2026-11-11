@@ -1,10 +1,10 @@
 import { describe, expect, test } from 'bun:test'
 
 import { parseMermaid as parseGraph } from '../parser.ts'
-import { coalesceFlowchartLines } from '../flowchart-lexer.ts'
+import { coalesceFlowchartLines, flowchartStatementEnds } from '../flowchart-lexer.ts'
 import { parseRegisteredMermaid as parseMermaid, serializeMermaid, verifyMermaid, mutate, asFlowchart, renderMermaidASCII } from '../agent/index.ts'
 import { renderMermaidSVG } from '../index.ts'
-import { applyOps } from '../agent/core.ts'
+import { applyOps, mutateChecked } from '../agent/core.ts'
 import { renderMermaidASCIIWithMeta } from '../ascii/meta.ts'
 import { startUpstreamMermaid } from './helpers/upstream-mermaid.ts'
 import { expectNearLinearGrowth } from './helpers/complexity.ts'
@@ -24,6 +24,27 @@ function parseAgent(source: string) {
 }
 
 describe('flowchart parser conformance safety floor (issue #36)', () => {
+  test('typed node, edge and group labels keep literal directive openers through export', async () => {
+    const upstream = startUpstreamMermaid()
+    try {
+      for (const label of ['a%%b', 'a%%{init: {}}%%b', 'slash\\%%{init: {}}%% literal #37;']) {
+        let diagram = parseAgent('flowchart TD\nA[Before] --> B')
+        for (const op of [{ kind: 'set_label', target: 'A', label }, { kind: 'set_label', target: 'A->B', label }, { kind: 'add_subgraph', id: 'G', label, members: ['A'] }]) {
+          const edited = mutateChecked(diagram, op)
+          if (!edited.ok) throw new Error(edited.error.message)
+          diagram = edited.value
+        }
+        const written = serializeMermaid(diagram), reread = parseAgent(written)
+        if (reread.body.kind !== 'flowchart') throw new Error('Expected editable Flowchart labels')
+        expect(reread.body.graph.nodes.get('A')?.label).toBe(label)
+        expect(reread.body.graph.edges[0]?.label).toBe(label)
+        expect(reread.body.graph.subgraphs[0]?.label).toBe(label)
+        expect(reread.body.graph.subgraphs[0]?.nodeIds).toEqual(['A'])
+        expect(await upstream.publicAccepts(written)).toBe(true)
+      }
+    } finally { upstream.close() }
+  })
+
   test.each([
     '%% keep this comment\nflowchart TD\nclass',
     'flowchart TD\nclassDef\nstyle',
@@ -388,6 +409,17 @@ describe('flowchart parser conformance safety floor (issue #36)', () => {
   test('a text-arrow label runs on to no line that puts a `--` into it', () => {
     expect(coalesceFlowchartLines(['A -- x', '  A-- y --> B', 'C -- z', '  D --> E']).map(group => group.text))
       .toEqual(['A -- x', '  A-- y --> B', 'C -- z<br>D --> E'])
+  })
+
+  test.each([
+    [['flowchart TD', 'A["first', '', '%% skipped', '  last"]', 'B'], [0, 4, 2, 3, 4, 5]],
+    [['A@{', '  shape: rect', '  label: "x"', '}', 'A --> B'], [3, 1, 2, 3, 4]],
+    [['A -->', '', '%% skipped', '  B', 'C', '  --> D'], [3, 1, 2, 3, 5, 5]],
+    [['subgraph S["Stage', '  One"]', 'A --> B', 'end'], [1, 1, 2, 3]],
+    [['accDescr {', 'owned', '}', 'A --> B'], [2, 1, 2, 3]],
+    [['subgraph S[unclosed', 'A --> B', 'end'], [0, 1, 2]],
+  ] as const)('statement boundaries retain physical indices without materialized group output: %j', (lines, expected) => {
+    expect(flowchartStatementEnds(lines)).toEqual([...expected])
   })
 
   // Upstream nests no shape text, so a line left deeper ends where it ends;

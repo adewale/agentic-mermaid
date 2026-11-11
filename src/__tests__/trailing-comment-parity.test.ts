@@ -104,3 +104,25 @@ describe('a trailing %% comment, as pinned Mermaid reads it', () => {
     expect(verifyMermaid(parsed.value).warnings.some(warning => warning.code === 'COMMENT_DROPPED')).toBe(false)
   })
 })
+
+test.each(['flowchart TD', 'agentflow-beta', 'swimlane-beta'])('%s keeps literal percent pairs in multiline shape payloads out of comment ownership', async header => {
+  const { mutateChecked } = await import('../agent/mutate.ts')
+  const source = `${header}\na[Plain %% literal suffix\n%% literal line\nlabel]\n%% actual authored comment\nb[Other]`
+  const parsed = parseRegisteredMermaid(source)
+  if (!parsed.ok || !['flowchart', 'agentflow', 'swimlane'].includes(parsed.value.body.kind)) throw new Error('Expected typed graph grammar')
+  if (parsed.value.body.kind !== 'flowchart' && parsed.value.body.kind !== 'agentflow' && parsed.value.body.kind !== 'swimlane') throw new Error('Expected graph body')
+  const expected = 'Plain %% literal suffix\n%% literal line\nlabel'
+  expect(parsed.value.body.graph.nodes.get('a')?.label).toBe(expected)
+  expect(parsed.value.meta.comments.map(comment => comment.text)).toEqual(['actual authored comment'])
+  expect(parsed.value.meta.bodyComments?.map(comment => comment.raw)).toEqual(['%% actual authored comment'])
+  const edited = mutateChecked(parsed.value, { kind: 'set_label', target: 'b', label: 'Changed' })
+  if (!edited.ok) throw new Error(JSON.stringify(edited.error))
+  const saved = serializeMermaid(edited.value)
+  expect(saved.match(/^%% actual authored comment$/gm)).toHaveLength(1)
+  expect(saved).not.toMatch(/^%% literal (?:suffix|line)$/m)
+  const reload = parseRegisteredMermaid(saved)
+  if (!reload.ok || (reload.value.body.kind !== 'flowchart' && reload.value.body.kind !== 'agentflow' && reload.value.body.kind !== 'swimlane')) throw new Error('Expected graph reload')
+  expect(reload.value.body.graph.nodes.get('a')?.label).toBe(expected)
+  expect(reload.value.body.graph.nodes.get('b')?.label).toBe('Changed')
+  expect(reload.value.meta.comments.map(comment => comment.text)).toEqual(['actual authored comment'])
+})

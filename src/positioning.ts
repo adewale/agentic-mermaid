@@ -3,7 +3,7 @@ import { isOriginalEnrolledDefaultBackend } from './scene/backend.ts'
 import { nativeDrawingOf, originalNativeDrawingOf, type DrawingProducer } from './scene/drawing.ts'
 import { sceneAssertionsEnabled } from './scene/assertions.ts'
 import { PERFORMANCE_EXPERIMENTS, performanceExperimentEnabled } from './experimental-performance.ts'
-import { borrowedPositioned, cachedPositioned, clonePositioned, isRetainedPositionedSnapshot, retainOwnedNativeSvgPositioned, retainPositioned } from './experimental/position-cache.ts'
+import { borrowedPositioned, cachedPositioned, clonePositioned, isRetainedPositionedSnapshot, positionedDrawingNeedsCopy, retainOwnedNativeSvgPositioned, retainPositioned } from './experimental/position-cache.ts'
 import { observeCache } from './performance-observations.ts'
 // Canonical resolved-request -> positioned-artifact seam.
 //
@@ -18,9 +18,10 @@ import { assessRenderedLayoutHardViolations } from './family-rubric.ts'
 import { LayoutCertificationError } from './layout/certification-error.ts'
 import { mergeUncertifiedLayout, type UncertifiedLayoutReceipt } from './layout/uncertified-layout.ts'
 import { graphLayoutDecisionsOf, retainGraphLayoutDecision, withGraphLayoutDecisionObserver, type GraphLayoutDecision } from './layout/backend.ts'
+import { layoutOptimization } from './layout/optimization-context.ts'
 import type { NormalizedMermaidSource } from './mermaid-source.ts'
 import { type ResolvedRenderRequest, resolvedFamilyRenderContextOf, resolvedRenderExecutionPlanOf } from './render-contract.ts'
-import { withTextMeasurementExecution } from './text-measurement-profile.ts'
+import { withTextMeasurementExecution, textMeasurementCacheIdentity } from './text-measurement-profile.ts'
 import type { PositionedDiagram } from './types.ts'
 
 // A certification and its consumers use one projection of the same final
@@ -72,8 +73,9 @@ export function positionFamilyForNativeRender(request: ResolvedRenderRequest): F
   // independent copy, including on the call that first fills the cache, so a
   // later restored original producer never borrows caller-retained geometry.
   const producer = nativeDrawingOf(plan.family.lowerScene)
+  const reusableMetrics = !plan.textMeasurement || textMeasurementCacheIdentity(plan.textMeasurement) !== undefined
   const borrow = plan.mode === 'scene' && isOriginalEnrolledDefaultBackend(plan.backend?.backend)
-    && isOwnedFamily(plan.family) && !plan.textMeasurement
+    && isOwnedFamily(plan.family) && reusableMetrics
     && !!producer && producer === originalNativeDrawingOf(plan.family.lowerScene) && !sceneAssertionsEnabled(request)
   const result = positionFamily(plan.family.id, request, request.source, {}, borrow, true)
   if (borrow && isRetainedPositionedSnapshot(result)) borrowedNativeProducers.set(result, producer!)
@@ -81,11 +83,16 @@ export function positionFamilyForNativeRender(request: ResolvedRenderRequest): F
 }
 
 /** A stage/cache observer can replace the native capability after positioning.
- * Clone only our known raw cache graph before handing it to a different
- * producer. Public positioned inputs keep their original getter observations. */
+ * Detach borrowed geometry before replacement producers, and captured copies
+ * before any producer. Public inputs keep their original getter observations. */
 export function positionedForNativeProducer(layout: FamilyLayoutResult, producer: DrawingProducer): PositionedDiagram {
   const original = borrowedNativeProducers.get(layout)
-  return original && original !== producer ? clonePositioned(layout.positioned, true) : layout.positioned
+  return original && (original !== producer || positionedDrawingNeedsCopy(layout)) ? clonePositioned(layout.positioned, true) : layout.positioned
+}
+
+/** Scene lowering can retain aliases; never hand it borrowed cache geometry. */
+export function positionedForSceneLowering(layout: FamilyLayoutResult): PositionedDiagram {
+  return borrowedNativeProducers.has(layout) ? clonePositioned(layout.positioned, true) : layout.positioned
 }
 
 function positionFamily(familyId: FamilyId, request: ResolvedRenderRequest, source: Readonly<NormalizedMermaidSource>, projectionOptions: FamilyPositionedProjectionOptions, borrow: boolean, immutableText = false): FamilyLayoutResult {
@@ -104,22 +111,26 @@ function positionFamily(familyId: FamilyId, request: ResolvedRenderRequest, sour
   }
   const resolved = resolvedFamilyRenderContextOf(request)
   const environment = (globalThis as { process?: { env?: Record<string, string | undefined> }; AGENTIC_MERMAID_ELK_CACHE?: unknown }).process?.env
-  const cacheEnabled = performanceExperimentEnabled('position-cache') && certifyFinal && familyId !== 'gantt' && !executionPlan.textMeasurement
+  const metricsIdentity = textMeasurementCacheIdentity(executionPlan.textMeasurement)
+  const reusableMetrics = !executionPlan.textMeasurement || metricsIdentity !== undefined
+  const cacheEnabled = performanceExperimentEnabled('position-cache') && certifyFinal && familyId !== 'gantt' && reusableMetrics
     && (environment?.AGENTIC_MERMAID_ELK_CACHE ?? (globalThis as { AGENTIC_MERMAID_ELK_CACHE?: unknown }).AGENTIC_MERMAID_ELK_CACHE) !== '0'
   // Admitted cleanup provenance is derived entirely from originalText. Keep
   // every authoritative field; explicit source overrides retain the full key.
   const cacheSource = cacheEnabled && source === request.source ? { ...source, cleanup: undefined } : source
-  const cacheKey = cacheEnabled ? JSON.stringify([cacheSource, request.renderOptions, request.appearance, request.familyConfig, projectionOptions, familyId === 'class' ? resolved.paintBackendId ?? 'backend:default' : undefined,
-    Object.entries(environment ?? {}).filter(([key]) => key.startsWith('APL_')).sort(), PERFORMANCE_EXPERIMENTS.map(performanceExperimentEnabled)]) : undefined
+  const cacheParts = cacheEnabled ? [cacheSource, request.renderOptions, request.appearance, request.familyConfig, projectionOptions, familyId === 'class' ? resolved.paintBackendId ?? 'backend:default' : undefined,
+    Object.entries(environment ?? {}).filter(([key]) => key.startsWith('APL_')).sort(), PERFORMANCE_EXPERIMENTS.map(performanceExperimentEnabled)] : undefined
+  if (metricsIdentity !== undefined) cacheParts?.push(metricsIdentity)
+  const cacheKey = cacheParts === undefined ? undefined : JSON.stringify(cacheParts)
   const boundedKey = cacheKey !== undefined && cacheKey.length <= 65536 ? cacheKey : undefined
   if (boundedKey === undefined) observeCache('positioned-layout', 'bypass',
     !performanceExperimentEnabled('position-cache') ? 'disabled' : !certifyFinal ? 'external-family'
-      : familyId === 'gantt' ? 'time-dependent-family' : executionPlan.textMeasurement ? 'custom-text-measurement'
+      : familyId === 'gantt' ? 'time-dependent-family' : !reusableMetrics ? 'custom-text-measurement'
         : cacheKey === undefined ? 'elk-cache-disabled' : 'key-limit')
-  return withTextMeasurementExecution(executionPlan.textMeasurement, () => {
+  const position = () => withTextMeasurementExecution(executionPlan.textMeasurement, () => {
     const role = request.output === 'ascii' || request.output === 'unicode' || request.output === 'html' ? 'companion' : 'primary'
     if (borrow && boundedKey !== undefined) {
-      const snapshot = borrowedPositioned(descriptor, boundedKey, request.output === 'svg' ? request : undefined)
+      const snapshot = borrowedPositioned(descriptor, boundedKey, request.output === 'svg' ? request : undefined, true)
       if (snapshot?.projection) {
         for (const decision of graphLayoutDecisionsOf(snapshot.result)) retainRequestGraphLayoutDecision(request, decision, role)
         retainedProjections.set(snapshot.result, snapshot.projection)
@@ -173,10 +184,12 @@ function positionFamily(familyId: FamilyId, request: ResolvedRenderRequest, sour
       // These original hooks parse fresh private diagrams. Native SVG consumes
       // their geometry without exposing it; shared prepared text is frozen.
       const retain = borrow && request.output === 'svg'
-        && (familyId === 'sequence' || familyId === 'flowchart' || familyId === 'state')
+        && (familyId === 'sequence' || familyId === 'flowchart' || familyId === 'state' || familyId === 'pie')
         ? retainOwnedNativeSvgPositioned : retainPositioned
       retain(descriptor, boundedKey, result, retainedProjections.get(result))
     }
     return result
   })
+  const optimization = layoutOptimization(Boolean(request.renderOptions.graphLayout?.quality || request.renderOptions.graphLayout?.viewport))
+  return optimization ? optimization.withLayoutOptimizationBudget(request, request.renderOptions.graphLayout, position, true) : position()
 }

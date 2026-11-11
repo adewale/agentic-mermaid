@@ -1,21 +1,22 @@
 import { graphEdgeMarkerPaintRegions } from '../graph-connectors.ts'
+import { createInkIndex, type InkBounds } from '../shared/ink-index.ts'
 import { formatSvgNumber } from '../shared/svg-number.ts'
 import type { Point, PositionedEdge, RouteBlocker } from '../types.ts'
 import type { LabelMetricsStyle } from './route-geometry.ts'
 
 type MarkerRegion = ReturnType<typeof graphEdgeMarkerPaintRegions>[number]
 
-function markerView(edge: PositionedEdge, style: LabelMetricsStyle): { regions: MarkerRegion[]; points: Point[]; directional: boolean } {
+function markerView(edge: PositionedEdge, style: LabelMetricsStyle, includeHull = true): { regions: MarkerRegion[]; points: Point[]; directional: boolean } {
   const points = edge.points.map(point => ({ x: Number(formatSvgNumber(point.x)), y: Number(formatSvgNumber(point.y)) }))
   const multiple = edge.style === 'thick' ? 2 : 1
   const lineWidth = Number(formatSvgNumber((style.lineWidth ?? 1) * multiple)) / multiple
   const writtenStyle = { ...style, lineWidth }
   const directional = !edge.curve && !(style.edgeBendRadius && style.edgeBendRadius > 0)
-  if (directional) return { regions: graphEdgeMarkerPaintRegions({ ...edge, points }, writtenStyle), points, directional }
+  if (directional) return { regions: graphEdgeMarkerPaintRegions({ ...edge, points }, writtenStyle, includeHull), points, directional }
   // A rounded/cubic control can round independently of its endpoint. Keep an
   // orientation-independent complete envelope rather than infer its served
   // tangent from the raw polyline. This is only a rejection guard.
-  const regions = graphEdgeMarkerPaintRegions(edge, writtenStyle).map(region => {
+  const regions = graphEdgeMarkerPaintRegions(edge, writtenStyle, includeHull).map(region => {
     const anchor = region.position === 'start' ? points[0]! : points.at(-1)!
     const box = region.bounds
     if (!box) return { ...region, anchor }
@@ -68,6 +69,27 @@ function sameEndpointRay(before: readonly Point[], after: readonly Point[], posi
   return Math.sign(p.x - a.x) === Math.sign(q.x - a.x) && Math.sign(p.y - a.y) === Math.sign(q.y - a.y)
 }
 
+/** Read the two written terminal rays without materializing marker resources,
+ * hulls or the interior of either polyline. Cardinal equal rays paint the same
+ * resource at the same angle; unknown or curved mappings keep the full proof. */
+function sameWrittenEndpointRay(before: readonly Point[], after: readonly Point[], start: boolean): boolean {
+  const terminal = (points: readonly Point[]) => {
+    const anchor = points[start ? 0 : points.length - 1]
+    if (!anchor) return undefined
+    const x = Number(formatSvgNumber(anchor.x)), y = Number(formatSvgNumber(anchor.y))
+    for (let i = 1; i < points.length; i++) {
+      const point = points[start ? i : points.length - i - 1]!
+      const dx = Number(formatSvgNumber(point.x)) - x, dy = Number(formatSvgNumber(point.y)) - y
+      if (!Number.isFinite(dx) || !Number.isFinite(dy) || !Number.isFinite(Math.hypot(dx, dy))) return undefined
+      if (dx || dy) return { x, y, dx, dy }
+    }
+    return undefined
+  }
+  const a = terminal(before), b = terminal(after)
+  return !!a && !!b && a.x === b.x && a.y === b.y && !(a.dx && a.dy) && !(b.dx && b.dy)
+    && Math.sign(a.dx) === Math.sign(b.dx) && Math.sign(a.dy) === Math.sign(b.dy)
+}
+
 /** A rounded orthogonal route paints its endpoint marker along its final
  * straight segment; the corners before it never reach the marker's tangent. */
 function sameTerminalSegment(before: readonly Point[], after: readonly Point[], position: MarkerRegion['position']): boolean {
@@ -104,17 +126,94 @@ export function edgesMayShareTerminal(a: PositionedEdge, b: PositionedEdge): boo
   return true
 }
 
+type MarkerView = ReturnType<typeof markerView>
+interface PeerView { peer: PositionedEdge; view: MarkerView; known: boolean; order: number }
+interface RetainedPeer extends PeerView { values: unknown[]; coordinates: number[] }
+interface MarkerPeers { entries: RetainedPeer[]; query?: (bounds: InkBounds) => PeerView[]; uncertain: PeerView[] }
+let markerExecutions: WeakMap<readonly PositionedEdge[], MarkerPeers> | undefined
+
+/** Geometry reuse belongs to one synchronous layout, never to caller identity.
+ * Nested layouts restore their parent's index even when a producer throws. */
+export function withRouteMarkerCache<T>(run: () => T): T {
+  const previous = markerExecutions
+  markerExecutions = new WeakMap()
+  try { return run() } finally { markerExecutions = previous }
+}
+
+// The broad phase must include the arithmetic uncertainty used by separated().
+// Expanding both operands by their own coordinate contribution is conservative.
+function markerQueryBounds(bounds: InkBounds): InkBounds | undefined {
+  const error = (Math.abs(bounds.x0) + Math.abs(bounds.x1) + Math.abs(bounds.y0) + Math.abs(bounds.y1)) * 4e-10 + 4e-9
+  const expanded = { x0: bounds.x0 - error, y0: bounds.y0 - error, x1: bounds.x1 + error, y1: bounds.y1 + error }
+  return Object.values(expanded).every(Number.isFinite) ? expanded : undefined
+}
+
+function indexedMarkerPeers(peers: readonly PositionedEdge[], style: LabelMetricsStyle): MarkerPeers | undefined {
+  if (!markerExecutions) return undefined
+  let retained = markerExecutions.get(peers)
+  if (!retained) { retained = { entries: [], uncertain: [] }; markerExecutions.set(peers, retained) }
+  let changed = retained.entries.length !== peers.length
+  for (let order = 0; order < peers.length; order++) {
+    const peer = peers[order]!
+    const prior = retained.entries[order]
+    // These are all the inputs to mappingKnown/markerView. Endpoint identity,
+    // label and terminal-sharing policy remain live at the exact check below.
+    const values = [peer.style, peer.curve, peer.hasArrowStart, peer.hasArrowEnd, peer.startMarker, peer.endMarker,
+      peer.inlineStyle?.stroke, peer.inlineStyle?.['stroke-width'], style.lineWidth, style.edgeStrokeColor, style.edgeBendRadius]
+    let same = prior?.peer === peer && values.every((value, index) => Object.is(value, prior.values[index]))
+      && prior.coordinates.length === peer.points.length * 2
+    if (same) for (let i = 0; i < peer.points.length; i++) {
+      const point = peer.points[i]!
+      if (!Object.is(point.x, prior!.coordinates[2 * i]) || !Object.is(point.y, prior!.coordinates[2 * i + 1])) { same = false; break }
+    }
+    if (same) continue
+    changed = true
+    const visible = peer.style !== 'invisible' && !!(peer.hasArrowStart || peer.hasArrowEnd)
+    const known = !visible || mappingKnown(peer, style)
+    const view = visible && known ? markerView(peer, style, false) : { regions: [], points: [], directional: false }
+    retained.entries[order] = { peer, order, values, known, view, coordinates: peer.points.flatMap(point => [point.x, point.y]) }
+  }
+  retained.entries.length = peers.length
+  if (changed || !retained.query) {
+    const bounded: Array<{ entry: PeerView; bounds: InkBounds }> = []
+    retained.uncertain = []
+    for (const entry of retained.entries) {
+      if (!entry.known) { retained.uncertain.push(entry); continue }
+      for (const region of entry.view.regions) {
+        const bounds = measured(region) ? markerQueryBounds(region.bounds!) : undefined
+        if (!bounds) { retained.uncertain.push(entry); break }
+        bounded.push({ entry, bounds })
+      }
+    }
+    const query = createInkIndex(bounded, item => item.bounds, () => {}, Number.MAX_SAFE_INTEGER)
+    retained.query = bounds => {
+      const expanded = markerQueryBounds(bounds)
+      if (!expanded) return retained!.entries
+      const found = new Set<PeerView>(retained!.uncertain)
+      for (const item of query(expanded)) found.add(item.entry)
+      return [...found].sort((a, b) => a.order - b.order)
+    }
+  }
+  return retained
+}
+
 /** Optional endpoint-centering candidates may not discard reserved marker
- * seats. Read every peer from live routes; retain no pose or acceptance cache.
+ * seats. Refresh peer geometry from live routes; never cache acceptance decisions.
  * Unchanged endpoint occurrences keep their existing proof/status, while a
  * changed one must separate from ALL peers and its staged opposite marker. */
 export function routeCandidateMarkerBlocker(edge: PositionedEdge, points: Point[], peers: readonly PositionedEdge[], style: LabelMetricsStyle, peerOwner: PositionedEdge = edge): RouteBlocker | undefined {
   if (!edge.hasArrowStart && !edge.hasArrowEnd || edge.style === 'invisible') return undefined
   const blocker = (owner: PositionedEdge, position: string, relation: string): RouteBlocker => ({ kind: 'port', id: `${relation}:${owner.id ?? `${owner.source}->${owner.target}[${owner.edgeIndex ?? peers.indexOf(owner)}]`}:${position}` })
   if (!mappingKnown({ ...edge, points }, style)) return blocker(peerOwner, 'mapping', 'marker')
-  const oldView = markerView(edge, style), newView = markerView({ ...edge, points }, style)
+  const knownMarker = (kind: PositionedEdge['startMarker']) => kind === undefined || kind === 'arrow' || kind === 'circle' || kind === 'cross'
+  if (!edge.curve && !(style.edgeBendRadius && style.edgeBendRadius > 0)
+    && knownMarker(edge.startMarker) && knownMarker(edge.endMarker)
+    && (!edge.hasArrowStart || sameWrittenEndpointRay(edge.points, points, true))
+    && (!edge.hasArrowEnd || sameWrittenEndpointRay(edge.points, points, false))) return undefined
+  const oldView = markerView(edge, style, false), newView = markerView({ ...edge, points }, style, false)
   const before = oldView.regions, after = newView.regions
   if (after.length !== Number(Boolean(edge.hasArrowStart)) + Number(Boolean(edge.hasArrowEnd))) return blocker(peerOwner, 'unmeasured', 'marker')
+  let indexed: MarkerPeers | undefined
   for (const marker of after) {
     const old = before.find(candidate => candidate.position === marker.position)
     if (old && old.resource === marker.resource && old.repaint === marker.repaint
@@ -124,10 +223,14 @@ export function routeCandidateMarkerBlocker(edge: PositionedEdge, points: Point[
           : sameTerminalSegment(edge.points, points, marker.position))) continue
     if (!measured(marker)) return blocker(peerOwner, marker.position, 'marker')
     for (const opposite of after) if (opposite !== marker && !separated(marker, opposite)) return blocker(peerOwner, opposite.position, 'opposite-marker')
-    for (const peer of peers) {
+    indexed ??= indexedMarkerPeers(peers, style)
+    const nearby = indexed?.query?.(marker.bounds!)
+    const candidates = nearby ?? peers.map((peer, order) => ({ peer, order, known: mappingKnown(peer, style), view: undefined }))
+    for (const entry of candidates) {
+      const peer = entry.peer
       if (peer === peerOwner || peer.style === 'invisible' || !peer.hasArrowStart && !peer.hasArrowEnd) continue
-      if (!mappingKnown(peer, style)) return blocker(peer, 'mapping', 'peer-marker')
-      const peerView = markerView(peer, style)
+      if (!entry.known) return blocker(peer, 'mapping', 'peer-marker')
+      const peerView = entry.view ?? markerView(peer, style, false)
       for (const occurrence of peerView.regions) {
         const ownNode = marker.position === 'start' ? edge.source : edge.target
         const peerNode = occurrence.position === 'start' ? peer.source : peer.target

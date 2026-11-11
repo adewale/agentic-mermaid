@@ -341,6 +341,212 @@ ishikawa
 
 A fishbone diagram has a causal spine ending in one effect, with alternating category bones and nested contributing causes. Narrow with `asIshikawa` and discover typed edits with `describeOps('ishikawa')`. See [Ishikawa semantics and output](https://github.com/adewale/agentic-mermaid/blob/0f05d39858d0061b79a0c99ef03a5c10d537ddaa/docs/design/families/ishikawa.md) for placement, portability and pin evidence.
 
+## Event Modeling
+
+```mermaid
+eventmodeling
+tf 01 ui CartUI
+tf 02 cmd AddItem
+tf 03 evt ItemAdded
+tf 04 rmo CartItems
+tf 05 ui CartUI
+```
+
+Timeframes distinguish UI, commands, events and read models, including a return
+to an earlier entity. Narrow with `asEventModeling` and use
+`describeOps('eventmodeling')` for checked frame edits. This is an event-modeling
+projection, not a sequence-message diagram. See [Event Modeling semantics and
+output](https://github.com/adewale/agentic-mermaid/blob/859e6882229dd0009725ada6332f8772731a4499/docs/design/families/eventmodeling.md) for source types and portability.
+
+## ZenUML
+
+```mermaid
+zenuml
+title Checkout
+Buyer as Customer
+API
+Store
+Buyer->API.placeOrder() {
+  Store.reserve()
+  if (inStock) {
+    return confirmation
+  } else {
+    return unavailable
+  }
+}
+API->Buyer: accepted
+```
+
+Nested calls, replies and control scopes retain their authored order. Narrow
+with `asZenUML` and inspect `describeOps('zenuml')` before editing a nested
+statement. Unmodeled statements retain their source rather than becoming
+invented messages; structured mutation requires a successful narrower.
+
+## Swimlane
+
+```mermaid
+swimlane-beta LR
+subgraph customer[Customer]
+  request[Request order]
+  receive[Receive order]
+end
+subgraph team[Operations]
+  check{In stock?}
+  fulfill[Dispatch order]
+end
+request --> check
+check -->|Yes| fulfill
+fulfill --> receive
+```
+
+Lanes identify responsibility while directed links trace the handoffs. Narrow
+with `asSwimlane` and discover edits with `describeOps('swimlane')`. Lane
+membership and authored relationships survive export; graphical lanes and
+terminal cells have separate layout rules. See [Swimlane semantics and
+output](https://github.com/adewale/agentic-mermaid/blob/859e6882229dd0009725ada6332f8772731a4499/docs/design/families/swimlane.md).
+
+## TreeView
+
+```mermaid
+treeView-beta
+title Project
+src/
+    App.tsx :::highlight icon(logos:react) ## main component
+    widgets/
+        Button.ts
+README.md icon(none)
+```
+
+Indentation gives ordered parent/child relationships; file descriptions,
+highlights and authored icon names remain in the model. Narrow with `asTreeview`
+and discover edits with `describeOps('treeview')`. Icons use offline artwork or
+an explicit fallback badge rather than fetching an icon pack. PNG glyph coverage
+depends on the available fonts. See [TreeView semantics and
+output](https://github.com/adewale/agentic-mermaid/blob/859e6882229dd0009725ada6332f8772731a4499/docs/design/families/treeview.md).
+
+## UseCase
+
+```mermaid
+usecase-beta
+direction LR
+actor Customer("Customer")
+systemBoundary Store["Storefront"]
+  Browse("Browse catalogue")
+  Checkout("Checkout")
+end
+Customer --> Checkout
+Checkout ..> : include Browse
+```
+
+Actors, use-case ellipses, system boundaries and typed relationships identify
+who can pursue which goal. Narrow with `asUsecase` and discover edits with
+`describeOps('usecase')`. An include dependency is not a sequence of execution
+steps. See [UseCase semantics and output](https://github.com/adewale/agentic-mermaid/blob/859e6882229dd0009725ada6332f8772731a4499/docs/design/families/usecase.md) for
+relationship and boundary constraints.
+
+## AgentFlow
+
+```mermaid
+agentflow-beta TB
+connector llm[LLM API]@{ protocol: http }
+global
+  guide[Brand guide]@{ shape: refdoc }
+end
+flow team[Publishing]
+  plan[Plan work]@{ shape: task }
+  search[Search documents]@{ shape: tool, connectorRef: llm.chat }
+  publish[Publish result]@{ shape: action }
+  plan --> search
+  search --> publish
+  search -.- guide
+end
+```
+
+Agent roles, connector references, shared documents and flow membership remain
+distinct. Narrow with `asAgentflow` and discover edits with
+`describeOps('agentflow')`. A connector declaration describes the diagram; it
+does not contact the service. See [AgentFlow semantics and
+output](https://github.com/adewale/agentic-mermaid/blob/859e6882229dd0009725ada6332f8772731a4499/docs/design/families/agentflow.md) for modeled metadata and source limits.
+
+## Wardley
+
+```mermaid
+wardley-beta
+title Platform evolution
+anchor Customer [0.95, 0.1]
+component Service [0.6, 0.5]
+pipeline Service {
+  component Custom [0.3]
+  component Utility [0.7]
+}
+Customer -> Service
+evolve Service 0.9
+```
+
+Source coordinates specify visibility first and evolution second. Dependencies,
+pipelines and evolution markers retain those authored quantities; automatic
+caption placement can move labels without moving components. Narrow with
+`asWardley` and discover edits with `describeOps('wardley')`. See [Wardley
+semantics and output](https://github.com/adewale/agentic-mermaid/blob/859e6882229dd0009725ada6332f8772731a4499/docs/design/families/wardley.md) for coordinate and pipeline
+constraints.
+
+## Cynefin
+
+```mermaid
+cynefin-beta
+title Decisions with feedback
+complex
+  "Explore"
+complicated
+  "Analyse"
+clear
+  "Operate"
+chaotic
+  "Stabilise"
+confusion
+  "Investigate"
+complex --> clear: "Learning"
+chaotic --> confusion: "Recover"
+```
+
+Items belong to named decision domains and transitions retain their direction
+and captions. Narrow with `asCynefin` and discover edits with
+`describeOps('cynefin')`. Domain placement is categorical, not a quantitative
+axis. See [Cynefin semantics and output](https://github.com/adewale/agentic-mermaid/blob/859e6882229dd0009725ada6332f8772731a4499/docs/design/families/cynefin.md), including
+the deliberate preservation of authored self-transitions.
+
+## Railroad
+
+```mermaid
+railroad-ebnf-beta
+entry = "start", [item], {",", item};
+item = "word" | "number";
+```
+
+Follow the tracks to read a grammar's sequence, alternatives, optional branches
+and repetition. Narrow with `asRailroad` and discover edits with
+`describeOps('railroad')`. Select the header for the authored notation: native
+Railroad, EBNF, ABNF and PEG are distinct source dialects. See [Railroad
+semantics and output](https://github.com/adewale/agentic-mermaid/blob/859e6882229dd0009725ada6332f8772731a4499/docs/design/families/railroad.md) for notation and expression
+constraints.
+
+## Venn
+
+```mermaid
+venn-beta
+set A["Frontend"]:20
+  text note["Owned note"]
+set B["Backend"]:12
+union A,B["Shared"]:3
+```
+
+Sets, intersections and owned text keep their exact authored quantities in the
+model and terminal output. Narrow with `asVenn` and discover edits with
+`describeOps('venn')`. Graphical overlap areas can be approximate; inspect
+[`VENN_APPROXIMATION`](https://agentic-mermaid.dev/warnings/VENN_APPROXIMATION/)
+and [Venn semantics and output](https://github.com/adewale/agentic-mermaid/blob/859e6882229dd0009725ada6332f8772731a4499/docs/design/families/venn.md) before treating a
+three-set picture as an exact area comparison.
+
 ## Output formats
 
 All built-in renderable families use the same public output paths:

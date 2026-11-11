@@ -291,7 +291,7 @@ function ordinaryRenderOutcome(d: ParsedDiagram, opts: VerifyOptions, authored?:
   try {
     const { onConfigDiagnostic: _observer, ...renderOptions } = opts.renderOptions ?? {}
     const input = prepareRenderInput(authored ?? d)
-    executeGraphicalRequest(input.source, renderOptions, 'svg', undefined, { expectedFamilyId: input.expectedFamilyId })
+    executeGraphicalRequest(input.source, renderOptions, 'svg', undefined, input.resolutionOptions)
     return 'succeeds-unchecked'
   } catch {
     return 'fails'
@@ -829,26 +829,7 @@ function verifyStructure(parsed: ParsedDiagram, opts: VerifyOptions, positioned:
     return finalize(dedupedConcat(pluginWarnings, geometric), layout, opts)
   }
 
-  if (
-    d.body.kind === 'class' ||
-    d.body.kind === 'er' ||
-    d.body.kind === 'journey' ||
-    d.body.kind === 'architecture' ||
-    d.body.kind === 'xychart' ||
-    d.body.kind === 'pie' ||
-    d.body.kind === 'quadrant' ||
-    d.body.kind === 'mindmap' ||
-    d.body.kind === 'gitgraph' ||
-    d.body.kind === 'radar' ||
-    d.body.kind === 'sankey' ||
-    d.body.kind === 'c4' ||
-    d.body.kind === 'packet' ||
-    d.body.kind === 'kanban' ||
-    d.body.kind === 'requirement' ||
-    d.body.kind === 'block' ||
-    d.body.kind === 'treemap' ||
-    d.body.kind === 'zenuml' || d.body.kind === 'eventmodeling' || d.body.kind === 'ishikawa'
-  ) {
+  if (d.body.kind !== 'flowchart' && d.body.kind !== 'swimlane' && d.body.kind !== 'agentflow' && d.body.kind !== 'state' && d.body.kind !== 'opaque') {
     // QUAL-1: verify.layout is now truthful — the real positioned layout from
     // the family adapters (was emptyRenderedLayout). #33 adds zero-noise
     // class/ER semantic geometry tripwires: relationship endpoints must sit on

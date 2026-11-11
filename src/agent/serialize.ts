@@ -1,5 +1,3 @@
-import { withBodyTitleMeta } from './body-title-meta.ts'
-import { eventModelingMeta } from '../eventmodeling/body.ts'
 import { configDirective } from '../shared/pinned-mermaid-config/merge.js'
 import { canonicalWrapperConfig } from './wrapper-portability.ts'
 import { restoreBodyComments } from './body-comments.ts'
@@ -13,7 +11,7 @@ import { ok, err } from './types.ts'
 import { stringifyMermaidYaml } from '../shared/mermaid-yaml.ts'
 import { getFamily, knownFamilies } from './families.ts'
 import { parseRegisteredMermaid } from './parse.ts'
-import { accessibilitySerializationProblem, AccessibilityTextError, ensureAccessibilityLines } from './accessibility-envelope.ts'
+import { accessibilitySerializationProblem, AccessibilityTextError, metadataFromBody, ensureAccessibilityLines } from './accessibility-envelope.ts'
 import type { ExtensionIdentity } from '../shared/extension-identity.ts'
 import { sameExtensionIdentity } from '../shared/extension-identity.ts'
 import { radarBodyProblem } from './radar-body.ts'
@@ -48,7 +46,7 @@ export interface SerializeOptions {
 export function serializeMermaid(d: ParsedDiagram, opts: SerializeOptions = {}): string {
   if (d.body.kind === 'preserved') return d.body.source
   const mode = opts.wrapper ?? 'verbatim'
-  const bodyMeta = d.body.kind === 'zenuml' || d.body.kind === 'class' ? withBodyTitleMeta(d.body.title, d.meta, true) : d.body.kind === 'eventmodeling' ? eventModelingMeta(d.body, d.meta) : d.meta
+  const bodyMeta = metadataFromBody(d.body, d.meta)
   const renderedBody = renderBody(d.body, d.kind, bodyMeta, d.body.kind === 'extension' && 'descriptorIdentity' in d ? d.descriptorIdentity : undefined)
   // Canonical mode folds universal config into renderMeta. Opaque bodies and
   // source-preserving extension serializers may still contain the authored
@@ -281,28 +279,28 @@ function rebuildFromPayload(payload: ValidDiagramPayload): Result<ValidDiagram, 
   }
 
   let body: DiagramBody
-  if (payload.body.kind === 'flowchart') {
+  if (payload.body.kind === 'flowchart' || payload.body.kind === 'swimlane' || payload.body.kind === 'agentflow') {
     const sg = payload.body.graph
-    // A flowchart payload with a missing/empty node map is malformed but not fatal: default to
-    // an empty map. Exotic shapes (a non-tuple array) fall through to the boundary's error net.
-    const nodesMap = Array.isArray(sg?.nodes) ? new Map(sg.nodes) : sg?.nodes ? new Map(Object.entries(sg.nodes)) : new Map()
-    body = {
-      kind: 'flowchart',
-      graph: {
-        direction: sg.direction,
-        nodes: nodesMap,
-        edges: sg.edges ?? [],
-        // Defensive: the SDK-declared subgraph shape omits `children`/`direction`.
-        // Normalize recursively so cloneSubgraph / findSubgraphById never hit
-        // `undefined.map`. (A crash reachable straight from the documented SDK.)
-        subgraphs: normalizeSubgraphs(sg.subgraphs),
-        // Round-trip styling too, so `am parse | am serialize` is lossless.
-        classDefs: toMap(sg.classDefs),
-        classAssignments: toMap(sg.classAssignments),
-        nodeStyles: toMap(sg.nodeStyles),
-        linkStyles: toLinkStyleMap(sg.linkStyles),
-      },
+    const graph: import('../types.ts').MermaidGraph = {
+      direction: sg.direction,
+      nodes: sg.nodes instanceof Map ? new Map(sg.nodes) : Array.isArray(sg.nodes) ? new Map(sg.nodes) : new Map(Object.entries(sg.nodes ?? {})),
+      edges: sg.edges ?? [],
+      // Keep shared graph payload normalization identical across graph dialects.
+      subgraphs: normalizeSubgraphs(sg.subgraphs),
+      classDefs: toMap(sg.classDefs),
+      classAssignments: toMap(sg.classAssignments),
+      nodeStyles: toMap(sg.nodeStyles),
+      linkStyles: toLinkStyleMap(sg.linkStyles),
+      ...(sg.linkCurves !== undefined ? { linkCurves: toLinkStyleMap<string>(sg.linkCurves) } : {}),
     }
+    body = payload.body.kind === 'agentflow' ? {
+      ...payload.body,
+      graph,
+      metadata: toMap(payload.body.metadata),
+      roles: toMap(payload.body.roles),
+      connectors: toStringSet(payload.body.connectors),
+      globals: toStringSet(payload.body.globals),
+    } : { kind: payload.body.kind, graph }
   } else if (payload.body.kind === 'radar') {
     const problem = radarBodyProblem(payload.body)
     if (problem) return err([{ code: 'INVALID_PAYLOAD', message: problem }])
@@ -360,6 +358,12 @@ function normalizeSubgraphs(input: unknown, seen: Set<unknown> = new Set()): imp
   return out
 }
 
+function toStringSet(input: unknown): Set<string> {
+  if (!(input instanceof Set) && !Array.isArray(input)) throw new Error('identity sets must be arrays or Sets')
+  if ([...input].some(value => typeof value !== 'string')) throw new Error('identity sets must contain strings')
+  return new Set(input as Iterable<string>)
+}
+
 function toMap<V>(input: unknown): Map<string, V> {
   if (input instanceof Map) {
     // Coerce keys to string so callers can look up by string consistently.
@@ -384,9 +388,9 @@ function toMap<V>(input: unknown): Map<string, V> {
   return new Map()
 }
 
-function toLinkStyleMap(input: unknown): Map<number | 'default', Record<string, string>> {
-  const raw = toMap<Record<string, string>>(input)
-  const out = new Map<number | 'default', Record<string, string>>()
+function toLinkStyleMap<T = Record<string, string>>(input: unknown): Map<number | 'default', T> {
+  const raw = toMap<T>(input)
+  const out = new Map<number | 'default', T>()
   for (const [k, v] of raw) {
     if (k === 'default') {
       out.set('default', v)

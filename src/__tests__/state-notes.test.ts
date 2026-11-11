@@ -19,6 +19,7 @@ import { verifyMermaid } from '../agent/verify.ts'
 import { asState } from '../agent/types.ts'
 import type { StateValidDiagram, StateMutationOp, MutationError } from '../agent/types.ts'
 import { describeMermaid, describeMermaidFacts, renderMermaidASCII } from '../agent/core.ts'
+import { stateStatementEnds } from '../state/parse-core.ts'
 
 const SRC = `stateDiagram-v2
   [*] --> Active
@@ -49,6 +50,36 @@ function expectErr(d: StateValidDiagram, op: StateMutationOp, code: MutationErro
   expect(r.ok).toBe(false)
   if (!r.ok) expect(r.error.code).toBe(code)
 }
+
+describe('State physical text scopes', () => {
+  test('unquoted transitions retain independent rows, native values and metadata', () => {
+    const lines = ['stateDiagram-v2', 'A --> B: next', 'B --> A', 'accTitle: Actual']
+    expect(stateStatementEnds(lines)).toEqual([0, 1, 2, 3])
+    const diagram = state(lines.join('\r\n'))
+    expect(diagram.meta.accessibility).toEqual({ title: 'Actual' })
+    expect(diagram.body.transitions).toMatchObject([{ from: 'A', to: 'B', label: 'next' }, { from: 'B', to: 'A' }])
+  })
+
+  test.each([
+    [['stateDiagram-v2', 'state "First', 'accTitle: literal', 'Last" as A', 'accTitle: Actual'], [0, 3, 3, 3, 4]],
+    [['stateDiagram-v2', 'A', 'NoTe right of A First', 'accTitle: literal', 'Last', 'END NOTE', 'accTitle: Actual'], [0, 1, 5, 3, 4, 5, 6]],
+    [['stateDiagram-v2', 'A', 'note right of A%% opener', 'accDescr: literal', 'end note', 'accTitle: Actual'], [0, 1, 4, 3, 4, 5]],
+  ] as const)('quoted and block-note productions protect their literal rows: %j', (lines, ends) => {
+    expect(stateStatementEnds(lines)).toEqual([...ends])
+    const diagram = state(lines.join('\r\n'))
+    expect(diagram.meta.accessibility).toEqual({ title: 'Actual' })
+    const graph = parseLegacy(lines.join('\r\n'))
+    if (lines[1]!.startsWith('state "')) expect(graph.nodes.get('A')?.label).toBe('First\naccTitle: literal\nLast')
+    else expect(graph.stateNotes?.[0]?.text).toBe(lines[2]!.startsWith('NoTe') ? 'First\naccTitle: literal\nLast' : 'accDescr: literal')
+  })
+
+  test('an unterminated note retains its source-only admission and full remaining span', () => {
+    const lines = ['stateDiagram-v2', 'A', 'note right of A', 'first', 'last']
+    expect(stateStatementEnds(lines)).toEqual([0, 1, 4, 3, 4])
+    const parsed = parseMermaid(lines.join('\n'))
+    expect(parsed.ok && parsed.value.body.kind).toBe('opaque')
+  })
+})
 
 describe('floating State notes', () => {
   test('a floating note retains its own identity and text beside a state with the same name', () => {
@@ -124,7 +155,7 @@ describe('floating State notes', () => {
       { id: 'N1', text: '审查', scope: { parent: 'Outer', region: 1 } },
     ])
     expectErr(d, { kind: 'add_floating_note', id: 'Bad', text: 'x', parent: 'Missing' }, 'STATE_NOT_FOUND')
-    expectErr(d, { kind: 'add_floating_note', id: 'Bad', text: 'x', parent: 'Outer', region: 2 }, 'INVALID_OP')
+    expectErr(d, { kind: 'add_floating_note', id: 'Bad', text: 'x', parent: 'Outer', region: 3 }, 'INVALID_OP')
     expectErr(d, { kind: 'add_floating_note', id: 'Empty', text: '' }, 'INVALID_OP')
     expectErr(d, { kind: 'set_floating_note_text', id: 'N1', text: '' }, 'INVALID_OP')
     const blank = parseMermaid('stateDiagram-v2\nnote "" as Empty')

@@ -13,6 +13,9 @@
 
 import { describe, test, expect } from 'bun:test'
 import { parseRegisteredMermaid as parseMermaid, layoutMermaid } from '../agent/index.ts'
+import { parseMermaid as parseGraph } from '../parser.ts'
+import { layoutGraphSync } from '../layout-engine.ts'
+import { renderMermaidSVG } from '../index.ts'
 
 const SYM = [
   'flowchart LR',
@@ -25,6 +28,35 @@ const SYM = [
 ].join('\n')
 
 describe('fan-out peer symmetry', () => {
+  for (const direction of ['TD', 'LR']) test(`grouped diamond targets keep their authored containment (${direction})`, () => {
+    const source = `flowchart ${direction}
+A[Christmas] -->|Get money| B(Go shopping)
+B --> C{Let me think}
+B --> G[/Another/]
+C ==>|One| D[Laptop]
+C -->|Two| E[iPhone]
+C -->|Three| F[fa:fa-car Car]
+subgraph section
+C
+D
+E
+F
+G
+end`
+    const positioned = layoutGraphSync(parseGraph(source))
+    const group = positioned.groups.find(group => group.id === 'section')!
+    expect(group).toBeDefined()
+    for (const id of ['C', 'D', 'E', 'F', 'G']) {
+      const node = positioned.nodes.find(node => node.id === id)!
+      expect(node.x).toBeGreaterThanOrEqual(group.x)
+      expect(node.y).toBeGreaterThanOrEqual(group.y)
+      expect(node.x + node.width).toBeLessThanOrEqual(group.x + group.width)
+      expect(node.y + node.height).toBeLessThanOrEqual(group.y + group.height)
+    }
+    const svg = renderMermaidSVG(source)
+    expect(svg).toContain('iPhone')
+    expect(svg).toContain('section')
+  })
   test('peers with differing label widths are equalized to a common width and aligned', () => {
     const p = parseMermaid(SYM)
     expect(p.ok).toBe(true)

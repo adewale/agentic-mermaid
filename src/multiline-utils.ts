@@ -1,3 +1,4 @@
+import { recordTextOpening, textAttributeFields, type WrittenTextAttributes } from './svg-writer-evidence.ts'
 // ============================================================================
 // Multi-line Text Rendering Utilities
 //
@@ -132,15 +133,27 @@ export function renderDisplayLine(line: string, display: LabelDisplay = 'formatt
 
 /** Paint interpreted runs directly. Prepared labels never pass through a tag
  * parser again, even when their visible characters spell formatting tags. */
-function displayRunAttributes(seg: DisplayRun, fontWeight = 400): string[] {
+function displayRunAttributes(seg: DisplayRun, fontWeight = 400, fields?: string[]): string[] {
   const attrs: string[] = []
-  if (seg.bold) attrs.push(`font-weight="${fontWeight > 700 ? fontWeight : 'bold'}"`)
-  if (seg.italic) attrs.push('font-style="italic"')
+  if (seg.bold) {
+    const weight = String(fontWeight > 700 ? fontWeight : 'bold')
+    attrs.push(`font-weight="${weight}"`); fields?.push('font-weight', weight)
+  }
+  if (seg.italic) { attrs.push('font-style="italic"'); fields?.push('font-style', 'italic') }
   const deco: string[] = []
   if (seg.underline) deco.push('underline')
   if (seg.strikethrough) deco.push('line-through')
-  if (deco.length) attrs.push(`text-decoration="${deco.join(' ')}"`)
+  if (deco.length) {
+    const decoration = deco.join(' ')
+    attrs.push(`text-decoration="${decoration}"`); fields?.push('text-decoration', decoration)
+  }
   return attrs
+}
+
+function runFields(seg: DisplayRun, fontWeight: number): string[] {
+  const fields: string[] = []
+  displayRunAttributes(seg, fontWeight, fields)
+  return fields
 }
 
 function renderDisplayRuns(segments: readonly DisplayRun[], fontWeight = 400): string {
@@ -154,7 +167,7 @@ function renderDisplayRuns(segments: readonly DisplayRun[], fontWeight = 400): s
     const escaped = escapeXml(seg.text)
     if (!seg.bold && !seg.italic && !seg.underline && !seg.strikethrough) return escaped
 
-    return `<tspan ${displayRunAttributes(seg, fontWeight).join(' ')}>${escaped}</tspan>`
+    return `${recordTextOpening(`<tspan ${displayRunAttributes(seg, fontWeight).join(' ')}>`, 'tspan', () => runFields(seg, fontWeight))}${escaped}</tspan>`
   }).join('')
 }
 
@@ -168,7 +181,7 @@ function renderPreparedLine(block: PixelTextBlock, index: number, cx: number, an
   // and a combining cluster may span formatting descendants.
   if (/[^\x20-\x7e]/u.test(line.runs.map(run => run.text).join(''))) {
     const center = anchor === 'start' ? cx + line.width / 2 : anchor === 'end' ? cx - line.width / 2 : cx
-    return `<tspan x="${formatSvgNumber(center)}"${baseline === undefined ? '' : ` y="${formatSvgNumber(baseline)}"`} text-anchor="middle" data-text-fragment="true">${renderDisplayRuns(line.runs, block.fontWeight)}</tspan>`
+    return `${recordTextOpening(`<tspan x="${formatSvgNumber(center)}"${baseline === undefined ? '' : ` y="${formatSvgNumber(baseline)}"`} text-anchor="middle" data-text-fragment="true">`, 'tspan', () => ['x', formatSvgNumber(center), ...(baseline === undefined ? [] : ['y', formatSvgNumber(baseline)]), 'text-anchor', 'middle', 'data-text-fragment', 'true'])}${renderDisplayRuns(line.runs, block.fontWeight)}</tspan>`
   }
   if (block.letterSpacing === 0 && !line.fragments) return renderDisplayRuns(line.runs, block.fontWeight)
   if (!line.fragments) throw new TypeError('Tracked text requires retained fragment allocations')
@@ -176,7 +189,7 @@ function renderPreparedLine(block: PixelTextBlock, index: number, cx: number, an
   return line.fragments.map(fragment => {
     const style = displayRunAttributes(line.runs[fragment.runIndex]!, block.fontWeight)
     const whitespace = /^ | $/.test(fragment.text) ? ' xml:space="preserve"' : ''
-    return `<tspan x="${formatSvgNumber(origin + fragment.x)}" text-anchor="start" letter-spacing="0" data-text-fragment="true" textLength="${formatSvgNumber(Math.max(0, fragment.width))}" lengthAdjust="spacingAndGlyphs"${whitespace}${style.length ? ` ${style.join(' ')}` : ''}>${escapeXml(fragment.text)}</tspan>`
+    return `${recordTextOpening(`<tspan x="${formatSvgNumber(origin + fragment.x)}" text-anchor="start" letter-spacing="0" data-text-fragment="true" textLength="${formatSvgNumber(Math.max(0, fragment.width))}" lengthAdjust="spacingAndGlyphs"${whitespace}${style.length ? ` ${style.join(' ')}` : ''}>`, 'tspan', () => ['x', formatSvgNumber(origin + fragment.x), 'text-anchor', 'start', 'letter-spacing', '0', 'data-text-fragment', 'true', 'textLength', formatSvgNumber(Math.max(0, fragment.width)), 'lengthAdjust', 'spacingAndGlyphs', ...(whitespace ? ['xml:space', 'preserve'] : []), ...runFields(line.runs[fragment.runIndex]!, block.fontWeight)])}${escapeXml(fragment.text)}</tspan>`
   }).join('')
 }
 
@@ -207,6 +220,7 @@ export function renderMultilineText(
   attrs: string,
   baselineShift: number = 0.35,
   literalText = false,
+  writerAttributes?: WrittenTextAttributes,
 ): string {
   const block = typeof text === 'string' ? undefined : text
   const value = block ? block.text : text as string
@@ -218,17 +232,29 @@ export function renderMultilineText(
   const renderLine = (line: string, index: number) => block
     ? renderPreparedLine(block, index, cx, anchor)
     : renderDisplayLine(line, display)
-  if (display === 'literal' && HAS_FORMAT_TAGS.test(value) && !attrs.includes('data-literal-text=')) attrs += ' data-literal-text="true"'
+  const inheritedText = attrs
+  const literal = display === 'literal' && HAS_FORMAT_TAGS.test(value) && !attrs.includes('data-literal-text=')
+  if (literal) attrs += ' data-literal-text="true"'
   const visible = block ? block.lineBlocks.map(line => line.runs.map(run => run.text).join('')).join('\n') : displayText(value, display)
-  if (/(?:^ | $| {2}|\t)/m.test(visible) && !attrs.includes('xml:space=')) attrs += ' xml:space="preserve"'
+  const preserve = /(?:^ | $| {2}|\t)/m.test(visible) && !attrs.includes('xml:space=')
+  if (preserve) attrs += ' xml:space="preserve"'
   if (block) attrs += ' data-prepared-text="true"'
   const advanceAttrs = (i: number) => block && !fragmented && !block.lineBlocks[i]!.fragments ? ` textLength="${formatSvgNumber(block.lineBlocks[i]!.width)}" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit"` : ''
+
+  const advanceFields = (i: number): string[] => block && !fragmented && !block.lineBlocks[i]!.fragments
+    ? ['textLength', formatSvgNumber(block.lineBlocks[i]!.width), 'lengthAdjust', 'spacingAndGlyphs', 'data-font-metrics', 'deterministic-fit'] : []
+  const rootFields = (suffix: readonly string[] = []): readonly string[] | undefined => {
+    const inherited = textAttributeFields(writerAttributes, inheritedText)
+    return inherited && ['x', formatSvgNumber(cx), 'y', formatSvgNumber(cy), ...inherited,
+      ...(literal ? ['data-literal-text', 'true'] : []), ...(preserve ? ['xml:space', 'preserve'] : []),
+      ...(block ? ['data-prepared-text', 'true'] : []), ...suffix]
+  }
 
   // Single line — simple text element
   if (lines.length === 1) {
     const dy = fontSize * baselineShift
-    if (nativeShaping) return `<text x="${formatSvgNumber(cx)}" y="${formatSvgNumber(cy)}" ${attrs}>${renderPreparedLine(block, 0, cx, anchor, cy + dy)}</text>`
-    return `<text x="${formatSvgNumber(cx)}" y="${formatSvgNumber(cy)}" ${attrs} dy="${formatSvgNumber(dy)}"${advanceAttrs(0)}>${renderLine(value, 0)}</text>`
+    if (nativeShaping) return `${recordTextOpening(`<text x="${formatSvgNumber(cx)}" y="${formatSvgNumber(cy)}" ${attrs}>`, 'text', () => rootFields())}${renderPreparedLine(block, 0, cx, anchor, cy + dy)}</text>`
+    return `${recordTextOpening(`<text x="${formatSvgNumber(cx)}" y="${formatSvgNumber(cy)}" ${attrs} dy="${formatSvgNumber(dy)}"${advanceAttrs(0)}>`, 'text', () => rootFields(['dy', formatSvgNumber(dy), ...advanceFields(0)]))}${renderLine(value, 0)}</text>`
   }
 
   // Multi-line — use tspan elements with vertical centering
@@ -241,10 +267,10 @@ export function renderMultilineText(
     // Native RTL fragments can consume relative advances in visual order.
     // Pin every baseline independently of the fragments' visual order.
     const position = nativeShaping ? `y="${formatSvgNumber(cy + firstDy + i * lineHeight)}"` : `dy="${formatSvgNumber(dy)}"`
-    return `<tspan x="${formatSvgNumber(cx)}" ${position}${advanceAttrs(i)}>${renderLine(line, i)}</tspan>`
+    return `${recordTextOpening(`<tspan x="${formatSvgNumber(cx)}" ${position}${advanceAttrs(i)}>`, 'tspan', () => ['x', formatSvgNumber(cx), nativeShaping ? 'y' : 'dy', formatSvgNumber(nativeShaping ? cy + firstDy + i * lineHeight : dy), ...advanceFields(i)])}${renderLine(line, i)}</tspan>`
   }).join('')
 
-  return `<text x="${formatSvgNumber(cx)}" y="${formatSvgNumber(cy)}" ${attrs}>${tspans}</text>`
+  return `${recordTextOpening(`<text x="${formatSvgNumber(cx)}" y="${formatSvgNumber(cy)}" ${attrs}>`, 'text', () => rootFields())}${tspans}</text>`
 }
 
 /**

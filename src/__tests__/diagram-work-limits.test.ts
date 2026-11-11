@@ -2,7 +2,7 @@ import { normalizeMermaidSource } from '../mermaid-source.ts'
 import { describe, expect, spyOn, test } from 'bun:test'
 import type { ElkNode } from 'elkjs'
 import { parseMermaid } from '../parser.ts'
-import { renderMermaidSVG, renderMermaidASCII } from '../index.ts'
+import { renderMermaidSVG, renderMermaidASCII, parseSequenceDiagram as parseTypedSequenceDiagram } from '../index.ts'
 import { verifyMermaid } from '../agent/index.ts'
 import { layoutGraphSync } from '../layout-engine.ts'
 import { elkLayoutSync } from '../elk-instance.ts'
@@ -104,6 +104,8 @@ describe('graph work admission', () => {
     for (const source of [`flowchart LR\n A@{ marker: "${value}" }`, `kanban\nTodo\n card[Work]@{ marker: "${value}" }`, `sequenceDiagram\n participant A@{ alias: "${value}" }`]) {
       expect(source.length + normalizeMermaidSource(source).text.length).toBeLessThan(DIAGRAM_WORK_LIMITS.sourceCharacters)
       expect(() => renderMermaidSVG(source)).toThrow(DiagramWorkLimitError)
+      expect(() => renderMermaidASCII(source)).toThrow(DiagramWorkLimitError)
+      if (source.startsWith('sequenceDiagram')) expect(() => parseTypedSequenceDiagram(source)).toThrow(DiagramWorkLimitError)
       const verified = verifyMermaid(source)
       expect(verified.ok).toBe(false)
       expect(verified.checks?.renderability).toBe('failed')

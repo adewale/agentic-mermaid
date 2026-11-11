@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs'
 import { isDeepStrictEqual } from 'node:util'
 import { type CheckMermaidSpec, checkMermaidSource } from '../../src/agent/facts.ts'
 import { parseRegisteredMermaid as parseMermaid } from '../../src/agent/parse.ts'
@@ -5,6 +6,15 @@ import { serializeMermaid } from '../../src/agent/serialize.ts'
 import { verifyMermaid } from '../../src/agent/verify.ts'
 import {
   asArchitecture,
+  asAgentflow,
+  asUsecase,
+  asWardley,
+  asVenn,
+  asCynefin,
+  asRailroad,
+  asSwimlane,
+  asTreeview,
+
   asEventModeling,
   asZenUML,
   asPacket,
@@ -88,7 +98,146 @@ const ZENUML_GOAL = ZENUML_INPUT.replaceAll('Stock', 'Inventory')
 
 const EVENTMODELING_INPUT = 'eventmodeling\ntf 01 ui Cart.UI\ntf 02 cmd Cart.AddItem { description: string }\ntf 03 evt Cart.ItemAdded'
 const EVENTMODELING_GOAL = EVENTMODELING_INPUT + '\nrf 04 rmo Cart.Items ->> 03'
+const AGENTFLOW_INPUT = readFileSync(new URL('../layout-compare/fixtures/agentflow-native.mmd', import.meta.url), 'utf8').trimEnd()
+const AGENTFLOW_GOAL = AGENTFLOW_INPUT.replace("shape: tool", "shape: task")
+const USECASE_INPUT = readFileSync(new URL('../layout-compare/fixtures/usecase-native.mmd', import.meta.url), 'utf8').trimEnd()
+const USECASE_GOAL = USECASE_INPUT.replace("direction LR", "direction TB")
+const WARDLEY_INPUT = readFileSync(new URL('../layout-compare/fixtures/wardley-native.mmd', import.meta.url), 'utf8').trimEnd()
+const WARDLEY_GOAL = WARDLEY_INPUT.replace("evolve Service 0.9", "evolve Service 0.95")
+const VENN_INPUT = readFileSync(new URL('../layout-compare/fixtures/venn-native.mmd', import.meta.url), 'utf8').trimEnd()
+const VENN_GOAL = VENN_INPUT.replace("[\"Shared\"]:3", "[\"Shared\"]:4")
+const CYNEFIN_INPUT = readFileSync(new URL('../layout-compare/fixtures/cynefin-native.mmd', import.meta.url), 'utf8').trimEnd()
+const CYNEFIN_GOAL = CYNEFIN_INPUT.replace("\"Operate\"", "\"Automate\"")
+const RAILROAD_INPUT = readFileSync(new URL('../layout-compare/fixtures/railroad-native.mmd', import.meta.url), 'utf8').trimEnd()
+const RAILROAD_GOAL = RAILROAD_INPUT.replace("terminal(\"value\")", "terminal(\"datum\")")
+const SWIMLANE_INPUT = readFileSync(new URL('../layout-compare/fixtures/swimlane-native.mmd', import.meta.url), 'utf8').trimEnd()
+const SWIMLANE_GOAL = SWIMLANE_INPUT.replace("[Dispatch order]", "[Ship parcel]")
+const TREEVIEW_INPUT = readFileSync(new URL('../layout-compare/fixtures/treeview-native.mmd', import.meta.url), 'utf8').trimEnd()
+const TREEVIEW_GOAL = TREEVIEW_INPUT.replace("App.tsx", "Application.tsx")
+
 export const DEFAULT_CASES: AgentUsageEvalCase[] = [
+  {
+    id: 'agentflow_set_search_role', family: 'agentflow', input: AGENTFLOW_INPUT,
+    prompt: promptTask("Change Search documents from a tool into a task. Retain all nodes, PUBLISHING membership, three links, HTTP connector and brand reference. Use typed mutation, inspect verify, and serialize.", 'Preserve every unrelated authored value, identity and ownership.', AGENTFLOW_INPUT),
+    script: `
+      const parsed = mermaid.parseRegisteredMermaid(${JSON.stringify(AGENTFLOW_INPUT)})
+      if (!parsed.ok) return { error: parsed.error }
+      const diagram = mermaid.asAgentflow(parsed.value)
+      if (!diagram) return { error: 'not-agentflow' }
+      const changed = mermaid.mutate(diagram, { kind: 'set_role', id: 'search', role: 'task' })
+      if (!changed.ok) return { error: changed.error }
+      const verified = mermaid.verifyMermaid(changed.value)
+      if (!verified.ok) return { error: 'verify', warnings: verified.warnings }
+      return { source: mermaid.serializeMermaid(changed.value) }
+    `,
+  },
+  {
+    id: 'usecase_set_vertical_direction', family: 'usecase', input: USECASE_INPUT,
+    prompt: promptTask("Set the use-case diagram to TB. Retain Customer, the STOREFRONT boundary, Browse catalogue, Checkout, association and include relation. Use typed mutation, inspect verify, and serialize.", 'Preserve every unrelated authored value, identity and ownership.', USECASE_INPUT),
+    script: `
+      const parsed = mermaid.parseRegisteredMermaid(${JSON.stringify(USECASE_INPUT)})
+      if (!parsed.ok) return { error: parsed.error }
+      const diagram = mermaid.asUsecase(parsed.value)
+      if (!diagram) return { error: 'not-usecase' }
+      const changed = mermaid.mutate(diagram, { kind: 'set_direction', direction: 'TB' })
+      if (!changed.ok) return { error: changed.error }
+      const verified = mermaid.verifyMermaid(changed.value)
+      if (!verified.ok) return { error: 'verify', warnings: verified.warnings }
+      return { source: mermaid.serializeMermaid(changed.value) }
+    `,
+  },
+  {
+    id: 'wardley_evolve_service', family: 'wardley', input: WARDLEY_INPUT,
+    prompt: promptTask("Move the Service evolution target from 90 to 95 percent. Retain authored coordinates, pipeline children, dependency flow, note, annotations, inertia and build strategy. Use typed mutation, inspect verify, and serialize.", 'Preserve every unrelated authored value, identity and ownership.', WARDLEY_INPUT),
+    script: `
+      const parsed = mermaid.parseRegisteredMermaid(${JSON.stringify(WARDLEY_INPUT)})
+      if (!parsed.ok) return { error: parsed.error }
+      const diagram = mermaid.asWardley(parsed.value)
+      if (!diagram) return { error: 'not-wardley' }
+      const changed = mermaid.mutate(diagram, { kind: 'set_evolution', id: 'Service', x: 95 })
+      if (!changed.ok) return { error: changed.error }
+      const verified = mermaid.verifyMermaid(changed.value)
+      if (!verified.ok) return { error: 'verify', warnings: verified.warnings }
+      return { source: mermaid.serializeMermaid(changed.value) }
+    `,
+  },
+  {
+    id: 'venn_update_overlap', family: 'venn', input: VENN_INPUT,
+    prompt: promptTask("Change the Shared intersection of Alpha and Beta from 3 to 4. Retain set areas 20 and 12 and Owned note attached to Alpha. Use typed mutation, inspect verify, and serialize.", 'Preserve every unrelated authored value, identity and ownership.', VENN_INPUT),
+    script: `
+      const parsed = mermaid.parseRegisteredMermaid(${JSON.stringify(VENN_INPUT)})
+      if (!parsed.ok) return { error: parsed.error }
+      const diagram = mermaid.asVenn(parsed.value)
+      if (!diagram) return { error: 'not-venn' }
+      const changed = mermaid.mutate(diagram, { kind: 'set_subset', sets: ['A', 'B'], size: 4, label: 'Shared' })
+      if (!changed.ok) return { error: changed.error }
+      const verified = mermaid.verifyMermaid(changed.value)
+      if (!verified.ok) return { error: 'verify', warnings: verified.warnings }
+      return { source: mermaid.serializeMermaid(changed.value) }
+    `,
+  },
+  {
+    id: 'cynefin_automate_clear_domain', family: 'cynefin', input: CYNEFIN_INPUT,
+    prompt: promptTask("Change the Clear item Operate to Automate. Retain the other four domain items and both labeled transitions. Use typed mutation, inspect verify, and serialize.", 'Preserve every unrelated authored value, identity and ownership.', CYNEFIN_INPUT),
+    script: `
+      const parsed = mermaid.parseRegisteredMermaid(${JSON.stringify(CYNEFIN_INPUT)})
+      if (!parsed.ok) return { error: parsed.error }
+      const diagram = mermaid.asCynefin(parsed.value)
+      if (!diagram) return { error: 'not-cynefin' }
+      const changed = mermaid.mutate(diagram, { kind: 'set_item', domain: 'clear', index: 0, label: 'Automate' })
+      if (!changed.ok) return { error: changed.error }
+      const verified = mermaid.verifyMermaid(changed.value)
+      if (!verified.ok) return { error: 'verify', warnings: verified.warnings }
+      return { source: mermaid.serializeMermaid(changed.value) }
+    `,
+  },
+  {
+    id: 'railroad_replace_item_literal', family: 'railroad', input: RAILROAD_INPUT,
+    prompt: promptTask("Change the item rule terminal from value to datum. Retain the complete entry sequence with its choice, optional end and unbounded comma repetition. Use typed mutation, inspect verify, and serialize.", 'Preserve every unrelated authored value, identity and ownership.', RAILROAD_INPUT),
+    script: `
+      const parsed = mermaid.parseRegisteredMermaid(${JSON.stringify(RAILROAD_INPUT)})
+      if (!parsed.ok) return { error: parsed.error }
+      const diagram = mermaid.asRailroad(parsed.value)
+      if (!diagram) return { error: 'not-railroad' }
+      const changed = mermaid.mutate(diagram, { kind: 'replace_rule', index: 1, name: 'item', definition: { type: 'terminal', value: 'datum' } })
+      if (!changed.ok) return { error: changed.error }
+      const verified = mermaid.verifyMermaid(changed.value)
+      if (!verified.ok) return { error: 'verify', warnings: verified.warnings }
+      return { source: mermaid.serializeMermaid(changed.value) }
+    `,
+  },
+  {
+    id: 'swimlane_rename_dispatch', family: 'swimlane', input: SWIMLANE_INPUT,
+    prompt: promptTask("Rename Dispatch order to Ship parcel. Retain both responsibility lanes, all four tasks and the three directed links including Yes. Use typed mutation, inspect verify, and serialize.", 'Preserve every unrelated authored value, identity and ownership.', SWIMLANE_INPUT),
+    script: `
+      const parsed = mermaid.parseRegisteredMermaid(${JSON.stringify(SWIMLANE_INPUT)})
+      if (!parsed.ok) return { error: parsed.error }
+      const diagram = mermaid.asSwimlane(parsed.value)
+      if (!diagram) return { error: 'not-swimlane' }
+      const changed = mermaid.mutate(diagram, { kind: 'set_label', target: 'fulfill', label: 'Ship parcel' })
+      if (!changed.ok) return { error: changed.error }
+      const verified = mermaid.verifyMermaid(changed.value)
+      if (!verified.ok) return { error: 'verify', warnings: verified.warnings }
+      return { source: mermaid.serializeMermaid(changed.value) }
+    `,
+  },
+  {
+    id: 'treeview_rename_component', family: 'treeview', input: TREEVIEW_INPUT,
+    prompt: promptTask("Rename App.tsx to Application.tsx. Retain source/widgets nesting, the Unicode file, main component description, highlight and React icon, and README. Use typed mutation, inspect verify, and serialize.", 'Preserve every unrelated authored value, identity and ownership.', TREEVIEW_INPUT),
+    script: `
+      const parsed = mermaid.parseRegisteredMermaid(${JSON.stringify(TREEVIEW_INPUT)})
+      if (!parsed.ok) return { error: parsed.error }
+      const diagram = mermaid.asTreeview(parsed.value)
+      if (!diagram) return { error: 'not-treeview' }
+      const component = diagram.body.nodes.find(node => node.label === 'App.tsx')
+      if (!component) return { error: 'missing-component' }
+      const changed = mermaid.mutate(diagram, { kind: 'set_label', id: component.id, label: 'Application.tsx' })
+      if (!changed.ok) return { error: changed.error }
+      const verified = mermaid.verifyMermaid(changed.value)
+      if (!verified.ok) return { error: 'verify', warnings: verified.warnings }
+      return { source: mermaid.serializeMermaid(changed.value) }
+    `,
+  },
   {
     id: 'zenuml_rename_inventory', family: 'zenuml', input: ZENUML_INPUT,
     prompt: promptTask('Rename participant Stock to Inventory using checked native mutation, verify and serialize.', 'Preserve the Customer alias, Buyer-to-API checkout call and nested inventory reservation.', ZENUML_INPUT),
@@ -637,6 +786,14 @@ function authorCase(id: string, family: DiagramKind, task: string, context: stri
 }
 
 export const CREATE_CASES: AgentUsageEvalCase[] = [
+  authorCase('author_agentflow_source', 'agentflow', 'Create the described native agentflow diagram, parse and inspect verification, then return valid source.', "A PUBLISHING team contains Plan work and Search documents tasks and a Publish result action. Plan points to Search, Search to Publish, and Search has a dotted relation to global Brand guide refdoc. HTTP connector llm has label LLM API; Search keeps connectorRef llm.chat.", AGENTFLOW_GOAL),
+  authorCase('author_usecase_source', 'usecase', 'Create the described native usecase diagram, parse and inspect verification, then return valid source.', "Top-to-bottom diagram: Customer actor points to Checkout. STOREFRONT boundary Store contains Browse catalogue and Checkout; Checkout includes Browse catalogue.", USECASE_GOAL),
+  authorCase('author_wardley_source', 'wardley', 'Create the described native wardley diagram, parse and inspect verification, then return valid source.', "PLATFORM EVOLUTION: Customer anchor at evolution10 visibility95, Service at50/60 with inertia, build strategy and label offset[-12,8], Power at80/20. Service pipeline has Custom at30 and Utility at70, both visibility60. Customer depends on Service; Service has a dashed bidirectional delivery relation to Power. Service evolves to95. Retain note Keep all note text at40/30, Adopt utility annotation1 at70/40, Demand accelerator and Risk deaccelerator.", WARDLEY_GOAL),
+  authorCase('author_venn_source', 'venn', 'Create the described native venn diagram, parse and inspect verification, then return valid source.', "Alpha set A has area20 and Owned note item; Beta set B has area12. Shared A/B intersection has area4.", VENN_GOAL),
+  authorCase('author_cynefin_source', 'cynefin', 'Create the described native cynefin diagram, parse and inspect verification, then return valid source.', "Decisions with feedback has Explore in Complex, Analyse in Complicated, Automate in Clear, Stabilise in Chaotic and Investigate in Confusion. Complex transitions to Clear labeled Learning; Chaotic transitions to Confusion labeled Recover.", CYNEFIN_GOAL),
+  authorCase('author_railroad_source', 'railroad', 'Create the described native railroad diagram, parse and inspect verification, then return valid source.', "The entry rule sequences terminal start, a choice of nonterminal item or optional terminal end, and zero-or-more comma terminals. The item rule contains terminal datum.", RAILROAD_GOAL),
+  authorCase('author_swimlane_source', 'swimlane', 'Create the described native swimlane diagram, parse and inspect verification, then return valid source.', "Left-to-right workflow: CUSTOMER lane contains Request order and Receive order; OPERATIONS contains decision In stock? and Ship parcel. Request points to In stock?, which points to Ship parcel with Yes; Ship parcel points to Receive order.", SWIMLANE_GOAL),
+  authorCase('author_treeview_source', 'treeview', 'Create the described native treeview diagram, parse and inspect verification, then return valid source.', "PROJECT file tree: src/ contains Application.tsx, highlighted with logos:react icon and main component description, plus widgets/ containing \u6309\u94ae.ts. README.md is a separate root file with icon none.", TREEVIEW_GOAL),
   authorCase('author_zenuml_source', 'zenuml', 'Create a ZenUML diagram, verify and return valid source.', 'Declare Buyer as Customer, API and Inventory. Buyer calls API.checkout(); inside that call API calls Inventory.reserve().', ZENUML_GOAL),
   authorCase('author_eventmodeling_source', 'eventmodeling', 'Create an Event Modeling diagram from the context, verify and return valid Mermaid source.', 'Ordered frames: 01 UI Cart.UI; 02 command Cart.AddItem with inline description: string; 03 event Cart.ItemAdded; reset 04 read model Cart.Items explicitly referencing 03.', EVENTMODELING_GOAL),
   authorCase(
@@ -870,6 +1027,14 @@ export function requiresStructuredMutation(id: string): boolean {
 }
 
 const STRUCTURED_CASES = new Set([
+  'treeview_rename_component',
+  'swimlane_rename_dispatch',
+  'railroad_replace_item_literal',
+  'cynefin_automate_clear_domain',
+  'venn_update_overlap',
+  'wardley_evolve_service',
+  'usecase_set_vertical_direction',
+  'agentflow_set_search_role',
   'zenuml_rename_inventory',
   'eventmodeling_add_read_model',
   'cache_between_api_and_db',
@@ -984,6 +1149,14 @@ function checkOpaqueFallbackTrace(trace: SdkCall[]): boolean {
 function checkTrace(id: string, input: string | undefined, trace: SdkCall[]): boolean {
   if (id.startsWith('author_')) return checkSourceAuthoringTrace(trace)
   if (!input) return false
+  if (id === 'treeview_rename_component') return checkMutationTrace(id, input, 'treeview', trace) && hasMutationOps(trace, input, ['set_label'])
+  if (id === 'swimlane_rename_dispatch') return checkMutationTrace(id, input, 'swimlane', trace) && hasMutationOps(trace, input, ['set_label'])
+  if (id === 'railroad_replace_item_literal') return checkMutationTrace(id, input, 'railroad', trace) && hasMutationOps(trace, input, ['replace_rule'])
+  if (id === 'cynefin_automate_clear_domain') return checkMutationTrace(id, input, 'cynefin', trace) && hasMutationOps(trace, input, ['set_item'])
+  if (id === 'venn_update_overlap') return checkMutationTrace(id, input, 'venn', trace) && hasMutationOps(trace, input, ['set_subset'])
+  if (id === 'wardley_evolve_service') return checkMutationTrace(id, input, 'wardley', trace) && hasMutationOps(trace, input, ['set_evolution'])
+  if (id === 'usecase_set_vertical_direction') return checkMutationTrace(id, input, 'usecase', trace) && hasMutationOps(trace, input, ['set_direction'])
+  if (id === 'agentflow_set_search_role') return checkMutationTrace(id, input, 'agentflow', trace) && hasMutationOps(trace, input, ['set_role'])
   if (id === 'cache_between_api_and_db') return checkMutationTrace(id, input, 'flowchart', trace) && hasMutationOps(trace, input, ['add_node', 'remove_edge', 'add_edge', 'add_edge'])
   if (id === 'canonical_add_cache_messy') return checkMutationTrace(id, input, 'flowchart', trace) && hasMutationOps(trace, input, ['remove_edge', 'add_node', 'add_edge', 'add_edge'])
   if (id === 'stray_end_source_fallback') return checkOpaqueFallbackTrace(trace)
@@ -1194,7 +1367,80 @@ function zenUMLInventoryGoal(source: string): boolean {
     call.children.length === 1 && call.children[0]?.kind === 'call' &&
     call.children[0].to === 'Inventory' && call.children[0].label === 'reserve()'
 }
+function agentflowGoal(source: string): boolean {
+  const body = narrow(source, asAgentflow)?.body
+  return Boolean(body && body.graph.direction === 'TB' &&
+    isDeepStrictEqual([...body.graph.nodes].map(([id, node]) => [id, node.label]), [['llm','LLM API'],['guide','Brand guide'],['plan','Plan work'],['search','Search documents'],['publish','Publish result']]) &&
+    isDeepStrictEqual([...body.roles], [['llm','connector'],['guide','refdoc'],['plan','task'],['search','task'],['publish','action']]) &&
+    isDeepStrictEqual([...body.connectors], ['llm']) && isDeepStrictEqual([...body.globals], ['llm','guide']) &&
+    body.metadata.get('llm')?.protocol === 'http' && body.metadata.get('search')?.connectorRef === 'llm.chat' &&
+    body.graph.subgraphs.length === 1 && body.graph.subgraphs[0]?.id === 'team' && body.graph.subgraphs[0]?.label === 'PUBLISHING' &&
+    isDeepStrictEqual(body.graph.subgraphs[0]?.nodeIds, ['plan','search','publish']) &&
+    isDeepStrictEqual(body.graph.edges.map(edge => [edge.source, edge.target]), [['plan','search'],['search','publish'],['search','guide']]))
+}
+function usecaseGoal(source: string): boolean {
+  const body = narrow(source, asUsecase)?.body
+  return Boolean(body && body.direction === 'TB' &&
+    isDeepStrictEqual(body.nodes.map(node => [node.id,node.kind,node.label,node.parentId]), [['Customer','actor','Customer',undefined],['Browse','usecase','Browse catalogue','Store'],['Checkout','usecase','Checkout','Store']]) &&
+    body.boundaries.length === 1 && body.boundaries[0]?.id === 'Store' && body.boundaries[0]?.label === 'STOREFRONT' &&
+    isDeepStrictEqual(body.boundaries[0]?.members, ['Browse','Checkout']) &&
+    isDeepStrictEqual(body.relationships.map(edge => [edge.source,edge.target,edge.type]), [['Customer','Checkout','association'],['Checkout','Browse','include']]))
+}
+function wardleyGoal(source: string): boolean {
+  const body = narrow(source, asWardley)?.body, service = body?.nodes.find(node => node.id === 'Service')
+  return Boolean(body && body.title === 'PLATFORM EVOLUTION' &&
+    isDeepStrictEqual(body.nodes.map(node => [node.id,node.x,node.y]), [['Customer',10,95],['Service',50,60],['Power',80,20],['Service_Custom',30,60],['Service_Utility',70,60]]) &&
+    service?.inertia === true && service.sourceStrategy === 'build' && service.labelOffsetX === -12 && service.labelOffsetY === 8 &&
+    isDeepStrictEqual(body.pipelines, [{ nodeId: 'Service', componentIds: ['Service_Custom','Service_Utility'] }]) &&
+    isDeepStrictEqual(body.links.map(link => [link.source,link.target,link.dashed,link.label,link.flow]), [['Customer','Service',false,undefined,undefined],['Service','Power',true,'delivery','bidirectional']]) &&
+    isDeepStrictEqual(body.trends, [{ nodeId: 'Service', targetX: 95, targetY: 60 }]) &&
+    isDeepStrictEqual(body.notes, [{ text: 'Keep all note text', x: 40, y: 30 }]) &&
+    isDeepStrictEqual(body.annotations, [{ number: 1, coordinates: [{ x: 70, y: 40 }], text: 'Adopt utility' }]) &&
+    body.accelerators.length === 1 && body.accelerators[0]?.name === 'Demand' && body.deaccelerators.length === 1 && body.deaccelerators[0]?.name === 'Risk')
+}
+function vennGoal(source: string): boolean {
+  const body = narrow(source, asVenn)?.body
+  return Boolean(body && isDeepStrictEqual(body.subsets, [{ sets: ['A'], label: 'Alpha', size: 20 },{ sets: ['B'], label: 'Beta', size: 12 },{ sets: ['A','B'], label: 'Shared', size: 4 }]) &&
+    isDeepStrictEqual(body.textNodes, [{ sets: ['A'], id: 'item', label: 'Owned note' }]))
+}
+function cynefinGoal(source: string): boolean {
+  const body = narrow(source, asCynefin)?.body
+  return Boolean(body && body.title === 'Decisions with feedback' &&
+    isDeepStrictEqual(body.domains.map(domain => [domain.name,domain.items.map(item => item.label)]), [['complex',['Explore']],['complicated',['Analyse']],['clear',['Automate']],['chaotic',['Stabilise']],['confusion',['Investigate']]]) &&
+    isDeepStrictEqual(body.transitions, [{ from: 'complex', to: 'clear', label: 'Learning' },{ from: 'chaotic', to: 'confusion', label: 'Recover' }]))
+}
+function railroadGoal(source: string): boolean {
+  const body = narrow(source, asRailroad)?.body
+  return Boolean(body && body.notation === 'railroad' && isDeepStrictEqual(body.rules, [
+    { name: 'entry', definition: { type: 'sequence', elements: [{ type: 'terminal', value: 'start' },{ type: 'choice', alternatives: [{ type: 'nonterminal', name: 'item' },{ type: 'optional', element: { type: 'terminal', value: 'end' } }] },{ type: 'repetition', element: { type: 'terminal', value: ',' }, min: 0, max: null }] } },
+    { name: 'item', definition: { type: 'terminal', value: 'datum' } },
+  ]))
+}
+function swimlaneGoal(source: string): boolean {
+  const graph = narrow(source, asSwimlane)?.body.graph
+  return Boolean(graph && graph.direction === 'LR' &&
+    isDeepStrictEqual([...graph.nodes].map(([id,node]) => [id,node.label]), [['request','Request order'],['receive','Receive order'],['check','In stock?'],['fulfill','Ship parcel']]) &&
+    isDeepStrictEqual(graph.subgraphs.map(lane => [lane.id,lane.label,lane.nodeIds]), [['customer','CUSTOMER',['request','receive']],['team','OPERATIONS',['check','fulfill']]]) &&
+    isDeepStrictEqual(graph.edges.map(edge => [edge.source,edge.target,edge.label]), [['request','check',undefined],['check','fulfill','Yes'],['fulfill','receive',undefined]]))
+}
+function treeviewGoal(source: string): boolean {
+  const body = narrow(source, asTreeview)?.body, nodes = body?.nodes,
+    root = nodes?.find(node => node.label === 'src'), app = nodes?.find(node => node.label === 'Application.tsx'), widgets = nodes?.find(node => node.label === 'widgets'), unicode = nodes?.find(node => node.label === '按钮.ts'), readme = nodes?.find(node => node.label === 'README.md')
+  return Boolean(body && body.title === 'PROJECT' && nodes?.length === 5 && root?.nodeType === 'directory' && root.parentId === undefined &&
+    app?.parentId === root.id && app.nodeType === 'file' && app.icon === 'logos:react' && app.description === 'main component' && app.className === 'highlight' &&
+    widgets?.parentId === root.id && widgets.nodeType === 'directory' && unicode?.parentId === widgets.id && unicode.nodeType === 'file' &&
+    readme?.parentId === undefined && readme?.icon === 'none')
+}
+
 const CREATE_ORACLES: Record<string, (source: string) => boolean> = {
+  author_treeview_source: treeviewGoal,
+  author_swimlane_source: swimlaneGoal,
+  author_railroad_source: railroadGoal,
+  author_cynefin_source: cynefinGoal,
+  author_venn_source: vennGoal,
+  author_wardley_source: wardleyGoal,
+  author_usecase_source: usecaseGoal,
+  author_agentflow_source: agentflowGoal,
   author_zenuml_source: zenUMLInventoryGoal,
   author_eventmodeling_source: eventModelingGoal,
   author_state_source: s => {
@@ -1314,6 +1560,38 @@ function checkTask(id: string, input: string | undefined, value: unknown, trace:
     return Boolean(source && ishikawaGoal(source))
   }
   if (!input) return false
+  if (id === 'treeview_rename_component') {
+    const source = serializedSource(value, trace)
+    return Boolean(source && treeviewGoal(source))
+  }
+  if (id === 'swimlane_rename_dispatch') {
+    const source = serializedSource(value, trace)
+    return Boolean(source && swimlaneGoal(source))
+  }
+  if (id === 'railroad_replace_item_literal') {
+    const source = serializedSource(value, trace)
+    return Boolean(source && railroadGoal(source))
+  }
+  if (id === 'cynefin_automate_clear_domain') {
+    const source = serializedSource(value, trace)
+    return Boolean(source && cynefinGoal(source))
+  }
+  if (id === 'venn_update_overlap') {
+    const source = serializedSource(value, trace)
+    return Boolean(source && vennGoal(source))
+  }
+  if (id === 'wardley_evolve_service') {
+    const source = serializedSource(value, trace)
+    return Boolean(source && wardleyGoal(source))
+  }
+  if (id === 'usecase_set_vertical_direction') {
+    const source = serializedSource(value, trace)
+    return Boolean(source && usecaseGoal(source))
+  }
+  if (id === 'agentflow_set_search_role') {
+    const source = serializedSource(value, trace)
+    return Boolean(source && agentflowGoal(source))
+  }
   if (id === 'cache_between_api_and_db') {
     const source = serializedSource(value, trace)
     if (!source) return false

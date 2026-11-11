@@ -1,3 +1,4 @@
+import { authoredSyntaxLocation } from '../shared/parser-source.ts'
 // ============================================================================
 // parseRegisteredMermaid: source → ParsedDiagram (multi-error).
 //
@@ -7,8 +8,9 @@
 // than silently dropping the unrecognized construct.
 // ============================================================================
 
-import { MermaidFrontmatterError, normalizeMermaidSource, preservedMermaidFamilySource } from '../mermaid-source.ts'
+import { MermaidFrontmatterError, normalizeMermaidSource, preservedMermaidFamilySource, stripMermaidInitDirectives } from '../mermaid-source.ts'
 import { INIT_DIRECTIVE_REGEX, MERMAID_DIRECTIVE_REGEX, splitHeaderStatement } from '../mermaid-source-wrapper.ts'
+import { coalesceFlowchartLines } from '../flowchart-lexer.ts'
 import { stripStateComment } from '../state/comment.ts'
 import { stripMindmapComment } from '../mindmap/parser.ts'
 import { classCommentStart, readClassStatements, type ClassStatementNode } from '../class/parser.ts'
@@ -31,6 +33,7 @@ import {
   sourcePointAt,
 } from '../family-detection.ts'
 import { retainBodyComments } from './body-comments.ts'
+import { publishParsedRenderModel } from './owned-render-model.ts'
 import { serializeMermaid } from './serialize.ts'
 import { AccessibilityTextError, attachAccessibilityToBody } from './accessibility-envelope.ts'
 import type {
@@ -253,7 +256,13 @@ export function parseRegisteredMermaid(source: string): Result<ParsedDiagram, Pa
   // source with no wrapper” from synthesized payloads, which omit
   // wrapperSource and therefore request canonical wrapper synthesis.
   const meta = extractMeta(authoredEnvelope)
-  const canonicalSource = capturedFamily && INDENTED_GRAMMARS.has(capturedFamily.id)
+  // Indentation-sensitive families keep executable public source after copying
+  // or transport without private model custody. The source-map builder uses
+  // this exact published body.
+  // The envelope remains the single owner of init configuration layers.
+  const canonicalSource = capturedFamily?.canonicalSource === 'preserved'
+    ? stripMermaidInitDirectives(familyLine.source.slice(familyLineBoundary))
+    : capturedFamily && INDENTED_GRAMMARS.has(capturedFamily.id)
     ? indentedCanonicalText(authoredEnvelope.body)
     : authoredEnvelope.text
   const sourceMapCanonicalSource = maskAccessibilityDirectivesForSourceMap(canonicalSource, capturedFamily)
@@ -344,7 +353,13 @@ export function parseRegisteredMermaid(source: string): Result<ParsedDiagram, Pa
       return err([{ code: 'FAMILY_DESCRIPTOR_CONTRACT', message: `Family "${kind}" parse hook threw: ${reason}`, line: 1 }])
     }
     if (!parsed.ok) {
-      errors.push(...parsed.error)
+      for (const error of parsed.error) {
+        const mapsLocation = (kind === 'flowchart' || kind === 'mindmap' || kind === 'gitgraph') && error.line !== undefined
+        const location = mapsLocation
+          ? authoredSyntaxLocation(authoredEnvelope, normalizedSemanticSource.familyBody.split('\n'), error)
+          : error
+        errors.push({ ...error, ...location, col: mapsLocation ? location.column : error.col, diagramType: error.diagramType ?? kind })
+      }
       return err(errors)
     }
     if (parsed.value.kind === 'preserved') {
@@ -407,8 +422,9 @@ export function parseRegisteredMermaid(source: string): Result<ParsedDiagram, Pa
         wrapperSource: authoredEnvelope.wrapperSource,
         authoredWrapperLength: authoredEnvelope.authoredWrapperLength,
         cleanup: authoredEnvelope.cleanup,
+        canonicalSource,
       })) ?? emptySourceMap(),
-      kind === 'flowchart' ? 'flowchart' : 'generic',
+      plugin.sourceMapGrammar ?? 'generic',
     )
     let diagram: ValidDiagram = { kind, meta, body: parsed.value, source: sourceMap, canonicalSource }
     if ([meta.accessibility.title, meta.accessibility.descr].some(text => text?.includes('%%{'))) {
@@ -419,6 +435,7 @@ export function parseRegisteredMermaid(source: string): Result<ParsedDiagram, Pa
     }
     markDroppedComments(diagram, source, plugin.statementEnds)
     retainBodyComments(diagram, source)
+    publishParsedRenderModel(diagram, plugin, normalized.familyBody, opaqueSource, source)
     return ok(diagram)
   }
 
@@ -446,17 +463,26 @@ function attachUniversalAccessibility(body: import('./types.ts').DiagramBody, me
 function markDroppedComments(diagram: ValidDiagram, authoredSource: string, statementEnds?: (lines: readonly string[]) => readonly number[]): void {
   if (!authoredSource.includes('%%') || diagram.kind === 'sequence' || diagram.kind === 'c4' || diagram.body.kind === 'opaque') return
 
+  const flowchartGrammar = diagram.kind === 'flowchart' || diagram.kind === 'agentflow' || diagram.kind === 'swimlane'
   const commentsIn = (source: string, normalized: Pick<ValidDiagramMeta, 'comments' | 'wrapperSource'>): SourceComment[] => {
     // Directives configure the diagram; they are not comment casualties. Mask
     // their bytes while retaining physical lines for the owning grammar.
     const blank = (directive: string): string => directive.replace(/[^\r\n]/g, ' ')
     const withoutDirectives = source.replace(new RegExp(INIT_DIRECTIVE_REGEX.source, 'gm'), blank).replace(MERMAID_DIRECTIVE_REGEX, blank)
     const lines = withoutDirectives.split(/\r\n?|\n/).map(line => line.trim())
+    // Graph dialects reuse the same production lexer. A percent-prefixed
+    // physical line inside a coalesced label or metadata block is payload,
+    // while a standalone comment group owns its whole physical line.
+    if (flowchartGrammar) {
+      const actual = new Set(coalesceFlowchartLines(withoutDirectives.split(/\r\n?|\n/))
+        .filter(group => !group.directive && group.text.trimStart().startsWith('%%')).map(group => group.line + 1))
+      return normalized.comments.filter(comment => actual.has(comment.line))
+    }
     const comments = [...normalized.comments]
     const knownLines = new Set(comments.map(comment => comment.line))
     // These grammars either expose every real comment in envelope metadata,
     // or keep percent pairs inside their statement text.
-    if (['flowchart', 'state', 'journey', 'timeline', 'ishikawa', 'sankey', 'zenuml'].includes(diagram.kind)) return comments
+    if (['state', 'journey', 'timeline', 'ishikawa', 'sankey', 'zenuml'].includes(diagram.kind)) return comments
     if (diagram.kind === 'gantt') {
       const wrapperLines = (normalized.wrapperSource?.match(/\n/g) ?? []).length
       for (const statement of readGanttStatements(lines.map((line, index) => index < wrapperLines ? '' : line))) {
@@ -533,6 +559,7 @@ function markDroppedComments(diagram: ValidDiagram, authoredSource: string, stat
     return comments.sort((a, b) => a.line - b.line)
   }
   const comments = commentsIn(authoredSource, diagram.meta)
+  if (flowchartGrammar) diagram.meta.comments = comments
   if (!comments.length) return
   const serialized = serializeMermaid(diagram)
   const owned = new Map<string, number>()

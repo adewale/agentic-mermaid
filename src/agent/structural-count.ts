@@ -75,10 +75,24 @@ function countSubgraphs(subgraphs: MermaidSubgraph[]): number {
 export function countStructuralElements(d: ParsedDiagram): StructuralCount | null {
   const body = d.body
   switch (body.kind) {
+    case 'agentflow':
+    case 'swimlane':
     case 'flowchart': {
       const g = body.graph
       return { nodes: g.nodes.size, edges: g.edges.length, groups: countSubgraphs(g.subgraphs) }
     }
+    case 'usecase':
+      return { nodes: body.nodes.length + body.jsonNodes.length + body.notes.length, edges: body.relationships.length, groups: body.boundaries.length }
+    case 'wardley':
+      return { nodes: body.nodes.length, edges: body.links.length + body.trends.length, groups: body.pipelines.length }
+    case 'venn':
+      return { nodes: body.subsets.length + body.textNodes.length, edges: 0, groups: 0 }
+    case 'cynefin':
+      return { nodes: body.domains.reduce((sum,domain) => sum + domain.items.length,0), edges: body.transitions.length, groups: 5 }
+    case 'railroad':
+      return { nodes: body.rules.length, edges: 0, groups: 0 }
+    case 'treeview':
+      return { nodes: body.nodes.length, edges: body.nodes.filter(node => node.parentId !== undefined).length, groups: 0 }
     case 'sequence':
       return { nodes: body.participants.length, edges: sequenceMessages(body).length, groups: 0 }
     case 'state': {

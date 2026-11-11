@@ -1,14 +1,15 @@
+import { discretionaryBreakKind, stripDiscretionaryBreaks } from './discretionary-breaks.ts'
 import { asciiAdvanceSpans } from '../experimental/ascii-advances.ts'
 import { performanceExperimentEnabled } from '../experimental-performance.ts'
 import { WeightedLru } from '../experimental/weighted-lru.ts'
 import type { LabelDisplay } from '../multiline-utils.ts'
 import type { TextTransform } from '../types.ts'
-import { LINE_HEIGHT_RATIO, measureTextWidth, measureSystemFontSafeTextWidth, measureMonospaceTextWidth, getCharWidth } from '../text-metrics.ts'
+import { LINE_HEIGHT_RATIO, measureTextWidth, measureSystemFontSafeTextWidth, measureMonospaceTextWidth, getCharWidth, isKnownMonospaceFontFamily } from '../text-metrics.ts'
 import { graphemes } from './graphemes.ts'
 import { serializeStyledSegment } from './inline-format.ts'
 import { isImmutableDisplayTextPart, prepareDisplayText, type DisplayRun, type DisplayTextInput, type PreparedDisplayText } from './display-text.ts'
 import { createImmutableParts } from './immutable-parts.ts'
-import { customTextMeasurementActive } from '../text-measurement-profile.ts'
+import { customTextMeasurementActive, withTextMeasurementExecution } from '../text-measurement-profile.ts'
 
 export interface PixelTextOptions {
   display?: LabelDisplay
@@ -82,10 +83,14 @@ function sameStyle(a: DisplayRun, b: DisplayRun): boolean {
 function coalesce(runs: readonly DisplayRun[]): DisplayRun[] {
   const result: DisplayRun[] = []
   let prior: { -readonly [Key in keyof DisplayRun]: DisplayRun[Key] } | undefined
-  for (const run of runs.flatMap(run => (run as WrapGlyph).fragments ?? run)) {
+  for (const input of runs.flatMap(run => (run as WrapGlyph).fragments ?? run)) {
+    const text = stripDiscretionaryBreaks(input.text)
+    if (!text) continue
+    const run = text === input.text ? input : { ...input, text, ...(input.clusters ? { clusters: input.clusters.filter(cluster => !discretionaryBreakKind(cluster.text)) } : {}) }
     if (prior && sameStyle(prior, run)) {
       // Only the newly copied accumulator is mutable; input runs stay retained.
       prior.text += run.text
+      prior.clusters = prior.clusters && run.clusters ? [...prior.clusters, ...run.clusters] : undefined
       prior.sourceEnd = run.sourceEnd
     } else {
       prior = { ...run }
@@ -98,23 +103,24 @@ function coalesce(runs: readonly DisplayRun[]): DisplayRun[] {
 function advance(runs: readonly DisplayRun[], options: PixelTextOptions): number {
   if (runs.length === 0) return 0
   const measure = options.safeFont ? measureSystemFontSafeTextWidth : measureTextWidth
-  const grouped = runs.length === 1 && !(runs[0] as WrapGlyph).fragments ? runs : coalesce(runs)
+  const grouped = runs.length === 1 && !(runs[0] as WrapGlyph).fragments && stripDiscretionaryBreaks(runs[0]!.text) === runs[0]!.text ? runs : coalesce(runs)
   const text = grouped.length === 1 ? grouped[0]!.text : grouped.map(run => run.text).join('')
+  const custom = customTextMeasurementActive() && grouped.every(run => customTextMeasurementActive({ text: run.text, fontSize: options.fontSize, fontWeight: run.bold ? Math.max(700, options.fontWeight) : options.fontWeight, fontStyle: run.italic ? 'italic' : 'normal', fontFamily: options.fontFamily, monospace: options.monospace ?? false }))
   if ((options.letterSpacing ?? 0) !== 0 && !/[^\x20-\x7e]/u.test(text)) return trackedBounds(grouped, options).width
   const width = options.monospace
-    ? customTextMeasurementActive()
+    ? custom
       ? grouped.reduce((sum, run) => sum + measureMonospaceTextWidth(run.text, options.fontSize, 0, run.bold ? Math.max(700, options.fontWeight) : options.fontWeight, run.italic ? 'italic' : 'normal', options.fontFamily), 0)
       : measureMonospaceTextWidth(text, options.fontSize)
     : grouped.reduce((sum, run) => sum + measure(run.text, options.fontSize, run.bold ? Math.max(700, options.fontWeight) : options.fontWeight, run.italic ? 'italic' : 'normal', options.fontFamily), 0)
   // Native shaping may apply tracking to several code points in a cluster
   // (flags are a common example). Negative tracking can reverse occupied
   // intervals; reserve their envelope rather than shrinking to final advance.
-  if (!customTextMeasurementActive() && /[^\x20-\x7e]/u.test(text)) {
+  if (!custom && /[^\x20-\x7e]/u.test(text)) {
     // Unknown fallback faces need an em envelope, rather than the Latin bucket
     // for Ω/Ш/etc. Count visible code points: a fallback can draw separate
     // glyphs for components of a flag or a ZWJ cluster. Zero-width marks stay
     // attached to their base. ASCII sharing this shaping run uses safe metrics.
-    const naturalWidth = grouped.reduce((sum, run) => sum + [...run.text].reduce((line, char) => line + (getCharWidth(char) === 0 ? 0 : /[^\x20-\x7e]/u.test(char) ? options.fontSize * 1.2 : measureSystemFontSafeTextWidth(char, options.fontSize, run.bold ? Math.max(700, options.fontWeight) : options.fontWeight)), 0), 0)
+    const naturalWidth = withTextMeasurementExecution(undefined, () => grouped.reduce((sum, run) => sum + [...run.text].reduce((line, char) => line + (getCharWidth(char) === 0 ? 0 : /[^\x20-\x7e]/u.test(char) ? options.fontSize * 1.2 : measureSystemFontSafeTextWidth(char, options.fontSize, run.bold ? Math.max(700, options.fontWeight) : options.fontWeight)), 0), 0))
     const orphanMarks = graphemes(text).filter(cluster => /\p{M}/u.test(cluster) && [...cluster].every(char => getCharWidth(char) === 0)).length
     return Math.max(width, naturalWidth + orphanMarks * options.fontSize * 1.2) + Math.max(0, [...text].length - 1) * Math.abs(options.letterSpacing ?? 0)
   }
@@ -165,7 +171,7 @@ function trackedGlyphWidth(text: string, run: DisplayRun, lastInStyle: boolean, 
   const fontStyle = run.italic ? 'italic' : 'normal'
   const measure = options.safeFont ? measureSystemFontSafeTextWidth : measureTextWidth
   return options.monospace ? measureMonospaceTextWidth(text, options.fontSize, 0, weight, fontStyle, options.fontFamily)
-    : measure(text, options.fontSize, weight, fontStyle, options.fontFamily) - (lastInStyle || customTextMeasurementActive() ? 0 : options.fontSize * 0.15)
+    : measure(text, options.fontSize, weight, fontStyle, options.fontFamily) - (lastInStyle || customTextMeasurementActive() && customTextMeasurementActive({ text, fontSize: options.fontSize, fontWeight: weight, fontStyle, fontFamily: options.fontFamily, monospace: false }) ? 0 : options.fontSize * 0.15)
 }
 
 /** With negative tracking, total advance can be zero while glyph intervals
@@ -218,6 +224,7 @@ export function preparePixelText(source: DisplayTextInput, options: PixelTextOpt
     display: options.display, transform: options.transform, fontSize: options.fontSize, fontWeight: options.fontWeight,
     letterSpacing: options.letterSpacing, maxWidth: options.maxWidth, safeFont: options.safeFont, monospace: options.monospace, fontFamily: options.fontFamily,
   }
+  if (options.monospace === undefined && options.fontFamily && isKnownMonospaceFontFamily(options.fontFamily)) options = { ...options, monospace: true }
   if (!Number.isFinite(options.fontSize) || options.fontSize <= 0 || !Number.isFinite(options.fontWeight) || !Number.isFinite(options.letterSpacing ?? 0)) throw new RangeError('Prepared text requires finite typography and a positive font size')
   const cacheKey = performanceExperimentEnabled('text-spans') && !customTextMeasurementActive() && typeof source === 'string' && source.length <= 16384
     ? JSON.stringify([source, options]) : undefined
@@ -230,7 +237,7 @@ export function preparePixelText(source: DisplayTextInput, options: PixelTextOpt
     if (lineIndex > 0) breaks.push({ kind: 'authored', sourceOffset: prepared.lineStarts[lineIndex]! - 1 })
     if (original.length === 0) { broken.push([]); continue }
     if (!maxWidth || !Number.isFinite(maxWidth) || maxWidth <= 0 || advance(original, options) <= maxWidth) {
-      broken.push([...original]); continue
+      broken.push(original.some(run => stripDiscretionaryBreaks(run.text) !== run.text) ? coalesce(original) : [...original]); continue
     }
     const clusters = glyphs(original)
     const textSpans = performanceExperimentEnabled('text-spans')
@@ -244,16 +251,25 @@ export function preparePixelText(source: DisplayTextInput, options: PixelTextOpt
     } : undefined
     let start = 0
     while (start < clusters.length) {
+      while (start < clusters.length && discretionaryBreakKind(clusters[start]!.text)) start++
+      if (start === clusters.length) break
       let end = start
       let whitespace = -1
+      let hint = -1
+      const rememberHint = (at: number): void => {
+        const kind = discretionaryBreakKind(clusters[at]!.text)
+        if (kind && at > start && advance([...clusters.slice(start, at), ...(kind === 'hyphen' ? [hyphenRun(clusters[at]!)] : [])], options) <= maxWidth) hint = at + 1
+      }
       if (fits) {
         while (end < clusters.length && fits(start, end + 1)) {
           if (/\s/u.test(clusters[end]!.text)) whitespace = end + 1
+          rememberHint(end)
           end++
         }
       } else {
         while (end < clusters.length && advance(clusters.slice(start, end + 1), options) <= maxWidth) {
           if (/\s/u.test(clusters[end]!.text)) whitespace = end + 1
+          rememberHint(end)
           end++
         }
       }
@@ -265,7 +281,12 @@ export function preparePixelText(source: DisplayTextInput, options: PixelTextOpt
       let hyphen = false
       let paintEnd: number | undefined
       let replacedText: string | undefined
-      if (whitespace > start) {
+      if (hint > start && hint >= whitespace) {
+        end = hint
+        paintEnd = end - 1
+        replacedText = clusters[end - 1]!.text
+        hyphen = discretionaryBreakKind(replacedText) === 'hyphen'
+      } else if (whitespace > start) {
         if (clusters.slice(start, whitespace).some(cluster => !/\s/u.test(cluster.text))) while (whitespace < clusters.length && /\s/u.test(clusters[whitespace]!.text)) whitespace++
         end = whitespace
         paintEnd = end
@@ -274,16 +295,18 @@ export function preparePixelText(source: DisplayTextInput, options: PixelTextOpt
         else replacedText = clusters.slice(paintEnd, end).map(run => run.text).join('')
       }
       else {
+        // Emergency wrapping is a grapheme boundary, not an authored soft
+        // hyphen. Inserting '-' here changes the visible/copyable word (for
+        // example rectangle becomes rectangl-e). The explicit discretionary
+        // break branch above remains the only producer of inserted hyphens.
         end = Math.max(start + 1, end)
-        const latinBreak = (at: number) => /[\p{Script=Latin}\p{Script=Greek}\p{Script=Cyrillic}]/u.test(clusters[at - 1]?.text ?? '') && /\p{L}/u.test(clusters[at]?.text ?? '')
-        if (latinBreak(end)) {
-          while (end > start + 1 && advance([...clusters.slice(start, end), hyphenRun(clusters[end - 1]!)], options) > maxWidth) end--
-          hyphen = advance([...clusters.slice(start, end), hyphenRun(clusters[end - 1]!)], options) <= maxWidth
-        }
       }
       const line = coalesce(clusters.slice(start, paintEnd ?? end))
       const sourceOffset = spans?.offsets[end] ?? clusters[end]?.sourceStart ?? prepared.source.length
-      if (hyphen) line.push({ ...hyphenRun(clusters[end - 1]!), sourceStart: sourceOffset, sourceEnd: sourceOffset })
+      if (hyphen) {
+        const authored = end === hint ? clusters[end - 1] : undefined
+        line.push({ ...hyphenRun(clusters[end - 1]!), sourceStart: authored?.sourceStart ?? sourceOffset, sourceEnd: authored?.sourceEnd ?? sourceOffset })
+      }
       broken.push(line)
       if (end < clusters.length) breaks.push({ kind: hyphen ? 'hyphen' : 'wrap', sourceOffset, ...(replacedText ? { replacedText } : {}) })
       start = end

@@ -1,3 +1,7 @@
+import { readAuthoredGrammarAccessibility } from '../shared/grammar-text.ts'
+import { accessibilityFields } from '../shared/accessibility-directives.ts'
+import { withBodyTitleMeta } from './body-title-meta.ts'
+import { ownBodyAccessibility } from './accessibility-envelope.ts'
 import { recordSourceMapEnds } from './source-map-spans.ts'
 import { sourceLineStarts, sourcePointAt } from '../shared/source-spans.ts'
 import type { SourceMap, SourceLocation } from './types.ts'
@@ -8,12 +12,15 @@ import { prepareDisplayText } from '../shared/display-text.ts'
 import { serializeEventModeling } from '../eventmodeling/body.ts'
 import { labelOverflowCollector } from './body-utils.ts'
 import { ok, type LayoutWarning } from './types.ts'
-import { readAuthoredGrammarAccessibility } from '../shared/grammar-text.ts'
-import { accessibilityFields } from '../shared/accessibility-directives.ts'
 export const EVENTMODELING_SOURCE_HOOKS: Omit<FamilyOperations, 'mutate'> = {
+  bodyAccessibility: ownBodyAccessibility('eventmodeling', 'native'),
+  bodyMeta: (body, meta) => body.kind === 'eventmodeling' ? withBodyTitleMeta(body.title, meta) : meta,
   parse: ctx => {
     try {
       const body = parseEventModeling(ctx.source.familyBody)
+      const accessibility = readAuthoredGrammarAccessibility(ctx.meta.accessibility)
+      Object.assign(body, accessibilityFields(accessibility))
+      ctx.meta.accessibility = accessibility
       if (body.title === undefined && typeof ctx.source.frontmatter.title === 'string') body.title = ctx.source.frontmatter.title
       if (eventNonportableIdentifiers(body).length) return ok({ kind: 'opaque', family: 'eventmodeling', source: ctx.opaqueSource })
       // The envelope consumed native accessibility comments in their

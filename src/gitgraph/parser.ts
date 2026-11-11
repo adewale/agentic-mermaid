@@ -1,3 +1,4 @@
+import { LocatedParserError } from '../shared/syntax-error.ts'
 import { scanAccessibilityDirectives } from '../shared/accessibility-directives.ts'
 import { generatedIds } from '../shared/generated-identity.ts'
 import { observeParserMutation, observeParserStatement, parserObservationActive } from '../shared/parser-observation.ts'
@@ -5,12 +6,12 @@ import { joinQuotedTextLines, type QuotedTextRule, quotedTextEnds, stripTrailing
 import type { GitGraphBranch, GitGraphCommit, GitGraphCommitType, GitGraphDiagram, GitGraphDirection, GitGraphStatement } from './types.ts'
 import { gitGraphCommitLabel } from './types.ts'
 
-export class GitGraphParseError extends Error {
+export class GitGraphParseError extends LocatedParserError {
   constructor(
     message: string,
-    readonly line?: number,
+    line?: number,
   ) {
-    super(message)
+    super(message, { line, diagramType: 'gitgraph' })
     this.name = 'GitGraphParseError'
   }
 }
@@ -105,7 +106,7 @@ export function parseGitGraph(source: string, options: GitGraphParseOptions = {}
       ...(customId && id !== attrs.id ? { sourceId: attrs.id } : {}),
       ...(attrs.msg ? { message: attrs.msg } : {}),
       type,
-      tags: attrs.tags,
+      tags: attrs.tags.filter(tag => tag !== ''),
       branch: currentBranch,
       parents: parents ?? (branch.head ? [branch.head] : []),
       sequence: sequence++,
@@ -335,7 +336,11 @@ export function serializeGitGraph(diagram: GitGraphDiagram): string {
       else if (statement.kind === 'merge') lines.push(`  merge ${quoteToken(statement.branch)}${commitAttrs(commit, false)}`)
       else {
         const tags = commit.tags.filter(tag => tag !== commit.syntheticCherryTag)
-        lines.push(`  cherry-pick id:${quote(commits.get(commit.cherrySource ?? statement.source)?.sourceId ?? commit.cherrySource ?? statement.source)}${statement.parent ? ` parent:${quote(commits.get(statement.parent)?.sourceId ?? statement.parent)}` : ''}${tags.map(tag => ` tag:${quote(tag)}`).join('')}`)
+        // An absent tag requests a synthetic cherry-pick label; an authored
+        // empty tag suppresses it. Keep that distinction without painting an
+        // empty tag, including after set_commit_tags clears the list.
+        const writtenTags = tags.length === 0 && !commit.syntheticCherryTag ? [''] : tags
+        lines.push(`  cherry-pick id:${quote(commits.get(commit.cherrySource ?? statement.source)?.sourceId ?? commit.cherrySource ?? statement.source)}${statement.parent ? ` parent:${quote(commits.get(statement.parent)?.sourceId ?? statement.parent)}` : ''}${writtenTags.map(tag => ` tag:${quote(tag)}`).join('')}`)
       }
     }
   }

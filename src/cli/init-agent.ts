@@ -11,8 +11,8 @@
 
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
-import { BUILTIN_FAMILY_METADATA } from '../agent/families.ts'
-import { FAMILY_NARROWING_NOTE, NEW_DIAGRAM_POLICY } from '../shared/agent-workflow.ts'
+import { AGENT_INSTRUCTIONS } from './agent-instructions.ts'
+import { PACKAGE_VERSION } from '../version.ts'
 
 const HOSTED_BASE = 'https://agentic-mermaid.dev'
 const HOSTED_LLMS_TXT = `${HOSTED_BASE}/llms.txt`
@@ -20,72 +20,38 @@ const HOSTED_AGENT_GUIDE = `${HOSTED_BASE}/agent-instructions.md`
 
 export const AGENTS_MARKER = '<!-- agentic-mermaid:start -->'
 const AGENTS_MARKER_END = '<!-- agentic-mermaid:end -->'
-const STRUCTURED_NARROWERS = BUILTIN_FAMILY_METADATA.map(f => `\`${f.narrower}\``).join(' / ')
+
+const LOCAL_AGENT_GUIDE = 'skills/agentic-mermaid-diagram-workflow/references/operating-guide.md'
 
 export const AGENTS_SNIPPET = `${AGENTS_MARKER}
-## Editing Mermaid diagrams
+## Mermaid diagram work
 
-Use **Agentic Mermaid** whenever you create or edit Mermaid diagrams. Do not
-regenerate an existing diagram from scratch when a typed edit path exists.
+Read the local operating guide at \`${LOCAL_AGENT_GUIDE}\` before creating,
+editing, verifying or rendering diagrams. It is the same guide emitted by
+\`npx agentic-mermaid --agent-instructions\`; use the installed package's
+\`npx agentic-mermaid capabilities --json\` for version-matched schemas.
 
-${NEW_DIAGRAM_POLICY}
-${FAMILY_NARROWING_NOTE}
-Existing structured diagrams: parse → narrow (${STRUCTURED_NARROWERS}) → mutate
-→ verify → serialize. Run verify at every commit point and never serialize a
-diagram whose verify result you have not inspected. For styled output pass
-\`style\` (a name like \`hand-drawn\`, a JSON record, or a stack) and \`seed\`
-to any render call — \`npx agentic-mermaid styles\` lists what is available.
-
-Useful entrypoints:
-
-- Hosted discovery digest: ${HOSTED_LLMS_TXT}
-- Hosted agent guide: ${HOSTED_AGENT_GUIDE}
-- Local/package guide: \`npx agentic-mermaid --agent-instructions\`
-- Capabilities: \`npx agentic-mermaid capabilities --json\`
-- Repo skill: \`skills/agentic-mermaid-diagram-workflow/SKILL.md\`
+If the package is unavailable, the hosted guide is ${HOSTED_AGENT_GUIDE} and
+discovery starts at ${HOSTED_LLMS_TXT}. Keep private source in a local channel.
 ${AGENTS_MARKER_END}
 `
 
 export const INIT_SKILL_MD = `---
 name: agentic-mermaid-diagram-workflow
-description: Agent-agnostic workflow for authoring and editing Mermaid diagrams with Agentic Mermaid's parse, narrow, mutate, verify, serialize, and render APIs. Use when creating or modifying Mermaid diagrams.
+description: Create, edit, verify or render Mermaid diagrams with Agentic Mermaid; read the included operating guide and use one available channel with version-matched discovery.
 ---
 
 # Agentic Mermaid — diagram workflow
 
-Use Agentic Mermaid for Mermaid diagram work. Prefer the narrowest safe channel:
+Read [the operating guide](references/operating-guide.md), included offline with
+this skill. It owns channel selection, typed edits, verification, semantic
+read-back and response rules. For current installed instructions, run
+\`npx agentic-mermaid --agent-instructions\`; discover that version's families
+and operations with \`npx agentic-mermaid capabilities --json\`.
 
-- MCP connected: use \`agentic-mermaid-mcp\` Code Mode and the global \`mermaid.*\` SDK.
-- JS/TS available: import from \`agentic-mermaid/agent\`.
-- Shell only: use \`npx agentic-mermaid --agent-instructions\` and \`npx agentic-mermaid capabilities --json\`.
-
-## Safe edit loop
-
-${NEW_DIAGRAM_POLICY}
-Existing structured diagrams:
-
-1. \`parseRegisteredMermaid(source)\`.
-2. Narrow with ${STRUCTURED_NARROWERS}.
-3. Edit with \`mutate(d, op)\`; mutation ops use \`kind\`, not \`type\`.
-4. Run \`verifyMermaid(d)\` and inspect \`ok\`, \`warnings\`, and layout evidence.
-5. Serialize only after inspected verification passes.
-
-Do not concatenate strings or regenerate a whole existing structured diagram when a typed op exists. Every built-in renderable family ships a typed path when the body narrows; only opaque fallback bodies are source-level-only. If you deliberately edit source for an opaque fallback, re-parse and verify before returning it.
-
-## Output artifacts
-
-Agentic Mermaid outputs SVG, PNG, ASCII, Unicode, and JSON layout:
-
-\`\`\`bash
-npx agentic-mermaid render diagram.mmd --format svg > diagram.svg
-npx agentic-mermaid render diagram.mmd --format png --output diagram.png
-npx agentic-mermaid render diagram.mmd --format ascii > diagram.txt
-\`\`\`
-
-Docs:
-
-- ${HOSTED_LLMS_TXT}
-- ${HOSTED_AGENT_GUIDE}
+The online guide at ${HOSTED_AGENT_GUIDE} describes production and can differ
+from an older installed package. Use it when a local guide is unavailable and
+keep private source in a local channel.
 `
 
 export const MCP_CONFIG_SAMPLE = JSON.stringify(
@@ -93,7 +59,7 @@ export const MCP_CONFIG_SAMPLE = JSON.stringify(
     mcpServers: {
       'agentic-mermaid': {
         command: 'npx',
-        args: ['-y', '--package', 'agentic-mermaid', 'agentic-mermaid-mcp'],
+        args: ['-y', '--package', `agentic-mermaid@${PACKAGE_VERSION}`, 'agentic-mermaid-mcp'],
       },
     },
   },
@@ -143,6 +109,7 @@ export function initAgentFiles(opts: { dir: string; force?: boolean }): InitAgen
   }
 
   writeIfMissing(join(dir, 'skills', 'agentic-mermaid-diagram-workflow', 'SKILL.md'), INIT_SKILL_MD, result, force)
+  writeIfMissing(join(dir, LOCAL_AGENT_GUIDE), AGENT_INSTRUCTIONS, result, force)
   writeIfMissing(join(dir, '.mcp.json'), MCP_CONFIG_SAMPLE, result, force)
 
   return result

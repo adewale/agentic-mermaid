@@ -206,9 +206,7 @@ export function executeTerminalRender(
   // RenderOptions projection enters the shared waist; this keeps validation
   // strict without misclassifying terminal-only fields as unknown options.
   const sharedOptions = sharedRenderOptionsOf(options)
-  const request = resolveRenderRequestForExecution(text, sharedOptions, outputKind, outputPolicy, {
-    expectedFamilyId: preparedInput.expectedFamilyId,
-  })
+  const request = resolveRenderRequestForExecution(text, sharedOptions, outputKind, outputPolicy, preparedInput.resolutionOptions)
   emitResolvedConfigDiagnostics(request)
   const executionPlan = resolvedRenderExecutionPlanOf(request)
   const family = executionPlan.family

@@ -15,6 +15,15 @@ const ALL_KINDS: BuiltinFamilyId[] = BUILTIN_FAMILY_METADATA.map(f => f.id)
 // What verify says about the blank diagram createMermaid returns. Mindmap
 // grammar requires a root, so its blank slate carries a placeholder root node.
 const BLANK_VERIFY = {
+  agentflow: 'EMPTY_DIAGRAM',
+  usecase: 'EMPTY_DIAGRAM',
+  wardley: 'EMPTY_DIAGRAM',
+  venn: 'EMPTY_DIAGRAM',
+  cynefin: 'EMPTY_DIAGRAM',
+  railroad: 'EMPTY_DIAGRAM',
+  swimlane: 'EMPTY_DIAGRAM',
+  treeview: 'EMPTY_DIAGRAM',
+
   packet: 'EMPTY_DIAGRAM',
   kanban: 'EMPTY_DIAGRAM',
   requirement: 'EMPTY_DIAGRAM',
@@ -137,6 +146,14 @@ describe('buildMermaid', () => {
   })
   test('every family can be authored from a blank slate', () => {
     const cases = Object.entries({
+      agentflow: [{ kind: 'add_node', id: 'A', label: 'Plan' }, { kind: 'add_node', id: 'B', label: 'Search' }, { kind: 'add_edge', from: 'A', to: 'B' }],
+      usecase: [{ kind: 'add_actor', id: 'Customer', label: 'Customer' }, { kind: 'add_usecase', id: 'Checkout', label: 'Checkout' }, { kind: 'add_relationship', from: 'Customer', to: 'Checkout' }],
+      wardley: [{ kind: 'add_component', id: 'A', x: 30, y: 80 }, { kind: 'add_component', id: 'B', x: 80, y: 30 }, { kind: 'add_dependency', source: 'A', target: 'B' }],
+      venn: [{ kind: 'set_subset', sets: ['A'], size: 20, label: 'Alpha' }, { kind: 'set_subset', sets: ['B'], size: 12, label: 'Beta' }, { kind: 'set_subset', sets: ['A', 'B'], size: 3, label: 'Shared' }],
+      cynefin: [{ kind: 'add_item', domain: 'complex', label: 'Explore' }, { kind: 'add_item', domain: 'clear', label: 'Operate' }, { kind: 'add_transition', from: 'complex', to: 'clear', label: 'Learn' }],
+      railroad: [{ kind: 'add_rule', name: 'entry', definition: { type: 'nonterminal', name: 'item' } }, { kind: 'add_rule', name: 'item', definition: { type: 'terminal', value: 'start' } }],
+      swimlane: [{ kind: 'add_node', id: 'A', label: 'Receive' }, { kind: 'add_node', id: 'B', label: 'Dispatch' }, { kind: 'add_edge', from: 'A', to: 'B' }],
+      treeview: [{ kind: 'add_node', label: 'src', nodeType: 'directory' }, { kind: 'add_node', label: 'index.ts', parentId: 'treeview-0' }],
       flowchart: [
         { kind: 'add_node', id: 'A', label: 'A' },
         { kind: 'add_edge', from: 'A', to: 'B' },
@@ -230,6 +247,14 @@ describe('buildMermaid', () => {
     } satisfies Record<BuiltinFamilyId, object[]>) as Array<[BuiltinFamilyId, object[]]>
     // Authored facts are independent of the registry and the writer under test.
     const expectedContent = {
+      agentflow: ['A[Plan] --> B[Search]'],
+      usecase: ['Customer', 'Checkout', '-->'],
+      wardley: ['"A"', '"B"', '80.0', '30.0', '->'],
+      venn: ['Alpha', 'Beta', 'Shared'],
+      cynefin: ['complex', '"Explore"', 'clear', '"Operate"', '"Learn"'],
+      railroad: ['entry', 'nonterminal("item")', 'terminal("start")'],
+      swimlane: ['A[Receive] --> B[Dispatch]'],
+      treeview: ['src/', 'index.ts'],
       zenuml: ['A->B: hi'],
       eventmodeling: ['tf 01 ui CartUI'],
       flowchart: ['A --> B'],

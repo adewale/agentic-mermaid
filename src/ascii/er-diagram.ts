@@ -6,14 +6,13 @@ import { parseErDiagram } from '../er/parser.ts'
 import type { ErEntity, ErAttribute, Cardinality } from '../er/types.ts'
 import type { AsciiConfig, AsciiTheme, ColorMode } from './types.ts'
 import { TerminalDocument, type TerminalMarker, type TerminalOwner } from './terminal-document.ts'
-import { drawMultiBox } from './draw.ts'
 import { visualWidth } from './width.ts'
 import { wrapText } from './wrap.ts'
 import { displayText, normalizeBrTags } from '../multiline-utils.ts'
 import { checkAllClassLikeAuthoredStyles } from '../shared/style-props.ts'
 import { terminalIds } from './identity.ts'
 import { paintTerminalFrame } from './terminal-geometry.ts'
-import { allocateBoxRoutes, boxFaceSizes, classLikePaint, paintBoxRoute, paintBoxText, reverseBoxes, type BoxPort, type BoxRelation, type TerminalBox } from './class-like-layout.ts'
+import { allocateBoxRoutes, boxFaceSizes, paintClassLikeCard, paintBoxRoute, paintBoxText, reverseBoxes, type BoxPort, type BoxRelation, type TerminalBox } from './class-like-layout.ts'
 
 interface PlacedEntity extends TerminalBox { entity: ErEntity; sections: string[][] }
 const attributeText = (attr: ErAttribute) => `${attr.keys.length ? attr.keys.join(',') : '   '} ${attr.type} ${attr.name}${attr.comment ? ` # ${attr.comment}` : ''}`
@@ -165,17 +164,7 @@ export function renderErTerminal(text: string, config: AsciiConfig, colorMode?: 
   }
   for (const box of placed.values()) {
     const owner = doc.element({ id: box.id, kind: 'node', parent: box.entity.groupId === undefined ? undefined : { id: box.entity.groupId, kind: 'cluster' } })
-    doc.region(owner, { x: box.x, y: box.y, width: box.width, height: box.height }); doc.fill(box.x, box.y, box.width, box.height, { owner, kind: 'surface' })
-    const card = drawMultiBox(box.sections, config.useAscii, 1, { width: box.width, height: box.height })
-    const style = Object.assign({}, diagram.classDefs.get('default'), ...(box.entity.className ?? '').split(/\s+/).map(name => diagram.classDefs.get(name)), box.entity.inlineStyle)
-    const paint = classLikePaint(doc, 'er', box.id, style)
-    for (const [, , cell] of card.entries()) { const color = cell.kind === 'text' ? paint.text : paint.stroke; if (color) cell.color = color }
-    let y = 1
-    box.sections.forEach((section, index) => {
-      const bounds = { x: 1, y, width: box.width - 2, height: Math.max(1, section.length) }, compartment: TerminalOwner = { id: generated(`${box.id}:compartment:${index}`), kind: 'compartment', parent: { id: box.id, kind: 'node' } }
-      card.attributeWithin(compartment, bounds); card.region(compartment, bounds); y += bounds.height + 1
-    })
-    doc.scope(owner, () => doc.overlay(card, box.x, box.y))
+    paintClassLikeCard(doc, box, owner, 'er', config.useAscii, diagram.classDefs, box.entity, generated)
   }
   return finish(doc)
 }

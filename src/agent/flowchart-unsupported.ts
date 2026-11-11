@@ -1,7 +1,7 @@
 import type { LayoutWarning } from './types.ts'
 import { normalizeV11Shape } from '../flowchart-shapes.ts'
 import { emptyFlowchartGraph, flowchartStatementNotes, parseMermaid, splitFlowchartStatements, splitInlineHeaderStatements } from '../parser.ts'
-import { coalesceFlowchartLines, FLOWCHART_EDGE_ID_SOURCE, FLOWCHART_LINK_SOURCE, flowchartNodeIdLength, flowchartStatementSpans, flowchartStyleValueCanSerialize, matchTextArrow, scanFlowchart } from '../flowchart-lexer.ts'
+import { coalesceFlowchartLines, FLOWCHART_EDGE_ID_PREFIX_SOURCE, FLOWCHART_LINK_SOURCE, flowchartNodeIdLength, flowchartStatementSpans, flowchartStyleValueCanSerialize, matchTextArrow, scanFlowchart } from '../flowchart-lexer.ts'
 import { metadataText, readMetadataBlock } from '../shared/metadata-yaml.ts'
 import { parseAccessibilityDirective } from '../shared/accessibility-directives.ts'
 import { mermaidEntityPrepass } from '../shared/mermaid-entities.ts'
@@ -376,7 +376,7 @@ function isUnsupportedFlowchartInteraction(statement: string): boolean {
 
 function declaredEdgeIds(statements: FlowchartStatement[]): Set<string> {
   const ids = new Set<string>()
-  const pattern = new RegExp(String.raw`(?:^|\s)(${FLOWCHART_EDGE_ID_SOURCE})@\s*(?:${FLOWCHART_LINK_SOURCE}|--)`, 'gu')
+  const pattern = new RegExp(String.raw`(?:^|\s)${FLOWCHART_EDGE_ID_PREFIX_SOURCE}`, 'gu')
   for (const { text } of statements) {
     let match: RegExpExecArray | null
     while ((match = pattern.exec(text)) !== null) ids.add(match[1]!)

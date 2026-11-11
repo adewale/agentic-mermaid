@@ -450,13 +450,12 @@ security:'strict', embedFontImport:false.
   const timeoutDescription = options.hosted
     ? 'Optional CPU-time budget (default 5000ms, max 30000ms).'
     : 'Optional hard timeout (default 5000ms).'
-  const runtime = options.hosted ? 'an isolated sandbox' : 'a sandboxed node:vm context'
+  const runtime = options.hosted ? 'isolated' : 'node:vm'
   return {
     name: 'execute',
     title: 'Execute Mermaid SDK code',
-    description: `Run JavaScript in ${runtime}; return a value.
-No promises, async/await, dynamic import, or type annotations.
-${hostedNote}SDK:
+    description: `Sync ${runtime} JS; return a value. No imports/TS.
+${hostedNote}
 ${options.sdkDeclaration}`,
     inputSchema: {
       type: 'object',
@@ -502,7 +501,7 @@ Set output to "file" or "url" to write a managed artifact instead; artifact resp
 artifact directory with safe names, size limits, and TTL cleanup.
 Uses bundled resvg + Inter (DejaVu Sans fallback) for same-machine cross-runtime determinism where verified.
 ${budget}
-Agentic Mermaid outputs SVG, PNG, ASCII, Unicode, and JSON layout. For non-PNG output, use execute() with mermaid.renderMermaidSVG, mermaid.renderMermaidASCII (useAscii true for ASCII, false for Unicode), or verifyMermaid(...).layout — those are streaming text/data and don't need a dedicated tool.`,
+Agentic Mermaid outputs SVG, PNG, ASCII, Unicode, and JSON layout. For non-PNG output, use render_svg, render_ascii (useAscii true for ASCII, false for Unicode), or verify. Code Mode execute also exposes the corresponding mermaid.* SDK functions.`,
     inputSchema: mcpRenderToolInputSchema({
       ...pngProperties,
       ...(hosted ? {} : {

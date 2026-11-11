@@ -6,16 +6,12 @@ preserving the parts an operation does not own. For runnable examples, use the
 [Instructions_for_agents.md](Instructions_for_agents.md); contributors should
 read the [renderer architecture](https://github.com/adewale/agentic-mermaid/blob/main/docs/design/system/README.md).
 
-## The edit workflow
+## Operating guide and architecture
 
-For an existing diagram, parse it with `parseRegisteredMermaid`, narrow it with
-its `as*` helper, and apply the smallest supported `mutate` operation. Inspect
-`verifyMermaid`, then save `serializeMermaid` output. A new diagram can be
-written directly as Mermaid source before parsing and verification.
-
-A successful edit must also match the request. Verification does not check
-whether an agent changed the intended label, retained a requested value or
-picked the right diagram family; read back those details before returning.
+The [operating guide](Instructions_for_agents.md) owns the diagram workflow,
+verification boundaries and channel selection. This document describes the
+architecture and generated warning catalog; it does not maintain another set
+of agent instructions.
 
 ## (1) Deterministic layout
 
@@ -88,6 +84,7 @@ codes, and [quality](docs/quality.md) describes layout priorities and limits.
 | `DECISION_BRANCH_UNLABELED` | warning | A decision diamond has two or more exits and this branch carries no condition label. ISO 5807 (10.3.1.2) and ANSI X3.5 (4.10.2) require every exit of a multi-exit decision to be labeled with its condition value. |
 | `FLOW_IMBALANCE` | warning | A sankey intermediate node (one with both inflow and outflow) receives a different total than it emits. Conservation across stages is the domain's defining property — the ribbon widths are an account — and the layout silently renders `max(in, out)`, hiding the unaccounted quantity. Payload carries `node`, `inflow`, `outflow`, and a `message` naming the unaccounted amount. Balance the flows or add an explicit remainder link (e.g. a `Losses` sink). |
 | `COMMENT_DROPPED` | warning | A parsed payload carries a known comment-loss receipt, including payloads produced by older serializers. Current built-in serializers retain detected comments; Flowchart and State anchor them to statements, and other structured families append unassociated comments. The warning carries occurrence count and original line numbers. |
+| `VENN_APPROXIMATION` | warning | Venn circle overlap areas approximate authored intersection values when there are three or more sets, or when an intersection exceeds a containing set. The model and terminal output retain the exact values. |
 | `UNSUPPORTED_SYNTAX` | warning | The source uses Mermaid syntax that is preserved losslessly but not fully modeled by local structured mutation/render semantics (for example flowchart edge IDs, edge metadata, click/href directives, or markdown strings), or, with `syntax: "empty_layout"`, the source carries content but the local layout renders a 0x0 canvas with no nodes, edges, or groups. Payload includes `syntax`, optional `line`, and `message`. |
 | `CONTENT_DROPPED_ON_ROUNDTRIP` | warning | A parse → serialize → re-parse cycle states different semantic facts, so canonical serialization is silently dropping, adding or altering content even though the bytes may re-parse (payload carries the `lost`/`gained` facts and `before`/`after` `{nodes, edges, groups}` counts). The faithfulness analogue of `COMMENT_DROPPED` — "100% parse success is not faithfulness". Runs on every verify, for every family; opaque bodies (byte-verbatim) are exempt. |
 | `EVENT_SOURCE_TYPE` | warning | An explicit Event Modeling input connects frame types outside the domain source rules. The source and connection remain renderable; inspect node, source and message. |

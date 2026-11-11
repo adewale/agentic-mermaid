@@ -290,11 +290,11 @@ describe('quadrant structured parse', () => {
   // inside the quotes; a title runs to the end of its line, so its break is
   // written `<br/>`.
   test('serializes parser-normalized line breaks as one Mermaid statement', () => {
-    for (const source of [`quadrantChart
+    for (const [source, indent] of [[`quadrantChart
   title Reach<br/>map
   x-axis "Low<br/>reach" --> "High<br/>reach"
   quadrant-1 "Do<br/>first"
-  "Quick<br/>win": [0.2, 0.8]`, `quadrantChart
+  "Quick<br/>win": [0.2, 0.8]`, ''], [`quadrantChart
   title Reach<br/>map
   x-axis "Low
     reach" --> "High
@@ -302,25 +302,34 @@ describe('quadrant structured parse', () => {
   quadrant-1 "Do
     first"
   "Quick
-    win": [0.2, 0.8]`]) {
+    win": [0.2, 0.8]`, '    ']] as const) {
       const d = quadrant(source)
       expect(d.body).toMatchObject({
         title: 'Reach\nmap',
-        xAxis: { near: 'Low\nreach', far: 'High\nreach' },
-        quadrants: ['Do\nfirst', undefined, undefined, undefined],
-        points: [{ label: 'Quick\nwin', x: 0.2, y: 0.8 }],
+        xAxis: { near: `Low\n${indent}reach`, far: `High\n${indent}reach` },
+        quadrants: [`Do\n${indent}first`, undefined, undefined, undefined],
+        points: [{ label: `Quick\n${indent}win`, x: 0.2, y: 0.8 }],
       })
       const out = serializeMermaid(d)
       expect(out).toContain('title Reach<br/>map')
-      expect(out).toContain('x-axis "Low\nreach" --> "High\nreach"')
-      expect(out).toContain('quadrant-1 "Do\nfirst"')
-      expect(out).toContain('"Quick\nwin": [0.2, 0.8]')
+      expect(out).toContain(`x-axis "Low\n${indent}reach" --> "High\n${indent}reach"`)
+      expect(out).toContain(`quadrant-1 "Do\n${indent}first"`)
+      expect(out).toContain(`"Quick\n${indent}win": [0.2, 0.8]`)
       expect(quadrant(out).body).toEqual(d.body)
     }
   })
 })
 
 describe('quadrant differential vs legacy parseQuadrantChart', () => {
+  test('distinct physical label whitespace survives copied canonical source and source-map spans', () => {
+    const source = '---\ntitle: Positions\n---\nquadrantChart\n"A\n B": [0.2,0.3]\n"A\nB": [0.3,0.4]'
+    const d = quadrant(source)
+    expect(d.body.points.map(point => point.label)).toEqual(['A\n B', 'A\nB'])
+    expect(quadrant(d.canonicalSource).body.points).toEqual(d.body.points)
+    expect(d.source.labels.size).toBe(2)
+    const spans = [...d.source.spans!.labels.values()]
+    expect(spans.map(span => source.slice(span.start.offset, span.end.offset))).toEqual(['"A\n B"', '"A\nB"'])
+  })
   const samples = [
     SRC,
     'quadrantChart\n  title T\n  x-axis L --> R\n  A: [0.1, 0.9]',

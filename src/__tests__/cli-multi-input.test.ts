@@ -168,9 +168,9 @@ describe('#930 watch frame (the step every --watch change runs)', () => {
         authoredHeader: 'futureDiagram&#45;v99',
       },
       {
-        source: 'swimlane&#45;beta\n  preserved future payload',
+        source: 'flowchart&#45;elk\n  A --> B',
         code: 'UNSUPPORTED_FAMILY',
-        authoredHeader: 'swimlane&#45;beta',
+        authoredHeader: 'flowchart&#45;elk',
       },
     ]) {
       const file = tmp(fixture.source)

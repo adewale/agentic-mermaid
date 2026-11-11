@@ -114,8 +114,8 @@ const group = (id: string, label: string | undefined, members: string[]): string
 /** Independently project the structured agent body — never via a renderer parser. */
 function structuredBodyInventory(d: ParsedDiagram): SemanticInventory {
   const body = d.body
-  if (body.kind === 'flowchart' || body.kind === 'state') {
-    const graphBody = body.kind === 'flowchart' ? body.graph : stateBodyToGraph(body)
+  if (body.kind === 'flowchart' || body.kind === 'state' || body.kind === 'agentflow' || body.kind === 'swimlane') {
+    const graphBody = body.kind === 'state' ? stateBodyToGraph(body) : body.graph
     const groups: string[] = []
     const visit = (entries: typeof graphBody.subgraphs): void => {
       for (const sg of entries) {
@@ -124,6 +124,19 @@ function structuredBodyInventory(d: ParsedDiagram): SemanticInventory {
       }
     }
     visit(graphBody.subgraphs)
+    if (body.kind === 'swimlane') {
+      const owned = new Set<string>(), groupIds = new Set<string>()
+      const collect = (entries: typeof graphBody.subgraphs): void => {
+        for (const entry of entries) { groupIds.add(entry.id); entry.nodeIds.forEach(id => owned.add(id)); collect(entry.children) }
+      }
+      collect(graphBody.subgraphs)
+      const loose = [...graphBody.nodes.keys()].filter(id => !owned.has(id) && !groupIds.has(id))
+      if (loose.length) {
+        let id = '__swimlane_default__'
+        while (graphBody.nodes.has(id) || groupIds.has(id)) id += '_'
+        groups.push(group(id, '', loose))
+      }
+    }
     return {
       nodes: sorted([...graphBody.nodes.values()].map(node => item(node.id, node.label))),
       edges: sorted(graphBody.edges.map(e => edge(e.source, e.target, e.label))),
@@ -131,6 +144,30 @@ function structuredBodyInventory(d: ParsedDiagram): SemanticInventory {
     }
   }
   switch (body.kind) {
+    case 'usecase':
+      return { nodes: sorted(body.nodes.map(node => item(node.id, node.label))), edges: sorted(body.relationships.map(relation => edge(relation.source, relation.target, relation.label))), groups: sorted(body.boundaries.map(boundary => group(boundary.id, boundary.label, boundary.members))) }
+    case 'wardley':
+      return { nodes: sorted(body.nodes.map(node => item(node.id, node.id))), edges: sorted(body.links.map(link => edge(link.source, link.target, link.label))), groups: sorted(body.pipelines.map(pipeline => group(`pipeline:${pipeline.nodeId}`, '', pipeline.componentIds))) }
+    case 'venn':
+      // These generators author separate named sets; rich intersection and
+      // region-text ownership have their independent citizenship fixture.
+      return { nodes: sorted(body.subsets.map(subset => {
+        if (subset.sets.length !== 1) throw new Error('Extend the independent intersection inventory for this fixture')
+        return item(subset.sets[0]!, subset.label ?? subset.sets[0])
+      })), edges: [], groups: [] }
+    case 'cynefin': {
+      const domains = ['complex', 'complicated', 'clear', 'chaotic', 'confusion']
+      return { nodes: sorted(body.domains.flatMap(domain => domain.items.map((entry, index) => item(`${domain.name}:${index}`, entry.label)))), edges: sorted(body.transitions.map(transition => edge(transition.from, transition.to, transition.label))), groups: sorted(domains.map(name => group(name, name.charAt(0).toUpperCase() + name.slice(1), (body.domains.find(domain => domain.name === name)?.items ?? []).map((_, index) => `${name}:${index}`)))) }
+    }
+    case 'railroad': {
+      const nodes = body.rules.map((rule, index) => {
+        if (rule.definition.type !== 'terminal') throw new Error('Extend the independent expression inventory for this fixture')
+        return item(`rule#${index}:${rule.name}/expression`, rule.definition.value)
+      })
+      return { nodes: sorted(nodes), edges: [], groups: sorted(body.rules.map((rule, index) => group(`rule#${index}:${rule.name}`, rule.name, [`rule#${index}:${rule.name}/expression`]))) }
+    }
+    case 'treeview':
+      return { nodes: sorted(body.nodes.map(node => item(node.id, node.label))), edges: sorted(body.nodes.flatMap(node => node.parentId ? [edge(node.parentId, node.id)] : [])), groups: [] }
     case 'eventmodeling': {
       // Independent domain projection: first-seen namespace/band membership,
       // explicit source references, otherwise latest frame in another lane.

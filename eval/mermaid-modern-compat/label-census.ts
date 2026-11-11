@@ -47,6 +47,52 @@ export function referenceLabels(family: string, reply: ReferenceReply): Referenc
       if (!reply.parserAst?.value) return undefined
       fields('parserAst.frames', rows(row(reply.parserAst.value).frames), 'entityIdentifier')
       break
+    case 'treeview':
+      list(row(db.getRoot).children).forEach((child, index) => { tree(`getRoot.children[${index}]`, child, 'name'); tree(`getRoot.children[${index}]`, child, 'description') })
+      break
+    case 'usecase':
+      for (const name of ['getActors', 'getUseCases', 'getSystemBoundaries', 'getNotes']) fields(name, pairs(db[name]), 'label', 'stereotype')
+      fields('getRelationships', rows(db.getRelationships), 'label')
+      fields('getJsonNodes', pairs(db.getJsonNodes), 'id')
+      if (!Array.isArray(db.getActors)) return undefined
+      break
+    case 'wardley': {
+      const data = row(db.getWardleyData)
+      fields('getWardleyData.nodes', rows(data.nodes), 'label')
+      fields('getWardleyData.links', rows(data.links), 'label')
+      fields('getWardleyData.notes', rows(data.notes), 'text')
+      fields('getWardleyData.annotations', rows(data.annotations), 'text')
+      fields('getWardleyData.accelerators', rows(data.accelerators), 'name')
+      fields('getWardleyData.deaccelerators', rows(data.deaccelerators), 'name')
+      if (!Array.isArray(data.nodes)) return undefined
+      break
+    }
+    case 'cynefin':
+      pairs(db.getDomains).forEach((domain, index) => fields(`getDomains[${index}].items`, rows(domain.items), 'label'))
+      fields('getTransitions', rows(db.getTransitions), 'label')
+      if (!Array.isArray(db.getDomains)) return undefined
+      break
+    case 'venn':
+      fields('getSubsetData', rows(db.getSubsetData), 'label')
+      fields('getTextData', rows(db.getTextData), 'label')
+      if (!Array.isArray(db.getSubsetData)) return undefined
+      break
+    case 'railroad': {
+      const expression = (path: string, value: unknown): void => {
+        const node = row(value)
+        if (node.type === 'terminal') add(`${path}.value`, node.value)
+        else if (node.type === 'nonterminal') add(`${path}.name`, node.name)
+        else if (node.type === 'special') add(`${path}.text`, node.text)
+        else if (node.type === 'sequence' || node.type === 'choice') list(node.elements ?? node.alternatives).forEach((child, index) => expression(`${path}[${index}]`, child))
+        else if (node.element) expression(`${path}.element`, node.element)
+        if (node.separator) expression(`${path}.separator`, node.separator)
+      }
+      rows(db.getRules).forEach((rule, index) => { add(`getRules[${index}].name`, rule.name); expression(`getRules[${index}].definition`, rule.definition) })
+      if (!Array.isArray(db.getRules)) return undefined
+      break
+    }
+    case 'swimlane':
+    case 'agentflow':
     case 'flowchart':
     case 'state':
     case 'class':

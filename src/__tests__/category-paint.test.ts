@@ -22,6 +22,14 @@ type ColorPolicy = { readonly mark: (node: ColorMark) => boolean; readonly expla
 // cardinalities and sequence participants are identified by geometry and text.
 // These policies specify which marks actually use hue to identify peers.
 const CATEGORY_COLORS: Record<DiagramKind, ColorPolicy> = {
+  agentflow: { explanation: 'task roles use explicit shapes and names; connectors and flow membership retain authored identities' },
+  usecase: { explanation: 'actors, use cases and UML relationships use shape, label and marker geometry' },
+  wardley: { explanation: 'components use coordinates and names; anchors, pipelines and strategies use explicit geometry and labels' },
+  venn: { explanation: 'sets use named circles, overlap geometry and numeric values; source styles are authored' },
+  cynefin: { explanation: 'domains use headings and position; items and transitions use explicit labels' },
+  railroad: { explanation: 'grammar choices, repetitions and terminals use rail geometry and literal text' },
+  swimlane: { explanation: 'responsibility uses named lanes and membership; cross-lane work uses explicit connectivity' },
+  treeview: { explanation: 'hierarchy uses indentation and guides; file kinds, icons and highlighting remain explicit' },
   zenuml: { explanation: 'Participants and lexical control scopes use geometry and labels for identity.' },
   eventmodeling: { explanation: 'Frame type and namespace are identified by text and lane membership.' },
   pie: { mark: n => n.role === 'pie-slice' || n.role === 'legend', explanation: 'slice fills and keyed legend swatches' },

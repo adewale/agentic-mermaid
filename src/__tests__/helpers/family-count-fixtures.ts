@@ -7,6 +7,7 @@
 // structural-count.test.ts and the metamorphic citizenship test consume it, so
 // a change to the counter's projection is asserted in exactly one place.
 
+import { FAMILY_CONFORMANCE_PROFILES } from './family-conformance-profiles.ts'
 import type { StructuralCount } from '../../agent/structural-count.ts'
 import type { DiagramKind } from '../../agent/types.ts'
 
@@ -17,6 +18,15 @@ export interface FamilyCountFixture {
 }
 
 export const FAMILY_COUNT_FIXTURES: FamilyCountFixture[] = [
+  { family: 'agentflow', source: FAMILY_CONFORMANCE_PROFILES.agentflow.citizenship.source, count: FAMILY_CONFORMANCE_PROFILES.agentflow.citizenship.count },
+  { family: 'usecase', source: FAMILY_CONFORMANCE_PROFILES.usecase.citizenship.source, count: FAMILY_CONFORMANCE_PROFILES.usecase.citizenship.count },
+  { family: 'wardley', source: FAMILY_CONFORMANCE_PROFILES.wardley.citizenship.source, count: FAMILY_CONFORMANCE_PROFILES.wardley.citizenship.count },
+  { family: 'venn', source: FAMILY_CONFORMANCE_PROFILES.venn.citizenship.source, count: FAMILY_CONFORMANCE_PROFILES.venn.citizenship.count },
+  { family: 'cynefin', source: FAMILY_CONFORMANCE_PROFILES.cynefin.citizenship.source, count: FAMILY_CONFORMANCE_PROFILES.cynefin.citizenship.count },
+  { family: 'railroad', source: FAMILY_CONFORMANCE_PROFILES.railroad.citizenship.source, count: FAMILY_CONFORMANCE_PROFILES.railroad.citizenship.count },
+  { family: 'swimlane', source: FAMILY_CONFORMANCE_PROFILES.swimlane.citizenship.source, count: FAMILY_CONFORMANCE_PROFILES.swimlane.citizenship.count },
+  { family: 'treeview', source: FAMILY_CONFORMANCE_PROFILES.treeview.citizenship.source, count: FAMILY_CONFORMANCE_PROFILES.treeview.citizenship.count },
+
   { family: 'zenuml', source: 'zenuml\nA->B: request\nB->A: reply', count: { nodes: 2, edges: 2, groups: 0 } },
   { family: 'eventmodeling', source: 'eventmodeling\ntf 01 ui CartUI\ntf 02 cmd AddItem\ntf 03 evt ItemAdded', count: { nodes: 3, edges: 2, groups: 3 } },
   { family: 'packet', source: 'packet\n+16: "Port"\n+48: "Payload"', count: { nodes: 2, edges: 0, groups: 0 } },

@@ -2,7 +2,7 @@
 
 `agentic-mermaid-mcp` defaults to stdio for local MCP clients. Use HTTP/SSE only when a client needs a reachable endpoint or when PNG artifacts should be fetched by file/URL instead of returned as large base64 strings.
 
-> Looking for a zero-setup endpoint? A **hosted** MCP already runs at `https://agentic-mermaid.dev/mcp` (`claude mcp add --transport http agentic-mermaid https://agentic-mermaid.dev/mcp`). It is a different implementation — stateless Streamable HTTP, Cloudflare-backed, inputs capped at 64KB, and no file/URL PNG artifacts (base64 only) — with the tools <!-- BEGIN GENERATED: hosted-mcp-tools -->`execute`, `describe_sdk`, `render_svg`, `render_ascii`, `render_png`, `verify`, `describe`, `mutate`, and `build`<!-- END GENERATED: hosted-mcp-tools -->. See the [as-built record](./project/archive/hosted-mcp-cloudflare-plan.md). Run the local server below when you need file/URL artifacts, larger inputs, offline use, or your own auth.
+> Looking for a zero-setup endpoint? A **hosted** MCP already runs at `https://agentic-mermaid.dev/mcp` (`claude mcp add --transport http agentic-mermaid https://agentic-mermaid.dev/mcp`). It is a different implementation — stateless Streamable HTTP, Cloudflare-backed, inputs capped at 64KB, and no file/URL PNG artifacts (base64 only) — with the tools <!-- BEGIN GENERATED: hosted-mcp-tools -->`execute`, `describe_sdk`, `render_svg`, `render_ascii`, `render_png`, `verify`, `describe`, `mutate`, and `build`<!-- END GENERATED: hosted-mcp-tools -->. See the [as-built record](https://github.com/adewale/agentic-mermaid/blob/f2b3fd0ab50af0841175681f87a0b40090b9c9f5/docs/project/archive/hosted-mcp-cloudflare-plan.md). Run the local server below when you need file/URL artifacts, larger inputs, offline use, or your own auth.
 >
 > **Protocol versions.** The hosted endpoint is dual-era: it accepts <!-- BEGIN GENERATED: hosted-protocol-versions -->`2025-03-26`, `2025-06-18`, `2025-11-25`, and `2026-07-28`<!-- END GENERATED: hosted-protocol-versions -->. Every revision before `2026-07-28` is handshake-based; `2026-07-28` is the stateless revision that replaces the `initialize` handshake with per-request `_meta` and a mandatory `server/discover`. Clients need do nothing special — send whatever revision you speak in `MCP-Protocol-Version`, and an unsupported one comes back as `-32022` listing the versions we accept. The hosted endpoint does not accept `2024-11-05`: that revision is the HTTP+SSE *transport* (opening with `GET` and expecting an `endpoint` event), and a client using it receives 405. The local server below accepts <!-- BEGIN GENERATED: stdio-protocol-versions -->`2024-11-05`, `2025-06-18`, `2025-11-25`, and `2026-07-28`<!-- END GENERATED: stdio-protocol-versions --> over stdio and <!-- BEGIN GENERATED: http-sse-protocol-versions -->`2024-11-05`<!-- END GENERATED: http-sse-protocol-versions --> over its HTTP+SSE transport.
 >
@@ -47,6 +47,51 @@ HTTP endpoints:
 | `GET /artifacts/<name>` | Fetch managed artifacts returned by `render_png` `output: "url"`. |
 
 `/rpc` and `/message` require `content-type: application/json`; browser-simple `text/plain` form posts are rejected. Non-loopback hosts require `Authorization: Bearer <token>` on `/rpc`, `/sse`, `/message`, and `/artifacts/*`, and the same Origin check covers those routes. SSE sessions are capped (32 by default); an exhausted server returns `503` instead of retaining another session.
+
+## Direct rendering and verification
+
+The local stdio and HTTP servers expose `render_svg`, `render_ascii`, and
+`verify`, with the same input schemas and payloads as the hosted tools. Local
+responses include both MCP `structuredContent` and an equivalent JSON text
+block. Use `render_ascii` with `useAscii: true` for ASCII, or omit it for Unicode.
+`verify` checks parsing, structure and graphical renderability.
+
+These three local tools share one warm render subprocess, with a 15-second
+wall-clock deadline per request, including queue and startup time. At most 32
+requests may wait, sharing a 16 MiB budget for serialized request payloads;
+further calls receive `RENDER_BUSY` when either limit is reached. The active
+request has its own 4 MiB message limit. Dequeueing, cancellation and expiration
+release queued capacity. Cancelling queued work
+leaves the active call intact. Cancelling or timing out active work retires its
+process immediately; replacement waits for process closure. Request IDs and
+receipt-time deadline checks reject late replies. Syntax errors return structured
+results and leave the worker usable; fatal worker/startup failures release the
+slot for a fresh process.
+
+The subprocess uses the server's current executable. Installed Node/Bun packages
+launch their built JavaScript supervisor and worker entries. The compiled Bun
+binary reexecutes itself with its embedded renderer; it needs no Node installation,
+source checkout or runtime bundling. An idle renderer stays warm and does not
+keep the server alive.
+
+A supervisor samples the whole render subprocess's resident memory (RSS),
+including its worker and native buffers, every 10 ms. It terminates the subprocess
+when a sample exceeds the 512 MiB budget. Sampling can be delayed by scheduling
+or serialization and can miss transient spikes; this is a best-effort budget,
+and usage can overshoot it. The parent server's memory is additional. Strict
+memory containment requires OS/container enforcement. Node also has a controlled
+V8 heap guard, checked before accepting work; inherited Node heap options cannot
+enlarge that guard. Bun uses the sampled RSS budget without a V8 heap guarantee.
+Memory-budget exits return `RENDER_MEMORY_LIMIT`. No sampled reading is reported
+as an actual peak.
+
+Process messages are bounded before transfer: requests to 4 MiB and results to
+16 MiB of JSON. Oversized requests/results return `RENDER_REQUEST_LIMIT` or
+`RENDER_OUTPUT_LIMIT`; diagrams retain the existing source/graph/Scene work
+limits. These transfer limits bound serialization work without making its
+execution time a fixed guarantee.
+The direct render helpers force strict output security and disable font imports.
+Local `execute` retains its existing sandbox and caller-selectable render policy.
 
 ## Direct JSON-RPC examples: `render_png`
 

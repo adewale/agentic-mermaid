@@ -76,3 +76,27 @@ for (const [source, cssValues, contexts, transformed] of [
     expect(() => transformSvgCssValues(source.replace('svg', 'SVG'), css => css, projection)).toThrow(/does not match/)
   })
 }
+
+// The lexical scanner accepts name characters; final admission additionally
+// enforces start characters and QName rules. Exercise both at their boundary.
+for (const [attributes, accepted] of [
+  ['_id="a" data-v2.part="b" stroke-width="1"', true],
+  ['xmlns:x="urn:example" x:item2="a"', true],
+  ['1id="a"', false],
+  ['.id="a"', false],
+  ['étiquette="a"', false],
+  ['xmlns:x="urn:example" x::item="a"', false],
+  ['data-v2.part="a" data-v2.part="b"', false],
+] as const) {
+  test(`XML name boundaries in final SVG admission: ${attributes}`, () => {
+    const source = `<svg xmlns="http://www.w3.org/2000/svg"><g ${attributes}/></svg>`
+    if (accepted) {
+      expect(applyOutputSecurityPolicy(source, 'strict').svg).toBe(source)
+      expect(scanSvgStartTags(source)[1]!.attributes.map(attribute => attribute.name)).toEqual(
+        attributes.split(' ').map(attribute => attribute.slice(0, attribute.indexOf('='))),
+      )
+    } else expect(() => applyOutputSecurityPolicy(source, 'strict')).toThrow(/envelope/)
+    // A failed name scan must not affect the next independent inspection.
+    expect(applyOutputSecurityPolicy('<svg xmlns="http://www.w3.org/2000/svg"><g id="ok"/></svg>').diagnostics).toEqual([])
+  })
+}

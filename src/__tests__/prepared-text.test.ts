@@ -18,7 +18,7 @@ import { validateSceneDoc } from '../scene/scene-validation.ts'
 import { measureRenderedText, renderedTextReady } from './helpers/rendered-text.ts'
 import { Resvg } from '@resvg/resvg-js'
 import { join } from 'node:path'
-import { createTextMeasurementExecution, withTextMeasurementExecution } from '../text-measurement-profile.ts'
+import { createTextMeasurementExecution, withTextMeasurementExecution, type ProfileTextMeasurementInput } from '../text-measurement-profile.ts'
 
 beforeAll(() => renderedTextReady())
 const typography = { fontSize: 18, fontWeight: 600 }
@@ -137,15 +137,15 @@ describe('prepared display text', () => {
     const source = 'antidisestablishmentarianism'
     const block = preparePixelText(source, { ...typography, transform: 'capitalize', maxWidth: 80 })
     expect(block.lines.length).toBeGreaterThan(1)
-    expect(block.lines.map(line => line.replace(/-$/, '')).join('')).toBe('Antidisestablishmentarianism')
-    expect(block.breaks.every(b => b.kind === 'hyphen')).toBe(true)
+    expect(block.lines.join('')).toBe('Antidisestablishmentarianism')
+    expect(block.breaks.every(b => b.kind === 'wrap')).toBe(true)
     expect(block.lineBlocks.every(line => line.width <= 80)).toBe(true)
   })
 
-  for (const source of ['漢字ひらがな漢字ひらがな', 'cafécafécafé', '👩🏽‍💻👨‍👩‍👧‍👦🇨🇳']) {
+  for (const source of ['rectangle', 'παραλληλόγραμμο', 'прямоугольник', '漢字ひらがな漢字ひらがな', 'cafécafécafé', '👩🏽‍💻👨‍👩‍👧‍👦🇨🇳']) {
     it(`wraps whole visible graphemes: ${source}`, () => {
       const block = preparePixelText(source, { ...typography, display: 'literal', maxWidth: 75 })
-      expect(block.lines.join('').replace(/-/g, '')).toBe(source)
+      expect(block.lines.join('')).toBe(source)
       const boundaries = new Set([0, ...Array.from(new Intl.Segmenter('en', { granularity: 'grapheme' }).segment(source), part => part.index + part.segment.length)])
       let offset = 0
       for (const line of block.lines) {
@@ -185,6 +185,47 @@ describe('prepared display text', () => {
     const block = preparePixelText('iii界', { ...typography, display: 'literal', monospace: true })
     expect(block.width).toBe(5 * 18 * 0.6)
     expect(block.unit).toBe('px')
+  })
+
+  it.each(["'Share Tech Mono', sans-serif", '"JetBrains Mono", monospace', 'monospace', 'ui-monospace'])('uses uniform tracked glyph allocations for explicit %s', fontFamily => {
+    const block = preparePixelText('IMI', { fontSize: 13.2, fontWeight: 400, fontFamily, letterSpacing: 2 })
+    expect(block.monospace).toBe(true)
+    expect(block.fontFamily).toBe(fontFamily)
+    expect(block.lineBlocks[0]!.fragments).toHaveLength(3)
+    for (const fragment of block.lineBlocks[0]!.fragments!) expect(fragment.width).toBeCloseTo(7.92, 10)
+    expect(block.width).toBeCloseTo(27.76, 10)
+    const svg = renderMultilineText(block, 0, 20, 13.2, 'font-size="13.2" letter-spacing="2"')
+    expect([...svg.matchAll(/textLength="([^"]+)"/g)].map(match => Number(match[1]))).toEqual([7.92, 7.92, 7.92])
+    const proportional = preparePixelText('IMI', { fontSize: 13.2, fontWeight: 400, fontFamily, letterSpacing: 2, monospace: false })
+    expect(proportional.monospace).toBe(false)
+    expect(proportional.lineBlocks[0]!.fragments![0]!.width).toBeLessThan(proportional.lineBlocks[0]!.fragments![1]!.width)
+  })
+
+  it.each(['Inter, monospace', 'Unknown Font, monospace', '"Unknown, monospace", monospace'])('keeps proportional and unknown primary font %s unchanged', fontFamily => {
+    const block = preparePixelText('IM', { fontSize: 13.2, fontWeight: 400, fontFamily, letterSpacing: 2 })
+    expect(block.monospace).toBe(false)
+    expect(block.lineBlocks[0]!.fragments![0]!.width).toBeLessThan(block.lineBlocks[0]!.fragments![1]!.width)
+  })
+
+  it('keeps known mono font family, weight and host profile advances at the tracked glyph boundary', () => {
+    const inputs: ProfileTextMeasurementInput[] = [], fontFamily = "'Share Tech Mono', monospace"
+    const execution = createTextMeasurementExecution({ id: 'test:known-mono-profile', version: '1.0.0', measure: input => {
+      inputs.push(input)
+      return [...input.text].reduce((sum, character) => sum + (character === 'I' ? 11 : 17), 0)
+    } }, 'Inter')
+    const options = { fontSize: 13.2, fontWeight: 400, fontFamily, letterSpacing: 2 }
+    const block = withTextMeasurementExecution(execution, () => preparePixelText('I<b>M</b>', options))
+    expect(block.monospace).toBe(true)
+    expect(block.lineBlocks[0]!.fragments!.map(fragment => fragment.width)).toEqual([11, 17])
+    expect(block.width).toBe(30)
+    expect(inputs.every(input => input.fontFamily === fontFamily && input.monospace)).toBe(true)
+    expect(inputs).toContainEqual({ text: 'I', fontFamily, fontSize: 13.2, fontWeight: 400, fontStyle: 'normal', monospace: true })
+    expect(inputs).toContainEqual({ text: 'M', fontFamily, fontSize: 13.2, fontWeight: 700, fontStyle: 'normal', monospace: true })
+    inputs.length = 0
+    const overridden = withTextMeasurementExecution(execution, () => preparePixelText('I<b>M</b>', { ...options, monospace: false }))
+    expect(overridden.width).toBe(30)
+    expect(inputs.every(input => input.fontFamily === fontFamily && !input.monospace)).toBe(true)
+    expect(inputs.length).toBeGreaterThan(0)
   })
 
   it('keeps a visible grapheme atomic across formatting boundaries', () => {
@@ -427,4 +468,44 @@ describe('prepared text at the graphical boundary', () => {
     expect(node.fontWeight).toBe(800)
     expect(node.letterSpacing).toBe(2)
   })
+})
+
+
+describe('discretionary Unicode breaks', () => {
+  it('keeps hints invisible without a break and measures the visible text', () => {
+    const source = 'ab\u00adcd\u200bef'
+    const block = preparePixelText(source, { fontSize: 14, fontWeight: 400 })
+    expect(block.prepared.source).toBe(source)
+    expect(block.lines).toEqual(['abcdef'])
+    expect(block.width).toBe(preparePixelText('abcdef', { fontSize: 14, fontWeight: 400 }).width)
+  })
+
+  it.each([
+    ['ab\u00adcd', 23, ['ab-', 'cd'], 'hyphen', '\u00ad'],
+    ['ab\u200bcd', 20, ['ab', 'cd'], 'wrap', '\u200b'],
+  ] as const)('uses the authored hint in %s without a line of its own', (source, maxWidth, lines, kind, replacedText) => {
+    const block = preparePixelText(source, { fontSize: 14, fontWeight: 400, maxWidth })
+    expect(block.lines).toEqual([...lines])
+    expect(block.breaks).toEqual([{ kind, sourceOffset: 3, replacedText }])
+    expect(block.lineBlocks.every(line => line.width <= maxWidth)).toBe(true)
+  })
+
+  it('retains formatted source positions and the style of a selected hyphen', () => {
+    const source = '<b>ab\u00adcd</b>'
+    const block = preparePixelText(source, { fontSize: 14, fontWeight: 400, maxWidth: 27 })
+    expect(block.lineBlocks.map(line => line.runs.map(run => run.text).join(''))).toEqual(['ab-', 'cd'])
+    expect(block.lineBlocks.flatMap(line => line.runs).every(run => run.bold)).toBe(true)
+    expect(block.lineBlocks[0]!.runs.at(-1)).toMatchObject({ text: '-', sourceStart: 5, sourceEnd: 6 })
+    expect(block.breaks).toEqual([{ kind: 'hyphen', sourceOffset: 6, replacedText: '\u00ad' }])
+    expect(block.prepared.source).toBe(source)
+  })
+})
+
+
+it('retains all visible cluster source spans when unused hints join equal-style runs', () => {
+  const source = '<b>ab\u00ad</b><b>cd</b>'
+  const block = preparePixelText(source, { fontSize: 14, fontWeight: 400 })
+  expect(block.lineBlocks[0]!.runs.map(run => run.text).join('')).toBe('abcd')
+  expect(block.lineBlocks[0]!.runs.flatMap(run => run.clusters ?? []).map(cluster => [cluster.text, cluster.sourceStart, cluster.sourceEnd]))
+    .toEqual([['a', 3, 4], ['b', 4, 5], ['c', 13, 14], ['d', 14, 15]])
 })

@@ -18,6 +18,17 @@ interface ExecutedCheck { family: string; operation: string; targetType?: string
 let active: { file: string; name: string; path: string[]; inputs: ParsedInput[]; checks: ExecutedCheck[]; missing: Set<string> } | undefined
 
 export class AdapterBoundary extends Error {}
+
+const svgMeasurementHost = typeof SVGElement === 'undefined' ? undefined : SVGElement.prototype
+const initialSvgBBox = svgMeasurementHost && Object.getOwnPropertyDescriptor(svgMeasurementHost, 'getBBox')
+
+/** Pinned renderer fixtures replace this host method. Restore the original
+ * descriptor between files; the model adapter never supplies SVG geometry. */
+export function restoreSvgBBoxHost(): void {
+  if (!svgMeasurementHost) return
+  if (initialSvgBBox) Object.defineProperty(svgMeasurementHost, 'getBBox', initialSvgBBox)
+  else if (!Reflect.deleteProperty(svgMeasurementHost, 'getBBox')) throw Error('Cannot restore the initial SVG getBBox host descriptor')
+}
 export function noteUnavailable(name: string): void { active?.missing.add(name) }
 export function unavailable(name: string): never {
   active?.missing.add(name)
@@ -75,9 +86,24 @@ export async function initializeReference(): Promise<void> {
       const diagram = family === 'zenuml' ? await zenReference.diagram(example) : await reference.mermaidAPI.getDiagramFromText(example)
       referenceDefinitions.set(family, diagram)
     } catch (error) { referenceDefinitions.set(family, error) }
+    if (family === 'railroad') for (const source of [
+      'railroad-ebnf-beta\nentry = "x";',
+      'railroad-abnf-beta\nentry = "x";',
+      'railroad-peg-beta\nentry <- "x";',
+    ]) {
+      const key = referenceKey(family, source)
+      try { referenceDefinitions.set(key, await reference.mermaidAPI.getDiagramFromText(source)) }
+      catch (error) { referenceDefinitions.set(key, error) }
+    }
   }
 }
 const referenceDefinitions = new Map<string, any>()
+
+/** A source family may have independently registered notation parsers. */
+function referenceKey(family: string, source = ''): string {
+  const notation = family === 'railroad' ? /^\s*railroad-(ebnf|abnf|peg)-beta\b/i.exec(source)?.[1]?.toLowerCase() : undefined
+  return notation ? `${family}:${notation}` : family
+}
 
 function taskPath(task: any): string[] {
   const names = [task.name]
@@ -117,13 +143,18 @@ class NativeDatabase {
   model: any
   events: ParserObservation[] = []
   source = ''
+  resetAfterParse = false
   constructor(readonly context: AdapterContext) {}
-  clear(): void { this.model = undefined; this.events = []; this.source = '' }
+  clear(): void {
+    this.resetAfterParse = Boolean(active?.inputs.some(input => input.family === this.context.family && input.accepted === true))
+    this.model = undefined; this.events = []; this.source = ''
+  }
   parse(source: string): void {
+    this.resetAfterParse = false
     const input = recordInput(this.context.family, source)
     this.source = source
     this.events = []
-    if (this.context.family === 'eventmodeling') this.model = undefined
+    if (['eventmodeling', 'usecase'].includes(this.context.family)) this.model = undefined
     const configured = this.context.configured(source)
     try {
       this.model = withParserObservation(this.context.family, event => this.events.push(event), () => parseNativeModel(this.context.family, configured))
@@ -143,6 +174,7 @@ class NativeDatabase {
       if (/^get[A-Z]|^showSequenceNumbers$/.test(key)) return (...args: any[]) => {
         const current = nativeGetters(target, key)
         if (typeof current !== 'function') return unavailable(`${this.context.family}.db.${key}`)
+        if (target.resetAfterParse) return unavailable(`${this.context.family}.db.clear result: the native API exposes parsed models, not a mutable database reset operation`)
         return current(...args)
       }
       const value = nativeGetters(target, key)
@@ -164,7 +196,7 @@ class AdapterContext {
     this.parser = { yy: this.singleton, parse(source: string) {
       if (referenceMode) {
         recordInput(family, source)
-        const definition = context.referenceDefinition()
+        const definition = context.referenceDefinition(source)
         const parser = definition.getParser()
         parser.yy = context.parser.yy
         if (parser.parser) parser.parser.yy = context.parser.yy
@@ -172,13 +204,13 @@ class AdapterContext {
       }
       // This pinned family exposes an asynchronous parser. Adapt completion,
       // never acceptance or error wording, around the actual synchronous native parse.
-      if (family === 'eventmodeling') return Promise.resolve().then(() => context.parser.yy.parse(source))
+      if (family === 'eventmodeling' || family === 'usecase') return Promise.resolve().then(() => context.parser.yy.parse(source))
       return context.parser.yy.parse(source)
     } }
     this.parser.parser = this.parser
   }
-  referenceDefinition(): any {
-    const definition = referenceDefinitions.get(this.family)
+  referenceDefinition(source?: string): any {
+    const definition = referenceDefinitions.get(referenceKey(this.family, source))
     if (!definition || definition instanceof Error) return unavailable(`${this.family}: pinned diagram bootstrap: ${definition?.message ?? 'unavailable'}`)
     return definition
   }
@@ -217,7 +249,7 @@ class AdapterContext {
         recordInput(context.family, source)
         return context.referenceDefinition().constructor.fromText(source)
       }
-      const db = new NativeDatabase(context)
+      const db = ['usecase', 'treeview', 'wardley', 'cynefin', 'venn', 'railroad'].includes(context.family) ? context.singleton : new NativeDatabase(context)
       db.parse(source)
       const renderer = { draw() {
         return unavailable('Mermaid renderer.draw: pixel geometry and renderer bookkeeping are outside the native model adapter')
@@ -239,7 +271,8 @@ class AdapterContext {
       return { default: publicApi, mermaidAPI: publicApi, ...publicApi }
     }
     if (/config\.js$|diagramAPI\.js$/.test(specifier)) return { ...api, default: api }
-    if (/Diagram\.js$/.test(specifier)) return { Diagram }
+    if (/\/Diagram\.js$/.test(specifier)) return { Diagram }
+    if (/(?:Diagram|diagram)\.js$/.test(specifier)) return { diagram: { parser: context.parser, db: context.singleton } }
     if (/diagram-orchestration/.test(specifier)) return { addDiagrams() {} }
     if (/logger/.test(specifier)) return { log: Object.fromEntries(['info', 'warn', 'error', 'debug', 'trace', 'fatal'].map(name => [name, () => {}])), setLogLevel() {} }
     if (context.family === 'eventmodeling' && /event-modeling-validator\.js$/.test(specifier)) {
@@ -300,9 +333,9 @@ class AdapterContext {
         return { $type: key }
       } })
     }
-    if (/\.jison$|[Pp]arser\.[jt]s$|\/parser\.[jt]s$/.test(specifier)) {
+    if (/\.jison$|[Pp]arser\.[jt]s$|\/parser\.[jt]s$|\.chevrotain\.[jt]s$/.test(specifier)) {
       // The modern parser modules return promises; Jison's parse is synchronous.
-      const parser = !referenceMode && !specifier.endsWith('.jison') && ['architecture', 'packet', 'pie', 'radar', 'gitgraph', 'treemap'].includes(this.family)
+      const parser = !referenceMode && !specifier.endsWith('.jison') && ['architecture', 'packet', 'pie', 'radar', 'gitgraph', 'treemap', 'treeview', 'wardley', 'cynefin'].includes(this.family)
         ? new Proxy(this.parser, { get(target, key) { return key === 'parse' ? async (source: string) => target.parse(source) : target[key] } })
         : this.parser
       return { default: parser, parser }
