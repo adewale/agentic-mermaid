@@ -18,6 +18,24 @@ import type { SceneNode } from '../scene/ir.ts'
 // the bytes. Families add only inert hooks.
 const runWriterChild = useTestChildren(20000)
 describe('typed Scene SVG writer', () => {
+  test.each([0, 1, 2, 7, 32, 128, 512])('Native XML admission retains the generic meter boundary at %s operations', allowance => {
+    const work = createNativeXmlWork(allowance), native = work.capture()
+    let operations = 0, exhausted = false
+    const generic = createSvgXmlCapture(count => {
+      if (exhausted || count > allowance - operations) { exhausted = true; return false }
+      operations += count
+      return true
+    })
+    const source = '<svg xmlns="http://www.w3.org/2000/svg"><rect width="2" height="3"/></svg>'
+    const node = {}
+    const actual = native.raw(source, node), reference = generic.raw(source, node)
+    // Reading actual output remains possible after budget exhaustion.
+    expect(native.read(actual, node)).toEqual(generic.read(reference, node))
+    expect(native.verify(actual)).toBe(generic.verify(reference))
+    expect(work.operations()).toBe(operations)
+    expect(work.exhausted()).toBe(exhausted)
+  })
+
   test.each([0, -0, 1e-20, 1e20, 999999.9999999999, 12345.123456789012, 1.2345678901255, -1.2345678901255])('Native scalar point writing retains whole SVG bytes for %s', coordinate => {
     const shape = marks.shape({ id: 'numeric', role: 'chrome', geometry: { kind: 'polyline', points: [{ x: coordinate, y: 0 }, { x: 3.456789012345678, y: 20 }] }, paint: { fill: 'none', stroke: '#111', strokeWidth: '1' } })
     const expected = writeShapeSvg(shape)

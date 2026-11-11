@@ -130,7 +130,9 @@ function createXmlCapture(work: (operations: number) => boolean, nativeCompositi
   const names = new Map<string, boolean>(), attributes = new Map<string, boolean>(), texts = new Map<string, boolean>()
   let exhausted = false
   const pay = (count: number): boolean => {
-    if (exhausted || !Number.isSafeInteger(count) || count < 0 || work(count) !== true) { exhausted = true; return false }
+    // The private Native meter already validates and admits this exact count.
+    // Foreign callbacks retain the capture's independent count admission.
+    if (exhausted || !nativeComposition && (!Number.isSafeInteger(count) || count < 0) || work(count) !== true) { exhausted = true; return false }
     return true
   }
   let capture: SvgXmlCapture
