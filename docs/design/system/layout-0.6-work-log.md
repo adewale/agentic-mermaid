@@ -2085,6 +2085,23 @@ and108–112KB JS heap; styled requests cost662 gzip B, one request and7–11KB
 heap. All20 compared full products exact;55 source/11 emitted owners pass.
 Group validation now consumes its final closed shell once and writes its own
 lexer source. Sequence128 both-backend proof passes; full retained12-case table
-is8P4U (Fan100/Chain300). All271 guards,69 ownership/resolved tests, canonical
+is8P4U (Fan100/Chain300). All271 affected tests (including69 ownership/resolved tests), canonical
 types/lint pass. New combined Trident/runtime requalification remains pending;
 conservative operation savings alone are no speedup claim.
+
+Runtime`e0cac4865c02a8633862e3e50008efca050b06f6`, manifest-only head
+`155599a859c8be58e77f64fc69abc39eb000c9db`: combined310returnedSVGs exact;
+68browserobservations closed. All33plain closures/heap shrink vs9109; median
+gzip−5316/−5319B, heap−111700/−111964B. Styled+1117/1118gzipB,+1request;
+Mainpayload gap+36344B remains. FocusedNative100 full159.30→154.61ms,
+SVG113.20→115.49ms; firstedit198.93ms/adverse,4.34soutlier retained.
+100mstarget misses. Separate10render profile maps dominantcopy/metric work;
+genericgroups only2.9ms/render, so insufficientgroup-onlytrial withdrawn.
+All3CIunit/browserrender lanes pass, but ZenUMLLooks throws Styles-not-loaded;
+async-only facade scoping repair active. Evidence pushed`0a148ba1b895e10678bd6a3c403e1980ef2b5292`.
+
+StandaloneZen style deferral is now scoped out: existing emitted owner1P2F→3P
+(fullLooks/roles, queue recovery, upstreampalettes). Async10observations/20whole
+products exact; browser0open, requests unchanged. Gzip−1…+12B/Brotli−29…+66B
+and mixedheap retained; outputbytes differ, no byteidentityclaim. Canonicaltypes,
+6manifestowners andscopedlint pass; actualZen inventory16chunks.

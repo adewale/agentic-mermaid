@@ -4,8 +4,22 @@ import { compactBrowserModulesPlugin } from './scripts/build/compact-browser-mod
 import { createRequire } from 'node:module'
 import { dirname, resolve } from 'node:path'
 import { readFile } from 'node:fs/promises'
+import type { Plugin } from 'esbuild'
 
 const require = createRequire(import.meta.url)
+
+// Only the async renderer retries style acquisition. The isolated ZenUML
+// entry must complete its synchronous request admission before queueing work.
+export const lazyBrowserStyles: Plugin = {
+  name: 'lazy-browser-styles',
+  setup(build) {
+    const styleRegistry = resolve(import.meta.dirname, 'src/scene/style-registry.ts')
+    const styleRuntime = resolve(import.meta.dirname, 'src/browser-lazy/style-runtime.ts')
+    build.onResolve({ filter: /\/style-registry\.ts$/ }, args =>
+      args.importer !== styleRuntime && args.kind !== 'dynamic-import' && resolve(args.resolveDir, args.path) === styleRegistry
+        ? { path: resolve(import.meta.dirname, 'src/browser-lazy/style-registry.ts') } : undefined)
+  },
+}
 
 // Framework-neutral ESM renderer. The entry contains source normalization and
 // the generated family catalog; family implementations and the shared SVG
@@ -29,14 +43,9 @@ export default defineConfig({
   external: [],
   // ELK, YAML and the HTML5 entity table load only when a diagram needs them.
   // Build-only facade twins preserve the synchronous source/Node APIs.
-  esbuildPlugins: [runtimeRenderContractPlugin({ schemaDocumentation: false, terminalAdapter: false, conformanceObservations: false, coalesceRuntimePrimitives: true, sourceOnlySceneAdmission: true, lazyLayoutOptimization: true }), {
+  esbuildPlugins: [runtimeRenderContractPlugin({ schemaDocumentation: false, terminalAdapter: false, conformanceObservations: false, coalesceRuntimePrimitives: true, sourceOnlySceneAdmission: true, lazyLayoutOptimization: true }), lazyBrowserStyles, {
     name: 'lazy-browser-dependencies',
     setup(build) {
-      const styleRegistry = resolve(import.meta.dirname, 'src/scene/style-registry.ts')
-      const styleRuntime = resolve(import.meta.dirname, 'src/browser-lazy/style-runtime.ts')
-      build.onResolve({ filter: /\/style-registry\.ts$/ }, args =>
-        args.importer !== styleRuntime && args.kind !== 'dynamic-import' && resolve(args.resolveDir, args.path) === styleRegistry
-          ? { path: resolve(import.meta.dirname, 'src/browser-lazy/style-registry.ts') } : undefined)
       // Every public render awaits this core together with its selected family.
       // Express that complete union in each private facade so shared core code
       // has one reachability set and can ship in fewer compressed chunks.
