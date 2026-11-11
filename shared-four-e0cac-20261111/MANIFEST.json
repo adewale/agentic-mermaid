@@ -1,0 +1,10 @@
+{
+  "head": "155599a859c8be58e77f64fc69abc39eb000c9db",
+  "runtime": "e0cac4865c02a8633862e3e50008efca050b06f6",
+  "control": "9109d4373035cc1c18f395ac0e19dfdbba9e73fc",
+  "parent": "ef09d1e7c9ba94b79d473fc1d2cf8d8760f02e4d",
+  "bytes": 15036886,
+  "sha256": "567d9b810c6e3614499fe177a77c3c9609932bbf92117e64eaf97bcf3f7eaf31",
+  "at": "2026-11-11T13:20:33.327801+00:00",
+  "all_goals_complete": false
+}
