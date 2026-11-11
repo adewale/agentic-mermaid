@@ -1,0 +1,21 @@
+{
+  "source": "07a51fc9e1c06902fdf851abc1b05b9aa838e531",
+  "files": {
+    "evidence.tar.gz": {
+      "bytes": 11862297,
+      "sha256": "71d4865475792f2022ed5c8dba87d030435bc7e6264f1ee344afdaba3d31c5fe"
+    },
+    "SOURCE-WIP.patch": {
+      "bytes": 7736,
+      "sha256": "5e8eaa408942784fbcbea8691e5e670e959b8e8f7ddc12c54948591858803019"
+    },
+    "campaign-state.json": {
+      "bytes": 118974,
+      "sha256": "d5653433bee6aefc12b796b039440868dfb213bf15fac8541bec04c153d8aa96"
+    },
+    "RESULT.md": {
+      "bytes": 3461,
+      "sha256": "9c89e715e6fd92be7826c1257fe6ba04531c42ddebaa2dfa4aa4e577c3642a03"
+    }
+  }
+}
