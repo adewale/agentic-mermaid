@@ -1,0 +1,63 @@
+{
+  "source": "51e6cfca63c8d70180b3cff293da8f9582f5153e",
+  "parent": "285427d6186453066e11245c1a9a2d4516e0e22b",
+  "archive": "fan-qualification.tar.gz",
+  "bytes": 9790114,
+  "sha256": "e8c949103cce3e5bd252089e6f873efe8c34c5aca0cbf6a253dad90a74d84741",
+  "sourceFreeze": {
+    "base": "285427d6186453066e11245c1a9a2d4516e0e22b",
+    "root": "/dev/shm/pr449-four-final-20261111/large-proof-candidate",
+    "files": [
+      {
+        "path": "src/scene/native-paint-emission.ts",
+        "sha256": "67bd85d27abfd928aacf40eb5e969ef044c9fe3d666895dc48bd9315ad74a211",
+        "baseSha256": "83af2b69442f8facdf146dec80ee88b9d3f68880fd65837365b77998cc7a4296"
+      },
+      {
+        "path": "src/scene/paint-certification.ts",
+        "sha256": "67c4f6098a4984fef466f650bd475a22a20320217c5d256e66acd3b72de31f43",
+        "baseSha256": "57a6f34c43e03daa60ba7c58fb54180f62dea94e9a47a4014d582827395f8bfe"
+      },
+      {
+        "path": "src/__tests__/paint-certification.test.ts",
+        "sha256": "f523df9a45d009b53ec0769479997151e9c08e164bf43bfa09cc4b6f034a8d46",
+        "baseSha256": "5fd4290bdda17afe364c8f9424d839602f3fae7b35ff858c2718b37d18666cee"
+      }
+    ],
+    "runtimeFrozen": true,
+    "build": {
+      "dts": false,
+      "maps": false,
+      "entries": [
+        "index",
+        "agent-core",
+        "elk-constructor",
+        "builtin-font-metrics",
+        "builtin-font-metrics.node",
+        "layout-optimization",
+        "layout-optimization.node"
+      ],
+      "hashes": {
+        "dist/agent-core.js": "803fc54ba6f2a2b4793af08c870e1125e3689a631fe5a162598d3d9d7169187e",
+        "dist/builtin-font-metrics.js": "db50d184110cfaa682c301796ca239e77d48f848e06b59a8569415bfaf13ad84",
+        "dist/builtin-font-metrics.node.js": "6f3786b037e98b439ff8a48846aaa4e99df4f86a6e1a88b2e1d2f92976ff94b1",
+        "dist/chunk-AD2PJJ6E.js": "f327c49880524b093493e6eeaedf9ab500ced19d729fe40ed336245675ad7d9c",
+        "dist/chunk-BNQUBLJ7.js": "b8acffbe02c761db5a2a8669ff697bbba7f87746b3228ce9c02dbe4162f66594",
+        "dist/chunk-CIRBR444.js": "a263ac4144c23f4627dc547c7812a3e54337a8dc3ca0e6f3e596d5f05c90b1da",
+        "dist/chunk-GWU63PFI.js": "e75012e9ce2e038d2e4ddbae2d52640d300a7740cca42d771f5247178aca1d04",
+        "dist/elk-constructor.js": "c58e7fbf2eabac0066ee0faed6829bc86fd04daa3c6ee2f5906e5bc6977b5c93",
+        "dist/elk-constructor.node.js": "d10a7c739b2abce378d516f6d606767ce142667b5d322a86fc306f49c9b8448f",
+        "dist/index.js": "bd0370e160a57332b5eb145ee630bf85111420f61ba70438db81c1a4dfcaaa2d",
+        "dist/inter-metrics-kernel.cjs": "458adacd352474d2a2bfbc37a1d653f6bf0937b16afcf71fad9aedcf247e0b14",
+        "dist/layout-optimization.cjs": "ca508d15d4503f4ca91a8a80421ed8129cd2e31fff2379366e35072eacf002ce",
+        "dist/layout-optimization.js": "224c97b09b26c9d5eaa5ea4eb65f8b115d7b3e0073127afeec798b210a8e93fd",
+        "dist/layout-optimization.node.js": "870287e8bc1700b0fae0c3283cbd065729be40271e137763bc54efbb0054a952",
+        "dist/metafile-esm.json": "b380dd0b8f9c549ecb159ab506c878f0695408fc23f26c72632fce22d0da2783",
+        "dist/optional-kernels.node.js": "83eaa139c2a6642fd3dc39b68ba0e3d0d527b28c871b8bccb53a89207eabf27f"
+      }
+    }
+  },
+  "ciRun": 43113268695,
+  "ciStatus": "in_progress atcheckpoint",
+  "allGoalsComplete": false
+}
