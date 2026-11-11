@@ -1,0 +1,10 @@
+{
+  "at": "2026-11-11T16:06:41.544652+00:00",
+  "source": "30006080d71efd0eac1f6759449ad1333a048f92",
+  "parent": "b93ed2b9a9d0a2f17e60df9aa11244a5d6ad7a3b",
+  "bytes": 8807300,
+  "sha256": "5e2ca58684b4c1fcd4f41c899cf33a44be1ba51a4bca95c57685b52b9256facf",
+  "archive": "marker-qualification-and-costs.tar.gz",
+  "all_goals_complete": false,
+  "ci": 43052391765
+}
