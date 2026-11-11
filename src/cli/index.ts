@@ -1,4 +1,3 @@
-import { mermaidMarkdownBlocks } from './markdown.ts'
 import { RESOLVED_SCENE_CAPABILITY } from '../scene/resolved-types.ts'
 import { flagEnabled, flagValue, PNG_RENDER_FLAGS, type ParsedArgs, type ValueFlagName } from './args.ts'
 import { PNG_DEFAULT_SCALE } from '../output-policy-versions.ts'
@@ -1257,7 +1256,7 @@ export function renderMarkdownBlocks(md: string, format: 'svg' | 'ascii' = 'svg'
 /** Verify each block with the existing source/renderability contract. A line
  * without a precise source diagnostic is explicitly marked as the block start. */
 export function verifyMarkdownBlocks(markdown: string, options?: Parameters<typeof verifyMermaid>[1]) {
-  return mermaidMarkdownBlocks(markdown).map((block, index) => {
+  return extractMermaidFences(markdown).map(fence => ({ source: fence.source, startLine: fence.line + 1 })).map((block, index) => {
     const verified = verifyMermaid(block.source, options)
     const warnings = verified.warnings.map(warning => {
       const line = 'line' in warning && typeof warning.line === 'number' && Number.isSafeInteger(warning.line) && warning.line > 0 ? warning.line : undefined

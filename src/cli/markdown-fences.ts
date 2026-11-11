@@ -133,8 +133,14 @@ function fenceOpening(text: string): { char: string; length: number; info: strin
   return { char: run[0]!, length: run.length, info: info.trim() }
 }
 
-function htmlBlockEnd(text: string): RegExp | 'blank' | undefined {
+/** CommonMark type-7 HTML block start: one complete open or closing tag of any
+ * name (custom elements too) alone on its line. It cannot interrupt a
+ * paragraph. */
+const COMPLETE_HTML_TAG = /^(?:<[A-Za-z][A-Za-z\d-]*(?:\s+[A-Za-z_:][\w.:-]*(?:\s*=\s*(?:[^\s"'=<>`]+|'[^']*'|"[^"]*"))?)*\s*\/?>|<\/[A-Za-z][A-Za-z\d-]*\s*>)\s*$/
+
+function htmlBlockEnd(text: string, paragraph: boolean): RegExp | 'blank' | undefined {
   for (const [start, end] of HTML_BLOCK_STARTS) if (start.test(text)) return end
+  if (!paragraph && COMPLETE_HTML_TAG.test(text) && !/^<\/?(?:script|pre|style|textarea)\b/i.test(text)) return 'blank'
   return undefined
 }
 
@@ -145,7 +151,7 @@ function isLazyContinuation(c: Cursor): boolean {
   const ind = indentation(c)
   if (ind.columns >= 4) return true
   const text = c.text.slice(ind.next)
-  return !fenceOpening(text) && !THEMATIC_BREAK.test(text) && !ATX_HEADING.test(text) && !SETEXT_EQUALS.test(text) && htmlBlockEnd(text) === undefined
+  return !fenceOpening(text) && !THEMATIC_BREAK.test(text) && !ATX_HEADING.test(text) && !SETEXT_EQUALS.test(text) && htmlBlockEnd(text, true) === undefined
 }
 
 /** Every fenced code block whose info string's first word is `mermaid`, in
@@ -258,7 +264,7 @@ export function extractMermaidFences(markdown: string): MarkdownMermaidFence[] {
       paragraph = false
       continue
     }
-    const htmlEnd = htmlBlockEnd(text)
+    const htmlEnd = htmlBlockEnd(text, paragraph)
     if (htmlEnd !== undefined) {
       paragraph = false
       if (htmlEnd === 'blank' || !htmlEnd.test(text)) leaf = { kind: 'html', depth: stack.length, end: htmlEnd }
