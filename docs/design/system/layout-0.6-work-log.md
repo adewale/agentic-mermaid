@@ -2053,3 +2053,38 @@ errors, no delivery/proof-status changes;57 receipts differ only in paid operati
 Evidence:`rebase-20261110`. These are integration checks; runtime and browser
 payload numbers from ff18 remain historical. No speedup or replacement-readiness
 claim. Sparse32 remains the next known proof loss; automations stay off.
+
+### 11 November — shared producer reuse and C4 custody repair
+
+Through `9109d4373035cc1c18f395ac0e19dfdbba9e73fc`: close private original
+leaves without cloning; remove the numeric-spelling cache and reuse actual
+fixed numeric writes. Flow128/State128 both-backend proofs become passed within
+unchanged caps. Sparse32/Chain100 stay passed; six larger lanes remain unknown.
+Repair introduced C4 fresh/retained custody conflation without cloning callbacks;
+69 owners and37 styles pass. All3 CI unit shards and browser rendering pass;
+payload budgets/growth and advisory layout still fail (CI43012277627).
+
+Final emitted Trident against07a:116 portable and194 authored/Chromium SVG
+pairs exact;8/4 same errors, meaning/paint/quality unchanged. Browser66 fresh
+observations retain132 exact SVG/non-certification products. Native Chain100
+full-response warm201.26→146.88ms, p95201.20ms; first edit241.57→166.95ms.
+SVG pooled warm153.74→160.05ms remains adverse;100ms target unmet. ELK fan
+edit621.90→694.64ms and higher peakRSS remain adverse. All162 runtime pairs
+retain identical SVG/non-certification receipts; fan/300 proofs remain unknown.
+Browser gzip median+314/+317B vs07a;32/33 families shrink vs599 (median1679B),
+Agentflow grows5406/5411B; all33 exceed Main. No uniform speedup claim.
+
+Recovery evidence pushed:`ef09d1e7c9ba94b79d473fc1d2cf8d8760f02e4d`,
+`shared-four-final-9109-20261111/REPORT.md` and raw archive. ER256 already passed
+at599, so no new ER repair is claimed. Next: remove duplicated actual group
+validation for capture/XML exhaustion, then remaining fan checks and payload.
+
+Follow-up on `aff20e9b2f64d61fd71d0e2f804ee4180728ca69`: unstyled async browser
+requests defer canonical styles. Isolated actual closures save5725–5778 gzip B
+and108–112KB JS heap; styled requests cost662 gzip B, one request and7–11KB
+heap. All20 compared full products exact;55 source/11 emitted owners pass.
+Group validation now consumes its final closed shell once and writes its own
+lexer source. Sequence128 both-backend proof passes; full retained12-case table
+is8P4U (Fan100/Chain300). All271 guards,69 ownership/resolved tests, canonical
+types/lint pass. New combined Trident/runtime requalification remains pending;
+conservative operation savings alone are no speedup claim.

@@ -2612,6 +2612,48 @@ test.each(['shape', 'text'] as const)('aliased Scene %s occurrences cannot borro
   expect(drawing.proof.status).toBe('unverified')
 })
 
+const proofCapacityChain = (count: number, diagnostic = false, fanin = false): string => [
+  diagnostic ? 'flowchart TB' : 'flowchart LR',
+  ...Array.from({ length: count }, (_, index) => diagnostic ? `n${index}[Node ${index}]` : `N${index}[N${index}]`),
+  ...Array.from({ length: count - 1 }, (_, index) => diagnostic ? `n${index} --> n${fanin ? count - 1 : index + 1}` : `N${index} --> N${index + 1}`),
+].join('\n')
+const proofCapacityCases = [
+  { name: 'flowchart128', source: proofCapacityChain(128), labels: Array.from({ length: 128 }, (_, index) => `N${index}`) },
+  { name: 'sequence128', source: ['sequenceDiagram', 'participant A as Alpha', 'participant B as Beta', ...Array.from({ length: 128 }, (_, index) => `${index % 2 ? 'B-->>A' : 'A->>B'}: N${index}`)].join('\n'), labels: ['Alpha', 'Beta', ...Array.from({ length: 128 }, (_, index) => `N${index}`)] },
+  { name: 'state128', source: ['stateDiagram-v2', ...Array.from({ length: 127 }, (_, index) => `N${index} --> N${index + 1}`)].join('\n'), labels: Array.from({ length: 128 }, (_, index) => `N${index}`) },
+  { name: 'chain100', source: proofCapacityChain(100, true), labels: Array.from({ length: 100 }, (_, index) => `Node ${index}`) },
+]
+test.each(proofCapacityCases.flatMap(value => (['agentic', 'elk'] as const).map(backend => ({ ...value, backend }))))('public $backend $name repeated labels and markers complete proof within the original allowance', async ({ name, source, labels, backend }) => {
+  const child = await runTextReceiverChild(process.execPath, ['--eval', String.raw`
+const { readFileSync } = await import('node:fs')
+const { renderMermaidSVGWithReceipt } = await import('./src/index.ts')
+console.log(JSON.stringify(renderMermaidSVGWithReceipt(readFileSync(0, 'utf8'), { graphLayout: { backend: process.env.AM_PAINT_CAPACITY_BACKEND, fallback: 'none' } })))
+`], { cwd: fileURLToPath(new URL('../../', import.meta.url)), env: { ...process.env, AGENTIC_MERMAID_SCENE_ASSERTIONS: '0', AGENTIC_MERMAID_ELK_CACHE: '0', AM_PAINT_CAPACITY_BACKEND: backend }, input: source })
+  expect({ status: child.status, error: child.stderr }).toEqual({ status: 0, error: '' })
+  const result = JSON.parse(child.stdout) as ReturnType<typeof renderMermaidSVGWithReceipt>
+  const shown: string[] = [], carriers: string[][] = []
+  let text: string | undefined
+  const parser = new SaxesParser({ xmlns: true })
+  parser.on('opentag', tag => {
+    if (tag.local === 'text') text = ''
+    const from = tag.attributes['data-from'], to = tag.attributes['data-to']
+    if (from && to && ['line', 'polyline', 'path'].includes(tag.local)) {
+      carriers.push([from.value, to.value])
+      expect(tag.attributes['marker-end']?.value, `${backend} ${name} actual marker`).toMatch(/^url\(#.+\)$/)
+    }
+  })
+  parser.on('text', value => { if (text !== undefined) text += value })
+  parser.on('closetag', tag => { if (tag.local === 'text') { shown.push(text!); text = undefined } })
+  parser.write(result.svg).close()
+  for (const label of labels) expect(shown, `${backend} ${name} actual text`).toContain(label)
+  const authoredPairs = [...source.matchAll(/^(\w+)\s*(?:-->>|->>|-->)\s*(\w+)/gm)].map(match => [match[1]!, match[2]!])
+  expect(carriers, `${backend} ${name} actual endpoints`).toEqual(authoredPairs)
+  expect(result.receipt.layoutCertification, `${backend} ${name}`).toMatchObject({
+    status: 'passed', outputDigest: renderedSvgDigest(result.svg),
+    checks: { maxOperations: 400000, maxOcclusionPairs: 100000 }, issues: [],
+  })
+}, 30000)
+
 test.each(['agentic', 'elk'] as const)('public %s thick-arrow and borderless-state markers retain clipping and actual meaning', backend => {
   for (const source of ['flowchart LR\nA ==> B', 'stateDiagram-v2\nstate fork_state <<fork>>\n[*] --> fork_state\nfork_state --> State2\nfork_state --> State3\nstate join_state <<join>>\nState2 --> join_state\nState3 --> join_state\njoin_state --> State4\nState4 --> [*]']) {
     const result = renderMermaidSVGWithReceipt(source, { graphLayout: { backend, fallback: 'none' } })

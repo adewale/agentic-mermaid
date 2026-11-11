@@ -6,8 +6,8 @@ import * as marks from '../scene/marks.ts'
 import { canonicalizeSceneNodeSerialization, sceneNodeSerialization, sceneHasOnlyPreparedText, sceneNodeWrite, transferSceneNodeSerialization } from '../scene/serialization.ts'
 import { validateSceneDoc } from '../scene/scene-validation.ts'
 import { preparePixelText } from '../shared/prepared-text.ts'
-import { createSvgXmlCapture, createNativeXmlWork, writeShapeSvg, writeTextSvg, writeConnectorSvg, type SvgXmlWrite, type SvgXmlCapture } from '../scene/svg-writer.ts'
-import { captureNativeGroupParse } from '../scene/group-emission.ts'
+import { createSvgXmlCapture, createNativeXmlWork, writeNativeGroupOpening, writeShapeSvg, writeTextSvg, writeConnectorSvg, type SvgXmlWrite, type SvgXmlCapture } from '../scene/svg-writer.ts'
+import { bindNativeGroupEmission, captureNativeGroupParse } from '../scene/group-emission.ts'
 import { createNativePaintEmission } from '../scene/native-paint-emission.ts'
 import { verifySvgDocumentEnvelope } from '../output-security.ts'
 import { createNativeSceneValidator } from '../scene/scene-validation-core.ts'
@@ -72,7 +72,7 @@ console.log(JSON.stringify({ svg: drawing.svg, proof: certifyNativePaint(drawing
     expect(value.proof).toMatchObject({ status: 'unverified', coverage: { conditional: 1 }, issues: [expect.objectContaining({ code: 'CONDITIONAL_PAINT' })] })
   })
 
-  test('source-bound plain group facts cannot be forged through their discoverable constructor', () => {
+  test('source-bound plain group facts cannot be forged through their discoverable constructor', async () => {
     const parsed = captureNativeGroupParse({ id: 'actual', open: '<g>', close: '</g>', join: '\n' }, () => true)!
     const Constructor = Object.getPrototypeOf(parsed).constructor as new (...args: unknown[]) => unknown
     const open = '<g xmlns="urn:not-svg">'
@@ -83,6 +83,53 @@ console.log(JSON.stringify({ svg: drawing.svg, proof: certifyNativePaint(drawing
     const whole = capture.join([capture.raw('<svg xmlns="http://www.w3.org/2000/svg">'), group, capture.raw('</svg>')])
     expect(verifySvgDocumentEnvelope(whole.svg)).toBe(false)
     expect(capture.verify(whole)).toBe(false)
+
+    for (const mode of ['actual', 'invalid-utf16', 'raw-child'] as const) {
+      const work = createNativeXmlWork(400000), capture = work.capture()
+      const label = mode === 'invalid-utf16' ? '\ud800' : 'Read &amp; retained'
+      const shell = marks.group({ id: 'actual', role: 'group', open: `<g class="wrap" data-label="${label}">`, close: '</g>', children: [] }, work.pay)
+      Object.freeze(shell)
+      const parsed = bindNativeGroupEmission(shell, shell.open, work.pay)!
+      const opening = writeNativeGroupOpening(capture, shell, parsed)!
+      const view = capture.read(opening, shell)!
+      expect(Object.isFrozen(view)).toBe(true)
+      expect(Object.keys(view)).toEqual(['svg', 'node'])
+      expect(capture.read(opening, shell)).toBe(view)
+      expect(Reflect.set(view, 'svg', '<g xmlns="urn:not-svg">')).toBe(false)
+      expect(capture.read(opening, {})).toBeUndefined()
+      expect(writeNativeGroupOpening(capture, { ...shell }, parsed)).toBeUndefined()
+      expect(writeNativeGroupOpening(capture, shell, { ...parsed })).toBeUndefined()
+      expect(writeNativeGroupOpening(createSvgXmlCapture(() => true), shell, parsed)).toBeUndefined()
+      const child = mode === 'raw-child' ? capture.raw('<g xmlns="urn:not-svg"><rect/></g>')
+        : writeShapeSvg(shape, undefined, capture)
+      const group = capture.group([opening, child, capture.raw('</g>')], parsed)
+      const whole = capture.join([capture.raw('<svg xmlns="http://www.w3.org/2000/svg">'), group, capture.raw('</svg>')])
+      const expectedChild = mode === 'raw-child' ? '<g xmlns="urn:not-svg"><rect/></g>'
+        : '<rect x="0" y="0" width="10" height="10" fill="#111" data-id="rect" data-role="node" />'
+      expect(whole.svg).toBe(`<svg xmlns="http://www.w3.org/2000/svg">\n<g class="wrap" data-label="${label}" data-id="actual" data-role="group">\n${expectedChild}\n</g>\n</svg>`)
+      expect(capture.verify(whole)).toBe(mode === 'actual')
+    }
+
+    const define = Object.getOwnPropertyDescriptor(Object, 'defineProperty')!
+    let fresh: typeof import('../scene/svg-writer.ts')
+    try {
+      Object.defineProperty(Object, 'defineProperty', { ...define, value(target: { svg?: string; node?: { kind?: string } }, key: PropertyKey, descriptor: PropertyDescriptor) {
+        if (key === 'svg' && target.node?.kind === 'group' && typeof descriptor.get === 'function') descriptor = { ...descriptor, get: () => '<g xmlns="urn:not-svg">' }
+        return Reflect.apply(define.value, Object, [target, key, descriptor])
+      } })
+      const modulePath = '../scene/svg-writer.ts?group-opening-getter'
+      fresh = await import(modulePath)
+    } finally { Object.defineProperty(Object, 'defineProperty', define) }
+    const guarded = fresh.createNativeXmlWork(400000), xml = guarded.capture()
+    const shell = marks.group({ id: 'guarded', role: 'group', open: '<g>', close: '</g>', children: [] }, guarded.pay)
+    Object.freeze(shell)
+    const lexical = bindNativeGroupEmission(shell, shell.open, guarded.pay)!
+    const actual = fresh.writeNativeGroupOpening(xml, shell, lexical) ?? xml.raw(shell.open)
+    const grouped = xml.group([actual, fresh.writeShapeSvg(shape, undefined, xml), xml.raw('</g>')], lexical)
+    const document = xml.join([xml.raw('<svg xmlns="http://www.w3.org/2000/svg">'), grouped, xml.raw('</svg>')])
+    expect(document.svg).toBe('<svg xmlns="http://www.w3.org/2000/svg">\n<g data-id="guarded" data-role="group">\n<rect x="0" y="0" width="10" height="10" fill="#111" data-id="rect" data-role="node" />\n</g>\n</svg>')
+    expect(verifySvgDocumentEnvelope(document.svg)).toBe(true)
+    expect(xml.verify(document)).toBe(true)
   })
 
   test.each(['actual', 'raw'] as const)('Native geometry consumes only this actual writer receipt: %s', mode => {

@@ -22,11 +22,12 @@ import { verifySvgDocumentEnvelope, verifySvgDocumentDataPositions } from '../ou
 import { isInlinePng } from '../shared/inline-png.ts'
 import { SCENE_VALIDATION_LIMITS } from './scene-validation-limits.ts'
 import { MAX_OCCLUSION_OPERATIONS } from './paint-work.ts'
-import { validatePlainNativeGroup } from './group-emission.ts'
+import { nativeGroupOpeningOf, validatePlainNativeGroup, validateWrittenNativeGroup } from './group-emission.ts'
 
 // Fresh written facts must be sealed before ambient hooks can observe them.
 const writtenFactFreeze = Object.freeze, writtenFactDefine = Object.defineProperty, writtenFactSeal = Object.preventExtensions
 const writtenFactDescriptor = Object.getOwnPropertyDescriptor, writtenFactOwn = Object.hasOwn
+const writtenFactKeys = Reflect.ownKeys, writtenFactExtensible = Object.isExtensible
 function closedWrittenSlot(value: object, key: string, expected: unknown): boolean {
   const slot = writtenFactDescriptor(value, key)
   return !!slot && writtenFactOwn(slot, 'value') && slot.value === expected && slot.writable === false && slot.configurable === false
@@ -83,7 +84,7 @@ interface XmlCaptureState {
   name(value: string): boolean
   prepared(): boolean
   project(write: SvgXmlWrite): boolean
-  issue(svg: string, skeleton: string | (() => XmlProjectionResult), node?: object): SvgXmlWrite
+  issue(svg: string, skeleton: string | (() => XmlProjectionResult), node?: object, groupOpening?: WrittenGroupOpening): SvgXmlWrite
 }
 // The actual handle is also its immutable read record. Only this private
 // registry owns the lazy validation state; caller hooks never see its entries.
@@ -106,7 +107,12 @@ interface XmlWriteFact {
   readonly record: SvgXmlWriteRecord
   projection: string | (() => XmlProjectionResult) | XmlProjection | undefined
   geometry?: ActualGeometryWrite
+  readonly groupOpening?: WrittenGroupOpening
 }
+interface WrittenGroupOpening { readonly parsed: unknown; readonly node: object; readonly record: SvgXmlWriteRecord }
+// This occurrence's producer appends its private primitive source, never a
+// field subsequently returned by an interposed record-construction helper.
+function actualXmlSource(fact: XmlWriteFact): string { return fact.record.svg }
 const xmlCaptures = new xmlFactMap<SvgXmlCapture, XmlCaptureState>()
 const xmlWrites = new xmlFactMap<SvgXmlWrite, XmlWriteFact>()
 function xmlCaptureState(capture: SvgXmlCapture): XmlCaptureState | undefined { return xmlFactApply(xmlFactGet, xmlCaptures, [capture]) }
@@ -136,20 +142,22 @@ function createXmlCapture(work: (operations: number) => boolean, nativeCompositi
     return true
   }
   let capture: SvgXmlCapture
-  const issue = (svg: string, projection: string | (() => XmlProjectionResult), node?: object): SvgXmlWrite => {
+  const issue = (svg: string, projection: string | (() => XmlProjectionResult), node?: object, groupOpening?: WrittenGroupOpening): SvgXmlWrite => {
     const funded = pay(1)
-    const record = { __proto__: null, svg, node } as SvgXmlWriteRecord
-    pinXmlSlot(record, 'svg', svg); pinXmlSlot(record, 'node', node)
-    writtenFactSeal(record)
+    const record = groupOpening?.record ?? { __proto__: null, svg, node } as SvgXmlWriteRecord
+    if (!groupOpening) {
+      pinXmlSlot(record, 'svg', svg); pinXmlSlot(record, 'node', node)
+      writtenFactSeal(record)
+    }
     const write = record as unknown as SvgXmlWrite
-    xmlFactApply(xmlFactSet, xmlWrites, [write, { capture, record, projection: funded && typeof svg === 'string' ? projection : undefined }])
+    xmlFactApply(xmlFactSet, xmlWrites, [write, { capture, record, projection: funded && typeof svg === 'string' ? projection : undefined, groupOpening }])
     return write
   }
   const factOf = (write: SvgXmlWrite): XmlWriteFact | undefined => {
     pay(1)
     if (write === null || typeof write !== 'object') return undefined
     const fact = xmlFactApply(xmlFactGet, xmlWrites, [write]) as XmlWriteFact | undefined
-    return fact?.capture === capture ? fact : undefined
+    return fact?.capture === capture && (fact.record as object) === write ? fact : undefined
   }
   // Raw fragments and separators remain verbatim. The final parser owns
   // token boundaries across chunks; every substituted typed leaf must land
@@ -221,7 +229,7 @@ function createXmlCapture(work: (operations: number) => boolean, nativeCompositi
         const found = factOf(write)
         if (!found) throw new TypeError('XML composition requires this capture’s actual writes')
         if (count++) svg += separator
-        svg += found.record.svg
+        svg += actualXmlSource(found)
         if (children) children[children.length++] = found
       }
       return issue(svg, children ? () => {
@@ -234,8 +242,11 @@ function createXmlCapture(work: (operations: number) => boolean, nativeCompositi
             if (character !== ' ' && character !== '\t' && character !== '\r' && character !== '\n') { whitespace = false; break }
           }
         }
-        if (group && whitespace && children.length >= 2 && children[children.length - 1]!.record.svg === '</g>'
-          && validatePlainNativeGroup(group, children[0]!.record.svg, value => literal(value, true), pay)) {
+        const opening = children.length ? children[0]!.groupOpening : undefined
+        if (group && whitespace && children.length >= 2 && actualXmlSource(children[children.length - 1]!) === '</g>'
+          && (opening?.parsed === group && opening.record === children[0]!.record && opening.node === opening.record.node
+            ? validateWrittenNativeGroup(group, opening.node, value => literal(value, true), pay)
+            : validatePlainNativeGroup(group, actualXmlSource(children[0]!), value => literal(value, true), pay))) {
           let closed = true
           for (let index = 1; index < children.length - 1; index++) {
             const child = projectFact(children[index]!)
@@ -274,9 +285,9 @@ function createXmlCapture(work: (operations: number) => boolean, nativeCompositi
       const found = factOf(write)
       if (!found) throw new TypeError('XML indentation requires this capture’s actual write')
       if (spaces <= 0) return write
-      const firstSvg = found.record.svg
+      const firstSvg = actualXmlSource(found)
       if (firstSvg === '') return write
-      if (typeof spaces !== 'number' || spaces === 1 / 0 || spaces > MAX_OCCLUSION_OPERATIONS) { const svg = indentLines(found.record.svg, spaces); return issue(svg, svg) }
+      if (typeof spaces !== 'number' || spaces === 1 / 0 || spaces > MAX_OCCLUSION_OPERATIONS) { const svg = indentLines(actualXmlSource(found), spaces); return issue(svg, svg) }
       // Primitive numeric indentation is private construction. Generic values,
       // nonfinite errors and padding beyond the proof allowance keep the
       // established helper path, whose exact actual result remains raw.
@@ -331,7 +342,7 @@ function createXmlCapture(work: (operations: number) => boolean, nativeCompositi
       const projected = projectFact(found)
       return projected
         ? verifySvgDocumentDataPositions(projected.skeleton, projected.occupied, pay)
-        : verifySvgDocumentEnvelope(found.record.svg, pay)
+        : verifySvgDocumentEnvelope(actualXmlSource(found), pay)
     },
   } as unknown as SvgXmlCapture
   pinXmlSlot(capture, 'raw', capture.raw); pinXmlSlot(capture, 'join', capture.join); pinXmlSlot(capture, 'group', capture.group)
@@ -342,6 +353,27 @@ function createXmlCapture(work: (operations: number) => boolean, nativeCompositi
     return !!found && projectFact(found) !== undefined
   } } satisfies XmlCaptureState])
   return capture
+}
+
+/** Internal Native group producer. A generic/raw opening retains its original
+ * byte-comparison path; only this private lexer source can issue this fact. */
+export function writeNativeGroupOpening(capture: SvgXmlCapture, node: object, parsed: unknown): SvgXmlWrite | undefined {
+  const state = xmlCaptureState(capture)
+  if (!state?.nativeComposition) return undefined
+  const source = nativeGroupOpeningOf(parsed, node, state.pay)
+  if (source === undefined || !state.pay(10)) return undefined
+  const record = { __proto__: null, svg: source, node } as SvgXmlWriteRecord
+  const readSource = () => source, readNode = () => node
+  // A helper can observe the complete record, but cannot substitute the
+  // primitive held by either getter. Verify getter identity, not source bytes.
+  writtenFactDefine(record, 'svg', { __proto__: null, get: readSource, enumerable: true, configurable: false } as PropertyDescriptor)
+  writtenFactDefine(record, 'node', { __proto__: null, get: readNode, enumerable: true, configurable: false } as PropertyDescriptor)
+  writtenFactSeal(record)
+  if (writtenFactExtensible(record) || writtenFactKeys(record).length !== 2) return undefined
+  const svgSlot = writtenFactDescriptor(record, 'svg'), nodeSlot = writtenFactDescriptor(record, 'node')
+  if (!svgSlot || svgSlot.get !== readSource || svgSlot.set !== undefined || svgSlot.configurable
+    || !nodeSlot || nodeSlot.get !== readNode || nodeSlot.set !== undefined || nodeSlot.configurable) return undefined
+  return state.issue(source, source, node, { parsed, node, record })
 }
 
 function finishXmlLeaf(capture: SvgXmlCapture, node: object, svg: string, xml: XmlLeafWrite | undefined, eligible = true, additional?: Readonly<ArrayLike<XmlLeafWrite>>, completion?: XmlLeafWrite): SvgXmlWrite {

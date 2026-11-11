@@ -95,6 +95,19 @@ class ParsedNativeGroup {
     if (issuer !== nativeGroupParseIssuer) throw new TypeError('Native group facts require their actual lexer')
     this.#source = source; this.#plain = plain; this.#node = node
   }
+  static opening(value: unknown, node: object, pay: Pay): string | undefined {
+    if (!pay(2) || !value || typeof value !== 'object' || !(#source in value)
+      || value.#node !== node || groupEmission.get(node)?.nativeParse !== value) return undefined
+    return value.#source
+  }
+  static validateOpening(value: unknown, node: object, literal: (value: string) => boolean, pay: Pay): boolean {
+    if (!pay(4) || !value || typeof value !== 'object' || !(#source in value) || !value.#plain?.valid
+      || value.#node !== node || groupEmission.get(node)?.nativeParse !== value) return false
+    for (let index = 0; index < value.#plain.values.length; index++) {
+      if (!pay(1) || !literal(value.#plain.values[index]!)) return false
+    }
+    return true
+  }
   static context(value: unknown, node: GroupMark, source: string, pay: Pay): NativePlainGroupContext | undefined {
     if (!value || typeof value !== 'object' || !(#source in value) || value.#node !== node || !value.#plain?.valid
       || !pay(source.length * 2 + 8) || value.#source !== source || groupEmission.get(node)?.nativeParse !== value) return undefined
@@ -136,6 +149,11 @@ export function consumeNativeGroupEmission(node: GroupMark, open: string, pay: P
 }
 const validateParsedNativeGroup = ParsedNativeGroup.validate
 export function validatePlainNativeGroup(value: unknown, source: string, literal: (value: string) => boolean, pay: Pay): boolean { return validateParsedNativeGroup(value, source, literal, pay) }
+const readNativeGroupOpening = ParsedNativeGroup.opening, validateNativeGroupOpening = ParsedNativeGroup.validateOpening
+/** Only an actual writer may append this private lexer's own primitive source.
+ * This is not an assertion about a separately supplied or returned string. */
+export function nativeGroupOpeningOf(value: unknown, node: object, pay: Pay): string | undefined { return readNativeGroupOpening(value, node, pay) }
+export function validateWrittenNativeGroup(value: unknown, node: object, literal: (value: string) => boolean, pay: Pay): boolean { return validateNativeGroupOpening(value, node, literal, pay) }
 
 function groupXmlSpace(character: string | undefined): boolean { return character === ' ' || character === '\t' || character === '\r' || character === '\n' }
 

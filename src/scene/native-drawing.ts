@@ -12,14 +12,14 @@ import type { PositionedDiagram, RenderContext } from '../types.ts'
 import type { SceneDoc, SceneNode } from './ir.ts'
 import * as marks from './marks.ts'
 import { formatSvgNumber } from '../shared/svg-number.ts'
-import { indentLines } from './serialization.ts'
+import { indentLines, transferSceneNodeSerialization } from './serialization.ts'
 import { composeMatrices, IDENTITY_MATRIX, transformMatrix } from './transforms.ts'
 import { createOwnedNativePaintRecorder, multiplySceneOpacity, nativePaintAncestors, sceneGroupOpacity, type NativePaintEntry, type PaintInspectionHeader, type ScenePaintGeometryInspection } from './inspection.ts'
 import { createNativeSceneValidator, SceneValidationError, SCENE_VALIDATION_LIMITS, assertFinalSvgByteBudget } from './scene-validation-core.ts'
 import { withDeferredTerminalProjections } from './deferred-terminal-projection.ts'
 import { retainedGroupEmission } from './group-emission.ts'
 import { createNativePaintEmission, createOriginalNativePaintEmission, MAX_OCCLUSION_OPERATIONS } from './native-paint-emission.ts'
-import type { SvgTextPaintWrite, SvgXmlWrite } from './svg-writer.ts'
+import { writeNativeGroupOpening, type SvgTextPaintWrite, type SvgXmlWrite } from './svg-writer.ts'
 
 interface FragmentData {
   readonly svg: string
@@ -194,11 +194,21 @@ function drawNativeImplementation(producer: DrawingProducer, context: RenderCont
       if (nodeCount > SCENE_VALIDATION_LIMITS.maxNodes) throw new RangeError('Native drawing contains too many emitted nodes')
       if (characters > SCENE_VALIDATION_LIMITS.maxSerializationBytesPerNode) throw new RangeError('Native group has an oversized SVG serialization')
       const shell = marks.group({ ...shellFields, children: [] }, emission.groupRegistration)
-      validator.node(shell)
+      if (!closeLeaves) validator.node(shell)
       validator.depth(depth)
       const capturedShell = emission.snapshot(shell)
       if (!capturedShell) emission.uncertain()
-      if (capturedShell) emission.bindGroup(capturedShell)
+      // The private producer validates the exact closed shell it will write.
+      // That validation issues its lexer operands for context and XML too;
+      // generic drawing retains the original pre-snapshot observations.
+      if (closeLeaves) {
+        if (capturedShell) {
+          if (!emission.groupRegistration(4)) emission.uncertain()
+          transferSceneNodeSerialization(shell, capturedShell)
+        }
+        validator.node(capturedShell ?? shell)
+      }
+      else if (capturedShell) emission.bindGroup(capturedShell)
       const matrix = capturedShell ? emission.group(capturedShell) : undefined
       const own = capturedShell?.identity ?? { id: shell.id, role: shell.role }
       for (let index = 0; index < children.length; index++) {
@@ -212,12 +222,13 @@ function drawNativeImplementation(producer: DrawingProducer, context: RenderCont
       const writtenShell = allOwned && capturedShell ? capturedShell : shell
       let xmlWrite: SvgXmlWrite
       if (allOwned) {
+        const parsed = retainedGroupEmission(writtenShell)?.nativeParse
         xmlWrite = xml.group(privateValues(childParts.length + 2, index => {
-          if (index === 0) return xml.raw(writtenShell.open)
+          if (index === 0) return (closeLeaves ? writeNativeGroupOpening(xml, writtenShell, parsed) : undefined) ?? xml.raw(writtenShell.open)
           if (index === childParts.length + 1) return xml.raw(writtenShell.close)
           const child = childParts[index - 1]!
           return xml.indent(child.node.xmlWrite, child.indent)
-        }), retainedGroupEmission(writtenShell)?.nativeParse, writtenShell.join)
+        }), parsed, writtenShell.join)
       } else {
         // Keep the legacy read/coercion order for foreign fragment values.
         const fragments = [shell.open]

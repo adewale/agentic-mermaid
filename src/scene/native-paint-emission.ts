@@ -660,7 +660,9 @@ function createPaintEmission(maxOperations: number, closeLeaves: boolean) {
     },
     groupRegistration: pay,
     bindGroup(shell: Extract<SceneNode, { kind: 'group' }>) { bindNativeGroupEmission(shell, shell.open, pay) },
-    groupValidation(shell: Extract<SceneNode, { kind: 'group' }>) { captureNativeGroupEmission(shell, pay) },
+    groupValidation(shell: Extract<SceneNode, { kind: 'group' }>) {
+      if (!closeLeaves || !bindNativeGroupEmission(shell, shell.open, pay)) captureNativeGroupEmission(shell, pay)
+    },
     group(shell: Extract<SceneNode, { kind: 'group' }>) {
       closedMarkerContext = false
       const actual = emissionContext.nativeGroup(shell)
