@@ -1,0 +1,44 @@
+{
+  "archive": "canonical-package-payload.tar.gz",
+  "bytes": 8343513,
+  "sha256": "98295f639bcfd8553d5c8926f8f93a7c1f57d9a80abe0023855a9def46bd8c96",
+  "fileCount": 7,
+  "uncompressedBytes": 8356178,
+  "files": [
+    {
+      "path": "CI2525-payload-diagnostics.zip",
+      "bytes": 145883,
+      "sha256": "cd184259130984e870249192076fb79a6983465c0319b4aacb52319e93a897ed"
+    },
+    {
+      "path": "CI689-PACKAGED-TRINITY-RESIDUALS.json",
+      "bytes": 231,
+      "sha256": "5e40a85c92b6ba74aa28c13c19935b52b2218acab2422749d86f4ad0e05ba22b"
+    },
+    {
+      "path": "CI689-RECOVER-SDK.py",
+      "bytes": 2769,
+      "sha256": "d6dcd6db38ded1e59bd31d6509f0a3becb34e135d4e09e402ed9c279d2b22da2"
+    },
+    {
+      "path": "CI689-package-manifest.json",
+      "bytes": 13213,
+      "sha256": "b42add3e6d6702f12f25212dc36dbb9f9d15dbefdd89bf1fd83bbcde484d8393"
+    },
+    {
+      "path": "CI689-payload-diagnostics.zip",
+      "bytes": 143334,
+      "sha256": "0c41858db21a5a0caf24fb8770e6341e9c54ff515007cfa8961890b3d76ce392"
+    },
+    {
+      "path": "CI689-verified-test-package.zip",
+      "bytes": 8047126,
+      "sha256": "a593abf15ae7e5364883633552b1b52ed018c20afaf94990084745090705c8d1"
+    },
+    {
+      "path": "ci689-sdk/RECOVERY-MANIFEST.json",
+      "bytes": 3622,
+      "sha256": "b22fed90e070c80efab5c08c15ee87ddcf9a63f712eb10dcf790bad06be1b767"
+    }
+  ]
+}

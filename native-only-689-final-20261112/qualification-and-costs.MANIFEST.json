@@ -1,0 +1,1429 @@
+{
+  "archive": "qualification-and-costs.tar.gz",
+  "bytes": 526198,
+  "sha256": "1a0d9bd612911497e03898f99d1b02a6d528822aa2b524340c24be1b938a4eea",
+  "fileCount": 284,
+  "uncompressedBytes": 1291868,
+  "files": [
+    {
+      "path": "CI689-FINAL-EVIDENCE.json",
+      "bytes": 80141,
+      "sha256": "88c82373fddfb822d97135b316f3c168df608280718876695b878ed69d665e5f"
+    },
+    {
+      "path": "CI689-advisory.log",
+      "bytes": 31687,
+      "sha256": "58f596fa834f2ba22d259151e4450c270d49b76594bd15d086928c509829a61e"
+    },
+    {
+      "path": "CI689-payload.log",
+      "bytes": 68707,
+      "sha256": "e281a13469eb0666e334a3595a28768062aad9e8ee8ad585d1d2dc90402118bd"
+    },
+    {
+      "path": "CI689-quality.log",
+      "bytes": 35675,
+      "sha256": "51f430e9353d56cb7855bf4992fdc3be8bef54abf12890623df19bb6ad52ab4e"
+    },
+    {
+      "path": "CI689-site.log",
+      "bytes": 44099,
+      "sha256": "c346ddf80a3d7bfeda236563aa496899b7c1c30f75801f71ce4d6196366169f5"
+    },
+    {
+      "path": "native-only-689-canonical-node/CANDIDATE.log",
+      "bytes": 331,
+      "sha256": "c55ce18c7ec2b702c8d1508cd8ea0ebdfc113217193eaf15af7fd7092b3915af"
+    },
+    {
+      "path": "native-only-689-canonical-node/CASES.json",
+      "bytes": 4394,
+      "sha256": "7cff3b9c10519cb1684002d84afbc75297619fb6e093ff9cc519996a3f1e55f6"
+    },
+    {
+      "path": "native-only-689-canonical-node/CONTROL.log",
+      "bytes": 217,
+      "sha256": "fc9e6d3569edf5c3bc0119debe6a7172afc56ce1c0c66ac645a8be0f029e6b2e"
+    },
+    {
+      "path": "native-only-689-canonical-node/IDENTITY.json",
+      "bytes": 642,
+      "sha256": "e5fa4fec1d598607ee87c5db8fdcc43581ac194930c40eaf283a6d4e049f61bf"
+    },
+    {
+      "path": "native-only-689-canonical-node/SUMMARY.json",
+      "bytes": 76918,
+      "sha256": "374de519d27bbfdf40f0377b0c9edbead353adab4f4c865e117ccaf37f697899"
+    },
+    {
+      "path": "native-only-689-canonical-node/candidate-PILOT.json.gz",
+      "bytes": 2649,
+      "sha256": "1a68f2cb63b8f2065c4dd2aa272038567f9da821a96b09a6a467ad99358e5427"
+    },
+    {
+      "path": "native-only-689-canonical-node/control-PILOT.json.gz",
+      "bytes": 2318,
+      "sha256": "c2ffbca361a804e52ce902e6a59c9f7735bfd54fc72a0044d05dae8079bc1d21"
+    },
+    {
+      "path": "native-only-689-canonical-node/pilot/candidate-agentic-elk-family_architecture.receipt.json.gz",
+      "bytes": 1203,
+      "sha256": "5da018cf0ceb3c25bf1218251b35d9a6d8c57c61632c761005f0cc5b4a952b52"
+    },
+    {
+      "path": "native-only-689-canonical-node/pilot/candidate-agentic-elk-family_architecture.row.json.gz",
+      "bytes": 1078,
+      "sha256": "adbff12c47734d3fa4777b5e0a53d1b447e3d6833de57acb4d6ad5a0984fc68d"
+    },
+    {
+      "path": "native-only-689-canonical-node/pilot/candidate-agentic-elk-family_architecture.svg.gz",
+      "bytes": 1493,
+      "sha256": "eb5fe31d921f74e9f906aeb937f133b8ffe3a925350ccd96f00c915de284473e"
+    },
+    {
+      "path": "native-only-689-canonical-node/pilot/candidate-agentic-elk-family_class.receipt.json.gz",
+      "bytes": 1205,
+      "sha256": "08fe1859d9299a32818c11e23aa31872be86128944c6e730584c17cfd2d23d43"
+    },
+    {
+      "path": "native-only-689-canonical-node/pilot/candidate-agentic-elk-family_class.row.json.gz",
+      "bytes": 1016,
+      "sha256": "820a02e27f313e956d2ea1dc492f18df1f54335d828778cbef022727546d3d61"
+    },
+    {
+      "path": "native-only-689-canonical-node/pilot/candidate-agentic-elk-family_class.svg.gz",
+      "bytes": 1429,
+      "sha256": "c82124f024aa5487e65e4e6c2eb6a9862eb6e145944ef0ed80e88b6c1952d1be"
+    },
+    {
+      "path": "native-only-689-canonical-node/pilot/candidate-agentic-elk-family_er.receipt.json.gz",
+      "bytes": 1179,
+      "sha256": "00a330ff9ae264cfad9176344d5615b1156f34a4ac9c268e04017dd70d2736f2"
+    },
+    {
+      "path": "native-only-689-canonical-node/pilot/candidate-agentic-elk-family_er.row.json.gz",
+      "bytes": 1020,
+      "sha256": "0e0313adf3f11cf5fee8e4819f912e6821302c6f0a34bbf1d81ddafcdcc37290"
+    },
+    {
+      "path": "native-only-689-canonical-node/pilot/candidate-agentic-elk-family_er.svg.gz",
+      "bytes": 1374,
+      "sha256": "a5b410b5787ada08884988a2b4ed5d8dc14f940f5530be4c982e415c1e682772"
+    },
+    {
+      "path": "native-only-689-canonical-node/pilot/candidate-agentic-elk-family_flowchart.receipt.json.gz",
+      "bytes": 1204,
+      "sha256": "17025adeec69c179ac05c90986bbb4ddaa40ac4469ce7fd4f64e8b2024c9823a"
+    },
+    {
+      "path": "native-only-689-canonical-node/pilot/candidate-agentic-elk-family_flowchart.row.json.gz",
+      "bytes": 1080,
+      "sha256": "1d1f490714e0f4d0e849e76c8cce883f3f9887943f8ad96ddbc7b76ca249bcf0"
+    },
+    {
+      "path": "native-only-689-canonical-node/pilot/candidate-agentic-elk-family_flowchart.svg.gz",
+      "bytes": 1110,
+      "sha256": "65f7351e38d9a6d996fbed334c8f5f76dae544a7f7fd3cab160bcabeb2c5fda8"
+    },
+    {
+      "path": "native-only-689-canonical-node/pilot/candidate-agentic-elk-family_requirement.receipt.json.gz",
+      "bytes": 1207,
+      "sha256": "af8a76a0783f3e4e9fdf30c72d48834574b0a802104ecef5bfb1cff2fc332edb"
+    },
+    {
+      "path": "native-only-689-canonical-node/pilot/candidate-agentic-elk-family_requirement.row.json.gz",
+      "bytes": 1116,
+      "sha256": "cc815c8508817d580c95b1c220d7241dfa7cf5b4c518b1a8e84d060acb77dbb9"
+    },
+    {
+      "path": "native-only-689-canonical-node/pilot/candidate-agentic-elk-family_requirement.svg.gz",
+      "bytes": 1428,
+      "sha256": "bc6f724eb94b3aad44a51c98020bc4f65c0ff35ef468331383e2253284a6cae0"
+    },
+    {
+      "path": "native-only-689-canonical-node/pilot/candidate-agentic-elk-family_state.receipt.json.gz",
+      "bytes": 1198,
+      "sha256": "4a5954bdf733622618d96257ca4517b73fc0a143ea6590ad028f8ad8783c3b4d"
+    },
+    {
+      "path": "native-only-689-canonical-node/pilot/candidate-agentic-elk-family_state.row.json.gz",
+      "bytes": 1011,
+      "sha256": "046cc80e58755dade2061ecd6fe650f2388e965701103350ab40ec3eef5a05f2"
+    },
+    {
+      "path": "native-only-689-canonical-node/pilot/candidate-agentic-elk-family_state.svg.gz",
+      "bytes": 1164,
+      "sha256": "0b73d499611341320e6d20bf4580975c05e5a550194b21f831d8fb3754cbff3a"
+    },
+    {
+      "path": "native-only-689-canonical-node/pilot/candidate-agentic-none-family_architecture.receipt.json.gz",
+      "bytes": 1202,
+      "sha256": "b7ac012a7d16b1f51fd04becfb8437604de84dcfefb2fe57aa946e66207229cd"
+    },
+    {
+      "path": "native-only-689-canonical-node/pilot/candidate-agentic-none-family_architecture.row.json.gz",
+      "bytes": 1078,
+      "sha256": "4cc38ef7ff146d3f29ad11c25ff864b4b944918169135e4f6863dba34bc47ce1"
+    },
+    {
+      "path": "native-only-689-canonical-node/pilot/candidate-agentic-none-family_architecture.svg.gz",
+      "bytes": 1493,
+      "sha256": "eb5fe31d921f74e9f906aeb937f133b8ffe3a925350ccd96f00c915de284473e"
+    },
+    {
+      "path": "native-only-689-canonical-node/pilot/candidate-agentic-none-family_class.receipt.json.gz",
+      "bytes": 1206,
+      "sha256": "4f093a04f8c93f6ff21ae449f9a4e828a232ada9987806f5c2306689f249ad1b"
+    },
+    {
+      "path": "native-only-689-canonical-node/pilot/candidate-agentic-none-family_class.row.json.gz",
+      "bytes": 1016,
+      "sha256": "7c8b604d175b03b74c37c88d78321e498e351a530455dc79fab9ce3a152e26f5"
+    },
+    {
+      "path": "native-only-689-canonical-node/pilot/candidate-agentic-none-family_class.svg.gz",
+      "bytes": 1429,
+      "sha256": "c82124f024aa5487e65e4e6c2eb6a9862eb6e145944ef0ed80e88b6c1952d1be"
+    },
+    {
+      "path": "native-only-689-canonical-node/pilot/candidate-agentic-none-family_er.receipt.json.gz",
+      "bytes": 1181,
+      "sha256": "9f62c1f2a15b499861cf550e86fb4df37fa88d67bb9d0a8dbd46f02cb646243d"
+    },
+    {
+      "path": "native-only-689-canonical-node/pilot/candidate-agentic-none-family_er.row.json.gz",
+      "bytes": 1019,
+      "sha256": "fbd814bd96412fc98a6041c8278acdada3b347cd7d851dbe33ac1b683b6c5bbe"
+    },
+    {
+      "path": "native-only-689-canonical-node/pilot/candidate-agentic-none-family_er.svg.gz",
+      "bytes": 1374,
+      "sha256": "a5b410b5787ada08884988a2b4ed5d8dc14f940f5530be4c982e415c1e682772"
+    },
+    {
+      "path": "native-only-689-canonical-node/pilot/candidate-agentic-none-family_flowchart.receipt.json.gz",
+      "bytes": 1204,
+      "sha256": "e0a2c2022e12bfe98122365a7f02b2a6fd8d160bbeb6c1d4094aa5964eb4378e"
+    },
+    {
+      "path": "native-only-689-canonical-node/pilot/candidate-agentic-none-family_flowchart.row.json.gz",
+      "bytes": 1080,
+      "sha256": "ea23903cb9768b1d678ad453f10e70098200e204ef87389625320a3701cfa5f9"
+    },
+    {
+      "path": "native-only-689-canonical-node/pilot/candidate-agentic-none-family_flowchart.svg.gz",
+      "bytes": 1110,
+      "sha256": "65f7351e38d9a6d996fbed334c8f5f76dae544a7f7fd3cab160bcabeb2c5fda8"
+    },
+    {
+      "path": "native-only-689-canonical-node/pilot/candidate-agentic-none-family_requirement.receipt.json.gz",
+      "bytes": 1207,
+      "sha256": "67367f29416da01af451e87531ad4feee376fc189a106a9ad9316603602b1580"
+    },
+    {
+      "path": "native-only-689-canonical-node/pilot/candidate-agentic-none-family_requirement.row.json.gz",
+      "bytes": 1116,
+      "sha256": "7951cbd522b0c3a3c4ebf15e7ae5c3854ac50bea78d349d5e7024b3106baac19"
+    },
+    {
+      "path": "native-only-689-canonical-node/pilot/candidate-agentic-none-family_requirement.svg.gz",
+      "bytes": 1428,
+      "sha256": "bc6f724eb94b3aad44a51c98020bc4f65c0ff35ef468331383e2253284a6cae0"
+    },
+    {
+      "path": "native-only-689-canonical-node/pilot/candidate-agentic-none-family_state.receipt.json.gz",
+      "bytes": 1200,
+      "sha256": "84f1d9c988d7498997591beac30711ab4389ccfc4cce6a0625277200f667397f"
+    },
+    {
+      "path": "native-only-689-canonical-node/pilot/candidate-agentic-none-family_state.row.json.gz",
+      "bytes": 1011,
+      "sha256": "2732a86b803458e482c5fdb65ca05a6fa6b2dd81c076450d0fd38390a034da68"
+    },
+    {
+      "path": "native-only-689-canonical-node/pilot/candidate-agentic-none-family_state.svg.gz",
+      "bytes": 1164,
+      "sha256": "0b73d499611341320e6d20bf4580975c05e5a550194b21f831d8fb3754cbff3a"
+    },
+    {
+      "path": "native-only-689-canonical-node/pilot/candidate-elk-none-family_architecture.receipt.json.gz",
+      "bytes": 1202,
+      "sha256": "387fd947638aad5271eeb5daa1b95b93707dc3e62585e1d99fdcc63fc57f6091"
+    },
+    {
+      "path": "native-only-689-canonical-node/pilot/candidate-elk-none-family_architecture.row.json.gz",
+      "bytes": 1075,
+      "sha256": "ec86f0c49a82481512a8ce8d9f4fafcb17500c8589f1c9f377b3f0065f76febf"
+    },
+    {
+      "path": "native-only-689-canonical-node/pilot/candidate-elk-none-family_architecture.svg.gz",
+      "bytes": 1493,
+      "sha256": "eb5fe31d921f74e9f906aeb937f133b8ffe3a925350ccd96f00c915de284473e"
+    },
+    {
+      "path": "native-only-689-canonical-node/pilot/candidate-elk-none-family_class.receipt.json.gz",
+      "bytes": 1198,
+      "sha256": "3ec6b1625788e4217e8544d2e1aff60f528374960f76b08ae599c4f08f90cf60"
+    },
+    {
+      "path": "native-only-689-canonical-node/pilot/candidate-elk-none-family_class.row.json.gz",
+      "bytes": 1012,
+      "sha256": "f397ee24be63a58ee0a7b6074ed015137775f981d89365a0f46dbbc221cb8225"
+    },
+    {
+      "path": "native-only-689-canonical-node/pilot/candidate-elk-none-family_class.svg.gz",
+      "bytes": 1436,
+      "sha256": "f183123fd9de023189113d106589ee63582c1e476b9e029ab9131ff8d85fdd49"
+    },
+    {
+      "path": "native-only-689-canonical-node/pilot/candidate-elk-none-family_er.receipt.json.gz",
+      "bytes": 1176,
+      "sha256": "fb1fb311caa9c367a0ca9514a4855f56921e9d748ba31620d4c2adee6b534530"
+    },
+    {
+      "path": "native-only-689-canonical-node/pilot/candidate-elk-none-family_er.row.json.gz",
+      "bytes": 1016,
+      "sha256": "4e017041999c360210a0d52dc8bb0e57f5029bcdb92a53b6c907be397c6c2242"
+    },
+    {
+      "path": "native-only-689-canonical-node/pilot/candidate-elk-none-family_er.svg.gz",
+      "bytes": 1370,
+      "sha256": "27b68580e9ef1c4f70c3dd18b228091b8ba0c6a8195442ff80a7451460e32411"
+    },
+    {
+      "path": "native-only-689-canonical-node/pilot/candidate-elk-none-family_flowchart.receipt.json.gz",
+      "bytes": 1202,
+      "sha256": "900b287b5ab8d83807903ea96c4f57f5fb923db7e7b6ce49e16c304e61b6d2e9"
+    },
+    {
+      "path": "native-only-689-canonical-node/pilot/candidate-elk-none-family_flowchart.row.json.gz",
+      "bytes": 1077,
+      "sha256": "920866709f4d2e2426d21593625413818c37530b1bb09fd14920ae48658ce5c6"
+    },
+    {
+      "path": "native-only-689-canonical-node/pilot/candidate-elk-none-family_flowchart.svg.gz",
+      "bytes": 1110,
+      "sha256": "65f7351e38d9a6d996fbed334c8f5f76dae544a7f7fd3cab160bcabeb2c5fda8"
+    },
+    {
+      "path": "native-only-689-canonical-node/pilot/candidate-elk-none-family_requirement.receipt.json.gz",
+      "bytes": 1205,
+      "sha256": "1570857460cf9d5c70b589857ad799cc826e9d3274345fd141fc1a12d02fb239"
+    },
+    {
+      "path": "native-only-689-canonical-node/pilot/candidate-elk-none-family_requirement.row.json.gz",
+      "bytes": 1113,
+      "sha256": "18d2c805a136282430b187a80c616046598b4abae4d91930b1daf8363a6e908e"
+    },
+    {
+      "path": "native-only-689-canonical-node/pilot/candidate-elk-none-family_requirement.svg.gz",
+      "bytes": 1429,
+      "sha256": "1a5fb842dd5da25503b2929994bf02f32d071b71db2492c98bf4a954bfe7f571"
+    },
+    {
+      "path": "native-only-689-canonical-node/pilot/candidate-elk-none-family_state.receipt.json.gz",
+      "bytes": 1197,
+      "sha256": "68a48ed69448b0341c6f7c84d9100dc44495143027a738abeaec11b01d1f3944"
+    },
+    {
+      "path": "native-only-689-canonical-node/pilot/candidate-elk-none-family_state.row.json.gz",
+      "bytes": 1007,
+      "sha256": "86a0b3bc6ebaedc374163922de318e3607b71eeb4832e212895f8d0a76d04724"
+    },
+    {
+      "path": "native-only-689-canonical-node/pilot/candidate-elk-none-family_state.svg.gz",
+      "bytes": 1168,
+      "sha256": "610aa04df5ecf1532a5f3b45727bf16c8d347487c565c08d8b1fc2ec4ddf8761"
+    },
+    {
+      "path": "native-only-689-canonical-node/pilot/candidate-trinity-elk-family_architecture.row.json.gz",
+      "bytes": 469,
+      "sha256": "237d071e134454af67490c235d578f12cb04612d4f186d7b512a1957f8114b74"
+    },
+    {
+      "path": "native-only-689-canonical-node/pilot/candidate-trinity-elk-family_class.row.json.gz",
+      "bytes": 464,
+      "sha256": "06448a84ef1b1eac5b7ca8187aec3e0010f69d780c1cff257e75d796d3a74a1c"
+    },
+    {
+      "path": "native-only-689-canonical-node/pilot/candidate-trinity-elk-family_er.row.json.gz",
+      "bytes": 461,
+      "sha256": "916fdea532e80ae16842be9cbf33408cb511708fff0b867461d52520135d42c2"
+    },
+    {
+      "path": "native-only-689-canonical-node/pilot/candidate-trinity-elk-family_flowchart.row.json.gz",
+      "bytes": 468,
+      "sha256": "88ff476f28462ebe591247ade3a622c3eb9264e4b353aa1f21ccd29e1d82fc05"
+    },
+    {
+      "path": "native-only-689-canonical-node/pilot/candidate-trinity-elk-family_requirement.row.json.gz",
+      "bytes": 469,
+      "sha256": "346b163babd905963b771eeb5950cb8f1bb1765b0dd9724f01eb84629f561f87"
+    },
+    {
+      "path": "native-only-689-canonical-node/pilot/candidate-trinity-elk-family_state.row.json.gz",
+      "bytes": 462,
+      "sha256": "d18055f1c64a29200e83ac7dec90921ba85fe336e6ad8ebcaf02951a644591ee"
+    },
+    {
+      "path": "native-only-689-canonical-node/pilot/candidate-trinity-none-family_architecture.row.json.gz",
+      "bytes": 467,
+      "sha256": "d53d84cee56efcc0203d20017d7e931f6f687b6697d4a4eda72877bf94a8fcd8"
+    },
+    {
+      "path": "native-only-689-canonical-node/pilot/candidate-trinity-none-family_class.row.json.gz",
+      "bytes": 463,
+      "sha256": "8794f74f9e7c976a00629be5fb5dc6b9527fe7dc36a085e478d094754928c92f"
+    },
+    {
+      "path": "native-only-689-canonical-node/pilot/candidate-trinity-none-family_er.row.json.gz",
+      "bytes": 459,
+      "sha256": "abaf3b175d838237815f3e4c78147b760c74162a88ca2ecee0921a4f6bccc253"
+    },
+    {
+      "path": "native-only-689-canonical-node/pilot/candidate-trinity-none-family_flowchart.row.json.gz",
+      "bytes": 466,
+      "sha256": "c3ae4c7fd1b90262a3c26674de6988c8a3ae12deae3b255e488b51c616985ff5"
+    },
+    {
+      "path": "native-only-689-canonical-node/pilot/candidate-trinity-none-family_requirement.row.json.gz",
+      "bytes": 467,
+      "sha256": "6535f1d00fc9a359f65363fd75786a3207ccd3b699432251eced6d12f83a663f"
+    },
+    {
+      "path": "native-only-689-canonical-node/pilot/candidate-trinity-none-family_state.row.json.gz",
+      "bytes": 461,
+      "sha256": "37017b870da60353f35785f45f96d46c34f55fe0cba81bdbbda4b79688d77e8a"
+    },
+    {
+      "path": "native-only-689-canonical-node/pilot/control-agentic-elk-family_architecture.receipt.json.gz",
+      "bytes": 1203,
+      "sha256": "5da018cf0ceb3c25bf1218251b35d9a6d8c57c61632c761005f0cc5b4a952b52"
+    },
+    {
+      "path": "native-only-689-canonical-node/pilot/control-agentic-elk-family_architecture.row.json.gz",
+      "bytes": 1077,
+      "sha256": "99e3465058f10f28aba2497d6bde52a359dcb4ea4d561196153f838d0d5fdf0b"
+    },
+    {
+      "path": "native-only-689-canonical-node/pilot/control-agentic-elk-family_architecture.svg.gz",
+      "bytes": 1493,
+      "sha256": "eb5fe31d921f74e9f906aeb937f133b8ffe3a925350ccd96f00c915de284473e"
+    },
+    {
+      "path": "native-only-689-canonical-node/pilot/control-agentic-elk-family_class.receipt.json.gz",
+      "bytes": 1205,
+      "sha256": "08fe1859d9299a32818c11e23aa31872be86128944c6e730584c17cfd2d23d43"
+    },
+    {
+      "path": "native-only-689-canonical-node/pilot/control-agentic-elk-family_class.row.json.gz",
+      "bytes": 1015,
+      "sha256": "3768490f40d7c483fc3102426fd9a5f094a83e5ff5bce9fe73bf843511c58fe3"
+    },
+    {
+      "path": "native-only-689-canonical-node/pilot/control-agentic-elk-family_class.svg.gz",
+      "bytes": 1429,
+      "sha256": "c82124f024aa5487e65e4e6c2eb6a9862eb6e145944ef0ed80e88b6c1952d1be"
+    },
+    {
+      "path": "native-only-689-canonical-node/pilot/control-agentic-elk-family_er.receipt.json.gz",
+      "bytes": 1179,
+      "sha256": "00a330ff9ae264cfad9176344d5615b1156f34a4ac9c268e04017dd70d2736f2"
+    },
+    {
+      "path": "native-only-689-canonical-node/pilot/control-agentic-elk-family_er.row.json.gz",
+      "bytes": 1019,
+      "sha256": "b4879b58da212354d5e621a1d1f0c8210fafa5f72c7afb14698e34f49ad83631"
+    },
+    {
+      "path": "native-only-689-canonical-node/pilot/control-agentic-elk-family_er.svg.gz",
+      "bytes": 1374,
+      "sha256": "a5b410b5787ada08884988a2b4ed5d8dc14f940f5530be4c982e415c1e682772"
+    },
+    {
+      "path": "native-only-689-canonical-node/pilot/control-agentic-elk-family_flowchart.receipt.json.gz",
+      "bytes": 1204,
+      "sha256": "17025adeec69c179ac05c90986bbb4ddaa40ac4469ce7fd4f64e8b2024c9823a"
+    },
+    {
+      "path": "native-only-689-canonical-node/pilot/control-agentic-elk-family_flowchart.row.json.gz",
+      "bytes": 1080,
+      "sha256": "81b1964c9d23146c6c3bb7e2a25ad39caf07b2a2a7f66b2c43985179144cff2a"
+    },
+    {
+      "path": "native-only-689-canonical-node/pilot/control-agentic-elk-family_flowchart.svg.gz",
+      "bytes": 1110,
+      "sha256": "65f7351e38d9a6d996fbed334c8f5f76dae544a7f7fd3cab160bcabeb2c5fda8"
+    },
+    {
+      "path": "native-only-689-canonical-node/pilot/control-agentic-elk-family_requirement.receipt.json.gz",
+      "bytes": 1207,
+      "sha256": "af8a76a0783f3e4e9fdf30c72d48834574b0a802104ecef5bfb1cff2fc332edb"
+    },
+    {
+      "path": "native-only-689-canonical-node/pilot/control-agentic-elk-family_requirement.row.json.gz",
+      "bytes": 1116,
+      "sha256": "bfde4ef24e6d2d26b8b5d382536c9c63096b03c4784a89b32fbf6cb6baffc4c8"
+    },
+    {
+      "path": "native-only-689-canonical-node/pilot/control-agentic-elk-family_requirement.svg.gz",
+      "bytes": 1428,
+      "sha256": "bc6f724eb94b3aad44a51c98020bc4f65c0ff35ef468331383e2253284a6cae0"
+    },
+    {
+      "path": "native-only-689-canonical-node/pilot/control-agentic-elk-family_state.receipt.json.gz",
+      "bytes": 1198,
+      "sha256": "4a5954bdf733622618d96257ca4517b73fc0a143ea6590ad028f8ad8783c3b4d"
+    },
+    {
+      "path": "native-only-689-canonical-node/pilot/control-agentic-elk-family_state.row.json.gz",
+      "bytes": 1011,
+      "sha256": "a4473c875b9dbb3ba66e600071f496404abb06f84d2c50ffcf5e355f42e2c89a"
+    },
+    {
+      "path": "native-only-689-canonical-node/pilot/control-agentic-elk-family_state.svg.gz",
+      "bytes": 1164,
+      "sha256": "0b73d499611341320e6d20bf4580975c05e5a550194b21f831d8fb3754cbff3a"
+    },
+    {
+      "path": "native-only-689-canonical-node/pilot/control-agentic-none-family_architecture.receipt.json.gz",
+      "bytes": 1202,
+      "sha256": "b7ac012a7d16b1f51fd04becfb8437604de84dcfefb2fe57aa946e66207229cd"
+    },
+    {
+      "path": "native-only-689-canonical-node/pilot/control-agentic-none-family_architecture.row.json.gz",
+      "bytes": 1078,
+      "sha256": "6df80c469a05b3d9c213b30bac58f3f9b0b2c063c53890ce6f2327c002ecaed3"
+    },
+    {
+      "path": "native-only-689-canonical-node/pilot/control-agentic-none-family_architecture.svg.gz",
+      "bytes": 1493,
+      "sha256": "eb5fe31d921f74e9f906aeb937f133b8ffe3a925350ccd96f00c915de284473e"
+    },
+    {
+      "path": "native-only-689-canonical-node/pilot/control-agentic-none-family_class.receipt.json.gz",
+      "bytes": 1206,
+      "sha256": "4f093a04f8c93f6ff21ae449f9a4e828a232ada9987806f5c2306689f249ad1b"
+    },
+    {
+      "path": "native-only-689-canonical-node/pilot/control-agentic-none-family_class.row.json.gz",
+      "bytes": 1015,
+      "sha256": "3d7121c2b1ea32537a858f9c7bbc9d67db0a33761e135188e6b073a33ce58367"
+    },
+    {
+      "path": "native-only-689-canonical-node/pilot/control-agentic-none-family_class.svg.gz",
+      "bytes": 1429,
+      "sha256": "c82124f024aa5487e65e4e6c2eb6a9862eb6e145944ef0ed80e88b6c1952d1be"
+    },
+    {
+      "path": "native-only-689-canonical-node/pilot/control-agentic-none-family_er.receipt.json.gz",
+      "bytes": 1181,
+      "sha256": "9f62c1f2a15b499861cf550e86fb4df37fa88d67bb9d0a8dbd46f02cb646243d"
+    },
+    {
+      "path": "native-only-689-canonical-node/pilot/control-agentic-none-family_er.row.json.gz",
+      "bytes": 1019,
+      "sha256": "11de4a79df6613be23ab6e4686bbd0ea15e8e1bc7301679d3fdf5ab0bed40983"
+    },
+    {
+      "path": "native-only-689-canonical-node/pilot/control-agentic-none-family_er.svg.gz",
+      "bytes": 1374,
+      "sha256": "a5b410b5787ada08884988a2b4ed5d8dc14f940f5530be4c982e415c1e682772"
+    },
+    {
+      "path": "native-only-689-canonical-node/pilot/control-agentic-none-family_flowchart.receipt.json.gz",
+      "bytes": 1204,
+      "sha256": "e0a2c2022e12bfe98122365a7f02b2a6fd8d160bbeb6c1d4094aa5964eb4378e"
+    },
+    {
+      "path": "native-only-689-canonical-node/pilot/control-agentic-none-family_flowchart.row.json.gz",
+      "bytes": 1080,
+      "sha256": "245e35744f56f97b711024d748e2fe214289d8d1c55b014e24296d3ac733f15b"
+    },
+    {
+      "path": "native-only-689-canonical-node/pilot/control-agentic-none-family_flowchart.svg.gz",
+      "bytes": 1110,
+      "sha256": "65f7351e38d9a6d996fbed334c8f5f76dae544a7f7fd3cab160bcabeb2c5fda8"
+    },
+    {
+      "path": "native-only-689-canonical-node/pilot/control-agentic-none-family_requirement.receipt.json.gz",
+      "bytes": 1207,
+      "sha256": "67367f29416da01af451e87531ad4feee376fc189a106a9ad9316603602b1580"
+    },
+    {
+      "path": "native-only-689-canonical-node/pilot/control-agentic-none-family_requirement.row.json.gz",
+      "bytes": 1115,
+      "sha256": "1323d9aaa2fd51f317f950933be9a30544985f2297de78ffd9e2d99e03a2eeed"
+    },
+    {
+      "path": "native-only-689-canonical-node/pilot/control-agentic-none-family_requirement.svg.gz",
+      "bytes": 1428,
+      "sha256": "bc6f724eb94b3aad44a51c98020bc4f65c0ff35ef468331383e2253284a6cae0"
+    },
+    {
+      "path": "native-only-689-canonical-node/pilot/control-agentic-none-family_state.receipt.json.gz",
+      "bytes": 1200,
+      "sha256": "84f1d9c988d7498997591beac30711ab4389ccfc4cce6a0625277200f667397f"
+    },
+    {
+      "path": "native-only-689-canonical-node/pilot/control-agentic-none-family_state.row.json.gz",
+      "bytes": 1012,
+      "sha256": "988bf19cfd9de85e82ef0ec67556a7ea7bf457067c79dd32b7556d29ebcd0376"
+    },
+    {
+      "path": "native-only-689-canonical-node/pilot/control-agentic-none-family_state.svg.gz",
+      "bytes": 1164,
+      "sha256": "0b73d499611341320e6d20bf4580975c05e5a550194b21f831d8fb3754cbff3a"
+    },
+    {
+      "path": "native-only-689-canonical-node/pilot/control-elk-none-family_architecture.receipt.json.gz",
+      "bytes": 1202,
+      "sha256": "387fd947638aad5271eeb5daa1b95b93707dc3e62585e1d99fdcc63fc57f6091"
+    },
+    {
+      "path": "native-only-689-canonical-node/pilot/control-elk-none-family_architecture.row.json.gz",
+      "bytes": 1074,
+      "sha256": "ad2d279e7de75286ed6f028350fe666ac0d9936716aae39c2a5d285071e47a66"
+    },
+    {
+      "path": "native-only-689-canonical-node/pilot/control-elk-none-family_architecture.svg.gz",
+      "bytes": 1493,
+      "sha256": "eb5fe31d921f74e9f906aeb937f133b8ffe3a925350ccd96f00c915de284473e"
+    },
+    {
+      "path": "native-only-689-canonical-node/pilot/control-elk-none-family_class.receipt.json.gz",
+      "bytes": 1198,
+      "sha256": "3ec6b1625788e4217e8544d2e1aff60f528374960f76b08ae599c4f08f90cf60"
+    },
+    {
+      "path": "native-only-689-canonical-node/pilot/control-elk-none-family_class.row.json.gz",
+      "bytes": 1011,
+      "sha256": "870f3110c598b05918ee86911a0c883ca835decace1d6643002cd3dc86da7c93"
+    },
+    {
+      "path": "native-only-689-canonical-node/pilot/control-elk-none-family_class.svg.gz",
+      "bytes": 1436,
+      "sha256": "f183123fd9de023189113d106589ee63582c1e476b9e029ab9131ff8d85fdd49"
+    },
+    {
+      "path": "native-only-689-canonical-node/pilot/control-elk-none-family_er.receipt.json.gz",
+      "bytes": 1176,
+      "sha256": "fb1fb311caa9c367a0ca9514a4855f56921e9d748ba31620d4c2adee6b534530"
+    },
+    {
+      "path": "native-only-689-canonical-node/pilot/control-elk-none-family_er.row.json.gz",
+      "bytes": 1015,
+      "sha256": "844d0fcf7bd13dc85e0dbfdbd682ad836ba17a3d2e36c657b3b7a79e6577d6d3"
+    },
+    {
+      "path": "native-only-689-canonical-node/pilot/control-elk-none-family_er.svg.gz",
+      "bytes": 1370,
+      "sha256": "27b68580e9ef1c4f70c3dd18b228091b8ba0c6a8195442ff80a7451460e32411"
+    },
+    {
+      "path": "native-only-689-canonical-node/pilot/control-elk-none-family_flowchart.receipt.json.gz",
+      "bytes": 1202,
+      "sha256": "900b287b5ab8d83807903ea96c4f57f5fb923db7e7b6ce49e16c304e61b6d2e9"
+    },
+    {
+      "path": "native-only-689-canonical-node/pilot/control-elk-none-family_flowchart.row.json.gz",
+      "bytes": 1077,
+      "sha256": "dab2c2be5825efc71c3dd8fe37c164d48e68a1362f6d31168285ab884507c56e"
+    },
+    {
+      "path": "native-only-689-canonical-node/pilot/control-elk-none-family_flowchart.svg.gz",
+      "bytes": 1110,
+      "sha256": "65f7351e38d9a6d996fbed334c8f5f76dae544a7f7fd3cab160bcabeb2c5fda8"
+    },
+    {
+      "path": "native-only-689-canonical-node/pilot/control-elk-none-family_requirement.receipt.json.gz",
+      "bytes": 1205,
+      "sha256": "1570857460cf9d5c70b589857ad799cc826e9d3274345fd141fc1a12d02fb239"
+    },
+    {
+      "path": "native-only-689-canonical-node/pilot/control-elk-none-family_requirement.row.json.gz",
+      "bytes": 1112,
+      "sha256": "594b9c46a4f3309e79bfafe0af0c99e7c81d9772a2edef9749beaa8ebfd18fa0"
+    },
+    {
+      "path": "native-only-689-canonical-node/pilot/control-elk-none-family_requirement.svg.gz",
+      "bytes": 1429,
+      "sha256": "1a5fb842dd5da25503b2929994bf02f32d071b71db2492c98bf4a954bfe7f571"
+    },
+    {
+      "path": "native-only-689-canonical-node/pilot/control-elk-none-family_state.receipt.json.gz",
+      "bytes": 1197,
+      "sha256": "68a48ed69448b0341c6f7c84d9100dc44495143027a738abeaec11b01d1f3944"
+    },
+    {
+      "path": "native-only-689-canonical-node/pilot/control-elk-none-family_state.row.json.gz",
+      "bytes": 1008,
+      "sha256": "0aa8f64f5b93a80de05e3dca0a05dd3d07baccea0f24081901c024e129784011"
+    },
+    {
+      "path": "native-only-689-canonical-node/pilot/control-elk-none-family_state.svg.gz",
+      "bytes": 1168,
+      "sha256": "610aa04df5ecf1532a5f3b45727bf16c8d347487c565c08d8b1fc2ec4ddf8761"
+    },
+    {
+      "path": "native-only-689-canonical-node/portable-canonical-node.ts",
+      "bytes": 2939,
+      "sha256": "b49bdf68513ccf00e9f5fc95830cf6f949b3a50b11270a0ce08726c18de72d82"
+    },
+    {
+      "path": "native-only-approved-2525/APPROVAL-AND-SCOPE.json",
+      "bytes": 416,
+      "sha256": "b05fe7234a7a0461450c0a8d97e57682ba87d3e25aacaf32cac827df08bcc85a"
+    },
+    {
+      "path": "native-only-approved-2525/ASYNC-OWNERS.log",
+      "bytes": 529,
+      "sha256": "9329ca1466db17b49e82fc52f229b93089d3617d3aaa84adbb14c2abb261994e"
+    },
+    {
+      "path": "native-only-approved-2525/CANONICAL-PAYLOAD-COMPARISON.json",
+      "bytes": 39813,
+      "sha256": "acda5e49fa7c0bfbeef2961c2112d5142fa33b68f96054b0c5e204464e76a043"
+    },
+    {
+      "path": "native-only-approved-2525/CANONICAL-PAYLOAD-TABLE.md",
+      "bytes": 687,
+      "sha256": "a8ccc0bae3198d9f492e4fbabdd8e879ca6fdcf5704149844e89b32f2d02ec15"
+    },
+    {
+      "path": "native-only-approved-2525/CONTROL-IDENTITY.json",
+      "bytes": 619,
+      "sha256": "e8d304d51fb8de8b899034a003bbe3e381a664fde2b28609263334f0385f75ff"
+    },
+    {
+      "path": "native-only-approved-2525/FINAL-QUALIFICATION.json",
+      "bytes": 600,
+      "sha256": "ab3cf32d2e82ecb20dedd33a4a3455d2be149cecb308af22ea1dbc544e87636c"
+    },
+    {
+      "path": "native-only-approved-2525/FINAL-source-before-commit.patch",
+      "bytes": 200747,
+      "sha256": "5765e7d4cb04cf679b3ae5b09e7c1e81dc615e748763f13de079c7b20a12e0e6"
+    },
+    {
+      "path": "native-only-approved-2525/MEASURED-OWNERS.log",
+      "bytes": 3985,
+      "sha256": "e28e82fc7abbc1d308289a45401034e1855a467a752dbeb933a996e04b3f1678"
+    },
+    {
+      "path": "native-only-approved-2525/MEASURED-REPAIR-LINT.log",
+      "bytes": 42,
+      "sha256": "ab421f8bb0b2e91b278dde5daac285417d6a52d157dd09bbc597811eb3f2211b"
+    },
+    {
+      "path": "native-only-approved-2525/MEASURED-REPAIR-OWNERS.log",
+      "bytes": 4118,
+      "sha256": "11cc08f8f1c685c136a91cc2434367086772bcfa4b255e99093ca319fc442042"
+    },
+    {
+      "path": "native-only-approved-2525/OWNERS-COMPLETED.json",
+      "bytes": 442,
+      "sha256": "7e70efceecac660fe31f626476cefc776749f626b5bee46b8d742f1de490fb59"
+    },
+    {
+      "path": "native-only-approved-2525/OWNERS-PROGRESS.json",
+      "bytes": 442,
+      "sha256": "7e70efceecac660fe31f626476cefc776749f626b5bee46b8d742f1de490fb59"
+    },
+    {
+      "path": "native-only-approved-2525/PUBLIC-REJECTION.log",
+      "bytes": 290,
+      "sha256": "f00eab044b983671c350665b92f3346b56bc9de3b115d00423a387cc5a6ef215"
+    },
+    {
+      "path": "native-only-approved-2525/SCOPED-LINT.log",
+      "bytes": 44,
+      "sha256": "508413bfcd79ad95bfdf920336c5cdaaad5bab94cf6bdb4e9da5d2ffacf10c09"
+    },
+    {
+      "path": "native-only-approved-2525/SOURCE-COMMIT.json",
+      "bytes": 341,
+      "sha256": "fef5a639ac853457e7faa24085e59b451acfcde6dcd9585d6e0214cfaf76d183"
+    },
+    {
+      "path": "native-only-approved-2525/SOURCE-SIDECARS.json",
+      "bytes": 1654,
+      "sha256": "088ff1cfcadcf6e540b41f34ad3d8dc09e87a5156145f5ea4ba649e32fe86170"
+    },
+    {
+      "path": "native-only-approved-2525/STATE-BEFORE-EVIDENCE8458.json",
+      "bytes": 105808,
+      "sha256": "b23858c3c83324172f7acbfcd245ee9cb6365af04e2076478214ebacd4fdb582"
+    },
+    {
+      "path": "native-only-approved-2525/STATE-BEFORE-LEASE.json",
+      "bytes": 105800,
+      "sha256": "06d24e638ab1c7e86fbd3cd9c54e23c6c6d37a3f10b1e5dd185a791f2ba24b16"
+    },
+    {
+      "path": "native-only-approved-2525/STATE-BEFORE-PUSHED-UPDATE.json",
+      "bytes": 105847,
+      "sha256": "c695dc76071f95b1497e3fac5eb99ea002a9b9e339bcadbc707bb88d170c5918"
+    },
+    {
+      "path": "native-only-approved-2525/architecture-layout-backends.test.ts.log",
+      "bytes": 3289,
+      "sha256": "44006b74bfb33215254533be4a3473f29267b8f9e1bc931a8017f341e1c5c6ca"
+    },
+    {
+      "path": "native-only-approved-2525/class-layout-backends.test.ts.log",
+      "bytes": 2695,
+      "sha256": "96387b5a5fc20fc47369935be45793b97edb7f61bc826985c52e202400547b50"
+    },
+    {
+      "path": "native-only-approved-2525/measured-backend.exact-v3-before-repair.ts",
+      "bytes": 20613,
+      "sha256": "8336002ce3e35b2c0ae802b45452aadd4203968aa7402a8911e67b80254b4472"
+    },
+    {
+      "path": "native-only-approved-2525/trident-source-bun/CANDIDATE.log",
+      "bytes": 152,
+      "sha256": "f7ca9e31d62cf071b1beea96951d17c8ba9c689c9e930a37e05e666150dfecf3"
+    },
+    {
+      "path": "native-only-approved-2525/trident-source-bun/CASES.json",
+      "bytes": 4394,
+      "sha256": "7cff3b9c10519cb1684002d84afbc75297619fb6e093ff9cc519996a3f1e55f6"
+    },
+    {
+      "path": "native-only-approved-2525/trident-source-bun/CONTROL.log",
+      "bytes": 38,
+      "sha256": "ad75103088d9ca23913ea1be873315db48b5875b8a7ce0cbfee80b21ce444b4e"
+    },
+    {
+      "path": "native-only-approved-2525/trident-source-bun/HISTORICAL-TRINITY-2525.json",
+      "bytes": 46128,
+      "sha256": "0e113354cbd70be459e585ca3b1855afc9c4a429bd30550f8991a64bb0de6053"
+    },
+    {
+      "path": "native-only-approved-2525/trident-source-bun/IDENTITY.json",
+      "bytes": 560,
+      "sha256": "fddacb780c93ca03712032c10109326dd1a653594ee7bce8e20a5b97dd1cdee2"
+    },
+    {
+      "path": "native-only-approved-2525/trident-source-bun/SUMMARY.json",
+      "bytes": 13643,
+      "sha256": "3f61833caf1e45b0b48f61d3b4ad64e57b08a7ae286f5014df981582809bec5c"
+    },
+    {
+      "path": "native-only-approved-2525/trident-source-bun/candidate-PILOT.json.gz",
+      "bytes": 2850,
+      "sha256": "f8e8203f04a58ea90bc1403654fd64532824ca256322d1941c5bed2a88b56824"
+    },
+    {
+      "path": "native-only-approved-2525/trident-source-bun/control-PILOT.json.gz",
+      "bytes": 2504,
+      "sha256": "f62c92babffb7d3dd79dd8966bf4ad3450508ec42da187a55e20b004fdd84201"
+    },
+    {
+      "path": "native-only-approved-2525/trident-source-bun/pilot/candidate-agentic-elk-family_architecture.receipt.json.gz",
+      "bytes": 1201,
+      "sha256": "e633689ef13b5bcdf95bc74e0d8b56571d4d92f2d34edcd61a8b6ed36d99c8d5"
+    },
+    {
+      "path": "native-only-approved-2525/trident-source-bun/pilot/candidate-agentic-elk-family_architecture.row.json.gz",
+      "bytes": 1075,
+      "sha256": "58e4a5458f020a71c291fd005e574511721569f39591d5059fe08fad4b3bc26b"
+    },
+    {
+      "path": "native-only-approved-2525/trident-source-bun/pilot/candidate-agentic-elk-family_architecture.svg.gz",
+      "bytes": 1497,
+      "sha256": "b3161318323ec30e7210facd2dfe61562d122dcaf4bd76c053f7f4450c6bc099"
+    },
+    {
+      "path": "native-only-approved-2525/trident-source-bun/pilot/candidate-agentic-elk-family_class.receipt.json.gz",
+      "bytes": 1203,
+      "sha256": "28803aa9f95390d6fbe28ad8de74eb4ca66dda553cb60bb04eab995a5cf290e6"
+    },
+    {
+      "path": "native-only-approved-2525/trident-source-bun/pilot/candidate-agentic-elk-family_class.row.json.gz",
+      "bytes": 1012,
+      "sha256": "102ffab47f6c1a3135b1376a1b6544cdebcf8a7a143a90d4c9443b99081036fd"
+    },
+    {
+      "path": "native-only-approved-2525/trident-source-bun/pilot/candidate-agentic-elk-family_class.svg.gz",
+      "bytes": 1431,
+      "sha256": "86f2cadf2acc2571207e10afaa3cada3ce625de36439a6e24acbea02392d8221"
+    },
+    {
+      "path": "native-only-approved-2525/trident-source-bun/pilot/candidate-agentic-elk-family_er.receipt.json.gz",
+      "bytes": 1175,
+      "sha256": "1ea8897c880a2617a6029aeb87f88c0ec01032e89131c3f4bea77e5a5e1c8f78"
+    },
+    {
+      "path": "native-only-approved-2525/trident-source-bun/pilot/candidate-agentic-elk-family_er.row.json.gz",
+      "bytes": 1016,
+      "sha256": "133347de836963721e251a96ac64d8bde1a26964596fc379ee2a377ea9eb7f00"
+    },
+    {
+      "path": "native-only-approved-2525/trident-source-bun/pilot/candidate-agentic-elk-family_er.svg.gz",
+      "bytes": 1372,
+      "sha256": "a34dedd6fff7b381aacb2f8a0d61007fa64da4737ce4ce3f3135b7f63f524829"
+    },
+    {
+      "path": "native-only-approved-2525/trident-source-bun/pilot/candidate-agentic-elk-family_flowchart.receipt.json.gz",
+      "bytes": 1201,
+      "sha256": "9c94c20449a12194ccab3edcaecc19167c4798d02fba9b93028c5d62ac10185f"
+    },
+    {
+      "path": "native-only-approved-2525/trident-source-bun/pilot/candidate-agentic-elk-family_flowchart.row.json.gz",
+      "bytes": 1079,
+      "sha256": "4db936ce26ef676cfeb3052d596697400c0608abc93d4aa9a71e0f402a3acc68"
+    },
+    {
+      "path": "native-only-approved-2525/trident-source-bun/pilot/candidate-agentic-elk-family_flowchart.svg.gz",
+      "bytes": 1113,
+      "sha256": "ccfbb6d8b24a3db5313a998c7a2da087564259680d3d1bab5fc72051e2b77e5f"
+    },
+    {
+      "path": "native-only-approved-2525/trident-source-bun/pilot/candidate-agentic-elk-family_requirement.receipt.json.gz",
+      "bytes": 1204,
+      "sha256": "880b06e1963ac2871ef6b0f56814ab4548133dc812b4856b8ade96f7e9ce7e06"
+    },
+    {
+      "path": "native-only-approved-2525/trident-source-bun/pilot/candidate-agentic-elk-family_requirement.row.json.gz",
+      "bytes": 1112,
+      "sha256": "b7c68707c1fa26ccfdc1fa9fbf8bdcdb5b0efe7137df9176ba4baebab0484ca5"
+    },
+    {
+      "path": "native-only-approved-2525/trident-source-bun/pilot/candidate-agentic-elk-family_requirement.svg.gz",
+      "bytes": 1428,
+      "sha256": "7292424d5ee7270f4529108226e2e6282d4e96cac2dce45a56cd2b30fecfe8a1"
+    },
+    {
+      "path": "native-only-approved-2525/trident-source-bun/pilot/candidate-agentic-elk-family_state.receipt.json.gz",
+      "bytes": 1195,
+      "sha256": "08d7bcd83197b2885d3fe1588c6fa0d2bf464b9f08e466303f996b84fa56f22f"
+    },
+    {
+      "path": "native-only-approved-2525/trident-source-bun/pilot/candidate-agentic-elk-family_state.row.json.gz",
+      "bytes": 1011,
+      "sha256": "32bda7ca5ab104d502386844b3caa8f186d67bd9a4fb3d0ff42874fc93f0e175"
+    },
+    {
+      "path": "native-only-approved-2525/trident-source-bun/pilot/candidate-agentic-elk-family_state.svg.gz",
+      "bytes": 1165,
+      "sha256": "d1d343e75ab774000ecf131836eb2b1d98298d889f5af8a21e69ec144215dcde"
+    },
+    {
+      "path": "native-only-approved-2525/trident-source-bun/pilot/candidate-agentic-none-family_architecture.receipt.json.gz",
+      "bytes": 1200,
+      "sha256": "012395fd1093b81f0a1667c44b19495368401e946c7427008ac3e52ee5dce010"
+    },
+    {
+      "path": "native-only-approved-2525/trident-source-bun/pilot/candidate-agentic-none-family_architecture.row.json.gz",
+      "bytes": 1075,
+      "sha256": "9a2ada7dd2cd2ad7182bfda55f6df0ffb784e256c1a13bd67e991f930c450674"
+    },
+    {
+      "path": "native-only-approved-2525/trident-source-bun/pilot/candidate-agentic-none-family_architecture.svg.gz",
+      "bytes": 1497,
+      "sha256": "b3161318323ec30e7210facd2dfe61562d122dcaf4bd76c053f7f4450c6bc099"
+    },
+    {
+      "path": "native-only-approved-2525/trident-source-bun/pilot/candidate-agentic-none-family_class.receipt.json.gz",
+      "bytes": 1205,
+      "sha256": "2674ea1e3fbe64141a60dc19f017dcd3d23085ec804fa9c7a3a0af1bb3ed7b33"
+    },
+    {
+      "path": "native-only-approved-2525/trident-source-bun/pilot/candidate-agentic-none-family_class.row.json.gz",
+      "bytes": 1012,
+      "sha256": "0ea1df474f6401c32e9cefccce3fab6febfccc121f25a152067dac4d67816113"
+    },
+    {
+      "path": "native-only-approved-2525/trident-source-bun/pilot/candidate-agentic-none-family_class.svg.gz",
+      "bytes": 1431,
+      "sha256": "86f2cadf2acc2571207e10afaa3cada3ce625de36439a6e24acbea02392d8221"
+    },
+    {
+      "path": "native-only-approved-2525/trident-source-bun/pilot/candidate-agentic-none-family_er.receipt.json.gz",
+      "bytes": 1178,
+      "sha256": "313c62aa46745a83daf7662d89dde970270d29b9ff9e975cb92a779d5b4f898b"
+    },
+    {
+      "path": "native-only-approved-2525/trident-source-bun/pilot/candidate-agentic-none-family_er.row.json.gz",
+      "bytes": 1015,
+      "sha256": "31cfea09a95fac01de5c8649c359ece4fea51c7c7cd28d9313896aca720a3c85"
+    },
+    {
+      "path": "native-only-approved-2525/trident-source-bun/pilot/candidate-agentic-none-family_er.svg.gz",
+      "bytes": 1372,
+      "sha256": "a34dedd6fff7b381aacb2f8a0d61007fa64da4737ce4ce3f3135b7f63f524829"
+    },
+    {
+      "path": "native-only-approved-2525/trident-source-bun/pilot/candidate-agentic-none-family_flowchart.receipt.json.gz",
+      "bytes": 1202,
+      "sha256": "410b41b54d238fed29bf58b93fdd2990d6460594761161cb3dc07ac9d963731b"
+    },
+    {
+      "path": "native-only-approved-2525/trident-source-bun/pilot/candidate-agentic-none-family_flowchart.row.json.gz",
+      "bytes": 1078,
+      "sha256": "a9ee566c26e8dd5c5d82092092ede72e92a791630a22eba2171d51a2175f9621"
+    },
+    {
+      "path": "native-only-approved-2525/trident-source-bun/pilot/candidate-agentic-none-family_flowchart.svg.gz",
+      "bytes": 1113,
+      "sha256": "ccfbb6d8b24a3db5313a998c7a2da087564259680d3d1bab5fc72051e2b77e5f"
+    },
+    {
+      "path": "native-only-approved-2525/trident-source-bun/pilot/candidate-agentic-none-family_requirement.receipt.json.gz",
+      "bytes": 1203,
+      "sha256": "05a41038991c51735054e69533825f72aeb2dcf7ae8456f07540b8345bd89820"
+    },
+    {
+      "path": "native-only-approved-2525/trident-source-bun/pilot/candidate-agentic-none-family_requirement.row.json.gz",
+      "bytes": 1112,
+      "sha256": "ac13d0f5ac55f7589ff35873729f08c457c853d74f6a7d2b2141b31e836f57bd"
+    },
+    {
+      "path": "native-only-approved-2525/trident-source-bun/pilot/candidate-agentic-none-family_requirement.svg.gz",
+      "bytes": 1428,
+      "sha256": "7292424d5ee7270f4529108226e2e6282d4e96cac2dce45a56cd2b30fecfe8a1"
+    },
+    {
+      "path": "native-only-approved-2525/trident-source-bun/pilot/candidate-agentic-none-family_state.receipt.json.gz",
+      "bytes": 1198,
+      "sha256": "49c4ebd3ee289628ff558b08624b392c4552de2549eea4f90f2fc826aa52e8a5"
+    },
+    {
+      "path": "native-only-approved-2525/trident-source-bun/pilot/candidate-agentic-none-family_state.row.json.gz",
+      "bytes": 1011,
+      "sha256": "3f77ea073861136d866619182d04a19fe137888e3ad2907e19683bc99c001c34"
+    },
+    {
+      "path": "native-only-approved-2525/trident-source-bun/pilot/candidate-agentic-none-family_state.svg.gz",
+      "bytes": 1165,
+      "sha256": "d1d343e75ab774000ecf131836eb2b1d98298d889f5af8a21e69ec144215dcde"
+    },
+    {
+      "path": "native-only-approved-2525/trident-source-bun/pilot/candidate-elk-none-family_architecture.receipt.json.gz",
+      "bytes": 1201,
+      "sha256": "d4960d7492145d50dcfa567c5406310478760069a2b942ff3690e8486d551177"
+    },
+    {
+      "path": "native-only-approved-2525/trident-source-bun/pilot/candidate-elk-none-family_architecture.row.json.gz",
+      "bytes": 1071,
+      "sha256": "7fa78d6770969109722c7b7f0a94a8ff6133ab13954aaed86419ae50c94e3483"
+    },
+    {
+      "path": "native-only-approved-2525/trident-source-bun/pilot/candidate-elk-none-family_architecture.svg.gz",
+      "bytes": 1497,
+      "sha256": "b3161318323ec30e7210facd2dfe61562d122dcaf4bd76c053f7f4450c6bc099"
+    },
+    {
+      "path": "native-only-approved-2525/trident-source-bun/pilot/candidate-elk-none-family_class.receipt.json.gz",
+      "bytes": 1196,
+      "sha256": "5e0f1d9379797443c2a0ac6787a0864575499669f4747828271b9ee48a77d23e"
+    },
+    {
+      "path": "native-only-approved-2525/trident-source-bun/pilot/candidate-elk-none-family_class.row.json.gz",
+      "bytes": 1008,
+      "sha256": "fd8d34c198bf669214186be5c91f7524d9d387016831599528838badcb456a3f"
+    },
+    {
+      "path": "native-only-approved-2525/trident-source-bun/pilot/candidate-elk-none-family_class.svg.gz",
+      "bytes": 1439,
+      "sha256": "48997b54675e0c6c12a2612a326ae7a6cb84a08f798eb7bdf47487c2de635e0a"
+    },
+    {
+      "path": "native-only-approved-2525/trident-source-bun/pilot/candidate-elk-none-family_er.receipt.json.gz",
+      "bytes": 1173,
+      "sha256": "ad739129916fcb5c1bd9361ded906439c662315623722f4bdd955735bf0cb759"
+    },
+    {
+      "path": "native-only-approved-2525/trident-source-bun/pilot/candidate-elk-none-family_er.row.json.gz",
+      "bytes": 1011,
+      "sha256": "49f1e0a2be4f1d43b1bfdb099f083a81f3b2f57dd097b8d390a202a5cd10ced8"
+    },
+    {
+      "path": "native-only-approved-2525/trident-source-bun/pilot/candidate-elk-none-family_er.svg.gz",
+      "bytes": 1367,
+      "sha256": "8d89e2716165967377c54dc95a2f2f119f4003e3adadcc69da866f98de13ab58"
+    },
+    {
+      "path": "native-only-approved-2525/trident-source-bun/pilot/candidate-elk-none-family_flowchart.receipt.json.gz",
+      "bytes": 1200,
+      "sha256": "b8c6d3304264ccad0075fad42ca43b426284ae2a70b9c1603d1221dfdaca694a"
+    },
+    {
+      "path": "native-only-approved-2525/trident-source-bun/pilot/candidate-elk-none-family_flowchart.row.json.gz",
+      "bytes": 1075,
+      "sha256": "500bb6c81a529874fb75d345b8ab2074abc74f5eae6aedbae371333ace7fd666"
+    },
+    {
+      "path": "native-only-approved-2525/trident-source-bun/pilot/candidate-elk-none-family_flowchart.svg.gz",
+      "bytes": 1113,
+      "sha256": "ccfbb6d8b24a3db5313a998c7a2da087564259680d3d1bab5fc72051e2b77e5f"
+    },
+    {
+      "path": "native-only-approved-2525/trident-source-bun/pilot/candidate-elk-none-family_requirement.receipt.json.gz",
+      "bytes": 1201,
+      "sha256": "83becf792787e8ab26f1d1475b53a85431868207f1f9ec744ce12971de1ceffc"
+    },
+    {
+      "path": "native-only-approved-2525/trident-source-bun/pilot/candidate-elk-none-family_requirement.row.json.gz",
+      "bytes": 1108,
+      "sha256": "15b144bf2f7474a0242cf966964b1e74d6cc717f06165f4a0e8f0e4ef7279fa3"
+    },
+    {
+      "path": "native-only-approved-2525/trident-source-bun/pilot/candidate-elk-none-family_requirement.svg.gz",
+      "bytes": 1430,
+      "sha256": "190343e0a556873931fefce17d24bbc961b2baec0430579272959693d5c1732b"
+    },
+    {
+      "path": "native-only-approved-2525/trident-source-bun/pilot/candidate-elk-none-family_state.receipt.json.gz",
+      "bytes": 1195,
+      "sha256": "eb41c48a3a46efe1fd2d08a5aaec454534b635b0504b07ffc678bc830dd5dba3"
+    },
+    {
+      "path": "native-only-approved-2525/trident-source-bun/pilot/candidate-elk-none-family_state.row.json.gz",
+      "bytes": 1007,
+      "sha256": "dc04f279a33fb0b6f3a305c2f7b8760b014ed02207a8cf3477533ff47816e6b7"
+    },
+    {
+      "path": "native-only-approved-2525/trident-source-bun/pilot/candidate-elk-none-family_state.svg.gz",
+      "bytes": 1170,
+      "sha256": "ddbd43b9c1a96528479dfe4b26a689d38e6415c786c26ec18e009b8837c0b1ed"
+    },
+    {
+      "path": "native-only-approved-2525/trident-source-bun/pilot/candidate-trinity-elk-family_architecture.row.json.gz",
+      "bytes": 470,
+      "sha256": "aa83a66140feec2ddca76ff289bb70a966a33b2b580108827d3c1db20b29650f"
+    },
+    {
+      "path": "native-only-approved-2525/trident-source-bun/pilot/candidate-trinity-elk-family_class.row.json.gz",
+      "bytes": 467,
+      "sha256": "64066b5e3412ebfdff6167036b1bdca406c5b141eff60df3fa9f9798d648ec46"
+    },
+    {
+      "path": "native-only-approved-2525/trident-source-bun/pilot/candidate-trinity-elk-family_er.row.json.gz",
+      "bytes": 463,
+      "sha256": "61249c23273b6a85e83b1716ac40d683e315ff514a298eca513e7b894d96974b"
+    },
+    {
+      "path": "native-only-approved-2525/trident-source-bun/pilot/candidate-trinity-elk-family_flowchart.row.json.gz",
+      "bytes": 470,
+      "sha256": "4c9097f48e07ed7cb748da4a766b67277c274fd2dd29935e01343bdfe5d6352d"
+    },
+    {
+      "path": "native-only-approved-2525/trident-source-bun/pilot/candidate-trinity-elk-family_requirement.row.json.gz",
+      "bytes": 471,
+      "sha256": "b7e112c770c144f5f2b0abe51f6fcaf1ed93c17b9ff21ad5695a55293b33f772"
+    },
+    {
+      "path": "native-only-approved-2525/trident-source-bun/pilot/candidate-trinity-elk-family_state.row.json.gz",
+      "bytes": 465,
+      "sha256": "f8b8755f3687b3994b795f02dcf101e5292539b2a5ddb90c4778f4d7c8c6e002"
+    },
+    {
+      "path": "native-only-approved-2525/trident-source-bun/pilot/candidate-trinity-none-family_architecture.row.json.gz",
+      "bytes": 468,
+      "sha256": "0b94124675df53823d466e69b90311fcc51fce9511712d53bb62e2970a009131"
+    },
+    {
+      "path": "native-only-approved-2525/trident-source-bun/pilot/candidate-trinity-none-family_class.row.json.gz",
+      "bytes": 465,
+      "sha256": "8bcb3772353269194f7e51635531a7ce6648bb39af23233f0a51cddef418f36a"
+    },
+    {
+      "path": "native-only-approved-2525/trident-source-bun/pilot/candidate-trinity-none-family_er.row.json.gz",
+      "bytes": 461,
+      "sha256": "b079ef88d310bade7fffc3cf474b3f929e3d7928793b6433896b3906e2cdf253"
+    },
+    {
+      "path": "native-only-approved-2525/trident-source-bun/pilot/candidate-trinity-none-family_flowchart.row.json.gz",
+      "bytes": 468,
+      "sha256": "a2bb65efc2dadc78bafbfb04f8b02dba7fe18d0a37fa2b63e0378cd3aa89305c"
+    },
+    {
+      "path": "native-only-approved-2525/trident-source-bun/pilot/candidate-trinity-none-family_requirement.row.json.gz",
+      "bytes": 469,
+      "sha256": "fc2d932335526bd24bd2c590127a8bebdd8d2639ee64f6886b047eb90a8fda82"
+    },
+    {
+      "path": "native-only-approved-2525/trident-source-bun/pilot/candidate-trinity-none-family_state.row.json.gz",
+      "bytes": 463,
+      "sha256": "4fc4d6797bcee52b092adc83e5c328bf2ebdcc6d7a609b5dc9ac9e2272bc9e87"
+    },
+    {
+      "path": "native-only-approved-2525/trident-source-bun/pilot/control-agentic-elk-family_architecture.receipt.json.gz",
+      "bytes": 1201,
+      "sha256": "e633689ef13b5bcdf95bc74e0d8b56571d4d92f2d34edcd61a8b6ed36d99c8d5"
+    },
+    {
+      "path": "native-only-approved-2525/trident-source-bun/pilot/control-agentic-elk-family_architecture.row.json.gz",
+      "bytes": 1075,
+      "sha256": "d43183a8a8ba23b1fd4fa919795dab59f4a0d89166bf1327705cbe8c987eb105"
+    },
+    {
+      "path": "native-only-approved-2525/trident-source-bun/pilot/control-agentic-elk-family_architecture.svg.gz",
+      "bytes": 1497,
+      "sha256": "b3161318323ec30e7210facd2dfe61562d122dcaf4bd76c053f7f4450c6bc099"
+    },
+    {
+      "path": "native-only-approved-2525/trident-source-bun/pilot/control-agentic-elk-family_class.receipt.json.gz",
+      "bytes": 1203,
+      "sha256": "28803aa9f95390d6fbe28ad8de74eb4ca66dda553cb60bb04eab995a5cf290e6"
+    },
+    {
+      "path": "native-only-approved-2525/trident-source-bun/pilot/control-agentic-elk-family_class.row.json.gz",
+      "bytes": 1011,
+      "sha256": "34c445db3c6cda98277c54b3a6bc7dd4e4495caaf8ebb3c50d17bb6fd4a7e0eb"
+    },
+    {
+      "path": "native-only-approved-2525/trident-source-bun/pilot/control-agentic-elk-family_class.svg.gz",
+      "bytes": 1431,
+      "sha256": "86f2cadf2acc2571207e10afaa3cada3ce625de36439a6e24acbea02392d8221"
+    },
+    {
+      "path": "native-only-approved-2525/trident-source-bun/pilot/control-agentic-elk-family_er.receipt.json.gz",
+      "bytes": 1175,
+      "sha256": "1ea8897c880a2617a6029aeb87f88c0ec01032e89131c3f4bea77e5a5e1c8f78"
+    },
+    {
+      "path": "native-only-approved-2525/trident-source-bun/pilot/control-agentic-elk-family_er.row.json.gz",
+      "bytes": 1015,
+      "sha256": "ad8c6fb4b1e5507e5dbc1c4699a8e93d28216e1b577e69306f9753888a5f690f"
+    },
+    {
+      "path": "native-only-approved-2525/trident-source-bun/pilot/control-agentic-elk-family_er.svg.gz",
+      "bytes": 1372,
+      "sha256": "a34dedd6fff7b381aacb2f8a0d61007fa64da4737ce4ce3f3135b7f63f524829"
+    },
+    {
+      "path": "native-only-approved-2525/trident-source-bun/pilot/control-agentic-elk-family_flowchart.receipt.json.gz",
+      "bytes": 1201,
+      "sha256": "9c94c20449a12194ccab3edcaecc19167c4798d02fba9b93028c5d62ac10185f"
+    },
+    {
+      "path": "native-only-approved-2525/trident-source-bun/pilot/control-agentic-elk-family_flowchart.row.json.gz",
+      "bytes": 1078,
+      "sha256": "cfb1d51ef0ccb3ecf4585d5f7be76d0461e0ee0e63cfd7923e7f272e68751b4a"
+    },
+    {
+      "path": "native-only-approved-2525/trident-source-bun/pilot/control-agentic-elk-family_flowchart.svg.gz",
+      "bytes": 1113,
+      "sha256": "ccfbb6d8b24a3db5313a998c7a2da087564259680d3d1bab5fc72051e2b77e5f"
+    },
+    {
+      "path": "native-only-approved-2525/trident-source-bun/pilot/control-agentic-elk-family_requirement.receipt.json.gz",
+      "bytes": 1204,
+      "sha256": "880b06e1963ac2871ef6b0f56814ab4548133dc812b4856b8ade96f7e9ce7e06"
+    },
+    {
+      "path": "native-only-approved-2525/trident-source-bun/pilot/control-agentic-elk-family_requirement.row.json.gz",
+      "bytes": 1111,
+      "sha256": "12342618efb7304d40b8fe312efc7377f522ad433e481c5561b2b6d34efb72ea"
+    },
+    {
+      "path": "native-only-approved-2525/trident-source-bun/pilot/control-agentic-elk-family_requirement.svg.gz",
+      "bytes": 1428,
+      "sha256": "7292424d5ee7270f4529108226e2e6282d4e96cac2dce45a56cd2b30fecfe8a1"
+    },
+    {
+      "path": "native-only-approved-2525/trident-source-bun/pilot/control-agentic-elk-family_state.receipt.json.gz",
+      "bytes": 1195,
+      "sha256": "08d7bcd83197b2885d3fe1588c6fa0d2bf464b9f08e466303f996b84fa56f22f"
+    },
+    {
+      "path": "native-only-approved-2525/trident-source-bun/pilot/control-agentic-elk-family_state.row.json.gz",
+      "bytes": 1011,
+      "sha256": "6e2f68366a3661eb99e2b942913e487b1e6c045a8e546e031162530d8c4d06c0"
+    },
+    {
+      "path": "native-only-approved-2525/trident-source-bun/pilot/control-agentic-elk-family_state.svg.gz",
+      "bytes": 1165,
+      "sha256": "d1d343e75ab774000ecf131836eb2b1d98298d889f5af8a21e69ec144215dcde"
+    },
+    {
+      "path": "native-only-approved-2525/trident-source-bun/pilot/control-agentic-none-family_architecture.receipt.json.gz",
+      "bytes": 1200,
+      "sha256": "012395fd1093b81f0a1667c44b19495368401e946c7427008ac3e52ee5dce010"
+    },
+    {
+      "path": "native-only-approved-2525/trident-source-bun/pilot/control-agentic-none-family_architecture.row.json.gz",
+      "bytes": 1075,
+      "sha256": "27f21cfed157e7be0ba99afaca393b3a73f0c884492008c5bd0f903ec7a04fef"
+    },
+    {
+      "path": "native-only-approved-2525/trident-source-bun/pilot/control-agentic-none-family_architecture.svg.gz",
+      "bytes": 1497,
+      "sha256": "b3161318323ec30e7210facd2dfe61562d122dcaf4bd76c053f7f4450c6bc099"
+    },
+    {
+      "path": "native-only-approved-2525/trident-source-bun/pilot/control-agentic-none-family_class.receipt.json.gz",
+      "bytes": 1205,
+      "sha256": "2674ea1e3fbe64141a60dc19f017dcd3d23085ec804fa9c7a3a0af1bb3ed7b33"
+    },
+    {
+      "path": "native-only-approved-2525/trident-source-bun/pilot/control-agentic-none-family_class.row.json.gz",
+      "bytes": 1011,
+      "sha256": "c0e0c5eab1d0bacb851ed351bcc74d123cdf0034e3f01e17e641e0d942ae5d29"
+    },
+    {
+      "path": "native-only-approved-2525/trident-source-bun/pilot/control-agentic-none-family_class.svg.gz",
+      "bytes": 1431,
+      "sha256": "86f2cadf2acc2571207e10afaa3cada3ce625de36439a6e24acbea02392d8221"
+    },
+    {
+      "path": "native-only-approved-2525/trident-source-bun/pilot/control-agentic-none-family_er.receipt.json.gz",
+      "bytes": 1178,
+      "sha256": "313c62aa46745a83daf7662d89dde970270d29b9ff9e975cb92a779d5b4f898b"
+    },
+    {
+      "path": "native-only-approved-2525/trident-source-bun/pilot/control-agentic-none-family_er.row.json.gz",
+      "bytes": 1014,
+      "sha256": "841b7147aac97c0b7fbded0a0e39cdb24b84be2e969cdad98f9eced727dbad2c"
+    },
+    {
+      "path": "native-only-approved-2525/trident-source-bun/pilot/control-agentic-none-family_er.svg.gz",
+      "bytes": 1372,
+      "sha256": "a34dedd6fff7b381aacb2f8a0d61007fa64da4737ce4ce3f3135b7f63f524829"
+    },
+    {
+      "path": "native-only-approved-2525/trident-source-bun/pilot/control-agentic-none-family_flowchart.receipt.json.gz",
+      "bytes": 1202,
+      "sha256": "410b41b54d238fed29bf58b93fdd2990d6460594761161cb3dc07ac9d963731b"
+    },
+    {
+      "path": "native-only-approved-2525/trident-source-bun/pilot/control-agentic-none-family_flowchart.row.json.gz",
+      "bytes": 1077,
+      "sha256": "e372ec0ee97f01ce94436b96087ebffcf3ad0b6ff2d19fef53c3b587ed4b16ab"
+    },
+    {
+      "path": "native-only-approved-2525/trident-source-bun/pilot/control-agentic-none-family_flowchart.svg.gz",
+      "bytes": 1113,
+      "sha256": "ccfbb6d8b24a3db5313a998c7a2da087564259680d3d1bab5fc72051e2b77e5f"
+    },
+    {
+      "path": "native-only-approved-2525/trident-source-bun/pilot/control-agentic-none-family_requirement.receipt.json.gz",
+      "bytes": 1203,
+      "sha256": "05a41038991c51735054e69533825f72aeb2dcf7ae8456f07540b8345bd89820"
+    },
+    {
+      "path": "native-only-approved-2525/trident-source-bun/pilot/control-agentic-none-family_requirement.row.json.gz",
+      "bytes": 1111,
+      "sha256": "c56eb1c51449880b87d99c8b5c23d8b6e1e705a56df9fab28dceabe40fda54b2"
+    },
+    {
+      "path": "native-only-approved-2525/trident-source-bun/pilot/control-agentic-none-family_requirement.svg.gz",
+      "bytes": 1428,
+      "sha256": "7292424d5ee7270f4529108226e2e6282d4e96cac2dce45a56cd2b30fecfe8a1"
+    },
+    {
+      "path": "native-only-approved-2525/trident-source-bun/pilot/control-agentic-none-family_state.receipt.json.gz",
+      "bytes": 1198,
+      "sha256": "49c4ebd3ee289628ff558b08624b392c4552de2549eea4f90f2fc826aa52e8a5"
+    },
+    {
+      "path": "native-only-approved-2525/trident-source-bun/pilot/control-agentic-none-family_state.row.json.gz",
+      "bytes": 1011,
+      "sha256": "c66e9e82ee23ac915cf7a24d83921bc007ce07c2fce1495bd34b43750b9aae93"
+    },
+    {
+      "path": "native-only-approved-2525/trident-source-bun/pilot/control-agentic-none-family_state.svg.gz",
+      "bytes": 1165,
+      "sha256": "d1d343e75ab774000ecf131836eb2b1d98298d889f5af8a21e69ec144215dcde"
+    },
+    {
+      "path": "native-only-approved-2525/trident-source-bun/pilot/control-elk-none-family_architecture.receipt.json.gz",
+      "bytes": 1201,
+      "sha256": "d4960d7492145d50dcfa567c5406310478760069a2b942ff3690e8486d551177"
+    },
+    {
+      "path": "native-only-approved-2525/trident-source-bun/pilot/control-elk-none-family_architecture.row.json.gz",
+      "bytes": 1071,
+      "sha256": "3528c0d3291f64f9c84bf617b54cbaa70e2613b64b373a910f9faacdab643ab4"
+    },
+    {
+      "path": "native-only-approved-2525/trident-source-bun/pilot/control-elk-none-family_architecture.svg.gz",
+      "bytes": 1497,
+      "sha256": "b3161318323ec30e7210facd2dfe61562d122dcaf4bd76c053f7f4450c6bc099"
+    },
+    {
+      "path": "native-only-approved-2525/trident-source-bun/pilot/control-elk-none-family_class.receipt.json.gz",
+      "bytes": 1196,
+      "sha256": "5e0f1d9379797443c2a0ac6787a0864575499669f4747828271b9ee48a77d23e"
+    },
+    {
+      "path": "native-only-approved-2525/trident-source-bun/pilot/control-elk-none-family_class.row.json.gz",
+      "bytes": 1007,
+      "sha256": "3e772e5b3ca815ba9ebed521f0351c2d012a97c10db90318bb1e91490938386a"
+    },
+    {
+      "path": "native-only-approved-2525/trident-source-bun/pilot/control-elk-none-family_class.svg.gz",
+      "bytes": 1439,
+      "sha256": "48997b54675e0c6c12a2612a326ae7a6cb84a08f798eb7bdf47487c2de635e0a"
+    },
+    {
+      "path": "native-only-approved-2525/trident-source-bun/pilot/control-elk-none-family_er.receipt.json.gz",
+      "bytes": 1173,
+      "sha256": "ad739129916fcb5c1bd9361ded906439c662315623722f4bdd955735bf0cb759"
+    },
+    {
+      "path": "native-only-approved-2525/trident-source-bun/pilot/control-elk-none-family_er.row.json.gz",
+      "bytes": 1011,
+      "sha256": "9d02a079180c81e84c1eea603e4498eb4f66200f053b52afb5568bf73436204a"
+    },
+    {
+      "path": "native-only-approved-2525/trident-source-bun/pilot/control-elk-none-family_er.svg.gz",
+      "bytes": 1367,
+      "sha256": "8d89e2716165967377c54dc95a2f2f119f4003e3adadcc69da866f98de13ab58"
+    },
+    {
+      "path": "native-only-approved-2525/trident-source-bun/pilot/control-elk-none-family_flowchart.receipt.json.gz",
+      "bytes": 1200,
+      "sha256": "b8c6d3304264ccad0075fad42ca43b426284ae2a70b9c1603d1221dfdaca694a"
+    },
+    {
+      "path": "native-only-approved-2525/trident-source-bun/pilot/control-elk-none-family_flowchart.row.json.gz",
+      "bytes": 1075,
+      "sha256": "716a2b2cf080ade7e5feee0de05e93bde2a513e563531b31a6602b81f7f1e18a"
+    },
+    {
+      "path": "native-only-approved-2525/trident-source-bun/pilot/control-elk-none-family_flowchart.svg.gz",
+      "bytes": 1113,
+      "sha256": "ccfbb6d8b24a3db5313a998c7a2da087564259680d3d1bab5fc72051e2b77e5f"
+    },
+    {
+      "path": "native-only-approved-2525/trident-source-bun/pilot/control-elk-none-family_requirement.receipt.json.gz",
+      "bytes": 1201,
+      "sha256": "83becf792787e8ab26f1d1475b53a85431868207f1f9ec744ce12971de1ceffc"
+    },
+    {
+      "path": "native-only-approved-2525/trident-source-bun/pilot/control-elk-none-family_requirement.row.json.gz",
+      "bytes": 1108,
+      "sha256": "bfd3d98caff90a0f6bd4b039675af33b9243eeb23fa302a82f7aaf547d6005ab"
+    },
+    {
+      "path": "native-only-approved-2525/trident-source-bun/pilot/control-elk-none-family_requirement.svg.gz",
+      "bytes": 1430,
+      "sha256": "190343e0a556873931fefce17d24bbc961b2baec0430579272959693d5c1732b"
+    },
+    {
+      "path": "native-only-approved-2525/trident-source-bun/pilot/control-elk-none-family_state.receipt.json.gz",
+      "bytes": 1195,
+      "sha256": "eb41c48a3a46efe1fd2d08a5aaec454534b635b0504b07ffc678bc830dd5dba3"
+    },
+    {
+      "path": "native-only-approved-2525/trident-source-bun/pilot/control-elk-none-family_state.row.json.gz",
+      "bytes": 1007,
+      "sha256": "685909135c2172081a803885f0c236d9b833feb26fe42c57684e85dfc9a3e2e6"
+    },
+    {
+      "path": "native-only-approved-2525/trident-source-bun/pilot/control-elk-none-family_state.svg.gz",
+      "bytes": 1170,
+      "sha256": "ddbd43b9c1a96528479dfe4b26a689d38e6415c786c26ec18e009b8837c0b1ed"
+    },
+    {
+      "path": "native-only-approved-2525/trident-source-bun/portable-source-bun.ts",
+      "bytes": 2969,
+      "sha256": "964d2ab58b16e92f65f99714b07b349f6a23e7f60c44cfdae65117523b9e980d"
+    }
+  ]
+}
