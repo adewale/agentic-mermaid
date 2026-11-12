@@ -109,6 +109,30 @@ describe('Section A canonical render contracts', () => {
     expect(() => deferredRenderContractDigest({ value: Number.POSITIVE_INFINITY })).toThrow(TypeError)
   })
 
+  test('reused admitted request data keeps every digest value and bound of a full walk', () => {
+    // A cached capability decision is admitted once and later charged by its
+    // recorded totals. A fresh deep copy takes the full walk: both must agree
+    // on the digest and on the exact error at every bound.
+    const decision = resolveRenderRequest(SOURCE, {}, 'svg').capabilityDecision
+    const fresh = structuredClone(decision)
+    const outcome = (value: unknown): string => { try { return renderContractDigest(value) } catch (error) { return `error: ${(error as Error).message}` } }
+    const nest = (depth: number, leaf: unknown): unknown => depth === 0 ? leaf : { a: nest(depth - 1, leaf) }
+    for (let depth = 55; depth <= 66; depth++) expect({ depth, reused: outcome(nest(depth, decision)) }).toEqual({ depth, reused: outcome(nest(depth, fresh)) })
+    const largest = (fits: (size: number) => boolean, high: number): number => {
+      let low = 0
+      while (low < high) { const mid = Math.ceil((low + high) / 2); if (fits(mid)) low = mid; else high = mid - 1 }
+      return low
+    }
+    const padded = (size: number, leaf: unknown) => ({ pad: 'x'.repeat(size), leaf })
+    const chars = largest(size => !outcome(padded(size, fresh)).startsWith('error'), 2_000_000)
+    for (const size of [chars, chars + 1]) expect({ size, reused: outcome(padded(size, decision)) }).toEqual({ size, reused: outcome(padded(size, fresh)) })
+    expect(outcome(padded(chars + 1, fresh))).toStartWith('error')
+    const repeated = (count: number, leaf: unknown) => Array.from({ length: Math.ceil(count / 100) }, (_, chunk) => Array.from({ length: Math.min(100, count - chunk * 100) }, () => leaf))
+    const nodes = largest(count => !outcome(repeated(count, fresh)).startsWith('error'), 20_000)
+    for (const count of [nodes, nodes + 1]) expect({ count, reused: outcome(repeated(count, decision)) }).toEqual({ count, reused: outcome(repeated(count, fresh)) })
+    expect(outcome(repeated(nodes + 1, fresh))).toStartWith('error')
+  })
+
   test('the public render-option schema is closed and exposes shared options', () => {
     const schema = sharedRenderOptionsJsonSchema() as { additionalProperties: boolean; properties: Record<string, unknown> }
     expect(schema.additionalProperties).toBe(false)

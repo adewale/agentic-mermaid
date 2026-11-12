@@ -951,27 +951,92 @@ interface FamilyDataNormalizationBudget {
   chars: number
   opaque: boolean
   admission?: { nodes: number; valid: boolean }
+  /** Every visited value, position-independent JSON-admission failures and
+   * the deepest object/value, so a captured subtree can record its totals. */
+  values: number
+  invalid: number
+  objectDepth: number
+  valueDepth: number
 }
 
+function familyDataBudget(admission?: NonNullable<FamilyDataNormalizationBudget['admission']>): FamilyDataNormalizationBudget {
+  return { nodes: 0, chars: 0, opaque: false, admission, values: 0, invalid: 0, objectDepth: 0, valueDepth: 0 }
+}
+
+/** A captured snapshot's budget totals. Snapshots are deeply frozen, so the
+ * totals stay true, and a later capture can charge them without walking. Only
+ * snapshots with no JSON-admission failure are recorded; any other snapshot
+ * always takes the full walk. */
+interface AdmittedFamilyData {
+  readonly chars: number
+  readonly nodes: number
+  readonly values: number
+  readonly objectDepth: number
+  readonly valueDepth: number
+}
+const ADMITTED_FAMILY_DATA = new WeakMap<object, AdmittedFamilyData>()
+
 /** Capture compact immutable data under the bounds before schema validation.
- * Opaque leaves remain unbranded for the owner's subsequent rejection. */
+ * Opaque leaves remain unbranded for the owner's subsequent rejection.
+ * A snapshot this function already captured is admitted once: later captures
+ * (request receipts, cached capability decisions, family config) charge its
+ * recorded totals and reuse it. Whenever a bound could be crossed, the full
+ * walk runs instead, so every limit error keeps its exact type and path. */
 function omitUndefinedObjectFields(
   value: unknown,
   path = '$',
   depth = 0,
   ancestors = new Set<object>(),
-  budget: FamilyDataNormalizationBudget = { nodes: 0, chars: 0, opaque: false, admission: undefined },
+  budget: FamilyDataNormalizationBudget = familyDataBudget(),
+): unknown {
+  if (value === null || typeof value !== 'object') return captureFamilyDataNode(value, path, depth, ancestors, budget)
+  const admitted = ADMITTED_FAMILY_DATA.get(value)
+  if (admitted && !ancestors.has(value) && depth + admitted.objectDepth <= FAMILY_DATA_MAX_DEPTH
+    && budget.chars + admitted.chars <= FAMILY_DATA_MAX_CHARS && budget.nodes + admitted.nodes <= FAMILY_DATA_MAX_NODES) {
+    budget.chars += admitted.chars
+    budget.nodes += admitted.nodes
+    budget.values += admitted.values
+    budget.objectDepth = Math.max(budget.objectDepth, depth + admitted.objectDepth)
+    budget.valueDepth = Math.max(budget.valueDepth, depth + admitted.valueDepth)
+    const admission = budget.admission
+    if (admission?.valid) {
+      admission.nodes += admitted.values
+      if (admission.nodes > JSON_CONFIG_ADMISSION_LIMITS.maxNodes || depth + admitted.valueDepth > JSON_CONFIG_ADMISSION_LIMITS.maxDepth) admission.valid = false
+    }
+    return value
+  }
+  const chars = budget.chars, nodes = budget.nodes, values = budget.values, invalid = budget.invalid
+  const objectDepth = budget.objectDepth, valueDepth = budget.valueDepth
+  budget.objectDepth = budget.valueDepth = depth
+  const captured = captureFamilyDataNode(value, path, depth, ancestors, budget)
+  if (captured !== value && typeof captured === 'object' && captured !== null && IMMUTABLE_SNAPSHOTS.has(captured) && budget.invalid === invalid) {
+    ADMITTED_FAMILY_DATA.set(captured, {
+      chars: budget.chars - chars,
+      nodes: budget.nodes - nodes,
+      values: budget.values - values,
+      objectDepth: budget.objectDepth - depth,
+      valueDepth: budget.valueDepth - depth,
+    })
+  }
+  budget.objectDepth = Math.max(budget.objectDepth, objectDepth)
+  budget.valueDepth = Math.max(budget.valueDepth, valueDepth)
+  return captured
+}
+
+function captureFamilyDataNode(
+  value: unknown,
+  path: string,
+  depth: number,
+  ancestors: Set<object>,
+  budget: FamilyDataNormalizationBudget,
 ): unknown {
   const admission = budget.admission
-  if (admission?.valid) {
-    if (++admission.nodes > JSON_CONFIG_ADMISSION_LIMITS.maxNodes || depth > JSON_CONFIG_ADMISSION_LIMITS.maxDepth) admission.valid = false
-    switch (typeof value) {
-      case 'number':
-        if (value - value !== 0) admission.valid = false
-        break
-      case 'undefined': case 'bigint': case 'symbol': case 'function': admission.valid = false
-    }
-  }
+  budget.values++
+  if (depth > budget.valueDepth) budget.valueDepth = depth
+  const invalidLeaf = typeof value === 'number' ? value - value !== 0
+    : typeof value === 'undefined' || typeof value === 'bigint' || typeof value === 'symbol' || typeof value === 'function'
+  if (invalidLeaf) budget.invalid++
+  if (admission?.valid && (++admission.nodes > JSON_CONFIG_ADMISSION_LIMITS.maxNodes || depth > JSON_CONFIG_ADMISSION_LIMITS.maxDepth || invalidLeaf)) admission.valid = false
   if (typeof value === 'string') {
     budget.chars += value.length
     if (budget.chars > FAMILY_DATA_MAX_CHARS) throw new TypeError(`data exceeds the ${FAMILY_DATA_MAX_CHARS}-character aggregate limit at ${path}`)
@@ -979,6 +1044,7 @@ function omitUndefinedObjectFields(
   }
   if (value === null || typeof value !== 'object') return value
   if (depth > FAMILY_DATA_MAX_DEPTH) throw new TypeError(`data exceeds maximum depth ${FAMILY_DATA_MAX_DEPTH} at ${path}`)
+  if (depth > budget.objectDepth) budget.objectDepth = depth
   if (++budget.nodes > FAMILY_DATA_MAX_NODES) throw new TypeError(`data exceeds the ${FAMILY_DATA_MAX_NODES}-node aggregate limit at ${path}`)
   if (ancestors.has(value)) throw new TypeError(`data must be acyclic at ${path}`)
 
@@ -999,7 +1065,10 @@ function omitUndefinedObjectFields(
         slot.value = child
         Object.defineProperty(result, index, slot)
       }
-      if (admission && result.length > JSON_CONFIG_ADMISSION_LIMITS.maxItemsPerContainer) admission.valid = false
+      if (result.length > JSON_CONFIG_ADMISSION_LIMITS.maxItemsPerContainer) {
+        budget.invalid++
+        if (admission) admission.valid = false
+      }
       return freezeSnapshot(result, !budget.opaque)
     } finally {
       ancestors.delete(value)
@@ -1019,7 +1088,10 @@ function omitUndefinedObjectFields(
       budget.chars += key.length
       if (budget.chars > FAMILY_DATA_MAX_CHARS) throw new TypeError(`data exceeds the ${FAMILY_DATA_MAX_CHARS}-character aggregate limit at ${path}.${key}`)
       if (child !== undefined) {
-        if (admission && (++properties > JSON_CONFIG_ADMISSION_LIMITS.maxItemsPerContainer || isForbiddenJsonConfigKey(key))) admission.valid = false
+        if (++properties > JSON_CONFIG_ADMISSION_LIMITS.maxItemsPerContainer || isForbiddenJsonConfigKey(key)) {
+          budget.invalid++
+          if (admission) admission.valid = false
+        }
         const captured = omitUndefinedObjectFields(child, `${path}.${key}`, depth + 1, ancestors, budget)
         if (key in result) Object.defineProperty(result, key, { value: captured, enumerable: true })
         else result[key] = captured
@@ -1279,7 +1351,7 @@ function boundedImmutableJsonSnapshot<T>(value: T, context: string, admission?: 
     // A non-JSON leaf stays unbranded until the ordinary snapshot walk names
     // it, after the complete budget/accessor pass has kept its error order.
     return immutableSnapshot(admission
-      ? omitUndefinedObjectFields(value, '$', 0, new Set(), { nodes: 0, chars: 0, opaque: false, admission })
+      ? omitUndefinedObjectFields(value, '$', 0, new Set(), familyDataBudget(admission))
       : omitUndefinedObjectFields(value)) as T
   } catch (error) {
     throw new TypeError(`${context} could not be snapshotted: ${error instanceof Error ? error.message : String(error)}`)
@@ -1530,7 +1602,9 @@ function executionCapabilityDecision(output: RenderOutput, offers: readonly Capa
   const retained = key === undefined ? undefined : EXECUTION_CAPABILITY_DECISIONS.get(key)
   observeCache('capability-decision', key === undefined ? 'bypass' : retained ? 'hit' : 'miss', key === undefined ? 'tuple-budget' : undefined)
   if (retained) return retained
-  const decision = negotiateRenderCapabilityTuple(output, { offers, requirements, outputAvailable })
+  // Admitted once here, so every request receipt that embeds this cached
+  // decision reuses it instead of copying its resolutions again.
+  const decision = omitUndefinedObjectFields(negotiateRenderCapabilityTuple(output, { offers, requirements, outputAvailable })) as CapabilityDecision
   if (key !== undefined) {
     if (EXECUTION_CAPABILITY_DECISIONS.size < 32) EXECUTION_CAPABILITY_DECISIONS.set(key, decision)
     else observeCache('capability-decision', 'store-skipped', 'capacity')
