@@ -125,7 +125,7 @@ test('copied native snapshots skip drawing and certification replay without expo
 test('private cache copies preserve text custody without trusting mutable measurement aliases', async () => {
   const child = await runChild(process.execPath, ['-e', `
     import assert from 'node:assert/strict'
-    import { clonePositioned, retainPositioned, cachedPositioned } from './src/experimental/position-cache.ts'
+    import { clonePositioned, retainPositioned, retainOwnedNativeSvgPositioned, cachedPositioned } from './src/experimental/position-cache.ts'
     import { preparePixelText, transferRetainedPixelText } from './src/shared/prepared-text.ts'
     const block = preparePixelText('Read', { fontSize: 12, fontWeight: 400 })
     const alias = structuredClone(block)
@@ -152,6 +152,25 @@ test('private cache copies preserve text custody without trusting mutable measur
     assert.notEqual(copiedAlias, alias)
     assert.equal(copiedAlias.lineBlocks[0].text, 'late caller alias')
     assert.notEqual(clonePositioned(block), block)
+
+    // Report receipts expose violation objects. A later caller getter must not
+    // turn their captured values into constructor-owned text substitutions.
+    const violation = { kind: 'nodeOverlaps', targets: ['captured'], detail: 'before' }
+    const report = { status: 'uncertified', strategy: 'report', attempts: 1, violations: [violation] }
+    retainOwnedNativeSvgPositioned(family, 'report-alias', {
+      positioned: { width: 100, height: 80, block, uncertifiedLayout: report }, uncertifiedLayout: { ...report },
+    })
+    let reads = 0
+    Object.defineProperty(violation, 'detail', { enumerable: true, configurable: true, get() {
+      reads++
+      violation.targets = block.lines
+      Object.defineProperty(violation, 'detail', { value: 'captured detail', enumerable: true, configurable: true })
+      return 'captured detail'
+    } })
+    const reported = cachedPositioned(family, 'report-alias', false, true)
+    assert.equal(reads, 1)
+    assert.deepEqual(reported.positioned.uncertifiedLayout.violations[0].targets, ['captured'])
+    assert.equal(reported.positioned.uncertifiedLayout.violations[0], reported.uncertifiedLayout.violations[0])
   `], { cwd: `${import.meta.dir}/../..` })
   expect(child.stderr).toBe('')
   expect(child.status).toBe(0)
@@ -160,7 +179,7 @@ test('private cache copies preserve text custody without trusting mutable measur
 test('private text reuse preserves every frozen descendant alias independent of traversal order', async () => {
   const child = await runChild(process.execPath, ['-e', `
     import assert from 'node:assert/strict'
-    import { clonePositioned } from './src/experimental/position-cache.ts'
+    import { clonePositioned, retainPositioned, cachedPositioned } from './src/experimental/position-cache.ts'
     import { preparePixelText, pixelTextLine } from './src/shared/prepared-text.ts'
     const block = preparePixelText('Alpha <b>bold</b> Beta', { fontSize: 12, fontWeight: 400, maxWidth: 70 })
     const projected = pixelTextLine(block, 0), parts = [], seen = new WeakSet()
@@ -170,13 +189,15 @@ test('private text reuse preserves every frozen descendant alias independent of 
       for (const key of Object.keys(value)) collect(value[key], [...path, key])
     }
     collect(block)
-    for (const rootFirst of [false, true]) for (const privateMode of [false, true]) {
+    for (const fromCache of [false, true]) for (const rootFirst of [false, true]) for (const privateMode of [false, true]) {
       const links = parts.map(part => part.value), mutable = { x: 20 }
       const graph = rootFirst ? { block, projected, links } : { links, block, projected }
       graph.map = new Map(parts.map(({ value }, index) => [value, index]))
       graph.set = new Set(links); graph.mutable = mutable; graph.self = graph
       graph.map.set(graph.map, graph)
-      const copy = clonePositioned(graph, privateMode)
+      const family = {}
+      if (fromCache) retainPositioned(family, 'descendant-aliases', { positioned: graph })
+      const copy = fromCache ? cachedPositioned(family, 'descendant-aliases', false, privateMode).positioned : clonePositioned(graph, privateMode)
       assert.equal(copy.self, copy)
       assert.equal(copy.map.get(copy.map), copy)
       assert.equal(copy.block === block, privateMode)

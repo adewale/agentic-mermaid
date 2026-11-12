@@ -105,12 +105,12 @@ export function positionFamilyForNativeRender(request: ResolvedRenderRequest): F
  * before any producer. Public inputs keep their original getter observations. */
 export function positionedForNativeProducer(layout: FamilyLayoutResult, producer: DrawingProducer): PositionedDiagram {
   const original = borrowedNativeProducers.get(layout)
-  return original && (original !== producer || positionedDrawingNeedsCopy(layout)) ? clonePositioned(layout.positioned, true) : layout.positioned
+  return original && (original !== producer || positionedDrawingNeedsCopy(layout)) ? clonePositioned(layout.positioned, true, layout.uncertifiedLayout === undefined) : layout.positioned
 }
 
 /** Scene lowering can retain aliases; never hand it borrowed cache geometry. */
 export function positionedForSceneLowering(layout: FamilyLayoutResult): PositionedDiagram {
-  return borrowedNativeProducers.has(layout) ? clonePositioned(layout.positioned, true) : layout.positioned
+  return borrowedNativeProducers.has(layout) ? clonePositioned(layout.positioned, true, layout.uncertifiedLayout === undefined) : layout.positioned
 }
 
 function positionFamily(familyId: FamilyId, request: ResolvedRenderRequest, source: Readonly<NormalizedMermaidSource>, projectionOptions: FamilyPositionedProjectionOptions, borrow: boolean, immutableText = false): FamilyLayoutResult {

@@ -62,7 +62,7 @@ function setSnapshot(value: object): unknown[] {
 
 /** A complete value/alias witness permits original immutable substitutions.
  * A failed witness never changes the native snapshot. */
-function positionedCustodyProof(source: unknown, copy: unknown, immutableText: boolean) {
+function positionedCustodyProof(source: unknown, copy: unknown, immutableText: boolean, privateSource = false) {
   const originals = new WeakMap<object, object>(), snapshots = new WeakMap<object, object>()
   const replacements = new WeakMap<object, object>(), metadata: Array<[object, object]> = []
   let hasReplacements = false
@@ -75,6 +75,13 @@ function positionedCustodyProof(source: unknown, copy: unknown, immutableText: b
     // Opaque native objects keep their authoritative native snapshot. Optional
     // custody reuse requires a complete value and bidirectional alias proof.
     if (kind === 'native') return false
+    // Native cloning preserves a stable private graph's values and aliases.
+    // Constructor custody is transitive; outside references to its descendants
+    // are visited separately and substituted with those same original parts.
+    if (privateSource && immutableText && immutable) {
+      replacements.set(b, a); hasReplacements = true
+      return true
+    }
     if (kind === 'map') {
       const entries = mapSnapshot(a), copied = mapSnapshot(b)
       if (entries.length !== copied.length) return false
@@ -156,10 +163,13 @@ function transferIndependentTextCustody(source: unknown, copy: unknown): void {
 /** A copied bundle route keeps its construction ownership, so a cached layout
  * is audited exactly like the fresh one it was copied from. structuredClone
  * preserves shape and order, so source and copy are walked in parallel. */
-function transferBundleRouteOwnership(source: unknown, copy: unknown): void {
+function transferBundleRouteOwnership(source: unknown, copy: unknown, privateSource: boolean): void {
   const seen = new WeakSet<object>()
   const visit = (a: unknown, b: unknown): void => {
     if (a === null || typeof a !== 'object' || b === null || typeof b !== 'object' || seen.has(a)) return
+    // Qualified text contains only its constructors' immutable parts, never
+    // independently constructed positioned routes. Foreign reflection stays full.
+    if (privateSource && isImmutablePixelTextPart(a)) return
     seen.add(a)
     transferConstructedBundleRoute(a, b)
     try {
@@ -181,14 +191,15 @@ function transferBundleRouteOwnership(source: unknown, copy: unknown): void {
   visit(source, copy)
 }
 
-/** Public copies remain independent mutable snapshots. Private native copies
- * may share only constructor-owned immutable text, preserving custody cost. */
-export function clonePositioned<T>(source: T, immutableText = false): T {
+/** Public copies remain independent mutable snapshots. Only already private,
+ * stable cache sources may skip descendant proof for constructor-owned text.
+ * Report receipts can expose mutable violation aliases, so keep their full proof. */
+export function clonePositioned<T>(source: T, immutableText = false, privateSource = false): T {
   // Native admission must precede reflection: even a descriptor trap can
   // delete an uncloneable Proxy before structuredClone gets to reject it.
   const copy = nativeClone(source)
-  transferBundleRouteOwnership(source, copy)
-  const proof = positionedCustodyProof(source, copy, immutableText)
+  transferBundleRouteOwnership(source, copy, privateSource)
+  const proof = positionedCustodyProof(source, copy, immutableText, privateSource)
   if (!proof) { transferIndependentTextCustody(source, copy); return copy }
   const { metadata, replacements, hasReplacements } = proof
   for (const [a, b] of metadata) transferRetainedPixelText(a, b)
@@ -237,7 +248,7 @@ export function cachedPositioned(family: object, key: string, alreadyObserved = 
   const value = results.get(isolatedKey(family, key))
   if (!alreadyObserved) observeCache('positioned-layout', value ? 'hit' : 'miss')
   if (!value) return undefined
-  const copy = clonePositioned(value.result, immutableText)
+  const copy = clonePositioned(value.result, immutableText, value.result.uncertifiedLayout === undefined)
   transferGraphLayoutDecisions(value.result, copy)
   return copy
 }
