@@ -98,7 +98,7 @@ describe('one positioned artifact for preview and verification', () => {
     const source = fallback
       ? `flowchart LR\nsubgraph One\n A[Leaf]\n B[Tail]\n A ${'-'.repeat(2049)}> B\nend`
       : `flowchart TB\nsubgraph One\n A --> B\nend\nsubgraph Two\n C --> D\nend\n${frame ? 'One' : 'B'} -->|handoff| C`
-    const options = { security: 'strict' as const, embedFontImport: false,
+    const options = { security: 'strict' as const, embedFontImport: false, idPrefix: 'preview-test-',
       graphLayout: { backend, ...(fallback ? { fallback: 'elk' as const } : {}) } }
     const expected = renderMermaidSVGWithReceipt(source, options)
     const expectedVerification = verifyMermaid(source, { renderOptions: options })

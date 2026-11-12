@@ -288,10 +288,14 @@ describe('xychart – Mermaid parity', () => {
     expect(openTag).toContain('aria-roledescription="xychart"')
     expect(openTag.match(/aria-labelledby=/g)).toHaveLength(1)
     expect(openTag.match(/aria-describedby=/g)).toHaveLength(1)
-    expect(openTag).toContain('aria-labelledby="chart-title-mermaid-')
-    expect(openTag).toContain('aria-describedby="chart-desc-mermaid-')
-    expect(svg.match(/<title id="chart-title-/g)).toHaveLength(1)
-    expect(svg.match(/<desc id="chart-desc-/g)).toHaveLength(1)
+    const titleId = openTag.match(/aria-labelledby="([^"]+)"/)?.[1]
+    const descrId = openTag.match(/aria-describedby="([^"]+)"/)?.[1]
+    expect(titleId).toBeDefined()
+    expect(descrId).toBeDefined()
+    expect(svg).toContain(`<title id="${titleId}">Revenue chart</title>`)
+    expect(svg).toContain(`<desc id="${descrId}">Quarterly sales`)
+    expect(svg.match(/<title\b/g)).toHaveLength(1)
+    expect(svg.match(/<desc\b/g)).toHaveLength(1)
     expect(svg).toContain('Quarterly sales')
   })
 
@@ -301,7 +305,9 @@ describe('xychart – Mermaid parity', () => {
   bar [10, 20]`)
     const titleOpen = titleOnly.match(/<svg[^>]+>/)?.[0] ?? ''
     expect(titleOpen).toContain('role="img"')
-    expect(titleOpen).toContain('aria-labelledby="chart-title-mermaid-')
+    const titleId = titleOpen.match(/aria-labelledby="([^"]+)"/)?.[1]
+    expect(titleId).toBeDefined()
+    expect(titleOnly).toContain(`<title id="${titleId}">Revenue chart</title>`)
     expect(titleOpen).not.toContain('aria-describedby=')
 
     const descOnly = await renderMermaidSVGAsync(`xychart
@@ -309,7 +315,9 @@ describe('xychart – Mermaid parity', () => {
   bar [10, 20]`)
     const descOpen = descOnly.match(/<svg[^>]+>/)?.[0] ?? ''
     expect(descOpen).toContain('role="img"')
-    expect(descOpen).toContain('aria-describedby="chart-desc-mermaid-')
+    const descrId = descOpen.match(/aria-describedby="([^"]+)"/)?.[1]
+    expect(descrId).toBeDefined()
+    expect(descOnly).toContain(`<desc id="${descrId}">Quarterly sales by region</desc>`)
     expect(descOpen).not.toContain('aria-labelledby=')
   })
 

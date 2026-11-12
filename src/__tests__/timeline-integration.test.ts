@@ -227,8 +227,12 @@ describe('renderMermaidSVG – timeline diagrams', () => {
       2024 : Private alpha`)
 
     expect(svg).toContain('role="img"')
-    expect(svg).toContain('aria-labelledby="tl-')
-    expect(svg).toContain('aria-describedby="tl-')
+    const titleId = svg.match(/aria-labelledby="([^"]+)"/)?.[1]
+    const descrId = svg.match(/aria-describedby="([^"]+)"/)?.[1]
+    expect(titleId).toBeDefined()
+    expect(descrId).toBeDefined()
+    expect(svg).toContain(`id="${titleId}"`)
+    expect(svg).toContain(`id="${descrId}"`)
     expect(svg).toContain('Accessible roadmap</title>')
     expect(svg).toContain('Product launch plan</desc>')
     expect(svg).not.toContain('data-label="accTitle"')

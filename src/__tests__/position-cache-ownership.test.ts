@@ -697,7 +697,7 @@ for (const family of ['flowchart', 'state'] as const) {
         : family === 'flowchart'
         ? 'flowchart LR\\nsubgraph CacheOwnerGroup["Group"]\\nCacheOwnerA["wide 界 #35; text"] -->|first| CacheOwnerB["Tail"]\\nCacheOwnerA -->|second| CacheOwnerB\\nCacheOwnerB -->|return| CacheOwnerA\\nend'
         : 'stateDiagram-v2\\nstate CacheOwnerGroup {\\nstate "wide 界 #35; text" as CacheOwnerA\\nstate "Tail" as CacheOwnerB\\nCacheOwnerA --> CacheOwnerB: first\\nCacheOwnerA --> CacheOwnerB: second\\nCacheOwnerB --> CacheOwnerA: return\\n}\\n[*] --> CacheOwnerGroup'
-      const options = { embedFontImport: false, seed: 7,
+      const options = { embedFontImport: false, idPrefix: 'cache-owner-', seed: 7,
         graphLayout: ${backend === 'fallback' ? "{ backend: 'agentic', fallback: 'elk' }" : `{ backend: ${JSON.stringify(backend)} }`},
         onConfigDiagnostic: () => {} }
       const withoutPositionCache = callback => withPerformanceExperiments(
@@ -782,7 +782,7 @@ test('native cached rendering stays isolated from public geometry and replacemen
       'CacheOwnerA->>CacheOwnerB: isolated 界 text',
       'Note over CacheOwnerA,CacheOwnerB: retained note'
     ].join('\\n')
-    const options = { embedFontImport: false }
+    const options = { embedFontImport: false, idPrefix: 'cache-owner-' }
     const withoutPositionCache = callback => withPerformanceExperiments(
       PERFORMANCE_EXPERIMENTS.filter(name => name !== 'position-cache'), callback)
     const reference = withoutPositionCache(() => renderMermaidSVGWithReceipt(source, options))

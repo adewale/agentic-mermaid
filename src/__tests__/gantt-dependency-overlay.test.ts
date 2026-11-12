@@ -258,7 +258,7 @@ describe('gantt dependency overlay — SVG render option', () => {
     expect(paths).toHaveLength(4)
     const markerIds = [...svg.matchAll(/<marker id="([^"]+)"/g)].map(m => m[1]!)
     expect(markerIds.length).toBeGreaterThanOrEqual(1)
-    expect(markerIds[0]).toMatch(/^gantt-[a-z0-9]+-dep-arrow$/)
+    expect(markerIds[0]).toMatch(/^am-[a-z0-9]+-gantt-[a-z0-9]+-dep-arrow$/)
     for (const m of svg.matchAll(/marker-end="url\(#([^)]+)\)"/g)) {
       expect(markerIds).toContain(m[1]!)
     }

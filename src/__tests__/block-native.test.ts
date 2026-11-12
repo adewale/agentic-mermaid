@@ -399,8 +399,8 @@ describe('native block', () => {
         }
         const obstacle = blockShapeNode(p.nodes.find(node => node.id === 'M')!)
         for (let i = 1; i < edge.points.length; i++) expect(segmentThroughShape(edge.points[i - 1]!, edge.points[i]!, obstacle)).toBe(false)
-        expect(svg).toContain('marker-start="url(#block-arrow-start)"')
-        expect(svg).toContain('marker-end="url(#block-arrow-end)"')
+        expect(svg).toMatch(/marker-start="url\(#am-[a-z0-9]+-block-arrow-start\)"/)
+        expect(svg).toMatch(/marker-end="url\(#am-[a-z0-9]+-block-arrow-end\)"/)
       }
   })
   test('reciprocal and parallel labeled links occupy distinct clear routes without moving authored cells', () => {

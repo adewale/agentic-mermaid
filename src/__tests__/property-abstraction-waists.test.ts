@@ -178,8 +178,9 @@ describe('property: FamilyDescriptor render waist', () => {
         expect(original?.renderAscii).toBeDefined()
         if (!original?.layout || !original.lowerScene || !original.renderAscii) return
         const { layout, renderAscii, normalizeRequest } = original
-        const renderSvg = () => renderMermaidSVG(source, { embedFontImport: false })
-        const renderAsciiReceipt = () => renderMermaidASCIIWithReceipt(source, { colorMode: 'none' })
+        const idPrefix = 'family-dispatch-'
+        const renderSvg = () => renderMermaidSVG(source, { embedFontImport: false, idPrefix })
+        const renderAsciiReceipt = () => renderMermaidASCIIWithReceipt(source, { colorMode: 'none', idPrefix })
 
         const svg = renderSvg()
         assertUsableSvg(svg)

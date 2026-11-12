@@ -13,19 +13,26 @@ const native = { graphLayout: { backend: 'agentic' as const } }
 const fixture = readFileSync(new URL('../../eval/layout-compare/fixtures/requirement-backends.mmd', import.meta.url), 'utf8')
 const source = (direction: string) => fixture.replace('direction TB', `direction ${direction}`)
 
+function markerDefinition(svg: string, name: string) {
+  const matches = [...svg.matchAll(/<marker\b[^>]*\bid="([^"]+)"[^>]*>[\s\S]*?<\/marker>/g)]
+    .filter(match => match[1] === name || match[1]!.endsWith(`-${name}`))
+  expect(matches).toHaveLength(1)
+  return { id: matches[0]![1]!, markup: matches[0]![0] }
+}
+
 describe('Requirement layout backends', () => {
   test.each(['TB', 'BT', 'LR', 'RL'])('reserves the painted containment marker before the first ELK bend in %s', direction => {
     const input = `requirementDiagram\ndirection ${direction}\nelement root {\n type: software\n}\nrequirement leaf {\n id: R1\n text: Dispatch\n}\nelement side {\n type: service\n}\n${Array(4).fill('root - contains -> leaf').join('\n')}\nroot - contains -> side`
     for (const bendRadius of [0, 12]) {
       const result = renderMermaidSVGWithReceipt(input, { graphLayout: { backend: 'elk', fallback: 'none' }, style: { roles: { relationship: { bendRadius } } } })
       const attrs = (tag: ReturnType<typeof scanSvgStartTags>[number]) => Object.fromEntries(tag.attributes.map(attr => [attr.name, attr.value]))
-      const marker = result.svg.match(/<marker\b[^>]*id="requirement-contains"[\s\S]*?<\/marker>/)![0]
-      const resource = scanSvgStartTags(marker), reference = attrs(resource[0]!), circle = attrs(resource.find(tag => tag.name === 'circle')!)
+      const marker = markerDefinition(result.svg, 'requirement-contains')
+      const resource = scanSvgStartTags(marker.markup), reference = attrs(resource[0]!), circle = attrs(resource.find(tag => tag.name === 'circle')!)
       const markerDepth = Number(circle.cx) + Number(circle.r) + Number(circle['stroke-width']) / 2 - Number(reference.refX)
       const carriers = scanSvgStartTags(result.svg).map(attrs).filter(tag => tag['data-role'] === 'relationship')
       expect(carriers.map(edge => [edge['data-from'], edge['data-to']])).toEqual([...Array(4).fill(['root', 'leaf']), ['root', 'side']])
       for (const carrier of carriers) {
-        expect(carrier['marker-start']).toBe('url(#requirement-contains)')
+        expect(carrier['marker-start']).toBe(`url(#${marker.id})`)
         expect(carrier['marker-end']).toBeUndefined()
         if (carrier.d) expect(carrier.d).toMatch(/^M\s*[-\d.]+[ ,]+[-\d.]+\s*L/)
         const points = (carrier.points ?? carrier.d)!.match(/[-+]?(?:\d+\.?\d*|\.\d+)(?:e[-+]?\d+)?/gi)!.map(Number)
@@ -73,7 +80,7 @@ describe('Requirement layout backends', () => {
       expect(path['data-from']).toBe('r')
       expect(path['data-to']).toBe('r')
       expect(path['data-relationship']).toBe('traces')
-      expect(path['marker-end']).toBe('url(#requirement-arrow)')
+      expect(path['marker-end']).toBe(`url(#${markerDefinition(result.svg, 'requirement-arrow').id})`)
       expect(result.svg).toContain('Card')
       expect(result.svg).toContain('&lt;&lt;traces&gt;&gt;')
       const tokens = (path.d ?? ('M ' + path.points!.trim().split(/\s+/).join(' L '))).match(/[MLQ]|-?(?:\d+\.?\d*|\.\d+)(?:e[+-]?\d+)?/ig)!
@@ -116,11 +123,11 @@ describe('Requirement layout backends', () => {
       expect(paint['data-relationship']).toBe(type)
       if (type === 'contains') {
         expect(paint['stroke-dasharray']).toBeUndefined()
-        expect(paint['marker-start']).toBe('url(#requirement-contains)')
+        expect(paint['marker-start']).toBe(`url(#${markerDefinition(result.svg, 'requirement-contains').id})`)
         expect(paint['marker-end']).toBeUndefined()
       } else {
         expect(paint['stroke-dasharray']).toBe('6 4')
-        expect(paint['marker-end']).toBe('url(#requirement-arrow)')
+        expect(paint['marker-end']).toBe(`url(#${markerDefinition(result.svg, 'requirement-arrow').id})`)
         expect(paint['marker-start']).toBeUndefined()
       }
       expect(result.svg).toContain(`&lt;&lt;${type}&gt;&gt;`)

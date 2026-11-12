@@ -37,7 +37,8 @@ describe('bundle complete foreign ink admission', () => {
       }
       // This literal emitted resource is hidden-viewport arrowhead8×5/ref8,2.5,
       // on a width1 southward terminal. Its whole painted viewport clears Moving.
-      const marker = tags.find(tag => tag.name === 'marker' && tag.id === 'arrowhead')!
+      const markerId = route['marker-end']!.match(/^url\(#([^)]*)\)$/)![1]
+      const marker = tags.find(tag => tag.name === 'marker' && tag.id === markerId)!
       expect([marker.markerWidth, marker.markerHeight, marker.refX, marker.refY]).toEqual(['8', '5', '8', '2.5'])
       expect(route['stroke-width']).toBe('1')
       const tip = points.at(-1)!, previous = points.at(-2)!

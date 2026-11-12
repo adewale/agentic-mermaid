@@ -1612,7 +1612,7 @@ describe('Native graph preparation reserves actual styled marker room', () => {
       svg = rendered.svg
     } finally { observe.mockRestore() }
     expect(result).toBeDefined()
-    expect(svg).toContain('id="arrowhead" markerWidth="8" markerHeight="5"')
+    expect(svg).toMatch(/id="am-[a-z0-9]+-arrowhead" markerWidth="8" markerHeight="5"/)
     expect(svg.match(/class="edge"[^>]*stroke-width="4"/g)).toHaveLength(7)
     const placed = result!, edge = (from: string, to: string) => placed.edges.find(e => e.source === from && e.target === to)!
     const node = (id: string) => placed.nodes.find(n => n.id === id)!

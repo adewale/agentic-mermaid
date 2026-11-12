@@ -122,7 +122,12 @@ describe('Section A canonical render contracts', () => {
     // Shadow is one stylesheet rule for every family; it draws only where its
     // selectors match an element.
     const shadowReachesAnElement = (drawn: string): boolean => {
-      const selectors = /([^{}]*)\{\s*filter:\s*url\(#bm-shadow\)/.exec(drawn)?.[1] ?? ''
+      const filters = [...drawn.matchAll(/<filter\b[^>]*\bid="([^"]+)"/g)]
+        .filter(match => match[1] === 'bm-shadow' || match[1]!.endsWith('-bm-shadow'))
+      if (filters.length === 0) return false
+      expect(filters).toHaveLength(1)
+      const selectors = [...drawn.matchAll(/([^{}]*)\{\s*filter:\s*url\(#([^)]+)\)/g)]
+        .find(match => match[2] === filters[0]![1])?.[1] ?? ''
       const body = drawn.replace(/<style>[\s\S]*?<\/style>/, '')
       return selectors.split(',').map(selector => selector.trim().replace(/^\.am-scope\s+/, '')).some(selector => {
         const match = /^\.([\w-]+)(?:\[([\w-]+)="([^"]*)"\])?$/.exec(selector)

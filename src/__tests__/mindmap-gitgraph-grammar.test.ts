@@ -324,7 +324,9 @@ gitGraph
   accTitle: Accessible history
   commit id:"base"`
     const svg = renderMermaidSVG(source, { embedFontImport: false })
-    expect(svg).toContain('<title id="gitgraph-title">Accessible history</title>')
+    const titleId = svg.match(/aria-labelledby="([^"]+)"/)?.[1]
+    expect(titleId).toBeDefined()
+    expect(svg).toContain(`<title id="${titleId}">Accessible history</title>`)
     expect(svg).toContain('class="gitgraph-title"')
     expect(svg).toContain('>Release train</text>')
     expect(renderMermaidASCII(source)).toContain('Release train')

@@ -26,7 +26,7 @@ agentflow-beta LR
       - ["nested", "list"]
   }
 `
-const options = { embedFontImport: false, bg: '#ffffff', fg: '#172554' }
+const options = { embedFontImport: false, idPrefix: 'parsed-handoff-', bg: '#ffffff', fg: '#172554' }
 
 function parsed(text = source): ParsedDiagram {
   const result = parseRegisteredMermaid(text)

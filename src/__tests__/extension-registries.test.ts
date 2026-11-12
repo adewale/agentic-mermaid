@@ -53,7 +53,7 @@ test('geometry captured by a replaced native producer cannot poison later origin
     import { getFamily, replaceFamilyForTest } from './src/agent/families.ts'
     import { sceneLowering, nativeDrawingOf, inheritNativeDrawing } from './src/scene/drawing.ts'
     import { withRenderStageObserver } from './src/render-stages.ts'
-    const options = { embedFontImport: false }
+    const options = { embedFontImport: false, idPrefix: 'native-custody-' }
     const cases = [
       { kind: 'sequence', source: id => 'sequenceDiagram\\nProducer' + id + 'A->>Producer' + id + 'B: isolated',
         coordinate: positioned => positioned.messages[0].points[0] },

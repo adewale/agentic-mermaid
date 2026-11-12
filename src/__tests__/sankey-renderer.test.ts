@@ -10,6 +10,13 @@ const BASIC = 'sankey-beta\n  Coal,Electricity,127.93\n  Gas,Electricity,80\n  E
 
 const configured = (config: string, body = BASIC) => `---\nconfig:\n  sankey:\n${config}\n---\n${body}`
 
+function gradientDefinition(svg: string, name: string) {
+  const matches = [...svg.matchAll(/<linearGradient\b[^>]*\bid="([^"]+)"[^>]*>[\s\S]*?<\/linearGradient>/g)]
+    .filter(match => match[1] === name || match[1]!.endsWith(`-${name}`))
+  expect(matches).toHaveLength(1)
+  return { id: matches[0]![1]!, markup: matches[0]![0] }
+}
+
 function lowerSankeyScene(source: string): SceneDoc {
   const request = resolveRenderRequest(source, {}, 'svg')
   const result = positionResolvedFamily('sankey', request)
@@ -114,7 +121,7 @@ describe('sankey SVG renderer · config wiring', () => {
     expect(svg).toContain('gradientUnits="userSpaceOnUse"')
     expect(svg).toContain('<stop offset="0%"')
     expect(svg).toContain('<stop offset="100%"')
-    expect(svg).toContain('stroke="url(#sankey-gradient-1)"')
+    expect(svg).toContain(`stroke="url(#${gradientDefinition(svg, 'sankey-gradient-1').id})"`)
     expect(verifyNoExternalRefs(svg)).toEqual({ ok: true, refs: [] })
     // The suite preload enables Scene assertions. Ordinary production must
     // admit the same typed resources in a fresh process before any import.
@@ -147,7 +154,7 @@ describe('sankey SVG renderer · config wiring', () => {
 
   test('authored node colors remain exact gradient endpoints', () => {
     const svg = renderMermaidSVG(configured('    nodeColors:\n      Coal: "#112233"\n      Electricity: "#abcdef"'))
-    const firstGradient = svg.match(/<linearGradient id="sankey-gradient-1"[\s\S]*?<\/linearGradient>/)?.[0]
+    const firstGradient = gradientDefinition(svg, 'sankey-gradient-1').markup
     expect(firstGradient).toContain('stop-color="#112233"')
     expect(firstGradient).toContain('stop-color="#abcdef"')
   })
