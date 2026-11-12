@@ -1,0 +1,1033 @@
+{
+  "id": "features:er:attributes-identifying-cardinality",
+  "family": "er",
+  "target": "pr",
+  "backend": "agentic",
+  "stem": "30-features_er_attributes-identifying-cardinality-pr-agentic",
+  "expectationDepth": "reviewed declared authored fields only",
+  "preludes": [],
+  "acquired": {
+    "status": "accepted",
+    "publicAccepted": true,
+    "raw": {
+      "kind": "er",
+      "entities": [
+        {
+          "id": "USER",
+          "attributes": [
+            {
+              "text": "string name PK"
+            },
+            {
+              "text": "int age"
+            }
+          ]
+        },
+        {
+          "id": "ORDER",
+          "attributes": [
+            {
+              "text": "int id PK"
+            }
+          ]
+        },
+        {
+          "id": "ITEM",
+          "attributes": []
+        }
+      ],
+      "relations": [
+        {
+          "from": "USER",
+          "to": "ORDER",
+          "leftCard": "one-only",
+          "rightCard": "zero-or-many",
+          "dashed": false,
+          "label": "places"
+        },
+        {
+          "from": "ORDER",
+          "to": "ITEM",
+          "leftCard": "zero-or-many",
+          "rightCard": "one-only",
+          "dashed": true,
+          "label": "contains"
+        }
+      ],
+      "groups": [],
+      "statements": [
+        {
+          "kind": "entity",
+          "id": "USER"
+        },
+        {
+          "kind": "entity",
+          "id": "ORDER"
+        },
+        {
+          "kind": "relation",
+          "ref": 0
+        },
+        {
+          "kind": "relation",
+          "ref": 1
+        }
+      ]
+    },
+    "family": "er",
+    "scope": "Canonical projection of actual public parser return/getDiagramFromText DB; authored expectations are independent",
+    "meaning": {
+      "family": "er",
+      "facts": {
+        "attributes": [
+          {
+            "id": "ITEM",
+            "values": []
+          },
+          {
+            "id": "ORDER",
+            "values": [
+              {
+                "name": "id",
+                "type": "int",
+                "keys": [
+                  "PK"
+                ]
+              }
+            ]
+          },
+          {
+            "id": "USER",
+            "values": [
+              {
+                "name": "name",
+                "type": "string",
+                "keys": [
+                  "PK"
+                ]
+              },
+              {
+                "name": "age",
+                "type": "int",
+                "keys": []
+              }
+            ]
+          }
+        ],
+        "cardinalities": [
+          {
+            "from": "USER",
+            "to": "ORDER",
+            "left": "one-only",
+            "right": "zero-or-many",
+            "identifying": true
+          },
+          {
+            "from": "ORDER",
+            "to": "ITEM",
+            "left": "zero-or-many",
+            "right": "one-only",
+            "identifying": false
+          }
+        ]
+      },
+      "unavailable": {},
+      "nodes": [
+        {
+          "id": "USER",
+          "label": "USER"
+        },
+        {
+          "id": "ORDER",
+          "label": "ORDER"
+        },
+        {
+          "id": "ITEM",
+          "label": "ITEM"
+        }
+      ],
+      "edges": [
+        {
+          "source": "USER",
+          "target": "ORDER",
+          "directed": false,
+          "label": "places"
+        },
+        {
+          "source": "ORDER",
+          "target": "ITEM",
+          "directed": false,
+          "label": "contains"
+        }
+      ]
+    }
+  },
+  "meaning": {
+    "complete": true,
+    "passed": true,
+    "checks": [
+      {
+        "criterion": "family",
+        "status": "passed",
+        "expected": "er",
+        "actual": "er",
+        "scope": "Returned native family; a source-preservation envelope is not native admission."
+      },
+      {
+        "criterion": "identities",
+        "status": "passed",
+        "expected": [
+          "\"ITEM\"",
+          "\"ORDER\"",
+          "\"USER\""
+        ],
+        "actual": [
+          "\"ITEM\"",
+          "\"ORDER\"",
+          "\"USER\""
+        ],
+        "scope": "Exact authored identity multiset, including duplicate and omitted identities."
+      },
+      {
+        "criterion": "node-labels",
+        "status": "passed",
+        "expected": [
+          "{\"id\":\"ITEM\",\"label\":\"ITEM\"}",
+          "{\"id\":\"ORDER\",\"label\":\"ORDER\"}",
+          "{\"id\":\"USER\",\"label\":\"USER\"}"
+        ],
+        "actual": [
+          "{\"id\":\"ITEM\",\"label\":\"ITEM\"}",
+          "{\"id\":\"ORDER\",\"label\":\"ORDER\"}",
+          "{\"id\":\"USER\",\"label\":\"USER\"}"
+        ],
+        "scope": "Authored identity-to-label binding; NFC/whitespace normalization applies to display labels, never identity strings."
+      },
+      {
+        "criterion": "relationships",
+        "status": "passed",
+        "expected": [
+          "{\"directed\":false,\"label\":\"contains\",\"source\":\"ORDER\",\"target\":\"ITEM\"}",
+          "{\"directed\":false,\"label\":\"places\",\"source\":\"USER\",\"target\":\"ORDER\"}"
+        ],
+        "actual": [
+          "{\"directed\":false,\"label\":\"contains\",\"source\":\"ORDER\",\"target\":\"ITEM\"}",
+          "{\"directed\":false,\"label\":\"places\",\"source\":\"USER\",\"target\":\"ORDER\"}"
+        ],
+        "scope": "Exact endpoint/direction/declared-marker/label multiset; parallel and reciprocal relationships remain distinct."
+      },
+      {
+        "criterion": "fact:attributes",
+        "status": "passed",
+        "expected": [
+          {
+            "id": "ITEM",
+            "values": []
+          },
+          {
+            "id": "ORDER",
+            "values": [
+              {
+                "name": "id",
+                "type": "int",
+                "keys": [
+                  "PK"
+                ]
+              }
+            ]
+          },
+          {
+            "id": "USER",
+            "values": [
+              {
+                "name": "name",
+                "type": "string",
+                "keys": [
+                  "PK"
+                ]
+              },
+              {
+                "name": "age",
+                "type": "int",
+                "keys": []
+              }
+            ]
+          }
+        ],
+        "actual": [
+          {
+            "id": "ITEM",
+            "values": []
+          },
+          {
+            "id": "ORDER",
+            "values": [
+              {
+                "name": "id",
+                "type": "int",
+                "keys": [
+                  "PK"
+                ]
+              }
+            ]
+          },
+          {
+            "id": "USER",
+            "values": [
+              {
+                "name": "name",
+                "type": "string",
+                "keys": [
+                  "PK"
+                ]
+              },
+              {
+                "name": "age",
+                "type": "int",
+                "keys": []
+              }
+            ]
+          }
+        ],
+        "scope": "Independently declared family content with meaningful ordering retained."
+      },
+      {
+        "criterion": "fact:cardinalities",
+        "status": "passed",
+        "expected": [
+          {
+            "from": "USER",
+            "to": "ORDER",
+            "left": "one-only",
+            "right": "zero-or-many",
+            "identifying": true
+          },
+          {
+            "from": "ORDER",
+            "to": "ITEM",
+            "left": "zero-or-many",
+            "right": "one-only",
+            "identifying": false
+          }
+        ],
+        "actual": [
+          {
+            "from": "USER",
+            "to": "ORDER",
+            "left": "one-only",
+            "right": "zero-or-many",
+            "identifying": true
+          },
+          {
+            "from": "ORDER",
+            "to": "ITEM",
+            "left": "zero-or-many",
+            "right": "one-only",
+            "identifying": false
+          }
+        ],
+        "scope": "Independently declared family content with meaningful ordering retained."
+      }
+    ]
+  },
+  "rendered": {
+    "accepted": true,
+    "svg": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"818.768\" height=\"158\" viewBox=\"0 0 818.768 158\" style=\"--bg:#FFFFFF;--fg:#27272A;--font:Inter;background:#FFFFFF\" class=\"am-0krqnxj13ickh2\">\n<style>\n  svg.am-0krqnxj13ickh2 { font-family: var(--font, 'Inter'), system-ui, sans-serif; }\n  .am-0krqnxj13ickh2 .mono { font-family: 'JetBrains Mono', 'SF Mono', 'Fira Code', ui-monospace, monospace; }\n  svg.am-0krqnxj13ickh2 {\n    /* Derived from --bg and --fg (overridable via --line, --accent, etc.) */\n    --_text:          #27272A;\n    --_text-sec:      #575759;\n    --_text-muted:    #707072;\n    --_text-faint:    #8a8a8c;\n    --_line:          #939395;\n    --_arrow:         #47474a;\n    --_node-fill:     #f9f9f9;\n    --_node-stroke:   #d4d4d4;\n    --_group-fill:    #FFFFFF;\n    --_group-hdr:     #f4f4f4;\n    --_inner-stroke:  #e5e5e5;\n    --_key-badge:     #e9e9ea;\n  }\n</style>\n<defs>\n</defs>\n<polyline class=\"er-relationship\" data-cardinality1=\"one\" data-cardinality2=\"zero-many\" data-identifying=\"true\" data-label=\"places\" points=\"180,79 335.226,79\" fill=\"none\" stroke=\"#939395\" stroke-width=\"1\" data-relationship=\"identifying\" data-direction=\"undirected\" data-id=\"rel:USER-ORDER#0\" data-role=\"relationship\" data-from=\"USER\" data-to=\"ORDER\" role=\"graphics-symbol\" aria-roledescription=\"relation\" aria-label=\"USER to ORDER: places\" />\n<polyline class=\"er-relationship\" data-cardinality1=\"zero-many\" data-cardinality2=\"one\" data-identifying=\"false\" data-label=\"contains\" points=\"475.226,79 638.768,79\" fill=\"none\" stroke=\"#939395\" stroke-width=\"1\" stroke-dasharray=\"6 4\" data-relationship=\"non-identifying\" data-direction=\"undirected\" data-id=\"rel:ORDER-ITEM#0\" data-role=\"relationship\" data-from=\"ORDER\" data-to=\"ITEM\" role=\"graphics-symbol\" aria-roledescription=\"relation\" aria-label=\"ORDER to ITEM: contains\" />\n<g class=\"entity\" data-id=\"USER\" data-label=\"USER\" data-role=\"entity\">\n  <rect x=\"40\" y=\"40\" width=\"140\" height=\"78\" rx=\"0\" ry=\"0\" fill=\"#f9f9f9\" stroke=\"#949495\" stroke-width=\"1\" data-id=\"entity-rect:USER\" data-role=\"entity\" />\n  <path d=\"M40,40 H180 V74 H40 Z\" fill=\"#f4f4f4\" stroke=\"#949495\" stroke-width=\"1\" />\n  <text x=\"110\" y=\"57\" text-anchor=\"middle\" font-size=\"13\" font-weight=\"700\" fill=\"#27272A\" data-prepared-text=\"true\" dy=\"4.55\" textLength=\"39.39\" lengthAdjust=\"spacingAndGlyphs\" data-font-metrics=\"deterministic-fit\">USER</text>\n  <line x1=\"40\" y1=\"74\" x2=\"180\" y2=\"74\" stroke=\"#949495\" stroke-width=\"0.75\" />\n  <rect x=\"47\" y=\"78\" width=\"22.31\" height=\"14\" rx=\"2\" ry=\"2\" fill=\"#e9e9ea\" />\n  <text x=\"58.155\" y=\"85\" text-anchor=\"middle\" font-size=\"9\" font-weight=\"600\" fill=\"#575759\" data-id=\"attr:USER:name:key-text\" data-role=\"attribute\" data-prepared-text=\"true\" dy=\"3.15\" textLength=\"14.31\" lengthAdjust=\"spacingAndGlyphs\" data-font-metrics=\"deterministic-fit\">PK</text>\n  <text x=\"76.31\" y=\"85\" class=\"mono\" text-anchor=\"start\" font-size=\"11\" font-weight=\"400\" fill=\"#69696c\" data-id=\"attr:USER:name:type\" data-role=\"attribute\" data-prepared-text=\"true\" dy=\"3.85\" textLength=\"39.6\" lengthAdjust=\"spacingAndGlyphs\" data-font-metrics=\"deterministic-fit\">string</text>\n  <text x=\"172\" y=\"85\" class=\"mono\" text-anchor=\"end\" font-size=\"11\" font-weight=\"400\" fill=\"#575759\" data-id=\"attr:USER:name\" data-role=\"attribute\" data-prepared-text=\"true\" dy=\"3.85\" textLength=\"26.4\" lengthAdjust=\"spacingAndGlyphs\" data-font-metrics=\"deterministic-fit\">name</text>\n  <text x=\"48\" y=\"107\" class=\"mono\" text-anchor=\"start\" font-size=\"11\" font-weight=\"400\" fill=\"#69696c\" data-id=\"attr:USER:age:type\" data-role=\"attribute\" data-prepared-text=\"true\" dy=\"3.85\" textLength=\"19.8\" lengthAdjust=\"spacingAndGlyphs\" data-font-metrics=\"deterministic-fit\">int</text>\n  <text x=\"172\" y=\"107\" class=\"mono\" text-anchor=\"end\" font-size=\"11\" font-weight=\"400\" fill=\"#575759\" data-id=\"attr:USER:age\" data-role=\"attribute\" data-prepared-text=\"true\" dy=\"3.85\" textLength=\"19.8\" lengthAdjust=\"spacingAndGlyphs\" data-font-metrics=\"deterministic-fit\">age</text>\n</g>\n<g class=\"entity\" data-id=\"ORDER\" data-label=\"ORDER\" data-role=\"entity\">\n  <rect x=\"335.226\" y=\"51\" width=\"140\" height=\"56\" rx=\"0\" ry=\"0\" fill=\"#f9f9f9\" stroke=\"#949495\" stroke-width=\"1\" data-id=\"entity-rect:ORDER\" data-role=\"entity\" />\n  <path d=\"M335.226,51 H475.226 V85 H335.226 Z\" fill=\"#f4f4f4\" stroke=\"#949495\" stroke-width=\"1\" />\n  <text x=\"405.226\" y=\"68\" text-anchor=\"middle\" font-size=\"13\" font-weight=\"700\" fill=\"#27272A\" data-prepared-text=\"true\" dy=\"4.55\" textLength=\"48.75\" lengthAdjust=\"spacingAndGlyphs\" data-font-metrics=\"deterministic-fit\">ORDER</text>\n  <line x1=\"335.226\" y1=\"85\" x2=\"475.226\" y2=\"85\" stroke=\"#949495\" stroke-width=\"0.75\" />\n  <rect x=\"342.226\" y=\"89\" width=\"22.31\" height=\"14\" rx=\"2\" ry=\"2\" fill=\"#e9e9ea\" />\n  <text x=\"353.381\" y=\"96\" text-anchor=\"middle\" font-size=\"9\" font-weight=\"600\" fill=\"#575759\" data-id=\"attr:ORDER:id:key-text\" data-role=\"attribute\" data-prepared-text=\"true\" dy=\"3.15\" textLength=\"14.31\" lengthAdjust=\"spacingAndGlyphs\" data-font-metrics=\"deterministic-fit\">PK</text>\n  <text x=\"371.536\" y=\"96\" class=\"mono\" text-anchor=\"start\" font-size=\"11\" font-weight=\"400\" fill=\"#69696c\" data-id=\"attr:ORDER:id:type\" data-role=\"attribute\" data-prepared-text=\"true\" dy=\"3.85\" textLength=\"19.8\" lengthAdjust=\"spacingAndGlyphs\" data-font-metrics=\"deterministic-fit\">int</text>\n  <text x=\"467.226\" y=\"96\" class=\"mono\" text-anchor=\"end\" font-size=\"11\" font-weight=\"400\" fill=\"#575759\" data-id=\"attr:ORDER:id\" data-role=\"attribute\" data-prepared-text=\"true\" dy=\"3.85\" textLength=\"13.2\" lengthAdjust=\"spacingAndGlyphs\" data-font-metrics=\"deterministic-fit\">id</text>\n</g>\n<g class=\"entity\" data-id=\"ITEM\" data-label=\"ITEM\" data-role=\"entity\">\n  <rect x=\"638.768\" y=\"51\" width=\"140\" height=\"56\" rx=\"0\" ry=\"0\" fill=\"#f9f9f9\" stroke=\"#949495\" stroke-width=\"1\" data-id=\"entity-rect:ITEM\" data-role=\"entity\" />\n  <path d=\"M638.768,51 H778.768 V85 H638.768 Z\" fill=\"#f4f4f4\" stroke=\"#949495\" stroke-width=\"1\" />\n  <text x=\"708.768\" y=\"68\" text-anchor=\"middle\" font-size=\"13\" font-weight=\"700\" fill=\"#27272A\" data-prepared-text=\"true\" dy=\"4.55\" textLength=\"35.49\" lengthAdjust=\"spacingAndGlyphs\" data-font-metrics=\"deterministic-fit\">ITEM</text>\n  <line x1=\"638.768\" y1=\"85\" x2=\"778.768\" y2=\"85\" stroke=\"#949495\" stroke-width=\"0.75\" />\n  <text x=\"708.768\" y=\"96\" text-anchor=\"middle\" font-size=\"11\" font-weight=\"400\" fill=\"#69696c\" data-id=\"entity-empty:ITEM\" data-role=\"attribute\" data-prepared-text=\"true\" dy=\"3.85\"><tspan x=\"676.164\" text-anchor=\"start\" letter-spacing=\"0\" data-text-fragment=\"true\" textLength=\"65.208\" lengthAdjust=\"spacingAndGlyphs\" font-style=\"italic\">(no attributes)</tspan></text>\n</g>\n<g data-id=\"card:USER-ORDER#0:1\" data-owner-id=\"rel:USER-ORDER#0\" data-owner-role=\"relationship\" data-end=\"start\" data-endpoint=\"USER\" data-role=\"cardinality\">\n<line x1=\"184\" y1=\"73\" x2=\"184\" y2=\"85\" stroke=\"#939395\" stroke-width=\"1.25\" />\n<line x1=\"188\" y1=\"73\" x2=\"188\" y2=\"85\" stroke=\"#939395\" stroke-width=\"1.25\" />\n</g>\n<g data-id=\"card:USER-ORDER#0:2\" data-owner-id=\"rel:USER-ORDER#0\" data-owner-role=\"relationship\" data-end=\"end\" data-endpoint=\"ORDER\" data-role=\"cardinality\">\n<line x1=\"331.226\" y1=\"86\" x2=\"319.226\" y2=\"79\" stroke=\"#939395\" stroke-width=\"1.25\" />\n<line x1=\"331.226\" y1=\"79\" x2=\"319.226\" y2=\"79\" stroke=\"#939395\" stroke-width=\"1.25\" />\n<line x1=\"331.226\" y1=\"72\" x2=\"319.226\" y2=\"79\" stroke=\"#939395\" stroke-width=\"1.25\" />\n<circle cx=\"315.226\" cy=\"79\" r=\"4\" fill=\"#FFFFFF\" stroke=\"#939395\" stroke-width=\"1.25\" />\n</g>\n<g data-id=\"card:ORDER-ITEM#0:1\" data-owner-id=\"rel:ORDER-ITEM#0\" data-owner-role=\"relationship\" data-end=\"start\" data-endpoint=\"ORDER\" data-role=\"cardinality\">\n<line x1=\"479.226\" y1=\"72\" x2=\"491.226\" y2=\"79\" stroke=\"#939395\" stroke-width=\"1.25\" />\n<line x1=\"479.226\" y1=\"79\" x2=\"491.226\" y2=\"79\" stroke=\"#939395\" stroke-width=\"1.25\" />\n<line x1=\"479.226\" y1=\"86\" x2=\"491.226\" y2=\"79\" stroke=\"#939395\" stroke-width=\"1.25\" />\n<circle cx=\"495.226\" cy=\"79\" r=\"4\" fill=\"#FFFFFF\" stroke=\"#939395\" stroke-width=\"1.25\" />\n</g>\n<g data-id=\"card:ORDER-ITEM#0:2\" data-owner-id=\"rel:ORDER-ITEM#0\" data-owner-role=\"relationship\" data-end=\"end\" data-endpoint=\"ITEM\" data-role=\"cardinality\">\n<line x1=\"634.768\" y1=\"85\" x2=\"634.768\" y2=\"73\" stroke=\"#939395\" stroke-width=\"1.25\" />\n<line x1=\"630.768\" y1=\"85\" x2=\"630.768\" y2=\"73\" stroke=\"#939395\" stroke-width=\"1.25\" />\n</g>\n<rect x=\"236.75\" y=\"68.85\" width=\"41.726\" height=\"20.3\" rx=\"2\" ry=\"2\" fill=\"#FFFFFF\" stroke=\"#e5e5e5\" stroke-width=\"0.5\" />\n<text x=\"257.613\" y=\"79\" text-anchor=\"middle\" font-size=\"11\" font-weight=\"400\" fill=\"#69696c\" data-prepared-text=\"true\" dy=\"3.85\" textLength=\"33.726\" lengthAdjust=\"spacingAndGlyphs\" data-font-metrics=\"deterministic-fit\">places</text>\n<rect x=\"531.976\" y=\"68.85\" width=\"50.042\" height=\"20.3\" rx=\"2\" ry=\"2\" fill=\"#FFFFFF\" stroke=\"#e5e5e5\" stroke-width=\"0.5\" />\n<text x=\"556.997\" y=\"79\" text-anchor=\"middle\" font-size=\"11\" font-weight=\"400\" fill=\"#69696c\" data-prepared-text=\"true\" dy=\"3.85\" textLength=\"42.042\" lengthAdjust=\"spacingAndGlyphs\" data-font-metrics=\"deterministic-fit\">contains</text>\n</svg>",
+    "receipt": {
+      "version": 2,
+      "output": "svg",
+      "sharedRequestDigest": "fnv1a64:c20135473fb672bb",
+      "requestDigest": "fnv1a64:118f3148040baa2f",
+      "appearanceDigest": "fnv1a64:5c57037fc07cf497",
+      "capabilityDecision": {
+        "version": 1,
+        "accepted": true,
+        "resolutions": [
+          {
+            "id": "core:render-request",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "core:family-descriptor",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "family:er",
+            "range": "1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "core:scene",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "operation:layout",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "operation:lower-scene",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "backend:scene-renderer",
+            "range": "1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:document/identity/serialize",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:document/resources/serialize",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:document/interaction/accessibility",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:text/geometry/render",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:text/paint/render",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:text/labels/accessibility",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:text/identity/serialize",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:shape/geometry/render",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:shape/paint/render",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:shape/identity/serialize",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:container/geometry/render",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:container/paint/render",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:container/identity/serialize",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:connector/geometry/render",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:connector/stroke/render",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:connector/transform/render",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:connector/topology/render",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:connector/subpaths/render",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:connector/closedness/render",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:connector/bend-radius/render",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:connector/stroke-opacity/render",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:connector/stroke-cap/render",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:connector/stroke-join/render",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:connector/stroke-miter/render",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:connector/dash-array/render",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:connector/dash-offset/render",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:connector/dash-restart/render",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:connector/path-length/render",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:connector/paint-order/render",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:connector/compositing/render",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:connector/non-scaling-stroke/render",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:connector/marker-orientation/render",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:connector/marker-overflow/render",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:connector/endpoints/serialize",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:connector/direction/serialize",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:connector/labels/render",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:connector/labels/accessibility",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:connector/markers/render",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:connector/relation/accessibility",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:connector/interaction/hit-test",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:connector/hit-geometry/hit-test",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:connector/identity/serialize",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "output:svg",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          }
+        ]
+      },
+      "diagnostics": [],
+      "executionDecision": {
+        "family": {
+          "id": "family:er",
+          "version": "1.0.0"
+        },
+        "backend": {
+          "mode": "scene",
+          "requestedId": "default",
+          "selectedId": "backend:default",
+          "version": "1.0.0",
+          "hostPolicy": false
+        },
+        "digest": "fnv1a64:6f299d5cbb6f06c2"
+      },
+      "layoutDecisions": [
+        {
+          "requested": "agentic",
+          "fallback": "none",
+          "selected": "agentic",
+          "attempts": [
+            {
+              "backend": "agentic",
+              "outcome": "selected"
+            }
+          ],
+          "implementation": "agentic-layered@28",
+          "role": "primary"
+        }
+      ],
+      "graphicalProjectionDigest": "fnv1a64:eb9ab69893be189b",
+      "layoutCertification": {
+        "version": 1,
+        "unit": "px",
+        "scope": "native-scene",
+        "status": "passed",
+        "viewport": {
+          "x": 0,
+          "y": 0,
+          "width": 818.768,
+          "height": 158
+        },
+        "attempts": 1,
+        "repairs": [],
+        "coverage": {
+          "measured": 33,
+          "unmeasured": 0,
+          "preparedText": 14,
+          "fallbackText": 0,
+          "conditional": 0
+        },
+        "checks": {
+          "primitives": 36,
+          "labels": 3,
+          "occlusionPairs": 29,
+          "maxOcclusionPairs": 100000,
+          "operations": 3004,
+          "maxOperations": 400000,
+          "markers": 0
+        },
+        "issues": [],
+        "limitations": [
+          "Prepared occupied text regions bound native geometry; exact glyph ink depends on the resolved font.",
+          "Declared transparency, intentional data-mark overlap and externally modified CSS are outside this proof."
+        ],
+        "outputDigest": "fnv1a64:eb9ab69893be189b"
+      }
+    },
+    "wholeBytes": 17529,
+    "receiptBytes": 7532
+  },
+  "paint": {
+    "checks": [
+      {
+        "criterion": "svg-root",
+        "expected": "mounted SVG",
+        "actual": "svg",
+        "status": "passed",
+        "scope": "Actual public SVG result"
+      },
+      {
+        "criterion": "svg-unique-ids",
+        "expected": 0,
+        "actual": 0,
+        "status": "passed",
+        "scope": "Duplicate SVG identities can change marker, clip and owned-label references"
+      },
+      {
+        "criterion": "canvas",
+        "expected": "positive finite rendered canvas",
+        "actual": {
+          "x": 0,
+          "y": 0,
+          "width": 818.765625,
+          "height": 158
+        },
+        "status": "passed",
+        "scope": "Actual browser viewport of the returned SVG"
+      },
+      {
+        "criterion": "visible-authored-labels",
+        "expected": [
+          "USER",
+          "ORDER",
+          "ITEM",
+          "name",
+          "age",
+          "places",
+          "contains"
+        ],
+        "actual": [
+          {
+            "label": "USER",
+            "count": 1
+          },
+          {
+            "label": "ORDER",
+            "count": 1
+          },
+          {
+            "label": "ITEM",
+            "count": 1
+          },
+          {
+            "label": "name",
+            "count": 1
+          },
+          {
+            "label": "age",
+            "count": 1
+          },
+          {
+            "label": "places",
+            "count": 1
+          },
+          {
+            "label": "contains",
+            "count": 1
+          }
+        ],
+        "status": "passed",
+        "scope": "Computed visibility and nonzero browser text bounds; metadata/title/defs text earns no credit"
+      },
+      {
+        "criterion": "labels-within-canvas",
+        "expected": "every authored label fits the canvas",
+        "actual": [],
+        "status": "passed",
+        "scope": "Actual rendered label bounds, with 1.5 CSS-pixel serialization tolerance"
+      },
+      {
+        "criterion": "unclipped-authored-labels",
+        "expected": [],
+        "actual": [],
+        "status": "passed",
+        "scope": "Actual self/ancestor clipping and overflow; unprojected masks/clip paths remain unavailable"
+      },
+      {
+        "criterion": "visible-ink",
+        "expected": "nonempty visible diagram geometry",
+        "actual": 27,
+        "status": "passed",
+        "scope": "Visible geometric elements; unprojected use/HTML/image-only ink remains unavailable, not a drawing defect"
+      },
+      {
+        "criterion": "painted-node-ownership",
+        "expected": [
+          "USER",
+          "ORDER",
+          "ITEM"
+        ],
+        "actual": [
+          "USER",
+          "ORDER",
+          "ITEM"
+        ],
+        "status": "passed",
+        "scope": "Unique actual label-to-shape ownership, independently of native model identity"
+      },
+      {
+        "criterion": "painted-relationships",
+        "expected": [
+          "[\"ITEM\",\"ORDER\",false]",
+          "[\"ORDER\",\"USER\",false]"
+        ],
+        "actual": [
+          "[\"ITEM\",\"ORDER\",false]",
+          "[\"ORDER\",\"USER\",false]"
+        ],
+        "status": "passed",
+        "scope": "Owned outline/lifeline endpoint proximity and exact multiplicity. Clearance is at most max(2 CSS pixels, half the observed painted marker length), capped at 8; this is not a strict physical-touch certificate"
+      },
+      {
+        "criterion": "painted-relationship-label-counts",
+        "expected": {
+          "places": 1,
+          "contains": 1
+        },
+        "actual": {
+          "places": 1,
+          "contains": 1
+        },
+        "status": "passed",
+        "scope": "Each authored relationship label needs its own visible text occurrence, excluding actual node titles"
+      },
+      {
+        "criterion": "painted-relationship-label-ownership",
+        "expected": [
+          "[\"[\\\"ITEM\\\",\\\"ORDER\\\",false]\",\"contains\"]",
+          "[\"[\\\"ORDER\\\",\\\"USER\\\",false]\",\"places\"]"
+        ],
+        "actual": [
+          "[\"[\\\"ITEM\\\",\\\"ORDER\\\",false]\",\"contains\"]",
+          "[\"[\\\"ORDER\\\",\\\"USER\\\",false]\",\"places\"]"
+        ],
+        "status": "passed",
+        "scope": "Visible label must belong to the corresponding actual route: unique geometry or matching public SVG edge identity plus spatial agreement; global text counts cannot bind labels"
+      },
+      {
+        "criterion": "painted-cardinality-decorations",
+        "expected": [
+          {
+            "from": "USER",
+            "to": "ORDER",
+            "left": "one-only",
+            "right": "zero-or-many",
+            "identifying": true
+          },
+          {
+            "from": "ORDER",
+            "to": "ITEM",
+            "left": "zero-or-many",
+            "right": "one-only",
+            "identifying": false
+          }
+        ],
+        "actual": [
+          {
+            "source": "USER",
+            "target": "ORDER",
+            "directed": false,
+            "startMarker": "none",
+            "endMarker": "none"
+          },
+          {
+            "source": "ORDER",
+            "target": "ITEM",
+            "directed": false,
+            "startMarker": "none",
+            "endMarker": "none"
+          }
+        ],
+        "status": "unavailable",
+        "scope": "Owned endpoints are measured, but exact crow-foot/optional-circle combinations need a reviewed per-marker paint projection; native cardinalities alone earn no paint credit"
+      },
+      {
+        "criterion": "paint-opacity-and-color",
+        "expected": "resolved visible paint colors/alpha",
+        "actual": [],
+        "status": "passed",
+        "scope": "Unresolved paint servers/context colors cannot silently earn a visible-ink or complete-style claim"
+      }
+    ],
+    "complete": false,
+    "passed": false,
+    "nodes": [
+      {
+        "id": "USER",
+        "label": "USER",
+        "box": {
+          "x": 39.99988555908203,
+          "y": 40.00011444091797,
+          "width": 139.99960327148438,
+          "height": 77.99977111816406
+        }
+      },
+      {
+        "id": "ORDER",
+        "label": "ORDER",
+        "box": {
+          "x": 335.22503662109375,
+          "y": 51.00008010864258,
+          "width": 139.99960327148438,
+          "height": 55.99983596801758
+        }
+      },
+      {
+        "id": "ITEM",
+        "label": "ITEM",
+        "box": {
+          "x": 638.7661743164062,
+          "y": 51.00008010864258,
+          "width": 139.99957275390625,
+          "height": 55.99983596801758
+        }
+      }
+    ],
+    "connections": [
+      {
+        "source": "USER",
+        "target": "ORDER",
+        "directed": false,
+        "startMarker": "none",
+        "endMarker": "none"
+      },
+      {
+        "source": "ORDER",
+        "target": "ITEM",
+        "directed": false,
+        "startMarker": "none",
+        "endMarker": "none"
+      }
+    ],
+    "viewBox": "0 0 818.768 158"
+  },
+  "quantitative": [],
+  "quality": {
+    "width": 818.768,
+    "height": 158,
+    "area": 129365.34400000001,
+    "viewportScope": "actual viewBox SVG units",
+    "ownedCarriers": 0,
+    "contactCounts": {
+      "status": "unavailable",
+      "reason": "No enrolled exact SVG node-boundary contact observer"
+    },
+    "browserCenterline": {
+      "status": "unavailable"
+    },
+    "linear": {
+      "status": "unavailable",
+      "reason": "Authored relationships have no enrolled owned SVG carriers"
+    }
+  },
+  "scope": "Unmodified Trident meaning + actual Chromium paint/quantitative observers on full Node SVG/receipt; exact strict linear metrics only where enrolled ownership/geometry allow. No browser renderer execution or speed claim."
+}

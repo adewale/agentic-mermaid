@@ -1,0 +1,1547 @@
+{
+  "families": 33,
+  "arms": [
+    {
+      "target": "pr",
+      "backend": "agentic",
+      "fallback": "none"
+    },
+    {
+      "target": "pr",
+      "backend": "elk",
+      "fallback": "none"
+    }
+  ],
+  "workloads": [
+    {
+      "id": "family:flowchart",
+      "family": "flowchart",
+      "source": "flowchart LR\nA[Alpha] --> B[Beta]\nB --> C[Gamma]",
+      "expectedLabels": [
+        "Alpha",
+        "Beta",
+        "Gamma"
+      ],
+      "features": [
+        "portable-family-closure"
+      ],
+      "provenance": "Unmodified enrolled portable family source",
+      "precedingStandardSupportProbe": {
+        "id": "family-support:flowchart",
+        "family": "flowchart",
+        "cohort": "family",
+        "source": "flowchart LR\nA[Alpha] --> B[Beta]\nB --> C[Gamma]",
+        "expected": {
+          "accept": true,
+          "labels": [
+            "Alpha",
+            "Beta",
+            "Gamma"
+          ],
+          "topology": {
+            "nodes": [
+              "A",
+              "B",
+              "C"
+            ],
+            "edges": [
+              {
+                "source": "A",
+                "target": "B"
+              },
+              {
+                "source": "B",
+                "target": "C"
+              }
+            ],
+            "nodeLabels": {
+              "A": "Alpha",
+              "B": "Beta",
+              "C": "Gamma"
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "family:sequence",
+      "family": "sequence",
+      "source": "sequenceDiagram\nparticipant A as Alpha\nparticipant B as Beta\nA->>B: Request\nB-->>A: Reply",
+      "expectedLabels": [
+        "Alpha",
+        "Beta",
+        "Request",
+        "Reply"
+      ],
+      "features": [
+        "portable-family-closure"
+      ],
+      "provenance": "Unmodified enrolled portable family source",
+      "precedingStandardSupportProbe": {
+        "id": "family-support:sequence",
+        "family": "sequence",
+        "cohort": "family",
+        "source": "sequenceDiagram\nparticipant A as Alpha\nparticipant B as Beta\nA->>B: Request\nB-->>A: Reply",
+        "expected": {
+          "accept": true,
+          "labels": [
+            "Alpha",
+            "Beta",
+            "Request",
+            "Reply"
+          ],
+          "topology": {
+            "nodes": [
+              "A",
+              "B"
+            ],
+            "edges": [
+              {
+                "source": "A",
+                "target": "B"
+              },
+              {
+                "source": "B",
+                "target": "A"
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": "family:state",
+      "family": "state",
+      "source": "stateDiagram-v2\nstate \"Alpha\" as A\nstate \"Beta\" as B\nA --> B: advance",
+      "expectedLabels": [
+        "Alpha",
+        "Beta",
+        "advance"
+      ],
+      "features": [
+        "portable-family-closure"
+      ],
+      "provenance": "Unmodified enrolled portable family source",
+      "precedingStandardSupportProbe": {
+        "id": "family-support:state",
+        "family": "state",
+        "cohort": "family",
+        "source": "stateDiagram-v2\nstate \"Alpha\" as A\nstate \"Beta\" as B\nA --> B: advance",
+        "expected": {
+          "accept": true,
+          "labels": [
+            "Alpha",
+            "Beta",
+            "advance"
+          ],
+          "topology": {
+            "nodes": [
+              "A",
+              "B"
+            ],
+            "edges": [
+              {
+                "source": "A",
+                "target": "B"
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": "family:class",
+      "family": "class",
+      "source": "classDiagram\nclass Alpha\nclass Beta\nAlpha --> Beta: uses",
+      "expectedLabels": [
+        "Alpha",
+        "Beta",
+        "uses"
+      ],
+      "features": [
+        "portable-family-closure"
+      ],
+      "provenance": "Unmodified enrolled portable family source",
+      "precedingStandardSupportProbe": {
+        "id": "family-support:class",
+        "family": "class",
+        "cohort": "family",
+        "source": "classDiagram\nclass Alpha\nclass Beta\nAlpha --> Beta: uses",
+        "expected": {
+          "accept": true,
+          "labels": [
+            "Alpha",
+            "Beta",
+            "uses"
+          ],
+          "topology": {
+            "nodes": [
+              "Alpha",
+              "Beta"
+            ],
+            "edges": [
+              {
+                "source": "Alpha",
+                "target": "Beta"
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": "family:er",
+      "family": "er",
+      "source": "erDiagram\nALPHA ||--o{ BETA : owns",
+      "expectedLabels": [
+        "ALPHA",
+        "BETA",
+        "owns"
+      ],
+      "features": [
+        "portable-family-closure"
+      ],
+      "provenance": "Unmodified enrolled portable family source",
+      "precedingStandardSupportProbe": {
+        "id": "family-support:er",
+        "family": "er",
+        "cohort": "family",
+        "source": "erDiagram\nALPHA ||--o{ BETA : owns",
+        "expected": {
+          "accept": true,
+          "labels": [
+            "ALPHA",
+            "BETA",
+            "owns"
+          ],
+          "topology": {
+            "nodes": [
+              "ALPHA",
+              "BETA"
+            ],
+            "edges": [
+              {
+                "source": "ALPHA",
+                "target": "BETA"
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": "family:timeline",
+      "family": "timeline",
+      "source": "timeline\ntitle Delivery\n2026 : Launch : Review",
+      "expectedLabels": [
+        "Delivery",
+        "2026",
+        "Launch",
+        "Review"
+      ],
+      "features": [
+        "portable-family-closure"
+      ],
+      "provenance": "Unmodified enrolled portable family source",
+      "precedingStandardSupportProbe": {
+        "id": "family-support:timeline",
+        "family": "timeline",
+        "cohort": "family",
+        "source": "timeline\ntitle Delivery\n2026 : Launch : Review",
+        "expected": {
+          "accept": true,
+          "labels": [
+            "Delivery",
+            "2026",
+            "Launch",
+            "Review"
+          ],
+          "model": [
+            {
+              "path": [
+                "periods",
+                0,
+                "events"
+              ],
+              "value": [
+                "Launch",
+                "Review"
+              ],
+              "comparison": "display-text"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "family:journey",
+      "family": "journey",
+      "source": "journey\ntitle Delivery\nsection Plan\nReview: 4: Builder",
+      "expectedLabels": [
+        "Delivery",
+        "Plan",
+        "Review",
+        "Builder"
+      ],
+      "features": [
+        "portable-family-closure"
+      ],
+      "provenance": "Unmodified enrolled portable family source",
+      "precedingStandardSupportProbe": {
+        "id": "family-support:journey",
+        "family": "journey",
+        "cohort": "family",
+        "source": "journey\ntitle Delivery\nsection Plan\nReview: 4: Builder",
+        "expected": {
+          "accept": true,
+          "labels": [
+            "Delivery",
+            "Plan",
+            "Review",
+            "Builder"
+          ],
+          "model": [
+            {
+              "path": [
+                "tasks",
+                0,
+                "score"
+              ],
+              "value": 4
+            },
+            {
+              "path": [
+                "tasks",
+                0,
+                "people"
+              ],
+              "value": [
+                "Builder"
+              ]
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "family:architecture",
+      "family": "architecture",
+      "source": "architecture-beta\ngroup app(cloud)[App]\nservice api(server)[API] in app\nservice db(database)[Data] in app\napi:R --> L:db",
+      "expectedLabels": [
+        "App",
+        "API",
+        "Data"
+      ],
+      "features": [
+        "portable-family-closure"
+      ],
+      "provenance": "Unmodified enrolled portable family source",
+      "precedingStandardSupportProbe": {
+        "id": "family-support:architecture",
+        "family": "architecture",
+        "cohort": "family",
+        "source": "architecture-beta\ngroup app(cloud)[App]\nservice api(server)[API] in app\nservice db(database)[Data] in app\napi:R --> L:db",
+        "expected": {
+          "accept": true,
+          "labels": [
+            "App",
+            "API",
+            "Data"
+          ],
+          "topology": {
+            "nodes": [
+              "api",
+              "db"
+            ],
+            "edges": [
+              {
+                "source": "api",
+                "target": "db"
+              }
+            ],
+            "groups": [
+              {
+                "id": "app",
+                "members": [
+                  "api",
+                  "db"
+                ]
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": "family:xychart",
+      "family": "xychart",
+      "source": "xychart-beta\ntitle \"Series\"\nx-axis [One, Two, Three]\ny-axis \"Count\" 0 --> 10\nbar [3, 7, 5]\nline [2, 6, 4]",
+      "expectedLabels": [
+        "Series",
+        "One",
+        "Two",
+        "Three",
+        "Count"
+      ],
+      "features": [
+        "portable-family-closure"
+      ],
+      "provenance": "Unmodified enrolled portable family source",
+      "precedingStandardSupportProbe": {
+        "id": "family-support:xychart",
+        "family": "xychart",
+        "cohort": "family",
+        "source": "xychart-beta\ntitle \"Series\"\nx-axis [One, Two, Three]\ny-axis \"Count\" 0 --> 10\nbar [3, 7, 5]\nline [2, 6, 4]",
+        "expected": {
+          "accept": true,
+          "labels": [
+            "Series",
+            "One",
+            "Two",
+            "Three",
+            "Count"
+          ],
+          "model": [
+            {
+              "path": [
+                "xAxis",
+                "categories"
+              ],
+              "value": [
+                "One",
+                "Two",
+                "Three"
+              ]
+            },
+            {
+              "path": [
+                "plots",
+                0,
+                "data"
+              ],
+              "value": [
+                [
+                  "One",
+                  3
+                ],
+                [
+                  "Two",
+                  7
+                ],
+                [
+                  "Three",
+                  5
+                ]
+              ]
+            },
+            {
+              "path": [
+                "plots",
+                1,
+                "data"
+              ],
+              "value": [
+                [
+                  "One",
+                  2
+                ],
+                [
+                  "Two",
+                  6
+                ],
+                [
+                  "Three",
+                  4
+                ]
+              ]
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "family:pie",
+      "family": "pie",
+      "source": "pie title Shares\n\"Alpha\" : 7\n\"Beta\" : 3",
+      "expectedLabels": [
+        "Shares",
+        "Alpha",
+        "Beta"
+      ],
+      "features": [
+        "portable-family-closure"
+      ],
+      "provenance": "Unmodified enrolled portable family source",
+      "precedingStandardSupportProbe": {
+        "id": "family-support:pie",
+        "family": "pie",
+        "cohort": "family",
+        "source": "pie title Shares\n\"Alpha\" : 7\n\"Beta\" : 3",
+        "expected": {
+          "accept": true,
+          "labels": [
+            "Shares",
+            "Alpha",
+            "Beta"
+          ],
+          "model": [
+            {
+              "path": [
+                "sections",
+                {
+                  "map": "Alpha"
+                }
+              ],
+              "value": 7
+            },
+            {
+              "path": [
+                "sections",
+                {
+                  "map": "Beta"
+                }
+              ],
+              "value": 3
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "family:quadrant",
+      "family": "quadrant",
+      "source": "quadrantChart\ntitle Priority\nx-axis Low effort --> High effort\ny-axis Low value --> High value\nAlpha: [0.2, 0.8]\nBeta: [0.8, 0.2]",
+      "expectedLabels": [
+        "Priority",
+        "Alpha",
+        "Beta",
+        "Low effort",
+        "High effort",
+        "Low value",
+        "High value"
+      ],
+      "features": [
+        "portable-family-closure"
+      ],
+      "provenance": "Unmodified enrolled portable family source",
+      "precedingStandardSupportProbe": {
+        "id": "family-support:quadrant",
+        "family": "quadrant",
+        "cohort": "family",
+        "source": "quadrantChart\ntitle Priority\nx-axis Low effort --> High effort\ny-axis Low value --> High value\nAlpha: [0.2, 0.8]\nBeta: [0.8, 0.2]",
+        "expected": {
+          "accept": true,
+          "labels": [
+            "Priority",
+            "Alpha",
+            "Beta",
+            "Low effort",
+            "High effort",
+            "Low value",
+            "High value"
+          ],
+          "model": [
+            {
+              "path": [
+                "points",
+                0,
+                "x"
+              ],
+              "value": 0.2
+            },
+            {
+              "path": [
+                "points",
+                0,
+                "y"
+              ],
+              "value": 0.8
+            },
+            {
+              "path": [
+                "points",
+                1,
+                "x"
+              ],
+              "value": 0.8
+            },
+            {
+              "path": [
+                "points",
+                1,
+                "y"
+              ],
+              "value": 0.2
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "family:gantt",
+      "family": "gantt",
+      "source": "gantt\ntitle Delivery\ndateFormat YYYY-MM-DD\ntodayMarker off\nsection Build\nDesign :taskAlpha, 2026-01-01, 2d\nReview :taskBeta, after taskAlpha, 3d",
+      "expectedLabels": [
+        "Delivery",
+        "Build",
+        "Design",
+        "Review"
+      ],
+      "features": [
+        "portable-family-closure"
+      ],
+      "provenance": "Unmodified enrolled portable family source",
+      "precedingStandardSupportProbe": {
+        "id": "family-support:gantt",
+        "family": "gantt",
+        "cohort": "family",
+        "source": "gantt\ntitle Delivery\ndateFormat YYYY-MM-DD\ntodayMarker off\nsection Build\nDesign :taskAlpha, 2026-01-01, 2d\nReview :taskBeta, after taskAlpha, 3d",
+        "expected": {
+          "accept": true,
+          "labels": [
+            "Delivery",
+            "Build",
+            "Design",
+            "Review"
+          ],
+          "model": [
+            {
+              "path": [
+                "tasks",
+                0,
+                "id"
+              ],
+              "value": "taskAlpha"
+            },
+            {
+              "path": [
+                "tasks",
+                1,
+                "id"
+              ],
+              "value": "taskBeta"
+            },
+            {
+              "path": [
+                "tasks",
+                1,
+                "raw",
+                "start"
+              ],
+              "value": "after taskAlpha"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "family:mindmap",
+      "family": "mindmap",
+      "source": "mindmap\nroot((Root))\n  Alpha\n    Beta\n  Gamma",
+      "expectedLabels": [
+        "Root",
+        "Alpha",
+        "Beta",
+        "Gamma"
+      ],
+      "features": [
+        "portable-family-closure"
+      ],
+      "provenance": "Unmodified enrolled portable family source",
+      "precedingStandardSupportProbe": {
+        "id": "family-support:mindmap",
+        "family": "mindmap",
+        "cohort": "family",
+        "source": "mindmap\nroot((Root))\n  Alpha\n    Beta\n  Gamma",
+        "expected": {
+          "accept": true,
+          "labels": [
+            "Root",
+            "Alpha",
+            "Beta",
+            "Gamma"
+          ],
+          "model": [
+            {
+              "path": [
+                "nodes",
+                0,
+                "descr"
+              ],
+              "value": "Root"
+            },
+            {
+              "path": [
+                "nodes",
+                0,
+                "children",
+                0,
+                "descr"
+              ],
+              "value": "Alpha"
+            },
+            {
+              "path": [
+                "nodes",
+                0,
+                "children",
+                0,
+                "children",
+                0,
+                "descr"
+              ],
+              "value": "Beta"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "family:gitgraph",
+      "family": "gitgraph",
+      "source": "gitGraph\ncommit id:\"Alpha\" tag:\"v1\"\nbranch feature\ncommit id:\"Beta\"\ncheckout main\nmerge feature id:\"Gamma\"",
+      "expectedLabels": [
+        "Alpha",
+        "Beta",
+        "Gamma",
+        "v1"
+      ],
+      "features": [
+        "portable-family-closure"
+      ],
+      "provenance": "Unmodified enrolled portable family source",
+      "precedingStandardSupportProbe": {
+        "id": "family-support:gitgraph",
+        "family": "gitgraph",
+        "cohort": "family",
+        "source": "gitGraph\ncommit id:\"Alpha\" tag:\"v1\"\nbranch feature\ncommit id:\"Beta\"\ncheckout main\nmerge feature id:\"Gamma\"",
+        "expected": {
+          "accept": true,
+          "labels": [
+            "Alpha",
+            "Beta",
+            "Gamma",
+            "v1"
+          ],
+          "model": [
+            {
+              "path": [
+                "commits",
+                {
+                  "map": "Alpha"
+                },
+                "tags"
+              ],
+              "value": [
+                "v1"
+              ]
+            },
+            {
+              "path": [
+                "commits",
+                {
+                  "map": "Gamma"
+                },
+                "parents"
+              ],
+              "value": [
+                "Alpha",
+                "Beta"
+              ]
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "family:radar",
+      "family": "radar",
+      "source": "radar-beta\ntitle Skills\naxis speed[\"Speed\"], power[\"Power\"], range[\"Range\"]\ncurve now[\"Current\"]{3, 4, 2}\nmax 5\nshowLegend true",
+      "expectedLabels": [
+        "Skills",
+        "Speed",
+        "Power",
+        "Range",
+        "Current"
+      ],
+      "features": [
+        "portable-family-closure"
+      ],
+      "provenance": "Unmodified enrolled portable family source",
+      "precedingStandardSupportProbe": {
+        "id": "family-support:radar",
+        "family": "radar",
+        "cohort": "family",
+        "source": "radar-beta\ntitle Skills\naxis speed[\"Speed\"], power[\"Power\"], range[\"Range\"]\ncurve now[\"Current\"]{3, 4, 2}\nmax 5\nshowLegend true",
+        "expected": {
+          "accept": true,
+          "labels": [
+            "Skills",
+            "Speed",
+            "Power",
+            "Range",
+            "Current"
+          ],
+          "model": [
+            {
+              "path": [
+                "curves",
+                0,
+                "entries"
+              ],
+              "value": [
+                3,
+                4,
+                2
+              ]
+            },
+            {
+              "path": [
+                "axes",
+                0,
+                "label"
+              ],
+              "value": "Speed"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "family:sankey",
+      "family": "sankey",
+      "source": "sankey-beta\nAlpha,Beta,5\nBeta,Gamma,5",
+      "expectedLabels": [
+        "Alpha",
+        "Beta",
+        "Gamma"
+      ],
+      "features": [
+        "portable-family-closure"
+      ],
+      "provenance": "Unmodified enrolled portable family source",
+      "precedingStandardSupportProbe": {
+        "id": "family-support:sankey",
+        "family": "sankey",
+        "cohort": "family",
+        "source": "sankey-beta\nAlpha,Beta,5\nBeta,Gamma,5",
+        "expected": {
+          "accept": true,
+          "labels": [
+            "Alpha",
+            "Beta",
+            "Gamma"
+          ],
+          "topology": {
+            "nodes": [
+              "Alpha",
+              "Beta",
+              "Gamma"
+            ],
+            "edges": [
+              {
+                "source": "Alpha",
+                "target": "Beta"
+              },
+              {
+                "source": "Beta",
+                "target": "Gamma"
+              }
+            ]
+          },
+          "model": [
+            {
+              "path": [
+                "links",
+                0,
+                "value"
+              ],
+              "value": 5
+            },
+            {
+              "path": [
+                "links",
+                1,
+                "value"
+              ],
+              "value": 5
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "family:c4",
+      "family": "c4",
+      "source": "C4Context\nPerson(user, \"User\")\nSystem(api, \"API\", \"Service\")\nRel(user, api, \"Uses\")",
+      "expectedLabels": [
+        "User",
+        "API",
+        "Service",
+        "Uses"
+      ],
+      "features": [
+        "portable-family-closure"
+      ],
+      "provenance": "Unmodified enrolled portable family source",
+      "precedingStandardSupportProbe": {
+        "id": "family-support:c4",
+        "family": "c4",
+        "cohort": "family",
+        "source": "C4Context\nPerson(user, \"User\")\nSystem(api, \"API\", \"Service\")\nRel(user, api, \"Uses\")",
+        "expected": {
+          "accept": true,
+          "labels": [
+            "User",
+            "API",
+            "Service",
+            "Uses"
+          ],
+          "topology": {
+            "nodes": [
+              "user",
+              "api"
+            ],
+            "edges": [
+              {
+                "source": "user",
+                "target": "api"
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": "family:packet",
+      "family": "packet",
+      "source": "packet\n0-7: \"Header\"\n8-15: \"Payload\"",
+      "expectedLabels": [
+        "Header",
+        "Payload"
+      ],
+      "features": [
+        "portable-family-closure"
+      ],
+      "provenance": "Unmodified enrolled portable family source",
+      "precedingStandardSupportProbe": {
+        "id": "family-support:packet",
+        "family": "packet",
+        "cohort": "family",
+        "source": "packet\n0-7: \"Header\"\n8-15: \"Payload\"",
+        "expected": {
+          "accept": true,
+          "labels": [
+            "Header",
+            "Payload"
+          ],
+          "model": [
+            {
+              "path": [
+                "rows",
+                0,
+                0,
+                "bits"
+              ],
+              "value": 8
+            },
+            {
+              "path": [
+                "rows",
+                0,
+                1,
+                "start"
+              ],
+              "value": 8
+            },
+            {
+              "path": [
+                "rows",
+                0,
+                1,
+                "end"
+              ],
+              "value": 15
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "family:kanban",
+      "family": "kanban",
+      "source": "kanban\nbacklog[Backlog]\n  TaskA[Build]\ndone[Done]\n  TaskB[Test]",
+      "expectedLabels": [
+        "Backlog",
+        "Build",
+        "Done",
+        "Test"
+      ],
+      "features": [
+        "portable-family-closure"
+      ],
+      "provenance": "Unmodified enrolled portable family source",
+      "precedingStandardSupportProbe": {
+        "id": "family-support:kanban",
+        "family": "kanban",
+        "cohort": "family",
+        "source": "kanban\nbacklog[Backlog]\n  TaskA[Build]\ndone[Done]\n  TaskB[Test]",
+        "expected": {
+          "accept": true,
+          "labels": [
+            "Backlog",
+            "Build",
+            "Done",
+            "Test"
+          ],
+          "model": [
+            {
+              "path": [
+                "sections",
+                0,
+                "id"
+              ],
+              "value": "backlog"
+            },
+            {
+              "path": [
+                "sections",
+                0,
+                "items",
+                0,
+                "id"
+              ],
+              "value": "TaskA"
+            },
+            {
+              "path": [
+                "sections",
+                1,
+                "items",
+                0,
+                "id"
+              ],
+              "value": "TaskB"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "family:requirement",
+      "family": "requirement",
+      "source": "requirementDiagram\nrequirement reliable {\nid: R1\ntext: Requests retain meaning\nrisk: high\nverifymethod: test\n}\nelement suite {\ntype: \"test\"\n}\nsuite - verifies -> reliable",
+      "expectedLabels": [
+        "reliable",
+        "suite",
+        "Requests retain meaning"
+      ],
+      "features": [
+        "portable-family-closure"
+      ],
+      "provenance": "Unmodified enrolled portable family source",
+      "precedingStandardSupportProbe": {
+        "id": "family-support:requirement",
+        "family": "requirement",
+        "cohort": "family",
+        "source": "requirementDiagram\nrequirement reliable {\nid: R1\ntext: Requests retain meaning\nrisk: high\nverifymethod: test\n}\nelement suite {\ntype: \"test\"\n}\nsuite - verifies -> reliable",
+        "expected": {
+          "accept": true,
+          "labels": [
+            "reliable",
+            "suite",
+            "Requests retain meaning"
+          ],
+          "topology": {
+            "nodes": [
+              "reliable",
+              "suite"
+            ],
+            "edges": [
+              {
+                "source": "suite",
+                "target": "reliable"
+              }
+            ]
+          },
+          "model": [
+            {
+              "path": [
+                "requirements",
+                {
+                  "map": "reliable"
+                },
+                "requirementId"
+              ],
+              "value": "R1"
+            },
+            {
+              "path": [
+                "requirements",
+                {
+                  "map": "reliable"
+                },
+                "text"
+              ],
+              "value": "Requests retain meaning"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "family:treemap",
+      "family": "treemap",
+      "source": "treemap\n\"Root\"\n  \"Alpha\": 7\n  \"Beta\": 3",
+      "expectedLabels": [
+        "Root",
+        "Alpha",
+        "Beta"
+      ],
+      "features": [
+        "portable-family-closure"
+      ],
+      "provenance": "Unmodified enrolled portable family source",
+      "precedingStandardSupportProbe": {
+        "id": "family-support:treemap",
+        "family": "treemap",
+        "cohort": "family",
+        "source": "treemap\n\"Root\"\n  \"Alpha\": 7\n  \"Beta\": 3",
+        "expected": {
+          "accept": true,
+          "labels": [
+            "Root",
+            "Alpha",
+            "Beta"
+          ],
+          "model": [
+            {
+              "path": [
+                "roots",
+                0,
+                "children",
+                0,
+                "value"
+              ],
+              "value": 7
+            },
+            {
+              "path": [
+                "roots",
+                0,
+                "children",
+                1,
+                "value"
+              ],
+              "value": 3
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "family:ishikawa",
+      "family": "ishikawa",
+      "source": "ishikawa\n  Delay\n  Process\n    Review\n  Tooling\n    Build",
+      "expectedLabels": [
+        "Delay",
+        "Process",
+        "Review",
+        "Tooling",
+        "Build"
+      ],
+      "features": [
+        "portable-family-closure"
+      ],
+      "provenance": "Unmodified enrolled portable family source",
+      "precedingStandardSupportProbe": {
+        "id": "family-support:ishikawa",
+        "family": "ishikawa",
+        "cohort": "family",
+        "source": "ishikawa\n  Delay\n  Process\n    Review\n  Tooling\n    Build",
+        "expected": {
+          "accept": true,
+          "labels": [
+            "Delay",
+            "Process",
+            "Review",
+            "Tooling",
+            "Build"
+          ],
+          "model": [
+            {
+              "path": [
+                "root",
+                "text"
+              ],
+              "value": "Delay"
+            },
+            {
+              "path": [
+                "root",
+                "children",
+                0,
+                "text"
+              ],
+              "value": "Process"
+            },
+            {
+              "path": [
+                "root",
+                "children",
+                0,
+                "children",
+                0,
+                "text"
+              ],
+              "value": "Review"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "family:block",
+      "family": "block",
+      "source": "block\ncolumns 2\nAlpha[\"Alpha\"] Beta[\"Beta\"]\nAlpha --> Beta",
+      "expectedLabels": [
+        "Alpha",
+        "Beta"
+      ],
+      "features": [
+        "portable-family-closure"
+      ],
+      "provenance": "Unmodified enrolled portable family source",
+      "precedingStandardSupportProbe": {
+        "id": "family-support:block",
+        "family": "block",
+        "cohort": "family",
+        "source": "block\ncolumns 2\nAlpha[\"Alpha\"] Beta[\"Beta\"]\nAlpha --> Beta",
+        "expected": {
+          "accept": true,
+          "labels": [
+            "Alpha",
+            "Beta"
+          ],
+          "model": [
+            {
+              "path": [
+                "byId",
+                {
+                  "map": "Alpha"
+                },
+                "label"
+              ],
+              "value": "Alpha"
+            },
+            {
+              "path": [
+                "edges",
+                0,
+                "start"
+              ],
+              "value": "Alpha"
+            },
+            {
+              "path": [
+                "edges",
+                0,
+                "end"
+              ],
+              "value": "Beta"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "family-support:eventmodeling",
+      "family": "eventmodeling",
+      "source": "eventmodeling\n\ntf 01 ui AlphaScreen\ntf 02 cmd BetaCommand\ntf 03 evt GammaEvent",
+      "expectedLabels": [
+        "AlphaScreen",
+        "BetaCommand",
+        "GammaEvent"
+      ],
+      "features": [
+        "portable-family-closure"
+      ],
+      "provenance": "Unmodified enrolled portable family source",
+      "precedingStandardSupportProbe": {
+        "id": "family-support:eventmodeling",
+        "family": "eventmodeling",
+        "cohort": "family",
+        "source": "eventmodeling\n\ntf 01 ui AlphaScreen\ntf 02 cmd BetaCommand\ntf 03 evt GammaEvent",
+        "expected": {
+          "accept": true,
+          "labels": [
+            "AlphaScreen",
+            "BetaCommand",
+            "GammaEvent"
+          ]
+        }
+      }
+    },
+    {
+      "id": "family-support:zenuml",
+      "family": "zenuml",
+      "source": "zenuml\ntitle Demo\nAlice->John: Hello John, how are you?\nJohn->Alice: Great!",
+      "expectedLabels": [
+        "Alice",
+        "John",
+        "Hello John, how are you?",
+        "Great!"
+      ],
+      "features": [
+        "portable-family-closure"
+      ],
+      "provenance": "Unmodified enrolled portable family source",
+      "precedingStandardSupportProbe": {
+        "id": "family-support:zenuml",
+        "family": "zenuml",
+        "cohort": "family",
+        "source": "zenuml\ntitle Demo\nAlice->John: Hello John, how are you?\nJohn->Alice: Great!",
+        "expected": {
+          "accept": true,
+          "labels": [
+            "Alice",
+            "John",
+            "Hello John, how are you?",
+            "Great!"
+          ]
+        }
+      }
+    },
+    {
+      "id": "family-support:railroad",
+      "family": "railroad",
+      "source": "railroad-ebnf-beta\nalpha = \"beta\" | gamma ;\ngamma = \"delta\" ;",
+      "expectedLabels": [
+        "alpha",
+        "beta",
+        "gamma",
+        "delta"
+      ],
+      "features": [
+        "portable-family-closure"
+      ],
+      "provenance": "Unmodified enrolled portable family source",
+      "precedingStandardSupportProbe": {
+        "id": "family-support:railroad",
+        "family": "railroad",
+        "cohort": "family",
+        "source": "railroad-ebnf-beta\nalpha = \"beta\" | gamma ;\ngamma = \"delta\" ;",
+        "expected": {
+          "accept": true,
+          "labels": [
+            "alpha",
+            "beta",
+            "gamma",
+            "delta"
+          ]
+        }
+      }
+    },
+    {
+      "id": "family-support:cynefin",
+      "family": "cynefin",
+      "source": "cynefin-beta\n  title Alpha\n  complex\n    \"Beta\"\n  clear\n    \"Gamma\"\n  complex --> clear : \"Delta\"",
+      "expectedLabels": [
+        "Alpha",
+        "Beta",
+        "Gamma",
+        "Delta"
+      ],
+      "features": [
+        "portable-family-closure"
+      ],
+      "provenance": "Unmodified enrolled portable family source",
+      "precedingStandardSupportProbe": {
+        "id": "family-support:cynefin",
+        "family": "cynefin",
+        "cohort": "family",
+        "source": "cynefin-beta\n  title Alpha\n  complex\n    \"Beta\"\n  clear\n    \"Gamma\"\n  complex --> clear : \"Delta\"",
+        "expected": {
+          "accept": true,
+          "labels": [
+            "Alpha",
+            "Beta",
+            "Gamma",
+            "Delta"
+          ]
+        }
+      }
+    },
+    {
+      "id": "family-support:agentflow",
+      "family": "agentflow",
+      "source": "agentflow-beta TB\n  flow alpha[\"Alpha\"]\n    b[\"Beta\"]@{ shape: task }\n    c[\"Gamma\"]@{ shape: tool }\n    b --> c\n  end",
+      "expectedLabels": [
+        "Alpha",
+        "Beta",
+        "Gamma"
+      ],
+      "features": [
+        "portable-family-closure"
+      ],
+      "provenance": "Unmodified enrolled portable family source",
+      "precedingStandardSupportProbe": {
+        "id": "family-support:agentflow",
+        "family": "agentflow",
+        "cohort": "family",
+        "source": "agentflow-beta TB\n  flow alpha[\"Alpha\"]\n    b[\"Beta\"]@{ shape: task }\n    c[\"Gamma\"]@{ shape: tool }\n    b --> c\n  end",
+        "expected": {
+          "accept": true,
+          "labels": [
+            "Alpha",
+            "Beta",
+            "Gamma"
+          ]
+        }
+      }
+    },
+    {
+      "id": "family-support:usecase",
+      "family": "usecase",
+      "source": "usecase-beta\nactor Alpha(\"Alpha\")\nsystemBoundary \"Beta\"\n  Gamma(\"Gamma\")\nend\nAlpha --> Gamma",
+      "expectedLabels": [
+        "Alpha",
+        "Beta",
+        "Gamma"
+      ],
+      "features": [
+        "portable-family-closure"
+      ],
+      "provenance": "Unmodified enrolled portable family source",
+      "precedingStandardSupportProbe": {
+        "id": "family-support:usecase",
+        "family": "usecase",
+        "cohort": "family",
+        "source": "usecase-beta\nactor Alpha(\"Alpha\")\nsystemBoundary \"Beta\"\n  Gamma(\"Gamma\")\nend\nAlpha --> Gamma",
+        "expected": {
+          "accept": true,
+          "labels": [
+            "Alpha",
+            "Beta",
+            "Gamma"
+          ]
+        }
+      }
+    },
+    {
+      "id": "family-support:wardley",
+      "family": "wardley",
+      "source": "wardley-beta\ntitle Value\ncomponent Alpha [0.80, 0.30]\ncomponent Beta [0.40, 0.60]\nAlpha -> Beta",
+      "expectedLabels": [
+        "Value",
+        "Alpha",
+        "Beta"
+      ],
+      "features": [
+        "portable-family-closure"
+      ],
+      "provenance": "Unmodified enrolled portable family source",
+      "precedingStandardSupportProbe": {
+        "id": "family-support:wardley",
+        "family": "wardley",
+        "cohort": "family",
+        "source": "wardley-beta\ntitle Value\ncomponent Alpha [0.80, 0.30]\ncomponent Beta [0.40, 0.60]\nAlpha -> Beta",
+        "expected": {
+          "accept": true,
+          "labels": [
+            "Value",
+            "Alpha",
+            "Beta"
+          ]
+        }
+      }
+    },
+    {
+      "id": "family-support:venn",
+      "family": "venn",
+      "source": "venn-beta\n  set Alpha\n  set Beta\n  union Alpha,Beta[\"Both\"]",
+      "expectedLabels": [
+        "Alpha",
+        "Beta",
+        "Both"
+      ],
+      "features": [
+        "portable-family-closure"
+      ],
+      "provenance": "Unmodified enrolled portable family source",
+      "precedingStandardSupportProbe": {
+        "id": "family-support:venn",
+        "family": "venn",
+        "cohort": "family",
+        "source": "venn-beta\n  set Alpha\n  set Beta\n  union Alpha,Beta[\"Both\"]",
+        "expected": {
+          "accept": true,
+          "labels": [
+            "Alpha",
+            "Beta",
+            "Both"
+          ]
+        }
+      }
+    },
+    {
+      "id": "family-support:swimlane",
+      "family": "swimlane",
+      "source": "swimlane-beta LR\n  subgraph Alpha\n    A[Beta]\n  end\n  subgraph Gamma\n    B[Delta]\n  end\n  A --> B",
+      "expectedLabels": [
+        "Alpha",
+        "Beta",
+        "Gamma",
+        "Delta"
+      ],
+      "features": [
+        "portable-family-closure"
+      ],
+      "provenance": "Unmodified enrolled portable family source",
+      "precedingStandardSupportProbe": {
+        "id": "family-support:swimlane",
+        "family": "swimlane",
+        "cohort": "family",
+        "source": "swimlane-beta LR\n  subgraph Alpha\n    A[Beta]\n  end\n  subgraph Gamma\n    B[Delta]\n  end\n  A --> B",
+        "expected": {
+          "accept": true,
+          "labels": [
+            "Alpha",
+            "Beta",
+            "Gamma",
+            "Delta"
+          ]
+        }
+      }
+    },
+    {
+      "id": "family-support:treeview",
+      "family": "treeview",
+      "source": "treeView-beta\n├── Alpha\n│   └── Beta.txt\n└── Gamma.txt",
+      "expectedLabels": [
+        "Alpha",
+        "Beta.txt",
+        "Gamma.txt"
+      ],
+      "features": [
+        "portable-family-closure"
+      ],
+      "provenance": "Unmodified enrolled portable family source",
+      "precedingStandardSupportProbe": {
+        "id": "family-support:treeview",
+        "family": "treeview",
+        "cohort": "family",
+        "source": "treeView-beta\n├── Alpha\n│   └── Beta.txt\n└── Gamma.txt",
+        "expected": {
+          "accept": true,
+          "labels": [
+            "Alpha",
+            "Beta.txt",
+            "Gamma.txt"
+          ]
+        }
+      }
+    }
+  ],
+  "scope": "Sources/labels/roles frozen before observations. Fresh realm per family/arm. Standard mandatory same-family support probe precedes enrolled case; closure and heap cover both. No timing or full-meaning claim."
+}

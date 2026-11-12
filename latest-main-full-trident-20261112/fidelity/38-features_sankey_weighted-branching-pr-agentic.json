@@ -1,0 +1,886 @@
+{
+  "id": "features:sankey:weighted-branching",
+  "family": "sankey",
+  "target": "pr",
+  "backend": "agentic",
+  "stem": "38-features_sankey_weighted-branching-pr-agentic",
+  "expectationDepth": "reviewed declared authored fields only",
+  "preludes": [],
+  "acquired": {
+    "status": "accepted",
+    "publicAccepted": true,
+    "raw": {
+      "kind": "sankey",
+      "links": [
+        {
+          "source": "Input",
+          "target": "Build",
+          "value": 8
+        },
+        {
+          "source": "Input",
+          "target": "Review",
+          "value": 2
+        },
+        {
+          "source": "Build",
+          "target": "Output",
+          "value": 8
+        },
+        {
+          "source": "Review",
+          "target": "Output",
+          "value": 2
+        }
+      ]
+    },
+    "family": "sankey",
+    "scope": "Canonical projection of actual public parser return/getDiagramFromText DB; authored expectations are independent",
+    "meaning": {
+      "family": "sankey",
+      "facts": {
+        "links": [
+          {
+            "source": "Input",
+            "target": "Build",
+            "value": 8
+          },
+          {
+            "source": "Input",
+            "target": "Review",
+            "value": 2
+          },
+          {
+            "source": "Build",
+            "target": "Output",
+            "value": 8
+          },
+          {
+            "source": "Review",
+            "target": "Output",
+            "value": 2
+          }
+        ]
+      },
+      "unavailable": {},
+      "nodes": [
+        {
+          "id": "Input",
+          "label": "Input"
+        },
+        {
+          "id": "Build",
+          "label": "Build"
+        },
+        {
+          "id": "Review",
+          "label": "Review"
+        },
+        {
+          "id": "Output",
+          "label": "Output"
+        }
+      ],
+      "edges": [
+        {
+          "source": "Input",
+          "target": "Build",
+          "directed": true,
+          "label": ""
+        },
+        {
+          "source": "Input",
+          "target": "Review",
+          "directed": true,
+          "label": ""
+        },
+        {
+          "source": "Build",
+          "target": "Output",
+          "directed": true,
+          "label": ""
+        },
+        {
+          "source": "Review",
+          "target": "Output",
+          "directed": true,
+          "label": ""
+        }
+      ]
+    }
+  },
+  "meaning": {
+    "complete": true,
+    "passed": true,
+    "checks": [
+      {
+        "criterion": "family",
+        "status": "passed",
+        "expected": "sankey",
+        "actual": "sankey",
+        "scope": "Returned native family; a source-preservation envelope is not native admission."
+      },
+      {
+        "criterion": "identities",
+        "status": "passed",
+        "expected": [
+          "\"Build\"",
+          "\"Input\"",
+          "\"Output\"",
+          "\"Review\""
+        ],
+        "actual": [
+          "\"Build\"",
+          "\"Input\"",
+          "\"Output\"",
+          "\"Review\""
+        ],
+        "scope": "Exact authored identity multiset, including duplicate and omitted identities."
+      },
+      {
+        "criterion": "node-labels",
+        "status": "passed",
+        "expected": [
+          "{\"id\":\"Build\",\"label\":\"Build\"}",
+          "{\"id\":\"Input\",\"label\":\"Input\"}",
+          "{\"id\":\"Output\",\"label\":\"Output\"}",
+          "{\"id\":\"Review\",\"label\":\"Review\"}"
+        ],
+        "actual": [
+          "{\"id\":\"Build\",\"label\":\"Build\"}",
+          "{\"id\":\"Input\",\"label\":\"Input\"}",
+          "{\"id\":\"Output\",\"label\":\"Output\"}",
+          "{\"id\":\"Review\",\"label\":\"Review\"}"
+        ],
+        "scope": "Authored identity-to-label binding; NFC/whitespace normalization applies to display labels, never identity strings."
+      },
+      {
+        "criterion": "relationships",
+        "status": "passed",
+        "expected": [
+          "{\"directed\":true,\"label\":\"\",\"source\":\"Build\",\"target\":\"Output\"}",
+          "{\"directed\":true,\"label\":\"\",\"source\":\"Input\",\"target\":\"Build\"}",
+          "{\"directed\":true,\"label\":\"\",\"source\":\"Input\",\"target\":\"Review\"}",
+          "{\"directed\":true,\"label\":\"\",\"source\":\"Review\",\"target\":\"Output\"}"
+        ],
+        "actual": [
+          "{\"directed\":true,\"label\":\"\",\"source\":\"Build\",\"target\":\"Output\"}",
+          "{\"directed\":true,\"label\":\"\",\"source\":\"Input\",\"target\":\"Build\"}",
+          "{\"directed\":true,\"label\":\"\",\"source\":\"Input\",\"target\":\"Review\"}",
+          "{\"directed\":true,\"label\":\"\",\"source\":\"Review\",\"target\":\"Output\"}"
+        ],
+        "scope": "Exact endpoint/direction/declared-marker/label multiset; parallel and reciprocal relationships remain distinct."
+      },
+      {
+        "criterion": "fact:links",
+        "status": "passed",
+        "expected": [
+          {
+            "source": "Input",
+            "target": "Build",
+            "value": 8
+          },
+          {
+            "source": "Input",
+            "target": "Review",
+            "value": 2
+          },
+          {
+            "source": "Build",
+            "target": "Output",
+            "value": 8
+          },
+          {
+            "source": "Review",
+            "target": "Output",
+            "value": 2
+          }
+        ],
+        "actual": [
+          {
+            "source": "Input",
+            "target": "Build",
+            "value": 8
+          },
+          {
+            "source": "Input",
+            "target": "Review",
+            "value": 2
+          },
+          {
+            "source": "Build",
+            "target": "Output",
+            "value": 8
+          },
+          {
+            "source": "Review",
+            "target": "Output",
+            "value": 2
+          }
+        ],
+        "scope": "Independently declared family content with meaningful ordering retained."
+      }
+    ]
+  },
+  "rendered": {
+    "accepted": true,
+    "svg": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"648\" height=\"448\" viewBox=\"0 0 648 448\" style=\"--bg:#FFFFFF;--fg:#27272A;--font:Inter;background:#FFFFFF\" aria-roledescription=\"sankey diagram\" role=\"img\" class=\"am-1iu5l570w06arg\">\n<style>\n  svg.am-1iu5l570w06arg { font-family: var(--font, 'Inter'), system-ui, sans-serif; }\n  svg.am-1iu5l570w06arg {\n    /* Derived from --bg and --fg (overridable via --line, --accent, etc.) */\n    --_text:          #27272A;\n    --_text-sec:      #575759;\n    --_text-muted:    #707072;\n    --_text-faint:    #8a8a8c;\n    --_line:          #939395;\n    --_arrow:         #47474a;\n    --_node-fill:     #f9f9f9;\n    --_node-stroke:   #d4d4d4;\n    --_group-fill:    #FFFFFF;\n    --_group-hdr:     #f4f4f4;\n    --_inner-stroke:  #e5e5e5;\n    --_key-badge:     #e9e9ea;\n  }\n</style>\n<defs>\n  <linearGradient id=\"sankey-gradient-1\" gradientUnits=\"userSpaceOnUse\" x1=\"34\" y1=\"178.47\" x2=\"319\" y2=\"173.2\">\n    <stop offset=\"0%\" stop-color=\"#3b82f6\" />\n    <stop offset=\"100%\" stop-color=\"#0d5ba5\" />\n  </linearGradient>\n  <linearGradient id=\"sankey-gradient-2\" gradientUnits=\"userSpaceOnUse\" x1=\"34\" y1=\"364.97\" x2=\"319\" y2=\"386.7\">\n    <stop offset=\"0%\" stop-color=\"#3b82f6\" />\n    <stop offset=\"100%\" stop-color=\"#6d5cd8\" />\n  </linearGradient>\n  <linearGradient id=\"sankey-gradient-3\" gradientUnits=\"userSpaceOnUse\" x1=\"329\" y1=\"173.2\" x2=\"614\" y2=\"178.49\">\n    <stop offset=\"0%\" stop-color=\"#0d5ba5\" />\n    <stop offset=\"100%\" stop-color=\"#00486d\" />\n  </linearGradient>\n  <linearGradient id=\"sankey-gradient-4\" gradientUnits=\"userSpaceOnUse\" x1=\"329\" y1=\"386.7\" x2=\"614\" y2=\"364.99\">\n    <stop offset=\"0%\" stop-color=\"#6d5cd8\" />\n    <stop offset=\"100%\" stop-color=\"#00486d\" />\n  </linearGradient>\n</defs>\n<path class=\"sankey-link\" data-source=\"Input\" data-target=\"Build\" data-value=\"8\" d=\"M 34 178.47 C 176.5 178.47, 176.5 173.2, 319 173.2\" fill=\"none\" stroke=\"url(#sankey-gradient-1)\" stroke-opacity=\"0.5\" stroke-width=\"298.4\" style=\"mix-blend-mode:multiply\" data-relationship=\"flow\" data-direction=\"forward\" data-id=\"link:Input-&gt;Build\" data-role=\"edge\" data-from=\"Input\" data-to=\"Build\" role=\"graphics-symbol\" aria-roledescription=\"relation\" aria-label=\"Input to Build\" />\n<path class=\"sankey-link\" data-source=\"Input\" data-target=\"Review\" data-value=\"2\" d=\"M 34 364.97 C 176.5 364.97, 176.5 386.7, 319 386.7\" fill=\"none\" stroke=\"url(#sankey-gradient-2)\" stroke-opacity=\"0.5\" stroke-width=\"74.6\" style=\"mix-blend-mode:multiply\" data-relationship=\"flow\" data-direction=\"forward\" data-id=\"link:Input-&gt;Review\" data-role=\"edge\" data-from=\"Input\" data-to=\"Review\" role=\"graphics-symbol\" aria-roledescription=\"relation\" aria-label=\"Input to Review\" />\n<path class=\"sankey-link\" data-source=\"Build\" data-target=\"Output\" data-value=\"8\" d=\"M 329 173.2 C 471.5 173.2, 471.5 178.49, 614 178.49\" fill=\"none\" stroke=\"url(#sankey-gradient-3)\" stroke-opacity=\"0.5\" stroke-width=\"298.4\" style=\"mix-blend-mode:multiply\" data-relationship=\"flow\" data-direction=\"forward\" data-id=\"link:Build-&gt;Output\" data-role=\"edge\" data-from=\"Build\" data-to=\"Output\" role=\"graphics-symbol\" aria-roledescription=\"relation\" aria-label=\"Build to Output\" />\n<path class=\"sankey-link\" data-source=\"Review\" data-target=\"Output\" data-value=\"2\" d=\"M 329 386.7 C 471.5 386.7, 471.5 364.99, 614 364.99\" fill=\"none\" stroke=\"url(#sankey-gradient-4)\" stroke-opacity=\"0.5\" stroke-width=\"74.6\" style=\"mix-blend-mode:multiply\" data-relationship=\"flow\" data-direction=\"forward\" data-id=\"link:Review-&gt;Output\" data-role=\"edge\" data-from=\"Review\" data-to=\"Output\" role=\"graphics-symbol\" aria-roledescription=\"relation\" aria-label=\"Review to Output\" />\n<rect class=\"sankey-node\" data-label=\"Input\" data-value=\"10\" data-layer=\"0\" x=\"24\" y=\"29.27\" width=\"10\" height=\"373\" fill=\"#3b82f6\" stroke=\"#949495\" stroke-width=\"1\" data-id=\"Input\" data-role=\"bar\" />\n<rect class=\"sankey-node\" data-label=\"Build\" data-value=\"8\" data-layer=\"1\" x=\"319\" y=\"24\" width=\"10\" height=\"298.4\" fill=\"#0d5ba5\" stroke=\"#949495\" stroke-width=\"1\" data-id=\"Build\" data-role=\"bar\" />\n<rect class=\"sankey-node\" data-label=\"Review\" data-value=\"2\" data-layer=\"1\" x=\"319\" y=\"349.4\" width=\"10\" height=\"74.6\" fill=\"#6d5cd8\" stroke=\"#949495\" stroke-width=\"1\" data-id=\"Review\" data-role=\"bar\" />\n<rect class=\"sankey-node\" data-label=\"Output\" data-value=\"10\" data-layer=\"2\" x=\"614\" y=\"29.29\" width=\"10\" height=\"373\" fill=\"#00486d\" stroke=\"#949495\" stroke-width=\"1\" data-id=\"Output\" data-role=\"bar\" />\n<text x=\"40\" y=\"215.77\" class=\"sankey-node-label\" text-anchor=\"start\" dominant-baseline=\"middle\" font-size=\"13\" font-weight=\"500\" fill=\"#27272A\" stroke=\"#FFFFFF\" stroke-width=\"3\" paint-order=\"stroke fill\" data-prepared-text=\"true\"><tspan x=\"40\" dy=\"-3.9\" textLength=\"30.108\" lengthAdjust=\"spacingAndGlyphs\" data-font-metrics=\"deterministic-fit\">Input</tspan><tspan x=\"40\" dy=\"16.9\" textLength=\"12.324\" lengthAdjust=\"spacingAndGlyphs\" data-font-metrics=\"deterministic-fit\">10</tspan></text>\n<text x=\"335\" y=\"173.2\" class=\"sankey-node-label\" text-anchor=\"start\" dominant-baseline=\"middle\" font-size=\"13\" font-weight=\"500\" fill=\"#27272A\" stroke=\"#FFFFFF\" stroke-width=\"3\" paint-order=\"stroke fill\" data-prepared-text=\"true\"><tspan x=\"335\" dy=\"-3.9\" textLength=\"31.59\" lengthAdjust=\"spacingAndGlyphs\" data-font-metrics=\"deterministic-fit\">Build</tspan><tspan x=\"335\" dy=\"16.9\" textLength=\"9.36\" lengthAdjust=\"spacingAndGlyphs\" data-font-metrics=\"deterministic-fit\">8</tspan></text>\n<text x=\"335\" y=\"386.7\" class=\"sankey-node-label\" text-anchor=\"start\" dominant-baseline=\"middle\" font-size=\"13\" font-weight=\"500\" fill=\"#27272A\" stroke=\"#FFFFFF\" stroke-width=\"3\" paint-order=\"stroke fill\" data-prepared-text=\"true\"><tspan x=\"335\" dy=\"-3.9\" textLength=\"44.928\" lengthAdjust=\"spacingAndGlyphs\" data-font-metrics=\"deterministic-fit\">Review</tspan><tspan x=\"335\" dy=\"16.9\" textLength=\"9.36\" lengthAdjust=\"spacingAndGlyphs\" data-font-metrics=\"deterministic-fit\">2</tspan></text>\n<text x=\"608\" y=\"215.79\" class=\"sankey-node-label\" text-anchor=\"end\" dominant-baseline=\"middle\" font-size=\"13\" font-weight=\"500\" fill=\"#27272A\" stroke=\"#FFFFFF\" stroke-width=\"3\" paint-order=\"stroke fill\" data-prepared-text=\"true\"><tspan x=\"608\" dy=\"-3.9\" textLength=\"39\" lengthAdjust=\"spacingAndGlyphs\" data-font-metrics=\"deterministic-fit\">Output</tspan><tspan x=\"608\" dy=\"16.9\" textLength=\"12.324\" lengthAdjust=\"spacingAndGlyphs\" data-font-metrics=\"deterministic-fit\">10</tspan></text>\n</svg>",
+    "receipt": {
+      "version": 2,
+      "output": "svg",
+      "sharedRequestDigest": "fnv1a64:f185d0b5d18397c0",
+      "requestDigest": "fnv1a64:265fb434cf107d81",
+      "appearanceDigest": "fnv1a64:5c57037fc07cf497",
+      "capabilityDecision": {
+        "version": 1,
+        "accepted": true,
+        "resolutions": [
+          {
+            "id": "core:render-request",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "core:family-descriptor",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "family:sankey",
+            "range": "1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "core:scene",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "operation:layout",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "operation:lower-scene",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "backend:scene-renderer",
+            "range": "1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:document/identity/serialize",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:document/resources/serialize",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:document/interaction/accessibility",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:text/geometry/render",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:text/paint/render",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:text/labels/accessibility",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:text/identity/serialize",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:shape/geometry/render",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:shape/paint/render",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:shape/identity/serialize",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:connector/geometry/render",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:connector/stroke/render",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:connector/transform/render",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:connector/topology/render",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:connector/subpaths/render",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:connector/closedness/render",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:connector/bend-radius/render",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:connector/stroke-opacity/render",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:connector/stroke-cap/render",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:connector/stroke-join/render",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:connector/stroke-miter/render",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:connector/dash-array/render",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:connector/dash-offset/render",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:connector/dash-restart/render",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:connector/path-length/render",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:connector/paint-order/render",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:connector/compositing/render",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:connector/non-scaling-stroke/render",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:connector/marker-orientation/render",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:connector/marker-overflow/render",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:connector/endpoints/serialize",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:connector/direction/serialize",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:connector/labels/render",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:connector/labels/accessibility",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:connector/markers/render",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:connector/relation/accessibility",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:connector/interaction/hit-test",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:connector/hit-geometry/hit-test",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:connector/identity/serialize",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:data-mark/geometry/render",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:data-mark/paint/render",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:data-mark/identity/serialize",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "output:svg",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          }
+        ]
+      },
+      "diagnostics": [
+        {
+          "code": "RENDER_OPTION_NOT_APPLICABLE",
+          "feature": "render-option:graphLayout",
+          "message": "Render option \"graphLayout\" does not apply to built-in Mermaid family \"sankey\". Applicable built-in families: flowchart, state, architecture, class, er, requirement."
+        }
+      ],
+      "executionDecision": {
+        "family": {
+          "id": "family:sankey",
+          "version": "1.0.0"
+        },
+        "backend": {
+          "mode": "scene",
+          "requestedId": "default",
+          "selectedId": "backend:default",
+          "version": "1.0.0",
+          "hostPolicy": false
+        },
+        "digest": "fnv1a64:946ed9d3e42f185c"
+      },
+      "graphicalProjectionDigest": "fnv1a64:bb0d0c3cf00ec3cf",
+      "layoutCertification": {
+        "version": 1,
+        "unit": "px",
+        "scope": "native-scene",
+        "status": "passed",
+        "viewport": {
+          "x": 0,
+          "y": 0,
+          "width": 648,
+          "height": 448
+        },
+        "attempts": 1,
+        "repairs": [],
+        "coverage": {
+          "measured": 12,
+          "unmeasured": 0,
+          "preparedText": 4,
+          "fallbackText": 0,
+          "conditional": 0
+        },
+        "checks": {
+          "primitives": 15,
+          "labels": 4,
+          "occlusionPairs": 16,
+          "maxOcclusionPairs": 100000,
+          "operations": 22490,
+          "maxOperations": 400000,
+          "markers": 0
+        },
+        "issues": [],
+        "limitations": [
+          "Prepared occupied text regions bound native geometry; exact glyph ink depends on the resolved font.",
+          "Declared transparency, intentional data-mark overlap and externally modified CSS are outside this proof."
+        ],
+        "outputDigest": "fnv1a64:bb0d0c3cf00ec3cf"
+      }
+    },
+    "wholeBytes": 14615,
+    "receiptBytes": 7601
+  },
+  "paint": {
+    "checks": [
+      {
+        "criterion": "svg-root",
+        "expected": "mounted SVG",
+        "actual": "svg",
+        "status": "passed",
+        "scope": "Actual public SVG result"
+      },
+      {
+        "criterion": "svg-unique-ids",
+        "expected": 4,
+        "actual": 4,
+        "status": "passed",
+        "scope": "Duplicate SVG identities can change marker, clip and owned-label references"
+      },
+      {
+        "criterion": "canvas",
+        "expected": "positive finite rendered canvas",
+        "actual": {
+          "x": 0,
+          "y": 0,
+          "width": 648,
+          "height": 448
+        },
+        "status": "passed",
+        "scope": "Actual browser viewport of the returned SVG"
+      },
+      {
+        "criterion": "visible-authored-labels",
+        "expected": [
+          "Input",
+          "Build",
+          "Review",
+          "Output"
+        ],
+        "actual": [
+          {
+            "label": "Input",
+            "count": 1
+          },
+          {
+            "label": "Build",
+            "count": 1
+          },
+          {
+            "label": "Review",
+            "count": 1
+          },
+          {
+            "label": "Output",
+            "count": 1
+          }
+        ],
+        "status": "passed",
+        "scope": "Computed visibility and nonzero browser text bounds; metadata/title/defs text earns no credit"
+      },
+      {
+        "criterion": "labels-within-canvas",
+        "expected": "every authored label fits the canvas",
+        "actual": [],
+        "status": "passed",
+        "scope": "Actual rendered label bounds, with 1.5 CSS-pixel serialization tolerance"
+      },
+      {
+        "criterion": "unclipped-authored-labels",
+        "expected": [],
+        "actual": [],
+        "status": "passed",
+        "scope": "Actual self/ancestor clipping and overflow; unprojected masks/clip paths remain unavailable"
+      },
+      {
+        "criterion": "visible-ink",
+        "expected": "nonempty visible diagram geometry",
+        "actual": 8,
+        "status": "passed",
+        "scope": "Visible geometric elements; unprojected use/HTML/image-only ink remains unavailable, not a drawing defect"
+      },
+      {
+        "criterion": "painted-node-ownership",
+        "expected": [
+          "Input",
+          "Build",
+          "Review",
+          "Output"
+        ],
+        "actual": [],
+        "status": "unavailable",
+        "scope": "Ambiguous or absent label-to-shape ownership: Input, Build, Review, Output"
+      },
+      {
+        "criterion": "painted-relationships",
+        "expected": [
+          {
+            "source": "Input",
+            "target": "Build",
+            "label": "",
+            "directed": true
+          },
+          {
+            "source": "Input",
+            "target": "Review",
+            "label": "",
+            "directed": true
+          },
+          {
+            "source": "Build",
+            "target": "Output",
+            "label": "",
+            "directed": true
+          },
+          {
+            "source": "Review",
+            "target": "Output",
+            "label": "",
+            "directed": true
+          }
+        ],
+        "actual": [],
+        "status": "unavailable",
+        "scope": "This representation needs a reviewed endpoint/marker projection; no semantic paint credit from labels alone"
+      },
+      {
+        "criterion": "paint-opacity-and-color",
+        "expected": "resolved visible paint colors/alpha",
+        "actual": [
+          "blend:multiply",
+          "url(\"#sankey-gradient-1\")",
+          "url(\"#sankey-gradient-2\")",
+          "url(\"#sankey-gradient-3\")",
+          "url(\"#sankey-gradient-4\")"
+        ],
+        "status": "unavailable",
+        "scope": "Unresolved paint servers/context colors cannot silently earn a visible-ink or complete-style claim"
+      }
+    ],
+    "complete": false,
+    "passed": false,
+    "nodes": [],
+    "connections": [],
+    "viewBox": "0 0 648 448"
+  },
+  "quantitative": [
+    {
+      "criterion": "painted-link-weights",
+      "expected": [
+        {
+          "source": "Input",
+          "target": "Build",
+          "value": 8
+        },
+        {
+          "source": "Input",
+          "target": "Review",
+          "value": 2
+        },
+        {
+          "source": "Build",
+          "target": "Output",
+          "value": 8
+        },
+        {
+          "source": "Review",
+          "target": "Output",
+          "value": 2
+        }
+      ],
+      "actual": [
+        {
+          "source": "Input",
+          "target": "Review",
+          "value": 2,
+          "observed": {
+            "source": "Input",
+            "target": "Review",
+            "width": 74.6
+          }
+        },
+        {
+          "source": "Review",
+          "target": "Output",
+          "value": 2,
+          "observed": {
+            "source": "Review",
+            "target": "Output",
+            "width": 74.6
+          }
+        },
+        {
+          "source": "Input",
+          "target": "Build",
+          "value": 8,
+          "observed": {
+            "source": "Input",
+            "target": "Build",
+            "width": 298.4
+          }
+        },
+        {
+          "source": "Build",
+          "target": "Output",
+          "value": 8,
+          "observed": {
+            "source": "Build",
+            "target": "Output",
+            "width": 298.4
+          }
+        }
+      ],
+      "status": "passed",
+      "scope": "Actual endpoint-owned flow strokes/ribbons share the independently authored weight scale; 5% geometric sampling tolerance"
+    }
+  ],
+  "quality": {
+    "width": 648,
+    "height": 448,
+    "area": 290304,
+    "viewportScope": "actual viewBox SVG units",
+    "ownedCarriers": 4,
+    "contactCounts": {
+      "status": "unavailable",
+      "reason": "No enrolled exact SVG node-boundary contact observer"
+    },
+    "browserCenterline": {
+      "status": "measured",
+      "value": 1142.4884338378906,
+      "scope": "Browser getTotalLength sum in local SVG units, only length-preserving ancestor transforms; curve length is browser approximation, excludes markers/labels"
+    },
+    "linear": {
+      "status": "unavailable",
+      "reason": "Curved, relative, or unsupported path command"
+    }
+  },
+  "scope": "Unmodified Trident meaning + actual Chromium paint/quantitative observers on full Node SVG/receipt; exact strict linear metrics only where enrolled ownership/geometry allow. No browser renderer execution or speed claim."
+}

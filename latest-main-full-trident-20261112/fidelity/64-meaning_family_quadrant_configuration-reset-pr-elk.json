@@ -1,0 +1,523 @@
+{
+  "id": "meaning:family:quadrant:configuration-reset",
+  "family": "quadrant",
+  "target": "pr",
+  "backend": "elk",
+  "stem": "64-meaning_family_quadrant_configuration-reset-pr-elk",
+  "expectationDepth": "reviewed declared authored fields only",
+  "preludes": [
+    {
+      "accepted": true,
+      "expected": true
+    }
+  ],
+  "acquired": {
+    "status": "accepted",
+    "publicAccepted": true,
+    "raw": {
+      "kind": "quadrant",
+      "title": "Priority",
+      "xAxis": {
+        "near": "Low effort",
+        "far": "High effort"
+      },
+      "yAxis": {
+        "near": "Low value",
+        "far": "High value"
+      },
+      "quadrants": [
+        null,
+        null,
+        null,
+        null
+      ],
+      "points": [
+        {
+          "label": "Alpha",
+          "x": 0.2,
+          "y": 0.8
+        },
+        {
+          "label": "Beta",
+          "x": 0.8,
+          "y": 0.2
+        }
+      ]
+    },
+    "family": "quadrant",
+    "scope": "Canonical projection of actual public parser return/getDiagramFromText DB; authored expectations are independent",
+    "meaning": {
+      "family": "quadrant",
+      "facts": {
+        "title": "Priority",
+        "points": [
+          {
+            "label": "Alpha",
+            "x": 0.2,
+            "y": 0.8
+          },
+          {
+            "label": "Beta",
+            "x": 0.8,
+            "y": 0.2
+          }
+        ],
+        "axis-labels": [
+          "Low effort",
+          "High effort",
+          "Low value",
+          "High value"
+        ]
+      },
+      "unavailable": {},
+      "nodes": [
+        {
+          "id": "Alpha",
+          "label": "Alpha"
+        },
+        {
+          "id": "Beta",
+          "label": "Beta"
+        }
+      ]
+    }
+  },
+  "meaning": {
+    "complete": true,
+    "passed": true,
+    "checks": [
+      {
+        "criterion": "family",
+        "status": "passed",
+        "expected": "quadrant",
+        "actual": "quadrant",
+        "scope": "Returned native family; a source-preservation envelope is not native admission."
+      },
+      {
+        "criterion": "fact:points",
+        "status": "passed",
+        "expected": [
+          "{\"label\":\"Alpha\",\"x\":0.2,\"y\":0.8}",
+          "{\"label\":\"Beta\",\"x\":0.8,\"y\":0.2}"
+        ],
+        "actual": [
+          "{\"label\":\"Alpha\",\"x\":0.2,\"y\":0.8}",
+          "{\"label\":\"Beta\",\"x\":0.8,\"y\":0.2}"
+        ],
+        "scope": "Declared unordered family-content multiset; duplicates remain significant."
+      },
+      {
+        "criterion": "fact:axis-labels",
+        "status": "passed",
+        "expected": [
+          "Low effort",
+          "High effort",
+          "Low value",
+          "High value"
+        ],
+        "actual": [
+          "Low effort",
+          "High effort",
+          "Low value",
+          "High value"
+        ],
+        "scope": "Independently declared family content with meaningful ordering retained."
+      }
+    ]
+  },
+  "rendered": {
+    "accepted": true,
+    "svg": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"456\" height=\"492\" viewBox=\"0 0 456 492\" style=\"--bg:#FFFFFF;--fg:#27272A;--font:Inter;background:#FFFFFF\" aria-labelledby=\"quadrant-gm855j-title\" aria-roledescription=\"quadrant chart\" id=\"quadrant-gm855j\" role=\"img\" class=\"am-16tth630stc91d\">\n<title id=\"quadrant-gm855j-title\">Priority</title>\n<style>\n  svg.am-16tth630stc91d { font-family: var(--font, 'Inter'), system-ui, sans-serif; }\n  svg.am-16tth630stc91d {\n    /* Derived from --bg and --fg (overridable via --line, --accent, etc.) */\n    --_text:          #27272A;\n    --_text-sec:      #575759;\n    --_text-muted:    #707072;\n    --_text-faint:    #8a8a8c;\n    --_line:          #939395;\n    --_arrow:         #47474a;\n    --_node-fill:     #f9f9f9;\n    --_node-stroke:   #d4d4d4;\n    --_group-fill:    #FFFFFF;\n    --_group-hdr:     #f4f4f4;\n    --_inner-stroke:  #e5e5e5;\n    --_key-badge:     #e9e9ea;\n  }\n</style>\n<rect class=\"quadrant-region\" data-quadrant=\"2\" x=\"52\" y=\"60\" width=\"190\" height=\"190\" fill=\"#f6f6f6\" stroke=\"none\" data-id=\"plate:2\" data-role=\"plate\" />\n<rect class=\"quadrant-region\" data-quadrant=\"1\" x=\"242\" y=\"60\" width=\"190\" height=\"190\" fill=\"#ededed\" stroke=\"none\" data-id=\"plate:1\" data-role=\"plate\" />\n<rect class=\"quadrant-region\" data-quadrant=\"3\" x=\"52\" y=\"250\" width=\"190\" height=\"190\" fill=\"#ededed\" stroke=\"none\" data-id=\"plate:3\" data-role=\"plate\" />\n<rect class=\"quadrant-region\" data-quadrant=\"4\" x=\"242\" y=\"250\" width=\"190\" height=\"190\" fill=\"#f6f6f6\" stroke=\"none\" data-id=\"plate:4\" data-role=\"plate\" />\n<line class=\"quadrant-divider\" x1=\"242\" y1=\"60\" x2=\"242\" y2=\"440\" stroke=\"#939395\" stroke-width=\"1\" />\n<line class=\"quadrant-divider\" x1=\"52\" y1=\"250\" x2=\"432\" y2=\"250\" stroke=\"#939395\" stroke-width=\"1\" />\n<rect class=\"quadrant-border\" x=\"52\" y=\"60\" width=\"380\" height=\"380\" fill=\"none\" stroke=\"#949495\" stroke-width=\"2\" />\n<circle class=\"quadrant-point\" data-label=\"Alpha\" data-x=\"0.2\" data-y=\"0.8\" cx=\"128\" cy=\"136\" r=\"6\" fill=\"#47474a\" stroke=\"#FFFFFF\" stroke-width=\"1\" data-id=\"point:Alpha\" data-role=\"point\" />\n<text x=\"138\" y=\"136\" class=\"quadrant-point-label\" text-anchor=\"start\" dominant-baseline=\"middle\" font-size=\"12\" font-weight=\"500\" fill=\"#27272A\" stroke=\"#f6f6f6\" stroke-width=\"3\" stroke-linejoin=\"round\" paint-order=\"stroke\" data-prepared-text=\"true\" dy=\"4.2\" textLength=\"33.264\" lengthAdjust=\"spacingAndGlyphs\" data-font-metrics=\"deterministic-fit\">Alpha</text>\n<circle class=\"quadrant-point\" data-label=\"Beta\" data-x=\"0.8\" data-y=\"0.2\" cx=\"356\" cy=\"364\" r=\"6\" fill=\"#47474a\" stroke=\"#FFFFFF\" stroke-width=\"1\" data-id=\"point:Beta\" data-role=\"point\" />\n<text x=\"366\" y=\"364\" class=\"quadrant-point-label\" text-anchor=\"start\" dominant-baseline=\"middle\" font-size=\"12\" font-weight=\"500\" fill=\"#27272A\" stroke=\"#f6f6f6\" stroke-width=\"3\" stroke-linejoin=\"round\" paint-order=\"stroke\" data-prepared-text=\"true\" dy=\"4.2\" textLength=\"26.424\" lengthAdjust=\"spacingAndGlyphs\" data-font-metrics=\"deterministic-fit\">Beta</text>\n<text x=\"56\" y=\"452.45\" class=\"quadrant-axis-label\" text-anchor=\"start\" font-size=\"13\" font-weight=\"500\" fill=\"#69696c\" data-prepared-text=\"true\" dy=\"4.55\" textLength=\"59.007\" lengthAdjust=\"spacingAndGlyphs\" data-font-metrics=\"deterministic-fit\">Low effort</text>\n<text x=\"428\" y=\"452.45\" class=\"quadrant-axis-label\" text-anchor=\"end\" font-size=\"13\" font-weight=\"500\" fill=\"#69696c\" data-prepared-text=\"true\" dy=\"4.55\" textLength=\"60.489\" lengthAdjust=\"spacingAndGlyphs\" data-font-metrics=\"deterministic-fit\">High effort</text>\n<text x=\"37\" y=\"431.45\" class=\"quadrant-axis-label\" text-anchor=\"start\" font-size=\"13\" font-weight=\"500\" fill=\"#69696c\" transform=\"rotate(-90 37 436)\" data-prepared-text=\"true\" dy=\"4.55\" textLength=\"61.971\" lengthAdjust=\"spacingAndGlyphs\" data-font-metrics=\"deterministic-fit\">Low value</text>\n<text x=\"37\" y=\"59.45\" class=\"quadrant-axis-label\" text-anchor=\"end\" font-size=\"13\" font-weight=\"500\" fill=\"#69696c\" transform=\"rotate(-90 37 64)\" data-prepared-text=\"true\" dy=\"4.55\" textLength=\"63.453\" lengthAdjust=\"spacingAndGlyphs\" data-font-metrics=\"deterministic-fit\">High value</text>\n<text x=\"242\" y=\"33\" class=\"quadrant-title\" text-anchor=\"middle\" dominant-baseline=\"middle\" font-size=\"18\" font-weight=\"600\" fill=\"#27272A\" data-id=\"title\" data-role=\"title\" data-prepared-text=\"true\" dy=\"6.3\" textLength=\"67.5\" lengthAdjust=\"spacingAndGlyphs\" data-font-metrics=\"deterministic-fit\">Priority</text>\n</svg>",
+    "receipt": {
+      "version": 2,
+      "output": "svg",
+      "sharedRequestDigest": "fnv1a64:72664d47e10213b1",
+      "requestDigest": "fnv1a64:43ca60af3df51a11",
+      "appearanceDigest": "fnv1a64:5c57037fc07cf497",
+      "capabilityDecision": {
+        "version": 1,
+        "accepted": true,
+        "resolutions": [
+          {
+            "id": "core:render-request",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "core:family-descriptor",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "family:quadrant",
+            "range": "1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "core:scene",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "operation:layout",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "operation:lower-scene",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "backend:scene-renderer",
+            "range": "1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:document/identity/serialize",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:document/resources/serialize",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:document/interaction/accessibility",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:text/geometry/render",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:text/paint/render",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:text/labels/accessibility",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:text/identity/serialize",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:shape/geometry/render",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:shape/paint/render",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:shape/identity/serialize",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:container/geometry/render",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:container/paint/render",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:container/identity/serialize",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "output:svg",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          }
+        ]
+      },
+      "diagnostics": [
+        {
+          "code": "RENDER_OPTION_NOT_APPLICABLE",
+          "feature": "render-option:graphLayout",
+          "message": "Render option \"graphLayout\" does not apply to built-in Mermaid family \"quadrant\". Applicable built-in families: flowchart, state, architecture, class, er, requirement."
+        }
+      ],
+      "executionDecision": {
+        "family": {
+          "id": "family:quadrant",
+          "version": "1.0.0"
+        },
+        "backend": {
+          "mode": "scene",
+          "requestedId": "default",
+          "selectedId": "backend:default",
+          "version": "1.0.0",
+          "hostPolicy": false
+        },
+        "digest": "fnv1a64:fe13ddad1b935503"
+      },
+      "graphicalProjectionDigest": "fnv1a64:cf84e607e5d7561a",
+      "layoutCertification": {
+        "version": 1,
+        "unit": "px",
+        "scope": "native-scene",
+        "status": "passed",
+        "viewport": {
+          "x": 0,
+          "y": 0,
+          "width": 456,
+          "height": 492
+        },
+        "attempts": 1,
+        "repairs": [],
+        "coverage": {
+          "measured": 16,
+          "unmeasured": 0,
+          "preparedText": 7,
+          "fallbackText": 0,
+          "conditional": 0
+        },
+        "checks": {
+          "primitives": 18,
+          "labels": 2,
+          "occlusionPairs": 0,
+          "maxOcclusionPairs": 100000,
+          "operations": 13777,
+          "maxOperations": 400000,
+          "markers": 0
+        },
+        "issues": [],
+        "limitations": [
+          "Prepared occupied text regions bound native geometry; exact glyph ink depends on the resolved font.",
+          "Declared transparency, intentional data-mark overlap and externally modified CSS are outside this proof."
+        ],
+        "outputDigest": "fnv1a64:cf84e607e5d7561a"
+      }
+    },
+    "wholeBytes": 8746,
+    "receiptBytes": 3886
+  },
+  "paint": {
+    "checks": [
+      {
+        "criterion": "svg-root",
+        "expected": "mounted SVG",
+        "actual": "svg",
+        "status": "passed",
+        "scope": "Actual public SVG result"
+      },
+      {
+        "criterion": "svg-unique-ids",
+        "expected": 2,
+        "actual": 2,
+        "status": "passed",
+        "scope": "Duplicate SVG identities can change marker, clip and owned-label references"
+      },
+      {
+        "criterion": "canvas",
+        "expected": "positive finite rendered canvas",
+        "actual": {
+          "x": 0,
+          "y": 0,
+          "width": 456,
+          "height": 492
+        },
+        "status": "passed",
+        "scope": "Actual browser viewport of the returned SVG"
+      },
+      {
+        "criterion": "visible-authored-labels",
+        "expected": [
+          "Priority",
+          "Alpha",
+          "Beta",
+          "Low effort",
+          "High effort",
+          "Low value",
+          "High value"
+        ],
+        "actual": [
+          {
+            "label": "Priority",
+            "count": 1
+          },
+          {
+            "label": "Alpha",
+            "count": 1
+          },
+          {
+            "label": "Beta",
+            "count": 1
+          },
+          {
+            "label": "Low effort",
+            "count": 1
+          },
+          {
+            "label": "High effort",
+            "count": 1
+          },
+          {
+            "label": "Low value",
+            "count": 1
+          },
+          {
+            "label": "High value",
+            "count": 1
+          }
+        ],
+        "status": "passed",
+        "scope": "Computed visibility and nonzero browser text bounds; metadata/title/defs text earns no credit"
+      },
+      {
+        "criterion": "labels-within-canvas",
+        "expected": "every authored label fits the canvas",
+        "actual": [],
+        "status": "passed",
+        "scope": "Actual rendered label bounds, with 1.5 CSS-pixel serialization tolerance"
+      },
+      {
+        "criterion": "unclipped-authored-labels",
+        "expected": [],
+        "actual": [],
+        "status": "passed",
+        "scope": "Actual self/ancestor clipping and overflow; unprojected masks/clip paths remain unavailable"
+      },
+      {
+        "criterion": "visible-ink",
+        "expected": "nonempty visible diagram geometry",
+        "actual": 9,
+        "status": "passed",
+        "scope": "Visible geometric elements; unprojected use/HTML/image-only ink remains unavailable, not a drawing defect"
+      },
+      {
+        "criterion": "paint-opacity-and-color",
+        "expected": "resolved visible paint colors/alpha",
+        "actual": [],
+        "status": "passed",
+        "scope": "Unresolved paint servers/context colors cannot silently earn a visible-ink or complete-style claim"
+      }
+    ],
+    "complete": true,
+    "passed": true,
+    "nodes": [],
+    "connections": [],
+    "viewBox": "0 0 456 492"
+  },
+  "quantitative": [
+    {
+      "criterion": "painted-quadrant-coordinates",
+      "expected": [
+        {
+          "label": "Alpha",
+          "x": 0.2,
+          "y": 0.8
+        },
+        {
+          "label": "Beta",
+          "x": 0.8,
+          "y": 0.2
+        }
+      ],
+      "actual": [
+        {
+          "label": "Alpha",
+          "actual": {
+            "x": 0.2,
+            "y": 0.8
+          },
+          "expected": {
+            "label": "Alpha",
+            "x": 0.2,
+            "y": 0.8
+          }
+        },
+        {
+          "label": "Beta",
+          "actual": {
+            "x": 0.8,
+            "y": 0.19999999999999996
+          },
+          "expected": {
+            "label": "Beta",
+            "x": 0.8,
+            "y": 0.2
+          }
+        }
+      ],
+      "status": "passed",
+      "scope": "Authored point labels bind nearest visible dots; positions normalize to the four actual quadrant regions with 1.5% tolerance"
+    }
+  ],
+  "quality": {
+    "width": 456,
+    "height": 492,
+    "area": 224352,
+    "viewportScope": "actual viewBox SVG units",
+    "ownedCarriers": 0,
+    "contactCounts": {
+      "status": "unavailable",
+      "reason": "No enrolled exact SVG node-boundary contact observer"
+    },
+    "browserCenterline": {
+      "status": "unavailable"
+    },
+    "linear": {
+      "status": "unavailable",
+      "reason": "No enrolled owned SVG edge carriers; not a zero-crossing assertion"
+    }
+  },
+  "scope": "Unmodified Trident meaning + actual Chromium paint/quantitative observers on full Node SVG/receipt; exact strict linear metrics only where enrolled ownership/geometry allow. No browser renderer execution or speed claim."
+}

@@ -1,0 +1,3 @@
+import{d as t,b as e,c as h}from"./chunk-1DBB63C7.js";function o(o,n,r,d,i,s){let a=d.font??"Inter",p=t(d);return{family:n,width:r.width,height:r.height,colors:d,transparent:i,parts:[o.documentOpen({id:"prelude",width:r.width,height:r.height,colors:d,transparent:i,font:a,hasMonoFont:!1},`${e(r.width,r.height,d,i)}
+${h(a,!1,d.shadow,d.embedFontImport)}${p?`
+<defs>${p}</defs>`:""}`),...s,o.documentClose()]}}export{o as h};

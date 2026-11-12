@@ -1,0 +1,122 @@
+[
+  {
+    "call": 1,
+    "role": "standard-family-support-probe",
+    "source": "stateDiagram-v2\nstate \"Alpha\" as A\nstate \"Beta\" as B\nA --> B: advance",
+    "status": "returned",
+    "svgBytes": 3250,
+    "receiptBytes": 7887,
+    "wholeBytes": 11469,
+    "proof": {
+      "version": 1,
+      "unit": "px",
+      "scope": "native-scene",
+      "status": "passed",
+      "viewport": {
+        "x": 0,
+        "y": 0,
+        "width": 177.633,
+        "height": 270.1
+      },
+      "attempts": 1,
+      "repairs": [],
+      "coverage": {
+        "measured": 8,
+        "unmeasured": 0,
+        "preparedText": 3,
+        "fallbackText": 0,
+        "conditional": 0
+      },
+      "checks": {
+        "primitives": 11,
+        "labels": 2,
+        "occlusionPairs": 5,
+        "maxOcclusionPairs": 100000,
+        "operations": 47895,
+        "maxOperations": 400000,
+        "markers": 1
+      },
+      "issues": [],
+      "limitations": [
+        "Prepared occupied text regions bound native geometry; exact glyph ink depends on the resolved font.",
+        "Declared transparency, intentional data-mark overlap and externally modified CSS are outside this proof."
+      ],
+      "outputDigest": "fnv1a64:fe2463efad3f4ed9"
+    },
+    "layoutDecisions": [
+      {
+        "requested": "elk",
+        "fallback": "none",
+        "selected": "elk",
+        "attempts": [
+          {
+            "backend": "elk",
+            "outcome": "selected"
+          }
+        ],
+        "implementation": "elk-layered@1",
+        "role": "primary"
+      }
+    ]
+  },
+  {
+    "call": 2,
+    "role": "enrolled-family",
+    "source": "stateDiagram-v2\nstate \"Alpha\" as A\nstate \"Beta\" as B\nA --> B: advance",
+    "status": "returned",
+    "svgBytes": 3250,
+    "receiptBytes": 7887,
+    "wholeBytes": 11469,
+    "proof": {
+      "version": 1,
+      "unit": "px",
+      "scope": "native-scene",
+      "status": "passed",
+      "viewport": {
+        "x": 0,
+        "y": 0,
+        "width": 177.633,
+        "height": 270.1
+      },
+      "attempts": 1,
+      "repairs": [],
+      "coverage": {
+        "measured": 8,
+        "unmeasured": 0,
+        "preparedText": 3,
+        "fallbackText": 0,
+        "conditional": 0
+      },
+      "checks": {
+        "primitives": 11,
+        "labels": 2,
+        "occlusionPairs": 5,
+        "maxOcclusionPairs": 100000,
+        "operations": 47895,
+        "maxOperations": 400000,
+        "markers": 1
+      },
+      "issues": [],
+      "limitations": [
+        "Prepared occupied text regions bound native geometry; exact glyph ink depends on the resolved font.",
+        "Declared transparency, intentional data-mark overlap and externally modified CSS are outside this proof."
+      ],
+      "outputDigest": "fnv1a64:fe2463efad3f4ed9"
+    },
+    "layoutDecisions": [
+      {
+        "requested": "elk",
+        "fallback": "none",
+        "selected": "elk",
+        "attempts": [
+          {
+            "backend": "elk",
+            "outcome": "selected"
+          }
+        ],
+        "implementation": "elk-layered@1",
+        "role": "primary"
+      }
+    ]
+  }
+]

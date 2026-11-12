@@ -1,0 +1,1 @@
+function t(t){let x=[];for(let a of t)if(x.at(-1)?.x!==a.x||x.at(-1)?.y!==a.y)for(x.push({...a});x.length>2;){let t=x.at(-3),a=x.at(-2),y=x.at(-1);if(!(t.x===a.x&&a.x===y.x&&a.y>=Math.min(t.y,y.y)&&a.y<=Math.max(t.y,y.y)||t.y===a.y&&a.y===y.y&&a.x>=Math.min(t.x,y.x)&&a.x<=Math.max(t.x,y.x)))break;x.splice(x.length-2,1)}return x}export{t};

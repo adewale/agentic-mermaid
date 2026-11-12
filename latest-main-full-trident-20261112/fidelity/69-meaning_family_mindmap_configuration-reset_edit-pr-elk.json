@@ -1,0 +1,851 @@
+{
+  "id": "meaning:family:mindmap:configuration-reset:edit",
+  "family": "mindmap",
+  "target": "pr",
+  "backend": "elk",
+  "stem": "69-meaning_family_mindmap_configuration-reset_edit-pr-elk",
+  "expectationDepth": "reviewed declared authored fields only",
+  "preludes": [
+    {
+      "accepted": true,
+      "expected": true
+    },
+    {
+      "accepted": true,
+      "expected": true
+    }
+  ],
+  "acquired": {
+    "status": "accepted",
+    "publicAccepted": true,
+    "raw": {
+      "kind": "mindmap",
+      "root": {
+        "id": "root",
+        "label": "RevisedRoot",
+        "shape": "circle",
+        "children": [
+          {
+            "id": "Alpha",
+            "label": "Alpha",
+            "shape": "default",
+            "children": [
+              {
+                "id": "Beta",
+                "label": "Beta",
+                "shape": "default",
+                "children": []
+              }
+            ]
+          },
+          {
+            "id": "Gamma",
+            "label": "Gamma",
+            "shape": "default",
+            "children": []
+          }
+        ]
+      }
+    },
+    "family": "mindmap",
+    "scope": "Canonical projection of actual public parser return/getDiagramFromText DB; authored expectations are independent",
+    "meaning": {
+      "family": "mindmap",
+      "facts": {
+        "tree-order": [
+          "root",
+          "Alpha",
+          "Beta",
+          "Gamma"
+        ]
+      },
+      "unavailable": {},
+      "nodes": [
+        {
+          "id": "root",
+          "label": "RevisedRoot"
+        },
+        {
+          "id": "Alpha",
+          "label": "Alpha"
+        },
+        {
+          "id": "Beta",
+          "label": "Beta"
+        },
+        {
+          "id": "Gamma",
+          "label": "Gamma"
+        }
+      ],
+      "edges": [
+        {
+          "source": "root",
+          "target": "Alpha",
+          "directed": true,
+          "label": ""
+        },
+        {
+          "source": "Alpha",
+          "target": "Beta",
+          "directed": true,
+          "label": ""
+        },
+        {
+          "source": "root",
+          "target": "Gamma",
+          "directed": true,
+          "label": ""
+        }
+      ],
+      "groups": [
+        {
+          "id": "root",
+          "label": "RevisedRoot",
+          "members": [
+            "Alpha",
+            "Gamma"
+          ]
+        },
+        {
+          "id": "Alpha",
+          "label": "Alpha",
+          "members": [
+            "Beta"
+          ]
+        }
+      ]
+    }
+  },
+  "meaning": {
+    "complete": true,
+    "passed": true,
+    "checks": [
+      {
+        "criterion": "family",
+        "status": "passed",
+        "expected": "mindmap",
+        "actual": "mindmap",
+        "scope": "Returned native family; a source-preservation envelope is not native admission."
+      },
+      {
+        "criterion": "identities",
+        "status": "passed",
+        "expected": [
+          "\"Alpha\"",
+          "\"Beta\"",
+          "\"Gamma\"",
+          "\"root\""
+        ],
+        "actual": [
+          "\"Alpha\"",
+          "\"Beta\"",
+          "\"Gamma\"",
+          "\"root\""
+        ],
+        "scope": "Exact authored identity multiset, including duplicate and omitted identities."
+      },
+      {
+        "criterion": "node-labels",
+        "status": "passed",
+        "expected": [
+          "{\"id\":\"Alpha\",\"label\":\"Alpha\"}",
+          "{\"id\":\"Beta\",\"label\":\"Beta\"}",
+          "{\"id\":\"Gamma\",\"label\":\"Gamma\"}",
+          "{\"id\":\"root\",\"label\":\"RevisedRoot\"}"
+        ],
+        "actual": [
+          "{\"id\":\"Alpha\",\"label\":\"Alpha\"}",
+          "{\"id\":\"Beta\",\"label\":\"Beta\"}",
+          "{\"id\":\"Gamma\",\"label\":\"Gamma\"}",
+          "{\"id\":\"root\",\"label\":\"RevisedRoot\"}"
+        ],
+        "scope": "Authored identity-to-label binding; NFC/whitespace normalization applies to display labels, never identity strings."
+      },
+      {
+        "criterion": "relationships",
+        "status": "passed",
+        "expected": [
+          "{\"directed\":true,\"label\":\"\",\"source\":\"Alpha\",\"target\":\"Beta\"}",
+          "{\"directed\":true,\"label\":\"\",\"source\":\"root\",\"target\":\"Alpha\"}",
+          "{\"directed\":true,\"label\":\"\",\"source\":\"root\",\"target\":\"Gamma\"}"
+        ],
+        "actual": [
+          "{\"directed\":true,\"label\":\"\",\"source\":\"Alpha\",\"target\":\"Beta\"}",
+          "{\"directed\":true,\"label\":\"\",\"source\":\"root\",\"target\":\"Alpha\"}",
+          "{\"directed\":true,\"label\":\"\",\"source\":\"root\",\"target\":\"Gamma\"}"
+        ],
+        "scope": "Exact endpoint/direction/declared-marker/label multiset; parallel and reciprocal relationships remain distinct."
+      }
+    ]
+  },
+  "rendered": {
+    "accepted": true,
+    "svg": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"409.014\" height=\"165.532\" viewBox=\"0 0 409.014 165.532\" style=\"--bg:#FFFFFF;--fg:#27272A;--font:Inter;background:#FFFFFF\" aria-labelledby=\"mindmap-title\" aria-roledescription=\"mindmap\" role=\"img\" class=\"am-0p624500wlrtah\">\n<style>\n  svg.am-0p624500wlrtah { font-family: var(--font, 'Inter'), system-ui, sans-serif; }\n  svg.am-0p624500wlrtah {\n    /* Derived from --bg and --fg (overridable via --line, --accent, etc.) */\n    --_text:          #27272A;\n    --_text-sec:      #575759;\n    --_text-muted:    #707072;\n    --_text-faint:    #8a8a8c;\n    --_line:          #939395;\n    --_arrow:         #47474a;\n    --_node-fill:     #f9f9f9;\n    --_node-stroke:   #d4d4d4;\n    --_group-fill:    #FFFFFF;\n    --_group-hdr:     #f4f4f4;\n    --_inner-stroke:  #e5e5e5;\n    --_key-badge:     #e9e9ea;\n  }\n</style>\n<title id=\"mindmap-title\">RevisedRoot</title>\n<path class=\"mindmap-edge\" data-branch-index=\"0\" d=\"M 220.978 82.766 C 229.378 82.766 232.578 82.766 240.978 82.766\" fill=\"none\" stroke=\"#3b82f6\" stroke-width=\"2.5\" stroke-linecap=\"round\" data-relationship=\"mindmap-branch\" data-direction=\"forward\" data-id=\"root-&gt;Alpha\" data-role=\"edge\" data-from=\"root\" data-to=\"Alpha\" role=\"graphics-symbol\" aria-roledescription=\"relation\" aria-label=\"root to Alpha\" />\n<path class=\"mindmap-edge\" data-branch-index=\"0\" d=\"M 301.014 82.766 C 309.414 82.766 312.614 82.766 321.014 82.766\" fill=\"none\" stroke=\"#3b82f6\" stroke-width=\"2.5\" stroke-linecap=\"round\" data-relationship=\"mindmap-branch\" data-direction=\"forward\" data-id=\"Alpha-&gt;Beta\" data-role=\"edge\" data-from=\"Alpha\" data-to=\"Beta\" role=\"graphics-symbol\" aria-roledescription=\"relation\" aria-label=\"Alpha to Beta\" />\n<path class=\"mindmap-edge\" data-branch-index=\"1\" d=\"M 119.446 82.766 C 111.046 82.766 107.846 82.766 99.446 82.766\" fill=\"none\" stroke=\"#0d5ba5\" stroke-width=\"2.5\" stroke-linecap=\"round\" data-relationship=\"mindmap-branch\" data-direction=\"forward\" data-id=\"root-&gt;Gamma\" data-role=\"edge\" data-from=\"root\" data-to=\"Gamma\" role=\"graphics-symbol\" aria-roledescription=\"relation\" aria-label=\"root to Gamma\" />\n<g class=\"mindmap-node depth-0\" data-id=\"root\" data-label=\"RevisedRoot\" data-role=\"node\">\n  <circle cx=\"170.212\" cy=\"82.766\" r=\"50.766\" fill=\"#47474a\" stroke=\"#47474a\" stroke-width=\"1.5\" />\n  <text x=\"170.212\" y=\"82.766\" text-anchor=\"middle\" font-size=\"13\" font-weight=\"500\" fill=\"#FFFFFF\" data-prepared-text=\"true\" dy=\"4.55\" textLength=\"77.532\" lengthAdjust=\"spacingAndGlyphs\" data-font-metrics=\"deterministic-fit\">RevisedRoot</text>\n</g>\n<g class=\"mindmap-node depth-1\" data-id=\"Alpha\" data-label=\"Alpha\" data-branch-index=\"0\" data-parent-id=\"root\" data-role=\"node\">\n  <rect x=\"240.978\" y=\"65.316\" width=\"60.036\" height=\"34.9\" rx=\"16\" ry=\"16\" fill=\"#c4dafc\" stroke=\"#3b82f6\" stroke-width=\"1.5\" />\n  <text x=\"270.996\" y=\"82.766\" text-anchor=\"middle\" font-size=\"13\" font-weight=\"500\" fill=\"#27272A\" data-prepared-text=\"true\" dy=\"4.55\" textLength=\"36.036\" lengthAdjust=\"spacingAndGlyphs\" data-font-metrics=\"deterministic-fit\">Alpha</text>\n</g>\n<g class=\"mindmap-node depth-2\" data-id=\"Beta\" data-label=\"Beta\" data-branch-index=\"0\" data-parent-id=\"Alpha\" data-role=\"node\">\n  <rect x=\"321.014\" y=\"65.316\" width=\"56\" height=\"34.9\" rx=\"16\" ry=\"16\" fill=\"#d8e6fd\" stroke=\"#3b82f6\" stroke-width=\"1.5\" />\n  <text x=\"349.014\" y=\"82.766\" text-anchor=\"middle\" font-size=\"13\" font-weight=\"500\" fill=\"#27272A\" data-prepared-text=\"true\" dy=\"4.55\" textLength=\"28.626\" lengthAdjust=\"spacingAndGlyphs\" data-font-metrics=\"deterministic-fit\">Beta</text>\n</g>\n<g class=\"mindmap-node depth-1\" data-id=\"Gamma\" data-label=\"Gamma\" data-branch-index=\"1\" data-parent-id=\"root\" data-role=\"node\">\n  <rect x=\"32\" y=\"65.316\" width=\"67.446\" height=\"34.9\" rx=\"16\" ry=\"16\" fill=\"#b6cee4\" stroke=\"#0d5ba5\" stroke-width=\"1.5\" />\n  <text x=\"65.723\" y=\"82.766\" text-anchor=\"middle\" font-size=\"13\" font-weight=\"500\" fill=\"#27272A\" data-prepared-text=\"true\" dy=\"4.55\" textLength=\"43.446\" lengthAdjust=\"spacingAndGlyphs\" data-font-metrics=\"deterministic-fit\">Gamma</text>\n</g>\n</svg>",
+    "receipt": {
+      "version": 2,
+      "output": "svg",
+      "sharedRequestDigest": "fnv1a64:75db6eea8f90ce0b",
+      "requestDigest": "fnv1a64:38c7d15afe5949ad",
+      "appearanceDigest": "fnv1a64:5c57037fc07cf497",
+      "capabilityDecision": {
+        "version": 1,
+        "accepted": true,
+        "resolutions": [
+          {
+            "id": "core:render-request",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "core:family-descriptor",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "family:mindmap",
+            "range": "1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "core:scene",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "operation:layout",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "operation:lower-scene",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "backend:scene-renderer",
+            "range": "1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:document/identity/serialize",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:document/resources/serialize",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:document/interaction/accessibility",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:text/geometry/render",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:text/paint/render",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:text/labels/accessibility",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:text/identity/serialize",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:shape/geometry/render",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:shape/paint/render",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:shape/identity/serialize",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:container/geometry/render",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:container/paint/render",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:container/identity/serialize",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:connector/geometry/render",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:connector/stroke/render",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:connector/transform/render",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:connector/topology/render",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:connector/subpaths/render",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:connector/closedness/render",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:connector/bend-radius/render",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:connector/stroke-opacity/render",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:connector/stroke-cap/render",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:connector/stroke-join/render",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:connector/stroke-miter/render",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:connector/dash-array/render",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:connector/dash-offset/render",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:connector/dash-restart/render",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:connector/path-length/render",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:connector/paint-order/render",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:connector/compositing/render",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:connector/non-scaling-stroke/render",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:connector/marker-orientation/render",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:connector/marker-overflow/render",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:connector/endpoints/serialize",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:connector/direction/serialize",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:connector/labels/render",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:connector/labels/accessibility",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:connector/markers/render",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:connector/relation/accessibility",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:connector/interaction/hit-test",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:connector/hit-geometry/hit-test",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:connector/identity/serialize",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "output:svg",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          }
+        ]
+      },
+      "diagnostics": [
+        {
+          "code": "RENDER_OPTION_NOT_APPLICABLE",
+          "feature": "render-option:graphLayout",
+          "message": "Render option \"graphLayout\" does not apply to built-in Mermaid family \"mindmap\". Applicable built-in families: flowchart, state, architecture, class, er, requirement."
+        }
+      ],
+      "executionDecision": {
+        "family": {
+          "id": "family:mindmap",
+          "version": "1.0.0"
+        },
+        "backend": {
+          "mode": "scene",
+          "requestedId": "default",
+          "selectedId": "backend:default",
+          "version": "1.0.0",
+          "hostPolicy": false
+        },
+        "digest": "fnv1a64:139df326f74d4f91"
+      },
+      "graphicalProjectionDigest": "fnv1a64:21853a1e14c5391b",
+      "layoutCertification": {
+        "version": 1,
+        "unit": "px",
+        "scope": "native-scene",
+        "status": "passed",
+        "viewport": {
+          "x": 0,
+          "y": 0,
+          "width": 409.014,
+          "height": 165.532
+        },
+        "attempts": 1,
+        "repairs": [],
+        "coverage": {
+          "measured": 11,
+          "unmeasured": 0,
+          "preparedText": 4,
+          "fallbackText": 0,
+          "conditional": 0
+        },
+        "checks": {
+          "primitives": 14,
+          "labels": 4,
+          "occlusionPairs": 12,
+          "maxOcclusionPairs": 100000,
+          "operations": 16201,
+          "maxOperations": 400000,
+          "markers": 0
+        },
+        "issues": [],
+        "limitations": [
+          "Prepared occupied text regions bound native geometry; exact glyph ink depends on the resolved font.",
+          "Declared transparency, intentional data-mark overlap and externally modified CSS are outside this proof."
+        ],
+        "outputDigest": "fnv1a64:21853a1e14c5391b"
+      }
+    },
+    "wholeBytes": 12051,
+    "receiptBytes": 7612
+  },
+  "paint": {
+    "checks": [
+      {
+        "criterion": "svg-root",
+        "expected": "mounted SVG",
+        "actual": "svg",
+        "status": "passed",
+        "scope": "Actual public SVG result"
+      },
+      {
+        "criterion": "svg-unique-ids",
+        "expected": 1,
+        "actual": 1,
+        "status": "passed",
+        "scope": "Duplicate SVG identities can change marker, clip and owned-label references"
+      },
+      {
+        "criterion": "canvas",
+        "expected": "positive finite rendered canvas",
+        "actual": {
+          "x": 0,
+          "y": 0,
+          "width": 409,
+          "height": 165.53125
+        },
+        "status": "passed",
+        "scope": "Actual browser viewport of the returned SVG"
+      },
+      {
+        "criterion": "visible-authored-labels",
+        "expected": [
+          "RevisedRoot",
+          "Alpha",
+          "Beta",
+          "Gamma"
+        ],
+        "actual": [
+          {
+            "label": "RevisedRoot",
+            "count": 1
+          },
+          {
+            "label": "Alpha",
+            "count": 1
+          },
+          {
+            "label": "Beta",
+            "count": 1
+          },
+          {
+            "label": "Gamma",
+            "count": 1
+          }
+        ],
+        "status": "passed",
+        "scope": "Computed visibility and nonzero browser text bounds; metadata/title/defs text earns no credit"
+      },
+      {
+        "criterion": "labels-within-canvas",
+        "expected": "every authored label fits the canvas",
+        "actual": [],
+        "status": "passed",
+        "scope": "Actual rendered label bounds, with 1.5 CSS-pixel serialization tolerance"
+      },
+      {
+        "criterion": "unclipped-authored-labels",
+        "expected": [],
+        "actual": [],
+        "status": "passed",
+        "scope": "Actual self/ancestor clipping and overflow; unprojected masks/clip paths remain unavailable"
+      },
+      {
+        "criterion": "visible-ink",
+        "expected": "nonempty visible diagram geometry",
+        "actual": 7,
+        "status": "passed",
+        "scope": "Visible geometric elements; unprojected use/HTML/image-only ink remains unavailable, not a drawing defect"
+      },
+      {
+        "criterion": "painted-node-ownership",
+        "expected": [
+          "root",
+          "Alpha",
+          "Beta",
+          "Gamma"
+        ],
+        "actual": [
+          "root",
+          "Alpha",
+          "Beta",
+          "Gamma"
+        ],
+        "status": "passed",
+        "scope": "Unique actual label-to-shape ownership, independently of native model identity"
+      },
+      {
+        "criterion": "painted-relationships",
+        "expected": [
+          {
+            "source": "root",
+            "target": "Alpha",
+            "label": "",
+            "directed": true
+          },
+          {
+            "source": "Alpha",
+            "target": "Beta",
+            "label": "",
+            "directed": true
+          },
+          {
+            "source": "root",
+            "target": "Gamma",
+            "label": "",
+            "directed": true
+          }
+        ],
+        "actual": [
+          {
+            "source": "root",
+            "target": "Alpha",
+            "directed": false,
+            "startMarker": "none",
+            "endMarker": "none"
+          },
+          {
+            "source": "Alpha",
+            "target": "Beta",
+            "directed": false,
+            "startMarker": "none",
+            "endMarker": "none"
+          },
+          {
+            "source": "root",
+            "target": "Gamma",
+            "directed": false,
+            "startMarker": "none",
+            "endMarker": "none"
+          }
+        ],
+        "status": "unavailable",
+        "scope": "This representation needs a reviewed endpoint/marker projection; no semantic paint credit from labels alone"
+      },
+      {
+        "criterion": "paint-opacity-and-color",
+        "expected": "resolved visible paint colors/alpha",
+        "actual": [],
+        "status": "passed",
+        "scope": "Unresolved paint servers/context colors cannot silently earn a visible-ink or complete-style claim"
+      }
+    ],
+    "complete": false,
+    "passed": false,
+    "nodes": [
+      {
+        "id": "root",
+        "label": "RevisedRoot",
+        "box": {
+          "x": 119.4419174194336,
+          "y": 32.001365661621094,
+          "width": 101.52851104736328,
+          "height": 101.52852630615234
+        }
+      },
+      {
+        "id": "Alpha",
+        "label": "Alpha",
+        "box": {
+          "x": 240.96974182128906,
+          "y": 65.31622314453125,
+          "width": 60.03395080566406,
+          "height": 34.89881134033203
+        }
+      },
+      {
+        "id": "Beta",
+        "label": "Beta",
+        "box": {
+          "x": 321.0030212402344,
+          "y": 65.31622314453125,
+          "width": 55.998077392578125,
+          "height": 34.89881134033203
+        }
+      },
+      {
+        "id": "Gamma",
+        "label": "Gamma",
+        "box": {
+          "x": 31.998903274536133,
+          "y": 65.31622314453125,
+          "width": 67.44369506835938,
+          "height": 34.89881134033203
+        }
+      }
+    ],
+    "connections": [
+      {
+        "source": "root",
+        "target": "Alpha",
+        "directed": false,
+        "startMarker": "none",
+        "endMarker": "none"
+      },
+      {
+        "source": "Alpha",
+        "target": "Beta",
+        "directed": false,
+        "startMarker": "none",
+        "endMarker": "none"
+      },
+      {
+        "source": "root",
+        "target": "Gamma",
+        "directed": false,
+        "startMarker": "none",
+        "endMarker": "none"
+      }
+    ],
+    "viewBox": "0 0 409.014 165.532"
+  },
+  "quantitative": [],
+  "quality": {
+    "width": 409.014,
+    "height": 165.532,
+    "area": 67704.905448,
+    "viewportScope": "actual viewBox SVG units",
+    "ownedCarriers": 3,
+    "contactCounts": {
+      "status": "unavailable",
+      "reason": "No enrolled exact SVG node-boundary contact observer"
+    },
+    "browserCenterline": {
+      "status": "measured",
+      "value": 60,
+      "scope": "Browser getTotalLength sum in local SVG units, only length-preserving ancestor transforms; curve length is browser approximation, excludes markers/labels"
+    },
+    "linear": {
+      "status": "unavailable",
+      "reason": "Curved, relative, or unsupported path command"
+    }
+  },
+  "scope": "Unmodified Trident meaning + actual Chromium paint/quantitative observers on full Node SVG/receipt; exact strict linear metrics only where enrolled ownership/geometry allow. No browser renderer execution or speed claim."
+}

@@ -1,0 +1,82 @@
+{
+  "pr-agentic": {
+    "enrolled": 99,
+    "returned": 97,
+    "acquisition": {
+      "accepted": 99
+    },
+    "fullAuthored": {
+      "enrolled": 91,
+      "completePassed": 88,
+      "casesWithKnownFailedChecks": 1,
+      "casesWithUnavailableChecks": 2,
+      "criteria": {
+        "passed": 398,
+        "unavailable": 5,
+        "failed": 4
+      }
+    },
+    "labelOnlySupplement": {
+      "enrolled": 8,
+      "deeperMeaning": "not enrolled/unavailable; family-only meaning flags do not earn full-authored credit"
+    },
+    "paint": {
+      "caseCompletePassed": 73,
+      "casesWithKnownFailedChecks": 0,
+      "plannedCriteria": {
+        "passed": 907,
+        "unavailable": 65
+      }
+    },
+    "quantitativePlannedCriteria": {
+      "passed": 21,
+      "unavailable": 6
+    },
+    "proof": {
+      "passed": 91,
+      "unverified": 6,
+      "no-receipt": 2
+    },
+    "observerErrors": 0
+  },
+  "pr-elk": {
+    "enrolled": 99,
+    "returned": 97,
+    "acquisition": {
+      "accepted": 99
+    },
+    "fullAuthored": {
+      "enrolled": 91,
+      "completePassed": 88,
+      "casesWithKnownFailedChecks": 1,
+      "casesWithUnavailableChecks": 2,
+      "criteria": {
+        "passed": 398,
+        "unavailable": 5,
+        "failed": 4
+      }
+    },
+    "labelOnlySupplement": {
+      "enrolled": 8,
+      "deeperMeaning": "not enrolled/unavailable; family-only meaning flags do not earn full-authored credit"
+    },
+    "paint": {
+      "caseCompletePassed": 72,
+      "casesWithKnownFailedChecks": 0,
+      "plannedCriteria": {
+        "passed": 906,
+        "unavailable": 66
+      }
+    },
+    "quantitativePlannedCriteria": {
+      "passed": 21,
+      "unavailable": 6
+    },
+    "proof": {
+      "passed": 91,
+      "unverified": 6,
+      "no-receipt": 2
+    },
+    "observerErrors": 0
+  }
+}

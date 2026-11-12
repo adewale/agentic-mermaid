@@ -1,0 +1,92 @@
+[
+  {
+    "call": 1,
+    "role": "standard-family-support-probe",
+    "source": "C4Context\nPerson(user, \"User\")\nSystem(api, \"API\", \"Service\")\nRel(user, api, \"Uses\")",
+    "status": "returned",
+    "svgBytes": 5312,
+    "receiptBytes": 7960,
+    "wholeBytes": 13791,
+    "proof": {
+      "version": 1,
+      "unit": "px",
+      "scope": "native-scene",
+      "status": "passed",
+      "viewport": {
+        "x": 0,
+        "y": 0,
+        "width": 529.196,
+        "height": 341.3
+      },
+      "attempts": 1,
+      "repairs": [],
+      "coverage": {
+        "measured": 15,
+        "unmeasured": 0,
+        "preparedText": 6,
+        "fallbackText": 0,
+        "conditional": 0
+      },
+      "checks": {
+        "primitives": 18,
+        "labels": 5,
+        "occlusionPairs": 9,
+        "maxOcclusionPairs": 100000,
+        "operations": 58902,
+        "maxOperations": 400000,
+        "markers": 1
+      },
+      "issues": [],
+      "limitations": [
+        "Prepared occupied text regions bound native geometry; exact glyph ink depends on the resolved font.",
+        "Declared transparency, intentional data-mark overlap and externally modified CSS are outside this proof."
+      ],
+      "outputDigest": "fnv1a64:e6dda0169b984a12"
+    }
+  },
+  {
+    "call": 2,
+    "role": "enrolled-family",
+    "source": "C4Context\nPerson(user, \"User\")\nSystem(api, \"API\", \"Service\")\nRel(user, api, \"Uses\")",
+    "status": "returned",
+    "svgBytes": 5312,
+    "receiptBytes": 7960,
+    "wholeBytes": 13791,
+    "proof": {
+      "version": 1,
+      "unit": "px",
+      "scope": "native-scene",
+      "status": "passed",
+      "viewport": {
+        "x": 0,
+        "y": 0,
+        "width": 529.196,
+        "height": 341.3
+      },
+      "attempts": 1,
+      "repairs": [],
+      "coverage": {
+        "measured": 15,
+        "unmeasured": 0,
+        "preparedText": 6,
+        "fallbackText": 0,
+        "conditional": 0
+      },
+      "checks": {
+        "primitives": 18,
+        "labels": 5,
+        "occlusionPairs": 9,
+        "maxOcclusionPairs": 100000,
+        "operations": 58902,
+        "maxOperations": 400000,
+        "markers": 1
+      },
+      "issues": [],
+      "limitations": [
+        "Prepared occupied text regions bound native geometry; exact glyph ink depends on the resolved font.",
+        "Declared transparency, intentional data-mark overlap and externally modified CSS are outside this proof."
+      ],
+      "outputDigest": "fnv1a64:e6dda0169b984a12"
+    }
+  }
+]

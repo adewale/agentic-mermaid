@@ -1,0 +1,1011 @@
+{
+  "id": "features:gitgraph:merge-parents-tags-branch",
+  "family": "gitgraph",
+  "target": "pr",
+  "backend": "agentic",
+  "stem": "36-features_gitgraph_merge-parents-tags-branch-pr-agentic",
+  "expectationDepth": "reviewed declared authored fields only",
+  "preludes": [],
+  "acquired": {
+    "status": "accepted",
+    "publicAccepted": true,
+    "raw": {
+      "kind": "gitgraph",
+      "direction": "LR",
+      "mainBranchName": "main",
+      "commits": [
+        {
+          "id": "Base",
+          "type": "NORMAL",
+          "tags": [
+            "v1"
+          ],
+          "branch": "main",
+          "parents": [],
+          "sequence": 0,
+          "source": "commit",
+          "customId": true
+        },
+        {
+          "id": "Change",
+          "type": "NORMAL",
+          "tags": [],
+          "branch": "work",
+          "parents": [
+            "Base"
+          ],
+          "sequence": 1,
+          "source": "commit",
+          "customId": true
+        },
+        {
+          "id": "Parallel",
+          "type": "NORMAL",
+          "tags": [],
+          "branch": "main",
+          "parents": [
+            "Base"
+          ],
+          "sequence": 2,
+          "source": "commit",
+          "customId": true
+        },
+        {
+          "id": "Merge",
+          "type": "MERGE",
+          "tags": [
+            "v2"
+          ],
+          "branch": "main",
+          "parents": [
+            "Parallel",
+            "Change"
+          ],
+          "sequence": 3,
+          "source": "merge",
+          "customId": true,
+          "mergeBranch": "work",
+          "message": "merged branch work into main"
+        }
+      ],
+      "branches": [
+        {
+          "name": "main",
+          "order": 0,
+          "sequence": 0,
+          "head": "Merge"
+        },
+        {
+          "name": "work",
+          "order": 0.1,
+          "sequence": 1,
+          "head": "Change"
+        }
+      ],
+      "statements": [
+        {
+          "kind": "commit",
+          "ref": "Base"
+        },
+        {
+          "kind": "branch",
+          "name": "work"
+        },
+        {
+          "kind": "commit",
+          "ref": "Change"
+        },
+        {
+          "kind": "checkout",
+          "branch": "main",
+          "keyword": "checkout"
+        },
+        {
+          "kind": "commit",
+          "ref": "Parallel"
+        },
+        {
+          "kind": "merge",
+          "ref": "Merge",
+          "branch": "work"
+        }
+      ]
+    },
+    "family": "gitgraph",
+    "scope": "Canonical projection of actual public parser return/getDiagramFromText DB; authored expectations are independent",
+    "meaning": {
+      "family": "gitgraph",
+      "facts": {
+        "commits": [
+          {
+            "id": "Base",
+            "parents": [],
+            "branch": "main",
+            "tags": [
+              "v1"
+            ]
+          },
+          {
+            "id": "Change",
+            "parents": [
+              "Base"
+            ],
+            "branch": "work",
+            "tags": []
+          },
+          {
+            "id": "Parallel",
+            "parents": [
+              "Base"
+            ],
+            "branch": "main",
+            "tags": []
+          },
+          {
+            "id": "Merge",
+            "parents": [
+              "Parallel",
+              "Change"
+            ],
+            "branch": "main",
+            "tags": [
+              "v2"
+            ]
+          }
+        ],
+        "branches": [
+          "main",
+          "work"
+        ]
+      },
+      "unavailable": {},
+      "nodes": [
+        {
+          "id": "Base",
+          "label": "Base"
+        },
+        {
+          "id": "Change",
+          "label": "Change"
+        },
+        {
+          "id": "Parallel",
+          "label": "Parallel"
+        },
+        {
+          "id": "Merge",
+          "label": "Merge"
+        }
+      ],
+      "edges": [
+        {
+          "source": "Base",
+          "target": "Change",
+          "directed": true,
+          "label": ""
+        },
+        {
+          "source": "Base",
+          "target": "Parallel",
+          "directed": true,
+          "label": ""
+        },
+        {
+          "source": "Parallel",
+          "target": "Merge",
+          "directed": true,
+          "label": ""
+        },
+        {
+          "source": "Change",
+          "target": "Merge",
+          "directed": true,
+          "label": ""
+        }
+      ]
+    }
+  },
+  "meaning": {
+    "complete": true,
+    "passed": true,
+    "checks": [
+      {
+        "criterion": "family",
+        "status": "passed",
+        "expected": "gitgraph",
+        "actual": "gitgraph",
+        "scope": "Returned native family; a source-preservation envelope is not native admission."
+      },
+      {
+        "criterion": "identities",
+        "status": "passed",
+        "expected": [
+          "\"Base\"",
+          "\"Change\"",
+          "\"Merge\"",
+          "\"Parallel\""
+        ],
+        "actual": [
+          "\"Base\"",
+          "\"Change\"",
+          "\"Merge\"",
+          "\"Parallel\""
+        ],
+        "scope": "Exact authored identity multiset, including duplicate and omitted identities."
+      },
+      {
+        "criterion": "node-labels",
+        "status": "passed",
+        "expected": [
+          "{\"id\":\"Base\",\"label\":\"Base\"}",
+          "{\"id\":\"Change\",\"label\":\"Change\"}",
+          "{\"id\":\"Merge\",\"label\":\"Merge\"}",
+          "{\"id\":\"Parallel\",\"label\":\"Parallel\"}"
+        ],
+        "actual": [
+          "{\"id\":\"Base\",\"label\":\"Base\"}",
+          "{\"id\":\"Change\",\"label\":\"Change\"}",
+          "{\"id\":\"Merge\",\"label\":\"Merge\"}",
+          "{\"id\":\"Parallel\",\"label\":\"Parallel\"}"
+        ],
+        "scope": "Authored identity-to-label binding; NFC/whitespace normalization applies to display labels, never identity strings."
+      },
+      {
+        "criterion": "relationships",
+        "status": "passed",
+        "expected": [
+          "{\"directed\":true,\"label\":\"\",\"source\":\"Base\",\"target\":\"Change\"}",
+          "{\"directed\":true,\"label\":\"\",\"source\":\"Base\",\"target\":\"Parallel\"}",
+          "{\"directed\":true,\"label\":\"\",\"source\":\"Change\",\"target\":\"Merge\"}",
+          "{\"directed\":true,\"label\":\"\",\"source\":\"Parallel\",\"target\":\"Merge\"}"
+        ],
+        "actual": [
+          "{\"directed\":true,\"label\":\"\",\"source\":\"Base\",\"target\":\"Change\"}",
+          "{\"directed\":true,\"label\":\"\",\"source\":\"Base\",\"target\":\"Parallel\"}",
+          "{\"directed\":true,\"label\":\"\",\"source\":\"Change\",\"target\":\"Merge\"}",
+          "{\"directed\":true,\"label\":\"\",\"source\":\"Parallel\",\"target\":\"Merge\"}"
+        ],
+        "scope": "Exact endpoint/direction/declared-marker/label multiset; parallel and reciprocal relationships remain distinct."
+      },
+      {
+        "criterion": "fact:branches",
+        "status": "passed",
+        "expected": [
+          "main",
+          "work"
+        ],
+        "actual": [
+          "main",
+          "work"
+        ],
+        "scope": "Independently declared family content with meaningful ordering retained."
+      },
+      {
+        "criterion": "fact:commits",
+        "status": "passed",
+        "expected": [
+          {
+            "id": "Base",
+            "parents": [],
+            "branch": "main",
+            "tags": [
+              "v1"
+            ]
+          },
+          {
+            "id": "Change",
+            "parents": [
+              "Base"
+            ],
+            "branch": "work",
+            "tags": []
+          },
+          {
+            "id": "Parallel",
+            "parents": [
+              "Base"
+            ],
+            "branch": "main",
+            "tags": []
+          },
+          {
+            "id": "Merge",
+            "parents": [
+              "Parallel",
+              "Change"
+            ],
+            "branch": "main",
+            "tags": [
+              "v2"
+            ]
+          }
+        ],
+        "actual": [
+          {
+            "id": "Base",
+            "parents": [],
+            "branch": "main",
+            "tags": [
+              "v1"
+            ]
+          },
+          {
+            "id": "Change",
+            "parents": [
+              "Base"
+            ],
+            "branch": "work",
+            "tags": []
+          },
+          {
+            "id": "Parallel",
+            "parents": [
+              "Base"
+            ],
+            "branch": "main",
+            "tags": []
+          },
+          {
+            "id": "Merge",
+            "parents": [
+              "Parallel",
+              "Change"
+            ],
+            "branch": "main",
+            "tags": [
+              "v2"
+            ]
+          }
+        ],
+        "scope": "Independently declared family content with meaningful ordering retained."
+      }
+    ]
+  },
+  "rendered": {
+    "accepted": true,
+    "svg": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"521.218\" height=\"341.06\" viewBox=\"0 0 521.218 341.06\" style=\"--bg:#FFFFFF;--fg:#27272A;--font:Inter;background:#FFFFFF\" aria-labelledby=\"gitgraph-title\" aria-roledescription=\"git graph\" role=\"img\" class=\"am-1c8od0c0a9yd7c\">\n<style>\n  svg.am-1c8od0c0a9yd7c { font-family: var(--font, 'Inter'), system-ui, sans-serif; }\n  svg.am-1c8od0c0a9yd7c {\n    /* Derived from --bg and --fg (overridable via --line, --accent, etc.) */\n    --_text:          #27272A;\n    --_text-sec:      #575759;\n    --_text-muted:    #707072;\n    --_text-faint:    #8a8a8c;\n    --_line:          #939395;\n    --_arrow:         #47474a;\n    --_node-fill:     #f9f9f9;\n    --_node-stroke:   #d4d4d4;\n    --_group-fill:    #FFFFFF;\n    --_group-hdr:     #f4f4f4;\n    --_inner-stroke:  #e5e5e5;\n    --_key-badge:     #e9e9ea;\n  }\n</style>\n<title id=\"gitgraph-title\">Git graph</title>\n<g class=\"git-branch\" data-id=\"branch:main\" data-branch=\"main\" data-role=\"group\">\n  <rect class=\"git-branch-label-background\" x=\"82.28\" y=\"57\" width=\"37.72\" height=\"18\" rx=\"4\" ry=\"4\" fill=\"#edf4fe\" stroke=\"#3b82f6\" stroke-width=\"1\" />\n  <line class=\"git-branch-line\" data-branch=\"main\" x1=\"130\" y1=\"70\" x2=\"448.622\" y2=\"70\" stroke=\"#3b82f6\" stroke-width=\"3\" />\n  <text x=\"120\" y=\"65.8\" class=\"git-branch-label\" data-branch=\"main\" text-anchor=\"end\" font-size=\"12\" font-weight=\"600\" fill=\"#366dc8\" data-prepared-text=\"true\" dy=\"4.2\" textLength=\"27.72\" lengthAdjust=\"spacingAndGlyphs\" data-font-metrics=\"deterministic-fit\">main</text>\n</g>\n<g class=\"git-branch\" data-id=\"branch:work\" data-branch=\"work\" data-role=\"group\">\n  <rect class=\"git-branch-label-background\" x=\"79.4\" y=\"154.06\" width=\"40.6\" height=\"18\" rx=\"4\" ry=\"4\" fill=\"#e9f0f7\" stroke=\"#0d5ba5\" stroke-width=\"1\" />\n  <line class=\"git-branch-line\" data-branch=\"work\" x1=\"130\" y1=\"167.06\" x2=\"260.622\" y2=\"167.06\" stroke=\"#0d5ba5\" stroke-width=\"3\" />\n  <text x=\"120\" y=\"162.86\" class=\"git-branch-label\" data-branch=\"work\" text-anchor=\"end\" font-size=\"12\" font-weight=\"600\" fill=\"#0d5ba5\" data-prepared-text=\"true\" dy=\"4.2\" textLength=\"30.6\" lengthAdjust=\"spacingAndGlyphs\" data-font-metrics=\"deterministic-fit\">work</text>\n</g>\n<polyline class=\"git-edge git-edge-parent\" points=\"166.622,70 190.622,70 190.622,167.06 260.622,167.06\" fill=\"none\" stroke=\"#0d5ba5\" stroke-width=\"2\" data-relationship=\"parent\" data-direction=\"forward\" data-id=\"Base-&gt;Change\" data-role=\"edge\" data-from=\"Base\" data-to=\"Change\" role=\"graphics-symbol\" aria-roledescription=\"relation\" aria-label=\"Base to Change\" />\n<polyline class=\"git-edge git-edge-parent\" points=\"166.622,70 260.622,70 260.622,70 354.622,70\" fill=\"none\" stroke=\"#3b82f6\" stroke-width=\"2\" data-relationship=\"parent\" data-direction=\"forward\" data-id=\"Base-&gt;Parallel\" data-role=\"edge\" data-from=\"Base\" data-to=\"Parallel\" role=\"graphics-symbol\" aria-roledescription=\"relation\" aria-label=\"Base to Parallel\" />\n<polyline class=\"git-edge git-edge-parent\" points=\"354.622,70 401.622,70 401.622,70 448.622,70\" fill=\"none\" stroke=\"#3b82f6\" stroke-width=\"2\" data-relationship=\"parent\" data-direction=\"forward\" data-id=\"Parallel-&gt;Merge\" data-role=\"edge\" data-from=\"Parallel\" data-to=\"Merge\" role=\"graphics-symbol\" aria-roledescription=\"relation\" aria-label=\"Parallel to Merge\" />\n<polyline class=\"git-edge git-edge-merge\" points=\"260.622,167.06 424.622,167.06 424.622,70 448.622,70\" fill=\"none\" stroke=\"#3b82f6\" stroke-width=\"2.5\" data-relationship=\"merge\" data-direction=\"forward\" data-id=\"Change-&gt;Merge\" data-role=\"edge\" data-from=\"Change\" data-to=\"Merge\" role=\"graphics-symbol\" aria-roledescription=\"relation\" aria-label=\"Change to Merge\" />\n<g class=\"git-commit type-normal\" data-id=\"Base\" data-branch=\"main\" data-commit-type=\"NORMAL\" data-role=\"node\">\n  <circle cx=\"166.622\" cy=\"70\" r=\"8\" fill=\"#dce9fd\" stroke=\"#3b82f6\" stroke-width=\"2\" />\n  <rect class=\"git-commit-label-background\" x=\"140.63\" y=\"83\" width=\"51.984\" height=\"17\" rx=\"3\" ry=\"3\" fill=\"#FFFFFF\" fill-opacity=\"0.94\" stroke=\"#3b82f6\" stroke-width=\"0.75\" transform=\"rotate(45 166.622 94)\" />\n  <text x=\"166.622\" y=\"90.15\" class=\"git-commit-label\" text-anchor=\"middle\" font-size=\"11\" font-weight=\"500\" fill=\"#575759\" transform=\"rotate(45 166.622 94)\" data-prepared-text=\"true\" dy=\"3.85\" textLength=\"27.984\" lengthAdjust=\"spacingAndGlyphs\" data-font-metrics=\"deterministic-fit\">Base</text>\n  <rect class=\"git-tag-background\" x=\"176.622\" y=\"43\" width=\"19.9\" height=\"15\" rx=\"4\" ry=\"4\" fill=\"#edf4fe\" stroke=\"#3b82f6\" stroke-width=\"0.75\" />\n  <text x=\"180.622\" y=\"50.5\" class=\"git-tag\" text-anchor=\"start\" font-size=\"10\" font-weight=\"600\" fill=\"#366dc8\" data-prepared-text=\"true\" dy=\"3.5\" textLength=\"9.9\" lengthAdjust=\"spacingAndGlyphs\" data-font-metrics=\"deterministic-fit\">v1</text>\n</g>\n<g class=\"git-commit type-normal\" data-id=\"Change\" data-branch=\"work\" data-commit-type=\"NORMAL\" data-role=\"node\">\n  <circle cx=\"260.622\" cy=\"167.06\" r=\"8\" fill=\"#d3e1ef\" stroke=\"#0d5ba5\" stroke-width=\"2\" />\n  <rect class=\"git-commit-label-background\" x=\"228.36\" y=\"180.06\" width=\"64.524\" height=\"17\" rx=\"3\" ry=\"3\" fill=\"#FFFFFF\" fill-opacity=\"0.94\" stroke=\"#0d5ba5\" stroke-width=\"0.75\" transform=\"rotate(45 260.622 191.06)\" />\n  <text x=\"260.622\" y=\"187.21\" class=\"git-commit-label\" text-anchor=\"middle\" font-size=\"11\" font-weight=\"500\" fill=\"#575759\" transform=\"rotate(45 260.622 191.06)\" data-prepared-text=\"true\" dy=\"3.85\" textLength=\"40.524\" lengthAdjust=\"spacingAndGlyphs\" data-font-metrics=\"deterministic-fit\">Change</text>\n</g>\n<g class=\"git-commit type-normal\" data-id=\"Parallel\" data-branch=\"main\" data-commit-type=\"NORMAL\" data-role=\"node\">\n  <circle cx=\"354.622\" cy=\"70\" r=\"8\" fill=\"#dce9fd\" stroke=\"#3b82f6\" stroke-width=\"2\" />\n  <rect class=\"git-commit-label-background\" x=\"322.36\" y=\"83\" width=\"64.524\" height=\"17\" rx=\"3\" ry=\"3\" fill=\"#FFFFFF\" fill-opacity=\"0.94\" stroke=\"#3b82f6\" stroke-width=\"0.75\" transform=\"rotate(45 354.622 94)\" />\n  <text x=\"354.622\" y=\"90.15\" class=\"git-commit-label\" text-anchor=\"middle\" font-size=\"11\" font-weight=\"500\" fill=\"#575759\" transform=\"rotate(45 354.622 94)\" data-prepared-text=\"true\" dy=\"3.85\" textLength=\"40.524\" lengthAdjust=\"spacingAndGlyphs\" data-font-metrics=\"deterministic-fit\">Parallel</text>\n</g>\n<g class=\"git-commit type-merge\" data-id=\"Merge\" data-branch=\"main\" data-commit-type=\"MERGE\" data-role=\"node\">\n  <circle cx=\"448.622\" cy=\"70\" r=\"10\" fill=\"#3b82f6\" stroke=\"#3b82f6\" stroke-width=\"2\" />\n  <circle cx=\"448.622\" cy=\"70\" r=\"5\" fill=\"none\" stroke=\"#FFFFFF\" stroke-width=\"1.5\" />\n  <rect class=\"git-commit-label-background\" x=\"419.182\" y=\"83\" width=\"58.881\" height=\"17\" rx=\"3\" ry=\"3\" fill=\"#FFFFFF\" fill-opacity=\"0.94\" stroke=\"#3b82f6\" stroke-width=\"0.75\" transform=\"rotate(45 448.622 94)\" />\n  <text x=\"448.622\" y=\"90.15\" class=\"git-commit-label\" text-anchor=\"middle\" font-size=\"11\" font-weight=\"500\" fill=\"#575759\" transform=\"rotate(45 448.622 94)\" data-prepared-text=\"true\" dy=\"3.85\" textLength=\"34.881\" lengthAdjust=\"spacingAndGlyphs\" data-font-metrics=\"deterministic-fit\">Merge</text>\n  <rect class=\"git-tag-background\" x=\"458.622\" y=\"43\" width=\"23.5\" height=\"15\" rx=\"4\" ry=\"4\" fill=\"#edf4fe\" stroke=\"#3b82f6\" stroke-width=\"0.75\" />\n  <text x=\"462.622\" y=\"50.5\" class=\"git-tag\" text-anchor=\"start\" font-size=\"10\" font-weight=\"600\" fill=\"#366dc8\" data-prepared-text=\"true\" dy=\"3.5\" textLength=\"13.5\" lengthAdjust=\"spacingAndGlyphs\" data-font-metrics=\"deterministic-fit\">v2</text>\n</g>\n</svg>",
+    "receipt": {
+      "version": 2,
+      "output": "svg",
+      "sharedRequestDigest": "fnv1a64:eb9718d21676b889",
+      "requestDigest": "fnv1a64:17ae2577fc9452d5",
+      "appearanceDigest": "fnv1a64:0a3cda18a33eed1a",
+      "capabilityDecision": {
+        "version": 1,
+        "accepted": true,
+        "resolutions": [
+          {
+            "id": "core:render-request",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "core:family-descriptor",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "family:gitgraph",
+            "range": "1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "core:scene",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "operation:layout",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "operation:lower-scene",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "backend:scene-renderer",
+            "range": "1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:document/identity/serialize",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:document/resources/serialize",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:document/interaction/accessibility",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:text/geometry/render",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:text/paint/render",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:text/labels/accessibility",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:text/identity/serialize",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:shape/geometry/render",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:shape/paint/render",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:shape/identity/serialize",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:container/geometry/render",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:container/paint/render",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:container/identity/serialize",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:connector/geometry/render",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:connector/stroke/render",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:connector/transform/render",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:connector/topology/render",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:connector/subpaths/render",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:connector/closedness/render",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:connector/bend-radius/render",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:connector/stroke-opacity/render",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:connector/stroke-cap/render",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:connector/stroke-join/render",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:connector/stroke-miter/render",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:connector/dash-array/render",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:connector/dash-offset/render",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:connector/dash-restart/render",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:connector/path-length/render",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:connector/paint-order/render",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:connector/compositing/render",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:connector/non-scaling-stroke/render",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:connector/marker-orientation/render",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:connector/marker-overflow/render",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:connector/endpoints/serialize",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:connector/direction/serialize",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:connector/labels/render",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:connector/labels/accessibility",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:connector/markers/render",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:connector/relation/accessibility",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:connector/interaction/hit-test",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:connector/hit-geometry/hit-test",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:connector/identity/serialize",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "output:svg",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          }
+        ]
+      },
+      "diagnostics": [
+        {
+          "code": "RENDER_OPTION_NOT_APPLICABLE",
+          "feature": "render-option:graphLayout",
+          "message": "Render option \"graphLayout\" does not apply to built-in Mermaid family \"gitgraph\". Applicable built-in families: flowchart, state, architecture, class, er, requirement."
+        }
+      ],
+      "executionDecision": {
+        "family": {
+          "id": "family:gitgraph",
+          "version": "1.0.0"
+        },
+        "backend": {
+          "mode": "scene",
+          "requestedId": "default",
+          "selectedId": "backend:default",
+          "version": "1.0.0",
+          "hostPolicy": false
+        },
+        "digest": "fnv1a64:2d4639d12807d74f"
+      },
+      "graphicalProjectionDigest": "fnv1a64:ff9023ee69290fb8",
+      "layoutCertification": {
+        "version": 1,
+        "unit": "px",
+        "scope": "native-scene",
+        "status": "passed",
+        "viewport": {
+          "x": 0,
+          "y": 0,
+          "width": 521.218,
+          "height": 341.06
+        },
+        "attempts": 1,
+        "repairs": [],
+        "coverage": {
+          "measured": 27,
+          "unmeasured": 0,
+          "preparedText": 8,
+          "fallbackText": 0,
+          "conditional": 0
+        },
+        "checks": {
+          "primitives": 30,
+          "labels": 4,
+          "occlusionPairs": 164,
+          "maxOcclusionPairs": 100000,
+          "operations": 19262,
+          "maxOperations": 400000,
+          "markers": 0
+        },
+        "issues": [],
+        "limitations": [
+          "Prepared occupied text regions bound native geometry; exact glyph ink depends on the resolved font.",
+          "Declared transparency, intentional data-mark overlap and externally modified CSS are outside this proof."
+        ],
+        "outputDigest": "fnv1a64:ff9023ee69290fb8"
+      }
+    },
+    "wholeBytes": 15769,
+    "receiptBytes": 7615
+  },
+  "paint": {
+    "checks": [
+      {
+        "criterion": "svg-root",
+        "expected": "mounted SVG",
+        "actual": "svg",
+        "status": "passed",
+        "scope": "Actual public SVG result"
+      },
+      {
+        "criterion": "svg-unique-ids",
+        "expected": 1,
+        "actual": 1,
+        "status": "passed",
+        "scope": "Duplicate SVG identities can change marker, clip and owned-label references"
+      },
+      {
+        "criterion": "canvas",
+        "expected": "positive finite rendered canvas",
+        "actual": {
+          "x": 0,
+          "y": 0,
+          "width": 521.203125,
+          "height": 341.046875
+        },
+        "status": "passed",
+        "scope": "Actual browser viewport of the returned SVG"
+      },
+      {
+        "criterion": "visible-authored-labels",
+        "expected": [
+          "Base",
+          "Change",
+          "Parallel",
+          "Merge",
+          "v1",
+          "v2"
+        ],
+        "actual": [
+          {
+            "label": "Base",
+            "count": 1
+          },
+          {
+            "label": "Change",
+            "count": 1
+          },
+          {
+            "label": "Parallel",
+            "count": 1
+          },
+          {
+            "label": "Merge",
+            "count": 1
+          },
+          {
+            "label": "v1",
+            "count": 1
+          },
+          {
+            "label": "v2",
+            "count": 1
+          }
+        ],
+        "status": "passed",
+        "scope": "Computed visibility and nonzero browser text bounds; metadata/title/defs text earns no credit"
+      },
+      {
+        "criterion": "labels-within-canvas",
+        "expected": "every authored label fits the canvas",
+        "actual": [],
+        "status": "passed",
+        "scope": "Actual rendered label bounds, with 1.5 CSS-pixel serialization tolerance"
+      },
+      {
+        "criterion": "unclipped-authored-labels",
+        "expected": [],
+        "actual": [],
+        "status": "passed",
+        "scope": "Actual self/ancestor clipping and overflow; unprojected masks/clip paths remain unavailable"
+      },
+      {
+        "criterion": "visible-ink",
+        "expected": "nonempty visible diagram geometry",
+        "actual": 19,
+        "status": "passed",
+        "scope": "Visible geometric elements; unprojected use/HTML/image-only ink remains unavailable, not a drawing defect"
+      },
+      {
+        "criterion": "painted-node-ownership",
+        "expected": [
+          "Base",
+          "Change",
+          "Parallel",
+          "Merge"
+        ],
+        "actual": [
+          "Base",
+          "Change",
+          "Parallel",
+          "Merge"
+        ],
+        "status": "passed",
+        "scope": "Unique actual label-to-shape ownership, independently of native model identity"
+      },
+      {
+        "criterion": "painted-relationships",
+        "expected": [
+          {
+            "source": "Base",
+            "target": "Change",
+            "label": "",
+            "directed": true
+          },
+          {
+            "source": "Base",
+            "target": "Parallel",
+            "label": "",
+            "directed": true
+          },
+          {
+            "source": "Parallel",
+            "target": "Merge",
+            "label": "",
+            "directed": true
+          },
+          {
+            "source": "Change",
+            "target": "Merge",
+            "label": "",
+            "directed": true
+          }
+        ],
+        "actual": [],
+        "status": "unavailable",
+        "scope": "This representation needs a reviewed endpoint/marker projection; no semantic paint credit from labels alone"
+      },
+      {
+        "criterion": "paint-opacity-and-color",
+        "expected": "resolved visible paint colors/alpha",
+        "actual": [],
+        "status": "passed",
+        "scope": "Unresolved paint servers/context colors cannot silently earn a visible-ink or complete-style claim"
+      }
+    ],
+    "complete": false,
+    "passed": false,
+    "nodes": [
+      {
+        "id": "Base",
+        "label": "Base",
+        "box": {
+          "x": 143.99728393554688,
+          "y": 67.84010314941406,
+          "width": 48.77717590332031,
+          "height": 48.777183532714844
+        }
+      },
+      {
+        "id": "Change",
+        "label": "Change",
+        "box": {
+          "x": 233.56027221679688,
+          "y": 160.46295166015625,
+          "width": 57.643951416015625,
+          "height": 57.64396667480469
+        }
+      },
+      {
+        "id": "Parallel",
+        "label": "Parallel",
+        "box": {
+          "x": 327.5566711425781,
+          "y": 63.40668869018555,
+          "width": 57.6439208984375,
+          "height": 57.64394760131836
+        }
+      },
+      {
+        "id": "Merge",
+        "label": "Merge",
+        "box": {
+          "x": 423.5484313964844,
+          "y": 65.40208435058594,
+          "width": 53.653900146484375,
+          "height": 53.65391540527344
+        }
+      }
+    ],
+    "connections": [],
+    "viewBox": "0 0 521.218 341.06"
+  },
+  "quantitative": [],
+  "quality": {
+    "width": 521.218,
+    "height": 341.06,
+    "area": 177766.61107999997,
+    "viewportScope": "actual viewBox SVG units",
+    "ownedCarriers": 4,
+    "contactCounts": {
+      "status": "unavailable",
+      "reason": "No enrolled exact SVG node-boundary contact observer"
+    },
+    "browserCenterline": {
+      "status": "measured",
+      "value": 758.1200256347656,
+      "scope": "Browser getTotalLength sum in local SVG units, only length-preserving ancestor transforms; curve length is browser approximation, excludes markers/labels"
+    },
+    "linear": {
+      "status": "measured",
+      "edges": 4,
+      "wire": 758.1199999999999,
+      "bends": 4,
+      "crossings": 0,
+      "parallelOverlaps": 0,
+      "opposingOverlaps": 0,
+      "scope": "Existing strict untransformed orthogonal absolute M/L, polyline, or line SVG observer; authored-endpoint crossing exclusions retained"
+    }
+  },
+  "scope": "Unmodified Trident meaning + actual Chromium paint/quantitative observers on full Node SVG/receipt; exact strict linear metrics only where enrolled ownership/geometry allow. No browser renderer execution or speed claim."
+}

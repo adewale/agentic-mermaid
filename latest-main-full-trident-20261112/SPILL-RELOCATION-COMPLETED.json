@@ -1,0 +1,14 @@
+{
+  "at": "2026-11-12T23:25:34.812765+00:00",
+  "files": 31,
+  "logicalBytesPreserved": 790004435,
+  "regularToVerifiedSymlinks": 31,
+  "pathsAndBytesPreserved": true,
+  "allSourcesCurrentSdkGitExcluded": true,
+  "futureArchives": "Must dereference/include actual bytes, never only absolute symlinks",
+  "memoryAfter": {
+    "memory.current": "16977272832",
+    "memory.max": "17179869184",
+    "memory.events": "low 0\nhigh 0\nmax 104395\noom 34\noom_kill 17\noom_group_kill 0"
+  }
+}

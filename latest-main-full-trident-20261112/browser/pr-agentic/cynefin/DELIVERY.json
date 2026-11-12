@@ -1,0 +1,325 @@
+{
+  "target": "pr",
+  "backend": "agentic",
+  "family": "cynefin",
+  "id": "family-support:cynefin",
+  "status": "passed",
+  "selected": {
+    "suite": "community-browser",
+    "surface": "browser:public-api",
+    "runtime": "chromium",
+    "family": "cynefin",
+    "caseId": "family-support:cynefin",
+    "operation": "render",
+    "format": "svg",
+    "mode": "feature-corpus-qualification",
+    "status": "passed",
+    "bytes": 5220,
+    "findings": [],
+    "metrics": {
+      "implementation": "adewale/agentic-mermaid",
+      "apiBoundary": "Actual public lazy renderMermaidSVGWithReceiptAsync with explicit backend/fallback none; full original object serialized/retained by observation transport before unchanged declaredRenderer/Trident SVG qualification. No timing claim.",
+      "round": 1,
+      "rejected": false,
+      "xmlWellFormed": true,
+      "outputFile": null,
+      "firstMs": 25.5,
+      "iterations": null,
+      "version": "0.5.7",
+      "qualification": "XML-canvas-and-authored-labels",
+      "cache": "public-default-repeats"
+    }
+  },
+  "support": [
+    {
+      "suite": "community-browser",
+      "surface": "browser:public-api",
+      "runtime": "chromium",
+      "family": "cynefin",
+      "caseId": "family-support:cynefin",
+      "operation": "family-support",
+      "format": "svg",
+      "mode": "family-support-probe",
+      "status": "passed",
+      "bytes": 5220,
+      "findings": [],
+      "metrics": {
+        "implementation": "adewale/agentic-mermaid",
+        "apiBoundary": "Actual public lazy renderMermaidSVGWithReceiptAsync with explicit backend/fallback none; full original object serialized/retained by observation transport before unchanged declaredRenderer/Trident SVG qualification. No timing claim.",
+        "round": 1,
+        "rejected": false,
+        "xmlWellFormed": true,
+        "outputFile": null,
+        "firstMs": 279.5,
+        "iterations": null,
+        "version": "0.5.7",
+        "qualification": "XML-canvas-and-authored-labels",
+        "cache": "public-default-repeats"
+      }
+    }
+  ],
+  "heap": {
+    "suite": "community-browser",
+    "surface": "browser:public-api",
+    "runtime": "chromium-v8",
+    "family": "*",
+    "caseId": "post-portfolio-heap",
+    "operation": "memory",
+    "format": "svg",
+    "mode": "after-round-1",
+    "status": "passed",
+    "metrics": {
+      "implementation": "adewale/agentic-mermaid",
+      "round": 1,
+      "jsHeapUsedBytes": 4223216,
+      "portfolioCaseCount": 1,
+      "featureCases": 1,
+      "note": "Fresh realm, forced GC after this round portfolio; not native/WASM/process memory"
+    }
+  },
+  "requests": 12,
+  "totals": {
+    "raw": 599995,
+    "gzip9": 197597,
+    "brotli11": 164102
+  },
+  "product": {
+    "raw": 598125,
+    "gzip9": 196670,
+    "brotli11": 163335
+  },
+  "adapter": {
+    "raw": 1870,
+    "gzip9": 927,
+    "brotli11": 767
+  },
+  "fetched": [
+    {
+      "url": "/entry.mjs",
+      "bytes": 905,
+      "gzip": 430,
+      "sha256": "02e58d64ef5f565d2c6901aec190238474e6f73398184bec29120e283a084760",
+      "raw": 905,
+      "gzip9": 430,
+      "brotli11": 359,
+      "actualSha256": "02e58d64ef5f565d2c6901aec190238474e6f73398184bec29120e283a084760",
+      "kind": "Trident binding/observation transport"
+    },
+    {
+      "url": "/browser-lazy/index.js",
+      "bytes": 4344,
+      "gzip": 1550,
+      "sha256": "56482a1831b411fcdc81f097e07c78d77a49ada31bdcb3df2a875aeaf3385dad",
+      "raw": 4344,
+      "gzip9": 1550,
+      "brotli11": 1315,
+      "actualSha256": "56482a1831b411fcdc81f097e07c78d77a49ada31bdcb3df2a875aeaf3385dad",
+      "kind": "actual product module"
+    },
+    {
+      "url": "/declared-adapter.mjs",
+      "bytes": 965,
+      "gzip": 497,
+      "sha256": "2db9f4b28ad5d21417101446f0fb5375d6281898daeff495295504eae98cd103",
+      "raw": 965,
+      "gzip9": 497,
+      "brotli11": 408,
+      "actualSha256": "2db9f4b28ad5d21417101446f0fb5375d6281898daeff495295504eae98cd103",
+      "kind": "Trident binding/observation transport"
+    },
+    {
+      "url": "/browser-lazy/chunks/chunk-Z5FFVCUF.js",
+      "bytes": 5103,
+      "gzip": 2003,
+      "sha256": "30e5de7004b351e437374ab5ffccba7025aa4ac6b773bda90f2ea90744111b2e",
+      "raw": 5103,
+      "gzip9": 2003,
+      "brotli11": 1826,
+      "actualSha256": "30e5de7004b351e437374ab5ffccba7025aa4ac6b773bda90f2ea90744111b2e",
+      "kind": "actual product module"
+    },
+    {
+      "url": "/browser-lazy/chunks/chunk-IRIK7OOK.js",
+      "bytes": 6562,
+      "gzip": 2378,
+      "sha256": "0564120dec9fe0cc5f659ada8afa171c37621007ebbdd54d91df1c54c7707d6d",
+      "raw": 6562,
+      "gzip9": 2378,
+      "brotli11": 2175,
+      "actualSha256": "0564120dec9fe0cc5f659ada8afa171c37621007ebbdd54d91df1c54c7707d6d",
+      "kind": "actual product module"
+    },
+    {
+      "url": "/browser-lazy/chunks/chunk-TX43CKOC.js",
+      "bytes": 440,
+      "gzip": 284,
+      "sha256": "32f2e061f17b0958551c522cf707b97162f11e6f3fdc44667276459410366258",
+      "raw": 440,
+      "gzip9": 284,
+      "brotli11": 229,
+      "actualSha256": "32f2e061f17b0958551c522cf707b97162f11e6f3fdc44667276459410366258",
+      "kind": "actual product module"
+    },
+    {
+      "url": "/browser-lazy/chunks/cynefin-7FTSKHWG.js",
+      "bytes": 11467,
+      "gzip": 4209,
+      "sha256": "e41aed989590f3e1927f7b6188412617c1e39d2c7c5489ee26ddc3594cff76c5",
+      "raw": 11467,
+      "gzip9": 4209,
+      "brotli11": 3796,
+      "actualSha256": "e41aed989590f3e1927f7b6188412617c1e39d2c7c5489ee26ddc3594cff76c5",
+      "kind": "actual product module"
+    },
+    {
+      "url": "/browser-lazy/chunks/chunk-2JAKDQEZ.js",
+      "bytes": 3624,
+      "gzip": 1672,
+      "sha256": "f0175da760cc59226e0a4d3c084e08f5aa898726d8c14953adacf5d3984afc4b",
+      "raw": 3624,
+      "gzip9": 1672,
+      "brotli11": 1523,
+      "actualSha256": "f0175da760cc59226e0a4d3c084e08f5aa898726d8c14953adacf5d3984afc4b",
+      "kind": "actual product module"
+    },
+    {
+      "url": "/browser-lazy/chunks/chunk-NPLBGPB4.js",
+      "bytes": 391,
+      "gzip": 297,
+      "sha256": "f0d70542487072ea850037c5f61df42710b0625f4fb72fb5fb2ece6c26215394",
+      "raw": 391,
+      "gzip9": 297,
+      "brotli11": 277,
+      "actualSha256": "f0d70542487072ea850037c5f61df42710b0625f4fb72fb5fb2ece6c26215394",
+      "kind": "actual product module"
+    },
+    {
+      "url": "/browser-lazy/chunks/chunk-42EFHSON.js",
+      "bytes": 424,
+      "gzip": 293,
+      "sha256": "c5b1e05bcdfaeb8602203ac7d3de59c2915fb65acc0e55787709d15031691db0",
+      "raw": 424,
+      "gzip9": 293,
+      "brotli11": 258,
+      "actualSha256": "c5b1e05bcdfaeb8602203ac7d3de59c2915fb65acc0e55787709d15031691db0",
+      "kind": "actual product module"
+    },
+    {
+      "url": "/browser-lazy/chunks/chunk-7NEWL4HP.js",
+      "bytes": 1850,
+      "gzip": 904,
+      "sha256": "cd8d24faa177f0c9a8c5276bbfd24a72d0b5a42c04801edf3aaed9eda23d9616",
+      "raw": 1850,
+      "gzip9": 904,
+      "brotli11": 808,
+      "actualSha256": "cd8d24faa177f0c9a8c5276bbfd24a72d0b5a42c04801edf3aaed9eda23d9616",
+      "kind": "actual product module"
+    },
+    {
+      "url": "/browser-lazy/chunks/chunk-1DBB63C7.js",
+      "bytes": 563920,
+      "gzip": 183080,
+      "sha256": "bf9c1bb4d4d48dea259b7235ee21e51b8c3f0ebb29d8002d7750c1b877c909f9",
+      "raw": 563920,
+      "gzip9": 183080,
+      "brotli11": 151128,
+      "actualSha256": "bf9c1bb4d4d48dea259b7235ee21e51b8c3f0ebb29d8002d7750c1b877c909f9",
+      "kind": "actual product module"
+    }
+  ],
+  "publicProducts": [
+    {
+      "call": 1,
+      "role": "standard-family-support-probe",
+      "source": "cynefin-beta\n  title Alpha\n  complex\n    \"Beta\"\n  clear\n    \"Gamma\"\n  complex --> clear : \"Delta\"",
+      "status": "returned",
+      "svgBytes": 5220,
+      "receiptBytes": 7976,
+      "wholeBytes": 13712,
+      "proof": {
+        "version": 1,
+        "unit": "px",
+        "scope": "native-scene",
+        "status": "passed",
+        "viewport": {
+          "x": 0,
+          "y": 0,
+          "width": 1040.82,
+          "height": 527.4
+        },
+        "attempts": 1,
+        "repairs": [],
+        "coverage": {
+          "measured": 15,
+          "unmeasured": 0,
+          "preparedText": 9,
+          "fallbackText": 0,
+          "conditional": 0
+        },
+        "checks": {
+          "primitives": 18,
+          "labels": 9,
+          "occlusionPairs": 10,
+          "maxOcclusionPairs": 100000,
+          "operations": 39348,
+          "maxOperations": 400000,
+          "markers": 1
+        },
+        "issues": [],
+        "limitations": [
+          "Prepared occupied text regions bound native geometry; exact glyph ink depends on the resolved font.",
+          "Declared transparency, intentional data-mark overlap and externally modified CSS are outside this proof."
+        ],
+        "outputDigest": "fnv1a64:c6378350dd6b557c"
+      }
+    },
+    {
+      "call": 2,
+      "role": "enrolled-family",
+      "source": "cynefin-beta\n  title Alpha\n  complex\n    \"Beta\"\n  clear\n    \"Gamma\"\n  complex --> clear : \"Delta\"",
+      "status": "returned",
+      "svgBytes": 5220,
+      "receiptBytes": 7976,
+      "wholeBytes": 13712,
+      "proof": {
+        "version": 1,
+        "unit": "px",
+        "scope": "native-scene",
+        "status": "passed",
+        "viewport": {
+          "x": 0,
+          "y": 0,
+          "width": 1040.82,
+          "height": 527.4
+        },
+        "attempts": 1,
+        "repairs": [],
+        "coverage": {
+          "measured": 15,
+          "unmeasured": 0,
+          "preparedText": 9,
+          "fallbackText": 0,
+          "conditional": 0
+        },
+        "checks": {
+          "primitives": 18,
+          "labels": 9,
+          "occlusionPairs": 10,
+          "maxOcclusionPairs": 100000,
+          "operations": 39348,
+          "maxOperations": 400000,
+          "markers": 1
+        },
+        "issues": [],
+        "limitations": [
+          "Prepared occupied text regions bound native geometry; exact glyph ink depends on the resolved font.",
+          "Declared transparency, intentional data-mark overlap and externally modified CSS are outside this proof."
+        ],
+        "outputDigest": "fnv1a64:c6378350dd6b557c"
+      }
+    }
+  ],
+  "observerErrors": [],
+  "remoteRequestsBlocked": [],
+  "scope": "One fresh family realm. Actual request union and post-GC JS heap include mandatory same-family support probe plus enrolled source; binding separately reported; gzip9/Brotli11 actual fetched bytes, not claimed compressed wire transfer. Transport-instrumented raw times must not be used as API performance evidence."
+}

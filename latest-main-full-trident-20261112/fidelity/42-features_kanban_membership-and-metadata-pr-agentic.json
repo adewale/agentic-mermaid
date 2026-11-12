@@ -1,0 +1,621 @@
+{
+  "id": "features:kanban:membership-and-metadata",
+  "family": "kanban",
+  "target": "pr",
+  "backend": "agentic",
+  "stem": "42-features_kanban_membership-and-metadata-pr-agentic",
+  "expectationDepth": "reviewed declared authored fields only",
+  "preludes": [],
+  "acquired": {
+    "status": "accepted",
+    "publicAccepted": true,
+    "raw": {
+      "kind": "kanban",
+      "columns": [
+        {
+          "id": "backlog",
+          "sourceId": "backlog",
+          "label": "Backlog",
+          "metadata": {},
+          "tasks": [
+            {
+              "id": "TaskA",
+              "sourceId": "TaskA",
+              "label": "Build",
+              "metadata": {
+                "assigned": "Alice",
+                "priority": "High"
+              }
+            },
+            {
+              "id": "TaskB",
+              "sourceId": "TaskB",
+              "label": "Review",
+              "metadata": {}
+            }
+          ]
+        },
+        {
+          "id": "done",
+          "sourceId": "done",
+          "label": "Done",
+          "metadata": {},
+          "tasks": [
+            {
+              "id": "TaskC",
+              "sourceId": "TaskC",
+              "label": "Ship",
+              "metadata": {}
+            }
+          ]
+        }
+      ]
+    },
+    "family": "kanban",
+    "scope": "Canonical projection of actual public parser return/getDiagramFromText DB; authored expectations are independent",
+    "meaning": {
+      "family": "kanban",
+      "facts": {
+        "metadata": [
+          {
+            "id": "TaskA",
+            "assigned": "Alice",
+            "priority": "High",
+            "ticket": ""
+          },
+          {
+            "id": "TaskB",
+            "assigned": "",
+            "priority": "",
+            "ticket": ""
+          },
+          {
+            "id": "TaskC",
+            "assigned": "",
+            "priority": "",
+            "ticket": ""
+          }
+        ]
+      },
+      "unavailable": {},
+      "nodes": [
+        {
+          "id": "TaskA",
+          "label": "Build"
+        },
+        {
+          "id": "TaskB",
+          "label": "Review"
+        },
+        {
+          "id": "TaskC",
+          "label": "Ship"
+        }
+      ],
+      "groups": [
+        {
+          "id": "backlog",
+          "label": "Backlog",
+          "members": [
+            "TaskA",
+            "TaskB"
+          ]
+        },
+        {
+          "id": "done",
+          "label": "Done",
+          "members": [
+            "TaskC"
+          ]
+        }
+      ]
+    }
+  },
+  "meaning": {
+    "complete": true,
+    "passed": true,
+    "checks": [
+      {
+        "criterion": "family",
+        "status": "passed",
+        "expected": "kanban",
+        "actual": "kanban",
+        "scope": "Returned native family; a source-preservation envelope is not native admission."
+      },
+      {
+        "criterion": "identities",
+        "status": "passed",
+        "expected": [
+          "\"TaskA\"",
+          "\"TaskB\"",
+          "\"TaskC\""
+        ],
+        "actual": [
+          "\"TaskA\"",
+          "\"TaskB\"",
+          "\"TaskC\""
+        ],
+        "scope": "Exact authored identity multiset, including duplicate and omitted identities."
+      },
+      {
+        "criterion": "node-labels",
+        "status": "passed",
+        "expected": [
+          "{\"id\":\"TaskA\",\"label\":\"Build\"}",
+          "{\"id\":\"TaskB\",\"label\":\"Review\"}",
+          "{\"id\":\"TaskC\",\"label\":\"Ship\"}"
+        ],
+        "actual": [
+          "{\"id\":\"TaskA\",\"label\":\"Build\"}",
+          "{\"id\":\"TaskB\",\"label\":\"Review\"}",
+          "{\"id\":\"TaskC\",\"label\":\"Ship\"}"
+        ],
+        "scope": "Authored identity-to-label binding; NFC/whitespace normalization applies to display labels, never identity strings."
+      },
+      {
+        "criterion": "groups",
+        "status": "passed",
+        "expected": [
+          "{\"id\":\"backlog\",\"label\":\"Backlog\",\"members\":[\"TaskA\",\"TaskB\"]}",
+          "{\"id\":\"done\",\"label\":\"Done\",\"members\":[\"TaskC\"]}"
+        ],
+        "actual": [
+          "{\"id\":\"backlog\",\"label\":\"Backlog\",\"members\":[\"TaskA\",\"TaskB\"]}",
+          "{\"id\":\"done\",\"label\":\"Done\",\"members\":[\"TaskC\"]}"
+        ],
+        "scope": "Exact immediate membership and label binding; nested groups are identities, not flattened leaves."
+      },
+      {
+        "criterion": "fact:metadata",
+        "status": "passed",
+        "expected": [
+          {
+            "id": "TaskA",
+            "assigned": "Alice",
+            "priority": "High",
+            "ticket": ""
+          },
+          {
+            "id": "TaskB",
+            "assigned": "",
+            "priority": "",
+            "ticket": ""
+          },
+          {
+            "id": "TaskC",
+            "assigned": "",
+            "priority": "",
+            "ticket": ""
+          }
+        ],
+        "actual": [
+          {
+            "id": "TaskA",
+            "assigned": "Alice",
+            "priority": "High",
+            "ticket": ""
+          },
+          {
+            "id": "TaskB",
+            "assigned": "",
+            "priority": "",
+            "ticket": ""
+          },
+          {
+            "id": "TaskC",
+            "assigned": "",
+            "priority": "",
+            "ticket": ""
+          }
+        ],
+        "scope": "Independently declared family content with meaningful ordering retained."
+      }
+    ]
+  },
+  "rendered": {
+    "accepted": true,
+    "svg": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"544\" height=\"239.1\" viewBox=\"0 0 544 239.1\" style=\"--bg:#FFFFFF;--fg:#27272A;--font:Inter;background:#FFFFFF\" class=\"am-1imnjcj09zgz7c\">\n<style>\n  svg.am-1imnjcj09zgz7c { font-family: var(--font, 'Inter'), system-ui, sans-serif; }\n  svg.am-1imnjcj09zgz7c {\n    /* Derived from --bg and --fg (overridable via --line, --accent, etc.) */\n    --_text:          #27272A;\n    --_text-sec:      #575759;\n    --_text-muted:    #707072;\n    --_text-faint:    #8a8a8c;\n    --_line:          #939395;\n    --_arrow:         #47474a;\n    --_node-fill:     #f9f9f9;\n    --_node-stroke:   #d4d4d4;\n    --_group-fill:    #FFFFFF;\n    --_group-hdr:     #f4f4f4;\n    --_inner-stroke:  #e5e5e5;\n    --_key-badge:     #e9e9ea;\n  }\n</style>\n<g data-id=\"backlog\" data-role=\"group\">\n  <rect x=\"24\" y=\"24\" width=\"240\" height=\"191.1\" rx=\"0\" fill=\"#FFFFFF\" stroke=\"#949495\" stroke-width=\"1\" />\n  <rect x=\"24\" y=\"24\" width=\"240\" height=\"41.6\" rx=\"0\" fill=\"#f4f4f4\" stroke=\"none\" />\n  <text x=\"52\" y=\"41.8\" text-anchor=\"start\" font-family=\"Inter\" font-size=\"12\" font-weight=\"600\" fill=\"#27272A\" data-prepared-text=\"true\" dy=\"4.2\" textLength=\"49.32\" lengthAdjust=\"spacingAndGlyphs\" data-font-metrics=\"deterministic-fit\">Backlog</text>\n  <g data-id=\"TaskA\" data-parent=\"backlog\" data-role=\"node\">\n    <rect x=\"32\" y=\"73.6\" width=\"224\" height=\"77.5\" rx=\"5\" fill=\"#f9f9f9\" stroke=\"#949495\" stroke-width=\"0.75\" />\n    <text x=\"52\" y=\"92.05\" text-anchor=\"start\" font-family=\"Inter\" font-size=\"13\" font-weight=\"500\" fill=\"#27272A\" data-prepared-text=\"true\" dy=\"4.55\" textLength=\"31.59\" lengthAdjust=\"spacingAndGlyphs\" data-font-metrics=\"deterministic-fit\">Build</text>\n    <text x=\"52\" y=\"113.65\" text-anchor=\"start\" font-family=\"Inter\" font-size=\"11\" font-weight=\"400\" fill=\"#27272A\" data-prepared-text=\"true\" dy=\"3.85\" textLength=\"74.712\" lengthAdjust=\"spacingAndGlyphs\" data-font-metrics=\"deterministic-fit\">Assigned: Alice</text>\n    <text x=\"52\" y=\"133.95\" text-anchor=\"start\" font-family=\"Inter\" font-size=\"11\" font-weight=\"400\" fill=\"#27272A\" data-prepared-text=\"true\" dy=\"3.85\" textLength=\"62.832\" lengthAdjust=\"spacingAndGlyphs\" data-font-metrics=\"deterministic-fit\">Priority: High</text>\n  </g>\n  <g data-id=\"TaskB\" data-parent=\"backlog\" data-role=\"node\">\n    <rect x=\"32\" y=\"159.1\" width=\"224\" height=\"40\" rx=\"5\" fill=\"#f9f9f9\" stroke=\"#949495\" stroke-width=\"0.75\" />\n    <text x=\"52\" y=\"177.55\" text-anchor=\"start\" font-family=\"Inter\" font-size=\"13\" font-weight=\"500\" fill=\"#27272A\" data-prepared-text=\"true\" dy=\"4.55\" textLength=\"44.928\" lengthAdjust=\"spacingAndGlyphs\" data-font-metrics=\"deterministic-fit\">Review</text>\n  </g>\n</g>\n<g data-id=\"done\" data-role=\"group\">\n  <rect x=\"280\" y=\"24\" width=\"240\" height=\"191.1\" rx=\"0\" fill=\"#FFFFFF\" stroke=\"#949495\" stroke-width=\"1\" />\n  <rect x=\"280\" y=\"24\" width=\"240\" height=\"41.6\" rx=\"0\" fill=\"#f4f4f4\" stroke=\"none\" />\n  <text x=\"308\" y=\"41.8\" text-anchor=\"start\" font-family=\"Inter\" font-size=\"12\" font-weight=\"600\" fill=\"#27272A\" data-prepared-text=\"true\" dy=\"4.2\" textLength=\"32.04\" lengthAdjust=\"spacingAndGlyphs\" data-font-metrics=\"deterministic-fit\">Done</text>\n  <g data-id=\"TaskC\" data-parent=\"done\" data-role=\"node\">\n    <rect x=\"288\" y=\"73.6\" width=\"224\" height=\"40\" rx=\"5\" fill=\"#f9f9f9\" stroke=\"#949495\" stroke-width=\"0.75\" />\n    <text x=\"308\" y=\"92.05\" text-anchor=\"start\" font-family=\"Inter\" font-size=\"13\" font-weight=\"500\" fill=\"#27272A\" data-prepared-text=\"true\" dy=\"4.55\" textLength=\"28.626\" lengthAdjust=\"spacingAndGlyphs\" data-font-metrics=\"deterministic-fit\">Ship</text>\n  </g>\n</g>\n</svg>",
+    "receipt": {
+      "version": 2,
+      "output": "svg",
+      "sharedRequestDigest": "fnv1a64:7e3eb3049786da8f",
+      "requestDigest": "fnv1a64:0361ba420a4334bb",
+      "appearanceDigest": "fnv1a64:5c57037fc07cf497",
+      "capabilityDecision": {
+        "version": 1,
+        "accepted": true,
+        "resolutions": [
+          {
+            "id": "core:render-request",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "core:family-descriptor",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "family:kanban",
+            "range": "1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "core:scene",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "operation:layout",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "operation:lower-scene",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "backend:scene-renderer",
+            "range": "1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:document/identity/serialize",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:document/resources/serialize",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:document/interaction/accessibility",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:text/geometry/render",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:text/paint/render",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:text/labels/accessibility",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:text/identity/serialize",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:shape/geometry/render",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:shape/paint/render",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:shape/identity/serialize",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:container/geometry/render",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:container/paint/render",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:container/identity/serialize",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "output:svg",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          }
+        ]
+      },
+      "diagnostics": [
+        {
+          "code": "RENDER_OPTION_NOT_APPLICABLE",
+          "feature": "render-option:graphLayout",
+          "message": "Render option \"graphLayout\" does not apply to built-in Mermaid family \"kanban\". Applicable built-in families: flowchart, state, architecture, class, er, requirement."
+        }
+      ],
+      "executionDecision": {
+        "family": {
+          "id": "family:kanban",
+          "version": "1.0.0"
+        },
+        "backend": {
+          "mode": "scene",
+          "requestedId": "default",
+          "selectedId": "backend:default",
+          "version": "1.0.0",
+          "hostPolicy": false
+        },
+        "digest": "fnv1a64:50b0a60a03a4a67a"
+      },
+      "graphicalProjectionDigest": "fnv1a64:fd4f092a47ada701",
+      "layoutCertification": {
+        "version": 1,
+        "unit": "px",
+        "scope": "native-scene",
+        "status": "passed",
+        "viewport": {
+          "x": 0,
+          "y": 0,
+          "width": 544,
+          "height": 239.1
+        },
+        "attempts": 1,
+        "repairs": [],
+        "coverage": {
+          "measured": 14,
+          "unmeasured": 0,
+          "preparedText": 7,
+          "fallbackText": 0,
+          "conditional": 0
+        },
+        "checks": {
+          "primitives": 16,
+          "labels": 3,
+          "occlusionPairs": 0,
+          "maxOcclusionPairs": 100000,
+          "operations": 13760,
+          "maxOperations": 400000,
+          "markers": 0
+        },
+        "issues": [],
+        "limitations": [
+          "Prepared occupied text regions bound native geometry; exact glyph ink depends on the resolved font.",
+          "Declared transparency, intentional data-mark overlap and externally modified CSS are outside this proof."
+        ],
+        "outputDigest": "fnv1a64:fd4f092a47ada701"
+      }
+    },
+    "wholeBytes": 7845,
+    "receiptBytes": 3882
+  },
+  "paint": {
+    "checks": [
+      {
+        "criterion": "svg-root",
+        "expected": "mounted SVG",
+        "actual": "svg",
+        "status": "passed",
+        "scope": "Actual public SVG result"
+      },
+      {
+        "criterion": "svg-unique-ids",
+        "expected": 0,
+        "actual": 0,
+        "status": "passed",
+        "scope": "Duplicate SVG identities can change marker, clip and owned-label references"
+      },
+      {
+        "criterion": "canvas",
+        "expected": "positive finite rendered canvas",
+        "actual": {
+          "x": 0,
+          "y": 0,
+          "width": 544,
+          "height": 239.09375
+        },
+        "status": "passed",
+        "scope": "Actual browser viewport of the returned SVG"
+      },
+      {
+        "criterion": "visible-authored-labels",
+        "expected": [
+          "Backlog",
+          "Build",
+          "Review",
+          "Done",
+          "Ship"
+        ],
+        "actual": [
+          {
+            "label": "Backlog",
+            "count": 1
+          },
+          {
+            "label": "Build",
+            "count": 1
+          },
+          {
+            "label": "Review",
+            "count": 1
+          },
+          {
+            "label": "Done",
+            "count": 1
+          },
+          {
+            "label": "Ship",
+            "count": 1
+          }
+        ],
+        "status": "passed",
+        "scope": "Computed visibility and nonzero browser text bounds; metadata/title/defs text earns no credit"
+      },
+      {
+        "criterion": "labels-within-canvas",
+        "expected": "every authored label fits the canvas",
+        "actual": [],
+        "status": "passed",
+        "scope": "Actual rendered label bounds, with 1.5 CSS-pixel serialization tolerance"
+      },
+      {
+        "criterion": "unclipped-authored-labels",
+        "expected": [],
+        "actual": [],
+        "status": "passed",
+        "scope": "Actual self/ancestor clipping and overflow; unprojected masks/clip paths remain unavailable"
+      },
+      {
+        "criterion": "visible-ink",
+        "expected": "nonempty visible diagram geometry",
+        "actual": 7,
+        "status": "passed",
+        "scope": "Visible geometric elements; unprojected use/HTML/image-only ink remains unavailable, not a drawing defect"
+      },
+      {
+        "criterion": "painted-node-ownership",
+        "expected": [
+          "TaskA",
+          "TaskB",
+          "TaskC"
+        ],
+        "actual": [
+          "TaskA",
+          "TaskB",
+          "TaskC"
+        ],
+        "status": "passed",
+        "scope": "Unique actual label-to-shape ownership, independently of native model identity"
+      },
+      {
+        "criterion": "painted-group:backlog",
+        "expected": [
+          "TaskA",
+          "TaskB"
+        ],
+        "actual": [],
+        "status": "passed",
+        "scope": "Authored descendant nodes fit their actual owned group boundary; immediate membership is checked independently in the native model"
+      },
+      {
+        "criterion": "painted-group:done",
+        "expected": [
+          "TaskC"
+        ],
+        "actual": [],
+        "status": "passed",
+        "scope": "Authored descendant nodes fit their actual owned group boundary; immediate membership is checked independently in the native model"
+      },
+      {
+        "criterion": "paint-opacity-and-color",
+        "expected": "resolved visible paint colors/alpha",
+        "actual": [],
+        "status": "passed",
+        "scope": "Unresolved paint servers/context colors cannot silently earn a visible-ink or complete-style claim"
+      }
+    ],
+    "complete": true,
+    "passed": true,
+    "nodes": [
+      {
+        "id": "TaskA",
+        "label": "Build",
+        "box": {
+          "x": 32.00627899169922,
+          "y": 73.59807586669922,
+          "width": 223.994140625,
+          "height": 77.49797821044922
+        }
+      },
+      {
+        "id": "TaskB",
+        "label": "Review",
+        "box": {
+          "x": 32.00627899169922,
+          "y": 159.09584045410156,
+          "width": 223.994140625,
+          "height": 39.99896240234375
+        }
+      },
+      {
+        "id": "TaskC",
+        "label": "Ship",
+        "box": {
+          "x": 287.99957275390625,
+          "y": 73.59807586669922,
+          "width": 223.994140625,
+          "height": 39.99894714355469
+        }
+      }
+    ],
+    "connections": [],
+    "viewBox": "0 0 544 239.1"
+  },
+  "quantitative": [],
+  "quality": {
+    "width": 544,
+    "height": 239.1,
+    "area": 130070.4,
+    "viewportScope": "actual viewBox SVG units",
+    "ownedCarriers": 0,
+    "contactCounts": {
+      "status": "unavailable",
+      "reason": "No enrolled exact SVG node-boundary contact observer"
+    },
+    "browserCenterline": {
+      "status": "unavailable"
+    },
+    "linear": {
+      "status": "unavailable",
+      "reason": "No enrolled owned SVG edge carriers; not a zero-crossing assertion"
+    }
+  },
+  "scope": "Unmodified Trident meaning + actual Chromium paint/quantitative observers on full Node SVG/receipt; exact strict linear metrics only where enrolled ownership/geometry allow. No browser renderer execution or speed claim."
+}

@@ -1,0 +1,9 @@
+# Full functional and delivery coverage, source689
+
+All124portable outcomes are retained:58returned and4errors perbackend (3expectedinvalidsources plus fontSize configuration-reset error). Actual decisions match each requested backend with fallbacknone;8family representatives applygraphchoice and25remainshared/nochoice. Returnedrows receive partial portablequalification because modelprojectionisnotmeasured there; these are not58visiblefailures or58fullcorrectnesspasses. Proofs55passed/3unknown/4noreceipt perarm; timeline/xychart OUTPUT_SCOPE andChain300400k CHECK_BUDGET remain separate.
+
+All198fidelity outcomes are retained:91authored+8labels-only sources perarm. Eachbackend returns97/99; Native73 andELK72complete enrolledpaint cases; incomplete/unavailable checks remainunknown. Both91passedproofs/6unknown/2noreceipt. Complete meaning totals inSUMMARY.json include8labels-only supplements andmustnotbe describedasdeepauthoredqualification. Existing projected EventModeling schema mismatch remainsrecorded, notinventedmissingink.
+
+All66freshbrowserfamilylanes and4styledFlowchartlanes pass the existing enrolled checks; actualfullproducts/receipts/fetchedmodules/gzip9/Brotli11/heap retained. Flowchart paper/hand-drawn is the onlystyledscope. Bindingbytes separate; noAPI latencyclaim fromtransport-observedbrowserclocks. Allbrowsersclosed beforeNode clocks.
+
+The owner-approved31historicaldatarelocation is complete:790004435bytes retained byverifieddiskcopies+logicalpathsymlinks; exactmetadata andhashchecks inSPILLjournal. Cleanpagecacheadvice restored~949MiBusableheadroom withoutchanging data. Futurearchivesmustincludeactualdereferencedbytes. CurrentMain913alreadyintegrated; sourceunchanged689. These are newmeasurements, notnewsourceperformancegains. Stock/fullNodeclocks pending.

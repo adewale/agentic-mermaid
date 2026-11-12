@@ -1,0 +1,449 @@
+{
+  "id": "meaning:family:timeline",
+  "family": "timeline",
+  "target": "pr",
+  "backend": "elk",
+  "stem": "5-meaning_family_timeline-pr-elk",
+  "expectationDepth": "reviewed declared authored fields only",
+  "preludes": [],
+  "acquired": {
+    "status": "accepted",
+    "publicAccepted": true,
+    "raw": {
+      "kind": "timeline",
+      "sections": [
+        {
+          "id": "section-0",
+          "periods": [
+            {
+              "id": "period-0",
+              "label": "2026",
+              "events": [
+                {
+                  "id": "event-0",
+                  "text": "Launch"
+                },
+                {
+                  "id": "event-1",
+                  "text": "Review"
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "title": "Delivery"
+    },
+    "family": "timeline",
+    "scope": "Canonical projection of actual public parser return/getDiagramFromText DB; authored expectations are independent",
+    "meaning": {
+      "family": "timeline",
+      "facts": {
+        "title": "Delivery",
+        "periods": [
+          {
+            "section": "",
+            "label": "2026",
+            "events": [
+              "Launch",
+              "Review"
+            ]
+          }
+        ]
+      },
+      "unavailable": {},
+      "nodes": [
+        {
+          "id": "period:0",
+          "label": "2026"
+        }
+      ]
+    }
+  },
+  "meaning": {
+    "complete": true,
+    "passed": true,
+    "checks": [
+      {
+        "criterion": "family",
+        "status": "passed",
+        "expected": "timeline",
+        "actual": "timeline",
+        "scope": "Returned native family; a source-preservation envelope is not native admission."
+      },
+      {
+        "criterion": "fact:title",
+        "status": "passed",
+        "expected": "Delivery",
+        "actual": "Delivery",
+        "scope": "Independently declared family content with meaningful ordering retained."
+      },
+      {
+        "criterion": "fact:periods",
+        "status": "passed",
+        "expected": [
+          {
+            "section": "",
+            "label": "2026",
+            "events": [
+              "Launch",
+              "Review"
+            ]
+          }
+        ],
+        "actual": [
+          {
+            "section": "",
+            "label": "2026",
+            "events": [
+              "Launch",
+              "Review"
+            ]
+          }
+        ],
+        "scope": "Independently declared family content with meaningful ordering retained."
+      }
+    ]
+  },
+  "rendered": {
+    "accepted": true,
+    "svg": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"192\" height=\"288.2\" viewBox=\"0 0 192 288.2\" style=\"--bg:#FFFFFF;--fg:#27272A;--font:Inter;background:#FFFFFF\" aria-labelledby=\"tl-ydlp5i-title\" role=\"img\" class=\"am-1vnpl7p1lfqww7\">\n<style>\n  svg.am-1vnpl7p1lfqww7 { font-family: var(--font, 'Inter'), system-ui, sans-serif; }\n  svg.am-1vnpl7p1lfqww7 {\n    /* Derived from --bg and --fg (overridable via --line, --accent, etc.) */\n    --_text:          #27272A;\n    --_text-sec:      #575759;\n    --_text-muted:    #707072;\n    --_text-faint:    #8a8a8c;\n    --_line:          #939395;\n    --_arrow:         #47474a;\n    --_node-fill:     #f9f9f9;\n    --_node-stroke:   #d4d4d4;\n    --_group-fill:    #FFFFFF;\n    --_group-hdr:     #f4f4f4;\n    --_inner-stroke:  #e5e5e5;\n    --_key-badge:     #e9e9ea;\n  }\n</style>\n<title id=\"tl-ydlp5i-title\">Delivery</title>\n<line class=\"timeline-rail\" x1=\"54\" y1=\"133\" x2=\"138\" y2=\"133\" stroke=\"#939395\" stroke-width=\"1.5\" stroke-linecap=\"round\" />\n<g class=\"timeline-period\" data-id=\"period-0\" data-label=\"2026\" data-family=\"0\" style=\"--tl-accent:#47474a;--tl-fill:#f9f9f9;--tl-label:#27272A;--tl-line:#939395;--tl-section-bg:#ffffff;--tl-section-band:#fefefe;--tl-pill-fill:#fefefe;--tl-pill-stroke:#b8b8b9;--tl-event-fill:#f9f9f9\" data-role=\"period\">\n  <line class=\"timeline-stem\" x1=\"96\" y1=\"141\" x2=\"96\" y2=\"151\" stroke=\"#939395\" stroke-width=\"1.125\" stroke-dasharray=\"3 4\" data-id=\"period-stem:period-0\" data-role=\"period\" />\n  <rect class=\"timeline-period-pill\" x=\"60\" y=\"75.4\" width=\"72\" height=\"35.6\" rx=\"0\" ry=\"0\" fill=\"#f2f2f2\" stroke=\"#dadadb\" stroke-width=\"1\" data-id=\"period-pill:period-0\" data-role=\"period\" />\n  <text x=\"96\" y=\"93.2\" class=\"timeline-period-text\" data-literal-text=\"true\" text-anchor=\"middle\" font-size=\"12\" font-weight=\"600\" fill=\"#27272A\" data-prepared-text=\"true\" dy=\"4.2\" textLength=\"30.6\" lengthAdjust=\"spacingAndGlyphs\" data-font-metrics=\"deterministic-fit\">2026</text>\n  <circle class=\"timeline-marker-ring\" cx=\"96\" cy=\"133\" r=\"8\" fill=\"#FFFFFF\" stroke=\"#939395\" stroke-width=\"1.5\" data-id=\"period-marker-ring:period-0\" data-role=\"period\" />\n  <circle class=\"timeline-marker-core\" cx=\"96\" cy=\"133\" r=\"4.5\" fill=\"#47474a\" data-id=\"period-marker-core:period-0\" data-role=\"period\" />\n<g class=\"timeline-event\" data-id=\"event-0\" data-period=\"2026\" data-family=\"0\" data-role=\"event\">\n  <rect class=\"timeline-event-card\" x=\"32\" y=\"161\" width=\"128\" height=\"35.6\" rx=\"0\" ry=\"0\" fill=\"#f9f9f9\" stroke=\"#939395\" stroke-width=\"1\" data-id=\"event:event-0\" data-role=\"event\" />\n  <text x=\"46\" y=\"178.8\" class=\"timeline-event-text\" data-literal-text=\"true\" text-anchor=\"start\" font-size=\"12\" font-weight=\"400\" fill=\"#27272A\" data-prepared-text=\"true\" dy=\"4.2\" textLength=\"41.976\" lengthAdjust=\"spacingAndGlyphs\" data-font-metrics=\"deterministic-fit\">Launch</text>\n</g>\n<g class=\"timeline-event\" data-id=\"event-1\" data-period=\"2026\" data-family=\"0\" data-role=\"event\">\n  <rect class=\"timeline-event-card\" x=\"32\" y=\"206.6\" width=\"128\" height=\"35.6\" rx=\"0\" ry=\"0\" fill=\"#f9f9f9\" stroke=\"#939395\" stroke-width=\"1\" data-id=\"event:event-1\" data-role=\"event\" />\n  <text x=\"46\" y=\"224.4\" class=\"timeline-event-text\" data-literal-text=\"true\" text-anchor=\"start\" font-size=\"12\" font-weight=\"400\" fill=\"#27272A\" data-prepared-text=\"true\" dy=\"4.2\" textLength=\"39.384\" lengthAdjust=\"spacingAndGlyphs\" data-font-metrics=\"deterministic-fit\">Review</text>\n</g>\n</g>\n<text x=\"96\" y=\"39.7\" class=\"timeline-title\" data-literal-text=\"true\" text-anchor=\"middle\" font-size=\"18\" font-weight=\"600\" fill=\"#27272A\" data-id=\"title\" data-role=\"title\" data-prepared-text=\"true\" dy=\"6.3\" textLength=\"76.14\" lengthAdjust=\"spacingAndGlyphs\" data-font-metrics=\"deterministic-fit\">Delivery</text>\n</svg>",
+    "receipt": {
+      "version": 2,
+      "output": "svg",
+      "sharedRequestDigest": "fnv1a64:2c89eaf7ad2d962e",
+      "requestDigest": "fnv1a64:d911f6c54a713a20",
+      "appearanceDigest": "fnv1a64:1bcf4a0138fb2440",
+      "capabilityDecision": {
+        "version": 1,
+        "accepted": true,
+        "resolutions": [
+          {
+            "id": "core:render-request",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "core:family-descriptor",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "family:timeline",
+            "range": "1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "core:scene",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "operation:layout",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "operation:lower-scene",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "backend:scene-renderer",
+            "range": "1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:document/identity/serialize",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:document/resources/serialize",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:document/interaction/accessibility",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:text/geometry/render",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:text/paint/render",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:text/labels/accessibility",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:text/identity/serialize",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:shape/geometry/render",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:shape/paint/render",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:shape/identity/serialize",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:container/geometry/render",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:container/paint/render",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:container/identity/serialize",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "output:svg",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          }
+        ]
+      },
+      "diagnostics": [
+        {
+          "code": "RENDER_OPTION_NOT_APPLICABLE",
+          "feature": "render-option:graphLayout",
+          "message": "Render option \"graphLayout\" does not apply to built-in Mermaid family \"timeline\". Applicable built-in families: flowchart, state, architecture, class, er, requirement."
+        }
+      ],
+      "executionDecision": {
+        "family": {
+          "id": "family:timeline",
+          "version": "1.0.0"
+        },
+        "backend": {
+          "mode": "scene",
+          "requestedId": "default",
+          "selectedId": "backend:default",
+          "version": "1.0.0",
+          "hostPolicy": false
+        },
+        "digest": "fnv1a64:06fd86198cae770e"
+      },
+      "graphicalProjectionDigest": "fnv1a64:3a41fe43b84cd06b",
+      "layoutCertification": {
+        "version": 1,
+        "unit": "px",
+        "scope": "native-scene",
+        "status": "unverified",
+        "viewport": {
+          "x": 0,
+          "y": 0,
+          "width": 192,
+          "height": 288.2
+        },
+        "attempts": 1,
+        "repairs": [],
+        "coverage": {
+          "measured": 11,
+          "unmeasured": 0,
+          "preparedText": 4,
+          "fallbackText": 0,
+          "conditional": 0
+        },
+        "checks": {
+          "primitives": 14,
+          "labels": 3,
+          "occlusionPairs": 0,
+          "maxOcclusionPairs": 100000,
+          "operations": 17089,
+          "maxOperations": 400000,
+          "markers": 0
+        },
+        "issues": [
+          {
+            "code": "OUTPUT_SCOPE",
+            "message": "Emitted document context or marker resource differs from retained paint evidence"
+          }
+        ],
+        "limitations": [
+          "Prepared occupied text regions bound native geometry; exact glyph ink depends on the resolved font.",
+          "Declared transparency, intentional data-mark overlap and externally modified CSS are outside this proof."
+        ],
+        "outputDigest": "fnv1a64:3a41fe43b84cd06b"
+      }
+    },
+    "wholeBytes": 8089,
+    "receiptBytes": 4008
+  },
+  "paint": {
+    "checks": [
+      {
+        "criterion": "svg-root",
+        "expected": "mounted SVG",
+        "actual": "svg",
+        "status": "passed",
+        "scope": "Actual public SVG result"
+      },
+      {
+        "criterion": "svg-unique-ids",
+        "expected": 1,
+        "actual": 1,
+        "status": "passed",
+        "scope": "Duplicate SVG identities can change marker, clip and owned-label references"
+      },
+      {
+        "criterion": "canvas",
+        "expected": "positive finite rendered canvas",
+        "actual": {
+          "x": 0,
+          "y": 0,
+          "width": 192,
+          "height": 288.1875
+        },
+        "status": "passed",
+        "scope": "Actual browser viewport of the returned SVG"
+      },
+      {
+        "criterion": "visible-authored-labels",
+        "expected": [
+          "Delivery",
+          "2026",
+          "Launch",
+          "Review"
+        ],
+        "actual": [
+          {
+            "label": "Delivery",
+            "count": 1
+          },
+          {
+            "label": "2026",
+            "count": 1
+          },
+          {
+            "label": "Launch",
+            "count": 1
+          },
+          {
+            "label": "Review",
+            "count": 1
+          }
+        ],
+        "status": "passed",
+        "scope": "Computed visibility and nonzero browser text bounds; metadata/title/defs text earns no credit"
+      },
+      {
+        "criterion": "labels-within-canvas",
+        "expected": "every authored label fits the canvas",
+        "actual": [],
+        "status": "passed",
+        "scope": "Actual rendered label bounds, with 1.5 CSS-pixel serialization tolerance"
+      },
+      {
+        "criterion": "unclipped-authored-labels",
+        "expected": [],
+        "actual": [],
+        "status": "passed",
+        "scope": "Actual self/ancestor clipping and overflow; unprojected masks/clip paths remain unavailable"
+      },
+      {
+        "criterion": "visible-ink",
+        "expected": "nonempty visible diagram geometry",
+        "actual": 7,
+        "status": "passed",
+        "scope": "Visible geometric elements; unprojected use/HTML/image-only ink remains unavailable, not a drawing defect"
+      },
+      {
+        "criterion": "paint-opacity-and-color",
+        "expected": "resolved visible paint colors/alpha",
+        "actual": [],
+        "status": "passed",
+        "scope": "Unresolved paint servers/context colors cannot silently earn a visible-ink or complete-style claim"
+      }
+    ],
+    "complete": true,
+    "passed": true,
+    "nodes": [],
+    "connections": [],
+    "viewBox": "0 0 192 288.2"
+  },
+  "quantitative": [],
+  "quality": {
+    "width": 192,
+    "height": 288.2,
+    "area": 55334.399999999994,
+    "viewportScope": "actual viewBox SVG units",
+    "ownedCarriers": 0,
+    "contactCounts": {
+      "status": "unavailable",
+      "reason": "No enrolled exact SVG node-boundary contact observer"
+    },
+    "browserCenterline": {
+      "status": "unavailable"
+    },
+    "linear": {
+      "status": "unavailable",
+      "reason": "No enrolled owned SVG edge carriers; not a zero-crossing assertion"
+    }
+  },
+  "scope": "Unmodified Trident meaning + actual Chromium paint/quantitative observers on full Node SVG/receipt; exact strict linear metrics only where enrolled ownership/geometry allow. No browser renderer execution or speed claim."
+}

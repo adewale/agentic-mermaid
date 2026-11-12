@@ -1,0 +1,6 @@
+{
+  "version": "154.0.8037.57",
+  "blockedRequests": [],
+  "fonts": "Four manifest-verified Inter faces; other fallback fonts unqualified.",
+  "scope": "Actual SVG DOM metrics and1400x1000 failed-case viewport screenshots; not whole-diagram screenshot qualification."
+}

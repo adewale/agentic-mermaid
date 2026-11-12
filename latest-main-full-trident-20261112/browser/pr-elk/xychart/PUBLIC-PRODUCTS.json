@@ -1,0 +1,102 @@
+[
+  {
+    "call": 1,
+    "role": "standard-family-support-probe",
+    "source": "xychart-beta\ntitle \"Series\"\nx-axis [One, Two, Three]\ny-axis \"Count\" 0 --> 10\nbar [3, 7, 5]\nline [2, 6, 4]",
+    "status": "returned",
+    "svgBytes": 10563,
+    "receiptBytes": 8100,
+    "wholeBytes": 19760,
+    "proof": {
+      "version": 1,
+      "unit": "px",
+      "scope": "native-scene",
+      "status": "unverified",
+      "viewport": {
+        "x": 0,
+        "y": 0,
+        "width": 700,
+        "height": 500
+      },
+      "attempts": 1,
+      "repairs": [],
+      "coverage": {
+        "measured": 52,
+        "unmeasured": 0,
+        "preparedText": 18,
+        "fallbackText": 0,
+        "conditional": 0
+      },
+      "checks": {
+        "primitives": 54,
+        "labels": 18,
+        "occlusionPairs": 0,
+        "maxOcclusionPairs": 100000,
+        "operations": 23133,
+        "maxOperations": 400000,
+        "markers": 0
+      },
+      "issues": [
+        {
+          "code": "OUTPUT_SCOPE",
+          "message": "Emitted document context or marker resource differs from retained paint evidence"
+        }
+      ],
+      "limitations": [
+        "Prepared occupied text regions bound native geometry; exact glyph ink depends on the resolved font.",
+        "Declared transparency, intentional data-mark overlap and externally modified CSS are outside this proof."
+      ],
+      "outputDigest": "fnv1a64:3170811d2f3111f6"
+    }
+  },
+  {
+    "call": 2,
+    "role": "enrolled-family",
+    "source": "xychart-beta\ntitle \"Series\"\nx-axis [One, Two, Three]\ny-axis \"Count\" 0 --> 10\nbar [3, 7, 5]\nline [2, 6, 4]",
+    "status": "returned",
+    "svgBytes": 10563,
+    "receiptBytes": 8100,
+    "wholeBytes": 19760,
+    "proof": {
+      "version": 1,
+      "unit": "px",
+      "scope": "native-scene",
+      "status": "unverified",
+      "viewport": {
+        "x": 0,
+        "y": 0,
+        "width": 700,
+        "height": 500
+      },
+      "attempts": 1,
+      "repairs": [],
+      "coverage": {
+        "measured": 52,
+        "unmeasured": 0,
+        "preparedText": 18,
+        "fallbackText": 0,
+        "conditional": 0
+      },
+      "checks": {
+        "primitives": 54,
+        "labels": 18,
+        "occlusionPairs": 0,
+        "maxOcclusionPairs": 100000,
+        "operations": 23133,
+        "maxOperations": 400000,
+        "markers": 0
+      },
+      "issues": [
+        {
+          "code": "OUTPUT_SCOPE",
+          "message": "Emitted document context or marker resource differs from retained paint evidence"
+        }
+      ],
+      "limitations": [
+        "Prepared occupied text regions bound native geometry; exact glyph ink depends on the resolved font.",
+        "Declared transparency, intentional data-mark overlap and externally modified CSS are outside this proof."
+      ],
+      "outputDigest": "fnv1a64:3170811d2f3111f6"
+    }
+  }
+]

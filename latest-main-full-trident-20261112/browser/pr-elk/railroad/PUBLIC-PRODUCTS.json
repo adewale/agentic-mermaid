@@ -1,0 +1,92 @@
+[
+  {
+    "call": 1,
+    "role": "standard-family-support-probe",
+    "source": "railroad-ebnf-beta\nalpha = \"beta\" | gamma ;\ngamma = \"delta\" ;",
+    "status": "returned",
+    "svgBytes": 3252,
+    "receiptBytes": 3892,
+    "wholeBytes": 7414,
+    "proof": {
+      "version": 1,
+      "unit": "px",
+      "scope": "native-scene",
+      "status": "passed",
+      "viewport": {
+        "x": 0,
+        "y": 0,
+        "width": 249.964,
+        "height": 277.9
+      },
+      "attempts": 1,
+      "repairs": [],
+      "coverage": {
+        "measured": 10,
+        "unmeasured": 0,
+        "preparedText": 5,
+        "fallbackText": 0,
+        "conditional": 0
+      },
+      "checks": {
+        "primitives": 12,
+        "labels": 3,
+        "occlusionPairs": 0,
+        "maxOcclusionPairs": 100000,
+        "operations": 11961,
+        "maxOperations": 400000,
+        "markers": 0
+      },
+      "issues": [],
+      "limitations": [
+        "Prepared occupied text regions bound native geometry; exact glyph ink depends on the resolved font.",
+        "Declared transparency, intentional data-mark overlap and externally modified CSS are outside this proof."
+      ],
+      "outputDigest": "fnv1a64:c6a8d0be04686acf"
+    }
+  },
+  {
+    "call": 2,
+    "role": "enrolled-family",
+    "source": "railroad-ebnf-beta\nalpha = \"beta\" | gamma ;\ngamma = \"delta\" ;",
+    "status": "returned",
+    "svgBytes": 3252,
+    "receiptBytes": 3892,
+    "wholeBytes": 7414,
+    "proof": {
+      "version": 1,
+      "unit": "px",
+      "scope": "native-scene",
+      "status": "passed",
+      "viewport": {
+        "x": 0,
+        "y": 0,
+        "width": 249.964,
+        "height": 277.9
+      },
+      "attempts": 1,
+      "repairs": [],
+      "coverage": {
+        "measured": 10,
+        "unmeasured": 0,
+        "preparedText": 5,
+        "fallbackText": 0,
+        "conditional": 0
+      },
+      "checks": {
+        "primitives": 12,
+        "labels": 3,
+        "occlusionPairs": 0,
+        "maxOcclusionPairs": 100000,
+        "operations": 11961,
+        "maxOperations": 400000,
+        "markers": 0
+      },
+      "issues": [],
+      "limitations": [
+        "Prepared occupied text regions bound native geometry; exact glyph ink depends on the resolved font.",
+        "Declared transparency, intentional data-mark overlap and externally modified CSS are outside this proof."
+      ],
+      "outputDigest": "fnv1a64:c6a8d0be04686acf"
+    }
+  }
+]

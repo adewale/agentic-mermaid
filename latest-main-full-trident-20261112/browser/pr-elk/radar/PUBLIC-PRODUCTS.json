@@ -1,0 +1,92 @@
+[
+  {
+    "call": 1,
+    "role": "standard-family-support-probe",
+    "source": "radar-beta\ntitle Skills\naxis speed[\"Speed\"], power[\"Power\"], range[\"Range\"]\ncurve now[\"Current\"]{3, 4, 2}\nmax 5\nshowLegend true",
+    "status": "returned",
+    "svgBytes": 4390,
+    "receiptBytes": 3508,
+    "wholeBytes": 8337,
+    "proof": {
+      "version": 1,
+      "unit": "px",
+      "scope": "native-scene",
+      "status": "passed",
+      "viewport": {
+        "x": 0,
+        "y": 0,
+        "width": 460.98,
+        "height": 349.65
+      },
+      "attempts": 1,
+      "repairs": [],
+      "coverage": {
+        "measured": 18,
+        "unmeasured": 0,
+        "preparedText": 5,
+        "fallbackText": 0,
+        "conditional": 0
+      },
+      "checks": {
+        "primitives": 20,
+        "labels": 5,
+        "occlusionPairs": 0,
+        "maxOcclusionPairs": 100000,
+        "operations": 13556,
+        "maxOperations": 400000,
+        "markers": 0
+      },
+      "issues": [],
+      "limitations": [
+        "Prepared occupied text regions bound native geometry; exact glyph ink depends on the resolved font.",
+        "Declared transparency, intentional data-mark overlap and externally modified CSS are outside this proof."
+      ],
+      "outputDigest": "fnv1a64:23b9304ab256434f"
+    }
+  },
+  {
+    "call": 2,
+    "role": "enrolled-family",
+    "source": "radar-beta\ntitle Skills\naxis speed[\"Speed\"], power[\"Power\"], range[\"Range\"]\ncurve now[\"Current\"]{3, 4, 2}\nmax 5\nshowLegend true",
+    "status": "returned",
+    "svgBytes": 4390,
+    "receiptBytes": 3508,
+    "wholeBytes": 8337,
+    "proof": {
+      "version": 1,
+      "unit": "px",
+      "scope": "native-scene",
+      "status": "passed",
+      "viewport": {
+        "x": 0,
+        "y": 0,
+        "width": 460.98,
+        "height": 349.65
+      },
+      "attempts": 1,
+      "repairs": [],
+      "coverage": {
+        "measured": 18,
+        "unmeasured": 0,
+        "preparedText": 5,
+        "fallbackText": 0,
+        "conditional": 0
+      },
+      "checks": {
+        "primitives": 20,
+        "labels": 5,
+        "occlusionPairs": 0,
+        "maxOcclusionPairs": 100000,
+        "operations": 13556,
+        "maxOperations": 400000,
+        "markers": 0
+      },
+      "issues": [],
+      "limitations": [
+        "Prepared occupied text regions bound native geometry; exact glyph ink depends on the resolved font.",
+        "Declared transparency, intentional data-mark overlap and externally modified CSS are outside this proof."
+      ],
+      "outputDigest": "fnv1a64:23b9304ab256434f"
+    }
+  }
+]

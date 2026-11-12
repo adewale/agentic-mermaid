@@ -1,0 +1,1 @@
+import{Z as e}from"./chunk-1DBB63C7.js";function t(t,i,r){let n=e(t,[i,r]);return"number"==typeof n&&Number.isFinite(n)&&n>=0?n:void 0}var i=/^direction\s+(TB|TD|BT|LR|RL)\s*$/i;function r(e){let t=e.match(i);return t?t[1].toUpperCase():void 0}export{t as e,r as i};

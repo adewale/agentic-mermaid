@@ -1,0 +1,134 @@
+{
+  "id": "features:flowchart:font-size-reset",
+  "family": "flowchart",
+  "target": "pr",
+  "backend": "agentic",
+  "stem": "86-features_flowchart_font-size-reset-pr-agentic",
+  "expectationDepth": "reviewed declared authored fields only",
+  "preludes": [
+    {
+      "accepted": true,
+      "expected": true
+    }
+  ],
+  "acquired": {
+    "status": "accepted",
+    "publicAccepted": true,
+    "raw": {
+      "kind": "flowchart",
+      "graph": {
+        "direction": "TB",
+        "nodes": {},
+        "edges": [
+          {
+            "source": "A",
+            "target": "B",
+            "style": "solid",
+            "hasArrowStart": false,
+            "hasArrowEnd": true,
+            "endMarker": "arrow"
+          }
+        ],
+        "subgraphs": [],
+        "classDefs": {},
+        "classAssignments": {},
+        "nodeStyles": {},
+        "linkStyles": {}
+      }
+    },
+    "family": "flowchart",
+    "scope": "Canonical projection of actual public parser return/getDiagramFromText DB; authored expectations are independent",
+    "meaning": {
+      "family": "flowchart",
+      "facts": {
+        "direction": "TB",
+        "image-requests": []
+      },
+      "unavailable": {},
+      "nodes": [
+        {
+          "id": "A",
+          "label": "Current"
+        },
+        {
+          "id": "B",
+          "label": "Configuration"
+        }
+      ],
+      "edges": [
+        {
+          "source": "A",
+          "target": "B",
+          "directed": true,
+          "label": "",
+          "startMarker": "none",
+          "endMarker": "arrow"
+        }
+      ],
+      "groups": []
+    }
+  },
+  "meaning": {
+    "complete": true,
+    "passed": true,
+    "checks": [
+      {
+        "criterion": "family",
+        "status": "passed",
+        "expected": "flowchart",
+        "actual": "flowchart",
+        "scope": "Returned native family; a source-preservation envelope is not native admission."
+      },
+      {
+        "criterion": "identities",
+        "status": "passed",
+        "expected": [
+          "\"A\"",
+          "\"B\""
+        ],
+        "actual": [
+          "\"A\"",
+          "\"B\""
+        ],
+        "scope": "Exact authored identity multiset, including duplicate and omitted identities."
+      },
+      {
+        "criterion": "node-labels",
+        "status": "passed",
+        "expected": [
+          "{\"id\":\"A\",\"label\":\"Current\"}",
+          "{\"id\":\"B\",\"label\":\"Configuration\"}"
+        ],
+        "actual": [
+          "{\"id\":\"A\",\"label\":\"Current\"}",
+          "{\"id\":\"B\",\"label\":\"Configuration\"}"
+        ],
+        "scope": "Authored identity-to-label binding; NFC/whitespace normalization applies to display labels, never identity strings."
+      },
+      {
+        "criterion": "relationships",
+        "status": "passed",
+        "expected": [
+          "{\"directed\":true,\"label\":\"\",\"source\":\"A\",\"target\":\"B\"}"
+        ],
+        "actual": [
+          "{\"directed\":true,\"label\":\"\",\"source\":\"A\",\"target\":\"B\"}"
+        ],
+        "scope": "Exact endpoint/direction/declared-marker/label multiset; parallel and reciprocal relationships remain distinct."
+      },
+      {
+        "criterion": "fact:direction",
+        "status": "passed",
+        "expected": "TB",
+        "actual": "TB",
+        "scope": "Independently declared family content with meaningful ordering retained."
+      }
+    ]
+  },
+  "rendered": {
+    "accepted": false,
+    "error": "RenderConfigError: Invalid RenderOptions: unknown render option \"fontSize\"",
+    "name": "RenderConfigError"
+  },
+  "scope": "Unmodified Trident meaning + actual Chromium paint/quantitative observers on full Node SVG/receipt; exact strict linear metrics only where enrolled ownership/geometry allow. No browser renderer execution or speed claim."
+}

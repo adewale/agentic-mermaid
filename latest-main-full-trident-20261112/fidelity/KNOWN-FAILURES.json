@@ -1,0 +1,150 @@
+[
+  {
+    "target": "pr",
+    "backend": "agentic",
+    "id": "features:flowchart:font-size-reset",
+    "family": "flowchart",
+    "meaning": [],
+    "paint": [],
+    "quantitative": [],
+    "error": "RenderConfigError: Invalid RenderOptions: unknown render option \"fontSize\""
+  },
+  {
+    "target": "pr",
+    "backend": "agentic",
+    "id": "features:flowchart:font-size-reset:edit",
+    "family": "flowchart",
+    "meaning": [],
+    "paint": [],
+    "quantitative": [],
+    "error": "RenderConfigError: Invalid RenderOptions: unknown render option \"fontSize\""
+  },
+  {
+    "target": "pr",
+    "backend": "agentic",
+    "id": "meaning:required:eventmodeling",
+    "family": "eventmodeling",
+    "meaning": [
+      {
+        "criterion": "identities",
+        "status": "failed",
+        "expected": [
+          "\"01\"",
+          "\"02\"",
+          "\"03\""
+        ],
+        "actual": [],
+        "scope": "Exact authored identity multiset, including duplicate and omitted identities."
+      },
+      {
+        "criterion": "node-labels",
+        "status": "failed",
+        "expected": [
+          "{\"id\":\"01\",\"label\":\"CartUI\"}",
+          "{\"id\":\"02\",\"label\":\"AddItem\"}",
+          "{\"id\":\"03\",\"label\":\"ItemAdded\"}"
+        ],
+        "actual": [],
+        "scope": "Authored identity-to-label binding; NFC/whitespace normalization applies to display labels, never identity strings."
+      },
+      {
+        "criterion": "relationships",
+        "status": "failed",
+        "expected": [
+          "{\"directed\":true,\"label\":\"\",\"source\":\"01\",\"target\":\"02\"}",
+          "{\"directed\":true,\"label\":\"\",\"source\":\"02\",\"target\":\"03\"}"
+        ],
+        "actual": [],
+        "scope": "Exact endpoint/direction/declared-marker/label multiset; parallel and reciprocal relationships remain distinct."
+      },
+      {
+        "criterion": "fact:frame-order",
+        "status": "failed",
+        "expected": [
+          "CartUI",
+          "AddItem",
+          "ItemAdded"
+        ],
+        "actual": [],
+        "scope": "Independently declared family content with meaningful ordering retained."
+      }
+    ],
+    "paint": [],
+    "quantitative": [],
+    "error": null
+  },
+  {
+    "target": "pr",
+    "backend": "elk",
+    "id": "features:flowchart:font-size-reset",
+    "family": "flowchart",
+    "meaning": [],
+    "paint": [],
+    "quantitative": [],
+    "error": "RenderConfigError: Invalid RenderOptions: unknown render option \"fontSize\""
+  },
+  {
+    "target": "pr",
+    "backend": "elk",
+    "id": "features:flowchart:font-size-reset:edit",
+    "family": "flowchart",
+    "meaning": [],
+    "paint": [],
+    "quantitative": [],
+    "error": "RenderConfigError: Invalid RenderOptions: unknown render option \"fontSize\""
+  },
+  {
+    "target": "pr",
+    "backend": "elk",
+    "id": "meaning:required:eventmodeling",
+    "family": "eventmodeling",
+    "meaning": [
+      {
+        "criterion": "identities",
+        "status": "failed",
+        "expected": [
+          "\"01\"",
+          "\"02\"",
+          "\"03\""
+        ],
+        "actual": [],
+        "scope": "Exact authored identity multiset, including duplicate and omitted identities."
+      },
+      {
+        "criterion": "node-labels",
+        "status": "failed",
+        "expected": [
+          "{\"id\":\"01\",\"label\":\"CartUI\"}",
+          "{\"id\":\"02\",\"label\":\"AddItem\"}",
+          "{\"id\":\"03\",\"label\":\"ItemAdded\"}"
+        ],
+        "actual": [],
+        "scope": "Authored identity-to-label binding; NFC/whitespace normalization applies to display labels, never identity strings."
+      },
+      {
+        "criterion": "relationships",
+        "status": "failed",
+        "expected": [
+          "{\"directed\":true,\"label\":\"\",\"source\":\"01\",\"target\":\"02\"}",
+          "{\"directed\":true,\"label\":\"\",\"source\":\"02\",\"target\":\"03\"}"
+        ],
+        "actual": [],
+        "scope": "Exact endpoint/direction/declared-marker/label multiset; parallel and reciprocal relationships remain distinct."
+      },
+      {
+        "criterion": "fact:frame-order",
+        "status": "failed",
+        "expected": [
+          "CartUI",
+          "AddItem",
+          "ItemAdded"
+        ],
+        "actual": [],
+        "scope": "Independently declared family content with meaningful ordering retained."
+      }
+    ],
+    "paint": [],
+    "quantitative": [],
+    "error": null
+  }
+]

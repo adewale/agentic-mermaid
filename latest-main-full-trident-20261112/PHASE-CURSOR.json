@@ -1,24 +1,24 @@
 {
-  "at": "2026-11-12T22:57:23.746255+00:00",
-  "status": "BLOCKED_PENDING_OWNER_APPROVAL",
-  "next": "Owneranswer for31verifiedhistoricaldata path-preserving relocation, thenapprovedatomicreplacement/headroomverification, thenpilot.ts",
+  "at": "2026-11-12T23:30:46.936194+00:00",
+  "status": "ACTIVE_FUNCTIONAL_COMPLETE",
+  "next": "performance.ts2976serialworkers; allbrowsersclosed",
   "completed": [
     "fetchMain913andancestorcheck; alreadyuptodate",
     "canonical689packageverifiedrecovery",
     "existingcollectorroot/armadaptation",
     "62portable/99fidelityinputs and exploratorysamplingfrozen",
-    "31datacopieshashverified; originalsregular"
+    "31datacopieshashverified; originalsregular",
+    "ownerapproved31pathrelocation verified",
+    "portable124",
+    "fidelity198",
+    "browser66+styled4;allclosed"
   ],
   "notStarted": [
-    "portable124rows",
-    "fidelity198rows",
-    "browser66lanes",
-    "styled4lanes",
     "stock2976workers",
     "receipt432workers",
     "postreduction"
   ],
-  "pathReplacements": 0,
-  "approval": "Pending; do not retry rejected relocation or heavyworkers",
-  "lease": "Releaseaftercheckpoint; parentwillresumewhenownerapproves"
+  "pathReplacements": 31,
+  "approval": "Ownerapproved exact31relocation call_3296b55b19ce4519af810a6e1b2f0c31",
+  "lease": "Active through01:24UTC"
 }

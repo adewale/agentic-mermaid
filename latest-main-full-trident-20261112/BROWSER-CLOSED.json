@@ -1,0 +1,28 @@
+{
+  "at": "2026-11-12T23:30:46.936194+00:00",
+  "actualClosures": {
+    "fidelity": {
+      "browserClosed": true,
+      "rows": 198,
+      "total": 198
+    },
+    "browser": {
+      "browserOpened": 66,
+      "browserClosed": 66,
+      "openBrowsers": 0,
+      "rows": 66,
+      "total": 66,
+      "scope": "Every standard suite closes its browser and local server; any retained browser explicitly closed in collector finally. No browser processes intentionally retained."
+    },
+    "browser-styled": {
+      "browserOpened": 4,
+      "browserClosed": 4,
+      "openBrowsers": 0,
+      "rows": 4,
+      "total": 4,
+      "scope": "Every standard suite closes its browser and local server; any retained browser explicitly closed in collector finally. No browser processes intentionally retained."
+    }
+  },
+  "liveBrowserNodeBunProcesses": [],
+  "performanceHasNotStarted": true
+}

@@ -1,0 +1,1 @@
+function i(i){let n=i.familyBody.split(/\r?\n/),e=n.findIndex(n=>n.trim()===i.familyLines[0]);return[n[e]?.trim()??i.familyLines[0]??"",...n.slice(e+1)]}export{i};

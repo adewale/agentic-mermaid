@@ -1,0 +1,336 @@
+{
+  "target": "pr",
+  "backend": "agentic",
+  "family": "sankey",
+  "id": "family:sankey",
+  "status": "passed",
+  "selected": {
+    "suite": "community-browser",
+    "surface": "browser:public-api",
+    "runtime": "chromium",
+    "family": "sankey",
+    "caseId": "family:sankey",
+    "operation": "render",
+    "format": "svg",
+    "mode": "feature-corpus-qualification",
+    "status": "passed",
+    "bytes": 4239,
+    "findings": [],
+    "metrics": {
+      "implementation": "adewale/agentic-mermaid",
+      "apiBoundary": "Actual public lazy renderMermaidSVGWithReceiptAsync with explicit backend/fallback none; full original object serialized/retained by observation transport before unchanged declaredRenderer/Trident SVG qualification. No timing claim.",
+      "round": 1,
+      "rejected": false,
+      "xmlWellFormed": true,
+      "outputFile": null,
+      "firstMs": 18.200000047683716,
+      "iterations": null,
+      "version": "0.5.7",
+      "qualification": "XML-canvas-and-authored-labels",
+      "cache": "public-default-repeats"
+    }
+  },
+  "support": [
+    {
+      "suite": "community-browser",
+      "surface": "browser:public-api",
+      "runtime": "chromium",
+      "family": "sankey",
+      "caseId": "family-support:sankey",
+      "operation": "family-support",
+      "format": "svg",
+      "mode": "family-support-probe",
+      "status": "passed",
+      "bytes": 4239,
+      "findings": [],
+      "metrics": {
+        "implementation": "adewale/agentic-mermaid",
+        "apiBoundary": "Actual public lazy renderMermaidSVGWithReceiptAsync with explicit backend/fallback none; full original object serialized/retained by observation transport before unchanged declaredRenderer/Trident SVG qualification. No timing claim.",
+        "round": 1,
+        "rejected": false,
+        "xmlWellFormed": true,
+        "outputFile": null,
+        "firstMs": 256,
+        "iterations": null,
+        "version": "0.5.7",
+        "qualification": "XML-canvas-and-authored-labels",
+        "cache": "public-default-repeats"
+      }
+    }
+  ],
+  "heap": {
+    "suite": "community-browser",
+    "surface": "browser:public-api",
+    "runtime": "chromium-v8",
+    "family": "*",
+    "caseId": "post-portfolio-heap",
+    "operation": "memory",
+    "format": "svg",
+    "mode": "after-round-1",
+    "status": "passed",
+    "metrics": {
+      "implementation": "adewale/agentic-mermaid",
+      "round": 1,
+      "jsHeapUsedBytes": 4031772,
+      "portfolioCaseCount": 1,
+      "featureCases": 1,
+      "note": "Fresh realm, forced GC after this round portfolio; not native/WASM/process memory"
+    }
+  },
+  "requests": 13,
+  "totals": {
+    "raw": 627594,
+    "gzip9": 206715,
+    "brotli11": 172296
+  },
+  "product": {
+    "raw": 625724,
+    "gzip9": 205788,
+    "brotli11": 171529
+  },
+  "adapter": {
+    "raw": 1870,
+    "gzip9": 927,
+    "brotli11": 767
+  },
+  "fetched": [
+    {
+      "url": "/entry.mjs",
+      "bytes": 905,
+      "gzip": 430,
+      "sha256": "02e58d64ef5f565d2c6901aec190238474e6f73398184bec29120e283a084760",
+      "raw": 905,
+      "gzip9": 430,
+      "brotli11": 359,
+      "actualSha256": "02e58d64ef5f565d2c6901aec190238474e6f73398184bec29120e283a084760",
+      "kind": "Trident binding/observation transport"
+    },
+    {
+      "url": "/browser-lazy/index.js",
+      "bytes": 4344,
+      "gzip": 1550,
+      "sha256": "56482a1831b411fcdc81f097e07c78d77a49ada31bdcb3df2a875aeaf3385dad",
+      "raw": 4344,
+      "gzip9": 1550,
+      "brotli11": 1315,
+      "actualSha256": "56482a1831b411fcdc81f097e07c78d77a49ada31bdcb3df2a875aeaf3385dad",
+      "kind": "actual product module"
+    },
+    {
+      "url": "/declared-adapter.mjs",
+      "bytes": 965,
+      "gzip": 497,
+      "sha256": "2db9f4b28ad5d21417101446f0fb5375d6281898daeff495295504eae98cd103",
+      "raw": 965,
+      "gzip9": 497,
+      "brotli11": 408,
+      "actualSha256": "2db9f4b28ad5d21417101446f0fb5375d6281898daeff495295504eae98cd103",
+      "kind": "Trident binding/observation transport"
+    },
+    {
+      "url": "/browser-lazy/chunks/chunk-Z5FFVCUF.js",
+      "bytes": 5103,
+      "gzip": 2003,
+      "sha256": "30e5de7004b351e437374ab5ffccba7025aa4ac6b773bda90f2ea90744111b2e",
+      "raw": 5103,
+      "gzip9": 2003,
+      "brotli11": 1826,
+      "actualSha256": "30e5de7004b351e437374ab5ffccba7025aa4ac6b773bda90f2ea90744111b2e",
+      "kind": "actual product module"
+    },
+    {
+      "url": "/browser-lazy/chunks/chunk-IRIK7OOK.js",
+      "bytes": 6562,
+      "gzip": 2378,
+      "sha256": "0564120dec9fe0cc5f659ada8afa171c37621007ebbdd54d91df1c54c7707d6d",
+      "raw": 6562,
+      "gzip9": 2378,
+      "brotli11": 2175,
+      "actualSha256": "0564120dec9fe0cc5f659ada8afa171c37621007ebbdd54d91df1c54c7707d6d",
+      "kind": "actual product module"
+    },
+    {
+      "url": "/browser-lazy/chunks/chunk-TX43CKOC.js",
+      "bytes": 440,
+      "gzip": 284,
+      "sha256": "32f2e061f17b0958551c522cf707b97162f11e6f3fdc44667276459410366258",
+      "raw": 440,
+      "gzip9": 284,
+      "brotli11": 229,
+      "actualSha256": "32f2e061f17b0958551c522cf707b97162f11e6f3fdc44667276459410366258",
+      "kind": "actual product module"
+    },
+    {
+      "url": "/browser-lazy/chunks/sankey-X425KJG3.js",
+      "bytes": 25148,
+      "gzip": 8971,
+      "sha256": "f82e047efdf8bfabd1f9fe3682496f1825982fefbb958dc3e1b4286fe7b2b30d",
+      "raw": 25148,
+      "gzip9": 8971,
+      "brotli11": 8073,
+      "actualSha256": "f82e047efdf8bfabd1f9fe3682496f1825982fefbb958dc3e1b4286fe7b2b30d",
+      "kind": "actual product module"
+    },
+    {
+      "url": "/browser-lazy/chunks/chunk-RGKK624U.js",
+      "bytes": 383,
+      "gzip": 288,
+      "sha256": "182a336909f73826538efdd4772df03ec2a75b871a8102fb7fa7ff0c322366d8",
+      "raw": 383,
+      "gzip9": 288,
+      "brotli11": 259,
+      "actualSha256": "182a336909f73826538efdd4772df03ec2a75b871a8102fb7fa7ff0c322366d8",
+      "kind": "actual product module"
+    },
+    {
+      "url": "/browser-lazy/chunks/chunk-C2WOP7NN.js",
+      "bytes": 8653,
+      "gzip": 3927,
+      "sha256": "de3ef00d134fa3af10f348d6654d610c57c3fa09030dad3a653f162db799950a",
+      "raw": 8653,
+      "gzip9": 3927,
+      "brotli11": 3523,
+      "actualSha256": "de3ef00d134fa3af10f348d6654d610c57c3fa09030dad3a653f162db799950a",
+      "kind": "actual product module"
+    },
+    {
+      "url": "/browser-lazy/chunks/chunk-TL47WWMI.js",
+      "bytes": 1688,
+      "gzip": 697,
+      "sha256": "d33eeb83208694f84b9681bbaa7cedfabf9d5376636c684ecf78de7a204d74ed",
+      "raw": 1688,
+      "gzip9": 697,
+      "brotli11": 621,
+      "actualSha256": "d33eeb83208694f84b9681bbaa7cedfabf9d5376636c684ecf78de7a204d74ed",
+      "kind": "actual product module"
+    },
+    {
+      "url": "/browser-lazy/chunks/chunk-OZYHVKO2.js",
+      "bytes": 7633,
+      "gzip": 1706,
+      "sha256": "daae0619bc0ec02d0d90d2108156b16b85d5321dbe6cccf0ad14514944707a5d",
+      "raw": 7633,
+      "gzip9": 1706,
+      "brotli11": 1572,
+      "actualSha256": "daae0619bc0ec02d0d90d2108156b16b85d5321dbe6cccf0ad14514944707a5d",
+      "kind": "actual product module"
+    },
+    {
+      "url": "/browser-lazy/chunks/chunk-7NEWL4HP.js",
+      "bytes": 1850,
+      "gzip": 904,
+      "sha256": "cd8d24faa177f0c9a8c5276bbfd24a72d0b5a42c04801edf3aaed9eda23d9616",
+      "raw": 1850,
+      "gzip9": 904,
+      "brotli11": 808,
+      "actualSha256": "cd8d24faa177f0c9a8c5276bbfd24a72d0b5a42c04801edf3aaed9eda23d9616",
+      "kind": "actual product module"
+    },
+    {
+      "url": "/browser-lazy/chunks/chunk-1DBB63C7.js",
+      "bytes": 563920,
+      "gzip": 183080,
+      "sha256": "bf9c1bb4d4d48dea259b7235ee21e51b8c3f0ebb29d8002d7750c1b877c909f9",
+      "raw": 563920,
+      "gzip9": 183080,
+      "brotli11": 151128,
+      "actualSha256": "bf9c1bb4d4d48dea259b7235ee21e51b8c3f0ebb29d8002d7750c1b877c909f9",
+      "kind": "actual product module"
+    }
+  ],
+  "publicProducts": [
+    {
+      "call": 1,
+      "role": "standard-family-support-probe",
+      "source": "sankey-beta\nAlpha,Beta,5\nBeta,Gamma,5",
+      "status": "returned",
+      "svgBytes": 4239,
+      "receiptBytes": 7599,
+      "wholeBytes": 12238,
+      "proof": {
+        "version": 1,
+        "unit": "px",
+        "scope": "native-scene",
+        "status": "passed",
+        "viewport": {
+          "x": 0,
+          "y": 0,
+          "width": 648,
+          "height": 448
+        },
+        "attempts": 1,
+        "repairs": [],
+        "coverage": {
+          "measured": 8,
+          "unmeasured": 0,
+          "preparedText": 3,
+          "fallbackText": 0,
+          "conditional": 0
+        },
+        "checks": {
+          "primitives": 11,
+          "labels": 3,
+          "occlusionPairs": 6,
+          "maxOcclusionPairs": 100000,
+          "operations": 16806,
+          "maxOperations": 400000,
+          "markers": 0
+        },
+        "issues": [],
+        "limitations": [
+          "Prepared occupied text regions bound native geometry; exact glyph ink depends on the resolved font.",
+          "Declared transparency, intentional data-mark overlap and externally modified CSS are outside this proof."
+        ],
+        "outputDigest": "fnv1a64:bcff968803076fc9"
+      }
+    },
+    {
+      "call": 2,
+      "role": "enrolled-family",
+      "source": "sankey-beta\nAlpha,Beta,5\nBeta,Gamma,5",
+      "status": "returned",
+      "svgBytes": 4239,
+      "receiptBytes": 7599,
+      "wholeBytes": 12238,
+      "proof": {
+        "version": 1,
+        "unit": "px",
+        "scope": "native-scene",
+        "status": "passed",
+        "viewport": {
+          "x": 0,
+          "y": 0,
+          "width": 648,
+          "height": 448
+        },
+        "attempts": 1,
+        "repairs": [],
+        "coverage": {
+          "measured": 8,
+          "unmeasured": 0,
+          "preparedText": 3,
+          "fallbackText": 0,
+          "conditional": 0
+        },
+        "checks": {
+          "primitives": 11,
+          "labels": 3,
+          "occlusionPairs": 6,
+          "maxOcclusionPairs": 100000,
+          "operations": 16806,
+          "maxOperations": 400000,
+          "markers": 0
+        },
+        "issues": [],
+        "limitations": [
+          "Prepared occupied text regions bound native geometry; exact glyph ink depends on the resolved font.",
+          "Declared transparency, intentional data-mark overlap and externally modified CSS are outside this proof."
+        ],
+        "outputDigest": "fnv1a64:bcff968803076fc9"
+      }
+    }
+  ],
+  "observerErrors": [],
+  "remoteRequestsBlocked": [],
+  "scope": "One fresh family realm. Actual request union and post-GC JS heap include mandatory same-family support probe plus enrolled source; binding separately reported; gzip9/Brotli11 actual fetched bytes, not claimed compressed wire transfer. Transport-instrumented raw times must not be used as API performance evidence."
+}

@@ -1,0 +1,546 @@
+{
+  "id": "meaning:family:radar",
+  "family": "radar",
+  "target": "pr",
+  "backend": "elk",
+  "stem": "14-meaning_family_radar-pr-elk",
+  "expectationDepth": "reviewed declared authored fields only",
+  "preludes": [],
+  "acquired": {
+    "status": "accepted",
+    "publicAccepted": true,
+    "raw": {
+      "kind": "radar",
+      "title": "Skills",
+      "axes": [
+        {
+          "id": "speed",
+          "label": "Speed"
+        },
+        {
+          "id": "power",
+          "label": "Power"
+        },
+        {
+          "id": "range",
+          "label": "Range"
+        }
+      ],
+      "curves": [
+        {
+          "id": "now",
+          "label": "Current",
+          "values": [
+            3,
+            4,
+            2
+          ]
+        }
+      ],
+      "min": 0,
+      "max": 5,
+      "ticks": 5,
+      "graticule": "circle",
+      "showLegend": true
+    },
+    "family": "radar",
+    "scope": "Canonical projection of actual public parser return/getDiagramFromText DB; authored expectations are independent",
+    "meaning": {
+      "family": "radar",
+      "facts": {
+        "title": "Skills",
+        "axes": [
+          {
+            "id": "speed",
+            "label": "Speed"
+          },
+          {
+            "id": "power",
+            "label": "Power"
+          },
+          {
+            "id": "range",
+            "label": "Range"
+          }
+        ],
+        "curves": [
+          {
+            "id": "now",
+            "label": "Current",
+            "values": [
+              3,
+              4,
+              2
+            ]
+          }
+        ],
+        "range": [
+          0,
+          5
+        ]
+      },
+      "unavailable": {},
+      "nodes": [
+        {
+          "id": "speed",
+          "label": "Speed"
+        },
+        {
+          "id": "power",
+          "label": "Power"
+        },
+        {
+          "id": "range",
+          "label": "Range"
+        }
+      ]
+    }
+  },
+  "meaning": {
+    "complete": true,
+    "passed": true,
+    "checks": [
+      {
+        "criterion": "family",
+        "status": "passed",
+        "expected": "radar",
+        "actual": "radar",
+        "scope": "Returned native family; a source-preservation envelope is not native admission."
+      },
+      {
+        "criterion": "fact:title",
+        "status": "passed",
+        "expected": "Skills",
+        "actual": "Skills",
+        "scope": "Independently declared family content with meaningful ordering retained."
+      },
+      {
+        "criterion": "fact:axes",
+        "status": "passed",
+        "expected": [
+          {
+            "id": "speed",
+            "label": "Speed"
+          },
+          {
+            "id": "power",
+            "label": "Power"
+          },
+          {
+            "id": "range",
+            "label": "Range"
+          }
+        ],
+        "actual": [
+          {
+            "id": "speed",
+            "label": "Speed"
+          },
+          {
+            "id": "power",
+            "label": "Power"
+          },
+          {
+            "id": "range",
+            "label": "Range"
+          }
+        ],
+        "scope": "Independently declared family content with meaningful ordering retained."
+      },
+      {
+        "criterion": "fact:curves",
+        "status": "passed",
+        "expected": [
+          {
+            "id": "now",
+            "label": "Current",
+            "values": [
+              3,
+              4,
+              2
+            ]
+          }
+        ],
+        "actual": [
+          {
+            "id": "now",
+            "label": "Current",
+            "values": [
+              3,
+              4,
+              2
+            ]
+          }
+        ],
+        "scope": "Independently declared family content with meaningful ordering retained."
+      },
+      {
+        "criterion": "fact:range",
+        "status": "passed",
+        "expected": [
+          0,
+          5
+        ],
+        "actual": [
+          0,
+          5
+        ],
+        "scope": "Independently declared family content with meaningful ordering retained."
+      }
+    ]
+  },
+  "rendered": {
+    "accepted": true,
+    "svg": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"460.98\" height=\"349.65\" viewBox=\"0 0 460.98 349.65\" style=\"--bg:#FFFFFF;--fg:#27272A;--font:Inter;background:#FFFFFF\" aria-labelledby=\"radar-189yd7n-title\" aria-roledescription=\"radar chart\" id=\"radar-189yd7n\" role=\"img\" class=\"am-0q77cu41ozs9gs\">\n<title id=\"radar-189yd7n-title\">Skills</title>\n<style>\n  svg.am-0q77cu41ozs9gs { font-family: var(--font, 'Inter'), system-ui, sans-serif; }\n  svg.am-0q77cu41ozs9gs {\n    /* Derived from --bg and --fg (overridable via --line, --accent, etc.) */\n    --_text:          #27272A;\n    --_text-sec:      #575759;\n    --_text-muted:    #707072;\n    --_text-faint:    #8a8a8c;\n    --_line:          #939395;\n    --_arrow:         #47474a;\n    --_node-fill:     #f9f9f9;\n    --_node-stroke:   #d4d4d4;\n    --_group-fill:    #FFFFFF;\n    --_group-hdr:     #f4f4f4;\n    --_inner-stroke:  #e5e5e5;\n    --_key-badge:     #e9e9ea;\n  }\n</style>\n<circle class=\"radar-ring\" cx=\"180.54\" cy=\"207.65\" r=\"24\" fill=\"none\" stroke=\"#939395\" stroke-opacity=\"0.7\" stroke-width=\"1\" />\n<circle class=\"radar-ring\" cx=\"180.54\" cy=\"207.65\" r=\"48\" fill=\"none\" stroke=\"#939395\" stroke-opacity=\"0.7\" stroke-width=\"1\" />\n<circle class=\"radar-ring\" cx=\"180.54\" cy=\"207.65\" r=\"72\" fill=\"none\" stroke=\"#939395\" stroke-opacity=\"0.7\" stroke-width=\"1\" />\n<circle class=\"radar-ring\" cx=\"180.54\" cy=\"207.65\" r=\"96\" fill=\"none\" stroke=\"#939395\" stroke-opacity=\"0.7\" stroke-width=\"1\" />\n<circle class=\"radar-ring radar-ring-outer\" cx=\"180.54\" cy=\"207.65\" r=\"120\" fill=\"none\" stroke=\"#939395\" stroke-opacity=\"0.7\" stroke-width=\"1.4\" />\n<line class=\"radar-axis-line\" x1=\"180.54\" y1=\"207.65\" x2=\"180.54\" y2=\"87.65\" stroke=\"#939395\" stroke-width=\"1\" />\n<line class=\"radar-axis-line\" x1=\"180.54\" y1=\"207.65\" x2=\"284.47\" y2=\"267.65\" stroke=\"#939395\" stroke-width=\"1\" />\n<line class=\"radar-axis-line\" x1=\"180.54\" y1=\"207.65\" x2=\"76.62\" y2=\"267.65\" stroke=\"#939395\" stroke-width=\"1\" />\n<path class=\"radar-area\" data-curve=\"Current\" d=\"M 180.54 135.65 C 201.74 139.73 270.75 239.33 263.68 255.65 C 256.61 271.97 153.11 252.05 138.98 231.65 C 124.85 211.25 159.34 131.57 180.54 135.65 Z\" fill=\"#3b82f6\" fill-opacity=\"0.5\" stroke=\"#3b82f6\" stroke-width=\"2.2\" stroke-linejoin=\"round\" data-id=\"curve:now\" data-role=\"pie-slice\" />\n<circle class=\"radar-dot\" cx=\"180.54\" cy=\"135.65\" r=\"3\" fill=\"#3b82f6\" stroke=\"#FFFFFF\" stroke-width=\"1.2\" data-id=\"dot:now:0\" data-role=\"point\" />\n<circle class=\"radar-dot\" cx=\"263.68\" cy=\"255.65\" r=\"3\" fill=\"#3b82f6\" stroke=\"#FFFFFF\" stroke-width=\"1.2\" data-id=\"dot:now:1\" data-role=\"point\" />\n<circle class=\"radar-dot\" cx=\"138.98\" cy=\"231.65\" r=\"3\" fill=\"#3b82f6\" stroke=\"#FFFFFF\" stroke-width=\"1.2\" data-id=\"dot:now:2\" data-role=\"point\" />\n<text x=\"180.54\" y=\"69.53\" class=\"radar-axis-label\" aria-label=\"Speed\" text-anchor=\"middle\" dominant-baseline=\"middle\" font-size=\"12.5\" font-weight=\"500\" fill=\"#27272A\" data-prepared-text=\"true\" dy=\"0\" textLength=\"38.925\" lengthAdjust=\"spacingAndGlyphs\" data-font-metrics=\"deterministic-fit\">Speed</text>\n<text x=\"300.16\" y=\"276.71\" class=\"radar-axis-label\" aria-label=\"Power\" text-anchor=\"start\" dominant-baseline=\"middle\" font-size=\"12.5\" font-weight=\"500\" fill=\"#27272A\" data-prepared-text=\"true\" dy=\"0\" textLength=\"38.925\" lengthAdjust=\"spacingAndGlyphs\" data-font-metrics=\"deterministic-fit\">Power</text>\n<text x=\"60.93\" y=\"276.71\" class=\"radar-axis-label\" aria-label=\"Range\" text-anchor=\"end\" dominant-baseline=\"middle\" font-size=\"12.5\" font-weight=\"500\" fill=\"#27272A\" data-prepared-text=\"true\" dy=\"0\" textLength=\"38.925\" lengthAdjust=\"spacingAndGlyphs\" data-font-metrics=\"deterministic-fit\">Range</text>\n<rect class=\"radar-legend-swatch\" x=\"369.09\" y=\"200.65\" width=\"14\" height=\"14\" rx=\"2\" ry=\"2\" fill=\"#3b82f6\" fill-opacity=\"1\" stroke=\"#949495\" stroke-width=\"1\" />\n<text x=\"391.09\" y=\"207.65\" class=\"radar-legend-text\" text-anchor=\"start\" dominant-baseline=\"middle\" font-size=\"13\" font-weight=\"500\" fill=\"#27272A\" data-prepared-text=\"true\" dy=\"0\" textLength=\"47.892\" lengthAdjust=\"spacingAndGlyphs\" data-font-metrics=\"deterministic-fit\">Current</text>\n<text x=\"180.54\" y=\"33.7\" class=\"radar-title\" text-anchor=\"middle\" dominant-baseline=\"middle\" font-size=\"18\" font-weight=\"600\" fill=\"#27272A\" data-id=\"title\" data-role=\"title\" data-prepared-text=\"true\" dy=\"0\" textLength=\"50.22\" lengthAdjust=\"spacingAndGlyphs\" data-font-metrics=\"deterministic-fit\">Skills</text>\n</svg>",
+    "receipt": {
+      "version": 2,
+      "output": "svg",
+      "sharedRequestDigest": "fnv1a64:d57d78d11e879963",
+      "requestDigest": "fnv1a64:bfd0237312fa1e08",
+      "appearanceDigest": "fnv1a64:5c57037fc07cf497",
+      "capabilityDecision": {
+        "version": 1,
+        "accepted": true,
+        "resolutions": [
+          {
+            "id": "core:render-request",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "core:family-descriptor",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "family:radar",
+            "range": "1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "core:scene",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "operation:layout",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "operation:lower-scene",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "backend:scene-renderer",
+            "range": "1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:document/identity/serialize",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:document/resources/serialize",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:document/interaction/accessibility",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:text/geometry/render",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:text/paint/render",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:text/labels/accessibility",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:text/identity/serialize",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:shape/geometry/render",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:shape/paint/render",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:shape/identity/serialize",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "output:svg",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          }
+        ]
+      },
+      "diagnostics": [
+        {
+          "code": "RENDER_OPTION_NOT_APPLICABLE",
+          "feature": "render-option:graphLayout",
+          "message": "Render option \"graphLayout\" does not apply to built-in Mermaid family \"radar\". Applicable built-in families: flowchart, state, architecture, class, er, requirement."
+        }
+      ],
+      "executionDecision": {
+        "family": {
+          "id": "family:radar",
+          "version": "1.0.0"
+        },
+        "backend": {
+          "mode": "scene",
+          "requestedId": "default",
+          "selectedId": "backend:default",
+          "version": "1.0.0",
+          "hostPolicy": false
+        },
+        "digest": "fnv1a64:bb30c71c4f5a8da7"
+      },
+      "graphicalProjectionDigest": "fnv1a64:23b9304ab256434f",
+      "layoutCertification": {
+        "version": 1,
+        "unit": "px",
+        "scope": "native-scene",
+        "status": "passed",
+        "viewport": {
+          "x": 0,
+          "y": 0,
+          "width": 460.98,
+          "height": 349.65
+        },
+        "attempts": 1,
+        "repairs": [],
+        "coverage": {
+          "measured": 18,
+          "unmeasured": 0,
+          "preparedText": 5,
+          "fallbackText": 0,
+          "conditional": 0
+        },
+        "checks": {
+          "primitives": 20,
+          "labels": 5,
+          "occlusionPairs": 0,
+          "maxOcclusionPairs": 100000,
+          "operations": 13556,
+          "maxOperations": 400000,
+          "markers": 0
+        },
+        "issues": [],
+        "limitations": [
+          "Prepared occupied text regions bound native geometry; exact glyph ink depends on the resolved font.",
+          "Declared transparency, intentional data-mark overlap and externally modified CSS are outside this proof."
+        ],
+        "outputDigest": "fnv1a64:23b9304ab256434f"
+      }
+    },
+    "wholeBytes": 8337,
+    "receiptBytes": 3508
+  },
+  "paint": {
+    "checks": [
+      {
+        "criterion": "svg-root",
+        "expected": "mounted SVG",
+        "actual": "svg",
+        "status": "passed",
+        "scope": "Actual public SVG result"
+      },
+      {
+        "criterion": "svg-unique-ids",
+        "expected": 2,
+        "actual": 2,
+        "status": "passed",
+        "scope": "Duplicate SVG identities can change marker, clip and owned-label references"
+      },
+      {
+        "criterion": "canvas",
+        "expected": "positive finite rendered canvas",
+        "actual": {
+          "x": 0,
+          "y": 0,
+          "width": 460.96875,
+          "height": 349.640625
+        },
+        "status": "passed",
+        "scope": "Actual browser viewport of the returned SVG"
+      },
+      {
+        "criterion": "visible-authored-labels",
+        "expected": [
+          "Skills",
+          "Speed",
+          "Power",
+          "Range",
+          "Current"
+        ],
+        "actual": [
+          {
+            "label": "Skills",
+            "count": 1
+          },
+          {
+            "label": "Speed",
+            "count": 1
+          },
+          {
+            "label": "Power",
+            "count": 1
+          },
+          {
+            "label": "Range",
+            "count": 1
+          },
+          {
+            "label": "Current",
+            "count": 1
+          }
+        ],
+        "status": "passed",
+        "scope": "Computed visibility and nonzero browser text bounds; metadata/title/defs text earns no credit"
+      },
+      {
+        "criterion": "labels-within-canvas",
+        "expected": "every authored label fits the canvas",
+        "actual": [],
+        "status": "passed",
+        "scope": "Actual rendered label bounds, with 1.5 CSS-pixel serialization tolerance"
+      },
+      {
+        "criterion": "unclipped-authored-labels",
+        "expected": [],
+        "actual": [],
+        "status": "passed",
+        "scope": "Actual self/ancestor clipping and overflow; unprojected masks/clip paths remain unavailable"
+      },
+      {
+        "criterion": "visible-ink",
+        "expected": "nonempty visible diagram geometry",
+        "actual": 13,
+        "status": "passed",
+        "scope": "Visible geometric elements; unprojected use/HTML/image-only ink remains unavailable, not a drawing defect"
+      },
+      {
+        "criterion": "paint-opacity-and-color",
+        "expected": "resolved visible paint colors/alpha",
+        "actual": [],
+        "status": "passed",
+        "scope": "Unresolved paint servers/context colors cannot silently earn a visible-ink or complete-style claim"
+      }
+    ],
+    "complete": true,
+    "passed": true,
+    "nodes": [],
+    "connections": [],
+    "viewBox": "0 0 460.98 349.65"
+  },
+  "quantitative": [
+    {
+      "criterion": "painted-radar-values",
+      "expected": [
+        {
+          "id": "now",
+          "label": "Current",
+          "values": [
+            3,
+            4,
+            2
+          ]
+        }
+      ],
+      "actual": [
+        {
+          "axis": "Speed",
+          "expected": 3,
+          "actual": 2.999999745680042
+        },
+        {
+          "axis": "Power",
+          "expected": 4,
+          "actual": 3.851450646347222
+        },
+        {
+          "axis": "Range",
+          "expected": 2,
+          "actual": 1.9994595510672086
+        }
+      ],
+      "status": "passed",
+      "scope": "Actual outer grid and authored axis-label rays calibrate curve intersections; 0.15 data-unit sampling/label-offset tolerance. Multi-curve legend ownership needs separate evidence"
+    }
+  ],
+  "quality": {
+    "width": 460.98,
+    "height": 349.65,
+    "area": 161181.657,
+    "viewportScope": "actual viewBox SVG units",
+    "ownedCarriers": 0,
+    "contactCounts": {
+      "status": "unavailable",
+      "reason": "No enrolled exact SVG node-boundary contact observer"
+    },
+    "browserCenterline": {
+      "status": "unavailable"
+    },
+    "linear": {
+      "status": "unavailable",
+      "reason": "No enrolled owned SVG edge carriers; not a zero-crossing assertion"
+    }
+  },
+  "scope": "Unmodified Trident meaning + actual Chromium paint/quantitative observers on full Node SVG/receipt; exact strict linear metrics only where enrolled ownership/geometry allow. No browser renderer execution or speed claim."
+}

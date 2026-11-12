@@ -1,0 +1,50 @@
+{
+  "pr-agentic": {
+    "families": 33,
+    "statuses": {
+      "passed": 33
+    },
+    "medianProductRaw": 626417,
+    "medianProductGzip9": 206632,
+    "medianProductBrotli11": 172209,
+    "medianJsHeapUsedBytes": 4414216,
+    "receiptProof": {
+      "passed": 31,
+      "unverified": 2
+    },
+    "graphLayoutFamilies": [
+      "flowchart",
+      "state",
+      "class",
+      "er",
+      "architecture",
+      "requirement",
+      "agentflow",
+      "usecase"
+    ]
+  },
+  "pr-elk": {
+    "families": 33,
+    "statuses": {
+      "passed": 33
+    },
+    "medianProductRaw": 626417,
+    "medianProductGzip9": 206632,
+    "medianProductBrotli11": 172209,
+    "medianJsHeapUsedBytes": 4413336,
+    "receiptProof": {
+      "passed": 31,
+      "unverified": 2
+    },
+    "graphLayoutFamilies": [
+      "flowchart",
+      "state",
+      "class",
+      "er",
+      "architecture",
+      "requirement",
+      "agentflow",
+      "usecase"
+    ]
+  }
+}

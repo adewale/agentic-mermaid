@@ -1,0 +1,597 @@
+{
+  "target": "pr",
+  "backend": "agentic",
+  "family": "agentflow",
+  "id": "family-support:agentflow",
+  "status": "passed",
+  "selected": {
+    "suite": "community-browser",
+    "surface": "browser:public-api",
+    "runtime": "chromium",
+    "family": "agentflow",
+    "caseId": "family-support:agentflow",
+    "operation": "render",
+    "format": "svg",
+    "mode": "feature-corpus-qualification",
+    "status": "passed",
+    "bytes": 3455,
+    "findings": [],
+    "metrics": {
+      "implementation": "adewale/agentic-mermaid",
+      "apiBoundary": "Actual public lazy renderMermaidSVGWithReceiptAsync with explicit backend/fallback none; full original object serialized/retained by observation transport before unchanged declaredRenderer/Trident SVG qualification. No timing claim.",
+      "round": 1,
+      "rejected": false,
+      "xmlWellFormed": true,
+      "outputFile": null,
+      "firstMs": 21,
+      "iterations": null,
+      "version": "0.5.7",
+      "qualification": "XML-canvas-and-authored-labels",
+      "cache": "public-default-repeats"
+    }
+  },
+  "support": [
+    {
+      "suite": "community-browser",
+      "surface": "browser:public-api",
+      "runtime": "chromium",
+      "family": "agentflow",
+      "caseId": "family-support:agentflow",
+      "operation": "family-support",
+      "format": "svg",
+      "mode": "family-support-probe",
+      "status": "passed",
+      "bytes": 3455,
+      "findings": [],
+      "metrics": {
+        "implementation": "adewale/agentic-mermaid",
+        "apiBoundary": "Actual public lazy renderMermaidSVGWithReceiptAsync with explicit backend/fallback none; full original object serialized/retained by observation transport before unchanged declaredRenderer/Trident SVG qualification. No timing claim.",
+        "round": 1,
+        "rejected": false,
+        "xmlWellFormed": true,
+        "outputFile": null,
+        "firstMs": 420.6999999284744,
+        "iterations": null,
+        "version": "0.5.7",
+        "qualification": "XML-canvas-and-authored-labels",
+        "cache": "public-default-repeats"
+      }
+    }
+  ],
+  "heap": {
+    "suite": "community-browser",
+    "surface": "browser:public-api",
+    "runtime": "chromium-v8",
+    "family": "*",
+    "caseId": "post-portfolio-heap",
+    "operation": "memory",
+    "format": "svg",
+    "mode": "after-round-1",
+    "status": "passed",
+    "metrics": {
+      "implementation": "adewale/agentic-mermaid",
+      "round": 1,
+      "jsHeapUsedBytes": 5835932,
+      "portfolioCaseCount": 1,
+      "featureCases": 1,
+      "note": "Fresh realm, forced GC after this round portfolio; not native/WASM/process memory"
+    }
+  },
+  "requests": 34,
+  "totals": {
+    "raw": 1293618,
+    "gzip9": 431090,
+    "brotli11": 369158
+  },
+  "product": {
+    "raw": 1291748,
+    "gzip9": 430163,
+    "brotli11": 368391
+  },
+  "adapter": {
+    "raw": 1870,
+    "gzip9": 927,
+    "brotli11": 767
+  },
+  "fetched": [
+    {
+      "url": "/entry.mjs",
+      "bytes": 905,
+      "gzip": 430,
+      "sha256": "02e58d64ef5f565d2c6901aec190238474e6f73398184bec29120e283a084760",
+      "raw": 905,
+      "gzip9": 430,
+      "brotli11": 359,
+      "actualSha256": "02e58d64ef5f565d2c6901aec190238474e6f73398184bec29120e283a084760",
+      "kind": "Trident binding/observation transport"
+    },
+    {
+      "url": "/browser-lazy/index.js",
+      "bytes": 4344,
+      "gzip": 1550,
+      "sha256": "56482a1831b411fcdc81f097e07c78d77a49ada31bdcb3df2a875aeaf3385dad",
+      "raw": 4344,
+      "gzip9": 1550,
+      "brotli11": 1315,
+      "actualSha256": "56482a1831b411fcdc81f097e07c78d77a49ada31bdcb3df2a875aeaf3385dad",
+      "kind": "actual product module"
+    },
+    {
+      "url": "/declared-adapter.mjs",
+      "bytes": 965,
+      "gzip": 497,
+      "sha256": "2db9f4b28ad5d21417101446f0fb5375d6281898daeff495295504eae98cd103",
+      "raw": 965,
+      "gzip9": 497,
+      "brotli11": 408,
+      "actualSha256": "2db9f4b28ad5d21417101446f0fb5375d6281898daeff495295504eae98cd103",
+      "kind": "Trident binding/observation transport"
+    },
+    {
+      "url": "/browser-lazy/chunks/chunk-Z5FFVCUF.js",
+      "bytes": 5103,
+      "gzip": 2003,
+      "sha256": "30e5de7004b351e437374ab5ffccba7025aa4ac6b773bda90f2ea90744111b2e",
+      "raw": 5103,
+      "gzip9": 2003,
+      "brotli11": 1826,
+      "actualSha256": "30e5de7004b351e437374ab5ffccba7025aa4ac6b773bda90f2ea90744111b2e",
+      "kind": "actual product module"
+    },
+    {
+      "url": "/browser-lazy/chunks/chunk-IRIK7OOK.js",
+      "bytes": 6562,
+      "gzip": 2378,
+      "sha256": "0564120dec9fe0cc5f659ada8afa171c37621007ebbdd54d91df1c54c7707d6d",
+      "raw": 6562,
+      "gzip9": 2378,
+      "brotli11": 2175,
+      "actualSha256": "0564120dec9fe0cc5f659ada8afa171c37621007ebbdd54d91df1c54c7707d6d",
+      "kind": "actual product module"
+    },
+    {
+      "url": "/browser-lazy/chunks/chunk-TX43CKOC.js",
+      "bytes": 440,
+      "gzip": 284,
+      "sha256": "32f2e061f17b0958551c522cf707b97162f11e6f3fdc44667276459410366258",
+      "raw": 440,
+      "gzip9": 284,
+      "brotli11": 229,
+      "actualSha256": "32f2e061f17b0958551c522cf707b97162f11e6f3fdc44667276459410366258",
+      "kind": "actual product module"
+    },
+    {
+      "url": "/browser-lazy/chunks/agentflow-RDE2WXGX.js",
+      "bytes": 17360,
+      "gzip": 6596,
+      "sha256": "8cc65bc305f9385fadc6392747904def4b384e73f23b4c3db9ee54034be9e7b6",
+      "raw": 17360,
+      "gzip9": 6596,
+      "brotli11": 5952,
+      "actualSha256": "8cc65bc305f9385fadc6392747904def4b384e73f23b4c3db9ee54034be9e7b6",
+      "kind": "actual product module"
+    },
+    {
+      "url": "/browser-lazy/chunks/chunk-7ICS4B2K.js",
+      "bytes": 595,
+      "gzip": 338,
+      "sha256": "e19db39ab8ce906fc691b3e7eaaa0659ca31bbeede2bb6514d1b4798062dd00a",
+      "raw": 595,
+      "gzip9": 338,
+      "brotli11": 308,
+      "actualSha256": "e19db39ab8ce906fc691b3e7eaaa0659ca31bbeede2bb6514d1b4798062dd00a",
+      "kind": "actual product module"
+    },
+    {
+      "url": "/browser-lazy/chunks/chunk-HODM7JLR.js",
+      "bytes": 169,
+      "gzip": 139,
+      "sha256": "1fb7971b1cea4518692131e5b9dff1850aa5d7636dda1cda6037db1b9e8d4633",
+      "raw": 169,
+      "gzip9": 139,
+      "brotli11": 125,
+      "actualSha256": "1fb7971b1cea4518692131e5b9dff1850aa5d7636dda1cda6037db1b9e8d4633",
+      "kind": "actual product module"
+    },
+    {
+      "url": "/browser-lazy/chunks/chunk-3WXCTVAZ.js",
+      "bytes": 38446,
+      "gzip": 13311,
+      "sha256": "163e608e09a11b8ebf6334f64b1340b438730cbd8ac59502e3b31b8d595252e1",
+      "raw": 38446,
+      "gzip9": 13311,
+      "brotli11": 12066,
+      "actualSha256": "163e608e09a11b8ebf6334f64b1340b438730cbd8ac59502e3b31b8d595252e1",
+      "kind": "actual product module"
+    },
+    {
+      "url": "/browser-lazy/chunks/chunk-XLAYDPRM.js",
+      "bytes": 20607,
+      "gzip": 7718,
+      "sha256": "ce9cff532eb31b13a6179a158d4bc010f215e55e27f1849afdf160537dab98e2",
+      "raw": 20607,
+      "gzip9": 7718,
+      "brotli11": 7125,
+      "actualSha256": "ce9cff532eb31b13a6179a158d4bc010f215e55e27f1849afdf160537dab98e2",
+      "kind": "actual product module"
+    },
+    {
+      "url": "/browser-lazy/chunks/chunk-LEPUSHHW.js",
+      "bytes": 911,
+      "gzip": 555,
+      "sha256": "0ebc5bd81b15e0000e4f0b91abdea4cda56ea0d74409080a37b1e5da8acf0706",
+      "raw": 911,
+      "gzip9": 555,
+      "brotli11": 496,
+      "actualSha256": "0ebc5bd81b15e0000e4f0b91abdea4cda56ea0d74409080a37b1e5da8acf0706",
+      "kind": "actual product module"
+    },
+    {
+      "url": "/browser-lazy/chunks/chunk-4XNP2A4L.js",
+      "bytes": 2139,
+      "gzip": 1122,
+      "sha256": "c6ae1c5df5f6a8adcaaf7e0406a9b5f8740cf28fd6ebcef5ac081cfc37300288",
+      "raw": 2139,
+      "gzip9": 1122,
+      "brotli11": 1015,
+      "actualSha256": "c6ae1c5df5f6a8adcaaf7e0406a9b5f8740cf28fd6ebcef5ac081cfc37300288",
+      "kind": "actual product module"
+    },
+    {
+      "url": "/browser-lazy/chunks/chunk-7WWHW4TU.js",
+      "bytes": 12451,
+      "gzip": 4542,
+      "sha256": "9f493d21c0d42a130eedfa546c919a18b2c04fb2062d876524b91c58980a0b58",
+      "raw": 12451,
+      "gzip9": 4542,
+      "brotli11": 4124,
+      "actualSha256": "9f493d21c0d42a130eedfa546c919a18b2c04fb2062d876524b91c58980a0b58",
+      "kind": "actual product module"
+    },
+    {
+      "url": "/browser-lazy/chunks/chunk-UFNVAGMX.js",
+      "bytes": 121579,
+      "gzip": 40351,
+      "sha256": "8f96fdc3af538d7c5ae33bcd8f8ba444b0a89cd7c51ff19c741330c5f16be720",
+      "raw": 121579,
+      "gzip9": 40351,
+      "brotli11": 35224,
+      "actualSha256": "8f96fdc3af538d7c5ae33bcd8f8ba444b0a89cd7c51ff19c741330c5f16be720",
+      "kind": "actual product module"
+    },
+    {
+      "url": "/browser-lazy/chunks/chunk-UZWKI3PU.js",
+      "bytes": 2554,
+      "gzip": 1312,
+      "sha256": "6e3cbfc9056c3a9b479e1e6b9b6f97d49345b9cf53b5b5537cf517e5581835e7",
+      "raw": 2554,
+      "gzip9": 1312,
+      "brotli11": 1184,
+      "actualSha256": "6e3cbfc9056c3a9b479e1e6b9b6f97d49345b9cf53b5b5537cf517e5581835e7",
+      "kind": "actual product module"
+    },
+    {
+      "url": "/browser-lazy/chunks/chunk-OHKWTFGW.js",
+      "bytes": 132520,
+      "gzip": 45003,
+      "sha256": "8bd511942a4ec4b7510a8f16be00ce0513d5d21cc6b9c0c0d518324655e86c5e",
+      "raw": 132520,
+      "gzip9": 45003,
+      "brotli11": 38587,
+      "actualSha256": "8bd511942a4ec4b7510a8f16be00ce0513d5d21cc6b9c0c0d518324655e86c5e",
+      "kind": "actual product module"
+    },
+    {
+      "url": "/browser-lazy/chunks/chunk-OZYHVKO2.js",
+      "bytes": 7633,
+      "gzip": 1706,
+      "sha256": "daae0619bc0ec02d0d90d2108156b16b85d5321dbe6cccf0ad14514944707a5d",
+      "raw": 7633,
+      "gzip9": 1706,
+      "brotli11": 1572,
+      "actualSha256": "daae0619bc0ec02d0d90d2108156b16b85d5321dbe6cccf0ad14514944707a5d",
+      "kind": "actual product module"
+    },
+    {
+      "url": "/browser-lazy/chunks/chunk-3ZL2CQPB.js",
+      "bytes": 887,
+      "gzip": 487,
+      "sha256": "8e228b2d11e2c6bfca5b0b6ae36c976d9f129136cb7d67c6c35e8d59713f3959",
+      "raw": 887,
+      "gzip9": 487,
+      "brotli11": 451,
+      "actualSha256": "8e228b2d11e2c6bfca5b0b6ae36c976d9f129136cb7d67c6c35e8d59713f3959",
+      "kind": "actual product module"
+    },
+    {
+      "url": "/browser-lazy/chunks/chunk-2S7K4AQE.js",
+      "bytes": 2179,
+      "gzip": 1144,
+      "sha256": "76665835ef4b5f39382ccbc9ecb5703e0d5796c8eb4b0a04465f80375efda6b0",
+      "raw": 2179,
+      "gzip9": 1144,
+      "brotli11": 1038,
+      "actualSha256": "76665835ef4b5f39382ccbc9ecb5703e0d5796c8eb4b0a04465f80375efda6b0",
+      "kind": "actual product module"
+    },
+    {
+      "url": "/browser-lazy/chunks/chunk-42GLKVCL.js",
+      "bytes": 2015,
+      "gzip": 874,
+      "sha256": "dc488613a77d3e04e6a005b61e32ed4215ac965cdb6de3dfc8f00e21d6230f87",
+      "raw": 2015,
+      "gzip9": 874,
+      "brotli11": 788,
+      "actualSha256": "dc488613a77d3e04e6a005b61e32ed4215ac965cdb6de3dfc8f00e21d6230f87",
+      "kind": "actual product module"
+    },
+    {
+      "url": "/browser-lazy/chunks/chunk-RK3M52YM.js",
+      "bytes": 891,
+      "gzip": 546,
+      "sha256": "0a6ac80cb50e728ee09e0e429b24c844f6b1f67a4eb6330e6f8f6ca558fbd478",
+      "raw": 891,
+      "gzip9": 546,
+      "brotli11": 483,
+      "actualSha256": "0a6ac80cb50e728ee09e0e429b24c844f6b1f67a4eb6330e6f8f6ca558fbd478",
+      "kind": "actual product module"
+    },
+    {
+      "url": "/browser-lazy/chunks/chunk-36NITDRI.js",
+      "bytes": 1618,
+      "gzip": 682,
+      "sha256": "fe630524a786f96f57369a41664c1cebde952d9f4d6dbe6fff0e942aea1b470d",
+      "raw": 1618,
+      "gzip9": 682,
+      "brotli11": 626,
+      "actualSha256": "fe630524a786f96f57369a41664c1cebde952d9f4d6dbe6fff0e942aea1b470d",
+      "kind": "actual product module"
+    },
+    {
+      "url": "/browser-lazy/chunks/chunk-DRFNJ7BP.js",
+      "bytes": 2947,
+      "gzip": 1332,
+      "sha256": "9537136b03638cfeaee3fd895794340115c04b985d0f37a91cb3218ad460289f",
+      "raw": 2947,
+      "gzip9": 1332,
+      "brotli11": 1238,
+      "actualSha256": "9537136b03638cfeaee3fd895794340115c04b985d0f37a91cb3218ad460289f",
+      "kind": "actual product module"
+    },
+    {
+      "url": "/browser-lazy/chunks/chunk-VKOHJMHU.js",
+      "bytes": 13697,
+      "gzip": 4259,
+      "sha256": "aa2b0acdef4008d5388a976a535b662962882eb542702fbfda5cad3f70faaf18",
+      "raw": 13697,
+      "gzip9": 4259,
+      "brotli11": 3889,
+      "actualSha256": "aa2b0acdef4008d5388a976a535b662962882eb542702fbfda5cad3f70faaf18",
+      "kind": "actual product module"
+    },
+    {
+      "url": "/browser-lazy/chunks/chunk-D6Z762G4.js",
+      "bytes": 7330,
+      "gzip": 3210,
+      "sha256": "bc9243c7c84de8de1e64f44b485dad3f99b66f75179002049b1c578fef2bb321",
+      "raw": 7330,
+      "gzip9": 3210,
+      "brotli11": 2821,
+      "actualSha256": "bc9243c7c84de8de1e64f44b485dad3f99b66f75179002049b1c578fef2bb321",
+      "kind": "actual product module"
+    },
+    {
+      "url": "/browser-lazy/chunks/chunk-1DBB63C7.js",
+      "bytes": 563920,
+      "gzip": 183080,
+      "sha256": "bf9c1bb4d4d48dea259b7235ee21e51b8c3f0ebb29d8002d7750c1b877c909f9",
+      "raw": 563920,
+      "gzip9": 183080,
+      "brotli11": 151128,
+      "actualSha256": "bf9c1bb4d4d48dea259b7235ee21e51b8c3f0ebb29d8002d7750c1b877c909f9",
+      "kind": "actual product module"
+    },
+    {
+      "url": "/browser-lazy/chunks/mermaid-yaml-runtime-EE552SAU.js",
+      "bytes": 122885,
+      "gzip": 38335,
+      "sha256": "d612a19ad2b377555bf4a0eb35fb96574b3333b0950016484788bf3ef532d013",
+      "raw": 122885,
+      "gzip9": 38335,
+      "brotli11": 33871,
+      "actualSha256": "d612a19ad2b377555bf4a0eb35fb96574b3333b0950016484788bf3ef532d013",
+      "kind": "actual product module"
+    },
+    {
+      "url": "/browser-lazy/chunks/agentic-producer-core-3NUN4OHM.js",
+      "bytes": 158878,
+      "gzip": 52144,
+      "sha256": "e50b24ea7907127d2ecabf421dd0b8d54825788daef6d59b26332dc21ad013a0",
+      "raw": 158878,
+      "gzip9": 52144,
+      "brotli11": 45253,
+      "actualSha256": "e50b24ea7907127d2ecabf421dd0b8d54825788daef6d59b26332dc21ad013a0",
+      "kind": "actual product module"
+    },
+    {
+      "url": "/browser-lazy/chunks/forest-implementation-6Q5LPUBT.js",
+      "bytes": 5404,
+      "gzip": 2353,
+      "sha256": "57f909cb42d33337f6a2b3a6f1f521e5a8374bfecdc7a1afe146a77ca49e1f12",
+      "raw": 5404,
+      "gzip9": 2353,
+      "brotli11": 2170,
+      "actualSha256": "57f909cb42d33337f6a2b3a6f1f521e5a8374bfecdc7a1afe146a77ca49e1f12",
+      "kind": "actual product module"
+    },
+    {
+      "url": "/browser-lazy/chunks/chunk-UWQFC3VK.js",
+      "bytes": 2005,
+      "gzip": 739,
+      "sha256": "1def9e28e1f2e5bca4e0cac6f8b4571ced0e248935ed88f8d053b461841938f6",
+      "raw": 2005,
+      "gzip9": 739,
+      "brotli11": 634,
+      "actualSha256": "1def9e28e1f2e5bca4e0cac6f8b4571ced0e248935ed88f8d053b461841938f6",
+      "kind": "actual product module"
+    },
+    {
+      "url": "/browser-lazy/chunks/chunk-4OVI3DRP.js",
+      "bytes": 12520,
+      "gzip": 4924,
+      "sha256": "88e8aa852ec0fc671acc03b42ab3f803579960d8d77d62dd22641ccfeb6f5d10",
+      "raw": 12520,
+      "gzip9": 4924,
+      "brotli11": 4405,
+      "actualSha256": "88e8aa852ec0fc671acc03b42ab3f803579960d8d77d62dd22641ccfeb6f5d10",
+      "kind": "actual product module"
+    },
+    {
+      "url": "/browser-lazy/chunks/chunk-T5L5OJON.js",
+      "bytes": 20819,
+      "gzip": 6925,
+      "sha256": "5587b07da16c1343c4375027331364b60a172e2f5f61459a481357128ae8db53",
+      "raw": 20819,
+      "gzip9": 6925,
+      "brotli11": 6091,
+      "actualSha256": "5587b07da16c1343c4375027331364b60a172e2f5f61459a481357128ae8db53",
+      "kind": "actual product module"
+    },
+    {
+      "url": "/browser-lazy/chunks/chunk-CNDYVUHL.js",
+      "bytes": 340,
+      "gzip": 221,
+      "sha256": "256171d38d871940de29887398233287ce8c860548956be7aaeb5e4c2fe7967d",
+      "raw": 340,
+      "gzip9": 221,
+      "brotli11": 182,
+      "actualSha256": "256171d38d871940de29887398233287ce8c860548956be7aaeb5e4c2fe7967d",
+      "kind": "actual product module"
+    }
+  ],
+  "publicProducts": [
+    {
+      "call": 1,
+      "role": "standard-family-support-probe",
+      "source": "agentflow-beta TB\n  flow alpha[\"Alpha\"]\n    b[\"Beta\"]@{ shape: task }\n    c[\"Gamma\"]@{ shape: tool }\n    b --> c\n  end",
+      "status": "returned",
+      "svgBytes": 3455,
+      "receiptBytes": 8174,
+      "wholeBytes": 11981,
+      "proof": {
+        "version": 1,
+        "unit": "px",
+        "scope": "native-scene",
+        "status": "passed",
+        "viewport": {
+          "x": 0,
+          "y": 0,
+          "width": 195.446,
+          "height": 261.8
+        },
+        "attempts": 1,
+        "repairs": [],
+        "coverage": {
+          "measured": 8,
+          "unmeasured": 0,
+          "preparedText": 3,
+          "fallbackText": 0,
+          "conditional": 0
+        },
+        "checks": {
+          "primitives": 11,
+          "labels": 2,
+          "occlusionPairs": 5,
+          "maxOcclusionPairs": 100000,
+          "operations": 51191,
+          "maxOperations": 400000,
+          "markers": 1
+        },
+        "issues": [],
+        "limitations": [
+          "Prepared occupied text regions bound native geometry; exact glyph ink depends on the resolved font.",
+          "Declared transparency, intentional data-mark overlap and externally modified CSS are outside this proof."
+        ],
+        "outputDigest": "fnv1a64:72829625402901e4"
+      },
+      "layoutDecisions": [
+        {
+          "requested": "agentic",
+          "fallback": "none",
+          "selected": "agentic",
+          "attempts": [
+            {
+              "backend": "agentic",
+              "outcome": "selected"
+            }
+          ],
+          "implementation": "agentic-layered@28",
+          "role": "primary"
+        }
+      ]
+    },
+    {
+      "call": 2,
+      "role": "enrolled-family",
+      "source": "agentflow-beta TB\n  flow alpha[\"Alpha\"]\n    b[\"Beta\"]@{ shape: task }\n    c[\"Gamma\"]@{ shape: tool }\n    b --> c\n  end",
+      "status": "returned",
+      "svgBytes": 3455,
+      "receiptBytes": 8174,
+      "wholeBytes": 11981,
+      "proof": {
+        "version": 1,
+        "unit": "px",
+        "scope": "native-scene",
+        "status": "passed",
+        "viewport": {
+          "x": 0,
+          "y": 0,
+          "width": 195.446,
+          "height": 261.8
+        },
+        "attempts": 1,
+        "repairs": [],
+        "coverage": {
+          "measured": 8,
+          "unmeasured": 0,
+          "preparedText": 3,
+          "fallbackText": 0,
+          "conditional": 0
+        },
+        "checks": {
+          "primitives": 11,
+          "labels": 2,
+          "occlusionPairs": 5,
+          "maxOcclusionPairs": 100000,
+          "operations": 51191,
+          "maxOperations": 400000,
+          "markers": 1
+        },
+        "issues": [],
+        "limitations": [
+          "Prepared occupied text regions bound native geometry; exact glyph ink depends on the resolved font.",
+          "Declared transparency, intentional data-mark overlap and externally modified CSS are outside this proof."
+        ],
+        "outputDigest": "fnv1a64:72829625402901e4"
+      },
+      "layoutDecisions": [
+        {
+          "requested": "agentic",
+          "fallback": "none",
+          "selected": "agentic",
+          "attempts": [
+            {
+              "backend": "agentic",
+              "outcome": "selected"
+            }
+          ],
+          "implementation": "agentic-layered@28",
+          "role": "primary"
+        }
+      ]
+    }
+  ],
+  "observerErrors": [],
+  "remoteRequestsBlocked": [],
+  "scope": "One fresh family realm. Actual request union and post-GC JS heap include mandatory same-family support probe plus enrolled source; binding separately reported; gzip9/Brotli11 actual fetched bytes, not claimed compressed wire transfer. Transport-instrumented raw times must not be used as API performance evidence."
+}

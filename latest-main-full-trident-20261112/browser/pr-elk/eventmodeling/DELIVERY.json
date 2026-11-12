@@ -1,0 +1,303 @@
+{
+  "target": "pr",
+  "backend": "elk",
+  "family": "eventmodeling",
+  "id": "family-support:eventmodeling",
+  "status": "passed",
+  "selected": {
+    "suite": "community-browser",
+    "surface": "browser:public-api",
+    "runtime": "chromium",
+    "family": "eventmodeling",
+    "caseId": "family-support:eventmodeling",
+    "operation": "render",
+    "format": "svg",
+    "mode": "feature-corpus-qualification",
+    "status": "passed",
+    "bytes": 4513,
+    "findings": [],
+    "metrics": {
+      "implementation": "adewale/agentic-mermaid",
+      "apiBoundary": "Actual public lazy renderMermaidSVGWithReceiptAsync with explicit backend/fallback none; full original object serialized/retained by observation transport before unchanged declaredRenderer/Trident SVG qualification. No timing claim.",
+      "round": 1,
+      "rejected": false,
+      "xmlWellFormed": true,
+      "outputFile": null,
+      "firstMs": 26.899999976158142,
+      "iterations": null,
+      "version": "0.5.7",
+      "qualification": "XML-canvas-and-authored-labels",
+      "cache": "public-default-repeats"
+    }
+  },
+  "support": [
+    {
+      "suite": "community-browser",
+      "surface": "browser:public-api",
+      "runtime": "chromium",
+      "family": "eventmodeling",
+      "caseId": "family-support:eventmodeling",
+      "operation": "family-support",
+      "format": "svg",
+      "mode": "family-support-probe",
+      "status": "passed",
+      "bytes": 4513,
+      "findings": [],
+      "metrics": {
+        "implementation": "adewale/agentic-mermaid",
+        "apiBoundary": "Actual public lazy renderMermaidSVGWithReceiptAsync with explicit backend/fallback none; full original object serialized/retained by observation transport before unchanged declaredRenderer/Trident SVG qualification. No timing claim.",
+        "round": 1,
+        "rejected": false,
+        "xmlWellFormed": true,
+        "outputFile": null,
+        "firstMs": 229,
+        "iterations": null,
+        "version": "0.5.7",
+        "qualification": "XML-canvas-and-authored-labels",
+        "cache": "public-default-repeats"
+      }
+    }
+  ],
+  "heap": {
+    "suite": "community-browser",
+    "surface": "browser:public-api",
+    "runtime": "chromium-v8",
+    "family": "*",
+    "caseId": "post-portfolio-heap",
+    "operation": "memory",
+    "format": "svg",
+    "mode": "after-round-1",
+    "status": "passed",
+    "metrics": {
+      "implementation": "adewale/agentic-mermaid",
+      "round": 1,
+      "jsHeapUsedBytes": 4509008,
+      "portfolioCaseCount": 1,
+      "featureCases": 1,
+      "note": "Fresh realm, forced GC after this round portfolio; not native/WASM/process memory"
+    }
+  },
+  "requests": 10,
+  "totals": {
+    "raw": 603848,
+    "gzip9": 198284,
+    "brotli11": 164733
+  },
+  "product": {
+    "raw": 601982,
+    "gzip9": 197359,
+    "brotli11": 163964
+  },
+  "adapter": {
+    "raw": 1866,
+    "gzip9": 925,
+    "brotli11": 769
+  },
+  "fetched": [
+    {
+      "url": "/entry.mjs",
+      "bytes": 901,
+      "gzip": 428,
+      "sha256": "29dc935771cfb0cc5b519f720082bb7b3a0961415d9dbafb974a39b9317897c4",
+      "raw": 901,
+      "gzip9": 428,
+      "brotli11": 361,
+      "actualSha256": "29dc935771cfb0cc5b519f720082bb7b3a0961415d9dbafb974a39b9317897c4",
+      "kind": "Trident binding/observation transport"
+    },
+    {
+      "url": "/browser-lazy/index.js",
+      "bytes": 4344,
+      "gzip": 1550,
+      "sha256": "56482a1831b411fcdc81f097e07c78d77a49ada31bdcb3df2a875aeaf3385dad",
+      "raw": 4344,
+      "gzip9": 1550,
+      "brotli11": 1315,
+      "actualSha256": "56482a1831b411fcdc81f097e07c78d77a49ada31bdcb3df2a875aeaf3385dad",
+      "kind": "actual product module"
+    },
+    {
+      "url": "/declared-adapter.mjs",
+      "bytes": 965,
+      "gzip": 497,
+      "sha256": "2db9f4b28ad5d21417101446f0fb5375d6281898daeff495295504eae98cd103",
+      "raw": 965,
+      "gzip9": 497,
+      "brotli11": 408,
+      "actualSha256": "2db9f4b28ad5d21417101446f0fb5375d6281898daeff495295504eae98cd103",
+      "kind": "Trident binding/observation transport"
+    },
+    {
+      "url": "/browser-lazy/chunks/chunk-Z5FFVCUF.js",
+      "bytes": 5103,
+      "gzip": 2003,
+      "sha256": "30e5de7004b351e437374ab5ffccba7025aa4ac6b773bda90f2ea90744111b2e",
+      "raw": 5103,
+      "gzip9": 2003,
+      "brotli11": 1826,
+      "actualSha256": "30e5de7004b351e437374ab5ffccba7025aa4ac6b773bda90f2ea90744111b2e",
+      "kind": "actual product module"
+    },
+    {
+      "url": "/browser-lazy/chunks/chunk-IRIK7OOK.js",
+      "bytes": 6562,
+      "gzip": 2378,
+      "sha256": "0564120dec9fe0cc5f659ada8afa171c37621007ebbdd54d91df1c54c7707d6d",
+      "raw": 6562,
+      "gzip9": 2378,
+      "brotli11": 2175,
+      "actualSha256": "0564120dec9fe0cc5f659ada8afa171c37621007ebbdd54d91df1c54c7707d6d",
+      "kind": "actual product module"
+    },
+    {
+      "url": "/browser-lazy/chunks/chunk-TX43CKOC.js",
+      "bytes": 440,
+      "gzip": 284,
+      "sha256": "32f2e061f17b0958551c522cf707b97162f11e6f3fdc44667276459410366258",
+      "raw": 440,
+      "gzip9": 284,
+      "brotli11": 229,
+      "actualSha256": "32f2e061f17b0958551c522cf707b97162f11e6f3fdc44667276459410366258",
+      "kind": "actual product module"
+    },
+    {
+      "url": "/browser-lazy/chunks/eventmodeling-NS5KFAMT.js",
+      "bytes": 19339,
+      "gzip": 6867,
+      "sha256": "263b82bdef66ba3720ffaf3294543b8cbd95546d0d20856bc42feb084f21f079",
+      "raw": 19339,
+      "gzip9": 6867,
+      "brotli11": 6225,
+      "actualSha256": "263b82bdef66ba3720ffaf3294543b8cbd95546d0d20856bc42feb084f21f079",
+      "kind": "actual product module"
+    },
+    {
+      "url": "/browser-lazy/chunks/chunk-42EFHSON.js",
+      "bytes": 424,
+      "gzip": 293,
+      "sha256": "c5b1e05bcdfaeb8602203ac7d3de59c2915fb65acc0e55787709d15031691db0",
+      "raw": 424,
+      "gzip9": 293,
+      "brotli11": 258,
+      "actualSha256": "c5b1e05bcdfaeb8602203ac7d3de59c2915fb65acc0e55787709d15031691db0",
+      "kind": "actual product module"
+    },
+    {
+      "url": "/browser-lazy/chunks/chunk-7NEWL4HP.js",
+      "bytes": 1850,
+      "gzip": 904,
+      "sha256": "cd8d24faa177f0c9a8c5276bbfd24a72d0b5a42c04801edf3aaed9eda23d9616",
+      "raw": 1850,
+      "gzip9": 904,
+      "brotli11": 808,
+      "actualSha256": "cd8d24faa177f0c9a8c5276bbfd24a72d0b5a42c04801edf3aaed9eda23d9616",
+      "kind": "actual product module"
+    },
+    {
+      "url": "/browser-lazy/chunks/chunk-1DBB63C7.js",
+      "bytes": 563920,
+      "gzip": 183080,
+      "sha256": "bf9c1bb4d4d48dea259b7235ee21e51b8c3f0ebb29d8002d7750c1b877c909f9",
+      "raw": 563920,
+      "gzip9": 183080,
+      "brotli11": 151128,
+      "actualSha256": "bf9c1bb4d4d48dea259b7235ee21e51b8c3f0ebb29d8002d7750c1b877c909f9",
+      "kind": "actual product module"
+    }
+  ],
+  "publicProducts": [
+    {
+      "call": 1,
+      "role": "standard-family-support-probe",
+      "source": "eventmodeling\n\ntf 01 ui AlphaScreen\ntf 02 cmd BetaCommand\ntf 03 evt GammaEvent",
+      "status": "returned",
+      "svgBytes": 4513,
+      "receiptBytes": 7995,
+      "wholeBytes": 12951,
+      "proof": {
+        "version": 1,
+        "unit": "px",
+        "scope": "native-scene",
+        "status": "passed",
+        "viewport": {
+          "x": 0,
+          "y": 0,
+          "width": 809.495,
+          "height": 510.25
+        },
+        "attempts": 1,
+        "repairs": [],
+        "coverage": {
+          "measured": 14,
+          "unmeasured": 0,
+          "preparedText": 6,
+          "fallbackText": 0,
+          "conditional": 0
+        },
+        "checks": {
+          "primitives": 17,
+          "labels": 3,
+          "occlusionPairs": 36,
+          "maxOcclusionPairs": 100000,
+          "operations": 48379,
+          "maxOperations": 400000,
+          "markers": 2
+        },
+        "issues": [],
+        "limitations": [
+          "Prepared occupied text regions bound native geometry; exact glyph ink depends on the resolved font.",
+          "Declared transparency, intentional data-mark overlap and externally modified CSS are outside this proof."
+        ],
+        "outputDigest": "fnv1a64:76e00335a29f7bec"
+      }
+    },
+    {
+      "call": 2,
+      "role": "enrolled-family",
+      "source": "eventmodeling\n\ntf 01 ui AlphaScreen\ntf 02 cmd BetaCommand\ntf 03 evt GammaEvent",
+      "status": "returned",
+      "svgBytes": 4513,
+      "receiptBytes": 7995,
+      "wholeBytes": 12951,
+      "proof": {
+        "version": 1,
+        "unit": "px",
+        "scope": "native-scene",
+        "status": "passed",
+        "viewport": {
+          "x": 0,
+          "y": 0,
+          "width": 809.495,
+          "height": 510.25
+        },
+        "attempts": 1,
+        "repairs": [],
+        "coverage": {
+          "measured": 14,
+          "unmeasured": 0,
+          "preparedText": 6,
+          "fallbackText": 0,
+          "conditional": 0
+        },
+        "checks": {
+          "primitives": 17,
+          "labels": 3,
+          "occlusionPairs": 36,
+          "maxOcclusionPairs": 100000,
+          "operations": 48379,
+          "maxOperations": 400000,
+          "markers": 2
+        },
+        "issues": [],
+        "limitations": [
+          "Prepared occupied text regions bound native geometry; exact glyph ink depends on the resolved font.",
+          "Declared transparency, intentional data-mark overlap and externally modified CSS are outside this proof."
+        ],
+        "outputDigest": "fnv1a64:76e00335a29f7bec"
+      }
+    }
+  ],
+  "observerErrors": [],
+  "remoteRequestsBlocked": [],
+  "scope": "One fresh family realm. Actual request union and post-GC JS heap include mandatory same-family support probe plus enrolled source; binding separately reported; gzip9/Brotli11 actual fetched bytes, not claimed compressed wire transfer. Transport-instrumented raw times must not be used as API performance evidence."
+}

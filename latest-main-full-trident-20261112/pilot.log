@@ -1,0 +1,6 @@
+{"completed":24,"total":124,"last":{"target":"pr","backend":"agentic","id":"family:gantt","delivery":"returned"}}
+{"completed":48,"total":124,"last":{"target":"pr","backend":"agentic","id":"scaling:flowchart:8","delivery":"returned"}}
+{"completed":72,"total":124,"last":{"target":"pr","backend":"agentic","id":"scaling:er:8","delivery":"returned"}}
+{"completed":96,"total":124,"last":{"target":"pr","backend":"agentic","id":"invalid:missing-endpoints","delivery":"error"}}
+{"completed":120,"total":124,"last":{"target":"pr","backend":"agentic","id":"diagnostic:chain100","delivery":"returned"}}
+{"done":true,"rows":124,"returned":116}

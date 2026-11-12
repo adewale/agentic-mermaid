@@ -1,0 +1,82 @@
+{
+  "families": 1,
+  "arms": [
+    {
+      "target": "pr",
+      "backend": "agentic",
+      "style": "paper",
+      "fallback": "none"
+    },
+    {
+      "target": "pr",
+      "backend": "agentic",
+      "style": "hand-drawn",
+      "fallback": "none"
+    },
+    {
+      "target": "pr",
+      "backend": "elk",
+      "style": "paper",
+      "fallback": "none"
+    },
+    {
+      "target": "pr",
+      "backend": "elk",
+      "style": "hand-drawn",
+      "fallback": "none"
+    }
+  ],
+  "workloads": [
+    {
+      "id": "family:flowchart",
+      "family": "flowchart",
+      "source": "flowchart LR\nA[Alpha] --> B[Beta]\nB --> C[Gamma]",
+      "expectedLabels": [
+        "Alpha",
+        "Beta",
+        "Gamma"
+      ],
+      "features": [
+        "portable-family-closure"
+      ],
+      "provenance": "Unmodified enrolled portable family source",
+      "precedingStandardSupportProbe": {
+        "id": "family-support:flowchart",
+        "family": "flowchart",
+        "cohort": "family",
+        "source": "flowchart LR\nA[Alpha] --> B[Beta]\nB --> C[Gamma]",
+        "expected": {
+          "accept": true,
+          "labels": [
+            "Alpha",
+            "Beta",
+            "Gamma"
+          ],
+          "topology": {
+            "nodes": [
+              "A",
+              "B",
+              "C"
+            ],
+            "edges": [
+              {
+                "source": "A",
+                "target": "B"
+              },
+              {
+                "source": "B",
+                "target": "C"
+              }
+            ],
+            "nodeLabels": {
+              "A": "Alpha",
+              "B": "Beta",
+              "C": "Gamma"
+            }
+          }
+        }
+      }
+    }
+  ],
+  "scope": "Sources/labels/roles frozen before observations. Fresh realm per family/arm. Standard mandatory same-family support probe precedes enrolled case; closure and heap cover both. No timing or full-meaning claim."
+}

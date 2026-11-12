@@ -1,0 +1,578 @@
+[
+  {
+    "id": "adewale/agentic-mermaid",
+    "round": 1,
+    "engine": {
+      "root": "/dev/shm/pr449-four-final-20261111/latest-main-full-trident-20261112/browser/engines/pr-agentic",
+      "entry": "entry.mjs",
+      "kind": "extra",
+      "global": "unifiedMermaid",
+      "scriptType": "module",
+      "qualificationHelper": "/dev/shm/pr449-four-final-20261111/latest-main-full-trident-20261112/browser/qualification/qualification-visible-content-v3-0201ef6ba4287de67684b0ee65a3ee049be3140709c477262bf21e36c8de8901.js",
+      "version": "0.5.7",
+      "revision": "68986ba8e3b76ad99dad44c6ec8d43475cc5e12f",
+      "artifactSha256": "1fbc5cca0c7531ac8dd7a21d22691c67f0e3fb0f47bd3abbf8677d9b3112a15a",
+      "output": "svg",
+      "apiBoundary": "Actual public lazy renderMermaidSVGWithReceiptAsync with explicit backend/fallback none; full original object serialized/retained by observation transport before unchanged declaredRenderer/Trident SVG qualification. No timing claim.",
+      "files": [
+        {
+          "path": "/dev/shm/pr449-four-final-20261111/latest-main-full-trident-20261112/browser/engines/pr-agentic/browser-lazy/chunks/agentflow-RDE2WXGX.js",
+          "sha256": "8cc65bc305f9385fadc6392747904def4b384e73f23b4c3db9ee54034be9e7b6"
+        },
+        {
+          "path": "/dev/shm/pr449-four-final-20261111/latest-main-full-trident-20261112/browser/engines/pr-agentic/browser-lazy/chunks/agentic-producer-core-3NUN4OHM.js",
+          "sha256": "e50b24ea7907127d2ecabf421dd0b8d54825788daef6d59b26332dc21ad013a0"
+        },
+        {
+          "path": "/dev/shm/pr449-four-final-20261111/latest-main-full-trident-20261112/browser/engines/pr-agentic/browser-lazy/chunks/architecture-EPPQ2R3M.js",
+          "sha256": "df5e103e8cbf0d207bfb51fee6e7f7147097ce4e8688bf20fd8f6a63f1a0c854"
+        },
+        {
+          "path": "/dev/shm/pr449-four-final-20261111/latest-main-full-trident-20261112/browser/engines/pr-agentic/browser-lazy/chunks/block-GXV3C3RL.js",
+          "sha256": "9a17a21b959f37986c003f1873c7b8d4f0a03084037179caa2825de8125c7d90"
+        },
+        {
+          "path": "/dev/shm/pr449-four-final-20261111/latest-main-full-trident-20261112/browser/engines/pr-agentic/browser-lazy/chunks/builtin-backends-SE5WRQTQ.js",
+          "sha256": "16e63551508d0ebc1cf4acf1e95937c42304d91f0c231b35cb81498615b765c6"
+        },
+        {
+          "path": "/dev/shm/pr449-four-final-20261111/latest-main-full-trident-20261112/browser/engines/pr-agentic/browser-lazy/chunks/c4-XBKO2VR6.js",
+          "sha256": "e646d12229369c0dd26fc54cb3619f2b8d8ef06277d3fbbb15dcc951f77fb680"
+        },
+        {
+          "path": "/dev/shm/pr449-four-final-20261111/latest-main-full-trident-20261112/browser/engines/pr-agentic/browser-lazy/chunks/chunk-1DBB63C7.js",
+          "sha256": "bf9c1bb4d4d48dea259b7235ee21e51b8c3f0ebb29d8002d7750c1b877c909f9"
+        },
+        {
+          "path": "/dev/shm/pr449-four-final-20261111/latest-main-full-trident-20261112/browser/engines/pr-agentic/browser-lazy/chunks/chunk-2JAKDQEZ.js",
+          "sha256": "f0175da760cc59226e0a4d3c084e08f5aa898726d8c14953adacf5d3984afc4b"
+        },
+        {
+          "path": "/dev/shm/pr449-four-final-20261111/latest-main-full-trident-20261112/browser/engines/pr-agentic/browser-lazy/chunks/chunk-2S7K4AQE.js",
+          "sha256": "76665835ef4b5f39382ccbc9ecb5703e0d5796c8eb4b0a04465f80375efda6b0"
+        },
+        {
+          "path": "/dev/shm/pr449-four-final-20261111/latest-main-full-trident-20261112/browser/engines/pr-agentic/browser-lazy/chunks/chunk-36NITDRI.js",
+          "sha256": "fe630524a786f96f57369a41664c1cebde952d9f4d6dbe6fff0e942aea1b470d"
+        },
+        {
+          "path": "/dev/shm/pr449-four-final-20261111/latest-main-full-trident-20261112/browser/engines/pr-agentic/browser-lazy/chunks/chunk-3WXCTVAZ.js",
+          "sha256": "163e608e09a11b8ebf6334f64b1340b438730cbd8ac59502e3b31b8d595252e1"
+        },
+        {
+          "path": "/dev/shm/pr449-four-final-20261111/latest-main-full-trident-20261112/browser/engines/pr-agentic/browser-lazy/chunks/chunk-3ZL2CQPB.js",
+          "sha256": "8e228b2d11e2c6bfca5b0b6ae36c976d9f129136cb7d67c6c35e8d59713f3959"
+        },
+        {
+          "path": "/dev/shm/pr449-four-final-20261111/latest-main-full-trident-20261112/browser/engines/pr-agentic/browser-lazy/chunks/chunk-42EFHSON.js",
+          "sha256": "c5b1e05bcdfaeb8602203ac7d3de59c2915fb65acc0e55787709d15031691db0"
+        },
+        {
+          "path": "/dev/shm/pr449-four-final-20261111/latest-main-full-trident-20261112/browser/engines/pr-agentic/browser-lazy/chunks/chunk-42GLKVCL.js",
+          "sha256": "dc488613a77d3e04e6a005b61e32ed4215ac965cdb6de3dfc8f00e21d6230f87"
+        },
+        {
+          "path": "/dev/shm/pr449-four-final-20261111/latest-main-full-trident-20261112/browser/engines/pr-agentic/browser-lazy/chunks/chunk-4OVI3DRP.js",
+          "sha256": "88e8aa852ec0fc671acc03b42ab3f803579960d8d77d62dd22641ccfeb6f5d10"
+        },
+        {
+          "path": "/dev/shm/pr449-four-final-20261111/latest-main-full-trident-20261112/browser/engines/pr-agentic/browser-lazy/chunks/chunk-4XNP2A4L.js",
+          "sha256": "c6ae1c5df5f6a8adcaaf7e0406a9b5f8740cf28fd6ebcef5ac081cfc37300288"
+        },
+        {
+          "path": "/dev/shm/pr449-four-final-20261111/latest-main-full-trident-20261112/browser/engines/pr-agentic/browser-lazy/chunks/chunk-6EU2H5FU.js",
+          "sha256": "e656eaaa966fc72cc4d079e3b721832206a8ea30ba6fd54135c2b43001954b19"
+        },
+        {
+          "path": "/dev/shm/pr449-four-final-20261111/latest-main-full-trident-20261112/browser/engines/pr-agentic/browser-lazy/chunks/chunk-7ICS4B2K.js",
+          "sha256": "e19db39ab8ce906fc691b3e7eaaa0659ca31bbeede2bb6514d1b4798062dd00a"
+        },
+        {
+          "path": "/dev/shm/pr449-four-final-20261111/latest-main-full-trident-20261112/browser/engines/pr-agentic/browser-lazy/chunks/chunk-7NEWL4HP.js",
+          "sha256": "cd8d24faa177f0c9a8c5276bbfd24a72d0b5a42c04801edf3aaed9eda23d9616"
+        },
+        {
+          "path": "/dev/shm/pr449-four-final-20261111/latest-main-full-trident-20261112/browser/engines/pr-agentic/browser-lazy/chunks/chunk-7WWHW4TU.js",
+          "sha256": "9f493d21c0d42a130eedfa546c919a18b2c04fb2062d876524b91c58980a0b58"
+        },
+        {
+          "path": "/dev/shm/pr449-four-final-20261111/latest-main-full-trident-20261112/browser/engines/pr-agentic/browser-lazy/chunks/chunk-AKDQ4I7A.js",
+          "sha256": "c789c34c8198cdd429ac1daf7af66942ea61037f753d80493b7aabaf7dbbdd46"
+        },
+        {
+          "path": "/dev/shm/pr449-four-final-20261111/latest-main-full-trident-20261112/browser/engines/pr-agentic/browser-lazy/chunks/chunk-C2WOP7NN.js",
+          "sha256": "de3ef00d134fa3af10f348d6654d610c57c3fa09030dad3a653f162db799950a"
+        },
+        {
+          "path": "/dev/shm/pr449-four-final-20261111/latest-main-full-trident-20261112/browser/engines/pr-agentic/browser-lazy/chunks/chunk-CNDYVUHL.js",
+          "sha256": "256171d38d871940de29887398233287ce8c860548956be7aaeb5e4c2fe7967d"
+        },
+        {
+          "path": "/dev/shm/pr449-four-final-20261111/latest-main-full-trident-20261112/browser/engines/pr-agentic/browser-lazy/chunks/chunk-D2I3RK3A.js",
+          "sha256": "9a50bc656c650d048cfdcb0a206fd2972e20f0aec64dd882ee0a1e1e58e11dd0"
+        },
+        {
+          "path": "/dev/shm/pr449-four-final-20261111/latest-main-full-trident-20261112/browser/engines/pr-agentic/browser-lazy/chunks/chunk-D6Z762G4.js",
+          "sha256": "bc9243c7c84de8de1e64f44b485dad3f99b66f75179002049b1c578fef2bb321"
+        },
+        {
+          "path": "/dev/shm/pr449-four-final-20261111/latest-main-full-trident-20261112/browser/engines/pr-agentic/browser-lazy/chunks/chunk-DRFNJ7BP.js",
+          "sha256": "9537136b03638cfeaee3fd895794340115c04b985d0f37a91cb3218ad460289f"
+        },
+        {
+          "path": "/dev/shm/pr449-four-final-20261111/latest-main-full-trident-20261112/browser/engines/pr-agentic/browser-lazy/chunks/chunk-GOTYYJ4K.js",
+          "sha256": "ebe8c1a832ce606e8efed7e11d6120e98526b243ffac1bcee67ecc8b2c32d64b"
+        },
+        {
+          "path": "/dev/shm/pr449-four-final-20261111/latest-main-full-trident-20261112/browser/engines/pr-agentic/browser-lazy/chunks/chunk-HODM7JLR.js",
+          "sha256": "1fb7971b1cea4518692131e5b9dff1850aa5d7636dda1cda6037db1b9e8d4633"
+        },
+        {
+          "path": "/dev/shm/pr449-four-final-20261111/latest-main-full-trident-20261112/browser/engines/pr-agentic/browser-lazy/chunks/chunk-IRIK7OOK.js",
+          "sha256": "0564120dec9fe0cc5f659ada8afa171c37621007ebbdd54d91df1c54c7707d6d"
+        },
+        {
+          "path": "/dev/shm/pr449-four-final-20261111/latest-main-full-trident-20261112/browser/engines/pr-agentic/browser-lazy/chunks/chunk-JZBXXLC3.js",
+          "sha256": "198f6b7ebb97147b8d7f7381507ab0fff3153d7f2fb4382c7148f83e434fb38d"
+        },
+        {
+          "path": "/dev/shm/pr449-four-final-20261111/latest-main-full-trident-20261112/browser/engines/pr-agentic/browser-lazy/chunks/chunk-LEPUSHHW.js",
+          "sha256": "0ebc5bd81b15e0000e4f0b91abdea4cda56ea0d74409080a37b1e5da8acf0706"
+        },
+        {
+          "path": "/dev/shm/pr449-four-final-20261111/latest-main-full-trident-20261112/browser/engines/pr-agentic/browser-lazy/chunks/chunk-NPLBGPB4.js",
+          "sha256": "f0d70542487072ea850037c5f61df42710b0625f4fb72fb5fb2ece6c26215394"
+        },
+        {
+          "path": "/dev/shm/pr449-four-final-20261111/latest-main-full-trident-20261112/browser/engines/pr-agentic/browser-lazy/chunks/chunk-OHKWTFGW.js",
+          "sha256": "8bd511942a4ec4b7510a8f16be00ce0513d5d21cc6b9c0c0d518324655e86c5e"
+        },
+        {
+          "path": "/dev/shm/pr449-four-final-20261111/latest-main-full-trident-20261112/browser/engines/pr-agentic/browser-lazy/chunks/chunk-OZYHVKO2.js",
+          "sha256": "daae0619bc0ec02d0d90d2108156b16b85d5321dbe6cccf0ad14514944707a5d"
+        },
+        {
+          "path": "/dev/shm/pr449-four-final-20261111/latest-main-full-trident-20261112/browser/engines/pr-agentic/browser-lazy/chunks/chunk-RGKK624U.js",
+          "sha256": "182a336909f73826538efdd4772df03ec2a75b871a8102fb7fa7ff0c322366d8"
+        },
+        {
+          "path": "/dev/shm/pr449-four-final-20261111/latest-main-full-trident-20261112/browser/engines/pr-agentic/browser-lazy/chunks/chunk-RK3M52YM.js",
+          "sha256": "0a6ac80cb50e728ee09e0e429b24c844f6b1f67a4eb6330e6f8f6ca558fbd478"
+        },
+        {
+          "path": "/dev/shm/pr449-four-final-20261111/latest-main-full-trident-20261112/browser/engines/pr-agentic/browser-lazy/chunks/chunk-T5L5OJON.js",
+          "sha256": "5587b07da16c1343c4375027331364b60a172e2f5f61459a481357128ae8db53"
+        },
+        {
+          "path": "/dev/shm/pr449-four-final-20261111/latest-main-full-trident-20261112/browser/engines/pr-agentic/browser-lazy/chunks/chunk-TL47WWMI.js",
+          "sha256": "d33eeb83208694f84b9681bbaa7cedfabf9d5376636c684ecf78de7a204d74ed"
+        },
+        {
+          "path": "/dev/shm/pr449-four-final-20261111/latest-main-full-trident-20261112/browser/engines/pr-agentic/browser-lazy/chunks/chunk-TX43CKOC.js",
+          "sha256": "32f2e061f17b0958551c522cf707b97162f11e6f3fdc44667276459410366258"
+        },
+        {
+          "path": "/dev/shm/pr449-four-final-20261111/latest-main-full-trident-20261112/browser/engines/pr-agentic/browser-lazy/chunks/chunk-UFNVAGMX.js",
+          "sha256": "8f96fdc3af538d7c5ae33bcd8f8ba444b0a89cd7c51ff19c741330c5f16be720"
+        },
+        {
+          "path": "/dev/shm/pr449-four-final-20261111/latest-main-full-trident-20261112/browser/engines/pr-agentic/browser-lazy/chunks/chunk-UWQFC3VK.js",
+          "sha256": "1def9e28e1f2e5bca4e0cac6f8b4571ced0e248935ed88f8d053b461841938f6"
+        },
+        {
+          "path": "/dev/shm/pr449-four-final-20261111/latest-main-full-trident-20261112/browser/engines/pr-agentic/browser-lazy/chunks/chunk-UYEN4KX5.js",
+          "sha256": "28099c26511b2903c0153dcfbb9b57f5091ecd9718b0eef849be94924a5050a7"
+        },
+        {
+          "path": "/dev/shm/pr449-four-final-20261111/latest-main-full-trident-20261112/browser/engines/pr-agentic/browser-lazy/chunks/chunk-UZWKI3PU.js",
+          "sha256": "6e3cbfc9056c3a9b479e1e6b9b6f97d49345b9cf53b5b5537cf517e5581835e7"
+        },
+        {
+          "path": "/dev/shm/pr449-four-final-20261111/latest-main-full-trident-20261112/browser/engines/pr-agentic/browser-lazy/chunks/chunk-VKOHJMHU.js",
+          "sha256": "aa2b0acdef4008d5388a976a535b662962882eb542702fbfda5cad3f70faaf18"
+        },
+        {
+          "path": "/dev/shm/pr449-four-final-20261111/latest-main-full-trident-20261112/browser/engines/pr-agentic/browser-lazy/chunks/chunk-WXSMHSEU.js",
+          "sha256": "5f0519ac3b1e589a4569dfa979144c0b35be8cb2c131379ccd17b22201b29476"
+        },
+        {
+          "path": "/dev/shm/pr449-four-final-20261111/latest-main-full-trident-20261112/browser/engines/pr-agentic/browser-lazy/chunks/chunk-XLAYDPRM.js",
+          "sha256": "ce9cff532eb31b13a6179a158d4bc010f215e55e27f1849afdf160537dab98e2"
+        },
+        {
+          "path": "/dev/shm/pr449-four-final-20261111/latest-main-full-trident-20261112/browser/engines/pr-agentic/browser-lazy/chunks/chunk-XRAXABP4.js",
+          "sha256": "be219d28301693b3509806f8002add7ff66819d52ee550911fffc1fb47a837c6"
+        },
+        {
+          "path": "/dev/shm/pr449-four-final-20261111/latest-main-full-trident-20261112/browser/engines/pr-agentic/browser-lazy/chunks/chunk-Z5FFVCUF.js",
+          "sha256": "30e5de7004b351e437374ab5ffccba7025aa4ac6b773bda90f2ea90744111b2e"
+        },
+        {
+          "path": "/dev/shm/pr449-four-final-20261111/latest-main-full-trident-20261112/browser/engines/pr-agentic/browser-lazy/chunks/class-PM65SBQP.js",
+          "sha256": "0e039b7f9abdc3f059da2e09526209ba3ecacdcf5f4f853b446dd5633bb95d9c"
+        },
+        {
+          "path": "/dev/shm/pr449-four-final-20261111/latest-main-full-trident-20261112/browser/engines/pr-agentic/browser-lazy/chunks/cynefin-7FTSKHWG.js",
+          "sha256": "e41aed989590f3e1927f7b6188412617c1e39d2c7c5489ee26ddc3594cff76c5"
+        },
+        {
+          "path": "/dev/shm/pr449-four-final-20261111/latest-main-full-trident-20261112/browser/engines/pr-agentic/browser-lazy/chunks/decode-GCEHHQO5.js",
+          "sha256": "a1deb222428d918379652f6204e81040a02d750f53d26a8c276038df67c83a56"
+        },
+        {
+          "path": "/dev/shm/pr449-four-final-20261111/latest-main-full-trident-20261112/browser/engines/pr-agentic/browser-lazy/chunks/elk.bundled-JO3P6L53.js",
+          "sha256": "381e0e6b7d52033e54829921f69f96b3c46cc7e6204bcee3c3ad280832218e12"
+        },
+        {
+          "path": "/dev/shm/pr449-four-final-20261111/latest-main-full-trident-20261112/browser/engines/pr-agentic/browser-lazy/chunks/er-TIWKIS45.js",
+          "sha256": "01b3398d04f140521c42610761ba869fdcdc89d0d5301807fdc71fee0329bb98"
+        },
+        {
+          "path": "/dev/shm/pr449-four-final-20261111/latest-main-full-trident-20261112/browser/engines/pr-agentic/browser-lazy/chunks/eventmodeling-NS5KFAMT.js",
+          "sha256": "263b82bdef66ba3720ffaf3294543b8cbd95546d0d20856bc42feb084f21f079"
+        },
+        {
+          "path": "/dev/shm/pr449-four-final-20261111/latest-main-full-trident-20261112/browser/engines/pr-agentic/browser-lazy/chunks/flowchart-S5RC4TKZ.js",
+          "sha256": "b07d1a6c9e041277dfffc869f3d38ba94dd8f221f274302454554ec039bc6815"
+        },
+        {
+          "path": "/dev/shm/pr449-four-final-20261111/latest-main-full-trident-20261112/browser/engines/pr-agentic/browser-lazy/chunks/forest-implementation-6Q5LPUBT.js",
+          "sha256": "57f909cb42d33337f6a2b3a6f1f521e5a8374bfecdc7a1afe146a77ca49e1f12"
+        },
+        {
+          "path": "/dev/shm/pr449-four-final-20261111/latest-main-full-trident-20261112/browser/engines/pr-agentic/browser-lazy/chunks/gantt-U2O5SG34.js",
+          "sha256": "1953a5c636d254f1800c817252f92b9887ecdad65c05c2e9e719e5075df1ad8a"
+        },
+        {
+          "path": "/dev/shm/pr449-four-final-20261111/latest-main-full-trident-20261112/browser/engines/pr-agentic/browser-lazy/chunks/gitgraph-FTAN74AW.js",
+          "sha256": "69c91c07b84be4850bdd60b346553e66fe3fa2831d4c87c805e90cc8c06b715b"
+        },
+        {
+          "path": "/dev/shm/pr449-four-final-20261111/latest-main-full-trident-20261112/browser/engines/pr-agentic/browser-lazy/chunks/inter-metrics-kernel-FOSW7ZGR.js",
+          "sha256": "e514d9e28ea4a362238a519f48a65dd67070a531026e032e11c9f74c278f318a"
+        },
+        {
+          "path": "/dev/shm/pr449-four-final-20261111/latest-main-full-trident-20261112/browser/engines/pr-agentic/browser-lazy/chunks/ishikawa-O3T2CSU2.js",
+          "sha256": "e8d819f65ee06dca63ce3155b61eb6d42fc608d3b9ebad4332f8a15dd2f3467b"
+        },
+        {
+          "path": "/dev/shm/pr449-four-final-20261111/latest-main-full-trident-20261112/browser/engines/pr-agentic/browser-lazy/chunks/journey-QUZAESAD.js",
+          "sha256": "4aa4e5c38ffb26053b1afb38094778763c0d17cb3a1cef66978f67775348aac2"
+        },
+        {
+          "path": "/dev/shm/pr449-four-final-20261111/latest-main-full-trident-20261112/browser/engines/pr-agentic/browser-lazy/chunks/kanban-CXDCULJL.js",
+          "sha256": "7222e1ae451c72426bb1c898f41e21d8defef2734822a0030a4cff7c66af0bbf"
+        },
+        {
+          "path": "/dev/shm/pr449-four-final-20261111/latest-main-full-trident-20261112/browser/engines/pr-agentic/browser-lazy/chunks/mermaid-yaml-runtime-EE552SAU.js",
+          "sha256": "d612a19ad2b377555bf4a0eb35fb96574b3333b0950016484788bf3ef532d013"
+        },
+        {
+          "path": "/dev/shm/pr449-four-final-20261111/latest-main-full-trident-20261112/browser/engines/pr-agentic/browser-lazy/chunks/mindmap-V2L3UVHP.js",
+          "sha256": "038d68c6d7797a5a419c13451ff8a9043eef5697559511571a2b0bf234c0cd07"
+        },
+        {
+          "path": "/dev/shm/pr449-four-final-20261111/latest-main-full-trident-20261112/browser/engines/pr-agentic/browser-lazy/chunks/optimization-runtime-OG4WMUIK.js",
+          "sha256": "4664f954cec77c4c32155ca8c269208c8a3daad20a9668c92d6acb574c6c6893"
+        },
+        {
+          "path": "/dev/shm/pr449-four-final-20261111/latest-main-full-trident-20261112/browser/engines/pr-agentic/browser-lazy/chunks/packet-7B4SDQJL.js",
+          "sha256": "865b6d114dd9fb76d86da9d2f496d33c3761cd65aa61f41948e88f6954b311be"
+        },
+        {
+          "path": "/dev/shm/pr449-four-final-20261111/latest-main-full-trident-20261112/browser/engines/pr-agentic/browser-lazy/chunks/parser-source-EANETDRN.js",
+          "sha256": "2b8353b693569547123ac8ee0c4c1afe9db14b2b0526ea04e8ead096dfae4e8e"
+        },
+        {
+          "path": "/dev/shm/pr449-four-final-20261111/latest-main-full-trident-20261112/browser/engines/pr-agentic/browser-lazy/chunks/pie-4N5OYAV5.js",
+          "sha256": "176e2c75e1bca1e4634b2d14e0b0a3fdcfc470241ffdeb0a7473da009a2cb67b"
+        },
+        {
+          "path": "/dev/shm/pr449-four-final-20261111/latest-main-full-trident-20261112/browser/engines/pr-agentic/browser-lazy/chunks/quadrant-M7BWKIIU.js",
+          "sha256": "bc4afc4e80d93909247f67ee25858ae20f45f3e80a6651c4d9eca2c08b8f07a8"
+        },
+        {
+          "path": "/dev/shm/pr449-four-final-20261111/latest-main-full-trident-20261112/browser/engines/pr-agentic/browser-lazy/chunks/radar-H76V2ON4.js",
+          "sha256": "c8118ae2aa8641b2c53b16b2a7da454c9335a1d294510e7c0062ff0d7195c651"
+        },
+        {
+          "path": "/dev/shm/pr449-four-final-20261111/latest-main-full-trident-20261112/browser/engines/pr-agentic/browser-lazy/chunks/railroad-4JEHMAOM.js",
+          "sha256": "c21188381d4928cb7a5b77ae62b424c7683e371a600019a3f260597b276942b6"
+        },
+        {
+          "path": "/dev/shm/pr449-four-final-20261111/latest-main-full-trident-20261112/browser/engines/pr-agentic/browser-lazy/chunks/requirement-IAGE7FDZ.js",
+          "sha256": "83bb043a045c3ca0c3c6b492d36906a57c02afa550327a97476d7e88555489dd"
+        },
+        {
+          "path": "/dev/shm/pr449-four-final-20261111/latest-main-full-trident-20261112/browser/engines/pr-agentic/browser-lazy/chunks/sankey-X425KJG3.js",
+          "sha256": "f82e047efdf8bfabd1f9fe3682496f1825982fefbb958dc3e1b4286fe7b2b30d"
+        },
+        {
+          "path": "/dev/shm/pr449-four-final-20261111/latest-main-full-trident-20261112/browser/engines/pr-agentic/browser-lazy/chunks/scene-backend-runtime-A23LRKKD.js",
+          "sha256": "afd5d649fdf7bf5e7807cc2386c7b574b2627abd405a46e5f9edc4c820ba1dda"
+        },
+        {
+          "path": "/dev/shm/pr449-four-final-20261111/latest-main-full-trident-20261112/browser/engines/pr-agentic/browser-lazy/chunks/sequence-PPUZP2KI.js",
+          "sha256": "5dbcc783d9cbf128330d9f3a8561dca0ca4aac61a84f9b8c61e99174f26b423d"
+        },
+        {
+          "path": "/dev/shm/pr449-four-final-20261111/latest-main-full-trident-20261112/browser/engines/pr-agentic/browser-lazy/chunks/state-H2OLJOHT.js",
+          "sha256": "8ff31099f975f6a2fa30ec2006405454308eb4183ce7d5c738c92d57fc0de572"
+        },
+        {
+          "path": "/dev/shm/pr449-four-final-20261111/latest-main-full-trident-20261112/browser/engines/pr-agentic/browser-lazy/chunks/style-runtime-K6CK2PNJ.js",
+          "sha256": "27153987f9b23b632e37bac6774778216c3f19b9f8aadefffdf151020d293488"
+        },
+        {
+          "path": "/dev/shm/pr449-four-final-20261111/latest-main-full-trident-20261112/browser/engines/pr-agentic/browser-lazy/chunks/swimlane-45ITPRRP.js",
+          "sha256": "66e37a307fcee17dc476fc10bd26ebdc75c1c1861429298ca8368bed58460063"
+        },
+        {
+          "path": "/dev/shm/pr449-four-final-20261111/latest-main-full-trident-20261112/browser/engines/pr-agentic/browser-lazy/chunks/timeline-6TCBO7B6.js",
+          "sha256": "a749baa44de65337c97f1de8aac83b8a082d0d32c79c1fb85b9656f0dcca66db"
+        },
+        {
+          "path": "/dev/shm/pr449-four-final-20261111/latest-main-full-trident-20261112/browser/engines/pr-agentic/browser-lazy/chunks/treemap-KU2O7ZFH.js",
+          "sha256": "c6ed0f6b905dac65659482ef2b57f7ee39a36f341a006cf7f306a313df434c92"
+        },
+        {
+          "path": "/dev/shm/pr449-four-final-20261111/latest-main-full-trident-20261112/browser/engines/pr-agentic/browser-lazy/chunks/treeview-PFPCPHHN.js",
+          "sha256": "1332a80bc7ac4ae948154068f023b1de1941ddb32317c393e344b7a2ebdb45ce"
+        },
+        {
+          "path": "/dev/shm/pr449-four-final-20261111/latest-main-full-trident-20261112/browser/engines/pr-agentic/browser-lazy/chunks/usecase-FK7HFPLV.js",
+          "sha256": "ad6c0e0bea40be381f8699520d7812739fcf8891b31a2e88c25dc3526bd48dda"
+        },
+        {
+          "path": "/dev/shm/pr449-four-final-20261111/latest-main-full-trident-20261112/browser/engines/pr-agentic/browser-lazy/chunks/venn-GUGWOD7J.js",
+          "sha256": "29cf461a3961eebe5f66aa3716c2812149030747ab970525da583c31c0fbf505"
+        },
+        {
+          "path": "/dev/shm/pr449-four-final-20261111/latest-main-full-trident-20261112/browser/engines/pr-agentic/browser-lazy/chunks/wardley-LK22HE6A.js",
+          "sha256": "51c8931b8493da7f83063c341ea52095079683939cb1a5e7139ba4256c1b1de8"
+        },
+        {
+          "path": "/dev/shm/pr449-four-final-20261111/latest-main-full-trident-20261112/browser/engines/pr-agentic/browser-lazy/chunks/xychart-735K7XHZ.js",
+          "sha256": "6c76c5b890f9d0ea397426df473479327f1ec22ace3fd78cdcdf86d8b771c2a1"
+        },
+        {
+          "path": "/dev/shm/pr449-four-final-20261111/latest-main-full-trident-20261112/browser/engines/pr-agentic/browser-lazy/chunks/zenuml-WNO4IDRZ.js",
+          "sha256": "6e50a048547f2a54ec10dc69c595ceeb4462cd293cc7bae0a5e2f09b02993571"
+        },
+        {
+          "path": "/dev/shm/pr449-four-final-20261111/latest-main-full-trident-20261112/browser/engines/pr-agentic/browser-lazy/index.d.ts",
+          "sha256": "a076e2f30ad7e1258f050cb6ca528735f30176d083fa43159bf77c51d94d9465"
+        },
+        {
+          "path": "/dev/shm/pr449-four-final-20261111/latest-main-full-trident-20261112/browser/engines/pr-agentic/browser-lazy/index.js",
+          "sha256": "56482a1831b411fcdc81f097e07c78d77a49ada31bdcb3df2a875aeaf3385dad"
+        },
+        {
+          "path": "/dev/shm/pr449-four-final-20261111/latest-main-full-trident-20261112/browser/engines/pr-agentic/declared-adapter.mjs",
+          "sha256": "2db9f4b28ad5d21417101446f0fb5375d6281898daeff495295504eae98cd103"
+        },
+        {
+          "path": "/dev/shm/pr449-four-final-20261111/latest-main-full-trident-20261112/browser/engines/pr-agentic/entry.mjs",
+          "sha256": "02e58d64ef5f565d2c6901aec190238474e6f73398184bec29120e283a084760"
+        }
+      ]
+    },
+    "samples": [
+      {
+        "suite": "community-browser",
+        "surface": "browser:public-api",
+        "runtime": "chromium",
+        "family": "*",
+        "caseId": "loader",
+        "operation": "load-and-initialize",
+        "format": "svg",
+        "mode": "cold-round-1",
+        "status": "passed",
+        "samplesMs": [
+          64.03300099999979
+        ],
+        "metrics": {
+          "implementation": "adewale/agentic-mermaid",
+          "browser": "154.0.8037.57",
+          "version": "0.5.7",
+          "artifactSha256": "1fbc5cca0c7531ac8dd7a21d22691c67f0e3fb0f47bd3abbf8677d9b3112a15a",
+          "cache": "public-default-repeats"
+        }
+      },
+      {
+        "suite": "community-browser",
+        "surface": "browser:public-api",
+        "runtime": "chromium",
+        "family": "pie",
+        "caseId": "family-support:pie",
+        "operation": "family-support",
+        "format": "svg",
+        "mode": "family-support-probe",
+        "status": "passed",
+        "bytes": 3152,
+        "findings": [],
+        "metrics": {
+          "implementation": "adewale/agentic-mermaid",
+          "apiBoundary": "Actual public lazy renderMermaidSVGWithReceiptAsync with explicit backend/fallback none; full original object serialized/retained by observation transport before unchanged declaredRenderer/Trident SVG qualification. No timing claim.",
+          "round": 1,
+          "rejected": false,
+          "xmlWellFormed": true,
+          "outputFile": null,
+          "firstMs": 343.10000002384186,
+          "iterations": null,
+          "version": "0.5.7",
+          "qualification": "XML-canvas-and-authored-labels",
+          "cache": "public-default-repeats"
+        }
+      },
+      {
+        "suite": "community-browser",
+        "surface": "browser:public-api",
+        "runtime": "chromium",
+        "family": "pie",
+        "caseId": "family:pie",
+        "operation": "render",
+        "format": "svg",
+        "mode": "feature-corpus-qualification",
+        "status": "passed",
+        "bytes": 3152,
+        "findings": [],
+        "metrics": {
+          "implementation": "adewale/agentic-mermaid",
+          "apiBoundary": "Actual public lazy renderMermaidSVGWithReceiptAsync with explicit backend/fallback none; full original object serialized/retained by observation transport before unchanged declaredRenderer/Trident SVG qualification. No timing claim.",
+          "round": 1,
+          "rejected": false,
+          "xmlWellFormed": true,
+          "outputFile": null,
+          "firstMs": 11.200000047683716,
+          "iterations": null,
+          "version": "0.5.7",
+          "qualification": "XML-canvas-and-authored-labels",
+          "cache": "public-default-repeats"
+        }
+      },
+      {
+        "suite": "community-browser",
+        "surface": "browser:public-api",
+        "runtime": "chromium-v8",
+        "family": "*",
+        "caseId": "post-portfolio-heap",
+        "operation": "memory",
+        "format": "svg",
+        "mode": "after-round-1",
+        "status": "passed",
+        "metrics": {
+          "implementation": "adewale/agentic-mermaid",
+          "round": 1,
+          "jsHeapUsedBytes": 3781028,
+          "portfolioCaseCount": 1,
+          "featureCases": 1,
+          "note": "Fresh realm, forced GC after this round portfolio; not native/WASM/process memory"
+        }
+      }
+    ],
+    "browser": "154.0.8037.57",
+    "payload": {
+      "files": [
+        {
+          "url": "/entry.mjs",
+          "bytes": 905,
+          "gzip": 430,
+          "sha256": "02e58d64ef5f565d2c6901aec190238474e6f73398184bec29120e283a084760"
+        },
+        {
+          "url": "/browser-lazy/index.js",
+          "bytes": 4344,
+          "gzip": 1550,
+          "sha256": "56482a1831b411fcdc81f097e07c78d77a49ada31bdcb3df2a875aeaf3385dad"
+        },
+        {
+          "url": "/declared-adapter.mjs",
+          "bytes": 965,
+          "gzip": 497,
+          "sha256": "2db9f4b28ad5d21417101446f0fb5375d6281898daeff495295504eae98cd103"
+        },
+        {
+          "url": "/browser-lazy/chunks/chunk-Z5FFVCUF.js",
+          "bytes": 5103,
+          "gzip": 2003,
+          "sha256": "30e5de7004b351e437374ab5ffccba7025aa4ac6b773bda90f2ea90744111b2e"
+        },
+        {
+          "url": "/browser-lazy/chunks/chunk-IRIK7OOK.js",
+          "bytes": 6562,
+          "gzip": 2378,
+          "sha256": "0564120dec9fe0cc5f659ada8afa171c37621007ebbdd54d91df1c54c7707d6d"
+        },
+        {
+          "url": "/browser-lazy/chunks/chunk-TX43CKOC.js",
+          "bytes": 440,
+          "gzip": 284,
+          "sha256": "32f2e061f17b0958551c522cf707b97162f11e6f3fdc44667276459410366258"
+        },
+        {
+          "url": "/browser-lazy/chunks/pie-4N5OYAV5.js",
+          "bytes": 22755,
+          "gzip": 8209,
+          "sha256": "176e2c75e1bca1e4634b2d14e0b0a3fdcfc470241ffdeb0a7473da009a2cb67b"
+        },
+        {
+          "url": "/browser-lazy/chunks/chunk-UYEN4KX5.js",
+          "bytes": 281,
+          "gzip": 216,
+          "sha256": "28099c26511b2903c0153dcfbb9b57f5091ecd9718b0eef849be94924a5050a7"
+        },
+        {
+          "url": "/browser-lazy/chunks/chunk-RGKK624U.js",
+          "bytes": 383,
+          "gzip": 288,
+          "sha256": "182a336909f73826538efdd4772df03ec2a75b871a8102fb7fa7ff0c322366d8"
+        },
+        {
+          "url": "/browser-lazy/chunks/chunk-6EU2H5FU.js",
+          "bytes": 1607,
+          "gzip": 805,
+          "sha256": "e656eaaa966fc72cc4d079e3b721832206a8ea30ba6fd54135c2b43001954b19"
+        },
+        {
+          "url": "/browser-lazy/chunks/chunk-C2WOP7NN.js",
+          "bytes": 8653,
+          "gzip": 3927,
+          "sha256": "de3ef00d134fa3af10f348d6654d610c57c3fa09030dad3a653f162db799950a"
+        },
+        {
+          "url": "/browser-lazy/chunks/chunk-D2I3RK3A.js",
+          "bytes": 515,
+          "gzip": 320,
+          "sha256": "9a50bc656c650d048cfdcb0a206fd2972e20f0aec64dd882ee0a1e1e58e11dd0"
+        },
+        {
+          "url": "/browser-lazy/chunks/chunk-XRAXABP4.js",
+          "bytes": 163,
+          "gzip": 145,
+          "sha256": "be219d28301693b3509806f8002add7ff66819d52ee550911fffc1fb47a837c6"
+        },
+        {
+          "url": "/browser-lazy/chunks/chunk-TL47WWMI.js",
+          "bytes": 1688,
+          "gzip": 697,
+          "sha256": "d33eeb83208694f84b9681bbaa7cedfabf9d5376636c684ecf78de7a204d74ed"
+        },
+        {
+          "url": "/browser-lazy/chunks/chunk-7NEWL4HP.js",
+          "bytes": 1850,
+          "gzip": 904,
+          "sha256": "cd8d24faa177f0c9a8c5276bbfd24a72d0b5a42c04801edf3aaed9eda23d9616"
+        },
+        {
+          "url": "/browser-lazy/chunks/chunk-1DBB63C7.js",
+          "bytes": 563920,
+          "gzip": 183080,
+          "sha256": "bf9c1bb4d4d48dea259b7235ee21e51b8c3f0ebb29d8002d7750c1b877c909f9"
+        }
+      ],
+      "gzip": 205733,
+      "remoteRequestsBlocked": []
+    }
+  }
+]

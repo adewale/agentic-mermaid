@@ -1,0 +1,627 @@
+{
+  "id": "meaning:family:treemap",
+  "family": "treemap",
+  "target": "pr",
+  "backend": "agentic",
+  "stem": "20-meaning_family_treemap-pr-agentic",
+  "expectationDepth": "reviewed declared authored fields only",
+  "preludes": [],
+  "acquired": {
+    "status": "accepted",
+    "publicAccepted": true,
+    "raw": {
+      "kind": "treemap",
+      "nodes": [
+        {
+          "id": "treemap-0",
+          "label": "Root"
+        },
+        {
+          "id": "treemap-1",
+          "label": "Alpha",
+          "parentId": "treemap-0",
+          "value": 7
+        },
+        {
+          "id": "treemap-2",
+          "label": "Beta",
+          "parentId": "treemap-0",
+          "value": 3
+        }
+      ],
+      "classDefs": {}
+    },
+    "family": "treemap",
+    "scope": "Canonical projection of actual public parser return/getDiagramFromText DB; authored expectations are independent",
+    "meaning": {
+      "family": "treemap",
+      "facts": {
+        "values": [
+          {
+            "id": "Root/Alpha",
+            "value": 7
+          },
+          {
+            "id": "Root/Beta",
+            "value": 3
+          }
+        ]
+      },
+      "unavailable": {},
+      "nodes": [
+        {
+          "id": "Root",
+          "label": "Root"
+        },
+        {
+          "id": "Root/Alpha",
+          "label": "Alpha"
+        },
+        {
+          "id": "Root/Beta",
+          "label": "Beta"
+        }
+      ],
+      "edges": [
+        {
+          "source": "Root",
+          "target": "Root/Alpha",
+          "directed": true,
+          "label": ""
+        },
+        {
+          "source": "Root",
+          "target": "Root/Beta",
+          "directed": true,
+          "label": ""
+        }
+      ],
+      "groups": [
+        {
+          "id": "Root",
+          "label": "Root",
+          "members": [
+            "Root/Alpha",
+            "Root/Beta"
+          ]
+        }
+      ]
+    }
+  },
+  "meaning": {
+    "complete": true,
+    "passed": true,
+    "checks": [
+      {
+        "criterion": "family",
+        "status": "passed",
+        "expected": "treemap",
+        "actual": "treemap",
+        "scope": "Returned native family; a source-preservation envelope is not native admission."
+      },
+      {
+        "criterion": "identities",
+        "status": "passed",
+        "expected": [
+          "\"Root\"",
+          "\"Root/Alpha\"",
+          "\"Root/Beta\""
+        ],
+        "actual": [
+          "\"Root\"",
+          "\"Root/Alpha\"",
+          "\"Root/Beta\""
+        ],
+        "scope": "Exact authored identity multiset, including duplicate and omitted identities."
+      },
+      {
+        "criterion": "node-labels",
+        "status": "passed",
+        "expected": [
+          "{\"id\":\"Root\",\"label\":\"Root\"}",
+          "{\"id\":\"Root/Alpha\",\"label\":\"Alpha\"}",
+          "{\"id\":\"Root/Beta\",\"label\":\"Beta\"}"
+        ],
+        "actual": [
+          "{\"id\":\"Root\",\"label\":\"Root\"}",
+          "{\"id\":\"Root/Alpha\",\"label\":\"Alpha\"}",
+          "{\"id\":\"Root/Beta\",\"label\":\"Beta\"}"
+        ],
+        "scope": "Authored identity-to-label binding; NFC/whitespace normalization applies to display labels, never identity strings."
+      },
+      {
+        "criterion": "relationships",
+        "status": "passed",
+        "expected": [
+          "{\"directed\":true,\"label\":\"\",\"source\":\"Root\",\"target\":\"Root/Alpha\"}",
+          "{\"directed\":true,\"label\":\"\",\"source\":\"Root\",\"target\":\"Root/Beta\"}"
+        ],
+        "actual": [
+          "{\"directed\":true,\"label\":\"\",\"source\":\"Root\",\"target\":\"Root/Alpha\"}",
+          "{\"directed\":true,\"label\":\"\",\"source\":\"Root\",\"target\":\"Root/Beta\"}"
+        ],
+        "scope": "Exact endpoint/direction/declared-marker/label multiset; parallel and reciprocal relationships remain distinct."
+      },
+      {
+        "criterion": "groups",
+        "status": "passed",
+        "expected": [
+          "{\"id\":\"Root\",\"label\":\"Root\",\"members\":[\"Root/Alpha\",\"Root/Beta\"]}"
+        ],
+        "actual": [
+          "{\"id\":\"Root\",\"label\":\"Root\",\"members\":[\"Root/Alpha\",\"Root/Beta\"]}"
+        ],
+        "scope": "Exact immediate membership and label binding; nested groups are identities, not flattened leaves."
+      },
+      {
+        "criterion": "fact:values",
+        "status": "passed",
+        "expected": [
+          "{\"id\":\"Root/Alpha\",\"value\":7}",
+          "{\"id\":\"Root/Beta\",\"value\":3}"
+        ],
+        "actual": [
+          "{\"id\":\"Root/Alpha\",\"value\":7}",
+          "{\"id\":\"Root/Beta\",\"value\":3}"
+        ],
+        "scope": "Declared unordered family-content multiset; duplicates remain significant."
+      }
+    ]
+  },
+  "rendered": {
+    "accepted": true,
+    "svg": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"960\" height=\"532\" viewBox=\"0 0 960 532\" style=\"--bg:#FFFFFF;--fg:#27272A;--font:Inter;background:#FFFFFF\" class=\"am-0d5vpbs0ha6jd8\">\n<style>\n  svg.am-0d5vpbs0ha6jd8 { font-family: var(--font, 'Inter'), system-ui, sans-serif; }\n  svg.am-0d5vpbs0ha6jd8 {\n    /* Derived from --bg and --fg (overridable via --line, --accent, etc.) */\n    --_text:          #27272A;\n    --_text-sec:      #575759;\n    --_text-muted:    #707072;\n    --_text-faint:    #8a8a8c;\n    --_line:          #939395;\n    --_arrow:         #47474a;\n    --_node-fill:     #f9f9f9;\n    --_node-stroke:   #d4d4d4;\n    --_group-fill:    #FFFFFF;\n    --_group-hdr:     #f4f4f4;\n    --_inner-stroke:  #e5e5e5;\n    --_key-badge:     #e9e9ea;\n  }\n</style>\n<g data-id=\"treemap-0\" data-role=\"group\">\n  <rect x=\"16\" y=\"16\" width=\"928\" height=\"500\" fill=\"#3b82f6\" stroke=\"#FFFFFF\" stroke-width=\"1\" data-id=\"cell:treemap-0\" data-role=\"bar\" />\n  <text x=\"480\" y=\"31.1\" text-anchor=\"middle\" font-family=\"Inter\" font-size=\"14\" font-weight=\"500\" fill=\"#1e1e21\" data-prepared-text=\"true\" dy=\"4.9\" textLength=\"30.828\" lengthAdjust=\"spacingAndGlyphs\" data-font-metrics=\"deterministic-fit\">Root</text>\n  <text x=\"480\" y=\"52\" text-anchor=\"middle\" font-family=\"Inter\" font-size=\"12\" font-weight=\"400\" fill=\"#1e1e21\" data-prepared-text=\"true\" dy=\"4.2\" textLength=\"10.872\" lengthAdjust=\"spacingAndGlyphs\" data-font-metrics=\"deterministic-fit\">10</text>\n  <g data-parent=\"treemap-0\" data-id=\"treemap-1\" data-role=\"node\">\n    <rect x=\"26\" y=\"75.8\" width=\"635.6\" height=\"430.2\" fill=\"#3b82f6\" stroke=\"#FFFFFF\" stroke-width=\"1\" data-id=\"cell:treemap-1\" data-role=\"bar\" />\n    <text x=\"343.8\" y=\"90.9\" text-anchor=\"middle\" font-family=\"Inter\" font-size=\"14\" font-weight=\"500\" fill=\"#1e1e21\" data-prepared-text=\"true\" dy=\"4.9\" textLength=\"38.808\" lengthAdjust=\"spacingAndGlyphs\" data-font-metrics=\"deterministic-fit\">Alpha</text>\n    <text x=\"343.8\" y=\"111.8\" text-anchor=\"middle\" font-family=\"Inter\" font-size=\"12\" font-weight=\"400\" fill=\"#1e1e21\" data-prepared-text=\"true\" dy=\"4.2\" textLength=\"8.28\" lengthAdjust=\"spacingAndGlyphs\" data-font-metrics=\"deterministic-fit\">7</text>\n  </g>\n  <g data-parent=\"treemap-0\" data-id=\"treemap-2\" data-role=\"node\">\n    <rect x=\"661.6\" y=\"75.8\" width=\"272.4\" height=\"430.2\" fill=\"#3b82f6\" stroke=\"#FFFFFF\" stroke-width=\"1\" data-id=\"cell:treemap-2\" data-role=\"bar\" />\n    <text x=\"797.8\" y=\"90.9\" text-anchor=\"middle\" font-family=\"Inter\" font-size=\"14\" font-weight=\"500\" fill=\"#1e1e21\" data-prepared-text=\"true\" dy=\"4.9\" textLength=\"30.828\" lengthAdjust=\"spacingAndGlyphs\" data-font-metrics=\"deterministic-fit\">Beta</text>\n    <text x=\"797.8\" y=\"111.8\" text-anchor=\"middle\" font-family=\"Inter\" font-size=\"12\" font-weight=\"400\" fill=\"#1e1e21\" data-prepared-text=\"true\" dy=\"4.2\" textLength=\"8.28\" lengthAdjust=\"spacingAndGlyphs\" data-font-metrics=\"deterministic-fit\">3</text>\n  </g>\n</g>\n</svg>",
+    "receipt": {
+      "version": 2,
+      "output": "svg",
+      "sharedRequestDigest": "fnv1a64:7396cdf1485146e5",
+      "requestDigest": "fnv1a64:9e6815a57225d80b",
+      "appearanceDigest": "fnv1a64:5c57037fc07cf497",
+      "capabilityDecision": {
+        "version": 1,
+        "accepted": true,
+        "resolutions": [
+          {
+            "id": "core:render-request",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "core:family-descriptor",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "family:treemap",
+            "range": "1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "core:scene",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "operation:layout",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "operation:lower-scene",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "backend:scene-renderer",
+            "range": "1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:document/identity/serialize",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:document/resources/serialize",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:document/interaction/accessibility",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:text/geometry/render",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:text/paint/render",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:text/labels/accessibility",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:text/identity/serialize",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:shape/geometry/render",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:shape/paint/render",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:shape/identity/serialize",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:container/geometry/render",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:container/paint/render",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:container/identity/serialize",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:data-mark/geometry/render",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:data-mark/paint/render",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:data-mark/identity/serialize",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "output:svg",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          }
+        ]
+      },
+      "diagnostics": [
+        {
+          "code": "RENDER_OPTION_NOT_APPLICABLE",
+          "feature": "render-option:graphLayout",
+          "message": "Render option \"graphLayout\" does not apply to built-in Mermaid family \"treemap\". Applicable built-in families: flowchart, state, architecture, class, er, requirement."
+        }
+      ],
+      "executionDecision": {
+        "family": {
+          "id": "family:treemap",
+          "version": "1.0.0"
+        },
+        "backend": {
+          "mode": "scene",
+          "requestedId": "default",
+          "selectedId": "backend:default",
+          "version": "1.0.0",
+          "hostPolicy": false
+        },
+        "digest": "fnv1a64:bc69ffdf7db23c81"
+      },
+      "graphicalProjectionDigest": "fnv1a64:f318feaea8004311",
+      "layoutCertification": {
+        "version": 1,
+        "unit": "px",
+        "scope": "native-scene",
+        "status": "passed",
+        "viewport": {
+          "x": 0,
+          "y": 0,
+          "width": 960,
+          "height": 532
+        },
+        "attempts": 1,
+        "repairs": [],
+        "coverage": {
+          "measured": 9,
+          "unmeasured": 0,
+          "preparedText": 6,
+          "fallbackText": 0,
+          "conditional": 0
+        },
+        "checks": {
+          "primitives": 11,
+          "labels": 6,
+          "occlusionPairs": 0,
+          "maxOcclusionPairs": 100000,
+          "operations": 12343,
+          "maxOperations": 400000,
+          "markers": 0
+        },
+        "issues": [],
+        "limitations": [
+          "Prepared occupied text regions bound native geometry; exact glyph ink depends on the resolved font.",
+          "Declared transparency, intentional data-mark overlap and externally modified CSS are outside this proof."
+        ],
+        "outputDigest": "fnv1a64:f318feaea8004311"
+      }
+    },
+    "wholeBytes": 7452,
+    "receiptBytes": 4257
+  },
+  "paint": {
+    "checks": [
+      {
+        "criterion": "svg-root",
+        "expected": "mounted SVG",
+        "actual": "svg",
+        "status": "passed",
+        "scope": "Actual public SVG result"
+      },
+      {
+        "criterion": "svg-unique-ids",
+        "expected": 0,
+        "actual": 0,
+        "status": "passed",
+        "scope": "Duplicate SVG identities can change marker, clip and owned-label references"
+      },
+      {
+        "criterion": "canvas",
+        "expected": "positive finite rendered canvas",
+        "actual": {
+          "x": 0,
+          "y": 0,
+          "width": 960,
+          "height": 532
+        },
+        "status": "passed",
+        "scope": "Actual browser viewport of the returned SVG"
+      },
+      {
+        "criterion": "visible-authored-labels",
+        "expected": [
+          "Root",
+          "Alpha",
+          "Beta"
+        ],
+        "actual": [
+          {
+            "label": "Root",
+            "count": 1
+          },
+          {
+            "label": "Alpha",
+            "count": 1
+          },
+          {
+            "label": "Beta",
+            "count": 1
+          }
+        ],
+        "status": "passed",
+        "scope": "Computed visibility and nonzero browser text bounds; metadata/title/defs text earns no credit"
+      },
+      {
+        "criterion": "labels-within-canvas",
+        "expected": "every authored label fits the canvas",
+        "actual": [],
+        "status": "passed",
+        "scope": "Actual rendered label bounds, with 1.5 CSS-pixel serialization tolerance"
+      },
+      {
+        "criterion": "unclipped-authored-labels",
+        "expected": [],
+        "actual": [],
+        "status": "passed",
+        "scope": "Actual self/ancestor clipping and overflow; unprojected masks/clip paths remain unavailable"
+      },
+      {
+        "criterion": "visible-ink",
+        "expected": "nonempty visible diagram geometry",
+        "actual": 3,
+        "status": "passed",
+        "scope": "Visible geometric elements; unprojected use/HTML/image-only ink remains unavailable, not a drawing defect"
+      },
+      {
+        "criterion": "painted-node-ownership",
+        "expected": [
+          "Root",
+          "Root/Alpha",
+          "Root/Beta"
+        ],
+        "actual": [
+          "Root",
+          "Root/Alpha",
+          "Root/Beta"
+        ],
+        "status": "passed",
+        "scope": "Unique actual label-to-shape ownership, independently of native model identity"
+      },
+      {
+        "criterion": "painted-relationships",
+        "expected": [
+          {
+            "source": "Root",
+            "target": "Root/Alpha",
+            "label": "",
+            "directed": true
+          },
+          {
+            "source": "Root",
+            "target": "Root/Beta",
+            "label": "",
+            "directed": true
+          }
+        ],
+        "actual": [],
+        "status": "unavailable",
+        "scope": "This representation needs a reviewed endpoint/marker projection; no semantic paint credit from labels alone"
+      },
+      {
+        "criterion": "painted-group:Root",
+        "expected": [
+          "Root/Alpha",
+          "Root/Beta"
+        ],
+        "actual": [],
+        "status": "passed",
+        "scope": "Authored descendant nodes fit their actual owned group boundary; immediate membership is checked independently in the native model"
+      },
+      {
+        "criterion": "paint-opacity-and-color",
+        "expected": "resolved visible paint colors/alpha",
+        "actual": [],
+        "status": "passed",
+        "scope": "Unresolved paint servers/context colors cannot silently earn a visible-ink or complete-style claim"
+      }
+    ],
+    "complete": false,
+    "passed": false,
+    "nodes": [
+      {
+        "id": "Root",
+        "label": "Root",
+        "box": {
+          "x": 16,
+          "y": 16,
+          "width": 928,
+          "height": 500
+        }
+      },
+      {
+        "id": "Root/Alpha",
+        "label": "Alpha",
+        "box": {
+          "x": 26,
+          "y": 75.80000305175781,
+          "width": 635.5999755859375,
+          "height": 430.20001220703125
+        }
+      },
+      {
+        "id": "Root/Beta",
+        "label": "Beta",
+        "box": {
+          "x": 661.5999755859375,
+          "y": 75.80000305175781,
+          "width": 272.4000244140625,
+          "height": 430.20001220703125
+        }
+      }
+    ],
+    "connections": [],
+    "viewBox": "0 0 960 532"
+  },
+  "quantitative": [
+    {
+      "criterion": "painted-leaf-weights",
+      "expected": [
+        {
+          "id": "Root/Alpha",
+          "value": 7
+        },
+        {
+          "id": "Root/Beta",
+          "value": 3
+        }
+      ],
+      "actual": [
+        {
+          "id": "Root/Alpha",
+          "expected": 0.7,
+          "actual": 0.6999999731122659
+        },
+        {
+          "id": "Root/Beta",
+          "expected": 0.3,
+          "actual": 0.30000002688773403
+        }
+      ],
+      "status": "passed",
+      "scope": "Actual sibling leaf areas retain authored weight fractions within 8 percentage points for container padding; single-child and cross-level area claims are excluded"
+    }
+  ],
+  "quality": {
+    "width": 960,
+    "height": 532,
+    "area": 510720,
+    "viewportScope": "actual viewBox SVG units",
+    "ownedCarriers": 0,
+    "contactCounts": {
+      "status": "unavailable",
+      "reason": "No enrolled exact SVG node-boundary contact observer"
+    },
+    "browserCenterline": {
+      "status": "unavailable"
+    },
+    "linear": {
+      "status": "unavailable",
+      "reason": "Authored relationships have no enrolled owned SVG carriers"
+    }
+  },
+  "scope": "Unmodified Trident meaning + actual Chromium paint/quantitative observers on full Node SVG/receipt; exact strict linear metrics only where enrolled ownership/geometry allow. No browser renderer execution or speed claim."
+}

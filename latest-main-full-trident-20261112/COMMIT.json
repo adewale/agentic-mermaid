@@ -1,0 +1,13 @@
+{
+  "previousEvidence": "ec0c3f1eb8c9261de9994e77eb941346b2cbe32b",
+  "evidence": "9dc71b6e74f43546033bdad539dcda380105649f",
+  "source": "68986ba8e3b76ad99dad44c6ec8d43475cc5e12f",
+  "fetchedMain": "9136b07efb8944a1058de9834b18fe5916884174",
+  "sourceChanged": false,
+  "pathReplacements": 0,
+  "heavyWorkersStarted": 0,
+  "packet": "/dev/shm/pr449-four-final-20261111/latest-main-full-trident-20261112",
+  "report": "latest-main-full-trident-20261112/REPORT.md",
+  "pushed": true,
+  "pushExit": 0
+}

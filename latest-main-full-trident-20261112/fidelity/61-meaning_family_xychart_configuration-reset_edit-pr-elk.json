@@ -1,0 +1,864 @@
+{
+  "id": "meaning:family:xychart:configuration-reset:edit",
+  "family": "xychart",
+  "target": "pr",
+  "backend": "elk",
+  "stem": "61-meaning_family_xychart_configuration-reset_edit-pr-elk",
+  "expectationDepth": "reviewed declared authored fields only",
+  "preludes": [
+    {
+      "accepted": true,
+      "expected": true
+    },
+    {
+      "accepted": true,
+      "expected": true
+    }
+  ],
+  "acquired": {
+    "status": "accepted",
+    "publicAccepted": true,
+    "raw": {
+      "kind": "xychart",
+      "title": "Series",
+      "xAxis": {
+        "categories": [
+          "First",
+          "Two",
+          "Three"
+        ]
+      },
+      "yAxis": {
+        "name": "Count",
+        "range": {
+          "min": 0,
+          "max": 10
+        }
+      },
+      "series": [
+        {
+          "id": "series-0",
+          "kind": "bar",
+          "values": [
+            3,
+            7,
+            5
+          ]
+        },
+        {
+          "id": "series-1",
+          "kind": "line",
+          "values": [
+            2,
+            6,
+            4
+          ]
+        }
+      ]
+    },
+    "family": "xychart",
+    "scope": "Canonical projection of actual public parser return/getDiagramFromText DB; authored expectations are independent",
+    "meaning": {
+      "family": "xychart",
+      "facts": {
+        "title": "Series",
+        "series": [
+          {
+            "kind": "bar",
+            "values": [
+              3,
+              7,
+              5
+            ]
+          },
+          {
+            "kind": "line",
+            "values": [
+              2,
+              6,
+              4
+            ]
+          }
+        ],
+        "x-categories": [
+          "First",
+          "Two",
+          "Three"
+        ],
+        "y-range": [
+          0,
+          10
+        ]
+      },
+      "unavailable": {},
+      "nodes": [
+        {
+          "id": "First",
+          "label": "First"
+        },
+        {
+          "id": "Two",
+          "label": "Two"
+        },
+        {
+          "id": "Three",
+          "label": "Three"
+        }
+      ]
+    }
+  },
+  "meaning": {
+    "complete": true,
+    "passed": true,
+    "checks": [
+      {
+        "criterion": "family",
+        "status": "passed",
+        "expected": "xychart",
+        "actual": "xychart",
+        "scope": "Returned native family; a source-preservation envelope is not native admission."
+      },
+      {
+        "criterion": "fact:title",
+        "status": "passed",
+        "expected": "Series",
+        "actual": "Series",
+        "scope": "Independently declared family content with meaningful ordering retained."
+      },
+      {
+        "criterion": "fact:x-categories",
+        "status": "passed",
+        "expected": [
+          "First",
+          "Two",
+          "Three"
+        ],
+        "actual": [
+          "First",
+          "Two",
+          "Three"
+        ],
+        "scope": "Independently declared family content with meaningful ordering retained."
+      },
+      {
+        "criterion": "fact:y-range",
+        "status": "passed",
+        "expected": [
+          0,
+          10
+        ],
+        "actual": [
+          0,
+          10
+        ],
+        "scope": "Independently declared family content with meaningful ordering retained."
+      },
+      {
+        "criterion": "fact:series",
+        "status": "passed",
+        "expected": [
+          {
+            "kind": "bar",
+            "values": [
+              3,
+              7,
+              5
+            ]
+          },
+          {
+            "kind": "line",
+            "values": [
+              2,
+              6,
+              4
+            ]
+          }
+        ],
+        "actual": [
+          {
+            "kind": "bar",
+            "values": [
+              3,
+              7,
+              5
+            ]
+          },
+          {
+            "kind": "line",
+            "values": [
+              2,
+              6,
+              4
+            ]
+          }
+        ],
+        "scope": "Independently declared family content with meaningful ordering retained."
+      }
+    ]
+  },
+  "rendered": {
+    "accepted": true,
+    "svg": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"100%\" height=\"100%\" viewBox=\"0 0 700 500\" style=\"--bg:#FFFFFF;--fg:#27272A;--font:Inter;background:#FFFFFF;max-width:700px\" aria-roledescription=\"xychart\" class=\"xychart am-1nz2ukz1awwwcm\" data-xychart-colors=\"1\" id=\"mermaid-g4odz2\">\n<style>\n  svg.am-1nz2ukz1awwwcm { font-family: var(--font, 'Inter'), system-ui, sans-serif; }\n  svg.am-1nz2ukz1awwwcm {\n    /* Derived from --bg and --fg (overridable via --line, --accent, etc.) */\n    --_text:          #27272A;\n    --_text-sec:      #575759;\n    --_text-muted:    #707072;\n    --_text-faint:    #8a8a8c;\n    --_line:          #939395;\n    --_arrow:         #47474a;\n    --_node-fill:     #f9f9f9;\n    --_node-stroke:   #d4d4d4;\n    --_group-fill:    #FFFFFF;\n    --_group-hdr:     #f4f4f4;\n    --_inner-stroke:  #e5e5e5;\n    --_key-badge:     #e9e9ea;\n  }\n</style>\n<style>\n  .am-1nz2ukz1awwwcm .xychart-data-label { pointer-events: none; }\n  svg.am-1nz2ukz1awwwcm {\n    --xychart-color-0: #3b82f6;\n    --xychart-color-1: #0d5ba5;\n  }\n</style>\n<line class=\"xychart-grid\" x1=\"55.68\" y1=\"469\" x2=\"637\" y2=\"469\" stroke=\"#e1e1e1\" stroke-width=\"1\" />\n<line class=\"xychart-grid\" x1=\"55.68\" y1=\"426.7\" x2=\"637\" y2=\"426.7\" stroke=\"#e1e1e1\" stroke-width=\"1\" />\n<line class=\"xychart-grid\" x1=\"55.68\" y1=\"384.4\" x2=\"637\" y2=\"384.4\" stroke=\"#e1e1e1\" stroke-width=\"1\" />\n<line class=\"xychart-grid\" x1=\"55.68\" y1=\"342.1\" x2=\"637\" y2=\"342.1\" stroke=\"#e1e1e1\" stroke-width=\"1\" />\n<line class=\"xychart-grid\" x1=\"55.68\" y1=\"299.8\" x2=\"637\" y2=\"299.8\" stroke=\"#e1e1e1\" stroke-width=\"1\" />\n<line class=\"xychart-grid\" x1=\"55.68\" y1=\"257.5\" x2=\"637\" y2=\"257.5\" stroke=\"#e1e1e1\" stroke-width=\"1\" />\n<line class=\"xychart-grid\" x1=\"55.68\" y1=\"215.2\" x2=\"637\" y2=\"215.2\" stroke=\"#e1e1e1\" stroke-width=\"1\" />\n<line class=\"xychart-grid\" x1=\"55.68\" y1=\"172.9\" x2=\"637\" y2=\"172.9\" stroke=\"#e1e1e1\" stroke-width=\"1\" />\n<line class=\"xychart-grid\" x1=\"55.68\" y1=\"130.6\" x2=\"637\" y2=\"130.6\" stroke=\"#e1e1e1\" stroke-width=\"1\" />\n<line class=\"xychart-grid\" x1=\"55.68\" y1=\"88.3\" x2=\"637\" y2=\"88.3\" stroke=\"#e1e1e1\" stroke-width=\"1\" />\n<line class=\"xychart-grid\" x1=\"55.68\" y1=\"46\" x2=\"637\" y2=\"46\" stroke=\"#e1e1e1\" stroke-width=\"1\" />\n<line class=\"xychart-axis-line xychart-x-axis-line\" x1=\"55.68\" y1=\"470\" x2=\"637\" y2=\"470\" stroke=\"#575759\" stroke-width=\"2\" />\n<line class=\"xychart-tick xychart-x-tick\" x1=\"152.57\" y1=\"471\" x2=\"152.57\" y2=\"476\" stroke=\"#575759\" stroke-width=\"2\" />\n<line class=\"xychart-tick xychart-x-tick\" x1=\"346.34\" y1=\"471\" x2=\"346.34\" y2=\"476\" stroke=\"#575759\" stroke-width=\"2\" />\n<line class=\"xychart-tick xychart-x-tick\" x1=\"540.11\" y1=\"471\" x2=\"540.11\" y2=\"476\" stroke=\"#575759\" stroke-width=\"2\" />\n<line class=\"xychart-axis-line xychart-y-axis-line\" x1=\"54.68\" y1=\"46\" x2=\"54.68\" y2=\"469\" stroke=\"#575759\" stroke-width=\"2\" />\n<line class=\"xychart-tick xychart-y-tick\" x1=\"53.68\" y1=\"469\" x2=\"48.68\" y2=\"469\" stroke=\"#575759\" stroke-width=\"2\" />\n<line class=\"xychart-tick xychart-y-tick\" x1=\"53.68\" y1=\"426.7\" x2=\"48.68\" y2=\"426.7\" stroke=\"#575759\" stroke-width=\"2\" />\n<line class=\"xychart-tick xychart-y-tick\" x1=\"53.68\" y1=\"384.4\" x2=\"48.68\" y2=\"384.4\" stroke=\"#575759\" stroke-width=\"2\" />\n<line class=\"xychart-tick xychart-y-tick\" x1=\"53.68\" y1=\"342.1\" x2=\"48.68\" y2=\"342.1\" stroke=\"#575759\" stroke-width=\"2\" />\n<line class=\"xychart-tick xychart-y-tick\" x1=\"53.68\" y1=\"299.8\" x2=\"48.68\" y2=\"299.8\" stroke=\"#575759\" stroke-width=\"2\" />\n<line class=\"xychart-tick xychart-y-tick\" x1=\"53.68\" y1=\"257.5\" x2=\"48.68\" y2=\"257.5\" stroke=\"#575759\" stroke-width=\"2\" />\n<line class=\"xychart-tick xychart-y-tick\" x1=\"53.68\" y1=\"215.2\" x2=\"48.68\" y2=\"215.2\" stroke=\"#575759\" stroke-width=\"2\" />\n<line class=\"xychart-tick xychart-y-tick\" x1=\"53.68\" y1=\"172.9\" x2=\"48.68\" y2=\"172.9\" stroke=\"#575759\" stroke-width=\"2\" />\n<line class=\"xychart-tick xychart-y-tick\" x1=\"53.68\" y1=\"130.6\" x2=\"48.68\" y2=\"130.6\" stroke=\"#575759\" stroke-width=\"2\" />\n<line class=\"xychart-tick xychart-y-tick\" x1=\"53.68\" y1=\"88.3\" x2=\"48.68\" y2=\"88.3\" stroke=\"#575759\" stroke-width=\"2\" />\n<line class=\"xychart-tick xychart-y-tick\" x1=\"53.68\" y1=\"46\" x2=\"48.68\" y2=\"46\" stroke=\"#575759\" stroke-width=\"2\" />\n<rect class=\"xychart-bar xychart-color-0\" data-value=\"3\" data-label=\"First\" x=\"60.53\" y=\"342.1\" width=\"184.08\" height=\"126.9\" fill=\"#3b82f6\" stroke=\"none\" data-id=\"bar:0:First\" data-role=\"bar\" />\n<rect class=\"xychart-bar xychart-color-0\" data-value=\"7\" data-label=\"Two\" x=\"254.3\" y=\"172.9\" width=\"184.08\" height=\"296.1\" fill=\"#3b82f6\" stroke=\"none\" data-id=\"bar:0:Two\" data-role=\"bar\" />\n<rect class=\"xychart-bar xychart-color-0\" data-value=\"5\" data-label=\"Three\" x=\"448.07\" y=\"257.5\" width=\"184.08\" height=\"211.5\" fill=\"#3b82f6\" stroke=\"none\" data-id=\"bar:0:Three\" data-role=\"bar\" />\n<path class=\"xychart-line xychart-color-1\" d=\"M152.57,384.4 L346.34,215.2 L540.11,299.8\" fill=\"none\" stroke=\"#0d5ba5\" stroke-width=\"3\" stroke-linecap=\"round\" stroke-linejoin=\"round\" data-relationship=\"series\" data-direction=\"undirected\" data-id=\"series:line-0\" data-role=\"series\" />\n<text x=\"152.57\" y=\"486.6\" class=\"xychart-label xychart-x-label\" text-anchor=\"middle\" font-size=\"14\" font-weight=\"400\" fill=\"#27272A\" data-prepared-text=\"true\" dy=\"4.9\" textLength=\"30.828\" lengthAdjust=\"spacingAndGlyphs\" data-font-metrics=\"deterministic-fit\">First</text>\n<text x=\"346.342\" y=\"486.6\" class=\"xychart-label xychart-x-label\" text-anchor=\"middle\" font-size=\"14\" font-weight=\"400\" fill=\"#27272A\" data-prepared-text=\"true\" dy=\"4.9\" textLength=\"27.804\" lengthAdjust=\"spacingAndGlyphs\" data-font-metrics=\"deterministic-fit\">Two</text>\n<text x=\"540.114\" y=\"486.6\" class=\"xychart-label xychart-x-label\" text-anchor=\"middle\" font-size=\"14\" font-weight=\"400\" fill=\"#27272A\" data-prepared-text=\"true\" dy=\"4.9\" textLength=\"39.9\" lengthAdjust=\"spacingAndGlyphs\" data-font-metrics=\"deterministic-fit\">Three</text>\n<text x=\"43.684\" y=\"469\" class=\"xychart-label xychart-y-label\" text-anchor=\"end\" dominant-baseline=\"middle\" font-size=\"14\" font-weight=\"400\" fill=\"#27272A\" data-prepared-text=\"true\" dy=\"0\" textLength=\"9.66\" lengthAdjust=\"spacingAndGlyphs\" data-font-metrics=\"deterministic-fit\">0</text>\n<text x=\"43.684\" y=\"426.7\" class=\"xychart-label xychart-y-label\" text-anchor=\"end\" dominant-baseline=\"middle\" font-size=\"14\" font-weight=\"400\" fill=\"#27272A\" data-prepared-text=\"true\" dy=\"0\" textLength=\"5.124\" lengthAdjust=\"spacingAndGlyphs\" data-font-metrics=\"deterministic-fit\">1</text>\n<text x=\"43.684\" y=\"384.4\" class=\"xychart-label xychart-y-label\" text-anchor=\"end\" dominant-baseline=\"middle\" font-size=\"14\" font-weight=\"400\" fill=\"#27272A\" data-prepared-text=\"true\" dy=\"0\" textLength=\"9.66\" lengthAdjust=\"spacingAndGlyphs\" data-font-metrics=\"deterministic-fit\">2</text>\n<text x=\"43.684\" y=\"342.1\" class=\"xychart-label xychart-y-label\" text-anchor=\"end\" dominant-baseline=\"middle\" font-size=\"14\" font-weight=\"400\" fill=\"#27272A\" data-prepared-text=\"true\" dy=\"0\" textLength=\"9.66\" lengthAdjust=\"spacingAndGlyphs\" data-font-metrics=\"deterministic-fit\">3</text>\n<text x=\"43.684\" y=\"299.8\" class=\"xychart-label xychart-y-label\" text-anchor=\"end\" dominant-baseline=\"middle\" font-size=\"14\" font-weight=\"400\" fill=\"#27272A\" data-prepared-text=\"true\" dy=\"0\" textLength=\"9.66\" lengthAdjust=\"spacingAndGlyphs\" data-font-metrics=\"deterministic-fit\">4</text>\n<text x=\"43.684\" y=\"257.5\" class=\"xychart-label xychart-y-label\" text-anchor=\"end\" dominant-baseline=\"middle\" font-size=\"14\" font-weight=\"400\" fill=\"#27272A\" data-prepared-text=\"true\" dy=\"0\" textLength=\"9.66\" lengthAdjust=\"spacingAndGlyphs\" data-font-metrics=\"deterministic-fit\">5</text>\n<text x=\"43.684\" y=\"215.2\" class=\"xychart-label xychart-y-label\" text-anchor=\"end\" dominant-baseline=\"middle\" font-size=\"14\" font-weight=\"400\" fill=\"#27272A\" data-prepared-text=\"true\" dy=\"0\" textLength=\"9.66\" lengthAdjust=\"spacingAndGlyphs\" data-font-metrics=\"deterministic-fit\">6</text>\n<text x=\"43.684\" y=\"172.9\" class=\"xychart-label xychart-y-label\" text-anchor=\"end\" dominant-baseline=\"middle\" font-size=\"14\" font-weight=\"400\" fill=\"#27272A\" data-prepared-text=\"true\" dy=\"0\" textLength=\"9.66\" lengthAdjust=\"spacingAndGlyphs\" data-font-metrics=\"deterministic-fit\">7</text>\n<text x=\"43.684\" y=\"130.6\" class=\"xychart-label xychart-y-label\" text-anchor=\"end\" dominant-baseline=\"middle\" font-size=\"14\" font-weight=\"400\" fill=\"#27272A\" data-prepared-text=\"true\" dy=\"0\" textLength=\"9.66\" lengthAdjust=\"spacingAndGlyphs\" data-font-metrics=\"deterministic-fit\">8</text>\n<text x=\"43.684\" y=\"88.3\" class=\"xychart-label xychart-y-label\" text-anchor=\"end\" dominant-baseline=\"middle\" font-size=\"14\" font-weight=\"400\" fill=\"#27272A\" data-prepared-text=\"true\" dy=\"0\" textLength=\"9.66\" lengthAdjust=\"spacingAndGlyphs\" data-font-metrics=\"deterministic-fit\">9</text>\n<text x=\"43.684\" y=\"46\" class=\"xychart-label xychart-y-label\" text-anchor=\"end\" dominant-baseline=\"middle\" font-size=\"14\" font-weight=\"400\" fill=\"#27272A\" data-prepared-text=\"true\" dy=\"0\" textLength=\"12.684\" lengthAdjust=\"spacingAndGlyphs\" data-font-metrics=\"deterministic-fit\">10</text>\n<text x=\"17.8\" y=\"257.5\" class=\"xychart-axis-title xychart-y-axis-title\" text-anchor=\"middle\" font-size=\"16\" font-weight=\"400\" fill=\"#27272A\" transform=\"rotate(-90 17.8 257.5)\" data-prepared-text=\"true\" dy=\"5.6\" textLength=\"42.144\" lengthAdjust=\"spacingAndGlyphs\" data-font-metrics=\"deterministic-fit\">Count</text>\n<text x=\"350\" y=\"23\" class=\"xychart-title\" text-anchor=\"middle\" font-size=\"20\" font-weight=\"500\" fill=\"#27272A\" data-id=\"title\" data-role=\"title\" data-prepared-text=\"true\" dy=\"7\" textLength=\"64.56\" lengthAdjust=\"spacingAndGlyphs\" data-font-metrics=\"deterministic-fit\">Series</text>\n<g class=\"xychart-legend\">\n  <rect class=\"xychart-legend-swatch\" x=\"642\" y=\"51\" width=\"12\" height=\"12\" rx=\"2\" ry=\"2\" fill=\"#3b82f6\" />\n  <text x=\"660\" y=\"60.1\" class=\"xychart-legend-label\" text-anchor=\"start\" dominant-baseline=\"middle\" font-size=\"14\" font-weight=\"400\" fill=\"#27272A\" data-prepared-text=\"true\" dy=\"0\" textLength=\"30.072\" lengthAdjust=\"spacingAndGlyphs\" data-font-metrics=\"deterministic-fit\">Bar 1</text>\n  <line class=\"xychart-legend-swatch\" x1=\"642\" y1=\"83.3\" x2=\"654\" y2=\"83.3\" stroke=\"#0d5ba5\" stroke-width=\"3\" stroke-linecap=\"round\" />\n  <circle class=\"xychart-legend-dot\" cx=\"648\" cy=\"83.3\" r=\"2.5\" fill=\"#0d5ba5\" stroke=\"#FFFFFF\" stroke-width=\"1\" />\n  <text x=\"660\" y=\"83.3\" class=\"xychart-legend-label\" text-anchor=\"start\" dominant-baseline=\"middle\" font-size=\"14\" font-weight=\"400\" fill=\"#27272A\" data-prepared-text=\"true\" dy=\"0\" textLength=\"34.608\" lengthAdjust=\"spacingAndGlyphs\" data-font-metrics=\"deterministic-fit\">Line 1</text>\n</g>\n</svg>",
+    "receipt": {
+      "version": 2,
+      "output": "svg",
+      "sharedRequestDigest": "fnv1a64:e62f595e2ea5676b",
+      "requestDigest": "fnv1a64:04c1d803a071ea6d",
+      "appearanceDigest": "fnv1a64:711db7d71c17a4d8",
+      "capabilityDecision": {
+        "version": 1,
+        "accepted": true,
+        "resolutions": [
+          {
+            "id": "core:render-request",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "core:family-descriptor",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "family:xychart",
+            "range": "1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "core:scene",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "operation:layout",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "operation:lower-scene",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "backend:scene-renderer",
+            "range": "1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:document/identity/serialize",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:document/resources/serialize",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:document/interaction/accessibility",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:text/geometry/render",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:text/paint/render",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:text/labels/accessibility",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:text/identity/serialize",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:shape/geometry/render",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:shape/paint/render",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:shape/identity/serialize",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:container/geometry/render",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:container/paint/render",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:container/identity/serialize",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:connector/geometry/render",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:connector/stroke/render",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:connector/transform/render",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:connector/topology/render",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:connector/subpaths/render",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:connector/closedness/render",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:connector/bend-radius/render",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:connector/stroke-opacity/render",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:connector/stroke-cap/render",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:connector/stroke-join/render",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:connector/stroke-miter/render",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:connector/dash-array/render",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:connector/dash-offset/render",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:connector/dash-restart/render",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:connector/path-length/render",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:connector/paint-order/render",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:connector/compositing/render",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:connector/non-scaling-stroke/render",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:connector/marker-orientation/render",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:connector/marker-overflow/render",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:connector/endpoints/serialize",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:connector/direction/serialize",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:connector/labels/render",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:connector/labels/accessibility",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:connector/markers/render",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:connector/relation/accessibility",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:connector/interaction/hit-test",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:connector/hit-geometry/hit-test",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:connector/identity/serialize",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:data-mark/geometry/render",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:data-mark/paint/render",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:data-mark/identity/serialize",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "output:svg",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          }
+        ]
+      },
+      "diagnostics": [
+        {
+          "code": "RENDER_OPTION_NOT_APPLICABLE",
+          "feature": "render-option:graphLayout",
+          "message": "Render option \"graphLayout\" does not apply to built-in Mermaid family \"xychart\". Applicable built-in families: flowchart, state, architecture, class, er, requirement."
+        }
+      ],
+      "executionDecision": {
+        "family": {
+          "id": "family:xychart",
+          "version": "1.0.0"
+        },
+        "backend": {
+          "mode": "scene",
+          "requestedId": "default",
+          "selectedId": "backend:default",
+          "version": "1.0.0",
+          "hostPolicy": false
+        },
+        "digest": "fnv1a64:d671511d8985fa30"
+      },
+      "graphicalProjectionDigest": "fnv1a64:be2a48ff1ef397ea",
+      "layoutCertification": {
+        "version": 1,
+        "unit": "px",
+        "scope": "native-scene",
+        "status": "unverified",
+        "viewport": {
+          "x": 0,
+          "y": 0,
+          "width": 700,
+          "height": 500
+        },
+        "attempts": 1,
+        "repairs": [],
+        "coverage": {
+          "measured": 52,
+          "unmeasured": 0,
+          "preparedText": 18,
+          "fallbackText": 0,
+          "conditional": 0
+        },
+        "checks": {
+          "primitives": 54,
+          "labels": 18,
+          "occlusionPairs": 0,
+          "maxOcclusionPairs": 100000,
+          "operations": 23133,
+          "maxOperations": 400000,
+          "markers": 0
+        },
+        "issues": [
+          {
+            "code": "OUTPUT_SCOPE",
+            "message": "Emitted document context or marker resource differs from retained paint evidence"
+          }
+        ],
+        "limitations": [
+          "Prepared occupied text regions bound native geometry; exact glyph ink depends on the resolved font.",
+          "Declared transparency, intentional data-mark overlap and externally modified CSS are outside this proof."
+        ],
+        "outputDigest": "fnv1a64:be2a48ff1ef397ea"
+      }
+    },
+    "wholeBytes": 19766,
+    "receiptBytes": 8100
+  },
+  "paint": {
+    "checks": [
+      {
+        "criterion": "svg-root",
+        "expected": "mounted SVG",
+        "actual": "svg",
+        "status": "passed",
+        "scope": "Actual public SVG result"
+      },
+      {
+        "criterion": "svg-unique-ids",
+        "expected": 1,
+        "actual": 1,
+        "status": "passed",
+        "scope": "Duplicate SVG identities can change marker, clip and owned-label references"
+      },
+      {
+        "criterion": "canvas",
+        "expected": "positive finite rendered canvas",
+        "actual": {
+          "x": 0,
+          "y": 0,
+          "width": 700,
+          "height": 1000
+        },
+        "status": "passed",
+        "scope": "Actual browser viewport of the returned SVG"
+      },
+      {
+        "criterion": "visible-authored-labels",
+        "expected": [
+          "Series",
+          "First",
+          "Two",
+          "Three",
+          "Count"
+        ],
+        "actual": [
+          {
+            "label": "Series",
+            "count": 1
+          },
+          {
+            "label": "First",
+            "count": 1
+          },
+          {
+            "label": "Two",
+            "count": 1
+          },
+          {
+            "label": "Three",
+            "count": 1
+          },
+          {
+            "label": "Count",
+            "count": 1
+          }
+        ],
+        "status": "passed",
+        "scope": "Computed visibility and nonzero browser text bounds; metadata/title/defs text earns no credit"
+      },
+      {
+        "criterion": "labels-within-canvas",
+        "expected": "every authored label fits the canvas",
+        "actual": [],
+        "status": "passed",
+        "scope": "Actual rendered label bounds, with 1.5 CSS-pixel serialization tolerance"
+      },
+      {
+        "criterion": "unclipped-authored-labels",
+        "expected": [],
+        "actual": [],
+        "status": "passed",
+        "scope": "Actual self/ancestor clipping and overflow; unprojected masks/clip paths remain unavailable"
+      },
+      {
+        "criterion": "visible-ink",
+        "expected": "nonempty visible diagram geometry",
+        "actual": 34,
+        "status": "passed",
+        "scope": "Visible geometric elements; unprojected use/HTML/image-only ink remains unavailable, not a drawing defect"
+      },
+      {
+        "criterion": "paint-opacity-and-color",
+        "expected": "resolved visible paint colors/alpha",
+        "actual": [],
+        "status": "passed",
+        "scope": "Unresolved paint servers/context colors cannot silently earn a visible-ink or complete-style claim"
+      }
+    ],
+    "complete": true,
+    "passed": true,
+    "nodes": [],
+    "connections": [],
+    "viewBox": "0 0 700 500"
+  },
+  "quantitative": [
+    {
+      "criterion": "painted-series-values",
+      "expected": [
+        {
+          "kind": "bar",
+          "values": [
+            3,
+            7,
+            5
+          ]
+        },
+        {
+          "kind": "line",
+          "values": [
+            2,
+            6,
+            4
+          ]
+        }
+      ],
+      "actual": {
+        "values": [
+          {
+            "kind": "bar",
+            "category": "First",
+            "value": 3,
+            "box": {
+              "x": 60.529998779296875,
+              "y": 592.0999755859375,
+              "width": 184.0800018310547,
+              "height": 126.9000244140625
+            },
+            "expectedCoordinate": 592.1
+          },
+          {
+            "kind": "bar",
+            "category": "Two",
+            "value": 7,
+            "box": {
+              "x": 254.3000030517578,
+              "y": 422.8999938964844,
+              "width": 184.0800018310547,
+              "height": 296.1000061035156
+            },
+            "expectedCoordinate": 422.90000000000003
+          },
+          {
+            "kind": "bar",
+            "category": "Three",
+            "value": 5,
+            "box": {
+              "x": 448.07000732421875,
+              "y": 507.5,
+              "width": 184.08001708984375,
+              "height": 211.5
+            },
+            "expectedCoordinate": 507.5
+          },
+          {
+            "kind": "line",
+            "category": "First",
+            "value": 2,
+            "actual": {
+              "x": 152.57000732421875,
+              "y": 634.4000244140625
+            },
+            "expectedCoordinate": 634.4
+          },
+          {
+            "kind": "line",
+            "category": "Two",
+            "value": 6,
+            "actual": {
+              "x": 346.32366943359375,
+              "y": 465.2142333984375
+            },
+            "expectedCoordinate": 465.20000000000005
+          },
+          {
+            "kind": "line",
+            "category": "Three",
+            "value": 4,
+            "actual": {
+              "x": 540.1099853515625,
+              "y": 549.7999877929688
+            },
+            "expectedCoordinate": 549.8
+          }
+        ],
+        "findings": []
+      },
+      "status": "passed",
+      "scope": "Actual labeled tick coordinates calibrate this chart; value tips/line category intersections are within 3 CSS pixels. Bar bases allow at most .65 font-em intentional axis overhang (minimum3px); shortened or floating bars fail. Complete interpolation/axis-style fidelity is outside this check"
+    }
+  ],
+  "quality": {
+    "width": 700,
+    "height": 500,
+    "area": 350000,
+    "viewportScope": "actual viewBox SVG units",
+    "ownedCarriers": 0,
+    "contactCounts": {
+      "status": "unavailable",
+      "reason": "No enrolled exact SVG node-boundary contact observer"
+    },
+    "browserCenterline": {
+      "status": "unavailable"
+    },
+    "linear": {
+      "status": "unavailable",
+      "reason": "No enrolled owned SVG edge carriers; not a zero-crossing assertion"
+    }
+  },
+  "scope": "Unmodified Trident meaning + actual Chromium paint/quantitative observers on full Node SVG/receipt; exact strict linear metrics only where enrolled ownership/geometry allow. No browser renderer execution or speed claim."
+}

@@ -1,0 +1,587 @@
+{
+  "id": "features:packet:offsets-widths-multiline",
+  "family": "packet",
+  "target": "pr",
+  "backend": "elk",
+  "stem": "41-features_packet_offsets-widths-multiline-pr-elk",
+  "expectationDepth": "reviewed declared authored fields only",
+  "preludes": [],
+  "acquired": {
+    "status": "accepted",
+    "publicAccepted": true,
+    "raw": {
+      "kind": "packet",
+      "fields": [
+        {
+          "id": "field-0",
+          "start": 0,
+          "end": 3,
+          "label": "Version"
+        },
+        {
+          "id": "field-1",
+          "start": 4,
+          "end": 7,
+          "label": "Flags"
+        },
+        {
+          "id": "field-2",
+          "start": 8,
+          "end": 31,
+          "label": "Payload"
+        },
+        {
+          "id": "field-3",
+          "start": 32,
+          "end": 63,
+          "label": "Checksum"
+        }
+      ]
+    },
+    "family": "packet",
+    "scope": "Canonical projection of actual public parser return/getDiagramFromText DB; authored expectations are independent",
+    "meaning": {
+      "family": "packet",
+      "facts": {
+        "fields": [
+          {
+            "label": "Version",
+            "start": 0,
+            "end": 3
+          },
+          {
+            "label": "Flags",
+            "start": 4,
+            "end": 7
+          },
+          {
+            "label": "Payload",
+            "start": 8,
+            "end": 31
+          },
+          {
+            "label": "Checksum",
+            "start": 32,
+            "end": 63
+          }
+        ]
+      },
+      "unavailable": {},
+      "nodes": [
+        {
+          "id": "field:0:3",
+          "label": "Version"
+        },
+        {
+          "id": "field:4:7",
+          "label": "Flags"
+        },
+        {
+          "id": "field:8:31",
+          "label": "Payload"
+        },
+        {
+          "id": "field:32:63",
+          "label": "Checksum"
+        }
+      ]
+    }
+  },
+  "meaning": {
+    "complete": true,
+    "passed": true,
+    "checks": [
+      {
+        "criterion": "family",
+        "status": "passed",
+        "expected": "packet",
+        "actual": "packet",
+        "scope": "Returned native family; a source-preservation envelope is not native admission."
+      },
+      {
+        "criterion": "fact:fields",
+        "status": "passed",
+        "expected": [
+          {
+            "label": "Version",
+            "start": 0,
+            "end": 3
+          },
+          {
+            "label": "Flags",
+            "start": 4,
+            "end": 7
+          },
+          {
+            "label": "Payload",
+            "start": 8,
+            "end": 31
+          },
+          {
+            "label": "Checksum",
+            "start": 32,
+            "end": 63
+          }
+        ],
+        "actual": [
+          {
+            "label": "Version",
+            "start": 0,
+            "end": 3
+          },
+          {
+            "label": "Flags",
+            "start": 4,
+            "end": 7
+          },
+          {
+            "label": "Payload",
+            "start": 8,
+            "end": 31
+          },
+          {
+            "label": "Checksum",
+            "start": 32,
+            "end": 63
+          }
+        ],
+        "scope": "Independently declared family content with meaningful ordering retained."
+      }
+    ]
+  },
+  "rendered": {
+    "accepted": true,
+    "svg": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"1072\" height=\"164.8\" viewBox=\"0 0 1072 164.8\" style=\"--bg:#FFFFFF;--fg:#27272A;--font:Inter;background:#FFFFFF\" class=\"am-0vx9e2x10ndtda\">\n<style>\n  svg.am-0vx9e2x10ndtda { font-family: var(--font, 'Inter'), system-ui, sans-serif; }\n  svg.am-0vx9e2x10ndtda {\n    /* Derived from --bg and --fg (overridable via --line, --accent, etc.) */\n    --_text:          #27272A;\n    --_text-sec:      #575759;\n    --_text-muted:    #707072;\n    --_text-faint:    #8a8a8c;\n    --_line:          #939395;\n    --_arrow:         #47474a;\n    --_node-fill:     #f9f9f9;\n    --_node-stroke:   #d4d4d4;\n    --_group-fill:    #FFFFFF;\n    --_group-hdr:     #f4f4f4;\n    --_inner-stroke:  #e5e5e5;\n    --_key-badge:     #e9e9ea;\n  }\n</style>\n<g data-id=\"field-0:row-0\" data-field-id=\"field-0\" data-start=\"0\" data-end=\"3\" data-field-label=\"Version\" data-role=\"node\">\n  <rect x=\"26.5\" y=\"44.5\" width=\"123\" height=\"32.9\" fill=\"#f9f9f9\" stroke=\"#949495\" stroke-width=\"0.75\" />\n  <text x=\"88\" y=\"60.95\" text-anchor=\"middle\" font-family=\"Inter\" font-size=\"13\" font-weight=\"500\" fill=\"#27272A\" data-prepared-text=\"true\" dy=\"4.55\" textLength=\"49.374\" lengthAdjust=\"spacingAndGlyphs\" data-font-metrics=\"deterministic-fit\">Version</text>\n  <text x=\"28.5\" y=\"34.25\" text-anchor=\"start\" font-size=\"11\" font-weight=\"400\" fill=\"#69696c\" data-prepared-text=\"true\" dy=\"3.85\" textLength=\"7.59\" lengthAdjust=\"spacingAndGlyphs\" data-font-metrics=\"deterministic-fit\">0</text>\n  <text x=\"147.5\" y=\"34.25\" text-anchor=\"end\" font-size=\"11\" font-weight=\"400\" fill=\"#69696c\" data-prepared-text=\"true\" dy=\"3.85\" textLength=\"7.59\" lengthAdjust=\"spacingAndGlyphs\" data-font-metrics=\"deterministic-fit\">3</text>\n</g>\n<g data-id=\"field-1:row-0\" data-field-id=\"field-1\" data-start=\"4\" data-end=\"7\" data-field-label=\"Flags\" data-role=\"node\">\n  <rect x=\"154.5\" y=\"44.5\" width=\"123\" height=\"32.9\" fill=\"#f9f9f9\" stroke=\"#949495\" stroke-width=\"0.75\" />\n  <text x=\"216\" y=\"60.95\" text-anchor=\"middle\" font-family=\"Inter\" font-size=\"13\" font-weight=\"500\" fill=\"#27272A\" data-prepared-text=\"true\" dy=\"4.55\" textLength=\"36.036\" lengthAdjust=\"spacingAndGlyphs\" data-font-metrics=\"deterministic-fit\">Flags</text>\n  <text x=\"156.5\" y=\"34.25\" text-anchor=\"start\" font-size=\"11\" font-weight=\"400\" fill=\"#69696c\" data-prepared-text=\"true\" dy=\"3.85\" textLength=\"7.59\" lengthAdjust=\"spacingAndGlyphs\" data-font-metrics=\"deterministic-fit\">4</text>\n  <text x=\"275.5\" y=\"34.25\" text-anchor=\"end\" font-size=\"11\" font-weight=\"400\" fill=\"#69696c\" data-prepared-text=\"true\" dy=\"3.85\" textLength=\"7.59\" lengthAdjust=\"spacingAndGlyphs\" data-font-metrics=\"deterministic-fit\">7</text>\n</g>\n<g data-id=\"field-2:row-0\" data-field-id=\"field-2\" data-start=\"8\" data-end=\"31\" data-field-label=\"Payload\" data-role=\"node\">\n  <rect x=\"282.5\" y=\"44.5\" width=\"763\" height=\"32.9\" fill=\"#f9f9f9\" stroke=\"#949495\" stroke-width=\"0.75\" />\n  <text x=\"664\" y=\"60.95\" text-anchor=\"middle\" font-family=\"Inter\" font-size=\"13\" font-weight=\"500\" fill=\"#27272A\" data-prepared-text=\"true\" dy=\"4.55\" textLength=\"50.856\" lengthAdjust=\"spacingAndGlyphs\" data-font-metrics=\"deterministic-fit\">Payload</text>\n  <text x=\"284.5\" y=\"34.25\" text-anchor=\"start\" font-size=\"11\" font-weight=\"400\" fill=\"#69696c\" data-prepared-text=\"true\" dy=\"3.85\" textLength=\"7.59\" lengthAdjust=\"spacingAndGlyphs\" data-font-metrics=\"deterministic-fit\">8</text>\n  <text x=\"1043.5\" y=\"34.25\" text-anchor=\"end\" font-size=\"11\" font-weight=\"400\" fill=\"#69696c\" data-prepared-text=\"true\" dy=\"3.85\" textLength=\"9.966\" lengthAdjust=\"spacingAndGlyphs\" data-font-metrics=\"deterministic-fit\">31</text>\n</g>\n<g data-id=\"field-3:row-1\" data-field-id=\"field-3\" data-start=\"32\" data-end=\"63\" data-field-label=\"Checksum\" data-role=\"node\">\n  <rect x=\"26.5\" y=\"102.9\" width=\"1019\" height=\"32.9\" fill=\"#f9f9f9\" stroke=\"#949495\" stroke-width=\"0.75\" />\n  <text x=\"536\" y=\"119.35\" text-anchor=\"middle\" font-family=\"Inter\" font-size=\"13\" font-weight=\"500\" fill=\"#27272A\" data-prepared-text=\"true\" dy=\"4.55\" textLength=\"64.194\" lengthAdjust=\"spacingAndGlyphs\" data-font-metrics=\"deterministic-fit\">Checksum</text>\n  <text x=\"28.5\" y=\"92.65\" text-anchor=\"start\" font-size=\"11\" font-weight=\"400\" fill=\"#69696c\" data-prepared-text=\"true\" dy=\"3.85\" textLength=\"13.53\" lengthAdjust=\"spacingAndGlyphs\" data-font-metrics=\"deterministic-fit\">32</text>\n  <text x=\"1043.5\" y=\"92.65\" text-anchor=\"end\" font-size=\"11\" font-weight=\"400\" fill=\"#69696c\" data-prepared-text=\"true\" dy=\"3.85\" textLength=\"13.53\" lengthAdjust=\"spacingAndGlyphs\" data-font-metrics=\"deterministic-fit\">63</text>\n</g>\n</svg>",
+    "receipt": {
+      "version": 2,
+      "output": "svg",
+      "sharedRequestDigest": "fnv1a64:1e5243149cabec2a",
+      "requestDigest": "fnv1a64:de695745d67a3bd8",
+      "appearanceDigest": "fnv1a64:5c57037fc07cf497",
+      "capabilityDecision": {
+        "version": 1,
+        "accepted": true,
+        "resolutions": [
+          {
+            "id": "core:render-request",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "core:family-descriptor",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "family:packet",
+            "range": "1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "core:scene",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "operation:layout",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "operation:lower-scene",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "backend:scene-renderer",
+            "range": "1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:document/identity/serialize",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:document/resources/serialize",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:document/interaction/accessibility",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:text/geometry/render",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:text/paint/render",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:text/labels/accessibility",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:text/identity/serialize",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:shape/geometry/render",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:shape/paint/render",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:shape/identity/serialize",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:container/geometry/render",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:container/paint/render",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "scene-primitive:container/identity/serialize",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          },
+          {
+            "id": "output:svg",
+            "range": "^1.0.0",
+            "level": "required",
+            "status": "selected",
+            "version": "1.0.0"
+          }
+        ]
+      },
+      "diagnostics": [
+        {
+          "code": "RENDER_OPTION_NOT_APPLICABLE",
+          "feature": "render-option:graphLayout",
+          "message": "Render option \"graphLayout\" does not apply to built-in Mermaid family \"packet\". Applicable built-in families: flowchart, state, architecture, class, er, requirement."
+        }
+      ],
+      "executionDecision": {
+        "family": {
+          "id": "family:packet",
+          "version": "1.0.0"
+        },
+        "backend": {
+          "mode": "scene",
+          "requestedId": "default",
+          "selectedId": "backend:default",
+          "version": "1.0.0",
+          "hostPolicy": false
+        },
+        "digest": "fnv1a64:edc9281e83d76013"
+      },
+      "graphicalProjectionDigest": "fnv1a64:0601b8c71924190c",
+      "layoutCertification": {
+        "version": 1,
+        "unit": "px",
+        "scope": "native-scene",
+        "status": "passed",
+        "viewport": {
+          "x": 0,
+          "y": 0,
+          "width": 1072,
+          "height": 164.8
+        },
+        "attempts": 1,
+        "repairs": [],
+        "coverage": {
+          "measured": 16,
+          "unmeasured": 0,
+          "preparedText": 12,
+          "fallbackText": 0,
+          "conditional": 0
+        },
+        "checks": {
+          "primitives": 18,
+          "labels": 4,
+          "occlusionPairs": 0,
+          "maxOcclusionPairs": 100000,
+          "operations": 14244,
+          "maxOperations": 400000,
+          "markers": 0
+        },
+        "issues": [],
+        "limitations": [
+          "Prepared occupied text regions bound native geometry; exact glyph ink depends on the resolved font.",
+          "Declared transparency, intentional data-mark overlap and externally modified CSS are outside this proof."
+        ],
+        "outputDigest": "fnv1a64:0601b8c71924190c"
+      }
+    },
+    "wholeBytes": 8914,
+    "receiptBytes": 3884
+  },
+  "paint": {
+    "checks": [
+      {
+        "criterion": "svg-root",
+        "expected": "mounted SVG",
+        "actual": "svg",
+        "status": "passed",
+        "scope": "Actual public SVG result"
+      },
+      {
+        "criterion": "svg-unique-ids",
+        "expected": 0,
+        "actual": 0,
+        "status": "passed",
+        "scope": "Duplicate SVG identities can change marker, clip and owned-label references"
+      },
+      {
+        "criterion": "canvas",
+        "expected": "positive finite rendered canvas",
+        "actual": {
+          "x": 0,
+          "y": 0,
+          "width": 1072,
+          "height": 164.796875
+        },
+        "status": "passed",
+        "scope": "Actual browser viewport of the returned SVG"
+      },
+      {
+        "criterion": "visible-authored-labels",
+        "expected": [
+          "Version",
+          "Flags",
+          "Payload",
+          "Checksum"
+        ],
+        "actual": [
+          {
+            "label": "Version",
+            "count": 1
+          },
+          {
+            "label": "Flags",
+            "count": 1
+          },
+          {
+            "label": "Payload",
+            "count": 1
+          },
+          {
+            "label": "Checksum",
+            "count": 1
+          }
+        ],
+        "status": "passed",
+        "scope": "Computed visibility and nonzero browser text bounds; metadata/title/defs text earns no credit"
+      },
+      {
+        "criterion": "labels-within-canvas",
+        "expected": "every authored label fits the canvas",
+        "actual": [],
+        "status": "passed",
+        "scope": "Actual rendered label bounds, with 1.5 CSS-pixel serialization tolerance"
+      },
+      {
+        "criterion": "unclipped-authored-labels",
+        "expected": [],
+        "actual": [],
+        "status": "passed",
+        "scope": "Actual self/ancestor clipping and overflow; unprojected masks/clip paths remain unavailable"
+      },
+      {
+        "criterion": "visible-ink",
+        "expected": "nonempty visible diagram geometry",
+        "actual": 4,
+        "status": "passed",
+        "scope": "Visible geometric elements; unprojected use/HTML/image-only ink remains unavailable, not a drawing defect"
+      },
+      {
+        "criterion": "paint-opacity-and-color",
+        "expected": "resolved visible paint colors/alpha",
+        "actual": [],
+        "status": "passed",
+        "scope": "Unresolved paint servers/context colors cannot silently earn a visible-ink or complete-style claim"
+      }
+    ],
+    "complete": true,
+    "passed": true,
+    "nodes": [],
+    "connections": [],
+    "viewBox": "0 0 1072 164.8"
+  },
+  "quantitative": [
+    {
+      "criterion": "painted-bit-field-spans",
+      "expected": [
+        {
+          "label": "Version",
+          "start": 0,
+          "end": 3
+        },
+        {
+          "label": "Flags",
+          "start": 4,
+          "end": 7
+        },
+        {
+          "label": "Payload",
+          "start": 8,
+          "end": 31
+        },
+        {
+          "label": "Checksum",
+          "start": 32,
+          "end": 63
+        }
+      ],
+      "actual": {
+        "fields": [
+          {
+            "label": "Version",
+            "start": 0,
+            "end": 3,
+            "box": {
+              "x": 26.50967025756836,
+              "y": 44.4991569519043,
+              "width": 122.99766540527344,
+              "height": 32.89937210083008
+            }
+          },
+          {
+            "label": "Flags",
+            "start": 4,
+            "end": 7,
+            "box": {
+              "x": 154.5072479248047,
+              "y": 44.4991569519043,
+              "width": 122.99766540527344,
+              "height": 32.89937210083008
+            }
+          },
+          {
+            "label": "Payload",
+            "start": 8,
+            "end": 31,
+            "box": {
+              "x": 282.50482177734375,
+              "y": 44.4991569519043,
+              "width": 762.9855346679688,
+              "height": 32.89937210083008
+            }
+          },
+          {
+            "label": "Checksum",
+            "start": 32,
+            "end": 63,
+            "box": {
+              "x": 26.50967025756836,
+              "y": 102.8980484008789,
+              "width": 1018.980712890625,
+              "height": 32.899375915527344
+            }
+          }
+        ],
+        "ratios": [
+          {
+            "label": "Version",
+            "actual": 0.1219028721094141,
+            "expected": 0.125
+          },
+          {
+            "label": "Flags",
+            "actual": 0.1219028721094141,
+            "expected": 0.125
+          },
+          {
+            "label": "Payload",
+            "actual": 0.7561942557811718,
+            "expected": 0.75
+          },
+          {
+            "label": "Checksum",
+            "actual": 1,
+            "expected": 1
+          }
+        ],
+        "ordered": true
+      },
+      "status": "passed",
+      "scope": "Owned field rectangles retain bit order and within-row bit-span proportions; 4 percentage-point padding tolerance, not cross-renderer coordinates"
+    }
+  ],
+  "quality": {
+    "width": 1072,
+    "height": 164.8,
+    "area": 176665.6,
+    "viewportScope": "actual viewBox SVG units",
+    "ownedCarriers": 0,
+    "contactCounts": {
+      "status": "unavailable",
+      "reason": "No enrolled exact SVG node-boundary contact observer"
+    },
+    "browserCenterline": {
+      "status": "unavailable"
+    },
+    "linear": {
+      "status": "unavailable",
+      "reason": "No enrolled owned SVG edge carriers; not a zero-crossing assertion"
+    }
+  },
+  "scope": "Unmodified Trident meaning + actual Chromium paint/quantitative observers on full Node SVG/receipt; exact strict linear metrics only where enrolled ownership/geometry allow. No browser renderer execution or speed claim."
+}

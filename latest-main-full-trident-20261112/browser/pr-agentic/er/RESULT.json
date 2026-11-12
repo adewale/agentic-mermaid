@@ -1,0 +1,131 @@
+{
+  "id": "community-browser",
+  "status": "passed",
+  "startedAt": "2026-11-12T23:27:53.140Z",
+  "finishedAt": "2026-11-12T23:27:54.543Z",
+  "observations": [
+    {
+      "suite": "community-browser",
+      "surface": "browser:public-api",
+      "runtime": "chromium",
+      "family": "*",
+      "caseId": "loader",
+      "operation": "load-and-initialize",
+      "format": "svg",
+      "mode": "cold-round-1",
+      "status": "passed",
+      "samplesMs": [
+        52.85766800000056
+      ],
+      "metrics": {
+        "implementation": "adewale/agentic-mermaid",
+        "browser": "154.0.8037.57",
+        "version": "0.5.7",
+        "artifactSha256": "1fbc5cca0c7531ac8dd7a21d22691c67f0e3fb0f47bd3abbf8677d9b3112a15a",
+        "cache": "public-default-repeats"
+      }
+    },
+    {
+      "suite": "community-browser",
+      "surface": "browser:public-api",
+      "runtime": "chromium",
+      "family": "er",
+      "caseId": "family-support:er",
+      "operation": "family-support",
+      "format": "svg",
+      "mode": "family-support-probe",
+      "status": "passed",
+      "bytes": 4571,
+      "findings": [],
+      "metrics": {
+        "implementation": "adewale/agentic-mermaid",
+        "apiBoundary": "Actual public lazy renderMermaidSVGWithReceiptAsync with explicit backend/fallback none; full original object serialized/retained by observation transport before unchanged declaredRenderer/Trident SVG qualification. No timing claim.",
+        "round": 1,
+        "rejected": false,
+        "xmlWellFormed": true,
+        "outputFile": null,
+        "firstMs": 441.5,
+        "iterations": null,
+        "version": "0.5.7",
+        "qualification": "XML-canvas-and-authored-labels",
+        "cache": "public-default-repeats"
+      }
+    },
+    {
+      "suite": "community-browser",
+      "surface": "browser:public-api",
+      "runtime": "chromium",
+      "family": "er",
+      "caseId": "family:er",
+      "operation": "render",
+      "format": "svg",
+      "mode": "feature-corpus-qualification",
+      "status": "passed",
+      "bytes": 4571,
+      "findings": [],
+      "metrics": {
+        "implementation": "adewale/agentic-mermaid",
+        "apiBoundary": "Actual public lazy renderMermaidSVGWithReceiptAsync with explicit backend/fallback none; full original object serialized/retained by observation transport before unchanged declaredRenderer/Trident SVG qualification. No timing claim.",
+        "round": 1,
+        "rejected": false,
+        "xmlWellFormed": true,
+        "outputFile": null,
+        "firstMs": 18.199999928474426,
+        "iterations": null,
+        "version": "0.5.7",
+        "qualification": "XML-canvas-and-authored-labels",
+        "cache": "public-default-repeats"
+      }
+    },
+    {
+      "suite": "community-browser",
+      "surface": "browser:public-api",
+      "runtime": "chromium-v8",
+      "family": "*",
+      "caseId": "post-portfolio-heap",
+      "operation": "memory",
+      "format": "svg",
+      "mode": "after-round-1",
+      "status": "passed",
+      "metrics": {
+        "implementation": "adewale/agentic-mermaid",
+        "round": 1,
+        "jsHeapUsedBytes": 5118936,
+        "portfolioCaseCount": 1,
+        "featureCases": 1,
+        "note": "Fresh realm, forced GC after this round portfolio; not native/WASM/process memory"
+      }
+    },
+    {
+      "suite": "community-browser",
+      "surface": "browser:public-api",
+      "runtime": "chromium",
+      "family": "*",
+      "caseId": "observed-request-closure",
+      "operation": "delivery",
+      "format": "js-wasm-fonts",
+      "mode": "round-1",
+      "status": "passed",
+      "bytes": 1083179,
+      "metrics": {
+        "implementation": "adewale/agentic-mermaid",
+        "round": 1,
+        "gzipBytes": 359937,
+        "requests": 30,
+        "remoteRequestsBlocked": 0,
+        "version": "0.5.7",
+        "renderedOutput": "svg",
+        "portfolioCaseCount": 1,
+        "featureCases": 1
+      }
+    }
+  ],
+  "gaps": [
+    "SVG XML/canvas and authored-label checks do not establish complete semantic identity, multiplicity, route geometry or visual fidelity. Dedicated family feature assertions remain separate.",
+    "Core repeat cases calibrate to20ms/256iterations. With communityCoverageOnce, feature-corpus inputs qualify one actual call in round1 without warm/repeated speed samples; later rounds contain core only. These protocols never share a speed aggregate. API clocks exclude validation/cleanup; internal DOM measurement belongs to the API. JS heap excludes native/WASM/process memory."
+  ],
+  "artifacts": [
+    "/dev/shm/pr449-four-final-20261111/latest-main-full-trident-20261112/browser/pr-agentic/er/community-browser-prepared.json",
+    "/dev/shm/pr449-four-final-20261111/latest-main-full-trident-20261112/browser/pr-agentic/er/community-browser-rounds.json"
+  ]
+}
