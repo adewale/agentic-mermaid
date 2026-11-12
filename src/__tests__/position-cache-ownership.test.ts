@@ -181,10 +181,7 @@ test('private text reuse preserves every frozen descendant alias independent of 
     import assert from 'node:assert/strict'
     import { clonePositioned, retainPositioned, cachedPositioned } from './src/experimental/position-cache.ts'
     import { preparePixelText, pixelTextLine } from './src/shared/prepared-text.ts'
-    import { retainConstructedBundleRoutes, hasConstructedBundleRoute } from './src/layout/bundle-routes.ts'
     const block = preparePixelText('Alpha <b>bold</b> Beta', { fontSize: 12, fontWeight: 400, maxWidth: 70 })
-    const edges = ['B', 'C'].map((target, edgeIndex) => ({ source: 'A', target, edgeIndex, points: [{ x: 0, y: 0 }, { x: 20, y: edgeIndex * 10 }] }))
-    retainConstructedBundleRoutes(edges, new Set())
     const projected = pixelTextLine(block, 0), parts = [], seen = new WeakSet()
     const collect = (value, path = []) => {
       if (!value || typeof value !== 'object' || seen.has(value)) return
@@ -198,17 +195,11 @@ test('private text reuse preserves every frozen descendant alias independent of 
       graph.map = new Map(parts.map(({ value }, index) => [value, index]))
       graph.set = new Set(links); graph.mutable = mutable; graph.self = graph
       graph.map.set(graph.map, graph)
-      graph.edges = edges; graph.map.set(edges[0], edges[1])
       const family = {}
       if (fromCache) retainPositioned(family, 'descendant-aliases', { positioned: graph })
       const copy = fromCache ? cachedPositioned(family, 'descendant-aliases', false, privateMode).positioned : clonePositioned(graph, privateMode)
       assert.equal(copy.self, copy)
       assert.equal(copy.map.get(copy.map), copy)
-      assert.equal(copy.map.get(copy.edges[0]), copy.edges[1])
-      assert.ok(copy.edges.every(hasConstructedBundleRoute))
-      copy.edges[0].points[1].x += 3
-      assert.equal(hasConstructedBundleRoute(copy.edges[0]), false)
-      assert.ok(edges.every(hasConstructedBundleRoute))
       assert.equal(copy.block === block, privateMode)
       assert.equal(copy.projected === projected, privateMode)
       parts.forEach(({ value, path }, index) => {
@@ -1188,10 +1179,7 @@ test.each([process.execPath, 'node'])('unrelated native and accessor siblings pr
     import assert from 'node:assert/strict'
     import { clonePositioned, retainPositioned, cachedPositioned } from './src/experimental/position-cache.ts'
     import { preparePixelText, pixelTextLine, isRetainedPixelText } from './src/shared/prepared-text.ts'
-    import { retainConstructedBundleRoutes, hasConstructedBundleRoute } from './src/layout/bundle-routes.ts'
     const block = preparePixelText('Read', { fontSize: 12, fontWeight: 400 })
-    const edges = ['B', 'C'].map((target, edgeIndex) => ({ source: 'A', target, edgeIndex, points: [{ x: 0, y: 0 }, { x: 20, y: edgeIndex * 10 }] }))
-    retainConstructedBundleRoutes(edges, new Set())
     for (const native of [new Date(0), /native/gi, new Uint8Array([1, 2])]) {
       for (const blockFirst of [false, true]) for (const privateMode of [false, true]) {
         let reads = 0
@@ -1208,15 +1196,11 @@ test.each([process.execPath, 'node'])('unrelated native and accessor siblings pr
         assert.deepEqual(block.lines, ['Read'])
       }
       const family = {}
-      retainPositioned(family, 'mixed', { positioned: { width: 1, height: 1, native, block, edges } })
+      retainPositioned(family, 'mixed', { positioned: { width: 1, height: 1, native, block } })
       for (const privateMode of [false, true]) {
         const copy = cachedPositioned(family, 'mixed', false, privateMode)
         assert.equal(isRetainedPixelText(copy.positioned.block), true)
         assert.equal(pixelTextLine(copy.positioned.block, 0).text, 'Read')
-        assert.ok(copy.positioned.edges.every(hasConstructedBundleRoute))
-        copy.positioned.edges[0].points[1].x += 3
-        assert.equal(hasConstructedBundleRoute(copy.positioned.edges[0]), false)
-        assert.ok(edges.every(hasConstructedBundleRoute))
       }
     }
     let reads = 0

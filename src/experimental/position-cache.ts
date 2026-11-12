@@ -75,8 +75,6 @@ function positionedCustodyProof(source: unknown, copy: unknown, immutableText: b
     // Opaque native objects keep their authoritative native snapshot. Optional
     // custody reuse requires a complete value and bidirectional alias proof.
     if (kind === 'native') return false
-    // Stable private copies can carry route ownership in this same walk.
-    if (privateSource && !immutable) transferConstructedBundleRoute(a, b)
     // Native cloning preserves a stable private graph's values and aliases.
     // Constructor custody is transitive; outside references to its descendants
     // are visited separately and substituted with those same original parts.
@@ -200,14 +198,9 @@ export function clonePositioned<T>(source: T, immutableText = false, privateSour
   // Native admission must precede reflection: even a descriptor trap can
   // delete an uncloneable Proxy before structuredClone gets to reject it.
   const copy = nativeClone(source)
-  if (!privateSource) transferBundleRouteOwnership(source, copy, false)
+  transferBundleRouteOwnership(source, copy, privateSource)
   const proof = positionedCustodyProof(source, copy, immutableText, privateSource)
-  if (!proof) {
-    // A declined private proof may not have reached every constructed route.
-    if (privateSource) transferBundleRouteOwnership(source, copy, true)
-    transferIndependentTextCustody(source, copy)
-    return copy
-  }
+  if (!proof) { transferIndependentTextCustody(source, copy); return copy }
   const { metadata, replacements, hasReplacements } = proof
   for (const [a, b] of metadata) transferRetainedPixelText(a, b)
   if (!hasReplacements) return copy
