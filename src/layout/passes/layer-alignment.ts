@@ -1,5 +1,6 @@
-import type { Direction, Point, PositionedEdge, PositionedNode } from '../../types.ts'
+import type { Direction, Point, PositionedEdge, PositionedGroup, PositionedNode } from '../../types.ts'
 import { DEFAULTS } from '../geometry.ts'
+import { moveKeepsGroupContainment } from './shared.ts'
 import { clipEdgeToShape, isOutwardShapeApproach } from '../../shape-clipping.ts'
 import { trimBoundaryEndpointRuns } from '../../route-contracts.ts'
 
@@ -25,6 +26,19 @@ function clippedEdge(edge: PositionedEdge, source?: PositionedNode, target?: Pos
   if (source) projected.points = clipEdgeToShape(projected.points, source, true)
   if (target) projected.points = clipEdgeToShape(projected.points, target, false)
   return projected
+}
+
+const boxesOverlap = (a: PositionedNode, b: PositionedNode): boolean =>
+  Math.min(a.x + a.width, b.x + b.width) > Math.max(a.x, b.x) && Math.min(a.y + a.height, b.y + b.height) > Math.max(a.y, b.y)
+
+/** A moved node newly overlaps another node at that node's settled or
+ * projected position. */
+function moveOverlapsNode(after: PositionedNode, before: PositionedNode, nodes: readonly PositionedNode[], projected: ReadonlyMap<string, PositionedNode>): boolean {
+  return nodes.some(other => {
+    if (other.id === after.id) return false
+    const placed = projected.get(other.id) ?? other
+    return boxesOverlap(after, placed) && !boxesOverlap(before, other)
+  })
 }
 
 /** Project the same endpoint adjustment for admission and commit. Retaining
@@ -58,11 +72,15 @@ function shiftedEndpointPoints(points: Point[], horizontal: boolean, sourceDelta
  * Edge endpoints connected to shifted nodes are adjusted proportionally.
  * Intermediate bend points are left unchanged — edge bundling or clipping
  * will recalculate them afterwards.
+ *
+ * Group frames are not refitted here, so a layer whose snap would carry a
+ * member outside a frame that holds it keeps ELK's stagger.
  */
 export function alignLayerNodes(
   nodes: PositionedNode[],
   edges: PositionedEdge[],
-  direction: Direction
+  direction: Direction,
+  groups: PositionedGroup[] = [],
 ): void {
   if (nodes.length === 0) return
 
@@ -166,6 +184,10 @@ export function alignLayerNodes(
     const projectedNodes = new Map(layer.map(node => [node.id, {
       ...node, ...(isHorizontal ? { x: node.x + (moves.get(node.id) ?? 0) } : { y: node.y + (moves.get(node.id) ?? 0) }),
     }]))
+    if (layer.some(node => !moveKeepsGroupContainment(node, projectedNodes.get(node.id)!, groups))) continue
+    // Layers are clustered by flow-axis proximity alone, so a snap can carry
+    // a node onto a node of a neighbouring layer. Overlap is a hard defect.
+    if ([...moves.keys()].some(id => moveOverlapsNode(projectedNodes.get(id)!, nodeMap.get(id)!, nodes, projectedNodes))) continue
     const checked = new Set<PositionedEdge>()
     let breaksApproach = false
     for (const id of moves.keys()) {

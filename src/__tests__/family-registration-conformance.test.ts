@@ -14,7 +14,6 @@ import {
 import { createExtensionIdentity, KNOWN_EXTENSION_CONTRACT_VERSIONS } from '../shared/extension-identity.ts'
 import { toFinite } from '../agent/types.ts'
 import { declareFamilyScenePrimitiveEvidence } from '../agent/families.ts'
-import { configWarningsForMermaid } from '../agent/verify.ts'
 import { explicitFamilyConfigDiagnostics } from '../shared/family-config-diagnostics.ts'
 import { renderMermaidASCIIWithReceipt } from '../ascii/index.ts'
 import { renderMermaidSVG } from '../index.ts'
@@ -210,7 +209,6 @@ describe('external family executable registration conformance', () => {
       expect(Object.isFrozen(getFamily(base.id)?.config?.keys)).toBe(true)
       const root = { custom: { limit: -1, z: true } }
       const source = `---\nconfig:\n  custom:\n    limit: -1\n    z: true\n---\n%%{init: ${JSON.stringify(root)}}%%\n${base.example}`
-      expect(configWarningsForMermaid(source)).toEqual(expected)
       expect(explicitFamilyConfigDiagnostics(base.id, root)).toEqual(expected)
       const callsBeforeVerify = calls
       expect(verifyMermaid(source).warnings).toEqual(expected)
@@ -233,7 +231,6 @@ describe('external family executable registration conformance', () => {
     try {
       const root = { custom: { legacy: true, unknown: true } }
       const source = `%%{init: ${JSON.stringify(root)}}%%\n${base.example}`
-      expect(configWarningsForMermaid(source)).toEqual([])
       expect(verifyMermaid(source).warnings).toEqual([])
       expect(explicitFamilyConfigDiagnostics(base.id, root)).toEqual([
         { code: 'INEFFECTIVE_CONFIG', field: 'custom.legacy', message: `${base.id} config field "legacy" is accepted for compatibility but has no effect on this renderer.` },
@@ -532,6 +529,11 @@ describe('external family executable registration conformance', () => {
       expect(() => admitExternalTerminalOutput(output, colorMode)).toThrow(/leaves ANSI color state active/i)
     }
     expect(() => admitExternalTerminalOutput('\u009d52;c;SGFja2Vk\u009c', 'html')).toThrow(/disallowed control/i)
+    // Bidi overrides reorder cells; noncharacters and lone surrogates are not
+    // text. sanitizeTerminalText never emits them, so admission refuses them.
+    for (const output of ['a\u202eb', 'a\u2066b\u2069', 'a\ufffeb', 'a\u{10ffff}b', 'a\ud800b']) {
+      expect(() => admitExternalTerminalOutput(output, 'none')).toThrow(/disallowed control/i)
+    }
     expect(() => admitExternalTerminalOutput(' \n ', 'none')).toThrow(/no visible content/i)
     expect(() => admitExternalTerminalOutput('\u001b[0m  \u001b[0m', 'ansi16')).toThrow(/no visible content/i)
     expect(() => admitExternalTerminalOutput('<span style="color:#123456"> </span>', 'html')).toThrow(/no visible content/i)

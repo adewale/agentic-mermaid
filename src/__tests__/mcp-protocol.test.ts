@@ -56,10 +56,29 @@ describe('exact JSON-RPC numeric id codec', () => {
     }
   })
 
-  test('property: malformed transport text never crashes the protector', () => {
-    fc.assert(fc.property(fc.string(), raw => {
-      expect(() => preserveExactJsonRpcIds(raw)).not.toThrow()
+  // Putting each raw token back in place of its quoted sentinel restores the
+  // transport text exactly: protection changes nothing else.
+  const restore = (body: string, ids: readonly { sentinel: string; raw: string }[]) =>
+    ids.reduce((text, id) => text.replace(JSON.stringify(id.sentinel), id.raw), body)
+
+  test('property: protection of any transport text is lossless', () => {
+    const jsonish = fc.array(fc.oneof(fc.constantFrom('{', '}', '[', ']', '"id"', ':', ',', ' ', '"', '\\', '9007199254740993', '-0', '1e400', '12'), fc.string({ unit: 'binary', maxLength: 4 })), { maxLength: 24 }).map(parts => parts.join(''))
+    fc.assert(fc.property(fc.oneof(fc.string({ unit: 'binary' }), jsonish), raw => {
+      const { body, ids } = preserveExactJsonRpcIds(raw)
+      expect(restore(body, ids)).toBe(raw)
     }), fcParameters({ numRuns: 500 }))
+  })
+
+  test('property: a request id is protected exactly when JSON cannot round-trip it', () => {
+    const integerToken = fc.tuple(fc.boolean(), fc.bigInt({ min: 0n, max: 10n ** 30n })).map(([negative, value]) => `${negative ? '-' : ''}${value}`)
+    fc.assert(fc.property(integerToken, token => {
+      const raw = `{"jsonrpc":"2.0","id":${token},"method":"ping"}`
+      const { body, ids } = preserveExactJsonRpcIds(raw)
+      const exact = JSON.stringify(JSON.parse(token)) === token
+      expect(ids.length).toBe(exact ? 0 : 1)
+      expect(JSON.parse(body).id).toBe(exact ? JSON.parse(token) : ids[0]!.sentinel)
+      expect(restore(body, ids)).toBe(raw)
+    }), fcParameters({ numRuns: 500, examples: [['9007199254740993'], ['-0'], ['9007199254740991']] }))
   })
 })
 

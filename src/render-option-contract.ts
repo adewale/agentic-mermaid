@@ -7,7 +7,7 @@ import type { DiagramKind, FamilyId } from './agent/types.ts'
 import { validateJsonSchema, type SchemaProblem, type JsonSchema } from './shared/schema-validation.ts'
 import { resolveStyleStack } from './scene/style-registry.ts'
 import { styleSpecJsonSchema } from './scene/style-spec.ts'
-import { safeCssColor, safeCssPaint } from './shared/css-color.ts'
+import { cssColorSpellings, isRecognizableCssColor, safeCssColor, safeCssPaint } from './shared/css-color.ts'
 import { safeCssFontFamily } from './shared/css-font.ts'
 import { limitJsonConfigDiagnostics, validateJsonConfigAdmission } from './shared/json-config-admission.ts'
 import { deepFreeze, isPlainRecord } from './shared/plain-data.ts'
@@ -126,31 +126,27 @@ const ARCHITECTURE_VISUAL_SCHEMA = {
   'x-agentic-mermaid-runtime-validator': 'architectureVisual',
 } as const satisfies JsonSchemaNode
 
-const STYLE_SPEC_SCHEMA = (() => {
-  const styleSchema = styleSpecJsonSchema() as Record<string, unknown>
-  const definitions = styleSchema.$defs as Record<string, Record<string, unknown>> | undefined
-  const expandLocalReferences = (value: unknown): unknown => {
-    if (Array.isArray(value)) return value.map(expandLocalReferences)
-    if (value === null || typeof value !== 'object') return value
-    const record = value as Record<string, unknown>
-    const reference = record.$ref
-    if (typeof reference === 'string' && reference.startsWith('#/$defs/')) {
-      const definition = definitions?.[reference.slice('#/$defs/'.length)]
-      if (!definition) throw new Error(`StyleSpec schema has unresolved local reference ${reference}`)
-      return expandLocalReferences(definition)
-    }
-    return Object.fromEntries(Object.entries(record)
-      .filter(([key]) => key !== '$defs')
-      .map(([key, child]) => [key, expandLocalReferences(child)]))
+/**
+ * The StyleSpec record and the role-style records it references, as local
+ * definitions. A style input names the record by `$ref` instead of carrying
+ * it: a name-or-record input and a stack of them would otherwise inline the
+ * same ~22 KB record twice in every schema that accepts `style`. The record's
+ * own `#/$defs/roleStyle-*` references keep their names, so every schema that
+ * places these definitions at its root resolves them unchanged.
+ */
+const STYLE_SCHEMA_DEFINITIONS: Readonly<Record<string, JsonSchemaNode>> = (() => {
+  const { $schema: _dialect, $id: _id, title: _title, $defs, ...record } = styleSpecJsonSchema() as Record<string, unknown>
+  const definitions = { ...($defs as Record<string, JsonSchemaNode>), styleSpec: record as JsonSchemaNode }
+  if (Object.hasOwn($defs as object, 'styleSpec') || Object.hasOwn($defs as object, 'jsonValue')) {
+    throw new Error('StyleSpec schema definitions collide with render option definitions')
   }
-  const { $schema: _dialect, $id: _id, title: _title, ...fragment } = styleSchema
-  return expandLocalReferences(fragment) as Record<string, unknown>
+  return definitions
 })()
 
 const STYLE_INPUT_SCHEMA = {
   anyOf: [
     { type: 'string', description: 'Registered Style or Palette name.' },
-    STYLE_SPEC_SCHEMA,
+    { $ref: '#/$defs/styleSpec' },
   ],
   'x-agentic-mermaid-validation-expectation': 'a registered Style name or StyleSpec',
 } as const satisfies JsonSchemaNode
@@ -182,8 +178,7 @@ const GRAPH_LAYOUT_OPTION_FAMILIES = [
 ] as const satisfies readonly DiagramKind[]
 
 const SHADOW_OPTION_FAMILIES = [
-  'flowchart', 'state', 'sequence', 'timeline', 'class', 'er', 'journey',
-  'xychart', 'pie', 'quadrant', 'gantt', 'mindmap', 'gitgraph', 'sankey',
+  'flowchart', 'state', 'sequence', 'timeline', 'class', 'er', 'journey', 'sankey', 'c4', 'zenuml', 'swimlane', 'agentflow',
 ] as const satisfies readonly DiagramKind[]
 
 /**
@@ -195,9 +190,9 @@ const GRAPH_LAYOUT_QUALITY_FIELDS = { quality: { type: 'string', enum: ['balance
 
 export const SHARED_RENDER_OPTION_FIELD_DESCRIPTORS = deepFreeze({
   fontMetrics: { typeScript: "'estimate' | 'bundled-inter'", description: 'Optional pinned Inter ASCII advances and pair corrections. Does not load fonts; unsupported runs retain estimates.', defaultLabel: '`estimate`', validationExpectation: 'be estimate or bundled-inter', schema: { type: 'string', enum: ['estimate', 'bundled-inter'] }, terminal: 'not-applicable', terminalNote: 'terminal cells do not use font advances' },
-  layoutHints: { typeScript: '{ ranks?: Record<string, number>; adjacent?: string[][]; shortEdges?: string[] }', description: 'Relative ranks, sibling adjacency and short-edge preferences.', defaultLabel: 'unset', validationExpectation: 'contain integer ranks, node groups and edge IDs', schema: { type: 'object', additionalProperties: false, properties: { ranks: { type: 'object', additionalProperties: { type: 'integer', minimum: 0, maximum: 10000 } }, adjacent: { type: 'array', items: { type: 'array', minItems: 2, items: { type: 'string' } } }, shortEdges: { type: 'array', items: { type: 'string' } } } }, terminal: 'not-applicable', terminalNote: 'not used by terminals', applicableBuiltinFamilies: ['flowchart', 'state'] },
+  layoutHints: { typeScript: '{ ranks?: Record<string, number>; adjacent?: string[][]; shortEdges?: string[] }', description: 'Relative ranks, sibling adjacency and short-edge preferences.', defaultLabel: 'unset', validationExpectation: 'contain integer ranks, node groups and edge IDs', schema: { type: 'object', additionalProperties: false, properties: { ranks: { type: 'object', additionalProperties: { type: 'integer', minimum: 0, maximum: 10000 } }, adjacent: { type: 'array', items: { type: 'array', minItems: 2, items: { type: 'string' } } }, shortEdges: { type: 'array', items: { type: 'string' } } } }, terminal: 'not-applicable', terminalNote: 'not used by terminals', applicableBuiltinFamilies: ['flowchart', 'state', 'usecase', 'swimlane', 'agentflow'] },
   graphLayout: { typeScript: "{ backend: 'elk' | 'agentic' | 'trinity'; fallback?: 'none' | 'elk'; quality?: 'balanced'; viewport?: { width: number; height: number } }", description: 'Graph geometry producer. Trinity supports bounded Flowchart/State, Class, ER, Architecture and Requirement; explicit ELK fallback.', defaultLabel: '`elk`, no fallback', validationExpectation: 'be a graph layout selection object', schema: { anyOf: [closedObjectSchema({ ...GRAPH_LAYOUT_QUALITY_FIELDS, backend: { type: 'string', const: 'elk' }, fallback: { type: 'string', enum: ['none'] } }, 'ELK graph layout.', ['backend']), closedObjectSchema({ ...GRAPH_LAYOUT_QUALITY_FIELDS, backend: { type: 'string', const: 'agentic' }, fallback: { type: 'string', enum: ['none', 'elk'] } }, 'Owned graph layout with optional ELK fallback.', ['backend']), closedObjectSchema({ ...GRAPH_LAYOUT_QUALITY_FIELDS, backend: { type: 'string', const: 'trinity' }, fallback: { type: 'string', enum: ['none', 'elk'] } }, 'Bounded measured graph layout with optional ELK fallback.', ['backend'])] }, terminal: 'projected', terminalNote: 'selects pixel placement and optional graphical companion evidence, not terminal-cell placement', applicableBuiltinFamilies: ['flowchart', 'state', 'architecture', 'class', 'er', 'requirement'] },
-  layoutSafety: { typeScript: "'report' | 'strict'", description: 'Report bounded layout evidence, or require a passed final certificate. Strict mode rejects missing or unverified evidence.', defaultLabel: '`report`', validationExpectation: 'be report or strict', schema: { type: 'string', enum: ['report', 'strict'], default: 'report', description: 'Require a passed final native layout certificate.' }, terminal: 'consumed' },
+  layoutSafety: { typeScript: "'report' | 'strict'", description: 'Report bounded layout evidence, still drawing a layout that fails certification only on drawable checks (verify then fails), or require a passed final certificate. Strict mode rejects missing, unverified or failed evidence.', defaultLabel: '`report`', validationExpectation: 'be report or strict', schema: { type: 'string', enum: ['report', 'strict'], default: 'report', description: 'Require a passed final native layout certificate.' }, terminal: 'consumed' },
   bg: { typeScript: 'string', description: 'Background color or CSS variable.', defaultLabel: '`#FFFFFF`', validationExpectation: 'be a safe non-fetching CSS paint', schema: paintSchema('Background color or CSS variable.', '#FFFFFF'), terminal: 'consumed' },
   fg: { typeScript: 'string', description: 'Primary foreground and text color.', defaultLabel: '`#27272A`', validationExpectation: 'be a safe non-fetching CSS paint', schema: paintSchema('Primary foreground and text color.', '#27272A'), terminal: 'consumed' },
   line: { typeScript: 'string', description: 'Connector and secondary-line color.', defaultLabel: 'derived', validationExpectation: 'be a safe non-fetching CSS paint', schema: paintSchema('Connector and secondary-line color.'), terminal: 'consumed' },
@@ -207,9 +202,9 @@ export const SHARED_RENDER_OPTION_FIELD_DESCRIPTORS = deepFreeze({
   border: { typeScript: 'string', description: 'Node and group border color.', defaultLabel: 'derived', validationExpectation: 'be a safe non-fetching CSS paint', schema: paintSchema('Node and group border color.'), terminal: 'consumed' },
   font: { typeScript: 'string', description: 'CSS font family or stack.', defaultLabel: '`Inter`', validationExpectation: 'be a safe non-fetching CSS font family or stack', schema: fontFamilySchema('CSS font family or stack.', 'Inter'), terminal: 'projected', terminalNote: 'the host terminal owns the font face' },
   style: { typeScript: 'StyleInput | StyleInput[]', description: 'Registered Style/Palette name, inline StyleSpec, or left-to-right stack.', defaultLabel: '`crisp`', validationExpectation: 'be a registered Style name or StyleSpec, or an array of them', schema: STYLE_OPTION_SCHEMA, terminal: 'consumed' },
-  padding: { typeScript: 'number', description: 'Canvas padding in SVG user units.', defaultLabel: '`40`', validationExpectation: 'be a non-negative finite number', schema: nonNegativeNumberSchema('Canvas padding in SVG user units.', 40), terminal: 'not-applicable', terminalNote: 'terminal output uses paddingX, paddingY, and boxBorderPadding', applicableBuiltinFamilies: ['flowchart', 'state', 'architecture', 'c4'] },
-  nodeSpacing: { typeScript: 'number', description: 'Horizontal spacing between sibling nodes.', defaultLabel: '`24`', validationExpectation: 'be a non-negative finite number', schema: nonNegativeNumberSchema('Horizontal spacing between sibling nodes.', 24), terminal: 'not-applicable', terminalNote: 'terminal layout has a cell-grid spacing contract', applicableBuiltinFamilies: GRAPH_LAYOUT_OPTION_FAMILIES },
-  layerSpacing: { typeScript: 'number', description: 'Vertical spacing between graph layers.', defaultLabel: '`40`', validationExpectation: 'be a non-negative finite number', schema: nonNegativeNumberSchema('Vertical spacing between graph layers.', 40), terminal: 'not-applicable', terminalNote: 'terminal layout has a cell-grid spacing contract', applicableBuiltinFamilies: GRAPH_LAYOUT_OPTION_FAMILIES },
+  padding: { typeScript: 'number', description: 'Canvas padding in SVG user units.', defaultLabel: '`40`', validationExpectation: 'be a non-negative finite number', schema: nonNegativeNumberSchema('Canvas padding in SVG user units.', 40), terminal: 'not-applicable', terminalNote: 'terminal output uses paddingX, paddingY, and boxBorderPadding', applicableBuiltinFamilies: ['flowchart', 'state', 'architecture', 'c4', 'requirement', 'block', 'packet', 'kanban', 'eventmodeling', 'usecase', 'wardley', 'cynefin', 'swimlane', 'agentflow'] },
+  nodeSpacing: { typeScript: 'number', description: 'Horizontal spacing between sibling nodes.', defaultLabel: '`24`', validationExpectation: 'be a non-negative finite number', schema: nonNegativeNumberSchema('Horizontal spacing between sibling nodes.', 24), terminal: 'not-applicable', terminalNote: 'terminal layout has a cell-grid spacing contract', applicableBuiltinFamilies: [...GRAPH_LAYOUT_OPTION_FAMILIES, 'eventmodeling', 'swimlane'] },
+  layerSpacing: { typeScript: 'number', description: 'Vertical spacing between graph layers.', defaultLabel: '`40`', validationExpectation: 'be a non-negative finite number', schema: nonNegativeNumberSchema('Vertical spacing between graph layers.', 40), terminal: 'not-applicable', terminalNote: 'terminal layout has a cell-grid spacing contract', applicableBuiltinFamilies: [...GRAPH_LAYOUT_OPTION_FAMILIES, 'requirement', 'usecase', 'agentflow'] },
   wrappingWidth: { typeScript: 'number', description: 'Flowchart measured-label wrapping budget in pixels.', defaultLabel: 'unset', validationExpectation: 'be a positive finite number', schema: positiveNumberSchema('Flowchart measured-label wrapping budget in pixels.'), terminal: 'not-applicable', terminalNote: 'terminal output uses maxWidth or targetWidth', applicableBuiltinFamilies: ['flowchart'] },
   componentSpacing: { typeScript: 'number', description: 'Spacing between disconnected graph components for compatible extension families; no built-in family currently consumes it.', defaultLabel: 'extension-defined', validationExpectation: 'be a non-negative finite number', schema: nonNegativeNumberSchema('Spacing between disconnected graph components for compatible extension families; no built-in family currently consumes it.'), terminal: 'not-applicable', terminalNote: 'terminal layout has a cell-grid spacing contract', applicableBuiltinFamilies: [] },
   transparent: { typeScript: 'boolean', description: 'Omit the painted SVG canvas background.', defaultLabel: '`false`', validationExpectation: 'be a boolean', schema: booleanSchema('Omit the painted SVG canvas background.', false), terminal: 'projected', terminalNote: 'terminal output has no painted canvas background' },
@@ -357,6 +352,9 @@ export function renderSchemaProblems(value: unknown, schema: JsonSchema, path: r
   if (runtimeValidator === 'safeCssPaint' && safeCssPaint(value) === undefined) {
     return [{ path, message: 'must be a safe, non-fetching CSS paint', generic: false }]
   }
+  if ((runtimeValidator === 'safeCssColor' || runtimeValidator === 'safeCssPaint') && !isRecognizableCssColor(value as string)) {
+    return [{ path, message: `must be a CSS color, not ${JSON.stringify(value)} (use ${cssColorSpellings(runtimeValidator === 'safeCssPaint')})`, generic: false }]
+  }
   if (runtimeValidator === 'safeCssFontFamily' && safeCssFontFamily(value) === undefined) {
     return [{ path, message: 'must be a safe, non-fetching CSS font family or stack', generic: false }]
   }
@@ -386,6 +384,17 @@ export function renderSchemaProblems(value: unknown, schema: JsonSchema, path: r
 
 let validationRootSchema: JsonSchemaNode | undefined
 
+/** Option names callers guess for settings that live elsewhere. */
+const MISPLACED_RENDER_OPTION_HINTS: Readonly<Record<string, string>> = Object.freeze({
+  theme: 'set a Mermaid theme with mermaidConfig.theme, or a registered Style or Palette with style',
+  themeVariables: 'set Mermaid theme variables with mermaidConfig.themeVariables',
+})
+
+/** Where an unknown render option's setting lives, when it is a known guess. */
+export function misplacedRenderOptionHint(field: string): string | undefined {
+  return Object.hasOwn(MISPLACED_RENDER_OPTION_HINTS, field) ? MISPLACED_RENDER_OPTION_HINTS[field] : undefined
+}
+
 /** Validate the shared advanced JSON object used by CLI/MCP/editor adapters. */
 export function validateSerializableRenderOptions(value: unknown): string[] {
   if (!isPlainRecord(value)) return ['render options must be a plain JSON object']
@@ -396,7 +405,8 @@ export function validateSerializableRenderOptions(value: unknown): string[] {
   const rootSchema = validationRootSchema ??= deepFreeze(sharedRenderOptionsJsonSchema())
   for (const [field, fieldValue] of Object.entries(value)) {
     if (!Object.hasOwn(SHARED_RENDER_OPTION_FIELD_DESCRIPTORS, field)) {
-      problems.push(`unknown render option "${field}"`)
+      const hint = misplacedRenderOptionHint(field)
+      problems.push(`unknown render option "${field}"${hint ? `; ${hint}` : ''}`)
       continue
     }
     if (fieldValue === null) {
@@ -438,12 +448,26 @@ export function sharedRenderOptionsJsonSchema(): Record<string, unknown> {
     type: 'object',
     additionalProperties: false,
     properties,
-    $defs: { jsonValue: cloneSchema(JSON_VALUE_SCHEMA) },
+    $defs: renderOptionsSchemaDefinitions(),
   }
 }
 
-/** Public StyleInput projection reused by advanced and convenience adapters. */
-export function styleInputJsonSchema(description?: string): Record<string, unknown> {
-  return { ...cloneSchema(STYLE_OPTION_SCHEMA), ...(description === undefined ? {} : { description }) }
+/** The local definitions `sharedRenderOptionsJsonSchema()` references by
+ * `#/$defs/<name>`. A schema that embeds the render options object without
+ * its root (an MCP tool's `options` argument) places these at its own root. */
+export function renderOptionsSchemaDefinitions(): Record<string, unknown> {
+  return {
+    jsonValue: cloneSchema(JSON_VALUE_SCHEMA),
+    ...Object.fromEntries(Object.entries(STYLE_SCHEMA_DEFINITIONS).map(([name, definition]) => [name, cloneSchema(definition)])),
+  }
 }
 
+/** Public StyleInput projection reused by advanced and convenience adapters.
+ * Self-contained: it carries the StyleSpec definitions its references name. */
+export function styleInputJsonSchema(description?: string): Record<string, unknown> {
+  return {
+    ...cloneSchema(STYLE_OPTION_SCHEMA),
+    ...(description === undefined ? {} : { description }),
+    $defs: Object.fromEntries(Object.entries(STYLE_SCHEMA_DEFINITIONS).map(([name, definition]) => [name, cloneSchema(definition)])),
+  }
+}

@@ -10,7 +10,7 @@ import { bundleRouteBeforeRewrite, retainBundleRouteAfterRewrite } from './bundl
 import { runPipeline, type LayoutPass, type PassContextBase, type PassMetrics, type RubricMetric } from './pass.ts'
 import { flattenGroupBounds, type MarginInfo } from './geometry.ts'
 import { retainGraphText } from './graph-measurement.ts'
-import { translateGeometryToNonNegativeOrigin, extractEdgesRecursively, alignLayerNodes, equalizePeerNodeDimensions, reanchorOffOutlineEndpoints, rerouteEdgesThroughNodes, alignForkRejoinPeerCenters, alignPortLanes, alignLabeledSourcePort, centerPeerBarycenters, honorLinkRankDistance, bundleEdgePaths, markCorankFanInBundles, applySymmetricFanoutEmissions, applySymmetricParallelEdgeLanes, applyParallelDuplicateLanes, collapseTinyBundledHitches, reassignBundledSiblingLabels } from './passes/index.ts'
+import { translateGeometryToNonNegativeOrigin, extractEdgesRecursively, alignLayerNodes, equalizePeerNodeDimensions, reanchorOffOutlineEndpoints, rerouteEdgesThroughNodes, repairInwardEndpointApproaches, repairResidualDiagonals, alignForkRejoinPeerCenters, alignPortLanes, alignLabeledSourcePort, centerPeerBarycenters, honorLinkRankDistance, bundleEdgePaths, markCorankFanInBundles, applySymmetricFanoutEmissions, applySymmetricParallelEdgeLanes, applyParallelDuplicateLanes, collapseTinyBundledHitches, reassignBundledSiblingLabels } from './passes/index.ts'
 
 /** The mutable bag the post-ELK geometry passes thread through (see ./layout/pass.ts). */
 export interface LayoutPassContext extends PassContextBase {
@@ -31,6 +31,8 @@ export interface LayoutPassContext extends PassContextBase {
   readonly layoutPadding: number
   readonly stateNoteMargin: number
   frozen: boolean
+  /** Routes rebuilt around a reserved title band, retained for placement selection. */
+  titleBandRepairs?: number
 }
 
 /** Necessary precondition for lane splitters. Avoid measuring their crossing
@@ -81,7 +83,7 @@ export const LAYOUT_PIPELINE: ReadonlyArray<LayoutPass<LayoutPassContext>> = [
     // ELK repairs and the shared forest fan preparation retain their passes.
     enabled: c => Boolean(c.elkResult) || c.mergeEdges,
     mayChangeMetrics: { bends: 'improve-only', straight: 'improve-only' },
-    run: c => { alignLayerNodes(c.nodes, c.edges, c.graph.direction) },
+    run: c => { alignLayerNodes(c.nodes, c.edges, c.graph.direction, c.groups) },
   },
   {
     id: 'equalizePeerNodeDimensions', doc: 'equalize peer box sizes + pack layers so symmetry is visible downstream',
@@ -227,7 +229,13 @@ export const LAYOUT_PIPELINE: ReadonlyArray<LayoutPass<LayoutPassContext>> = [
   {
     id: 'rerouteEdgesThroughNodes', doc: 're-route an edge left running through a node by a node-mover (honorLinkRankDistance/alignPortLanes) around the obstacle and restore protected marker leads before label placement (edge-only, freeze-safe)',
     after: ['reanchorOffOutlineEndpoints'], mutates: ['edges'],
-    run: c => { rerouteEdgesThroughNodes(c.nodes, c.edges, c.graph, undefined, c.groups, c.style); repairMarkerTerminals({ nodes: c.nodes, edges: c.edges, groups: c.groups }, c.graph, c.style) },
+    run: c => {
+      const rerouted = rerouteEdgesThroughNodes(c.nodes, c.edges, c.graph, undefined, c.groups, c.style)
+      c.titleBandRepairs = rerouted.titleBandRepairs
+      repairInwardEndpointApproaches(c.nodes, c.edges, c.groups, edge => c.bundled.has(edge))
+      repairMarkerTerminals({ nodes: c.nodes, edges: c.edges, groups: c.groups }, c.graph, c.style)
+      repairInwardEndpointApproaches(c.nodes, c.edges, c.groups, edge => c.bundled.has(edge), true)
+    },
   },
   {
     id: 'repairLabelsOnSharedTrunks', doc: 'give a shared-trunk label a clear seat or a proved private channel (edge-only, freeze-safe)',
@@ -249,6 +257,11 @@ export const LAYOUT_PIPELINE: ReadonlyArray<LayoutPass<LayoutPassContext>> = [
     after: ['separateEdgeLabelPills'], mutates: ['edges'],
     mayChangeMetrics: { straight: 'improve-only', bends: 'improve-only' },
     run: c => { closeRouteContracts({ nodes: c.nodes, edges: c.edges, groups: c.groups }, c.graph, c.style) },
+  },
+  {
+    id: 'repairResidualDiagonals', doc: 're-route a residual diagonal while preserving both endpoint approaches (edge-only, freeze-safe)',
+    after: ['closeRouteContracts'], mutates: ['edges'],
+    run: c => { repairResidualDiagonals(c.nodes, c.edges, c.groups, edge => c.bundled.has(edge)) },
   },
   {
     id: 'translateGeometryToNonNegativeOrigin', doc: 'shift whole graph to a non-negative origin (allowed after freeze)',
@@ -470,17 +483,17 @@ export function finishGraphGeometry(
     height = Math.max(height, note.y + note.height + padding)
   }
 
-  return {
-    genericBundled: ctx.genericBundled,
-    positioned: {
-      width,
-      height,
-      nodes,
-      edges,
-      groups,
-      ...(ctx.notes.length > 0 ? { notes: ctx.notes } : {}),
-    },
+  const positioned: PositionedGraph = {
+    width, height, nodes, edges, groups,
+    ...(ctx.notes.length > 0 ? { notes: ctx.notes } : {}),
   }
+  if (ctx.titleBandRepairs) TITLE_BAND_DETOURS.add(positioned)
+  return { genericBundled: ctx.genericBundled, positioned }
 }
+
+// Placement-only callers discard the generic routes, and therefore query only
+// title widths. Rendered candidates also retain Main's title-detour preference.
+const TITLE_BAND_DETOURS = new WeakSet<PositionedGraph>()
+export function hasTitleBandDetour(positioned: PositionedGraph): boolean { return TITLE_BAND_DETOURS.has(positioned) }
 
 

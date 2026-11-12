@@ -65,7 +65,7 @@ describe('ASCII edge styles', () => {
           fc.constantFrom('solid', 'dotted', 'thick'),
           fc.boolean(),
           (a, b, style, ascii) => {
-            if (a === b) return true
+            fc.pre(a !== b)
             const out = renderMermaidASCII(`graph LR\n  ${a} ${OP[style]} ${b}`, ascii ? { useAscii: true } : undefined)
             const glyph = ascii ? GLYPH.ascii : GLYPH.unicode
             const row = rowContaining(out, a, b)

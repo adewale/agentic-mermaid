@@ -14,7 +14,7 @@ describe('transformed bounds geometry kernel', () => {
     close(box.y1, 3 * Math.SQRT2)
   })
 
-  test('the returned AABB is exactly the extent of the four rotated source corners', () => {
+  test('the returned AABB is the extent of the four rotated source corners, to 1e-6', () => {
     // Independent oracle: the textbook rotation (SVG rotate(angle, cx, cy)),
     // not the module's rotatePoint. Equality (not just containment) also
     // rules out a box that is merely too large.

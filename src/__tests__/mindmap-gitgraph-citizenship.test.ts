@@ -4,8 +4,8 @@ import { describeMermaidFacts } from '../agent/facts.ts'
 import { asGitGraph, asMindmap, layoutMermaid, mutate, parseRegisteredMermaid as parseMermaid, serializeMermaid, verifyMermaid } from '../agent/index.ts'
 import { visualWidth } from '../ascii/width.ts'
 import { assessRenderedLayout, familyHardViolations } from '../family-rubric.ts'
-import { layoutGitGraph } from '../gitgraph/layout.ts'
-import { GitGraphParseError, MindmapDuplicateIdError, parseGitGraph, parseMindmap, renderMermaidASCII, renderMermaidSVG, serializeGitGraph, serializeMindmap, verifyNoExternalRefs } from '../index.ts'
+import { gitGraphRouteViolations, layoutGitGraph } from '../gitgraph/layout.ts'
+import { GitGraphParseError, parseGitGraph, parseMindmap, renderMermaidASCII, renderMermaidSVG, serializeGitGraph, serializeMindmap, verifyNoExternalRefs } from '../index.ts'
 import { layoutMindmap } from '../mindmap/layout.ts'
 import { lowerMindmapScene } from '../mindmap/renderer.ts'
 import { DefaultBackend, getFamily } from '../agent/core.ts'
@@ -15,6 +15,7 @@ import { DEFAULTS } from '../theme.ts'
 import { scanSvgStartTags } from '../svg-structure.ts'
 import { BUILTIN_PALETTE_DEFINITIONS } from '../palette-catalog.ts'
 import { connectorUnitTangent } from '../scene/connector-geometry.ts'
+import { expectNearLinearGrowth } from './helpers/complexity.ts'
 import { fcParameters } from './helpers/fc-parameters.ts'
 import { startUpstreamMermaid } from './helpers/upstream-mermaid.ts'
 
@@ -179,8 +180,33 @@ describe('Mindmap full-family citizenship', () => {
     }
   })
 
-  test('rejects duplicate semantic identities instead of silently overwriting a node', () => {
-    expect(() => parseMindmap('mindmap\n  root\n    dup[First]\n    dup[Second]')).toThrow(MindmapDuplicateIdError)
+  test('a repeated identity is another node, never an overwrite, and keeps its authored text', () => {
+    // Mermaid 12.2.0 accepts repeated node text and repeated explicit ids.
+    // Each later occurrence gets the next free `<identity>#<n>`; an authored
+    // `X#2` keeps its own name, so the second `X` becomes `X#3`.
+    const source = 'mindmap\n  root((R))\n    A\n      X\n    B\n      X\n    X#2\n    dup[First]\n    dup[Second]\n'
+    const diagram = parseMindmap(source)
+    const nodes: Array<{ id: string; sourceId?: string; label: string; parent?: string }> = []
+    const visit = (node: typeof diagram.root, parent?: string): void => {
+      nodes.push({ id: node.id, ...(node.sourceId ? { sourceId: node.sourceId } : {}), label: node.label, ...(parent ? { parent } : {}) })
+      node.children.forEach(child => visit(child, node.id))
+    }
+    visit(diagram.root)
+    expect(nodes).toEqual([
+      { id: 'root', label: 'R' },
+      { id: 'A', label: 'A', parent: 'root' },
+      { id: 'X', label: 'X', parent: 'A' },
+      { id: 'B', label: 'B', parent: 'root' },
+      { id: 'X#3', sourceId: 'X', label: 'X', parent: 'B' },
+      { id: 'X#2', label: 'X#2', parent: 'root' },
+      { id: 'dup', label: 'First', parent: 'root' },
+      { id: 'dup#2', sourceId: 'dup', label: 'Second', parent: 'root' },
+    ])
+    expect(serializeMindmap(diagram)).toBe(source)
+    expect(parseMindmap(serializeMindmap(diagram))).toEqual(diagram)
+    const ascii = renderMermaidASCII(source)
+    expect(ascii.split('─ X\n')).toHaveLength(3)
+    expect(ascii).toContain('[Second]')
   })
 
   test('rejects empty icon decorations instead of dropping them on round-trip', () => {
@@ -281,19 +307,100 @@ describe('Mindmap full-family citizenship', () => {
     expect(verified.warnings).toContainEqual(expect.objectContaining({ code: 'INEFFECTIVE_CONFIG', field: 'mindmap.unknownSpacing' }))
   })
 
-  test('keeps deterministic tree invariants under generated sibling labels', () => {
+  // Generated trees whose text repeats across and within branches (including
+  // an authored name shaped like a generated id), at several indentation
+  // units. Each node is (depth, text); a node is at most one level deeper
+  // than the one before it.
+  const repeatedTextTreeArb = fc.tuple(
+    fc.array(fc.tuple(fc.nat(), fc.constantFrom('A', 'B', 'X', 'Y', 'X#2', 'X#3')), { minLength: 1, maxLength: 10 }),
+    fc.constantFrom(1, 2, 4),
+  ).map(([picks, unit]) => {
+    const nodes: Array<{ depth: number; text: string }> = [{ depth: 0, text: 'Root' }]
+    for (const [pick, text] of picks) nodes.push({ depth: 1 + pick % (nodes[nodes.length - 1]!.depth + 1), text })
+    const lines = (step: number, base: number) => ['mindmap', ...nodes.map(node => `${' '.repeat(base + node.depth * step)}${node.text}`)].join('\n') + '\n'
+    return { nodes, source: lines(unit, 2), canonical: lines(2, 2) }
+  })
+  const preorder = (root: ReturnType<typeof parseMindmap>['root']) => {
+    const out: Array<{ id: string; sourceId?: string; label: string; depth: number }> = []
+    const visit = (node: typeof root, depth: number): void => { out.push({ id: node.id, ...(node.sourceId ? { sourceId: node.sourceId } : {}), label: node.label, depth }); node.children.forEach(child => visit(child, depth + 1)) }
+    visit(root, 0)
+    return out
+  }
+
+  test('keeps deterministic tree invariants and distinct identities under generated repeated text', () => {
     fc.assert(
-      fc.property(fc.uniqueArray(fc.stringMatching(/^[A-Za-z][A-Za-z0-9]{0,8}$/), { minLength: 1, maxLength: 8 }), labels => {
-        const source = ['mindmap', '  Root', ...labels.map(label => `    ${label}`)].join('\n')
+      fc.property(repeatedTextTreeArb, ({ nodes, source, canonical }) => {
         const parsed = parseMindmap(source)
+        const read = preorder(parsed.root)
+        // Every node is read, in order and at its depth, with its own text.
+        expect(read.map(node => [node.depth, node.label])).toEqual(nodes.map(node => [node.depth, node.text]))
+        // Identities are distinct; the authored identity is the node's text;
+        // a text's first node keeps it as its id (so an authored `X#2` is
+        // never displaced), and each later one is numbered from it.
+        expect(new Set(read.map(node => node.id)).size).toBe(read.length)
+        for (const [index, node] of read.entries()) {
+          expect(node.sourceId ?? node.id).toBe(node.label)
+          const first = read.findIndex(other => other.label === node.label) === index
+          expect(node.id === node.label).toBe(first)
+          if (!first) expect(node.id.startsWith(`${node.label}#`)).toBe(true)
+        }
         const layout = layoutMindmap(parsed)
-        expect(layout.nodes).toHaveLength(labels.length + 1)
-        expect(layout.edges).toHaveLength(labels.length)
-        expect(serializeMindmap(parseMindmap(serializeMindmap(parsed)))).toBe(serializeMindmap(parsed))
+        expect(layout.nodes).toHaveLength(nodes.length)
+        expect(layout.edges).toHaveLength(nodes.length - 1)
+        // The writer keeps the author's text; reading it back is identity.
+        expect(serializeMindmap(parsed)).toBe(canonical)
+        expect(parseMindmap(serializeMindmap(parsed))).toEqual(parsed)
+        // Typed body and canonical source agree with the authored reading.
+        const typed = parseMermaid(source)
+        if (!typed.ok || typed.value.body.kind !== 'mindmap') throw new Error(JSON.stringify(typed))
+        expect(typed.value.body.root).toEqual(parsed.root)
+        const reread = parseMermaid(typed.value.canonicalSource)
+        if (!reread.ok) throw new Error(JSON.stringify(reread.error))
+        expect(reread.value.body).toEqual(typed.value.body)
+        expect(describeMermaidFacts(typed.value).filter(fact => fact.startsWith('node ') && fact.includes(' : '))).toHaveLength(nodes.length)
       }),
-      fcParameters({ numRuns: 30, seed: 1501 }),
+      fcParameters({ numRuns: 60, seed: 1501 }),
     )
   })
+
+  test('typed edits on repeated text keep the ids a fresh parse gives', () => {
+    fc.assert(
+      fc.property(repeatedTextTreeArb.filter(tree => tree.nodes.length > 1), fc.nat(), ({ source }, pick) => {
+        const typed = parseMermaid(source)
+        if (!typed.ok) throw new Error(JSON.stringify(typed.error))
+        const ids = preorder((typed.value.body as { root: ReturnType<typeof parseMindmap>['root'] }).root).map(node => node.id)
+        const target = ids[1 + pick % (ids.length - 1)]!
+        for (const op of [
+          { kind: 'remove_node', id: target, recursive: true },
+          { kind: 'move_node', id: target, parent: 'Root', index: 0 },
+          { kind: 'set_icon', id: target, icon: 'fa fa-book' },
+        ] as const) {
+          const edited = mutate(typed.value, op)
+          if (!edited.ok) throw new Error(`${JSON.stringify(op)}: ${edited.error.message}`)
+          const written = serializeMermaid(edited.value)
+          const fresh = parseMermaid(written)
+          if (!fresh.ok) throw new Error(JSON.stringify(fresh.error))
+          expect(fresh.value.body).toEqual(edited.value.body)
+        }
+      }),
+      fcParameters({ numRuns: 40, seed: 1502 }),
+    )
+  })
+
+  test('generated repeated-text mindmaps and their written source are valid Mermaid', async () => {
+    const upstream = startUpstreamMermaid()
+    try {
+      await fc.assert(
+        fc.asyncProperty(repeatedTextTreeArb, async ({ source }) => {
+          expect(await upstream.accepts(source)).toBe(true)
+          expect(await upstream.accepts(serializeMindmap(parseMindmap(source)))).toBe(true)
+        }),
+        fcParameters({ numRuns: 8, seed: 1503 }),
+      )
+    } finally {
+      upstream.close()
+    }
+  }, 60_000)
 })
 
 function publicGitGraphCommit(id: string, sequence: number): PositionedGitGraphCommit {
@@ -589,6 +696,193 @@ describe('GitGraph full-family citizenship', () => {
     expect(configuredAgent.ok && asGitGraph(configuredAgent.value)?.body.mainBranchName).toBe('trunk')
     const verified = verifyMermaid('---\nconfig:\n  gitGraph:\n    mysteryLane: 3\n---\ngitGraph\n  commit')
     expect(verified.warnings).toContainEqual(expect.objectContaining({ code: 'INEFFECTIVE_CONFIG', field: 'gitGraph.mysteryLane' }))
+  })
+
+  // A connector travelling along a lane past another commit reads as passing
+  // through it (a merge drawn through `hotfix` claims the wrong history), and
+  // two connectors drawn on one line cannot be told apart. Generated
+  // histories, in every direction, with and without parallel commits: every
+  // connector joins its own two commits, passes no other commit, and shares
+  // collinear ink with another connector only as a trunk leaving or entering
+  // a commit both join; the layout certificate agrees.
+  describe('connector routes', () => {
+    type Point = { x: number; y: number }
+    const distance = (p: Point, a: Point, b: Point) => {
+      const dx = b.x - a.x, dy = b.y - a.y, length2 = dx * dx + dy * dy
+      const t = length2 === 0 ? 0 : Math.max(0, Math.min(1, ((p.x - a.x) * dx + (p.y - a.y) * dy) / length2))
+      return Math.hypot(p.x - a.x - t * dx, p.y - a.y - t * dy)
+    }
+    /** Collinear overlap (longer than a pixel) of two axis-aligned segments. */
+    const overlap = (a1: Point, a2: Point, b1: Point, b2: Point): [Point, Point] | undefined => {
+      for (const [u, v] of [['x', 'y'], ['y', 'x']] as const) {
+        // Segments running along u at the same v.
+        if (a1[v] !== a2[v] || b1[v] !== b2[v] || a1[v] !== b1[v] || a1[u] === a2[u] || b1[u] === b2[u]) continue
+        const low = Math.max(Math.min(a1[u], a2[u]), Math.min(b1[u], b2[u])), high = Math.min(Math.max(a1[u], a2[u]), Math.max(b1[u], b2[u]))
+        if (high - low > 1) return [{ ...a1, [u]: low }, { ...a1, [u]: high }]
+      }
+      return undefined
+    }
+
+    function routeFailures(positioned: PositionedGitGraphDiagram): string[] {
+      const failures: string[] = []
+      const commitById = new Map(positioned.commits.map(commit => [commit.id, commit]))
+      for (const edge of positioned.edges) {
+        const name = `${edge.from}->${edge.to}`
+        const from = commitById.get(edge.from)!, to = commitById.get(edge.to)!
+        if (edge.points[0]!.x !== from.x || edge.points[0]!.y !== from.y || edge.points.at(-1)!.x !== to.x || edge.points.at(-1)!.y !== to.y) failures.push(`${name} does not join its commits`)
+        for (const [a, b] of segments(edge.points)) {
+          if (a.x !== b.x && a.y !== b.y) failures.push(`${name} has a diagonal segment`)
+          // Commit marks reach 10px from their centre.
+          for (const commit of positioned.commits) if (commit.id !== edge.from && commit.id !== edge.to && distance(commit, a, b) <= 10) failures.push(`${name} passes ${commit.id}`)
+        }
+      }
+      positioned.edges.forEach((edge, i) => {
+        for (const other of positioned.edges.slice(i + 1)) {
+          const trunks = [edge.from, edge.to].filter(id => id === other.from || id === other.to).map(id => trunk(edge, other, id))
+          for (const [a1, a2] of segments(edge.points))
+            for (const [b1, b2] of segments(other.points)) {
+              const run = overlap(a1, a2, b1, b2)
+              if (run && !trunks.some(path => run.every(end => segments(path).some(([p, q]) => distance(end, p, q) < 0.5)))) failures.push(`${edge.from}->${edge.to} runs along ${other.from}->${other.to}`)
+            }
+        }
+      })
+      return failures
+    }
+
+    /** Ink two connectors share from a commit both join: the same path from
+     *  it until they part, so a fork or a join is one trunk, not two lines. */
+    function trunk(a: PositionedGitGraphDiagram['edges'][number], b: PositionedGitGraphDiagram['edges'][number], commit: string): Point[] {
+      const walk = (edge: typeof a) => {
+        const points = edge.from === commit ? edge.points : [...edge.points].reverse()
+        // One point per pixel of path length, so a shared prefix compares
+        // pixel by pixel whatever the vertices.
+        const out: Point[] = []
+        let carried = 0
+        for (const [p, q] of segments(points)) {
+          const length = Math.hypot(q.x - p.x, q.y - p.y)
+          for (let s = carried; s < length; s++) out.push({ x: p.x + ((q.x - p.x) * s) / length, y: p.y + ((q.y - p.y) * s) / length })
+          carried = length === 0 ? carried : (Math.ceil(length - carried) + carried) - length
+        }
+        out.push(points.at(-1)!)
+        return out
+      }
+      const p = walk(a), q = walk(b)
+      let n = 1
+      while (n < p.length && n < q.length && Math.abs(p[n]!.x - q[n]!.x) < 0.5 && Math.abs(p[n]!.y - q[n]!.y) < 0.5) n++
+      return p.slice(0, Math.max(2, n))
+    }
+    const segments = (points: readonly Point[]) => points.slice(1).map((point, i) => [points[i]!, point] as const)
+
+    const OPS = ['commit', 'branch', 'checkout', 'merge', 'cherry-pick'] as const
+    /** Replay generated operations, keeping only statements the parser accepts. */
+    function history(ops: ReadonlyArray<{ op: (typeof OPS)[number]; pick: number }>): string[] {
+      const lines = ['commit id: "k0"']
+      const branches = ['main']
+      let commits = 1
+      for (const { op, pick } of ops) {
+        const commitIds = Array.from({ length: commits }, (_, i) => `k${i}`)
+        const candidate = op === 'commit' ? `commit id: "k${commits}"`
+          : op === 'branch' ? `branch b${branches.length}`
+          : op === 'checkout' ? `checkout ${branches[pick % branches.length]}`
+          : op === 'merge' ? `merge ${branches[pick % branches.length]} id: "m${lines.length}"`
+          : `cherry-pick id: "${commitIds[pick % commitIds.length]}"`
+        try {
+          parseGitGraph(['gitGraph', ...lines, candidate].join('\n'))
+        } catch {
+          continue
+        }
+        lines.push(candidate)
+        if (op === 'commit') commits++
+        if (op === 'branch') branches.push(`b${branches.length}`)
+      }
+      return lines
+    }
+
+    test('no connector passes a commit or runs along another connector', () => {
+      fc.assert(
+        fc.property(fc.array(fc.record({ op: fc.constantFrom(...OPS), pick: fc.nat({ max: 40 }) }), { minLength: 4, maxLength: 28 }), ops => {
+          const body = history(ops)
+          for (const direction of ['LR', 'TB', 'BT'] as const) {
+            const diagram = parseGitGraph([`gitGraph ${direction}:`, ...body].join('\n'))
+            for (const parallelCommits of [false, true]) {
+              const positioned = layoutGitGraph(diagram, { parallelCommits })
+              expect(routeFailures(positioned), `${direction} parallel=${parallelCommits}\n${body.join('\n')}`).toEqual([])
+              expect(positioned.uncertifiedLayout, `${direction} parallel=${parallelCommits}`).toBeUndefined()
+            }
+          }
+        }),
+        fcParameters({
+          numRuns: 60,
+          // The reported history: develop's merge ran along main through
+          // `hotfix`; the cherry-pick ran along the feature lane through f2
+          // and shared a vertical with the f2 -> m1 merge.
+          examples: [[[
+            { op: 'branch', pick: 0 }, { op: 'commit', pick: 0 }, { op: 'branch', pick: 0 }, { op: 'commit', pick: 0 }, { op: 'commit', pick: 0 },
+            { op: 'checkout', pick: 1 }, { op: 'merge', pick: 2 }, { op: 'checkout', pick: 0 }, { op: 'cherry-pick', pick: 2 }, { op: 'commit', pick: 0 }, { op: 'merge', pick: 1 },
+          ]], [[
+            // A branch merged before it left its lane runs along main past k1, k2.
+            { op: 'branch', pick: 0 }, { op: 'checkout', pick: 0 }, { op: 'commit', pick: 0 }, { op: 'commit', pick: 0 }, { op: 'merge', pick: 1 },
+          ]], [[
+            // Four branches forking from one commit share one trunk.
+            ...[1, 2, 3, 4].flatMap(() => [{ op: 'branch' as const, pick: 0 }, { op: 'commit' as const, pick: 0 }, { op: 'checkout' as const, pick: 0 }]),
+          ]]],
+        }),
+      )
+    })
+
+    test('the layout certificate names a connector through a commit or along another', () => {
+      // Hand-drawn routes the old router produced: the merge into c8 runs
+      // along main through hotfix; the cherry-pick shares the f2 merge's column.
+      const commits = [
+        { id: 'f1', lane: 2, x: 100, y: 200 }, { id: 'f2', lane: 2, x: 200, y: 200 }, { id: 'm1', lane: 1, x: 300, y: 100 },
+        { id: 'pick', lane: 0, x: 400, y: 0 }, { id: 'hotfix', lane: 0, x: 500, y: 0 }, { id: 'c8', lane: 0, x: 600, y: 0 },
+      ]
+      const edges = [
+        { from: 'm1', to: 'c8', kind: 'merge' as const, points: [{ x: 300, y: 100 }, { x: 450, y: 100 }, { x: 450, y: 0 }, { x: 600, y: 0 }] },
+        { from: 'f2', to: 'm1', kind: 'merge' as const, points: [{ x: 200, y: 200 }, { x: 250, y: 200 }, { x: 250, y: 100 }, { x: 300, y: 100 }] },
+        { from: 'f1', to: 'pick', kind: 'cherry-pick' as const, points: [{ x: 100, y: 200 }, { x: 250, y: 200 }, { x: 250, y: 0 }, { x: 400, y: 0 }] },
+      ]
+      const found = gitGraphRouteViolations(commits, edges).map(violation => [violation.kind, ...violation.targets])
+      expect(found).toContainEqual(['edgeThroughNode', 'm1->c8', 'hotfix'])
+      expect(found).toContainEqual(['edgeThroughNode', 'f1->pick', 'f2'])
+      expect(found).toContainEqual(['collinearEdges', 'f2->m1', 'f1->pick'])
+      const verify = verifyMermaid('gitGraph\n  commit id:"c1"\n  branch develop\n  commit id:"d1"\n  branch feature/login\n  commit id:"f1"\n  commit id:"f2"\n  checkout develop\n  merge feature/login id:"m1"\n  checkout main\n  cherry-pick id:"f1"\n  commit id:"hotfix"\n  merge develop id:"c8"')
+      expect(verify.warnings.filter(warning => warning.code === 'LAYOUT_UNCERTIFIED')).toEqual([])
+    })
+
+    // Geometry too large to bucket (here a 1e20 label font size) must neither
+    // hang the index nor hide a crossing from it (review of #611: bucket
+    // indices beyond 2^53 never advanced).
+    test('route checks stay exact and finite for unbucketable geometry', () => {
+      // The same picture bucketed (1e4) and unbucketable (1e20).
+      for (const far of [1e4, 1e20]) {
+        const commits = [
+          { id: 'a', lane: 0, x: 0, y: 0 }, { id: 'mid', lane: 0, x: far / 2, y: 0 }, { id: 'b', lane: 0, x: far, y: 0 },
+          { id: 'c', lane: 1, x: far / 4, y: 100 }, { id: 'd', lane: 1, x: (3 * far) / 4, y: 100 },
+        ]
+        const edges = [
+          { from: 'a', to: 'b', kind: 'parent' as const, points: [{ x: 0, y: 0 }, { x: far, y: 0 }] },
+          { from: 'c', to: 'd', kind: 'merge' as const, points: [{ x: far / 4, y: 100 }, { x: far / 4, y: 0 }, { x: (3 * far) / 4, y: 0 }, { x: (3 * far) / 4, y: 100 }] },
+        ]
+        const found = gitGraphRouteViolations(commits, edges).map(violation => [violation.kind, ...violation.targets])
+        expect(found, String(far)).toContainEqual(['edgeThroughNode', 'a->b', 'mid'])
+        expect(found, String(far)).toContainEqual(['collinearEdges', 'a->b', 'c->d'])
+      }
+      expect(() => renderMermaidSVG('gitGraph\ncommit', { mermaidConfig: { themeVariables: { commitLabelFontSize: 1e20 } } } as never)).toThrow('No certified layout')
+    })
+
+    // Routing and certification check each connector against nearby commits
+    // and connectors only. Scanning every commit and every earlier connector
+    // took 17 s for a 5,000-commit linear history (0.18 s before routing).
+    test.each([
+      ['a linear history', (n: number) => Array.from({ length: n }, (_, i) => `  commit id:"c${i}"`)],
+      ['a long branch merged back', (n: number) => ['  commit id:"root"', '  branch feature', ...Array.from({ length: n }, (_, i) => `  commit id:"f${i}"`), '  checkout main', '  merge feature id:"m"']],
+    ] as const)('routes and certifies %s in near-linear time', (_name, statements) => {
+      expectNearLinearGrowth('gitgraph routing', n => {
+        const layout = layoutGitGraph(parseGitGraph(['gitGraph', ...statements(n)].join('\n')))
+        expect(layout.edges.length).toBeGreaterThanOrEqual(n - 1)
+      }, 4_000)
+    })
   })
 
   test('preserves deterministic commit and parent counts under generated linear histories', () => {

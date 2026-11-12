@@ -117,6 +117,10 @@ const WORD_RE = /\w/
  *   - a `#` that would start an entity code (`#\w+;`) → `#35;`;
  *   - `ﬂ` before `°` → `#64258;`, and `¶` before `ß` → `#182;`, so no marker
  *     is spelled literally (upstream replaces even lone `ﬂ°` and `¶ß` pieces).
+ *   - the `%` between `%` and `{` → `#37;`, so the text never spells a
+ *     directive opener: upstream strips `%%{…}%%` anywhere in the source,
+ *     quoted text included. (Whether a plain `%%` is text or a comment is the
+ *     grammar context's to decide.)
  * `reserved` lists characters the grammar context cannot hold literally
  * (`"` in a quoted flowchart label, `;` or `#` in a sequence message). They
  * are written as entities: `#quot;`, `#amp;`, `#lt;`, `#gt;`, else `#<code>;`.
@@ -149,6 +153,7 @@ export function encodeMermaidEntities(text: string, reserved = ''): string {
     if (reservedSet.has(character)) out += entityFor(character)
     else if (character === '#' && startsEntityCode(index)) out += entityFor('#')
     else if ((character === 'ﬂ' && literal(index + 1) === '°') || (character === '¶' && literal(index + 1) === 'ß')) out += entityFor(character)
+    else if (character === '%' && characters[index - 1] === '%' && literal(index + 1) === '{') out += entityFor(character)
     else out += character
   }
   return out

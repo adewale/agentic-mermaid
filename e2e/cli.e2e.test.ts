@@ -245,14 +245,15 @@ describe('am exit codes', () => {
     const r = runAm(['mutate', '-', '--json'], 'flowchart LR\n  A --> B\n')
     expect(r.status).toBe(2)
     expect(r.stderr).toBe('mutate: mutate requires --op <JSON> or --ops <JSON array|file.json>\n')
-    expect(r.stdout).toBe('')
+    // --json reports flag errors through the ARG envelope on stdout too.
+    expect(JSON.parse(r.stdout)).toEqual({ ok: false, error: { code: 'ARG', message: 'mutate: mutate requires --op <JSON> or --ops <JSON array|file.json>' } })
   })
 
   test('mutate with malformed --op JSON exits 2', () => {
     const r = runAm(['mutate', '-', '--op', '{bad', '--json'], 'flowchart LR\n  A --> B\n')
     expect(r.status).toBe(2)
     expect(r.stderr).toStartWith('mutate: invalid mutation JSON:')
-    expect(r.stdout).toBe('')
+    expect(JSON.parse(r.stdout)).toEqual({ ok: false, error: { code: 'ARG', message: expect.stringMatching(/^mutate: invalid mutation JSON:/) } })
   })
 
   test('mutate accepts a batch of ops and emits the edited source with its verification', () => {

@@ -99,10 +99,36 @@ function nonportableNodeId(graph: MermaidGraph): string | undefined {
   return undefined
 }
 
+/** The one admission rule for an identity a typed edit writes (add_node,
+ * rename_node, add_edge endpoints): the bare id, written as a statement of
+ * its own, must read back as exactly that node. Otherwise `A;B` writes two
+ * statements, `A[B]` a labelled node, `a b` a parse error and ` A` another
+ * id; each would change the diagram's meaning instead of naming a node. */
 function nodeIdError(id: string): MutationError | undefined {
-  return NONPORTABLE_NODE_ID.test(id)
-    ? { code: 'INVALID_OP', message: `Flowchart node id "${id}" is read as a reserved token by Mermaid and has no portable vertex spelling` }
-    : undefined
+  if (NONPORTABLE_NODE_ID.test(id)) return { code: 'INVALID_OP', message: `Flowchart node id "${id}" is read as a reserved token by Mermaid and has no portable vertex spelling` }
+  if (!readsBackAs(id, `flowchart TD\n  ${id}\n`, graph => graph.nodes.size === 1 && !graph.subgraphs.length && graph.nodes.get(id)?.label === id)) {
+    return { code: 'INVALID_OP', message: `Flowchart node id ${JSON.stringify(id)} does not read back as one node id; an id cannot hold edge whitespace, line breaks, statement separators, brackets, quotes, link operators, comment markers or non-ASCII characters other than letters` }
+  }
+  return undefined
+}
+
+/** A subgraph id reads back from `subgraph <id>` as itself, titled itself. */
+function subgraphIdError(id: string): MutationError | undefined {
+  return readsBackAs(id, `flowchart TD\n  subgraph ${id}\n  end\n`, graph => !graph.nodes.size && graph.subgraphs.length === 1 && graph.subgraphs[0]!.id === id && graph.subgraphs[0]!.label === id)
+    ? undefined
+    : { code: 'INVALID_OP', message: `Flowchart subgraph id ${JSON.stringify(id)} does not read back as one subgraph id; an id cannot hold edge whitespace, line breaks, brackets, quotes, comment markers or non-ASCII characters other than letters (put display text in label)` }
+}
+
+function readsBackAs(id: string, source: string, same: (graph: MermaidGraph) => boolean): boolean {
+  // Our reader is generous; Mermaid 12.2.0's flowchart lexer reads a
+  // non-ASCII identifier character only when it is a letter (not `¹`, `٣`,
+  // a combining mark, an emoji or a joiner).
+  if (/[\r\n\u2028\u2029]|[^\x00-\x7F\p{L}]/u.test(id)) return false
+  try {
+    return same(parseFlowchartLegacy(source))
+  } catch {
+    return false
+  }
 }
 
 export function parseFlowchartBody(canonicalSource: string, opaqueSource = canonicalSource): Result<FlowchartBody | Extract<DiagramBody, { kind: 'opaque' }>, ParseError[]> {
@@ -673,7 +699,9 @@ function escapeLabel(label: string, content?: LabelContent): string {
   if (label === '') return '" "'
   // Upstream rejects a bracket, `|`, `"` or `@` in a bare label, and a leading
   // `~~~` (its invisible-link token).
-  if (/[\[\]{}()|"@]|^~~~/.test(label) || (content?.value === label && content.authored?.startsWith('`'))) return quoteLabel(label, content)
+  // A bare label also ends at a U+2028/U+2029 line terminator, which the
+  // quoted form holds.
+  if (/[\[\]{}()|"@\u2028\u2029]|^~~~/.test(label) || (content?.value === label && content.authored?.startsWith('`'))) return quoteLabel(label, content)
   return protectLabelSyntax(writeFlowchartLabelText(label, content))
 }
 
@@ -847,6 +875,7 @@ function mutateFlowchartGraph(graph: MermaidGraph, op: FlowchartMutationOp): Res
       const invalidId = nodeIdError(op.id)
       if (invalidId) return err(invalidId)
       if (graph.nodes.has(op.id)) return err({ code: 'DUPLICATE_NODE', message: `Node "${op.id}" already exists` })
+      if (findSubgraph(graph, op.id)) return err({ code: 'INVALID_OP', message: `Identifier "${op.id}" is already a subgraph — subgraph ids and node ids share one namespace` })
       const resolved = resolveShapeValue(op.shape ?? 'rectangle')
       if (!resolved) {
         return err({ code: 'INVALID_OP', message: `Unknown shape "${op.shape}" — pass a geometry (${GEOMETRY_SHAPES.join(', ')}) or a Mermaid v11 @{ shape } name/alias (e.g. manual-input, document, delay)` })
@@ -876,6 +905,7 @@ function mutateFlowchartGraph(graph: MermaidGraph, op: FlowchartMutationOp): Res
       if (invalidId) return err(invalidId)
       if (!graph.nodes.has(op.from)) return err({ code: 'NODE_NOT_FOUND', message: `Node "${op.from}" not found` })
       if (graph.nodes.has(op.to)) return err({ code: 'DUPLICATE_NODE', message: `Cannot rename to "${op.to}" — already exists` })
+      if (findSubgraph(graph, op.to)) return err({ code: 'INVALID_OP', message: `Identifier "${op.to}" is already a subgraph — subgraph ids and node ids share one namespace` })
       const node = graph.nodes.get(op.from)!
       graph.nodes.delete(op.from)
       graph.nodes.set(op.to, { ...node, id: op.to, label: node.label === op.from ? op.to : node.label })
@@ -914,7 +944,7 @@ function mutateFlowchartGraph(graph: MermaidGraph, op: FlowchartMutationOp): Res
       const invalidId = nodeIdError(op.from) ?? nodeIdError(op.to)
       if (invalidId) return err(invalidId)
       ensureNode(graph, op.from); ensureNode(graph, op.to)
-      graph.edges.push({ source: op.from, target: op.to, label: edgeLabelInput(op.label), style: op.style ?? 'solid', hasArrowStart: false, hasArrowEnd: true })
+      graph.edges.push({ source: op.from, target: op.to, label: edgeLabelInput(op.label), style: op.style ?? 'solid', hasArrowStart: false, hasArrowEnd: op.style !== 'invisible' })
       return done()
     }
     case 'remove_edge': {
@@ -950,6 +980,8 @@ function mutateFlowchartGraph(graph: MermaidGraph, op: FlowchartMutationOp): Res
       return done()
     }
     case 'add_subgraph': {
+      const invalidId = subgraphIdError(op.id)
+      if (invalidId) return err(invalidId)
       if (findSubgraph(graph, op.id)) return err({ code: 'INVALID_OP', message: `Subgraph "${op.id}" already exists` })
       if (graph.nodes.has(op.id)) return err({ code: 'INVALID_OP', message: `Identifier "${op.id}" is already a node — subgraph ids and node ids share one namespace` })
       const members: string[] = []
@@ -1003,7 +1035,8 @@ function mutateFlowchartGraph(graph: MermaidGraph, op: FlowchartMutationOp): Res
       return done()
     }
     case 'define_class': {
-      if (!/^[\w-]+$/.test(op.name) || NONPORTABLE_NODE_ID.test(op.name)) return err({ code: 'INVALID_OP', message: 'Class name must contain only letters, digits, underscore, or hyphen and must not collide with a Mermaid keyword' })
+      // Mermaid's flowchart lexer reads `--` as a link, even inside a classDef name.
+      if (!/^[\w-]+$/.test(op.name) || op.name.includes('--') || NONPORTABLE_NODE_ID.test(op.name)) return err({ code: 'INVALID_OP', message: 'Class name must contain only letters, digits, underscore, or single hyphens and must not collide with a Mermaid keyword' })
       const props = parseStylePropsForOp(op.style, `define_class ${op.name}`, 'fill:#f96,stroke:#333', true)
       if ('message' in props) return err({ code: 'INVALID_OP', message: props.message })
       graph.classDefs.set(op.name, props.value)

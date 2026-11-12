@@ -146,7 +146,7 @@ describe('hosted execute loader glue', () => {
     const { loader } = makeLoader(() => new Error('Worker exceeded CPU time limit.'))
     const execute = createLoaderExecute(loader, 'H')
     const result = await execute('for(let i=0;i<1e9;i++){}', 250)
-    expect(result).toEqual({ ok: false, error: 'Script execution exceeded its 250ms CPU budget', logs: [] })
+    expect(result).toEqual({ ok: false, error: 'Script execution exceeded its 250ms CPU budget', code: 'EXECUTE_TIMEOUT', logs: [] })
   })
 
   test('oversized sandbox results are bounded', async () => {

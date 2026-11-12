@@ -1011,6 +1011,26 @@ function validId(value: unknown, field: string): Result<string, MutationError> {
   return ok(value)
 }
 
+/** A state name a typed edit introduces. Our reader also takes hyphenated
+ * names and the words `default`, `click` and `href`, but pinned Mermaid
+ * cannot read them as states (verify reports `state_endpoint_name`), so an
+ * edit never writes a new one. */
+function validStateName(value: unknown, field: string): Result<string, MutationError> {
+  const id = validId(value, field)
+  if (!id.ok) return id
+  if (id.value.includes('-') || /^(?:default|click|href)$/i.test(id.value)) {
+    return err({ code: 'INVALID_OP', message: `State ${field} '${id.value}' is not a name Mermaid 12.2.0 reads as a state: it holds no hyphen and is not default, click or href` })
+  }
+  return id
+}
+
+/** A transition named by index and by a from/to endpoint that it does not
+ * have: the op names two transitions, and one would be silently ignored. */
+function selectorMismatch(t: StateTransition, op: { index?: number; from?: string; to?: string }): Result<never, MutationError> | undefined {
+  if (op.index === undefined || ((op.from === undefined || op.from === t.from) && (op.to === undefined || op.to === t.to))) return undefined
+  return err({ code: 'INVALID_OP', message: `Transition ${op.index} is ${t.from} --> ${t.to}, not ${op.from ?? t.from} --> ${op.to ?? t.to}; name it by index or by from/to` })
+}
+
 type ClassifiedEndpoint = { value: string; kind: 'pseudo' | 'history' | 'state' }
 
 /** Classify endpoint syntax before mutation; only ordinary state endpoints may
@@ -1097,7 +1117,7 @@ export function mutateState(body: StateBody, op: StateMutationOp): Result<StateB
 
   switch (op.kind) {
     case 'add_state': {
-      const id = validId(op.id, 'state id')
+      const id = validStateName(op.id, 'state id')
       if (!id.ok) return id
       const ids = new Set<string>()
       collectIds(next.states, ids)
@@ -1149,7 +1169,7 @@ export function mutateState(body: StateBody, op: StateMutationOp): Result<StateB
       break
     }
     case 'rename_state': {
-      const to = validId(op.to, 'rename target')
+      const to = validStateName(op.to, 'rename target')
       if (!to.ok) return to
       const loc = locate(next, op.from)
       if (!loc) return err({ code: 'STATE_NOT_FOUND', message: `State '${op.from}' not found` })
@@ -1184,6 +1204,14 @@ export function mutateState(body: StateBody, op: StateMutationOp): Result<StateB
       if (!from.ok) return from
       const to = validEndpoint(op.to, 'transition to')
       if (!to.ok) return to
+      // A name Mermaid cannot read as a transition endpoint has no spelling
+      // there, whether the state is new or already declared (`state "…" as
+      // a-b` is readable; `S1 --> a-b` is not).
+      for (const [endpoint, field] of [[from.value, 'transition from'], [to.value, 'transition to']] as const) {
+        if (endpoint.kind !== 'state') continue
+        const name = validStateName(endpoint.value, field)
+        if (!name.ok) return name
+      }
       const fromContext = validateHistoryContext(next, from.value, op.parent)
       if (!fromContext.ok) return fromContext
       const toContext = validateHistoryContext(next, to.value, op.parent)
@@ -1210,6 +1238,8 @@ export function mutateState(body: StateBody, op: StateMutationOp): Result<StateB
       const list = scope.value.transitions
       if (op.index !== undefined) {
         if (!list[op.index]) return err({ code: 'TRANSITION_NOT_FOUND', message: `No transition at index ${op.index}` })
+        const mismatch = selectorMismatch(list[op.index]!, op)
+        if (mismatch) return mismatch
         removeScopeTransitions(scope.value.states, list, (_transition, index) => index === op.index)
         break
       }
@@ -1229,6 +1259,8 @@ export function mutateState(body: StateBody, op: StateMutationOp): Result<StateB
       if (op.index !== undefined) t = list[op.index]
       else if (op.from !== undefined && op.to !== undefined) t = list.find(tr => tr.from === op.from && tr.to === op.to)
       if (!t) return err({ code: 'TRANSITION_NOT_FOUND', message: 'transition not found (need a valid index or from/to pair)' })
+      const mismatch = selectorMismatch(t, op)
+      if (mismatch) return mismatch
       delete t.labelContent
       if (op.label === null) { delete t.label; break }
       const l = validLabel(op.label, 'transition label')
@@ -1383,6 +1415,8 @@ export function mutateState(body: StateBody, op: StateMutationOp): Result<StateB
       }
       const target = op.target
       if (!locate(next, target)) return err({ code: 'STATE_NOT_FOUND', message: `State '${target}' not found` })
+      // Mermaid's note statement ends a state name at a hyphen (state_note_target).
+      if (target.includes('-')) return err({ code: 'INVALID_OP', message: `State note target '${target}' holds a hyphen, which Mermaid 12.2.0 cannot read in a note's state name; rename the state first` })
       const side = validNoteSide(op.side)
       if (!side.ok) return side
       const text = validNoteText(op.text)
@@ -2055,7 +2089,9 @@ export function verifyState(body: StateBody, opts: VerifyOptions): LayoutWarning
       }
       historyLint(t.from)
       historyLint(t.to)
-      if (t.label !== undefined) overflow(edge, t.label)
+      // A transition label's LABEL_OVERFLOW is reported once, by verify's
+      // graph projection, under the indexed edge id (`A->B#k`) that names it
+      // apart from a parallel transition.
     })
   }
   visit(body.states, body.transitions)

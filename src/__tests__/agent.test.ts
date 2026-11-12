@@ -395,6 +395,8 @@ describe('BUILD-18 segment-preserving sequence — fast-check properties', () =>
           .map(l => l.trim())
           .filter(Boolean)
         expect(outNonBlank).toEqual(origNonBlank)
+        // An opaque body is the source itself: byte-exact, not just its lines.
+        if (d.body.kind === 'opaque') expect([src, `${src}\n`]).toContain(serializeMermaid(d))
         // Round-trip stable.
         expect(serializeMermaid(parse(out))).toBe(serializeMermaid(d))
       }),
@@ -944,7 +946,9 @@ describe('synthesizeFromGraph', () => {
           nodes: { N: { id: 'N', label: 'N', shape: 'rectangle' } },
           edges: [],
           classDefs: ['foo', 'bar'] as never, // not [k,v] tuples
-          nodeStyles: [['ok', { fill: '#000' }], 'bad', null] as never,
+          // A style for an undeclared node would declare it on re-read; the
+          // payload must stay the diagram it states.
+          nodeStyles: [['N', { fill: '#000' }], 'bad', null] as never,
         },
       },
     })
@@ -984,7 +988,7 @@ describe('synthesizeFromGraph', () => {
         kind: 'flowchart',
         graph: {
           direction: 'TD',
-          nodes: { A: { id: 'A', label: 'A', shape: 'rectangle' } },
+          nodes: { '0': { id: '0', label: '0', shape: 'rectangle' } },
           edges: [],
           nodeStyles: m as never,
         },
@@ -1236,7 +1240,7 @@ describe('verify', () => {
     expect(verifyMermaid(`sequenceDiagram\n  A->>B: ${'x'.repeat(60)}`).warnings.some(w => w.code === 'LABEL_OVERFLOW')).toBe(true)
   })
   test('suppress filter drops only the named codes', () => {
-    const src = 'flowchart TD\n  A --> B\n  A --> B\n  C --> D\n  D --> C'
+    const src = 'flowchart TD\n  A --> B\n  A --> B\n  C --> D\n  D --> C\n  D --> B'
     const codes = (opts: Parameters<typeof verifyMermaid>[1]) => verifyMermaid(src, opts).warnings.map(w => w.code)
     expect(codes({})).toEqual(['DUPLICATE_EDGE', 'UNREACHABLE_NODE', 'UNREACHABLE_NODE'])
     expect(codes({ suppress: ['DUPLICATE_EDGE'] })).toEqual(['UNREACHABLE_NODE', 'UNREACHABLE_NODE'])
@@ -1259,7 +1263,9 @@ describe('verify', () => {
     expect(dup).toMatchObject({ code: 'DUPLICATE_EDGE', from: 'A', to: 'B' })
   })
   test('Tier 3 lint: nodes unreachable from entry roots are advisory warnings', () => {
-    const r = verifyMermaid('flowchart TD\n  A --> B\n  C --> D\n  D --> C')
+    // The C/D loop feeds the A flow but nothing enters it; a loop sharing no
+    // edge with the flow is a separate part with no root and is not stranded.
+    const r = verifyMermaid('flowchart TD\n  A --> B\n  C --> D\n  D --> C\n  D --> B')
     expect(r.ok).toBe(true)
     expect(
       r.warnings

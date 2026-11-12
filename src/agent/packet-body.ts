@@ -17,10 +17,19 @@ export function renderPacket(body: PacketBody): string {
   const lines = ['packet']
   appendAccessibilityLines(lines, body)
   if (body.title !== undefined) lines.push(`title ${body.title.replace(/\r?\n/g, '<br/>')}`)
-  // STRING's escaped percent keeps directive openers literal without changing
-  // the field value; entities would change its authored label instead.
-  for (const field of body.fields) lines.push(`${field.start}${field.end === field.start ? '' : `-${field.end}`}: ${JSON.stringify(field.label).replace(/%%(?=\{)/g, '%\\%')}`)
+  for (const field of body.fields) lines.push(`${field.start}${field.end === field.start ? '' : `-${field.end}`}: ${packetString(field.label)}`)
   return lines.join('\n') + '\n'
+}
+
+const PACKET_STRING_ESCAPES: Readonly<Record<string, string>> = { '"': '\\"', '\\': '\\\\', '\n': '\\n', '\r': '\\r' }
+
+/** A STRING the packet reader takes back as `label`: it knows only the
+ * backslash escapes `\n \r \t \b \f \v` and `\<char>`, so every other
+ * character (controls and lone surrogates included) is written as itself. An
+ * escaped percent keeps a directive opener literal without changing the
+ * value; entities would change the authored label instead. */
+function packetString(label: string): string {
+  return `"${label.replace(/["\\\n\r]/g, character => PACKET_STRING_ESCAPES[character]!).replace(/%%(?=\{)/g, '%\\%')}"`
 }
 export function mutatePacket(body: PacketBody, op: PacketMutationOp): Result<PacketBody, MutationError> {
   const next: PacketBody = { ...body, fields: body.fields.map(field => ({ ...field })) }

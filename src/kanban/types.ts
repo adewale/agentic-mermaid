@@ -8,6 +8,8 @@ export interface KanbanItem {
   sourceId: string
   implicitId?: boolean
   label: string
+  /** The declaration wrote the label as a Mermaid markdown string ("`…`"). */
+  markdown?: true
   metadata: Record<string, unknown>
   icon?: string
   className?: string

@@ -280,7 +280,7 @@ export const TREEMAP_RENDER_HOOKS = /* @__PURE__ */ { ...TREEMAP_SVG_HOOKS, rend
 
 export const ISHIKAWA_RENDER_HOOKS = /* @__PURE__ */ { ...ISHIKAWA_SVG_HOOKS, renderAscii: /* @__PURE__ */ nativeTerminalRenderer(ctx => renderIshikawaTerminal(ctx)) }
 
-export const BLOCK_RENDER_HOOKS = /* @__PURE__ */ { ...BLOCK_SVG_HOOKS, renderAscii: /* @__PURE__ */ nativeTerminalRenderer(ctx => renderBlockTerminal(ctx.source.familyBody, ctx.config, ctx.colorMode, ctx.theme, ctx.source.frontmatter, ctx.options.targetWidth)) }
+export const BLOCK_RENDER_HOOKS = /* @__PURE__ */ { ...BLOCK_SVG_HOOKS, renderAscii: /* @__PURE__ */ nativeTerminalRenderer(ctx => renderBlockTerminal(ctx.source.familyLines, ctx.config, ctx.colorMode, ctx.theme, ctx.source.frontmatter, ctx.options.targetWidth)) }
 
 export const CYNEFIN_RENDER_HOOKS = { ...CYNEFIN_SVG_HOOKS, renderAscii: nativeTerminalRenderer(renderCynefinTerminal) }
 export const VENN_RENDER_HOOKS = { ...VENN_SVG_HOOKS, renderAscii: nativeTerminalRenderer(renderVennTerminal) }

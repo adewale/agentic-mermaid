@@ -28,7 +28,7 @@ import { parseMermaid } from '../parser.ts'
 import { assessLayout } from '../layout-rubric.ts'
 import { clipEdgeToShape } from '../shape-clipping.ts'
 import { trimBoundaryEndpointRuns } from '../route-contracts.ts'
-import type { PositionedNode, PositionedEdge, Point } from '../types.ts'
+import type { PositionedNode, PositionedEdge, PositionedGroup, Point } from '../types.ts'
 
 // --- tiny builders for synthetic positioned geometry --------------------------
 function mkNode(id: string, x: number, y: number, w = 40, h = 30): PositionedNode {
@@ -112,6 +112,39 @@ describe('occlusion-safe alignLayerNodes — the snapOccludes guard', () => {
         yHi > P.y + 0.5 && yLo < P.y + P.height - 0.5
     })
     expect(throughNode).toBe(false)
+  })
+
+  // ELK offsets a grouped member by its frame padding, so it can share a
+  // flow-axis band with an ungrouped peer. Frames are not refitted here.
+  // The frame's stroke is drawn on its edge: even a sub-pixel overhang reads
+  // as a member outside its group, so roundoff is the only tolerance.
+  it.each([
+    { name: 'declines a snap that would carry a member past its frame', frameHeight: 40, expected: [100, 120] },
+    { name: 'declines a snap that would push a member 0.1px past its frame', frameHeight: 44.9, expected: [100, 120] },
+    { name: 'CONTROL: snaps a member that stays inside a taller frame', frameHeight: 60, expected: [layerCentre, layerCentre] },
+  ])('$name', ({ frameHeight, expected }) => {
+    const P = mkNode('P', 0, 100)
+    const Q = mkNode('Q', 100, 120)
+    const frame: PositionedGroup = { id: 'G', label: 'G', x: -10, y: 95, width: 60, height: frameHeight, children: [] }
+    alignLayerNodes([P, Q], [], 'TD', [frame])
+    expect([P.y, Q.y]).toEqual([...expected])
+    expect(P.y >= frame.y && P.y + P.height <= frame.y + frame.height).toBe(true)
+  })
+
+  // Layers cluster by flow-axis proximity alone, so a snap can carry a tall
+  // node onto a node of the next layer that it only touched before.
+  it.each([
+    { name: 'declines a snap that would overlap a node of the next layer', rx: 0, expected: [100, 120] },
+    { name: 'CONTROL: snaps when the next layer\'s node is clear of the snapped box', rx: 200, expected: [layerCentre, layerCentre] },
+  ])('$name', ({ rx, expected }) => {
+    const P = mkNode('P', 0, 100, 40, 50)
+    const Q = mkNode('Q', 100, 120)
+    // R's top is past the 0.6 * layerSpacing grouping gap, so it is its own layer.
+    const R = mkNode('R', rx, 150)
+    alignLayerNodes([P, Q, R], [], 'TD')
+    expect([P.y, Q.y]).toEqual([...expected])
+    const overlap = Math.min(P.y + P.height, R.y + R.height) - Math.max(P.y, R.y) > 0 && Math.min(P.x + P.width, R.x + R.width) - Math.max(P.x, R.x) > 0
+    expect(overlap).toBe(false)
   })
 
   const rotate = (point: Point, turns: number): Point => {

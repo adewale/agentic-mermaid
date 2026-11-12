@@ -1,5 +1,5 @@
 import { resolveLabelContent } from '../shared/display-text.ts'
-import { terminalArtifact, serializeTerminalArtifact, type TerminalArtifact } from './terminal-artifact.ts'
+import { terminalArtifact, type TerminalArtifact } from './terminal-artifact.ts'
 import type { MermaidGraph, StateNoteSpec } from '../types.ts'
 import { Left, Right, type AsciiConfig, type AsciiGraph, type AsciiNode, type AsciiSubgraph, type AsciiTheme, type ColorMode, type GridCoord } from './types.ts'
 import { convertToAsciiGraph } from './converter.ts'
@@ -182,7 +182,3 @@ function contains(box: Box, x: number, y: number): boolean {
   return x >= box.x && x < box.x + box.width && y >= box.y && y < box.y + box.height
 }
 
-/** Compatibility string entry point; native dispatch retains the drawing. */
-export function renderStateAscii(...args: Parameters<typeof renderStateTerminal>): string {
-  return serializeTerminalArtifact(renderStateTerminal(...args))
-}

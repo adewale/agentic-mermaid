@@ -18,6 +18,11 @@ import {
   replaceFamilyForTest,
   type AsciiContext,
 } from '../agent/families.ts'
+import fc from 'fast-check'
+import { BUILTIN_FAMILY_METADATA } from '../agent/families.ts'
+import { fcParameters } from './helpers/fc-parameters.ts'
+import { FAMILY_ID_SOURCES, FAMILY_LABEL_SOURCES, hostileTextArb } from './helpers/family-text-sources.ts'
+import { terminalText } from './helpers/terminal-text.ts'
 
 const SOURCE = 'flowchart LR\n  A[Start] --> B[Finish]'
 const HOSTILE = 'red" onmouseover="alert(1);background:url(https://evil.invalid/x)'
@@ -385,4 +390,53 @@ test('connector receipts retain exact references while projecting inert display 
       if (label.visual?.kind === 'companion') expect(label.visual.markId).toContain(connector.endpoints.from!)
     }
   }
+})
+
+// Terminal text is displayed, not parsed: controls other than LF, the bidi
+// embedding/override/isolate controls that reorder cells ("Trojan source"),
+// noncharacters and lone surrogates must never reach it, in any color mode.
+const UNSAFE_TERMINAL_TEXT = /[\u0000-\u0009\u000b-\u001f\u007f-\u009f\u202a-\u202e\u2066-\u2069\p{Noncharacter_Code_Point}\p{Cs}]/u
+const terminalSourceArb = (family: (typeof BUILTIN_FAMILY_METADATA)[number]['id']) => {
+  const idSource = FAMILY_ID_SOURCES[family]
+  return idSource
+    ? fc.oneof(hostileTextArb.map(FAMILY_LABEL_SOURCES[family]), hostileTextArb.map(idSource))
+    : hostileTextArb.map(FAMILY_LABEL_SOURCES[family])
+}
+const terminalOptionsArb = fc.record({
+  colorMode: fc.constantFrom('none', 'ansi16', 'ansi256', 'truecolor', 'html') as fc.Arbitrary<'none' | 'ansi16' | 'ansi256' | 'truecolor' | 'html'>,
+  useAscii: fc.boolean(),
+})
+const codePoints = (text: string) => [...text].filter(character => UNSAFE_TERMINAL_TEXT.test(character)).map(character => `U+${character.codePointAt(0)!.toString(16).toUpperCase().padStart(4, '0')}`)
+
+describe('terminal text holds no unsafe or undisplayable code points', () => {
+  test.each(BUILTIN_FAMILY_METADATA.map(({ id }) => [id] as const))('%s', family => {
+    fc.assert(fc.property(terminalSourceArb(family), terminalOptionsArb, (source, options) => {
+      let text: string
+      try { text = renderMermaidASCIIWithReceipt(source, options).text } catch { return }
+      expect({ source, options, unsafe: codePoints(terminalText(text, options.colorMode)) }).toEqual({ source, options, unsafe: [] })
+    }), fcParameters({
+      numRuns: 60,
+      // Reduced counterexamples (V16): a right-to-left override and an
+      // entity-spelled noncharacter reached terminal text raw.
+      examples: [
+        [FAMILY_LABEL_SOURCES[family]('a\u202eb'), { colorMode: 'none', useAscii: false }],
+        [FAMILY_LABEL_SOURCES[family]('x#65534;y'), { colorMode: 'none', useAscii: true }],
+      ],
+    }))
+  })
+})
+
+describe('terminal receipts report replaced undisplayable code points', () => {
+  test.each(BUILTIN_FAMILY_METADATA.map(({ id }) => [id] as const))('%s', family => {
+    const undisplayable = fc.constantFrom('\u202e', '\u2066', '\ufffe', '\ufdd0', '\u{10ffff}', '\ud800')
+    fc.assert(fc.property(undisplayable, hostileTextArb, (character, text) => {
+      const source = FAMILY_LABEL_SOURCES[family](`${text.slice(0, 20)}${character}`)
+      // Packet's template writes its label as a JSON string, escaping a lone
+      // surrogate; the receipt reports characters the authored source holds.
+      if (!source.includes(character)) return
+      let diagnostics: readonly TerminalProjectionDiagnostic[]
+      try { diagnostics = renderMermaidASCIIWithReceipt(source).terminalStyle.diagnostics } catch { return }
+      expect({ source, replaced: diagnostics.some(diagnostic => diagnostic.code === 'TERMINAL_CONTROL_CHARACTERS_REPLACED') }).toEqual({ source, replaced: true })
+    }), fcParameters({ numRuns: 30 }))
+  })
 })

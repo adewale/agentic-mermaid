@@ -10,7 +10,8 @@ import { labelOverflowCollector } from './body-utils.ts'
 import { parseMutableStyleProps, parseStyleProps } from '../shared/style-props.ts'
 import { mermaidEntityPrepass } from '../shared/mermaid-entities.ts'
 import { cleanupMermaidSource } from '../shared/mermaid-cleanup.ts'
-import { requirementStyleTextCanSerialize } from '../requirement/lexer.ts'
+import { requirementStyleTextCanSerialize, tokenize } from '../requirement/lexer.ts'
+import { T } from '../requirement/tokens.ts'
 
 export function parseRequirementBody(input: string[] | string, accessibility: Accessibility = {}): RequirementBody | null {
   try {
@@ -28,11 +29,18 @@ export function parseRequirementBody(input: string[] | string, accessibility: Ac
   }
 }
 const TYPE_NAMES: Record<string, string> = { Requirement: 'requirement', 'Functional Requirement': 'functionalRequirement', 'Interface Requirement': 'interfaceRequirement', 'Performance Requirement': 'performanceRequirement', 'Physical Requirement': 'physicalRequirement', 'Design Constraint': 'designConstraint' }
+/** A requirement string as the reader takes it back. A quoted string has no
+ * escape for `"`, so text holding one is written bare when the lexer reads the
+ * bare run as exactly that text (no `:,{<>-=`, line break, edge space or
+ * keyword); otherwise no spelling exists. */
 function quoted(value: string): string {
-  if (typeof value !== 'string' || value.includes('"') || value.includes('\u0000')) throw new Error('Requirement strings cannot contain a literal quote or NUL')
+  if (typeof value !== 'string') throw new Error('Requirement strings must be text')
   // A public read normalizes CRLF once. Double the payload CR so a stored
   // CR followed by LF survives that read without changing either character.
-  return `"${value.replace(/\r\n/g, '\r\r\n')}"`
+  if (!value.includes('"')) return `"${value.replace(/\r\n/g, '\r\r\n')}"`
+  const bare = tokenize(value)
+  if (bare.types[0] === T.unqString && bare.texts[0] === value && bare.types.slice(1).every(type => type === T.EOF || type === T.END)) return value
+  throw new Error(`Requirement string ${JSON.stringify(value)} holds a quote, which a quoted string cannot spell, and also text a bare string cannot hold`)
 }
 export function renderRequirement(body: RequirementBody): string {
   const problem = requirementStyleProblem(body)

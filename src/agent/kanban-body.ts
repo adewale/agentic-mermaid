@@ -7,7 +7,7 @@ import { encodeMermaidEntities } from '../shared/mermaid-entities.ts'
 import { quoteMetadataString } from '../shared/metadata-yaml.ts'
 import { DiagramWorkLimitError } from '../shared/diagram-limits.ts'
 import { isPlainRecord } from '../shared/plain-data.ts'
-import { appendAccessibilityLines } from './accessibility-envelope.ts'
+import { appendNativeAccessibilityLines, parseAccessibilityDirective } from '../shared/accessibility-directives.ts'
 import { labelOverflowCollector } from './body-utils.ts'
 import type { LayoutWarning, MutationError, Result, VerifyOptions } from './types.ts'
 import { err, ok } from './types.ts'
@@ -23,7 +23,10 @@ export function parseKanbanBody(lines: readonly string[] | string, source?: Norm
 }
 export function renderKanban(body: KanbanBody): string {
   const lines = ['kanban']
-  appendAccessibilityLines(lines, body)
+  // Mermaid's Kanban grammar has no accessibility statements: it reads
+  // `accTitle: …` as a column and rejects braces there. The title and
+  // description travel in owned native comments, which Mermaid ignores.
+  appendNativeAccessibilityLines(lines, body)
   const emit = (item: KanbanItem, indent: string): void => {
     // Mermaid's case-insensitive keyword token also matches kanban-… and
     // kanban followed by a non-ASCII letter. Its implicit-ID form retains
@@ -34,7 +37,10 @@ export function renderKanban(body: KanbanBody): string {
     // the original authored text after the shared entity decoder.
     const label = encodeMermaidEntities(implicitId ? item.sourceId : item.label, '"%&').replace(/\r\n/g, '\r\r\n')
     const identifier = implicitId ? '' : encodeMermaidEntities(item.sourceId, '()[]{}@%&')
-    lines.push(`${indent}${identifier}["${label}"]`)
+    // A markdown string keeps its backtick delimiters; a plain label must not
+    // open one, so its leading backtick is written as an entity.
+    const markdown = item.markdown === true && !implicitId
+    lines.push(`${indent}${identifier}["${markdown ? `\`${label}\`` : label.startsWith('`') ? `#96;${label.slice(1)}` : label}"]`)
     const metadata = { ...item.metadata }
     // An implicit identity comes from the declaration, independently of a
     // later display-label edit. Keep both through the public writer.
@@ -65,7 +71,8 @@ export function renderKanban(body: KanbanBody): string {
         lines.push(`${indent}}`)
       }
     }
-    if (item.className !== undefined) lines.push(`${indent}:::${item.className}`)
+    // A bare `:::` names no class, and pinned Mermaid rejects it.
+    if (item.className?.trim()) lines.push(`${indent}:::${item.className}`)
   }
   for (const column of body.columns) {
     emit(column, '  ')
@@ -111,6 +118,7 @@ export function mutateKanban(body: KanbanBody, op: KanbanMutationOp): Result<Kan
       const target = column(op.id)
       if (!target || !text(op.label)) return fail('set_column_label requires an existing column and non-empty label')
       target.label = op.label
+      delete target.markdown
       delete target.metadata.label
       break
     }
@@ -145,6 +153,7 @@ export function mutateKanban(body: KanbanBody, op: KanbanMutationOp): Result<Kan
       const target = parent(op.id)?.tasks.find(task => task.id === op.id)
       if (!target || !text(op.label)) return fail('set_task_label requires an existing task and non-empty label')
       target.label = op.label
+      delete target.markdown
       delete target.metadata.label
       break
     }
@@ -178,7 +187,7 @@ export function mutateKanban(body: KanbanBody, op: KanbanMutationOp): Result<Kan
     }
     case 'set_class': {
       const target = item(op.id)
-      if (!target || (op.className !== undefined && !/^[\w -]*$/.test(op.className))) return fail('set_class requires an existing item and CSS class tokens')
+      if (!target || (op.className !== undefined && !/^[\w -]*\w[\w -]*$/.test(op.className))) return fail('set_class requires an existing item and CSS class tokens')
       target.className = op.className
       break
     }
@@ -195,6 +204,28 @@ export function mutateKanban(body: KanbanBody, op: KanbanMutationOp): Result<Kan
   }
   return ok(next)
 }
+/** Accessibility statements are read as metadata; pinned Mermaid reads such
+ * a line as a column, or rejects it. Owned native comments are not reported. */
+export function kanbanUnsupportedSyntaxWarnings(canonicalSource: string): LayoutWarning[] {
+  const lines = canonicalSource.split(/\r?\n/)
+  const header = lines.findIndex(line => /^\s*kanban\s*$/i.test(line))
+  const warnings: LayoutWarning[] = []
+  for (let index = header + 1; header >= 0 && index < lines.length; index++) {
+    const text = lines[index]!.trim()
+    if (!text || text.startsWith('%%')) continue
+    const directive = parseAccessibilityDirective(lines, index)
+    if (!directive) continue
+    warnings.push({
+      code: 'UNSUPPORTED_SYNTAX',
+      syntax: 'kanban_accessibility',
+      line: index + 1,
+      message: 'Kanban accessibility metadata is read here and carried in native comments on export. Pinned Mermaid\'s Kanban grammar has no accessibility statement: it draws this line as a column, or rejects it.',
+    })
+    index = directive.endIndex
+  }
+  return warnings
+}
+
 export function verifyKanban(body: KanbanBody, options: VerifyOptions): LayoutWarning[] {
   const warnings: LayoutWarning[] = []
   const overflow = labelOverflowCollector(warnings, options)

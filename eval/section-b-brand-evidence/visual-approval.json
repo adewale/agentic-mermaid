@@ -2,9 +2,9 @@
   "schemaVersion": 1,
   "status": "approved",
   "artifact": "src/__tests__/testdata/section-b-brand-evidence.png",
-  "artifactSha256": "a8f723d8f8b3bf295e622d0a64978f66c500ec90283437bcdb65cf599686c827",
-  "reviewedAt": "2026-11-09",
-  "reviewer": "Codex coordinator and independent authority-review agent, PR #602 Requirement geometry review",
-  "scope": "Retains prior finite palette and actor-contact reviews. At renderer 705db8562b7b9729e71e78ebf0da94e6991342f0, inspected the two changed Requirement cells at native 520\u00d7380 (technical and dark operations). Both retain all fields, the forward benchmark-to-fast verifies arrow, heading and caption. No new overlap or clipping observed. Other 130 cells are pixel-identical. Existing physical port spacing increases the basic fixture height 509.4\u2192515.4 and its integer wire 168\u2192174; no new quality or performance gain is claimed. This records agent review, not human approval, deployed-site parity or arbitrary-density correctness.",
+  "artifactSha256": "113913886330490f59ff18cf4122bbbac39790037e11b77abe2b1e0d7b01b967",
+  "reviewedAt": "2026-11-12",
+  "reviewer": "Codex agent, ordinary integration of Main 9136b07 into PR602",
+  "scope": "Retains both parent reviews. Compared the combined production-rendered sheet with Main 9136b07 and PR 322d0ef: only the two Requirement cells in the light technical and dark operations variants differ from Main (6,217 and 6,739 pixels); all other 130 cells are pixel-identical. Inspected both changed 520 by 380 cells at native size. The PR keeps the verifies arrowhead clear of the requirement card; authored text, relation direction, and card contents remain present. Against PR 322d0ef, only Main\u2019s eight previously reviewed Gantt/GitGraph cells change. This records agent review, not human approval, deployed-site parity or an arbitrary-density guarantee.",
   "audit": "eval/section-b-brand-evidence/arrowhead-clearance-review.md"
 }

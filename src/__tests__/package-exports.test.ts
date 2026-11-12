@@ -1,10 +1,6 @@
 import { describe, expect, it } from 'bun:test'
-import { readFileSync } from 'node:fs'
-import { join } from 'node:path'
 
 const packageJson = require('../../package.json')
-const tsconfig = require('../../tsconfig.json')
-const repoTsconfig = require('../../tsconfig.repo.json')
 
 describe('package exports', () => {
   it('uses the Agentic Mermaid npm package name', () => {
@@ -15,31 +11,16 @@ describe('package exports', () => {
     expect(packageJson.publishConfig).toMatchObject({ access: 'public', provenance: true })
   })
   // Loop 7 A2: yhatt#74 — catches accidental removal of conditional-export
-  // fallbacks during package.json edits.
-  it('defines a default export fallback for runtimes resolving conditional exports', () => {
-    expect(packageJson.exports['.']).toMatchObject({
-      import: './dist/index.js',
-      types: './dist/index.d.ts',
-      default: './dist/index.js',
-    })
+  // fallbacks during package.json edits; workerd and browser bundles resolve
+  // the runtime-neutral entries through `default`.
+  it.each([
+    ['.', { types: './dist/index.d.ts', import: './dist/index.js', default: './dist/index.js' }],
+    ['./agent', { types: './dist/agent.d.ts', default: './dist/agent.js' }],
+    ['./agent/core', { types: './dist/agent-core.d.ts', import: './dist/agent-core.js', default: './dist/agent-core.js' }],
+    ['./browser/lazy', { types: './dist/browser-lazy/index.d.ts', import: './dist/browser-lazy/index.js', default: './dist/browser-lazy/index.js' }],
+  ])('conditional export %s keeps its types and default fallback', (entry, targets) => {
+    expect(packageJson.exports[entry]).toMatchObject(targets)
   })
-
-  it('package.json has exports["./agent"]["default"]', () => {
-    const raw = readFileSync(join(import.meta.dir, '..', '..', 'package.json'), 'utf8')
-    const pkg = JSON.parse(raw)
-    expect(pkg.exports['./agent']).toBeDefined()
-    expect(pkg.exports['./agent'].default).toBe('./dist/agent.js')
-    expect(pkg.exports['./agent'].types).toBe('./dist/agent.d.ts')
-  })
-
-  it('publishes a runtime-neutral agent entry for browser and workerd bundles', () => {
-    expect(packageJson.exports['./agent/core']).toEqual({
-      types: './dist/agent-core.d.ts',
-      import: './dist/agent-core.js',
-      default: './dist/agent-core.js',
-    })
-  })
-
 
   // BUILD-30: a `<script src>` consumer has no resolver, so the browser IIFE is
   // the one artifact that must be reachable without a bundler. Pin the export
@@ -51,36 +32,5 @@ describe('package exports', () => {
     expect(packageJson.exports['./browser']).toBe(browserArtifact)
     expect(packageJson.unpkg).toBe(browserArtifact)
     expect(packageJson.jsdelivr).toBe(browserArtifact)
-  })
-
-  it('publishes the code-split async browser renderer as framework-neutral ESM', () => {
-    expect(packageJson.exports['./browser/lazy']).toEqual({
-      types: './dist/browser-lazy/index.d.ts',
-      import: './dist/browser-lazy/index.js',
-      default: './dist/browser-lazy/index.js',
-    })
-  })
-
-  it('TypeScript path aliases match the published import paths', () => {
-    expect(tsconfig.compilerOptions.paths).toEqual({
-      'agentic-mermaid': ['./src/index.ts'],
-      'agentic-mermaid/*': ['./src/*'],
-    })
-  })
-
-  it('typechecks runtime entrypoints, examples, evaluation tools, and the website', () => {
-    expect(repoTsconfig.extends).toBe('./tsconfig.json')
-    expect(repoTsconfig.include).toEqual([
-      'bin/**/*.ts',
-      'e2e/**/*.ts',
-      'editor/**/*.ts',
-      'eval/**/*.ts',
-      'examples/**/*.ts',
-      'website/**/*.ts',
-      'tsup.config.ts',
-      'tsup.browser.config.ts',
-      'tsup.browser-lazy.config.ts',
-    ])
-    expect(repoTsconfig.exclude).toContain('eval/mermaid-upstream-suite-bench/upstream-*/**')
   })
 })

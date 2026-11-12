@@ -414,8 +414,9 @@ describe('layoutArchitectureDiagram', () => {
     expect(distanceToPolyline(shortcut.labelPosition!, shortcut.points)).toBeLessThanOrEqual(0.001)
   })
 
-  it('every chain shortcut clears every intermediate card (property)', () => {
-    fc.assert(fc.property(fc.integer({ min: 3, max: 8 }), count => {
+  it('every chain shortcut clears every intermediate card', () => {
+    // A finite domain (3..8 services): every length runs.
+    for (let count = 3; count <= 8; count++) {
       const lines = ['architecture-beta']
       for (let i = 0; i < count; i++) lines.push(`service s${i}(server)[S${i}]`)
       for (let i = 1; i < count; i++) lines.push(`s${i - 1}:R --> L:s${i}`)
@@ -423,9 +424,9 @@ describe('layoutArchitectureDiagram', () => {
       const result = layout(lines.join('\n'))
       const shortcut = result.edges.at(-1)!
       const intermediates = result.services.filter(service => service.id !== 's0' && service.id !== `s${count - 1}`)
-      return shortcut.points.every((point, index, points) => index === 0 || point.x === points[index - 1]!.x || point.y === points[index - 1]!.y)
-        && intermediates.every(service => !routeCrossesBoxInterior(shortcut.points, service))
-    }), fcParameters({ numRuns: 60 }))
+      expect({ count, orthogonal: shortcut.points.every((point, index, points) => index === 0 || point.x === points[index - 1]!.x || point.y === points[index - 1]!.y) }).toEqual({ count, orthogonal: true })
+      expect({ count, crossed: intermediates.filter(service => routeCrossesBoxInterior(shortcut.points, service)).map(service => service.id) }).toEqual({ count, crossed: [] })
+    }
   })
 
   it('routes group-boundary shortcuts around an unrelated group interior', () => {
@@ -545,31 +546,39 @@ it.each(['agentic', 'elk'] as const)('keeps %s item-side shafts outside their ow
 })
 
 
-it('retains the measured header band when an empty Architecture group has no frame height', () => {
-  const source = 'architecture-beta\ngroup edge(cloud)[Edge]\ngroup app(server)[Application]\nservice api(server)[Public API] in app\njunction bus in app\nservice db(database)[Primary DB]\napi:R --> L:db\napi:B -["async fan-out"]-> T:bus'
-  const rendered = renderMermaidSVGWithReceipt(source, { graphLayout: { backend: 'elk' } })
-  // This authored empty group keeps its actual zero-sized placement. The
-  // writer uses the retained 28px measurement independently of the frame.
-  expect(rendered.svg).toContain('class="architecture-group-frame" x="40" y="40" width="0" height="0"')
-  expect(rendered.svg).toContain('class="architecture-group-band" d="M40,40 H40 V68 H40 Z"')
-  const edgeTags = [...rendered.svg.matchAll(/<polyline\b[^>]*class="architecture-edge"[^>]*>/g)].map(match => match[0])
-  expect(edgeTags.length).toBe(2)
-  expect(edgeTags[0]).toContain('data-from="api" data-to="db"')
-  expect(edgeTags[0]).toContain('data-from-side="R" data-to-side="L"')
-  expect(edgeTags[1]).toContain('data-from="api" data-to="bus"')
-  expect(edgeTags[1]).toContain('data-from-side="B" data-to-side="T"')
-  for (const [edgeIndex, tag] of edgeTags.entries()) {
+it('draws an empty Architecture group as a visible frame under its measured header band', () => {
+  const source = 'architecture-beta\ngroup edge(cloud)[Edge]\ngroup cloud(cloud)[Cloud]\ngroup storage(disk)[Storage] in cloud\ngroup app(server)[Application] in cloud\nservice api(server)[Public API] in app\njunction bus in app\nservice db(database)[Primary DB]\napi:R --> L:db\napi:B -["async fan-out"]-> T:bus'
+  const svg = renderMermaidSVGWithReceipt(source, { graphLayout: { backend: 'elk' } }).svg
+  const visual = DEFAULT_ARCHITECTURE_VISUAL
+  const frame = (id: string) => {
+    const tag = new RegExp(`<rect class="architecture-group-frame" x="([\\d.]+)" y="([\\d.]+)" width="([\\d.]+)" height="([\\d.]+)"[^>]*data-id="group-frame:${id}"`).exec(svg)!
+    const [x, y, width, height] = tag.slice(1).map(Number) as [number, number, number, number]
+    return { x, y, width, height }
+  }
+  const bands = [...svg.matchAll(/class="architecture-group-band" d="M([\d.]+),([\d.]+) H([\d.]+) V([\d.]+)/g)].map(match => match.slice(1).map(Number) as [number, number, number, number])
+  // Empty groups, top-level and nested, keep a body below the header that holds
+  // the icon and the whole title, inside any parent frame and clear of siblings.
+  for (const [id, title] of [['edge', 'Edge'], ['storage', 'Storage']] as const) {
+    const box = frame(id)
+    const titleWidth = measureMultilineText(title, visual.groupFontSize, visual.groupFontWeight, visual.groupLetterSpacing).width
+    expect(box.width, id).toBeGreaterThanOrEqual(ARCHITECTURE_GROUP_ICON_TITLE_OFFSET + titleWidth)
+    expect(box.height, id).toBeGreaterThan(28)
+    expect(bands.some(([x, y, right, bottom]) => x === box.x && y === box.y && Math.abs(right - (box.x + box.width)) < 1e-6 && bottom - y === 28), id).toBe(true)
+  }
+  const [storage, app, cloud] = [frame('storage'), frame('app'), frame('cloud')]
+  expect(storage.x >= cloud.x && storage.y >= cloud.y && storage.x + storage.width <= cloud.x + cloud.width && storage.y + storage.height <= cloud.y + cloud.height).toBe(true)
+  expect(storage.x + storage.width <= app.x || app.x + app.width <= storage.x || storage.y + storage.height <= app.y || app.y + app.height <= storage.y).toBe(true)
+  const edgeTags = [...svg.matchAll(/<polyline\b[^>]*class="architecture-edge"[^>]*>/g)].map(match => match[0])
+  expect(edgeTags.map(tag => /data-from="(\w+)" data-to="(\w+)"/.exec(tag)!.slice(1).join('->'))).toEqual(['api->db', 'api->bus'])
+  for (const tag of edgeTags) {
     expect(tag).toContain('marker-end="url(')
     const points = /points="([^"]+)"/.exec(tag)![1]!.split(' ').map(value => value.split(',').map(Number))
-    expect(points).toEqual(edgeIndex === 0
-      ? [[191.971, 146], [337.278, 146], [337.278, 158], [482.585, 158]]
-      : [[123.9855, 170], [123.9855, 189.8125], [390.585, 189.8125], [390.585, 206]])
-    // The actual nonempty Application band remains x38..420.585, y76..104;
-    // neither emitted route enters it. The empty band's open interior is empty.
+    // No emitted route enters any group's header band.
     for (let index = 1; index < points.length; index++) {
       const a = points[index - 1]!, b = points[index]!
-      expect(Math.max(a[0]!, b[0]!) > 38 && Math.min(a[0]!, b[0]!) < 420.585
-        && Math.max(a[1]!, b[1]!) > 76 && Math.min(a[1]!, b[1]!) < 104).toBe(false)
+      for (const [x, y, right, bottom] of bands) {
+        expect(Math.max(a[0]!, b[0]!) > x && Math.min(a[0]!, b[0]!) < right && Math.max(a[1]!, b[1]!) > y && Math.min(a[1]!, b[1]!) < bottom).toBe(false)
+      }
     }
   }
 })

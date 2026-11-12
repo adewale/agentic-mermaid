@@ -9,6 +9,7 @@ import { applyRouteContracts, auditRouteContracts, classifyRoutes, closeRouteCon
 import { assessLayout, countEdgeCrossings, countOpposingRouteOverlaps, countParallelRouteOverlaps, hardViolations, measureRubricMetrics, onShapeOutline, segmentThroughShape } from '../layout-rubric.ts'
 import { measureMultilineText } from '../text-metrics.ts'
 import { layoutMermaid, parseRegisteredMermaid as agentParse, verifyMermaid } from '../agent/index.ts'
+import { graphGeometryWarnings } from '../agent/verify.ts'
 import type { AnyPort, Point, PositionedEdge, PositionedGraph, PositionedGroup, PositionedNode } from '../types.ts'
 import { EDGE_FORMS, renderEdgeLine } from './helpers/edge-vocabulary.ts'
 import { gen } from '../../eval/overlap-audit/generators.ts'
@@ -1035,8 +1036,8 @@ describe('ROUTE_HITCH tripwire (issue #25 acceptance criterion 3)', () => {
     const [a, b] = e.points as [{ x: number; y: number }, { x: number; y: number }]
     e.points = [a, { x: (a.x + b.x) / 2, y: a.y }, { x: (a.x + b.x) / 2, y: a.y + 10 }, { x: b.x, y: a.y + 10 }]
     const hitches = findRouteHitches(positioned, graph)
-    expect(hitches.some(h => h.edge === 'B->C')).toBe(true)
-    expect(hitches.find(h => h.edge === 'B->C')!.deviationPx).toBe(10)
+    expect(hitches.some(h => h.edge === 'B->C#0')).toBe(true)
+    expect(hitches.find(h => h.edge === 'B->C#0')!.deviationPx).toBe(10)
   })
 
   it('validation never mutates the layout it inspects', () => {
@@ -1075,7 +1076,7 @@ describe('bundle exemptions belong to constructed routes (#265)', () => {
       : [a, { x: a.x, y: first }, { x: a.x + 12, y: first }, { x: a.x + 12, y: second }, { x: b.x, y: second }, b]
     const { straightened: _straightened, ...saved } = edge.routeCertificate!
     edge.routeCertificate = { ...saved, invariant: 'bundle', bendCount: 4 }
-    expect(findRouteHitches(positioned, graph)).toContainEqual(expect.objectContaining({ edge: 'A->B' }))
+    expect(findRouteHitches(positioned, graph)).toContainEqual(expect.objectContaining({ edge: 'A->B#0' }))
     const assessment = assessLayout(graph, positioned)
     expect(hardViolations(assessment)).toContainEqual(expect.objectContaining({ metric: 'hitches' }))
     expect(assessment.metrics.totalBends).toBe(4)
@@ -1102,7 +1103,7 @@ describe('bundle exemptions belong to constructed routes (#265)', () => {
     edge.points = [a, { x: a.x + 16, y: a.y }, { x: a.x + 16, y: a.y + 12 }, { x: b.x - 16, y: a.y + 12 }, { x: b.x - 16, y: b.y }, b]
     const { straightened: _straightened, ...copied } = bundle.edges[0]!.routeCertificate!
     edge.routeCertificate = { ...copied, invariant: 'bundle', edgeIndex: edge.edgeIndex!, bendCount: 4 }
-    expect(findRouteHitches(positioned, graph)).toContainEqual(expect.objectContaining({ edge: 'A->B' }))
+    expect(findRouteHitches(positioned, graph)).toContainEqual(expect.objectContaining({ edge: 'A->B#0' }))
   })
 
   it('a committed lane change revokes its old channel geometry and bundle exemption', () => {
@@ -1540,7 +1541,7 @@ describe('validation ignores non-staircase routes', () => {
     // Diagonal middle segment: not orthogonal routing, so not a "hitch" —
     // it is a different kind of corruption that EDGE rendering would surface.
     e.points = [a, { x: (a.x + b.x) / 2, y: a.y + 15 }, b]
-    expect(findRouteHitches(positioned, graph).filter(h => h.edge === 'B->C')).toEqual([])
+    expect(findRouteHitches(positioned, graph).filter(h => h.edge === 'B->C#0')).toEqual([])
   })
 })
 
@@ -1970,8 +1971,8 @@ describe('ROUTE_HITCH tripwire covers feedback lanes', () => {
     const [a, b] = back.points as [{ x: number; y: number }, { x: number; y: number }]
     back.points = [a, { x: (a.x + b.x) / 2, y: a.y }, { x: (a.x + b.x) / 2, y: a.y + 10 }, { x: b.x, y: a.y + 10 }]
     const hitches = findRouteHitches(positioned, graph)
-    expect(hitches.some(h => h.edge === 'B->A')).toBe(true)
-    expect(hitches.find(h => h.edge === 'B->A')!.deviationPx).toBe(10)
+    expect(hitches.some(h => h.edge === 'B->A#0')).toBe(true)
+    expect(hitches.find(h => h.edge === 'B->A#0')!.deviationPx).toBe(10)
   })
 })
 
@@ -2131,6 +2132,52 @@ describe('route audit tripwires fire on post-certification corruption', () => {
     yes.points = [{ x: ef.points[0]!.x, y: seg.y }, { x: ef.points[1]!.x, y: seg.y }]
     const findings = auditRouteContracts(positioned, graph)
     expect(findings.some(f => f.code === 'ROUTE_LABEL_ON_SHARED_TRUNK')).toBe(true)
+  })
+})
+
+// Every edge-targeted finding names its edge the way remove_edge/set_label
+// resolve one: the authored id, else `source->target#k` where k counts that
+// ordered pair's earlier edges in source order. Parallel edges and self-loops
+// therefore never share a name.
+describe('edge-targeted findings name the edge the edge operations resolve', () => {
+  const opsId = (edges: readonly { source: string; target: string; id?: string }[]) => {
+    const seen = new Map<string, number>()
+    return edges.map(edge => {
+      const pair = `${edge.source}->${edge.target}`
+      const k = seen.get(pair) ?? 0
+      seen.set(pair, k + 1)
+      return edge.id ?? `${pair}#${k}`
+    })
+  }
+  const label = fc.constantFrom('', 'go', 'x'.repeat(41))
+  const arrow = (text: string) => (text ? `-->|${text}|` : '-->')
+
+  it('self-loop, self-cross and label findings on parallel edges are told apart', () => {
+    fc.assert(fc.property(fc.array(label, { minLength: 1, maxLength: 4 }), fc.array(label, { minLength: 1, maxLength: 3 }), (loops, parallel) => {
+      const source = `flowchart TD\n${[...loops.map(text => `  A ${arrow(text)} A`), ...parallel.map(text => `  A ${arrow(text)} B`)].join('\n')}`
+      const graph = parseMermaid(source)
+      const ids = opsId(graph.edges)
+      const positioned = layoutGraphSync(graph)
+      // Corrupt every route after certification: loops lose their certificate
+      // and every edge crosses itself, so each edge earns its own finding.
+      for (const edge of positioned.edges) {
+        if (edge.source === edge.target) delete edge.routeCertificate
+        const [x, y] = [edge.points[0]!.x, edge.points[0]!.y]
+        edge.points = [{ x, y }, { x: x + 20, y }, { x: x + 20, y: y + 20 }, { x: x + 10, y: y + 20 }, { x: x + 10, y: y - 10 }, { x: x + 30, y: y - 10 }]
+      }
+      const findings = [...auditRouteContracts(positioned, graph), ...graphGeometryWarnings(positioned, graph), ...verifyMermaid(source).warnings]
+      const named = findings.flatMap(finding => [
+        ...('edge' in finding ? [finding.edge] : []),
+        ...('sharedWith' in finding ? [finding.sharedWith] : []),
+        ...('conflictWith' in finding && finding.conflictWith ? [finding.conflictWith] : []),
+        ...(finding.code === 'LABEL_OVERFLOW' ? [finding.target] : []),
+      ])
+      for (const id of named) expect(ids).toContain(id)
+      const edgesOf = (code: string, kind?: string) => findings.flatMap(f => (f.code === code && (!kind || ('kind' in f && f.kind === kind)) && 'edge' in f ? [f.edge] : [])).sort()
+      expect(edgesOf('ROUTE_SELF_LOOP_OCCUPANCY', 'allocation')).toEqual(ids.slice(0, loops.length).sort())
+      expect(edgesOf('ROUTE_SELF_CROSS')).toEqual([...ids].sort())
+      expect(findings.flatMap(f => (f.code === 'LABEL_OVERFLOW' ? [f.target] : [])).sort()).toEqual(ids.filter((_, i) => graph.edges[i]!.label === 'x'.repeat(41)).sort())
+    }), fcParameters({ numRuns: 25, examples: [[['one', 'two', 'x'.repeat(41)], ['x'.repeat(41), 'x'.repeat(41)]]] }))
   })
 })
 
@@ -3108,8 +3155,10 @@ it('new terminal detour never changes a simple route into selfcontact',()=>{
  const visited=new Set([`${edge.points[0]!.x},${edge.points[0]!.y}`]);let repeated=false
  for(let i=1;i<edge.points.length;i++){const a=edge.points[i-1]!,b=edge.points[i]!,dx=Math.sign(b.x-a.x),dy=Math.sign(b.y-a.y);expect(dx===0||dy===0).toBe(true);let x=a.x,y=a.y;while(x!==b.x||y!==b.y){x+=dx;y+=dy;const key=`${x},${y}`;if(visited.has(key))repeated=true;visited.add(key)}}
  expect(repeated).toBe(false)
- // Both bounded replacement lanes are obstructed; keep the original failure.
- expect(edge.points).toEqual(old);expect(edge.hasArrowEnd).toBe(true)
+ // Both bounded replacement lanes are obstructed; the only repair rebuilds
+ // the tail onto another side of T, clear of every card and band.
+ expect(edge.points).not.toEqual(old);expect(edge.points[0]).toEqual(old[0]);expect(edge.hasArrowEnd).toBe(true)
+ for(const box of[...nodes,...groups])expect(clear(edge.points,box)).toBe(true)
 })
 it('website Cloud source retains all authored nodes, groups, markers and clear literal bands',async()=>{
  const source="graph TD\n  subgraph Cloud\n    subgraph us-east [US East Region]\n      A[Web Server] --> B[App Server]\n    end\n    subgraph us-west [US West Region]\n      C[Web Server] --> D[App Server]\n    end\n  end\n  E[Load Balancer] --> A\n  E --> C"

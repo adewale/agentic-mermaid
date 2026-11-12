@@ -869,7 +869,7 @@ describe('measureMultilineText – properties over random labels', () => {
         if (m.lineHeight !== fontSize * LINE_HEIGHT_RATIO) return false
         if (m.height !== lines.length * m.lineHeight) return false
         const widest = Math.max(...lines.map(l => measureTextWidth(displayText(l), fontSize, fontWeight)))
-        if (Math.abs(m.width - widest) > 1e-6) return false
+        if (m.width !== widest) return false
         return Number.isFinite(m.width) && Number.isFinite(m.height) && m.width >= 0 && m.height >= 0
       }),
       fcParameters({ numRuns: 400 }),

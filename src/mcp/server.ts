@@ -12,6 +12,7 @@ import { DEFAULT_EXECUTE_TIMEOUT_MS } from './execute-limits.ts'
 import { isJsonContentType, preserveExactJsonRpcIds, rpcError as error, stringifyJsonRpc, toolResult, type ExactJsonRpcId, type JsonRpcRequest, type JsonRpcResponse } from './protocol.ts'
 import {
   EXECUTE_TIMEOUT_ERROR,
+  executeToolPayload,
   createDescribeTool,
   createExecuteTool,
   createRenderPngTool,
@@ -29,7 +30,7 @@ import { SDK_CORE_DECLARATION, createDescribeSdkTool, describeSdkPayload } from 
 import { mcpDescribePayload } from './describe-payload.ts'
 import { createArtifactStore, type ArtifactRecord, type ArtifactStore } from './artifacts.ts'
 import { renderMermaidPNGWithReceipt } from '../agent/png.ts'
-import { configWarningsForMermaid } from '../agent/verify.ts'
+import { renderConfigWarningsForMermaid } from '../agent/verify.ts'
 import { BUILTIN_FAMILY_METADATA } from '../agent/families.ts'
 import { projectNativePngOutputPolicyInput } from '../png-contract.ts'
 import { projectRenderErrorDiagnostic } from '../render-error-diagnostic.ts'
@@ -172,7 +173,7 @@ async function handleToolCall(id: number | string | null, params: unknown, conte
     )
     if (typeof code !== 'string') return error(id, -32602, 'execute requires `code` (string)')
     const r = await executeInSandbox(code, { timeoutMs })
-    return toolResult(id, r, !r.ok)
+    return toolResult(id, executeToolPayload(r), !r.ok)
   }
   if (name === 'mutate') return handleEditTool(id, args, 'source')
   if (name === 'build') return handleEditTool(id, args, 'family')
@@ -206,12 +207,13 @@ function handleRenderPng(id: number | string | null, args: Record<string, unknow
   try {
     const fontWarnings: Array<Record<string, unknown>> = []
     const pngOutput = projectNativePngOutputPolicyInput(args)
+    const renderOptions = projectMcpRenderOptions(args)
     const rendered = renderMermaidPNGWithReceipt(source, {
-      ...projectMcpRenderOptions(args),
+      ...renderOptions,
       ...pngOutput,
       onWarning: warning => fontWarnings.push(warning as unknown as Record<string, unknown>),
     })
-    const warnings = [...configWarningsForMermaid(source), ...fontWarnings]
+    const warnings = [...renderConfigWarningsForMermaid(source, renderOptions), ...fontWarnings]
       .filter((warning, index, all) => all.findIndex(candidate => JSON.stringify(candidate) === JSON.stringify(warning)) === index)
     if (output === 'base64') {
       const png_base64 = Buffer.from(rendered.png).toString('base64')
@@ -226,7 +228,7 @@ function handleRenderPng(id: number | string | null, args: Record<string, unknow
   } catch (e) {
     const payload = {
       ok: false as const,
-      error: projectRenderErrorDiagnostic(e),
+      error: projectRenderErrorDiagnostic(e, { source }),
     }
     return toolResult(id, payload, true)
   }

@@ -22,6 +22,7 @@ import { statementText, trailingCommentStart } from '../shared/trailing-comment.
 import { parseAccessibilityDirective, statementEndAt } from '../shared/accessibility-directives.ts'
 import { splitAuthoredPieTitleLine } from '../pie/source-title.ts'
 import { decodeXML } from 'entities'
+import { MermaidSyntaxError } from '../shared/syntax-error.ts'
 import {
   classifyMermaidFamilyDescriptorFromFirstLine,
   familyDetectionDiagnostic,
@@ -189,6 +190,23 @@ function semanticFamilyLineSource(
   }
 }
 
+/** Built-in families whose grammar reads a line's indentation as structure
+ * (mindmap, treemap and ishikawa parentage; kanban column versus task). */
+const INDENTED_GRAMMARS: ReadonlySet<string> = new Set(['mindmap', 'kanban', 'treemap', 'ishikawa'])
+
+/** The canonical lines of an indentation-sensitive family: the same lines,
+ * in the same order, as the line-trimmed form (no blank or `%%` line), each
+ * keeping its indentation, so parsing the canonical source reads the same
+ * tree. The header line is trimmed as in the line-trimmed form. */
+function indentedCanonicalText(body: string): string {
+  const lines = body.split(/\r\n?|\n/).filter(line => {
+    const text = line.trim()
+    return text && !text.startsWith('%%')
+  }).map(line => line.trimEnd())
+  if (lines.length > 0) lines[0] = lines[0]!.trimStart()
+  return lines.join('\n')
+}
+
 /** Descriptor-dispatched parser with a forward-compatible extension envelope. */
 export function parseRegisteredMermaid(source: string): Result<ParsedDiagram, ParseError[]> {
   const errors: ParseError[] = []
@@ -244,6 +262,8 @@ export function parseRegisteredMermaid(source: string): Result<ParsedDiagram, Pa
   // The envelope remains the single owner of init configuration layers.
   const canonicalSource = capturedFamily?.canonicalSource === 'preserved'
     ? stripMermaidInitDirectives(familyLine.source.slice(familyLineBoundary))
+    : capturedFamily && INDENTED_GRAMMARS.has(capturedFamily.id)
+    ? indentedCanonicalText(authoredEnvelope.body)
     : authoredEnvelope.text
   const sourceMapCanonicalSource = maskAccessibilityDirectivesForSourceMap(canonicalSource, capturedFamily)
   const documentSpans = sourcePreservationSpans(
@@ -323,8 +343,11 @@ export function parseRegisteredMermaid(source: string): Result<ParsedDiagram, Pa
     try {
       parsed = plugin.parse(context)
     } catch (error) {
-      // A registered family's hook throwing is a fault in its descriptor,
-      // reported as one; a built-in parser's throw stays ours to surface.
+      // A prescriptive syntax error is the source's fault, refused the same
+      // way the render-path parser refuses it. Otherwise a registered family's
+      // hook throwing is a fault in its descriptor, reported as one; a
+      // built-in parser's throw stays ours to surface.
+      if (error instanceof MermaidSyntaxError) return err([{ code: 'PARSE_FAILED', message: error.message, line: 1 }])
       if (isBuiltinFamilyId(kind)) throw error
       const reason = error instanceof Error ? error.message : String(error)
       return err([{ code: 'FAMILY_DESCRIPTOR_CONTRACT', message: `Family "${kind}" parse hook threw: ${reason}`, line: 1 }])
@@ -459,7 +482,7 @@ function markDroppedComments(diagram: ValidDiagram, authoredSource: string, stat
     const knownLines = new Set(comments.map(comment => comment.line))
     // These grammars either expose every real comment in envelope metadata,
     // or keep percent pairs inside their statement text.
-    if (['state', 'journey', 'timeline', 'ishikawa', 'sankey'].includes(diagram.kind)) return comments
+    if (['state', 'journey', 'timeline', 'ishikawa', 'sankey', 'zenuml'].includes(diagram.kind)) return comments
     if (diagram.kind === 'gantt') {
       const wrapperLines = (normalized.wrapperSource?.match(/\n/g) ?? []).length
       for (const statement of readGanttStatements(lines.map((line, index) => index < wrapperLines ? '' : line))) {

@@ -26,6 +26,7 @@ import { resolveArchitectureIcon } from './icons.ts'
 import { serializeMarkerResources } from '../scene/marker-resources.ts'
 import { ARCHITECTURE_MARKERS, architectureMarkerTerminal } from './markers.ts'
 import { projectRoundedConnectorPath } from '../scene/connector-geometry.ts'
+import { arrowheadDirection } from '../shared/relation-direction.ts'
 
 // ============================================================================
 // Architecture renderer — lowers a PositionedArchitectureDiagram to the
@@ -400,7 +401,7 @@ function lowerEdge<T>(marks: DrawingFactory<T>, edge: PositionedArchitectureEdge
   const paint: MarkPaint = { stroke: 'var(--arch-edge-stroke, var(--_line))', strokeWidth: String(visual.edgeLineWidth), strokeLinejoin: 'round' }
   const connectorSemantics = {
     endpoints: { from: edge.source.id, to: edge.target.id },
-    relationship: { kind: 'architecture-edge' },
+    relationship: { kind: 'architecture-edge', direction: edge.source.id === edge.target.id ? 'self' : arrowheadDirection(edge.hasArrowStart, edge.hasArrowEnd) },
     route: {
       ownership: 'layout',
       bendRadius: visual.edgeBendRadius,

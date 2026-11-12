@@ -12,18 +12,24 @@ import {
 import { admitMcpMessage, type AdmittedMcpMessage } from './admission.ts'
 import { PACKAGE_VERSION } from '../version.ts'
 import {
+  renderOptionsSchemaDefinitions,
   sharedRenderOptionsJsonSchema,
   validateSerializableRenderOptions,
   renderSchemaProblems,
+  misplacedRenderOptionHint,
   type SharedRenderOptionField,
 } from '../render-contract.ts'
-import { normalizePortablePngBackground, pngOutputOptionsJsonSchema } from '../png-contract.ts'
+import { MAX_HOSTED_PNG_PIXELS, MAX_PNG_PIXELS, MAX_PNG_RASTER_DIMENSION, normalizePortablePngBackground, pngOutputOptionsJsonSchema } from '../png-contract.ts'
 import {
   limitJsonConfigDiagnostics,
   validateJsonConfigAdmission,
 } from '../shared/json-config-admission.ts'
 import type { RenderOptions } from '../types.ts'
+import type { ExecuteErrorCode } from './execute-limits.ts'
+import type { ExecuteResult } from './sandbox.ts'
+import type { CodeModeLocation } from './facade.ts'
 import { isPlainRecord } from '../shared/plain-data.ts'
+import { knownStyleDescriptors } from '../scene/style-registry.ts'
 import { validateJsonSchema, type SchemaPath, type JsonSchema } from '../shared/schema-validation.ts'
 
 export interface McpToolDefinition {
@@ -93,7 +99,7 @@ export interface McpDispatchOptions {
 // The LOCAL stdio/HTTP server identity. The hosted transport reports its own
 // name (HOSTED_MCP_SERVER_NAME in hosted-server.ts): registries and clients
 // cache tool lists by server identity, and the two surfaces expose different
-// tools (4 local vs 9 hosted), so they must not share one.
+// tool sets (see LOCAL_TOOLS and HOSTED_TOOLS), so they must not share one.
 export const MCP_SERVER_NAME = 'agentic-mermaid-mcp'
 // The release identity gate keeps this runtime-safe constant synchronized with
 // package.json so every MCP handshake reports the published package version.
@@ -126,16 +132,61 @@ const MANAGED_ARTIFACT_ANNOTATIONS = {
 
 export const EXECUTE_TIMEOUT_ERROR = 'execute timeoutMs must be a positive integer'
 
+/** The execute tool payload both servers return. Success passes the runner's
+ * { ok, value, logs } through; failure is { ok:false, error:{ code, message,
+ * location? }, logs } with the runner's message verbatim, a stable code (see
+ * ExecuteErrorCode) so an agent can branch on error.code on either channel,
+ * and, when known, the failing { line, column } in the agent's own code. */
+export function executeToolPayload(result: ExecuteResult):
+  | ExecuteResult
+  | { ok: false; error: { code: ExecuteErrorCode; message: string; location?: CodeModeLocation }; logs: string[] } {
+  if (result.ok) return result
+  return {
+    ok: false,
+    error: {
+      code: result.code ?? 'EXECUTE_FAILED',
+      message: result.error ?? 'sandbox returned no error message',
+      ...(result.location ? { location: { line: result.location.line, column: result.location.column } } : {}),
+    },
+    logs: result.logs ?? [],
+  }
+}
+
 /** One validation contract shared by hosted and local Code Mode. */
 export function isValidExecuteTimeout(value: unknown): value is number {
   return typeof value === 'number' && Number.isSafeInteger(value) && value > 0
 }
 
-export function mcpRenderOptionSchemaProperties(
-  optionsDescription: string,
-): Record<string, unknown> {
+// Every render tool offers the same `options` object; its description is the
+// only built-in Style menu a client sees without calling execute, so it comes
+// from the style registry, once, for every render tool on every surface.
+const BUILTIN_LOOK_NAMES = knownStyleDescriptors()
+  .filter(descriptor => descriptor.kind === 'look')
+  .map(descriptor => descriptor.inputName)
+const BUILTIN_PALETTE_NAMES = knownStyleDescriptors()
+  .filter(descriptor => descriptor.kind === 'palette')
+  .map(descriptor => descriptor.inputName)
+export const MCP_RENDER_OPTIONS_DESCRIPTION = `Shared advanced RenderOptions object. style accepts a registered Look (${BUILTIN_LOOK_NAMES.join(', ')}), Palette (${BUILTIN_PALETTE_NAMES.join(', ')}), inline StyleSpec record, or left-to-right stack.`
+
+/**
+ * The input schema of a render tool: `source`, the tool's own output fields,
+ * and the shared `options` object. The render options schema names its
+ * StyleSpec and JSON-value records by `#/$defs/<name>`; those definitions sit
+ * at this schema's root, once, so every reference resolves from the tool
+ * schema itself (no embedded `$id` resource) and no record is inlined twice.
+ */
+export function mcpRenderToolInputSchema(outputProperties: Record<string, unknown> = {}): Record<string, unknown> {
+  const { $schema: _dialect, $id: _id, $defs: _defs, ...options } = sharedRenderOptionsJsonSchema()
   return {
-    options: { ...sharedRenderOptionsJsonSchema(), description: optionsDescription },
+    type: 'object',
+    additionalProperties: false,
+    properties: {
+      source: { type: 'string', description: 'Mermaid source.' },
+      ...outputProperties,
+      options: { ...options, description: MCP_RENDER_OPTIONS_DESCRIPTION },
+    },
+    required: ['source'],
+    $defs: renderOptionsSchemaDefinitions(),
   }
 }
 
@@ -181,7 +232,11 @@ export function validateMcpToolArguments(tool: McpToolDefinition, value: unknown
       return validator === 'architectureVisual' ? [] : renderSchemaProblems(value, schema, path)
     },
   })
-    .map(problem => `${formatSchemaPath(problem.path)} ${problem.message}`)
+    .map(problem => {
+      const hint = problem.message === 'is not allowed' && problem.path.length === 2 && problem.path[0] === 'options'
+        ? misplacedRenderOptionHint(String(problem.path[1])) : undefined
+      return `${formatSchemaPath(problem.path)} ${problem.message}${hint ? `; ${hint}` : ''}`
+    })
   return limitJsonConfigDiagnostics(problems, 'arguments')
 }
 
@@ -265,12 +320,22 @@ export async function dispatchAdmittedMcpRequest<Context>(message: AdmittedMcpMe
       })
       break
     }
-    case 'notifications/initialized': response = era === 'modern' ? unknownMethod(id, req.method) : null; break
+    // JSON-RPC 2.0: a message with an id is a request, whatever its method is
+    // called, and a request gets a response. MCP defines initialized only as
+    // a notification, so the request form names no method this server has.
+    case 'notifications/initialized': response = era === 'modern'
+      ? unknownMethod(id, req.method)
+      : notification ? null : rpcError(id, -32601, 'Method not found: notifications/initialized is a notification; send it without an id'); break
     case 'ping': response = era === 'modern' ? unknownMethod(id, req.method) : reply(id, {}); break
     case 'server/discover': response = era === 'modern'
       ? reply(id, discoverResult(surface, servedVersions))
       : unknownMethod(id, req.method); break
-    case 'tools/list': response = reply(id, { tools: surface.tools }); break
+    // The whole list fits one page, so this server never issues a nextCursor
+    // and no cursor a client sends can name a page (MCP pagination: an invalid
+    // cursor SHOULD be -32602 rather than silently restarting the listing).
+    case 'tools/list': response = isPlainRecord(req.params) && Object.hasOwn(req.params, 'cursor')
+      ? rpcError(id, -32602, 'Invalid params: unknown cursor; this server lists every tool in one page and issues no cursors')
+      : reply(id, { tools: surface.tools }); break
     case 'tools/call': {
       if (!isPlainRecord(req.params)) {
         response = rpcError(id, -32602, 'Invalid params: tools/call requires an object')
@@ -404,10 +469,22 @@ ${options.sdkDeclaration}`,
   }
 }
 
+/** Render tools do not verify. Running verify's checks on every render would
+ * add roughly 55-100% CPU to each uncached render (measured locally on 10-60
+ * node flowcharts, xychart, sequence and class diagrams), so the warnings
+ * stay partial and the tools say where the full findings come from. */
+export const RENDER_WARNINGS_NOTE = `warnings lists source/config warnings only (capabilities.json codes); it is not a verification.
+Layout and content-loss findings (e.g. LABELS_HIDDEN, ROUTE_SELF_LOOP_OCCUPANCY, LAYOUT_UNCERTIFIED) come from
+verify: call it before trusting the drawing. receipt.layoutCertification.geometry marks a drawing that failed layout certification.`
+
 export function createRenderPngTool(mode: 'local' | 'hosted'): McpToolDefinition {
   const hosted = mode === 'hosted'
   const pngSchema = pngOutputOptionsJsonSchema(hosted ? 'portable' : 'native')
   const pngProperties = pngSchema.properties as Record<string, JsonSchema>
+  const pixelCap = Math.ceil((hosted ? MAX_HOSTED_PNG_PIXELS : MAX_PNG_PIXELS) / 1_000_000)
+  const budget = `A raster wider or taller than ${MAX_PNG_RASTER_DIMENSION}px or over ${pixelCap}MP fails with
+PNG_RASTER_BUDGET_EXCEEDED; pass fitTo { width } or { height }, or a smaller scale, to fit it.
+${RENDER_WARNINGS_NOTE} Raster font-coverage and legibility warnings are added.`
   return {
     name: 'render_png',
     title: 'Render Mermaid as PNG',
@@ -415,26 +492,21 @@ export function createRenderPngTool(mode: 'local' | 'hosted'): McpToolDefinition
       ? `Rasterize a Mermaid source string to PNG. Returns { ok, png_base64 }.
 Hosted rendering uses resvg-wasm with bundled fonts; bytes may differ from the
 local napi renderer, so hosted PNG is a convenience surface, not part of the
-byte-determinism contract. For file/URL artifacts use the local stdio server.`
+byte-determinism contract. For file/URL artifacts use the local stdio server.
+${budget}`
       : `Rasterize a Mermaid source string to PNG. By default returns base64-encoded PNG bytes.
 Set output to "file" or "url" to write a managed artifact instead; artifact responses include
 {path?, url?, mimeType, bytes, sha256}. File/URL artifacts are generated under the MCP server's
 artifact directory with safe names, size limits, and TTL cleanup.
 Uses bundled resvg + Inter (DejaVu Sans fallback) for same-machine cross-runtime determinism where verified.
+${budget}
 Agentic Mermaid outputs SVG, PNG, ASCII, Unicode, and JSON layout. For non-PNG output, use render_svg, render_ascii (useAscii true for ASCII, false for Unicode), or verify. Code Mode execute also exposes the corresponding mermaid.* SDK functions.`,
-    inputSchema: {
-      type: 'object',
-      additionalProperties: false,
-      properties: {
-        source: { type: 'string', description: 'Mermaid source.' },
-        ...pngProperties,
-        ...mcpRenderOptionSchemaProperties('Shared advanced RenderOptions object.'),
-        ...(hosted ? {} : {
-          output: { type: 'string', enum: [...MCP_PNG_OUTPUT_MODES], description: 'PNG return mode (default base64).' },
-        }),
-      },
-      required: ['source'],
-    },
+    inputSchema: mcpRenderToolInputSchema({
+      ...pngProperties,
+      ...(hosted ? {} : {
+        output: { type: 'string', enum: [...MCP_PNG_OUTPUT_MODES], description: 'PNG return mode (default base64).' },
+      }),
+    }),
     annotations: hosted ? PURE_COMPUTE_ANNOTATIONS : MANAGED_ARTIFACT_ANNOTATIONS,
   }
 }

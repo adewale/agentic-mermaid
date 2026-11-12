@@ -418,8 +418,9 @@ describe('gantt mutation ops (every declared op round-trips)', () => {
     expect(d.body.sections[1]!.tasks[0]!.tags).toEqual(['crit', 'milestone'])
     d = apply(d, { kind: 'set_task_dates', sectionIndex: 0, taskIndex: 0, start: '2024-02-01', end: '4d' })
     expect(d.body.sections[0]!.tasks[0]).toMatchObject({ start: '2024-02-01', end: '4d' })
-    d = apply(d, { kind: 'set_task_dates', sectionIndex: 0, taskIndex: 1, start: null })
-    expect(d.body.sections[0]!.tasks[1]!.start).toBeUndefined()
+    // Mermaid reads `pol, 5d` as start `pol`: a task keeps its id only with
+    // an explicit start, so clearing this one's start would rename it.
+    expect(mutate(d, { kind: 'set_task_dates', sectionIndex: 0, taskIndex: 1, start: null })).toMatchObject({ ok: false, error: { code: 'INVALID_OP' } })
     d = apply(d, { kind: 'remove_task', sectionIndex: 0, taskIndex: 1 })
     expect(d.body.sections[0]!.tasks).toHaveLength(1)
     expect(shape(gantt(d.canonicalSource))).toEqual(shape(d))

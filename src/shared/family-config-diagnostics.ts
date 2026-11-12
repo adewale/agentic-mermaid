@@ -4,6 +4,7 @@ import type { FamilyConfigContract, FamilyOperations } from '../agent/families.t
 import type { ConfigValueRule } from './config-value-rules.ts'
 import { getInstalledFamilyDescriptor } from '../agent/family-router.ts'
 import { compareCodePointStrings } from './deterministic-order.ts'
+import { mermaidThemeConfigDiagnostics } from '../color-resolver.ts'
 
 export type FamilyConfigSpec = FamilyConfigContract
 
@@ -97,11 +98,13 @@ export function familyConfigDiagnostics(
   spec?: FamilyConfigContract,
   hook?: FamilyOperations['configDiagnostics'],
 ): ConfigDiagnostic[] {
-  if (!spec) return []
+  // `theme` is shared by every family, so a family descriptor cannot own it.
+  const theme = roots.flatMap(mermaidThemeConfigDiagnostics)
+  if (!spec) return stableDiagnostics(theme)
   const diagnose = hook ?? getInstalledFamilyDescriptor(kind)?.configDiagnostics
-  return stableDiagnostics(roots.flatMap(root => diagnose
+  return stableDiagnostics([...theme, ...roots.flatMap(root => diagnose
     ? [...diagnose({ root, config: spec })]
-    : diagnoseFamilyConfig(kind, { root, config: spec })))
+    : diagnoseFamilyConfig(kind, { root, config: spec }))])
 }
 
 /** Diagnostics for the explicit RenderOptions.mermaidConfig entry path. */

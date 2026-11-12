@@ -1,4 +1,4 @@
-import { terminalArtifact, serializeTerminalArtifact, type TerminalArtifact } from './terminal-artifact.ts'
+import { terminalArtifact, type TerminalArtifact } from './terminal-artifact.ts'
 import type { MindmapDiagram, MindmapNode } from '../mindmap/types.ts'
 import type { AsciiConfig, AsciiTheme, ColorMode } from './types.ts'
 import { TerminalDocument, type TerminalOwner } from './terminal-document.ts'
@@ -86,7 +86,3 @@ function delimiters(node: MindmapNode): readonly [string, string] {
   return ['', '']
 }
 
-/** Compatibility string entry point; native dispatch retains the drawing. */
-export function renderMindmapAscii(...args: Parameters<typeof renderMindmapTerminal>): string {
-  return serializeTerminalArtifact(renderMindmapTerminal(...args))
-}

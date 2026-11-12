@@ -28,7 +28,6 @@ import {
   type InternalStyleFace,
   type StyleSpec,
 } from './scene/style-registry.ts'
-import { styleSpecJsonSchema } from './scene/style-spec.ts'
 import { safeCssColor, safeCssPaint } from './shared/css-color.ts'
 import { safeCssFontFamily } from './shared/css-font.ts'
 import { assertJsonConfigAdmission, isForbiddenJsonConfigKey, JSON_CONFIG_ADMISSION_LIMITS } from './shared/json-config-admission.ts'
@@ -94,6 +93,8 @@ export {
   renderSchemaProblems,
   validateSerializableRenderOptions,
   sharedRenderOptionsJsonSchema,
+  renderOptionsSchemaDefinitions,
+  misplacedRenderOptionHint,
   styleInputJsonSchema,
 } from './render-option-contract.ts'
 

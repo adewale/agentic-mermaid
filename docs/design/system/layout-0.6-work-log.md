@@ -4,7 +4,26 @@ Current work order: [Native replacement plan](layout-0.6-qualification.md).
 The dated records below are historical evidence; earlier “next” statements do not
 create parallel active queues. No retained experiment or output is discarded.
 
-Current follow-up at `004c2a7330e82bc25c85d750edf9fd5c1733e00a`:
+12 November integration: ordinary merge of Main
+`9136b07efb8944a1058de9834b18fe5916884174` into PR
+`322d0ef560722d77512a085c2607de37c895bd81`. Keeps one extracted
+measurement/completion/options owner and Main's schema definitions, XML checks,
+report-mode semantics, self-loop and frame routing repairs. No cap/default/version
+changes relative to Main. Owning layout/route/ER 936P, shared contracts 100P,
+reviewed visual/geometry 6P; core/repository types and scoped lint pass. Combined
+sheet differs from Main only in the two reviewed Requirement arrow-clearance
+cells; Main's eight Gantt/GitGraph cell changes remain. Evidence:
+`main913-resolution-evidence`, `main913-brand-pixel-diff.json` and owning logs.
+No new performance or delivery gain claimed from this integration. Full CI and
+combined Trident/runtime/payload requalification remain pending. Native100's
+prior SVG median 98.71ms has a 109.02ms process counterexample; Chain300 remains
+unknown at 400,000 operations. Unshipped payload work is separate, including
+three repaired provenance false-pass witnesses awaiting merged qualification.
+Next: qualify this merge, then port the reviewed payload subtraction and remove
+the next measured Chain300 repeat. Automations remain disabled.
+
+Historical follow-up at `004c2a7330e82bc25c85d750edf9fd5c1733e00a`:
+
 async-only style deferral fixes the introduced ZenUML style-acquisition failure
 (existing emitted owner 1P/2F→3P/0F). Plain-browser payload/heap gains persist;
 styled Flowchart adds one request and ~1.1KB gzip. CI on this exact head stops

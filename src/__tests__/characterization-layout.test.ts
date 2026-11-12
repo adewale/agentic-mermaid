@@ -305,22 +305,20 @@ describe('characterisation · Tier B · structural (trees & chains)', () => {
   // edge count. Pins the documented round-trip contract (reverse.ts) and that
   // edges actually connect their endpoints. Scoped to chains, where reverse is
   // reliable. Kills mutants that drop edges or merge boxes.
-  it('P8 structural round-trip — linear chains recover node/edge counts', () => {
-    fc.assert(
-      fc.property(fc.integer({ min: 2, max: 8 }), (n) => {
-        const ns = ids(n, 'C')
-        const src = ['graph LR', ...ns.map((x) => `${x}[${x}]`),
-          ...ns.slice(0, -1).map((x, i) => `${x} --> ${ns[i + 1]}`)].join('\n')
-        const r = asciiToMermaid(renderMermaidASCII(src, U))
-        expect(r.ok).toBe(true)
-        if (!r.ok) return
-        const nodeLines = r.value.split('\n').filter((l) => /^ {2}N\d+\[/.test(l)).length
-        const edgeLines = (r.value.match(/-->/g) ?? []).length
-        expect(nodeLines).toBe(n)
-        expect(edgeLines).toBe(n - 1)
-      }),
-      fcParameters({ numRuns: 30 }),
-    )
+  it('P8 structural round-trip — linear chains recover their labels and links', () => {
+    // A finite domain (2..8 nodes): every size runs.
+    for (let n = 2; n <= 8; n++) {
+      const ns = ids(n, 'C')
+      const src = ['graph LR', ...ns.map((x) => `${x}[${x}]`),
+        ...ns.slice(0, -1).map((x, i) => `${x} --> ${ns[i + 1]}`)].join('\n')
+      const r = asciiToMermaid(renderMermaidASCII(src, U))
+      expect(r.ok).toBe(true)
+      if (!r.ok) continue
+      const labelOf = new Map([...r.value.matchAll(/^ {2}(N\d+)\[([^\]]*)\]$/gm)].map(([, id, label]) => [id!, label!]))
+      const links = [...r.value.matchAll(/^ {2}(N\d+) --> (N\d+)$/gm)].map(([, from, to]) => [labelOf.get(from!), labelOf.get(to!)])
+      expect({ n, labels: [...labelOf.values()].sort() }).toEqual({ n, labels: [...ns].sort() })
+      expect({ n, links: links.sort() }).toEqual({ n, links: ns.slice(0, -1).map((x, i) => [x, ns[i + 1]]).sort() })
+    }
   })
 })
 
@@ -333,17 +331,14 @@ describe('characterisation · Tier C · metamorphic & topology regressions', () 
   // TD then flips; this pins that contract. Scoped to chains so the flip is
   // exact. Kills mutants in the BT flip / arrow remap.
   it('P9a BT equals vertical flip of TD (chains)', () => {
-    fc.assert(
-      fc.property(fc.integer({ min: 2, max: 6 }), (n) => {
-        const ns = ids(n, 'B')
-        const decls = ns.map((x) => `${x}[${x}]`)
-        const links = ns.slice(0, -1).map((x, i) => `${x} --> ${ns[i + 1]}`)
-        const td = renderMermaidASCII(['graph TD', ...decls, ...links].join('\n'), A)
-        const bt = renderMermaidASCII(['graph BT', ...decls, ...links].join('\n'), A)
-        expect(flipVertically(td)).toBe(bt)
-      }),
-      fcParameters({ numRuns: 20 }),
-    )
+    for (let n = 2; n <= 6; n++) {
+      const ns = ids(n, 'B')
+      const decls = ns.map((x) => `${x}[${x}]`)
+      const links = ns.slice(0, -1).map((x, i) => `${x} --> ${ns[i + 1]}`)
+      const td = renderMermaidASCII(['graph TD', ...decls, ...links].join('\n'), A)
+      const bt = renderMermaidASCII(['graph BT', ...decls, ...links].join('\n'), A)
+      expect({ n, bt }).toEqual({ n, bt: flipVertically(td) })
+    }
   })
 
   // P9b. RL reverses the LR main axis: every child is left of its parent,
@@ -362,17 +357,14 @@ describe('characterisation · Tier C · metamorphic & topology regressions', () 
   })
 
   it('P9b RL is the exact horizontal LR mirror for chains with mirror-stable labels', () => {
-    fc.assert(
-      fc.property(fc.integer({ min: 2, max: 6 }), (n) => {
-        const ns = ids(n, 'R')
-        const declarations = ns.map((id, index) => `${id}[${String.fromCharCode(65 + index).repeat(2)}]`)
-        const links = ns.slice(0, -1).map((id, index) => `${id} --> ${ns[index + 1]}`)
-        const lr = renderMermaidASCII(['graph LR', ...declarations, ...links].join('\n'), A)
-        const rl = renderMermaidASCII(['graph RL', ...declarations, ...links].join('\n'), A)
-        expect(rl).toBe(flipHorizontally(lr))
-      }),
-      fcParameters({ numRuns: 20 }),
-    )
+    for (let n = 2; n <= 6; n++) {
+      const ns = ids(n, 'R')
+      const declarations = ns.map((id, index) => `${id}[${String.fromCharCode(65 + index).repeat(2)}]`)
+      const links = ns.slice(0, -1).map((id, index) => `${id} --> ${ns[index + 1]}`)
+      const lr = renderMermaidASCII(['graph LR', ...declarations, ...links].join('\n'), A)
+      const rl = renderMermaidASCII(['graph RL', ...declarations, ...links].join('\n'), A)
+      expect({ n, rl }).toEqual({ n, rl: flipHorizontally(lr) })
+    }
   })
 
   it('P9b keeps the mirrored logical occupancy map coherent with every node', () => {

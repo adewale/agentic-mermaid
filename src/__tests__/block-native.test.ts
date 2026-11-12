@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'bun:test'
 import { readFileSync } from 'node:fs'
 import fc from 'fast-check'
-import { asBlock, layoutMermaid, mutate, parseRegisteredMermaid as parse, renderMermaidASCII, renderMermaidSVG, serializeMermaid, verifyMermaid } from '../agent/core.ts'
+import { asBlock, describeMermaidFacts, layoutMermaid, mutate, parseRegisteredMermaid as parse, renderMermaidASCII, renderMermaidSVG, serializeMermaid, verifyMermaid } from '../agent/core.ts'
 import { blockShapeNode, layoutBlockDiagram } from '../block/layout.ts'
 import { parseBlockDiagram } from '../block/parser.ts'
 import { blockDisplayText } from '../block/text.ts'
@@ -507,6 +507,16 @@ describe('native block', () => {
         expect(wcagContrastRatio(actualInk!, '#ffffff')).toBeGreaterThanOrEqual(4.5)
       }
     }
+  })
+  // Reduced from the structural all-families fuzz: `space:2` was written as two
+  // `space` lines, so the re-read allocated a fresh generated id per copy and
+  // its facts no longer matched the diagram that was serialized.
+  test.each([
+    'block\na\nspace:2\nb',
+    'block\ncolumns 3\nblock:g\nspace:3\nend\nspace\nspace:2\nc',
+  ])('multi-column spaces keep their identities through canonical serialization: %j', source => {
+    const body = structured(source), again = structured(serializeMermaid(body))
+    expect(describeMermaidFacts(again)).toEqual(describeMermaidFacts(body))
   })
   test('independently generated labels retain order, spans and explicit gaps', () => {
     fc.assert(

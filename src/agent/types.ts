@@ -87,13 +87,19 @@ export interface SequenceParticipant {
   links?: Record<string, string>
 }
 
+/** One name per Mermaid whole-head arrow, solid then dashed. A half-arrow
+ * keeps its exact operator in `arrow` and only its shaft here (sync/reply). */
 export type SequenceMessageStyle =
   | 'sync' // ->>
   | 'reply' // -->>
-  | 'async' // ->
-  | 'async-dashed' // -->
+  | 'line' // -> (no head)
+  | 'line-dashed' // -->
+  | 'async' // -) (open head)
+  | 'async-dashed' // --)
   | 'lost' // -x
   | 'lost-dashed' // --x
+  | 'bidirectional' // <<->>
+  | 'bidirectional-dashed' // <<-->>
 
 export type SequenceMessageArrow =
   | '<<->>'
@@ -143,7 +149,8 @@ export interface SequenceMessage {
   text: string
   textContent?: LabelContent
   style: SequenceMessageStyle
-  /** Exact closed official endpoint operator when richer than legacy style. */
+  /** Exact official operator as read. Written while it has this `style`;
+   * otherwise `style`'s own arrow is written. */
   arrow?: SequenceMessageArrow
   centralStart?: boolean
   centralEnd?: boolean
@@ -1060,14 +1067,18 @@ export interface ValidDiagram {
    * For STRUCTURED bodies, `canonicalSource` is the normalized text
    * (`normalized.text` from `mermaid-source.ts`) — used by `renderMermaidSVG`
    * + the legacy parser for the flowchart pathway. After `serializeMermaid`,
-   * the re-emitted source is rebuilt from the structured body.
+   * the re-emitted source is rebuilt from the structured body. Families whose
+   * grammar reads indentation as structure (mindmap, kanban, treemap,
+   * ishikawa) keep each line's indentation, so parsing `canonicalSource`
+   * reads the same diagram; other families' lines are trimmed.
    * AgentFlow preserves indentation in this source because flattening YAML
    * changes its meaning; copied parsed envelopes must remain executable.
    *
    * For OPAQUE bodies, the serializer emits `body.source` directly (NOT
    * `canonicalSource`) so original indentation and blank lines round-trip
    * byte-for-byte. `canonicalSource` is still set, but it's the normalized
-   * (line-trimmed) form — useful for layout / rendering, not for fidelity.
+   * form (line-trimmed, or indentation-keeping for the families above) —
+   * useful for layout / rendering, not for fidelity.
    *
    * This split exists because the legacy flowchart parser needs trimmed
    * lines, but opaque-fallback round-trip needs the original. Treat
@@ -1680,7 +1691,7 @@ export type WarningTier = 'structural' | 'geometric' | 'lint'
 export type WarningOrigin = 'source' | 'config' | 'engine'
 
 export type Tier1WarningCode = 'EMPTY_DIAGRAM' | 'EDGE_MISANCHORED' | 'OFF_CANVAS' | 'GROUP_BREACH' | 'UNKNOWN_SHAPE' | 'LABEL_OVERFLOW' | 'UNRESOLVABLE_SCHEDULE' | 'RENDER_FAILED' | 'INTERNAL_ERROR'
-export type Tier2WarningCode = 'NODE_OVERLAP' | 'CONTENT_OCCLUDED' | 'LAYOUT_LIMIT_EXCEEDED' | 'ROUTE_SELF_CROSS' | 'ROUTE_HITCH' | 'ROUTE_UNEXPLAINED_BEND' | 'ROUTE_LABEL_ON_SHARED_TRUNK' | 'ROUTE_SELF_LOOP_OCCUPANCY' | 'ROUTE_CONTAINER_MISANCHOR' | 'ROUTE_SHAPE_MISANCHOR' | 'ROUTE_STALE_AFTER_NODE_MOVE'
+export type Tier2WarningCode = 'NODE_OVERLAP' | 'CONTENT_OCCLUDED' | 'LAYOUT_LIMIT_EXCEEDED' | 'LAYOUT_UNCERTIFIED' | 'ROUTE_SELF_CROSS' | 'ROUTE_HITCH' | 'ROUTE_UNEXPLAINED_BEND' | 'ROUTE_LABEL_ON_SHARED_TRUNK' | 'ROUTE_SELF_LOOP_OCCUPANCY' | 'ROUTE_CONTAINER_MISANCHOR' | 'ROUTE_SHAPE_MISANCHOR' | 'ROUTE_STALE_AFTER_NODE_MOVE'
 /**
  * Tier 3 (advisory lint). Family-specific quality hints for common agent
  * mistakes that still parse and render. Lint warnings never flip verify.ok.
@@ -1744,6 +1755,13 @@ export type LayoutWarning =
   | { code: 'CONTENT_OCCLUDED'; target: string; feature: 'label' | 'marker'; line?: number; message: string }
   /** Content remains intact but cannot fit an explicitly requested layout budget. */
   | { code: 'LAYOUT_LIMIT_EXCEEDED'; constraint: string; message: string }
+  /**
+   * No bounded layout candidate passed certification, so report layout safety
+   * drew the best one anyway. `violation` is the failed check class (a hard
+   * rubric metric such as `endpointApproaches`, `groupHeaderBand`, or a paint
+   * issue code); `targets` are the element ids it names.
+   */
+  | { code: 'LAYOUT_UNCERTIFIED'; violation: string; targets: string[]; message: string }
   | { code: 'ROUTE_SELF_CROSS'; edge: EdgeId; count: number }
   | { code: 'ROUTE_HITCH'; edge: EdgeId; deviationPx: number }
   | { code: 'ROUTE_UNEXPLAINED_BEND'; edge: EdgeId }
@@ -1767,13 +1785,15 @@ export type LayoutWarning =
   | { code: 'COMMENT_DROPPED'; count: number; lines: number[] }
   | { code: 'UNSUPPORTED_SYNTAX'; line?: number; syntax: string; node?: NodeId; message: string }
   /**
-   * Structured content was lost across a parse → serialize → re-parse cycle:
-   * the {nodes, edges, groups} tally changed, so canonical serialization is
-   * silently dropping (or duplicating) a node/edge/group even though the bytes
-   * may re-parse. The faithfulness analogue of COMMENT_DROPPED — "100% parse
-   * success is not faithfulness" (Loop 17). Lint, never flips verify.ok.
+   * Structured content changed across a parse → serialize → re-parse cycle:
+   * the re-read states different facts (`lost`, `gained`; describeMermaidFacts),
+   * so canonical serialization is silently dropping, adding or altering
+   * content even though the bytes may re-parse; `before`/`after` carry the
+   * {nodes, edges, groups} tallies. The faithfulness analogue of
+   * COMMENT_DROPPED — "100% parse success is not faithfulness" (Loop 17).
+   * Lint, never flips verify.ok.
    */
-  | { code: 'CONTENT_DROPPED_ON_ROUNDTRIP'; before: { nodes: number; edges: number; groups: number }; after: { nodes: number; edges: number; groups: number } }
+  | { code: 'CONTENT_DROPPED_ON_ROUNDTRIP'; before: { nodes: number; edges: number; groups: number }; after: { nodes: number; edges: number; groups: number }; lost?: string[]; gained?: string[]; message?: string }
   /**
    * A Mermaid config field was accepted (for config-shape compatibility) but
    * has no effect on this family's geometry or paint — e.g. Journey's
@@ -1836,6 +1856,7 @@ export const WARNING_SEVERITY: Record<WarningCode, WarningSeverity> = {
   NODE_OVERLAP: 'warning',
   CONTENT_OCCLUDED: 'error',
   LAYOUT_LIMIT_EXCEEDED: 'warning',
+  LAYOUT_UNCERTIFIED: 'error',
   ROUTE_SELF_CROSS: 'warning',
   ROUTE_HITCH: 'warning',
   ROUTE_UNEXPLAINED_BEND: 'warning',
@@ -1876,6 +1897,7 @@ export const WARNING_TIER: Record<WarningCode, WarningTier> = {
   NODE_OVERLAP: 'geometric',
   CONTENT_OCCLUDED: 'geometric',
   LAYOUT_LIMIT_EXCEEDED: 'geometric',
+  LAYOUT_UNCERTIFIED: 'geometric',
   ROUTE_SELF_CROSS: 'geometric',
   ROUTE_HITCH: 'geometric',
   ROUTE_UNEXPLAINED_BEND: 'geometric',
@@ -1904,7 +1926,10 @@ export const WARNING_TIER: Record<WarningCode, WarningTier> = {
 export const DEFAULT_LABEL_CHAR_CAP = 40
 
 export interface VerifyOptions {
+  /** Known warning codes; any other value is refused (VerifyOptionsError). */
   suppress?: WarningCode[]
+  /** LABEL_OVERFLOW's cap, a positive safe integer (default 40); any other
+   * value is refused (VerifyOptionsError), as `am verify --label-cap` refuses it. */
   labelCharCap?: number
   /** Shared source/config/geometry/appearance options used by render parity and layout evidence. */
   renderOptions?: RenderOptions

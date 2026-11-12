@@ -1,4 +1,4 @@
-import { terminalArtifact, serializeTerminalArtifact, type TerminalArtifact } from './terminal-artifact.ts'
+import { terminalArtifact, type TerminalArtifact } from './terminal-artifact.ts'
 // ============================================================================
 // ASCII renderer — XY Chart
 //
@@ -828,7 +828,3 @@ function valueProjection(range: { min: number; max: number }, extent: number, as
   }
 }
 
-/** Compatibility string entry point; native dispatch retains the drawing. */
-export function renderXYChartAscii(...args: Parameters<typeof renderXYChartTerminal>): string {
-  return serializeTerminalArtifact(renderXYChartTerminal(...args))
-}

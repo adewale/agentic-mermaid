@@ -162,6 +162,11 @@ export function retainedNativeDrawing(request: ResolvedRenderRequest, layout: Fa
   return drawing
 }
 
+/** The receipt's layout certificate also records geometry drawn uncertified. */
+function withGeometryCertification(certification: PaintLayoutCertification, layout: FamilyLayoutResult): PaintLayoutCertification {
+  return layout.uncertifiedLayout ? Object.freeze({ ...certification, geometry: layout.uncertifiedLayout }) : certification
+}
+
 export function positionedPaintCertification(request: ResolvedRenderRequest, layout: FamilyLayoutResult): PaintLayoutCertification {
   const existing = native.get(layout)?.get(request)
   const drawing = existing?.drawing ?? retainedNativeDrawing(request, layout)
@@ -171,7 +176,7 @@ export function positionedPaintCertification(request: ResolvedRenderRequest, lay
     observeCache('paint-certification', entry.phase === 'certified' ? 'hit' : 'miss', undefined, 'native')
     if (entry.phase === 'certified') return entry.certification
     const evidence = entry.evidence
-    const certification = certifyNativePaint(evidence.header, evidence.paint, retainedFamilyProjection(layout), { outputSupported: !request.appearance.colors.shadow })
+    const certification = withGeometryCertification(certifyNativePaint(evidence.header, evidence.paint, retainedFamilyProjection(layout), { outputSupported: !request.appearance.colors.shadow }), layout)
     const retained: RetainedNativeDrawing = Object.freeze({ svg: drawing.svg, preparedText: drawing.preparedText, certification })
     if (positionedApply(positionedWeakGet, requests, [request]) === entry) {
       requests.set(request, { phase: 'certified', drawing: retained, producer: entry.producer, certification })
@@ -192,5 +197,5 @@ export function positionedPaintCertification(request: ResolvedRenderRequest, lay
   const supported = !request.appearance.colors.shadow && (plan.mode === 'layout' ? request.appearance.inferredBackend === 'default' : plan.mode === 'scene' && (plan.consumer?.kind === 'native-drawing' || plan.backend?.inputName === 'default'))
   const writer = plan.backend ?? (plan.mode === 'layout' && request.appearance.inferredBackend === 'default' ? getBackendDescriptor('default') : undefined)
   const written = supported && writer && isBuiltinDefaultBackend(writer.backend) && isOriginalEnrolledDefaultBackend(writer.backend)
-  return entry.certification = certifyScenePaint(scene, retainedFamilyProjection(layout), { outputSupported: supported, sceneWriteReceipt: written ? entry.writes : undefined })
+  return entry.certification = withGeometryCertification(certifyScenePaint(scene, retainedFamilyProjection(layout), { outputSupported: supported, sceneWriteReceipt: written ? entry.writes : undefined }), layout)
 }

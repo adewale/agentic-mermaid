@@ -7,8 +7,9 @@
 // ============================================================================
 
 import type { GridCoord, Direction } from './types.ts'
-import { gridKey, gridCoordEquals } from './types.ts'
+import { gridKey } from './types.ts'
 import { pathOccupancy, type PathOccupancy } from './occupancy.ts'
+import { observeWork } from '../performance-observations.ts'
 
 // ============================================================================
 // Priority queue (min-heap) for A* open set
@@ -17,6 +18,10 @@ import { pathOccupancy, type PathOccupancy } from './occupancy.ts'
 interface PQItem {
   coord: GridCoord
   priority: number
+  /** Path cost when queued; a later, cheaper entry for the cell makes this stale. */
+  cost: number
+  /** Heuristic distance to the target; orders equal priorities toward it. */
+  remaining: number
   /**
    * Monotonic insertion sequence. Used as a deterministic FIFO tie-breaker so
    * equal-priority nodes pop in insertion order regardless of heap topology
@@ -28,11 +33,12 @@ interface PQItem {
 }
 
 /**
- * Simple min-heap priority queue with deterministic FIFO tie-breaking.
- * For the grid sizes we handle (~100s of cells), this is more than fast enough.
+ * Simple min-heap priority queue with deterministic FIFO tie-breaking, or,
+ * when `towardTarget` is set, nearest-to-target first and then FIFO.
  */
 class MinHeap {
   private items: PQItem[] = []
+  constructor(private readonly towardTarget: boolean) {}
 
   get length(): number {
     return this.items.length
@@ -55,11 +61,13 @@ class MinHeap {
   }
 
   /**
-   * Order two heap items: by priority, then by insertion sequence (FIFO).
+   * Order two heap items: by priority, then (toward the target only) by
+   * remaining distance, then by insertion sequence (FIFO).
    * Returns true if `a` should sit above `b` in the min-heap.
    */
   private before(a: PQItem, b: PQItem): boolean {
     if (a.priority !== b.priority) return a.priority < b.priority
+    if (this.towardTarget && a.remaining !== b.remaining) return a.remaining < b.remaining
     return a.seq < b.seq
   }
 
@@ -182,9 +190,22 @@ export function getClearAxisPath(grid: PathOccupancy, from: GridCoord, to: GridC
 }
 
 
+/** Pops the exact search may spend per cell of the endpoints' heuristic
+ * distance, plus a fixed allowance for local detours around a card. Every
+ * committed golden route stays within this budget. */
+const EXACT_SEARCH_FACTOR = 8
+const EXACT_SEARCH_ALLOWANCE = 256
+
 /**
  * Find a path from `from` to `to` on the grid using A*.
  * Returns the path as an array of GridCoords, or null if no path exists.
+ *
+ * Equal-priority cells pop first-in first-out, which lets A* flood every cell
+ * of the rectangle between the endpoints before it reaches the target: work
+ * grows with that area, not with the route. Up to a budget proportional to
+ * the endpoints' distance this exact search runs unchanged, keeping its
+ * established routes. Past that budget the same A* restarts, ordering equal
+ * priorities toward the target, and expands about one cell per route cell.
  *
  * @param preferredDir - Optional exit direction tried first during neighbour
  *   expansion (see `orderedDirs`). Currently unused by the edge router; kept as
@@ -210,58 +231,87 @@ export function getPath(
   const boundY = maxY + 4
   // Iteration cap proportional to the bounded grid area (with a floor).
   const maxIterations = Math.max(10_000, (boundX + 1) * (boundY + 1) * 4)
+  const search: Search = { grid, from, to, moveDirs: buildMoveDirs(preferredDir), canStep, boundX, boundY, pops: 0 }
 
-  const moveDirs = buildMoveDirs(preferredDir)
+  const exactBudget = EXACT_SEARCH_FACTOR * heuristic(from, to) + EXACT_SEARCH_ALLOWANCE
+  let path = searchPath(search, false, Math.min(exactBudget, maxIterations))
+  if (path === undefined && exactBudget < maxIterations) path = searchPath(search, true, maxIterations)
+  observeWork('terminal-route-search', search.pops)
+  return path ?? null // #66 guard: an exhausted cap bails to the caller's fallback
+}
+
+interface Search {
+  readonly grid: PathOccupancy
+  readonly from: GridCoord
+  readonly to: GridCoord
+  readonly moveDirs: readonly GridCoord[]
+  readonly canStep: ((from: GridCoord, to: GridCoord) => boolean) | undefined
+  readonly boundX: number
+  readonly boundY: number
+  /** Cells popped across every attempt: the deterministic work measure. */
+  pops: number
+}
+
+/** One A* attempt. Returns undefined when `budget` pops did not reach the
+ * target, and null when the bounded grid holds no path. */
+function searchPath(search: Search, towardTarget: boolean, budget: number): GridCoord[] | null | undefined {
+  const { grid, from, to, moveDirs, canStep, boundX, boundY } = search
+  // Search state is keyed by one number per cell. Only the endpoints may lie
+  // below zero (every other step must be free, and free cells are >= 0).
+  const minX = Math.min(0, from.x, to.x), minY = Math.min(0, from.y, to.y)
+  const stride = boundX - minX + 1
+  const keyOf = (x: number, y: number): number => (y - minY) * stride + (x - minX)
+  const free = grid.hasCell
+    ? (x: number, y: number) => x >= 0 && y >= 0 && !grid.hasCell!(x, y)
+    : (x: number, y: number) => isFreeInGrid(grid, { x, y })
 
   let seq = 0
-  const pq = new MinHeap()
-  pq.push({ coord: from, priority: 0, seq: seq++ })
+  const pq = new MinHeap(towardTarget)
+  pq.push({ coord: from, priority: 0, cost: 0, remaining: heuristic(from, to), seq: seq++ })
 
-  const costSoFar = new Map<string, number>()
-  costSoFar.set(gridKey(from), 0)
+  const fromKey = keyOf(from.x, from.y)
+  const costSoFar = new Map<number, number>([[fromKey, 0]])
+  const cameFrom = new Map<number, GridCoord | null>([[fromKey, null]])
 
-  const cameFrom = new Map<string, GridCoord | null>()
-  cameFrom.set(gridKey(from), null)
+  for (let pops = 1; pq.length > 0; pops++) {
+    if (pops > budget) return undefined
+    search.pops++
+    const item = pq.pop()!, current = item.coord
+    const currentCost = costSoFar.get(keyOf(current.x, current.y))!
+    // A cell re-queued at a lower cost leaves its earlier entry behind.
+    // Expanding that stale entry again cannot improve any neighbour.
+    if (item.cost > currentCost) continue
 
-  let iterations = 0
-  while (pq.length > 0) {
-    if (++iterations > maxIterations) return null // #66 guard: bail to caller's fallback
-    const current = pq.pop()!.coord
-
-    if (gridCoordEquals(current, to)) {
+    if (current.x === to.x && current.y === to.y) {
       // Reconstruct path by walking backwards through cameFrom
       const path: GridCoord[] = []
       let c: GridCoord | null = current
       while (c !== null) {
         path.push(c)
-        c = cameFrom.get(gridKey(c)) ?? null
+        c = cameFrom.get(keyOf(c.x, c.y)) ?? null
       }
       return path.reverse()
     }
 
-    const currentCost = costSoFar.get(gridKey(current))!
-
     for (const dir of moveDirs) {
-      const next: GridCoord = { x: current.x + dir.x, y: current.y + dir.y }
+      const nx = current.x + dir.x, ny = current.y + dir.y
 
       // #66 guard: never expand past the bounded extent. Without this, an
       // unreachable target lets the search wander the unbounded +x/+y plane.
-      if (next.x > boundX || next.y > boundY) continue
+      if (nx > boundX || ny > boundY) continue
+      // Allow moving to the destination even if it's occupied (it's a node boundary)
+      if (!(nx === to.x && ny === to.y) && !free(nx, ny)) continue
+      const next: GridCoord = { x: nx, y: ny }
       if (canStep && !canStep(current, next)) continue
 
-      // Allow moving to the destination even if it's occupied (it's a node boundary)
-      if (!isFreeInGrid(grid, next) && !gridCoordEquals(next, to)) {
-        continue
-      }
-
       const newCost = currentCost + 1
-      const nextKey = gridKey(next)
+      const nextKey = keyOf(nx, ny)
       const existingCost = costSoFar.get(nextKey)
 
       if (existingCost === undefined || newCost < existingCost) {
         costSoFar.set(nextKey, newCost)
-        const priority = newCost + heuristic(next, to)
-        pq.push({ coord: next, priority, seq: seq++ })
+        const remaining = heuristic(next, to)
+        pq.push({ coord: next, priority: newCost + remaining, cost: newCost, remaining, seq: seq++ })
         cameFrom.set(nextKey, current)
       }
     }

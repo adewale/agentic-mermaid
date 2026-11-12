@@ -207,7 +207,7 @@ Accessibility descriptions normalize physical CR/CRLF to logical newlines before
 refolding. A successful mutation must retain the normalized fields in body,
 metadata and reloaded source. Values a family writer cannot spell without
 closing a description block or creating a directive return `INVALID_OP`
-atomically. Block, Mindmap, Sankey and Ishikawa writers carry accessibility
+atomically. Block, Kanban, Mindmap, Sankey and Ishikawa writers carry accessibility
 in owned `%% agentic-mermaid accTitle/accDescr: <JSON string>` comments. Each
 JSON string transports an authored grammar-text field, shielding global
 entities, XML and init-directive processing before its field decoder runs.
@@ -306,6 +306,13 @@ Treemap terminal output represents hierarchy and exact values, and Ishikawa
 terminal output represents the cause/effect tree. Both advertise that projection
 explicitly; neither claims to reproduce the graphical area/fishbone geometry.
 Their SVG renderers retain those domain hallmarks.
+
+Mindmap reads a repeated node identity (the same text under two parents, or a
+repeated explicit id) as another node, as Mermaid does; Mermaid keys nodes by
+an internal counter. Ours gives the first node with an identity that id and
+each later one the next free `<identity>#<n>` in document order, keeping the
+authored identity as `sourceId` for serialization. Ours rejected repeated
+identities as `MINDMAP_DUPLICATE_ID` before; that error is no longer thrown.
 
 Generated occurrence IDs describe the current serialized artifact. Structural
 edits normalize the published typed body to the same IDs and order seen by a
@@ -674,12 +681,14 @@ identified below; this record does not excuse them as opaque preservation.
 | Sequence participant declared in two boxes | **Keep the first box and warn.** Preserve the authored extension instead of changing unrelated source automatically. | Implemented. Box statements are opaque segments inside a Sequence body; serialization preserves the second declaration, so this source is still rejected by 12.2. Do not label that preservation a portable canonical rewrite. |
 | Sequence local arrow spellings | **Keep reading them, warn (`sequence_local_arrow`), and write Mermaid's arrow.** | Implemented: ours reads twelve spellings Mermaid's lexer lacks (`-\|`, `-/`, `-\`, `\|-`, `/-`, `\-` and their dashed forms), each drawn as the Mermaid arrow with the same heads and line style (`-\|` as `-\\`, `-/` as `-//`, `\|-` as `\\-`, `/-` as `//-`). The writer writes the Mermaid arrow, including in lines a fragment or opaque block keeps verbatim. Where Mermaid's sender id runs past the spelling into one of its own arrows (`A\|-B->>C`), Mermaid reads a message from `A\|-B` to `C`; ours reads the spelling as the arrow, from `A` to `B->>C`, with no warning that Mermaid reads it otherwise. Reading Mermaid's message there was removed: 0 of 106,252 real-world diagrams use the construct. |
 | Sequence deactivating an inactive participant | **Keep drawing, ignore the deactivation, and warn (`sequence_inactive_deactivation`).** | Implemented: Mermaid counts activations and rejects a deactivation at zero. The writer keeps the `-`, so that output is still rejected. |
+| Sequence text wrapped in quotes | **Draw the text inside the quotes, silently.** Quotes around a name or message are how authors delimit text, as in Flowchart labels. | Implemented: `participant A as "Alice"`, `A->>B: "hi"` and `Note over A: "n"` draw `Alice`, `hi` and `n` in SVG, PNG and ASCII, and facts and `describe` read them the same way (`src/sequence/text.ts`). Mermaid 12.2.0 accepts the source but keeps the quotes in the label (its `parseMessage` only trims and removes a `wrap:` prefix), so it draws `"Alice"`. The typed body and the writer keep the authored quotes, so exported source still draws them in Mermaid. |
 | BUG-51: Sankey's `parseFloat` leniency | **Keep strict numeric rejection.** `12x` and `x12` do not specify an unambiguous valid flow value. | The reader retains source as opaque and rendering refuses the invalid value. Upstream accepting a prefix or NaN is not a product requirement. |
 | Timeline events on a section line | **Keep the section and attach events to the latest period.** | Implemented: the lexer classifies the section before its event tail. The preceding period retains the event even when it belongs to an earlier section. An event without a prior period is rejected instead of inventing one. |
 | Timeline line starting with the word `timeline` | **Read it as a period and warn (`timeline_header_in_body`).** | Implemented: Mermaid's lexer reads the header keyword there (any case) and rejects the line; `timelines` is a period to both. |
 | Sankey characters outside printable ASCII | **Keep the text and warn (`sankey_unsupported_character`).** | Implemented: Mermaid's CSV reader rejects a tab or a non-ASCII character in a row. It has no spelling for such a label, so the writer's output stays rejected: its entity prepass turns `#233;` (any `#name;`, after its `style`/`classDef` semicolon strip) into a non-ASCII placeholder its CSV reader rejects, so verify reports a row holding one too (`sankey_unsupported_character`); ours reads and draws the code as written. The same prepass first drops the last `;` of a line where `style` or `classDef` comes before a `:` and a `#` ahead of it, so Mermaid reads `style:x#a;` as `style:x#a`; ours keeps the `;`, verify reports the line (`mermaid_cleanup`), and Mermaid has no spelling that keeps it. `&eacute;` is drawn as literal text by both. A quote inside an unquoted field is refused, as text after a closing quote already was. |
 | Sankey spaces around a quoted field | **Trim them, without a warning.** | Mermaid's CSV reader rejects a blank after a comma before a quoted field, after a closing quote, or indenting a row that starts with one (trailing whitespace at the end of the source excepted, which it trims). Ours reads the field; the writer emits no such blanks. The warning (`sankey_quoted_field_spacing`) was removed: 0 of 106,252 real-world diagrams use the construct. |
 | Malformed metadata/frontmatter YAML | **Keep rejection.** Do not guess at ambiguous mappings, brackets or tags. | Implemented. The 12.2 scalar rules are current; valid scalar compatibility and the BUG-60 writer round-trip are distinct from malformed-input rejection. |
+| Quoted YAML scalar left open, or closed through an escape | **Reject the open quote; honour `\"` inside double quotes.** | Implemented. `title: "unclosed` followed by `"k": v` is refused (`Missing closing "quote`) where js-yaml lets the later key's quote close it and reads on; `title: "a\"` followed by `b: "q"` reads `title` as `a"` (YAML's double-quoted escape) and `b` as `q`. |
 
 #### Bounded portable-output choice for extensions
 
@@ -954,6 +963,122 @@ editing stays unavailable for those sources. A leading `loop)` already starts
 a block and retains the block-boundary error when no `end` follows. Longer
 ordinary IDs such as `created)` remain writable.
 
+### Typed edits publish only what reads back
+
+A typed edit (`mutate`, `mutateChecked`, batches, `applyOps`, MCP `mutate`)
+publishes its source only when re-reading that source states the same facts as
+the edited body. Otherwise it is refused with `INVALID_OP` naming the facts
+that would change. A value a writer cannot spell is refused, never written as
+something else. Examples: `%%` in a Pie, Quadrant, Radar, Architecture or
+Class title, whose readers keep entity codes literal, so no escape exists;
+`<br>` in a Quadrant title or U+2028 in a Gantt title, which re-read as line
+breaks a single-line title cannot hold. A Sequence edit that removes the
+statement between two preserved segments leaves the one segment a re-read
+builds, and Event Modeling's native accessibility comments are read back
+decoded, as every other family's are.
+An accepted edit stores what its written source holds, so `am format` of
+that source is a byte-exact fixed point: edge whitespace a grammar drops on
+read (a Class member ` k`, a Sequence message of U+2028 alone) is dropped
+from the stored value too, as the next format would drop it. An edit whose
+written source formats to something else that does not settle is refused.
+Each value an accepted edit supplies is stated by the facts of its re-read;
+a value the mutator would drop or rewrite before writing is refused instead:
+a Gantt tag outside `active, done, crit, milestone, vert`, a Quadrant far
+axis label without a near one, a Block edge marker outside `arrow_open,
+arrow_point, arrow_circle, arrow_cross`, a directive in a Class interface
+label, a State transition named by an index and by endpoints it does not
+have, and a Packet, Kanban, Requirement, Block, Treemap or Ishikawa value
+whose written source reads back differently (a Packet title `%%`). Facts
+state an Architecture service's icon text and Event Modeling's entity
+declarations. Paint (styles, CSS classes, classDef names) and Kanban icons
+are not semantic facts.
+verify's `CONTENT_DROPPED_ON_ROUNDTRIP` compares the same facts for any
+diagram it is given, naming the facts lost and gained, so content that re-reads
+differently with unchanged node, edge and group counts is reported too.
+
+### Identities a typed edit introduces
+
+A typed edit writes only identities Mermaid 12.2.0 reads as themselves, even
+where our reader is more generous. A Flowchart node id (`add_node`,
+`rename_node`, `add_edge`) or subgraph id (`add_subgraph`) must read back as
+that id when written as a statement of its own: `A;B`, `A[B]`, `A{B}`, `a b`
+and ` A` are refused, as are ids shared with an existing subgraph or node. A
+Flowchart classDef name cannot hold `--`, which Mermaid's lexer reads as a
+link. A new State name (`add_state`, `rename_state`, `make_composite`,
+floating notes) holds no hyphen and is not `default`, `click` or `href`.
+Authored names of those shapes are still read, and verify still reports them.
+
+### Typed edits write only what Mermaid 12.2.0 reads
+
+Starting from a diagram Mermaid 12.2.0 reads, an accepted typed edit writes
+source it reads. Where a field has a portable spelling the writer uses it;
+where none exists the edit is refused, field by field. Deliberate native
+extensions stay writable and warned (State transition paint as `linkStyle`).
+
+- Class titles are written as the frontmatter `title:`. Mermaid's Class
+  grammar has no title statement: it ignores `title …`, or rejects it when the
+  title holds `(`, `!`, `*` or astral characters. An authored statement is
+  still read as the title, wins over a frontmatter title as when rendering,
+  and verify reports it (`class_title`). A Class diagram with no class is the
+  empty scaffold (`EMPTY_DIAGRAM`) whether or not it has a title.
+- Kanban accessibility is written as owned native comments, as Mindmap's is.
+  Mermaid's Kanban grammar has no accessibility statement: it draws
+  `accTitle: …` as a column and rejects braces there. Authored statements are
+  still read as metadata and reported (`kanban_accessibility`). A blank
+  Kanban class (`:::` alone, which Mermaid rejects) is not written.
+- A State transition endpoint or note target holding a hyphen has no
+  spelling (`S1 --> a-b` and `note right of a-b` are rejected; `state "…" as
+  a-b` is read), so `add_transition` and `add_note` refuse such a state even
+  when it already exists.
+- A Sankey node name a typed edit writes is printable ASCII without entity
+  codes: Mermaid's Sankey reader takes nothing else, quoted or not.
+- An ER attribute a typed edit writes is one Mermaid's attribute grammar reads
+  (each word starts with a letter, `_` or `*`); the generous forms ours reads
+  stay read-only.
+- A Class member holding a brace and a colon or semicolon has no spelling
+  (only the inline `Class : member` form carries a brace, and its text ends
+  at either); nor does a member holding `)` without a method name and `(`
+  before it, on which Mermaid's class database fails. An interface label
+  cannot start with a double quote.
+- A Treemap classDef declaration holding `;` or `,` has no spelling: the
+  CLASS_DEF token ends at `;` and the writer joins declarations with `,`.
+
+### Writers spell what readers admit
+
+`serializeMermaid` must not throw on a body the parser produced, and
+`am format` output re-reads as the same facts and formats to itself. Where a
+field has a faithful spelling the writer uses it; where none exists the reader
+keeps the source preserved instead of a typed body.
+
+- Entity-decoded text never spells a directive opener: the `%` between `%`
+  and `{` is written `#37;`, because Mermaid strips `%%{…}%%` anywhere,
+  quoted text included. A plain `%%` stays whatever the grammar context reads
+  it as (text in Mindmap nodes and State labels).
+- A Flowchart label holding U+2028 or U+2029 is written quoted. A bare label
+  ends at those terminators.
+- Requirement text holding `"` is written bare when the bare lexer reads it
+  back exactly, as Mermaid also reads it. Otherwise there is no spelling: a
+  quoted string has no escape.
+- Packet labels use only the reader's backslash escapes. Controls and lone
+  surrogates are written as themselves instead of JSON `\uXXXX` escapes,
+  which the reader takes literally.
+- Kanban markdown labels (`"`…`"`) keep their backticks; editing the label
+  text makes it plain. A plain label's leading backtick is written `#96;`.
+- Sankey rows opening with a quoted field are written unindented. Mermaid
+  rejects them indented; ours reads them and warns
+  (`sankey_indented_quoted_row`). A node name starting `%%` is quoted, so its
+  row is not a comment.
+- A C4 label holding NUL, and an Architecture title ending in a backslash,
+  have no writer spelling; such source stays preserved.
+
+### Untrusted payloads publish only what they state
+
+`synthesizeFromGraph` (`am serialize`, batch `serialize`, Code Mode) applies
+the same closure to JSON payloads: a payload whose serialization re-reads as
+different facts (a direction holding a statement, an id holding a newline, an
+edge to an undeclared node, a style for an undeclared node) is refused with
+`INVALID_PAYLOAD`. A source-preserved body is its own source and is reparsed
+as before.
 
 ### AgentFlow retains literal percent pairs in labels
 
