@@ -1,6 +1,6 @@
 import { ResolvedSceneError, type ResolvedSceneFeature } from './resolved-error.ts'
 import { tryParseCssColor, toHex } from '../shared/color-math.ts'
-import { computedStyle, cssLength, cssRules, splitCss, svgTree, type SvgElement } from './resolved-css.ts'
+import { createComputedStyleResolver, cssLength, cssRules, splitCss, svgTree, type SvgElement } from './resolved-css.ts'
 import { IDENTITY, multiply, pathData, pathEndpoints, svgMatrix } from './resolved-geometry.ts'
 import { RESOLVED_SCENE_VERSION, type Matrix, type ResolvedPaint, type ResolvedPart, type ResolvedPrimitive, type ResolvedScene, type ResolvedText } from './resolved-types.ts'
 import type { SceneDoc } from './ir.ts'
@@ -8,7 +8,7 @@ import type { SceneDoc } from './ir.ts'
 /** Resolve the emitted SVG, not the Scene's idealized geometry. */
 export function resolveSvgScene(svg: string, scene: SceneDoc, owners: readonly number[]): ResolvedScene {
   const root = svgTree(svg, owners)
-  const rules = cssRules(root)
+  const computedStyle = createComputedStyleResolver(cssRules(root))
   const styles = new Map<SvgElement, Record<string, string>>()
   const ids = new Map<string, SvgElement>()
   const parts: ResolvedPart[] = []
@@ -34,7 +34,7 @@ export function resolveSvgScene(svg: string, scene: SceneDoc, owners: readonly n
     const cached = styles.get(node)
     if (cached) return cached
     try {
-      const style = computedStyle(node, node.parent ? styleOf(node.parent) : undefined, rules)
+      const style = computedStyle(node, node.parent ? styleOf(node.parent) : undefined)
       styles.set(node, style)
       return style
     } catch (error) { return fail('css', (error as Error).message) }
@@ -163,10 +163,18 @@ export function resolveSvgScene(svg: string, scene: SceneDoc, owners: readonly n
     if (error instanceof ResolvedSceneError) throw error
     fail('geometry', (error as Error).message)
   }
-  // Detach the public data from retained admission state and omit undefined
-  // fields so the complete result survives a JSON round trip unchanged.
-  return JSON.parse(JSON.stringify({
-    version: RESOLVED_SCENE_VERSION, family: scene.family, width: scene.width, height: scene.height,
-    svg, colors: scene.colors, parts, frame,
-  })) as ResolvedScene
+  // Native JSON publication detaches data, expands aliases and keeps compact
+  // object shapes, without an escape/parse pass over the emitted SVG.
+  const published = JSON.parse(JSON.stringify({
+    family: scene.family, width: scene.width, height: scene.height,
+    colors: scene.colors, parts, frame,
+  })) as Omit<ResolvedScene, 'version' | 'svg'>
+  // Materialize the same UTF-16 value without retaining the writer's ropes.
+  const result = {
+    version: RESOLVED_SCENE_VERSION, family: published.family, width: published.width, height: published.height,
+    svg: (' ' + svg).slice(1), colors: published.colors, parts: published.parts, frame: published.frame,
+  }
+  // Preserve root omission as well as nested omission, without another walk.
+  for (const key of Object.keys(result)) if ((result as Record<string, unknown>)[key] === undefined) delete (result as Record<string, unknown>)[key]
+  return result
 }

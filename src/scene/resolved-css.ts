@@ -163,7 +163,26 @@ export function resolveVars(value: string, style: Record<string, string>, depth 
   }
 }
 
-export function computedStyle(node: SvgElement, parent: Record<string, string> | undefined, rules: Rule[]): Record<string, string> {
+/** Reuse only within this SVG, after matching selectors against the actual
+ * ancestry. Parent identity keeps inherited variables and relative units exact. */
+export function createComputedStyleResolver(rules: Rule[]) {
+  const memo = new WeakMap<object, Map<string, Record<string, string>>>()
+  return (node: SvgElement, parent: Record<string, string> | undefined): Record<string, string> => {
+    const attributes = Object.entries(node.attrs).filter(([key]) => key in CSS_DEFAULTS)
+    const matched = rules.flatMap((rule, index) => matches(node, rule.selector) ? [index] : [])
+    const inline = node.attrs.style ?? ''
+    const key = JSON.stringify([attributes, matched, inline]), owner = parent ?? CSS_DEFAULTS
+    let entries = memo.get(owner)
+    const prior = entries?.get(key)
+    if (prior) return prior
+    const style = Object.freeze(computedStyle(parent, attributes, matched.map(index => rules[index]!), inline))
+    if (!entries) { entries = new Map(); memo.set(owner, entries) }
+    entries.set(key, style)
+    return style
+  }
+}
+
+function computedStyle(parent: Record<string, string> | undefined, attributes: [string, string][], rules: Rule[], inline: string): Record<string, string> {
   const style: Record<string, string> = { ...CSS_DEFAULTS }
   if (parent) for (const [key, value] of Object.entries(parent)) if (!NON_INHERITED.has(key)) style[key] = value
   const ranks = new Map<string, number>()
@@ -175,9 +194,9 @@ export function computedStyle(node: SvgElement, parent: Record<string, string> |
       ? parent?.[decl.key] ?? CSS_DEFAULTS[decl.key] ?? ''
       : decl.value === 'initial' || decl.value === 'unset' ? CSS_DEFAULTS[decl.key] ?? '' : decl.value
   }
-  for (const [key, value] of Object.entries(node.attrs)) if (key in CSS_DEFAULTS) apply({ key, value, important: false }, 0)
-  for (const rule of rules) if (matches(node, rule.selector)) for (const decl of rule.declarations) apply(decl, rule.specificity + 1)
-  for (const decl of declarations(node.attrs.style ?? '')) apply(decl, 10000)
+  for (const [key, value] of attributes) apply({ key, value, important: false }, 0)
+  for (const rule of rules) for (const decl of rule.declarations) apply(decl, rule.specificity + 1)
+  for (const decl of declarations(inline)) apply(decl, 10000)
   // Custom properties inherit their computed value, so a child's override
   // cannot change an alias that was already resolved on an ancestor.
   const custom = { ...style }

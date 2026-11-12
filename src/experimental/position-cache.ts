@@ -26,6 +26,11 @@ const drawings = new WeightedLru<string, { owner: PositionedSnapshot; drawing: R
 const results = new WeightedLru<string, PositionedSnapshot>(128, MAX_WEIGHT, key => { drawings.delete(key) })
 const retainedResults = new WeakSet<object>()
 const copiedResults = new WeakSet<object>()
+// These operations receive private cache geometry; later transparent host
+// observers must not acquire that mutable source through a defensive copy.
+const nativeClone = globalThis.structuredClone, ownDescriptors = Object.getOwnPropertyDescriptors
+const ownDescriptor = Object.getOwnPropertyDescriptor, freezeBorrowed = Object.freeze
+const ownKeys = Object.keys, isArray = Array.isArray
 function isolatedKey(family: object, key: string): string {
   let id = familyIds.get(family)
   if (id === undefined) { id = nextFamilyId++; familyIds.set(family, id) }
@@ -37,7 +42,7 @@ const mapEntries = Map.prototype.entries, setValues = Set.prototype.values
 const mapNext = Object.getPrototypeOf(new Map().entries()).next as MapIterator<[unknown, unknown]>['next']
 const setNext = Object.getPrototypeOf(new Set().values()).next as SetIterator<unknown>['next']
 function clonedKind(value: object): 'record' | 'array' | 'map' | 'set' | 'native' {
-  if (Array.isArray(value)) return 'array'
+  if (isArray(value)) return 'array'
   const prototype = Object.getPrototypeOf(value)
   return prototype === recordPrototype || prototype === null ? 'record'
     : prototype === mapPrototype ? 'map' : prototype === setPrototype ? 'set' : 'native'
@@ -82,13 +87,13 @@ function positionedCustodyProof(source: unknown, copy: unknown, immutableText: b
       if (values.length !== copied.length) return false
       for (let index = 0; index < values.length; index++) if (!prove(values[index], copied[index])) return false
     } else {
-      if (Array.isArray(a) !== (kind === 'array')) return false
+      if (isArray(a) !== (kind === 'array')) return false
       // Constructor custody proves frozen, accessor-free data. Mutable source
       // nodes still need a single descriptor snapshot before any recursion:
       // a later Proxy trap can mutate siblings during the proof.
-      const descriptors = immutable ? undefined : Object.getOwnPropertyDescriptors(a)
-      const keys = descriptors ? Object.keys(descriptors).filter(key => descriptors[key]!.enumerable) : Object.keys(a)
-      const copied = Object.keys(b)
+      const descriptors = immutable ? undefined : ownDescriptors(a)
+      const keys = descriptors ? ownKeys(descriptors).filter(key => descriptors[key]!.enumerable) : ownKeys(a)
+      const copied = ownKeys(b)
       if (kind === 'array' && (descriptors ? descriptors.length?.value : (a as unknown[]).length) !== (b as unknown[]).length) return false
       if (keys.length !== copied.length) return false
       for (let index = 0; index < keys.length; index++) {
@@ -137,8 +142,8 @@ function transferIndependentTextCustody(source: unknown, copy: unknown): void {
         if (entries.length !== copies.length) return
         for (let i = 0; i < entries.length; i++) visit(entries[i], copies[i])
       } else if (kind === 'record' || kind === 'array') {
-        const descriptors = Object.getOwnPropertyDescriptors(a)
-        for (const key of Object.keys(b)) {
+        const descriptors = ownDescriptors(a)
+        for (const key of ownKeys(b)) {
           const descriptor = descriptors[key]
           if (descriptor?.enumerable && 'value' in descriptor) visit(descriptor.value, (b as Record<string, unknown>)[key])
         }
@@ -166,8 +171,8 @@ function transferBundleRouteOwnership(source: unknown, copy: unknown): void {
         const entries = setSnapshot(a), copies = setSnapshot(b)
         for (let i = 0; i < Math.min(entries.length, copies.length); i++) visit(entries[i], copies[i])
       } else if (kind === 'record' || kind === 'array') {
-        for (const key of Object.keys(b)) {
-          const descriptor = Object.getOwnPropertyDescriptor(a, key)
+        for (const key of ownKeys(b)) {
+          const descriptor = ownDescriptor(a, key)
           if (descriptor && 'value' in descriptor) visit(descriptor.value, (b as Record<string, unknown>)[key])
         }
       }
@@ -181,7 +186,7 @@ function transferBundleRouteOwnership(source: unknown, copy: unknown): void {
 export function clonePositioned<T>(source: T, immutableText = false): T {
   // Native admission must precede reflection: even a descriptor trap can
   // delete an uncloneable Proxy before structuredClone gets to reject it.
-  const copy = structuredClone(source)
+  const copy = nativeClone(source)
   transferBundleRouteOwnership(source, copy)
   const proof = positionedCustodyProof(source, copy, immutableText)
   if (!proof) { transferIndependentTextCustody(source, copy); return copy }
@@ -214,7 +219,7 @@ export function clonePositioned<T>(source: T, immutableText = false): T {
       if (changed) { target.clear(); for (const item of entries) target.add(item) }
     } else if (kind === 'record' || kind === 'array') {
       const target = value as Record<string, unknown>
-      for (const key of Object.keys(value)) {
+      for (const key of ownKeys(value)) {
         const item = target[key], retained = retain(item)
         if (retained !== item) target[key] = retained
       }
@@ -250,7 +255,7 @@ export function borrowedPositioned(family: object, key: string, nativeSvgRequest
   if (nativeSvgRequest && value && nativeResidency.has(value) && (reuseCapturedDrawing || !copiedResults.has(value.result))) {
     // The operation owns this wrapper. A retained request cannot keep the
     // cache graph alive through its proof after eviction or an early exit.
-    const result = Object.freeze({ ...value.result })
+    const result = freezeBorrowed({ ...value.result })
     transferGraphLayoutDecisions(value.result, result)
     nativeOwners.set(result, { key: isolated, snapshot: value, request: nativeSvgRequest })
     retainedResults.add(result)

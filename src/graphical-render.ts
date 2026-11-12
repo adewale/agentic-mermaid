@@ -191,7 +191,7 @@ function renderPositionedWithTextMeasurement(
   if (executionPlan.mode === 'scene') {
     const drawing = capture ? undefined : measureRenderStage('drawing', () => retainedNativeDrawing(request, layout))
     const scene = drawing ? undefined : measureRenderStage('scene', () => lowerPositionedFamilyScene(request, layout))
-    layoutCertification = measureRenderStage('paint-certification', () => positionedPaintCertification(request, layout))
+    layoutCertification = measureRenderStage('paint-certification', () => positionedPaintCertification(request, layout, capture ? scene : undefined))
     if (paintCertificationRefuses(request, layoutCertification)) throw new PaintLayoutCertificationError(layoutCertification)
     rawSvg = drawing?.svg ?? measureRenderStage('backend', () => {
       const backendContext = {

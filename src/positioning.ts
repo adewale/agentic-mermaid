@@ -30,6 +30,24 @@ const retainedProjections = new WeakMap<FamilyLayoutResult, FamilyPositionedView
 const borrowedNativeProducers = new WeakMap<FamilyLayoutResult, DrawingProducer>()
 const reportedFallbacks = new WeakSet<ResolvedRenderRequest>()
 
+/** Encode repeated normalized text exactly once; every other source field is
+ * still authoritative. This dictionary belongs only to this cache key. */
+function compactPositionedSource(source: Readonly<NormalizedMermaidSource>): unknown {
+  const strings: string[] = [], indices = new Map<string, number>()
+  const intern = (text: string): number => {
+    let index = indices.get(text)
+    if (index === undefined) { index = strings.length; indices.set(text, index); strings.push(text) }
+    return index
+  }
+  const projection = {
+    ...source,
+    originalText: intern(source.originalText), text: intern(source.text), body: intern(source.body),
+    lines: source.lines.map(intern), familyBody: intern(source.familyBody),
+    familyText: intern(source.familyText), familyLines: source.familyLines.map(intern),
+  }
+  return ['source-text-v1', strings, projection]
+}
+
 /** Final family checks a drawing can fail while still showing every authored
  * element with its meaning. Non-finite or off-canvas geometry loses content
  * and always refuses. */
@@ -118,7 +136,7 @@ function positionFamily(familyId: FamilyId, request: ResolvedRenderRequest, sour
   // Admitted cleanup provenance is derived entirely from originalText. Keep
   // every authoritative field; explicit source overrides retain the full key.
   const cacheSource = cacheEnabled && source === request.source ? { ...source, cleanup: undefined } : source
-  const cacheParts = cacheEnabled ? [cacheSource, request.renderOptions, request.appearance, request.familyConfig, projectionOptions, familyId === 'class' ? resolved.paintBackendId ?? 'backend:default' : undefined,
+  const cacheParts = cacheEnabled ? [source === request.source ? compactPositionedSource(cacheSource) : cacheSource, request.renderOptions, request.appearance, request.familyConfig, projectionOptions, familyId === 'class' ? resolved.paintBackendId ?? 'backend:default' : undefined,
     Object.entries(environment ?? {}).filter(([key]) => key.startsWith('APL_')).sort(), PERFORMANCE_EXPERIMENTS.map(performanceExperimentEnabled)] : undefined
   if (metricsIdentity !== undefined) cacheParts?.push(metricsIdentity)
   const cacheKey = cacheParts === undefined ? undefined : JSON.stringify(cacheParts)

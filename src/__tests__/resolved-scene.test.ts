@@ -7,8 +7,37 @@ import { readFileSync } from 'node:fs'
 import raynerTitles from './testdata/rayner-528/xy-axis-titles.json'
 import raynerGroups from './testdata/rayner-528/architecture-groups.json'
 import { createScenePartCapture } from '../scene/part-capture.ts'
+import { useTestChildren } from './helpers/test-child.ts'
+
+const runChild = useTestChildren(20_000)
 
 describe('renderResolvedScene', () => {
+  test.each(['0', '1'])('capture certifies its existing Scene without painting again with cache %s', async cache => {
+    const child = await runChild(process.execPath, ['-e', `
+      import assert from 'node:assert/strict'
+      import { spyOn } from 'bun:test'
+      import { renderResolvedScene, renderMermaidSVGWithReceipt } from './src/index.ts'
+      import * as drawing from './src/scene/native-drawing.ts'
+      import { withPerformanceObserver } from './src/performance-observations.ts'
+      renderMermaidSVGWithReceipt('pie\\n"Warmup":1')
+      const source = 'pie\\n"Read":4\\n"Other":6', draw = spyOn(drawing, 'drawNative'), events = []
+      const first = renderResolvedScene(source)
+      assert.deepEqual(renderResolvedScene(source), first)
+      assert.equal(draw.mock.calls.length, 0, 'capture already has a Scene to certify')
+      const rendered = renderMermaidSVGWithReceipt(source)
+      assert.equal(draw.mock.calls.length, 1)
+      const replay = withPerformanceObserver(event => events.push(event), () => renderResolvedScene(source))
+      assert.deepEqual(replay, first)
+      assert.equal(replay.svg, rendered.svg)
+      assert.equal(draw.mock.calls.length, 1, 'capture must not construct a discarded native drawing')
+      const certification = events.find(event => event.owner === 'paint-certification')
+      assert.equal(certification.detail, ${JSON.stringify(cache)} === '1' ? 'native' : 'scene')
+      assert.equal(certification.outcome, ${JSON.stringify(cache)} === '1' ? 'hit' : 'miss')
+    `], { cwd: `${import.meta.dir}/../..`, env: { ...process.env, AGENTIC_MERMAID_SCENE_ASSERTIONS: '0', AGENTIC_MERMAID_ELK_CACHE: cache } })
+    expect(child.stderr).toBe('')
+    expect(child.status).toBe(0)
+  })
+
   test('Venn resolves the requested accent beside authored fill and retains lossless JSON paint', () => {
     const source = 'venn-beta\nset A["Authored fill"]:20\nset B["Requested accent"]:12\nunion A,B["Shared"]:3\nstyle A fill:#e2e8f0'
     for (const accent of ['#2b6cb0', '#b83280']) {
@@ -130,6 +159,35 @@ function resolve(svg: string) {
 }
 
 describe('resolved SVG values', () => {
+  test('publishes detached JSON data while preserving the exact SVG string', () => {
+    const source = structuredClone(doc)
+    const svg = '<svg><text>Quote &quot; ' + String.fromCharCode(0xd800) + '</text></svg>'
+    const result = resolveSvgScene(svg, source, [0, 0])
+    expect(result.svg).toBe(svg)
+    expect(result).toEqual(JSON.parse(JSON.stringify(result)))
+    expect(Object.keys(result)).toEqual(['version', 'family', 'width', 'height', 'svg', 'colors', 'parts', 'frame'])
+    result.colors.bg = '#abcdef'
+    result.parts[0]!.node.id = 'consumer mutation'
+    result.parts[0]!.primitives[0]!.paint.fill = '#abcdef'
+    expect(source.colors.bg).toBe('#ffffff')
+    expect(source.parts[0]!.id).toBe('owned-ink')
+    expect(resolveSvgScene(svg, source, [0, 0]).parts[0]!.primitives[0]!.paint.fill).toBe('#000000')
+  })
+
+  test('style reuse preserves actual ancestry, parent units and request isolation', () => {
+    const svg = `<svg><style>.hot rect { fill:red } .cold rect { fill:blue }</style>
+      <g class="hot"><rect width="2" height="2"/><rect width="2" height="2"/></g>
+      <g class="cold"><rect width="2" height="2"/></g>
+      <g font-size="10"><text font-size="2em">Small</text></g>
+      <g font-size="20"><text font-size="2em">Large</text></g></svg>`
+    const primitives = resolve(svg)
+    expect(primitives.slice(0, 3).map(primitive => primitive.paint.fill)).toEqual(['#ff0000', '#ff0000', '#0000ff'])
+    expect(primitives.slice(3)).toMatchObject([{ fontSize: 20 }, { fontSize: 40 }])
+    primitives[0]!.paint.fill = '#000000'
+    expect(primitives[1]!.paint.fill).toBe('#ff0000')
+    expect(resolve(svg.replace('fill:red', 'fill:green'))[0]!.paint.fill).toBe('#008000')
+  })
+
   test('refuses missing backend ownership instead of misclassifying a part as frame ink', () => {
     const capture = createScenePartCapture()
     capture.begin({ seed: 0 }, doc)

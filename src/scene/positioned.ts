@@ -60,7 +60,7 @@ export function retainedPositionedScene(request: ResolvedRenderRequest, layout: 
 
 /** Native crisp work has no Scene document/group tree. Strong evidence and
  * alternate backends deliberately retain the extension-facing Scene adapter. */
-export function retainedNativeDrawing(request: ResolvedRenderRequest, layout: FamilyLayoutResult): RenderableNativeDrawing | undefined {
+export function retainedNativeDrawing(request: ResolvedRenderRequest, layout: FamilyLayoutResult, reuseOnly = false): RenderableNativeDrawing | undefined {
   const plan = resolvedRenderExecutionPlanOf(request)
   let bypass = sceneAssertionsEnabled(request) ? 'scene-assertions' : plan.family.id.startsWith('family:') ? 'external-family'
     : plan.backend && !isBuiltinDefaultBackend(plan.backend.backend) ? 'alternate-backend'
@@ -103,6 +103,8 @@ export function retainedNativeDrawing(request: ResolvedRenderRequest, layout: Fa
     producer = nativeDrawingOf(plan.family.lowerScene)
   }
   observeCache('native-drawing', 'miss')
+  // Capture already has an admitted Scene; a cache miss must not paint it again.
+  if (reuseOnly) return undefined
   producer = nativeDrawingOf(plan.family.lowerScene)
   if (!producer) {
     observeCache('native-drawing', 'bypass', 'no-native-producer')
@@ -123,9 +125,9 @@ function withGeometryCertification(certification: PaintLayoutCertification, layo
   return layout.uncertifiedLayout ? Object.freeze({ ...certification, geometry: layout.uncertifiedLayout }) : certification
 }
 
-export function positionedPaintCertification(request: ResolvedRenderRequest, layout: FamilyLayoutResult): PaintLayoutCertification {
+export function positionedPaintCertification(request: ResolvedRenderRequest, layout: FamilyLayoutResult, capturedScene?: SceneDoc): PaintLayoutCertification {
   const existing = native.get(layout)?.get(request)
-  const drawing = existing?.drawing ?? retainedNativeDrawing(request, layout)
+  const drawing = existing?.drawing ?? retainedNativeDrawing(request, layout, capturedScene !== undefined)
   if (drawing) {
     const entry = native.get(layout)!.get(request)!
     observeCache('paint-certification', entry.certification ? 'hit' : 'miss', undefined, 'native')
@@ -142,7 +144,7 @@ export function positionedPaintCertification(request: ResolvedRenderRequest, lay
     }
     return certification
   }
-  const scene = retainedPositionedScene(request, layout)
+  const scene = capturedScene ?? retainedPositionedScene(request, layout)
   const entry = retained.get(layout)!.get(request)!
   observeCache('paint-certification', entry.certification ? 'hit' : 'miss', undefined, 'scene')
   if (entry.certification) return entry.certification

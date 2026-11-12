@@ -3,6 +3,79 @@ import { useTestChildren } from './helpers/test-child.ts'
 
 const runChild = useTestChildren(20_000)
 
+test('exact compact keys admit repeated source text without merging authored identities or overrides', async () => {
+  const child = await runChild(process.execPath, ['-e', `
+    import assert from 'node:assert/strict'
+    import { spyOn } from 'bun:test'
+    import './src/index.ts'
+    import { resolveRenderRequestForExecution, resolvedRenderExecutionPlanOf } from './src/render-contract.ts'
+    import { positionResolvedFamily } from './src/positioning.ts'
+    import * as cache from './src/experimental/position-cache.ts'
+    import { withPerformanceObserver } from './src/performance-observations.ts'
+    const lookup = spyOn(cache, 'cachedPositioned'), events = []
+    const position = (request, source = request.source) => withPerformanceObserver(event => events.push(event),
+      () => positionResolvedFamily(resolvedRenderExecutionPlanOf(request).family.id, request, source))
+    const lines = ['kanban']
+    for (let stage = 0; stage < 12; stage++) {
+      lines.push('  stage' + stage + '[Stage ' + stage + ']')
+      for (let task = 0; task < 20; task++) lines.push('    task' + stage + '_' + task + '[Task ' + stage + '.' + task
+        + ']@{assigned: "Owner ' + task % 4 + '", ticket: "AM-' + (stage * 20 + task) + '"}')
+    }
+    const large = resolveRenderRequestForExecution(lines.join(String.fromCharCode(10)), { style: 'crisp', seed: 7 }, 'svg')
+    assert.ok(JSON.stringify({ ...large.source, cleanup: undefined }).length > 65536)
+    const first = position(large), key = lookup.mock.calls.at(-1)[1]
+    assert.ok(key.length <= 65536, 'compaction must fit the unchanged admission limit')
+    events.length = 0
+    assert.deepEqual(position(large), first)
+    assert.ok(events.some(event => event.owner === 'positioned-layout' && event.outcome === 'hit'))
+    const authored = ['sequenceDiagram\\nA->>B: A &amp; B', 'sequenceDiagram\\nA->>B: A & B']
+    const keys = authored.map(text => {
+      const request = resolveRenderRequestForExecution(text, {}, 'svg')
+      position(request)
+      return lookup.mock.calls.at(-1)[1]
+    })
+    assert.notEqual(keys[0], keys[1], 'equal decoded text must retain different authored bytes')
+    const request = resolveRenderRequestForExecution('sequenceDiagram\\nA->>B: raw override', {}, 'svg')
+    position(request)
+    const compact = lookup.mock.calls.at(-1)[1]
+    const override = { ...request.source }
+    position(request, override)
+    const raw = lookup.mock.calls.at(-1)[1]
+    assert.notEqual(raw, compact, 'an explicit override cannot inherit the canonical source encoding')
+    assert.deepEqual(JSON.parse(raw)[0], JSON.parse(JSON.stringify(override)))
+    position(request, { ...override, wrapperSource: 'authoritative override wrapper' })
+    assert.notEqual(lookup.mock.calls.at(-1)[1], raw, 'other authoritative fields remain in the key')
+  `], { cwd: `${import.meta.dir}/../..`, env: { ...process.env, AGENTIC_MERMAID_SCENE_ASSERTIONS: '0', AGENTIC_MERMAID_ELK_CACHE: '1' } })
+  expect(child.stderr).toBe('')
+  expect(child.status).toBe(0)
+})
+
+test.each(['structuredClone', 'getOwnPropertyDescriptors', 'getOwnPropertyDescriptor', 'freeze', 'isArray', 'keys'])('warm public copies do not expose cache geometry through %s', async hook => {
+  const child = await runChild(process.execPath, ['-e', `
+    import assert from 'node:assert/strict'
+    import { renderResolvedScene } from './src/index.ts'
+    import { layoutMermaidWithReceipt } from './src/agent/index.ts'
+    const hook = ${JSON.stringify(hook)}, owner = hook === 'structuredClone' ? globalThis : hook === 'isArray' ? Array : Object
+    const render = hook === 'freeze' ? renderResolvedScene : layoutMermaidWithReceipt
+    const source = 'sequenceDiagram\\nLoanOwnerA->>LoanOwnerB: owned copy'
+    render(source)
+    const expected = render(source), captured = []
+    assert.deepEqual(render(source), expected)
+    const previous = Object.getOwnPropertyDescriptor(owner, hook), define = Object.defineProperty, apply = Reflect.apply
+    define(owner, hook, { ...previous, value: function(...args) {
+      const candidate = args[0]?.positioned
+      const positioned = typeof candidate?.width === 'number' ? candidate : candidate?.value
+      if (positioned && typeof positioned.width === 'number' && !Object.isFrozen(positioned)) captured.push(positioned)
+      return apply(previous.value, this, args)
+    } })
+    try { assert.deepEqual(render(source), expected) } finally { define(owner, hook, previous) }
+    for (const positioned of captured) positioned.width += 123
+    assert.deepEqual(render(source), expected, 'observing a defensive copy must not grant mutable cache ownership')
+  `], { cwd: `${import.meta.dir}/../..`, env: { ...process.env, AGENTIC_MERMAID_SCENE_ASSERTIONS: '0', AGENTIC_MERMAID_ELK_CACHE: '1' } })
+  expect(child.stderr).toBe('')
+  expect(child.status).toBe(0)
+})
+
 test('copied native snapshots skip drawing and certification replay without exposing cached geometry', async () => {
   const child = await runChild(process.execPath, ['-e', `
     import assert from 'node:assert/strict'
