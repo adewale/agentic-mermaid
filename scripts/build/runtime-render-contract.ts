@@ -400,7 +400,7 @@ export function runtimeRenderContractPlugin({ schemaDocumentation = true, termin
         const postprocessPath = resolve(dirname(structurePath), 'svg-postprocess.ts')
         build.onResolve({ filter: /[\\/]svg-postprocess\.ts$/ }, args => resolve(args.resolveDir, args.path) === postprocessPath ? { path: structurePath } : undefined)
         build.onLoad({ filter: /[\\/]src[\\/]svg-structure\.ts$/ }, ({ path }) => path !== structurePath ? undefined : ({
-          contents: `${readFileSync(path, 'utf8')}\n${withoutRuntimeImport(readFileSync(postprocessPath, 'utf8'), path, './svg-structure.ts', ['scanSvgStartTags', 'transformSvgAttributes', 'transformSvgCssValues'])}`, loader: 'ts', resolveDir: dirname(path),
+          contents: `${readFileSync(path, 'utf8')}\n${withoutRuntimeImport(readFileSync(postprocessPath, 'utf8'), path, './svg-structure.ts', ['isSvgCssValueAttribute', 'scanSvgStartTags', 'svgStyleRanges', 'transformSvgAttributes', 'transformSvgCssValues'])}`, loader: 'ts', resolveDir: dirname(path),
         }))
         const grammarPath = fileURLToPath(new URL('../../src/shared/grammar-text.ts', import.meta.url))
         const syntaxPath = resolve(dirname(grammarPath), 'syntax-error.ts')
