@@ -2209,3 +2209,17 @@ value review supports the bounded warm benefit with these explicit costs.
 Next: co-produce structural closure facts for semantic validation, without
 waiving bounds/CSS/references/budgets; remove remaining actual pipeline work.
 
+Actual-write handoff after d4d3f371: rectangle paint reuses its written attribute
+inventory; private variable-use obligations stop rescanning after saturation;
+normalized connectors pass the bound served route into the existing reduced
+paint consumer, removing a full mark overlay. No cache or cap change.
+Native100 proof work 270326→238786; Chain300 both remain unknown at400000.
+Owning88 tests, core/repository types and lint pass. Trident310 returned SVGs
+and non-cert receipts,194 authored meaning/ink/quality vectors exact;12 same
+errors. Matched12 workers/27 full products exact except work: SVG process
+medians118.02/137.65/120.80→88.79/109.02/98.71ms. One remains109.02ms. Full warm
+166.61→171.04ms and cold381.41→412.66ms are adverse; RSS156.83→156.85MiB and
+heap43.255→43.319MiB. Browser4 products exact except work; requests unchanged;
+mixed gzip785864→786669(+805), Brotli625965→626598(+633), all caps still fail;
+JS heap+7996/+9436B. This is a bounded SVG gain, not completion. Next: remove
+repeated actual resource geometry work and finish payload/observer qualification.

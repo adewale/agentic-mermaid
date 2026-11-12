@@ -20,7 +20,7 @@ import { createNativeSceneValidator, SceneValidationError, SCENE_VALIDATION_LIMI
 import { withDeferredTerminalProjections } from './deferred-terminal-projection.ts'
 import { retainedGroupEmission } from './group-emission.ts'
 import { createNativePaintEmission, createOriginalNativePaintEmission, MAX_OCCLUSION_OPERATIONS } from './native-paint-emission.ts'
-import { writeNativeGroupOpening, type SvgTextPaintWrite, type SvgXmlWrite } from './svg-writer.ts'
+import { writeNativeGroupOpening, type SvgTextPaintWrite, type SvgXmlWrite, type SvgXmlCapture } from './svg-writer.ts'
 
 interface FragmentData {
   readonly svg: string
@@ -39,7 +39,7 @@ interface GroupFragment extends FragmentData {
   readonly conditional: boolean
   readonly opacity: number
 }
-type Fragment = (FragmentData & { readonly kind: 'leaf'; readonly node: LeafNode; readonly textPaint?: SvgTextPaintWrite; readonly conditional: boolean }) | GroupFragment
+type Fragment = (FragmentData & { readonly kind: 'leaf'; readonly node: LeafNode; readonly textPaint?: SvgTextPaintWrite; readonly geometryPaint?: true; readonly conditional: boolean }) | GroupFragment
 export interface NativeDrawing {
   readonly svg: string
   readonly paint: ScenePaintGeometryInspection
@@ -66,7 +66,7 @@ function appendPrivate<T>(values: T[], value: T): void {
 
 /** Feed each emitted occurrence to inspection without copying its descendants
  * every time a group wraps them. Reused fragments keep distinct occurrence keys. */
-function inspectPaint(header: PaintInspectionHeader, parts: readonly Fragment[], observe: (node: LeafNode, svg: string, paintWrite?: SvgTextPaintWrite, xmlWrite?: SvgXmlWrite) => boolean | SvgTextPaintWrite, documentFont?: string): ScenePaintGeometryInspection {
+function inspectPaint(header: PaintInspectionHeader, parts: readonly Fragment[], observe: (node: LeafNode, svg: string, paintWrite?: SvgTextPaintWrite, xmlWrite?: SvgXmlWrite) => boolean | SvgTextPaintWrite, documentFont?: string, geometryCapture?: SvgXmlCapture): ScenePaintGeometryInspection {
   const recorder = createOwnedNativePaintRecorder(header, documentFont)
   const groups: GroupFragment[] = []
   type Occurrence = Omit<NativePaintEntry, 'node' | 'key'>
@@ -96,11 +96,11 @@ function inspectPaint(header: PaintInspectionHeader, parts: readonly Fragment[],
       } else if (occurrence) {
         const observed = !fragment.conditional && observe(fragment.node, fragment.svg, fragment.textPaint, fragment.xmlWrite)
         const bound = !!observed, actualPaint = typeof observed === 'object' ? observed : undefined
-        recorder.leaf(fragment.node, key, occurrence.parentMatrix, occurrence.ancestors, occurrence.conditional || !bound, occurrence.groupOpacity, fragment.node.owner ?? occurrence.owner, actualPaint, fragment.svg)
+        recorder.leaf(fragment.node, key, occurrence.parentMatrix, occurrence.ancestors, occurrence.conditional || !bound, occurrence.groupOpacity, fragment.node.owner ?? occurrence.owner, actualPaint, fragment.svg, fragment.geometryPaint ? geometryCapture : undefined, fragment.geometryPaint ? fragment.xmlWrite : undefined)
       } else {
         const observed = !fragment.conditional && observe(fragment.node, fragment.svg, fragment.textPaint, fragment.xmlWrite)
         const bound = !!observed, actualPaint = typeof observed === 'object' ? observed : undefined
-        recorder.leaf(fragment.node, key, undefined, undefined, !bound, 1, undefined, actualPaint, fragment.svg)
+        recorder.leaf(fragment.node, key, undefined, undefined, !bound, 1, undefined, actualPaint, fragment.svg, fragment.geometryPaint ? geometryCapture : undefined, fragment.geometryPaint ? fragment.xmlWrite : undefined)
       }
     }
   }
@@ -147,7 +147,7 @@ function drawNativeImplementation(producer: DrawingProducer, context: RenderCont
   const leaf = (node: LeafNode): Fragment => {
     const captured = emission.leaf(node, (captured, sink) => validator.write(captured, xml, 0, sink), xml)
     const svg = captured.svg
-    return ownFragment({ kind: 'leaf', node: captured.paintNode, svg, xmlWrite: captured.xmlWrite!, textPaint: captured.textPaint, conditional: captured.conditional, nodeCount: 1, depth: 0,
+    return ownFragment({ kind: 'leaf', node: captured.paintNode, svg, xmlWrite: captured.xmlWrite!, textPaint: captured.textPaint, geometryPaint: captured.geometryPaint, conditional: captured.conditional, nodeCount: 1, depth: 0,
       prepared: node.kind === 'document' ? !/<\s*text/i.test(svg)
         : node.kind !== 'text' || node.measurement === 'prepared' && node.block !== undefined })
   }
@@ -287,7 +287,7 @@ function drawNativeImplementation(producer: DrawingProducer, context: RenderCont
   if (!finalHeader || !emission.same({ ...finalHeader, width: Number(formatSvgNumber(finalHeader.width)), height: Number(formatSvgNumber(finalHeader.height)) }, paintHeader)) emission.uncertain()
   const font = emittedHeader ? Object.getOwnPropertyDescriptor(emittedHeader.colors, 'font') : undefined
   const documentFont = font && Object.hasOwn(font, 'value') && typeof font.value === 'string' ? font.value : undefined
-  const paint = inspectPaint(paintHeader, parts, emission.observe, documentFont)
+  const paint = inspectPaint(paintHeader, parts, emission.observe, documentFont, xml)
   // The styled backdrop is emitted outside the recorder's primitive roster.
   // It excludes only new proofs requiring a closed marker-paint context.
   emission.finish(paint, paintHeader, xmlWrite, backdrop !== '')

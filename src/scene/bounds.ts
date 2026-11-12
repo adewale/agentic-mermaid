@@ -628,18 +628,18 @@ export function ribbonEndOvershoot(near: number, far: number, rise: number, half
   return Math.min(half, reach)
 }
 
-function connectorPaintBounds(node: ConnectorMark, transform?: SceneTransform): AxisAlignedBox | undefined {
-  const geometry = node.route.geometry
+function connectorPaintBounds(node: ConnectorMark, transform?: SceneTransform, actualRoute?: ConnectorMark['route']): AxisAlignedBox | undefined {
+  const geometry = (actualRoute ?? node.route).geometry
   const local = geometryBounds(geometry)
-  const extent = paintedStrokeExtent({ stroke: node.stroke.color, strokeWidth: String(node.stroke.width), strokeLinecap: node.stroke.lineCap, strokeLinejoin: node.stroke.lineJoin, strokeMiterlimit: String(node.stroke.miterLimit) }, connectorStrokeHasJoins(node.route))
+  const extent = paintedStrokeExtent({ stroke: node.stroke.color, strokeWidth: String(node.stroke.width), strokeLinecap: node.stroke.lineCap, strokeLinejoin: node.stroke.lineJoin, strokeMiterlimit: String(node.stroke.miterLimit) }, connectorStrokeHasJoins(actualRoute ?? node.route))
   if (!local || extent === undefined) return undefined
   const singleCubic = geometry.kind === 'path' && node.stroke.lineCap === 'butt' && !node.stroke.nonScaling
     ? ribbonCubicStrokeBounds(geometry.d, numericStrokeWidth(node.stroke.width) / 2) : undefined
   let result = singleCubic ? transformedBounds(singleCubic, transform) : paintedBox(local, extent, node.stroke.nonScaling, transform)
   if (!result) return undefined
   const width = numericStrokeWidth(node.stroke.width)
-  const anchors = connectorEndpointAnchors(geometry, node.route.closed)
-  const mids = connectorMidpoints(geometry, node.route.closed)
+  const anchors = connectorEndpointAnchors(geometry, (actualRoute ?? node.route).closed)
+  const mids = connectorMidpoints(geometry, (actualRoute ?? node.route).closed)
   const markers: Array<{ marker: MarkerDescriptor; anchor: ScenePoint | undefined }> = [
     ...anchors.starts.flatMap(anchor => node.markers.start ? [{ marker: node.markers.start, anchor }] : []),
     ...anchors.ends.flatMap(anchor => node.markers.end ? [{ marker: node.markers.end, anchor }] : []),
@@ -675,11 +675,11 @@ function connectorPaintBounds(node: ConnectorMark, transform?: SceneTransform): 
 /** Conservative painted bounds, independent of legacy layout/hit envelopes.
  * Pass the ancestor transform before stroke expansion, so non-scaling strokes
  * retain their world-space width. Unknown artwork is wholly unmeasured. */
-export function nodePaintBounds(node: SceneNode, parentTransform?: SceneTransform, documentFont?: string, actualTextPaint?: MarkPaint): AxisAlignedBox | undefined {
-  return paintBounds(node, parentTransform, documentFont, actualTextPaint)
+export function nodePaintBounds(node: SceneNode, parentTransform?: SceneTransform, documentFont?: string, actualTextPaint?: MarkPaint, actualRoute?: ConnectorMark['route']): AxisAlignedBox | undefined {
+  return paintBounds(node, parentTransform, documentFont, actualTextPaint, actualRoute)
 }
 
-function paintBounds(node: SceneNode, parentTransform?: SceneTransform, documentFont?: string, actualTextPaint?: MarkPaint): AxisAlignedBox | undefined {
+function paintBounds(node: SceneNode, parentTransform?: SceneTransform, documentFont?: string, actualTextPaint?: MarkPaint, actualRoute?: ConnectorMark['route']): AxisAlignedBox | undefined {
   const transform = composedTransform(parentTransform, node.transform)
   if (transform && !inverseMatrix(transformMatrix(transform))) return undefined
   let local: AxisAlignedBox | undefined
@@ -701,7 +701,7 @@ function paintBounds(node: SceneNode, parentTransform?: SceneTransform, document
     const alternateBounds = strokedBox(node.geometry, local, alternate, node.conditionalPaint.strokeLinecap, node.conditionalPaint.vectorEffect === 'non-scaling-stroke', transform)
     return alternateBounds ? unionSceneBounds(base, alternateBounds) : undefined
   } else if (node.kind === 'connector') {
-    return connectorPaintBounds(node, transform)
+    return connectorPaintBounds(node, transform, actualRoute)
   } else if (node.kind === 'text') {
     // nodeWorldBounds already uses the retained occupied band/offset. Apply
     // the transform only once, after optional text stroke expansion.

@@ -28,7 +28,7 @@ import { nativeGroupOpeningOf, validatePlainNativeGroup, validateWrittenNativeGr
 // Fresh written facts must be sealed before ambient hooks can observe them.
 const writtenFactFreeze = Object.freeze, writtenFactDefine = Object.defineProperty, writtenFactSeal = Object.preventExtensions
 const writtenFactDescriptor = Object.getOwnPropertyDescriptor, writtenFactOwn = Object.hasOwn
-const writtenFactKeys = Reflect.ownKeys, writtenFactExtensible = Object.isExtensible
+const writtenFactKeys = Reflect.ownKeys, writtenFactExtensible = Object.isExtensible, writtenFactPrototype = Object.getPrototypeOf
 function closedWrittenSlot(value: object, key: string, expected: unknown): boolean {
   const slot = writtenFactDescriptor(value, key)
   return !!slot && writtenFactOwn(slot, 'value') && slot.value === expected && slot.writable === false && slot.configurable === false
@@ -89,6 +89,7 @@ interface WrittenRectangle {
   readonly x: number; readonly y: number; readonly width: number; readonly height: number
   readonly rx: number | undefined; readonly ry: number | undefined
   readonly attributes: Record<string, string>
+  paintSource?: MarkPaint
   count: number
   valid: boolean
 }
@@ -407,6 +408,30 @@ class ActualGeometryWrite {
     return { kind: 'rect', x: actual.x, y: actual.y, width: actual.width, height: actual.height,
       ...(actual.rx === undefined ? {} : { rx: actual.rx }), ...(actual.ry === undefined ? {} : { ry: actual.ry }) }
   }
+  static rectanglePaint(value: unknown, capture: SvgXmlCapture, write: SvgXmlWrite | undefined, node: object, source: Geometry, paint: MarkPaint, pay: (operations: number) => boolean): MarkPaint | undefined {
+    if (!value || typeof value !== 'object' || !(#capture in value) || value.#capture !== capture || value.#write !== write || value.#node !== node) return undefined
+    const actual = XmlLeafWrite.rectangle(value.#xml)
+    if (!actual?.valid || actual.source !== source || actual.paintSource !== paint || actual.attributes.transform !== undefined || !pay(8)) return undefined
+    const result = { __proto__: null } as MarkPaint
+    let count = 0
+    // This map is the writer's private null-prototype scalar inventory. It
+    // never passes through a caller-dispatched enumeration/sealing helper.
+    for (const name in actual.attributes) {
+      if (!pay(6)) return undefined
+      const field = name as keyof MarkPaint, literal = actual.attributes[name]!
+      const slot = writtenFactDescriptor(paint, field)
+      if (!slot || !writtenFactOwn(slot, 'value') || slot.writable || slot.configurable || slot.value !== literal
+        || rectanglePaintFields[field].numeric && literal.length >= 13) return undefined
+      pinXmlSlot(result, field, literal); count++
+    }
+    if (count !== actual.count || !pay(count + 4)) return undefined
+    writtenFactSeal(result)
+    if (writtenFactExtensible(result) || writtenFactPrototype(result) !== null || writtenFactKeys(result).length !== count) return undefined
+    for (const field in actual.attributes) {
+      if (!pay(2) || !closedWrittenSlot(result, field, actual.attributes[field])) return undefined
+    }
+    return result
+  }
   static matches(value: unknown, capture: SvgXmlCapture, write: SvgXmlWrite | undefined, node: object, source: Geometry, served: Extract<Geometry, { kind: 'rect' }>, paint: MarkPaint, pay: (operations: number) => boolean): boolean {
     if (!value || typeof value !== 'object' || !(#capture in value) || value.#capture !== capture || value.#write !== write || value.#node !== node) return false
     const actual = XmlLeafWrite.rectangle(value.#xml)
@@ -414,18 +439,19 @@ class ActualGeometryWrite {
     if (served.kind !== 'rect' || served.x !== actual.x || served.y !== actual.y || served.width !== actual.width || served.height !== actual.height || served.rx !== actual.rx || served.ry !== actual.ry || actual.attributes.transform !== undefined) return false
     let matched = 0
     for (const field of Object.keys(rectanglePaintFields) as (keyof MarkPaint)[]) {
-      const expected = paint[field], literal = actual.attributes[rectanglePaintFields[field].attribute]
+      const expected = paint[field], literal = actual.attributes[field]
       if (!pay(4 + (expected?.length ?? 0) + (literal?.length ?? 0)) || literal !== expected) return false
       if (literal !== undefined) matched++
     }
     return actual.count === matched
   }
 }
-const actualWrittenProjection = ActualGeometryWrite.projection, actualWrittenGeometry = ActualGeometryWrite.geometry, actualWrittenRectangle = ActualGeometryWrite.rectangle, matchesWrittenRectangle = ActualGeometryWrite.matches
+const actualWrittenProjection = ActualGeometryWrite.projection, actualWrittenGeometry = ActualGeometryWrite.geometry, actualWrittenRectangle = ActualGeometryWrite.rectangle, matchesWrittenRectangle = ActualGeometryWrite.matches, actualWrittenRectanglePaint = ActualGeometryWrite.rectanglePaint
 function geometryFact(write: SvgXmlWrite | undefined): unknown { return write && (xmlFactApply(xmlFactGet, xmlWrites, [write]) as XmlWriteFact | undefined)?.geometry }
 export function readSvgGeometryProjection(capture: SvgXmlCapture, write: SvgXmlWrite | undefined, node: object, source: Geometry): WrittenPolylineProjection | undefined { return actualWrittenProjection(geometryFact(write), capture, write, node, source) }
 export function readSvgGeometryWrite(capture: SvgXmlCapture, write: SvgXmlWrite | undefined, node: object, source: Geometry): Geometry | undefined { return actualWrittenGeometry(geometryFact(write), capture, write, node, source) }
 export function readSvgRectangleWrite(capture: SvgXmlCapture, write: SvgXmlWrite | undefined, node: object, source: Geometry): Extract<Geometry, { kind: 'rect' }> | undefined { return actualWrittenRectangle(geometryFact(write), capture, write, node, source) }
+export function readSvgRectanglePaintWrite(capture: SvgXmlCapture, write: SvgXmlWrite | undefined, node: object, source: Geometry, paint: MarkPaint, pay: (operations: number) => boolean): MarkPaint | undefined { return actualWrittenRectanglePaint(geometryFact(write), capture, write, node, source, paint, pay) }
 export function matchesSvgRectangleWrite(capture: SvgXmlCapture, write: SvgXmlWrite | undefined, node: object, source: Geometry, served: Extract<Geometry, { kind: 'rect' }>, paint: MarkPaint, pay: (operations: number) => boolean): boolean { return matchesWrittenRectangle(geometryFact(write), capture, write, node, source, served, paint, pay) }
 
 // These names reach the private writer only as module-owned literals.
@@ -496,11 +522,18 @@ class XmlLeafWrite {
   }
   reserveScalarWork(operations: number): boolean { return this.#state.pay(operations) }
   rectanglePhase(active: boolean): void { this.#rectanglePhase = active }
-  rectangleAttribute(name: string, literal: string, escaped: unknown): void {
+  rectanglePaintSource(paint: MarkPaint): void {
     const actual = this.#rectangle
     if (!this.#rectanglePhase || !actual || !actual.valid) return
-    if (!this.#state.pay(2) || ++actual.count > 14 || actual.attributes[name] !== undefined || literal !== escaped) { actual.valid = false; return }
-    actual.attributes[name] = literal
+    if (!this.#state.pay(2) || actual.paintSource !== undefined) { actual.valid = false; return }
+    actual.paintSource = paint
+  }
+  rectangleAttribute(name: string, literal: string, escaped: unknown, field?: keyof MarkPaint): void {
+    const actual = this.#rectangle
+    if (!this.#rectanglePhase || !actual || !actual.valid) return
+    const key = field ?? name
+    if (!this.#state.pay(2) || ++actual.count > 14 || actual.attributes[key] !== undefined || literal !== escaped) { actual.valid = false; return }
+    actual.attributes[key] = literal
   }
   static markComplete(xml: XmlLeafWrite): void { xml.#complete = true }
   static completed(xml: XmlLeafWrite | undefined): boolean { return xml !== undefined && xml.#complete }
@@ -747,7 +780,7 @@ class SvgWriter {
     // Its ASCII fact closes only XML syntax, never finite geometry or paint.
     // Paint observations retain their actual literal for the existing reader.
     this.xml?.attribute(name, escaped, fixed, typeof value === 'number' && paintField === undefined)
-    this.xml?.rectangleAttribute(name, literal, escaped)
+    this.xml?.rectangleAttribute(name, literal, escaped, paintField)
     if (paintField !== undefined && this.observePaint) this.xml?.recordPaintField(paintField)
     if (name === 'transform') this.transformed = true
     this.observeAttributes?.(name, literal)
@@ -783,6 +816,7 @@ function hooks(out: SvgWriter, attributes: MarkAttributes | undefined): void {
 }
 
 function paintAttributes(out: SvgWriter, paint: MarkPaint): void {
+  out.xml?.rectanglePaintSource(paint)
   if (paint.fill !== undefined) out.paintAttribute('fill', 'fill', paint.fill)
   if (paint.fillOpacity !== undefined) out.paintAttribute('fillOpacity', 'fill-opacity', paint.fillOpacity)
   if (paint.stroke !== undefined) out.paintAttribute('stroke', 'stroke', paint.stroke)

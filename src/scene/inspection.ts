@@ -1,4 +1,4 @@
-import { readSvgTextPaintWrite, type SvgTextPaintWrite } from './svg-writer.ts'
+import { readSvgTextPaintWrite, readSvgGeometryWrite, readSvgGeometryProjection, type SvgTextPaintWrite, type SvgXmlWrite, type SvgXmlCapture } from './svg-writer.ts'
 import { isAdmittedSceneDocument } from './scene-admission-state.ts'
 import { tryParseCssColor } from '../shared/color-math.ts'
 import type { ConnectorMark, MarkPaint, SceneDoc, SceneNode, SceneOwner, SceneRole, SceneTransform, ShapeMark, TextMark } from './ir.ts'
@@ -63,6 +63,7 @@ const textPaintMap = WeakMap, textPaintSet = WeakSet, textPaintApply = Reflect.a
 const textPaintGet = WeakMap.prototype.get, textPaintPut = WeakMap.prototype.set
 const textPaintAdd = WeakSet.prototype.add, textPaintHas = WeakSet.prototype.has
 const textPaintFreeze = Object.freeze, textPaintDefine = Object.defineProperty
+const routeDescriptor = Object.getOwnPropertyDescriptor, routeOwn = Object.hasOwn, routeExtensible = Object.isExtensible
 
 /** Publish each private occurrence without caller-dispatched array callbacks. */
 export function appendPaintPrimitive(primitives: ScenePaintGeometry[], primitive: ScenePaintGeometry): void {
@@ -207,10 +208,28 @@ export function nativePaintAncestors(parent: readonly SceneOwner[] | undefined, 
 export function createOwnedNativePaintRecorder(header: PaintInspectionHeader, documentFont?: string) {
   const recorder = createPaintRecorder(header, undefined, true, documentFont, true)
   return {
-    leaf(node: NativePaintEntry['node'], key: string, parentMatrix?: AffineMatrix, ancestors: readonly SceneOwner[] = emptyAncestors, conditional = false, groupOpacity = 1, owner?: SceneOwner, paintWrite?: SvgTextPaintWrite, svg = '') {
+    leaf(node: NativePaintEntry['node'], key: string, parentMatrix?: AffineMatrix, ancestors: readonly SceneOwner[] = emptyAncestors, conditional = false, groupOpacity = 1, owner?: SceneOwner, paintWrite?: SvgTextPaintWrite, svg = '', geometryCapture?: SvgXmlCapture, geometryWrite?: SvgXmlWrite) {
       if (!textPaintApply(textPaintHas, ownedAncestors, [ancestors])) throw new TypeError('Native paint ancestors must be owned snapshots')
       const actual = paintWrite ? readSvgTextPaintWrite(paintWrite, node, svg) : undefined
-      recorder.leaf(node, key, parentMatrix, ancestors, conditional, groupOpacity, owner, undefined, false, parentMatrix === undefined, actual, actual ? paintWrite : undefined)
+      let actualRoute: ConnectorMark['route'] | undefined
+      if (geometryCapture && geometryWrite && node.kind === 'connector' && !node.transform && !node.route.closed && node.markers.mid.length === 0) {
+        const geometry = readSvgGeometryWrite(geometryCapture, geometryWrite, node, node.route.geometry)
+        const projection = readSvgGeometryProjection(geometryCapture, geometryWrite, node, node.route.geometry)
+        if (geometry?.kind === 'polyline' && projection) {
+          const contours = projection.contours, startTangent = contours[0]?.startTangent, endTangent = contours.at(-1)?.endTangent
+          const input = { ...node.route, geometry, contours, startTangent, endTangent }, sealed = textPaintFreeze(input)
+          // A foreign freeze return or altered actual operands cannot acquire
+          // the receipt's geometry authority through this private request.
+          const slot = (name: string, value: unknown): boolean => {
+            const field = routeDescriptor(input, name)
+            return !!field && routeOwn(field, 'value') && field.value === value && field.writable === false && field.configurable === false
+          }
+          if (sealed === input && !routeExtensible(input) && slot('geometry', geometry) && slot('contours', contours)
+            && slot('closed', false) && slot('startTangent', startTangent) && slot('endTangent', endTangent)
+            && slot('ownership', node.route.ownership) && slot('bendRadius', node.route.bendRadius) && slot('labelAnchors', node.route.labelAnchors)) actualRoute = input
+        }
+      }
+      recorder.leaf(node, key, parentMatrix, ancestors, conditional || !!geometryCapture && !actualRoute, groupOpacity, owner, undefined, false, parentMatrix === undefined, actual, actual ? paintWrite : undefined, actualRoute)
     },
     finish: recorder.finish,
   }
@@ -228,10 +247,10 @@ export function inspectNativePaintGeometry(header: PaintInspectionHeader, entrie
   return recorder.finish()
 }
 
-function nativePaintSource(node: Exclude<SceneNode, { kind: 'group' }>, actualTextPaint?: MarkPaint, freeze = textPaintFreeze): NativePaintSource {
+function nativePaintSource(node: Exclude<SceneNode, { kind: 'group' }>, actualTextPaint?: MarkPaint, freeze = textPaintFreeze, actualRoute?: ConnectorMark['route']): NativePaintSource {
   switch (node.kind) {
     case 'shape': return freeze({ kind: node.kind, geometry: node.geometry, paint: node.paint, ...(node.childPaints ? { childPaints: node.childPaints } : {}), ...(node.transform ? { transform: node.transform } : {}) })
-    case 'connector': return freeze({ kind: node.kind, lineStyle: node.lineStyle, endpoints: node.endpoints, route: node.route, stroke: node.stroke, markers: node.markers, ...(node.transform ? { transform: node.transform } : {}) })
+    case 'connector': return freeze({ kind: node.kind, lineStyle: node.lineStyle, endpoints: node.endpoints, route: actualRoute ?? node.route, stroke: node.stroke, markers: node.markers, ...(node.transform ? { transform: node.transform } : {}) })
     case 'text': return freeze({ kind: node.kind, paint: actualTextPaint ?? node.paint })
     case 'image':
     case 'document': return freeze({ kind: node.kind })
@@ -247,15 +266,15 @@ function createPaintRecorder(header: PaintInspectionHeader, retainText?: TextDet
   }
   const primitives: ScenePaintGeometry[] = []
   const coverage = { measured: 0, unmeasured: 0, nonPainting: 0, preparedText: 0, fallbackText: 0 }
-  const leaf = (semanticNode: Exclude<SceneNode, { kind: 'group' }>, key: string, parent: AffineMatrix | undefined, ancestors: readonly SceneOwner[], conditional: boolean, groupOpacity: number, explicitOwner?: SceneOwner, servedNode?: Exclude<SceneNode, { kind: 'group' }>, pathAuthority = false, untransformed = parent === undefined, actualTextPaint?: MarkPaint, actualPaintWrite?: SvgTextPaintWrite): void => {
+  const leaf = (semanticNode: Exclude<SceneNode, { kind: 'group' }>, key: string, parent: AffineMatrix | undefined, ancestors: readonly SceneOwner[], conditional: boolean, groupOpacity: number, explicitOwner?: SceneOwner, servedNode?: Exclude<SceneNode, { kind: 'group' }>, pathAuthority = false, untransformed = parent === undefined, actualTextPaint?: MarkPaint, actualPaintWrite?: SvgTextPaintWrite, actualRoute?: ConnectorMark['route']): void => {
     const node = servedNode ?? semanticNode
     const owner = explicitOwner ?? node.owner ?? ancestors.at(-1) ?? node.identity ?? { id: node.id, role: node.role }
-    const source = native || servedNode ? nativePaintSource(node, actualTextPaint, freeze) : undefined
+    const source = native || servedNode ? nativePaintSource(node, actualTextPaint, freeze, actualRoute) : undefined
     const hidden = groupOpacity === 0 || nonPainting(node, actualTextPaint)
     const [a, b, c, d, e, f] = parent ?? IDENTITY_MATRIX
     const parentTransform: SceneTransform | undefined = parent || node.transform ? { kind: 'matrix', a, b, c, d, e, f } : undefined
     const matrix = !parent && !node.transform ? IDENTITY_PAINT_MATRIX : freeze(composeMatrices(parent ?? IDENTITY_MATRIX, transformMatrix(node.transform)))
-    const bounds = hidden ? undefined : nodePaintBounds(node, parentTransform, documentFont, actualTextPaint)
+    const bounds = hidden ? undefined : nodePaintBounds(node, parentTransform, documentFont, actualTextPaint, actualRoute)
     const measured = node.kind !== 'image' && !!bounds && finite(bounds)
     const status = hidden ? 'non-painting' : measured ? 'measured' : 'unmeasured'
     const primitive: ScenePaintGeometry = freeze({

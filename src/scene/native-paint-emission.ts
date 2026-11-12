@@ -8,7 +8,7 @@ import { formatSvgNumber } from '../shared/svg-number.ts'
 import { safeCssFontFamily } from '../shared/css-font.ts'
 import { deferredTerminalProjectionInput, copyDeferredTerminalProjection } from './deferred-terminal-projection.ts'
 import { transferSceneNodeSerialization } from './serialization.ts'
-import { createNativeXmlWork, readSvgGeometryProjection, readSvgGeometryWrite, readSvgRectangleWrite, matchesSvgRectangleWrite, hasInheritedSvgTextPaint, closeSvgTextPaintWrite, hasSvgTextPaintClosure, matchesSvgTextPaintWrite, readSvgTextPaintWrite, type SvgTextPaintWrite, type SvgGeometryWriteSink, type SvgXmlCapture, type SvgXmlWrite } from './svg-writer.ts'
+import { createNativeXmlWork, readSvgGeometryProjection, readSvgGeometryWrite, readSvgRectangleWrite, readSvgRectanglePaintWrite, matchesSvgRectangleWrite, hasInheritedSvgTextPaint, closeSvgTextPaintWrite, hasSvgTextPaintClosure, matchesSvgTextPaintWrite, readSvgTextPaintWrite, type SvgTextPaintWrite, type SvgGeometryWriteSink, type SvgXmlCapture, type SvgXmlWrite } from './svg-writer.ts'
 import { connectorContourSemantics } from './connector-geometry.ts'
 import { rectanglePaintFields, writtenPolylineProjectionOf, prepareWrittenCompoundShape, observeWrittenCompoundShape, completeWrittenCompoundShape } from './written-geometry.ts'
 import { MAX_OCCLUSION_OPERATIONS } from './paint-work.ts'
@@ -557,7 +557,7 @@ function createPaintEmission(maxOperations: number, closeLeaves: boolean) {
     }
     return inertRectangleRecord(paint)
   }
-  const rectangleInput = (node: ShapeMark, geometry: Extract<Geometry, { kind: 'rect' }>): { paint: MarkPaint } | undefined => {
+  const rectangleInput = (node: ShapeMark, geometry: Extract<Geometry, { kind: 'rect' }>, writtenPaint = false): { paint: MarkPaint; writtenPaint?: true } | undefined => {
     if (!pay(16) || 'transform' in node || !(geometry.width > 0 && geometry.height > 0)) return undefined
     const fields = ['rx', 'ry'] as const
     for (let fieldIndex = 0; fieldIndex < fields.length; fieldIndex++) {
@@ -565,6 +565,7 @@ function createPaintEmission(maxOperations: number, closeLeaves: boolean) {
       const descriptor = Object.getOwnPropertyDescriptor(geometry, field)
       if (descriptor ? !Object.hasOwn(descriptor, 'value') || descriptor.value !== undefined && descriptor.value !== 0 : field in geometry) return undefined
     }
+    if (writtenPaint) return { paint: node.paint, writtenPaint: true }
     const paint = rectanglePaint(node.paint)
     return paint ? { paint } : undefined
   }
@@ -717,7 +718,10 @@ function createPaintEmission(maxOperations: number, closeLeaves: boolean) {
       // this a conservative upper bound. Failed reservations are conditional.
       if (!pay(2 * (1 + (node.kind === 'connector' ? node.labels.length : 0)))) return false
       if (node.kind === 'document') emissionContext.document(node, svg)
-      else if (node.kind === 'connector') emissionContext.connector(node)
+      else if (node.kind === 'connector') {
+        if (closeLeaves && capturedLeaves.has(node)) emissionContext.capturedConnector(node)
+        else emissionContext.connector(node)
+      }
       const opens = node.kind === 'document' && node.element === 'open'
       if (opens ? rootOpens !== 0 || rootCloses !== 0 : rootOpens !== 1 || rootCloses !== 0) closedMarkerContext = false
       if (node.kind === 'connector') {
@@ -826,7 +830,7 @@ function createPaintEmission(maxOperations: number, closeLeaves: boolean) {
       } else emissionContext.invalidateFractionalCircle()
       return work.exhausted() ? false : actualTextPaint ?? true
     },
-    leaf(node: Leaf, write: (node: Leaf, sink?: SvgGeometryWriteSink) => string | SvgXmlWrite, actualCapture?: SvgXmlCapture): { node: Leaf; paintNode: Leaf; svg: string; xmlWrite: SvgXmlWrite | undefined; textPaint?: SvgTextPaintWrite; conditional: boolean } {
+    leaf(node: Leaf, write: (node: Leaf, sink?: SvgGeometryWriteSink) => string | SvgXmlWrite, actualCapture?: SvgXmlCapture): { node: Leaf; paintNode: Leaf; svg: string; xmlWrite: SvgXmlWrite | undefined; textPaint?: SvgTextPaintWrite; geometryPaint?: true; conditional: boolean } {
       const serialize = (source: Leaf, sink?: SvgGeometryWriteSink): { svg: string; xmlWrite: SvgXmlWrite | undefined } => {
         const written = write(source, sink)
         if (typeof written === 'string') return { svg: written, xmlWrite: undefined }
@@ -841,7 +845,7 @@ function createPaintEmission(maxOperations: number, closeLeaves: boolean) {
       const geometry = captured.kind === 'shape' ? captured.geometry : captured.kind === 'connector' && captured.lineStyle !== 'invisible' ? captured.route.geometry : undefined
       // Eligibility is decided before validation/writing can observe inherited
       // caller hooks. Unsupported rectangles retain their legacy inspection.
-      const rectangle = captured.kind === 'shape' && geometry?.kind === 'rect' ? rectangleInput(captured, geometry) : undefined
+      const rectangle = captured.kind === 'shape' && geometry?.kind === 'rect' ? rectangleInput(captured, geometry, closeLeaves && actualCapture === xml) : undefined
       const compound = captured.kind === 'shape' && geometry?.kind === 'compound' ? prepareWrittenCompoundShape(captured, pay) : undefined
       const supported = !!compound || geometry?.kind === 'line' || geometry?.kind === 'polyline' || !!rectangle || captured.kind === 'connector' && geometry?.kind === 'path'
       // Constant custody is separate from variable projection work. The writer
@@ -879,7 +883,18 @@ function createPaintEmission(maxOperations: number, closeLeaves: boolean) {
         const actual = readSvgRectangleWrite(xml, xmlWrite, captured, geometry)
         served = actual && inertRectangleRecord(actual)
         reserved = received = !!served
-        if (!served || served.kind !== 'rect' || !matchesSvgRectangleWrite(xml, xmlWrite, captured, geometry, served, rectangle!.paint, pay)) invalid = true
+        if (rectangle!.writtenPaint) {
+          const paint = readSvgRectanglePaintWrite(xml, xmlWrite, captured, geometry, captured.paint, pay)
+          if (paint) rectangle!.paint = paint
+          else {
+            // Unsupported/foreign paint retains the original defensive field
+            // inventory. No additional write or caller getter is replayed.
+            const fallback = rectanglePaint(captured.paint)
+            if (!fallback) { if (pay()) capturedLeaves.set(captured, captured); return { node: captured, paintNode: captured, svg, xmlWrite, conditional: false } }
+            rectangle!.paint = fallback
+            if (!served || served.kind !== 'rect' || !matchesSvgRectangleWrite(xml, xmlWrite, captured, geometry, served, fallback, pay)) invalid = true
+          }
+        } else if (!served || served.kind !== 'rect' || !matchesSvgRectangleWrite(xml, xmlWrite, captured, geometry, served, rectangle!.paint, pay)) invalid = true
       } else if (directGeometry && geometry) {
         if (pay(4)) served = readSvgGeometryWrite(xml, xmlWrite, captured, geometry)
         reserved = received = !!served
@@ -909,6 +924,15 @@ function createPaintEmission(maxOperations: number, closeLeaves: boolean) {
       }
       if (served === geometry) return retained
       if (captured.transform || captured.kind === 'connector' && (captured.route.closed || served.kind === 'polyline' && captured.markers.mid.length !== 0)) return { ...retained, conditional: true }
+      // The recorder already produces the reduced Native paint source. Give
+      // it this exact write instead of first copying every complete mark slot
+      // onto another SceneNode merely to replace its route. The actual route
+      // allocation and its readonly value checks remain funded here.
+      if (closeLeaves && directGeometry && captured.kind === 'connector' && served.kind === 'polyline') {
+        const projection = readSvgGeometryProjection(xml, xmlWrite, captured, geometry)
+        if (!projection || !pay(96)) return { ...retained, conditional: true }
+        return { ...retained, geometryPaint: true, conditional: projection.collapsed }
+      }
       if (!pay(48)) return { ...retained, conditional: true }
       // A path receipt owns only the actual d literal. Keep the already paid,
       // immutable routing metadata; the certifier measures actual d segments.

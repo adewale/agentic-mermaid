@@ -6,12 +6,14 @@ import * as marks from '../scene/marks.ts'
 import { canonicalizeSceneNodeSerialization, sceneNodeSerialization, sceneHasOnlyPreparedText, sceneNodeWrite, transferSceneNodeSerialization } from '../scene/serialization.ts'
 import { validateSceneDoc } from '../scene/scene-validation.ts'
 import { preparePixelText } from '../shared/prepared-text.ts'
-import { createSvgXmlCapture, createNativeXmlWork, writeNativeGroupOpening, writeShapeSvg, writeTextSvg, writeConnectorSvg, type SvgXmlWrite, type SvgXmlCapture } from '../scene/svg-writer.ts'
+import { createSvgXmlCapture, createNativeXmlWork, writeNativeGroupOpening, readSvgRectanglePaintWrite, writeShapeSvg, writeTextSvg, writeConnectorSvg, type SvgXmlWrite, type SvgXmlCapture } from '../scene/svg-writer.ts'
 import { bindNativeGroupEmission, captureNativeGroupParse, consumeWrittenNativeGroupEmission } from '../scene/group-emission.ts'
 import { createNativePaintEmission, createOriginalNativePaintEmission } from '../scene/native-paint-emission.ts'
 import { tipAnchoredArrow, serializeMarkerResources } from '../scene/marker-resources.ts'
 import { withDeferredTerminalProjections } from '../scene/deferred-terminal-projection.ts'
 import { verifySvgDocumentEnvelope } from '../output-security.ts'
+import { createOwnedNativePaintRecorder, paintPrimitiveSource } from '../scene/inspection.ts'
+import { createEmissionContext } from '../scene/emission-context.ts'
 import { createNativeSceneValidator } from '../scene/scene-validation-core.ts'
 import type { SceneNode } from '../scene/ir.ts'
 
@@ -20,6 +22,162 @@ import type { SceneNode } from '../scene/ir.ts'
 // the bytes. Families add only inert hooks.
 const runWriterChild = useTestChildren(20000)
 describe('typed Scene SVG writer', () => {
+  test.each(['actual', 'foreign-capture', 'foreign-write', 'foreign-node', 'foreign-geometry'] as const)('served connector routes retain actual write custody: %s', mode => {
+    const emission = createOriginalNativePaintEmission(400000)
+    const node = withDeferredTerminalProjections(() => marks.connector({ id: 'route-write', role: 'edge', lineStyle: 'solid',
+      geometry: { kind: 'polyline', points: [{ x: 10.12345678901234, y: 10 }, { x: 40.12345678901234, y: 10 }] },
+      paint: { stroke: '#111', strokeWidth: '1' } }))
+    const leaf = emission.leaf(node, (source, sink) => {
+      if (source.kind !== 'connector') throw new Error('Expected connector')
+      return writeConnectorSvg(source, sink, emission.xml)
+    }, emission.xml)
+    expect(leaf.geometryPaint).toBe(true)
+    expect(leaf.conditional).toBe(false)
+    if (leaf.node.kind !== 'connector') throw new Error('Expected connector')
+    const source = mode === 'foreign-node' ? { ...leaf.node } : mode === 'foreign-geometry'
+      ? { ...leaf.node, route: { ...leaf.node.route, geometry: { ...leaf.node.route.geometry } } } : leaf.node
+    const capture = mode === 'foreign-capture' ? createNativeXmlWork(400000).capture() : emission.xml
+    const write = mode === 'foreign-write' ? emission.xml.raw(leaf.svg, leaf.node) : leaf.xmlWrite
+    const recorder = createOwnedNativePaintRecorder({ family: 'flowchart', width: 100, height: 100 })
+    recorder.leaf(source, 'route', undefined, undefined, false, 1, undefined, undefined, leaf.svg, capture, write)
+    const inspection = recorder.finish(), primitive = inspection.primitives[0]!
+    expect(primitive.visibility === 'conditional').toBe(mode !== 'actual')
+    const paint = paintPrimitiveSource(primitive)
+    if (mode === 'actual') {
+      if (paint?.kind !== 'connector' || paint.route.geometry.kind !== 'polyline') throw new Error('Expected actual connector')
+      expect(leaf.svg).toContain('points="10.123456789,10 40.123456789,10"')
+      expect(paint.route.geometry.points[0]!.x).toBe(10.123456789)
+      expect(paint.route.geometry).not.toBe(node.route.geometry)
+      expect(Object.isFrozen(paint.route)).toBe(true)
+      expect(paint.route.ownership).toBe(node.route.ownership)
+      expect(paint.route.labelAnchors).toBe(node.route.labelAnchors)
+    }
+  })
+
+  test.each(['geometry', 'contours', 'closed', 'startTangent', 'endTangent', 'ownership', 'bendRadius', 'labelAnchors'])('altered served route metadata cannot acquire actual ink authority: %s', async field => {
+    const child = await runWriterChild(process.execPath, ['-e', String.raw`
+      import assert from 'node:assert/strict'
+      const freeze = Object.freeze
+      let armed = false, altered = 0
+      Object.freeze = function(value) {
+        if (armed && value && Object.isExtensible(value) && Object.hasOwn(value, 'ownership')
+          && Object.hasOwn(value, 'geometry') && value.geometry?.kind === 'polyline' && Object.hasOwn(value, 'contours')) {
+          altered++
+          const field = process.env.ROUTE_FIELD
+          value[field] = field === 'geometry' ? { kind: 'polyline', points: [{ x: 10000, y: 10000 }, { x: 20000, y: 10000 }] }
+            : field === 'contours' ? [] : field === 'closed' ? true : field === 'ownership' ? 'authored'
+            : field === 'bendRadius' ? 987 : field === 'labelAnchors' ? [] : { x: 999, y: 999 }
+        }
+        return freeze(value)
+      }
+      const { renderMermaidSVGWithReceipt: render } = await import('./src/index.ts')
+      const source = Array.from({ length: 100 }, (_, index) => index ? 'N' + (index - 1) + ' --> N' + index : 'flowchart TD\nN0["Node 0"]')
+        .join('\n')
+      const options = { graphLayout: { backend: 'agentic', fallback: 'none' } }
+      const before = render(source, options)
+      assert.equal(before.receipt.layoutCertification.status, 'passed')
+      armed = true
+      const after = render(source, options)
+      armed = false
+      assert.ok(altered > 0)
+      assert.equal(after.svg, before.svg)
+      assert.equal(after.receipt.layoutCertification.status, 'unverified')
+      assert.deepEqual(render(source, options), before)
+    `], { cwd: `${import.meta.dir}/../..`, env: { ...process.env, ROUTE_FIELD: field,
+      AGENTIC_MERMAID_SCENE_ASSERTIONS: '0', AGENTIC_MERMAID_ELK_CACHE: '0' } })
+    expect(child.stderr).toBe('')
+    expect(child.status).toBe(0)
+  })
+
+  test('actual rectangle paint belongs to its exact source/write and excludes inherited or altered fields', () => {
+    const paint = Object.freeze({ fill: '#e11', stroke: '#111', strokeWidth: '1' })
+    const geometry = Object.freeze({ kind: 'rect' as const, x: 0, y: 0, width: 20, height: 30 })
+    const node = marks.shape({ id: 'actual-rect', role: 'chrome', geometry, paint })
+    const work = createNativeXmlWork(400000), capture = work.capture()
+    const written = writeShapeSvg(node, undefined, capture)
+    const actual = readSvgRectanglePaintWrite(capture, written, node, geometry, paint, work.pay)
+    expect(actual).toEqual(paint)
+    expect(Object.getPrototypeOf(actual)).toBe(null)
+    expect(Object.isFrozen(actual)).toBe(true)
+    expect(readSvgRectanglePaintWrite(createNativeXmlWork(400000).capture(), written, node, geometry, paint, work.pay)).toBeUndefined()
+    expect(readSvgRectanglePaintWrite(capture, written, { ...node }, geometry, paint, work.pay)).toBeUndefined()
+    expect(readSvgRectanglePaintWrite(capture, written, node, { ...geometry }, paint, work.pay)).toBeUndefined()
+    expect(readSvgRectanglePaintWrite(capture, written, node, geometry, Object.freeze({ ...paint }), work.pay)).toBeUndefined()
+    Object.defineProperty(Object.prototype, 'opacity', { value: '0', configurable: true })
+    try {
+      expect(actual!.opacity).toBeUndefined()
+      const inherited = writeShapeSvg(node, undefined, capture)
+      expect(inherited.svg).toContain('opacity="0"')
+      expect(readSvgRectanglePaintWrite(capture, inherited, node, geometry, paint, work.pay)).toBeUndefined()
+    } finally { delete (Object.prototype as { opacity?: string }).opacity }
+  })
+
+  test('rectangle paint co-products decline normalization and unsupported fields without changing actual output', () => {
+    for (const paint of [
+      Object.freeze({ fill: '#e11', strokeWidth: '0.00000000000001' }),
+      Object.freeze({ fill: 'rgb(1, 2, 3)', strokeWidth: '1' }),
+      Object.freeze({ fill: '#e11', opacity: undefined }),
+    ]) {
+      const geometry = Object.freeze({ kind: 'rect' as const, x: 0, y: 0, width: 20, height: 30 })
+      const node = marks.shape({ id: 'actual-paint', role: 'chrome', geometry, paint })
+      const work = createNativeXmlWork(400000), capture = work.capture()
+      const actual = writeShapeSvg(node, undefined, capture)
+      expect(actual.svg).toBe(writeShapeSvg(node))
+      const retained = readSvgRectanglePaintWrite(capture, actual, node, geometry, paint, work.pay)
+      if ('strokeWidth' in paint && paint.strokeWidth === '0.00000000000001') expect(retained).toBeUndefined()
+      else if (retained) for (const key of Object.keys(retained)) expect(retained[key as keyof typeof retained]).toBe(paint[key as keyof typeof paint])
+    }
+  })
+
+  test('closed connector variable obligations saturate while generic getters keep their observations', () => {
+    const marker = tipAnchoredArrow('context-arrow', { width: 8, height: 5 }, 'end', { fill: 'var(--_fg)' })
+    const node = marks.connector({ id: 'context-edge', role: 'edge', lineStyle: 'solid',
+      geometry: { kind: 'line', x1: 0, y1: 0, x2: 40, y2: 0 },
+      paint: { stroke: 'var(--_line)' }, markers: { end: marker } })
+    let genericOperations = 0, capturedOperations = 0
+    const generic = createEmissionContext(count => { genericOperations += count; return true }, { resources: false })
+    const captured = createEmissionContext(count => { capturedOperations += count; return true }, { resources: false })
+    generic.connector(node)
+    captured.capturedConnector(node)
+    const firstGeneric = genericOperations, firstCaptured = capturedOperations
+    generic.connector(node)
+    captured.capturedConnector(node)
+    expect(capturedOperations - firstCaptured).toBeLessThan(genericOperations - firstGeneric)
+    // The generic entry still observes live values at the original length
+    // reservation and variable-analysis reads, even after saturation.
+    let reads = 0
+    const color = node.stroke.color
+    Object.defineProperty(node.stroke, 'color', { configurable: true, get() { reads++; return color } })
+    generic.connector(node)
+    expect(reads).toBe(2)
+    const header = { width: 100, height: 100, colors: { bg: '#fff', fg: '#111', line: '#111', accent: '#111', muted: '#111', surface: '#fff', border: '#111' } }
+    expect(generic.finish(header).uncertain).toBe(captured.finish(header).uncertain)
+  })
+
+  test('an altered actual paint literal cannot acquire the rectangle co-product proof', async () => {
+    const child = await runWriterChild(process.execPath, ['-e', String.raw`
+      import assert from 'node:assert/strict'
+      import { spyOn } from 'bun:test'
+      import * as escaping from './src/multiline-utils.ts'
+      import { renderMermaidSVGWithReceipt as render } from './src/index.ts'
+      const source = 'flowchart TD\n A --> B', options = { graphLayout: { backend: 'agentic', fallback: 'none' } }
+      const before = render(source, options)
+      assert.equal(before.receipt.layoutCertification.status, 'passed')
+      const escape = escaping.escapeAttr
+      const bodyFill = before.svg.match(/<rect[^>]*fill="([^"]+)"/)[1]
+      const spy = spyOn(escaping, 'escapeAttr').mockImplementation(value => value === bodyFill || value === 'var(--_node-fill)' ? '#e11' : escape(value))
+      try {
+        const altered = render(source, options)
+        assert.match(altered.svg, /fill="#e11"/)
+        assert.notEqual(altered.svg, before.svg)
+        assert.equal(altered.receipt.layoutCertification.status, 'unverified')
+      } finally { spy.mockRestore() }
+      assert.deepEqual(render(source, options), before)
+    `], { cwd: `${import.meta.dir}/../..`, env: { ...process.env, AGENTIC_MERMAID_SCENE_ASSERTIONS: '0', AGENTIC_MERMAID_ELK_CACHE: '0' } })
+    expect(child.stderr).toBe('')
+    expect(child.status).toBe(0)
+  })
+
   test.each(['same-depth', 'deeper', 'foreign-copy', 'accessor-copy', 'many-declarations'] as const)('completed definition operands retain actual resource custody: %s', mode => {
     const emission = createOriginalNativePaintEmission(400000)
     const marker = tipAnchoredArrow('arrow', { width: 8, height: 5 }, 'end', { fill: '#111', stroke: '#111', strokeWidth: '1' })

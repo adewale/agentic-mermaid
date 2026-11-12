@@ -149,6 +149,15 @@ export function createEmissionContext(pay: Pay, options: { resources?: boolean; 
     if (value.includes('var(')) needsVariables = true
     if (value.includes('var(--_')) needsDerivedVariables = true
   }
+  // These two obligations are monotonic. A paid private capture supplies
+  // stable primitive strings; once both are established, later values cannot
+  // alter the result and need no repeated pair of variable-prefix scans.
+  const capturedVariableUse = (value: string, overhead: number): boolean => {
+    if (needsVariables && needsDerivedVariables) return reserve(overhead)
+    if (!reserve(value.length * 2 + overhead)) return false
+    variableUse(value)
+    return true
+  }
   const canonicalStyle = (body: string, header: Header): boolean => {
     const font = safeCssFontFamily(header.colors.font ?? 'Inter')
     if (!font) return false
@@ -282,6 +291,36 @@ export function createEmissionContext(pay: Pay, options: { resources?: boolean; 
     }
     return true
   }
+  const connector = (node: ConnectorMark, captured: boolean): void => {
+      if (!reserve(3)) return
+      if (node.lineStyle === 'invisible' || !node.markers.start && !node.markers.end && node.markers.mid.length === 0) return
+      hasMarkedConnector = true
+      if (documentPosition !== 'inside') uncertain = true
+      if (captured) { if (!capturedVariableUse(node.stroke.color, 4)) return }
+      else {
+        if (!reserve(node.stroke.color.length * 2 + 4)) return
+        variableUse(node.stroke.color)
+      }
+      if (!reserve(node.markers.mid.length * 2 + 4)) return
+      const reference = (marker: MarkerDescriptor | undefined): void => {
+        if (!marker) return
+        const id = ownValue(marker, 'id')
+        if (typeof id !== 'string') { uncertain = true; return }
+        if (!reserve(id.length * 2 + 4)) return
+        markerIds.add(id)
+        if (options.resources !== false) { references.push(marker); return }
+        for (const field of ['fill', 'stroke'] as const) {
+          const value = marker.paint?.[field]
+          if (value !== undefined) {
+            if (captured) capturedVariableUse(value, 2)
+            else if (reserve(value.length * 2 + 2)) variableUse(value)
+          }
+        }
+      }
+      reference(node.markers.start)
+      for (const marker of node.markers.mid) reference(marker)
+      reference(node.markers.end)
+  }
   return {
     requireTextPaintContext(): void { if (reserve(1)) hasTextPaintContext = true },
     /** Called by Native's capture producer only for its actual readonly
@@ -300,30 +339,8 @@ export function createEmissionContext(pay: Pay, options: { resources?: boolean; 
       } else if (documentPosition !== 'inside') uncertain = true
       documents.push({ node, svg })
     },
-    connector(node: ConnectorMark): void {
-      if (!reserve(3)) return
-      if (node.lineStyle === 'invisible' || !node.markers.start && !node.markers.end && node.markers.mid.length === 0) return
-      hasMarkedConnector = true
-      if (documentPosition !== 'inside') uncertain = true
-      if (!reserve(node.stroke.color.length * 2 + 4)) return
-      variableUse(node.stroke.color)
-      if (!reserve(node.markers.mid.length * 2 + 4)) return
-      const reference = (marker: MarkerDescriptor | undefined): void => {
-        if (!marker) return
-        const id = ownValue(marker, 'id')
-        if (typeof id !== 'string') { uncertain = true; return }
-        if (!reserve(id.length * 2 + 4)) return
-        markerIds.add(id)
-        if (options.resources !== false) { references.push(marker); return }
-        for (const field of ['fill', 'stroke'] as const) {
-          const value = marker.paint?.[field]
-          if (value !== undefined && reserve(value.length * 2 + 2)) variableUse(value)
-        }
-      }
-      reference(node.markers.start)
-      for (const marker of node.markers.mid) reference(marker)
-      reference(node.markers.end)
-    },
+    connector(node: ConnectorMark): void { connector(node, false) },
+    capturedConnector(node: ConnectorMark): void { connector(node, true) },
     /** Call only for an owned captured leaf. A hint requests an actual write;
      * it grants no geometry or paint authority by itself. */
     hint(node: SceneNode): boolean {
