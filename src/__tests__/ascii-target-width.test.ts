@@ -171,10 +171,10 @@ describe('targetWidth hard terminal contract', () => {
     }
   })
 
-  test('throws a typed actionable error instead of exceeding an impossible bound', () => {
-    expect(() => renderMermaidASCII('flowchart TD\n  A[🙂]', { targetWidth: 1 })).toThrow(AsciiWidthError)
+  test.each([['flowchart', 'flowchart TD\n  A[🙂]'], ['class', 'classDiagram\nclass A["🙂"]']] as const)('throws a typed actionable error instead of exceeding an impossible %s bound', (family, source) => {
+    expect(() => renderMermaidASCII(source, { targetWidth: 1 })).toThrow(AsciiWidthError)
     try {
-      renderMermaidASCII('flowchart TD\n  A[🙂]', { targetWidth: 1 })
+      renderMermaidASCII(source, { targetWidth: 1 })
       throw new Error('expected targetWidth failure')
     } catch (error) {
       expect(error).toBeInstanceOf(AsciiWidthError)
@@ -182,7 +182,7 @@ describe('targetWidth hard terminal contract', () => {
       expect(widthError.code).toBe('ASCII_TARGET_WIDTH_IMPOSSIBLE')
       expect(widthError.requestedWidth).toBe(1)
       expect(widthError.requiredWidth).toBeGreaterThan(1)
-      expect(widthError.family).toBe('flowchart')
+      expect(widthError.family).toBe(family)
       expect(widthError.reason).toBe('UNBREAKABLE_GRAPHEME')
     }
   })

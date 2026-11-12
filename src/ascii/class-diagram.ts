@@ -42,7 +42,8 @@ function classMarker(type: RelationshipType, side: BoxSide, ascii: boolean): Ter
 }
 
 export function renderClassTerminal(text: string, config: AsciiConfig, colorMode?: ColorMode, theme?: AsciiTheme, targetWidth?: number, authoredText?: string): TerminalArtifact {
-  targetWidth ??= config.targetWidth ?? config.maxWidth
+  const hardWidth = targetWidth ?? config.targetWidth
+  targetWidth = hardWidth ?? config.maxWidth
   const lines = (value: string) =>
     value
       .split('\n')
@@ -326,6 +327,7 @@ export function renderClassTerminal(text: string, config: AsciiConfig, colorMode
       allRelations,
       direction,
       namespaces.map(box => ({ ...box, container: true, headerHeight: box.labelLines.length })),
+      hardWidth,
     )
     const decision = compactClassRoutesDecision(routes, boxes, namespaces, namespaceByClass)
     // UNKNOWN preserves the original compact drawing for the one final certifier.

@@ -113,7 +113,7 @@ const overlaps = (a: TerminalBounds, b: TerminalBounds): boolean => a.x < b.x + 
  * marker exits, all text rectangles and earlier routes are allocated here.
  * Family code supplies its own boxes, labels and endpoint marker semantics.
  */
-export function allocateBoxRoutes(boxes: readonly TerminalBox[], relations: readonly BoxRelation[], direction: DiagramDirection, additionalObstacles: readonly TerminalBox[] = []): BoxRoute[] {
+export function allocateBoxRoutes(boxes: readonly TerminalBox[], relations: readonly BoxRelation[], direction: DiagramDirection, additionalObstacles: readonly TerminalBox[] = [], hardWidth?: number): BoxRoute[] {
   const byId = new Map(boxes.map(box => [box.id, box]))
   const counts = faceCounts(relations, direction, byId), cursors = new Map<string, number>()
   // Self-relationships leave the right face and return through the bottom
@@ -207,6 +207,7 @@ export function allocateBoxRoutes(boxes: readonly TerminalBox[], relations: read
   }
   for (const [key, reservation] of markerCells) if (reservation & 1) occupied.set(key, blocker)
   const routes: BoxRoute[] = []
+  let expandedExtent = false
   const physicalMarker = (key: string) => ((markerCells.get(key) ?? 0) & 1) === 1
   const approachCells = (port: BoxPort, steps = BOX_ROUTE_APPROACH_DISTANCE) => Array.from({ length: steps + 1 }, (_, step) => `${port.x + delta[port.side].x * step},${port.y + delta[port.side].y * step}`)
   const record = (points: readonly GridCoord[]) => {
@@ -361,7 +362,10 @@ export function allocateBoxRoutes(boxes: readonly TerminalBox[], relations: read
       middle = exitsClear ? getPath(occupied, sourceExit, targetExit, preferred[source.side], canCross) : null
       // Keep successful routes stable. On failure, include removed ink's
       // extent: canCross still constrains it, so a detour may need that space.
-      if (!middle && exitsClear && (extent.maxX > occupied.extent.maxX || extent.maxY > occupied.extent.maxY)) middle = getPath({ has: key => occupied.has(key), extent }, sourceExit, targetExit, preferred[source.side], canCross)
+      if (!middle && exitsClear && (hardWidth === undefined || extent.maxX < hardWidth) && (extent.maxX > occupied.extent.maxX || extent.maxY > occupied.extent.maxY)) {
+        middle = getPath({ has: key => occupied.has(key), extent }, sourceExit, targetExit, preferred[source.side], canCross)
+        if (middle) expandedExtent = true
+      }
       for (const key of removedRoutes) occupied.set(key, blocker)
     }
     for (const [key, previous] of removed) occupied.set(key, previous)
@@ -374,6 +378,8 @@ export function allocateBoxRoutes(boxes: readonly TerminalBox[], relations: read
     const label = (plan.loop === undefined ? undefined : searchedLoopLabel(relation.lines, points)) ?? text(relation.lines, [points[Math.floor(points.length / 2)]!, source, target])
     routes[relationIndex] = sealRoute({ relation, source, target, points, ...(label ? { label } : {}), ...(fromLabel ? { fromLabel } : {}), ...(toLabel ? { toLabel } : {}) })
   }
+  // A rescued search must also leave room for captions and routes placed later.
+  if (expandedExtent && hardWidth !== undefined && occupied.extent.maxX >= hardWidth) throw new TerminalBoxRouteUnavailable(`Expanded terminal routes exceed ${hardWidth} columns`)
   return routes
 }
 

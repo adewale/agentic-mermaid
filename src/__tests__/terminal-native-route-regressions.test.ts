@@ -113,19 +113,23 @@ test.each([false, true])('Class safe compact association preserves its reviewed 
   expect(edge).toMatchObject({ from: 'Student', to: 'Course', projectedText: 'enrolls' })
 })
 
-test.each([false, true])('Class inheritance trees retain a compact certified layout when routes extend beyond the cards (ASCII=%s)', useAscii => {
+test.each([false, true].flatMap(useAscii => (['unbounded', 'hard width', 'soft width'] as const).map(width => [useAscii, width] as const)))('Class inheritance trees retain complete compact or bounded layouts (ASCII=%s, %s)', (useAscii, width) => {
   const name = (index: number) => index === 0 ? 'RootClassName' : `C${index}`
   const source = `classDiagram\n${Array.from({ length: 80 }, (_, index) => [
     `class ${name(index)} {`, `+int field${index}`, `+method${index}()`, '}',
     ...(index ? [`${name(Math.floor((index - 1) / 2))} <|-- ${name(index)}`] : []),
   ].join('\n')).join('\n')}`
-  const result = renderMermaidASCIIWithReceipt(source, { useAscii, colorMode: 'none', layoutSafety: 'strict' })
-  expect(result.receipt.layoutCertification).toMatchObject({ status: 'passed', issues: [], budget: { exhausted: false } })
+  const hardWidth = width === 'hard width'
+  const result = renderMermaidASCIIWithReceipt(source, { useAscii, colorMode: 'none', layoutSafety: hardWidth ? 'report' : 'strict', ...(hardWidth ? { targetWidth: 500 } : width === 'soft width' ? { maxWidth: 500 } : {}) })
+  if (!hardWidth) expect(result.receipt.layoutCertification).toMatchObject({ status: 'passed', issues: [], budget: { exhausted: false } })
+  else expect(result.receipt.layoutCertification!.status).not.toBe('failed')
   const doc = terminalDocumentOf(result)!, regions = doc.regions(), edges = regions.filter(region => region.kind === 'edge')
   expect(regions.filter(region => region.kind === 'node')).toHaveLength(80)
   expect(edges).toHaveLength(79)
-  // Seven ranks and their routing lanes fit without the tall recovery column.
-  expect(doc.height).toBeLessThan(160)
+  // The compact seven-rank layout stays available unless a hard width needs
+  // the narrower recovery column. A soft wrapping budget does not force it.
+  if (hardWidth) expect(doc.width).toBeLessThanOrEqual(500)
+  else expect(doc.height).toBeLessThan(160)
   for (let index = 0; index < 79; index++) {
     const edge = edges.find(edge => edge.id === `relationship:${index}`)!
     expect(edge).toMatchObject({ from: name(Math.floor(index / 2)), to: name(index + 1) })
