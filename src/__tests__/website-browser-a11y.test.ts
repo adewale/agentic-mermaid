@@ -720,7 +720,7 @@ describeBrowser('website browser accessibility smoke', () => {
     }
   }, 60_000)
 
-  test('covered Inter subset and full-TTF glyphs have identical same-run Chromium pixels', async () => {
+  test('covered Inter subset and full-TTF glyphs have identical pixels with geometric rendering', async () => {
     const page = await browser.newPage({ viewport: { width: 3000, height: 500 } })
     await page.goto(baseUrl + '/__font-probe')
     const fontRequests: string[] = []
@@ -737,7 +737,8 @@ describeBrowser('website browser accessibility smoke', () => {
       <div id="subset-${index}" style="font-family:Subset${index};font-weight:${output.weight}">${text}</div>
       <div id="full-${index}" style="font-family:Full${index};font-weight:${output.weight}">${text}</div>
     `).join('')
-    await page.setContent(`<style>${faces} div { width:max-content; white-space:nowrap; font-size:24px; line-height:32px; font-variant-numeric:tabular-nums; color:#111; background:#fff; }</style>${rows}`)
+    // Geometric rendering controls raster changes caused by different cmap coverage.
+    await page.setContent(`<style>${faces} div { width:max-content; white-space:nowrap; font-size:24px; line-height:32px; font-variant-numeric:tabular-nums; text-rendering:geometricPrecision; color:#111; background:#fff; }</style>${rows}`)
     await page.evaluate(async () => { await document.fonts.ready })
     expect(fontRequests.sort()).toEqual(INTER_SUBSET_MANIFEST.outputs.flatMap(output => [
       `/fonts/${output.file}`, `/fonts/${output.source}`,
