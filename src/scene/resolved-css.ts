@@ -13,16 +13,20 @@ export interface SvgElement {
 
 export function svgTree(svg: string, owners: readonly number[] = []): SvgElement {
   const starts = scanSvgStartTags(svg)
-  const closes = [...svg.matchAll(/<\/([A-Za-z][\w:-]*)\s*>/g)]
+  const closes = svg.matchAll(/<\/([A-Za-z][\w:-]*)\s*>/g)
   const stack: { node: SvgElement; start: number }[] = []
-  let closeIndex = 0
+  let nextClose = closes.next()
   let root: SvgElement | undefined
   const closeBefore = (offset: number) => {
-    while (closeIndex < closes.length && closes[closeIndex]!.index! < offset) {
-      const close = closes[closeIndex++]!
+    while (!nextClose.done && nextClose.value.index < offset) {
+      const close = nextClose.value
+      nextClose = closes.next()
       const entry = stack.pop()
       if (!entry || entry.node.tag !== close[1]) throw new Error('Malformed resolved SVG tree')
-      entry.node.text = decodeXML(svg.slice(entry.start, close.index).replace(/<[^>]*>/g, ''))
+      // Only CSS and text runs consume content; containers need no aggregate copy.
+      if (entry.node.tag === 'style' || entry.node.tag === 'text' || entry.node.tag === 'tspan') {
+        entry.node.text = decodeXML(svg.slice(entry.start, close.index).replace(/<[^>]*>/g, ''))
+      }
     }
   }
   starts.forEach((token, index) => {
