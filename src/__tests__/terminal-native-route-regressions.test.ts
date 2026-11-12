@@ -113,6 +113,27 @@ test.each([false, true])('Class safe compact association preserves its reviewed 
   expect(edge).toMatchObject({ from: 'Student', to: 'Course', projectedText: 'enrolls' })
 })
 
+test.each([false, true])('Class inheritance trees retain a compact certified layout when routes extend beyond the cards (ASCII=%s)', useAscii => {
+  const name = (index: number) => index === 0 ? 'RootClassName' : `C${index}`
+  const source = `classDiagram\n${Array.from({ length: 80 }, (_, index) => [
+    `class ${name(index)} {`, `+int field${index}`, `+method${index}()`, '}',
+    ...(index ? [`${name(Math.floor((index - 1) / 2))} <|-- ${name(index)}`] : []),
+  ].join('\n')).join('\n')}`
+  const result = renderMermaidASCIIWithReceipt(source, { useAscii, colorMode: 'none', layoutSafety: 'strict' })
+  expect(result.receipt.layoutCertification).toMatchObject({ status: 'passed', issues: [], budget: { exhausted: false } })
+  const doc = terminalDocumentOf(result)!, regions = doc.regions(), edges = regions.filter(region => region.kind === 'edge')
+  expect(regions.filter(region => region.kind === 'node')).toHaveLength(80)
+  expect(edges).toHaveLength(79)
+  // Seven ranks and their routing lanes fit without the tall recovery column.
+  expect(doc.height).toBeLessThan(160)
+  for (let index = 0; index < 79; index++) {
+    const edge = edges.find(edge => edge.id === `relationship:${index}`)!
+    expect(edge).toMatchObject({ from: name(Math.floor(index / 2)), to: name(index + 1) })
+    expect(hasOwnedRoute(doc, edge), edge.id).toBe(true)
+    expect(visibleEndpointMarkers(doc, edge).map(marker => marker.shape)).toEqual(['open-arrow'])
+  }
+})
+
 test.each([false, true])('Class recovery keeps hyperlink footers and inert actions (ASCII=%s)', useAscii => {
   const href = 'https://example.com/docs?x=1&y=2'
   const source = `${denseClassSource}\nclick \`ns:Domain\` href "${href}" "API reference"`

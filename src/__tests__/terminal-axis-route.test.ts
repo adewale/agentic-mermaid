@@ -54,8 +54,23 @@ describe('verified axis routes', () => {
     // around the vertical route: the horizontal one must cross it.
     const forced = allocateBoxRoutes([{ id: 'C', x: 30, y: 0, width: 8, height: 6 }, { id: 'D', x: 0, y: 40, width: 90, height: 6 },
       { id: 'E', x: 4, y: 20, width: 8, height: 6 }, { id: 'F', x: 60, y: 20, width: 8, height: 6 }], [{ id: 'down', from: 'C', to: 'D' }, { id: 'across', from: 'E', to: 'F' }], 'LR')
+    // Earlier routes extend beyond these three card rows. Crossing retries
+    // must retain their extent after removing their ink from occupancy.
+    const outsideCards = [false, true].map(horizontal => {
+      const boxes = [
+        ...Array.from({ length: 6 }, (_, index) => ({ id: `A${index}`, x: 4 + index * 22, y: 4, width: 16, height: 7 })),
+        ...Array.from({ length: 15 }, (_, index) => ({ id: `B${index}`, x: 4 + index * 22, y: 19, width: 16, height: 7 })),
+        ...[0, 1, 3, 4, 5, 6, 7, 8, 9].map(index => ({ id: `C${index}`, x: 92 + index * 22, y: 34, width: 16, height: 7 })),
+      ].map(box => horizontal ? { ...box, x: box.y, y: box.x, width: box.height, height: box.width } : box)
+      const pairs = [['A0', 'B4'], ...Array.from({ length: 5 }, (_, index) => [[`A${index + 1}`, `B${index * 2 + 5}`], [`A${index + 1}`, `B${index * 2 + 6}`]]).flat(),
+        ['B0', 'C0'], ['B1', 'C1'], ['B2', 'C3'], ['B2', 'C4'], ['B3', 'C5'], ['B3', 'C6'], ['B4', 'C7'], ['B4', 'C8'], ['B5', 'C9']]
+      const routes = allocateBoxRoutes(boxes, pairs.map(([from, to], index) => ({ id: `r${index}`, from: from!, to: to! })), horizontal ? 'LR' : 'TB')
+      expect(routes).toHaveLength(pairs.length)
+      expect(routes.some(route => route.points.some(point => (horizontal ? point.x : point.y) > 44))).toBe(true)
+      return routes
+    })
     let crossings = 0
-    for (const routes of [laneRoutes, forced]) for (const [index, route] of routes.entries()) {
+    for (const routes of [laneRoutes, forced, ...outsideCards]) for (const [index, route] of routes.entries()) {
       for (const other of routes.slice(index + 1)) {
         for (const [at, point] of route.points.entries()) {
           const otherAt = other.points.findIndex(candidate => candidate.x === point.x && candidate.y === point.y)

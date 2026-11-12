@@ -345,6 +345,7 @@ export function allocateBoxRoutes(boxes: readonly TerminalBox[], relations: read
     if (!middle && halo.length) middle = exitsClear ? path() : null
     if (!middle) {
       const removedRoutes: string[] = []
+      const extent = occupied.extent
       // Cross line ink only; endpoint markers and their approaches stay
       // protected even where an earlier route also owns those cells.
       for (const key of routeCells.keys()) if (occupied.has(key) && !cardCells.has(key) && !((markerCells.get(key) ?? 0) & 1)) { occupied.delete(key); removedRoutes.push(key) }
@@ -358,6 +359,9 @@ export function allocateBoxRoutes(boxes: readonly TerminalBox[], relations: read
           && (toAxis === undefined || toAxis === (axis === 1 ? 2 : 1))
       }
       middle = exitsClear ? getPath(occupied, sourceExit, targetExit, preferred[source.side], canCross) : null
+      // Keep successful routes stable. On failure, include removed ink's
+      // extent: canCross still constrains it, so a detour may need that space.
+      if (!middle && exitsClear && (extent.maxX > occupied.extent.maxX || extent.maxY > occupied.extent.maxY)) middle = getPath({ has: key => occupied.has(key), extent }, sourceExit, targetExit, preferred[source.side], canCross)
       for (const key of removedRoutes) occupied.set(key, blocker)
     }
     for (const [key, previous] of removed) occupied.set(key, previous)
