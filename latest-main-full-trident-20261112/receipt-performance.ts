@@ -4,7 +4,7 @@ import {join} from 'node:path'
 import {gunzipSync} from 'node:zlib'
 const out=import.meta.dir
 if(!existsSync(join(out,'PERFORMANCE-COMPLETED.json')))throw Error('Finish serial Trident timings before receipt timings')
-const cases=JSON.parse(readFileSync(join(out,'MEASUREMENT-CASES.json'),'utf8')).filter((c:any)=>c.cohort==='family'||c.id.startsWith('diagnostic:'))
+const cases=JSON.parse(readFileSync(join(out,'compatibility-overlay/MEASUREMENT-CASES.json'),'utf8')).filter((c:any)=>c.cohort==='family'||c.id.startsWith('diagnostic:'))
 const roots={pr:'/dev/shm/pr449-four-final-20261111/full-trident-689-sdk/package'},arms=[{target:'pr',backend:'agentic'},{target:'pr',backend:'elk'}]
 const dir=join(out,'receipt-performance');mkdirSync(dir,{recursive:true});let completed=0,failed=0
 for(const cache of [0,1])for(let index=0;index<cases.length;index++)for(const replica of [0,1,2]){

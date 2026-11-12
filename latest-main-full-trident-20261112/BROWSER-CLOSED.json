@@ -21,8 +21,14 @@
       "rows": 4,
       "total": 4,
       "scope": "Every standard suite closes its browser and local server; any retained browser explicitly closed in collector finally. No browser processes intentionally retained."
+    },
+    "compatibility-overlay/fidelity": {
+      "browserClosed": true,
+      "rows": 6,
+      "total": 6
     }
   },
   "liveBrowserNodeBunProcesses": [],
-  "performanceHasNotStarted": true
+  "performanceHasNotStarted": true,
+  "afterCompatibilityOverlayAt": "2026-11-12T23:38:56.106845+00:00"
 }

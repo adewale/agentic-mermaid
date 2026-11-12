@@ -1,0 +1,6398 @@
+{
+  "original": [
+    {
+      "id": "meaning:family:flowchart",
+      "family": "flowchart",
+      "required": true,
+      "source": "flowchart LR\nA[Alpha] --> B[Beta]\nB --> C[Gamma]",
+      "features": [
+        "family-representative",
+        "identity-label-binding",
+        "endpoint-multiplicity"
+      ],
+      "provenance": "Original independent portable literal, supplemented with reviewed canonical semantic expectations",
+      "expected": {
+        "labels": [
+          "Alpha",
+          "Beta",
+          "Gamma"
+        ],
+        "nodes": [
+          {
+            "id": "A",
+            "label": "Alpha"
+          },
+          {
+            "id": "B",
+            "label": "Beta"
+          },
+          {
+            "id": "C",
+            "label": "Gamma"
+          }
+        ],
+        "edges": [
+          {
+            "source": "A",
+            "target": "B",
+            "directed": true
+          },
+          {
+            "source": "B",
+            "target": "C",
+            "directed": true
+          }
+        ]
+      }
+    },
+    {
+      "id": "meaning:family:sequence",
+      "family": "sequence",
+      "required": true,
+      "source": "sequenceDiagram\nparticipant A as Alpha\nparticipant B as Beta\nA->>B: Request\nB-->>A: Reply",
+      "features": [
+        "family-representative",
+        "identity-label-binding",
+        "endpoint-multiplicity"
+      ],
+      "provenance": "Original independent portable literal, supplemented with reviewed canonical semantic expectations",
+      "expected": {
+        "labels": [
+          "Alpha",
+          "Beta",
+          "Request",
+          "Reply"
+        ],
+        "nodes": [
+          {
+            "id": "A",
+            "label": "Alpha"
+          },
+          {
+            "id": "B",
+            "label": "Beta"
+          }
+        ],
+        "edges": [
+          {
+            "source": "A",
+            "target": "B",
+            "directed": true
+          },
+          {
+            "source": "B",
+            "target": "A",
+            "directed": true
+          }
+        ]
+      }
+    },
+    {
+      "id": "meaning:family:state",
+      "family": "state",
+      "required": true,
+      "source": "stateDiagram-v2\nstate \"Alpha\" as A\nstate \"Beta\" as B\nA --> B: advance",
+      "features": [
+        "family-representative",
+        "identity-label-binding",
+        "endpoint-multiplicity"
+      ],
+      "provenance": "Original independent portable literal, supplemented with reviewed canonical semantic expectations",
+      "expected": {
+        "labels": [
+          "Alpha",
+          "Beta",
+          "advance"
+        ],
+        "nodes": [
+          {
+            "id": "A",
+            "label": "Alpha"
+          },
+          {
+            "id": "B",
+            "label": "Beta"
+          }
+        ],
+        "edges": [
+          {
+            "source": "A",
+            "target": "B",
+            "directed": true
+          }
+        ]
+      }
+    },
+    {
+      "id": "meaning:family:class",
+      "family": "class",
+      "required": true,
+      "source": "classDiagram\nclass Alpha\nclass Beta\nAlpha --> Beta: uses",
+      "features": [
+        "family-representative",
+        "identity-label-binding",
+        "endpoint-multiplicity"
+      ],
+      "provenance": "Original independent portable literal, supplemented with reviewed canonical semantic expectations",
+      "expected": {
+        "labels": [
+          "Alpha",
+          "Beta",
+          "uses"
+        ],
+        "nodes": [
+          {
+            "id": "Alpha",
+            "label": "Alpha"
+          },
+          {
+            "id": "Beta",
+            "label": "Beta"
+          }
+        ],
+        "edges": [
+          {
+            "source": "Alpha",
+            "target": "Beta",
+            "directed": true
+          }
+        ]
+      }
+    },
+    {
+      "id": "meaning:family:er",
+      "family": "er",
+      "required": true,
+      "source": "erDiagram\nALPHA ||--o{ BETA : owns",
+      "features": [
+        "family-representative",
+        "identity-label-binding",
+        "endpoint-multiplicity"
+      ],
+      "provenance": "Original independent portable literal, supplemented with reviewed canonical semantic expectations",
+      "expected": {
+        "labels": [
+          "ALPHA",
+          "BETA",
+          "owns"
+        ],
+        "nodes": [
+          {
+            "id": "ALPHA",
+            "label": "ALPHA"
+          },
+          {
+            "id": "BETA",
+            "label": "BETA"
+          }
+        ],
+        "edges": [
+          {
+            "source": "ALPHA",
+            "target": "BETA",
+            "directed": false
+          }
+        ]
+      }
+    },
+    {
+      "id": "meaning:family:timeline",
+      "family": "timeline",
+      "required": false,
+      "source": "timeline\ntitle Delivery\n2026 : Launch : Review",
+      "features": [
+        "family-representative",
+        "native-content"
+      ],
+      "provenance": "Original independent portable literal, supplemented with reviewed canonical semantic expectations",
+      "expected": {
+        "labels": [
+          "Delivery",
+          "2026",
+          "Launch",
+          "Review"
+        ],
+        "facts": {
+          "title": "Delivery",
+          "periods": [
+            {
+              "section": "",
+              "label": "2026",
+              "events": [
+                "Launch",
+                "Review"
+              ]
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "meaning:family:journey",
+      "family": "journey",
+      "required": true,
+      "source": "journey\ntitle Delivery\nsection Plan\nReview: 4: Builder",
+      "features": [
+        "family-representative",
+        "native-content"
+      ],
+      "provenance": "Original independent portable literal, supplemented with reviewed canonical semantic expectations",
+      "expected": {
+        "labels": [
+          "Delivery",
+          "Plan",
+          "Review",
+          "Builder"
+        ],
+        "facts": {
+          "title": "Delivery",
+          "tasks": [
+            {
+              "section": "Plan",
+              "label": "Review",
+              "score": 4,
+              "actors": [
+                "Builder"
+              ]
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "meaning:family:architecture",
+      "family": "architecture",
+      "required": true,
+      "source": "architecture-beta\ngroup app(cloud)[App]\nservice api(server)[API] in app\nservice db(database)[Data] in app\napi:R --> L:db",
+      "features": [
+        "family-representative",
+        "identity-label-binding",
+        "endpoint-multiplicity"
+      ],
+      "provenance": "Original independent portable literal, supplemented with reviewed canonical semantic expectations",
+      "expected": {
+        "labels": [
+          "App",
+          "API",
+          "Data"
+        ],
+        "nodes": [
+          {
+            "id": "api",
+            "label": "API"
+          },
+          {
+            "id": "db",
+            "label": "Data"
+          }
+        ],
+        "edges": [
+          {
+            "source": "api",
+            "target": "db",
+            "directed": true
+          }
+        ],
+        "groups": [
+          {
+            "id": "app",
+            "label": "App",
+            "members": [
+              "api",
+              "db"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "meaning:family:xychart",
+      "family": "xychart",
+      "required": true,
+      "source": "xychart-beta\ntitle \"Series\"\nx-axis [One, Two, Three]\ny-axis \"Count\" 0 --> 10\nbar [3, 7, 5]\nline [2, 6, 4]",
+      "features": [
+        "family-representative",
+        "native-content"
+      ],
+      "provenance": "Original independent portable literal, supplemented with reviewed canonical semantic expectations",
+      "expected": {
+        "labels": [
+          "Series",
+          "One",
+          "Two",
+          "Three",
+          "Count"
+        ],
+        "facts": {
+          "title": "Series",
+          "x-categories": [
+            "One",
+            "Two",
+            "Three"
+          ],
+          "y-range": [
+            0,
+            10
+          ],
+          "series": [
+            {
+              "kind": "bar",
+              "values": [
+                3,
+                7,
+                5
+              ]
+            },
+            {
+              "kind": "line",
+              "values": [
+                2,
+                6,
+                4
+              ]
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "meaning:family:pie",
+      "family": "pie",
+      "required": true,
+      "source": "pie title Shares\n\"Alpha\" : 7\n\"Beta\" : 3",
+      "features": [
+        "family-representative",
+        "native-content"
+      ],
+      "provenance": "Original independent portable literal, supplemented with reviewed canonical semantic expectations",
+      "expected": {
+        "labels": [
+          "Shares",
+          "Alpha",
+          "Beta"
+        ],
+        "facts": {
+          "title": "Shares",
+          "slices": [
+            {
+              "label": "Alpha",
+              "value": 7
+            },
+            {
+              "label": "Beta",
+              "value": 3
+            }
+          ],
+          "show-data": false
+        }
+      }
+    },
+    {
+      "id": "meaning:family:quadrant",
+      "family": "quadrant",
+      "required": true,
+      "source": "quadrantChart\ntitle Priority\nx-axis Low effort --> High effort\ny-axis Low value --> High value\nAlpha: [0.2, 0.8]\nBeta: [0.8, 0.2]",
+      "features": [
+        "family-representative",
+        "native-content"
+      ],
+      "provenance": "Original independent portable literal, supplemented with reviewed canonical semantic expectations",
+      "expected": {
+        "labels": [
+          "Priority",
+          "Alpha",
+          "Beta",
+          "Low effort",
+          "High effort",
+          "Low value",
+          "High value"
+        ],
+        "unorderedFacts": [
+          "points"
+        ],
+        "facts": {
+          "points": [
+            {
+              "label": "Alpha",
+              "x": 0.2,
+              "y": 0.8
+            },
+            {
+              "label": "Beta",
+              "x": 0.8,
+              "y": 0.2
+            }
+          ],
+          "axis-labels": [
+            "Low effort",
+            "High effort",
+            "Low value",
+            "High value"
+          ]
+        }
+      }
+    },
+    {
+      "id": "meaning:family:gantt",
+      "family": "gantt",
+      "required": true,
+      "source": "gantt\ntitle Delivery\ndateFormat YYYY-MM-DD\ntodayMarker off\nsection Build\nDesign :taskAlpha, 2026-01-01, 2d\nReview :taskBeta, after taskAlpha, 3d",
+      "features": [
+        "family-representative",
+        "native-content"
+      ],
+      "provenance": "Original independent portable literal, supplemented with reviewed canonical semantic expectations",
+      "expected": {
+        "labels": [
+          "Delivery",
+          "Build",
+          "Design",
+          "Review"
+        ],
+        "facts": {
+          "title": "Delivery",
+          "tasks": [
+            {
+              "id": "taskAlpha",
+              "label": "Design",
+              "section": "Build",
+              "start": "2026-01-01",
+              "end": "2d",
+              "tags": []
+            },
+            {
+              "id": "taskBeta",
+              "label": "Review",
+              "section": "Build",
+              "start": "after taskAlpha",
+              "end": "3d",
+              "tags": []
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "meaning:family:mindmap",
+      "family": "mindmap",
+      "required": true,
+      "source": "mindmap\nroot((Root))\n  Alpha\n    Beta\n  Gamma",
+      "features": [
+        "family-representative",
+        "identity-label-binding",
+        "endpoint-multiplicity"
+      ],
+      "provenance": "Original independent portable literal, supplemented with reviewed canonical semantic expectations",
+      "expected": {
+        "labels": [
+          "Root",
+          "Alpha",
+          "Beta",
+          "Gamma"
+        ],
+        "nodes": [
+          {
+            "id": "root",
+            "label": "Root"
+          },
+          {
+            "id": "Alpha",
+            "label": "Alpha"
+          },
+          {
+            "id": "Beta",
+            "label": "Beta"
+          },
+          {
+            "id": "Gamma",
+            "label": "Gamma"
+          }
+        ],
+        "edges": [
+          {
+            "source": "root",
+            "target": "Alpha",
+            "label": "",
+            "directed": true
+          },
+          {
+            "source": "Alpha",
+            "target": "Beta",
+            "label": "",
+            "directed": true
+          },
+          {
+            "source": "root",
+            "target": "Gamma",
+            "label": "",
+            "directed": true
+          }
+        ]
+      }
+    },
+    {
+      "id": "meaning:family:gitgraph",
+      "family": "gitgraph",
+      "required": true,
+      "source": "gitGraph\ncommit id:\"Alpha\" tag:\"v1\"\nbranch feature\ncommit id:\"Beta\"\ncheckout main\nmerge feature id:\"Gamma\"",
+      "features": [
+        "family-representative",
+        "identity-label-binding",
+        "endpoint-multiplicity",
+        "native-content"
+      ],
+      "provenance": "Original independent portable literal, supplemented with reviewed canonical semantic expectations",
+      "expected": {
+        "labels": [
+          "Alpha",
+          "Beta",
+          "Gamma",
+          "v1"
+        ],
+        "nodes": [
+          {
+            "id": "Alpha",
+            "label": "Alpha"
+          },
+          {
+            "id": "Beta",
+            "label": "Beta"
+          },
+          {
+            "id": "Gamma",
+            "label": "Gamma"
+          }
+        ],
+        "edges": [
+          {
+            "source": "Alpha",
+            "target": "Beta",
+            "label": "",
+            "directed": true
+          },
+          {
+            "source": "Alpha",
+            "target": "Gamma",
+            "label": "",
+            "directed": true
+          },
+          {
+            "source": "Beta",
+            "target": "Gamma",
+            "label": "",
+            "directed": true
+          }
+        ],
+        "facts": {
+          "commits": [
+            {
+              "id": "Alpha",
+              "parents": [],
+              "branch": "main",
+              "tags": [
+                "v1"
+              ]
+            },
+            {
+              "id": "Beta",
+              "parents": [
+                "Alpha"
+              ],
+              "branch": "feature",
+              "tags": []
+            },
+            {
+              "id": "Gamma",
+              "parents": [
+                "Alpha",
+                "Beta"
+              ],
+              "branch": "main",
+              "tags": []
+            }
+          ],
+          "branches": [
+            "feature",
+            "main"
+          ]
+        }
+      }
+    },
+    {
+      "id": "meaning:family:radar",
+      "family": "radar",
+      "required": false,
+      "source": "radar-beta\ntitle Skills\naxis speed[\"Speed\"], power[\"Power\"], range[\"Range\"]\ncurve now[\"Current\"]{3, 4, 2}\nmax 5\nshowLegend true",
+      "features": [
+        "family-representative",
+        "native-content"
+      ],
+      "provenance": "Original independent portable literal, supplemented with reviewed canonical semantic expectations",
+      "expected": {
+        "labels": [
+          "Skills",
+          "Speed",
+          "Power",
+          "Range",
+          "Current"
+        ],
+        "facts": {
+          "title": "Skills",
+          "axes": [
+            {
+              "id": "speed",
+              "label": "Speed"
+            },
+            {
+              "id": "power",
+              "label": "Power"
+            },
+            {
+              "id": "range",
+              "label": "Range"
+            }
+          ],
+          "curves": [
+            {
+              "id": "now",
+              "label": "Current",
+              "values": [
+                3,
+                4,
+                2
+              ]
+            }
+          ],
+          "range": [
+            0,
+            5
+          ]
+        }
+      }
+    },
+    {
+      "id": "meaning:family:sankey",
+      "family": "sankey",
+      "required": true,
+      "source": "sankey-beta\nAlpha,Beta,5\nBeta,Gamma,5",
+      "features": [
+        "family-representative",
+        "identity-label-binding",
+        "endpoint-multiplicity"
+      ],
+      "provenance": "Original independent portable literal, supplemented with reviewed canonical semantic expectations",
+      "expected": {
+        "labels": [
+          "Alpha",
+          "Beta",
+          "Gamma"
+        ],
+        "nodes": [
+          {
+            "id": "Alpha",
+            "label": "Alpha"
+          },
+          {
+            "id": "Beta",
+            "label": "Beta"
+          },
+          {
+            "id": "Gamma",
+            "label": "Gamma"
+          }
+        ],
+        "edges": [
+          {
+            "source": "Alpha",
+            "target": "Beta",
+            "directed": true
+          },
+          {
+            "source": "Beta",
+            "target": "Gamma",
+            "directed": true
+          }
+        ]
+      }
+    },
+    {
+      "id": "meaning:family:c4",
+      "family": "c4",
+      "required": false,
+      "source": "C4Context\nPerson(user, \"User\")\nSystem(api, \"API\", \"Service\")\nRel(user, api, \"Uses\")",
+      "features": [
+        "family-representative",
+        "identity-label-binding",
+        "endpoint-multiplicity"
+      ],
+      "provenance": "Original independent portable literal, supplemented with reviewed canonical semantic expectations",
+      "expected": {
+        "labels": [
+          "User",
+          "API",
+          "Service",
+          "Uses"
+        ],
+        "nodes": [
+          {
+            "id": "user",
+            "label": "User"
+          },
+          {
+            "id": "api",
+            "label": "API"
+          }
+        ],
+        "edges": [
+          {
+            "source": "user",
+            "target": "api",
+            "directed": true
+          }
+        ]
+      }
+    },
+    {
+      "id": "meaning:family:packet",
+      "family": "packet",
+      "required": true,
+      "source": "packet\n0-7: \"Header\"\n8-15: \"Payload\"",
+      "features": [
+        "family-representative",
+        "native-content"
+      ],
+      "provenance": "Original independent portable literal, supplemented with reviewed canonical semantic expectations",
+      "expected": {
+        "labels": [
+          "Header",
+          "Payload"
+        ],
+        "facts": {
+          "fields": [
+            {
+              "label": "Header",
+              "start": 0,
+              "end": 7
+            },
+            {
+              "label": "Payload",
+              "start": 8,
+              "end": 15
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "meaning:family:kanban",
+      "family": "kanban",
+      "required": true,
+      "source": "kanban\nbacklog[Backlog]\n  TaskA[Build]\ndone[Done]\n  TaskB[Test]",
+      "features": [
+        "family-representative",
+        "identity-label-binding"
+      ],
+      "provenance": "Original independent portable literal, supplemented with reviewed canonical semantic expectations",
+      "expected": {
+        "labels": [
+          "Backlog",
+          "Build",
+          "Done",
+          "Test"
+        ],
+        "nodes": [
+          {
+            "id": "TaskA",
+            "label": "Build"
+          },
+          {
+            "id": "TaskB",
+            "label": "Test"
+          }
+        ],
+        "groups": [
+          {
+            "id": "backlog",
+            "label": "Backlog",
+            "members": [
+              "TaskA"
+            ]
+          },
+          {
+            "id": "done",
+            "label": "Done",
+            "members": [
+              "TaskB"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "meaning:family:requirement",
+      "family": "requirement",
+      "required": true,
+      "source": "requirementDiagram\nrequirement reliable {\nid: R1\ntext: Requests retain meaning\nrisk: high\nverifymethod: test\n}\nelement suite {\ntype: \"test\"\n}\nsuite - verifies -> reliable",
+      "features": [
+        "family-representative",
+        "identity-label-binding",
+        "endpoint-multiplicity",
+        "native-content"
+      ],
+      "provenance": "Original independent portable literal, supplemented with reviewed canonical semantic expectations",
+      "expected": {
+        "labels": [
+          "reliable",
+          "suite",
+          "Requests retain meaning"
+        ],
+        "nodes": [
+          {
+            "id": "reliable",
+            "label": "reliable"
+          },
+          {
+            "id": "suite",
+            "label": "suite"
+          }
+        ],
+        "edges": [
+          {
+            "source": "suite",
+            "target": "reliable",
+            "label": "verifies",
+            "directed": true
+          }
+        ],
+        "facts": {
+          "requirements": [
+            {
+              "name": "reliable",
+              "type": "requirement",
+              "id": "R1",
+              "text": "Requests retain meaning",
+              "risk": "high",
+              "verify": "test"
+            }
+          ],
+          "elements": [
+            {
+              "name": "suite",
+              "type": "test",
+              "docRef": ""
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "meaning:family:treemap",
+      "family": "treemap",
+      "required": true,
+      "source": "treemap\n\"Root\"\n  \"Alpha\": 7\n  \"Beta\": 3",
+      "features": [
+        "family-representative",
+        "identity-label-binding",
+        "endpoint-multiplicity",
+        "native-content"
+      ],
+      "provenance": "Original independent portable literal, supplemented with reviewed canonical semantic expectations",
+      "expected": {
+        "labels": [
+          "Root",
+          "Alpha",
+          "Beta"
+        ],
+        "unorderedFacts": [
+          "values"
+        ],
+        "nodes": [
+          {
+            "id": "Root",
+            "label": "Root"
+          },
+          {
+            "id": "Root/Alpha",
+            "label": "Alpha"
+          },
+          {
+            "id": "Root/Beta",
+            "label": "Beta"
+          }
+        ],
+        "edges": [
+          {
+            "source": "Root",
+            "target": "Root/Alpha",
+            "label": "",
+            "directed": true
+          },
+          {
+            "source": "Root",
+            "target": "Root/Beta",
+            "label": "",
+            "directed": true
+          }
+        ],
+        "groups": [
+          {
+            "id": "Root",
+            "label": "Root",
+            "members": [
+              "Root/Alpha",
+              "Root/Beta"
+            ]
+          }
+        ],
+        "facts": {
+          "values": [
+            {
+              "id": "Root/Alpha",
+              "value": 7
+            },
+            {
+              "id": "Root/Beta",
+              "value": 3
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "meaning:family:ishikawa",
+      "family": "ishikawa",
+      "required": true,
+      "source": "ishikawa\n  Delay\n  Process\n    Review\n  Tooling\n    Build",
+      "features": [
+        "family-representative",
+        "identity-label-binding",
+        "endpoint-multiplicity"
+      ],
+      "provenance": "Original independent portable literal, supplemented with reviewed canonical semantic expectations",
+      "expected": {
+        "labels": [
+          "Delay",
+          "Process",
+          "Review",
+          "Tooling",
+          "Build"
+        ],
+        "nodes": [
+          {
+            "id": "Delay",
+            "label": "Delay"
+          },
+          {
+            "id": "Delay/Process",
+            "label": "Process"
+          },
+          {
+            "id": "Delay/Process/Review",
+            "label": "Review"
+          },
+          {
+            "id": "Delay/Tooling",
+            "label": "Tooling"
+          },
+          {
+            "id": "Delay/Tooling/Build",
+            "label": "Build"
+          }
+        ],
+        "edges": [
+          {
+            "source": "Delay",
+            "target": "Delay/Process",
+            "label": "",
+            "directed": true
+          },
+          {
+            "source": "Delay/Process",
+            "target": "Delay/Process/Review",
+            "label": "",
+            "directed": true
+          },
+          {
+            "source": "Delay",
+            "target": "Delay/Tooling",
+            "label": "",
+            "directed": true
+          },
+          {
+            "source": "Delay/Tooling",
+            "target": "Delay/Tooling/Build",
+            "label": "",
+            "directed": true
+          }
+        ]
+      }
+    },
+    {
+      "id": "meaning:family:block",
+      "family": "block",
+      "required": true,
+      "source": "block\ncolumns 2\nAlpha[\"Alpha\"] Beta[\"Beta\"]\nAlpha --> Beta",
+      "features": [
+        "family-representative",
+        "identity-label-binding",
+        "endpoint-multiplicity",
+        "native-content"
+      ],
+      "provenance": "Original independent portable literal, supplemented with reviewed canonical semantic expectations",
+      "expected": {
+        "labels": [
+          "Alpha",
+          "Beta"
+        ],
+        "nodes": [
+          {
+            "id": "Alpha",
+            "label": "Alpha"
+          },
+          {
+            "id": "Beta",
+            "label": "Beta"
+          }
+        ],
+        "edges": [
+          {
+            "source": "Alpha",
+            "target": "Beta",
+            "label": "",
+            "directed": true
+          }
+        ],
+        "facts": {
+          "columns": 2
+        }
+      }
+    },
+    {
+      "id": "features:flowchart:nesting-parallel-unicode",
+      "family": "flowchart",
+      "features": [
+        "nested-groups",
+        "parallel-edges",
+        "reciprocal-edges",
+        "unicode-labels",
+        "relationship-labels"
+      ],
+      "source": "flowchart TB\nsubgraph Outer[Outer group]\nsubgraph Inner[Inner group]\nA[\"\u5de5\u7a0b\"]\nB[Beta]\nend\nC[Gamma]\nend\nA -->|send| B\nA -->|again| B\nB -->|reply| A\nB -->|finish| C",
+      "expected": {
+        "labels": [
+          "Outer group",
+          "Inner group",
+          "\u5de5\u7a0b",
+          "Beta",
+          "Gamma",
+          "send",
+          "again",
+          "reply",
+          "finish"
+        ],
+        "nodes": [
+          {
+            "id": "A",
+            "label": "\u5de5\u7a0b"
+          },
+          {
+            "id": "B",
+            "label": "Beta"
+          },
+          {
+            "id": "C",
+            "label": "Gamma"
+          }
+        ],
+        "edges": [
+          {
+            "source": "A",
+            "target": "B",
+            "label": "send",
+            "directed": true
+          },
+          {
+            "source": "A",
+            "target": "B",
+            "label": "again",
+            "directed": true
+          },
+          {
+            "source": "B",
+            "target": "A",
+            "label": "reply",
+            "directed": true
+          },
+          {
+            "source": "B",
+            "target": "C",
+            "label": "finish",
+            "directed": true
+          }
+        ],
+        "groups": [
+          {
+            "id": "Outer",
+            "label": "Outer group",
+            "members": [
+              "Inner",
+              "C"
+            ]
+          },
+          {
+            "id": "Inner",
+            "label": "Inner group",
+            "members": [
+              "A",
+              "B"
+            ]
+          }
+        ],
+        "facts": {
+          "direction": "TB"
+        }
+      },
+      "required": true,
+      "provenance": "Independent authored intersecting-feature contract; no implementation supplied expected values"
+    },
+    {
+      "id": "features:flowchart:two-ended-and-undirected",
+      "family": "flowchart",
+      "features": [
+        "two-ended-arrows",
+        "undirected-edge",
+        "marker-ownership"
+      ],
+      "source": "flowchart LR\nA[Alpha] <--> B[Beta]\nB --- C[Gamma]",
+      "expected": {
+        "labels": [
+          "Alpha",
+          "Beta",
+          "Gamma"
+        ],
+        "nodes": [
+          {
+            "id": "A",
+            "label": "Alpha"
+          },
+          {
+            "id": "B",
+            "label": "Beta"
+          },
+          {
+            "id": "C",
+            "label": "Gamma"
+          }
+        ],
+        "edges": [
+          {
+            "source": "A",
+            "target": "B",
+            "label": "",
+            "directed": true,
+            "startMarker": "arrow",
+            "endMarker": "arrow"
+          },
+          {
+            "source": "B",
+            "target": "C",
+            "label": "",
+            "directed": false,
+            "startMarker": "none",
+            "endMarker": "none"
+          }
+        ]
+      },
+      "required": true,
+      "provenance": "Independent authored intersecting-feature contract; no implementation supplied expected values"
+    },
+    {
+      "id": "features:sequence:notes-loop-reciprocal",
+      "family": "sequence",
+      "features": [
+        "aliases",
+        "message-order",
+        "reply-style",
+        "notes",
+        "loop-fragment"
+      ],
+      "source": "sequenceDiagram\nparticipant A as Alpha\nparticipant B as Beta\nNote over A,B: Keep ownership\nloop Retry\nA->>B: Request\nB-->>A: Reply\nend\nA->>B: Finish",
+      "expected": {
+        "labels": [
+          "Alpha",
+          "Beta",
+          "Keep ownership",
+          "Retry",
+          "Request",
+          "Reply",
+          "Finish"
+        ],
+        "nodes": [
+          {
+            "id": "A",
+            "label": "Alpha"
+          },
+          {
+            "id": "B",
+            "label": "Beta"
+          }
+        ],
+        "edges": [
+          {
+            "source": "A",
+            "target": "B",
+            "label": "Request",
+            "directed": true
+          },
+          {
+            "source": "B",
+            "target": "A",
+            "label": "Reply",
+            "directed": true
+          },
+          {
+            "source": "A",
+            "target": "B",
+            "label": "Finish",
+            "directed": true
+          }
+        ],
+        "facts": {
+          "message-order": [
+            {
+              "from": "A",
+              "to": "B",
+              "text": "Request"
+            },
+            {
+              "from": "B",
+              "to": "A",
+              "text": "Reply"
+            },
+            {
+              "from": "A",
+              "to": "B",
+              "text": "Finish"
+            }
+          ],
+          "message-style": [
+            "->>",
+            "-->>",
+            "->>"
+          ],
+          "notes": [
+            {
+              "text": "Keep ownership",
+              "actors": [
+                "A",
+                "B"
+              ]
+            }
+          ],
+          "fragments": [
+            {
+              "kind": "loop",
+              "label": "Retry"
+            }
+          ]
+        }
+      },
+      "required": true,
+      "provenance": "Independent authored intersecting-feature contract; no implementation supplied expected values"
+    },
+    {
+      "id": "features:class:namespace-members-cardinality",
+      "family": "class",
+      "features": [
+        "namespace",
+        "members",
+        "methods",
+        "cardinality",
+        "notes"
+      ],
+      "source": "classDiagram\nnamespace Domain {\nclass User {\n+String name\n+save() bool\n}\nclass Store\n}\nUser \"1\" --> \"*\" Store : owns\nnote for User \"Keep ownership\"",
+      "expected": {
+        "labels": [
+          "Domain",
+          "User",
+          "Store",
+          "name",
+          "save",
+          "owns",
+          "Keep ownership"
+        ],
+        "nodes": [
+          {
+            "id": "User",
+            "label": "User"
+          },
+          {
+            "id": "Store",
+            "label": "Store"
+          }
+        ],
+        "edges": [
+          {
+            "source": "User",
+            "target": "Store",
+            "label": "owns",
+            "directed": true
+          }
+        ],
+        "groups": [
+          {
+            "id": "Domain",
+            "label": "Domain",
+            "members": [
+              "User",
+              "Store"
+            ]
+          }
+        ],
+        "facts": {
+          "members": [
+            {
+              "id": "Store",
+              "values": []
+            },
+            {
+              "id": "User",
+              "values": [
+                "+String name",
+                "+save() bool"
+              ]
+            }
+          ],
+          "notes": [
+            {
+              "target": "User",
+              "text": "Keep ownership"
+            }
+          ],
+          "cardinalities": [
+            {
+              "from": "User",
+              "to": "Store",
+              "left": "1",
+              "right": "*"
+            }
+          ]
+        }
+      },
+      "required": true,
+      "provenance": "Independent authored intersecting-feature contract; no implementation supplied expected values"
+    },
+    {
+      "id": "features:class:inheritance-composition-dependency",
+      "family": "class",
+      "features": [
+        "inheritance",
+        "composition",
+        "dependency",
+        "marker-ownership"
+      ],
+      "source": "classDiagram\nAnimal <|-- Dog\nDog *-- Collar\nDog ..> Food : eats",
+      "expected": {
+        "labels": [
+          "Animal",
+          "Dog",
+          "Collar",
+          "Food",
+          "eats"
+        ],
+        "nodes": [
+          {
+            "id": "Animal",
+            "label": "Animal"
+          },
+          {
+            "id": "Dog",
+            "label": "Dog"
+          },
+          {
+            "id": "Collar",
+            "label": "Collar"
+          },
+          {
+            "id": "Food",
+            "label": "Food"
+          }
+        ],
+        "edges": [
+          {
+            "source": "Animal",
+            "target": "Dog",
+            "label": "",
+            "directed": true,
+            "startMarker": "triangle",
+            "endMarker": "none"
+          },
+          {
+            "source": "Dog",
+            "target": "Collar",
+            "label": "",
+            "directed": false,
+            "startMarker": "diamond",
+            "endMarker": "none"
+          },
+          {
+            "source": "Dog",
+            "target": "Food",
+            "label": "eats",
+            "directed": true,
+            "startMarker": "none",
+            "endMarker": "arrow"
+          }
+        ]
+      },
+      "required": true,
+      "provenance": "Independent authored intersecting-feature contract; no implementation supplied expected values"
+    },
+    {
+      "id": "features:state:nesting-reciprocal-alias",
+      "family": "state",
+      "features": [
+        "composite-state",
+        "aliases",
+        "reciprocal-transitions",
+        "transition-labels"
+      ],
+      "source": "stateDiagram-v2\nstate Active {\nstate \"Waiting\" as Idle\nIdle --> Busy: begin\nBusy --> Idle: reset\n}\nActive --> Done: finish",
+      "expected": {
+        "labels": [
+          "Active",
+          "Waiting",
+          "Busy",
+          "Done",
+          "begin",
+          "reset",
+          "finish"
+        ],
+        "nodes": [
+          {
+            "id": "Active",
+            "label": "Active"
+          },
+          {
+            "id": "Idle",
+            "label": "Waiting"
+          },
+          {
+            "id": "Busy",
+            "label": "Busy"
+          },
+          {
+            "id": "Done",
+            "label": "Done"
+          }
+        ],
+        "edges": [
+          {
+            "source": "Idle",
+            "target": "Busy",
+            "label": "begin",
+            "directed": true
+          },
+          {
+            "source": "Busy",
+            "target": "Idle",
+            "label": "reset",
+            "directed": true
+          },
+          {
+            "source": "Active",
+            "target": "Done",
+            "label": "finish",
+            "directed": true
+          }
+        ],
+        "groups": [
+          {
+            "id": "Active",
+            "label": "Active",
+            "members": [
+              "Idle",
+              "Busy"
+            ]
+          }
+        ]
+      },
+      "required": true,
+      "provenance": "Independent authored intersecting-feature contract; no implementation supplied expected values"
+    },
+    {
+      "id": "features:state:initial-final-pseudostates",
+      "family": "state",
+      "features": [
+        "initial-state",
+        "final-state",
+        "contextual-identities"
+      ],
+      "source": "stateDiagram-v2\n[*] --> Idle\nIdle --> Done: finish\nDone --> [*]",
+      "expected": {
+        "labels": [
+          "Idle",
+          "Done",
+          "finish"
+        ],
+        "nodes": [
+          {
+            "id": "Idle",
+            "label": "Idle"
+          },
+          {
+            "id": "Done",
+            "label": "Done"
+          },
+          {
+            "id": "[start:root]",
+            "label": ""
+          },
+          {
+            "id": "[end:root]",
+            "label": ""
+          }
+        ],
+        "edges": [
+          {
+            "source": "[start:root]",
+            "target": "Idle",
+            "label": "",
+            "directed": true
+          },
+          {
+            "source": "Idle",
+            "target": "Done",
+            "label": "finish",
+            "directed": true
+          },
+          {
+            "source": "Done",
+            "target": "[end:root]",
+            "label": "",
+            "directed": true
+          }
+        ],
+        "facts": {
+          "pseudostates": [
+            {
+              "id": "[end:root]",
+              "kind": "end",
+              "scope": "root"
+            },
+            {
+              "id": "[start:root]",
+              "kind": "start",
+              "scope": "root"
+            }
+          ]
+        }
+      },
+      "required": true,
+      "provenance": "Independent authored intersecting-feature contract; no implementation supplied expected values"
+    },
+    {
+      "id": "features:er:attributes-identifying-cardinality",
+      "family": "er",
+      "features": [
+        "attributes",
+        "keys",
+        "cardinality",
+        "nonidentifying-relationship"
+      ],
+      "source": "erDiagram\nUSER {\nstring name PK\nint age\n}\nORDER {\nint id PK\n}\nUSER ||--o{ ORDER : places\nORDER }o..|| ITEM : contains",
+      "expected": {
+        "labels": [
+          "USER",
+          "ORDER",
+          "ITEM",
+          "name",
+          "age",
+          "places",
+          "contains"
+        ],
+        "nodes": [
+          {
+            "id": "USER",
+            "label": "USER"
+          },
+          {
+            "id": "ORDER",
+            "label": "ORDER"
+          },
+          {
+            "id": "ITEM",
+            "label": "ITEM"
+          }
+        ],
+        "edges": [
+          {
+            "source": "USER",
+            "target": "ORDER",
+            "label": "places",
+            "directed": false
+          },
+          {
+            "source": "ORDER",
+            "target": "ITEM",
+            "label": "contains",
+            "directed": false
+          }
+        ],
+        "facts": {
+          "attributes": [
+            {
+              "id": "ITEM",
+              "values": []
+            },
+            {
+              "id": "ORDER",
+              "values": [
+                {
+                  "name": "id",
+                  "type": "int",
+                  "keys": [
+                    "PK"
+                  ]
+                }
+              ]
+            },
+            {
+              "id": "USER",
+              "values": [
+                {
+                  "name": "name",
+                  "type": "string",
+                  "keys": [
+                    "PK"
+                  ]
+                },
+                {
+                  "name": "age",
+                  "type": "int",
+                  "keys": []
+                }
+              ]
+            }
+          ],
+          "cardinalities": [
+            {
+              "from": "USER",
+              "to": "ORDER",
+              "left": "one-only",
+              "right": "zero-or-many",
+              "identifying": true
+            },
+            {
+              "from": "ORDER",
+              "to": "ITEM",
+              "left": "zero-or-many",
+              "right": "one-only",
+              "identifying": false
+            }
+          ]
+        }
+      },
+      "required": true,
+      "provenance": "Independent authored intersecting-feature contract; no implementation supplied expected values"
+    },
+    {
+      "id": "features:journey:sections-scores-actors",
+      "family": "journey",
+      "features": [
+        "sections",
+        "numeric-scores",
+        "multiple-actors",
+        "task-order"
+      ],
+      "source": "journey\ntitle Delivery\nsection Plan\nReview: 4: Builder,Reviewer\nsection Ship\nDeploy: 2: Builder",
+      "expected": {
+        "labels": [
+          "Delivery",
+          "Plan",
+          "Ship",
+          "Review",
+          "Deploy",
+          "Builder",
+          "Reviewer"
+        ],
+        "facts": {
+          "title": "Delivery",
+          "tasks": [
+            {
+              "section": "Plan",
+              "label": "Review",
+              "score": 4,
+              "actors": [
+                "Builder",
+                "Reviewer"
+              ]
+            },
+            {
+              "section": "Ship",
+              "label": "Deploy",
+              "score": 2,
+              "actors": [
+                "Builder"
+              ]
+            }
+          ]
+        }
+      },
+      "required": true,
+      "provenance": "Independent authored intersecting-feature contract; no implementation supplied expected values"
+    },
+    {
+      "id": "features:gantt:dependency-tags-milestone",
+      "family": "gantt",
+      "features": [
+        "dependencies",
+        "critical-task",
+        "duration",
+        "milestone",
+        "sections"
+      ],
+      "source": "gantt\ntitle Delivery\ndateFormat YYYY-MM-DD\ntodayMarker off\nsection Build\nDesign :crit, design, 2026-01-01, 2d\nReview :active, review, after design, 3d\nsection Ship\nRelease :milestone, release, after review, 0d",
+      "expected": {
+        "labels": [
+          "Delivery",
+          "Build",
+          "Ship",
+          "Design",
+          "Review",
+          "Release"
+        ],
+        "facts": {
+          "title": "Delivery",
+          "tasks": [
+            {
+              "id": "design",
+              "label": "Design",
+              "section": "Build",
+              "start": "2026-01-01",
+              "end": "2d",
+              "tags": [
+                "crit"
+              ]
+            },
+            {
+              "id": "review",
+              "label": "Review",
+              "section": "Build",
+              "start": "after design",
+              "end": "3d",
+              "tags": [
+                "active"
+              ]
+            },
+            {
+              "id": "release",
+              "label": "Release",
+              "section": "Ship",
+              "start": "after review",
+              "end": "0d",
+              "tags": [
+                "milestone"
+              ]
+            }
+          ]
+        }
+      },
+      "required": true,
+      "provenance": "Independent authored intersecting-feature contract; no implementation supplied expected values"
+    },
+    {
+      "id": "features:pie:fractions-show-data",
+      "family": "pie",
+      "features": [
+        "fractional-values",
+        "show-data",
+        "unicode-labels"
+      ],
+      "source": "pie showData\ntitle Allocation\n\"\u5de5\u7a0b\" : 2.5\n\"Review\" : 7.5",
+      "expected": {
+        "labels": [
+          "Allocation",
+          "\u5de5\u7a0b",
+          "Review"
+        ],
+        "facts": {
+          "title": "Allocation",
+          "show-data": true,
+          "slices": [
+            {
+              "label": "\u5de5\u7a0b",
+              "value": 2.5
+            },
+            {
+              "label": "Review",
+              "value": 7.5
+            }
+          ]
+        }
+      },
+      "required": true,
+      "provenance": "Independent authored intersecting-feature contract; no implementation supplied expected values"
+    },
+    {
+      "id": "features:quadrant:boundary-and-interior-points",
+      "family": "quadrant",
+      "features": [
+        "axis-labels",
+        "normalized-data",
+        "boundary-points",
+        "interior-points"
+      ],
+      "source": "quadrantChart\nx-axis Low --> High\ny-axis Low value --> High value\nAlpha: [0, 1]\nBeta: [1, 0]\nGamma: [0.25, 0.75]",
+      "expected": {
+        "labels": [
+          "Alpha",
+          "Beta",
+          "Gamma",
+          "Low",
+          "High",
+          "Low value",
+          "High value"
+        ],
+        "facts": {
+          "points": [
+            {
+              "label": "Alpha",
+              "x": 0,
+              "y": 1
+            },
+            {
+              "label": "Beta",
+              "x": 1,
+              "y": 0
+            },
+            {
+              "label": "Gamma",
+              "x": 0.25,
+              "y": 0.75
+            }
+          ],
+          "axis-labels": [
+            "Low",
+            "High",
+            "Low value",
+            "High value"
+          ]
+        }
+      },
+      "required": true,
+      "provenance": "Independent authored intersecting-feature contract; no implementation supplied expected values"
+    },
+    {
+      "id": "features:requirement:types-risk-relations",
+      "family": "requirement",
+      "features": [
+        "requirement-fields",
+        "element-document",
+        "relationship-type",
+        "multiple-relationships"
+      ],
+      "source": "requirementDiagram\nrequirement reliable {\nid: R1\ntext: Keep every request\nrisk: high\nverifymethod: test\n}\nfunctionalRequirement fast {\nid: R2\ntext: Return promptly\nrisk: medium\nverifymethod: analysis\n}\nelement suite {\ntype: \"test\"\ndocref: \"tests.md\"\n}\nsuite - verifies -> reliable\nfast - refines -> reliable",
+      "expected": {
+        "labels": [
+          "reliable",
+          "fast",
+          "suite",
+          "Keep every request",
+          "Return promptly"
+        ],
+        "nodes": [
+          {
+            "id": "reliable",
+            "label": "reliable"
+          },
+          {
+            "id": "fast",
+            "label": "fast"
+          },
+          {
+            "id": "suite",
+            "label": "suite"
+          }
+        ],
+        "edges": [
+          {
+            "source": "suite",
+            "target": "reliable",
+            "label": "verifies",
+            "directed": true
+          },
+          {
+            "source": "fast",
+            "target": "reliable",
+            "label": "refines",
+            "directed": true
+          }
+        ],
+        "facts": {
+          "requirements": [
+            {
+              "name": "fast",
+              "type": "functionalrequirement",
+              "id": "R2",
+              "text": "Return promptly",
+              "risk": "medium",
+              "verify": "analysis"
+            },
+            {
+              "name": "reliable",
+              "type": "requirement",
+              "id": "R1",
+              "text": "Keep every request",
+              "risk": "high",
+              "verify": "test"
+            }
+          ],
+          "elements": [
+            {
+              "name": "suite",
+              "type": "test",
+              "docRef": "tests.md"
+            }
+          ]
+        }
+      },
+      "required": true,
+      "provenance": "Independent authored intersecting-feature contract; no implementation supplied expected values"
+    },
+    {
+      "id": "features:gitgraph:merge-parents-tags-branch",
+      "family": "gitgraph",
+      "features": [
+        "branch-identity",
+        "merge-parent-order",
+        "tags",
+        "commit-order"
+      ],
+      "source": "gitGraph\ncommit id:\"Base\" tag:\"v1\"\nbranch work\ncommit id:\"Change\"\ncheckout main\ncommit id:\"Parallel\"\nmerge work id:\"Merge\" tag:\"v2\"",
+      "expected": {
+        "labels": [
+          "Base",
+          "Change",
+          "Parallel",
+          "Merge",
+          "v1",
+          "v2"
+        ],
+        "nodes": [
+          {
+            "id": "Base",
+            "label": "Base"
+          },
+          {
+            "id": "Change",
+            "label": "Change"
+          },
+          {
+            "id": "Parallel",
+            "label": "Parallel"
+          },
+          {
+            "id": "Merge",
+            "label": "Merge"
+          }
+        ],
+        "edges": [
+          {
+            "source": "Base",
+            "target": "Change",
+            "label": "",
+            "directed": true
+          },
+          {
+            "source": "Base",
+            "target": "Parallel",
+            "label": "",
+            "directed": true
+          },
+          {
+            "source": "Parallel",
+            "target": "Merge",
+            "label": "",
+            "directed": true
+          },
+          {
+            "source": "Change",
+            "target": "Merge",
+            "label": "",
+            "directed": true
+          }
+        ],
+        "facts": {
+          "branches": [
+            "main",
+            "work"
+          ],
+          "commits": [
+            {
+              "id": "Base",
+              "parents": [],
+              "branch": "main",
+              "tags": [
+                "v1"
+              ]
+            },
+            {
+              "id": "Change",
+              "parents": [
+                "Base"
+              ],
+              "branch": "work",
+              "tags": []
+            },
+            {
+              "id": "Parallel",
+              "parents": [
+                "Base"
+              ],
+              "branch": "main",
+              "tags": []
+            },
+            {
+              "id": "Merge",
+              "parents": [
+                "Parallel",
+                "Change"
+              ],
+              "branch": "main",
+              "tags": [
+                "v2"
+              ]
+            }
+          ]
+        }
+      },
+      "required": true,
+      "provenance": "Independent authored intersecting-feature contract; no implementation supplied expected values"
+    },
+    {
+      "id": "features:mindmap:depth-shapes-and-siblings",
+      "family": "mindmap",
+      "features": [
+        "hierarchy-depth",
+        "sibling-order",
+        "explicit-identities",
+        "shape-labels"
+      ],
+      "source": "mindmap\nroot((Project))\n  build[Build]\n    test(Test)\n  ship[Ship]",
+      "expected": {
+        "labels": [
+          "Project",
+          "Build",
+          "Test",
+          "Ship"
+        ],
+        "nodes": [
+          {
+            "id": "root",
+            "label": "Project"
+          },
+          {
+            "id": "build",
+            "label": "Build"
+          },
+          {
+            "id": "test",
+            "label": "Test"
+          },
+          {
+            "id": "ship",
+            "label": "Ship"
+          }
+        ],
+        "edges": [
+          {
+            "source": "root",
+            "target": "build",
+            "label": "",
+            "directed": true
+          },
+          {
+            "source": "build",
+            "target": "test",
+            "label": "",
+            "directed": true
+          },
+          {
+            "source": "root",
+            "target": "ship",
+            "label": "",
+            "directed": true
+          }
+        ],
+        "groups": [
+          {
+            "id": "root",
+            "label": "Project",
+            "members": [
+              "build",
+              "ship"
+            ]
+          },
+          {
+            "id": "build",
+            "label": "Build",
+            "members": [
+              "test"
+            ]
+          }
+        ],
+        "facts": {
+          "tree-order": [
+            "root",
+            "build",
+            "test",
+            "ship"
+          ]
+        }
+      },
+      "required": true,
+      "provenance": "Independent authored intersecting-feature contract; no implementation supplied expected values"
+    },
+    {
+      "id": "features:sankey:weighted-branching",
+      "family": "sankey",
+      "features": [
+        "weighted-links",
+        "branching",
+        "shared-endpoint-identities"
+      ],
+      "source": "sankey-beta\nInput,Build,8\nInput,Review,2\nBuild,Output,8\nReview,Output,2",
+      "expected": {
+        "labels": [
+          "Input",
+          "Build",
+          "Review",
+          "Output"
+        ],
+        "nodes": [
+          {
+            "id": "Input",
+            "label": "Input"
+          },
+          {
+            "id": "Build",
+            "label": "Build"
+          },
+          {
+            "id": "Review",
+            "label": "Review"
+          },
+          {
+            "id": "Output",
+            "label": "Output"
+          }
+        ],
+        "edges": [
+          {
+            "source": "Input",
+            "target": "Build",
+            "label": "",
+            "directed": true
+          },
+          {
+            "source": "Input",
+            "target": "Review",
+            "label": "",
+            "directed": true
+          },
+          {
+            "source": "Build",
+            "target": "Output",
+            "label": "",
+            "directed": true
+          },
+          {
+            "source": "Review",
+            "target": "Output",
+            "label": "",
+            "directed": true
+          }
+        ],
+        "facts": {
+          "links": [
+            {
+              "source": "Input",
+              "target": "Build",
+              "value": 8
+            },
+            {
+              "source": "Input",
+              "target": "Review",
+              "value": 2
+            },
+            {
+              "source": "Build",
+              "target": "Output",
+              "value": 8
+            },
+            {
+              "source": "Review",
+              "target": "Output",
+              "value": 2
+            }
+          ]
+        }
+      },
+      "required": true,
+      "provenance": "Independent authored intersecting-feature contract; no implementation supplied expected values"
+    },
+    {
+      "id": "features:xychart:negative-mixed-series",
+      "family": "xychart",
+      "features": [
+        "negative-values",
+        "mixed-series",
+        "axis-range",
+        "category-order"
+      ],
+      "source": "xychart-beta\ntitle \"Delta\"\nx-axis [One, Two, Three]\ny-axis \"Change\" -5 --> 10\nbar [-3, 7, 0]\nline [2, -1, 4]",
+      "expected": {
+        "labels": [
+          "Delta",
+          "One",
+          "Two",
+          "Three",
+          "Change"
+        ],
+        "facts": {
+          "title": "Delta",
+          "x-categories": [
+            "One",
+            "Two",
+            "Three"
+          ],
+          "y-range": [
+            -5,
+            10
+          ],
+          "series": [
+            {
+              "kind": "bar",
+              "values": [
+                -3,
+                7,
+                0
+              ]
+            },
+            {
+              "kind": "line",
+              "values": [
+                2,
+                -1,
+                4
+              ]
+            }
+          ]
+        }
+      },
+      "required": true,
+      "provenance": "Independent authored intersecting-feature contract; no implementation supplied expected values"
+    },
+    {
+      "id": "features:block:composite-membership",
+      "family": "block",
+      "features": [
+        "composite-block",
+        "spanning-columns",
+        "internal-and-external-edges"
+      ],
+      "source": "block\ncolumns 2\nblock:Group:2\ncolumns 2\nA[\"Alpha\"] B[\"Beta\"]\nA --> B\nend\nC[\"Gamma\"]\nB --> C",
+      "expected": {
+        "labels": [
+          "Alpha",
+          "Beta",
+          "Gamma"
+        ],
+        "nodes": [
+          {
+            "id": "Group",
+            "label": ""
+          },
+          {
+            "id": "A",
+            "label": "Alpha"
+          },
+          {
+            "id": "B",
+            "label": "Beta"
+          },
+          {
+            "id": "C",
+            "label": "Gamma"
+          }
+        ],
+        "edges": [
+          {
+            "source": "A",
+            "target": "B",
+            "label": "",
+            "directed": true
+          },
+          {
+            "source": "B",
+            "target": "C",
+            "label": "",
+            "directed": true
+          }
+        ],
+        "groups": [
+          {
+            "id": "Group",
+            "label": "",
+            "members": [
+              "A",
+              "B"
+            ]
+          }
+        ],
+        "facts": {
+          "columns": 2,
+          "spans": [
+            {
+              "id": "A",
+              "columns": 1
+            },
+            {
+              "id": "B",
+              "columns": 1
+            },
+            {
+              "id": "C",
+              "columns": 1
+            },
+            {
+              "id": "Group",
+              "columns": 2
+            }
+          ]
+        }
+      },
+      "required": true,
+      "provenance": "Independent authored intersecting-feature contract; no implementation supplied expected values"
+    },
+    {
+      "id": "features:packet:offsets-widths-multiline",
+      "family": "packet",
+      "features": [
+        "bit-offsets",
+        "field-widths",
+        "multiple-rows"
+      ],
+      "source": "packet\n0-3: \"Version\"\n4-7: \"Flags\"\n8-31: \"Payload\"\n32-63: \"Checksum\"",
+      "expected": {
+        "labels": [
+          "Version",
+          "Flags",
+          "Payload",
+          "Checksum"
+        ],
+        "facts": {
+          "fields": [
+            {
+              "label": "Version",
+              "start": 0,
+              "end": 3
+            },
+            {
+              "label": "Flags",
+              "start": 4,
+              "end": 7
+            },
+            {
+              "label": "Payload",
+              "start": 8,
+              "end": 31
+            },
+            {
+              "label": "Checksum",
+              "start": 32,
+              "end": 63
+            }
+          ]
+        }
+      },
+      "required": true,
+      "provenance": "Independent authored intersecting-feature contract; no implementation supplied expected values"
+    },
+    {
+      "id": "features:kanban:membership-and-metadata",
+      "family": "kanban",
+      "features": [
+        "column-membership",
+        "task-identities",
+        "assignment",
+        "priority"
+      ],
+      "source": "kanban\nbacklog[Backlog]\n  TaskA[Build]@{ assigned: \"Alice\", priority: \"High\" }\n  TaskB[Review]\ndone[Done]\n  TaskC[Ship]",
+      "expected": {
+        "labels": [
+          "Backlog",
+          "Build",
+          "Review",
+          "Done",
+          "Ship"
+        ],
+        "nodes": [
+          {
+            "id": "TaskA",
+            "label": "Build"
+          },
+          {
+            "id": "TaskB",
+            "label": "Review"
+          },
+          {
+            "id": "TaskC",
+            "label": "Ship"
+          }
+        ],
+        "groups": [
+          {
+            "id": "backlog",
+            "label": "Backlog",
+            "members": [
+              "TaskA",
+              "TaskB"
+            ]
+          },
+          {
+            "id": "done",
+            "label": "Done",
+            "members": [
+              "TaskC"
+            ]
+          }
+        ],
+        "facts": {
+          "metadata": [
+            {
+              "id": "TaskA",
+              "assigned": "Alice",
+              "priority": "High",
+              "ticket": ""
+            },
+            {
+              "id": "TaskB",
+              "assigned": "",
+              "priority": "",
+              "ticket": ""
+            },
+            {
+              "id": "TaskC",
+              "assigned": "",
+              "priority": "",
+              "ticket": ""
+            }
+          ]
+        }
+      },
+      "required": true,
+      "provenance": "Independent authored intersecting-feature contract; no implementation supplied expected values"
+    },
+    {
+      "id": "features:architecture:ports-groups-branching",
+      "family": "architecture",
+      "features": [
+        "group-membership",
+        "service-icons",
+        "edge-direction",
+        "endpoint-ports"
+      ],
+      "source": "architecture-beta\ngroup app(cloud)[Application]\nservice api(server)[API] in app\nservice db(database)[Database] in app\nservice cache(disk)[Cache] in app\napi:R --> L:db\napi:B --> T:cache",
+      "expected": {
+        "labels": [
+          "Application",
+          "API",
+          "Database",
+          "Cache"
+        ],
+        "nodes": [
+          {
+            "id": "api",
+            "label": "API"
+          },
+          {
+            "id": "db",
+            "label": "Database"
+          },
+          {
+            "id": "cache",
+            "label": "Cache"
+          }
+        ],
+        "edges": [
+          {
+            "source": "api",
+            "target": "db",
+            "label": "",
+            "directed": true
+          },
+          {
+            "source": "api",
+            "target": "cache",
+            "label": "",
+            "directed": true
+          }
+        ],
+        "groups": [
+          {
+            "id": "app",
+            "label": "Application",
+            "members": [
+              "api",
+              "db",
+              "cache"
+            ]
+          }
+        ],
+        "facts": {
+          "ports": [
+            {
+              "from": "api",
+              "to": "db",
+              "fromSide": "R",
+              "toSide": "L"
+            },
+            {
+              "from": "api",
+              "to": "cache",
+              "fromSide": "B",
+              "toSide": "T"
+            }
+          ],
+          "icons": [
+            {
+              "id": "api",
+              "icon": "server"
+            },
+            {
+              "id": "cache",
+              "icon": "disk"
+            },
+            {
+              "id": "db",
+              "icon": "database"
+            }
+          ]
+        }
+      },
+      "required": true,
+      "provenance": "Independent authored intersecting-feature contract; no implementation supplied expected values"
+    },
+    {
+      "id": "features:treemap:hierarchy-weight-and-identity",
+      "family": "treemap",
+      "features": [
+        "nested-membership",
+        "leaf-weights",
+        "sibling-identity"
+      ],
+      "source": "treemap\n\"Root\"\n  \"Build\"\n    \"Alpha\": 7\n    \"Beta\": 3\n  \"Ship\": 2",
+      "expected": {
+        "labels": [
+          "Root",
+          "Build",
+          "Alpha",
+          "Beta",
+          "Ship"
+        ],
+        "nodes": [
+          {
+            "id": "Root",
+            "label": "Root"
+          },
+          {
+            "id": "Root/Build",
+            "label": "Build"
+          },
+          {
+            "id": "Root/Build/Alpha",
+            "label": "Alpha"
+          },
+          {
+            "id": "Root/Build/Beta",
+            "label": "Beta"
+          },
+          {
+            "id": "Root/Ship",
+            "label": "Ship"
+          }
+        ],
+        "edges": [
+          {
+            "source": "Root",
+            "target": "Root/Build",
+            "label": "",
+            "directed": true
+          },
+          {
+            "source": "Root/Build",
+            "target": "Root/Build/Alpha",
+            "label": "",
+            "directed": true
+          },
+          {
+            "source": "Root/Build",
+            "target": "Root/Build/Beta",
+            "label": "",
+            "directed": true
+          },
+          {
+            "source": "Root",
+            "target": "Root/Ship",
+            "label": "",
+            "directed": true
+          }
+        ],
+        "groups": [
+          {
+            "id": "Root",
+            "label": "Root",
+            "members": [
+              "Root/Build",
+              "Root/Ship"
+            ]
+          },
+          {
+            "id": "Root/Build",
+            "label": "Build",
+            "members": [
+              "Root/Build/Alpha",
+              "Root/Build/Beta"
+            ]
+          }
+        ],
+        "facts": {
+          "values": [
+            {
+              "id": "Root/Build/Alpha",
+              "value": 7
+            },
+            {
+              "id": "Root/Build/Beta",
+              "value": 3
+            },
+            {
+              "id": "Root/Ship",
+              "value": 2
+            }
+          ]
+        }
+      },
+      "required": true,
+      "provenance": "Independent authored intersecting-feature contract; no implementation supplied expected values"
+    },
+    {
+      "id": "features:ishikawa:deep-cause-ownership",
+      "family": "ishikawa",
+      "features": [
+        "cause-hierarchy",
+        "depth",
+        "sibling-ownership"
+      ],
+      "source": "ishikawa\n  Delay\n  People\n    Review\n      Context\n  Tools\n    Build",
+      "expected": {
+        "labels": [
+          "Delay",
+          "People",
+          "Review",
+          "Context",
+          "Tools",
+          "Build"
+        ],
+        "nodes": [
+          {
+            "id": "Delay",
+            "label": "Delay"
+          },
+          {
+            "id": "Delay/People",
+            "label": "People"
+          },
+          {
+            "id": "Delay/People/Review",
+            "label": "Review"
+          },
+          {
+            "id": "Delay/People/Review/Context",
+            "label": "Context"
+          },
+          {
+            "id": "Delay/Tools",
+            "label": "Tools"
+          },
+          {
+            "id": "Delay/Tools/Build",
+            "label": "Build"
+          }
+        ],
+        "edges": [
+          {
+            "source": "Delay",
+            "target": "Delay/People",
+            "label": "",
+            "directed": true
+          },
+          {
+            "source": "Delay/People",
+            "target": "Delay/People/Review",
+            "label": "",
+            "directed": true
+          },
+          {
+            "source": "Delay/People/Review",
+            "target": "Delay/People/Review/Context",
+            "label": "",
+            "directed": true
+          },
+          {
+            "source": "Delay",
+            "target": "Delay/Tools",
+            "label": "",
+            "directed": true
+          },
+          {
+            "source": "Delay/Tools",
+            "target": "Delay/Tools/Build",
+            "label": "",
+            "directed": true
+          }
+        ]
+      },
+      "required": true,
+      "provenance": "Independent authored intersecting-feature contract; no implementation supplied expected values"
+    },
+    {
+      "id": "meaning:family:flowchart:configuration-reset",
+      "family": "flowchart",
+      "required": true,
+      "source": "flowchart LR\nA[Alpha] --> B[Beta]\nB --> C[Gamma]",
+      "features": [
+        "family-representative",
+        "identity-label-binding",
+        "endpoint-multiplicity",
+        "configuration-retains-meaning",
+        "cross-family-state-reset",
+        "source-replacement"
+      ],
+      "provenance": "Independent source-replacement workflow; a configured different-family prelude must not leak identities or content into the final public parse",
+      "expected": {
+        "labels": [
+          "Alpha",
+          "Beta",
+          "Gamma"
+        ],
+        "nodes": [
+          {
+            "id": "A",
+            "label": "Alpha"
+          },
+          {
+            "id": "B",
+            "label": "Beta"
+          },
+          {
+            "id": "C",
+            "label": "Gamma"
+          }
+        ],
+        "edges": [
+          {
+            "source": "A",
+            "target": "B",
+            "directed": true
+          },
+          {
+            "source": "B",
+            "target": "C",
+            "directed": true
+          }
+        ]
+      },
+      "prelude": [
+        {
+          "source": "---\nconfig:\n  theme: forest\n---\nflowchart LR\nOld[Previous state] --> Other[Other state]",
+          "accept": true
+        }
+      ],
+      "edit": {
+        "source": "flowchart LR\nA[Alpha edited] --> B[Beta]\nB --> C[Gamma]",
+        "expected": {
+          "labels": [
+            "Alpha edited",
+            "Beta",
+            "Gamma"
+          ],
+          "nodes": [
+            {
+              "id": "A",
+              "label": "Alpha edited"
+            },
+            {
+              "id": "B",
+              "label": "Beta"
+            },
+            {
+              "id": "C",
+              "label": "Gamma"
+            }
+          ],
+          "edges": [
+            {
+              "source": "A",
+              "target": "B",
+              "directed": true
+            },
+            {
+              "source": "B",
+              "target": "C",
+              "directed": true
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "meaning:family:flowchart:configuration-reset:edit",
+      "family": "flowchart",
+      "required": true,
+      "source": "flowchart LR\nA[Alpha edited] --> B[Beta]\nB --> C[Gamma]",
+      "features": [
+        "family-representative",
+        "identity-label-binding",
+        "endpoint-multiplicity",
+        "configuration-retains-meaning",
+        "cross-family-state-reset",
+        "source-replacement"
+      ],
+      "provenance": "Independent source-replacement workflow; a configured different-family prelude must not leak identities or content into the final public parse",
+      "expected": {
+        "labels": [
+          "Alpha edited",
+          "Beta",
+          "Gamma"
+        ],
+        "nodes": [
+          {
+            "id": "A",
+            "label": "Alpha edited"
+          },
+          {
+            "id": "B",
+            "label": "Beta"
+          },
+          {
+            "id": "C",
+            "label": "Gamma"
+          }
+        ],
+        "edges": [
+          {
+            "source": "A",
+            "target": "B",
+            "directed": true
+          },
+          {
+            "source": "B",
+            "target": "C",
+            "directed": true
+          }
+        ]
+      },
+      "prelude": [
+        {
+          "source": "---\nconfig:\n  theme: forest\n---\nflowchart LR\nOld[Previous state] --> Other[Other state]",
+          "accept": true
+        },
+        {
+          "source": "flowchart LR\nA[Alpha] --> B[Beta]\nB --> C[Gamma]",
+          "accept": true
+        }
+      ]
+    },
+    {
+      "id": "meaning:family:sequence:configuration-reset",
+      "family": "sequence",
+      "required": true,
+      "source": "sequenceDiagram\nparticipant A as Alpha\nparticipant B as Beta\nA->>B: Request\nB-->>A: Reply",
+      "features": [
+        "family-representative",
+        "identity-label-binding",
+        "endpoint-multiplicity",
+        "configuration-retains-meaning",
+        "cross-family-state-reset",
+        "source-replacement"
+      ],
+      "provenance": "Independent source-replacement workflow; a configured different-family prelude must not leak identities or content into the final public parse",
+      "expected": {
+        "labels": [
+          "Alpha",
+          "Beta",
+          "Request",
+          "Reply"
+        ],
+        "nodes": [
+          {
+            "id": "A",
+            "label": "Alpha"
+          },
+          {
+            "id": "B",
+            "label": "Beta"
+          }
+        ],
+        "edges": [
+          {
+            "source": "A",
+            "target": "B",
+            "directed": true
+          },
+          {
+            "source": "B",
+            "target": "A",
+            "directed": true
+          }
+        ]
+      },
+      "prelude": [
+        {
+          "source": "---\nconfig:\n  theme: forest\n---\nflowchart LR\nOld[Previous state] --> Other[Other state]",
+          "accept": true
+        }
+      ],
+      "edit": {
+        "source": "sequenceDiagram\nparticipant A as Alpha edited\nparticipant B as Beta\nA->>B: Request\nB-->>A: Reply",
+        "expected": {
+          "labels": [
+            "Alpha edited",
+            "Beta",
+            "Request",
+            "Reply"
+          ],
+          "nodes": [
+            {
+              "id": "A",
+              "label": "Alpha edited"
+            },
+            {
+              "id": "B",
+              "label": "Beta"
+            }
+          ],
+          "edges": [
+            {
+              "source": "A",
+              "target": "B",
+              "directed": true
+            },
+            {
+              "source": "B",
+              "target": "A",
+              "directed": true
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "meaning:family:sequence:configuration-reset:edit",
+      "family": "sequence",
+      "required": true,
+      "source": "sequenceDiagram\nparticipant A as Alpha edited\nparticipant B as Beta\nA->>B: Request\nB-->>A: Reply",
+      "features": [
+        "family-representative",
+        "identity-label-binding",
+        "endpoint-multiplicity",
+        "configuration-retains-meaning",
+        "cross-family-state-reset",
+        "source-replacement"
+      ],
+      "provenance": "Independent source-replacement workflow; a configured different-family prelude must not leak identities or content into the final public parse",
+      "expected": {
+        "labels": [
+          "Alpha edited",
+          "Beta",
+          "Request",
+          "Reply"
+        ],
+        "nodes": [
+          {
+            "id": "A",
+            "label": "Alpha edited"
+          },
+          {
+            "id": "B",
+            "label": "Beta"
+          }
+        ],
+        "edges": [
+          {
+            "source": "A",
+            "target": "B",
+            "directed": true
+          },
+          {
+            "source": "B",
+            "target": "A",
+            "directed": true
+          }
+        ]
+      },
+      "prelude": [
+        {
+          "source": "---\nconfig:\n  theme: forest\n---\nflowchart LR\nOld[Previous state] --> Other[Other state]",
+          "accept": true
+        },
+        {
+          "source": "sequenceDiagram\nparticipant A as Alpha\nparticipant B as Beta\nA->>B: Request\nB-->>A: Reply",
+          "accept": true
+        }
+      ]
+    },
+    {
+      "id": "meaning:family:state:configuration-reset",
+      "family": "state",
+      "required": true,
+      "source": "stateDiagram-v2\nstate \"Alpha\" as A\nstate \"Beta\" as B\nA --> B: advance",
+      "features": [
+        "family-representative",
+        "identity-label-binding",
+        "endpoint-multiplicity",
+        "configuration-retains-meaning",
+        "cross-family-state-reset",
+        "source-replacement"
+      ],
+      "provenance": "Independent source-replacement workflow; a configured different-family prelude must not leak identities or content into the final public parse",
+      "expected": {
+        "labels": [
+          "Alpha",
+          "Beta",
+          "advance"
+        ],
+        "nodes": [
+          {
+            "id": "A",
+            "label": "Alpha"
+          },
+          {
+            "id": "B",
+            "label": "Beta"
+          }
+        ],
+        "edges": [
+          {
+            "source": "A",
+            "target": "B",
+            "directed": true
+          }
+        ]
+      },
+      "prelude": [
+        {
+          "source": "---\nconfig:\n  theme: forest\n---\nflowchart LR\nOld[Previous state] --> Other[Other state]",
+          "accept": true
+        }
+      ],
+      "edit": {
+        "source": "stateDiagram-v2\nstate \"Alpha edited\" as A\nstate \"Beta\" as B\nA --> B: advance",
+        "expected": {
+          "labels": [
+            "Alpha edited",
+            "Beta",
+            "advance"
+          ],
+          "nodes": [
+            {
+              "id": "A",
+              "label": "Alpha edited"
+            },
+            {
+              "id": "B",
+              "label": "Beta"
+            }
+          ],
+          "edges": [
+            {
+              "source": "A",
+              "target": "B",
+              "directed": true
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "meaning:family:state:configuration-reset:edit",
+      "family": "state",
+      "required": true,
+      "source": "stateDiagram-v2\nstate \"Alpha edited\" as A\nstate \"Beta\" as B\nA --> B: advance",
+      "features": [
+        "family-representative",
+        "identity-label-binding",
+        "endpoint-multiplicity",
+        "configuration-retains-meaning",
+        "cross-family-state-reset",
+        "source-replacement"
+      ],
+      "provenance": "Independent source-replacement workflow; a configured different-family prelude must not leak identities or content into the final public parse",
+      "expected": {
+        "labels": [
+          "Alpha edited",
+          "Beta",
+          "advance"
+        ],
+        "nodes": [
+          {
+            "id": "A",
+            "label": "Alpha edited"
+          },
+          {
+            "id": "B",
+            "label": "Beta"
+          }
+        ],
+        "edges": [
+          {
+            "source": "A",
+            "target": "B",
+            "directed": true
+          }
+        ]
+      },
+      "prelude": [
+        {
+          "source": "---\nconfig:\n  theme: forest\n---\nflowchart LR\nOld[Previous state] --> Other[Other state]",
+          "accept": true
+        },
+        {
+          "source": "stateDiagram-v2\nstate \"Alpha\" as A\nstate \"Beta\" as B\nA --> B: advance",
+          "accept": true
+        }
+      ]
+    },
+    {
+      "id": "meaning:family:class:configuration-reset",
+      "family": "class",
+      "required": true,
+      "source": "classDiagram\nclass Alpha\nclass Beta\nAlpha --> Beta: uses",
+      "features": [
+        "family-representative",
+        "identity-label-binding",
+        "endpoint-multiplicity",
+        "configuration-retains-meaning",
+        "cross-family-state-reset",
+        "source-replacement"
+      ],
+      "provenance": "Independent source-replacement workflow; a configured different-family prelude must not leak identities or content into the final public parse",
+      "expected": {
+        "labels": [
+          "Alpha",
+          "Beta",
+          "uses"
+        ],
+        "nodes": [
+          {
+            "id": "Alpha",
+            "label": "Alpha"
+          },
+          {
+            "id": "Beta",
+            "label": "Beta"
+          }
+        ],
+        "edges": [
+          {
+            "source": "Alpha",
+            "target": "Beta",
+            "directed": true
+          }
+        ]
+      },
+      "prelude": [
+        {
+          "source": "---\nconfig:\n  theme: forest\n---\nflowchart LR\nOld[Previous state] --> Other[Other state]",
+          "accept": true
+        }
+      ],
+      "edit": {
+        "source": "classDiagram\nclass Renamed\nclass Beta\nRenamed --> Beta: uses",
+        "expected": {
+          "labels": [
+            "Renamed",
+            "Beta",
+            "uses"
+          ],
+          "nodes": [
+            {
+              "id": "Renamed",
+              "label": "Renamed"
+            },
+            {
+              "id": "Beta",
+              "label": "Beta"
+            }
+          ],
+          "edges": [
+            {
+              "source": "Renamed",
+              "target": "Beta",
+              "directed": true
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "meaning:family:class:configuration-reset:edit",
+      "family": "class",
+      "required": true,
+      "source": "classDiagram\nclass Renamed\nclass Beta\nRenamed --> Beta: uses",
+      "features": [
+        "family-representative",
+        "identity-label-binding",
+        "endpoint-multiplicity",
+        "configuration-retains-meaning",
+        "cross-family-state-reset",
+        "source-replacement"
+      ],
+      "provenance": "Independent source-replacement workflow; a configured different-family prelude must not leak identities or content into the final public parse",
+      "expected": {
+        "labels": [
+          "Renamed",
+          "Beta",
+          "uses"
+        ],
+        "nodes": [
+          {
+            "id": "Renamed",
+            "label": "Renamed"
+          },
+          {
+            "id": "Beta",
+            "label": "Beta"
+          }
+        ],
+        "edges": [
+          {
+            "source": "Renamed",
+            "target": "Beta",
+            "directed": true
+          }
+        ]
+      },
+      "prelude": [
+        {
+          "source": "---\nconfig:\n  theme: forest\n---\nflowchart LR\nOld[Previous state] --> Other[Other state]",
+          "accept": true
+        },
+        {
+          "source": "classDiagram\nclass Alpha\nclass Beta\nAlpha --> Beta: uses",
+          "accept": true
+        }
+      ]
+    },
+    {
+      "id": "meaning:family:er:configuration-reset",
+      "family": "er",
+      "required": true,
+      "source": "erDiagram\nALPHA ||--o{ BETA : owns",
+      "features": [
+        "family-representative",
+        "identity-label-binding",
+        "endpoint-multiplicity",
+        "configuration-retains-meaning",
+        "cross-family-state-reset",
+        "source-replacement"
+      ],
+      "provenance": "Independent source-replacement workflow; a configured different-family prelude must not leak identities or content into the final public parse",
+      "expected": {
+        "labels": [
+          "ALPHA",
+          "BETA",
+          "owns"
+        ],
+        "nodes": [
+          {
+            "id": "ALPHA",
+            "label": "ALPHA"
+          },
+          {
+            "id": "BETA",
+            "label": "BETA"
+          }
+        ],
+        "edges": [
+          {
+            "source": "ALPHA",
+            "target": "BETA",
+            "directed": false
+          }
+        ]
+      },
+      "prelude": [
+        {
+          "source": "---\nconfig:\n  theme: forest\n---\nflowchart LR\nOld[Previous state] --> Other[Other state]",
+          "accept": true
+        }
+      ],
+      "edit": {
+        "source": "erDiagram\nRENAMED ||--o{ BETA : owns",
+        "expected": {
+          "labels": [
+            "RENAMED",
+            "BETA",
+            "owns"
+          ],
+          "nodes": [
+            {
+              "id": "RENAMED",
+              "label": "RENAMED"
+            },
+            {
+              "id": "BETA",
+              "label": "BETA"
+            }
+          ],
+          "edges": [
+            {
+              "source": "RENAMED",
+              "target": "BETA",
+              "directed": false
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "meaning:family:er:configuration-reset:edit",
+      "family": "er",
+      "required": true,
+      "source": "erDiagram\nRENAMED ||--o{ BETA : owns",
+      "features": [
+        "family-representative",
+        "identity-label-binding",
+        "endpoint-multiplicity",
+        "configuration-retains-meaning",
+        "cross-family-state-reset",
+        "source-replacement"
+      ],
+      "provenance": "Independent source-replacement workflow; a configured different-family prelude must not leak identities or content into the final public parse",
+      "expected": {
+        "labels": [
+          "RENAMED",
+          "BETA",
+          "owns"
+        ],
+        "nodes": [
+          {
+            "id": "RENAMED",
+            "label": "RENAMED"
+          },
+          {
+            "id": "BETA",
+            "label": "BETA"
+          }
+        ],
+        "edges": [
+          {
+            "source": "RENAMED",
+            "target": "BETA",
+            "directed": false
+          }
+        ]
+      },
+      "prelude": [
+        {
+          "source": "---\nconfig:\n  theme: forest\n---\nflowchart LR\nOld[Previous state] --> Other[Other state]",
+          "accept": true
+        },
+        {
+          "source": "erDiagram\nALPHA ||--o{ BETA : owns",
+          "accept": true
+        }
+      ]
+    },
+    {
+      "id": "meaning:family:journey:configuration-reset",
+      "family": "journey",
+      "required": true,
+      "source": "journey\ntitle Delivery\nsection Plan\nReview: 4: Builder",
+      "features": [
+        "family-representative",
+        "native-content",
+        "configuration-retains-meaning",
+        "cross-family-state-reset",
+        "source-replacement"
+      ],
+      "provenance": "Independent source-replacement workflow; a configured different-family prelude must not leak identities or content into the final public parse",
+      "expected": {
+        "labels": [
+          "Delivery",
+          "Plan",
+          "Review",
+          "Builder"
+        ],
+        "facts": {
+          "title": "Delivery",
+          "tasks": [
+            {
+              "section": "Plan",
+              "label": "Review",
+              "score": 4,
+              "actors": [
+                "Builder"
+              ]
+            }
+          ]
+        }
+      },
+      "prelude": [
+        {
+          "source": "---\nconfig:\n  theme: forest\n---\nflowchart LR\nOld[Previous state] --> Other[Other state]",
+          "accept": true
+        }
+      ],
+      "edit": {
+        "source": "journey\ntitle Delivery\nsection Plan\nInspect: 4: Builder",
+        "expected": {
+          "labels": [
+            "Delivery",
+            "Plan",
+            "Inspect",
+            "Builder"
+          ],
+          "facts": {
+            "title": "Delivery",
+            "tasks": [
+              {
+                "section": "Plan",
+                "label": "Inspect",
+                "score": 4,
+                "actors": [
+                  "Builder"
+                ]
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": "meaning:family:journey:configuration-reset:edit",
+      "family": "journey",
+      "required": true,
+      "source": "journey\ntitle Delivery\nsection Plan\nInspect: 4: Builder",
+      "features": [
+        "family-representative",
+        "native-content",
+        "configuration-retains-meaning",
+        "cross-family-state-reset",
+        "source-replacement"
+      ],
+      "provenance": "Independent source-replacement workflow; a configured different-family prelude must not leak identities or content into the final public parse",
+      "expected": {
+        "labels": [
+          "Delivery",
+          "Plan",
+          "Inspect",
+          "Builder"
+        ],
+        "facts": {
+          "title": "Delivery",
+          "tasks": [
+            {
+              "section": "Plan",
+              "label": "Inspect",
+              "score": 4,
+              "actors": [
+                "Builder"
+              ]
+            }
+          ]
+        }
+      },
+      "prelude": [
+        {
+          "source": "---\nconfig:\n  theme: forest\n---\nflowchart LR\nOld[Previous state] --> Other[Other state]",
+          "accept": true
+        },
+        {
+          "source": "journey\ntitle Delivery\nsection Plan\nReview: 4: Builder",
+          "accept": true
+        }
+      ]
+    },
+    {
+      "id": "meaning:family:architecture:configuration-reset",
+      "family": "architecture",
+      "required": true,
+      "source": "architecture-beta\ngroup app(cloud)[App]\nservice api(server)[API] in app\nservice db(database)[Data] in app\napi:R --> L:db",
+      "features": [
+        "family-representative",
+        "identity-label-binding",
+        "endpoint-multiplicity",
+        "configuration-retains-meaning",
+        "cross-family-state-reset",
+        "source-replacement"
+      ],
+      "provenance": "Independent source-replacement workflow; a configured different-family prelude must not leak identities or content into the final public parse",
+      "expected": {
+        "labels": [
+          "App",
+          "API",
+          "Data"
+        ],
+        "nodes": [
+          {
+            "id": "api",
+            "label": "API"
+          },
+          {
+            "id": "db",
+            "label": "Data"
+          }
+        ],
+        "edges": [
+          {
+            "source": "api",
+            "target": "db",
+            "directed": true
+          }
+        ],
+        "groups": [
+          {
+            "id": "app",
+            "label": "App",
+            "members": [
+              "api",
+              "db"
+            ]
+          }
+        ]
+      },
+      "prelude": [
+        {
+          "source": "---\nconfig:\n  theme: forest\n---\nflowchart LR\nOld[Previous state] --> Other[Other state]",
+          "accept": true
+        }
+      ],
+      "edit": {
+        "source": "architecture-beta\ngroup app(cloud)[App]\nservice api(server)[Gateway] in app\nservice db(database)[Data] in app\napi:R --> L:db",
+        "expected": {
+          "labels": [
+            "App",
+            "Gateway",
+            "Data"
+          ],
+          "nodes": [
+            {
+              "id": "api",
+              "label": "Gateway"
+            },
+            {
+              "id": "db",
+              "label": "Data"
+            }
+          ],
+          "edges": [
+            {
+              "source": "api",
+              "target": "db",
+              "directed": true
+            }
+          ],
+          "groups": [
+            {
+              "id": "app",
+              "label": "App",
+              "members": [
+                "api",
+                "db"
+              ]
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "meaning:family:architecture:configuration-reset:edit",
+      "family": "architecture",
+      "required": true,
+      "source": "architecture-beta\ngroup app(cloud)[App]\nservice api(server)[Gateway] in app\nservice db(database)[Data] in app\napi:R --> L:db",
+      "features": [
+        "family-representative",
+        "identity-label-binding",
+        "endpoint-multiplicity",
+        "configuration-retains-meaning",
+        "cross-family-state-reset",
+        "source-replacement"
+      ],
+      "provenance": "Independent source-replacement workflow; a configured different-family prelude must not leak identities or content into the final public parse",
+      "expected": {
+        "labels": [
+          "App",
+          "Gateway",
+          "Data"
+        ],
+        "nodes": [
+          {
+            "id": "api",
+            "label": "Gateway"
+          },
+          {
+            "id": "db",
+            "label": "Data"
+          }
+        ],
+        "edges": [
+          {
+            "source": "api",
+            "target": "db",
+            "directed": true
+          }
+        ],
+        "groups": [
+          {
+            "id": "app",
+            "label": "App",
+            "members": [
+              "api",
+              "db"
+            ]
+          }
+        ]
+      },
+      "prelude": [
+        {
+          "source": "---\nconfig:\n  theme: forest\n---\nflowchart LR\nOld[Previous state] --> Other[Other state]",
+          "accept": true
+        },
+        {
+          "source": "architecture-beta\ngroup app(cloud)[App]\nservice api(server)[API] in app\nservice db(database)[Data] in app\napi:R --> L:db",
+          "accept": true
+        }
+      ]
+    },
+    {
+      "id": "meaning:family:xychart:configuration-reset",
+      "family": "xychart",
+      "required": true,
+      "source": "xychart-beta\ntitle \"Series\"\nx-axis [One, Two, Three]\ny-axis \"Count\" 0 --> 10\nbar [3, 7, 5]\nline [2, 6, 4]",
+      "features": [
+        "family-representative",
+        "native-content",
+        "configuration-retains-meaning",
+        "cross-family-state-reset",
+        "source-replacement"
+      ],
+      "provenance": "Independent source-replacement workflow; a configured different-family prelude must not leak identities or content into the final public parse",
+      "expected": {
+        "labels": [
+          "Series",
+          "One",
+          "Two",
+          "Three",
+          "Count"
+        ],
+        "facts": {
+          "title": "Series",
+          "x-categories": [
+            "One",
+            "Two",
+            "Three"
+          ],
+          "y-range": [
+            0,
+            10
+          ],
+          "series": [
+            {
+              "kind": "bar",
+              "values": [
+                3,
+                7,
+                5
+              ]
+            },
+            {
+              "kind": "line",
+              "values": [
+                2,
+                6,
+                4
+              ]
+            }
+          ]
+        }
+      },
+      "prelude": [
+        {
+          "source": "---\nconfig:\n  theme: forest\n---\nflowchart LR\nOld[Previous state] --> Other[Other state]",
+          "accept": true
+        }
+      ],
+      "edit": {
+        "source": "xychart-beta\ntitle \"Series\"\nx-axis [First, Two, Three]\ny-axis \"Count\" 0 --> 10\nbar [3, 7, 5]\nline [2, 6, 4]",
+        "expected": {
+          "labels": [
+            "Series",
+            "First",
+            "Two",
+            "Three",
+            "Count"
+          ],
+          "facts": {
+            "title": "Series",
+            "x-categories": [
+              "First",
+              "Two",
+              "Three"
+            ],
+            "y-range": [
+              0,
+              10
+            ],
+            "series": [
+              {
+                "kind": "bar",
+                "values": [
+                  3,
+                  7,
+                  5
+                ]
+              },
+              {
+                "kind": "line",
+                "values": [
+                  2,
+                  6,
+                  4
+                ]
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": "meaning:family:xychart:configuration-reset:edit",
+      "family": "xychart",
+      "required": true,
+      "source": "xychart-beta\ntitle \"Series\"\nx-axis [First, Two, Three]\ny-axis \"Count\" 0 --> 10\nbar [3, 7, 5]\nline [2, 6, 4]",
+      "features": [
+        "family-representative",
+        "native-content",
+        "configuration-retains-meaning",
+        "cross-family-state-reset",
+        "source-replacement"
+      ],
+      "provenance": "Independent source-replacement workflow; a configured different-family prelude must not leak identities or content into the final public parse",
+      "expected": {
+        "labels": [
+          "Series",
+          "First",
+          "Two",
+          "Three",
+          "Count"
+        ],
+        "facts": {
+          "title": "Series",
+          "x-categories": [
+            "First",
+            "Two",
+            "Three"
+          ],
+          "y-range": [
+            0,
+            10
+          ],
+          "series": [
+            {
+              "kind": "bar",
+              "values": [
+                3,
+                7,
+                5
+              ]
+            },
+            {
+              "kind": "line",
+              "values": [
+                2,
+                6,
+                4
+              ]
+            }
+          ]
+        }
+      },
+      "prelude": [
+        {
+          "source": "---\nconfig:\n  theme: forest\n---\nflowchart LR\nOld[Previous state] --> Other[Other state]",
+          "accept": true
+        },
+        {
+          "source": "xychart-beta\ntitle \"Series\"\nx-axis [One, Two, Three]\ny-axis \"Count\" 0 --> 10\nbar [3, 7, 5]\nline [2, 6, 4]",
+          "accept": true
+        }
+      ]
+    },
+    {
+      "id": "meaning:family:pie:configuration-reset",
+      "family": "pie",
+      "required": true,
+      "source": "pie title Shares\n\"Alpha\" : 7\n\"Beta\" : 3",
+      "features": [
+        "family-representative",
+        "native-content",
+        "configuration-retains-meaning",
+        "cross-family-state-reset",
+        "source-replacement"
+      ],
+      "provenance": "Independent source-replacement workflow; a configured different-family prelude must not leak identities or content into the final public parse",
+      "expected": {
+        "labels": [
+          "Shares",
+          "Alpha",
+          "Beta"
+        ],
+        "facts": {
+          "title": "Shares",
+          "slices": [
+            {
+              "label": "Alpha",
+              "value": 7
+            },
+            {
+              "label": "Beta",
+              "value": 3
+            }
+          ],
+          "show-data": false
+        }
+      },
+      "prelude": [
+        {
+          "source": "---\nconfig:\n  theme: forest\n---\nflowchart LR\nOld[Previous state] --> Other[Other state]",
+          "accept": true
+        }
+      ],
+      "edit": {
+        "source": "pie title Shares\n\"Renamed\" : 7\n\"Beta\" : 3",
+        "expected": {
+          "labels": [
+            "Shares",
+            "Renamed",
+            "Beta"
+          ],
+          "facts": {
+            "title": "Shares",
+            "slices": [
+              {
+                "label": "Renamed",
+                "value": 7
+              },
+              {
+                "label": "Beta",
+                "value": 3
+              }
+            ],
+            "show-data": false
+          }
+        }
+      }
+    },
+    {
+      "id": "meaning:family:pie:configuration-reset:edit",
+      "family": "pie",
+      "required": true,
+      "source": "pie title Shares\n\"Renamed\" : 7\n\"Beta\" : 3",
+      "features": [
+        "family-representative",
+        "native-content",
+        "configuration-retains-meaning",
+        "cross-family-state-reset",
+        "source-replacement"
+      ],
+      "provenance": "Independent source-replacement workflow; a configured different-family prelude must not leak identities or content into the final public parse",
+      "expected": {
+        "labels": [
+          "Shares",
+          "Renamed",
+          "Beta"
+        ],
+        "facts": {
+          "title": "Shares",
+          "slices": [
+            {
+              "label": "Renamed",
+              "value": 7
+            },
+            {
+              "label": "Beta",
+              "value": 3
+            }
+          ],
+          "show-data": false
+        }
+      },
+      "prelude": [
+        {
+          "source": "---\nconfig:\n  theme: forest\n---\nflowchart LR\nOld[Previous state] --> Other[Other state]",
+          "accept": true
+        },
+        {
+          "source": "pie title Shares\n\"Alpha\" : 7\n\"Beta\" : 3",
+          "accept": true
+        }
+      ]
+    },
+    {
+      "id": "meaning:family:quadrant:configuration-reset",
+      "family": "quadrant",
+      "required": true,
+      "source": "quadrantChart\ntitle Priority\nx-axis Low effort --> High effort\ny-axis Low value --> High value\nAlpha: [0.2, 0.8]\nBeta: [0.8, 0.2]",
+      "features": [
+        "family-representative",
+        "native-content",
+        "configuration-retains-meaning",
+        "cross-family-state-reset",
+        "source-replacement"
+      ],
+      "provenance": "Independent source-replacement workflow; a configured different-family prelude must not leak identities or content into the final public parse",
+      "expected": {
+        "labels": [
+          "Priority",
+          "Alpha",
+          "Beta",
+          "Low effort",
+          "High effort",
+          "Low value",
+          "High value"
+        ],
+        "unorderedFacts": [
+          "points"
+        ],
+        "facts": {
+          "points": [
+            {
+              "label": "Alpha",
+              "x": 0.2,
+              "y": 0.8
+            },
+            {
+              "label": "Beta",
+              "x": 0.8,
+              "y": 0.2
+            }
+          ],
+          "axis-labels": [
+            "Low effort",
+            "High effort",
+            "Low value",
+            "High value"
+          ]
+        }
+      },
+      "prelude": [
+        {
+          "source": "---\nconfig:\n  theme: forest\n---\nflowchart LR\nOld[Previous state] --> Other[Other state]",
+          "accept": true
+        }
+      ],
+      "edit": {
+        "source": "quadrantChart\ntitle Priority\nx-axis Low effort --> High effort\ny-axis Low value --> High value\nRenamed: [0.2, 0.8]\nBeta: [0.8, 0.2]",
+        "expected": {
+          "labels": [
+            "Priority",
+            "Renamed",
+            "Beta",
+            "Low effort",
+            "High effort",
+            "Low value",
+            "High value"
+          ],
+          "unorderedFacts": [
+            "points"
+          ],
+          "facts": {
+            "points": [
+              {
+                "label": "Renamed",
+                "x": 0.2,
+                "y": 0.8
+              },
+              {
+                "label": "Beta",
+                "x": 0.8,
+                "y": 0.2
+              }
+            ],
+            "axis-labels": [
+              "Low effort",
+              "High effort",
+              "Low value",
+              "High value"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": "meaning:family:quadrant:configuration-reset:edit",
+      "family": "quadrant",
+      "required": true,
+      "source": "quadrantChart\ntitle Priority\nx-axis Low effort --> High effort\ny-axis Low value --> High value\nRenamed: [0.2, 0.8]\nBeta: [0.8, 0.2]",
+      "features": [
+        "family-representative",
+        "native-content",
+        "configuration-retains-meaning",
+        "cross-family-state-reset",
+        "source-replacement"
+      ],
+      "provenance": "Independent source-replacement workflow; a configured different-family prelude must not leak identities or content into the final public parse",
+      "expected": {
+        "labels": [
+          "Priority",
+          "Renamed",
+          "Beta",
+          "Low effort",
+          "High effort",
+          "Low value",
+          "High value"
+        ],
+        "unorderedFacts": [
+          "points"
+        ],
+        "facts": {
+          "points": [
+            {
+              "label": "Renamed",
+              "x": 0.2,
+              "y": 0.8
+            },
+            {
+              "label": "Beta",
+              "x": 0.8,
+              "y": 0.2
+            }
+          ],
+          "axis-labels": [
+            "Low effort",
+            "High effort",
+            "Low value",
+            "High value"
+          ]
+        }
+      },
+      "prelude": [
+        {
+          "source": "---\nconfig:\n  theme: forest\n---\nflowchart LR\nOld[Previous state] --> Other[Other state]",
+          "accept": true
+        },
+        {
+          "source": "quadrantChart\ntitle Priority\nx-axis Low effort --> High effort\ny-axis Low value --> High value\nAlpha: [0.2, 0.8]\nBeta: [0.8, 0.2]",
+          "accept": true
+        }
+      ]
+    },
+    {
+      "id": "meaning:family:gantt:configuration-reset",
+      "family": "gantt",
+      "required": true,
+      "source": "gantt\ntitle Delivery\ndateFormat YYYY-MM-DD\ntodayMarker off\nsection Build\nDesign :taskAlpha, 2026-01-01, 2d\nReview :taskBeta, after taskAlpha, 3d",
+      "features": [
+        "family-representative",
+        "native-content",
+        "configuration-retains-meaning",
+        "cross-family-state-reset",
+        "source-replacement"
+      ],
+      "provenance": "Independent source-replacement workflow; a configured different-family prelude must not leak identities or content into the final public parse",
+      "expected": {
+        "labels": [
+          "Delivery",
+          "Build",
+          "Design",
+          "Review"
+        ],
+        "facts": {
+          "title": "Delivery",
+          "tasks": [
+            {
+              "id": "taskAlpha",
+              "label": "Design",
+              "section": "Build",
+              "start": "2026-01-01",
+              "end": "2d",
+              "tags": []
+            },
+            {
+              "id": "taskBeta",
+              "label": "Review",
+              "section": "Build",
+              "start": "after taskAlpha",
+              "end": "3d",
+              "tags": []
+            }
+          ]
+        }
+      },
+      "prelude": [
+        {
+          "source": "---\nconfig:\n  theme: forest\n---\nflowchart LR\nOld[Previous state] --> Other[Other state]",
+          "accept": true
+        }
+      ],
+      "edit": {
+        "source": "gantt\ntitle Delivery\ndateFormat YYYY-MM-DD\ntodayMarker off\nsection Build\nInspect :taskAlpha, 2026-01-01, 2d\nReview :taskBeta, after taskAlpha, 3d",
+        "expected": {
+          "labels": [
+            "Delivery",
+            "Build",
+            "Inspect",
+            "Review"
+          ],
+          "facts": {
+            "title": "Delivery",
+            "tasks": [
+              {
+                "id": "taskAlpha",
+                "label": "Inspect",
+                "section": "Build",
+                "start": "2026-01-01",
+                "end": "2d",
+                "tags": []
+              },
+              {
+                "id": "taskBeta",
+                "label": "Review",
+                "section": "Build",
+                "start": "after taskAlpha",
+                "end": "3d",
+                "tags": []
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": "meaning:family:gantt:configuration-reset:edit",
+      "family": "gantt",
+      "required": true,
+      "source": "gantt\ntitle Delivery\ndateFormat YYYY-MM-DD\ntodayMarker off\nsection Build\nInspect :taskAlpha, 2026-01-01, 2d\nReview :taskBeta, after taskAlpha, 3d",
+      "features": [
+        "family-representative",
+        "native-content",
+        "configuration-retains-meaning",
+        "cross-family-state-reset",
+        "source-replacement"
+      ],
+      "provenance": "Independent source-replacement workflow; a configured different-family prelude must not leak identities or content into the final public parse",
+      "expected": {
+        "labels": [
+          "Delivery",
+          "Build",
+          "Inspect",
+          "Review"
+        ],
+        "facts": {
+          "title": "Delivery",
+          "tasks": [
+            {
+              "id": "taskAlpha",
+              "label": "Inspect",
+              "section": "Build",
+              "start": "2026-01-01",
+              "end": "2d",
+              "tags": []
+            },
+            {
+              "id": "taskBeta",
+              "label": "Review",
+              "section": "Build",
+              "start": "after taskAlpha",
+              "end": "3d",
+              "tags": []
+            }
+          ]
+        }
+      },
+      "prelude": [
+        {
+          "source": "---\nconfig:\n  theme: forest\n---\nflowchart LR\nOld[Previous state] --> Other[Other state]",
+          "accept": true
+        },
+        {
+          "source": "gantt\ntitle Delivery\ndateFormat YYYY-MM-DD\ntodayMarker off\nsection Build\nDesign :taskAlpha, 2026-01-01, 2d\nReview :taskBeta, after taskAlpha, 3d",
+          "accept": true
+        }
+      ]
+    },
+    {
+      "id": "meaning:family:mindmap:configuration-reset",
+      "family": "mindmap",
+      "required": true,
+      "source": "mindmap\nroot((Root))\n  Alpha\n    Beta\n  Gamma",
+      "features": [
+        "family-representative",
+        "identity-label-binding",
+        "endpoint-multiplicity",
+        "configuration-retains-meaning",
+        "cross-family-state-reset",
+        "source-replacement"
+      ],
+      "provenance": "Independent source-replacement workflow; a configured different-family prelude must not leak identities or content into the final public parse",
+      "expected": {
+        "labels": [
+          "Root",
+          "Alpha",
+          "Beta",
+          "Gamma"
+        ],
+        "nodes": [
+          {
+            "id": "root",
+            "label": "Root"
+          },
+          {
+            "id": "Alpha",
+            "label": "Alpha"
+          },
+          {
+            "id": "Beta",
+            "label": "Beta"
+          },
+          {
+            "id": "Gamma",
+            "label": "Gamma"
+          }
+        ],
+        "edges": [
+          {
+            "source": "root",
+            "target": "Alpha",
+            "label": "",
+            "directed": true
+          },
+          {
+            "source": "Alpha",
+            "target": "Beta",
+            "label": "",
+            "directed": true
+          },
+          {
+            "source": "root",
+            "target": "Gamma",
+            "label": "",
+            "directed": true
+          }
+        ]
+      },
+      "prelude": [
+        {
+          "source": "---\nconfig:\n  theme: forest\n---\nflowchart LR\nOld[Previous state] --> Other[Other state]",
+          "accept": true
+        }
+      ],
+      "edit": {
+        "source": "mindmap\nroot((RevisedRoot))\n  Alpha\n    Beta\n  Gamma",
+        "expected": {
+          "labels": [
+            "RevisedRoot",
+            "Alpha",
+            "Beta",
+            "Gamma"
+          ],
+          "nodes": [
+            {
+              "id": "root",
+              "label": "RevisedRoot"
+            },
+            {
+              "id": "Alpha",
+              "label": "Alpha"
+            },
+            {
+              "id": "Beta",
+              "label": "Beta"
+            },
+            {
+              "id": "Gamma",
+              "label": "Gamma"
+            }
+          ],
+          "edges": [
+            {
+              "source": "root",
+              "target": "Alpha",
+              "label": "",
+              "directed": true
+            },
+            {
+              "source": "Alpha",
+              "target": "Beta",
+              "label": "",
+              "directed": true
+            },
+            {
+              "source": "root",
+              "target": "Gamma",
+              "label": "",
+              "directed": true
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "meaning:family:mindmap:configuration-reset:edit",
+      "family": "mindmap",
+      "required": true,
+      "source": "mindmap\nroot((RevisedRoot))\n  Alpha\n    Beta\n  Gamma",
+      "features": [
+        "family-representative",
+        "identity-label-binding",
+        "endpoint-multiplicity",
+        "configuration-retains-meaning",
+        "cross-family-state-reset",
+        "source-replacement"
+      ],
+      "provenance": "Independent source-replacement workflow; a configured different-family prelude must not leak identities or content into the final public parse",
+      "expected": {
+        "labels": [
+          "RevisedRoot",
+          "Alpha",
+          "Beta",
+          "Gamma"
+        ],
+        "nodes": [
+          {
+            "id": "root",
+            "label": "RevisedRoot"
+          },
+          {
+            "id": "Alpha",
+            "label": "Alpha"
+          },
+          {
+            "id": "Beta",
+            "label": "Beta"
+          },
+          {
+            "id": "Gamma",
+            "label": "Gamma"
+          }
+        ],
+        "edges": [
+          {
+            "source": "root",
+            "target": "Alpha",
+            "label": "",
+            "directed": true
+          },
+          {
+            "source": "Alpha",
+            "target": "Beta",
+            "label": "",
+            "directed": true
+          },
+          {
+            "source": "root",
+            "target": "Gamma",
+            "label": "",
+            "directed": true
+          }
+        ]
+      },
+      "prelude": [
+        {
+          "source": "---\nconfig:\n  theme: forest\n---\nflowchart LR\nOld[Previous state] --> Other[Other state]",
+          "accept": true
+        },
+        {
+          "source": "mindmap\nroot((Root))\n  Alpha\n    Beta\n  Gamma",
+          "accept": true
+        }
+      ]
+    },
+    {
+      "id": "meaning:family:gitgraph:configuration-reset",
+      "family": "gitgraph",
+      "required": true,
+      "source": "gitGraph\ncommit id:\"Alpha\" tag:\"v1\"\nbranch feature\ncommit id:\"Beta\"\ncheckout main\nmerge feature id:\"Gamma\"",
+      "features": [
+        "family-representative",
+        "identity-label-binding",
+        "endpoint-multiplicity",
+        "native-content",
+        "configuration-retains-meaning",
+        "cross-family-state-reset",
+        "source-replacement"
+      ],
+      "provenance": "Independent source-replacement workflow; a configured different-family prelude must not leak identities or content into the final public parse",
+      "expected": {
+        "labels": [
+          "Alpha",
+          "Beta",
+          "Gamma",
+          "v1"
+        ],
+        "nodes": [
+          {
+            "id": "Alpha",
+            "label": "Alpha"
+          },
+          {
+            "id": "Beta",
+            "label": "Beta"
+          },
+          {
+            "id": "Gamma",
+            "label": "Gamma"
+          }
+        ],
+        "edges": [
+          {
+            "source": "Alpha",
+            "target": "Beta",
+            "label": "",
+            "directed": true
+          },
+          {
+            "source": "Alpha",
+            "target": "Gamma",
+            "label": "",
+            "directed": true
+          },
+          {
+            "source": "Beta",
+            "target": "Gamma",
+            "label": "",
+            "directed": true
+          }
+        ],
+        "facts": {
+          "commits": [
+            {
+              "id": "Alpha",
+              "parents": [],
+              "branch": "main",
+              "tags": [
+                "v1"
+              ]
+            },
+            {
+              "id": "Beta",
+              "parents": [
+                "Alpha"
+              ],
+              "branch": "feature",
+              "tags": []
+            },
+            {
+              "id": "Gamma",
+              "parents": [
+                "Alpha",
+                "Beta"
+              ],
+              "branch": "main",
+              "tags": []
+            }
+          ],
+          "branches": [
+            "feature",
+            "main"
+          ]
+        }
+      },
+      "prelude": [
+        {
+          "source": "---\nconfig:\n  theme: forest\n---\nflowchart LR\nOld[Previous state] --> Other[Other state]",
+          "accept": true
+        }
+      ],
+      "edit": {
+        "source": "gitGraph\ncommit id:\"Renamed\" tag:\"v1\"\nbranch feature\ncommit id:\"Beta\"\ncheckout main\nmerge feature id:\"Gamma\"",
+        "expected": {
+          "labels": [
+            "Renamed",
+            "Beta",
+            "Gamma",
+            "v1"
+          ],
+          "nodes": [
+            {
+              "id": "Renamed",
+              "label": "Renamed"
+            },
+            {
+              "id": "Beta",
+              "label": "Beta"
+            },
+            {
+              "id": "Gamma",
+              "label": "Gamma"
+            }
+          ],
+          "edges": [
+            {
+              "source": "Renamed",
+              "target": "Beta",
+              "label": "",
+              "directed": true
+            },
+            {
+              "source": "Renamed",
+              "target": "Gamma",
+              "label": "",
+              "directed": true
+            },
+            {
+              "source": "Beta",
+              "target": "Gamma",
+              "label": "",
+              "directed": true
+            }
+          ],
+          "facts": {
+            "commits": [
+              {
+                "id": "Renamed",
+                "parents": [],
+                "branch": "main",
+                "tags": [
+                  "v1"
+                ]
+              },
+              {
+                "id": "Beta",
+                "parents": [
+                  "Renamed"
+                ],
+                "branch": "feature",
+                "tags": []
+              },
+              {
+                "id": "Gamma",
+                "parents": [
+                  "Renamed",
+                  "Beta"
+                ],
+                "branch": "main",
+                "tags": []
+              }
+            ],
+            "branches": [
+              "feature",
+              "main"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": "meaning:family:gitgraph:configuration-reset:edit",
+      "family": "gitgraph",
+      "required": true,
+      "source": "gitGraph\ncommit id:\"Renamed\" tag:\"v1\"\nbranch feature\ncommit id:\"Beta\"\ncheckout main\nmerge feature id:\"Gamma\"",
+      "features": [
+        "family-representative",
+        "identity-label-binding",
+        "endpoint-multiplicity",
+        "native-content",
+        "configuration-retains-meaning",
+        "cross-family-state-reset",
+        "source-replacement"
+      ],
+      "provenance": "Independent source-replacement workflow; a configured different-family prelude must not leak identities or content into the final public parse",
+      "expected": {
+        "labels": [
+          "Renamed",
+          "Beta",
+          "Gamma",
+          "v1"
+        ],
+        "nodes": [
+          {
+            "id": "Renamed",
+            "label": "Renamed"
+          },
+          {
+            "id": "Beta",
+            "label": "Beta"
+          },
+          {
+            "id": "Gamma",
+            "label": "Gamma"
+          }
+        ],
+        "edges": [
+          {
+            "source": "Renamed",
+            "target": "Beta",
+            "label": "",
+            "directed": true
+          },
+          {
+            "source": "Renamed",
+            "target": "Gamma",
+            "label": "",
+            "directed": true
+          },
+          {
+            "source": "Beta",
+            "target": "Gamma",
+            "label": "",
+            "directed": true
+          }
+        ],
+        "facts": {
+          "commits": [
+            {
+              "id": "Renamed",
+              "parents": [],
+              "branch": "main",
+              "tags": [
+                "v1"
+              ]
+            },
+            {
+              "id": "Beta",
+              "parents": [
+                "Renamed"
+              ],
+              "branch": "feature",
+              "tags": []
+            },
+            {
+              "id": "Gamma",
+              "parents": [
+                "Renamed",
+                "Beta"
+              ],
+              "branch": "main",
+              "tags": []
+            }
+          ],
+          "branches": [
+            "feature",
+            "main"
+          ]
+        }
+      },
+      "prelude": [
+        {
+          "source": "---\nconfig:\n  theme: forest\n---\nflowchart LR\nOld[Previous state] --> Other[Other state]",
+          "accept": true
+        },
+        {
+          "source": "gitGraph\ncommit id:\"Alpha\" tag:\"v1\"\nbranch feature\ncommit id:\"Beta\"\ncheckout main\nmerge feature id:\"Gamma\"",
+          "accept": true
+        }
+      ]
+    },
+    {
+      "id": "meaning:family:sankey:configuration-reset",
+      "family": "sankey",
+      "required": true,
+      "source": "sankey-beta\nAlpha,Beta,5\nBeta,Gamma,5",
+      "features": [
+        "family-representative",
+        "identity-label-binding",
+        "endpoint-multiplicity",
+        "configuration-retains-meaning",
+        "cross-family-state-reset",
+        "source-replacement"
+      ],
+      "provenance": "Independent source-replacement workflow; a configured different-family prelude must not leak identities or content into the final public parse",
+      "expected": {
+        "labels": [
+          "Alpha",
+          "Beta",
+          "Gamma"
+        ],
+        "nodes": [
+          {
+            "id": "Alpha",
+            "label": "Alpha"
+          },
+          {
+            "id": "Beta",
+            "label": "Beta"
+          },
+          {
+            "id": "Gamma",
+            "label": "Gamma"
+          }
+        ],
+        "edges": [
+          {
+            "source": "Alpha",
+            "target": "Beta",
+            "directed": true
+          },
+          {
+            "source": "Beta",
+            "target": "Gamma",
+            "directed": true
+          }
+        ]
+      },
+      "prelude": [
+        {
+          "source": "---\nconfig:\n  theme: forest\n---\nflowchart LR\nOld[Previous state] --> Other[Other state]",
+          "accept": true
+        }
+      ],
+      "edit": {
+        "source": "sankey-beta\nRenamed,Beta,5\nBeta,Gamma,5",
+        "expected": {
+          "labels": [
+            "Renamed",
+            "Beta",
+            "Gamma"
+          ],
+          "nodes": [
+            {
+              "id": "Renamed",
+              "label": "Renamed"
+            },
+            {
+              "id": "Beta",
+              "label": "Beta"
+            },
+            {
+              "id": "Gamma",
+              "label": "Gamma"
+            }
+          ],
+          "edges": [
+            {
+              "source": "Renamed",
+              "target": "Beta",
+              "directed": true
+            },
+            {
+              "source": "Beta",
+              "target": "Gamma",
+              "directed": true
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "meaning:family:sankey:configuration-reset:edit",
+      "family": "sankey",
+      "required": true,
+      "source": "sankey-beta\nRenamed,Beta,5\nBeta,Gamma,5",
+      "features": [
+        "family-representative",
+        "identity-label-binding",
+        "endpoint-multiplicity",
+        "configuration-retains-meaning",
+        "cross-family-state-reset",
+        "source-replacement"
+      ],
+      "provenance": "Independent source-replacement workflow; a configured different-family prelude must not leak identities or content into the final public parse",
+      "expected": {
+        "labels": [
+          "Renamed",
+          "Beta",
+          "Gamma"
+        ],
+        "nodes": [
+          {
+            "id": "Renamed",
+            "label": "Renamed"
+          },
+          {
+            "id": "Beta",
+            "label": "Beta"
+          },
+          {
+            "id": "Gamma",
+            "label": "Gamma"
+          }
+        ],
+        "edges": [
+          {
+            "source": "Renamed",
+            "target": "Beta",
+            "directed": true
+          },
+          {
+            "source": "Beta",
+            "target": "Gamma",
+            "directed": true
+          }
+        ]
+      },
+      "prelude": [
+        {
+          "source": "---\nconfig:\n  theme: forest\n---\nflowchart LR\nOld[Previous state] --> Other[Other state]",
+          "accept": true
+        },
+        {
+          "source": "sankey-beta\nAlpha,Beta,5\nBeta,Gamma,5",
+          "accept": true
+        }
+      ]
+    },
+    {
+      "id": "meaning:family:packet:configuration-reset",
+      "family": "packet",
+      "required": true,
+      "source": "packet\n0-7: \"Header\"\n8-15: \"Payload\"",
+      "features": [
+        "family-representative",
+        "native-content",
+        "configuration-retains-meaning",
+        "cross-family-state-reset",
+        "source-replacement"
+      ],
+      "provenance": "Independent source-replacement workflow; a configured different-family prelude must not leak identities or content into the final public parse",
+      "expected": {
+        "labels": [
+          "Header",
+          "Payload"
+        ],
+        "facts": {
+          "fields": [
+            {
+              "label": "Header",
+              "start": 0,
+              "end": 7
+            },
+            {
+              "label": "Payload",
+              "start": 8,
+              "end": 15
+            }
+          ]
+        }
+      },
+      "prelude": [
+        {
+          "source": "---\nconfig:\n  theme: forest\n---\nflowchart LR\nOld[Previous state] --> Other[Other state]",
+          "accept": true
+        }
+      ],
+      "edit": {
+        "source": "packet\n0-7: \"RevisedHeader\"\n8-15: \"Payload\"",
+        "expected": {
+          "labels": [
+            "RevisedHeader",
+            "Payload"
+          ],
+          "facts": {
+            "fields": [
+              {
+                "label": "RevisedHeader",
+                "start": 0,
+                "end": 7
+              },
+              {
+                "label": "Payload",
+                "start": 8,
+                "end": 15
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": "meaning:family:packet:configuration-reset:edit",
+      "family": "packet",
+      "required": true,
+      "source": "packet\n0-7: \"RevisedHeader\"\n8-15: \"Payload\"",
+      "features": [
+        "family-representative",
+        "native-content",
+        "configuration-retains-meaning",
+        "cross-family-state-reset",
+        "source-replacement"
+      ],
+      "provenance": "Independent source-replacement workflow; a configured different-family prelude must not leak identities or content into the final public parse",
+      "expected": {
+        "labels": [
+          "RevisedHeader",
+          "Payload"
+        ],
+        "facts": {
+          "fields": [
+            {
+              "label": "RevisedHeader",
+              "start": 0,
+              "end": 7
+            },
+            {
+              "label": "Payload",
+              "start": 8,
+              "end": 15
+            }
+          ]
+        }
+      },
+      "prelude": [
+        {
+          "source": "---\nconfig:\n  theme: forest\n---\nflowchart LR\nOld[Previous state] --> Other[Other state]",
+          "accept": true
+        },
+        {
+          "source": "packet\n0-7: \"Header\"\n8-15: \"Payload\"",
+          "accept": true
+        }
+      ]
+    },
+    {
+      "id": "meaning:family:kanban:configuration-reset",
+      "family": "kanban",
+      "required": true,
+      "source": "kanban\nbacklog[Backlog]\n  TaskA[Build]\ndone[Done]\n  TaskB[Test]",
+      "features": [
+        "family-representative",
+        "identity-label-binding",
+        "configuration-retains-meaning",
+        "cross-family-state-reset",
+        "source-replacement"
+      ],
+      "provenance": "Independent source-replacement workflow; a configured different-family prelude must not leak identities or content into the final public parse",
+      "expected": {
+        "labels": [
+          "Backlog",
+          "Build",
+          "Done",
+          "Test"
+        ],
+        "nodes": [
+          {
+            "id": "TaskA",
+            "label": "Build"
+          },
+          {
+            "id": "TaskB",
+            "label": "Test"
+          }
+        ],
+        "groups": [
+          {
+            "id": "backlog",
+            "label": "Backlog",
+            "members": [
+              "TaskA"
+            ]
+          },
+          {
+            "id": "done",
+            "label": "Done",
+            "members": [
+              "TaskB"
+            ]
+          }
+        ]
+      },
+      "prelude": [
+        {
+          "source": "---\nconfig:\n  theme: forest\n---\nflowchart LR\nOld[Previous state] --> Other[Other state]",
+          "accept": true
+        }
+      ],
+      "edit": {
+        "source": "kanban\nbacklog[Backlog]\n  TaskA[Inspect]\ndone[Done]\n  TaskB[Test]",
+        "expected": {
+          "labels": [
+            "Backlog",
+            "Inspect",
+            "Done",
+            "Test"
+          ],
+          "nodes": [
+            {
+              "id": "TaskA",
+              "label": "Inspect"
+            },
+            {
+              "id": "TaskB",
+              "label": "Test"
+            }
+          ],
+          "groups": [
+            {
+              "id": "backlog",
+              "label": "Backlog",
+              "members": [
+                "TaskA"
+              ]
+            },
+            {
+              "id": "done",
+              "label": "Done",
+              "members": [
+                "TaskB"
+              ]
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "meaning:family:kanban:configuration-reset:edit",
+      "family": "kanban",
+      "required": true,
+      "source": "kanban\nbacklog[Backlog]\n  TaskA[Inspect]\ndone[Done]\n  TaskB[Test]",
+      "features": [
+        "family-representative",
+        "identity-label-binding",
+        "configuration-retains-meaning",
+        "cross-family-state-reset",
+        "source-replacement"
+      ],
+      "provenance": "Independent source-replacement workflow; a configured different-family prelude must not leak identities or content into the final public parse",
+      "expected": {
+        "labels": [
+          "Backlog",
+          "Inspect",
+          "Done",
+          "Test"
+        ],
+        "nodes": [
+          {
+            "id": "TaskA",
+            "label": "Inspect"
+          },
+          {
+            "id": "TaskB",
+            "label": "Test"
+          }
+        ],
+        "groups": [
+          {
+            "id": "backlog",
+            "label": "Backlog",
+            "members": [
+              "TaskA"
+            ]
+          },
+          {
+            "id": "done",
+            "label": "Done",
+            "members": [
+              "TaskB"
+            ]
+          }
+        ]
+      },
+      "prelude": [
+        {
+          "source": "---\nconfig:\n  theme: forest\n---\nflowchart LR\nOld[Previous state] --> Other[Other state]",
+          "accept": true
+        },
+        {
+          "source": "kanban\nbacklog[Backlog]\n  TaskA[Build]\ndone[Done]\n  TaskB[Test]",
+          "accept": true
+        }
+      ]
+    },
+    {
+      "id": "meaning:family:requirement:configuration-reset",
+      "family": "requirement",
+      "required": true,
+      "source": "requirementDiagram\nrequirement reliable {\nid: R1\ntext: Requests retain meaning\nrisk: high\nverifymethod: test\n}\nelement suite {\ntype: \"test\"\n}\nsuite - verifies -> reliable",
+      "features": [
+        "family-representative",
+        "identity-label-binding",
+        "endpoint-multiplicity",
+        "native-content",
+        "configuration-retains-meaning",
+        "cross-family-state-reset",
+        "source-replacement"
+      ],
+      "provenance": "Independent source-replacement workflow; a configured different-family prelude must not leak identities or content into the final public parse",
+      "expected": {
+        "labels": [
+          "reliable",
+          "suite",
+          "Requests retain meaning"
+        ],
+        "nodes": [
+          {
+            "id": "reliable",
+            "label": "reliable"
+          },
+          {
+            "id": "suite",
+            "label": "suite"
+          }
+        ],
+        "edges": [
+          {
+            "source": "suite",
+            "target": "reliable",
+            "label": "verifies",
+            "directed": true
+          }
+        ],
+        "facts": {
+          "requirements": [
+            {
+              "name": "reliable",
+              "type": "requirement",
+              "id": "R1",
+              "text": "Requests retain meaning",
+              "risk": "high",
+              "verify": "test"
+            }
+          ],
+          "elements": [
+            {
+              "name": "suite",
+              "type": "test",
+              "docRef": ""
+            }
+          ]
+        }
+      },
+      "prelude": [
+        {
+          "source": "---\nconfig:\n  theme: forest\n---\nflowchart LR\nOld[Previous state] --> Other[Other state]",
+          "accept": true
+        }
+      ],
+      "edit": {
+        "source": "requirementDiagram\nrequirement reliable {\nid: R1\ntext: Requests stay intact\nrisk: high\nverifymethod: test\n}\nelement suite {\ntype: \"test\"\n}\nsuite - verifies -> reliable",
+        "expected": {
+          "labels": [
+            "reliable",
+            "suite",
+            "Requests stay intact"
+          ],
+          "nodes": [
+            {
+              "id": "reliable",
+              "label": "reliable"
+            },
+            {
+              "id": "suite",
+              "label": "suite"
+            }
+          ],
+          "edges": [
+            {
+              "source": "suite",
+              "target": "reliable",
+              "label": "verifies",
+              "directed": true
+            }
+          ],
+          "facts": {
+            "requirements": [
+              {
+                "name": "reliable",
+                "type": "requirement",
+                "id": "R1",
+                "text": "Requests stay intact",
+                "risk": "high",
+                "verify": "test"
+              }
+            ],
+            "elements": [
+              {
+                "name": "suite",
+                "type": "test",
+                "docRef": ""
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": "meaning:family:requirement:configuration-reset:edit",
+      "family": "requirement",
+      "required": true,
+      "source": "requirementDiagram\nrequirement reliable {\nid: R1\ntext: Requests stay intact\nrisk: high\nverifymethod: test\n}\nelement suite {\ntype: \"test\"\n}\nsuite - verifies -> reliable",
+      "features": [
+        "family-representative",
+        "identity-label-binding",
+        "endpoint-multiplicity",
+        "native-content",
+        "configuration-retains-meaning",
+        "cross-family-state-reset",
+        "source-replacement"
+      ],
+      "provenance": "Independent source-replacement workflow; a configured different-family prelude must not leak identities or content into the final public parse",
+      "expected": {
+        "labels": [
+          "reliable",
+          "suite",
+          "Requests stay intact"
+        ],
+        "nodes": [
+          {
+            "id": "reliable",
+            "label": "reliable"
+          },
+          {
+            "id": "suite",
+            "label": "suite"
+          }
+        ],
+        "edges": [
+          {
+            "source": "suite",
+            "target": "reliable",
+            "label": "verifies",
+            "directed": true
+          }
+        ],
+        "facts": {
+          "requirements": [
+            {
+              "name": "reliable",
+              "type": "requirement",
+              "id": "R1",
+              "text": "Requests stay intact",
+              "risk": "high",
+              "verify": "test"
+            }
+          ],
+          "elements": [
+            {
+              "name": "suite",
+              "type": "test",
+              "docRef": ""
+            }
+          ]
+        }
+      },
+      "prelude": [
+        {
+          "source": "---\nconfig:\n  theme: forest\n---\nflowchart LR\nOld[Previous state] --> Other[Other state]",
+          "accept": true
+        },
+        {
+          "source": "requirementDiagram\nrequirement reliable {\nid: R1\ntext: Requests retain meaning\nrisk: high\nverifymethod: test\n}\nelement suite {\ntype: \"test\"\n}\nsuite - verifies -> reliable",
+          "accept": true
+        }
+      ]
+    },
+    {
+      "id": "meaning:family:treemap:configuration-reset",
+      "family": "treemap",
+      "required": true,
+      "source": "treemap\n\"Root\"\n  \"Alpha\": 7\n  \"Beta\": 3",
+      "features": [
+        "family-representative",
+        "identity-label-binding",
+        "endpoint-multiplicity",
+        "native-content",
+        "configuration-retains-meaning",
+        "cross-family-state-reset",
+        "source-replacement"
+      ],
+      "provenance": "Independent source-replacement workflow; a configured different-family prelude must not leak identities or content into the final public parse",
+      "expected": {
+        "labels": [
+          "Root",
+          "Alpha",
+          "Beta"
+        ],
+        "unorderedFacts": [
+          "values"
+        ],
+        "nodes": [
+          {
+            "id": "Root",
+            "label": "Root"
+          },
+          {
+            "id": "Root/Alpha",
+            "label": "Alpha"
+          },
+          {
+            "id": "Root/Beta",
+            "label": "Beta"
+          }
+        ],
+        "edges": [
+          {
+            "source": "Root",
+            "target": "Root/Alpha",
+            "label": "",
+            "directed": true
+          },
+          {
+            "source": "Root",
+            "target": "Root/Beta",
+            "label": "",
+            "directed": true
+          }
+        ],
+        "groups": [
+          {
+            "id": "Root",
+            "label": "Root",
+            "members": [
+              "Root/Alpha",
+              "Root/Beta"
+            ]
+          }
+        ],
+        "facts": {
+          "values": [
+            {
+              "id": "Root/Alpha",
+              "value": 7
+            },
+            {
+              "id": "Root/Beta",
+              "value": 3
+            }
+          ]
+        }
+      },
+      "prelude": [
+        {
+          "source": "---\nconfig:\n  theme: forest\n---\nflowchart LR\nOld[Previous state] --> Other[Other state]",
+          "accept": true
+        }
+      ],
+      "edit": {
+        "source": "treemap\n\"Root\"\n  \"Renamed\": 7\n  \"Beta\": 3",
+        "expected": {
+          "labels": [
+            "Root",
+            "Renamed",
+            "Beta"
+          ],
+          "unorderedFacts": [
+            "values"
+          ],
+          "nodes": [
+            {
+              "id": "Root",
+              "label": "Root"
+            },
+            {
+              "id": "Root/Renamed",
+              "label": "Renamed"
+            },
+            {
+              "id": "Root/Beta",
+              "label": "Beta"
+            }
+          ],
+          "edges": [
+            {
+              "source": "Root",
+              "target": "Root/Renamed",
+              "label": "",
+              "directed": true
+            },
+            {
+              "source": "Root",
+              "target": "Root/Beta",
+              "label": "",
+              "directed": true
+            }
+          ],
+          "groups": [
+            {
+              "id": "Root",
+              "label": "Root",
+              "members": [
+                "Root/Renamed",
+                "Root/Beta"
+              ]
+            }
+          ],
+          "facts": {
+            "values": [
+              {
+                "id": "Root/Renamed",
+                "value": 7
+              },
+              {
+                "id": "Root/Beta",
+                "value": 3
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": "meaning:family:treemap:configuration-reset:edit",
+      "family": "treemap",
+      "required": true,
+      "source": "treemap\n\"Root\"\n  \"Renamed\": 7\n  \"Beta\": 3",
+      "features": [
+        "family-representative",
+        "identity-label-binding",
+        "endpoint-multiplicity",
+        "native-content",
+        "configuration-retains-meaning",
+        "cross-family-state-reset",
+        "source-replacement"
+      ],
+      "provenance": "Independent source-replacement workflow; a configured different-family prelude must not leak identities or content into the final public parse",
+      "expected": {
+        "labels": [
+          "Root",
+          "Renamed",
+          "Beta"
+        ],
+        "unorderedFacts": [
+          "values"
+        ],
+        "nodes": [
+          {
+            "id": "Root",
+            "label": "Root"
+          },
+          {
+            "id": "Root/Renamed",
+            "label": "Renamed"
+          },
+          {
+            "id": "Root/Beta",
+            "label": "Beta"
+          }
+        ],
+        "edges": [
+          {
+            "source": "Root",
+            "target": "Root/Renamed",
+            "label": "",
+            "directed": true
+          },
+          {
+            "source": "Root",
+            "target": "Root/Beta",
+            "label": "",
+            "directed": true
+          }
+        ],
+        "groups": [
+          {
+            "id": "Root",
+            "label": "Root",
+            "members": [
+              "Root/Renamed",
+              "Root/Beta"
+            ]
+          }
+        ],
+        "facts": {
+          "values": [
+            {
+              "id": "Root/Renamed",
+              "value": 7
+            },
+            {
+              "id": "Root/Beta",
+              "value": 3
+            }
+          ]
+        }
+      },
+      "prelude": [
+        {
+          "source": "---\nconfig:\n  theme: forest\n---\nflowchart LR\nOld[Previous state] --> Other[Other state]",
+          "accept": true
+        },
+        {
+          "source": "treemap\n\"Root\"\n  \"Alpha\": 7\n  \"Beta\": 3",
+          "accept": true
+        }
+      ]
+    },
+    {
+      "id": "meaning:family:ishikawa:configuration-reset",
+      "family": "ishikawa",
+      "required": true,
+      "source": "ishikawa\n  Delay\n  Process\n    Review\n  Tooling\n    Build",
+      "features": [
+        "family-representative",
+        "identity-label-binding",
+        "endpoint-multiplicity",
+        "configuration-retains-meaning",
+        "cross-family-state-reset",
+        "source-replacement"
+      ],
+      "provenance": "Independent source-replacement workflow; a configured different-family prelude must not leak identities or content into the final public parse",
+      "expected": {
+        "labels": [
+          "Delay",
+          "Process",
+          "Review",
+          "Tooling",
+          "Build"
+        ],
+        "nodes": [
+          {
+            "id": "Delay",
+            "label": "Delay"
+          },
+          {
+            "id": "Delay/Process",
+            "label": "Process"
+          },
+          {
+            "id": "Delay/Process/Review",
+            "label": "Review"
+          },
+          {
+            "id": "Delay/Tooling",
+            "label": "Tooling"
+          },
+          {
+            "id": "Delay/Tooling/Build",
+            "label": "Build"
+          }
+        ],
+        "edges": [
+          {
+            "source": "Delay",
+            "target": "Delay/Process",
+            "label": "",
+            "directed": true
+          },
+          {
+            "source": "Delay/Process",
+            "target": "Delay/Process/Review",
+            "label": "",
+            "directed": true
+          },
+          {
+            "source": "Delay",
+            "target": "Delay/Tooling",
+            "label": "",
+            "directed": true
+          },
+          {
+            "source": "Delay/Tooling",
+            "target": "Delay/Tooling/Build",
+            "label": "",
+            "directed": true
+          }
+        ]
+      },
+      "prelude": [
+        {
+          "source": "---\nconfig:\n  theme: forest\n---\nflowchart LR\nOld[Previous state] --> Other[Other state]",
+          "accept": true
+        }
+      ],
+      "edit": {
+        "source": "ishikawa\n  Delay\n  Process\n    Inspect\n  Tooling\n    Build",
+        "expected": {
+          "labels": [
+            "Delay",
+            "Process",
+            "Inspect",
+            "Tooling",
+            "Build"
+          ],
+          "nodes": [
+            {
+              "id": "Delay",
+              "label": "Delay"
+            },
+            {
+              "id": "Delay/Process",
+              "label": "Process"
+            },
+            {
+              "id": "Delay/Process/Inspect",
+              "label": "Inspect"
+            },
+            {
+              "id": "Delay/Tooling",
+              "label": "Tooling"
+            },
+            {
+              "id": "Delay/Tooling/Build",
+              "label": "Build"
+            }
+          ],
+          "edges": [
+            {
+              "source": "Delay",
+              "target": "Delay/Process",
+              "label": "",
+              "directed": true
+            },
+            {
+              "source": "Delay/Process",
+              "target": "Delay/Process/Inspect",
+              "label": "",
+              "directed": true
+            },
+            {
+              "source": "Delay",
+              "target": "Delay/Tooling",
+              "label": "",
+              "directed": true
+            },
+            {
+              "source": "Delay/Tooling",
+              "target": "Delay/Tooling/Build",
+              "label": "",
+              "directed": true
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "meaning:family:ishikawa:configuration-reset:edit",
+      "family": "ishikawa",
+      "required": true,
+      "source": "ishikawa\n  Delay\n  Process\n    Inspect\n  Tooling\n    Build",
+      "features": [
+        "family-representative",
+        "identity-label-binding",
+        "endpoint-multiplicity",
+        "configuration-retains-meaning",
+        "cross-family-state-reset",
+        "source-replacement"
+      ],
+      "provenance": "Independent source-replacement workflow; a configured different-family prelude must not leak identities or content into the final public parse",
+      "expected": {
+        "labels": [
+          "Delay",
+          "Process",
+          "Inspect",
+          "Tooling",
+          "Build"
+        ],
+        "nodes": [
+          {
+            "id": "Delay",
+            "label": "Delay"
+          },
+          {
+            "id": "Delay/Process",
+            "label": "Process"
+          },
+          {
+            "id": "Delay/Process/Inspect",
+            "label": "Inspect"
+          },
+          {
+            "id": "Delay/Tooling",
+            "label": "Tooling"
+          },
+          {
+            "id": "Delay/Tooling/Build",
+            "label": "Build"
+          }
+        ],
+        "edges": [
+          {
+            "source": "Delay",
+            "target": "Delay/Process",
+            "label": "",
+            "directed": true
+          },
+          {
+            "source": "Delay/Process",
+            "target": "Delay/Process/Inspect",
+            "label": "",
+            "directed": true
+          },
+          {
+            "source": "Delay",
+            "target": "Delay/Tooling",
+            "label": "",
+            "directed": true
+          },
+          {
+            "source": "Delay/Tooling",
+            "target": "Delay/Tooling/Build",
+            "label": "",
+            "directed": true
+          }
+        ]
+      },
+      "prelude": [
+        {
+          "source": "---\nconfig:\n  theme: forest\n---\nflowchart LR\nOld[Previous state] --> Other[Other state]",
+          "accept": true
+        },
+        {
+          "source": "ishikawa\n  Delay\n  Process\n    Review\n  Tooling\n    Build",
+          "accept": true
+        }
+      ]
+    },
+    {
+      "id": "meaning:family:block:configuration-reset",
+      "family": "block",
+      "required": true,
+      "source": "block\ncolumns 2\nAlpha[\"Alpha\"] Beta[\"Beta\"]\nAlpha --> Beta",
+      "features": [
+        "family-representative",
+        "identity-label-binding",
+        "endpoint-multiplicity",
+        "native-content",
+        "configuration-retains-meaning",
+        "cross-family-state-reset",
+        "source-replacement"
+      ],
+      "provenance": "Independent source-replacement workflow; a configured different-family prelude must not leak identities or content into the final public parse",
+      "expected": {
+        "labels": [
+          "Alpha",
+          "Beta"
+        ],
+        "nodes": [
+          {
+            "id": "Alpha",
+            "label": "Alpha"
+          },
+          {
+            "id": "Beta",
+            "label": "Beta"
+          }
+        ],
+        "edges": [
+          {
+            "source": "Alpha",
+            "target": "Beta",
+            "label": "",
+            "directed": true
+          }
+        ],
+        "facts": {
+          "columns": 2
+        }
+      },
+      "prelude": [
+        {
+          "source": "---\nconfig:\n  theme: forest\n---\nflowchart LR\nOld[Previous state] --> Other[Other state]",
+          "accept": true
+        }
+      ],
+      "edit": {
+        "source": "block\ncolumns 2\nRenamed[\"Renamed\"] Beta[\"Beta\"]\nRenamed --> Beta",
+        "expected": {
+          "labels": [
+            "Renamed",
+            "Beta"
+          ],
+          "nodes": [
+            {
+              "id": "Renamed",
+              "label": "Renamed"
+            },
+            {
+              "id": "Beta",
+              "label": "Beta"
+            }
+          ],
+          "edges": [
+            {
+              "source": "Renamed",
+              "target": "Beta",
+              "label": "",
+              "directed": true
+            }
+          ],
+          "facts": {
+            "columns": 2
+          }
+        }
+      }
+    },
+    {
+      "id": "meaning:family:block:configuration-reset:edit",
+      "family": "block",
+      "required": true,
+      "source": "block\ncolumns 2\nRenamed[\"Renamed\"] Beta[\"Beta\"]\nRenamed --> Beta",
+      "features": [
+        "family-representative",
+        "identity-label-binding",
+        "endpoint-multiplicity",
+        "native-content",
+        "configuration-retains-meaning",
+        "cross-family-state-reset",
+        "source-replacement"
+      ],
+      "provenance": "Independent source-replacement workflow; a configured different-family prelude must not leak identities or content into the final public parse",
+      "expected": {
+        "labels": [
+          "Renamed",
+          "Beta"
+        ],
+        "nodes": [
+          {
+            "id": "Renamed",
+            "label": "Renamed"
+          },
+          {
+            "id": "Beta",
+            "label": "Beta"
+          }
+        ],
+        "edges": [
+          {
+            "source": "Renamed",
+            "target": "Beta",
+            "label": "",
+            "directed": true
+          }
+        ],
+        "facts": {
+          "columns": 2
+        }
+      },
+      "prelude": [
+        {
+          "source": "---\nconfig:\n  theme: forest\n---\nflowchart LR\nOld[Previous state] --> Other[Other state]",
+          "accept": true
+        },
+        {
+          "source": "block\ncolumns 2\nAlpha[\"Alpha\"] Beta[\"Beta\"]\nAlpha --> Beta",
+          "accept": true
+        }
+      ]
+    },
+    {
+      "id": "features:flowchart:font-size-reset",
+      "family": "flowchart",
+      "required": true,
+      "source": "flowchart TB\nA[Current] --> B[Configuration]",
+      "features": [
+        "font-size-effect",
+        "configuration-reset"
+      ],
+      "provenance": "Original independent portable configuration-reset literal; actual computed font-size is separately checked by the paint observer",
+      "expected": {
+        "labels": [
+          "Current",
+          "Configuration"
+        ],
+        "nodes": [
+          {
+            "id": "A",
+            "label": "Current"
+          },
+          {
+            "id": "B",
+            "label": "Configuration"
+          }
+        ],
+        "edges": [
+          {
+            "source": "A",
+            "target": "B",
+            "label": "",
+            "directed": true
+          }
+        ],
+        "facts": {
+          "direction": "TB"
+        }
+      },
+      "prelude": [
+        {
+          "source": "%%{init: {\"flowchart\": {\"nodeSpacing\": 100}}}%%\nflowchart LR\nA[Previous] --> B[Configuration]",
+          "accept": true
+        }
+      ],
+      "renderOptions": {
+        "fontSize": 14
+      },
+      "paint": {
+        "fontSize": 14
+      },
+      "edit": {
+        "source": "flowchart TB\nA[Current] --> B[Configuration]",
+        "expected": {
+          "labels": [
+            "Current",
+            "Configuration"
+          ],
+          "nodes": [
+            {
+              "id": "A",
+              "label": "Current"
+            },
+            {
+              "id": "B",
+              "label": "Configuration"
+            }
+          ],
+          "edges": [
+            {
+              "source": "A",
+              "target": "B",
+              "label": "",
+              "directed": true
+            }
+          ],
+          "facts": {
+            "direction": "TB"
+          }
+        },
+        "renderOptions": {
+          "fontSize": 24
+        },
+        "paint": {
+          "fontSize": 24
+        }
+      }
+    },
+    {
+      "id": "features:flowchart:font-size-reset:edit",
+      "family": "flowchart",
+      "required": true,
+      "source": "flowchart TB\nA[Current] --> B[Configuration]",
+      "features": [
+        "font-size-effect",
+        "configuration-reset"
+      ],
+      "provenance": "Original independent portable configuration-reset literal; actual computed font-size is separately checked by the paint observer",
+      "expected": {
+        "labels": [
+          "Current",
+          "Configuration"
+        ],
+        "nodes": [
+          {
+            "id": "A",
+            "label": "Current"
+          },
+          {
+            "id": "B",
+            "label": "Configuration"
+          }
+        ],
+        "edges": [
+          {
+            "source": "A",
+            "target": "B",
+            "label": "",
+            "directed": true
+          }
+        ],
+        "facts": {
+          "direction": "TB"
+        }
+      },
+      "prelude": [
+        {
+          "source": "%%{init: {\"flowchart\": {\"nodeSpacing\": 100}}}%%\nflowchart LR\nA[Previous] --> B[Configuration]",
+          "accept": true
+        },
+        {
+          "source": "flowchart TB\nA[Current] --> B[Configuration]",
+          "accept": true,
+          "renderOptions": {
+            "fontSize": 14
+          }
+        }
+      ],
+      "renderOptions": {
+        "fontSize": 24
+      },
+      "paint": {
+        "fontSize": 24
+      }
+    },
+    {
+      "id": "features:flowchart:controlled-image",
+      "family": "flowchart",
+      "required": true,
+      "source": "flowchart LR\nArt@{ img: \"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGP4z8DwHwAFAAH/iZk9HQAAAABJRU5ErkJggg==\", label: \"Icon\", w: 32, h: 32, constraint: \"on\" }\nArt --> Target[Target]",
+      "features": [
+        "authored-image-presence",
+        "controlled-asset",
+        "image-decoding"
+      ],
+      "provenance": "Pinned Mermaid image-node grammar with an independent inline opaque-red PNG; native image policy and actual emitted/decode evidence are separate",
+      "expected": {
+        "labels": [
+          "Icon",
+          "Target"
+        ],
+        "nodes": [
+          {
+            "id": "Art",
+            "label": "Icon"
+          },
+          {
+            "id": "Target",
+            "label": "Target"
+          }
+        ],
+        "edges": [
+          {
+            "source": "Art",
+            "target": "Target",
+            "label": "",
+            "directed": true
+          }
+        ],
+        "facts": {
+          "image-requests": [
+            {
+              "id": "Art",
+              "href": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGP4z8DwHwAFAAH/iZk9HQAAAABJRU5ErkJggg=="
+            }
+          ]
+        }
+      },
+      "paint": {
+        "images": [
+          {
+            "href": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGP4z8DwHwAFAAH/iZk9HQAAAABJRU5ErkJggg==",
+            "count": 1
+          }
+        ]
+      }
+    },
+    {
+      "id": "meaning:required:eventmodeling",
+      "family": "eventmodeling",
+      "required": true,
+      "source": "eventmodeling\ntf 01 ui CartUI\ntf 02 cmd AddItem\ntf 03 evt ItemAdded",
+      "features": [
+        "documented-required-pending-maturity-review",
+        "ordered-modeling-frames",
+        "frame-relationships"
+      ],
+      "provenance": "Pinned public Event Modeling example; issue #501 records native-product gap",
+      "expected": {
+        "labels": [
+          "CartUI",
+          "AddItem",
+          "ItemAdded"
+        ],
+        "nodes": [
+          {
+            "id": "01",
+            "label": "CartUI"
+          },
+          {
+            "id": "02",
+            "label": "AddItem"
+          },
+          {
+            "id": "03",
+            "label": "ItemAdded"
+          }
+        ],
+        "edges": [
+          {
+            "source": "01",
+            "target": "02",
+            "label": "",
+            "directed": true
+          },
+          {
+            "source": "02",
+            "target": "03",
+            "label": "",
+            "directed": true
+          }
+        ],
+        "facts": {
+          "frame-order": [
+            "CartUI",
+            "AddItem",
+            "ItemAdded"
+          ]
+        }
+      }
+    },
+    {
+      "id": "meaning:required:zenuml",
+      "family": "zenuml",
+      "required": true,
+      "source": "zenuml\ntitle Demo\nAlice->John: Hello John, how are you?\nJohn->Alice: Great!",
+      "features": [
+        "documented-required-pending-maturity-review",
+        "reciprocal-messages",
+        "message-order"
+      ],
+      "provenance": "Pinned public ZenUML example; issue #502 records addon/native-product requirements",
+      "expected": {
+        "labels": [
+          "Alice",
+          "John",
+          "Hello John, how are you?",
+          "Great!"
+        ],
+        "nodes": [
+          {
+            "id": "Alice",
+            "label": "Alice"
+          },
+          {
+            "id": "John",
+            "label": "John"
+          }
+        ],
+        "edges": [
+          {
+            "source": "Alice",
+            "target": "John",
+            "label": "Hello John, how are you?",
+            "directed": true
+          },
+          {
+            "source": "John",
+            "target": "Alice",
+            "label": "Great!",
+            "directed": true
+          }
+        ],
+        "facts": {
+          "message-order": [
+            {
+              "from": "Alice",
+              "to": "John",
+              "text": "Hello John, how are you?"
+            },
+            {
+              "from": "John",
+              "to": "Alice",
+              "text": "Great!"
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "supplemental": [],
+  "selected": [
+    {
+      "id": "features:flowchart:font-size-reset",
+      "family": "flowchart",
+      "required": true,
+      "source": "flowchart TB\nA[Current] --> B[Configuration]",
+      "features": [
+        "font-size-effect",
+        "configuration-reset"
+      ],
+      "provenance": "Original independent portable configuration-reset literal; actual computed font-size is separately checked by the paint observer",
+      "expected": {
+        "labels": [
+          "Current",
+          "Configuration"
+        ],
+        "nodes": [
+          {
+            "id": "A",
+            "label": "Current"
+          },
+          {
+            "id": "B",
+            "label": "Configuration"
+          }
+        ],
+        "edges": [
+          {
+            "source": "A",
+            "target": "B",
+            "label": "",
+            "directed": true
+          }
+        ],
+        "facts": {
+          "direction": "TB"
+        }
+      },
+      "prelude": [
+        {
+          "source": "%%{init: {\"flowchart\": {\"nodeSpacing\": 100}}}%%\nflowchart LR\nA[Previous] --> B[Configuration]",
+          "accept": true
+        }
+      ],
+      "renderOptions": {
+        "style": {
+          "roles": {
+            "node": {
+              "fontSize": 14
+            }
+          }
+        }
+      },
+      "paint": {
+        "fontSize": 14
+      },
+      "edit": {
+        "source": "flowchart TB\nA[Current] --> B[Configuration]",
+        "expected": {
+          "labels": [
+            "Current",
+            "Configuration"
+          ],
+          "nodes": [
+            {
+              "id": "A",
+              "label": "Current"
+            },
+            {
+              "id": "B",
+              "label": "Configuration"
+            }
+          ],
+          "edges": [
+            {
+              "source": "A",
+              "target": "B",
+              "label": "",
+              "directed": true
+            }
+          ],
+          "facts": {
+            "direction": "TB"
+          }
+        },
+        "renderOptions": {
+          "style": {
+            "roles": {
+              "node": {
+                "fontSize": 24
+              }
+            }
+          }
+        },
+        "paint": {
+          "fontSize": 24
+        }
+      }
+    },
+    {
+      "id": "features:flowchart:font-size-reset:edit",
+      "family": "flowchart",
+      "required": true,
+      "source": "flowchart TB\nA[Current] --> B[Configuration]",
+      "features": [
+        "font-size-effect",
+        "configuration-reset"
+      ],
+      "provenance": "Original independent portable configuration-reset literal; actual computed font-size is separately checked by the paint observer",
+      "expected": {
+        "labels": [
+          "Current",
+          "Configuration"
+        ],
+        "nodes": [
+          {
+            "id": "A",
+            "label": "Current"
+          },
+          {
+            "id": "B",
+            "label": "Configuration"
+          }
+        ],
+        "edges": [
+          {
+            "source": "A",
+            "target": "B",
+            "label": "",
+            "directed": true
+          }
+        ],
+        "facts": {
+          "direction": "TB"
+        }
+      },
+      "prelude": [
+        {
+          "source": "%%{init: {\"flowchart\": {\"nodeSpacing\": 100}}}%%\nflowchart LR\nA[Previous] --> B[Configuration]",
+          "accept": true
+        },
+        {
+          "source": "flowchart TB\nA[Current] --> B[Configuration]",
+          "accept": true,
+          "renderOptions": {
+            "fontSize": 14
+          }
+        }
+      ],
+      "renderOptions": {
+        "style": {
+          "roles": {
+            "node": {
+              "fontSize": 24
+            }
+          }
+        }
+      },
+      "paint": {
+        "fontSize": 24
+      }
+    },
+    {
+      "id": "meaning:required:eventmodeling",
+      "family": "eventmodeling",
+      "required": true,
+      "source": "eventmodeling\ntf 01 ui CartUI\ntf 02 cmd AddItem\ntf 03 evt ItemAdded",
+      "features": [
+        "documented-required-pending-maturity-review",
+        "ordered-modeling-frames",
+        "frame-relationships"
+      ],
+      "provenance": "Pinned public Event Modeling example; issue #501 records native-product gap",
+      "expected": {
+        "labels": [
+          "CartUI",
+          "AddItem",
+          "ItemAdded"
+        ],
+        "nodes": [
+          {
+            "id": "01",
+            "label": "CartUI"
+          },
+          {
+            "id": "02",
+            "label": "AddItem"
+          },
+          {
+            "id": "03",
+            "label": "ItemAdded"
+          }
+        ],
+        "edges": [
+          {
+            "source": "01",
+            "target": "02",
+            "label": "",
+            "directed": true
+          },
+          {
+            "source": "02",
+            "target": "03",
+            "label": "",
+            "directed": true
+          }
+        ],
+        "facts": {
+          "frame-order": [
+            "CartUI",
+            "AddItem",
+            "ItemAdded"
+          ]
+        }
+      }
+    }
+  ]
+}

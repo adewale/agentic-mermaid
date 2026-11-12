@@ -1,0 +1,14 @@
+{
+  "at": "2026-11-12T23:38:56.106845+00:00",
+  "portableRows": 2,
+  "fidelityRows": 6,
+  "allReturned": true,
+  "allEnrolledPaintChecksPassed": true,
+  "projectedMeaningPassed": true,
+  "sourceUnchanged": true,
+  "originalResultsUnchanged": true,
+  "frozenTimingInput": "compatibility-overlay/MEASUREMENT-CASES.json",
+  "frozenTimingInputSha256": "25bcc698e6671fbbe80d075b0ca27e69ad861377b04f80825162f4600f19a31c",
+  "observations": "Eventmodelingedges derived frompublicbody semantics; actualpaintseparate;Seq/Zenremainunknown",
+  "allBrowsersClosed": true
+}

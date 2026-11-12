@@ -5,7 +5,7 @@ import {environmentIdentity} from '/tmp/pr449-week-comparison-20261101/trident-e
 process.env.MERMAID_REFERENCE_DIR='/tmp/pr449-main-integration-20261029-762'
 const out=import.meta.dir
 if(!existsSync(join(out,'BROWSER-CLOSED.json')))throw Error('Close fidelity and delivery browsers before Node clocks')
-const identity=JSON.parse(readFileSync(join(out,'IDENTITY.json'),'utf8')),cases=JSON.parse(readFileSync(join(out,'MEASUREMENT-CASES.json'),'utf8'))
+const identity=JSON.parse(readFileSync(join(out,'IDENTITY.json'),'utf8')),cases=JSON.parse(readFileSync(join(out,'compatibility-overlay/MEASUREMENT-CASES.json'),'utf8'))
 const directory=join(out,'performance'),observer='/tmp/pr449-week-comparison-20261101/trident-native-elk-df133-20261108/gnu-time/usr/bin/time'
 for(const d of ['jobs','results','failures','svg'])mkdirSync(join(directory,d),{recursive:true})
 writeFileSync(join(directory,'ENVIRONMENT.json'),JSON.stringify(environmentIdentity('node'),null,2)+'\n')

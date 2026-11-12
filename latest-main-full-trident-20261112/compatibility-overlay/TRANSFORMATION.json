@@ -1,0 +1,16 @@
+{
+  "sourceAndExpectationsUnchanged": true,
+  "portableIds": [
+    "adversarial:configuration-reset"
+  ],
+  "fidelityIds": [
+    "features:flowchart:font-size-reset",
+    "features:flowchart:font-size-reset:edit",
+    "meaning:required:eventmodeling"
+  ],
+  "fontSize": "top-level renderOptions.fontSize14/24 \u2192style.roles.node.fontSize14/24; same node-label-only authoredfixture and expectedpaint",
+  "eventModeling": "Agentic only frames body projection with namespace/typeband lanes,reset,explicit sources; Mermaid boxes/relations branch unchanged; inferredrelations DERIVEDPUBLICBODY, not actualSVG connectivity",
+  "originalObservations": "Original full packet PILOT.json/fidelityRESULTS.json remain unchanged; overlay results separate",
+  "productSourceChanged": false,
+  "originalAdapterSha256": "a735c2e84718c68da26a12678626f535662ddf31fdd377762bdb13cd6dc4aa45"
+}

@@ -1,0 +1,169 @@
+{
+  "scope": "Frozen authored expectations before any observations; no cross-renderer agreement as oracle",
+  "cases": [
+    {
+      "id": "features:flowchart:font-size-reset",
+      "family": "flowchart",
+      "expected": {
+        "labels": [
+          "Current",
+          "Configuration"
+        ],
+        "nodes": [
+          {
+            "id": "A",
+            "label": "Current"
+          },
+          {
+            "id": "B",
+            "label": "Configuration"
+          }
+        ],
+        "edges": [
+          {
+            "source": "A",
+            "target": "B",
+            "label": "",
+            "directed": true
+          }
+        ],
+        "facts": {
+          "direction": "TB"
+        }
+      },
+      "expectationDepth": "reviewed declared authored fields",
+      "paint": [
+        "svg-root",
+        "svg-unique-ids",
+        "canvas",
+        "visible-authored-labels",
+        "labels-within-canvas",
+        "unclipped-authored-labels",
+        "visible-ink",
+        "paint-opacity-and-color",
+        "computed-authored-font-size",
+        "painted-node-ownership",
+        "painted-relationships"
+      ],
+      "quantitative": []
+    },
+    {
+      "id": "features:flowchart:font-size-reset:edit",
+      "family": "flowchart",
+      "expected": {
+        "labels": [
+          "Current",
+          "Configuration"
+        ],
+        "nodes": [
+          {
+            "id": "A",
+            "label": "Current"
+          },
+          {
+            "id": "B",
+            "label": "Configuration"
+          }
+        ],
+        "edges": [
+          {
+            "source": "A",
+            "target": "B",
+            "label": "",
+            "directed": true
+          }
+        ],
+        "facts": {
+          "direction": "TB"
+        }
+      },
+      "expectationDepth": "reviewed declared authored fields",
+      "paint": [
+        "svg-root",
+        "svg-unique-ids",
+        "canvas",
+        "visible-authored-labels",
+        "labels-within-canvas",
+        "unclipped-authored-labels",
+        "visible-ink",
+        "paint-opacity-and-color",
+        "computed-authored-font-size",
+        "painted-node-ownership",
+        "painted-relationships"
+      ],
+      "quantitative": []
+    },
+    {
+      "id": "meaning:required:eventmodeling",
+      "family": "eventmodeling",
+      "expected": {
+        "labels": [
+          "CartUI",
+          "AddItem",
+          "ItemAdded"
+        ],
+        "nodes": [
+          {
+            "id": "01",
+            "label": "CartUI"
+          },
+          {
+            "id": "02",
+            "label": "AddItem"
+          },
+          {
+            "id": "03",
+            "label": "ItemAdded"
+          }
+        ],
+        "edges": [
+          {
+            "source": "01",
+            "target": "02",
+            "label": "",
+            "directed": true
+          },
+          {
+            "source": "02",
+            "target": "03",
+            "label": "",
+            "directed": true
+          }
+        ],
+        "facts": {
+          "frame-order": [
+            "CartUI",
+            "AddItem",
+            "ItemAdded"
+          ]
+        }
+      },
+      "expectationDepth": "reviewed declared authored fields",
+      "paint": [
+        "svg-root",
+        "svg-unique-ids",
+        "canvas",
+        "visible-authored-labels",
+        "labels-within-canvas",
+        "unclipped-authored-labels",
+        "visible-ink",
+        "paint-opacity-and-color",
+        "painted-node-ownership",
+        "painted-relationships"
+      ],
+      "quantitative": []
+    }
+  ],
+  "arms": [
+    {
+      "target": "pr",
+      "backend": "agentic",
+      "fallback": "none"
+    },
+    {
+      "target": "pr",
+      "backend": "elk",
+      "fallback": "none"
+    }
+  ]
+}

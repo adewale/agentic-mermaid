@@ -1,0 +1,78 @@
+{
+  "pr-agentic": {
+    "enrolled": 99,
+    "returned": 99,
+    "acquisition": {
+      "accepted": 99
+    },
+    "fullAuthored": {
+      "enrolled": 91,
+      "completePassed": 89,
+      "casesWithKnownFailedChecks": 0,
+      "casesWithUnavailableChecks": 2,
+      "criteria": {
+        "passed": 402,
+        "unavailable": 5
+      }
+    },
+    "labelOnlySupplement": {
+      "enrolled": 8,
+      "deeperMeaning": "not enrolled/unavailable; family-only meaning flags do not earn full-authored credit"
+    },
+    "paint": {
+      "caseCompletePassed": 75,
+      "casesWithKnownFailedChecks": 0,
+      "plannedCriteria": {
+        "passed": 929,
+        "unavailable": 43
+      }
+    },
+    "quantitativePlannedCriteria": {
+      "passed": 21,
+      "unavailable": 6
+    },
+    "proof": {
+      "passed": 93,
+      "unverified": 6
+    },
+    "observerErrors": 0
+  },
+  "pr-elk": {
+    "enrolled": 99,
+    "returned": 99,
+    "acquisition": {
+      "accepted": 99
+    },
+    "fullAuthored": {
+      "enrolled": 91,
+      "completePassed": 89,
+      "casesWithKnownFailedChecks": 0,
+      "casesWithUnavailableChecks": 2,
+      "criteria": {
+        "passed": 402,
+        "unavailable": 5
+      }
+    },
+    "labelOnlySupplement": {
+      "enrolled": 8,
+      "deeperMeaning": "not enrolled/unavailable; family-only meaning flags do not earn full-authored credit"
+    },
+    "paint": {
+      "caseCompletePassed": 74,
+      "casesWithKnownFailedChecks": 0,
+      "plannedCriteria": {
+        "passed": 928,
+        "unavailable": 44
+      }
+    },
+    "quantitativePlannedCriteria": {
+      "passed": 21,
+      "unavailable": 6
+    },
+    "proof": {
+      "passed": 93,
+      "unverified": 6
+    },
+    "observerErrors": 0
+  }
+}

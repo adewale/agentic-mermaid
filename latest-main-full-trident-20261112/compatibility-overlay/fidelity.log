@@ -1,0 +1,6 @@
+{"completed":1,"total":6,"id":"features:flowchart:font-size-reset","target":"pr","backend":"agentic","returned":true,"meaningPassed":true,"meaningComplete":true,"limitedMeaning":false,"paintFailed":[]}
+{"completed":2,"total":6,"id":"features:flowchart:font-size-reset","target":"pr","backend":"elk","returned":true,"meaningPassed":true,"meaningComplete":true,"limitedMeaning":false,"paintFailed":[]}
+{"completed":3,"total":6,"id":"features:flowchart:font-size-reset:edit","target":"pr","backend":"elk","returned":true,"meaningPassed":true,"meaningComplete":true,"limitedMeaning":false,"paintFailed":[]}
+{"completed":4,"total":6,"id":"features:flowchart:font-size-reset:edit","target":"pr","backend":"agentic","returned":true,"meaningPassed":true,"meaningComplete":true,"limitedMeaning":false,"paintFailed":[]}
+{"completed":5,"total":6,"id":"meaning:required:eventmodeling","target":"pr","backend":"agentic","returned":true,"meaningPassed":true,"meaningComplete":true,"limitedMeaning":false,"paintFailed":[]}
+{"completed":6,"total":6,"id":"meaning:required:eventmodeling","target":"pr","backend":"elk","returned":true,"meaningPassed":true,"meaningComplete":true,"limitedMeaning":false,"paintFailed":[]}

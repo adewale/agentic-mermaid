@@ -67,7 +67,7 @@ def main():
     receipt_done = read("RECEIPT-PERFORMANCE-COMPLETED.json")
     assert done["completed"] == 2976 and not done["errors"], done
     assert receipt_done["completed"] == 432 and not receipt_done["failed"], receipt_done
-    cases = read("MEASUREMENT-CASES.json")
+    cases = read("compatibility-overlay/MEASUREMENT-CASES.json")
     by_id = {c["id"]: c for c in cases}
     family_cases = [c for c in cases if c["cohort"] == "family"]
     assert len(family_cases) == 33
@@ -150,13 +150,13 @@ def main():
     csv_write("RECEIPT-METRICS.csv", receipts)
     receipt_lookup = {(r["target"], r["backend"], r["cache"], r["id"]): r for r in receipts}
 
-    fidelity = read("fidelity/RESULTS.json")
+    fidelity = read("compatibility-overlay/CURRENT-FIDELITY.json")
     fidelity_cases = read("FIDELITY-CASES.json")["selected"]
     source_match = {c["id"]: next((f["id"] for f in fidelity_cases if f["source"] == c["source"]), None) for c in family_cases}
     fid_lookup = {(r["target"], r["backend"], r["id"]): r for r in fidelity}
     payload = list(csv.DictReader((ROOT / "browser/FAMILY-PAYLOAD.csv").open()))
     payload_lookup = {(r["target"], r["backend"], r["family"]): r for r in payload}
-    pilot = read("PILOT.json")
+    pilot = read("compatibility-overlay/CURRENT-PILOT.json")
     pilot_lookup = {(r["target"], r["backend"], r["id"]): r for r in pilot}
     stability = []
     for c in cases:
@@ -165,6 +165,7 @@ def main():
             paths = [ROOT / 'performance/svg' / f'cache{cache}-{target}-{backend}-{stem_id}-warm-B.svg' for cache in [0, 1]]
             pilot_path = ROOT / 'pilot' / f'{target}-{backend}-{stem_id}.svg.gz'
             values = [p.read_bytes() if p.exists() else None for p in paths]
+            if not pilot_path.exists(): pilot_path = ROOT / 'compatibility-overlay/pilot' / pilot_path.name
             original = gzip.decompress(pilot_path.read_bytes()) if pilot_path.exists() else None
             stability.append({'target': target, 'backend': backend, 'id': c['id'],
                 'cache0Sha256': hashlib.sha256(values[0]).hexdigest() if values[0] is not None else None,

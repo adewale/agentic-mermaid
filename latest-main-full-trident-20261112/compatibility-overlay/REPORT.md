@@ -1,0 +1,7 @@
+# Bounded current-API compatibility overlay
+
+No product code changed. Original full124portable/198fidelity observations and optionfixtures remain intact. Two stale pinned-harness projections were corrected separately: node-label font14/24 nowuses currentstyle.roles.node.fontSize, and Agentic EventModeling reads actualpublicframes with lane/reset/explicit-source inference. Mermaid projection unchanged. Declared sources/IDs/expectations/preludes and expectedfontpaint14/24 are unchanged; inferredmodelrelations are derivedpublic-bodysemantics, not proof of actualSVGconnectivity.
+
+Only2portable+6fidelity rows reran; allreturn; sixfidelityrowscomplete theirenrolledmeaning+paintchecks. Portablemodelprojectionremainsunmeasured. Currentjoinedviews retain124/198denominators. Current99sourcefidelity eachbackend99returns,89/91deepauthoredmeaningpasses,2unknown(Sequence notes/ZenUML);8labels-onlysupplements are separate. Native75/ELK74completepaintcases, remainingpartialchecksunknown,0knownfailedpaintchecks. See current-summary/SUMMARY.json for exactcounts/proofavailability. OriginalEventModelingmismatch andfontconfigurationerrors remaininoriginalresults, nothiddenasproductfixes.
+
+Same-ID corrected62timinginputs frozen at compatibility-overlay/MEASUREMENT-CASES.json, SHA25bcc698e6671fbbe80d075b0ca27e69ad861377b04f80825162f4600f19a31c. Botharmsuseidenticaloverlayoptions, fallbacknone, unchangedcanonical689. Cold/warm/cache/edit/proof/runtimeboundariesunchanged. Allbrowsersclosed again. No timinggain orfullcalibrationclaim.

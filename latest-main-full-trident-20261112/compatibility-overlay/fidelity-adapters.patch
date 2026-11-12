@@ -1,0 +1,56 @@
+--- /tmp/pr449-week-comparison-20261101/trident-elk-research-20261107/trident/fidelity/adapters.ts
++++ compatibility-overlay/fidelity-adapters.ts
+@@ -2,9 +2,9 @@
+ import { readFileSync } from 'node:fs'
+ import { resolve, join } from 'node:path'
+ import { pathToFileURL } from 'node:url'
+-import { assertBenchmarkExecutionAllowed } from '../ci-policy.ts'
+-import { assertBenchmarkToolVersion } from '../tool-versions.ts'
+-import type { MeaningEdge, MeaningGroup, MeaningJson, MeaningNode, NormalizedMeaning } from './meaning.ts'
++import { assertBenchmarkExecutionAllowed } from '/tmp/pr449-week-comparison-20261101/trident-elk-research-20261107/trident/ci-policy.ts'
++import { assertBenchmarkToolVersion } from '/tmp/pr449-week-comparison-20261101/trident-elk-research-20261107/trident/tool-versions.ts'
++import type { MeaningEdge, MeaningGroup, MeaningJson, MeaningNode, NormalizedMeaning } from '/tmp/pr449-week-comparison-20261101/trident-elk-research-20261107/trident/fidelity/meaning.ts'
+ 
+ export type MeaningTool = 'agentic' | 'pele' | 'mermaid'
+ export interface MeaningAcquisition { status: 'accepted' | 'rejected' | 'unsupported' | 'unavailable'; publicAccepted: boolean | null; family?: string; raw?: any; meaning?: NormalizedMeaning; error?: string; errorName?: string; errorCode?: string; scope: string }
+@@ -266,12 +266,34 @@
+       out.nodes = elements.map(item => node(item.id ?? item.alias, item.label)); out.edges = (am ? array(m.relationships) : array(m.rels)).map(item => edge(item.from, item.to, true, item.label)); fact('descriptions', elements.map(item => ({ id: item.id ?? item.alias, text: text(item.description ?? item.descr) }))); break
+     }
+     case 'eventmodeling': {
+-      const boxes = array(m.boxes)
+-      const frameId = (item: any) => item.frame?.name ?? item.id
+-      const frameLabel = (item: any) => item.frame?.entityIdentifier?.split('.').at(-1) ?? item.name ?? item.entity
+-      out.nodes = boxes.map(item => node(frameId(item), frameLabel(item)))
+-      out.edges = array(m.relations).map(item => edge(item.sourceBox ? frameId(item.sourceBox) : item.source?.id ?? item.source, item.targetBox ? frameId(item.targetBox) : item.target?.id ?? item.target, true))
+-      fact('frame-order', boxes.map(item => text(frameLabel(item))))
++      if (am) {
++        const frames = array(m.frames)
++        out.nodes = frames.map(frame => node(frame.id, frame.entity?.split('.').at(-1)))
++        const lane = (frame: any) => {
++          const parts = frame.entity.split('.'), namespace = parts.length > 1 ? parts.slice(0, -1).join('.') : ''
++          const band = frame.type === 'event' ? 'Events' : frame.type === 'command' || frame.type === 'readmodel' ? 'Command / Read Model' : 'UI / Automation'
++          return namespace ? `${namespace} · ${band}` : band
++        }
++        let last: any, beforeRun: any
++        out.edges = []
++        for (const frame of frames) {
++          const sameLane = last !== undefined && lane(last) === lane(frame)
++          const previous = sameLane ? beforeRun : last
++          const sources = [...frame.sources]
++          if (!frame.reset && previous && !sources.length) sources.unshift(previous.id)
++          for (const source of sources) out.edges.push(edge(source, frame.id, true))
++          if (!sameLane) beforeRun = last
++          last = frame
++        }
++        fact('frame-order', frames.map(frame => text(frame.entity?.split('.').at(-1))))
++      } else {
++        const boxes = array(m.boxes)
++        const frameId = (item: any) => item.frame?.name ?? item.id
++        const frameLabel = (item: any) => item.frame?.entityIdentifier?.split('.').at(-1) ?? item.name ?? item.entity
++        out.nodes = boxes.map(item => node(frameId(item), frameLabel(item)))
++        out.edges = array(m.relations).map(item => edge(item.sourceBox ? frameId(item.sourceBox) : item.source?.id ?? item.source, item.targetBox ? frameId(item.targetBox) : item.target?.id ?? item.target, true))
++        fact('frame-order', boxes.map(item => text(frameLabel(item))))
++      }
+       break
+     }
+     default: out.unavailable.identities = `No reviewed public projection for ${family}`
