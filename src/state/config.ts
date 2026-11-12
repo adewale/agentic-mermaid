@@ -1,5 +1,5 @@
 import type { MermaidRuntimeConfig, StateRuntimeConfig } from '../mermaid-source.ts'
-import type { ConfigDiagnostic, RenderOptions } from '../types.ts'
+import type { IneffectiveConfigDiagnostic, RenderOptions } from '../types.ts'
 import { FLOWCHART_STYLE_DEFAULTS, type RenderStyleDefaults } from '../styles.ts'
 import { compareCodePointStrings } from '../shared/deterministic-order.ts'
 
@@ -62,13 +62,13 @@ function sections(configs: unknown[]): Record<string, unknown>[] {
  * Diagnose State config that cannot affect output. Wired keys only warn when
  * their value is invalid; `defaultRenderer: elk` is already satisfied.
  */
-export function stateConfigDiagnostics(configs: unknown[], includeUnknown = false): ConfigDiagnostic[] {
+export function stateConfigDiagnostics(configs: unknown[], includeUnknown = false): IneffectiveConfigDiagnostic[] {
   const found = new Map<string, unknown>()
   for (const config of sections(configs)) {
     for (const [field, value] of Object.entries(config)) found.set(field, value)
   }
 
-  const diagnostics: ConfigDiagnostic[] = []
+  const diagnostics: IneffectiveConfigDiagnostic[] = []
   for (const [field, value] of [...found].sort(([a], [b]) => compareCodePointStrings(a, b))) {
     if (!KNOWN_FIELDS.has(field)) {
       if (includeUnknown) diagnostics.push({

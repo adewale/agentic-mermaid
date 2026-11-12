@@ -132,7 +132,7 @@ function runtimeFamilyDiagnosticsSource(source: string, path: string): string {
     if (!ts.isStringLiteral(statement.moduleSpecifier)) throw new Error('Unsupported family config import')
     if (statement.moduleSpecifier.text === '../agent/types.ts' || statement.moduleSpecifier.text === '../types.ts') {
       const bindings = statement.importClause?.namedBindings
-      const expected = statement.moduleSpecifier.text === '../types.ts' ? 'ConfigDiagnostic' : 'FamilyId'
+      const expected = statement.moduleSpecifier.text === '../types.ts' ? 'IneffectiveConfigDiagnostic' : 'FamilyId'
       if (!statement.importClause?.isTypeOnly || !bindings || !ts.isNamedImports(bindings) || bindings.elements.length !== 1
         || bindings.elements[0]!.propertyName || bindings.elements[0]!.name.text !== expected) throw new Error('Unsupported shared config types')
       return []

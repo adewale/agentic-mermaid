@@ -506,12 +506,24 @@ export interface PositionedGroup {
 export type TextTransform = 'uppercase' | 'lowercase' | 'capitalize'
 
 /** A deterministic warning for accepted configuration that cannot affect output. */
-export interface ConfigDiagnostic {
+export interface IneffectiveConfigDiagnostic {
   code: 'INEFFECTIVE_CONFIG'
   /** Fully-qualified config path, for example `state.titleTopMargin`. */
   field: string
   message: string
 }
+
+/** A guessed render option (`fontSize`) was applied through its canonical
+ * spelling, which `message` names. */
+export interface RenderOptionAliasDiagnostic {
+  code: 'RENDER_OPTION_ALIAS'
+  /** The guessed top-level render option, for example `fontSize`. */
+  field: string
+  message: string
+}
+
+/** A deterministic warning about accepted configuration or render options. */
+export type ConfigDiagnostic = IneffectiveConfigDiagnostic | RenderOptionAliasDiagnostic
 
 export interface GraphLayoutHints {
   /** Ordered ELK partitions; unlisted nodes use partition zero. These are relative ranks, not pixel coordinates. */

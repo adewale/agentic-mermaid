@@ -1,7 +1,7 @@
 import type { FamilyOperations } from '../agent/families.ts'
 import { diagnoseFamilyConfig, configSection } from '../shared/family-config-diagnostics.ts'
 import { rule, positive, nonNegative, finite, boolean, oneOf, range, type ConfigValueRule } from '../shared/config-value-rules.ts'
-import type { ConfigDiagnostic } from '../types.ts'
+import type { IneffectiveConfigDiagnostic } from '../types.ts'
 
 const VALUE_RULES: Record<string, ConfigValueRule> = {
   width: positive, height: positive, useMaxWidth: boolean, useWidth: positive,
@@ -21,7 +21,7 @@ const XY_AXIS_VALUE_RULES: Record<string, ConfigValueRule> = {
 }
 
 export const diagnoseXyChartConfig: NonNullable<FamilyOperations['configDiagnostics']> = context => {
-  const diagnostics: ConfigDiagnostic[] = diagnoseFamilyConfig('xychart', context, VALUE_RULES)
+  const diagnostics: IneffectiveConfigDiagnostic[] = diagnoseFamilyConfig('xychart', context, VALUE_RULES)
   const config = configSection(context.root, context.config.section)
   if (!config) return diagnostics
   const warn = (field: string, expected: string): void => {

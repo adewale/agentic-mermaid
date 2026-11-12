@@ -7,6 +7,7 @@ import { pathToFileURL } from 'node:url'
 import packageJson from '../../package.json' with { type: 'json' }
 import { DEFAULT_ARCHITECTURE_VISUAL } from '../architecture/config.ts'
 import { createMermaidRenderer, DefaultBackend, registerBackend, registerStyle, renderContractDigest, renderMermaidSVG } from '../index.ts'
+import type { ConfigDiagnostic, RenderOptions } from '../index.ts'
 import { renderedSvgDigest } from '../graphical-render.ts'
 import { SCENE_VALIDATION_LIMITS } from '../scene/scene-validation.ts'
 import { renderMermaidASCIIWithReceipt } from '../ascii/index.ts'
@@ -365,6 +366,51 @@ describe('shared RenderOptions authority', () => {
     expect(() => resolveRenderRequest(source, { unknown: true } as never)).toThrow('unknown render option "unknown"')
     expect(() => resolveRenderRequest(source, { padding: null } as never)).toThrow('must be omitted instead of null')
     expect(() => resolveRenderRequest(source, { onConfigDiagnostic() {} })).not.toThrow()
+  })
+
+  test('reads a guessed top-level fontSize as the label-role size and says so', () => {
+    const source = 'flowchart TB\nA[Current] --> B[Configuration]'
+    const labelSize = (fontSize: number) => ({ roles: { label: { fontSize } } })
+    const aliased = (options: Record<string, unknown>) => {
+      const diagnostics: ConfigDiagnostic[] = []
+      const svg = renderMermaidSVG(source, { ...options, onConfigDiagnostic: diagnostic => diagnostics.push(diagnostic) } as RenderOptions)
+      return { svg, diagnostics }
+    }
+
+    for (const [options, canonical] of [
+      [{ fontSize: 14 }, { style: labelSize(14) }],
+      [{ fontSize: 24 }, { style: labelSize(24) }],
+      // The alias layers last: it overrides a caller's label size, keeps the rest of their stack.
+      [{ style: ['nord', labelSize(30)], fontSize: 12 }, { style: ['nord', labelSize(30), labelSize(12)] }],
+    ] as const) {
+      const { svg, diagnostics } = aliased(options)
+      expect(svg).toBe(renderMermaidSVG(source, canonical as RenderOptions))
+      expect(diagnostics).toEqual([expect.objectContaining({ code: 'RENDER_OPTION_ALIAS', field: 'fontSize' })])
+      expect(diagnostics[0]!.message).toContain('style.roles.label.fontSize')
+    }
+    expect(aliased({ fontSize: 24 }).svg).not.toBe(aliased({ fontSize: 14 }).svg)
+
+    for (const fontSize of [0, 257, '14', Number.NaN]) {
+      expect(() => renderMermaidSVG(source, { fontSize } as never)).toThrow('render option "fontSize" must be a number between 1 and 256')
+    }
+    // Schema-validated JSON surfaces keep the canonical contract and point at it.
+    expect(validateSerializableRenderOptions({ fontSize: 14 })).toEqual([
+      'unknown render option "fontSize"; set diagram text size with style: { roles: { label: { fontSize } } }',
+    ])
+  })
+
+  test('an init directive in one render does not configure the next', () => {
+    // Same-rank siblings make nodeSpacing visible in both directions.
+    const current = 'flowchart TB\nA[Current] --> B[Configuration]\nA --> C[Sibling]'
+    const previous = 'flowchart LR\nA[Previous] --> B[Configuration]\nA --> C[Sibling]'
+    const spaced = `%%{init: {"flowchart": {"nodeSpacing": 100}}}%%\n${previous}`
+    const options = { style: { roles: { label: { fontSize: 14 } } } }
+    const currentBefore = renderMermaidSVG(current, options)
+    const previousBefore = renderMermaidSVG(previous)
+    // The directive must change its own render for the checks below to mean anything.
+    expect(renderMermaidSVG(spaced)).not.toBe(previousBefore)
+    expect(renderMermaidSVG(current, options)).toBe(currentBefore)
+    expect(renderMermaidSVG(previous)).toBe(previousBefore)
   })
 
   test('admits top-level and nested RenderOptions accessors into one coherent snapshot', () => {

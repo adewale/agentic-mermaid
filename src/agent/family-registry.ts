@@ -17,7 +17,7 @@ import { STABLE_FAMILY_DESCRIPTOR_SEEDS } from './stable-family-metadata.ts'
 
 import type { DiagramKind, DiagramBody, FamilyParsedBody, ValidDiagramMeta, ParseError, SourceMap, FamilyId, ExternalFamilyId, AnyMutationOp, MutationError, LayoutWarning, VerifyOptions, Result, RenderedLayout } from './types.ts'
 import type { SourceSpanGrammar } from './source-map-spans.ts'
-import type { ConfigDiagnostic, PositionedDiagram, RenderContext, RenderOptions, ResolvedFamilyRenderContext } from '../types.ts'
+import type { IneffectiveConfigDiagnostic, PositionedDiagram, RenderContext, RenderOptions, ResolvedFamilyRenderContext } from '../types.ts'
 import type { DiagramColors } from '../theme.ts'
 import type { InternalStyleFace, StyleSpec } from '../scene/style-registry.ts'
 import { SEMANTIC_CHANNEL_NAMES, type SceneDoc, type SemanticChannelName } from '../scene/ir.ts'
@@ -305,7 +305,7 @@ export interface FamilyOperations {
 
   /** Diagnose one authored or explicit config root. Common dispatch preserves
    * root boundaries, deterministic ordering and duplicate suppression. */
-  configDiagnostics?: (context: { root: unknown; config: FamilyConfigContract }) => readonly ConfigDiagnostic[]
+  configDiagnostics?: (context: { root: unknown; config: FamilyConfigContract }) => readonly IneffectiveConfigDiagnostic[]
   /**
    * Normalize family config once at the canonical request boundary. Layout and
    * render hooks receive only the frozen result and must not re-read raw Style,

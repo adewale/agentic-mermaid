@@ -31,6 +31,7 @@ import {
 import { styleSpecJsonSchema } from './scene/style-spec.ts'
 import { cssColorSpellings, isRecognizableCssColor, safeCssColor, safeCssPaint } from './shared/css-color.ts'
 import { safeCssFontFamily } from './shared/css-font.ts'
+import { ROLE_STYLE_PROPERTY_DESCRIPTORS } from './scene/role-style-contract.ts'
 import {
   assertJsonConfigAdmission,
   isForbiddenJsonConfigKey,
@@ -456,6 +457,7 @@ let validationRootSchema: JsonSchemaNode | undefined
 const MISPLACED_RENDER_OPTION_HINTS: Readonly<Record<string, string>> = Object.freeze({
   theme: 'set a Mermaid theme with mermaidConfig.theme, or a registered Style or Palette with style',
   themeVariables: 'set Mermaid theme variables with mermaidConfig.themeVariables',
+  fontSize: 'set diagram text size with style: { roles: { label: { fontSize } } }',
 })
 
 /** Where an unknown render option's setting lives, when it is a known guess. */
@@ -1290,6 +1292,35 @@ interface AdmittedRenderOptions {
   readonly serializable: Readonly<RenderOptions>
   readonly onConfigDiagnostic?: NonNullable<RenderOptions['onConfigDiagnostic']>
   readonly capturedStyle?: ReturnType<typeof resolveStyleStackWithFace>
+  /** Reported once per resolved request when an alias was rewritten. */
+  readonly aliasDiagnostics?: readonly ConfigDiagnostic[]
+}
+
+const FONT_SIZE_ALIAS_TARGET = 'style.roles.label.fontSize'
+const LABEL_FONT_SIZE = ROLE_STYLE_PROPERTY_DESCRIPTORS.fontSize
+
+/** Read a guessed top-level `fontSize` generously: its meaning (diagram text
+ * size) is clear, and the label role is the cross-family control for it. The
+ * alias is appended last to the Style stack, so it wins over a caller's own
+ * label size, and it never reaches validation, receipts or caches as
+ * `fontSize`. Schema-validated JSON surfaces (MCP, CLI `--options`) keep the
+ * canonical contract and reject it with a hint instead. */
+function rewriteFontSizeAlias(serializable: Readonly<RenderOptions>): { serializable: Readonly<RenderOptions>; diagnostic?: ConfigDiagnostic } {
+  if (!Object.hasOwn(serializable, 'fontSize')) return { serializable }
+  const { fontSize, ...rest } = serializable as Readonly<RenderOptions> & { readonly fontSize: unknown }
+  if (typeof fontSize !== 'number' || !Number.isFinite(fontSize) || fontSize < LABEL_FONT_SIZE.minimum || fontSize > LABEL_FONT_SIZE.maximum) {
+    throw new RenderConfigError(`Invalid RenderOptions: render option "fontSize" must be a number ${LABEL_FONT_SIZE.expected} (it is read as ${FONT_SIZE_ALIAS_TARGET})`)
+  }
+  const authored = rest.style === undefined ? [] : Array.isArray(rest.style) ? rest.style : [rest.style]
+  const style = [...authored, { roles: { label: { fontSize } } }]
+  return {
+    serializable: immutableSnapshot({ ...rest, style }),
+    diagnostic: Object.freeze({
+      code: 'RENDER_OPTION_ALIAS' as const,
+      field: 'fontSize',
+      message: `RenderOptions.fontSize is not a render option; it was applied as ${FONT_SIZE_ALIAS_TARGET} (${fontSize}). Use style: { roles: { label: { fontSize: ${fontSize} } } } instead.`,
+    }),
+  }
 }
 
 const EMPTY_ADMITTED_OPTIONS: AdmittedRenderOptions = Object.freeze({
@@ -1350,8 +1381,10 @@ function admitRenderOptionsInput(untrusted: RenderOptions): AdmittedRenderOption
       .replace('data exceeds maximum depth', 'render option tree exceeds maximum nesting depth')
     throw new RenderConfigError(`Invalid RenderOptions: ${message}`)
   }
+  const alias = rewriteFontSizeAlias(serializable)
   return Object.freeze({
-    serializable,
+    serializable: alias.serializable,
+    ...(alias.diagnostic ? { aliasDiagnostics: Object.freeze([alias.diagnostic]) } : {}),
     ...(onConfigDiagnostic === undefined
       ? {}
       : { onConfigDiagnostic: onConfigDiagnostic as NonNullable<RenderOptions['onConfigDiagnostic']> }),
@@ -1635,6 +1668,7 @@ function resolveExecutionPlan(
   explicitMermaidConfig?: NonNullable<RenderOptions['mermaidConfig']>,
   onConfigDiagnostic?: NonNullable<RenderOptions['onConfigDiagnostic']>,
   fontMetrics?: RenderOptions['fontMetrics'],
+  aliasDiagnostics: readonly ConfigDiagnostic[] = [],
 ): InternalRenderExecutionPlan {
   let mode: InternalRenderExecutionPlan['mode']
   let backend: BackendDescriptor | undefined
@@ -1682,10 +1716,12 @@ function resolveExecutionPlan(
     })
   }
 
-  const configDiagnostics = explicitMermaidConfig === undefined
+  const familyConfigDiagnostics = explicitMermaidConfig === undefined
+    ? []
+    : explicitFamilyConfigDiagnostics(family.id, explicitMermaidConfig, family.config, family.configDiagnostics)
+  const configDiagnostics = explicitMermaidConfig === undefined && aliasDiagnostics.length === 0
     ? undefined
-    : Object.freeze(explicitFamilyConfigDiagnostics(family.id, explicitMermaidConfig, family.config, family.configDiagnostics)
-      .map(diagnostic => Object.freeze({ ...diagnostic })))
+    : Object.freeze([...aliasDiagnostics, ...familyConfigDiagnostics].map(diagnostic => Object.freeze({ ...diagnostic })))
 
   return Object.freeze({
     output,
@@ -1879,6 +1915,7 @@ export function resolveRenderRequestForExecution(
     admittedOptions.mermaidConfig,
     admitted.onConfigDiagnostic,
     admittedOptions.fontMetrics,
+    admitted.aliasDiagnostics,
   )
   const capabilityDecision = executionPlan.capabilityDecision
 

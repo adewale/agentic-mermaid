@@ -52,6 +52,12 @@ const svg = renderMermaidSVG(source, {
 
 Explicit options win over source-level config when both specify the same supported field. `RenderOptions.onConfigDiagnostic` can collect warnings for explicit config that is unknown, invalid, or has no faithful effect; without a collector, explicit ineffective State config warns through `console.warn` rather than disappearing silently.
 
+Diagram text size is a Style setting, not Mermaid config:
+`renderMermaidSVG(source, { style: { roles: { label: { fontSize: 14 } } } })`.
+A top-level `{ fontSize: 14 }` is read as exactly that and reported once as a
+`RENDER_OPTION_ALIAS` diagnostic; schema-validated JSON surfaces reject it with
+a hint (see `docs/project/divergences.md`).
+
 ## Graphical chart width budgets
 
 Pie and Radar accept opt-in pixel budgets through render options:

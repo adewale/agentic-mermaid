@@ -4,7 +4,7 @@ import { boolean, range, boundedPositive, boundedNonNegative, type ConfigValueRu
 import { RADAR_CONFIG_LIMITS, RADAR_THEME_FIELDS } from './config.ts'
 import { compareCodePointStrings } from '../shared/deterministic-order.ts'
 import { safeCssColor } from '../shared/css-color.ts'
-import type { ConfigDiagnostic } from '../types.ts'
+import type { IneffectiveConfigDiagnostic } from '../types.ts'
 
 const VALUE_RULES: Record<string, ConfigValueRule> = {
   width: boundedPositive(RADAR_CONFIG_LIMITS.dimension), height: boundedPositive(RADAR_CONFIG_LIMITS.dimension),
@@ -14,7 +14,7 @@ const VALUE_RULES: Record<string, ConfigValueRule> = {
   useMaxWidth: boolean, tickLabels: boolean,
 }
 
-function radarThemeDiagnostics(root: unknown): ConfigDiagnostic[] {
+function radarThemeDiagnostics(root: unknown): IneffectiveConfigDiagnostic[] {
   const themeVariables = configSection(root, 'themeVariables')
   if (!themeVariables || !('radar' in themeVariables)) return []
   const radar = configSection(themeVariables, 'radar')
@@ -24,7 +24,7 @@ function radarThemeDiagnostics(root: unknown): ConfigDiagnostic[] {
     message: 'themeVariables.radar must be an object; the invalid value has no effect.',
   }]
   const known = new Set<string>(RADAR_THEME_FIELDS)
-  const diagnostics: ConfigDiagnostic[] = []
+  const diagnostics: IneffectiveConfigDiagnostic[] = []
   const lineWidthFields = new Set(['axisStrokeWidth', 'curveStrokeWidth', 'graticuleStrokeWidth'])
   const fontSizeFields = new Set(['axisLabelFontSize', 'legendFontSize'])
   const opacityFields = new Set(['curveOpacity', 'graticuleOpacity'])

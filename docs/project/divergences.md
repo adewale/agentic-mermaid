@@ -455,6 +455,23 @@ Keep these in sync when changing agent behavior:
 
 Doc-sync tests exist because agents consume docs and capability JSON as runtime surface, not just prose.
 
+### A guessed `fontSize` render option is read as the label size
+
+`renderMermaidSVG(source, { fontSize: 14 })` is not part of the `RenderOptions`
+schema, but its meaning (diagram text size) is clear, so the in-process render
+waist reads it generously: it is appended last to the Style stack as
+`style: { roles: { label: { fontSize } } }`, the cross-family text-size
+control, and reported once as a `RENDER_OPTION_ALIAS` config diagnostic
+(through `onConfigDiagnostic`, else `console.warn`). It renders byte-identically
+to that canonical spelling, overrides an earlier label size in the caller's
+stack and keeps the rest of it. A value outside the label role's 1–256 range is
+rejected. Receipts, caches and the published JSON Schema only ever see the
+canonical spelling. Schema-validated JSON surfaces (MCP tool arguments, CLI
+`--options`) keep the strict contract and reject `fontSize` with a hint naming
+the canonical spelling, as they do for `theme` and `themeVariables`. Those two
+stay rejected everywhere: `theme` has two plausible owners (a Mermaid theme or
+a registered Style/Palette), and this change does not revisit `themeVariables`.
+
 ## Mermaid input decisions (#363)
 
 These dispositions resolve the investigation in [#363](https://github.com/adewale/agentic-mermaid/issues/363), not every reader or writer gap. Active implementation work remains in [TODO.md](../../TODO.md).

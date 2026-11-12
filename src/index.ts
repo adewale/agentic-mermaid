@@ -24,7 +24,7 @@ import './scene/builtin-backends.ts'
 
 export type { LabelContent, PreparedDisplayText, DisplayRun } from './shared/display-text.ts'
 
-export type { GraphLayoutHints, RenderOptions, GraphLayoutOptions, RenderContext, ConfigDiagnostic, MermaidGraph, PositionedDiagram, PositionedGraph, RouteCertificate, EdgeRouteCertificate, FamilyEdgeRouteCertificate, RegionContainmentCertificate, FamilyRouteCertificate, LayoutRouteCertificate, LayoutRouteClass, RouteClass, RouteBlocker, RoutePortAssignment, PortSemanticRole, AnyPort, PortSide, DiamondFacet } from './types.ts'
+export type { GraphLayoutHints, RenderOptions, GraphLayoutOptions, RenderContext, ConfigDiagnostic, IneffectiveConfigDiagnostic, RenderOptionAliasDiagnostic, MermaidGraph, PositionedDiagram, PositionedGraph, RouteCertificate, EdgeRouteCertificate, FamilyEdgeRouteCertificate, RegionContainmentCertificate, FamilyRouteCertificate, LayoutRouteCertificate, LayoutRouteClass, RouteClass, RouteBlocker, RoutePortAssignment, PortSemanticRole, AnyPort, PortSide, DiamondFacet } from './types.ts'
 export { GraphLayoutUnsupportedError } from './layout/backend.ts'
 export type { GraphLayoutDecision } from './layout/backend.ts'
 export type { ArchitectureVisualOverrides } from './architecture/config.ts'

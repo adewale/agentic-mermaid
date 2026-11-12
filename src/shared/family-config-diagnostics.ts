@@ -1,5 +1,5 @@
 import type { FamilyId } from '../agent/types.ts'
-import type { ConfigDiagnostic } from '../types.ts'
+import type { IneffectiveConfigDiagnostic } from '../types.ts'
 import type { FamilyConfigContract, FamilyOperations } from '../agent/families.ts'
 import type { ConfigValueRule } from './config-value-rules.ts'
 import { getInstalledFamilyDescriptor } from '../agent/family-router.ts'
@@ -20,7 +20,7 @@ export function familyUnknownConfigDiagnostics(
   kind: FamilyId,
   root: unknown,
   spec?: FamilyConfigContract,
-): ConfigDiagnostic[] {
+): IneffectiveConfigDiagnostic[] {
   if (!spec) return []
   const record = root && typeof root === 'object' && !Array.isArray(root) ? root as Record<string, unknown> : undefined
   const config = configSection(root, spec.section)
@@ -42,7 +42,7 @@ export function diagnoseFamilyConfig(
   kind: FamilyId,
   { root, config: spec }: { root: unknown; config: FamilyConfigContract },
   rules: Readonly<Record<string, ConfigValueRule>> = {},
-): ConfigDiagnostic[] {
+): IneffectiveConfigDiagnostic[] {
   const diagnostics = familyUnknownConfigDiagnostics(kind, root, spec)
   const config = configSection(root, spec.section)
   if (config) {
@@ -61,7 +61,7 @@ export function familyNoopConfigDiagnostics(
   root: unknown,
   spec?: FamilyConfigContract,
   rules: Readonly<Record<string, ConfigValueRule>> = {},
-): ConfigDiagnostic[] {
+): IneffectiveConfigDiagnostic[] {
   if (!spec) return []
   const config = configSection(root, spec.section)
   if (!config) return []
@@ -79,7 +79,7 @@ export function familyNoopConfigDiagnostics(
   }))
 }
 
-function stableDiagnostics(diagnostics: ConfigDiagnostic[]): ConfigDiagnostic[] {
+function stableDiagnostics(diagnostics: IneffectiveConfigDiagnostic[]): IneffectiveConfigDiagnostic[] {
   const seen = new Set<string>()
   return diagnostics
     .sort((a, b) => compareCodePointStrings(a.field, b.field) || compareCodePointStrings(a.message, b.message))
@@ -97,7 +97,7 @@ export function familyConfigDiagnostics(
   roots: readonly unknown[],
   spec?: FamilyConfigContract,
   hook?: FamilyOperations['configDiagnostics'],
-): ConfigDiagnostic[] {
+): IneffectiveConfigDiagnostic[] {
   // `theme` is shared by every family, so a family descriptor cannot own it.
   const theme = roots.flatMap(mermaidThemeConfigDiagnostics)
   if (!spec) return stableDiagnostics(theme)
@@ -113,7 +113,7 @@ export function explicitFamilyConfigDiagnostics(
   root: unknown,
   spec?: FamilyConfigContract,
   hook?: FamilyOperations['configDiagnostics'],
-): ConfigDiagnostic[] {
+): IneffectiveConfigDiagnostic[] {
   const descriptor = getInstalledFamilyDescriptor(kind)
   const resolvedSpec = spec ?? descriptor?.config
   return familyConfigDiagnostics(kind as FamilyId, [root], resolvedSpec, hook ?? descriptor?.configDiagnostics)

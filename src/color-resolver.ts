@@ -1,4 +1,4 @@
-import type { ConfigDiagnostic, MermaidGraph, RenderOptions } from './types.ts'
+import type { IneffectiveConfigDiagnostic, MermaidGraph, RenderOptions } from './types.ts'
 import { compositeCssColor, legibleInk, relativeLuminance, toHex, tryParseHex, WCAG_AA_NON_TEXT_CONTRAST, WCAG_AA_TEXT_CONTRAST } from './shared/color-math.ts'
 import type { DiagramColors } from './theme.ts'
 import { DEFAULTS, resolvedColorValue } from './theme.ts'
@@ -75,7 +75,7 @@ const MERMAID_THEME_NAMES = [...Object.keys(MERMAID_THEME_COLORS), 'null']
 
 /** The default colors a misspelled or mistyped `theme` falls back to are
  * silent otherwise, so name the field, the value and the valid themes. */
-export function mermaidThemeConfigDiagnostics(root: unknown): ConfigDiagnostic[] {
+export function mermaidThemeConfigDiagnostics(root: unknown): IneffectiveConfigDiagnostic[] {
   if (!root || typeof root !== 'object' || Array.isArray(root) || !Object.hasOwn(root, 'theme')) return []
   const theme = (root as { theme?: unknown }).theme
   if (theme === null || theme === undefined) return []

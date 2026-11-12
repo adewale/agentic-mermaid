@@ -70,7 +70,7 @@ function codeModeRenderMethodDeclarations(): string {
  * both the compact tools/list declaration and the full SDK reference. */
 export const CODE_MODE_SHARED_RENDER_OPTIONS_DECLARATION = sharedRenderOptionsTypeScriptDeclaration()
 
-const CODE_MODE_OUTPUT_RENDER_OPTION_DECLARATIONS = `interface ConfigDiagnostic { code: 'INEFFECTIVE_CONFIG'; field: string; message: string }
+const CODE_MODE_OUTPUT_RENDER_OPTION_DECLARATIONS = `interface ConfigDiagnostic { code: 'INEFFECTIVE_CONFIG' | 'RENDER_OPTION_ALIAS'; field: string; message: string }
 interface TerminalProjectionDiagnostic { code: string; feature: string; message: string; cell?: { column: number; row: number } }
 
 interface SvgRenderOptions extends SharedRenderOptions {
