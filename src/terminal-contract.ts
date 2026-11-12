@@ -59,7 +59,7 @@ interface TerminalOutputField {
   readonly typeScript: string
   readonly resolvedTypeScript?: string
   readonly optionalInPolicy?: boolean
-  readonly schema: Readonly<Record<string, unknown>>
+  readonly schema: Record<string, unknown>
 }
 
 // Rendering needs only the admitted names. Keep transport declarations out of
@@ -110,7 +110,9 @@ function terminalOutputFields(): Record<keyof TerminalOutputPolicyInput, Termina
 
 /** Transport projections of the terminal policy, kept beside its resolver. */
 export function terminalOutputOptionSchema(field: keyof TerminalOutputPolicyInput): Record<string, unknown> {
-  return structuredClone(terminalOutputFields()[field].schema)
+  const schema = terminalOutputFields()[field].schema
+  if (field === 'colorMode') schema.enum = [...COLOR_MODES]
+  return schema
 }
 
 export function terminalOutputOptionsTypeScriptFields(options: { resolved?: boolean } = {}): string {

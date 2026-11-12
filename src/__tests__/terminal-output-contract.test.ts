@@ -12,7 +12,7 @@ import { RENDER_OUTPUT_DESCRIPTORS, resolveRenderRequest } from '../render-contr
 import { connector } from '../scene/marks.ts'
 import { prepareDisplayText } from '../shared/display-text.ts'
 import { preparePixelText } from '../shared/prepared-text.ts'
-import { resolveTerminalOutputPolicy, TerminalOutputPolicyError } from '../terminal-contract.ts'
+import { resolveTerminalOutputPolicy, terminalOutputOptionSchema, TerminalOutputPolicyError } from '../terminal-contract.ts'
 import { secureTerminalHtmlOutput } from '../terminal-security.ts'
 import { projectTerminalStyle } from '../terminal-style.ts'
 import { withoutTerminalColor } from './helpers/terminal-text.ts'
@@ -535,6 +535,20 @@ describe('canonical terminal output policy', () => {
       expect(descriptor.evidence).toContain('terminal-output-policy@1')
       expect(descriptor.evidence).toContain('terminal-control-sanitization')
     }
+  })
+
+  test('terminal option schemas remain independently mutable', () => {
+    const mode = terminalOutputOptionSchema('colorMode')
+    ;(mode.enum as string[]).push('injected-mode')
+    mode.type = 'number'
+    const freshMode = terminalOutputOptionSchema('colorMode')
+    expect(freshMode.type).toBe('string')
+    expect(freshMode.enum).not.toContain('injected-mode')
+    expect(() => resolveTerminalOutputPolicy({ colorMode: 'injected-mode' as never })).toThrow(TerminalOutputPolicyError)
+    const theme = terminalOutputOptionSchema('theme')
+    ;(theme.properties as Record<string, { type: string }>).fg!.type = 'number'
+    const freshTheme = terminalOutputOptionSchema('theme')
+    expect((freshTheme.properties as Record<string, { type: string }>).fg).toEqual({ type: 'string' })
   })
 
   test('resolves and freezes every executed terminal control', () => {

@@ -90,10 +90,15 @@ function sealRoute(route: Omit<BoxRoute, typeof allocatedRoute | 'path'>): BoxRo
 
 /** Reflect model rectangles in cell space. Their text is laid out afterwards. */
 export function reverseBoxes(boxes: Iterable<TerminalBox>, direction: DiagramDirection): void {
-  const items = [...boxes]
   if (direction !== 'RL' && direction !== 'BT') return
-  const right = Math.max(0, ...items.map(box => box.x + box.width)), bottom = Math.max(0, ...items.map(box => box.y + box.height))
-  const left = Math.min(Infinity, ...items.map(box => box.x)), top = Math.min(Infinity, ...items.map(box => box.y))
+  const items = [...boxes]
+  let right = 0, bottom = 0, left = Infinity, top = Infinity
+  for (const box of items) {
+    right = Math.max(right, box.x + box.width)
+    bottom = Math.max(bottom, box.y + box.height)
+    left = Math.min(left, box.x)
+    top = Math.min(top, box.y)
+  }
   const marginX = Math.max(4, left), marginY = Math.max(4, top)
   for (const box of items) {
     if (direction === 'RL') box.x = right - box.x - box.width + marginX
