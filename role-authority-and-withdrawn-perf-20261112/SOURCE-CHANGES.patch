@@ -1,0 +1,148 @@
+diff --git a/docs/design/system/layout-0.6-work-log.md b/docs/design/system/layout-0.6-work-log.md
+index 8172e7d95..50eaf250f 100644
+--- a/docs/design/system/layout-0.6-work-log.md
++++ b/docs/design/system/layout-0.6-work-log.md
+@@ -2289,3 +2289,54 @@ above761,500; source types await freshCI. Source/cost evidence preserved on
+ `review/pr449-evidence-20261105`, checkpointccc8b783. Chain300 both400kU,
+ Native100 fullresponse and payloadcaps remain open; no caps/defaults changed.
+ Next: remove a demonstrated retained shared producer; preserve actual-write custody.
++
++### 12 November — classify captured operands once and avoid discarded schemas
++
++Parent361ce266f removes per-role discarded schema construction240→114objects;
++public schema bytes/order/fresh enum arrays preserved. Owning62checks/lint/buildP,
++8browser products exact9644. Gzip−5..+3B and heap−108..+4516B are mixed,
++not a meaningful payload or retained-memory gain;20.7KB mixed deficit remains.
++
++Capture now classifies primitives/depth once at its sole recursive entry,
++so scalars avoid the object walker and objects avoid repeated classification.
++All five inner calls remain local; invalid types, proxies/getters, depth limits
++and paid work unchanged. 176owners/lint/NodebuildP; independent review no finding.
++Matched24workers,54products exact: Native100freshSVG111.83→95.88ms,label edit
++99.42→87.47, full158.69→155.62; repeatSVG132.28→133.62,cold380.71→383.59
++adverse. ELK full305.24→279.44,cold815.62→786.01, but RSS215.26→225.85MiB
++and transient afterheap70.07→84.26MiB/p95277.69→306.19adverse. No100ms
++completion or causal universal speedup claim. Initial scalar-only pilot and
++all raw adverse costs retained; final combined build/output/cost qualification
++pending at commit. Chain300 both400kU; caps/defaults unchanged. Next: final
++combinedqualification, then the substantial shared CPU/payload deficits.
++
++
++### 12 November — withdraw scalar dispatch after final adverse clocks
++
++Final313a versus9644 matched24workers retained54exactSVG/receipts, but
++Native repeatedSVG148.52→179.41ms/p95217.70→393.55 and ELK full327.03→
++349.62/cold911.99→935.23 are adverse. Native full172.82→170.00/edit231.29→
++217.82/repeatededit180.13→151.70 improve; all raw mixed costs remain enrolled.
++Matched stock/full profiles bind actualmaps and preserve11products each. Stock
++copy inclusive20.63→22.07ms, rubric17.69→23.23 overlap; GC6.12→4.22. No causal
++copy benefit established; full profile differs and has two retained large deltas.
++Restore native-paint-emission exactly9644; no further scalar timing variants.
++Role schema construction361 remains:240→114property objects, public schemas
++and8browserproducts exact; no meaningful gzip/heap/runtime gain claimed.
++Native100, Chain300400kU and payload limits remain unresolved. All source,
++failed hypotheses/profiles/adverse costs retained; caps/defaults unchanged.
++
++### 12 November — protect the shared role validation authority
++
++0bbe3876f fixes a reproduced borrowed-reference defect: changing the canonical
++fontSize minimum to0 and appending an unknown textTransform both made
++validateStyleSpec accept invalid roles and changed fresh JSON Schemas. Freeze
++canonical descriptor leaves/enum arrays at their owner; caller StyleSpecs and
++schema copies remain mutable/isolated. Owning mutation test RED→GREEN; both
++Reflect.set attempts nowfalse and both invalid roles reject. Public schema
++22561bytes/order exact;57other role/style/config checks andlintP. Existing
++editor-discovery child20s timeout also reproduces on clean3b6; no timeout waiver.
++Native capture remains exact9644 after3b6 withdrew adverse scalar experiment.
++Final valid SVG/receipt/ink qualification and freshCI follow; no performance or
++payload improvement claimed for this correctness fix. All caps/defaults and
++retained adverse metrics unchanged; Native100/Chain300/payload losses remain.
+diff --git a/src/__tests__/style-spec-authority.test.ts b/src/__tests__/style-spec-authority.test.ts
+index 0c58fc069..ef757bdf9 100644
+--- a/src/__tests__/style-spec-authority.test.ts
++++ b/src/__tests__/style-spec-authority.test.ts
+@@ -4,6 +4,7 @@ import { join } from 'node:path'
+ import type { RoleStyles, SemanticBinding } from '../scene/style-registry.ts'
+ import {
+   EXACT_ROLE_STYLE_CONTRACT,
++  ROLE_STYLE_PROPERTY_DESCRIPTORS,
+   STYLE_COLOR_TOKEN_DESCRIPTORS,
+   STYLE_SPEC_FIELD_DESCRIPTORS,
+   getStyle,
+@@ -87,8 +88,34 @@ describe('StyleSpec has one projected field authority', () => {
+     expect(Object.isFrozen(EXACT_ROLE_STYLE_CONTRACT.actor)).toBe(true)
+     expect(Object.isFrozen(EXACT_ROLE_STYLE_CONTRACT.actor.bindingFamilies)).toBe(true)
+ 
++    const numeric = ROLE_STYLE_PROPERTY_DESCRIPTORS.fontSize
++    const values = ROLE_STYLE_PROPERTY_DESCRIPTORS.textTransform.values
++    const minimum = numeric.minimum, length = values.length
++    const borrowed = (() => {
++      try {
++        Reflect.set(numeric, 'minimum', 0)
++        Reflect.set(values, String(length), 'injected')
++        return {
++          problems: validateStyleSpec({ roles: { node: { fontSize: 0, textTransform: 'injected' } } }),
++          schema: styleSpecJsonSchema() as any,
++        }
++      } finally {
++        Reflect.set(numeric, 'minimum', minimum)
++        Reflect.set(values, 'length', length)
++      }
++    })()
++    expect(borrowed.problems).toEqual([
++      '"roles.node.fontSize" must be between 1 and 256',
++      '"roles.node.textTransform" must be one of uppercase | lowercase | capitalize',
++    ])
++    expect(borrowed.schema.$defs['roleStyle-node'].properties.fontSize.minimum).toBe(1)
++    expect(borrowed.schema.$defs['roleStyle-node'].properties.textTransform.enum).toEqual(['uppercase', 'lowercase', 'capitalize'])
++
+     const projected = styleSpecJsonSchema() as any
+     projected.properties.stroke.enum.push('injected')
++    projected.$defs['roleStyle-node'].properties.textTransform.enum.push('injected')
++    expect(projected.$defs['roleStyle-label'].properties.textTransform.enum).toEqual(['uppercase', 'lowercase', 'capitalize'])
++    expect((styleSpecJsonSchema() as any).$defs['roleStyle-node'].properties.textTransform.enum).toEqual(['uppercase', 'lowercase', 'capitalize'])
+     expect(validateStyleSpec({ stroke: 'injected' })).toContain('"stroke" must be one of crisp | jittered | freehand')
+     expect((styleSpecJsonSchema() as any).properties.stroke.enum).toEqual(['crisp', 'jittered', 'freehand'])
+   })
+diff --git a/src/scene/role-style-contract.ts b/src/scene/role-style-contract.ts
+index 72f0d5a86..39acfae5d 100644
+--- a/src/scene/role-style-contract.ts
++++ b/src/scene/role-style-contract.ts
+@@ -20,6 +20,11 @@ export const ROLE_STYLE_PROPERTY_DESCRIPTORS = Object.freeze({
+   cue: { kind: 'enum', values: ['none', 'outline', 'double-line', 'pattern'], description: 'Non-color semantic cue on roles whose family renderer exposes a cue projection.' },
+ } as const)
+ 
++for (const descriptor of Object.values(ROLE_STYLE_PROPERTY_DESCRIPTORS)) {
++  if (descriptor.kind === 'enum') Object.freeze(descriptor.values)
++  Object.freeze(descriptor)
++}
++
+ type RolePropertyDescriptor = (typeof ROLE_STYLE_PROPERTY_DESCRIPTORS)[keyof typeof ROLE_STYLE_PROPERTY_DESCRIPTORS]
+ type RolePropertyValue<D> = D extends { readonly kind: 'number' } ? number : D extends { readonly kind: 'font' | 'color' } ? string : D extends { readonly kind: 'enum'; readonly values: readonly (infer V)[] } ? V : never
+ 
+diff --git a/src/scene/style-spec.ts b/src/scene/style-spec.ts
+index 24011ace8..2bf0dc53c 100644
+--- a/src/scene/style-spec.ts
++++ b/src/scene/style-spec.ts
+@@ -482,8 +482,9 @@ export function validateStyleSpec(value: unknown): string[] {
+ 
+ type JsonSchema = Readonly<Record<string, unknown>>
+ 
+-function rolePropertyJsonSchemas(): Record<string, unknown> {
+-  return Object.fromEntries(Object.entries(ROLE_STYLE_PROPERTY_DESCRIPTORS).map(([name, property]) => {
++function rolePropertyJsonSchemas(properties: readonly string[]): Record<string, unknown> {
++  return Object.fromEntries(properties.map(name => {
++    const property = ROLE_STYLE_PROPERTY_DESCRIPTORS[name as keyof typeof ROLE_STYLE_PROPERTY_DESCRIPTORS]
+     if (property.kind === 'number') {
+       const numeric = property as { minimum?: number; exclusiveMinimum?: number; maximum?: number; description: string }
+       return [name, { type: 'number', ...(numeric.minimum !== undefined ? { minimum: numeric.minimum } : {}), ...(numeric.exclusiveMinimum !== undefined ? { exclusiveMinimum: numeric.exclusiveMinimum } : {}), ...(numeric.maximum !== undefined ? { maximum: numeric.maximum } : {}), description: numeric.description }]
+@@ -494,8 +495,7 @@ function rolePropertyJsonSchemas(): Record<string, unknown> {
+ }
+ 
+ function roleStyleJsonSchema(properties: readonly string[] = Object.keys(ROLE_STYLE_PROPERTY_DESCRIPTORS)): JsonSchema {
+-  const schemas = rolePropertyJsonSchemas()
+-  return { type: 'object', additionalProperties: false, maxProperties: properties.length, properties: Object.fromEntries(properties.map(property => [property, schemas[property]])) }
++  return { type: 'object', additionalProperties: false, maxProperties: properties.length, properties: rolePropertyJsonSchemas(properties) }
+ }
+ 
+ function roleStyleDefinitionName(role: (typeof SCENE_ROLE_DESCRIPTORS)[number]): string {
