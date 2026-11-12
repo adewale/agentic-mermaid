@@ -14,8 +14,8 @@ function yaml(): NonNullable<typeof runtime> {
 
 /** Build-only facade: frontmatter, init directives and metadata all demand
  * the same canonical parser, while ordinary diagrams fetch no YAML code. */
-export function parseMermaidYaml(source: string): MermaidYamlResult {
-  return yaml().parseMermaidYaml(source)
+export function parseMermaidYaml(source: string, onRanges?: (ranges: YamlMappingRange[]) => void): MermaidYamlResult {
+  return yaml().parseMermaidYaml(source, onRanges)
 }
 
 export function parseDirectiveYaml(source: string): unknown {
@@ -30,4 +30,4 @@ export function stringifyMermaidYaml(value: unknown): string {
   return yaml().stringifyMermaidYaml(value)
 }
 
-export type { MermaidYamlResult }
+export type { MermaidYamlResult, YamlMappingRange }

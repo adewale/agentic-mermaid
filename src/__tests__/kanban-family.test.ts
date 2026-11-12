@@ -433,6 +433,12 @@ test('Kanban universal accessibility respects native consumed payload records wi
     parseKanbanDiagram('kanban\nVisible')
     expect(events).toContain('add-column')
   })
+  // A completed statement still owns its payload when a later indentation
+  // check rejects it; its text cannot become universal accessibility metadata.
+  const outdented = 'kanban\n  Todo\ncard["first\naccTitle: keep inside label\nlast"]'
+  expect(kanbanStatementEnds(outdented.split('\n'))).toEqual([0, 1, 4, 3, 4])
+  expect(normalizeMermaidSource(outdented).accessibility).toEqual({})
+  expect(normalizeMermaidSource(outdented).familyBody).toBe(outdented)
   const parsed = parseRegisteredMermaid(source)
   if (!parsed.ok) throw Error(JSON.stringify(parsed.error))
   const body = asKanban(parsed.value)!.body

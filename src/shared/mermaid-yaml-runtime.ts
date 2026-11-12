@@ -160,8 +160,9 @@ function indentQuotedContinuations(text: string): string | undefined {
   return changed ? lines.join('\n') : undefined
 }
 
-function readYamlDocument(text: string): MermaidYamlResult {
-  const parsed = parseDocument(text, { ...MERMAID_YAML_OPTIONS, logLevel: 'silent' })
+function readYamlDocument(text: string, ranges?: (value: YamlMappingRange[]) => void): MermaidYamlResult {
+  const parsed = parseDocument(text, { ...MERMAID_YAML_OPTIONS, logLevel: 'silent', keepSourceTokens: !!ranges })
+  ranges?.(yamlMappingRanges(parsed))
   const problem = parsed.errors.find(error => !jsYamlAccepts(error, text)) ?? parsed.warnings[0]
   if (problem) return { ok: false, message: problem.message.split('\n')[0]!, offset: problem.pos[0] }
   if (hasEmptyBlockKey(parsed, text)) return { ok: false, message: 'a block mapping entry has no key' }
@@ -189,13 +190,18 @@ function readYamlDocument(text: string): MermaidYamlResult {
 /** Parse one YAML document as upstream's js-yaml `JSON_SCHEMA` load does.
  * An empty document is `null`. Errors and warnings (an unknown tag, say) are
  * both failures, since js-yaml throws on each. */
-export function parseMermaidYaml(source: string): MermaidYamlResult {
+export function parseMermaidYaml(source: string, onRanges?: (ranges: YamlMappingRange[]) => void): MermaidYamlResult {
   // js-yaml's loader ends its input with a line break when it lacks one.
   const text = source.length > 0 && !/[\n\r]$/.test(source) ? `${source}\n` : source
-  const result = readYamlDocument(text)
-  if (result.ok) return result
+  let ranges: YamlMappingRange[] | undefined
+  const result = readYamlDocument(text, onRanges ? value => { ranges = value } : undefined)
+  if (result.ok) {
+    onRanges?.(ranges!)
+    return result
+  }
   const reindented = indentQuotedContinuations(text)
   const retried = reindented === undefined ? undefined : readYamlDocument(reindented)
+  if (retried?.ok) onRanges?.(ranges!)
   return retried?.ok ? retried : result
 }
 
@@ -216,7 +222,10 @@ export interface YamlMappingRange {
 /** Optional parser provenance uses the same YAML package without retaining a
  * second eager package edge in the Kanban family. Offsets are source-local. */
 export function readYamlMappingRanges(source: string): YamlMappingRange[] {
-  const document = parseDocument(source, { keepSourceTokens: true })
+  return yamlMappingRanges(parseDocument(source, { keepSourceTokens: true }))
+}
+
+function yamlMappingRanges(document: Document.Parsed): YamlMappingRange[] {
   const ranges: YamlMappingRange[] = []
   if (!isMap(document.contents)) return ranges
   for (const pair of document.contents.items) {

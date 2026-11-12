@@ -5,7 +5,7 @@ import { T as BlockToken } from '../block/tokens.ts'
 import { tokenize as tokenizeRequirement } from '../requirement/lexer.ts'
 import { T as RequirementToken, TOKEN_NAMES as requirementTokenNames } from '../requirement/tokens.ts'
 import { normalizeMermaidSource, preservedMermaidFamilySource, preservedMermaidFamilyText, type NormalizedMermaidSource } from '../mermaid-source.ts'
-import { parseKanbanDiagram } from '../kanban/parser.ts'
+import { parseKanbanDiagram, type KanbanDeclaration } from '../kanban/parser.ts'
 import { sourceLineStarts, sourceSpan } from '../family-detection.ts'
 import { cleanupMermaidSource } from '../shared/mermaid-cleanup.ts'
 import { readAuthoredGrammarAccessibility } from '../shared/grammar-text.ts'
@@ -13,7 +13,7 @@ import { accessibilityFields } from '../shared/accessibility-directives.ts'
 import { maskAccessibilityDirectivesForSourceMap } from '../family-detection.ts'
 import { type ParserObservation, withParserObservation } from '../shared/parser-observation.ts'
 import { blockEntries, parseBlockBody, renderBlock, verifyBlock } from './block-body.ts'
-import type { ExtractedLabel, FamilyOperations, FamilySourceMapContext } from './families.ts'
+import type { ExtractedLabel, FamilyOperations, FamilySourceMapContext, FamilyParseContext } from './families.ts'
 import { parseIshikawaBody, renderIshikawa, verifyIshikawa } from './ishikawa-body.ts'
 import { parseKanbanBody, renderKanban, verifyKanban } from './kanban-body.ts'
 import { parsePacketBody, renderPacket, verifyPacket } from './packet-body.ts'
@@ -274,36 +274,32 @@ function sourceMap(body: StableBody, source: string, origin?: FamilySourceMapCon
       }
       return { line: location.line, col: location.col - indent }
     }
-    let statement: ParserObservation | undefined
-    withParserObservation('kanban', event => {
-      if (event.unit === 'statement') { statement = event; return }
-      if (event.unit !== 'mutation' || (event.kind !== 'add-column' && event.kind !== 'add-task') || !statement?.source || !event.value || typeof event.value !== 'object' || Array.isArray(event.value)) return
-      const value = event.value as Record<string, unknown>
-      const start = statement.source.offset, end = statement.source.endOffset
-      if (typeof value.id !== 'string' || start === undefined || end === undefined) return
-      const group = event.kind === 'add-column', id = value.id
-      const declarationStart = start + Number(value.declaredStart)
+    const recordDeclaration = (value: KanbanDeclaration): void => {
+      const { id, group, start, end } = value
+      const declarationStart = start + value.declaredStart
       const declaration = spanAt(declarationStart, end)
       ;(group ? map.groups : map.nodes).set(id, locationAt(declaration.start.offset))
       ;(group ? exact.groups : exact.nodes).set(id, declaration)
-      const declaredLabel = typeof value.declaredLabel === 'string' ? value.declaredLabel : ''
-      if (declaredLabel && typeof value.declaredLabelStart === 'number') {
+      if (value.declaredLabel) {
         const labelStart = start + value.declaredLabelStart
-        const labelSpan = spanAt(labelStart, labelStart + declaredLabel.length)
+        const labelSpan = spanAt(labelStart, labelStart + value.declaredLabel.length)
         map.labels.set(`${group ? 'group' : 'node'}:${id}`, locationAt(labelSpan.start.offset))
         exact.labels.set(`${group ? 'group' : 'node'}:${id}`, labelSpan)
       }
-      if (Array.isArray(value.metadataSpans)) {
+      if (value.metadataSpans) {
         const fields = new Map<string, { key: SourceSpan; value: SourceSpan }>()
         for (const field of value.metadataSpans) {
-          if (!field || typeof field !== 'object' || Array.isArray(field)) continue
-          const entry = field as Record<string, unknown>
-          if (typeof entry.name !== 'string' || !['keyStart', 'keyEnd', 'valueStart', 'valueEnd'].every(key => typeof entry[key] === 'number')) continue
-          fields.set(entry.name, { key: spanAt(start + (entry.keyStart as number), start + (entry.keyEnd as number)), value: spanAt(start + (entry.valueStart as number), start + (entry.valueEnd as number)) })
+          fields.set(field.name, { key: spanAt(start + field.keyStart, start + field.keyEnd), value: spanAt(start + field.valueStart, start + field.valueEnd) })
         }
         if (fields.size) exact.metadata.set(id, fields)
       }
-    }, () => parseKanbanDiagram(payload.text, {}, origin))
+    }
+    const parsed = origin?.kanbanSourceMap
+    if (parsed?.body === body && parsed.source === payload.text) {
+      for (const record of parsed.declarations) recordDeclaration(record)
+    } else {
+      withParserObservation('kanban', () => {}, () => parseKanbanDiagram(payload.text, {}, origin, undefined, recordDeclaration))
+    }
     recordAuthoredSourceMapSpans(map, exact)
     return map
   }
@@ -412,7 +408,7 @@ function sourceAdapter<K extends StableBody['kind']>(
   parse: (lines: string[], accessibility?: Accessibility) => Extract<StableBody, { kind: K }> | null,
   serialize: (body: Extract<StableBody, { kind: K }>) => string,
   verify: (body: Extract<StableBody, { kind: K }>, opts: VerifyOptions) => LayoutWarning[],
-  parseSource?: (source: string, normalized?: NormalizedMermaidSource, accessibility?: Accessibility) => Extract<StableBody, { kind: K }> | null,
+  parseSource?: (source: string, normalized?: NormalizedMermaidSource, accessibility?: Accessibility, context?: FamilyParseContext) => Extract<StableBody, { kind: K }> | null,
   ownsAccessibility = false,
 ): { operations: Omit<FamilyOperations, 'mutate'>; readSource: (source: string) => Extract<StableBody, { kind: K }> | null; serialize: typeof serialize } {
   // familyBody retains indentation and can retain wrapper comments after
@@ -430,7 +426,7 @@ function sourceAdapter<K extends StableBody['kind']>(
     operations: {
       bodyAccessibility: ownBodyAccessibility(kind, kind === 'block' || kind === 'ishikawa' ? 'native' : 'statement'),
       parse: ctx => {
-        const body = parseSource ? parseSource(ctx.source.familyBody, ctx.source, ctx.meta.accessibility) : parse(headerLines(ctx.source.familyBody), ctx.meta.accessibility)
+        const body = parseSource ? parseSource(ctx.source.familyBody, ctx.source, ctx.meta.accessibility, ctx) : parse(headerLines(ctx.source.familyBody), ctx.meta.accessibility)
         if (body && ownsAccessibility) {
           const logical = readAuthoredGrammarAccessibility(ctx.meta.accessibility)
           ctx.meta.accessibility = logical
@@ -456,7 +452,14 @@ function sourceAdapter<K extends StableBody['kind']>(
 export const PACKET_SOURCE_ADAPTER = /* @__PURE__ */ sourceAdapter('packet', parsePacketBody, renderPacket, verifyPacket)
 export const PACKET_SOURCE_HOOKS = PACKET_SOURCE_ADAPTER.operations
 
-export const KANBAN_SOURCE_ADAPTER = /* @__PURE__ */ sourceAdapter('kanban', lines => parseKanbanBody(lines), renderKanban, verifyKanban, (text, source) => parseKanbanBody(text, source ?? normalizeMermaidSource(text)))
+export const KANBAN_SOURCE_ADAPTER = /* @__PURE__ */ sourceAdapter('kanban', lines => parseKanbanBody(lines), renderKanban, verifyKanban, (text, source = normalizeMermaidSource(text), _accessibility, context) => {
+  const payload = preservedMermaidFamilyText(source)
+  // Header rewriting is a compatibility path with independent source mapping.
+  const declarations = context && /^kanban\s*(?:%%.*)?$/i.test(payload.split(/[\r\n]/, 1)[0]!.trim()) ? [] as KanbanDeclaration[] : undefined
+  const body = parseKanbanBody(text, source, declarations)
+  if (body && declarations) context!.kanbanSourceMap = { body, source: payload, declarations }
+  return body
+})
 export const KANBAN_SOURCE_HOOKS = KANBAN_SOURCE_ADAPTER.operations
 
 export const REQUIREMENT_SOURCE_ADAPTER = /* @__PURE__ */ sourceAdapter('requirement', lines => parseRequirementBody(lines.slice(1)), renderRequirement, verifyRequirement, (text, source, accessibility) => parseRequirementBody(source ? preservedMermaidFamilyText(source, 'authored') : cleanupMermaidSource(text).authoredPayloadText, accessibility))

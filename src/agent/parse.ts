@@ -42,7 +42,7 @@ import type {
 } from './types.ts'
 import { ok, err } from './types.ts'
 import { assertJsonConfigAdmission, JsonConfigAdmissionError } from '../shared/json-config-admission.ts'
-import { isBuiltinFamilyId, type FamilyDescriptor } from './families.ts'
+import { isBuiltinFamilyId, type FamilyDescriptor, type FamilyParseContext } from './families.ts'
 import { attachSourceMapSpans, recordSourceCleanup, type SourceSpanGrammar } from './source-map-spans.ts'
 
 // Re-exports for callers/tests that used the previous in-tree parser homes.
@@ -331,7 +331,7 @@ export function parseRegisteredMermaid(source: string): Result<ParsedDiagram, Pa
   // structured-or-opaque for the narrow families, error semantics for
   // flowchart/state. Families without a hook stay source-level.
   if (plugin.parse) {
-    const context = {
+    const context: FamilyParseContext = {
       source: normalized,
       lines: normalized.familyLines,
       envelopeLines: normalized.lines,
@@ -423,6 +423,7 @@ export function parseRegisteredMermaid(source: string): Result<ParsedDiagram, Pa
         authoredWrapperLength: authoredEnvelope.authoredWrapperLength,
         cleanup: authoredEnvelope.cleanup,
         canonicalSource,
+        ...(context.kanbanSourceMap ? { kanbanSourceMap: context.kanbanSourceMap } : {}),
       })) ?? emptySourceMap(),
       plugin.sourceMapGrammar ?? 'generic',
     )

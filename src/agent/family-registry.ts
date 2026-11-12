@@ -17,6 +17,7 @@ import { enrollOwnedFamily } from '../experimental/owned-family.ts'
 
 import type { DiagramKind, DiagramBody, FamilyParsedBody, ValidDiagramMeta, ParseError, SourceMap, FamilyId, ExternalFamilyId, AnyMutationOp, MutationError, LayoutWarning, VerifyOptions, Result, RenderedLayout } from './types.ts'
 import type { SourceSpanGrammar } from './source-map-spans.ts'
+import type { KanbanSourceMapData } from '../kanban/parser.ts'
 import type { ConfigDiagnostic, PositionedDiagram, RenderContext, RenderOptions, ResolvedFamilyRenderContext } from '../types.ts'
 import type { DiagramColors } from '../theme.ts'
 import type { InternalStyleFace, StyleSpec } from '../scene/style-registry.ts'
@@ -40,6 +41,7 @@ export { extractLabelsGeneric } from './family-labels.ts'
 export type FamilySourceMapContext = Readonly<Pick<NormalizedMermaidSource, 'originalText' | 'wrapperSource' | 'authoredWrapperLength' | 'cleanup'> & {
   /** Published canonical bytes before the legacy universal accessibility mask. */
   canonicalSource?: string
+  kanbanSourceMap?: KanbanSourceMapData
 }>
 
 export interface ExtractedLabel {
@@ -139,6 +141,8 @@ export interface FamilyParseContext {
   opaqueSource: string
   meta: ValidDiagramMeta
   canonicalSource: string
+  /** Optional result of this operation's native Kanban parse. */
+  kanbanSourceMap?: KanbanSourceMapData
 }
 
 export type FamilyMaturity = 'stable' | 'beta' | 'experimental'

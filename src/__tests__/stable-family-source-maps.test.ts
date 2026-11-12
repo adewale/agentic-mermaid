@@ -1,5 +1,6 @@
 import { describe, expect, test } from 'bun:test'
 import { asBlock, asRequirement, mutate, parseRegisteredMermaid, serializeMermaid } from '../agent/core.ts'
+import { getFamily, replaceFamilyForTest } from '../agent/families.ts'
 import type { SourceMap, SourceSpan, ValidDiagram } from '../agent/types.ts'
 
 function parsed(source: string): ValidDiagram {
@@ -66,6 +67,46 @@ describe('stable-family authored declaration source maps', () => {
     expect(text(source, metadata?.get('task#2')?.get('ticket')?.value)).toBe('"GW-1"')
     expect(metadata?.get('task')?.get('tags')?.value.start.line).toBe(8)
     expect(span(source, diagram, 'nodes', 'task')).toBe('task[Work]@{\n      "assigned": "Iris"\n      tags: [parser, "日本"]\n      priority: High\n    }')
+  })
+  test('Kanban metadata ranges share semantic scalar keys', () => {
+    const source = 'kanban\nTodo\n  card[Work]@{ -.5: negative, 0_1: separated, .5: positive, null: nil, !!str 23: tagged }'
+    const diagram = parsed(source)
+    if (diagram.body.kind !== 'kanban') throw new Error('Expected Kanban body')
+    expect(diagram.body.columns[0]!.tasks[0]!.metadata).toEqual({ '-.5': 'negative', '0_1': 'separated', '0.5': 'positive', null: 'nil', '23': 'tagged' })
+    const fields = diagram.source.spans?.metadata?.get('card')
+    for (const [key, authored] of [['-.5', '-.5'], ['0_1', '0_1'], ['0.5', '.5'], ['null', 'null'], ['23', '23']]) {
+      expect(text(source, fields?.get(key!)?.key)).toBe(authored!)
+    }
+    expect(text(source, fields?.get('23')?.value)).toBe('tagged')
+  })
+  test.each([false, true])('Kanban source maps remain local through nested and replaced parse hooks (copied body %s)', copiedBody => {
+    const family = getFamily('kanban')!
+    const source = 'kanban\nOuter\n  card[Outer label]@{ assigned: Outer }'
+    const mapped: string[] = []
+    const restore = replaceFamilyForTest('kanban', {
+      ...family,
+      parse: context => {
+        const result = family.parse!(context)
+        if (context.source.originalText === source) {
+          const nested = parsed('kanban\nInner\n  child[Nested label]@{ assigned: Inner }')
+          expect(keys(nested.source.groups)).toEqual(['Inner'])
+          expect(keys(nested.source.nodes)).toEqual(['child'])
+        }
+        return copiedBody && result.ok ? { ok: true, value: { ...result.value } } : result
+      },
+      buildSourceMap: (body, text, origin) => {
+        mapped.push(text)
+        return family.buildSourceMap!(body, text, origin)
+      },
+    })
+    try {
+      const diagram = parsed(source)
+      expect(keys(diagram.source.groups)).toEqual(['Outer'])
+      expect(keys(diagram.source.nodes)).toEqual(['card'])
+      expect(span(source, diagram, 'labels', 'node:card')).toBe('Outer label')
+      expect(text(source, diagram.source.spans?.metadata?.get('card')?.get('assigned')?.value)).toBe('Outer')
+      expect(mapped).toHaveLength(2)
+    } finally { restore() }
   })
   test.each(['\n', '\r\n'])('Kanban folded metadata spans retain authored blocks and repeated owners through %j cleanup', newline => {
     const card = 'card[Work]@{\n      folded: >-\n        one\n        two&#10;        three\n      nested: &shared\n        note: |+\n          keep\n\n      alias: *shared\n      scalar: &scalar !!str 23\n      scalarAlias: *scalar\n      "quoted #quot;": "A&amp;amp; B"\n    }'

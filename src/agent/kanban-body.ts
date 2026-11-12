@@ -1,7 +1,7 @@
 import { unknownOpMessage } from './mutation-ops.ts'
 import YAML from 'yaml'
 import { preservedMermaidFamilyText, type NormalizedMermaidSource } from '../mermaid-source.ts'
-import { kanbanMetadataLabel, parseKanbanDiagram } from '../kanban/parser.ts'
+import { kanbanMetadataLabel, parseKanbanDiagram, type KanbanDeclaration } from '../kanban/parser.ts'
 import type { KanbanBody, KanbanItem, KanbanMutationOp } from '../kanban/types.ts'
 import { encodeMermaidEntities } from '../shared/mermaid-entities.ts'
 import { quoteMetadataString } from '../shared/metadata-yaml.ts'
@@ -12,10 +12,14 @@ import { labelOverflowCollector } from './body-utils.ts'
 import type { LayoutWarning, MutationError, Result, VerifyOptions } from './types.ts'
 import { err, ok } from './types.ts'
 
-export function parseKanbanBody(lines: readonly string[] | string, source?: NormalizedMermaidSource): KanbanBody | null {
+export function parseKanbanBody(lines: readonly string[] | string, source?: NormalizedMermaidSource, declarations?: KanbanDeclaration[]): KanbanBody | null {
   try {
-    const input = source ? preservedMermaidFamilyText(source).replace(/^[^\r\n]*/, 'kanban') : lines
-    return parseKanbanDiagram(input, source?.accessibility, source)
+    const payload = source ? preservedMermaidFamilyText(source) : undefined
+    const input = payload === undefined ? lines : payload.replace(/^[^\r\n]*/, 'kanban')
+    const headerDelta = (payload?.match(/^[^\r\n]*/)?.[0].length ?? 6) - 6
+    return parseKanbanDiagram(input, source?.accessibility, source, undefined, declarations ? record => {
+      declarations.push({ ...record, start: record.start + headerDelta, end: record.end + headerDelta })
+    } : undefined)
   } catch (error) {
     if (error instanceof DiagramWorkLimitError && error.resource === 'sourceCharacters') throw error
     return null
