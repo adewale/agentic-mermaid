@@ -1,5 +1,4 @@
 import { graphEdgeMarkerPaintRegions } from '../graph-connectors.ts'
-import { createInkIndex, type InkBounds } from '../shared/ink-index.ts'
 import { formatSvgNumber } from '../shared/svg-number.ts'
 import type { Point, PositionedEdge, RouteBlocker } from '../types.ts'
 import type { LabelMetricsStyle } from './route-geometry.ts'
@@ -47,7 +46,8 @@ function mappingKnown(edge: PositionedEdge, style: LabelMetricsStyle): boolean {
 
 function measured(marker: MarkerRegion): boolean {
   const box = marker.bounds
-  return !!box && [box.x0, box.y0, box.x1, box.y1].every(Number.isFinite) && box.x0 <= box.x1 && box.y0 <= box.y1
+  return !!box && Number.isFinite(box.x0) && Number.isFinite(box.y0) && Number.isFinite(box.x1) && Number.isFinite(box.y1)
+    && box.x0 <= box.x1 && box.y0 <= box.y1
 }
 
 function sameEndpointRay(before: readonly Point[], after: readonly Point[], position: MarkerRegion['position']): boolean {
@@ -102,11 +102,10 @@ function sameTerminalSegment(before: readonly Point[], after: readonly Point[], 
 function separated(a: MarkerRegion, b: MarkerRegion): boolean {
   const x = a.bounds, y = b.bounds
   if (!x || !y || !measured(a) || !measured(b)) return false
-  const values = [x.x0, x.y0, x.x1, x.y1, y.x0, y.y0, y.x1, y.y1]
-  if (!values.every(Number.isFinite)) return false
   // Reject close arithmetic/serialization uncertainty; never enlarge a clear
   // gap. These are conservative complete stroke/cap/viewport envelopes.
-  const error = values.reduce((sum, value) => sum + Math.abs(value), 0) * 1e-10 + 1e-9
+  const error = (Math.abs(x.x0) + Math.abs(x.y0) + Math.abs(x.x1) + Math.abs(x.y1)
+    + Math.abs(y.x0) + Math.abs(y.y0) + Math.abs(y.x1) + Math.abs(y.y1)) * 1e-10 + 1e-9
   return Number.isFinite(error) && (x.x1 + error < y.x0 || y.x1 + error < x.x0 || x.y1 + error < y.y0 || y.y1 + error < x.y0)
 }
 
@@ -127,35 +126,26 @@ export function edgesMayShareTerminal(a: PositionedEdge, b: PositionedEdge): boo
 }
 
 type MarkerView = ReturnType<typeof markerView>
-interface PeerView { peer: PositionedEdge; view: MarkerView; known: boolean; order: number }
-interface RetainedPeer extends PeerView { values: unknown[]; coordinates: number[] }
-interface MarkerPeers { entries: RetainedPeer[]; query?: (bounds: InkBounds) => PeerView[]; uncertain: PeerView[] }
-let markerExecutions: WeakMap<readonly PositionedEdge[], MarkerPeers> | undefined
+interface RetainedPeer { peer: PositionedEdge; view: MarkerView; known: boolean; values: unknown[]; coordinates: number[] }
+let markerExecutions: WeakMap<readonly PositionedEdge[], RetainedPeer[]> | undefined
 
 /** Geometry reuse belongs to one synchronous layout, never to caller identity.
- * Nested layouts restore their parent's index even when a producer throws. */
+ * Nested layouts restore their parent's cache even when a producer throws. */
 export function withRouteMarkerCache<T>(run: () => T): T {
   const previous = markerExecutions
   markerExecutions = new WeakMap()
   try { return run() } finally { markerExecutions = previous }
 }
 
-// The broad phase must include the arithmetic uncertainty used by separated().
-// Expanding both operands by their own coordinate contribution is conservative.
-function markerQueryBounds(bounds: InkBounds): InkBounds | undefined {
-  const error = (Math.abs(bounds.x0) + Math.abs(bounds.x1) + Math.abs(bounds.y0) + Math.abs(bounds.y1)) * 4e-10 + 4e-9
-  const expanded = { x0: bounds.x0 - error, y0: bounds.y0 - error, x1: bounds.x1 + error, y1: bounds.y1 + error }
-  return Object.values(expanded).every(Number.isFinite) ? expanded : undefined
-}
-
-function indexedMarkerPeers(peers: readonly PositionedEdge[], style: LabelMetricsStyle): MarkerPeers | undefined {
+// Routes remain mutable during repair. Reuse marker views only after checking
+// their live inputs; a spatial tree would require the same scan plus rebuilding.
+function retainedMarkerPeers(peers: readonly PositionedEdge[], style: LabelMetricsStyle): RetainedPeer[] | undefined {
   if (!markerExecutions) return undefined
   let retained = markerExecutions.get(peers)
-  if (!retained) { retained = { entries: [], uncertain: [] }; markerExecutions.set(peers, retained) }
-  let changed = retained.entries.length !== peers.length
+  if (!retained) { retained = []; markerExecutions.set(peers, retained) }
   for (let order = 0; order < peers.length; order++) {
     const peer = peers[order]!
-    const prior = retained.entries[order]
+    const prior = retained[order]
     // These are all the inputs to mappingKnown/markerView. Endpoint identity,
     // label and terminal-sharing policy remain live at the exact check below.
     const values = [peer.style, peer.curve, peer.hasArrowStart, peer.hasArrowEnd, peer.startMarker, peer.endMarker,
@@ -167,33 +157,12 @@ function indexedMarkerPeers(peers: readonly PositionedEdge[], style: LabelMetric
       if (!Object.is(point.x, prior!.coordinates[2 * i]) || !Object.is(point.y, prior!.coordinates[2 * i + 1])) { same = false; break }
     }
     if (same) continue
-    changed = true
     const visible = peer.style !== 'invisible' && !!(peer.hasArrowStart || peer.hasArrowEnd)
     const known = !visible || mappingKnown(peer, style)
     const view = visible && known ? markerView(peer, style, false) : { regions: [], points: [], directional: false }
-    retained.entries[order] = { peer, order, values, known, view, coordinates: peer.points.flatMap(point => [point.x, point.y]) }
+    retained[order] = { peer, values, known, view, coordinates: peer.points.flatMap(point => [point.x, point.y]) }
   }
-  retained.entries.length = peers.length
-  if (changed || !retained.query) {
-    const bounded: Array<{ entry: PeerView; bounds: InkBounds }> = []
-    retained.uncertain = []
-    for (const entry of retained.entries) {
-      if (!entry.known) { retained.uncertain.push(entry); continue }
-      for (const region of entry.view.regions) {
-        const bounds = measured(region) ? markerQueryBounds(region.bounds!) : undefined
-        if (!bounds) { retained.uncertain.push(entry); break }
-        bounded.push({ entry, bounds })
-      }
-    }
-    const query = createInkIndex(bounded, item => item.bounds, () => {}, Number.MAX_SAFE_INTEGER)
-    retained.query = bounds => {
-      const expanded = markerQueryBounds(bounds)
-      if (!expanded) return retained!.entries
-      const found = new Set<PeerView>(retained!.uncertain)
-      for (const item of query(expanded)) found.add(item.entry)
-      return [...found].sort((a, b) => a.order - b.order)
-    }
-  }
+  retained.length = peers.length
   return retained
 }
 
@@ -213,7 +182,7 @@ export function routeCandidateMarkerBlocker(edge: PositionedEdge, points: Point[
   const oldView = markerView(edge, style, false), newView = markerView({ ...edge, points }, style, false)
   const before = oldView.regions, after = newView.regions
   if (after.length !== Number(Boolean(edge.hasArrowStart)) + Number(Boolean(edge.hasArrowEnd))) return blocker(peerOwner, 'unmeasured', 'marker')
-  let indexed: MarkerPeers | undefined
+  let retained: RetainedPeer[] | undefined
   for (const marker of after) {
     const old = before.find(candidate => candidate.position === marker.position)
     if (old && old.resource === marker.resource && old.repaint === marker.repaint
@@ -223,15 +192,15 @@ export function routeCandidateMarkerBlocker(edge: PositionedEdge, points: Point[
           : sameTerminalSegment(edge.points, points, marker.position))) continue
     if (!measured(marker)) return blocker(peerOwner, marker.position, 'marker')
     for (const opposite of after) if (opposite !== marker && !separated(marker, opposite)) return blocker(peerOwner, opposite.position, 'opposite-marker')
-    indexed ??= indexedMarkerPeers(peers, style)
-    const nearby = indexed?.query?.(marker.bounds!)
-    const candidates = nearby ?? peers.map((peer, order) => ({ peer, order, known: mappingKnown(peer, style), view: undefined }))
-    for (const entry of candidates) {
-      const peer = entry.peer
+    retained ??= retainedMarkerPeers(peers, style)
+    for (let index = 0; index < peers.length; index++) {
+      const peer = peers[index]!
       if (peer === peerOwner || peer.style === 'invisible' || !peer.hasArrowStart && !peer.hasArrowEnd) continue
-      if (!entry.known) return blocker(peer, 'mapping', 'peer-marker')
-      const peerView = entry.view ?? markerView(peer, style, false)
+      const entry = retained?.[index]
+      if (!(entry?.known ?? mappingKnown(peer, style))) return blocker(peer, 'mapping', 'peer-marker')
+      const peerView = entry?.view ?? markerView(peer, style, false)
       for (const occurrence of peerView.regions) {
+        if (separated(marker, occurrence)) continue
         const ownNode = marker.position === 'start' ? edge.source : edge.target
         const peerNode = occurrence.position === 'start' ? peer.source : peer.target
         // Existing Flowchart convergence may repaint one IDENTICAL glyph at
@@ -241,7 +210,7 @@ export function routeCandidateMarkerBlocker(edge: PositionedEdge, points: Point[
           && ownNode === peerNode && marker.resource === occurrence.resource && marker.repaint === occurrence.repaint
           && marker.anchor.x === occurrence.anchor.x && marker.anchor.y === occurrence.anchor.y
           && sameEndpointRay(newView.points, peerView.points, marker.position) && edgesMayShareTerminal(edge, peer)) continue
-        if (!separated(marker, occurrence)) return blocker(peer, occurrence.position, 'peer-marker')
+        return blocker(peer, occurrence.position, 'peer-marker')
       }
     }
   }

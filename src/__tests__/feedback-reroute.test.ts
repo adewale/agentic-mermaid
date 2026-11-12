@@ -289,8 +289,8 @@ test('a marker-blocked straight candidate reports the actual peer attachment ins
 })
 
 // Run multiple proposals in one owner lifetime, including in-place edits and
-// rollback. Sparse peers exercise the spatial broad phase as well as custody.
-test('marker indexing retains live peer geometry, unknown blockers and diagnostic order', () => {
+// rollback. Sparse peers exercise separation and deterministic blocker order.
+test('marker reuse retains live peer geometry, unknown blockers and diagnostic order', () => {
   const edge = marked('A', 'T', [{ x: 200, y: 10 }, { x: 100, y: 10 }])
   const peer = marked('B', 'T', [{ x: 200, y: 26 }, { x: 100, y: 26 }])
   const far = Array.from({ length: 100 }, (_, i) => marked(`P${i}`, `Q${i}`, [{ x: 500 + i * 50, y: 300 }, { x: 520 + i * 50, y: 300 }]))
@@ -320,7 +320,7 @@ test('marker indexing retains live peer geometry, unknown blockers and diagnosti
   })
 })
 
-test('spatial marker pruning agrees with the live guard across marker shapes, curves and widths', () => {
+test('retained marker views agree with the live guard across marker shapes, curves and widths', () => {
   const examples: Array<{ edge: PositionedEdge; peers: PositionedEdge[]; points: Point[]; style: typeof markerStyle; blocker: ReturnType<typeof routeCandidateMarkerBlocker> }> = []
   for (const kind of ['arrow', 'circle', 'cross'] as const) for (const curve of [undefined, 'basis'] as const) {
     for (const radius of [0, 8]) for (const width of [1, 2]) for (const y of [20, 24.3, 26, 100]) {
