@@ -174,6 +174,23 @@ function vertex(index: number, x: number, y: number): void { polygonXs[index] = 
  * disk or a diamond's facet is legal). Plain and explicitly decorated full
  * rectangles use their open interior; curved shapes retain the tolerance.
  */
+/** A route's bounds. segmentThroughShape is false whenever a segment's box
+ * misses the node's box, and every segment lies inside its route's bounds, so
+ * a scan may skip a node the whole route misses without changing any result. */
+export interface RouteBounds { readonly minX: number; readonly minY: number; readonly maxX: number; readonly maxY: number }
+export function routeBounds(points: readonly Point[]): RouteBounds {
+  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity
+  for (const point of points) {
+    minX = Math.min(minX, point.x); maxX = Math.max(maxX, point.x)
+    minY = Math.min(minY, point.y); maxY = Math.max(maxY, point.y)
+  }
+  return { minX, minY, maxX, maxY }
+}
+/** True only when no segment of the route can pass through the node (NaN never skips). */
+export function routeMissesShapeBox(bounds: RouteBounds, node: PositionedNode): boolean {
+  return bounds.maxX <= node.x || bounds.minX >= node.x + node.width || bounds.maxY <= node.y || bounds.minY >= node.y + node.height
+}
+
 export function segmentThroughShape(a: Point, b: Point, node: PositionedNode): boolean {
   const cx = node.x + node.width / 2
   const cy = node.y + node.height / 2
@@ -603,8 +620,9 @@ function assessLayoutGeometry(graph: MermaidGraph, positioned: PositionedGraph, 
 
   let edgeThroughNode = 0
   for (const e of positioned.edges) {
+    const bounds = routeBounds(e.points)
     for (const node of positioned.nodes) {
-      if (node.id === e.source || node.id === e.target) continue
+      if (node.id === e.source || node.id === e.target || routeMissesShapeBox(bounds, node)) continue
       for (let i = 1; i < e.points.length; i++) {
         if (segmentThroughShape(e.points[i - 1]!, e.points[i]!, node)) {
           edgeThroughNode++

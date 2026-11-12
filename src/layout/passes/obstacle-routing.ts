@@ -1,5 +1,5 @@
 import type { MermaidGraph, Point, PositionedEdge, PositionedNode, PositionedGroup } from '../../types.ts'
-import { onShapeOutline, segmentThroughShape } from '../../layout-rubric.ts'
+import { onShapeOutline, routeBounds, routeMissesShapeBox, segmentThroughShape } from '../../layout-rubric.ts'
 import { recertifyReroutedEdge, shapePorts, simplifyPolyline } from '../../route-contracts.ts'
 import { bundleRouteBeforeRewrite, retainBundleRouteAfterRewrite } from '../bundle-routes.ts'
 import { calculatePathMidpoint, layoutFlow, nodeCrossSize, nodeCrossStart } from '../geometry.ts'
@@ -88,9 +88,13 @@ export function rerouteEdgesThroughNodes(nodes: PositionedNode[], edges: Positio
   const nodeMap = new Map(nodes.map(n => [n.id, n]))
   const THROUGH_LANE_GAP = 10
   const throughNode = (pts: Point[], skip: ReadonlySet<string>): boolean => {
+    const bounds = routeBounds(pts)
     for (const n of nodes) {
       chargeWork?.(1)
       if (skip.has(n.id)) continue
+      // A node the whole route misses cannot be crossed; charge its skipped
+      // segment tests so the work budget is unchanged.
+      if (routeMissesShapeBox(bounds, n)) { if (pts.length > 1) chargeWork?.(pts.length - 1); continue }
       for (let i = 1; i < pts.length; i++) { chargeWork?.(1); if (segmentThroughShape(pts[i - 1]!, pts[i]!, n)) return true }
     }
     return false
