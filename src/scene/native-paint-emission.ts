@@ -225,8 +225,11 @@ function createPaintEmission(maxOperations: number, closeLeaves: boolean) {
     transferRetainedPixelText(plan.source, result)
     return Object.preventExtensions(result)
   }
-  const copyInner = (value: object, depth: number, parents: Set<object>, context?: CaptureContext, close = false): unknown => {
-    if (!pay() || parents.has(value)) throw failed
+  const copyInner = (value: unknown, depth: number, parents: Set<object>, context?: CaptureContext, close = false): unknown => {
+    if (depth > 64) throw failed
+    if (value === null || value === undefined || typeof value === 'boolean') return value
+    if (typeof value === 'number' || typeof value === 'string') return value
+    if (typeof value !== 'object' || !pay() || parents.has(value)) throw failed
     if (close) {
       const retained = Object.preventExtensions(value)
       if (retained !== value || textPaintExtensible(value)) throw failed
@@ -406,11 +409,6 @@ function createPaintEmission(maxOperations: number, closeLeaves: boolean) {
   }
   const copy = (value: unknown, depth = 0, parents = new Set<object>(), context?: CaptureContext, close = false): unknown => {
     if (depth > 64) throw failed
-    // Classify each operand once before dispatching object-only capture work.
-    // Scalars still obey the same depth limit, without another recursive call.
-    if (value === null || value === undefined || typeof value === 'boolean'
-      || typeof value === 'number' || typeof value === 'string') return value
-    if (typeof value !== 'object') throw failed
     if (close) {
       if (context === 'marker' && value && typeof value === 'object' && closedMarkerOperands) {
         if (!pay(2) || parents.has(value)) throw failed

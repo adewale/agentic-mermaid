@@ -2310,3 +2310,18 @@ all raw adverse costs retained; final combined build/output/cost qualification
 pending at commit. Chain300 both400kU; caps/defaults unchanged. Next: final
 combinedqualification, then the substantial shared CPU/payload deficits.
 
+
+### 12 November — withdraw scalar dispatch after final adverse clocks
+
+Final313a versus9644 matched24workers retained54exactSVG/receipts, but
+Native repeatedSVG148.52→179.41ms/p95217.70→393.55 and ELK full327.03→
+349.62/cold911.99→935.23 are adverse. Native full172.82→170.00/edit231.29→
+217.82/repeatededit180.13→151.70 improve; all raw mixed costs remain enrolled.
+Matched stock/full profiles bind actualmaps and preserve11products each. Stock
+copy inclusive20.63→22.07ms, rubric17.69→23.23 overlap; GC6.12→4.22. No causal
+copy benefit established; full profile differs and has two retained large deltas.
+Restore native-paint-emission exactly9644; no further scalar timing variants.
+Role schema construction361 remains:240→114property objects, public schemas
+and8browserproducts exact; no meaningful gzip/heap/runtime gain claimed.
+Native100, Chain300400kU and payload limits remain unresolved. All source,
+failed hypotheses/profiles/adverse costs retained; caps/defaults unchanged.
