@@ -2340,3 +2340,23 @@ Native capture remains exact9644 after3b6 withdrew adverse scalar experiment.
 Final valid SVG/receipt/ink qualification and freshCI follow; no performance or
 payload improvement claimed for this correctness fix. All caps/defaults and
 retained adverse metrics unchanged; Native100/Chain300/payload losses remain.
+
+
+### 12 November — batch uninterrupted paint-proof reservations
+
+After `fc4bd85a3f51ddac635f77a65188bba37399f742`, the private proof ledger
+reserves uninterrupted work once instead of invoking a unit callback repeatedly.
+Generic work callbacks and geometry-read loops stay unchanged; original caps,
+partial exhaustion and all proof counts/statuses remain. Trident preserves all
+310 entire SVG/receipts and 194 authored meaning/actual ink/quality vectors;
+12 same errors retained. Lint and Node build pass. Owning tests 662P/1 timeout:
+Sparse32 exceeds the local default 5s on both clean fc4 (6.70s) and candidate
+(7.55s); no timeout waiver. Local browser builds hit memory limits, including
+one bounded retry; browser bytes/products and canonical types await fresh CI.
+Matched 12 Node workers: Native100 stock SVG median 138.58→124.82ms; fresh
+124.84→102.44; label edit 101.28→85.85. Full response 182.77→157.62ms, cold
+437.77→372.50; first edit 194.06→214.29 is adverse. Full RSS125.32→124.80MiB,
+transient after-heap29.45→29.49MiB; no retained-memory or causal ratio claim.
+27 whole SVG/receipt pairs exact. Native100 target, Chain300 both400k unknown
+and payload budgets remain open. Next: reuse numeric geometry checks at their
+capture producer; reject if ownership/byte costs outweigh actual saved work.
