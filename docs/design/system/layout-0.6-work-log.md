@@ -2325,3 +2325,18 @@ Role schema construction361 remains:240→114property objects, public schemas
 and8browserproducts exact; no meaningful gzip/heap/runtime gain claimed.
 Native100, Chain300400kU and payload limits remain unresolved. All source,
 failed hypotheses/profiles/adverse costs retained; caps/defaults unchanged.
+
+### 12 November — protect the shared role validation authority
+
+0bbe3876f fixes a reproduced borrowed-reference defect: changing the canonical
+fontSize minimum to0 and appending an unknown textTransform both made
+validateStyleSpec accept invalid roles and changed fresh JSON Schemas. Freeze
+canonical descriptor leaves/enum arrays at their owner; caller StyleSpecs and
+schema copies remain mutable/isolated. Owning mutation test RED→GREEN; both
+Reflect.set attempts nowfalse and both invalid roles reject. Public schema
+22561bytes/order exact;57other role/style/config checks andlintP. Existing
+editor-discovery child20s timeout also reproduces on clean3b6; no timeout waiver.
+Native capture remains exact9644 after3b6 withdrew adverse scalar experiment.
+Final valid SVG/receipt/ink qualification and freshCI follow; no performance or
+payload improvement claimed for this correctness fix. All caps/defaults and
+retained adverse metrics unchanged; Native100/Chain300/payload losses remain.
