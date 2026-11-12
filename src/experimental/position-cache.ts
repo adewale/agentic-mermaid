@@ -25,6 +25,44 @@ const DRAWING_WEIGHT = 8 * 1024 * 1024
 const DRAWING_REPLACEMENT_AGE = 128
 const drawings = new WeightedLru<string, { owner: PositionedSnapshot; drawing: RetainedNativeDrawing }>(128, DRAWING_WEIGHT)
 const results = new WeightedLru<string, PositionedSnapshot>(128, MAX_WEIGHT, key => { drawings.delete(key) })
+// A rotation of more diagrams than the cache holds evicts every LRU entry
+// before its reuse. While the cache is full and its oldest entry was used
+// within the last HOT_WINDOW stores per resident entry, the cache is hot:
+// new geometry may replace the heaviest entry when it is at most half that
+// weight (so a weight-bound cache sheds weight and grows toward its count),
+// and otherwise waits in a small probation tier instead of evicting. An
+// immediate reuse (render then verify of the same text) is served from
+// probation; reuse after other geometry was stored shows the entry belongs to
+// the working set and promotes it.
+const HOT_WINDOW = 4
+const probation = new WeightedLru<string, { snapshot: PositionedSnapshot; weight: number; stored: number }>(4, MAX_WEIGHT / 4)
+const lastUse = new WeakMap<PositionedSnapshot, number>()
+let stores = 0
+function lookupPositioned(isolated: string): PositionedSnapshot | undefined {
+  let value = results.get(isolated)
+  if (!value) {
+    const waiting = probation.get(isolated)
+    if (waiting) {
+      value = waiting.snapshot
+      if (waiting.stored !== stores) {
+        probation.delete(isolated)
+        results.set(isolated, value, waiting.weight)
+      }
+    }
+  }
+  if (value) lastUse.set(value, stores)
+  return value
+}
+function admitPositioned(isolated: string, weight: number): boolean {
+  if (results.canFit(isolated, weight)) return true
+  const oldest = results.leastRecentlyUsed()
+  const used = oldest && lastUse.get(oldest)
+  if (used === undefined || stores - used >= results.size * HOT_WINDOW) return true
+  const heaviest = results.heaviest()
+  if (!heaviest || weight * 2 > heaviest.weight) return false
+  results.delete(heaviest.key)
+  return true
+}
 const retainedResults = new WeakSet<object>()
 const copiedResults = new WeakSet<object>()
 function isolatedKey(family: object, key: string): string {
@@ -303,7 +341,7 @@ export function isRetainedPositionedSnapshot(result: object): boolean { return r
 /** Captured geometry stays cache-private even when a drawing must be rebuilt. */
 export function positionedDrawingNeedsCopy(result: object): boolean { return copiedResults.has(result) }
 export function cachedPositioned(family: object, key: string, alreadyObserved = false, immutableText = false): FamilyLayoutResult | undefined {
-  const value = results.get(isolatedKey(family, key))
+  const value = lookupPositioned(isolatedKey(family, key))
   if (!alreadyObserved) observeCache('positioned-layout', value ? 'hit' : 'miss')
   if (!value) return undefined
   // The cache's own snapshot: copied here, or an original producer's result.
@@ -314,7 +352,7 @@ export function cachedPositioned(family: object, key: string, alreadyObserved = 
 /** Only the private native renderer may borrow this certified snapshot. */
 export function borrowedPositioned(family: object, key: string, nativeSvgRequest?: object, reuseCapturedDrawing = false): PositionedSnapshot | undefined {
   const isolated = isolatedKey(family, key)
-  const value = results.get(isolated)
+  const value = lookupPositioned(isolated)
   observeCache('positioned-layout', value ? 'hit' : 'miss')
   // Only the private renderer opts in after checking the captured family,
   // backend, native producer and metric identities. Generic/public cache
@@ -362,7 +400,14 @@ function retainSnapshot(family: object, key: string, value: FamilyLayoutResult, 
   }
   if (copy) transferGraphLayoutDecisions(value, retained.result)
   if (!copy) nativeResidency.set(retained, { locallyRepeated: false })
-  results.set(isolatedKey(family, key), retained, weight)
+  const isolated = isolatedKey(family, key)
+  stores++
+  if (admitPositioned(isolated, weight)) results.set(isolated, retained, weight)
+  else {
+    probation.set(isolated, { snapshot: retained, weight, stored: stores }, weight)
+    observeCache('positioned-layout', 'store-skipped', 'probation')
+  }
+  lastUse.set(retained, stores)
   retainedResults.add(retained.result)
   if (copy) copiedResults.add(retained.result)
 }

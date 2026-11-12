@@ -98,6 +98,43 @@ test('positioned cache reports real lookup results and an uncached uncloneable a
   expect(JSON.stringify(events)).not.toContain('private-key')
 })
 
+test('a rotation larger than the positioned cache keeps hitting, without losing immediate reuse or a new working set', async () => {
+  const child = await runChild(process.execPath, ['-e', `
+    import { cachedPositioned, retainPositioned } from './src/experimental/position-cache.ts'
+    const family = {}
+    const use = key => {
+      if (cachedPositioned(family, key)) return 1
+      retainPositioned(family, key, { positioned: { width: 1, height: 1, label: key + 'x'.repeat(key.startsWith('heavy') ? 1_000_000 : key.startsWith('light') ? 40_000 : 0) } })
+      return 0
+    }
+    const pass = keys => keys.reduce((hits, key) => hits + use(key), 0)
+    const keys = (prefix, count) => Array.from({ length: count }, (_, index) => prefix + index)
+    // A few heavy layouts fill the weight budget; medium ones fit only by displacing them.
+    const mixed = [...keys('heavy-', 12), ...keys('light-', 100)]
+    const mixedPasses = [pass(mixed), pass(mixed), pass(mixed)]
+    // A larger rotation then replaces that working set.
+    const rotation = keys('rotation-', 200)
+    const rotationPasses = Array.from({ length: 6 }, () => pass(rotation))
+    // Render then verify of new text while the cache is saturated.
+    use('fresh')
+    const immediate = cachedPositioned(family, 'fresh') !== undefined
+    const afterImmediate = pass(rotation)
+    // New text reused after other layouts were stored joins the cache.
+    use('working'); use('other'); const reused = use('working')
+    for (const key of keys('later-', 5)) use(key)
+    console.log(JSON.stringify({ mixedPasses, rotationPasses, immediate, afterImmediate, reused, working: use('working'), other: use('other') }))
+  `], { cwd: `${import.meta.dir}/../..`, env: { ...process.env } })
+  expect(child.status, child.stderr).toBe(0)
+  const result = JSON.parse(child.stdout)
+  // Lighter layouts displace heavy ones instead of thrashing behind them.
+  expect(result.mixedPasses[2]).toBeGreaterThanOrEqual(100)
+  // The cache holds 128 layouts; a protected rotation reuses all of them.
+  expect(result.rotationPasses.at(-1)).toBe(128)
+  expect(result.immediate).toBe(true)
+  expect(result.afterImmediate).toBe(128)
+  expect({ reused: result.reused, working: result.working, other: result.other }).toEqual({ reused: 1, working: 1, other: 0 })
+}, 20_000)
+
 test('identical repeats reuse positioned layouts: keys grow with authored text and layouts stay cloneable', () => {
   const columns = Array.from({ length: 12 }, (_, column) => [`  stage${column}[Stage ${column}]`,
     ...Array.from({ length: 20 }, (_, task) => `    task${column}_${task}[Task ${column}.${task}]@{assigned: "Owner ${task % 4}", ticket: "AM-${column * 20 + task}"}`)].join('\n'))
