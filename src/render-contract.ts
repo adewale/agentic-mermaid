@@ -1,4 +1,6 @@
 import { WeightedLru } from './experimental/weighted-lru.ts'
+import { isOwnedFamily } from './experimental/owned-family.ts'
+import { familyRoutingRevision } from './agent/family-router.ts'
 // ============================================================================
 // Canonical render-request waist.
 //
@@ -1579,6 +1581,34 @@ function executionCapabilityError(
 
 const EXECUTION_CAPABILITY_DECISIONS = new Map<string, CapabilityDecision>()
 
+// Normalization is a pure function of the text, the (empty) Mermaid config
+// overrides and family routing, for the package's own family descriptors.
+// Results are reused within one routing revision and for the same explicit
+// descriptor. Each request receives its own frozen top-level snapshot over the
+// shared frozen views, so request-scoped custody keyed by source identity is
+// unchanged.
+interface RememberedNormalizedSource {
+  readonly revision: number
+  readonly descriptor: FamilyDescriptor | undefined
+  readonly source: NormalizedMermaidSource
+  readonly classification: ReturnType<typeof classifyMermaidFamilyDescriptorFromFirstLine> | undefined
+}
+const NORMALIZED_SOURCES = new WeightedLru<string, RememberedNormalizedSource>(64, 4 * 1024 * 1024)
+
+function rememberedNormalizedSource(text: string, descriptor: FamilyDescriptor | undefined): RememberedNormalizedSource | undefined {
+  const remembered = NORMALIZED_SOURCES.get(text)
+  return remembered && remembered.revision === familyRoutingRevision() && remembered.descriptor === descriptor ? remembered : undefined
+}
+
+function rememberNormalizedSource(text: string, descriptor: FamilyDescriptor | undefined, source: NormalizedMermaidSource, classification: RememberedNormalizedSource['classification']): void {
+  // The normalized views hold about eight copies of the text.
+  NORMALIZED_SOURCES.set(text, { revision: familyRoutingRevision(), descriptor, source, classification }, text.length * 18 + 4096)
+}
+
+function requestSourceSnapshot(shared: NormalizedMermaidSource): NormalizedMermaidSource {
+  return freezeSnapshot({ ...shared })
+}
+
 /** Keys contain only captured tuple metadata, never source, hooks or policy.
  * Length prefixes preserve order and boundaries without serialization hooks. */
 function executionCapabilityKey(output: RenderOutput, offers: readonly CapabilityOffer[], requirements: readonly CapabilityRequirement[], available: boolean): string | undefined {
@@ -1904,15 +1934,28 @@ export function resolveRenderRequestForExecution(
   // Decode at the shared request waist so SVG, PNG, layout and terminal
   // transports agree on semantic text; retain authored bytes separately.
   let classification: ReturnType<typeof classifyMermaidFamilyDescriptorFromFirstLine> | undefined
-  const normalizedSource = normalizeMermaidRenderSource(text, admittedOptions.mermaidConfig ?? {}, firstLine => {
-    if (resolutionOptions.familyDescriptor) return resolutionOptions.familyDescriptor
-    classification = classifyMermaidFamilyDescriptorFromFirstLine(firstLine)
-    return classification.kind === 'registered' ? classification.family : null
-  })
   // Parsing consumes decoded semantic text, while provenance retains the
   // exact authored boundary bytes. Equivalent encodings may render alike but
   // must not collapse to the same request identity.
-  const detectedSource: NormalizedMermaidSource = immutableSnapshot(normalizedSource)
+  let detectedSource: NormalizedMermaidSource
+  const memoable = admittedOptions.mermaidConfig === undefined || Object.keys(admittedOptions.mermaidConfig).length === 0
+  const remembered = memoable ? rememberedNormalizedSource(text, resolutionOptions.familyDescriptor) : undefined
+  if (remembered) {
+    classification = remembered.classification
+    detectedSource = requestSourceSnapshot(remembered.source)
+  } else {
+    const normalizedSource = normalizeMermaidRenderSource(text, admittedOptions.mermaidConfig ?? {}, firstLine => {
+      if (resolutionOptions.familyDescriptor) return resolutionOptions.familyDescriptor
+      classification = classifyMermaidFamilyDescriptorFromFirstLine(firstLine)
+      return classification.kind === 'registered' ? classification.family : null
+    })
+    detectedSource = immutableSnapshot(normalizedSource)
+    const resolved = resolutionOptions.familyDescriptor ?? (classification?.kind === 'registered' ? classification.family : undefined)
+    if (memoable && resolved && isOwnedFamily(resolved)) {
+      rememberNormalizedSource(text, resolutionOptions.familyDescriptor, detectedSource, classification)
+      detectedSource = requestSourceSnapshot(detectedSource)
+    }
+  }
   // Capture one immutable descriptor before any extension callback runs. The
   // same object owns normalization, capability negotiation, layout and
   // lowering for the lifetime of this request.

@@ -1,7 +1,8 @@
 import { describe, expect, test } from 'bun:test'
 import fc from 'fast-check'
 import { fcParameters } from './helpers/fc-parameters.ts'
-import { BUILTIN_FAMILY_METADATA } from '../agent/families.ts'
+import { BUILTIN_FAMILY_METADATA, getFamily } from '../agent/families.ts'
+import { replaceFamilyForTest } from '../agent/family-registry.ts'
 import { renderMermaidPNG } from '../agent/png.ts'
 import type { DiagramKind } from '../agent/types.ts'
 import { DEFAULT_ARCHITECTURE_VISUAL } from '../architecture/config.ts'
@@ -107,6 +108,25 @@ describe('Section A canonical render contracts', () => {
     cycle.next = cycle
     expect(() => deferredRenderContractDigest(cycle)).toThrow(TypeError)
     expect(() => deferredRenderContractDigest({ value: Number.POSITIVE_INFINITY })).toThrow(TypeError)
+  })
+
+  test('remembered source normalization gives each request its own snapshot and ends at a routing change', () => {
+    const source = 'flowchart LR\n  Remembered --> Routing'
+    const first = resolveRenderRequest(source)
+    const repeat = resolveRenderRequest(source)
+    expect(repeat.source).not.toBe(first.source)
+    expect(repeat.source).toEqual(first.source)
+    const original = getFamily('flowchart')!
+    expect(resolvedRenderExecutionPlanOf(repeat).family).toBe(original)
+    const restore = replaceFamilyForTest('flowchart', { ...original })
+    try {
+      const replaced = resolvedRenderExecutionPlanOf(resolveRenderRequest(source)).family
+      expect(replaced).toBe(getFamily('flowchart')!)
+      expect(replaced).not.toBe(original)
+    } finally {
+      restore()
+    }
+    expect(resolvedRenderExecutionPlanOf(resolveRenderRequest(source)).family).toBe(original)
   })
 
   test('reused admitted request data keeps every digest value and bound of a full walk', () => {
