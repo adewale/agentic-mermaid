@@ -304,9 +304,9 @@ test.each(['plain', 'transformed', 'cancelled'] as const)('the added axial marke
 
 test.each(['agentic', 'elk'] as const)('public %s thick-arrow and borderless-state markers retain clipping and actual meaning', backend => {
   for (const source of ['flowchart LR\nA ==> B', 'stateDiagram-v2\nstate fork_state <<fork>>\n[*] --> fork_state\nfork_state --> State2\nfork_state --> State3\nstate join_state <<join>>\nState2 --> join_state\nState3 --> join_state\njoin_state --> State4\nState4 --> [*]']) {
-    const result = renderMermaidSVGWithReceipt(source, { graphLayout: { backend, fallback: 'none' } })
+    const result = renderMermaidSVGWithReceipt(source, { idPrefix: 'test-', graphLayout: { backend, fallback: 'none' } })
     expect(result.receipt.layoutCertification?.status).toBe('passed')
-    expect(result.svg).toContain('marker-end="url(#arrowhead)"')
+    expect(result.svg).toContain('marker-end="url(#test-arrowhead)"')
     expect(result.svg).toContain('refX="8"')
     expect(result.svg).not.toContain('overflow="visible"')
     if (source.startsWith('flowchart')) {

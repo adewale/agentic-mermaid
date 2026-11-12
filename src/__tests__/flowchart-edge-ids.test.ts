@@ -245,7 +245,7 @@ describe('flowchart edge classes — authored edge paint', () => {
     expect(assigned).toContain('class="edge hot"')
     expect(assigned).toContain('stroke="#ff0000"')
     expect(assigned).toContain('stroke-width="6px"')
-    expect(assigned).toMatch(/marker-end="url\(#arrowhead-[^)]*\)"/)
+    expect(assigned).toMatch(/marker-end="url\(#am-[a-z0-9]+-arrowhead-[^)]*\)"/)
     const markerId = assigned?.match(/marker-end="url\(#([^)]*)\)"/)?.[1]
     expect(markerId).toBeDefined()
     const marker = svg.match(new RegExp(`<marker\\b[^>]*id="${markerId}"[^>]*>`))?.[0]
@@ -273,10 +273,10 @@ describe('flowchart edge classes — authored edge paint', () => {
   })
 
   it('uses fixed-size endpoints when class paint changes width without a color', () => {
-    const svg = renderMermaidSVG('flowchart LR\n  A e1@--> B\n  classDef wide stroke-width:6px\n  class e1 wide')
+    const svg = renderMermaidSVG('flowchart LR\n  A e1@--> B\n  classDef wide stroke-width:6px\n  class e1 wide', { idPrefix: 'test-' })
     const edge = svg.match(/<(?:polyline|path)\b[^>]*data-id="e1"[^>]*>/)?.[0]
-    expect(edge).toContain('marker-end="url(#arrowhead-fixed)"')
-    expect(svg).toMatch(/<marker\b[^>]*id="arrowhead-fixed"[^>]*markerUnits="userSpaceOnUse"/)
+    expect(edge).toContain('marker-end="url(#test-arrowhead-fixed)"')
+    expect(svg).toMatch(/<marker\b[^>]*id="test-arrowhead-fixed"[^>]*markerUnits="userSpaceOnUse"/)
   })
 
   it('retains explicit linkStyle precedence over edge-class paint', () => {

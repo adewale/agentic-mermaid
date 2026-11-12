@@ -125,12 +125,12 @@ describe('linkStyle – SVG integration', () => {
   })
 
   it('arrowhead color matches custom stroke color', () => {
-    const svg = renderMermaidSVG('graph TD\n  A --> B\n  linkStyle 0 stroke:#ff0000')
+    const svg = renderMermaidSVG('graph TD\n  A --> B\n  linkStyle 0 stroke:#ff0000', { idPrefix: 'test-' })
     // Should have a color-specific marker def (# is hex-encoded to "23")
-    expect(svg).toContain('id="arrowhead-23ff0000"')
+    expect(svg).toContain('id="test-arrowhead-23ff0000"')
     expect(svg).toContain('fill="#ff0000"')
     // Edge should reference the colored marker
-    expect(svg).toContain('marker-end="url(#arrowhead-23ff0000)"')
+    expect(svg).toContain('marker-end="url(#test-arrowhead-23ff0000)"')
   })
 
   it.each([
@@ -160,7 +160,7 @@ describe('linkStyle – SVG integration', () => {
           const artwork = scanSvgStartTags(svg.slice(marker.end, svg.indexOf('</marker>', marker.end)))[0]!
           expect(attributes(artwork).get('fill')).toBe(color)
           expect(attributes(artwork).get('stroke')).toBe(color)
-          if (legacySuffixes[color]) expect(id).toBe(`arrowhead${end === 'start' ? '-start' : ''}-${legacySuffixes[color]}`)
+          if (legacySuffixes[color]) expect(id).toEndWith(`-arrowhead${end === 'start' ? '-start' : ''}-${legacySuffixes[color]}`)
         }
       }
     }
@@ -183,13 +183,13 @@ describe('linkStyle – SVG integration', () => {
         for (const end of ['start', 'end'] as const) {
           const id = attributes(edge).get(`marker-${end}`)!.match(/^url\(#([^)]*)\)$/)![1]!
           const marker = byId.get(id)!
-          expect(id).toStartWith(`${prefix}${end === 'start' ? '-start' : ''}-`)
+          expect(id).toContain(`-${prefix}${end === 'start' ? '-start' : ''}-`)
           expect(id).toEndWith('-fixed')
           expect(attributes(marker).get('markerUnits')).toBe('userSpaceOnUse')
           const artwork = scanSvgStartTags(svg.slice(marker.end, svg.indexOf('</marker>', marker.end)))
           expect(artwork.length).toBeGreaterThan(0)
           for (const shape of artwork) expect(attributes(shape).get('stroke')).toBe(color)
-          if (color === '#f00') expect(id).toBe(`arrowhead${end === 'start' ? '-start' : ''}-23f00-fixed`)
+          if (color === '#f00') expect(id).toEndWith(`-arrowhead${end === 'start' ? '-start' : ''}-23f00-fixed`)
         }
       }
     }

@@ -52,7 +52,9 @@ short safe id grammar.
 
 ## Multi-diagram references
 
-`idPrefix` namespaces local SVG `id` declarations and every supported local reference:
+Distinct built-in output content receives deterministic resource namespaces by default.
+Use `idPrefix` to isolate individual instances of identical diagrams. Namespacing
+rewrites local SVG `id` declarations and every supported local reference:
 
 - `url(#…)` in markers, filters, clip paths, masks, gradients, and paints;
 - `href="#…"` and `xlink:href="#…"`;

@@ -1,6 +1,6 @@
 // Loop 11 M1 (#7540/#6621): namespace SVG def ids so multiple diagrams on one
 // HTML page don't collide on shared def ids (arrowhead, bm-shadow, …).
-// Opt-in via a non-empty RenderOptions.idPrefix.
+// Distinct content is scoped by default; explicit prefixes isolate instances.
 
 import { describe, test, expect } from 'bun:test'
 import { renderMermaidSVG } from '../index.ts'
@@ -12,9 +12,10 @@ const ariaRefs = (s: string) => [...s.matchAll(/\saria-(?:labelledby|describedby
   .flatMap(m => m[1]!.split(/\s+/).filter(Boolean))
 
 describe('#7540 unique SVG ids across diagrams', () => {
-  test('omitting idPrefix leaves built-in ids unprefixed', () => {
+  test('omitting idPrefix namespaces built-in resources', () => {
     const s = renderMermaidSVG('flowchart TD\n A[Start]-->B')
-    expect(s).toContain('id="arrowhead"')
+    expect(ids(s).some(id => /^am-[a-z0-9]+-arrowhead$/.test(id))).toBe(true)
+    expect(refs(s).every(ref => ids(s).includes(ref))).toBe(true)
   })
 
   test('two diagrams with distinct prefixes have zero colliding ids', () => {

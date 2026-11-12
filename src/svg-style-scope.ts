@@ -15,6 +15,7 @@
 // ============================================================================
 
 import { replaceSvgRootStartTag, svgStyleRanges, svgAttribute, svgRootStartTag } from './svg-structure.ts'
+import { namespaceSvgIds } from './svg-postprocess.ts'
 
 export const SVG_STYLE_SCOPE_PREFIX = 'am-'
 
@@ -171,14 +172,16 @@ export function svgStyleScope(svg: string): string | undefined {
   return classes?.find(token => /^am-[0-9a-z]+$/.test(token))
 }
 
-/** Scope every `<style>` block of a complete SVG document to its own root. */
-export function scopeSvgStyles(svg: string): string {
+/** Scope styles to their root, optionally using the same content identity for
+ * local resource IDs. Identical instances still need a host-owned prefix. */
+export function scopeSvgStyles(svg: string, namespaceIds = false): string {
   const root = svgRootStartTag(svg)
   if (!root) return svg
   const styleRanges = svgStyleRanges(svg)
-  if (styleRanges.length === 0) return svg
+  if (styleRanges.length === 0 && !namespaceIds) return svg
 
   const scope = `${SVG_STYLE_SCOPE_PREFIX}${scopeHash(svg)}`
+  if (styleRanges.length === 0) return namespaceSvgIds(svg, `${scope}-`)
   let scoped = svg
   for (let index = styleRanges.length - 1; index >= 0; index--) {
     const range = styleRanges[index]!
@@ -191,5 +194,6 @@ export function scopeSvgStyles(svg: string): string {
   const scopedOpen = classAttribute
     ? `${open.slice(0, classAttribute.valueEnd - root.start)}${classAttribute.value ? ' ' : ''}${scope}${open.slice(classAttribute.valueEnd - root.start)}`
     : `${open.slice(0, -1)} class="${scope}">`
-  return replaceSvgRootStartTag(scoped, root, scopedOpen)
+  const output = replaceSvgRootStartTag(scoped, root, scopedOpen)
+  return namespaceIds ? namespaceSvgIds(output, `${scope}-`) : output
 }

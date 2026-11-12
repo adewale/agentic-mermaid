@@ -79,6 +79,21 @@ describeBrowser('inline SVG diagrams do not repaint each other', () => {
     await browser?.close()
   })
 
+  test('a hidden default diagram cannot hide another diagram’s arrowhead', async () => {
+    const page = await browser.newPage()
+    await page.route('**/*', route => route.abort())
+    try {
+      const hidden = renderMermaidSVG('graph TD\n  A --> A', { embedFontImport: false })
+      const visible = renderMermaidSVG('graph TD\n  A --> B', { embedFontImport: false })
+      await page.setContent(`<div id="visible">${visible}</div>`)
+      const isolated = await page.locator('#visible svg').screenshot()
+      await page.setContent(`<div style="display:none">${hidden}</div><div id="visible">${visible}</div>`)
+      expect(await page.locator('#visible svg').screenshot()).toEqual(isolated)
+    } finally {
+      await page.close()
+    }
+  })
+
   test('computed fonts agree with measured roles while root retheming preserves explicit and inherited fonts', async () => {
     const page = await browser.newPage()
     await page.route('**/*', route => route.abort())

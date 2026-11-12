@@ -248,9 +248,9 @@ describe('renderMermaidSVG – Batch 2 edge features', () => {
   })
 
   it('renders bidirectional arrows', () => {
-    const svg = renderMermaidSVG('graph TD\n  A <--> B')
-    expect(svg).toContain('marker-end="url(#arrowhead)"')
-    expect(svg).toContain('marker-start="url(#arrowhead-start)"')
+    const svg = renderMermaidSVG('graph TD\n  A <--> B', { idPrefix: 'test-' })
+    expect(svg).toContain('marker-end="url(#test-arrowhead)"')
+    expect(svg).toContain('marker-start="url(#test-arrowhead-start)"')
   })
 
   it('renders parallel links with &', () => {

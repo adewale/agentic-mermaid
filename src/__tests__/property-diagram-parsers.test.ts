@@ -238,7 +238,8 @@ describe('property-based class parsing', () => {
     for (const backend of ['agentic', 'elk'] as const) {
       it(`retains authored 8-class occurrences, ${backend}, wrapper ${variant}`, () => {
         const sample = classDevelopmentCase(8, variant),
-          expected = sample.expected
+          expected = sample.expected,
+          idPrefix = 'class-development-'
         const original = classLayout.layoutClassDiagram
         let model: Parameters<typeof original>[0] | undefined, before: typeof model, positioned: ReturnType<typeof original> | undefined
         const observer = spyOn(classLayout, 'layoutClassDiagram').mockImplementation((...args: Parameters<typeof original>) => {
@@ -254,6 +255,7 @@ describe('property-based class parsing', () => {
           result = renderMermaidSVGWithReceipt(sample.source, {
             graphLayout: { backend, fallback: 'none' },
             embedFontImport: false,
+            idPrefix,
             seed: 608,
             style: { formatVersion: 1, name: 'class-development', stroke: 'crisp', strokeWidth: 1 },
           })
@@ -345,8 +347,9 @@ describe('property-based class parsing', () => {
           expect(points.some(point => point[0] !== points[0]![0] || point[1] !== points[0]![1])).toBe(true)
           expect(attrs.stroke).not.toBe('none')
           expect(Number(attrs['stroke-opacity'] ?? 1)).toBeGreaterThan(0)
-          expect(attrs['marker-start']).toBe(rel.markerAt === 'from' && rel.marker !== undefined ? `url(#${rel.marker})` : undefined)
-          expect(attrs['marker-end']).toBe(rel.markerAt === 'to' && rel.marker !== undefined ? `url(#${rel.marker})` : undefined)
+          expect(attrs['marker-start']).toBe(rel.markerAt === 'from' && rel.marker !== undefined ? `url(#${idPrefix}${rel.marker})` : undefined)
+          expect(attrs['marker-end']).toBe(rel.markerAt === 'to' && rel.marker !== undefined ? `url(#${idPrefix}${rel.marker})` : undefined)
+          if (rel.marker !== undefined) expect(elements.filter(el => el.name === 'marker' && el.attrs.id === `${idPrefix}${rel.marker}`)).toHaveLength(1)
         }
         const notes = elements.filter(el => el.attrs.class === 'class-note')
         for (const note of notes) body(note)

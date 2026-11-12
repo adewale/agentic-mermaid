@@ -110,7 +110,9 @@ function changedLines(golden: string, rendered: string, shown = 20): string[] {
 
 /** What changed between a golden and a render; empty when they are equal. */
 function goldenDiff(golden: string, rendered: string): string[] {
-  if (normalizeSvg(golden) === normalizeSvg(rendered)) return []
+  golden = normalizeSvg(golden, { stripResourceNamespace: true })
+  rendered = normalizeSvg(rendered, { stripResourceNamespace: true })
+  if (golden === rendered) return []
   const changed = changedLines(normalizeSvg(golden, { maskStyleScope: true }), normalizeSvg(rendered, { maskStyleScope: true }))
   return changed.length > 0 ? changed : ['only the root style-scope class differs']
 }

@@ -10,7 +10,7 @@ test('the SVG audit rejects a clipped contact even when its shaft and unclipped 
   const certification = receipt.layoutCertification
   if (!certification || certification.scope !== 'native-scene') throw new Error('Missing native paint certificate')
   const measure = (value: string) => architectureSvgMetrics(value, layout, certification)
-  const clipped = svg.replace('id="architecture-arrow-end" markerWidth="8"', 'id="architecture-arrow-end" markerWidth="7"')
+  const clipped = svg.replace(/(id="[^"]*architecture-arrow-end" markerWidth=")8"/, (_match, prefix: string) => `${prefix}7"`)
   const before = measure(svg), after = measure(clipped)
   expect(clipped).not.toBe(svg)
   expect(before.metrics.offOutlineMarkers).toBe(0)
@@ -19,7 +19,7 @@ test('the SVG audit rejects a clipped contact even when its shaft and unclipped 
   expect(after.findings.some(finding => finding.includes('contact clipped'))).toBe(true)
 
   // An equal total marker count must not conceal reversed relationship meaning.
-  const reversed = svg.replace('marker-end="url(#architecture-arrow-end)"', 'marker-start="url(#architecture-arrow-start)"')
+  const reversed = svg.replace(/marker-end="url\(#([^)]*architecture-arrow-)end\)"/, 'marker-start="url(#$1start)"')
   expect(reversed).not.toBe(svg)
   expect(measure(reversed).metrics.markerChecks).toBe(before.metrics.markerChecks)
   expect(measure(reversed).markerEndpoints).not.toEqual(before.markerEndpoints)

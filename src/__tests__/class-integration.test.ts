@@ -14,6 +14,13 @@ function relationshipTag(svg: string): string {
   return tag
 }
 
+function classMarkerId(svg: string, name: string): string {
+  const matches = [...svg.matchAll(/<marker\b[^>]*\bid="([^"]+)"[^>]*>/g)]
+    .filter(match => match[1] === name || match[1]!.endsWith(`-${name}`))
+  expect(matches).toHaveLength(1)
+  return matches[0]![1]!
+}
+
 describe('renderMermaidSVG – class diagrams', () => {
   it('renders a basic class diagram to valid SVG', () => {
     const svg = renderMermaidSVG(`classDiagram
@@ -53,7 +60,7 @@ describe('renderMermaidSVG – class diagrams', () => {
     expect(svg).toContain('Animal')
     expect(svg).toContain('Dog')
     // Inheritance uses a hollow triangle marker at the parent end
-    expect(relationshipTag(svg)).toContain('marker-start="url(#cls-inherit)"')
+    expect(relationshipTag(svg)).toContain(`marker-start="url(#${classMarkerId(svg, 'cls-inherit')})"`)
   })
 
   it('repaints endpoint markers after class boxes so node fills cannot occlude them', () => {
@@ -65,37 +72,37 @@ describe('renderMermaidSVG – class diagrams', () => {
     const lastClassBox = Math.max(...classBoxes)
     const overlays = [...svg.matchAll(/class="class-marker-overlay"/g)].map(match => match.index)
 
-    expect(svg).toMatch(/<marker id="cls-inherit"[^>]*overflow="visible"/)
-    expect(svg).toMatch(/<marker id="cls-aggregation"[^>]*viewBox="0 0 14 12"[^>]*overflow="hidden"/)
+    expect(svg).toMatch(new RegExp(`<marker id="${classMarkerId(svg, 'cls-inherit')}"[^>]*overflow="visible"`))
+    expect(svg).toMatch(new RegExp(`<marker id="${classMarkerId(svg, 'cls-aggregation')}"[^>]*viewBox="0 0 14 12"[^>]*overflow="hidden"`))
     expect(overlays).toHaveLength(2)
     expect(overlays.every(index => index > lastClassBox)).toBe(true)
-    expect(svg).toMatch(/class="class-marker-overlay"[^>]*stroke-opacity="0"[^>]*marker-start="url\(#cls-inherit\)"/)
+    expect(svg).toMatch(new RegExp(`class="class-marker-overlay"[^>]*stroke-opacity="0"[^>]*marker-start="url\\(#${classMarkerId(svg, 'cls-inherit')}\\)"`))
   })
 
   it('renders composition with filled diamond', () => {
     const svg = renderMermaidSVG(`classDiagram
       Car *-- Engine`)
-    expect(relationshipTag(svg)).toContain('marker-start="url(#cls-composition)"')
+    expect(relationshipTag(svg)).toContain(`marker-start="url(#${classMarkerId(svg, 'cls-composition')})"`)
   })
 
   it('renders aggregation with hollow diamond', () => {
     const svg = renderMermaidSVG(`classDiagram
       University o-- Department`)
-    expect(relationshipTag(svg)).toContain('marker-start="url(#cls-aggregation)"')
+    expect(relationshipTag(svg)).toContain(`marker-start="url(#${classMarkerId(svg, 'cls-aggregation')})"`)
   })
 
   it('renders dependency with dashed line', () => {
     const svg = renderMermaidSVG(`classDiagram
       Service ..> Repository`)
     expect(relationshipTag(svg)).toContain('stroke-dasharray')
-    expect(relationshipTag(svg)).toContain('marker-end="url(#cls-arrow)"')
+    expect(relationshipTag(svg)).toContain(`marker-end="url(#${classMarkerId(svg, 'cls-arrow')})"`)
   })
 
   it('renders realization with dashed line and triangle', () => {
     const svg = renderMermaidSVG(`classDiagram
       Bird ..|> Flyable`)
     expect(relationshipTag(svg)).toContain('stroke-dasharray')
-    expect(relationshipTag(svg)).toContain('marker-end="url(#cls-inherit)"')
+    expect(relationshipTag(svg)).toContain(`marker-end="url(#${classMarkerId(svg, 'cls-inherit')})"`)
   })
 
   it('renders relationship labels', () => {
@@ -115,7 +122,7 @@ describe('renderMermaidSVG – class diagrams', () => {
     const svg = renderMermaidSVG(source)
     // Members use literal display even when relationship text is formatting.
     expect(svg).toContain('&lt;/b&gt;')
-    expect(relationshipTag(svg)).toContain('marker-start="url(#cls-inherit)"')
+    expect(relationshipTag(svg)).toContain(`marker-start="url(#${classMarkerId(svg, 'cls-inherit')})"`)
   })
 
   it('keeps unknown tag-like relationship text visible and measured', () => {

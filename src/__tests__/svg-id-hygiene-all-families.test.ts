@@ -21,6 +21,19 @@ function references(svg: string): string[] {
 }
 
 describe('all-family multi-diagram SVG ID hygiene', () => {
+  test('distinct default outputs isolate resources while preserving identities and deterministic bytes', () => {
+    const sources = ['graph TD\n  A --> A', 'graph TD\n  A --> B']
+    const documents = sources.map(source => renderMermaidSVG(withAccessibility(source, 'flowchart'), { embedFontImport: false }))
+    const combined = documents.flatMap(declarations)
+    expect(new Set(combined).size).toBe(combined.length)
+    for (const [index, svg] of documents.entries()) {
+      expect(svg).toContain('data-id="A"')
+      const declared = new Set(declarations(svg))
+      for (const ref of references(svg)) expect(declared.has(ref)).toBe(true)
+      expect(renderMermaidSVG(withAccessibility(sources[index]!, 'flowchart'), { embedFontImport: false })).toBe(svg)
+    }
+  })
+
   test('two instances of every family have no declaration collisions or dangling refs', () => {
     const documents: string[] = []
     for (const entry of Object.values(METAMORPHIC_FAMILIES)) {

@@ -144,7 +144,7 @@ describe('family-owned endpoint and visible-marker contact (#258)', () => {
     // Only arrowheads are red: measuring the shaft as well would hide the gap.
     const original = renderMermaidSVG(source('R', 'L'), { embedFontImport: false, architecture: { visual: { edgeLineWidth: 3 } } })
       .replace(/<marker\b[\s\S]*?<\/marker>/g, marker => marker.replaceAll('#47474a', '#ff0000'))
-    const clipped = original.replace('id="architecture-arrow-end" markerWidth="8"', 'id="architecture-arrow-end" markerWidth="7"')
+    const clipped = original.replace(/(id="[^"]*architecture-arrow-end" markerWidth=")8"/, (_match, prefix: string) => `${prefix}7"`)
     expect(clipped).not.toBe(original)
     expect(() => architectureContacts(original)).not.toThrow()
     expect(() => architectureContacts(clipped)).toThrow('Marker contact clipped by its viewport')

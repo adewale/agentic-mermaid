@@ -688,11 +688,11 @@ export interface RenderOptions {
   compact?: boolean
   /**
    * Namespace prefix for all generated SVG def ids (markers, filters) and
-   * their `url(#…)` references. Omit it to leave ids unprefixed. Set a distinct
-   * non-empty prefix per diagram when rendering
-   * multiple diagrams onto one HTML page so their `<defs>` don't collide
-   * (e.g. two `arrowhead` markers — the browser dedupes by id and the second
-   * diagram's arrows break). `am batch` auto-assigns per-line prefixes.
+   * their local references. Built-in renderers use a deterministic content-derived
+   * prefix by default to separate distinct outputs. Set a distinct non-empty prefix per
+   * instance when embedding identical diagrams on one HTML page; identical
+   * content otherwise shares the same prefix. `am batch` auto-assigns
+   * per-line prefixes.
    * Must be deterministic per call site to preserve render determinism.
    */
   idPrefix?: string

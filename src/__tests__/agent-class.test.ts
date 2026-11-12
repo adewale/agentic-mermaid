@@ -11,6 +11,13 @@ import { normalizeMermaidSource, withFrontmatterTitle } from '../mermaid-source.
 import { withAccessibilityFields } from '../shared/accessibility-directives.ts'
 import { startUpstreamMermaid } from './helpers/upstream-mermaid.ts'
 
+function classMarkerId(svg: string, name: string): string {
+  const matches = [...svg.matchAll(/<marker\b[^>]*\bid="([^"]+)"[^>]*>/g)]
+    .filter(match => match[1] === name || match[1]!.endsWith(`-${name}`))
+  expect(matches).toHaveLength(1)
+  return matches[0]![1]!
+}
+
 // Independent consumer projection: Mermaid resolves DB markers in HTML.
 function logicalStyle(field: string): string {
   const decoded = decodeHTML(field.replace(/ﬂ°°(\d+)¶ß|ﬂ°(\w+)¶ß/g, (_token, numeric, named) => numeric ? `&#${numeric};` : `&${named};`))
@@ -1013,11 +1020,12 @@ describe('class — round-trip', () => {
     expect(reloaded.body.notes).toEqual([{ for: id, text: 'attached' }])
     expect(verifyMermaid(edited.value).warnings).toEqual([])
     for (const input of [edited.value, exported]) {
-      const relations = renderMermaidSVG(input).match(/<polyline\b[^>]*class="class-relationship"[^>]*>/g) ?? []
+      const svg = renderMermaidSVG(input)
+      const relations = svg.match(/<polyline\b[^>]*class="class-relationship"[^>]*>/g) ?? []
       expect(relations).toHaveLength(2)
       expect(relations[0]).toContain(`data-from="${id}" data-to="B"`)
-      expect(relations[0]).toContain('marker-start="url(#cls-lollipop)"')
-      expect(relations[0]).toContain('marker-end="url(#cls-composition)"')
+      expect(relations[0]).toContain(`marker-start="url(#${classMarkerId(svg, 'cls-lollipop')})"`)
+      expect(relations[0]).toContain(`marker-end="url(#${classMarkerId(svg, 'cls-composition')})"`)
       expect(relations[0]).toContain('stroke-dasharray=')
       expect(relations[1]).toContain(`data-from="B" data-to="${id}"`)
       expect(relations[1]).not.toContain('marker-start=')
@@ -1065,8 +1073,8 @@ describe('class — round-trip', () => {
       const relation = svg.match(/<polyline\b[^>]*class="class-relationship"[^>]*>/)?.[0]
       expect(relation).toBeDefined()
       expect(relation).toContain(`data-from="${from}" data-to="${to}"`)
-      expect(relation!.match(/marker-start="url\(#([^)]*)\)"/)?.[1] ?? '').toBe(start)
-      expect(relation!.match(/marker-end="url\(#([^)]*)\)"/)?.[1] ?? '').toBe(end)
+      expect(relation!.match(/marker-start="url\(#([^)]*)\)"/)?.[1] ?? '').toBe(start ? classMarkerId(svg, start) : '')
+      expect(relation!.match(/marker-end="url\(#([^)]*)\)"/)?.[1] ?? '').toBe(end ? classMarkerId(svg, end) : '')
     }
   })
 

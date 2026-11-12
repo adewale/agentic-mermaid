@@ -212,16 +212,20 @@ describe('#7254/#7255 SVG accessibility', () => {
 
   test('accTitle → <title>, accDescr → <desc>, role + ARIA references on root', () => {
     const svg = renderMermaidSVG('flowchart TD\n accTitle: Login Flow\n accDescr: How a user logs in\n A[Start] --> B[End]')
-    expect(svg).toContain('<title id="svg-title">Login Flow</title>')
-    expect(svg).toContain('<desc id="svg-desc">How a user logs in</desc>')
+    const titleId = svg.match(/aria-labelledby="([^"]+)"/)?.[1]
+    const descrId = svg.match(/aria-describedby="([^"]+)"/)?.[1]
+    expect(titleId).toBeDefined()
+    expect(descrId).toBeDefined()
+    expect(svg).toContain(`<title id="${titleId}">Login Flow</title>`)
+    expect(svg).toContain(`<desc id="${descrId}">How a user logs in</desc>`)
     expect(svg).toContain('role="img"')
-    expect(svg).toContain('aria-labelledby="svg-title"')
-    expect(svg).toContain('aria-describedby="svg-desc"')
   })
 
   test('accDescr block form is captured', () => {
     const svg = renderMermaidSVG('flowchart TD\n accTitle: T\n accDescr {\n   multi  line\n\n   description\n }\n A --> B')
-    expect(svg).toContain('<title id="svg-title">T</title>')
+    const titleId = svg.match(/aria-labelledby="([^"]+)"/)?.[1]
+    expect(titleId).toBeDefined()
+    expect(svg).toContain(`<title id="${titleId}">T</title>`)
     expect(svg).toContain('multi  line\n\ndescription')
     expect(svg).not.toContain('data-id="accTitle"')
     expect(svg).not.toContain('data-id="accDescr"')

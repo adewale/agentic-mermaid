@@ -22,6 +22,9 @@ export interface NormalizeSvgOptions {
    *  it lets a golden diff show only the lines that changed. Implied by
    *  stripPaint. Default: false. */
   maskStyleScope?: boolean
+  /** Ignore the default resource namespace when comparing reviewed geometry
+   * and paint. Resource identity/attachment has dedicated owning tests. */
+  stripResourceNamespace?: boolean
 }
 
 const PAINT_PROPERTIES = new Set([
@@ -84,6 +87,7 @@ function stripSvgPaint(svg: string): string {
 }
 
 export function normalizeSvg(svg: string, options: NormalizeSvgOptions = {}): string {
+  if (options.stripResourceNamespace) svg = svg.replace(/(\sid="|url\(#|href="#|aria-(?:labelledby|describedby)=")am-[0-9a-z]{14}-/g, '$1')
   const painted = options.stripPaint ? stripSvgPaint(svg) : svg
   const text = options.maskStyleScope ? painted.replace(STYLE_SCOPE_CLASS, 'am-scope') : painted
   return text

@@ -235,7 +235,7 @@ function renderPositionedWithTextMeasurement(
   if (capture) svg = capture.finish(svg)
   // Scope identity belongs to the canonical written numbers, including late
   // viewport repairs, so equivalent drawing/Scene paths share identical CSS.
-  svg = scopeSvgStyles(formatSvgNumbers(svg))
+  svg = scopeSvgStyles(formatSvgNumbers(svg), effectiveOptions.idPrefix === undefined && trustedProducer && isOwnedFamily(family))
   assertFinalSvgByteBudget(svg, 'style-scoped SVG output')
   // Every byte-changing projection must run before the final output-security
   // gate. In particular, compaction must never be able to join an inert split

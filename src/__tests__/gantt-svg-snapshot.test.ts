@@ -33,7 +33,7 @@ describe('renderMermaidSVG — gantt', () => {
   it('matches the representative gantt golden SVG', () => {
     const actual = renderMermaidSVG(REPRESENTATIVE)
     const expected = readFileSync(join(snapshotDir, 'gantt-representative.svg'), 'utf-8')
-    expect(normalizeSvg(actual)).toBe(normalizeSvg(expected))
+    expect(normalizeSvg(actual, { stripResourceNamespace: true })).toBe(normalizeSvg(expected))
   })
 
   it('is byte-deterministic for the same source and options', () => {
@@ -244,10 +244,12 @@ describe('renderMermaidSVG — gantt', () => {
       accDescr: Two-task schedule
       A :a, 2024-01-01, 5d
     `)
-    expect(svg).toContain('<title id="svg-title">Q1 plan</title>')
-    expect(svg).toContain('<desc id="svg-desc">Two-task schedule</desc>')
-    expect(svg).toContain('aria-labelledby="svg-title"')
-    expect(svg).toContain('aria-describedby="svg-desc"')
+    const titleId = svg.match(/aria-labelledby="([^"]+)"/)?.[1]
+    const descrId = svg.match(/aria-describedby="([^"]+)"/)?.[1]
+    expect(titleId).toBeDefined()
+    expect(descrId).toBeDefined()
+    expect(svg).toContain(`<title id="${titleId}">Q1 plan</title>`)
+    expect(svg).toContain(`<desc id="${descrId}">Two-task schedule</desc>`)
     expect(svg).toContain('role="img"')
   })
 

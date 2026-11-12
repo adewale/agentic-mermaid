@@ -62,9 +62,14 @@ function markerById(resources: readonly MarkerDescriptor[], id: string): MarkerD
 }
 
 function markerTag(svg: string, id: string): string {
-  const tag = svg.match(new RegExp(`<marker id="${id}"[^>]*>`))?.[0]
-  if (!tag) throw new Error(`missing serialized marker ${id}`)
-  return tag
+  const matches = [...svg.matchAll(/<marker\b[^>]*\bid="([^"]+)"[^>]*>/g)]
+    .filter(match => match[1] === id || match[1]!.endsWith(`-${id}`))
+  expect(matches).toHaveLength(1)
+  return matches[0]![0]
+}
+
+function markerId(svg: string, id: string): string {
+  return /\bid="([^"]+)"/.exec(markerTag(svg, id))![1]!
 }
 
 function lowerPositionedRelationships(relationships: PositionedClassRelationship[]) {
@@ -114,8 +119,8 @@ describe('class endpoint marker geometry (#178)', () => {
     const relation = svg.match(/<polyline\b[^>]*class="class-relationship"[^>]*>/)?.[0]
     expect(relation).toBeDefined()
     expect(relation).toContain('data-from="A" data-to="B"')
-    expect(relation).toContain(`marker-start="url(#${start})"`)
-    expect(relation).toContain(`marker-end="url(#${end})"`)
+    expect(relation).toContain(`marker-start="url(#${markerId(svg, start)})"`)
+    expect(relation).toContain(`marker-end="url(#${markerId(svg, end)})"`)
     expect(relation!.includes('stroke-dasharray="6 4"')).toBe(dashed)
     const shapes: Record<string, TerminalMarker['shape']> = {
       'cls-aggregation': 'hollow-diamond', 'cls-composition': 'filled-diamond',
@@ -169,7 +174,7 @@ E -- F`)
       expect(relation).toContain(`data-marker-at="${item.start ? 'both' : 'none'}"`)
       expect(relation.includes('stroke-dasharray="6 4"')).toBe(index < 4)
       for (const [name, value] of [
-        ['marker-start', item.start && `url(#${item.start})`], ['marker-end', item.end && `url(#${item.end})`],
+        ['marker-start', item.start && `url(#${markerId(svg, item.start)})`], ['marker-end', item.end && `url(#${markerId(svg, item.end)})`],
         ['data-from-cardinality', item.fromCardinality], ['data-to-cardinality', item.toCardinality], ['data-label', item.label],
       ]) {
         if (value === undefined) expect(relation).not.toContain(`${name}=`)
@@ -178,8 +183,8 @@ E -- F`)
     }
     const overlays = svg.match(/<(?:polyline|path)\b[^>]*class="class-marker-overlay"[^>]*>/g) ?? []
     expect(overlays).toHaveLength(4)
-    expect(overlays[0]).toContain('marker-start="url(#cls-aggregation)" marker-end="url(#cls-composition)"')
-    expect(overlays[1]).toContain('marker-start="url(#cls-composition)" marker-end="url(#cls-aggregation)"')
+    expect(overlays[0]).toContain(`marker-start="url(#${markerId(svg, 'cls-aggregation')})" marker-end="url(#${markerId(svg, 'cls-composition')})"`)
+    expect(overlays[1]).toContain(`marker-start="url(#${markerId(svg, 'cls-composition')})" marker-end="url(#${markerId(svg, 'cls-aggregation')})"`)
   })
 
   test('positioned relationships retain authored profiles through misses, saturation and later repeats', () => {
@@ -354,7 +359,7 @@ E -- F`)
         const svg = renderMermaidSVG(`classDiagram
           direction ${direction}
           A ${relationship.syntax} B`)
-        expect(svg).toContain(`marker-${relationship.side}="url(#${relationship.id})"`)
+        expect(svg).toContain(`marker-${relationship.side}="url(#${markerId(svg, relationship.id)})"`)
         expect(markerTag(svg, relationship.id)).toContain(relationship.id === 'cls-lollipop' ? 'refX="12"' : 'refX="13"')
         expect(markerTag(svg, relationship.id)).toContain('orient="auto-start-reverse"')
       }

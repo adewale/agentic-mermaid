@@ -280,6 +280,9 @@ describe('Class escaped relationship IDs', () => {
     const relations = svg.match(/<(?:path|polyline) class="class-relationship"[^>]*>/g) ?? []
     expect(relations).toHaveLength(1)
     for (const attribute of ['data-from="class A"', 'data-to="B"', 'data-type="association"']) expect(relations[0]).toContain(attribute)
-    expect(relations[0]).toContain('marker-end="url(#cls-arrow)"')
+    const arrow = [...svg.matchAll(/<marker\b[^>]*\bid="([^"]+)"[^>]*>/g)]
+      .filter(match => match[1] === 'cls-arrow' || match[1]!.endsWith('-cls-arrow'))
+    expect(arrow).toHaveLength(1)
+    expect(relations[0]).toContain(`marker-end="url(#${arrow[0]![1]})"`)
   })
 })

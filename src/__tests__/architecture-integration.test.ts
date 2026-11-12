@@ -63,7 +63,7 @@ describe('renderMermaidSVG – architecture diagrams', () => {
 
     expect(svg).toContain('data-from-boundary="group"')
     expect(svg).toContain('data-label="replicates"')
-    expect(svg).toContain('marker-end="url(#architecture-arrow-end)"')
+    expect(svg).toMatch(/marker-end="url\(#am-[a-z0-9]+-architecture-arrow-end\)"/)
     expect(svg).toContain('Storage')
     expect(svg).toContain('Analytics')
   })
@@ -77,10 +77,12 @@ describe('renderMermaidSVG – architecture diagrams', () => {
 
     expect(svg).toContain('role="img"')
     expect(svg).toContain('aria-roledescription="architecture"')
-    expect(svg).toContain('aria-labelledby="arch-')
-    expect(svg).toContain('aria-describedby="arch-')
-    expect(svg).toContain('System overview</title>')
-    expect(svg).toContain('High-level service topology</desc>')
+    const titleId = svg.match(/aria-labelledby="([^"]+)"/)?.[1]
+    const descrId = svg.match(/aria-describedby="([^"]+)"/)?.[1]
+    expect(titleId).toBeDefined()
+    expect(descrId).toBeDefined()
+    expect(svg).toContain(`<title id="${titleId}">System overview</title>`)
+    expect(svg).toContain(`<desc id="${descrId}">High-level service topology</desc>`)
   })
 
   it('omits ARIA attributes when no accessibility directives are present', () => {

@@ -31,6 +31,13 @@ const CASES = [
   { arrow: '\\\\--', head: 'stick-top', side: 'start', dashed: true },
 ] as const
 
+function markerDefinition(svg: string, name: string) {
+  const matches = [...svg.matchAll(/<marker\b[^>]*\bid="([^"]+)"[^>]*>[\s\S]*?<\/marker>/g)]
+    .filter(match => match[1] === name || match[1]!.endsWith(`-${name}`))
+  expect(matches).toHaveLength(1)
+  return { id: matches[0]![1]!, markup: matches[0]![0] }
+}
+
 describe('Sequence half-arrow lexical fidelity', () => {
   test('final Scene retains message arrowheads and their marker placements', () => {
     const source = 'sequenceDiagram\nA->>B: Request\nB-->>A: Reply\nA->>A: Retry\nA<<->>B: Exchange'
@@ -96,7 +103,7 @@ describe('Sequence half-arrow lexical fidelity', () => {
       expect(svg).toContain('data-from="A"')
       expect(svg).toContain('data-to="B"')
       expect(svg).toContain(`data-${side}-head="${head}"`)
-      expect(svg).toContain(`marker-${side}="url(#seq-arrow-${head})"`)
+      expect(svg).toContain(`marker-${side}="url(#${markerDefinition(svg, `seq-arrow-${head}`).id})"`)
     })
   }
 
@@ -112,7 +119,7 @@ describe('Sequence half-arrow lexical fidelity', () => {
       expect(svg).toContain('data-from="A"')
       expect(svg).toContain('data-to="B"')
       expect(svg).toContain(`data-${side}-head="${head}"`)
-      expect(svg).toContain(`marker-${side}="url(#seq-arrow-${head})"`)
+      expect(svg).toContain(`marker-${side}="url(#${markerDefinition(svg, `seq-arrow-${head}`).id})"`)
     }
   })
 
@@ -141,8 +148,11 @@ describe('Sequence half-arrow lexical fidelity', () => {
     for (const color of ['#123456', '#7a3b91', '#123456']) {
       const svg = renderMermaidSVG(source, { style: { roles: { edge: { strokeColor: color } } } })
       expect([...svg.matchAll(/<marker\b/g)]).toHaveLength(7)
+      const markerIds = new Map<string, string>()
       for (const [id, geometry, kind] of definitions) {
-        const marker = svg.match(new RegExp(`<marker id="${id}"[\\s\\S]*?<\\/marker>`))?.[0]
+        const definition = markerDefinition(svg, id)
+        markerIds.set(id, definition.id)
+        const marker = definition.markup
         expect(marker).toBeDefined()
         expect(marker).toContain('markerWidth="8" markerHeight="5"')
         expect(marker).toContain(`refX="${kind === 'cross' ? '4' : '8'}" refY="2.5"`)
@@ -157,7 +167,7 @@ describe('Sequence half-arrow lexical fidelity', () => {
       }
       const messages = [...svg.matchAll(/<g class="message"[^>]*>[\s\S]*?<\/g>/g)].map(match => match[0])
       expect(messages).toHaveLength(10)
-      const endIds = [...definitions.map(([id]) => id), undefined, 'seq-arrow', 'seq-arrow']
+      const endIds = [...definitions.map(([id]) => markerIds.get(id)), undefined, markerIds.get('seq-arrow'), markerIds.get('seq-arrow')]
       const labels = ['filled', 'open', 'cross', 'half top', 'half bottom', 'stick top', 'stick bottom', 'no head', 'exchange', '自分']
       for (const [index, message] of messages.entries()) {
         const line = message.match(/<(?:line|polyline)\b[^>]*>/)?.[0]
@@ -167,7 +177,7 @@ describe('Sequence half-arrow lexical fidelity', () => {
         expect(message).toMatch(new RegExp(`>${labels[index]}</(?:text|tspan)>`))
         if (endIds[index]) expect(line).toContain(`marker-end="url(#${endIds[index]})"`)
         else expect(line).not.toContain('marker-end=')
-        if (index === 8) expect(line).toContain('marker-start="url(#seq-arrow)"')
+        if (index === 8) expect(line).toContain(`marker-start="url(#${markerIds.get('seq-arrow')})"`)
         else expect(line).not.toContain('marker-start=')
       }
       expect(messages[1]).toContain('stroke-dasharray="6 4"')

@@ -469,7 +469,7 @@ for precedence and custom looks. This table is generated from runtime descriptor
 | `mermaidConfig` | `MermaidRuntimeConfig` | source config | Mermaid-style recursive runtime configuration. |
 | `embedFontImport` | `boolean` | `false` | Embed the Google Fonts import in SVG styles; PNG forces this off for offline rasterization. Not consumed by terminal output. |
 | `compact` | `boolean` | `false` | Compact SVG serialization while preserving agent hooks. Not consumed by terminal output. |
-| `idPrefix` | `string` | unset | Non-empty namespace for generated SVG definition IDs and local references. Not consumed by terminal output. |
+| `idPrefix` | `string` | content-derived for built-ins | Namespace for SVG resource IDs and local references. Built-ins isolate distinct content by default; use distinct non-empty prefixes for identical instances. Custom producers retain their resource names unless a prefix is supplied. Not consumed by terminal output. |
 | `security` | `'default' \| 'strict'` | `default` | Active SVG content is rejected in every mode; strict additionally rejects every external reference. Raw Mermaid themeCSS is rejected in both modes. Not consumed by terminal output. |
 | `ganttToday` | `string` | unset | Explicit deterministic date for the Gantt today marker. Built-in families: gantt. |
 | `seed` | `number` | `0` | Deterministic re-roll seed for stochastic Styles. Not consumed by terminal output. |

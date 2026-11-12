@@ -963,7 +963,9 @@ describe('backend registration and host policy', () => {
       id,
       capabilities: DefaultBackend.capabilities.map(claim => ({ ...claim, target: id })),
       render(doc: Parameters<typeof DefaultBackend.render>[0], context: Parameters<typeof DefaultBackend.render>[1]) {
-        return DefaultBackend.render(doc, context).replace('<svg ', '<svg data-host-backend="test/host-policy" ')
+        return DefaultBackend.render(doc, context)
+          .replace('<svg ', '<svg data-host-backend="test/host-policy" ')
+          .replace('</svg>', `<defs><linearGradient id="host-paint"><stop offset="0" stop-color="#00ff00"/><stop offset="1" stop-color="#00ff00"/></linearGradient></defs><style>#host-box{fill:#ff0000;stroke:url('#host-paint')}</style><rect id="host-box" x="1" y="1" width="8" height="8"/></svg>`)
       },
     }
     const unregister = registerBackend(backend, {
@@ -986,6 +988,10 @@ describe('backend registration and host policy', () => {
       const ordinary = renderMermaidSVGWithReceipt(source, options)
 
       expect(hosted.svg).toContain('data-host-backend="test/host-policy"')
+      // Opaque backend selectors and quoted paint references stay intact.
+      expect(hosted.svg).toContain('id="host-box"')
+      expect(hosted.svg).toContain('id="host-paint"')
+      expect(hosted.svg).toContain("#host-box{fill:#ff0000;stroke:url('#host-paint')}")
       expect(ordinary.svg).not.toContain('data-host-backend="test/host-policy"')
       // The logical request stays comparable, while the artifact receipt names
       // the host-selected execution and emitted projection separately.
