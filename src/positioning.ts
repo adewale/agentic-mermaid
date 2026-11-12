@@ -116,9 +116,13 @@ function positionFamily(familyId: FamilyId, request: ResolvedRenderRequest, sour
   const reusableMetrics = !executionPlan.textMeasurement || metricsIdentity !== undefined
   const cacheEnabled = performanceExperimentEnabled('position-cache') && certifyFinal && familyId !== 'gantt' && reusableMetrics
     && (environment?.AGENTIC_MERMAID_ELK_CACHE ?? (globalThis as { AGENTIC_MERMAID_ELK_CACHE?: unknown }).AGENTIC_MERMAID_ELK_CACHE) !== '0'
-  // Admitted cleanup provenance is derived entirely from originalText. Keep
-  // every authoritative field; explicit source overrides retain the full key.
-  const cacheSource = cacheEnabled && source === request.source ? { ...source, cleanup: undefined } : source
+  // The request's source is normalized deterministically from originalText,
+  // the admitted Mermaid config and the family descriptor (isolated by the
+  // cache). Its cleanup and grammar views add nothing to that identity, and
+  // serializing them made keys about eight times the authored text, so large
+  // diagrams exceeded the key bound. Explicit source overrides keep the full key.
+  const cacheSource = cacheEnabled && source === request.source
+    ? { originalText: source.originalText, config: source.config, frontmatter: source.frontmatter } : source
   const cacheParts = cacheEnabled ? [cacheSource, request.renderOptions, request.appearance, request.familyConfig, projectionOptions, familyId === 'class' ? resolved.paintBackendId ?? 'backend:default' : undefined,
     layoutDebugEnvIdentity(), PERFORMANCE_EXPERIMENTS.map(performanceExperimentEnabled)] : undefined
   if (metricsIdentity !== undefined) cacheParts?.push(metricsIdentity)

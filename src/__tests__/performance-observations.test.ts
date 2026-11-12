@@ -97,6 +97,20 @@ test('positioned cache reports real lookup results and an uncached uncloneable a
   expect(JSON.stringify(events)).not.toContain('private-key')
 })
 
+test('a large source reuses its positioned layout: the key grows with the authored text, not its derived views', () => {
+  const columns = Array.from({ length: 12 }, (_, column) => [`  stage${column}[Stage ${column}]`,
+    ...Array.from({ length: 20 }, (_, task) => `    task${column}_${task}[Task ${column}.${task}]@{assigned: "Owner ${task % 4}", ticket: "AM-${column * 20 + task}"}`)].join('\n'))
+  const source = ['kanban', ...columns].join('\n')
+  expect(source.length).toBeGreaterThan(12_000)
+  const outcomes = (): string[] => {
+    const events: PerformanceObservation[] = []
+    withPerformanceObserver(event => events.push(event), () => renderMermaidSVG(source))
+    return events.flatMap(event => event.kind === 'cache' && event.owner === 'positioned-layout' ? [event.reason ? `${event.outcome}:${event.reason}` : event.outcome] : [])
+  }
+  outcomes()
+  expect(outcomes()).toContain('hit')
+})
+
 test('public rendering signals support and actual position-cache bypass; observer failures cannot affect output', () => {
   const source = 'pie\n "Telemetry privacy" : 2\n "Other" : 1'
   const events: PerformanceObservation[] = []
