@@ -34,4 +34,4 @@ profiler.disconnect()
 writeFileSync(job.profile, JSON.stringify(profile))
 writeFileSync(job.output, JSON.stringify({ diagnostic: true, runtime: process.versions,
   cache: process.env.AGENTIC_MERMAID_ELK_CACHE, assertions: process.env.AGENTIC_MERMAID_SCENE_ASSERTIONS,
-  layoutIncludesElk: true, samples }, null, 2))
+  stageDurations: 'inclusive', samples }, null, 2))
