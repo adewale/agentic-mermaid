@@ -485,7 +485,7 @@ export class TerminalDocument {
   attribute(owners: TerminalOwner | readonly TerminalOwner[], paint: Omit<TerminalPaint, 'owner'> = {}): this {
     const canonical = this.owners(Array.isArray(owners) ? owners : [owners])
     const blocks = new Set<TextBlock>()
-    for (const [, , cell] of this.entries()) {
+    for (const row of this.rows.values()) for (const cell of row.values()) {
       if (cell.textBlock) blocks.add(cell.textBlock)
       this.attributeStroke(cell, canonical)
       cell.owners = this.unionOwners(cell.owners, canonical)
@@ -728,7 +728,7 @@ export class TerminalDocument {
     }
     // Owned link summaries and labels are not surfaces. Explicit native card
     // allocation wins over inferred ink bounds, which may include annotations.
-    for (const [x, y, cell] of this.entries()) {
+    for (const [y, row] of this.rows) for (const [x, cell] of row) {
       visit()
       if (neededTextOwners?.size && cell.kind === 'text' && cell.glyph.trim()) {
         for (const owner of cell.owners) {
@@ -799,7 +799,7 @@ export class TerminalDocument {
       }
     }
     if (!expected.size) return
-    for (const [x, y, cell] of this.entries()) {
+    for (const [y, row] of this.rows) for (const [x, cell] of row) {
       visit()
       if (cell.kind !== 'marker') continue
       for (const owner of cell.owners) {

@@ -1545,10 +1545,12 @@ function planAllocatedGraphRoutes(graph: AsciiGraph, protectedCells: PathOccupan
     const hasCell = (x: number, y: number): boolean => {
       const key = cellKey(x, y)
       if (ownMarkers.has(key) || protectedCell(x, y)) return true
-      for (const owner of markerCells.get(key) ?? []) if (owner !== edge) return true
+      const markers = markerCells.get(key)
+      if (markers) for (const owner of markers) if (owner !== edge) return true
       // Another label blocks its whole `inside` area; this edge's own label
       // blocks only a multiline rectangle, never the adjacent wire column.
-      for (const [owner, box] of rectangleCells.get(key) ?? []) if (owner !== edge || box.height > 1 && x >= box.x) return true
+      const rectangles = rectangleCells.get(key)
+      if (rectangles) for (const [owner, box] of rectangles) if (owner !== edge || box.height > 1 && x >= box.x) return true
       return false
     }
     const obstacles: PathOccupancy = {
@@ -1861,11 +1863,13 @@ function drawGraphCandidate(graph: AsciiGraph): Canvas | Set<AsciiEdge> {
   const conflicts = retainedRouteConflicts(graph, layers, retained)
   if (conflicts.size) return conflicts
   const retainedLabels: Canvas[] = []
-  const retainedApproaches = graphPortApproaches(retained), retainedRoutes = graphLabelRoutes(retained, labels)
-  for (const label of labels) {
-    const planned = feasibleLabel(retained, label, retainedRoutes.get(label.owner.id) ?? [], retainedApproaches)
-    if (!planned.admitted) return new Set(graph.edges.filter(edge => edgeOwner(edge).id === label.owner.id))
-    retainedLabels.push(planned.drawing); retained.overlay(planned.drawing)
+  if (labels.length) {
+    const retainedApproaches = graphPortApproaches(retained), retainedRoutes = graphLabelRoutes(retained, labels)
+    for (const label of labels) {
+      const planned = feasibleLabel(retained, label, retainedRoutes.get(label.owner.id) ?? [], retainedApproaches)
+      if (!planned.admitted) return new Set(graph.edges.filter(edge => edgeOwner(edge).id === label.owner.id))
+      retainedLabels.push(planned.drawing); retained.overlay(planned.drawing)
+    }
   }
   if (!allocated.length) return document
   labels.length = 0
@@ -1878,9 +1882,11 @@ function drawGraphCandidate(graph: AsciiGraph): Canvas | Set<AsciiEdge> {
   for (const label of retainedLabels) document.overlay(label)
   // Index actual painted route ink once, including declared shared ownership.
   // Label placement must not consult stale grid paths after header detours.
-  const labelRoutes = graphLabelRoutes(document, labels)
-  const approaches = graphPortApproaches(document)
-  for (const label of labels) document.overlay(feasibleLabel(document, label, labelRoutes.get(label.owner.id) ?? [], approaches).drawing)
+  if (labels.length) {
+    const labelRoutes = graphLabelRoutes(document, labels)
+    const approaches = graphPortApproaches(document)
+    for (const label of labels) document.overlay(feasibleLabel(document, label, labelRoutes.get(label.owner.id) ?? [], approaches).drawing)
+  }
   // Exhausting the bounded route search is an explicit projection, not a
   // missing marker that crashes serialization. Retain every authored
   // relationship in owned text; the collision diagnostic still fails strict
