@@ -1,0 +1,356 @@
+{
+  "source": "2525b91c477b9ad1fff162574d12f55c8c4be54e",
+  "scope": "UNMODIFIED canonical SDK/run43288474739/artifact13976512100; Node24, cache0. Same package both engines. New shipping-boundary measurement coverage, no code gain or ratio to local31/943.",
+  "workerStatus": {
+    "stockCompleted": 3,
+    "stockLifecycleErrors": 3,
+    "stockMissing": "all3 ELK workers; no completed IPC evidence",
+    "fullCompleted": 6,
+    "fullFailed": 0,
+    "fullAll54ResponsesReturned": true,
+    "stockRecovery": {
+      "completed": 0,
+      "failed": 1,
+      "boundary": "Only missingELK stockarm, existingworker/7samples unchanged; GNUtimeobserver recordsignal/peak iffailure; noheap/GCprotocolchange; stoponfirstfailure.",
+      "startEvents": "low 0\nhigh 0\nmax 35264\noom 31\noom_kill 15\noom_group_kill 0\n",
+      "endEvents": "low 0\nhigh 0\nmax 35345\noom 32\noom_kill 16\noom_group_kill 0\n"
+    },
+    "totalStockElkLifecycleFailures": 4
+  },
+  "resourceLimitation": "Original3ELKstockworkers lackcompletedIPCpayload, coinciding3newOOMkills. One bounded retry stoppedatfirstfailure, GNUtime signal9/peakRSS354116KiB; cgroupoom31\u219232 andoomkill15\u219216 duringretry. No further retries. ELKstocklatencyunavailable.",
+  "engines": {
+    "native": {
+      "stock": {
+        "warm-repeat": {
+          "medianOfProcessMediansMs": 155.73855090141296,
+          "processMediansMs": [
+            162.65937101840973,
+            155.73855090141296,
+            145.04436707496643
+          ],
+          "pooledMs": {
+            "median": 155.73855090141296,
+            "p95": 213.44587004184723,
+            "min": 80.93826699256897,
+            "max": 257.91902589797974
+          }
+        },
+        "warm-new-source": {
+          "medianOfProcessMediansMs": 123.12295603752136,
+          "processMediansMs": [
+            136.0579138994217,
+            123.12295603752136,
+            108.45261001586914
+          ],
+          "pooledMs": {
+            "median": 123.12295603752136,
+            "p95": 263.99887001514435,
+            "min": 87.0897970199585,
+            "max": 359.9786479473114
+          }
+        },
+        "warm-label-edit": {
+          "medianOfProcessMediansMs": 89.65198695659637,
+          "processMediansMs": [
+            87.93997097015381,
+            89.65198695659637,
+            98.26534402370453
+          ],
+          "pooledMs": {
+            "median": 90.93036997318268,
+            "p95": 116.867506980896,
+            "min": 72.47844302654266,
+            "max": 150.77251601219177
+          }
+        }
+      },
+      "full": {
+        "repeat": {
+          "medianOfProcessMediansMs": 163.27211450000004,
+          "processMediansMs": [
+            164.7912185,
+            161.25273950000002,
+            163.27211450000004
+          ],
+          "pooledWallMs": {
+            "median": 161.25273950000002,
+            "p95": 210.1678069,
+            "min": 137.69009199999982,
+            "max": 217.28045199999997
+          },
+          "pooledCpuMs": {
+            "median": 276.6465,
+            "p95": 357.02535,
+            "min": 192.13,
+            "max": 373.12
+          }
+        },
+        "firstEdit": {
+          "medianOfProcessMediansMs": 182.27733999999987,
+          "processMediansMs": [
+            199.81337800000006,
+            172.01294000000007,
+            182.27733999999987
+          ],
+          "pooledWallMs": {
+            "median": 182.27733999999987,
+            "p95": 198.05977420000005,
+            "min": 172.01294000000007,
+            "max": 199.81337800000006
+          },
+          "pooledCpuMs": {
+            "median": 271.904,
+            "p95": 275.63,
+            "min": 249.277,
+            "max": 276.044
+          }
+        },
+        "editedRepeat": {
+          "medianOfProcessMediansMs": 140.6130250000001,
+          "processMediansMs": [
+            149.35723300000018,
+            136.57598200000007,
+            140.6130250000001
+          ],
+          "pooledWallMs": {
+            "median": 140.6130250000001,
+            "p95": 173.81011059999994,
+            "min": 129.54268400000024,
+            "max": 181.72336299999984
+          },
+          "pooledCpuMs": {
+            "median": 205.397,
+            "p95": 262.4268,
+            "min": 167.348,
+            "max": 274.73
+          }
+        },
+        "coldRender": {
+          "medianOfProcessMediansMs": 421.54457599999995,
+          "processMediansMs": [
+            428.741555,
+            406.107747,
+            421.54457599999995
+          ],
+          "pooledWallMs": {
+            "median": 421.54457599999995,
+            "p95": 428.0218571,
+            "min": 406.107747,
+            "max": 428.741555
+          },
+          "pooledCpuMs": {
+            "median": 649.04,
+            "p95": 663.0332,
+            "min": 633.824,
+            "max": 664.588
+          }
+        },
+        "importMs": {
+          "median": 292.672302,
+          "p95": 382.71990389999996,
+          "min": 277.383389,
+          "max": 392.725193
+        },
+        "warmRssMiB": {
+          "median": 112.0,
+          "p95": 118.81953125,
+          "min": 109.1015625,
+          "max": 120.67578125
+        },
+        "warmAfterHeapMiB": {
+          "median": 30.12283706665039,
+          "p95": 41.87923622131348,
+          "min": 28.725120544433594,
+          "max": 41.947906494140625
+        },
+        "warmBeforeHeapMiB": {
+          "median": 20.063762664794922,
+          "p95": 20.447219467163087,
+          "min": 19.307884216308594,
+          "max": 20.451797485351562
+        },
+        "transientHeapDeltaMiB": {
+          "median": 10.473926544189453,
+          "p95": 21.467373657226563,
+          "min": 8.530860900878906,
+          "max": 21.496109008789062
+        },
+        "maxRSSMiB": {
+          "median": 144.5078125,
+          "p95": 144.546484375,
+          "min": 144.0234375,
+          "max": 144.55078125
+        },
+        "proofStatusCounts": {
+          "passed": 27
+        },
+        "proofOperations": [
+          238786,
+          238815
+        ],
+        "withinMaxOperations": true,
+        "allRepeatsWholeSvgExactWarmup": true,
+        "allRepeatsEntireReceiptExactWarmup": true,
+        "allEditedSvgChanged": true,
+        "warmupSvgHashes": [
+          "4ef1a802431cfeddcd046cb765a506fe70775476234555e04027742cd5bbd0c7"
+        ],
+        "warmupSvgUtf8Bytes": [
+          95817
+        ]
+      }
+    },
+    "elk": {
+      "stock": {
+        "warm-repeat": {
+          "status": "unavailable:3 lifecycle failures"
+        },
+        "warm-new-source": {
+          "status": "unavailable:3 lifecycle failures"
+        },
+        "warm-label-edit": {
+          "status": "unavailable:3 lifecycle failures"
+        }
+      },
+      "full": {
+        "repeat": {
+          "medianOfProcessMediansMs": 277.7608909999999,
+          "processMediansMs": [
+            277.7608909999999,
+            243.483561,
+            289.1352125000001
+          ],
+          "pooledWallMs": {
+            "median": 282.53485049999983,
+            "p95": 344.30191809999985,
+            "min": 233.31516899999997,
+            "max": 366.4946809999999
+          },
+          "pooledCpuMs": {
+            "median": 444.44100000000003,
+            "p95": 583.26275,
+            "min": 359.803,
+            "max": 600.167
+          }
+        },
+        "firstEdit": {
+          "medianOfProcessMediansMs": 277.331103,
+          "processMediansMs": [
+            329.2414880000001,
+            269.53081199999997,
+            277.331103
+          ],
+          "pooledWallMs": {
+            "median": 277.331103,
+            "p95": 324.0504495000001,
+            "min": 269.53081199999997,
+            "max": 329.2414880000001
+          },
+          "pooledCpuMs": {
+            "median": 465.925,
+            "p95": 484.231,
+            "min": 408.724,
+            "max": 486.265
+          }
+        },
+        "editedRepeat": {
+          "medianOfProcessMediansMs": 255.12537199999997,
+          "processMediansMs": [
+            255.12537199999997,
+            232.03411199999982,
+            271.22434699999985
+          ],
+          "pooledWallMs": {
+            "median": 255.12537199999997,
+            "p95": 277.7595464000002,
+            "min": 225.21895600000016,
+            "max": 278.5903900000003
+          },
+          "pooledCpuMs": {
+            "median": 393.686,
+            "p95": 439.42839999999995,
+            "min": 376.695,
+            "max": 448.01
+          }
+        },
+        "coldRender": {
+          "medianOfProcessMediansMs": 810.7923559999999,
+          "processMediansMs": [
+            810.7923559999999,
+            733.6457150000001,
+            822.2554989999999
+          ],
+          "pooledWallMs": {
+            "median": 810.7923559999999,
+            "p95": 821.1091846999999,
+            "min": 733.6457150000001,
+            "max": 822.2554989999999
+          },
+          "pooledCpuMs": {
+            "median": 1321.444,
+            "p95": 1354.2976,
+            "min": 1241.607,
+            "max": 1357.948
+          }
+        },
+        "importMs": {
+          "median": 272.00550899999996,
+          "p95": 280.89832619999993,
+          "min": 268.18311700000004,
+          "max": 281.88641699999994
+        },
+        "warmRssMiB": {
+          "median": 172.953125,
+          "p95": 176.934375,
+          "min": 160.55859375,
+          "max": 177.140625
+        },
+        "warmAfterHeapMiB": {
+          "median": 56.09428024291992,
+          "p95": 70.7210807800293,
+          "min": 55.00068664550781,
+          "max": 70.75947570800781
+        },
+        "warmBeforeHeapMiB": {
+          "median": 35.00214385986328,
+          "p95": 35.46932373046875,
+          "min": 34.14311981201172,
+          "max": 35.477783203125
+        },
+        "transientHeapDeltaMiB": {
+          "median": 21.13815689086914,
+          "p95": 36.56038284301758,
+          "min": 19.606834411621094,
+          "max": 36.577293395996094
+        },
+        "maxRSSMiB": {
+          "median": 221.15234375,
+          "p95": 226.64375,
+          "min": 213.015625,
+          "max": 227.25390625
+        },
+        "proofStatusCounts": {
+          "passed": 27
+        },
+        "proofOperations": [
+          238786,
+          238815
+        ],
+        "withinMaxOperations": true,
+        "allRepeatsWholeSvgExactWarmup": true,
+        "allRepeatsEntireReceiptExactWarmup": true,
+        "allEditedSvgChanged": true,
+        "warmupSvgHashes": [
+          "4ef1a802431cfeddcd046cb765a506fe70775476234555e04027742cd5bbd0c7"
+        ],
+        "warmupSvgUtf8Bytes": [
+          95817
+        ]
+      }
+    }
+  },
+  "native100TargetMet": false,
+  "limitation": "No new browser ink observation. Full response fullyconsumes SVG+entire receipt once. Memory includes import/harness/compression/retainedwarmup; afterheap transient, not retainedheap. No RSS causality claim.",
+  "fullCrossEngineBaselineWholeSVGExact": true,
+  "actualSelectionEvidence": "ACTUAL-BACKEND-SELECTION.json:54/54 requested=selected; fallbacknone; one selectedattempt; Nativeagentic-layered@28/ELKelk-layered@1"
+}
