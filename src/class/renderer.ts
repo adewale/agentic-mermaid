@@ -1,3 +1,4 @@
+import { typeSize } from '../typography.ts'
 import { inkOnNodeFill } from '../color-resolver.ts'
 import { escapeAttr, escapeDisplayAttr, escapeXml as escapeXmlUtil } from '../multiline-utils.ts'
 import { DefaultBackend } from '../scene/backend.ts'
@@ -41,8 +42,8 @@ import type { ClassMember, PositionedClassDiagram, PositionedClassNamespace, Pos
 /** Font sizes specific to class diagrams (weights belong to the prepared
  * member and annotation blocks). */
 const CLS_FONT = {
-  memberSize: 11,
-  annotationSize: 10,
+  memberSize: CLS.memberFontSize,
+  annotationSize: CLS.annotationFontSize,
 } as const
 
 type HighlightRun = NonNullable<TextMark['spans']>[number]
@@ -467,7 +468,7 @@ function renderClassNote<T>(marks: DrawingFactory<T>, note: PositionedClassNote,
   const stroke = style.groupBorderColor ?? 'var(--_node-stroke)'
   const fill = style.groupFillColor ?? 'var(--_group-hdr)'
   const text = style.groupTextColor ?? 'var(--_text)'
-  const noteBlock = note.textBlock ?? preparePixelText(resolveLabelContent(note.text, note.textContent), { fontSize: 12, fontWeight: 400 })
+  const noteBlock = note.textBlock ?? preparePixelText(resolveLabelContent(note.text, note.textContent), { fontSize: typeSize('detail', 12), fontWeight: 400 })
   const children: Array<{ node: T; indent: number }> = []
   if (note.targetX !== undefined && note.targetY !== undefined) {
     children.push({
@@ -500,7 +501,7 @@ function renderClassNote<T>(marks: DrawingFactory<T>, note: PositionedClassNote,
       block: noteBlock,
       x: note.x + note.width / 2,
       y: note.y + note.height / 2,
-      fontSize: 12,
+      fontSize: typeSize('detail', 12),
       anchor: 'middle',
       paint: { fill: text },
     }),

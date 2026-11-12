@@ -1,3 +1,4 @@
+import { typeSize } from '../typography.ts'
 import { erInkIndex } from './ink-index.ts'
 import { erCardinalityEnvelope, erCardinalityInk, erLabelPillInk, type ErGeometryWork } from './cardinality-geometry.ts'
 import { ErLabelWorkLimitError, ErRouteWorkLimitError, ErRouteGeometryError } from './errors.ts'
@@ -43,13 +44,14 @@ export { erRelationshipBlock } from './label-layout.ts'
 export { erCommentText } from './text.ts'
 
 /** Layout constants for ER diagrams */
-const ER = {
+export const ER = {
   padding: 40,
   boxPadX: 14,
   headerHeight: 34,
   rowHeight: 22,
   minWidth: 140,
-  attrFontSize: 11,
+  attrFontSize: typeSize('detail', 11),
+  keyFontSize: typeSize('mark', 9),
   attrFontWeight: 400,
   nodeSpacing: 70,
   layerSpacing: 90,
@@ -136,7 +138,7 @@ export function erAttributeBlocks(attr: ErAttribute) {
   const mono = { display: 'literal' as const, fontSize: ER.attrFontSize, fontWeight: ER.attrFontWeight, monospace: true }
   return {
     type: preparePixelText(attr.type, mono), name: preparePixelText(attr.name, mono),
-    keys: preparePixelText(attr.keys.join(','), { display: 'literal', fontSize: 9, fontWeight: 600 }),
+    keys: preparePixelText(attr.keys.join(','), { display: 'literal', fontSize: ER.keyFontSize, fontWeight: 600 }),
     ...(attr.comment ? { comment: preparePixelText(erCommentText(attr.comment, attr.commentContent), { display: 'literal', fontSize: ER.attrFontSize, fontWeight: 400 }) } : {}),
   }
 }

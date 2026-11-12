@@ -1,3 +1,4 @@
+import { typeSize } from '../typography.ts'
 import { preparePixelText, type PixelTextBlock } from '../shared/prepared-text.ts'
 import type {
   TimelineDiagram,
@@ -34,12 +35,12 @@ import type { InternalStyleFace } from '../scene/style-registry.ts'
 const TL = {
   paddingX: 32,
   paddingY: 28,
-  titleFontSize: 18,
+  titleFontSize: typeSize('title', 18),
   titleFontWeight: 600,
   titleGap: 24,
   titleWrapWidth: 420,
   sectionHeaderHeight: 24,
-  sectionFontSize: 12,
+  sectionFontSize: typeSize('heading', 12),
   sectionFontWeight: 600,
   sectionHeaderPadX: 12,
   sectionHeaderGap: 14,
@@ -48,7 +49,7 @@ const TL = {
   sectionPadBottom: 18,
   sectionGap: 28,
   columnGap: 24,
-  pillFontSize: 12,
+  pillFontSize: typeSize('heading', 12),
   pillFontWeight: 600,
   pillWrapWidth: 116,
   pillPadX: 12,
@@ -57,7 +58,7 @@ const TL = {
   railToPillGap: 22,
   railToEventsGap: 28,
   markerRadius: 8,
-  eventFontSize: 12,
+  eventFontSize: typeSize('body', 12),
   eventFontWeight: 400,
   eventWrapWidth: 148,
   eventPadX: 14,

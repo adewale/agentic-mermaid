@@ -1,3 +1,4 @@
+import { typeSize } from '../typography.ts'
 import { layoutTooltip } from '../shared/tooltip-layout.ts'
 import type {
   QuadrantChart,
@@ -36,16 +37,16 @@ import { resolvePointVisual } from './point-style.ts'
 const Q = {
   paddingX: 24,
   paddingY: 24,
-  titleFontSize: 18,
+  titleFontSize: typeSize('title', 18),
   titleGap: 18,
   /** Default square plot side length in pixels (density-scaled beyond 8 points). */
   plotSize: 380,
-  axisFontSize: 13,
+  axisFontSize: typeSize('detail', 13),
   /** Gap between the plot edge and axis text baselines. */
   axisLabelPadding: 4,
-  quadrantFontSize: 15,
+  quadrantFontSize: typeSize('heading', 15),
   pointRadius: 6,
-  pointFontSize: 12,
+  pointFontSize: typeSize('detail', 12),
   /** Gap between a point circle and its label (upstream pointTextPadding). */
   pointTextPadding: 4,
 } as const

@@ -9,7 +9,7 @@ import { svgOpenTag, buildStyleBlock, buildShadowDefs, type DiagramColors } from
 import { inkOnNodeFill } from '../color-resolver.ts'
 import { FONT_SIZES, FONT_WEIGHTS, STROKE_WIDTHS, resolveRenderStyle, diagramTitleFields } from '../styles.ts'
 import type { RenderStyleDefaults, ResolvedRenderStyle } from '../styles.ts'
-import { ER_STYLE_DEFAULTS, erCommentColumnWidth, erCommentText } from './layout.ts'
+import { ER, ER_STYLE_DEFAULTS, erCommentColumnWidth, erCommentText } from './layout.ts'
 import { buildAccessibilityAttrs } from '../shared/svg-a11y.ts'
 import { breakLineTags, escapeAttr, escapeDisplayAttr, escapeXml as escapeXmlUtil } from '../multiline-utils.ts'
 import { sanitizeDisplayLines } from '../shared/text-controls.ts'
@@ -42,8 +42,8 @@ export { separateRelationshipLabels } from './label-layout.ts'
 /** Font sizes specific to ER diagrams (weights belong to the prepared
  * attribute blocks). */
 const ER_FONT = {
-  attrSize: 11,
-  keySize: 9,
+  attrSize: ER.attrFontSize,
+  keySize: ER.keyFontSize,
 } as const
 
 /**

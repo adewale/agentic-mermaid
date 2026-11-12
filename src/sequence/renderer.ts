@@ -1,3 +1,4 @@
+import { typeSize } from '../typography.ts'
 import { sceneLowering, type DrawingFactory, type DrawingDocument } from '../scene/drawing.ts'
 import type { PositionedSequenceDiagram, PositionedActor, Lifeline, PositionedMessage, Activation, PositionedBlock, PositionedBlockHeader, PositionedNote, PositionedBoxGroup, LifelineCross, SequenceBounds } from './types.ts'
 import { boxColorToHex } from './colors.ts'
@@ -501,7 +502,7 @@ function renderActor<T>(
   const menuColor = type === 'participant' ? boxTextColor : rawTextColor
   if (actor.links) children.push({ indent: 2, node: marks.text({
     id: `actor:${id}:menu`, role: 'icon', text: '⋯', block: actor.menuBlock, x: x + width / 2 - 7, y: y + 10,
-    fontSize: 10, anchor: 'middle', paint: { fill: menuColor }, channels: { category: id },
+    fontSize: typeSize('mark', 10), anchor: 'middle', paint: { fill: menuColor }, channels: { category: id },
     baselineShift: 0, attributes: { className: 'sequence-actor-menu' },
   }) })
 

@@ -1,3 +1,4 @@
+import { typeSize } from '../typography.ts'
 import { sceneLowering, type DrawingFactory, type DrawingDocument } from '../scene/drawing.ts'
 import type { PixelTextBlock } from '../shared/prepared-text.ts'
 import type {
@@ -49,13 +50,13 @@ import {
 // ============================================================================
 
 const JY = {
-  titleFontSize: 18,
+  titleFontSize: typeSize('title', 18),
   titleFontWeight: 600,
-  sectionFontSize: 12,
+  sectionFontSize: typeSize('heading', 12),
   sectionFontWeight: 600,
-  taskFontSize: 13,
+  taskFontSize: typeSize('body', 13),
   taskFontWeight: 500,
-  actorFontSize: 11,
+  actorFontSize: typeSize('detail', 11),
   actorFontWeight: 600,
   legendDotRadius: 5,
   legendLabelGap: 12,

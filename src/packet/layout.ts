@@ -1,3 +1,4 @@
+import { typeSize } from '../typography.ts'
 import type { InternalStyleFace } from '../scene/style-registry.ts'
 import { assertDiagramWorkLimit } from '../shared/diagram-limits.ts'
 import { preparePixelText } from '../shared/prepared-text.ts'
@@ -14,7 +15,7 @@ export function layoutPacketDiagram(body: PacketBody, options: Readonly<RenderOp
   const pad = options.padding ?? 24
   const titleBand = diagramTitleBand(body.title, style)
   const textPaddingX = styleFace?.node?.paddingX, textPaddingY = styleFace?.node?.paddingY ?? 8
-  const bitSize = Math.max(8, Math.min(11, style.edgeLabelFontSize))
+  const bitSize = Math.max(8, Math.min(typeSize('detail', 11), style.edgeLabelFontSize))
   const bitGutter = visual.showBits ? bitSize * 1.5 + 4 : 0
   const fields: PositionedPacketField[] = []
   const rowHeights = Array.from({ length: rowCount }, () => visual.rowHeight)

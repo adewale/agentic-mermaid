@@ -1,3 +1,4 @@
+import { typeSize } from './typography.ts'
 import { sceneLowering, type DrawingFactory, type DrawingDocument } from './scene/drawing.ts'
 import { prepareDisplayText, resolveLabelContent } from './shared/display-text.ts'
 import { graphTextBlock } from './graph-text.ts'
@@ -612,7 +613,7 @@ function renderFlowchartMedia<T>(marks: DrawingFactory<T>, node: PositionedNode,
     const token = iconFallbackToken(node.icon)
     return marks.text({ id: `node:${node.id}:icon`, role: 'icon', owner: { id: node.id, role: 'node' }, text: token,
       block: node.iconFallbackBlock,
-      x: cx, y: y + size / 2, fontSize: 10, anchor: 'middle', paint: { fill: ink }, baselineShift: 0,
+      x: cx, y: y + size / 2, fontSize: typeSize('mark', 10), anchor: 'middle', paint: { fill: ink }, baselineShift: 0,
       attributes: { className: 'flowchart-icon-fallback', data: { icon: node.icon } } })
   }
   if (node.image) {

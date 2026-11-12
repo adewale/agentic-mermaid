@@ -1,3 +1,4 @@
+import { typeSize } from './typography.ts'
 import { prepareDisplayText, type DisplayTextInput, type PreparedDisplayText } from './shared/display-text.ts'
 // ============================================================================
 // Font metrics — character width estimates for Inter at different sizes.
@@ -38,11 +39,11 @@ export const MONO_FONT_STACK = `${MONO_FONT}, 'SF Mono', 'Fira Code', ui-monospa
 /** Fixed font sizes used in the renderer (in px) */
 export const FONT_SIZES = {
   /** Node label text */
-  nodeLabel: 13,
+  nodeLabel: typeSize('body', 13),
   /** Edge label text */
-  edgeLabel: 11,
+  edgeLabel: typeSize('detail', 11),
   /** Subgraph header text */
-  groupHeader: 12,
+  groupHeader: typeSize('heading', 12),
 } as const
 
 /** Font weights used per element type */
@@ -326,7 +327,7 @@ export function resolveRenderStyle(
 // band above the content with these shared metrics, so the six agree.
 // ============================================================================
 
-export const DIAGRAM_TITLE_FONT_SIZE = 18
+export const DIAGRAM_TITLE_FONT_SIZE = typeSize('title', 18)
 export const DIAGRAM_TITLE_FONT_WEIGHT = 600
 /** Space between the title and the content below it. */
 export const DIAGRAM_TITLE_GAP = 12

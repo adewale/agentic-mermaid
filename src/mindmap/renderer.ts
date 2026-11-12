@@ -1,3 +1,4 @@
+import { typeSize } from '../typography.ts'
 import { sceneLowering, type DrawingFactory, type DrawingDocument } from '../scene/drawing.ts'
 import type { RenderContext } from '../types.ts'
 import { resolveRenderStyle, diagramTitleFields } from '../styles.ts'
@@ -15,7 +16,7 @@ import { resolveMindmapIcon } from './icons.ts'
 import { categoricalPalette } from '../shared/categorical-palette.ts'
 import { projectConnectorPath } from '../scene/connector-geometry.ts'
 
-const FONT_SIZE = 13
+const FONT_SIZE = typeSize('body', 13)
 
 export function renderMindmapSvg(ctx: RenderContext<PositionedMindmapDiagram>): string {
   return DefaultBackend.render(lowerMindmapScene(ctx), { seed: 0 })
@@ -137,7 +138,7 @@ function renderNode<T>(
       children.push({ node: marks.text({
         id: semanticChildId(node.id, 'icon'), role: 'icon', owner: { id: node.id, role: 'node' }, text: token,
         block: node.iconFallbackBlock, x: round(node.x + node.width / 2),
-        y: round(node.y + 12), fontSize: 9, anchor: 'middle', paint: { fill: textColor }, baselineShift: 0,
+        y: round(node.y + 12), fontSize: typeSize('mark', 9), anchor: 'middle', paint: { fill: textColor }, baselineShift: 0,
         attributes: { className: 'mindmap-icon-fallback', data: { icon: node.icon } },
       }), indent: 2 })
     }

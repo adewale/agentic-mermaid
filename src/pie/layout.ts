@@ -1,3 +1,4 @@
+import { typeSize } from '../typography.ts'
 import { layoutTooltip } from '../shared/tooltip-layout.ts'
 import { formatChartValue } from '../shared/chart-value-format.ts'
 import { pieTotal } from './semantics.ts'
@@ -40,7 +41,7 @@ import { fitChartWidth } from '../shared/chart-width.ts'
 const PIE = {
   paddingX: 24,
   paddingY: 24,
-  titleFontSize: 18,
+  titleFontSize: typeSize('title', 18),
   titleFontWeight: 600,
   titleGap: 20,
   radius: 95,
@@ -48,7 +49,7 @@ const PIE = {
   circleToLegendGap: 32,
   /** Gap between the circle and a top/bottom legend block. */
   circleToLegendStackGap: 24,
-  legendFontSize: 13,
+  legendFontSize: typeSize('detail', 13),
   legendFontWeight: 500,
   sliceStrokeWidth: 1.5,
   /** Line advance inside a multiline legend row (matches renderMultilineText). */
@@ -59,7 +60,7 @@ const PIE = {
   legendSwatchToText: 8,
   /** General 700-weight fallback allowance, composed with safe W/M metrics. */
   legendHighlightWidthScale: 1.1,
-  sliceLabelFontSize: 12,
+  sliceLabelFontSize: typeSize('detail', 12),
   sliceLabelFontWeight: 500,
   /** Horizontal slack a slice label needs inside its wedge chord. */
   sliceLabelFitPad: 4,

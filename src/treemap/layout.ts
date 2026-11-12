@@ -1,3 +1,4 @@
+import { typeSize } from '../typography.ts'
 import { format } from 'd3-format'
 import type { InternalStyleFace } from '../scene/style-registry.ts'
 import { hierarchyChildren, validateHierarchy } from '../shared/hierarchy-model.ts'
@@ -19,8 +20,8 @@ export function resolveTreemapConfig(input: Record<string, unknown> = {}): Treem
     padding: number('padding', 10),
     diagramPadding: number('diagramPadding', 16),
     showValues: input.showValues !== false,
-    labelFontSize: number('labelFontSize', 14, 1),
-    valueFontSize: number('valueFontSize', 12, 1),
+    labelFontSize: number('labelFontSize', typeSize('body', 14), 1),
+    valueFontSize: number('valueFontSize', typeSize('detail', 12), 1),
     borderWidth: number('borderWidth', 1),
     valueFormat: typeof input.valueFormat === 'string' ? input.valueFormat : ',',
   }

@@ -1,3 +1,4 @@
+import { typeSize } from '../typography.ts'
 import type { DiagramColors } from '../theme.ts'
 import type { MermaidFrontmatterMap, MermaidConfigValue } from '../mermaid-source.ts'
 import type { RenderOptions, TextTransform } from '../types.ts'
@@ -103,7 +104,7 @@ export const ARCHITECTURE_GROUP_ICON_TITLE_OFFSET = 36
 
 export const DEFAULT_ARCHITECTURE_VISUAL: ArchitectureVisualConfig = {
   groupHeaderHeight: 28,
-  groupFontSize: 12,
+  groupFontSize: typeSize('heading', 12),
   groupFontWeight: 600,
   groupLetterSpacing: 0,
   groupPaddingX: 16,
@@ -111,14 +112,14 @@ export const DEFAULT_ARCHITECTURE_VISUAL: ArchitectureVisualConfig = {
   groupLabelPaddingX: 12,
   groupCornerRadius: 0,
   groupLineWidth: 1,
-  serviceFontSize: 13,
+  serviceFontSize: typeSize('body', 13),
   serviceFontWeight: 500,
   serviceLetterSpacing: 0,
   servicePaddingX: 20,
   servicePaddingY: 10,
   serviceCornerRadius: 0,
   serviceLineWidth: 1,
-  edgeFontSize: 11,
+  edgeFontSize: typeSize('detail', 11),
   edgeFontWeight: 400,
   edgeLetterSpacing: 0,
   edgeLineWidth: 1,

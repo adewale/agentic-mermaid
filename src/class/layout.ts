@@ -1,3 +1,4 @@
+import { typeSize } from '../typography.ts'
 import { classRelationshipTerminalClearance, classEndpointTextCandidates, RELATION_LABEL_HALO_WIDTH } from './relationship-paint.ts'
 import { measuredRouteContactPairBudget, scoreMeasuredRouteCrossings, createOwnedMeasuredRouteContactValidator, type OwnedMeasuredRouteNumericSeed } from '../layout/measured-route-safety.ts'
 import type { MeasuredGraph } from '../layout/agentic-layered-core.ts'
@@ -71,7 +72,8 @@ export const CLS = {
   sectionPadY: 8,
   emptySectionHeight: 8,
   minWidth: 120,
-  memberFontSize: 11,
+  memberFontSize: typeSize('detail', 11),
+  annotationFontSize: typeSize('detail', 10),
   memberFontWeight: 400,
   nodeSpacing: 40,
   layerSpacing: 60,
@@ -136,7 +138,7 @@ function classLiteralPlan(text: string, italic = false): DisplayTextInput {
 }
 
 export function classAnnotationBlock(annotation: string): PixelTextBlock {
-  return preparePixelText(classLiteralPlan(`<<${annotation}>>`, true), { display: 'literal', fontSize: 10, fontWeight: 500 })
+  return preparePixelText(classLiteralPlan(`<<${annotation}>>`, true), { display: 'literal', fontSize: CLS.annotationFontSize, fontWeight: 500 })
 }
 
 type ClassSizeMap = Map<string, { width: number; height: number; headerHeight: number; attrHeight: number; methodHeight: number }>
@@ -497,7 +499,7 @@ function extractClassLayout(result: ClassPlacement, diagram: ClassDiagram, class
   const overlaps = (a: NoteBox, b: NoteBox, gap = 8): boolean => a.x < b.x + b.width + gap && a.x + a.width + gap > b.x && a.y < b.y + b.height + gap && a.y + a.height + gap > b.y
   let freestandingY = Math.max(height + 16, CLS.padding)
   const notes = diagram.notes.map(note => {
-    const metrics = preparePixelText(resolveLabelContent(note.text, note.textContent), { fontSize: 12, fontWeight: 400 })
+    const metrics = preparePixelText(resolveLabelContent(note.text, note.textContent), { fontSize: typeSize('detail', 12), fontWeight: 400 })
     const noteWidth = Math.max(90, metrics.width + 24)
     const noteHeight = Math.max(40, metrics.height + 18)
     const target = note.for ? positionedClasses.find(cls => cls.id === note.for) : undefined
@@ -782,7 +784,7 @@ function finishClassLayout(positioned: PositionedClassDiagram, diagram: ClassDia
     if (cls.annotation !== undefined) cls.annotationBlock = classAnnotationBlock(cls.annotation)
   }
   for (const ns of positioned!.namespaces) ns.labelBlock = classTextBlock(resolveLabelContent(ns.label, ns.labelContent), style, 'group', ns.width - 2 * style.groupLabelPaddingX)
-  for (const note of positioned!.notes) note.textBlock = preparePixelText(resolveLabelContent(note.text, note.textContent), { fontSize: 12, fontWeight: 400 })
+  for (const note of positioned!.notes) note.textBlock = preparePixelText(resolveLabelContent(note.text, note.textContent), { fontSize: typeSize('detail', 12), fontWeight: 400 })
   for (const rel of positioned!.relationships) {
     if (rel.label !== undefined) rel.labelBlock = classTextBlock(resolveLabelContent(rel.label, rel.labelContent), style, 'edge')
     for (const side of ['from', 'to'] as const) {

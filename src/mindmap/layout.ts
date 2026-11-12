@@ -1,3 +1,4 @@
+import { typeSize } from '../typography.ts'
 import { resolveMindmapIcon } from './icons.ts'
 import { iconFallbackToken } from '../shared/icon-fallback.ts'
 import type { MindmapDiagram, MindmapNode, PositionedMindmapDiagram, PositionedMindmapEdge, PositionedMindmapNode } from './types.ts'
@@ -16,7 +17,7 @@ export interface MindmapLayoutOptions {
   layout?: 'radial' | 'tidy-tree'
 }
 
-const FONT_SIZE = 13
+const FONT_SIZE = typeSize('body', 13)
 const FONT_WEIGHT = 500
 
 export function layoutMindmap(diagram: MindmapDiagram, options: MindmapLayoutOptions = {}): PositionedMindmapDiagram {
@@ -43,7 +44,7 @@ function measureNodes(root: MindmapNode, maxNodeWidth: number, style: MindmapLay
     if (node.shape === 'bang' || node.shape === 'cloud') { width += 18; height += 10 }
     entries.set(node.id, {
       id: node.id, label, labelBlock,
-      iconFallbackBlock: node.icon && !resolveMindmapIcon(node.icon) ? preparePixelText(iconFallbackToken(node.icon), { fontSize: 9, fontWeight: 400 }) : undefined,
+      iconFallbackBlock: node.icon && !resolveMindmapIcon(node.icon) ? preparePixelText(iconFallbackToken(node.icon), { fontSize: typeSize('mark', 9), fontWeight: 400 }) : undefined,
       shape: node.shape, markdown: node.markdown, icon: node.icon, className: node.className,
       ...(parentId ? { parentId } : {}), depth, side: depth === 0 ? 'root' : 'right', x: 0, y: 0, width, height,
     })

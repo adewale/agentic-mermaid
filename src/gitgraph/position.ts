@@ -1,3 +1,4 @@
+import { typeSize } from '../typography.ts'
 import type { RenderOptions } from '../types.ts'
 import type { InternalStyleFace } from '../scene/style-registry.ts'
 import { layoutGitGraph } from './layout.ts'
@@ -6,8 +7,8 @@ import type { GitGraphDiagram, PositionedGitGraphDiagram } from './types.ts'
 export function resolveGitGraphCommitLabelFontSize(raw: unknown): number {
   const vars = raw && typeof raw === 'object' && !Array.isArray(raw) ? raw as Record<string, unknown> : {}
   const value = vars.commitLabelFontSize
-  const parsed = typeof value === 'number' ? value : typeof value === 'string' ? Number.parseFloat(value) : 11
-  return Number.isFinite(parsed) && parsed > 0 ? parsed : 11
+  const parsed = typeof value === 'number' ? value : typeof value === 'string' ? Number.parseFloat(value) : typeSize('detail', 11)
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : typeSize('detail', 11)
 }
 
 export interface GitGraphPositionConfig {

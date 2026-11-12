@@ -1,3 +1,4 @@
+import { typeSize } from '../typography.ts'
 import type {
   RadarChart,
   PositionedRadarChart,
@@ -49,9 +50,9 @@ import { MAX_RADAR_AXES } from './parser.ts'
 const R = {
   radius: 120,
   margin: 22,
-  titleFontSize: 18,
+  titleFontSize: typeSize('title', 18),
   titleGap: 16,
-  axisFontSize: 12.5,
+  axisFontSize: typeSize('detail', 12.5),
   /** Gap between the axis-label ring and the measured label box. */
   axisLabelPad: 8,
   /** Max width one axis label may occupy before wrapping to a second line. */
@@ -62,7 +63,7 @@ const R = {
   labelClearGap: 7,
   /** A label relocated past this radial push (px) earns a leader line. */
   leaderMinPush: 9,
-  legendFontSize: 13,
+  legendFontSize: typeSize('detail', 13),
   /** Max width a legend label may occupy before wrapping. */
   legendLabelMaxWidth: 168,
   legendSwatch: 14,
@@ -70,7 +71,7 @@ const R = {
   legendRowGap: 9,
   legendColumnGap: 16,
   legendSwatchToText: 8,
-  ringLabelFontSize: 9.5,
+  ringLabelFontSize: typeSize('mark', 9.5),
   /** Padding inside a ring-value knockout box (x each side / y each side). */
   tickBoxPadX: 4,
   tickBoxPadY: 3,

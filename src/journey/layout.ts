@@ -1,3 +1,4 @@
+import { typeSize } from '../typography.ts'
 import { safeCssFontFamily } from '../shared/css-font.ts'
 import { preparePixelText, type PixelTextBlock } from '../shared/prepared-text.ts'
 import { resolveLabelContent, type DisplayTextInput, type LabelContent } from '../shared/display-text.ts'
@@ -29,10 +30,10 @@ import { resolveRoleStyle, type InternalStyleFace } from '../scene/style-registr
 const JY = {
   paddingX: 32,
   paddingY: 28,
-  titleFontSize: 18,
+  titleFontSize: typeSize('title', 18),
   titleFontWeight: 600,
   titleGap: 22,
-  sectionFontSize: 12,
+  sectionFontSize: typeSize('heading', 12),
   sectionFontWeight: 600,
   sectionHeaderMinHeight: 36,
   sectionHeaderPadX: 16,
@@ -50,7 +51,7 @@ const JY = {
   taskGap: 26,
   taskMinWidth: 124,
   taskMinHeight: 58,
-  taskFontSize: 13,
+  taskFontSize: typeSize('body', 13),
   taskFontWeight: 500,
   taskPadX: 14,
   taskPadY: 12,
@@ -92,7 +93,7 @@ export interface JourneyRequestAppearance {
 /** Shared by layout (sizing) and renderer (drawing) — keep it single-sourced. */
 export const JOURNEY_STYLE_DEFAULTS: RenderStyleDefaults = {
   nodeLabelFontSize: JY.taskFontSize,
-  edgeLabelFontSize: 11,
+  edgeLabelFontSize: typeSize('detail', 11),
   groupHeaderFontSize: JY.sectionFontSize,
   nodeLabelFontWeight: JY.taskFontWeight,
   edgeLabelFontWeight: 600,

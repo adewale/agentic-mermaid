@@ -1,3 +1,4 @@
+import { typeSize } from '../typography.ts'
 import { dependencyTerminalLead, dependencyStrokeWidth } from './dependency-paint.ts'
 // ============================================================================
 // Gantt layout — schedule → deterministic geometry (docs/design/families/gantt.md §4).
@@ -62,13 +63,13 @@ const GL = {
   sectionGap: 6,
   barHeight: 22,
   labelGap: 12,
-  labelFontSize: 13,
-  sectionFontSize: 13,
+  labelFontSize: typeSize('body', 13),
+  sectionFontSize: typeSize('heading', 13),
 } as const
 
 export const GANTT_STYLE_DEFAULTS: RenderStyleDefaults = {
   nodeLabelFontSize: GL.labelFontSize,
-  edgeLabelFontSize: 11,
+  edgeLabelFontSize: typeSize('detail', 11),
   groupHeaderFontSize: GL.sectionFontSize,
   nodeLabelFontWeight: 500,
   edgeLabelFontWeight: 500,
@@ -118,7 +119,7 @@ export function resolveGanttRenderStyle(options: RenderOptions = {}, styleFace?:
 }
 
 export function ganttTitleFontSize(style: ResolvedRenderStyle): number {
-  return Math.max(17, style.groupHeaderFontSize)
+  return Math.max(typeSize('title', 17), style.groupHeaderFontSize)
 }
 
 export function ganttTitleFontWeight(style: ResolvedRenderStyle): number {

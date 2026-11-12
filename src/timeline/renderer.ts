@@ -1,3 +1,4 @@
+import { typeSize } from '../typography.ts'
 import { sceneLowering, type DrawingFactory, type DrawingDocument } from '../scene/drawing.ts'
 import type { PositionedTimelineDiagram, PositionedTimelineSection, PositionedTimelinePeriod, PositionedTimelineEvent } from './types.ts'
 import type { RenderContext, RenderOptions } from '../types.ts'
@@ -31,13 +32,13 @@ import { DefaultBackend } from '../scene/backend.ts'
 // ============================================================================
 
 const TL = {
-  titleFontSize: 18,
+  titleFontSize: typeSize('title', 18),
   titleFontWeight: 600,
-  sectionFontSize: 12,
+  sectionFontSize: typeSize('heading', 12),
   sectionFontWeight: 600,
-  pillFontSize: 12,
+  pillFontSize: typeSize('heading', 12),
   pillFontWeight: 600,
-  eventFontSize: 12,
+  eventFontSize: typeSize('body', 12),
   eventFontWeight: 400,
   markerOuterRadius: 8,
   markerInnerRadius: 4.5,

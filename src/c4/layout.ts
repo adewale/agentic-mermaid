@@ -1,3 +1,4 @@
+import { typeSize } from '../typography.ts'
 import type { PositionedGraph, PositionedNode, PositionedGroup, PositionedEdge, RenderOptions, TextTransform } from '../types.ts'
 import type { InternalStyleFace } from '../scene/style-registry.ts'
 import type { C4Body, C4Diagnostic } from './types.ts'
@@ -101,7 +102,7 @@ export function layoutC4Diagram(body: C4Body, options: RenderOptions & { diagram
   let width = Math.max(placement.width, ...allBoxes.map(box => box.x + box.width + config.marginX), ...edges.flatMap(edge => [...edge.points.map(p => p.x + config.marginX), (edge.labelPosition?.x ?? 0) + (edge.labelBlock?.width ?? 0) / 2 + config.marginX]), title ? title.width + config.marginX * 2 : 0)
   let height = Math.max(placement.height, ...allBoxes.map(box => box.y + box.height + config.marginY), ...edges.flatMap(edge => [...edge.points.map(p => p.y + config.marginY), (edge.labelPosition?.y ?? 0) + (edge.labelBlock?.height ?? 0) / 2 + config.marginY]))
   const entries = c4LegendEntries(body, config).map(entry => ({ ...entry, block: preparePixelText(entry.label, { display: 'literal', fontSize: style.edgeLabelFontSize, fontWeight: style.edgeLabelFontWeight, letterSpacing: style.edgeLetterSpacing, transform: style.edgeTextTransform, ...(config.maxWidth === undefined ? {} : { maxWidth: Math.max(24, config.maxWidth - config.marginX * 2 - 64) }) }) }))
-  const legendHeading = preparePixelText('Legend', { display: 'literal', fontSize: styleFace?.text?.fontSize ?? 13, fontWeight: styleFace?.text?.fontWeight ?? 600, letterSpacing: styleFace?.text?.letterSpacing ?? 0, transform: styleFace?.text?.textTransform, ...(config.maxWidth === undefined ? {} : { maxWidth: Math.max(24, config.maxWidth - config.marginX * 2 - 24) }) })
+  const legendHeading = preparePixelText('Legend', { display: 'literal', fontSize: styleFace?.text?.fontSize ?? typeSize('heading', 13), fontWeight: styleFace?.text?.fontWeight ?? 600, letterSpacing: styleFace?.text?.letterSpacing ?? 0, transform: styleFace?.text?.textTransform, ...(config.maxWidth === undefined ? {} : { maxWidth: Math.max(24, config.maxWidth - config.marginX * 2 - 24) }) })
   const legend = entries.length ? { x: config.marginX, y: height + 12, width: Math.max(legendHeading.width + 24, ...entries.map(entry => entry.block.width + 64)), height: legendHeading.height + 20 + entries.reduce((sum, entry) => sum + entry.block.height + 10, 0), heading: legendHeading, entries } : undefined
   if (legend) { width = Math.max(width, legend.x + legend.width + config.marginX); height = legend.y + legend.height + config.marginY }
   const diagnostics = [...placement.diagnostics, ...c4PixelVisibilityDiagnostics(body, { nodes, groups: roots, edges }, style.lineWidth, { width, height })]

@@ -1,3 +1,4 @@
+import { typeSize } from '../typography.ts'
 import { LayoutCertificationError } from '../layout/certification-error.ts'
 import type { LayoutCertificationViolation } from '../layout/uncertified-layout.ts'
 import type { InternalStyleFace } from '../scene/style-registry.ts'
@@ -48,9 +49,9 @@ export function layoutGitGraph(diagram: GitGraphDiagram, options: GitGraphLayout
   const showCommitLabel = options.showCommitLabel !== false
   const rotateCommitLabel = options.rotateCommitLabel !== false
   const commitLabelFontSize = finitePositive(options.commitLabelFontSize, 11)
-  const style = resolveRenderStyle(options.renderOptions ?? {}, { ...FLOWCHART_STYLE_DEFAULTS, nodeLabelFontSize: commitLabelFontSize, nodeLabelFontWeight: 500, groupHeaderFontSize: 12, groupHeaderFontWeight: 600 }, options.styleFace)
-  const tagStyle = resolveRenderStyle(options.renderOptions ?? {}, { ...FLOWCHART_STYLE_DEFAULTS, nodeLabelFontSize: 10, nodeLabelFontWeight: 600 }, options.styleFace)
-  const titleStyle = resolveRenderStyle(options.renderOptions ?? {}, { ...FLOWCHART_STYLE_DEFAULTS, groupHeaderFontSize: 16, groupHeaderFontWeight: 600 }, options.styleFace)
+  const style = resolveRenderStyle(options.renderOptions ?? {}, { ...FLOWCHART_STYLE_DEFAULTS, nodeLabelFontSize: commitLabelFontSize, nodeLabelFontWeight: 500, groupHeaderFontSize: typeSize('heading', 12), groupHeaderFontWeight: 600 }, options.styleFace)
+  const tagStyle = resolveRenderStyle(options.renderOptions ?? {}, { ...FLOWCHART_STYLE_DEFAULTS, nodeLabelFontSize: typeSize('detail', 10), nodeLabelFontWeight: 600 }, options.styleFace)
+  const titleStyle = resolveRenderStyle(options.renderOptions ?? {}, { ...FLOWCHART_STYLE_DEFAULTS, groupHeaderFontSize: typeSize('title', 16), groupHeaderFontWeight: 600 }, options.styleFace)
   const prepareCommit = (commit: GitGraphDiagram['commits'][number]) => ({
     ...commit,
     labelBlock: gitGraphText(gitGraphCommitLabel(commit), style.nodeLabelFontSize, style.nodeLabelFontWeight, { transform: style.nodeTextTransform, letterSpacing: style.nodeLetterSpacing }),

@@ -1,3 +1,4 @@
+import { typeSize } from '../typography.ts'
 import { preparePixelText, type PixelTextBlock } from '../shared/prepared-text.ts'
 import type { Actor, Block, Message, PositionedActor, PositionedBlock, PositionedBlockDivider, PositionedBlockHeader, PositionedMessage, PositionedNote, PositionedSequenceDiagram, PositionedSequenceLabel, SequenceBounds, SequenceDiagram } from './types.ts'
 import { displayMessageLabel, getSequenceBlockScope, type SequenceBlockScope } from './parser.ts'
@@ -125,7 +126,7 @@ export function measureSequenceActorSpec(actor: Actor, style: ResolvedRenderStyl
     paddingY,
     displayLabel,
     block,
-    ...(actor.links ? { menuBlock: preparePixelText('⋯', { display: 'literal', fontSize: 10, fontWeight: 400 }) } : {}),
+    ...(actor.links ? { menuBlock: preparePixelText('⋯', { display: 'literal', fontSize: typeSize('mark', 10), fontWeight: 400 }) } : {}),
     labelMetrics,
     width,
     height,

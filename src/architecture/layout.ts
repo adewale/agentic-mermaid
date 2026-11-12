@@ -1,3 +1,4 @@
+import { typeSize } from '../typography.ts'
 import { extendTerminalRuns } from '../layout/terminal-clearance.ts'
 import { architectureMarkerTerminal } from './markers.ts'
 import { architectureIconFallbackBlock } from './icon-layout.ts'
@@ -33,7 +34,7 @@ const JUNCTION_PLACEMENT_PADDING = 6
 const EMPTY_GROUP_BODY = { width: 80, height: 24 }
 /** The title is drawn at this size and weight in every style (renderer.ts),
  * so the canvas reserves it at the same metrics. */
-export const ARCHITECTURE_TITLE_FONT_SIZE = 18
+export const ARCHITECTURE_TITLE_FONT_SIZE = typeSize('title', 18)
 export const ARCHITECTURE_TITLE_FONT_WEIGHT = 600
 const TITLE_Y = 20
 const TITLE_SIDE_PADDING = 40

@@ -1,3 +1,4 @@
+import { typeSize } from '../typography.ts'
 import type {
   ResolvedXYAxisRenderConfig,
   ResolvedXYChartConfig,
@@ -7,10 +8,10 @@ import type {
 
 export const DEFAULT_XY_AXIS_CONFIG: ResolvedXYAxisRenderConfig = {
   showLabel: true,
-  labelFontSize: 14,
+  labelFontSize: typeSize('detail', 14),
   labelPadding: 5,
   showTitle: true,
-  titleFontSize: 16,
+  titleFontSize: typeSize('heading', 16),
   titlePadding: 5,
   showTick: true,
   tickLength: 5,
@@ -24,7 +25,7 @@ export const DEFAULT_XY_CHART_CONFIG: ResolvedXYChartConfig = {
   height: 500,
   useMaxWidth: true,
   useWidth: undefined,
-  titleFontSize: 20,
+  titleFontSize: typeSize('title', 20),
   titlePadding: 10,
   chartOrientation: 'vertical',
   plotReservedSpacePercent: 50,
@@ -32,7 +33,7 @@ export const DEFAULT_XY_CHART_CONFIG: ResolvedXYChartConfig = {
   showDataLabelOutsideBar: false,
   showTitle: true,
   showLegend: true,
-  legendFontSize: 14,
+  legendFontSize: typeSize('detail', 14),
   legendPadding: 5,
   xAxis: { ...DEFAULT_XY_AXIS_CONFIG },
   yAxis: { ...DEFAULT_XY_AXIS_CONFIG },

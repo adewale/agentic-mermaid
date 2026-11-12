@@ -1,3 +1,4 @@
+import { typeSize } from '../typography.ts'
 import { sceneLowering, type DrawingFactory, type DrawingDocument } from '../scene/drawing.ts'
 import type { PositionedBar, PositionedXYChart } from './types.ts'
 import type { RenderContext } from '../types.ts'
@@ -227,7 +228,7 @@ export function lowerXYChartDrawing<T>(
       }))
       parts.push(marks.text({
         id: `point-label:${line.seriesIndex}:${pointIndex}`, role: 'label', text: point.textBlock?.text ?? point.textLabel, block: point.textBlock,
-        x: rn(x), y: rn(y), fontSize: 12, fontWeight: style.nodeLabelFontWeight, letterSpacing: style.nodeLetterSpacing,
+        x: rn(x), y: rn(y), fontSize: typeSize('detail', 12), fontWeight: style.nodeLabelFontWeight, letterSpacing: style.nodeLetterSpacing,
         display: 'literal', anchor, baselineShift: at ? 0.35 : 0,
         paint: { fill: seriesPaints.get(`line-${line.seriesIndex}`) ?? `var(--xychart-color-${line.colorIndex})` },
         channels: { category: `line-${line.seriesIndex}`, value: normalized(point.value) },

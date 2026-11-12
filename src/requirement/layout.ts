@@ -1,3 +1,4 @@
+import { typeSize } from '../typography.ts'
 import { requirementArrow, requirementContains, requirementMarkerTerminal } from './markers.ts'
 import type { ElkExtendedEdge, ElkNode } from 'elkjs'
 import { elkLayoutSync } from '../elk-instance.ts'
@@ -40,7 +41,10 @@ export function layoutRequirementDiagram(model: RequirementBody, options: Render
   const nodes: RequirementCard[] = [...model.requirements.map(requirement => ({ requirement, element: undefined })), ...model.elements.map(element => ({ requirement: undefined, element }))].map(({ requirement, element }) => {
     const record = requirement ?? element!,
       props = checkedAuthoredStyle({ ...configuredStyle, ...parseStyleProps(record.cssStyles.join(',')) }, `style ${record.name}`)
-    const fontSize = Number.parseFloat(props['font-size'] ?? '') || metric('fontSize', style.nodeLabelFontSize, 1)
+    const authoredSize = Number.parseFloat(props['font-size'] ?? '') || metric('fontSize', 0, 1) || undefined
+    const fontSize = authoredSize ?? style.nodeLabelFontSize
+    // Attribute rows are detail text unless the author sized the card.
+    const attributeSize = authoredSize ?? style.nodeLabelFontSize * typeSize('detail', 13) / typeSize('body', 13)
     const authoredWeight = props['font-weight']?.trim().toLowerCase(),
       fontWeight = authoredWeight === undefined ? undefined : authoredWeight === 'normal' ? 400 : authoredWeight === 'bold' ? 700 : Number(authoredWeight)
     if (fontWeight !== undefined && (!Number.isFinite(fontWeight) || fontWeight < 1 || fontWeight > 1000)) throw new Error(`style ${record.name}: font-weight must be normal, bold, or a number from 1 to 1000`)
@@ -60,7 +64,7 @@ export function layoutRequirementDiagram(model: RequirementBody, options: Render
     const measured = layoutTextRows(fields
       .filter(([, value]) => value)
       .map(([key, value]) => {
-        const block = preparePixelText(`${key}: ${value}`, { fontSize, fontWeight: fontWeight ?? 400, maxWidth, transform: style.nodeTextTransform, letterSpacing: style.nodeLetterSpacing, fontFamily: options.font })
+        const block = preparePixelText(`${key}: ${value}`, { fontSize: attributeSize, fontWeight: fontWeight ?? 400, maxWidth, transform: style.nodeTextTransform, letterSpacing: style.nodeLetterSpacing, fontFamily: options.font })
         return { label: key!, block }
       }), { top: headerHeight + 8, gap: 9, minRowHeight: rowStride, align: 'start', trailingGap: true })
     const rows = measured.rows.map(({ item, textY }) => ({ ...item, y: textY }))

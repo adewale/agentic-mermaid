@@ -1,3 +1,4 @@
+import { typeSize } from '../typography.ts'
 import { sceneLowering, type DrawingFactory, type DrawingDocument } from '../scene/drawing.ts'
 import type { PositionedPieChart } from './types.ts'
 import type { RenderContext } from '../types.ts'
@@ -44,9 +45,9 @@ import { resolveRoleStyle } from '../scene/style-registry.ts'
 // ============================================================================
 
 const PIE = {
-  titleFontSize: 18,
+  titleFontSize: typeSize('title', 18),
   titleFontWeight: 600,
-  legendFontSize: 13,
+  legendFontSize: typeSize('detail', 13),
   legendFontWeight: 500,
   sliceStrokeWidth: 1.5,
   /** Option D: non-highlighted graphical marks dim to this fraction. */

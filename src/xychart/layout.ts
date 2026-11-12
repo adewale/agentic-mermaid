@@ -1,3 +1,4 @@
+import { typeSize } from '../typography.ts'
 import { linearFraction } from '../shared/linear-range.ts'
 import { layoutTooltip } from '../shared/tooltip-layout.ts'
 import { preparePixelText, type PixelTextBlock } from '../shared/prepared-text.ts'
@@ -44,9 +45,9 @@ export const LEGEND_SWATCH_GAP = 6
 
 /** Shared by layout (sizing) and renderer (drawing) — keep it single-sourced. */
 export const XY_STYLE_DEFAULTS: RenderStyleDefaults = {
-  nodeLabelFontSize: 14,
-  edgeLabelFontSize: 16,
-  groupHeaderFontSize: 20,
+  nodeLabelFontSize: typeSize('detail', 14),
+  edgeLabelFontSize: typeSize('heading', 16),
+  groupHeaderFontSize: typeSize('title', 20),
   nodeLabelFontWeight: 400,
   edgeLabelFontWeight: 400,
   groupHeaderFontWeight: 500,

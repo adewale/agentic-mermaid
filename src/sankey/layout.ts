@@ -1,3 +1,4 @@
+import { typeSize } from '../typography.ts'
 import {
   sankey as createSankeyLayout,
   sankeyCenter,
@@ -37,10 +38,10 @@ import type { PositionedSankeyChart, PositionedSankeyLink, PositionedSankeyNode,
 
 const SANKEY = {
   padding: 24,
-  titleFontSize: 18,
+  titleFontSize: typeSize('title', 18),
   titleFontWeight: 600,
   titleGap: 20,
-  labelFontSize: 13,
+  labelFontSize: typeSize('body', 13),
   labelFontWeight: 500,
   valueFontWeight: 400,
   /** Gap between a node rectangle and its label. */
