@@ -212,19 +212,15 @@ export function transformSvgAttributes(
   const replacements: Replacement[] = []
   const collectWritten = writerEvidenceEnabled()
   for (const tag of scanSvgStartTags(source)) {
-    const firstChange = replacements.length
     for (const attribute of tag.attributes) {
       const value = transform(attribute, tag)
       if (value !== undefined && value !== attribute.value) {
-        const change = { start: attribute.valueStart, end: attribute.valueEnd, value, name: attribute.name }
+        const change = { start: attribute.valueStart, end: attribute.valueEnd, value, name: attribute.name, tagStart: tag.start, tagEnd: tag.end }
         replacements.push(change)
       }
     }
-    if (collectWritten && replacements.length > firstChange) {
-      const evidence = writtenTagOf(source.slice(tag.start, tag.end))
-      if (evidence) projectWrittenTag(source, { start: tag.start, end: tag.end, tag: evidence }, replacements.slice(firstChange))
-    }
   }
+  if (collectWritten) carryWrittenTags(source, replacements)
   return applyReplacements(source, replacements)
 }
 
@@ -271,6 +267,13 @@ export function svgCssText(source: string): string {
   return projectSvgCss(source).cssRanges.map(range => source.slice(range.start, range.end)).join('\n')
 }
 
+function appendCssChanges(source: string, ranges: readonly SvgCssRange[], transform: (css: string) => string, changes: Replacement[]): void {
+  for (const range of ranges) {
+    const original = source.slice(range.start, range.end), value = transform(original)
+    if (value !== original) changes.push({ ...range, value, name: range.name })
+  }
+}
+
 export function transformSvgCssValues(
   source: string,
   transform: (css: string) => string,
@@ -278,11 +281,7 @@ export function transformSvgCssValues(
 ): string {
   if (projection.source !== source) throw new Error('SVG CSS projection does not match its source')
   const changes: Replacement[] = []
-  for (const range of projection.cssRanges) {
-    const original = source.slice(range.start, range.end)
-    const value = transform(original)
-    if (value !== original) changes.push({ ...range, value, name: range.name })
-  }
+  appendCssChanges(source, projection.cssRanges, transform, changes)
   if (writerEvidenceEnabled()) carryWrittenTags(source, changes)
   return applyReplacements(source, changes)
 }
@@ -293,43 +292,39 @@ export function transformSvgIdReferences(source: string, rename: (id: string) =>
   const declared = new Set<string>()
   const references: SvgCssRange[] = [], styles: SvgRange[] = []
   const collectWritten = writerEvidenceEnabled()
+  const isAria = (name: string | undefined) => name === 'aria-labelledby' || name === 'aria-describedby'
+  const isHref = (name: string | undefined) => name === 'href' || name === 'xlink:href'
+  let overlapsStyle = false
   scanStartTags(source, undefined, styles, undefined, false, (name, start, end, tagStart, tagEnd) => {
     if (name === 'id') declared.add(source.slice(start, end))
-    if (name === 'id' || name === 'aria-labelledby' || name === 'aria-describedby'
-      || (name === 'href' || name === 'xlink:href') && source[start] === '#'
+    if (name === 'id' || isAria(name) || isHref(name) && source[start] === '#'
       || CSS_VALUE_ATTRIBUTES.has(name) && source.slice(start, end).includes('url(#')) {
-      references.push(collectWritten ? { start, end, name, tagStart, tagEnd } : { start, end, name })
+      references.push({ start, end, name, tagStart, tagEnd })
+      overlapsStyle ||= start < (styles.at(-1)?.end ?? 0)
     }
   })
-  const urls = (css: string) => css.replace(/url\(#([^)]+)\)/g, (full, id: string) => declared.has(id) ? `url(#${rename(id)})` : full)
+  const reference = (id: string) => declared.has(id) ? rename(id) : id
+  const urls = (css: string) => css.replace(/url\(#([^)]+)\)/g, (_, id: string) => `url(#${reference(id)})`)
   const changes: Replacement[] = []
   for (const range of references) {
     const original = source.slice(range.start, range.end)
     const value = range.name === 'id' ? rename(original)
-      : range.name === 'aria-labelledby' || range.name === 'aria-describedby'
-        ? original.split(/\s+/).map(id => declared.has(id) ? rename(id) : id).join(' ')
-        : range.name === 'href' || range.name === 'xlink:href'
-          ? declared.has(original.slice(1)) ? `#${rename(original.slice(1))}` : original
+      : isAria(range.name)
+        ? original.split(/\s+/).map(reference).join(' ')
+        : isHref(range.name)
+          ? `#${reference(original.slice(1))}`
           : urls(original)
     if (value !== original) changes.push({ ...range, value })
   }
   if (collectWritten) carryWrittenTags(source, changes)
   // Opaque tag-like CSS text can overlap attribute ranges. Keep the original
   // attribute-then-style ordering for those exceptional inputs.
-  let changeIndex = 0
-  const overlapsStyle = styles.some(style => {
-    while (changeIndex < changes.length && changes[changeIndex]!.end <= style.start) changeIndex++
-    return changeIndex < changes.length && changes[changeIndex]!.start < style.end
-  })
   if (overlapsStyle) {
     const attributes = applyReplacements(source, changes)
     const ranges = svgStyleRanges(attributes)
     return transformSvgCssValues(attributes, urls, { source: attributes, cssRanges: ranges, styleContexts: ranges })
   }
-  for (const range of styles) {
-    const original = source.slice(range.start, range.end), value = urls(original)
-    if (value !== original) changes.push({ ...range, value })
-  }
+  appendCssChanges(source, styles, urls, changes)
   return applyReplacements(source, changes)
 }
 
