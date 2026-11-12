@@ -1,5 +1,14 @@
 # Shared Trident library
 
+For an ordinary product change, select validation from the
+[testing strategy](../../docs/testing-strategy.md). Preparing this pinned library
+supports repository typechecking; it does not require running the benchmark or
+eval campaigns. Many other `eval/` directories contain fixtures or observers
+imported by owning unit tests, so their directory count is not a list of commands
+to run. Historical campaigns belong in the
+[project archive](../../docs/project/README.md#completed-and-superseded-work),
+with outputs in ignored `bench-report/` or external evidence storage.
+
 Agentic Mermaid owns its product benchmarks under `eval/benchmark`: family and
 operation witnesses, invocation/MCP/editor coverage, profiling, release and peer
 budgets, private corpus generation and the build/pack Davebench wrapper.
