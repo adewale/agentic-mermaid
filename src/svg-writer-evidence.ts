@@ -47,11 +47,9 @@ function rememberCurrent(record: StoredWrittenTag): void {
 }
 
 export function writtenTagOf(tag: string): WrittenTag | undefined {
-  const local = current?.tags.get(tag)
-  if (local) return local
   const record = tags.get(tag)
   if (record) rememberCurrent(record)
-  return record
+  return record ?? current?.tags.get(tag)
 }
 
 export function retainWrittenTag(tag: string, evidence: WrittenTag): void {
