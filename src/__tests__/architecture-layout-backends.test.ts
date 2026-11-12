@@ -2,7 +2,7 @@ import { createRequire } from 'node:module'
 import { useTestChildren } from './helpers/test-child.ts'
 import { describe, expect, spyOn, test } from 'bun:test'
 import * as graphPlacement from '../layout-engine.ts'
-import { withGraphLayoutDecisionObserver, LayoutWorkLimitError, type GraphLayoutDecision } from '../layout/backend.ts'
+import { withGraphLayoutDecisionObserver, type GraphLayoutDecision } from '../layout/backend.ts'
 import { LayoutCertificationError } from '../layout/certification-error.ts'
 import { readFileSync } from 'node:fs'
 import { renderMermaidSVGWithReceipt, renderMermaidASCIIWithReceipt } from '../index.ts'
@@ -22,58 +22,6 @@ const faces = 'architecture-beta\nservice left(disk)[Left]\nservice top(disk)[To
 const literalIcons = 'architecture-beta\nservice a "<b>日本 API</b>\\nSecond line" [Backend]\nservice b(database)[Storage]\na:R-->L:b'
 
 describe('Architecture layout backends', () => {
-  test('Trinity Architecture preserves actual visual minima and public surfaces without invoking another placement backend', () => {
-    const source = 'architecture-beta\ngroup app(cloud)[Application]\nservice api(server)[日本 API] in app\nservice db(database)[Storage] in app\napi:R --> L:db'
-    const options = { graphLayout: { backend: 'trinity' as const }, architecture: { visual: { serviceIconSize: 36, serviceFontSize: 20, servicePaddingX: 28, groupHeaderHeight: 50 } } }
-    const nativePlacement = spyOn(graphPlacement, 'layoutNativeGraphPlacementSync'), elkPlacement = spyOn(graphPlacement, 'layoutElkGraphPlacementSync')
-    try {
-      const product = renderMermaidSVGWithReceipt(source, options)
-      const parsed = parseRegisteredMermaid(source)
-      if (!parsed.ok) throw Error('Expected Architecture input')
-      expect(renderMermaidSVGWithReceipt(parsed.value, options).svg).toBe(product.svg)
-      expect(layoutMermaidWithReceipt(source, options).receipt.layoutDecisions).toEqual(product.receipt.layoutDecisions)
-      const png = renderMermaidPNGWithReceipt(source, options)
-      expect(png.png.length).toBeGreaterThan(0)
-      expect(png.receipt.layoutDecisions).toEqual(product.receipt.layoutDecisions)
-      expect(product.receipt.layoutCertification?.status).toBe('passed')
-      expect(nativePlacement).not.toHaveBeenCalled(); expect(elkPlacement).not.toHaveBeenCalled()
-    } finally { nativePlacement.mockRestore(); elkPlacement.mockRestore() }
-  })
-
-  test.each([
-    'architecture-beta\nservice a(server)[A]\nservice b(server)[B]\na:R --> L:b',
-    'architecture-beta\ngroup g(cloud)[G]\nservice a(server)[A] in g\njunction j in g\na:R --> L:j',
-    'architecture-beta\ngroup g(cloud)[G]\nservice a(server)[A] in g\nservice b(server)[B] in g\na:R -[label]-> L:b',
-    'architecture-beta\ngroup g(cloud)[G]\ngroup inner(cloud)[Inner] in g\nservice a(server)[A] in inner',
-    'architecture-beta\ngroup g(cloud)[G]\nservice a(server)[A] in g\nservice b(server)[B] in g\na{group}:R --> L:b',
-  ])('Trinity Architecture declines untranslated scope constraints and retains explicit fallback: %s', source => {
-    expect(() => renderMermaidSVGWithReceipt(source, { graphLayout: { backend: 'trinity' } })).toThrow('one container')
-    const fallback = renderMermaidSVGWithReceipt(source, { graphLayout: { backend: 'trinity', fallback: 'elk' } })
-    expect(fallback.svg).toBe(renderMermaidSVGWithReceipt(source, { graphLayout: { backend: 'elk' } }).svg)
-    expect(fallback.receipt.layoutDecisions?.[0]).toMatchObject({ requested: 'trinity', selected: 'elk' })
-  })
-
-  test('Trinity Architecture keeps noncanonical paint outside admission and propagates cumulative work errors', () => {
-    const source = 'architecture-beta\ngroup g(cloud)[G]\nservice a(server)[A] in g\nservice b(server)[B] in g\na:R --> L:b'
-    expect(() => renderMermaidSVGWithReceipt(source, { graphLayout: { backend: 'trinity' }, style: 'hand-drawn' })).toThrow('canonical paint')
-    const placement = spyOn(graphPlacement, 'layoutTrinityGraphPlacementSync').mockImplementation(() => { throw new LayoutWorkLimitError('pairs') }), elk = spyOn(graphPlacement, 'layoutElkGraphPlacementSync')
-    try { expect(() => layoutArchitectureDiagram(parseArchitectureDiagram(toMermaidLines(source)), { graphLayout: { backend: 'trinity', fallback: 'elk' } })).toThrow(LayoutWorkLimitError); expect(elk).not.toHaveBeenCalled() } finally { placement.mockRestore(); elk.mockRestore() }
-  })
-
-  test('Trinity completes a single-container service forest using actual Architecture ports and headers', () => {
-    const source = 'architecture-beta\ngroup app(cloud)[Application]\nservice api(server)[API] in app\nservice db(database)[Database] in app\nservice cache(disk)[Cache] in app\napi:R --> L:db\napi:B --> T:cache'
-    const options = { graphLayout: { backend: 'trinity' as const } }
-    const product = renderMermaidSVGWithReceipt(source, options)
-    expect(product.receipt.layoutDecisions?.[0]).toMatchObject({ requested: 'trinity', selected: 'trinity' })
-    expect(product.receipt.layoutCertification?.status).toBe('passed')
-    for (const text of ['Application', 'API', 'Database', 'Cache']) expect(product.svg).toContain(text)
-    const positioned = layoutArchitectureDiagram(parseArchitectureDiagram(toMermaidLines(source)), options)
-    expect(positioned.groups).toHaveLength(1)
-    expect(positioned.services).toHaveLength(3)
-    expect(positioned.edges.map(edge => [edge.source.id, edge.source.side, edge.target.id, edge.target.side])).toEqual([['api', 'R', 'db', 'L'], ['api', 'B', 'cache', 'T']])
-    const group = positioned.groups[0]!
-    for (const service of positioned.services) expect(service.y).toBeGreaterThanOrEqual(group.y + group.headerHeight!)
-  })
   test.each((['agentic', 'elk'] as const).flatMap(backend => (['scene', 'native'] as const).map(admission => ({ backend, admission }))))('retains nested junction and group-boundary meanings with $backend through $admission', async ({ backend, admission }) => {
     // Hand-authored before parser/render calls: leaf sink remains the endpoint
     // identity while its group boundary supplies the physical bottom port.

@@ -44,7 +44,6 @@ import type { InternalStyleFace } from './scene/style-registry.ts'
 import type { ResolvedStateVisualConfig, StateRenderOptions } from './state/config.ts'
 import { elkLayoutSync } from './elk-instance.ts'
 import { layoutAgenticCandidate, layoutAgenticPlacement } from './layout/agentic-layered.ts'
-import { layoutTrinityCandidate, layoutTrinityPlacement } from './layout/trinity-producer.ts'
 import { customTextMeasurementActive } from './text-measurement-profile.ts'
 import { edgeSelectorIndices } from './shared/edge-selectors.ts'
 import { graphEdgeMarkerPaintRegions } from './graph-connectors.ts'
@@ -1556,12 +1555,6 @@ export function layoutNativeGraphPlacementSync(
   return layoutAgenticPlacement(graph, options, style, agenticGraphBindings)
 }
 
-/** @internal Family routes and final certification remain outside placement. */
-export function layoutTrinityGraphPlacementSync(graph: MermaidGraph, options: LayoutEngineOptions = {}): Pick<PositionedGraph, 'width' | 'height' | 'nodes' | 'groups'> {
-  assertMermaidGraphWork(graph)
-  return layoutTrinityPlacement(graph, options, resolveRenderStyle(options, undefined, options.styleFace), agenticGraphBindings)
-}
-
 export function translatePositionedGraph(positioned: PositionedGraph, dy: number): void {
   const moveGroup = (group: PositionedGroup): void => {
     group.y += dy
@@ -1705,10 +1698,7 @@ function layoutUntitledGraph(graph: MermaidGraph, options: LayoutEngineOptions):
   return runMeasuredGraphBackend(options, () => {
     const style = resolveRenderStyle(options, options.stateVisual?.styleDefaults, options.styleFace)
     return layoutAgenticCandidate(graph, options, style, agenticGraphBindings)
-  }, () => layoutElkGraph(graph, options), true, (positioned, decision) => { positioned.layoutDecision = decision }, () => {
-    const style = resolveRenderStyle(options, options.stateVisual?.styleDefaults, options.styleFace)
-    return layoutTrinityCandidate(graph, options, style, agenticGraphBindings)
-  })
+  }, () => layoutElkGraph(graph, options), true, (positioned, decision) => { positioned.layoutDecision = decision })
 }
 
 /** Four deterministic strategy combinations, each with the existing bounded

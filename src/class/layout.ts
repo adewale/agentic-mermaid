@@ -1,9 +1,6 @@
 import { classRelationshipTerminalClearance, classEndpointTextCandidates, RELATION_LABEL_HALO_WIDTH } from './relationship-paint.ts'
 import { measuredRouteContactPairBudget, scoreMeasuredRouteCrossings, createOwnedMeasuredRouteContactValidator, projectMeasuredRoutePoint, type OwnedMeasuredRouteNumericSeed } from '../layout/measured-route-safety.ts'
 import type { MeasuredGraph } from '../layout/measured-graph.ts'
-import { solveMeasuredLayout } from '../layout/measured-backend.ts'
-import { trinityMeasuredAdapter } from '../layout/trinity.ts'
-import { LayoutWorkLimitError } from '../layout/backend.ts'
 import { resolveDiagramColors } from '../color-resolver.ts'
 import { connectorMarkerPaintRegions } from '../scene/bounds.ts'
 import { connector } from '../scene/marks.ts'
@@ -16,7 +13,7 @@ import { type ClassRectangleContact, assertClassElkSelfContactsClear, constructC
 import { assertClassHeaderPeersClear, finalClassHeaderNumericSeed, type ClassHeaderNumericCapture } from './header-lanes.ts'
 import { classInterfaceMarker } from './interface-occurrences.ts'
 import { assertClassMarkerMeaning, type ClassMarkerAdmissionWork, chargeClassMarkerAdmissionWork, createClassMarkerAdmissionWork } from './marker-admission.ts'
-import { buildClassEndpointMarkerTemplates, classEndpointMarkerSpans } from './marker-measurement.ts'
+import { buildClassEndpointMarkerTemplates } from './marker-measurement.ts'
 import { classElkMarkerMinimums, classNativeMarkerMinimums } from './marker-port-capacity.ts'
 import { classMarkerHeaderInsets, classOwnedSurfaceViolations, repairClassHeaderRoutes, repairClassNoteSeats } from './owned-surfaces.ts'
 import { memberToString } from './text.ts'
@@ -654,20 +651,13 @@ function layoutClassDiagramWithin(inkWork: ClassMarkerAdmissionWork, diagram: Cl
   const markerAdmission = canonicalMarkers && hasMarkers ? { colors: Object.freeze(resolveDiagramColors(options, options.mermaidConfig ?? {})), work: inkWork } : undefined
   if (diagram.classes.length === 0 && !diagram.namespaces.length && !diagram.notes.length) {
     const empty = (): PositionedClassDiagram => withClassTitle({ width: 0, height: 0, accessibilityTitle: diagram.accessibilityTitle, accessibilityDescription: diagram.accessibilityDescription, classes: [], relationships: [], notes: [], namespaces: [] }, diagram.title, style)
-    return runMeasuredGraphBackend(options, empty, empty, true, undefined, empty)
+    return runMeasuredGraphBackend(options, empty, empty, true, undefined)
   }
   const classSizes = measureClassCards(diagram, style)
   const hierarchicalNamespaces = options.class?.hierarchicalNamespaces !== false
   let titles: Map<string, string> = new Map()
-  const measuredCandidate = (trinity = false): PositionedClassDiagram => {
-      if (trinity && (diagram.classes.some(cls => cls.isInterface)
-        || paintBackendId !== undefined && paintBackendId !== 'backend:default')) throw new GraphLayoutUnsupportedError('Class cards require canonical paint without interfaces', 'Trinity')
-      if (trinity && (diagram.classes.length > 64 || diagram.relationships.length > 128)) throw new GraphLayoutUnsupportedError('routed slice is limited to 64 subjects and 128 edges', 'Trinity')
-      const work = trinity ? { pairs: 1_000_000, arcs: 65536, swaps: 1_000_000 } : undefined
-      const pay = (amount: number): void => { work!.pairs -= amount; if (work!.pairs < 0) throw new LayoutWorkLimitError('pairs') }
-
+  const measuredCandidate = (): PositionedClassDiagram => {
       const namespaces = flattenNamespaces(diagram.namespaces, undefined, hierarchicalNamespaces)
-      if (trinity && diagram.classes.length + namespaces.length > 64) throw new GraphLayoutUnsupportedError('routed slice is limited to 64 subjects and 128 edges', 'Trinity')
       const groupIndices = new Map(namespaces.map((info, index) => [info.path, index]))
       if (groupIndices.size !== namespaces.length) throw new GraphLayoutUnsupportedError('ambiguous Class namespace paths')
       const membership = new Map<string, number>()
@@ -690,10 +680,9 @@ function layoutClassDiagramWithin(inkWork: ClassMarkerAdmissionWork, diagram: Cl
         return block?.lineBlocks.some(line => line.runs.some(run => run.text.trim())) ? { width: block.width + 8, height: block.height + RELATION_LABEL_HALO_WIDTH } : undefined
       })
       const markerTemplates = buildClassEndpointMarkerTemplates(diagram.relationships, style)
-      const endpointSpans = trinity ? classEndpointMarkerSpans(markerTemplates, style.lineWidth, pay) : undefined
       // One Native placement, using copied minima. Extra vertical reservation
       // is blank last-compartment space; authored text measurements stay fixed.
-      const nativeMinimums = !trinity && inkWork ? classNativeMarkerMinimums(diagram.classes, diagram.relationships, markerTemplates, style.lineWidth, diagram.direction??'TB', inkWork) : undefined
+      const nativeMinimums = inkWork ? classNativeMarkerMinimums(diagram.classes, diagram.relationships, markerTemplates, style.lineWidth, diagram.direction??'TB', inkWork) : undefined
       const chargeNativeSize=(units:number):void=>{for(let unit=0;unit<units;unit++)if(!chargeClassMarkerAdmissionWork(inkWork!))throw new LayoutCertificationError([{strategy:'class-native-marker-capacity',violations:['Class marker capacity work limit']}])}
       let nativeClassSizes = classSizes
       for(const [id,minimum] of nativeMinimums ?? []){
@@ -709,15 +698,15 @@ function layoutClassDiagramWithin(inkWork: ClassMarkerAdmissionWork, diagram: Cl
         const parsed = Number.parseFloat(local?.['stroke-width'] ?? '')
         return Number.isFinite(parsed) && parsed > 0 ? parsed : style.nodeLineWidth
       })
-      const placed = measureRenderStage(trinity ? 'trinity' : 'agentic', () => {
+      const placed = measureRenderStage('agentic', () => {
         const input: MeasuredGraph = {
-          nodes: diagram.classes.map((cls, index) => ({ id: cls.id, width: nativeClassSizes.get(cls.id)!.width, height: nativeClassSizes.get(cls.id)!.height, paintStrokeWidth: markerNodeStrokes[index], ...(trinity ? { contact: style.cornerRadius ? 'rounded-rectangle' as const : 'rectangle' as const, sizePolicy: 'minimum' as const } : {}), ...(!cls.isInterface && (paintBackendId===undefined||paintBackendId==='backend:default') ? {paintCornerRadius:style.cornerRadius??0} : {}), ...(nativeMinimums?.has(cls.id) ? { minimumPortSpacing: nativeMinimums.get(cls.id)!.portSpacing } : {}), ...(membership.has(cls.id) ? { parent: membership.get(cls.id)! } : {}) })),
+          nodes: diagram.classes.map((cls, index) => ({ id: cls.id, width: nativeClassSizes.get(cls.id)!.width, height: nativeClassSizes.get(cls.id)!.height, paintStrokeWidth: markerNodeStrokes[index], ...(!cls.isInterface && (paintBackendId===undefined||paintBackendId==='backend:default') ? {paintCornerRadius:style.cornerRadius??0} : {}), ...(nativeMinimums?.has(cls.id) ? { minimumPortSpacing: nativeMinimums.get(cls.id)!.portSpacing } : {}), ...(membership.has(cls.id) ? { parent: membership.get(cls.id)! } : {}) })),
           groups: groups.map(group => ({ ...group, paintStrokeWidth: style.groupLineWidth, ...((paintBackendId === undefined || paintBackendId === 'backend:default') ? { paintCornerRadius: style.groupCornerRadius } : {}) })),
           edges: diagram.relationships.map((rel, index) => {
             const source = indices.get(rel.from),
               target = indices.get(rel.to)
             if (source === undefined || target === undefined) throw new Error('Class relationship references an undeclared card')
-            return { source, target, minSpan: 1, ...(trinity ? endpointSpans![index] : { markerPaint: markerTemplates[index] }), ...(labels[index] ? { label: labels[index] } : {}) }
+            return { source, target, minSpan: 1, markerPaint: markerTemplates[index], ...(labels[index] ? { label: labels[index] } : {}) }
           }),
           direction: diagram.direction ?? 'TB',
           padding: CLS.padding,
@@ -728,7 +717,7 @@ function layoutClassDiagramWithin(inkWork: ClassMarkerAdmissionWork, diagram: Cl
           maximumEdgeStrokeWidth: style.lineWidth,
           maximumEdgeBendRadius: style.edgeBendRadius,
         }
-        return trinity ? solveMeasuredLayout({ role: 'routed', graph: input }, trinityMeasuredAdapter(work!)) : layoutAgenticGraph(input)
+        return layoutAgenticGraph(input)
       })
       if (placed.nodes.length !== diagram.classes.length || (placed.groups?.length ?? 0) !== namespaces.length || placed.edges.length !== diagram.relationships.length) {
         throw new TypeError('Native Class placement lost measured subjects')
@@ -737,7 +726,7 @@ function layoutClassDiagramWithin(inkWork: ClassMarkerAdmissionWork, diagram: Cl
         width: placed.width,
         height: placed.height,
         nodes: [
-          ...placed.nodes.map((node, index) => ({ ...node, id: diagram.classes[index]!.id, width: trinity ? node.width! : nativeClassSizes.get(diagram.classes[index]!.id)!.width, height: trinity ? node.height! : nativeClassSizes.get(diagram.classes[index]!.id)!.height })),
+          ...placed.nodes.map((node, index) => ({ ...node, id: diagram.classes[index]!.id, width: nativeClassSizes.get(diagram.classes[index]!.id)!.width, height: nativeClassSizes.get(diagram.classes[index]!.id)!.height })),
           ...namespaces.map((info, index) => ({ ...placed.groups![index]!, id: NS_PREFIX + info.path, namespacePath: info.path })),
         ],
         routes: new Map(
@@ -787,7 +776,6 @@ function layoutClassDiagramWithin(inkWork: ClassMarkerAdmissionWork, diagram: Cl
     },
     true,
     undefined,
-    () => measuredCandidate(true),
   )
 }
 

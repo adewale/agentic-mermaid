@@ -439,7 +439,7 @@ for precedence and custom looks. This table is generated from runtime descriptor
 |---|---|---|---|
 | `fontMetrics` | `'estimate' \| 'bundled-inter'` | `estimate` | Optional pinned Inter ASCII advances and pair corrections. Does not load fonts; unsupported runs retain estimates. Not consumed by terminal output. |
 | `layoutHints` | `{ ranks?: Record<string, number>; adjacent?: string[][]; shortEdges?: string[] }` | unset | Relative ranks, sibling adjacency and short-edge preferences. Built-in families: flowchart, state, usecase, swimlane, agentflow. Not consumed by terminal output. |
-| `graphLayout` | `{ backend: 'elk' \| 'agentic' \| 'trinity'; fallback?: 'none' \| 'elk'; quality?: 'balanced'; viewport?: { width: number; height: number } }` | `elk`, no fallback | Graph geometry producer. Trinity supports bounded Flowchart/State, Class, ER, Architecture and Requirement; explicit ELK fallback. Built-in families: flowchart, state, architecture, class, er, requirement. |
+| `graphLayout` | `{ backend: 'elk' \| 'agentic'; fallback?: 'none' \| 'elk'; quality?: 'balanced'; viewport?: { width: number; height: number } }` | `elk`, no fallback | Graph geometry producer with explicit ELK fallback. Built-in families: flowchart, state, architecture, class, er, requirement. |
 | `layoutSafety` | `'report' \| 'strict'` | `report` | Report bounded layout evidence, still drawing a layout that fails certification only on drawable checks (verify then fails), or require a passed final certificate. Strict mode rejects missing, unverified or failed evidence. |
 | `bg` | `string` | `#FFFFFF` | Background color or CSS variable. |
 | `fg` | `string` | `#27272A` | Primary foreground and text color. |

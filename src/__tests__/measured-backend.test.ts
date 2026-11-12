@@ -3,12 +3,13 @@ import { DeferredDependencyError, GraphLayoutUnsupportedError, LayoutCertificati
 import { runMeasuredGraphBackend, solveMeasuredLayout } from '../layout/measured-backend.ts'
 import { elkMeasuredAdapter } from '../layout/elk-measured-adapter.ts'
 import { nativeMeasuredAdapter } from '../layout/native-measured-adapter.ts'
-import { trinityMeasuredAdapter } from '../layout/trinity.ts'
+import { fitMeasuredLayout } from '../layout/fit-measured-layout.ts'
+import { assignChannelTracks } from '../layout/channel-tracks.ts'
 import type { MeasuredGraph, MeasuredLayoutResult } from '../layout/measured-graph.ts'
 
 describe('measured family backend selection', () => {
   test('invalid backend selections cannot execute or report a measured producer, even with fallback', () => {
-    const invalid = ['typo', 0, Symbol('typo'), { toString() { throw new Error('must not coerce invalid selection') } }]
+    const invalid = ['typo', 'trinity', 0, Symbol('typo'), { toString() { throw new Error('must not coerce invalid selection') } }]
     for (const backend of invalid) for (const fallback of ['none', 'elk'] as const) {
       const calls: string[] = [], decisions: GraphLayoutDecision[] = []
       const options = { graphLayout: { backend, fallback } } as unknown as Parameters<typeof runMeasuredGraphBackend>[0]
@@ -16,7 +17,7 @@ describe('measured family backend selection', () => {
       try {
         withGraphLayoutDecisionObserver(value => decisions.push(value), () => runMeasuredGraphBackend(options,
           () => { calls.push('native'); return 1 }, () => { calls.push('elk'); return 2 }, true,
-          () => { calls.push('retain') }, () => { calls.push('trinity'); return 3 }))
+          () => { calls.push('retain') }))
       } catch (error) { failure = error }
       expect(calls).toEqual([])
       expect(decisions).toEqual([])
@@ -25,7 +26,7 @@ describe('measured family backend selection', () => {
   })
 
   test('family fallback rejects invalid backend names without coercing the selection', () => {
-    for (const backend of ['typo', Symbol('typo'), { toString() { throw new Error('must not coerce invalid selection') } }]) {
+    for (const backend of ['typo', 'trinity', Symbol('typo'), { toString() { throw new Error('must not coerce invalid selection') } }]) {
       for (const fallback of ['none', 'elk'] as const) {
         const options = { graphLayout: { backend, fallback } } as unknown as Parameters<typeof selectElkForGraphFamily>[0]
         expect(() => selectElkForGraphFamily(options, 'sequence')).toThrow(TypeError)
@@ -35,11 +36,10 @@ describe('measured family backend selection', () => {
 
   test('one backend read determines both the actual producer and its retained decision', () => {
     let reads = 0
-    const options = { graphLayout: { get backend() { return reads++ === 0 ? 'agentic' as const : 'trinity' as const }, fallback: 'none' as const } }
+    const options = { graphLayout: { get backend() { return reads++ === 0 ? 'agentic' as const : 'elk' as const }, fallback: 'none' as const } }
     const calls: string[] = [], decisions: GraphLayoutDecision[] = []
     const result = withGraphLayoutDecisionObserver(value => decisions.push(value), () => runMeasuredGraphBackend(options,
-      () => { calls.push('native'); return 1 }, () => { calls.push('elk'); return 2 }, false, undefined,
-      () => { calls.push('trinity'); return 3 }))
+      () => { calls.push('native'); return 1 }, () => { calls.push('elk'); return 2 }, false, undefined))
     expect(result).toBe(1)
     expect(reads).toBe(1)
     expect(calls).toEqual(['native'])
@@ -105,7 +105,7 @@ describe('measured family backend selection', () => {
       { graphLayout: { backend: 'agentic', fallback: 'none' } }, () => 'native', () => 'elk', false,
       (_value, decision) => {
         retained.push(decision)
-        writes.push(Reflect.set(decision, 'requested', 'elk'), Reflect.set(decision, 'selected', 'trinity'),
+        writes.push(Reflect.set(decision, 'requested', 'elk'), Reflect.set(decision, 'selected', 'elk'),
           Reflect.set(decision.attempts[0]!, 'backend', 'elk'), Reflect.deleteProperty(decision.attempts, '0'))
       }))
     expect(result).toBe('native')
@@ -113,26 +113,6 @@ describe('measured family backend selection', () => {
     expect(observed[0]).toBe(retained[0])
     expect(observed[0]).toMatchObject({ requested: 'agentic', selected: 'agentic', fallback: 'none',
       attempts: [{ backend: 'agentic', outcome: 'selected' }], implementation: 'agentic-layered@28' })
-  })
-
-  test('selects the real Trinity callback and never silently substitutes another solver', () => {
-    const calls: string[] = [], decisions: GraphLayoutDecision[] = [], options = { graphLayout: { backend: 'trinity' as const } }
-    const native = () => { calls.push('native'); return 'native' }, elk = () => { calls.push('elk'); return 'elk' }
-    expect(() => runMeasuredGraphBackend(options, native, elk)).toThrow(GraphLayoutUnsupportedError)
-    expect(calls).toEqual([])
-    const result = withGraphLayoutDecisionObserver(decision => decisions.push(decision), () => runMeasuredGraphBackend(options, native, elk, false, undefined, () => { calls.push('trinity'); return 'trinity' }))
-    expect(result).toBe('trinity')
-    expect(calls).toEqual(['trinity'])
-    expect(decisions[0]).toMatchObject({ requested: 'trinity', selected: 'trinity', implementation: 'trinity@1', attempts: [{ backend: 'trinity', outcome: 'selected' }] })
-    const fallback = withGraphLayoutDecisionObserver(decision => decisions.push(decision), () => runMeasuredGraphBackend({ graphLayout: { backend: 'trinity', fallback: 'elk' } }, native, elk))
-    expect(fallback).toBe('elk')
-    expect(decisions[1]).toMatchObject({ requested: 'trinity', selected: 'elk', attempts: [{ backend: 'trinity', outcome: 'unsupported', reason: expect.any(String) }, { backend: 'elk', outcome: 'selected' }] })
-  })
-
-  test.each([new LayoutWorkLimitError('pairs'), new TypeError('invalid demand'), new DeferredDependencyError('Trinity layout', async () => {})])('Trinity propagates %s without fallback', error => {
-    let fallback = 0
-    expect(() => runMeasuredGraphBackend({ graphLayout: { backend: 'trinity', fallback: 'elk' } }, () => 0, () => { fallback++; return 0 }, true, undefined, () => { throw error })).toThrow(error)
-    expect(fallback).toBe(0)
   })
 
   test('attributes exactly one typed-decline fallback and retains its actual reason', () => {
@@ -178,6 +158,18 @@ describe('measured family backend selection', () => {
     expect(fallbacks).toBe(1)
   })
 
+  test('supplied-ledger exhaustion cannot authorize an ELK fallback', () => {
+    const work = { pairs: 0, arcs: 100, swaps: 100 }
+    let fallback = 0
+    expect(() => runMeasuredGraphBackend({ graphLayout: { backend: 'agentic', fallback: 'elk' } },
+      () => assignChannelTracks([{ sourceCross: 0, targetCross: 10, offset: 0, track: 0 }], 20, 4, 20, work,
+        () => { throw new LayoutWorkLimitError('pairs') }),
+      () => { fallback++; return 0 },
+    )).toThrow(LayoutWorkLimitError)
+    expect(work).toEqual({ pairs: -1, arcs: 100, swaps: 100 })
+    expect(fallback).toBe(0)
+  })
+
   test('strict selection retains capability errors and default selection preserves legacy evidence', () => {
     const error = new GraphLayoutUnsupportedError('expanded graph limit'), decisions: GraphLayoutDecision[] = []
     expect(() => runMeasuredGraphBackend({ graphLayout: { backend: 'agentic' } }, () => { throw error }, () => 'elk')).toThrow(error)
@@ -194,7 +186,7 @@ describe('measured solve boundary', () => {
     direction: 'TB', padding: 32, nodeSpacing: 40, layerSpacing: 72, edgeSpacing: 8, minimumTerminalLead: 16, maximumEdgeStrokeWidth: 2,
   }
 
-  test.each([['Native', nativeMeasuredAdapter], ['ELK', elkMeasuredAdapter({ rootId: 'measured-test', edgeNodeSpacing: 12 })], ['Trinity', trinityMeasuredAdapter({ pairs: 1_000_000, arcs: 65536, swaps: 1_000_000 })]] as const)('%s supplies placement and routed geometry without changing measured input', (_name, adapter) => {
+  test.each([['Native', nativeMeasuredAdapter], ['ELK', elkMeasuredAdapter({ rootId: 'measured-test', edgeNodeSpacing: 12 })]] as const)('%s supplies placement and routed geometry without changing measured input', (_name, adapter) => {
     const before = structuredClone(graph)
     const placement = solveMeasuredLayout({ role: 'placement', graph }, adapter)
     const routed = solveMeasuredLayout({ role: 'routed', graph }, adapter)
@@ -219,6 +211,32 @@ describe('measured solve boundary', () => {
     expect(solveMeasuredLayout({ role: 'routed', graph: empty }, adapter)).toMatchObject({ width: 64, height: 64, nodes: [], edges: [] })
   })
 
+  test('Native and ELK reject own contradictory contact metadata without observing inherited diamond metadata', () => {
+    const rectangle = { id: 'rectangle', width: 100, height: 60, contact: 'rectangle' as const, paintStrokeWidth: 2 }
+    const input: MeasuredGraph = { nodes: [{ ...rectangle, contactDiamond: { strokeExtent: NaN } }], edges: [], direction: 'TB', padding: 32, nodeSpacing: 40, layerSpacing: 72,
+      edgeSpacing: 8, minimumTerminalLead: 0, nodeClearance: 0, maximumEdgeStrokeWidth: 2, maximumEdgeBendRadius: 0 }
+    const before = structuredClone(input), request = { role: 'placement' as const, graph: input }
+    for (const adapter of [nativeMeasuredAdapter, elkMeasuredAdapter({ rootId: 'contradictory', edgeNodeSpacing: 6 })]) expect(() => adapter.solve(request)).toThrow(TypeError)
+    expect(input).toEqual(before)
+    let observations = 0
+    const inherited = Object.assign(Object.create({ get contactDiamond() { observations++; return { strokeExtent: NaN } } }), { ...rectangle, id: 'inherited' })
+    const plainRequest = { role: 'placement' as const, graph: { ...input, nodes: [inherited] } }
+    nativeMeasuredAdapter.solve(plainRequest)
+    elkMeasuredAdapter({ rootId: 'inherited', edgeNodeSpacing: 6 }).solve(plainRequest)
+    expect(observations).toBe(0)
+  })
+
+  test('shared fitting retains actual permitted dimensions rather than the smaller measured minimum', () => {
+    const input: MeasuredGraph = { ...graph, nodes: [{ id: 'small', width: 20, height: 20, contact: 'rectangle', paintStrokeWidth: 2, sizePolicy: 'minimum' }],
+      edges: [{ source: 0, target: 0, minSpan: 1, label: { width: 90, height: 24 }, sourcePortSpan: 2, targetPortSpan: 2 }] }
+    const result = { width: 200, height: 200, nodes: [{ x: 0, y: 0, width: 100, height: 80 }],
+      edges: [{ points: [{ x: 100, y: 30 }, { x: 130, y: 30 }, { x: 130, y: 60 }, { x: 100, y: 60 }], labelPosition: { x: 130, y: 45 } }] }
+    const fitted = fitMeasuredLayout(input, result)
+    expect([fitted.nodes[0]!.width, fitted.nodes[0]!.height]).toEqual([100, 80])
+    expect(fitted.width).toBeGreaterThanOrEqual(fitted.nodes[0]!.x + 100 + input.padding)
+    expect(fitted.height).toBeGreaterThanOrEqual(fitted.nodes[0]!.y + 80 + input.padding)
+  })
+
   test('rejects wrong roles, lost subjects and invalid extents before family completion', () => {
     const valid = { width: 200, height: 200, nodes: [{ x: 0, y: 0 }, { x: 0, y: 100 }], edges: [{ points: [{ x: 50, y: 40 }, { x: 50, y: 100 }] }] }
     const malformed: MeasuredLayoutResult[] = [
@@ -233,6 +251,23 @@ describe('measured solve boundary', () => {
     for (const result of malformed) expect(() => solveMeasuredLayout({ role: 'routed', graph }, { solve: () => result })).toThrow(TypeError)
     const dependency = new DeferredDependencyError('native', async () => {})
     expect(() => solveMeasuredLayout({ role: 'routed', graph }, { solve: () => { throw dependency } })).toThrow(dependency)
+  })
+
+  test('Native and ELK preserve diamond capability refusals for placement and routed requests', () => {
+    const input: MeasuredGraph = { ...graph, nodes: [
+      { id: 'Q', width: 100, height: 100, contact: 'diamond', contactDiamond: { strokeExtent: 4 }, paintStrokeWidth: 2 },
+      { id: 'A', width: 100, height: 60, contact: 'rectangle', paintStrokeWidth: 2 },
+      { id: 'B', width: 100, height: 60, contact: 'rectangle', paintStrokeWidth: 2 },
+    ], edges: [{ source: 0, target: 1, minSpan: 1, sourcePortSpan: 2, targetPortSpan: 12, sourceMarkerPresent: false },
+      { source: 0, target: 2, minSpan: 1, sourcePortSpan: 2, targetPortSpan: 12, sourceMarkerPresent: false }] }
+    for (const role of ['placement', 'routed'] as const) {
+      expect(() => nativeMeasuredAdapter.solve({ role, graph: input })).toThrow(GraphLayoutUnsupportedError)
+      expect(() => elkMeasuredAdapter({ rootId: 'diamond', edgeNodeSpacing: 6 }).solve({ role, graph: input })).toThrow(GraphLayoutUnsupportedError)
+    }
+    const thin = { ...input, nodes: input.nodes.map(({ paintStrokeWidth: _, ...body }) => body),
+      edges: input.edges.map(({ sourcePortSpan: _, targetPortSpan: __, ...edge }) => edge), edgeSpacing: undefined,
+      nodeClearance: undefined, maximumEdgeStrokeWidth: undefined, maximumEdgeBendRadius: undefined }
+    expect(() => elkMeasuredAdapter({ rootId: 'diamond-thin', edgeNodeSpacing: 6 }).solve({ role: 'routed', graph: thin })).toThrow(GraphLayoutUnsupportedError)
   })
 
   test('ELK measured subset declines constraints it cannot translate instead of dropping them', () => {

@@ -2387,3 +2387,17 @@ Node build stopped under new OOM events; normal push CI remains required.
 No Native100 or payload gain: both targets remain open; rejected capture/XML
 representations stay unshipped. Next: qualify the exact-head CI artifact and
 measure semantic group composition, without replaying stopped hypotheses.
+
+### 2026-11-12 — owner-approved Native-only backend surface (base2525b91c477b)
+
+Retire the unmerged Trinity runtime/configuration/lazy-build choice after explicit
+owner approval; retain Native's neutral request/capacity modules and the archived
+spec/evidence. Choices3→2; removed Trinity rejects even with ELK fallback. All
+8dispatch guards and shared diamond/contact/fit/ledger cases remain. Source-Bun
+Trident:36supported returns over6families,18wholeSVG/entireReceipt pairs exact;
+12removed-policy rejections retained beside historical outcomes.65closed owning
+tests/1603assertions and scoped lint pass. Class suite was SIGKILL locally; no
+memory-heavy type/build retry or waiver. Canonical exact-head CI must qualify all
+owners, actual Node/browser products and compressed payload. No byte/runtime win
+claimed yet; defaults/versions/caps unchanged. Native100155.74ms, Chain300400k
+unknown and payload losses remain. Next: actual CI bundle/consumer comparison.

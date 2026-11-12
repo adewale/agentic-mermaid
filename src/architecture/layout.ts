@@ -6,8 +6,8 @@ import { LayoutCertificationError } from '../layout/certification-error.ts'
 import type { Point, RenderOptions } from '../types.ts'
 import { ARCHITECTURE_DEFAULT_LAYER_SPACING, ARCHITECTURE_DEFAULT_NODE_SPACING, DEFAULT_ARCHITECTURE_VISUAL, architectureLayoutMetrics } from './config.ts'
 import type { ArchitectureLayoutMetrics } from './config.ts'
-import { layoutElkGraphPlacementSync, layoutNativeGraphPlacementSync, layoutTrinityGraphPlacementSync } from '../layout-engine.ts'
-import { runMeasuredGraphBackend, GraphLayoutUnsupportedError } from '../layout/backend.ts'
+import { layoutElkGraphPlacementSync, layoutNativeGraphPlacementSync } from '../layout-engine.ts'
+import { runMeasuredGraphBackend } from '../layout/backend.ts'
 import { architectureToMermaidGraph } from './parser.ts'
 import { preparePixelText } from '../shared/prepared-text.ts'
 import { compareCodePointStrings } from '../shared/deterministic-order.ts'
@@ -379,22 +379,6 @@ export function layoutArchitectureDiagram(
     () => finish(layoutElkGraphPlacementSync(graph, { ...placementOptions, preserveSubgraphChildOrder: true }), false),
     true,
     undefined,
-    () => {
-      if (paintBackendId !== undefined && paintBackendId !== 'backend:default') throw new GraphLayoutUnsupportedError('Architecture placement requires canonical paint', 'Trinity')
-      if (diagram.groups.length !== 1 || diagram.groups[0]!.parentId || diagram.junctions.length || diagram.services.some(service => service.parentId !== diagram.groups[0]!.id) || diagram.edges.some(edge => edge.label !== undefined || edge.source.boundary === 'group' || edge.target.boundary === 'group')) throw new GraphLayoutUnsupportedError('Architecture placement requires one container with unlabelled service-forest edges', 'Trinity')
-      // These minima come from the same retained text and icon positions used
-      // below. No generic graph routes or marker measurements are needed.
-      const sizes = new Map(diagram.services.map(service => {
-        const block = serviceText.get(service.id)!, icon = iconTextBlocks.get(service.id)
-        const size = typography.serviceIconSize ?? DEFAULT_ARCHITECTURE_VISUAL.serviceIconSize
-        const iconWidth = icon?.width ?? (service.icon ? size : 0)
-        const gap = icon ? icon.width ? 10 : 0 : service.icon ? Math.max(10, typography.servicePaddingX * .7) : 0
-        const fallback = architectureIconFallbackBlock(service.icon, size)
-        if (fallback && fallback.width > size) throw new GraphLayoutUnsupportedError('Architecture fallback icon exceeds its measured box', 'Trinity')
-        return [service.id, { width: Math.max(service.icon ? 120 : 60, block.width + iconWidth + gap + typography.servicePaddingX * 2), height: Math.max(service.icon ? 48 : 36, Math.max(block.height, icon?.height ?? (service.icon ? size : 0)) + typography.servicePaddingY * 2) }] as const
-      }))
-      return finish(layoutTrinityGraphPlacementSync(graph, { ...placementOptions, nodeSizes: sizes, styleFace: architecturePlacementFace(typography) }), false)
-    },
   )
 }
 

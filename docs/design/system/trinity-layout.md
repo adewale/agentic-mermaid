@@ -1,3 +1,5 @@
+> Historical prototype specification. Trinity is archived and is not an available runtime backend. Native is the sole candidate alongside the existing ELK backend.
+
 # Trinity: measured layout contract and replacement design
 
 **Feature development frozen, 9 November 2026.** The owner selected Native as

@@ -1,11 +1,10 @@
 import { requirementArrow, requirementArrowPortSpan, requirementContains, requirementContainsPortSpan, requirementMarkerTerminal } from './markers.ts'
 import { elkMeasuredAdapter } from '../layout/elk-measured-adapter.ts'
 import { nativeMeasuredAdapter } from '../layout/native-measured-adapter.ts'
-import { trinityMeasuredAdapter } from '../layout/trinity.ts'
 import { solveMeasuredLayout } from '../layout/measured-backend.ts'
 import type { MeasuredGraph, MeasuredRoutes } from '../layout/measured-graph.ts'
 import { fitMeasuredLayout } from '../layout/fit-measured-layout.ts'
-import { GraphLayoutUnsupportedError, runMeasuredGraphBackend } from '../layout/backend.ts'
+import { runMeasuredGraphBackend } from '../layout/backend.ts'
 import { measureRenderStage } from '../render-stages.ts'
 import { resolveRoleStyle } from '../scene/roles.ts'
 import type { InternalStyleFace } from '../scene/style-registry.ts'
@@ -132,11 +131,7 @@ export function layoutRequirementDiagram(model: RequirementBody, options: Render
       edges: measuredEdges,
       direction: model.direction, padding: pad, nodeSpacing, layerSpacing,
     } }, elkMeasuredAdapter({ rootId: 'requirement-layout', edgeNodeSpacing: elkTerminalLead, labelText: labels.map(label => label.text) }))
-  }, false, undefined, () => measureRenderStage('trinity', () => {
-    if (style.lineWidth <= 0) throw new GraphLayoutUnsupportedError('Requirement zero-width shafts are outside the Trinity slice', 'Trinity')
-    if (!physical) throw new GraphLayoutUnsupportedError('Requirement contacts need finite positive absolute pixel strokes', 'Trinity')
-    return solveMeasuredLayout({ role: 'routed', graph: physical }, trinityMeasuredAdapter({ pairs: 1_000_000, arcs: 65536, swaps: 1_000_000 }))
-  }))
+  }, false, undefined)
   const band = diagramTitleBand(model.title, style),
     titleHeight = band?.height ?? 0
   const width = Math.max(result.width ?? 0, (band?.width ?? 0) + pad * 2, pad * 2),

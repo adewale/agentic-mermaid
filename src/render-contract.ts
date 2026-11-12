@@ -330,7 +330,7 @@ function receiptDiagnostics(
     ...diagnostics,
     ...graphLayoutDecisionsOf(request).flatMap(decision => decision.requested !== 'elk' && decision.selected === 'elk' ? [{
       code: 'GRAPH_LAYOUT_FALLBACK', feature: 'graph-layout',
-      message: `${decision.requested === 'agentic' ? 'Agentic' : 'Trinity'} graph layout used the requested ELK fallback: ${decision.reason ?? 'candidate rejected'}`,
+      message: `Agentic graph layout used the requested ELK fallback: ${decision.reason ?? 'candidate rejected'}`,
     }] : []),
   ].flatMap(diagnostic => {
     const key = canonicalJson(diagnostic)

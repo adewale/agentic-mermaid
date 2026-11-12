@@ -45,7 +45,7 @@ describe('Requirement layout backends', () => {
     }
   })
 
-  test.each((['agentic', 'elk', 'trinity'] as const).flatMap(backend => (['scene', 'native'] as const).map(admission => ({ backend, admission }))))('retains parallel requirement occurrences and authored names with $backend through $admission', async ({ backend, admission }) => {
+  test.each((['agentic', 'elk'] as const).flatMap(backend => (['scene', 'native'] as const).map(admission => ({ backend, admission }))))('retains parallel requirement occurrences and authored names with $backend through $admission', async ({ backend, admission }) => {
     // Authored relation-1 is a card name, independently of generated edge IDs;
     // the two satisfies declarations must retain separate caption owners.
     const interaction = {
@@ -385,7 +385,7 @@ root - contains -> side`
     } finally { dom.window.close() }
   })
 
-  test.each((['TB', 'BT', 'LR', 'RL'] as const).flatMap(direction => (['agentic', 'elk', 'trinity'] as const).map(backend => ({ direction, backend }))))('retains measured cards, relationship labels and distinct routes in $direction with $backend', ({ direction, backend }) => {
+  test.each((['TB', 'BT', 'LR', 'RL'] as const).flatMap(direction => (['agentic', 'elk'] as const).map(backend => ({ direction, backend }))))('retains measured cards, relationship labels and distinct routes in $direction with $backend', ({ direction, backend }) => {
     const options = { graphLayout: { backend, fallback: 'none' as const } }
     const model = parseRequirementDiagram(source(direction)), original = structuredClone(model)
     const placed = layoutRequirementDiagram(model, options)
@@ -394,11 +394,6 @@ root - contains -> side`
     expect(placed.nodes).toHaveLength(3)
     const expectedRelations: string[][] = [['suite', 'fast', 'verifies'], ['suite', 'fast', 'traces'], ['fast', 'report', 'derives'], ['report', 'fast', 'satisfies'], ['fast', 'fast', 'refines']]
     expect(placed.edges.map(edge => [edge.src, edge.dst, edge.type])).toEqual(expectedRelations)
-    if (backend === 'trinity') {
-      // The traces caption lane fits both faces in every direction; the wider
-      // TB/BT faces also admit derives without an elbow to reach its caption.
-      for (const kind of direction === 'TB' || direction === 'BT' ? ['traces', 'derives'] : ['traces']) expect(placed.edges.find(edge => edge.type === kind)!.points).toHaveLength(2)
-    }
     const rects = placed.edges.map(edge => ({ x: edge.labelPosition.x - edge.label.width / 2 - 6, y: edge.labelPosition.y - edge.label.height / 2 - 4, w: edge.label.width + 12, h: edge.label.height + 8 }))
     for (const [index, edge] of placed.edges.entries()) {
       expect(edge.points.length).toBeGreaterThanOrEqual(2)
@@ -559,7 +554,7 @@ root - contains -> side`
     }
   })
 
-  test.each(['agentic', 'trinity'] as const)('uses $backend across source, parsed, layout and PNG while preserving explicit ELK', backend => {
+  test.each(['agentic'] as const)('uses $backend across source, parsed, layout and PNG while preserving explicit ELK', backend => {
     const input = source('TB'), stages: string[] = [], parsed = parseRegisteredMermaid(input)
     const options = { graphLayout: { backend }, padding: 33 }
     if (!parsed.ok) throw new Error('fixture must parse')
@@ -580,28 +575,8 @@ root - contains -> side`
     JSON.stringify(png.receipt)
   })
 
-  test.each(['agentic', 'trinity'] as const)('retains empty $backend canvases without starting ELK', backend => {
+  test.each(['agentic'] as const)('retains empty $backend canvases without starting ELK', backend => {
     const result = renderMermaidSVGWithReceipt('requirementDiagram', { graphLayout: { backend } })
     expect(result.receipt.layoutDecisions).toEqual([expect.objectContaining({ selected: backend })])
-  })
-
-  test('Trinity preserves the explicit fallback policy for a Requirement graph outside its routed slice', () => {
-    const input = 'requirementDiagram\n' + Array.from({ length: 65 }, (_, i) => `requirement R${i} {\n id: ${i}\n}`).join('\n')
-    expect(() => renderMermaidSVGWithReceipt(input, { graphLayout: { backend: 'trinity' } })).toThrow('64 nodes')
-    const fallback = renderMermaidSVGWithReceipt(input, { graphLayout: { backend: 'trinity', fallback: 'elk' } })
-    const elk = renderMermaidSVGWithReceipt(input, { graphLayout: { backend: 'elk' } })
-    expect(fallback.svg).toBe(elk.svg)
-    expect(fallback.receipt.layoutDecisions).toEqual([expect.objectContaining({ requested: 'trinity', selected: 'elk', implementation: 'elk-layered@1', attempts: [
-      { backend: 'trinity', outcome: 'unsupported', reason: expect.stringContaining('64 nodes') }, { backend: 'elk', outcome: 'selected' },
-    ] })])
-    expect(fallback.receipt.diagnostics).toContainEqual(expect.objectContaining({ code: 'GRAPH_LAYOUT_FALLBACK', message: expect.stringContaining('Trinity') }))
-  })
-
-  test.each(['classDiagram\n A-->B', 'erDiagram\n A ||--o{ B : owns'])('migrated families preserve explicit Trinity selection when fallback is allowed: %s', input => {
-    const direct = renderMermaidSVGWithReceipt(input, { graphLayout: { backend: 'trinity' } })
-    const result = renderMermaidSVGWithReceipt(input, { graphLayout: { backend: 'trinity', fallback: 'elk' } })
-    expect(result.svg).toBe(direct.svg)
-    expect(result.receipt.layoutDecisions?.[0]).toMatchObject({ requested: 'trinity', selected: 'trinity', attempts: [{ backend: 'trinity', outcome: 'selected' }] })
-    expect(result.receipt.diagnostics?.some(diagnostic => diagnostic.code === 'GRAPH_LAYOUT_FALLBACK')).toBe(false)
   })
 })

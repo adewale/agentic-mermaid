@@ -1,8 +1,9 @@
 # Native replacement: execution plan
 
 The owner's new instruction on 9 November selects Native as the sole replacement
-candidate. Trinity feature work is frozen; its existing public API remains for
-compatibility. Native production now uses the neutral request/result validator.
+candidate. The unmerged Trinity prototype is archived; its runtime/API choice is
+removed from this candidate. Historical specification, measurements and enrolled
+outcomes below remain evidence for their recorded revisions. Native production now uses the neutral request/result validator.
 Canonical wide rectangular/rounded faces enter early physical capacity planning;
 weighted thin faces and compatible confluent fans retain their existing packing. ELK remains available; no default, version or work-cap change is implied.
 
