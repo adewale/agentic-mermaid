@@ -16,6 +16,17 @@ is historical; its removed reports and receipts are not current requirements.
 
 ## Local CI parity
 
+For quick feedback, run the tests for the changed behavior and
+`bun run typecheck:core`; use `bun run typecheck:watch` while editing core code,
+tests, or scripts. Before completing a change, run `bun run typecheck` to check
+both core and repository surfaces. These commands check the same complete
+project graphs as CI. TypeScript keeps separate incremental caches for the two
+projects under `node_modules/.cache/typecheck/`, so unchanged files do not need
+to be checked again. Changed dependencies and compiler options invalidate the
+affected results automatically; deleting that directory forces a cold check.
+For a timing breakdown, add `-- --extendedDiagnostics` to either
+`typecheck:core` or `typecheck:repo`.
+
 Test-order and fresh-process sweeps are manual diagnostics for changes to shared
 fixtures or module state. Replay a focused failure with
 `AM_TEST_ORDER_SEED=<seed> bun run scripts/ci/find-test-order.ts shuffled <files>`
