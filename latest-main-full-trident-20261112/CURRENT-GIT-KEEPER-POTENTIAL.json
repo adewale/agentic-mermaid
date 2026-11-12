@@ -1,0 +1,11 @@
+{
+  "summary": {
+    "currentKeeperObjectsDir": "/dev/shm/pr449-four-final-20261111/recovery-ae-c4/recovery.git/objects",
+    "oldTargetsDir": "/tmp/pr449-main-integration-20261029-762/.git/objects",
+    "sameFilesystem": false,
+    "sameNameSizeSameFilesystemPotential": 0,
+    "matchingFiles": 0,
+    "scope": "READONLY metadata potential only, currentkeepersnevermutated; fullbyteverify requiredbeforeanydedup"
+  },
+  "matches": []
+}

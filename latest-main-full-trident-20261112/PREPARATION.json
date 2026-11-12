@@ -1,0 +1,20 @@
+{
+  "at": "2026-11-12T22:57:23.746255+00:00",
+  "metadataPreparation": "PASS; no rendering",
+  "portableSources": 62,
+  "portableRowsPlanned": 124,
+  "fidelitySources": 99,
+  "authoredSources": 91,
+  "labelsOnlySupplements": 8,
+  "fidelityRowsPlanned": 198,
+  "browserFamilies": 33,
+  "browserLanesPlanned": 66,
+  "styledScope": "Flowchart paper/hand-drawn, bothbackends;4lanes only",
+  "stockWorkersPlanned": 2976,
+  "fullReceiptWorkersPlanned": 432,
+  "staticTypeScriptParse": "PASS Bun.Transpiler; collectorsNOTexecuted",
+  "pythonParse": "PASS compile() reducer/summarizer",
+  "oracleRole": "ExistingTrident languageoracle manifest verifiedmermaid12.2.0/parser2.0.1/jsdom26.1.0; no originalbaseline/Tridentpeer renderer comparison or recoveredhistoricalbaseline claimed",
+  "sourceChanges": false,
+  "heavyBenchmarkWorkersStarted": 0
+}

@@ -1,0 +1,29 @@
+{
+  "protocol": "compiled-portable-harness-v1",
+  "builtAt": "2026-11-08T01:49:12.961Z",
+  "sourceRevision": "f080278e31e4202ca89d524e4ee9e4cf3cbff038",
+  "sourceDirty": false,
+  "files": [
+    {
+      "path": "run.mjs",
+      "sha256": "20d172d437e58ad8e5f2931c6e3e70a6cdd0108ebd23980fc15f90d5446e01c0"
+    },
+    {
+      "path": "worker.mjs",
+      "sha256": "f386fb45922c842331b8f41471c38edf9e2b8c7203d2ab16692411a0192e032a"
+    },
+    {
+      "path": "execution.mjs",
+      "sha256": "e8d60f4dea1f55ebe537ba3010ea38d059d53ca67fd54b4de9ecea2c2e828829"
+    },
+    {
+      "path": "mermaid-oracle-worker.mjs",
+      "sha256": "50764aa4e2b0259c98fbcb2ccf9737ef1f27fd3198b534477c2f5ea8bf25db23"
+    },
+    {
+      "path": "package.json",
+      "sha256": "c683e6d53e94e75ea73e62256cb68b4ecc34e47f60b2c298b31845d23907def0"
+    }
+  ],
+  "runtimeDependencies": "Node24, the explicitly supplied target artifact and the pinned Mermaid oracle install; no product source, Git or harness node_modules required."
+}

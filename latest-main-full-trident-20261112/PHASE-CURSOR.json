@@ -1,0 +1,24 @@
+{
+  "at": "2026-11-12T22:57:23.746255+00:00",
+  "status": "BLOCKED_PENDING_OWNER_APPROVAL",
+  "next": "Owneranswer for31verifiedhistoricaldata path-preserving relocation, thenapprovedatomicreplacement/headroomverification, thenpilot.ts",
+  "completed": [
+    "fetchMain913andancestorcheck; alreadyuptodate",
+    "canonical689packageverifiedrecovery",
+    "existingcollectorroot/armadaptation",
+    "62portable/99fidelityinputs and exploratorysamplingfrozen",
+    "31datacopieshashverified; originalsregular"
+  ],
+  "notStarted": [
+    "portable124rows",
+    "fidelity198rows",
+    "browser66lanes",
+    "styled4lanes",
+    "stock2976workers",
+    "receipt432workers",
+    "postreduction"
+  ],
+  "pathReplacements": 0,
+  "approval": "Pending; do not retry rejected relocation or heavyworkers",
+  "lease": "Releaseaftercheckpoint; parentwillresumewhenownerapproves"
+}

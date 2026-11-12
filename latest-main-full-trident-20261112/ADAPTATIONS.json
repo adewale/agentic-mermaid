@@ -1,0 +1,89 @@
+{
+  "scope": "Existing collectors; only pinned canonical root/current two arms, counts, single cold preparation, actual-selection field and removal of stale hand-written historical claims. No render/qualification algorithm change. Styled scope remains Flowchart paper/hand-drawn only.",
+  "files": [
+    {
+      "path": "prepare.ts",
+      "original": "/tmp/pr449-week-comparison-20261101/trident-main-20261110/prepare.ts",
+      "originalSha256": "77bbba66418ec6eeda74b0b1e390bed23acfd2251f9f2c0d07a3d49ce84054af",
+      "sha256": "6a2557cf118fa3e46d48377fb058eed6fa551f87b877b7e67d0a2722b4268e8f"
+    },
+    {
+      "path": "freeze-measurement.ts",
+      "original": "/tmp/pr449-week-comparison-20261101/trident-main-20261110/freeze-measurement.ts",
+      "originalSha256": "00291747b0a78fce18b175c837f7aba11c9a4e6ffc9eb065effc817188836452",
+      "sha256": "12c81f29cdfbb81c8bff7013dabb4f6336d079b3f767f6a88751583da95fd596"
+    },
+    {
+      "path": "pilot.ts",
+      "original": "/tmp/pr449-week-comparison-20261101/trident-main-20261110/pilot.ts",
+      "originalSha256": "995ec9d735d82fb8808ba39bdfc49fe6709caf81b2d1e0c8ef9db32b3c47c126",
+      "sha256": "4fbb9816c8f76d4bf9c6bae5c26daf9a1e4042099b5b91022a94e221cc1b428c"
+    },
+    {
+      "path": "fidelity.ts",
+      "original": "/tmp/pr449-week-comparison-20261101/trident-main-20261110/fidelity.ts",
+      "originalSha256": "67f1b1bcea5c962c85244d8f99a4cc509450d83e0f92509be4fe7f0e27550a19",
+      "sha256": "245f4d6c4b7b565342cf437e9b7154f89a01b40a304a123052d1376f49d26782"
+    },
+    {
+      "path": "browser-delivery.ts",
+      "original": "/tmp/pr449-week-comparison-20261101/trident-main-20261110/browser-delivery.ts",
+      "originalSha256": "32590a6d3d1935a9e0e6e9efba5ab657d7a74aa9f132daa55c9f91b3dce6aa8b",
+      "sha256": "ecd08af1d10297261814f30b5896cbfaf0299376f01dc5f677474bf498fff2b8"
+    },
+    {
+      "path": "performance.ts",
+      "original": "/tmp/pr449-week-comparison-20261101/trident-main-20261110/performance.ts",
+      "originalSha256": "e8961f26faebaf96f74b82df657f172f1e84234076e68261642feae6d149e291",
+      "sha256": "29b39a238a809db49b8a94c8b5e598f90965f66de2bcdfdce930736a25225980"
+    },
+    {
+      "path": "receipt-performance.ts",
+      "original": "/tmp/pr449-week-comparison-20261101/trident-main-20261110/receipt-performance.ts",
+      "originalSha256": "e210f352616599dfdb4478356f2488d1d4b13e37ec11811039f37886883c9a2f",
+      "sha256": "4d338431ecb6d98e0738c575dcb4c76dc624ab209a3d6294b9ab28e2c51f757a"
+    },
+    {
+      "path": "receipt-worker.mjs",
+      "original": "/tmp/pr449-week-comparison-20261101/trident-main-20261110/receipt-worker.mjs",
+      "originalSha256": "3eee8e6d34847686fac9d43cd609747422f9689d641a39d52450a5608f3e88dd",
+      "sha256": "3eee8e6d34847686fac9d43cd609747422f9689d641a39d52450a5608f3e88dd"
+    },
+    {
+      "path": "calibrate-results.ts",
+      "original": "/tmp/pr449-week-comparison-20261101/trident-main-20261110/calibrate-results.ts",
+      "originalSha256": "23fc3f0d229a990f9f7850656c92e1847ece227c0b39e8810f261d03315a1067",
+      "sha256": "dd7023d535cc63d4a40d36369a8edf41eea4f040cad54e07bafd11d40cb8fe3c"
+    },
+    {
+      "path": "FAMILY-REGISTRY.json",
+      "original": "/tmp/pr449-week-comparison-20261101/trident-main-20261110/FAMILY-REGISTRY.json",
+      "originalSha256": "00b05967351775e42325c25ba3235342cdc8bdc2ebd28c70a53aaca1552a749b",
+      "sha256": "00b05967351775e42325c25ba3235342cdc8bdc2ebd28c70a53aaca1552a749b"
+    },
+    {
+      "path": "fidelity/svg-metrics.ts",
+      "original": "/tmp/pr449-week-comparison-20261101/trident-main-20261110/fidelity/svg-metrics.ts",
+      "originalSha256": "37f20371ae8fc9a8aa221b8029ce1f2f0b69d325785a3d79dd8459051f7f131b",
+      "sha256": "37f20371ae8fc9a8aa221b8029ce1f2f0b69d325785a3d79dd8459051f7f131b"
+    },
+    {
+      "path": "reduce.py",
+      "original": "/tmp/pr449-week-comparison-20261101/trident-main-20261110/reduce.py",
+      "originalSha256": "2ce1978a2de9439c8632173f89efceeded6ba00ab4ee8630e18dcd6cee67b8c4",
+      "sha256": "92e3d2c5eaf09361a2e3745c36c3cab5e7b31a77bd4b70d784c4d67f88e2f699"
+    },
+    {
+      "path": "fidelity/summarize.py",
+      "original": "/tmp/pr449-week-comparison-20261101/trident-main-20261110/fidelity/summarize.py",
+      "originalSha256": "9537eb1bf328dda0b23d3aae1f47b4bbdcfd565b5fd5690dad984c0dfe08ce6c",
+      "sha256": "0b83167e128f30ac10fd72ffc1eb6b551658d8dcc756cbebcdf76b69d53f12a7"
+    },
+    {
+      "path": "browser-styled.ts",
+      "original": "/dev/shm/pr449-four-final-20261111/style-provider-final-styled/browser-delivery.ts",
+      "originalSha256": "ad8918d08e5b4fe3ba3f1226efd4188efc41b156338082ceda3226cff66ad9f2",
+      "sha256": "2cd134307eb711980325dd3e3f281604cccd70dcd33168a9080536133ede65bc"
+    }
+  ]
+}

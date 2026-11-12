@@ -1,0 +1,448 @@
+{
+  "summary": {
+    "scope": "READONLY closedhistoricalDATAonly; noJS/CJS/WASM/fonts/source/gitobjects/currentcandidate/currentcontrol/currenttask; uniqueinodes; sourceGitrootspruned",
+    "eligibleFiles": 91272,
+    "eligibleLogicalBytes": 1785084733,
+    "eligibleAllocatedBytes": 2058309632,
+    "proposedFiles": 31,
+    "proposedLogicalBytes": 790004435,
+    "proposedAllocatedReclaimBytes": 790061056,
+    "topProposedRoots": [
+      [
+        "/tmp/trident-week/shared-four-fixes-20261111",
+        57413632
+      ],
+      [
+        "/tmp/trident-week/trinity-label-halo-prototype-checkpoint-20261109",
+        50216960
+      ],
+      [
+        "checkpoint-role-authority-20261112",
+        48910336
+      ],
+      [
+        "/tmp/trident-week/contact-producer-6aa",
+        46088192
+      ],
+      [
+        "/tmp/trident-week/ranked-losses-ce15",
+        44990464
+      ],
+      [
+        "/tmp/trident-week/trinity-image-delivery-cost-checkpoint-20261109",
+        41623552
+      ],
+      [
+        "checkpoint-rejected-trials-20261112",
+        37257216
+      ],
+      [
+        "recovery-package-and-writer-wip",
+        35901440
+      ],
+      [
+        "/tmp/trident-week/outcome-plan-a195-20261107.tar.gz",
+        35254272
+      ],
+      [
+        "/tmp/trident-week/rebase-c366-reconsider-20261107.tar.gz",
+        33075200
+      ],
+      [
+        "/tmp/trident-week/trinity-architecture-checkpoint-20261108",
+        24772608
+      ],
+      [
+        "checkpoint-minimal-and-withdrawn",
+        24633344
+      ],
+      [
+        "/tmp/trident-week/joint-caption-dd365",
+        23048192
+      ],
+      [
+        "/tmp/trident-week/contact-origin-3234",
+        23048192
+      ]
+    ],
+    "extensions": {
+      ".gz": 545349632,
+      ".zip": 184311808,
+      ".map": 60399616
+    }
+  },
+  "selected": [
+    {
+      "path": "/tmp/pr449-week-comparison-20261101/trinity-label-halo-prototype-checkpoint-20261109/evidence.tar.gz",
+      "bytes": 50215862,
+      "allocated": 50216960,
+      "mode": 33152,
+      "uid": 1000,
+      "gid": 1000,
+      "mtimeNs": 1794208991766479275,
+      "atimeNs": 1794208991769023536,
+      "device": 34,
+      "inode": 213219
+    },
+    {
+      "path": "/tmp/pr449-week-comparison-20261101/ranked-losses-ce15/ranked-losses-13143a343.tar.gz",
+      "bytes": 44986653,
+      "allocated": 44990464,
+      "mode": 33152,
+      "uid": 1000,
+      "gid": 1000,
+      "mtimeNs": 1794070154915165381,
+      "atimeNs": 1794070154916696300,
+      "device": 34,
+      "inode": 83275
+    },
+    {
+      "path": "/tmp/pr449-week-comparison-20261101/trinity-image-delivery-cost-checkpoint-20261109/evidence.tar.gz",
+      "bytes": 41622168,
+      "allocated": 41623552,
+      "mode": 33152,
+      "uid": 1000,
+      "gid": 1000,
+      "mtimeNs": 1794236963167050900,
+      "atimeNs": 1794236963169227350,
+      "device": 34,
+      "inode": 261940
+    },
+    {
+      "path": "/tmp/pr449-week-comparison-20261101/shared-four-fixes-20261111/checkpoint-xml-and-stopped-probes/evidence.tar.gz",
+      "bytes": 38479605,
+      "allocated": 38481920,
+      "mode": 33152,
+      "uid": 1000,
+      "gid": 1000,
+      "mtimeNs": 1794370323410756121,
+      "atimeNs": 1794370323498751977,
+      "device": 34,
+      "inode": 473517
+    },
+    {
+      "path": "/dev/shm/pr449-four-final-20261111/checkpoint-rejected-trials-20261112/source-and-builds.tar.gz",
+      "bytes": 37254890,
+      "allocated": 37257216,
+      "mode": 33152,
+      "uid": 1000,
+      "gid": 1000,
+      "mtimeNs": 1794496942082677647,
+      "atimeNs": 1794496942087007762,
+      "device": 26,
+      "inode": 341117
+    },
+    {
+      "path": "/dev/shm/pr449-four-final-20261111/recovery-package-and-writer-wip/package-qualification.tar.gz",
+      "bytes": 35898681,
+      "allocated": 35901440,
+      "mode": 33152,
+      "uid": 1000,
+      "gid": 1000,
+      "mtimeNs": 1794424252635404416,
+      "atimeNs": 1794424252731400293,
+      "device": 26,
+      "inode": 150085
+    },
+    {
+      "path": "/tmp/pr449-week-comparison-20261101/outcome-plan-a195-20261107.tar.gz",
+      "bytes": 35251799,
+      "allocated": 35254272,
+      "mode": 33152,
+      "uid": 1000,
+      "gid": 1000,
+      "mtimeNs": 1794089207336560664,
+      "atimeNs": 1794089207344008202,
+      "device": 34,
+      "inode": 129241
+    },
+    {
+      "path": "/tmp/pr449-week-comparison-20261101/rebase-c366-reconsider-20261107.tar.gz",
+      "bytes": 33074369,
+      "allocated": 33075200,
+      "mode": 33152,
+      "uid": 1000,
+      "gid": 1000,
+      "mtimeNs": 1794086169911046719,
+      "atimeNs": 1794086169913750531,
+      "device": 34,
+      "inode": 126600
+    },
+    {
+      "path": "/dev/shm/pr449-four-final-20261111/checkpoint-role-authority-20261112/withdrawn-performance.tar.gz",
+      "bytes": 26932430,
+      "allocated": 26935296,
+      "mode": 33152,
+      "uid": 1000,
+      "gid": 1000,
+      "mtimeNs": 1794481578824569588,
+      "atimeNs": 1794481578830717388,
+      "device": 26,
+      "inode": 324835
+    },
+    {
+      "path": "/tmp/pr449-week-comparison-20261101/trinity-architecture-checkpoint-20261108/evidence.tar.gz",
+      "bytes": 24771994,
+      "allocated": 24772608,
+      "mode": 33152,
+      "uid": 1000,
+      "gid": 1000,
+      "mtimeNs": 1794181359696544320,
+      "atimeNs": 1794181359701660732,
+      "device": 34,
+      "inode": 176576
+    },
+    {
+      "path": "/dev/shm/pr449-four-final-20261111/checkpoint-minimal-and-withdrawn/qualification-and-rejected-trials.tar.gz",
+      "bytes": 24633009,
+      "allocated": 24633344,
+      "mode": 33152,
+      "uid": 1000,
+      "gid": 1000,
+      "mtimeNs": 1794462311137028657,
+      "atimeNs": 1794462311141522545,
+      "device": 26,
+      "inode": 280214
+    },
+    {
+      "path": "/tmp/pr449-week-comparison-20261101/joint-caption-dd365/generated-layouts-5ac52.zip",
+      "bytes": 23045208,
+      "allocated": 23048192,
+      "mode": 33152,
+      "uid": 1000,
+      "gid": 1000,
+      "mtimeNs": 1794032925474987665,
+      "atimeNs": 1794032925558984065,
+      "device": 34,
+      "inode": 43155
+    },
+    {
+      "path": "/tmp/pr449-week-comparison-20261101/contact-origin-3234/generated-layouts-6edd.zip",
+      "bytes": 23044381,
+      "allocated": 23048192,
+      "mode": 33152,
+      "uid": 1000,
+      "gid": 1000,
+      "mtimeNs": 1794044080235596744,
+      "atimeNs": 1794044095066961506,
+      "device": 34,
+      "inode": 49926
+    },
+    {
+      "path": "/tmp/pr449-week-comparison-20261101/qualify-780-20261107/generated-layouts-780.zip",
+      "bytes": 23043733,
+      "allocated": 23044096,
+      "mode": 33152,
+      "uid": 1000,
+      "gid": 1000,
+      "mtimeNs": 1794053102523986721,
+      "atimeNs": 1794053102859972238,
+      "device": 34,
+      "inode": 61228
+    },
+    {
+      "path": "/tmp/pr449-week-comparison-20261101/contact-producer-6aa/refined-ci/generated-layouts-3234.zip",
+      "bytes": 23042298,
+      "allocated": 23044096,
+      "mode": 33152,
+      "uid": 1000,
+      "gid": 1000,
+      "mtimeNs": 1794037684318430168,
+      "atimeNs": 1794037684750411588,
+      "device": 34,
+      "inode": 46542
+    },
+    {
+      "path": "/tmp/pr449-week-comparison-20261101/forest-placement-deafff/generated-layouts-deafff39d.zip",
+      "bytes": 23042295,
+      "allocated": 23044096,
+      "mode": 33152,
+      "uid": 1000,
+      "gid": 1000,
+      "mtimeNs": 1794028027667353966,
+      "atimeNs": 1794028037954913314,
+      "device": 34,
+      "inode": 38671
+    },
+    {
+      "path": "/tmp/pr449-week-comparison-20261101/contact-producer-6aa/generated-layouts-47aed.zip",
+      "bytes": 23041597,
+      "allocated": 23044096,
+      "mode": 33152,
+      "uid": 1000,
+      "gid": 1000,
+      "mtimeNs": 1794036338158408589,
+      "atimeNs": 1794036338218406097,
+      "device": 34,
+      "inode": 45614
+    },
+    {
+      "path": "/tmp/pr449-week-comparison-20261101/marker-capacity-6edd/generated-layouts-4db9.zip",
+      "bytes": 23020777,
+      "allocated": 23023616,
+      "mode": 33152,
+      "uid": 1000,
+      "gid": 1000,
+      "mtimeNs": 1794047931470092232,
+      "atimeNs": 1794047948793344727,
+      "device": 34,
+      "inode": 52173
+    },
+    {
+      "path": "/tmp/pr449-week-comparison-20261101/compare-rebase-433b/generated-layouts-433b.zip",
+      "bytes": 23014958,
+      "allocated": 23015424,
+      "mode": 33152,
+      "uid": 1000,
+      "gid": 1000,
+      "mtimeNs": 1794062991500701019,
+      "atimeNs": 1794062991512700371,
+      "device": 34,
+      "inode": 67486
+    },
+    {
+      "path": "/dev/shm/pr449-four-final-20261111/checkpoint-role-authority-20261112/final-fix-evidence.tar.gz",
+      "bytes": 21973531,
+      "allocated": 21975040,
+      "mode": 33152,
+      "uid": 1000,
+      "gid": 1000,
+      "mtimeNs": 1794481570616921400,
+      "atimeNs": 1794481570620921229,
+      "device": 26,
+      "inode": 324834
+    },
+    {
+      "path": "/dev/shm/pr449-four-final-20261111/checkpoint-qualified-main913/qualification-and-wip.tar.gz",
+      "bytes": 20973931,
+      "allocated": 20975616,
+      "mode": 33152,
+      "uid": 1000,
+      "gid": 1000,
+      "mtimeNs": 1794455152708690218,
+      "atimeNs": 1794455152776338558,
+      "device": 26,
+      "inode": 238523
+    },
+    {
+      "path": "/tmp/pr449-week-comparison-20261101/er256-d8c8ac879-20261107.tar.gz",
+      "bytes": 20393429,
+      "allocated": 20393984,
+      "mode": 33152,
+      "uid": 1000,
+      "gid": 1000,
+      "mtimeNs": 1794073898702323666,
+      "atimeNs": 1794073898705879655,
+      "device": 34,
+      "inode": 87193
+    },
+    {
+      "path": "/tmp/pr449-week-comparison-20261101/trinity-common-requirement-checkpoint-20261109/evidence.tar.gz",
+      "bytes": 18972133,
+      "allocated": 18972672,
+      "mode": 33152,
+      "uid": 1000,
+      "gid": 1000,
+      "mtimeNs": 1794211203730350779,
+      "atimeNs": 1794211203734978414,
+      "device": 34,
+      "inode": 220092
+    },
+    {
+      "path": "/tmp/pr449-week-comparison-20261101/shared-four-fixes-20261111/primary-dist-before-combined.tar.gz",
+      "bytes": 18927931,
+      "allocated": 18931712,
+      "mode": 33152,
+      "uid": 1000,
+      "gid": 1000,
+      "mtimeNs": 1794365263663381993,
+      "atimeNs": 1794365259567557605,
+      "device": 34,
+      "inode": 460224
+    },
+    {
+      "path": "/tmp/pr449-week-comparison-20261101/trident-elk-research-20261107/sources/dfadler--zombie-mermaid-8cc982128bed.tar.gz",
+      "bytes": 18853762,
+      "allocated": 18853888,
+      "mode": 33152,
+      "uid": 1000,
+      "gid": 1000,
+      "mtimeNs": 1794081054362800360,
+      "atimeNs": 1794081054374799830,
+      "device": 34,
+      "inode": 96702
+    },
+    {
+      "path": "/tmp/pr449-week-comparison-20261101/trinity-stages1-3-20261108/evidence.tar.gz",
+      "bytes": 17016199,
+      "allocated": 17018880,
+      "mode": 33152,
+      "uid": 1000,
+      "gid": 1000,
+      "mtimeNs": 1794161306722186847,
+      "atimeNs": 1794161306746185820,
+      "device": 34,
+      "inode": 154311
+    },
+    {
+      "path": "/dev/shm/pr449-four-final-20261111/actual-write-v2-original-dist/chunk-LEE5OE4C.js.map",
+      "bytes": 15122236,
+      "allocated": 15122432,
+      "mode": 33152,
+      "uid": 1000,
+      "gid": 1000,
+      "mtimeNs": 1794502009703643505,
+      "atimeNs": 1794502069033096778,
+      "device": 26,
+      "inode": 349230
+    },
+    {
+      "path": "/dev/shm/pr449-four-final-20261111/actual-write-v3-original-dist/chunk-2YIDMBIO.js.map",
+      "bytes": 15120496,
+      "allocated": 15122432,
+      "mode": 33152,
+      "uid": 1000,
+      "gid": 1000,
+      "mtimeNs": 1794502786498120754,
+      "atimeNs": 1794503262169665048,
+      "device": 26,
+      "inode": 349508
+    },
+    {
+      "path": "/tmp/pr449-week-comparison-20261101/trinity-invisible-span-checkpoint-20261109/evidence.tar.gz",
+      "bytes": 15084030,
+      "allocated": 15085568,
+      "mode": 33152,
+      "uid": 1000,
+      "gid": 1000,
+      "mtimeNs": 1794200967802003799,
+      "atimeNs": 1794200967807912200,
+      "device": 34,
+      "inode": 204950
+    },
+    {
+      "path": "/dev/shm/pr449-four-final-20261111/finish-producer-constructor-ceiling/artifact/dist/chunk-JUZAHNVO.js.map",
+      "bytes": 15075794,
+      "allocated": 15077376,
+      "mode": 33152,
+      "uid": 1000,
+      "gid": 1000,
+      "mtimeNs": 1794506837559912488,
+      "atimeNs": 1794506837551912830,
+      "device": 26,
+      "inode": 354441
+    },
+    {
+      "path": "/dev/shm/pr449-four-final-20261111/finish-native-inspect-finish-ceiling/artifact/dist/chunk-BHCYDNQQ.js.map",
+      "bytes": 15074256,
+      "allocated": 15077376,
+      "mode": 33152,
+      "uid": 1000,
+      "gid": 1000,
+      "mtimeNs": 1794505910935913777,
+      "atimeNs": 1794505910903915153,
+      "device": 26,
+      "inode": 350576
+    }
+  ]
+}

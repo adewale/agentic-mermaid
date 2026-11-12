@@ -1,0 +1,14 @@
+{
+  "summary": {
+    "scope": "READONLY immutableGitobjects only; modehasnoWritebits; knownhistoricalpr449stores; currentcoordinator excluded; samefilesystem grouping; no mutations",
+    "stores": [
+      "/tmp/pr449-main-integration-20261029-762/.git",
+      "/tmp/pr449-week-comparison-20261101/trident-elk-research-20261107/trident/.git"
+    ],
+    "files": 4240,
+    "logicalBytes": 1544127321,
+    "groups": 0,
+    "conservativeReclaimBytes": 0
+  },
+  "groups": []
+}

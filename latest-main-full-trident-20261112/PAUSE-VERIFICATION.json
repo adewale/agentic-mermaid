@@ -1,0 +1,227 @@
+{
+  "at": "2026-11-12T22:57:23.746255+00:00",
+  "files": 31,
+  "regularOriginals": 31,
+  "spoolCopiesRetained": 31,
+  "pathReplacements": 0,
+  "hashVerification": "SPILL-HOST-READONLY-VERIFICATION.json exactbothsides; no redundant fullhash reread",
+  "rows": [
+    {
+      "original": "/tmp/pr449-week-comparison-20261101/trinity-label-halo-prototype-checkpoint-20261109/evidence.tar.gz",
+      "stillRegular": true,
+      "copyExists": true,
+      "sourceBytes": 50215862,
+      "copyBytes": 50215862
+    },
+    {
+      "original": "/tmp/pr449-week-comparison-20261101/ranked-losses-ce15/ranked-losses-13143a343.tar.gz",
+      "stillRegular": true,
+      "copyExists": true,
+      "sourceBytes": 44986653,
+      "copyBytes": 44986653
+    },
+    {
+      "original": "/tmp/pr449-week-comparison-20261101/trinity-image-delivery-cost-checkpoint-20261109/evidence.tar.gz",
+      "stillRegular": true,
+      "copyExists": true,
+      "sourceBytes": 41622168,
+      "copyBytes": 41622168
+    },
+    {
+      "original": "/tmp/pr449-week-comparison-20261101/shared-four-fixes-20261111/checkpoint-xml-and-stopped-probes/evidence.tar.gz",
+      "stillRegular": true,
+      "copyExists": true,
+      "sourceBytes": 38479605,
+      "copyBytes": 38479605
+    },
+    {
+      "original": "/dev/shm/pr449-four-final-20261111/checkpoint-rejected-trials-20261112/source-and-builds.tar.gz",
+      "stillRegular": true,
+      "copyExists": true,
+      "sourceBytes": 37254890,
+      "copyBytes": 37254890
+    },
+    {
+      "original": "/dev/shm/pr449-four-final-20261111/recovery-package-and-writer-wip/package-qualification.tar.gz",
+      "stillRegular": true,
+      "copyExists": true,
+      "sourceBytes": 35898681,
+      "copyBytes": 35898681
+    },
+    {
+      "original": "/tmp/pr449-week-comparison-20261101/outcome-plan-a195-20261107.tar.gz",
+      "stillRegular": true,
+      "copyExists": true,
+      "sourceBytes": 35251799,
+      "copyBytes": 35251799
+    },
+    {
+      "original": "/tmp/pr449-week-comparison-20261101/rebase-c366-reconsider-20261107.tar.gz",
+      "stillRegular": true,
+      "copyExists": true,
+      "sourceBytes": 33074369,
+      "copyBytes": 33074369
+    },
+    {
+      "original": "/dev/shm/pr449-four-final-20261111/checkpoint-role-authority-20261112/withdrawn-performance.tar.gz",
+      "stillRegular": true,
+      "copyExists": true,
+      "sourceBytes": 26932430,
+      "copyBytes": 26932430
+    },
+    {
+      "original": "/tmp/pr449-week-comparison-20261101/trinity-architecture-checkpoint-20261108/evidence.tar.gz",
+      "stillRegular": true,
+      "copyExists": true,
+      "sourceBytes": 24771994,
+      "copyBytes": 24771994
+    },
+    {
+      "original": "/dev/shm/pr449-four-final-20261111/checkpoint-minimal-and-withdrawn/qualification-and-rejected-trials.tar.gz",
+      "stillRegular": true,
+      "copyExists": true,
+      "sourceBytes": 24633009,
+      "copyBytes": 24633009
+    },
+    {
+      "original": "/tmp/pr449-week-comparison-20261101/joint-caption-dd365/generated-layouts-5ac52.zip",
+      "stillRegular": true,
+      "copyExists": true,
+      "sourceBytes": 23045208,
+      "copyBytes": 23045208
+    },
+    {
+      "original": "/tmp/pr449-week-comparison-20261101/contact-origin-3234/generated-layouts-6edd.zip",
+      "stillRegular": true,
+      "copyExists": true,
+      "sourceBytes": 23044381,
+      "copyBytes": 23044381
+    },
+    {
+      "original": "/tmp/pr449-week-comparison-20261101/qualify-780-20261107/generated-layouts-780.zip",
+      "stillRegular": true,
+      "copyExists": true,
+      "sourceBytes": 23043733,
+      "copyBytes": 23043733
+    },
+    {
+      "original": "/tmp/pr449-week-comparison-20261101/contact-producer-6aa/refined-ci/generated-layouts-3234.zip",
+      "stillRegular": true,
+      "copyExists": true,
+      "sourceBytes": 23042298,
+      "copyBytes": 23042298
+    },
+    {
+      "original": "/tmp/pr449-week-comparison-20261101/forest-placement-deafff/generated-layouts-deafff39d.zip",
+      "stillRegular": true,
+      "copyExists": true,
+      "sourceBytes": 23042295,
+      "copyBytes": 23042295
+    },
+    {
+      "original": "/tmp/pr449-week-comparison-20261101/contact-producer-6aa/generated-layouts-47aed.zip",
+      "stillRegular": true,
+      "copyExists": true,
+      "sourceBytes": 23041597,
+      "copyBytes": 23041597
+    },
+    {
+      "original": "/tmp/pr449-week-comparison-20261101/marker-capacity-6edd/generated-layouts-4db9.zip",
+      "stillRegular": true,
+      "copyExists": true,
+      "sourceBytes": 23020777,
+      "copyBytes": 23020777
+    },
+    {
+      "original": "/tmp/pr449-week-comparison-20261101/compare-rebase-433b/generated-layouts-433b.zip",
+      "stillRegular": true,
+      "copyExists": true,
+      "sourceBytes": 23014958,
+      "copyBytes": 23014958
+    },
+    {
+      "original": "/dev/shm/pr449-four-final-20261111/checkpoint-role-authority-20261112/final-fix-evidence.tar.gz",
+      "stillRegular": true,
+      "copyExists": true,
+      "sourceBytes": 21973531,
+      "copyBytes": 21973531
+    },
+    {
+      "original": "/dev/shm/pr449-four-final-20261111/checkpoint-qualified-main913/qualification-and-wip.tar.gz",
+      "stillRegular": true,
+      "copyExists": true,
+      "sourceBytes": 20973931,
+      "copyBytes": 20973931
+    },
+    {
+      "original": "/tmp/pr449-week-comparison-20261101/er256-d8c8ac879-20261107.tar.gz",
+      "stillRegular": true,
+      "copyExists": true,
+      "sourceBytes": 20393429,
+      "copyBytes": 20393429
+    },
+    {
+      "original": "/tmp/pr449-week-comparison-20261101/trinity-common-requirement-checkpoint-20261109/evidence.tar.gz",
+      "stillRegular": true,
+      "copyExists": true,
+      "sourceBytes": 18972133,
+      "copyBytes": 18972133
+    },
+    {
+      "original": "/tmp/pr449-week-comparison-20261101/shared-four-fixes-20261111/primary-dist-before-combined.tar.gz",
+      "stillRegular": true,
+      "copyExists": true,
+      "sourceBytes": 18927931,
+      "copyBytes": 18927931
+    },
+    {
+      "original": "/tmp/pr449-week-comparison-20261101/trident-elk-research-20261107/sources/dfadler--zombie-mermaid-8cc982128bed.tar.gz",
+      "stillRegular": true,
+      "copyExists": true,
+      "sourceBytes": 18853762,
+      "copyBytes": 18853762
+    },
+    {
+      "original": "/tmp/pr449-week-comparison-20261101/trinity-stages1-3-20261108/evidence.tar.gz",
+      "stillRegular": true,
+      "copyExists": true,
+      "sourceBytes": 17016199,
+      "copyBytes": 17016199
+    },
+    {
+      "original": "/dev/shm/pr449-four-final-20261111/actual-write-v2-original-dist/chunk-LEE5OE4C.js.map",
+      "stillRegular": true,
+      "copyExists": true,
+      "sourceBytes": 15122236,
+      "copyBytes": 15122236
+    },
+    {
+      "original": "/dev/shm/pr449-four-final-20261111/actual-write-v3-original-dist/chunk-2YIDMBIO.js.map",
+      "stillRegular": true,
+      "copyExists": true,
+      "sourceBytes": 15120496,
+      "copyBytes": 15120496
+    },
+    {
+      "original": "/tmp/pr449-week-comparison-20261101/trinity-invisible-span-checkpoint-20261109/evidence.tar.gz",
+      "stillRegular": true,
+      "copyExists": true,
+      "sourceBytes": 15084030,
+      "copyBytes": 15084030
+    },
+    {
+      "original": "/dev/shm/pr449-four-final-20261111/finish-producer-constructor-ceiling/artifact/dist/chunk-JUZAHNVO.js.map",
+      "stillRegular": true,
+      "copyExists": true,
+      "sourceBytes": 15075794,
+      "copyBytes": 15075794
+    },
+    {
+      "original": "/dev/shm/pr449-four-final-20261111/finish-native-inspect-finish-ceiling/artifact/dist/chunk-BHCYDNQQ.js.map",
+      "stillRegular": true,
+      "copyExists": true,
+      "sourceBytes": 15074256,
+      "copyBytes": 15074256
+    }
+  ]
+}

@@ -1,0 +1,9 @@
+{
+  "source": "68986ba8e3b76ad99dad44c6ec8d43475cc5e12f",
+  "evidence": "ec0c3f1eb8c9261de9994e77eb941346b2cbe32b",
+  "previousMain": "9136b07efb8944a1058de9834b18fe5916884174",
+  "mode": "normalmerge, no rebase/forcepush; full existingPR Native+ELK suite",
+  "fetchedMain": "9136b07efb8944a1058de9834b18fe5916884174",
+  "alreadyAncestor": true,
+  "fetchHeadLocation": "bareGit/FETCH_HEAD, notperworktreeFETCH_HEAD"
+}
