@@ -1,0 +1,259 @@
+{
+  "archive": "flat-exact-builds.tar.gz",
+  "bytes": 10576008,
+  "sha256": "9860f6befbcac9b8fb2e011bc0ff6393ce1171e86e9ae4e3f64dae71d69eec72",
+  "fileCount": 50,
+  "uncompressedBytes": 39501000,
+  "files": [
+    {
+      "path": "xml-flat-events-final-dist/agent-core.js",
+      "bytes": 159598,
+      "sha256": "7e86506f31f330d46b7f9b5532ce69b79b4adb5206b618332f5aa4f77b6421fb"
+    },
+    {
+      "path": "xml-flat-events-final-dist/agent-core.js.map",
+      "bytes": 627688,
+      "sha256": "df70e086eb428e74efb53bc117d578f73d18c48a91e62983d498f86a560fa65e"
+    },
+    {
+      "path": "xml-flat-events-final-dist/builtin-font-metrics.js",
+      "bytes": 348,
+      "sha256": "0b1e018e9f12f2e3357e3dccc380e4d4ce2f37f7b83cc29d7c4d00fa3f42645e"
+    },
+    {
+      "path": "xml-flat-events-final-dist/builtin-font-metrics.js.map",
+      "bytes": 1015,
+      "sha256": "25d92963b3454b9c00befcd361abd438a6e14c0310a9684e1d8bf6f027e62026"
+    },
+    {
+      "path": "xml-flat-events-final-dist/builtin-font-metrics.node.js",
+      "bytes": 377,
+      "sha256": "071386e4390705691d6962ad4c13fa7f9ff8ba797ebeb337b464433abe4b73ec"
+    },
+    {
+      "path": "xml-flat-events-final-dist/builtin-font-metrics.node.js.map",
+      "bytes": 1159,
+      "sha256": "e3c7d1ee74809ba7f5c9a4cf89b88f02cfc6b5646e355fd700895542bd263124"
+    },
+    {
+      "path": "xml-flat-events-final-dist/chunk-7UAA7GZV.js",
+      "bytes": 3752703,
+      "sha256": "7e8c23508232636ab8e66a05132d083246465ff9dd968eb0d65af397a950fd51"
+    },
+    {
+      "path": "xml-flat-events-final-dist/chunk-7UAA7GZV.js.map",
+      "bytes": 15054754,
+      "sha256": "68a8fdb7948d0108a61e2c450b0a5c4e65d95c45f86287077d4a8b009dc4b781"
+    },
+    {
+      "path": "xml-flat-events-final-dist/chunk-H77JNERV.js",
+      "bytes": 137,
+      "sha256": "7a293e9af3e91b795219aad8b6f48590970949afa84aeab0f9b017755095aabb"
+    },
+    {
+      "path": "xml-flat-events-final-dist/chunk-H77JNERV.js.map",
+      "bytes": 802,
+      "sha256": "74ef81c8a2e2ed3b1cbdf7884821f3fb4d910c42c1f085d402c61b024283e804"
+    },
+    {
+      "path": "xml-flat-events-final-dist/chunk-VUFVLGTH.js",
+      "bytes": 150,
+      "sha256": "1c4a54620dbc5af7f2de154c1854ab695b6180e948b4df5575171f1663c80951"
+    },
+    {
+      "path": "xml-flat-events-final-dist/chunk-VUFVLGTH.js.map",
+      "bytes": 71,
+      "sha256": "cba81f7ad4d5b1b629bf43823f1082e73a10d0c3114c937515e7f8c1047629b3"
+    },
+    {
+      "path": "xml-flat-events-final-dist/chunk-Z7QFUOYN.js",
+      "bytes": 22032,
+      "sha256": "a5a38a4a1a55960374a9347b291eb495a91bd2b5bb34c1182b89eda31232f967"
+    },
+    {
+      "path": "xml-flat-events-final-dist/chunk-Z7QFUOYN.js.map",
+      "bytes": 105586,
+      "sha256": "08b68c5c01eef39eafce141f8b82b5dcf4d32ca3491320828ca5e29307a4da6f"
+    },
+    {
+      "path": "xml-flat-events-final-dist/elk-constructor.js",
+      "bytes": 162,
+      "sha256": "7c56215756c8ffe4933aab1fb6beebf84f597a2f5825c3bedcd4e61b9a11cb5d"
+    },
+    {
+      "path": "xml-flat-events-final-dist/elk-constructor.js.map",
+      "bytes": 774,
+      "sha256": "9841b2b790093792b0625ab934b4fa61b383bb9009e5b391264cc8f0ad4c9f4e"
+    },
+    {
+      "path": "xml-flat-events-final-dist/elk-constructor.node.js",
+      "bytes": 535,
+      "sha256": "d10a7c739b2abce378d516f6d606767ce142667b5d322a86fc306f49c9b8448f"
+    },
+    {
+      "path": "xml-flat-events-final-dist/index.js",
+      "bytes": 7086,
+      "sha256": "e370bb4980499247acb7236bc98ae8a5e4b95d44fcd773d26b2db3a6716ebafe"
+    },
+    {
+      "path": "xml-flat-events-final-dist/index.js.map",
+      "bytes": 71,
+      "sha256": "cba81f7ad4d5b1b629bf43823f1082e73a10d0c3114c937515e7f8c1047629b3"
+    },
+    {
+      "path": "xml-flat-events-final-dist/layout-optimization.js",
+      "bytes": 181,
+      "sha256": "88d6a5a04290501eddc0393af819d64c7fe42e98cb932b5ecef7a2cbd9f4b6b4"
+    },
+    {
+      "path": "xml-flat-events-final-dist/layout-optimization.js.map",
+      "bytes": 559,
+      "sha256": "5704f0425e8b22de44b4e3df22a09ec3cc690ce048d9e27e70ed0e99c0b57f7f"
+    },
+    {
+      "path": "xml-flat-events-final-dist/layout-optimization.node.js",
+      "bytes": 224,
+      "sha256": "8887a42918d34d47ea699d37d8bd73b0d23893faecda76f623cb33ea06a9fc92"
+    },
+    {
+      "path": "xml-flat-events-final-dist/layout-optimization.node.js.map",
+      "bytes": 775,
+      "sha256": "f858f2fc851a68b78c1f2192ecba9ca1d7c5682eea4051a2d066a58226abf7ac"
+    },
+    {
+      "path": "xml-flat-events-final-dist/optional-kernels.node.js",
+      "bytes": 567,
+      "sha256": "83eaa139c2a6642fd3dc39b68ba0e3d0d527b28c871b8bccb53a89207eabf27f"
+    },
+    {
+      "path": "xml-flat-events-ts-private-dist/agent-core.js",
+      "bytes": 159598,
+      "sha256": "8551445edbf5938090f130748ca7ab18cb9fdcc6dbf1d48ec3396e4ab9c90c63"
+    },
+    {
+      "path": "xml-flat-events-ts-private-dist/agent-core.js.map",
+      "bytes": 627688,
+      "sha256": "df70e086eb428e74efb53bc117d578f73d18c48a91e62983d498f86a560fa65e"
+    },
+    {
+      "path": "xml-flat-events-ts-private-dist/builtin-font-metrics.js",
+      "bytes": 348,
+      "sha256": "0b1e018e9f12f2e3357e3dccc380e4d4ce2f37f7b83cc29d7c4d00fa3f42645e"
+    },
+    {
+      "path": "xml-flat-events-ts-private-dist/builtin-font-metrics.js.map",
+      "bytes": 1015,
+      "sha256": "25d92963b3454b9c00befcd361abd438a6e14c0310a9684e1d8bf6f027e62026"
+    },
+    {
+      "path": "xml-flat-events-ts-private-dist/builtin-font-metrics.node.js",
+      "bytes": 377,
+      "sha256": "071386e4390705691d6962ad4c13fa7f9ff8ba797ebeb337b464433abe4b73ec"
+    },
+    {
+      "path": "xml-flat-events-ts-private-dist/builtin-font-metrics.node.js.map",
+      "bytes": 1159,
+      "sha256": "e3c7d1ee74809ba7f5c9a4cf89b88f02cfc6b5646e355fd700895542bd263124"
+    },
+    {
+      "path": "xml-flat-events-ts-private-dist/chunk-2VP5K257.js",
+      "bytes": 3752721,
+      "sha256": "e094bf4e1b77f1d33b6324d60d9302c73edede7ba53f35ddc0e783a0cf94ba0e"
+    },
+    {
+      "path": "xml-flat-events-ts-private-dist/chunk-2VP5K257.js.map",
+      "bytes": 15054735,
+      "sha256": "ff97134d7be48852d3e9d1a5d9c27fa71754566a1d2a41b9f4bb226517b0f27d"
+    },
+    {
+      "path": "xml-flat-events-ts-private-dist/chunk-H77JNERV.js",
+      "bytes": 137,
+      "sha256": "7a293e9af3e91b795219aad8b6f48590970949afa84aeab0f9b017755095aabb"
+    },
+    {
+      "path": "xml-flat-events-ts-private-dist/chunk-H77JNERV.js.map",
+      "bytes": 802,
+      "sha256": "74ef81c8a2e2ed3b1cbdf7884821f3fb4d910c42c1f085d402c61b024283e804"
+    },
+    {
+      "path": "xml-flat-events-ts-private-dist/chunk-VUFVLGTH.js",
+      "bytes": 150,
+      "sha256": "1c4a54620dbc5af7f2de154c1854ab695b6180e948b4df5575171f1663c80951"
+    },
+    {
+      "path": "xml-flat-events-ts-private-dist/chunk-VUFVLGTH.js.map",
+      "bytes": 71,
+      "sha256": "cba81f7ad4d5b1b629bf43823f1082e73a10d0c3114c937515e7f8c1047629b3"
+    },
+    {
+      "path": "xml-flat-events-ts-private-dist/chunk-Z7QFUOYN.js",
+      "bytes": 22032,
+      "sha256": "a5a38a4a1a55960374a9347b291eb495a91bd2b5bb34c1182b89eda31232f967"
+    },
+    {
+      "path": "xml-flat-events-ts-private-dist/chunk-Z7QFUOYN.js.map",
+      "bytes": 105586,
+      "sha256": "08b68c5c01eef39eafce141f8b82b5dcf4d32ca3491320828ca5e29307a4da6f"
+    },
+    {
+      "path": "xml-flat-events-ts-private-dist/elk-constructor.js",
+      "bytes": 162,
+      "sha256": "7c56215756c8ffe4933aab1fb6beebf84f597a2f5825c3bedcd4e61b9a11cb5d"
+    },
+    {
+      "path": "xml-flat-events-ts-private-dist/elk-constructor.js.map",
+      "bytes": 774,
+      "sha256": "9841b2b790093792b0625ab934b4fa61b383bb9009e5b391264cc8f0ad4c9f4e"
+    },
+    {
+      "path": "xml-flat-events-ts-private-dist/elk-constructor.node.js",
+      "bytes": 535,
+      "sha256": "d10a7c739b2abce378d516f6d606767ce142667b5d322a86fc306f49c9b8448f"
+    },
+    {
+      "path": "xml-flat-events-ts-private-dist/index.js",
+      "bytes": 7086,
+      "sha256": "84ccd72cfa5ed201fb0db876f425400e8df4ecdf57ba69b20e0d4b6441a89495"
+    },
+    {
+      "path": "xml-flat-events-ts-private-dist/index.js.map",
+      "bytes": 71,
+      "sha256": "cba81f7ad4d5b1b629bf43823f1082e73a10d0c3114c937515e7f8c1047629b3"
+    },
+    {
+      "path": "xml-flat-events-ts-private-dist/inter-metrics-kernel.cjs",
+      "bytes": 19168,
+      "sha256": "458adacd352474d2a2bfbc37a1d653f6bf0937b16afcf71fad9aedcf247e0b14"
+    },
+    {
+      "path": "xml-flat-events-ts-private-dist/layout-optimization.cjs",
+      "bytes": 7125,
+      "sha256": "ca508d15d4503f4ca91a8a80421ed8129cd2e31fff2379366e35072eacf002ce"
+    },
+    {
+      "path": "xml-flat-events-ts-private-dist/layout-optimization.js",
+      "bytes": 181,
+      "sha256": "88d6a5a04290501eddc0393af819d64c7fe42e98cb932b5ecef7a2cbd9f4b6b4"
+    },
+    {
+      "path": "xml-flat-events-ts-private-dist/layout-optimization.js.map",
+      "bytes": 559,
+      "sha256": "5704f0425e8b22de44b4e3df22a09ec3cc690ce048d9e27e70ed0e99c0b57f7f"
+    },
+    {
+      "path": "xml-flat-events-ts-private-dist/layout-optimization.node.js",
+      "bytes": 224,
+      "sha256": "8887a42918d34d47ea699d37d8bd73b0d23893faecda76f623cb33ea06a9fc92"
+    },
+    {
+      "path": "xml-flat-events-ts-private-dist/layout-optimization.node.js.map",
+      "bytes": 775,
+      "sha256": "f858f2fc851a68b78c1f2192ecba9ca1d7c5682eea4051a2d066a58226abf7ac"
+    },
+    {
+      "path": "xml-flat-events-ts-private-dist/optional-kernels.node.js",
+      "bytes": 567,
+      "sha256": "83eaa139c2a6642fd3dc39b68ba0e3d0d527b28c871b8bccb53a89207eabf27f"
+    }
+  ]
+}
