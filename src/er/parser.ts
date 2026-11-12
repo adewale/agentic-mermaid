@@ -16,6 +16,9 @@ import { decodeErText, erTextLabel, erTextContent, type ErQuotedTextReport, read
 // names (e.g. `1`, `2.5`, `"Entity<br>Name"`). Keep this grammar in one
 // place so declarations, blocks, relationships, and the agent body agree.
 // A bare name ends where the lexer's word ends: `id1||--||id2` is two names.
+// Mermaid's ER lexer takes every non-ASCII code unit as a name character
+// (`éx`, `x٣`, `一¼`, `a😀`), so astral characters count through their
+// surrogate halves.
 const ER_BARE_ENTITY_ID_SOURCE = String.raw`(?:[^\x00-\x7F]|[A-Za-z0-9_])(?:[^\x00-\x7F]|[\w.-])*(?!(?:[^\x00-\x7F]|[\w.-]))`
 // A quoted name as the lexer hands it over. A `\"` stays inside the token, and
 // readErQuotedName reads it as `"` (Mermaid ER quoted text has no escapes).
@@ -37,7 +40,7 @@ const ER_GLYPH_SOURCE = String.raw`(?:\|\||\|o|o\||\}o|o\{|\}\||\|\{|\bu(?=[.\-|
 const ER_RELATIONSHIP_RE = new RegExp(
   `^(${ER_ENTITY_REFERENCE_SOURCE})(?:[ \\t]+(${ER_CARDINALITY_SOURCE})|(${ER_GLYPH_SOURCE}))` +
   `(?:([ \\t]*(?:--|\\.\\.|\\.-|-\\.)[ \\t]*)|([ \\t]+(?:optionally to|to)[ \\t]+))` +
-  `(?:(${ER_CARDINALITY_SOURCE})[ \\t]+|(${ER_GLYPH_SOURCE}))(${ER_ENTITY_REFERENCE_SOURCE})(?:[ \\t]*:[ \\t]*(.*))?$`,
+  `(?:(${ER_CARDINALITY_SOURCE})[ \\t]+|(${ER_GLYPH_SOURCE}))(${ER_ENTITY_REFERENCE_SOURCE})(?:[ \\t]*:[ \\t]*([^\\r\\n]*))?$`,
   'i',
 )
 
@@ -996,6 +999,13 @@ export function portableErAttributeText(text: string): string {
   return same ? portable : text
 }
 
+/** Whether the text the writer emits for an attribute is one Mermaid's
+ * attribute grammar reads: a typed edit writes no other (an attribute type
+ * or name starting with a digit has no Mermaid spelling). */
+export function writesPortableErAttribute(text: string): boolean {
+  return parseErAttribute(text) !== null && readMermaidErAttribute(portableErAttributeText(text)) !== null
+}
+
 /**
  * The generous attribute form Mermaid's grammar does not read (`--string id`,
  * `string id "c" PK`): a type and a name of any text without spaces, then keys
@@ -1097,7 +1107,9 @@ export function parseErRelationshipSyntax(line: string, report?: ErQuotedTextRep
     identifying: operator === '--' || operator === 'to',
     label: readErRelationLabel(match[9] ?? '', report),
     ...(erLabelUnread(match[9]?.trim() ?? '') ? { unreadLabel: true as const }
-      : /^[^"\s][^\s"]*(?:\s+\S|")/.test(match[9]?.trim() ?? '') ? { unquotedWords: true as const } : {}),
+      // Outside a block Mermaid parts words only at blanks and tabs; U+2028
+      // and U+2029 are word characters there.
+      : /^[^"\s][^ \t"]*(?:[ \t]+\S|")/.test(match[9]?.trim() ?? '') ? { unquotedWords: true as const } : {}),
   }
 }
 

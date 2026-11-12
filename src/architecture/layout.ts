@@ -29,6 +29,8 @@ import type {
 const EDGE_EXIT_GAP = 16
 const GROUP_EDGE_PAD = 18
 const JUNCTION_PLACEMENT_PADDING = 6
+/** The least interior an empty group keeps below its header. */
+const EMPTY_GROUP_BODY = { width: 80, height: 24 }
 /** The title is drawn at this size and weight in every style (renderer.ts),
  * so the canvas reserves it at the same metrics. */
 export const ARCHITECTURE_TITLE_FONT_SIZE = 18
@@ -92,9 +94,18 @@ export function layoutArchitectureDiagram(
     // blocks so literal icon text never acquires label formatting semantics.
     graph.nodes.get(id)!.labelBlock = { ...labelBlock, width: labelBlock.width + iconBlock.width + (iconBlock.width ? 10 : 0), height: Math.max(labelBlock.height, iconBlock.height) }
   }
+  // An empty group still owns a visible frame: give placement an unpainted
+  // body the width of its header, which no authored id (no colon) can name.
+  const emptyGroupBodies = new Map<string, { width: number; height: number }>()
   const prepareGroup = (group: typeof graph.subgraphs[number]): void => {
     group.label = groupText.get(group.id)!.text
     if (requestedHeaderMinimum !== undefined) group.headerMinHeight = requestedHeaderMinimum
+    if (group.nodeIds.length === 0 && group.children.length === 0) {
+      const id = `empty-group:${group.id}`
+      graph.nodes.set(id, { id, label: '', shape: 'rectangle' })
+      group.nodeIds.push(id)
+      emptyGroupBodies.set(id, { width: Math.max(EMPTY_GROUP_BODY.width, groupText.get(group.id)!.width + (group.titleOffset ?? 0)), height: EMPTY_GROUP_BODY.height })
+    }
     group.children.forEach(prepareGroup)
   }
   graph.subgraphs.forEach(prepareGroup)
@@ -102,10 +113,10 @@ export function layoutArchitectureDiagram(
   const placementOptions = {
     // Keep placement clearance separate from the drawn surface. Larger rings
     // reserve their own footprint instead of borrowing State's fixed size.
-    nodeSizes: new Map(diagram.junctions.map(junction => [junction.id, {
+    nodeSizes: new Map([...diagram.junctions.map(junction => [junction.id, {
       width: junctionDiameter + 2 * JUNCTION_PLACEMENT_PADDING,
       height: junctionDiameter + 2 * JUNCTION_PLACEMENT_PADDING,
-    }])),
+    }] as const), ...emptyGroupBodies]),
     padding: options.padding ?? 40,
     nodeSpacing: options.nodeSpacing ?? ARCHITECTURE_DEFAULT_NODE_SPACING,
     layerSpacing: options.layerSpacing ?? ARCHITECTURE_DEFAULT_LAYER_SPACING,

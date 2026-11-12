@@ -156,7 +156,8 @@ test.each([
 
 describe('native family errors retain authored metadata', () => {
   test.each([
-    ['mindmap', 'mindmap\n  Root\n    x[A]\n    x[B]', 7],
+    // A repeated mindmap identity reads as a separate node (divergences.md); a second root is an error.
+    ['mindmap', 'mindmap\n  Root\n  Other', 6],
     ['gitgraph', 'gitGraph\n  commit\n  checkout missing', 6],
   ] as const)('%s errors survive parse, SVG, terminal and transport boundaries', (diagramType, body, line) => {
     const source = `---\ntitle: Invalid\n---\n${body}`

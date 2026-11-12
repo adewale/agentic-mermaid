@@ -4,7 +4,7 @@ import { layout as layoutGrid, type Cell } from '../block/grid.ts'
 import type { Block } from '../block/types.ts'
 import type { AsciiConfig, AsciiTheme, ColorMode } from './types.ts'
 import { TerminalDocument, type TerminalOwner, type TerminalMarker } from './terminal-document.ts'
-import { terminalArtifact, serializeTerminalArtifact, type TerminalArtifact } from './terminal-artifact.ts'
+import { terminalArtifact, type TerminalArtifact } from './terminal-artifact.ts'
 import { visualWidth } from './width.ts'
 import { wrapText } from './wrap.ts'
 import { displayText } from '../multiline-utils.ts'
@@ -79,7 +79,8 @@ export function renderBlockTerminal(lines: string[] | string, config: AsciiConfi
     else members.set(box.parentId, [box.id])
   }
   for (const box of boxes.filter(b => b.container)) {
-    const owner: TerminalOwner = { id: box.id, kind: 'cluster', parent: box.parentId ? { id: box.parentId, kind: 'cluster' } : undefined, members: members.get(box.id) ?? [] }
+    // Registered once: the frame paints every perimeter cell with this owner.
+    const owner = doc.element({ id: box.id, kind: 'cluster', parent: box.parentId ? { id: box.parentId, kind: 'cluster' } : undefined, members: members.get(box.id) ?? [] })
     paintTerminalFrame(doc, box, owner, config.useAscii)
     if (box.block.label) doc.textBlock(box.x + 2, box.y + 1, box.lines, { owner })
   }
@@ -117,7 +118,4 @@ export function renderBlockTerminal(lines: string[] | string, config: AsciiConfi
     return terminalArtifact(out, { colorMode, theme })
   }
   return terminalArtifact(doc, { colorMode, theme })
-}
-export function renderBlockAscii(...args: Parameters<typeof renderBlockTerminal>): string {
-  return serializeTerminalArtifact(renderBlockTerminal(...args))
 }

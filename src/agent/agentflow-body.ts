@@ -38,6 +38,12 @@ export function mutateAgentflow(body: AgentflowBody, op: AgentflowMutationOp): R
       if (op.kind === 'move_node' && op.subgraph !== null && draft.connectors.has(op.id)) return err({ code: 'INVALID_OP', message: 'An AgentFlow connector remains global' })
       const result = mutateFlowchart({ kind: 'flowchart', graph: draft.graph }, op)
       if (!result.ok) return result
+      // AgentFlow (§5.1) has three edge operators: `-->` sequence, `-.-`
+      // reference and `--x` failure. Mermaid rejects every other link, so an
+      // edit may not introduce one (authored links stay as read).
+      const authored = new Set(body.graph.edges.map(agentflowLinkForm))
+      const unwritable = result.value.graph.edges.find(edge => !authored.has(agentflowLinkForm(edge)) && !agentflowLinkWritable(edge))
+      if (unwritable) return err({ code: 'INVALID_OP', message: `AgentFlow edges are -->, -.- or --x; Mermaid rejects the ${unwritable.source} -> ${unwritable.target} link this edit would write` })
       draft.graph = result.value.graph
       if (op.kind === 'rename_node') {
         // Renaming keeps authored metadata positions in insertion order.
@@ -61,6 +67,16 @@ export function mutateAgentflow(body: AgentflowBody, op: AgentflowMutationOp): R
     // with the source that is about to become the next editable diagram.
     return ok(parseAgentflow(renderAgentflow(draft)))
   } catch (error) { return err({ code: 'INVALID_OP', message: error instanceof Error ? error.message : String(error) }) }
+}
+
+type AgentflowEdge = AgentflowBody['graph']['edges'][number]
+const agentflowLinkForm = (edge: AgentflowEdge): string =>
+  JSON.stringify([edge.style, edge.hasArrowStart && (edge.startMarker ?? 'arrow'), edge.hasArrowEnd && (edge.endMarker ?? 'arrow')])
+/** `-->` (solid, arrow end), `--x` (solid, cross end) or `-.-` (dotted, open). */
+function agentflowLinkWritable(edge: AgentflowEdge): boolean {
+  if (edge.hasArrowStart) return false
+  if (edge.style === 'dotted') return !edge.hasArrowEnd
+  return edge.style === 'solid' && edge.hasArrowEnd && ['arrow', 'cross'].includes(edge.endMarker ?? 'arrow')
 }
 
 function agentflowShapeWarnings(body: AgentflowBody): LayoutWarning[] {

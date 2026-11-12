@@ -474,17 +474,27 @@ export function scoreMeasuredRouteCrossings(points: Point[], index: number, rout
   return scoreMeasuredRouteCrossingsWithAdmission(points,index,routes,input,charge,reserve,true,witness,prepaidPairBudget,reuseSharpSupports)
 }
 
-// A raw ULP diagonal can be exactly cardinal after the writer projects it.
-// Prepare that immutable owned traversal once, instead of projecting its four
-// endpoints again for every Cartesian pair in the unprepared fallback.
-function prepareOwnedDiagonalSeed(routes:readonly {points:Point[];style:string}[],charge?:MeasuredContactCharge,reserve?:MeasuredContactCharge):OwnedMeasuredRouteNumericSeed|false|undefined {
-  let diagonal=false
+// Cardinal route sets from this many segments use the prepared traversal. The
+// unprepared fallback charges and scans every Cartesian segment pair (about
+// 1.5·S² for S segments of a Class tree); the prepared one charges about 450
+// per segment. They cross near 300 segments.
+const PREPARED_CONTACT_MIN_SEGMENTS = 256
+
+// Prepare the immutable owned traversal once: written rows and sorted axis
+// indices. A raw ULP diagonal can be exactly cardinal after the writer projects
+// it, so diagonal routes are always prepared. Large cardinal sets are prepared
+// too: without it a Class tree of a few hundred cards spends its whole
+// admission budget on the quadratic fallback. Routes with a degenerate or
+// noncardinal written segment keep the unprepared scorer (false).
+function prepareOwnedNumericSeed(routes:readonly {points:Point[];style:string}[],charge?:MeasuredContactCharge,reserve?:MeasuredContactCharge):OwnedMeasuredRouteNumericSeed|false|undefined {
+  let diagonal=false,segments=0
   for(const route of routes)for(let i=1;i<route.points.length;i++){
     if(charge?.(1)===false)return undefined
     const a=route.points[i-1]!,b=route.points[i]!
     if(a.x!==b.x&&a.y!==b.y)diagonal=true
+    segments++
   }
-  if(!diagonal)return false
+  if(!diagonal&&segments<PREPARED_CONTACT_MIN_SEGMENTS)return false
   // Seed record, route slots/header, four index headers, comparator/stop
   // records, and the temporary four-list traversal array.
   if(reserve?.(routes.length+18)===false)return undefined
@@ -529,7 +539,7 @@ function prepareOwnedDiagonalSeed(routes:readonly {points:Point[];style:string}[
  * change during this synchronous traversal. No contact result escapes. */
 export function createOwnedMeasuredRouteContactValidator(routes:readonly {points:Point[];style:string}[],input:MeasuredGraph,charge?:MeasuredContactCharge,reserve?:MeasuredContactCharge,validateSegments=false,seed?:OwnedMeasuredRouteNumericSeed):((index:number,witness?:MeasuredSharpContactWitness)=>boolean)|false|undefined {
   if(!seed&&input.maximumEdgeStrokeWidth!==undefined&&input.maximumEdgeBendRadius===0){
-    const prepared=prepareOwnedDiagonalSeed(routes,charge,reserve)
+    const prepared=prepareOwnedNumericSeed(routes,charge,reserve)
     if(prepared===undefined)return undefined
     if(prepared)seed=prepared
   }

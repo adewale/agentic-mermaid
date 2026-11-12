@@ -14,7 +14,7 @@ import { mutate, parseRegisteredMermaid, serializeMermaid, verifyMermaid } from 
 import { BUILTIN_FAMILY_METADATA } from '../agent/families.ts'
 import type { AnyMutationOp, DiagramKind, MutableValidDiagram, ParsedDiagram } from '../agent/types.ts'
 import * as agentTypes from '../agent/types.ts'
-import { WARNING_TIER } from '../agent/types.ts'
+import { WARNING_SEVERITY, WARNING_TIER } from '../agent/types.ts'
 import { AGENT_INSTRUCTIONS } from '../cli/agent-instructions.ts'
 import { buildCapabilities, buildLlmsTxt, MUTATION_OPS_BY_FAMILY } from '../cli/index.ts'
 import { executeInSandbox } from '../mcp/sandbox.ts'
@@ -107,9 +107,12 @@ function expectVerifiedSource(value: unknown): void {
 }
 
 describe('Instructions_for_agents.md', () => {
-  test('byte-matches am --agent-instructions exactly', () => {
+  test('am --agent-instructions is the guide without its repository-maintenance comments', () => {
     const guide = readFileSync(join(REPO, 'Instructions_for_agents.md'), 'utf8')
-    expect(AGENT_INSTRUCTIONS).toEqual(guide)
+    // Generated-block delimiters and `complete:` audit annotations are for
+    // repository tooling; the agent-facing copy keeps every other byte.
+    expect(AGENT_INSTRUCTIONS).not.toContain('<!--')
+    expect(AGENT_INSTRUCTIONS).toEqual(guide.replace(/^<!-- [^>]* -->\n/gm, '').replace(/<!-- [^>]* -->/g, ''))
   })
   test('quick-start Code Mode snippets return verified source and lint clean', async () => {
     const guide = readFileSync(join(REPO, 'Instructions_for_agents.md'), 'utf8')
@@ -412,9 +415,32 @@ return {
   })
 })
 
-test('Code Mode keeps library-only batch wrappers unavailable', async () => {
-  const result = await executeInSandbox('return typeof mermaid.applyOps')
-  expect(result).toEqual(expect.objectContaining({ ok: true, value: 'undefined' }))
+describe('start.md bootstrap claims stay true', () => {
+  // start.md is the hosted bootstrap the homepage pointer fetches and the source
+  // the inline homepage prompt is composed from. It is deliberately condensed —
+  // it does NOT enumerate every narrower/warning code (it points at
+  // capabilities.json for those), so it does not belong in the exhaustive
+  // reference-doc loops above. Instead, pin every claim it DOES make: whatever
+  // narrowers, warning codes, and tools it names must be real.
+  const START = readFileSync(join(REPO, 'website/source/start.md'), 'utf8')
+
+  test('every as* narrower it names is a real narrower', () => {
+    const real = new Set<string>(BUILTIN_FAMILY_METADATA.map(family => family.narrower))
+    const named = [...START.matchAll(/\bas[A-Z][A-Za-z]*\b/g)].map(m => m[0])
+    for (const n of named) expect({ narrower: n, real: real.has(n) }).toEqual({ narrower: n, real: true })
+  })
+
+  test('every warning code it names is a real code', () => {
+    const codes = new Set(Object.keys(WARNING_SEVERITY))
+    const named = [...START.matchAll(/\b[A-Z]{2,}(?:_[A-Z]+)+\b/g)].map(m => m[0])
+    for (const c of named) expect({ code: c, real: codes.has(c) }).toEqual({ code: c, real: true })
+  })
+
+  test('Code Mode instructions do not name library-only methods', async () => {
+    expect(START).not.toMatch(/mermaid\.applyOps/)
+    const result = await executeInSandbox('return typeof mermaid.applyOps')
+    expect(result).toEqual(expect.objectContaining({ ok: true, value: 'undefined' }))
+  })
 })
 
 describe('documented package usage works', () => {

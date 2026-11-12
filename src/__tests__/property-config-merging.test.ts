@@ -3,6 +3,7 @@ import fc from 'fast-check'
 import { fcParameters } from './helpers/fc-parameters.ts'
 import { verifyMermaid } from '../agent/index.ts'
 import { renderMermaidSVG } from '../index.ts'
+import { JsonConfigAdmissionError } from '../shared/json-config-admission.ts'
 
 import {
   mergeFrontmatterMaps,
@@ -17,8 +18,9 @@ import {
 
 const NUM_RUNS = 200
 
-// Prototype-polluting keys cause havoc with plain object semantics — filter them.
-const BANNED_KEYS = new Set(['__proto__', 'constructor', 'toString', 'valueOf', 'hasOwnProperty'])
+// Frontmatter admission refuses these two keys (parseYamlDocument →
+// JsonConfigAdmissionError); every other own key, `toString` included, is data.
+const BANNED_KEYS = new Set(['__proto__', 'constructor'])
 
 // ---------------------------------------------------------------------------
 // Arbitraries
@@ -362,11 +364,9 @@ describe('property-based config merging', () => {
     fc.assert(
       fc.property(mapWithArraysArb, (map) => {
         for (const key of Object.keys(map)) {
-          // Should not throw; should return undefined for array values
-          const result = getFrontmatterScalar(map, [key])
-          if (result !== undefined) {
-            expect(isScalar(result)).toBe(true)
-          }
+          // A scalar reads back as itself; an array is not a scalar.
+          const value = map[key]
+          expect(getFrontmatterScalar(map, [key])).toBe(Array.isArray(value) ? undefined : value)
         }
       }),
       fcParameters({ numRuns: NUM_RUNS }),
@@ -462,6 +462,27 @@ describe('property-based config merging', () => {
       expect(result.lines.length).toBeGreaterThan(0)
       expect(allLeavesAreFiniteScalars(result.frontmatter)).toBe(true)
     }
+  })
+})
+
+describe('frontmatter admission refuses prototype keys at any depth', () => {
+  it('a __proto__ or constructor key anywhere under config is refused by path; other keys are data', () => {
+    const keyArb = fc.stringMatching(/^[a-z][A-Za-z0-9]{0,6}$/).filter(key => !BANNED_KEYS.has(key))
+    fc.assert(
+      fc.property(fc.array(keyArb, { maxLength: 4 }), fc.constantFrom('__proto__', 'constructor', 'toString'), (path, last) => {
+        const keys = ['config', ...path, last]
+        const yaml = keys.map((key, depth) => `${'  '.repeat(depth)}${key}:`).join('\n') + ' 1'
+        const source = `---\n${yaml}\n---\nflowchart LR\n  A`
+        if (BANNED_KEYS.has(last)) {
+          expect(() => preprocessMermaidSource(source)).toThrow(JsonConfigAdmissionError)
+          expect(() => preprocessMermaidSource(source)).toThrow(`$.${keys.join('.')} uses a forbidden prototype key`)
+        } else {
+          // The `config:` wrapper is unwrapped into the frontmatter map.
+          expect(getFrontmatterScalar(preprocessMermaidSource(source).frontmatter, [...path, last])).toBe(1)
+        }
+      }),
+      fcParameters({ numRuns: NUM_RUNS }),
+    )
   })
 })
 

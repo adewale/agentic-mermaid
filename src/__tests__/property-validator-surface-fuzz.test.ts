@@ -8,14 +8,22 @@
 //     usable — renderMermaidSVG must accept a clean style / clean options without throwing.
 //     (A validator that green-lights an input the renderer then rejects is the real bug class.)
 // Seed pinned globally (fc-seed.preload.ts); AM_FC_SEED=random hunts fresh counterexamples.
-import { describe, expect, it } from 'bun:test'
+import { describe, expect, it, spyOn } from 'bun:test'
 import fc from 'fast-check'
+import { mkdtempSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import { fcParameters } from './helpers/fc-parameters.ts'
+import { runBatchLine, runCli } from '../cli/index.ts'
+import { createTracingMermaid } from '../mcp/facade.ts'
 
 import {
   validateStyleSpec, validateSerializableRenderOptions, validateSceneDoc,
-  parseSemVer, semVerSatisfies, renderMermaidSVG,
+  parseSemVer, semVerSatisfies, renderMermaidSVG, verifyMermaid,
 } from '../agent/index.ts'
+import { renderMermaidASCII } from '../index.ts'
+import { BUILTIN_FAMILY_METADATA } from '../agent/families.ts'
+import { FAMILY_ID_SOURCES, FAMILY_LABEL_SOURCES, hostileTextArb } from './helpers/family-text-sources.ts'
 
 const NUM_RUNS = 250
 const SRC = 'flowchart TD\n  A[Start] --> B{Choice}\n  B --> C[End]'
@@ -109,18 +117,25 @@ const renderOptsArb = fc
   })
 
 describe('validator fuzz: validateSerializableRenderOptions does not lie', () => {
-  it('a clean options object renders without throwing', () => {
+  it('options render on SVG and terminal exactly when the validator finds no problem', () => {
     let cleanSeen = 0
-    fc.assert(fc.property(renderOptsArb, opts => {
+    let rejectedSeen = 0
+    fc.assert(fc.property(fc.oneof(renderOptsArb, fc.dictionary(fc.constantFrom(...Object.keys(RENDER_OPT_ARBS), 'unknownField'), fc.jsonValue(), { maxKeys: 4 })), opts => {
       const problems = validateSerializableRenderOptions(opts)
-      if (problems.length === 0) {
-        cleanSeen++
-        // The validator green-lit these options; the renderer MUST accept them.
-        expect(() => renderMermaidSVG(SRC, opts as never)).not.toThrow()
+      if (problems.length === 0) cleanSeen++
+      else rejectedSeen++
+      // Green-lit options must render; refused ones must be refused by the
+      // renderers too, not silently drawn with the bad value.
+      for (const render of [renderMermaidSVG, renderMermaidASCII]) {
+        if (problems.length === 0) expect(() => render(SRC, opts as never)).not.toThrow()
+        else expect(() => render(SRC, opts as never)).toThrow()
       }
-    }), fcParameters({ numRuns: NUM_RUNS }))
-    // Guard against a vacuous property: the arbitraries must produce clean options sometimes.
+      // Reduced counterexample: the terminal renderer silently ignored an
+      // unknown key the SVG renderer refuses.
+    }), fcParameters<[Record<string, unknown>]>({ numRuns: NUM_RUNS, examples: [[{ unknownField: null }]] }))
+    // Guard against a vacuous property: both directions must be exercised.
     expect(cleanSeen).toBeGreaterThan(0)
+    expect(rejectedSeen).toBeGreaterThan(0)
   })
 })
 
@@ -149,15 +164,104 @@ const styleSpecArb = fc
   })
 
 describe('validator fuzz: validateStyleSpec does not lie', () => {
-  it('a clean style spec renders without throwing', () => {
+  it('a style spec renders exactly when the validator finds no problem', () => {
     let cleanSeen = 0
-    fc.assert(fc.property(styleSpecArb, spec => {
+    let rejectedSeen = 0
+    fc.assert(fc.property(fc.oneof(styleSpecArb, fc.dictionary(fc.constantFrom(...Object.keys(STYLE_FIELD_ARBS), 'unknownField'), fc.jsonValue(), { maxKeys: 4 })), spec => {
       const problems = validateStyleSpec(spec as never)
-      if (problems.length === 0) {
-        cleanSeen++
-        expect(() => renderMermaidSVG(SRC, { style: spec as never })).not.toThrow()
-      }
+      if (problems.length === 0) cleanSeen++
+      else rejectedSeen++
+      if (problems.length === 0) expect(() => renderMermaidSVG(SRC, { style: spec as never })).not.toThrow()
+      else expect(() => renderMermaidSVG(SRC, { style: spec as never })).toThrow()
     }), fcParameters({ numRuns: NUM_RUNS }))
     expect(cleanSeen).toBeGreaterThan(0)
+    expect(rejectedSeen).toBeGreaterThan(0)
+  })
+})
+
+// ---------------------------------------------------------------------------
+// verifyMermaid does not lie about renderability. The verify catalog promises
+// that a clean verify proves the diagram renders, and RENDER_FAILED/
+// INTERNAL_ERROR claim a render failure. Verify judges what render draws from
+// the same input, so over hostile label and id text for every family: verify
+// ok ⇒ render succeeds, and render succeeds ⇒ no render-failure finding.
+// ---------------------------------------------------------------------------
+const VERIFY_EXAMPLES: Partial<Record<string, string[]>> = {
+  // Reduced counterexamples (V3, V4): a lone surrogate verified clean but did
+  // not render; a sankey `%%` node and a requirement quote rendered but
+  // verified as RENDER_FAILED (verify rendered the serialized form).
+  packet: ['packet\n0-15: "a\uD800b"'],
+  sankey: ['sankey-beta\n  "%%",B,10'],
+  requirement: ['requirementDiagram\n  requirement r {\n    id: 1\n    text: a"b\n  }'],
+}
+
+describe('validator fuzz: verifyMermaid does not lie about renderability', () => {
+  it.each(BUILTIN_FAMILY_METADATA.map(({ id }) => [id] as const))('%s', family => {
+    const idSource = FAMILY_ID_SOURCES[family]
+    const sourceArb = idSource
+      ? fc.oneof(hostileTextArb.map(FAMILY_LABEL_SOURCES[family]), hostileTextArb.map(idSource))
+      : hostileTextArb.map(FAMILY_LABEL_SOURCES[family])
+    fc.assert(fc.property(sourceArb, source => {
+      const verified = verifyMermaid(source)
+      let rendered = true
+      try { renderMermaidSVG(source) } catch { rendered = false }
+      const claimsRenderFailure = verified.warnings.some(warning => warning.code === 'RENDER_FAILED' || warning.code === 'INTERNAL_ERROR')
+      expect({ source, cleanVerifyButRefused: verified.ok && !rendered, renderFailureButDrawn: rendered && claimsRenderFailure })
+        .toEqual({ source, cleanVerifyButRefused: false, renderFailureButDrawn: false })
+    }), fcParameters({
+      numRuns: 40,
+      // A control-producing entity made verify throw instead of reporting the
+      // render refusal (state, sequence, class, journey, gantt).
+      examples: [...(VERIFY_EXAMPLES[family] ?? []), FAMILY_LABEL_SOURCES[family]('#1;')].map(source => [source] as [string]),
+    }))
+  })
+})
+
+// One admission rule for VerifyOptions.labelCharCap on every surface: a
+// positive safe integer is admitted and anything else is refused with an
+// error naming the option. NaN and Infinity compare false against every
+// label, so admitting one silently disables LABEL_OVERFLOW. The CLI flag
+// carries the value as text and a batch line as JSON, so each surface is
+// asked about the value it can actually receive.
+describe('validator fuzz: verify option admission agrees across library, CLI and MCP Code Mode', () => {
+  const source = 'flowchart LR\n  A'
+  const file = join(mkdtempSync(join(tmpdir(), 'am-verify-options-')), 'diagram.mmd')
+  writeFileSync(file, source)
+  const admits = (value: unknown): boolean => Number.isSafeInteger(value) && (value as number) > 0
+  const refusal = (verify: () => unknown): string | undefined => {
+    try { verify(); return undefined } catch (error) { return error instanceof Error ? error.message : String(error) }
+  }
+  const verdict = (message: string | undefined): string => message === undefined ? 'admitted' : /labelCharCap/.test(message) ? 'refused' : message
+  const cli = (argv: string[]): number => {
+    const out = spyOn(process.stdout, 'write').mockImplementation(() => true), err = spyOn(process.stderr, 'write').mockImplementation(() => true)
+    try { return runCli(argv) as number } finally { out.mockRestore(); err.mockRestore() }
+  }
+  const capArb = fc.oneof(
+    fc.constantFrom(Number.NaN, Infinity, -Infinity, 0, -0, -1, 1, 1.5, 0.5, 1e300, Number.MAX_SAFE_INTEGER, Number.MAX_SAFE_INTEGER + 1, 2 ** 53 + 2),
+    fc.integer({ min: -1_000, max: 1_000 }),
+    fc.double(),
+    fc.constantFrom<unknown>(null, '40', true, [40], {}),
+  )
+
+  it('labelCharCap is admitted exactly when it is a positive safe integer, by every surface', () => {
+    const mcp = createTracingMermaid()
+    fc.assert(fc.property(capArb, cap => {
+      const json: unknown = JSON.parse(JSON.stringify({ cap })).cap
+      const batch = runBatchLine(JSON.stringify({ op: 'verify', source, options: { labelCharCap: json } }))
+      const flag = typeof cap === 'number' ? String(cap) : undefined
+      expect({
+        cap: String(cap),
+        library: verdict(refusal(() => verifyMermaid(source, { labelCharCap: cap as number }))),
+        codeMode: verdict(refusal(() => mcp.verifyMermaid(source, { labelCharCap: cap as number }))),
+        batch: batch.ok || batch.error?.code === 'VERIFY_FAILED' ? 'admitted' : batch.error?.code === 'INVALID_OPTIONS' && /labelCharCap/.test(batch.error.message) ? 'refused' : batch.error?.code,
+        ...(flag === undefined ? {} : { flag: cli(['verify', file, '--label-cap', flag]) === 2 ? 'refused' : 'admitted' }),
+      }).toEqual({
+        cap: String(cap),
+        library: admits(cap) ? 'admitted' : 'refused',
+        codeMode: admits(cap) ? 'admitted' : 'refused',
+        batch: json === undefined || admits(json) ? 'admitted' : 'refused',
+        ...(flag === undefined ? {} : { flag: admits(cap) ? 'admitted' : 'refused' }),
+      })
+    }), fcParameters<[unknown]>({ numRuns: 60, examples: [[Number.NaN], [Infinity], [-1], [0], [1.5], [1e300], [Number.MAX_SAFE_INTEGER + 1]] }))
   })
 })

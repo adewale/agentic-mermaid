@@ -7,7 +7,7 @@
 // path reaches it. These tests fail if validateOp is removed from that core.
 
 import { describe, expect, test } from 'bun:test'
-import { applyOps, hasOpSchema, mutate, mutateChecked, opMenu, serializeMermaid } from '../agent/core.ts'
+import { applyOps, describeOps, hasOpSchema, mutate, mutateChecked, opMenu, serializeMermaid } from '../agent/core.ts'
 import { MUTATION_OPS_BY_FAMILY } from '../agent/mutation-ops.ts'
 import { parseRegisteredMermaid as parseMermaid } from '../agent/parse.ts'
 import type { AnyMutationOp, MutableValidDiagram } from '../agent/types.ts'
@@ -52,6 +52,38 @@ describe('op-schema shape validation (§1–3, §5)', () => {
     expect(errMsg(r.error)).toContain('Did you mean "add_service"')
   })
 
+  test('an op kind written under another key names the discriminator "kind" and the corrected op', () => {
+    const cases: Array<{ family: string; op: Record<string, unknown>; key: string; corrected: Record<string, unknown> }> = [
+      { family: 'flowchart', op: { op: 'add_node', id: 'C', label: 'C' }, key: 'op', corrected: { kind: 'add_node', id: 'C', label: 'C' } },
+      { family: 'class', op: { id: 'A', type: 'add_class' }, key: 'type', corrected: { kind: 'add_class', id: 'A' } },
+      { family: 'flowchart', op: { Kind: 'add_node', id: 'C', label: 'C' }, key: 'Kind', corrected: { kind: 'add_node', id: 'C', label: 'C' } },
+      // A near op kind under a slipped key is corrected too.
+      { family: 'flowchart', op: { action: 'add_nod', id: 'C', label: 'C' }, key: 'action', corrected: { kind: 'add_node', id: 'C', label: 'C' } },
+    ]
+    for (const { family, op, key, corrected } of cases) {
+      const r = applyOps({ family, ops: [op] })
+      expect(r.ok).toBe(false)
+      if (r.ok) continue
+      const error = r.error as { reason?: string; field?: string; didYouMean?: string }
+      expect(error.reason).toBe('unknown_kind')
+      expect(error.field).toBe(key)
+      expect(errMsg(r.error)).toContain(`discriminator key is "kind", not "${key}"`)
+      // As for unknown_field: `field` is the wrong key, `didYouMean` the right one.
+      expect(error.didYouMean).toBe('kind')
+      // The message carries the corrected op, and it is the op that applies.
+      const suggested = JSON.parse(errMsg(r.error).match(/Did you mean (\{.*\})\?$/)![1]!)
+      expect(suggested).toEqual(corrected)
+      expect(applyOps({ family, ops: [suggested] }).ok).toBe(true)
+    }
+    // Text that is no op kind earns no discriminator hint.
+    const plain = applyOps({ family: 'class', ops: [{ name: 'Duck' }] })
+    expect(plain.ok).toBe(false)
+    if (!plain.ok) {
+      expect(errMsg(plain.error)).not.toContain('discriminator')
+      expect((plain.error as { didYouMean?: string }).didYouMean).toBeUndefined()
+    }
+  })
+
   test('wrong primitive type is rejected with the expected type', () => {
     const r = applyOps({
       family: 'class',
@@ -89,6 +121,23 @@ describe('op-schema shape validation (§1–3, §5)', () => {
     const series = applyOps({ family: 'xychart', ops: [{ kind: 'add_series', kind2: 'pie', values: [1] }] })
     expect(series.ok).toBe(false)
     if (!series.ok) expect((series.error as { reason?: string }).reason).toBe('wrong_type')
+  })
+
+  test('a nested record field written one level too high is named with its path and the right one', () => {
+    // XyChartAxisSpec is { name?, categories?, range?: { min, max } }; min/max
+    // beside name used to be dropped, deleting the existing range.
+    const source = 'xychart-beta\n  x-axis [a, b]\n  y-axis "Old" 0 --> 120\n  bar [5, 20]\n'
+    const r = applyOps({ source, ops: [{ kind: 'set_y_axis', axis: { name: 'Units', min: 0, max: 200 } }] })
+    expect(r.ok).toBe(false)
+    if (r.ok) return
+    expect(r.error).toMatchObject({ reason: 'unknown_field', field: 'axis.min', didYouMean: 'axis.range.min' })
+    // The nested shape is discoverable before the wrong guess.
+    const axis = describeOps('xychart').set_y_axis!.find(field => field.name === 'axis')
+    expect(axis?.fields?.map(field => field.name)).toEqual(['name', 'categories', 'range'])
+    expect(axis?.fields?.find(field => field.name === 'range')?.fields).toEqual([
+      { name: 'min', required: true, type: 'number' },
+      { name: 'max', required: true, type: 'number' },
+    ])
   })
 
   test('a semantic (not shape) error still flows through from the mutator', () => {

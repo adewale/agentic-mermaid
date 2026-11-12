@@ -1,6 +1,7 @@
 import { uncurryIntrinsic } from '../shared/intrinsics.ts'
 import { clonePositioned } from '../experimental/position-cache.ts'
 import { isImmutablePixelTextPart, transferRetainedPixelText } from '../shared/prepared-text.ts'
+import { transferConstructedBundleRoute } from '../layout/bundle-routes.ts'
 
 const recordPrototype = Object.prototype, mapPrototype = Map.prototype, setPrototype = Set.prototype
 const NativeMap = Map, NativeSet = Set, NativeArray = Array
@@ -62,6 +63,7 @@ export function copyOwnedPositioned<T>(source: T): T {
         defineOwn(result, key, { value: copy(descriptor.value), writable: true, enumerable: true, configurable: true })
       }
     }
+    transferConstructedBundleRoute(value, result)
     transferRetainedPixelText(value, result)
     return result
   }
@@ -70,4 +72,3 @@ export function copyOwnedPositioned<T>(source: T): T {
     return clonePositioned(source, true)
   }
 }
-

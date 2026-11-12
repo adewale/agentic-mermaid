@@ -22,6 +22,8 @@ import { recordAuthoredSourceMapSpans, recordSourceMapEnds } from './source-map-
 import { parseTreemapBody, renderTreemap, verifyTreemap } from './treemap-body.ts'
 import type { Accessibility, DiagramBody, FamilyParsedBody, LayoutWarning, SourceLocation, SourceMap, SourceSpan, VerifyOptions } from './types.ts'
 import { ok } from './types.ts'
+import { blockMarkers } from '../block/markers.ts'
+import { arrowheadDirection, type ArrowheadDirection } from '../shared/relation-direction.ts'
 
 export type StableBody = Extract<DiagramBody, { kind: 'packet' | 'kanban' | 'requirement' | 'block' | 'treemap' | 'ishikawa' }>
 
@@ -29,7 +31,7 @@ export function isStableFamilyBody(body: FamilyParsedBody): body is StableBody {
   return body.kind === 'packet' || body.kind === 'kanban' || body.kind === 'requirement' || body.kind === 'block' || body.kind === 'treemap' || body.kind === 'ishikawa'
 }
 
-export function stableFamilyTree(body: StableBody): { nodes: { id: string; label: string; parentId?: string; value?: number }[]; edges: { from: string; to: string; label?: string }[] } {
+export function stableFamilyTree(body: StableBody): { nodes: { id: string; label: string; parentId?: string; value?: number }[]; edges: { from: string; to: string; label?: string; direction?: Exclude<ArrowheadDirection, 'forward'> }[] } {
   switch (body.kind) {
     case 'packet':
       return { nodes: body.fields.map(field => ({ id: field.id, label: field.label, value: field.end - field.start + 1 })), edges: [] }
@@ -42,7 +44,11 @@ export function stableFamilyTree(body: StableBody): { nodes: { id: string; label
         nodes: blockEntries(body)
           .filter(entry => entry.node.type !== 'space')
           .map(entry => ({ id: entry.node.id, label: entry.node.label ?? entry.node.id, ...(entry.parentId ? { parentId: entry.parentId } : {}) })),
-        edges: body.edges.map(edge => ({ from: edge.start!, to: edge.end!, ...(edge.label ? { label: edge.label } : {}) })),
+        edges: body.edges.map(edge => {
+          // The arrowheads the renderer draws: an end with a block marker.
+          const direction = arrowheadDirection(`${edge.arrowTypeStart}:start` in blockMarkers, `${edge.arrowTypeEnd}:end` in blockMarkers)
+          return { from: edge.start!, to: edge.end!, ...(edge.label ? { label: edge.label } : {}), ...(direction === 'forward' ? {} : { direction }) }
+        }),
       }
     case 'treemap':
       return { nodes: body.nodes.map(node => ({ ...node })), edges: [] }
@@ -82,8 +88,10 @@ export function stableFamilyFacts(body: StableBody): string[] {
     case 'kanban':
       body.columns.forEach((column, index) => {
         facts.push(`column#${index} ${text(column.sourceId)} : ${text(column.label)}`)
+        if (column.markdown) facts.push(`column#${index} markdown`)
         column.tasks.forEach((task, order) => {
           facts.push(`task#${index}.${order} ${text(task.sourceId)} : ${text(task.label)}`)
+          if (task.markdown) facts.push(`task#${index}.${order} markdown`)
           for (const [key, value] of Object.entries(task.metadata)) facts.push(`task#${index}.${order} metadata ${text(key)} ${text(value)}`)
           if (task.icon) facts.push(`task#${index}.${order} icon ${text(task.icon)}`)
           if (task.className) facts.push(`task#${index}.${order} class ${text(task.className)}`)

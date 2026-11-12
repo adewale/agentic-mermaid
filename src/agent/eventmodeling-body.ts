@@ -23,6 +23,14 @@ export const EVENTMODELING_SOURCE_HOOKS: Omit<FamilyOperations, 'mutate'> = {
       ctx.meta.accessibility = accessibility
       if (body.title === undefined && typeof ctx.source.frontmatter.title === 'string') body.title = ctx.source.frontmatter.title
       if (eventNonportableIdentifiers(body).length) return ok({ kind: 'opaque', family: 'eventmodeling', source: ctx.opaqueSource })
+      // The envelope consumed native accessibility comments in their
+      // transport spelling; the body and meta carry the decoded text, as
+      // they do for every other family that owns accessibility.
+      if (body.accessibilityTitle === undefined && body.accessibilityDescription === undefined) {
+        const logical = readAuthoredGrammarAccessibility(ctx.meta.accessibility)
+        ctx.meta.accessibility = logical
+        Object.assign(body, accessibilityFields(logical))
+      }
       return ok(body)
     } catch {
       return ok({ kind: 'opaque', family: 'eventmodeling', source: ctx.opaqueSource })

@@ -124,12 +124,17 @@ export function retainedNativeDrawing(request: ResolvedRenderRequest, layout: Fa
   return drawing
 }
 
+/** The receipt's layout certificate also records geometry drawn uncertified. */
+function withGeometryCertification(certification: PaintLayoutCertification, layout: FamilyLayoutResult): PaintLayoutCertification {
+  return layout.uncertifiedLayout ? Object.freeze({ ...certification, geometry: layout.uncertifiedLayout }) : certification
+}
+
 function certifyPositionedNative(request: ResolvedRenderRequest, layout: FamilyLayoutResult, drawing: RenderableNativeDrawing): PaintLayoutCertification {
   const entry = weakMapGet(weakMapGet(native, layout)!, request)!
   observeCache('paint-certification', entry.certification ? 'hit' : 'miss', undefined, 'native')
   if (entry.certification) return entry.certification
   const evidence = entry.evidence!
-  const certification = certifyNativePaint(evidence.header, evidence.paint, retainedFamilyProjection(layout), { outputSupported: !request.appearance.colors.shadow })
+  const certification = withGeometryCertification(certifyNativePaint(evidence.header, evidence.paint, retainedFamilyProjection(layout), { outputSupported: !request.appearance.colors.shadow }), layout)
   entry.certification = certification
   const retained: RetainedNativeDrawing = Object.freeze({ svg: drawing.svg, preparedText: drawing.preparedText, certification })
   const lower = resolvedRenderExecutionPlanOf(request).family.lowerScene
@@ -147,7 +152,7 @@ function certifyPositionedScene(request: ResolvedRenderRequest, layout: FamilyLa
   if (entry.certification) return entry.certification
   const plan = resolvedRenderExecutionPlanOf(request)
   const supported = !request.appearance.colors.shadow && (plan.mode === 'layout' ? request.appearance.inferredBackend === 'default' : plan.mode === 'scene' && plan.backend?.inputName === 'default')
-  return entry.certification = certifyScenePaint(scene, retainedFamilyProjection(layout), { outputSupported: supported })
+  return entry.certification = withGeometryCertification(certifyScenePaint(scene, retainedFamilyProjection(layout), { outputSupported: supported }), layout)
 }
 
 export function positionedPaintCertification(request: ResolvedRenderRequest, layout: FamilyLayoutResult): PaintLayoutCertification {

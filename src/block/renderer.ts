@@ -15,6 +15,7 @@ import type { RenderContext } from '../types.ts'
 import { arrowMask, arrowSize, blockArrowPoints } from './arrows.ts'
 import { blockShapeNode } from './layout.ts'
 import type { PositionedBlockDiagram } from './types.ts'
+import { arrowheadDirection } from '../shared/relation-direction.ts'
 
 export function lowerBlockDrawing<T>(marks: DrawingFactory<T>, ctx: RenderContext<PositionedBlockDiagram>): DrawingDocument<T> {
   const { positioned: p, colors } = ctx,
@@ -116,7 +117,7 @@ export function lowerBlockDrawing<T>(marks: DrawingFactory<T>, ctx: RenderContex
         lineStyle: edge.pattern === 'dotted' ? 'dotted' : 'solid',
         paint: { fill: 'none', stroke: p.style.edgeStrokeColor ?? 'var(--_line)', strokeWidth: edge.thickness === 'thick' ? '3' : String(p.style.lineWidth), ...(edge.pattern === 'dotted' ? { strokeDasharray: '2 4' } : {}) },
         endpoints: { from: edge.start, to: edge.end },
-        relationship: { kind: 'block-link' },
+        relationship: { kind: 'block-link', direction: edge.start === edge.end ? 'self' : arrowheadDirection(start !== undefined, end !== undefined) },
         markers: { ...(start ? { start } : {}), ...(end ? { end } : {}) },
         labels: edge.label ? [{ text: edge.labelBlock.text, anchor: edge.labelPosition }] : [],
         route: { ownership: 'layout', bendRadius: p.style.edgeBendRadius, labelAnchors: edge.label ? [edge.labelPosition] : [], ...(projection ? { contours: projection.contours } : {}) },

@@ -1,3 +1,5 @@
+import { LayoutCertificationError } from '../layout/certification-error.ts'
+import type { LayoutCertificationViolation } from '../layout/uncertified-layout.ts'
 import type { InternalStyleFace } from '../scene/style-registry.ts'
 import { compareCodePointStrings } from '../shared/deterministic-order.ts'
 import { type PixelTextBlock, type PixelTextOptions, preparePixelText } from '../shared/prepared-text.ts'
@@ -133,7 +135,7 @@ export function layoutGitGraph(diagram: GitGraphDiagram, options: GitGraphLayout
     }
   })
   const positionedById = new Map(commits.map(commit => [commit.id, commit]))
-  const edges: PositionedGitGraphEdge[] = []
+  const relations: Array<Omit<PositionedGitGraphEdge, 'points'>> = []
   const extentByBranch = new Map<string, number>()
   for (const commit of commits) {
     const coordinate = diagram.direction === 'LR' ? commit.x : commit.y
@@ -141,27 +143,13 @@ export function layoutGitGraph(diagram: GitGraphDiagram, options: GitGraphLayout
     // Public typed callers can construct a history directly; never emit two
     // coincident semantic relations for a duplicated parent tuple.
     for (const [index, parentId] of [...new Set(commit.parents)].entries()) {
-      const parent = positionedById.get(parentId)
-      if (!parent) continue
-      const middle = diagram.direction === 'LR' ? (parent.x + commit.x) / 2 : (parent.y + commit.y) / 2
-      const points =
-        diagram.direction === 'LR'
-          ? [
-              { x: parent.x, y: parent.y },
-              { x: middle, y: parent.y },
-              { x: middle, y: commit.y },
-              { x: commit.x, y: commit.y },
-            ]
-          : [
-              { x: parent.x, y: parent.y },
-              { x: parent.x, y: middle },
-              { x: commit.x, y: middle },
-              { x: commit.x, y: commit.y },
-            ]
+      if (!positionedById.has(parentId)) continue
       const kind: PositionedGitGraphEdge['kind'] = index === 0 ? 'parent' : commit.source === 'cherry-pick' ? 'cherry-pick' : 'merge'
-      edges.push({ from: parent.id, to: commit.id, kind, points })
+      relations.push({ from: parentId, to: commit.id, kind })
     }
   }
+  const laneCoordinate = (lane: number) => (diagram.direction === 'LR' ? padding + titleHeight + lane * laneGap : padding + branchLabelSpace + lane * verticalLaneGap)
+  const edges = routeGitGraphEdges(relations, positionedById, diagram.direction, laneCoordinate, diagram.direction === 'LR' ? laneGap : verticalLaneGap)
   const branches: PositionedGitGraphBranch[] = orderedBranches.map((branch, lane) => {
     const extent = extentByBranch.get(branch.name) ?? -Infinity
     if (diagram.direction === 'LR') {
@@ -238,6 +226,13 @@ export function layoutGitGraph(diagram: GitGraphDiagram, options: GitGraphLayout
       point.x = round3(point.x)
       point.y = round3(point.y)
     }
+  // Final route certification: the router avoids both failures, so a finding
+  // here is a drawn-but-uncertified layout (verify: LAYOUT_UNCERTIFIED), or a
+  // refusal under strict layout safety.
+  const violations = gitGraphRouteViolations(commits, edges)
+  if (violations.length > 0 && options.renderOptions?.layoutSafety === 'strict') {
+    throw new LayoutCertificationError([{ strategy: GITGRAPH_ROUTE_STRATEGY, violations: violations.map(violation => `${violation.kind}: ${violation.detail}`) }])
+  }
   return {
     width: round3(width),
     height: round3(height),
@@ -251,7 +246,261 @@ export function layoutGitGraph(diagram: GitGraphDiagram, options: GitGraphLayout
     showBranches,
     showCommitLabel,
     rotateCommitLabel,
+    ...(violations.length > 0 ? { uncertifiedLayout: { status: 'uncertified' as const, strategy: GITGRAPH_ROUTE_STRATEGY, attempts: 1, violations } } : {}),
   }
+}
+
+// ---------------------------------------------------------------------------
+// Connector routing. A connector between lanes bends; where it bends decides
+// which lane it travels along, and a connector travelling along a lane past
+// another commit reads as if it passed through that commit (a merge drawn
+// through `hotfix` claims the wrong history). Each connector takes the first
+// route that passes no commit but its own two and shares no collinear ink with
+// another connector, except a trunk leaving or entering a commit both attach
+// to (a fork from one commit, a join into one). Preference: a branch-off bends
+// next to its parent and runs along its new, still-empty lane; a merge or
+// cherry-pick runs along its source lane and bends next to its target; either
+// may take the other's shape; otherwise the connector leaves its lane, runs in
+// the gap beside the target lane, and bends into its target there.
+// ---------------------------------------------------------------------------
+
+const GITGRAPH_ROUTE_STRATEGY = 'gitgraph-lanes'
+/** A connector keeps this far from the centre of any commit it does not join
+ *  (commit marks reach 10px from their centre). */
+const COMMIT_CLEARANCE = 12
+/** Axis distances from a commit at which a connector may bend. Commits sit at
+ *  least 94px apart along the axis, so no bend column of one commit can meet
+ *  another commit's (2 × 36 < 94). */
+const BEND_OFFSETS = [24, 36, 14] as const
+/** Where a gap channel may run between two lanes, as a fraction of the gap. */
+const GAP_FRACTIONS = [0.5, 0.35, 0.65, 0.25, 0.75] as const
+
+type RoutePoint = { x: number; y: number }
+type RouteCommit = Pick<PositionedGitGraphCommit, 'id' | 'lane' | 'x' | 'y'>
+
+function routeGitGraphEdges(
+  relations: ReadonlyArray<Omit<PositionedGitGraphEdge, 'points'>>,
+  commitById: ReadonlyMap<string, RouteCommit>,
+  direction: GitGraphDiagram['direction'],
+  laneCoordinate: (lane: number) => number,
+  laneGap: number,
+): PositionedGitGraphEdge[] {
+  const lr = direction === 'LR'
+  const point = (along: number, across: number): RoutePoint => (lr ? { x: along, y: across } : { x: across, y: along })
+  const along = (commit: RouteCommit) => (lr ? commit.x : commit.y)
+  const across = (commit: RouteCommit) => (lr ? commit.y : commit.x)
+  const space = new RouteSpace([...commitById.values()])
+  const routed: Array<PositionedGitGraphEdge | undefined> = relations.map(() => undefined)
+  const accepted: PositionedGitGraphEdge[] = []
+  const candidatesFor = (relation: Omit<PositionedGitGraphEdge, 'points'>): RoutePoint[][] => {
+    const from = commitById.get(relation.from)!, to = commitById.get(relation.to)!
+    const start = { x: from.x, y: from.y }, end = { x: to.x, y: to.y }
+    const sign = Math.sign(along(to) - along(from)) || 1
+    const viaGap = (side: number) => GAP_FRACTIONS.flatMap(fraction => BEND_OFFSETS.map(k => {
+      const channel = across(to) + side * laneGap * fraction
+      return [start, point(along(from) + sign * k, across(from)), point(along(from) + sign * k, channel), point(along(to) - sign * k, channel), point(along(to) - sign * k, across(to)), end]
+    }))
+    if (from.lane === to.lane) {
+      // A merge of a branch that never left this lane (its head is still the
+      // branch point) would run along the lane through the commits between.
+      const middle = (along(from) + along(to)) / 2
+      return [[start, point(middle, across(from)), point(middle, across(to)), end], ...viaGap(1), ...viaGap(-1)]
+    }
+    const bendAtSource = BEND_OFFSETS.map(k => [start, point(along(from) + sign * k, across(from)), point(along(from) + sign * k, across(to)), end])
+    const bendAtTarget = BEND_OFFSETS.map(k => [start, point(along(to) - sign * k, across(from)), point(along(to) - sign * k, across(to)), end])
+    const gap = viaGap(Math.sign(laneCoordinate(from.lane) - laneCoordinate(to.lane)))
+    return relation.kind === 'parent' ? [...bendAtSource, ...bendAtTarget, ...gap] : [...bendAtTarget, ...bendAtSource, ...gap]
+  }
+  // Same-lane links are fixed; branch-offs choose before merges and
+  // cherry-picks, which have more freedom. Output keeps relation order.
+  const rank = (relation: Omit<PositionedGitGraphEdge, 'points'>) => (commitById.get(relation.from)!.lane === commitById.get(relation.to)!.lane ? 0 : relation.kind === 'parent' ? 1 : 2)
+  const order = relations.map((_, index) => index).sort((a, b) => rank(relations[a]!) - rank(relations[b]!) || a - b)
+  for (const index of order) {
+    const relation = relations[index]!
+    const candidates = candidatesFor(relation)
+    const clear = candidates.find(points => {
+      const edge = { ...relation, points }
+      return !space.passedCommit(edge) && space.nearbyEdges(edge).every(other => !connectorsShareInk(edge, accepted[other]!, commitById))
+    })
+    const edge = { ...relation, points: clear ?? candidates[0]! }
+    routed[index] = edge
+    space.addEdge(edge, accepted.length)
+    accepted.push(edge)
+  }
+  return routed as PositionedGitGraphEdge[]
+}
+
+function distanceToSegment(p: RoutePoint, a: RoutePoint, b: RoutePoint): number {
+  const dx = b.x - a.x, dy = b.y - a.y, length2 = dx * dx + dy * dy
+  const t = length2 === 0 ? 0 : Math.max(0, Math.min(1, ((p.x - a.x) * dx + (p.y - a.y) * dy) / length2))
+  return Math.hypot(p.x - a.x - t * dx, p.y - a.y - t * dy)
+}
+
+/** Side of the square buckets that index commits and connector segments. */
+const ROUTE_CELL = 64
+/** Most buckets one segment is entered into; a larger, unsafe or non-finite
+ *  span is kept in a list every check scans instead. */
+const ROUTE_CELL_LIMIT = 4096
+
+/**
+ * Uniform buckets over commits and placed connector segments, so each route
+ * check visits only nearby ink instead of every commit and every earlier
+ * connector. A commit a segment passes lies within the segment's bounding box
+ * widened by COMMIT_CLEARANCE, and two connectors share collinear ink only
+ * where their boxes overlap, so the bucket search finds exactly what a full
+ * scan finds; ties resolve by original order, as a scan would. Geometry too
+ * large to bucket (huge configured sizes) falls back to scanning, so the
+ * index never enumerates an unbounded or non-advancing range of buckets.
+ */
+class RouteSpace {
+  private readonly commitCells = new Map<string, number[]>()
+  private readonly edgeCells = new Map<string, number[]>()
+  private readonly commitWide: number[] = []
+  private readonly edgeWide: number[] = []
+  private readonly edges: number[] = []
+  constructor(private readonly commits: readonly RouteCommit[]) {
+    commits.forEach((commit, index) => this.bucket(this.commitCells, this.commitWide, commit, commit, 0, index))
+  }
+
+  /** The first commit in document order, other than its own two, that the
+   *  connector passes on its first segment that passes any. */
+  passedCommit(edge: PositionedGitGraphEdge): RouteCommit | undefined {
+    for (let i = 1; i < edge.points.length; i++) {
+      const a = edge.points[i - 1]!, b = edge.points[i]!
+      let first = Infinity
+      this.visit(this.commitCells, this.commitWide, () => this.commits.keys(), a, b, COMMIT_CLEARANCE, index => {
+        const commit = this.commits[index]!
+        if (index < first && commit.id !== edge.from && commit.id !== edge.to && distanceToSegment(commit, a, b) < COMMIT_CLEARANCE) first = index
+      })
+      if (first !== Infinity) return this.commits[first]
+    }
+    return undefined
+  }
+
+  addEdge(edge: PositionedGitGraphEdge, index: number): void {
+    this.edges.push(index)
+    for (let i = 1; i < edge.points.length; i++) this.bucket(this.edgeCells, this.edgeWide, edge.points[i - 1]!, edge.points[i]!, 1, index)
+  }
+
+  /** Indices of added connectors with a segment near one of this edge's, ascending. */
+  nearbyEdges(edge: PositionedGitGraphEdge): number[] {
+    const found = new Set<number>()
+    for (let i = 1; i < edge.points.length; i++) this.visit(this.edgeCells, this.edgeWide, () => this.edges.values(), edge.points[i - 1]!, edge.points[i]!, 1, index => found.add(index))
+    return [...found].sort((a, b) => a - b)
+  }
+
+  /** The buckets a segment's widened box touches, or false when there are too
+   *  many to enumerate (or its coordinates are not finite). */
+  private cells(a: RoutePoint, b: RoutePoint, margin: number, each: (key: string) => void): boolean {
+    const x0 = Math.floor((Math.min(a.x, b.x) - margin) / ROUTE_CELL), x1 = Math.floor((Math.max(a.x, b.x) + margin) / ROUTE_CELL)
+    const y0 = Math.floor((Math.min(a.y, b.y) - margin) / ROUTE_CELL), y1 = Math.floor((Math.max(a.y, b.y) + margin) / ROUTE_CELL)
+    if (![x0, x1, y0, y1].every(Number.isSafeInteger) || (x1 - x0 + 1) * (y1 - y0 + 1) > ROUTE_CELL_LIMIT) return false
+    for (let x = x0; x <= x1; x++) for (let y = y0; y <= y1; y++) each(`${x},${y}`)
+    return true
+  }
+
+  private bucket(cells: Map<string, number[]>, wide: number[], a: RoutePoint, b: RoutePoint, margin: number, index: number): void {
+    const bucketed = this.cells(a, b, margin, key => {
+      const list = cells.get(key)
+      if (!list) cells.set(key, [index])
+      else if (list.at(-1) !== index) list.push(index)
+    })
+    if (!bucketed && wide.at(-1) !== index) wide.push(index)
+  }
+
+  /** Every item that may lie near the segment: its buckets' items and the
+   *  unbucketed ones, or every item when the segment itself is too large. */
+  private visit(cells: ReadonlyMap<string, number[]>, wide: readonly number[], all: () => Iterable<number>, a: RoutePoint, b: RoutePoint, margin: number, each: (index: number) => void): void {
+    const keys: string[] = []
+    if (!this.cells(a, b, margin, key => keys.push(key))) {
+      for (const index of all()) each(index)
+      return
+    }
+    for (const key of keys) for (const index of cells.get(key) ?? []) each(index)
+    for (const index of wide) each(index)
+  }
+}
+
+/** Whether two connectors draw collinear ink anywhere other than a trunk
+ *  attached to a commit both of them join. */
+function connectorsShareInk(a: PositionedGitGraphEdge, b: PositionedGitGraphEdge, commitById: ReadonlyMap<string, RouteCommit>): boolean {
+  const trunks = [a.from, a.to].filter(id => id === b.from || id === b.to).map(id => sharedTrunk(a, b, commitById.get(id)!))
+  for (let i = 1; i < a.points.length; i++) {
+    for (let j = 1; j < b.points.length; j++) {
+      const overlap = collinearOverlap(a.points[i - 1]!, a.points[i]!, b.points[j - 1]!, b.points[j]!)
+      if (overlap && !trunks.some(trunk => onPolyline(overlap[0], trunk) && onPolyline(overlap[1], trunk))) return true
+    }
+  }
+  return false
+}
+
+/** The ink two connectors draw identically from a commit both join: their
+ *  common vertices from it, then the common part of the next segment when
+ *  both continue in the same direction (a fork or a join). */
+function sharedTrunk(a: PositionedGitGraphEdge, b: PositionedGitGraphEdge, commit: RouteCommit): RoutePoint[] {
+  const fromCommit = (edge: PositionedGitGraphEdge) => (edge.from === commit.id ? edge.points : [...edge.points].reverse())
+  const p = fromCommit(a), q = fromCommit(b)
+  const trunk = [p[0]!]
+  let i = 1
+  while (i < p.length && i < q.length && samePoint(p[i]!, q[i]!)) trunk.push(p[i++]!)
+  if (i < p.length && i < q.length) {
+    const origin = trunk.at(-1)!
+    const u = { x: p[i]!.x - origin.x, y: p[i]!.y - origin.y }, v = { x: q[i]!.x - origin.x, y: q[i]!.y - origin.y }
+    const lu = Math.hypot(u.x, u.y), lv = Math.hypot(v.x, v.y)
+    if (lu > 0 && lv > 0 && Math.abs(u.x / lu - v.x / lv) < 1e-6 && Math.abs(u.y / lu - v.y / lv) < 1e-6) trunk.push(lu < lv ? p[i]! : q[i]!)
+  }
+  return trunk
+}
+
+function samePoint(a: RoutePoint, b: RoutePoint): boolean {
+  return Math.abs(a.x - b.x) < 0.5 && Math.abs(a.y - b.y) < 0.5
+}
+
+function onPolyline(p: RoutePoint, points: readonly RoutePoint[]): boolean {
+  if (points.length === 1) return samePoint(p, points[0]!)
+  return points.slice(1).some((point, index) => onSegment(p, points[index]!, point))
+}
+
+/** The overlapping run of two axis-aligned segments on one line, if longer
+ *  than a pixel. */
+function collinearOverlap(a1: RoutePoint, a2: RoutePoint, b1: RoutePoint, b2: RoutePoint): [RoutePoint, RoutePoint] | undefined {
+  const EPS = 0.5
+  const horizontal = (p: RoutePoint, q: RoutePoint) => Math.abs(p.y - q.y) < EPS && Math.abs(p.x - q.x) >= EPS
+  const vertical = (p: RoutePoint, q: RoutePoint) => Math.abs(p.x - q.x) < EPS && Math.abs(p.y - q.y) >= EPS
+  if (horizontal(a1, a2) && horizontal(b1, b2) && Math.abs(a1.y - b1.y) < EPS) {
+    const low = Math.max(Math.min(a1.x, a2.x), Math.min(b1.x, b2.x)), high = Math.min(Math.max(a1.x, a2.x), Math.max(b1.x, b2.x))
+    return high - low > 1 ? [{ x: low, y: a1.y }, { x: high, y: a1.y }] : undefined
+  }
+  if (vertical(a1, a2) && vertical(b1, b2) && Math.abs(a1.x - b1.x) < EPS) {
+    const low = Math.max(Math.min(a1.y, a2.y), Math.min(b1.y, b2.y)), high = Math.min(Math.max(a1.y, a2.y), Math.max(b1.y, b2.y))
+    return high - low > 1 ? [{ x: a1.x, y: low }, { x: a1.x, y: high }] : undefined
+  }
+  return undefined
+}
+
+function onSegment(p: RoutePoint, a: RoutePoint, b: RoutePoint): boolean {
+  return distanceToSegment(p, a, b) < 0.5
+}
+
+/** Final route findings over the drawn geometry: a connector passing a commit
+ *  it does not join (`edgeThroughNode`) or sharing collinear ink with another
+ *  connector away from a commit both join (`collinearEdges`). Edges are named
+ *  `from->to`, as the layout certificate names them. */
+export function gitGraphRouteViolations(commits: readonly RouteCommit[], edges: readonly PositionedGitGraphEdge[]): LayoutCertificationViolation[] {
+  const commitById = new Map(commits.map(commit => [commit.id, commit]))
+  const name = (edge: PositionedGitGraphEdge) => `${edge.from}->${edge.to}`
+  const violations: LayoutCertificationViolation[] = []
+  const space = new RouteSpace(commits)
+  edges.forEach((edge, index) => space.addEdge(edge, index))
+  edges.forEach((edge, index) => {
+    const passed = space.passedCommit(edge)
+    if (passed) violations.push({ kind: 'edgeThroughNode', targets: [name(edge), passed.id], detail: `${name(edge)} passes commit ${passed.id}` })
+    for (const otherIndex of space.nearbyEdges(edge)) {
+      const other = edges[otherIndex]!
+      if (otherIndex > index && connectorsShareInk(edge, other, commitById)) violations.push({ kind: 'collinearEdges', targets: [name(edge), name(other)], detail: `${name(edge)} runs along ${name(other)}` })
+    }
+  })
+  return violations
 }
 
 interface TextBounds {

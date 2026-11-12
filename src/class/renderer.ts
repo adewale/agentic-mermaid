@@ -3,7 +3,8 @@ import { escapeAttr, escapeDisplayAttr, escapeXml as escapeXmlUtil } from '../mu
 import { DefaultBackend } from '../scene/backend.ts'
 import { projectRoundedConnectorPath } from '../scene/connector-geometry.ts'
 import { type DrawingDocument, type DrawingFactory, sceneLowering } from '../scene/drawing.ts'
-import type { MarkAttributes, MarkerDescriptor, TextMark } from '../scene/ir.ts'
+import type { ConnectorDirection, MarkAttributes, MarkerDescriptor, TextMark } from '../scene/ir.ts'
+import { arrowheadDirection } from '../shared/relation-direction.ts'
 import { serializeMarkerResources } from '../scene/marker-resources.ts'
 import { hashId } from '../scene/seed.ts'
 import { topRoundedRectPath } from '../scene/svg-writer.ts'
@@ -424,7 +425,8 @@ function renderDivider<T>(marks: DrawingFactory<T>, clsId: string, which: 'attrs
  */
 function renderMember<T>(marks: DrawingFactory<T>, member: ClassMember, x: number, y: number, style: ResolvedRenderStyle, sceneId: string, ink: (tone: string) => string, prepared?: PixelTextBlock): T {
   const block = prepared ?? classMemberBlock(member)
-  const plain = memberToString(member)
+  // The member text is what the member draws: display controls are inert.
+  const plain = sanitizeDisplayLines(memberToString(member))
   const nameInk = ink(style.nodeTextColor ?? 'var(--_text-sec)')
   const spans: HighlightRun[] = []
 
@@ -517,6 +519,12 @@ function renderClassNote<T>(marks: DrawingFactory<T>, note: PositionedClassNote,
 // Relationship rendering
 // ============================================================================
 
+/** A class relationship reads toward the ends that carry its markers. */
+function classRelationshipDirection(rel: PositionedClassRelationship): ConnectorDirection {
+  if (rel.from === rel.to) return 'self'
+  return arrowheadDirection(rel.markerAt === 'from' || rel.markerAt === 'both', rel.markerAt === 'to' || rel.markerAt === 'both')
+}
+
 function classRelationshipEndpoints(rel: PositionedClassRelationship) {
   return { from: rel.from, to: rel.to, start: { owner: { id: rel.from, role: 'class-box' as const } }, end: { owner: { id: rel.to, role: 'class-box' as const } } }
 }
@@ -544,7 +552,7 @@ function renderRelationship<T>(marks: DrawingFactory<T>, rel: PositionedClassRel
       lineStyle: 'invisible',
       paint: {},
       endpoints: classRelationshipEndpoints(rel),
-      relationship: { kind: rel.type },
+      relationship: { kind: rel.type, direction: classRelationshipDirection(rel) },
       labels,
     })
   }
@@ -587,7 +595,7 @@ function renderRelationship<T>(marks: DrawingFactory<T>, rel: PositionedClassRel
   }
   const connectorSemantics = {
     endpoints: classRelationshipEndpoints(rel),
-    relationship: { kind: rel.type },
+    relationship: { kind: rel.type, direction: classRelationshipDirection(rel) },
     route: {
       ownership: 'layout',
       bendRadius: style.edgeBendRadius,

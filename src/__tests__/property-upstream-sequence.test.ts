@@ -195,7 +195,7 @@ function linksOursMisses(upstreamLinks: string[], oursLinks: string[]): string[]
   })
 }
 
-const STYLE_TYPES: Record<SequenceMessage['style'], number> = { sync: 0, reply: 1, async: 5, 'async-dashed': 6, lost: 3, 'lost-dashed': 4 }
+const STYLE_TYPES: Record<SequenceMessage['style'], number> = { sync: 0, reply: 1, line: 5, 'line-dashed': 6, async: 24, 'async-dashed': 25, lost: 3, 'lost-dashed': 4, bidirectional: 33, 'bidirectional-dashed': 34 }
 
 function messageKey(message: SequenceMessage): string {
   const type = message.arrow && message.arrow in ARROWS ? ARROWS[message.arrow as Arrow] : STYLE_TYPES[message.style]

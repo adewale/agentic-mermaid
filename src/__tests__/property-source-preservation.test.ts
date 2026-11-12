@@ -1,10 +1,11 @@
 import { describe, expect, test } from 'bun:test'
 import fc from 'fast-check'
-import { describeMermaidFacts, mutate, parseRegisteredMermaid, serializeMermaid, synthesizeFromGraph } from '../agent/index.ts'
+import { describeMermaidFacts, mutate, parseRegisteredMermaid, renderMermaidSVG, serializeMermaid, synthesizeFromGraph, verifyMermaid } from '../agent/index.ts'
 import { applyMutationBatch } from '../agent/mutate.ts'
 import type { AnyMutationOp, ParsedDiagram } from '../agent/types.ts'
 import { fcParameters } from './helpers/fc-parameters.ts'
 import { METAMORPHIC_FAMILIES } from './helpers/metamorphic-families.ts'
+import { startUpstreamMermaid } from './helpers/upstream-mermaid.ts'
 
 function parse(source: string): ParsedDiagram {
   const parsed = parseRegisteredMermaid(source)
@@ -29,6 +30,198 @@ function edit(diagram: ParsedDiagram, op: AnyMutationOp): ParsedDiagram {
 }
 
 const wrapperArb = fc.constantFrom('', '%% wrapper\n', '---\ntitle: Preserve\n---\n%% wrapper\n', '%%{init: {"theme":"dark"}}%%\n')
+
+describe('canonical source', () => {
+  for (const family of Object.values(METAMORPHIC_FAMILIES)) {
+    // canonicalSource is the normalized renderer and source-map input. Families
+    // that read indentation as structure (mindmap, kanban, treemap, ishikawa)
+    // lost their tree when it was line-trimmed: a mindmap's canonical source
+    // re-read as several roots. Scaling the indentation keeps every family's
+    // relative structure, so the canonical source must read as the same facts.
+    test(`${family.family}: the canonical source reads as the authored diagram`, () => {
+      fc.assert(fc.property(
+        fc.integer({ min: family.kRange[0], max: family.kRange[1] }), fc.integer({ min: 1, max: 3 }),
+        (size, scale) => {
+          const source = family.build(size, 'canon').replace(/^ +/gm, indent => ' '.repeat(indent.length * scale))
+          const diagram = parse(source)
+          const reread = parseRegisteredMermaid(diagram.canonicalSource)
+          expect(reread.ok).toBe(true)
+          if (!reread.ok) return
+          expect(reread.value.body.kind).toBe(diagram.body.kind)
+          expect(describeMermaidFacts(reread.value)).toEqual(describeMermaidFacts(diagram))
+        }), fcParameters({ numRuns: 8 }),
+      )
+    })
+  }
+})
+
+// `am format` (serialize∘parse) over hostile text in each family's text
+// fields, written raw into the authored source. Whatever the reader admits as
+// a typed body, the writer must spell back: serialization never throws on a
+// body the parser produced (V5), and its output re-reads as the same facts and
+// formats to itself (V6, V7). A source the reader keeps preserved is written
+// back verbatim.
+describe('format over hostile field text', () => {
+  const TEMPLATES: ReadonlyArray<readonly [string, (text: string) => string]> = [
+    ['flowchart node', text => `flowchart LR\n  A["${text}"] --> B\n`],
+    ['flowchart edge', text => `flowchart LR\n  A -->|"${text}"| B\n`],
+    ['state transition', text => `stateDiagram-v2\n  S1 --> S2 : ${text}\n`],
+    ['state label', text => `stateDiagram-v2\n  S1 : ${text}\n`],
+    ['sequence message', text => `sequenceDiagram\n  A->>B: ${text}\n`],
+    ['class label', text => `classDiagram\n  class A["${text}"]\n`],
+    ['class member', text => `classDiagram\n  class A {\n    ${text}\n  }\n`],
+    ['class title', text => `classDiagram\n  title ${text}\n  class A\n`],
+    ['er relation', text => `erDiagram\n  A ||--o{ B : "${text}"\n`],
+    ['timeline event', text => `timeline\n  2025 : ${text}\n`],
+    ['journey task', text => `journey\n  section S\n    ${text}: 3: Me\n`],
+    ['architecture service', text => `architecture-beta\n  service api(server)[${text}]\n`],
+    ['xychart title', text => `xychart-beta\n  title "${text}"\n  x-axis [a, b]\n  bar [1, 2]\n`],
+    ['pie slice', text => `pie\n  "${text}" : 3\n`],
+    ['pie title', text => `pie\n  title ${text}\n  "a" : 3\n`],
+    ['quadrant point', text => `quadrantChart\n  ${text}: [0.3, 0.6]\n`],
+    ['gantt task', text => `gantt\n  dateFormat YYYY-MM-DD\n  section S\n    ${text} : t1, 2024-01-01, 1d\n`],
+    ['mindmap node', text => `mindmap\n  root\n    ${text}\n`],
+    ['gitgraph message', text => `gitGraph\n  commit id: "a" msg: "${text}"\n`],
+    ['radar axis', text => `radar-beta\n  axis a["${text}"], b, c\n  curve x{1, 2, 3}\n`],
+    ['sankey quoted node', text => `sankey-beta\n"${text}",B,10\n`],
+    ['sankey bare node', text => `sankey-beta\n${text},B,10\n`],
+    ['c4 label', text => `C4Context\n  Person(user, "${text}")\n`],
+    ['packet field', text => `packet\n  0-15: "${text}"\n`],
+    ['kanban task', text => `kanban\n  todo[Todo]\n    t1["${text}"]\n`],
+    ['kanban markdown', text => `kanban\n  todo["\`${text}\`"]\n`],
+    ['requirement text', text => `requirementDiagram\n  requirement r {\n    id: 1\n    text: ${text}\n  }\n`],
+    ['requirement quoted text', text => `requirementDiagram\n  requirement r {\n    id: 1\n    text: "${text}"\n  }\n`],
+    ['treemap node', text => `treemap-beta\n  "${text}"\n    "B": 1\n`],
+    ['block label', text => `block\n  a["${text}"] b\n`],
+    ['ishikawa cause', text => `ishikawa\n  Effect\n    ${text}\n`],
+    ['zenuml message', text => `zenuml\n  A->B: ${text}\n`],
+    ['eventmodeling frame', text => `eventmodeling\n  tf 01 evt ${text}\n`],
+  ]
+  const HOSTILE = ['%%', '%%{x}%%', '#35;', '#37;', '#quot;', '#65534;', '"', "'", '`', '**', '[', ']', '{', '}', '(', ')', '|', ';', ',', ':', '--', '<br>', ' ', ' ', '\u0000', '\u0007', '\u0085', '\t', '\ud800', 'é', '👩🏽‍💻', 'end', '\\', '\\u0000', '&amp;', '#', '<', '>']
+  const textArb = fc.oneof(
+    fc.string({ unit: 'binary', minLength: 1, maxLength: 8 }),
+    fc.array(fc.oneof(fc.constantFrom(...HOSTILE), fc.string({ unit: 'grapheme-ascii', maxLength: 3 })), { minLength: 1, maxLength: 5 }).map(parts => parts.join('')),
+  )
+  const sourceArb = fc.tuple(fc.constantFrom(...TEMPLATES), textArb).map(([[, template], text]) => template(text))
+  // Shrunk counterexamples: a quote in bare requirement text and a NUL in a
+  // C4 label made serialization throw; packet controls were written as JSON
+  // escapes the reader takes literally; a markdown string lost its backticks
+  // or reopened one; a node named `%%` was written as a comment row; a U+2028
+  // label lost its quotes; a Quadrant point labelled `"` was read as empty,
+  // and blanks beside a `<br>` in a quoted point label were trimmed.
+  const EXAMPLES: Array<[string]> = [
+    ['quadrantChart\n  ": [0.3, 0.6]\n'],
+    ['quadrantChart\n  \u0000 <br>[: [0.3, 0.6]\n'],
+    ['requirementDiagram\n  requirement r {\n    id: 1\n    text: a"b\n  }\n'],
+    ['C4Context\n  Person(user, "a\u0000b")\n'],
+    ['packet\n  0-15: "a\u0000b\u0007\ud800"\n'],
+    ['kanban\n  todo["`**bold** x`"]\n'],
+    ['kanban\n  todo["``j+`"]\n'],
+    ['sankey-beta\n"%%",B,10\n'],
+    ['flowchart LR\n  A["W   `"] --> B\n'],
+  ]
+  const format = (source: string) => {
+    const parsed = parseRegisteredMermaid(source)
+    return parsed.ok ? { parsed: parsed.value, written: serializeMermaid(parsed.value) } : undefined
+  }
+
+  test('serialization of a parsed body re-reads as the same facts', () => {
+    fc.assert(fc.property(sourceArb, source => {
+      const first = format(source)
+      if (!first) return
+      if (first.parsed.body.kind === 'opaque') {
+        expect(first.written).toBe(source)
+        return
+      }
+      const reread = parseRegisteredMermaid(first.written)
+      expect(reread.ok).toBe(true)
+      if (!reread.ok) return
+      expect({ kind: reread.value.body.kind, facts: describeMermaidFacts(reread.value) }).toEqual({ kind: first.parsed.body.kind, facts: describeMermaidFacts(first.parsed) })
+    }), fcParameters({ numRuns: 3000, examples: EXAMPLES }))
+  })
+
+  test('format is a fixed point', () => {
+    fc.assert(fc.property(sourceArb, source => {
+      const first = format(source)
+      if (!first) return
+      expect(format(first.written)?.written).toBe(first.written)
+    }), fcParameters({ numRuns: 3000, examples: EXAMPLES }))
+  })
+
+  // Pinned Mermaid is a slow child process, so the oracle sees a bounded
+  // generated set beside the examples: where Mermaid reads the authored
+  // source, it reads the formatted source.
+  test('Mermaid 12.2.0 reads the formatted form of a source it reads', async () => {
+    const upstream = startUpstreamMermaid()
+    let checked = 0
+    try {
+      const fixed: Array<[string]> = [...EXAMPLES, ['sankey-beta\n"a,b",B,10\n'], ['sankey-beta\nA,B,10\n"x,y",B,3\n'], ['requirementDiagram\n  requirement r {\n    id: 1\n    text: say "hi" now\n  }\n']]
+      await fc.assert(fc.asyncProperty(sourceArb, async source => {
+        if (!format(source) || !(await upstream.accepts(source))) return
+        const written = format(source)!.written
+        checked++
+        expect({ source, written, accepted: await upstream.accepts(written) }).toEqual({ source, written, accepted: true })
+      }), fcParameters({ numRuns: 400, examples: fixed }))
+    } finally {
+      upstream.close()
+    }
+    expect(checked).toBeGreaterThan(50)
+  }, 120_000)
+})
+
+// Mermaid 12.2.0 reads U+2028 and U+2029 inside State, Timeline and ER text
+// as characters of that text. Ours read `.`-based statement patterns, which
+// stop at them, so these sources fell back to preserved source: render and
+// verify failed, and a Timeline title was drawn as a period. Each must read
+// as a typed body stating the text, and draw.
+describe('line separators inside State, Timeline and ER text', () => {
+  const separated = fc.tuple(
+    fc.stringMatching(/^[a-z][a-z0-9]{0,3}$/),
+    fc.array(fc.tuple(fc.constantFrom(' ', ' ', '  ', '  '), fc.stringMatching(/^[a-z0-9]{1,4}$/)), { minLength: 1, maxLength: 3 }),
+  ).map(([first, rest]) => first + rest.map(([separator, word]) => separator + word).join(''))
+  // [name, source, the fact stating the text]
+  const TEMPLATES: ReadonlyArray<readonly [string, (text: string) => string, (text: string) => string]> = [
+    ['state transition', text => `stateDiagram-v2\n  S1 --> S2 : ${text}\n`, text => `edge S1 -> S2 : ${text}`],
+    ['state description', text => `stateDiagram-v2\n  S1 : ${text}\n`, text => `state S1 : ${text}`],
+    ['state note', text => `stateDiagram-v2\n  S1\n  note right of S1 : ${text}\n`, text => `note#0 right of S1 : ${text}`],
+    ['state block note', text => `stateDiagram-v2\n  S1\n  note left of S1\n    ${text}\n  end note\n`, text => `note#0 left of S1 : ${text}`],
+    ['timeline title', text => `timeline\n  title ${text}\n  2020 : a\n`, text => `title ${text}`],
+    ['timeline section', text => `timeline\n  section ${text}\n    2020 : a\n`, text => `section ${text}`],
+    ['timeline event', text => `timeline\n  2020 : ${text}\n`, text => `event 2020 : ${text}`],
+    ['timeline continuation', text => `timeline\n  2020 : a\n       : ${text}\n`, text => `event 2020 : ${text}`],
+    ['timeline period', text => `timeline\n  ${text} : a\n`, text => `period ${text}`],
+    ['er quoted relation', text => `erDiagram\n  A ||--o{ B : "${text}"\n`, text => `relation A one-only -- zero-or-many B : ${text}`],
+    ['er bare relation', text => `erDiagram\n  A ||--o{ B : ${text.replace(/ /g, '')}\n`, text => `relation A one-only -- zero-or-many B : ${text.replace(/ /g, '')}`],
+  ]
+  const caseArb = fc.tuple(fc.constantFrom(...TEMPLATES), separated)
+
+  test('the text is read as a typed body that states it, and draws', () => {
+    fc.assert(fc.property(caseArb, ([[name, template, fact], text]) => {
+      const source = template(text)
+      const diagram = parse(source)
+      expect({ name, kind: diagram.body.kind as string }).toEqual({ name, kind: diagram.kind as string })
+      expect(describeMermaidFacts(diagram)).toContain(fact(text))
+      const verified = verifyMermaid(source)
+      expect({ name, codes: verified.warnings.map(warning => warning.code) }).toEqual({ name, codes: [] })
+      expect(() => renderMermaidSVG(source)).not.toThrow()
+      // Formatting keeps the reading.
+      expect(describeMermaidFacts(parse(serializeMermaid(diagram)))).toEqual(describeMermaidFacts(diagram))
+    }), fcParameters({ numRuns: 200 }))
+  }, 60_000)
+
+  test('Mermaid 12.2.0 reads each source and its formatted form', async () => {
+    const upstream = startUpstreamMermaid()
+    try {
+      for (const [[name, template], text] of fc.sample(caseArb, { numRuns: 40, seed: 2028 })) {
+        const source = template(text)
+        const written = serializeMermaid(parse(source))
+        expect({ name, source, written, accepted: [await upstream.accepts(source), await upstream.accepts(written)] }).toEqual({ name, source, written, accepted: [true, true] })
+      }
+    } finally {
+      upstream.close()
+    }
+  }, 60_000)
+})
 
 describe('source comments across serialization and edit sequences', () => {
   for (const family of Object.values(METAMORPHIC_FAMILIES)) {

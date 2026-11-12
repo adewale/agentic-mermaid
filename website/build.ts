@@ -23,7 +23,8 @@ import { HOSTED_FONT_RESOURCES, RESOURCE_MANIFEST, hostedFontFaceCss } from '../
 import { NodeResourceResolver } from '../src/node-resource-resolver.ts'
 import { namespaceSvgIds } from '../src/renderer.ts'
 import { HOSTED_MCP_SERVER_NAME, HOSTED_TOOLS, SUPPORTED_PROTOCOL_VERSIONS } from '../src/mcp/hosted-server.ts'
-import { MCP_SERVER_VERSION } from '../src/mcp/tool-surface.ts'
+import { MCP_SERVER_VERSION, validateMcpToolArguments } from '../src/mcp/tool-surface.ts'
+import { LOCAL_TOOLS } from '../src/mcp/server.ts'
 import { HOSTED_MCP_TOOL_NAMES, LOCAL_MCP_TOOL_NAMES } from '../src/mcp/tool-names.ts'
 import { resolveBuildGitSha } from './build-provenance.ts'
 import { AI_CATALOG_RESOURCES } from './agent-resource-inventory.ts'
@@ -35,6 +36,7 @@ import { CUSTOM_STYLE_CATALOG } from '../scripts/docs/custom-style-catalog.ts'
 import { editorStateHref } from '../scripts/site/editor-state-url.ts'
 import { createExampleRenderState, createStyledExampleRenderState, WEBSITE_EXAMPLE_THEME } from '../scripts/site/example-render-state.ts'
 import { sharedRenderOptionsJsonSchema } from '../src/render-contract.ts'
+import { agentFacingMarkdown } from '../src/shared/agent-doc-text.ts'
 import { LEGACY_RICH_EXAMPLE_ALIASES } from '../scripts/site/website-example-legacy-aliases.ts'
 import interSubsetManifestJson from './source/assets/fonts/inter/manifest.json'
 import { buildDocsEditDemo } from './docs-edit-demo.ts'
@@ -210,8 +212,8 @@ async function emit(rel: string, content: FileContent) {
   await writeFile(dest, content)
 }
 
-async function emitJson(rel: string, data: unknown) {
-  await emit(rel, JSON.stringify(data, null, 2) + '\n')
+async function emitJson(rel: string, data: unknown, layout: 'indented' | 'minified' = 'indented') {
+  await emit(rel, (layout === 'minified' ? JSON.stringify(data) : JSON.stringify(data, null, 2)) + '\n')
 }
 
 async function copyFileFrom(src: string, destRel: string) {
@@ -1648,6 +1650,19 @@ function themingReferenceHtml() {
 <p>A palette is a colors-only style: pass its id alone for recoloring, or after a style id to recolor that style.</p>
 <ul class="palette-list">${paletteCells}</ul>`
 }
+// Tool lists on pages come from the servers' own registries, so a page cannot
+// name a tool set either server does not list (the local list once lagged by
+// two tools).
+function htmlToolList(tools: readonly { name: string }[]): string {
+  const names = tools.map(tool => `<code>${escapeHtml(tool.name)}</code>`)
+  return names.length < 2 ? names.join('') : `${names.slice(0, -1).join(', ')}, and ${names.at(-1)}`
+}
+const LOCAL_MCP_TOOLS_HTML = htmlToolList(LOCAL_TOOLS)
+const HOSTED_MCP_TOOLS_HTML = htmlToolList(HOSTED_TOOLS)
+function injectToolLists(html: string): string {
+  return html.replaceAll('{{LOCAL_MCP_TOOLS}}', LOCAL_MCP_TOOLS_HTML).replaceAll('{{HOSTED_MCP_TOOLS}}', HOSTED_MCP_TOOLS_HTML)
+}
+
 function injectFactStrip(html: string) {
   return html.replaceAll('{{FACT_FAMILIES}}', String(BUILTIN_FAMILY_METADATA.length)).replaceAll('{{FACT_STYLES}}', String(STYLE_LOOK_COUNT)).replaceAll('{{FACT_PALETTES}}', String(STYLE_PALETTE_COUNT)).replaceAll('{{FACT_OUTPUTS}}', String(rawCapabilities.outputFormats.length))
 }
@@ -1727,7 +1742,7 @@ for (const [source, target] of pageOutputs) {
   // Fact tokens live in the head description too, so resolve them before the
   // transforms that lift the description into og:/JSON-LD metadata.
   if (source === 'home.html') raw = injectFactStrip(raw)
-  let html = transformHtml(raw, currentHref, routeMap[source])
+  let html = transformHtml(injectToolLists(raw), currentHref, routeMap[source])
   // Source pages can carry hand-baked mastheads that predate newer routes.
   // Swap in the one canonical masthead so every shipped page shares one nav.
   html = html.replace(/<header class="masthead">[\s\S]*?<\/header>/, () => mastheadHtml(currentHref))
@@ -1961,19 +1976,17 @@ function compactToolDescription(description: string) {
   return text.length > 700 ? text.slice(0, 697) + '...' : text
 }
 
-function parametersFromSchema(schema: Record<string, unknown>) {
-  const properties = schema.properties && typeof schema.properties === 'object' ? (schema.properties as Record<string, Record<string, unknown>>) : {}
-  const required = new Set(Array.isArray(schema.required) ? schema.required.map(String) : [])
-  return Object.fromEntries(Object.entries(properties).map(([name, shape]) => [name, { ...shape, required: required.has(name) }]))
-}
-
+// Each tool's schema ships once, as the MCP Tool `inputSchema` tools/list
+// returns, with its `$defs` at the schema root so every local `$ref` resolves.
+// A second per-property `parameters` copy doubled the card and could not carry
+// those root definitions. SEP-2127 server cards define no tool list at all, so
+// no discovery spec asks for either form; this one matches tools/list.
 const hostedToolCards = HOSTED_TOOLS.map(tool => ({
   name: tool.name,
   title: tool.title,
   description: compactToolDescription(tool.description),
   annotations: tool.annotations,
   inputSchema: tool.inputSchema,
-  parameters: parametersFromSchema(tool.inputSchema),
 }))
 
 const mcpServerCard = {
@@ -2018,7 +2031,7 @@ const mcpManifest = {
   serverUrl: mcpServerCard.serverUrl,
   transport: mcpServerCard.transport,
   capabilities: mcpServerCard.capabilities,
-  tools: hostedToolCards.map(({ inputSchema: _inputSchema, ...tool }) => tool),
+  tools: hostedToolCards,
   generatedFrom,
 }
 
@@ -2149,14 +2162,55 @@ if (new Set(aiCatalog.entries.map(entry => entry.identifier)).size !== aiCatalog
   throw new Error('AI catalog identifiers and URLs must be unique')
 }
 
-await emitJson('.well-known/mcp/server-card.json', mcpServerCard)
-await emitJson('.well-known/mcp.json', mcpManifest)
+// Machine-read discovery documents: indentation was most of their bytes.
+await emitJson('.well-known/mcp/server-card.json', mcpServerCard, 'minified')
+await emitJson('.well-known/mcp.json', mcpManifest, 'minified')
 await emitJson('.well-known/ai-catalog.json', aiCatalog)
 
-const skillFiles = ['SKILL.md', 'references/cli.md', 'references/code-mode.md', 'references/hosted-mcp.md', 'references/flowchart.md', 'references/sequence.md', 'references/timeline.md']
+// Hosted tools/call arguments shown in published docs are checked against the
+// exact schema /mcp advertises and enforces, so an example cannot drift into a
+// request the server rejects (a getting-started example once put options at
+// the top level). A failing example fails the build and website:check.
+function hostedArgumentProblems(tool: unknown, args: unknown): string[] {
+  const definition = HOSTED_TOOLS.find(candidate => candidate.name === tool)
+  if (!definition) return [`names ${JSON.stringify(tool)}, which is not a hosted tool`]
+  return validateMcpToolArguments(definition, args)
+}
+function hostedArgumentsExample(tool: string, args: Record<string, unknown>, where: string): string {
+  const problems = hostedArgumentProblems(tool, args)
+  if (problems.length > 0) throw new Error(`website/build: ${where} shows ${tool} arguments /mcp rejects: ${problems.join('; ')}`)
+  return JSON.stringify(args, null, 2)
+}
+/** Check every hosted request a Markdown page shows, in a ```json fence or an
+ * inline code span: `{"tool", "arguments"}` envelopes and raw tools/call bodies. */
+function checkHostedRequestExamples(markdown: string, where: string): void {
+  const snippets = [
+    ...Array.from(markdown.matchAll(/```json\n([\s\S]*?)\n```/g), match => match[1]!),
+    ...Array.from(markdown.matchAll(/`(\{[^`\n]*\})`/g), match => match[1]!),
+  ]
+  for (const snippet of snippets) {
+    let request: unknown
+    try { request = JSON.parse(snippet) } catch { continue }
+    if (!request || typeof request !== 'object') continue
+    const record = request as Record<string, any>
+    const call = record.method === 'tools/call' ? { tool: record.params?.name, args: record.params?.arguments }
+      : 'tool' in record && 'arguments' in record ? { tool: record.tool, args: record.arguments } : undefined
+    if (!call) continue
+    const problems = hostedArgumentProblems(call.tool, call.args)
+    if (problems.length > 0) throw new Error(`website/build: ${where} shows a ${String(call.tool)} request /mcp rejects: ${problems.join('; ')}`)
+  }
+}
+
+// The served skill is SKILL.md plus every top-level reference it ships.
+const SKILL_DIR = join(ROOT, 'skills/agentic-mermaid-diagram-workflow')
+const skillFiles = ['SKILL.md', ...(await readdir(join(SKILL_DIR, 'references'), { withFileTypes: true }))
+  .filter(entry => entry.isFile() && entry.name.endsWith('.md'))
+  .map(entry => `references/${entry.name}`)
+  .sort()]
 for (const file of skillFiles) {
-  const text = await Bun.file(join(ROOT, 'skills/agentic-mermaid-diagram-workflow', file)).text()
-  await emit(`skills/agentic-mermaid-diagram-workflow/${file}`, text)
+  const served = agentFacingMarkdown(await Bun.file(join(SKILL_DIR, file)).text())
+  if (file === 'SKILL.md' || file === 'references/hosted-mcp.md') checkHostedRequestExamples(served, `skills/agentic-mermaid-diagram-workflow/${file}`)
+  await emit(`skills/agentic-mermaid-diagram-workflow/${file}`, served)
 }
 
 // Public llms.txt must not expose repo-only backlog/eval/contributor surfaces.
@@ -2187,7 +2241,7 @@ Styling: every render accepts style (a renderer treatment like hand-drawn, water
 - [MCP manifest](https://agentic-mermaid.dev/.well-known/mcp.json): compact tool manifest for agents and scanners.
 - [AI catalog](https://agentic-mermaid.dev/.well-known/ai-catalog.json): discovery index for the agent-facing resources on this domain.
 - [Agent instructions](https://agentic-mermaid.dev/agent-instructions.md): compact operating guide for agents.
-- [Capabilities](https://agentic-mermaid.dev/capabilities.json): authoritative family, output, mutation, and warning-code contract.
+- [Capabilities](https://agentic-mermaid.dev/capabilities.json): authoritative family, output, mutation, and warning-code contract (terminal TERMINAL_* projection codes are receipt diagnostics, not warnings).
 - [Examples](https://agentic-mermaid.dev/examples/index.json): the same example IDs and sources loaded by the editor.
 - [Workflow skill](https://agentic-mermaid.dev/skills/agentic-mermaid-diagram-workflow/SKILL.md): optional skill for skills-capable agents.
 
@@ -2200,9 +2254,13 @@ Styling: every render accepts style (a renderer treatment like hand-drawn, water
 await emit('llms.txt', publicLlms)
 await emit('llms.md', publicLlms)
 await emit('.well-known/llms.txt', publicLlms)
-await emit('agent-instructions.md', await Bun.file(join(ROOT, 'Instructions_for_agents.md')).text())
-await emit('start.md', await Bun.file(join(SOURCE, 'start.md')).text())
-await emit('index.md', await Bun.file(join(SOURCE, 'index.md')).text())
+const agentInstructions = agentFacingMarkdown(await Bun.file(join(ROOT, 'Instructions_for_agents.md')).text())
+checkHostedRequestExamples(agentInstructions, 'agent-instructions.md')
+await emit('agent-instructions.md', agentInstructions)
+const startMarkdown = agentFacingMarkdown(await Bun.file(join(SOURCE, 'start.md')).text())
+checkHostedRequestExamples(startMarkdown, 'start.md')
+await emit('start.md', startMarkdown)
+await emit('index.md', agentFacingMarkdown(await Bun.file(join(SOURCE, 'index.md')).text()))
 
 // Spec route coverage pages.
 const aboutLead = 'Beautiful diagrams, made with your agent. Agentic Mermaid turns Mermaid source into styled SVG, PNG, ASCII, and Unicode, with layout JSON available for tools that need coordinates.'
@@ -2411,11 +2469,7 @@ renderMermaidSVG(source, {
 npx --no-install agentic-mermaid styles --json
 npx --no-install agentic-mermaid render diagram.mmd --format svg --style ops-schematic,nord-light --output diagram.svg</code></pre>
 <pre><code>// Hosted MCP render_svg arguments
-{
-  "source": "flowchart TD\\n  A --> B",
-  "style": ["ops-schematic", "nord-light"],
-  "seed": 0
-}</code></pre>
+${escapeHtml(hostedArgumentsExample('render_svg', { source: 'flowchart TD\n  A --> B', options: { style: ['ops-schematic', 'nord-light'], seed: 0 } }, '/docs/getting-started/'))}</code></pre>
 <p>A style name chooses stroke, fill, typography, and renderer treatment. A palette-only style such as <code>nord-light</code> supplies colors. In the editor those controls are Style and Palette; in API, CLI, and MCP calls, agents can send the stack directly.</p>
 ${vocabularyBody}
 ${docsIndex}`
@@ -2734,13 +2788,23 @@ console.log(`website/build: ${firingDemos}/${capabilities.warningCodes.length} w
 // Each error is a distinct recovery path, not a shared boilerplate page:
 // `desc` is the one-line for the index, `recover` is the page's guidance, and
 // `related` links the verify code(s) that surface the same failure.
+
+// The blocking set comes from the catalog's severities, so the page cannot
+// say one tier blocks when error-severity codes exist in others.
+function blockingCodesSentence(): string {
+  const blocking = (capabilities.warningCodes as Array<{ code: string; tier: string; severity: string }>).filter(w => w.severity === 'error')
+  const tiers = [...new Set(blocking.map(w => w.tier))]
+  const byTier = tiers.map(tier => `${tier}: ${blocking.filter(w => w.tier === tier).map(w => `<a href="/warnings/${w.code}/"><code>${w.code}</code></a>`).join(', ')}`)
+  return `The blocking codes are ${byTier.join('; ')}.`
+}
+
 const errors: Array<{ id: string; title: string; desc: string; recover: string; related?: string }> = [
   {
     id: 'parse-error',
     title: 'Parse error',
     desc: 'The source could not be parsed. Preserve the source and point to the line/column when available.',
     recover: 'The source is not valid Mermaid for any known family, so it never became a diagram. Preserve the original text and surface the parser’s line/column; fix the offending line, or return the failure untouched rather than guessing a rewrite that changes intent.',
-    related: 'Often pairs with <a href="/warnings/UNSUPPORTED_SYNTAX/">UNSUPPORTED_SYNTAX</a> when syntax parses in mermaid.js but not the structured model.',
+    related: 'Render surfaces return it as <code>PARSE_FAILED</code> with the parser’s <code>details</code>; every verify surface reports it as the <a href="/warnings/RENDER_FAILED/">RENDER_FAILED</a> warning with <code>origin: "source"</code>. Often pairs with <a href="/warnings/UNSUPPORTED_SYNTAX/">UNSUPPORTED_SYNTAX</a> when syntax parses in mermaid.js but not the structured model.',
   },
   {
     id: 'mutation-error',
@@ -2760,9 +2824,9 @@ const errors: Array<{ id: string; title: string; desc: string; recover: string; 
   {
     id: 'verify-failed',
     title: 'Verify failed',
-    desc: 'The diagram parsed but verification returned blocking structural warnings.',
-    recover: 'The diagram parsed and rendered, but <code>verify.ok</code> is false because a structural-tier warning is blocking. Inspect <code>verify.warnings</code>, fix the structural codes first, then re-verify before trusting the artifact.',
-    related: 'Every code is documented under <a href="/warnings/">warnings</a>; start with the structural tier.',
+    desc: 'Verification returned at least one error-severity warning, so verify.ok is false.',
+    recover: `<code>verify.ok</code> is false whenever <code>verify.warnings</code> holds a warning whose severity is <code>error</code>, in any tier. ${blockingCodesSentence()} Some mean there is no trustworthy drawing at all: <a href="/warnings/RENDER_FAILED/">RENDER_FAILED</a> and <a href="/warnings/INTERNAL_ERROR/">INTERNAL_ERROR</a> mean rendering failed, so no artifact exists. Inspect <code>verify.warnings</code>, fix the error-severity codes (structural ones first), then re-verify before trusting or returning an artifact.`,
+    related: 'Every code, with its tier and severity, is documented under <a href="/warnings/">warnings</a>.',
   },
 ]
 await emitShell('errors/index.html', 'Errors', 'Error pages explain recovery paths for local CLI, library, and MCP use.', `<ul>${errors.map(e => `<li><a href="/errors/${e.id}/">${e.title}</a> – ${e.desc}</li>`).join('')}</ul>`)

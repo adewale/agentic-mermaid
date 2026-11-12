@@ -12,15 +12,17 @@ import { stableFamilyFacts } from './stable-family-source-hooks.ts'
 // ============================================================================
 
 import { classRelationLineStyle, classRelationMarkers } from './class-body.ts'
+import { readClassMemberClassifiers } from '../class/parser.ts'
+import { arrowheadDirection, directionArrow } from '../shared/relation-direction.ts'
 import { extractLabelsGeneric, getFamily } from './families.ts'
 import { parseRegisteredMermaid } from './parse.ts'
-import { sequenceMessageContexts } from './sequence-body.ts'
+import { sequenceMessageArrow, sequenceMessageContexts, sequenceMessageStyle } from './sequence-body.ts'
 import { readSequenceStatements } from '../sequence/parser.ts'
-import { readSequenceText } from '../sequence/text.ts'
+import { sequenceDisplayText, sequencePayloadDisplayText } from '../sequence/text.ts'
 import { journeyActorKey } from '../journey/parse-core.ts'
 import { displayText } from '../multiline-utils.ts'
 import { resolveLabelContent, type LabelContent } from '../shared/display-text.ts'
-import type { ArchitectureBody, ClassBody, ErBody, GanttBody, GitGraphBody, JourneyBody, MindmapBody, PieBody, QuadrantBody, SequenceBody, StateBody, TimelineBody, XyChartBody } from './types.ts'
+import type { ArchitectureBody, ClassBody, ErBody, GanttBody, GitGraphBody, JourneyBody, MindmapBody, PieBody, QuadrantBody, SequenceBody, SequenceMessage, SequenceMessageArrow, StateBody, TimelineBody, XyChartBody } from './types.ts'
 import { err, ok, type ParsedDiagram, type ParseError, type Result } from './types.ts'
 
 export type MermaidFact = string
@@ -87,14 +89,16 @@ export function describeMermaidFacts(d: ParsedDiagram): string[] {
       }
       visitGroups(g.subgraphs)
       g.edges.forEach((e, i) => {
-        const base = `edge ${clean(e.source)} -> ${clean(e.target)}`
+        const arrow = directionArrow(arrowheadDirection(e.hasArrowStart, e.hasArrowEnd))
+        const base = `edge ${clean(e.source)} ${arrow} ${clean(e.target)}`
         add(out, e.label ? `${base} : ${clean(e.label)}` : base)
-        add(out, `edge#${i} ${clean(e.source)} -> ${clean(e.target)}${e.label ? ` : ${clean(e.label)}` : ''}`)
+        add(out, `edge#${i} ${clean(e.source)} ${arrow} ${clean(e.target)}${e.label ? ` : ${clean(e.label)}` : ''}`)
         if (e.style !== 'solid') add(out, `${base} style ${e.style}`)
       })
       break
     }
     case 'usecase':
+      if (d.body.title !== undefined) add(out, `title ${clean(d.body.title)}`)
       add(out, `direction ${d.body.direction}`)
       for (const node of d.body.nodes) add(out, `${node.kind} ${clean(node.id)} ${clean(JSON.stringify(node))}`)
       for (const boundary of d.body.boundaries) add(out, `boundary ${clean(boundary.id)} ${clean(JSON.stringify(boundary))}`)
@@ -104,6 +108,7 @@ export function describeMermaidFacts(d: ParsedDiagram): string[] {
       for (const style of d.body.classDefs) add(out, `class ${clean(JSON.stringify(style))}`)
       break
     case 'wardley':
+      if (d.body.title !== undefined) add(out, `title ${clean(d.body.title)}`)
       for (const node of d.body.nodes) add(out, `component ${clean(node.id)} visibility ${node.y} evolution ${node.x} ${clean(JSON.stringify(node))}`)
       d.body.links.forEach((link,index) => add(out, `dependency#${index} ${clean(JSON.stringify(link))}`))
       d.body.trends.forEach(trend => add(out, `evolution ${clean(JSON.stringify(trend))}`))
@@ -114,19 +119,23 @@ export function describeMermaidFacts(d: ParsedDiagram): string[] {
       if (d.body.annotationsBox) add(out, `annotationsBox ${clean(JSON.stringify(d.body.annotationsBox))}`)
       break
     case 'venn':
+      if (d.body.title !== undefined) add(out, `title ${clean(d.body.title)}`)
       for (const subset of d.body.subsets) add(out, `region ${clean(JSON.stringify(subset.sets))} size ${subset.size}${subset.label === undefined ? '' : ` : ${clean(subset.label)}`}`)
       for (const node of d.body.textNodes) add(out, `text ${clean(node.id)} in ${clean(JSON.stringify(node.sets))} : ${clean(node.label ?? node.id)}`)
       for (const style of d.body.styles) add(out, `style ${clean(JSON.stringify(style))}`)
       break
     case 'cynefin':
+      if (d.body.title !== undefined) add(out, `title ${clean(d.body.title)}`)
       d.body.domains.forEach(domain => domain.items.forEach((item,index) => add(out, `domain ${domain.name} item#${index} : ${clean(item.label)}`)))
       d.body.transitions.forEach((transition,index) => add(out, `transition#${index} ${transition.from} -> ${transition.to}${transition.label === undefined ? '' : ` : ${clean(transition.label)}`}`))
       break
     case 'railroad':
+      if (d.body.title !== undefined) add(out, `title ${clean(d.body.title)}`)
       add(out, `notation ${d.body.notation}`)
       d.body.rules.forEach((rule, index) => add(out, `rule#${index} ${clean(rule.name)} ${clean(JSON.stringify(rule.definition))}`))
       break
     case 'treeview':
+      if (d.body.title !== undefined) add(out, `title ${clean(d.body.title)}`)
       d.body.nodes.forEach((node, index) => {
         add(out, `node#${index} ${clean(node.id)} ${node.nodeType} : ${clean(node.label)}`)
         if (node.parentId) add(out, `node ${clean(node.id)} parent ${clean(node.parentId)}`)
@@ -259,6 +268,7 @@ export function describeMermaidFacts(d: ParsedDiagram): string[] {
     }
     case 'eventmodeling':
       if (d.body.title !== undefined) add(out, `title ${JSON.stringify(d.body.title)}`)
+      d.body.entities.forEach(entity => add(out, `entity ${JSON.stringify(entity)}`))
       d.body.frames.forEach((frame, index) => add(out, `frame#${index} ${JSON.stringify(frame)}`))
       eventRelations(d.body).forEach(edge => add(out, `relation ${edge.from} -> ${edge.to} ${edge.explicit ? 'explicit' : 'inferred'}`))
       Object.entries(d.body.data).forEach(([id, data]) => add(out, `data ${id} ${JSON.stringify(data)}`))
@@ -357,16 +367,20 @@ function factsState(out: string[], body: StateBody): void {
 }
 
 function factsSequence(out: string[], body: SequenceBody): void {
+  // Text reads as drawn: the body keeps authored quotes and markup.
+  const shown = (value: string, content?: LabelContent): string => clean(sequenceDisplayText(value, content))
   body.participants.forEach((p, i) => {
-    add(out, `${p.kind} ${clean(p.id)} : ${clean(p.label || p.id)}`)
-    add(out, `participant#${i} ${clean(p.id)} : ${clean(p.label || p.id)}`)
+    const label = p.label ? shown(p.label, p.labelContent) : clean(p.id)
+    add(out, `${p.kind} ${clean(p.id)} : ${label}`)
+    add(out, `participant#${i} ${clean(p.id)} : ${label}`)
     if (p.wrap !== undefined) add(out, `participant#${i} wrap ${p.wrap}`)
   })
   sequenceMessageContexts(body).forEach((context, i) => {
     const m = context.message
-    add(out, `message ${clean(m.from)} -> ${clean(m.to)} : ${clean(m.text)}`)
-    add(out, `message#${i} ${context.scope === 'top-level' ? 'top-level' : `fragment#${context.fragmentIndex} branch#${context.branchIndex}`} ${clean(m.from)} -> ${clean(m.to)} : ${clean(m.text)}`)
-    if (m.style !== 'sync') add(out, `message#${i} style ${m.style}`)
+    const text = shown(m.text, m.textContent)
+    add(out, `message ${clean(m.from)} -> ${clean(m.to)} : ${text}`)
+    add(out, `message#${i} ${context.scope === 'top-level' ? 'top-level' : `fragment#${context.fragmentIndex} branch#${context.branchIndex}`} ${clean(m.from)} -> ${clean(m.to)} : ${text}`)
+    addSequenceArrow(out, `message#${i}`, m)
     if (m.wrap !== undefined) add(out, `message#${i} wrap ${m.wrap}`)
   })
   body.statements.forEach((statement, segment) => {
@@ -375,12 +389,18 @@ function factsSequence(out: string[], body: SequenceBody): void {
       const syntax = entry.syntax
       if (syntax?.kind === 'message') {
         const m = syntax.message
-        const text = clean(readSequenceText(m.label).value)
+        const text = clean(sequencePayloadDisplayText(m.label))
         add(out, `message ${clean(m.from)} -> ${clean(m.to)} : ${text}`)
         // Preserved statements are observable without becoming typed edit
         // indexes. Keep the existing message# indexes stable for callers.
         add(out, `preserved-message#${segment}.${index} ${clean(m.from)} -> ${clean(m.to)} : ${text}`)
-      } else if (syntax?.kind === 'title') add(out, `title ${clean(readSequenceText(syntax.text).value)}`)
+        addSequenceArrow(out, `preserved-message#${segment}.${index}`, { style: sequenceMessageStyle(m.arrow), arrow: m.arrow as SequenceMessageArrow })
+      } else if (syntax?.kind === 'note') {
+        const { position, actorIds, text } = syntax.note
+        const note = `${position === 'over' ? 'over' : `${position} of`} ${actorIds.map(clean).join(',')} : ${clean(sequencePayloadDisplayText(text))}`
+        add(out, `note ${note}`)
+        add(out, `preserved-note#${segment}.${index} ${note}`)
+      } else if (syntax?.kind === 'title') add(out, `title ${clean(sequencePayloadDisplayText(syntax.text))}`)
     })
   })
   const fragments = body.statements.filter(statement => statement.kind === 'fragment')
@@ -389,11 +409,20 @@ function factsSequence(out: string[], body: SequenceBody): void {
     add(out, `fragment#${index} ${statement.fragment.fragmentKind}`)
     if (statement.fragment.wrap !== undefined) add(out, `fragment#${index} wrap ${statement.fragment.wrap}`)
     statement.fragment.branches.forEach((branch, branchIndex) => {
-      const label = branch.label ?? (branchIndex === 0 ? statement.fragment.label : undefined)
-      add(out, `fragment#${index} branch#${branchIndex}${label ? ` : ${clean(label)}` : ''}`)
+      const label = branch.label !== undefined ? shown(branch.label, branch.labelContent)
+        : branchIndex === 0 && statement.fragment.label !== undefined ? shown(statement.fragment.label, statement.fragment.labelContent) : ''
+      add(out, `fragment#${index} branch#${branchIndex}${label ? ` : ${label}` : ''}`)
       if (branch.wrap !== undefined) add(out, `fragment#${index} branch#${branchIndex} wrap ${branch.wrap}`)
     })
   })
+}
+
+/** A message's style when not the default `sync`, and its operator when the
+ * style alone does not name it (a half-arrow). */
+function addSequenceArrow(out: string[], subject: string, m: Pick<SequenceMessage, 'style' | 'arrow'>): void {
+  if (m.style !== 'sync') add(out, `${subject} style ${m.style}`)
+  const arrow = sequenceMessageArrow(m)
+  if (arrow !== sequenceMessageArrow({ style: m.style })) add(out, `${subject} arrow ${arrow}`)
 }
 
 function factsTimeline(out: string[], body: TimelineBody): void {
@@ -417,6 +446,10 @@ function factsClass(out: string[], body: ClassBody): void {
   // queryable — "what namespaces exist" and "which namespace holds class X".
   for (const ns of body.namespaces ?? []) {
     add(out, `namespace ${clean(ns.name)}${ns.label ? ` : ${clean(ns.label)}` : ''}`)
+    // A dotted path names its ancestors too (`namespace A.B` nests B in A),
+    // whether they were declared as their own blocks or not.
+    const segments = ns.name.split('.')
+    for (let depth = 1; depth < segments.length; depth++) add(out, `namespace ${clean(segments.slice(0, depth).join('.'))}`)
   }
   for (const c of body.classes) {
     if (c.isInterface) {
@@ -427,7 +460,14 @@ function factsClass(out: string[], body: ClassBody): void {
     if (c.generic) add(out, `class ${clean(c.id)} generic ${clean(c.generic)}`)
     if (c.label) add(out, `class ${clean(c.id)} : ${clean(c.label)}`)
     if (c.namespace) add(out, `class ${clean(c.id)} in namespace ${clean(c.namespace)}`)
-    for (const member of c.members) add(out, `member ${clean(c.id)} ${clean(member)}`)
+    for (const member of c.members) {
+      // A `$`/`*` classifier is styling, not member text: it reads back as
+      // its own fact, as the renderers draw it as underline/italic.
+      const { text, isStatic, isAbstract } = readClassMemberClassifiers(member)
+      add(out, `member ${clean(c.id)} ${clean(text)}`)
+      if (isAbstract) add(out, `member ${clean(c.id)} ${clean(text)} abstract`)
+      if (isStatic) add(out, `member ${clean(c.id)} ${clean(text)} static`)
+    }
   }
   body.relations.forEach((r, i) => {
     const cards = `${r.fromCardinality ? ` ${clean(r.fromCardinality)}` : ''}${r.toCardinality ? ` ${clean(r.toCardinality)}` : ''}`
@@ -512,6 +552,7 @@ function factsArchitecture(out: string[], body: ArchitectureBody): void {
   for (const s of body.services) {
     add(out, `service ${clean(s.id)} : ${clean(s.label || s.id)}`)
     if (s.icon) add(out, `service ${clean(s.id)} icon ${clean(s.icon)}`)
+    if (s.iconText !== undefined) add(out, `service ${clean(s.id)} icon text ${clean(s.iconText)}`)
     if (s.parentId) add(out, `service ${clean(s.id)} parent ${clean(s.parentId)}`)
   }
   for (const j of body.junctions) {
@@ -521,9 +562,10 @@ function factsArchitecture(out: string[], body: ArchitectureBody): void {
   body.edges.forEach((e, i) => {
     const source = `${clean(e.source.id)}${e.source.boundary === 'group' ? '{group}' : ''}:${e.source.side}`
     const target = `${clean(e.target.id)}${e.target.boundary === 'group' ? '{group}' : ''}:${e.target.side}`
-    const base = `edge ${source} -> ${target}`
+    const arrow = directionArrow(arrowheadDirection(e.hasArrowStart, e.hasArrowEnd))
+    const base = `edge ${source} ${arrow} ${target}`
     add(out, e.label ? `${base} : ${clean(e.label)}` : base)
-    add(out, `edge#${i} ${source} -> ${target}${e.label ? ` : ${clean(e.label)}` : ''}`)
+    add(out, `edge#${i} ${source} ${arrow} ${target}${e.label ? ` : ${clean(e.label)}` : ''}`)
   })
 }
 

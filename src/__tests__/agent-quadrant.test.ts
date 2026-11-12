@@ -219,6 +219,20 @@ describe('quadrant structured parse', () => {
     } finally { upstream.close() }
   })
 
+  // Reduced from the structural all-families fuzz: text holding `%%` was
+  // written bare, where `%%` opens a comment, so the point fell out of the
+  // body and the axis lost its far side.
+  test('keeps percent pairs quoted in point, axis and quadrant text', async () => {
+    const upstream = startUpstreamMermaid()
+    try {
+      const diagram = quadrant('quadrantChart\n  x-axis "J%%" --> b\n  quadrant-1 "50%% done"\n  "a%%b": [0.3, 0.1]')
+      const serialized = serializeMermaid(diagram)
+      expect(quadrant(serialized).body).toEqual(diagram.body)
+      expect(diagram.body.points.map(point => point.label)).toEqual(['a%%b'])
+      expect(await upstream.accepts(serialized)).toBe(true)
+    } finally { upstream.close() }
+  })
+
   test('keeps distinct class definition and reference spellings through edits and reload', async () => {
     const source = 'quadrantChart\n  A:::constructor: [0.2, 0.8]\n  B:::__proto__: [0.7, 0.3]\n  C:::title: [0.4, 0.6]\n  classDef constructor radius: 11\n  classDef a-b radius: 9\n  classDef a-titleOne color: #abc\n  classDef ax-axis color: #def\n'
     const upstream = startUpstreamMermaid()
@@ -400,11 +414,7 @@ describe('quadrant structured-or-opaque fallback', () => {
     // extensions also stay source-only when the strict writer cannot emit them.
     ['malformed classDef style', 'quadrantChart\n  classDef foo banana: "spl;it"\n  A: [0, 0]'],
     ['class assignment ::: after coords (invalid style tail)', 'quadrantChart\n  A: [0, 0] ::: foo'],
-    ['out-of-range coord', 'quadrantChart\n  A: [1.5, 0]'],
-    ['negative coord', 'quadrantChart\n  A: [-0.1, 0]'],
-    ['non-numeric coord', 'quadrantChart\n  A: [x, 0]'],
     ['missing brackets', 'quadrantChart\n  A: 0.5, 0.5'],
-    ['duplicate point label', 'quadrantChart\n  A: [0, 0]\n  A: [1, 1]'],
     ['header EXTRA suffix', 'quadrantChart EXTRA\n  A: [0, 0]'],
   ]
   for (const [name, src] of opaqueCases) {
@@ -490,6 +500,51 @@ describe('quadrant mutation ops', () => {
     const d = quadrant()
     apply(d, { kind: 'move_point', label: 'Campaign A', x: 0, y: 0 })
     expect(d.body.points[0]).toMatchObject({ x: 0.3, y: 0.6 })
+  })
+})
+
+describe('quadrant repeated point labels and refused coordinates', () => {
+  // Mermaid draws a repeated label as another point. Each point keeps its own
+  // identity (A, then A#2, ...), skipping a label the author wrote: here the
+  // authored `A#2` keeps its name, so the second A is A#3.
+  const REPEATED = 'quadrantChart\n  x-axis Low --> High\n  A: [0.5, 0.5]\n  A: [0.2, 0.9]\n  A#2: [0.8, 0.1]\n'
+
+  test('a repeated label is another drawn, addressable point', async () => {
+    const upstream = startUpstreamMermaid()
+    try { expect(await upstream.accepts(REPEATED)).toBe(true) }
+    finally { upstream.close() }
+    const d = quadrant(REPEATED)
+    expect(d.body.points.map(p => [p.label, p.x, p.y])).toEqual([['A', 0.5, 0.5], ['A', 0.2, 0.9], ['A#2', 0.8, 0.1]])
+    expect(verifyMermaid(REPEATED)).toMatchObject({ ok: true, warnings: [] })
+    expect(serializeMermaid(d)).toBe(REPEATED)
+
+    const circles = [...renderMermaidSVG(REPEATED).matchAll(/<circle class="quadrant-point" data-label="([^"]*)" data-x="([^"]*)" data-y="([^"]*)"[^>]*data-id="([^"]*)"/g)]
+      .map(([, label, x, y, id]) => ({ label, x, y, id }))
+    expect(circles).toEqual([
+      { label: 'A', x: '0.5', y: '0.5', id: 'point:A' },
+      { label: 'A', x: '0.2', y: '0.9', id: 'point:A#3' },
+      { label: 'A#2', x: '0.8', y: '0.1', id: 'point:A#2' },
+    ])
+    expect(renderMermaidASCII(REPEATED).match(/^● A: .*$/gm)).toEqual(['● A: [0.5, 0.5]', '● A: [0.2, 0.9]'])
+
+    // Typed edits address the same identities the drawing carries.
+    const moved = apply(d, { kind: 'move_point', label: 'A#3', x: 0.1, y: 0.1 })
+    expect(moved.body.points.map(p => [p.label, p.x, p.y])).toEqual([['A', 0.5, 0.5], ['A', 0.1, 0.1], ['A#2', 0.8, 0.1]])
+    expect(apply(d, { kind: 'remove_point', label: 'A' }).body.points.map(p => [p.label, p.x])).toEqual([['A', 0.2], ['A#2', 0.8]])
+    expect(apply(d, { kind: 'rename_point', from: 'A#3', to: 'B' }).body.points.map(p => p.label)).toEqual(['A', 'B', 'A#2'])
+  })
+
+  // The point statement is modeled and Mermaid rejects these values too, so
+  // the source does not parse: no "unmodeled syntax" fallback.
+  test.each([
+    ['out of range', 'A: [1.3, -0.2]', 'Quadrant point "A" coordinate "1.3" is out of range'],
+    ['negative', 'A: [0.5, -0.1]', 'Quadrant point "A" coordinate "-0.1" is out of range'],
+    ['non-numeric', 'A: [x, 0]', 'Quadrant point "A" has non-numeric coordinate "x"'],
+  ])('a coordinate that is %s is a parse failure with its reason, not unmodeled syntax', (_name, statement, reason) => {
+    const source = `quadrantChart\n  x-axis Low --> High\n  ${statement}`
+    expect(parseMermaid(source)).toMatchObject({ ok: false, error: [{ code: 'PARSE_FAILED', diagramType: 'quadrant', message: expect.stringContaining(reason) }] })
+    const warnings = verifyMermaid(source).warnings
+    expect(warnings).toEqual([{ code: 'RENDER_FAILED', origin: 'source', reason: expect.stringContaining(reason) }])
   })
 })
 

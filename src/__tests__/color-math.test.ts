@@ -5,10 +5,15 @@
  */
 import { describe, test, expect } from 'bun:test'
 import fc from 'fast-check'
+import { fcParameters } from './helpers/fc-parameters.ts'
 import { parseHex, tryParseHex, tryParseCssColor, toHex, mixHex, isHexColor, isSixDigitHex, luma255, ensureContrast } from '../shared/color-math.ts'
 
 const channel = fc.integer({ min: 0, max: 255 })
 const hexColor = fc.tuple(channel, channel, channel).map(([r, g, b]) => toHex(r, g, b))
+// Callers pass computed ratios (ratio * 100), so percentages are fractional too.
+const percent = fc.oneof(fc.integer({ min: 0, max: 100 }), fc.double({ min: 0, max: 100, noNaN: true }))
+// Cheap pure functions: run thousands of cases.
+const RUNS = fcParameters({ numRuns: 2000 })
 
 describe('shared color math', () => {
   test.each([
@@ -27,7 +32,7 @@ describe('shared color math', () => {
     fc.assert(fc.property(channel, channel, channel, (r, g, b) => {
       const [r2, g2, b2] = parseHex(toHex(r, g, b))
       return r2 === r && g2 === g && b2 === b
-    }))
+    }), RUNS)
   })
 
   test('#RGB shorthand expands per channel digit', () => {
@@ -44,31 +49,31 @@ describe('shared color math', () => {
     const looseHex = fc.constantFrom(3, 4, 6, 8)
       .chain(length => fc.array(fc.constantFrom(...'0123456789abcdefABCDEF'), { minLength: length, maxLength: length }))
       .map(digits => `#${digits.join('')}`)
-    fc.assert(fc.property(looseHex, looseHex, fc.integer({ min: 0, max: 100 }), (fg, bg, pct) =>
+    fc.assert(fc.property(looseHex, looseHex, percent, (fg, bg, pct) =>
       isHexColor(fg) && isHexColor(bg) && /^#[0-9a-f]{6}$/.test(mixHex(fg, bg, pct))
-    ))
+    ), RUNS)
   })
 
   test('mixing a color with itself is the identity at any percentage', () => {
-    fc.assert(fc.property(hexColor, fc.integer({ min: 0, max: 100 }), (c, pct) =>
+    fc.assert(fc.property(hexColor, percent, (c, pct) =>
       mixHex(c, c, pct) === c
-    ))
+    ), RUNS)
   })
 
   test('mix endpoints: 100% is fg, 0% is bg', () => {
     fc.assert(fc.property(hexColor, hexColor, (fg, bg) =>
       mixHex(fg, bg, 100) === fg && mixHex(fg, bg, 0) === bg
-    ))
+    ), RUNS)
   })
 
   test('mix output channels stay within the endpoint interval', () => {
-    fc.assert(fc.property(hexColor, hexColor, fc.integer({ min: 0, max: 100 }), (fg, bg, pct) => {
+    fc.assert(fc.property(hexColor, hexColor, percent, (fg, bg, pct) => {
       const [fr, fgc, fb] = parseHex(fg)
       const [br, bgc, bb] = parseHex(bg)
       const [mr, mg, mb] = parseHex(mixHex(fg, bg, pct))
       const within = (m: number, a: number, b: number) => m >= Math.min(a, b) && m <= Math.max(a, b)
       return within(mr, fr, br) && within(mg, fgc, bgc) && within(mb, fb, bb)
-    }))
+    }), RUNS)
   })
 
   test('tryParseHex accepts exactly the documented forms', () => {
@@ -83,7 +88,7 @@ describe('shared color math', () => {
   })
 
   test('validators: every strict hex is also a loose hex', () => {
-    fc.assert(fc.property(hexColor, c => isSixDigitHex(c) && isHexColor(c)))
+    fc.assert(fc.property(hexColor, c => isSixDigitHex(c) && isHexColor(c)), RUNS)
     expect(isHexColor('#abc')).toBe(true)
     expect(isHexColor('#abcd')).toBe(true)
     expect(isHexColor('#12345')).toBe(false)
@@ -111,6 +116,6 @@ describe('shared color math', () => {
         luma255(Math.min(r + 1, 255), g, b) >= l &&
         luma255(r, Math.min(g + 1, 255), b) >= l &&
         luma255(r, g, Math.min(b + 1, 255)) >= l
-    }))
+    }), RUNS)
   })
 })

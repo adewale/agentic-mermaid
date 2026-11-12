@@ -31,8 +31,23 @@ export type FieldType =
   | { type: 'enum'; values: readonly string[]; nullable?: boolean }
   | { type: 'string-array' }
   | { type: 'number-array' }
-  | { type: 'object-or-null' }
-  | { type: 'object-array' } // a nested record (deep shape validated by the mutator)
+  // Nested records. With a `shape`, the shape layer validates the record's
+  // keys, required fields and primitive types like an op's own fields, so a
+  // stray key is rejected instead of silently dropped. Without one, the
+  // record is free-form here and its deep shape is the mutator's to check.
+  | { type: 'object'; shape?: RecordShape }
+  | { type: 'object-or-null'; shape?: RecordShape }
+  | { type: 'object-array'; shape?: RecordShape }
+
+/** The fields of a nested record, validated and discovered like an op's own. */
+export interface RecordShape {
+  fields: Record<string, FieldSpec>
+  requireOneOf?: readonly string[]
+  /** Discovery names this record in its field's note instead of listing its
+   *  fields again (an update record whose fields are its add record's). It
+   *  is validated in full either way. */
+  byReference?: true
+}
 
 /** A field type plus its required flag. Intersection (not `extends`) because
  *  FieldType is a union — an interface cannot extend a union. */
@@ -57,7 +72,7 @@ export interface OpSpec {
 // Enum value lists, kept in sync with the type aliases they mirror.
 const NODE_SHAPES: readonly NodeShape[] = ['rectangle', 'service', 'rounded', 'diamond', 'stadium', 'circle', 'ellipse', 'subroutine', 'doublecircle', 'hexagon', 'cylinder', 'asymmetric', 'trapezoid', 'trapezoid-alt', 'lean-r', 'lean-l', 'state-start', 'state-end']
 const EDGE_STYLES: readonly EdgeStyle[] = ['solid', 'dotted', 'thick', 'invisible']
-const SEQUENCE_MESSAGE_STYLES: readonly SequenceMessageStyle[] = ['sync', 'reply', 'async', 'async-dashed', 'lost', 'lost-dashed']
+const SEQUENCE_MESSAGE_STYLES: readonly SequenceMessageStyle[] = ['sync', 'reply', 'line', 'line-dashed', 'async', 'async-dashed', 'lost', 'lost-dashed', 'bidirectional', 'bidirectional-dashed']
 const PARTICIPANT_KINDS = ['participant', 'actor'] as const
 const SEQUENCE_FRAGMENT_KINDS = ['alt', 'opt', 'loop', 'par', 'par_over'] as const
 const CLASS_REL_KINDS: readonly ClassRelationKind[] = ['inheritance', 'composition', 'aggregation', 'association', 'dependency', 'realization', 'link-solid', 'link-dashed', 'lollipop']
@@ -80,8 +95,9 @@ const boolOrNull = (required = true): FieldSpec => ({ type: 'boolean-or-null', r
 const strOrNull = (required = true): FieldSpec => ({ type: 'string-or-null', required })
 const strArr = (required = true): FieldSpec => ({ type: 'string-array', required })
 const numArr = (required = true): FieldSpec => ({ type: 'number-array', required })
-const objOrNull = (required = true): FieldSpec => ({ type: 'object-or-null', required })
+const objOrNull = (required = true, shape?: RecordShape): FieldSpec => ({ type: 'object-or-null', required, ...(shape ? { shape } : {}) })
 const objArr = (required = true): FieldSpec => ({ type: 'object-array', required })
+const obj = (shape: RecordShape, required = true): FieldSpec => ({ type: 'object', required, shape })
 const oneOf = (values: readonly string[], required = true, nullable = false): FieldSpec => ({ type: 'enum', values, nullable, required })
 /** Attach a discovery note (mutator-enforced constraint or omit-default) to a
  *  field spec without changing its shape validation. */
@@ -272,10 +288,21 @@ const ARCHITECTURE_SCHEMA: Record<string, OpSpec> = {
   remove_edge: { fields: { index: num(false), id: str(false) }, requireOneOf: ['index', 'id'] },
 }
 
+// XyChartAxisSpec. The op replaces the whole axis: a field left out is cleared.
+const XY_AXIS: RecordShape = {
+  fields: {
+    name: strOrNull(false),
+    categories: withNote(strArr(false), 'x-axis only'),
+    range: obj({ fields: { min: num(), max: num() } }, false),
+  },
+}
+const xyAxis = (axis: 'x' | 'y'): FieldSpec =>
+  withNote(objOrNull(true, XY_AXIS), `replaces the whole ${axis}-axis: an omitted field is cleared; null removes it`)
+
 const XYCHART_SCHEMA: Record<string, OpSpec> = {
   set_title: { fields: { title: strOrNull() } },
-  set_x_axis: { fields: { axis: objOrNull() } },
-  set_y_axis: { fields: { axis: objOrNull() } },
+  set_x_axis: { fields: { axis: xyAxis('x') } },
+  set_y_axis: { fields: { axis: xyAxis('y') } },
   add_series: { fields: { kind2: withNote(oneOf(SERIES_KINDS), 'series type — the field is named kind2, not kind'), name: strOrNull(false), values: numArr() } },
   remove_series: { fields: { index: num() } },
   set_series_values: { fields: { index: num(), values: numArr() } },
@@ -295,14 +322,17 @@ const PIE_SCHEMA: Record<string, OpSpec> = {
   reorder_slice: { fields: { from: num(), to: num() } },
 }
 
+// A repeated point label is another point; its later points are numbered in
+// document order (quadrantPointIds).
+const QUADRANT_POINT_ID = 'a repeated label reads as A, A#2, … in document order'
 const QUADRANT_SCHEMA: Record<string, OpSpec> = {
   set_title: { fields: { title: strOrNull() } },
   set_axis_labels: { fields: { axis: oneOf(AXIS_KINDS), near: strOrNull(), far: strOrNull(false) } },
   set_quadrant_label: { fields: { quadrant: num(), label: strOrNull() } },
   add_point: { fields: { label: str(), x: withNote(num(), '0..1'), y: withNote(num(), '0..1') } },
-  remove_point: { fields: { label: str() } },
-  move_point: { fields: { label: str(), x: withNote(num(), '0..1'), y: withNote(num(), '0..1') } },
-  rename_point: { fields: { from: str(), to: str() } },
+  remove_point: { fields: { label: withNote(str(), QUADRANT_POINT_ID) } },
+  move_point: { fields: { label: withNote(str(), QUADRANT_POINT_ID), x: withNote(num(), '0..1'), y: withNote(num(), '0..1') } },
+  rename_point: { fields: { from: withNote(str(), QUADRANT_POINT_ID), to: str() } },
 }
 
 const GANTT_SCHEMA: Record<string, OpSpec> = {
@@ -331,11 +361,21 @@ const GANTT_SCHEMA: Record<string, OpSpec> = {
   move_section: { fields: { from: num(), to: num() } },
 }
 
+// Mindmap identity: a default-shaped node's text is its id; a repeated
+// identity's later nodes are numbered in document order (X, X#2, …).
 const MINDMAP_SCHEMA: Record<string, OpSpec> = {
-  add_node: { fields: { id: str(), label: str(), parent: str(), shape: oneOf(MINDMAP_SHAPES, false), index: num(false) } },
+  add_node: {
+    fields: {
+      id: withNote(str(), 'must equal label for the default shape; repeated text reads as X, X#2, … in document order'),
+      label: str(),
+      parent: withNote(str(), "a new mindmap already has its one root, 'root'"),
+      shape: withNote(oneOf(MINDMAP_SHAPES, false), 'default: default; a bordered shape allows id != label'),
+      index: num(false),
+    },
+  },
   remove_node: { fields: { id: str(), recursive: bool(false) } },
   rename_node: { fields: { from: str(), to: str() } },
-  set_label: { fields: { id: str(), label: str() } },
+  set_label: { fields: { id: str(), label: withNote(str(), 'renames a default-shaped node: its id becomes the label') } },
   move_node: { fields: { id: str(), parent: str(), index: num(false) } },
   set_shape: { fields: { id: str(), shape: oneOf(MINDMAP_SHAPES) } },
   set_icon: { fields: { id: str(), icon: strOrNull() } },

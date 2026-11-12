@@ -220,8 +220,6 @@ describe('property-based architecture layout bounds', () => {
           })
           .filter(Boolean)
 
-        if (edgeLines.length === 0) return // skip degenerate case
-
         const lines = toMermaidLines(
           ['architecture-beta', ...serviceLines, ...edgeLines].join('\n'),
         )

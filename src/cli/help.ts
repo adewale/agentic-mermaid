@@ -41,13 +41,14 @@ Flags:
   --gantt-today <DATE>   For render: draw the gantt today marker at DATE (rendering never reads the wall clock)
   --target-width <CELLS> Hard terminal-cell bound for ASCII/Unicode output
   --agent-instructions   Print the canonical agent-use guide
+  --version, -v          Print the package version (with --json: {"ok":true,"version":...})
   --help                 Show this message (or per-command help: am <cmd> --help)
 
 Exit codes:
   0  ok
-  2  arg / parse error (bad flag, missing file, malformed JSON)
+  2  arg / parse error (bad flag, missing file, malformed JSON), or a render the input refuses
   3  verify reported errors (severity 'error')
-  4  uncaught internal failure, or verify errors that are all INTERNAL_ERROR
+  4  internal failure: an INTERNAL_ERROR render, or verify errors that are all INTERNAL_ERROR
 `
 
 /** Warning codes of one severity, comma-separated and wrapped for help text. */
@@ -95,7 +96,10 @@ ${cliRenderFormatHelpLines()}
                     (provisional default 9; 0 disables)
   --watch           Re-render one input file on change (non-PNG only)
 Multiple inputs emit a JSON results array for non-PNG formats.
-With --json, textual forms wrap output as {"<format>": "..."}.`,
+With --json, success prints {"ok":true,...}: textual forms as
+{"ok":true,"<format>":"...","receipt":{...},"warnings":[...]}, layout as the
+layout JSON plus "ok". With --output FILE the file always holds the plain
+artifact; --json then prints {"ok":true,"path","bytes","receipt","warnings"}.`,
   styles: `am styles [--json]
 List every registered style. A style is a partial description of how diagrams
 look; a colors-only style is a palette, a full look sets stroke/fill/typography
@@ -166,8 +170,11 @@ envelope per nonblank line, in order, without waiting for EOF:
 the batch continues and exits 0 even if lines errored. Input/output failures
 exit nonzero. Slow output consumers apply backpressure.`,
   'render-markdown': `am render-markdown <file.md> [--ascii]
-Render fenced \`\`\`mermaid blocks. Bad diagrams yield ok:false entries and do
-not abort the rest of the Markdown file.`,
+Render fenced Mermaid blocks: CommonMark \`\`\` or ~~~ fences whose info string
+starts with mermaid (any case), including fences in list items and block quotes.
+Emits {ok,blocks:[{index,line,ok,format?,output?,error?}]}; line is the 1-based
+line of the opening fence. Bad diagrams yield ok:false entries and do not abort
+the rest of the Markdown file.`,
   'llms-txt': `am llms-txt
 Emit the committed agent-discovery digest generated from current capabilities.`,
   'init-agent': `am init-agent [--dir <path>] [--force] [--json]

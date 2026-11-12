@@ -12,12 +12,19 @@ const result = renderMermaidSVGWithReceipt(source, { layoutSafety: 'strict' })
 console.log(result.receipt.layoutCertification)
 ```
 
-The default `report` policy preserves explicit limitations. It still rejects
-proven native text/marker occlusion and enforces production layout-pass
-contracts. `strict` requires a passed final certificate, including for plain
-string renders; missing evidence, exhausted checks, custom graphical backends,
-and unverified interactive states cannot become successful strict renders.
-Output security remains a separate policy.
+The default `report` policy preserves explicit limitations and enforces
+production layout-pass contracts. When no layout candidate certifies, or the
+final paint proof fails, it still draws the diagram if the failures are
+drawable (routes, title bands, overlaps, containment, covered text or
+markers, a connector across an unrelated card) and nothing is lost or clipped: `layoutCertification.geometry` names the
+candidate drawn and its failed checks, `status` stays the paint verdict, and
+`verifyMermaid` fails with `LAYOUT_UNCERTIFIED` (or `GROUP_BREACH`). A
+candidate that would change authored content, and paint outside the final
+viewport, are still refused. `strict` requires a passed final certificate,
+including for plain string renders; missing evidence, exhausted checks, custom
+graphical backends, uncertified geometry and unverified interactive states
+cannot become successful strict renders. Output security remains a separate
+policy.
 
 ## Pixel geometry
 
@@ -117,7 +124,10 @@ The bounded preference comparison follows the
 group titles, crossings, padded label conflicts, avoidable bends, preferred
 endpoint contacts, peer alignment and canvas area. A candidate with a better
 lower-priority score cannot displace one with a better earlier score. This final
-comparison does not excuse a production pass-contract error.
+comparison does not excuse a production pass-contract error. A placement whose
+routes certify only after a detour around a group's reserved title band ranks
+like one with an unreadable title: the next bounded candidate is tried, and the
+detoured placement is drawn only when that alternative does not certify.
 
 A repaired viewport with non-scaling strokes is unverified: keeping the display
 size changes the stroke extent in user units. Endpoint checks allow an arrow’s

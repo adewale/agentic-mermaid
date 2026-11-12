@@ -128,7 +128,9 @@ check 'execute: expression form' '\"value\":42' \
 check 'execute: bare object literal stays an expression' '\"answer\":42' \
   "$(j '{"jsonrpc":"2.0","id":10,"method":"tools/call","params":{"name":"execute","arguments":{"code":"{ answer: 42 }"}}}')"
 
-check 'execute: user errors use the structured envelope' '\"error\":{\"code\":\"EXECUTE_FAILED\",\"message\":\"boom\"}' \
+# The location is the throw's line/column in the agent's code (the column is
+# the engine's choice of token inside `new Error(...)`).
+check 'execute: user errors use the structured envelope with a location' '\"error\":{\"code\":\"EXECUTE_FAILED\",\"message\":\"boom\",\"location\":{\"line\":1,\"column\":' \
   "$(j '{"jsonrpc":"2.0","id":11,"method":"tools/call","params":{"name":"execute","arguments":{"code":"throw new Error(\"boom\")"}}}')"
 
 check 'execute: isolate has no fetch' '\"value\":\"undefined\"' \
@@ -136,7 +138,7 @@ check 'execute: isolate has no fetch' '\"value\":\"undefined\"' \
 
 # Shared Code Mode screening rejects malformed syntax before either isolate wrapper runs.
 check_http_jq 'execute: invalid syntax returns the structured screening error' '200' \
-  '.jsonrpc == "2.0" and .id == 13 and .result.isError == true and (.result.content[0] | .type == "text" and (.text | fromjson | .ok == false and .error == {"code":"EXECUTE_FAILED","message":"Code Mode syntax must be a strict JavaScript expression or function body"}))' \
+  '.jsonrpc == "2.0" and .id == 13 and .result.isError == true and (.result.content[0] | .type == "text" and (.text | fromjson | .ok == false and .error == {"code":"EXECUTE_FAILED","message":"Code Mode syntax must be a strict JavaScript expression or function body","location":{"line":1,"column":8}}))' \
   -X POST "$MCP" -H 'content-type: application/json' -d '{"jsonrpc":"2.0","id":13,"method":"tools/call","params":{"name":"execute","arguments":{"code":"return ) === ("}}}'
 
 check 'async code is screened before any isolate' 'Code Mode is synchronous' \

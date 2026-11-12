@@ -5,6 +5,7 @@ export { auditRouteContracts, type RouteAuditFinding } from './layout/route-audi
 import { customTextMeasurementActive } from './text-measurement-profile.ts'
 import { resolveLabelContent } from './shared/display-text.ts'
 import { countPointPairCrossings } from './shared/edge-crossing-pair.ts'
+import { positionedEdgeWarningIds } from './shared/edge-selectors.ts'
 import type { Direction, MermaidGraph, Point, PortSide, PositionedEdge, PositionedGroup, PositionedNode, RouteBlocker, RouteCertificate, RouteClass, RouteInvariant } from './types.ts'
 import { graphEdgeTextBlock } from './graph-text.ts'
 import { graphEdgeMarkerPaintRegions, graphEdgeTerminalClearance } from './graph-connectors.ts'
@@ -1050,6 +1051,7 @@ function scanRouteHitches(positioned: { nodes: PositionedNode[]; edges: Position
   const sideUse = ctx.sideUse!
   const hitches: RouteHitch[] = []
   const closedEdges = new Set<PositionedEdge>()
+  const warningIds = positionedEdgeWarningIds(positioned.edges)
 
   for (const edge of positioned.edges) {
     const cert = edge.routeCertificate
@@ -1077,7 +1079,7 @@ function scanRouteHitches(positioned: { nodes: PositionedNode[]; edges: Position
     const probe: PositionedEdge = close ? edge : { ...edge, points: points.map(p => ({ ...p })) }
     const attempt = tryStraighten(probe, source, target, ctx, edgeAxis, vertexLane, edge)
     if (attempt.applied) {
-      hitches.push({ edge: edgeId(edge), deviationPx: Math.round(crossDeviation(points, edgeAxis) * 10) / 10 })
+      hitches.push({ edge: warningIds.get(edge)!, deviationPx: Math.round(crossDeviation(points, edgeAxis) * 10) / 10 })
       if (close) closedEdges.add(edge)
     }
   }

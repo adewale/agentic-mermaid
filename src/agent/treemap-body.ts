@@ -122,7 +122,15 @@ export function mutateTreemap(body: TreemapBody, op: TreemapMutationOp): Result<
       }
       case 'define_class':
         if (!/^[A-Za-z_]\w*$/.test(op.name) || /[\r\n]/.test(op.style)) throw new Error('Class name and style must be valid single-line Mermaid')
-        next.classDefs[op.name] = checkedAuthoredStyle(parseStyleProps(op.style), `classDef ${op.name}`)
+        {
+          const props = checkedAuthoredStyle(parseStyleProps(op.style), `classDef ${op.name}`)
+          // Mermaid's CLASS_DEF token ends the style text at `;`, and the
+          // writer joins declarations with `,`: a declaration holding either
+          // has no spelling.
+          const written = Object.entries(props).map(([key, value]) => `${key}:${value}`).join(',')
+          if (/;/.test(written) || JSON.stringify(parseStyleProps(written)) !== JSON.stringify(props)) throw new Error(`Treemap classDef ${op.name} style ${JSON.stringify(op.style)} has no Mermaid spelling: a declaration holds \`;\` or \`,\``)
+          next.classDefs[op.name] = props
+        }
         break
       case 'set_node_class':
         find(op.id).className = op.className ?? undefined

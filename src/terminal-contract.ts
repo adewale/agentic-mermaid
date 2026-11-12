@@ -77,6 +77,11 @@ const INPUT_FIELDS = new Set(
   } satisfies Record<keyof TerminalOutputPolicyInput, true>),
 )
 
+/** True for the terminal adapter's own output-policy fields. */
+export function isTerminalOutputOptionField(field: string): boolean {
+  return INPUT_FIELDS.has(field)
+}
+
 function terminalOutputFields(): Record<keyof TerminalOutputPolicyInput, TerminalOutputField> {
   const themeTypeScript = `{ ${THEME_FIELDS.map(field => `${field}?: string`).join('; ')} }`
   return {

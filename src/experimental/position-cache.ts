@@ -1,5 +1,6 @@
-import { NativeWeakMap, NativeWeakSet, weakMapDelete, weakMapGet, weakMapHas, weakMapSet, weakSetAdd, weakSetHas } from '../shared/intrinsics.ts'
+import { NativeWeakMap, NativeWeakSet, uncurryIntrinsic, weakMapDelete, weakMapGet, weakMapHas, weakMapSet, weakSetAdd, weakSetHas } from '../shared/intrinsics.ts'
 import type { FamilyLayoutResult, FamilyPositionedView } from '../agent/families.ts'
+import { transferConstructedBundleRoute } from '../layout/bundle-routes.ts'
 import { graphLayoutDecisionsOf, transferGraphLayoutDecisions } from '../layout/decision-evidence.ts'
 import { observeCache } from '../performance-observations.ts'
 import type { PaintLayoutCertification } from '../scene/paint-certification.ts'
@@ -33,6 +34,7 @@ const retainedResults = new NativeWeakSet<object>()
 const copiedResults = new NativeWeakSet<object>()
 // Operation wrappers still reference mutable cache-owned positioning data.
 const freezeResult = Object.freeze
+const routeKeys = Object.keys, routeDescriptor = Object.getOwnPropertyDescriptor
 function isolatedKey(family: object, key: string): string {
   let id = weakMapGet(familyIds, family)
   if (id === undefined) { id = nextFamilyId++; weakMapSet(familyIds, family, id) }
@@ -40,25 +42,28 @@ function isolatedKey(family: object, key: string): string {
 }
 // Intrinsic collection iterators ignore caller overrides and mutable prototypes.
 const recordPrototype = Object.prototype, mapPrototype = Map.prototype, setPrototype = Set.prototype
-const mapEntries = Map.prototype.entries, setValues = Set.prototype.values
-const mapNext = Object.getPrototypeOf(new Map().entries()).next as MapIterator<[unknown, unknown]>['next']
-const setNext = Object.getPrototypeOf(new Set().values()).next as SetIterator<unknown>['next']
+const positionIsArray = Array.isArray, positionPrototype = Object.getPrototypeOf
+const mapEntries = uncurryIntrinsic(Map.prototype.entries) as (value: Map<unknown, unknown>) => MapIterator<[unknown, unknown]>
+const setValues = uncurryIntrinsic(Set.prototype.values) as (value: Set<unknown>) => SetIterator<unknown>
+const mapNext = uncurryIntrinsic(Object.getPrototypeOf(new Map().entries()).next) as (iterator: MapIterator<[unknown, unknown]>) => IteratorResult<[unknown, unknown]>
+const setNext = uncurryIntrinsic(Object.getPrototypeOf(new Set().values()).next) as (iterator: SetIterator<unknown>) => IteratorResult<unknown>
+const appendSnapshot = uncurryIntrinsic(Array.prototype.push) as (values: unknown[], item: unknown) => void
 function clonedKind(value: object): 'record' | 'array' | 'map' | 'set' | 'native' {
-  if (Array.isArray(value)) return 'array'
-  const prototype = Object.getPrototypeOf(value)
+  if (positionIsArray(value)) return 'array'
+  const prototype = positionPrototype(value)
   return prototype === recordPrototype || prototype === null ? 'record'
     : prototype === mapPrototype ? 'map' : prototype === setPrototype ? 'set' : 'native'
 }
 
 function mapSnapshot(value: object): Array<[unknown, unknown]> {
-  const iterator = mapEntries.call(value as Map<unknown, unknown>), entries: Array<[unknown, unknown]> = []
-  for (let next = mapNext.call(iterator); !next.done; next = mapNext.call(iterator)) entries.push(next.value)
+  const iterator = mapEntries(value as Map<unknown, unknown>), entries: Array<[unknown, unknown]> = []
+  for (let next = mapNext(iterator); !next.done; next = mapNext(iterator)) appendSnapshot(entries, next.value)
   return entries
 }
 
 function setSnapshot(value: object): unknown[] {
-  const iterator = setValues.call(value as Set<unknown>), entries: unknown[] = []
-  for (let next = setNext.call(iterator); !next.done; next = setNext.call(iterator)) entries.push(next.value)
+  const iterator = setValues(value as Set<unknown>), entries: unknown[] = []
+  for (let next = setNext(iterator); !next.done; next = setNext(iterator)) appendSnapshot(entries, next.value)
   return entries
 }
 
@@ -155,12 +160,41 @@ function transferIndependentTextCustody(source: unknown, copy: unknown): void {
   visit(source, copy)
 }
 
+/** A copied bundle route keeps its construction ownership, so a cached layout
+ * is audited exactly like the fresh one it was copied from. structuredClone
+ * preserves shape and order, so source and copy are walked in parallel. */
+function transferBundleRouteOwnership(source: unknown, copy: unknown): void {
+  const seen = new NativeWeakSet<object>()
+  const visit = (a: unknown, b: unknown): void => {
+    if (a === null || typeof a !== 'object' || b === null || typeof b !== 'object' || weakSetHas(seen, a)) return
+    weakSetAdd(seen, a)
+    transferConstructedBundleRoute(a, b)
+    try {
+      const kind = clonedKind(b)
+      if (kind === 'map') {
+        const entries = mapSnapshot(a), copies = mapSnapshot(b)
+        for (let i = 0; i < Math.min(entries.length, copies.length); i++) { visit(entries[i]![0], copies[i]![0]); visit(entries[i]![1], copies[i]![1]) }
+      } else if (kind === 'set') {
+        const entries = setSnapshot(a), copies = setSnapshot(b)
+        for (let i = 0; i < Math.min(entries.length, copies.length); i++) visit(entries[i], copies[i])
+      } else if (kind === 'record' || kind === 'array') {
+        for (const key of routeKeys(b)) {
+          const descriptor = routeDescriptor(a, key)
+          if (descriptor && 'value' in descriptor) visit(descriptor.value, (b as Record<string, unknown>)[key])
+        }
+      }
+    } catch { /* opaque source data carries no route ownership */ }
+  }
+  visit(source, copy)
+}
+
 /** Public copies remain independent mutable snapshots. Private native copies
  * may share only constructor-owned immutable text, preserving custody cost. */
 export function clonePositioned<T>(source: T, immutableText = false): T {
   // Native admission must precede reflection: even a descriptor trap can
   // delete an uncloneable Proxy before structuredClone gets to reject it.
   const copy = structuredClone(source)
+  transferBundleRouteOwnership(source, copy)
   const proof = positionedCustodyProof(source, copy, immutableText)
   if (!proof) { transferIndependentTextCustody(source, copy); return copy }
   const { metadata, replacements, hasReplacements } = proof

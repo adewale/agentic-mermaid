@@ -8,13 +8,24 @@ import {
   handleHostedRequest, HOSTED_MCP_SERVER_NAME, HOSTED_TOOLS, MAX_CODE_BYTES, MAX_SOURCE_BYTES,
   SUPPORTED_PROTOCOL_VERSIONS, cacheKeyFor, type HostedMcpContext, type ExecuteResult,
 } from '../mcp/hosted-server.ts'
-import { MCP_SERVER_NAME, validateMcpToolArguments } from '../mcp/tool-surface.ts'
+import { MCP_SERVER_NAME, createRenderPngTool, validateMcpToolArguments } from '../mcp/tool-surface.ts'
 import type { JsonRpcRequest } from '../mcp/protocol.ts'
 import { isLegacyProtocolVersion } from '../mcp/protocol-versions.ts'
 import pkg from '../../package.json'
 import { visualWidth } from '../ascii/width.ts'
-import { renderMermaidASCII, verifyNoExternalRefs } from '../index.ts'
-import { MAX_HOSTED_PNG_BYTES, PNG_WASM_RUNTIME } from '../png-contract.ts'
+import { renderMermaidASCII, renderMermaidSVG, verifyNoExternalRefs, type RenderOptions } from '../index.ts'
+import { MAX_HOSTED_PNG_BYTES, PNG_WASM_RUNTIME, PngRasterizerError } from '../png-contract.ts'
+import { mkdtempSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+import { runCli } from '../cli/index.ts'
+import { createTracingMermaid } from '../mcp/facade.ts'
+import { HOSTED_CODE_MODE_HOST_POLICY } from '../render-host-policy.ts'
+import { captureCli } from './helpers/cli-capture.ts'
+import { AjvJsonSchemaValidator } from '@modelcontextprotocol/sdk/validation/ajv'
+import { handleRequest, LOCAL_TOOLS } from '../mcp/server.ts'
+import { styleSpecJsonSchema } from '../scene/style-spec.ts'
+import { knownStyleDescriptors } from '../scene/style-registry.ts'
 
 const FLOW = 'flowchart TD\n  A[Start] --> B{OK?}\n  B -->|yes| C[Done]'
 const TEST_PNG_RECEIPT = { version: 2, output: 'png', sharedRequestDigest: 'test-shared', requestDigest: 'test-request', appearanceDigest: 'test-appearance', capabilityDecision: { version: 1, accepted: true, resolutions: [] } } as const
@@ -126,6 +137,53 @@ describe('hosted MCP handshake', () => {
     expect(styleDescription.toLowerCase()).not.toContain('cupertino')
   })
 
+  // Every render tool on both surfaces: tools/list loads these into each agent
+  // context, so the ~8 KB StyleSpec record (and the role records it names) must
+  // be defined once per tool, not inlined per style alternative, and every
+  // reference must resolve from the tool schema a client receives.
+  const renderTools = [...HOSTED_TOOLS, ...LOCAL_TOOLS].filter(tool => tool.name.startsWith('render_'))
+
+  test('render tool schemas define each shared record once and resolve every $ref from the tool root', () => {
+    const recordDescription = (styleSpecJsonSchema() as { description: string }).description
+    const resolve = (root: unknown, ref: string) => ref.startsWith('#/')
+      ? ref.slice(2).split('/').reduce<any>((node, part) => node?.[part.replaceAll('~1', '/').replaceAll('~0', '~')], root)
+      : undefined
+    const ajv = new AjvJsonSchemaValidator()
+    for (const tool of renderTools) {
+      const text = JSON.stringify(tool.inputSchema)
+      expect({ tool: tool.name, records: text.split(JSON.stringify(recordDescription)).length - 1 }).toEqual({ tool: tool.name, records: 1 })
+      const refs: string[] = []
+      const nestedResources: string[] = []
+      // Keys of a `properties`/`$defs` map are names (StyleSpec has a `$schema`
+      // field), not keywords; only keyword positions are inspected.
+      const walk = (node: unknown, depth: number, names = false) => {
+        if (Array.isArray(node)) return node.forEach(child => walk(child, depth + 1))
+        if (!node || typeof node !== 'object') return
+        for (const [key, child] of Object.entries(node)) {
+          if (!names && key === '$ref' && typeof child === 'string') refs.push(child)
+          if (!names && depth > 0 && (key === '$id' || key === '$schema')) nestedResources.push(key)
+          walk(child, depth + 1, !names && (key === 'properties' || key === '$defs'))
+        }
+      }
+      walk(tool.inputSchema, 0)
+      expect({ tool: tool.name, nestedResources }).toEqual({ tool: tool.name, nestedResources: [] })
+      expect({ tool: tool.name, unresolved: refs.filter(ref => resolve(tool.inputSchema, ref) === undefined) }).toEqual({ tool: tool.name, unresolved: [] })
+      // A validator we did not write (the MCP SDK's client-side Ajv provider)
+      // still checks every field through the references.
+      const check = ajv.getValidator(tool.inputSchema as never)
+      expect(check({ source: FLOW, options: { style: ['hand-drawn', { roughness: 2 }], mermaidConfig: { flowchart: { curve: 'basis' } } } }).valid).toBe(true)
+      expect(check({ source: FLOW, options: { style: [{ roughness: 'rough' }] } }).valid).toBe(false)
+      expect(check({ source: FLOW, options: { style: { nope: 1 } } }).valid).toBe(false)
+    }
+  })
+
+  test('every render tool describes options with the same registered Look and Palette menu', () => {
+    const descriptions = new Set(renderTools.map(tool => (tool.inputSchema.properties as Record<string, any>).options.description))
+    expect(descriptions.size).toBe(1)
+    const [description] = descriptions
+    for (const descriptor of knownStyleDescriptors()) expect(description).toContain(descriptor.inputName)
+  })
+
   test('unknown methods and unknown tools are JSON-RPC errors', async () => {
     const method = await handleHostedRequest(rpc('resources/read'), makeContext())
     expect(method?.error?.code).toBe(-32601)
@@ -134,7 +192,7 @@ describe('hosted MCP handshake', () => {
   })
 
   test('notifications return null; ping pongs', async () => {
-    expect(await handleHostedRequest(rpc('notifications/initialized'), makeContext())).toBeNull()
+    expect(await handleHostedRequest({ jsonrpc: '2.0', method: 'notifications/initialized' }, makeContext())).toBeNull()
     expect((await handleHostedRequest(rpc('ping'), makeContext()))?.result).toEqual({})
   })
 })
@@ -180,6 +238,32 @@ describe('hosted pure tools', () => {
     expect(response?.error?.message).toContain('exceeds maximum nesting depth 64')
     expect(context.executeCalls).toEqual([])
     expect(context.pngCalls).toEqual([])
+  })
+
+  // The StyleSpec validator owns these diagnoses; a union over its shapes
+  // must not replace them with "must be a registered Style name or StyleSpec".
+  test.each([
+    [{ roughness: 99 }, '"roughness" must be between 0 and 10'],
+    [{ bogus: 1 }, 'unknown field "bogus"'],
+    [{ colors: { bg: 'url(http://x)' } }, 'color token "bg" must be a safe non-fetching CSS color'],
+    [['hand-drawn', { colors: { bg: '#12345' } }], 'color token "bg" must be a safe non-fetching CSS color'],
+    ['handdrawn', 'Unknown style "handdrawn". Did you mean "hand-drawn"?'],
+    ['Dracula', 'Unknown style "Dracula". Did you mean "dracula"?'],
+  ])('MCP tools and the library name the same StyleInput problem for %j', async (style, problem) => {
+    const hosted = await handleHostedRequest(call('render_svg', { source: FLOW, options: { style } }), makeContext())
+    expect(hosted?.error?.code).toBe(-32602)
+    expect(hosted?.error?.message).toContain(problem)
+    expect(validateMcpToolArguments(createRenderPngTool('local'), { source: FLOW, options: { style } }).join('\n')).toContain(problem)
+    expect(() => renderMermaidSVG(FLOW, { style } as RenderOptions)).toThrow(problem)
+  })
+
+  test('a guessed theme render option points at mermaidConfig.theme and style on every surface', async () => {
+    const hint = 'set a Mermaid theme with mermaidConfig.theme, or a registered Style or Palette with style'
+    const hosted = await handleHostedRequest(call('render_svg', { source: FLOW, options: { theme: 'dark' } }), makeContext())
+    expect(hosted?.error?.message).toContain(`arguments.options.theme is not allowed; ${hint}`)
+    expect(validateMcpToolArguments(createRenderPngTool('local'), { source: FLOW, options: { theme: 'dark' } }))
+      .toEqual([`arguments.options.theme is not allowed; ${hint}`])
+    expect(() => renderMermaidSVG(FLOW, { theme: 'dark' } as RenderOptions)).toThrow(`unknown render option "theme"; ${hint}`)
   })
 
   test('render_svg renders deterministic themeable SVG', async () => {
@@ -230,7 +314,7 @@ describe('hosted pure tools', () => {
     const payload = payloadOf(await handleHostedRequest(call('render_svg', { source }), makeContext()))
     expect(payload.ok).toBe(false)
     expect(payload.isError).toBe(true)
-    expect(payload.error).toEqual({ code: 'RENDER_FAILED', message: 'Rendering failed' })
+    expect(payload.error).toEqual({ code: 'RENDER_FAILED', origin: 'config', message: expect.stringContaining('themeCSS is not allowed in strict security mode') })
     expect(payload).not.toHaveProperty('svg')
   })
 
@@ -245,6 +329,26 @@ describe('hosted pure tools', () => {
     }
   })
 
+  test('render tools on every surface report config warnings for the mermaidConfig the caller passed', async () => {
+    const mermaidConfig = { theme: 'darkk', flowchart: { madeUpKey: 1 } }
+    const expected = [
+      expect.objectContaining({ code: 'INEFFECTIVE_CONFIG', field: 'theme' }),
+      expect.objectContaining({ code: 'INEFFECTIVE_CONFIG', field: 'flowchart.madeUpKey' }),
+    ]
+    const surfaces: Array<[string, unknown]> = []
+    for (const name of ['render_svg', 'render_ascii', 'render_png']) {
+      surfaces.push([`hosted ${name}`, payloadOf(await handleHostedRequest(call(name, { source: FLOW, options: { mermaidConfig } }), makeContext())).warnings])
+    }
+    surfaces.push(['stdio render_png', payloadOf(await handleRequest(call('render_png', { source: FLOW, options: { mermaidConfig } })) as any).warnings])
+    const input = join(mkdtempSync(join(tmpdir(), 'am-config-warnings-')), 'flow.mmd')
+    writeFileSync(input, FLOW)
+    const cli = captureCli(() => runCli(['render', input, '--format', 'svg', '--json', '--options', JSON.stringify({ mermaidConfig })]))
+    surfaces.push(['cli render', JSON.parse(cli.out).warnings])
+    for (const [surface, warnings] of surfaces) {
+      expect({ surface, warnings }).toEqual({ surface, warnings: expect.arrayContaining(expected) })
+    }
+  })
+
   test('render_ascii returns the library drawing in the Unicode and ASCII charsets', async () => {
     const source = 'flowchart LR\n  A[Start] --> B{OK?}'
     const unicode = payloadOf(await handleHostedRequest(call('render_ascii', { source }), makeContext()))
@@ -256,17 +360,33 @@ describe('hosted pure tools', () => {
     expect(ascii.text).not.toContain('┌')
   })
 
-  test('render_ascii keeps security and font-import policy host-owned', async () => {
-    const source = 'flowchart LR\n  A --> B'
+  test('render_ascii reports only options the caller passed, and the same warnings as the CLI', async () => {
+    // The host's SVG policy cannot change terminal text, and an option the
+    // caller never passed is not reported as one terminals ignore.
+    const source = 'flowchart LR\n  A --> B\n  B --> C\n  C --> C'
+    const optionNotes = (payload: any) => payload.receipt.diagnostics
+      .filter((diagnostic: { code: string }) => diagnostic.code.startsWith('TERMINAL_RENDER_OPTION'))
+      .map((diagnostic: { feature: string }) => diagnostic.feature)
     const baseline = payloadOf(await handleHostedRequest(call('render_ascii', { source }), makeContext()))
-    const weaker = payloadOf(await handleHostedRequest(call('render_ascii', {
+    expect(baseline.ok).toBe(true)
+    expect(baseline.warnings).toEqual([])
+    expect(optionNotes(baseline)).toEqual([])
+    const input = join(mkdtempSync(join(tmpdir(), 'am-hosted-ascii-')), 'chain.mmd')
+    writeFileSync(input, source)
+    const cli = captureCli(() => runCli(['render', input, '--format', 'unicode', '--json']))
+    expect(JSON.parse(cli.out)).toMatchObject({ ok: true, unicode: baseline.text, warnings: baseline.warnings })
+
+    const asked = payloadOf(await handleHostedRequest(call('render_ascii', {
       source,
       options: { security: 'default', embedFontImport: true },
     }), makeContext()))
-    expect(weaker.text).toBe(baseline.text)
-    expect(weaker.receipt).toEqual(baseline.receipt)
-    expect(cacheKeyFor('render_ascii', { source, options: { security: 'default', embedFontImport: true } }))
-      .toEqual(cacheKeyFor('render_ascii', { source }))
+    expect(asked.text).toBe(baseline.text)
+    expect(asked.warnings).toEqual([])
+    expect(optionNotes(asked)).toEqual(['render-option:embedFontImport', 'render-option:security'])
+
+    // Code Mode under the hosted policy follows the same rule.
+    const hostedCodeMode = createTracingMermaid(undefined, undefined, undefined, HOSTED_CODE_MODE_HOST_POLICY)
+    expect(optionNotes(hostedCodeMode.renderMermaidASCIIWithReceipt(source, { colorMode: 'none' }))).toEqual([])
   })
 
   test('render_ascii exposes targetWidth and typed impossible-width errors', async () => {
@@ -442,9 +562,10 @@ describe('hosted declarative mutate/build tools', () => {
     const execute = HOSTED_TOOLS.find(t => t.name === 'execute')!
     const mutate = HOSTED_TOOLS.find(t => t.name === 'mutate')!
     const build = HOSTED_TOOLS.find(t => t.name === 'build')!
-    // Include metrics, layout selectors and parse positions without increasing
-    // the context limit; family edit schemas stay progressively loaded.
-    expect(new TextEncoder().encode(execute.description).length).toBeLessThan(15_250)
+    // Include metrics, layout selectors, parse positions and nested op field
+    // docs (OpFieldDoc) within this limit; family edit schemas stay
+    // progressively loaded.
+    expect(new TextEncoder().encode(execute.description).length).toBeLessThan(15_350)
     expect(mutate.description).toContain('describe_sdk')
     expect(build.description).toContain('describe_sdk')
     expect(mutate.description).not.toContain('add_class(id, label?, generic?, members?, namespace?)')
@@ -514,9 +635,10 @@ describe('hosted execute', () => {
 
   test('sandbox-reported failures carry the same envelope, classified by cause', async () => {
     // Every hosted tool errors as { code, message }; execute is no exception.
-    // A CPU-budget overrun (execute-loader failure() wording) is EXECUTE_TIMEOUT;
-    // anything else — user throw, syntax error — is EXECUTE_FAILED, message verbatim.
-    const timedOut = makeContext({ execute: async () => ({ ok: false, error: 'Script execution exceeded its 5000ms CPU budget', logs: [] }) })
+    // A runner-tagged budget overrun (execute-loader failure()) is
+    // EXECUTE_TIMEOUT; anything else — user throw, syntax error — is
+    // EXECUTE_FAILED, message verbatim.
+    const timedOut = makeContext({ execute: async () => ({ ok: false, error: 'Script execution exceeded its 5000ms CPU budget', code: 'EXECUTE_TIMEOUT', logs: [] }) })
     const t = payloadOf(await handleHostedRequest(call('execute', { code: 'while (true) {}' }), timedOut))
     expect(t.error).toEqual({ code: 'EXECUTE_TIMEOUT', message: 'Script execution exceeded its 5000ms CPU budget' })
     const threw = makeContext({ execute: async () => ({ ok: false, error: 'boom', logs: ['before the throw'] }) })
@@ -631,11 +753,19 @@ describe('hosted render_png', () => {
     expect(p.error.code).toBe('PNG_UNAVAILABLE')
   })
 
-  test('rasterizer failures use the transport-neutral render diagnostic', async () => {
-    const ctx = makeContext({ renderPng: async () => { throw new Error('wasm init failed') } })
-    const p = payloadOf(await handleHostedRequest(call('render_png', { source: FLOW }), ctx))
-    expect(p.ok).toBe(false)
-    expect(p.error).toEqual({ code: 'RENDER_FAILED', message: 'Rendering failed' })
+  test('rasterizer and runtime failures are internal errors that keep host details out', async () => {
+    const hostDetail = '/srv/worker/generated/resvg.wasm'
+    for (const thrown of [
+      new PngRasterizerError('loading its resources', new Error(`${hostDetail}: init failed`)),
+      new TypeError(`Cannot read properties of undefined (reading '${hostDetail}')`),
+      Object.assign(new Error(`ENOENT: no such file or directory, open '${hostDetail}'`), { errno: -2, syscall: 'open' }),
+    ]) {
+      const ctx = makeContext({ renderPng: async () => { throw thrown } })
+      const p = payloadOf(await handleHostedRequest(call('render_png', { source: FLOW }), ctx))
+      expect(p.ok).toBe(false)
+      expect(p.error, thrown.name).toEqual({ code: 'INTERNAL_ERROR', message: expect.any(String) })
+      expect(JSON.stringify(p), thrown.name).not.toContain(hostDetail)
+    }
   })
 })
 

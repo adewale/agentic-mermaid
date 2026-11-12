@@ -1,7 +1,7 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="665.966" height="280" viewBox="0 0 665.966 280" style="--bg:#FFFFFF;--fg:#27272A;--font:Inter;background:#FFFFFF" class="am-086nlc21qmsmip">
+<svg xmlns="http://www.w3.org/2000/svg" width="665.966" height="364" viewBox="0 0 665.966 364" style="--bg:#FFFFFF;--fg:#27272A;--font:Inter;background:#FFFFFF" class="am-0xat7hn04qai8k">
 <style>
-  svg.am-086nlc21qmsmip { font-family: var(--font, 'Inter'), system-ui, sans-serif; }
-  svg.am-086nlc21qmsmip {
+  svg.am-0xat7hn04qai8k { font-family: var(--font, 'Inter'), system-ui, sans-serif; }
+  svg.am-0xat7hn04qai8k {
     /* Derived from --bg and --fg (overridable via --line, --accent, etc.) */
     --_text:          #27272A;
     --_text-sec:      #575759;
@@ -26,9 +26,9 @@
   </marker>
 </defs>
 <g class="architecture-group" data-id="edge" data-label="Edge" data-role="group">
-  <rect class="architecture-group-frame" x="40" y="40" width="0" height="0" rx="0" ry="0" fill="#fafafa" stroke="none" data-id="group-frame:edge" data-role="group" />
-  <path class="architecture-group-band" d="M40,40 H40 V68 H40 Z" fill="#f6f6f6" stroke="none" />
-  <rect class="architecture-group-outline" x="40" y="40" width="0" height="0" rx="0" ry="0" fill="none" stroke="#949495" stroke-width="1" data-id="group-outline:edge" data-role="group" />
+  <rect class="architecture-group-frame" x="40" y="40" width="112" height="84" rx="0" ry="0" fill="#fafafa" stroke="none" data-id="group-frame:edge" data-role="group" />
+  <path class="architecture-group-band" d="M40,40 H152 V68 H40 Z" fill="#f6f6f6" stroke="none" />
+  <rect class="architecture-group-outline" x="40" y="40" width="112" height="84" rx="0" ry="0" fill="none" stroke="#949495" stroke-width="1" data-id="group-outline:edge" data-role="group" />
   <g class="architecture-icon" data-icon="cloud">
   <circle class="architecture-icon-mark" cx="55.3504" cy="54.2944" r="2.3552" fill="none" stroke="#47474a" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round" />
 <circle class="architecture-icon-mark" cx="58.2944" cy="52.8224" r="2.944" fill="none" stroke="#47474a" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round" />
@@ -38,44 +38,44 @@
   <text x="76" y="54" class="architecture-group-label" text-anchor="start" font-size="12" font-weight="600" fill="#575759" data-prepared-text="true" dy="4.2" textLength="32.04" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Edge</text>
 </g>
 <g class="architecture-group" data-id="app" data-label="Application" data-role="group">
-  <rect class="architecture-group-frame" x="38" y="76" width="382.585" height="164" rx="0" ry="0" fill="#fafafa" stroke="none" data-id="group-frame:app" data-role="group" />
-  <path class="architecture-group-band" d="M38,76 H420.585 V104 H38 Z" fill="#f6f6f6" stroke="none" />
-  <rect class="architecture-group-outline" x="38" y="76" width="382.585" height="164" rx="0" ry="0" fill="none" stroke="#949495" stroke-width="1" data-id="group-outline:app" data-role="group" />
+  <rect class="architecture-group-frame" x="38" y="160" width="382.585" height="164" rx="0" ry="0" fill="#fafafa" stroke="none" data-id="group-frame:app" data-role="group" />
+  <path class="architecture-group-band" d="M38,160 H420.585 V188 H38 Z" fill="#f6f6f6" stroke="none" />
+  <rect class="architecture-group-outline" x="38" y="160" width="382.585" height="164" rx="0" ry="0" fill="none" stroke="#949495" stroke-width="1" data-id="group-outline:app" data-role="group" />
   <g class="architecture-icon" data-icon="server">
-  <rect class="architecture-icon-mark" x="52.7616" y="86.4672" width="6.4768" height="7.0656" rx="0" ry="0" fill="none" stroke="#47474a" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round" />
-<path class="architecture-icon-mark" d="M 53.6448 88.8224 H 58.3552" fill="none" stroke="#47474a" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round" />
-<path class="architecture-icon-mark" d="M 53.6448 90.8832 H 58.3552" fill="none" stroke="#47474a" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round" />
+  <rect class="architecture-icon-mark" x="52.7616" y="170.4672" width="6.4768" height="7.0656" rx="0" ry="0" fill="none" stroke="#47474a" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round" />
+<path class="architecture-icon-mark" d="M 53.6448 172.8224 H 58.3552" fill="none" stroke="#47474a" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round" />
+<path class="architecture-icon-mark" d="M 53.6448 174.8832 H 58.3552" fill="none" stroke="#47474a" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round" />
 </g>
-  <text x="74" y="90" class="architecture-group-label" text-anchor="start" font-size="12" font-weight="600" fill="#575759" data-prepared-text="true" dy="4.2" textLength="65.16" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Application</text>
+  <text x="74" y="174" class="architecture-group-label" text-anchor="start" font-size="12" font-weight="600" fill="#575759" data-prepared-text="true" dy="4.2" textLength="65.16" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Application</text>
 </g>
-<polyline class="architecture-edge" data-from-side="R" data-to-side="L" data-from-boundary="item" data-to-boundary="item" points="191.971,146 337.278,146 337.278,158 482.585,158" fill="none" stroke="#939395" stroke-width="1" stroke-linejoin="round" marker-end="url(#architecture-arrow-end)" data-relationship="architecture-edge" data-direction="forward" data-id="edge:api-&gt;db#0" data-role="edge" data-from="api" data-to="db" role="graphics-symbol" aria-roledescription="relation" aria-label="api to db" />
-<polyline class="architecture-edge" data-from-side="B" data-to-side="T" data-from-boundary="item" data-to-boundary="item" data-label="async fan-out" points="123.9855,170 123.9855,189.8125 390.585,189.8125 390.585,206" fill="none" stroke="#939395" stroke-width="1" stroke-linejoin="round" marker-end="url(#architecture-arrow-end)" data-relationship="architecture-edge" data-direction="forward" data-id="edge:api-&gt;bus#0" data-role="edge" data-from="api" data-to="bus" role="graphics-symbol" aria-roledescription="relation" aria-label="api to bus: async fan-out" />
-<rect class="architecture-edge-label-bg" x="216.16575" y="175.6625" width="78.614" height="28.3" rx="0" ry="0" fill="#fefefe" stroke="#ececec" stroke-width="0.75" />
-<text x="255.47275" y="189.8125" class="architecture-edge-label-text" text-anchor="middle" font-size="11" font-weight="400" fill="#69696c" data-prepared-text="true" dy="3.85" textLength="64.614" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">async fan-out</text>
+<polyline class="architecture-edge" data-from-side="R" data-to-side="L" data-from-boundary="item" data-to-boundary="item" points="191.971,230 337.278,230 337.278,242 482.585,242" fill="none" stroke="#939395" stroke-width="1" stroke-linejoin="round" marker-end="url(#architecture-arrow-end)" data-relationship="architecture-edge" data-direction="forward" data-id="edge:api-&gt;db#0" data-role="edge" data-from="api" data-to="db" role="graphics-symbol" aria-roledescription="relation" aria-label="api to db" />
+<polyline class="architecture-edge" data-from-side="B" data-to-side="T" data-from-boundary="item" data-to-boundary="item" data-label="async fan-out" points="123.9855,254 123.9855,273.8125 390.585,273.8125 390.585,290" fill="none" stroke="#939395" stroke-width="1" stroke-linejoin="round" marker-end="url(#architecture-arrow-end)" data-relationship="architecture-edge" data-direction="forward" data-id="edge:api-&gt;bus#0" data-role="edge" data-from="api" data-to="bus" role="graphics-symbol" aria-roledescription="relation" aria-label="api to bus: async fan-out" />
+<rect class="architecture-edge-label-bg" x="216.16575" y="259.6625" width="78.614" height="28.3" rx="0" ry="0" fill="#fefefe" stroke="#ececec" stroke-width="0.75" />
+<text x="255.47275" y="273.8125" class="architecture-edge-label-text" text-anchor="middle" font-size="11" font-weight="400" fill="#69696c" data-prepared-text="true" dy="3.85" textLength="64.614" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">async fan-out</text>
 <g class="architecture-junction" data-id="bus" data-role="junction">
-  <circle class="architecture-junction-ring" cx="390.585" cy="214" r="8" fill="#FFFFFF" stroke="#47474a" stroke-width="1.25" data-id="junction-ring:bus" data-role="junction" />
-  <circle class="architecture-junction-core" cx="390.585" cy="214" r="4.5" fill="#d3d3d4" stroke="#47474a" stroke-width="0.75" data-id="junction-core:bus" data-role="junction" />
+  <circle class="architecture-junction-ring" cx="390.585" cy="298" r="8" fill="#FFFFFF" stroke="#47474a" stroke-width="1.25" data-id="junction-ring:bus" data-role="junction" />
+  <circle class="architecture-junction-core" cx="390.585" cy="298" r="4.5" fill="#d3d3d4" stroke="#47474a" stroke-width="0.75" data-id="junction-core:bus" data-role="junction" />
 </g>
 <g class="architecture-service" data-id="db" data-label="Primary DB" data-role="service">
-  <rect class="architecture-service-card" x="482.585" y="134" width="143.381" height="48" rx="0" ry="0" fill="#f9f9f9" stroke="none" data-id="service-card:db" data-role="service" />
-  <rect class="architecture-service-outline" x="482.585" y="134" width="143.381" height="48" rx="0" ry="0" fill="none" stroke="#949495" stroke-width="1" data-id="service-outline:db" data-role="service" />
+  <rect class="architecture-service-card" x="482.585" y="218" width="143.381" height="48" rx="0" ry="0" fill="#f9f9f9" stroke="none" data-id="service-card:db" data-role="service" />
+  <rect class="architecture-service-outline" x="482.585" y="218" width="143.381" height="48" rx="0" ry="0" fill="none" stroke="#949495" stroke-width="1" data-id="service-outline:db" data-role="service" />
   <g class="architecture-icon" data-icon="database">
-  <ellipse class="architecture-icon-mark" cx="511.585" cy="155.12" rx="4.32" ry="1.8" fill="none" stroke="#47474a" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round" />
-<path class="architecture-icon-mark" d="M 507.265 155.12 V 161.6" fill="none" stroke="#47474a" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round" />
-<path class="architecture-icon-mark" d="M 515.905 155.12 V 161.6" fill="none" stroke="#47474a" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round" />
-<ellipse class="architecture-icon-mark" cx="511.585" cy="158.36" rx="4.32" ry="1.8" fill="none" stroke="#47474a" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round" />
-<ellipse class="architecture-icon-mark" cx="511.585" cy="161.6" rx="4.32" ry="1.8" fill="none" stroke="#47474a" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round" />
+  <ellipse class="architecture-icon-mark" cx="511.585" cy="239.12" rx="4.32" ry="1.8" fill="none" stroke="#47474a" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round" />
+<path class="architecture-icon-mark" d="M 507.265 239.12 V 245.6" fill="none" stroke="#47474a" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round" />
+<path class="architecture-icon-mark" d="M 515.905 239.12 V 245.6" fill="none" stroke="#47474a" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round" />
+<ellipse class="architecture-icon-mark" cx="511.585" cy="242.36" rx="4.32" ry="1.8" fill="none" stroke="#47474a" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round" />
+<ellipse class="architecture-icon-mark" cx="511.585" cy="245.6" rx="4.32" ry="1.8" fill="none" stroke="#47474a" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round" />
 </g>
-  <text x="534.585" y="158" class="architecture-service-label" text-anchor="start" font-size="13" font-weight="500" fill="#27272A" data-prepared-text="true" dy="4.55" textLength="69.381" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Primary DB</text>
+  <text x="534.585" y="242" class="architecture-service-label" text-anchor="start" font-size="13" font-weight="500" fill="#27272A" data-prepared-text="true" dy="4.55" textLength="69.381" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Primary DB</text>
 </g>
 <g class="architecture-service" data-id="api" data-label="Public API" data-role="service">
-  <rect class="architecture-service-card" x="56" y="122" width="135.971" height="48" rx="0" ry="0" fill="#f9f9f9" stroke="none" data-id="service-card:api" data-role="service" />
-  <rect class="architecture-service-outline" x="56" y="122" width="135.971" height="48" rx="0" ry="0" fill="none" stroke="#949495" stroke-width="1" data-id="service-outline:api" data-role="service" />
+  <rect class="architecture-service-card" x="56" y="206" width="135.971" height="48" rx="0" ry="0" fill="#f9f9f9" stroke="none" data-id="service-card:api" data-role="service" />
+  <rect class="architecture-service-outline" x="56" y="206" width="135.971" height="48" rx="0" ry="0" fill="none" stroke="#949495" stroke-width="1" data-id="service-outline:api" data-role="service" />
   <g class="architecture-icon" data-icon="server">
-  <rect class="architecture-icon-mark" x="81.04" y="141.68" width="7.92" height="8.64" rx="0" ry="0" fill="none" stroke="#47474a" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round" />
-<path class="architecture-icon-mark" d="M 82.12 144.56 H 87.88" fill="none" stroke="#47474a" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round" />
-<path class="architecture-icon-mark" d="M 82.12 147.08 H 87.88" fill="none" stroke="#47474a" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round" />
+  <rect class="architecture-icon-mark" x="81.04" y="225.68" width="7.92" height="8.64" rx="0" ry="0" fill="none" stroke="#47474a" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round" />
+<path class="architecture-icon-mark" d="M 82.12 228.56 H 87.88" fill="none" stroke="#47474a" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round" />
+<path class="architecture-icon-mark" d="M 82.12 231.08 H 87.88" fill="none" stroke="#47474a" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round" />
 </g>
-  <text x="108" y="146" class="architecture-service-label" text-anchor="start" font-size="13" font-weight="500" fill="#27272A" data-prepared-text="true" dy="4.55" textLength="61.971" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Public API</text>
+  <text x="108" y="230" class="architecture-service-label" text-anchor="start" font-size="13" font-weight="500" fill="#27272A" data-prepared-text="true" dy="4.55" textLength="61.971" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Public API</text>
 </g>
 </svg>

@@ -1,9 +1,9 @@
 {
   "schemaVersion": 1,
   "status": "approved",
-  "reviewedAt": "2026-10-29",
-  "reviewer": "Codex agent, PR #571 adversarial audit fixes",
-  "scope": "Agent review of the regenerated Cupertino documentation capture with its catalog shadow option, at 900x186 (previously900x187). Inspected complete before/after: six cards, seven directed links, Core membership, labels and two distinct entries into the decision are retained. Styled marker strokes now have four pixels of straight shaft after corners before projection. The two Export arrowheads remain distinct. Vercel and Cloudflare bytes are unchanged. Transit and mid-century cookbook captures also reflect the styled-hook spacing and were inspected. This is agent review, not human approval or exhaustive rendering proof.",
+  "reviewedAt": "2026-10-30",
+  "reviewer": "Claude Code agent, AX assessment fix campaign (gantt status ink, 0530593a)",
+  "scope": "Agent review of the regenerated Cloudflare Workers-inspired cookbook capture after the gantt status-ink change. Inspected complete before/after at 900x339: the title, the EDGE and RUNTIME sections, the four tasks, the milestone diamond, the 01-11 today marker and every label are unchanged; the one difference is that the done task \"Route request\" is now drawn as a pale body inside a dashed outline (the terminal's done encoding) instead of a solid outline, so done, active, crit and plain tasks read apart by ink. Cupertino, Vercel, transit and mid-century cookbook bytes are unchanged. This is agent review, not human approval or exhaustive rendering proof.",
   "artifacts": [
     {
       "id": "cupertino-prototype",
@@ -18,7 +18,7 @@
     {
       "id": "cloudflare-workers-inspired-prototype",
       "path": "docs/assets/style-cookbook/cloudflare-workers-inspired-prototype.png",
-      "sha256": "9f06cfbeb1b7b76ff6f0d1d0781431230b9f52a63edea015dae467fb5aa0d7cf"
+      "sha256": "76994c8ea289a6a3df4f199a66e8e227c0b29cc618c97378b7040e676569ebd2"
     }
   ],
   "limitations": "These are static documentation prototypes, not built-in Looks, BrandPacks, endorsements, proprietary-asset reproductions, or exhaustive design-system equivalence claims.",

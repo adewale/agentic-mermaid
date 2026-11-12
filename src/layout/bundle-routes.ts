@@ -1,4 +1,5 @@
 import type { PositionedEdge } from '../types.ts'
+import { NativeWeakMap, weakMapGet, weakMapSet } from '../shared/intrinsics.ts'
 
 interface BundleRouteGeometry {
   readonly source: string
@@ -7,14 +8,14 @@ interface BundleRouteGeometry {
   readonly coordinates: readonly number[]
 }
 
-const constructed = new WeakMap<PositionedEdge, BundleRouteGeometry>()
+const constructed = new NativeWeakMap<PositionedEdge, BundleRouteGeometry>()
 
 function retain(edge: PositionedEdge): void {
   const origin = edge.points[0]
   if (!origin) return
   const coordinates: number[] = []
   for (const point of edge.points) coordinates.push(point.x - origin.x, point.y - origin.y)
-  constructed.set(edge, { source: edge.source, target: edge.target, edgeIndex: edge.edgeIndex, coordinates })
+  weakMapSet(constructed, edge, { source: edge.source, target: edge.target, edgeIndex: edge.edgeIndex, coordinates })
 }
 
 /** Commit the related routes just built by a bounded bundle/lane producer.
@@ -34,7 +35,7 @@ export function retainConstructedBundleRoutes(edges: readonly PositionedEdge[], 
 /** Label-only edits and uniform translation preserve the constructed ink;
  * changed endpoints, membership identities or interior lanes do not. */
 export function hasConstructedBundleRoute(edge: PositionedEdge): boolean {
-  const owned = constructed.get(edge)
+  const owned = weakMapGet(constructed, edge)
   if (!owned || edge.source !== owned.source || edge.target !== owned.target || edge.edgeIndex !== owned.edgeIndex ||
     edge.points.length * 2 !== owned.coordinates.length) return false
   const origin = edge.points[0]
@@ -47,13 +48,21 @@ export function hasConstructedBundleRoute(edge: PositionedEdge): boolean {
   return true
 }
 
+/** A private snapshot copy of a constructed route keeps its ownership, so a
+ * cached layout is audited exactly like the fresh one it was copied from.
+ * Ownership stays bound to the copied ink: moving its interior still drops it. */
+export function transferConstructedBundleRoute(source: object, copy: object): void {
+  const owned = weakMapGet(constructed, source as PositionedEdge)
+  if (owned) weakMapSet(constructed, copy as PositionedEdge, owned)
+}
+
 /** Carry ownership only through a known construction-preserving operation:
  * clipping, polyline simplification or removal of a proven tiny hitch. Late
  * rerouting and certificate reissuance deliberately cannot call this seam. */
 export function bundleRouteBeforeRewrite(edge: PositionedEdge): BundleRouteGeometry | undefined {
-  return hasConstructedBundleRoute(edge) ? constructed.get(edge) : undefined
+  return hasConstructedBundleRoute(edge) ? weakMapGet(constructed, edge) : undefined
 }
 
 export function retainBundleRouteAfterRewrite(edge: PositionedEdge, before: BundleRouteGeometry | undefined): void {
-  if (before && constructed.get(edge) === before && edge.source === before.source && edge.target === before.target && edge.edgeIndex === before.edgeIndex) retain(edge)
+  if (before && weakMapGet(constructed, edge) === before && edge.source === before.source && edge.target === before.target && edge.edgeIndex === before.edgeIndex) retain(edge)
 }

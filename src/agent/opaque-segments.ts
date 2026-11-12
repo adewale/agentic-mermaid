@@ -14,3 +14,14 @@ export function appendOpaqueSegment<T extends { kind: string }>(
   if (isOpaqueBlockSegment(last)) last.lines.push(...lines)
   else statements.push(create([...lines]))
 }
+
+/** The statements a reader would build from the same lines: an edit that
+ * removes the statement between two preserved segments leaves one segment. */
+export function coalesceOpaqueSegments<T extends { kind: string }>(statements: readonly T[]): T[] {
+  const out: T[] = []
+  for (const statement of statements) {
+    if (isOpaqueBlockSegment(statement)) appendOpaqueSegment(out, statement.lines, lines => ({ ...statement, lines }))
+    else out.push(statement)
+  }
+  return out
+}
