@@ -1,0 +1,186 @@
+<title>Typography Option Lab</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Sans+Condensed:wght@600&display=swap">
+<style>
+/* Layout: a specimen sheet. Summary table first, then one row per diagram
+   with today's render beside each option at the chosen base size. */
+:root {
+  --bg: #f4f6f8;
+  --panel: #ffffff;
+  --ink: #18202a;
+  --muted: #5b6774;
+  --rule: #d5dce3;
+  --accent: #1f5f8b;
+  --accent-soft: #e2edf5;
+  --warn: #9a4d00;
+  --warn-soft: #fbecd9;
+  /* Diagrams are drawn on white paper in both themes. */
+  --paper: #ffffff;
+  --font-body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-display: "IBM Plex Sans Condensed", "IBM Plex Sans", system-ui, sans-serif;
+  --font-data: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #11161c; --panel: #1a2129; --ink: #e6ebf0; --muted: #9aa7b4; --rule: #2e3944;
+    --accent: #7fb6dc; --accent-soft: #1d3446; --warn: #f0b36b; --warn-soft: #3a2a17; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #11161c; --panel: #1a2129; --ink: #e6ebf0; --muted: #9aa7b4; --rule: #2e3944;
+  --accent: #7fb6dc; --accent-soft: #1d3446; --warn: #f0b36b; --warn-soft: #3a2a17; color-scheme: dark;
+}
+body { background: var(--bg); color: var(--ink); font-family: var(--font-body); font-size: 15px; line-height: 1.5; }
+.wrap { max-width: 1320px; margin: 0 auto; padding-block: 32px 64px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); display: grid; gap: 32px; }
+h1 { font-family: var(--font-display); font-weight: 600; font-size: 2rem; letter-spacing: -0.01em; margin: 0; text-wrap: balance; }
+h2 { font-family: var(--font-display); font-weight: 600; font-size: 1.25rem; margin: 0; text-wrap: balance; }
+p { margin: 0; max-width: 68ch; }
+.lead { display: grid; gap: 8px; }
+.meta { color: var(--muted); font-size: 0.85rem; font-family: var(--font-data); }
+.section { display: grid; gap: 12px; }
+.tablewrap { overflow-x: auto; background: var(--panel); border: 1px solid var(--rule); border-radius: 6px; }
+table { border-collapse: collapse; width: 100%; font-size: 0.9rem; }
+th, td { text-align: left; padding: 8px 12px; border-bottom: 1px solid var(--rule); vertical-align: top; }
+th { font-weight: 600; color: var(--muted); font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.06em; white-space: nowrap; }
+tr:last-child td { border-bottom: 0; }
+[hidden] { display: none !important; }
+td.fam { font-family: var(--font-data); font-size: 0.82rem; min-width: 16rem; }
+td.num { font-family: var(--font-data); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.sizes { display: flex; flex-wrap: wrap; gap: 4px; }
+.size { font-family: var(--font-data); font-size: 0.78rem; padding: 1px 6px; border-radius: 3px; background: var(--accent-soft); color: var(--ink); font-variant-numeric: tabular-nums; }
+.controls { display: flex; flex-wrap: wrap; gap: 16px; align-items: center; position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; background: var(--bg); padding-block: 10px; border-bottom: 1px solid var(--rule); }
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 10; background: var(--bg); }
+.seg { display: inline-flex; border: 1px solid var(--rule); border-radius: 6px; overflow: hidden; background: var(--panel); }
+.seg button { font: inherit; font-size: 0.85rem; padding: 6px 12px; border: 0; background: transparent; color: var(--ink); cursor: pointer; }
+.seg button + button { border-left: 1px solid var(--rule); }
+.seg button[aria-pressed="true"] { background: var(--accent); color: var(--panel); }
+.seg button:focus-visible, label:focus-within { outline: 2px solid var(--accent); outline-offset: 2px; }
+.label { font-size: 0.75rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; }
+.ctl { display: flex; gap: 8px; align-items: center; }
+.cases { display: grid; gap: 20px; }
+.case { background: var(--panel); border: 1px solid var(--rule); border-radius: 6px; padding: 14px; display: grid; gap: 12px; min-width: 0; }
+.case header { display: flex; flex-wrap: wrap; gap: 4px 12px; align-items: baseline; }
+.case h3 { font-family: var(--font-data); font-weight: 500; font-size: 0.95rem; margin: 0; }
+.case .note { color: var(--muted); font-size: 0.85rem; }
+.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; }
+figure { margin: 0; display: grid; gap: 6px; align-content: start; min-width: 0; }
+figure .frame { background: var(--paper); border: 1px solid var(--rule); border-radius: 4px; padding: 8px; display: grid; place-items: center; min-height: 120px; }
+figure img { max-width: 100%; height: auto; display: block; }
+figcaption { display: grid; gap: 3px; font-size: 0.8rem; }
+figcaption .opt { font-weight: 600; }
+figcaption .detail { color: var(--muted); font-family: var(--font-data); font-size: 0.75rem; overflow-wrap: anywhere; }
+.flag { font-family: var(--font-data); font-size: 0.72rem; padding: 1px 6px; border-radius: 3px; background: var(--warn-soft); color: var(--warn); justify-self: start; }
+.err { color: var(--warn); font-family: var(--font-data); font-size: 0.75rem; overflow-wrap: anywhere; }
+.empty { color: var(--muted); }
+@media (prefers-reduced-motion: no-preference) { .seg button { transition: background 120ms ease; } }
+</style>
+
+<div class="wrap">
+  <div class="lead">
+    <h1>Typography Option Lab</h1>
+    <p>Every diagram below is rendered through the real layout and paint pipeline under each typography option. Sizes are in pixels; "moved" counts drawn texts whose size differs from today's render. Renders in one row share a scale, so a larger diagram means larger text.</p>
+    <p class="meta" id="meta"></p>
+  </div>
+
+  <section class="section" aria-labelledby="sum-h">
+    <h2 id="sum-h">Summary across all representative diagrams</h2>
+    <div class="tablewrap"><table id="summary"></table></div>
+    <p class="meta" id="tiers"></p>
+  </section>
+
+  <section class="section" aria-labelledby="gal-h">
+    <h2 id="gal-h">Renders</h2>
+    <div class="controls">
+      <div class="ctl"><span class="label" id="base-l">Base size</span><div class="seg" id="base" role="group" aria-labelledby="base-l"></div></div>
+      <div class="ctl"><span class="label" id="group-l">Diagrams</span><div class="seg" id="group" role="group" aria-labelledby="group-l"></div></div>
+      <div class="ctl" id="variant-ctl" hidden><span class="label" id="var-l">Mermaid size read as</span><div class="seg" id="variant" role="group" aria-labelledby="var-l"></div></div>
+      <label class="ctl"><input type="checkbox" id="changed"> <span>Only diagrams that change</span></label>
+    </div>
+    <div class="cases" id="cases"></div>
+  </section>
+</div>
+
+<script>
+const REPORT = /*__REPORT__*/null
+const OPTION_NAMES = { current: 'Today', option1: 'Option 1 · shared scale', option2: 'Option 2 · per-family proportions', option3: 'Option 3 · tier tokens' }
+const GROUPS = { family: 'Family examples', stress: 'Text-heavy diagrams', input: 'Size inputs' }
+const state = { base: REPORT.bases.includes(16) ? 16 : REPORT.bases[0], group: 'family', variant: 'absolute', changed: false }
+try { Object.assign(state, JSON.parse(localStorage.getItem('typography-lab') || '{}')) } catch {}
+const save = () => { try { localStorage.setItem('typography-lab', JSON.stringify(state)) } catch {} }
+const el = (tag, attrs = {}, ...kids) => { const n = document.createElement(tag); for (const [k, v] of Object.entries(attrs)) { if (k === 'class') n.className = v; else if (k === 'text') n.textContent = v; else n.setAttribute(k, v) } for (const kid of kids) if (kid) n.append(kid); return n }
+const chips = sizes => el('div', { class: 'sizes' }, ...sizes.map(s => el('span', { class: 'size', text: String(s) })))
+
+document.getElementById('meta').textContent = `Revision ${REPORT.revision} · generated ${REPORT.generatedAt} · bun eval/typography-lab/run.ts`
+const t = REPORT.tiers
+document.getElementById('tiers').textContent = `Option 1 ratios of the base: title ×${t.ratios.title.toFixed(3)}, heading ×${t.ratios.heading.toFixed(3)}, body ×1, detail ×${t.ratios.detail.toFixed(3)}. Option 3 tokens: title ${t.tokens.title}, heading ${t.tokens.heading}, detail ${t.tokens.detail}, body = base. Today's body size is ${t.todayBody}.`
+
+const summary = document.getElementById('summary')
+summary.append(el('thead', {}, el('tr', {}, ...['Option', 'Base', 'Distinct sizes across family examples', 'Families whose text moves', 'Median canvas area', 'Geometry warnings'].map(h => el('th', { text: h })))))
+const tbody = el('tbody')
+for (const s of REPORT.summary) {
+  tbody.append(el('tr', {},
+    el('td', { text: OPTION_NAMES[s.option] }),
+    el('td', { class: 'num', text: String(s.base) }),
+    el('td', {}, chips(s.distinctSizes)),
+    el('td', { class: 'fam', text: s.option === 'current' ? '—' : `${s.familiesChanged.length}${s.familiesChanged.length && s.familiesChanged.length < 12 ? ' · ' + s.familiesChanged.join(', ') : ''}` }),
+    el('td', { class: 'num', text: `×${s.medianArea.toFixed(2)}` }),
+    el('td', { class: 'num', text: `${s.integrityWarnings} (today ${s.integrityToday})` })))
+}
+summary.append(tbody)
+
+function segmented(id, values, key, labels) {
+  const host = document.getElementById(id); host.replaceChildren()
+  for (const v of values) {
+    const b = el('button', { type: 'button', 'aria-pressed': String(state[key] === v), text: labels ? labels[v] : String(v) })
+    b.addEventListener('click', () => { state[key] = v; save(); render() })
+    host.append(b)
+  }
+}
+
+const cells = new Map()
+for (const c of REPORT.cells) cells.set(`${c.caseId}|${c.option}|${c.base}|${c.variant || ''}`, c)
+const imgCache = new Map()
+const imgFor = cell => { if (!imgCache.has(cell)) imgCache.set(cell, 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(cell.svg)); return imgCache.get(cell) }
+
+function figure(cell, title, widest) {
+  const cap = el('figcaption', {}, el('span', { class: 'opt', text: title }))
+  if (!cell) return el('figure', {}, el('div', { class: 'frame' }, el('span', { class: 'empty', text: 'not rendered' })), cap)
+  if (!cell.ok) { cap.append(el('span', { class: 'err', text: cell.error || 'render failed' })); return el('figure', {}, el('div', { class: 'frame' }), cap) }
+  cap.append(chips(cell.sizes))
+  if (cell.change) cap.append(el('span', { class: 'detail', text: cell.change.moved ? `${cell.change.moved} of ${cell.change.total} texts moved: ${cell.change.steps.slice(0, 4).map(s => `${s.step}×${s.count}`).join(', ')}` : 'no text moved' }))
+  if (cell.base !== undefined && cell.option !== 'current') cap.append(el('span', { class: 'detail', text: `base ${cell.base} · ${Math.round(cell.width)}×${Math.round(cell.height)}px` }))
+  else cap.append(el('span', { class: 'detail', text: `${Math.round(cell.width)}×${Math.round(cell.height)}px` }))
+  const warnings = Object.entries(cell.integrity || {})
+  if (warnings.length) cap.append(el('span', { class: 'flag', text: warnings.map(([k, v]) => `${k} ×${v}`).join(' · ') }))
+  // One scale per row: the widest render fills its frame, the rest keep proportion.
+  const img = el('img', { src: imgFor(cell), alt: `${title} render`, loading: 'lazy', style: `width:${(cell.width / widest * 100).toFixed(2)}%` })
+  return el('figure', {}, el('div', { class: 'frame' }, img), cap)
+}
+
+function render() {
+  segmented('base', REPORT.bases, 'base')
+  segmented('group', Object.keys(GROUPS), 'group', GROUPS)
+  segmented('variant', ['absolute', 'relative'], 'variant', { absolute: 'Pixels', relative: 'Relative to 16px' })
+  document.getElementById('variant-ctl').hidden = state.group !== 'input'
+  document.getElementById('base').parentElement.hidden = state.group === 'input'
+  document.getElementById('changed').checked = state.changed
+  const host = document.getElementById('cases'); host.replaceChildren()
+  let shown = 0
+  for (const c of REPORT.cases.filter(c => c.group === state.group)) {
+    const today = cells.get(`${c.id}|current|${REPORT.tiers.todayBody}|`)
+    const options = ['option1', 'option2', 'option3'].map(o => state.group === 'input'
+      ? REPORT.cells.find(x => x.caseId === c.id && x.option === o && x.variant === state.variant)
+      : cells.get(`${c.id}|${o}|${state.base}|`))
+    if (state.changed && options.every(o => !o || !o.change || o.change.moved === 0)) continue
+    shown++
+    const widest = Math.max(...[today, ...options].filter(x => x && x.ok).map(x => x.width))
+    host.append(el('article', { class: 'case' },
+      el('header', {}, el('h3', { text: c.id }), el('span', { class: 'note', text: c.note ? `${c.family} · ${c.note}` : c.family })),
+      el('div', { class: 'grid' }, figure(today, 'Today', widest), ...options.map((cell, i) => figure(cell, OPTION_NAMES[`option${i + 1}`], widest)))))
+  }
+  if (!shown) host.append(el('p', { class: 'empty', text: 'No diagram in this group changes at this base size.' }))
+}
+document.getElementById('changed').addEventListener('change', e => { state.changed = e.target.checked; save(); render() })
+render()
+</script>
