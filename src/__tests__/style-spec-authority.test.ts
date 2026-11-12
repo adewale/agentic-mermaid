@@ -4,6 +4,7 @@ import { join } from 'node:path'
 import type { RoleStyles, SemanticBinding } from '../scene/style-registry.ts'
 import {
   EXACT_ROLE_STYLE_CONTRACT,
+  ROLE_STYLE_PROPERTY_DESCRIPTORS,
   STYLE_COLOR_TOKEN_DESCRIPTORS,
   STYLE_SPEC_FIELD_DESCRIPTORS,
   getStyle,
@@ -86,6 +87,29 @@ describe('StyleSpec has one projected field authority', () => {
     expect(Object.isFrozen(EXACT_ROLE_STYLE_CONTRACT)).toBe(true)
     expect(Object.isFrozen(EXACT_ROLE_STYLE_CONTRACT.actor)).toBe(true)
     expect(Object.isFrozen(EXACT_ROLE_STYLE_CONTRACT.actor.bindingFamilies)).toBe(true)
+
+    const numeric = ROLE_STYLE_PROPERTY_DESCRIPTORS.fontSize
+    const values = ROLE_STYLE_PROPERTY_DESCRIPTORS.textTransform.values
+    const minimum = numeric.minimum, length = values.length
+    const borrowed = (() => {
+      try {
+        Reflect.set(numeric, 'minimum', 0)
+        Reflect.set(values, String(length), 'injected')
+        return {
+          problems: validateStyleSpec({ roles: { node: { fontSize: 0, textTransform: 'injected' } } }),
+          schema: styleSpecJsonSchema() as any,
+        }
+      } finally {
+        Reflect.set(numeric, 'minimum', minimum)
+        Reflect.set(values, 'length', length)
+      }
+    })()
+    expect(borrowed.problems).toEqual([
+      '"roles.node.fontSize" must be between 1 and 256',
+      '"roles.node.textTransform" must be one of uppercase | lowercase | capitalize',
+    ])
+    expect(borrowed.schema.$defs['roleStyle-node'].properties.fontSize.minimum).toBe(1)
+    expect(borrowed.schema.$defs['roleStyle-node'].properties.textTransform.enum).toEqual(['uppercase', 'lowercase', 'capitalize'])
 
     const projected = styleSpecJsonSchema() as any
     projected.properties.stroke.enum.push('injected')
