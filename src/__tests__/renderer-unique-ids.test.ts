@@ -108,4 +108,21 @@ describe('#7540 unique SVG ids across diagrams', () => {
     expect(out).toContain('<text data-note="url(#arrowhead)">url(#arrowhead)</text>')
     expect(out).toContain('marker-end="url(#safe-arrowhead)"')
   })
+
+  test.each([
+    [
+      `<svg aria-labelledby=" later\tmissing  " aria-describedby=" later"><use href='#later'/><use xlink:href="#missing"/><path marker-end="url(#later)" fill="url('#later')" style="mask:url(#later);filter:url(#outside)" data-note="url(#later)"/><style>.x{fill:url(#later)}</style><g id="later" data-note="a > b"/></svg>`,
+      `<svg aria-labelledby=" safe-later missing " aria-describedby=" safe-later"><use href='#safe-later'/><use xlink:href="#missing"/><path marker-end="url(#safe-later)" fill="url('#later')" style="mask:url(#safe-later);filter:url(#outside)" data-note="url(#later)"/><style>.x{fill:url(#safe-later)}</style><g id="safe-later" data-note="a > b"/></svg>`,
+    ],
+    [
+      '<svg aria-labelledby=" missing\t other  "><path fill="url(#missing)"/></svg>',
+      '<svg aria-labelledby=" missing other "><path fill="url(#missing)"/></svg>',
+    ],
+    [
+      `<svg><style><![CDATA[.x{content:'<g id="inner" fill="url(#paint)">';fill:url(#paint)}]]></style><g id="paint"/><g id="safe-kept" fill="url(#safe-kept)"/></svg>`,
+      `<svg><style><![CDATA[.x{content:'<g id="safe-inner" fill="url(#safe-paint)">';fill:url(#safe-paint)}]]></style><g id="safe-paint"/><g id="safe-kept" fill="url(#safe-kept)"/></svg>`,
+    ],
+  ])('namespacing preserves forward references, lexical quoting and style overlap: %s', (source, expected) => {
+    expect(namespaceSvgIds(source, 'safe-')).toBe(expected)
+  })
 })

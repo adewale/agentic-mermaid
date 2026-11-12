@@ -31,6 +31,13 @@ test('writer findings follow final color, numeric, identity and style projection
   const tag = scanSvgStartTags(final).find(tag => tag.name === 'rect')!
   expect(writtenTagOf(final.slice(tag.start, tag.end))).toBeDefined()
   expect(applyWrittenOutputSecurityPolicy(final, 'strict')).toEqual(applyOutputSecurityPolicy(final, 'strict'))
+
+  const references = namespaceSvgIds(document(`<defs><path id="local"/></defs>${mark('url(#local)', 'url(https://example.com/stroke)')}`), 'written-')
+  const referencedTag = scanSvgStartTags(references).find(tag => tag.name === 'rect')!
+  expect(writtenTagOf(references.slice(referencedTag.start, referencedTag.end))).toBeDefined()
+  expect(references).toContain('fill="url(#written-local)"')
+  expect(applyWrittenOutputSecurityPolicy(references).diagnostics.map(item => item.reference)).toEqual(['stroke=url(https://example.com/stroke)'])
+  expect(applyWrittenOutputSecurityPolicy(references)).toEqual(applyOutputSecurityPolicy(references))
 }))
 
 test('changed attributes replace their findings and retain lexical diagnostic order', () => withWrittenSvgSecurity(true, () => {

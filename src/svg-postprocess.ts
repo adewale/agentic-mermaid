@@ -1,5 +1,5 @@
 import { formatSvgNumericAttribute, SVG_LONG_DECIMAL } from './shared/svg-number.ts'
-import { isSvgCssValueAttribute, scanSvgStartTags, svgStyleRanges, transformSvgAttributes, transformSvgCssValues } from './svg-structure.ts'
+import { transformSvgAttributes, transformSvgIdReferences } from './svg-structure.ts'
 
 /** Fallback for opaque family and extension SVG. Typed writers format their
  * own numeric fields before serialization, so ordinary native output skips
@@ -56,29 +56,6 @@ export function namespaceSvgIds(svg: string, prefix: string): string {
   if (!/^[A-Za-z0-9_.:-]+$/.test(prefix)) {
     throw new Error('idPrefix must be non-empty and contain only ASCII letters, digits, underscore, hyphen, dot, and colon')
   }
-  // Collect declared ids so we only rewrite refs that point at our defs
-  // (never an accidental `url(#…)` inside escaped label text).
-  const declared = new Set<string>()
-  for (const tag of scanSvgStartTags(svg)) {
-    for (const attribute of tag.attributes) {
-      if (attribute.name === 'id') declared.add(attribute.value)
-    }
-  }
-  const namespaced = (id: string) => id.startsWith(prefix) ? id : `${prefix}${id}`
-  const urls = (css: string) => css.replace(/url\(#([^)]+)\)/g, (full, id: string) => declared.has(id) ? `url(#${namespaced(id)})` : full)
-  const attributes = transformSvgAttributes(svg, attribute => {
-    if (attribute.name === 'id') return namespaced(attribute.value)
-    if (attribute.name === 'aria-labelledby' || attribute.name === 'aria-describedby') {
-      return attribute.value.split(/\s+/).map(id => declared.has(id) ? namespaced(id) : id).join(' ')
-    }
-    if ((attribute.name === 'href' || attribute.name === 'xlink:href') && attribute.value.startsWith('#')) {
-      const id = attribute.value.slice(1)
-      return declared.has(id) ? `#${namespaced(id)}` : attribute.value
-    }
-    if (attribute.value.includes('url(#') && isSvgCssValueAttribute(attribute.name)) return urls(attribute.value)
-    return undefined
-  })
-  const styles = svgStyleRanges(attributes)
-  return transformSvgCssValues(attributes, urls, { source: attributes, cssRanges: styles, styleContexts: styles })
+  return transformSvgIdReferences(svg, id => id.startsWith(prefix) ? id : `${prefix}${id}`)
 }
 

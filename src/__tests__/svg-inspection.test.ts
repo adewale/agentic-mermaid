@@ -1,5 +1,5 @@
 import { expect, test } from 'bun:test'
-import { projectSvgCss, scanSvgStartTags, svgRootStartTag, transformSvgCssValues, svgStyleRanges } from '../svg-structure.ts'
+import { projectSvgCss, scanSvgStartTags, svgRootStartTag, transformSvgCssValues, svgStyleRanges, visitSvgFirstTagAttributes } from '../svg-structure.ts'
 import { withSvgInspectionCache } from '../svg-inspection-cache.ts'
 import { applyOutputSecurityPolicy, verifyNoExternalRefs } from '../output-security.ts'
 
@@ -39,6 +39,10 @@ test('lexical inventories preserve quoted boundaries and skip comments and proce
       { name: 'fill', value: 'red', quote: "'", nameStart: 8, valueStart: 14, valueEnd: 17 },
     ] },
   ])
+  const attributes: string[][] = []
+  expect(visitSvgFirstTagAttributes(source, 'svg', (name, value) => attributes.push([name, value]))).toBe('svg')
+  expect(attributes).toEqual([['data-note', 'a > b']])
+  expect(visitSvgFirstTagAttributes(source, 'g', () => { throw new Error('unexpected first tag') })).toBe('svg')
 })
 
 test('style-body ranges ignore attributes, comments and self-closing or differently cased tags', () => {

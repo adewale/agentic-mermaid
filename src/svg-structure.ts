@@ -61,9 +61,9 @@ export function visitSvgFirstTagAttributes(source: string, expectedName: string,
   return visitor.name
 }
 
-// One lexical owner: inventory, CSS values/contexts, or style bodies only.
-function scanStartTags(source: string, cssRanges?: SvgRange[], styleContexts?: SvgRange[], first?: { attribute(name: string, value: string): void; expectedName: string; name: string | undefined }, collectWritten = false): readonly SvgStartTagToken[] | undefined {
-  const tags: SvgStartTagToken[] | undefined = cssRanges || styleContexts || first ? undefined : []
+// One lexical owner: inventory, selected attributes, CSS contexts, or style bodies.
+function scanStartTags(source: string, cssRanges?: SvgRange[], styleContexts?: SvgRange[], first?: { attribute(name: string, value: string): void; expectedName: string; name: string | undefined }, collectWritten = false, attribute?: (name: string, start: number, end: number, tagStart: number, tagEnd: number) => void): readonly SvgStartTagToken[] | undefined {
+  const tags: SvgStartTagToken[] | undefined = cssRanges || styleContexts || first || attribute ? undefined : []
   for (let start = source.indexOf('<'); start >= 0; start = source.indexOf('<', start + 1)) {
     if (source.startsWith('<!--', start)) {
       const end = source.indexOf('-->', start + 4)
@@ -84,7 +84,7 @@ function scanStartTags(source: string, cssRanges?: SvgRange[], styleContexts?: S
     if (first) first.name = name
     const selfClosing = source[beforeClose] === '/'
     const attributes: SvgAttributeToken[] | undefined = tags ? [] : undefined
-    if (tags || cssRanges || first) {
+    if (tags || cssRanges || first || attribute) {
       let cursor = nameEnd
       while (cursor < end - 1) {
         while (isWhitespace(source[cursor])) cursor++
@@ -106,6 +106,7 @@ function scanStartTags(source: string, cssRanges?: SvgRange[], styleContexts?: S
         cursor = valueEnd
         if (attributes) attributes.push(Object.freeze({ name, value: source.slice(valueStart, cursor), quote, nameStart, valueStart, valueEnd: cursor }))
         else if (first && first.name === first.expectedName) first.attribute(name, source.slice(valueStart, cursor))
+        else if (attribute) attribute(name, valueStart, cursor, start, end)
         else if (cssRanges && CSS_VALUE_ATTRIBUTES.has(name)) {
           const range: SvgCssRange = collectWritten ? { start: valueStart, end: cursor, tagStart: start, tagEnd: end, name } : { start: valueStart, end: cursor }
           cssRanges.push(range)
@@ -233,10 +234,6 @@ const CSS_VALUE_ATTRIBUTES = new Set([
   'stop-color', 'stroke', 'style',
 ])
 
-export function isSvgCssValueAttribute(name: string): boolean {
-  return CSS_VALUE_ATTRIBUTES.has(name)
-}
-
 export interface SvgRange {
   readonly start: number
   readonly end: number
@@ -287,6 +284,52 @@ export function transformSvgCssValues(
     if (value !== original) changes.push({ ...range, value, name: range.name })
   }
   if (writerEvidenceEnabled()) carryWrittenTags(source, changes)
+  return applyReplacements(source, changes)
+}
+
+/** Retain only resource declarations/references, not an inventory of every
+ * attribute. Forward references resolve after the single lexical scan. */
+export function transformSvgIdReferences(source: string, rename: (id: string) => string): string {
+  const declared = new Set<string>()
+  const references: SvgCssRange[] = [], styles: SvgRange[] = []
+  const collectWritten = writerEvidenceEnabled()
+  scanStartTags(source, undefined, styles, undefined, false, (name, start, end, tagStart, tagEnd) => {
+    if (name === 'id') declared.add(source.slice(start, end))
+    if (name === 'id' || name === 'aria-labelledby' || name === 'aria-describedby'
+      || (name === 'href' || name === 'xlink:href') && source[start] === '#'
+      || CSS_VALUE_ATTRIBUTES.has(name) && source.slice(start, end).includes('url(#')) {
+      references.push(collectWritten ? { start, end, name, tagStart, tagEnd } : { start, end, name })
+    }
+  })
+  const urls = (css: string) => css.replace(/url\(#([^)]+)\)/g, (full, id: string) => declared.has(id) ? `url(#${rename(id)})` : full)
+  const changes: Replacement[] = []
+  for (const range of references) {
+    const original = source.slice(range.start, range.end)
+    const value = range.name === 'id' ? rename(original)
+      : range.name === 'aria-labelledby' || range.name === 'aria-describedby'
+        ? original.split(/\s+/).map(id => declared.has(id) ? rename(id) : id).join(' ')
+        : range.name === 'href' || range.name === 'xlink:href'
+          ? declared.has(original.slice(1)) ? `#${rename(original.slice(1))}` : original
+          : urls(original)
+    if (value !== original) changes.push({ ...range, value })
+  }
+  if (collectWritten) carryWrittenTags(source, changes)
+  // Opaque tag-like CSS text can overlap attribute ranges. Keep the original
+  // attribute-then-style ordering for those exceptional inputs.
+  let changeIndex = 0
+  const overlapsStyle = styles.some(style => {
+    while (changeIndex < changes.length && changes[changeIndex]!.end <= style.start) changeIndex++
+    return changeIndex < changes.length && changes[changeIndex]!.start < style.end
+  })
+  if (overlapsStyle) {
+    const attributes = applyReplacements(source, changes)
+    const ranges = svgStyleRanges(attributes)
+    return transformSvgCssValues(attributes, urls, { source: attributes, cssRanges: ranges, styleContexts: ranges })
+  }
+  for (const range of styles) {
+    const original = source.slice(range.start, range.end), value = urls(original)
+    if (value !== original) changes.push({ ...range, value })
+  }
   return applyReplacements(source, changes)
 }
 
