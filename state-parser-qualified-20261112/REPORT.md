@@ -1,0 +1,11 @@
+# Selected State grammar qualification
+
+Pushed9644bce7edd0cd9706bb5dbfc30a89d8d2feb643 follows minimalparser/schema c6fa. Only sixState/header consumer files and briefworklog change; Scene/backend/capture/writer owners stay exact2f30. Genericgraph parsing stillhasbothgrammars. State/browserselecteddispatch usesonlyitscanonicalgrammar; inlineheaders/comments/Flowlocations preserve the oldreader. Independent sixfile review finds no blocker.
+
+332owningtests/1247asserts, sixfilelint andactualbrowserbuild pass. Fouractualbrowser observations/eightENTIREproducts exactlymatchc6fa. State eachengine saves39607raw/13734gzip/12491Brotli andonerequest. JSheap falls51404Native/52624ELK bytes. Flow pays322raw/309gzip/275Brotli, same requests, heap+112/+5020. Mixed2514425raw/782212gzip/622445Brotli stillfailsalllimits; gzip20712above761500. Alladversecosts/rawfilesretained.
+
+Canonical sevenentry/map-enabled Node build passes. ExistingTrident124portable/198authored versus2f30:310returnedSVG/noncert/proof-except-work exact;194authoredmeaning/actualChromiumink/quality vectors exact;12sameerrors. Browserclosed396observations. This is affected-changevalidation, notnewcoverage. Initialalternateoutdir collectors failed on localvariableandhardcodedassetpath; failedlogsretained/excluded, then canonicalrealworktreebuild/finalcollectors pass. No rendererfixclaimed forthoseharnessfailures.
+
+FreshCI43164253522 core/repositorytypes andlintPASS;all3unitshardsPASS. BrowserE2E stillpending atcheckpoint. Qualitybrowserbudgets, websitepayload/editorgzip1380761>1334500 andadvisorylayout remainfailed. No readinessclaim. Previousc6faCIwasnormallysuperseded/cancelled afterall3unitshards passed; no full-CIpassclaimed.
+
+Native100fullresponse, Chain300400kunknown andremainingpayloaddeficit remainopen. Contrastco-product proposal stoppedbeforeedits: livegetterobservations neednewauthorityhandofffor<3.42mswholefunctionceiling. CorrectedFOURTHnormalizer remainswithdrawn: keepsdominantrecursivecapture/validation/XML andaddsdescriptorpreflight; +4950opscounterisnotCPUevidence, butstructuredoesnotsupportanothertimingtrial. Allcaps/defaults unchanged; no newcaches orframeworks, noautomationrestart. Active disjointworkers nowtargetexistingXMLverificationownership andactualsharedbrowserretention; no claimofcontinuousbetweenruns.
