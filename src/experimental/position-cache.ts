@@ -34,7 +34,7 @@ const retainedResults = new NativeWeakSet<object>()
 const copiedResults = new NativeWeakSet<object>()
 // Operation wrappers still reference mutable cache-owned positioning data.
 const freezeResult = Object.freeze
-const routeKeys = Object.keys, routeDescriptor = Object.getOwnPropertyDescriptor
+const positionKeys = Object.keys, positionDescriptor = Object.getOwnPropertyDescriptor
 function isolatedKey(family: object, key: string): string {
   let id = weakMapGet(familyIds, family)
   if (id === undefined) { id = nextFamilyId++; weakMapSet(familyIds, family, id) }
@@ -94,13 +94,13 @@ function positionedCustodyProof(source: unknown, copy: unknown, immutableText: b
       if (values.length !== copied.length) return false
       for (let index = 0; index < values.length; index++) if (!prove(values[index], copied[index])) return false
     } else {
-      if (Array.isArray(a) !== (kind === 'array')) return false
+      if (positionIsArray(a) !== (kind === 'array')) return false
       // Constructor custody proves frozen, accessor-free data. Mutable source
       // nodes still need a single descriptor snapshot before any recursion:
       // a later Proxy trap can mutate siblings during the proof.
       const descriptors = immutable ? undefined : Object.getOwnPropertyDescriptors(a)
-      const keys = descriptors ? Object.keys(descriptors).filter(key => descriptors[key]!.enumerable) : Object.keys(a)
-      const copied = Object.keys(b)
+      const keys = descriptors ? positionKeys(descriptors).filter(key => descriptors[key]!.enumerable) : positionKeys(a)
+      const copied = positionKeys(b)
       if (kind === 'array' && (descriptors ? descriptors.length?.value : (a as unknown[]).length) !== (b as unknown[]).length) return false
       if (keys.length !== copied.length) return false
       for (let index = 0; index < keys.length; index++) {
@@ -150,7 +150,7 @@ function transferIndependentTextCustody(source: unknown, copy: unknown): void {
         for (let i = 0; i < entries.length; i++) visit(entries[i], copies[i])
       } else if (kind === 'record' || kind === 'array') {
         const descriptors = Object.getOwnPropertyDescriptors(a)
-        for (const key of Object.keys(b)) {
+        for (const key of positionKeys(b)) {
           const descriptor = descriptors[key]
           if (descriptor?.enumerable && 'value' in descriptor) visit(descriptor.value, (b as Record<string, unknown>)[key])
         }
@@ -178,8 +178,8 @@ function transferBundleRouteOwnership(source: unknown, copy: unknown): void {
         const entries = setSnapshot(a), copies = setSnapshot(b)
         for (let i = 0; i < Math.min(entries.length, copies.length); i++) visit(entries[i], copies[i])
       } else if (kind === 'record' || kind === 'array') {
-        for (const key of routeKeys(b)) {
-          const descriptor = routeDescriptor(a, key)
+        for (const key of positionKeys(b)) {
+          const descriptor = positionDescriptor(a, key)
           if (descriptor && 'value' in descriptor) visit(descriptor.value, (b as Record<string, unknown>)[key])
         }
       }
@@ -226,7 +226,7 @@ export function clonePositioned<T>(source: T, immutableText = false): T {
       if (changed) { target.clear(); for (const item of entries) target.add(item) }
     } else if (kind === 'record' || kind === 'array') {
       const target = value as Record<string, unknown>
-      for (const key of Object.keys(value)) {
+      for (const key of positionKeys(value)) {
         const item = target[key], retained = retain(item)
         if (retained !== item) target[key] = retained
       }
