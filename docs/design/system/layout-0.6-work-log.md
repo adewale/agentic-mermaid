@@ -4,6 +4,16 @@ Current work order: [Native replacement plan](layout-0.6-qualification.md).
 The dated records below are historical evidence; earlier “next” statements do not
 create parallel active queues. No retained experiment or output is discarded.
 
+12 November browser integration repair, parent
+`7f4a0c166892fc15c0fee5b0fd1dc60c9e500154`: actual CI browser build failed
+because Main's `isBuiltInBackend` import was absent from the deferred SPI facade.
+Forward the predicate to the acquired canonical runtime (false before acquisition),
+without new identity state or eager loading. Actual lazy build now passes;
+existing async browser owner 28P, core/repository types and scoped lint pass.
+Evidence: `main913-browser-facade-*`. Full CI remains pending on the repair;
+payload ceilings and Chain300 are still open. A wrong-working-directory build
+and unpinned typecheck bootstrap failed setup are retained, excluded from claims.
+
 12 November integration: ordinary merge of Main
 `9136b07efb8944a1058de9834b18fe5916884174` into PR
 `322d0ef560722d77512a085c2607de37c895bd81`. Keeps one extracted

@@ -13,6 +13,7 @@ function spi(): NonNullable<typeof runtime> {
   return runtime
 }
 export function getBackendDescriptor(...args: Parameters<typeof Backend.getBackendDescriptor>): ReturnType<typeof Backend.getBackendDescriptor> { return spi().getBackendDescriptor(...args) }
+export function isBuiltInBackend(backend: Backend.StyleBackend): boolean { return runtime?.isBuiltInBackend(backend) ?? false }
 export function isBuiltinDefaultBackend(backend: Backend.StyleBackend): boolean { return runtime?.isBuiltinDefaultBackend(backend) ?? false }
 export function isOriginalEnrolledDefaultBackend(backend: unknown): boolean { return runtime?.isOriginalEnrolledDefaultBackend(backend) ?? false }
 export function assertBackendConformance(...args: Parameters<typeof Backend.assertBackendConformance>): ReturnType<typeof Backend.assertBackendConformance> { return spi().assertBackendConformance(...args) }
