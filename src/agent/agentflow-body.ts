@@ -4,13 +4,13 @@ import type { DiagramBody, LayoutWarning, MutationError, ParseError, Result } fr
 import { err, ok } from './types.ts'
 import { buildFlowchartSourceMap, edgeSourceMapKey, mutateFlowchart } from './flowchart-body.ts'
 import { parseAgentflow, agentflowMetadata, agentflowRole, agentflowShapeRole } from '../agentflow/parser.ts'
-import { renderAgentflow } from '../agentflow/source.ts'
+import { parseWritableAgentflow, renderAgentflow } from '../agentflow/source.ts'
 import type { AgentflowBody, AgentflowMutationOp } from '../agentflow/types.ts'
 import { retainParsedAgentflowModel } from './owned-render-model.ts'
 import { agentflowRoleShape, projectAgentflowGraph } from '../agentflow/projection.ts'
 
 export function parseAgentflowBody(source: string, opaqueSource = source): Result<AgentflowBody | Extract<DiagramBody, { kind: 'opaque' }>, ParseError[]> {
-  try { const body = parseAgentflow(source); renderAgentflow(body); return ok(body) }
+  try { return ok(parseWritableAgentflow(source)) }
   catch { return ok({ kind: 'opaque', family: 'agentflow', source: opaqueSource }) }
 }
 

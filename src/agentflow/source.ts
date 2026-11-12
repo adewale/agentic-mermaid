@@ -1,7 +1,9 @@
 import { renderFlowchart } from '../agent/flowchart-body.ts'
 import { scanFlowchart } from '../flowchart-lexer.ts'
 import { quoteMetadataString } from '../shared/metadata-yaml.ts'
+import { parseAgentflow } from './parser.ts'
 import type { AgentflowBody } from './types.ts'
+import type { MermaidGraph } from '../types.ts'
 
 function metadataLines(value: Record<string, unknown>, indent = '  '): string[] {
   const scalar = (item: unknown): string => (typeof item === 'string' ? quoteMetadataString(item) : JSON.stringify(item))
@@ -41,7 +43,18 @@ function protectLabelComments(source: string): string {
 }
 
 export function renderAgentflow(body: AgentflowBody): string {
-  const graph = structuredClone(body.graph)
+  return writeAgentflow(body, structuredClone(body.graph))
+}
+
+/** Validate a fresh native parse before its editable body escapes. The writer
+ * only deletes node-map entries; the graph's records remain unchanged. */
+export function parseWritableAgentflow(source: string): AgentflowBody {
+  const body = parseAgentflow(source)
+  writeAgentflow(body, { ...body.graph, nodes: new Map(body.graph.nodes) })
+  return body
+}
+
+function writeAgentflow(body: AgentflowBody, graph: MermaidGraph): string {
   const declaration = (id: string): string[] => {
     const node = graph.nodes.get(id)
     if (!node) return []
