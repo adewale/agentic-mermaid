@@ -2372,3 +2372,18 @@ Unicode and surrogate label SVG stays exact in the hook controls. Canonical
 local types remain memory-blocked; fresh normal CI owns the complete checks.
 This removes an ownership defect, not the Native100/payload losses. The actual
 writer/capture subtraction is separate unqualified work; no performance claim.
+
+### 2026-11-12 — bind backend execution to admitted policy (base 31f368fa9eec)
+
+Eight reproduced lower-boundary failures allowed unknown backend/fallback
+values, changing getters or callbacks to misattribute the producer or authorize
+an unrequested fallback. Admit the two primitive policy values once, then close
+the decision before its retainer and observer share it. All three currently
+valid backends remain; Trinity removal is a separate unapplied proposal.
+34 measured-backend owners pass (287 assertions); lint passes. Scoped existing
+Trident/source-Bun: six families, current backends/fallbacks, 60 returns; exact
+SVG/receipt comparison is retained outside this source diff. Canonical local
+Node build stopped under new OOM events; normal push CI remains required.
+No Native100 or payload gain: both targets remain open; rejected capture/XML
+representations stay unshipped. Next: qualify the exact-head CI artifact and
+measure semantic group composition, without replaying stopped hypotheses.

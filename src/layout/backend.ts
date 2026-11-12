@@ -52,10 +52,26 @@ export function emitGraphLayoutDecision(decision: GraphLayoutDecision): void {
   observer?.(immutableDecision(decision))
 }
 
+/** Dispatch and evidence must use the same admitted runtime selection, even
+ * for JavaScript callers that bypass serialized render-option validation. */
+function graphLayoutBackend(value: unknown): GraphLayoutDecision['requested'] {
+  if (value !== 'elk' && value !== 'agentic' && value !== 'trinity') {
+    throw new TypeError('graphLayout.backend must be elk, agentic, or trinity')
+  }
+  return value
+}
+
+function graphLayoutFallback(value: unknown): GraphLayoutDecision['fallback'] {
+  if (value === undefined) return 'none'
+  if (value !== 'none' && value !== 'elk') throw new TypeError('graphLayout.fallback must be none or elk')
+  return value
+}
+
 /** Families whose specialized geometry has not joined the owned producer yet. */
 export function selectElkForGraphFamily(options: Pick<RenderOptions, 'graphLayout'>, family: string): GraphLayoutDecision {
-  const requested = options.graphLayout?.backend ?? 'elk'
-  const fallback = options.graphLayout?.fallback ?? 'none'
+  const policy = options.graphLayout
+  const requested = policy === undefined ? 'elk' : graphLayoutBackend(policy?.backend)
+  const fallback = graphLayoutFallback(policy?.fallback)
   if (requested !== 'elk') {
     const name = requested === 'agentic' ? 'Agentic' : 'Trinity'
     const reason = `${family} family geometry is not supported by the ${name} backend`
@@ -77,21 +93,23 @@ export function runMeasuredGraphBackend<T>(
   trinity?: () => T,
 ): T {
   const policy = options.graphLayout
-  if (!policy) return elk()
+  if (policy === undefined) return elk()
+  const requested = graphLayoutBackend(policy?.backend)
+  const fallback = graphLayoutFallback(policy?.fallback)
   const attempts: Array<GraphLayoutDecision['attempts'][number]> = []
-  let result: T, selected = policy.backend, reason: string | undefined
-  if (policy.backend !== 'elk') {
+  let result: T, selected = requested, reason: string | undefined
+  if (requested !== 'elk') {
     try {
-      if (policy.backend === 'agentic') result = native()
+      if (requested === 'agentic') result = native()
       else {
         if (!trinity) throw new GraphLayoutUnsupportedError('this family has no Trinity adapter', 'Trinity')
         result = trinity()
       }
     } catch (error) {
       const unsupported = error instanceof GraphLayoutUnsupportedError
-      if ((!unsupported && !(allowCandidateRejection && error instanceof LayoutCertificationError)) || policy.fallback !== 'elk') throw error
+      if ((!unsupported && !(allowCandidateRejection && error instanceof LayoutCertificationError)) || fallback !== 'elk') throw error
       reason = unsupported ? error.reason : 'candidate failed mandatory geometry certification'
-      attempts.push({ backend: policy.backend, outcome: unsupported ? 'unsupported' : 'candidate-rejected', reason })
+      attempts.push({ backend: requested, outcome: unsupported ? 'unsupported' : 'candidate-rejected', reason })
       result = elk()
       selected = 'elk'
     }
@@ -99,10 +117,10 @@ export function runMeasuredGraphBackend<T>(
     result = elk()
   }
   attempts.push({ backend: selected, outcome: 'selected' })
-  const decision: GraphLayoutDecision = { requested: policy.backend, fallback: policy.fallback ?? 'none', selected, attempts,
-    implementation: selected === 'agentic' ? AGENTIC_LAYERED_IMPLEMENTATION : selected === 'trinity' ? TRINITY_IMPLEMENTATION : 'elk-layered@1', ...(reason ? { reason } : {}) }
+  const decision = immutableDecision({ requested, fallback, selected, attempts,
+    implementation: selected === 'agentic' ? AGENTIC_LAYERED_IMPLEMENTATION : selected === 'trinity' ? TRINITY_IMPLEMENTATION : 'elk-layered@1', ...(reason ? { reason } : {}) })
   retainDecision?.(result, decision)
-  emitGraphLayoutDecision(decision)
+  observer?.(decision)
   return result
 }
 

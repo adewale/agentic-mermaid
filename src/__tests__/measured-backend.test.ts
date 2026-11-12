@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test'
-import { DeferredDependencyError, GraphLayoutUnsupportedError, LayoutCertificationError, LayoutWorkLimitError, withGraphLayoutDecisionObserver, type GraphLayoutDecision } from '../layout/backend.ts'
+import { DeferredDependencyError, GraphLayoutUnsupportedError, LayoutCertificationError, LayoutWorkLimitError, withGraphLayoutDecisionObserver, selectElkForGraphFamily, type GraphLayoutDecision } from '../layout/backend.ts'
 import { runMeasuredGraphBackend, solveMeasuredLayout } from '../layout/measured-backend.ts'
 import { elkMeasuredAdapter } from '../layout/elk-measured-adapter.ts'
 import { nativeMeasuredAdapter } from '../layout/native-measured-adapter.ts'
@@ -7,6 +7,114 @@ import { trinityMeasuredAdapter } from '../layout/trinity.ts'
 import type { MeasuredGraph, MeasuredLayoutResult } from '../layout/measured-graph.ts'
 
 describe('measured family backend selection', () => {
+  test('invalid backend selections cannot execute or report a measured producer, even with fallback', () => {
+    const invalid = ['typo', 0, Symbol('typo'), { toString() { throw new Error('must not coerce invalid selection') } }]
+    for (const backend of invalid) for (const fallback of ['none', 'elk'] as const) {
+      const calls: string[] = [], decisions: GraphLayoutDecision[] = []
+      const options = { graphLayout: { backend, fallback } } as unknown as Parameters<typeof runMeasuredGraphBackend>[0]
+      let failure: unknown
+      try {
+        withGraphLayoutDecisionObserver(value => decisions.push(value), () => runMeasuredGraphBackend(options,
+          () => { calls.push('native'); return 1 }, () => { calls.push('elk'); return 2 }, true,
+          () => { calls.push('retain') }, () => { calls.push('trinity'); return 3 }))
+      } catch (error) { failure = error }
+      expect(calls).toEqual([])
+      expect(decisions).toEqual([])
+      expect(failure).toBeInstanceOf(TypeError)
+    }
+  })
+
+  test('family fallback rejects invalid backend names without coercing the selection', () => {
+    for (const backend of ['typo', Symbol('typo'), { toString() { throw new Error('must not coerce invalid selection') } }]) {
+      for (const fallback of ['none', 'elk'] as const) {
+        const options = { graphLayout: { backend, fallback } } as unknown as Parameters<typeof selectElkForGraphFamily>[0]
+        expect(() => selectElkForGraphFamily(options, 'sequence')).toThrow(TypeError)
+      }
+    }
+  })
+
+  test('one backend read determines both the actual producer and its retained decision', () => {
+    let reads = 0
+    const options = { graphLayout: { get backend() { return reads++ === 0 ? 'agentic' as const : 'trinity' as const }, fallback: 'none' as const } }
+    const calls: string[] = [], decisions: GraphLayoutDecision[] = []
+    const result = withGraphLayoutDecisionObserver(value => decisions.push(value), () => runMeasuredGraphBackend(options,
+      () => { calls.push('native'); return 1 }, () => { calls.push('elk'); return 2 }, false, undefined,
+      () => { calls.push('trinity'); return 3 }))
+    expect(result).toBe(1)
+    expect(reads).toBe(1)
+    expect(calls).toEqual(['native'])
+    expect(decisions[0]).toMatchObject({ requested: 'agentic', selected: 'agentic', implementation: 'agentic-layered@28' })
+  })
+
+  test('a producer cannot rewrite the backend identity of the decision it already executed', () => {
+    const policy: { backend: 'agentic' | 'elk'; fallback: 'none' } = { backend: 'agentic', fallback: 'none' }
+    const decisions: GraphLayoutDecision[] = []
+    const result = withGraphLayoutDecisionObserver(value => decisions.push(value), () => runMeasuredGraphBackend({ graphLayout: policy },
+      () => { policy.backend = 'elk'; return 'native' }, () => 'elk'))
+    expect(result).toBe('native')
+    expect(decisions[0]).toMatchObject({ requested: 'agentic', selected: 'agentic', implementation: 'agentic-layered@28' })
+  })
+
+  test('an explicit policy with a missing backend cannot silently select ELK', () => {
+    for (const backend of [undefined, null]) for (const fallback of ['none', 'elk'] as const) {
+      const options = { graphLayout: { backend, fallback } } as unknown as Parameters<typeof runMeasuredGraphBackend>[0]
+      let calls = 0
+      expect(() => runMeasuredGraphBackend(options, () => ++calls, () => ++calls)).toThrow(TypeError)
+      expect(() => selectElkForGraphFamily(options, 'sequence')).toThrow(TypeError)
+      expect(calls).toBe(0)
+    }
+    expect(selectElkForGraphFamily({}, 'sequence')).toMatchObject({ requested: 'elk', selected: 'elk', fallback: 'none' })
+  })
+
+  test('the admitted fallback cannot change during producer execution', () => {
+    for (const permitted of [false, true]) {
+      const policy = { backend: 'agentic' as const, fallback: permitted ? 'elk' as const : 'none' as const }
+      const decline = new GraphLayoutUnsupportedError('capacity'), decisions: GraphLayoutDecision[] = []
+      let elkCalls = 0
+      const run = () => withGraphLayoutDecisionObserver(value => decisions.push(value), () => runMeasuredGraphBackend({ graphLayout: policy },
+        () => { policy.fallback = permitted ? 'none' : 'elk'; throw decline }, () => { elkCalls++; return 'elk' }))
+      if (permitted) {
+        expect(run()).toBe('elk')
+        expect(decisions[0]).toMatchObject({ requested: 'agentic', selected: 'elk', fallback: 'elk' })
+        expect(elkCalls).toBe(1)
+      } else {
+        expect(run).toThrow(decline)
+        expect(decisions).toEqual([])
+        expect(elkCalls).toBe(0)
+      }
+    }
+    const policy = { backend: 'agentic' as const, fallback: 'none' as 'none' | 'elk' }, decisions: GraphLayoutDecision[] = []
+    withGraphLayoutDecisionObserver(value => decisions.push(value), () => runMeasuredGraphBackend({ graphLayout: policy },
+      () => { policy.fallback = 'elk'; return 'native' }, () => 'elk'))
+    expect(decisions[0]).toMatchObject({ requested: 'agentic', selected: 'agentic', fallback: 'none' })
+  })
+
+  test('invalid fallback values are rejected without executing any producer', () => {
+    for (const fallback of [null, 'typo', Symbol('typo'), { toString() { throw new Error('must not coerce invalid fallback') } }]) {
+      const options = { graphLayout: { backend: 'agentic', fallback } } as unknown as Parameters<typeof runMeasuredGraphBackend>[0]
+      let calls = 0
+      expect(() => runMeasuredGraphBackend(options, () => ++calls, () => ++calls)).toThrow(TypeError)
+      expect(() => selectElkForGraphFamily(options, 'sequence')).toThrow(TypeError)
+      expect(calls).toBe(0)
+    }
+  })
+
+  test('retainers and observers share closed evidence of the producer that actually ran', () => {
+    const retained: GraphLayoutDecision[] = [], observed: GraphLayoutDecision[] = [], writes: boolean[] = []
+    const result = withGraphLayoutDecisionObserver(value => observed.push(value), () => runMeasuredGraphBackend(
+      { graphLayout: { backend: 'agentic', fallback: 'none' } }, () => 'native', () => 'elk', false,
+      (_value, decision) => {
+        retained.push(decision)
+        writes.push(Reflect.set(decision, 'requested', 'elk'), Reflect.set(decision, 'selected', 'trinity'),
+          Reflect.set(decision.attempts[0]!, 'backend', 'elk'), Reflect.deleteProperty(decision.attempts, '0'))
+      }))
+    expect(result).toBe('native')
+    expect(writes).toEqual([false, false, false, false])
+    expect(observed[0]).toBe(retained[0])
+    expect(observed[0]).toMatchObject({ requested: 'agentic', selected: 'agentic', fallback: 'none',
+      attempts: [{ backend: 'agentic', outcome: 'selected' }], implementation: 'agentic-layered@28' })
+  })
+
   test('selects the real Trinity callback and never silently substitutes another solver', () => {
     const calls: string[] = [], decisions: GraphLayoutDecision[] = [], options = { graphLayout: { backend: 'trinity' as const } }
     const native = () => { calls.push('native'); return 'native' }, elk = () => { calls.push('elk'); return 'elk' }
