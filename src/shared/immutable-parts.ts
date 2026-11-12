@@ -4,16 +4,21 @@ const immutableSet = WeakSet, immutableApply = Reflect.apply
 const immutableHas = WeakSet.prototype.has, immutableAdd = WeakSet.prototype.add
 const immutableFreeze = Object.freeze, immutableFrozen = Object.isFrozen, immutableKeys = Reflect.ownKeys
 const immutableDescriptor = Object.getOwnPropertyDescriptor, immutableOwn = Object.hasOwn
+const immutablePrototype = Object.getPrototypeOf, immutableArray = Array.isArray
+const immutableObjectPrototype = Object.prototype, immutableArrayPrototype = Array.prototype
+const supportedPrototype = (value: object, prototype: object | null): boolean => immutableArray(value)
+  ? prototype === immutableArrayPrototype : prototype === immutableObjectPrototype || prototype === null
 
 export function createImmutableParts(known: (value: object) => boolean = () => false, knownOwned: (value: object) => boolean = () => false) {
   const parts = new immutableSet<object>(), ownedParts = new immutableSet<object>()
   const has = (value: object): boolean => immutableApply(immutableHas, parts, [value]) || known(value)
   const hasOwned = (value: object): boolean => immutableApply(immutableHas, ownedParts, [value]) || knownOwned(value)
   const qualify = <T extends object>(value: T, allocationOwned: boolean): Readonly<T> => {
+    const prototype = immutablePrototype(value)
     Object.freeze(value)
     // A caller can interpose the freeze operation. Reuse needs the actual
     // sealed data, rather than the operation's name or its returned value.
-    if (!immutableFrozen(value)) return value
+    if (!immutableFrozen(value) || !supportedPrototype(value, prototype) || immutablePrototype(value) !== prototype) return value
     let owned = allocationOwned
     const keys = immutableKeys(value)
     for (let index = 0; index < keys.length; index++) {
@@ -38,9 +43,17 @@ export function createImmutableParts(known: (value: object) => boolean = () => f
     if (typeof text !== 'string' || typeof sourceStart !== 'number' || typeof sourceEnd !== 'number') throw new TypeError('Source spans require scalar text and offsets')
     const allocated = { text, sourceStart, sourceEnd }
     const span = immutableFreeze(allocated)
-    if (immutableFrozen(span)) {
+    const prototype = immutablePrototype(span), keys = immutableKeys(span)
+    let closed = immutableFrozen(span) && supportedPrototype(span, prototype) && (span !== allocated || prototype === immutableObjectPrototype)
+    for (let index = 0; closed && index < keys.length; index++) {
+      const descriptor = immutableDescriptor(span, keys[index]!)
+      if (!descriptor || !immutableOwn(descriptor, 'value')) { closed = false; break }
+      const child = descriptor.value
+      if (child !== null && (typeof child === 'object' || typeof child === 'function') && !has(child)) closed = false
+    }
+    if (closed) {
       immutableApply(immutableAdd, parts, [span])
-      if (span === allocated && immutableKeys(span).length === 3) {
+      if (span === allocated && keys.length === 3) {
         const textSlot = immutableDescriptor(span, 'text'), startSlot = immutableDescriptor(span, 'sourceStart'), endSlot = immutableDescriptor(span, 'sourceEnd')
         if (textSlot && immutableOwn(textSlot, 'value') && typeof textSlot.value === 'string'
           && startSlot && immutableOwn(startSlot, 'value') && typeof startSlot.value === 'number'

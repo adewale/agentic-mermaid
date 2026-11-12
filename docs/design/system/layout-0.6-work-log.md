@@ -2360,3 +2360,15 @@ transient after-heap29.45→29.49MiB; no retained-memory or causal ratio claim.
 27 whole SVG/receipt pairs exact. Native100 target, Chain300 both400k unknown
 and payload budgets remain open. Next: reuse numeric geometry checks at their
 capture producer; reject if ownership/byte costs outweigh actual saved work.
+
+### 2026-11-12 — prepared operand prototype custody (base 94365c93ef89)
+
+A sealing hook could replace a prepared line-array or span prototype while the
+operand still acquired immutable/owned reuse. Require the supported prototype
+to survive sealing and verify returned span data before branding. Five named
+943 regressions fail without this fix; all six controls pass after it. Clean
+prepared-text + Native validation owners: 187P/0F; scoped lint passes. ASCII,
+Unicode and surrogate label SVG stays exact in the hook controls. Canonical
+local types remain memory-blocked; fresh normal CI owns the complete checks.
+This removes an ownership defect, not the Native100/payload losses. The actual
+writer/capture subtraction is separate unqualified work; no performance claim.

@@ -35,6 +35,66 @@ beforeAll(() => renderedTextReady())
 const typography = { fontSize: 18, fontWeight: 600 }
 const runPreparedChild = useTestChildren(20000)
 
+it.each(['line-array', 'block-record'] as const)('prepared ownership rejects a %s prototype changed during sealing', async mode => {
+  const child = await runPreparedChild(process.execPath, ['--eval', String.raw`
+import assert from 'node:assert/strict'
+const freeze = Object.freeze
+let armed = false, altered = 0
+Object.freeze = function(value) {
+  if (armed && value && Object.isExtensible(value)
+    && (process.env.PART_MODE === 'line-array' ? Array.isArray(value) && value.length === 1 && value[0]?.runs && typeof value[0]?.width === 'number'
+      : value.unit === 'px' && value.text === 'Proto 🧪 é <&>')) {
+    Object.setPrototypeOf(value, Object.create(Object.getPrototypeOf(value))); altered++
+  }
+  return freeze(value)
+}
+const { preparePixelText, isOwnedPixelTextPart } = await import('./src/shared/prepared-text.ts')
+const { prepareDisplayText } = await import('./src/shared/display-text.ts')
+const { writeTextSvg } = await import('./src/scene/svg-writer.ts')
+const marks = await import('./src/scene/marks.ts')
+const input = prepareDisplayText('Proto 🧪 é <&>', 'literal')
+const make = () => preparePixelText(input, { fontSize: 12, fontWeight: 400 })
+const draw = block => writeTextSvg(marks.text({ id: 'T', role: 'label', text: block.text, block, x: 10, y: 20, fontSize: 12, anchor: 'start', paint: { fill: '#111' } }))
+const control = make(), expected = draw(control)
+assert.equal(isOwnedPixelTextPart(control), true)
+armed = true
+const changed = make(); armed = false
+assert.ok(altered > 0)
+assert.equal(isOwnedPixelTextPart(changed), false)
+assert.equal(draw(changed), expected)
+`], { cwd: fileURLToPath(new URL('../../', import.meta.url)), env: { ...process.env, PART_MODE: mode } })
+  expect(child.status, child.stderr).toBe(0)
+})
+
+it.each(['foreign-accessor', 'foreign-prototype', 'changed-prototype', 'foreign-null'] as const)('source-span qualification preserves returned %s without granting unsafe ownership', async mode => {
+  const child = await runPreparedChild(process.execPath, ['--eval', String.raw`
+import assert from 'node:assert/strict'
+const freeze = Object.freeze
+let foreign, reads = 0
+Object.freeze = function(value) {
+  if (value && value.text === 'Span 🧪' && Object.hasOwn(value, 'sourceStart') && !Object.isFrozen(value)) {
+    const mode = process.env.SPAN_MODE
+    if (mode === 'changed-prototype') { Object.setPrototypeOf(value, { inherited: true }); return freeze(value) }
+    foreign = mode === 'foreign-accessor' ? { get text() { reads++; return 'Span 🧪' }, sourceStart: 0, sourceEnd: 7 }
+      : Object.assign(Object.create(mode === 'foreign-null' ? null : { inherited: true }), value)
+    return freeze(foreign)
+  }
+  return freeze(value)
+}
+const { createImmutableParts } = await import('./src/shared/immutable-parts.ts')
+const parts = createImmutableParts(), span = parts.sourceSpan('Span 🧪', 0, 7)
+if (foreign) assert.equal(span, foreign)
+assert.equal(reads, 0)
+assert.equal(parts.has(span), process.env.SPAN_MODE === 'foreign-null')
+assert.equal(parts.hasOwned(span), false)
+const record = Object.create(null); record.text = 'closed'
+parts.freezeOwned(record)
+assert.equal(parts.hasOwned(record), true)
+`], { cwd: fileURLToPath(new URL('../../', import.meta.url)), env: { ...process.env, SPAN_MODE: mode } })
+  expect(child.status, child.stderr).toBe(0)
+})
+
+
 it.each(['span', 'break', 'runs'] as const)('Native capture retains ordered source observations for a foreign frozen %s', async mode => {
   const child = await runPreparedChild(process.execPath, ['--eval', String.raw`
 const mode = process.env.AM_FOREIGN_PIXEL_PART
