@@ -106,7 +106,7 @@ function scanStartTags(source: string, cssRanges?: SvgRange[], styleContexts?: S
         cursor = valueEnd
         if (attributes) attributes.push(Object.freeze({ name, value: source.slice(valueStart, cursor), quote, nameStart, valueStart, valueEnd: cursor }))
         else if (first && first.name === first.expectedName) first.attribute(name, source.slice(valueStart, cursor))
-        else if (cssRanges && isSvgCssValueAttribute(name)) {
+        else if (cssRanges && CSS_VALUE_ATTRIBUTES.has(name)) {
           const range: SvgCssRange = collectWritten ? { start: valueStart, end: cursor, tagStart: start, tagEnd: end, name } : { start: valueStart, end: cursor }
           cssRanges.push(range)
           if (name === 'style') styleContexts!.push(range)

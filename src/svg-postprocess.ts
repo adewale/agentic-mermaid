@@ -75,7 +75,7 @@ export function namespaceSvgIds(svg: string, prefix: string): string {
       const id = attribute.value.slice(1)
       return declared.has(id) ? `#${namespaced(id)}` : attribute.value
     }
-    if (isSvgCssValueAttribute(attribute.name)) return urls(attribute.value)
+    if (attribute.value.includes('url(#') && isSvgCssValueAttribute(attribute.name)) return urls(attribute.value)
     return undefined
   })
   const styles = svgStyleRanges(attributes)
