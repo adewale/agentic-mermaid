@@ -10,6 +10,7 @@ import { c4Appearance, effectiveC4Shape } from './config.ts'
 import { resolveRenderStyle } from '../styles.ts'
 import { toneOnFill, resolveInlineNodeTextColor } from '../color-resolver.ts'
 import { isSafeActionHref } from '../output-security.ts'
+import { allocateGeneratedId } from '../shared/generated-identity.ts'
 import { topRoundedRectPath } from '../scene/svg-writer.ts'
 import { resolveRoleStyle } from '../scene/style-registry.ts'
 import { sanitizeDisplayLines } from '../shared/text-controls.ts'
@@ -22,7 +23,7 @@ export function lowerC4Drawing<T>(marks: DrawingFactory<T>, ctx: RenderContext<P
   const positioned = ctx.positioned, { body, config, identities } = positioned
   const style = resolveRenderStyle(ctx.resolved.renderOptions, undefined, ctx.resolved.styleFace)
   const link = (value: string | undefined): string => value && ctx.resolved.renderOptions.security !== 'strict' && isSafeActionHref(value) ? ` data-href="${escapeAttr(value)}" role="link" tabindex="0"` : ''
-  const id = (owner: string, feature: string) => identities.generated(`c4:${owner}:${feature}`, ['c4', owner, feature])
+  const id = (owner: string, feature: string) => allocateGeneratedId(identities.generated, `c4:${owner}:${feature}`, ['c4', owner, feature])
   const shape = (owner: string, feature: string, geometry: Geometry, paint: MarkPaint, group = false) => marks.shape({ id: id(owner, feature), role: group ? 'group' : 'node', geometry, paint })
   const metadata = (item: C4Element | C4Boundary) => [
     `data-id="${escapeAttr(item.id)}"`, `data-c4-kind="${escapeAttr(item.kind)}"`, `data-c4-macro="${escapeAttr(item.macro)}"`,

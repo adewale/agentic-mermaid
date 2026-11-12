@@ -97,18 +97,29 @@ test('positioned cache reports real lookup results and an uncached uncloneable a
   expect(JSON.stringify(events)).not.toContain('private-key')
 })
 
-test('a large source reuses its positioned layout: the key grows with the authored text, not its derived views', () => {
+test('identical repeats reuse positioned layouts: keys grow with authored text and layouts stay cloneable', () => {
   const columns = Array.from({ length: 12 }, (_, column) => [`  stage${column}[Stage ${column}]`,
     ...Array.from({ length: 20 }, (_, task) => `    task${column}_${task}[Task ${column}.${task}]@{assigned: "Owner ${task % 4}", ticket: "AM-${column * 20 + task}"}`)].join('\n'))
-  const source = ['kanban', ...columns].join('\n')
-  expect(source.length).toBeGreaterThan(12_000)
-  const outcomes = (): string[] => {
-    const events: PerformanceObservation[] = []
-    withPerformanceObserver(event => events.push(event), () => renderMermaidSVG(source))
-    return events.flatMap(event => event.kind === 'cache' && event.owner === 'positioned-layout' ? [event.reason ? `${event.outcome}:${event.reason}` : event.outcome] : [])
+  const services = Array.from({ length: 40 }, (_, index) => `  Container(s${index}, "Service ${index}", "TypeScript", "Handles workload ${index}")`)
+  const calls = Array.from({ length: 39 }, (_, index) => `Rel(s${index}, s${index + 1}, "Calls", "HTTPS")`)
+  const cases = [
+    // Derived grammar views once made this key about eight times the source.
+    { name: 'large kanban', source: ['kanban', ...columns].join('\n'), minimum: 12_000 },
+    // C4 layouts carry their identity allocator, which must be data, not a callback.
+    { name: 'small C4', source: 'C4Context\n  Person(u, "User")\n  System(s, "System")\n  Rel(u, s, "Uses")', minimum: 0 },
+    // The parsed C4 model in familyConfig is derived from the keyed source.
+    { name: 'large C4', source: ['C4Container', '  Person(user, "User")', '  System_Boundary(platform, "Platform") {', ...services, '  }', 'Rel(user, s0, "Uses")', ...calls].join('\n'), minimum: 3_000 },
+  ]
+  for (const { name, source, minimum } of cases) {
+    expect(source.length).toBeGreaterThan(minimum)
+    const outcomes = (): string[] => {
+      const events: PerformanceObservation[] = []
+      withPerformanceObserver(event => events.push(event), () => renderMermaidSVG(source))
+      return events.flatMap(event => event.kind === 'cache' && event.owner === 'positioned-layout' ? [event.reason ? `${event.outcome}:${event.reason}` : event.outcome] : [])
+    }
+    outcomes()
+    expect({ name, outcomes: outcomes() }).toEqual({ name, outcomes: expect.arrayContaining(['hit']) })
   }
-  outcomes()
-  expect(outcomes()).toContain('hit')
 })
 
 test('public rendering signals support and actual position-cache bypass; observer failures cannot affect output', () => {

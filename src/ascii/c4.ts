@@ -10,6 +10,7 @@ import { allocateBoxRoutes, boxFaceSizes, paintBoxRoute, paintBoxText, type BoxR
 import { placeC4Boxes, type C4Box } from '../c4/placement.ts'
 import { c4ElementText, c4BoundaryText, c4RelationshipText, c4SourceLine } from '../c4/projection.ts'
 import { resolveC4Config, c4Appearance, effectiveC4Shape, type C4ConfigInput } from '../c4/config.ts'
+import { allocateGeneratedId } from '../shared/generated-identity.ts'
 import { planC4Identity } from '../c4/identity.ts'
 import { tryParseCssColor, toHex } from '../shared/color-math.ts'
 import { projectC4Graph } from '../c4/projection.ts'
@@ -142,12 +143,12 @@ export function renderC4Terminal(body: C4Body, config: AsciiConfig, colorMode?: 
     header(item.id, itemOwner, undefined, y); styleFrame(item, itemOwner)
   }
   observeWork('terminal-c4-style', styledCells)
-  if (titleBlock) doc.textBlock(5, 1, measuredText(titleBlock.lines), { owner: { id: identities.generated('c4:title', ['c4', 'title']), kind: 'label' }, role: 'text' })
+  if (titleBlock) doc.textBlock(5, 1, measuredText(titleBlock.lines), { owner: { id: allocateGeneratedId(identities.generated, 'c4:title', ['c4', 'title']), kind: 'label' }, role: 'text' })
   for (const field of ['diagramMarginX', 'diagramMarginY', 'c4ShapeMargin', 'c4ShapePadding', 'width', 'height', 'boxMargin', 'nextLinePaddingX', 'wrapPadding', 'maxWidth']) if (c4Config[field] !== undefined) doc.report({ code: 'TERMINAL_FAMILY_PROJECTION', feature: `c4.config.${field}`, message: `C4 ${field} is a pixel dimension; terminal layout independently allocates measured character cells.` })
   const legend = c4LegendEntries(body, options)
   if (legend.length) {
     const top = doc.height + 2
-    doc.textBlock(5, top, measuredText('Legend'), { owner: { id: identities.generated('c4:legend:title', ['c4', 'legend', 'title']), kind: 'label' }, role: 'text' })
+    doc.textBlock(5, top, measuredText('Legend'), { owner: { id: allocateGeneratedId(identities.generated, 'c4:legend:title', ['c4', 'legend', 'title']), kind: 'label' }, role: 'text' })
     let y = top + 2
     for (const entry of legend) { const block = prepare(`${entry.kind === 'relationship' ? '->' : '[]'} ${entry.label}`); doc.textBlock(5, y, measuredText(block.lines), { owner: { id: entry.id, kind: 'label' }, role: 'text' }); y += block.height + 1 }
   }

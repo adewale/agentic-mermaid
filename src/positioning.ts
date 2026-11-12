@@ -123,7 +123,11 @@ function positionFamily(familyId: FamilyId, request: ResolvedRenderRequest, sour
   // diagrams exceeded the key bound. Explicit source overrides keep the full key.
   const cacheSource = cacheEnabled && source === request.source
     ? { originalText: source.originalText, config: source.config, frontmatter: source.frontmatter } : source
-  const cacheParts = cacheEnabled ? [cacheSource, request.renderOptions, request.appearance, request.familyConfig, projectionOptions, familyId === 'class' ? resolved.paintBackendId ?? 'backend:default' : undefined,
+  // The original C4 request normalizer derives its familyConfig (the parsed
+  // model, 20-30x the authored text) from the source alone, which the key
+  // already holds. Every other family config stays keyed.
+  const sourceDerivedConfig = cacheSource !== source && familyId === 'c4' && isOwnedFamily(descriptor)
+  const cacheParts = cacheEnabled ? [cacheSource, request.renderOptions, request.appearance, sourceDerivedConfig ? undefined : request.familyConfig, projectionOptions, familyId === 'class' ? resolved.paintBackendId ?? 'backend:default' : undefined,
     layoutDebugEnvIdentity(), PERFORMANCE_EXPERIMENTS.map(performanceExperimentEnabled)] : undefined
   if (metricsIdentity !== undefined) cacheParts?.push(metricsIdentity)
   const cacheKey = cacheParts === undefined ? undefined : JSON.stringify(cacheParts)
