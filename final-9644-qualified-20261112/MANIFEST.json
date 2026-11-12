@@ -1,0 +1,55 @@
+{
+  "source": "9644bce7edd0cd9706bb5dbfc30a89d8d2feb643",
+  "files": [
+    {
+      "path": "payload-parser-schema-only-evidence/INDEPENDENT-MATCHED-VALUE-REVIEW.json",
+      "bytes": 3559,
+      "sha256": "f7a58f683b1b4159f6196f220ffe7f92bca90ea9c5decd187bd8564060c775c1"
+    },
+    {
+      "path": "payload-state-minimal-evidence/CI-TYPES.json",
+      "bytes": 1301,
+      "sha256": "98ba1c2d8a6ba38ba52bce69b55a011410ad5bee221800e1e7ad5fea3d672595"
+    },
+    {
+      "path": "payload-state-minimal-evidence/INDEPENDENT-SOURCE-REVIEW.json",
+      "bytes": 1122,
+      "sha256": "e8438f6ef565512fc7fd5a799b698d3c6696314065787560500c9cc9ce7f92ef"
+    },
+    {
+      "path": "xml-write-reuse-evidence-9644/BASE.txt",
+      "bytes": 41,
+      "sha256": "a5035135f2e9dcb23ae2f16534a00b24a5a3b4b5647cf182179391002e9f7f10"
+    },
+    {
+      "path": "xml-write-reuse-evidence-9644/BOUND.json",
+      "bytes": 1656,
+      "sha256": "9be9f8b4893e4ec98ca09fe6cf835ea2488fe11aba220236dad2430e270ccfcb"
+    },
+    {
+      "path": "xml-write-reuse-evidence-9644/BOUND.log",
+      "bytes": 1209,
+      "sha256": "38dda7b71602142a6459416504f771656624e853d4cad0b9c10db525b2214479"
+    },
+    {
+      "path": "xml-write-reuse-evidence-9644/PRODUCT.json.gz",
+      "bytes": 7990,
+      "sha256": "683435672d4362ad06ee1d3f95f05c178fe6790d6de2182b268bb92abdbb84d0"
+    },
+    {
+      "path": "xml-write-reuse-evidence-9644/STOP.json",
+      "bytes": 1585,
+      "sha256": "1b69d32da290ab2811a5b73dcea40bba680cf083b4b9040ce48bd9e180ea95a9"
+    },
+    {
+      "path": "xml-write-reuse-evidence-9644/xml-bound.preload.ts",
+      "bytes": 1018,
+      "sha256": "2bb832c2ffecec62c62c2e01845b39bd29dcc99fc6b2b70a704e8a0730945650"
+    },
+    {
+      "path": "xml-write-reuse-evidence-9644/xml-bound.ts",
+      "bytes": 1472,
+      "sha256": "da487305f6d523c4c518bcaa37e98464bb536174806bcee9e45980a58c3e835a"
+    }
+  ]
+}
