@@ -2265,3 +2265,27 @@ heap43.255→43.319MiB. Browser4 products exact except work; requests unchanged;
 mixed gzip785864→786669(+805), Brotli625965→626598(+633), all caps still fail;
 JS heap+7996/+9436B. This is a bounded SVG gain, not completion. Next: remove
 repeated actual resource geometry work and finish payload/observer qualification.
+
+
+### 12 November — load only the selected parser and schema consumers
+
+`c6fa9557eeb27d74b195e712b2736614556ff4a1` follows ordinary Main913 merge7f4
+and reproduced browser/XML contract fixes483b/2f30. Minimal16-file parser/schema
+change saves10,250gzip/8,797Br mixed bytes versus2f30; all budgets still fail.
+363owners/lint/buildP; freshCI core/repo typesP. Trident124/198 preserves310
+returnedSVG/non-cert/proof vectors and194authored actualink vectors;12sameerrors.
+24matchedNodeworkers/54products exact: Native full142.64→151.59ms,cold323.44→
+360.30; pooledSVG116.88→116.10, RSS150.70→158.44MiB adverse. ELK full247.15→
+244.37,cold735.66→709.78, repeatededit229.26→256.68 adverse. No100ms claim.
+Broader46-fileScenephase split withdrawn: only1,038extra gzip versusminimal;
+introduced authority surfaces and adverse costs do not justify its complexity.
+
+State's successor shares the same header reader and canonical grammar, avoiding
+Flow grammar acquisition for selected State. Generic parsing retains both.
+332owners/lint/buildP;8completebrowser products exactc6fa. State eachengine
+−13,734gzip/−12,491Br/−1request; heap−51,404/−52,624B. Flow pays+309gzip/
++275Br, requests unchanged, heap+112/+5,020B. Mixed782,212gzip remains20,712
+above761,500; source types await freshCI. Source/cost evidence preserved on
+`review/pr449-evidence-20261105`, checkpointccc8b783. Chain300 both400kU,
+Native100 fullresponse and payloadcaps remain open; no caps/defaults changed.
+Next: remove a demonstrated retained shared producer; preserve actual-write custody.

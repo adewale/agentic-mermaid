@@ -1,3 +1,5 @@
+import { parseGraphSource as parseKnownGraphSource, splitInlineHeaderStatementsWithFlow, type StateGraphGrammar, type FlowGraphGrammar } from './graph-source-parser.ts'
+export type { StateGraphGrammar } from './graph-source-parser.ts'
 import { assertGraphNodeInsertion, retainGraphContainerCount } from './graph-parser-work.ts'
 
 import { parseFlowchartLabel, unquoteFlowchartLabel } from './flowchart-labels.ts'
@@ -13,8 +15,6 @@ import { createSubgraphMembership } from './shared/subgraph-membership.ts'
 import type { Direction, EdgeMarker, EdgeStyle, MermaidEdge, MermaidGraph, MermaidNode, MermaidSubgraph, NodeShape } from './types.ts'
 
 export { parseStyleProps } from './shared/style-props.ts'
-import { detectCompatibilityGraphFamilyFromFirstLine } from './agent/family-router.ts'
-import { classifyMermaidFamilyFromFirstLine } from './family-detection.ts'
 import { checkedFlowchartStyleProps, coalesceFlowchartLines, flowchartGroupPosition, type FlowchartLineGroup, commaInNodeId, continuesNodeId, findTextArrow, FLOWCHART_EDGE_ID_PREFIX_SOURCE, flowchartNodeIdLength, flowchartRegionAt, flowchartStatementSpans, labelReferencesAsEntityCodes, labelTextHoldsDelimiter, matchFlowchartLink, matchTextArrow, subgraphTitleUnreadable } from './flowchart-lexer.ts'
 import { consumeClassShorthandPrefix, MERMAID_IDENTIFIER_SOURCE } from './shared/mermaid-identifiers.ts'
 import { metadataText, readMetadataBlock } from './shared/metadata-yaml.ts'
@@ -56,83 +56,12 @@ export function parseFlowchartRenderSourceWithParser(parse: (text: string) => Me
   }
 }
 
-export interface StateGraphGrammar {
-  lines(rawLines: string[]): string[]
-  parse(lines: string[]): MermaidGraph
-}
-
+/** Generic compatibility callers supply both grammars; selected Flow keeps one. */
 export function parseGraphSource(text: string, stateGrammar?: StateGraphGrammar): MermaidGraph {
-  const rawLines = text.split('\n')
-  const firstStatement = rawLines.find(line => line.trim().length > 0 && !line.trim().startsWith('%%'))?.trim() ?? ''
-  // State note text must not pass through Flowchart's string coalescers or
-  // the generic whole-line comment filter. A `//` line is dropped only
-  // outside a string, which reads it as text, as the typed body does.
-  const state = /^stateDiagram(?:-v2)?(?=$|[\s;%])/i.test(firstStatement)
-  const statements = state ? [] : coalesceStatementLines(rawLines)
-  const lines = expandInlineHeaderStatements(state
-    ? stateGrammar!.lines(rawLines)
-    : statements.map(statement => statement.text))
-  // The statements a header line holds (`flowchart TD; A`) start the lines.
-  const headerStatements = lines.length - statements.length
-  const breaks = headerStatements > 0
-    ? [...Array<undefined>(headerStatements + 1), ...statements.slice(1).map(statement => statement.breaks)]
-    : statements.map(statement => statement.breaks)
-
-  if (lines.length === 0) {
-    throw new Error('Empty mermaid diagram')
-  }
-
-  // Detect diagram type from header
-  const header = lines[0]!
-
-  const detection = classifyMermaidFamilyFromFirstLine(header, 'strict')
-  const familyId = detection.kind === 'registered'
-    ? detection.familyId
-    : detectCompatibilityGraphFamilyFromFirstLine(header)
-
-  if (familyId === 'state') {
-    return stateGrammar!.parse(lines)
-  }
-  if (familyId === 'flowchart') return parseFlowchart(lines, breaks, (index, start) => {
-    const statement = statements[index <= headerStatements ? 0 : index - headerStatements]!
-    let offset = statement.source.text.length - statement.source.text.trimStart().length
-    if (index > 0 && index <= headerStatements) {
-      const expanded = splitInlineHeaderStatements(statement.text)!
-      let cursor = expanded.header.length
-      for (let at = 0; at < index; at++) {
-        offset = statement.source.text.indexOf(expanded.statements[at]!, cursor)
-        cursor = offset + expanded.statements[at]!.length
-      }
-    }
-    const point = flowchartGroupPosition(statement.source, offset + start)
-    return { diagramType: 'flowchart', line: point.line + 1, column: point.col + 1 }
-  })
-
-  if (detection.kind === 'unknown') throw new Error(`Unknown Mermaid diagram header: ${header}`)
-  const detectedFamilyId = detection.kind === 'registered' ? detection.familyId : detection.match.family.id
-
-  // This compatibility API returns a MermaidGraph and therefore cannot
-  // truthfully parse non-graph families. Family-neutral callers should use
-  // the agent parser instead of falling through to the flowchart grammar.
-  throw new Error(`Mermaid family "${detectedFamilyId}" is not a graph family; use the family-neutral agent parser`)
+  return parseKnownGraphSource(text, FLOW_GRAPH_GRAMMAR, stateGrammar)
 }
-
-function expandInlineHeaderStatements(lines: string[]): string[] {
-  const split = lines.length > 0 ? splitInlineHeaderStatements(lines[0]!) : undefined
-  return split ? [split.header, ...split.statements, ...lines.slice(1)] : lines
-}
-
-/** A trimmed header line with statements after `;` (`flowchart TD; A`):
- * the header, and the statements after it; undefined for a bare header. */
 export function splitInlineHeaderStatements(line: string): { header: string; statements: string[] } | undefined {
-  if (!line.includes(';')) return undefined
-  // The header's direction (`graph >`) is not a statement: split after it.
-  const header = line.match(/^(?:(?:graph|flowchart|swimlane)(?:[ \t]+(?:TD|TB|LR|BT|RL|[<>^v])(?![\w-]))?|stateDiagram(?:-v2)?)(?=$|[\s;])/i)
-  if (!header) return undefined
-  const rest = line.slice(header[0].length).trim()
-  if (!rest.startsWith(';')) return undefined
-  // The State reader splits its own statements (readStateStatements).
-  return { header: header[0], statements: /^stateDiagram/i.test(header[0]) ? [rest] : splitFlowchartStatements(rest) }
+  return splitInlineHeaderStatementsWithFlow(line, splitFlowchartStatements)
 }
 
 /**
@@ -1424,3 +1353,6 @@ function endMarkerForOp(op: string): EdgeMarker | undefined {
   if (last === 'x') return 'cross'
   return undefined
 }
+
+/** The canonical Flow grammar, shared without importing the State grammar. */
+export const FLOW_GRAPH_GRAMMAR = { statements: coalesceStatementLines, splitStatements: splitFlowchartStatements, parse: parseFlowchart, position: flowchartGroupPosition } satisfies FlowGraphGrammar

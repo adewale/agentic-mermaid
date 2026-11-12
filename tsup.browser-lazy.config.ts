@@ -45,6 +45,10 @@ export const lazyBrowserDrawingConsumer: Plugin = {
     build.onResolve({ filter: /\/flowchart-parser-entry\.ts$/ }, args =>
       resolve(args.resolveDir, args.path) === flowParser
         ? { path: resolve(import.meta.dirname, 'src/browser-lazy/flowchart-parser-entry.ts') } : undefined)
+    const stateParser = resolve(import.meta.dirname, 'src/state-parser-entry.ts')
+    build.onResolve({ filter: /\/state-parser-entry\.ts$/ }, args =>
+      resolve(args.resolveDir, args.path) === stateParser
+        ? { path: resolve(import.meta.dirname, 'src/browser-lazy/state-parser-entry.ts') } : undefined)
     const backend = resolve(import.meta.dirname, 'src/scene/backend.ts')
     const runtime = resolve(import.meta.dirname, 'src/browser-lazy/scene-backend-runtime.ts')
     const defaultBackend = resolve(import.meta.dirname, 'src/scene/default-backend.ts')
