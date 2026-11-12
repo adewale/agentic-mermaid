@@ -114,7 +114,8 @@ function positionFamily(familyId: FamilyId, request: ResolvedRenderRequest, sour
   const environment = (globalThis as { process?: { env?: Record<string, string | undefined> }; AGENTIC_MERMAID_ELK_CACHE?: unknown }).process?.env
   const metricsIdentity = textMeasurementCacheIdentity(executionPlan.textMeasurement)
   const reusableMetrics = !executionPlan.textMeasurement || metricsIdentity !== undefined
-  const cacheEnabled = performanceExperimentEnabled('position-cache') && certifyFinal && familyId !== 'gantt' && reusableMetrics
+  // Gantt reads no clock: its today marker comes only from renderOptions.ganttToday, which the key holds.
+  const cacheEnabled = performanceExperimentEnabled('position-cache') && certifyFinal && reusableMetrics
     && (environment?.AGENTIC_MERMAID_ELK_CACHE ?? (globalThis as { AGENTIC_MERMAID_ELK_CACHE?: unknown }).AGENTIC_MERMAID_ELK_CACHE) !== '0'
   // The request's source is normalized deterministically from originalText,
   // the admitted Mermaid config and the family descriptor (isolated by the
@@ -134,7 +135,7 @@ function positionFamily(familyId: FamilyId, request: ResolvedRenderRequest, sour
   const boundedKey = cacheKey !== undefined && cacheKey.length <= 65536 ? cacheKey : undefined
   if (boundedKey === undefined) observeCache('positioned-layout', 'bypass',
     !performanceExperimentEnabled('position-cache') ? 'disabled' : !certifyFinal ? 'external-family'
-      : familyId === 'gantt' ? 'time-dependent-family' : !reusableMetrics ? 'custom-text-measurement'
+      : !reusableMetrics ? 'custom-text-measurement'
         : cacheKey === undefined ? 'elk-cache-disabled' : 'key-limit')
   const position = () => withTextMeasurementExecution(executionPlan.textMeasurement, () => {
     const role = request.output === 'ascii' || request.output === 'unicode' || request.output === 'html' ? 'companion' : 'primary'

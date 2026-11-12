@@ -12,6 +12,7 @@ import * as elk from '../elk-instance.ts'
 import { useTestChildren } from './helpers/test-child.ts'
 
 const runChild = useTestChildren(20_000)
+const GANTT_SOURCE = 'gantt\n  dateFormat YYYY-MM-DD\n  title Delivery\n  section Build\n    Design :a1, 2026-01-01, 3d\n    Implement :after a1, 4d'
 
 test('capability reuse reports hits, bounded capacity and oversized bypass without retaining a different tuple', async () => {
   const child = await runChild(process.execPath, ['-e', `
@@ -109,6 +110,8 @@ test('identical repeats reuse positioned layouts: keys grow with authored text a
     { name: 'small C4', source: 'C4Context\n  Person(u, "User")\n  System(s, "System")\n  Rel(u, s, "Uses")', minimum: 0 },
     // The parsed C4 model in familyConfig is derived from the keyed source.
     { name: 'large C4', source: ['C4Container', '  Person(user, "User")', '  System_Boundary(platform, "Platform") {', ...services, '  }', 'Rel(user, s0, "Uses")', ...calls].join('\n'), minimum: 3_000 },
+    // Gantt reads no clock; its today marker comes only from a keyed option.
+    { name: 'gantt', source: GANTT_SOURCE, minimum: 0 },
   ]
   for (const { name, source, minimum } of cases) {
     expect(source.length).toBeGreaterThan(minimum)
@@ -120,6 +123,17 @@ test('identical repeats reuse positioned layouts: keys grow with authored text a
     outcomes()
     expect({ name, outcomes: outcomes() }).toEqual({ name, outcomes: expect.arrayContaining(['hit']) })
   }
+  // A different clock is a different key and moves the today marker.
+  const at = (ganttToday: string) => {
+    const events: PerformanceObservation[] = []
+    const svg = withPerformanceObserver(event => events.push(event), () => renderMermaidSVG(GANTT_SOURCE, { ganttToday }))
+    return { svg, hit: events.some(event => event.kind === 'cache' && event.owner === 'positioned-layout' && event.outcome === 'hit') }
+  }
+  const first = at('2026-01-03'), repeat = at('2026-01-03'), later = at('2026-01-05')
+  expect([first.hit, repeat.hit, later.hit]).toEqual([false, true, false])
+  expect(repeat.svg).toBe(first.svg)
+  expect(later.svg).not.toBe(first.svg)
+  expect(at('2026-01-05').svg).toBe(later.svg)
 })
 
 test('public rendering signals support and actual position-cache bypass; observer failures cannot affect output', () => {
