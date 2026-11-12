@@ -1,6 +1,17 @@
 import { copyFileSync } from 'node:fs'
+import { getHeapStatistics, setFlagsFromString } from 'node:v8'
 import { defineConfig } from 'tsup'
 import { build } from 'esbuild'
+
+// tsup bundles declarations in a worker thread that needs between 2.5 and 3 GiB
+// of heap, more than Node's default on smaller machines (about 2 GiB on 15 GiB
+// RAM). A worker isolate reads the V8 heap flag when it is created, and this
+// config loads before tsup starts that worker, so raise the limit here for
+// every tsup invocation. A larger limit (e.g. from NODE_OPTIONS) is kept.
+const DTS_HEAP_MB = 4096
+if (getHeapStatistics().heap_size_limit < DTS_HEAP_MB * 2 ** 20) {
+  setFlagsFromString(`--max-old-space-size=${DTS_HEAP_MB}`)
+}
 
 export default defineConfig({
   entry: {
