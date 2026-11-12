@@ -1,5 +1,5 @@
 import { formatSvgNumericAttribute, SVG_LONG_DECIMAL } from './shared/svg-number.ts'
-import { scanSvgStartTags, transformSvgAttributes, transformSvgCssValues } from './svg-structure.ts'
+import { isSvgCssValueAttribute, scanSvgStartTags, svgStyleRanges, transformSvgAttributes, transformSvgCssValues } from './svg-structure.ts'
 
 /** Fallback for opaque family and extension SVG. Typed writers format their
  * own numeric fields before serialization, so ordinary native output skips
@@ -65,6 +65,7 @@ export function namespaceSvgIds(svg: string, prefix: string): string {
     }
   }
   const namespaced = (id: string) => id.startsWith(prefix) ? id : `${prefix}${id}`
+  const urls = (css: string) => css.replace(/url\(#([^)]+)\)/g, (full, id: string) => declared.has(id) ? `url(#${namespaced(id)})` : full)
   const attributes = transformSvgAttributes(svg, attribute => {
     if (attribute.name === 'id') return namespaced(attribute.value)
     if (attribute.name === 'aria-labelledby' || attribute.name === 'aria-describedby') {
@@ -74,9 +75,10 @@ export function namespaceSvgIds(svg: string, prefix: string): string {
       const id = attribute.value.slice(1)
       return declared.has(id) ? `#${namespaced(id)}` : attribute.value
     }
+    if (isSvgCssValueAttribute(attribute.name)) return urls(attribute.value)
     return undefined
   })
-  return transformSvgCssValues(attributes, css =>
-    css.replace(/url\(#([^)]+)\)/g, (full, id: string) => declared.has(id) ? `url(#${namespaced(id)})` : full))
+  const styles = svgStyleRanges(attributes)
+  return transformSvgCssValues(attributes, urls, { source: attributes, cssRanges: styles, styleContexts: styles })
 }
 
