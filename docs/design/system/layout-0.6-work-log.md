@@ -2289,3 +2289,24 @@ above761,500; source types await freshCI. Source/cost evidence preserved on
 `review/pr449-evidence-20261105`, checkpointccc8b783. Chain300 both400kU,
 Native100 fullresponse and payloadcaps remain open; no caps/defaults changed.
 Next: remove a demonstrated retained shared producer; preserve actual-write custody.
+
+### 12 November — classify captured operands once and avoid discarded schemas
+
+Parent361ce266f removes per-role discarded schema construction240→114objects;
+public schema bytes/order/fresh enum arrays preserved. Owning62checks/lint/buildP,
+8browser products exact9644. Gzip−5..+3B and heap−108..+4516B are mixed,
+not a meaningful payload or retained-memory gain;20.7KB mixed deficit remains.
+
+Capture now classifies primitives/depth once at its sole recursive entry,
+so scalars avoid the object walker and objects avoid repeated classification.
+All five inner calls remain local; invalid types, proxies/getters, depth limits
+and paid work unchanged. 176owners/lint/NodebuildP; independent review no finding.
+Matched24workers,54products exact: Native100freshSVG111.83→95.88ms,label edit
+99.42→87.47, full158.69→155.62; repeatSVG132.28→133.62,cold380.71→383.59
+adverse. ELK full305.24→279.44,cold815.62→786.01, but RSS215.26→225.85MiB
+and transient afterheap70.07→84.26MiB/p95277.69→306.19adverse. No100ms
+completion or causal universal speedup claim. Initial scalar-only pilot and
+all raw adverse costs retained; final combined build/output/cost qualification
+pending at commit. Chain300 both400kU; caps/defaults unchanged. Next: final
+combinedqualification, then the substantial shared CPU/payload deficits.
+
