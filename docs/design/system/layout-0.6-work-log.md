@@ -4,6 +4,19 @@ Current work order: [Native replacement plan](layout-0.6-qualification.md).
 The dated records below are historical evidence; earlier “next” statements do not
 create parallel active queues. No retained experiment or output is discarded.
 
+12 November Main contract alignment, parent
+`483b4b967a2b31ab44e5830e8e27b84319663ac0`: internal non-painting metadata
+now uses Main's final XML text projection during its closed-envelope check.
+Fixes the reproduced U+FFFE/lone-surrogate Scene refusals in seven families;
+external SVG and non-painting scope checks remain strict. Existing well-formed
+XML owner 35P and adjacent Scene/security 91P. Main's new rubric assertion now
+retains occurrence-specific targets (owner 140P); ER custody still requires the
+actual covering draw to report TEXT_OCCLUDED, while matching Main's drawable
+report-mode return (named owner 1P). Core/repository types and scoped lint pass.
+Evidence: `main913-metadata-*`, `main913-rubric-targets-*`, `main913-er-report-*`;
+failed strict-mode test setup is retained and excluded. No performance gain
+claimed; payload/proof-capacity work and final combined qualification remain.
+
 12 November browser integration repair, parent
 `7f4a0c166892fc15c0fee5b0fd1dc60c9e500154`: actual CI browser build failed
 because Main's `isBuiltInBackend` import was absent from the deferred SPI facade.

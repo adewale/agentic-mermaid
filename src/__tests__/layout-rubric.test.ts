@@ -47,7 +47,7 @@ it('hard-only pass measurement retains actual defects and every separately reque
   }
   const expected = { hard: 1, crossings: 0, portRate: 1, symErr: 0, parallelOverlaps: 0, opposingOverlaps: 0, endpointApproaches: 0, bends: 0, straight: 1 }
   expect(measureRubricMetrics(graph, positioned, ['hard', 'crossings', 'portRate', 'symErr', 'parallelOverlaps', 'opposingOverlaps', 'endpointApproaches', 'bends', 'straight'], resolveRenderStyle({}), new Set())).toEqual(expected)
-  expect(assessLayout(graph, positioned).violations).toEqual([{ metric: 'edgeThroughNode', detail: 'A->B segment 1 through C', severity: 'primary' }])
+  expect(assessLayout(graph, positioned).violations).toEqual([{ metric: 'edgeThroughNode', detail: 'A->B segment 1 through C', targets: ['A->B#0', 'C'], severity: 'primary' }])
 })
 
 describe('visual rubric — simple battery (every pattern x direction x shape)', () => {

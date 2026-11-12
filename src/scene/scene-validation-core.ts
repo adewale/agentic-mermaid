@@ -984,9 +984,10 @@ function validateNode(value: unknown, path: string, state: ValidationState, dept
       // Metadata must close its own scope. Separate fragments cannot capture
       // later typed artwork inside a nonpainting title, description or style.
       // Admission checks fresh bytes; public inspection caches grant no authority.
+      // Internal metadata uses the final writer's XML text projection; external SVG stays literal.
       if (value.element !== 'content' || !allowed || serialized === undefined
         || scanSvgStartTagsFresh(serialized).some(tag => !allowed.includes(tag.name))
-        || !verifySvgDocumentEnvelope(`<svg xmlns="http://www.w3.org/2000/svg">${serialized}</svg>`, () => true)) {
+        || !verifySvgDocumentEnvelope(`<svg xmlns="http://www.w3.org/2000/svg">${state.external ? serialized : xmlCarriableText(serialized)}</svg>`, () => true)) {
         add(state.diagnostics, 'SCENE_DOCUMENT', `${path}.nonPaint`, 'must describe only closed non-painting metadata elements')
       }
     }

@@ -1004,10 +1004,13 @@ test('the public ER custody boundary selects immutable Scene proof before native
       }
     }
   }
-  expect(controls).toMatchObject({ installed: true, callsDuringScene: 0, customCalls: 1, detached: true, coveredCalls: 1, sameSceneSvg: true, sameSceneProof: true, sameNativeSvg: true, nativeStatus: 'passed', sceneStatus: 'passed', retainedSceneProof: { status: 'passed' }, failed: { name: 'PaintLayoutCertificationError', proof: { status: 'failed' } } })
+  expect(controls).toMatchObject({ installed: true, callsDuringScene: 0, customCalls: 1, detached: true, coveredCalls: 1, sameSceneSvg: true, sameSceneProof: true, sameNativeSvg: true, nativeStatus: 'passed', sceneStatus: 'passed', retainedSceneProof: { status: 'passed' }, escaped: { proof: { status: 'failed' } } })
+  // Main's report mode returns drawable failed evidence. It must report the
+  // actual covering draw, never borrow the successful retained Scene proof.
+  expect(controls.failed).toBeUndefined()
+  expect(controls.escaped.svg).toMatch(/<rect x="0" y="0" width="[^"]+" height="[^"]+" fill="#000" \/>/)
   expect(new Set(controls.providers)).toEqual(new Set(['native']))
-  expect(controls.escaped).toBeUndefined()
-  expect(controls.failed.proof.issues.some((issue: { code: string }) => issue.code === 'TEXT_OCCLUDED')).toBe(true)
+  expect(controls.escaped.proof.issues.some((issue: { code: string }) => issue.code === 'TEXT_OCCLUDED')).toBe(true)
 }, 15000)
 
 function distantMarkerTextPairs<T>(factory: DrawingFactory<T>, count: number, marker: MarkerDescriptor): T[] {
