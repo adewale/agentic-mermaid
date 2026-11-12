@@ -4,7 +4,7 @@ import { categoricalPalette } from '../shared/categorical-palette.ts'
 import { safeCssColor } from '../shared/css-color.ts'
 import { compareCodePointStrings } from '../shared/deterministic-order.ts'
 import { terminalIds } from './identity.ts'
-import { serializeTerminalArtifact, type TerminalArtifact, terminalArtifact } from './terminal-artifact.ts'
+import { type TerminalArtifact, terminalArtifact } from './terminal-artifact.ts'
 import { TerminalDocument, type TerminalOwner } from './terminal-document.ts'
 import type { AsciiConfig, AsciiTheme, ColorMode } from './types.ts'
 import { visualWidth } from './width.ts'
@@ -49,7 +49,9 @@ export function renderGitGraphTerminal(diagram: GitGraphDiagram, config: AsciiCo
   const colors = new Map(branches.map((branch, index) => [branch.name, safeCssColor(themeVariables?.[`git${index % 8}`]) ?? palette[index]!]))
   const paint = (owner: TerminalOwner, branch: string, role: 'line' | 'arrow' | 'text', kind: 'stroke' | 'marker' | 'text') => ({ owner, role, kind, color: colors.get(branch) })
   branches.forEach(branch => {
-    const element: TerminalOwner = { id: generated(`branch:${branch.name}`, ['branch', branch.name]), kind: 'lane', members: diagram.commits.filter(commit => commit.branch === branch.name).map(commit => commit.id) }
+    // Registered once: the rail paints a cell per column, and each import of
+    // an unregistered owner snapshots and revalidates its whole member list.
+    const element = doc.element({ id: generated(`branch:${branch.name}`, ['branch', branch.name]), kind: 'lane', members: diagram.commits.filter(commit => commit.branch === branch.name).map(commit => commit.id) })
     const x = vertical ? xFor(0, branch.name) : Math.max(0, labelWidth - visualWidth(branch.name))
     const y = vertical ? titleRows : yFor(0, branch.name)
     doc.textBlock(x, y, branch.name, paint(element, branch.name, 'text', 'text'))
@@ -155,7 +157,3 @@ export function renderGitGraphTerminal(diagram: GitGraphDiagram, config: AsciiCo
   return terminalArtifact(doc, { colorMode, theme, trimEnd: true })
 }
 
-/** Compatibility string entry point; native dispatch retains the drawing. */
-export function renderGitGraphAscii(...args: Parameters<typeof renderGitGraphTerminal>): string {
-  return serializeTerminalArtifact(renderGitGraphTerminal(...args))
-}

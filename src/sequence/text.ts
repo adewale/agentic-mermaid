@@ -1,8 +1,8 @@
-import { normalizeBrTags } from '../multiline-utils.ts'
+import { displayText, normalizeBrTags } from '../multiline-utils.ts'
 import { isCharacterReference } from './family-source.ts'
 import { encodeMermaidAuthoredEntities, encodeMermaidEntities, ENTITY_MARKER_RE, mermaidEntityPrepass } from '../shared/mermaid-entities.ts'
 import { decodeMermaidEntities } from '../shared/mermaid-entity-display.ts'
-import { prepareDisplayText, replaceDisplayTextTokens, writeDisplayText, type LabelContent } from '../shared/display-text.ts'
+import { prepareDisplayText, replaceDisplayTextTokens, resolveLabelContent, writeDisplayText, type LabelContent } from '../shared/display-text.ts'
 
 const REFUSAL = { subject: 'Sequence text entity', example: 'A->>B: #35;' }
 const DISPLAY_ENTITY = new RegExp(`#\\w+;|${ENTITY_MARKER_RE.source}`, 'g')
@@ -40,6 +40,20 @@ export function readSequenceLabel(authored: string): { label: string; labelConte
   const text = readSequenceText(authored)
   const label = decodeMermaidEntities(normalizeBrTags(authored), REFUSAL)
   return { label, ...(text.content ? { labelContent: Object.freeze({ ...text.content, value: label }) } : {}) }
+}
+
+/** What the renderers draw for an authored payload: their reading of it, with
+ * label quotes, line breaks and formatting interpreted. Read-back surfaces
+ * (facts, describe) use this, never the body's authored string. */
+export function sequencePayloadDisplayText(authored: string): string {
+  const read = readSequenceLabel(authored)
+  return displayText(resolveLabelContent(read.label, read.labelContent))
+}
+
+/** What the renderers draw for a typed body string: their reading of the
+ * payload the writer emits for it. */
+export function sequenceDisplayText(value: string, content?: LabelContent): string {
+  return sequencePayloadDisplayText(writeSequenceText(value, content))
 }
 
 /** A physical line cannot occur inside a Sequence message statement. Typed

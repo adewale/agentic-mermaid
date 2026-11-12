@@ -1,6 +1,7 @@
 import type { RenderedRegionKind } from '../agent/types.ts'
 import { compareCodePointStrings } from '../shared/deterministic-order.ts'
 import { graphemes } from '../shared/graphemes.ts'
+import { observeWork } from '../performance-observations.ts'
 import { sanitizeTerminalText } from '../terminal-security.ts'
 import type { TerminalProjectionDiagnostic } from '../terminal-style.ts'
 import { colorizeLine, colorizeText, DEFAULT_ASCII_THEME } from './ansi.ts'
@@ -468,6 +469,18 @@ export class TerminalDocument {
     for (const [y, row] of this.rows) for (const [x, cell] of row) yield [x, y, cell] as const
   }
 
+  /** Snapshot of the occupied cells inside `bounds`. Within each row the
+   * cells keep `entries()` order, so repainting them in sequence reorders a
+   * row exactly as repainting the same cells from a whole-document snapshot. */
+  entriesWithin(bounds: TerminalBounds): Array<readonly [number, number, TerminalCell]> {
+    const cells: Array<readonly [number, number, TerminalCell]> = []
+    for (let y = bounds.y; y < bounds.y + bounds.height; y++) {
+      const row = this.rows.get(y)
+      if (row) for (const [x, cell] of row) if (x >= bounds.x && x < bounds.x + bounds.width) cells.push([x, y, cell] as const)
+    }
+    return cells
+  }
+
   /** Attach identity at a family drawing boundary, retaining explicit text cells. */
   attribute(owners: TerminalOwner | readonly TerminalOwner[], paint: Omit<TerminalPaint, 'owner'> = {}): this {
     const canonical = this.owners(Array.isArray(owners) ? owners : [owners])
@@ -531,6 +544,7 @@ export class TerminalDocument {
     const definitions: TerminalOwner[] = [],
       pending = new Map<string, TerminalOwner>(),
       snapshots = new WeakMap<TerminalOwner, TerminalOwner>()
+    let imported = 0
     for (const supplied of values) {
       if (this.canonicalOwners.has(supplied)) {
         definitions.push(supplied)
@@ -538,6 +552,8 @@ export class TerminalDocument {
       }
       const owner = snapshots.get(supplied) ?? snapshotOwner(supplied),
         key = ownerKey(owner)
+      // Snapshot and validation each visit the definition and its members.
+      imported += 1 + (owner.members?.length ?? 0)
       snapshots.set(supplied, owner)
       const previous = pending.get(key) ?? this.elements.get(key)
       if (previous) validateOwner(previous, owner)
@@ -549,6 +565,7 @@ export class TerminalDocument {
       this.canonicalOwners.add(owner)
       this.ownerKeys.set(owner, key)
     }
+    if (imported) observeWork('terminal-owner-import', imported)
     return definitions
   }
 

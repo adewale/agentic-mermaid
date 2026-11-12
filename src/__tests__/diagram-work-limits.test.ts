@@ -25,6 +25,7 @@ import { parseTreemapDiagram } from '../treemap/parser.ts'
 import { layoutTreemapDiagram } from '../treemap/layout.ts'
 import { parseIshikawaDiagram } from '../ishikawa/parser.ts'
 import { layoutIshikawaDiagram } from '../ishikawa/layout.ts'
+import { withPerformanceObserver, type PerformanceWorkOwner } from '../performance-observations.ts'
 
 function cartesian(sources: number, targets: number): string {
   const from = Array.from({ length: sources }, (_, i) => `a${i}`).join(' & ')
@@ -237,5 +238,96 @@ describe('graph work admission', () => {
     expect(() => parseBlockDiagram(nested)).not.toThrow()
     expect(parseTreemapDiagram(`treemap\n${Array.from({ length: 64 }, (_, i) => `${' '.repeat(i)}"Group"`).join('\n')}\n${' '.repeat(64)}"Leaf": 1`).nodes).toHaveLength(65)
     expect(parseIshikawaDiagram(`ishikawa\nEffect\n${Array.from({ length: 64 }, (_, i) => `${' '.repeat(i)}Cause`).join('\n')}`).nodes).toHaveLength(65)
+  })
+})
+
+// Scale probes count deterministic work units (performance-observations.ts),
+// never wall-clock time. Doubling a diagram whose output grows linearly must
+// not much more than double the work: a quadratic hot loop quadruples it.
+describe('work grows with the diagram, not with its square', () => {
+  const work = (owner: PerformanceWorkOwner, render: () => unknown): number => {
+    let units = 0
+    withPerformanceObserver(event => { if (event.kind === 'work' && event.owner === owner) units += event.units }, render)
+    return units
+  }
+  // A random recursive tree: each class inherits from an earlier one.
+  const classTree = (size: number, seed = 7): string => {
+    let state = seed
+    const next = () => (state = (state * 1103515245 + 12345) % 2147483648) / 2147483648
+    return `classDiagram\n${Array.from({ length: size - 1 }, (_, i) => `  C${Math.floor(next() * (i + 1))} <|-- C${i + 1}`).join('\n')}`
+  }
+
+  test('gitGraph terminal rails import each branch owner once, not once per column', () => {
+    const commits = (count: number) => `gitGraph\n${'  commit\n'.repeat(count)}`
+    const single = work('terminal-owner-import', () => renderMermaidASCII(commits(200))), double = work('terminal-owner-import', () => renderMermaidASCII(commits(400)))
+    expect(single).toBeGreaterThan(0)
+    expect(double / single).toBeLessThan(2.5)
+  })
+
+  test('flowchart terminal route search grows with the routes, not with the rectangles between their ends', () => {
+    // A square grid plus corner-to-corner edges draws linearly more ink as
+    // nodes double, but first-in first-out A* flooded each long edge's whole
+    // bounding rectangle: about 2.9x the search work per doubling.
+    const grid = (size: number): string => {
+      const side = Math.round(Math.sqrt(size)), lines = ['flowchart TD']
+      for (let i = 0; i < size; i++) {
+        if (i % side + 1 < side && i + 1 < size) lines.push(`  g${i} --> g${i + 1}`)
+        if (i + side < size) lines.push(`  g${i} --> g${i + side}`)
+      }
+      for (let i = 0; i < side; i++) lines.push(`  g${i} --> g${size - 1 - i}`)
+      return lines.join('\n')
+    }
+    const single = work('terminal-route-search', () => renderMermaidASCII(grid(75))), double = work('terminal-route-search', () => renderMermaidASCII(grid(150)))
+    expect(single).toBeGreaterThan(0)
+    expect(double / single).toBeLessThan(2.5)
+  })
+
+  test('flowchart terminal layout keeps a layered DAG as wide as its layers, not drifting sideways per layer', () => {
+    // Four nodes per layer, each wired to the layer above by the same cross
+    // edges. Fan-in alignment started each layer under its rightmost parent
+    // and stacked the rest after it, so every layer sat further right and
+    // canvas cells grew about 4.3x per doubling.
+    const parents = [[2, 3], [0, 3], [0], [0, 1]]
+    const id = (index: number) => `n${String(index).padStart(3, '0')}`
+    const layered = (size: number): string => ['flowchart TD', ...Array.from({ length: size - 4 }, (_, i) => i + 4)
+      .flatMap(child => parents[child % 4]!.map(parent => `  ${id(child - 4 - child % 4 + parent)} --> ${id(child)}`))].join('\n')
+    const runs = [38, 75, 150, 300].map(size => {
+      let cells = 0
+      const routeSearch = work('terminal-route-search', () => {
+        const rows = renderMermaidASCII(layered(size)).split('\n')
+        cells = rows.length * Math.max(...rows.map(row => row.length))
+      })
+      return { cells, routeSearch }
+    })
+    expect(runs[0]!.routeSearch).toBeGreaterThan(0)
+    for (let i = 1; i < runs.length; i++) {
+      expect(runs[i]!.cells / runs[i - 1]!.cells).toBeLessThan(2.5)
+      expect(runs[i]!.routeSearch / runs[i - 1]!.routeSearch).toBeLessThan(2.5)
+    }
+  })
+
+  test('C4 terminal styling visits the cells each card and route owns, not the whole document per item', () => {
+    const systems = (count: number) => `C4Context\n${Array.from({ length: count }, (_, i) => `  System(s${i}, "System ${i}")`).join('\n')}\n${Array.from({ length: count - 1 }, (_, i) => `  Rel(s${i}, s${i + 1}, "Calls")`).join('\n')}`
+    const single = work('terminal-c4-style', () => renderMermaidASCII(systems(100))), double = work('terminal-c4-style', () => renderMermaidASCII(systems(200)))
+    expect(single).toBeGreaterThan(0)
+    expect(double / single).toBeLessThan(2.5)
+  })
+
+  test('Class layout admission work grows linearly with an inheritance tree of hundreds of cards', () => {
+    // 280 cards spent the whole budget while the final contact check charged
+    // every pair of route segments.
+    const single = work('class-layout-admission', () => renderMermaidSVG(classTree(140))), double = work('class-layout-admission', () => renderMermaidSVG(classTree(280)))
+    expect(single).toBeGreaterThan(0)
+    expect(double / single).toBeLessThan(2.5)
+  })
+
+  test('a Class tree past the admission budget reports the work limit, never an internal error', () => {
+    const source = classTree(700)
+    let refusal: unknown
+    try { renderMermaidSVG(source) } catch (error) { refusal = error }
+    expect(refusal).toMatchObject({ name: 'ClassLayoutWorkLimitError', code: 'CLASS_LAYOUT_WORK_LIMIT' })
+    const verified = verifyMermaid(source)
+    expect(verified.warnings.filter(warning => warning.code === 'RENDER_FAILED' || warning.code === 'INTERNAL_ERROR'))
+      .toEqual([{ code: 'RENDER_FAILED', origin: 'source', reason: expect.stringContaining('CLASS_LAYOUT_WORK_LIMIT') }])
   })
 })

@@ -12,10 +12,12 @@ if (heapLimitBytes !== undefined && heapLimitBytes > SOURCE_TOOL_MEMORY_BYTES) {
 } else {
   parentPort!.on('message', ({ id, json }: SourceToolRequest) => {
     let result: unknown
+    let source: string | undefined
     try {
       const { name, args } = JSON.parse(json)
+      if (typeof args?.source === 'string') source = args.source
       result = runSourceTool(name, args)
-    } catch (error) { result = { ok: false, error: projectRenderErrorDiagnostic(error) } }
+    } catch (error) { result = { ok: false, error: projectRenderErrorDiagnostic(error, { source }) } }
     let encoded: string
     try { encoded = sourceToolMessage(result, SOURCE_TOOL_RESULT_BYTES) }
     catch (error) {

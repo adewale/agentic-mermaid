@@ -13,10 +13,12 @@
  * (P3 conformance).
  */
 import { describe, it, expect } from 'bun:test'
+import fc from 'fast-check'
+import { fcParameters } from './helpers/fc-parameters.ts'
 
 import { parseMermaid as parseGraph } from '../parser.ts'
 import {
-  asFlowchart, mutate, parseRegisteredMermaid as parseMermaid, serializeMermaid, opMenu, validateOp,
+  asFlowchart, describeMermaidFacts, mutate, parseRegisteredMermaid as parseMermaid, serializeMermaid, opMenu, validateOp,
 } from '../agent/index.ts'
 import { MUTATION_OPS_BY_FAMILY } from '../agent/mutation-ops.ts'
 import type { FlowchartMutationOp, FlowchartValidDiagram } from '../agent/types.ts'
@@ -231,5 +233,47 @@ describe('style ops', () => {
       expect(result.ok).toBe(false)
       if (!result.ok) expect(result.error.code).toBe('NODE_NOT_FOUND')
     }
+  })
+})
+
+// One identity rule for every op that writes a node id (V1). rename_node used
+// to accept ids add_node refused — `A;B` (two statements), `A[B]`, `A{B}`,
+// `A(B)` (a labelled node), ` A` (another id) — and wrote a diagram with a
+// different meaning while verify stayed clean. add_subgraph wrote `a b` and
+// `A[B]` the same way.
+describe('identity admission', () => {
+  const idArb = fc.oneof(
+    fc.constantFrom('A;B', 'A[B]', 'A{B}', 'A(B)', 'a b', ' N', 'N ', 'A-->B', 'x--y', '%%', 'N%%x', '#35;N', 'N M', 'N"', 'N|M', 'end', 'N-1', 'N.1', 'Ñandú', 'N_1', '1N'),
+    fc.string({ unit: 'binary', minLength: 1, maxLength: 6 }),
+    fc.stringMatching(/^[A-Za-z][\w.-]{0,5}$/),
+  )
+  const source = 'flowchart LR\n  A --> B\n'
+  const outcome = (op: FlowchartMutationOp) => {
+    const result = mutate(flowchart(source), op)
+    return result.ok ? { ok: true as const, diagram: result.value } : { ok: false as const, code: result.error.code }
+  }
+
+  it('add_node, rename_node and add_edge admit the same new node ids', () => {
+    fc.assert(fc.property(idArb.filter(id => id !== 'A' && id !== 'B'), id => {
+      const verdicts = [outcome({ kind: 'add_node', id, label: 'N' }), outcome({ kind: 'rename_node', from: 'B', to: id }), outcome({ kind: 'add_edge', from: 'A', to: id })]
+      expect({ id, verdicts: verdicts.map(verdict => verdict.ok) }).toEqual({ id, verdicts: verdicts.map(() => verdicts[0]!.ok) })
+    }), fcParameters({ numRuns: 1000 }))
+  })
+
+  it('an admitted node or subgraph id reads back as that id', () => {
+    fc.assert(fc.property(idArb.filter(id => id !== 'A' && id !== 'B'), id => {
+      for (const [op, fact] of [
+        [{ kind: 'rename_node', from: 'B', to: id }, `node ${id} shape rectangle`],
+        [{ kind: 'add_subgraph', id }, `group ${id} : ${id}`],
+      ] as const) {
+        const result = outcome(op as FlowchartMutationOp)
+        if (!result.ok) {
+          expect(result.code).toBe('INVALID_OP')
+          continue
+        }
+        const reread = parseMermaid(serializeMermaid(result.diagram))
+        expect(reread.ok && describeMermaidFacts(reread.value)).toContain(fact)
+      }
+    }), fcParameters({ numRuns: 1000, examples: [['A;B'], ['A[B]'], ['a b'], [' N']] }))
   })
 })

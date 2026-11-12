@@ -2,6 +2,7 @@ import { measureLabelConflicts } from '../layout/label-conflicts.ts'
 import { countEdgeCrossings, countOpposingRouteOverlaps, countParallelRouteOverlaps } from '../layout-rubric.ts'
 import { refineOwnedLayoutCandidate as refineNative, certifyOwnedLayoutCandidate as certifyNative } from '../layout/agentic-producer-core.ts'
 import { renderMermaidSVGWithReceipt } from '../index.ts'
+import { verifyMermaid } from '../agent/verify.ts'
 import { describe, expect, test } from 'bun:test'
 import { certifyCandidate, positionedGeometryViolations, positionedHeaderRouteViolations, retainSelection, certifyLayoutCandidates, certifyLayoutWithRouteAlternative, LayoutCertificationError, MAX_LAYOUT_CANDIDATES } from '../layout/certification.ts'
 import { LayoutMetricBudgetError } from '../layout/pass.ts'
@@ -465,8 +466,8 @@ describe('bounded final layout certification', () => {
     const graph = parseMermaid('flowchart TB\nc1-->a2\nsubgraph one\na1\nend\na1-->a2\nsubgraph two\nb1-->b2\nend\nsubgraph three\nc2\nend\nc1-->c2\none --> two\nthree --> two\ntwo --> c2')
     const positioned = layoutGraphSync(graph), certification = positioned.certification!, preference = certification.preference
     expect(certification).toMatchObject({ status: 'passed', hardViolations: 0 })
-    // Rejected header-unsafe proposals consume the existing fallback budget;
-    // only certified placements appear in the comparison evidence below.
+    // Rejected proposals consume the existing fallback budget; only certified
+    // placements appear in the comparison evidence below.
     expect(certification.attempts).toBeLessThanOrEqual(MAX_LAYOUT_CANDIDATES)
     expect(certification.attempts).toBeGreaterThanOrEqual(preference.compared.length)
     expect(positioned.nodes.map(node => node.id).sort()).toEqual(['a1', 'a2', 'b1', 'b2', 'c1', 'c2'])
@@ -477,9 +478,10 @@ describe('bounded final layout certification', () => {
     expect(positioned.groups.map(group => ({ id: group.id, nodes: group.nodeIds?.toSorted() })).sort((a, b) => a.id.localeCompare(b.id))).toEqual([
       { id: 'one', nodes: ['a1'] }, { id: 'three', nodes: ['c2'] }, { id: 'two', nodes: ['b1', 'b2'] },
     ])
-    expect(preference.reason).toBe('first-certified')
-    expect(preference.compared).toHaveLength(1)
-    expect(new Set(preference.compared.map(candidate => candidate.strategy)).size).toBe(1)
+    // The default placement certifies only by detouring routes around title
+    // bands, so it defers to the separate-hierarchy placement, which needs none.
+    expect(preference.reason).toBe('unreadableTitles')
+    expect(preference.compared.map(candidate => [candidate.strategy, candidate.score.unreadableTitles])).toEqual([['default', 1], ['separate-hierarchy', 0]])
     const placement = preference.compared.find(candidate => candidate.strategy === certification.strategy)
     expect(placement).toBeDefined()
     // The selected placement already has zero crossings and label conflicts;
@@ -549,6 +551,72 @@ describe('bounded final layout certification', () => {
     if (field === 'group-label') invalid.groups[0]!.label = 'changed'
     if (field === 'parent') invalid.groups = []
     expect(() => certifyLayoutCandidates(graph, resolveRenderStyle({}), [{ strategy: 'lost-content', produce: () => invalid }])).toThrow(LayoutCertificationError)
+  })
+
+  // Issue A7: report layout safety draws a graph no candidate certifies from its
+  // best drawable candidate instead of refusing it. The rule is deterministic:
+  // fewest misleading violations, then fewest violations, then candidate order;
+  // a candidate that changed authored meaning is never drawn.
+  test('report safety draws the best drawable candidate when none certifies', () => {
+    const graph = parseMermaid('flowchart LR\n  A --> B\n  C')
+    const base = layoutGraphSync(graph)
+    const detour = (positioned: PositionedGraph): void => {
+      const [a, b] = positioned.edges[0]!.points
+      const mid = (a!.x + b!.x) / 2
+      positioned.edges[0]!.points = [a!, { x: mid, y: a!.y }, { x: mid + 4, y: a!.y + 4 }, { x: mid + 4, y: b!.y }, b!]
+    }
+    const variants: Record<string, (positioned: PositionedGraph) => void> = {
+      // Only a changed label: no geometry failure, but it misstates the source.
+      'changed-label': positioned => { positioned.nodes[0]!.label = 'changed' },
+      // C drawn over B: one misleading violation.
+      overlap: positioned => {
+        const b = positioned.nodes.find(node => node.id === 'B')!, c = positioned.nodes.find(node => node.id === 'C')!
+        c.x = b.x + 4; c.y = b.y + 4
+      },
+      // A diagonal detour on a route certified straight: two cosmetic violations.
+      'straight-detour': detour,
+      // The same detour without the straight certificate: one cosmetic violation.
+      detour: positioned => { delete positioned.edges[0]!.routeCertificate; detour(positioned) },
+      'later-detour': positioned => { delete positioned.edges[0]!.routeCertificate; detour(positioned) },
+    }
+    const candidates = (names: string[]) => names.map(strategy => {
+      const positioned = structuredClone(base)
+      variants[strategy]!(positioned)
+      return { strategy, produce: () => positioned }
+    })
+    const all = ['changed-label', 'overlap', 'straight-detour', 'detour']
+    const drawn = certifyLayoutCandidates(graph, resolveRenderStyle({}), candidates(all), undefined, true)
+    expect(drawn.certification).toBeUndefined()
+    expect(drawn.uncertifiedLayout).toEqual({
+      status: 'uncertified', strategy: 'detour', attempts: 4,
+      violations: [{ kind: 'diagonalSegments', targets: ['A->B#0'], detail: 'A->B segment 2' }],
+    })
+    expect(drawn.nodes.find(node => node.id === 'A')!.label).toBe('A')
+    // A misleading violation outranks any number of cosmetic ones.
+    expect(certifyLayoutCandidates(graph, resolveRenderStyle({}), candidates(['overlap', 'straight-detour']), undefined, true).uncertifiedLayout!.strategy).toBe('straight-detour')
+    // Equal counts keep the established candidate order.
+    expect(certifyLayoutCandidates(graph, resolveRenderStyle({}), candidates(['later-detour', 'detour']), undefined, true).uncertifiedLayout!.strategy).toBe('later-detour')
+    // Identical input selects identical geometry.
+    expect(certifyLayoutCandidates(graph, resolveRenderStyle({}), candidates(all), undefined, true)).toEqual(drawn)
+    // Strict safety, and a graph whose only candidates change meaning, still refuse.
+    expect(() => certifyLayoutCandidates(graph, resolveRenderStyle({}), candidates(all))).toThrow(LayoutCertificationError)
+    expect(() => certifyLayoutCandidates(graph, resolveRenderStyle({}), candidates(['changed-label']), undefined, true)).toThrow(LayoutCertificationError)
+  })
+
+  // The State hook reaches the same candidate loop through its own options.
+  // Reduced counterexample: a self-loop crossing a directed composite's title
+  // band, which no candidate avoided when this was written.
+  test('State drawings share the report-safety fallback', () => {
+    const source = 'stateDiagram-v2\n  state G0 {\n    direction LR\n    a\n    b\n  }\n  b --> b\n  b --> c\n  c --> G0'
+    const { svg, receipt } = renderMermaidSVGWithReceipt(source)
+    expect(svg.startsWith('<svg')).toBe(true)
+    const geometry = (receipt.layoutCertification as { geometry?: { violations: Array<{ kind: string }> } } | undefined)?.geometry
+    if (!geometry) return
+    const verdict = verifyMermaid(source)
+    expect(verdict.ok).toBe(false)
+    const named = verdict.warnings.flatMap(warning => warning.code === 'LAYOUT_UNCERTIFIED' ? [warning.violation] : warning.code === 'GROUP_BREACH' ? ['groupBreaches'] : [])
+    expect(geometry.violations.map(violation => violation.kind).filter(kind => !named.includes(kind))).toEqual([])
+    expect(() => renderMermaidSVGWithReceipt(source, { layoutSafety: 'strict' })).toThrow(LayoutCertificationError)
   })
 
   test('a candidate cannot exchange authored members between intact group frames', () => {
@@ -928,8 +996,12 @@ describe('retained header bands are independent of frame height', () => {
       const { ctx } = laneContextFor([], [edge], 'TB', style, [group])
       expect(directLaneBlockers(edge, 80, row.lo, row.hi, ctx)).toEqual(row.block ? [{ kind: 'group-header', id: 'g' }] : [])
     })
-  test('public empty golden group retains authored identity and its zero-area band', () => {
-    const source = 'graph LR\nsubgraph one\nend\nA --> B\n'
+  // F17: an empty subgraph keeps a visible frame, its title band over a
+  // padded body and at least as wide as the title, instead of a 0x0 rect.
+  test.each([
+    ['flowchart subgraph', 'graph LR\nsubgraph one\nend\nA --> B\n'],
+    ['state composite', 'stateDiagram-v2\n  state one {\n  }\n  A --> B\n'],
+  ])('public empty %s retains authored identity and a visible frame under its band', (_, source) => {
     const rendered = renderMermaidSVGWithReceipt(source, { embedFontImport: false })
     expect(rendered.receipt.layoutCertification?.status).toBe('passed')
     expect(rendered.svg).toContain('data-id="one"')
@@ -939,13 +1011,16 @@ describe('retained header bands are independent of frame height', () => {
     expect(rendered.svg).toContain('marker-end=')
     const group = /<g\b[^>]*data-id="one"[^>]*>([\s\S]*?)<\/g>/.exec(rendered.svg)![1]!
     const rect = /<rect\b[^>]*>/.exec(group)![0]
-    expect(rect).toContain('width="0"')
-    expect(rect).toContain('height="0"')
+    const attr = (tag: string, name: string): number => Number(new RegExp(`\\b${name}="([^"]+)"`).exec(tag)![1])
     const path = /<path\b[^>]*d="([^"]+)"/.exec(group)![1]!,
       n = path.match(/[-+]?(?:\d*\.\d+|\d+\.?\d*)(?:[eE][-+]?\d+)?/g)!.map(Number)
+    // Band: M x,y H right V bottom H x Z, 28px tall, spanning the frame.
     expect(n).toHaveLength(5)
-    expect(n[0]).toBe(n[2])
-    expect(n[2]).toBe(n[4])
+    expect([n[0], n[1], n[2], n[4]]).toEqual([attr(rect, 'x'), attr(rect, 'y'), attr(rect, 'x') + attr(rect, 'width'), attr(rect, 'x')])
     expect(n[3]! - n[1]!).toBe(28)
+    // A body below the band, and room for the title text.
+    expect(attr(rect, 'height')).toBeGreaterThan(28)
+    const text = /<text\b[^>]*>/.exec(group)![0]
+    expect(attr(text, 'x') + attr(text, 'textLength')).toBeLessThanOrEqual(attr(rect, 'x') + attr(rect, 'width'))
   })
 })

@@ -21,6 +21,7 @@
 // ============================================================================
 
 import { C4RouteWorkLimitError } from '../c4/errors.ts'
+import { ClassLayoutWorkLimitError } from '../class/errors.ts'
 import { ErRouteGeometryError, ErRouteWorkLimitError } from '../er/errors.ts'
 import { ErLabelWorkLimitError } from '../er/errors.ts'
 import { MermaidFamilyDetectionError } from '../family-detection.ts'
@@ -31,6 +32,7 @@ import { GraphLayoutUnsupportedError } from '../layout/backend.ts'
 import { LayoutPassContractError } from '../layout/pass.ts'
 import { MindmapParseError } from '../mindmap/parser.ts'
 import { QuadrantStyleColorError } from '../quadrant/point-style.ts'
+import { PngArtifactBackgroundError, PngRasterBudgetError, PngRasterizerError } from '../png-contract.ts'
 import { ParsedDiagramFamilyMismatchError, RenderCapabilityError, RenderConfigError } from '../render-contract.ts'
 import { PaintLayoutCertificationError } from '../scene/paint-certification.ts'
 import { SceneValidationError } from '../scene/scene-validation-core.ts'
@@ -55,6 +57,7 @@ const ORIGINS: ReadonlyArray<readonly [ErrorClass, WarningOrigin]> = [
   [FamilyConformanceError, 'engine'],
   [HtmlEntityTableNotLoadedError, 'engine'],
   [ParsedDiagramFamilyMismatchError, 'engine'],
+  [PngRasterizerError, 'engine'],
   // Theme, Mermaid config and caller render options.
   [ThemeVariableColorError, 'config'],
   [RenderOptionColorError, 'config'],
@@ -64,6 +67,8 @@ const ORIGINS: ReadonlyArray<readonly [ErrorClass, WarningOrigin]> = [
   [GraphLayoutUnsupportedError, 'config'],
   [RenderCapabilityError, 'config'],
   [StyleSpecError, 'config'],
+  // A page paint (render option, Style or theme variable) PNG cannot resolve.
+  [PngArtifactBackgroundError, 'config'],
   // The authored diagram, including host work limits it can exceed and the
   // final paint certification a strict render requires of it.
   [MermaidSyntaxError, 'source'],
@@ -77,6 +82,8 @@ const ORIGINS: ReadonlyArray<readonly [ErrorClass, WarningOrigin]> = [
   [ErRouteWorkLimitError, 'source'],
   [ErLabelWorkLimitError, 'source'],
   [C4RouteWorkLimitError, 'source'],
+  [ClassLayoutWorkLimitError, 'source'],
+  [PngRasterBudgetError, 'source'],
   [PaintLayoutCertificationError, 'source'],
 ]
 

@@ -1,4 +1,4 @@
-import { terminalArtifact, serializeTerminalArtifact, type TerminalArtifact } from './terminal-artifact.ts'
+import { terminalArtifact, type TerminalArtifact } from './terminal-artifact.ts'
 // ============================================================================
 // ASCII renderer — Pie chart
 //
@@ -143,7 +143,3 @@ export function renderPieTerminal(
   return terminalArtifact(document, { colorMode, theme })
 }
 
-/** Compatibility string entry point; native dispatch retains the drawing. */
-export function renderPieAscii(...args: Parameters<typeof renderPieTerminal>): string {
-  return serializeTerminalArtifact(renderPieTerminal(...args))
-}

@@ -47,7 +47,9 @@ operations still fail atomically. This mode does not promise portable export.`,
 over an empty diagram of \`family\`. The declarative counterpart to hand-writing
 source. Returns the same envelope as \`mutate\`:
 { ok, family, source, verify } or { ok:false, family, opIndex, error }.
-Call \`describe_sdk\` for the family before authoring unfamiliar ops.`,
+The blank diagram is the family's minimal valid one (a mindmap already has
+its root, 'root'). Call \`describe_sdk\` for the family before authoring
+unfamiliar ops; its field notes state identity rules such as these.`,
     inputSchema: {
       type: 'object',
       additionalProperties: false,

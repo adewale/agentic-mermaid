@@ -242,7 +242,3 @@ export function cliRenderFormatHelpLines(indent = '  '): string {
     })
     .join('\n')
 }
-
-export function cliRenderFormatJsonSchema(): { type: 'string'; enum: CliRenderFormat[] } {
-  return { type: 'string', enum: [...CLI_RENDER_FORMATS] }
-}

@@ -1,6 +1,8 @@
 // Loop 9 M3 + M4 — `am render --format layout|unicode|ascii` round-trips.
 
 import { describe, test, expect } from 'bun:test'
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
 import { layoutMermaid, parseRegisteredMermaid } from '../agent/index.ts'
 import { runCli } from '../cli/index.ts'
 import { captureCli as capture } from './helpers/cli-capture.ts'
@@ -71,12 +73,20 @@ describe('am render --format ascii vs unicode', () => {
     for (let i = 0; i < out.length; i++) expect(out.charCodeAt(i)).toBeLessThan(0x80)
   })
 
-  test('json wrap uses correct key per format', () => {
+  test('--json success is an ok envelope; --output keeps the plain artifact and reports the write', () => {
     const f = tmpFile(SRC)
-    // Boolean classification is authority-derived, so --json never consumes the file.
-    const a = capture(() => runCli(['render', '--format', 'unicode', '--json', f]))
-    const b = capture(() => runCli(['render', '--format', 'ascii', '--json', f]))
-    expect(JSON.parse(a.out)).toHaveProperty('unicode')
-    expect(JSON.parse(b.out)).toHaveProperty('ascii')
+    for (const format of ['svg', 'ascii', 'unicode', 'layout'] as const) {
+      const plain = capture(() => runCli(['render', '--format', format, f]))
+      // Boolean classification is authority-derived, so --json never consumes the file.
+      const wrapped = JSON.parse(capture(() => runCli(['render', '--format', format, '--json', f])).out)
+      expect(wrapped, format).toMatchObject({ ok: true, receipt: { sharedRequestDigest: expect.any(String) } })
+      if (format !== 'layout') expect({ format, wrapsPlain: wrapped[format].length > 0 && plain.out.startsWith(wrapped[format]) }).toEqual({ format, wrapsPlain: true })
+      const output = join(temp.dir('am-render-out-'), `diagram.${format}`)
+      const written = capture(() => runCli(['render', '--format', format, '--output', output, '--json', f]))
+      const file = readFileSync(output, 'utf8')
+      expect({ format, code: written.code, file }).toEqual({ format, code: 0, file: plain.out })
+      if (format === 'svg') expect(file.startsWith('<svg')).toBe(true)
+      expect(JSON.parse(written.out), format).toEqual({ ok: true, path: output, bytes: Buffer.byteLength(file), receipt: wrapped.receipt, warnings: [] })
+    }
   })
 })

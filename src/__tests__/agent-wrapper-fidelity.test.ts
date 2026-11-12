@@ -715,6 +715,8 @@ describe('wrapper fidelity (1C): canonical synthesis on demand', () => {
       { source: '%%{init:[{"gantt":{"axisFormat":"Y#Z"}}]}%%\n%%{init:{}}%%\n' + task, own: 'Y#Z', pin: 'Y#Z' },
       { source: '%%{init:{"config":{"axisFormat":"Y#Z"}}}%%\n%%{wrap}%%\n' + task, own: 'Y#Z', pin: 'Y#Z' },
       { source: '%%{init:{"config":{"gantt":{"axisFormat":"Y#Z"}}}}%%\ngantt\n  axisFormat Y#Z\n  dateFormat YYYY-MM-DD\n  Work :2024-01-01, 1d', own: 'Y#Z', pin: 'Y#Z' },
+      // The directive the writer itself generates for a format with `#`.
+      { source: '%%{init: {"gantt":{"axisFormat":"\\u0025#:\\u0025M"}}}%%\n' + task, own: '%#:%M', pin: '%#:%M' },
     ]
     const pin = startUpstreamMermaid()
     try {
@@ -727,6 +729,8 @@ describe('wrapper fidelity (1C): canonical synthesis on demand', () => {
           const reload = parseMermaid(written)
           if (!reload.ok || reload.value.body.kind !== 'gantt') throw new Error('Expected Gantt reload')
           expect(reload.value.body.axisFormat).toBe(row.own)
+          // Writing the reload states the format once, not once more per write.
+          expect(serializeMermaid(reload.value, { wrapper })).toBe(written)
           expect(await pin.project(written, async d => d.db.getAxisFormat() || (await import('mermaid')).default.mermaidAPI.getConfig().gantt!.axisFormat)).toEqual({ ok: true, value: row.pin })
         }
       }

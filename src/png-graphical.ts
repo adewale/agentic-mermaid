@@ -52,7 +52,7 @@ function renderResolvedPngGraphicalProjection(
   consumeLayout?: GraphicalLayoutConsumer,
 ): PngGraphicalProjection {
   const graphical = executeGraphicalRequest(source, renderOptions, 'png', outputPolicy, resolutionOptions, consumeLayout)
-  const rasterBackground = resolvePngRasterBackground(graphical.svg, outputPolicy)
+  const rasterBackground = resolvePngRasterBackground(graphical.svg, outputPolicy, renderOptions.transparent === true)
   const rasterDimensions = assertPngRasterBudget(graphical.svg, outputPolicy)
   return {
     ...graphical,

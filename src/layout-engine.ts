@@ -62,7 +62,8 @@ import { resolveClassInlineStyle, resolveEdgeInlineStyle, resolveNodeInlineStyle
 import { runPipeline } from './layout/pass.ts'
 import type { LayoutPass, PassContextBase } from './layout/pass.ts'
 import type { PassMetrics, RubricMetric } from './layout/pass.ts'
-import { certifyCandidate, retainSelection, certifyLayoutWithRouteAlternative, certifyLayoutPlacementCandidates, positionedGeometryViolations, withinLayoutPreferenceBudget, LayoutCertificationError, type LayoutCertificationCandidate } from './layout/certification.ts'
+import { certifyCandidate, retainSelection, certifyLayoutWithRouteAlternative, certifyLayoutPlacementCandidates, positionedGeometryFindings, withinLayoutPreferenceBudget, LayoutCertificationError, type LayoutCertificationCandidate } from './layout/certification.ts'
+import { mergeUncertifiedLayout } from './layout/uncertified-layout.ts'
 import {
   DEFAULTS,
   flattenGroupBounds,
@@ -92,6 +93,8 @@ import {
   equalizePeerNodeDimensions,
   reanchorOffOutlineEndpoints,
   rerouteEdgesThroughNodes,
+  repairInwardEndpointApproaches,
+  repairResidualDiagonals,
   alignForkRejoinPeerCenters,
   alignPortLanes,
   alignLabeledSourcePort,
@@ -1102,6 +1105,10 @@ function groupHeaderHeight(
   return Math.max(measured, group.headerMinHeight)
 }
 
+/** Placement body of an empty group; a colon cannot occur in an authored id. */
+const EMPTY_GROUP_BODY_PREFIX = 'empty-group:'
+const EMPTY_GROUP_BODY = { width: 24, height: 16 }
+
 /**
  * Convert a MermaidSubgraph to an ELK compound node.
  * Includes internal edges (edges where both endpoints are in this subgraph)
@@ -1203,6 +1210,14 @@ function subgraphToElk(
     if (node) {
       elkNode.children!.push(nodeToElkLeaf(nodeId, node, style, routePortHints, effectiveDirection, opts.stateVisual, opts.nodeSizes?.get(nodeId), opts.markerPortExtents?.get(nodeId)))
     }
+  }
+
+  // An empty group would collapse to a 0x0 frame. An unpainted placement
+  // body (never a positioned node: it has no authored entry) reserves a
+  // frame under the title band, at least as wide as the title.
+  if (!sg.concurrencyRegion && sg.headerMinHeight === undefined && elkNode.children!.length === 0 && sg.children.length === 0) {
+    const title = sg.label ? Math.ceil((sg.titleOffset ?? style.groupLabelPaddingX) + graphTextBlock(resolveLabelContent(sg.label, sg.labelContent), style, 'group').width + style.groupLabelPaddingX) : 0
+    elkNode.children!.push({ id: `${EMPTY_GROUP_BODY_PREFIX}${sg.id}`, width: Math.max(title - 2 * style.groupPaddingX, EMPTY_GROUP_BODY.width), height: EMPTY_GROUP_BODY.height })
   }
 
   // Add nested subgraphs recursively
@@ -1403,6 +1418,8 @@ export interface LayoutPassContext extends PassContextBase {
   readonly layoutPadding: number
   readonly stateNoteMargin: number
   frozen: boolean
+  /** Routes rerouteEdgesThroughNodes had to detour around a reserved title band. */
+  titleBandRepairs?: number
 }
 
 /** Necessary precondition for lane splitters. Avoid measuring their crossing
@@ -1453,7 +1470,7 @@ export const LAYOUT_PIPELINE: ReadonlyArray<LayoutPass<LayoutPassContext>> = [
     // ELK repairs and the shared forest fan preparation retain their passes.
     enabled: c => Boolean(c.elkResult) || c.mergeEdges,
     mayChangeMetrics: { bends: 'improve-only', straight: 'improve-only' },
-    run: c => { alignLayerNodes(c.nodes, c.edges, c.graph.direction) },
+    run: c => { alignLayerNodes(c.nodes, c.edges, c.graph.direction, c.groups) },
   },
   {
     id: 'equalizePeerNodeDimensions', doc: 'equalize peer box sizes + pack layers so symmetry is visible downstream',
@@ -1599,7 +1616,13 @@ export const LAYOUT_PIPELINE: ReadonlyArray<LayoutPass<LayoutPassContext>> = [
   {
     id: 'rerouteEdgesThroughNodes', doc: 're-route an edge left running through a node by a node-mover (honorLinkRankDistance/alignPortLanes) around the obstacle and restore protected marker leads before label placement (edge-only, freeze-safe)',
     after: ['reanchorOffOutlineEndpoints'], mutates: ['edges'],
-    run: c => { rerouteEdgesThroughNodes(c.nodes, c.edges, c.graph, undefined, c.groups); repairMarkerTerminals({ nodes: c.nodes, edges: c.edges, groups: c.groups }, c.graph, c.style) },
+    run: c => {
+      const rerouted = rerouteEdgesThroughNodes(c.nodes, c.edges, c.graph, undefined, c.groups)
+      c.titleBandRepairs = rerouted.titleBandRepairs
+      repairInwardEndpointApproaches(c.nodes, c.edges, c.groups, edge => c.bundled.has(edge))
+      repairMarkerTerminals({ nodes: c.nodes, edges: c.edges, groups: c.groups }, c.graph, c.style)
+      repairInwardEndpointApproaches(c.nodes, c.edges, c.groups, edge => c.bundled.has(edge), true)
+    },
   },
   {
     id: 'repairLabelsOnSharedTrunks', doc: 'give a shared-trunk label a clear seat or a proved private channel (edge-only, freeze-safe)',
@@ -1621,6 +1644,11 @@ export const LAYOUT_PIPELINE: ReadonlyArray<LayoutPass<LayoutPassContext>> = [
     after: ['separateEdgeLabelPills'], mutates: ['edges'],
     mayChangeMetrics: { straight: 'improve-only', bends: 'improve-only' },
     run: c => { closeRouteContracts({ nodes: c.nodes, edges: c.edges, groups: c.groups }, c.graph, c.style) },
+  },
+  {
+    id: 'repairResidualDiagonals', doc: 're-route a diagonal segment the settled route still has (a node mover shifted part of a collinear run) into an orthogonal step, keeping both endpoints (edge-only, freeze-safe)',
+    after: ['closeRouteContracts'], mutates: ['edges'],
+    run: c => { repairResidualDiagonals(c.nodes, c.edges, c.groups, edge => c.bundled.has(edge)) },
   },
   {
     id: 'translateGeometryToNonNegativeOrigin', doc: 'shift whole graph to a non-negative origin (allowed after freeze)',
@@ -1881,18 +1909,23 @@ function finishGraphGeometry(
     height = Math.max(height, note.y + note.height + padding)
   }
 
-  return {
-    genericBundled: ctx.genericBundled,
-    positioned: {
-      width,
-      height,
-      nodes,
-      edges,
-      groups,
-      ...(ctx.notes.length > 0 ? { notes: ctx.notes } : {}),
-    },
+  const positioned: PositionedGraph = {
+    width,
+    height,
+    nodes,
+    edges,
+    groups,
+    ...(ctx.notes.length > 0 ? { notes: ctx.notes } : {}),
   }
+  if (ctx.titleBandRepairs) TITLE_BAND_DETOURS.add(positioned)
+  return { genericBundled: ctx.genericBundled, positioned }
 }
+
+/** Placements whose routes needed a detour around a group's reserved title
+ * band. The detour certifies, but a bounded alternative that needed none (such
+ * as the separate-hierarchy placement, built to keep cross-hierarchy routes off
+ * title bands) is preferred whenever it also certifies. */
+const TITLE_BAND_DETOURS = new WeakSet<PositionedGraph>()
 
 
 /**
@@ -2035,8 +2068,16 @@ function layoutGraphWithBudget(graph: MermaidGraph, options: LayoutEngineOptions
   positioned.height += band.height
   positioned.width = Math.max(positioned.width, band.width + 2 * padding)
   positioned.title = positionDiagramTitle(band, positioned.width, padding)
-  const violations = positionedGeometryViolations(positioned, style)
-  if (violations.length) throw new LayoutCertificationError([{ strategy: 'final-title-projection', violations }])
+  const findings = positionedGeometryFindings(positioned, style)
+  if (findings.length === 0) return positioned
+  // Report layout safety draws a title band whose only failures are drawable,
+  // recording them with the candidate's receipt; strict safety refuses.
+  if (options.layoutSafety === 'strict' || findings.some(finding => !finding.drawable)) {
+    throw new LayoutCertificationError([{ strategy: 'final-title-projection', violations: findings.map(finding => finding.text) }])
+  }
+  const prior = positioned.uncertifiedLayout ?? positioned.certification
+  positioned.uncertifiedLayout = mergeUncertifiedLayout(positioned.uncertifiedLayout, prior?.strategy ?? 'final-title-projection', findings.map(finding => finding.drawable!), prior?.attempts)
+  delete positioned.certification
   return positioned
 }
 
@@ -2213,7 +2254,10 @@ function layoutElkGraph(graph: MermaidGraph, options: LayoutEngineOptions): Posi
 function layoutElkGraph(graph: MermaidGraph, options: LayoutEngineOptions, purpose: 'placement'): Pick<PositionedGraph, 'width' | 'height' | 'nodes' | 'groups'>
 function layoutElkGraph(graph: MermaidGraph, options: LayoutEngineOptions, purpose?: 'placement'): PositionedGraph | Pick<PositionedGraph, 'width' | 'height' | 'nodes' | 'groups'> {
   const style = resolveRenderStyle(options, options.stateVisual?.styleDefaults, options.styleFace)
-  const preferReadableTitles = (positioned: PositionedGraph) => groupsNarrowerThanTitles(positioned.groups, graph, style)
+  // A placement with a narrow title, or with final routes detoured around a
+  // title band, defers to the next bounded candidate and is kept if that one
+  // fails. Family placement discards these generic routes, so only titles count.
+  const preferReadableTitles = (positioned: PositionedGraph) => groupsNarrowerThanTitles(positioned.groups, graph, style) || (purpose !== 'placement' && TITLE_BAND_DETOURS.has(positioned))
   const compareRoutes = options.compareRoutePreferences !== false
   const routeAlternatives = new WeakMap<PositionedGraph, () => PositionedGraph>()
   // Keep parallel pairs with their specialized route owners: fewer proper
@@ -2246,12 +2290,15 @@ function layoutElkGraph(graph: MermaidGraph, options: LayoutEngineOptions, purpo
   // only for the selected placement, reusing its ELK result and certified score.
   // One preliminary forest, at most four ELK placements and one route pipeline;
   // the existing 16-ELK exceptional upper bound is unchanged.
-  if (purpose === 'placement') return certifyLayoutPlacementCandidates(graph, style, candidates, preliminary)
+  // Report layout safety still draws a graph no candidate certifies, from its
+  // best drawable candidate, with an uncertified receipt; strict refuses.
+  const allowUncertified = options.layoutSafety !== 'strict'
+  if (purpose === 'placement') return certifyLayoutPlacementCandidates(graph, style, candidates, preliminary, allowUncertified)
   const selected = certifyLayoutWithRouteAlternative(graph, style, candidates, (placed, score) => {
     const makeRoute = routeAlternatives.get(placed)
     if (!makeRoute || (score.edgeCrossings === 0 && score.labelConflicts === 0)) return undefined
     return { strategy: 'without-generic-bundling', produce: makeRoute, preferNext: preferReadableTitles }
-  }, preliminary)
+  }, preliminary, allowUncertified)
   const certification = selected.certification!, before = certification.preference.selectedScore
   const optimization = layoutOptimization()
   if (options.graphLayout?.quality === 'balanced' && optimization?.layoutOptimizationEnabled('elk-order') && optimization.canExploreLayout()

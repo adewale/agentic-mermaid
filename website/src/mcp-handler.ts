@@ -505,6 +505,10 @@ export function createMcpHandler(options: McpHandlerOptions): (request: Request)
     })
     if (!admission.ok) {
       recordItemOutcome(event.items[0]!, admission.response)
+      // A posted JSON-RPC response is accepted and ignored: 202, no body.
+      if (admission.kind === 'response') {
+        return new Response(null, { status: 202, headers: { ...cors, 'cache-control': 'no-store', 'x-content-type-options': 'nosniff' } })
+      }
       if (admission.response === null) {
         return new Response(null, { status: 400, headers: { ...cors, 'cache-control': 'no-store', 'x-content-type-options': 'nosniff' } })
       }

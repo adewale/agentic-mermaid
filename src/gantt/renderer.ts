@@ -14,8 +14,8 @@ import { type PixelTextBlock, pixelTextLine, preparePixelText } from '../shared/
 //
 // Theme roles map to the shared CSS custom properties:
 //   text  → axis/task/date labels  (var(--_text) / var(--_text-muted))
-//   node  → bars + milestones      (var(--accent) / var(--surface))
-//   edge  → grid lines, today/vert markers (var(--line))
+//   node  → bars + milestones      (var(--_arrow), the repaired accent)
+//   edge  → grid lines, today/vert markers (var(--_line), the repaired line)
 //   group → section bands          (var(--surface))
 //
 // Status classes: gantt-bar, gantt-bar-done, gantt-bar-active, gantt-bar-crit,
@@ -56,7 +56,6 @@ interface GanttPalette {
   nodeFill: string
   nodeBorder: string
   doneFill: string
-  criticalFill: string
   criticalStroke: string
   titleFill: string
   groupText: string
@@ -64,17 +63,23 @@ interface GanttPalette {
   axisText: string
 }
 
-function ganttPalette(style: ResolvedRenderStyle): GanttPalette {
+function ganttPalette(style: ResolvedRenderStyle, colors: RenderContext<GanttLayoutResult>['colors']): GanttPalette {
+  // Theme line/accent/border ink is drawn through the renderer's repaired
+  // tokens (--_line, --_arrow, --_node-stroke: lifted to 3:1 on the page), as
+  // other families draw it, so an unreadable theme line or accent never
+  // leaves the grid and bars faint. Unset tokens keep their own fallback.
+  const line = colors.line !== undefined ? 'var(--_line)' : colors.border !== undefined ? 'var(--_node-stroke)' : 'var(--fg)'
+  const accent = colors.accent !== undefined ? 'var(--_arrow)' : 'var(--fg)'
+  const muted = colors.muted !== undefined ? 'var(--muted)' : colors.line !== undefined ? 'var(--_line)' : 'var(--fg)'
   return {
     groupFill: style.groupFillColor ?? 'var(--surface, var(--fg))',
     groupOpacity: style.groupFillColor ? '1' : '0.07',
     excludedFill: style.edgeStrokeColor ?? 'var(--muted, var(--line, var(--fg)))',
-    edgeStroke: style.edgeStrokeColor ?? 'var(--line, var(--border, var(--fg)))',
-    nodeFill: style.nodeFillColor ?? 'var(--accent, var(--fg))',
+    edgeStroke: style.edgeStrokeColor ?? line,
+    nodeFill: style.nodeFillColor ?? accent,
     nodeBorder: style.nodeBorderColor ?? 'var(--fg)',
-    doneFill: style.nodeFillColor ?? 'var(--muted, var(--line, var(--fg)))',
-    criticalFill: style.nodeFillColor ?? 'var(--fg)',
-    criticalStroke: style.nodeBorderColor ?? style.edgeStrokeColor ?? 'var(--accent, var(--fg))',
+    doneFill: style.nodeFillColor ?? muted,
+    criticalStroke: style.nodeBorderColor ?? style.edgeStrokeColor ?? accent,
     // Text takes the theme's text tones, which are contrast-repaired against
     // the page and its tints; raw --fg/--muted are palette inputs and can sit
     // under WCAG AA on their own page (solarized, tokyo-night-light).
@@ -108,21 +113,29 @@ function statusChannel(tags: readonly string[]): 'done' | 'active' | 'crit' | un
   return undefined
 }
 
-/** Bar paint per status. A done bar keeps the plain bar's border. */
-function barPaint(status: 'done' | 'active' | 'crit' | undefined, p: GanttPalette, style: ResolvedRenderStyle): MarkPaint {
-  const border: MarkPaint = {
-    stroke: style.nodeBorderColor ? p.nodeBorder : 'none',
-    ...(style.nodeBorderColor ? { strokeWidth: String(style.nodeLineWidth) } : {}),
-  }
+/** `color` mixed with the page: an opaque lighter body, not a translucent one. */
+function tint(color: string, percent: number): string {
+  return `color-mix(in srgb, ${color} ${percent}%, var(--bg))`
+}
+
+/** Bar and milestone paint per status, one distinct cue per terminal glyph
+ *  (█ plain, ▓ active, ▒ crit, ░ done): plain is a solid body; active a
+ *  lighter body inside an outline; crit a pale body inside a heavy outline;
+ *  done a pale body inside a dashed outline. Plain, active and crit bodies
+ *  are tints of one ink, so they stay apart whatever the palette (also one
+ *  whose accent is its foreground); none differs by opacity alone. */
+function statusPaint(status: 'done' | 'active' | 'crit' | undefined, p: GanttPalette, style: ResolvedRenderStyle): MarkPaint {
   switch (status) {
     case 'crit':
-      return { fill: p.criticalFill, stroke: p.criticalStroke, strokeWidth: String(Math.max(1.5, style.nodeLineWidth)), opacity: '0.95' }
+      return { fill: tint(p.nodeFill, 25), stroke: p.criticalStroke, strokeWidth: String(Math.max(2.5, style.nodeLineWidth * 2)) }
     case 'active':
-      return { fill: p.nodeFill, stroke: p.nodeBorder, strokeWidth: String(Math.max(1.5, style.nodeLineWidth)), opacity: '1' }
+      return { fill: tint(p.nodeFill, 60), stroke: p.nodeBorder, strokeWidth: String(Math.max(1.5, style.nodeLineWidth)) }
     case 'done':
-      return { fill: p.doneFill, ...border, opacity: style.nodeFillColor ? '0.72' : '0.55' }
+      return { fill: tint(p.doneFill, 30), stroke: p.doneFill, strokeWidth: String(Math.max(1.25, style.nodeLineWidth)), strokeDasharray: '3 2' }
     default:
-      return { fill: p.nodeFill, ...border, opacity: '0.92' }
+      return style.nodeBorderColor
+        ? { fill: p.nodeFill, stroke: p.nodeBorder, strokeWidth: String(style.nodeLineWidth) }
+        : { fill: p.nodeFill, stroke: 'none' }
   }
 }
 
@@ -193,7 +206,7 @@ export function lowerGanttDrawing<T>(marks: DrawingFactory<T>, ctx: RenderContex
   const font = colors.font ?? 'Inter'
   const transparent = options.transparent ?? false
   const style = resolveGanttRenderStyle(options, resolved.styleFace)
-  const palette = ganttPalette(style)
+  const palette = ganttPalette(style, colors)
   const parts: T[] = []
 
   // Opt-in dependency/critical-path overlay (RenderOptions.gantt) — both
@@ -422,14 +435,6 @@ export function lowerGanttDrawing<T>(marks: DrawingFactory<T>, ctx: RenderContex
       const status = statusChannel(bar.tags)
       const cls = 'gantt-milestone' + (status !== undefined ? ` gantt-milestone-${status}` : '') + criticalPathCls
       const d = `M ${r(cx)} ${r(cy - radius)} L ${r(cx + radius)} ${r(cy)} L ${r(cx)} ${r(cy + radius)} L ${r(cx - radius)} ${r(cy)} Z`
-      const statusPaint: MarkPaint =
-        status === 'crit'
-          ? { fill: palette.criticalFill, stroke: palette.criticalStroke, strokeWidth: String(Math.max(1.5, style.nodeLineWidth)) }
-          : status === 'active'
-            ? { fill: palette.nodeFill, stroke: palette.nodeBorder, strokeWidth: String(Math.max(1.5, style.nodeLineWidth)), opacity: '1' }
-            : status === 'done'
-              ? { fill: palette.doneFill, stroke: palette.nodeBorder, strokeWidth: String(Math.max(1, style.nodeLineWidth)), opacity: style.nodeFillColor ? '0.72' : '0.55' }
-              : { fill: palette.nodeFill, stroke: palette.nodeBorder, strokeWidth: String(Math.max(1, style.nodeLineWidth)) }
       const channels: SemanticChannels = {
         ...(status !== undefined ? { status } : {}),
         ...(status === 'done' ? { progress: 1 } : {}),
@@ -439,7 +444,7 @@ export function lowerGanttDrawing<T>(marks: DrawingFactory<T>, ctx: RenderContex
       const semanticStyle = resolveRoleStyle(resolved.styleFace, 'milestone', channels, { includeFallback: false })
       // Binding paint refines family defaults. Critical-path emphasis remains
       // the final family-owned stroke/weight authority.
-      const milestonePaint: MarkPaint = { ...statusPaint, ...rolePaint(semanticStyle), ...criticalPathPaint }
+      const milestonePaint: MarkPaint = { ...statusPaint(status, palette, style), ...rolePaint(semanticStyle), ...criticalPathPaint }
       parts.push(
         marks.shape({
           id: taskSceneId(taskKey),
@@ -462,7 +467,7 @@ export function lowerGanttDrawing<T>(marks: DrawingFactory<T>, ctx: RenderContex
       ...(section !== undefined ? { category: section } : {}),
     }
     const semanticStyle = resolveRoleStyle(resolved.styleFace, 'task', channels, { includeFallback: false })
-    const taskPaint: MarkPaint = { ...barPaint(status, palette, style), ...rolePaint(semanticStyle), ...criticalPathPaint }
+    const taskPaint: MarkPaint = { ...statusPaint(status, palette, style), ...rolePaint(semanticStyle), ...criticalPathPaint }
     parts.push(
       marks.shape({
         id: taskSceneId(taskKey),
@@ -559,7 +564,7 @@ export function lowerGanttDrawing<T>(marks: DrawingFactory<T>, ctx: RenderContex
         role: 'marker-line',
         geometry: { kind: 'line', x1: r(layout.todayX), y1: r(plot.y), x2: r(layout.todayX), y2: r(plotBottom) },
         paint: {
-          stroke: overrides['stroke'] ?? style.edgeStrokeColor ?? 'var(--accent, var(--fg))',
+          stroke: overrides['stroke'] ?? style.edgeStrokeColor ?? (colors.accent !== undefined ? 'var(--_arrow)' : 'var(--fg)'),
           strokeWidth: overrides['stroke-width'] ?? String(Math.max(2, style.lineWidth)),
           strokeDasharray: overrides['stroke-dasharray'] ?? '4 3',
           ...(overrides['opacity'] !== undefined ? { opacity: overrides['opacity'] } : {}),

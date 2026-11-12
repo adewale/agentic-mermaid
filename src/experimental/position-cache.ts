@@ -1,4 +1,5 @@
 import type { FamilyLayoutResult, FamilyPositionedView } from '../agent/families.ts'
+import { transferConstructedBundleRoute } from '../layout/bundle-routes.ts'
 import { graphLayoutDecisionsOf, transferGraphLayoutDecisions } from '../layout/decision-evidence.ts'
 import { observeCache } from '../performance-observations.ts'
 import type { PaintLayoutCertification } from '../scene/paint-certification.ts'
@@ -147,12 +148,41 @@ function transferIndependentTextCustody(source: unknown, copy: unknown): void {
   visit(source, copy)
 }
 
+/** A copied bundle route keeps its construction ownership, so a cached layout
+ * is audited exactly like the fresh one it was copied from. structuredClone
+ * preserves shape and order, so source and copy are walked in parallel. */
+function transferBundleRouteOwnership(source: unknown, copy: unknown): void {
+  const seen = new WeakSet<object>()
+  const visit = (a: unknown, b: unknown): void => {
+    if (a === null || typeof a !== 'object' || b === null || typeof b !== 'object' || seen.has(a)) return
+    seen.add(a)
+    transferConstructedBundleRoute(a, b)
+    try {
+      const kind = clonedKind(b)
+      if (kind === 'map') {
+        const entries = mapSnapshot(a), copies = mapSnapshot(b)
+        for (let i = 0; i < Math.min(entries.length, copies.length); i++) { visit(entries[i]![0], copies[i]![0]); visit(entries[i]![1], copies[i]![1]) }
+      } else if (kind === 'set') {
+        const entries = setSnapshot(a), copies = setSnapshot(b)
+        for (let i = 0; i < Math.min(entries.length, copies.length); i++) visit(entries[i], copies[i])
+      } else if (kind === 'record' || kind === 'array') {
+        for (const key of Object.keys(b)) {
+          const descriptor = Object.getOwnPropertyDescriptor(a, key)
+          if (descriptor && 'value' in descriptor) visit(descriptor.value, (b as Record<string, unknown>)[key])
+        }
+      }
+    } catch { /* opaque source data carries no route ownership */ }
+  }
+  visit(source, copy)
+}
+
 /** Public copies remain independent mutable snapshots. Private native copies
  * may share only constructor-owned immutable text, preserving custody cost. */
 export function clonePositioned<T>(source: T, immutableText = false): T {
   // Native admission must precede reflection: even a descriptor trap can
   // delete an uncloneable Proxy before structuredClone gets to reject it.
   const copy = structuredClone(source)
+  transferBundleRouteOwnership(source, copy)
   const proof = positionedCustodyProof(source, copy, immutableText)
   if (!proof) { transferIndependentTextCustody(source, copy); return copy }
   const { metadata, replacements, hasReplacements } = proof

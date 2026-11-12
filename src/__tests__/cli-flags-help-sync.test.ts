@@ -6,6 +6,8 @@
 // file) and keep the help text in step with it.
 
 import { describe, test, expect } from 'bun:test'
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
 import { BOOLEAN_FLAGS, COMMAND_FLAGS, COMMAND_HELP, COMMAND_POSITIONALS, FLAG_SPECS, flagEnabled, flagValue, GLOBAL_USAGE, parseArgs, runCli } from '../cli/index.ts'
 import { parseFlagsBlock } from './helpers/cli-flag-parsing.ts'
 import { captureCli, captureCliAsync } from './helpers/cli-capture.ts'
@@ -26,6 +28,13 @@ test('async entry and synchronous CLI retain help, parser-error, and instruction
   }
   expect(captureCli(() => runCli(['--help=value']))).toEqual({ code: 2, out: '', err: 'Flag --help does not accept a value.\n' })
   expect(captureCli(() => runCli(['render', '--bogus', '--help']))).toEqual({ code: 0, out: COMMAND_HELP.render + '\n', err: '' })
+})
+
+test('am --version and -v print the package.json version; --json wraps it', () => {
+  const { version } = JSON.parse(readFileSync(join(import.meta.dir, '..', '..', 'package.json'), 'utf8')) as { version: string }
+  expect(captureCli(() => runCli(['--version']))).toEqual({ code: 0, out: `${version}\n`, err: '' })
+  expect(captureCli(() => runCli(['-v']))).toEqual({ code: 0, out: `${version}\n`, err: '' })
+  expect(captureCli(() => runCli(['--version', '--json']))).toEqual({ code: 0, out: `${JSON.stringify({ ok: true, version })}\n`, err: '' })
 })
 
 /** runCli with stdout and stderr captured together (diagnostics go to either). */

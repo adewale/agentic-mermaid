@@ -1,6 +1,8 @@
 /** Search needs occupied cells and their current extent, not diagram nodes. */
 export interface PathOccupancy {
   has(key: string): boolean
+  /** Optional numeric form of `has("x,y")` for search hot paths; must agree with it. */
+  hasCell?(x: number, y: number): boolean
   readonly extent: Readonly<{ maxX: number; maxY: number }>
 }
 

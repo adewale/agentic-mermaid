@@ -18,6 +18,7 @@ const NARROWERS = BUILTIN_FAMILY_METADATA.map(family => `'${family.narrower}'`).
  */
 export const SDK_CORE_DECLARATION = 'type Fields=Record<string,unknown>\n' + compactSdkDeclaration(`type DiagramKind = ${DIAGRAM_KIND.replaceAll(' | ', '|')}
 type MutationOp = { kind: string; [field: string]: unknown }
+interface OpFieldDoc { name: string; required: boolean; type: string; note?: string; fields?: OpFieldDoc[] }
 type Result<T, E = { code: string; message: string }> = { ok: true; value: T } | { ok: false; error: E }
 ${SDK_COMMON_CORE_DECLARATIONS}
 interface ValidDiagram { readonly kind: DiagramKind; readonly source: SourceMap }
@@ -73,7 +74,7 @@ declare const mermaid: Record<${NARROWERS}, Narrow> & {
   renderMermaidASCII(input: ParsedDiagram | string, opts?: AsciiRenderOptions): string
   renderMermaidASCIIWithReceipt(input: ParsedDiagram | string, opts?: AsciiRenderOptions): RenderedAscii
   layoutMermaidWithReceipt(input: ParsedDiagram | string, opts?: LayoutRenderOptions): RenderedLayoutArtifact
-  describeOps(family: DiagramKind): Record<string, { name: string; required: boolean; type: string; note?: string }[]>
+  describeOps(family: DiagramKind): Record<string, OpFieldDoc[]>
   opSignatures(family: DiagramKind): string[]
 }`.replace(/^[ \t]+/gm, '').replace(/; +/g, ';').replace(/: +/g, ':')).replaceAll('Record<string,unknown>', 'Fields')
 

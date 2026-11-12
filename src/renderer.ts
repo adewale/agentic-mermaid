@@ -21,6 +21,7 @@ export { compactSvg, namespaceSvgIds } from './svg-postprocess.ts'
 import { paintsNodeFill, shapeOutline } from './shape-outline.ts'
 import { LABEL_PILL_PADDING, labelHaloExtension } from './shared/edge-label-geometry.ts'
 import { calculatePathMidpoint } from './layout/geometry.ts'
+import { arrowheadDirection } from './shared/relation-direction.ts'
 
 // ============================================================================
 // SVG renderer — converts a PositionedGraph into an SVG string.
@@ -378,9 +379,7 @@ function renderEdge<T>(
     endpoints: { from: edge.source, to: edge.target },
     relationship: {
       kind: 'flowchart-edge',
-      direction: edge.source === edge.target ? 'self'
-        : edge.hasArrowStart && edge.hasArrowEnd ? 'bidirectional'
-          : edge.hasArrowStart ? 'reverse' : edge.hasArrowEnd ? 'forward' : 'undirected',
+      direction: edge.source === edge.target ? 'self' : arrowheadDirection(edge.hasArrowStart, edge.hasArrowEnd),
     },
     route: {
       ownership: 'layout',

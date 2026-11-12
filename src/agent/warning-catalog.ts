@@ -111,8 +111,7 @@ export const WARNING_CATALOG: Readonly<Record<WarningCode, WarningDescription>> 
     guideNote:
       'Agentic Mermaid hit an internal defect, not caused by the source; `defaultRender` is `succeeds-unchecked` when an ordinary render still produces output that the failed consistency checks cannot vouch for, or `fails` when rendering throws — do not rewrite the diagram to work around it; report it with the source',
     what: 'Agentic Mermaid hit an internal defect while drawing this source; the failure is not caused by the source.',
-    triggers:
-      'A failed internal consistency check — a lowered Scene that disagrees with its own derivation, a broken layout-pass contract, a layout that could not be certified — or a runtime error such as a <code>TypeError</code> inside the engine. <code>defaultRender</code> says whether an ordinary render still produces output: <code>succeeds-unchecked</code> when it does, but the extra consistency checks verify runs failed, so its layout evidence cannot be trusted; <code>fails</code> when rendering throws.',
+    triggers: 'A failed internal consistency check — a lowered Scene that disagrees with its own derivation, a broken layout-pass contract, or no layout candidate that keeps every authored element and stays on the canvas — or a runtime error such as a <code>TypeError</code> inside the engine. A layout that is drawable but fails certification is <code>LAYOUT_UNCERTIFIED</code> instead. <code>defaultRender</code> says whether an ordinary render still produces output: <code>succeeds-unchecked</code> when it does, but the extra consistency checks verify runs failed, so its layout evidence cannot be trusted; <code>fails</code> when rendering throws.',
     fix: 'Do not rewrite the diagram to work around it. Report it with the source and the warning’s <code>reason</code>; layout is deterministic, so the source reproduces it exactly. A typed edit to a diagram that already had this defect is still accepted.',
     origins: ['engine'],
   },
@@ -136,6 +135,14 @@ export const WARNING_CATALOG: Readonly<Record<WarningCode, WarningDescription>> 
     triggers: 'A compact C4 width budget smaller than a card, nested boundary, protected label corridor or authored placement constraint can accommodate. Content is retained at its legible size.',
     fix: 'Increase the requested width, allow wrapping, remove explicit placement constraints or split the diagram. The warning reports a limitation rather than silently shrinking or dropping content.',
     origins: ['source', 'config'],
+  },
+  LAYOUT_UNCERTIFIED: {
+    summary: 'No layout candidate passed certification, so the diagram was drawn from the best one anyway (fewest misleading, then fewest violations). One warning per failed check: `violation` names it (a hard rubric metric such as `endpointApproaches` or `edgeThroughNode`, `groupHeaderBand`, or a paint issue such as `CONNECTOR_CARD_CROSSING`) and `targets` the ids involved; a containment failure is `GROUP_BREACH`. Render still succeeds; `receipt.layoutCertification.geometry` names the candidate drawn. `layoutSafety: "strict"` refuses instead.',
+    guideNote: 'no layout candidate passed certification, so the drawing was rendered from the best one anyway; `violation` names the failed check and `targets` its ids — an engine limitation, not a source error: report it rather than rewriting the diagram, or render with `layoutSafety: "strict"` to refuse such drawings',
+    what: 'no bounded layout candidate passed certification, so the drawing was made from the best candidate anyway and may look wrong where <code>targets</code> point.',
+    triggers: 'Edges that leave or enter a node through its body, cross a group title band, a node or a label, or run diagonally; overlapping nodes or groups; a label away from its edge; or final paint where artwork covers text or a marker, a connector crosses an unrelated card, or text runs past its region. Dense subgraphs, self-loops in groups with their own direction, and looks that enlarge nodes make these likelier.',
+    fix: 'Not a source error, so do not rewrite the diagram to clear it; report the source. To trade the drawing for a refusal, render with <code>layoutSafety: "strict"</code>. Removing the named edge or splitting a crowded group may avoid it meanwhile.',
+    origins: ['engine'],
   },
   ROUTE_SELF_CROSS: {
     summary: 'An edge route crosses itself',
@@ -202,11 +209,11 @@ export const WARNING_CATALOG: Readonly<Record<WarningCode, WarningDescription>> 
     origins: ['source'],
   },
   UNREACHABLE_NODE: {
-    summary: 'Flowchart/state contains a node not reachable from any entry root when the graph has roots. Usually a stranded branch after an edit.',
-    what: 'a node cannot be reached from any root (a node with no incoming edges) by following edges.',
-    triggers: 'Disconnected clusters left behind after <code>remove_edge</code>/<code>remove_node</code> mutations, or a cycle with no entry edge from the main flow.',
+    summary: 'Flowchart/state contains a node not reachable from any entry root of its connected part, when that part has roots. Usually a stranded branch after an edit.',
+    what: 'a node cannot be reached from any root (a node with no incoming edges) of its connected part by following edges.',
+    triggers: 'A cycle with no entry edge from the flow it feeds, often left behind after <code>remove_edge</code>/<code>remove_node</code> mutations.',
     fix: 'Connect the node into the flow with <code>add_edge</code> from a reachable node, or delete it with <code>remove_node</code> if it is leftover.',
-    example: 'flowchart LR\n  A[Start] --> B[Done]\n  C[Orphan] --> D[Cycle]\n  D --> C',
+    example: 'flowchart LR\n  A[Start] --> B[Done]\n  C[Orphan] --> D[Cycle]\n  D --> C\n  D --> B',
     origins: ['source'],
   },
   DECISION_BRANCH_UNLABELED: {
@@ -260,12 +267,11 @@ export const WARNING_CATALOG: Readonly<Record<WarningCode, WarningDescription>> 
     origins: ['source'],
   },
   CONTENT_DROPPED_ON_ROUNDTRIP: {
-    summary:
-      'The structured `{nodes, edges, groups}` tally changed across a parse → serialize → re-parse cycle, so canonical serialization is silently dropping or duplicating content even though the bytes may re-parse (payload carries `before`/`after` counts). The faithfulness analogue of `COMMENT_DROPPED` — "100% parse success is not faithfulness". Runs on every verify, for every family; opaque bodies (byte-verbatim) are exempt.',
-    guideNote: 'the structured node/edge/group tally changed across a parse → serialize → re-parse cycle — canonical serialization is silently dropping or duplicating content even though the bytes may re-parse; treat it as a faithfulness bug to report',
-    what: 'a parse → serialize → re-parse cycle lost nodes, edges, or groups by count.',
-    triggers: 'A serializer defect on unusual syntax: the faithfulness tally before and after the round trip disagrees. This is a tripwire that guards every verify; it should not fire on supported syntax.',
-    fix: 'Do not serialize the typed tree for this diagram — fall back to source-level edits so nothing is lost, and report the source; the before/after counts on the warning pinpoint what vanished.',
+    summary: 'A parse → serialize → re-parse cycle states different semantic facts, so canonical serialization is silently dropping, adding or altering content even though the bytes may re-parse (payload carries the `lost`/`gained` facts and `before`/`after` `{nodes, edges, groups}` counts). The faithfulness analogue of `COMMENT_DROPPED` — "100% parse success is not faithfulness". Runs on every verify, for every family; opaque bodies (byte-verbatim) are exempt.',
+    guideNote: 'a parse → serialize → re-parse cycle states different facts (`lost`/`gained` name them) — canonical serialization is silently dropping, adding or altering content even though the bytes may re-parse; treat it as a faithfulness bug to report',
+    what: 'a parse → serialize → re-parse cycle lost or gained semantic facts.',
+    triggers: 'A serializer defect on unusual syntax, or a diagram holding a value no spelling carries (an id holding `;` re-reads as two statements): the facts before and after the round trip disagree, even when the counts agree. This is a tripwire that guards every verify; it should not fire on supported syntax.',
+    fix: 'Do not serialize the typed tree for this diagram — fall back to source-level edits so nothing is lost, and report the source; the `lost` and `gained` facts on the warning pinpoint what changed.',
     origins: ['engine'],
   },
   EVENT_SOURCE_TYPE: {
@@ -311,6 +317,7 @@ export const WARNING_CATALOG: Readonly<Record<WarningCode, WarningDescription>> 
   },
   SCALE_RANGE_EXCLUDES_ZERO: {
     summary: 'The radial scale excludes zero.',
+    guideNote: 'a radar chart measures its radii from an authored non-zero `min`, so radii are not proportional to the values; use `min 0`, or keep the truncation and disclose the scale',
     what: 'Radar radii are measured from an authored non-zero minimum.',
     triggers: 'A radar chart sets min above zero.',
     fix: 'Use min 0 for proportional radii, or retain the deliberate truncation and disclose the scale.',

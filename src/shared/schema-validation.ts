@@ -76,6 +76,14 @@ export function validateJsonSchema(
       const candidates = compatible.length > 0 ? compatible : anyOf
       const alternatives = candidates.map(candidate => validate(value, candidate, root, path, new Set(ancestors)))
       if (!alternatives.some(problems => problems.length === 0)) {
+        // A union with a runtime owner (a StyleInput) is explained by that
+        // owner when the value has an admissible kind: its domain diagnosis
+        // names the failing field where the union can only list its shapes.
+        if (!fieldDiagnostics && schema['x-agentic-mermaid-runtime-validator'] !== undefined
+          && anyOf.some(candidate => schemaMatchesRuntimeKind(value, candidate, root))) {
+          const owned = options.validateRuntime?.(value, schema, path) ?? []
+          if (owned.length > 0) return owned
+        }
         const expectation = schema['x-agentic-mermaid-validation-expectation']
         if ((!fieldDiagnostics || compatible.length === 0) && typeof expectation === 'string') return problem(`must be ${expectation}`)
         return alternatives.sort((left, right) => left.length - right.length)[0] ?? problem('must match an allowed shape')

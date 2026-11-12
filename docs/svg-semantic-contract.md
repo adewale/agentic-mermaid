@@ -39,6 +39,17 @@ semantic references are never decoded or sanitized as display text. This keeps
 literal entity-looking names distinct from actual whitespace. Regression checks
 use a real XML DOM alongside layout and terminal identity correspondence.
 
+XML cannot carry other C0 controls, U+FFFE/U+FFFF or lone surrogates in any
+form. Display text never holds them: every output draws a control as `?` and a
+noncharacter, lone surrogate or bidi embedding/override/isolate control as
+U+FFFD, and terminal receipts report the replacement. A typed Scene identity
+keeps such authored characters verbatim (layout JSON and Scene ids carry them);
+only the emitted SVG bytes write them as the same inert characters. Two
+authored ids that differ only by such a character therefore share one DOM
+`data-id`. Built-in Scene ids carry authored identities and labels of any
+length within the Scene text budget; only external Scene documents use the
+short safe id grammar.
+
 ## Multi-diagram references
 
 `idPrefix` namespaces local SVG `id` declarations and every supported local reference:

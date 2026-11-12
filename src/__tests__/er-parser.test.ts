@@ -26,6 +26,19 @@ describe('parseErDiagram – entity definitions', () => {
     expect(diagram.entities.map(entity => entity.id)).toEqual(['A', 'B'])
     expect(diagram.relationships).toEqual([])
   })
+  // Reduced from the structural all-families fuzz: Mermaid reads non-ASCII
+  // name characters, and so did our agent body, but the renderer rejected a
+  // declaration or attribute block named `é0` as an unsupported statement.
+  it.each([
+    ['erDiagram\n  é0 {\n    int a\n  }', ['é0'], []],
+    ['erDiagram\n  é0["Alias"] {\n    int a\n  }\n  Ж-1 ||--o{ é0 : r', ['é0', 'Ж-1'], ['Ж-1->é0']],
+    ['erDiagram\n  中文\n  中文 }|..|{ ß : r', ['中文', 'ß'], ['中文->ß']],
+  ])('non-ASCII bare entity names declare, alias and relate: %j', (source, entities, relations) => {
+    const d = parse(source)
+    expect(d.entities.map(entity => entity.id).sort()).toEqual([...entities].sort())
+    expect(d.relationships.map(r => `${r.entity1}->${r.entity2}`)).toEqual(relations)
+    expect(() => renderMermaidSVG(source)).not.toThrow()
+  })
   it('parses an entity with attributes', () => {
     const d = parse(`erDiagram
       CUSTOMER {

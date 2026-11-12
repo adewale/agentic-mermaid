@@ -10,7 +10,127 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
   `add_region` and `remove_region`. State, transition, move and floating-note
   edits can append the next region while preserving scoped notes and comments.
 
+### Changed
+
+- The local stdio MCP `execute` tool now reports failures in the same envelope
+  as the hosted server: `{ ok: false, error: { code, message }, logs }` instead
+  of `{ ok: false, error: "<message>", logs }`. `code` is `EXECUTE_TIMEOUT` when
+  the time budget stopped the code and `EXECUTE_FAILED` otherwise, on both
+  channels; `message` keeps each runner's wording. Clients that read
+  `error` as a string should read `error.message`.
+
+- Sequence message styles now name Mermaid's arrows: `async` writes `-)` and
+  `async-dashed` writes `--)` (open head), as in Mermaid, instead of `->` and
+  `-->`, which draw no head. Those are now `line` and `line-dashed`, and
+  `<<->>` / `<<-->>` are `bidirectional` / `bidirectional-dashed`. Parsed
+  `-)`, `--)` and bidirectional messages no longer read as `sync`; facts state
+  every non-`sync` style, and a half-arrow's operator as `arrow`. A message
+  whose `style` was changed in place is written with that style's arrow.
+
+- Render tool schemas are compact: each render tool's `inputSchema` defines
+  the StyleSpec record once, under `$defs` at the schema root, instead of
+  inlining it for both a single style and a style stack, and every `$ref`
+  resolves from the tool schema itself. Hosted `tools/list` falls from 208 KB
+  to 147 KB. `/.well-known/mcp.json` and `/.well-known/mcp/server-card.json`
+  carry each tool's schema once, as the `inputSchema` `tools/list` returns (the
+  second `parameters` copy is gone), and are served minified: 487 KB → 132 KB
+  and 987 KB → 133 KB.
+
+- `tools/list` answers a request carrying a `cursor` with `-32602`, on the
+  hosted and local servers: the whole list is one page and the server issues
+  no cursors, so no cursor can name a page.
+
+- Terminal renders (`renderMermaidASCII`, `renderMermaidASCIIWithReceipt`,
+  `renderMermaidASCIIWithMeta`) refuse an unknown or misspelt option with the
+  same `Invalid RenderOptions: unknown render option "…"` error as
+  `renderMermaidSVG`, instead of ignoring it. Terminal-only fields
+  (`useAscii`, padding, `colorMode`, `theme`, widths, `onProjectionDiagnostic`)
+  are unchanged.
+
 ### Fixed
+
+- `RENDER_OPTION_NOT_APPLICABLE` now names the families an option really
+  affects. `padding` is consumed by Requirement, Block, Packet, Kanban and
+  Event Modeling, `nodeSpacing` by Event Modeling and `layerSpacing` by
+  Requirement, which no longer warn; `shadow` draws on C4 and ZenUML cards
+  (no warning) but on no XYChart, Pie, Quadrant, Gantt, Mindmap or GitGraph
+  shape, which now warn instead of silently ignoring it.
+
+- State ids holding a combining mark or a non-ASCII digit (`é` written
+  decomposed, `x٣`, `一¼`) and ER entity names holding any non-ASCII
+  character (`éx`, `a😀`, `a¼`) are read, drawn and edited like other names.
+  Mermaid accepts them; they used to fall back to opaque source that the SVG,
+  PNG and terminal renderers refused.
+
+- `render_png` and `render_ascii` describe `options` with the registered
+  Looks and Palettes, as `render_svg` does; all render tools share one
+  description.
+
+- Render tools report config warnings for the `mermaidConfig` the caller
+  passed (hosted `render_svg`/`render_ascii`/`render_png`, local `render_png`,
+  `am render --options`), such as an unknown `flowchart.madeUpKey` or a
+  misspelled `theme`, in `warnings`; before, they reached only the console.
+
+- A JSON-RPC response object posted by a client is accepted and ignored
+  (hosted: HTTP 202, no body; stdio: no reply) instead of being answered with
+  `-32600`. `notifications/initialized` sent with an `id` is a request and is
+  answered (`-32601`) instead of being swallowed.
+
+- Agent-facing docs: the site publishes the skill's `references/hosted-mcp.md`
+  that `SKILL.md` tells hosted agents to read; the getting-started hosted
+  `render_svg` example nests `style` and `seed` in `options`; generator and
+  audit comments no longer appear in `agent-instructions.md`, `start.md`,
+  `SKILL.md` or `am --agent-instructions`; `/docs/mcp/` and the skill page list
+  the local server's six tools; `/errors/verify-failed/` names every
+  error-severity code instead of claiming only structural warnings block. The
+  guide explains `SCALE_RANGE_EXCLUDES_ZERO` and says `BELOW_READABLE_SIZE` and
+  `PNG_FONT_COVERAGE` are PNG raster warnings, not verify codes. The build now
+  fails when a served skill file names an unpublished reference or a published
+  page shows hosted arguments `/mcp` rejects.
+
+- Sequence facts and `describe` (text, tree, summaries) show participant
+  names, message text, titles and fragment captions as the renderers draw
+  them: `participant A as "Alice"` reads `participant A : Alice`, not
+  `"Alice"`, and `<br/>` reads as a line break (`\n` in facts), as in
+  Flowchart facts. The typed body and serialized source are unchanged.
+
+- Sequence notes are in facts: `note over A,B : text` (also `left of` /
+  `right of`) and `preserved-note#<segment>.<index> …`, including notes
+  inside `rect`, `critical` or note-bearing fragments.
+
+- `am describe --json` carries `warnings` in every format (`text`, `facts`,
+  `json`), as the MCP `describe` tool does.
+
+- A valid diagram no longer fails to render because no layout candidate passed
+  certification. Since group containment and the other hard checks became
+  refusals (a9a71f0c, and the #449-era candidate loop), about 2.6% of
+  generated subgraph flowcharts in the default look, and up to 12.6% in
+  `accessible-high-contrast`, failed every render with "No certified layout"
+  and verify reported `INTERNAL_ERROR`. With the default `layoutSafety:
+  'report'`, Flowchart and State (and Architecture placement, and every
+  family's final geometry check) now draw the candidate with the fewest
+  misleading violations, then the fewest violations, then the first in
+  candidate order. A failed final paint proof (covered text or markers, a
+  connector across an unrelated card) also renders now, as it already did on
+  rough backends, unless paint falls outside the final viewport. `receipt.layoutCertification.geometry` records the
+  candidate drawn and its failed checks, and verify returns `ok: false` with
+  the new error-severity `LAYOUT_UNCERTIFIED` warning per failed check
+  (`violation`, `targets`) or `GROUP_BREACH` for containment. `layoutSafety:
+  'strict'` still refuses; candidates that would lose or change content,
+  clipped paint and broken layout-pass contracts (for example an
+  `alignLabeledSourcePort` metric budget) remain `INTERNAL_ERROR`.
+
+- `execute` failures now say where the agent's own code failed:
+  `error.location` is the 1-based `{ line, column }` of an uncaught error (or
+  of the token where code that does not parse stopped), on both the hosted and
+  stdio servers, with no runner frames or host paths. A caught `e.stack` is
+  left as the engine produced it; its `user.js` / `codemode.ts` frames are one
+  line below the agent's line numbers.
+
+- Make repeated `verify` calls in one process (`am batch`, the stdio and hosted
+  MCP servers, library loops) report the same warnings as the first call.
+  Cached layouts lost the proof that a bundled route's bends are deliberate,
+  so later calls reported spurious `ROUTE_HITCH` warnings.
 
 - Rebase declaration positions when grouping states after transition removal,
   and preserve inferred declaration order across edits to legacy state bodies.

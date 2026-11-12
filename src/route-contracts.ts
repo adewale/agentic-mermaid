@@ -4,6 +4,7 @@
 import { customTextMeasurementActive } from './text-measurement-profile.ts'
 import { resolveLabelContent } from './shared/display-text.ts'
 import { countPointPairCrossings } from './shared/edge-crossing-pair.ts'
+import { positionedEdgeWarningIds } from './shared/edge-selectors.ts'
 import type { Direction, MermaidGraph, Point, PortSide, PositionedEdge, PositionedGroup, PositionedNode, RouteBlocker, RouteCertificate, RouteClass, RouteInvariant } from './types.ts'
 import { graphEdgeTextBlock } from './graph-text.ts'
 import { graphEdgeMarkerPaintRegions, graphEdgeTerminalClearance } from './graph-connectors.ts'
@@ -1039,6 +1040,7 @@ function scanRouteHitches(positioned: { nodes: PositionedNode[]; edges: Position
   const sideUse = ctx.sideUse!
   const hitches: RouteHitch[] = []
   const closedEdges = new Set<PositionedEdge>()
+  const warningIds = positionedEdgeWarningIds(positioned.edges)
 
   for (const edge of positioned.edges) {
     const cert = edge.routeCertificate
@@ -1066,7 +1068,7 @@ function scanRouteHitches(positioned: { nodes: PositionedNode[]; edges: Position
     const probe: PositionedEdge = close ? edge : { ...edge, points: points.map(p => ({ ...p })) }
     const attempt = tryStraighten(probe, source, target, ctx, edgeAxis, vertexLane, edge)
     if (attempt.applied) {
-      hitches.push({ edge: edgeId(edge), deviationPx: Math.round(crossDeviation(points, edgeAxis) * 10) / 10 })
+      hitches.push({ edge: warningIds.get(edge)!, deviationPx: Math.round(crossDeviation(points, edgeAxis) * 10) / 10 })
       if (close) closedEdges.add(edge)
     }
   }
@@ -1912,11 +1914,15 @@ export function auditRouteContracts(positioned: { nodes: PositionedNode[]; edges
   const nodeMap = indexRouteNodes(positioned.nodes)
   const groupMap = flattenGroups(positioned.groups)
   const TOL = 1
+  // Findings name edges as the edge operations do, so parallel edges and
+  // self-loops are told apart (`A->A#1`).
+  const warningIds = positionedEdgeWarningIds(positioned.edges)
+  const warningId = (edge: PositionedEdge): string => warningIds.get(edge) ?? edgeId(edge)
 
   for (const edge of positioned.edges) {
     if (edge.points.length < 2) continue
     const cert = edge.routeCertificate
-    const id = edgeId(edge)
+    const id = warningId(edge)
 
     // ROUTE_UNEXPLAINED_BEND: orthogonal routing produced a diagonal segment —
     // a bend that neither the prover nor a blocker list can account for.
@@ -1984,7 +1990,7 @@ export function auditRouteContracts(positioned: { nodes: PositionedNode[]; edges
     // cannot tell which edge the label belongs to.
     if (edge.label && edge.labelPosition) {
       const other = sharedTrunkConflict(edge, positioned.edges, style)
-      if (other) findings.push({ code: 'ROUTE_LABEL_ON_SHARED_TRUNK', edge: id, sharedWith: edgeId(other) })
+      if (other) findings.push({ code: 'ROUTE_LABEL_ON_SHARED_TRUNK', edge: id, sharedWith: warningId(other) })
     }
   }
 
@@ -1993,7 +1999,7 @@ export function auditRouteContracts(positioned: { nodes: PositionedNode[]; edges
   for (let i = 0; i < loops.length; i++) {
     const edge = loops[i]!
     const cert = edge.routeCertificate
-    const id = edgeId(edge)
+    const id = warningId(edge)
     const node = nodeMap.get(edge.source)
     if (!cert || cert.invariant !== 'self-loop' || !cert.loopSide) {
       findings.push({ code: 'ROUTE_SELF_LOOP_OCCUPANCY', edge: id, kind: 'allocation' })
@@ -2019,11 +2025,11 @@ export function auditRouteContracts(positioned: { nodes: PositionedNode[]; edges
     }
     for (let j = i + 1; j < loops.length; j++) {
       const other = loops[j]!
-      if (routesCrossOrOverlap(edge.points, other.points)) findings.push({ code: 'ROUTE_SELF_LOOP_OCCUPANCY', edge: id, conflictWith: edgeId(other), kind: 'route-route' })
+      if (routesCrossOrOverlap(edge.points, other.points)) findings.push({ code: 'ROUTE_SELF_LOOP_OCCUPANCY', edge: id, conflictWith: warningId(other), kind: 'route-route' })
       const edgeLabel = labelRect(edge, style)
       const otherLabel = labelRect(other, style)
       if (edgeLabel && otherLabel && edgeLabel.x < otherLabel.x + otherLabel.w && edgeLabel.x + edgeLabel.w > otherLabel.x && edgeLabel.y < otherLabel.y + otherLabel.h && edgeLabel.y + edgeLabel.h > otherLabel.y) {
-        findings.push({ code: 'ROUTE_SELF_LOOP_OCCUPANCY', edge: id, conflictWith: edgeId(other), kind: 'label-label' })
+        findings.push({ code: 'ROUTE_SELF_LOOP_OCCUPANCY', edge: id, conflictWith: warningId(other), kind: 'label-label' })
       }
     }
     const ownLabel = labelRect(edge, style)

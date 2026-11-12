@@ -1,7 +1,7 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="514.35" height="471.8" viewBox="0 0 514.35 471.8" style="--bg:#fff5df;--fg:#2b2725;--line:#1f3d5a;--accent:#ff5a5f;--muted:#876a52;--surface:#ffd166;--border:#1f3d5a;--font:EB Garamond;background:#fff5df" class="am-0godg840ykay47">
+<svg xmlns="http://www.w3.org/2000/svg" width="514.35" height="471.8" viewBox="0 0 514.35 471.8" style="--bg:#fff5df;--fg:#2b2725;--line:#1f3d5a;--accent:#ff5a5f;--muted:#876a52;--surface:#ffd166;--border:#1f3d5a;--font:EB Garamond;background:#fff5df" class="am-0mimt2x1ep29mi">
 <style>
-  svg.am-0godg840ykay47 { font-family: var(--font, 'EB Garamond'), system-ui, sans-serif; }
-  svg.am-0godg840ykay47 {
+  svg.am-0mimt2x1ep29mi { font-family: var(--font, 'EB Garamond'), system-ui, sans-serif; }
+  svg.am-0mimt2x1ep29mi {
     /* Derived from --bg and --fg (overridable via --line, --accent, etc.) */
     --_text:          #2b2725;
     --_text-sec:      #876a52;
@@ -39,7 +39,7 @@
   <path d="M214.32 40.93 C267.2 40.02, 322.07 39.43, 469.72 39.93 M468.78 40 C471.08 38.9, 472.57 41.33, 472.81 43.78 M470.74 44.32 C470.96 50.11, 472.28 56.18, 471.27 70.4 M472 69.9 C413.37 69.14, 353.51 68.78, 211.02 67.93 M211.08 69.67 C211.53 58.69, 212 49.26, 211.43 41.75 M210.9 43 C210.93 42, 213.04 40.34, 213.63 40.79 M213.9 40 C213.9 40, 213.9 40, 213.9 40" fill="none" stroke="#2b2725" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
   <text paint-order="stroke" stroke="#fff5df" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" x="232.9" y="54.5" text-anchor="start" font-size="13" font-weight="700" fill="#2b2725" data-prepared-text="true" dy="4.55" textLength="83.07" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">PUBLISHING</text>
 </g>
-<polyline stroke-opacity="0" class="edge" data-style="dotted" data-arrow-start="false" data-arrow-end="false" points="391.355,223.4 391.355,239.9625 408.56,239.9625 408.56,387.6" fill="none" stroke="#2b2725" stroke-width="1.5" stroke-dasharray="4 4" data-relationship="flowchart-edge" data-direction="undirected" data-id="edge:search-&gt;guide#0" data-role="edge" data-from="search" data-to="guide" role="graphics-symbol" aria-roledescription="relation" aria-label="search to guide" />
+<polyline stroke-opacity="0" class="edge" data-style="dotted" data-arrow-start="false" data-arrow-end="false" points="391.355,223.4 391.355,239.9625 408.56,239.9625 408.56,387.6" fill="none" stroke="#2b2725" stroke-width="1.5" stroke-dasharray="4 4" data-relationship="flowchart-edge" data-direction="undirected" data-id="edge:search-&gt;guide#0" data-role="edge" data-from="search" data-to="guide" role="graphics-symbol" aria-roledescription="relation" aria-label="between search and guide" />
 <path d="M392.16 223.51 C390.88 228.59, 391.1 236.26, 390.95 240.74 M392.45 238.83 C396.45 239.01, 401.79 239.39, 407.43 239.58 M407.38 238.65 C409.37 283.85, 408.93 328.49, 407.67 388.31" fill="none" stroke="#2b2725" stroke-width="2.25" stroke-linecap="butt" stroke-linejoin="miter" stroke-miterlimit="4" stroke-dasharray="4 4" />
 <polyline stroke-opacity="0" class="edge" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" points="362.145,131.2 362.145,179.2" fill="none" stroke="#2b2725" stroke-width="1.5" marker-end="url(#arrowhead-color-u-76-61-72-28-2d-2d-66-67-29)" data-relationship="flowchart-edge" data-direction="forward" data-id="edge:plan-&gt;search#0" data-role="edge" data-from="plan" data-to="search" role="graphics-symbol" aria-roledescription="relation" aria-label="plan to search" />
 <path d="M360.96 131.91 C362.91 149.2, 363.31 167.09, 361.73 178.43" fill="none" stroke="#2b2725" stroke-width="2.25" stroke-linecap="butt" stroke-linejoin="miter" stroke-miterlimit="4" />

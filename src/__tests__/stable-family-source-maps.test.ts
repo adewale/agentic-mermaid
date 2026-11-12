@@ -134,8 +134,8 @@ describe('stable-family authored declaration source maps', () => {
     const diagram = parsed(source)
     expect(diagram.source.groups.get(id)).toEqual({ line: 2, col: 1 })
     expect(diagram.source.labels.get(`group:${id}`)).toEqual({ line: 2, col })
-    expect(diagram.source.nodes.get('card')).toEqual({ line: 3, col: 1 })
-    expect(diagram.source.labels.get('node:card')).toEqual({ line: 3, col: 6 })
+    expect(diagram.source.nodes.get('card')).toEqual({ line: 3, col: 3 })
+    expect(diagram.source.labels.get('node:card')).toEqual({ line: 3, col: 8 })
   })
   test('Requirement fields and repeated relations use declaration identities rather than label matches', () => {
     const source = '---\ntitle: proof\n---\nrequirementDiagram\n  requirement r1 {\n    text: "Same"\n    risk: high\n  }\n  requirement r2 {\n    text: "Same"\n  }\n  element proof {\n    type: "Same"\n  }\n  proof - verifies -> r1\n  proof - verifies -> r1\n  r2 <- traces - r1\n',

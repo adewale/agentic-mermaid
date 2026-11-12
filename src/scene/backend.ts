@@ -439,6 +439,13 @@ export function registerBackend(backend: StyleBackend, options: BackendRegistrat
   }
 }
 
+const BUILT_IN_BACKEND_VALUES = new WeakSet<StyleBackend>()
+
+/** True only for a backend enrolled by core, never for a host registration. */
+export function isBuiltInBackend(backend: StyleBackend): boolean {
+  return BUILT_IN_BACKEND_VALUES.has(backend)
+}
+
 /** Internal built-in enrollment publishes the short runtime id as a stable
  * input name. Stable names are deliberately not compatibility aliases. */
 export function registerBuiltInBackend(backend: StyleBackend): void {
@@ -464,6 +471,7 @@ export function registerBuiltInBackend(backend: StyleBackend): void {
     })
     BACKEND_CONFORMANCE.set(id, conformance.report)
     BACKEND_INPUT_NAMES.set(inputName, id)
+    BUILT_IN_BACKEND_VALUES.add(frozen)
     if (originalDefault) enrolledOriginalDefault = frozen
     selectionSnapshot = undefined
   } finally {

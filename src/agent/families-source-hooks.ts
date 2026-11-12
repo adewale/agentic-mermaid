@@ -9,6 +9,7 @@ import { SWIMLANE_SOURCE_HOOKS } from './swimlane-body.ts'
 import { authoredSyntaxLocation } from '../shared/parser-source.ts'
 import { LocatedParserError } from '../shared/syntax-error.ts'
 import { ZENUML_SOURCE_HOOKS } from './zenuml-body.ts'
+import { withBodyTitleMeta } from './body-title-meta.ts'
 import { EVENTMODELING_SOURCE_HOOKS } from './eventmodeling-body.ts'
 import { readAuthoredGrammarAccessibility } from '../shared/grammar-text.ts'
 import { C4AmbiguousArgumentError, parseC4Diagram } from '../c4/parser.ts'
@@ -42,7 +43,7 @@ import { readGanttStatements } from '../gantt/parser.ts'
 import { type JourneyParseIssue, walkJourneyLines } from '../journey/parse-core.ts'
 import { getFrontmatterScalar, normalizeMermaidSource } from '../mermaid-source.ts'
 import { PIE_QUOTED_TEXT, splitAuthoredPieTitleLine } from '../pie/source-title.ts'
-import { parseQuadrantChart } from '../quadrant/parser.ts'
+import { parseQuadrantChart, QuadrantCoordinateError } from '../quadrant/parser.ts'
 import { sourceLineStarts, sourcePointAt } from '../family-detection.ts'
 import { cleanupMermaidSource, originalMermaidOffset } from '../shared/mermaid-cleanup.ts'
 import { sequenceFamilySource } from '../sequence/family-source.ts'
@@ -61,7 +62,7 @@ import type { ExtractedLabel, FamilyOperations } from './families.ts'
 import { extractLabelsGeneric } from './family-labels.ts'
 import { buildFlowchartSourceMap, type FlowchartBody, parseFlowchartBody, renderFlowchart } from './flowchart-body.ts'
 import { containsFlowchartOpaqueSyntax } from './flowchart-unsupported.ts'
-import { parseGanttBody, renderGantt, verifyGantt } from './gantt-body.ts'
+import { ganttAxisFormatWrittenAsConfig, parseGanttBody, renderGantt, verifyGantt } from './gantt-body.ts'
 import { parseGitGraphBody, renderGitGraphBody, verifyGitGraph } from './gitgraph-body.ts'
 import { parseJourneyBody, renderJourney, verifyJourney } from './journey-body.ts'
 import { mindmapSerializationProblem, parseMindmapBody, renderMindmapBody, verifyMindmap } from './mindmap-body.ts'
@@ -124,7 +125,10 @@ function extractFlowchartLabels(source: string): ExtractedLabel[] {
     const idMatch = raw.match(/^([A-Za-z_][\w-]*)/)
     const target = idMatch ? idMatch[1]! : `line${i + 1}`
     for (const m of raw.matchAll(FLOWCHART_LABEL_RE)) {
-      const text = (m[1] ?? m[3] ?? m[4] ?? m[5] ?? m[6] ?? m[7] ?? m[8] ?? '').trim()
+      let text = (m[1] ?? m[3] ?? m[4] ?? m[5] ?? m[6] ?? m[7] ?? m[8] ?? '').trim()
+      // A quoted "`…`" is a markdown string: its backticks are delimiters,
+      // consumed like the quotes (flowchart-labels.ts parseFlowchartLabel).
+      if (m[1] !== undefined && text.length >= 2 && text.startsWith('`') && text.endsWith('`')) text = text.slice(1, -1).trim()
       if (text) out.push({ text, target })
     }
   }
@@ -174,7 +178,7 @@ function extractStateLabels(source: string): ExtractedLabel[] {
     } else if (raw.includes('-->') && raw.includes(':')) {
       const colon = raw.indexOf(':')
       out.push({ text: raw.slice(colon + 1).trim(), target })
-    } else if ((m = raw.match(/^[\w\p{L}-]+\s*:\s*(.+)$/u))) {
+    } else if ((m = raw.match(/^[\w\p{L}\p{M}\p{N}-]+\s*:\s*(.+)$/u))) {
       out.push({ text: m[1]!.trim(), target })
     } else if ((m = raw.match(/^note\s+(?:left of|right of)\s+\S+\s*:\s*(.+)$/i))) {
       out.push({ text: m[1]!.trim(), target })
@@ -774,10 +778,20 @@ export const CLASS_SOURCE_HOOKS = {
   // duplicate per-body branch). Single source of truth.
   verify: (body, opts) => (body.kind === 'class' ? verifyClass(body, opts) : []),
   buildSourceMap: buildClassSourceMap,
-  parse: ({ lines, opaqueSource }) => ok(parseClassBody(lines.slice(1), opaqueSource) ?? { kind: 'opaque', family: 'class', source: opaqueSource }),
-  serialize: body => {
+  // Mermaid's Class grammar has no title statement: it ignores `title …` or
+  // rejects it. The title is the frontmatter `title:`, which Mermaid draws;
+  // a body statement, read generously, wins as it does when rendering.
+  parse: ({ lines, opaqueSource, source }) => {
+    const body = parseClassBody(lines.slice(1), opaqueSource)
+    if (body && body.title === undefined && typeof source.frontmatter.title === 'string') body.title = source.frontmatter.title
+    return ok(body ?? { kind: 'opaque', family: 'class', source: opaqueSource })
+  },
+  // The commit and serialize paths write the title into the frontmatter
+  // (bodyMeta); the body keeps it only when that wrapper cannot.
+  bodyMeta: (body, meta, previous) => body.kind === 'class' ? withBodyTitleMeta(body.title, meta, previous === undefined || (previous.kind === 'class' && body.title === previous.title)) : meta,
+  serialize: (body, meta) => {
     if (body.kind !== 'class') throw new Error(`class serializer received body kind ${body.kind}`)
-    return renderClass(body)
+    return renderClass(body, meta === undefined || meta.frontmatter?.title !== body.title)
   },
 } satisfies Omit<FamilyOperations, 'mutate'>
 
@@ -1109,8 +1123,8 @@ export const PIE_SOURCE_HOOKS = {
 // quadrantChart header; `title T`; `x-axis a --> b`; `y-axis a --> b`;
 // `quadrant-1..4 label`; `Label: [x, y]`. Quadrant is structured-when-narrowed:
 // the body parses to a QuadrantBody (title, axes, quadrant labels, points) or
-// falls back to opaque when any line is unmodeled (styling, malformed coords,
-// duplicate point labels). Labels are the title, both axis label sides, the
+// falls back to opaque when any line is unmodeled (unportable styling,
+// malformed coords). Labels are the title, both axis label sides, the
 // four quadrant region labels, and the point labels.
 function extractQuadrantLabels(source: string): ExtractedLabel[] {
   const out: ExtractedLabel[] = []
@@ -1201,7 +1215,13 @@ export const QUADRANT_SOURCE_HOOKS = {
   buildSourceMap: buildChartSourceMap,
   parse: ctx => {
     const source = normalizeMermaidSource(ctx.source.originalText, {}, 'render')
-    const body = /^quadrant(?:chart)?\s*$/i.test(stripTrailingComment(source.familyLines[0] ?? '')) ? parseQuadrantBody(familyParserLines(source).slice(1)) : null
+    let body: QuadrantBody | null
+    try {
+      body = /^quadrant(?:chart)?\s*$/i.test(stripTrailingComment(source.familyLines[0] ?? '')) ? parseQuadrantBody(familyParserLines(source).slice(1)) : null
+    } catch (error) {
+      if (error instanceof QuadrantCoordinateError) return err([{ code: 'PARSE_FAILED', message: error.message }])
+      throw error
+    }
     return ok(body ?? { kind: 'opaque', family: 'quadrant', source: ctx.opaqueSource })
   },
   serialize: body => {
@@ -1249,6 +1269,26 @@ export const GANTT_SOURCE_HOOKS = {
     const axisFormat = getFrontmatterScalar<string>(source.frontmatter, ['gantt', 'axisFormat'])
     if (body && body.axisFormat === undefined && typeof axisFormat === 'string') body.axisFormat = axisFormat
     return ok(body ?? { kind: 'opaque', family: 'gantt', source: opaqueSource })
+  },
+  // The writer states a body axisFormat it cannot spell as a statement in its
+  // own init directive. A re-read takes that value into the body again, so an
+  // authored directive that restates exactly that format is the body's, not
+  // separate metadata: keeping both would add one copy per write.
+  bodyMeta: (body, meta) => {
+    if (body.kind !== 'gantt' || body.axisFormat === undefined || !ganttAxisFormatWrittenAsConfig(body.axisFormat)) return meta
+    const format = body.axisFormat
+    const restatesFormat = (parsed: Record<string, unknown>) => {
+      const keys = Object.keys(parsed), gantt = parsed.gantt
+      return keys.length === 1 && keys[0] === 'gantt' && typeof gantt === 'object' && gantt !== null && !Array.isArray(gantt)
+        && Object.keys(gantt).length === 1 && (gantt as Record<string, unknown>).axisFormat === format
+    }
+    const restating = meta.initDirectives.filter(directive => restatesFormat(directive.parsed))
+    if (restating.length === 0) return meta
+    // The verbatim wrapper carries the same directive bytes.
+    let wrapperSource = meta.wrapperSource
+    for (const directive of restating) if (wrapperSource?.includes(directive.raw)) wrapperSource = wrapperSource.replace(directive.raw, '')
+    const initDirectives = meta.initDirectives.filter(directive => !restating.includes(directive))
+    return { ...meta, initDirectives, ...(wrapperSource === undefined ? {} : { wrapperSource }) }
   },
   serialize: body => {
     if (body.kind !== 'gantt') throw new Error(`gantt serializer received body kind ${body.kind}`)

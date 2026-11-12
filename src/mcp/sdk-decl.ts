@@ -202,6 +202,8 @@ export const SDK_DECLARATION = `// Mermaid agent SDK available as the global \`m
 // Code Mode is synchronous: async/await, Promise jobs, and dynamic import are not supported.
 
 type Result<T, E> = { ok: true; value: T } | { ok: false; error: E }
+// fields: a nested record's own fields (e.g. xychart set_y_axis axis.range).
+interface OpFieldDoc { name: string; required: boolean; type: string; note?: string; fields?: OpFieldDoc[] }
 type MermaidConfigScalar = string | number | boolean | null
 type MermaidConfigValue = MermaidConfigScalar | MermaidConfigValue[] | { [key: string]: MermaidConfigValue | undefined }
 type MermaidRuntimeConfig = {
@@ -310,7 +312,9 @@ ${SDK_FAMILY_TYPE_MAPS}
 //   INTERNAL_ERROR (an Agentic Mermaid defect, not the source; defaultRender:
 //   'succeeds-unchecked' | 'fails' says whether an ordinary render still produces output;
 //   do not rewrite the diagram to work around it).
-// Tier 2 (geometric): CONTENT_OCCLUDED is an error; LAYOUT_LIMIT_EXCEEDED,
+// Tier 2 (geometric): CONTENT_OCCLUDED is an error; so is LAYOUT_UNCERTIFIED
+// (no layout candidate passed certification, so the best one was drawn anyway;
+// violation: the failed check, targets: its ids). LAYOUT_LIMIT_EXCEEDED,
 // NODE_OVERLAP, ROUTE_SELF_CROSS and the following tripwires are advisory.
 // route-contract tripwires ROUTE_HITCH, ROUTE_UNEXPLAINED_BEND,
 // ROUTE_LABEL_ON_SHARED_TRUNK, ROUTE_SELF_LOOP_OCCUPANCY, ROUTE_CONTAINER_MISANCHOR,
@@ -369,7 +373,7 @@ ${CODE_MODE_RENDER_METHOD_DECLARATIONS}
   // values, and constraint/default notes (e.g. score "finite number 1..5", shape
   // "default: rectangle"); opSignatures returns compact one-liners like
   // "add_point(label, x, y)". Read these before authoring an unfamiliar op.
-  describeOps(family: DiagramKind): Record<string, { name: string; required: boolean; type: string; note?: string }[]>
+  describeOps(family: DiagramKind): Record<string, OpFieldDoc[]>
   opSignatures(family: DiagramKind): string[]
   // Opaque Class: add_member/remove_member; Flowchart: set_label/rename_node.
   // Save value.source exactly; verify value.diagram. Ambiguous ownership and

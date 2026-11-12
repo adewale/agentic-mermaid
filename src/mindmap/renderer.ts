@@ -9,7 +9,7 @@ import { DefaultBackend } from '../scene/backend.ts'
 import { svgOpenTag, buildStyleBlock, buildShadowDefs, resolveColors } from '../theme.ts'
 import { ensureContrast, isHexColor, mixHex } from '../shared/color-math.ts'
 import { buildAccessibilityAttrs } from '../shared/svg-a11y.ts'
-import { semanticChildId, semanticRelationId } from '../scene/identity.ts'
+import { semanticChildId, semanticRelationIds } from '../scene/identity.ts'
 import { escapeAttr, escapeDisplayAttr } from '../multiline-utils.ts'
 import { resolveMindmapIcon } from './icons.ts'
 import { categoricalPalette } from '../shared/categorical-palette.ts'
@@ -65,6 +65,7 @@ export function lowerMindmapDrawing<T>(marks: DrawingFactory<T>, ctx: RenderCont
   // The diagram's frontmatter title, in the band layout reserved above.
   if (diagram.title) parts.push(marks.text(diagramTitleFields(diagram.title, resolveRenderStyle(options, undefined, resolved.styleFace))))
 
+  const relationId = semanticRelationIds(diagram.nodes.map(node => node.id))
   for (const edge of diagram.edges) {
     const stroke = branchPaint(edge.to)
     const [start, control1, control2, end] = edge.points
@@ -75,7 +76,7 @@ export function lowerMindmapDrawing<T>(marks: DrawingFactory<T>, ctx: RenderCont
       kind: 'cubic', control1, control2, end,
     }])
     parts.push(marks.connector({
-      id: semanticRelationId(edge.from, edge.to),
+      id: relationId(edge.from, edge.to),
       role: 'edge',
       geometry: projection.geometry,
       lineStyle: 'solid',

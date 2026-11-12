@@ -1,4 +1,4 @@
-import { terminalArtifact, serializeTerminalArtifact, type TerminalArtifact } from './terminal-artifact.ts'
+import { terminalArtifact, type TerminalArtifact } from './terminal-artifact.ts'
 import { formatChartValue as fmt } from '../shared/chart-value-format.ts'
 // ============================================================================
 // ASCII renderer — Radar (spider) chart
@@ -219,7 +219,3 @@ export function renderRadarTerminal(
   return terminalArtifact(document, { colorMode, theme, trimEnd: true })
 }
 
-/** Compatibility string entry point; native dispatch retains the drawing. */
-export function renderRadarAscii(...args: Parameters<typeof renderRadarTerminal>): string {
-  return serializeTerminalArtifact(renderRadarTerminal(...args))
-}

@@ -1,4 +1,4 @@
-import { terminalArtifact, serializeTerminalArtifact, type TerminalArtifact } from './terminal-artifact.ts'
+import { terminalArtifact, type TerminalArtifact } from './terminal-artifact.ts'
 // ============================================================================
 // ASCII renderer — Quadrant chart
 //
@@ -232,7 +232,3 @@ function centerText(text: string, width: number): string {
   return ' '.repeat(pad) + text
 }
 
-/** Compatibility string entry point; native dispatch retains the drawing. */
-export function renderQuadrantAscii(...args: Parameters<typeof renderQuadrantTerminal>): string {
-  return serializeTerminalArtifact(renderQuadrantTerminal(...args))
-}

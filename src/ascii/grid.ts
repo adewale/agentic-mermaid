@@ -677,18 +677,22 @@ export function offsetDrawingForSubgraphs(graph: AsciiGraph): void {
 // Main layout orchestrator
 // ============================================================================
 
+interface GridPlacement {
+  /** Number of same-direction placements at each level. */
+  levelSizes: Map<number, number>
+  /** Whether a fan-in alignment started its level's remaining nodes beyond
+   * the perpendicular extent already placed (always false when capped). */
+  widened: boolean
+}
+
 /**
- * createMapping performs the full grid layout:
- * 1. Place root nodes on the grid
- * 2. Place child nodes level by level
- * 3. Compute column widths and row heights
- * 4. Run A* pathfinding for all edges
- * 5. Determine label placement
- * 6. Convert grid coords → drawing coords
- * 7. Generate node box drawings
- * 8. Calculate subgraph bounding boxes
+ * Place every node on the logical grid: roots first, then children level by
+ * level (longest-path layering). With `levelSizes`, a fan-in target's
+ * alignment under its parent is capped so that it and the rest of its level
+ * still end within the perpendicular extent already placed; it never moves a
+ * target below the level's next free slot.
  */
-export function createMapping(graph: AsciiGraph): void {
+function placeNodesOnGrid(graph: AsciiGraph, levelSizes?: ReadonlyMap<number, number>): GridPlacement {
   const dir = graph.config.graphDirection
   // Sparse level tracker — levels grow by 4 per generation, so a fixed-size
   // array would run out on deep chains (a ~25-node chain already reaches
@@ -696,6 +700,24 @@ export function createMapping(graph: AsciiGraph): void {
   // coordinates that sent A* pathfinding into an unbounded search (hang).
   const highestPositionPerLevel = new Map<number, number>()
   const levelPos = (level: number): number => highestPositionPerLevel.get(level) ?? 0
+  // Perpendicular extent of everything placed so far, and same-direction
+  // placements per level. Uncapped, each fan-in alignment is recorded and
+  // judged once the level sizes are known.
+  const placedPerLevel = new Map<number, number>()
+  const alignments: Array<{ level: number; index: number; aligned: number; extent: number }> = []
+  let extent = 0
+  const reserve = (node: AsciiNode, requested: GridCoord, edgeDir?: 'LR' | 'TD'): void => {
+    const placed = reserveSpotInGrid(graph, node, requested, edgeDir)
+    extent = Math.max(extent, dir === 'LR' ? placed.y : placed.x)
+  }
+  const advanceLevel = (level: number, position: number): void => {
+    highestPositionPerLevel.set(level, position + 4)
+    placedPerLevel.set(level, (placedPerLevel.get(level) ?? 0) + 1)
+  }
+  /** Where a level's node may start so that the level's remaining nodes,
+   * packed after it, end within the extent already placed. */
+  const alignmentLimit = (level: number, sizes: ReadonlyMap<number, number>, index: number, before: number): number =>
+    before - 4 * Math.max(0, (sizes.get(level) ?? 0) - index - 1)
 
   // Identify root nodes — nodes that aren't the target of any edge
   const nodesFound = new Set<string>()
@@ -794,8 +816,8 @@ export function createMapping(graph: AsciiGraph): void {
     const requested: GridCoord = dir === 'LR'
       ? { x: 0, y: levelPos(0) }
       : { x: levelPos(0), y: 0 }
-    reserveSpotInGrid(graph, graph.nodes[node.index]!, requested)
-    highestPositionPerLevel.set(0, levelPos(0) + 4)
+    reserve(graph.nodes[node.index]!, requested)
+    advanceLevel(0, levelPos(0))
   }
 
   // Place subgraph root nodes at level 4 (one level in from the edge)
@@ -805,8 +827,8 @@ export function createMapping(graph: AsciiGraph): void {
       const requested: GridCoord = dir === 'LR'
         ? { x: subgraphLevel, y: levelPos(subgraphLevel) }
         : { x: levelPos(subgraphLevel), y: subgraphLevel }
-      reserveSpotInGrid(graph, graph.nodes[node.index]!, requested)
-      highestPositionPerLevel.set(subgraphLevel, levelPos(subgraphLevel) + 4)
+      reserve(graph.nodes[node.index]!, requested)
+      advanceLevel(subgraphLevel, levelPos(subgraphLevel))
     }
   }
 
@@ -871,10 +893,10 @@ export function createMapping(graph: AsciiGraph): void {
           // position (upstream lukilabs#69) instead of the next sequential
           // slot, so each target sits under its own root group and trunk
           // rows of different fan-in groups don't collide.
-          highestPosition = Math.max(
-            levelPos(childLevel),
-            edgeDir === 'LR' ? gc.y : gc.x,
-          )
+          const slot = levelPos(childLevel), index = placedPerLevel.get(childLevel) ?? 0
+          highestPosition = Math.max(slot, edgeDir === 'LR' ? gc.y : gc.x)
+          if (levelSizes) highestPosition = Math.max(slot, Math.min(highestPosition, alignmentLimit(childLevel, levelSizes, index, extent)))
+          else if (highestPosition > slot) alignments.push({ level: childLevel, index, aligned: highestPosition, extent })
         } else {
           // Same direction: use level tracker
           highestPosition = levelPos(childLevel)
@@ -883,12 +905,10 @@ export function createMapping(graph: AsciiGraph): void {
         const requested: GridCoord = edgeDir === 'LR'
           ? { x: childLevel, y: highestPosition }
           : { x: highestPosition, y: childLevel }
-        reserveSpotInGrid(graph, graph.nodes[child.index]!, requested, edgeDir)
+        reserve(graph.nodes[child.index]!, requested, edgeDir)
 
         // Only update level tracker for same-direction placements
-        if (edgeDir === graph.config.graphDirection) {
-          highestPositionPerLevel.set(childLevel, highestPosition + 4)
-        }
+        if (edgeDir === graph.config.graphDirection) advanceLevel(childLevel, highestPosition)
         placedCount++
       }
     }
@@ -900,8 +920,8 @@ export function createMapping(graph: AsciiGraph): void {
         const unplaced = graph.nodes.filter(node => node.gridCoord === null)
         const seed = unplaced.find(node => !isNodeInAnySubgraph(graph, node)) ?? unplaced[0]
         if (!seed) break
-        reserveSpotInGrid(graph, seed, dir === 'LR' ? { x: 0, y: levelPos(0) } : { x: levelPos(0), y: 0 })
-        highestPositionPerLevel.set(0, levelPos(0) + 4)
+        reserve(seed, dir === 'LR' ? { x: 0, y: levelPos(0) } : { x: levelPos(0), y: 0 })
+        advanceLevel(0, levelPos(0))
         placedCount++
         force = false
         continue
@@ -910,6 +930,43 @@ export function createMapping(graph: AsciiGraph): void {
     } else {
       force = false
     }
+  }
+
+  return {
+    levelSizes: placedPerLevel,
+    widened: alignments.some(({ level, index, aligned, extent: before }) => aligned > alignmentLimit(level, placedPerLevel, index, before)),
+  }
+}
+
+/**
+ * createMapping performs the full grid layout:
+ * 1. Place root nodes on the grid
+ * 2. Place child nodes level by level
+ * 3. Compute column widths and row heights
+ * 4. Run A* pathfinding for all edges
+ * 5. Determine label placement
+ * 6. Convert grid coords → drawing coords
+ * 7. Generate node box drawings
+ * 8. Calculate subgraph bounding boxes
+ */
+export function createMapping(graph: AsciiGraph): void {
+  const dir = graph.config.graphDirection
+  // Fan-in alignment can start a level beyond everything placed so far, and
+  // the level's later nodes stack after it; repeated per layer, that drift
+  // made layered DAGs grow quadratically. When the ordinary placement widens
+  // the grid that way, place again with alignment capped to the extent
+  // already drawn. Level membership does not depend on perpendicular
+  // positions, so the first pass's level sizes describe the second pass
+  // (only a collision inside a cross-direction subgraph can shift a level,
+  // which makes a size an estimate; placement stays collision-free).
+  // Top-down grids only: in left-right grids the denser columns can leave
+  // the bounded cell router no lane for an edge, which it then reports and
+  // summarises as text instead of drawing.
+  const placement = placeNodesOnGrid(graph)
+  if (placement.widened && dir === 'TD') {
+    graph.grid.clear()
+    for (const node of graph.nodes) node.gridCoord = null
+    placeNodesOnGrid(graph, placement.levelSizes)
   }
 
   separateRootSubgraphLanes(graph, dir)

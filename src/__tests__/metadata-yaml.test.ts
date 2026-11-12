@@ -201,14 +201,13 @@ describe('parseMermaidYaml agrees with pinned upstream\'s js-yaml', () => {
     expect(parseMermaidYaml(text)).toEqual({ ok: true, value: { config: { themeCSS: ' a {} b {} ', gantt: { useWidth: 400 } } } })
   })
 
-  // A quoted scalar left open by an escaped or missing quote runs into later
-  // lines; js-yaml then lets a following key's own quote close it and reads
-  // on, and the yaml package's escape handling differs there. Garbage in both
-  // readers, left unmatched.
-  test.failing('an unterminated quoted scalar that a later key closes', () => {
-    for (const text of ['title: "unclosed\n"k": v', '  title: "a\\"\n  b: "q"']) {
-      expect({ text, ours: ourYaml(text) }).toEqual({ text, ours: upstreamYaml(text) })
-    }
+  // A quoted scalar left open by a missing quote runs into later lines, where
+  // js-yaml lets a following key's quote close it and reads on. We refuse the
+  // open quote, and honour YAML's \" escape inside double quotes
+  // (docs/project/divergences.md).
+  test('an open quoted scalar is refused; an escaped quote stays inside its scalar', () => {
+    expect(parseMermaidYaml('title: "unclosed\n"k": v')).toMatchObject({ ok: false, message: expect.stringContaining('Missing closing "quote') })
+    expect(parseMermaidYaml('  title: "a\\"\n  b: "q"')).toEqual({ ok: true, value: { title: 'a"', b: 'q' } })
   })
 })
 

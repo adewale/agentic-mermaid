@@ -53,6 +53,18 @@ describe('parser — parallelogram (lean) shapes', () => {
     expect(g.nodes.get('D')!.shape).toBe('trapezoid-alt')
   })
 
+  // Reduced from the structural all-families fuzz: the line lexer read the
+  // quote after `[/` or `[\` as label text, so a bracket in the quoted label
+  // left a region open and the statement swallowed the following lines.
+  it.each([
+    ['[/"a{b"\\]', 'trapezoid'], ['[\\"a{b"/]', 'trapezoid-alt'], ['[/"a(b"/]', 'lean-r'], ['[\\"a[b"\\]', 'lean-l'], ['[/"a%%{b"\\]', 'trapezoid'],
+  ] as const)('a quoted slanted label %s ends its statement at its line end', (shape, kind) => {
+    const g = parseMermaid(`flowchart LR\n  A${shape}\n  B:::hot\n  C --> B`)
+    expect(g.nodes.get('A')!.shape).toBe(kind)
+    expect(g.nodes.get('A')!.label).toBe(shape.slice(3, -3))
+    expect(g.edges.map(edge => `${edge.source}->${edge.target}`)).toEqual(['C->B'])
+  })
+
   it('serializer round-trips: canonical source re-parses to the same shapes and labels', () => {
     const g = parseMermaid('flowchart LR\n  A[/In/] --> B[\\Out\\]\n  B --> C[/Trap\\]\n  C --> D[\\Alt/]')
     const canonical = renderFlowchart(g, 'flowchart')

@@ -155,7 +155,7 @@ describe('issue #248 fidelity route conformance', () => {
 
   test('an unknown XYChart statement has the same diagnosed rejection at every adapter boundary', async () => {
     const authority = diagnosticFrom(() => renderMermaidSVGWithReceipt(XYCHART_UNKNOWN_STATEMENT_SOURCE, OPTIONS))
-    expect(authority).toEqual({ code: 'RENDER_FAILED', message: 'Rendering failed' })
+    expect(authority).toEqual({ code: 'RENDER_FAILED', origin: 'source', message: expect.stringContaining('frob official-data-lost') })
     const direct = {
       cli: diagnosticFrom(() => renderSourceToFormatWithReceipt(XYCHART_UNKNOWN_STATEMENT_SOURCE, 'svg', OPTIONS)),
       browserEditor: diagnosticFrom(() => BROWSER_EDITOR_ADAPTER.renderMermaidSVGWithReceipt(XYCHART_UNKNOWN_STATEMENT_SOURCE, OPTIONS)),

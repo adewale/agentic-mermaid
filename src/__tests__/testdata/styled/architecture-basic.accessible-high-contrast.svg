@@ -1,7 +1,7 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="679.73" height="402.3" viewBox="0 0 679.73 402.3" style="--bg:#ffffff;--fg:#050505;--line:#111111;--accent:#005fcc;--muted:#333333;--surface:#ffffff;--border:#050505;--font:Inter;background:#ffffff;--arch-group-fill:#ffffff;--arch-group-stroke:#050505;--arch-group-label:#050505;--arch-service-fill:#ffffff;--arch-service-stroke:#050505;--arch-service-label:#050505;--arch-edge-stroke:#050505;--arch-edge-label:#050505" class="am-0g0du5m1vpp5zh">
+<svg xmlns="http://www.w3.org/2000/svg" width="679.73" height="402.3" viewBox="0 0 679.73 402.3" style="--bg:#ffffff;--fg:#050505;--line:#111111;--accent:#005fcc;--muted:#333333;--surface:#ffffff;--border:#050505;--font:Inter;background:#ffffff;--arch-group-fill:#ffffff;--arch-group-stroke:#050505;--arch-group-label:#050505;--arch-service-fill:#ffffff;--arch-service-stroke:#050505;--arch-service-label:#050505;--arch-edge-stroke:#050505;--arch-edge-label:#050505" class="am-01phpy601co3vk">
 <style>
-  svg.am-0g0du5m1vpp5zh { font-family: var(--font, 'Inter'), system-ui, sans-serif; }
-  svg.am-0g0du5m1vpp5zh {
+  svg.am-01phpy601co3vk { font-family: var(--font, 'Inter'), system-ui, sans-serif; }
+  svg.am-01phpy601co3vk {
     /* Derived from --bg and --fg (overridable via --line, --accent, etc.) */
     --_text:          #050505;
     --_text-sec:      #333333;
@@ -38,8 +38,8 @@
 </g>
   <text x="76" y="55" class="architecture-group-label" text-anchor="start" font-size="14" font-weight="700" fill="#050505" data-prepared-text="true" dy="4.9" textLength="25.62" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">API</text>
 </g>
-<path class="architecture-edge" data-from-side="L" data-to-side="R" data-from-boundary="item" data-to-boundary="item" d="M451.66,314.25 L442.66,314.25 Q433.66,314.25 433.66,305.25 L433.66,131.05 Q433.66,122.05 424.66,122.05 L415.66,122.05" fill="none" stroke="#050505" stroke-width="2.6" stroke-linejoin="round" data-relationship="architecture-edge" data-direction="undirected" data-id="edge:db-&gt;server#0" data-role="edge" data-from="db" data-to="server" role="graphics-symbol" aria-roledescription="relation" aria-label="db to server" />
-<path class="architecture-edge" data-from-side="T" data-to-side="B" data-from-boundary="item" data-to-boundary="item" d="M149.035,188.1 L149.035,179.1 Q149.035,170.1 158.035,170.1 L330.805,170.1 Q339.805,170.1 339.805,161.1 L339.805,152.1" fill="none" stroke="#050505" stroke-width="2.6" stroke-linejoin="round" data-relationship="architecture-edge" data-direction="undirected" data-id="edge:disk-&gt;server#0" data-role="edge" data-from="disk" data-to="server" role="graphics-symbol" aria-roledescription="relation" aria-label="disk to server" />
+<path class="architecture-edge" data-from-side="L" data-to-side="R" data-from-boundary="item" data-to-boundary="item" d="M451.66,314.25 L442.66,314.25 Q433.66,314.25 433.66,305.25 L433.66,131.05 Q433.66,122.05 424.66,122.05 L415.66,122.05" fill="none" stroke="#050505" stroke-width="2.6" stroke-linejoin="round" data-relationship="architecture-edge" data-direction="undirected" data-id="edge:db-&gt;server#0" data-role="edge" data-from="db" data-to="server" role="graphics-symbol" aria-roledescription="relation" aria-label="between db and server" />
+<path class="architecture-edge" data-from-side="T" data-to-side="B" data-from-boundary="item" data-to-boundary="item" d="M149.035,188.1 L149.035,179.1 Q149.035,170.1 158.035,170.1 L330.805,170.1 Q339.805,170.1 339.805,161.1 L339.805,152.1" fill="none" stroke="#050505" stroke-width="2.6" stroke-linejoin="round" data-relationship="architecture-edge" data-direction="undirected" data-id="edge:disk-&gt;server#0" data-role="edge" data-from="disk" data-to="server" role="graphics-symbol" aria-roledescription="relation" aria-label="between disk and server" />
 <g class="architecture-service" data-id="db" data-label="Database" data-role="service">
   <rect class="architecture-service-card" x="451.66" y="284.2" width="170.07" height="60.1" rx="8" ry="8" fill="#ffffff" stroke="none" data-id="service-card:db" data-role="service" />
   <rect class="architecture-service-outline" x="451.66" y="284.2" width="170.07" height="60.1" rx="8" ry="8" fill="none" stroke="#050505" stroke-width="2.4" data-id="service-outline:db" data-role="service" />

@@ -60,9 +60,9 @@ describe('family rubric hard metrics discriminate', () => {
       { metric: 'nonFiniteGeometry', detail: 'node invalid' },
       { metric: 'offCanvas', detail: 'node outside at (190,10) 50×20' },
       { metric: 'offCanvas', detail: 'label a' },
-      { metric: 'nodeOverlaps', detail: 'a overlaps b' },
-      { metric: 'groupBreaches', detail: 'a outside second' },
-      { metric: 'groupOverlaps', detail: 'first partially overlaps second' },
+      { metric: 'nodeOverlaps', detail: 'a overlaps b', targets: ['a', 'b'] },
+      { metric: 'groupBreaches', detail: 'a outside second', targets: ['second', 'a'] },
+      { metric: 'groupOverlaps', detail: 'first partially overlaps second', targets: ['first', 'second'] },
     ]
     expect(assessRenderedLayoutHardViolations(layout)).toEqual(expected)
     const full = assessRenderedLayout(layout)

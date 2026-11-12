@@ -11,7 +11,7 @@ import { BUILTIN_FAMILY_METADATA, getFamily, replaceFamilyForTest } from '../age
 import { runCli, runBatchLine } from '../cli/index.ts'
 import { MCP_CLI_HELP, parseMcpCliOptions, runMcpCli } from '../mcp/mcp-cli.ts'
 import { executeInSandbox } from '../mcp/sandbox.ts'
-import { handleRequest, LOCAL_TOOLS } from '../mcp/server.ts'
+import { createStdioMessageProcessor, handleRequest, LOCAL_TOOLS } from '../mcp/server.ts'
 import { LOCAL_MCP_TOOL_NAMES } from '../mcp/tool-names.ts'
 import { captureCli as capture } from './helpers/cli-capture.ts'
 import { useTempDirs } from './helpers/temp-dir.ts'
@@ -50,6 +50,24 @@ describe('source-preserving edits across agent channels', () => {
     expect(failed).toMatchObject({ ok: false, opIndex: 1 })
     expect('source' in failed).toBe(false)
   })
+  test('CLI mutate --json and batch carry the MCP mutate envelope fields on failure and success', async () => {
+    const source = 'flowchart TD\n  A --> B\n'
+    const file = join(temp.dir('mutate-envelope-'), 'diagram.mmd')
+    writeFileSync(file, source)
+    const mcp = async (ops: unknown[]) => JSON.parse(((await handleRequest({ jsonrpc: '2.0', id: 1, method: 'tools/call', params: { name: 'mutate', arguments: { source, ops } } }))!.result as any).content[0].text)
+    const rename = { kind: 'set_label', target: 'A', label: 'Start' }
+    const missing = { kind: 'remove_node', id: 'ZZ' }
+    for (const ops of [[rename, missing], [rename]]) {
+      const expected = await mcp(ops)
+      const { source: _source, verify: _verify, ...shared } = expected
+      expect(Object.keys(shared).sort(), JSON.stringify(ops)).toEqual(ops.length === 2 ? ['error', 'family', 'ok', 'opIndex'] : ['family', 'ok'])
+      const cli = JSON.parse(capture(() => runCli(['mutate', file, '--ops', JSON.stringify(ops), '--json'])).out)
+      expect(cli).toMatchObject(ops.length === 2 ? shared : { ...shared, source: expected.source })
+      const batch = runBatchLine(JSON.stringify({ op: 'mutate', source, mutations: ops }))
+      expect(batch).toMatchObject(ops.length === 2 ? { ...shared, op: 'mutate' } : { ok: true, op: 'mutate', data: { family: expected.family, source: expected.source } })
+    }
+  })
+
   test('refuses invalid modes and source-preserving builders', () => {
     for (const mode of ['unknown', null, false]) expect(applyOps({ source: 'flowchart TD\nA', ops: [], mode } as any).ok).toBe(false)
     expect(applyOps({ family: 'class', ops: [{ kind: 'add_class', id: 'A' }], mode: 'source-preserving' }).ok).toBe(false)
@@ -730,9 +748,10 @@ describe('MCP — JSON-RPC happy + sad', () => {
     }
     expect(tools[0].description).toContain('interface RenderRequestReceipt')
     expect(tools[0].description).toMatch(/interface RenderRequestReceipt\s*\{\s*version:\s*2;/)
-    // Include metrics, layout selectors and parse positions without increasing
-    // the context limit; family edit schemas stay progressively loaded.
-    expect(new TextEncoder().encode(tools[0].description).length).toBeLessThan(15_150)
+    // Include metrics, layout selectors, parse positions and nested op field
+    // docs (OpFieldDoc) within this limit; family edit schemas stay
+    // progressively loaded.
+    expect(new TextEncoder().encode(tools[0].description).length).toBeLessThan(15_250)
   })
   test('tools/call execute', async () => {
     const r = await handleRequest({ jsonrpc: '2.0', id: 3, method: 'tools/call', params: { name: 'execute', arguments: { code: 'return mermaid.verifyMermaid("flowchart TD\\n A --> B").ok' } } })
@@ -765,7 +784,8 @@ describe('MCP — JSON-RPC happy + sad', () => {
     expect(payload.ok).toBe(false)
     // The reported deadline is the 25 ms transport cap, not the default
     // sandbox timeout, so the cap applied without timing the call.
-    const deadline = Number(String(payload.error).match(/timed out after (\d+)ms/)?.[1])
+    expect(payload.error.code).toBe('EXECUTE_TIMEOUT')
+    const deadline = Number(String(payload.error.message).match(/timed out after (\d+)ms/)?.[1])
     expect(deadline).toBeGreaterThan(0)
     expect(deadline).toBeLessThanOrEqual(25)
   })
@@ -804,6 +824,20 @@ describe('MCP — JSON-RPC happy + sad', () => {
     expect(await handleRequest({ jsonrpc: '2.0', method: 'notifications/initialized' })).toBeNull()
     expect(await handleRequest({ jsonrpc: '2.0', method: 'ping' })).toBeNull()
     expect(await handleRequest({ jsonrpc: '2.0', method: 'made/up' })).toBeNull()
+  })
+  test('stdio answers every request, ignores a stray response, and refuses a cursor it never issued', async () => {
+    const output: string[] = []
+    const processor = createStdioMessageProcessor({}, line => output.push(line))
+    processor.accept(JSON.stringify({ jsonrpc: '2.0', id: 11, result: {} }))
+    processor.accept(JSON.stringify({ jsonrpc: '2.0', id: 12, error: { code: 1, message: 'client-side failure' } }))
+    processor.accept(JSON.stringify({ jsonrpc: '2.0', id: 13, method: 'notifications/initialized' }))
+    processor.accept(JSON.stringify({ jsonrpc: '2.0', id: 14, method: 'tools/list', params: { cursor: 'garbage' } }))
+    await processor.drain()
+    const replies = output.map(line => JSON.parse(line))
+    expect(replies.map(reply => ({ id: reply.id, code: reply.error?.code }))).toEqual([
+      { id: 13, code: -32601 },
+      { id: 14, code: -32602 },
+    ])
   })
   test('malformed JSON-RPC envelopes are rejected before dispatch', async () => {
     const missingVersion = await handleRequest({ id: 8, method: 'ping' } as any)

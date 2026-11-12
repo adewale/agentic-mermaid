@@ -8,7 +8,7 @@ import { verifyMermaid } from '../agent/verify.ts'
 import { renderMermaidASCII, renderMermaidSVG } from '../index.ts'
 import { parseSequenceDiagram } from '../sequence/parser.ts'
 import { splitSequenceStatementLines } from '../sequence/statements.ts'
-import { costRelativeToLinearScan } from './helpers/complexity.ts'
+import { expectNearLinearGrowth } from './helpers/complexity.ts'
 import { startUpstreamMermaid } from './helpers/upstream-mermaid.ts'
 
 const MULTILINE = `sequenceDiagram
@@ -113,14 +113,14 @@ describe('Sequence newline and semicolon statement equivalence', () => {
     expect(splitSequenceStatementLines(source.split('\n'))).toEqual(['sequenceDiagram', bodyLine])
     expect(parseRegisteredMermaid(source).ok).toBe(true)
     // A growing-prefix/suffix copy at every entity took seconds through the
-    // public parser even below the hosted 64 KiB input limit: tens of thousands
-    // of plain scans of the source. The whole linear parse costs 170-1010 scans
-    // (measured idle and under load).
-    const cost = costRelativeToLinearScan(source, () => {
-      splitSequenceStatementLines(source.split('\n'))
-      parseRegisteredMermaid(source)
-    })
-    expect(cost).toBeLessThan(5_000)
+    // public parser even below the hosted 64 KiB input limit. Judge growth
+    // between 2,000 and 16,000 entities rather than a ratio to one sub-
+    // millisecond scan, which swung from 1,600 to 5,300 with load and JIT.
+    expectNearLinearGrowth('entity-heavy sequence line', entities => {
+      const sized = `sequenceDiagram\nA->>B: ${'#59;'.repeat(entities)}`
+      splitSequenceStatementLines(sized.split('\n'))
+      parseRegisteredMermaid(sized)
+    }, 16_000)
   })
 
   // `end` takes no argument, so Mermaid reads what follows it as the next

@@ -1,4 +1,4 @@
-import { serializeTerminalArtifact, type TerminalArtifact, terminalArtifact } from './terminal-artifact.ts'
+import { type TerminalArtifact, terminalArtifact } from './terminal-artifact.ts'
 
 // ============================================================================
 // ASCII renderer — Gantt diagrams (docs/design/families/gantt.md §5).
@@ -359,7 +359,8 @@ export function renderGanttTerminal(
           const track = buildTrack(t)
           for (let c = 0; c < plotWidth; c++) if (track[c]!.text !== g.track) cells[c] = { ...track[c]!, owner: track[c]!.owner ?? taskOwner(t) }
         }
-        owner = { id: generated(`lane:${si}:${li}`), kind: 'lane', members: laneTasks.map(task => taskOwner(task).id) }
+        // Registered once: every track cell of the lane names this owner.
+        owner = document.element({ id: generated(`lane:${si}:${li}`), kind: 'lane', members: laneTasks.map(task => taskOwner(task).id) })
         const labels = labelRows(laneTasks, Math.max(1, labelWidth - 4))
         labels.forEach((runs, index) => {
           const width = runs.reduce((sum, run) => sum + visualWidth(run.text), 0)
@@ -420,7 +421,3 @@ function padForCol(col: number, glyph: string): string {
   return ' '.repeat(col) + glyph
 }
 
-/** Compatibility string entry point; native dispatch retains the drawing. */
-export function renderGanttAscii(...args: Parameters<typeof renderGanttTerminal>): string {
-  return serializeTerminalArtifact(renderGanttTerminal(...args))
-}

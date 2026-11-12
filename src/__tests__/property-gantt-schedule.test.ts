@@ -43,13 +43,27 @@ const genTaskList = fc.array(
   }
 }))
 
-function dayStr(offset: number): string {
+function isoDay(offset: number): string {
   const d = new Date(Date.UTC(2024, 0, 1) + offset * DAY_MS)
   return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}-${String(d.getUTCDate()).padStart(2, '0')}`
 }
 
-function toSource(tasks: GenTask[], opts: { excludes?: string; includes?: number[]; axisFormat?: string } = {}): string {
-  const lines = ['gantt', '  dateFormat YYYY-MM-DD']
+/** Date spellings a gantt can declare; each writes the same calendar day. */
+const DATE_FORMATS = [
+  { format: 'YYYY-MM-DD', write: (y: string, m: string, d: string) => `${y}-${m}-${d}` },
+  { format: 'DD-MM-YYYY', write: (y: string, m: string, d: string) => `${d}-${m}-${y}` },
+  { format: 'MM/DD/YYYY', write: (y: string, m: string, d: string) => `${m}/${d}/${y}` },
+  { format: 'YYYYMMDD', write: (y: string, m: string, d: string) => `${y}${m}${d}` },
+] as const
+type DateFormat = (typeof DATE_FORMATS)[number]
+
+function toSource(tasks: GenTask[], opts: { excludes?: string; includes?: number[]; axisFormat?: string; dateFormat?: DateFormat } = {}): string {
+  const dateFormat = opts.dateFormat ?? DATE_FORMATS[0]
+  const dayStr = (offset: number) => {
+    const [y, m, d] = isoDay(offset).split('-') as [string, string, string]
+    return dateFormat.write(y, m, d)
+  }
+  const lines = ['gantt', `  dateFormat ${dateFormat.format}`]
   if (opts.excludes) lines.push(`  excludes ${opts.excludes}`)
   if (opts.includes?.length) lines.push(`  includes ${opts.includes.map(dayStr).join(', ')}`)
   if (opts.axisFormat) lines.push(`  axisFormat ${opts.axisFormat}`)
@@ -174,7 +188,7 @@ describe('gantt scheduler properties (generated DAGs)', () => {
         const lines = ['gantt', '  dateFormat YYYY-MM-DD']
         if (interval) lines.push(`  tickInterval ${interval}`)
         tasks.forEach((t, i) => {
-          const start = t.explicitStartDay !== undefined ? dayStr(t.explicitStartDay) : `after ${t.afterRefs!.map(r => `t${r}`).join(' ')}`
+          const start = t.explicitStartDay !== undefined ? isoDay(t.explicitStartDay) : `after ${t.afterRefs!.map(r => `t${r}`).join(' ')}`
           lines.push(`  Task ${i} :t${i}, ${start}, ${t.durationDays}d`)
         })
         const src = lines.join('\n')
@@ -203,6 +217,14 @@ describe('gantt scheduler properties (generated DAGs)', () => {
     }), fcParameters({ numRuns: 60 }))
   })
 
+  test('the declared dateFormat changes only spelling: every format resolves the same schedule', () => {
+    fc.assert(fc.property(genTaskList, fc.constantFrom(...DATE_FORMATS.slice(1)), (tasks, dateFormat) => {
+      const reference = scheduleOf(toSource(tasks, { excludes: 'weekends' }))
+      const respelled = scheduleOf(toSource(tasks, { excludes: 'weekends', dateFormat }))
+      expect(respelled.tasks.map(t => [t.id, t.start, t.end])).toEqual(reference.tasks.map(t => [t.id, t.start, t.end]))
+    }), fcParameters({ numRuns: 80 }))
+  })
+
   test('determinism: resolving and laying out twice is deep-equal', () => {
     fc.assert(fc.property(genTaskList, tasks => {
       const src = toSource(tasks, { excludes: 'weekends' })
@@ -217,8 +239,7 @@ describe('gantt scheduler properties (generated DAGs)', () => {
 
   test('critical-path/slack analysis matches a small backward-pass shadow model', () => {
     fc.assert(fc.property(genTaskList, tasks => {
-      const hasAfterEdge = tasks.some(t => (t.afterRefs?.length ?? 0) > 0)
-      if (!hasAfterEdge) return
+      fc.pre(tasks.some(t => (t.afterRefs?.length ?? 0) > 0))
 
       const s = scheduleOf(toSource(tasks))
       expect(s.analysis).toBeDefined()
