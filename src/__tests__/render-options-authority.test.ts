@@ -137,6 +137,22 @@ describe('shared RenderOptions authority', () => {
     expect((styleInputJsonSchema() as { anyOf: Array<Record<string, unknown>> }).anyOf[0]?.type).not.toBe('number')
   })
 
+  test('public schema copies cannot alter recursive JSON or Style admission', () => {
+    const before = sharedRenderOptionsJsonSchema()
+    const mutable = sharedRenderOptionsJsonSchema() as {
+      properties: Record<string, Record<string, unknown>>
+      $defs: { jsonValue: Record<string, unknown> }
+    }
+    mutable.$defs.jsonValue.anyOf = [{ const: 'foreign-schema' }]
+    mutable.properties.style!.anyOf = [{ type: 'number' }]
+    expect(validateSerializableRenderOptions({
+      style: ['paper', { colors: { accent: '#005fcc' } }],
+      mermaidConfig: { extensionData: [null, true, 4, 'value', { nested: ['ok'] }] },
+    })).toEqual([])
+    expect(sharedRenderOptionsJsonSchema()).toEqual(before)
+    expect(validateSerializableRenderOptions({ mermaidConfig: { nested: [() => 1] } }).length).toBeGreaterThan(0)
+  })
+
   test('accepts the exact nested public shapes and recursive Mermaid JSON', () => {
     expect(validateSerializableRenderOptions({
       style: ['hand-drawn', { stroke: 'crisp', passes: 2, colors: { accent: '#005fcc' } }],

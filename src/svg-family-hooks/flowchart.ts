@@ -6,7 +6,7 @@ import { resolveFlowchartRenderOptions, applyFlowchartLabelWrapping } from '../f
 import { flowchartStatementEnds } from '../flowchart-lexer.ts'
 import { layoutFlowchartViewport } from '../layout/flowchart-viewport.ts'
 import { layoutGraphSync } from '../layout-engine.ts'
-import { parseFlowchartRenderSource } from '../parser.ts'
+import { parseFlowchartRenderSource } from '../flowchart-parser-entry.ts'
 import { lowerGraphScene } from '../renderer.ts'
 import { frontmatterTitle } from '../mermaid-source.ts'
 import { checkAllGraphAuthoredStyles } from '../shared/style-props.ts'

@@ -22,3 +22,5 @@ export function inferBackend(...args: Parameters<typeof Registry.inferBackend>):
 export function isStyledSpec(...args: Parameters<typeof Registry.isStyledSpec>): ReturnType<typeof Registry.isStyledSpec> { return styles().isStyledSpec(...args) }
 export { resolveRoleStyle } from '../scene/roles.ts'
 export type * from '../scene/style-registry.ts'
+
+export function styleOptionValidationRoot() { return styles().STYLE_OPTION_VALIDATION_ROOT }

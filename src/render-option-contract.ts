@@ -6,7 +6,7 @@ import type { FamilyDescriptor } from './agent/families.ts'
 import type { DiagramKind, FamilyId } from './agent/types.ts'
 import { validateJsonSchema, type SchemaProblem, type JsonSchema } from './shared/schema-validation.ts'
 import { resolveStyleStack } from './scene/style-registry.ts'
-import { styleSpecJsonSchema } from './scene/style-spec.ts'
+import { STYLE_OPTION_SCHEMA, renderOptionSchemaRoot, styleSchemaDefinitions } from './render-style-option-schema.ts'
 import { cssColorSpellings, isRecognizableCssColor, safeCssColor, safeCssPaint } from './shared/css-color.ts'
 import { safeCssFontFamily } from './shared/css-font.ts'
 import { limitJsonConfigDiagnostics, validateJsonConfigAdmission } from './shared/json-config-admission.ts'
@@ -124,40 +124,6 @@ const ARCHITECTURE_VISUAL_SCHEMA = {
     'Sparse architecture visual overrides merged over resolved defaults.',
   ),
   'x-agentic-mermaid-runtime-validator': 'architectureVisual',
-} as const satisfies JsonSchemaNode
-
-/**
- * The StyleSpec record and the role-style records it references, as local
- * definitions. A style input names the record by `$ref` instead of carrying
- * it: a name-or-record input and a stack of them would otherwise inline the
- * same ~22 KB record twice in every schema that accepts `style`. The record's
- * own `#/$defs/roleStyle-*` references keep their names, so every schema that
- * places these definitions at its root resolves them unchanged.
- */
-const STYLE_SCHEMA_DEFINITIONS: Readonly<Record<string, JsonSchemaNode>> = (() => {
-  const { $schema: _dialect, $id: _id, title: _title, $defs, ...record } = styleSpecJsonSchema() as Record<string, unknown>
-  const definitions = { ...($defs as Record<string, JsonSchemaNode>), styleSpec: record as JsonSchemaNode }
-  if (Object.hasOwn($defs as object, 'styleSpec') || Object.hasOwn($defs as object, 'jsonValue')) {
-    throw new Error('StyleSpec schema definitions collide with render option definitions')
-  }
-  return definitions
-})()
-
-const STYLE_INPUT_SCHEMA = {
-  anyOf: [
-    { type: 'string', description: 'Registered Style or Palette name.' },
-    { $ref: '#/$defs/styleSpec' },
-  ],
-  'x-agentic-mermaid-validation-expectation': 'a registered Style name or StyleSpec',
-} as const satisfies JsonSchemaNode
-
-const STYLE_OPTION_SCHEMA = {
-  anyOf: [
-    STYLE_INPUT_SCHEMA,
-    { type: 'array', items: STYLE_INPUT_SCHEMA, description: 'Style stack merged from left to right.' },
-  ],
-  description: 'A registered name, inline StyleSpec, or left-to-right stack of either.',
-  'x-agentic-mermaid-runtime-validator': 'styleInput',
 } as const satisfies JsonSchemaNode
 
 export const JSON_VALUE_SCHEMA = {
@@ -401,8 +367,10 @@ export function validateSerializableRenderOptions(value: unknown): string[] {
   const admissionProblems = renderOptionsAdmissionMessages(value)
   if (admissionProblems.length > 0) return admissionProblems
   const problems: string[] = []
-  // The schema is a projection of frozen module constants: build it once.
-  const rootSchema = validationRootSchema ??= deepFreeze(sharedRenderOptionsJsonSchema())
+  // Selected field fragments already own their exact schemas. Their only
+  // enclosing references are the recursive JSON value definition; retaining
+  // another full public schema duplicates every field and expanded StyleSpec.
+  const rootSchema = validationRootSchema ??= deepFreeze({ $defs: { jsonValue: cloneSchema(JSON_VALUE_SCHEMA) } })
   for (const [field, fieldValue] of Object.entries(value)) {
     if (!Object.hasOwn(SHARED_RENDER_OPTION_FIELD_DESCRIPTORS, field)) {
       const hint = misplacedRenderOptionHint(field)
@@ -414,7 +382,7 @@ export function validateSerializableRenderOptions(value: unknown): string[] {
       continue
     }
     const descriptor = SHARED_RENDER_OPTION_FIELD_DESCRIPTORS[field as SharedRenderOptionField]
-    const schemaProblems = validateJsonSchema(fieldValue, descriptor.schema, rootSchema, [field], { diagnostics: 'field', validateRuntime: renderSchemaProblems })
+    const schemaProblems = validateJsonSchema(fieldValue, descriptor.schema, renderOptionSchemaRoot(field, rootSchema), [field], { diagnostics: 'field', validateRuntime: renderSchemaProblems })
     if (schemaProblems.length > 0 && schemaProblems.every(problem => problem.generic && problem.path.length === 1)) {
       problems.push(`render option "${field}" must ${descriptor.validationExpectation}`)
     } else {
@@ -458,7 +426,7 @@ export function sharedRenderOptionsJsonSchema(): Record<string, unknown> {
 export function renderOptionsSchemaDefinitions(): Record<string, unknown> {
   return {
     jsonValue: cloneSchema(JSON_VALUE_SCHEMA),
-    ...Object.fromEntries(Object.entries(STYLE_SCHEMA_DEFINITIONS).map(([name, definition]) => [name, cloneSchema(definition)])),
+    ...Object.fromEntries(Object.entries(styleSchemaDefinitions()).map(([name, definition]) => [name, cloneSchema(definition)])),
   }
 }
 
@@ -468,6 +436,6 @@ export function styleInputJsonSchema(description?: string): Record<string, unkno
   return {
     ...cloneSchema(STYLE_OPTION_SCHEMA),
     ...(description === undefined ? {} : { description }),
-    $defs: Object.fromEntries(Object.entries(STYLE_SCHEMA_DEFINITIONS).map(([name, definition]) => [name, cloneSchema(definition)])),
+    $defs: Object.fromEntries(Object.entries(styleSchemaDefinitions()).map(([name, definition]) => [name, cloneSchema(definition)])),
   }
 }

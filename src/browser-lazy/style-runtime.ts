@@ -8,3 +8,5 @@ export {
   resolveStyleStackWithFace,
   styleRegistryRevision,
 } from '../scene/style-registry.ts'
+
+export { STYLE_OPTION_VALIDATION_ROOT } from '../render-style-option-schema.ts'

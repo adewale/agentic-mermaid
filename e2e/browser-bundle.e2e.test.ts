@@ -531,6 +531,39 @@ describe('async family-loaded browser renderer', () => {
     await browser?.close()
   })
 
+  test.each(['elk', 'agentic'] as const)('%s public Flow then State dispatch retains complete products', async backend => {
+    const sources = [
+      'flowchart LR\nA[Flow 😀] --> B[Done]',
+      'stateDiagram-v2\nstate "Ready 😀" as Ready\n[*] --> Ready\nReady --> [*]',
+      'stateDiagram-v2\nstate Composite {\n [*] --> A\n A --> B : 日本語\n}\nComposite --> [*]',
+    ]
+    const options = { graphLayout: { backend, fallback: 'none' as const }, embedFontImport: false }
+    const references = await sourceSVGsWithReceipts(sources.map(source => ({ source, options })))
+    const page = await browser.newPage()
+    // The Node Scene SPI and async source consumer already have different
+    // accounting fees. Preserve every other certificate and receipt field.
+    const withoutOperationCount = (product: SourceSVG): unknown => {
+      const copy = JSON.parse(JSON.stringify(product))
+      if (copy.receipt.layoutCertification) delete copy.receipt.layoutCertification.checks.operations
+      return copy
+    }
+    try {
+      await page.goto(`${base}/blank.html`)
+      for (const [index, source] of sources.entries()) {
+        const actual = await page.evaluate(async ({ entry, source, options }) => {
+          try { return { rendered: await (await import(entry)).renderMermaidSVGWithReceiptAsync(source, options) } }
+          catch (error) { return { error: String(error) } }
+        }, { entry: `${base}/dist/browser-lazy/index.js`, source, options })
+        const expected = references[index]!
+        if ('error' in expected) expect(actual).toEqual({ error: String(expected.error) })
+        else {
+          expect('rendered' in actual).toBe(true)
+          if ('rendered' in actual) expect(withoutOperationCount(actual.rendered)).toEqual(withoutOperationCount(expected.rendered))
+        }
+      }
+    } finally { await page.close() }
+  })
+
   test.each(['elk', 'agentic'] as const)('%s warm plain preparation preserves diagnostics before option microtasks', async backend => {
     const page = await browser.newPage()
     try {
@@ -767,9 +800,9 @@ describe('async family-loaded browser renderer', () => {
       page.on('request', request => requests.push(new URL(request.url()).pathname.replace(/^\/dist\//, '')))
       try {
         await page.goto(`${base}/blank.html`)
-        await page.evaluate(async ({ entry, source, options }) => {
+        const beforePlain = await page.evaluate(async ({ entry, source, options }) => {
           const api = await import(entry)
-          await api.renderMermaidSVGWithReceiptAsync(source, options)
+          return JSON.stringify(await api.renderMermaidSVGWithReceiptAsync(source, options))
         }, { entry: `${base}/dist/browser-lazy/index.js`, source, options: baseOptions })
         expect(requests).not.toContain(styleChunk)
         const actual = await page.evaluate(async ({ entry, source, input, baseOptions }) => {
@@ -788,6 +821,11 @@ describe('async family-loaded browser renderer', () => {
         expect('error' in actual ? { error: actual.error } : { product: actual.product }).toEqual(
           'error' in reference ? { error: String(reference.error) } : { product: JSON.parse(JSON.stringify(reference.rendered)) })
         expect(requests.filter(path => path === styleChunk)).toHaveLength(1)
+        const afterPlain = await page.evaluate(async ({ entry, source, options }) => {
+          const api = await import(entry)
+          return JSON.stringify(await api.renderMermaidSVGWithReceiptAsync(source, options))
+        }, { entry: `${base}/dist/browser-lazy/index.js`, source, options: baseOptions })
+        expect(afterPlain).toBe(beforePlain)
       } finally { await page.close() }
     }
   }, 30_000)

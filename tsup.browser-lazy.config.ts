@@ -15,6 +15,10 @@ export const lazyBrowserStyles: Plugin = {
   setup(build) {
     const styleRegistry = resolve(import.meta.dirname, 'src/scene/style-registry.ts')
     const styleRuntime = resolve(import.meta.dirname, 'src/browser-lazy/style-runtime.ts')
+    const styleSchema = resolve(import.meta.dirname, 'src/render-style-option-schema.ts')
+    build.onResolve({ filter: /\/render-style-option-schema\.ts$/ }, args =>
+      args.importer !== styleRuntime && resolve(args.resolveDir, args.path) === styleSchema
+        ? { path: resolve(import.meta.dirname, 'src/browser-lazy/render-style-option-schema.ts') } : undefined)
     build.onResolve({ filter: /\/style-registry\.ts$/ }, args =>
       args.importer !== styleRuntime && args.kind !== 'dynamic-import' && resolve(args.resolveDir, args.path) === styleRegistry
         ? { path: resolve(import.meta.dirname, 'src/browser-lazy/style-registry.ts') } : undefined)
@@ -37,6 +41,10 @@ export const lazyBrowserDrawingConsumer: Plugin = {
       contents: `${await readFile(args.path, 'utf8')}\nexport { renderLoadedFamilySvgWithReceipt } from '../render-core.ts'\n`,
       loader: 'ts', resolveDir: dirname(args.path),
     }))
+    const flowParser = resolve(import.meta.dirname, 'src/flowchart-parser-entry.ts')
+    build.onResolve({ filter: /\/flowchart-parser-entry\.ts$/ }, args =>
+      resolve(args.resolveDir, args.path) === flowParser
+        ? { path: resolve(import.meta.dirname, 'src/browser-lazy/flowchart-parser-entry.ts') } : undefined)
     const backend = resolve(import.meta.dirname, 'src/scene/backend.ts')
     const runtime = resolve(import.meta.dirname, 'src/browser-lazy/scene-backend-runtime.ts')
     const defaultBackend = resolve(import.meta.dirname, 'src/scene/default-backend.ts')
