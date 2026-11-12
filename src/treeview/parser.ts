@@ -10,12 +10,14 @@ const read = (text: string) => readGrammarText(readGrammarAuthoredText(text), '\
 /** Box-prefix normalization follows Pele's MIT implementation at 3a2f075.
  * Copyright 2026 kepano; see LICENSES/pele-MIT.txt. Labels are never stripped. */
 export function treeviewIndentLines(lines: readonly string[]): string[] {
-  const hasBox = lines.some(line => /^[\t │┃]*[├└┣┗][─━]/.test(line))
+  // Keep regex source one-byte in the shared bundle; these escapes match
+  // the same light/heavy box-drawing branches (│┃├└┣┗─━).
+  const hasBox = lines.some(line => /^[\t \u2502\u2503]*[\u251c\u2514\u2523\u2517][\u2500\u2501]/.test(line))
   if (!hasBox) return [...lines]
   const normalized = lines.map(line => line.replace(/\t/g, '    '))
   let segment = 4
   for (const line of normalized) {
-    const at = /^[ │┃]*[├└┣┗]/.exec(line)?.[0].length
+    const at = /^[ \u2502\u2503]*[\u251c\u2514\u2523\u2517]/.exec(line)?.[0].length
     if (at !== undefined && at > 1) {
       segment = at - 1
       break
@@ -23,10 +25,10 @@ export function treeviewIndentLines(lines: readonly string[]): string[] {
   }
   return normalized.map((line, index) => {
     if (!line.trim() || /^\s*(?:%%|title(?:\s|$)|accTitle\s*:|accDescr\s*[:{])/.test(line) || isTreeviewHeader(line)) return line
-    if (/^[ │┃]+$/.test(line)) return ''
-    const prefix = /^[ │┃]*[├└┣┗][─━]* */.exec(line)
+    if (/^[ \u2502\u2503]+$/.test(line)) return ''
+    const prefix = /^[ \u2502\u2503]*[\u251c\u2514\u2523\u2517][\u2500\u2501]* */.exec(line)
     if (prefix) {
-      const at = prefix[0].search(/[├└┣┗]/)
+      const at = prefix[0].search(/[\u251c\u2514\u2523\u2517]/)
       const content = line.slice(prefix[0].length)
       if (!content.trim()) throw new Error(`Empty TreeView node at line ${index + 1}`)
       return '    '.repeat(Math.round(at / segment) + 1) + content

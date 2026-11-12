@@ -26,8 +26,10 @@
 export const TERMINAL_CONTROL_RE = /[\u0000-\u001f\u007f-\u009f]/
 
 const ENTITY_CODE_RE = /#\w+;/g
-/** Upstream's markers: `ﬂ°°123¶ß` (digits) or `ﬂ°name¶ß`. */
-export const ENTITY_MARKER_RE = /ﬂ°°(\d+)¶ß|ﬂ°(\w+)¶ß/g
+/** Upstream's markers: `ﬂ°°123¶ß` (digits) or `ﬂ°name¶ß`.
+ * ASCII escapes keep the shared bundled script's retained source one-byte
+ * in V8. The numeric and named captures stay separate after the common prefix. */
+export const ENTITY_MARKER_RE = /\ufb02\xb0(?:\xb0(\d+)|(\w+))\xb6\xdf/g
 
 /** The five names XML defines. Every other name resolves only through the HTML5 table. */
 export const XML_NAMED_ENTITIES: ReadonlyMap<string, string> = new Map([
