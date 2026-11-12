@@ -176,9 +176,82 @@ function transferBundleRouteOwnership(source: unknown, copy: unknown): void {
   visit(source, copy)
 }
 
+// Constructor-owned text parts are deeply frozen, so their estimate is stable.
+const immutableTextResidency = new WeakMap<object, number>()
+function immutableTextWeight(item: object): number | undefined {
+  if (!isImmutablePixelTextPart(item)) return undefined
+  let weight = immutableTextResidency.get(item)
+  if (weight === undefined) immutableTextResidency.set(item, weight = estimatedResidency(item, MAX_WEIGHT))
+  return weight
+}
+
+type OwnedSnapshot<T> = { readonly kind: 'copied'; readonly value: T; readonly weight: number } | { readonly kind: 'oversized' | 'uncloneable' | 'unmodelled' }
+
+/** One walk over a graph this package constructed: an original family
+ * producer's fresh result, or this cache's own snapshot. Such graphs hold no
+ * caller Proxy (request data reaches producers only as plain immutable
+ * snapshots), so plain reads replace the native-admission and custody-proof
+ * walks. The result matches that path's successful proof: mutable records,
+ * arrays, Maps and Sets are copied with aliases intact, constructor-owned
+ * immutable text is shared, and bundle-route and retained-text custody move
+ * to the copies. The residency estimate is accumulated in the same walk. A
+ * function or symbol is `uncloneable`, exactly as structuredClone would reject
+ * it; any other value outside the model is `unmodelled`, and the caller keeps
+ * the native path. */
+function ownedPositionedSnapshot<T>(source: T, limit: number): OwnedSnapshot<T> {
+  const copies = new Map<object, object>()
+  let weight = 0, unmodelled = false, uncloneable = false
+  const copy = (value: unknown): unknown => {
+    if (unmodelled || weight > limit) return undefined
+    if (typeof value === 'string') { weight += value.length * 4 + 16; return value }
+    if (value === null || typeof value !== 'object') {
+      if (typeof value === 'function' || typeof value === 'symbol') unmodelled = uncloneable = true
+      weight += 16
+      return value
+    }
+    const existing = copies.get(value)
+    if (existing) { weight += 8; return existing }
+    const textWeight = immutableTextWeight(value)
+    if (textWeight !== undefined) { copies.set(value, value); weight += textWeight; return value }
+    const kind = clonedKind(value)
+    let target: object
+    weight += 64
+    if (kind === 'map') {
+      const map = new Map<unknown, unknown>()
+      copies.set(value, target = map)
+      for (const [key, item] of mapSnapshot(value)) { weight += 32; map.set(copy(key), copy(item)) }
+    } else if (kind === 'set') {
+      const set = new Set<unknown>()
+      copies.set(value, target = set)
+      for (const item of setSnapshot(value)) { weight += 16; set.add(copy(item)) }
+    } else if (kind === 'record' || kind === 'array') {
+      const record = (kind === 'array' ? new Array((value as unknown[]).length) : {}) as Record<string, unknown>
+      copies.set(value, target = record)
+      for (const key of Object.keys(value)) {
+        weight += key.length * 2 + 16
+        record[key] = copy((value as Record<string, unknown>)[key])
+      }
+    } else {
+      unmodelled = true
+      return undefined
+    }
+    transferConstructedBundleRoute(value, target)
+    transferRetainedPixelText(value, target)
+    return target
+  }
+  const value = copy(source) as T
+  return uncloneable ? { kind: 'uncloneable' } : unmodelled ? { kind: 'unmodelled' } : weight > limit ? { kind: 'oversized' } : { kind: 'copied', value, weight }
+}
+
 /** Public copies remain independent mutable snapshots. Private native copies
- * may share only constructor-owned immutable text, preserving custody cost. */
-export function clonePositioned<T>(source: T, immutableText = false): T {
+ * may share only constructor-owned immutable text, preserving custody cost.
+ * `ownedSource` asserts the graph was constructed by this package (see
+ * ownedPositionedSnapshot); every other source keeps native admission. */
+export function clonePositioned<T>(source: T, immutableText = false, ownedSource = false): T {
+  if (immutableText && ownedSource) {
+    const owned = ownedPositionedSnapshot(source, Infinity)
+    if (owned.kind === 'copied') return owned.value
+  }
   // Native admission must precede reflection: even a descriptor trap can
   // delete an uncloneable Proxy before structuredClone gets to reject it.
   const copy = structuredClone(source)
@@ -232,7 +305,8 @@ export function cachedPositioned(family: object, key: string, alreadyObserved = 
   const value = results.get(isolatedKey(family, key))
   if (!alreadyObserved) observeCache('positioned-layout', value ? 'hit' : 'miss')
   if (!value) return undefined
-  const copy = clonePositioned(value.result, immutableText)
+  // The cache's own snapshot: copied here, or an original producer's result.
+  const copy = clonePositioned(value.result, immutableText, true)
   transferGraphLayoutDecisions(value.result, copy)
   return copy
 }
@@ -259,27 +333,33 @@ export function borrowedPositioned(family: object, key: string, nativeSvgRequest
   }
   return value
 }
-export function retainPositioned(family: object, key: string, value: FamilyLayoutResult, projection?: FamilyPositionedView): void {
-  retainSnapshot(family, key, value, projection, true)
+/** `ownedProducer`: the value is an original family producer's fresh result. */
+export function retainPositioned(family: object, key: string, value: FamilyLayoutResult, projection?: FamilyPositionedView, ownedProducer = false): void {
+  retainSnapshot(family, key, value, projection, true, ownedProducer)
 }
 /** Fresh original Flowchart/State/Sequence/Pie geometry, private native SVG only. */
 export function retainOwnedNativeSvgPositioned(family: object, key: string, value: FamilyLayoutResult, projection?: FamilyPositionedView): void {
-  retainSnapshot(family, key, value, projection, false)
+  retainSnapshot(family, key, value, projection, false, true)
 }
-function retainSnapshot(family: object, key: string, value: FamilyLayoutResult, projection: FamilyPositionedView | undefined, copy: boolean): void {
+function retainSnapshot(family: object, key: string, value: FamilyLayoutResult, projection: FamilyPositionedView | undefined, copy: boolean, ownedProducer: boolean): void {
   const snapshot: PositionedSnapshot = { result: value, ...(projection ? { projection } : {}) }
-  const weight = key.length * 2 + estimatedResidency([snapshot, graphLayoutDecisionsOf(value)], MAX_WEIGHT) + 1024
+  const fixedWeight = key.length * 2 + estimatedResidency(graphLayoutDecisionsOf(value), MAX_WEIGHT) + 1024
+  const owned = copy && ownedProducer ? ownedPositionedSnapshot(snapshot, MAX_WEIGHT - fixedWeight) : undefined
+  // C4 identity planners carry callbacks. Keep the complete authoritative
+  // artifact uncached when a private snapshot cannot preserve its evidence.
+  if (owned?.kind === 'uncloneable') { observeCache('positioned-layout', 'store-skipped', 'uncloneable'); return }
+  const weight = owned?.kind === 'copied' ? fixedWeight + owned.weight : owned?.kind === 'oversized' ? Infinity
+    : fixedWeight + estimatedResidency(snapshot, MAX_WEIGHT, immutableTextWeight)
   if (weight > MAX_WEIGHT) { observeCache('positioned-layout', 'store-skipped', 'weight-limit'); return }
   let retained = snapshot
-  if (copy) {
+  if (owned?.kind === 'copied') retained = owned.value
+  else if (copy) {
     try { retained = clonePositioned(snapshot, true) } catch (error) {
-      // C4 identity planners carry callbacks. Keep the complete authoritative
-      // artifact uncached when a private snapshot cannot preserve its evidence.
       if (error instanceof Error && error.name === 'DataCloneError') { observeCache('positioned-layout', 'store-skipped', 'uncloneable'); return }
       throw error
     }
-    transferGraphLayoutDecisions(value, retained.result)
   }
+  if (copy) transferGraphLayoutDecisions(value, retained.result)
   if (!copy) nativeResidency.set(retained, { locallyRepeated: false })
   results.set(isolatedKey(family, key), retained, weight)
   retainedResults.add(retained.result)
