@@ -1,9 +1,10 @@
+import { AGENTFLOW_NORMALIZE_REQUEST } from '../family-request-hooks.ts'
 import { layoutResult, positionedView, scene, type BrowserSvgFamilyHooks } from '../browser-lazy/family.ts'
 import { projectGraphPositioned } from '../positioned-views/graph.ts'
 import { lowerGraphScene } from '../renderer.ts'
 import { nativeFamilyGraphLayout } from '../layout/native-family-policy.ts'
 import { layoutGraphSync } from '../layout-engine.ts'
-import { applyFlowchartLabelWrapping, resolveFlowchartRenderOptions } from '../flowchart-config.ts'
+import { applyFlowchartLabelWrapping } from '../flowchart-config.ts'
 import { flowchartStatementEnds } from '../flowchart-lexer.ts'
 import { checkAllGraphAuthoredStyles } from '../shared/style-props.ts'
 import { parseAgentflow } from '../agentflow/parser.ts'
@@ -13,7 +14,7 @@ import { ownedAgentflowRenderGraph } from '../agent/owned-render-model.ts'
 
 export const AGENTFLOW_SVG_HOOKS = {
   statementEnds: flowchartStatementEnds,
-  normalizeRequest: ctx => ({ renderOptions: resolveFlowchartRenderOptions(ctx.source.frontmatter, ctx.renderOptions) }),
+  normalizeRequest: AGENTFLOW_NORMALIZE_REQUEST,
   layout: ctx => {
     const graph = ownedAgentflowRenderGraph(ctx.source) ?? projectAgentflowGraph(parseAgentflow(ctx.source.authoredFamilyBody ?? ctx.source.familyBody, false))
     checkAllGraphAuthoredStyles(graph)

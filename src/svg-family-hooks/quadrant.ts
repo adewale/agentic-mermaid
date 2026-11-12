@@ -1,3 +1,4 @@
+import { QUADRANT_NORMALIZE_REQUEST } from '../family-request-hooks.ts'
 import { diagnoseQuadrantConfig } from '../quadrant/config-diagnostics.ts'
 import { projectQuadrantPositioned } from '../positioned-views/quadrant.ts'
 import { withFrontmatterTitle } from '../mermaid-source.ts'
@@ -14,9 +15,7 @@ import { withAccessibilityObject } from '../shared/accessibility-directives.ts'
 export const QUADRANT_SVG_HOOKS = {
   configDiagnostics: diagnoseQuadrantConfig,
   statementEnds: quadrantStatementEnds,
-  normalizeRequest: ctx => ({
-    familyConfig: { visual: resolveQuadrantVisualConfig(ctx.source.frontmatter) },
-  }),
+  normalizeRequest: QUADRANT_NORMALIZE_REQUEST,
   layout: ctx => layoutResult(layoutQuadrantChart(
     withFrontmatterTitle(withAccessibilityObject(parseQuadrantChart(familyParserLines(ctx.source)), ctx.source.accessibility), ctx.source.frontmatter),
     ctx.renderOptions,

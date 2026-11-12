@@ -1,3 +1,4 @@
+import { PIE_NORMALIZE_REQUEST } from '../family-request-hooks.ts'
 import { diagnosePieConfig } from '../pie/config-diagnostics.ts'
 import { projectPiePositioned } from '../positioned-views/pie.ts'
 import { withFrontmatterTitle } from '../mermaid-source.ts'
@@ -13,9 +14,7 @@ import { lowerPieScene } from '../pie/renderer.ts'
 export const PIE_SVG_HOOKS = {
   configDiagnostics: diagnosePieConfig,
   statementEnds: pieStatementEnds,
-  normalizeRequest: ctx => ({
-    familyConfig: { visual: resolvePieVisualConfig(ctx.source.frontmatter) },
-  }),
+  normalizeRequest: PIE_NORMALIZE_REQUEST,
   layout: ctx => layoutResult(layoutPieChart(
     withFrontmatterTitle(parsePieChart(pieFamilyLines(ctx.source)), ctx.source.frontmatter),
     ctx.renderOptions,

@@ -64,6 +64,14 @@ ${ids.map(id => `import family_${id} from '../families/${id}.ts'`).join('\n')}
 for (const family of [${ids.map(id => `family_${id}`).join(', ')}]) installLoadedFamilyDescriptor(family)
 `)
 
+writeGenerated(join(GENERATED, 'terminal-synchronous.ts'), `${generatedHeader()}
+import { installLoadedFamilyDescriptor } from '../../agent/family-router.ts'
+import { createBrowserFamilyDescriptor } from '../family.ts'
+${ids.map(id => `import data_${id} from './descriptors/${id}.ts'\nimport hooks_${id} from './terminal/${id}.ts'`).join('\n')}
+
+${ids.map(id => `installLoadedFamilyDescriptor(createBrowserFamilyDescriptor(data_${id}, hooks_${id}))`).join('\n')}
+`)
+
 for (const descriptor of descriptors) {
   const data = {
     id: descriptor.id,
@@ -111,7 +119,7 @@ export default function install() {
 }
 `)
   writeGenerated(join(GENERATED, 'terminal', `${descriptor.id}.ts`), `${generatedHeader()}
-export { ${symbol}_RENDER_HOOKS as default } from '../../../render-family-hooks.ts'
+export { ${symbol}_TERMINAL_HOOKS as default } from '../../../terminal-family-hooks.ts'
 `)
 }
 

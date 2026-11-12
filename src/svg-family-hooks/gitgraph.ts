@@ -1,10 +1,11 @@
+import { GITGRAPH_NORMALIZE_REQUEST } from '../family-request-hooks.ts'
 import { withParserSource } from '../shared/parser-source.ts'
 import { diagnoseGitGraphConfig } from '../gitgraph/config-diagnostics.ts'
 import { projectGitGraphPositioned } from '../positioned-views/gitgraph.ts'
 import { layoutResult, positionedView, scene, type BrowserSvgFamilyHooks } from '../browser-lazy/family.ts'
 import { gitGraphStatementEnds, parseGitGraph } from '../gitgraph/parser.ts'
 import { positionGitGraph, resolveGitGraphPositionConfig } from '../gitgraph/position.ts'
-import { lowerGitGraphScene, resolveGitGraphThemeProjection } from '../gitgraph/renderer.ts'
+import { lowerGitGraphScene } from '../gitgraph/renderer.ts'
 import { withAccessibilityFields } from '../shared/accessibility-directives.ts'
 
 /** The gitgraph SVG hooks: one definition for the complete renderer
@@ -12,17 +13,7 @@ import { withAccessibilityFields } from '../shared/accessibility-directives.ts'
 export const GITGRAPH_SVG_HOOKS = {
   configDiagnostics: diagnoseGitGraphConfig,
   statementEnds: gitGraphStatementEnds,
-  normalizeRequest: ctx => ({
-    familyConfig: {
-      position: resolveGitGraphPositionConfig(ctx.source.config.gitGraph, ctx.source.config.themeVariables),
-      ...(typeof ctx.source.frontmatter.title === 'string' ? { title: ctx.source.frontmatter.title } : {}),
-    },
-    appearance: {
-      family: {
-        themeVariables: resolveGitGraphThemeProjection(ctx.source.config.themeVariables),
-      },
-    },
-  }),
+  normalizeRequest: GITGRAPH_NORMALIZE_REQUEST,
   layout: ctx => {
     const familyConfig = ctx.familyConfig as {
       position: ReturnType<typeof resolveGitGraphPositionConfig>

@@ -11,6 +11,7 @@ import type { FamilyDescriptor } from './families.ts'
 import type { FamilyId } from './types.ts'
 import { compareCodePointStrings } from '../shared/deterministic-order.ts'
 import { normalizeFamilyDetectionLine } from '../mermaid-source-wrapper.ts'
+import { enrollOwnedFamily, isOwnedFamily } from '../experimental/owned-family.ts'
 export { normalizeFamilyDetectionLine } from '../mermaid-source-wrapper.ts'
 
 export type RegisteredFamilyResolver = (
@@ -46,6 +47,14 @@ export function installRegisteredFamilyByIdResolver(resolver: RegisteredFamilyBy
  * additive so concurrent async renders of different families cannot replace
  * one another's parser routing state. */
 export function installLoadedFamilyDescriptor(descriptor: FamilyDescriptor): void {
+  const previous = loadedFamilyDescriptors.get(descriptor.id)
+  // Focused output entries share the exact generated identity. Loading one
+  // must retain the other output's hooks, while replacement/extension
+  // descriptors keep their ordinary replacement semantics.
+  if (previous && isOwnedFamily(previous) && isOwnedFamily(descriptor) && previous.identity === descriptor.identity) {
+    descriptor = Object.freeze({ ...previous, ...descriptor })
+    enrollOwnedFamily(descriptor)
+  }
   loadedFamilyDescriptors.set(descriptor.id, descriptor)
 }
 

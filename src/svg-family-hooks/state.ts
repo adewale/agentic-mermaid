@@ -1,3 +1,4 @@
+import { STATE_NORMALIZE_REQUEST } from '../family-request-hooks.ts'
 import { diagnoseStateConfig } from '../state/config-diagnostics.ts'
 import { projectGraphPositioned } from '../positioned-views/graph.ts'
 import type { ResolvedStateVisualConfig } from '../state/config.ts'
@@ -6,7 +7,7 @@ import { layoutGraphSync } from '../layout-engine.ts'
 import { parseMermaid } from '../parser.ts'
 import { lowerGraphScene } from '../renderer.ts'
 import { frontmatterTitle } from '../mermaid-source.ts'
-import { resolveStateRenderOptions } from '../state/config.ts'
+
 import { stateStatementEnds } from '../state/parse-core.ts'
 import { checkAllGraphAuthoredStyles } from '../shared/style-props.ts'
 
@@ -15,14 +16,7 @@ import { checkAllGraphAuthoredStyles } from '../shared/style-props.ts'
 export const STATE_SVG_HOOKS = {
   configDiagnostics: diagnoseStateConfig,
   statementEnds: stateStatementEnds,
-  normalizeRequest: ctx => {
-    const resolved = resolveStateRenderOptions(ctx.source.frontmatter, ctx.renderOptions)
-    const { stateVisual, ...renderOptions } = resolved
-    return {
-      renderOptions,
-      ...(stateVisual ? { appearance: { family: { visual: stateVisual } } } : {}),
-    }
-  },
+  normalizeRequest: STATE_NORMALIZE_REQUEST,
   layout: ctx => {
     const stateVisual = (ctx.familyAppearance as { visual?: ResolvedStateVisualConfig } | undefined)?.visual
     const diagramTitle = frontmatterTitle(ctx.source.frontmatter)

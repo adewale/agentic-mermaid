@@ -1,8 +1,9 @@
+import { FLOWCHART_NORMALIZE_REQUEST } from '../family-request-hooks.ts'
 import { withParserSource } from '../shared/parser-source.ts'
 import { diagnoseFlowchartConfig } from '../flowchart/config-diagnostics.ts'
 import { projectGraphPositioned } from '../positioned-views/graph.ts'
 import { layoutResult, positionedView, scene, type BrowserSvgFamilyHooks } from '../browser-lazy/family.ts'
-import { resolveFlowchartRenderOptions, applyFlowchartLabelWrapping } from '../flowchart-config.ts'
+import { applyFlowchartLabelWrapping } from '../flowchart-config.ts'
 import { flowchartStatementEnds } from '../flowchart-lexer.ts'
 import { layoutFlowchartViewport } from '../layout/flowchart-viewport.ts'
 import { layoutGraphSync } from '../layout-engine.ts'
@@ -21,9 +22,7 @@ import { checkAllGraphAuthoredStyles } from '../shared/style-props.ts'
 export const FLOWCHART_SVG_HOOKS = {
   configDiagnostics: diagnoseFlowchartConfig,
   statementEnds: flowchartStatementEnds,
-  normalizeRequest: ctx => ({
-    renderOptions: resolveFlowchartRenderOptions(ctx.source.frontmatter, ctx.renderOptions),
-  }),
+  normalizeRequest: FLOWCHART_NORMALIZE_REQUEST,
   layout: ctx => {
     const graph = withParserSource(ctx.source, () => ctx.source.familyBody.split('\n'), () => parseFlowchartRenderSource(ctx.source.authoredFamilyBody ?? ctx.source.familyBody, ctx.source.familyBody))
     checkAllGraphAuthoredStyles(graph)

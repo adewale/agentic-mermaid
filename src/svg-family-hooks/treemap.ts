@@ -1,3 +1,4 @@
+import { TREEMAP_NORMALIZE_REQUEST } from '../family-request-hooks.ts'
 import { layoutResult, positionedView, scene, type BrowserSvgFamilyHooks } from '../browser-lazy/family.ts'
 import { parseTreemapDiagram } from '../treemap/parser.ts'
 import { layoutTreemapDiagram, resolveTreemapConfig } from '../treemap/layout.ts'
@@ -7,7 +8,7 @@ import { diagnoseTreemapConfig } from '../treemap/config-diagnostics.ts'
 
 export const TREEMAP_SVG_HOOKS = {
   configDiagnostics: diagnoseTreemapConfig,
-  normalizeRequest: ctx => ({ familyConfig: { treemap: resolveTreemapConfig(ctx.source.config.treemap as Record<string, unknown> | undefined) } }),
+  normalizeRequest: TREEMAP_NORMALIZE_REQUEST,
   layout: ctx => {
     const body = parseTreemapDiagram(ctx.source.authoredFamilyBody ?? ctx.source.familyBody)
     body.title ??= typeof ctx.source.frontmatter.title === 'string' ? ctx.source.frontmatter.title : undefined

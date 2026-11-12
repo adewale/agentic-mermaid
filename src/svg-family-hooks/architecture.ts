@@ -1,3 +1,4 @@
+import { ARCHITECTURE_NORMALIZE_REQUEST } from '../family-request-hooks.ts'
 import { diagnoseArchitectureConfig } from '../architecture/config-diagnostics.ts'
 import { projectArchitecturePositioned } from '../positioned-views/architecture.ts'
 import { withFrontmatterTitle } from '../mermaid-source.ts'
@@ -13,20 +14,7 @@ import { withAccessibilityFields } from '../shared/accessibility-directives.ts'
 export const ARCHITECTURE_SVG_HOOKS = {
   configDiagnostics: diagnoseArchitectureConfig,
   statementEnds: architectureStatementEnds,
-  normalizeRequest: ctx => {
-    const resolved = resolveArchitectureVisualConfig(ctx.source.frontmatter, ctx.colors, ctx.renderOptions, ctx.styleFace)
-    const renderOptions = {
-      ...ctx.renderOptions,
-      padding: ctx.renderOptions.padding ?? resolved.padding,
-      nodeSpacing: ctx.renderOptions.nodeSpacing ?? resolved.nodeSpacing,
-      layerSpacing: ctx.renderOptions.layerSpacing ?? resolved.layerSpacing,
-    }
-    return {
-      renderOptions,
-      familyConfig: { layout: resolved.layout },
-      appearance: { family: { visual: resolved.visual } },
-    }
-  },
+  normalizeRequest: ARCHITECTURE_NORMALIZE_REQUEST,
   layout: ctx => {
     const familyConfig = ctx.familyConfig as {
       layout: ReturnType<typeof resolveArchitectureVisualConfig>['layout']

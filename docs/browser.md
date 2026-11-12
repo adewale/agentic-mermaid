@@ -8,6 +8,7 @@ the diagram source known before the page is served?**
 | Source is fixed at publish time — blog post, docs page, README | [Pre-render before delivery](#framework-neutral-pre-rendering) | none |
 | Source is authored or edited in the page — editor, playground, user input | [Async family-loaded renderer](#async-family-loaded-esm) | loader plus the selected family and shared core |
 | Synchronous source-to-SVG without editing or terminal APIs | [Focused SVG entry](#focused-synchronous-svg) | SVG families and the default backend |
+| Synchronous source-to-text without editing or graphical receipts | [Focused ASCII entry](#focused-synchronous-ascii) | Terminal families and their layout dependencies |
 | One classic script with a synchronous global matters more than transfer | [Compatibility bundle](#classic-one-file-compatibility-bundle) | complete renderer and library APIs |
 
 Most sites are the first row. `renderMermaidSVG` is synchronous and needs no DOM,
@@ -40,6 +41,31 @@ renderer: compare the complete first-family request graph when choosing an entry
 
 The hosted editor uses separate modules for rendering, verification, text output
 and PNG export. The standalone `bun run editor` build remains self-contained.
+
+## Focused synchronous ASCII
+
+Use `agentic-mermaid/ascii` for Mermaid source-to-text rendering:
+
+```ts
+import { renderMermaidASCII } from 'agentic-mermaid/ascii'
+
+const text = renderMermaidASCII('flowchart LR\n API --> DB', {
+  colorMode: 'none',
+  useAscii: false,
+})
+```
+
+This entry uses the same terminal renderers, source configuration, security,
+width limits and output encodings as the complete package. It accepts source
+strings and returns text. Parsed diagrams, extension registration, metadata,
+receipts and `onProjectionDiagnostic` remain on `agentic-mermaid`; the focused
+entry rejects parsed inputs and that callback rather than omitting diagnostics.
+Importing the focused SVG and ASCII entries together retains both renderers.
+
+The dependency boundary removes agent editing and unused graphical family
+hooks. It still includes dependencies required by terminal families, including
+Architecture's layout engine and its ELK option. Compare the complete bundled
+entry, not the size of its import wrapper.
 
 ## Framework-neutral pre-rendering
 

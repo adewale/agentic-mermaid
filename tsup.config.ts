@@ -6,6 +6,7 @@ export default defineConfig({
   entry: {
     index: 'src/index.ts',
     svg: 'src/svg.ts',
+    ascii: 'src/ascii.ts',
     'svg-styles': 'src/svg-styles.ts',
     agent: 'src/agent/index.ts',
     'agent-core': 'src/agent/core.ts',
@@ -23,7 +24,7 @@ export default defineConfig({
   },
   format: ['esm'],
   // Type declarations only for importable library entries, not CLI bins.
-  dts: { entry: { index: 'src/index.ts', zenuml: 'src/zenuml/index.ts', svg: 'src/svg.ts', 'svg-styles': 'src/svg-styles.ts', agent: 'src/agent/index.ts', 'agent-core': 'src/agent/core.ts' } },
+  dts: { entry: { index: 'src/index.ts', zenuml: 'src/zenuml/index.ts', svg: 'src/svg.ts', ascii: 'src/ascii.ts', 'svg-styles': 'src/svg-styles.ts', agent: 'src/agent/index.ts', 'agent-core': 'src/agent/core.ts' } },
   // Node/bundler ESM entries share the renderer and agent substrate. The
   // directly served optional ZenUML browser ESM is built separately so it
   // cannot inherit bare Node-runtime dependency imports from these chunks.

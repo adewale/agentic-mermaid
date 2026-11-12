@@ -29,6 +29,11 @@
       "import": "./dist/svg.js",
       "default": "./dist/svg.js"
     },
+    "./ascii": {
+      "types": "./dist/ascii.d.ts",
+      "import": "./dist/ascii.js",
+      "default": "./dist/ascii.js"
+    },
     "./svg/styles": {
       "types": "./dist/svg-styles.d.ts",
       "import": "./dist/svg-styles.js",

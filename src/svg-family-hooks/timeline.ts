@@ -1,18 +1,17 @@
+import { TIMELINE_NORMALIZE_REQUEST } from '../family-request-hooks.ts'
 import { diagnoseTimelineConfig } from '../timeline/config-diagnostics.ts'
 import { projectTimelinePositioned } from '../positioned-views/timeline.ts'
 import { withFrontmatterTitle } from '../mermaid-source.ts'
 import { layoutResult, positionedView, scene, type BrowserSvgFamilyHooks } from '../browser-lazy/family.ts'
 import { layoutTimelineDiagram } from '../timeline/layout.ts'
 import { parseTimelineDiagram } from '../timeline/parser.ts'
-import { lowerTimelineScene, resolveTimelineRequestAppearance } from '../timeline/renderer.ts'
+import { lowerTimelineScene } from '../timeline/renderer.ts'
 
 /** The timeline SVG hooks: one definition for the complete renderer
  * (src/render-family-hooks.ts) and the lazy browser chunk. */
 export const TIMELINE_SVG_HOOKS = {
   configDiagnostics: diagnoseTimelineConfig,
-  normalizeRequest: ctx => ({
-    appearance: { family: { ...resolveTimelineRequestAppearance(ctx.renderOptions) } },
-  }),
+  normalizeRequest: TIMELINE_NORMALIZE_REQUEST,
   layout: ctx => layoutResult(layoutTimelineDiagram(
     withFrontmatterTitle(parseTimelineDiagram(ctx.source.familyLines, ctx.source.accessibility), ctx.source.frontmatter),
     ctx.renderOptions,

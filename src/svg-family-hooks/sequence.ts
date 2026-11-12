@@ -1,3 +1,4 @@
+import { SEQUENCE_NORMALIZE_REQUEST } from '../family-request-hooks.ts'
 import { diagnoseSequenceConfig } from '../sequence/config-diagnostics.ts'
 import { projectSequencePositioned } from '../positioned-views/sequence.ts'
 import { layoutResult, positionedView, scene, type BrowserSvgFamilyHooks } from '../browser-lazy/family.ts'
@@ -18,9 +19,7 @@ export const SEQUENCE_SVG_HOOKS = {
   // (showSequenceNumbers) and layout (margins/sizes); unwired keys are named
   // by verify's INEFFECTIVE_CONFIG lint. Absent config resolves to {} and
   // keeps default geometry byte-identical.
-  normalizeRequest: ctx => ({
-    familyConfig: { sequence: resolveSequenceConfig(ctx.source.frontmatter) },
-  }),
+  normalizeRequest: SEQUENCE_NORMALIZE_REQUEST,
   layout: ctx => {
     const seqConfig = (ctx.familyConfig as {
       sequence?: ReturnType<typeof resolveSequenceConfig>

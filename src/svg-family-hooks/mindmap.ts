@@ -1,3 +1,4 @@
+import { MINDMAP_NORMALIZE_REQUEST } from '../family-request-hooks.ts'
 import { withParserSource } from '../shared/parser-source.ts'
 import { diagnoseMindmapConfig } from '../mindmap/config-diagnostics.ts'
 import { projectMindmapPositioned } from '../positioned-views/mindmap.ts'
@@ -14,11 +15,7 @@ import { resolveRenderStyle } from '../styles.ts'
 export const MINDMAP_SVG_HOOKS = {
   configDiagnostics: diagnoseMindmapConfig,
   statementEnds: mindmapStatementEnds,
-  normalizeRequest: ctx => ({
-    familyConfig: {
-      position: resolveMindmapPositionConfig(ctx.source.config.mindmap, ctx.source.config.layout),
-    },
-  }),
+  normalizeRequest: MINDMAP_NORMALIZE_REQUEST,
   layout: ctx => layoutResult(positionMindmap(
     withFrontmatterTitle(withAccessibilityFields(withParserSource(ctx.source, () => (ctx.source.authoredFamilyBody ?? ctx.source.familyBody).split('\n'), () => parseMindmap(ctx.source.authoredFamilyBody ?? ctx.source.familyBody)), ctx.source.accessibility), ctx.source.frontmatter),
     (ctx.familyConfig as { position?: ReturnType<typeof resolveMindmapPositionConfig> } | undefined)?.position

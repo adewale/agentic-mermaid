@@ -1,3 +1,4 @@
+import { XYCHART_NORMALIZE_REQUEST } from '../family-request-hooks.ts'
 import { diagnoseXyChartConfig } from '../xychart/config-diagnostics.ts'
 import { projectXyChartPositioned } from '../positioned-views/xychart.ts'
 import { withFrontmatterTitle } from '../mermaid-source.ts'
@@ -19,19 +20,7 @@ import { familyParserLines } from '../shared/parser-source.ts'
 export const XYCHART_SVG_HOOKS = {
   configDiagnostics: diagnoseXyChartConfig,
   statementEnds: xychartStatementEnds,
-  normalizeRequest: ctx => {
-    const config = resolveXYChartConfig(ctx.source.frontmatter)
-    const theme = resolveXYChartTheme(ctx.source.frontmatter)
-    return {
-      familyConfig: { config },
-      appearance: {
-        ...(ctx.renderOptions.bg === undefined && theme.backgroundColor
-          ? { colors: { bg: theme.backgroundColor } }
-          : {}),
-        family: { theme },
-      },
-    }
-  },
+  normalizeRequest: XYCHART_NORMALIZE_REQUEST,
   layout: ctx => {
     const familyConfig = ctx.familyConfig as { config: ReturnType<typeof resolveXYChartConfig> } | undefined
     const familyAppearance = ctx.familyAppearance as { theme: ReturnType<typeof resolveXYChartTheme> } | undefined

@@ -1,3 +1,4 @@
+import { GANTT_NORMALIZE_REQUEST } from '../family-request-hooks.ts'
 import { diagnoseGanttConfig } from '../gantt/config-diagnostics.ts'
 import { projectGanttPositioned } from '../positioned-views/gantt.ts'
 import { layoutResult, positionedView, scene, type BrowserSvgFamilyHooks } from '../browser-lazy/family.ts'
@@ -9,9 +10,7 @@ import { lowerGanttScene } from '../gantt/renderer.ts'
  * (src/render-family-hooks.ts) and the lazy browser chunk. */
 export const GANTT_SVG_HOOKS = {
   configDiagnostics: diagnoseGanttConfig,
-  normalizeRequest: ctx => ({
-    familyConfig: { config: resolveGanttFrontmatterConfig(ctx.source.frontmatter) },
-  }),
+  normalizeRequest: GANTT_NORMALIZE_REQUEST,
   layout: ctx => {
     const config = (ctx.familyConfig as {
       config: ReturnType<typeof resolveGanttFrontmatterConfig>

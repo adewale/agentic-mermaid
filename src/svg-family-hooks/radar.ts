@@ -1,3 +1,4 @@
+import { RADAR_NORMALIZE_REQUEST } from '../family-request-hooks.ts'
 import { diagnoseRadarConfig } from '../radar/config-diagnostics.ts'
 import { projectRadarPositioned } from '../positioned-views/radar.ts'
 import { layoutResult, positionedView, scene, type BrowserSvgFamilyHooks } from '../browser-lazy/family.ts'
@@ -12,9 +13,7 @@ import { lowerRadarScene } from '../radar/renderer.ts'
 export const RADAR_SVG_HOOKS = {
   configDiagnostics: diagnoseRadarConfig,
   statementEnds: radarStatementEnds,
-  normalizeRequest: ctx => ({
-    familyConfig: { visual: resolveRadarVisualConfig(ctx.source.frontmatter) },
-  }),
+  normalizeRequest: RADAR_NORMALIZE_REQUEST,
   layout: ctx => layoutResult(layoutRadarChart(
     parseRadarChart(familyParserLines({ familyBody: ctx.source.body, familyLines: ctx.source.lines }), {
       title: typeof ctx.source.frontmatter.title === 'string' ? ctx.source.frontmatter.title : undefined,

@@ -1,3 +1,4 @@
+import { JOURNEY_NORMALIZE_REQUEST } from '../family-request-hooks.ts'
 import { diagnoseJourneyConfig } from '../journey/config-diagnostics.ts'
 import { projectJourneyPositioned } from '../positioned-views/journey.ts'
 import { withFrontmatterTitle } from '../mermaid-source.ts'
@@ -10,9 +11,7 @@ import { lowerJourneyScene } from '../journey/renderer.ts'
  * (src/render-family-hooks.ts) and the lazy browser chunk. */
 export const JOURNEY_SVG_HOOKS = {
   configDiagnostics: diagnoseJourneyConfig,
-  normalizeRequest: ctx => ({
-    appearance: { family: resolveJourneyRequestAppearance(ctx.renderOptions) as unknown as Record<string, unknown> },
-  }),
+  normalizeRequest: JOURNEY_NORMALIZE_REQUEST,
   layout: ctx => layoutResult(layoutJourneyDiagram(
     withFrontmatterTitle(parseJourneyDiagram(ctx.source.authoredFamilyLines ?? ctx.source.familyLines, ctx.source.accessibility), ctx.source.frontmatter),
     (ctx.familyAppearance as ReturnType<typeof resolveJourneyRequestAppearance> | undefined)

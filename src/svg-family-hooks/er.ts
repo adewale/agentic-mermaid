@@ -1,8 +1,9 @@
+import { ER_NORMALIZE_REQUEST } from '../family-request-hooks.ts'
 import { withParserSource } from '../shared/parser-source.ts'
 import { diagnoseErConfig } from '../er/config-diagnostics.ts'
 import { projectErPositioned } from '../positioned-views/er.ts'
 import { layoutResult, positionedView, scene, type BrowserSvgFamilyHooks } from '../browser-lazy/family.ts'
-import { applyErFrontmatterDirection, layoutErDiagram, resolveErRenderOptions } from '../er/layout.ts'
+import { applyErFrontmatterDirection, layoutErDiagram } from '../er/layout.ts'
 import { parseErDiagram } from '../er/parser.ts'
 import { lowerErScene } from '../er/renderer.ts'
 import { withAccessibilityFields } from '../shared/accessibility-directives.ts'
@@ -13,9 +14,7 @@ import { checkAllClassLikeAuthoredStyles } from '../shared/style-props.ts'
  * (src/render-family-hooks.ts) and the lazy browser chunk. */
 export const ER_SVG_HOOKS = {
   configDiagnostics: diagnoseErConfig,
-  normalizeRequest: ctx => ({
-    renderOptions: resolveErRenderOptions(ctx.source.frontmatter, ctx.renderOptions),
-  }),
+  normalizeRequest: ER_NORMALIZE_REQUEST,
   // Wire-or-warn config threading: er.layoutDirection + nodeSpacing/
   // rankSpacing fold into the parsed diagram/options (statement + explicit
   // options win over frontmatter).

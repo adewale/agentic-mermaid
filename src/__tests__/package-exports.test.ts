@@ -17,6 +17,7 @@ describe('package exports', () => {
     ['.', { types: './dist/index.d.ts', import: './dist/index.js', default: './dist/index.js' }],
     ['./agent', { types: './dist/agent.d.ts', default: './dist/agent.js' }],
     ['./agent/core', { types: './dist/agent-core.d.ts', import: './dist/agent-core.js', default: './dist/agent-core.js' }],
+    ['./ascii', { types: './dist/ascii.d.ts', import: './dist/ascii.js', default: './dist/ascii.js' }],
     ['./browser/lazy', { types: './dist/browser-lazy/index.d.ts', import: './dist/browser-lazy/index.js', default: './dist/browser-lazy/index.js' }],
   ])('conditional export %s keeps its types and default fallback', (entry, targets) => {
     expect(packageJson.exports[entry]).toMatchObject(targets)
