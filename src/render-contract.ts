@@ -1215,9 +1215,9 @@ function canonicalJson(value: unknown): string {
 /** Stable, browser-safe FNV-1a-64 receipt (not a security primitive). */
 /** A request receipt that overflows the digest budget is a source too large
  * for this host, even when the source alone fit the sourceCharacters check. */
-function deferredRequestReceiptDigest(receipt: unknown, source: { readonly originalText: string; readonly text: string }): () => string {
+function admittedRequestReceipt(receipt: unknown, source: { readonly originalText: string; readonly text: string }): unknown {
   try {
-    return deferredRenderContractDigest(receipt)
+    return admitRenderContractDigestInput(receipt)
   } catch (error) {
     if (error instanceof TypeError && /aggregate limit/.test(error.message)) {
       throw new DiagramWorkLimitError('sourceCharacters', source.originalText.length + source.text.length, true)
@@ -1236,7 +1236,12 @@ export function renderContractDigest(value: unknown): string {
  * for a long-lived receipt consumer. Internal only: public digest calls remain
  * eager, including all their admission errors. */
 export function deferredRenderContractDigest(value: unknown): () => string {
-  let snapshot: unknown = admitRenderContractDigestInput(value)
+  return deferredAdmittedDigest(admitRenderContractDigestInput(value))
+}
+
+/** Serialize and hash an already-admitted snapshot only when consumed. */
+function deferredAdmittedDigest(admitted: unknown): () => string {
+  let snapshot: unknown = admitted
   let digest: string | undefined
   return () => {
     if (digest === undefined) {
@@ -1977,14 +1982,17 @@ export function resolveRenderRequestForExecution(
     ...(executionPlan.textMeasurement ? { textMeasurement: executionPlan.textMeasurement.identity } : {}),
     capabilities: sharedCapabilityDecision,
   }
-  const sharedRequestDigest = deferredRequestReceiptDigest(sharedRequestReceipt, source)
+  const sharedAdmitted = admittedRequestReceipt(sharedRequestReceipt, source) as Readonly<Record<string, unknown>>
+  const sharedRequestDigest = deferredAdmittedDigest(sharedAdmitted)
+  // The full receipt restores the output negotiation over the shared fields
+  // as admitted above, so admission charges them instead of walking them again.
   const requestReceipt = {
-    ...sharedRequestReceipt,
+    ...sharedAdmitted,
     output,
     outputOptions,
     capabilities: capabilityDecision,
   }
-  const requestDigest = deferredRequestReceiptDigest(requestReceipt, source)
+  const requestDigest = deferredAdmittedDigest(admittedRequestReceipt(requestReceipt, source))
   const request: ResolvedRenderRequest = Object.freeze({
     version: RENDER_CONTRACT_VERSION,
     output,
