@@ -482,8 +482,9 @@ export function validateStyleSpec(value: unknown): string[] {
 
 type JsonSchema = Readonly<Record<string, unknown>>
 
-function rolePropertyJsonSchemas(): Record<string, unknown> {
-  return Object.fromEntries(Object.entries(ROLE_STYLE_PROPERTY_DESCRIPTORS).map(([name, property]) => {
+function rolePropertyJsonSchemas(properties: readonly string[]): Record<string, unknown> {
+  return Object.fromEntries(properties.map(name => {
+    const property = ROLE_STYLE_PROPERTY_DESCRIPTORS[name as keyof typeof ROLE_STYLE_PROPERTY_DESCRIPTORS]
     if (property.kind === 'number') {
       const numeric = property as { minimum?: number; exclusiveMinimum?: number; maximum?: number; description: string }
       return [name, { type: 'number', ...(numeric.minimum !== undefined ? { minimum: numeric.minimum } : {}), ...(numeric.exclusiveMinimum !== undefined ? { exclusiveMinimum: numeric.exclusiveMinimum } : {}), ...(numeric.maximum !== undefined ? { maximum: numeric.maximum } : {}), description: numeric.description }]
@@ -494,8 +495,7 @@ function rolePropertyJsonSchemas(): Record<string, unknown> {
 }
 
 function roleStyleJsonSchema(properties: readonly string[] = Object.keys(ROLE_STYLE_PROPERTY_DESCRIPTORS)): JsonSchema {
-  const schemas = rolePropertyJsonSchemas()
-  return { type: 'object', additionalProperties: false, maxProperties: properties.length, properties: Object.fromEntries(properties.map(property => [property, schemas[property]])) }
+  return { type: 'object', additionalProperties: false, maxProperties: properties.length, properties: rolePropertyJsonSchemas(properties) }
 }
 
 function roleStyleDefinitionName(role: (typeof SCENE_ROLE_DESCRIPTORS)[number]): string {

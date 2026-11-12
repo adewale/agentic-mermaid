@@ -89,6 +89,9 @@ describe('StyleSpec has one projected field authority', () => {
 
     const projected = styleSpecJsonSchema() as any
     projected.properties.stroke.enum.push('injected')
+    projected.$defs['roleStyle-node'].properties.textTransform.enum.push('injected')
+    expect(projected.$defs['roleStyle-label'].properties.textTransform.enum).toEqual(['uppercase', 'lowercase', 'capitalize'])
+    expect((styleSpecJsonSchema() as any).$defs['roleStyle-node'].properties.textTransform.enum).toEqual(['uppercase', 'lowercase', 'capitalize'])
     expect(validateStyleSpec({ stroke: 'injected' })).toContain('"stroke" must be one of crisp | jittered | freehand')
     expect((styleSpecJsonSchema() as any).properties.stroke.enum).toEqual(['crisp', 'jittered', 'freehand'])
   })
