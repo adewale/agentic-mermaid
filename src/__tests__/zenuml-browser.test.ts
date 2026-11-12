@@ -299,14 +299,28 @@ browserTests('explicit upstream ZenUML browser backend', () => {
       finally { renderer.dispose() }
     })
     expect(timedAdmission).toBe('BACKEND_UNAVAILABLE')
+    const paletteModuleURL = held[0]!.request().url()
     for (const route of held) await route.abort()
     await page.unroute('**/*.js')
-    const failedImport = await page.evaluate(async () => {
-      const entry = '/index.js', api = await import(entry)
-      try { await api.renderUpstreamZenUMLSVG('zenuml\nA->B: missing palette', { backendURL: '/frame.js', style: 'dracula' }); return 'unexpected-success' }
-      catch (error) { return (error as { code: string }).code }
-    })
-    expect(failedImport).toBe('BACKEND_UNAVAILABLE')
+    // A failed fetch may be retried; disposal does not poison the module cache.
+    // Use a fresh document and keep the actual palette request blocked.
+    const failedPage = await browser.newPage()
+    try {
+      await failedPage.goto(`http://localhost:${server.port}`)
+      await failedPage.evaluate(async () => { const entry = '/index.js'; await import(entry) })
+      const failedPaletteRequest = failedPage.waitForEvent('requestfailed', {
+        predicate: request => request.url() === paletteModuleURL,
+      })
+      await failedPage.route(paletteModuleURL, route => route.abort())
+      const failedImport = await failedPage.evaluate(async () => {
+        const entry = '/index.js', api = await import(entry)
+        try { await api.renderUpstreamZenUMLSVG('zenuml\nA->B: missing palette', { backendURL: '/frame.js', style: 'dracula' }); return 'unexpected-success' }
+        catch (error) { return (error as { code: string }).code }
+      })
+      await failedPaletteRequest
+      expect(failedImport).toBe('BACKEND_UNAVAILABLE')
+      expect(await failedPage.locator('iframe').count()).toBe(0)
+    } finally { await failedPage.close() }
     expect(await page.locator('iframe').count()).toBe(0)
     await page.close()
   }, 30_000)
