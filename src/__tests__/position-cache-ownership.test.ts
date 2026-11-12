@@ -1028,23 +1028,34 @@ test.each([process.execPath, 'node'])('private cached copies do not expose geome
   expect(child.status).toBe(0)
 })
 
-test('warm public renders do not lend cached geometry to host instrumentation', async () => {
+test.each(['loan operations', 'structuredClone', 'getOwnPropertyDescriptors'])('warm public renders and agent layouts do not lend cached geometry to host instrumentation (%s)', async hook => {
   const child = await runChild(process.execPath, ['-e', `
     import assert from 'node:assert/strict'
     import { renderMermaidSVGWithReceipt, renderResolvedScene } from './src/index.ts'
+    import { layoutMermaidWithReceipt } from './src/agent/index.ts'
     const apply = Reflect.apply, define = Object.defineProperty, descriptor = Object.getOwnPropertyDescriptor
-    for (const family of ['pie', 'sequence']) for (const projection of ['svg', 'resolved']) {
+    const hook = ${JSON.stringify(hook)}
+    for (const family of ['sequence', 'pie']) for (const projection of ['layout', 'svg', 'resolved']) {
       const source = family === 'pie' ? 'pie\\n"Owned loan ' + projection + '":4\\n"Other":6'
         : 'sequenceDiagram\\nLoanOwnerA->>LoanOwnerB: owned ' + projection
       const options = { embedFontImport: false }
       let expectedSvg
       for (let warm = 0; warm < 3; warm++) expectedSvg = renderMermaidSVGWithReceipt(source, options)
-      const expectedScene = renderResolvedScene(source, options), captured = [], restores = []
+      const expectedScene = renderResolvedScene(source, options)
+      const expectedLayout = layoutMermaidWithReceipt(source, options)
+      assert.equal(expectedLayout.layout.kind, family)
+      assert.ok(expectedLayout.layout.bounds.w > 0 && expectedLayout.layout.bounds.h > 0)
+      if (family === 'sequence') assert.deepEqual(expectedLayout.layout.nodes.map(node => node.id), ['LoanOwnerA', 'LoanOwnerB'])
+      assert.deepEqual(layoutMermaidWithReceipt(source, options), expectedLayout)
+      const captured = [], restores = []
       const observe = value => {
         const positioned = value?.positioned ?? value?.result?.positioned ?? value?.snapshot?.result?.positioned
         if (positioned && typeof positioned.width === 'number') captured.push(positioned)
       }
-      for (const [prototype, methods] of [[WeakMap.prototype, ['get', 'set', 'has', 'delete']], [WeakSet.prototype, ['has', 'add']], [Object, ['freeze']]]) {
+      const operations = hook === 'structuredClone' ? [[globalThis, ['structuredClone']]]
+        : hook === 'getOwnPropertyDescriptors' ? [[Object, ['getOwnPropertyDescriptors']]]
+        : [[WeakMap.prototype, ['get', 'set', 'has', 'delete']], [WeakSet.prototype, ['has', 'add']], [Object, ['freeze']]]
+      for (const [prototype, methods] of operations) {
         for (const key of methods) {
           const previous = descriptor(prototype, key)
           restores.push([prototype, key, previous])
@@ -1055,12 +1066,18 @@ test('warm public renders do not lend cached geometry to host instrumentation', 
         }
       }
       let observed
-      try { observed = projection === 'svg' ? renderMermaidSVGWithReceipt(source, options) : renderResolvedScene(source, options) }
+      try { observed = projection === 'svg' ? renderMermaidSVGWithReceipt(source, options)
+        : projection === 'resolved' ? renderResolvedScene(source, options) : layoutMermaidWithReceipt(source, options) }
       finally { for (let index = restores.length - 1; index >= 0; index--) define(restores[index][0], restores[index][1], restores[index][2]) }
-      assert.deepEqual(observed, projection === 'svg' ? expectedSvg : expectedScene)
+      assert.deepEqual(observed, projection === 'svg' ? expectedSvg : projection === 'resolved' ? expectedScene : expectedLayout)
       for (const geometry of captured) geometry.width += 123
+      assert.deepEqual(layoutMermaidWithReceipt(source, options), expectedLayout)
       assert.deepEqual(renderMermaidSVGWithReceipt(source, options), expectedSvg)
       assert.deepEqual(renderResolvedScene(source, options), expectedScene)
+      const exposed = layoutMermaidWithReceipt(source, options)
+      exposed.layout.bounds.w += 123
+      exposed.layout.nodes.length = 0
+      assert.deepEqual(layoutMermaidWithReceipt(source, options), expectedLayout)
     }
   `], { cwd: `${import.meta.dir}/../..`, env: { ...process.env, AGENTIC_MERMAID_SCENE_ASSERTIONS: '0', AGENTIC_MERMAID_ELK_CACHE: '1' } })
   expect(child.stderr).toBe('')

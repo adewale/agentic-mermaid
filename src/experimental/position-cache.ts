@@ -35,6 +35,7 @@ const copiedResults = new NativeWeakSet<object>()
 // Operation wrappers still reference mutable cache-owned positioning data.
 const freezeResult = Object.freeze
 const positionKeys = Object.keys, positionDescriptor = Object.getOwnPropertyDescriptor
+const positionDescriptors = Object.getOwnPropertyDescriptors, positionClone = globalThis.structuredClone
 function isolatedKey(family: object, key: string): string {
   let id = weakMapGet(familyIds, family)
   if (id === undefined) { id = nextFamilyId++; weakMapSet(familyIds, family, id) }
@@ -98,7 +99,7 @@ function positionedCustodyProof(source: unknown, copy: unknown, immutableText: b
       // Constructor custody proves frozen, accessor-free data. Mutable source
       // nodes still need a single descriptor snapshot before any recursion:
       // a later Proxy trap can mutate siblings during the proof.
-      const descriptors = immutable ? undefined : Object.getOwnPropertyDescriptors(a)
+      const descriptors = immutable ? undefined : positionDescriptors(a)
       const keys = descriptors ? positionKeys(descriptors).filter(key => descriptors[key]!.enumerable) : positionKeys(a)
       const copied = positionKeys(b)
       if (kind === 'array' && (descriptors ? descriptors.length?.value : (a as unknown[]).length) !== (b as unknown[]).length) return false
@@ -149,7 +150,7 @@ function transferIndependentTextCustody(source: unknown, copy: unknown): void {
         if (entries.length !== copies.length) return
         for (let i = 0; i < entries.length; i++) visit(entries[i], copies[i])
       } else if (kind === 'record' || kind === 'array') {
-        const descriptors = Object.getOwnPropertyDescriptors(a)
+        const descriptors = positionDescriptors(a)
         for (const key of positionKeys(b)) {
           const descriptor = descriptors[key]
           if (descriptor?.enumerable && 'value' in descriptor) visit(descriptor.value, (b as Record<string, unknown>)[key])
@@ -193,7 +194,7 @@ function transferBundleRouteOwnership(source: unknown, copy: unknown): void {
 export function clonePositioned<T>(source: T, immutableText = false): T {
   // Native admission must precede reflection: even a descriptor trap can
   // delete an uncloneable Proxy before structuredClone gets to reject it.
-  const copy = structuredClone(source)
+  const copy = positionClone(source)
   transferBundleRouteOwnership(source, copy)
   const proof = positionedCustodyProof(source, copy, immutableText)
   if (!proof) { transferIndependentTextCustody(source, copy); return copy }
