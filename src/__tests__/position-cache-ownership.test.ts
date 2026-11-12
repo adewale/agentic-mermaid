@@ -1028,13 +1028,15 @@ test.each([process.execPath, 'node'])('private cached copies do not expose geome
   expect(child.status).toBe(0)
 })
 
-test('warm public renders do not lend cached geometry to prototype instrumentation', async () => {
+test('warm public renders do not lend cached geometry to host instrumentation', async () => {
   const child = await runChild(process.execPath, ['-e', `
     import assert from 'node:assert/strict'
     import { renderMermaidSVGWithReceipt, renderResolvedScene } from './src/index.ts'
     const apply = Reflect.apply, define = Object.defineProperty, descriptor = Object.getOwnPropertyDescriptor
-    for (const projection of ['svg', 'resolved']) {
-      const source = 'pie\\n"Owned loan ' + projection + '":4\\n"Other":6', options = { embedFontImport: false }
+    for (const family of ['pie', 'sequence']) for (const projection of ['svg', 'resolved']) {
+      const source = family === 'pie' ? 'pie\\n"Owned loan ' + projection + '":4\\n"Other":6'
+        : 'sequenceDiagram\\nLoanOwnerA->>LoanOwnerB: owned ' + projection
+      const options = { embedFontImport: false }
       let expectedSvg
       for (let warm = 0; warm < 3; warm++) expectedSvg = renderMermaidSVGWithReceipt(source, options)
       const expectedScene = renderResolvedScene(source, options), captured = [], restores = []
@@ -1042,7 +1044,7 @@ test('warm public renders do not lend cached geometry to prototype instrumentati
         const positioned = value?.positioned ?? value?.result?.positioned ?? value?.snapshot?.result?.positioned
         if (positioned && typeof positioned.width === 'number') captured.push(positioned)
       }
-      for (const [prototype, methods] of [[WeakMap.prototype, ['get', 'set', 'has', 'delete']], [WeakSet.prototype, ['has', 'add']]]) {
+      for (const [prototype, methods] of [[WeakMap.prototype, ['get', 'set', 'has', 'delete']], [WeakSet.prototype, ['has', 'add']], [Object, ['freeze']]]) {
         for (const key of methods) {
           const previous = descriptor(prototype, key)
           restores.push([prototype, key, previous])
@@ -1056,7 +1058,7 @@ test('warm public renders do not lend cached geometry to prototype instrumentati
       try { observed = projection === 'svg' ? renderMermaidSVGWithReceipt(source, options) : renderResolvedScene(source, options) }
       finally { for (let index = restores.length - 1; index >= 0; index--) define(restores[index][0], restores[index][1], restores[index][2]) }
       assert.deepEqual(observed, projection === 'svg' ? expectedSvg : expectedScene)
-      for (const geometry of captured) geometry.width = Number.NaN
+      for (const geometry of captured) geometry.width += 123
       assert.deepEqual(renderMermaidSVGWithReceipt(source, options), expectedSvg)
       assert.deepEqual(renderResolvedScene(source, options), expectedScene)
     }

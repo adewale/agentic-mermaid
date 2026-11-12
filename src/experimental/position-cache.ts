@@ -31,6 +31,8 @@ const drawings = new WeightedLru<string, RetainedPaintArtifact>(128, DRAWING_WEI
 const results = new WeightedLru<string, PositionedSnapshot>(128, MAX_WEIGHT, key => { drawings.delete(key) })
 const retainedResults = new NativeWeakSet<object>()
 const copiedResults = new NativeWeakSet<object>()
+// Operation wrappers still reference mutable cache-owned positioning data.
+const freezeResult = Object.freeze
 function isolatedKey(family: object, key: string): string {
   let id = weakMapGet(familyIds, family)
   if (id === undefined) { id = nextFamilyId++; weakMapSet(familyIds, family, id) }
@@ -226,7 +228,7 @@ export function borrowedPositioned(family: object, key: string, nativeSvgRequest
   if (nativeSvgRequest && value && weakMapHas(nativeResidency, value) && (reuseCapturedDrawing || !weakSetHas(copiedResults, value.result))) {
     // The operation owns this wrapper. A retained request cannot keep the
     // cache graph alive through its proof after eviction or an early exit.
-    const result = Object.freeze({ ...value.result })
+    const result = freezeResult({ ...value.result })
     transferGraphLayoutDecisions(value.result, result)
     weakMapSet(nativeOwners, result, { key: isolated, snapshot: value, request: nativeSvgRequest })
     weakSetAdd(retainedResults, result)
