@@ -1,4 +1,3 @@
-import { retainWrittenFields, retainTextAttributes, writeTextOpening, writerEvidenceEnabled } from '../svg-writer-evidence.ts'
 // ============================================================================
 // The default backend's SVG writer: each shape, text and connector mark's
 // element is written from its typed fields, so paint certification, which
@@ -21,23 +20,13 @@ import { formatSvgNumber, formatSvgNumericAttribute } from '../shared/svg-number
  * Numeric fields use the shared SVG spelling at this write boundary. */
 class SvgWriter {
   value = ''
-  private tagName?: string
-  private start = 0
-  private attributes: string[] | undefined = writerEvidenceEnabled() ? [] : undefined
-  open(name: string): void { this.tagName = name; this.start = this.value.length; this.attributes = writerEvidenceEnabled() ? [] : undefined; this.value += `<${name}` }
-  close(): void {
-    this.value += ' />'
-    if (this.tagName && this.attributes) retainWrittenFields(this.value.slice(this.start), this.tagName, this.attributes, true)
-    this.tagName = undefined
-  }
-
-  textEvidence() { return this.attributes ? retainTextAttributes(this.value.slice(1), this.attributes) : undefined }
+  open(name: string): void { this.value += `<${name}` }
+  close(): void { this.value += ' />' }
 
   raw(text: string): void { this.value += text }
 
   attribute(name: string, value: string | number): void {
     const escaped = typeof value === 'number' ? formatSvgNumber(value) : escapeAttr(formatSvgNumericAttribute(name, value))
-    this.attributes?.push(name, escaped)
     this.value += ` ${name}="${escaped}"`
   }
 }
@@ -183,13 +172,13 @@ export function writeTextSvg(node: TextMark): string {
   identityAttributes(out, node.identity, node.accessibility)
   const attrs = out.value.slice(1)
   const prepared = node.measurement === 'prepared' && node.block
-  const svg = renderMultilineText(prepared ? node.block! : node.text, node.x, node.y, node.fontSize, attrs, node.baselineShift ?? 0.35, node.display === 'literal', out.textEvidence())
+  const svg = renderMultilineText(prepared ? node.block! : node.text, node.x, node.y, node.fontSize, attrs, node.baselineShift ?? 0.35, node.display === 'literal')
   if (!node.spans) return svg
   const shown = prepared ? node.block!.text : node.text
   const content = `>${escapeXml(shown)}</text>`
   if (!svg.endsWith(content)) throw new TypeError(`Text "${node.id}" spans require a one-line label`)
   let spans = ''
-  for (const span of node.spans) spans += `${writeTextOpening('tspan', [['fill', escapeAttr(span.fill)]])}${escapeXml(span.text)}</tspan>`
+  for (const span of node.spans) spans += `<tspan fill="${escapeAttr(span.fill)}">${escapeXml(span.text)}</tspan>`
   return `${svg.slice(0, -content.length)}>${spans}</text>`
 }
 
@@ -217,7 +206,7 @@ function connectorInlineLabelSvg(node: ConnectorMark, label: ConnectorLabelDescr
   out.attribute('text-anchor', label.textAnchor)
   transformAttribute(out, node.transform)
   paintAttributes(out, paint)
-  return renderMultilineText(block, label.anchor.x, label.anchor.y - Math.max(0, label.clearance ?? 0), block.fontSize, out.value.slice(1), 0, false, out.textEvidence())
+  return renderMultilineText(block, label.anchor.x, label.anchor.y - Math.max(0, label.clearance ?? 0), block.fontSize, out.value.slice(1), 0, false)
 }
 
 /** A connector is one marker carrier element plus any labels it owns; an

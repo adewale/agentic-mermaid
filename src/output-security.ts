@@ -1,4 +1,3 @@
-import { writtenTagOf } from './svg-writer-evidence.ts'
 // ============================================================================
 // One output-security policy for every SVG-producing path.
 //
@@ -158,9 +157,11 @@ export function verifySvgDocumentEnvelope(svg: string): boolean {
   return inspectSvgOnce('xml-envelope', svg, () => verifyDocumentEnvelope(svg))
 }
 
+/** Element kinds and style ranges recorded during one envelope walk, so the
+ * final inspection scans only style bodies instead of the whole document. */
 interface WrittenDocumentInspection { elements: number; styleStarts: number[]; styleEnds: Array<{ start: number; end: number }> }
 
-function verifyDocumentEnvelope(svg: string, observeAttribute?: (name: string, rawValue: string) => void, useWritten = false, observeWritten?: (refs: readonly string[], active: readonly string[]) => void, document?: WrittenDocumentInspection): boolean {
+function verifyDocumentEnvelope(svg: string, observeAttribute?: (name: string, rawValue: string) => void, document?: WrittenDocumentInspection): boolean {
   if (!hasOnlyXmlCharacters(svg)) return false
   const stack: XmlElementFrame[] = []
   const shortAttributeNames: string[] = []
@@ -228,17 +229,6 @@ function verifyDocumentEnvelope(svg: string, observeAttribute?: (name: string, r
     if (stack.length === 0) {
       if (rootSeen || name !== 'svg') return false
       rootSeen = true
-    }
-
-    if (useWritten && styleDepth === 0 && stack.length > 0 && stack.at(-1)!.namespaces.get('') === SVG_NAMESPACE) {
-      const close = svg.indexOf('>', nameEnd)
-      const written = close < 0 ? undefined : writtenTagOf(svg.slice(cursor, close + 1))
-      if (written) {
-        for (const attribute of written.attributes) observeWritten?.(attribute.refs, attribute.active)
-        if (!written.selfClosing) stack.push({ name, namespaces: stack.at(-1)!.namespaces })
-        cursor = close + 1
-        continue
-      }
     }
 
     const styleStart = cursor
@@ -470,25 +460,6 @@ function securityFindings(svg: string): SecurityFindings {
   return inspectSvgOnce('security', svg, () => inspectSecurity(svg))
 }
 
-/** Private writer admission. Empty findings are shared per tag rather than
- * allocating arrays for each scalar field. Errors defer to final admission. */
-export function writtenAttributesFindings(fields: readonly string[]): readonly { readonly name: string; readonly value: string; readonly order: number; readonly refs: readonly string[]; readonly active: readonly string[] }[] | undefined {
-  const refs: string[] = [], active: string[] = []
-  const findings: Array<{ name: string; value: string; order: number; refs: readonly string[]; active: readonly string[] }> = []
-  const names = new Set<string>()
-  for (let i = 0; i < fields.length; i += 2) {
-    const name = fields[i]!, value = fields[i + 1]!
-    if (typeof name !== 'string' || typeof value !== 'string' || !/^(?:[A-Za-z_][A-Za-z0-9_.-]*|xml:space)$/.test(name) || name === 'xmlns' || names.has(name)
-      || /["<>]/.test(value) || !hasWellFormedXmlReferences(value)) return undefined
-    names.add(name)
-    const beforeRefs = refs.length, beforeActive = active.length
-    try { inspectAttributeSecurity(name, value, refs, active) } catch { return undefined }
-    if (refs.length !== beforeRefs || active.length !== beforeActive) findings.push(Object.freeze({ name, value, order: i / 2,
-      refs: Object.freeze(refs.slice(beforeRefs)), active: Object.freeze(active.slice(beforeActive)) }))
-  }
-  return Object.freeze(findings)
-}
-
 function inspectAttributeSecurity(qualified: string, value: string, refs: string[], active: string[]): void {
   const lower = qualified.toLowerCase()
   const colon = lower.lastIndexOf(':')
@@ -590,7 +561,7 @@ function inspectFinalSvg(svg: string, useWritten = false): SecurityFindings | fa
         failed = true
         failure = error
       }
-    }, useWritten, (writtenRefs, writtenActive) => { refs.push(...writtenRefs); active.push(...writtenActive) }, document)
+    }, document)
     if (!valid) return false
     if (failed) throw failure
     if (document) {
@@ -637,8 +608,9 @@ export function applyOutputSecurityPolicy(svg: string, mode: OutputSecurityMode 
   return applySecurityPolicy(svg, mode, false)
 }
 
-/** Private original-writer boundary; opaque output and unrecorded changes
- * retain full admission within the same envelope walk. */
+/** Private original-writer boundary: the envelope walk also records element
+ * kinds and style ranges, so the final inspection scans only style bodies.
+ * Every attribute is still inspected in that walk. */
 export function applyWrittenOutputSecurityPolicy(svg: string, mode: OutputSecurityMode = 'default'): OutputSecurityResult {
   return applySecurityPolicy(svg, mode, true)
 }

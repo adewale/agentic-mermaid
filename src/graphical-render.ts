@@ -1,4 +1,3 @@
-import { withWrittenSvgSecurity } from './svg-writer-evidence.ts'
 // Internal resolved-request + positioned-artifact graphical execution.
 //
 // This module is intentionally absent from every public package barrel. It is
@@ -168,9 +167,8 @@ export function renderPositionedMermaidSVG(
   capture?: ScenePartCapture,
 ): ResolvedGraphicalExecution {
   const plan = resolvedRenderExecutionPlanOf(request)
-  const written = isOwnedFamily(plan.family) && isOriginalEnrolledDefaultBackend(plan.backend?.backend)
-  return withTextMeasurementExecution(plan.textMeasurement, () => withWrittenSvgSecurity(written, () =>
-    renderPositionedWithTextMeasurement(request, layout, securityDiagnostics, capture)))
+  return withTextMeasurementExecution(plan.textMeasurement, () =>
+    renderPositionedWithTextMeasurement(request, layout, securityDiagnostics, capture))
 }
 
 function renderPositionedWithTextMeasurement(
