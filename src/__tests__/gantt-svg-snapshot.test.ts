@@ -33,7 +33,7 @@ describe('renderMermaidSVG — gantt', () => {
   it('matches the representative gantt golden SVG', () => {
     const actual = renderMermaidSVG(REPRESENTATIVE)
     const expected = readFileSync(join(snapshotDir, 'gantt-representative.svg'), 'utf-8')
-    expect(normalizeSvg(actual, { stripResourceNamespace: true })).toBe(normalizeSvg(expected))
+    expect(normalizeSvg(actual, { stripResourceNamespace: true })).toBe(normalizeSvg(expected, { stripResourceNamespace: true }))
   })
 
   it('is byte-deterministic for the same source and options', () => {

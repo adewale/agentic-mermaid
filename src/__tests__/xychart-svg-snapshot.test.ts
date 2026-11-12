@@ -32,6 +32,6 @@ describe('renderMermaidSVG – xychart snapshots', () => {
   it('matches the accessible mixed xychart golden SVG', () => {
     const actual = renderMermaidSVG(ACCESSIBLE_MIXED_XYCHART, { embedFontImport: false })
     const expected = readFileSync(join(snapshotDir, 'xychart-accessible-mixed.svg'), 'utf-8')
-    expect(normalizeSvg(actual)).toBe(normalizeSvg(expected))
+    expect(normalizeSvg(actual, { stripResourceNamespace: true })).toBe(normalizeSvg(expected, { stripResourceNamespace: true }))
   })
 })

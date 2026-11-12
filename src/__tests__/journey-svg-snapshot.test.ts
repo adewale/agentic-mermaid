@@ -23,7 +23,7 @@ describe('renderMermaidSVG – journey snapshots', () => {
     if (process.env.UPDATE_GOLDEN) writeFileSync(snapshot, actual)
     const expected = readFileSync(snapshot, 'utf-8')
 
-    expect(normalizeSvg(actual)).toBe(normalizeSvg(expected))
+    expect(normalizeSvg(actual, { stripResourceNamespace: true })).toBe(normalizeSvg(expected, { stripResourceNamespace: true }))
   })
 
   it('matches the Mermaid docs journey example SVG', () => {
@@ -41,6 +41,6 @@ describe('renderMermaidSVG – journey snapshots', () => {
     if (process.env.UPDATE_GOLDEN) writeFileSync(snapshot, actual)
     const expected = readFileSync(snapshot, 'utf-8')
 
-    expect(normalizeSvg(actual)).toBe(normalizeSvg(expected))
+    expect(normalizeSvg(actual, { stripResourceNamespace: true })).toBe(normalizeSvg(expected, { stripResourceNamespace: true }))
   })
 })

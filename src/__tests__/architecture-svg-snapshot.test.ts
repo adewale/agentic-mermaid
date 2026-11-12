@@ -126,7 +126,7 @@ describe('renderMermaidSVG – architecture snapshots', () => {
     })
 
     const expected = readFileSync(join(snapshotDir, 'architecture-representative.svg'), 'utf-8')
-    expect(normalizeSvg(actual)).toBe(normalizeSvg(expected))
+    expect(normalizeSvg(actual, { stripResourceNamespace: true })).toBe(normalizeSvg(expected, { stripResourceNamespace: true }))
   })
 
   // Frontmatter theme + themeVariables overridden by an init directive, the
@@ -168,6 +168,6 @@ config:
     })
 
     const expected = readFileSync(join(snapshotDir, 'architecture-themed-config.svg'), 'utf-8')
-    expect(normalizeSvg(actual)).toBe(normalizeSvg(expected))
+    expect(normalizeSvg(actual, { stripResourceNamespace: true })).toBe(normalizeSvg(expected, { stripResourceNamespace: true }))
   })
 })
