@@ -378,18 +378,22 @@ test('repeated private native drawings preserve receipts, policy and final secur
       'stateDiagram-v2\\n NativeOwnerA --> NativeOwnerB: retained transition',
     ]) {
       const reference = withoutPositionCache(() => renderer.renderMermaidSVGWithReceipt(source))
-      const reuse = []
-      for (let index = 0; index < 3; index++) {
+      const reuse = [], finalSecurity = []
+      for (let index = 0; index < 4; index++) {
         const start = events.length, priorPolicies = policies
         const actual = renderer.renderMermaidSVGWithReceipt(source)
         assert.deepEqual(actual, reference)
         assert.equal(policies, priorPolicies + 1)
         const observed = events.slice(start)
         reuse.push(observed.filter(event => event.kind === 'cache' && event.owner === 'native-drawing' && event.detail === 'positioned-owner').length)
-        assert.equal(observed.filter(event => event.kind === 'cache' && event.owner === 'svg-inspection' && event.detail === 'final-security').length, 1)
-        assert.ok(observed.some(event => event.kind === 'cache' && event.owner === 'paint-certification' && event.outcome === (index === 2 ? 'hit' : 'miss')))
+        finalSecurity.push(observed.filter(event => event.kind === 'cache' && event.owner === 'svg-inspection' && event.detail === 'final-security').length)
+        assert.ok(observed.some(event => event.kind === 'cache' && event.owner === 'paint-certification' && event.outcome === (index >= 2 ? 'hit' : 'miss')))
       }
-      assert.deepEqual(reuse, [0, 0, 1])
+      assert.deepEqual(reuse, [0, 0, 1, 1])
+      // Finishing (and its final security gate) runs until a retained drawing
+      // holds its finished output; the next identical repeat reuses those exact
+      // secured bytes and diagnostics, with the same receipt.
+      assert.deepEqual(finalSecurity, [1, 1, 1, 0])
       for (const options of [{ fg: '#334455' }, { compact: true }, { security: 'strict' }]) {
         const expected = withoutPositionCache(() => renderer.renderMermaidSVGWithReceipt(source, options))
         const start = events.length

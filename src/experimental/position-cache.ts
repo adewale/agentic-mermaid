@@ -2,6 +2,7 @@ import type { FamilyLayoutResult, FamilyPositionedView } from '../agent/families
 import { transferConstructedBundleRoute } from '../layout/bundle-routes.ts'
 import { graphLayoutDecisionsOf, transferGraphLayoutDecisions } from '../layout/decision-evidence.ts'
 import { observeCache } from '../performance-observations.ts'
+import type { OutputSecurityDiagnostic } from '../output-security.ts'
 import type { PaintLayoutCertification } from '../scene/paint-certification.ts'
 import { isImmutablePixelTextPart, isRetainedPixelText, transferRetainedPixelText } from '../shared/prepared-text.ts'
 import { estimatedResidency } from './cache-residency.ts'
@@ -413,4 +414,36 @@ export function retainNativeDrawing(request: object, layout: FamilyLayoutResult,
     observeCache('native-drawing', 'store-skipped', 'drawing-budget'); return
   }
   drawings.set(entry.key, retained, weight)
+  drawingEntries.set(drawing, { key: entry.key, weight })
+}
+
+/** The finished output of a retained drawing: the final, secured SVG and its
+ * security diagnostics, for one exact set of finishing inputs (`identity`). */
+export interface FinishedNativeDrawing {
+  readonly identity: string
+  readonly svg: string
+  readonly diagnostics: readonly OutputSecurityDiagnostic[]
+}
+const drawingEntries = new WeakMap<RetainedNativeDrawing, { key: string; weight: number }>()
+const finishedDrawings = new WeakMap<RetainedNativeDrawing, FinishedNativeDrawing>()
+
+/** A retained drawing's finished output, when it was finished with exactly
+ * these inputs. Only artifacts this tier retains carry one. */
+export function finishedNativeDrawing(drawing: object, identity: string): FinishedNativeDrawing | undefined {
+  const finished = finishedDrawings.get(drawing as RetainedNativeDrawing)
+  return finished?.identity === identity ? finished : undefined
+}
+
+/** Attach finished output to a drawing this tier still holds. The entry is
+ * reweighed so the tier's budget bounds the finished bytes too; when they do
+ * not fit, the drawing stays retained and is finished afresh on each use. */
+export function retainFinishedNativeDrawing(drawing: object, finished: FinishedNativeDrawing): void {
+  const owner = drawingEntries.get(drawing as RetainedNativeDrawing)
+  if (!owner) return
+  const current = drawings.get(owner.key)
+  if (current?.drawing !== drawing) return
+  const weight = owner.weight + estimatedResidency(finished, DRAWING_WEIGHT)
+  if (weight > DRAWING_WEIGHT || !drawings.canFit(owner.key, weight)) { observeCache('native-drawing', 'store-skipped', 'finished-budget'); return }
+  drawings.set(owner.key, current, weight)
+  finishedDrawings.set(current.drawing, finished)
 }
