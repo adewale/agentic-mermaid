@@ -1,4 +1,4 @@
-import { FLOWCHART_NORMALIZE_REQUEST } from '../family-request-hooks.ts'
+import { FLOWCHART_NORMALIZE_REQUEST } from '../flowchart-config.ts'
 import { withParserSource } from '../shared/parser-source.ts'
 import { diagnoseFlowchartConfig } from '../flowchart/config-diagnostics.ts'
 import { projectGraphPositioned } from '../positioned-views/graph.ts'

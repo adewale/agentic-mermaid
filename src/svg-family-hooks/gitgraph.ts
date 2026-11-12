@@ -1,4 +1,4 @@
-import { GITGRAPH_NORMALIZE_REQUEST } from '../family-request-hooks.ts'
+import { GITGRAPH_NORMALIZE_REQUEST } from '../gitgraph/renderer.ts'
 import { withParserSource } from '../shared/parser-source.ts'
 import { diagnoseGitGraphConfig } from '../gitgraph/config-diagnostics.ts'
 import { projectGitGraphPositioned } from '../positioned-views/gitgraph.ts'

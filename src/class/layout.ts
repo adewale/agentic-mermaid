@@ -1,3 +1,4 @@
+import type { FamilyDescriptor } from '../agent/family-registry.ts'
 import { classRelationshipTerminalClearance, classEndpointTextCandidates, RELATION_LABEL_HALO_WIDTH } from './relationship-paint.ts'
 import { measuredRouteContactPairBudget, scoreMeasuredRouteCrossings, createOwnedMeasuredRouteContactValidator, type OwnedMeasuredRouteNumericSeed } from '../layout/measured-route-safety.ts'
 import type { MeasuredGraph } from '../layout/agentic-layered-core.ts'
@@ -952,3 +953,7 @@ function maxMemberWidth(members: ClassMember[]): number {
   }
   return maxW
 }
+
+export const CLASS_NORMALIZE_REQUEST: NonNullable<FamilyDescriptor['normalizeRequest']> = ctx => ({
+  renderOptions: resolveClassRenderOptions(ctx.source.frontmatter, ctx.renderOptions),
+})

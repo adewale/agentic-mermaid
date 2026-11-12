@@ -1,3 +1,4 @@
+import type { FamilyDescriptor } from '../agent/family-registry.ts'
 // ============================================================================
 // Pie chart runtime config — upstream's `pie` config section plus the pie
 // theme variables, resolved in ONE place for every surface (SVG layout,
@@ -139,3 +140,7 @@ export function resolvePieVisualConfig(frontmatter: MermaidFrontmatterMap = {}):
 
   return config
 }
+
+export const PIE_NORMALIZE_REQUEST: NonNullable<FamilyDescriptor['normalizeRequest']> = ctx => ({
+  familyConfig: { visual: resolvePieVisualConfig(ctx.source.frontmatter) },
+})

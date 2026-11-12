@@ -1,4 +1,4 @@
-import { RADAR_NORMALIZE_REQUEST } from '../family-request-hooks.ts'
+import { RADAR_NORMALIZE_REQUEST } from '../radar/config.ts'
 import { diagnoseRadarConfig } from '../radar/config-diagnostics.ts'
 import { projectRadarPositioned } from '../positioned-views/radar.ts'
 import { layoutResult, positionedView, scene, type BrowserSvgFamilyHooks } from '../browser-lazy/family.ts'

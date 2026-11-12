@@ -1,4 +1,4 @@
-import { ER_NORMALIZE_REQUEST } from '../family-request-hooks.ts'
+import { ER_NORMALIZE_REQUEST } from '../er/layout.ts'
 import { withParserSource } from '../shared/parser-source.ts'
 import { diagnoseErConfig } from '../er/config-diagnostics.ts'
 import { projectErPositioned } from '../positioned-views/er.ts'

@@ -1,3 +1,4 @@
+import type { FamilyDescriptor } from '../agent/family-registry.ts'
 // ============================================================================
 // Quadrant runtime config — typed section, wire-or-warn (defect class C3).
 //
@@ -97,3 +98,7 @@ export function resolveQuadrantVisualConfig(
 
   return config
 }
+
+export const QUADRANT_NORMALIZE_REQUEST: NonNullable<FamilyDescriptor['normalizeRequest']> = ctx => ({
+  familyConfig: { visual: resolveQuadrantVisualConfig(ctx.source.frontmatter) },
+})

@@ -1,4 +1,4 @@
-import { GANTT_NORMALIZE_REQUEST } from '../family-request-hooks.ts'
+import { GANTT_NORMALIZE_REQUEST } from '../gantt/parser.ts'
 import { diagnoseGanttConfig } from '../gantt/config-diagnostics.ts'
 import { projectGanttPositioned } from '../positioned-views/gantt.ts'
 import { layoutResult, positionedView, scene, type BrowserSvgFamilyHooks } from '../browser-lazy/family.ts'

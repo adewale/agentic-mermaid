@@ -1,3 +1,4 @@
+import type { FamilyDescriptor } from '../agent/family-registry.ts'
 // ============================================================================
 // Sankey runtime config — upstream's `sankey` config section, resolved in ONE
 // place for every surface (SVG layout, renderer, ASCII, verify's
@@ -143,3 +144,7 @@ export function resolveSankeyVisualConfig(frontmatter: MermaidFrontmatterMap = {
 
 /** Documented sankey config keys wired by this family. */
 export const SANKEY_WIRED_CONFIG_FIELDS = ['width', 'height', 'linkColor', 'nodeAlignment', 'showValues', 'prefix', 'suffix', 'labelStyle', 'nodeWidth', 'nodePadding', 'nodeColors'] as const
+
+export const SANKEY_NORMALIZE_REQUEST: NonNullable<FamilyDescriptor['normalizeRequest']> = ctx => ({
+  familyConfig: { visual: resolveSankeyVisualConfig(ctx.source.frontmatter) },
+})

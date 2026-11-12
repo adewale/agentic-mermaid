@@ -1,4 +1,4 @@
-import { MINDMAP_NORMALIZE_REQUEST } from '../family-request-hooks.ts'
+import { MINDMAP_NORMALIZE_REQUEST } from '../mindmap/position.ts'
 import { withParserSource } from '../shared/parser-source.ts'
 import { diagnoseMindmapConfig } from '../mindmap/config-diagnostics.ts'
 import { projectMindmapPositioned } from '../positioned-views/mindmap.ts'

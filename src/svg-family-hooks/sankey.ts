@@ -1,4 +1,4 @@
-import { SANKEY_NORMALIZE_REQUEST } from '../family-request-hooks.ts'
+import { SANKEY_NORMALIZE_REQUEST } from '../sankey/config.ts'
 import { diagnoseSankeyConfig } from '../sankey/config-diagnostics.ts'
 import { projectSankeyPositioned } from '../positioned-views/sankey.ts'
 import { layoutResult, positionedView, scene, type BrowserSvgFamilyHooks } from '../browser-lazy/family.ts'

@@ -1,3 +1,4 @@
+import type { FamilyDescriptor } from '../agent/family-registry.ts'
 import { erInkIndex } from './ink-index.ts'
 import { erCardinalityEnvelope, erCardinalityInk, erLabelPillInk, type ErGeometryWork } from './cardinality-geometry.ts'
 import { ErLabelWorkLimitError, ErRouteWorkLimitError, ErRouteGeometryError } from './errors.ts'
@@ -1905,3 +1906,7 @@ function finishErGeometry(positioned: PositionedErDiagram, style: ResolvedRender
   }
   return positioned
 }
+
+export const ER_NORMALIZE_REQUEST: NonNullable<FamilyDescriptor['normalizeRequest']> = ctx => ({
+  renderOptions: resolveErRenderOptions(ctx.source.frontmatter, ctx.renderOptions),
+})

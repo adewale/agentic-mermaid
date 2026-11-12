@@ -1,3 +1,4 @@
+import type { FamilyDescriptor } from '../agent/family-registry.ts'
 import { format } from 'd3-format'
 import type { InternalStyleFace } from '../scene/style-registry.ts'
 import { hierarchyChildren, validateHierarchy } from '../shared/hierarchy-model.ts'
@@ -174,3 +175,5 @@ export function layoutTreemapDiagram(body: TreemapBody, options: RenderOptions =
   cells.sort((a, b) => order.get(a.node.id)! - order.get(b.node.id)!)
   return { width, height, body, cells, config, hiddenLabels, options, ...(titleBand ? { title: positionDiagramTitle(titleBand, width, padding) } : {}) }
 }
+
+export const TREEMAP_NORMALIZE_REQUEST: NonNullable<FamilyDescriptor['normalizeRequest']> = ctx => ({ familyConfig: { treemap: resolveTreemapConfig(ctx.source.config.treemap as Record<string, unknown> | undefined) } })

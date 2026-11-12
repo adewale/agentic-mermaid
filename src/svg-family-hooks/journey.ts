@@ -1,4 +1,4 @@
-import { JOURNEY_NORMALIZE_REQUEST } from '../family-request-hooks.ts'
+import { JOURNEY_NORMALIZE_REQUEST } from '../journey/layout.ts'
 import { diagnoseJourneyConfig } from '../journey/config-diagnostics.ts'
 import { projectJourneyPositioned } from '../positioned-views/journey.ts'
 import { withFrontmatterTitle } from '../mermaid-source.ts'

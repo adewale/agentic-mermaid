@@ -1,3 +1,4 @@
+import type { FamilyDescriptor } from '../agent/family-registry.ts'
 import type { DiagramColors } from '../theme.ts'
 import type { MermaidFrontmatterMap, MermaidConfigValue } from '../mermaid-source.ts'
 import type { RenderOptions, TextTransform } from '../types.ts'
@@ -384,4 +385,19 @@ function clamp(value: number, min: number, max: number): number {
 
 function isMap(value: MermaidConfigValue | undefined): value is MermaidFrontmatterMap {
   return Boolean(value) && typeof value === 'object' && !Array.isArray(value)
+}
+
+export const ARCHITECTURE_NORMALIZE_REQUEST: NonNullable<FamilyDescriptor['normalizeRequest']> = ctx => {
+  const resolved = resolveArchitectureVisualConfig(ctx.source.frontmatter, ctx.colors, ctx.renderOptions, ctx.styleFace)
+  const renderOptions = {
+    ...ctx.renderOptions,
+    padding: ctx.renderOptions.padding ?? resolved.padding,
+    nodeSpacing: ctx.renderOptions.nodeSpacing ?? resolved.nodeSpacing,
+    layerSpacing: ctx.renderOptions.layerSpacing ?? resolved.layerSpacing,
+  }
+  return {
+    renderOptions,
+    familyConfig: { layout: resolved.layout },
+    appearance: { family: { visual: resolved.visual } },
+  }
 }

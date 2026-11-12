@@ -1,3 +1,4 @@
+import type { FamilyDescriptor } from '../agent/family-registry.ts'
 import { eventModelingArrow, eventModelingTerminal } from './markers.ts'
 import { projectRoundedConnectorPath } from '../scene/connector-geometry.ts'
 import { paintedStrokeExtent } from '../scene/bounds.ts'
@@ -89,3 +90,14 @@ export function layoutEventModeling(body: EventModelingBody, options: Readonly<R
   return { style, laneWidth, width, height: Math.max(y + pad, 2 * pad + 40), lanes, nodes, edges, ...(titleBand ? { title: positionDiagramTitle(titleBand, width, pad) } : {}) }
 }
 export type PositionedEventModeling = ReturnType<typeof layoutEventModeling>
+
+export const EVENTMODELING_NORMALIZE_REQUEST: NonNullable<FamilyDescriptor['normalizeRequest']> = ctx => {
+  const config = ctx.source.config.eventmodeling as Record<string, unknown> | undefined
+  const padding = config?.padding
+  const rowHeight = config?.rowHeight
+  return {
+    renderOptions: { ...ctx.renderOptions, ...(ctx.renderOptions.padding === undefined && typeof padding === 'number' && Number.isFinite(padding) && padding >= 0 ? { padding } : {}) },
+    familyConfig: { rowHeight: typeof rowHeight === 'number' && Number.isFinite(rowHeight) && rowHeight >= 0 ? rowHeight : 0 },
+    appearance: { family: { palette: ctx.colors } },
+  }
+}

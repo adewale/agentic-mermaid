@@ -1,4 +1,4 @@
-import { CLASS_NORMALIZE_REQUEST } from '../family-request-hooks.ts'
+import { CLASS_NORMALIZE_REQUEST } from '../class/layout.ts'
 import { withParserSource } from '../shared/parser-source.ts'
 import { diagnoseClassConfig } from '../class/config-diagnostics.ts'
 import { projectClassPositioned } from '../positioned-views/class.ts'

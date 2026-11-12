@@ -1,4 +1,4 @@
-import { AGENTFLOW_NORMALIZE_REQUEST } from '../family-request-hooks.ts'
+import { AGENTFLOW_NORMALIZE_REQUEST } from '../flowchart-config.ts'
 import { layoutResult, positionedView, scene, type BrowserSvgFamilyHooks } from '../browser-lazy/family.ts'
 import { projectGraphPositioned } from '../positioned-views/graph.ts'
 import { lowerGraphScene } from '../renderer.ts'

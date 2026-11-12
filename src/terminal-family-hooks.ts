@@ -1,29 +1,25 @@
 import { flowchartStatementEnds } from './flowchart-lexer.ts'
-import {
-  AGENTFLOW_NORMALIZE_REQUEST,
-  ARCHITECTURE_NORMALIZE_REQUEST,
-  C4_NORMALIZE_REQUEST,
-  CLASS_NORMALIZE_REQUEST,
-  ER_NORMALIZE_REQUEST,
-  EVENTMODELING_NORMALIZE_REQUEST,
-  FLOWCHART_NORMALIZE_REQUEST,
-  GANTT_NORMALIZE_REQUEST,
-  GITGRAPH_NORMALIZE_REQUEST,
-  JOURNEY_NORMALIZE_REQUEST,
-  KANBAN_NORMALIZE_REQUEST,
-  MINDMAP_NORMALIZE_REQUEST,
-  PACKET_NORMALIZE_REQUEST,
-  PIE_NORMALIZE_REQUEST,
-  QUADRANT_NORMALIZE_REQUEST,
-  RADAR_NORMALIZE_REQUEST,
-  SANKEY_NORMALIZE_REQUEST,
-  SEQUENCE_NORMALIZE_REQUEST,
-  STATE_NORMALIZE_REQUEST,
-  SWIMLANE_NORMALIZE_REQUEST,
-  TIMELINE_NORMALIZE_REQUEST,
-  TREEMAP_NORMALIZE_REQUEST,
-  XYCHART_NORMALIZE_REQUEST,
-} from './family-request-hooks.ts'
+import { AGENTFLOW_NORMALIZE_REQUEST, FLOWCHART_NORMALIZE_REQUEST, SWIMLANE_NORMALIZE_REQUEST } from './flowchart-config.ts'
+import { ARCHITECTURE_NORMALIZE_REQUEST } from './architecture/config.ts'
+import { C4_NORMALIZE_REQUEST } from './c4/parser.ts'
+import { CLASS_NORMALIZE_REQUEST } from './class/layout.ts'
+import { ER_NORMALIZE_REQUEST } from './er/layout.ts'
+import { EVENTMODELING_NORMALIZE_REQUEST } from './eventmodeling/layout.ts'
+import { GANTT_NORMALIZE_REQUEST } from './gantt/parser.ts'
+import { GITGRAPH_NORMALIZE_REQUEST } from './gitgraph/renderer.ts'
+import { JOURNEY_NORMALIZE_REQUEST } from './journey/layout.ts'
+import { KANBAN_NORMALIZE_REQUEST } from './kanban/config.ts'
+import { MINDMAP_NORMALIZE_REQUEST } from './mindmap/position.ts'
+import { PACKET_NORMALIZE_REQUEST } from './packet/config.ts'
+import { PIE_NORMALIZE_REQUEST } from './pie/config.ts'
+import { QUADRANT_NORMALIZE_REQUEST } from './quadrant/config.ts'
+import { RADAR_NORMALIZE_REQUEST } from './radar/config.ts'
+import { SANKEY_NORMALIZE_REQUEST } from './sankey/config.ts'
+import { SEQUENCE_NORMALIZE_REQUEST } from './sequence/config.ts'
+import { STATE_NORMALIZE_REQUEST } from './state/config.ts'
+import { TIMELINE_NORMALIZE_REQUEST } from './timeline/renderer.ts'
+import { TREEMAP_NORMALIZE_REQUEST } from './treemap/layout.ts'
+import { XYCHART_NORMALIZE_REQUEST } from './xychart/parser.ts'
 import { diagnoseArchitectureConfig } from './architecture/config-diagnostics.ts'
 import { architectureStatementEnds } from './architecture/parser.ts'
 import { diagnoseBlockConfig } from './block/config-diagnostics.ts'

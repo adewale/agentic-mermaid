@@ -1,4 +1,4 @@
-import { ARCHITECTURE_NORMALIZE_REQUEST } from '../family-request-hooks.ts'
+import { ARCHITECTURE_NORMALIZE_REQUEST } from '../architecture/config.ts'
 import { diagnoseArchitectureConfig } from '../architecture/config-diagnostics.ts'
 import { projectArchitecturePositioned } from '../positioned-views/architecture.ts'
 import { withFrontmatterTitle } from '../mermaid-source.ts'

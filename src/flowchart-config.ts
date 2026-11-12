@@ -1,3 +1,4 @@
+import type { FamilyDescriptor } from './agent/family-registry.ts'
 // ============================================================================
 // Flowchart typed runtime config: wire-or-warn (plan §Flowchart 6, P4).
 //
@@ -88,3 +89,11 @@ export function applyFlowchartLabelWrapping(
     })
   }
 }
+
+export const AGENTFLOW_NORMALIZE_REQUEST: NonNullable<FamilyDescriptor['normalizeRequest']> = ctx => ({ renderOptions: resolveFlowchartRenderOptions(ctx.source.frontmatter, ctx.renderOptions) })
+
+export const FLOWCHART_NORMALIZE_REQUEST: NonNullable<FamilyDescriptor['normalizeRequest']> = ctx => ({
+  renderOptions: resolveFlowchartRenderOptions(ctx.source.frontmatter, ctx.renderOptions),
+})
+
+export const SWIMLANE_NORMALIZE_REQUEST: NonNullable<FamilyDescriptor['normalizeRequest']> = ctx => ({ renderOptions: resolveFlowchartRenderOptions(ctx.source.frontmatter, ctx.renderOptions) })

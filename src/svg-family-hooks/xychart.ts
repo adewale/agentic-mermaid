@@ -1,4 +1,4 @@
-import { XYCHART_NORMALIZE_REQUEST } from '../family-request-hooks.ts'
+import { XYCHART_NORMALIZE_REQUEST } from '../xychart/parser.ts'
 import { diagnoseXyChartConfig } from '../xychart/config-diagnostics.ts'
 import { projectXyChartPositioned } from '../positioned-views/xychart.ts'
 import { withFrontmatterTitle } from '../mermaid-source.ts'

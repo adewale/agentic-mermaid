@@ -1,3 +1,4 @@
+import type { FamilyDescriptor } from '../agent/family-registry.ts'
 import { sceneLowering, type DrawingFactory, type DrawingDocument } from '../scene/drawing.ts'
 import type { PositionedTimelineDiagram, PositionedTimelineSection, PositionedTimelinePeriod, PositionedTimelineEvent } from './types.ts'
 import type { RenderContext, RenderOptions } from '../types.ts'
@@ -518,3 +519,7 @@ function readTimelineScale(
 }
 
 export const lowerTimelineScene = sceneLowering<PositionedTimelineDiagram>(lowerTimelineDrawing)
+
+export const TIMELINE_NORMALIZE_REQUEST: NonNullable<FamilyDescriptor['normalizeRequest']> = ctx => ({
+  appearance: { family: { ...resolveTimelineRequestAppearance(ctx.renderOptions) } },
+})

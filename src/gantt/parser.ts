@@ -1,3 +1,4 @@
+import type { FamilyDescriptor } from '../agent/family-registry.ts'
 import { parserObservationActive, observeParserStatement, observeParserMutation } from '../shared/parser-observation.ts'
 // ============================================================================
 // Gantt syntax parser — Mermaid-compatible `gantt` source → GanttModel.
@@ -441,3 +442,7 @@ export function applyResolvedGanttFrontmatterConfig(
   if (resolved.tickInterval !== undefined && model.tickInterval === undefined) model.tickInterval = resolved.tickInterval
   return model
 }
+
+export const GANTT_NORMALIZE_REQUEST: NonNullable<FamilyDescriptor['normalizeRequest']> = ctx => ({
+  familyConfig: { config: resolveGanttFrontmatterConfig(ctx.source.frontmatter) },
+})

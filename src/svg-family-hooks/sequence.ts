@@ -1,4 +1,4 @@
-import { SEQUENCE_NORMALIZE_REQUEST } from '../family-request-hooks.ts'
+import { SEQUENCE_NORMALIZE_REQUEST } from '../sequence/config.ts'
 import { diagnoseSequenceConfig } from '../sequence/config-diagnostics.ts'
 import { projectSequencePositioned } from '../positioned-views/sequence.ts'
 import { layoutResult, positionedView, scene, type BrowserSvgFamilyHooks } from '../browser-lazy/family.ts'

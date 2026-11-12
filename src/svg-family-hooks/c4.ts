@@ -1,4 +1,4 @@
-import { C4_NORMALIZE_REQUEST } from '../family-request-hooks.ts'
+import { C4_NORMALIZE_REQUEST } from '../c4/parser.ts'
 import { diagnoseC4Config } from '../c4/config-diagnostics.ts'
 import { layoutResult, positionedView, scene, type BrowserSvgFamilyHooks } from '../browser-lazy/family.ts'
 import { projectC4Positioned } from '../positioned-views/c4.ts'

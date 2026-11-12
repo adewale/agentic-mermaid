@@ -1,3 +1,4 @@
+import type { FamilyDescriptor } from '../agent/family-registry.ts'
 import type { MermaidFrontmatterMap } from '../mermaid-source.ts'
 import { getFrontmatterMap } from '../mermaid-source.ts'
 import { isSafeActionHref } from '../output-security.ts'
@@ -17,3 +18,5 @@ export function kanbanTicketUrl(base: string, ticket: string): string | undefine
   const result = base.replaceAll('#TICKET#', encodeURIComponent(ticket))
   return /^(?:https?:|mailto:|\/|#)/i.test(result) && isSafeActionHref(result) && !/[\u0000-\u0020\u007f-\u009f]/.test(result) ? result : undefined
 }
+
+export const KANBAN_NORMALIZE_REQUEST: NonNullable<FamilyDescriptor['normalizeRequest']> = ctx => ({ familyConfig: { visual: resolveKanbanConfig(ctx.source.frontmatter) } })

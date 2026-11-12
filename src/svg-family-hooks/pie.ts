@@ -1,4 +1,4 @@
-import { PIE_NORMALIZE_REQUEST } from '../family-request-hooks.ts'
+import { PIE_NORMALIZE_REQUEST } from '../pie/config.ts'
 import { diagnosePieConfig } from '../pie/config-diagnostics.ts'
 import { projectPiePositioned } from '../positioned-views/pie.ts'
 import { withFrontmatterTitle } from '../mermaid-source.ts'

@@ -1,4 +1,4 @@
-import { TREEMAP_NORMALIZE_REQUEST } from '../family-request-hooks.ts'
+import { TREEMAP_NORMALIZE_REQUEST } from '../treemap/layout.ts'
 import { layoutResult, positionedView, scene, type BrowserSvgFamilyHooks } from '../browser-lazy/family.ts'
 import { parseTreemapDiagram } from '../treemap/parser.ts'
 import { layoutTreemapDiagram, resolveTreemapConfig } from '../treemap/layout.ts'

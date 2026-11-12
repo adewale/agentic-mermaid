@@ -1,4 +1,4 @@
-import { KANBAN_NORMALIZE_REQUEST } from '../family-request-hooks.ts'
+import { KANBAN_NORMALIZE_REQUEST } from '../kanban/config.ts'
 import { type BrowserSvgFamilyHooks, layoutResult, positionedView, scene } from '../browser-lazy/family.ts'
 import { resolveKanbanConfig } from '../kanban/config.ts'
 import { diagnoseKanbanConfig } from '../kanban/config-diagnostics.ts'

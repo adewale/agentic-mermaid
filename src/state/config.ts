@@ -1,3 +1,4 @@
+import type { FamilyDescriptor } from '../agent/family-registry.ts'
 import type { MermaidRuntimeConfig, StateRuntimeConfig } from '../mermaid-source.ts'
 import type { ConfigDiagnostic, RenderOptions } from '../types.ts'
 import { FLOWCHART_STYLE_DEFAULTS, type RenderStyleDefaults } from '../styles.ts'
@@ -160,5 +161,14 @@ export function resolveStateRenderOptions(
       dividerMargin: nonNegative(config.dividerMargin) ?? 0,
       styleDefaults,
     },
+  }
+}
+
+export const STATE_NORMALIZE_REQUEST: NonNullable<FamilyDescriptor['normalizeRequest']> = ctx => {
+  const resolved = resolveStateRenderOptions(ctx.source.frontmatter, ctx.renderOptions)
+  const { stateVisual, ...renderOptions } = resolved
+  return {
+    renderOptions,
+    ...(stateVisual ? { appearance: { family: { visual: stateVisual } } } : {}),
   }
 }

@@ -1,3 +1,4 @@
+import type { FamilyDescriptor } from '../agent/family-registry.ts'
 import {
   getFrontmatterList,
   getFrontmatterMap,
@@ -926,4 +927,16 @@ function splitSemicolonStatements(text: string, strict: boolean): string[] {
 
   pushKeywordStatements(statements, current, keywords)
   return statements
+}
+
+export const XYCHART_NORMALIZE_REQUEST: NonNullable<FamilyDescriptor['normalizeRequest']> = ctx => {
+  const config = resolveXYChartConfig(ctx.source.frontmatter)
+  const theme = resolveXYChartTheme(ctx.source.frontmatter)
+  return {
+    familyConfig: { config },
+    appearance: {
+      ...(ctx.renderOptions.bg === undefined && theme.backgroundColor ? { colors: { bg: theme.backgroundColor } } : {}),
+      family: { theme },
+    },
+  }
 }

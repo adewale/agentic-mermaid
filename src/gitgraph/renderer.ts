@@ -1,3 +1,5 @@
+import type { FamilyDescriptor } from '../agent/family-registry.ts'
+import { resolveGitGraphPositionConfig } from './position.ts'
 import { sceneLowering, type DrawingFactory, type DrawingDocument } from '../scene/drawing.ts'
 import { escapeAttr } from '../multiline-utils.ts'
 import { DefaultBackend } from '../scene/backend.ts'
@@ -304,3 +306,15 @@ function r(value: number): number {
 }
 
 export const lowerGitGraphScene = sceneLowering<PositionedGitGraphDiagram>(lowerGitGraphDrawing)
+
+export const GITGRAPH_NORMALIZE_REQUEST: NonNullable<FamilyDescriptor['normalizeRequest']> = ctx => ({
+  familyConfig: {
+    position: resolveGitGraphPositionConfig(ctx.source.config.gitGraph, ctx.source.config.themeVariables),
+    ...(typeof ctx.source.frontmatter.title === 'string' ? { title: ctx.source.frontmatter.title } : {}),
+  },
+  appearance: {
+    family: {
+      themeVariables: resolveGitGraphThemeProjection(ctx.source.config.themeVariables),
+    },
+  },
+})

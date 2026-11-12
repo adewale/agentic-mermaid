@@ -1,3 +1,4 @@
+import type { FamilyDescriptor } from '../agent/family-registry.ts'
 // ============================================================================
 // Radar runtime config — typed section, wire-or-warn (defect class C3).
 //
@@ -178,3 +179,7 @@ export function resolveRadarVisualConfig(
 
   return config
 }
+
+export const RADAR_NORMALIZE_REQUEST: NonNullable<FamilyDescriptor['normalizeRequest']> = ctx => ({
+  familyConfig: { visual: resolveRadarVisualConfig(ctx.source.frontmatter) },
+})

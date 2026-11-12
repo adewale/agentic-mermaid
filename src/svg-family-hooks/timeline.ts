@@ -1,4 +1,4 @@
-import { TIMELINE_NORMALIZE_REQUEST } from '../family-request-hooks.ts'
+import { TIMELINE_NORMALIZE_REQUEST } from '../timeline/renderer.ts'
 import { diagnoseTimelineConfig } from '../timeline/config-diagnostics.ts'
 import { projectTimelinePositioned } from '../positioned-views/timeline.ts'
 import { withFrontmatterTitle } from '../mermaid-source.ts'

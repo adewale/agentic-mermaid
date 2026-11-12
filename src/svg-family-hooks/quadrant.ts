@@ -1,4 +1,4 @@
-import { QUADRANT_NORMALIZE_REQUEST } from '../family-request-hooks.ts'
+import { QUADRANT_NORMALIZE_REQUEST } from '../quadrant/config.ts'
 import { diagnoseQuadrantConfig } from '../quadrant/config-diagnostics.ts'
 import { projectQuadrantPositioned } from '../positioned-views/quadrant.ts'
 import { withFrontmatterTitle } from '../mermaid-source.ts'

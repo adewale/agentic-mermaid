@@ -1,4 +1,4 @@
-import { PACKET_NORMALIZE_REQUEST } from '../family-request-hooks.ts'
+import { PACKET_NORMALIZE_REQUEST } from '../packet/config.ts'
 import { type BrowserSvgFamilyHooks, layoutResult, positionedView, scene } from '../browser-lazy/family.ts'
 import { withFrontmatterTitle } from '../mermaid-source.ts'
 import { resolvePacketConfig } from '../packet/config.ts'

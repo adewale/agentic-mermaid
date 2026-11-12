@@ -1,4 +1,4 @@
-import { EVENTMODELING_NORMALIZE_REQUEST } from '../family-request-hooks.ts'
+import { EVENTMODELING_NORMALIZE_REQUEST } from '../eventmodeling/layout.ts'
 import { layoutResult, positionedView, scene, type BrowserSvgFamilyHooks } from '../browser-lazy/family.ts'
 import { eventModelingStatementEnds, parseEventModeling } from '../eventmodeling/parser.ts'
 import { layoutEventModeling } from '../eventmodeling/layout.ts'

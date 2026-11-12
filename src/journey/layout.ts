@@ -1,3 +1,4 @@
+import type { FamilyDescriptor } from '../agent/family-registry.ts'
 import { safeCssFontFamily } from '../shared/css-font.ts'
 import { preparePixelText, type PixelTextBlock } from '../shared/prepared-text.ts'
 import { resolveLabelContent, type DisplayTextInput, type LabelContent } from '../shared/display-text.ts'
@@ -524,3 +525,7 @@ function scoreToY(score: number, guideTop: number): number {
 }
 
 const JOURNEY_MAX_SCORE = 5
+
+export const JOURNEY_NORMALIZE_REQUEST: NonNullable<FamilyDescriptor['normalizeRequest']> = ctx => ({
+  appearance: { family: resolveJourneyRequestAppearance(ctx.renderOptions) as unknown as Record<string, unknown> },
+})

@@ -1,3 +1,4 @@
+import type { FamilyDescriptor } from '../agent/family-registry.ts'
 import type { MermaidFrontmatterMap } from '../mermaid-source.ts'
 import { getFrontmatterMap } from '../mermaid-source.ts'
 import type { PacketVisualConfig } from './types.ts'
@@ -17,3 +18,5 @@ export function resolvePacketConfig(frontmatter: MermaidFrontmatterMap = {}): Pa
     paddingY: padding('paddingY'),
   }
 }
+
+export const PACKET_NORMALIZE_REQUEST: NonNullable<FamilyDescriptor['normalizeRequest']> = ctx => ({ familyConfig: { visual: resolvePacketConfig(ctx.source.frontmatter) } })

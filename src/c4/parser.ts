@@ -1,3 +1,5 @@
+import type { FamilyDescriptor } from '../agent/family-registry.ts'
+import { frontmatterTitle } from '../mermaid-source.ts'
 import { assertC4DiagramWork, assertDiagramWorkLimit } from '../shared/diagram-limits.ts'
 import { observeParserMutation, observeParserStatement, observeParserToken, parserObservationActive } from '../shared/parser-observation.ts'
 import { generatedIds } from '../shared/generated-identity.ts'
@@ -645,4 +647,27 @@ export function parseC4Diagram(input: string | readonly string[]): C4Body {
   const unsupported = body.diagnostics.find(item => item.severity === 'error')
   if (unsupported) throw new Error(`C4 unsupported syntax: ${c4DiagnosticMessage(body, unsupported)}`)
   return body
+}
+
+export const C4_NORMALIZE_REQUEST: NonNullable<FamilyDescriptor['normalizeRequest']> = ctx => {
+  const wrapperLength = ctx.source.authoredWrapperLength ?? ctx.source.wrapperSource?.length ?? 0
+  const wrapper = ctx.source.originalText.slice(0, wrapperLength)
+  const body = parseC4Diagram(ctx.source.originalText.slice(wrapperLength))
+  const lineOffset = wrapper.split(/\r\n?|\n/).length - 1
+  for (const statement of body.statements) {
+    statement.span.start += wrapper.length
+    statement.span.end += wrapper.length
+    statement.span.line += lineOffset
+  }
+  const title = frontmatterTitle(ctx.source.frontmatter)
+  if (body.title === undefined && title !== undefined) body.title = title
+  if (ctx.source.accessibility.title !== undefined) body.accessibilityTitle = ctx.source.accessibility.title
+  if (ctx.source.accessibility.descr !== undefined) body.accessibilityDescription = ctx.source.accessibility.descr
+  return {
+    familyConfig: {
+      model: body,
+      c4: ctx.source.config.c4 ?? {},
+      themeVariables: ctx.source.config.themeVariables ?? {},
+    },
+  }
 }

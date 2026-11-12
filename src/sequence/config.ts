@@ -1,3 +1,4 @@
+import type { FamilyDescriptor } from '../agent/family-registry.ts'
 // ============================================================================
 // Sequence runtime config — wire-or-warn (family-elevation-
 // plan §Sequence item 6, config half; the class/er/flowchart pattern).
@@ -72,3 +73,7 @@ export function resolveSequenceConfig(frontmatter: MermaidFrontmatterMap | undef
   else if (typeof familyWrap === 'boolean') out.wrap = familyWrap
   return out
 }
+
+export const SEQUENCE_NORMALIZE_REQUEST: NonNullable<FamilyDescriptor['normalizeRequest']> = ctx => ({
+  familyConfig: { sequence: resolveSequenceConfig(ctx.source.frontmatter) },
+})

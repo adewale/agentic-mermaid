@@ -1,4 +1,4 @@
-import { STATE_NORMALIZE_REQUEST } from '../family-request-hooks.ts'
+import { STATE_NORMALIZE_REQUEST } from '../state/config.ts'
 import { diagnoseStateConfig } from '../state/config-diagnostics.ts'
 import { projectGraphPositioned } from '../positioned-views/graph.ts'
 import type { ResolvedStateVisualConfig } from '../state/config.ts'

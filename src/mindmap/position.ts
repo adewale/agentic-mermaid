@@ -1,3 +1,4 @@
+import type { FamilyDescriptor } from '../agent/family-registry.ts'
 import { layoutMindmap, withMindmapTitle } from './layout.ts'
 import type { MindmapDiagram, PositionedMindmapDiagram } from './types.ts'
 import type { ResolvedRenderStyle } from '../styles.ts'
@@ -26,3 +27,9 @@ export function positionMindmap(
 ): PositionedMindmapDiagram {
   return withMindmapTitle(layoutMindmap(body, { ...config, textStyle: titleStyle }), body.title, titleStyle, config)
 }
+
+export const MINDMAP_NORMALIZE_REQUEST: NonNullable<FamilyDescriptor['normalizeRequest']> = ctx => ({
+  familyConfig: {
+    position: resolveMindmapPositionConfig(ctx.source.config.mindmap, ctx.source.config.layout),
+  },
+})
