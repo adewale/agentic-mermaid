@@ -1,0 +1,210 @@
+{
+  "actual-write-v2-original-dist/agent-core.js": {
+    "bytes": 159598,
+    "sha256": "df824e03d1cdc01c9eda3ca689b5ac7c33a961ceb6c778acb7b42a98e59b9859"
+  },
+  "actual-write-v2-original-dist/agent-core.js.map": {
+    "bytes": 627688,
+    "sha256": "df70e086eb428e74efb53bc117d578f73d18c48a91e62983d498f86a560fa65e"
+  },
+  "actual-write-v2-original-dist/builtin-font-metrics.js": {
+    "bytes": 348,
+    "sha256": "0b1e018e9f12f2e3357e3dccc380e4d4ce2f37f7b83cc29d7c4d00fa3f42645e"
+  },
+  "actual-write-v2-original-dist/builtin-font-metrics.js.map": {
+    "bytes": 1015,
+    "sha256": "25d92963b3454b9c00befcd361abd438a6e14c0310a9684e1d8bf6f027e62026"
+  },
+  "actual-write-v2-original-dist/builtin-font-metrics.node.js": {
+    "bytes": 377,
+    "sha256": "071386e4390705691d6962ad4c13fa7f9ff8ba797ebeb337b464433abe4b73ec"
+  },
+  "actual-write-v2-original-dist/builtin-font-metrics.node.js.map": {
+    "bytes": 1159,
+    "sha256": "e3c7d1ee74809ba7f5c9a4cf89b88f02cfc6b5646e355fd700895542bd263124"
+  },
+  "actual-write-v2-original-dist/chunk-H77JNERV.js": {
+    "bytes": 137,
+    "sha256": "7a293e9af3e91b795219aad8b6f48590970949afa84aeab0f9b017755095aabb"
+  },
+  "actual-write-v2-original-dist/chunk-H77JNERV.js.map": {
+    "bytes": 802,
+    "sha256": "74ef81c8a2e2ed3b1cbdf7884821f3fb4d910c42c1f085d402c61b024283e804"
+  },
+  "actual-write-v2-original-dist/chunk-LEE5OE4C.js": {
+    "bytes": 3770301,
+    "sha256": "2a6458dd777743906949c9757b01543b998f69950d22f8a7abea3eebe3f75cae"
+  },
+  "actual-write-v2-original-dist/chunk-LEE5OE4C.js.map": {
+    "bytes": 15122236,
+    "sha256": "b59d8e9a95e8a88d933492793207064f5138d4d0674ab3829efec9f4bcdc1182"
+  },
+  "actual-write-v2-original-dist/chunk-VUFVLGTH.js": {
+    "bytes": 150,
+    "sha256": "1c4a54620dbc5af7f2de154c1854ab695b6180e948b4df5575171f1663c80951"
+  },
+  "actual-write-v2-original-dist/chunk-VUFVLGTH.js.map": {
+    "bytes": 71,
+    "sha256": "cba81f7ad4d5b1b629bf43823f1082e73a10d0c3114c937515e7f8c1047629b3"
+  },
+  "actual-write-v2-original-dist/chunk-Z7QFUOYN.js": {
+    "bytes": 22032,
+    "sha256": "a5a38a4a1a55960374a9347b291eb495a91bd2b5bb34c1182b89eda31232f967"
+  },
+  "actual-write-v2-original-dist/chunk-Z7QFUOYN.js.map": {
+    "bytes": 105586,
+    "sha256": "08b68c5c01eef39eafce141f8b82b5dcf4d32ca3491320828ca5e29307a4da6f"
+  },
+  "actual-write-v2-original-dist/elk-constructor.js": {
+    "bytes": 162,
+    "sha256": "7c56215756c8ffe4933aab1fb6beebf84f597a2f5825c3bedcd4e61b9a11cb5d"
+  },
+  "actual-write-v2-original-dist/elk-constructor.js.map": {
+    "bytes": 774,
+    "sha256": "9841b2b790093792b0625ab934b4fa61b383bb9009e5b391264cc8f0ad4c9f4e"
+  },
+  "actual-write-v2-original-dist/elk-constructor.node.js": {
+    "bytes": 535,
+    "sha256": "d10a7c739b2abce378d516f6d606767ce142667b5d322a86fc306f49c9b8448f"
+  },
+  "actual-write-v2-original-dist/index.js": {
+    "bytes": 7086,
+    "sha256": "3e6184a11903a8aeca0d0e881f76b1d5aee81ead29886b5d107e8d6e018b3ae5"
+  },
+  "actual-write-v2-original-dist/index.js.map": {
+    "bytes": 71,
+    "sha256": "cba81f7ad4d5b1b629bf43823f1082e73a10d0c3114c937515e7f8c1047629b3"
+  },
+  "actual-write-v2-original-dist/inter-metrics-kernel.cjs": {
+    "bytes": 19168,
+    "sha256": "458adacd352474d2a2bfbc37a1d653f6bf0937b16afcf71fad9aedcf247e0b14"
+  },
+  "actual-write-v2-original-dist/layout-optimization.cjs": {
+    "bytes": 7125,
+    "sha256": "ca508d15d4503f4ca91a8a80421ed8129cd2e31fff2379366e35072eacf002ce"
+  },
+  "actual-write-v2-original-dist/layout-optimization.js": {
+    "bytes": 181,
+    "sha256": "88d6a5a04290501eddc0393af819d64c7fe42e98cb932b5ecef7a2cbd9f4b6b4"
+  },
+  "actual-write-v2-original-dist/layout-optimization.js.map": {
+    "bytes": 559,
+    "sha256": "5704f0425e8b22de44b4e3df22a09ec3cc690ce048d9e27e70ed0e99c0b57f7f"
+  },
+  "actual-write-v2-original-dist/layout-optimization.node.js": {
+    "bytes": 224,
+    "sha256": "8887a42918d34d47ea699d37d8bd73b0d23893faecda76f623cb33ea06a9fc92"
+  },
+  "actual-write-v2-original-dist/layout-optimization.node.js.map": {
+    "bytes": 775,
+    "sha256": "f858f2fc851a68b78c1f2192ecba9ca1d7c5682eea4051a2d066a58226abf7ac"
+  },
+  "actual-write-v2-original-dist/optional-kernels.node.js": {
+    "bytes": 567,
+    "sha256": "83eaa139c2a6642fd3dc39b68ba0e3d0d527b28c871b8bccb53a89207eabf27f"
+  },
+  "actual-write-v3-original-dist/agent-core.js": {
+    "bytes": 159598,
+    "sha256": "0092d622dd598c577d79214a65fae5fab04b2e77ac9909e529523406a67b9ade"
+  },
+  "actual-write-v3-original-dist/agent-core.js.map": {
+    "bytes": 627688,
+    "sha256": "df70e086eb428e74efb53bc117d578f73d18c48a91e62983d498f86a560fa65e"
+  },
+  "actual-write-v3-original-dist/builtin-font-metrics.js": {
+    "bytes": 348,
+    "sha256": "0b1e018e9f12f2e3357e3dccc380e4d4ce2f37f7b83cc29d7c4d00fa3f42645e"
+  },
+  "actual-write-v3-original-dist/builtin-font-metrics.js.map": {
+    "bytes": 1015,
+    "sha256": "25d92963b3454b9c00befcd361abd438a6e14c0310a9684e1d8bf6f027e62026"
+  },
+  "actual-write-v3-original-dist/builtin-font-metrics.node.js": {
+    "bytes": 377,
+    "sha256": "071386e4390705691d6962ad4c13fa7f9ff8ba797ebeb337b464433abe4b73ec"
+  },
+  "actual-write-v3-original-dist/builtin-font-metrics.node.js.map": {
+    "bytes": 1159,
+    "sha256": "e3c7d1ee74809ba7f5c9a4cf89b88f02cfc6b5646e355fd700895542bd263124"
+  },
+  "actual-write-v3-original-dist/chunk-2YIDMBIO.js": {
+    "bytes": 3769930,
+    "sha256": "c9e8d711216e8f358a84f9e5ff53ff047e52499e48ea9b484cb12eda51dd6552"
+  },
+  "actual-write-v3-original-dist/chunk-2YIDMBIO.js.map": {
+    "bytes": 15120496,
+    "sha256": "a43315196bb5c1eab5c4528cf56a211cf4852e1bbe5e9fcb7db281877d82bf48"
+  },
+  "actual-write-v3-original-dist/chunk-H77JNERV.js": {
+    "bytes": 137,
+    "sha256": "7a293e9af3e91b795219aad8b6f48590970949afa84aeab0f9b017755095aabb"
+  },
+  "actual-write-v3-original-dist/chunk-H77JNERV.js.map": {
+    "bytes": 802,
+    "sha256": "74ef81c8a2e2ed3b1cbdf7884821f3fb4d910c42c1f085d402c61b024283e804"
+  },
+  "actual-write-v3-original-dist/chunk-VUFVLGTH.js": {
+    "bytes": 150,
+    "sha256": "1c4a54620dbc5af7f2de154c1854ab695b6180e948b4df5575171f1663c80951"
+  },
+  "actual-write-v3-original-dist/chunk-VUFVLGTH.js.map": {
+    "bytes": 71,
+    "sha256": "cba81f7ad4d5b1b629bf43823f1082e73a10d0c3114c937515e7f8c1047629b3"
+  },
+  "actual-write-v3-original-dist/chunk-Z7QFUOYN.js": {
+    "bytes": 22032,
+    "sha256": "a5a38a4a1a55960374a9347b291eb495a91bd2b5bb34c1182b89eda31232f967"
+  },
+  "actual-write-v3-original-dist/chunk-Z7QFUOYN.js.map": {
+    "bytes": 105586,
+    "sha256": "08b68c5c01eef39eafce141f8b82b5dcf4d32ca3491320828ca5e29307a4da6f"
+  },
+  "actual-write-v3-original-dist/elk-constructor.js": {
+    "bytes": 162,
+    "sha256": "7c56215756c8ffe4933aab1fb6beebf84f597a2f5825c3bedcd4e61b9a11cb5d"
+  },
+  "actual-write-v3-original-dist/elk-constructor.js.map": {
+    "bytes": 774,
+    "sha256": "9841b2b790093792b0625ab934b4fa61b383bb9009e5b391264cc8f0ad4c9f4e"
+  },
+  "actual-write-v3-original-dist/elk-constructor.node.js": {
+    "bytes": 535,
+    "sha256": "d10a7c739b2abce378d516f6d606767ce142667b5d322a86fc306f49c9b8448f"
+  },
+  "actual-write-v3-original-dist/index.js": {
+    "bytes": 7086,
+    "sha256": "376a8164747c95aeb981b518dec9411148c367e3be6e2469518380b2174e423a"
+  },
+  "actual-write-v3-original-dist/index.js.map": {
+    "bytes": 71,
+    "sha256": "cba81f7ad4d5b1b629bf43823f1082e73a10d0c3114c937515e7f8c1047629b3"
+  },
+  "actual-write-v3-original-dist/inter-metrics-kernel.cjs": {
+    "bytes": 19168,
+    "sha256": "458adacd352474d2a2bfbc37a1d653f6bf0937b16afcf71fad9aedcf247e0b14"
+  },
+  "actual-write-v3-original-dist/layout-optimization.cjs": {
+    "bytes": 7125,
+    "sha256": "ca508d15d4503f4ca91a8a80421ed8129cd2e31fff2379366e35072eacf002ce"
+  },
+  "actual-write-v3-original-dist/layout-optimization.js": {
+    "bytes": 181,
+    "sha256": "88d6a5a04290501eddc0393af819d64c7fe42e98cb932b5ecef7a2cbd9f4b6b4"
+  },
+  "actual-write-v3-original-dist/layout-optimization.js.map": {
+    "bytes": 559,
+    "sha256": "5704f0425e8b22de44b4e3df22a09ec3cc690ce048d9e27e70ed0e99c0b57f7f"
+  },
+  "actual-write-v3-original-dist/layout-optimization.node.js": {
+    "bytes": 224,
+    "sha256": "8887a42918d34d47ea699d37d8bd73b0d23893faecda76f623cb33ea06a9fc92"
+  },
+  "actual-write-v3-original-dist/layout-optimization.node.js.map": {
+    "bytes": 775,
+    "sha256": "f858f2fc851a68b78c1f2192ecba9ca1d7c5682eea4051a2d066a58226abf7ac"
+  },
+  "actual-write-v3-original-dist/optional-kernels.node.js": {
+    "bytes": 567,
+    "sha256": "83eaa139c2a6642fd3dc39b68ba0e3d0d527b28c871b8bccb53a89207eabf27f"
+  }
+}

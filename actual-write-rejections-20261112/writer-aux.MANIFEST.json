@@ -1,0 +1,38 @@
+{
+  "write-operands-v3-XML-closure.log": {
+    "bytes": 272,
+    "sha256": "1e6d3d4b73af747dcea408afc59ce4910f9f64ec99027d139eca8a1b1b5b77e1"
+  },
+  "write-operands-v3-node-smoke.log": {
+    "bytes": 287,
+    "sha256": "ede6ff795c69c84b05cc9afedde0993aa3ff23d56c535cfa75c0c69eaea2c7e1"
+  },
+  "actual-write-recovery-20261112/WRITER-WT-943.patch": {
+    "bytes": 73527,
+    "sha256": "c2e13a972004cc50ff01d47ab003c8129e1ac59161ce480fe2af68f2ee219926"
+  },
+  "write-operands-943/src/scene/native-written-leaf.ts": {
+    "bytes": 9318,
+    "sha256": "8f172f98ef0a75635f3d3814a1798ba6d16adf1a1c060a5f8149b48f53757172"
+  },
+  "write-operands-943/src/scene/scene-validation-error.ts": {
+    "bytes": 841,
+    "sha256": "eb495d03133e7cc0f4eb7f829780665e3a5d13239a03684b412454921be82906"
+  },
+  "write-operands-943/src/scene/scene-validation-paint.ts": {
+    "bytes": 5594,
+    "sha256": "c06e9be569599c75fa05b41e434311574bb1624679d818baa5b2672fb1704473"
+  },
+  "write-operands-943/src/scene/scene-validation-values.ts": {
+    "bytes": 1068,
+    "sha256": "6508dae02741888123ea0c41beb2399153127ae5f8814e93d82cb727230c5e22"
+  },
+  "write-operands-943/src/scene/svg-writer-binding-negative.ts": {
+    "bytes": 95544,
+    "sha256": "c86145a0c7dee586fd5478929b7590770518b30fa85b69578e1a10b862b614f2"
+  },
+  "write-operands-943/src/scene/svg-writer-data-debug.ts": {
+    "bytes": 100529,
+    "sha256": "fd5005af5053d2ca313d5cc06d2910f313c0de15f2cfa0bcc0344464345f6dd9"
+  }
+}
