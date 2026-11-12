@@ -1,0 +1,95 @@
+diff --git a/docs/design/system/layout-0.6-work-log.md b/docs/design/system/layout-0.6-work-log.md
+index 50eaf250f..06d74ece1 100644
+--- a/docs/design/system/layout-0.6-work-log.md
++++ b/docs/design/system/layout-0.6-work-log.md
+@@ -2340,3 +2340,23 @@ Native capture remains exact9644 after3b6 withdrew adverse scalar experiment.
+ Final valid SVG/receipt/ink qualification and freshCI follow; no performance or
+ payload improvement claimed for this correctness fix. All caps/defaults and
+ retained adverse metrics unchanged; Native100/Chain300/payload losses remain.
++
++
++### 12 November — batch uninterrupted paint-proof reservations
++
++After `fc4bd85a3f51ddac635f77a65188bba37399f742`, the private proof ledger
++reserves uninterrupted work once instead of invoking a unit callback repeatedly.
++Generic work callbacks and geometry-read loops stay unchanged; original caps,
++partial exhaustion and all proof counts/statuses remain. Trident preserves all
++310 entire SVG/receipts and 194 authored meaning/actual ink/quality vectors;
++12 same errors retained. Lint and Node build pass. Owning tests 662P/1 timeout:
++Sparse32 exceeds the local default 5s on both clean fc4 (6.70s) and candidate
++(7.55s); no timeout waiver. Local browser builds hit memory limits, including
++one bounded retry; browser bytes/products and canonical types await fresh CI.
++Matched 12 Node workers: Native100 stock SVG median 138.58→124.82ms; fresh
++124.84→102.44; label edit 101.28→85.85. Full response 182.77→157.62ms, cold
++437.77→372.50; first edit 194.06→214.29 is adverse. Full RSS125.32→124.80MiB,
++transient after-heap29.45→29.49MiB; no retained-memory or causal ratio claim.
++27 whole SVG/receipt pairs exact. Native100 target, Chain300 both400k unknown
++and payload budgets remain open. Next: reuse numeric geometry checks at their
++capture producer; reject if ownership/byte costs outweigh actual saved work.
+diff --git a/src/scene/paint-certification.ts b/src/scene/paint-certification.ts
+index a3ffc2333..352c9509b 100644
+--- a/src/scene/paint-certification.ts
++++ b/src/scene/paint-certification.ts
+@@ -1517,6 +1517,18 @@ export function certifyNativePaint(scene: NativePaintHeader, inspection: ScenePa
+     operations++
+     return true
+   }
++  // Reserve uninterrupted ledger work in one step. Keep work() unchanged for
++  // callbacks and loops that observe geometry between individual charges.
++  const reserve = (count: number): boolean => {
++    if (!(count > 0)) return true
++    if (operations >= MAX_OCCLUSION_OPERATIONS) { exhausted = true; return false }
++    if (count > MAX_OCCLUSION_OPERATIONS - operations) {
++      operations = MAX_OCCLUSION_OPERATIONS; exhausted = true; return false
++    }
++    const fraction = count % 1
++    operations += fraction === 0 ? count : count - fraction + 1
++    return true
++  }
+   // This resolver closes the actual emission's copied variables. A live
+   // caller palette keeps its original fresh resolve/parse path below.
+   const immutableBackground = colorHeaderMatches && boundColor !== undefined
+@@ -1524,7 +1536,6 @@ export function certifyNativePaint(scene: NativePaintHeader, inspection: ScenePa
+   const readBoundBackground = (): Readonly<RgbaColor> | null | undefined => {
+     if (!work() || !work() || !immutableBackground) return undefined
+     if (backgroundReady) return backgroundRgba
+-    const reserve = (count: number): boolean => { for (let i = 0; i < count; i++) if (!work()) return false; return true }
+     const literal = resolvePaintColor('var(--bg)')
+     let parsed: RgbaColor | null | undefined
+     if (literal) {
+@@ -1551,7 +1562,7 @@ export function certifyNativePaint(scene: NativePaintHeader, inspection: ScenePa
+   // The inherited-paint correction admits only a proved opaque foreground
+   // over its declared document paper, without any earlier local backing ink.
+   const checkActualTextForeground = (primitive: ScenePaintPrimitive): void => {
+-    const pay = (count: number): boolean => { for (let i = 0; i < count; i++) if (!work()) return false; return true }
++    const pay = reserve
+     if (!emissionWork || !pay(2)) return
+     const fact = nativeTextPaintWriteOf(primitive)
+     if (!fact) return
+@@ -1996,7 +2007,7 @@ export function certifyNativePaint(scene: NativePaintHeader, inspection: ScenePa
+       const mayFill = markerMayHaveOpaqueFill(resolvePaintColor, descriptor, work)
+       let actualPose: { node: NativeConnectorPaintSource; marker: MarkerDescriptor } | undefined
+       if (semantic && exactWorld && contours && marker.position !== 'mid') {
+-        const pay = (count: number): boolean => { for (let i = 0; i < count; i++) if (!work()) return false; return true }
++        const pay = reserve
+         const record = <T>(value: T | undefined, fields: readonly string[]): T | undefined => markerProofRecord(value, fields, pay)
+         const retainedMarker = stablePathMarker(descriptor, work, record, resolvePaintColor)
+         const contour = contours[markerIndex % contours.length]
+@@ -2008,7 +2019,7 @@ export function certifyNativePaint(scene: NativePaintHeader, inspection: ScenePa
+       const survivingFill = paintEvidence?.survivingFill === true || strokeProof?.stroke === 'absent' && paintEvidence?.fillColor?.[3] === 1
+       const fillWitnesses = measuredWorld && knownMapping ? markerInkWitnesses(actualPose?.marker ?? descriptor, region.hull, resolvePaintColor, work, survivingFill) : undefined
+       let actualInk = measuredWorld && knownMapping && descriptor?.paint?.vectorEffect !== 'non-scaling-stroke' && markerHasInk(descriptor, fillWitnesses, resolvePaintColor, work, survivingFill)
+-      const pay = (count: number): boolean => { for (let i = 0; i < count; i++) if (!work()) return false; return true }
++      const pay = reserve
+       let foregroundFill = false, foregroundStroke = false, backgroundKnown = false
+       if (semantic && paintEvidence && pay(10)) {
+         let bg: Readonly<RgbaColor> | null | undefined
+@@ -2190,7 +2201,7 @@ export function certifyNativePaint(scene: NativePaintHeader, inspection: ScenePa
+     const proof = target.strokeProof, pose = proof?.markerPose, carrier = paintPrimitiveSource(target.primitive)
+     if (!target.semantic || !target.clipEligible || !proof || !pose || carrier?.kind !== 'connector'
+       || !(hasNativeEmissionOccurrence(target.primitive) || hasSceneWriteEmissionOccurrence(target.primitive))) continue
+-    const pay = (count: number): boolean => { for (let i = 0; i < count; i++) if (!work()) return false; return true }
++    const pay = reserve
+     const candidates: typeof compoundCandidates = []
+     for (const candidate of compoundCandidates) {
+       if (!pay(8)) break
