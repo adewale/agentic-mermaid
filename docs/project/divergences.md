@@ -342,6 +342,14 @@ succeed. Portable word, hexadecimal and integer values remain editable.
 - `MermaidGraph` and `renderMermaidSVGAsync` remain for compatibility with existing renderer/tests/consumers.
 - State diagrams own a dedicated `StateBody` IR with state-shaped operations and `asState`; `asFlowchart` returns `null`. Notes, pseudostates, history, concurrency, paint, composites, and direction are modeled. Unsupported extensions remain lossless through the structured-or-opaque boundary.
 
+### Mermaid `look` is a style option here
+
+Mermaid's top-level `look` (`classic`, `handDrawn`, `neo`) and `handDrawnSeed`
+are config; this renderer's looks are the `style` and `seed` render options
+(`style: 'hand-drawn'`, CLI `--style hand-drawn --seed N`). The config keys do
+not change output, and `verify` and render warnings name them with
+`INEFFECTIVE_CONFIG`; `look: classic` is the default and is silent.
+
 ### Repeated flowchart groups retain one ownership tree
 
 Repeated `subgraph` IDs merge their members into one group, retaining the first authored title. A declaration nested inside an ancestor with the same ID extends that ancestor without adding another containment edge, so `S → S` and `S → T → S` retain all node bodies in an acyclic tree. Mermaid 12.1 can instead select the first completed declaration's title or produce cyclic parent references. Serialization and both renderers consume our normalized ownership tree; work budgets still count the full syntactic nesting before flattening.

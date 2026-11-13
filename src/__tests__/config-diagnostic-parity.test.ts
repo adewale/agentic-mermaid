@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'bun:test'
 import { explicitFamilyConfigDiagnostics } from '../shared/family-config-diagnostics.ts'
 import { verifyMermaid } from '../agent/index.ts'
-import { renderMermaidSVG, type ConfigDiagnostic } from '../index.ts'
+import { renderMermaidSVG, type ConfigDiagnostic, type RenderOptions } from '../index.ts'
 
 const tuple = (diagnostic: { code: string; field?: string; message?: string }) =>
   [diagnostic.code, diagnostic.field, diagnostic.message]
@@ -50,5 +50,27 @@ describe('family config diagnostics have one schema-owned contract', () => {
       expect(themeWarnings(`%%{init: {"theme":"${theme}"}}%%\n${body}`)).toEqual([])
       expect(renderDiagnostics(theme)).toEqual([])
     }
+  })
+
+  // Mermaid's hand-drawn look is config here and a style option in this
+  // renderer; the config was accepted with no output change and no warning.
+  test.each(['flowchart LR\n  A --> B', 'pie\n  "A": 1', 'sequenceDiagram\n  A->>B: hi'])('Mermaid look and handDrawnSeed are named on verify and render: %j', body => {
+    const lookFields = new Set(['look', 'handDrawnSeed'])
+    const verified = (source: string) => verifyMermaid(source).warnings
+      .filter(warning => warning.code === 'INEFFECTIVE_CONFIG' && lookFields.has(warning.field ?? '')).map(tuple)
+    const rendered = (config: NonNullable<RenderOptions['mermaidConfig']>) => {
+      const seen: ConfigDiagnostic[] = []
+      renderMermaidSVG(body, { mermaidConfig: config, onConfigDiagnostic: diagnostic => seen.push(diagnostic) })
+      return seen.filter(diagnostic => lookFields.has(diagnostic.field)).map(tuple)
+    }
+    const handDrawn = ['INEFFECTIVE_CONFIG', 'look', expect.stringContaining("style 'hand-drawn'")]
+    const seed = ['INEFFECTIVE_CONFIG', 'handDrawnSeed', expect.stringContaining('seed')]
+    for (const source of [`---\nconfig:\n  look: handDrawn\n  handDrawnSeed: 7\n---\n${body}`, `%%{init: {"look":"handDrawn","handDrawnSeed":7}}%%\n${body}`]) {
+      expect(verified(source)).toEqual([seed, handDrawn])
+    }
+    expect(rendered({ look: 'handDrawn', handDrawnSeed: 7 })).toEqual([seed, handDrawn])
+    expect(rendered({ look: 'neo' })).toEqual([['INEFFECTIVE_CONFIG', 'look', expect.stringContaining('"neo"')]])
+    expect(verified(`---\nconfig:\n  look: classic\n---\n${body}`)).toEqual([])
+    expect(rendered({ look: 'classic' })).toEqual([])
   })
 })
