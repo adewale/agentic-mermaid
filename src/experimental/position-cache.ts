@@ -437,16 +437,21 @@ export function cachedNativeDrawing(request: object, layout: FamilyLayoutResult,
  * Cold cyclic sources use spare capacity. Consecutive reuse or a working-set
  * change that leaves the oldest drawing unused may replace drawings.
  * Evicting geometry invalidates its dependent certified drawing artifact. */
+/** A locally repeated drawing, or one replacing a drawing unused for
+ * DRAWING_REPLACEMENT_AGE native uses, may evict; others enter only when they fit. */
+function drawingMayEnter(key: string, weight: number, residency: { locallyRepeated: boolean }): boolean {
+  if (residency.locallyRepeated || drawings.canFit(key, weight)) return true
+  const oldest = drawings.leastRecentlyUsed()
+  const oldestUse = oldest && nativeResidency.get(oldest.owner)?.lastUse
+  return oldestUse !== undefined && nativeUse - oldestUse >= DRAWING_REPLACEMENT_AGE
+}
 export function retainNativeDrawing(request: object, layout: FamilyLayoutResult, drawing: RetainedNativeDrawing): void {
   const entry = nativeOwners.get(layout)
   if (!entry || entry.request !== request || residentPositioned(entry.key) !== entry.snapshot) return
   const residency = nativeResidency.get(entry.snapshot)!
   if (residency.oversized) { observeCache('native-drawing', 'store-skipped', 'weight-limit'); return }
   const lowerBound = residency.drawingWeight ?? entry.key.length * 2 + drawing.svg.length * 4 + 1024
-  const oldest = drawings.leastRecentlyUsed()
-  const oldestUse = oldest && nativeResidency.get(oldest.owner)?.lastUse
-  const canReplaceAged = oldestUse !== undefined && nativeUse - oldestUse >= DRAWING_REPLACEMENT_AGE
-  if (!residency.locallyRepeated && !canReplaceAged && !drawings.canFit(entry.key, lowerBound)) {
+  if (!drawingMayEnter(entry.key, lowerBound, residency)) {
     observeCache('native-drawing', 'store-skipped', 'drawing-budget'); return
   }
   const retained = { owner: entry.snapshot, drawing }
@@ -459,7 +464,7 @@ export function retainNativeDrawing(request: object, layout: FamilyLayoutResult,
     residency.oversized = true
     observeCache('native-drawing', 'store-skipped', 'weight-limit'); return
   }
-  if (!residency.locallyRepeated && !canReplaceAged && !drawings.canFit(entry.key, weight)) {
+  if (!drawingMayEnter(entry.key, weight, residency)) {
     observeCache('native-drawing', 'store-skipped', 'drawing-budget'); return
   }
   drawings.set(entry.key, retained, weight)
@@ -492,7 +497,10 @@ export function retainFinishedNativeDrawing(drawing: object, finished: FinishedN
   const current = drawings.get(owner.key)
   if (current?.drawing !== drawing) return
   const weight = owner.weight + estimatedResidency(finished, DRAWING_WEIGHT)
-  if (weight > DRAWING_WEIGHT || !drawings.canFit(owner.key, weight)) { observeCache('native-drawing', 'store-skipped', 'finished-budget'); return }
+  // Finished output is attached on reuse, under the same admission as the drawing.
+  if (weight > DRAWING_WEIGHT || !drawingMayEnter(owner.key, weight, nativeResidency.get(current.owner)!)) {
+    observeCache('native-drawing', 'store-skipped', 'finished-budget'); return
+  }
   drawings.set(owner.key, current, weight)
   finishedDrawings.set(current.drawing, finished)
 }

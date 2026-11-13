@@ -187,6 +187,36 @@ test('constructor text custody excludes mutable, accessor and function descendan
   expect(child.status).toBe(0)
 })
 
+test('a repeated drawing keeps its finished output when the drawing tier is full', async () => {
+  const child = await runChild('node', ['--input-type=module', '-e', `
+    import assert from 'node:assert/strict'
+    import { borrowedPositioned, cachedNativeDrawing, finishedNativeDrawing, retainFinishedNativeDrawing, retainNativeDrawing, retainOwnedNativeSvgPositioned } from './src/experimental/position-cache.ts'
+    const family = {}
+    const use = (key, svg) => {
+      const request = {}
+      const layout = borrowedPositioned(family, key, request).result
+      const cached = cachedNativeDrawing(request, layout, true)
+      if (!cached) retainNativeDrawing(request, layout, { svg, preparedText: true, certification: { status: 'passed' } })
+      return cached
+    }
+    // Large drawings fill the tier's weight budget, leaving less room than
+    // the repeated drawing's finished output needs.
+    for (let index = 0; index < 12; index++) {
+      retainOwnedNativeSvgPositioned(family, 'fill-' + index, { positioned: { width: 1, height: 1 } })
+      use('fill-' + index, '<svg>' + 'x'.repeat(250000) + '</svg>')
+    }
+    retainOwnedNativeSvgPositioned(family, 'target', { positioned: { width: 1, height: 1 } })
+    use('target', '<svg/>')
+    use('target', '<svg/>')
+    const drawing = use('target', '<svg/>')
+    assert.ok(drawing)
+    retainFinishedNativeDrawing(drawing, { identity: 'finish', svg: '<svg>' + 'y'.repeat(400000) + '</svg>', diagnostics: [] })
+    assert.ok(finishedNativeDrawing(drawing, 'finish'), 'a locally repeated drawing may evict to keep its finished output')
+  `], { cwd: `${import.meta.dir}/../..` })
+  expect(child.stderr).toBe('')
+  expect(child.status).toBe(0)
+})
+
 test('a held render request cannot pin evicted private geometry through a drawing proof', async () => {
   const child = await runChild('node', ['--expose-gc', '--input-type=module', '-e', `
     import assert from 'node:assert/strict'
