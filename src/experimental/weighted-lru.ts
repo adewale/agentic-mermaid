@@ -13,6 +13,8 @@ export class WeightedLru<K, V> {
     return found.value
   }
   get size(): number { return this.#entries.size }
+  /** Read without changing recency. */
+  peek(key: K): V | undefined { return this.#entries.get(key)?.value }
   canFit(key: K, weight: number): boolean {
     const prior = this.#entries.get(key)
     return Number.isFinite(weight) && weight >= 0 && this.#entries.size + (prior ? 0 : 1) <= this.#maxEntries && this.#weight - (prior?.weight ?? 0) + weight <= this.#maxWeight

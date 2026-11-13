@@ -135,6 +135,26 @@ test('a rotation larger than the positioned cache keeps hitting, without losing 
   expect({ reused: result.reused, working: result.working, other: result.other }).toEqual({ reused: 1, working: 1, other: 0 })
 }, 20_000)
 
+test('a diagram repeated while the positioned cache is hot reuses its drawing', async () => {
+  const child = await runChild(process.execPath, ['-e', `
+    import { renderMermaidSVG } from './src/index.ts'
+    import { cachedPositioned, retainPositioned } from './src/experimental/position-cache.ts'
+    import { withPerformanceObserver } from './src/performance-observations.ts'
+    const filler = {}
+    for (let index = 0; index < 128; index++) retainPositioned(filler, 'filler-' + index, { positioned: { width: 1, height: 1 } })
+    for (let index = 0; index < 128; index++) cachedPositioned(filler, 'filler-' + index)
+    const outcomes = Array.from({ length: 3 }, () => {
+      const events = []
+      withPerformanceObserver(event => { if (event.kind === 'cache' && event.owner === 'native-drawing') events.push(event.outcome) }, () => renderMermaidSVG('flowchart LR\\n  Hot --> Repeat'))
+      return events
+    })
+    console.log(JSON.stringify(outcomes))
+  `], { cwd: `${import.meta.dir}/../..`, env: { ...process.env, AGENTIC_MERMAID_SCENE_ASSERTIONS: '0' } })
+  expect(child.status, child.stderr).toBe(0)
+  const outcomes = JSON.parse(child.stdout) as string[][]
+  expect(outcomes.at(-1)).toContain('hit')
+}, 20_000)
+
 test('identical repeats reuse positioned layouts: keys grow with authored text and layouts stay cloneable', () => {
   const columns = Array.from({ length: 12 }, (_, column) => [`  stage${column}[Stage ${column}]`,
     ...Array.from({ length: 20 }, (_, task) => `    task${column}_${task}[Task ${column}.${task}]@{assigned: "Owner ${task % 4}", ticket: "AM-${column * 20 + task}"}`)].join('\n'))

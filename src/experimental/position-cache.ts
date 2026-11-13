@@ -37,7 +37,9 @@ const results = new WeightedLru<string, PositionedSnapshot>(128, MAX_WEIGHT, key
 // the working set and promotes it.
 const HOT_WINDOW = 4
 const PROBATION_WEIGHT = MAX_WEIGHT / 4
-const probation = new WeightedLru<string, { snapshot: PositionedSnapshot; weight: number; stored: number }>(4, PROBATION_WEIGHT)
+// Probation entries are cached entries: their drawings stay reusable until
+// they leave both tiers.
+const probation = new WeightedLru<string, { snapshot: PositionedSnapshot; weight: number; stored: number }>(4, PROBATION_WEIGHT, key => { if (!results.peek(key)) drawings.delete(key) })
 const lastUse = new WeakMap<PositionedSnapshot, number>()
 let stores = 0
 function lookupPositioned(isolated: string): PositionedSnapshot | undefined {
@@ -47,13 +49,16 @@ function lookupPositioned(isolated: string): PositionedSnapshot | undefined {
     if (waiting) {
       value = waiting.snapshot
       if (waiting.stored !== stores) {
-        probation.delete(isolated)
         results.set(isolated, value, waiting.weight)
+        probation.delete(isolated)
       }
     }
   }
   if (value) lastUse.set(value, stores)
   return value
+}
+function residentPositioned(key: string): PositionedSnapshot | undefined {
+  return results.get(key) ?? probation.peek(key)?.snapshot
 }
 function admitPositioned(isolated: string, weight: number): boolean {
   if (results.canFit(isolated, weight)) return true
@@ -419,7 +424,7 @@ export function cachedNativeDrawing(request: object, layout: FamilyLayoutResult,
     nativeOwners.delete(layout)
     return undefined
   }
-  if (!entry || entry.request !== request || results.get(entry.key) !== entry.snapshot) return undefined
+  if (!entry || entry.request !== request || residentPositioned(entry.key) !== entry.snapshot) return undefined
   const serial = ++nativeUse
   const residency = nativeResidency.get(entry.snapshot)!
   residency.locallyRepeated = residency.lastUse === serial - 1
@@ -434,7 +439,7 @@ export function cachedNativeDrawing(request: object, layout: FamilyLayoutResult,
  * Evicting geometry invalidates its dependent certified drawing artifact. */
 export function retainNativeDrawing(request: object, layout: FamilyLayoutResult, drawing: RetainedNativeDrawing): void {
   const entry = nativeOwners.get(layout)
-  if (!entry || entry.request !== request || results.get(entry.key) !== entry.snapshot) return
+  if (!entry || entry.request !== request || residentPositioned(entry.key) !== entry.snapshot) return
   const residency = nativeResidency.get(entry.snapshot)!
   if (residency.oversized) { observeCache('native-drawing', 'store-skipped', 'weight-limit'); return }
   const lowerBound = residency.drawingWeight ?? entry.key.length * 2 + drawing.svg.length * 4 + 1024
