@@ -1,0 +1,32 @@
+diff --git a/src/__tests__/agentic-layered.test.ts b/src/__tests__/agentic-layered.test.ts
+index b44311f..64f6b2d 100644
+--- a/src/__tests__/agentic-layered.test.ts
++++ b/src/__tests__/agentic-layered.test.ts
+@@ -667,6 +667,27 @@ describe('owned measured layered layout', () => {
+     expect(layoutAgenticGraph(input)).toEqual(result)
+   })
+ 
++  test.each(['TB', 'BT', 'LR', 'RL'] as const)('same-direction compound permutations retain every leaf connection in %s', async direction => {
++    const { renderMermaidSVGWithReceipt } = await import('../index.ts')
++    const groups = ['A', 'B', 'C']
++    const source = [`flowchart ${direction}`,
++      ...groups.flatMap(group => [`subgraph Group${group}[Group ${group}]`, ...Array.from({ length: 5 }, (_, index) => `${group}${index}[${group}${index}]`), 'end']),
++      ...[4, 2, 0, 3, 1].map((target, index) => `A${index} --> B${target}`),
++      ...[1, 3, 0, 4, 2].map((target, index) => `B${index} --> C${target}`),
++    ].join('\n')
++    const product = renderMermaidSVGWithReceipt(source, { graphLayout: { backend: 'agentic', fallback: 'none' } })
++    expect(product.receipt.layoutDecisions?.every(decision => decision.selected === 'agentic')).toBe(true)
++    expect(product.receipt.layoutCertification?.status).toBe('passed')
++    for (const group of groups) {
++      expect(product.svg).toContain(`data-id="Group${group}"`)
++      for (let index = 0; index < 5; index++) expect(product.svg).toContain(`data-id="${group}${index}"`)
++    }
++    for (const [group, targets] of [['A', [4, 2, 0, 3, 1]], ['B', [1, 3, 0, 4, 2]]] as const) {
++      const next = group === 'A' ? 'B' : 'C'
++      targets.forEach((target, index) => expect(product.svg).toContain(`data-from="${group}${index}" data-to="${next}${target}"`))
++    }
++  })
++
+   test.each(['TB', 'BT', 'LR', 'RL'] as const)('global leaf ranks do not inherit a lifted group cycle in %s', direction => {
+     const input = measured({ direction,
+       nodes: [{ id: 'a', width: 60, height: 36, parent: 0 }, { id: 'b', width: 60, height: 36, parent: 0 }, { id: 'c', width: 60, height: 36 }],

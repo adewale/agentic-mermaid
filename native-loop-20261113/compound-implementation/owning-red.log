@@ -1,0 +1,76 @@
+bun test v1.4.4 (38afee6c8)
+
+src/__tests__/agentic-layered.test.ts:
+(pass) owned measured layered layout > same-direction compound permutations retain every leaf connection in TB [489.80ms]
+ 8 | 
+ 9 | export type { AgenticLayout, MeasuredGraph } from './agentic-layered-core.ts'
+10 | export { improveArchitectureSiblingSlots } from './architecture-sibling-slots.ts'
+11 | 
+12 | function declineAgenticGraph(reason: string): never {
+13 |   throw new GraphLayoutUnsupportedError(reason)
+             ^
+GraphLayoutUnsupportedError: Agentic graph layout does not support this input: cross-hierarchy route has no bounded clear corridor
+ reason: "cross-hierarchy route has no bounded clear corridor",
+   code: "GRAPH_LAYOUT_UNSUPPORTED"
+
+      at declineAgenticGraph (/workspace/agentic-mermaid/src/layout/agentic-layered.ts:13:9)
+      at routeCrossHierarchy (/workspace/agentic-mermaid/src/layout/compound-boundary-routes.ts:1209:11)
+      at layoutLayeredGraph (/workspace/agentic-mermaid/src/layout/agentic-producer-core.ts:115:20)
+      at solve (/workspace/agentic-mermaid/src/layout/agentic-producer-core.ts:151:20)
+      at solveMeasuredLayout (/workspace/agentic-mermaid/src/layout/measured-backend.ts:10:48)
+      at placeNativeGraphCandidate (/workspace/agentic-mermaid/src/layout/agentic-producer-core.ts:146:14)
+      at selectNativeGraphCandidate (/workspace/agentic-mermaid/src/layout/agentic-producer-core.ts:182:17)
+      at layoutNativeGraphCandidate (/workspace/agentic-mermaid/src/layout/agentic-producer-core.ts:249:21)
+      at runMeasuredGraphBackend (/workspace/agentic-mermaid/src/layout/backend.ts:101:16)
+      at layoutGraphWithBudget (/workspace/agentic-mermaid/src/layout-engine.ts:1512:22)
+(fail) owned measured layered layout > same-direction compound permutations retain every leaf connection in BT [33.32ms]
+ 8 | 
+ 9 | export type { AgenticLayout, MeasuredGraph } from './agentic-layered-core.ts'
+10 | export { improveArchitectureSiblingSlots } from './architecture-sibling-slots.ts'
+11 | 
+12 | function declineAgenticGraph(reason: string): never {
+13 |   throw new GraphLayoutUnsupportedError(reason)
+             ^
+GraphLayoutUnsupportedError: Agentic graph layout does not support this input: agentic local cross-hierarchy visibility-expansion limit
+ reason: "agentic local cross-hierarchy visibility-expansion limit",
+   code: "GRAPH_LAYOUT_UNSUPPORTED"
+
+      at declineAgenticGraph (/workspace/agentic-mermaid/src/layout/agentic-layered.ts:13:9)
+      at reserveExpanded (/workspace/agentic-mermaid/src/layout/compound-boundary-routes.ts:688:45)
+      at reserve (/workspace/agentic-mermaid/src/layout/compound-sparse-visibility.ts:65:47)
+      at acquire (/workspace/agentic-mermaid/src/layout/compound-sparse-visibility.ts:77:7)
+      at route (/workspace/agentic-mermaid/src/layout/compound-sparse-visibility.ts:432:39)
+      at <anonymous> (/workspace/agentic-mermaid/src/layout/compound-boundary-routes.ts:1091:31)
+      at attempt (/workspace/agentic-mermaid/src/layout/compound-boundary-routes.ts:1069:19)
+      at search (/workspace/agentic-mermaid/src/layout/compound-boundary-routes.ts:1089:112)
+      at routeCrossHierarchy (/workspace/agentic-mermaid/src/layout/compound-boundary-routes.ts:1099:26)
+      at layoutLayeredGraph (/workspace/agentic-mermaid/src/layout/agentic-producer-core.ts:115:20)
+(fail) owned measured layered layout > same-direction compound permutations retain every leaf connection in LR [27.77ms]
+ 8 | 
+ 9 | export type { AgenticLayout, MeasuredGraph } from './agentic-layered-core.ts'
+10 | export { improveArchitectureSiblingSlots } from './architecture-sibling-slots.ts'
+11 | 
+12 | function declineAgenticGraph(reason: string): never {
+13 |   throw new GraphLayoutUnsupportedError(reason)
+             ^
+GraphLayoutUnsupportedError: Agentic graph layout does not support this input: agentic local cross-hierarchy visibility-expansion limit
+ reason: "agentic local cross-hierarchy visibility-expansion limit",
+   code: "GRAPH_LAYOUT_UNSUPPORTED"
+
+      at declineAgenticGraph (/workspace/agentic-mermaid/src/layout/agentic-layered.ts:13:9)
+      at reserveExpanded (/workspace/agentic-mermaid/src/layout/compound-boundary-routes.ts:688:45)
+      at reserve (/workspace/agentic-mermaid/src/layout/compound-sparse-visibility.ts:65:47)
+      at acquire (/workspace/agentic-mermaid/src/layout/compound-sparse-visibility.ts:77:7)
+      at route (/workspace/agentic-mermaid/src/layout/compound-sparse-visibility.ts:432:39)
+      at <anonymous> (/workspace/agentic-mermaid/src/layout/compound-boundary-routes.ts:1091:31)
+      at attempt (/workspace/agentic-mermaid/src/layout/compound-boundary-routes.ts:1069:19)
+      at search (/workspace/agentic-mermaid/src/layout/compound-boundary-routes.ts:1089:112)
+      at routeCrossHierarchy (/workspace/agentic-mermaid/src/layout/compound-boundary-routes.ts:1099:26)
+      at layoutLayeredGraph (/workspace/agentic-mermaid/src/layout/agentic-producer-core.ts:115:20)
+(fail) owned measured layered layout > same-direction compound permutations retain every leaf connection in RL [28.96ms]
+
+ 1 pass
+ 230 filtered out
+ 3 fail
+ 30 expect() calls
+Ran 4 tests across 1 file. [705.00ms]

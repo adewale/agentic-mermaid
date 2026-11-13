@@ -1,0 +1,6194 @@
+[
+  {
+    "direction": "TB",
+    "variant": "permutation",
+    "source": "flowchart TB\nsubgraph GroupA[Group A]\nA0[A0]\nA1[A1]\nA2[A2]\nA3[A3]\nA4[A4]\nend\nsubgraph GroupB[Group B]\nB0[B0]\nB1[B1]\nB2[B2]\nB3[B3]\nB4[B4]\nend\nsubgraph GroupC[Group C]\nC0[C0]\nC1[C1]\nC2[C2]\nC3[C3]\nC4[C4]\nend\nA0 --> B4\nA1 --> B2\nA2 --> B0\nA3 --> B3\nA4 --> B1\nB0 --> C1\nB1 --> C3\nB2 --> C0\nB3 --> C4\nB4 --> C2",
+    "forceGlobal": false,
+    "returned": false,
+    "error": {
+      "name": "GraphLayoutUnsupportedError",
+      "message": "Agentic graph layout does not support this input: cross-hierarchy route has no clear anchor",
+      "code": "GRAPH_LAYOUT_UNSUPPORTED",
+      "stack": "GraphLayoutUnsupportedError: Agentic graph layout does not support this input: cross-hierarchy route has no clear anchor\n    at declineAgenticGraph (/workspace/agentic-mermaid/src/layout/agentic-layered.ts:13:13)\n    at route (/workspace/agentic-mermaid/src/layout/compound-lazy-visibility.ts:93:44)\n    at routeCrossHierarchy (/workspace/agentic-mermaid/src/layout/compound-boundary-routes.ts:863:25)\n    at layoutLayeredGraph (/workspace/agentic-mermaid/src/layout/agentic-producer-core.ts:115:20)\n    at solve (/workspace/agentic-mermaid/src/layout/agentic-producer-core.ts:151:20)\n    at solveMeasuredLayout (/workspace/agentic-mermaid/src/layout/measured-backend.ts:10:48)\n    at placeNativeGraphCandidate (/workspace/agentic-mermaid/src/layout/agentic-producer-core.ts:146:14)\n    at selectNativeGraphCandidate (/workspace/agentic-mermaid/src/layout/agentic-producer-core.ts:182:17)\n    at layoutNativeGraphCandidate (/workspace/agentic-mermaid/src/layout/agentic-producer-core.ts:249:21)\n    at runMeasuredGraphBackend (/workspace/agentic-mermaid/src/layout/backend.ts:101:16)"
+    },
+    "trace": [
+      {
+        "event": "begin",
+        "index": 0,
+        "expanded": 18,
+        "primaryVirtual": 18
+      },
+      {
+        "event": "primary-grid",
+        "index": 0,
+        "expanded": 18,
+        "primaryVirtual": 18,
+        "virtual": 2106
+      },
+      {
+        "event": "accepted",
+        "index": 0,
+        "expanded": 1934,
+        "rescued": false
+      },
+      {
+        "event": "begin",
+        "index": 1,
+        "expanded": 1934,
+        "primaryVirtual": 2124
+      },
+      {
+        "event": "primary-grid",
+        "index": 1,
+        "expanded": 1934,
+        "primaryVirtual": 2124,
+        "virtual": 3366
+      }
+    ],
+    "routeStart": {
+      "input": {
+        "nodes": [
+          {
+            "id": "A0",
+            "parent": 0,
+            "width": 60,
+            "height": 36.900000000000006
+          },
+          {
+            "id": "A1",
+            "parent": 0,
+            "width": 60,
+            "height": 36.900000000000006
+          },
+          {
+            "id": "A2",
+            "parent": 0,
+            "width": 60,
+            "height": 36.900000000000006
+          },
+          {
+            "id": "A3",
+            "parent": 0,
+            "width": 60,
+            "height": 36.900000000000006
+          },
+          {
+            "id": "A4",
+            "parent": 0,
+            "width": 60,
+            "height": 36.900000000000006
+          },
+          {
+            "id": "B0",
+            "parent": 1,
+            "width": 60,
+            "height": 36.900000000000006
+          },
+          {
+            "id": "B1",
+            "parent": 1,
+            "width": 60,
+            "height": 36.900000000000006
+          },
+          {
+            "id": "B2",
+            "parent": 1,
+            "width": 60,
+            "height": 36.900000000000006
+          },
+          {
+            "id": "B3",
+            "parent": 1,
+            "width": 60,
+            "height": 36.900000000000006
+          },
+          {
+            "id": "B4",
+            "parent": 1,
+            "width": 60,
+            "height": 36.900000000000006
+          },
+          {
+            "id": "C0",
+            "parent": 2,
+            "width": 60,
+            "height": 36.900000000000006
+          },
+          {
+            "id": "C1",
+            "parent": 2,
+            "width": 60,
+            "height": 36.900000000000006
+          },
+          {
+            "id": "C2",
+            "parent": 2,
+            "width": 60,
+            "height": 36.900000000000006
+          },
+          {
+            "id": "C3",
+            "parent": 2,
+            "width": 60,
+            "height": 36.900000000000006
+          },
+          {
+            "id": "C4",
+            "parent": 2,
+            "width": 60,
+            "height": 36.900000000000006
+          }
+        ],
+        "groups": [
+          {
+            "id": "GroupA",
+            "direction": "TB",
+            "minWidth": 73,
+            "headerHeight": 28,
+            "padding": {
+              "top": 44,
+              "bottom": 16,
+              "left": 16,
+              "right": 16
+            }
+          },
+          {
+            "id": "GroupB",
+            "direction": "TB",
+            "minWidth": 73,
+            "headerHeight": 28,
+            "padding": {
+              "top": 44,
+              "bottom": 16,
+              "left": 16,
+              "right": 16
+            }
+          },
+          {
+            "id": "GroupC",
+            "direction": "TB",
+            "minWidth": 73,
+            "headerHeight": 28,
+            "padding": {
+              "top": 44,
+              "bottom": 16,
+              "left": 16,
+              "right": 16
+            }
+          }
+        ],
+        "edges": [
+          {
+            "source": 0,
+            "target": 9,
+            "sourcePortSpan": 1,
+            "targetPortSpan": 5.75,
+            "minSpan": 1
+          },
+          {
+            "source": 1,
+            "target": 7,
+            "sourcePortSpan": 1,
+            "targetPortSpan": 5.75,
+            "minSpan": 1
+          },
+          {
+            "source": 2,
+            "target": 5,
+            "sourcePortSpan": 1,
+            "targetPortSpan": 5.75,
+            "minSpan": 1
+          },
+          {
+            "source": 3,
+            "target": 8,
+            "sourcePortSpan": 1,
+            "targetPortSpan": 5.75,
+            "minSpan": 1
+          },
+          {
+            "source": 4,
+            "target": 6,
+            "sourcePortSpan": 1,
+            "targetPortSpan": 5.75,
+            "minSpan": 1
+          },
+          {
+            "source": 5,
+            "target": 11,
+            "sourcePortSpan": 1,
+            "targetPortSpan": 5.75,
+            "minSpan": 1
+          },
+          {
+            "source": 6,
+            "target": 13,
+            "sourcePortSpan": 1,
+            "targetPortSpan": 5.75,
+            "minSpan": 1
+          },
+          {
+            "source": 7,
+            "target": 10,
+            "sourcePortSpan": 1,
+            "targetPortSpan": 5.75,
+            "minSpan": 1
+          },
+          {
+            "source": 8,
+            "target": 14,
+            "sourcePortSpan": 1,
+            "targetPortSpan": 5.75,
+            "minSpan": 1
+          },
+          {
+            "source": 9,
+            "target": 12,
+            "sourcePortSpan": 1,
+            "targetPortSpan": 5.75,
+            "minSpan": 1
+          }
+        ],
+        "shareCompleteFans": false,
+        "direction": "TB",
+        "padding": 40,
+        "nodeSpacing": 28,
+        "layerSpacing": 48,
+        "edgeSpacing": 6,
+        "minimumTerminalLead": 13.375,
+        "nodeClearance": 1
+      },
+      "placed": {
+        "topology": "layered",
+        "width": 524,
+        "height": 418.70000000000005,
+        "nodes": [
+          {
+            "x": 56,
+            "y": 84
+          },
+          {
+            "x": 144,
+            "y": 84
+          },
+          {
+            "x": 232,
+            "y": 84
+          },
+          {
+            "x": 320,
+            "y": 84
+          },
+          {
+            "x": 408,
+            "y": 84
+          },
+          {
+            "x": 56,
+            "y": 204.90000000000003
+          },
+          {
+            "x": 144,
+            "y": 204.90000000000003
+          },
+          {
+            "x": 232,
+            "y": 204.90000000000003
+          },
+          {
+            "x": 320,
+            "y": 204.90000000000003
+          },
+          {
+            "x": 408,
+            "y": 204.90000000000003
+          },
+          {
+            "x": 56,
+            "y": 325.8
+          },
+          {
+            "x": 144,
+            "y": 325.8
+          },
+          {
+            "x": 232,
+            "y": 325.8
+          },
+          {
+            "x": 320,
+            "y": 325.8
+          },
+          {
+            "x": 408,
+            "y": 325.8
+          }
+        ],
+        "groups": [
+          {
+            "x": 40,
+            "y": 40,
+            "width": 444,
+            "height": 96.9
+          },
+          {
+            "x": 40,
+            "y": 160.90000000000003,
+            "width": 444,
+            "height": 96.9
+          },
+          {
+            "x": 40,
+            "y": 281.8,
+            "width": 444,
+            "height": 96.9
+          }
+        ],
+        "edges": [
+          {
+            "points": [
+              {
+                "x": 262,
+                "y": 136.9
+              },
+              {
+                "x": 262,
+                "y": 160.90000000000003
+              }
+            ]
+          },
+          {
+            "points": [
+              {
+                "x": 270,
+                "y": 136.9
+              },
+              {
+                "x": 270,
+                "y": 160.90000000000003
+              }
+            ]
+          },
+          {
+            "points": [
+              {
+                "x": 278,
+                "y": 136.9
+              },
+              {
+                "x": 278,
+                "y": 160.90000000000003
+              }
+            ]
+          },
+          {
+            "points": [
+              {
+                "x": 286,
+                "y": 136.9
+              },
+              {
+                "x": 286,
+                "y": 160.90000000000003
+              }
+            ]
+          },
+          {
+            "points": [
+              {
+                "x": 294,
+                "y": 136.9
+              },
+              {
+                "x": 294,
+                "y": 160.90000000000003
+              }
+            ]
+          },
+          {
+            "points": [
+              {
+                "x": 262,
+                "y": 257.8
+              },
+              {
+                "x": 262,
+                "y": 281.8
+              }
+            ]
+          },
+          {
+            "points": [
+              {
+                "x": 270,
+                "y": 257.8
+              },
+              {
+                "x": 270,
+                "y": 281.8
+              }
+            ]
+          },
+          {
+            "points": [
+              {
+                "x": 278,
+                "y": 257.8
+              },
+              {
+                "x": 278,
+                "y": 281.8
+              }
+            ]
+          },
+          {
+            "points": [
+              {
+                "x": 286,
+                "y": 257.8
+              },
+              {
+                "x": 286,
+                "y": 281.8
+              }
+            ]
+          },
+          {
+            "points": [
+              {
+                "x": 294,
+                "y": 257.8
+              },
+              {
+                "x": 294,
+                "y": 281.8
+              }
+            ]
+          }
+        ],
+        "expandedVertices": 18
+      },
+      "owners": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        1,
+        1,
+        1,
+        2,
+        2,
+        2,
+        2,
+        2,
+        -1,
+        -1,
+        -1
+      ],
+      "lifted": [
+        [
+          0,
+          {
+            "source": 15,
+            "target": 16,
+            "host": -1
+          }
+        ],
+        [
+          1,
+          {
+            "source": 15,
+            "target": 16,
+            "host": -1
+          }
+        ],
+        [
+          2,
+          {
+            "source": 15,
+            "target": 16,
+            "host": -1
+          }
+        ],
+        [
+          3,
+          {
+            "source": 15,
+            "target": 16,
+            "host": -1
+          }
+        ],
+        [
+          4,
+          {
+            "source": 15,
+            "target": 16,
+            "host": -1
+          }
+        ],
+        [
+          5,
+          {
+            "source": 16,
+            "target": 17,
+            "host": -1
+          }
+        ],
+        [
+          6,
+          {
+            "source": 16,
+            "target": 17,
+            "host": -1
+          }
+        ],
+        [
+          7,
+          {
+            "source": 16,
+            "target": 17,
+            "host": -1
+          }
+        ],
+        [
+          8,
+          {
+            "source": 16,
+            "target": 17,
+            "host": -1
+          }
+        ],
+        [
+          9,
+          {
+            "source": 16,
+            "target": 17,
+            "host": -1
+          }
+        ]
+      ]
+    }
+  },
+  {
+    "direction": "TB",
+    "variant": "identity",
+    "source": "flowchart TB\nsubgraph GroupA[Group A]\nA0[A0]\nA1[A1]\nA2[A2]\nA3[A3]\nA4[A4]\nend\nsubgraph GroupB[Group B]\nB0[B0]\nB1[B1]\nB2[B2]\nB3[B3]\nB4[B4]\nend\nsubgraph GroupC[Group C]\nC0[C0]\nC1[C1]\nC2[C2]\nC3[C3]\nC4[C4]\nend\nA0 --> B0\nA1 --> B1\nA2 --> B2\nA3 --> B3\nA4 --> B4\nB0 --> C0\nB1 --> C1\nB2 --> C2\nB3 --> C3\nB4 --> C4",
+    "forceGlobal": false,
+    "returned": false,
+    "error": {
+      "name": "GraphLayoutUnsupportedError",
+      "message": "Agentic graph layout does not support this input: cross-hierarchy route has no clear anchor",
+      "code": "GRAPH_LAYOUT_UNSUPPORTED",
+      "stack": "GraphLayoutUnsupportedError: Agentic graph layout does not support this input: cross-hierarchy route has no clear anchor\n    at declineAgenticGraph (/workspace/agentic-mermaid/src/layout/agentic-layered.ts:13:13)\n    at route (/workspace/agentic-mermaid/src/layout/compound-lazy-visibility.ts:93:44)\n    at routeCrossHierarchy (/workspace/agentic-mermaid/src/layout/compound-boundary-routes.ts:863:25)\n    at layoutLayeredGraph (/workspace/agentic-mermaid/src/layout/agentic-producer-core.ts:115:20)\n    at solve (/workspace/agentic-mermaid/src/layout/agentic-producer-core.ts:151:20)\n    at solveMeasuredLayout (/workspace/agentic-mermaid/src/layout/measured-backend.ts:10:48)\n    at placeNativeGraphCandidate (/workspace/agentic-mermaid/src/layout/agentic-producer-core.ts:146:14)\n    at selectNativeGraphCandidate (/workspace/agentic-mermaid/src/layout/agentic-producer-core.ts:182:17)\n    at layoutNativeGraphCandidate (/workspace/agentic-mermaid/src/layout/agentic-producer-core.ts:249:21)\n    at runMeasuredGraphBackend (/workspace/agentic-mermaid/src/layout/backend.ts:101:16)"
+    },
+    "trace": [
+      {
+        "event": "begin",
+        "index": 0,
+        "expanded": 18,
+        "primaryVirtual": 18
+      },
+      {
+        "event": "primary-grid",
+        "index": 0,
+        "expanded": 18,
+        "primaryVirtual": 18,
+        "virtual": 1716
+      },
+      {
+        "event": "accepted",
+        "index": 0,
+        "expanded": 1774,
+        "rescued": false
+      },
+      {
+        "event": "begin",
+        "index": 1,
+        "expanded": 1774,
+        "primaryVirtual": 1734
+      },
+      {
+        "event": "primary-grid",
+        "index": 1,
+        "expanded": 1774,
+        "primaryVirtual": 1734,
+        "virtual": 2871
+      },
+      {
+        "event": "accepted",
+        "index": 1,
+        "expanded": 5176,
+        "rescued": false
+      },
+      {
+        "event": "begin",
+        "index": 2,
+        "expanded": 5176,
+        "primaryVirtual": 4605
+      },
+      {
+        "event": "primary-grid",
+        "index": 2,
+        "expanded": 5176,
+        "primaryVirtual": 4605,
+        "virtual": 4332
+      }
+    ],
+    "routeStart": {
+      "input": {
+        "nodes": [
+          {
+            "id": "A0",
+            "parent": 0,
+            "width": 60,
+            "height": 36.900000000000006
+          },
+          {
+            "id": "A1",
+            "parent": 0,
+            "width": 60,
+            "height": 36.900000000000006
+          },
+          {
+            "id": "A2",
+            "parent": 0,
+            "width": 60,
+            "height": 36.900000000000006
+          },
+          {
+            "id": "A3",
+            "parent": 0,
+            "width": 60,
+            "height": 36.900000000000006
+          },
+          {
+            "id": "A4",
+            "parent": 0,
+            "width": 60,
+            "height": 36.900000000000006
+          },
+          {
+            "id": "B0",
+            "parent": 1,
+            "width": 60,
+            "height": 36.900000000000006
+          },
+          {
+            "id": "B1",
+            "parent": 1,
+            "width": 60,
+            "height": 36.900000000000006
+          },
+          {
+            "id": "B2",
+            "parent": 1,
+            "width": 60,
+            "height": 36.900000000000006
+          },
+          {
+            "id": "B3",
+            "parent": 1,
+            "width": 60,
+            "height": 36.900000000000006
+          },
+          {
+            "id": "B4",
+            "parent": 1,
+            "width": 60,
+            "height": 36.900000000000006
+          },
+          {
+            "id": "C0",
+            "parent": 2,
+            "width": 60,
+            "height": 36.900000000000006
+          },
+          {
+            "id": "C1",
+            "parent": 2,
+            "width": 60,
+            "height": 36.900000000000006
+          },
+          {
+            "id": "C2",
+            "parent": 2,
+            "width": 60,
+            "height": 36.900000000000006
+          },
+          {
+            "id": "C3",
+            "parent": 2,
+            "width": 60,
+            "height": 36.900000000000006
+          },
+          {
+            "id": "C4",
+            "parent": 2,
+            "width": 60,
+            "height": 36.900000000000006
+          }
+        ],
+        "groups": [
+          {
+            "id": "GroupA",
+            "direction": "TB",
+            "minWidth": 73,
+            "headerHeight": 28,
+            "padding": {
+              "top": 44,
+              "bottom": 16,
+              "left": 16,
+              "right": 16
+            }
+          },
+          {
+            "id": "GroupB",
+            "direction": "TB",
+            "minWidth": 73,
+            "headerHeight": 28,
+            "padding": {
+              "top": 44,
+              "bottom": 16,
+              "left": 16,
+              "right": 16
+            }
+          },
+          {
+            "id": "GroupC",
+            "direction": "TB",
+            "minWidth": 73,
+            "headerHeight": 28,
+            "padding": {
+              "top": 44,
+              "bottom": 16,
+              "left": 16,
+              "right": 16
+            }
+          }
+        ],
+        "edges": [
+          {
+            "source": 0,
+            "target": 5,
+            "sourcePortSpan": 1,
+            "targetPortSpan": 5.75,
+            "minSpan": 1
+          },
+          {
+            "source": 1,
+            "target": 6,
+            "sourcePortSpan": 1,
+            "targetPortSpan": 5.75,
+            "minSpan": 1
+          },
+          {
+            "source": 2,
+            "target": 7,
+            "sourcePortSpan": 1,
+            "targetPortSpan": 5.75,
+            "minSpan": 1
+          },
+          {
+            "source": 3,
+            "target": 8,
+            "sourcePortSpan": 1,
+            "targetPortSpan": 5.75,
+            "minSpan": 1
+          },
+          {
+            "source": 4,
+            "target": 9,
+            "sourcePortSpan": 1,
+            "targetPortSpan": 5.75,
+            "minSpan": 1
+          },
+          {
+            "source": 5,
+            "target": 10,
+            "sourcePortSpan": 1,
+            "targetPortSpan": 5.75,
+            "minSpan": 1
+          },
+          {
+            "source": 6,
+            "target": 11,
+            "sourcePortSpan": 1,
+            "targetPortSpan": 5.75,
+            "minSpan": 1
+          },
+          {
+            "source": 7,
+            "target": 12,
+            "sourcePortSpan": 1,
+            "targetPortSpan": 5.75,
+            "minSpan": 1
+          },
+          {
+            "source": 8,
+            "target": 13,
+            "sourcePortSpan": 1,
+            "targetPortSpan": 5.75,
+            "minSpan": 1
+          },
+          {
+            "source": 9,
+            "target": 14,
+            "sourcePortSpan": 1,
+            "targetPortSpan": 5.75,
+            "minSpan": 1
+          }
+        ],
+        "shareCompleteFans": false,
+        "direction": "TB",
+        "padding": 40,
+        "nodeSpacing": 28,
+        "layerSpacing": 48,
+        "edgeSpacing": 6,
+        "minimumTerminalLead": 13.375,
+        "nodeClearance": 1
+      },
+      "placed": {
+        "topology": "layered",
+        "width": 524,
+        "height": 418.70000000000005,
+        "nodes": [
+          {
+            "x": 56,
+            "y": 84
+          },
+          {
+            "x": 144,
+            "y": 84
+          },
+          {
+            "x": 232,
+            "y": 84
+          },
+          {
+            "x": 320,
+            "y": 84
+          },
+          {
+            "x": 408,
+            "y": 84
+          },
+          {
+            "x": 56,
+            "y": 204.90000000000003
+          },
+          {
+            "x": 144,
+            "y": 204.90000000000003
+          },
+          {
+            "x": 232,
+            "y": 204.90000000000003
+          },
+          {
+            "x": 320,
+            "y": 204.90000000000003
+          },
+          {
+            "x": 408,
+            "y": 204.90000000000003
+          },
+          {
+            "x": 56,
+            "y": 325.8
+          },
+          {
+            "x": 144,
+            "y": 325.8
+          },
+          {
+            "x": 232,
+            "y": 325.8
+          },
+          {
+            "x": 320,
+            "y": 325.8
+          },
+          {
+            "x": 408,
+            "y": 325.8
+          }
+        ],
+        "groups": [
+          {
+            "x": 40,
+            "y": 40,
+            "width": 444,
+            "height": 96.9
+          },
+          {
+            "x": 40,
+            "y": 160.90000000000003,
+            "width": 444,
+            "height": 96.9
+          },
+          {
+            "x": 40,
+            "y": 281.8,
+            "width": 444,
+            "height": 96.9
+          }
+        ],
+        "edges": [
+          {
+            "points": [
+              {
+                "x": 262,
+                "y": 136.9
+              },
+              {
+                "x": 262,
+                "y": 160.90000000000003
+              }
+            ]
+          },
+          {
+            "points": [
+              {
+                "x": 270,
+                "y": 136.9
+              },
+              {
+                "x": 270,
+                "y": 160.90000000000003
+              }
+            ]
+          },
+          {
+            "points": [
+              {
+                "x": 278,
+                "y": 136.9
+              },
+              {
+                "x": 278,
+                "y": 160.90000000000003
+              }
+            ]
+          },
+          {
+            "points": [
+              {
+                "x": 286,
+                "y": 136.9
+              },
+              {
+                "x": 286,
+                "y": 160.90000000000003
+              }
+            ]
+          },
+          {
+            "points": [
+              {
+                "x": 294,
+                "y": 136.9
+              },
+              {
+                "x": 294,
+                "y": 160.90000000000003
+              }
+            ]
+          },
+          {
+            "points": [
+              {
+                "x": 262,
+                "y": 257.8
+              },
+              {
+                "x": 262,
+                "y": 281.8
+              }
+            ]
+          },
+          {
+            "points": [
+              {
+                "x": 270,
+                "y": 257.8
+              },
+              {
+                "x": 270,
+                "y": 281.8
+              }
+            ]
+          },
+          {
+            "points": [
+              {
+                "x": 278,
+                "y": 257.8
+              },
+              {
+                "x": 278,
+                "y": 281.8
+              }
+            ]
+          },
+          {
+            "points": [
+              {
+                "x": 286,
+                "y": 257.8
+              },
+              {
+                "x": 286,
+                "y": 281.8
+              }
+            ]
+          },
+          {
+            "points": [
+              {
+                "x": 294,
+                "y": 257.8
+              },
+              {
+                "x": 294,
+                "y": 281.8
+              }
+            ]
+          }
+        ],
+        "expandedVertices": 18
+      },
+      "owners": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        1,
+        1,
+        1,
+        2,
+        2,
+        2,
+        2,
+        2,
+        -1,
+        -1,
+        -1
+      ],
+      "lifted": [
+        [
+          0,
+          {
+            "source": 15,
+            "target": 16,
+            "host": -1
+          }
+        ],
+        [
+          1,
+          {
+            "source": 15,
+            "target": 16,
+            "host": -1
+          }
+        ],
+        [
+          2,
+          {
+            "source": 15,
+            "target": 16,
+            "host": -1
+          }
+        ],
+        [
+          3,
+          {
+            "source": 15,
+            "target": 16,
+            "host": -1
+          }
+        ],
+        [
+          4,
+          {
+            "source": 15,
+            "target": 16,
+            "host": -1
+          }
+        ],
+        [
+          5,
+          {
+            "source": 16,
+            "target": 17,
+            "host": -1
+          }
+        ],
+        [
+          6,
+          {
+            "source": 16,
+            "target": 17,
+            "host": -1
+          }
+        ],
+        [
+          7,
+          {
+            "source": 16,
+            "target": 17,
+            "host": -1
+          }
+        ],
+        [
+          8,
+          {
+            "source": 16,
+            "target": 17,
+            "host": -1
+          }
+        ],
+        [
+          9,
+          {
+            "source": 16,
+            "target": 17,
+            "host": -1
+          }
+        ]
+      ]
+    }
+  },
+  {
+    "direction": "TB",
+    "variant": "two-groups",
+    "source": "flowchart TB\nsubgraph GroupA[Group A]\nA0[A0]\nA1[A1]\nA2[A2]\nA3[A3]\nA4[A4]\nend\nsubgraph GroupB[Group B]\nB0[B0]\nB1[B1]\nB2[B2]\nB3[B3]\nB4[B4]\nend\nA0 --> B4\nA1 --> B2\nA2 --> B0\nA3 --> B3\nA4 --> B1",
+    "forceGlobal": false,
+    "returned": false,
+    "error": {
+      "name": "GraphLayoutUnsupportedError",
+      "message": "Agentic graph layout does not support this input: cross-hierarchy route has no clear anchor",
+      "code": "GRAPH_LAYOUT_UNSUPPORTED",
+      "stack": "GraphLayoutUnsupportedError: Agentic graph layout does not support this input: cross-hierarchy route has no clear anchor\n    at declineAgenticGraph (/workspace/agentic-mermaid/src/layout/agentic-layered.ts:13:13)\n    at route (/workspace/agentic-mermaid/src/layout/compound-lazy-visibility.ts:93:44)\n    at routeCrossHierarchy (/workspace/agentic-mermaid/src/layout/compound-boundary-routes.ts:863:25)\n    at layoutLayeredGraph (/workspace/agentic-mermaid/src/layout/agentic-producer-core.ts:115:20)\n    at solve (/workspace/agentic-mermaid/src/layout/agentic-producer-core.ts:151:20)\n    at solveMeasuredLayout (/workspace/agentic-mermaid/src/layout/measured-backend.ts:10:48)\n    at placeNativeGraphCandidate (/workspace/agentic-mermaid/src/layout/agentic-producer-core.ts:146:14)\n    at selectNativeGraphCandidate (/workspace/agentic-mermaid/src/layout/agentic-producer-core.ts:182:17)\n    at layoutNativeGraphCandidate (/workspace/agentic-mermaid/src/layout/agentic-producer-core.ts:249:21)\n    at runMeasuredGraphBackend (/workspace/agentic-mermaid/src/layout/backend.ts:101:16)"
+    },
+    "trace": [
+      {
+        "event": "begin",
+        "index": 0,
+        "expanded": 12,
+        "primaryVirtual": 12
+      },
+      {
+        "event": "primary-grid",
+        "index": 0,
+        "expanded": 12,
+        "primaryVirtual": 12,
+        "virtual": 1650
+      },
+      {
+        "event": "accepted",
+        "index": 0,
+        "expanded": 1792,
+        "rescued": false
+      },
+      {
+        "event": "begin",
+        "index": 1,
+        "expanded": 1792,
+        "primaryVirtual": 1662
+      },
+      {
+        "event": "primary-grid",
+        "index": 1,
+        "expanded": 1792,
+        "primaryVirtual": 1662,
+        "virtual": 2784
+      }
+    ],
+    "routeStart": {
+      "input": {
+        "nodes": [
+          {
+            "id": "A0",
+            "parent": 0,
+            "width": 60,
+            "height": 36.900000000000006
+          },
+          {
+            "id": "A1",
+            "parent": 0,
+            "width": 60,
+            "height": 36.900000000000006
+          },
+          {
+            "id": "A2",
+            "parent": 0,
+            "width": 60,
+            "height": 36.900000000000006
+          },
+          {
+            "id": "A3",
+            "parent": 0,
+            "width": 60,
+            "height": 36.900000000000006
+          },
+          {
+            "id": "A4",
+            "parent": 0,
+            "width": 60,
+            "height": 36.900000000000006
+          },
+          {
+            "id": "B0",
+            "parent": 1,
+            "width": 60,
+            "height": 36.900000000000006
+          },
+          {
+            "id": "B1",
+            "parent": 1,
+            "width": 60,
+            "height": 36.900000000000006
+          },
+          {
+            "id": "B2",
+            "parent": 1,
+            "width": 60,
+            "height": 36.900000000000006
+          },
+          {
+            "id": "B3",
+            "parent": 1,
+            "width": 60,
+            "height": 36.900000000000006
+          },
+          {
+            "id": "B4",
+            "parent": 1,
+            "width": 60,
+            "height": 36.900000000000006
+          }
+        ],
+        "groups": [
+          {
+            "id": "GroupA",
+            "direction": "TB",
+            "minWidth": 73,
+            "headerHeight": 28,
+            "padding": {
+              "top": 44,
+              "bottom": 16,
+              "left": 16,
+              "right": 16
+            }
+          },
+          {
+            "id": "GroupB",
+            "direction": "TB",
+            "minWidth": 73,
+            "headerHeight": 28,
+            "padding": {
+              "top": 44,
+              "bottom": 16,
+              "left": 16,
+              "right": 16
+            }
+          }
+        ],
+        "edges": [
+          {
+            "source": 0,
+            "target": 9,
+            "sourcePortSpan": 1,
+            "targetPortSpan": 5.75,
+            "minSpan": 1
+          },
+          {
+            "source": 1,
+            "target": 7,
+            "sourcePortSpan": 1,
+            "targetPortSpan": 5.75,
+            "minSpan": 1
+          },
+          {
+            "source": 2,
+            "target": 5,
+            "sourcePortSpan": 1,
+            "targetPortSpan": 5.75,
+            "minSpan": 1
+          },
+          {
+            "source": 3,
+            "target": 8,
+            "sourcePortSpan": 1,
+            "targetPortSpan": 5.75,
+            "minSpan": 1
+          },
+          {
+            "source": 4,
+            "target": 6,
+            "sourcePortSpan": 1,
+            "targetPortSpan": 5.75,
+            "minSpan": 1
+          }
+        ],
+        "shareCompleteFans": false,
+        "direction": "TB",
+        "padding": 40,
+        "nodeSpacing": 28,
+        "layerSpacing": 48,
+        "edgeSpacing": 6,
+        "minimumTerminalLead": 13.375,
+        "nodeClearance": 1
+      },
+      "placed": {
+        "topology": "layered",
+        "width": 524,
+        "height": 297.8,
+        "nodes": [
+          {
+            "x": 56,
+            "y": 84
+          },
+          {
+            "x": 144,
+            "y": 84
+          },
+          {
+            "x": 232,
+            "y": 84
+          },
+          {
+            "x": 320,
+            "y": 84
+          },
+          {
+            "x": 408,
+            "y": 84
+          },
+          {
+            "x": 56,
+            "y": 204.90000000000003
+          },
+          {
+            "x": 144,
+            "y": 204.90000000000003
+          },
+          {
+            "x": 232,
+            "y": 204.90000000000003
+          },
+          {
+            "x": 320,
+            "y": 204.90000000000003
+          },
+          {
+            "x": 408,
+            "y": 204.90000000000003
+          }
+        ],
+        "groups": [
+          {
+            "x": 40,
+            "y": 40,
+            "width": 444,
+            "height": 96.9
+          },
+          {
+            "x": 40,
+            "y": 160.90000000000003,
+            "width": 444,
+            "height": 96.9
+          }
+        ],
+        "edges": [
+          {
+            "points": [
+              {
+                "x": 262,
+                "y": 136.9
+              },
+              {
+                "x": 262,
+                "y": 160.90000000000003
+              }
+            ]
+          },
+          {
+            "points": [
+              {
+                "x": 270,
+                "y": 136.9
+              },
+              {
+                "x": 270,
+                "y": 160.90000000000003
+              }
+            ]
+          },
+          {
+            "points": [
+              {
+                "x": 278,
+                "y": 136.9
+              },
+              {
+                "x": 278,
+                "y": 160.90000000000003
+              }
+            ]
+          },
+          {
+            "points": [
+              {
+                "x": 286,
+                "y": 136.9
+              },
+              {
+                "x": 286,
+                "y": 160.90000000000003
+              }
+            ]
+          },
+          {
+            "points": [
+              {
+                "x": 294,
+                "y": 136.9
+              },
+              {
+                "x": 294,
+                "y": 160.90000000000003
+              }
+            ]
+          }
+        ],
+        "expandedVertices": 12
+      },
+      "owners": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        1,
+        1,
+        1,
+        -1,
+        -1
+      ],
+      "lifted": [
+        [
+          0,
+          {
+            "source": 10,
+            "target": 11,
+            "host": -1
+          }
+        ],
+        [
+          1,
+          {
+            "source": 10,
+            "target": 11,
+            "host": -1
+          }
+        ],
+        [
+          2,
+          {
+            "source": 10,
+            "target": 11,
+            "host": -1
+          }
+        ],
+        [
+          3,
+          {
+            "source": 10,
+            "target": 11,
+            "host": -1
+          }
+        ],
+        [
+          4,
+          {
+            "source": 10,
+            "target": 11,
+            "host": -1
+          }
+        ]
+      ]
+    }
+  },
+  {
+    "direction": "BT",
+    "variant": "permutation",
+    "source": "flowchart BT\nsubgraph GroupA[Group A]\nA0[A0]\nA1[A1]\nA2[A2]\nA3[A3]\nA4[A4]\nend\nsubgraph GroupB[Group B]\nB0[B0]\nB1[B1]\nB2[B2]\nB3[B3]\nB4[B4]\nend\nsubgraph GroupC[Group C]\nC0[C0]\nC1[C1]\nC2[C2]\nC3[C3]\nC4[C4]\nend\nA0 --> B4\nA1 --> B2\nA2 --> B0\nA3 --> B3\nA4 --> B1\nB0 --> C1\nB1 --> C3\nB2 --> C0\nB3 --> C4\nB4 --> C2",
+    "forceGlobal": false,
+    "returned": false,
+    "error": {
+      "name": "GraphLayoutUnsupportedError",
+      "message": "Agentic graph layout does not support this input: cross-hierarchy route has no clear anchor",
+      "code": "GRAPH_LAYOUT_UNSUPPORTED",
+      "stack": "GraphLayoutUnsupportedError: Agentic graph layout does not support this input: cross-hierarchy route has no clear anchor\n    at declineAgenticGraph (/workspace/agentic-mermaid/src/layout/agentic-layered.ts:13:13)\n    at route (/workspace/agentic-mermaid/src/layout/compound-lazy-visibility.ts:93:44)\n    at routeCrossHierarchy (/workspace/agentic-mermaid/src/layout/compound-boundary-routes.ts:863:25)\n    at layoutLayeredGraph (/workspace/agentic-mermaid/src/layout/agentic-producer-core.ts:115:20)\n    at solve (/workspace/agentic-mermaid/src/layout/agentic-producer-core.ts:151:20)\n    at solveMeasuredLayout (/workspace/agentic-mermaid/src/layout/measured-backend.ts:10:48)\n    at placeNativeGraphCandidate (/workspace/agentic-mermaid/src/layout/agentic-producer-core.ts:146:14)\n    at selectNativeGraphCandidate (/workspace/agentic-mermaid/src/layout/agentic-producer-core.ts:182:17)\n    at layoutNativeGraphCandidate (/workspace/agentic-mermaid/src/layout/agentic-producer-core.ts:249:21)\n    at runMeasuredGraphBackend (/workspace/agentic-mermaid/src/layout/backend.ts:101:16)"
+    },
+    "trace": [
+      {
+        "event": "begin",
+        "index": 0,
+        "expanded": 18,
+        "primaryVirtual": 18
+      },
+      {
+        "event": "primary-grid",
+        "index": 0,
+        "expanded": 18,
+        "primaryVirtual": 18,
+        "virtual": 2106
+      },
+      {
+        "event": "accepted",
+        "index": 0,
+        "expanded": 1740,
+        "rescued": false
+      },
+      {
+        "event": "begin",
+        "index": 1,
+        "expanded": 1740,
+        "primaryVirtual": 2124
+      },
+      {
+        "event": "primary-grid",
+        "index": 1,
+        "expanded": 1740,
+        "primaryVirtual": 2124,
+        "virtual": 3366
+      }
+    ],
+    "routeStart": {
+      "input": {
+        "nodes": [
+          {
+            "id": "A0",
+            "parent": 0,
+            "width": 60,
+            "height": 36.900000000000006
+          },
+          {
+            "id": "A1",
+            "parent": 0,
+            "width": 60,
+            "height": 36.900000000000006
+          },
+          {
+            "id": "A2",
+            "parent": 0,
+            "width": 60,
+            "height": 36.900000000000006
+          },
+          {
+            "id": "A3",
+            "parent": 0,
+            "width": 60,
+            "height": 36.900000000000006
+          },
+          {
+            "id": "A4",
+            "parent": 0,
+            "width": 60,
+            "height": 36.900000000000006
+          },
+          {
+            "id": "B0",
+            "parent": 1,
+            "width": 60,
+            "height": 36.900000000000006
+          },
+          {
+            "id": "B1",
+            "parent": 1,
+            "width": 60,
+            "height": 36.900000000000006
+          },
+          {
+            "id": "B2",
+            "parent": 1,
+            "width": 60,
+            "height": 36.900000000000006
+          },
+          {
+            "id": "B3",
+            "parent": 1,
+            "width": 60,
+            "height": 36.900000000000006
+          },
+          {
+            "id": "B4",
+            "parent": 1,
+            "width": 60,
+            "height": 36.900000000000006
+          },
+          {
+            "id": "C0",
+            "parent": 2,
+            "width": 60,
+            "height": 36.900000000000006
+          },
+          {
+            "id": "C1",
+            "parent": 2,
+            "width": 60,
+            "height": 36.900000000000006
+          },
+          {
+            "id": "C2",
+            "parent": 2,
+            "width": 60,
+            "height": 36.900000000000006
+          },
+          {
+            "id": "C3",
+            "parent": 2,
+            "width": 60,
+            "height": 36.900000000000006
+          },
+          {
+            "id": "C4",
+            "parent": 2,
+            "width": 60,
+            "height": 36.900000000000006
+          }
+        ],
+        "groups": [
+          {
+            "id": "GroupA",
+            "direction": "BT",
+            "minWidth": 73,
+            "headerHeight": 28,
+            "padding": {
+              "top": 44,
+              "bottom": 16,
+              "left": 16,
+              "right": 16
+            }
+          },
+          {
+            "id": "GroupB",
+            "direction": "BT",
+            "minWidth": 73,
+            "headerHeight": 28,
+            "padding": {
+              "top": 44,
+              "bottom": 16,
+              "left": 16,
+              "right": 16
+            }
+          },
+          {
+            "id": "GroupC",
+            "direction": "BT",
+            "minWidth": 73,
+            "headerHeight": 28,
+            "padding": {
+              "top": 44,
+              "bottom": 16,
+              "left": 16,
+              "right": 16
+            }
+          }
+        ],
+        "edges": [
+          {
+            "source": 0,
+            "target": 9,
+            "sourcePortSpan": 1,
+            "targetPortSpan": 5.75,
+            "minSpan": 1
+          },
+          {
+            "source": 1,
+            "target": 7,
+            "sourcePortSpan": 1,
+            "targetPortSpan": 5.75,
+            "minSpan": 1
+          },
+          {
+            "source": 2,
+            "target": 5,
+            "sourcePortSpan": 1,
+            "targetPortSpan": 5.75,
+            "minSpan": 1
+          },
+          {
+            "source": 3,
+            "target": 8,
+            "sourcePortSpan": 1,
+            "targetPortSpan": 5.75,
+            "minSpan": 1
+          },
+          {
+            "source": 4,
+            "target": 6,
+            "sourcePortSpan": 1,
+            "targetPortSpan": 5.75,
+            "minSpan": 1
+          },
+          {
+            "source": 5,
+            "target": 11,
+            "sourcePortSpan": 1,
+            "targetPortSpan": 5.75,
+            "minSpan": 1
+          },
+          {
+            "source": 6,
+            "target": 13,
+            "sourcePortSpan": 1,
+            "targetPortSpan": 5.75,
+            "minSpan": 1
+          },
+          {
+            "source": 7,
+            "target": 10,
+            "sourcePortSpan": 1,
+            "targetPortSpan": 5.75,
+            "minSpan": 1
+          },
+          {
+            "source": 8,
+            "target": 14,
+            "sourcePortSpan": 1,
+            "targetPortSpan": 5.75,
+            "minSpan": 1
+          },
+          {
+            "source": 9,
+            "target": 12,
+            "sourcePortSpan": 1,
+            "targetPortSpan": 5.75,
+            "minSpan": 1
+          }
+        ],
+        "shareCompleteFans": false,
+        "direction": "BT",
+        "padding": 40,
+        "nodeSpacing": 28,
+        "layerSpacing": 48,
+        "edgeSpacing": 6,
+        "minimumTerminalLead": 13.375,
+        "nodeClearance": 1
+      },
+      "placed": {
+        "topology": "layered",
+        "width": 524,
+        "height": 418.70000000000005,
+        "nodes": [
+          {
+            "x": 56,
+            "y": 325.80000000000007
+          },
+          {
+            "x": 144,
+            "y": 325.80000000000007
+          },
+          {
+            "x": 232,
+            "y": 325.80000000000007
+          },
+          {
+            "x": 320,
+            "y": 325.80000000000007
+          },
+          {
+            "x": 408,
+            "y": 325.80000000000007
+          },
+          {
+            "x": 56,
+            "y": 204.90000000000003
+          },
+          {
+            "x": 144,
+            "y": 204.90000000000003
+          },
+          {
+            "x": 232,
+            "y": 204.90000000000003
+          },
+          {
+            "x": 320,
+            "y": 204.90000000000003
+          },
+          {
+            "x": 408,
+            "y": 204.90000000000003
+          },
+          {
+            "x": 56,
+            "y": 84.00000000000004
+          },
+          {
+            "x": 144,
+            "y": 84.00000000000004
+          },
+          {
+            "x": 232,
+            "y": 84.00000000000004
+          },
+          {
+            "x": 320,
+            "y": 84.00000000000004
+          },
+          {
+            "x": 408,
+            "y": 84.00000000000004
+          }
+        ],
+        "groups": [
+          {
+            "x": 40,
+            "y": 281.80000000000007,
+            "width": 444,
+            "height": 96.9
+          },
+          {
+            "x": 40,
+            "y": 160.90000000000003,
+            "width": 444,
+            "height": 96.9
+          },
+          {
+            "x": 40,
+            "y": 40.00000000000004,
+            "width": 444,
+            "height": 96.9
+          }
+        ],
+        "edges": [
+          {
+            "points": [
+              {
+                "x": 262,
+                "y": 281.80000000000007
+              },
+              {
+                "x": 262,
+                "y": 257.8
+              }
+            ]
+          },
+          {
+            "points": [
+              {
+                "x": 270,
+                "y": 281.80000000000007
+              },
+              {
+                "x": 270,
+                "y": 257.8
+              }
+            ]
+          },
+          {
+            "points": [
+              {
+                "x": 278,
+                "y": 281.80000000000007
+              },
+              {
+                "x": 278,
+                "y": 257.8
+              }
+            ]
+          },
+          {
+            "points": [
+              {
+                "x": 286,
+                "y": 281.80000000000007
+              },
+              {
+                "x": 286,
+                "y": 257.8
+              }
+            ]
+          },
+          {
+            "points": [
+              {
+                "x": 294,
+                "y": 281.80000000000007
+              },
+              {
+                "x": 294,
+                "y": 257.8
+              }
+            ]
+          },
+          {
+            "points": [
+              {
+                "x": 262,
+                "y": 160.90000000000003
+              },
+              {
+                "x": 262,
+                "y": 136.90000000000003
+              }
+            ]
+          },
+          {
+            "points": [
+              {
+                "x": 270,
+                "y": 160.90000000000003
+              },
+              {
+                "x": 270,
+                "y": 136.90000000000003
+              }
+            ]
+          },
+          {
+            "points": [
+              {
+                "x": 278,
+                "y": 160.90000000000003
+              },
+              {
+                "x": 278,
+                "y": 136.90000000000003
+              }
+            ]
+          },
+          {
+            "points": [
+              {
+                "x": 286,
+                "y": 160.90000000000003
+              },
+              {
+                "x": 286,
+                "y": 136.90000000000003
+              }
+            ]
+          },
+          {
+            "points": [
+              {
+                "x": 294,
+                "y": 160.90000000000003
+              },
+              {
+                "x": 294,
+                "y": 136.90000000000003
+              }
+            ]
+          }
+        ],
+        "expandedVertices": 18
+      },
+      "owners": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        1,
+        1,
+        1,
+        2,
+        2,
+        2,
+        2,
+        2,
+        -1,
+        -1,
+        -1
+      ],
+      "lifted": [
+        [
+          0,
+          {
+            "source": 15,
+            "target": 16,
+            "host": -1
+          }
+        ],
+        [
+          1,
+          {
+            "source": 15,
+            "target": 16,
+            "host": -1
+          }
+        ],
+        [
+          2,
+          {
+            "source": 15,
+            "target": 16,
+            "host": -1
+          }
+        ],
+        [
+          3,
+          {
+            "source": 15,
+            "target": 16,
+            "host": -1
+          }
+        ],
+        [
+          4,
+          {
+            "source": 15,
+            "target": 16,
+            "host": -1
+          }
+        ],
+        [
+          5,
+          {
+            "source": 16,
+            "target": 17,
+            "host": -1
+          }
+        ],
+        [
+          6,
+          {
+            "source": 16,
+            "target": 17,
+            "host": -1
+          }
+        ],
+        [
+          7,
+          {
+            "source": 16,
+            "target": 17,
+            "host": -1
+          }
+        ],
+        [
+          8,
+          {
+            "source": 16,
+            "target": 17,
+            "host": -1
+          }
+        ],
+        [
+          9,
+          {
+            "source": 16,
+            "target": 17,
+            "host": -1
+          }
+        ]
+      ]
+    }
+  },
+  {
+    "direction": "BT",
+    "variant": "identity",
+    "source": "flowchart BT\nsubgraph GroupA[Group A]\nA0[A0]\nA1[A1]\nA2[A2]\nA3[A3]\nA4[A4]\nend\nsubgraph GroupB[Group B]\nB0[B0]\nB1[B1]\nB2[B2]\nB3[B3]\nB4[B4]\nend\nsubgraph GroupC[Group C]\nC0[C0]\nC1[C1]\nC2[C2]\nC3[C3]\nC4[C4]\nend\nA0 --> B0\nA1 --> B1\nA2 --> B2\nA3 --> B3\nA4 --> B4\nB0 --> C0\nB1 --> C1\nB2 --> C2\nB3 --> C3\nB4 --> C4",
+    "forceGlobal": false,
+    "returned": false,
+    "error": {
+      "name": "GraphLayoutUnsupportedError",
+      "message": "Agentic graph layout does not support this input: cross-hierarchy route has no clear anchor",
+      "code": "GRAPH_LAYOUT_UNSUPPORTED",
+      "stack": "GraphLayoutUnsupportedError: Agentic graph layout does not support this input: cross-hierarchy route has no clear anchor\n    at declineAgenticGraph (/workspace/agentic-mermaid/src/layout/agentic-layered.ts:13:13)\n    at route (/workspace/agentic-mermaid/src/layout/compound-lazy-visibility.ts:93:44)\n    at routeCrossHierarchy (/workspace/agentic-mermaid/src/layout/compound-boundary-routes.ts:862:26)\n    at layoutLayeredGraph (/workspace/agentic-mermaid/src/layout/agentic-producer-core.ts:115:20)\n    at solve (/workspace/agentic-mermaid/src/layout/agentic-producer-core.ts:151:20)\n    at solveMeasuredLayout (/workspace/agentic-mermaid/src/layout/measured-backend.ts:10:48)\n    at placeNativeGraphCandidate (/workspace/agentic-mermaid/src/layout/agentic-producer-core.ts:146:14)\n    at selectNativeGraphCandidate (/workspace/agentic-mermaid/src/layout/agentic-producer-core.ts:182:17)\n    at layoutNativeGraphCandidate (/workspace/agentic-mermaid/src/layout/agentic-producer-core.ts:249:21)\n    at runMeasuredGraphBackend (/workspace/agentic-mermaid/src/layout/backend.ts:101:16)"
+    },
+    "trace": [
+      {
+        "event": "begin",
+        "index": 0,
+        "expanded": 18,
+        "primaryVirtual": 18
+      },
+      {
+        "event": "primary-grid",
+        "index": 0,
+        "expanded": 18,
+        "primaryVirtual": 18,
+        "virtual": 1716
+      },
+      {
+        "event": "accepted",
+        "index": 0,
+        "expanded": 1674,
+        "rescued": false
+      },
+      {
+        "event": "begin",
+        "index": 1,
+        "expanded": 1674,
+        "primaryVirtual": 1734
+      },
+      {
+        "event": "primary-grid",
+        "index": 1,
+        "expanded": 1674,
+        "primaryVirtual": 1734,
+        "virtual": 2871
+      },
+      {
+        "event": "accepted",
+        "index": 1,
+        "expanded": 4968,
+        "rescued": false
+      },
+      {
+        "event": "begin",
+        "index": 2,
+        "expanded": 4968,
+        "primaryVirtual": 4605
+      },
+      {
+        "event": "primary-grid",
+        "index": 2,
+        "expanded": 4968,
+        "primaryVirtual": 4605,
+        "virtual": 4332
+      }
+    ],
+    "routeStart": {
+      "input": {
+        "nodes": [
+          {
+            "id": "A0",
+            "parent": 0,
+            "width": 60,
+            "height": 36.900000000000006
+          },
+          {
+            "id": "A1",
+            "parent": 0,
+            "width": 60,
+            "height": 36.900000000000006
+          },
+          {
+            "id": "A2",
+            "parent": 0,
+            "width": 60,
+            "height": 36.900000000000006
+          },
+          {
+            "id": "A3",
+            "parent": 0,
+            "width": 60,
+            "height": 36.900000000000006
+          },
+          {
+            "id": "A4",
+            "parent": 0,
+            "width": 60,
+            "height": 36.900000000000006
+          },
+          {
+            "id": "B0",
+            "parent": 1,
+            "width": 60,
+            "height": 36.900000000000006
+          },
+          {
+            "id": "B1",
+            "parent": 1,
+            "width": 60,
+            "height": 36.900000000000006
+          },
+          {
+            "id": "B2",
+            "parent": 1,
+            "width": 60,
+            "height": 36.900000000000006
+          },
+          {
+            "id": "B3",
+            "parent": 1,
+            "width": 60,
+            "height": 36.900000000000006
+          },
+          {
+            "id": "B4",
+            "parent": 1,
+            "width": 60,
+            "height": 36.900000000000006
+          },
+          {
+            "id": "C0",
+            "parent": 2,
+            "width": 60,
+            "height": 36.900000000000006
+          },
+          {
+            "id": "C1",
+            "parent": 2,
+            "width": 60,
+            "height": 36.900000000000006
+          },
+          {
+            "id": "C2",
+            "parent": 2,
+            "width": 60,
+            "height": 36.900000000000006
+          },
+          {
+            "id": "C3",
+            "parent": 2,
+            "width": 60,
+            "height": 36.900000000000006
+          },
+          {
+            "id": "C4",
+            "parent": 2,
+            "width": 60,
+            "height": 36.900000000000006
+          }
+        ],
+        "groups": [
+          {
+            "id": "GroupA",
+            "direction": "BT",
+            "minWidth": 73,
+            "headerHeight": 28,
+            "padding": {
+              "top": 44,
+              "bottom": 16,
+              "left": 16,
+              "right": 16
+            }
+          },
+          {
+            "id": "GroupB",
+            "direction": "BT",
+            "minWidth": 73,
+            "headerHeight": 28,
+            "padding": {
+              "top": 44,
+              "bottom": 16,
+              "left": 16,
+              "right": 16
+            }
+          },
+          {
+            "id": "GroupC",
+            "direction": "BT",
+            "minWidth": 73,
+            "headerHeight": 28,
+            "padding": {
+              "top": 44,
+              "bottom": 16,
+              "left": 16,
+              "right": 16
+            }
+          }
+        ],
+        "edges": [
+          {
+            "source": 0,
+            "target": 5,
+            "sourcePortSpan": 1,
+            "targetPortSpan": 5.75,
+            "minSpan": 1
+          },
+          {
+            "source": 1,
+            "target": 6,
+            "sourcePortSpan": 1,
+            "targetPortSpan": 5.75,
+            "minSpan": 1
+          },
+          {
+            "source": 2,
+            "target": 7,
+            "sourcePortSpan": 1,
+            "targetPortSpan": 5.75,
+            "minSpan": 1
+          },
+          {
+            "source": 3,
+            "target": 8,
+            "sourcePortSpan": 1,
+            "targetPortSpan": 5.75,
+            "minSpan": 1
+          },
+          {
+            "source": 4,
+            "target": 9,
+            "sourcePortSpan": 1,
+            "targetPortSpan": 5.75,
+            "minSpan": 1
+          },
+          {
+            "source": 5,
+            "target": 10,
+            "sourcePortSpan": 1,
+            "targetPortSpan": 5.75,
+            "minSpan": 1
+          },
+          {
+            "source": 6,
+            "target": 11,
+            "sourcePortSpan": 1,
+            "targetPortSpan": 5.75,
+            "minSpan": 1
+          },
+          {
+            "source": 7,
+            "target": 12,
+            "sourcePortSpan": 1,
+            "targetPortSpan": 5.75,
+            "minSpan": 1
+          },
+          {
+            "source": 8,
+            "target": 13,
+            "sourcePortSpan": 1,
+            "targetPortSpan": 5.75,
+            "minSpan": 1
+          },
+          {
+            "source": 9,
+            "target": 14,
+            "sourcePortSpan": 1,
+            "targetPortSpan": 5.75,
+            "minSpan": 1
+          }
+        ],
+        "shareCompleteFans": false,
+        "direction": "BT",
+        "padding": 40,
+        "nodeSpacing": 28,
+        "layerSpacing": 48,
+        "edgeSpacing": 6,
+        "minimumTerminalLead": 13.375,
+        "nodeClearance": 1
+      },
+      "placed": {
+        "topology": "layered",
+        "width": 524,
+        "height": 418.70000000000005,
+        "nodes": [
+          {
+            "x": 56,
+            "y": 325.80000000000007
+          },
+          {
+            "x": 144,
+            "y": 325.80000000000007
+          },
+          {
+            "x": 232,
+            "y": 325.80000000000007
+          },
+          {
+            "x": 320,
+            "y": 325.80000000000007
+          },
+          {
+            "x": 408,
+            "y": 325.80000000000007
+          },
+          {
+            "x": 56,
+            "y": 204.90000000000003
+          },
+          {
+            "x": 144,
+            "y": 204.90000000000003
+          },
+          {
+            "x": 232,
+            "y": 204.90000000000003
+          },
+          {
+            "x": 320,
+            "y": 204.90000000000003
+          },
+          {
+            "x": 408,
+            "y": 204.90000000000003
+          },
+          {
+            "x": 56,
+            "y": 84.00000000000004
+          },
+          {
+            "x": 144,
+            "y": 84.00000000000004
+          },
+          {
+            "x": 232,
+            "y": 84.00000000000004
+          },
+          {
+            "x": 320,
+            "y": 84.00000000000004
+          },
+          {
+            "x": 408,
+            "y": 84.00000000000004
+          }
+        ],
+        "groups": [
+          {
+            "x": 40,
+            "y": 281.80000000000007,
+            "width": 444,
+            "height": 96.9
+          },
+          {
+            "x": 40,
+            "y": 160.90000000000003,
+            "width": 444,
+            "height": 96.9
+          },
+          {
+            "x": 40,
+            "y": 40.00000000000004,
+            "width": 444,
+            "height": 96.9
+          }
+        ],
+        "edges": [
+          {
+            "points": [
+              {
+                "x": 262,
+                "y": 281.80000000000007
+              },
+              {
+                "x": 262,
+                "y": 257.8
+              }
+            ]
+          },
+          {
+            "points": [
+              {
+                "x": 270,
+                "y": 281.80000000000007
+              },
+              {
+                "x": 270,
+                "y": 257.8
+              }
+            ]
+          },
+          {
+            "points": [
+              {
+                "x": 278,
+                "y": 281.80000000000007
+              },
+              {
+                "x": 278,
+                "y": 257.8
+              }
+            ]
+          },
+          {
+            "points": [
+              {
+                "x": 286,
+                "y": 281.80000000000007
+              },
+              {
+                "x": 286,
+                "y": 257.8
+              }
+            ]
+          },
+          {
+            "points": [
+              {
+                "x": 294,
+                "y": 281.80000000000007
+              },
+              {
+                "x": 294,
+                "y": 257.8
+              }
+            ]
+          },
+          {
+            "points": [
+              {
+                "x": 262,
+                "y": 160.90000000000003
+              },
+              {
+                "x": 262,
+                "y": 136.90000000000003
+              }
+            ]
+          },
+          {
+            "points": [
+              {
+                "x": 270,
+                "y": 160.90000000000003
+              },
+              {
+                "x": 270,
+                "y": 136.90000000000003
+              }
+            ]
+          },
+          {
+            "points": [
+              {
+                "x": 278,
+                "y": 160.90000000000003
+              },
+              {
+                "x": 278,
+                "y": 136.90000000000003
+              }
+            ]
+          },
+          {
+            "points": [
+              {
+                "x": 286,
+                "y": 160.90000000000003
+              },
+              {
+                "x": 286,
+                "y": 136.90000000000003
+              }
+            ]
+          },
+          {
+            "points": [
+              {
+                "x": 294,
+                "y": 160.90000000000003
+              },
+              {
+                "x": 294,
+                "y": 136.90000000000003
+              }
+            ]
+          }
+        ],
+        "expandedVertices": 18
+      },
+      "owners": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        1,
+        1,
+        1,
+        2,
+        2,
+        2,
+        2,
+        2,
+        -1,
+        -1,
+        -1
+      ],
+      "lifted": [
+        [
+          0,
+          {
+            "source": 15,
+            "target": 16,
+            "host": -1
+          }
+        ],
+        [
+          1,
+          {
+            "source": 15,
+            "target": 16,
+            "host": -1
+          }
+        ],
+        [
+          2,
+          {
+            "source": 15,
+            "target": 16,
+            "host": -1
+          }
+        ],
+        [
+          3,
+          {
+            "source": 15,
+            "target": 16,
+            "host": -1
+          }
+        ],
+        [
+          4,
+          {
+            "source": 15,
+            "target": 16,
+            "host": -1
+          }
+        ],
+        [
+          5,
+          {
+            "source": 16,
+            "target": 17,
+            "host": -1
+          }
+        ],
+        [
+          6,
+          {
+            "source": 16,
+            "target": 17,
+            "host": -1
+          }
+        ],
+        [
+          7,
+          {
+            "source": 16,
+            "target": 17,
+            "host": -1
+          }
+        ],
+        [
+          8,
+          {
+            "source": 16,
+            "target": 17,
+            "host": -1
+          }
+        ],
+        [
+          9,
+          {
+            "source": 16,
+            "target": 17,
+            "host": -1
+          }
+        ]
+      ]
+    }
+  },
+  {
+    "direction": "BT",
+    "variant": "two-groups",
+    "source": "flowchart BT\nsubgraph GroupA[Group A]\nA0[A0]\nA1[A1]\nA2[A2]\nA3[A3]\nA4[A4]\nend\nsubgraph GroupB[Group B]\nB0[B0]\nB1[B1]\nB2[B2]\nB3[B3]\nB4[B4]\nend\nA0 --> B4\nA1 --> B2\nA2 --> B0\nA3 --> B3\nA4 --> B1",
+    "forceGlobal": false,
+    "returned": false,
+    "error": {
+      "name": "GraphLayoutUnsupportedError",
+      "message": "Agentic graph layout does not support this input: cross-hierarchy route has no clear anchor",
+      "code": "GRAPH_LAYOUT_UNSUPPORTED",
+      "stack": "GraphLayoutUnsupportedError: Agentic graph layout does not support this input: cross-hierarchy route has no clear anchor\n    at declineAgenticGraph (/workspace/agentic-mermaid/src/layout/agentic-layered.ts:13:13)\n    at route (/workspace/agentic-mermaid/src/layout/compound-lazy-visibility.ts:93:44)\n    at routeCrossHierarchy (/workspace/agentic-mermaid/src/layout/compound-boundary-routes.ts:863:25)\n    at layoutLayeredGraph (/workspace/agentic-mermaid/src/layout/agentic-producer-core.ts:115:20)\n    at solve (/workspace/agentic-mermaid/src/layout/agentic-producer-core.ts:151:20)\n    at solveMeasuredLayout (/workspace/agentic-mermaid/src/layout/measured-backend.ts:10:48)\n    at placeNativeGraphCandidate (/workspace/agentic-mermaid/src/layout/agentic-producer-core.ts:146:14)\n    at selectNativeGraphCandidate (/workspace/agentic-mermaid/src/layout/agentic-producer-core.ts:182:17)\n    at layoutNativeGraphCandidate (/workspace/agentic-mermaid/src/layout/agentic-producer-core.ts:249:21)\n    at runMeasuredGraphBackend (/workspace/agentic-mermaid/src/layout/backend.ts:101:16)"
+    },
+    "trace": [
+      {
+        "event": "begin",
+        "index": 0,
+        "expanded": 12,
+        "primaryVirtual": 12
+      },
+      {
+        "event": "primary-grid",
+        "index": 0,
+        "expanded": 12,
+        "primaryVirtual": 12,
+        "virtual": 1650
+      },
+      {
+        "event": "accepted",
+        "index": 0,
+        "expanded": 1672,
+        "rescued": false
+      },
+      {
+        "event": "begin",
+        "index": 1,
+        "expanded": 1672,
+        "primaryVirtual": 1662
+      },
+      {
+        "event": "primary-grid",
+        "index": 1,
+        "expanded": 1672,
+        "primaryVirtual": 1662,
+        "virtual": 2784
+      }
+    ],
+    "routeStart": {
+      "input": {
+        "nodes": [
+          {
+            "id": "A0",
+            "parent": 0,
+            "width": 60,
+            "height": 36.900000000000006
+          },
+          {
+            "id": "A1",
+            "parent": 0,
+            "width": 60,
+            "height": 36.900000000000006
+          },
+          {
+            "id": "A2",
+            "parent": 0,
+            "width": 60,
+            "height": 36.900000000000006
+          },
+          {
+            "id": "A3",
+            "parent": 0,
+            "width": 60,
+            "height": 36.900000000000006
+          },
+          {
+            "id": "A4",
+            "parent": 0,
+            "width": 60,
+            "height": 36.900000000000006
+          },
+          {
+            "id": "B0",
+            "parent": 1,
+            "width": 60,
+            "height": 36.900000000000006
+          },
+          {
+            "id": "B1",
+            "parent": 1,
+            "width": 60,
+            "height": 36.900000000000006
+          },
+          {
+            "id": "B2",
+            "parent": 1,
+            "width": 60,
+            "height": 36.900000000000006
+          },
+          {
+            "id": "B3",
+            "parent": 1,
+            "width": 60,
+            "height": 36.900000000000006
+          },
+          {
+            "id": "B4",
+            "parent": 1,
+            "width": 60,
+            "height": 36.900000000000006
+          }
+        ],
+        "groups": [
+          {
+            "id": "GroupA",
+            "direction": "BT",
+            "minWidth": 73,
+            "headerHeight": 28,
+            "padding": {
+              "top": 44,
+              "bottom": 16,
+              "left": 16,
+              "right": 16
+            }
+          },
+          {
+            "id": "GroupB",
+            "direction": "BT",
+            "minWidth": 73,
+            "headerHeight": 28,
+            "padding": {
+              "top": 44,
+              "bottom": 16,
+              "left": 16,
+              "right": 16
+            }
+          }
+        ],
+        "edges": [
+          {
+            "source": 0,
+            "target": 9,
+            "sourcePortSpan": 1,
+            "targetPortSpan": 5.75,
+            "minSpan": 1
+          },
+          {
+            "source": 1,
+            "target": 7,
+            "sourcePortSpan": 1,
+            "targetPortSpan": 5.75,
+            "minSpan": 1
+          },
+          {
+            "source": 2,
+            "target": 5,
+            "sourcePortSpan": 1,
+            "targetPortSpan": 5.75,
+            "minSpan": 1
+          },
+          {
+            "source": 3,
+            "target": 8,
+            "sourcePortSpan": 1,
+            "targetPortSpan": 5.75,
+            "minSpan": 1
+          },
+          {
+            "source": 4,
+            "target": 6,
+            "sourcePortSpan": 1,
+            "targetPortSpan": 5.75,
+            "minSpan": 1
+          }
+        ],
+        "shareCompleteFans": false,
+        "direction": "BT",
+        "padding": 40,
+        "nodeSpacing": 28,
+        "layerSpacing": 48,
+        "edgeSpacing": 6,
+        "minimumTerminalLead": 13.375,
+        "nodeClearance": 1
+      },
+      "placed": {
+        "topology": "layered",
+        "width": 524,
+        "height": 297.8,
+        "nodes": [
+          {
+            "x": 56,
+            "y": 204.90000000000003
+          },
+          {
+            "x": 144,
+            "y": 204.90000000000003
+          },
+          {
+            "x": 232,
+            "y": 204.90000000000003
+          },
+          {
+            "x": 320,
+            "y": 204.90000000000003
+          },
+          {
+            "x": 408,
+            "y": 204.90000000000003
+          },
+          {
+            "x": 56,
+            "y": 83.99999999999999
+          },
+          {
+            "x": 144,
+            "y": 83.99999999999999
+          },
+          {
+            "x": 232,
+            "y": 83.99999999999999
+          },
+          {
+            "x": 320,
+            "y": 83.99999999999999
+          },
+          {
+            "x": 408,
+            "y": 83.99999999999999
+          }
+        ],
+        "groups": [
+          {
+            "x": 40,
+            "y": 160.90000000000003,
+            "width": 444,
+            "height": 96.9
+          },
+          {
+            "x": 40,
+            "y": 39.999999999999986,
+            "width": 444,
+            "height": 96.9
+          }
+        ],
+        "edges": [
+          {
+            "points": [
+              {
+                "x": 262,
+                "y": 160.90000000000003
+              },
+              {
+                "x": 262,
+                "y": 136.89999999999998
+              }
+            ]
+          },
+          {
+            "points": [
+              {
+                "x": 270,
+                "y": 160.90000000000003
+              },
+              {
+                "x": 270,
+                "y": 136.89999999999998
+              }
+            ]
+          },
+          {
+            "points": [
+              {
+                "x": 278,
+                "y": 160.90000000000003
+              },
+              {
+                "x": 278,
+                "y": 136.89999999999998
+              }
+            ]
+          },
+          {
+            "points": [
+              {
+                "x": 286,
+                "y": 160.90000000000003
+              },
+              {
+                "x": 286,
+                "y": 136.89999999999998
+              }
+            ]
+          },
+          {
+            "points": [
+              {
+                "x": 294,
+                "y": 160.90000000000003
+              },
+              {
+                "x": 294,
+                "y": 136.89999999999998
+              }
+            ]
+          }
+        ],
+        "expandedVertices": 12
+      },
+      "owners": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        1,
+        1,
+        1,
+        -1,
+        -1
+      ],
+      "lifted": [
+        [
+          0,
+          {
+            "source": 10,
+            "target": 11,
+            "host": -1
+          }
+        ],
+        [
+          1,
+          {
+            "source": 10,
+            "target": 11,
+            "host": -1
+          }
+        ],
+        [
+          2,
+          {
+            "source": 10,
+            "target": 11,
+            "host": -1
+          }
+        ],
+        [
+          3,
+          {
+            "source": 10,
+            "target": 11,
+            "host": -1
+          }
+        ],
+        [
+          4,
+          {
+            "source": 10,
+            "target": 11,
+            "host": -1
+          }
+        ]
+      ]
+    }
+  },
+  {
+    "direction": "LR",
+    "variant": "permutation",
+    "source": "flowchart LR\nsubgraph GroupA[Group A]\nA0[A0]\nA1[A1]\nA2[A2]\nA3[A3]\nA4[A4]\nend\nsubgraph GroupB[Group B]\nB0[B0]\nB1[B1]\nB2[B2]\nB3[B3]\nB4[B4]\nend\nsubgraph GroupC[Group C]\nC0[C0]\nC1[C1]\nC2[C2]\nC3[C3]\nC4[C4]\nend\nA0 --> B4\nA1 --> B2\nA2 --> B0\nA3 --> B3\nA4 --> B1\nB0 --> C1\nB1 --> C3\nB2 --> C0\nB3 --> C4\nB4 --> C2",
+    "forceGlobal": false,
+    "returned": false,
+    "error": {
+      "name": "GraphLayoutUnsupportedError",
+      "message": "Agentic graph layout does not support this input: cross-hierarchy route has no clear anchor",
+      "code": "GRAPH_LAYOUT_UNSUPPORTED",
+      "stack": "GraphLayoutUnsupportedError: Agentic graph layout does not support this input: cross-hierarchy route has no clear anchor\n    at declineAgenticGraph (/workspace/agentic-mermaid/src/layout/agentic-layered.ts:13:13)\n    at route (/workspace/agentic-mermaid/src/layout/compound-lazy-visibility.ts:93:44)\n    at routeCrossHierarchy (/workspace/agentic-mermaid/src/layout/compound-boundary-routes.ts:863:25)\n    at layoutLayeredGraph (/workspace/agentic-mermaid/src/layout/agentic-producer-core.ts:115:20)\n    at solve (/workspace/agentic-mermaid/src/layout/agentic-producer-core.ts:151:20)\n    at solveMeasuredLayout (/workspace/agentic-mermaid/src/layout/measured-backend.ts:10:48)\n    at placeNativeGraphCandidate (/workspace/agentic-mermaid/src/layout/agentic-producer-core.ts:146:14)\n    at selectNativeGraphCandidate (/workspace/agentic-mermaid/src/layout/agentic-producer-core.ts:182:17)\n    at layoutNativeGraphCandidate (/workspace/agentic-mermaid/src/layout/agentic-producer-core.ts:249:21)\n    at runMeasuredGraphBackend (/workspace/agentic-mermaid/src/layout/backend.ts:101:16)"
+    },
+    "trace": [
+      {
+        "event": "begin",
+        "index": 0,
+        "expanded": 18,
+        "primaryVirtual": 18
+      },
+      {
+        "event": "primary-grid",
+        "index": 0,
+        "expanded": 18,
+        "primaryVirtual": 18,
+        "virtual": 2106
+      },
+      {
+        "event": "accepted",
+        "index": 0,
+        "expanded": 1798,
+        "rescued": false
+      },
+      {
+        "event": "begin",
+        "index": 1,
+        "expanded": 1798,
+        "primaryVirtual": 2124
+      },
+      {
+        "event": "primary-grid",
+        "index": 1,
+        "expanded": 1798,
+        "primaryVirtual": 2124,
+        "virtual": 3168
+      }
+    ],
+    "routeStart": {
+      "input": {
+        "nodes": [
+          {
+            "id": "A0",
+            "parent": 0,
+            "width": 60,
+            "height": 36.900000000000006
+          },
+          {
+            "id": "A1",
+            "parent": 0,
+            "width": 60,
+            "height": 36.900000000000006
+          },
+          {
+            "id": "A2",
+            "parent": 0,
+            "width": 60,
+            "height": 36.900000000000006
+          },
+          {
+            "id": "A3",
+            "parent": 0,
+            "width": 60,
+            "height": 36.900000000000006
+          },
+          {
+            "id": "A4",
+            "parent": 0,
+            "width": 60,
+            "height": 36.900000000000006
+          },
+          {
+            "id": "B0",
+            "parent": 1,
+            "width": 60,
+            "height": 36.900000000000006
+          },
+          {
+            "id": "B1",
+            "parent": 1,
+            "width": 60,
+            "height": 36.900000000000006
+          },
+          {
+            "id": "B2",
+            "parent": 1,
+            "width": 60,
+            "height": 36.900000000000006
+          },
+          {
+            "id": "B3",
+            "parent": 1,
+            "width": 60,
+            "height": 36.900000000000006
+          },
+          {
+            "id": "B4",
+            "parent": 1,
+            "width": 60,
+            "height": 36.900000000000006
+          },
+          {
+            "id": "C0",
+            "parent": 2,
+            "width": 60,
+            "height": 36.900000000000006
+          },
+          {
+            "id": "C1",
+            "parent": 2,
+            "width": 60,
+            "height": 36.900000000000006
+          },
+          {
+            "id": "C2",
+            "parent": 2,
+            "width": 60,
+            "height": 36.900000000000006
+          },
+          {
+            "id": "C3",
+            "parent": 2,
+            "width": 60,
+            "height": 36.900000000000006
+          },
+          {
+            "id": "C4",
+            "parent": 2,
+            "width": 60,
+            "height": 36.900000000000006
+          }
+        ],
+        "groups": [
+          {
+            "id": "GroupA",
+            "direction": "LR",
+            "minWidth": 73,
+            "headerHeight": 28,
+            "padding": {
+              "top": 44,
+              "bottom": 16,
+              "left": 16,
+              "right": 16
+            }
+          },
+          {
+            "id": "GroupB",
+            "direction": "LR",
+            "minWidth": 73,
+            "headerHeight": 28,
+            "padding": {
+              "top": 44,
+              "bottom": 16,
+              "left": 16,
+              "right": 16
+            }
+          },
+          {
+            "id": "GroupC",
+            "direction": "LR",
+            "minWidth": 73,
+            "headerHeight": 28,
+            "padding": {
+              "top": 44,
+              "bottom": 16,
+              "left": 16,
+              "right": 16
+            }
+          }
+        ],
+        "edges": [
+          {
+            "source": 0,
+            "target": 9,
+            "sourcePortSpan": 1,
+            "targetPortSpan": 5.75,
+            "minSpan": 1
+          },
+          {
+            "source": 1,
+            "target": 7,
+            "sourcePortSpan": 1,
+            "targetPortSpan": 5.75,
+            "minSpan": 1
+          },
+          {
+            "source": 2,
+            "target": 5,
+            "sourcePortSpan": 1,
+            "targetPortSpan": 5.75,
+            "minSpan": 1
+          },
+          {
+            "source": 3,
+            "target": 8,
+            "sourcePortSpan": 1,
+            "targetPortSpan": 5.75,
+            "minSpan": 1
+          },
+          {
+            "source": 4,
+            "target": 6,
+            "sourcePortSpan": 1,
+            "targetPortSpan": 5.75,
+            "minSpan": 1
+          },
+          {
+            "source": 5,
+            "target": 11,
+            "sourcePortSpan": 1,
+            "targetPortSpan": 5.75,
+            "minSpan": 1
+          },
+          {
+            "source": 6,
+            "target": 13,
+            "sourcePortSpan": 1,
+            "targetPortSpan": 5.75,
+            "minSpan": 1
+          },
+          {
+            "source": 7,
+            "target": 10,
+            "sourcePortSpan": 1,
+            "targetPortSpan": 5.75,
+            "minSpan": 1
+          },
+          {
+            "source": 8,
+            "target": 14,
+            "sourcePortSpan": 1,
+            "targetPortSpan": 5.75,
+            "minSpan": 1
+          },
+          {
+            "source": 9,
+            "target": 12,
+            "sourcePortSpan": 1,
+            "targetPortSpan": 5.75,
+            "minSpan": 1
+          }
+        ],
+        "shareCompleteFans": false,
+        "direction": "LR",
+        "padding": 40,
+        "nodeSpacing": 28,
+        "layerSpacing": 48,
+        "edgeSpacing": 6,
+        "minimumTerminalLead": 13.375,
+        "nodeClearance": 1
+      },
+      "placed": {
+        "topology": "layered",
+        "width": 404,
+        "height": 436.5,
+        "nodes": [
+          {
+            "x": 56,
+            "y": 84
+          },
+          {
+            "x": 56,
+            "y": 148.9
+          },
+          {
+            "x": 56,
+            "y": 213.8
+          },
+          {
+            "x": 56,
+            "y": 278.70000000000005
+          },
+          {
+            "x": 56,
+            "y": 343.6
+          },
+          {
+            "x": 172,
+            "y": 84
+          },
+          {
+            "x": 172,
+            "y": 148.9
+          },
+          {
+            "x": 172,
+            "y": 213.8
+          },
+          {
+            "x": 172,
+            "y": 278.70000000000005
+          },
+          {
+            "x": 172,
+            "y": 343.6
+          },
+          {
+            "x": 288,
+            "y": 84
+          },
+          {
+            "x": 288,
+            "y": 148.9
+          },
+          {
+            "x": 288,
+            "y": 213.8
+          },
+          {
+            "x": 288,
+            "y": 278.70000000000005
+          },
+          {
+            "x": 288,
+            "y": 343.6
+          }
+        ],
+        "groups": [
+          {
+            "x": 40,
+            "y": 40,
+            "width": 92,
+            "height": 356.5
+          },
+          {
+            "x": 156,
+            "y": 40,
+            "width": 92,
+            "height": 356.5
+          },
+          {
+            "x": 272,
+            "y": 40,
+            "width": 92,
+            "height": 356.5
+          }
+        ],
+        "edges": [
+          {
+            "points": [
+              {
+                "x": 132,
+                "y": 218.25
+              },
+              {
+                "x": 156,
+                "y": 218.25
+              }
+            ]
+          },
+          {
+            "points": [
+              {
+                "x": 132,
+                "y": 226.25
+              },
+              {
+                "x": 156,
+                "y": 226.25
+              }
+            ]
+          },
+          {
+            "points": [
+              {
+                "x": 132,
+                "y": 234.25
+              },
+              {
+                "x": 156,
+                "y": 234.25
+              }
+            ]
+          },
+          {
+            "points": [
+              {
+                "x": 132,
+                "y": 242.25
+              },
+              {
+                "x": 156,
+                "y": 242.25
+              }
+            ]
+          },
+          {
+            "points": [
+              {
+                "x": 132,
+                "y": 250.25
+              },
+              {
+                "x": 156,
+                "y": 250.25
+              }
+            ]
+          },
+          {
+            "points": [
+              {
+                "x": 248,
+                "y": 218.25
+              },
+              {
+                "x": 272,
+                "y": 218.25
+              }
+            ]
+          },
+          {
+            "points": [
+              {
+                "x": 248,
+                "y": 226.25
+              },
+              {
+                "x": 272,
+                "y": 226.25
+              }
+            ]
+          },
+          {
+            "points": [
+              {
+                "x": 248,
+                "y": 234.25
+              },
+              {
+                "x": 272,
+                "y": 234.25
+              }
+            ]
+          },
+          {
+            "points": [
+              {
+                "x": 248,
+                "y": 242.25
+              },
+              {
+                "x": 272,
+                "y": 242.25
+              }
+            ]
+          },
+          {
+            "points": [
+              {
+                "x": 248,
+                "y": 250.25
+              },
+              {
+                "x": 272,
+                "y": 250.25
+              }
+            ]
+          }
+        ],
+        "expandedVertices": 18
+      },
+      "owners": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        1,
+        1,
+        1,
+        2,
+        2,
+        2,
+        2,
+        2,
+        -1,
+        -1,
+        -1
+      ],
+      "lifted": [
+        [
+          0,
+          {
+            "source": 15,
+            "target": 16,
+            "host": -1
+          }
+        ],
+        [
+          1,
+          {
+            "source": 15,
+            "target": 16,
+            "host": -1
+          }
+        ],
+        [
+          2,
+          {
+            "source": 15,
+            "target": 16,
+            "host": -1
+          }
+        ],
+        [
+          3,
+          {
+            "source": 15,
+            "target": 16,
+            "host": -1
+          }
+        ],
+        [
+          4,
+          {
+            "source": 15,
+            "target": 16,
+            "host": -1
+          }
+        ],
+        [
+          5,
+          {
+            "source": 16,
+            "target": 17,
+            "host": -1
+          }
+        ],
+        [
+          6,
+          {
+            "source": 16,
+            "target": 17,
+            "host": -1
+          }
+        ],
+        [
+          7,
+          {
+            "source": 16,
+            "target": 17,
+            "host": -1
+          }
+        ],
+        [
+          8,
+          {
+            "source": 16,
+            "target": 17,
+            "host": -1
+          }
+        ],
+        [
+          9,
+          {
+            "source": 16,
+            "target": 17,
+            "host": -1
+          }
+        ]
+      ]
+    }
+  },
+  {
+    "direction": "LR",
+    "variant": "identity",
+    "source": "flowchart LR\nsubgraph GroupA[Group A]\nA0[A0]\nA1[A1]\nA2[A2]\nA3[A3]\nA4[A4]\nend\nsubgraph GroupB[Group B]\nB0[B0]\nB1[B1]\nB2[B2]\nB3[B3]\nB4[B4]\nend\nsubgraph GroupC[Group C]\nC0[C0]\nC1[C1]\nC2[C2]\nC3[C3]\nC4[C4]\nend\nA0 --> B0\nA1 --> B1\nA2 --> B2\nA3 --> B3\nA4 --> B4\nB0 --> C0\nB1 --> C1\nB2 --> C2\nB3 --> C3\nB4 --> C4",
+    "forceGlobal": false,
+    "returned": false,
+    "error": {
+      "name": "GraphLayoutUnsupportedError",
+      "message": "Agentic graph layout does not support this input: cross-hierarchy route has no clear anchor",
+      "code": "GRAPH_LAYOUT_UNSUPPORTED",
+      "stack": "GraphLayoutUnsupportedError: Agentic graph layout does not support this input: cross-hierarchy route has no clear anchor\n    at declineAgenticGraph (/workspace/agentic-mermaid/src/layout/agentic-layered.ts:13:13)\n    at route (/workspace/agentic-mermaid/src/layout/compound-lazy-visibility.ts:93:44)\n    at routeCrossHierarchy (/workspace/agentic-mermaid/src/layout/compound-boundary-routes.ts:862:26)\n    at layoutLayeredGraph (/workspace/agentic-mermaid/src/layout/agentic-producer-core.ts:115:20)\n    at solve (/workspace/agentic-mermaid/src/layout/agentic-producer-core.ts:151:20)\n    at solveMeasuredLayout (/workspace/agentic-mermaid/src/layout/measured-backend.ts:10:48)\n    at placeNativeGraphCandidate (/workspace/agentic-mermaid/src/layout/agentic-producer-core.ts:146:14)\n    at selectNativeGraphCandidate (/workspace/agentic-mermaid/src/layout/agentic-producer-core.ts:182:17)\n    at layoutNativeGraphCandidate (/workspace/agentic-mermaid/src/layout/agentic-producer-core.ts:249:21)\n    at runMeasuredGraphBackend (/workspace/agentic-mermaid/src/layout/backend.ts:101:16)"
+    },
+    "trace": [
+      {
+        "event": "begin",
+        "index": 0,
+        "expanded": 18,
+        "primaryVirtual": 18
+      },
+      {
+        "event": "primary-grid",
+        "index": 0,
+        "expanded": 18,
+        "primaryVirtual": 18,
+        "virtual": 1716
+      },
+      {
+        "event": "accepted",
+        "index": 0,
+        "expanded": 1510,
+        "rescued": false
+      },
+      {
+        "event": "begin",
+        "index": 1,
+        "expanded": 1510,
+        "primaryVirtual": 1734
+      },
+      {
+        "event": "primary-grid",
+        "index": 1,
+        "expanded": 1510,
+        "primaryVirtual": 1734,
+        "virtual": 2496
+      },
+      {
+        "event": "accepted",
+        "index": 1,
+        "expanded": 3292,
+        "rescued": false
+      },
+      {
+        "event": "begin",
+        "index": 2,
+        "expanded": 3292,
+        "primaryVirtual": 4230
+      },
+      {
+        "event": "primary-grid",
+        "index": 2,
+        "expanded": 3292,
+        "primaryVirtual": 4230,
+        "virtual": 3060
+      },
+      {
+        "event": "accepted",
+        "index": 2,
+        "expanded": 4778,
+        "rescued": false
+      },
+      {
+        "event": "begin",
+        "index": 3,
+        "expanded": 4778,
+        "primaryVirtual": 7290
+      },
+      {
+        "event": "primary-grid",
+        "index": 3,
+        "expanded": 4778,
+        "primaryVirtual": 7290,
+        "virtual": 3366
+      },
+      {
+        "event": "accepted",
+        "index": 3,
+        "expanded": 6302,
+        "rescued": false
+      },
+      {
+        "event": "begin",
+        "index": 4,
+        "expanded": 6302,
+        "primaryVirtual": 10656
+      },
+      {
+        "event": "primary-grid",
+        "index": 4,
+        "expanded": 6302,
+        "primaryVirtual": 10656,
+        "virtual": 3774
+      }
+    ],
+    "routeStart": {
+      "input": {
+        "nodes": [
+          {
+            "id": "A0",
+            "parent": 0,
+            "width": 60,
+            "height": 36.900000000000006
+          },
+          {
+            "id": "A1",
+            "parent": 0,
+            "width": 60,
+            "height": 36.900000000000006
+          },
+          {
+            "id": "A2",
+            "parent": 0,
+            "width": 60,
+            "height": 36.900000000000006
+          },
+          {
+            "id": "A3",
+            "parent": 0,
+            "width": 60,
+            "height": 36.900000000000006
+          },
+          {
+            "id": "A4",
+            "parent": 0,
+            "width": 60,
+            "height": 36.900000000000006
+          },
+          {
+            "id": "B0",
+            "parent": 1,
+            "width": 60,
+            "height": 36.900000000000006
+          },
+          {
+            "id": "B1",
+            "parent": 1,
+            "width": 60,
+            "height": 36.900000000000006
+          },
+          {
+            "id": "B2",
+            "parent": 1,
+            "width": 60,
+            "height": 36.900000000000006
+          },
+          {
+            "id": "B3",
+            "parent": 1,
+            "width": 60,
+            "height": 36.900000000000006
+          },
+          {
+            "id": "B4",
+            "parent": 1,
+            "width": 60,
+            "height": 36.900000000000006
+          },
+          {
+            "id": "C0",
+            "parent": 2,
+            "width": 60,
+            "height": 36.900000000000006
+          },
+          {
+            "id": "C1",
+            "parent": 2,
+            "width": 60,
+            "height": 36.900000000000006
+          },
+          {
+            "id": "C2",
+            "parent": 2,
+            "width": 60,
+            "height": 36.900000000000006
+          },
+          {
+            "id": "C3",
+            "parent": 2,
+            "width": 60,
+            "height": 36.900000000000006
+          },
+          {
+            "id": "C4",
+            "parent": 2,
+            "width": 60,
+            "height": 36.900000000000006
+          }
+        ],
+        "groups": [
+          {
+            "id": "GroupA",
+            "direction": "LR",
+            "minWidth": 73,
+            "headerHeight": 28,
+            "padding": {
+              "top": 44,
+              "bottom": 16,
+              "left": 16,
+              "right": 16
+            }
+          },
+          {
+            "id": "GroupB",
+            "direction": "LR",
+            "minWidth": 73,
+            "headerHeight": 28,
+            "padding": {
+              "top": 44,
+              "bottom": 16,
+              "left": 16,
+              "right": 16
+            }
+          },
+          {
+            "id": "GroupC",
+            "direction": "LR",
+            "minWidth": 73,
+            "headerHeight": 28,
+            "padding": {
+              "top": 44,
+              "bottom": 16,
+              "left": 16,
+              "right": 16
+            }
+          }
+        ],
+        "edges": [
+          {
+            "source": 0,
+            "target": 5,
+            "sourcePortSpan": 1,
+            "targetPortSpan": 5.75,
+            "minSpan": 1
+          },
+          {
+            "source": 1,
+            "target": 6,
+            "sourcePortSpan": 1,
+            "targetPortSpan": 5.75,
+            "minSpan": 1
+          },
+          {
+            "source": 2,
+            "target": 7,
+            "sourcePortSpan": 1,
+            "targetPortSpan": 5.75,
+            "minSpan": 1
+          },
+          {
+            "source": 3,
+            "target": 8,
+            "sourcePortSpan": 1,
+            "targetPortSpan": 5.75,
+            "minSpan": 1
+          },
+          {
+            "source": 4,
+            "target": 9,
+            "sourcePortSpan": 1,
+            "targetPortSpan": 5.75,
+            "minSpan": 1
+          },
+          {
+            "source": 5,
+            "target": 10,
+            "sourcePortSpan": 1,
+            "targetPortSpan": 5.75,
+            "minSpan": 1
+          },
+          {
+            "source": 6,
+            "target": 11,
+            "sourcePortSpan": 1,
+            "targetPortSpan": 5.75,
+            "minSpan": 1
+          },
+          {
+            "source": 7,
+            "target": 12,
+            "sourcePortSpan": 1,
+            "targetPortSpan": 5.75,
+            "minSpan": 1
+          },
+          {
+            "source": 8,
+            "target": 13,
+            "sourcePortSpan": 1,
+            "targetPortSpan": 5.75,
+            "minSpan": 1
+          },
+          {
+            "source": 9,
+            "target": 14,
+            "sourcePortSpan": 1,
+            "targetPortSpan": 5.75,
+            "minSpan": 1
+          }
+        ],
+        "shareCompleteFans": false,
+        "direction": "LR",
+        "padding": 40,
+        "nodeSpacing": 28,
+        "layerSpacing": 48,
+        "edgeSpacing": 6,
+        "minimumTerminalLead": 13.375,
+        "nodeClearance": 1
+      },
+      "placed": {
+        "topology": "layered",
+        "width": 404,
+        "height": 436.5,
+        "nodes": [
+          {
+            "x": 56,
+            "y": 84
+          },
+          {
+            "x": 56,
+            "y": 148.9
+          },
+          {
+            "x": 56,
+            "y": 213.8
+          },
+          {
+            "x": 56,
+            "y": 278.70000000000005
+          },
+          {
+            "x": 56,
+            "y": 343.6
+          },
+          {
+            "x": 172,
+            "y": 84
+          },
+          {
+            "x": 172,
+            "y": 148.9
+          },
+          {
+            "x": 172,
+            "y": 213.8
+          },
+          {
+            "x": 172,
+            "y": 278.70000000000005
+          },
+          {
+            "x": 172,
+            "y": 343.6
+          },
+          {
+            "x": 288,
+            "y": 84
+          },
+          {
+            "x": 288,
+            "y": 148.9
+          },
+          {
+            "x": 288,
+            "y": 213.8
+          },
+          {
+            "x": 288,
+            "y": 278.70000000000005
+          },
+          {
+            "x": 288,
+            "y": 343.6
+          }
+        ],
+        "groups": [
+          {
+            "x": 40,
+            "y": 40,
+            "width": 92,
+            "height": 356.5
+          },
+          {
+            "x": 156,
+            "y": 40,
+            "width": 92,
+            "height": 356.5
+          },
+          {
+            "x": 272,
+            "y": 40,
+            "width": 92,
+            "height": 356.5
+          }
+        ],
+        "edges": [
+          {
+            "points": [
+              {
+                "x": 132,
+                "y": 218.25
+              },
+              {
+                "x": 156,
+                "y": 218.25
+              }
+            ]
+          },
+          {
+            "points": [
+              {
+                "x": 132,
+                "y": 226.25
+              },
+              {
+                "x": 156,
+                "y": 226.25
+              }
+            ]
+          },
+          {
+            "points": [
+              {
+                "x": 132,
+                "y": 234.25
+              },
+              {
+                "x": 156,
+                "y": 234.25
+              }
+            ]
+          },
+          {
+            "points": [
+              {
+                "x": 132,
+                "y": 242.25
+              },
+              {
+                "x": 156,
+                "y": 242.25
+              }
+            ]
+          },
+          {
+            "points": [
+              {
+                "x": 132,
+                "y": 250.25
+              },
+              {
+                "x": 156,
+                "y": 250.25
+              }
+            ]
+          },
+          {
+            "points": [
+              {
+                "x": 248,
+                "y": 218.25
+              },
+              {
+                "x": 272,
+                "y": 218.25
+              }
+            ]
+          },
+          {
+            "points": [
+              {
+                "x": 248,
+                "y": 226.25
+              },
+              {
+                "x": 272,
+                "y": 226.25
+              }
+            ]
+          },
+          {
+            "points": [
+              {
+                "x": 248,
+                "y": 234.25
+              },
+              {
+                "x": 272,
+                "y": 234.25
+              }
+            ]
+          },
+          {
+            "points": [
+              {
+                "x": 248,
+                "y": 242.25
+              },
+              {
+                "x": 272,
+                "y": 242.25
+              }
+            ]
+          },
+          {
+            "points": [
+              {
+                "x": 248,
+                "y": 250.25
+              },
+              {
+                "x": 272,
+                "y": 250.25
+              }
+            ]
+          }
+        ],
+        "expandedVertices": 18
+      },
+      "owners": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        1,
+        1,
+        1,
+        2,
+        2,
+        2,
+        2,
+        2,
+        -1,
+        -1,
+        -1
+      ],
+      "lifted": [
+        [
+          0,
+          {
+            "source": 15,
+            "target": 16,
+            "host": -1
+          }
+        ],
+        [
+          1,
+          {
+            "source": 15,
+            "target": 16,
+            "host": -1
+          }
+        ],
+        [
+          2,
+          {
+            "source": 15,
+            "target": 16,
+            "host": -1
+          }
+        ],
+        [
+          3,
+          {
+            "source": 15,
+            "target": 16,
+            "host": -1
+          }
+        ],
+        [
+          4,
+          {
+            "source": 15,
+            "target": 16,
+            "host": -1
+          }
+        ],
+        [
+          5,
+          {
+            "source": 16,
+            "target": 17,
+            "host": -1
+          }
+        ],
+        [
+          6,
+          {
+            "source": 16,
+            "target": 17,
+            "host": -1
+          }
+        ],
+        [
+          7,
+          {
+            "source": 16,
+            "target": 17,
+            "host": -1
+          }
+        ],
+        [
+          8,
+          {
+            "source": 16,
+            "target": 17,
+            "host": -1
+          }
+        ],
+        [
+          9,
+          {
+            "source": 16,
+            "target": 17,
+            "host": -1
+          }
+        ]
+      ]
+    }
+  },
+  {
+    "direction": "LR",
+    "variant": "two-groups",
+    "source": "flowchart LR\nsubgraph GroupA[Group A]\nA0[A0]\nA1[A1]\nA2[A2]\nA3[A3]\nA4[A4]\nend\nsubgraph GroupB[Group B]\nB0[B0]\nB1[B1]\nB2[B2]\nB3[B3]\nB4[B4]\nend\nA0 --> B4\nA1 --> B2\nA2 --> B0\nA3 --> B3\nA4 --> B1",
+    "forceGlobal": false,
+    "returned": false,
+    "error": {
+      "name": "GraphLayoutUnsupportedError",
+      "message": "Agentic graph layout does not support this input: cross-hierarchy route has no clear anchor",
+      "code": "GRAPH_LAYOUT_UNSUPPORTED",
+      "stack": "GraphLayoutUnsupportedError: Agentic graph layout does not support this input: cross-hierarchy route has no clear anchor\n    at declineAgenticGraph (/workspace/agentic-mermaid/src/layout/agentic-layered.ts:13:13)\n    at route (/workspace/agentic-mermaid/src/layout/compound-lazy-visibility.ts:93:44)\n    at routeCrossHierarchy (/workspace/agentic-mermaid/src/layout/compound-boundary-routes.ts:863:25)\n    at layoutLayeredGraph (/workspace/agentic-mermaid/src/layout/agentic-producer-core.ts:115:20)\n    at solve (/workspace/agentic-mermaid/src/layout/agentic-producer-core.ts:151:20)\n    at solveMeasuredLayout (/workspace/agentic-mermaid/src/layout/measured-backend.ts:10:48)\n    at placeNativeGraphCandidate (/workspace/agentic-mermaid/src/layout/agentic-producer-core.ts:146:14)\n    at selectNativeGraphCandidate (/workspace/agentic-mermaid/src/layout/agentic-producer-core.ts:182:17)\n    at layoutNativeGraphCandidate (/workspace/agentic-mermaid/src/layout/agentic-producer-core.ts:249:21)\n    at runMeasuredGraphBackend (/workspace/agentic-mermaid/src/layout/backend.ts:101:16)"
+    },
+    "trace": [
+      {
+        "event": "begin",
+        "index": 0,
+        "expanded": 12,
+        "primaryVirtual": 12
+      },
+      {
+        "event": "primary-grid",
+        "index": 0,
+        "expanded": 12,
+        "primaryVirtual": 12,
+        "virtual": 1650
+      },
+      {
+        "event": "accepted",
+        "index": 0,
+        "expanded": 1600,
+        "rescued": false
+      },
+      {
+        "event": "begin",
+        "index": 1,
+        "expanded": 1600,
+        "primaryVirtual": 1662
+      },
+      {
+        "event": "primary-grid",
+        "index": 1,
+        "expanded": 1600,
+        "primaryVirtual": 1662,
+        "virtual": 2604
+      }
+    ],
+    "routeStart": {
+      "input": {
+        "nodes": [
+          {
+            "id": "A0",
+            "parent": 0,
+            "width": 60,
+            "height": 36.900000000000006
+          },
+          {
+            "id": "A1",
+            "parent": 0,
+            "width": 60,
+            "height": 36.900000000000006
+          },
+          {
+            "id": "A2",
+            "parent": 0,
+            "width": 60,
+            "height": 36.900000000000006
+          },
+          {
+            "id": "A3",
+            "parent": 0,
+            "width": 60,
+            "height": 36.900000000000006
+          },
+          {
+            "id": "A4",
+            "parent": 0,
+            "width": 60,
+            "height": 36.900000000000006
+          },
+          {
+            "id": "B0",
+            "parent": 1,
+            "width": 60,
+            "height": 36.900000000000006
+          },
+          {
+            "id": "B1",
+            "parent": 1,
+            "width": 60,
+            "height": 36.900000000000006
+          },
+          {
+            "id": "B2",
+            "parent": 1,
+            "width": 60,
+            "height": 36.900000000000006
+          },
+          {
+            "id": "B3",
+            "parent": 1,
+            "width": 60,
+            "height": 36.900000000000006
+          },
+          {
+            "id": "B4",
+            "parent": 1,
+            "width": 60,
+            "height": 36.900000000000006
+          }
+        ],
+        "groups": [
+          {
+            "id": "GroupA",
+            "direction": "LR",
+            "minWidth": 73,
+            "headerHeight": 28,
+            "padding": {
+              "top": 44,
+              "bottom": 16,
+              "left": 16,
+              "right": 16
+            }
+          },
+          {
+            "id": "GroupB",
+            "direction": "LR",
+            "minWidth": 73,
+            "headerHeight": 28,
+            "padding": {
+              "top": 44,
+              "bottom": 16,
+              "left": 16,
+              "right": 16
+            }
+          }
+        ],
+        "edges": [
+          {
+            "source": 0,
+            "target": 9,
+            "sourcePortSpan": 1,
+            "targetPortSpan": 5.75,
+            "minSpan": 1
+          },
+          {
+            "source": 1,
+            "target": 7,
+            "sourcePortSpan": 1,
+            "targetPortSpan": 5.75,
+            "minSpan": 1
+          },
+          {
+            "source": 2,
+            "target": 5,
+            "sourcePortSpan": 1,
+            "targetPortSpan": 5.75,
+            "minSpan": 1
+          },
+          {
+            "source": 3,
+            "target": 8,
+            "sourcePortSpan": 1,
+            "targetPortSpan": 5.75,
+            "minSpan": 1
+          },
+          {
+            "source": 4,
+            "target": 6,
+            "sourcePortSpan": 1,
+            "targetPortSpan": 5.75,
+            "minSpan": 1
+          }
+        ],
+        "shareCompleteFans": false,
+        "direction": "LR",
+        "padding": 40,
+        "nodeSpacing": 28,
+        "layerSpacing": 48,
+        "edgeSpacing": 6,
+        "minimumTerminalLead": 13.375,
+        "nodeClearance": 1
+      },
+      "placed": {
+        "topology": "layered",
+        "width": 288,
+        "height": 436.5,
+        "nodes": [
+          {
+            "x": 56,
+            "y": 84
+          },
+          {
+            "x": 56,
+            "y": 148.9
+          },
+          {
+            "x": 56,
+            "y": 213.8
+          },
+          {
+            "x": 56,
+            "y": 278.70000000000005
+          },
+          {
+            "x": 56,
+            "y": 343.6
+          },
+          {
+            "x": 172,
+            "y": 84
+          },
+          {
+            "x": 172,
+            "y": 148.9
+          },
+          {
+            "x": 172,
+            "y": 213.8
+          },
+          {
+            "x": 172,
+            "y": 278.70000000000005
+          },
+          {
+            "x": 172,
+            "y": 343.6
+          }
+        ],
+        "groups": [
+          {
+            "x": 40,
+            "y": 40,
+            "width": 92,
+            "height": 356.5
+          },
+          {
+            "x": 156,
+            "y": 40,
+            "width": 92,
+            "height": 356.5
+          }
+        ],
+        "edges": [
+          {
+            "points": [
+              {
+                "x": 132,
+                "y": 218.25
+              },
+              {
+                "x": 156,
+                "y": 218.25
+              }
+            ]
+          },
+          {
+            "points": [
+              {
+                "x": 132,
+                "y": 226.25
+              },
+              {
+                "x": 156,
+                "y": 226.25
+              }
+            ]
+          },
+          {
+            "points": [
+              {
+                "x": 132,
+                "y": 234.25
+              },
+              {
+                "x": 156,
+                "y": 234.25
+              }
+            ]
+          },
+          {
+            "points": [
+              {
+                "x": 132,
+                "y": 242.25
+              },
+              {
+                "x": 156,
+                "y": 242.25
+              }
+            ]
+          },
+          {
+            "points": [
+              {
+                "x": 132,
+                "y": 250.25
+              },
+              {
+                "x": 156,
+                "y": 250.25
+              }
+            ]
+          }
+        ],
+        "expandedVertices": 12
+      },
+      "owners": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        1,
+        1,
+        1,
+        -1,
+        -1
+      ],
+      "lifted": [
+        [
+          0,
+          {
+            "source": 10,
+            "target": 11,
+            "host": -1
+          }
+        ],
+        [
+          1,
+          {
+            "source": 10,
+            "target": 11,
+            "host": -1
+          }
+        ],
+        [
+          2,
+          {
+            "source": 10,
+            "target": 11,
+            "host": -1
+          }
+        ],
+        [
+          3,
+          {
+            "source": 10,
+            "target": 11,
+            "host": -1
+          }
+        ],
+        [
+          4,
+          {
+            "source": 10,
+            "target": 11,
+            "host": -1
+          }
+        ]
+      ]
+    }
+  },
+  {
+    "direction": "RL",
+    "variant": "permutation",
+    "source": "flowchart RL\nsubgraph GroupA[Group A]\nA0[A0]\nA1[A1]\nA2[A2]\nA3[A3]\nA4[A4]\nend\nsubgraph GroupB[Group B]\nB0[B0]\nB1[B1]\nB2[B2]\nB3[B3]\nB4[B4]\nend\nsubgraph GroupC[Group C]\nC0[C0]\nC1[C1]\nC2[C2]\nC3[C3]\nC4[C4]\nend\nA0 --> B4\nA1 --> B2\nA2 --> B0\nA3 --> B3\nA4 --> B1\nB0 --> C1\nB1 --> C3\nB2 --> C0\nB3 --> C4\nB4 --> C2",
+    "forceGlobal": false,
+    "returned": false,
+    "error": {
+      "name": "GraphLayoutUnsupportedError",
+      "message": "Agentic graph layout does not support this input: cross-hierarchy route has no clear anchor",
+      "code": "GRAPH_LAYOUT_UNSUPPORTED",
+      "stack": "GraphLayoutUnsupportedError: Agentic graph layout does not support this input: cross-hierarchy route has no clear anchor\n    at declineAgenticGraph (/workspace/agentic-mermaid/src/layout/agentic-layered.ts:13:13)\n    at route (/workspace/agentic-mermaid/src/layout/compound-lazy-visibility.ts:93:44)\n    at routeCrossHierarchy (/workspace/agentic-mermaid/src/layout/compound-boundary-routes.ts:863:25)\n    at layoutLayeredGraph (/workspace/agentic-mermaid/src/layout/agentic-producer-core.ts:115:20)\n    at solve (/workspace/agentic-mermaid/src/layout/agentic-producer-core.ts:151:20)\n    at solveMeasuredLayout (/workspace/agentic-mermaid/src/layout/measured-backend.ts:10:48)\n    at placeNativeGraphCandidate (/workspace/agentic-mermaid/src/layout/agentic-producer-core.ts:146:14)\n    at selectNativeGraphCandidate (/workspace/agentic-mermaid/src/layout/agentic-producer-core.ts:182:17)\n    at layoutNativeGraphCandidate (/workspace/agentic-mermaid/src/layout/agentic-producer-core.ts:249:21)\n    at runMeasuredGraphBackend (/workspace/agentic-mermaid/src/layout/backend.ts:101:16)"
+    },
+    "trace": [
+      {
+        "event": "begin",
+        "index": 0,
+        "expanded": 18,
+        "primaryVirtual": 18
+      },
+      {
+        "event": "primary-grid",
+        "index": 0,
+        "expanded": 18,
+        "primaryVirtual": 18,
+        "virtual": 2106
+      },
+      {
+        "event": "accepted",
+        "index": 0,
+        "expanded": 1574,
+        "rescued": false
+      },
+      {
+        "event": "begin",
+        "index": 1,
+        "expanded": 1574,
+        "primaryVirtual": 2124
+      },
+      {
+        "event": "primary-grid",
+        "index": 1,
+        "expanded": 1574,
+        "primaryVirtual": 2124,
+        "virtual": 3168
+      }
+    ],
+    "routeStart": {
+      "input": {
+        "nodes": [
+          {
+            "id": "A0",
+            "parent": 0,
+            "width": 60,
+            "height": 36.900000000000006
+          },
+          {
+            "id": "A1",
+            "parent": 0,
+            "width": 60,
+            "height": 36.900000000000006
+          },
+          {
+            "id": "A2",
+            "parent": 0,
+            "width": 60,
+            "height": 36.900000000000006
+          },
+          {
+            "id": "A3",
+            "parent": 0,
+            "width": 60,
+            "height": 36.900000000000006
+          },
+          {
+            "id": "A4",
+            "parent": 0,
+            "width": 60,
+            "height": 36.900000000000006
+          },
+          {
+            "id": "B0",
+            "parent": 1,
+            "width": 60,
+            "height": 36.900000000000006
+          },
+          {
+            "id": "B1",
+            "parent": 1,
+            "width": 60,
+            "height": 36.900000000000006
+          },
+          {
+            "id": "B2",
+            "parent": 1,
+            "width": 60,
+            "height": 36.900000000000006
+          },
+          {
+            "id": "B3",
+            "parent": 1,
+            "width": 60,
+            "height": 36.900000000000006
+          },
+          {
+            "id": "B4",
+            "parent": 1,
+            "width": 60,
+            "height": 36.900000000000006
+          },
+          {
+            "id": "C0",
+            "parent": 2,
+            "width": 60,
+            "height": 36.900000000000006
+          },
+          {
+            "id": "C1",
+            "parent": 2,
+            "width": 60,
+            "height": 36.900000000000006
+          },
+          {
+            "id": "C2",
+            "parent": 2,
+            "width": 60,
+            "height": 36.900000000000006
+          },
+          {
+            "id": "C3",
+            "parent": 2,
+            "width": 60,
+            "height": 36.900000000000006
+          },
+          {
+            "id": "C4",
+            "parent": 2,
+            "width": 60,
+            "height": 36.900000000000006
+          }
+        ],
+        "groups": [
+          {
+            "id": "GroupA",
+            "direction": "RL",
+            "minWidth": 73,
+            "headerHeight": 28,
+            "padding": {
+              "top": 44,
+              "bottom": 16,
+              "left": 16,
+              "right": 16
+            }
+          },
+          {
+            "id": "GroupB",
+            "direction": "RL",
+            "minWidth": 73,
+            "headerHeight": 28,
+            "padding": {
+              "top": 44,
+              "bottom": 16,
+              "left": 16,
+              "right": 16
+            }
+          },
+          {
+            "id": "GroupC",
+            "direction": "RL",
+            "minWidth": 73,
+            "headerHeight": 28,
+            "padding": {
+              "top": 44,
+              "bottom": 16,
+              "left": 16,
+              "right": 16
+            }
+          }
+        ],
+        "edges": [
+          {
+            "source": 0,
+            "target": 9,
+            "sourcePortSpan": 1,
+            "targetPortSpan": 5.75,
+            "minSpan": 1
+          },
+          {
+            "source": 1,
+            "target": 7,
+            "sourcePortSpan": 1,
+            "targetPortSpan": 5.75,
+            "minSpan": 1
+          },
+          {
+            "source": 2,
+            "target": 5,
+            "sourcePortSpan": 1,
+            "targetPortSpan": 5.75,
+            "minSpan": 1
+          },
+          {
+            "source": 3,
+            "target": 8,
+            "sourcePortSpan": 1,
+            "targetPortSpan": 5.75,
+            "minSpan": 1
+          },
+          {
+            "source": 4,
+            "target": 6,
+            "sourcePortSpan": 1,
+            "targetPortSpan": 5.75,
+            "minSpan": 1
+          },
+          {
+            "source": 5,
+            "target": 11,
+            "sourcePortSpan": 1,
+            "targetPortSpan": 5.75,
+            "minSpan": 1
+          },
+          {
+            "source": 6,
+            "target": 13,
+            "sourcePortSpan": 1,
+            "targetPortSpan": 5.75,
+            "minSpan": 1
+          },
+          {
+            "source": 7,
+            "target": 10,
+            "sourcePortSpan": 1,
+            "targetPortSpan": 5.75,
+            "minSpan": 1
+          },
+          {
+            "source": 8,
+            "target": 14,
+            "sourcePortSpan": 1,
+            "targetPortSpan": 5.75,
+            "minSpan": 1
+          },
+          {
+            "source": 9,
+            "target": 12,
+            "sourcePortSpan": 1,
+            "targetPortSpan": 5.75,
+            "minSpan": 1
+          }
+        ],
+        "shareCompleteFans": false,
+        "direction": "RL",
+        "padding": 40,
+        "nodeSpacing": 28,
+        "layerSpacing": 48,
+        "edgeSpacing": 6,
+        "minimumTerminalLead": 13.375,
+        "nodeClearance": 1
+      },
+      "placed": {
+        "topology": "layered",
+        "width": 404,
+        "height": 436.5,
+        "nodes": [
+          {
+            "x": 288,
+            "y": 84
+          },
+          {
+            "x": 288,
+            "y": 148.9
+          },
+          {
+            "x": 288,
+            "y": 213.8
+          },
+          {
+            "x": 288,
+            "y": 278.70000000000005
+          },
+          {
+            "x": 288,
+            "y": 343.6
+          },
+          {
+            "x": 172,
+            "y": 84
+          },
+          {
+            "x": 172,
+            "y": 148.9
+          },
+          {
+            "x": 172,
+            "y": 213.8
+          },
+          {
+            "x": 172,
+            "y": 278.70000000000005
+          },
+          {
+            "x": 172,
+            "y": 343.6
+          },
+          {
+            "x": 56,
+            "y": 84
+          },
+          {
+            "x": 56,
+            "y": 148.9
+          },
+          {
+            "x": 56,
+            "y": 213.8
+          },
+          {
+            "x": 56,
+            "y": 278.70000000000005
+          },
+          {
+            "x": 56,
+            "y": 343.6
+          }
+        ],
+        "groups": [
+          {
+            "x": 272,
+            "y": 40,
+            "width": 92,
+            "height": 356.5
+          },
+          {
+            "x": 156,
+            "y": 40,
+            "width": 92,
+            "height": 356.5
+          },
+          {
+            "x": 40,
+            "y": 40,
+            "width": 92,
+            "height": 356.5
+          }
+        ],
+        "edges": [
+          {
+            "points": [
+              {
+                "x": 272,
+                "y": 218.25
+              },
+              {
+                "x": 248,
+                "y": 218.25
+              }
+            ]
+          },
+          {
+            "points": [
+              {
+                "x": 272,
+                "y": 226.25
+              },
+              {
+                "x": 248,
+                "y": 226.25
+              }
+            ]
+          },
+          {
+            "points": [
+              {
+                "x": 272,
+                "y": 234.25
+              },
+              {
+                "x": 248,
+                "y": 234.25
+              }
+            ]
+          },
+          {
+            "points": [
+              {
+                "x": 272,
+                "y": 242.25
+              },
+              {
+                "x": 248,
+                "y": 242.25
+              }
+            ]
+          },
+          {
+            "points": [
+              {
+                "x": 272,
+                "y": 250.25
+              },
+              {
+                "x": 248,
+                "y": 250.25
+              }
+            ]
+          },
+          {
+            "points": [
+              {
+                "x": 156,
+                "y": 218.25
+              },
+              {
+                "x": 132,
+                "y": 218.25
+              }
+            ]
+          },
+          {
+            "points": [
+              {
+                "x": 156,
+                "y": 226.25
+              },
+              {
+                "x": 132,
+                "y": 226.25
+              }
+            ]
+          },
+          {
+            "points": [
+              {
+                "x": 156,
+                "y": 234.25
+              },
+              {
+                "x": 132,
+                "y": 234.25
+              }
+            ]
+          },
+          {
+            "points": [
+              {
+                "x": 156,
+                "y": 242.25
+              },
+              {
+                "x": 132,
+                "y": 242.25
+              }
+            ]
+          },
+          {
+            "points": [
+              {
+                "x": 156,
+                "y": 250.25
+              },
+              {
+                "x": 132,
+                "y": 250.25
+              }
+            ]
+          }
+        ],
+        "expandedVertices": 18
+      },
+      "owners": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        1,
+        1,
+        1,
+        2,
+        2,
+        2,
+        2,
+        2,
+        -1,
+        -1,
+        -1
+      ],
+      "lifted": [
+        [
+          0,
+          {
+            "source": 15,
+            "target": 16,
+            "host": -1
+          }
+        ],
+        [
+          1,
+          {
+            "source": 15,
+            "target": 16,
+            "host": -1
+          }
+        ],
+        [
+          2,
+          {
+            "source": 15,
+            "target": 16,
+            "host": -1
+          }
+        ],
+        [
+          3,
+          {
+            "source": 15,
+            "target": 16,
+            "host": -1
+          }
+        ],
+        [
+          4,
+          {
+            "source": 15,
+            "target": 16,
+            "host": -1
+          }
+        ],
+        [
+          5,
+          {
+            "source": 16,
+            "target": 17,
+            "host": -1
+          }
+        ],
+        [
+          6,
+          {
+            "source": 16,
+            "target": 17,
+            "host": -1
+          }
+        ],
+        [
+          7,
+          {
+            "source": 16,
+            "target": 17,
+            "host": -1
+          }
+        ],
+        [
+          8,
+          {
+            "source": 16,
+            "target": 17,
+            "host": -1
+          }
+        ],
+        [
+          9,
+          {
+            "source": 16,
+            "target": 17,
+            "host": -1
+          }
+        ]
+      ]
+    }
+  },
+  {
+    "direction": "RL",
+    "variant": "identity",
+    "source": "flowchart RL\nsubgraph GroupA[Group A]\nA0[A0]\nA1[A1]\nA2[A2]\nA3[A3]\nA4[A4]\nend\nsubgraph GroupB[Group B]\nB0[B0]\nB1[B1]\nB2[B2]\nB3[B3]\nB4[B4]\nend\nsubgraph GroupC[Group C]\nC0[C0]\nC1[C1]\nC2[C2]\nC3[C3]\nC4[C4]\nend\nA0 --> B0\nA1 --> B1\nA2 --> B2\nA3 --> B3\nA4 --> B4\nB0 --> C0\nB1 --> C1\nB2 --> C2\nB3 --> C3\nB4 --> C4",
+    "forceGlobal": false,
+    "returned": false,
+    "error": {
+      "name": "GraphLayoutUnsupportedError",
+      "message": "Agentic graph layout does not support this input: cross-hierarchy route has no clear anchor",
+      "code": "GRAPH_LAYOUT_UNSUPPORTED",
+      "stack": "GraphLayoutUnsupportedError: Agentic graph layout does not support this input: cross-hierarchy route has no clear anchor\n    at declineAgenticGraph (/workspace/agentic-mermaid/src/layout/agentic-layered.ts:13:13)\n    at route (/workspace/agentic-mermaid/src/layout/compound-lazy-visibility.ts:93:44)\n    at routeCrossHierarchy (/workspace/agentic-mermaid/src/layout/compound-boundary-routes.ts:862:26)\n    at layoutLayeredGraph (/workspace/agentic-mermaid/src/layout/agentic-producer-core.ts:115:20)\n    at solve (/workspace/agentic-mermaid/src/layout/agentic-producer-core.ts:151:20)\n    at solveMeasuredLayout (/workspace/agentic-mermaid/src/layout/measured-backend.ts:10:48)\n    at placeNativeGraphCandidate (/workspace/agentic-mermaid/src/layout/agentic-producer-core.ts:146:14)\n    at selectNativeGraphCandidate (/workspace/agentic-mermaid/src/layout/agentic-producer-core.ts:182:17)\n    at layoutNativeGraphCandidate (/workspace/agentic-mermaid/src/layout/agentic-producer-core.ts:249:21)\n    at runMeasuredGraphBackend (/workspace/agentic-mermaid/src/layout/backend.ts:101:16)"
+    },
+    "trace": [
+      {
+        "event": "begin",
+        "index": 0,
+        "expanded": 18,
+        "primaryVirtual": 18
+      },
+      {
+        "event": "primary-grid",
+        "index": 0,
+        "expanded": 18,
+        "primaryVirtual": 18,
+        "virtual": 1716
+      },
+      {
+        "event": "accepted",
+        "index": 0,
+        "expanded": 1350,
+        "rescued": false
+      },
+      {
+        "event": "begin",
+        "index": 1,
+        "expanded": 1350,
+        "primaryVirtual": 1734
+      },
+      {
+        "event": "primary-grid",
+        "index": 1,
+        "expanded": 1350,
+        "primaryVirtual": 1734,
+        "virtual": 2496
+      },
+      {
+        "event": "accepted",
+        "index": 1,
+        "expanded": 3164,
+        "rescued": false
+      },
+      {
+        "event": "begin",
+        "index": 2,
+        "expanded": 3164,
+        "primaryVirtual": 4230
+      },
+      {
+        "event": "primary-grid",
+        "index": 2,
+        "expanded": 3164,
+        "primaryVirtual": 4230,
+        "virtual": 3060
+      },
+      {
+        "event": "accepted",
+        "index": 2,
+        "expanded": 4650,
+        "rescued": false
+      },
+      {
+        "event": "begin",
+        "index": 3,
+        "expanded": 4650,
+        "primaryVirtual": 7290
+      },
+      {
+        "event": "primary-grid",
+        "index": 3,
+        "expanded": 4650,
+        "primaryVirtual": 7290,
+        "virtual": 3366
+      },
+      {
+        "event": "accepted",
+        "index": 3,
+        "expanded": 6046,
+        "rescued": false
+      },
+      {
+        "event": "begin",
+        "index": 4,
+        "expanded": 6046,
+        "primaryVirtual": 10656
+      },
+      {
+        "event": "primary-grid",
+        "index": 4,
+        "expanded": 6046,
+        "primaryVirtual": 10656,
+        "virtual": 3774
+      }
+    ],
+    "routeStart": {
+      "input": {
+        "nodes": [
+          {
+            "id": "A0",
+            "parent": 0,
+            "width": 60,
+            "height": 36.900000000000006
+          },
+          {
+            "id": "A1",
+            "parent": 0,
+            "width": 60,
+            "height": 36.900000000000006
+          },
+          {
+            "id": "A2",
+            "parent": 0,
+            "width": 60,
+            "height": 36.900000000000006
+          },
+          {
+            "id": "A3",
+            "parent": 0,
+            "width": 60,
+            "height": 36.900000000000006
+          },
+          {
+            "id": "A4",
+            "parent": 0,
+            "width": 60,
+            "height": 36.900000000000006
+          },
+          {
+            "id": "B0",
+            "parent": 1,
+            "width": 60,
+            "height": 36.900000000000006
+          },
+          {
+            "id": "B1",
+            "parent": 1,
+            "width": 60,
+            "height": 36.900000000000006
+          },
+          {
+            "id": "B2",
+            "parent": 1,
+            "width": 60,
+            "height": 36.900000000000006
+          },
+          {
+            "id": "B3",
+            "parent": 1,
+            "width": 60,
+            "height": 36.900000000000006
+          },
+          {
+            "id": "B4",
+            "parent": 1,
+            "width": 60,
+            "height": 36.900000000000006
+          },
+          {
+            "id": "C0",
+            "parent": 2,
+            "width": 60,
+            "height": 36.900000000000006
+          },
+          {
+            "id": "C1",
+            "parent": 2,
+            "width": 60,
+            "height": 36.900000000000006
+          },
+          {
+            "id": "C2",
+            "parent": 2,
+            "width": 60,
+            "height": 36.900000000000006
+          },
+          {
+            "id": "C3",
+            "parent": 2,
+            "width": 60,
+            "height": 36.900000000000006
+          },
+          {
+            "id": "C4",
+            "parent": 2,
+            "width": 60,
+            "height": 36.900000000000006
+          }
+        ],
+        "groups": [
+          {
+            "id": "GroupA",
+            "direction": "RL",
+            "minWidth": 73,
+            "headerHeight": 28,
+            "padding": {
+              "top": 44,
+              "bottom": 16,
+              "left": 16,
+              "right": 16
+            }
+          },
+          {
+            "id": "GroupB",
+            "direction": "RL",
+            "minWidth": 73,
+            "headerHeight": 28,
+            "padding": {
+              "top": 44,
+              "bottom": 16,
+              "left": 16,
+              "right": 16
+            }
+          },
+          {
+            "id": "GroupC",
+            "direction": "RL",
+            "minWidth": 73,
+            "headerHeight": 28,
+            "padding": {
+              "top": 44,
+              "bottom": 16,
+              "left": 16,
+              "right": 16
+            }
+          }
+        ],
+        "edges": [
+          {
+            "source": 0,
+            "target": 5,
+            "sourcePortSpan": 1,
+            "targetPortSpan": 5.75,
+            "minSpan": 1
+          },
+          {
+            "source": 1,
+            "target": 6,
+            "sourcePortSpan": 1,
+            "targetPortSpan": 5.75,
+            "minSpan": 1
+          },
+          {
+            "source": 2,
+            "target": 7,
+            "sourcePortSpan": 1,
+            "targetPortSpan": 5.75,
+            "minSpan": 1
+          },
+          {
+            "source": 3,
+            "target": 8,
+            "sourcePortSpan": 1,
+            "targetPortSpan": 5.75,
+            "minSpan": 1
+          },
+          {
+            "source": 4,
+            "target": 9,
+            "sourcePortSpan": 1,
+            "targetPortSpan": 5.75,
+            "minSpan": 1
+          },
+          {
+            "source": 5,
+            "target": 10,
+            "sourcePortSpan": 1,
+            "targetPortSpan": 5.75,
+            "minSpan": 1
+          },
+          {
+            "source": 6,
+            "target": 11,
+            "sourcePortSpan": 1,
+            "targetPortSpan": 5.75,
+            "minSpan": 1
+          },
+          {
+            "source": 7,
+            "target": 12,
+            "sourcePortSpan": 1,
+            "targetPortSpan": 5.75,
+            "minSpan": 1
+          },
+          {
+            "source": 8,
+            "target": 13,
+            "sourcePortSpan": 1,
+            "targetPortSpan": 5.75,
+            "minSpan": 1
+          },
+          {
+            "source": 9,
+            "target": 14,
+            "sourcePortSpan": 1,
+            "targetPortSpan": 5.75,
+            "minSpan": 1
+          }
+        ],
+        "shareCompleteFans": false,
+        "direction": "RL",
+        "padding": 40,
+        "nodeSpacing": 28,
+        "layerSpacing": 48,
+        "edgeSpacing": 6,
+        "minimumTerminalLead": 13.375,
+        "nodeClearance": 1
+      },
+      "placed": {
+        "topology": "layered",
+        "width": 404,
+        "height": 436.5,
+        "nodes": [
+          {
+            "x": 288,
+            "y": 84
+          },
+          {
+            "x": 288,
+            "y": 148.9
+          },
+          {
+            "x": 288,
+            "y": 213.8
+          },
+          {
+            "x": 288,
+            "y": 278.70000000000005
+          },
+          {
+            "x": 288,
+            "y": 343.6
+          },
+          {
+            "x": 172,
+            "y": 84
+          },
+          {
+            "x": 172,
+            "y": 148.9
+          },
+          {
+            "x": 172,
+            "y": 213.8
+          },
+          {
+            "x": 172,
+            "y": 278.70000000000005
+          },
+          {
+            "x": 172,
+            "y": 343.6
+          },
+          {
+            "x": 56,
+            "y": 84
+          },
+          {
+            "x": 56,
+            "y": 148.9
+          },
+          {
+            "x": 56,
+            "y": 213.8
+          },
+          {
+            "x": 56,
+            "y": 278.70000000000005
+          },
+          {
+            "x": 56,
+            "y": 343.6
+          }
+        ],
+        "groups": [
+          {
+            "x": 272,
+            "y": 40,
+            "width": 92,
+            "height": 356.5
+          },
+          {
+            "x": 156,
+            "y": 40,
+            "width": 92,
+            "height": 356.5
+          },
+          {
+            "x": 40,
+            "y": 40,
+            "width": 92,
+            "height": 356.5
+          }
+        ],
+        "edges": [
+          {
+            "points": [
+              {
+                "x": 272,
+                "y": 218.25
+              },
+              {
+                "x": 248,
+                "y": 218.25
+              }
+            ]
+          },
+          {
+            "points": [
+              {
+                "x": 272,
+                "y": 226.25
+              },
+              {
+                "x": 248,
+                "y": 226.25
+              }
+            ]
+          },
+          {
+            "points": [
+              {
+                "x": 272,
+                "y": 234.25
+              },
+              {
+                "x": 248,
+                "y": 234.25
+              }
+            ]
+          },
+          {
+            "points": [
+              {
+                "x": 272,
+                "y": 242.25
+              },
+              {
+                "x": 248,
+                "y": 242.25
+              }
+            ]
+          },
+          {
+            "points": [
+              {
+                "x": 272,
+                "y": 250.25
+              },
+              {
+                "x": 248,
+                "y": 250.25
+              }
+            ]
+          },
+          {
+            "points": [
+              {
+                "x": 156,
+                "y": 218.25
+              },
+              {
+                "x": 132,
+                "y": 218.25
+              }
+            ]
+          },
+          {
+            "points": [
+              {
+                "x": 156,
+                "y": 226.25
+              },
+              {
+                "x": 132,
+                "y": 226.25
+              }
+            ]
+          },
+          {
+            "points": [
+              {
+                "x": 156,
+                "y": 234.25
+              },
+              {
+                "x": 132,
+                "y": 234.25
+              }
+            ]
+          },
+          {
+            "points": [
+              {
+                "x": 156,
+                "y": 242.25
+              },
+              {
+                "x": 132,
+                "y": 242.25
+              }
+            ]
+          },
+          {
+            "points": [
+              {
+                "x": 156,
+                "y": 250.25
+              },
+              {
+                "x": 132,
+                "y": 250.25
+              }
+            ]
+          }
+        ],
+        "expandedVertices": 18
+      },
+      "owners": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        1,
+        1,
+        1,
+        2,
+        2,
+        2,
+        2,
+        2,
+        -1,
+        -1,
+        -1
+      ],
+      "lifted": [
+        [
+          0,
+          {
+            "source": 15,
+            "target": 16,
+            "host": -1
+          }
+        ],
+        [
+          1,
+          {
+            "source": 15,
+            "target": 16,
+            "host": -1
+          }
+        ],
+        [
+          2,
+          {
+            "source": 15,
+            "target": 16,
+            "host": -1
+          }
+        ],
+        [
+          3,
+          {
+            "source": 15,
+            "target": 16,
+            "host": -1
+          }
+        ],
+        [
+          4,
+          {
+            "source": 15,
+            "target": 16,
+            "host": -1
+          }
+        ],
+        [
+          5,
+          {
+            "source": 16,
+            "target": 17,
+            "host": -1
+          }
+        ],
+        [
+          6,
+          {
+            "source": 16,
+            "target": 17,
+            "host": -1
+          }
+        ],
+        [
+          7,
+          {
+            "source": 16,
+            "target": 17,
+            "host": -1
+          }
+        ],
+        [
+          8,
+          {
+            "source": 16,
+            "target": 17,
+            "host": -1
+          }
+        ],
+        [
+          9,
+          {
+            "source": 16,
+            "target": 17,
+            "host": -1
+          }
+        ]
+      ]
+    }
+  },
+  {
+    "direction": "RL",
+    "variant": "two-groups",
+    "source": "flowchart RL\nsubgraph GroupA[Group A]\nA0[A0]\nA1[A1]\nA2[A2]\nA3[A3]\nA4[A4]\nend\nsubgraph GroupB[Group B]\nB0[B0]\nB1[B1]\nB2[B2]\nB3[B3]\nB4[B4]\nend\nA0 --> B4\nA1 --> B2\nA2 --> B0\nA3 --> B3\nA4 --> B1",
+    "forceGlobal": false,
+    "returned": false,
+    "error": {
+      "name": "GraphLayoutUnsupportedError",
+      "message": "Agentic graph layout does not support this input: cross-hierarchy route has no clear anchor",
+      "code": "GRAPH_LAYOUT_UNSUPPORTED",
+      "stack": "GraphLayoutUnsupportedError: Agentic graph layout does not support this input: cross-hierarchy route has no clear anchor\n    at declineAgenticGraph (/workspace/agentic-mermaid/src/layout/agentic-layered.ts:13:13)\n    at route (/workspace/agentic-mermaid/src/layout/compound-lazy-visibility.ts:93:44)\n    at routeCrossHierarchy (/workspace/agentic-mermaid/src/layout/compound-boundary-routes.ts:863:25)\n    at layoutLayeredGraph (/workspace/agentic-mermaid/src/layout/agentic-producer-core.ts:115:20)\n    at solve (/workspace/agentic-mermaid/src/layout/agentic-producer-core.ts:151:20)\n    at solveMeasuredLayout (/workspace/agentic-mermaid/src/layout/measured-backend.ts:10:48)\n    at placeNativeGraphCandidate (/workspace/agentic-mermaid/src/layout/agentic-producer-core.ts:146:14)\n    at selectNativeGraphCandidate (/workspace/agentic-mermaid/src/layout/agentic-producer-core.ts:182:17)\n    at layoutNativeGraphCandidate (/workspace/agentic-mermaid/src/layout/agentic-producer-core.ts:249:21)\n    at runMeasuredGraphBackend (/workspace/agentic-mermaid/src/layout/backend.ts:101:16)"
+    },
+    "trace": [
+      {
+        "event": "begin",
+        "index": 0,
+        "expanded": 12,
+        "primaryVirtual": 12
+      },
+      {
+        "event": "primary-grid",
+        "index": 0,
+        "expanded": 12,
+        "primaryVirtual": 12,
+        "virtual": 1650
+      },
+      {
+        "event": "accepted",
+        "index": 0,
+        "expanded": 1760,
+        "rescued": false
+      },
+      {
+        "event": "begin",
+        "index": 1,
+        "expanded": 1760,
+        "primaryVirtual": 1662
+      },
+      {
+        "event": "primary-grid",
+        "index": 1,
+        "expanded": 1760,
+        "primaryVirtual": 1662,
+        "virtual": 2604
+      }
+    ],
+    "routeStart": {
+      "input": {
+        "nodes": [
+          {
+            "id": "A0",
+            "parent": 0,
+            "width": 60,
+            "height": 36.900000000000006
+          },
+          {
+            "id": "A1",
+            "parent": 0,
+            "width": 60,
+            "height": 36.900000000000006
+          },
+          {
+            "id": "A2",
+            "parent": 0,
+            "width": 60,
+            "height": 36.900000000000006
+          },
+          {
+            "id": "A3",
+            "parent": 0,
+            "width": 60,
+            "height": 36.900000000000006
+          },
+          {
+            "id": "A4",
+            "parent": 0,
+            "width": 60,
+            "height": 36.900000000000006
+          },
+          {
+            "id": "B0",
+            "parent": 1,
+            "width": 60,
+            "height": 36.900000000000006
+          },
+          {
+            "id": "B1",
+            "parent": 1,
+            "width": 60,
+            "height": 36.900000000000006
+          },
+          {
+            "id": "B2",
+            "parent": 1,
+            "width": 60,
+            "height": 36.900000000000006
+          },
+          {
+            "id": "B3",
+            "parent": 1,
+            "width": 60,
+            "height": 36.900000000000006
+          },
+          {
+            "id": "B4",
+            "parent": 1,
+            "width": 60,
+            "height": 36.900000000000006
+          }
+        ],
+        "groups": [
+          {
+            "id": "GroupA",
+            "direction": "RL",
+            "minWidth": 73,
+            "headerHeight": 28,
+            "padding": {
+              "top": 44,
+              "bottom": 16,
+              "left": 16,
+              "right": 16
+            }
+          },
+          {
+            "id": "GroupB",
+            "direction": "RL",
+            "minWidth": 73,
+            "headerHeight": 28,
+            "padding": {
+              "top": 44,
+              "bottom": 16,
+              "left": 16,
+              "right": 16
+            }
+          }
+        ],
+        "edges": [
+          {
+            "source": 0,
+            "target": 9,
+            "sourcePortSpan": 1,
+            "targetPortSpan": 5.75,
+            "minSpan": 1
+          },
+          {
+            "source": 1,
+            "target": 7,
+            "sourcePortSpan": 1,
+            "targetPortSpan": 5.75,
+            "minSpan": 1
+          },
+          {
+            "source": 2,
+            "target": 5,
+            "sourcePortSpan": 1,
+            "targetPortSpan": 5.75,
+            "minSpan": 1
+          },
+          {
+            "source": 3,
+            "target": 8,
+            "sourcePortSpan": 1,
+            "targetPortSpan": 5.75,
+            "minSpan": 1
+          },
+          {
+            "source": 4,
+            "target": 6,
+            "sourcePortSpan": 1,
+            "targetPortSpan": 5.75,
+            "minSpan": 1
+          }
+        ],
+        "shareCompleteFans": false,
+        "direction": "RL",
+        "padding": 40,
+        "nodeSpacing": 28,
+        "layerSpacing": 48,
+        "edgeSpacing": 6,
+        "minimumTerminalLead": 13.375,
+        "nodeClearance": 1
+      },
+      "placed": {
+        "topology": "layered",
+        "width": 288,
+        "height": 436.5,
+        "nodes": [
+          {
+            "x": 172,
+            "y": 84
+          },
+          {
+            "x": 172,
+            "y": 148.9
+          },
+          {
+            "x": 172,
+            "y": 213.8
+          },
+          {
+            "x": 172,
+            "y": 278.70000000000005
+          },
+          {
+            "x": 172,
+            "y": 343.6
+          },
+          {
+            "x": 56,
+            "y": 84
+          },
+          {
+            "x": 56,
+            "y": 148.9
+          },
+          {
+            "x": 56,
+            "y": 213.8
+          },
+          {
+            "x": 56,
+            "y": 278.70000000000005
+          },
+          {
+            "x": 56,
+            "y": 343.6
+          }
+        ],
+        "groups": [
+          {
+            "x": 156,
+            "y": 40,
+            "width": 92,
+            "height": 356.5
+          },
+          {
+            "x": 40,
+            "y": 40,
+            "width": 92,
+            "height": 356.5
+          }
+        ],
+        "edges": [
+          {
+            "points": [
+              {
+                "x": 156,
+                "y": 218.25
+              },
+              {
+                "x": 132,
+                "y": 218.25
+              }
+            ]
+          },
+          {
+            "points": [
+              {
+                "x": 156,
+                "y": 226.25
+              },
+              {
+                "x": 132,
+                "y": 226.25
+              }
+            ]
+          },
+          {
+            "points": [
+              {
+                "x": 156,
+                "y": 234.25
+              },
+              {
+                "x": 132,
+                "y": 234.25
+              }
+            ]
+          },
+          {
+            "points": [
+              {
+                "x": 156,
+                "y": 242.25
+              },
+              {
+                "x": 132,
+                "y": 242.25
+              }
+            ]
+          },
+          {
+            "points": [
+              {
+                "x": 156,
+                "y": 250.25
+              },
+              {
+                "x": 132,
+                "y": 250.25
+              }
+            ]
+          }
+        ],
+        "expandedVertices": 12
+      },
+      "owners": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        1,
+        1,
+        1,
+        -1,
+        -1
+      ],
+      "lifted": [
+        [
+          0,
+          {
+            "source": 10,
+            "target": 11,
+            "host": -1
+          }
+        ],
+        [
+          1,
+          {
+            "source": 10,
+            "target": 11,
+            "host": -1
+          }
+        ],
+        [
+          2,
+          {
+            "source": 10,
+            "target": 11,
+            "host": -1
+          }
+        ],
+        [
+          3,
+          {
+            "source": 10,
+            "target": 11,
+            "host": -1
+          }
+        ],
+        [
+          4,
+          {
+            "source": 10,
+            "target": 11,
+            "host": -1
+          }
+        ]
+      ]
+    }
+  }
+]

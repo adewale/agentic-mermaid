@@ -1,0 +1,898 @@
+[
+  {
+    "id": "audit:compound-three-group-permutation:TB",
+    "expected": {
+      "nodes": [
+        {
+          "id": "A0",
+          "label": "A0"
+        },
+        {
+          "id": "A1",
+          "label": "A1"
+        },
+        {
+          "id": "A2",
+          "label": "A2"
+        },
+        {
+          "id": "A3",
+          "label": "A3"
+        },
+        {
+          "id": "A4",
+          "label": "A4"
+        },
+        {
+          "id": "B0",
+          "label": "B0"
+        },
+        {
+          "id": "B1",
+          "label": "B1"
+        },
+        {
+          "id": "B2",
+          "label": "B2"
+        },
+        {
+          "id": "B3",
+          "label": "B3"
+        },
+        {
+          "id": "B4",
+          "label": "B4"
+        },
+        {
+          "id": "C0",
+          "label": "C0"
+        },
+        {
+          "id": "C1",
+          "label": "C1"
+        },
+        {
+          "id": "C2",
+          "label": "C2"
+        },
+        {
+          "id": "C3",
+          "label": "C3"
+        },
+        {
+          "id": "C4",
+          "label": "C4"
+        }
+      ],
+      "groups": [
+        {
+          "id": "GroupA",
+          "label": "Group A",
+          "members": [
+            "A0",
+            "A1",
+            "A2",
+            "A3",
+            "A4"
+          ]
+        },
+        {
+          "id": "GroupB",
+          "label": "Group B",
+          "members": [
+            "B0",
+            "B1",
+            "B2",
+            "B3",
+            "B4"
+          ]
+        },
+        {
+          "id": "GroupC",
+          "label": "Group C",
+          "members": [
+            "C0",
+            "C1",
+            "C2",
+            "C3",
+            "C4"
+          ]
+        }
+      ],
+      "edges": [
+        {
+          "source": "A0",
+          "target": "B4",
+          "label": "",
+          "directed": true,
+          "startMarker": "none",
+          "endMarker": "arrow"
+        },
+        {
+          "source": "A1",
+          "target": "B2",
+          "label": "",
+          "directed": true,
+          "startMarker": "none",
+          "endMarker": "arrow"
+        },
+        {
+          "source": "A2",
+          "target": "B0",
+          "label": "",
+          "directed": true,
+          "startMarker": "none",
+          "endMarker": "arrow"
+        },
+        {
+          "source": "A3",
+          "target": "B3",
+          "label": "",
+          "directed": true,
+          "startMarker": "none",
+          "endMarker": "arrow"
+        },
+        {
+          "source": "A4",
+          "target": "B1",
+          "label": "",
+          "directed": true,
+          "startMarker": "none",
+          "endMarker": "arrow"
+        },
+        {
+          "source": "B0",
+          "target": "C1",
+          "label": "",
+          "directed": true,
+          "startMarker": "none",
+          "endMarker": "arrow"
+        },
+        {
+          "source": "B1",
+          "target": "C3",
+          "label": "",
+          "directed": true,
+          "startMarker": "none",
+          "endMarker": "arrow"
+        },
+        {
+          "source": "B2",
+          "target": "C0",
+          "label": "",
+          "directed": true,
+          "startMarker": "none",
+          "endMarker": "arrow"
+        },
+        {
+          "source": "B3",
+          "target": "C4",
+          "label": "",
+          "directed": true,
+          "startMarker": "none",
+          "endMarker": "arrow"
+        },
+        {
+          "source": "B4",
+          "target": "C2",
+          "label": "",
+          "directed": true,
+          "startMarker": "none",
+          "endMarker": "arrow"
+        }
+      ],
+      "labels": [
+        "A0",
+        "A1",
+        "A2",
+        "A3",
+        "A4",
+        "B0",
+        "B1",
+        "B2",
+        "B3",
+        "B4",
+        "C0",
+        "C1",
+        "C2",
+        "C3",
+        "C4",
+        "Group A",
+        "Group B",
+        "Group C"
+      ],
+      "facts": {
+        "direction": "TB"
+      }
+    },
+    "paint": [
+      "svg-root",
+      "svg-unique-ids",
+      "canvas",
+      "visible-authored-labels",
+      "labels-within-canvas",
+      "unclipped-authored-labels",
+      "visible-ink",
+      "paint-opacity-and-color",
+      "painted-node-ownership",
+      "painted-relationships",
+      "painted-relationship-markers",
+      "painted-group:GroupA",
+      "painted-group:GroupB",
+      "painted-group:GroupC"
+    ],
+    "strict": "Existing SVG-route observer only; exact contacts remain unavailable."
+  },
+  {
+    "id": "audit:compound-three-group-permutation:LR",
+    "expected": {
+      "nodes": [
+        {
+          "id": "A0",
+          "label": "A0"
+        },
+        {
+          "id": "A1",
+          "label": "A1"
+        },
+        {
+          "id": "A2",
+          "label": "A2"
+        },
+        {
+          "id": "A3",
+          "label": "A3"
+        },
+        {
+          "id": "A4",
+          "label": "A4"
+        },
+        {
+          "id": "B0",
+          "label": "B0"
+        },
+        {
+          "id": "B1",
+          "label": "B1"
+        },
+        {
+          "id": "B2",
+          "label": "B2"
+        },
+        {
+          "id": "B3",
+          "label": "B3"
+        },
+        {
+          "id": "B4",
+          "label": "B4"
+        },
+        {
+          "id": "C0",
+          "label": "C0"
+        },
+        {
+          "id": "C1",
+          "label": "C1"
+        },
+        {
+          "id": "C2",
+          "label": "C2"
+        },
+        {
+          "id": "C3",
+          "label": "C3"
+        },
+        {
+          "id": "C4",
+          "label": "C4"
+        }
+      ],
+      "groups": [
+        {
+          "id": "GroupA",
+          "label": "Group A",
+          "members": [
+            "A0",
+            "A1",
+            "A2",
+            "A3",
+            "A4"
+          ]
+        },
+        {
+          "id": "GroupB",
+          "label": "Group B",
+          "members": [
+            "B0",
+            "B1",
+            "B2",
+            "B3",
+            "B4"
+          ]
+        },
+        {
+          "id": "GroupC",
+          "label": "Group C",
+          "members": [
+            "C0",
+            "C1",
+            "C2",
+            "C3",
+            "C4"
+          ]
+        }
+      ],
+      "edges": [
+        {
+          "source": "A0",
+          "target": "B4",
+          "label": "",
+          "directed": true,
+          "startMarker": "none",
+          "endMarker": "arrow"
+        },
+        {
+          "source": "A1",
+          "target": "B2",
+          "label": "",
+          "directed": true,
+          "startMarker": "none",
+          "endMarker": "arrow"
+        },
+        {
+          "source": "A2",
+          "target": "B0",
+          "label": "",
+          "directed": true,
+          "startMarker": "none",
+          "endMarker": "arrow"
+        },
+        {
+          "source": "A3",
+          "target": "B3",
+          "label": "",
+          "directed": true,
+          "startMarker": "none",
+          "endMarker": "arrow"
+        },
+        {
+          "source": "A4",
+          "target": "B1",
+          "label": "",
+          "directed": true,
+          "startMarker": "none",
+          "endMarker": "arrow"
+        },
+        {
+          "source": "B0",
+          "target": "C1",
+          "label": "",
+          "directed": true,
+          "startMarker": "none",
+          "endMarker": "arrow"
+        },
+        {
+          "source": "B1",
+          "target": "C3",
+          "label": "",
+          "directed": true,
+          "startMarker": "none",
+          "endMarker": "arrow"
+        },
+        {
+          "source": "B2",
+          "target": "C0",
+          "label": "",
+          "directed": true,
+          "startMarker": "none",
+          "endMarker": "arrow"
+        },
+        {
+          "source": "B3",
+          "target": "C4",
+          "label": "",
+          "directed": true,
+          "startMarker": "none",
+          "endMarker": "arrow"
+        },
+        {
+          "source": "B4",
+          "target": "C2",
+          "label": "",
+          "directed": true,
+          "startMarker": "none",
+          "endMarker": "arrow"
+        }
+      ],
+      "labels": [
+        "A0",
+        "A1",
+        "A2",
+        "A3",
+        "A4",
+        "B0",
+        "B1",
+        "B2",
+        "B3",
+        "B4",
+        "C0",
+        "C1",
+        "C2",
+        "C3",
+        "C4",
+        "Group A",
+        "Group B",
+        "Group C"
+      ],
+      "facts": {
+        "direction": "LR"
+      }
+    },
+    "paint": [
+      "svg-root",
+      "svg-unique-ids",
+      "canvas",
+      "visible-authored-labels",
+      "labels-within-canvas",
+      "unclipped-authored-labels",
+      "visible-ink",
+      "paint-opacity-and-color",
+      "painted-node-ownership",
+      "painted-relationships",
+      "painted-relationship-markers",
+      "painted-group:GroupA",
+      "painted-group:GroupB",
+      "painted-group:GroupC"
+    ],
+    "strict": "Existing SVG-route observer only; exact contacts remain unavailable."
+  },
+  {
+    "id": "audit:compound-three-group-permutation:BT",
+    "expected": {
+      "nodes": [
+        {
+          "id": "A0",
+          "label": "A0"
+        },
+        {
+          "id": "A1",
+          "label": "A1"
+        },
+        {
+          "id": "A2",
+          "label": "A2"
+        },
+        {
+          "id": "A3",
+          "label": "A3"
+        },
+        {
+          "id": "A4",
+          "label": "A4"
+        },
+        {
+          "id": "B0",
+          "label": "B0"
+        },
+        {
+          "id": "B1",
+          "label": "B1"
+        },
+        {
+          "id": "B2",
+          "label": "B2"
+        },
+        {
+          "id": "B3",
+          "label": "B3"
+        },
+        {
+          "id": "B4",
+          "label": "B4"
+        },
+        {
+          "id": "C0",
+          "label": "C0"
+        },
+        {
+          "id": "C1",
+          "label": "C1"
+        },
+        {
+          "id": "C2",
+          "label": "C2"
+        },
+        {
+          "id": "C3",
+          "label": "C3"
+        },
+        {
+          "id": "C4",
+          "label": "C4"
+        }
+      ],
+      "groups": [
+        {
+          "id": "GroupA",
+          "label": "Group A",
+          "members": [
+            "A0",
+            "A1",
+            "A2",
+            "A3",
+            "A4"
+          ]
+        },
+        {
+          "id": "GroupB",
+          "label": "Group B",
+          "members": [
+            "B0",
+            "B1",
+            "B2",
+            "B3",
+            "B4"
+          ]
+        },
+        {
+          "id": "GroupC",
+          "label": "Group C",
+          "members": [
+            "C0",
+            "C1",
+            "C2",
+            "C3",
+            "C4"
+          ]
+        }
+      ],
+      "edges": [
+        {
+          "source": "A0",
+          "target": "B4",
+          "label": "",
+          "directed": true,
+          "startMarker": "none",
+          "endMarker": "arrow"
+        },
+        {
+          "source": "A1",
+          "target": "B2",
+          "label": "",
+          "directed": true,
+          "startMarker": "none",
+          "endMarker": "arrow"
+        },
+        {
+          "source": "A2",
+          "target": "B0",
+          "label": "",
+          "directed": true,
+          "startMarker": "none",
+          "endMarker": "arrow"
+        },
+        {
+          "source": "A3",
+          "target": "B3",
+          "label": "",
+          "directed": true,
+          "startMarker": "none",
+          "endMarker": "arrow"
+        },
+        {
+          "source": "A4",
+          "target": "B1",
+          "label": "",
+          "directed": true,
+          "startMarker": "none",
+          "endMarker": "arrow"
+        },
+        {
+          "source": "B0",
+          "target": "C1",
+          "label": "",
+          "directed": true,
+          "startMarker": "none",
+          "endMarker": "arrow"
+        },
+        {
+          "source": "B1",
+          "target": "C3",
+          "label": "",
+          "directed": true,
+          "startMarker": "none",
+          "endMarker": "arrow"
+        },
+        {
+          "source": "B2",
+          "target": "C0",
+          "label": "",
+          "directed": true,
+          "startMarker": "none",
+          "endMarker": "arrow"
+        },
+        {
+          "source": "B3",
+          "target": "C4",
+          "label": "",
+          "directed": true,
+          "startMarker": "none",
+          "endMarker": "arrow"
+        },
+        {
+          "source": "B4",
+          "target": "C2",
+          "label": "",
+          "directed": true,
+          "startMarker": "none",
+          "endMarker": "arrow"
+        }
+      ],
+      "labels": [
+        "A0",
+        "A1",
+        "A2",
+        "A3",
+        "A4",
+        "B0",
+        "B1",
+        "B2",
+        "B3",
+        "B4",
+        "C0",
+        "C1",
+        "C2",
+        "C3",
+        "C4",
+        "Group A",
+        "Group B",
+        "Group C"
+      ],
+      "facts": {
+        "direction": "BT"
+      }
+    },
+    "paint": [
+      "svg-root",
+      "svg-unique-ids",
+      "canvas",
+      "visible-authored-labels",
+      "labels-within-canvas",
+      "unclipped-authored-labels",
+      "visible-ink",
+      "paint-opacity-and-color",
+      "painted-node-ownership",
+      "painted-relationships",
+      "painted-relationship-markers",
+      "painted-group:GroupA",
+      "painted-group:GroupB",
+      "painted-group:GroupC"
+    ],
+    "strict": "Existing SVG-route observer only; exact contacts remain unavailable."
+  },
+  {
+    "id": "audit:compound-three-group-permutation:RL",
+    "expected": {
+      "nodes": [
+        {
+          "id": "A0",
+          "label": "A0"
+        },
+        {
+          "id": "A1",
+          "label": "A1"
+        },
+        {
+          "id": "A2",
+          "label": "A2"
+        },
+        {
+          "id": "A3",
+          "label": "A3"
+        },
+        {
+          "id": "A4",
+          "label": "A4"
+        },
+        {
+          "id": "B0",
+          "label": "B0"
+        },
+        {
+          "id": "B1",
+          "label": "B1"
+        },
+        {
+          "id": "B2",
+          "label": "B2"
+        },
+        {
+          "id": "B3",
+          "label": "B3"
+        },
+        {
+          "id": "B4",
+          "label": "B4"
+        },
+        {
+          "id": "C0",
+          "label": "C0"
+        },
+        {
+          "id": "C1",
+          "label": "C1"
+        },
+        {
+          "id": "C2",
+          "label": "C2"
+        },
+        {
+          "id": "C3",
+          "label": "C3"
+        },
+        {
+          "id": "C4",
+          "label": "C4"
+        }
+      ],
+      "groups": [
+        {
+          "id": "GroupA",
+          "label": "Group A",
+          "members": [
+            "A0",
+            "A1",
+            "A2",
+            "A3",
+            "A4"
+          ]
+        },
+        {
+          "id": "GroupB",
+          "label": "Group B",
+          "members": [
+            "B0",
+            "B1",
+            "B2",
+            "B3",
+            "B4"
+          ]
+        },
+        {
+          "id": "GroupC",
+          "label": "Group C",
+          "members": [
+            "C0",
+            "C1",
+            "C2",
+            "C3",
+            "C4"
+          ]
+        }
+      ],
+      "edges": [
+        {
+          "source": "A0",
+          "target": "B4",
+          "label": "",
+          "directed": true,
+          "startMarker": "none",
+          "endMarker": "arrow"
+        },
+        {
+          "source": "A1",
+          "target": "B2",
+          "label": "",
+          "directed": true,
+          "startMarker": "none",
+          "endMarker": "arrow"
+        },
+        {
+          "source": "A2",
+          "target": "B0",
+          "label": "",
+          "directed": true,
+          "startMarker": "none",
+          "endMarker": "arrow"
+        },
+        {
+          "source": "A3",
+          "target": "B3",
+          "label": "",
+          "directed": true,
+          "startMarker": "none",
+          "endMarker": "arrow"
+        },
+        {
+          "source": "A4",
+          "target": "B1",
+          "label": "",
+          "directed": true,
+          "startMarker": "none",
+          "endMarker": "arrow"
+        },
+        {
+          "source": "B0",
+          "target": "C1",
+          "label": "",
+          "directed": true,
+          "startMarker": "none",
+          "endMarker": "arrow"
+        },
+        {
+          "source": "B1",
+          "target": "C3",
+          "label": "",
+          "directed": true,
+          "startMarker": "none",
+          "endMarker": "arrow"
+        },
+        {
+          "source": "B2",
+          "target": "C0",
+          "label": "",
+          "directed": true,
+          "startMarker": "none",
+          "endMarker": "arrow"
+        },
+        {
+          "source": "B3",
+          "target": "C4",
+          "label": "",
+          "directed": true,
+          "startMarker": "none",
+          "endMarker": "arrow"
+        },
+        {
+          "source": "B4",
+          "target": "C2",
+          "label": "",
+          "directed": true,
+          "startMarker": "none",
+          "endMarker": "arrow"
+        }
+      ],
+      "labels": [
+        "A0",
+        "A1",
+        "A2",
+        "A3",
+        "A4",
+        "B0",
+        "B1",
+        "B2",
+        "B3",
+        "B4",
+        "C0",
+        "C1",
+        "C2",
+        "C3",
+        "C4",
+        "Group A",
+        "Group B",
+        "Group C"
+      ],
+      "facts": {
+        "direction": "RL"
+      }
+    },
+    "paint": [
+      "svg-root",
+      "svg-unique-ids",
+      "canvas",
+      "visible-authored-labels",
+      "labels-within-canvas",
+      "unclipped-authored-labels",
+      "visible-ink",
+      "paint-opacity-and-color",
+      "painted-node-ownership",
+      "painted-relationships",
+      "painted-relationship-markers",
+      "painted-group:GroupA",
+      "painted-group:GroupB",
+      "painted-group:GroupC"
+    ],
+    "strict": "Existing SVG-route observer only; exact contacts remain unavailable."
+  }
+]

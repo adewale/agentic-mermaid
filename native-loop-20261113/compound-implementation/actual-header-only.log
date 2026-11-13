@@ -1,0 +1,11 @@
+29 |         if (source.split(original).length !== 2) throw Error('Diagnostic decline owner changed')
+30 |         source = source.replace(original, "if (reason === 'cross-hierarchy route has no clear anchor' || reason === 'agentic local cross-hierarchy visibility-expansion limit'")
+31 |       }
+32 |       if (actualHeader) {
+33 |         const original = '(ancestorPlan || leafCount > 64 ? (headerGroups[group]!.headerHeight ?? headerGroups[group]!.padding.top) : groups[group]!.padding.top)'
+34 |         if (source.split(original).length !== 2) throw Error('Diagnostic header owner changed')
+                                                            ^
+error: Diagnostic header owner changed
+      at <anonymous> (/workspace/pr449-native-loop-20261113/compound-implementation/admission-probe.ts:34:56)
+
+Bun v1.4.4 (Linux x64)

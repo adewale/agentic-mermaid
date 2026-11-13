@@ -1,0 +1,3681 @@
+{
+  "id": "audit:compound-three-group-permutation:TB",
+  "backend": "agentic",
+  "source": "flowchart TB\nsubgraph GroupA[Group A]\nA0[A0]\nA1[A1]\nA2[A2]\nA3[A3]\nA4[A4]\nend\nsubgraph GroupB[Group B]\nB0[B0]\nB1[B1]\nB2[B2]\nB3[B3]\nB4[B4]\nend\nsubgraph GroupC[Group C]\nC0[C0]\nC1[C1]\nC2[C2]\nC3[C3]\nC4[C4]\nend\nA0 --> B4\nA1 --> B2\nA2 --> B0\nA3 --> B3\nA4 --> B1\nB0 --> C1\nB1 --> C3\nB2 --> C0\nB3 --> C4\nB4 --> C2",
+  "meaning": {
+    "complete": true,
+    "passed": true,
+    "checks": [
+      {
+        "criterion": "family",
+        "status": "passed",
+        "expected": "flowchart",
+        "actual": "flowchart",
+        "scope": "Returned native family; a source-preservation envelope is not native admission."
+      },
+      {
+        "criterion": "identities",
+        "status": "passed",
+        "expected": [
+          "\"A0\"",
+          "\"A1\"",
+          "\"A2\"",
+          "\"A3\"",
+          "\"A4\"",
+          "\"B0\"",
+          "\"B1\"",
+          "\"B2\"",
+          "\"B3\"",
+          "\"B4\"",
+          "\"C0\"",
+          "\"C1\"",
+          "\"C2\"",
+          "\"C3\"",
+          "\"C4\""
+        ],
+        "actual": [
+          "\"A0\"",
+          "\"A1\"",
+          "\"A2\"",
+          "\"A3\"",
+          "\"A4\"",
+          "\"B0\"",
+          "\"B1\"",
+          "\"B2\"",
+          "\"B3\"",
+          "\"B4\"",
+          "\"C0\"",
+          "\"C1\"",
+          "\"C2\"",
+          "\"C3\"",
+          "\"C4\""
+        ],
+        "scope": "Exact authored identity multiset, including duplicate and omitted identities."
+      },
+      {
+        "criterion": "node-labels",
+        "status": "passed",
+        "expected": [
+          "{\"id\":\"A0\",\"label\":\"A0\"}",
+          "{\"id\":\"A1\",\"label\":\"A1\"}",
+          "{\"id\":\"A2\",\"label\":\"A2\"}",
+          "{\"id\":\"A3\",\"label\":\"A3\"}",
+          "{\"id\":\"A4\",\"label\":\"A4\"}",
+          "{\"id\":\"B0\",\"label\":\"B0\"}",
+          "{\"id\":\"B1\",\"label\":\"B1\"}",
+          "{\"id\":\"B2\",\"label\":\"B2\"}",
+          "{\"id\":\"B3\",\"label\":\"B3\"}",
+          "{\"id\":\"B4\",\"label\":\"B4\"}",
+          "{\"id\":\"C0\",\"label\":\"C0\"}",
+          "{\"id\":\"C1\",\"label\":\"C1\"}",
+          "{\"id\":\"C2\",\"label\":\"C2\"}",
+          "{\"id\":\"C3\",\"label\":\"C3\"}",
+          "{\"id\":\"C4\",\"label\":\"C4\"}"
+        ],
+        "actual": [
+          "{\"id\":\"A0\",\"label\":\"A0\"}",
+          "{\"id\":\"A1\",\"label\":\"A1\"}",
+          "{\"id\":\"A2\",\"label\":\"A2\"}",
+          "{\"id\":\"A3\",\"label\":\"A3\"}",
+          "{\"id\":\"A4\",\"label\":\"A4\"}",
+          "{\"id\":\"B0\",\"label\":\"B0\"}",
+          "{\"id\":\"B1\",\"label\":\"B1\"}",
+          "{\"id\":\"B2\",\"label\":\"B2\"}",
+          "{\"id\":\"B3\",\"label\":\"B3\"}",
+          "{\"id\":\"B4\",\"label\":\"B4\"}",
+          "{\"id\":\"C0\",\"label\":\"C0\"}",
+          "{\"id\":\"C1\",\"label\":\"C1\"}",
+          "{\"id\":\"C2\",\"label\":\"C2\"}",
+          "{\"id\":\"C3\",\"label\":\"C3\"}",
+          "{\"id\":\"C4\",\"label\":\"C4\"}"
+        ],
+        "scope": "Authored identity-to-label binding; NFC/whitespace normalization applies to display labels, never identity strings."
+      },
+      {
+        "criterion": "relationships",
+        "status": "passed",
+        "expected": [
+          "{\"directed\":true,\"endMarker\":\"arrow\",\"label\":\"\",\"source\":\"A0\",\"startMarker\":\"none\",\"target\":\"B4\"}",
+          "{\"directed\":true,\"endMarker\":\"arrow\",\"label\":\"\",\"source\":\"A1\",\"startMarker\":\"none\",\"target\":\"B2\"}",
+          "{\"directed\":true,\"endMarker\":\"arrow\",\"label\":\"\",\"source\":\"A2\",\"startMarker\":\"none\",\"target\":\"B0\"}",
+          "{\"directed\":true,\"endMarker\":\"arrow\",\"label\":\"\",\"source\":\"A3\",\"startMarker\":\"none\",\"target\":\"B3\"}",
+          "{\"directed\":true,\"endMarker\":\"arrow\",\"label\":\"\",\"source\":\"A4\",\"startMarker\":\"none\",\"target\":\"B1\"}",
+          "{\"directed\":true,\"endMarker\":\"arrow\",\"label\":\"\",\"source\":\"B0\",\"startMarker\":\"none\",\"target\":\"C1\"}",
+          "{\"directed\":true,\"endMarker\":\"arrow\",\"label\":\"\",\"source\":\"B1\",\"startMarker\":\"none\",\"target\":\"C3\"}",
+          "{\"directed\":true,\"endMarker\":\"arrow\",\"label\":\"\",\"source\":\"B2\",\"startMarker\":\"none\",\"target\":\"C0\"}",
+          "{\"directed\":true,\"endMarker\":\"arrow\",\"label\":\"\",\"source\":\"B3\",\"startMarker\":\"none\",\"target\":\"C4\"}",
+          "{\"directed\":true,\"endMarker\":\"arrow\",\"label\":\"\",\"source\":\"B4\",\"startMarker\":\"none\",\"target\":\"C2\"}"
+        ],
+        "actual": [
+          "{\"directed\":true,\"endMarker\":\"arrow\",\"label\":\"\",\"source\":\"A0\",\"startMarker\":\"none\",\"target\":\"B4\"}",
+          "{\"directed\":true,\"endMarker\":\"arrow\",\"label\":\"\",\"source\":\"A1\",\"startMarker\":\"none\",\"target\":\"B2\"}",
+          "{\"directed\":true,\"endMarker\":\"arrow\",\"label\":\"\",\"source\":\"A2\",\"startMarker\":\"none\",\"target\":\"B0\"}",
+          "{\"directed\":true,\"endMarker\":\"arrow\",\"label\":\"\",\"source\":\"A3\",\"startMarker\":\"none\",\"target\":\"B3\"}",
+          "{\"directed\":true,\"endMarker\":\"arrow\",\"label\":\"\",\"source\":\"A4\",\"startMarker\":\"none\",\"target\":\"B1\"}",
+          "{\"directed\":true,\"endMarker\":\"arrow\",\"label\":\"\",\"source\":\"B0\",\"startMarker\":\"none\",\"target\":\"C1\"}",
+          "{\"directed\":true,\"endMarker\":\"arrow\",\"label\":\"\",\"source\":\"B1\",\"startMarker\":\"none\",\"target\":\"C3\"}",
+          "{\"directed\":true,\"endMarker\":\"arrow\",\"label\":\"\",\"source\":\"B2\",\"startMarker\":\"none\",\"target\":\"C0\"}",
+          "{\"directed\":true,\"endMarker\":\"arrow\",\"label\":\"\",\"source\":\"B3\",\"startMarker\":\"none\",\"target\":\"C4\"}",
+          "{\"directed\":true,\"endMarker\":\"arrow\",\"label\":\"\",\"source\":\"B4\",\"startMarker\":\"none\",\"target\":\"C2\"}"
+        ],
+        "scope": "Exact endpoint/direction/declared-marker/label multiset; parallel and reciprocal relationships remain distinct."
+      },
+      {
+        "criterion": "groups",
+        "status": "passed",
+        "expected": [
+          "{\"id\":\"GroupA\",\"label\":\"Group A\",\"members\":[\"A0\",\"A1\",\"A2\",\"A3\",\"A4\"]}",
+          "{\"id\":\"GroupB\",\"label\":\"Group B\",\"members\":[\"B0\",\"B1\",\"B2\",\"B3\",\"B4\"]}",
+          "{\"id\":\"GroupC\",\"label\":\"Group C\",\"members\":[\"C0\",\"C1\",\"C2\",\"C3\",\"C4\"]}"
+        ],
+        "actual": [
+          "{\"id\":\"GroupA\",\"label\":\"Group A\",\"members\":[\"A0\",\"A1\",\"A2\",\"A3\",\"A4\"]}",
+          "{\"id\":\"GroupB\",\"label\":\"Group B\",\"members\":[\"B0\",\"B1\",\"B2\",\"B3\",\"B4\"]}",
+          "{\"id\":\"GroupC\",\"label\":\"Group C\",\"members\":[\"C0\",\"C1\",\"C2\",\"C3\",\"C4\"]}"
+        ],
+        "scope": "Exact immediate membership and label binding; nested groups are identities, not flattened leaves."
+      },
+      {
+        "criterion": "fact:direction",
+        "status": "passed",
+        "expected": "TB",
+        "actual": "TB",
+        "scope": "Independently declared family content with meaningful ordering retained."
+      }
+    ]
+  },
+  "returned": true,
+  "svgHash": "d63c2b0caaccfb6d91e1c20b130eaf7490fedfe8a5dbf622f24c4315b6fb5b77",
+  "receipt": {
+    "version": 2,
+    "output": "svg",
+    "sharedRequestDigest": "fnv1a64:f0f61deb1e1f6b0e",
+    "requestDigest": "fnv1a64:5e7fc338e0521472",
+    "appearanceDigest": "fnv1a64:5c57037fc07cf497",
+    "capabilityDecision": {
+      "version": 1,
+      "accepted": true,
+      "resolutions": [
+        {
+          "id": "core:render-request",
+          "range": "^1.0.0",
+          "level": "required",
+          "status": "selected",
+          "version": "1.0.0"
+        },
+        {
+          "id": "core:family-descriptor",
+          "range": "^1.0.0",
+          "level": "required",
+          "status": "selected",
+          "version": "1.0.0"
+        },
+        {
+          "id": "family:flowchart",
+          "range": "1.0.0",
+          "level": "required",
+          "status": "selected",
+          "version": "1.0.0"
+        },
+        {
+          "id": "core:scene",
+          "range": "^1.0.0",
+          "level": "required",
+          "status": "selected",
+          "version": "1.0.0"
+        },
+        {
+          "id": "operation:layout",
+          "range": "^1.0.0",
+          "level": "required",
+          "status": "selected",
+          "version": "1.0.0"
+        },
+        {
+          "id": "operation:lower-scene",
+          "range": "^1.0.0",
+          "level": "required",
+          "status": "selected",
+          "version": "1.0.0"
+        },
+        {
+          "id": "backend:scene-renderer",
+          "range": "1.0.0",
+          "level": "required",
+          "status": "selected",
+          "version": "1.0.0"
+        },
+        {
+          "id": "scene-primitive:document/identity/serialize",
+          "range": "^1.0.0",
+          "level": "required",
+          "status": "selected",
+          "version": "1.0.0"
+        },
+        {
+          "id": "scene-primitive:document/resources/serialize",
+          "range": "^1.0.0",
+          "level": "required",
+          "status": "selected",
+          "version": "1.0.0"
+        },
+        {
+          "id": "scene-primitive:document/interaction/accessibility",
+          "range": "^1.0.0",
+          "level": "required",
+          "status": "selected",
+          "version": "1.0.0"
+        },
+        {
+          "id": "scene-primitive:text/geometry/render",
+          "range": "^1.0.0",
+          "level": "required",
+          "status": "selected",
+          "version": "1.0.0"
+        },
+        {
+          "id": "scene-primitive:text/paint/render",
+          "range": "^1.0.0",
+          "level": "required",
+          "status": "selected",
+          "version": "1.0.0"
+        },
+        {
+          "id": "scene-primitive:text/labels/accessibility",
+          "range": "^1.0.0",
+          "level": "required",
+          "status": "selected",
+          "version": "1.0.0"
+        },
+        {
+          "id": "scene-primitive:text/identity/serialize",
+          "range": "^1.0.0",
+          "level": "required",
+          "status": "selected",
+          "version": "1.0.0"
+        },
+        {
+          "id": "scene-primitive:shape/geometry/render",
+          "range": "^1.0.0",
+          "level": "required",
+          "status": "selected",
+          "version": "1.0.0"
+        },
+        {
+          "id": "scene-primitive:shape/paint/render",
+          "range": "^1.0.0",
+          "level": "required",
+          "status": "selected",
+          "version": "1.0.0"
+        },
+        {
+          "id": "scene-primitive:shape/identity/serialize",
+          "range": "^1.0.0",
+          "level": "required",
+          "status": "selected",
+          "version": "1.0.0"
+        },
+        {
+          "id": "scene-primitive:container/geometry/render",
+          "range": "^1.0.0",
+          "level": "required",
+          "status": "selected",
+          "version": "1.0.0"
+        },
+        {
+          "id": "scene-primitive:container/paint/render",
+          "range": "^1.0.0",
+          "level": "required",
+          "status": "selected",
+          "version": "1.0.0"
+        },
+        {
+          "id": "scene-primitive:container/identity/serialize",
+          "range": "^1.0.0",
+          "level": "required",
+          "status": "selected",
+          "version": "1.0.0"
+        },
+        {
+          "id": "scene-primitive:connector/geometry/render",
+          "range": "^1.0.0",
+          "level": "required",
+          "status": "selected",
+          "version": "1.0.0"
+        },
+        {
+          "id": "scene-primitive:connector/stroke/render",
+          "range": "^1.0.0",
+          "level": "required",
+          "status": "selected",
+          "version": "1.0.0"
+        },
+        {
+          "id": "scene-primitive:connector/transform/render",
+          "range": "^1.0.0",
+          "level": "required",
+          "status": "selected",
+          "version": "1.0.0"
+        },
+        {
+          "id": "scene-primitive:connector/topology/render",
+          "range": "^1.0.0",
+          "level": "required",
+          "status": "selected",
+          "version": "1.0.0"
+        },
+        {
+          "id": "scene-primitive:connector/subpaths/render",
+          "range": "^1.0.0",
+          "level": "required",
+          "status": "selected",
+          "version": "1.0.0"
+        },
+        {
+          "id": "scene-primitive:connector/closedness/render",
+          "range": "^1.0.0",
+          "level": "required",
+          "status": "selected",
+          "version": "1.0.0"
+        },
+        {
+          "id": "scene-primitive:connector/bend-radius/render",
+          "range": "^1.0.0",
+          "level": "required",
+          "status": "selected",
+          "version": "1.0.0"
+        },
+        {
+          "id": "scene-primitive:connector/stroke-opacity/render",
+          "range": "^1.0.0",
+          "level": "required",
+          "status": "selected",
+          "version": "1.0.0"
+        },
+        {
+          "id": "scene-primitive:connector/stroke-cap/render",
+          "range": "^1.0.0",
+          "level": "required",
+          "status": "selected",
+          "version": "1.0.0"
+        },
+        {
+          "id": "scene-primitive:connector/stroke-join/render",
+          "range": "^1.0.0",
+          "level": "required",
+          "status": "selected",
+          "version": "1.0.0"
+        },
+        {
+          "id": "scene-primitive:connector/stroke-miter/render",
+          "range": "^1.0.0",
+          "level": "required",
+          "status": "selected",
+          "version": "1.0.0"
+        },
+        {
+          "id": "scene-primitive:connector/dash-array/render",
+          "range": "^1.0.0",
+          "level": "required",
+          "status": "selected",
+          "version": "1.0.0"
+        },
+        {
+          "id": "scene-primitive:connector/dash-offset/render",
+          "range": "^1.0.0",
+          "level": "required",
+          "status": "selected",
+          "version": "1.0.0"
+        },
+        {
+          "id": "scene-primitive:connector/dash-restart/render",
+          "range": "^1.0.0",
+          "level": "required",
+          "status": "selected",
+          "version": "1.0.0"
+        },
+        {
+          "id": "scene-primitive:connector/path-length/render",
+          "range": "^1.0.0",
+          "level": "required",
+          "status": "selected",
+          "version": "1.0.0"
+        },
+        {
+          "id": "scene-primitive:connector/paint-order/render",
+          "range": "^1.0.0",
+          "level": "required",
+          "status": "selected",
+          "version": "1.0.0"
+        },
+        {
+          "id": "scene-primitive:connector/compositing/render",
+          "range": "^1.0.0",
+          "level": "required",
+          "status": "selected",
+          "version": "1.0.0"
+        },
+        {
+          "id": "scene-primitive:connector/non-scaling-stroke/render",
+          "range": "^1.0.0",
+          "level": "required",
+          "status": "selected",
+          "version": "1.0.0"
+        },
+        {
+          "id": "scene-primitive:connector/marker-orientation/render",
+          "range": "^1.0.0",
+          "level": "required",
+          "status": "selected",
+          "version": "1.0.0"
+        },
+        {
+          "id": "scene-primitive:connector/marker-overflow/render",
+          "range": "^1.0.0",
+          "level": "required",
+          "status": "selected",
+          "version": "1.0.0"
+        },
+        {
+          "id": "scene-primitive:connector/endpoints/serialize",
+          "range": "^1.0.0",
+          "level": "required",
+          "status": "selected",
+          "version": "1.0.0"
+        },
+        {
+          "id": "scene-primitive:connector/direction/serialize",
+          "range": "^1.0.0",
+          "level": "required",
+          "status": "selected",
+          "version": "1.0.0"
+        },
+        {
+          "id": "scene-primitive:connector/labels/render",
+          "range": "^1.0.0",
+          "level": "required",
+          "status": "selected",
+          "version": "1.0.0"
+        },
+        {
+          "id": "scene-primitive:connector/labels/accessibility",
+          "range": "^1.0.0",
+          "level": "required",
+          "status": "selected",
+          "version": "1.0.0"
+        },
+        {
+          "id": "scene-primitive:connector/markers/render",
+          "range": "^1.0.0",
+          "level": "required",
+          "status": "selected",
+          "version": "1.0.0"
+        },
+        {
+          "id": "scene-primitive:connector/relation/accessibility",
+          "range": "^1.0.0",
+          "level": "required",
+          "status": "selected",
+          "version": "1.0.0"
+        },
+        {
+          "id": "scene-primitive:connector/interaction/hit-test",
+          "range": "^1.0.0",
+          "level": "required",
+          "status": "selected",
+          "version": "1.0.0"
+        },
+        {
+          "id": "scene-primitive:connector/hit-geometry/hit-test",
+          "range": "^1.0.0",
+          "level": "required",
+          "status": "selected",
+          "version": "1.0.0"
+        },
+        {
+          "id": "scene-primitive:connector/identity/serialize",
+          "range": "^1.0.0",
+          "level": "required",
+          "status": "selected",
+          "version": "1.0.0"
+        },
+        {
+          "id": "scene-primitive:marker/geometry/render",
+          "range": "^1.0.0",
+          "level": "required",
+          "status": "selected",
+          "version": "1.0.0"
+        },
+        {
+          "id": "scene-primitive:marker/paint/render",
+          "range": "^1.0.0",
+          "level": "required",
+          "status": "selected",
+          "version": "1.0.0"
+        },
+        {
+          "id": "scene-primitive:marker/identity/serialize",
+          "range": "^1.0.0",
+          "level": "required",
+          "status": "selected",
+          "version": "1.0.0"
+        },
+        {
+          "id": "output:svg",
+          "range": "^1.0.0",
+          "level": "required",
+          "status": "selected",
+          "version": "1.0.0"
+        }
+      ]
+    },
+    "diagnostics": [],
+    "executionDecision": {
+      "family": {
+        "id": "family:flowchart",
+        "version": "1.0.0"
+      },
+      "backend": {
+        "mode": "scene",
+        "requestedId": "default",
+        "selectedId": "backend:default",
+        "version": "1.0.0",
+        "hostPolicy": false
+      },
+      "digest": "fnv1a64:086cc5e1e80cddcb"
+    },
+    "layoutDecisions": [
+      {
+        "requested": "agentic",
+        "fallback": "none",
+        "selected": "agentic",
+        "attempts": [
+          {
+            "backend": "agentic",
+            "outcome": "selected"
+          }
+        ],
+        "implementation": "agentic-layered@28",
+        "role": "primary"
+      }
+    ],
+    "graphicalProjectionDigest": "fnv1a64:8ae01bddb8ceab4d",
+    "layoutCertification": {
+      "version": 1,
+      "unit": "px",
+      "scope": "native-scene",
+      "status": "passed",
+      "viewport": {
+        "x": 0,
+        "y": 0,
+        "width": 572,
+        "height": 442.7
+      },
+      "attempts": 1,
+      "repairs": [],
+      "coverage": {
+        "measured": 49,
+        "unmeasured": 0,
+        "preparedText": 18,
+        "fallbackText": 0,
+        "conditional": 0
+      },
+      "checks": {
+        "primitives": 52,
+        "labels": 15,
+        "occlusionPairs": 693,
+        "maxOcclusionPairs": 100000,
+        "operations": 74765,
+        "maxOperations": 400000,
+        "markers": 10
+      },
+      "issues": [],
+      "limitations": [
+        "Prepared occupied text regions bound native geometry; exact glyph ink depends on the resolved font.",
+        "Declared transparency, intentional data-mark overlap and externally modified CSS are outside this proof."
+      ],
+      "outputDigest": "fnv1a64:8ae01bddb8ceab4d"
+    }
+  },
+  "positioned": {
+    "width": 572,
+    "height": 442.70000000000005,
+    "nodes": [
+      {
+        "id": "A0",
+        "label": "A0",
+        "shape": "rectangle",
+        "width": 60,
+        "height": 36.900000000000006,
+        "x": 56,
+        "y": 84,
+        "labelBlock": {
+          "unit": "px",
+          "prepared": {
+            "source": "A0",
+            "display": "formatted",
+            "lines": [
+              [
+                {
+                  "text": "A0",
+                  "bold": false,
+                  "italic": false,
+                  "underline": false,
+                  "strikethrough": false,
+                  "sourceStart": 0,
+                  "sourceEnd": 2,
+                  "clusters": [
+                    {
+                      "text": "A",
+                      "sourceStart": 0,
+                      "sourceEnd": 1
+                    },
+                    {
+                      "text": "0",
+                      "sourceStart": 1,
+                      "sourceEnd": 2
+                    }
+                  ]
+                }
+              ]
+            ],
+            "lineStarts": [
+              0
+            ]
+          },
+          "text": "A0",
+          "lines": [
+            "A0"
+          ],
+          "lineBlocks": [
+            {
+              "runs": [
+                {
+                  "text": "A0",
+                  "bold": false,
+                  "italic": false,
+                  "underline": false,
+                  "strikethrough": false,
+                  "sourceStart": 0,
+                  "sourceEnd": 2,
+                  "clusters": [
+                    {
+                      "text": "A",
+                      "sourceStart": 0,
+                      "sourceEnd": 1
+                    },
+                    {
+                      "text": "0",
+                      "sourceStart": 1,
+                      "sourceEnd": 2
+                    }
+                  ]
+                }
+              ],
+              "text": "A0",
+              "width": 18.252,
+              "baseline": 4.55,
+              "originX": 0
+            }
+          ],
+          "breaks": [],
+          "width": 18.252,
+          "height": 16.900000000000002,
+          "lineHeight": 16.900000000000002,
+          "fontSize": 13,
+          "fontWeight": 500,
+          "letterSpacing": 0,
+          "monospace": false,
+          "safeFont": false
+        }
+      },
+      {
+        "id": "A1",
+        "label": "A1",
+        "shape": "rectangle",
+        "width": 60,
+        "height": 36.900000000000006,
+        "x": 144,
+        "y": 84,
+        "labelBlock": {
+          "unit": "px",
+          "prepared": {
+            "source": "A1",
+            "display": "formatted",
+            "lines": [
+              [
+                {
+                  "text": "A1",
+                  "bold": false,
+                  "italic": false,
+                  "underline": false,
+                  "strikethrough": false,
+                  "sourceStart": 0,
+                  "sourceEnd": 2,
+                  "clusters": [
+                    {
+                      "text": "A",
+                      "sourceStart": 0,
+                      "sourceEnd": 1
+                    },
+                    {
+                      "text": "1",
+                      "sourceStart": 1,
+                      "sourceEnd": 2
+                    }
+                  ]
+                }
+              ]
+            ],
+            "lineStarts": [
+              0
+            ]
+          },
+          "text": "A1",
+          "lines": [
+            "A1"
+          ],
+          "lineBlocks": [
+            {
+              "runs": [
+                {
+                  "text": "A1",
+                  "bold": false,
+                  "italic": false,
+                  "underline": false,
+                  "strikethrough": false,
+                  "sourceStart": 0,
+                  "sourceEnd": 2,
+                  "clusters": [
+                    {
+                      "text": "A",
+                      "sourceStart": 0,
+                      "sourceEnd": 1
+                    },
+                    {
+                      "text": "1",
+                      "sourceStart": 1,
+                      "sourceEnd": 2
+                    }
+                  ]
+                }
+              ],
+              "text": "A1",
+              "width": 13.806,
+              "baseline": 4.55,
+              "originX": 0
+            }
+          ],
+          "breaks": [],
+          "width": 13.806,
+          "height": 16.900000000000002,
+          "lineHeight": 16.900000000000002,
+          "fontSize": 13,
+          "fontWeight": 500,
+          "letterSpacing": 0,
+          "monospace": false,
+          "safeFont": false
+        }
+      },
+      {
+        "id": "A2",
+        "label": "A2",
+        "shape": "rectangle",
+        "width": 60,
+        "height": 36.900000000000006,
+        "x": 232,
+        "y": 84,
+        "labelBlock": {
+          "unit": "px",
+          "prepared": {
+            "source": "A2",
+            "display": "formatted",
+            "lines": [
+              [
+                {
+                  "text": "A2",
+                  "bold": false,
+                  "italic": false,
+                  "underline": false,
+                  "strikethrough": false,
+                  "sourceStart": 0,
+                  "sourceEnd": 2,
+                  "clusters": [
+                    {
+                      "text": "A",
+                      "sourceStart": 0,
+                      "sourceEnd": 1
+                    },
+                    {
+                      "text": "2",
+                      "sourceStart": 1,
+                      "sourceEnd": 2
+                    }
+                  ]
+                }
+              ]
+            ],
+            "lineStarts": [
+              0
+            ]
+          },
+          "text": "A2",
+          "lines": [
+            "A2"
+          ],
+          "lineBlocks": [
+            {
+              "runs": [
+                {
+                  "text": "A2",
+                  "bold": false,
+                  "italic": false,
+                  "underline": false,
+                  "strikethrough": false,
+                  "sourceStart": 0,
+                  "sourceEnd": 2,
+                  "clusters": [
+                    {
+                      "text": "A",
+                      "sourceStart": 0,
+                      "sourceEnd": 1
+                    },
+                    {
+                      "text": "2",
+                      "sourceStart": 1,
+                      "sourceEnd": 2
+                    }
+                  ]
+                }
+              ],
+              "text": "A2",
+              "width": 18.252,
+              "baseline": 4.55,
+              "originX": 0
+            }
+          ],
+          "breaks": [],
+          "width": 18.252,
+          "height": 16.900000000000002,
+          "lineHeight": 16.900000000000002,
+          "fontSize": 13,
+          "fontWeight": 500,
+          "letterSpacing": 0,
+          "monospace": false,
+          "safeFont": false
+        }
+      },
+      {
+        "id": "A3",
+        "label": "A3",
+        "shape": "rectangle",
+        "width": 60,
+        "height": 36.900000000000006,
+        "x": 320,
+        "y": 84,
+        "labelBlock": {
+          "unit": "px",
+          "prepared": {
+            "source": "A3",
+            "display": "formatted",
+            "lines": [
+              [
+                {
+                  "text": "A3",
+                  "bold": false,
+                  "italic": false,
+                  "underline": false,
+                  "strikethrough": false,
+                  "sourceStart": 0,
+                  "sourceEnd": 2,
+                  "clusters": [
+                    {
+                      "text": "A",
+                      "sourceStart": 0,
+                      "sourceEnd": 1
+                    },
+                    {
+                      "text": "3",
+                      "sourceStart": 1,
+                      "sourceEnd": 2
+                    }
+                  ]
+                }
+              ]
+            ],
+            "lineStarts": [
+              0
+            ]
+          },
+          "text": "A3",
+          "lines": [
+            "A3"
+          ],
+          "lineBlocks": [
+            {
+              "runs": [
+                {
+                  "text": "A3",
+                  "bold": false,
+                  "italic": false,
+                  "underline": false,
+                  "strikethrough": false,
+                  "sourceStart": 0,
+                  "sourceEnd": 2,
+                  "clusters": [
+                    {
+                      "text": "A",
+                      "sourceStart": 0,
+                      "sourceEnd": 1
+                    },
+                    {
+                      "text": "3",
+                      "sourceStart": 1,
+                      "sourceEnd": 2
+                    }
+                  ]
+                }
+              ],
+              "text": "A3",
+              "width": 18.252,
+              "baseline": 4.55,
+              "originX": 0
+            }
+          ],
+          "breaks": [],
+          "width": 18.252,
+          "height": 16.900000000000002,
+          "lineHeight": 16.900000000000002,
+          "fontSize": 13,
+          "fontWeight": 500,
+          "letterSpacing": 0,
+          "monospace": false,
+          "safeFont": false
+        }
+      },
+      {
+        "id": "A4",
+        "label": "A4",
+        "shape": "rectangle",
+        "width": 60,
+        "height": 36.900000000000006,
+        "x": 408,
+        "y": 84,
+        "labelBlock": {
+          "unit": "px",
+          "prepared": {
+            "source": "A4",
+            "display": "formatted",
+            "lines": [
+              [
+                {
+                  "text": "A4",
+                  "bold": false,
+                  "italic": false,
+                  "underline": false,
+                  "strikethrough": false,
+                  "sourceStart": 0,
+                  "sourceEnd": 2,
+                  "clusters": [
+                    {
+                      "text": "A",
+                      "sourceStart": 0,
+                      "sourceEnd": 1
+                    },
+                    {
+                      "text": "4",
+                      "sourceStart": 1,
+                      "sourceEnd": 2
+                    }
+                  ]
+                }
+              ]
+            ],
+            "lineStarts": [
+              0
+            ]
+          },
+          "text": "A4",
+          "lines": [
+            "A4"
+          ],
+          "lineBlocks": [
+            {
+              "runs": [
+                {
+                  "text": "A4",
+                  "bold": false,
+                  "italic": false,
+                  "underline": false,
+                  "strikethrough": false,
+                  "sourceStart": 0,
+                  "sourceEnd": 2,
+                  "clusters": [
+                    {
+                      "text": "A",
+                      "sourceStart": 0,
+                      "sourceEnd": 1
+                    },
+                    {
+                      "text": "4",
+                      "sourceStart": 1,
+                      "sourceEnd": 2
+                    }
+                  ]
+                }
+              ],
+              "text": "A4",
+              "width": 18.252,
+              "baseline": 4.55,
+              "originX": 0
+            }
+          ],
+          "breaks": [],
+          "width": 18.252,
+          "height": 16.900000000000002,
+          "lineHeight": 16.900000000000002,
+          "fontSize": 13,
+          "fontWeight": 500,
+          "letterSpacing": 0,
+          "monospace": false,
+          "safeFont": false
+        }
+      },
+      {
+        "id": "B0",
+        "label": "B0",
+        "shape": "rectangle",
+        "width": 60,
+        "height": 36.900000000000006,
+        "x": 56,
+        "y": 204.90000000000003,
+        "labelBlock": {
+          "unit": "px",
+          "prepared": {
+            "source": "B0",
+            "display": "formatted",
+            "lines": [
+              [
+                {
+                  "text": "B0",
+                  "bold": false,
+                  "italic": false,
+                  "underline": false,
+                  "strikethrough": false,
+                  "sourceStart": 0,
+                  "sourceEnd": 2,
+                  "clusters": [
+                    {
+                      "text": "B",
+                      "sourceStart": 0,
+                      "sourceEnd": 1
+                    },
+                    {
+                      "text": "0",
+                      "sourceStart": 1,
+                      "sourceEnd": 2
+                    }
+                  ]
+                }
+              ]
+            ],
+            "lineStarts": [
+              0
+            ]
+          },
+          "text": "B0",
+          "lines": [
+            "B0"
+          ],
+          "lineBlocks": [
+            {
+              "runs": [
+                {
+                  "text": "B0",
+                  "bold": false,
+                  "italic": false,
+                  "underline": false,
+                  "strikethrough": false,
+                  "sourceStart": 0,
+                  "sourceEnd": 2,
+                  "clusters": [
+                    {
+                      "text": "B",
+                      "sourceStart": 0,
+                      "sourceEnd": 1
+                    },
+                    {
+                      "text": "0",
+                      "sourceStart": 1,
+                      "sourceEnd": 2
+                    }
+                  ]
+                }
+              ],
+              "text": "B0",
+              "width": 18.252,
+              "baseline": 4.55,
+              "originX": 0
+            }
+          ],
+          "breaks": [],
+          "width": 18.252,
+          "height": 16.900000000000002,
+          "lineHeight": 16.900000000000002,
+          "fontSize": 13,
+          "fontWeight": 500,
+          "letterSpacing": 0,
+          "monospace": false,
+          "safeFont": false
+        }
+      },
+      {
+        "id": "B1",
+        "label": "B1",
+        "shape": "rectangle",
+        "width": 60,
+        "height": 36.900000000000006,
+        "x": 144,
+        "y": 204.90000000000003,
+        "labelBlock": {
+          "unit": "px",
+          "prepared": {
+            "source": "B1",
+            "display": "formatted",
+            "lines": [
+              [
+                {
+                  "text": "B1",
+                  "bold": false,
+                  "italic": false,
+                  "underline": false,
+                  "strikethrough": false,
+                  "sourceStart": 0,
+                  "sourceEnd": 2,
+                  "clusters": [
+                    {
+                      "text": "B",
+                      "sourceStart": 0,
+                      "sourceEnd": 1
+                    },
+                    {
+                      "text": "1",
+                      "sourceStart": 1,
+                      "sourceEnd": 2
+                    }
+                  ]
+                }
+              ]
+            ],
+            "lineStarts": [
+              0
+            ]
+          },
+          "text": "B1",
+          "lines": [
+            "B1"
+          ],
+          "lineBlocks": [
+            {
+              "runs": [
+                {
+                  "text": "B1",
+                  "bold": false,
+                  "italic": false,
+                  "underline": false,
+                  "strikethrough": false,
+                  "sourceStart": 0,
+                  "sourceEnd": 2,
+                  "clusters": [
+                    {
+                      "text": "B",
+                      "sourceStart": 0,
+                      "sourceEnd": 1
+                    },
+                    {
+                      "text": "1",
+                      "sourceStart": 1,
+                      "sourceEnd": 2
+                    }
+                  ]
+                }
+              ],
+              "text": "B1",
+              "width": 13.806,
+              "baseline": 4.55,
+              "originX": 0
+            }
+          ],
+          "breaks": [],
+          "width": 13.806,
+          "height": 16.900000000000002,
+          "lineHeight": 16.900000000000002,
+          "fontSize": 13,
+          "fontWeight": 500,
+          "letterSpacing": 0,
+          "monospace": false,
+          "safeFont": false
+        }
+      },
+      {
+        "id": "B2",
+        "label": "B2",
+        "shape": "rectangle",
+        "width": 60,
+        "height": 36.900000000000006,
+        "x": 232,
+        "y": 204.90000000000003,
+        "labelBlock": {
+          "unit": "px",
+          "prepared": {
+            "source": "B2",
+            "display": "formatted",
+            "lines": [
+              [
+                {
+                  "text": "B2",
+                  "bold": false,
+                  "italic": false,
+                  "underline": false,
+                  "strikethrough": false,
+                  "sourceStart": 0,
+                  "sourceEnd": 2,
+                  "clusters": [
+                    {
+                      "text": "B",
+                      "sourceStart": 0,
+                      "sourceEnd": 1
+                    },
+                    {
+                      "text": "2",
+                      "sourceStart": 1,
+                      "sourceEnd": 2
+                    }
+                  ]
+                }
+              ]
+            ],
+            "lineStarts": [
+              0
+            ]
+          },
+          "text": "B2",
+          "lines": [
+            "B2"
+          ],
+          "lineBlocks": [
+            {
+              "runs": [
+                {
+                  "text": "B2",
+                  "bold": false,
+                  "italic": false,
+                  "underline": false,
+                  "strikethrough": false,
+                  "sourceStart": 0,
+                  "sourceEnd": 2,
+                  "clusters": [
+                    {
+                      "text": "B",
+                      "sourceStart": 0,
+                      "sourceEnd": 1
+                    },
+                    {
+                      "text": "2",
+                      "sourceStart": 1,
+                      "sourceEnd": 2
+                    }
+                  ]
+                }
+              ],
+              "text": "B2",
+              "width": 18.252,
+              "baseline": 4.55,
+              "originX": 0
+            }
+          ],
+          "breaks": [],
+          "width": 18.252,
+          "height": 16.900000000000002,
+          "lineHeight": 16.900000000000002,
+          "fontSize": 13,
+          "fontWeight": 500,
+          "letterSpacing": 0,
+          "monospace": false,
+          "safeFont": false
+        }
+      },
+      {
+        "id": "B3",
+        "label": "B3",
+        "shape": "rectangle",
+        "width": 60,
+        "height": 36.900000000000006,
+        "x": 320,
+        "y": 204.90000000000003,
+        "labelBlock": {
+          "unit": "px",
+          "prepared": {
+            "source": "B3",
+            "display": "formatted",
+            "lines": [
+              [
+                {
+                  "text": "B3",
+                  "bold": false,
+                  "italic": false,
+                  "underline": false,
+                  "strikethrough": false,
+                  "sourceStart": 0,
+                  "sourceEnd": 2,
+                  "clusters": [
+                    {
+                      "text": "B",
+                      "sourceStart": 0,
+                      "sourceEnd": 1
+                    },
+                    {
+                      "text": "3",
+                      "sourceStart": 1,
+                      "sourceEnd": 2
+                    }
+                  ]
+                }
+              ]
+            ],
+            "lineStarts": [
+              0
+            ]
+          },
+          "text": "B3",
+          "lines": [
+            "B3"
+          ],
+          "lineBlocks": [
+            {
+              "runs": [
+                {
+                  "text": "B3",
+                  "bold": false,
+                  "italic": false,
+                  "underline": false,
+                  "strikethrough": false,
+                  "sourceStart": 0,
+                  "sourceEnd": 2,
+                  "clusters": [
+                    {
+                      "text": "B",
+                      "sourceStart": 0,
+                      "sourceEnd": 1
+                    },
+                    {
+                      "text": "3",
+                      "sourceStart": 1,
+                      "sourceEnd": 2
+                    }
+                  ]
+                }
+              ],
+              "text": "B3",
+              "width": 18.252,
+              "baseline": 4.55,
+              "originX": 0
+            }
+          ],
+          "breaks": [],
+          "width": 18.252,
+          "height": 16.900000000000002,
+          "lineHeight": 16.900000000000002,
+          "fontSize": 13,
+          "fontWeight": 500,
+          "letterSpacing": 0,
+          "monospace": false,
+          "safeFont": false
+        }
+      },
+      {
+        "id": "B4",
+        "label": "B4",
+        "shape": "rectangle",
+        "width": 60,
+        "height": 36.900000000000006,
+        "x": 408,
+        "y": 204.90000000000003,
+        "labelBlock": {
+          "unit": "px",
+          "prepared": {
+            "source": "B4",
+            "display": "formatted",
+            "lines": [
+              [
+                {
+                  "text": "B4",
+                  "bold": false,
+                  "italic": false,
+                  "underline": false,
+                  "strikethrough": false,
+                  "sourceStart": 0,
+                  "sourceEnd": 2,
+                  "clusters": [
+                    {
+                      "text": "B",
+                      "sourceStart": 0,
+                      "sourceEnd": 1
+                    },
+                    {
+                      "text": "4",
+                      "sourceStart": 1,
+                      "sourceEnd": 2
+                    }
+                  ]
+                }
+              ]
+            ],
+            "lineStarts": [
+              0
+            ]
+          },
+          "text": "B4",
+          "lines": [
+            "B4"
+          ],
+          "lineBlocks": [
+            {
+              "runs": [
+                {
+                  "text": "B4",
+                  "bold": false,
+                  "italic": false,
+                  "underline": false,
+                  "strikethrough": false,
+                  "sourceStart": 0,
+                  "sourceEnd": 2,
+                  "clusters": [
+                    {
+                      "text": "B",
+                      "sourceStart": 0,
+                      "sourceEnd": 1
+                    },
+                    {
+                      "text": "4",
+                      "sourceStart": 1,
+                      "sourceEnd": 2
+                    }
+                  ]
+                }
+              ],
+              "text": "B4",
+              "width": 18.252,
+              "baseline": 4.55,
+              "originX": 0
+            }
+          ],
+          "breaks": [],
+          "width": 18.252,
+          "height": 16.900000000000002,
+          "lineHeight": 16.900000000000002,
+          "fontSize": 13,
+          "fontWeight": 500,
+          "letterSpacing": 0,
+          "monospace": false,
+          "safeFont": false
+        }
+      },
+      {
+        "id": "C0",
+        "label": "C0",
+        "shape": "rectangle",
+        "width": 60,
+        "height": 36.900000000000006,
+        "x": 56,
+        "y": 325.8,
+        "labelBlock": {
+          "unit": "px",
+          "prepared": {
+            "source": "C0",
+            "display": "formatted",
+            "lines": [
+              [
+                {
+                  "text": "C0",
+                  "bold": false,
+                  "italic": false,
+                  "underline": false,
+                  "strikethrough": false,
+                  "sourceStart": 0,
+                  "sourceEnd": 2,
+                  "clusters": [
+                    {
+                      "text": "C",
+                      "sourceStart": 0,
+                      "sourceEnd": 1
+                    },
+                    {
+                      "text": "0",
+                      "sourceStart": 1,
+                      "sourceEnd": 2
+                    }
+                  ]
+                }
+              ]
+            ],
+            "lineStarts": [
+              0
+            ]
+          },
+          "text": "C0",
+          "lines": [
+            "C0"
+          ],
+          "lineBlocks": [
+            {
+              "runs": [
+                {
+                  "text": "C0",
+                  "bold": false,
+                  "italic": false,
+                  "underline": false,
+                  "strikethrough": false,
+                  "sourceStart": 0,
+                  "sourceEnd": 2,
+                  "clusters": [
+                    {
+                      "text": "C",
+                      "sourceStart": 0,
+                      "sourceEnd": 1
+                    },
+                    {
+                      "text": "0",
+                      "sourceStart": 1,
+                      "sourceEnd": 2
+                    }
+                  ]
+                }
+              ],
+              "text": "C0",
+              "width": 18.252,
+              "baseline": 4.55,
+              "originX": 0
+            }
+          ],
+          "breaks": [],
+          "width": 18.252,
+          "height": 16.900000000000002,
+          "lineHeight": 16.900000000000002,
+          "fontSize": 13,
+          "fontWeight": 500,
+          "letterSpacing": 0,
+          "monospace": false,
+          "safeFont": false
+        }
+      },
+      {
+        "id": "C1",
+        "label": "C1",
+        "shape": "rectangle",
+        "width": 60,
+        "height": 36.900000000000006,
+        "x": 144,
+        "y": 325.8,
+        "labelBlock": {
+          "unit": "px",
+          "prepared": {
+            "source": "C1",
+            "display": "formatted",
+            "lines": [
+              [
+                {
+                  "text": "C1",
+                  "bold": false,
+                  "italic": false,
+                  "underline": false,
+                  "strikethrough": false,
+                  "sourceStart": 0,
+                  "sourceEnd": 2,
+                  "clusters": [
+                    {
+                      "text": "C",
+                      "sourceStart": 0,
+                      "sourceEnd": 1
+                    },
+                    {
+                      "text": "1",
+                      "sourceStart": 1,
+                      "sourceEnd": 2
+                    }
+                  ]
+                }
+              ]
+            ],
+            "lineStarts": [
+              0
+            ]
+          },
+          "text": "C1",
+          "lines": [
+            "C1"
+          ],
+          "lineBlocks": [
+            {
+              "runs": [
+                {
+                  "text": "C1",
+                  "bold": false,
+                  "italic": false,
+                  "underline": false,
+                  "strikethrough": false,
+                  "sourceStart": 0,
+                  "sourceEnd": 2,
+                  "clusters": [
+                    {
+                      "text": "C",
+                      "sourceStart": 0,
+                      "sourceEnd": 1
+                    },
+                    {
+                      "text": "1",
+                      "sourceStart": 1,
+                      "sourceEnd": 2
+                    }
+                  ]
+                }
+              ],
+              "text": "C1",
+              "width": 13.806,
+              "baseline": 4.55,
+              "originX": 0
+            }
+          ],
+          "breaks": [],
+          "width": 13.806,
+          "height": 16.900000000000002,
+          "lineHeight": 16.900000000000002,
+          "fontSize": 13,
+          "fontWeight": 500,
+          "letterSpacing": 0,
+          "monospace": false,
+          "safeFont": false
+        }
+      },
+      {
+        "id": "C2",
+        "label": "C2",
+        "shape": "rectangle",
+        "width": 60,
+        "height": 36.900000000000006,
+        "x": 232,
+        "y": 325.8,
+        "labelBlock": {
+          "unit": "px",
+          "prepared": {
+            "source": "C2",
+            "display": "formatted",
+            "lines": [
+              [
+                {
+                  "text": "C2",
+                  "bold": false,
+                  "italic": false,
+                  "underline": false,
+                  "strikethrough": false,
+                  "sourceStart": 0,
+                  "sourceEnd": 2,
+                  "clusters": [
+                    {
+                      "text": "C",
+                      "sourceStart": 0,
+                      "sourceEnd": 1
+                    },
+                    {
+                      "text": "2",
+                      "sourceStart": 1,
+                      "sourceEnd": 2
+                    }
+                  ]
+                }
+              ]
+            ],
+            "lineStarts": [
+              0
+            ]
+          },
+          "text": "C2",
+          "lines": [
+            "C2"
+          ],
+          "lineBlocks": [
+            {
+              "runs": [
+                {
+                  "text": "C2",
+                  "bold": false,
+                  "italic": false,
+                  "underline": false,
+                  "strikethrough": false,
+                  "sourceStart": 0,
+                  "sourceEnd": 2,
+                  "clusters": [
+                    {
+                      "text": "C",
+                      "sourceStart": 0,
+                      "sourceEnd": 1
+                    },
+                    {
+                      "text": "2",
+                      "sourceStart": 1,
+                      "sourceEnd": 2
+                    }
+                  ]
+                }
+              ],
+              "text": "C2",
+              "width": 18.252,
+              "baseline": 4.55,
+              "originX": 0
+            }
+          ],
+          "breaks": [],
+          "width": 18.252,
+          "height": 16.900000000000002,
+          "lineHeight": 16.900000000000002,
+          "fontSize": 13,
+          "fontWeight": 500,
+          "letterSpacing": 0,
+          "monospace": false,
+          "safeFont": false
+        }
+      },
+      {
+        "id": "C3",
+        "label": "C3",
+        "shape": "rectangle",
+        "width": 60,
+        "height": 36.900000000000006,
+        "x": 320,
+        "y": 325.8,
+        "labelBlock": {
+          "unit": "px",
+          "prepared": {
+            "source": "C3",
+            "display": "formatted",
+            "lines": [
+              [
+                {
+                  "text": "C3",
+                  "bold": false,
+                  "italic": false,
+                  "underline": false,
+                  "strikethrough": false,
+                  "sourceStart": 0,
+                  "sourceEnd": 2,
+                  "clusters": [
+                    {
+                      "text": "C",
+                      "sourceStart": 0,
+                      "sourceEnd": 1
+                    },
+                    {
+                      "text": "3",
+                      "sourceStart": 1,
+                      "sourceEnd": 2
+                    }
+                  ]
+                }
+              ]
+            ],
+            "lineStarts": [
+              0
+            ]
+          },
+          "text": "C3",
+          "lines": [
+            "C3"
+          ],
+          "lineBlocks": [
+            {
+              "runs": [
+                {
+                  "text": "C3",
+                  "bold": false,
+                  "italic": false,
+                  "underline": false,
+                  "strikethrough": false,
+                  "sourceStart": 0,
+                  "sourceEnd": 2,
+                  "clusters": [
+                    {
+                      "text": "C",
+                      "sourceStart": 0,
+                      "sourceEnd": 1
+                    },
+                    {
+                      "text": "3",
+                      "sourceStart": 1,
+                      "sourceEnd": 2
+                    }
+                  ]
+                }
+              ],
+              "text": "C3",
+              "width": 18.252,
+              "baseline": 4.55,
+              "originX": 0
+            }
+          ],
+          "breaks": [],
+          "width": 18.252,
+          "height": 16.900000000000002,
+          "lineHeight": 16.900000000000002,
+          "fontSize": 13,
+          "fontWeight": 500,
+          "letterSpacing": 0,
+          "monospace": false,
+          "safeFont": false
+        }
+      },
+      {
+        "id": "C4",
+        "label": "C4",
+        "shape": "rectangle",
+        "width": 60,
+        "height": 36.900000000000006,
+        "x": 408,
+        "y": 325.8,
+        "labelBlock": {
+          "unit": "px",
+          "prepared": {
+            "source": "C4",
+            "display": "formatted",
+            "lines": [
+              [
+                {
+                  "text": "C4",
+                  "bold": false,
+                  "italic": false,
+                  "underline": false,
+                  "strikethrough": false,
+                  "sourceStart": 0,
+                  "sourceEnd": 2,
+                  "clusters": [
+                    {
+                      "text": "C",
+                      "sourceStart": 0,
+                      "sourceEnd": 1
+                    },
+                    {
+                      "text": "4",
+                      "sourceStart": 1,
+                      "sourceEnd": 2
+                    }
+                  ]
+                }
+              ]
+            ],
+            "lineStarts": [
+              0
+            ]
+          },
+          "text": "C4",
+          "lines": [
+            "C4"
+          ],
+          "lineBlocks": [
+            {
+              "runs": [
+                {
+                  "text": "C4",
+                  "bold": false,
+                  "italic": false,
+                  "underline": false,
+                  "strikethrough": false,
+                  "sourceStart": 0,
+                  "sourceEnd": 2,
+                  "clusters": [
+                    {
+                      "text": "C",
+                      "sourceStart": 0,
+                      "sourceEnd": 1
+                    },
+                    {
+                      "text": "4",
+                      "sourceStart": 1,
+                      "sourceEnd": 2
+                    }
+                  ]
+                }
+              ],
+              "text": "C4",
+              "width": 18.252,
+              "baseline": 4.55,
+              "originX": 0
+            }
+          ],
+          "breaks": [],
+          "width": 18.252,
+          "height": 16.900000000000002,
+          "lineHeight": 16.900000000000002,
+          "fontSize": 13,
+          "fontWeight": 500,
+          "letterSpacing": 0,
+          "monospace": false,
+          "safeFont": false
+        }
+      }
+    ],
+    "groups": [
+      {
+        "id": "GroupA",
+        "label": "Group A",
+        "x": 40,
+        "y": 40,
+        "width": 444,
+        "height": 96.9,
+        "children": [],
+        "labelBlock": {
+          "unit": "px",
+          "prepared": {
+            "source": "Group A",
+            "display": "formatted",
+            "lines": [
+              [
+                {
+                  "text": "Group A",
+                  "bold": false,
+                  "italic": false,
+                  "underline": false,
+                  "strikethrough": false,
+                  "sourceStart": 0,
+                  "sourceEnd": 7,
+                  "clusters": [
+                    {
+                      "text": "G",
+                      "sourceStart": 0,
+                      "sourceEnd": 1
+                    },
+                    {
+                      "text": "r",
+                      "sourceStart": 1,
+                      "sourceEnd": 2
+                    },
+                    {
+                      "text": "o",
+                      "sourceStart": 2,
+                      "sourceEnd": 3
+                    },
+                    {
+                      "text": "u",
+                      "sourceStart": 3,
+                      "sourceEnd": 4
+                    },
+                    {
+                      "text": "p",
+                      "sourceStart": 4,
+                      "sourceEnd": 5
+                    },
+                    {
+                      "text": " ",
+                      "sourceStart": 5,
+                      "sourceEnd": 6
+                    },
+                    {
+                      "text": "A",
+                      "sourceStart": 6,
+                      "sourceEnd": 7
+                    }
+                  ]
+                }
+              ]
+            ],
+            "lineStarts": [
+              0
+            ]
+          },
+          "text": "Group A",
+          "lines": [
+            "Group A"
+          ],
+          "lineBlocks": [
+            {
+              "runs": [
+                {
+                  "text": "Group A",
+                  "bold": false,
+                  "italic": false,
+                  "underline": false,
+                  "strikethrough": false,
+                  "sourceStart": 0,
+                  "sourceEnd": 7,
+                  "clusters": [
+                    {
+                      "text": "G",
+                      "sourceStart": 0,
+                      "sourceEnd": 1
+                    },
+                    {
+                      "text": "r",
+                      "sourceStart": 1,
+                      "sourceEnd": 2
+                    },
+                    {
+                      "text": "o",
+                      "sourceStart": 2,
+                      "sourceEnd": 3
+                    },
+                    {
+                      "text": "u",
+                      "sourceStart": 3,
+                      "sourceEnd": 4
+                    },
+                    {
+                      "text": "p",
+                      "sourceStart": 4,
+                      "sourceEnd": 5
+                    },
+                    {
+                      "text": " ",
+                      "sourceStart": 5,
+                      "sourceEnd": 6
+                    },
+                    {
+                      "text": "A",
+                      "sourceStart": 6,
+                      "sourceEnd": 7
+                    }
+                  ]
+                }
+              ],
+              "text": "Group A",
+              "width": 48.599999999999994,
+              "baseline": 4.199999999999999,
+              "originX": 0
+            }
+          ],
+          "breaks": [],
+          "width": 48.599999999999994,
+          "height": 15.600000000000001,
+          "lineHeight": 15.600000000000001,
+          "fontSize": 12,
+          "fontWeight": 600,
+          "letterSpacing": 0,
+          "monospace": false,
+          "safeFont": false
+        },
+        "headerHeight": 28,
+        "nodeIds": [
+          "A0",
+          "A1",
+          "A2",
+          "A3",
+          "A4"
+        ]
+      },
+      {
+        "id": "GroupB",
+        "label": "Group B",
+        "x": 40,
+        "y": 160.90000000000003,
+        "width": 444,
+        "height": 96.9,
+        "children": [],
+        "labelBlock": {
+          "unit": "px",
+          "prepared": {
+            "source": "Group B",
+            "display": "formatted",
+            "lines": [
+              [
+                {
+                  "text": "Group B",
+                  "bold": false,
+                  "italic": false,
+                  "underline": false,
+                  "strikethrough": false,
+                  "sourceStart": 0,
+                  "sourceEnd": 7,
+                  "clusters": [
+                    {
+                      "text": "G",
+                      "sourceStart": 0,
+                      "sourceEnd": 1
+                    },
+                    {
+                      "text": "r",
+                      "sourceStart": 1,
+                      "sourceEnd": 2
+                    },
+                    {
+                      "text": "o",
+                      "sourceStart": 2,
+                      "sourceEnd": 3
+                    },
+                    {
+                      "text": "u",
+                      "sourceStart": 3,
+                      "sourceEnd": 4
+                    },
+                    {
+                      "text": "p",
+                      "sourceStart": 4,
+                      "sourceEnd": 5
+                    },
+                    {
+                      "text": " ",
+                      "sourceStart": 5,
+                      "sourceEnd": 6
+                    },
+                    {
+                      "text": "B",
+                      "sourceStart": 6,
+                      "sourceEnd": 7
+                    }
+                  ]
+                }
+              ]
+            ],
+            "lineStarts": [
+              0
+            ]
+          },
+          "text": "Group B",
+          "lines": [
+            "Group B"
+          ],
+          "lineBlocks": [
+            {
+              "runs": [
+                {
+                  "text": "Group B",
+                  "bold": false,
+                  "italic": false,
+                  "underline": false,
+                  "strikethrough": false,
+                  "sourceStart": 0,
+                  "sourceEnd": 7,
+                  "clusters": [
+                    {
+                      "text": "G",
+                      "sourceStart": 0,
+                      "sourceEnd": 1
+                    },
+                    {
+                      "text": "r",
+                      "sourceStart": 1,
+                      "sourceEnd": 2
+                    },
+                    {
+                      "text": "o",
+                      "sourceStart": 2,
+                      "sourceEnd": 3
+                    },
+                    {
+                      "text": "u",
+                      "sourceStart": 3,
+                      "sourceEnd": 4
+                    },
+                    {
+                      "text": "p",
+                      "sourceStart": 4,
+                      "sourceEnd": 5
+                    },
+                    {
+                      "text": " ",
+                      "sourceStart": 5,
+                      "sourceEnd": 6
+                    },
+                    {
+                      "text": "B",
+                      "sourceStart": 6,
+                      "sourceEnd": 7
+                    }
+                  ]
+                }
+              ],
+              "text": "Group B",
+              "width": 48.599999999999994,
+              "baseline": 4.199999999999999,
+              "originX": 0
+            }
+          ],
+          "breaks": [],
+          "width": 48.599999999999994,
+          "height": 15.600000000000001,
+          "lineHeight": 15.600000000000001,
+          "fontSize": 12,
+          "fontWeight": 600,
+          "letterSpacing": 0,
+          "monospace": false,
+          "safeFont": false
+        },
+        "headerHeight": 28,
+        "nodeIds": [
+          "B0",
+          "B1",
+          "B2",
+          "B3",
+          "B4"
+        ]
+      },
+      {
+        "id": "GroupC",
+        "label": "Group C",
+        "x": 40,
+        "y": 281.8,
+        "width": 444,
+        "height": 96.9,
+        "children": [],
+        "labelBlock": {
+          "unit": "px",
+          "prepared": {
+            "source": "Group C",
+            "display": "formatted",
+            "lines": [
+              [
+                {
+                  "text": "Group C",
+                  "bold": false,
+                  "italic": false,
+                  "underline": false,
+                  "strikethrough": false,
+                  "sourceStart": 0,
+                  "sourceEnd": 7,
+                  "clusters": [
+                    {
+                      "text": "G",
+                      "sourceStart": 0,
+                      "sourceEnd": 1
+                    },
+                    {
+                      "text": "r",
+                      "sourceStart": 1,
+                      "sourceEnd": 2
+                    },
+                    {
+                      "text": "o",
+                      "sourceStart": 2,
+                      "sourceEnd": 3
+                    },
+                    {
+                      "text": "u",
+                      "sourceStart": 3,
+                      "sourceEnd": 4
+                    },
+                    {
+                      "text": "p",
+                      "sourceStart": 4,
+                      "sourceEnd": 5
+                    },
+                    {
+                      "text": " ",
+                      "sourceStart": 5,
+                      "sourceEnd": 6
+                    },
+                    {
+                      "text": "C",
+                      "sourceStart": 6,
+                      "sourceEnd": 7
+                    }
+                  ]
+                }
+              ]
+            ],
+            "lineStarts": [
+              0
+            ]
+          },
+          "text": "Group C",
+          "lines": [
+            "Group C"
+          ],
+          "lineBlocks": [
+            {
+              "runs": [
+                {
+                  "text": "Group C",
+                  "bold": false,
+                  "italic": false,
+                  "underline": false,
+                  "strikethrough": false,
+                  "sourceStart": 0,
+                  "sourceEnd": 7,
+                  "clusters": [
+                    {
+                      "text": "G",
+                      "sourceStart": 0,
+                      "sourceEnd": 1
+                    },
+                    {
+                      "text": "r",
+                      "sourceStart": 1,
+                      "sourceEnd": 2
+                    },
+                    {
+                      "text": "o",
+                      "sourceStart": 2,
+                      "sourceEnd": 3
+                    },
+                    {
+                      "text": "u",
+                      "sourceStart": 3,
+                      "sourceEnd": 4
+                    },
+                    {
+                      "text": "p",
+                      "sourceStart": 4,
+                      "sourceEnd": 5
+                    },
+                    {
+                      "text": " ",
+                      "sourceStart": 5,
+                      "sourceEnd": 6
+                    },
+                    {
+                      "text": "C",
+                      "sourceStart": 6,
+                      "sourceEnd": 7
+                    }
+                  ]
+                }
+              ],
+              "text": "Group C",
+              "width": 48.599999999999994,
+              "baseline": 4.199999999999999,
+              "originX": 0
+            }
+          ],
+          "breaks": [],
+          "width": 48.599999999999994,
+          "height": 15.600000000000001,
+          "lineHeight": 15.600000000000001,
+          "fontSize": 12,
+          "fontWeight": 600,
+          "letterSpacing": 0,
+          "monospace": false,
+          "safeFont": false
+        },
+        "headerHeight": 28,
+        "nodeIds": [
+          "C0",
+          "C1",
+          "C2",
+          "C3",
+          "C4"
+        ]
+      }
+    ],
+    "edges": [
+      {
+        "source": "A0",
+        "target": "B4",
+        "style": "solid",
+        "hasArrowStart": false,
+        "hasArrowEnd": true,
+        "endMarker": "arrow",
+        "points": [
+          {
+            "x": 101,
+            "y": 120.9
+          },
+          {
+            "x": 101,
+            "y": 144.9
+          },
+          {
+            "x": 262,
+            "y": 144.9
+          },
+          {
+            "x": 262,
+            "y": 133.9
+          },
+          {
+            "x": 487,
+            "y": 133.9
+          },
+          {
+            "x": 487,
+            "y": 214.12500000000003
+          },
+          {
+            "x": 468,
+            "y": 214.12500000000003
+          }
+        ],
+        "edgeIndex": 0,
+        "routeCertificate": {
+          "edgeIndex": 0,
+          "routeClass": "cross-hierarchy",
+          "bendCount": 5,
+          "sourcePortAssignment": {
+            "side": "S",
+            "slotIndex": 0,
+            "slotCount": 1,
+            "role": "cross-hierarchy-source"
+          },
+          "targetPortAssignment": {
+            "side": "N",
+            "slotIndex": 0,
+            "slotCount": 1,
+            "role": "cross-hierarchy-target"
+          },
+          "invariant": "explained-detour"
+        }
+      },
+      {
+        "source": "A1",
+        "target": "B2",
+        "style": "solid",
+        "hasArrowStart": false,
+        "hasArrowEnd": true,
+        "endMarker": "arrow",
+        "points": [
+          {
+            "x": 189,
+            "y": 120.9
+          },
+          {
+            "x": 189,
+            "y": 128.9
+          },
+          {
+            "x": 487,
+            "y": 128.9
+          },
+          {
+            "x": 487,
+            "y": 37
+          },
+          {
+            "x": 37,
+            "y": 37
+          },
+          {
+            "x": 37,
+            "y": 147.9
+          },
+          {
+            "x": 270,
+            "y": 147.9
+          },
+          {
+            "x": 270,
+            "y": 152.90000000000003
+          },
+          {
+            "x": 37,
+            "y": 152.90000000000003
+          },
+          {
+            "x": 37,
+            "y": 249.80000000000004
+          },
+          {
+            "x": 247,
+            "y": 249.80000000000004
+          },
+          {
+            "x": 247,
+            "y": 241.80000000000004
+          }
+        ],
+        "edgeIndex": 1,
+        "routeCertificate": {
+          "edgeIndex": 1,
+          "routeClass": "cross-hierarchy",
+          "bendCount": 10,
+          "sourcePortAssignment": {
+            "side": "S",
+            "slotIndex": 0,
+            "slotCount": 1,
+            "role": "cross-hierarchy-source"
+          },
+          "targetPortAssignment": {
+            "side": "N",
+            "slotIndex": 0,
+            "slotCount": 1,
+            "role": "cross-hierarchy-target"
+          },
+          "invariant": "explained-detour"
+        }
+      },
+      {
+        "source": "A2",
+        "target": "B0",
+        "style": "solid",
+        "hasArrowStart": false,
+        "hasArrowEnd": true,
+        "endMarker": "arrow",
+        "points": [
+          {
+            "x": 247,
+            "y": 120.9
+          },
+          {
+            "x": 247,
+            "y": 148.90000000000003
+          },
+          {
+            "x": 32,
+            "y": 148.90000000000003
+          },
+          {
+            "x": 32,
+            "y": 241.80000000000004
+          },
+          {
+            "x": 124,
+            "y": 241.80000000000004
+          },
+          {
+            "x": 124,
+            "y": 217.20000000000005
+          },
+          {
+            "x": 116,
+            "y": 217.20000000000005
+          }
+        ],
+        "edgeIndex": 2,
+        "routeCertificate": {
+          "edgeIndex": 2,
+          "routeClass": "cross-hierarchy",
+          "bendCount": 5,
+          "sourcePortAssignment": {
+            "side": "S",
+            "slotIndex": 0,
+            "slotCount": 1,
+            "role": "cross-hierarchy-source"
+          },
+          "targetPortAssignment": {
+            "side": "N",
+            "slotIndex": 0,
+            "slotCount": 1,
+            "role": "cross-hierarchy-target"
+          },
+          "invariant": "explained-detour"
+        }
+      },
+      {
+        "source": "A3",
+        "target": "B3",
+        "style": "solid",
+        "hasArrowStart": false,
+        "hasArrowEnd": true,
+        "endMarker": "arrow",
+        "points": [
+          {
+            "x": 365,
+            "y": 120.9
+          },
+          {
+            "x": 365,
+            "y": 148.90000000000003
+          },
+          {
+            "x": 492,
+            "y": 148.90000000000003
+          },
+          {
+            "x": 492,
+            "y": 249.80000000000004
+          },
+          {
+            "x": 392.375,
+            "y": 249.80000000000004
+          },
+          {
+            "x": 392.375,
+            "y": 217.20000000000005
+          },
+          {
+            "x": 380,
+            "y": 217.20000000000005
+          }
+        ],
+        "edgeIndex": 3,
+        "routeCertificate": {
+          "edgeIndex": 3,
+          "routeClass": "cross-hierarchy",
+          "bendCount": 5,
+          "sourcePortAssignment": {
+            "side": "S",
+            "slotIndex": 0,
+            "slotCount": 1,
+            "role": "cross-hierarchy-source"
+          },
+          "targetPortAssignment": {
+            "side": "N",
+            "slotIndex": 0,
+            "slotCount": 1,
+            "role": "cross-hierarchy-target"
+          },
+          "invariant": "explained-detour"
+        }
+      },
+      {
+        "source": "A4",
+        "target": "B1",
+        "style": "solid",
+        "hasArrowStart": false,
+        "hasArrowEnd": true,
+        "endMarker": "arrow",
+        "points": [
+          {
+            "x": 453,
+            "y": 120.9
+          },
+          {
+            "x": 453,
+            "y": 157.90000000000003
+          },
+          {
+            "x": 524,
+            "y": 157.90000000000003
+          },
+          {
+            "x": 524,
+            "y": 273.8
+          },
+          {
+            "x": 216.375,
+            "y": 273.8
+          },
+          {
+            "x": 216.375,
+            "y": 217.20000000000005
+          },
+          {
+            "x": 204,
+            "y": 217.20000000000005
+          }
+        ],
+        "edgeIndex": 4,
+        "routeCertificate": {
+          "edgeIndex": 4,
+          "routeClass": "cross-hierarchy",
+          "bendCount": 5,
+          "sourcePortAssignment": {
+            "side": "S",
+            "slotIndex": 0,
+            "slotCount": 1,
+            "role": "cross-hierarchy-source"
+          },
+          "targetPortAssignment": {
+            "side": "N",
+            "slotIndex": 0,
+            "slotCount": 1,
+            "role": "cross-hierarchy-target"
+          },
+          "invariant": "explained-detour"
+        }
+      },
+      {
+        "source": "B0",
+        "target": "C1",
+        "style": "solid",
+        "hasArrowStart": false,
+        "hasArrowEnd": true,
+        "endMarker": "arrow",
+        "points": [
+          {
+            "x": 56,
+            "y": 232.57500000000005
+          },
+          {
+            "x": 48,
+            "y": 232.57500000000005
+          },
+          {
+            "x": 48,
+            "y": 278.8
+          },
+          {
+            "x": 37,
+            "y": 278.8
+          },
+          {
+            "x": 37,
+            "y": 370.70000000000005
+          },
+          {
+            "x": 216.375,
+            "y": 370.70000000000005
+          },
+          {
+            "x": 216.375,
+            "y": 344.25
+          },
+          {
+            "x": 204,
+            "y": 344.25
+          }
+        ],
+        "edgeIndex": 5,
+        "routeCertificate": {
+          "edgeIndex": 5,
+          "routeClass": "cross-hierarchy",
+          "bendCount": 6,
+          "targetPort": "E",
+          "sourcePortAssignment": {
+            "side": "S",
+            "slotIndex": 0,
+            "slotCount": 1,
+            "role": "cross-hierarchy-source"
+          },
+          "targetPortAssignment": {
+            "side": "E",
+            "slotIndex": 0,
+            "slotCount": 1,
+            "role": "cross-hierarchy-target",
+            "port": "E"
+          },
+          "invariant": "explained-detour"
+        }
+      },
+      {
+        "source": "B1",
+        "target": "C3",
+        "style": "solid",
+        "hasArrowStart": false,
+        "hasArrowEnd": true,
+        "endMarker": "arrow",
+        "points": [
+          {
+            "x": 189,
+            "y": 241.80000000000004
+          },
+          {
+            "x": 189,
+            "y": 278.8
+          },
+          {
+            "x": 487,
+            "y": 278.8
+          },
+          {
+            "x": 487,
+            "y": 370.70000000000005
+          },
+          {
+            "x": 392.375,
+            "y": 370.70000000000005
+          },
+          {
+            "x": 392.375,
+            "y": 344.25
+          },
+          {
+            "x": 380,
+            "y": 344.25
+          }
+        ],
+        "edgeIndex": 6,
+        "routeCertificate": {
+          "edgeIndex": 6,
+          "routeClass": "cross-hierarchy",
+          "bendCount": 5,
+          "targetPort": "E",
+          "sourcePortAssignment": {
+            "side": "S",
+            "slotIndex": 0,
+            "slotCount": 1,
+            "role": "cross-hierarchy-source"
+          },
+          "targetPortAssignment": {
+            "side": "E",
+            "slotIndex": 0,
+            "slotCount": 1,
+            "role": "cross-hierarchy-target",
+            "port": "E"
+          },
+          "invariant": "explained-detour"
+        }
+      },
+      {
+        "source": "B2",
+        "target": "C0",
+        "style": "solid",
+        "hasArrowStart": false,
+        "hasArrowEnd": true,
+        "endMarker": "arrow",
+        "points": [
+          {
+            "x": 262,
+            "y": 241.80000000000004
+          },
+          {
+            "x": 262,
+            "y": 269.8
+          },
+          {
+            "x": 32,
+            "y": 269.8
+          },
+          {
+            "x": 32,
+            "y": 362.70000000000005
+          },
+          {
+            "x": 128.375,
+            "y": 362.70000000000005
+          },
+          {
+            "x": 128.375,
+            "y": 344.25
+          },
+          {
+            "x": 116,
+            "y": 344.25
+          }
+        ],
+        "edgeIndex": 7,
+        "routeCertificate": {
+          "edgeIndex": 7,
+          "routeClass": "cross-hierarchy",
+          "bendCount": 5,
+          "sourcePort": "S",
+          "targetPort": "E",
+          "sourcePortAssignment": {
+            "side": "S",
+            "slotIndex": 0,
+            "slotCount": 1,
+            "role": "cross-hierarchy-source",
+            "port": "S"
+          },
+          "targetPortAssignment": {
+            "side": "E",
+            "slotIndex": 0,
+            "slotCount": 1,
+            "role": "cross-hierarchy-target",
+            "port": "E"
+          },
+          "invariant": "explained-detour"
+        }
+      },
+      {
+        "source": "B3",
+        "target": "C4",
+        "style": "solid",
+        "hasArrowStart": false,
+        "hasArrowEnd": true,
+        "endMarker": "arrow",
+        "points": [
+          {
+            "x": 365,
+            "y": 241.80000000000004
+          },
+          {
+            "x": 365,
+            "y": 269.8
+          },
+          {
+            "x": 492,
+            "y": 269.8
+          },
+          {
+            "x": 492,
+            "y": 344.25
+          },
+          {
+            "x": 468,
+            "y": 344.25
+          }
+        ],
+        "edgeIndex": 8,
+        "routeCertificate": {
+          "edgeIndex": 8,
+          "routeClass": "cross-hierarchy",
+          "bendCount": 3,
+          "targetPort": "E",
+          "sourcePortAssignment": {
+            "side": "S",
+            "slotIndex": 0,
+            "slotCount": 1,
+            "role": "cross-hierarchy-source"
+          },
+          "targetPortAssignment": {
+            "side": "E",
+            "slotIndex": 0,
+            "slotCount": 1,
+            "role": "cross-hierarchy-target",
+            "port": "E"
+          },
+          "invariant": "explained-detour"
+        }
+      },
+      {
+        "source": "B4",
+        "target": "C2",
+        "style": "solid",
+        "hasArrowStart": false,
+        "hasArrowEnd": true,
+        "endMarker": "arrow",
+        "points": [
+          {
+            "x": 468,
+            "y": 232.57500000000005
+          },
+          {
+            "x": 508,
+            "y": 232.57500000000005
+          },
+          {
+            "x": 508,
+            "y": 394.70000000000005
+          },
+          {
+            "x": 304.375,
+            "y": 394.70000000000005
+          },
+          {
+            "x": 304.375,
+            "y": 344.25
+          },
+          {
+            "x": 292,
+            "y": 344.25
+          }
+        ],
+        "edgeIndex": 9,
+        "routeCertificate": {
+          "edgeIndex": 9,
+          "routeClass": "cross-hierarchy",
+          "bendCount": 4,
+          "targetPort": "E",
+          "sourcePortAssignment": {
+            "side": "S",
+            "slotIndex": 0,
+            "slotCount": 1,
+            "role": "cross-hierarchy-source"
+          },
+          "targetPortAssignment": {
+            "side": "E",
+            "slotIndex": 0,
+            "slotCount": 1,
+            "role": "cross-hierarchy-target",
+            "port": "E"
+          },
+          "invariant": "explained-detour"
+        }
+      }
+    ]
+  },
+  "rubric": {
+    "metrics": {
+      "edges": 10,
+      "offOutlineEndpoints": 0,
+      "endpointApproaches": 0,
+      "diagonalSegments": 0,
+      "unexplainedBends": 0,
+      "hitches": 0,
+      "nodeOverlaps": 0,
+      "labelOffRoute": 0,
+      "edgeThroughNode": 0,
+      "labelConflicts": 0,
+      "edgeCrossings": 24,
+      "totalBends": 53,
+      "maxBendsPerEdge": 10,
+      "portEndpointRate": 0.3,
+      "portAnchoredEdgeRate": 0.5,
+      "peerBarycenterDelta": 0,
+      "worstLabelOffset": 0
+    },
+    "violations": []
+  },
+  "hardViolations": [],
+  "paint": {
+    "checks": [
+      {
+        "criterion": "svg-root",
+        "expected": "mounted SVG",
+        "actual": "svg",
+        "status": "passed",
+        "scope": "Actual public SVG result"
+      },
+      {
+        "criterion": "svg-unique-ids",
+        "expected": 2,
+        "actual": 2,
+        "status": "passed",
+        "scope": "Duplicate SVG identities can change marker, clip and owned-label references"
+      },
+      {
+        "criterion": "canvas",
+        "expected": "positive finite rendered canvas",
+        "actual": {
+          "x": 0,
+          "y": 0,
+          "width": 572,
+          "height": 442.6875
+        },
+        "status": "passed",
+        "scope": "Actual browser viewport of the returned SVG"
+      },
+      {
+        "criterion": "visible-authored-labels",
+        "expected": [
+          "A0",
+          "A1",
+          "A2",
+          "A3",
+          "A4",
+          "B0",
+          "B1",
+          "B2",
+          "B3",
+          "B4",
+          "C0",
+          "C1",
+          "C2",
+          "C3",
+          "C4",
+          "Group A",
+          "Group B",
+          "Group C"
+        ],
+        "actual": [
+          {
+            "label": "A0",
+            "count": 1
+          },
+          {
+            "label": "A1",
+            "count": 1
+          },
+          {
+            "label": "A2",
+            "count": 1
+          },
+          {
+            "label": "A3",
+            "count": 1
+          },
+          {
+            "label": "A4",
+            "count": 1
+          },
+          {
+            "label": "B0",
+            "count": 1
+          },
+          {
+            "label": "B1",
+            "count": 1
+          },
+          {
+            "label": "B2",
+            "count": 1
+          },
+          {
+            "label": "B3",
+            "count": 1
+          },
+          {
+            "label": "B4",
+            "count": 1
+          },
+          {
+            "label": "C0",
+            "count": 1
+          },
+          {
+            "label": "C1",
+            "count": 1
+          },
+          {
+            "label": "C2",
+            "count": 1
+          },
+          {
+            "label": "C3",
+            "count": 1
+          },
+          {
+            "label": "C4",
+            "count": 1
+          },
+          {
+            "label": "Group A",
+            "count": 1
+          },
+          {
+            "label": "Group B",
+            "count": 1
+          },
+          {
+            "label": "Group C",
+            "count": 1
+          }
+        ],
+        "status": "passed",
+        "scope": "Computed visibility and nonzero browser text bounds; metadata/title/defs text earns no credit"
+      },
+      {
+        "criterion": "labels-within-canvas",
+        "expected": "every authored label fits the canvas",
+        "actual": [],
+        "status": "passed",
+        "scope": "Actual rendered label bounds, with 1.5 CSS-pixel serialization tolerance"
+      },
+      {
+        "criterion": "unclipped-authored-labels",
+        "expected": [],
+        "actual": [],
+        "status": "passed",
+        "scope": "Actual self/ancestor clipping and overflow; unprojected masks/clip paths remain unavailable"
+      },
+      {
+        "criterion": "visible-ink",
+        "expected": "nonempty visible diagram geometry",
+        "actual": 31,
+        "status": "passed",
+        "scope": "Visible geometric elements; unprojected use/HTML/image-only ink remains unavailable, not a drawing defect"
+      },
+      {
+        "criterion": "painted-node-ownership",
+        "expected": [
+          "A0",
+          "A1",
+          "A2",
+          "A3",
+          "A4",
+          "B0",
+          "B1",
+          "B2",
+          "B3",
+          "B4",
+          "C0",
+          "C1",
+          "C2",
+          "C3",
+          "C4"
+        ],
+        "actual": [
+          "A0",
+          "A1",
+          "A2",
+          "A3",
+          "A4",
+          "B0",
+          "B1",
+          "B2",
+          "B3",
+          "B4",
+          "C0",
+          "C1",
+          "C2",
+          "C3",
+          "C4"
+        ],
+        "status": "passed",
+        "scope": "Unique actual label-to-shape ownership, independently of native model identity"
+      },
+      {
+        "criterion": "painted-relationships",
+        "expected": [
+          "[\"A0\",\"B4\",true]",
+          "[\"A1\",\"B2\",true]",
+          "[\"A2\",\"B0\",true]",
+          "[\"A3\",\"B3\",true]",
+          "[\"A4\",\"B1\",true]",
+          "[\"B0\",\"C1\",true]",
+          "[\"B1\",\"C3\",true]",
+          "[\"B2\",\"C0\",true]",
+          "[\"B3\",\"C4\",true]",
+          "[\"B4\",\"C2\",true]"
+        ],
+        "actual": [
+          "[\"A0\",\"B4\",true]",
+          "[\"A1\",\"B2\",true]",
+          "[\"A2\",\"B0\",true]",
+          "[\"A3\",\"B3\",true]",
+          "[\"A4\",\"B1\",true]",
+          "[\"B0\",\"C1\",true]",
+          "[\"B1\",\"C3\",true]",
+          "[\"B2\",\"C0\",true]",
+          "[\"B3\",\"C4\",true]",
+          "[\"B4\",\"C2\",true]"
+        ],
+        "status": "passed",
+        "scope": "Owned outline/lifeline endpoint proximity and exact multiplicity. Clearance is at most max(2 CSS pixels, half the observed painted marker length), capped at 8; this is not a strict physical-touch certificate"
+      },
+      {
+        "criterion": "painted-relationship-markers",
+        "expected": [
+          "[\"A0\",\"B4\",true,\"none\",\"arrow\"]",
+          "[\"A1\",\"B2\",true,\"none\",\"arrow\"]",
+          "[\"A2\",\"B0\",true,\"none\",\"arrow\"]",
+          "[\"A3\",\"B3\",true,\"none\",\"arrow\"]",
+          "[\"A4\",\"B1\",true,\"none\",\"arrow\"]",
+          "[\"B0\",\"C1\",true,\"none\",\"arrow\"]",
+          "[\"B1\",\"C3\",true,\"none\",\"arrow\"]",
+          "[\"B2\",\"C0\",true,\"none\",\"arrow\"]",
+          "[\"B3\",\"C4\",true,\"none\",\"arrow\"]",
+          "[\"B4\",\"C2\",true,\"none\",\"arrow\"]"
+        ],
+        "actual": [
+          "[\"A0\",\"B4\",true,\"none\",\"arrow\"]",
+          "[\"A1\",\"B2\",true,\"none\",\"arrow\"]",
+          "[\"A2\",\"B0\",true,\"none\",\"arrow\"]",
+          "[\"A3\",\"B3\",true,\"none\",\"arrow\"]",
+          "[\"A4\",\"B1\",true,\"none\",\"arrow\"]",
+          "[\"B0\",\"C1\",true,\"none\",\"arrow\"]",
+          "[\"B1\",\"C3\",true,\"none\",\"arrow\"]",
+          "[\"B2\",\"C0\",true,\"none\",\"arrow\"]",
+          "[\"B3\",\"C4\",true,\"none\",\"arrow\"]",
+          "[\"B4\",\"C2\",true,\"none\",\"arrow\"]"
+        ],
+        "status": "passed",
+        "scope": "Actual triangle/arrow/diamond/circle glyph geometry and marker ownership; a decoration is not automatically a directed arrow"
+      },
+      {
+        "criterion": "painted-group:GroupA",
+        "expected": [
+          "A0",
+          "A1",
+          "A2",
+          "A3",
+          "A4"
+        ],
+        "actual": [],
+        "status": "passed",
+        "scope": "Authored descendant nodes fit their actual owned group boundary; immediate membership is checked independently in the native model"
+      },
+      {
+        "criterion": "painted-group:GroupB",
+        "expected": [
+          "B0",
+          "B1",
+          "B2",
+          "B3",
+          "B4"
+        ],
+        "actual": [],
+        "status": "passed",
+        "scope": "Authored descendant nodes fit their actual owned group boundary; immediate membership is checked independently in the native model"
+      },
+      {
+        "criterion": "painted-group:GroupC",
+        "expected": [
+          "C0",
+          "C1",
+          "C2",
+          "C3",
+          "C4"
+        ],
+        "actual": [],
+        "status": "passed",
+        "scope": "Authored descendant nodes fit their actual owned group boundary; immediate membership is checked independently in the native model"
+      },
+      {
+        "criterion": "paint-opacity-and-color",
+        "expected": "resolved visible paint colors/alpha",
+        "actual": [],
+        "status": "passed",
+        "scope": "Unresolved paint servers/context colors cannot silently earn a visible-ink or complete-style claim"
+      }
+    ],
+    "complete": true,
+    "passed": true,
+    "nodes": [
+      {
+        "id": "A0",
+        "label": "A0",
+        "box": {
+          "x": 56.006500244140625,
+          "y": 83.99762725830078,
+          "width": 59.99830627441406,
+          "height": 36.898956298828125
+        }
+      },
+      {
+        "id": "A1",
+        "label": "A1",
+        "box": {
+          "x": 144.00401306152344,
+          "y": 83.99762725830078,
+          "width": 59.99830627441406,
+          "height": 36.898956298828125
+        }
+      },
+      {
+        "id": "A2",
+        "label": "A2",
+        "box": {
+          "x": 232.00152587890625,
+          "y": 83.99762725830078,
+          "width": 59.998291015625,
+          "height": 36.898956298828125
+        }
+      },
+      {
+        "id": "A3",
+        "label": "A3",
+        "box": {
+          "x": 319.9990539550781,
+          "y": 83.99762725830078,
+          "width": 59.998291015625,
+          "height": 36.898956298828125
+        }
+      },
+      {
+        "id": "A4",
+        "label": "A4",
+        "box": {
+          "x": 407.9965515136719,
+          "y": 83.99762725830078,
+          "width": 59.998291015625,
+          "height": 36.898956298828125
+        }
+      },
+      {
+        "id": "B0",
+        "label": "B0",
+        "box": {
+          "x": 56.006500244140625,
+          "y": 204.89419555664062,
+          "width": 59.99830627441406,
+          "height": 36.898956298828125
+        }
+      },
+      {
+        "id": "B1",
+        "label": "B1",
+        "box": {
+          "x": 144.00401306152344,
+          "y": 204.89419555664062,
+          "width": 59.99830627441406,
+          "height": 36.898956298828125
+        }
+      },
+      {
+        "id": "B2",
+        "label": "B2",
+        "box": {
+          "x": 232.00152587890625,
+          "y": 204.89419555664062,
+          "width": 59.998291015625,
+          "height": 36.898956298828125
+        }
+      },
+      {
+        "id": "B3",
+        "label": "B3",
+        "box": {
+          "x": 319.9990539550781,
+          "y": 204.89419555664062,
+          "width": 59.998291015625,
+          "height": 36.898956298828125
+        }
+      },
+      {
+        "id": "B4",
+        "label": "B4",
+        "box": {
+          "x": 407.9965515136719,
+          "y": 204.89419555664062,
+          "width": 59.998291015625,
+          "height": 36.898956298828125
+        }
+      },
+      {
+        "id": "C0",
+        "label": "C0",
+        "box": {
+          "x": 56.006500244140625,
+          "y": 325.790771484375,
+          "width": 59.99830627441406,
+          "height": 36.898956298828125
+        }
+      },
+      {
+        "id": "C1",
+        "label": "C1",
+        "box": {
+          "x": 144.00401306152344,
+          "y": 325.790771484375,
+          "width": 59.99830627441406,
+          "height": 36.898956298828125
+        }
+      },
+      {
+        "id": "C2",
+        "label": "C2",
+        "box": {
+          "x": 232.00152587890625,
+          "y": 325.790771484375,
+          "width": 59.998291015625,
+          "height": 36.898956298828125
+        }
+      },
+      {
+        "id": "C3",
+        "label": "C3",
+        "box": {
+          "x": 319.9990539550781,
+          "y": 325.790771484375,
+          "width": 59.998291015625,
+          "height": 36.898956298828125
+        }
+      },
+      {
+        "id": "C4",
+        "label": "C4",
+        "box": {
+          "x": 407.9965515136719,
+          "y": 325.790771484375,
+          "width": 59.998291015625,
+          "height": 36.898956298828125
+        }
+      }
+    ],
+    "connections": [
+      {
+        "source": "A0",
+        "target": "B4",
+        "directed": true,
+        "startMarker": "none",
+        "endMarker": "arrow"
+      },
+      {
+        "source": "A1",
+        "target": "B2",
+        "directed": true,
+        "startMarker": "none",
+        "endMarker": "arrow"
+      },
+      {
+        "source": "A2",
+        "target": "B0",
+        "directed": true,
+        "startMarker": "none",
+        "endMarker": "arrow"
+      },
+      {
+        "source": "A3",
+        "target": "B3",
+        "directed": true,
+        "startMarker": "none",
+        "endMarker": "arrow"
+      },
+      {
+        "source": "A4",
+        "target": "B1",
+        "directed": true,
+        "startMarker": "none",
+        "endMarker": "arrow"
+      },
+      {
+        "source": "B0",
+        "target": "C1",
+        "directed": true,
+        "startMarker": "none",
+        "endMarker": "arrow"
+      },
+      {
+        "source": "B1",
+        "target": "C3",
+        "directed": true,
+        "startMarker": "none",
+        "endMarker": "arrow"
+      },
+      {
+        "source": "B2",
+        "target": "C0",
+        "directed": true,
+        "startMarker": "none",
+        "endMarker": "arrow"
+      },
+      {
+        "source": "B3",
+        "target": "C4",
+        "directed": true,
+        "startMarker": "none",
+        "endMarker": "arrow"
+      },
+      {
+        "source": "B4",
+        "target": "C2",
+        "directed": true,
+        "startMarker": "none",
+        "endMarker": "arrow"
+      }
+    ],
+    "viewBox": "0 0 572 442.7"
+  },
+  "quantitative": [],
+  "svgObserved": {
+    "status": "observed",
+    "width": 572,
+    "height": 442.7,
+    "area": 253224.4,
+    "viewportScope": "actual viewBox SVG units",
+    "routes": [
+      {
+        "tag": "polyline",
+        "source": "A0",
+        "target": "B4",
+        "points": "101,120.9 101,144.9 262,144.9 262,133.9 487,133.9 487,214.125 468,214.125",
+        "d": null,
+        "x1": null,
+        "y1": null,
+        "x2": null,
+        "y2": null,
+        "transformed": false,
+        "lengthPreserving": true,
+        "browserLength": 520.2249755859375
+      },
+      {
+        "tag": "polyline",
+        "source": "A1",
+        "target": "B2",
+        "points": "189,120.9 189,128.9 487,128.9 487,37 37,37 37,147.9 270,147.9 270,152.9 37,152.9 37,249.8 247,249.8 247,241.8",
+        "d": null,
+        "x1": null,
+        "y1": null,
+        "x2": null,
+        "y2": null,
+        "transformed": false,
+        "lengthPreserving": true,
+        "browserLength": 1744.7000732421875
+      },
+      {
+        "tag": "polyline",
+        "source": "A2",
+        "target": "B0",
+        "points": "247,120.9 247,148.9 32,148.9 32,241.8 124,241.8 124,217.2 116,217.2",
+        "d": null,
+        "x1": null,
+        "y1": null,
+        "x2": null,
+        "y2": null,
+        "transformed": false,
+        "lengthPreserving": true,
+        "browserLength": 460.5000305175781
+      },
+      {
+        "tag": "polyline",
+        "source": "A3",
+        "target": "B3",
+        "points": "365,120.9 365,148.9 492,148.9 492,249.8 392.375,249.8 392.375,217.2 380,217.2",
+        "d": null,
+        "x1": null,
+        "y1": null,
+        "x2": null,
+        "y2": null,
+        "transformed": false,
+        "lengthPreserving": true,
+        "browserLength": 400.5000305175781
+      },
+      {
+        "tag": "polyline",
+        "source": "A4",
+        "target": "B1",
+        "points": "453,120.9 453,157.9 524,157.9 524,273.8 216.375,273.8 216.375,217.2 204,217.2",
+        "d": null,
+        "x1": null,
+        "y1": null,
+        "x2": null,
+        "y2": null,
+        "transformed": false,
+        "lengthPreserving": true,
+        "browserLength": 600.5
+      },
+      {
+        "tag": "polyline",
+        "source": "B0",
+        "target": "C1",
+        "points": "56,232.575 48,232.575 48,278.8 37,278.8 37,370.7 216.375,370.7 216.375,344.25 204,344.25",
+        "d": null,
+        "x1": null,
+        "y1": null,
+        "x2": null,
+        "y2": null,
+        "transformed": false,
+        "lengthPreserving": true,
+        "browserLength": 375.32501220703125
+      },
+      {
+        "tag": "polyline",
+        "source": "B1",
+        "target": "C3",
+        "points": "189,241.8 189,278.8 487,278.8 487,370.7 392.375,370.7 392.375,344.25 380,344.25",
+        "d": null,
+        "x1": null,
+        "y1": null,
+        "x2": null,
+        "y2": null,
+        "transformed": false,
+        "lengthPreserving": true,
+        "browserLength": 560.3500366210938
+      },
+      {
+        "tag": "polyline",
+        "source": "B2",
+        "target": "C0",
+        "points": "262,241.8 262,269.8 32,269.8 32,362.7 128.375,362.7 128.375,344.25 116,344.25",
+        "d": null,
+        "x1": null,
+        "y1": null,
+        "x2": null,
+        "y2": null,
+        "transformed": false,
+        "lengthPreserving": true,
+        "browserLength": 478.10003662109375
+      },
+      {
+        "tag": "polyline",
+        "source": "B3",
+        "target": "C4",
+        "points": "365,241.8 365,269.8 492,269.8 492,344.25 468,344.25",
+        "d": null,
+        "x1": null,
+        "y1": null,
+        "x2": null,
+        "y2": null,
+        "transformed": false,
+        "lengthPreserving": true,
+        "browserLength": 253.4499969482422
+      },
+      {
+        "tag": "polyline",
+        "source": "B4",
+        "target": "C2",
+        "points": "468,232.575 508,232.575 508,394.7 304.375,394.7 304.375,344.25 292,344.25",
+        "d": null,
+        "x1": null,
+        "y1": null,
+        "x2": null,
+        "y2": null,
+        "transformed": false,
+        "lengthPreserving": true,
+        "browserLength": 468.57501220703125
+      }
+    ]
+  },
+  "quality": {
+    "width": 572,
+    "height": 442.7,
+    "area": 253224.4,
+    "viewportScope": "actual viewBox SVG units",
+    "ownedCarriers": 10,
+    "contactCounts": {
+      "status": "unavailable",
+      "reason": "No enrolled exact SVG node-boundary contact observer"
+    },
+    "browserCenterline": {
+      "status": "measured",
+      "value": 5862.225204467773,
+      "scope": "Browser getTotalLength sum in local SVG units, only length-preserving ancestor transforms; curve length is browser approximation, excludes markers/labels"
+    },
+    "linear": {
+      "status": "measured",
+      "edges": 10,
+      "wire": 5862.2249999999985,
+      "bends": 53,
+      "crossings": 24,
+      "parallelOverlaps": 0,
+      "opposingOverlaps": 0,
+      "scope": "Existing strict untransformed orthogonal absolute M/L, polyline, or line SVG observer; authored-endpoint crossing exclusions retained"
+    }
+  }
+}

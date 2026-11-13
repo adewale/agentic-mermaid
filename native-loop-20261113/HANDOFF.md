@@ -56,3 +56,19 @@ Sol is preserving the patch, all profiles and adverse cells, checking whole
 products and restoring only the two owned source files. Do not retry gate
 variants or favorable timing repeats. Next: Astra's bounded Pele compound
 port-order counterexample and the distinct no-op route-contract hypothesis.
+
+## New demonstrated support gap
+
+Astra translated the pinned Pele three-group permutation into literal Mermaid.
+At689, ELK returns all four directions with authored/Chromium paint checks;
+Native returns TB and refuses LR/RL/BT under existing routing limits. Inputs,
+full products and screenshots are in `audit/compound-permutation/`. The
+pinned Mermaid12.2 syntax worker accepts all four sources. Broader identity
+and two-group controls show ordering alone is not the refusal cause. Generic
+global admission remains withdrawn: it repairs these12 controls but worsens
+quality on working inputs, and prior broad trials had9/25 regressions.
+
+Priority is now the Native compound refusal, before budget no-op optimization.
+Sol owns production and the red owning table (1P/3F at689); Astra traces routing
+selection and independently reviews. No raised cap, ELK fallback or third
+backend. Current first-evidence checkpoint: `e72484908b56dc68fdc4dabf466f53f4648060e1`.
