@@ -196,7 +196,9 @@ function positionFamily(familyId: FamilyId, request: ResolvedRenderRequest, sour
       const retain = borrow && request.output === 'svg'
         && (familyId === 'sequence' || familyId === 'flowchart' || familyId === 'state' || familyId === 'pie')
         ? retainOwnedNativeSvgPositioned : retainPositioned
-      retain(descriptor, boundedKey, result, retainedProjections.get(result), borrow)
+      // An owned family's layout hook is the original producer on every output
+      // path; borrowing additionally needs the native drawing conditions.
+      retain(descriptor, boundedKey, result, retainedProjections.get(result), borrow || isOwnedFamily(descriptor))
     }
     return result
   })
