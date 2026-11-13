@@ -109,6 +109,11 @@ describe('SVG post-pass interaction contract', () => {
       reject = true
       expect(() => resolveColor('var(--fg)', extra)).toThrow('changed palette metadata')
     }
+    // Direct palette callers can expose CSS that was authored text before
+    // substitution. Its newly visible family reference still resolves.
+    const exposed = '<svg><style>.x{--family:#fedcba}</style><rect fill="var(--_text-sec)"/><text>var(--family)</style></text></svg>'
+    expect(inlineResolvedColors(exposed, { bg: '#fff', fg: '#000', muted: '"><style>' }))
+      .toBe('<svg><style>.x{--family:#fedcba}</style><rect fill=""><style>"/><text>#fedcba</style></text></svg>')
   })
 
   test('CSS substitutions preserve tag-like text inside a CDATA style body', () => {

@@ -741,24 +741,32 @@ function resolveSvgColors(svg: string, resolution: NonNullable<ReturnType<typeof
   // data attributes are authored content, even when they happen to contain a
   // string such as `var(--fg)` or `color-mix(...)`.
   const resolvedValues = new Map<string, string>()
+  let mayResolve = false
   let text = transformSvgCssValues(svg, css => {
     const prior = resolvedValues.get(css)
     if (prior !== undefined) return prior
     const resolved = resolveCss(css, vars, 10)
     resolvedValues.set(css, resolved)
+    if (!mayResolve) {
+      mayResolve = resolved.includes('color-mix(')
+      // Inspect every var(), including one inside a skipped --f_var( name.
+      if (!mayResolve) {
+        for (const match of resolved.matchAll(/var\((?=\s*--([\w-]+))/g)) {
+          if (!SKIP_VARS.has(match[1]!)) { mayResolve = true; break }
+        }
+      }
+      // A direct caller's substitution can expose new CSS outside this
+      // context. Keep phase two when markup or attribute quoting can change.
+      if (!mayResolve && resolved !== css) {
+        mayResolve = css.includes('<') || resolved.includes('<')
+          || resolved.includes('"') && !css.includes('"')
+          || resolved.includes("'") && !css.includes("'")
+      }
+    }
     return resolved
   }, projection)
 
-  // Phase 2 rewrites only var() references it may resolve and color-mix()
-  // calls. When neither occurs anywhere in the document it would return the
-  // text unchanged, so skip its rescan of every tag. The lookahead examines
-  // every `var(`, including one inside a skipped name such as `--f_var(`.
-  let mayResolve = text.includes('color-mix(')
-  if (!mayResolve) {
-    for (const match of text.matchAll(/var\((?=\s*--([\w-]+))/g)) {
-      if (!SKIP_VARS.has(match[1]!)) { mayResolve = true; break }
-    }
-  }
+  // Do not rescan solely for CSS-looking authored text or data attributes.
   if (!mayResolve) return text
 
   // Phase 2: Extract CSS variable definitions from <style> blocks and resolve
