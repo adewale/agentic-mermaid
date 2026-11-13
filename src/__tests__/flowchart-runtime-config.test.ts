@@ -23,6 +23,9 @@ import { renderMermaidSVG, renderMermaidASCII } from '../index.ts'
 import { resolveLabelContent, preparedDisplayTextValue } from '../shared/display-text.ts'
 import { resolveRenderRequest } from '../render-contract.ts'
 import { verifyMermaid } from '../agent/index.ts'
+import { renderConfigWarningsForMermaid } from '../agent/verify.ts'
+import { getFamily } from '../agent/families.ts'
+import { replaceFamilyForTest } from '../agent/family-registry.ts'
 import {
   applyFlowchartLabelWrapping,
   resolveFlowchartRenderOptions,
@@ -50,6 +53,28 @@ describe('flowchart INEFFECTIVE_CONFIG lint (fix stage, P4)', () => {
     const warnings = verifyMermaid(source).warnings.filter(w => w.code === 'INEFFECTIVE_CONFIG')
     const fields = warnings.map(w => (w as { field?: string }).field).sort()
     expect(fields).toEqual(['flowchart.curve', 'flowchart.htmlLabels', 'flowchart.padding'])
+  })
+
+  it('remembers render config warnings per source, explicit config and family registry', () => {
+    const source = `%%{init: {"flowchart": {"curve": "basis"}}}%%\n${AB}`
+    const fields = (warnings: readonly unknown[]) => warnings.map(w => (w as { field?: string }).field).sort()
+    const first = renderConfigWarningsForMermaid(source)
+    expect(fields(first)).toEqual(['flowchart.curve'])
+    first.length = 0
+    const remembered = renderConfigWarningsForMermaid(source)
+    expect(fields(remembered)).toEqual(['flowchart.curve'])
+    remembered.length = 0
+    expect(fields(renderConfigWarningsForMermaid(source))).toEqual(['flowchart.curve'])
+    expect(fields(renderConfigWarningsForMermaid(AB))).toEqual([])
+    expect(fields(renderConfigWarningsForMermaid(AB, { mermaidConfig: { flowchart: { padding: 25 } } }))).toEqual(['flowchart.padding'])
+    const original = getFamily('flowchart')!
+    const restore = replaceFamilyForTest('flowchart', { ...original, configDiagnostics: () => [] })
+    try {
+      expect(renderConfigWarningsForMermaid(source)).toEqual([])
+    } finally {
+      restore()
+    }
+    expect(fields(renderConfigWarningsForMermaid(source))).toEqual(['flowchart.curve'])
   })
 
   it('also lints init-directive flowchart config', () => {

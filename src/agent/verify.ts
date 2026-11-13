@@ -47,7 +47,8 @@ import { ganttUnsupportedSyntaxWarnings } from './gantt-body.ts'
 import { journeyUnsupportedSyntaxWarnings } from './journey-body.ts'
 import { erUnsupportedSyntaxWarnings } from './er-body.ts'
 import { builtinFamilyMetadata, extractLabelsGeneric, getFamily } from './families.ts'
-import { detectsFlowchartFamily } from './family-router.ts'
+import { detectsFlowchartFamily, familyRoutingRevision } from './family-router.ts'
+import { WeightedLru } from '../experimental/weighted-lru.ts'
 import { FamilyLayoutError, ganttGeometryWarnings, ganttScheduleWarning, layoutGeometryWarnings, type ProjectedFamilyArtifact, positionFamilyArtifact, positionResolvedFamilyArtifact } from './family-layouts.ts'
 import { flowchartUnsupportedSyntaxWarnings, flowchartUpstreamRejectedSyntaxWarnings } from './flowchart-unsupported.ts'
 import { mermaidCleanupWarnings } from './cleanup-warnings.ts'
@@ -747,6 +748,19 @@ export function configWarningsForDiagram(d: ParsedDiagram): LayoutWarning[] {
  * passed is never named only on a console. Never lays out or renders.
  */
 export function renderConfigWarningsForMermaid(source: string, options: Pick<RenderOptions, 'mermaidConfig'> = {}): LayoutWarning[] {
+  // A pure function of the text, the explicit config and the family registry:
+  // repeated renders of one source reuse it instead of parsing the diagram again.
+  const config = options.mermaidConfig === undefined ? '' : JSON.stringify(options.mermaidConfig)
+  const key = `${familyRoutingRevision()}\u0000${config}\u0000${source}`
+  const remembered = RENDER_CONFIG_WARNINGS.get(key)
+  if (remembered) return structuredClone(remembered)
+  const warnings = computeRenderConfigWarnings(source, options)
+  RENDER_CONFIG_WARNINGS.set(key, structuredClone(warnings), key.length * 2 + JSON.stringify(warnings).length * 2 + 256)
+  return warnings
+}
+const RENDER_CONFIG_WARNINGS = new WeightedLru<string, LayoutWarning[]>(64, 4 * 1024 * 1024)
+
+function computeRenderConfigWarnings(source: string, options: Pick<RenderOptions, 'mermaidConfig'>): LayoutWarning[] {
   const parsed = parseRegisteredMermaid(source)
   if (!parsed.ok) return []
   const fromSource = configWarningsForDiagram(parsed.value)
