@@ -1,13 +1,15 @@
 import { describe, expect, test } from 'bun:test'
+import fc from 'fast-check'
 import { checkQuality, measureQuality } from '../agent/quality.ts'
 import { positionedToRenderedLayout } from '../agent/layout-to-rendered.ts'
 import { toFinite } from '../agent/types.ts'
 import { assessLayout, countEdgeCrossings, measureRubricMetrics } from '../layout-rubric.ts'
 import { parseMermaid } from '../parser.ts'
-import { countPolylineCrossings } from '../shared/edge-crossings.ts'
+import { countIndexedPolylineCrossings, countPolylineCrossings, crossingPoint, distinctCrossingLocations, retainCrossingLocation, type CrossingPolyline } from '../shared/edge-crossings.ts'
 import { resolveRenderStyle } from '../styles.ts'
 import { layoutGraphSync } from '../layout-engine.ts'
 import type { Point, PositionedEdge, PositionedGraph } from '../types.ts'
+import { fcParameters } from './helpers/fc-parameters.ts'
 
 function edge(points: Array<[number, number]>, source = 'A', target = 'B', style: PositionedEdge['style'] = 'solid'): PositionedEdge {
   return { source, target, style, hasArrowStart: false, hasArrowEnd: true, points: points.map(([x, y]) => ({ x, y })) }
@@ -220,5 +222,103 @@ describe('shared visible proper-crossing metric', () => {
     expect(metrics.totalBends).toBe(1)
     expect(metrics.maxBendsPerEdge).toBe(1)
     expect(measureRubricMetrics(graph, positioned, ['bends'], resolveRenderStyle({})).bends).toBe(metrics.totalBends)
+  })
+})
+
+/** Every pair of segments with overlapping closed boxes, in the metric's
+ * canonical segment order: the definition the indexed evaluation must equal. */
+function allPairsCrossings(routes: readonly CrossingPolyline[], involved?: ReadonlySet<number>): number {
+  const segments = routes.flatMap((route, edgeIndex) => route.visible === false ? [] : route.points.slice(1).flatMap((b, offset) => {
+    const a = route.points[offset]!
+    return a.x === b.x && a.y === b.y ? [] : [{ a, b, edgeIndex, pointIndex: offset, minX: Math.min(a.x, b.x), maxX: Math.max(a.x, b.x), minY: Math.min(a.y, b.y), maxY: Math.max(a.y, b.y) }]
+  }))
+  segments.sort((p, q) => p.minX - q.minX || p.minY - q.minY || p.edgeIndex - q.edgeIndex || p.pointIndex - q.pointIndex)
+  const locations = new Map<string, NonNullable<ReturnType<typeof crossingPoint>>[]>()
+  for (let later = 0; later < segments.length; later++) {
+    for (let earlier = 0; earlier < later; earlier++) {
+      const s = segments[later]!, t = segments[earlier]!
+      if (s.edgeIndex === t.edgeIndex || t.maxX < s.minX || t.maxY < s.minY || t.minY > s.maxY) continue
+      if (involved && !involved.has(s.edgeIndex) && !involved.has(t.edgeIndex)) continue
+      const point = crossingPoint(s, t, routes)
+      if (!point) continue
+      const key = `${Math.min(s.edgeIndex, t.edgeIndex)}:${Math.max(s.edgeIndex, t.edgeIndex)}`
+      const points = locations.get(key)
+      if (points) retainCrossingLocation(points, point)
+      else locations.set(key, [point])
+    }
+  }
+  let crossings = 0
+  for (const points of locations.values()) crossings += distinctCrossingLocations(points)
+  return crossings
+}
+
+const polylineOf = (points: Array<[number, number]>): CrossingPolyline => ({ points: points.map(([x, y]) => ({ x, y })) })
+
+describe('indexed crossing evaluation', () => {
+  // A coarse lattice makes collinear overlaps, shared bends, T-contacts and
+  // duplicate points common; offsets straddle the 0.01 endpoint radius and the
+  // indexed counter's 0.05 margin. Diagonal and retracing steps take the
+  // pairwise path beside clean orthogonal routes in the same input.
+  const offset = fc.constantFrom(0, 0, 0, 0.005, -0.005, 0.02, 0.0499, 0.05, 0.0501, -0.06, 1e-9, 0.5)
+  const step = fc.record({
+    axis: fc.constantFrom('x', 'y', 'x', 'y', 'diagonal'),
+    delta: fc.integer({ min: -3, max: 3 }),
+    jitter: offset,
+  })
+  const polyline = fc.record({
+    start: fc.tuple(fc.integer({ min: 0, max: 5 }), fc.integer({ min: 0, max: 5 }), offset, offset),
+    steps: fc.array(step, { maxLength: 7, size: 'max' }),
+    visible: fc.constantFrom(true, true, true, false),
+  }).map(({ start: [x0, y0, dx, dy], steps, visible }): CrossingPolyline => {
+    let x = x0 * 10 + dx, y = y0 * 10 + dy
+    const points = [{ x, y }]
+    for (const { axis, delta, jitter } of steps) {
+      // Axis steps stay exactly axis-aligned; their length is off-lattice.
+      if (axis !== 'y') x += delta * 10 + jitter
+      if (axis !== 'x') y += delta * 10 + (axis === 'y' ? jitter : 0)
+      points.push({ x, y })
+    }
+    return { points, ...(visible ? {} : { visible: false }) }
+  })
+  const scene = fc.record({
+    routes: fc.array(polyline, { minLength: 2, maxLength: 36, size: 'max' }),
+    involved: fc.option(fc.uniqueArray(fc.integer({ min: 0, max: 35 }), { maxLength: 4 }), { nil: undefined }),
+    scale: fc.constantFrom(1, 1, 1, 0.001, 1e6),
+  })
+
+  type SceneValue = typeof scene extends fc.Arbitrary<infer T> ? T : never
+
+  test('equals the all-pairs evaluation for every route set', () => {
+    fc.assert(fc.property(scene, ({ routes, involved, scale }) => {
+      const scaled = scale === 1 ? routes : routes.map(route => ({ ...route, points: route.points.map(p => ({ x: p.x * scale, y: p.y * scale })) }))
+      const set = involved && new Set(involved)
+      const expected = allPairsCrossings(scaled, set)
+      expect(countIndexedPolylineCrossings(scaled, set)).toBe(expected)
+      expect(countPolylineCrossings(scaled, set)).toBe(expected)
+    }), fcParameters<[SceneValue]>({ numRuns: 300, examples: [
+      // Reduced counterexamples from incorrect indexed variants: a crossing
+      // inside the margin at a horizontal's far end; a route endpoint inside
+      // the 0.01 contact radius; a retraced horizontal; and a route whose
+      // non-adjacent segments come within the margin of each other.
+      [{ routes: [polylineOf([[0, 10.0499], [0, 0.0499]]), polylineOf([[0, 0]]), polylineOf([[0.5, 10], [-9.5, 10]])], involved: undefined, scale: 1 }],
+      [{ routes: [polylineOf([[0, 19.995], [0, 29.995]]), polylineOf([[0.05, 20], [-9.95, 20]]), polylineOf([[0, 0]]), polylineOf([[0, 0]])], involved: undefined, scale: 1 }],
+      [{ routes: [polylineOf([[0, 0], [0, 20]]), polylineOf([[0, 0]]), polylineOf([[0, 10], [-10, 10], [0.5, 10]])], involved: undefined, scale: 1 }],
+      [{ routes: [polylineOf([[0, 0], [0, 20], [-10, 20], [-10, 10], [0.0501, 10]]), polylineOf([[0, 0]]), polylineOf([[0, 0]])], involved: undefined, scale: 1 }],
+    ] }))
+  })
+
+  test('a dense orthogonal channel counts every crossing without visiting each pair', () => {
+    // n sources fan to n targets through one channel: n² (n-1)² / 4 proper crossings.
+    const n = 24, routes: CrossingPolyline[] = []
+    for (let s = 0; s < n; s++) for (let t = 0; t < n; t++) {
+      const y = 100 + (s * n + t) * 2
+      routes.push({ points: [{ x: s * 40, y: 0 }, { x: s * 40, y }, { x: t * 40 + 7, y }, { x: t * 40 + 7, y: 2000 }] })
+    }
+    expect(countPolylineCrossings(routes)).toBe(allPairsCrossings(routes))
+  })
+
+  test('non-finite and very large coordinates stay with the reference evaluation', () => {
+    expect(countIndexedPolylineCrossings([{ points: [{ x: 0, y: 0 }, { x: Number.NaN, y: 1 }] }, { points: [{ x: 0, y: 1 }, { x: 1, y: 0 }] }])).toBeUndefined()
+    expect(countIndexedPolylineCrossings([{ points: [{ x: 0, y: 0 }, { x: 1e13, y: 0 }] }, { points: [{ x: 5, y: -1 }, { x: 5, y: 1 }] }])).toBeUndefined()
   })
 })
