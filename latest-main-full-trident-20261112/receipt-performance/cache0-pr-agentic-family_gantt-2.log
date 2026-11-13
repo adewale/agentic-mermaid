@@ -1,0 +1,8 @@
+{"case":"family:gantt","backend":"agentic","phase":"repeat1","status":"returned","wallMs":9.301583999999991,"cpuMs":14.703}
+{"case":"family:gantt","backend":"agentic","phase":"repeat2","status":"returned","wallMs":8.300517000000013,"cpuMs":14.4}
+{"case":"family:gantt","backend":"agentic","phase":"repeat3","status":"returned","wallMs":8.230890999999986,"cpuMs":13.209}
+{"case":"family:gantt","backend":"agentic","phase":"repeat4","status":"returned","wallMs":8.271341999999947,"cpuMs":17.192}
+{"case":"family:gantt","backend":"agentic","phase":"edit1","status":"returned","wallMs":6.162918999999988,"cpuMs":9.44}
+{"case":"family:gantt","backend":"agentic","phase":"edit2","status":"returned","wallMs":5.70809399999996,"cpuMs":8.713}
+{"case":"family:gantt","backend":"agentic","phase":"edit3","status":"returned","wallMs":5.707611999999983,"cpuMs":9.544}
+{"case":"family:gantt","backend":"agentic","phase":"edit4","status":"returned","wallMs":6.6676989999999705,"cpuMs":12.829}

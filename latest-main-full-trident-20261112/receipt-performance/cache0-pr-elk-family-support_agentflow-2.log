@@ -1,0 +1,8 @@
+{"case":"family-support:agentflow","backend":"elk","phase":"repeat1","status":"returned","wallMs":35.13294300000007,"cpuMs":51.592}
+{"case":"family-support:agentflow","backend":"elk","phase":"repeat2","status":"returned","wallMs":30.5733580000001,"cpuMs":48.614}
+{"case":"family-support:agentflow","backend":"elk","phase":"repeat3","status":"returned","wallMs":23.178224999999998,"cpuMs":36.016}
+{"case":"family-support:agentflow","backend":"elk","phase":"repeat4","status":"returned","wallMs":27.437999000000104,"cpuMs":44.671}
+{"case":"family-support:agentflow","backend":"elk","phase":"edit1","status":"returned","wallMs":21.031423000000018,"cpuMs":33.343}
+{"case":"family-support:agentflow","backend":"elk","phase":"edit2","status":"returned","wallMs":21.620610000000056,"cpuMs":34.901}
+{"case":"family-support:agentflow","backend":"elk","phase":"edit3","status":"returned","wallMs":19.62367400000005,"cpuMs":31.296}
+{"case":"family-support:agentflow","backend":"elk","phase":"edit4","status":"returned","wallMs":20.309305999999992,"cpuMs":36.16}

@@ -1,0 +1,8 @@
+{"case":"family:architecture","backend":"elk","phase":"repeat1","status":"returned","wallMs":26.572654999999997,"cpuMs":42.041}
+{"case":"family:architecture","backend":"elk","phase":"repeat2","status":"returned","wallMs":24.890533000000005,"cpuMs":41.189}
+{"case":"family:architecture","backend":"elk","phase":"repeat3","status":"returned","wallMs":22.206683999999996,"cpuMs":36.439}
+{"case":"family:architecture","backend":"elk","phase":"repeat4","status":"returned","wallMs":22.554506999999944,"cpuMs":36.051}
+{"case":"family:architecture","backend":"elk","phase":"edit1","status":"returned","wallMs":20.98948000000007,"cpuMs":29.93}
+{"case":"family:architecture","backend":"elk","phase":"edit2","status":"returned","wallMs":21.554710999999998,"cpuMs":30.806}
+{"case":"family:architecture","backend":"elk","phase":"edit3","status":"returned","wallMs":19.504705000000058,"cpuMs":28.032}
+{"case":"family:architecture","backend":"elk","phase":"edit4","status":"returned","wallMs":27.36159299999997,"cpuMs":45.074}

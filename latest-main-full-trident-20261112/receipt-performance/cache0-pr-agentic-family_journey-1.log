@@ -1,0 +1,8 @@
+{"case":"family:journey","backend":"agentic","phase":"repeat1","status":"returned","wallMs":16.14026899999999,"cpuMs":26.88}
+{"case":"family:journey","backend":"agentic","phase":"repeat2","status":"returned","wallMs":12.95511399999998,"cpuMs":22.497}
+{"case":"family:journey","backend":"agentic","phase":"repeat3","status":"returned","wallMs":11.759755000000041,"cpuMs":17.815}
+{"case":"family:journey","backend":"agentic","phase":"repeat4","status":"returned","wallMs":10.962994999999978,"cpuMs":16.19}
+{"case":"family:journey","backend":"agentic","phase":"edit1","status":"returned","wallMs":9.819683999999995,"cpuMs":15.428}
+{"case":"family:journey","backend":"agentic","phase":"edit2","status":"returned","wallMs":12.114118000000019,"cpuMs":16.877}
+{"case":"family:journey","backend":"agentic","phase":"edit3","status":"returned","wallMs":10.373876999999993,"cpuMs":14.23}
+{"case":"family:journey","backend":"agentic","phase":"edit4","status":"returned","wallMs":11.075774999999965,"cpuMs":19.358}

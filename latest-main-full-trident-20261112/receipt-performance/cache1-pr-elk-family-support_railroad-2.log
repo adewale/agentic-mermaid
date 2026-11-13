@@ -1,0 +1,8 @@
+{"case":"family-support:railroad","backend":"elk","phase":"repeat1","status":"returned","wallMs":10.288598999999977,"cpuMs":15.648}
+{"case":"family-support:railroad","backend":"elk","phase":"repeat2","status":"returned","wallMs":2.7087679999999636,"cpuMs":6.201}
+{"case":"family-support:railroad","backend":"elk","phase":"repeat3","status":"returned","wallMs":1.7731489999999894,"cpuMs":4.129}
+{"case":"family-support:railroad","backend":"elk","phase":"repeat4","status":"returned","wallMs":2.491459999999961,"cpuMs":5.465}
+{"case":"family-support:railroad","backend":"elk","phase":"edit1","status":"returned","wallMs":7.943728000000021,"cpuMs":13.121}
+{"case":"family-support:railroad","backend":"elk","phase":"edit2","status":"returned","wallMs":5.740531999999973,"cpuMs":12.666}
+{"case":"family-support:railroad","backend":"elk","phase":"edit3","status":"returned","wallMs":1.7480209999999943,"cpuMs":4.251}
+{"case":"family-support:railroad","backend":"elk","phase":"edit4","status":"returned","wallMs":1.9134500000000116,"cpuMs":5.622}

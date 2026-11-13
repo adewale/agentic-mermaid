@@ -1,0 +1,8 @@
+{"case":"family:kanban","backend":"elk","phase":"repeat1","status":"returned","wallMs":8.306953999999962,"cpuMs":12.72}
+{"case":"family:kanban","backend":"elk","phase":"repeat2","status":"returned","wallMs":2.7864039999999477,"cpuMs":5.868}
+{"case":"family:kanban","backend":"elk","phase":"repeat3","status":"returned","wallMs":2.0344220000000064,"cpuMs":4.19}
+{"case":"family:kanban","backend":"elk","phase":"repeat4","status":"returned","wallMs":2.3999129999999695,"cpuMs":5.792}
+{"case":"family:kanban","backend":"elk","phase":"edit1","status":"returned","wallMs":8.322798999999975,"cpuMs":14.633}
+{"case":"family:kanban","backend":"elk","phase":"edit2","status":"returned","wallMs":6.313974999999971,"cpuMs":11.59}
+{"case":"family:kanban","backend":"elk","phase":"edit3","status":"returned","wallMs":1.7543699999999944,"cpuMs":4.221}
+{"case":"family:kanban","backend":"elk","phase":"edit4","status":"returned","wallMs":2.36469900000003,"cpuMs":6.194}

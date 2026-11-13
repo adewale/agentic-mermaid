@@ -1,0 +1,8 @@
+{"case":"family:sequence","backend":"elk","phase":"repeat1","status":"returned","wallMs":14.400469999999984,"cpuMs":28.084}
+{"case":"family:sequence","backend":"elk","phase":"repeat2","status":"returned","wallMs":12.212495999999987,"cpuMs":20.915}
+{"case":"family:sequence","backend":"elk","phase":"repeat3","status":"returned","wallMs":11.108041999999955,"cpuMs":22.397}
+{"case":"family:sequence","backend":"elk","phase":"repeat4","status":"returned","wallMs":14.317514000000017,"cpuMs":22.229}
+{"case":"family:sequence","backend":"elk","phase":"edit1","status":"returned","wallMs":12.069038999999975,"cpuMs":18.183}
+{"case":"family:sequence","backend":"elk","phase":"edit2","status":"returned","wallMs":9.796226999999988,"cpuMs":15.211}
+{"case":"family:sequence","backend":"elk","phase":"edit3","status":"returned","wallMs":10.277002000000039,"cpuMs":16.14}
+{"case":"family:sequence","backend":"elk","phase":"edit4","status":"returned","wallMs":9.413651000000016,"cpuMs":16.724}

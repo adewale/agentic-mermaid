@@ -1,0 +1,26 @@
+{
+  "crossLayoutCacheSvg": {
+    "True": 118,
+    "unavailable": 6
+  },
+  "publicSvgVersusReceiptSvg": {
+    "True": 118,
+    "unavailable": 6
+  },
+  "repeatSvgExactWarmup": {
+    "True": 1728
+  },
+  "repeatReceiptExactWarmup": {
+    "True": 1728
+  },
+  "editedSvgChanged": {
+    "True": 1728
+  },
+  "fullProductOutcomes": {
+    "returned": 3888
+  },
+  "fullProductProofStatuses": {
+    "passed": 3564,
+    "unverified": 324
+  }
+}

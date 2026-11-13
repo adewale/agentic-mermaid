@@ -1,0 +1,8 @@
+{"case":"family:ishikawa","backend":"agentic","phase":"repeat1","status":"returned","wallMs":11.596618999999976,"cpuMs":20.284}
+{"case":"family:ishikawa","backend":"agentic","phase":"repeat2","status":"returned","wallMs":10.179025000000024,"cpuMs":18.138}
+{"case":"family:ishikawa","backend":"agentic","phase":"repeat3","status":"returned","wallMs":8.598085000000026,"cpuMs":14.651}
+{"case":"family:ishikawa","backend":"agentic","phase":"repeat4","status":"returned","wallMs":8.95821699999999,"cpuMs":17.392}
+{"case":"family:ishikawa","backend":"agentic","phase":"edit1","status":"returned","wallMs":8.953448999999978,"cpuMs":13.248}
+{"case":"family:ishikawa","backend":"agentic","phase":"edit2","status":"returned","wallMs":7.3827249999999935,"cpuMs":10.847}
+{"case":"family:ishikawa","backend":"agentic","phase":"edit3","status":"returned","wallMs":7.269273999999996,"cpuMs":12.985}
+{"case":"family:ishikawa","backend":"agentic","phase":"edit4","status":"returned","wallMs":7.362976000000003,"cpuMs":13.305}

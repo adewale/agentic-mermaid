@@ -1,0 +1,8 @@
+{"case":"family-support:wardley","backend":"agentic","phase":"repeat1","status":"returned","wallMs":9.881334999999979,"cpuMs":17.109}
+{"case":"family-support:wardley","backend":"agentic","phase":"repeat2","status":"returned","wallMs":2.774947999999995,"cpuMs":5.427}
+{"case":"family-support:wardley","backend":"agentic","phase":"repeat3","status":"returned","wallMs":2.589337999999998,"cpuMs":6.323}
+{"case":"family-support:wardley","backend":"agentic","phase":"repeat4","status":"returned","wallMs":2.2114090000000033,"cpuMs":6.206}
+{"case":"family-support:wardley","backend":"agentic","phase":"edit1","status":"returned","wallMs":9.625118999999984,"cpuMs":14.785}
+{"case":"family-support:wardley","backend":"agentic","phase":"edit2","status":"returned","wallMs":7.144925999999998,"cpuMs":12.52}
+{"case":"family-support:wardley","backend":"agentic","phase":"edit3","status":"returned","wallMs":1.7050570000000107,"cpuMs":4.336}
+{"case":"family-support:wardley","backend":"agentic","phase":"edit4","status":"returned","wallMs":1.871938,"cpuMs":5.276}

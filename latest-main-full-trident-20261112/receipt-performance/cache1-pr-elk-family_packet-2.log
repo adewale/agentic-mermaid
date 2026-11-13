@@ -1,0 +1,8 @@
+{"case":"family:packet","backend":"elk","phase":"repeat1","status":"returned","wallMs":7.639038999999968,"cpuMs":11.93}
+{"case":"family:packet","backend":"elk","phase":"repeat2","status":"returned","wallMs":2.6898390000000063,"cpuMs":6.06}
+{"case":"family:packet","backend":"elk","phase":"repeat3","status":"returned","wallMs":2.002244000000019,"cpuMs":4.608}
+{"case":"family:packet","backend":"elk","phase":"repeat4","status":"returned","wallMs":2.38302699999997,"cpuMs":5.453}
+{"case":"family:packet","backend":"elk","phase":"edit1","status":"returned","wallMs":7.904568999999981,"cpuMs":14.232}
+{"case":"family:packet","backend":"elk","phase":"edit2","status":"returned","wallMs":5.011875000000032,"cpuMs":9.081}
+{"case":"family:packet","backend":"elk","phase":"edit3","status":"returned","wallMs":1.8341110000000072,"cpuMs":4.231}
+{"case":"family:packet","backend":"elk","phase":"edit4","status":"returned","wallMs":2.5173790000000054,"cpuMs":6.695}

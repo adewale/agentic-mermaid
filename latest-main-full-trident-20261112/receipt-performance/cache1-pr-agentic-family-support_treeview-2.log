@@ -1,0 +1,8 @@
+{"case":"family-support:treeview","backend":"agentic","phase":"repeat1","status":"returned","wallMs":6.245861999999988,"cpuMs":9.726}
+{"case":"family-support:treeview","backend":"agentic","phase":"repeat2","status":"returned","wallMs":2.200733000000014,"cpuMs":5.239}
+{"case":"family-support:treeview","backend":"agentic","phase":"repeat3","status":"returned","wallMs":1.7962640000000079,"cpuMs":4.92}
+{"case":"family-support:treeview","backend":"agentic","phase":"repeat4","status":"returned","wallMs":1.9941919999999982,"cpuMs":7.02}
+{"case":"family-support:treeview","backend":"agentic","phase":"edit1","status":"returned","wallMs":7.901454000000001,"cpuMs":13.647}
+{"case":"family-support:treeview","backend":"agentic","phase":"edit2","status":"returned","wallMs":4.871914000000004,"cpuMs":10.657}
+{"case":"family-support:treeview","backend":"agentic","phase":"edit3","status":"returned","wallMs":1.539968999999985,"cpuMs":3.965}
+{"case":"family-support:treeview","backend":"agentic","phase":"edit4","status":"returned","wallMs":1.649944000000005,"cpuMs":4.996}

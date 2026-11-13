@@ -1,0 +1,92 @@
+[
+  {
+    "id": "diagnostic:chain100",
+    "backend": "agentic",
+    "stockMs": 78.0303150000982,
+    "fullMs": 109.55089599999997,
+    "coldFullMs": 274.088887,
+    "firstEditMs": 122.85899799999993,
+    "fullCpuMs": 182.7965,
+    "stockProcessRssMiB": 127.9375,
+    "fullRepeatHighWaterRssMiB": 130.5546875,
+    "fullAfterHeapMiB": 30.005550384521484,
+    "proof": {
+      "passed": 12
+    }
+  },
+  {
+    "id": "diagnostic:chain100",
+    "backend": "elk",
+    "stockMs": 144.7099800000433,
+    "fullMs": 202.44346399999995,
+    "coldFullMs": 650.218431,
+    "firstEditMs": 228.51188300000013,
+    "fullCpuMs": 341.26649999999995,
+    "stockProcessRssMiB": 180.0625,
+    "fullRepeatHighWaterRssMiB": 187.390625,
+    "fullAfterHeapMiB": 55.85054016113281,
+    "proof": {
+      "passed": 12
+    }
+  },
+  {
+    "id": "diagnostic:fanin100",
+    "backend": "agentic",
+    "stockMs": 109.27994499984197,
+    "fullMs": 167.08756499999998,
+    "coldFullMs": 342.948149,
+    "firstEditMs": 150.880492,
+    "fullCpuMs": 259.55,
+    "stockProcessRssMiB": 127.05859375,
+    "fullRepeatHighWaterRssMiB": 142.8125,
+    "fullAfterHeapMiB": 33.3273811340332,
+    "proof": {
+      "passed": 12
+    }
+  },
+  {
+    "id": "diagnostic:fanin100",
+    "backend": "elk",
+    "stockMs": 258.4204059999902,
+    "fullMs": 399.976783,
+    "coldFullMs": 734.269147,
+    "firstEditMs": 350.6864350000001,
+    "fullCpuMs": 659.8165,
+    "stockProcessRssMiB": 189.33984375,
+    "fullRepeatHighWaterRssMiB": 230.90625,
+    "fullAfterHeapMiB": 60.5111198425293,
+    "proof": {
+      "passed": 12
+    }
+  },
+  {
+    "id": "diagnostic:chain300",
+    "backend": "agentic",
+    "stockMs": 224.9561419999227,
+    "fullMs": 307.31538,
+    "coldFullMs": 490.95903899999996,
+    "firstEditMs": 295.1288840000002,
+    "fullCpuMs": 498.744,
+    "stockProcessRssMiB": 171.203125,
+    "fullRepeatHighWaterRssMiB": 176.8515625,
+    "fullAfterHeapMiB": 48.43086242675781,
+    "proof": {
+      "unverified": 12
+    }
+  },
+  {
+    "id": "diagnostic:chain300",
+    "backend": "elk",
+    "stockMs": 315.96108100004494,
+    "fullMs": 492.3860484999998,
+    "coldFullMs": 931.047446,
+    "firstEditMs": 519.5180690000002,
+    "fullCpuMs": 872.76,
+    "stockProcessRssMiB": 288.17578125,
+    "fullRepeatHighWaterRssMiB": 286.20703125,
+    "fullAfterHeapMiB": 108.3011589050293,
+    "proof": {
+      "unverified": 12
+    }
+  }
+]

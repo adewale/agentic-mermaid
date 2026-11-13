@@ -1,0 +1,8 @@
+{"case":"family:block","backend":"elk","phase":"repeat1","status":"returned","wallMs":11.065800000000024,"cpuMs":16.831}
+{"case":"family:block","backend":"elk","phase":"repeat2","status":"returned","wallMs":9.58207600000003,"cpuMs":15.205}
+{"case":"family:block","backend":"elk","phase":"repeat3","status":"returned","wallMs":9.381403999999975,"cpuMs":18.448}
+{"case":"family:block","backend":"elk","phase":"repeat4","status":"returned","wallMs":9.108834000000002,"cpuMs":16.674}
+{"case":"family:block","backend":"elk","phase":"edit1","status":"returned","wallMs":7.413631000000009,"cpuMs":10.603}
+{"case":"family:block","backend":"elk","phase":"edit2","status":"returned","wallMs":7.261653000000024,"cpuMs":11.479}
+{"case":"family:block","backend":"elk","phase":"edit3","status":"returned","wallMs":7.3898150000000555,"cpuMs":15.14}
+{"case":"family:block","backend":"elk","phase":"edit4","status":"returned","wallMs":8.184061999999983,"cpuMs":14.821}

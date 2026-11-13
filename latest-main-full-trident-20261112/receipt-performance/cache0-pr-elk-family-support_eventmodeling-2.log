@@ -1,0 +1,8 @@
+{"case":"family-support:eventmodeling","backend":"elk","phase":"repeat1","status":"returned","wallMs":12.550194999999974,"cpuMs":20.919}
+{"case":"family-support:eventmodeling","backend":"elk","phase":"repeat2","status":"returned","wallMs":10.76612799999998,"cpuMs":18.15}
+{"case":"family-support:eventmodeling","backend":"elk","phase":"repeat3","status":"returned","wallMs":10.13466900000003,"cpuMs":17.689}
+{"case":"family-support:eventmodeling","backend":"elk","phase":"repeat4","status":"returned","wallMs":9.060581000000013,"cpuMs":15.701}
+{"case":"family-support:eventmodeling","backend":"elk","phase":"edit1","status":"returned","wallMs":8.41398700000002,"cpuMs":13.461}
+{"case":"family-support:eventmodeling","backend":"elk","phase":"edit2","status":"returned","wallMs":7.234351000000004,"cpuMs":10.787}
+{"case":"family-support:eventmodeling","backend":"elk","phase":"edit3","status":"returned","wallMs":7.89949299999995,"cpuMs":11.407}
+{"case":"family-support:eventmodeling","backend":"elk","phase":"edit4","status":"returned","wallMs":8.351432999999986,"cpuMs":14.697}

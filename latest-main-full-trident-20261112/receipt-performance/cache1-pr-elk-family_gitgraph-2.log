@@ -1,0 +1,8 @@
+{"case":"family:gitgraph","backend":"elk","phase":"repeat1","status":"returned","wallMs":12.475189999999998,"cpuMs":19.86}
+{"case":"family:gitgraph","backend":"elk","phase":"repeat2","status":"returned","wallMs":2.858622999999966,"cpuMs":5.585}
+{"case":"family:gitgraph","backend":"elk","phase":"repeat3","status":"returned","wallMs":2.9876780000000167,"cpuMs":7.823}
+{"case":"family:gitgraph","backend":"elk","phase":"repeat4","status":"returned","wallMs":3.5003600000000006,"cpuMs":8.092}
+{"case":"family:gitgraph","backend":"elk","phase":"edit1","status":"returned","wallMs":12.853208999999993,"cpuMs":18.785}
+{"case":"family:gitgraph","backend":"elk","phase":"edit2","status":"returned","wallMs":9.407902999999976,"cpuMs":13.565}
+{"case":"family:gitgraph","backend":"elk","phase":"edit3","status":"returned","wallMs":2.16579999999999,"cpuMs":4.997}
+{"case":"family:gitgraph","backend":"elk","phase":"edit4","status":"returned","wallMs":2.539623000000006,"cpuMs":6.477}

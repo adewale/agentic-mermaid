@@ -1,0 +1,8 @@
+{"case":"family:quadrant","backend":"elk","phase":"repeat1","status":"returned","wallMs":8.719487000000015,"cpuMs":10.889}
+{"case":"family:quadrant","backend":"elk","phase":"repeat2","status":"returned","wallMs":7.642726000000039,"cpuMs":14.208}
+{"case":"family:quadrant","backend":"elk","phase":"repeat3","status":"returned","wallMs":9.084566999999993,"cpuMs":12.207}
+{"case":"family:quadrant","backend":"elk","phase":"repeat4","status":"returned","wallMs":9.163025000000005,"cpuMs":14.758}
+{"case":"family:quadrant","backend":"elk","phase":"edit1","status":"returned","wallMs":6.314697000000024,"cpuMs":10.814}
+{"case":"family:quadrant","backend":"elk","phase":"edit2","status":"returned","wallMs":5.0077890000000025,"cpuMs":7.879}
+{"case":"family:quadrant","backend":"elk","phase":"edit3","status":"returned","wallMs":7.854409999999973,"cpuMs":11.224}
+{"case":"family:quadrant","backend":"elk","phase":"edit4","status":"returned","wallMs":4.750652000000002,"cpuMs":7.975}

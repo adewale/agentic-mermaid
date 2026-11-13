@@ -1,0 +1,15 @@
+{
+  "at": "2026-11-13T00:37:14.185570+00:00",
+  "completed": {
+    "completed": 432,
+    "failed": 0,
+    "boundary": "Actual built public receipt API, entire SVG+receipt serialized once and UTF8-counted. First source render/import separate. edit1 is first edited source; edit2-4 are repeats of edited source, never treated as fresh-edit cost. Existing product worker adapted for built entry, one-response serialization, no diagnostic cache-audit render, disabled source observers and no sampling session. Retained receipt evidence encoding outside API clocks. No empty profile files emitted."
+  },
+  "verifiedRows": 432,
+  "noLiveTimingWorkers": true,
+  "memory": {
+    "memory.current": "2561646592",
+    "memory.max": "17179869184",
+    "memory.events": "low 0\nhigh 0\nmax 0\noom 0\noom_kill 0\noom_group_kill 0"
+  }
+}

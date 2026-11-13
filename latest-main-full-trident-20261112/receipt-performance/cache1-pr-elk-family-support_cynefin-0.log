@@ -1,0 +1,8 @@
+{"case":"family-support:cynefin","backend":"elk","phase":"repeat1","status":"returned","wallMs":11.125508000000025,"cpuMs":16.621}
+{"case":"family-support:cynefin","backend":"elk","phase":"repeat2","status":"returned","wallMs":2.900096000000019,"cpuMs":5.812}
+{"case":"family-support:cynefin","backend":"elk","phase":"repeat3","status":"returned","wallMs":2.28244600000005,"cpuMs":5.484}
+{"case":"family-support:cynefin","backend":"elk","phase":"repeat4","status":"returned","wallMs":3.125425000000007,"cpuMs":8.449}
+{"case":"family-support:cynefin","backend":"elk","phase":"edit1","status":"returned","wallMs":12.306855999999982,"cpuMs":18.566}
+{"case":"family-support:cynefin","backend":"elk","phase":"edit2","status":"returned","wallMs":8.044729999999959,"cpuMs":12.33}
+{"case":"family-support:cynefin","backend":"elk","phase":"edit3","status":"returned","wallMs":3.143993000000023,"cpuMs":7.024}
+{"case":"family-support:cynefin","backend":"elk","phase":"edit4","status":"returned","wallMs":2.6223079999999754,"cpuMs":7.207}
