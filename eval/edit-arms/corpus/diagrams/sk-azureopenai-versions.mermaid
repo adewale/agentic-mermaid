@@ -1,0 +1,24 @@
+%%{init: { 'logLevel': 'debug', 'theme': 'base', 'gitGraph': {'showBranches': true, 'showCommitLabel':true,'mainBranchName': 'SemanticKernel'}} }%%
+      gitGraph TB:
+        checkout SemanticKernel
+        commit id:"SK 1.21"
+        branch OpenAI
+        commit id:"OAI 2.0-beta.12"
+        branch AzureOpenAI
+        commit id:"AOAI 2.0-beta.6"
+        checkout SemanticKernel
+        merge OpenAI id:"SK OAI 1.22"
+        merge AzureOpenAI id:"SK AOAI 1.22"
+        checkout OpenAI
+        commit id:"OAI 2.0 GA"
+        checkout AzureOpenAI
+        merge OpenAI id:"AOAI 2.0 GA"
+        checkout SemanticKernel
+        commit id:"Skipped GA's"
+        checkout OpenAI
+        commit id:"OAI 2.1-beta.1"
+        checkout AzureOpenAI
+        commit id:"AOAI 2.1-beta.1"
+        checkout SemanticKernel
+        merge OpenAI id:"SK OAI 1.23"
+        merge AzureOpenAI id:"SK AOAI 1.23"

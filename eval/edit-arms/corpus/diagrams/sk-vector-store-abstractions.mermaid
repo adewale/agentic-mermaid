@@ -1,0 +1,61 @@
+---
+title: SK Collection/Index and record management
+---
+classDiagram
+    note for IVectorRecordStore "Can manage records for any scenario"
+    note for IVectorCollectionCreate "Can create collections and\nindexes"
+    note for IVectorCollectionNonSchema "Can retrieve/delete any collections and\nindexes"
+
+    namespace SKAbstractions{
+        class IVectorCollectionCreate{
+            <<interface>>
+            +CreateCollection
+        }
+
+        class IVectorCollectionNonSchema{
+            <<interface>>
+            +GetCollectionNames
+            +CollectionExists
+            +DeleteCollection
+        }
+
+        class IVectorRecordStore~TModel~{
+            <<interface>>
+            +Upsert(TModel record) string
+            +UpsertBatch(TModel record) string
+            +Get(string key) TModel
+            +GetBatch(string[] keys) TModel[]
+            +Delete(string key)
+            +DeleteBatch(string[] keys)
+        }
+    }
+
+    namespace AzureAIMemory{
+        class AzureAISearchVectorCollectionCreate{
+        }
+
+        class AzureAISearchVectorCollectionNonSchema{
+        }
+
+        class AzureAISearchVectorRecordStore{
+        }
+    }
+
+    namespace RedisMemory{
+        class RedisVectorCollectionCreate{
+        }
+
+        class RedisVectorCollectionNonSchema{
+        }
+
+        class RedisVectorRecordStore{
+        }
+    }
+
+    IVectorCollectionCreate <|-- AzureAISearchVectorCollectionCreate
+    IVectorCollectionNonSchema <|-- AzureAISearchVectorCollectionNonSchema
+    IVectorRecordStore <|-- AzureAISearchVectorRecordStore
+
+    IVectorCollectionCreate <|-- RedisVectorCollectionCreate
+    IVectorCollectionNonSchema <|-- RedisVectorCollectionNonSchema
+    IVectorRecordStore <|-- RedisVectorRecordStore

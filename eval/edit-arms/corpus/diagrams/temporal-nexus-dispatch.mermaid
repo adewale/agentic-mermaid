@@ -1,0 +1,22 @@
+sequenceDiagram
+    Client ->>+ Frontend: POST /nexus/endpoints/{endpoint}/services/{service}/{operation}
+    Frontend ->> Frontend: Lookup endpoint in the registry to resolve to a namespace and task queue
+    Frontend ->> Matching: DispatchNexusTask
+
+    Note over Matching: Block and wait for sync matched response...
+
+    Worker ->>+ Frontend: PollNexusTask
+    Frontend ->> Matching: PollNexusTask
+    Matching -->> Frontend: Task
+    Frontend -->> Worker: Task
+    Worker ->> Frontend: ResponseNexusTaskCompleted (or Failed)
+    Frontend ->> Matching: RespondNexusTaskCompleted
+
+    par Respond to worker completion
+        Matching -->> Frontend: Response
+        Frontend -->>- Worker: Response
+    and Respond to client
+        Note over Matching: Unblock dispatch request
+        Matching -->> Frontend: Response
+        Frontend -->>- Client: Response
+    end

@@ -1,0 +1,41 @@
+graph TB
+    Client[MCP Client]
+
+    subgraph "Ingress / API Gateway"
+        Gateway[Ingress Controller<br/>Route based on URL path]
+    end
+
+    subgraph "Superset Web Deployment"
+        WebApp[Superset App<br/>Gunicorn<br/>Port: 8088]
+        WebHPA[HPA<br/>Auto-scaling]
+    end
+
+    subgraph "MCP Service Deployment"
+        MCPApp[MCP Service<br/>FastMCP Server<br/>Port: 5008]
+        MCPHPA[HPA<br/>2-3 replicas]
+    end
+
+    subgraph "Shared Dependencies"
+        DB[(PostgreSQL)]
+        Redis[(Redis)]
+    end
+
+    Client --> Gateway
+    Gateway -->|/superset/*| WebApp
+    Gateway -->|/mcp/*| MCPApp
+
+    WebHPA -.->|scales| WebApp
+    MCPHPA -.->|scales| MCPApp
+
+    WebApp --> DB
+    WebApp --> Redis
+
+    MCPApp --> DB
+
+    style Gateway fill:#9c27b0
+    style WebApp fill:#42a5f5
+    style MCPApp fill:#C76E00
+    style WebHPA fill:#66bb6a
+    style MCPHPA fill:#66bb6a
+    style DB fill:#4db6ac
+    style Redis fill:#ef5350

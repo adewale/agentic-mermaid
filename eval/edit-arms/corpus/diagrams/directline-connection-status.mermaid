@@ -1,0 +1,14 @@
+stateDiagram-v2
+   [*] --> Uninitialized: Constructor
+   Ended --> [*]
+
+   Uninitialized --> Connecting: Subscribe to activity$
+   Connecting --> Online: Connected
+   Online --> Connecting: Disconnected and will retry
+   Online --> FailedToConnect: Disconnected while retries exhausted
+   Online --> Ended: Call end()
+   Connecting --> FailedToConnect: Retry failed and retries exhausted
+   FailedToConnect --> Ended: Call end()
+   Connecting --> Ended: Call end()
+   Uninitialized --> Ended: Call end()
+   FailedToConnect --> Connecting: Call reconnect()

@@ -1,0 +1,31 @@
+classDiagram
+    direction TB
+    
+    class Scheduler {
+        Schedule Input
+        Payloads
+        Shared State
+        IdleTask()
+    }
+    class Generator {
+        High Water Mark
+        ...
+        GeneratorTask()
+    }
+    class Invoker {
+        High Water Mark
+        Buffered Starts
+        ...
+        ProcessBufferTask()
+        ExecuteTask()
+    }
+    class Backfiller {
+        High Water Mark
+        Backfill Input
+        ...
+        BackfillerTask()
+    }
+    
+    Scheduler --> Generator
+    Scheduler --> Invoker
+    Scheduler ..> "0..*" Backfiller

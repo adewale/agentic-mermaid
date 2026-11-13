@@ -1,0 +1,36 @@
+erDiagram
+          feedbackBoardContainer ||--|{ feedbackBoard : has
+          feedbackBoardContainer ||--|{ feedbackBoardMetadataForm : has
+          feedbackBoard ||--o{ feedbackColumn : has
+          feedbackColumn ||--o{ feedbackColumnItem : contains
+          feedbackColumnItem ||--|| feedbackItem : "has/is"
+          feedbackColumnItem ||--o{ actionItem : "has/is"
+          feedbackColumnItem ||--o{ feedbackGroup : "has/is"
+          feedbackGroup ||--|{ feedbackItem : contains
+          feedbackItem ||..o{ actionItem : References
+          actionItem ||..|| feedbackBoard : references
+          feedbackBoardContainer ||..o{ actionItem : references
+          feedbackBoardContainer {
+              file feedbackBoardContainer
+          }
+          feedbackBoard {
+              file feedbackBoard
+          }
+          feedbackBoardMetadataForm {
+              file feedbackBoardMetadataForm
+          }
+          feedbackColumn {
+              file feedbackColumn
+          }
+          feedbackColumnItem {
+              file feedbackItem
+          }
+          feedbackGroup {
+              file feedbackItemGroup
+          }
+          actionItem {
+              file actionItem
+          }
+          feedbackItem {
+              file feedbackItem
+          }
