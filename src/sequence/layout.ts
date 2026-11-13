@@ -317,11 +317,15 @@ export function layoutSequenceDiagram(diagram: SequenceDiagram, options: RenderO
   const activationStacks = new Map<string, { startY: number; depth: number }[]>()
   const activations: Activation[] = []
   const nestingOffset = 4 // Horizontal offset per nesting level
+  // Events applied where the previous message ends, and events applied at the
+  // next message's row (SequenceActivationEvent.anchor).
   const activationEvents = new Map<number, NonNullable<SequenceDiagram['activationEvents']>>()
+  const nextMessageEvents = new Map<number, NonNullable<SequenceDiagram['activationEvents']>>()
   for (const event of diagram.activationEvents ?? []) {
-    const list = activationEvents.get(event.messageIndex) ?? []
+    const byBoundary = event.anchor === 'next-message' ? nextMessageEvents : activationEvents
+    const list = byBoundary.get(event.messageIndex) ?? []
     list.push(event)
-    activationEvents.set(event.messageIndex, list)
+    byBoundary.set(event.messageIndex, list)
   }
   const activate = (actorId: string, y: number): void => {
     const stack = activationStacks.get(actorId) ?? []
@@ -342,8 +346,8 @@ export function layoutSequenceDiagram(diagram: SequenceDiagram, options: RenderO
       width: activationWidth,
     })
   }
-  const applyActivationEvents = (boundary: number, y: number): void => {
-    for (const event of activationEvents.get(boundary) ?? []) {
+  const applyActivationEvents = (boundary: number, y: number, byBoundary = activationEvents): void => {
+    for (const event of byBoundary.get(boundary) ?? []) {
       if (event.kind === 'activate') activate(event.actorId, y)
       else deactivate(event.actorId, y)
     }
@@ -605,7 +609,11 @@ export function layoutSequenceDiagram(diagram: SequenceDiagram, options: RenderO
     for (const bi of opening) openedBlocks.add(bi)
     contentBottom = Math.max(contentBottom, positionedMsg.bounds.y + positionedMsg.bounds.height,
       ...(createAtIndex.get(msgIdx) ?? []).map(ai => actors[ai]!.bounds.y + actors[ai]!.bounds.height))
-    applyActivationEvents(msgIdx, messageY)
+    // A standalone activate/deactivate applies where the message before it
+    // ends, as the `+`/`-` arrow suffix does; commands ahead of every message
+    // anchor to the first.
+    if (msgIdx === 0) applyActivationEvents(0, messageY)
+    applyActivationEvents(msgIdx, messageY, nextMessageEvents)
 
     const destroyedHere = destroyAtIndex.get(msgIdx)
     if (destroyedHere) for (const id of destroyedHere) destroyYByActor.set(id, messageY)
@@ -614,6 +622,9 @@ export function layoutSequenceDiagram(diagram: SequenceDiagram, options: RenderO
     if (msg.deactivate) deactivate(msg.from, messageY)
 
     const selfLoopAdvance = isSelf ? Math.max(selfMessageHeight, Math.ceil(msgSpec.labelMetrics.height) + 10) : 0
+    // Standalone commands after this message apply below its full extent,
+    // including a self-message loop.
+    applyActivationEvents(msgIdx + 1, messageY + selfLoopAdvance)
     messageY += isSelf ? selfLoopAdvance + messageRowHeight : messageRowHeight
 
     // Clearance below a create row for the bottom portion of the created actor's
@@ -635,7 +646,8 @@ export function layoutSequenceDiagram(diagram: SequenceDiagram, options: RenderO
   completeBlocks()
 
   const activationTailY = Math.max(messages[messages.length - 1]?.y ?? messageY, messageY - messageRowHeight / 2)
-  applyActivationEvents(diagram.messages.length, activationTailY)
+  if (diagram.messages.length === 0) applyActivationEvents(0, activationTailY)
+  applyActivationEvents(diagram.messages.length, activationTailY, nextMessageEvents)
 
   // Close any unclosed activations at the lifeline tail.
   for (const [actorId, stack] of activationStacks) {

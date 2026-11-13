@@ -361,13 +361,24 @@ export function renderSequenceDiagramTerminal(input: SequenceDiagram, config: As
     }
     activationStacks.set(id, stack)
   }
+  // A standalone activate/deactivate applies where the message before it ends
+  // (below a self-message's label), as the `+`/`-` arrow suffix does; commands
+  // ahead of every message anchor to the first.
+  const activationEventsAt = (boundary: number, y: number, nextMessage = false) => {
+    for (const event of diagram.activationEvents ?? []) {
+      if (event.messageIndex === boundary && (event.anchor === 'next-message') === nextMessage) activation(event.actorId, y, event.kind === 'activate')
+    }
+  }
   diagram.messages.forEach((message, index) => {
-    const y = messages[index]!.arrowY
-    for (const event of diagram.activationEvents ?? []) if (event.messageIndex === index) activation(event.actorId, messages[index]!.y, event.kind === 'activate')
+    const positioned = messages[index]!, y = positioned.arrowY
+    if (index === 0) activationEventsAt(0, y)
+    activationEventsAt(index, positioned.y, true)
     if (message.activate) activation(message.to, y, true)
     if (message.deactivate) activation(message.from, y, false)
+    activationEventsAt(index + 1, message.from === message.to ? positioned.y + positioned.height : y)
   })
-  for (const event of diagram.activationEvents ?? []) if (event.messageIndex >= diagram.messages.length) activation(event.actorId, footerY - 1, event.kind === 'activate')
+  if (diagram.messages.length === 0) activationEventsAt(0, footerY - 1)
+  activationEventsAt(diagram.messages.length, footerY - 1, true)
   for (const [id, stack] of activationStacks) while (stack.length) activation(id, footerY, false)
   diagram.actors.forEach((actor, index) => {
     if (actor.external) return

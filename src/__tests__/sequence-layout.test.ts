@@ -13,7 +13,7 @@ import { layoutSequenceDiagram } from '../sequence/layout.ts'
 import type { PositionedSequenceDiagram } from '../sequence/types.ts'
 import { resolveStyleStackWithFace } from '../scene/style-registry.ts'
 import { estimateTextWidth } from '../styles.ts'
-import { renderMermaidSVG } from '../index.ts'
+import { renderMermaidASCII, renderMermaidSVG } from '../index.ts'
 import { parseRegisteredMermaid as parseMermaid, layoutMermaid } from '../agent/index.ts'
 
 /** Helper: parse and layout a sequence diagram from source lines */
@@ -158,6 +158,23 @@ describe('sequence layout – standalone activation events', () => {
     expect(positioned.activations).toHaveLength(2)
     expect(new Set(positioned.activations.map(activation => activation.x)).size).toBe(2)
     expect(positioned.activations.every(activation => activation.bottomY > activation.topY)).toBe(true)
+  })
+
+  // Mermaid documents `activate`/`deactivate` after a message as the same
+  // diagram as the `+`/`-` arrow suffix. Standalone commands were anchored to
+  // the next message, so a bar started one message late and ran through
+  // following notes and messages in both SVG and terminal output.
+  it.each([
+    ['a reply followed by a note', 'Note over A,B: after\n  A->>B: again'],
+    ['a reply followed by messages', 'A->>B: again\n  A->>B: more'],
+    ['a reply at the end', ''],
+  ])('standalone commands draw like the +/- suffix: %s', (_name, tail) => {
+    const explicit = `sequenceDiagram\n  A->>B: request\n  activate B\n  B-->>A: reply\n  deactivate B\n  ${tail}`
+    const shorthand = `sequenceDiagram\n  A->>+B: request\n  B-->>-A: reply\n  ${tail}`
+    expect(renderMermaidSVG(explicit)).toBe(renderMermaidSVG(shorthand))
+    for (const useAscii of [false, true]) {
+      expect(renderMermaidASCII(explicit, { useAscii })).toBe(renderMermaidASCII(shorthand, { useAscii }))
+    }
   })
 })
 
