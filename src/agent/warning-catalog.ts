@@ -345,6 +345,24 @@ export const WARNING_CATALOG: Readonly<Record<WarningCode, WarningDescription>> 
     example: 'xychart-beta\n  x-axis [a, b]\n  y-axis 0 --> 10\n  bar [5, 20]',
     origins: ['source'],
   },
+  EDGE_RANK_SLACK: {
+    summary:
+      'Flowchart/state: a forward edge crosses at least two more node layers than the longest forward path between its endpoints needs (authored link lengths such as `--->` count), so its target could sit nearer its source. Payload carries `edge`, `spannedLayers`, `requiredLayers` and `message`. Back edges, self-loops and invisible links are never reported.',
+    what: 'a forward edge crosses node layers that no path between its endpoints needs, so the drawing is longer than the graph requires.',
+    triggers:
+      'The layout placed an edge’s target two or more layers further along the flow than any chain of edges from its source demands — typically a sink or a short side branch pulled down to the level of a longer parallel branch. Layers are the bands of node boxes along the diagram direction; an authored long link (<code>---></code>) asks for its extra layers and is not slack.',
+    fix: 'The source is not wrong: this reports a placement the layout could tighten. To keep the distance deliberately, spell the link with extra shaft characters (<code>---></code>) so the layers are authored and the warning stops; otherwise suppress it or report the source as a layout-quality case.',
+    origins: ['engine'],
+  },
+  EDGE_UNDER_GROUP_TITLE: {
+    summary:
+      'Flowchart, state, class namespace, architecture and C4 groups: a visible horizontal route segment runs inside a titled group between the bottom of its title band and the top of its first member or child group, crowding the title and padding the group. Payload carries `edge`, `group`, `clearancePx` (distance below the band) and `message`. Routes entering the title band itself are refused by layout certification instead.',
+    what: 'a visible edge runs horizontally just below a group’s title, above everything the group contains.',
+    triggers:
+      'An edge entering or crossing a group is routed along the strip between the group’s title band and its first member, so the route reads as underlining the title and the group grows to make room for it.',
+    fix: 'The source is not wrong: this reports a route the layout could tighten. Suppress it when the route is acceptable, or report the source as a layout-quality case; the warning never flips <code>verify.ok</code>.',
+    origins: ['engine'],
+  },
   BRAND_CONSTRAINT_WARNING: {
     summary: 'A caller-selected inspect-only `contrast`, `accent-area`, or `mono-role` Brand constraint failed or could not be measured. Payload reports the constraint, `measurement`, applicable role/mark, and concrete evidence without repainting or relayout.',
     what: 'an explicitly requested inspect-only Brand constraint failed or could not be measured.',
