@@ -4,7 +4,45 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
 
 ## Unreleased
 
+### Deprecated
+
+- **0.6.0 will make the compact agent views the defaults.** Nothing changes in
+  this release; every compact view below is opt-in today, and each current
+  default has a name you can pin now so the flip does not affect you:
+
+  | Surface | 0.6.0 default | Keep today's output with |
+  |---|---|---|
+  | MCP `render_svg`, `render_ascii`, `render_png` | `receipt: "summary"` | `receipt: "full"` |
+  | MCP `render_png` (local and hosted) | `output: "image"` | `output: "base64"` |
+  | `am verify` | `--summary` | `--full` |
+  | `am mutate --json` | `--summary` | `--full` |
+  | `am capabilities` | `--summary` (index) | `--full` |
+
+  The `--help` text of those commands and both MCP servers' `instructions`
+  carry the same notice.
+
 ### Added
+
+- Compact agent views, all opt-in. MCP render tools take `receipt: "summary"`:
+  request digest, acceptance, unselected capabilities, layout fallbacks, the
+  layout certification verdict and diagnostics grouped by code with counts
+  (an 8-node SVG receipt goes from 7.7 KB to 158 B). `render_png` takes
+  `output: "image"` on local and hosted servers and returns the PNG as an MCP
+  image content block beside a small JSON block, instead of base64 inside the
+  JSON text (51 KB, ~32k tokens, of text for an 8-node flowchart).
+  `am verify --summary` prints the MCP verify payload and
+  `am mutate --json --summary` embeds it (17.4 KB → 1.6 KB for 30 nodes).
+  `am capabilities --summary` prints an index (132 KB → 12 KB) and
+  `--family <id>[,<id>…]` one or more full family entries.
+- `describe_sdk` `capability: "render-options"` lists every render option's
+  applicable families and terminal treatment, and with `field` returns that
+  option's full annotated schema; `capability: "code-mode"` returns the
+  `execute` SDK declaration.
+- `agentic-mermaid-mcp --tool-profile slim` serves a 26 KB `tools/list`
+  (instead of 99 KB) under the server name `agentic-mermaid-mcp-slim`: render
+  arguments one level deep, and `execute` pointing at `describe_sdk`
+  `capability: "code-mode"`. Validation is unchanged. Local server only.
+- `/capabilities.json` is served minified (261 KB → 155 KB, same JSON).
 
 - Insert and remove empty concurrency regions in composite states with
   `add_region` and `remove_region`. State, transition, move and floating-note

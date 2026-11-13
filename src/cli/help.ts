@@ -3,6 +3,9 @@ import { CLI_RENDER_FORMATS, DEFAULT_CLI_RENDER_FORMAT, cliRenderFormatHelpLines
 import { PNG_DEFAULT_SCALE } from '../output-policy-versions.ts'
 import { FAMILY_NARROWING_NOTE } from '../shared/agent-workflow.ts'
 
+/** The default flip announced in CHANGELOG (Deprecated) for 0.6.0. */
+const COMPACT_DEFAULT_NOTICE = (summary: string) => `Deprecation: 0.6.0 makes ${summary} the default; pass --full to keep this output.`
+
 export const GLOBAL_USAGE = `Usage: am <command> [options] [file|-]
 
 Commands:
@@ -114,6 +117,7 @@ Always emits JSON: {ok, warnings[], checks, layout}.
                     failures: {ok:false, errors, warnings, family?, example?}).
                     The full layout is ~10x larger. --markdown is already compact.
   --full            The full result (the default)
+${COMPACT_DEFAULT_NOTICE('--summary')}
 With --markdown: verify top-level Mermaid fences and emit {ok,file,blocks[]}.
 Nested list/blockquote fences require host extraction; HTML examples are skipped.
 Warnings use physical document lines; lineIsBlockStart marks a fallback when
@@ -145,6 +149,7 @@ With --json, emits {ok, family, source, verify}; verify is verify's full result.
                     {ok, family, summary, warnings, checks, layout: {bounds,
                     nodes, edges}} (--preserve-source already embeds {ok, warnings, checks})
   --full            verify's full result (the default)
+${COMPACT_DEFAULT_NOTICE('the --summary verify under --json')}
 Registered families with mutationOps have typed mutation; discover the live roster,
 narrowers, and op names with 'am capabilities --json'. Opaque-fallback diagrams
 (unmodeled syntax) return a structured UNSUPPORTED_FAMILY error (exit 2). Verify failures
@@ -180,7 +185,8 @@ each mutation op's exact fields. The full object is ~130 KB; agents should run
                     outputFormats, detail } (~12 KB)
   --family <IDS>    Keep only these families' entries (comma-separated ids, in
                     the order given); an unknown id exits 2 listing valid ids
-  --full            The full object (the default)`,
+  --full            The full object (the default)
+${COMPACT_DEFAULT_NOTICE('the --summary index')}`,
   batch: `am batch [--jsonl]  (reads JSONL from stdin; --jsonl names that mode)
 Each line: { op: "render"|"verify"|"parse"|"serialize"|"mutate", source: string,
 options?: {}, mutation?: MutationOp, mutations?: MutationOp[] }. Emits one JSON
