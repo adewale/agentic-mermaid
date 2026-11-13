@@ -128,7 +128,7 @@ boundaries, documented in [SECURITY.md](SECURITY.md).
 
 - [API reference](docs/api.md): signatures, options and result shapes.
 - [Mutation policy](docs/agent-mutation-policy.md): structured and source-level edits.
-- [Testing strategy](docs/testing-strategy.md): behavior checks and their limits.
+- [Testing strategy](https://github.com/adewale/agentic-mermaid/blob/main/docs/testing-strategy.md): behavior checks and their limits.
 - [Fork differences](docs/fork-differences.md): additions to Beautiful Mermaid.
 - [TODO.md](https://github.com/adewale/agentic-mermaid/blob/main/TODO.md): active work.
 
