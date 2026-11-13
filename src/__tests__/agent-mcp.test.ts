@@ -12,7 +12,8 @@ import { BUILTIN_FAMILY_METADATA, getFamily, replaceFamilyForTest } from '../age
 import { runCli, runBatchLine } from '../cli/index.ts'
 import { MCP_CLI_HELP, parseMcpCliOptions, runMcpCli } from '../mcp/mcp-cli.ts'
 import { executeInSandbox } from '../mcp/sandbox.ts'
-import { createStdioMessageProcessor, handleRequest, LOCAL_TOOLS } from '../mcp/server.ts'
+import { createStdioMessageProcessor, handleRequest, LOCAL_TOOLS, MCP_SLIM_SERVER_NAME, SLIM_LOCAL_TOOLS } from '../mcp/server.ts'
+import { AjvJsonSchemaValidator } from '@modelcontextprotocol/sdk/validation/ajv'
 import { LOCAL_MCP_TOOL_NAMES } from '../mcp/tool-names.ts'
 import { captureCli as capture } from './helpers/cli-capture.ts'
 import { useTempDirs } from './helpers/temp-dir.ts'
@@ -917,6 +918,8 @@ describe('MCP bin shim', () => {
       'secret',
       '--max-sandbox-timeout-ms',
       '1000',
+      '--tool-profile',
+      'slim',
     ])
     expect(parsed.transport).toBe('http')
     expect(parsed.httpOptions).toEqual({
@@ -931,14 +934,33 @@ describe('MCP bin shim', () => {
       maxRpcBodyBytes: 789,
       authToken: 'secret',
       maxSandboxTimeoutMs: 1000,
+      toolProfile: 'slim',
     })
   })
 
   test('the MCP parser rejects unknown, missing, duplicate, positional, and inapplicable arguments', () => {
-    for (const argv of [['--bogus'], ['--port'], ['--port', '--http'], ['stray'], ['--transport', 'http', '--transport', 'http'], ['--http', '--transport', 'stdio'], ['--host', '127.0.0.1'], ['--transport=']]) {
+    for (const argv of [['--bogus'], ['--port'], ['--port', '--http'], ['stray'], ['--transport', 'http', '--transport', 'http'], ['--http', '--transport', 'stdio'], ['--host', '127.0.0.1'], ['--transport='], ['--tool-profile', 'tiny']]) {
       expect(() => parseMcpCliOptions(argv), argv.join(' ')).toThrow()
     }
     expect(parseMcpCliOptions(['--transport=http', '--port=0']).transport).toBe('http')
+    expect(parseMcpCliOptions(['--tool-profile', 'full']).httpOptions.toolProfile).toBe('full')
+  })
+
+  test('the slim tool profile advertises its own list under its own name and validates canonically', async () => {
+    const slim = { toolProfile: 'slim' as const }
+    const initialized = await handleRequest({ jsonrpc: '2.0', id: 1, method: 'initialize', params: { protocolVersion: '2025-06-18', capabilities: {}, clientInfo: { name: 't', version: '0' } } }, slim)
+    expect((initialized!.result as { serverInfo: { name: string } }).serverInfo.name).toBe(MCP_SLIM_SERVER_NAME)
+    expect(((await handleRequest({ jsonrpc: '2.0', id: 2, method: 'tools/list' }, slim))!.result as { tools: unknown }).tools).toBe(SLIM_LOCAL_TOOLS)
+    expect(SLIM_LOCAL_TOOLS.map(tool => tool.name)).toEqual(LOCAL_TOOLS.map(tool => tool.name))
+    expect(SLIM_LOCAL_TOOLS[0]!.description).toContain('describe_sdk capability=code-mode')
+    // A nested role property the slim schema does not describe is still refused by the server.
+    const args = { source: 'flowchart TD\n  A --> B', options: { style: { roles: { node: { bendRadius: 3 } } } } }
+    const svg = SLIM_LOCAL_TOOLS.find(tool => tool.name === 'render_svg')!
+    expect(new AjvJsonSchemaValidator().getValidator(svg.inputSchema as never)(args).valid).toBe(true)
+    for (const context of [slim, {}]) {
+      const refused = await handleRequest({ jsonrpc: '2.0', id: 3, method: 'tools/call', params: { name: 'render_svg', arguments: args } }, context)
+      expect(refused!.error?.message).toContain('arguments.options.style')
+    }
   })
 
   test('runMcpCli handles help and bad flags without launching a server', async () => {

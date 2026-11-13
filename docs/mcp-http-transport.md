@@ -271,6 +271,7 @@ data: {"jsonrpc":"2.0","id":4,"result":{}}
 | `--artifact-ttl-ms <n>` | `3600000` | How long managed artifacts remain fetchable. |
 | `--max-rpc-body-bytes <n>` | `1048576` | Maximum HTTP JSON-RPC request body size. |
 | `--max-sandbox-timeout-ms <n>` | `30000` | Maximum `execute` timeout accepted over any transport. |
+| `--tool-profile full\|slim` | `full` | Advertised tool schemas. `slim` (~26 KB `tools/list` instead of ~99 KB, server name `agentic-mermaid-mcp-slim`) lists render arguments one level deep without `$defs` and points `execute` at `describe_sdk` `capability: "code-mode"` for the SDK declaration. Validation and results are unchanged; `describe_sdk` `capability: "render-options"` gives the full option schemas. Local only; the hosted endpoint serves the full profile. |
 
 ## Security defaults
 

@@ -31,6 +31,7 @@ import {
 import { SDK_CORE_DECLARATION, createDescribeSdkTool, describeSdkPayload } from './sdk-discovery.ts'
 import { mcpDescribePayload } from './describe-payload.ts'
 import { mcpRenderReceipt } from './receipt-summary.ts'
+import { slimMcpTool, type McpToolProfile } from './slim-tools.ts'
 import { createArtifactStore, type ArtifactRecord, type ArtifactStore } from './artifacts.ts'
 import { renderMermaidPNGWithReceipt } from '../agent/png.ts'
 import { renderConfigWarningsForMermaid } from '../agent/verify.ts'
@@ -44,6 +45,9 @@ export type { JsonRpcRequest, JsonRpcResponse } from './protocol.ts'
 
 export interface McpRequestContext {
   artifactStore?: ArtifactStore
+  /** Which advertised tool definitions this connection sees (default full).
+   * Validation and results are identical for both profiles. */
+  toolProfile?: McpToolProfile
   maxSandboxTimeoutMs?: number
   /** Transport-owned cancellation. Tool handlers may cooperate with it; the
    * stdio coordinator independently guarantees that an aborted call cannot
@@ -64,6 +68,7 @@ export interface HttpMcpOptions {
   authToken?: string
   maxSandboxTimeoutMs?: number
   maxSseSessions?: number
+  toolProfile?: McpToolProfile
 }
 
 export interface HttpMcpServer {
@@ -136,6 +141,22 @@ const LOCAL_SURFACE: McpServerSurface<McpRequestContext> = {
   handleToolCall,
 }
 
+/** The opt-in slim profile: shallow render schemas, execute pointing at
+ * describe_sdk capability=code-mode. Its own server name keeps clients that
+ * cache tool lists by server identity from mixing the two lists. */
+export const MCP_SLIM_SERVER_NAME = 'agentic-mermaid-mcp-slim'
+export const SLIM_LOCAL_TOOLS = LOCAL_TOOLS.map(tool => slimMcpTool(tool, SDK_CORE_DECLARATION))
+
+const SLIM_LOCAL_SURFACE: McpServerSurface<McpRequestContext> = {
+  ...LOCAL_SURFACE,
+  serverName: MCP_SLIM_SERVER_NAME,
+  tools: SLIM_LOCAL_TOOLS,
+}
+
+function localSurface(context: McpRequestContext): McpServerSurface<McpRequestContext> {
+  return context.toolProfile === 'slim' ? SLIM_LOCAL_SURFACE : LOCAL_SURFACE
+}
+
 function admitLocalRequest(req: unknown, options: McpDispatchOptions = {}): McpAdmissionResult {
   return admitMcpMessage(req, {
     supportedVersions: surfaceSupportedVersions(LOCAL_SURFACE, options),
@@ -147,7 +168,7 @@ function admitLocalRequest(req: unknown, options: McpDispatchOptions = {}): McpA
 export async function handleRequest(req: JsonRpcRequest, context: McpRequestContext = {}, options: McpDispatchOptions = {}): Promise<JsonRpcResponse | null> {
   const admission = admitLocalRequest(req, options)
   return admission.ok
-    ? dispatchAdmittedMcpRequest(admission.message, context, LOCAL_SURFACE)
+    ? dispatchAdmittedMcpRequest(admission.message, context, localSurface(context))
     : admission.response
 }
 
@@ -373,7 +394,7 @@ export function createStdioMessageProcessor(
       if (admission.ok && negotiatedEra === null && request.method === 'initialize') {
         const response = controller.signal.aborted
           ? null
-          : await dispatch(admission.message, { ...context, signal: controller.signal }, LOCAL_SURFACE)
+          : await dispatch(admission.message, { ...context, signal: controller.signal }, localSurface(context))
         if (!controller.signal.aborted && response?.result && typeof response.result === 'object') {
           const selected = (response.result as { protocolVersion?: unknown }).protocolVersion
           if (typeof selected === 'string' && (STDIO_PROTOCOL_VERSIONS as readonly string[]).includes(selected)) {
@@ -398,7 +419,7 @@ export function createStdioMessageProcessor(
       const response = prepared.admission.ok
         ? controller.signal.aborted
           ? null
-          : await dispatch(prepared.admission.message, { ...context, signal: controller.signal }, LOCAL_SURFACE)
+          : await dispatch(prepared.admission.message, { ...context, signal: controller.signal }, localSurface(context))
         : prepared.admission.response
       emit(response, exact.ids, controller.signal)
     }).catch(cause => {
@@ -423,7 +444,7 @@ export function createStdioMessageProcessor(
   }
 }
 
-export async function runStdio(options: { artifactDir?: string; maxArtifactBytes?: number; maxArtifactTotalBytes?: number; maxArtifacts?: number; artifactTtlMs?: number; maxSandboxTimeoutMs?: number } = {}): Promise<void> {
+export async function runStdio(options: { artifactDir?: string; maxArtifactBytes?: number; maxArtifactTotalBytes?: number; maxArtifacts?: number; artifactTtlMs?: number; maxSandboxTimeoutMs?: number; toolProfile?: McpToolProfile } = {}): Promise<void> {
   const artifactStore = createArtifactStore({
     dir: options.artifactDir,
     maxBytes: options.maxArtifactBytes,
@@ -432,7 +453,7 @@ export async function runStdio(options: { artifactDir?: string; maxArtifactBytes
     ttlMs: options.artifactTtlMs,
   })
   const processor = createStdioMessageProcessor(
-    { artifactStore, maxSandboxTimeoutMs: options.maxSandboxTimeoutMs },
+    { artifactStore, maxSandboxTimeoutMs: options.maxSandboxTimeoutMs, toolProfile: options.toolProfile },
     line => process.stdout.write(line),
   )
   process.stdin.setEncoding('utf8')
@@ -475,7 +496,7 @@ export async function startHttpServer(options: HttpMcpOptions = {}): Promise<Htt
     maxArtifacts: options.maxArtifacts,
     ttlMs: options.artifactTtlMs,
   })
-  const context = { artifactStore, maxSandboxTimeoutMs: options.maxSandboxTimeoutMs }
+  const context: McpRequestContext = { artifactStore, maxSandboxTimeoutMs: options.maxSandboxTimeoutMs, toolProfile: options.toolProfile }
 
   const server = createServer(async (req, res) => {
     try {

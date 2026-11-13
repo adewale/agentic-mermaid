@@ -75,6 +75,12 @@ export function withClosedMcpInputSchema(tool: McpToolDefinition): McpToolDefini
   return { ...tool, inputSchema }
 }
 
+/** Record that `advertised` is a projection of `canonical`, so validation of a
+ * tool advertising it enforces the canonical schema. */
+export function registerAdvertisedMcpInputSchema(advertised: Record<string, unknown>, canonical: Record<string, unknown>): void {
+  CANONICAL_INPUT_SCHEMAS.set(advertised, canonical)
+}
+
 /** The schema `validateMcpToolArguments` enforces for a tool: the canonical
  * annotated schema when the advertised one is a compact projection of it. */
 export function mcpToolValidationSchema(tool: McpToolDefinition): Record<string, unknown> {

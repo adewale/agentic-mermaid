@@ -16,8 +16,8 @@ import { AjvJsonSchemaValidator } from '@modelcontextprotocol/sdk/validation/ajv
 import { fcParameters } from './helpers/fc-parameters.ts'
 
 import { HOSTED_TOOLS } from '../mcp/hosted-server.ts'
-import { LOCAL_TOOLS } from '../mcp/server.ts'
-import { mcpToolValidationSchema } from '../mcp/tool-surface.ts'
+import { LOCAL_TOOLS, SLIM_LOCAL_TOOLS } from '../mcp/server.ts'
+import { mcpToolValidationSchema, validateMcpToolArguments } from '../mcp/tool-surface.ts'
 
 type Json = null | boolean | number | string | Json[] | { [key: string]: Json }
 type JsonRecord = { [key: string]: Json }
@@ -194,5 +194,85 @@ describe('advertised MCP render schemas', () => {
     const accepted = outcomes.filter(Boolean).length
     expect(accepted).toBeGreaterThan(outcomes.length / 5)
     expect(outcomes.length - accepted).toBeGreaterThan(outcomes.length / 5)
+  })
+})
+
+// Slim profile (`--tool-profile slim`): render arguments advertised one level
+// deep. The property is one-directional by design: every argument record the
+// server's full validation (the canonical schema plus its runtime validators)
+// accepts, the slim advertised schema accepts too, so a validating client never
+// refuses a call the server would run. The slim schema may accept more; the
+// server still refuses those.
+const SLIM_RENDER_TOOLS = LOCAL_TOOLS
+  .map((tool, index) => ({ full: tool, slim: SLIM_LOCAL_TOOLS[index]! }))
+  .filter(({ full }) => full.name.startsWith('render_'))
+  .map(({ full, slim }) => ({
+    full,
+    canonical: mcpToolValidationSchema(full) as SchemaNode,
+    checks: DIALECTS.map(dialect => ({ dialect: dialect.name, slim: dialect.compile(slim.inputSchema as SchemaNode) })),
+  }))
+
+// Explicit value domains per JSON type; the generator draws from the
+// canonical schema's own enums, consts and branches, and these otherwise.
+const STRING_DOMAIN = ['red', '#fff', '#00000080', 'hand-drawn', 'elk', 'A', '', 'flowchart', 'Inter, sans-serif']
+const NUMBER_DOMAIN = [0, 1, 2, 2.5, 9, 40, 100, 10_000, -1, 0.001]
+const OPEN_VALUE_DOMAIN: readonly Json[] = ['dark', 1, true, null, [], {}, { theme: 'dark' }, ['A', 'B']]
+
+/** Arbitrary values for a schema position: mostly values its own vocabulary
+ * suggests, sometimes values of other types, so the full validation both
+ * accepts and refuses. Depth-limited; deeper positions draw from the domains. */
+function schemaValueArb(node: unknown, definitions: Record<string, SchemaNode>, depth: number): fc.Arbitrary<Json> {
+  let schema = node as SchemaNode
+  for (let hops = 0; hops < 8 && typeof schema?.$ref === 'string'; hops++) schema = definitions[schema.$ref.replace('#/$defs/', '')]!
+  const junk = fc.constantFrom(...VALUE_DOMAIN)
+  if (!schema || typeof schema !== 'object') return fc.constantFrom(...OPEN_VALUE_DOMAIN)
+  const own = ((): fc.Arbitrary<Json> => {
+    if (Array.isArray(schema.enum)) return fc.constantFrom(...schema.enum as Json[])
+    if (Object.hasOwn(schema, 'const')) return fc.constant(schema.const as Json)
+    const branches = (schema.anyOf ?? schema.oneOf) as SchemaNode[] | undefined
+    if (branches) return fc.oneof(...branches.map(branch => schemaValueArb(branch, definitions, depth)))
+    if (Array.isArray(schema.allOf)) return schemaValueArb(schema.allOf[0], definitions, depth)
+    const type = Array.isArray(schema.type) ? schema.type[0] : schema.type
+    if (depth >= 5) return fc.constantFrom(...OPEN_VALUE_DOMAIN)
+    if (type === 'object' || schema.properties) {
+      const properties = Object.entries((schema.properties ?? {}) as Record<string, unknown>)
+      if (properties.length === 0) return fc.constantFrom<Json>({}, { theme: 'dark' }, { ranks: { A: 1 } })
+      return fc.subarray(properties, { maxLength: Math.min(4, properties.length) }).chain(chosen => fc.tuple(...chosen.map(([, child]) => schemaValueArb(child, definitions, depth + 1)))
+        .map(values => Object.fromEntries(chosen.map(([name], index) => [name, values[index]!])) as JsonRecord))
+    }
+    if (type === 'array') return fc.array(schemaValueArb(schema.items ?? {}, definitions, depth + 1), { maxLength: 3 })
+    if (type === 'number' || type === 'integer') return fc.constantFrom(...NUMBER_DOMAIN)
+    if (type === 'boolean') return fc.boolean()
+    if (type === 'string') return fc.constantFrom(...STRING_DOMAIN)
+    return fc.constantFrom(...OPEN_VALUE_DOMAIN)
+  })()
+  return fc.oneof({ weight: 9, arbitrary: own }, { weight: 1, arbitrary: junk })
+}
+
+type SlimCase = [toolIndex: number, args: JsonRecord]
+const slimCaseArb: fc.Arbitrary<SlimCase> = fc.nat({ max: SLIM_RENDER_TOOLS.length - 1 }).chain(toolIndex => {
+  const { canonical } = SLIM_RENDER_TOOLS[toolIndex]!
+  const { source: _source, ...fields } = canonical.properties as Record<string, unknown>
+  const argumentsArb = schemaValueArb({ type: 'object', properties: fields }, canonical.$defs as Record<string, SchemaNode>, 0)
+  return argumentsArb.map(args => [toolIndex, { source: SOURCE, ...(args as JsonRecord) }] as SlimCase)
+})
+
+const slimRefusals = (toolIndex: number, value: unknown) => SLIM_RENDER_TOOLS[toolIndex]!.checks
+  .filter(check => !check.slim(value))
+  .map(check => ({ tool: SLIM_RENDER_TOOLS[toolIndex]!.full.name, dialect: check.dialect }))
+
+describe('slim MCP render schemas', () => {
+  test('admit every argument record the server\'s full validation accepts', () => {
+    fc.assert(fc.property(slimCaseArb, ([toolIndex, args]) => {
+      fc.pre(validateMcpToolArguments(SLIM_RENDER_TOOLS[toolIndex]!.full, args).length === 0)
+      expect({ args, refusedBy: slimRefusals(toolIndex, args) }).toEqual({ args, refusedBy: [] })
+    }), fcParameters({ numRuns: NUM_RUNS, maxSkipsPerRun: 20 }))
+  })
+
+  test('carry no $defs and keep validation on the canonical schema', () => {
+    for (const [index, tool] of SLIM_LOCAL_TOOLS.entries()) {
+      expect({ tool: tool.name, defs: JSON.stringify(tool.inputSchema).includes('$defs') }).toEqual({ tool: tool.name, defs: false })
+      expect(mcpToolValidationSchema(tool)).toBe(mcpToolValidationSchema(LOCAL_TOOLS[index]!))
+    }
   })
 })

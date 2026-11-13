@@ -1,7 +1,7 @@
 // Live MCP discovery and era contracts. Exact prose and generated schemas belong
 // to their owning behavioral tests, not a second checked-in copy of the surface.
 import { describe, expect, test } from 'bun:test'
-import { handleRequest, HTTP_SSE_PROTOCOL_VERSIONS, LOCAL_TOOLS } from '../mcp/server.ts'
+import { handleRequest, HTTP_SSE_PROTOCOL_VERSIONS, LOCAL_TOOLS, SLIM_LOCAL_TOOLS } from '../mcp/server.ts'
 import { handleHostedRequest, HOSTED_TOOLS } from '../mcp/hosted-server.ts'
 import type { McpToolDefinition } from '../mcp/tool-surface.ts'
 import type { JsonRpcRequest, JsonRpcResponse } from '../mcp/protocol.ts'
@@ -42,6 +42,8 @@ type Surface = {
 const SURFACES: Surface[] = [
   { name: 'local', tools: LOCAL_TOOLS, toolsListBytes: 108_000, dispatch: handleRequest },
   { name: 'hosted', tools: HOSTED_TOOLS, toolsListBytes: 107_000, dispatch: request => handleHostedRequest(request, { async execute() { return { ok: true, value: 42, logs: [] } } }) },
+  // --tool-profile slim: shallow render schemas, execute declaration on request.
+  { name: 'local slim', tools: SLIM_LOCAL_TOOLS, toolsListBytes: 29_000, dispatch: request => handleRequest(request, { toolProfile: 'slim' }) },
 ]
 
 describe('MCP live response contracts', () => {
