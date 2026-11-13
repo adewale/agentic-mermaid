@@ -1,0 +1,52 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="347.205" height="196.45" viewBox="0 0 347.205 196.45" style="--bg:#FFFFFF;--fg:#27272A;--font:Inter;background:#FFFFFF" class="am-0tp5xrp0pbyt33">
+<style>
+  svg.am-0tp5xrp0pbyt33 { font-family: var(--font, 'Inter'), system-ui, sans-serif; }
+  svg.am-0tp5xrp0pbyt33 {
+    /* Derived from --bg and --fg (overridable via --line, --accent, etc.) */
+    --_text:          #27272A;
+    --_text-sec:      #575759;
+    --_text-muted:    #707072;
+    --_text-faint:    #8a8a8c;
+    --_line:          #939395;
+    --_arrow:         #47474a;
+    --_node-fill:     #f9f9f9;
+    --_node-stroke:   #d4d4d4;
+    --_group-fill:    #FFFFFF;
+    --_group-hdr:     #f4f4f4;
+    --_inner-stroke:  #e5e5e5;
+    --_key-badge:     #e9e9ea;
+  }
+</style>
+<defs>  <marker id="usecase-arrow" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto" markerUnits="userSpaceOnUse">
+    <polygon points="0 0, 8 3, 0 6" fill="#939395" />
+  </marker>
+  <marker id="usecase-back-arrow" markerWidth="8" markerHeight="6" refX="0" refY="3" orient="auto" markerUnits="userSpaceOnUse">
+    <polygon points="8 0, 0 3, 8 6" fill="#939395" />
+  </marker>
+  <marker id="usecase-dependency" markerWidth="9" markerHeight="7" refX="9" refY="3.5" orient="auto" markerUnits="userSpaceOnUse">
+    <polygon points="0 0, 9 3.5, 0 7" fill="none" stroke="#939395" stroke-width="1" />
+  </marker>
+  <marker id="usecase-generalization" markerWidth="11" markerHeight="10" refX="11" refY="5" orient="auto" markerUnits="userSpaceOnUse">
+    <polygon points="0 0, 11 5, 0 10" fill="#FFFFFF" stroke="#939395" stroke-width="1" />
+  </marker>
+  <marker id="usecase-circle" markerWidth="8" markerHeight="8" refX="4" refY="4" orient="auto" markerUnits="userSpaceOnUse">
+    <circle cx="4" cy="4" r="3" fill="#FFFFFF" stroke="#939395" stroke-width="1" />
+  </marker>
+  <marker id="usecase-cross" markerWidth="8" markerHeight="8" refX="4" refY="4" orient="auto" markerUnits="userSpaceOnUse">
+    <path d="M1 1L7 7M7 1L1 7" fill="none" stroke="#939395" stroke-width="1" />
+  </marker></defs>
+<g data-id="Beta" data-role="group">
+  <rect x="170.036" y="40" width="137.169" height="108" rx="0" fill="#FFFFFF" stroke="#949495" stroke-width="1" />
+  <text x="238.6205" y="54" text-anchor="middle" font-size="12" font-weight="600" fill="#27272A" data-prepared-text="true" dy="4.2" textLength="27.72" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Beta</text>
+  <g data-parent="Beta" data-id="Gamma" data-role="node">
+    <ellipse cx="238.6205" cy="108" rx="52.5845" ry="24" fill="#f9f9f9" stroke="#949495" stroke-width="0.75" />
+    <text x="238.6205" y="108" text-anchor="middle" font-family="Inter" font-size="13" font-weight="500" fill="#27272A" data-prepared-text="true" dy="4.55" textLength="43.446" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Gamma</text>
+  </g>
+</g>
+<polyline points="80.8047403529,108 186.036,108" fill="none" stroke="#939395" stroke-width="1" marker-end="url(#usecase-arrow)" data-relationship="association" data-direction="forward" data-id="edge-0" data-role="edge" data-from="Alpha" data-to="Gamma" role="graphics-symbol" aria-roledescription="relation" aria-label="Alpha to Gamma" />
+<g data-id="Alpha" data-role="node">
+  <circle cx="78.018" cy="76.55" r="7" fill="#f9f9f9" stroke="#949495" stroke-width="0.75" />
+  <path d="M78.018 83.55V105.55M63.018 93.55H93.018M65.018 119.55L78.018 105.55L91.018 119.55" fill="#f9f9f9" stroke="#949495" stroke-width="0.75" />
+  <text x="78.018" y="140" text-anchor="middle" font-family="Inter" font-size="13" font-weight="500" fill="#27272A" data-prepared-text="true" dy="4.55" textLength="36.036" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Alpha</text>
+</g>
+</svg>

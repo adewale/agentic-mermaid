@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="522" height="344" viewBox="0 0 522 344" style="--bg:#FFFFFF;--fg:#27272A;--font:Inter;background:#FFFFFF" class="am-0j89j3a0mi7o7a">
+<style>
+  svg.am-0j89j3a0mi7o7a { font-family: var(--font, 'Inter'), system-ui, sans-serif; }
+  svg.am-0j89j3a0mi7o7a {
+    /* Derived from --bg and --fg (overridable via --line, --accent, etc.) */
+    --_text:          #27272A;
+    --_text-sec:      #575759;
+    --_text-muted:    #707072;
+    --_text-faint:    #8a8a8c;
+    --_line:          #939395;
+    --_arrow:         #47474a;
+    --_node-fill:     #f9f9f9;
+    --_node-stroke:   #d4d4d4;
+    --_group-fill:    #FFFFFF;
+    --_group-hdr:     #f4f4f4;
+    --_inner-stroke:  #e5e5e5;
+    --_key-badge:     #e9e9ea;
+  }
+</style>
+<g data-id="Alpha" data-role="node">
+  <circle cx="172" cy="172" r="140" fill="#47474a" fill-opacity="0.16" stroke="#949495" stroke-width="0.75" />
+  <text x="121.234453916" y="179.921511411" text-anchor="middle" font-family="Inter" font-size="13" font-weight="500" fill="#27272A" stroke="#FFFFFF" stroke-width="4" stroke-linejoin="round" paint-order="stroke" data-prepared-text="true" dy="4.55" textLength="36.036" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Alpha</text>
+</g>
+<g data-id="Beta" data-role="node">
+  <circle cx="349.717286313" cy="172" r="140" fill="#47474a" fill-opacity="0.16" stroke="#949495" stroke-width="0.75" />
+  <text x="400.670490229" y="177.606969119" text-anchor="middle" font-family="Inter" font-size="13" font-weight="500" fill="#27272A" stroke="#FFFFFF" stroke-width="4" stroke-linejoin="round" paint-order="stroke" data-prepared-text="true" dy="4.55" textLength="28.626" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Beta</text>
+</g>
+<g data-id="venn-region-0" data-role="node">
+  <text x="260.858643157" y="172" text-anchor="middle" font-family="Inter" font-size="13" font-weight="500" fill="#27272A" stroke="#FFFFFF" stroke-width="4" stroke-linejoin="round" paint-order="stroke" data-prepared-text="true" dy="4.55" textLength="28.626" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Both</text>
+</g>
+</svg>

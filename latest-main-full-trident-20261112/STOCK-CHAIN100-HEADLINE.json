@@ -1,0 +1,180 @@
+{
+  "at": "2026-11-13T00:25:05.322985+00:00",
+  "source": "68986ba8e3b76ad99dad44c6ec8d43475cc5e12f",
+  "host": "fresh replacementhost, not oldshippingclockcontrol",
+  "consumer": "StockpublicSVG+UTF8; fullreceiptstillpending",
+  "rows": [
+    {
+      "backend": "agentic",
+      "cache": 0,
+      "warmProcesses": 3,
+      "coldProcesses": 3,
+      "warmProcessMediansMs": {
+        "A0": 74.81369199999608,
+        "A1": 78.0303150000982,
+        "B": 94.35604499978945
+      },
+      "medianOfWarmProcessMediansMs": 78.0303150000982,
+      "coldProcessMs": {
+        "A0": [
+          263.1684810000006
+        ],
+        "A1": [
+          265.49572600005195
+        ],
+        "B": [
+          258.9565789999906
+        ]
+      },
+      "warm-new-sourceMedianMs": 70.8054870001506,
+      "warm-label-editMedianMs": 59.90277100005187,
+      "pinnedPooledSummary": {
+        "samples": 21,
+        "medianMs": 85.45167399989441,
+        "p95Ms": 108.93306399998255,
+        "minMs": 58.37614200008102,
+        "maxMs": 115.9457209999673
+      },
+      "calibration": {
+        "status": "uncalibrated",
+        "gaps": [
+          "At least five independent rounds are required",
+          "Every replica/round needs the declared finite positive sample count"
+        ],
+        "controlRatios": [],
+        "candidateRatios": [],
+        "controlBand": null,
+        "candidateRatio": null
+      }
+    },
+    {
+      "backend": "agentic",
+      "cache": 1,
+      "warmProcesses": 3,
+      "coldProcesses": 3,
+      "warmProcessMediansMs": {
+        "A0": 5.981745999772102,
+        "A1": 7.110916000092402,
+        "B": 6.987870999844745
+      },
+      "medianOfWarmProcessMediansMs": 6.987870999844745,
+      "coldProcessMs": {
+        "A0": [
+          243.68277099961415
+        ],
+        "A1": [
+          249.75111400010064
+        ],
+        "B": [
+          258.2670730003156
+        ]
+      },
+      "warm-new-sourceMedianMs": 80.89503900008276,
+      "warm-label-editMedianMs": 6.137810999993235,
+      "pinnedPooledSummary": {
+        "samples": 21,
+        "medianMs": 6.771876000100747,
+        "p95Ms": 89.3490879999008,
+        "minMs": 4.278241000138223,
+        "maxMs": 91.09728999994695
+      },
+      "calibration": {
+        "status": "uncalibrated",
+        "gaps": [
+          "At least five independent rounds are required",
+          "Every replica/round needs the declared finite positive sample count"
+        ],
+        "controlRatios": [],
+        "candidateRatios": [],
+        "controlBand": null,
+        "candidateRatio": null
+      }
+    },
+    {
+      "backend": "elk",
+      "cache": 0,
+      "warmProcesses": 3,
+      "coldProcesses": 3,
+      "warmProcessMediansMs": {
+        "A0": 145.40185200003907,
+        "A1": 144.7099800000433,
+        "B": 138.82843400002457
+      },
+      "medianOfWarmProcessMediansMs": 144.7099800000433,
+      "coldProcessMs": {
+        "A0": [
+          541.6799739999697
+        ],
+        "A1": [
+          579.1802620000672
+        ],
+        "B": [
+          506.99432400008664
+        ]
+      },
+      "warm-new-sourceMedianMs": 119.38533099996857,
+      "warm-label-editMedianMs": 113.26992299989797,
+      "pinnedPooledSummary": {
+        "samples": 21,
+        "medianMs": 145.27522099995986,
+        "p95Ms": 250.13018499989994,
+        "minMs": 119.71433499990962,
+        "maxMs": 257.84029299998656
+      },
+      "calibration": {
+        "status": "uncalibrated",
+        "gaps": [
+          "At least five independent rounds are required",
+          "Every replica/round needs the declared finite positive sample count"
+        ],
+        "controlRatios": [],
+        "candidateRatios": [],
+        "controlBand": null,
+        "candidateRatio": null
+      }
+    },
+    {
+      "backend": "elk",
+      "cache": 1,
+      "warmProcesses": 3,
+      "coldProcesses": 3,
+      "warmProcessMediansMs": {
+        "A0": 8.766859999857843,
+        "A1": 13.142868000082672,
+        "B": 6.226314000086859
+      },
+      "medianOfWarmProcessMediansMs": 8.766859999857843,
+      "coldProcessMs": {
+        "A0": [
+          497.32373300008476
+        ],
+        "A1": [
+          596.7182630002499
+        ],
+        "B": [
+          470.482582999859
+        ]
+      },
+      "warm-new-sourceMedianMs": 84.36976099992171,
+      "warm-label-editMedianMs": 4.2853620001114905,
+      "pinnedPooledSummary": {
+        "samples": 21,
+        "medianMs": 9.313073000172153,
+        "p95Ms": 89.91183599992655,
+        "minMs": 4.854047999950126,
+        "maxMs": 143.83178900019266
+      },
+      "calibration": {
+        "status": "uncalibrated",
+        "gaps": [
+          "At least five independent rounds are required",
+          "Every replica/round needs the declared finite positive sample count"
+        ],
+        "controlRatios": [],
+        "candidateRatios": [],
+        "controlBand": null,
+        "candidateRatio": null
+      }
+    }
+  ]
+}

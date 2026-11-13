@@ -1,0 +1,14 @@
+{
+  "at": "2026-11-13T00:02:28.465902+00:00",
+  "coordinator": 887,
+  "onlyCoordinatorStopped": true,
+  "childNeverStopped": true,
+  "pushed": false,
+  "currentJob": {
+    "mode": "cold",
+    "case": "family:flowchart",
+    "replica": "B"
+  },
+  "resumedAt": "2026-11-13T00:02:28.470954+00:00",
+  "pauseSeconds": 0.005065396999953009
+}

@@ -1,0 +1,45 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="824.66" height="551.4" viewBox="0 0 824.66 551.4" style="--bg:#FFFFFF;--fg:#27272A;--font:Inter;background:#FFFFFF" class="am-02djd2o0jas685">
+<style>
+  svg.am-02djd2o0jas685 { font-family: var(--font, 'Inter'), system-ui, sans-serif; }
+  svg.am-02djd2o0jas685 {
+    /* Derived from --bg and --fg (overridable via --line, --accent, etc.) */
+    --_text:          #27272A;
+    --_text-sec:      #575759;
+    --_text-muted:    #707072;
+    --_text-faint:    #8a8a8c;
+    --_line:          #939395;
+    --_arrow:         #47474a;
+    --_node-fill:     #f9f9f9;
+    --_node-stroke:   #d4d4d4;
+    --_group-fill:    #FFFFFF;
+    --_group-hdr:     #f4f4f4;
+    --_inner-stroke:  #e5e5e5;
+    --_key-badge:     #e9e9ea;
+  }
+</style>
+<defs>  <marker id="wardley-arrow" markerWidth="7" markerHeight="7" refX="7" refY="3.5" orient="auto" markerUnits="userSpaceOnUse">
+    <polygon points="0 0, 7 3.5, 0 7" fill="#939395" />
+  </marker></defs>
+<text x="412.33" y="43.7" class="diagram-title" text-anchor="middle" font-size="18" font-weight="600" fill="#27272A" data-id="diagram-title" data-role="title" data-prepared-text="true" dy="6.3" textLength="52.38" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Value</text>
+<polyline points="120.66,91.4 120.66,455.4 792.66,455.4" fill="none" stroke="#939395" stroke-width="1" data-relationship="rail" data-direction="undirected" />
+<polyline points="288.66,91.4 288.66,455.4" fill="none" stroke="#939395" stroke-opacity="0.4" stroke-width="1" stroke-dasharray="6 4" data-relationship="rail" data-direction="undirected" />
+<polyline points="456.66,91.4 456.66,455.4" fill="none" stroke="#939395" stroke-opacity="0.4" stroke-width="1" stroke-dasharray="6 4" data-relationship="rail" data-direction="undirected" />
+<polyline points="624.66,91.4 624.66,455.4" fill="none" stroke="#939395" stroke-opacity="0.4" stroke-width="1" stroke-dasharray="6 4" data-relationship="rail" data-direction="undirected" />
+<polyline points="326.617400853,167.347011727 519.502599147,306.652988273" fill="none" stroke="#939395" stroke-width="1" data-relationship="dependency" data-direction="undirected" data-id="dependency:0" data-role="edge" data-from="Alpha" data-to="Beta" role="graphics-symbol" aria-roledescription="relation" aria-label="between Alpha and Beta" />
+<g data-id="Alpha" data-role="node">
+  <circle data-evolution="30" data-visibility="80" cx="322.26" cy="164.2" r="5" fill="#f9f9f9" stroke="#949495" stroke-width="0.75" />
+  <polyline points="322.26,164.2 333.502424242,129.75" fill="none" stroke="#939395" stroke-width="1" opacity="0.55" />
+  <text x="336.26" y="121.3" text-anchor="middle" font-family="Inter" font-size="13" font-weight="500" fill="#27272A" stroke="#FFFFFF" stroke-width="3" stroke-linejoin="round" paint-order="stroke" data-prepared-text="true" dy="4.55" textLength="36.036" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Alpha</text>
+</g>
+<g data-id="Beta" data-role="node">
+  <circle data-evolution="60" data-visibility="40" cx="523.86" cy="309.8" r="5" fill="#f9f9f9" stroke="#949495" stroke-width="0.75" />
+  <polyline points="523.86,309.8 535.102424242,275.35" fill="none" stroke="#939395" stroke-width="1" opacity="0.55" />
+  <text x="537.86" y="266.9" text-anchor="middle" font-family="Inter" font-size="13" font-weight="500" fill="#27272A" stroke="#FFFFFF" stroke-width="3" stroke-linejoin="round" paint-order="stroke" data-prepared-text="true" dy="4.55" textLength="28.626" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Beta</text>
+</g>
+<text x="56.66" y="79.4" text-anchor="middle" font-family="Inter" font-size="12" font-weight="600" fill="#27272A" stroke="#FFFFFF" stroke-width="3" stroke-linejoin="round" paint-order="stroke" data-prepared-text="true" dy="4.2" textLength="49.32" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Visibility</text>
+<text x="456.66" y="507" text-anchor="middle" font-family="Inter" font-size="12" font-weight="600" fill="#27272A" stroke="#FFFFFF" stroke-width="3" stroke-linejoin="round" paint-order="stroke" data-prepared-text="true" dy="4.2" textLength="55.08" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Evolution</text>
+<text x="204.66" y="475.2" text-anchor="middle" font-family="Inter" font-size="12" font-weight="600" fill="#27272A" stroke="#FFFFFF" stroke-width="3" stroke-linejoin="round" paint-order="stroke" data-prepared-text="true" dy="4.2" textLength="49.32" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Genesis</text>
+<text x="372.66" y="475.2" text-anchor="middle" font-family="Inter" font-size="12" font-weight="600" fill="#27272A" stroke="#FFFFFF" stroke-width="3" stroke-linejoin="round" paint-order="stroke" data-prepared-text="true" dy="4.2" textLength="68.76" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Custom built</text>
+<text x="540.66" y="475.2" text-anchor="middle" font-family="Inter" font-size="12" font-weight="600" fill="#27272A" stroke="#FFFFFF" stroke-width="3" stroke-linejoin="round" paint-order="stroke" data-prepared-text="true" dy="4.2" textLength="47.88" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Product</text>
+<text x="708.66" y="475.2" text-anchor="middle" font-family="Inter" font-size="12" font-weight="600" fill="#27272A" stroke="#FFFFFF" stroke-width="3" stroke-linejoin="round" paint-order="stroke" data-prepared-text="true" dy="4.2" textLength="62.28" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Commodity</text>
+</svg>

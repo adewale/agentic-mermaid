@@ -1,0 +1,35 @@
+{
+  "at": "2026-11-13T00:23:37.124216+00:00",
+  "workers": 2976,
+  "runtime": {
+    "24.19.0": 2976
+  },
+  "modes": {
+    "0:warm": 372,
+    "0:cold": 372,
+    "0:baseline": 372,
+    "0:memory": 372,
+    "1:warm": 372,
+    "1:cold": 372,
+    "1:baseline": 372,
+    "1:memory": 372
+  },
+  "statuses": {
+    "partial": 2124,
+    "passed": 852
+  },
+  "proofCaveat": "Stock publicSVG boundary does not consume receipts; proofstatus comes from separate actualWithReceipt observations",
+  "lifecycleErrors": 0,
+  "allCasesEnrolled": 62,
+  "cacheRegimes": [
+    0,
+    1
+  ],
+  "replicas": [
+    "A0",
+    "A1",
+    "B"
+  ],
+  "sampling": "1round/7adaptivewarmbatchmeans/3coldreplicas;exploratory,notformalcalibration",
+  "pauseNoise": "Only Bun coordinator was stopped for5.1ms, no Node process stopped. It was immediately resumed when the current job was cold; no packing ran. Pause retained wall timestamps but no contemporaneous monotonic anchor, so exact API-window overlap cannot be established. All three cache0 ELK Flowchart cold samples retained; no sample dropped or rerun. Treat as recorded noise uncertainty, not an optimization."
+}

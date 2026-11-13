@@ -1,0 +1,12 @@
+{
+  "nodeVersion": "24.19.0",
+  "nodeArchiveSHA256": "14b342e71204f811bde6153be8e04b62aef63c236fef92b55f9c83154b409647",
+  "nodeBinarySHA256": "bc17c508ffeed0ec622934f9b7fa72f8e78da65350e63c3eceb56fa688aa5e12",
+  "bunVersion": "1.4.4",
+  "bunArchiveSHA512": "sha512-CHbbkmHVM28T1GFq+6GL4Ao4ujwwYwj1CxFFwEFzLanPfNsId9AhbIP0Q4reWuWBkGimUkoQygrK7Rgjtj3vog==",
+  "bunBinarySHA256": "10702245766b225e70bbf6235fd6b47214fd94b4760d00ffaed8ab0df57ac235",
+  "source": "68986ba8e3b76ad99dad44c6ec8d43475cc5e12f",
+  "sdkFiles": 279,
+  "sdkBytes": 24198217,
+  "systemNodeUnchanged": true
+}

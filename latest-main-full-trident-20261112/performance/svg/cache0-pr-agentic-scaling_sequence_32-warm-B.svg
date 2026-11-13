@@ -1,0 +1,181 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="280" height="1406" viewBox="0 0 280 1406" style="--bg:#FFFFFF;--fg:#27272A;--font:Inter;background:#FFFFFF" class="am-0du5mur1jtimlr">
+<style>
+  svg.am-0du5mur1jtimlr { font-family: var(--font, 'Inter'), system-ui, sans-serif; }
+  svg.am-0du5mur1jtimlr {
+    /* Derived from --bg and --fg (overridable via --line, --accent, etc.) */
+    --_text:          #27272A;
+    --_text-sec:      #575759;
+    --_text-muted:    #707072;
+    --_text-faint:    #8a8a8c;
+    --_line:          #939395;
+    --_arrow:         #47474a;
+    --_node-fill:     #f9f9f9;
+    --_node-stroke:   #d4d4d4;
+    --_group-fill:    #FFFFFF;
+    --_group-hdr:     #f4f4f4;
+    --_inner-stroke:  #e5e5e5;
+    --_key-badge:     #e9e9ea;
+  }
+</style>
+<defs>
+  <marker id="seq-arrow" markerWidth="8" markerHeight="5" refX="8" refY="2.5" orient="auto-start-reverse">
+    <polygon points="0 0, 8 2.5, 0 5" fill="#47474a" />
+  </marker>
+  <marker id="seq-arrow-open" markerWidth="8" markerHeight="5" refX="8" refY="2.5" orient="auto-start-reverse">
+    <polyline points="0 0, 8 2.5, 0 5" fill="none" stroke="#47474a" stroke-width="1" />
+  </marker>
+  <marker id="seq-arrow-cross" markerWidth="8" markerHeight="5" refX="4" refY="2.5" orient="auto">
+    <path d="M1 1 L7 4 M1 4 L7 1" fill="none" stroke="#47474a" stroke-width="1.5" />
+  </marker>
+  <marker id="seq-arrow-half-top" markerWidth="8" markerHeight="5" refX="8" refY="2.5" orient="auto-start-reverse">
+    <polygon points="0 0, 8 2.5, 0 2.5" fill="#47474a" />
+  </marker>
+  <marker id="seq-arrow-half-bottom" markerWidth="8" markerHeight="5" refX="8" refY="2.5" orient="auto-start-reverse">
+    <polygon points="0 2.5, 8 2.5, 0 5" fill="#47474a" />
+  </marker>
+  <marker id="seq-arrow-stick-top" markerWidth="8" markerHeight="5" refX="8" refY="2.5" orient="auto-start-reverse">
+    <path d="M0 0 L8 2.5" fill="none" stroke="#47474a" stroke-width="1.5" />
+  </marker>
+  <marker id="seq-arrow-stick-bottom" markerWidth="8" markerHeight="5" refX="8" refY="2.5" orient="auto-start-reverse">
+    <path d="M0 5 L8 2.5" fill="none" stroke="#47474a" stroke-width="1.5" />
+  </marker>
+</defs>
+<line class="lifeline" data-actor="A" x1="70" y1="70" x2="70" y2="1376" stroke="#939395" stroke-width="0.75" stroke-dasharray="6 4" data-relationship="lifeline" data-direction="undirected" />
+<line class="lifeline" data-actor="B" x1="210" y1="70" x2="210" y2="1376" stroke="#939395" stroke-width="0.75" stroke-dasharray="6 4" data-relationship="lifeline" data-direction="undirected" />
+<g class="message" data-label="N0" data-line-style="solid" data-start-head="none" data-end-head="filled" data-central-start="false" data-central-end="false" data-self="false" data-id="message:A-&gt;B#0" data-role="message">
+  <line x1="70" y1="96" x2="210" y2="96" stroke="#939395" stroke-width="1" marker-end="url(#seq-arrow)" data-relationship="sequence-message" data-direction="forward" data-id="message:A-&gt;B#0:line" data-role="message" data-from="A" data-to="B" role="graphics-symbol" aria-roledescription="relation" aria-label="A to B: N0" />
+  <text x="140" y="86" text-anchor="middle" font-size="11" font-weight="400" fill="#69696c" data-prepared-text="true" dy="3.85" textLength="14.718" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">N0</text>
+</g>
+<g class="message" data-label="N1" data-line-style="dashed" data-start-head="none" data-end-head="filled" data-central-start="false" data-central-end="false" data-self="false" data-id="message:B-&gt;A#0" data-role="message">
+  <line x1="210" y1="136" x2="70" y2="136" stroke="#939395" stroke-width="1" stroke-dasharray="6 4" marker-end="url(#seq-arrow)" data-relationship="sequence-message" data-direction="forward" data-id="message:B-&gt;A#0:line" data-role="message" data-from="B" data-to="A" role="graphics-symbol" aria-roledescription="relation" aria-label="B to A: N1" />
+  <text x="140" y="126" text-anchor="middle" font-size="11" font-weight="400" fill="#69696c" data-prepared-text="true" dy="3.85" textLength="11.154" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">N1</text>
+</g>
+<g class="message" data-label="N2" data-line-style="solid" data-start-head="none" data-end-head="filled" data-central-start="false" data-central-end="false" data-self="false" data-id="message:A-&gt;B#1" data-role="message">
+  <line x1="70" y1="176" x2="210" y2="176" stroke="#939395" stroke-width="1" marker-end="url(#seq-arrow)" data-relationship="sequence-message" data-direction="forward" data-id="message:A-&gt;B#1:line" data-role="message" data-from="A" data-to="B" role="graphics-symbol" aria-roledescription="relation" aria-label="A to B: N2" />
+  <text x="140" y="166" text-anchor="middle" font-size="11" font-weight="400" fill="#69696c" data-prepared-text="true" dy="3.85" textLength="14.718" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">N2</text>
+</g>
+<g class="message" data-label="N3" data-line-style="dashed" data-start-head="none" data-end-head="filled" data-central-start="false" data-central-end="false" data-self="false" data-id="message:B-&gt;A#1" data-role="message">
+  <line x1="210" y1="216" x2="70" y2="216" stroke="#939395" stroke-width="1" stroke-dasharray="6 4" marker-end="url(#seq-arrow)" data-relationship="sequence-message" data-direction="forward" data-id="message:B-&gt;A#1:line" data-role="message" data-from="B" data-to="A" role="graphics-symbol" aria-roledescription="relation" aria-label="B to A: N3" />
+  <text x="140" y="206" text-anchor="middle" font-size="11" font-weight="400" fill="#69696c" data-prepared-text="true" dy="3.85" textLength="14.718" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">N3</text>
+</g>
+<g class="message" data-label="N4" data-line-style="solid" data-start-head="none" data-end-head="filled" data-central-start="false" data-central-end="false" data-self="false" data-id="message:A-&gt;B#2" data-role="message">
+  <line x1="70" y1="256" x2="210" y2="256" stroke="#939395" stroke-width="1" marker-end="url(#seq-arrow)" data-relationship="sequence-message" data-direction="forward" data-id="message:A-&gt;B#2:line" data-role="message" data-from="A" data-to="B" role="graphics-symbol" aria-roledescription="relation" aria-label="A to B: N4" />
+  <text x="140" y="246" text-anchor="middle" font-size="11" font-weight="400" fill="#69696c" data-prepared-text="true" dy="3.85" textLength="14.718" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">N4</text>
+</g>
+<g class="message" data-label="N5" data-line-style="dashed" data-start-head="none" data-end-head="filled" data-central-start="false" data-central-end="false" data-self="false" data-id="message:B-&gt;A#2" data-role="message">
+  <line x1="210" y1="296" x2="70" y2="296" stroke="#939395" stroke-width="1" stroke-dasharray="6 4" marker-end="url(#seq-arrow)" data-relationship="sequence-message" data-direction="forward" data-id="message:B-&gt;A#2:line" data-role="message" data-from="B" data-to="A" role="graphics-symbol" aria-roledescription="relation" aria-label="B to A: N5" />
+  <text x="140" y="286" text-anchor="middle" font-size="11" font-weight="400" fill="#69696c" data-prepared-text="true" dy="3.85" textLength="14.718" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">N5</text>
+</g>
+<g class="message" data-label="N6" data-line-style="solid" data-start-head="none" data-end-head="filled" data-central-start="false" data-central-end="false" data-self="false" data-id="message:A-&gt;B#3" data-role="message">
+  <line x1="70" y1="336" x2="210" y2="336" stroke="#939395" stroke-width="1" marker-end="url(#seq-arrow)" data-relationship="sequence-message" data-direction="forward" data-id="message:A-&gt;B#3:line" data-role="message" data-from="A" data-to="B" role="graphics-symbol" aria-roledescription="relation" aria-label="A to B: N6" />
+  <text x="140" y="326" text-anchor="middle" font-size="11" font-weight="400" fill="#69696c" data-prepared-text="true" dy="3.85" textLength="14.718" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">N6</text>
+</g>
+<g class="message" data-label="N7" data-line-style="dashed" data-start-head="none" data-end-head="filled" data-central-start="false" data-central-end="false" data-self="false" data-id="message:B-&gt;A#3" data-role="message">
+  <line x1="210" y1="376" x2="70" y2="376" stroke="#939395" stroke-width="1" stroke-dasharray="6 4" marker-end="url(#seq-arrow)" data-relationship="sequence-message" data-direction="forward" data-id="message:B-&gt;A#3:line" data-role="message" data-from="B" data-to="A" role="graphics-symbol" aria-roledescription="relation" aria-label="B to A: N7" />
+  <text x="140" y="366" text-anchor="middle" font-size="11" font-weight="400" fill="#69696c" data-prepared-text="true" dy="3.85" textLength="14.718" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">N7</text>
+</g>
+<g class="message" data-label="N8" data-line-style="solid" data-start-head="none" data-end-head="filled" data-central-start="false" data-central-end="false" data-self="false" data-id="message:A-&gt;B#4" data-role="message">
+  <line x1="70" y1="416" x2="210" y2="416" stroke="#939395" stroke-width="1" marker-end="url(#seq-arrow)" data-relationship="sequence-message" data-direction="forward" data-id="message:A-&gt;B#4:line" data-role="message" data-from="A" data-to="B" role="graphics-symbol" aria-roledescription="relation" aria-label="A to B: N8" />
+  <text x="140" y="406" text-anchor="middle" font-size="11" font-weight="400" fill="#69696c" data-prepared-text="true" dy="3.85" textLength="14.718" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">N8</text>
+</g>
+<g class="message" data-label="N9" data-line-style="dashed" data-start-head="none" data-end-head="filled" data-central-start="false" data-central-end="false" data-self="false" data-id="message:B-&gt;A#4" data-role="message">
+  <line x1="210" y1="456" x2="70" y2="456" stroke="#939395" stroke-width="1" stroke-dasharray="6 4" marker-end="url(#seq-arrow)" data-relationship="sequence-message" data-direction="forward" data-id="message:B-&gt;A#4:line" data-role="message" data-from="B" data-to="A" role="graphics-symbol" aria-roledescription="relation" aria-label="B to A: N9" />
+  <text x="140" y="446" text-anchor="middle" font-size="11" font-weight="400" fill="#69696c" data-prepared-text="true" dy="3.85" textLength="14.718" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">N9</text>
+</g>
+<g class="message" data-label="N10" data-line-style="solid" data-start-head="none" data-end-head="filled" data-central-start="false" data-central-end="false" data-self="false" data-id="message:A-&gt;B#5" data-role="message">
+  <line x1="70" y1="496" x2="210" y2="496" stroke="#939395" stroke-width="1" marker-end="url(#seq-arrow)" data-relationship="sequence-message" data-direction="forward" data-id="message:A-&gt;B#5:line" data-role="message" data-from="A" data-to="B" role="graphics-symbol" aria-roledescription="relation" aria-label="A to B: N10" />
+  <text x="140" y="486" text-anchor="middle" font-size="11" font-weight="400" fill="#69696c" data-prepared-text="true" dy="3.85" textLength="17.094" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">N10</text>
+</g>
+<g class="message" data-label="N11" data-line-style="dashed" data-start-head="none" data-end-head="filled" data-central-start="false" data-central-end="false" data-self="false" data-id="message:B-&gt;A#5" data-role="message">
+  <line x1="210" y1="536" x2="70" y2="536" stroke="#939395" stroke-width="1" stroke-dasharray="6 4" marker-end="url(#seq-arrow)" data-relationship="sequence-message" data-direction="forward" data-id="message:B-&gt;A#5:line" data-role="message" data-from="B" data-to="A" role="graphics-symbol" aria-roledescription="relation" aria-label="B to A: N11" />
+  <text x="140" y="526" text-anchor="middle" font-size="11" font-weight="400" fill="#69696c" data-prepared-text="true" dy="3.85" textLength="13.53" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">N11</text>
+</g>
+<g class="message" data-label="N12" data-line-style="solid" data-start-head="none" data-end-head="filled" data-central-start="false" data-central-end="false" data-self="false" data-id="message:A-&gt;B#6" data-role="message">
+  <line x1="70" y1="576" x2="210" y2="576" stroke="#939395" stroke-width="1" marker-end="url(#seq-arrow)" data-relationship="sequence-message" data-direction="forward" data-id="message:A-&gt;B#6:line" data-role="message" data-from="A" data-to="B" role="graphics-symbol" aria-roledescription="relation" aria-label="A to B: N12" />
+  <text x="140" y="566" text-anchor="middle" font-size="11" font-weight="400" fill="#69696c" data-prepared-text="true" dy="3.85" textLength="17.094" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">N12</text>
+</g>
+<g class="message" data-label="N13" data-line-style="dashed" data-start-head="none" data-end-head="filled" data-central-start="false" data-central-end="false" data-self="false" data-id="message:B-&gt;A#6" data-role="message">
+  <line x1="210" y1="616" x2="70" y2="616" stroke="#939395" stroke-width="1" stroke-dasharray="6 4" marker-end="url(#seq-arrow)" data-relationship="sequence-message" data-direction="forward" data-id="message:B-&gt;A#6:line" data-role="message" data-from="B" data-to="A" role="graphics-symbol" aria-roledescription="relation" aria-label="B to A: N13" />
+  <text x="140" y="606" text-anchor="middle" font-size="11" font-weight="400" fill="#69696c" data-prepared-text="true" dy="3.85" textLength="17.094" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">N13</text>
+</g>
+<g class="message" data-label="N14" data-line-style="solid" data-start-head="none" data-end-head="filled" data-central-start="false" data-central-end="false" data-self="false" data-id="message:A-&gt;B#7" data-role="message">
+  <line x1="70" y1="656" x2="210" y2="656" stroke="#939395" stroke-width="1" marker-end="url(#seq-arrow)" data-relationship="sequence-message" data-direction="forward" data-id="message:A-&gt;B#7:line" data-role="message" data-from="A" data-to="B" role="graphics-symbol" aria-roledescription="relation" aria-label="A to B: N14" />
+  <text x="140" y="646" text-anchor="middle" font-size="11" font-weight="400" fill="#69696c" data-prepared-text="true" dy="3.85" textLength="17.094" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">N14</text>
+</g>
+<g class="message" data-label="N15" data-line-style="dashed" data-start-head="none" data-end-head="filled" data-central-start="false" data-central-end="false" data-self="false" data-id="message:B-&gt;A#7" data-role="message">
+  <line x1="210" y1="696" x2="70" y2="696" stroke="#939395" stroke-width="1" stroke-dasharray="6 4" marker-end="url(#seq-arrow)" data-relationship="sequence-message" data-direction="forward" data-id="message:B-&gt;A#7:line" data-role="message" data-from="B" data-to="A" role="graphics-symbol" aria-roledescription="relation" aria-label="B to A: N15" />
+  <text x="140" y="686" text-anchor="middle" font-size="11" font-weight="400" fill="#69696c" data-prepared-text="true" dy="3.85" textLength="17.094" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">N15</text>
+</g>
+<g class="message" data-label="N16" data-line-style="solid" data-start-head="none" data-end-head="filled" data-central-start="false" data-central-end="false" data-self="false" data-id="message:A-&gt;B#8" data-role="message">
+  <line x1="70" y1="736" x2="210" y2="736" stroke="#939395" stroke-width="1" marker-end="url(#seq-arrow)" data-relationship="sequence-message" data-direction="forward" data-id="message:A-&gt;B#8:line" data-role="message" data-from="A" data-to="B" role="graphics-symbol" aria-roledescription="relation" aria-label="A to B: N16" />
+  <text x="140" y="726" text-anchor="middle" font-size="11" font-weight="400" fill="#69696c" data-prepared-text="true" dy="3.85" textLength="17.094" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">N16</text>
+</g>
+<g class="message" data-label="N17" data-line-style="dashed" data-start-head="none" data-end-head="filled" data-central-start="false" data-central-end="false" data-self="false" data-id="message:B-&gt;A#8" data-role="message">
+  <line x1="210" y1="776" x2="70" y2="776" stroke="#939395" stroke-width="1" stroke-dasharray="6 4" marker-end="url(#seq-arrow)" data-relationship="sequence-message" data-direction="forward" data-id="message:B-&gt;A#8:line" data-role="message" data-from="B" data-to="A" role="graphics-symbol" aria-roledescription="relation" aria-label="B to A: N17" />
+  <text x="140" y="766" text-anchor="middle" font-size="11" font-weight="400" fill="#69696c" data-prepared-text="true" dy="3.85" textLength="17.094" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">N17</text>
+</g>
+<g class="message" data-label="N18" data-line-style="solid" data-start-head="none" data-end-head="filled" data-central-start="false" data-central-end="false" data-self="false" data-id="message:A-&gt;B#9" data-role="message">
+  <line x1="70" y1="816" x2="210" y2="816" stroke="#939395" stroke-width="1" marker-end="url(#seq-arrow)" data-relationship="sequence-message" data-direction="forward" data-id="message:A-&gt;B#9:line" data-role="message" data-from="A" data-to="B" role="graphics-symbol" aria-roledescription="relation" aria-label="A to B: N18" />
+  <text x="140" y="806" text-anchor="middle" font-size="11" font-weight="400" fill="#69696c" data-prepared-text="true" dy="3.85" textLength="17.094" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">N18</text>
+</g>
+<g class="message" data-label="N19" data-line-style="dashed" data-start-head="none" data-end-head="filled" data-central-start="false" data-central-end="false" data-self="false" data-id="message:B-&gt;A#9" data-role="message">
+  <line x1="210" y1="856" x2="70" y2="856" stroke="#939395" stroke-width="1" stroke-dasharray="6 4" marker-end="url(#seq-arrow)" data-relationship="sequence-message" data-direction="forward" data-id="message:B-&gt;A#9:line" data-role="message" data-from="B" data-to="A" role="graphics-symbol" aria-roledescription="relation" aria-label="B to A: N19" />
+  <text x="140" y="846" text-anchor="middle" font-size="11" font-weight="400" fill="#69696c" data-prepared-text="true" dy="3.85" textLength="17.094" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">N19</text>
+</g>
+<g class="message" data-label="N20" data-line-style="solid" data-start-head="none" data-end-head="filled" data-central-start="false" data-central-end="false" data-self="false" data-id="message:A-&gt;B#10" data-role="message">
+  <line x1="70" y1="896" x2="210" y2="896" stroke="#939395" stroke-width="1" marker-end="url(#seq-arrow)" data-relationship="sequence-message" data-direction="forward" data-id="message:A-&gt;B#10:line" data-role="message" data-from="A" data-to="B" role="graphics-symbol" aria-roledescription="relation" aria-label="A to B: N20" />
+  <text x="140" y="886" text-anchor="middle" font-size="11" font-weight="400" fill="#69696c" data-prepared-text="true" dy="3.85" textLength="20.658" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">N20</text>
+</g>
+<g class="message" data-label="N21" data-line-style="dashed" data-start-head="none" data-end-head="filled" data-central-start="false" data-central-end="false" data-self="false" data-id="message:B-&gt;A#10" data-role="message">
+  <line x1="210" y1="936" x2="70" y2="936" stroke="#939395" stroke-width="1" stroke-dasharray="6 4" marker-end="url(#seq-arrow)" data-relationship="sequence-message" data-direction="forward" data-id="message:B-&gt;A#10:line" data-role="message" data-from="B" data-to="A" role="graphics-symbol" aria-roledescription="relation" aria-label="B to A: N21" />
+  <text x="140" y="926" text-anchor="middle" font-size="11" font-weight="400" fill="#69696c" data-prepared-text="true" dy="3.85" textLength="17.094" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">N21</text>
+</g>
+<g class="message" data-label="N22" data-line-style="solid" data-start-head="none" data-end-head="filled" data-central-start="false" data-central-end="false" data-self="false" data-id="message:A-&gt;B#11" data-role="message">
+  <line x1="70" y1="976" x2="210" y2="976" stroke="#939395" stroke-width="1" marker-end="url(#seq-arrow)" data-relationship="sequence-message" data-direction="forward" data-id="message:A-&gt;B#11:line" data-role="message" data-from="A" data-to="B" role="graphics-symbol" aria-roledescription="relation" aria-label="A to B: N22" />
+  <text x="140" y="966" text-anchor="middle" font-size="11" font-weight="400" fill="#69696c" data-prepared-text="true" dy="3.85" textLength="20.658" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">N22</text>
+</g>
+<g class="message" data-label="N23" data-line-style="dashed" data-start-head="none" data-end-head="filled" data-central-start="false" data-central-end="false" data-self="false" data-id="message:B-&gt;A#11" data-role="message">
+  <line x1="210" y1="1016" x2="70" y2="1016" stroke="#939395" stroke-width="1" stroke-dasharray="6 4" marker-end="url(#seq-arrow)" data-relationship="sequence-message" data-direction="forward" data-id="message:B-&gt;A#11:line" data-role="message" data-from="B" data-to="A" role="graphics-symbol" aria-roledescription="relation" aria-label="B to A: N23" />
+  <text x="140" y="1006" text-anchor="middle" font-size="11" font-weight="400" fill="#69696c" data-prepared-text="true" dy="3.85" textLength="20.658" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">N23</text>
+</g>
+<g class="message" data-label="N24" data-line-style="solid" data-start-head="none" data-end-head="filled" data-central-start="false" data-central-end="false" data-self="false" data-id="message:A-&gt;B#12" data-role="message">
+  <line x1="70" y1="1056" x2="210" y2="1056" stroke="#939395" stroke-width="1" marker-end="url(#seq-arrow)" data-relationship="sequence-message" data-direction="forward" data-id="message:A-&gt;B#12:line" data-role="message" data-from="A" data-to="B" role="graphics-symbol" aria-roledescription="relation" aria-label="A to B: N24" />
+  <text x="140" y="1046" text-anchor="middle" font-size="11" font-weight="400" fill="#69696c" data-prepared-text="true" dy="3.85" textLength="20.658" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">N24</text>
+</g>
+<g class="message" data-label="N25" data-line-style="dashed" data-start-head="none" data-end-head="filled" data-central-start="false" data-central-end="false" data-self="false" data-id="message:B-&gt;A#12" data-role="message">
+  <line x1="210" y1="1096" x2="70" y2="1096" stroke="#939395" stroke-width="1" stroke-dasharray="6 4" marker-end="url(#seq-arrow)" data-relationship="sequence-message" data-direction="forward" data-id="message:B-&gt;A#12:line" data-role="message" data-from="B" data-to="A" role="graphics-symbol" aria-roledescription="relation" aria-label="B to A: N25" />
+  <text x="140" y="1086" text-anchor="middle" font-size="11" font-weight="400" fill="#69696c" data-prepared-text="true" dy="3.85" textLength="20.658" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">N25</text>
+</g>
+<g class="message" data-label="N26" data-line-style="solid" data-start-head="none" data-end-head="filled" data-central-start="false" data-central-end="false" data-self="false" data-id="message:A-&gt;B#13" data-role="message">
+  <line x1="70" y1="1136" x2="210" y2="1136" stroke="#939395" stroke-width="1" marker-end="url(#seq-arrow)" data-relationship="sequence-message" data-direction="forward" data-id="message:A-&gt;B#13:line" data-role="message" data-from="A" data-to="B" role="graphics-symbol" aria-roledescription="relation" aria-label="A to B: N26" />
+  <text x="140" y="1126" text-anchor="middle" font-size="11" font-weight="400" fill="#69696c" data-prepared-text="true" dy="3.85" textLength="20.658" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">N26</text>
+</g>
+<g class="message" data-label="N27" data-line-style="dashed" data-start-head="none" data-end-head="filled" data-central-start="false" data-central-end="false" data-self="false" data-id="message:B-&gt;A#13" data-role="message">
+  <line x1="210" y1="1176" x2="70" y2="1176" stroke="#939395" stroke-width="1" stroke-dasharray="6 4" marker-end="url(#seq-arrow)" data-relationship="sequence-message" data-direction="forward" data-id="message:B-&gt;A#13:line" data-role="message" data-from="B" data-to="A" role="graphics-symbol" aria-roledescription="relation" aria-label="B to A: N27" />
+  <text x="140" y="1166" text-anchor="middle" font-size="11" font-weight="400" fill="#69696c" data-prepared-text="true" dy="3.85" textLength="20.658" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">N27</text>
+</g>
+<g class="message" data-label="N28" data-line-style="solid" data-start-head="none" data-end-head="filled" data-central-start="false" data-central-end="false" data-self="false" data-id="message:A-&gt;B#14" data-role="message">
+  <line x1="70" y1="1216" x2="210" y2="1216" stroke="#939395" stroke-width="1" marker-end="url(#seq-arrow)" data-relationship="sequence-message" data-direction="forward" data-id="message:A-&gt;B#14:line" data-role="message" data-from="A" data-to="B" role="graphics-symbol" aria-roledescription="relation" aria-label="A to B: N28" />
+  <text x="140" y="1206" text-anchor="middle" font-size="11" font-weight="400" fill="#69696c" data-prepared-text="true" dy="3.85" textLength="20.658" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">N28</text>
+</g>
+<g class="message" data-label="N29" data-line-style="dashed" data-start-head="none" data-end-head="filled" data-central-start="false" data-central-end="false" data-self="false" data-id="message:B-&gt;A#14" data-role="message">
+  <line x1="210" y1="1256" x2="70" y2="1256" stroke="#939395" stroke-width="1" stroke-dasharray="6 4" marker-end="url(#seq-arrow)" data-relationship="sequence-message" data-direction="forward" data-id="message:B-&gt;A#14:line" data-role="message" data-from="B" data-to="A" role="graphics-symbol" aria-roledescription="relation" aria-label="B to A: N29" />
+  <text x="140" y="1246" text-anchor="middle" font-size="11" font-weight="400" fill="#69696c" data-prepared-text="true" dy="3.85" textLength="20.658" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">N29</text>
+</g>
+<g class="message" data-label="N30" data-line-style="solid" data-start-head="none" data-end-head="filled" data-central-start="false" data-central-end="false" data-self="false" data-id="message:A-&gt;B#15" data-role="message">
+  <line x1="70" y1="1296" x2="210" y2="1296" stroke="#939395" stroke-width="1" marker-end="url(#seq-arrow)" data-relationship="sequence-message" data-direction="forward" data-id="message:A-&gt;B#15:line" data-role="message" data-from="A" data-to="B" role="graphics-symbol" aria-roledescription="relation" aria-label="A to B: N30" />
+  <text x="140" y="1286" text-anchor="middle" font-size="11" font-weight="400" fill="#69696c" data-prepared-text="true" dy="3.85" textLength="20.658" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">N30</text>
+</g>
+<g class="message" data-label="N31" data-line-style="dashed" data-start-head="none" data-end-head="filled" data-central-start="false" data-central-end="false" data-self="false" data-id="message:B-&gt;A#15" data-role="message">
+  <line x1="210" y1="1336" x2="70" y2="1336" stroke="#939395" stroke-width="1" stroke-dasharray="6 4" marker-end="url(#seq-arrow)" data-relationship="sequence-message" data-direction="forward" data-id="message:B-&gt;A#15:line" data-role="message" data-from="B" data-to="A" role="graphics-symbol" aria-roledescription="relation" aria-label="B to A: N31" />
+  <text x="140" y="1326" text-anchor="middle" font-size="11" font-weight="400" fill="#69696c" data-prepared-text="true" dy="3.85" textLength="17.094" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">N31</text>
+</g>
+<g class="actor" data-id="A" data-label="Alpha" data-type="participant" data-role="actor">
+  <rect x="30" y="30" width="80" height="40" rx="4" ry="4" fill="#f9f9f9" stroke="#949495" stroke-width="1" data-id="actor:A:box" data-role="actor" />
+  <text x="70" y="50" text-anchor="middle" font-size="13" font-weight="500" fill="#27272A" data-prepared-text="true" dy="4.55" textLength="36.036" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Alpha</text>
+</g>
+<g class="actor" data-id="B" data-label="Beta" data-type="participant" data-role="actor">
+  <rect x="170" y="30" width="80" height="40" rx="4" ry="4" fill="#f9f9f9" stroke="#949495" stroke-width="1" data-id="actor:B:box" data-role="actor" />
+  <text x="210" y="50" text-anchor="middle" font-size="13" font-weight="500" fill="#27272A" data-prepared-text="true" dy="4.55" textLength="28.626" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Beta</text>
+</g>
+</svg>

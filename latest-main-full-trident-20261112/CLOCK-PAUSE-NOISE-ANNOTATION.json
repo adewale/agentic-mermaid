@@ -1,0 +1,82 @@
+{
+  "pause": {
+    "at": "2026-11-13T00:02:28.465902+00:00",
+    "coordinator": 887,
+    "onlyCoordinatorStopped": true,
+    "childNeverStopped": true,
+    "pushed": false,
+    "currentJob": {
+      "mode": "cold",
+      "case": "family:flowchart",
+      "replica": "B"
+    },
+    "resumedAt": "2026-11-13T00:02:28.470954+00:00",
+    "pauseSeconds": 0.005065396999953009
+  },
+  "affectedCandidateRows": [
+    {
+      "stem": "cache0-pr-elk-family_flowchart-cold-A0",
+      "runtime": {
+        "executable": "/workspace/pr449-runtime-recovery/node-v24.19.0-linux-x64/bin/node",
+        "node": "24.19.0",
+        "platform": "linux",
+        "arch": "x64"
+      },
+      "windows": {
+        "runtime": {
+          "executable": "/workspace/pr449-runtime-recovery/node-v24.19.0-linux-x64/bin/node",
+          "node": "24.19.0",
+          "platform": "linux",
+          "arch": "x64"
+        },
+        "apiWindow": {
+          "startNs": "1233142454052",
+          "endNs": "1233545480960"
+        }
+      }
+    },
+    {
+      "stem": "cache0-pr-elk-family_flowchart-cold-A1",
+      "runtime": {
+        "executable": "/workspace/pr449-runtime-recovery/node-v24.19.0-linux-x64/bin/node",
+        "node": "24.19.0",
+        "platform": "linux",
+        "arch": "x64"
+      },
+      "windows": {
+        "runtime": {
+          "executable": "/workspace/pr449-runtime-recovery/node-v24.19.0-linux-x64/bin/node",
+          "node": "24.19.0",
+          "platform": "linux",
+          "arch": "x64"
+        },
+        "apiWindow": {
+          "startNs": "1233821919767",
+          "endNs": "1234082908943"
+        }
+      }
+    },
+    {
+      "stem": "cache0-pr-elk-family_flowchart-cold-B",
+      "runtime": {
+        "executable": "/workspace/pr449-runtime-recovery/node-v24.19.0-linux-x64/bin/node",
+        "node": "24.19.0",
+        "platform": "linux",
+        "arch": "x64"
+      },
+      "windows": {
+        "runtime": {
+          "executable": "/workspace/pr449-runtime-recovery/node-v24.19.0-linux-x64/bin/node",
+          "node": "24.19.0",
+          "platform": "linux",
+          "arch": "x64"
+        },
+        "apiWindow": {
+          "startNs": "1234367454115",
+          "endNs": "1234725080009"
+        }
+      }
+    }
+  ],
+  "assessment": "Only Bun coordinator was stopped for5.1ms, no Node process stopped. It was immediately resumed when the current job was cold; no packing ran. Pause retained wall timestamps but no contemporaneous monotonic anchor, so exact API-window overlap cannot be established. All three cache0 ELK Flowchart cold samples retained; no sample dropped or rerun. Treat as recorded noise uncertainty, not an optimization."
+}

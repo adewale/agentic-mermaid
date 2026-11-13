@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="363.482" height="120" viewBox="0 0 363.482 120" style="--bg:#FFFFFF;--fg:#27272A;--font:Inter;background:#FFFFFF" aria-labelledby="mindmap-title" aria-roledescription="mindmap" role="img" class="am-1i8s4id1p8tnat">
+<style>
+  svg.am-1i8s4id1p8tnat { font-family: var(--font, 'Inter'), system-ui, sans-serif; }
+  svg.am-1i8s4id1p8tnat {
+    /* Derived from --bg and --fg (overridable via --line, --accent, etc.) */
+    --_text:          #27272A;
+    --_text-sec:      #575759;
+    --_text-muted:    #707072;
+    --_text-faint:    #8a8a8c;
+    --_line:          #939395;
+    --_arrow:         #47474a;
+    --_node-fill:     #f9f9f9;
+    --_node-stroke:   #d4d4d4;
+    --_group-fill:    #FFFFFF;
+    --_group-hdr:     #f4f4f4;
+    --_inner-stroke:  #e5e5e5;
+    --_key-badge:     #e9e9ea;
+  }
+</style>
+<title id="mindmap-title">Root</title>
+<path class="mindmap-edge" data-branch-index="0" d="M 175.446 60 C 183.846 60 187.046 60 195.446 60" fill="none" stroke="#3b82f6" stroke-width="2.5" stroke-linecap="round" data-relationship="mindmap-branch" data-direction="forward" data-id="root-&gt;Alpha" data-role="edge" data-from="root" data-to="Alpha" role="graphics-symbol" aria-roledescription="relation" aria-label="root to Alpha" />
+<path class="mindmap-edge" data-branch-index="0" d="M 255.482 60 C 263.882 60 267.082 60 275.482 60" fill="none" stroke="#3b82f6" stroke-width="2.5" stroke-linecap="round" data-relationship="mindmap-branch" data-direction="forward" data-id="Alpha-&gt;Beta" data-role="edge" data-from="Alpha" data-to="Beta" role="graphics-symbol" aria-roledescription="relation" aria-label="Alpha to Beta" />
+<path class="mindmap-edge" data-branch-index="1" d="M 119.446 60 C 111.046 60 107.846 60 99.446 60" fill="none" stroke="#0d5ba5" stroke-width="2.5" stroke-linecap="round" data-relationship="mindmap-branch" data-direction="forward" data-id="root-&gt;Gamma" data-role="edge" data-from="root" data-to="Gamma" role="graphics-symbol" aria-roledescription="relation" aria-label="root to Gamma" />
+<g class="mindmap-node depth-0" data-id="root" data-label="Root" data-role="node">
+  <circle cx="147.446" cy="60" r="28" fill="#47474a" stroke="#47474a" stroke-width="1.5" />
+  <text x="147.446" y="60" text-anchor="middle" font-size="13" font-weight="500" fill="#FFFFFF" data-prepared-text="true" dy="4.55" textLength="28.626" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Root</text>
+</g>
+<g class="mindmap-node depth-1" data-id="Alpha" data-label="Alpha" data-branch-index="0" data-parent-id="root" data-role="node">
+  <rect x="195.446" y="42.55" width="60.036" height="34.9" rx="16" ry="16" fill="#c4dafc" stroke="#3b82f6" stroke-width="1.5" />
+  <text x="225.464" y="60" text-anchor="middle" font-size="13" font-weight="500" fill="#27272A" data-prepared-text="true" dy="4.55" textLength="36.036" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Alpha</text>
+</g>
+<g class="mindmap-node depth-2" data-id="Beta" data-label="Beta" data-branch-index="0" data-parent-id="Alpha" data-role="node">
+  <rect x="275.482" y="42.55" width="56" height="34.9" rx="16" ry="16" fill="#d8e6fd" stroke="#3b82f6" stroke-width="1.5" />
+  <text x="303.482" y="60" text-anchor="middle" font-size="13" font-weight="500" fill="#27272A" data-prepared-text="true" dy="4.55" textLength="28.626" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Beta</text>
+</g>
+<g class="mindmap-node depth-1" data-id="Gamma" data-label="Gamma" data-branch-index="1" data-parent-id="root" data-role="node">
+  <rect x="32" y="42.55" width="67.446" height="34.9" rx="16" ry="16" fill="#b6cee4" stroke="#0d5ba5" stroke-width="1.5" />
+  <text x="65.723" y="60" text-anchor="middle" font-size="13" font-weight="500" fill="#27272A" data-prepared-text="true" dy="4.55" textLength="43.446" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Gamma</text>
+</g>
+</svg>

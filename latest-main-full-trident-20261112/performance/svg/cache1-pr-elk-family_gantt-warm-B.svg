@@ -1,0 +1,39 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="689" height="186" viewBox="0 0 689 186" style="--bg:#FFFFFF;--fg:#27272A;--font:Inter;background:#FFFFFF" class="am-00116y31hfuwns">
+<style>
+  svg.am-00116y31hfuwns { font-family: var(--font, 'Inter'), system-ui, sans-serif; }
+  svg.am-00116y31hfuwns {
+    /* Derived from --bg and --fg (overridable via --line, --accent, etc.) */
+    --_text:          #27272A;
+    --_text-sec:      #575759;
+    --_text-muted:    #707072;
+    --_text-faint:    #8a8a8c;
+    --_line:          #939395;
+    --_arrow:         #47474a;
+    --_node-fill:     #f9f9f9;
+    --_node-stroke:   #d4d4d4;
+    --_group-fill:    #FFFFFF;
+    --_group-hdr:     #f4f4f4;
+    --_inner-stroke:  #e5e5e5;
+    --_key-badge:     #e9e9ea;
+  }
+</style>
+<rect class="gantt-section-band" x="73" y="50" width="600" height="90" fill="#27272A" opacity="0.07" data-id="section-band:Build#0" data-role="section" />
+<line class="gantt-grid-line" x1="73" y1="50" x2="73" y2="146" stroke="#27272A" stroke-width="1" opacity="0.45" />
+<line class="gantt-grid-line" x1="193" y1="50" x2="193" y2="146" stroke="#27272A" stroke-width="1" opacity="0.45" />
+<line class="gantt-grid-line" x1="313" y1="50" x2="313" y2="146" stroke="#27272A" stroke-width="1" opacity="0.45" />
+<line class="gantt-grid-line" x1="433" y1="50" x2="433" y2="146" stroke="#27272A" stroke-width="1" opacity="0.45" />
+<line class="gantt-grid-line" x1="553" y1="50" x2="553" y2="146" stroke="#27272A" stroke-width="1" opacity="0.45" />
+<line class="gantt-grid-line" x1="673" y1="50" x2="673" y2="146" stroke="#27272A" stroke-width="1" opacity="0.45" />
+<text x="73" y="158" class="gantt-axis-label" text-anchor="middle" font-size="11" font-weight="500" fill="#69696c" data-prepared-text="true" dy="3.85" textLength="22.341" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">01-01</text>
+<text x="193" y="158" class="gantt-axis-label" text-anchor="middle" font-size="11" font-weight="500" fill="#69696c" data-prepared-text="true" dy="3.85" textLength="26.103" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">01-02</text>
+<text x="313" y="158" class="gantt-axis-label" text-anchor="middle" font-size="11" font-weight="500" fill="#69696c" data-prepared-text="true" dy="3.85" textLength="26.103" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">01-03</text>
+<text x="433" y="158" class="gantt-axis-label" text-anchor="middle" font-size="11" font-weight="500" fill="#69696c" data-prepared-text="true" dy="3.85" textLength="26.103" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">01-04</text>
+<text x="553" y="158" class="gantt-axis-label" text-anchor="middle" font-size="11" font-weight="500" fill="#69696c" data-prepared-text="true" dy="3.85" textLength="26.103" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">01-05</text>
+<text x="673" y="158" class="gantt-axis-label" text-anchor="middle" font-size="11" font-weight="500" fill="#69696c" data-prepared-text="true" dy="3.85" textLength="26.103" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">01-06</text>
+<text x="8" y="65" class="gantt-section-label" text-anchor="start" font-size="13" font-weight="600" fill="#27272A" data-id="section-label:Build#0" data-role="section" data-prepared-text="true" dy="4.55" textLength="33.15" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Build</text>
+<text x="16" y="91" class="gantt-task-label" text-anchor="start" font-size="13" font-weight="500" fill="#27272A" data-prepared-text="true" dy="4.55" textLength="43.446" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Design</text>
+<text x="16" y="121" class="gantt-task-label" text-anchor="start" font-size="13" font-weight="500" fill="#27272A" data-prepared-text="true" dy="4.55" textLength="44.928" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Review</text>
+<rect class="gantt-bar" data-task="taskAlpha" x="73" y="80" width="240" height="22" rx="3" ry="3" fill="#27272A" stroke="none" data-id="task:taskAlpha" data-role="task" />
+<rect class="gantt-bar" data-task="taskBeta" x="313" y="110" width="360" height="22" rx="3" ry="3" fill="#27272A" stroke="none" data-id="task:taskBeta" data-role="task" />
+<text x="344.5" y="18" class="gantt-title" text-anchor="middle" font-size="17" font-weight="600" fill="#27272A" data-id="title" data-role="title" data-prepared-text="true" dy="5.95" textLength="71.91" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Delivery</text>
+</svg>

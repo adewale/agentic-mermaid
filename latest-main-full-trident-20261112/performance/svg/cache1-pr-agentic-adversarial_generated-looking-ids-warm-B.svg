@@ -1,0 +1,42 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="408.554" height="116.9" viewBox="0 0 408.554 116.9" style="--bg:#FFFFFF;--fg:#27272A;--font:Inter;background:#FFFFFF" class="am-1xiryx70nnhccp">
+<style>
+  svg.am-1xiryx70nnhccp { font-family: var(--font, 'Inter'), system-ui, sans-serif; }
+  svg.am-1xiryx70nnhccp {
+    /* Derived from --bg and --fg (overridable via --line, --accent, etc.) */
+    --_text:          #27272A;
+    --_text-sec:      #575759;
+    --_text-muted:    #707072;
+    --_text-faint:    #8a8a8c;
+    --_line:          #939395;
+    --_arrow:         #47474a;
+    --_node-fill:     #f9f9f9;
+    --_node-stroke:   #d4d4d4;
+    --_group-fill:    #FFFFFF;
+    --_group-hdr:     #f4f4f4;
+    --_inner-stroke:  #e5e5e5;
+    --_key-badge:     #e9e9ea;
+  }
+</style>
+<defs>
+  <marker id="arrowhead" markerWidth="8" markerHeight="5" refX="8" refY="2.5" orient="auto">
+    <polygon points="0 0, 8 2.5, 0 5" fill="#47474a" stroke="#47474a" stroke-width="0.75" stroke-linejoin="round" />
+  </marker>
+  <marker id="arrowhead-start" markerWidth="8" markerHeight="5" refX="0" refY="2.5" orient="auto">
+    <polygon points="8 0, 0 2.5, 8 5" fill="#47474a" stroke="#47474a" stroke-width="0.75" stroke-linejoin="round" />
+  </marker>
+</defs>
+<polyline class="edge" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" points="110.108,58.45 158.108,58.45" fill="none" stroke="#939395" stroke-width="1" marker-end="url(#arrowhead)" data-relationship="flowchart-edge" data-direction="forward" data-id="edge:L_A_B_0-&gt;A_B#0" data-role="edge" data-from="L_A_B_0" data-to="A_B" role="graphics-symbol" aria-roledescription="relation" aria-label="L_A_B_0 to A_B" />
+<polyline class="edge" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" points="246,58.45 294,58.45" fill="none" stroke="#939395" stroke-width="1" marker-end="url(#arrowhead)" data-relationship="flowchart-edge" data-direction="forward" data-id="edge:A_B-&gt;C#0" data-role="edge" data-from="A_B" data-to="C" role="graphics-symbol" aria-roledescription="relation" aria-label="A_B to C" />
+<g class="node" data-id="L_A_B_0" data-label="First" data-shape="rectangle" data-role="node">
+  <rect x="40" y="40" width="70.108" height="36.9" rx="0" ry="0" fill="#f9f9f9" stroke="#949495" stroke-width="0.75" data-id="node-shape:L_A_B_0" data-role="node" />
+  <text x="75.054" y="58.45" text-anchor="middle" font-size="13" font-weight="500" fill="#27272A" data-prepared-text="true" dy="4.55" textLength="30.108" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">First</text>
+</g>
+<g class="node" data-id="A_B" data-label="Second" data-shape="rectangle" data-role="node">
+  <rect x="158.108" y="40" width="87.892" height="36.9" rx="0" ry="0" fill="#f9f9f9" stroke="#949495" stroke-width="0.75" data-id="node-shape:A_B" data-role="node" />
+  <text x="202.054" y="58.45" text-anchor="middle" font-size="13" font-weight="500" fill="#27272A" data-prepared-text="true" dy="4.55" textLength="47.892" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Second</text>
+</g>
+<g class="node" data-id="C" data-label="Third" data-shape="rectangle" data-role="node">
+  <rect x="294" y="40" width="74.554" height="36.9" rx="0" ry="0" fill="#f9f9f9" stroke="#949495" stroke-width="0.75" data-id="node-shape:C" data-role="node" />
+  <text x="331.277" y="58.45" text-anchor="middle" font-size="13" font-weight="500" fill="#27272A" data-prepared-text="true" dy="4.55" textLength="34.554" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Third</text>
+</g>
+</svg>

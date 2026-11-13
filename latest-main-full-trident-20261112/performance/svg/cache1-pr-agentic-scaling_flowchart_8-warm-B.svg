@@ -1,0 +1,67 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="896" height="116.9" viewBox="0 0 896 116.9" style="--bg:#FFFFFF;--fg:#27272A;--font:Inter;background:#FFFFFF" class="am-0e969fg19lcvrt">
+<style>
+  svg.am-0e969fg19lcvrt { font-family: var(--font, 'Inter'), system-ui, sans-serif; }
+  svg.am-0e969fg19lcvrt {
+    /* Derived from --bg and --fg (overridable via --line, --accent, etc.) */
+    --_text:          #27272A;
+    --_text-sec:      #575759;
+    --_text-muted:    #707072;
+    --_text-faint:    #8a8a8c;
+    --_line:          #939395;
+    --_arrow:         #47474a;
+    --_node-fill:     #f9f9f9;
+    --_node-stroke:   #d4d4d4;
+    --_group-fill:    #FFFFFF;
+    --_group-hdr:     #f4f4f4;
+    --_inner-stroke:  #e5e5e5;
+    --_key-badge:     #e9e9ea;
+  }
+</style>
+<defs>
+  <marker id="arrowhead" markerWidth="8" markerHeight="5" refX="8" refY="2.5" orient="auto">
+    <polygon points="0 0, 8 2.5, 0 5" fill="#47474a" stroke="#47474a" stroke-width="0.75" stroke-linejoin="round" />
+  </marker>
+  <marker id="arrowhead-start" markerWidth="8" markerHeight="5" refX="0" refY="2.5" orient="auto">
+    <polygon points="8 0, 0 2.5, 8 5" fill="#47474a" stroke="#47474a" stroke-width="0.75" stroke-linejoin="round" />
+  </marker>
+</defs>
+<polyline class="edge" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" points="100,58.45 148,58.45" fill="none" stroke="#939395" stroke-width="1" marker-end="url(#arrowhead)" data-relationship="flowchart-edge" data-direction="forward" data-id="edge:N0-&gt;N1#0" data-role="edge" data-from="N0" data-to="N1" role="graphics-symbol" aria-roledescription="relation" aria-label="N0 to N1" />
+<polyline class="edge" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" points="208,58.45 256,58.45" fill="none" stroke="#939395" stroke-width="1" marker-end="url(#arrowhead)" data-relationship="flowchart-edge" data-direction="forward" data-id="edge:N1-&gt;N2#0" data-role="edge" data-from="N1" data-to="N2" role="graphics-symbol" aria-roledescription="relation" aria-label="N1 to N2" />
+<polyline class="edge" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" points="316,58.45 364,58.45" fill="none" stroke="#939395" stroke-width="1" marker-end="url(#arrowhead)" data-relationship="flowchart-edge" data-direction="forward" data-id="edge:N2-&gt;N3#0" data-role="edge" data-from="N2" data-to="N3" role="graphics-symbol" aria-roledescription="relation" aria-label="N2 to N3" />
+<polyline class="edge" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" points="424,58.45 472,58.45" fill="none" stroke="#939395" stroke-width="1" marker-end="url(#arrowhead)" data-relationship="flowchart-edge" data-direction="forward" data-id="edge:N3-&gt;N4#0" data-role="edge" data-from="N3" data-to="N4" role="graphics-symbol" aria-roledescription="relation" aria-label="N3 to N4" />
+<polyline class="edge" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" points="532,58.45 580,58.45" fill="none" stroke="#939395" stroke-width="1" marker-end="url(#arrowhead)" data-relationship="flowchart-edge" data-direction="forward" data-id="edge:N4-&gt;N5#0" data-role="edge" data-from="N4" data-to="N5" role="graphics-symbol" aria-roledescription="relation" aria-label="N4 to N5" />
+<polyline class="edge" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" points="640,58.45 688,58.45" fill="none" stroke="#939395" stroke-width="1" marker-end="url(#arrowhead)" data-relationship="flowchart-edge" data-direction="forward" data-id="edge:N5-&gt;N6#0" data-role="edge" data-from="N5" data-to="N6" role="graphics-symbol" aria-roledescription="relation" aria-label="N5 to N6" />
+<polyline class="edge" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" points="748,58.45 796,58.45" fill="none" stroke="#939395" stroke-width="1" marker-end="url(#arrowhead)" data-relationship="flowchart-edge" data-direction="forward" data-id="edge:N6-&gt;N7#0" data-role="edge" data-from="N6" data-to="N7" role="graphics-symbol" aria-roledescription="relation" aria-label="N6 to N7" />
+<g class="node" data-id="N0" data-label="N0" data-shape="rectangle" data-role="node">
+  <rect x="40" y="40" width="60" height="36.9" rx="0" ry="0" fill="#f9f9f9" stroke="#949495" stroke-width="0.75" data-id="node-shape:N0" data-role="node" />
+  <text x="70" y="58.45" text-anchor="middle" font-size="13" font-weight="500" fill="#27272A" data-prepared-text="true" dy="4.55" textLength="18.252" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">N0</text>
+</g>
+<g class="node" data-id="N1" data-label="N1" data-shape="rectangle" data-role="node">
+  <rect x="148" y="40" width="60" height="36.9" rx="0" ry="0" fill="#f9f9f9" stroke="#949495" stroke-width="0.75" data-id="node-shape:N1" data-role="node" />
+  <text x="178" y="58.45" text-anchor="middle" font-size="13" font-weight="500" fill="#27272A" data-prepared-text="true" dy="4.55" textLength="13.806" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">N1</text>
+</g>
+<g class="node" data-id="N2" data-label="N2" data-shape="rectangle" data-role="node">
+  <rect x="256" y="40" width="60" height="36.9" rx="0" ry="0" fill="#f9f9f9" stroke="#949495" stroke-width="0.75" data-id="node-shape:N2" data-role="node" />
+  <text x="286" y="58.45" text-anchor="middle" font-size="13" font-weight="500" fill="#27272A" data-prepared-text="true" dy="4.55" textLength="18.252" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">N2</text>
+</g>
+<g class="node" data-id="N3" data-label="N3" data-shape="rectangle" data-role="node">
+  <rect x="364" y="40" width="60" height="36.9" rx="0" ry="0" fill="#f9f9f9" stroke="#949495" stroke-width="0.75" data-id="node-shape:N3" data-role="node" />
+  <text x="394" y="58.45" text-anchor="middle" font-size="13" font-weight="500" fill="#27272A" data-prepared-text="true" dy="4.55" textLength="18.252" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">N3</text>
+</g>
+<g class="node" data-id="N4" data-label="N4" data-shape="rectangle" data-role="node">
+  <rect x="472" y="40" width="60" height="36.9" rx="0" ry="0" fill="#f9f9f9" stroke="#949495" stroke-width="0.75" data-id="node-shape:N4" data-role="node" />
+  <text x="502" y="58.45" text-anchor="middle" font-size="13" font-weight="500" fill="#27272A" data-prepared-text="true" dy="4.55" textLength="18.252" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">N4</text>
+</g>
+<g class="node" data-id="N5" data-label="N5" data-shape="rectangle" data-role="node">
+  <rect x="580" y="40" width="60" height="36.9" rx="0" ry="0" fill="#f9f9f9" stroke="#949495" stroke-width="0.75" data-id="node-shape:N5" data-role="node" />
+  <text x="610" y="58.45" text-anchor="middle" font-size="13" font-weight="500" fill="#27272A" data-prepared-text="true" dy="4.55" textLength="18.252" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">N5</text>
+</g>
+<g class="node" data-id="N6" data-label="N6" data-shape="rectangle" data-role="node">
+  <rect x="688" y="40" width="60" height="36.9" rx="0" ry="0" fill="#f9f9f9" stroke="#949495" stroke-width="0.75" data-id="node-shape:N6" data-role="node" />
+  <text x="718" y="58.45" text-anchor="middle" font-size="13" font-weight="500" fill="#27272A" data-prepared-text="true" dy="4.55" textLength="18.252" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">N6</text>
+</g>
+<g class="node" data-id="N7" data-label="N7" data-shape="rectangle" data-role="node">
+  <rect x="796" y="40" width="60" height="36.9" rx="0" ry="0" fill="#f9f9f9" stroke="#949495" stroke-width="0.75" data-id="node-shape:N7" data-role="node" />
+  <text x="826" y="58.45" text-anchor="middle" font-size="13" font-weight="500" fill="#27272A" data-prepared-text="true" dy="4.55" textLength="18.252" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">N7</text>
+</g>
+</svg>

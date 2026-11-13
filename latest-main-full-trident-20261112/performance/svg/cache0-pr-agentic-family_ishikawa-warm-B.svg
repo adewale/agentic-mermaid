@@ -1,0 +1,46 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="273" height="242" viewBox="0 0 273 242" style="--bg:#FFFFFF;--fg:#27272A;--font:Inter;background:#FFFFFF" class="am-0u3sm5m0oyocma">
+<style>
+  svg.am-0u3sm5m0oyocma { font-family: var(--font, 'Inter'), system-ui, sans-serif; }
+  svg.am-0u3sm5m0oyocma {
+    /* Derived from --bg and --fg (overridable via --line, --accent, etc.) */
+    --_text:          #27272A;
+    --_text-sec:      #575759;
+    --_text-muted:    #707072;
+    --_text-faint:    #8a8a8c;
+    --_line:          #939395;
+    --_arrow:         #47474a;
+    --_node-fill:     #f9f9f9;
+    --_node-stroke:   #d4d4d4;
+    --_group-fill:    #FFFFFF;
+    --_group-hdr:     #f4f4f4;
+    --_inner-stroke:  #e5e5e5;
+    --_key-badge:     #e9e9ea;
+  }
+</style>
+<defs>  <marker id="ishikawa-arrow" markerWidth="8" markerHeight="8" refX="8" refY="4" orient="auto" markerUnits="userSpaceOnUse">
+    <polygon points="0 0, 8 4, 0 8" fill="#939395" />
+  </marker></defs>
+<polyline points="24,120.9 178.653,120.9" fill="none" stroke="#939395" stroke-width="1" marker-end="url(#ishikawa-arrow)" data-relationship="effect-spine" data-direction="forward" />
+<polyline points="106.653,56.9 138.653,120.9" fill="none" stroke="#939395" stroke-width="1" data-relationship="cause" data-direction="forward" data-id="branch:cause-1" data-role="edge" data-from="cause-1" data-to="effect" role="graphics-symbol" aria-roledescription="relation" aria-label="cause-1 to effect" />
+<polyline points="102.928,89.45 122.928,89.45" fill="none" stroke="#939395" stroke-width="1" data-relationship="cause" data-direction="forward" data-id="branch:cause-2" data-role="edge" data-from="cause-2" data-to="cause-1" role="graphics-symbol" aria-roledescription="relation" aria-label="cause-2 to cause-1" />
+<polyline points="106.653,184.9 138.653,120.9" fill="none" stroke="#939395" stroke-width="1" data-relationship="cause" data-direction="forward" data-id="branch:cause-3" data-role="edge" data-from="cause-3" data-to="effect" role="graphics-symbol" aria-roledescription="relation" aria-label="cause-3 to effect" />
+<polyline points="102.928,152.35 122.928,152.35" fill="none" stroke="#939395" stroke-width="1" data-relationship="cause" data-direction="forward" data-id="branch:cause-4" data-role="edge" data-from="cause-4" data-to="cause-3" role="graphics-symbol" aria-roledescription="relation" aria-label="cause-4 to cause-3" />
+<g data-id="effect" data-role="node">
+  <rect x="178.653" y="94.9" width="69.83" height="52" rx="8" fill="#f9f9f9" stroke="#949495" stroke-width="0.75" />
+  <text x="213.568" y="120.9" text-anchor="middle" font-size="13" font-weight="600" fill="#27272A" data-prepared-text="true" dy="4.55" textLength="37.83" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Delay</text>
+</g>
+<g data-id="cause-1" data-role="node">
+  <rect x="66.378" y="24" width="80.55" height="32.9" rx="3" fill="#f9f9f9" stroke="#949495" stroke-width="0.75" />
+  <text x="106.653" y="40.45" text-anchor="middle" font-size="13" font-weight="600" fill="#27272A" data-prepared-text="true" dy="4.55" textLength="56.55" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Process</text>
+</g>
+<g data-id="cause-2" data-role="node">
+  <text x="74.464" y="89.45" text-anchor="middle" font-size="13" font-weight="500" fill="#27272A" data-prepared-text="true" dy="4.55" textLength="44.928" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Review</text>
+</g>
+<g data-id="cause-3" data-role="node">
+  <rect x="70.278" y="184.9" width="72.75" height="32.9" rx="3" fill="#f9f9f9" stroke="#949495" stroke-width="0.75" />
+  <text x="106.653" y="201.35" text-anchor="middle" font-size="13" font-weight="600" fill="#27272A" data-prepared-text="true" dy="4.55" textLength="48.75" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Tooling</text>
+</g>
+<g data-id="cause-4" data-role="node">
+  <text x="81.133" y="152.35" text-anchor="middle" font-size="13" font-weight="500" fill="#27272A" data-prepared-text="true" dy="4.55" textLength="31.59" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Build</text>
+</g>
+</svg>

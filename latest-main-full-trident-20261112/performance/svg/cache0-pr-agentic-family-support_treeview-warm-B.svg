@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="109" height="109" viewBox="0 0 109 109" style="--bg:#FFFFFF;--fg:#27272A;--font:Inter;background:#FFFFFF" class="am-1uo86zc086uvvv">
+<style>
+  svg.am-1uo86zc086uvvv { font-family: var(--font, 'Inter'), system-ui, sans-serif; }
+  svg.am-1uo86zc086uvvv {
+    /* Derived from --bg and --fg (overridable via --line, --accent, etc.) */
+    --_text:          #27272A;
+    --_text-sec:      #575759;
+    --_text-muted:    #707072;
+    --_text-faint:    #8a8a8c;
+    --_line:          #939395;
+    --_arrow:         #47474a;
+    --_node-fill:     #f9f9f9;
+    --_node-stroke:   #d4d4d4;
+    --_group-fill:    #FFFFFF;
+    --_group-hdr:     #f4f4f4;
+    --_inner-stroke:  #e5e5e5;
+    --_key-badge:     #e9e9ea;
+  }
+</style>
+<polyline points="27,42.9 27,54.35 40,54.35" fill="none" stroke="#939395" stroke-width="1" data-relationship="parent-child" data-direction="forward" data-id="branch:treeview-1" data-role="edge" data-from="treeview-0" data-to="treeview-1" role="graphics-symbol" aria-roledescription="relation" aria-label="treeview-0 to treeview-1" />
+<g data-id="treeview-0" data-role="node">
+  <text x="20" y="31.45" text-anchor="start" font-family="Inter" font-size="13" font-weight="500" fill="#27272A" data-prepared-text="true" dy="4.55" textLength="36.036" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Alpha</text>
+  <g data-parent="treeview-0" data-id="treeview-1" data-role="node">
+    <text x="44" y="54.35" text-anchor="start" font-family="Inter" font-size="13" font-weight="500" fill="#27272A" data-prepared-text="true" dy="4.55" textLength="44.928" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Beta.txt</text>
+  </g>
+</g>
+<g data-id="treeview-2" data-role="node">
+  <text x="20" y="77.25" text-anchor="start" font-family="Inter" font-size="13" font-weight="500" fill="#27272A" data-prepared-text="true" dy="4.55" textLength="59.748" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Gamma.txt</text>
+</g>
+</svg>

@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="544" height="153.6" viewBox="0 0 544 153.6" style="--bg:#FFFFFF;--fg:#27272A;--font:Inter;background:#FFFFFF" class="am-1vmipsa172x2e5">
+<style>
+  svg.am-1vmipsa172x2e5 { font-family: var(--font, 'Inter'), system-ui, sans-serif; }
+  svg.am-1vmipsa172x2e5 {
+    /* Derived from --bg and --fg (overridable via --line, --accent, etc.) */
+    --_text:          #27272A;
+    --_text-sec:      #575759;
+    --_text-muted:    #707072;
+    --_text-faint:    #8a8a8c;
+    --_line:          #939395;
+    --_arrow:         #47474a;
+    --_node-fill:     #f9f9f9;
+    --_node-stroke:   #d4d4d4;
+    --_group-fill:    #FFFFFF;
+    --_group-hdr:     #f4f4f4;
+    --_inner-stroke:  #e5e5e5;
+    --_key-badge:     #e9e9ea;
+  }
+</style>
+<g data-id="backlog" data-role="group">
+  <rect x="24" y="24" width="240" height="105.6" rx="0" fill="#FFFFFF" stroke="#949495" stroke-width="1" />
+  <rect x="24" y="24" width="240" height="41.6" rx="0" fill="#f4f4f4" stroke="none" />
+  <text x="52" y="41.8" text-anchor="start" font-family="Inter" font-size="12" font-weight="600" fill="#27272A" data-prepared-text="true" dy="4.2" textLength="49.32" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Backlog</text>
+  <g data-id="TaskA" data-parent="backlog" data-role="node">
+    <rect x="32" y="73.6" width="224" height="40" rx="5" fill="#f9f9f9" stroke="#949495" stroke-width="0.75" />
+    <text x="52" y="92.05" text-anchor="start" font-family="Inter" font-size="13" font-weight="500" fill="#27272A" data-prepared-text="true" dy="4.55" textLength="31.59" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Build</text>
+  </g>
+</g>
+<g data-id="done" data-role="group">
+  <rect x="280" y="24" width="240" height="105.6" rx="0" fill="#FFFFFF" stroke="#949495" stroke-width="1" />
+  <rect x="280" y="24" width="240" height="41.6" rx="0" fill="#f4f4f4" stroke="none" />
+  <text x="308" y="41.8" text-anchor="start" font-family="Inter" font-size="12" font-weight="600" fill="#27272A" data-prepared-text="true" dy="4.2" textLength="32.04" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Done</text>
+  <g data-id="TaskB" data-parent="done" data-role="node">
+    <rect x="288" y="73.6" width="224" height="40" rx="5" fill="#f9f9f9" stroke="#949495" stroke-width="0.75" />
+    <text x="308" y="92.05" text-anchor="start" font-family="Inter" font-size="13" font-weight="500" fill="#27272A" data-prepared-text="true" dy="4.55" textLength="28.626" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Test</text>
+  </g>
+</g>
+</svg>

@@ -1,0 +1,49 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="809.495" height="510.25" viewBox="0 0 809.495 510.25" style="--bg:#FFFFFF;--fg:#27272A;--font:Inter;background:#FFFFFF" class="am-0jmw09t1srwc3p">
+<style>
+  svg.am-0jmw09t1srwc3p { font-family: var(--font, 'Inter'), system-ui, sans-serif; }
+  svg.am-0jmw09t1srwc3p {
+    /* Derived from --bg and --fg (overridable via --line, --accent, etc.) */
+    --_text:          #27272A;
+    --_text-sec:      #575759;
+    --_text-muted:    #707072;
+    --_text-faint:    #8a8a8c;
+    --_line:          #939395;
+    --_arrow:         #47474a;
+    --_node-fill:     #f9f9f9;
+    --_node-stroke:   #d4d4d4;
+    --_group-fill:    #FFFFFF;
+    --_group-hdr:     #f4f4f4;
+    --_inner-stroke:  #e5e5e5;
+    --_key-badge:     #e9e9ea;
+  }
+</style>
+<defs>  <marker id="eventmodeling-arrow" markerWidth="8" markerHeight="8" refX="8" refY="4" orient="auto" markerUnits="userSpaceOnUse">
+    <polygon points="0 0, 8 4, 0 8" fill="#939395" />
+  </marker></defs>
+<g data-id="lane:0" data-role="group">
+  <rect x="24" y="52" width="761.495" height="96.75" rx="0" fill="#FFFFFF" stroke="#949495" stroke-width="1" />
+  <text x="36" y="100.375" text-anchor="start" font-family="Inter" font-size="12" font-weight="600" fill="#27272A" data-prepared-text="true" dy="4.2" textLength="83.16" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">UI / Automation</text>
+</g>
+<g data-id="lane:1" data-role="group">
+  <rect x="24" y="196.75" width="761.495" height="96.75" rx="0" fill="#FFFFFF" stroke="#949495" stroke-width="1" />
+  <text x="36" y="245.125" text-anchor="start" font-family="Inter" font-size="12" font-weight="600" fill="#27272A" data-prepared-text="true" dy="4.2" textLength="132.12" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Command / Read Model</text>
+</g>
+<g data-id="lane:2" data-role="group">
+  <rect x="24" y="341.5" width="761.495" height="96.75" rx="0" fill="#FFFFFF" stroke="#949495" stroke-width="1" />
+  <text x="36" y="389.875" text-anchor="start" font-family="Inter" font-size="12" font-weight="600" fill="#27272A" data-prepared-text="true" dy="4.2" textLength="42.12" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Events</text>
+</g>
+<polyline points="306.116,100.375 368.495,100.375 368.495,245.125 392.12,245.125" fill="none" stroke="#939395" stroke-width="1" marker-end="url(#eventmodeling-arrow)" data-relationship="inferred" data-direction="forward" data-id="relation:01:02" data-role="edge" data-from="01" data-to="02" role="graphics-symbol" aria-roledescription="relation" aria-label="01 to 02" />
+<polyline points="544.77,245.125 576.495,245.125 576.495,389.875 600.12,389.875" fill="none" stroke="#939395" stroke-width="1" marker-end="url(#eventmodeling-arrow)" data-relationship="inferred" data-direction="forward" data-id="relation:02:03" data-role="edge" data-from="02" data-to="03" role="graphics-symbol" aria-roledescription="relation" aria-label="02 to 03" />
+<g data-parent="lane:0" data-id="01" data-role="node">
+  <rect x="184.495" y="68.375" width="121.246" height="64" rx="5" fill="#f9f9f9" stroke="#949495" stroke-width="0.75" />
+  <text x="245.118" y="100.375" text-anchor="middle" font-family="Inter" font-size="13" font-weight="500" fill="#27272A" data-prepared-text="true"><tspan x="245.118" y="96.475"><tspan x="245.118" text-anchor="middle" data-text-fragment="true">01 · ui</tspan></tspan><tspan x="245.118" y="113.375">AlphaScreen</tspan></text>
+</g>
+<g data-parent="lane:1" data-id="02" data-role="node">
+  <rect x="392.495" y="213.125" width="151.9" height="64" rx="5" fill="#f9f9f9" stroke="#949495" stroke-width="0.75" />
+  <text x="468.445" y="245.125" text-anchor="middle" font-family="Inter" font-size="13" font-weight="500" fill="#27272A" data-prepared-text="true"><tspan x="468.445" y="241.225"><tspan x="468.445" text-anchor="middle" data-text-fragment="true">02 · command</tspan></tspan><tspan x="468.445" y="258.125">BetaCommand</tspan></text>
+</g>
+<g data-parent="lane:2" data-id="03" data-role="node">
+  <rect x="600.495" y="357.875" width="125.77" height="64" rx="5" fill="#f9f9f9" stroke="#949495" stroke-width="0.75" />
+  <text x="663.38" y="389.875" text-anchor="middle" font-family="Inter" font-size="13" font-weight="500" fill="#27272A" data-prepared-text="true"><tspan x="663.38" y="385.975"><tspan x="663.38" text-anchor="middle" data-text-fragment="true">03 · event</tspan></tspan><tspan x="663.38" y="402.875">GammaEvent</tspan></text>
+</g>
+</svg>

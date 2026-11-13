@@ -1,0 +1,42 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1040.82" height="527.4" viewBox="0 0 1040.82 527.4" style="--bg:#FFFFFF;--fg:#27272A;--font:Inter;background:#FFFFFF" class="am-1hmk6hi0jgobju">
+<style>
+  svg.am-1hmk6hi0jgobju { font-family: var(--font, 'Inter'), system-ui, sans-serif; }
+  svg.am-1hmk6hi0jgobju {
+    /* Derived from --bg and --fg (overridable via --line, --accent, etc.) */
+    --_text:          #27272A;
+    --_text-sec:      #575759;
+    --_text-muted:    #707072;
+    --_text-faint:    #8a8a8c;
+    --_line:          #939395;
+    --_arrow:         #47474a;
+    --_node-fill:     #f9f9f9;
+    --_node-stroke:   #d4d4d4;
+    --_group-fill:    #FFFFFF;
+    --_group-hdr:     #f4f4f4;
+    --_inner-stroke:  #e5e5e5;
+    --_key-badge:     #e9e9ea;
+  }
+</style>
+<defs>  <marker id="cynefin-arrow" markerWidth="8" markerHeight="8" refX="8" refY="4" orient="auto" markerUnits="userSpaceOnUse">
+    <polygon points="0 0, 8 4, 0 8" fill="#939395" />
+  </marker></defs>
+<text x="520.41" y="35.7" class="diagram-title" text-anchor="middle" font-size="18" font-weight="600" fill="#27272A" data-id="diagram-title" data-role="title" data-prepared-text="true" dy="6.3" textLength="52.38" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Alpha</text>
+<rect x="121.41" y="119.4" width="250" height="180" rx="0" fill="#FFFFFF" stroke="#949495" stroke-width="1" data-id="complex" data-role="group" />
+<text x="246.41" y="145.2" text-anchor="middle" font-family="Inter" font-size="12" font-weight="600" fill="#27272A" stroke="#FFFFFF" stroke-width="3" stroke-linejoin="round" paint-order="stroke" data-prepared-text="true" dy="4.2" textLength="50.76" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Complex</text>
+<g data-parent="complex" data-id="complex:0" data-role="node">
+  <text x="246.41" y="179.45" text-anchor="middle" font-family="Inter" font-size="13" font-weight="500" fill="#27272A" stroke="#FFFFFF" stroke-width="3" stroke-linejoin="round" paint-order="stroke" data-prepared-text="true" dy="4.55" textLength="28.626" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Beta</text>
+</g>
+<rect x="669.41" y="119.4" width="250" height="180" rx="0" fill="#FFFFFF" stroke="#949495" stroke-width="1" data-id="complicated" data-role="group" />
+<text x="794.41" y="145.2" text-anchor="middle" font-family="Inter" font-size="12" font-weight="600" fill="#27272A" stroke="#FFFFFF" stroke-width="3" stroke-linejoin="round" paint-order="stroke" data-prepared-text="true" dy="4.2" textLength="70.92" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Complicated</text>
+<rect x="669.41" y="323.4" width="250" height="180" rx="0" fill="#FFFFFF" stroke="#949495" stroke-width="1" data-id="clear" data-role="group" />
+<text x="794.41" y="349.2" text-anchor="middle" font-family="Inter" font-size="12" font-weight="600" fill="#27272A" stroke="#FFFFFF" stroke-width="3" stroke-linejoin="round" paint-order="stroke" data-prepared-text="true" dy="4.2" textLength="33.48" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Clear</text>
+<g data-parent="clear" data-id="clear:0" data-role="node">
+  <text x="794.41" y="383.45" text-anchor="middle" font-family="Inter" font-size="13" font-weight="500" fill="#27272A" stroke="#FFFFFF" stroke-width="3" stroke-linejoin="round" paint-order="stroke" data-prepared-text="true" dy="4.55" textLength="43.446" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Gamma</text>
+</g>
+<rect x="121.41" y="323.4" width="250" height="180" rx="0" fill="#FFFFFF" stroke="#949495" stroke-width="1" data-id="chaotic" data-role="group" />
+<text x="246.41" y="349.2" text-anchor="middle" font-family="Inter" font-size="12" font-weight="600" fill="#27272A" stroke="#FFFFFF" stroke-width="3" stroke-linejoin="round" paint-order="stroke" data-prepared-text="true" dy="4.2" textLength="45" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Chaotic</text>
+<rect x="395.41" y="119.4" width="250" height="384" rx="0" fill="#FFFFFF" stroke="#949495" stroke-width="1" data-id="confusion" data-role="group" />
+<text x="520.41" y="145.2" text-anchor="middle" font-family="Inter" font-size="12" font-weight="600" fill="#27272A" stroke="#FFFFFF" stroke-width="3" stroke-linejoin="round" paint-order="stroke" data-prepared-text="true" dy="4.2" textLength="59.4" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Confusion</text>
+<polyline points="121.41,209.4 24,209.4 24,69.4 967.41,69.4 967.41,413.4 919.41,413.4" fill="none" stroke="#939395" stroke-width="1" marker-end="url(#cynefin-arrow)" data-relationship="domain-transition" data-direction="forward" data-id="transition:0" data-role="edge" data-from="complex" data-to="clear" role="graphics-symbol" aria-roledescription="relation" aria-label="complex to clear" />
+<text x="495.705" y="69.4" text-anchor="middle" font-family="Inter" font-size="11" font-weight="400" fill="#27272A" stroke="#FFFFFF" stroke-width="3" stroke-linejoin="round" paint-order="stroke" data-prepared-text="true" dy="3.85" textLength="25.41" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Delta</text>
+</svg>

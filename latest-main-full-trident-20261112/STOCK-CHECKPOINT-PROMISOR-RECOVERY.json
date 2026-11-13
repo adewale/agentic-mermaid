@@ -1,0 +1,26 @@
+{
+  "at": "2026-11-13T00:29:24.988879+00:00",
+  "reason": "Default git write-tree unexpectedly started lazy-fetching old promisor blobs. Stop only this checkpoint Git subprocess tree; preserve completed alternate index and all work, then use write-tree --missing-ok for unchanged remote-owned objects.",
+  "pids": [
+    {
+      "pid": 30098,
+      "command": "/usr/local/libexec/git-core/git index-pack --stdin --fix-thin --keep=fetch-pack 30058 on 69341497ae5a --promisor --pack_header=2,2621 "
+    },
+    {
+      "pid": 30060,
+      "command": "/usr/local/libexec/git-core/git-remote-https origin https://github.com/adewale/agentic-mermaid.git "
+    },
+    {
+      "pid": 30059,
+      "command": "/usr/local/libexec/git-core/git remote-https origin https://github.com/adewale/agentic-mermaid.git "
+    },
+    {
+      "pid": 30058,
+      "command": "/usr/local/libexec/git-core/git -c fetch.negotiationAlgorithm=noop fetch origin --no-tags --no-write-fetch-head --recurse-submodules=no --filter=blob:none --stdin "
+    },
+    {
+      "pid": 30057,
+      "command": "git -C /workspace/agentic-mermaid -c gc.auto=0 -c pack.threads=1 -c pack.windowMemory=16m write-tree "
+    }
+  ]
+}

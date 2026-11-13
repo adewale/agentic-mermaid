@@ -1,0 +1,81 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="100%" height="100%" viewBox="0 0 700 500" style="--bg:#FFFFFF;--fg:#27272A;--font:Inter;background:#FFFFFF;max-width:700px" aria-roledescription="xychart" class="xychart am-1wys4rw1uiv01o" data-xychart-colors="1" id="mermaid-g4odz2">
+<style>
+  svg.am-1wys4rw1uiv01o { font-family: var(--font, 'Inter'), system-ui, sans-serif; }
+  svg.am-1wys4rw1uiv01o {
+    /* Derived from --bg and --fg (overridable via --line, --accent, etc.) */
+    --_text:          #27272A;
+    --_text-sec:      #575759;
+    --_text-muted:    #707072;
+    --_text-faint:    #8a8a8c;
+    --_line:          #939395;
+    --_arrow:         #47474a;
+    --_node-fill:     #f9f9f9;
+    --_node-stroke:   #d4d4d4;
+    --_group-fill:    #FFFFFF;
+    --_group-hdr:     #f4f4f4;
+    --_inner-stroke:  #e5e5e5;
+    --_key-badge:     #e9e9ea;
+  }
+</style>
+<style>
+  .am-1wys4rw1uiv01o .xychart-data-label { pointer-events: none; }
+  svg.am-1wys4rw1uiv01o {
+    --xychart-color-0: #3b82f6;
+    --xychart-color-1: #0d5ba5;
+  }
+</style>
+<line class="xychart-grid" x1="55.68" y1="469" x2="637" y2="469" stroke="#e1e1e1" stroke-width="1" />
+<line class="xychart-grid" x1="55.68" y1="426.7" x2="637" y2="426.7" stroke="#e1e1e1" stroke-width="1" />
+<line class="xychart-grid" x1="55.68" y1="384.4" x2="637" y2="384.4" stroke="#e1e1e1" stroke-width="1" />
+<line class="xychart-grid" x1="55.68" y1="342.1" x2="637" y2="342.1" stroke="#e1e1e1" stroke-width="1" />
+<line class="xychart-grid" x1="55.68" y1="299.8" x2="637" y2="299.8" stroke="#e1e1e1" stroke-width="1" />
+<line class="xychart-grid" x1="55.68" y1="257.5" x2="637" y2="257.5" stroke="#e1e1e1" stroke-width="1" />
+<line class="xychart-grid" x1="55.68" y1="215.2" x2="637" y2="215.2" stroke="#e1e1e1" stroke-width="1" />
+<line class="xychart-grid" x1="55.68" y1="172.9" x2="637" y2="172.9" stroke="#e1e1e1" stroke-width="1" />
+<line class="xychart-grid" x1="55.68" y1="130.6" x2="637" y2="130.6" stroke="#e1e1e1" stroke-width="1" />
+<line class="xychart-grid" x1="55.68" y1="88.3" x2="637" y2="88.3" stroke="#e1e1e1" stroke-width="1" />
+<line class="xychart-grid" x1="55.68" y1="46" x2="637" y2="46" stroke="#e1e1e1" stroke-width="1" />
+<line class="xychart-axis-line xychart-x-axis-line" x1="55.68" y1="470" x2="637" y2="470" stroke="#575759" stroke-width="2" />
+<line class="xychart-tick xychart-x-tick" x1="152.57" y1="471" x2="152.57" y2="476" stroke="#575759" stroke-width="2" />
+<line class="xychart-tick xychart-x-tick" x1="346.34" y1="471" x2="346.34" y2="476" stroke="#575759" stroke-width="2" />
+<line class="xychart-tick xychart-x-tick" x1="540.11" y1="471" x2="540.11" y2="476" stroke="#575759" stroke-width="2" />
+<line class="xychart-axis-line xychart-y-axis-line" x1="54.68" y1="46" x2="54.68" y2="469" stroke="#575759" stroke-width="2" />
+<line class="xychart-tick xychart-y-tick" x1="53.68" y1="469" x2="48.68" y2="469" stroke="#575759" stroke-width="2" />
+<line class="xychart-tick xychart-y-tick" x1="53.68" y1="426.7" x2="48.68" y2="426.7" stroke="#575759" stroke-width="2" />
+<line class="xychart-tick xychart-y-tick" x1="53.68" y1="384.4" x2="48.68" y2="384.4" stroke="#575759" stroke-width="2" />
+<line class="xychart-tick xychart-y-tick" x1="53.68" y1="342.1" x2="48.68" y2="342.1" stroke="#575759" stroke-width="2" />
+<line class="xychart-tick xychart-y-tick" x1="53.68" y1="299.8" x2="48.68" y2="299.8" stroke="#575759" stroke-width="2" />
+<line class="xychart-tick xychart-y-tick" x1="53.68" y1="257.5" x2="48.68" y2="257.5" stroke="#575759" stroke-width="2" />
+<line class="xychart-tick xychart-y-tick" x1="53.68" y1="215.2" x2="48.68" y2="215.2" stroke="#575759" stroke-width="2" />
+<line class="xychart-tick xychart-y-tick" x1="53.68" y1="172.9" x2="48.68" y2="172.9" stroke="#575759" stroke-width="2" />
+<line class="xychart-tick xychart-y-tick" x1="53.68" y1="130.6" x2="48.68" y2="130.6" stroke="#575759" stroke-width="2" />
+<line class="xychart-tick xychart-y-tick" x1="53.68" y1="88.3" x2="48.68" y2="88.3" stroke="#575759" stroke-width="2" />
+<line class="xychart-tick xychart-y-tick" x1="53.68" y1="46" x2="48.68" y2="46" stroke="#575759" stroke-width="2" />
+<rect class="xychart-bar xychart-color-0" data-value="3" data-label="One" x="60.53" y="342.1" width="184.08" height="126.9" fill="#3b82f6" stroke="none" data-id="bar:0:One" data-role="bar" />
+<rect class="xychart-bar xychart-color-0" data-value="7" data-label="Two" x="254.3" y="172.9" width="184.08" height="296.1" fill="#3b82f6" stroke="none" data-id="bar:0:Two" data-role="bar" />
+<rect class="xychart-bar xychart-color-0" data-value="5" data-label="Three" x="448.07" y="257.5" width="184.08" height="211.5" fill="#3b82f6" stroke="none" data-id="bar:0:Three" data-role="bar" />
+<path class="xychart-line xychart-color-1" d="M152.57,384.4 L346.34,215.2 L540.11,299.8" fill="none" stroke="#0d5ba5" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" data-relationship="series" data-direction="undirected" data-id="series:line-0" data-role="series" />
+<text x="152.57" y="486.6" class="xychart-label xychart-x-label" text-anchor="middle" font-size="14" font-weight="400" fill="#27272A" data-prepared-text="true" dy="4.9" textLength="26.292" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">One</text>
+<text x="346.342" y="486.6" class="xychart-label xychart-x-label" text-anchor="middle" font-size="14" font-weight="400" fill="#27272A" data-prepared-text="true" dy="4.9" textLength="27.804" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Two</text>
+<text x="540.114" y="486.6" class="xychart-label xychart-x-label" text-anchor="middle" font-size="14" font-weight="400" fill="#27272A" data-prepared-text="true" dy="4.9" textLength="39.9" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Three</text>
+<text x="43.684" y="469" class="xychart-label xychart-y-label" text-anchor="end" dominant-baseline="middle" font-size="14" font-weight="400" fill="#27272A" data-prepared-text="true" dy="0" textLength="9.66" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">0</text>
+<text x="43.684" y="426.7" class="xychart-label xychart-y-label" text-anchor="end" dominant-baseline="middle" font-size="14" font-weight="400" fill="#27272A" data-prepared-text="true" dy="0" textLength="5.124" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">1</text>
+<text x="43.684" y="384.4" class="xychart-label xychart-y-label" text-anchor="end" dominant-baseline="middle" font-size="14" font-weight="400" fill="#27272A" data-prepared-text="true" dy="0" textLength="9.66" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">2</text>
+<text x="43.684" y="342.1" class="xychart-label xychart-y-label" text-anchor="end" dominant-baseline="middle" font-size="14" font-weight="400" fill="#27272A" data-prepared-text="true" dy="0" textLength="9.66" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">3</text>
+<text x="43.684" y="299.8" class="xychart-label xychart-y-label" text-anchor="end" dominant-baseline="middle" font-size="14" font-weight="400" fill="#27272A" data-prepared-text="true" dy="0" textLength="9.66" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">4</text>
+<text x="43.684" y="257.5" class="xychart-label xychart-y-label" text-anchor="end" dominant-baseline="middle" font-size="14" font-weight="400" fill="#27272A" data-prepared-text="true" dy="0" textLength="9.66" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">5</text>
+<text x="43.684" y="215.2" class="xychart-label xychart-y-label" text-anchor="end" dominant-baseline="middle" font-size="14" font-weight="400" fill="#27272A" data-prepared-text="true" dy="0" textLength="9.66" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">6</text>
+<text x="43.684" y="172.9" class="xychart-label xychart-y-label" text-anchor="end" dominant-baseline="middle" font-size="14" font-weight="400" fill="#27272A" data-prepared-text="true" dy="0" textLength="9.66" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">7</text>
+<text x="43.684" y="130.6" class="xychart-label xychart-y-label" text-anchor="end" dominant-baseline="middle" font-size="14" font-weight="400" fill="#27272A" data-prepared-text="true" dy="0" textLength="9.66" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">8</text>
+<text x="43.684" y="88.3" class="xychart-label xychart-y-label" text-anchor="end" dominant-baseline="middle" font-size="14" font-weight="400" fill="#27272A" data-prepared-text="true" dy="0" textLength="9.66" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">9</text>
+<text x="43.684" y="46" class="xychart-label xychart-y-label" text-anchor="end" dominant-baseline="middle" font-size="14" font-weight="400" fill="#27272A" data-prepared-text="true" dy="0" textLength="12.684" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">10</text>
+<text x="17.8" y="257.5" class="xychart-axis-title xychart-y-axis-title" text-anchor="middle" font-size="16" font-weight="400" fill="#27272A" transform="rotate(-90 17.8 257.5)" data-prepared-text="true" dy="5.6" textLength="42.144" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Count</text>
+<text x="350" y="23" class="xychart-title" text-anchor="middle" font-size="20" font-weight="500" fill="#27272A" data-id="title" data-role="title" data-prepared-text="true" dy="7" textLength="64.56" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Series</text>
+<g class="xychart-legend">
+  <rect class="xychart-legend-swatch" x="642" y="51" width="12" height="12" rx="2" ry="2" fill="#3b82f6" />
+  <text x="660" y="60.1" class="xychart-legend-label" text-anchor="start" dominant-baseline="middle" font-size="14" font-weight="400" fill="#27272A" data-prepared-text="true" dy="0" textLength="30.072" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Bar 1</text>
+  <line class="xychart-legend-swatch" x1="642" y1="83.3" x2="654" y2="83.3" stroke="#0d5ba5" stroke-width="3" stroke-linecap="round" />
+  <circle class="xychart-legend-dot" cx="648" cy="83.3" r="2.5" fill="#0d5ba5" stroke="#FFFFFF" stroke-width="1" />
+  <text x="660" y="83.3" class="xychart-legend-label" text-anchor="start" dominant-baseline="middle" font-size="14" font-weight="400" fill="#27272A" data-prepared-text="true" dy="0" textLength="34.608" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Line 1</text>
+</g>
+</svg>

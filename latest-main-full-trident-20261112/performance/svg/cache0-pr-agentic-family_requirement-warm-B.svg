@@ -1,0 +1,46 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="264.324" height="437.4" viewBox="0 0 264.324 437.4" style="--bg:#FFFFFF;--fg:#27272A;--font:Inter;background:#FFFFFF" class="am-0ayyl9y1gicy46"><style>
+  svg.am-0ayyl9y1gicy46 { font-family: var(--font, 'Inter'), system-ui, sans-serif; }
+  svg.am-0ayyl9y1gicy46 {
+    /* Derived from --bg and --fg (overridable via --line, --accent, etc.) */
+    --_text:          #27272A;
+    --_text-sec:      #575759;
+    --_text-muted:    #707072;
+    --_text-faint:    #8a8a8c;
+    --_line:          #939395;
+    --_arrow:         #47474a;
+    --_node-fill:     #f9f9f9;
+    --_node-stroke:   #d4d4d4;
+    --_group-fill:    #FFFFFF;
+    --_group-hdr:     #f4f4f4;
+    --_inner-stroke:  #e5e5e5;
+    --_key-badge:     #e9e9ea;
+  }
+</style>
+<defs>  <marker id="requirement-arrow" markerWidth="9" markerHeight="7" refX="9" refY="3.5" orient="auto" markerUnits="userSpaceOnUse">
+    <polygon points="0 0, 9 3.5, 0 7" fill="none" stroke="#47474a" stroke-width="1" />
+  </marker>
+  <marker id="requirement-contains" markerWidth="12" markerHeight="12" refX="0" refY="6" orient="auto" markerUnits="userSpaceOnUse">
+    <circle cx="6" cy="6" r="5" fill="#FFFFFF" stroke="#47474a" stroke-width="1" />
+    <path d="M2 6H10M6 2V10" fill="#FFFFFF" stroke="#47474a" stroke-width="1" />
+  </marker></defs>
+<g class="requirement-node default" data-id="reliable" data-role="node">
+  <rect x="32" y="228" width="200.324" height="177.4" fill="#f9f9f9" stroke="#949495" stroke-width="0.75" />
+  <line x1="32" y1="285.8" x2="232.324" y2="285.8" stroke="#949495" stroke-width="0.75" />
+  <text x="132.162" y="256.9" text-anchor="middle" font-family="Inter" font-size="13" font-weight="500" fill="#27272A" data-prepared-text="true"><tspan x="132.162" dy="-3.9" textLength="105.69" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">&lt;&lt;Requirement&gt;&gt;</tspan><tspan x="132.162" dy="16.9" textLength="46.41" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">reliable</tspan></text>
+  <text x="48" y="302.25" text-anchor="start" font-family="Inter" font-size="13" font-weight="400" fill="#27272A" data-id="field:reliable:0" data-role="attribute" data-prepared-text="true" dy="4.55" textLength="29.328" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">ID: R1</text>
+  <text x="48" y="328.15" text-anchor="start" font-family="Inter" font-size="13" font-weight="400" fill="#27272A" data-id="field:reliable:1" data-role="attribute" data-prepared-text="true" dy="4.55" textLength="168.324" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Text: Requests retain meaning</text>
+  <text x="48" y="354.05" text-anchor="start" font-family="Inter" font-size="13" font-weight="400" fill="#27272A" data-id="field:reliable:2" data-role="attribute" data-prepared-text="true" dy="4.55" textLength="57.408" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Risk: High</text>
+  <text x="48" y="379.95" text-anchor="start" font-family="Inter" font-size="13" font-weight="400" fill="#27272A" data-id="field:reliable:3" data-role="attribute" data-prepared-text="true" dy="4.55" textLength="95.316" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Verification: Test</text>
+</g>
+<g class="requirement-node default" data-id="suite" data-role="node">
+  <rect x="62.162" y="32" width="140" height="99.7" fill="#f9f9f9" stroke="#949495" stroke-width="0.75" />
+  <line x1="62.162" y1="89.8" x2="202.162" y2="89.8" stroke="#949495" stroke-width="0.75" />
+  <text x="132.162" y="60.9" text-anchor="middle" font-family="Inter" font-size="13" font-weight="500" fill="#27272A" data-prepared-text="true"><tspan x="132.162" dy="-3.9" textLength="77.532" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">&lt;&lt;Element&gt;&gt;</tspan><tspan x="132.162" dy="16.9" textLength="30.108" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">suite</tspan></text>
+  <text x="78.162" y="106.25" text-anchor="start" font-family="Inter" font-size="13" font-weight="400" fill="#27272A" data-id="field:suite:0" data-role="attribute" data-prepared-text="true" dy="4.55" textLength="56.004" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Type: test</text>
+</g>
+<polyline points="132.162,131.7 132.162,228" fill="none" stroke="#939395" stroke-width="1" stroke-dasharray="6 4" marker-end="url(#requirement-arrow)" data-relationship="verifies" data-direction="forward" data-id="relation-1" data-role="relationship" data-from="suite" data-to="reliable" role="graphics-symbol" aria-roledescription="relation" aria-label="suite to reliable: &lt;&lt;verifies&gt;&gt;" />
+<g class="requirement-edge-label" data-edge-id="relation-1">
+  <rect x="95.637" y="168.7" width="73.05" height="22.3" fill="#FFFFFF" stroke="none" />
+  <text x="132.162" y="179.85" text-anchor="middle" font-size="11" font-weight="400" fill="#27272A" data-prepared-text="true" dy="3.85" textLength="61.05" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">&lt;&lt;verifies&gt;&gt;</text>
+</g>
+</svg>

@@ -1,0 +1,47 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="199.59" height="377.8" viewBox="0 0 199.59 377.8" style="--bg:#FFFFFF;--fg:#27272A;--font:Inter;background:#FFFFFF" class="am-0qrxb8h1eeuppe">
+<style>
+  svg.am-0qrxb8h1eeuppe { font-family: var(--font, 'Inter'), system-ui, sans-serif; }
+  svg.am-0qrxb8h1eeuppe {
+    /* Derived from --bg and --fg (overridable via --line, --accent, etc.) */
+    --_text:          #27272A;
+    --_text-sec:      #575759;
+    --_text-muted:    #707072;
+    --_text-faint:    #8a8a8c;
+    --_line:          #939395;
+    --_arrow:         #47474a;
+    --_node-fill:     #f9f9f9;
+    --_node-stroke:   #d4d4d4;
+    --_group-fill:    #FFFFFF;
+    --_group-hdr:     #f4f4f4;
+    --_inner-stroke:  #e5e5e5;
+    --_key-badge:     #e9e9ea;
+  }
+</style>
+<defs>
+  <marker id="arrowhead" markerWidth="8" markerHeight="5" refX="8" refY="2.5" orient="auto">
+    <polygon points="0 0, 8 2.5, 0 5" fill="#47474a" stroke="#47474a" stroke-width="0.75" stroke-linejoin="round" />
+  </marker>
+  <marker id="arrowhead-start" markerWidth="8" markerHeight="5" refX="0" refY="2.5" orient="auto">
+    <polygon points="8 0, 0 2.5, 8 5" fill="#47474a" stroke="#47474a" stroke-width="0.75" stroke-linejoin="round" />
+  </marker>
+</defs>
+<g class="subgraph" data-id="Alpha" data-region="subgraph" data-label="Alpha" data-role="group">
+  <rect x="40" y="40" width="119.59" height="124.9" rx="0" ry="0" fill="#FFFFFF" stroke="#949495" stroke-width="1" data-id="group-rect:Alpha" data-role="group" />
+  <path d="M40,40 H159.59 V80 H40 Z" fill="#f4f4f4" stroke="#949495" stroke-width="1" />
+  <text x="52" y="60" text-anchor="start" font-size="12" font-weight="600" fill="#575759" data-prepared-text="true" dy="4.2" textLength="34.92" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Alpha</text>
+</g>
+<g class="subgraph" data-id="Gamma" data-region="subgraph" data-label="Gamma" data-role="group">
+  <rect x="40" y="212.9" width="119.59" height="124.9" rx="0" ry="0" fill="#FFFFFF" stroke="#949495" stroke-width="1" data-id="group-rect:Gamma" data-role="group" />
+  <path d="M40,212.9 H159.59 V252.9 H40 Z" fill="#f4f4f4" stroke="#949495" stroke-width="1" />
+  <text x="52" y="232.9" text-anchor="start" font-size="12" font-weight="600" fill="#575759" data-prepared-text="true" dy="4.2" textLength="42.12" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Gamma</text>
+</g>
+<polyline class="edge" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" points="98.313,140.9 98.313,219.1 106.12,219.1 106.12,264.9 99.795,264.9 99.795,276.9" fill="none" stroke="#939395" stroke-width="1" marker-end="url(#arrowhead)" data-relationship="flowchart-edge" data-direction="forward" data-id="edge:A-&gt;B#0" data-role="edge" data-from="A" data-to="B" role="graphics-symbol" aria-roledescription="relation" aria-label="A to B" />
+<g class="node" data-id="A" data-label="Beta" data-shape="rectangle" data-role="node">
+  <rect x="64" y="104" width="68.626" height="36.9" rx="0" ry="0" fill="#f9f9f9" stroke="#949495" stroke-width="0.75" data-id="node-shape:A" data-role="node" />
+  <text x="98.313" y="122.45" text-anchor="middle" font-size="13" font-weight="500" fill="#27272A" data-prepared-text="true" dy="4.55" textLength="28.626" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Beta</text>
+</g>
+<g class="node" data-id="B" data-label="Delta" data-shape="rectangle" data-role="node">
+  <rect x="64" y="276.9" width="71.59" height="36.9" rx="0" ry="0" fill="#f9f9f9" stroke="#949495" stroke-width="0.75" data-id="node-shape:B" data-role="node" />
+  <text x="99.795" y="295.35" text-anchor="middle" font-size="13" font-weight="500" fill="#27272A" data-prepared-text="true" dy="4.55" textLength="31.59" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Delta</text>
+</g>
+</svg>

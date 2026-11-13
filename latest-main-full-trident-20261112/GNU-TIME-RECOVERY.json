@@ -1,0 +1,30 @@
+{
+  "sourceArchive": "/dev/shm/pr449-four-final-20261111/latest-main-full-trident-20261112/RECOVERED-old-full-evidence.tar.gz",
+  "bytes": 44572926,
+  "gitBlob": "e56c7102fa6ddb8437823265e642bde945622c08",
+  "sha256": "78f7e9be9a396b3733f58111d4c7a3a5ad0c9b01476055b26d5f4adb831308d3",
+  "restoredFiles": [
+    "usr",
+    "usr/bin",
+    "usr/bin/time",
+    "usr/share",
+    "usr/share/doc",
+    "usr/share/doc/time",
+    "usr/share/doc/time/AUTHORS",
+    "usr/share/doc/time/NEWS.gz",
+    "usr/share/doc/time/README",
+    "usr/share/doc/time/changelog.Debian.gz",
+    "usr/share/doc/time/changelog.gz",
+    "usr/share/doc/time/copyright",
+    "usr/share/doc/time/time.html",
+    "usr/share/doc-base",
+    "usr/share/doc-base/time.time",
+    "usr/share/info",
+    "usr/share/info/time.info.gz",
+    "usr/share/man",
+    "usr/share/man/man1",
+    "usr/share/man/man1/time.1.gz"
+  ],
+  "observerPath": "/tmp/pr449-week-comparison-20261101/trident-native-elk-df133-20261108/gnu-time/usr/bin/time",
+  "observerSha256": "efc0d1112e36ec76c14bf7508e287935cf1631d9d0d91fb532802d07aef51cea"
+}

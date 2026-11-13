@@ -1,0 +1,30 @@
+{
+  "pairedStrictRows": 37,
+  "comparison": {
+    "wire": {
+      "lower": 11,
+      "higher": 2,
+      "equal": 24
+    },
+    "bends": {
+      "lower": 2,
+      "higher": 2,
+      "equal": 33
+    },
+    "crossings": {
+      "lower": 0,
+      "higher": 0,
+      "equal": 37
+    },
+    "parallelOverlaps": {
+      "lower": 0,
+      "higher": 0,
+      "equal": 37
+    },
+    "opposingOverlaps": {
+      "lower": 0,
+      "higher": 0,
+      "equal": 37
+    }
+  }
+}

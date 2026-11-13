@@ -1,0 +1,52 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="428.769" height="339.508" viewBox="0 0 428.769 339.508" style="--bg:#FFFFFF;--fg:#27272A;--font:Inter;background:#FFFFFF" aria-labelledby="gitgraph-title" aria-roledescription="git graph" role="img" class="am-0h55kt51d3zjgv">
+<style>
+  svg.am-0h55kt51d3zjgv { font-family: var(--font, 'Inter'), system-ui, sans-serif; }
+  svg.am-0h55kt51d3zjgv {
+    /* Derived from --bg and --fg (overridable via --line, --accent, etc.) */
+    --_text:          #27272A;
+    --_text-sec:      #575759;
+    --_text-muted:    #707072;
+    --_text-faint:    #8a8a8c;
+    --_line:          #939395;
+    --_arrow:         #47474a;
+    --_node-fill:     #f9f9f9;
+    --_node-stroke:   #d4d4d4;
+    --_group-fill:    #FFFFFF;
+    --_group-hdr:     #f4f4f4;
+    --_inner-stroke:  #e5e5e5;
+    --_key-badge:     #e9e9ea;
+  }
+</style>
+<title id="gitgraph-title">Git graph</title>
+<g class="git-branch" data-id="branch:main" data-branch="main" data-role="group">
+  <rect class="git-branch-label-background" x="82.28" y="57" width="37.72" height="18" rx="4" ry="4" fill="#edf4fe" stroke="#3b82f6" stroke-width="1" />
+  <line class="git-branch-line" data-branch="main" x1="130" y1="70" x2="355.508" y2="70" stroke="#3b82f6" stroke-width="3" />
+  <text x="120" y="65.8" class="git-branch-label" data-branch="main" text-anchor="end" font-size="12" font-weight="600" fill="#366dc8" data-prepared-text="true" dy="4.2" textLength="27.72" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">main</text>
+</g>
+<g class="git-branch" data-id="branch:feature" data-branch="feature" data-role="group">
+  <rect class="git-branch-label-background" x="67.88" y="152.508" width="52.12" height="18" rx="4" ry="4" fill="#e9f0f7" stroke="#0d5ba5" stroke-width="1" />
+  <line class="git-branch-line" data-branch="feature" x1="130" y1="165.508" x2="261.508" y2="165.508" stroke="#0d5ba5" stroke-width="3" />
+  <text x="120" y="161.308" class="git-branch-label" data-branch="feature" text-anchor="end" font-size="12" font-weight="600" fill="#0d5ba5" data-prepared-text="true" dy="4.2" textLength="42.12" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">feature</text>
+</g>
+<polyline class="git-edge git-edge-parent" points="167.508,70 191.508,70 191.508,165.508 261.508,165.508" fill="none" stroke="#0d5ba5" stroke-width="2" data-relationship="parent" data-direction="forward" data-id="Alpha-&gt;Beta" data-role="edge" data-from="Alpha" data-to="Beta" role="graphics-symbol" aria-roledescription="relation" aria-label="Alpha to Beta" />
+<polyline class="git-edge git-edge-parent" points="167.508,70 261.508,70 261.508,70 355.508,70" fill="none" stroke="#3b82f6" stroke-width="2" data-relationship="parent" data-direction="forward" data-id="Alpha-&gt;Gamma" data-role="edge" data-from="Alpha" data-to="Gamma" role="graphics-symbol" aria-roledescription="relation" aria-label="Alpha to Gamma" />
+<polyline class="git-edge git-edge-merge" points="261.508,165.508 331.508,165.508 331.508,70 355.508,70" fill="none" stroke="#3b82f6" stroke-width="2.5" data-relationship="merge" data-direction="forward" data-id="Beta-&gt;Gamma" data-role="edge" data-from="Beta" data-to="Gamma" role="graphics-symbol" aria-roledescription="relation" aria-label="Beta to Gamma" />
+<g class="git-commit type-normal" data-id="Alpha" data-branch="main" data-commit-type="NORMAL" data-role="node">
+  <circle cx="167.508" cy="70" r="8" fill="#dce9fd" stroke="#3b82f6" stroke-width="2" />
+  <rect class="git-commit-label-background" x="140.262" y="83" width="54.492" height="17" rx="3" ry="3" fill="#FFFFFF" fill-opacity="0.94" stroke="#3b82f6" stroke-width="0.75" transform="rotate(45 167.508 94)" />
+  <text x="167.508" y="90.15" class="git-commit-label" text-anchor="middle" font-size="11" font-weight="500" fill="#575759" transform="rotate(45 167.508 94)" data-prepared-text="true" dy="3.85" textLength="30.492" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Alpha</text>
+  <rect class="git-tag-background" x="177.508" y="43" width="19.9" height="15" rx="4" ry="4" fill="#edf4fe" stroke="#3b82f6" stroke-width="0.75" />
+  <text x="181.508" y="50.5" class="git-tag" text-anchor="start" font-size="10" font-weight="600" fill="#366dc8" data-prepared-text="true" dy="3.5" textLength="9.9" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">v1</text>
+</g>
+<g class="git-commit type-normal" data-id="Beta" data-branch="feature" data-commit-type="NORMAL" data-role="node">
+  <circle cx="261.508" cy="165.508" r="8" fill="#d3e1ef" stroke="#0d5ba5" stroke-width="2" />
+  <rect class="git-commit-label-background" x="237.397" y="178.508" width="48.222" height="17" rx="3" ry="3" fill="#FFFFFF" fill-opacity="0.94" stroke="#0d5ba5" stroke-width="0.75" transform="rotate(45 261.508 189.508)" />
+  <text x="261.508" y="185.658" class="git-commit-label" text-anchor="middle" font-size="11" font-weight="500" fill="#575759" transform="rotate(45 261.508 189.508)" data-prepared-text="true" dy="3.85" textLength="24.222" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Beta</text>
+</g>
+<g class="git-commit type-merge" data-id="Gamma" data-branch="main" data-commit-type="MERGE" data-role="node">
+  <circle cx="355.508" cy="70" r="10" fill="#3b82f6" stroke="#3b82f6" stroke-width="2" />
+  <circle cx="355.508" cy="70" r="5" fill="none" stroke="#FFFFFF" stroke-width="1.5" />
+  <rect class="git-commit-label-background" x="325.127" y="83" width="60.762" height="17" rx="3" ry="3" fill="#FFFFFF" fill-opacity="0.94" stroke="#3b82f6" stroke-width="0.75" transform="rotate(45 355.508 94)" />
+  <text x="355.508" y="90.15" class="git-commit-label" text-anchor="middle" font-size="11" font-weight="500" fill="#575759" transform="rotate(45 355.508 94)" data-prepared-text="true" dy="3.85" textLength="36.762" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Gamma</text>
+</g>
+</svg>

@@ -1,0 +1,16 @@
+{
+  "at": "2026-11-12T23:55:51.492435+00:00",
+  "node": "/workspace/pr449-runtime-recovery/node-v24.19.0-linux-x64/bin/node",
+  "nodeVersion": "24.19.0",
+  "bun": "/tmp/pr449-tools-20261106/package/bin/bun",
+  "bunVersion": "1.4.4",
+  "nodeEntrySha256": "bee28580669db9d01d45ddd2a1f6d488f8af256f4f063f117d371e4dafd7dc75",
+  "source": "68986ba8e3b76ad99dad44c6ec8d43475cc5e12f",
+  "inputSha256": "25bcc698e6671fbbe80d075b0ca27e69ad861377b04f80825162f4600f19a31c",
+  "memory": {
+    "memory.current": "1962201088",
+    "memory.max": "17179869184",
+    "memory.events": "low 0\nhigh 0\nmax 0\noom 0\noom_kill 0\noom_group_kill 0"
+  },
+  "hostBoundary": "NewNodeclocks onreplacementhost; oldbrowserdata retained separately; no crosshostcodegainclaim"
+}

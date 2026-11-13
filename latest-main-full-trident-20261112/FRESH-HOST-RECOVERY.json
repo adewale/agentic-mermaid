@@ -1,0 +1,211 @@
+{
+  "ref": "7e24482a86e02b1b1a3c8abd44b94fe671d30525",
+  "source": "68986ba8e3b76ad99dad44c6ec8d43475cc5e12f",
+  "packetFiles": [
+    {
+      "path": "performance.ts",
+      "bytes": 4218,
+      "sha256": "25ce4b541bbf76ab3cfb753a14bc608d4a112b82c0dd49403ea44720d54e6c2a"
+    },
+    {
+      "path": "receipt-performance.ts",
+      "bytes": 2930,
+      "sha256": "daab35fd62aeb12cdaba5e1bb4fdc911b25d046e6aff0abb4a8bb0c6452c0a46"
+    },
+    {
+      "path": "receipt-worker.mjs",
+      "bytes": 4971,
+      "sha256": "3eee8e6d34847686fac9d43cd609747422f9689d641a39d52450a5608f3e88dd"
+    },
+    {
+      "path": "calibrate-results.ts",
+      "bytes": 1914,
+      "sha256": "dd7023d535cc63d4a40d36369a8edf41eea4f040cad54e07bafd11d40cb8fe3c"
+    },
+    {
+      "path": "reduce.py",
+      "bytes": 17995,
+      "sha256": "e0cdac0c009df0f8f154ee6daeddc01ec3750a81a8e1afb78c591995dc203ffb"
+    },
+    {
+      "path": "IDENTITY.json",
+      "bytes": 272275,
+      "sha256": "5d03fdeabb380cf5bbe2d8c85468575dab0b98e590c35d7ba2fd66ea69419b73"
+    },
+    {
+      "path": "PLAN.json",
+      "bytes": 2016,
+      "sha256": "a6fc17fb6a04be78a9bd5e055b39f4bfdac070af36ada873225d4ce2e5f5b089"
+    },
+    {
+      "path": "RUNBOOK.md",
+      "bytes": 3569,
+      "sha256": "2d3f0fc6c3d8fff67931c54e5c636df93b8623397e54d3e1055e5d15ee46a38e"
+    },
+    {
+      "path": "PHASE-CURSOR.json",
+      "bytes": 789,
+      "sha256": "d9fdabb3802bf3136d4d243a41e3d1f688ac6ac9fc5c1e1e0d5613548cc7bbbd"
+    },
+    {
+      "path": "MEASUREMENT-CASES.json",
+      "bytes": 201800,
+      "sha256": "6d2fb3cf5bf967e433c3d6f31a7863174a8b5b745546411cd411bb59e0dec0c9"
+    },
+    {
+      "path": "CASES.json",
+      "bytes": 374034,
+      "sha256": "feecbdd0ec31f4db7cf270bf469df4375dc7d0b567d755ac1f8b4d30eaecc628"
+    },
+    {
+      "path": "FIDELITY-CASES.json",
+      "bytes": 322361,
+      "sha256": "5882749190ec13fcce5bc83b73c09a475e6a2605c051c6d264c9df05c9f4ddd9"
+    },
+    {
+      "path": "FAMILY-REGISTRY.json",
+      "bytes": 4345,
+      "sha256": "00b05967351775e42325c25ba3235342cdc8bdc2ebd28c70a53aaca1552a749b"
+    },
+    {
+      "path": "BROWSER-CLOSED.json",
+      "bytes": 1062,
+      "sha256": "dcf7ece07eb603ab27ab1a00189ff4a0970c2e8c61adb687e88cddcb6dbf33f4"
+    },
+    {
+      "path": "PRE-INTEGRATION.json",
+      "bytes": 418,
+      "sha256": "29973c713d57f7e934cfe18fb704d0ebc16f404aa70bc5c741f5c7c0325a0a62"
+    },
+    {
+      "path": "CANONICAL-PACKAGE-RECOVERY-MANIFEST.json",
+      "bytes": 51317,
+      "sha256": "67b0b3c8ce38391296d6554538a8c4e21d80be2cf361501a574486f0fb030525"
+    },
+    {
+      "path": "ADAPTATIONS.json",
+      "bytes": 4782,
+      "sha256": "dc074a3353b329b8bac0626a6d6be6a7d1e586cecc5b7a083f784f629cf38bab"
+    },
+    {
+      "path": "MANIFEST-functional.json",
+      "bytes": 473246,
+      "sha256": "4c27f445ed363acc49244246b89803fd870d7c43e0f5303691ebae959db90dad"
+    },
+    {
+      "path": "STATE-BEFORE-CLOCK-HOLD.json",
+      "bytes": 105677,
+      "sha256": "3bfa1ec04851918281781b53d511bc991134ac52b71d67fd1d489da493e1511c"
+    },
+    {
+      "path": "compatibility-overlay/MEASUREMENT-CASES.json",
+      "bytes": 202142,
+      "sha256": "25bcc698e6671fbbe80d075b0ca27e69ad861377b04f80825162f4600f19a31c"
+    },
+    {
+      "path": "compatibility-overlay/CURRENT-PILOT.json",
+      "bytes": 1005723,
+      "sha256": "7e741223825d43cde01a76da8a54f0b63852b5f959ae284da4c65146f4d19dc8"
+    },
+    {
+      "path": "compatibility-overlay/CURRENT-FIDELITY.json",
+      "bytes": 5582027,
+      "sha256": "a3f432b9bec86ea6b81df027a1c6a61922f687e1217296b03cecba9baa431fcb"
+    },
+    {
+      "path": "compatibility-overlay/TRANSFORMATION.json",
+      "bytes": 876,
+      "sha256": "cb2b677d9c605bbdc10738ac09975e0bd656e11206765fa6fad400167f36ac4e"
+    },
+    {
+      "path": "compatibility-overlay/COMPLETED.json",
+      "bytes": 561,
+      "sha256": "d3efbb024db4c5a2f07abf1d909d1615dc28e7dfddf4dc3b8f78cdd52f1a5414"
+    },
+    {
+      "path": "compatibility-overlay/REPORT.md",
+      "bytes": 1535,
+      "sha256": "6b53f390218b7475aef49c35a2b1fac01916f08fff54ee1fdfa66387cffac7b4"
+    },
+    {
+      "path": "compatibility-overlay/current-summary/SUMMARY.json",
+      "bytes": 1727,
+      "sha256": "aa3234537f38f0c6b94ae230ed4baed56a0890b4a4a7c14d3a11348e9e756012"
+    },
+    {
+      "path": "compatibility-overlay/current-summary/FAMILY-RESULTS.json",
+      "bytes": 46533,
+      "sha256": "d2e44148ee6fab40a7522af1178ef9628ff3c0ceadb84f71b0de95a6cb2b9028"
+    },
+    {
+      "path": "browser/FAMILY-PAYLOAD.csv",
+      "bytes": 10392,
+      "sha256": "b4fb8b8cb165a313bc0aa70cc319f1fb463eafc684d627f93088989ededc50fb"
+    },
+    {
+      "path": "browser/FAMILY-PAYLOAD.json",
+      "bytes": 33490,
+      "sha256": "cc04269749e060707cfa27a1a9dfc47f4998b588e26f15566f85a434f0e9f98a"
+    },
+    {
+      "path": "browser/SUMMARY.json",
+      "bytes": 945,
+      "sha256": "38dad338f473037c3543e127767cd319c43fd8df673e26ea27282fd786ff9dda"
+    },
+    {
+      "path": "FUNCTIONAL-COMPLETED.json",
+      "bytes": 2932,
+      "sha256": "4582a1a44723b168b364ef2f595b6c26ad86ec23a0073bc5417881a0c1dcafad"
+    },
+    {
+      "path": "FUNCTIONAL-REPORT.md",
+      "bytes": 1802,
+      "sha256": "83dc57b8912efb665a659531cefd2319b4827dc263b75274c9858da93cb0d75b"
+    },
+    {
+      "path": "SPILL-RELOCATION-COMPLETED.json",
+      "bytes": 485,
+      "sha256": "8d3f25ba195e36b505875b5adef65e30e44a942b404c3b3fab2782b15962bd91"
+    },
+    {
+      "path": "SPILL-MANIFEST.json",
+      "bytes": 20366,
+      "sha256": "a8e204b181d66b8baa96a516ae5a149fc824088e9c32884c9eaf44bda5b1e152"
+    },
+    {
+      "path": "kit/execution.mjs",
+      "bytes": 30118,
+      "sha256": "e8d60f4dea1f55ebe537ba3010ea38d059d53ca67fd54b4de9ecea2c2e828829"
+    },
+    {
+      "path": "kit/harness-artifact.json",
+      "bytes": 1004,
+      "sha256": "9516dc8a53eba90aad71cf3ef3f77fd1fd0bb8043fffb04b0beec1baedf23083"
+    },
+    {
+      "path": "kit/mermaid-oracle-worker.mjs",
+      "bytes": 6274,
+      "sha256": "50764aa4e2b0259c98fbcb2ccf9737ef1f27fd3198b534477c2f5ea8bf25db23"
+    },
+    {
+      "path": "kit/package.json",
+      "bytes": 160,
+      "sha256": "c683e6d53e94e75ea73e62256cb68b4ecc34e47f60b2c298b31845d23907def0"
+    },
+    {
+      "path": "kit/run.mjs",
+      "bytes": 94227,
+      "sha256": "20d172d437e58ad8e5f2931c6e3e70a6cdd0108ebd23980fc15f90d5446e01c0"
+    },
+    {
+      "path": "kit/worker.mjs",
+      "bytes": 116265,
+      "sha256": "f386fb45922c842331b8f41471c38edf9e2b8c7203d2ab16692411a0192e032a"
+    }
+  ],
+  "toolSourceTarGitBlob": "3e837643ab8c1ffeb6827c054aea7946c8069f17",
+  "toolGitArchiveComment": "f080278e31e4202ca89d524e4ee9e4cf3cbff038",
+  "functionalBrowserRaw": "Preserved remotely; notreplayed orfullydownloaded",
+  "priorClockAttempt": "Transportlost beforeexecsession; noresultsrecoverable; freshhostnoactiveworkers",
+  "oldLocalSpool": "31historicalpaths+790MBspool lost witholdmachine; remotecheckpointmetadata/archiveevidence remains; not a deletionbyagent"
+}

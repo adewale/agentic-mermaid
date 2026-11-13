@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="648" height="448" viewBox="0 0 648 448" style="--bg:#FFFFFF;--fg:#27272A;--font:Inter;background:#FFFFFF" aria-roledescription="sankey diagram" role="img" class="am-0yr7efq0z34ie0">
+<style>
+  svg.am-0yr7efq0z34ie0 { font-family: var(--font, 'Inter'), system-ui, sans-serif; }
+  svg.am-0yr7efq0z34ie0 {
+    /* Derived from --bg and --fg (overridable via --line, --accent, etc.) */
+    --_text:          #27272A;
+    --_text-sec:      #575759;
+    --_text-muted:    #707072;
+    --_text-faint:    #8a8a8c;
+    --_line:          #939395;
+    --_arrow:         #47474a;
+    --_node-fill:     #f9f9f9;
+    --_node-stroke:   #d4d4d4;
+    --_group-fill:    #FFFFFF;
+    --_group-hdr:     #f4f4f4;
+    --_inner-stroke:  #e5e5e5;
+    --_key-badge:     #e9e9ea;
+  }
+</style>
+<defs>
+  <linearGradient id="sankey-gradient-1" gradientUnits="userSpaceOnUse" x1="34" y1="224" x2="319" y2="224">
+    <stop offset="0%" stop-color="#3b82f6" />
+    <stop offset="100%" stop-color="#0d5ba5" />
+  </linearGradient>
+  <linearGradient id="sankey-gradient-2" gradientUnits="userSpaceOnUse" x1="329" y1="224" x2="614" y2="224">
+    <stop offset="0%" stop-color="#0d5ba5" />
+    <stop offset="100%" stop-color="#6d5cd8" />
+  </linearGradient>
+</defs>
+<path class="sankey-link" data-source="Alpha" data-target="Beta" data-value="5" d="M 34 224 C 176.5 224, 176.5 224, 319 224" fill="none" stroke="url(#sankey-gradient-1)" stroke-opacity="0.5" stroke-width="400" style="mix-blend-mode:multiply" data-relationship="flow" data-direction="forward" data-id="link:Alpha-&gt;Beta" data-role="edge" data-from="Alpha" data-to="Beta" role="graphics-symbol" aria-roledescription="relation" aria-label="Alpha to Beta" />
+<path class="sankey-link" data-source="Beta" data-target="Gamma" data-value="5" d="M 329 224 C 471.5 224, 471.5 224, 614 224" fill="none" stroke="url(#sankey-gradient-2)" stroke-opacity="0.5" stroke-width="400" style="mix-blend-mode:multiply" data-relationship="flow" data-direction="forward" data-id="link:Beta-&gt;Gamma" data-role="edge" data-from="Beta" data-to="Gamma" role="graphics-symbol" aria-roledescription="relation" aria-label="Beta to Gamma" />
+<rect class="sankey-node" data-label="Alpha" data-value="5" data-layer="0" x="24" y="24" width="10" height="400" fill="#3b82f6" stroke="#949495" stroke-width="1" data-id="Alpha" data-role="bar" />
+<rect class="sankey-node" data-label="Beta" data-value="5" data-layer="1" x="319" y="24" width="10" height="400" fill="#0d5ba5" stroke="#949495" stroke-width="1" data-id="Beta" data-role="bar" />
+<rect class="sankey-node" data-label="Gamma" data-value="5" data-layer="2" x="614" y="24" width="10" height="400" fill="#6d5cd8" stroke="#949495" stroke-width="1" data-id="Gamma" data-role="bar" />
+<text x="40" y="224" class="sankey-node-label" text-anchor="start" dominant-baseline="middle" font-size="13" font-weight="500" fill="#27272A" stroke="#FFFFFF" stroke-width="3" paint-order="stroke fill" data-prepared-text="true"><tspan x="40" dy="-3.9" textLength="36.036" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Alpha</tspan><tspan x="40" dy="16.9" textLength="9.36" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">5</tspan></text>
+<text x="335" y="224" class="sankey-node-label" text-anchor="start" dominant-baseline="middle" font-size="13" font-weight="500" fill="#27272A" stroke="#FFFFFF" stroke-width="3" paint-order="stroke fill" data-prepared-text="true"><tspan x="335" dy="-3.9" textLength="28.626" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Beta</tspan><tspan x="335" dy="16.9" textLength="9.36" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">5</tspan></text>
+<text x="608" y="224" class="sankey-node-label" text-anchor="end" dominant-baseline="middle" font-size="13" font-weight="500" fill="#27272A" stroke="#FFFFFF" stroke-width="3" paint-order="stroke fill" data-prepared-text="true"><tspan x="608" dy="-3.9" textLength="43.446" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Gamma</tspan><tspan x="608" dy="16.9" textLength="9.36" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">5</tspan></text>
+</svg>

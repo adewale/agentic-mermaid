@@ -1,0 +1,39 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="460.98" height="349.65" viewBox="0 0 460.98 349.65" style="--bg:#FFFFFF;--fg:#27272A;--font:Inter;background:#FFFFFF" aria-labelledby="radar-189yd7n-title" aria-roledescription="radar chart" id="radar-189yd7n" role="img" class="am-0q77cu41ozs9gs">
+<title id="radar-189yd7n-title">Skills</title>
+<style>
+  svg.am-0q77cu41ozs9gs { font-family: var(--font, 'Inter'), system-ui, sans-serif; }
+  svg.am-0q77cu41ozs9gs {
+    /* Derived from --bg and --fg (overridable via --line, --accent, etc.) */
+    --_text:          #27272A;
+    --_text-sec:      #575759;
+    --_text-muted:    #707072;
+    --_text-faint:    #8a8a8c;
+    --_line:          #939395;
+    --_arrow:         #47474a;
+    --_node-fill:     #f9f9f9;
+    --_node-stroke:   #d4d4d4;
+    --_group-fill:    #FFFFFF;
+    --_group-hdr:     #f4f4f4;
+    --_inner-stroke:  #e5e5e5;
+    --_key-badge:     #e9e9ea;
+  }
+</style>
+<circle class="radar-ring" cx="180.54" cy="207.65" r="24" fill="none" stroke="#939395" stroke-opacity="0.7" stroke-width="1" />
+<circle class="radar-ring" cx="180.54" cy="207.65" r="48" fill="none" stroke="#939395" stroke-opacity="0.7" stroke-width="1" />
+<circle class="radar-ring" cx="180.54" cy="207.65" r="72" fill="none" stroke="#939395" stroke-opacity="0.7" stroke-width="1" />
+<circle class="radar-ring" cx="180.54" cy="207.65" r="96" fill="none" stroke="#939395" stroke-opacity="0.7" stroke-width="1" />
+<circle class="radar-ring radar-ring-outer" cx="180.54" cy="207.65" r="120" fill="none" stroke="#939395" stroke-opacity="0.7" stroke-width="1.4" />
+<line class="radar-axis-line" x1="180.54" y1="207.65" x2="180.54" y2="87.65" stroke="#939395" stroke-width="1" />
+<line class="radar-axis-line" x1="180.54" y1="207.65" x2="284.47" y2="267.65" stroke="#939395" stroke-width="1" />
+<line class="radar-axis-line" x1="180.54" y1="207.65" x2="76.62" y2="267.65" stroke="#939395" stroke-width="1" />
+<path class="radar-area" data-curve="Current" d="M 180.54 135.65 C 201.74 139.73 270.75 239.33 263.68 255.65 C 256.61 271.97 153.11 252.05 138.98 231.65 C 124.85 211.25 159.34 131.57 180.54 135.65 Z" fill="#3b82f6" fill-opacity="0.5" stroke="#3b82f6" stroke-width="2.2" stroke-linejoin="round" data-id="curve:now" data-role="pie-slice" />
+<circle class="radar-dot" cx="180.54" cy="135.65" r="3" fill="#3b82f6" stroke="#FFFFFF" stroke-width="1.2" data-id="dot:now:0" data-role="point" />
+<circle class="radar-dot" cx="263.68" cy="255.65" r="3" fill="#3b82f6" stroke="#FFFFFF" stroke-width="1.2" data-id="dot:now:1" data-role="point" />
+<circle class="radar-dot" cx="138.98" cy="231.65" r="3" fill="#3b82f6" stroke="#FFFFFF" stroke-width="1.2" data-id="dot:now:2" data-role="point" />
+<text x="180.54" y="69.53" class="radar-axis-label" aria-label="Speed" text-anchor="middle" dominant-baseline="middle" font-size="12.5" font-weight="500" fill="#27272A" data-prepared-text="true" dy="0" textLength="38.925" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Speed</text>
+<text x="300.16" y="276.71" class="radar-axis-label" aria-label="Power" text-anchor="start" dominant-baseline="middle" font-size="12.5" font-weight="500" fill="#27272A" data-prepared-text="true" dy="0" textLength="38.925" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Power</text>
+<text x="60.93" y="276.71" class="radar-axis-label" aria-label="Range" text-anchor="end" dominant-baseline="middle" font-size="12.5" font-weight="500" fill="#27272A" data-prepared-text="true" dy="0" textLength="38.925" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Range</text>
+<rect class="radar-legend-swatch" x="369.09" y="200.65" width="14" height="14" rx="2" ry="2" fill="#3b82f6" fill-opacity="1" stroke="#949495" stroke-width="1" />
+<text x="391.09" y="207.65" class="radar-legend-text" text-anchor="start" dominant-baseline="middle" font-size="13" font-weight="500" fill="#27272A" data-prepared-text="true" dy="0" textLength="47.892" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Current</text>
+<text x="180.54" y="33.7" class="radar-title" text-anchor="middle" dominant-baseline="middle" font-size="18" font-weight="600" fill="#27272A" data-id="title" data-role="title" data-prepared-text="true" dy="0" textLength="50.22" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Skills</text>
+</svg>

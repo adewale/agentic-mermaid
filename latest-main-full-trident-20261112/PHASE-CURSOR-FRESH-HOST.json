@@ -1,0 +1,18 @@
+{
+  "at": "2026-11-12T23:53:04.962662+00:00",
+  "host": "Fresh replacement environment after externally lost RAM/tmp/spool",
+  "status": "STOCK_COMPLETE_RECEIPT_PENDING",
+  "source": "68986ba8e3b76ad99dad44c6ec8d43475cc5e12f",
+  "mainAlreadyIntegrated": "9136b07efb8944a1058de9834b18fe5916884174",
+  "completedRemote": "7e24482a:124portable/198fidelity/66browser+4styled +bounded2/6compatibilityoverlay",
+  "stockWorkersVerifiedOnNewHost": 2976,
+  "receiptWorkersVerifiedOnNewHost": 0,
+  "oldClockAttempt": "No execsession or result beforetransportloss; oldpartialoutputlost/unverified, not reused",
+  "next": "After durable stock checkpoint, receipt-performance.ts432workers; no completedfunctional replay",
+  "protocol": "2976serialstockworkers then432receiptworkers;R1/S7/3replicas/cache0+1/coldprep1;notformalcalibration",
+  "canonicalSDK": "/dev/shm/pr449-four-final-20261111/full-trident-689-sdk/package",
+  "nodeBinFirst": "/workspace/pr449-runtime-recovery/node-v24.19.0-linux-x64/bin",
+  "bunBin": "/tmp/pr449-tools-20261106/package/bin",
+  "frozenInputSha256": "25bcc698e6671fbbe80d075b0ca27e69ad861377b04f80825162f4600f19a31c",
+  "doNotReplay": "No completedfunctional/browser/main/sourcebuild/oldrelocation replay"
+}

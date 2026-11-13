@@ -1,0 +1,50 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="508.098" height="136" viewBox="0 0 508.098 136" style="--bg:#FFFFFF;--fg:#27272A;--font:Inter;background:#FFFFFF" class="am-1w3gb9g0isn2cq">
+<style>
+  svg.am-1w3gb9g0isn2cq { font-family: var(--font, 'Inter'), system-ui, sans-serif; }
+  .am-1w3gb9g0isn2cq .mono { font-family: 'JetBrains Mono', 'SF Mono', 'Fira Code', ui-monospace, monospace; }
+  svg.am-1w3gb9g0isn2cq {
+    /* Derived from --bg and --fg (overridable via --line, --accent, etc.) */
+    --_text:          #27272A;
+    --_text-sec:      #575759;
+    --_text-muted:    #707072;
+    --_text-faint:    #8a8a8c;
+    --_line:          #939395;
+    --_arrow:         #47474a;
+    --_node-fill:     #f9f9f9;
+    --_node-stroke:   #d4d4d4;
+    --_group-fill:    #FFFFFF;
+    --_group-hdr:     #f4f4f4;
+    --_inner-stroke:  #e5e5e5;
+    --_key-badge:     #e9e9ea;
+  }
+</style>
+<defs>
+</defs>
+<polyline class="er-relationship" data-cardinality1="one" data-cardinality2="zero-many" data-identifying="true" data-label="owns" points="180,68 328.098,68" fill="none" stroke="#939395" stroke-width="1" data-relationship="identifying" data-direction="undirected" data-id="rel:ALPHA-BETA#0" data-role="relationship" data-from="ALPHA" data-to="BETA" role="graphics-symbol" aria-roledescription="relation" aria-label="ALPHA to BETA: owns" />
+<g class="entity" data-id="ALPHA" data-label="ALPHA" data-role="entity">
+  <rect x="40" y="40" width="140" height="56" rx="0" ry="0" fill="#f9f9f9" stroke="#949495" stroke-width="1" data-id="entity-rect:ALPHA" data-role="entity" />
+  <path d="M40,40 H180 V74 H40 Z" fill="#f4f4f4" stroke="#949495" stroke-width="1" />
+  <text x="110" y="57" text-anchor="middle" font-size="13" font-weight="700" fill="#27272A" data-prepared-text="true" dy="4.55" textLength="48.75" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">ALPHA</text>
+  <line x1="40" y1="74" x2="180" y2="74" stroke="#949495" stroke-width="0.75" />
+  <text x="110" y="85" text-anchor="middle" font-size="11" font-weight="400" fill="#69696c" data-id="entity-empty:ALPHA" data-role="attribute" data-prepared-text="true" dy="3.85"><tspan x="77.396" text-anchor="start" letter-spacing="0" data-text-fragment="true" textLength="65.208" lengthAdjust="spacingAndGlyphs" font-style="italic">(no attributes)</tspan></text>
+</g>
+<g class="entity" data-id="BETA" data-label="BETA" data-role="entity">
+  <rect x="328.098" y="40" width="140" height="56" rx="0" ry="0" fill="#f9f9f9" stroke="#949495" stroke-width="1" data-id="entity-rect:BETA" data-role="entity" />
+  <path d="M328.098,40 H468.098 V74 H328.098 Z" fill="#f4f4f4" stroke="#949495" stroke-width="1" />
+  <text x="398.098" y="57" text-anchor="middle" font-size="13" font-weight="700" fill="#27272A" data-prepared-text="true" dy="4.55" textLength="39.39" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">BETA</text>
+  <line x1="328.098" y1="74" x2="468.098" y2="74" stroke="#949495" stroke-width="0.75" />
+  <text x="398.098" y="85" text-anchor="middle" font-size="11" font-weight="400" fill="#69696c" data-id="entity-empty:BETA" data-role="attribute" data-prepared-text="true" dy="3.85"><tspan x="365.494" text-anchor="start" letter-spacing="0" data-text-fragment="true" textLength="65.208" lengthAdjust="spacingAndGlyphs" font-style="italic">(no attributes)</tspan></text>
+</g>
+<g data-id="card:ALPHA-BETA#0:1" data-owner-id="rel:ALPHA-BETA#0" data-owner-role="relationship" data-end="start" data-endpoint="ALPHA" data-role="cardinality">
+<line x1="184" y1="62" x2="184" y2="74" stroke="#939395" stroke-width="1.25" />
+<line x1="188" y1="62" x2="188" y2="74" stroke="#939395" stroke-width="1.25" />
+</g>
+<g data-id="card:ALPHA-BETA#0:2" data-owner-id="rel:ALPHA-BETA#0" data-owner-role="relationship" data-end="end" data-endpoint="BETA" data-role="cardinality">
+<line x1="324.098" y1="75" x2="312.098" y2="68" stroke="#939395" stroke-width="1.25" />
+<line x1="324.098" y1="68" x2="312.098" y2="68" stroke="#939395" stroke-width="1.25" />
+<line x1="324.098" y1="61" x2="312.098" y2="68" stroke="#939395" stroke-width="1.25" />
+<circle cx="308.098" cy="68" r="4" fill="#FFFFFF" stroke="#939395" stroke-width="1.25" />
+</g>
+<rect x="236.75" y="57.85" width="34.598" height="20.3" rx="2" ry="2" fill="#FFFFFF" stroke="#e5e5e5" stroke-width="0.5" />
+<text x="254.049" y="68" text-anchor="middle" font-size="11" font-weight="400" fill="#69696c" data-prepared-text="true" dy="3.85" textLength="26.598" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">owns</text>
+</svg>

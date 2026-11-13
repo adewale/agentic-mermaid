@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="960" height="532" viewBox="0 0 960 532" style="--bg:#FFFFFF;--fg:#27272A;--font:Inter;background:#FFFFFF" class="am-0d5vpbs0ha6jd8">
+<style>
+  svg.am-0d5vpbs0ha6jd8 { font-family: var(--font, 'Inter'), system-ui, sans-serif; }
+  svg.am-0d5vpbs0ha6jd8 {
+    /* Derived from --bg and --fg (overridable via --line, --accent, etc.) */
+    --_text:          #27272A;
+    --_text-sec:      #575759;
+    --_text-muted:    #707072;
+    --_text-faint:    #8a8a8c;
+    --_line:          #939395;
+    --_arrow:         #47474a;
+    --_node-fill:     #f9f9f9;
+    --_node-stroke:   #d4d4d4;
+    --_group-fill:    #FFFFFF;
+    --_group-hdr:     #f4f4f4;
+    --_inner-stroke:  #e5e5e5;
+    --_key-badge:     #e9e9ea;
+  }
+</style>
+<g data-id="treemap-0" data-role="group">
+  <rect x="16" y="16" width="928" height="500" fill="#3b82f6" stroke="#FFFFFF" stroke-width="1" data-id="cell:treemap-0" data-role="bar" />
+  <text x="480" y="31.1" text-anchor="middle" font-family="Inter" font-size="14" font-weight="500" fill="#1e1e21" data-prepared-text="true" dy="4.9" textLength="30.828" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Root</text>
+  <text x="480" y="52" text-anchor="middle" font-family="Inter" font-size="12" font-weight="400" fill="#1e1e21" data-prepared-text="true" dy="4.2" textLength="10.872" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">10</text>
+  <g data-parent="treemap-0" data-id="treemap-1" data-role="node">
+    <rect x="26" y="75.8" width="635.6" height="430.2" fill="#3b82f6" stroke="#FFFFFF" stroke-width="1" data-id="cell:treemap-1" data-role="bar" />
+    <text x="343.8" y="90.9" text-anchor="middle" font-family="Inter" font-size="14" font-weight="500" fill="#1e1e21" data-prepared-text="true" dy="4.9" textLength="38.808" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Alpha</text>
+    <text x="343.8" y="111.8" text-anchor="middle" font-family="Inter" font-size="12" font-weight="400" fill="#1e1e21" data-prepared-text="true" dy="4.2" textLength="8.28" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">7</text>
+  </g>
+  <g data-parent="treemap-0" data-id="treemap-2" data-role="node">
+    <rect x="661.6" y="75.8" width="272.4" height="430.2" fill="#3b82f6" stroke="#FFFFFF" stroke-width="1" data-id="cell:treemap-2" data-role="bar" />
+    <text x="797.8" y="90.9" text-anchor="middle" font-family="Inter" font-size="14" font-weight="500" fill="#1e1e21" data-prepared-text="true" dy="4.9" textLength="30.828" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Beta</text>
+    <text x="797.8" y="111.8" text-anchor="middle" font-family="Inter" font-size="12" font-weight="400" fill="#1e1e21" data-prepared-text="true" dy="4.2" textLength="8.28" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">3</text>
+  </g>
+</g>
+</svg>

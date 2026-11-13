@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="371.76" height="281.4" viewBox="0 0 371.76 281.4" style="--bg:#FFFFFF;--fg:#27272A;--font:Inter;background:#FFFFFF" aria-roledescription="pie chart" role="img" class="am-12i543d117id0v">
+<style>
+  svg.am-12i543d117id0v { font-family: var(--font, 'Inter'), system-ui, sans-serif; }
+  svg.am-12i543d117id0v {
+    /* Derived from --bg and --fg (overridable via --line, --accent, etc.) */
+    --_text:          #27272A;
+    --_text-sec:      #575759;
+    --_text-muted:    #707072;
+    --_text-faint:    #8a8a8c;
+    --_line:          #939395;
+    --_arrow:         #47474a;
+    --_node-fill:     #f9f9f9;
+    --_node-stroke:   #d4d4d4;
+    --_group-fill:    #FFFFFF;
+    --_group-hdr:     #f4f4f4;
+    --_inner-stroke:  #e5e5e5;
+    --_key-badge:     #e9e9ea;
+  }
+</style>
+<style>
+  .am-12i543d117id0v .pie-slice.highlighted-on-hover:hover { stroke: #27272A; stroke-width: 2.5; opacity: 1; }
+</style>
+<path class="pie-slice" data-label="Alpha" data-value="7" data-percent="70.0%" d="M 119 162.4 L 119 67.4 A 95 95 0 1 1 28.65 191.76 Z" fill="#3b82f6" stroke="#FFFFFF" stroke-width="1.5" data-id="slice:Alpha" data-role="pie-slice" />
+<path class="pie-slice" data-label="Beta" data-value="3" data-percent="30.0%" d="M 119 162.4 L 28.65 191.76 A 95 95 0 0 1 119 67.4 Z" fill="#0d5ba5" stroke="#FFFFFF" stroke-width="1.5" data-id="slice:Beta" data-role="pie-slice" />
+<text x="176.64" y="204.28" class="pie-slice-label" text-anchor="middle" dominant-baseline="middle" font-size="12" font-weight="500" fill="#000000" data-prepared-text="true" dy="4.2" textLength="23.688" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">70%</text>
+<text x="61.36" y="120.52" class="pie-slice-label" text-anchor="middle" dominant-baseline="middle" font-size="12" font-weight="500" fill="#FFFFFF" data-prepared-text="true" dy="4.2" textLength="23.688" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">30%</text>
+<rect class="pie-legend-swatch" x="246" y="141.5" width="14" height="14" rx="2" ry="2" fill="#3b82f6" stroke="#949495" stroke-width="1" />
+<text x="268" y="149.95" class="pie-legend-text" text-anchor="start" dominant-baseline="middle" font-size="13" font-weight="500" fill="#27272A" data-prepared-text="true" dy="4.55" textLength="79.755" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Alpha (70.0%)</text>
+<rect class="pie-legend-swatch" x="246" y="166.4" width="14" height="14" rx="2" ry="2" fill="#0d5ba5" stroke="#949495" stroke-width="1" />
+<text x="268" y="174.85" class="pie-legend-text" text-anchor="start" dominant-baseline="middle" font-size="13" font-weight="500" fill="#27272A" data-prepared-text="true" dy="4.55" textLength="72.345" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Beta (30.0%)</text>
+<text x="185.88" y="35.7" class="pie-title" text-anchor="middle" dominant-baseline="middle" font-size="18" font-weight="600" fill="#27272A" data-id="title" data-role="title" data-prepared-text="true" dy="6.3" textLength="67.5" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Shares</text>
+</svg>

@@ -1,0 +1,16 @@
+{
+  "at": "2026-11-13T00:22:06.359589+00:00",
+  "completed": {
+    "completed": 2976,
+    "errors": 0,
+    "scope": "Unchanged pinned Trident SVG-only protocol;1round,3replicas,7adaptive warm means,3fresh first-use workers; exploratory, not full calibration."
+  },
+  "verifiedResultLines": 2976,
+  "noLiveClockWorkers": true,
+  "memory": {
+    "memory.current": "1995706368",
+    "memory.max": "17179869184",
+    "memory.events": "low 0\nhigh 0\nmax 0\noom 0\noom_kill 0\noom_group_kill 0"
+  },
+  "scope": "Stock clock window closed; safe for evidence/recovery CPU, receipt not yet started"
+}
