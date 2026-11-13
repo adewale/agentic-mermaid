@@ -44,6 +44,7 @@ import { EXIT_ARG_ERROR, EXIT_INTERNAL, EXIT_OK, EXIT_VERIFY_FAILED } from './ex
 import { initAgentFiles } from './init-agent.ts'
 import { extractMermaidFences } from './markdown-fences.ts'
 import { HOSTED_MCP_TOOL_NAMES, inlineToolList, LOCAL_MCP_TOOL_NAMES } from '../mcp/tool-names.ts'
+import { compactVerification, verifySummaryPayload } from '../mcp/source-tools.ts'
 import { EXISTING_DIAGRAM_WORKFLOW, FAMILY_NARROWING_NOTE, NEW_DIAGRAM_POLICY } from '../shared/agent-workflow.ts'
 
 /**
@@ -562,6 +563,7 @@ function renderPngSync(source: string, opts: PngOptions, outFile: string, json: 
 }
 
 function cmdVerify(args: ParsedArgs): number {
+  const summary = summaryViewRequested(args, 'verify')
   const source = readSourceArg(args.positional[0])
   const suppressFlag = flagValue(args, 'suppress')
   let suppress: WarningCode[] | undefined
@@ -601,6 +603,11 @@ function cmdVerify(args: ParsedArgs): number {
     const ok = blocks.every(block => block.ok)
     process.stdout.write(JSON.stringify({ ok, file: args.positional[0] ?? '<stdin>', blocks }, replacer) + '\n')
     return ok ? EXIT_OK : verifyFailureExit(blocks.flatMap(block => block.warnings))
+  }
+  if (summary) {
+    const payload = verifySummaryPayload(source, options)
+    process.stdout.write(JSON.stringify(payload, replacer) + '\n')
+    return payload.ok ? EXIT_OK : verifyFailureExit(payload.warnings as LayoutWarning[])
   }
   const r = verifyMermaid(source, options)
   process.stdout.write(JSON.stringify(r, replacer) + '\n')
@@ -657,6 +664,11 @@ type MutationRunResult =
   | { ok: true; family: string; source: string; verify: VerifySummary; mode?: 'source-preserving' }
   | { ok: false; family: string | null; opIndex?: number; error: CliMutationError; verify?: VerifySummary }
 
+/** `full` embeds verify's complete result; `summary` embeds the compact
+ * verification MCP verify returns. Source-preserving edits already embed the
+ * compact { ok, warnings, checks } either way. */
+export type MutationVerifyView = 'full' | 'summary'
+
 function parseMutationOpsFlag(args: ParsedArgs): Result<AnyMutationOp[], CliMutationError> {
   const opStr = flagValue(args, 'op') ?? ''
   const opsStr = flagValue(args, 'ops') ?? ''
@@ -675,7 +687,7 @@ function parseMutationOpsFlag(args: ParsedArgs): Result<AnyMutationOp[], CliMuta
 }
 
 
-export function mutateSource(source: string, ops: AnyMutationOp[], preserveSource = false): MutationRunResult {
+export function mutateSource(source: string, ops: AnyMutationOp[], preserveSource = false, verifyView: MutationVerifyView = 'full'): MutationRunResult {
   if (preserveSource) {
     const result = applyOps({ source, ops, mode: 'source-preserving' })
     if (!result.ok) {
@@ -698,7 +710,8 @@ export function mutateSource(source: string, ops: AnyMutationOp[], preserveSourc
     return { ok: false, family, opIndex, error: { ...error, details: { index: opIndex, op: ops[opIndex] } } }
   }
   const current = batch.value
-  const { accepted, verification: verify } = verifyMutationResult(current, r0.value)
+  const { accepted, verification } = verifyMutationResult(current, r0.value)
+  const verify = verifyView === 'summary' ? compactVerification(current, verification) : verification
   if (!accepted) {
     return {
       ok: false,
@@ -716,7 +729,8 @@ function cmdMutate(args: ParsedArgs, json: boolean): number {
   if (!ops.ok) {
     throw new CliArgumentError(`mutate: ${ops.error.message}`)
   }
-  return emitMutationRun(mutateSource(source, ops.value, args.flags['preserve-source'] === true), json)
+  const verifyView = summaryViewRequested(args, 'mutate') ? 'summary' : 'full'
+  return emitMutationRun(mutateSource(source, ops.value, args.flags['preserve-source'] === true, verifyView), json)
 }
 
 function emitMutationRun(r: MutationRunResult, json: boolean): number {

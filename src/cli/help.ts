@@ -107,8 +107,13 @@ too. Stack them with render --style (e.g. --style hand-drawn,dracula) and
 re-roll ink with --seed. Custom styles are JSON records (docs/style-authoring.md);
 pass a .json file path anywhere a name is accepted.
 With --json: [{ name, canonicalId, kind: look|palette, isDefault, backend, intent?, blurb }].`,
-  verify: `am verify <file|-> [--markdown] [--suppress A,B] [--label-cap N] [--style NAMES|file]
-Always emits JSON: {ok, warnings[], layout}.
+  verify: `am verify <file|-> [--markdown] [--summary | --full] [--suppress A,B] [--label-cap N] [--style NAMES|file]
+Always emits JSON: {ok, warnings[], checks, layout}.
+  --summary         Emit the MCP verify payload instead: {ok, family, summary,
+                    warnings, checks, layout: {bounds, nodes, edges}} (parse
+                    failures: {ok:false, errors, warnings, family?, example?}).
+                    The full layout is ~10x larger. --markdown is already compact.
+  --full            The full result (the default)
 With --markdown: verify top-level Mermaid fences and emit {ok,file,blocks[]}.
 Nested list/blockquote fences require host extraction; HTML examples are skipped.
 Warnings use physical document lines; lineIsBlockStart marks a fallback when
@@ -133,8 +138,13 @@ Pipe to 'am serialize' to round-trip.`,
   serialize: `am serialize  (reads ValidDiagram JSON on stdin)
 Emits canonical Mermaid source. Accepts the JSON shape that 'am parse' emits;
 rebuilds the diagram via synthesizeFromGraph without re-parsing source.`,
-  mutate: `am mutate <file|-> (--op '<JSON>' | --ops '<JSON array|file.json>') [--preserve-source] [--json]
+  mutate: `am mutate <file|-> (--op '<JSON>' | --ops '<JSON array|file.json>') [--preserve-source] [--json [--summary | --full]]
 Applies one or more MutationOps, verifies the final diagram, then emits source.
+With --json, emits {ok, family, source, verify}; verify is verify's full result.
+  --summary         With --json, verify is the compact MCP verify payload
+                    {ok, family, summary, warnings, checks, layout: {bounds,
+                    nodes, edges}} (--preserve-source already embeds {ok, warnings, checks})
+  --full            verify's full result (the default)
 Registered families with mutationOps have typed mutation; discover the live roster,
 narrowers, and op names with 'am capabilities --json'. Opaque-fallback diagrams
 (unmodeled syntax) return a structured UNSUPPORTED_FAMILY error (exit 2). Verify failures

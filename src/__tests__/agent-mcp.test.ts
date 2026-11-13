@@ -1076,6 +1076,48 @@ describe('CLI — sad paths via runCli', () => {
     expect(payload.verify.warnings.map((w: any) => w.code)).toContain('LABEL_OVERFLOW')
   })
 
+  test.each([
+    ['flowchart with a warning', `flowchart TD\n  A --> B\n  B --> C[${'X'.repeat(80)}]\n`],
+    ['sequence', 'sequenceDiagram\n  A->>B: hi\n  B-->>A: ok\n'],
+    ['parse failure under a known header', 'flowchart TD\n  A -->\n'],
+    ['unknown header', 'notADiagram\n  A --> B\n'],
+  ])('verify --summary prints the MCP verify payload; its counts and bounds are the full layout\'s (%s)', async (_label, source) => {
+    const tmp = tmpFile('verify-summary.mmd', source)
+    const full = capture(() => runCli(['verify', tmp]))
+    const summary = capture(() => runCli(['verify', tmp, '--summary']))
+    expect(summary.code).toBe(full.code)
+    const fullPayload = JSON.parse(full.out)
+    const summaryPayload = JSON.parse(summary.out)
+    const mcp = await handleRequest({ jsonrpc: '2.0', id: 77, method: 'tools/call', params: { name: 'verify', arguments: { source } } })
+    expect(summaryPayload).toEqual((mcp!.result as { structuredContent: unknown }).structuredContent)
+    expect({ ok: summaryPayload.ok, warnings: summaryPayload.warnings, checks: summaryPayload.checks })
+      .toEqual({ ok: fullPayload.ok, warnings: fullPayload.warnings, checks: fullPayload.checks })
+    if (summaryPayload.layout) {
+      expect(summaryPayload.layout).toEqual({ bounds: fullPayload.layout.bounds, nodes: fullPayload.layout.nodes.length, edges: fullPayload.layout.edges.length })
+      expect(full.out.length).toBeGreaterThan(summary.out.length)
+    }
+  })
+
+  test('mutate --json --summary embeds the compact verify of the edited diagram', () => {
+    const tmp = tmpFile('mutate-summary.mmd', 'flowchart TD\n  A --> B\n')
+    const op = JSON.stringify({ kind: 'add_node', id: 'C', label: 'X'.repeat(80) })
+    const full = JSON.parse(capture(() => runCli(['mutate', tmp, '--op', op, '--json'])).out)
+    const { code, out } = capture(() => runCli(['mutate', tmp, '--op', op, '--json', '--summary']))
+    expect(code).toBe(0)
+    const summary = JSON.parse(out)
+    expect({ ok: summary.ok, family: summary.family, source: summary.source }).toEqual({ ok: full.ok, family: full.family, source: full.source })
+    expect(summary.verify).toEqual({
+      ok: full.verify.ok,
+      family: 'flowchart',
+      summary: expect.stringContaining('3-node flowchart'),
+      warnings: full.verify.warnings,
+      checks: full.verify.checks,
+      layout: { bounds: full.verify.layout.bounds, nodes: full.verify.layout.nodes.length, edges: full.verify.layout.edges.length },
+    })
+    expect(capture(() => runCli(['mutate', tmp, '--op', op, '--json', '--full'])).out).toBe(`${JSON.stringify(full)}\n`)
+    expect(capture(() => runCli(['mutate', tmp, '--op', op, '--json', '--summary', '--full'])).code).toBe(2)
+  })
+
   test('mutate supports class diagrams through the public CLI surface', () => {
     const tmp = tmpFile('class.mmd', 'classDiagram\n  class Animal\n')
     const { code, out } = capture(() => runCli(['mutate', tmp, '--op', JSON.stringify({ kind: 'add_class', id: 'Duck', members: ['+quack()'] })]))
