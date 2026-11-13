@@ -8,6 +8,7 @@ import { simplifyPolyline, applyRouteContracts, repairLabelsOffOwnRoute, separat
 import { rerouteEdgesThroughNodes } from '../layout/passes/obstacle-routing.ts'
 import { calculatePathMidpoint } from '../layout/geometry.ts'
 import { segmentThroughShape } from '../layout-rubric.ts'
+import { allocateGeneratedId } from '../shared/generated-identity.ts'
 
 type Side = 'T' | 'R' | 'B' | 'L'
 interface Rect { x: number; y: number; width: number; height: number }
@@ -96,7 +97,7 @@ function physicalCorridor(start: Point, end: Point, obstacles: PositionedNode[],
 }
 export function routeC4Pixels(boxes: ReadonlyMap<string, C4Box>, positioned: { nodes: PositionedNode[]; groups: PositionedGroup[]; edges: PositionedEdge[] }, graph: MermaidGraph, style: LabelMetricsStyle, identities: ReturnType<typeof planC4Identity>): void {
   const { edges } = positioned
-  const headerNodes: PositionedNode[] = [...boxes.values()].filter(box => box.container).map(box => ({ ...box, id: identities.generated(`c4-header-obstacle:${box.id}`, ['c4', 'header-obstacle', box.id]), height: box.headerHeight ?? 1, shape: 'rectangle', label: '' }))
+  const headerNodes: PositionedNode[] = [...boxes.values()].filter(box => box.container).map(box => ({ ...box, id: allocateGeneratedId(identities.generated, `c4-header-obstacle:${box.id}`, ['c4', 'header-obstacle', box.id]), height: box.headerHeight ?? 1, shape: 'rectangle', label: '' }))
   const physicalObstacles = [...positioned.nodes, ...headerNodes]
   let physicalChecks = 0
   const charge = () => { if (++physicalChecks > 400_000) throw new C4RouteWorkLimitError() }
@@ -168,8 +169,8 @@ export function routeC4Pixels(boxes: ReadonlyMap<string, C4Box>, positioned: { n
     const source = boxes.get(edge.source)!, target = boxes.get(edge.target)!
     const horizontal = Math.abs(center(source).x - center(target).x) >= Math.abs(center(source).y - center(target).y)
     const direction = horizontal ? center(source).x <= center(target).x ? 'LR' : 'RL' : center(source).y <= center(target).y ? 'TB' : 'BT'
-    const anchorSource: PositionedNode = { id: identities.generated(`${edge.id}:routing-source`, ['c4', edge.id!, 'routing-source']), label: '', shape: 'rectangle', ...stub.startExit, width: 0, height: 0 }
-    const anchorTarget: PositionedNode = { id: identities.generated(`${edge.id}:routing-target`, ['c4', edge.id!, 'routing-target']), label: '', shape: 'rectangle', ...stub.endExit, width: 0, height: 0 }
+    const anchorSource: PositionedNode = { id: allocateGeneratedId(identities.generated, `${edge.id}:routing-source`, ['c4', edge.id!, 'routing-source']), label: '', shape: 'rectangle', ...stub.startExit, width: 0, height: 0 }
+    const anchorTarget: PositionedNode = { id: allocateGeneratedId(identities.generated, `${edge.id}:routing-target`, ['c4', edge.id!, 'routing-target']), label: '', shape: 'rectangle', ...stub.endExit, width: 0, height: 0 }
     const interior: PositionedEdge = { ...edge, source: anchorSource.id, target: anchorTarget.id, points: simplifyPolyline([stub.startExit, ...stub.seed!.slice(1, -1), stub.endExit]) }
     // A corridor must carry its measured label halo as well as its stroke.
     // Otherwise a path ten pixels below a database is clear for ink while

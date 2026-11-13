@@ -5,6 +5,7 @@ import { sceneAssertionsEnabled } from './scene/assertions.ts'
 import { PERFORMANCE_EXPERIMENTS, performanceExperimentEnabled } from './experimental-performance.ts'
 import { borrowedPositioned, cachedPositioned, clonePositioned, isRetainedPositionedSnapshot, positionedDrawingNeedsCopy, retainOwnedNativeSvgPositioned, retainPositioned } from './experimental/position-cache.ts'
 import { observeCache } from './performance-observations.ts'
+import { layoutDebugEnvIdentity } from './layout/debug-env.ts'
 // Canonical resolved-request -> positioned-artifact seam.
 //
 // Public adapters resolve source, config, appearance and shared options once.
@@ -87,12 +88,12 @@ export function positionFamilyForNativeRender(request: ResolvedRenderRequest): F
  * before any producer. Public inputs keep their original getter observations. */
 export function positionedForNativeProducer(layout: FamilyLayoutResult, producer: DrawingProducer): PositionedDiagram {
   const original = borrowedNativeProducers.get(layout)
-  return original && (original !== producer || positionedDrawingNeedsCopy(layout)) ? clonePositioned(layout.positioned, true) : layout.positioned
+  return original && (original !== producer || positionedDrawingNeedsCopy(layout)) ? clonePositioned(layout.positioned, true, true) : layout.positioned
 }
 
 /** Scene lowering can retain aliases; never hand it borrowed cache geometry. */
 export function positionedForSceneLowering(layout: FamilyLayoutResult): PositionedDiagram {
-  return borrowedNativeProducers.has(layout) ? clonePositioned(layout.positioned, true) : layout.positioned
+  return borrowedNativeProducers.has(layout) ? clonePositioned(layout.positioned, true, true) : layout.positioned
 }
 
 function positionFamily(familyId: FamilyId, request: ResolvedRenderRequest, source: Readonly<NormalizedMermaidSource>, projectionOptions: FamilyPositionedProjectionOptions, borrow: boolean, immutableText = false): FamilyLayoutResult {
@@ -113,19 +114,28 @@ function positionFamily(familyId: FamilyId, request: ResolvedRenderRequest, sour
   const environment = (globalThis as { process?: { env?: Record<string, string | undefined> }; AGENTIC_MERMAID_ELK_CACHE?: unknown }).process?.env
   const metricsIdentity = textMeasurementCacheIdentity(executionPlan.textMeasurement)
   const reusableMetrics = !executionPlan.textMeasurement || metricsIdentity !== undefined
-  const cacheEnabled = performanceExperimentEnabled('position-cache') && certifyFinal && familyId !== 'gantt' && reusableMetrics
+  // Gantt reads no clock: its today marker comes only from renderOptions.ganttToday, which the key holds.
+  const cacheEnabled = performanceExperimentEnabled('position-cache') && certifyFinal && reusableMetrics
     && (environment?.AGENTIC_MERMAID_ELK_CACHE ?? (globalThis as { AGENTIC_MERMAID_ELK_CACHE?: unknown }).AGENTIC_MERMAID_ELK_CACHE) !== '0'
-  // Admitted cleanup provenance is derived entirely from originalText. Keep
-  // every authoritative field; explicit source overrides retain the full key.
-  const cacheSource = cacheEnabled && source === request.source ? { ...source, cleanup: undefined } : source
-  const cacheParts = cacheEnabled ? [cacheSource, request.renderOptions, request.appearance, request.familyConfig, projectionOptions, familyId === 'class' ? resolved.paintBackendId ?? 'backend:default' : undefined,
-    Object.entries(environment ?? {}).filter(([key]) => key.startsWith('APL_')).sort(), PERFORMANCE_EXPERIMENTS.map(performanceExperimentEnabled)] : undefined
+  // The request's source is normalized deterministically from originalText,
+  // the admitted Mermaid config and the family descriptor (isolated by the
+  // cache). Its cleanup and grammar views add nothing to that identity, and
+  // serializing them made keys about eight times the authored text, so large
+  // diagrams exceeded the key bound. Explicit source overrides keep the full key.
+  const cacheSource = cacheEnabled && source === request.source
+    ? { originalText: source.originalText, config: source.config, frontmatter: source.frontmatter } : source
+  // The original C4 request normalizer derives its familyConfig (the parsed
+  // model, 20-30x the authored text) from the source alone, which the key
+  // already holds. Every other family config stays keyed.
+  const sourceDerivedConfig = cacheSource !== source && familyId === 'c4' && isOwnedFamily(descriptor)
+  const cacheParts = cacheEnabled ? [cacheSource, request.renderOptions, request.appearance, sourceDerivedConfig ? undefined : request.familyConfig, projectionOptions, familyId === 'class' ? resolved.paintBackendId ?? 'backend:default' : undefined,
+    layoutDebugEnvIdentity(), PERFORMANCE_EXPERIMENTS.map(performanceExperimentEnabled)] : undefined
   if (metricsIdentity !== undefined) cacheParts?.push(metricsIdentity)
   const cacheKey = cacheParts === undefined ? undefined : JSON.stringify(cacheParts)
   const boundedKey = cacheKey !== undefined && cacheKey.length <= 65536 ? cacheKey : undefined
   if (boundedKey === undefined) observeCache('positioned-layout', 'bypass',
     !performanceExperimentEnabled('position-cache') ? 'disabled' : !certifyFinal ? 'external-family'
-      : familyId === 'gantt' ? 'time-dependent-family' : !reusableMetrics ? 'custom-text-measurement'
+      : !reusableMetrics ? 'custom-text-measurement'
         : cacheKey === undefined ? 'elk-cache-disabled' : 'key-limit')
   const position = () => withTextMeasurementExecution(executionPlan.textMeasurement, () => {
     const role = request.output === 'ascii' || request.output === 'unicode' || request.output === 'html' ? 'companion' : 'primary'
@@ -186,7 +196,9 @@ function positionFamily(familyId: FamilyId, request: ResolvedRenderRequest, sour
       const retain = borrow && request.output === 'svg'
         && (familyId === 'sequence' || familyId === 'flowchart' || familyId === 'state' || familyId === 'pie')
         ? retainOwnedNativeSvgPositioned : retainPositioned
-      retain(descriptor, boundedKey, result, retainedProjections.get(result))
+      // An owned family's layout hook is the original producer on every output
+      // path; borrowing additionally needs the native drawing conditions.
+      retain(descriptor, boundedKey, result, retainedProjections.get(result), borrow || isOwnedFamily(descriptor))
     }
     return result
   })

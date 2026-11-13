@@ -22,6 +22,12 @@ export type RegisteredFamilyByIdResolver = (id: FamilyId | string) => FamilyDesc
 let registeredFamilyResolver: RegisteredFamilyResolver | undefined
 let registeredFamilyByIdResolver: RegisteredFamilyByIdResolver | undefined
 const loadedFamilyDescriptors = new Map<FamilyId, FamilyDescriptor>()
+let routingRevision = 0
+/** Changes whenever family routing can change: an installed resolver, a loaded
+ * descriptor, or the registry behind them. Registry-dependent results (source
+ * normalization) are reusable only within one revision. */
+export function familyRoutingRevision(): number { return routingRevision }
+export function noteFamilyRoutingChange(): void { routingRevision++ }
 
 export type CompatibilityGraphFamilyId = 'flowchart' | 'state'
 
@@ -36,10 +42,12 @@ export function detectCompatibilityGraphFamilyFromFirstLine(
 
 export function installRegisteredFamilyResolver(resolver: RegisteredFamilyResolver): void {
   registeredFamilyResolver = resolver
+  routingRevision++
 }
 
 export function installRegisteredFamilyByIdResolver(resolver: RegisteredFamilyByIdResolver): void {
   registeredFamilyByIdResolver = resolver
+  routingRevision++
 }
 
 /** Add one descriptor without importing the complete registry. This is
@@ -47,6 +55,7 @@ export function installRegisteredFamilyByIdResolver(resolver: RegisteredFamilyBy
  * one another's parser routing state. */
 export function installLoadedFamilyDescriptor(descriptor: FamilyDescriptor): void {
   loadedFamilyDescriptors.set(descriptor.id, descriptor)
+  routingRevision++
 }
 
 export function getInstalledFamilyDescriptor(id: FamilyId | string): FamilyDescriptor | undefined {

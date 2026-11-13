@@ -14,7 +14,7 @@ import fc from 'fast-check'
 import { fcParameters } from './helpers/fc-parameters.ts'
 import { layoutGraphSync } from '../layout-engine.ts'
 import { parseMermaid } from '../parser.ts'
-import { assessLayout, countParallelRouteOverlaps, hardViolations, onShapeOutline } from '../layout-rubric.ts'
+import { assessLayout, countParallelRouteOverlaps, hardViolations, onShapeOutline, routeBounds, routeMissesShapeBox, segmentThroughShape } from '../layout-rubric.ts'
 import { graphReachability } from '../layout/geometry.ts'
 import { shapePorts, diamondFacetPorts } from '../route-contracts.ts'
 
@@ -310,6 +310,30 @@ describe('issue #37 — authored edge syntax retains its styles and markers', ()
   })
 
 
+})
+
+describe('property: route-bounds prefilter', () => {
+  // Edge-through-node scans skip nodes a whole route misses. That is exact only
+  // while the occlusion predicate never reports a crossing outside the node box.
+  it('a node the route bounds miss is never crossed by any of its segments', () => {
+    const coordinate = fc.integer({ min: -40, max: 240 }).map(value => value / 2)
+    const shapes = ['rectangle', 'subroutine', 'cylinder', 'diamond', 'hexagon', 'circle', 'ellipse', 'doublecircle', 'state-start', 'state-end', 'stadium', 'trapezoid', 'trapezoid-alt', 'lean-r', 'lean-l', 'asymmetric'] as const
+    const node = fc.record({ shape: fc.constantFrom(...shapes), x: coordinate, y: coordinate, width: fc.integer({ min: 1, max: 120 }), height: fc.integer({ min: 1, max: 80 }) })
+    const route = fc.array(fc.record({ x: coordinate, y: coordinate }), { minLength: 2, maxLength: 5 })
+    fc.assert(
+      fc.property(node, route, (box, points) => {
+        const positioned = { id: 'n', label: '', ...box }
+        if (!routeMissesShapeBox(routeBounds(points), positioned)) return
+        for (let i = 1; i < points.length; i++) expect({ box, points, i, crossed: segmentThroughShape(points[i - 1]!, points[i]!, positioned) }).toEqual({ box, points, i, crossed: false })
+      }),
+      // Routes ending exactly on each side of the box.
+      fcParameters({ numRuns: 2000, seed: PROPERTY_SEED, examples: [
+        [{ shape: 'rectangle', x: 10, y: 10, width: 20, height: 20 }, [{ x: 0, y: 20 }, { x: 10, y: 20 }]],
+        [{ shape: 'cylinder', x: 10, y: 10, width: 20, height: 30 }, [{ x: 30, y: 0 }, { x: 30, y: 50 }]],
+        [{ shape: 'diamond', x: 10, y: 10, width: 20, height: 20 }, [{ x: 0, y: 10 }, { x: 40, y: 10 }]],
+      ] }),
+    )
+  })
 })
 
 describe('property: ports and outlines (mathematical oracles over random diagrams)', () => {

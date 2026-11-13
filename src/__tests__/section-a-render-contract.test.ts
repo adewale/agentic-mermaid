@@ -1,13 +1,15 @@
 import { describe, expect, test } from 'bun:test'
 import fc from 'fast-check'
 import { fcParameters } from './helpers/fc-parameters.ts'
-import { BUILTIN_FAMILY_METADATA } from '../agent/families.ts'
+import { BUILTIN_FAMILY_METADATA, getFamily } from '../agent/families.ts'
+import { replaceFamilyForTest } from '../agent/family-registry.ts'
 import { renderMermaidPNG } from '../agent/png.ts'
 import type { DiagramKind } from '../agent/types.ts'
 import { DEFAULT_ARCHITECTURE_VISUAL } from '../architecture/config.ts'
 import { detectColorMode } from '../ascii/ansi.ts'
 import { renderMermaidASCII, renderMermaidASCIIWithReceipt } from '../ascii/index.ts'
 import { renderMermaidSVGWithReceipt } from '../index.ts'
+import { registerStyle } from '../scene/style-registry.ts'
 import { HOSTED_TOOLS } from '../mcp/hosted-server.ts'
 import { LOCAL_TOOLS } from '../mcp/server.ts'
 import { projectMcpRenderOptions } from '../mcp/tool-surface.ts'
@@ -15,6 +17,7 @@ import { normalizeMermaidSource } from '../mermaid-source.ts'
 import { inspectPngColorProfile, OUTPUT_COLOR_PROFILE } from '../output-color-profile.ts'
 import { applyOutputSecurityPolicy, verifyNoExternalRefs } from '../output-security.ts'
 import {
+  captureRenderOptions,
   CLI_RENDER_FORMATS,
   deferredRenderContractDigest,
   renderContractDigest,
@@ -107,6 +110,78 @@ describe('Section A canonical render contracts', () => {
     cycle.next = cycle
     expect(() => deferredRenderContractDigest(cycle)).toThrow(TypeError)
     expect(() => deferredRenderContractDigest({ value: Number.POSITIVE_INFINITY })).toThrow(TypeError)
+  })
+
+  test('remembered source normalization gives each request its own snapshot and ends at a routing change', () => {
+    const source = 'flowchart LR\n  Remembered --> Routing'
+    const first = resolveRenderRequest(source)
+    const repeat = resolveRenderRequest(source)
+    expect(repeat.source).not.toBe(first.source)
+    expect(repeat.source).toEqual(first.source)
+    const original = getFamily('flowchart')!
+    expect(resolvedRenderExecutionPlanOf(repeat).family).toBe(original)
+    const restore = replaceFamilyForTest('flowchart', { ...original })
+    try {
+      const replaced = resolvedRenderExecutionPlanOf(resolveRenderRequest(source)).family
+      expect(replaced).toBe(getFamily('flowchart')!)
+      expect(replaced).not.toBe(original)
+    } finally {
+      restore()
+    }
+    expect(resolvedRenderExecutionPlanOf(resolveRenderRequest(source)).family).toBe(original)
+  })
+
+  test('remembered appearance is reused only for the same options, style registry and family', () => {
+    const source = 'flowchart LR\n  Remembered --> Appearance'
+    // Capturing empty options (async renderers do) leaves ordinary requests reusable.
+    captureRenderOptions({})
+    const first = resolveRenderRequest(source)
+    expect(resolveRenderRequest(source).appearance).toBe(first.appearance)
+    expect(resolveRenderRequest(source, { font: 'Georgia' }).appearance.font).toBe('Georgia')
+    expect(resolveRenderRequest(source).appearance.font).toBe(first.appearance.font)
+    const name = 'palette:test/remembered-appearance'
+    const background = (): string | undefined => resolveRenderRequest(source, { style: name }).appearance.colors.bg
+    let unregister = registerStyle({ name, colors: { bg: '#123456', fg: '#ffffff' } })
+    try {
+      expect(background()).toBe('#123456')
+      unregister()
+      unregister = registerStyle({ name, colors: { bg: '#654321', fg: '#ffffff' } })
+      expect(background()).toBe('#654321')
+    } finally {
+      unregister()
+    }
+    const original = getFamily('flowchart')!
+    const restore = replaceFamilyForTest('flowchart', { ...original, normalizeRequest: context => ({ ...original.normalizeRequest!(context), familyConfig: { replaced: true } }) })
+    try {
+      expect(resolveRenderRequest(source).familyConfig).toEqual({ replaced: true })
+    } finally {
+      restore()
+    }
+    expect(resolveRenderRequest(source).familyConfig).toBeUndefined()
+  })
+
+  test('reused admitted request data keeps every digest value and bound of a full walk', () => {
+    // A cached capability decision is admitted once and later charged by its
+    // recorded totals. A fresh deep copy takes the full walk: both must agree
+    // on the digest and on the exact error at every bound.
+    const decision = resolveRenderRequest(SOURCE, {}, 'svg').capabilityDecision
+    const fresh = structuredClone(decision)
+    const outcome = (value: unknown): string => { try { return renderContractDigest(value) } catch (error) { return `error: ${(error as Error).message}` } }
+    const nest = (depth: number, leaf: unknown): unknown => depth === 0 ? leaf : { a: nest(depth - 1, leaf) }
+    for (let depth = 55; depth <= 66; depth++) expect({ depth, reused: outcome(nest(depth, decision)) }).toEqual({ depth, reused: outcome(nest(depth, fresh)) })
+    const largest = (fits: (size: number) => boolean, high: number): number => {
+      let low = 0
+      while (low < high) { const mid = Math.ceil((low + high) / 2); if (fits(mid)) low = mid; else high = mid - 1 }
+      return low
+    }
+    const padded = (size: number, leaf: unknown) => ({ pad: 'x'.repeat(size), leaf })
+    const chars = largest(size => !outcome(padded(size, fresh)).startsWith('error'), 2_000_000)
+    for (const size of [chars, chars + 1]) expect({ size, reused: outcome(padded(size, decision)) }).toEqual({ size, reused: outcome(padded(size, fresh)) })
+    expect(outcome(padded(chars + 1, fresh))).toStartWith('error')
+    const repeated = (count: number, leaf: unknown) => Array.from({ length: Math.ceil(count / 100) }, (_, chunk) => Array.from({ length: Math.min(100, count - chunk * 100) }, () => leaf))
+    const nodes = largest(count => !outcome(repeated(count, fresh)).startsWith('error'), 20_000)
+    for (const count of [nodes, nodes + 1]) expect({ count, reused: outcome(repeated(count, decision)) }).toEqual({ count, reused: outcome(repeated(count, fresh)) })
+    expect(outcome(repeated(nodes + 1, fresh))).toStartWith('error')
   })
 
   test('the public render-option schema is closed and exposes shared options', () => {

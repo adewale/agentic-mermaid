@@ -146,22 +146,27 @@ export function onShapeOutline(node: PositionedNode, p: Point, tol = 1.5): boole
  * renderer's geometry (shear = w * 0.15 for the trapezoid/parallelogram
  * family; the asymmetric flag indents its left point by 12px).
  */
-function slantedPolygonVertices(node: PositionedNode): Point[] {
+function slantedPolygonVertices(node: PositionedNode): number {
   const { x, y, width: w, height: h } = node
   const inset = w * 0.15
   switch (node.shape) {
     case 'trapezoid': // wider bottom
-      return [{ x: x + inset, y }, { x: x + w - inset, y }, { x: x + w, y: y + h }, { x, y: y + h }]
+      vertex(0, x + inset, y); vertex(1, x + w - inset, y); vertex(2, x + w, y + h); vertex(3, x, y + h); return 4
     case 'trapezoid-alt': // wider top
-      return [{ x, y }, { x: x + w, y }, { x: x + w - inset, y: y + h }, { x: x + inset, y: y + h }]
+      vertex(0, x, y); vertex(1, x + w, y); vertex(2, x + w - inset, y + h); vertex(3, x + inset, y + h); return 4
     case 'lean-r': // parallelogram leaning right
-      return [{ x: x + inset, y }, { x: x + w, y }, { x: x + w - inset, y: y + h }, { x, y: y + h }]
+      vertex(0, x + inset, y); vertex(1, x + w, y); vertex(2, x + w - inset, y + h); vertex(3, x, y + h); return 4
     case 'lean-l': // parallelogram leaning left
-      return [{ x, y }, { x: x + w - inset, y }, { x: x + w, y: y + h }, { x: x + inset, y: y + h }]
+      vertex(0, x, y); vertex(1, x + w - inset, y); vertex(2, x + w, y + h); vertex(3, x + inset, y + h); return 4
     default: // asymmetric: flag with a pointed left edge
-      return [{ x: x + 12, y }, { x: x + w, y }, { x: x + w, y: y + h }, { x: x + 12, y: y + h }, { x, y: y + h / 2 }]
+      vertex(0, x + 12, y); vertex(1, x + w, y); vertex(2, x + w, y + h); vertex(3, x + 12, y + h); vertex(4, x, y + h / 2); return 5
   }
 }
+
+// Scratch vertices for segmentThroughShape. The predicate is synchronous and
+// never re-entered, so one buffer serves every call without allocation.
+const polygonXs = new Float64Array(6), polygonYs = new Float64Array(6)
+function vertex(index: number, x: number, y: number): void { polygonXs[index] = x; polygonYs[index] = y }
 
 /**
  * Whether an axis-aligned segment passes through a node's rendered footprint
@@ -169,6 +174,23 @@ function slantedPolygonVertices(node: PositionedNode): Point[] {
  * disk or a diamond's facet is legal). Plain and explicitly decorated full
  * rectangles use their open interior; curved shapes retain the tolerance.
  */
+/** A route's bounds. segmentThroughShape is false whenever a segment's box
+ * misses the node's box, and every segment lies inside its route's bounds, so
+ * a scan may skip a node the whole route misses without changing any result. */
+export interface RouteBounds { readonly minX: number; readonly minY: number; readonly maxX: number; readonly maxY: number }
+export function routeBounds(points: readonly Point[]): RouteBounds {
+  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity
+  for (const point of points) {
+    minX = Math.min(minX, point.x); maxX = Math.max(maxX, point.x)
+    minY = Math.min(minY, point.y); maxY = Math.max(maxY, point.y)
+  }
+  return { minX, minY, maxX, maxY }
+}
+/** True only when no segment of the route can pass through the node (NaN never skips). */
+export function routeMissesShapeBox(bounds: RouteBounds, node: PositionedNode): boolean {
+  return bounds.maxX <= node.x || bounds.minX >= node.x + node.width || bounds.maxY <= node.y || bounds.minY >= node.y + node.height
+}
+
 export function segmentThroughShape(a: Point, b: Point, node: PositionedNode): boolean {
   const cx = node.x + node.width / 2
   const cy = node.y + node.height / 2
@@ -203,15 +225,11 @@ export function segmentThroughShape(a: Point, b: Point, node: PositionedNode): b
     case 'state-start':
     case 'state-end': {
       // Scale to a unit circle so ellipses work too, then test segment distance.
-      const sa = { x: (a.x - cx) / hw, y: (a.y - cy) / hh }
-      const sb = { x: (b.x - cx) / hw, y: (b.y - cy) / hh }
-      return pointToSegmentDistance({ x: 0, y: 0 }, sa, sb) < 1 - GRAZE / Math.min(hw, hh)
+      return pointToSegmentDistanceXY(0, 0, (a.x - cx) / hw, (a.y - cy) / hh, (b.x - cx) / hw, (b.y - cy) / hh) < 1 - GRAZE / Math.min(hw, hh)
     }
     case 'stadium': {
       const r = hh
-      const coreA = { x: cx - (hw - r), y: cy }
-      const coreB = { x: cx + (hw - r), y: cy }
-      return segmentToSegmentDistance(a, b, coreA, coreB) < r - GRAZE
+      return segmentToSegmentDistanceXY(a.x, a.y, b.x, b.y, cx - (hw - r), cy, cx + (hw - r), cy) < r - GRAZE
     }
     case 'diamond':
     case 'hexagon':
@@ -220,59 +238,64 @@ export function segmentThroughShape(a: Point, b: Point, node: PositionedNode): b
     case 'lean-r':
     case 'lean-l':
     case 'asymmetric': {
-      const raw = node.shape === 'diamond'
-        ? [
-          { x: cx, y: node.y }, { x: node.x + node.width, y: cy },
-          { x: cx, y: node.y + node.height }, { x: node.x, y: cy },
-        ]
-        : node.shape === 'hexagon'
-          ? (() => {
-            const inset = node.height / 4
-            return [
-              { x: node.x + inset, y: node.y }, { x: node.x + node.width - inset, y: node.y },
-              { x: node.x + node.width, y: cy }, { x: node.x + node.width - inset, y: node.y + node.height },
-              { x: node.x + inset, y: node.y + node.height }, { x: node.x, y: cy },
-            ]
-          })()
-          : slantedPolygonVertices(node)
+      let count: number
+      if (node.shape === 'diamond') {
+        vertex(0, cx, node.y); vertex(1, node.x + node.width, cy)
+        vertex(2, cx, node.y + node.height); vertex(3, node.x, cy)
+        count = 4
+      } else if (node.shape === 'hexagon') {
+        const hexInset = node.height / 4
+        vertex(0, node.x + hexInset, node.y); vertex(1, node.x + node.width - hexInset, node.y)
+        vertex(2, node.x + node.width, cy); vertex(3, node.x + node.width - hexInset, node.y + node.height)
+        vertex(4, node.x + hexInset, node.y + node.height); vertex(5, node.x, cy)
+        count = 6
+      } else count = slantedPolygonVertices(node)
       const shrink = Math.max(0, 1 - GRAZE / Math.min(hw, hh))
-      const verts = raw.map(v => ({ x: cx + (v.x - cx) * shrink, y: cy + (v.y - cy) * shrink }))
-      return segmentThroughConvexPolygon(a, b, verts)
+      for (let i = 0; i < count; i++) vertex(i, cx + (polygonXs[i]! - cx) * shrink, cy + (polygonYs[i]! - cy) * shrink)
+      return segmentThroughConvexPolygon(a, b, count)
     }
     default:
       return true // rect-like (and cylinder, whose footprint is its bbox)
   }
 }
 
-function segmentThroughConvexPolygon(a: Point, b: Point, verts: Point[]): boolean {
-  const inside = (p: Point): boolean => {
-    for (let i = 0; i < verts.length; i++) {
-      const v1 = verts[i]!, v2 = verts[(i + 1) % verts.length]!
-      if ((v2.x - v1.x) * (p.y - v1.y) - (v2.y - v1.y) * (p.x - v1.x) < -0.5) return false
-    }
-    return true
-  }
-  const mid = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 }
-  if (inside(a) || inside(b) || inside(mid)) return true
-  for (let i = 0; i < verts.length; i++) {
-    if (segmentsIntersect(a, b, verts[i]!, verts[(i + 1) % verts.length]!)) return true
+/** Tests against the first `count` scratch vertices. */
+function segmentThroughConvexPolygon(a: Point, b: Point, count: number): boolean {
+  if (insideScratchPolygon(a.x, a.y, count) || insideScratchPolygon(b.x, b.y, count)
+    || insideScratchPolygon((a.x + b.x) / 2, (a.y + b.y) / 2, count)) return true
+  for (let i = 0; i < count; i++) {
+    const j = (i + 1) % count
+    if (segmentsIntersectXY(a.x, a.y, b.x, b.y, polygonXs[i]!, polygonYs[i]!, polygonXs[j]!, polygonYs[j]!)) return true
   }
   return false
 }
 
+function insideScratchPolygon(px: number, py: number, count: number): boolean {
+  for (let i = 0; i < count; i++) {
+    const j = (i + 1) % count
+    const v1x = polygonXs[i]!, v1y = polygonYs[i]!, v2x = polygonXs[j]!, v2y = polygonYs[j]!
+    if ((v2x - v1x) * (py - v1y) - (v2y - v1y) * (px - v1x) < -0.5) return false
+  }
+  return true
+}
+
 function segmentToSegmentDistance(a: Point, b: Point, c: Point, d: Point): number {
-  if (segmentsIntersect(a, b, c, d)) return 0
+  return segmentToSegmentDistanceXY(a.x, a.y, b.x, b.y, c.x, c.y, d.x, d.y)
+}
+
+function segmentToSegmentDistanceXY(ax: number, ay: number, bx: number, by: number, cx: number, cy: number, dx: number, dy: number): number {
+  if (segmentsIntersectXY(ax, ay, bx, by, cx, cy, dx, dy)) return 0
   return Math.min(
-    pointToSegmentDistance(a, c, d), pointToSegmentDistance(b, c, d),
-    pointToSegmentDistance(c, a, b), pointToSegmentDistance(d, a, b),
+    pointToSegmentDistanceXY(ax, ay, cx, cy, dx, dy), pointToSegmentDistanceXY(bx, by, cx, cy, dx, dy),
+    pointToSegmentDistanceXY(cx, cy, ax, ay, bx, by), pointToSegmentDistanceXY(dx, dy, ax, ay, bx, by),
   )
 }
 
-function segmentsIntersect(a: Point, b: Point, c: Point, d: Point): boolean {
-  const det = (b.x - a.x) * (d.y - c.y) - (b.y - a.y) * (d.x - c.x)
+function segmentsIntersectXY(ax: number, ay: number, bx: number, by: number, cx: number, cy: number, dx: number, dy: number): boolean {
+  const det = (bx - ax) * (dy - cy) - (by - ay) * (dx - cx)
   if (Math.abs(det) < 1e-9) return false
-  const t = ((c.x - a.x) * (d.y - c.y) - (c.y - a.y) * (d.x - c.x)) / det
-  const u = ((c.x - a.x) * (b.y - a.y) - (c.y - a.y) * (b.x - a.x)) / det
+  const t = ((cx - ax) * (dy - cy) - (cy - ay) * (dx - cx)) / det
+  const u = ((cx - ax) * (by - ay) - (cy - ay) * (bx - ax)) / det
   return t > 0.001 && t < 0.999 && u > 0.001 && u < 0.999
 }
 
@@ -326,12 +349,16 @@ export function portEndpointRate(positioned: Pick<PositionedGraph, 'nodes' | 'ed
 }
 
 function pointToSegmentDistance(p: Point, a: Point, b: Point): number {
-  const dx = b.x - a.x
-  const dy = b.y - a.y
+  return pointToSegmentDistanceXY(p.x, p.y, a.x, a.y, b.x, b.y)
+}
+
+function pointToSegmentDistanceXY(px: number, py: number, ax: number, ay: number, bx: number, by: number): number {
+  const dx = bx - ax
+  const dy = by - ay
   const lenSq = dx * dx + dy * dy
-  if (lenSq === 0) return Math.hypot(p.x - a.x, p.y - a.y)
-  const t = Math.max(0, Math.min(1, ((p.x - a.x) * dx + (p.y - a.y) * dy) / lenSq))
-  return Math.hypot(p.x - (a.x + t * dx), p.y - (a.y + t * dy))
+  if (lenSq === 0) return Math.hypot(px - ax, py - ay)
+  const t = Math.max(0, Math.min(1, ((px - ax) * dx + (py - ay) * dy) / lenSq))
+  return Math.hypot(px - (ax + t * dx), py - (ay + t * dy))
 }
 
 /**
@@ -593,8 +620,9 @@ function assessLayoutGeometry(graph: MermaidGraph, positioned: PositionedGraph, 
 
   let edgeThroughNode = 0
   for (const e of positioned.edges) {
+    const bounds = routeBounds(e.points)
     for (const node of positioned.nodes) {
-      if (node.id === e.source || node.id === e.target) continue
+      if (node.id === e.source || node.id === e.target || routeMissesShapeBox(bounds, node)) continue
       for (let i = 1; i < e.points.length; i++) {
         if (segmentThroughShape(e.points[i - 1]!, e.points[i]!, node)) {
           edgeThroughNode++

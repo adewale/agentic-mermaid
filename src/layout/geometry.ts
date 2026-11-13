@@ -171,7 +171,7 @@ export function findSubgraph(subgraphs: MermaidSubgraph[], id: string): MermaidS
   return undefined
 }
 
-type LayoutDebugEnv = {
+export type LayoutDebugEnv = {
   APL_DEBUG?: string
   APL_NO_CENTER?: string
   APL_NO_FACET?: string
