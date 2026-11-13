@@ -192,6 +192,7 @@ parentPort.postMessage({type:'ready'});`)
   test('renders SVG and terminal text with structured receipts', async () => {
     const source = '---\ntitle: Greeting\n---\nsequenceDiagram\nA->>B: Hello'
     const svg = await call('render_svg', { source })
+    const { svg: fullSvg, receipt: fullReceipt } = structuredClone(svg.structuredContent)
     expect(svg.isError).toBe(false)
     expect(svg.structuredContent).toMatchObject({ ok: true, svg: expect.stringContaining('<svg'), receipt: { output: 'svg' } })
     const ascii = await call('render_ascii', { source, useAscii: true })
@@ -199,6 +200,10 @@ parentPort.postMessage({type:'ready'});`)
     expect(ascii.isError).toBe(false)
     expect(ascii.structuredContent).toMatchObject({ ok: true, text: expect.stringContaining('Hello'), receipt: { output: 'ascii' } })
     expect(text).not.toMatch(/[┌─│]/)
+    // The isolated renderer applies the requested receipt view.
+    const summary = await call('render_svg', { source, receipt: 'summary' })
+    expect(summary.structuredContent.receipt).toEqual(expect.objectContaining({ view: 'summary', requestDigest: fullReceipt.requestDigest }))
+    expect(summary.structuredContent.svg).toBe(fullSvg)
   }, 30_000)
 
   test('verifies valid source and rejects ambiguous malformed edges', async () => {

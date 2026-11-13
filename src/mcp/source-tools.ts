@@ -5,6 +5,7 @@ import { BUILTIN_FAMILY_METADATA } from '../agent/families.ts'
 import { verifyNoExternalRefs } from '../output-security.ts'
 import { projectMcpRenderOptions } from './tool-surface.ts'
 import { mcpVerificationSummary } from './describe-payload.ts'
+import { mcpRenderReceipt } from './receipt-summary.ts'
 import { HOSTED_RENDER_OPTIONS } from '../render-host-policy.ts'
 import { familyDetectionDiagnosticFromPreservedBody, MermaidFamilyDetectionError } from '../family-detection.ts'
 import { projectRenderErrorDiagnostic } from '../render-error-diagnostic.ts'
@@ -23,7 +24,7 @@ export function runSourceTool(name: SourceToolName, args: Record<string, unknown
       return {
         ok: true as const,
         svg: rendered.svg,
-        receipt: rendered.receipt,
+        receipt: mcpRenderReceipt(rendered.receipt, args),
         warnings: sourceConfigWarnings(source, args),
       }
     }
@@ -43,7 +44,7 @@ export function runSourceTool(name: SourceToolName, args: Record<string, unknown
       return {
         ok: true as const,
         text: rendered.text,
-        receipt: rendered.receipt,
+        receipt: mcpRenderReceipt(rendered.receipt, args),
         warnings: sourceConfigWarnings(source, args),
       }
     }

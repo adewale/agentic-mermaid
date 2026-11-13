@@ -21,6 +21,7 @@ import {
   createRenderPngTool,
   dispatchAdmittedMcpRequest,
   isValidExecuteTimeout,
+  mcpPngImageResult,
   projectMcpRenderOptions,
   RENDER_WARNINGS_NOTE,
   validateMcpToolArguments,
@@ -30,6 +31,7 @@ import {
 } from './tool-surface.ts'
 import { SDK_CORE_DECLARATION, createDescribeSdkTool, describeSdkPayload } from './sdk-discovery.ts'
 import { mcpDescribePayload } from './describe-payload.ts'
+import { mcpRenderReceipt } from './receipt-summary.ts'
 import { isDescribeFormat } from '../agent/describe.ts'
 import type { ExecuteResult } from './sandbox.ts'
 import type { PngRasterResult } from '../shared/png-font-warnings.ts'
@@ -219,6 +221,16 @@ function normalizedHostedPngRequest(args: Record<string, unknown>): NormalizedHo
   }
 }
 
+/** Result-shape arguments change the response but not the render. Their
+ * defaults add nothing, so a default call keeps the cache identity it had
+ * before these arguments existed and an explicit default shares it. */
+function resultShapeKey(args: Record<string, unknown>): Record<string, unknown> {
+  return {
+    ...(args.receipt === 'summary' ? { receipt: 'summary' } : {}),
+    ...(args.output === 'image' ? { delivery: 'image' } : {}),
+  }
+}
+
 /** Cache identity is the normalized request projection, not another copied
  * list of shared fields. */
 function effectiveSvgArgs(args: Record<string, unknown>): Record<string, unknown> {
@@ -245,7 +257,7 @@ export function cacheKeyFor(name: string | undefined, args: Record<string, unkno
     case 'execute':
       return null
     case 'render_svg':
-      return typeof args.source === 'string' ? { t: 'render_svg', source: args.source, ...effectiveSvgArgs(args) } : null
+      return typeof args.source === 'string' ? { t: 'render_svg', source: args.source, ...effectiveSvgArgs(args), ...resultShapeKey(args) } : null
     case 'render_ascii':
       return typeof args.source === 'string' ? {
         t: 'render_ascii',
@@ -253,6 +265,7 @@ export function cacheKeyFor(name: string | undefined, args: Record<string, unkno
         useAscii: args.useAscii === true,
         targetWidth: typeof args.targetWidth === 'number' ? args.targetWidth : undefined,
         render: projectMcpRenderOptions(args),
+        ...resultShapeKey(args),
       } : null
     case 'render_png': {
       if (typeof args.source !== 'string') return null
@@ -263,6 +276,7 @@ export function cacheKeyFor(name: string | undefined, args: Record<string, unkno
           source: args.source,
           output: normalized.output,
           render: normalized.render,
+          ...resultShapeKey(args),
         }
       } catch {
         return null
@@ -359,10 +373,12 @@ async function handleRenderPng(id: number | string | null, args: Record<string, 
     }
     const warnings = [...renderConfigWarningsForMermaid(source, normalized.render), ...result.warnings]
       .filter((warning, index, all) => all.findIndex(candidate => JSON.stringify(candidate) === JSON.stringify(warning)) === index)
+    const receipt = mcpRenderReceipt(result.receipt, args)
+    if (args.output === 'image') return mcpPngImageResult(id, result.png, base64Encode(result.png), { receipt, runtime: result.runtime, warnings })
     return toolResult(id, {
       ok: true as const,
       png_base64: base64Encode(result.png),
-      receipt: result.receipt,
+      receipt,
       runtime: result.runtime,
       warnings,
     }, false)

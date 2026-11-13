@@ -31,6 +31,8 @@ import type { CodeModeLocation } from './facade.ts'
 import { isPlainRecord } from '../shared/plain-data.ts'
 import { knownStyleDescriptors } from '../scene/style-registry.ts'
 import { validateJsonSchema, type SchemaPath, type JsonSchema } from '../shared/schema-validation.ts'
+import { inspectPngDimensions } from '../output-color-profile.ts'
+import { mcpRenderReceiptProperty } from './receipt-summary.ts'
 
 export interface McpToolDefinition {
   name: string
@@ -45,8 +47,10 @@ export interface McpToolDefinition {
   }
 }
 
-export const MCP_PNG_OUTPUT_MODES = Object.freeze(['base64', 'file', 'url'] as const)
+export const MCP_PNG_OUTPUT_MODES = Object.freeze(['base64', 'file', 'url', 'image'] as const)
 export type McpPngOutputMode = typeof MCP_PNG_OUTPUT_MODES[number]
+/** The hosted endpoint returns bytes in its response only; it keeps no artifacts. */
+export const HOSTED_MCP_PNG_OUTPUT_MODES = Object.freeze(['base64', 'image'] as const)
 
 export function isMcpPngOutputMode(value: unknown): value is McpPngOutputMode {
   return typeof value === 'string' && MCP_PNG_OUTPUT_MODES.includes(value as McpPngOutputMode)
@@ -567,6 +571,21 @@ export const RENDER_WARNINGS_NOTE = `warnings lists source/config warnings only 
 Layout and content-loss findings (e.g. LABELS_HIDDEN, ROUTE_SELF_LOOP_OCCUPANCY, LAYOUT_UNCERTIFIED) come from
 verify: call it before trusting the drawing. receipt.layoutCertification.geometry marks a drawing that failed layout certification.`
 
+/**
+ * render_png output=image: the PNG travels as an MCP image content block, which
+ * clients hand to a model as an image instead of ~1.3 tokens per base64 byte of
+ * JSON text. content[0] stays the JSON payload every render tool returns, with
+ * the byte count and pixel dimensions in place of png_base64.
+ */
+export function mcpPngImageResult(id: number | string | null, png: Uint8Array, data: string, fields: Record<string, unknown>): JsonRpcResponse {
+  const { width, height } = inspectPngDimensions(png)
+  const payload = { ok: true as const, mimeType: 'image/png', bytes: png.byteLength, width, height, ...fields }
+  return reply(id, {
+    content: [{ type: 'text', text: JSON.stringify(payload) }, { type: 'image', data, mimeType: 'image/png' }],
+    isError: false,
+  })
+}
+
 export function createRenderPngTool(mode: 'local' | 'hosted'): McpToolDefinition {
   const hosted = mode === 'hosted'
   const pngSchema = pngOutputOptionsJsonSchema(hosted ? 'portable' : 'native')
@@ -579,12 +598,14 @@ ${RENDER_WARNINGS_NOTE} Raster font-coverage and legibility warnings are added.`
     name: 'render_png',
     title: 'Render Mermaid as PNG',
     description: hosted
-      ? `Rasterize a Mermaid source string to PNG. Returns { ok, png_base64 }.
+      ? `Rasterize a Mermaid source string to PNG. Returns { ok, png_base64 }; output "image"
+returns { ok, bytes, width, height } plus an MCP image content block instead.
 Hosted rendering uses resvg-wasm with bundled fonts; bytes may differ from the
 local napi renderer, so hosted PNG is a convenience surface, not part of the
 byte-determinism contract. For file/URL artifacts use the local stdio server.
 ${budget}`
-      : `Rasterize a Mermaid source string to PNG. By default returns base64-encoded PNG bytes.
+      : `Rasterize a Mermaid source string to PNG. By default returns base64-encoded PNG bytes;
+output "image" returns { ok, bytes, width, height } plus an MCP image content block instead.
 Set output to "file" or "url" to write a managed artifact instead; artifact responses include
 {path?, url?, mimeType, bytes, sha256}. File/URL artifacts are generated under the MCP server's
 artifact directory with safe names, size limits, and TTL cleanup.
@@ -593,9 +614,10 @@ ${budget}
 Agentic Mermaid outputs SVG, PNG, ASCII, Unicode, and JSON layout. For non-PNG output, use render_svg, render_ascii (useAscii true for ASCII, false for Unicode), or verify. Code Mode execute also exposes the corresponding mermaid.* SDK functions.`,
     inputSchema: mcpRenderToolInputSchema({
       ...pngProperties,
-      ...(hosted ? {} : {
-        output: { type: 'string', enum: [...MCP_PNG_OUTPUT_MODES], description: 'PNG return mode (default base64).' },
-      }),
+      output: hosted
+        ? { type: 'string', enum: [...HOSTED_MCP_PNG_OUTPUT_MODES], description: 'base64 (default) JSON field, or image: an MCP image content block beside the JSON.' }
+        : { type: 'string', enum: [...MCP_PNG_OUTPUT_MODES], description: 'PNG return mode (default base64); image returns an MCP image content block beside the JSON.' },
+      receipt: mcpRenderReceiptProperty(),
     }),
     annotations: hosted ? PURE_COMPUTE_ANNOTATIONS : MANAGED_ARTIFACT_ANNOTATIONS,
   }

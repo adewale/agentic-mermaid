@@ -20,6 +20,7 @@ import {
   isValidExecuteTimeout,
   isMcpPngOutputMode,
   MCP_PNG_OUTPUT_MODES,
+  mcpPngImageResult,
   projectMcpRenderOptions,
   surfaceSupportedVersions,
   withClosedMcpInputSchema,
@@ -28,6 +29,7 @@ import {
 } from './tool-surface.ts'
 import { SDK_CORE_DECLARATION, createDescribeSdkTool, describeSdkPayload } from './sdk-discovery.ts'
 import { mcpDescribePayload } from './describe-payload.ts'
+import { mcpRenderReceipt } from './receipt-summary.ts'
 import { createArtifactStore, type ArtifactRecord, type ArtifactStore } from './artifacts.ts'
 import { renderMermaidPNGWithReceipt } from '../agent/png.ts'
 import { renderConfigWarningsForMermaid } from '../agent/verify.ts'
@@ -123,7 +125,7 @@ let defaultArtifactStore: ArtifactStore | undefined
 let defaultArtifactStoreExitHook = false
 const MCP_NARROWERS = BUILTIN_FAMILY_METADATA.map(f => f.narrower).join('/')
 
-const LOCAL_INSTRUCTIONS = `agentic-mermaid editing server. Prefer mutate/build for ordinary edits. execute runs synchronous JavaScript against the typed mermaid.* SDK in a sandbox; async/await and Promise jobs are not supported. describe_sdk progressively discloses one family's version-matched mutation schema; call it before authoring unfamiliar ops. Direct render_svg, render_ascii and verify helpers return structured results with a 15s deadline, a bounded queue and a sampled 512 MiB render-process memory budget. The compiled Bun binary includes its renderer. render_png and describe are additional narrow helpers. render_png can return base64, managed file paths, or managed URLs when the transport config provides an artifact store. Prefer declarative mutate/build for structured edits; they accept ordered JSON ops and verify before emitting source. Reserve execute for custom logic; narrow via ${MCP_NARROWERS}. Every built-in renderable family ships a typed path when the body narrows; only opaque fallback bodies are source-level only. Layout is deterministic; there is no layout seed (the optional style seed only re-rolls ink of styled looks, never geometry).`
+const LOCAL_INSTRUCTIONS = `agentic-mermaid editing server. Prefer mutate/build for ordinary edits. execute runs synchronous JavaScript against the typed mermaid.* SDK in a sandbox; async/await and Promise jobs are not supported. describe_sdk progressively discloses one family's version-matched mutation schema; call it before authoring unfamiliar ops. Direct render_svg, render_ascii and verify helpers return structured results with a 15s deadline, a bounded queue and a sampled 512 MiB render-process memory budget. The compiled Bun binary includes its renderer. render_png and describe are additional narrow helpers. render_png can return base64, an MCP image content block (output image), managed file paths, or managed URLs when the transport config provides an artifact store. Prefer declarative mutate/build for structured edits; they accept ordered JSON ops and verify before emitting source. Reserve execute for custom logic; narrow via ${MCP_NARROWERS}. Every built-in renderable family ships a typed path when the body narrows; only opaque fallback bodies are source-level only. Layout is deterministic; there is no layout seed (the optional style seed only re-rolls ink of styled looks, never geometry).`
 
 const LOCAL_SURFACE: McpServerSurface<McpRequestContext> = {
   protocolVersion: PROTOCOL_VERSION,
@@ -215,15 +217,19 @@ function handleRenderPng(id: number | string | null, args: Record<string, unknow
     })
     const warnings = [...renderConfigWarningsForMermaid(source, renderOptions), ...fontWarnings]
       .filter((warning, index, all) => all.findIndex(candidate => JSON.stringify(candidate) === JSON.stringify(warning)) === index)
+    const receipt = mcpRenderReceipt(rendered.receipt, args)
     if (output === 'base64') {
       const png_base64 = Buffer.from(rendered.png).toString('base64')
-      const payload = { ok: true as const, png_base64, receipt: rendered.receipt, runtime: rendered.runtime, warnings }
+      const payload = { ok: true as const, png_base64, receipt, runtime: rendered.runtime, warnings }
       return toolResult(id, payload, false)
+    }
+    if (output === 'image') {
+      return mcpPngImageResult(id, rendered.png, Buffer.from(rendered.png).toString('base64'), { receipt, runtime: rendered.runtime, warnings })
     }
     const store = context.artifactStore ?? getDefaultArtifactStore()
     if (output === 'url' && !store.hasBaseUrl()) return error(id, -32602, 'render_png output=url requires an HTTP/SSE artifact base URL')
     const artifact = store.write(rendered.png, { extension: '.png', mimeType: 'image/png' })
-    const payload = { ok: true as const, artifact: artifactPayload(artifact, output as 'file' | 'url'), receipt: rendered.receipt, runtime: rendered.runtime, warnings }
+    const payload = { ok: true as const, artifact: artifactPayload(artifact, output), receipt, runtime: rendered.runtime, warnings }
     return toolResult(id, payload, false)
   } catch (e) {
     const payload = {
