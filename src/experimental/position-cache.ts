@@ -30,12 +30,14 @@ const results = new WeightedLru<string, PositionedSnapshot>(128, MAX_WEIGHT, key
 // within the last HOT_WINDOW stores per resident entry, the cache is hot:
 // new geometry may replace the heaviest entry when it is at most half that
 // weight (so a weight-bound cache sheds weight and grows toward its count),
-// and otherwise waits in a small probation tier instead of evicting. An
+// and otherwise waits in a small probation tier instead of evicting; geometry
+// too heavy for probation enters by plain LRU, so none goes unretained. An
 // immediate reuse (render then verify of the same text) is served from
 // probation; reuse after other geometry was stored shows the entry belongs to
 // the working set and promotes it.
 const HOT_WINDOW = 4
-const probation = new WeightedLru<string, { snapshot: PositionedSnapshot; weight: number; stored: number }>(4, MAX_WEIGHT / 4)
+const PROBATION_WEIGHT = MAX_WEIGHT / 4
+const probation = new WeightedLru<string, { snapshot: PositionedSnapshot; weight: number; stored: number }>(4, PROBATION_WEIGHT)
 const lastUse = new WeakMap<PositionedSnapshot, number>()
 let stores = 0
 function lookupPositioned(isolated: string): PositionedSnapshot | undefined {
@@ -402,11 +404,8 @@ function retainSnapshot(family: object, key: string, value: FamilyLayoutResult, 
   if (!copy) nativeResidency.set(retained, { locallyRepeated: false })
   const isolated = isolatedKey(family, key)
   stores++
-  if (admitPositioned(isolated, weight)) results.set(isolated, retained, weight)
-  else {
-    probation.set(isolated, { snapshot: retained, weight, stored: stores }, weight)
-    observeCache('positioned-layout', 'store-skipped', 'probation')
-  }
+  if (weight > PROBATION_WEIGHT || admitPositioned(isolated, weight)) results.set(isolated, retained, weight)
+  else probation.set(isolated, { snapshot: retained, weight, stored: stores }, weight)
   lastUse.set(retained, stores)
   retainedResults.add(retained.result)
   if (copy) copiedResults.add(retained.result)
