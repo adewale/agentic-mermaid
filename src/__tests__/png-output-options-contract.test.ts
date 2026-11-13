@@ -28,7 +28,7 @@ import {
 } from '../png-contract.ts'
 import { renderPngGraphicalProjection, renderPortablePngGraphicalProjection } from '../png-graphical.ts'
 import { decodePng } from './helpers/png-pixels.ts'
-import { createRenderPngTool, validateMcpToolArguments } from '../mcp/tool-surface.ts'
+import { createRenderPngTool, mcpToolValidationSchema, validateMcpToolArguments } from '../mcp/tool-surface.ts'
 import { PNG_CLI_FLAG_BINDINGS } from '../cli/index.ts'
 import { ensureWebsiteBuilt } from './website-public-fixture.ts'
 import { useTestChildren } from './helpers/test-child.ts'
@@ -157,13 +157,22 @@ describe('canonical PNG output-option authority', () => {
       ['local', 'native', NATIVE_PNG_OUTPUT_POLICY_FIELDS],
     ] as const) {
       const tool = createRenderPngTool(mode)
-      const properties = tool.inputSchema.properties as Record<string, Record<string, unknown>>
-      const actual = Object.fromEntries(fields.map(field => {
-        return [field, { ...properties[field] }]
-      }))
       const expected = (pngOutputOptionsJsonSchema(substrate).properties ?? {}) as Record<string, Record<string, unknown>>
-      expect(actual).toEqual(expected)
-      expect(properties).not.toHaveProperty('onWarning')
+      // tools/list advertises the fields without vendor annotations; argument
+      // validation enforces the annotated fields (the runtime validator that
+      // rejects a non-portable background lives in an annotation).
+      const withoutAnnotations = (node: unknown): unknown => Array.isArray(node) ? node.map(withoutAnnotations)
+        : node && typeof node === 'object'
+          ? Object.fromEntries(Object.entries(node).filter(([key]) => !key.startsWith('x-')).map(([key, child]) => [key, withoutAnnotations(child)]))
+          : node
+      for (const [schema, fieldsExpected] of [
+        [tool.inputSchema, withoutAnnotations(expected)],
+        [mcpToolValidationSchema(tool), expected],
+      ] as const) {
+        const properties = schema.properties as Record<string, Record<string, unknown>>
+        expect(Object.fromEntries(fields.map(field => [field, properties[field]]))).toEqual(fieldsExpected as Record<string, Record<string, unknown>>)
+        expect(properties).not.toHaveProperty('onWarning')
+      }
     }
   })
 

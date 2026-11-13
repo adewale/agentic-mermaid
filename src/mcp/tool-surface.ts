@@ -52,11 +52,94 @@ export function isMcpPngOutputMode(value: unknown): value is McpPngOutputMode {
   return typeof value === 'string' && MCP_PNG_OUTPUT_MODES.includes(value as McpPngOutputMode)
 }
 
+/**
+ * The annotated schema behind each compact advertised `inputSchema`, keyed by
+ * the advertised object. tools/list loads every advertised schema into each
+ * agent's context, while server-side validation needs the runtime annotations
+ * (`x-agentic-mermaid-runtime-validator` and the expectations that word its
+ * diagnostics) and the explicit role-style records its messages name.
+ */
+const CANONICAL_INPUT_SCHEMAS = new WeakMap<object, Record<string, unknown>>()
+
 /** Adapt independently authored tool definitions to the closed argument
  * contract used by every first-party surface. This keeps progressive tools
  * from silently reopening the interface when they are composed into a server. */
 export function withClosedMcpInputSchema(tool: McpToolDefinition): McpToolDefinition {
-  return { ...tool, inputSchema: { ...tool.inputSchema, additionalProperties: false } }
+  const inputSchema = { ...tool.inputSchema, additionalProperties: false }
+  const canonical = CANONICAL_INPUT_SCHEMAS.get(tool.inputSchema)
+  if (canonical) CANONICAL_INPUT_SCHEMAS.set(inputSchema, { ...canonical, additionalProperties: false })
+  return { ...tool, inputSchema }
+}
+
+/** The schema `validateMcpToolArguments` enforces for a tool: the canonical
+ * annotated schema when the advertised one is a compact projection of it. */
+export function mcpToolValidationSchema(tool: McpToolDefinition): Record<string, unknown> {
+  return CANONICAL_INPUT_SCHEMAS.get(tool.inputSchema) ?? tool.inputSchema
+}
+
+// Keywords whose value maps names to schemas, and keywords whose value is data
+// rather than a schema. Annotations are stripped at schema positions only, so a
+// property or definition that happens to be named `x-…` keeps its name.
+const SCHEMA_MAP_KEYWORDS = new Set(['properties', 'patternProperties', '$defs', 'definitions', 'dependentSchemas'])
+const SCHEMA_DATA_KEYWORDS = new Set(['enum', 'const', 'default', 'examples', 'required'])
+
+function withoutVendorAnnotations(schema: unknown): unknown {
+  if (Array.isArray(schema)) return schema.map(withoutVendorAnnotations)
+  if (!isPlainRecord(schema)) return schema
+  const projected: Record<string, unknown> = {}
+  for (const [keyword, value] of Object.entries(schema)) {
+    if (keyword.startsWith('x-')) continue
+    projected[keyword] = SCHEMA_DATA_KEYWORDS.has(keyword) ? value
+      : SCHEMA_MAP_KEYWORDS.has(keyword) && isPlainRecord(value)
+        ? Object.fromEntries(Object.entries(value).map(([name, child]) => [name, withoutVendorAnnotations(child)]))
+        : withoutVendorAnnotations(value)
+  }
+  return projected
+}
+
+const ROLE_STYLE_PREFIX = 'roleStyle-'
+const SHARED_ROLE_STYLE = 'roleStyle-any'
+const CLOSED_RECORD_KEYWORDS = new Set(['type', 'additionalProperties', 'maxProperties', 'properties'])
+
+/** The property names of a role-style record that only restricts the shared
+ * record to a subset of its properties, each with the shared property schema;
+ * undefined when the record constrains anything else, so it stays explicit. */
+function sharedRoleStyleRestriction(record: unknown, shared: Record<string, unknown>): string[] | undefined {
+  const closed = (candidate: unknown): candidate is { properties: Record<string, unknown>; maxProperties?: unknown } =>
+    isPlainRecord(candidate) && candidate.type === 'object' && candidate.additionalProperties === false
+    && isPlainRecord(candidate.properties) && Object.keys(candidate).every(keyword => CLOSED_RECORD_KEYWORDS.has(keyword))
+  if (!closed(record) || !closed(shared)) return undefined
+  const names = Object.keys(record.properties)
+  const bound = (maxProperties: unknown) => maxProperties === undefined || (typeof maxProperties === 'number' && maxProperties >= names.length)
+  if (names.length === 0 || !bound(record.maxProperties) || !bound(shared.maxProperties)) return undefined
+  return names.every(name => Object.hasOwn(shared.properties, name)
+    && JSON.stringify(record.properties[name]) === JSON.stringify(shared.properties[name])) ? names : undefined
+}
+
+/**
+ * The compact form of a canonical tool schema that tools/list and the server
+ * cards advertise; the canonical schema stays the one argument validation
+ * enforces. The projection accepts exactly the same argument values under any
+ * JSON Schema validator: vendor annotations are not assertions, and a
+ * role-style record that restricts the shared record to some of its properties
+ * becomes a reference to the shared record plus the allowed property names,
+ * instead of a second copy of each property schema. `allOf` around the `$ref`
+ * keeps the sibling keyword meaningful to draft-07 validators, which ignore
+ * keywords beside a bare `$ref`.
+ */
+function advertiseMcpInputSchema(canonical: Record<string, unknown>): Record<string, unknown> {
+  const advertised = withoutVendorAnnotations(canonical) as Record<string, unknown>
+  const definitions = advertised.$defs
+  const shared = isPlainRecord(definitions) ? definitions[SHARED_ROLE_STYLE] : undefined
+  if (isPlainRecord(definitions) && isPlainRecord(shared)) {
+    advertised.$defs = Object.fromEntries(Object.entries(definitions).map(([name, record]) => {
+      const names = name.startsWith(ROLE_STYLE_PREFIX) && name !== SHARED_ROLE_STYLE
+        ? sharedRoleStyleRestriction(record, shared) : undefined
+      return [name, names ? { allOf: [{ $ref: `#/$defs/${SHARED_ROLE_STYLE}` }], propertyNames: { enum: names } } : record]
+    }))
+  }
+  CANONICAL_INPUT_SCHEMAS.set(advertised, canonical)
+  return advertised
 }
 
 export interface McpServerSurface<Context> {
@@ -169,25 +252,28 @@ const BUILTIN_PALETTE_NAMES = knownStyleDescriptors()
 export const MCP_RENDER_OPTIONS_DESCRIPTION = `Shared advanced RenderOptions object. style accepts a registered Look (${BUILTIN_LOOK_NAMES.join(', ')}), Palette (${BUILTIN_PALETTE_NAMES.join(', ')}), inline StyleSpec record, or left-to-right stack.`
 
 /**
- * The input schema of a render tool: `source`, the tool's own output fields,
- * and the shared `options` object. The render options schema names its
+ * The advertised input schema of a render tool: `source`, the tool's own output
+ * fields, and the shared `options` object. The render options schema names its
  * StyleSpec and JSON-value records by `#/$defs/<name>`; those definitions sit
  * at this schema's root, once, so every reference resolves from the tool
  * schema itself (no embedded `$id` resource) and no record is inlined twice.
+ * The result is the compact projection (advertiseMcpInputSchema); argument
+ * validation enforces the annotated schema it projects, and the options
+ * description links the published annotated render options schema.
  */
 export function mcpRenderToolInputSchema(outputProperties: Record<string, unknown> = {}): Record<string, unknown> {
-  const { $schema: _dialect, $id: _id, $defs: _defs, ...options } = sharedRenderOptionsJsonSchema()
-  return {
+  const { $schema: _dialect, $id: published, $defs: _defs, ...options } = sharedRenderOptionsJsonSchema()
+  return advertiseMcpInputSchema({
     type: 'object',
     additionalProperties: false,
     properties: {
       source: { type: 'string', description: 'Mermaid source.' },
       ...outputProperties,
-      options: { ...options, description: MCP_RENDER_OPTIONS_DESCRIPTION },
+      options: { ...options, description: `${MCP_RENDER_OPTIONS_DESCRIPTION} Annotated schema (field families, terminal notes): ${String(published)}` },
     },
     required: ['source'],
     $defs: renderOptionsSchemaDefinitions(),
-  }
+  })
 }
 
 export function projectMcpRenderOptions(
@@ -210,7 +296,9 @@ function formatSchemaPath(path: SchemaPath): string {
     typeof part === 'number' ? `${formatted}[${part}]` : `${formatted}.${part}`, 'arguments')
 }
 
-/** Runtime-check one tool's arguments against the exact schema advertised by tools/list. */
+/** Runtime-check one tool's arguments against the canonical schema behind the
+ * one tools/list advertises: the same JSON Schema assertions, plus the runtime
+ * validators its annotations name. */
 export function validateMcpToolArguments(tool: McpToolDefinition, value: unknown): string[] {
   if (!isPlainRecord(value)) return ['arguments must be a plain JSON object']
   const admissionProblems = validateJsonConfigAdmission(value)
@@ -218,7 +306,8 @@ export function validateMcpToolArguments(tool: McpToolDefinition, value: unknown
     return limitJsonConfigDiagnostics(admissionProblems.map(problem =>
       `${formatSchemaPath(problem.path)} ${problem.message}`), 'arguments')
   }
-  const problems = validateJsonSchema(value, tool.inputSchema, tool.inputSchema, [], {
+  const canonical = mcpToolValidationSchema(tool)
+  const problems = validateJsonSchema(value, canonical, canonical, [], {
     patternMismatch: schema => schema['x-agentic-mermaid-runtime-validator'] === 'portablePngBackground'
       ? 'must be a portable basic color keyword or 3, 4, 6, or 8 digit hex color' : undefined,
     validateRuntime: (value, schema, path) => {
@@ -228,7 +317,7 @@ export function validateMcpToolArguments(tool: McpToolDefinition, value: unknown
           ? [{ path, message: 'must be a portable basic color keyword or 3, 4, 6, or 8 digit hex color', generic: false }] : []
       }
       // Cross-field geometry belongs to the normalized RenderOptions boundary;
-      // the advertised wire schema continues to validate its individual fields.
+      // the wire schema continues to validate its individual fields.
       return validator === 'architectureVisual' ? [] : renderSchemaProblems(value, schema, path)
     },
   })

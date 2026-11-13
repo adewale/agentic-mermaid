@@ -227,7 +227,7 @@ function effectiveSvgArgs(args: Record<string, unknown>): Record<string, unknown
 
 /**
  * Canonical cache-key inputs for a tools/call: validated, normalized,
- * output-affecting inputs only. Validation against the exact advertised schema
+ * output-affecting inputs only. The same argument validation as dispatch
  * happens before any key is returned, so an invalid request cannot collide with
  * a cached valid response and bypass dispatch. Semantically identical valid
  * calls may then share an entry. Non-idempotent execute is never cached.

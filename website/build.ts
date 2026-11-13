@@ -2167,8 +2167,8 @@ await emitJson('.well-known/mcp/server-card.json', mcpServerCard, 'minified')
 await emitJson('.well-known/mcp.json', mcpManifest, 'minified')
 await emitJson('.well-known/ai-catalog.json', aiCatalog)
 
-// Hosted tools/call arguments shown in published docs are checked against the
-// exact schema /mcp advertises and enforces, so an example cannot drift into a
+// Hosted tools/call arguments shown in published docs are checked by the
+// argument validation /mcp enforces, so an example cannot drift into a
 // request the server rejects (a getting-started example once put options at
 // the top level). A failing example fails the build and website:check.
 function hostedArgumentProblems(tool: unknown, args: unknown): string[] {

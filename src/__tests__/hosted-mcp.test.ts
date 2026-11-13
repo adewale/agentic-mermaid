@@ -154,11 +154,15 @@ describe('hosted MCP handshake', () => {
       expect({ tool: tool.name, records: text.split(JSON.stringify(recordDescription)).length - 1 }).toEqual({ tool: tool.name, records: 1 })
       const refs: string[] = []
       const nestedResources: string[] = []
+      const refSiblings: string[] = []
       // Keys of a `properties`/`$defs` map are names (StyleSpec has a `$schema`
       // field), not keywords; only keyword positions are inspected.
       const walk = (node: unknown, depth: number, names = false) => {
         if (Array.isArray(node)) return node.forEach(child => walk(child, depth + 1))
         if (!node || typeof node !== 'object') return
+        // draft-07 validators ignore every keyword beside a `$ref`, so a
+        // constraint placed there would be advertised but not enforced.
+        if (!names && '$ref' in node) refSiblings.push(...Object.keys(node).filter(key => key !== '$ref'))
         for (const [key, child] of Object.entries(node)) {
           if (!names && key === '$ref' && typeof child === 'string') refs.push(child)
           if (!names && depth > 0 && (key === '$id' || key === '$schema')) nestedResources.push(key)
@@ -166,7 +170,7 @@ describe('hosted MCP handshake', () => {
         }
       }
       walk(tool.inputSchema, 0)
-      expect({ tool: tool.name, nestedResources }).toEqual({ tool: tool.name, nestedResources: [] })
+      expect({ tool: tool.name, nestedResources, refSiblings }).toEqual({ tool: tool.name, nestedResources: [], refSiblings: [] })
       expect({ tool: tool.name, unresolved: refs.filter(ref => resolve(tool.inputSchema, ref) === undefined) }).toEqual({ tool: tool.name, unresolved: [] })
       // A validator we did not write (the MCP SDK's client-side Ajv provider)
       // still checks every field through the references.

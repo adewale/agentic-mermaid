@@ -32,11 +32,16 @@ const MODERN_CALLS: Array<{ label: string; request: JsonRpcRequest; error?: bool
 type Surface = {
   name: string
   tools: McpToolDefinition[]
+  /** Serialized tools/list response cap, about 10% over its current size.
+   *  Every client loads this response into an agent's context; it was ~151 KB
+   *  while each render tool repeated vendor annotations and per-role copies of
+   *  one role-style record. */
+  toolsListBytes: number
   dispatch(request: JsonRpcRequest): Promise<JsonRpcResponse | null>
 }
 const SURFACES: Surface[] = [
-  { name: 'local', tools: LOCAL_TOOLS, dispatch: handleRequest },
-  { name: 'hosted', tools: HOSTED_TOOLS, dispatch: request => handleHostedRequest(request, { async execute() { return { ok: true, value: 42, logs: [] } } }) },
+  { name: 'local', tools: LOCAL_TOOLS, toolsListBytes: 108_000, dispatch: handleRequest },
+  { name: 'hosted', tools: HOSTED_TOOLS, toolsListBytes: 107_000, dispatch: request => handleHostedRequest(request, { async execute() { return { ok: true, value: 42, logs: [] } } }) },
 ]
 
 describe('MCP live response contracts', () => {
@@ -48,6 +53,11 @@ describe('MCP live response contracts', () => {
       const listed = await surface.dispatch({ jsonrpc: '2.0', id: 30, method: 'tools/list' })
       expect(listed?.error).toBeUndefined()
       expect((listed?.result as { tools: McpToolDefinition[] }).tools).toEqual(surface.tools)
+    })
+
+    test(`${surface.name} tools/list stays within its agent-context budget`, async () => {
+      const listed = await surface.dispatch({ jsonrpc: '2.0', id: 30, method: 'tools/list' })
+      expect(new TextEncoder().encode(JSON.stringify(listed)).length).toBeLessThan(surface.toolsListBytes)
     })
 
     for (const { label, request, error } of MODERN_CALLS) {
