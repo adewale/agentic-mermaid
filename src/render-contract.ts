@@ -1,4 +1,5 @@
 import { WeightedLru } from './experimental/weighted-lru.ts'
+import { parserObservationActive } from './shared/parser-observation.ts'
 import { isOwnedFamily } from './experimental/owned-family.ts'
 import { familyRoutingRevision } from './agent/family-router.ts'
 // ============================================================================
@@ -1634,7 +1635,8 @@ function rememberedAppearance(
   key: string | undefined,
   input: ResolveAppearanceInput,
 ): ResolvedAppearanceContext {
-  if (!shared || key === undefined) return resolveAppearance(input)
+  // An active parser observer asks to see the family normalizer's actual parse.
+  if (!shared || key === undefined || parserObservationActive(input.family.id)) return resolveAppearance(input)
   let entries = REMEMBERED_APPEARANCES.get(shared)
   const remembered = entries?.get(key)
   if (remembered && remembered.style === input.style && remembered.face === input.styleFace) return remembered.context
