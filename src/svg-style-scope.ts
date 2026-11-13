@@ -14,7 +14,7 @@
 // browser support them, which keeps raster and inline rendering in agreement.
 // ============================================================================
 
-import { replaceSvgRootStartTag, svgStyleRanges, svgAttribute, svgRootStartTag } from './svg-structure.ts'
+import { replaceSvgRootStartTag, svgStyleRanges, svgAttribute, svgRootStartTag, transformSvgIdReferences, type SvgStartTagToken } from './svg-structure.ts'
 import { namespaceSvgIds } from './svg-postprocess.ts'
 
 export const SVG_STYLE_SCOPE_PREFIX = 'am-'
@@ -177,10 +177,22 @@ export function svgStyleScope(svg: string): string | undefined {
 export function scopeSvgStyles(svg: string, namespaceIds = false): string {
   const root = svgRootStartTag(svg)
   if (!root) return svg
+  let scope: string | undefined
+  if (namespaceIds) {
+    scope = `${SVG_STYLE_SCOPE_PREFIX}${scopeHash(svg)}`
+    const prefix = `${scope}-`
+    let hasStyles = false
+    const scoped = transformSvgIdReferences(svg, id => id.startsWith(prefix) ? id : `${prefix}${id}`, css => {
+      hasStyles = true
+      return scopeCss(css, scope!)
+    })
+    if (scoped !== undefined) return hasStyles ? addScopeClass(scoped, svgRootStartTag(scoped)!, scope) : scoped
+  }
+
   const styleRanges = svgStyleRanges(svg)
   if (styleRanges.length === 0 && !namespaceIds) return svg
 
-  const scope = `${SVG_STYLE_SCOPE_PREFIX}${scopeHash(svg)}`
+  scope ??= `${SVG_STYLE_SCOPE_PREFIX}${scopeHash(svg)}`
   if (styleRanges.length === 0) return namespaceSvgIds(svg, `${scope}-`)
   let scoped = svg
   for (let index = styleRanges.length - 1; index >= 0; index--) {
@@ -189,11 +201,15 @@ export function scopeSvgStyles(svg: string, namespaceIds = false): string {
   }
 
   // The root precedes every <style>, so its offsets are unchanged above.
-  const open = scoped.slice(root.start, root.end)
+  const output = addScopeClass(scoped, root, scope)
+  return namespaceIds ? namespaceSvgIds(output, `${scope}-`) : output
+}
+
+function addScopeClass(svg: string, root: SvgStartTagToken, scope: string): string {
+  const open = svg.slice(root.start, root.end)
   const classAttribute = svgAttribute(root, 'class')
   const scopedOpen = classAttribute
     ? `${open.slice(0, classAttribute.valueEnd - root.start)}${classAttribute.value ? ' ' : ''}${scope}${open.slice(classAttribute.valueEnd - root.start)}`
     : `${open.slice(0, -1)} class="${scope}">`
-  const output = replaceSvgRootStartTag(scoped, root, scopedOpen)
-  return namespaceIds ? namespaceSvgIds(output, `${scope}-`) : output
+  return replaceSvgRootStartTag(svg, root, scopedOpen)
 }

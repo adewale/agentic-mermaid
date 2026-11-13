@@ -287,8 +287,12 @@ export function transformSvgCssValues(
 }
 
 /** Retain only resource declarations/references, not an inventory of every
- * attribute. Forward references resolve after the single lexical scan. */
-export function transformSvgIdReferences(source: string, rename: (id: string) => string): string {
+ * attribute. Forward references resolve after the single lexical scan. A
+ * combined style rewrite declines overlapping ranges so its caller can keep
+ * the original style-then-attribute order for opaque CSS. */
+export function transformSvgIdReferences(source: string, rename: (id: string) => string): string
+export function transformSvgIdReferences(source: string, rename: (id: string) => string, transformStyle: (css: string) => string): string | undefined
+export function transformSvgIdReferences(source: string, rename: (id: string) => string, transformStyle?: (css: string) => string): string | undefined {
   const declared = new Set<string>()
   const references: SvgCssRange[] = [], styles: SvgRange[] = []
   const collectWritten = writerEvidenceEnabled()
@@ -303,6 +307,7 @@ export function transformSvgIdReferences(source: string, rename: (id: string) =>
       overlapsStyle ||= start < (styles.at(-1)?.end ?? 0)
     }
   })
+  if (transformStyle && (overlapsStyle || styles.some((range, index) => index > 0 && range.start < styles[index - 1]!.end))) return undefined
   const reference = (id: string) => declared.has(id) ? rename(id) : id
   const urls = (css: string) => css.replace(/url\(#([^)]+)\)/g, (_, id: string) => `url(#${reference(id)})`)
   const changes: Replacement[] = []
@@ -324,7 +329,7 @@ export function transformSvgIdReferences(source: string, rename: (id: string) =>
     const ranges = svgStyleRanges(attributes)
     return transformSvgCssValues(attributes, urls, { source: attributes, cssRanges: ranges, styleContexts: ranges })
   }
-  appendCssChanges(source, styles, urls, changes)
+  appendCssChanges(source, styles, transformStyle ? css => urls(transformStyle(css)) : urls, changes)
   return applyReplacements(source, changes)
 }
 
