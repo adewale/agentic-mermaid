@@ -2209,7 +2209,8 @@ function layoutCandidate(
   if (!result) throw lastError
   const elkResult = result
   const noteMargin = stateVisual?.noteMargin ?? 18
-  const bundled = elkToPositioned(elkResult, graph, DEFAULTS.mergeEdges, opts.padding, style, noteMargin)
+  const mergeEdges = DEFAULTS.mergeEdges && !options.layoutCost?.relaxed.includes('edge-bundling')
+  const bundled = elkToPositioned(elkResult, graph, mergeEdges, opts.padding, style, noteMargin)
   if (bundled.genericBundled) {
     rememberAlternative?.(bundled.positioned, () => elkToPositioned(elkResult, graph, false, opts.padding, style, noteMargin).positioned)
   }

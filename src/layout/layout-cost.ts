@@ -13,6 +13,8 @@ import type { MermaidGraph } from '../types.ts'
  *   vertices every crossing-minimisation sweep must order.
  * - `maxGapEdges` is the largest number of edges spanning one layer gap: the
  *   segments one channel must order and route.
+ * - `bundleWork` is E × Σ (fan-out and fan-in sizes of 2 or more): each
+ *   bundle candidate is admitted against every route.
  */
 export interface LayoutCostEstimate {
   readonly nodes: number
@@ -20,10 +22,11 @@ export interface LayoutCostEstimate {
   readonly layers: number
   readonly dummySegments: number
   readonly maxGapEdges: number
+  readonly bundleWork: number
 }
 
 /** ELK options relaxed above the cost thresholds, in a stable order. */
-export type RelaxedLayoutOption = 'model-order'
+export type RelaxedLayoutOption = 'model-order' | 'edge-bundling'
 
 export interface LayoutCostReceipt {
   readonly estimate: LayoutCostEstimate
@@ -36,13 +39,18 @@ export interface LayoutCostReceipt {
 
 /**
  * Model-order crossing minimisation (`considerModelOrder: NODES_AND_EDGES`
- * with forced node order) dominates ELK time on these graphs: a complete
- * 30-node DAG (4,060 dummy segments) took 72 s, a 30 × 30 state transition
- * table (870 edges in one gap) 43 s. The largest values in the corpus,
- * golden and website samples are 122 dummy segments and 179 gap edges, so no
- * existing diagram reaches either threshold and their geometry is unchanged.
+ * with forced node order) dominates ELK time above the first two thresholds:
+ * a complete 30-node DAG (4,060 dummy segments) took 72 s, a 30 × 30 state
+ * transition table (870 edges in one gap) 43 s. Generic fan bundling admits
+ * every member route against every other route (marker clearance, opposing
+ * shared ink), so its work grows with `bundleWork`: 1.6M for a 30 × 30
+ * all-to-all fan, whose bundling took 2.8-6.8 s; above that threshold edges
+ * keep their individual ELK routes, the established unbundled route form.
+ * The largest values in the corpus, golden and website samples (122 dummy
+ * segments, 179 gap edges, bundleWork 89,401) reach none of them, so
+ * their geometry is unchanged.
  */
-export const LAYOUT_COST_THRESHOLDS = Object.freeze({ dummySegments: 1_000, maxGapEdges: 400 })
+export const LAYOUT_COST_THRESHOLDS = Object.freeze({ dummySegments: 1_000, maxGapEdges: 400, bundleWork: 500_000 })
 /** Above a threshold: two candidates, each with two ELK option sets. */
 const BOUNDED_CANDIDATES = 2
 const BOUNDED_ELK_ATTEMPTS = 2
@@ -56,10 +64,16 @@ export function estimateLayoutCost(graph: Pick<MermaidGraph, 'nodes' | 'edges'>)
   }
   // Incoming lists keyed by the later endpoint; self-loops span no gap.
   const earlier: number[][] = Array.from({ length: order.size }, () => [])
+  const out = new Int32Array(order.size), into = new Int32Array(order.size)
   for (const edge of graph.edges) {
     const a = order.get(edge.source)!, b = order.get(edge.target)!
-    if (a !== b) earlier[Math.max(a, b)]!.push(Math.min(a, b))
+    if (a === b) continue
+    earlier[Math.max(a, b)]!.push(Math.min(a, b))
+    out[a]!++
+    into[b]!++
   }
+  let fanMembers = 0
+  for (let v = 0; v < order.size; v++) fanMembers += (out[v]! >= 2 ? out[v]! : 0) + (into[v]! >= 2 ? into[v]! : 0)
   const layer = new Int32Array(order.size)
   let layers = order.size ? 1 : 0
   for (let v = 0; v < order.size; v++) {
@@ -81,12 +95,15 @@ export function estimateLayoutCost(graph: Pick<MermaidGraph, 'nodes' | 'edges'>)
     load += gapDelta[gap]!
     if (load > maxGapEdges) maxGapEdges = load
   }
-  return { nodes: graph.nodes.size, edges: graph.edges.length, layers, dummySegments, maxGapEdges }
+  return { nodes: graph.nodes.size, edges: graph.edges.length, layers, dummySegments, maxGapEdges, bundleWork: fanMembers * graph.edges.length }
 }
 
 /** The bounded profile for a graph above a cost threshold, else undefined. */
 export function layoutCostReceipt(graph: Pick<MermaidGraph, 'nodes' | 'edges'>): LayoutCostReceipt | undefined {
   const estimate = estimateLayoutCost(graph)
-  if (estimate.dummySegments < LAYOUT_COST_THRESHOLDS.dummySegments && estimate.maxGapEdges < LAYOUT_COST_THRESHOLDS.maxGapEdges) return undefined
-  return { estimate, relaxed: ['model-order'], maxCandidates: BOUNDED_CANDIDATES, maxElkAttemptsPerCandidate: BOUNDED_ELK_ATTEMPTS }
+  const relaxed: RelaxedLayoutOption[] = []
+  if (estimate.dummySegments >= LAYOUT_COST_THRESHOLDS.dummySegments || estimate.maxGapEdges >= LAYOUT_COST_THRESHOLDS.maxGapEdges) relaxed.push('model-order')
+  if (estimate.bundleWork >= LAYOUT_COST_THRESHOLDS.bundleWork) relaxed.push('edge-bundling')
+  if (!relaxed.length) return undefined
+  return { estimate, relaxed, maxCandidates: BOUNDED_CANDIDATES, maxElkAttemptsPerCandidate: BOUNDED_ELK_ATTEMPTS }
 }

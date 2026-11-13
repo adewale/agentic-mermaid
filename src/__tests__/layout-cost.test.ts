@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'bun:test'
 import { verifyMermaid } from '../agent/verify.ts'
 import { renderMermaidSVGWithReceipt } from '../index.ts'
-import { estimateLayoutCost, LAYOUT_COST_THRESHOLDS } from '../layout/layout-cost.ts'
+import { estimateLayoutCost, LAYOUT_COST_THRESHOLDS, layoutCostReceipt, type RelaxedLayoutOption } from '../layout/layout-cost.ts'
 import { parseMermaid } from '../parser.ts'
 import type { PaintLayoutCertification } from '../scene/paint-certification.ts'
 
@@ -33,6 +33,21 @@ describe('layered layout cost estimate', () => {
     // `&` declares every source before any target: one gap carries all 35.
     const fan = estimateLayoutCost(parseMermaid('flowchart TD\na0 & a1 & a2 & a3 & a4 & a5 & a6 --> b0 & b1 & b2 & b3 & b4'))
     expect([fan.layers, fan.dummySegments, fan.maxGapEdges]).toEqual([2, 0, 35])
+    // Seven fan-outs of 5 and five fan-ins of 7, each admitted against 35 routes.
+    expect(fan.bundleWork).toBe(70 * 35)
+  })
+
+  test('each relaxation follows its own threshold', () => {
+    const fan = (from: string, to: string, n: number): string => `${Array.from({ length: n }, (_, i) => `${from}${i}`).join(' & ')} --> ${Array.from({ length: n }, (_, i) => `${to}${i}`).join(' & ')}`
+    const cases: Array<{ name: string; source: string; relaxed: RelaxedLayoutOption[] | undefined }> = [
+      { name: 'long edges only', source: flowchart(nestedLinks(80, 20)), relaxed: ['model-order'] },
+      // Two stacked 19 x 19 fans: 361 edges per gap, but 1,444 fan members x 722 edges.
+      { name: 'stacked fans', source: `flowchart TD\n${fan('a', 'b', 19)}\n${fan('b', 'c', 19)}`, relaxed: ['edge-bundling'] },
+      { name: 'one 20 x 20 gap', source: `flowchart TD\n${fan('a', 'b', 20)}`, relaxed: ['model-order'] },
+      { name: 'one 23 x 23 gap', source: `flowchart TD\n${fan('a', 'b', 23)}`, relaxed: ['model-order', 'edge-bundling'] },
+      { name: 'below every threshold', source: `flowchart TD\n${fan('a', 'b', 19)}`, relaxed: undefined },
+    ]
+    for (const { name, source, relaxed } of cases) expect({ name, relaxed: layoutCostReceipt(parseMermaid(source))?.relaxed }).toEqual({ name, relaxed })
   })
 
   test('a graph above a threshold records the bounded profile in the receipt and as an advisory finding', () => {
@@ -41,7 +56,8 @@ describe('layered layout cost estimate', () => {
     expect(estimateLayoutCost(parseMermaid(heavy)).dummySegments).toBeGreaterThanOrEqual(LAYOUT_COST_THRESHOLDS.dummySegments)
     const certification = renderMermaidSVGWithReceipt(heavy).receipt.layoutCertification as PaintLayoutCertification | undefined
     expect(certification?.layoutCost).toEqual({
-      estimate: { nodes: 80, edges: 99, layers: 80, dummySegments: 1180, maxGapEdges: 21 },
+      // 40 fan-out and 40 fan-in members (the 20 linked pairs) x 99 edges.
+      estimate: { nodes: 80, edges: 99, layers: 80, dummySegments: 1180, maxGapEdges: 21, bundleWork: 7920 },
       relaxed: ['model-order'], maxCandidates: 2, maxElkAttemptsPerCandidate: 2,
     })
     expect(certification?.geometry).toBeUndefined()
