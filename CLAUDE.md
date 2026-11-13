@@ -8,6 +8,8 @@ Guidance for AI agents working in this repository.
 that renders Mermaid diagrams to SVG/PNG/ASCII/Unicode with a typed, agent-native
 editing surface. Source lives in `src/`; the layout pipeline is in
 `src/layout-engine.ts`, the deterministic layout-quality rubric in `src/layout-rubric.ts`.
+Project terms (admission, receipt, custody, witness, certification, segment)
+are defined in `docs/contributing/glossary.md`.
 
 ## Commands
 
