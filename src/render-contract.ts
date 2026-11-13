@@ -1609,6 +1609,43 @@ function requestSourceSnapshot(shared: NormalizedMermaidSource): NormalizedMerma
   return freezeSnapshot({ ...shared })
 }
 
+// resolveAppearance is a pure function of the family, the normalized source,
+// the admitted options and the style and face prepared from them; named style
+// references also read the style registry. Its deeply frozen result is reused
+// for a remembered source under the same registry revision, options and
+// prepared style identities. Entries live as long as the remembered source.
+interface RememberedAppearance {
+  readonly style: Readonly<StyleSpec> | undefined
+  readonly face: Readonly<InternalStyleFace> | undefined
+  readonly context: ResolvedAppearanceContext
+}
+const REMEMBERED_APPEARANCES = new WeakMap<NormalizedMermaidSource, Map<string, RememberedAppearance>>()
+const REMEMBERED_APPEARANCES_PER_SOURCE = 8
+
+function appearanceMemoKey(admitted: AdmittedRenderOptions): string | undefined {
+  // Captured options carry the style and references of their capture instant.
+  if (admitted.capturedStyle) return undefined
+  const options = admitted === EMPTY_ADMITTED_OPTIONS ? '' : JSON.stringify(admitted.serializable)
+  return options.length <= 4096 ? `${styleRegistryRevision()}:${options}` : undefined
+}
+
+function rememberedAppearance(
+  shared: NormalizedMermaidSource | undefined,
+  key: string | undefined,
+  input: ResolveAppearanceInput,
+): ResolvedAppearanceContext {
+  if (!shared || key === undefined) return resolveAppearance(input)
+  let entries = REMEMBERED_APPEARANCES.get(shared)
+  const remembered = entries?.get(key)
+  if (remembered && remembered.style === input.style && remembered.face === input.styleFace) return remembered.context
+  const context = resolveAppearance(input)
+  if (!entries) REMEMBERED_APPEARANCES.set(shared, entries = new Map())
+  entries.delete(key)
+  entries.set(key, { style: input.style, face: input.styleFace, context })
+  if (entries.size > REMEMBERED_APPEARANCES_PER_SOURCE) entries.delete(entries.keys().next().value as string)
+  return context
+}
+
 /** Keys contain only captured tuple metadata, never source, hooks or policy.
  * Length prefixes preserve order and boundaries without serialization hooks. */
 function executionCapabilityKey(output: RenderOutput, offers: readonly CapabilityOffer[], requirements: readonly CapabilityRequirement[], available: boolean): string | undefined {
@@ -1938,10 +1975,12 @@ export function resolveRenderRequestForExecution(
   // exact authored boundary bytes. Equivalent encodings may render alike but
   // must not collapse to the same request identity.
   let detectedSource: NormalizedMermaidSource
+  let sharedSource: NormalizedMermaidSource | undefined
   const memoable = admittedOptions.mermaidConfig === undefined || Object.keys(admittedOptions.mermaidConfig).length === 0
   const remembered = memoable ? rememberedNormalizedSource(text, resolutionOptions.familyDescriptor) : undefined
   if (remembered) {
     classification = remembered.classification
+    sharedSource = remembered.source
     detectedSource = requestSourceSnapshot(remembered.source)
   } else {
     const normalizedSource = normalizeMermaidRenderSource(text, admittedOptions.mermaidConfig ?? {}, firstLine => {
@@ -1953,6 +1992,7 @@ export function resolveRenderRequestForExecution(
     const resolved = resolutionOptions.familyDescriptor ?? (classification?.kind === 'registered' ? classification.family : undefined)
     if (memoable && resolved && isOwnedFamily(resolved)) {
       rememberNormalizedSource(text, resolutionOptions.familyDescriptor, detectedSource, classification)
+      sharedSource = detectedSource
       detectedSource = requestSourceSnapshot(detectedSource)
     }
   }
@@ -1975,7 +2015,7 @@ export function resolveRenderRequestForExecution(
   checkFamilyConfigColors(source.frontmatter, family.id)
   const explicitOptionFields = Object.freeze(SHARED_RENDER_OPTION_FIELDS.filter(field => admittedOptions[field] !== undefined))
   const resolutionDiagnostics = renderOptionApplicabilityDiagnostics(family, explicitOptionFields)
-  const resolvedContext = resolveAppearance({
+  const resolvedContext = rememberedAppearance(sharedSource, appearanceMemoKey(admitted), {
     family,
     source,
     options: admittedOptions,

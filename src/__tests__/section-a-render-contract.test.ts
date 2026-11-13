@@ -9,6 +9,7 @@ import { DEFAULT_ARCHITECTURE_VISUAL } from '../architecture/config.ts'
 import { detectColorMode } from '../ascii/ansi.ts'
 import { renderMermaidASCII, renderMermaidASCIIWithReceipt } from '../ascii/index.ts'
 import { renderMermaidSVGWithReceipt } from '../index.ts'
+import { registerStyle } from '../scene/style-registry.ts'
 import { HOSTED_TOOLS } from '../mcp/hosted-server.ts'
 import { LOCAL_TOOLS } from '../mcp/server.ts'
 import { projectMcpRenderOptions } from '../mcp/tool-surface.ts'
@@ -16,6 +17,7 @@ import { normalizeMermaidSource } from '../mermaid-source.ts'
 import { inspectPngColorProfile, OUTPUT_COLOR_PROFILE } from '../output-color-profile.ts'
 import { applyOutputSecurityPolicy, verifyNoExternalRefs } from '../output-security.ts'
 import {
+  captureRenderOptions,
   CLI_RENDER_FORMATS,
   deferredRenderContractDigest,
   renderContractDigest,
@@ -127,6 +129,35 @@ describe('Section A canonical render contracts', () => {
       restore()
     }
     expect(resolvedRenderExecutionPlanOf(resolveRenderRequest(source)).family).toBe(original)
+  })
+
+  test('remembered appearance is reused only for the same options, style registry and family', () => {
+    const source = 'flowchart LR\n  Remembered --> Appearance'
+    // Capturing empty options (async renderers do) leaves ordinary requests reusable.
+    captureRenderOptions({})
+    const first = resolveRenderRequest(source)
+    expect(resolveRenderRequest(source).appearance).toBe(first.appearance)
+    expect(resolveRenderRequest(source, { font: 'Georgia' }).appearance.font).toBe('Georgia')
+    expect(resolveRenderRequest(source).appearance.font).toBe(first.appearance.font)
+    const name = 'palette:test/remembered-appearance'
+    const background = (): string | undefined => resolveRenderRequest(source, { style: name }).appearance.colors.bg
+    let unregister = registerStyle({ name, colors: { bg: '#123456', fg: '#ffffff' } })
+    try {
+      expect(background()).toBe('#123456')
+      unregister()
+      unregister = registerStyle({ name, colors: { bg: '#654321', fg: '#ffffff' } })
+      expect(background()).toBe('#654321')
+    } finally {
+      unregister()
+    }
+    const original = getFamily('flowchart')!
+    const restore = replaceFamilyForTest('flowchart', { ...original, normalizeRequest: context => ({ ...original.normalizeRequest!(context), familyConfig: { replaced: true } }) })
+    try {
+      expect(resolveRenderRequest(source).familyConfig).toEqual({ replaced: true })
+    } finally {
+      restore()
+    }
+    expect(resolveRenderRequest(source).familyConfig).toBeUndefined()
   })
 
   test('reused admitted request data keeps every digest value and bound of a full walk', () => {
