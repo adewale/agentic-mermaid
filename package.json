@@ -157,6 +157,7 @@
     "typecheck:core": "tsc --noEmit -p tsconfig.json",
     "typecheck:repo": "bun eval/trident/prepare.ts && tsc --noEmit -p tsconfig.repo.json",
     "quality:check": "bun run scripts/ci/quality-gates.ts",
+    "check:pre-push": "bun run scripts/ci/quality-gates.ts --pre-push",
     "generate": "bun run generate:sdk && bun run generate:browser-families && bun run doc-blocks && bun run agent-doc-artifacts && bun run style-spec-artifacts",
     "format": "biome format --write .",
     "format:changed": "biome format --write --changed",

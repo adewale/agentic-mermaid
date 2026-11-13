@@ -24,6 +24,8 @@ editing surface. Source lives in `src/`; the layout pipeline is in
   seeds are pinned by a preload; `AM_FC_SEED=<int>` reproduces a roll,
   `AM_FC_SEED=random` is finder mode (see `docs/testing-strategy.md` §4).
 - `bun run typecheck` — canonical typecheck across core and repository surfaces.
+- `bun run check:pre-push` — CI's quality gates plus the website payload budgets;
+  run it before pushing a PR update so the push is not the gates' first run.
 - `bun run track` — heuristic layout-quality tracker (improvements/regressions vs baseline).
 - `bun run reference:mermaid` — clone the pinned Mermaid source to `../mermaid` and install
   the matching reference in `../mermaid-reference` (idempotent); `bun run test:mermaid-modern`

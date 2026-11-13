@@ -186,6 +186,8 @@ jobs:
     if: needs.scope.outputs.layout == 'true' && (github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch')
     runs-on: ubuntu-latest
     timeout-minutes: 25
+    # Review evidence, not a gate: steps record their outcome and the job ends
+    # green, so a red check on a PR always means a gating lane failed.
     continue-on-error: true
     permissions:
       contents: read
@@ -198,7 +200,9 @@ jobs:
           bun-version: 1.4.4
       - run: bun install --frozen-lockfile
       - name: Prepare the immutable base for layout review
+        id: base
         if: github.event_name == 'pull_request'
+        continue-on-error: true
         env:
           LAYOUT_BASE_SHA: ${{ github.event.pull_request.base.sha }}
         run: |
@@ -212,6 +216,8 @@ jobs:
           fi
           echo "LAYOUT_BASE_ROOT=$layout_base" >> "$GITHUB_ENV"
       - name: Render graph backend comparison
+        id: backends
+        continue-on-error: true
         env:
           LAYOUT_REVIEW: ${{ runner.temp }}/layout-backends
         run: |
@@ -288,6 +294,8 @@ jobs:
             }
           '
       - name: Render source-preserving edit review
+        id: edits
+        continue-on-error: true
         env:
           LAYOUT_REVIEW: ${{ runner.temp }}/layout-backends
         run: |
@@ -330,6 +338,11 @@ jobs:
           name: layout-backends-${{ github.event.pull_request.head.sha || github.sha }}
           path: ${{ runner.temp }}/layout-backends/
           retention-days: 14
+      - name: Report advisory outcome
+        if: always()
+        env:
+          OUTCOMES: ${{ toJSON(steps) }}
+        run: bun run scripts/ci/advisory-outcome.ts
 
   layout-quality-evidence:
     name: Generated layout diagnostic (advisory)
@@ -337,6 +350,7 @@ jobs:
     if: needs.scope.outputs.layout == 'true' && (github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch')
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    # Advisory: findings become warnings and the job summary; the job ends green.
     continue-on-error: true
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
@@ -348,6 +362,8 @@ jobs:
           no-cache: true
       - run: bun install --frozen-lockfile
       - name: Record every generated input and backend outcome
+        id: record
+        continue-on-error: true
         env:
           EVIDENCE_DIR: ${{ runner.temp }}/generated-layouts
         run: |
@@ -396,6 +412,8 @@ jobs:
               bun run eval/layout-compare/edit-run.ts --out "$EVIDENCE_DIR/edits-$cache.json"
           done
       - name: Compare backend readability and retain geometric tradeoffs
+        id: compare
+        continue-on-error: true
         env:
           EVIDENCE_DIR: ${{ runner.temp }}/generated-layouts
         run: |
@@ -419,6 +437,11 @@ jobs:
           name: generated-layouts-${{ github.event.pull_request.head.sha || github.sha }}
           path: ${{ runner.temp }}/generated-layouts/
           retention-days: 14
+      - name: Report advisory outcome
+        if: always()
+        env:
+          OUTCOMES: ${{ toJSON(steps) }}
+        run: bun run scripts/ci/advisory-outcome.ts
 
   quality:
     needs: scope

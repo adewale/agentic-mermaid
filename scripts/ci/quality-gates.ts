@@ -4,12 +4,15 @@ export interface QualityCheck {
   id: string
   label: string
   command: string[]
+  /** A local tool the check needs. CI always runs the check; the pre-push
+   * command skips it, visibly, when the tool is unavailable. */
+  requires?: 'docker' | 'chromium'
 }
 
 export const QUALITY_CHECKS: readonly QualityCheck[] = [
   { id: 'install', label: 'Install locked dependencies', command: ['bun', 'install', '--frozen-lockfile'] },
   { id: 'dependency-audit', label: 'Reject high or critical dependency advisories', command: ['bun', 'run', 'audit:dependencies'] },
-  { id: 'font-subsets', label: 'Regenerate and byte-verify canonical Inter subsets', command: ['bun', 'run', 'scripts/site/subset-website-inter-fonts.ts', '--check'] },
+  { id: 'font-subsets', label: 'Regenerate and byte-verify canonical Inter subsets', command: ['bun', 'run', 'scripts/site/subset-website-inter-fonts.ts', '--check'], requires: 'docker' },
   // This must precede website:check: the website demo intentionally performs
   // a write-mode lazy build, which would otherwise repair stale committed
   // catalog/descriptors before CI inspected them.
@@ -24,6 +27,28 @@ export const QUALITY_CHECKS: readonly QualityCheck[] = [
   { id: 'lint', label: 'Lint TypeScript', command: ['bun', 'run', 'lint:biome'] },
   { id: 'typecheck', label: 'Type check', command: ['bun', 'run', 'typecheck'] },
 ]
+
+// `bun run check:pre-push` runs the same gates before a push, so the push is
+// not their first run. It leaves the install to the developer (run it after
+// changing the lockfile) and adds the website payload budgets, which the
+// payload E2E lane checks with Chromium.
+export const PRE_PUSH_CHECKS: readonly QualityCheck[] = [
+  ...QUALITY_CHECKS.filter(check => check.id !== 'install'),
+  { id: 'website-payload', label: 'Verify website payload request graphs and budgets', command: ['bun', 'run', 'website:payload:check'], requires: 'chromium' },
+]
+
+const TOOL_PROBES: Record<NonNullable<QualityCheck['requires']>, { command: string[]; install: string }> = {
+  docker: { command: ['docker', 'info'], install: 'start Docker' },
+  chromium: { command: ['bun', '-e', 'import { chromium } from "playwright"; await (await chromium.launch()).close()'], install: 'run `bunx playwright install chromium`' },
+}
+
+function toolAvailable(tool: NonNullable<QualityCheck['requires']>): boolean {
+  try {
+    return Bun.spawnSync(TOOL_PROBES[tool].command, { stdout: 'ignore', stderr: 'ignore' }).exitCode === 0
+  } catch {
+    return false
+  }
+}
 
 export type CheckRunner = (check: QualityCheck) => number
 
@@ -57,8 +82,16 @@ function reportFailures(suite: string, failures: readonly QualityCheck[]): never
 }
 
 if (import.meta.main) {
-  const suite = 'Quality suite'
-  const failures = collectFailedChecks(QUALITY_CHECKS, runCheck)
+  const prePush = process.argv.includes('--pre-push')
+  const suite = prePush ? 'Pre-push checks' : 'Quality suite'
+  const skipped: string[] = []
+  const checks = prePush ? PRE_PUSH_CHECKS.filter(check => {
+    if (!check.requires || toolAvailable(check.requires)) return true
+    skipped.push(`${check.label}: skipped because ${check.requires} is unavailable (${TOOL_PROBES[check.requires].install}); CI still runs it`)
+    return false
+  }) : QUALITY_CHECKS
+  for (const line of skipped) process.stdout.write(`\n==> ${line}\n`)
+  const failures = collectFailedChecks(checks, runCheck)
   if (failures.length > 0) reportFailures(suite, failures)
-  process.stdout.write(`\n${suite} passed (${QUALITY_CHECKS.length} checks).\n`)
+  process.stdout.write(`\n${suite} passed (${checks.length} checks${skipped.length ? `, ${skipped.length} skipped` : ''}).\n`)
 }
