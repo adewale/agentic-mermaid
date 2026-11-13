@@ -1,0 +1,92 @@
+import type { MermaidGraph } from '../types.ts'
+
+/**
+ * Deterministic, O(V + E) proxy for the layered placement work a graph asks
+ * of ELK, computed from the graph alone (never from time or the host).
+ *
+ * Endpoints are ranked by model order (node declaration order, then first use
+ * of any other endpoint such as a group), every edge points from its earlier
+ * endpoint to its later one — the orientation model-order cycle breaking
+ * favours — and each endpoint takes its longest-path layer.
+ *
+ * - `dummySegments` is the long-edge dummy count Σ(span − 1): the extra
+ *   vertices every crossing-minimisation sweep must order.
+ * - `maxGapEdges` is the largest number of edges spanning one layer gap: the
+ *   segments one channel must order and route.
+ */
+export interface LayoutCostEstimate {
+  readonly nodes: number
+  readonly edges: number
+  readonly layers: number
+  readonly dummySegments: number
+  readonly maxGapEdges: number
+}
+
+/** ELK options relaxed above the cost thresholds, in a stable order. */
+export type RelaxedLayoutOption = 'model-order'
+
+export interface LayoutCostReceipt {
+  readonly estimate: LayoutCostEstimate
+  readonly relaxed: readonly RelaxedLayoutOption[]
+  /** Layout candidates the bounded search may produce, each with at most
+   * `maxElkAttemptsPerCandidate` ELK runs. */
+  readonly maxCandidates: number
+  readonly maxElkAttemptsPerCandidate: number
+}
+
+/**
+ * Model-order crossing minimisation (`considerModelOrder: NODES_AND_EDGES`
+ * with forced node order) dominates ELK time on these graphs: a complete
+ * 30-node DAG (4,060 dummy segments) took 72 s, a 30 × 30 state transition
+ * table (870 edges in one gap) 43 s. The largest values in the corpus,
+ * golden and website samples are 122 dummy segments and 179 gap edges, so no
+ * existing diagram reaches either threshold and their geometry is unchanged.
+ */
+export const LAYOUT_COST_THRESHOLDS = Object.freeze({ dummySegments: 1_000, maxGapEdges: 400 })
+/** Above a threshold: two candidates, each with two ELK option sets. */
+const BOUNDED_CANDIDATES = 2
+const BOUNDED_ELK_ATTEMPTS = 2
+
+export function estimateLayoutCost(graph: Pick<MermaidGraph, 'nodes' | 'edges'>): LayoutCostEstimate {
+  const order = new Map<string, number>()
+  for (const id of graph.nodes.keys()) order.set(id, order.size)
+  for (const edge of graph.edges) {
+    if (!order.has(edge.source)) order.set(edge.source, order.size)
+    if (!order.has(edge.target)) order.set(edge.target, order.size)
+  }
+  // Incoming lists keyed by the later endpoint; self-loops span no gap.
+  const earlier: number[][] = Array.from({ length: order.size }, () => [])
+  for (const edge of graph.edges) {
+    const a = order.get(edge.source)!, b = order.get(edge.target)!
+    if (a !== b) earlier[Math.max(a, b)]!.push(Math.min(a, b))
+  }
+  const layer = new Int32Array(order.size)
+  let layers = order.size ? 1 : 0
+  for (let v = 0; v < order.size; v++) {
+    for (const u of earlier[v]!) if (layer[u]! + 1 > layer[v]!) layer[v] = layer[u]! + 1
+    if (layer[v]! + 1 > layers) layers = layer[v]! + 1
+  }
+  // Difference array: gap g lies between layers g and g + 1.
+  const gapDelta = new Int32Array(layers + 1)
+  let dummySegments = 0
+  for (let v = 0; v < order.size; v++) {
+    for (const u of earlier[v]!) {
+      gapDelta[layer[u]!]!++
+      gapDelta[layer[v]!]!--
+      dummySegments += layer[v]! - layer[u]! - 1
+    }
+  }
+  let load = 0, maxGapEdges = 0
+  for (let gap = 0; gap < layers; gap++) {
+    load += gapDelta[gap]!
+    if (load > maxGapEdges) maxGapEdges = load
+  }
+  return { nodes: graph.nodes.size, edges: graph.edges.length, layers, dummySegments, maxGapEdges }
+}
+
+/** The bounded profile for a graph above a cost threshold, else undefined. */
+export function layoutCostReceipt(graph: Pick<MermaidGraph, 'nodes' | 'edges'>): LayoutCostReceipt | undefined {
+  const estimate = estimateLayoutCost(graph)
+  if (estimate.dummySegments < LAYOUT_COST_THRESHOLDS.dummySegments && estimate.maxGapEdges < LAYOUT_COST_THRESHOLDS.maxGapEdges) return undefined
+  return { estimate, relaxed: ['model-order'], maxCandidates: BOUNDED_CANDIDATES, maxElkAttemptsPerCandidate: BOUNDED_ELK_ATTEMPTS }
+}

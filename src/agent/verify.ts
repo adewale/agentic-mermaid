@@ -2,6 +2,7 @@ import { eventModelingUnsupportedSyntaxWarnings } from './eventmodeling-body.ts'
 import { canonicalWrapperConfig } from './wrapper-portability.ts'
 import { PaintLayoutCertificationError, renderedPaintCertification } from '../scene/paint-certification.ts'
 import { uncertifiedLayoutWarnings } from './uncertified-layout.ts'
+import { layoutCostWarnings } from './layout-cost-warning.ts'
 import { deferredDependency } from '../layout/certification-error.ts'
 // ============================================================================
 // verifyMermaid — Tier 1 (source/structure) + Tier 2 (geometric) + Tier 3 (lint).
@@ -255,7 +256,7 @@ function verifyParsedMermaid(input: ParsedDiagram | string, opts: VerifyOptions,
   }
   try {
     const structured = verifyStructure(parsed.value, opts, positioned, typeof input === 'string' ? input : undefined)
-    return withUncertifiedLayout(withRenderParity(withBrandConstraints(structured, opts, positioned), opts, positioned, shared), opts, positioned)
+    return withLayoutCost(withUncertifiedLayout(withRenderParity(withBrandConstraints(structured, opts, positioned), opts, positioned, shared), opts, positioned), opts, positioned)
   } catch (error) {
     // Family layouts, color admission and a work limit only a render-path
     // parser enforces (state nesting) are findings, not verify failures.
@@ -435,6 +436,15 @@ function withUncertifiedLayout(result: VerifyResult, opts: VerifyOptions, positi
     warnings: dedupedConcat(result.warnings, warnings),
     ...(certification && !result.layoutCertification ? { layoutCertification: certification } : {}),
   }
+}
+
+/** A graph laid out under the bounded cost profile: one advisory finding. */
+function withLayoutCost(result: VerifyResult, opts: VerifyOptions, positioned: VerificationArtifact): VerifyResult {
+  let artifact: ProjectedFamilyArtifact | null
+  try { artifact = positioned() } catch { return result }
+  const suppressed = new Set(opts.suppress ?? [])
+  const warnings = artifact ? layoutCostWarnings(artifact.layoutResult.positioned).filter(warning => !suppressed.has(warning.code)) : []
+  return warnings.length ? { ...result, warnings: dedupedConcat(result.warnings, warnings) } : result
 }
 
 // Gantt's todayMarker directive style payload: the wired line-paint

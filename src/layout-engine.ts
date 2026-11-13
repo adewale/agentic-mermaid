@@ -11,6 +11,7 @@ import { LABEL_PILL_PADDING } from './shared/edge-label-geometry.ts'
 import { performanceExperimentEnabled } from './experimental-performance.ts'
 import { indexedForestLayout, isIndexedForestGraph } from './experimental/indexed-forest.ts'
 import { observeFallback } from './performance-observations.ts'
+import { layoutCostReceipt, type LayoutCostReceipt } from './layout/layout-cost.ts'
 import type { PixelTextBlock } from './shared/prepared-text.ts'
 import { assertMermaidGraphWork, DiagramWorkLimitError } from './shared/diagram-limits.ts'
 /**
@@ -134,11 +135,13 @@ interface LayoutEngineOptions extends RenderOptions {
    * graph only for placement and subsequently replaces its routes. Hard
    * certification and the existing title-readability fallback still apply. */
   compareRoutePreferences?: boolean
+  /** @internal The bounded profile of a graph above a layout cost threshold. */
+  layoutCost?: LayoutCostReceipt
 }
 
 type MarkerPortDemand = { count: number; span: number }
 type ElkConversionOptions = Required<Pick<RenderOptions, 'font' | 'padding' | 'nodeSpacing' | 'layerSpacing'>> &
-  Pick<LayoutEngineOptions, 'preserveSubgraphChildOrder' | 'separateHierarchy' | 'disableCorankFanIn' | 'layoutHints' | 'nodeSizes' | 'preferModelOrder'> & { stateVisual?: ResolvedStateVisualConfig; markerPortExtents?: ReadonlyMap<string, MarkerPortDemand> }
+  Pick<LayoutEngineOptions, 'preserveSubgraphChildOrder' | 'separateHierarchy' | 'disableCorankFanIn' | 'layoutHints' | 'nodeSizes' | 'preferModelOrder' | 'layoutCost'> & { stateVisual?: ResolvedStateVisualConfig; markerPortExtents?: ReadonlyMap<string, MarkerPortDemand> }
 
 // ============================================================================
 // Layout options
@@ -720,6 +723,12 @@ function mermaidToElk(
       // Use SEPARATE when subgraphs have direction overrides (enables proper direction handling)
       // Use INCLUDE_CHILDREN otherwise (simpler cross-hierarchy edge routing)
       'elk.hierarchyHandling': separateHierarchy ? 'SEPARATE' : 'INCLUDE_CHILDREN',
+      // Model-order crossing minimisation is the dominant ELK cost on graphs
+      // above the layout cost thresholds; ELK's own sweep orders them instead.
+      ...(opts.layoutCost?.relaxed.includes('model-order') ? {
+        'elk.layered.considerModelOrder.strategy': 'NONE',
+        'elk.layered.crossingMinimization.forceNodeModelOrder': 'false',
+      } : {}),
     },
     children: [],
     edges: [],
@@ -2154,7 +2163,7 @@ function layoutCandidate(
   // with post-compaction + forced model order. Crash-freedom is part of this
   // renderer's contract, so degrade through progressively plainer option
   // sets; the route-contract pass repairs whatever the survivor produces.
-  const degradations: Array<Record<string, string>> = [
+  const ladder: Array<Record<string, string>> = [
     {},
     { 'elk.layered.feedbackEdges': 'false' },
     { 'elk.layered.feedbackEdges': 'false', 'elk.layered.compaction.postCompaction.strategy': 'NONE' },
@@ -2165,6 +2174,8 @@ function layoutCandidate(
       'elk.layered.highDegreeNodes.treatment': 'false',
     },
   ]
+  // A graph above the layout cost thresholds keeps the plainest fallback only.
+  const degradations = options.layoutCost ? [ladder[0]!, ladder[ladder.length - 1]!].slice(0, options.layoutCost.maxElkAttemptsPerCandidate) : ladder
   let result: ElkNode | undefined
   let lastError: unknown
   let degradationReason = 'exception'
@@ -2252,7 +2263,10 @@ function layoutUntitledGraph(graph: MermaidGraph, options: LayoutEngineOptions):
  * ELK option degradation ladder. No recursive retry or process-env mutation. */
 function layoutElkGraph(graph: MermaidGraph, options: LayoutEngineOptions): PositionedGraph
 function layoutElkGraph(graph: MermaidGraph, options: LayoutEngineOptions, purpose: 'placement'): Pick<PositionedGraph, 'width' | 'height' | 'nodes' | 'groups'>
-function layoutElkGraph(graph: MermaidGraph, options: LayoutEngineOptions, purpose?: 'placement'): PositionedGraph | Pick<PositionedGraph, 'width' | 'height' | 'nodes' | 'groups'> {
+function layoutElkGraph(graph: MermaidGraph, requestOptions: LayoutEngineOptions, purpose?: 'placement'): PositionedGraph | Pick<PositionedGraph, 'width' | 'height' | 'nodes' | 'groups'> {
+  // Decided from the graph alone, before any ELK work.
+  const layoutCost = layoutCostReceipt(graph)
+  const options = layoutCost ? { ...requestOptions, layoutCost } : requestOptions
   const style = resolveRenderStyle(options, options.stateVisual?.styleDefaults, options.styleFace)
   // A placement with a narrow title, or with final routes detoured around a
   // title band, defers to the next bounded candidate and is kept if that one
@@ -2293,12 +2307,13 @@ function layoutElkGraph(graph: MermaidGraph, options: LayoutEngineOptions, purpo
   // Report layout safety still draws a graph no candidate certifies, from its
   // best drawable candidate, with an uncertified receipt; strict refuses.
   const allowUncertified = options.layoutSafety !== 'strict'
+  if (layoutCost) candidates.length = Math.min(candidates.length, layoutCost.maxCandidates)
   if (purpose === 'placement') return certifyLayoutPlacementCandidates(graph, style, candidates, preliminary, allowUncertified)
-  const selected = certifyLayoutWithRouteAlternative(graph, style, candidates, (placed, score) => {
+  const selected = withLayoutCost(certifyLayoutWithRouteAlternative(graph, style, candidates, (placed, score) => {
     const makeRoute = routeAlternatives.get(placed)
     if (!makeRoute || (score.edgeCrossings === 0 && score.labelConflicts === 0)) return undefined
     return { strategy: 'without-generic-bundling', produce: makeRoute, preferNext: preferReadableTitles }
-  }, preliminary, allowUncertified)
+  }, preliminary, allowUncertified), layoutCost)
   const certification = selected.certification!, before = certification.preference.selectedScore
   const optimization = layoutOptimization()
   if (options.graphLayout?.quality === 'balanced' && optimization?.layoutOptimizationEnabled('elk-order') && optimization.canExploreLayout()
@@ -2310,13 +2325,18 @@ function layoutElkGraph(graph: MermaidGraph, options: LayoutEngineOptions, purpo
     })
     if (result.certified && optimization.nonRegressingAlternative(selected, result.certified.positioned)) {
       optimization.selectedLayoutOptimization('prefer-model-order')
-      return retainSelection(graph, { selected: result.certified, reason: 'non-regressing',
+      return withLayoutCost(retainSelection(graph, { selected: result.certified, reason: 'non-regressing',
         attempts: certification.attempts + 1,
         compared: [...certification.preference.compared, { strategy: result.certified.strategy, score: result.certified.score }],
-      })
+      }), layoutCost)
     }
   }
   return selected
+}
+
+function withLayoutCost(positioned: PositionedGraph, receipt: LayoutCostReceipt | undefined): PositionedGraph {
+  if (receipt) positioned.layoutCost = receipt
+  return positioned
 }
 
 function groupsNarrowerThanTitles(groups: readonly PositionedGroup[], graph: MermaidGraph, style: ResolvedRenderStyle): boolean {

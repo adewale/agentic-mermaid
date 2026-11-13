@@ -216,6 +216,9 @@ export interface PositionedGraph extends PositionedDiagram {
   /** Instead of `certification`: report layout safety drew this graph from its
    * best drawable candidate although none certified. */
   uncertifiedLayout?: import('./layout/uncertified-layout.ts').UncertifiedLayoutReceipt
+  /** Present when the graph exceeded a layout cost threshold: the estimate,
+   * the ELK options relaxed and the bounded candidate search. */
+  layoutCost?: import('./layout/layout-cost.ts').LayoutCostReceipt
 }
 
 /** A placed state-diagram note box. */
