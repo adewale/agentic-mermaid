@@ -26,11 +26,8 @@ route-contract extraction preserves the existing pipeline manifest and order.
 
 - [ ] **PERF-1 — Close the remaining measured performance gaps**
   (`todo`, owner requested 2026-10-22). PRs #467 and #468 merged. Their
-  [campaign report](docs/project/archive/performance-campaign-2026-10-22.md),
-  [recommendation crosswalk](docs/project/archive/performance-campaign-2026-10-22-crosswalk.md)
-  and [follow-up report](docs/project/archive/performance-followup-2026-10-23.md)
-  retain their measured revisions, rejected trials and mixed timing/memory
-  results. Later performance work also landed in #433, #479, #480, #495 and
+  historical measurements remain in those PRs and Git history. Later
+  performance work also landed in #433, #479, #480, #495 and
   #496; those merges do not establish current release qualification or general
   superiority over peers. Finish the current candidate's semantic, peer,
   tail-latency and allocation comparisons, qualify the SVG-number conversion
@@ -39,8 +36,7 @@ route-contract extraction preserves the existing pipeline manifest and order.
   blocked renderer-lifetime prototype are not shipped improvements. Production
   SVG-only distribution remains unimplemented. Renderer-lifetime controls still
   need qualification within the payload caps; broader geometry reuse requires
-  explicit geometry/proof ownership. Keep the
-  [campaign preservation contract](docs/design/system/performance-campaign.md).
+  explicit geometry/proof ownership.
 
 - [ ] **DEC-6 — Decide the hosted `execute` boundary from usage evidence**
   (`owner-decision`, [#204](https://github.com/adewale/agentic-mermaid/issues/204)).

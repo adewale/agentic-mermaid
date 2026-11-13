@@ -1,20 +1,14 @@
 #!/usr/bin/env bun
-import { spawnSync } from 'node:child_process'
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
-import { tmpdir } from 'node:os'
+import { existsSync, mkdirSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { Resvg } from '@resvg/resvg-js'
 import { getFamily, knownBuiltinFamilies } from '../../src/agent/families.ts'
 import { renderMermaidPNG } from '../../src/agent/png.ts'
 import { inspectPngDimensions } from '../../src/output-color-profile.ts'
 import { renderMermaidSVG, validateStyleSpec, type StyleSpec } from '../../src/index.ts'
-import { repositoryPath, sha256File } from './artifact-receipt.ts'
 
 const ROOT = join(import.meta.dir, '..', '..')
 export const OUTPUT = join(ROOT, 'src', '__tests__', 'testdata', 'section-b-brand-evidence.png')
-export const VISUAL_APPROVAL = join(ROOT, 'eval', 'section-b-brand-evidence', 'visual-approval.json')
-export const SECTION_B_BASELINE_COMMIT = 'e60be1e68b5aa51fac205c7cf9e481ea3b27ffc8'
-const README = join(ROOT, 'eval', 'section-b-brand-evidence', 'README.md')
 const FONT_FILES = [
   join(ROOT, 'assets', 'fonts', 'DejaVuSans.ttf'),
   join(ROOT, 'assets', 'fonts', 'DejaVuSans-Bold.ttf'),
@@ -101,7 +95,7 @@ function escapeXml(value: string): string {
   return value.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
 }
 
-export function sectionBVariantHeadingMarkup(
+function sectionBVariantHeadingMarkup(
   variantName: string,
   cursorY: number,
   width: number,
@@ -175,41 +169,6 @@ export function buildSectionBBrandEvidence(): Uint8Array {
   }).render().asPng()
 }
 
-interface VisualApprovalRecord {
-  schemaVersion: 1
-  status: 'approved'
-  artifact: string
-  artifactSha256: string
-  reviewedAt: string
-  reviewer: string
-  scope: string
-  audit: string
-}
-
-function verifiedVisualApproval(outputSha256: string) {
-  const approval = JSON.parse(readFileSync(VISUAL_APPROVAL, 'utf8')) as Partial<VisualApprovalRecord>
-  const expectedArtifact = repositoryPath(ROOT, OUTPUT)
-  if (approval.schemaVersion !== 1 || approval.status !== 'approved' || approval.artifact !== expectedArtifact) {
-    throw new Error('Section B visual approval is malformed; inspect the generated sheet and update visual-approval.json')
-  }
-  if (approval.artifactSha256 !== outputSha256) {
-    throw new Error(`Section B visual approval covers ${approval.artifactSha256 ?? 'no hash'}, not ${outputSha256}; inspect the generated sheet at native size before approving it`)
-  }
-  for (const field of ['reviewedAt', 'reviewer', 'scope', 'audit'] as const) {
-    if (typeof approval[field] !== 'string' || approval[field]!.trim().length === 0) {
-      throw new Error(`Section B visual approval requires a non-empty ${field}`)
-    }
-  }
-  return {
-    path: repositoryPath(ROOT, VISUAL_APPROVAL),
-    status: approval.status,
-    artifactSha256: approval.artifactSha256,
-    reviewedAt: approval.reviewedAt,
-    reviewer: approval.reviewer,
-    audit: approval.audit,
-  }
-}
-
 /** Render the sentinel stack for every built-in family through one graphical
  * backend. Returns the byte sizes so callers can assert that every family
  * produced output; the bytes themselves are not pinned. */
@@ -225,42 +184,9 @@ export function runSectionBBackendProbe(style: StyleSpec): Array<{ family: strin
   })
 }
 
-export function verifySectionBCausalBaseline(): { commit: string; exitCode: number; diagnostic: string } {
-  const worktree = mkdtempSync(join(tmpdir(), 'am-section-b-base-'))
-  rmSync(worktree, { recursive: true, force: true })
-  const add = spawnSync('git', ['worktree', 'add', '--quiet', '--detach', worktree, SECTION_B_BASELINE_COMMIT], {
-    cwd: ROOT, encoding: 'utf8',
-  })
-  if (add.status !== 0) throw new Error(`Unable to create Section B baseline worktree: ${add.stderr || add.stdout}`)
-  try {
-    const dependencies = join(ROOT, 'node_modules')
-    if (existsSync(dependencies)) symlinkSync(dependencies, join(worktree, 'node_modules'), process.platform === 'win32' ? 'junction' : 'dir')
-    const run = spawnSync(process.execPath, [
-      'run', 'bin/am.ts', 'render',
-      join(ROOT, 'eval/section-b-brand-evidence/baseline.mmd'),
-      '--format', 'svg',
-      '--style', join(ROOT, 'eval/section-b-brand-evidence/role-style.json'),
-    ], { cwd: worktree, encoding: 'utf8' })
-    const diagnostic = `${run.stderr ?? ''}${run.stdout ?? ''}`.trim()
-    if (run.status !== 2 || !diagnostic.includes('unknown field "roles"')) {
-      throw new Error(`Pinned Section B baseline did not reject roles as expected (exit ${run.status}): ${diagnostic}`)
-    }
-    return { commit: SECTION_B_BASELINE_COMMIT, exitCode: run.status, diagnostic }
-  } finally {
-    spawnSync('git', ['worktree', 'remove', '--force', worktree], { cwd: ROOT, encoding: 'utf8' })
-    rmSync(worktree, { recursive: true, force: true })
-  }
-}
-
-/** The recorded visual review must name the exact bytes of the committed golden. */
-export function sectionBVisualApproval(): ReturnType<typeof verifiedVisualApproval> {
-  return verifiedVisualApproval(sha256File(OUTPUT))
-}
-
 if (import.meta.main) {
   mkdirSync(dirname(OUTPUT), { recursive: true })
   mkdirSync(join(ROOT, 'eval', 'section-b-brand-evidence'), { recursive: true })
   writeFileSync(OUTPUT, buildSectionBBrandEvidence())
-  writeFileSync(README, `# Section B visual evidence\n\nThe pinned pre-Section-B commit \`${SECTION_B_BASELINE_COMMIT}\` rejects the public \`roles\` field, so no plausible before image exists. \`baseline.mmd\` and \`role-style.json\` are the exact committed inputs. Reproduce it manually by checking out that commit in a worktree and running \`bun run bin/am.ts render baseline.mmd --format svg --style role-style.json\`; the expected result is exit 2 plus the \`unknown field "roles"\` diagnostic. Routine shallow-history checks verify the frozen inputs and current evidence rather than executing an old checkout.\n\nThe generated after sheet renders every registered family through one deliberately distinctive sentinel and three holdout inline StyleSpec records. Every cell uses the public native PNG API; the unit test also renders the sentinel across all registered families through default, rough, and hybrid SVG+PNG probes. Inspect typography, padding/radius/line-weight changes, cross-family palette coherence, and the Pie card: \`Pro\` remains the family-authored highlighted slice while the sentinel category binding changes its paint without changing wedge geometry. The native-size visual review and deployed-website comparison are recorded by \`visual-approval.json\` and \`production-comparison.md\`. The separate Cupertino-, Vercel-, and Cloudflare Workers-inspired public-record evidence is catalogued in \`examples/styles/catalog.json\` and pinned by \`eval/style-prototype-evidence/visual-approval.json\`.\n\nThe reviewed rendering golden is \`src/__tests__/testdata/section-b-brand-evidence.png\`, under the repository reviewed-golden exception. Approval is intentionally separate from generation: run \`bun run gallery:section-b\` to create a candidate, inspect all registered family-by-variant cells at native size, and update \`visual-approval.json\` with the candidate SHA-256 and audit path. \`src/__tests__/section-b-visual-evidence.test.ts\` regenerates the sheet in memory, byte-compares it with the committed PNG, and checks that the approval names those exact bytes.\n`)
   process.stdout.write(`wrote ${OUTPUT}\n`)
 }

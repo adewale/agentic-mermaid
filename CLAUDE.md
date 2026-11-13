@@ -180,8 +180,7 @@ The seven dimensions:
 4. **Tests that prove the fix** — tests must fail when the fix is reverted.
    Verify red→green and state the result (e.g. "N tests fail without the fix").
    For bug fixes, demonstrate the intended failure and passing repair at the
-   owning boundary. The optional `scripts/ci/red-green.ts --base <sha>` diagnostic
-   can help; one failing assertion does not prove every changed contract.
+   owning boundary; one failing assertion does not prove every changed contract.
    Behavior-preserving refactors do not need a failing-base test or opt-out label.
 5. **Scoped and safe** — one concern, minimal diff, full test suite run, risks flagged.
 6. **Standalone description** — what / why / how / testing / risk, understandable

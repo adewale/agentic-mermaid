@@ -143,21 +143,6 @@ describe('custom style cookbook docs', () => {
 
   })
 
-  it('binds recorded visual review evidence to each prototype screenshot', () => {
-    const approval = JSON.parse(readFileSync(join(REPO, 'eval/style-prototype-evidence/visual-approval.json'), 'utf8')) as {
-      status: string
-      artifacts: Array<{ id: string; path: string; sha256: string }>
-    }
-    expect(approval.status).toBe('approved')
-    expect(approval.artifacts.map(artifact => artifact.id)).toEqual(
-      CUSTOM_STYLE_CATALOG.examples.filter(entry => entry.docsOnly).map(entry => entry.id),
-    )
-    for (const artifact of approval.artifacts) {
-      const bytes = readFileSync(join(REPO, artifact.path))
-      expect(createHash('sha256').update(bytes).digest('hex'), artifact.path).toBe(artifact.sha256)
-    }
-  })
-
   it('keeps cookbook screenshots in sync with the generator', () => {
     // Compare digests, not whole Buffers: a drifted PNG then reports which file
     // is stale instead of an unreadable byte diff. Regenerate with

@@ -2,10 +2,40 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, renameS
 import { basename, dirname, isAbsolute, join, relative, resolve, sep } from 'node:path'
 import { execFileSync } from 'node:child_process'
 import ts from 'typescript'
-import { extractMermaidBlocks } from '../family-usage/count.ts'
 
 // This tool records source provenance. It neither executes upstream tests nor
 // derives test expectations from Agentic Mermaid's implementation.
+const FENCE_RE = /^([ \t]*)(`{3,}|~{3,})[ \t]*mermaid\b[^\n]*$/i
+
+/** Keep fence occurrences and bodies intact for historical source citations. */
+function extractMermaidBlocks(markdown: string): string[] {
+  const lines = markdown.split(/\r?\n/)
+  const blocks: string[] = []
+  for (let i = 0; i < lines.length; i++) {
+    const open = lines[i]!.match(FENCE_RE)
+    if (!open) continue
+    const fenceChar = open[2]![0]!
+    const fenceLen = open[2]!.length
+    const body: string[] = []
+    let closed = false
+    for (let j = i + 1; j < lines.length; j++) {
+      const closeMatch = lines[j]!.match(/^[ \t]*(`{3,}|~{3,})[ \t]*$/)
+      if (closeMatch && closeMatch[1]![0] === fenceChar && closeMatch[1]!.length >= fenceLen) {
+        blocks.push(body.join('\n'))
+        i = j
+        closed = true
+        break
+      }
+      body.push(lines[j]!)
+    }
+    if (!closed) {
+      blocks.push(body.join('\n'))
+      i = lines.length
+    }
+  }
+  return blocks
+}
+
 type Family = string
 interface FamilyConfig { family: Family; files: Array<{ path: string; testBlocks: number }>; consideredBlocks: number; companionBench?: string }
 interface TestBlock {

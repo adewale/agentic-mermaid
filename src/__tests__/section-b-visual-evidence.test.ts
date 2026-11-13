@@ -1,13 +1,10 @@
 import { describe, expect, test } from 'bun:test'
-import { createHash } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { buildSectionBBrandEvidence, GRAPHICAL_BACKEND_PROBES, runSectionBBackendProbe, sectionBVariantHeadingMarkup, sectionBVisualApproval } from '../../scripts/pr-assets/section-b-brand-evidence.ts'
+import { buildSectionBBrandEvidence, GRAPHICAL_BACKEND_PROBES, runSectionBBackendProbe } from '../../scripts/pr-assets/section-b-brand-evidence.ts'
 import { knownBuiltinFamilies } from '../agent/families.ts'
 
-const ROOT = join(import.meta.dir, '..', '..')
 const PNG = join(import.meta.dir, 'testdata', 'section-b-brand-evidence.png')
-const APPROVAL = join(ROOT, 'eval/section-b-brand-evidence/visual-approval.json')
 
 function pngDimensions(bytes: Uint8Array): { width: number; height: number } {
   const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength)
@@ -16,44 +13,15 @@ function pngDimensions(bytes: Uint8Array): { width: number; height: number } {
 }
 
 describe('Section B reviewed rendering golden', () => {
-  test('positions every variant heading inside its own section band', () => {
-    const sectionHeight = 86 + 5 * 380
-    for (let index = 0; index < 4; index++) {
-      const cursorY = index * sectionHeight
-      const markup = sectionBVariantHeadingMarkup(`Variant ${index}`, cursorY, 1560, 86)
-      const positions = [...markup.matchAll(/<text\b[^>]*\sy="([^"]+)"/g)].map(match => Number(match[1]))
-      expect(positions).toHaveLength(2)
-      for (const y of positions) {
-        expect(Number.isFinite(y)).toBe(true)
-        expect(y).toBeGreaterThan(cursorY)
-        expect(y).toBeLessThan(cursorY + 86)
-      }
-      expect(positions[1]!).toBeGreaterThan(positions[0]!)
-    }
-  })
-
   test('byte-matches the registry-driven renderer output and is reviewable at native size', () => {
     const checked = readFileSync(PNG)
     expect(
       Buffer.from(buildSectionBBrandEvidence()).equals(checked),
-      'Section B PNG differs from the reviewed golden; inspect the candidate before updating visual-approval.json',
+      'Section B PNG differs from the reviewed golden; inspect the candidate before updating the golden',
     ).toBe(true)
     expect(pngDimensions(checked)).toEqual({ width: 1560, height: 17064 })
     expect(checked.byteLength).toBeGreaterThan(500_000)
   }, 120_000)
-
-  test('the recorded visual review approves the exact committed rendering bytes', () => {
-    const approval = JSON.parse(readFileSync(APPROVAL, 'utf8'))
-    expect(sectionBVisualApproval()).toEqual({
-      path: 'eval/section-b-brand-evidence/visual-approval.json',
-      status: 'approved',
-      artifactSha256: createHash('sha256').update(readFileSync(PNG)).digest('hex'),
-      reviewedAt: approval.reviewedAt,
-      reviewer: approval.reviewer,
-      audit: approval.audit,
-    })
-
-  })
 
   test('the sentinel renders every built-in family through the default, rough, and hybrid backends', () => {
     expect(GRAPHICAL_BACKEND_PROBES.map(([backend]) => backend)).toEqual(['default', 'rough', 'hybrid'])

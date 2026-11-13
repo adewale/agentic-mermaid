@@ -1,42 +1,5 @@
 # Benchmark measurement rules
 
-The focused font/layout cost campaign lives under `eval/font-layout/`.
-`run.ts --root CHECKOUT --out DIRECTORY --features fonts,elk-order,ports,wrap`
-records the fixed tracker/campaign corpus, per-case quality/raster artifacts,
-latency and separate resource observations. Run without features on the pinned
-base before changing production code. `font-oracle.py CHECKOUT CORPUS OUTPUT
---bundled` compares advances with whole-run HarfBuzz; omit `--bundled` for base
-estimates. `browser.ts --root CHECKOUT --out FILE --features LIST` records real
-gzip HTTP requests and consumed browser receipts from an immutable built checkout.
-
-Build both immutable checkouts with `bun run build` first. Then
-`paired.ts --baseline BASE --head HEAD --corpus CORPUS --out DIRECTORY` runs
-alternating controls and individual, combined and leave-one-feature-out
-configurations. It also measures the final shipped code with every feature
-disabled, cached and recomputed SVG calls, separate PNG resource/latency lanes,
-and 21 fresh-process samples of one named startup case. These cost lanes import
-the built public `dist/index.js` and `dist/agent.js` entries. The source/OS/runtime,
-features, cache policy and cohort are recorded before execution. Results are
-append-only and the commands refuse an existing attempt destination. The
-original development workload remains exposed, not an independent holdout.
-
-`cache-replay.ts --root BUILT_CHECKOUT --reference QUALITY_DIRECTORY --out FILE`
-compares first and repeated public receipt calls with every retained quality
-SVG. Reuse raster evidence only for exact identical SVG bytes; retain the replay
-source and all mismatches. `python3 eval/font-layout/report.py MEASUREMENTS
-PAIRED_SUBDIRECTORY OUTPUT_STEM` generates matched JSON and an HTML comparison
-with absolute per-case costs, control variation, interaction ablations and real
-rendered evidence. It audits missing, duplicate and unexpected cost rows. Keep
-earlier iterations when measurements motivate a follow-up optimization.
-
-`warm-memory.ts --baseline BASE --head HEAD --out DIRECTORY` is a separate
-follow-up lane for retained memory after the same call counts as latency:
-13 SVG or five PNG calls in each fresh child. It preserves first-call and
-warmed snapshots, held/released GC phases, alternating controls, all ten
-configurations, three rounds and the frozen memory cohorts. Run it only after
-timing exits. It does not saturate mixed-workload caches. The report merges
-this lane only when its base/head revisions match the selected paired campaign.
-
 The five primary questions are docs rendering, original upstream assertion
 compatibility, required-family coverage, entry startup and resource use. Keep
 their denominators, units and scopes visible. No weighted overall score ranks a

@@ -1,34 +1,13 @@
 # Selected performance paths
 
-PR #436 retains `text-spans,indexed-layout,position-cache` and enables that
-combination by default. The other nine prototypes were removed from production
-and their owning experiment tests; the reports below preserve their historical
-measurements. Main already supplied the qualified forest solver. This PR adds
-prepared-text and positioned-result reuse and selects all three at startup.
+Ordinary imports select `text-spans,indexed-layout,position-cache` at startup.
+These paths reuse prepared text and positioned results, and choose the forest
+solver for eligible graphs. Exact repeats benefit most; unrelated requests can
+pay lookup, copying and residency costs.
 
-## Selection
-
-The [original final-source study](flagged-performance-final-2026-10-20.md) measured
-source `65e65bd452985937563b3b2f76d4f0ff86c75276` against
-`d709c7291ca6591dc9af060b2c7c7ec3349d3fc4`. Its separate 27-case natural-GC,
-cache-on confirmation gave the selected profile SVG/all-output latency scores
-of **0.718879/0.712570**, versus **0.764038/0.795986** for all twelve flags.
-Lower is better; each profile has its own adjacent empty-flag references.
-These are observed aggregate ratios, not an exhaustive subset optimum or an
-estimate of production traffic. They do not measure the later combined source.
-
-The selected profile's separate allocation estimate was 0.684995 of its
-reference, with **4,355,968 bytes more final settled worker heap**. All twelve
-retained more heap and included 4.6–8.6× reverse-order helper regressions.
-Cold TF and browser evidence is mixed. Exact repeats benefit most; unrelated
-requests can pay lookup, copying and residency costs. This is a latency choice
-with bounded cache retention, not a universal latency/memory/payload win.
-
-The [earlier comprehensive study](flagged-performance-results-2026-10-20.md),
-[integration study](flagged-performance-integration-2026-10-20.md) and
-[prior-baseline report](flagged-performance-results-2026-10-19.md) are historical.
-Their references to twelve flags and default-off behavior describe those
-revisions. Fresh combined-source checks and CI are recorded in PR #436.
+The superseded prototype studies remain in
+[Git history](https://github.com/adewale/agentic-mermaid/tree/9136b07efb8944a1058de9834b18fe5916884174/docs/project/).
+For current measurements, use [Trident](https://github.com/adewale/trident/blob/main/RESULTS.md).
 
 ## Mechanisms and limits
 
@@ -39,10 +18,7 @@ revisions. Fresh combined-source checks and CI are recorded in PR #436.
 | `position-cache` | Exact repeated requests reuse private positioned snapshots. | One 128-entry / 16 MiB estimated-weight LRU across isolated descriptor identities. Fresh clones restore prepared-text provenance; final projection certification still runs. Keys include source, appearance, options, family config, relevant environment and selected flags. Gantt, extensions, custom measurement and uncloneable artifacts (including C4 callbacks) bypass reuse. |
 
 Weights are conservative estimates, not strict JS heap caps. Cache activation
-retains code in downloaded bundles. Delivery must be measured separately; this
-selection removes unused prototype code. Flow/State Brotli ceilings increase
-from 570,000 to 571,000 bytes for the retained paths; other budgets and the
-relative payload gate remain unchanged.
+retains code in downloaded bundles, so delivery cost must be measured separately.
 
 ## Startup configuration
 
@@ -67,24 +43,13 @@ precedence. Changing the experiment setting after import has no effect.
 Internal tests can synchronously scope a selection with
 `withPerformanceExperiments`; this is not a public render option.
 
-## Reproduce
+## Owning checks
 
-The existing matrix uses sequential fresh processes, counterbalanced pairs,
-complete output fingerprints outside timing and casewise median latency ratios.
-`--baseline-ref` uses that revision's production source with the current harness.
-Use explicit feature lists to compare defaults with isolated subsets, and an
-empty-flag baseline-source configuration for A/A calibration. Failed or
-incomplete cases do not receive a speed score. Natural timing and forced-GC
-allocation/heap diagnostics must run separately.
-
-```sh
-bun run bench:experiments --baseline-ref origin/main --phase ablation --paired 1 --cache on --gc natural --warmup 5 --warmup-ms 1000 --samples 12 --rounds 3 --out bench-report/experiments/selection
-bun test --timeout 30000 src/__tests__/performance-startup.test.ts src/__tests__/performance-graph-experiments.test.ts src/__tests__/performance-other-experiments.test.ts src/__tests__/performance-adversarial-semantics.test.ts src/__tests__/performance-scene-experiments.test.ts
-```
-
-The ablation roster now covers the three retained paths only. Startup tests
+Startup tests in `src/__tests__/performance-startup.test.ts`
 exercise unset defaults, empty and subset process values, and browser globals.
 Owning contracts cover exact wrap ties, Unicode provenance, custom metrics,
 mutable returned geometry, bounded cross-family residency, cache opt-out,
-C4 callback bypass, forest fallback and final security admission. The small
-inline-label opacity fix remains independent of the removed Scene prototypes.
+C4 callback bypass, forest fallback and final security admission.
+
+For targeted profiling and ablation commands, see the
+[benchmark guide](../../eval/benchmark/BENCHMARKS.md).

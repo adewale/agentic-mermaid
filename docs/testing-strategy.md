@@ -67,8 +67,7 @@ CI validates transferred fixtures with `--reuse`; `--reuse-lazy` is reserved for
 the artifact producer immediately after its portable bundle build. No source
 fingerprints or persistent freshness sentinels decide whether output is current.
 
-The payload lane retains before/after witnesses for rendering changes; they can
-also be generated on demand with
+Generate focused before/after witnesses when reviewing a rendering change with
 `scripts/pr-assets/meaning-preservation-evidence.ts BASE_SHA HEAD_SHA OUT_DIR`.
 Scene comparisons cover the full selected corpus. Comparer fault checks run
 once on the first eligible scene for each case, with progress logged per scene.
@@ -537,9 +536,8 @@ Tests can be green while missing faults. The red-green-refactor cycle is the
 defence: write the test, watch it fail for the right reason, then fix.
 
 - **Red → green** is evidence for a bug fix, not a universal PR formality.
-  Run `bun scripts/ci/red-green.ts --base <sha>` when comparing changed tests
-  with base production helps demonstrate the intended regression. It is an
-  opt-in diagnostic: missing imports, setup failures, timeouts and aborted
+  Run the owning regression case against the broken implementation and its
+  repair. Missing imports, setup failures, timeouts and aborted
   runners do not count as behavioral evidence. A located assertion failure
   still needs review; one unrelated red test cannot establish coverage for all
   changed contracts. Refactors preserve behavior and need no failing-base
