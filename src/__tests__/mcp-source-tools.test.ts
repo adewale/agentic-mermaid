@@ -261,6 +261,30 @@ parentPort.postMessage({type:'ready'});`)
     expect(await active).toMatchObject({ ok: true, svg: expect.stringContaining('<svg') })
   }, 30_000)
 
+  // A 4,000-node chain takes seconds to lay out in process. Every tool that
+  // lays out runs in the supervised renderer, so a short host deadline stops it
+  // promptly with the typed timeout and the next call is served normally.
+  const chain = Array.from({ length: 3_999 }, (_, index) => `n${index} --> n${index + 1}`)
+  test.each([
+    ['render_png', { source: `flowchart TD\n${chain.join('\n')}` }],
+    ['describe', { source: `flowchart TD\n${chain.join('\n')}` }],
+    ['mutate', { source: `flowchart TD\n${chain.join('\n')}`, ops: [{ kind: 'add_node', id: 'extra', label: 'Extra' }] }],
+    ['build', { family: 'flowchart', ops: Array.from({ length: 3_999 }, (_, index) => ({ kind: 'add_edge', from: `n${index}`, to: `n${index + 1}` })) }],
+  ])('%s is stopped at the renderer deadline', async (name, args) => {
+    const request = (id: number, params: Record<string, unknown>, renderTimeoutMs?: number) =>
+      handleRequest({ jsonrpc: '2.0', id, method: 'tools/call', params }, { renderTimeoutMs })
+    const payload = (response: Awaited<ReturnType<typeof request>>) => {
+      const result = response?.result as { isError: boolean; content: { text: string }[] }
+      return { isError: result.isError, ...JSON.parse(result.content[0]!.text) }
+    }
+    // Warm the renderer so the short deadline measures layout, not startup.
+    expect(payload(await request(1, { name: 'verify', arguments: { source: 'flowchart TD\nA-->B' } }))).toMatchObject({ ok: true })
+    const started = Date.now()
+    expect(payload(await request(2, { name, arguments: args }, 500))).toMatchObject({ isError: true, ok: false, error: { code: 'RENDER_TIMEOUT' } })
+    expect(Date.now() - started).toBeLessThan(3_000)
+    expect(payload(await request(3, { name: 'describe', arguments: { source: 'flowchart TD\nA-->B' } }))).toMatchObject({ ok: true })
+  }, 60_000)
+
   test('times out, cancels active work and then accepts a fresh request', async () => {
     expect(await runSourceToolIsolated('render_svg', { source: 'flowchart TD\nA-->B' }, { timeoutMs: 0 })).toMatchObject({ ok: false, error: { code: 'RENDER_TIMEOUT' } })
     const controller = new AbortController()

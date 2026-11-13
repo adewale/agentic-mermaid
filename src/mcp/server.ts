@@ -4,10 +4,11 @@
 import { randomUUID } from 'node:crypto'
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http'
 import { URL } from 'node:url'
-import { EDIT_TOOLS, handleEditTool } from './edit-tools.ts'
+import { EDIT_TOOLS, editToolRequestError } from './edit-tools.ts'
 import { executeInSandbox } from './sandbox.ts'
 import { TEXT_RENDER_TOOLS, VERIFY_TOOL } from './source-tool-definitions.ts'
 import { runSourceToolIsolated } from './source-worker-client.ts'
+import type { LocalSourceToolName } from './source-tool-message.ts'
 import { DEFAULT_EXECUTE_TIMEOUT_MS } from './execute-limits.ts'
 import { isJsonContentType, preserveExactJsonRpcIds, rpcError as error, stringifyJsonRpc, toolResult, type ExactJsonRpcId, type JsonRpcRequest, type JsonRpcResponse } from './protocol.ts'
 import {
@@ -22,21 +23,15 @@ import {
   MCP_COMPACT_RESULTS_NOTE,
   MCP_PNG_OUTPUT_MODES,
   mcpPngImageResult,
-  projectMcpRenderOptions,
   surfaceSupportedVersions,
   withClosedMcpInputSchema,
   type McpDispatchOptions,
   type McpServerSurface,
 } from './tool-surface.ts'
 import { SDK_CORE_DECLARATION, createDescribeSdkTool, describeSdkPayload } from './sdk-discovery.ts'
-import { mcpDescribePayload } from './describe-payload.ts'
-import { mcpRenderReceipt } from './receipt-summary.ts'
 import { slimMcpTool, type McpToolProfile } from './slim-tools.ts'
 import { createArtifactStore, type ArtifactRecord, type ArtifactStore } from './artifacts.ts'
-import { renderMermaidPNGWithReceipt } from '../agent/png.ts'
-import { renderConfigWarningsForMermaid } from '../agent/verify.ts'
 import { BUILTIN_FAMILY_METADATA } from '../agent/families.ts'
-import { projectNativePngOutputPolicyInput } from '../png-contract.ts'
 import { projectRenderErrorDiagnostic } from '../render-error-diagnostic.ts'
 import type { ProtocolEra } from './protocol-versions.ts'
 import { admitMcpMessage, type AdmittedMcpMessage, type McpAdmissionResult } from './admission.ts'
@@ -53,6 +48,9 @@ export interface McpRequestContext {
    * stdio coordinator independently guarantees that an aborted call cannot
    * emit a response. */
   signal?: AbortSignal
+  /** Deadline for one call to a tool that lays out a diagram, which runs in
+   * the supervised renderer process (default SOURCE_TOOL_TIMEOUT_MS). */
+  renderTimeoutMs?: number
 }
 
 export interface HttpMcpOptions {
@@ -131,7 +129,7 @@ let defaultArtifactStore: ArtifactStore | undefined
 let defaultArtifactStoreExitHook = false
 const MCP_NARROWERS = BUILTIN_FAMILY_METADATA.map(f => f.narrower).join('/')
 
-const LOCAL_INSTRUCTIONS = `agentic-mermaid editing server. Prefer mutate/build for ordinary edits. execute runs synchronous JavaScript against the typed mermaid.* SDK in a sandbox; async/await and Promise jobs are not supported. describe_sdk progressively discloses one family's version-matched mutation schema; call it before authoring unfamiliar ops. Direct render_svg, render_ascii and verify helpers return structured results with a 15s deadline, a bounded queue and a sampled 512 MiB render-process memory budget. The compiled Bun binary includes its renderer. render_png and describe are additional narrow helpers. render_png can return base64, an MCP image content block (output image), managed file paths, or managed URLs when the transport config provides an artifact store. Prefer declarative mutate/build for structured edits; they accept ordered JSON ops and verify before emitting source. Reserve execute for custom logic; narrow via ${MCP_NARROWERS}. Every built-in renderable family ships a typed path when the body narrows; only opaque fallback bodies are source-level only. Layout is deterministic; there is no layout seed (the optional style seed only re-rolls ink of styled looks, never geometry). ${MCP_COMPACT_RESULTS_NOTE}`
+const LOCAL_INSTRUCTIONS = `agentic-mermaid editing server. Prefer mutate/build for ordinary edits. execute runs synchronous JavaScript against the typed mermaid.* SDK in a sandbox; async/await and Promise jobs are not supported. describe_sdk progressively discloses one family's version-matched mutation schema; call it before authoring unfamiliar ops. Every tool that lays out a diagram (render_svg, render_ascii, render_png, verify, describe, mutate, build) runs in a supervised renderer process with a 15s deadline (RENDER_TIMEOUT), a bounded queue and a sampled 512 MiB memory budget. The compiled Bun binary includes its renderer. render_png and describe are additional narrow helpers. render_png can return base64, an MCP image content block (output image), managed file paths, or managed URLs when the transport config provides an artifact store. Prefer declarative mutate/build for structured edits; they accept ordered JSON ops and verify before emitting source. Reserve execute for custom logic; narrow via ${MCP_NARROWERS}. Every built-in renderable family ships a typed path when the body narrows; only opaque fallback bodies are source-level only. Layout is deterministic; there is no layout seed (the optional style seed only re-rolls ink of styled looks, never geometry). ${MCP_COMPACT_RESULTS_NOTE}`
 
 const LOCAL_SURFACE: McpServerSurface<McpRequestContext> = {
   protocolVersion: PROTOCOL_VERSION,
@@ -199,11 +197,15 @@ async function handleToolCall(id: number | string | null, params: unknown, conte
     const r = await executeInSandbox(code, { timeoutMs })
     return toolResult(id, executeToolPayload(r), !r.ok)
   }
-  if (name === 'mutate') return handleEditTool(id, args, 'source')
-  if (name === 'build') return handleEditTool(id, args, 'family')
+  if (name === 'mutate' || name === 'build') {
+    const refused = editToolRequestError(id, args, name === 'mutate' ? 'source' : 'family')
+    if (refused) return refused
+    const payload = await runRendererTool(name, args, context)
+    return toolResult(id, payload, !payload.ok)
+  }
   if (name === 'render_png') return handleRenderPng(id, args, context)
   if (name === 'render_svg' || name === 'render_ascii' || name === 'verify') {
-    const payload = await runSourceToolIsolated(name, args, { signal: context.signal })
+    const payload = await runRendererTool(name, args, context)
     const response = toolResult(id, payload, !payload.ok)
     Object.assign(response.result!, { structuredContent: payload })
     return response
@@ -211,47 +213,35 @@ async function handleToolCall(id: number | string | null, params: unknown, conte
   if (name === 'describe') {
     const source = (args as { source?: string }).source
     if (typeof source !== 'string') return error(id, -32602, 'describe requires `source` (string)')
-    try {
-      const payload = mcpDescribePayload(source, args)
-      return toolResult(id, payload, !payload.ok)
-    } catch (e) {
-      const msg = e instanceof Error ? e.message : String(e)
-      const payload = { ok: false as const, error: { code: 'DESCRIBE_FAILED', message: msg } }
-      return toolResult(id, payload, true)
-    }
+    const payload = await runRendererTool('describe', args, context)
+    return toolResult(id, payload, !payload.ok)
   }
   return error(id, -32602, `Unknown tool: ${name ?? '<none>'}`)
 }
 
-function handleRenderPng(id: number | string | null, args: Record<string, unknown>, context: McpRequestContext): JsonRpcResponse {
+/** Layout runs synchronously and cannot be interrupted in this process, so
+ * every tool that lays out a diagram runs in the supervised renderer, which
+ * is terminated at the deadline (RENDER_TIMEOUT) or memory budget. */
+function runRendererTool(name: LocalSourceToolName, args: Record<string, unknown>, context: McpRequestContext) {
+  return runSourceToolIsolated(name, args, { signal: context.signal, timeoutMs: context.renderTimeoutMs })
+}
+
+async function handleRenderPng(id: number | string | null, args: Record<string, unknown>, context: McpRequestContext): Promise<JsonRpcResponse> {
   const source = (args as { source?: string }).source
   const output = args.output ?? 'base64'
   if (typeof source !== 'string') return error(id, -32602, 'render_png requires `source` (string)')
   if (!isMcpPngOutputMode(output)) return error(id, -32602, `render_png output must be one of: ${MCP_PNG_OUTPUT_MODES.join(', ')}`)
+  const store = output === 'file' || output === 'url' ? context.artifactStore ?? getDefaultArtifactStore() : undefined
+  if (output === 'url' && !store!.hasBaseUrl()) return error(id, -32602, 'render_png output=url requires an HTTP/SSE artifact base URL')
+  const rendered = await runRendererTool('render_png', args, context)
+  if (!rendered.ok) return toolResult(id, rendered, true)
+  const { png_base64, receipt, runtime, warnings } = rendered as unknown as { png_base64: string; receipt: unknown; runtime: unknown; warnings: unknown[] }
   try {
-    const fontWarnings: Array<Record<string, unknown>> = []
-    const pngOutput = projectNativePngOutputPolicyInput(args)
-    const renderOptions = projectMcpRenderOptions(args)
-    const rendered = renderMermaidPNGWithReceipt(source, {
-      ...renderOptions,
-      ...pngOutput,
-      onWarning: warning => fontWarnings.push(warning as unknown as Record<string, unknown>),
-    })
-    const warnings = [...renderConfigWarningsForMermaid(source, renderOptions), ...fontWarnings]
-      .filter((warning, index, all) => all.findIndex(candidate => JSON.stringify(candidate) === JSON.stringify(warning)) === index)
-    const receipt = mcpRenderReceipt(rendered.receipt, args)
-    if (output === 'base64') {
-      const png_base64 = Buffer.from(rendered.png).toString('base64')
-      const payload = { ok: true as const, png_base64, receipt, runtime: rendered.runtime, warnings }
-      return toolResult(id, payload, false)
-    }
-    if (output === 'image') {
-      return mcpPngImageResult(id, rendered.png, Buffer.from(rendered.png).toString('base64'), { receipt, runtime: rendered.runtime, warnings })
-    }
-    const store = context.artifactStore ?? getDefaultArtifactStore()
-    if (output === 'url' && !store.hasBaseUrl()) return error(id, -32602, 'render_png output=url requires an HTTP/SSE artifact base URL')
-    const artifact = store.write(rendered.png, { extension: '.png', mimeType: 'image/png' })
-    const payload = { ok: true as const, artifact: artifactPayload(artifact, output), receipt, runtime: rendered.runtime, warnings }
+    if (output === 'base64') return toolResult(id, { ok: true as const, png_base64, receipt, runtime, warnings }, false)
+    const png = new Uint8Array(Buffer.from(png_base64, 'base64'))
+    if (output === 'image') return mcpPngImageResult(id, png, png_base64, { receipt, runtime, warnings })
+    const artifact = store!.write(png, { extension: '.png', mimeType: 'image/png' })
+    const payload = { ok: true as const, artifact: artifactPayload(artifact, output), receipt, runtime, warnings }
     return toolResult(id, payload, false)
   } catch (e) {
     const payload = {

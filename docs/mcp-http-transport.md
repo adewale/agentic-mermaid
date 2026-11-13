@@ -56,8 +56,14 @@ responses include both MCP `structuredContent` and an equivalent JSON text
 block. Use `render_ascii` with `useAscii: true` for ASCII, or omit it for Unicode.
 `verify` checks parsing, structure and graphical renderability.
 
-These three local tools share one warm render subprocess, with a 15-second
-wall-clock deadline per request, including queue and startup time. At most 32
+These three local tools, and every other local tool that lays out a diagram
+(`render_png`, `describe`, `mutate` and `build`), share one warm render
+subprocess, with a 15-second wall-clock deadline per request, including queue
+and startup time. A request that misses it returns `RENDER_TIMEOUT` and the
+subprocess is terminated: layout is synchronous and cannot be interrupted any
+other way. `render_png` returns its image to the server as base64 within the
+16 MiB result budget (`RENDER_OUTPUT_LIMIT` beyond it); the server then delivers
+it as base64, an image block or a managed artifact. At most 32
 requests may wait, sharing a 16 MiB budget for serialized request payloads;
 further calls receive `RENDER_BUSY` when either limit is reached. The active
 request has its own 4 MiB message limit. Dequeueing, cancellation and expiration

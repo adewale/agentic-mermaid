@@ -1,7 +1,6 @@
 import { createSettlement } from '../shared/settlement.ts'
 import { SourceRenderProcess } from './source-render-process.ts'
-import { sourceToolMessage, type SourceToolReply, type SourceToolRequest } from './source-tool-message.ts'
-import type { SourceToolName } from './source-tools.ts'
+import { sourceToolMessage, type LocalSourceToolName, type SourceToolReply, type SourceToolRequest } from './source-tool-message.ts'
 import { SOURCE_TOOL_EXIT_LIMIT_UNAVAILABLE, SOURCE_TOOL_EXIT_MEMORY, SOURCE_TOOL_QUEUE_BYTES, SOURCE_TOOL_QUEUE_LIMIT, SOURCE_TOOL_REQUEST_BYTES, SOURCE_TOOL_TIMEOUT_MS } from './source-worker-limits.ts'
 
 export { SOURCE_TOOL_HEAP_MB,SOURCE_TOOL_TIMEOUT_MS } from './source-worker-limits.ts'
@@ -39,7 +38,7 @@ export class SourceToolExecutor {
 
   constructor(createRenderer: () => RenderProcess = () => new SourceRenderProcess()) { this.createRenderer = createRenderer }
 
-  run(name: SourceToolName, args: Record<string, unknown>, options: SourceToolExecutionOptions = {}): Promise<Payload> {
+  run(name: LocalSourceToolName, args: Record<string, unknown>, options: SourceToolExecutionOptions = {}): Promise<Payload> {
     return new Promise(resolve => {
       const signal = options.signal
       if (signal?.aborted) { resolve(failure('RENDER_CANCELLED', 'Operation cancelled')); return }
@@ -140,4 +139,4 @@ export class SourceToolExecutor {
 }
 
 const executor = new SourceToolExecutor()
-export function runSourceToolIsolated(name: SourceToolName, args: Record<string, unknown>, options?: SourceToolExecutionOptions): Promise<Payload> { return executor.run(name, args, options) }
+export function runSourceToolIsolated(name: LocalSourceToolName, args: Record<string, unknown>, options?: SourceToolExecutionOptions): Promise<Payload> { return executor.run(name, args, options) }

@@ -4,7 +4,8 @@ import { renderMermaidSVGWithReceipt, renderMermaidASCIIWithReceipt } from '../a
 import { BUILTIN_FAMILY_METADATA } from '../agent/families.ts'
 import { verifyNoExternalRefs } from '../output-security.ts'
 import { projectMcpRenderOptions } from './tool-surface.ts'
-import { mcpVerificationSummary } from './describe-payload.ts'
+import { mcpDescribePayload, mcpVerificationSummary } from './describe-payload.ts'
+import { editToolEnvelope } from './edit-tools.ts'
 import { mcpRenderReceipt } from './receipt-summary.ts'
 import { HOSTED_RENDER_OPTIONS } from '../render-host-policy.ts'
 import { familyDetectionDiagnosticFromPreservedBody, MermaidFamilyDetectionError } from '../family-detection.ts'
@@ -12,9 +13,11 @@ import { projectRenderErrorDiagnostic } from '../render-error-diagnostic.ts'
 import type { RenderOptions } from '../types.ts'
 import type { ParsedDiagram, VerifyOptions, VerifyResult } from '../agent/types.ts'
 
-export type SourceToolName = 'render_svg' | 'render_ascii' | 'verify'
+export type SourceToolName = 'render_svg' | 'render_ascii' | 'verify' | 'describe' | 'mutate' | 'build'
 
-/** Shared structured results for the hosted tools and the local worker. */
+/** Shared structured results for the hosted tools and the local worker: every
+ * runtime-neutral tool that parses and lays out a diagram. Adapters check
+ * their own arguments and caps first and own the catch for a thrown error. */
 export function runSourceTool(name: SourceToolName, args: Record<string, unknown>): { ok: boolean } & Record<string, unknown> {
   const source = args.source as string
   switch (name) {
@@ -50,6 +53,9 @@ export function runSourceTool(name: SourceToolName, args: Record<string, unknown
       }
     }
     case 'verify': return verifySummaryPayload(source)
+    case 'describe': return mcpDescribePayload(source, args)
+    case 'mutate': return editToolEnvelope(args, 'source')
+    case 'build': return editToolEnvelope(args, 'family')
   }
 }
 
