@@ -144,7 +144,7 @@ export function runPreparedCli({ args, json }: PreparedCli): number | Promise<nu
       case 'describe':
         return cmdDescribe(args, json)
       case 'capabilities':
-        return cmdCapabilities()
+        return cmdCapabilities(args)
       case 'styles':
         return cmdStyles(json)
       case 'llms-txt':
@@ -1059,8 +1059,52 @@ function cmdStyles(json: boolean): number {
   return EXIT_OK
 }
 
-function cmdCapabilities(): number {
-  process.stdout.write(JSON.stringify(buildCapabilities()) + '\n')
+/** `--summary` view: what an agent needs to pick a family and its typed path,
+ * with one `--family` call for the op field schemas, conformance and example. */
+export interface CapabilitiesSummary {
+  view: 'summary'
+  sdkVersion: string
+  families: Array<Pick<FamilyCapability, 'id' | 'editPolicy' | 'narrower' | 'headers' | 'mutationOps'>>
+  warningCodes: WarningCode[]
+  outputFormats: CliRenderFormat[]
+  detail: string
+}
+
+export function capabilitiesSummary(capabilities: CapabilitiesEnvelope): CapabilitiesSummary {
+  return {
+    view: 'summary',
+    sdkVersion: capabilities.sdkVersion,
+    families: capabilities.families.map(({ id, editPolicy, narrower, headers, mutationOps }) => ({ id, editPolicy, narrower, headers, mutationOps })),
+    warningCodes: capabilities.warningCodes.map(warning => warning.code),
+    outputFormats: capabilities.outputFormats,
+    detail: 'am capabilities --family <id>[,<id>...] for opFields, conformance, identity and example',
+  }
+}
+
+/** The envelope with `families` narrowed to the requested ids, in request order. */
+export function capabilitiesForFamilies(capabilities: CapabilitiesEnvelope, ids: readonly string[]): CapabilitiesEnvelope {
+  const byId = new Map(capabilities.families.map(family => [family.id, family]))
+  const unknown = ids.filter(id => !byId.has(id))
+  if (ids.length === 0 || unknown.length > 0) {
+    throw new CliArgumentError(`am capabilities --family: ${ids.length === 0 ? 'expected one or more family ids' : `unknown family ${unknown.map(id => JSON.stringify(id)).join(', ')}`}; valid ids: ${[...byId.keys()].join(', ')}`)
+  }
+  return { ...capabilities, families: [...new Set(ids)].map(id => byId.get(id)!) }
+}
+
+/** `--summary` and `--full` choose the view; `--full` names today's default
+ * explicitly so a caller can pin it before the default changes. */
+function summaryViewRequested(args: ParsedArgs, command: string): boolean {
+  const summary = flagEnabled(args, 'summary')
+  if (summary && flagEnabled(args, 'full')) throw new CliArgumentError(`am ${command}: --summary and --full are mutually exclusive`)
+  return summary
+}
+
+function cmdCapabilities(args: ParsedArgs): number {
+  const summary = summaryViewRequested(args, 'capabilities')
+  const familyFlag = flagValue(args, 'family')
+  let capabilities = buildCapabilities()
+  if (familyFlag !== undefined) capabilities = capabilitiesForFamilies(capabilities, familyFlag.split(',').map(id => id.trim()).filter(Boolean))
+  process.stdout.write(JSON.stringify(summary ? capabilitiesSummary(capabilities) : capabilities) + '\n')
   return EXIT_OK
 }
 

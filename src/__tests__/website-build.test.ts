@@ -715,7 +715,10 @@ describe('Workers Static Assets website contract', () => {
   })
 
   test('capabilities.json warning codes carry what/triggers/fix prose as clean text', () => {
-    const cap = JSON.parse(read('capabilities.json'))
+    const raw = read('capabilities.json')
+    const cap = JSON.parse(raw)
+    // Agents fetch this whole document; it is served without indentation.
+    expect(raw).toBe(`${JSON.stringify(cap)}\n`)
     const sample = cap.warningCodes.find((w: { code: string }) => w.code === 'LABEL_OVERFLOW')
     expect(Boolean(sample)).toBe(true)
     for (const warning of cap.warningCodes) for (const field of ['what', 'triggers', 'fix'] as const) {

@@ -155,13 +155,22 @@ Summarize a Mermaid diagram. Text format emits prose by default; --json wraps
 it as {ok,text}. --format json emits the structured AX tree
 {kind,nodes,edges,entryPoints,sinks}; with --json it wraps as {ok,tree}.
 --format facts emits deterministic semantic fact lines; with --json it wraps as {ok,facts}.`,
-  capabilities: `am capabilities [--json]
-Emits a single JSON object describing the SDK's capability surface:
-  { sdkVersion, families: [{ id, hasMutate, hasExtractLabels, mutationOps, editPolicy, example }],
+  capabilities: `am capabilities [--summary | --full] [--family <id>[,<id>...]] [--json]
+Emits one JSON object describing the SDK's capability surface (always JSON):
+  { sdkVersion, resolvedScene,
+    families: [{ id, identity, conformance, hasMutate, hasExtractLabels, mutationOps,
+                 opFields?, editPolicy, narrower?, headers?, example }],
     warningCodes: [{ code, tier, severity, origins }],
     outputFormats: ${JSON.stringify(CLI_RENDER_FORMATS)} }
-editPolicy is "structured-when-narrowed" or "source-level-only". Use this to
-introspect what the CLI can do without running every command.`,
+editPolicy is "structured-when-narrowed" or "source-level-only"; opFields gives
+each mutation op's exact fields. The full object is ~130 KB; agents should run
+--summary first, then --family for the families they will edit.
+  --summary         Index only: { view, sdkVersion, families: [{ id, editPolicy,
+                    narrower, headers, mutationOps }], warningCodes: [code],
+                    outputFormats, detail } (~12 KB)
+  --family <IDS>    Keep only these families' entries (comma-separated ids, in
+                    the order given); an unknown id exits 2 listing valid ids
+  --full            The full object (the default)`,
   batch: `am batch [--jsonl]  (reads JSONL from stdin; --jsonl names that mode)
 Each line: { op: "render"|"verify"|"parse"|"serialize"|"mutate", source: string,
 options?: {}, mutation?: MutationOp, mutations?: MutationOp[] }. Emits one JSON

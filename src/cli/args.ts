@@ -26,6 +26,8 @@ const FLAG_SPEC_TABLE = {
   'canonical-wrapper': {},
   'preserve-source': {},
   'system-fonts': {},
+  summary: {},
+  full: {},
   version: {},
   // value flags (placeholder = what the usage shows after the flag)
   suppress: { arg: 'CODES' },
@@ -44,6 +46,7 @@ const FLAG_SPEC_TABLE = {
   'font-dirs': { arg: 'DIRS' },
   'gantt-today': { arg: 'DATE' },
   'target-width': { arg: 'CELLS' },
+  family: { arg: 'IDS' },
   // PNG raster knobs (read by cmdRender's png path since v4; registered so
   // the unknown-flag gate cannot reject them).
   scale: { arg: 'N' },
@@ -112,7 +115,7 @@ export const COMMAND_FLAGS = {
   preview: ['help', 'json', 'output', 'open', 'security'],
   format: ['help', 'canonical-wrapper'],
   describe: ['help', 'json', 'format'],
-  capabilities: ['help', 'json'],
+  capabilities: ['help', 'json', 'summary', 'full', 'family'],
   styles: ['help', 'json'],
   'llms-txt': ['help'],
   'init-agent': ['help', 'json', 'dir', 'force'],

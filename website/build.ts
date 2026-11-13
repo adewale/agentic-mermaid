@@ -2700,7 +2700,7 @@ for (const w of capabilities.warningCodes as unknown as Array<Record<string, unk
   w.fix = inlineHtmlToMarkdown(d.fix)
   if (d.example) w.example = d.example
 }
-await emitJson('capabilities.json', capabilities)
+await emitJson('capabilities.json', capabilities, 'minified')
 
 // Build-time check: emit the firing demo only if the example really fires the
 // code against the current engine. A stale example fails the build rather than
