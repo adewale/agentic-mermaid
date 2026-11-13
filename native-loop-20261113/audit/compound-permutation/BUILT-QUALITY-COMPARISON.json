@@ -1,0 +1,355 @@
+[
+  {
+    "id": "audit:compound-permutation:TB",
+    "baselineNativeReturned": true,
+    "baselineNative": {
+      "wire": 5862.2249999999985,
+      "bends": 53,
+      "crossings": 24,
+      "area": 253224.4
+    },
+    "candidateNative": {
+      "wire": 5367.462499999999,
+      "bends": 44,
+      "crossings": 29,
+      "area": 261286.025
+    },
+    "frozenElk": {
+      "wire": 7502.999999999999,
+      "bends": 28,
+      "crossings": 23,
+      "area": 1160773.2000000002
+    },
+    "delta": {
+      "wire": -494.7624999999998,
+      "bends": -9,
+      "crossings": 5,
+      "area": 8061.625
+    }
+  },
+  {
+    "id": "audit:compound-identity:TB",
+    "baselineNativeReturned": false,
+    "baselineNative": null,
+    "candidateNative": {
+      "wire": 5840.206249999998,
+      "bends": 44,
+      "crossings": 28,
+      "area": 261286.025
+    },
+    "frozenElk": {
+      "wire": 7503.000000000001,
+      "bends": 28,
+      "crossings": 30,
+      "area": 1160773.2000000002
+    }
+  },
+  {
+    "id": "audit:compound-two-groups:TB",
+    "baselineNativeReturned": true,
+    "baselineNative": {
+      "wire": 3807.725,
+      "bends": 30,
+      "crossings": 15,
+      "area": 185359.05034955
+    },
+    "candidateNative": {
+      "wire": 3368.76875,
+      "bends": 21,
+      "crossings": 11,
+      "area": 185709.62812500002
+    },
+    "frozenElk": {
+      "wire": 2881,
+      "bends": 14,
+      "crossings": 10,
+      "area": 410488
+    },
+    "delta": {
+      "wire": -438.9562499999997,
+      "bends": -9,
+      "crossings": -4,
+      "area": 350.5777754500159
+    }
+  },
+  {
+    "id": "audit:compound-permutation:LR",
+    "baselineNativeReturned": false,
+    "baselineNative": null,
+    "candidateNative": {
+      "wire": 4848.0374999999985,
+      "bends": 39,
+      "crossings": 25,
+      "area": 205076.265625
+    },
+    "frozenElk": {
+      "wire": 2280.6,
+      "bends": 20,
+      "crossings": 11,
+      "area": 235178.425
+    }
+  },
+  {
+    "id": "audit:compound-identity:LR",
+    "baselineNativeReturned": true,
+    "baselineNative": {
+      "wire": 1485.5,
+      "bends": 28,
+      "crossings": 0,
+      "area": 176346
+    },
+    "candidateNative": {
+      "wire": 3334.6,
+      "bends": 38,
+      "crossings": 8,
+      "area": 205076.265625
+    },
+    "frozenElk": {
+      "wire": 920,
+      "bends": 0,
+      "crossings": 0,
+      "area": 207774
+    },
+    "delta": {
+      "wire": 1849.1,
+      "bends": 10,
+      "crossings": 8,
+      "area": 28730.265625
+    }
+  },
+  {
+    "id": "audit:compound-two-groups:LR",
+    "baselineNativeReturned": true,
+    "baselineNative": {
+      "wire": 1296.6000000000001,
+      "bends": 14,
+      "crossings": 9,
+      "area": 125712
+    },
+    "candidateNative": {
+      "wire": 2580.275,
+      "bends": 19,
+      "crossings": 10,
+      "area": 144913.59375
+    },
+    "frozenElk": {
+      "wire": 2273.25,
+      "bends": 18,
+      "crossings": 4,
+      "area": 205393.1675
+    },
+    "delta": {
+      "wire": 1283.675,
+      "bends": 5,
+      "crossings": 1,
+      "area": 19201.59375
+    }
+  },
+  {
+    "id": "audit:compound-permutation:BT",
+    "baselineNativeReturned": false,
+    "baselineNative": null,
+    "candidateNative": {
+      "wire": 5013.175000000001,
+      "bends": 40,
+      "crossings": 23,
+      "area": 260088.4
+    },
+    "frozenElk": {
+      "wire": 7679.75,
+      "bends": 34,
+      "crossings": 7,
+      "area": 1099183.05
+    }
+  },
+  {
+    "id": "audit:compound-identity:BT",
+    "baselineNativeReturned": false,
+    "baselineNative": null,
+    "candidateNative": {
+      "wire": 5035.25,
+      "bends": 42,
+      "crossings": 16,
+      "area": 253224.4
+    },
+    "frozenElk": {
+      "wire": 7503,
+      "bends": 28,
+      "crossings": 0,
+      "area": 1160773.2000000002
+    }
+  },
+  {
+    "id": "audit:compound-two-groups:BT",
+    "baselineNativeReturned": true,
+    "baselineNative": {
+      "wire": 2451.15,
+      "bends": 20,
+      "crossings": 5,
+      "area": 190884.1240878
+    },
+    "candidateNative": {
+      "wire": 3195.8,
+      "bends": 21,
+      "crossings": 11,
+      "area": 174911.2
+    },
+    "frozenElk": {
+      "wire": 2880.9999999999995,
+      "bends": 14,
+      "crossings": 0,
+      "area": 410488
+    },
+    "delta": {
+      "wire": 744.6500000000001,
+      "bends": 1,
+      "crossings": 6,
+      "area": -15972.924087799998
+    }
+  },
+  {
+    "id": "audit:compound-permutation:RL",
+    "baselineNativeReturned": false,
+    "baselineNative": null,
+    "candidateNative": {
+      "wire": 4898.5374999999985,
+      "bends": 39,
+      "crossings": 21,
+      "area": 205076.265625
+    },
+    "frozenElk": {
+      "wire": 2280.6,
+      "bends": 20,
+      "crossings": 11,
+      "area": 235178.425
+    }
+  },
+  {
+    "id": "audit:compound-identity:RL",
+    "baselineNativeReturned": true,
+    "baselineNative": {
+      "wire": 1485.5,
+      "bends": 28,
+      "crossings": 0,
+      "area": 176346
+    },
+    "candidateNative": {
+      "wire": 3362.1625,
+      "bends": 38,
+      "crossings": 11,
+      "area": 196391.5
+    },
+    "frozenElk": {
+      "wire": 920,
+      "bends": 0,
+      "crossings": 0,
+      "area": 207774
+    },
+    "delta": {
+      "wire": 1876.6625,
+      "bends": 10,
+      "crossings": 11,
+      "area": 20045.5
+    }
+  },
+  {
+    "id": "audit:compound-two-groups:RL",
+    "baselineNativeReturned": true,
+    "baselineNative": {
+      "wire": 1296.6000000000001,
+      "bends": 14,
+      "crossings": 9,
+      "area": 125712
+    },
+    "candidateNative": {
+      "wire": 2604.4,
+      "bends": 19,
+      "crossings": 9,
+      "area": 132624
+    },
+    "frozenElk": {
+      "wire": 2273.25,
+      "bends": 18,
+      "crossings": 4,
+      "area": 200782.4475
+    },
+    "delta": {
+      "wire": 1307.8,
+      "bends": 5,
+      "crossings": 0,
+      "area": 6912
+    }
+  },
+  {
+    "id": "audit:compound-permutation:TB:width4",
+    "baselineNativeReturned": true,
+    "baselineNative": null,
+    "baselineQualityScope": "Existing baseline wide products were retained but did not enroll the strict SVG quality observer; do not invent its metrics. Baseline TB/LR/RL collided; BT refused.",
+    "candidateNative": {
+      "wire": 5144.799999999999,
+      "bends": 45,
+      "crossings": 21,
+      "area": 311997.4
+    },
+    "frozenElk": {
+      "wire": 7772.999999999999,
+      "bends": 28,
+      "crossings": 23,
+      "area": 1205485.2000000002
+    }
+  },
+  {
+    "id": "audit:compound-permutation:LR:width4",
+    "baselineNativeReturned": true,
+    "baselineNative": null,
+    "baselineQualityScope": "Existing baseline wide products were retained but did not enroll the strict SVG quality observer; do not invent its metrics. Baseline TB/LR/RL collided; BT refused.",
+    "candidateNative": {
+      "wire": 4975.625,
+      "bends": 36,
+      "crossings": 19,
+      "area": 254473.27606083604
+    },
+    "frozenElk": {
+      "wire": 2783.1,
+      "bends": 20,
+      "crossings": 11,
+      "area": 282307.89999999997
+    }
+  },
+  {
+    "id": "audit:compound-permutation:BT:width4",
+    "baselineNativeReturned": false,
+    "baselineNative": null,
+    "baselineQualityScope": "Existing baseline wide products were retained but did not enroll the strict SVG quality observer; do not invent its metrics. Baseline TB/LR/RL collided; BT refused.",
+    "candidateNative": {
+      "wire": 5335.675000000001,
+      "bends": 40,
+      "crossings": 17,
+      "area": 292985.972080308
+    },
+    "frozenElk": {
+      "wire": 8066,
+      "bends": 34,
+      "crossings": 7,
+      "area": 1159206.3
+    }
+  },
+  {
+    "id": "audit:compound-permutation:RL:width4",
+    "baselineNativeReturned": true,
+    "baselineNative": null,
+    "baselineQualityScope": "Existing baseline wide products were retained but did not enroll the strict SVG quality observer; do not invent its metrics. Baseline TB/LR/RL collided; BT refused.",
+    "candidateNative": {
+      "wire": 4736.125,
+      "bends": 36,
+      "crossings": 17,
+      "area": 249602.666026662
+    },
+    "frozenElk": {
+      "wire": 2783.1,
+      "bends": 20,
+      "crossings": 11,
+      "area": 282307.89999999997
+    }
+  }
+]

@@ -1,0 +1,772 @@
+diff --git a/src/__tests__/agentic-layered.test.ts b/src/__tests__/agentic-layered.test.ts
+index b44311fc..f16c4864 100644
+--- a/src/__tests__/agentic-layered.test.ts
++++ b/src/__tests__/agentic-layered.test.ts
+@@ -14,10 +14,11 @@ import { countOpposingRouteOverlaps, countParallelRouteOverlaps } from '../layou
+ import { layoutMeasuredForest } from '../layout/measured-forest.ts'
+ import { assignChannelTracks } from '../layout/channel-tracks.ts'
+ import { createEndpointSparseVisibilityGraph, createSparseAdjacencyStoragePool, createSparseQueryWorkspacePool, createSparseVisibilityGraph } from '../layout/compound-sparse-visibility.ts'
+-import { createVisibilityGrid } from '../layout/compound-visibility.ts'
++import { retainsTerminalLead, createVisibilityGrid } from '../layout/compound-visibility.ts'
+ import { createLazyVisibilityGrid } from '../layout/compound-lazy-visibility.ts'
+ import { createCompoundObstacleIndex } from '../layout/compound-obstacle-index.ts'
+ import { countPolylineCrossings } from '../shared/edge-crossings.ts'
++import { orientMeasuredEdge } from '../layout/cycle-layout-search.ts'
+ import { compactMeasuredLoops } from '../layout/compact-measured-loops.ts'
+ import { shortenMeasuredRoutes } from '../layout/shorten-measured-routes.ts'
+ 
+@@ -667,6 +668,68 @@ describe('owned measured layered layout', () => {
+     expect(layoutAgenticGraph(input)).toEqual(result)
+   })
+ 
++  test.each((['TB', 'BT', 'LR', 'RL'] as const).flatMap(direction => (['permutation', 'identity', 'two-groups'] as const).flatMap(variant => (variant === 'permutation' ? [1, 4] : [1]).map(lineWidth => ({ direction, variant, lineWidth })))))('same-direction compounds retain every leaf connection: %j', async ({ direction, variant, lineWidth }) => {
++    const { renderMermaidSVGWithReceipt } = await import('../index.ts')
++    const engine = await import('../layout-engine.ts'), original = engine.layoutGraphSync
++    const groups = variant === 'two-groups' ? ['A', 'B'] : ['A', 'B', 'C']
++    const first = variant === 'identity' ? [0, 1, 2, 3, 4] : [4, 2, 0, 3, 1]
++    const second = variant === 'identity' ? [0, 1, 2, 3, 4] : [1, 3, 0, 4, 2]
++    const source = [`flowchart ${direction}`,
++      ...groups.flatMap(group => [`subgraph Group${group}[Group ${group}]`, ...Array.from({ length: 5 }, (_, index) => `${group}${index}[${group}${index}]`), 'end']),
++      ...first.map((target, index) => `A${index} --> B${target}`),
++      ...(groups.length > 2 ? second.map((target, index) => `B${index} --> C${target}`) : []),
++    ].join('\n')
++    let positioned: ReturnType<typeof original> | undefined
++    const observe = spyOn(engine, 'layoutGraphSync').mockImplementation((...args: Parameters<typeof original>) => {
++      positioned = original(...args); return positioned
++    })
++    let product: ReturnType<typeof renderMermaidSVGWithReceipt>
++    try {
++      product = renderMermaidSVGWithReceipt(source, { graphLayout: { backend: 'agentic', fallback: 'none' },
++        ...(lineWidth === 4 ? { style: { formatVersion: 1, name: 'compound-marker-owner', stroke: 'crisp', strokeWidth: lineWidth } } : {}),
++      })
++    } finally { observe.mockRestore() }
++    expect(positioned).toBeDefined()
++    expect(product.receipt.layoutDecisions?.every(decision => decision.selected === 'agentic')).toBe(true)
++    expect(product.receipt.layoutCertification?.status).toBe('passed')
++    for (const group of groups) {
++      expect(product.svg).toContain(`data-id="Group${group}"`)
++      for (let index = 0; index < 5; index++) expect(product.svg).toContain(`data-id="${group}${index}"`)
++    }
++    for (const [group, targets] of [['A', first], ...(groups.length > 2 ? [['B', second] as const] : [])] as const) {
++      const next = group === 'A' ? 'B' : 'C'
++      targets.forEach((target, index) => expect(product.svg).toContain(`data-from="${group}${index}" data-to="${next}${target}"`))
++    }
++    const nodes = new Map(positioned!.nodes.map(node => [node.id, node]))
++    const horizontal = direction === 'LR' || direction === 'RL', reverse = direction === 'BT' || direction === 'RL'
++    for (const edge of positioned!.edges) {
++      const from = nodes.get(edge.source)!, to = nodes.get(edge.target)!
++      const mainStart = (node: Box) => horizontal ? node.x : node.y
++      const mainEnd = (node: Box) => mainStart(node) + (horizontal ? node.width : node.height)
++      expect(reverse ? mainEnd(to) <= mainStart(from) : mainEnd(from) <= mainStart(to)).toBe(true)
++      expect(onOutline(edge.points[0]!, from)).toBe(true)
++      expect(onOutline(edge.points.at(-1)!, to)).toBe(true)
++      // Literal canonical SVG arrow viewport: 8x5 in shaft-width units.
++      // Keep complete viewport/foreign butt-strip supports disjoint; a scalar
++      // crossing score or the narrower certification scope cannot prove this.
++      const tip = edge.points.at(-1)!, near = edge.points.at(-2)!
++      const dx = Math.sign(tip.x - near.x), dy = Math.sign(tip.y - near.y)
++      const marker = dx ? { x: Math.min(tip.x, tip.x - dx * 8 * lineWidth), y: tip.y - 2.5 * lineWidth, width: 8 * lineWidth, height: 5 * lineWidth }
++        : { x: tip.x - 2.5 * lineWidth, y: Math.min(tip.y, tip.y - dy * 8 * lineWidth), width: 5 * lineWidth, height: 8 * lineWidth }
++      for (const peer of positioned!.edges) if (peer !== edge) for (let i = 1; i < peer.points.length; i++) {
++        const a = peer.points[i - 1]!, b = peer.points[i]!, half = lineWidth / 2
++        const strip = a.x === b.x ? { x: a.x - half, y: Math.min(a.y, b.y), width: lineWidth, height: Math.abs(a.y - b.y) }
++          : { x: Math.min(a.x, b.x), y: a.y - half, width: Math.abs(a.x - b.x), height: lineWidth }
++        expect(marker.x < strip.x + strip.width && strip.x < marker.x + marker.width
++          && marker.y < strip.y + strip.height && strip.y < marker.y + marker.height).toBe(false)
++      }
++      for (let i = 1; i < edge.points.length; i++) {
++        for (const node of positioned!.nodes) expect(crossesInterior(edge.points[i - 1]!, edge.points[i]!, node)).toBe(false)
++        for (const group of positioned!.groups) expect(crossesInterior(edge.points[i - 1]!, edge.points[i]!, { ...group, height: group.headerHeight! })).toBe(false)
++      }
++    }
++  })
++
+   test.each(['TB', 'BT', 'LR', 'RL'] as const)('global leaf ranks do not inherit a lifted group cycle in %s', direction => {
+     const input = measured({ direction,
+       nodes: [{ id: 'a', width: 60, height: 36, parent: 0 }, { id: 'b', width: 60, height: 36, parent: 0 }, { id: 'c', width: 60, height: 36 }],
+@@ -1289,8 +1352,21 @@ describe('owned measured layered layout', () => {
+       { source: 0, target: 0, minSpan: 1 },
+       { source: 2, target: 2, minSpan: 1, label: { width: 78, height: 18 } },
+     ] })
++    input.edges = input.edges.map((edge, index) => ({ ...edge, sourceTerminalLead: index % 2 ? 0 : 13.375, targetTerminalLead: 41.5 }))
+     const before = structuredClone(input)
++    let observedReturn = false
++    const authored = new Set(input.nodes.map(node => node.id))
+     const output = layoutAgenticGraph(input)
++    layoutLayeredGraph(input, flat => {
++      for (const edge of flat.edges) {
++        const helperSource = !authored.has(flat.nodes[edge.source]!.id), helperTarget = !authored.has(flat.nodes[edge.target]!.id)
++        if (helperSource) expect(edge.sourceTerminalLead).toBeUndefined()
++        if (helperTarget) expect(edge.targetTerminalLead).toBeUndefined()
++        if (helperSource && edge.targetTerminalLead === 41.5 || helperTarget && edge.sourceTerminalLead === 41.5) observedReturn = true
++      }
++      return layoutMeasuredForest(flat)
++    }, reason => { throw new Error(reason) })
++    expect(observedReturn).toBe(true)
+     expect(input).toEqual(before)
+     expect(layoutAgenticGraph(input)).toEqual(output)
+     expect(output.edges).toHaveLength(input.edges.length)
+@@ -1836,6 +1912,39 @@ describe('written sharp join contact closure', () => {
+ })
+ 
+ describe('Native graph preparation reserves actual styled marker room', () => {
++  test.each([
++    { field: 'shape', threshold: 4, values: ['rectangle', 'rectangle', 'rectangle', 'rectangle'] },
++    { field: 'endMarker', threshold: 4, values: ['arrow', 'arrow', 'arrow', 'arrow'] },
++    { field: 'style', threshold: 7, values: ['solid', 'solid', 'solid', 'solid', 'solid', 'solid', 'solid', 'thick', 'thick', 'thick'] },
++    { field: 'hasArrowEnd', threshold: 1, values: [false, true, true] },
++  ] as const)('borrowed $field accessors retain legacy reads and acquire no partial physical authority', async ({ field, threshold, values }) => {
++    const { parseMermaid } = await import('../parser.ts'), { layoutGraphSync } = await import('../layout-engine.ts')
++    const producer = await import('../layout/measured-graph-producer.ts'), original = producer.prepareMeasuredGraphCandidate
++    const graph = parseMermaid('flowchart LR\nsubgraph G[Group]\nA[A]\nX[X]\nend\nB[B]\nA --> B')
++    const observed: unknown[] = []
++    const subject = field === 'shape' ? graph.nodes.get('X')! : graph.edges[0]!
++    Object.defineProperty(subject, field, { configurable: true, enumerable: true, get() {
++      const read = observed.length + 1
++      const value = field === 'shape' ? read <= threshold ? 'rectangle' : 'diamond'
++        : field === 'style' ? read <= threshold ? 'solid' : 'thick'
++          : field === 'hasArrowEnd' ? read > threshold : read <= threshold ? 'arrow' : 'circle'
++      observed.push(value); return value
++    } })
++    const observe = spyOn(producer, 'prepareMeasuredGraphCandidate').mockImplementation((...args: Parameters<typeof original>) => {
++      const prepared = original(...args), measured: MeasuredGraph = prepared.measured
++      expect(measured.maximumEdgeStrokeWidth).toBeUndefined()
++      expect(measured.edges[0]!.targetTerminalLead).toBeUndefined()
++      expect(measured.edges[0]!.markerPaint).toBeUndefined()
++      return prepared
++    })
++    try {
++      const result = layoutGraphSync(graph, { graphLayout: { backend: 'agentic', fallback: 'none' } })
++      expect(result.nodes).toHaveLength(3)
++      expect(result.edges).toHaveLength(1)
++      expect(observed as readonly unknown[]).toEqual(values)
++    } finally { observe.mockRestore() }
++  })
++
+   const source = `flowchart LR
+   subgraph Core["Routing core"]
+     Intake["Intake"] --> Validate{"Valid?"}
+@@ -1898,6 +2007,27 @@ describe('Native graph preparation reserves actual styled marker room', () => {
+ 
+ 
+ describe('measured endpoint lead admission and work', () => {
++  test.each([[undefined, undefined], [0, 41.5], [13.375, 0]] as const)('private reversal retains authored endpoint demand: %j', (sourceTerminalLead, targetTerminalLead) => {
++    const edge = { source: 0, target: 1, minSpan: 1, sourceTerminalLead, targetTerminalLead }
++    const reversed = orientMeasuredEdge(edge, 1, 0, true)
++    expect(reversed.sourceTerminalLead).toBe(targetTerminalLead)
++    expect(reversed.targetTerminalLead).toBe(sourceTerminalLead)
++    expect(orientMeasuredEdge(reversed, 0, 1, true)).toEqual(edge)
++    expect(orientMeasuredEdge(edge, 0, 1, false)).toEqual(edge)
++  })
++
++  test('constructed cardinal terminal boundaries retain their demand despite subtraction rounding', () => {
++    for (const [origin, boundary, demand] of [[120.90000000000005, 162.40000000000003, 41.5], [243.9, 257.275, 13.375]]) {
++      for (const axis of ['x', 'y'] as const) for (const sign of [-1, 1]) {
++        const port = { x: 0, y: 0, [axis]: sign * origin! }
++        const stub = { x: 0, y: 0, [axis]: sign * boundary! }
++        const short = { ...stub, [axis]: sign * (boundary! - .001) }
++        expect(retainsTerminalLead(port, stub, demand!)).toBe(true)
++        expect(retainsTerminalLead(port, short, demand!)).toBe(false)
++      }
++    }
++  })
++
+   const line = (): MeasuredGraph => ({ nodes: [{id:'A',width:40,height:30},{id:'B',width:40,height:30}], edges:[{source:0,target:1,minSpan:1}], direction:'LR',padding:0,nodeSpacing:24,layerSpacing:48 })
+   for (const invalid of [-1,NaN,Infinity]) test(`rejects invalid terminal lead ${invalid}`, () => {
+     expect(() => layoutAgenticGraph({...line(),minimumTerminalLead:invalid})).toThrow(TypeError)
+diff --git a/src/__tests__/native-layout-cache.test.ts b/src/__tests__/native-layout-cache.test.ts
+index a4e7cea2..8f552cb5 100644
+--- a/src/__tests__/native-layout-cache.test.ts
++++ b/src/__tests__/native-layout-cache.test.ts
+@@ -478,7 +478,7 @@ n3 --> n1` }])
+     const input=measured();input.nodes=input.nodes.map((node,index)=>index?node:{...node,minimumPortSpacing:value})
+     expect(()=>compute(input)).toThrow(TypeError)
+   })
+-  test.each(['minimumPortSpacing', 'sourcePortSpan', 'targetPortSpan', 'nodeClearance'] as const)('includes %s mutations in the full measured cache key', field => {
++  test.each(['minimumPortSpacing', 'sourcePortSpan', 'targetPortSpan', 'sourceTerminalLead', 'targetTerminalLead', 'nodeClearance'] as const)('includes %s mutations in the full measured cache key', field => {
+     let calls = 0
+     const cached = createMeasuredLayoutCache(input => { calls++; return compute(input) }), input = measured()
+     cached(input)
+@@ -490,8 +490,16 @@ n3 --> n1` }])
+     expect(result).toEqual(compute(input))
+     expect(cached(input)).toEqual(result)
+     expect(calls).toBe(2)
++    if (field === 'sourceTerminalLead' || field === 'targetTerminalLead') {
++      input.edges = input.edges.map((edge, index) => index ? edge : { ...edge, [field]: 0 })
++      cached(input)
++      expect(calls).toBe(3)
++      input.edges = input.edges.map(edge => { const copy = { ...edge }; delete copy[field]; return copy })
++      cached(input)
++      expect(calls).toBe(3) // Omitted demand returns to the original cache entry.
++    }
+   })
+-  test.each(['sourcePortSpan', 'targetPortSpan', 'nodeClearance'] as const)('rejects invalid measured %s values', field => {
++  test.each(['sourcePortSpan', 'targetPortSpan', 'sourceTerminalLead', 'targetTerminalLead', 'nodeClearance'] as const)('rejects invalid measured %s values', field => {
+     for (const value of [-1, NaN, Infinity]) {
+       const input = measured()
+       if (field === 'nodeClearance') input.nodeClearance = value
+diff --git a/src/layout/agentic-layered-core.ts b/src/layout/agentic-layered-core.ts
+index f362ca05..4f5a1ac4 100644
+--- a/src/layout/agentic-layered-core.ts
++++ b/src/layout/agentic-layered-core.ts
+@@ -102,7 +102,11 @@ export function layoutLayeredGraph(
+   for (const node of input.nodes) if (node.minimumPortSpacing !== undefined && !finiteSize(node.minimumPortSpacing,true)) throw new TypeError('Invalid measured node port spacing')
+   for (const group of input.groups ?? []) if (group.paintStrokeWidth !== undefined && !finiteSize(group.paintStrokeWidth,true)) throw new TypeError('Invalid measured group paint stroke')
+   for (const group of input.groups ?? []) if (group.paintCornerRadius !== undefined && !finiteSize(group.paintCornerRadius,false)) throw new TypeError('Invalid measured group corner radius')
+-  for (const edge of input.edges) if (edge.markerPaint !== undefined) assertMarkerPaint(edge.markerPaint)
++  for (const edge of input.edges) {
++    if (edge.markerPaint !== undefined) assertMarkerPaint(edge.markerPaint)
++    if (edge.sourceTerminalLead !== undefined && !finiteSize(edge.sourceTerminalLead, false)
++      || edge.targetTerminalLead !== undefined && !finiteSize(edge.targetTerminalLead, false)) throw new TypeError('Invalid measured endpoint terminal lead')
++  }
+   if (!['TD', 'TB', 'BT', 'LR', 'RL'].includes(input.direction)) throw new TypeError('Invalid measured graph direction')
+   if (input.groups?.length) {
+     if (nodes.length + input.groups.length > MAX_NODES) unsupported('agentic local compound-size limit')
+@@ -212,12 +216,12 @@ export function layoutLayeredGraph(
+       ids.add(id)
+       const target = expandedNodes.length
+       expandedNodes.push({ id, width: horizontal ? 1 : 40, height: horizontal ? 40 : 1, ...(partitioned ? { partition: nodes[edge.source]!.partition ?? 0 } : {}) })
+-      expandedEdges[index] = { ...edge, target, ...(edge.targetPortSpan !== undefined ? { targetPortSpan: undefined } : {}), ...(edge.label ? { label: horizontal
++      expandedEdges[index] = { ...edge, target, ...(edge.targetTerminalLead !== undefined ? { targetTerminalLead: undefined } : {}), ...(edge.targetPortSpan !== undefined ? { targetPortSpan: undefined } : {}), ...(edge.label ? { label: horizontal
+         ? { width: edge.label.width, height: 2 * edge.label.height + 8 }
+         : { width: 2 * edge.label.width + 8, height: edge.label.height } } : {}) }
+       returns[index] = expandedEdges.length
+       loopPorts.push([index, expandedEdges.length])
+-      expandedEdges.push({ source: edge.source, target, minSpan: edge.minSpan, ...(edge.targetPortSpan !== undefined ? { sourcePortSpan: edge.targetPortSpan } : {}) })
++      expandedEdges.push({ source: edge.source, target, minSpan: edge.minSpan, ...(edge.targetTerminalLead !== undefined ? { sourceTerminalLead: edge.targetTerminalLead } : {}), ...(edge.targetPortSpan !== undefined ? { sourcePortSpan: edge.targetPortSpan } : {}) })
+     }
+     const placed = layoutLayeredGraph({ ...input, nodes: expandedNodes, edges: expandedEdges, loopPorts }, forestLayout, unsupported, routingWork, searchWork)
+     const projected: AgenticLayout = { ...placed, topology: 'layered', nodes: placed.nodes.slice(0, nodes.length), edges: placed.edges.slice(0, edges.length).map((route, index) => {
+diff --git a/src/layout/compound-boundary-routes.ts b/src/layout/compound-boundary-routes.ts
+index 2b2aae6b..9a5a474a 100644
+--- a/src/layout/compound-boundary-routes.ts
++++ b/src/layout/compound-boundary-routes.ts
+@@ -1,6 +1,7 @@
+ import { formatSvgNumber } from '../shared/svg-number.ts'
+ import { classMarkerPiecesOverlap } from './measured-marker-overlap.ts'
+ import { seatMeasuredMarkers } from './compound-marker-seating.ts'
++import { projectMeasuredMarkerBox } from './measured-marker-pose.ts'
+ import { createOwnedCompoundObstacleIndexFactory } from './compound-obstacle-index.ts'
+ import { proposeRetainedLabelChannel, compactProvedPath } from './compound-portal-channel.ts'
+ import { proposeOuterChannel } from './compound-outer-channel.ts'
+@@ -9,7 +10,7 @@ import type { AgenticLayout, MeasuredGraph } from './agentic-layered-core.ts'
+ import type { ChannelWork } from './channel-tracks.ts'
+ import type { Direction, Point } from '../types.ts'
+ import { scoreMeasuredRouteCrossings, scoreMeasuredRouteProposalCrossings, measuredRouteContactPairBudget, segmentEntersMeasuredBox, type MeasuredSharpContactWitness } from './measured-route-safety.ts'
+-import { simplifyOrthogonal, type RoutingBox, type Terminal } from './compound-visibility.ts'
++import { retainsTerminalLead, simplifyOrthogonal, type RoutingBox, type Terminal } from './compound-visibility.ts'
+ import { createEndpointSparseVisibilityGraph, createSparseAdjacencyStoragePool, createSparseQueryWorkspacePool, createSparseVisibilityGraph, type SparseQueryWorkspacePool } from './compound-sparse-visibility.ts'
+ import { createLazyVisibilityGrid } from './compound-lazy-visibility.ts'
+ import { routeAncestorBoundaryConnection, type AncestorBoundaryPlan } from './ancestor-boundary-routes.ts'
+@@ -507,6 +508,11 @@ function seatFinalMeasuredMarkers(
+         const source = role === 0, box = subjects[source ? edge.source : edge.target]!
+         const p = source ? candidate[0]! : candidate.at(-1)!, q = source ? candidate[1]! : candidate.at(-2)!
+         const a = source ? old.points[0]! : old.points.at(-1)!, b = source ? old.points[1]! : old.points.at(-2)!
++        const terminalDemand = source ? edge.sourceTerminalLead : edge.targetTerminalLead
++        if (terminalDemand !== undefined) {
++          charge(8)
++          if (!retainsTerminalLead(p, q, terminalDemand)) return false
++        }
+         if (Math.sign(q.x-p.x) !== Math.sign(b.x-a.x) || Math.sign(q.y-p.y) !== Math.sign(b.y-a.y)
+           || Math.abs(q.x-p.x)+Math.abs(q.y-p.y) < Math.min(clearance,Math.abs(b.x-a.x)+Math.abs(b.y-a.y))) return false
+         if (p.x < box.x || p.x > box.x+box.width || p.y < box.y || p.y > box.y+box.height) return false
+@@ -768,7 +774,9 @@ export function routeCrossHierarchy(
+         // unreachable; the actual box still forbids a route through its interior.
+         if (leafCount + group === edge.source || leafCount + group === edge.target) obstacles.push(frame)
+         else if (!related.has(group)) obstacles.push(inflate(frame, clearance))
+-        else if (groups[group]!.padding.top > 0) obstacles.push(inflate({ ...frame, height: ancestorPlan || leafCount > 64 ? (headerGroups[group]!.headerHeight ?? headerGroups[group]!.padding.top) : groups[group]!.padding.top }, Math.max(2, (input.edgeSpacing ?? 6) / 2)))
++        // Complete per-end requests use the measured title strip as their
++        // obstacle. Existing small-scope policies retain their padding bound.
++        else if (groups[group]!.padding.top > 0) obstacles.push(inflate({ ...frame, height: ancestorPlan || leafCount > 64 || edge.sourceTerminalLead !== undefined || edge.targetTerminalLead !== undefined ? (headerGroups[group]!.headerHeight ?? headerGroups[group]!.padding.top) : groups[group]!.padding.top }, Math.max(2, (input.edgeSpacing ?? 6) / 2)))
+       }
+       const solidObstacles = [...obstacles]
+       let ownReservedLabel: RoutingBox | undefined
+@@ -782,7 +790,24 @@ export function routeCrossHierarchy(
+           solidObstacles.push(label)
+           if (other === index) ownReservedLabel = label
+         }
+-        if (other === index || measured.visible === false || ancestorPlan?.connections.has(other)) continue
++        // Fully lifted quotients have no authored terminal yet. A partially
++        // lifted route still reserves its real leaf tail and marker space.
++        const pending = lifted.get(other)
++        if (other === index || measured.visible === false || ancestorPlan?.connections.has(other)
++          || pending && !completed.has(other) && pending.source !== measured.source && pending.target !== measured.target) continue
++        // A finalized route already owns a definite marker pose. Reserve it
++        // before admitting later shafts; final seating still proves all paint.
++        if (markerPaint && (measured.sourceTerminalLead !== undefined || measured.targetTerminalLead !== undefined)
++          && (!pending || completed.has(other))) for (const source of [true, false]) {
++          const template = source ? measured.markerPaint?.start : measured.markerPaint?.end
++          if (!template?.length) continue
++          const markerBox = projectMeasuredMarkerBox(template, source ? route.points[0]! : route.points.at(-1)!,
++            source ? route.points[1]! : route.points.at(-2)!, widthProof! / 2,
++            chargePhysicalContact!, reservePhysicalContact!, fail)
++          work.arcs -= 2 // The two retained obstacle-array references.
++          if (work.arcs < 0) fail('agentic committed marker obstacle capacity limit')
++          obstacles.push(markerBox); solidObstacles.push(markerBox)
++        }
+         for (let cursor = 1; cursor < route.points.length; cursor++) {
+           if (--work.pairs < 0) fail('agentic local cross-hierarchy obstacle-work limit')
+           const a = route.points[cursor - 1]!, b = route.points[cursor]!
+@@ -817,8 +842,21 @@ export function routeCrossHierarchy(
+         ? { x: frame.x + pad.left, y: frame.y + pad.top, width: frame.width - pad.left - pad.right, height: frame.height - pad.top - pad.bottom }
+         : { x: frame.x + paddingInset, y: frame.y + pad.top, width: frame.width - 2 * paddingInset, height: frame.height - pad.top - paddingInset }
+         : { x: 0, y: 0, width: placed.width, height: placed.height }
+-      const sources = crossingSource ? terminals(subjects[edge.source]!, directions[owners[edge.source]! + 1]!, true, clearance) : []
+-      const targets = crossingTarget ? terminals(subjects[edge.target]!, directions[owners[edge.target]! + 1]!, false, clearance) : []
++      const sourceLead = Math.max(clearance, edge.sourceTerminalLead ?? 0)
++      const targetLead = Math.max(clearance, edge.targetTerminalLead ?? 0)
++      const retainsTerminalLeads = (path: readonly Point[]): boolean => {
++        for (let role = 0; role < 2; role++) {
++          const demand = role === 0 ? edge.sourceTerminalLead : edge.targetTerminalLead
++          if (demand === undefined || demand === 0) continue
++          work.pairs -= 8
++          if (work.pairs < 0) fail('agentic terminal-lead work limit')
++          const port = role === 0 ? path[0]! : path.at(-1)!, next = role === 0 ? path[1]! : path.at(-2)!
++          if (!retainsTerminalLead(port, next, demand)) return false
++        }
++        return true
++      }
++      const sources = crossingSource ? terminals(subjects[edge.source]!, directions[owners[edge.source]! + 1]!, true, sourceLead) : []
++      const targets = crossingTarget ? terminals(subjects[edge.target]!, directions[owners[edge.target]! + 1]!, false, targetLead) : []
+       const endpointFrames = (endpoint: number): RoutingBox[] => {
+         const result: RoutingBox[] = []
+         for (let group = owners[endpoint]!; group >= 0; group = owners[leafCount + group]!) {
+@@ -831,12 +869,15 @@ export function routeCrossHierarchy(
+       let rejected: Point[] | undefined
+       let decline = 'agentic local cross-hierarchy size limit'
+       const corridorFail = (reason: string): never => {
+-        if (reason === 'agentic local cross-hierarchy visibility-expansion limit'
++        // A completed peer can block a temporary quotient anchor while the
++        // authored leaf-to-leaf route still has a bounded full-path search.
++        if (reason === 'cross-hierarchy route has no clear anchor'
++          || reason === 'agentic local cross-hierarchy visibility-expansion limit'
+           || reason === 'cross-hierarchy route has no bounded clear corridor'
+           || reason === 'cross-hierarchy route needs an unsupported self-contact repair') throw new BoundaryRouteDecline(reason)
+         return fail(reason)
+       }
+-      const clearLeafPath = leafPaths && leafPathClear(quotient)
++      const clearLeafPath = leafPaths && retainsTerminalLeads(quotient) && leafPathClear(quotient)
+       if (clearLeafPath && !selfContact(quotient, work, fail)) points = quotient
+       if (!points && !directOnly) try {
+         // A globally ranked route already joins the actual leaves. Its middle
+@@ -863,6 +904,7 @@ export function routeCrossHierarchy(
+           last ??= grid.route(targets, end).reverse()
+         }
+         points = simplifyOrthogonal([...first, ...core.slice(1, -1), ...last])
++        if (!retainsTerminalLeads(points)) corridorFail('cross-hierarchy route has no bounded clear corridor')
+         if (selfContact(points, work, fail)) {
+           rejected = points
+           corridorFail('cross-hierarchy route needs an unsupported self-contact repair')
+@@ -888,7 +930,7 @@ export function routeCrossHierarchy(
+         const contactsClear = createBoundaryProposalContactValidator(input, index, routes, work, fail)
+         const accept = (path: Point[]): Point[] | undefined => {
+           const candidate = selfContact(path, work, fail) ? removeClosedExcursions(path, work, fail) : path
+-          if (candidate.length < 2) return
++          if (candidate.length < 2 || !retainsTerminalLeads(candidate)) return
+           if (leafPaths && !leafPathClear(candidate)) return
+           for (const source of [true, false]) {
+             work.pairs -= 4
+@@ -934,8 +976,8 @@ export function routeCrossHierarchy(
+           if(work.arcs<0)fail('agentic local cross-hierarchy visibility-arc limit')
+           legacyDirect=()=>{
+         if (!points && !edge.label) {
+-          const starts = terminals(subjects[edge.source]!, directions[owners[edge.source]! + 1]!, true, clearance)
+-          const ends = terminals(subjects[edge.target]!, directions[owners[edge.target]! + 1]!, false, clearance)
++          const starts = terminals(subjects[edge.source]!, directions[owners[edge.source]! + 1]!, true, sourceLead)
++          const ends = terminals(subjects[edge.target]!, directions[owners[edge.target]! + 1]!, false, targetLead)
+           const borders = [...endpointFrames(edge.source), ...endpointFrames(edge.target)]
+           for (let fraction = 0; fraction < 3 && !points && probes.candidates > 0; fraction++) for (let side = 0; side < 4 && !points && probes.candidates > 0; side++) {
+             const target = ends[side * 3 + fraction]!
+@@ -958,8 +1000,8 @@ export function routeCrossHierarchy(
+           }
+         }else if(widthProof===undefined){
+         if (!points && !edge.label) {
+-          const starts = terminals(subjects[edge.source]!, directions[owners[edge.source]! + 1]!, true, clearance)
+-          const ends = terminals(subjects[edge.target]!, directions[owners[edge.target]! + 1]!, false, clearance)
++          const starts = terminals(subjects[edge.source]!, directions[owners[edge.source]! + 1]!, true, sourceLead)
++          const ends = terminals(subjects[edge.target]!, directions[owners[edge.target]! + 1]!, false, targetLead)
+           const borders = [...endpointFrames(edge.source), ...endpointFrames(edge.target)]
+           for (let fraction = 0; fraction < 3 && !points && probes.candidates > 0; fraction++) for (let side = 0; side < 4 && !points && probes.candidates > 0; side++) {
+             const target = ends[side * 3 + fraction]!
+@@ -992,7 +1034,7 @@ export function routeCrossHierarchy(
+               return { ...route, style }
+             })
+             const fractions = [...new Set([(ordinal + 1) / (degree + 1), .5, .25, .75])]
+-            return terminals(subjects[endpoint]!, directions[owners[endpoint]! + 1]!, source, clearance, fractions).filter(terminal => {
++            return terminals(subjects[endpoint]!, directions[owners[endpoint]! + 1]!, source, source ? sourceLead : targetLead, fractions).filter(terminal => {
+               work.pairs -= 4 * leadSegments + 2
+               if (work.pairs < 0) fail('agentic local cross-hierarchy crossing-work limit')
+               // Finalized incident edges already own their physical escape rays.
+@@ -1029,7 +1071,8 @@ export function routeCrossHierarchy(
+               const port = side === 'N' || side === 'S'
+                 ? { x: box.x + fraction * box.width, y: side === 'N' ? box.y : box.y + box.height }
+                 : { x: side === 'W' ? box.x : box.x + box.width, y: box.y + fraction * box.height }
+-              const stub = { x: port.x + (side === 'E' ? clearance * 2 : side === 'W' ? -clearance * 2 : 0), y: port.y + (side === 'S' ? clearance * 2 : side === 'N' ? -clearance * 2 : 0) }
++              const lead = Math.max(clearance * 2, source ? sourceLead : targetLead)
++              const stub = { x: port.x + (side === 'E' ? lead : side === 'W' ? -lead : 0), y: port.y + (side === 'S' ? lead : side === 'N' ? -lead : 0) }
+               roots[sideIndex] = { port, stub, penalty: sideIndex * clearance * 2 + Math.abs(fraction - .5) * clearance }
+             }
+             return roots
+@@ -1092,7 +1135,18 @@ export function routeCrossHierarchy(
+                     const accepted = accept(simplifyOrthogonal([...first, target.port]))
+                     if (accepted) { points = accepted; return true }
+                     return false
+-                  }, canTraverse) } finally { peerOwner!.leaveQuery(peerLease!) }
++                  }, (a, b, axis, nextAxis) => {
++                    // The target owns the same non-reversing lead as a root.
++                    // Reject the transition before equal-axis state merging.
++                    if (b.x === target.stub.x && b.y === target.stub.y) {
++                      work.pairs -= 8
++                      if (work.pairs < 0) fail('agentic local cross-hierarchy obstacle-work limit')
++                      const dx = target.stub.x - target.port.x, dy = target.stub.y - target.port.y
++                      if (dx > 0 && a.y === b.y && a.x < b.x || dx < 0 && a.y === b.y && a.x > b.x
++                        || dy > 0 && a.x === b.x && a.y < b.y || dy < 0 && a.x === b.x && a.y > b.y) return false
++                    }
++                    return canTraverse(a, b, axis, nextAxis)
++                  }) } finally { peerOwner!.leaveQuery(peerLease!) }
+                 })
+               } } finally { graph.retire() }
+             }
+diff --git a/src/layout/compound-marker-seating.ts b/src/layout/compound-marker-seating.ts
+index 4764bacd..c1b3c945 100644
+--- a/src/layout/compound-marker-seating.ts
++++ b/src/layout/compound-marker-seating.ts
+@@ -1,4 +1,5 @@
+ import type { ClassMarkerPiece } from '../class/relationship-paint.ts'
++import { projectMeasuredMarkerPose, type MarkerPose as Pose } from './measured-marker-pose.ts'
+ import { formatSvgNumber } from '../shared/svg-number.ts'
+ import type { Point } from '../types.ts'
+ import type { ChannelWork } from './channel-tracks.ts'
+@@ -69,7 +70,6 @@ export function writtenParallelSupportsOverlap(a: Point, b: Point, c: Point, d:
+   return Math.min(Math.max(A, B), Math.max(C, D)) > Math.max(Math.min(A, B), Math.min(C, D))
+ }
+ 
+-type Pose = { owner: number; source: boolean; pieces: ClassMarkerPiece[]; minX: number; maxX: number; minY: number; maxY: number }
+ type Route = { points: Point[]; labelPosition?: Point }
+ /** All routes are final and all query leases ended before entry. Earlier marker
+  * reservations are immutable. Reseating changes only an owned path's endpoint
+@@ -303,47 +303,9 @@ export function seatMeasuredMarkers(
+   // survives, and every accepted route refreshes its borrowed current records.
+   const changedCarrier: Carrier = { current: true, a: undefined as unknown as Point, b: undefined as unknown as Point, point: 0, join: false, minX: 0, maxX: 0, minY: 0, maxY: 0 }
+ 
+-  const pose = (template: readonly ClassMarkerPiece[], port: Point, next: Point, owner: number, source: boolean): Pose => {
+-    charge(10)
+-    if (!Number.isFinite(port.x) || !Number.isFinite(port.y) || !Number.isFinite(next.x) || !Number.isFinite(next.y)) fail('Nonfinite measured marker normal')
+-    const dx = Math.sign(next.x - port.x),
+-      dy = Math.sign(next.y - port.y)
+-    if (Number(!dx) + Number(!dy) !== 1) fail('Nonorthogonal measured marker normal')
+-    let points = 0
+-    for (const piece of template) {
+-      charge()
+-      if (piece.kind === 'polygon') points += piece.points.length
+-    }
+-    records(2 + 2 * template.length + points)
+-    reservePoints(points)
+-    const result: Pose = { owner, source, pieces: [], minX: Infinity, maxX: -Infinity, minY: Infinity, maxY: -Infinity }
+-    for (const piece of template) {
+-      charge()
+-      if (piece.kind === 'circle') {
+-        const cx = port.x + dx * piece.cx - dy * piece.cy,
+-          cy = port.y + dy * piece.cx + dx * piece.cy
+-        result.pieces.push({ kind: 'circle', cx, cy, r: piece.r })
+-        result.minX = Math.min(result.minX, cx - piece.r)
+-        result.maxX = Math.max(result.maxX, cx + piece.r)
+-        result.minY = Math.min(result.minY, cy - piece.r)
+-        result.maxY = Math.max(result.maxY, cy + piece.r)
+-      } else {
+-        const polygon: Extract<ClassMarkerPiece, { kind: 'polygon' }> = { kind: 'polygon', points: [] }
+-        for (const p of piece.points) {
+-          charge()
+-          const x = port.x + dx * p.x - dy * p.y,
+-            y = port.y + dy * p.x + dx * p.y
+-          polygon.points.push({ x, y })
+-          result.minX = Math.min(result.minX, x)
+-          result.maxX = Math.max(result.maxX, x)
+-          result.minY = Math.min(result.minY, y)
+-          result.maxY = Math.max(result.maxY, y)
+-        }
+-        result.pieces.push(polygon)
+-      }
+-    }
+-    return result
+-  }
++  const pose = (template: readonly ClassMarkerPiece[], port: Point, next: Point, owner: number, source: boolean): Pose =>
++    projectMeasuredMarkerPose(template, port, next, owner, source, charge, records, reservePoints, fail)
++
+   records(markerCount + 1)
+   const all: Pose[] = []
+   for (let i = 0; i < edges.length; i++) {
+diff --git a/src/layout/compound-visibility.ts b/src/layout/compound-visibility.ts
+index 4ffb3826..aa38af7f 100644
+--- a/src/layout/compound-visibility.ts
++++ b/src/layout/compound-visibility.ts
+@@ -4,6 +4,15 @@ import type { ChannelWork } from './channel-tracks.ts'
+ export interface RoutingBox { x: number; y: number; width: number; height: number }
+ export interface Terminal { port: Point; stub: Point; penalty: number }
+ 
++/** Compare with the constructed cardinal boundary. Subtracting a rounded
++ * coordinate can make its own requested stub appear shorter than the demand. */
++export function retainsTerminalLead(port: Point, next: Point, demand: number): boolean {
++  if (demand === 0) return true
++  if (next.y === port.y) return next.x > port.x ? next.x >= port.x + demand : next.x < port.x && next.x <= port.x - demand
++  if (next.x === port.x) return next.y > port.y ? next.y >= port.y + demand : next.y < port.y && next.y <= port.y - demand
++  return false
++}
++
+ const inside = (point: Point, box: RoutingBox): boolean => point.x > box.x && point.x < box.x + box.width && point.y > box.y && point.y < box.y + box.height
+ const enters = (a: Point, b: Point, box: RoutingBox): boolean => a.x === b.x
+   ? a.x > box.x && a.x < box.x + box.width && Math.max(a.y, b.y) > box.y && Math.min(a.y, b.y) < box.y + box.height
+diff --git a/src/layout/cycle-layout-search.ts b/src/layout/cycle-layout-search.ts
+index 7c2e436e..575ae738 100644
+--- a/src/layout/cycle-layout-search.ts
++++ b/src/layout/cycle-layout-search.ts
+@@ -18,7 +18,7 @@ export interface LayoutSearchWork {
+ 
+ /** Keep endpoint-owned metadata with its endpoint through private orientation. */
+ export function orientMeasuredEdge(edge: MeasuredGraph['edges'][number], source: number, target: number, reversed: boolean): MeasuredGraph['edges'][number] {
+-  return { ...edge, source, target, ...(reversed ? { sourcePortSpan: edge.targetPortSpan, targetPortSpan: edge.sourcePortSpan } : {}) }
++  return { ...edge, source, target, ...(reversed ? { sourcePortSpan: edge.targetPortSpan, targetPortSpan: edge.sourcePortSpan, sourceTerminalLead: edge.targetTerminalLead, targetTerminalLead: edge.sourceTerminalLead } : {}) }
+ }
+ 
+ class OptionalOrderDecline extends Error {}
+diff --git a/src/layout/elk-measured-adapter.ts b/src/layout/elk-measured-adapter.ts
+index 53328c57..d268e04d 100644
+--- a/src/layout/elk-measured-adapter.ts
++++ b/src/layout/elk-measured-adapter.ts
+@@ -11,7 +11,7 @@ export function elkMeasuredAdapter(policy: { rootId: string; edgeNodeSpacing: nu
+       const input = request.graph
+       const physical = input.maximumEdgeStrokeWidth !== undefined
+       if (input.groups?.length || input.shareCompleteFans || input.nodes.some(n => { assertMeasuredContactMetadata(n); return n.contact === 'diamond' || n.parent !== undefined || n.partition || n.modelOrder !== undefined })
+-        || input.edges.some(e => e.minSpan !== 1 || e.short || e.visible === false || e.markerPaint !== undefined || e.boundaryMarker)
++        || input.edges.some(e => e.minSpan !== 1 || e.short || e.visible === false || e.markerPaint !== undefined || e.sourceTerminalLead !== undefined || e.targetTerminalLead !== undefined || e.boundaryMarker)
+         || (physical ? Number.isFinite(input.maximumEdgeBendRadius) && input.maximumEdgeBendRadius! > 0 : input.edgeSpacing !== undefined || input.nodeClearance !== undefined || input.maximumEdgeBendRadius !== undefined
+           || input.nodes.some(n => n.minimumPortSpacing !== undefined || n.paintStrokeWidth !== undefined || n.paintCornerRadius !== undefined)
+           || input.edges.some(e => e.sourcePortSpan !== undefined || e.targetPortSpan !== undefined))) throw new GraphLayoutUnsupportedError('ELK flat measured adapter requires the existing family adapter for these constraints', 'ELK')
+diff --git a/src/layout/measured-graph-producer.ts b/src/layout/measured-graph-producer.ts
+index 90dc42b8..a0048b64 100644
+--- a/src/layout/measured-graph-producer.ts
++++ b/src/layout/measured-graph-producer.ts
+@@ -4,6 +4,7 @@ import type { Direction, MermaidGraph, MermaidSubgraph, PositionedGraph, Positio
+ import type { ResolvedRenderStyle } from '../styles.ts'
+ import type { AgenticGraphBindings, AgenticGraphOptions } from '../layout-engine.ts'
+ import type { MeasuredGraph, MeasuredRoutes } from './measured-graph.ts'
++import type { MarkerPaint } from './compound-marker-seating.ts'
+ import { fitMeasuredLayout } from './fit-measured-layout.ts'
+ import { LayoutWorkLimitError } from './backend.ts'
+ import { paintedStrokeExtent } from '../scene/bounds.ts'
+@@ -11,6 +12,7 @@ import { shapeOutline } from '../shape-outline.ts'
+ import { flowchartImageViewport } from '../flowchart-image.ts'
+ 
+ interface ProjectionCompletion { mergeEdges: boolean; sharedEdges?: readonly number[] }
++const markerResourceOperands = ['hasArrowStart', 'hasArrowEnd', 'style', 'curve'] as const
+ 
+ /** One owner for measured glyph/CSS demand and authored graph projection.
+  * Existing Native completion stays explicit; owned routes need no legacy repair. */
+@@ -160,10 +162,46 @@ export function prepareMeasuredGraphCandidate(
+       if (target >= nodes.length && encloses(target - nodes.length, source)) return 'end'
+       return undefined
+     } : undefined
++    // The ordinary arrow resource bounds are complete conservative support.
++    // Unknown shapes, authored frame terminals and custom CSS keep their
++    // existing producer; they do not acquire partial physical proof metadata.
++    let nativeMarkerTemplates = nativeCapacity && groups.length > 0 && !options.stateVisual && style.edgeBendRadius === 0
++      && !graph.nodeStyles.size && !graph.linkStyles.size && !graph.classAssignments.size
++    if (nativeMarkerTemplates) {
++      // Reflect only the operands used by the new admission. Accessors retain
++      // the legacy path and its original evaluation count/order.
++      pay(0, 7) // The local descriptor helper and the two iteration records.
++      const ownDescriptor = (subject: object, field: string): PropertyDescriptor | undefined => {
++        pay(8)
++        const own = Object.hasOwn(subject, field)
++        // An absent property creates no descriptor. A native descriptor owns
++        // four fields plus its record; reserve it before the reflective call.
++        if (own) pay(0, 5)
++        return own ? Object.getOwnPropertyDescriptor(subject, field) : undefined
++      }
++      for (const node of graph.nodes.values()) {
++        const shape = ownDescriptor(node, 'shape'), semantic = ownDescriptor(node, 'semanticShape')
++        if (!shape || !('value' in shape) || shape.value !== 'rectangle'
++          || (semantic ? !('value' in semantic) || semantic.value !== undefined : 'semanticShape' in node)) { nativeMarkerTemplates = false; break }
++      }
++      if (nativeMarkerTemplates) for (const edge of graph.edges) {
++        const source = ownDescriptor(edge, 'source'), target = ownDescriptor(edge, 'target')
++        const start = ownDescriptor(edge, 'startMarker'), end = ownDescriptor(edge, 'endMarker')
++        if (!source || !('value' in source) || !target || !('value' in target)
++          || !graph.nodes.has(source.value) || !graph.nodes.has(target.value)
++          || (start ? !('value' in start) || start.value !== undefined && start.value !== 'arrow' : 'startMarker' in edge)
++          || (end ? !('value' in end) || end.value !== undefined && end.value !== 'arrow' : 'endMarker' in edge)) { nativeMarkerTemplates = false; break }
++        for (let operand = 0; operand < markerResourceOperands.length; operand++) {
++          const field = markerResourceOperands[operand]!, descriptor = ownDescriptor(edge, field)
++          if (descriptor ? !('value' in descriptor) : field in edge) { nativeMarkerTemplates = false; break }
++        }
++        if (!nativeMarkerTemplates) break
++      }
++    }
+     let lead = 0, doubleDepth = 0, maximumStroke = 0, knownClearance = true
+     pay(0, 4 * nodes.length + 5)
+     const portSpans = new Float64Array(2 * nodes.length), incoming = new Uint32Array(nodes.length), outgoing = new Uint32Array(nodes.length)
+-    type MarkerRoom = { start: number; end: number; startSpan: number; endSpan: number; span: number; boundaryInset: number; boundaryHeight: number; boundaryCount: number; startPresent?: boolean; endPresent?: boolean }
++    type MarkerRoom = { start: number; end: number; startSpan: number; endSpan: number; span: number; boundaryInset: number; boundaryHeight: number; boundaryCount: number; startPresent?: boolean; endPresent?: boolean; markerPaint?: MarkerPaint }
+     const footprints = new Map<string, MarkerRoom>()
+     const numericWidth = (value: string | number): number | undefined => {
+       pay(4 + (typeof value === 'string' ? value.length : 0), 1)
+@@ -220,6 +258,20 @@ export function prepareMeasuredGraphCandidate(
+           }
+           pay(diamondContacts ? 2 : 0, diamondContacts ? 13 : 9)
+           footprint = { start, end, startSpan, endSpan, span, boundaryInset, boundaryHeight, boundaryCount, ...(diamondContacts ? { startPresent, endPresent } : undefined) }
++          if (nativeMarkerTemplates) {
++            pay(8 * markers.length, 18 * markers.length + 1)
++            const markerPaint: MarkerPaint = {}
++            for (const marker of markers) {
++              if (marker.position !== 'start' && marker.position !== 'end' || !marker.bounds) continue
++              const box = marker.bounds, anchor = marker.anchor, sourceEnd = marker.position === 'start'
++              const x0 = sourceEnd ? box.x0 - anchor.x : anchor.x - box.x1
++              const x1 = sourceEnd ? box.x1 - anchor.x : anchor.x - box.x0
++              const y0 = sourceEnd ? box.y0 - anchor.y : anchor.y - box.y1
++              const y1 = sourceEnd ? box.y1 - anchor.y : anchor.y - box.y0
++              markerPaint[marker.position] = [{ kind: 'polygon', points: [{ x: x0, y: y0 }, { x: x1, y: y0 }, { x: x1, y: y1 }, { x: x0, y: y1 }] }]
++            }
++            footprint.markerPaint = markerPaint
++          }
+           footprints.set(key, footprint)
+         }
+         const { start: startDepth, end: endDepth, span } = footprint
+@@ -251,7 +303,12 @@ export function prepareMeasuredGraphCandidate(
+         ...(physical || portFaces?.[source] ? { sourcePortSpan: Math.max(shaft, footprint?.startSpan ?? 0) } : {}),
+         ...(physical || portFaces?.[target] ? { targetPortSpan: Math.max(shaft, footprint?.endSpan ?? 0) } : {}),
+       } : {}
+-      return { source, target, ...(diamondContacts && source < nodes.length && graph.nodes.get(nodes[source]!.id)?.shape === 'diamond' ? { sourceMarkerPresent: footprint ? footprint.startPresent : false } : {}), ...(diamondContacts && target < nodes.length && graph.nodes.get(nodes[target]!.id)?.shape === 'diamond' ? { targetMarkerPresent: footprint ? footprint.endPresent : false } : {}), ...endpointSpans, minSpan: edge.length ?? 1, ...(preferred?.has(index) ? { short: true as const } : {}), ...(boundaryMarker ? { boundaryMarker } : {}), ...(edge.style === 'invisible' ? { visible: false } : {}), ...(block ? { label: { width: block.width + 2 * LABEL_PILL_PADDING + 2 * halo, height: block.height + 2 * LABEL_PILL_PADDING + 2 * halo } } : {}) }
++      if (nativeMarkerTemplates) pay(0, 3)
++      return { source, target, ...(nativeMarkerTemplates ? {
++        sourceTerminalLead: footprint?.start ? footprint.start + VISIBLE_SHAFT + style.edgeBendRadius : 0,
++        targetTerminalLead: footprint?.end ? footprint.end + VISIBLE_SHAFT + style.edgeBendRadius : 0,
++        ...(footprint?.markerPaint ? { markerPaint: footprint.markerPaint } : {}),
++      } : {}), ...(diamondContacts && source < nodes.length && graph.nodes.get(nodes[source]!.id)?.shape === 'diamond' ? { sourceMarkerPresent: footprint ? footprint.startPresent : false } : {}), ...(diamondContacts && target < nodes.length && graph.nodes.get(nodes[target]!.id)?.shape === 'diamond' ? { targetMarkerPresent: footprint ? footprint.endPresent : false } : {}), ...endpointSpans, minSpan: edge.length ?? 1, ...(preferred?.has(index) ? { short: true as const } : {}), ...(boundaryMarker ? { boundaryMarker } : {}), ...(edge.style === 'invisible' ? { visible: false } : {}), ...(block ? { label: { width: block.width + 2 * LABEL_PILL_PADDING + 2 * halo, height: block.height + 2 * LABEL_PILL_PADDING + 2 * halo } } : {}) }
+     })
+     const shareCompleteFans = !options.stateVisual && !groups.length && [...graph.nodes.values()].every(node => node.shape === 'rectangle' && !node.semanticShape)
+       && graph.edges.every((edge, index) => {
+@@ -314,6 +371,31 @@ export function prepareMeasuredGraphCandidate(
+     const margin = border + maximumStroke / 2
+     if (physical && !knownClearance) bindings.unsupported('paint needs an absolute positive pixel stroke measurement')
+     const edgeSpacing = Math.max(6, style.lineWidth + 4)
++    if (nativeMarkerTemplates) {
++      pay(12 * edges.length + 3 * nodes.length + 3 * groups.length)
++      // Caller size overrides own dimensions, not physical paint authority.
++      for (const node of nodes) { node.paintStrokeWidth = style.nodeLineWidth; node.paintCornerRadius = style.cornerRadius ?? 0 }
++      for (const group of groups) { group.paintStrokeWidth = style.groupLineWidth; group.paintCornerRadius = style.groupCornerRadius }
++      for (const edge of edges) {
++        if (edge.sourceTerminalLead) edge.sourceTerminalLead += margin
++        if (edge.targetTerminalLead) edge.targetTerminalLead += margin
++        if (edge.visible === false || nodes[edge.source]!.parent === nodes[edge.target]!.parent) continue
++        for (let role = 0; role < 2; role++) {
++          const endpoint = role === 0 ? edge.source : edge.target, parent = nodes[endpoint]!.parent
++          if (parent === undefined) continue
++          const group = groups[parent]!, direction = group.direction ?? graph.direction
++          const side = direction === 'LR' ? role === 0 ? 'right' : 'left'
++            : direction === 'RL' ? role === 0 ? 'left' : 'right'
++              : direction === 'BT' ? role === 0 ? 'top' : 'bottom'
++                : role === 0 ? 'bottom' : 'top'
++          const demand = Math.max(8, (role === 0 ? edge.sourceTerminalLead : edge.targetTerminalLead) ?? 0)
++          // North alone includes the physical title and the exact existing
++          // header obstacle halo. Equality with its boundary remains clear.
++          const header = side === 'top' ? (group.headerHeight ?? 0) + Math.max(2, edgeSpacing / 2) : 0
++          group.padding[side] = Math.max(group.padding[side], header + demand)
++        }
++      }
++    }
+     if (portFaces && knownClearance) pay(0, 1)
+     const minimumTerminalLead = lead + margin > Math.max(12, edgeSpacing) ? lead + margin : undefined
+     for (let index = 0; !physical && index < nodes.length; index++) {
+@@ -344,7 +426,7 @@ export function prepareMeasuredGraphCandidate(
+     return { nodes, groups, edges, shareCompleteFans: physical ? false : shareCompleteFans, direction: graph.direction, padding: opts.padding, nodeSpacing: opts.nodeSpacing,
+       layerSpacing: Math.max(opts.layerSpacing, 2 * (doubleDepth + margin)), edgeSpacing,
+       ...(physical ? { minimumTerminalLead: lead + margin, maximumEdgeStrokeWidth: maximumStroke || style.lineWidth, maximumEdgeBendRadius: style.edgeBendRadius, nodeClearance: 0 }
+-        : { ...(minimumTerminalLead !== undefined ? { minimumTerminalLead } : {}), ...(portFaces && knownClearance ? { nodeClearance: margin } : {}) }),
++        : { ...(nativeMarkerTemplates && knownClearance ? { maximumEdgeStrokeWidth: maximumStroke || style.lineWidth, maximumEdgeBendRadius: style.edgeBendRadius } : {}), ...(minimumTerminalLead !== undefined ? { minimumTerminalLead } : {}), ...(portFaces && knownClearance ? { nodeClearance: margin } : {}) }),
+     }
+ 
+   })
+diff --git a/src/layout/measured-graph.ts b/src/layout/measured-graph.ts
+index 1d6af1dc..1777ab09 100644
+--- a/src/layout/measured-graph.ts
++++ b/src/layout/measured-graph.ts
+@@ -21,7 +21,7 @@ export interface MeasuredGraph {
+    * the shaft axis, including its stroke. Label dimensions include the occupied painted body. Its own shaft is
+    * masked by that body; foreign routes must stay outside it. Loop expansion
+    * reserves additional space beside the arc instead of masking its shaft. */
+-  edges: readonly { source: number; target: number; minSpan: number; sourcePortSpan?: number; targetPortSpan?: number; /** Explicit marker-roster facts for diamond contacts; false proves shaft-only. */ sourceMarkerPresent?: boolean; targetMarkerPresent?: boolean; short?: true; boundaryMarker?: { inset: number; height: number }; markerPaint?: MarkerPaint; visible?: boolean; label?: { width: number; height: number } }[]
++  edges: readonly { source: number; target: number; minSpan: number; sourcePortSpan?: number; targetPortSpan?: number; /** Authored endpoint artwork demand, separate from opposite-end markers. Absence retains the consumer's legacy lead policy. */ sourceTerminalLead?: number; targetTerminalLead?: number; /** Explicit marker-roster facts for diamond contacts; false proves shaft-only. */ sourceMarkerPresent?: boolean; targetMarkerPresent?: boolean; short?: true; boundaryMarker?: { inset: number; height: number }; markerPaint?: MarkerPaint; visible?: boolean; label?: { width: number; height: number } }[]
+   direction: Direction
+   padding: number
+   nodeSpacing: number
+diff --git a/src/layout/measured-marker-pose.ts b/src/layout/measured-marker-pose.ts
+new file mode 100644
+index 00000000..8bb57fb5
+--- /dev/null
++++ b/src/layout/measured-marker-pose.ts
+@@ -0,0 +1,65 @@
++import type { ClassMarkerPiece } from '../class/relationship-paint.ts'
++import type { Point } from '../types.ts'
++import type { RoutingBox } from './compound-visibility.ts'
++
++export type MarkerPoseBounds = { owner: number; source: boolean; minX: number; maxX: number; minY: number; maxY: number }
++export type MarkerPose = MarkerPoseBounds & { pieces: ClassMarkerPiece[] }
++
++/** One cardinal projection owns both retained seating pieces and obstacle
++ * boxes. Box queries retain neither transformed pieces nor a second bounds record. */
++function projectMarker(
++  template: readonly ClassMarkerPiece[], port: Point, next: Point, owner: number, source: boolean,
++  charge: (amount: number) => void, records: (amount: number) => void, fail: (reason: string) => never,
++  reservePoints?: (amount: number) => void, margin = 0,
++): MarkerPose | RoutingBox {
++  charge(10)
++  if (!Number.isFinite(port.x) || !Number.isFinite(port.y) || !Number.isFinite(next.x) || !Number.isFinite(next.y)) fail('Nonfinite measured marker normal')
++  const dx = Math.sign(next.x - port.x), dy = Math.sign(next.y - port.y)
++  if (Number(!dx) + Number(!dy) !== 1) fail('Nonorthogonal measured marker normal')
++  if (reservePoints) {
++    let points = 0
++    for (const piece of template) {
++      charge(1)
++      if (piece.kind === 'polygon') points += piece.points.length
++    }
++    records(2 + 2 * template.length + points)
++    reservePoints(points)
++  } else records(5)
++  const pieces: ClassMarkerPiece[] | undefined = reservePoints ? [] : undefined
++  let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity
++  for (const piece of template) {
++    charge(1)
++    if (piece.kind === 'circle') {
++      const cx = port.x + dx * piece.cx - dy * piece.cy, cy = port.y + dy * piece.cx + dx * piece.cy
++      pieces?.push({ kind: 'circle', cx, cy, r: piece.r })
++      minX = Math.min(minX, cx - piece.r); maxX = Math.max(maxX, cx + piece.r)
++      minY = Math.min(minY, cy - piece.r); maxY = Math.max(maxY, cy + piece.r)
++    } else {
++      const polygon: Extract<ClassMarkerPiece, { kind: 'polygon' }> | undefined = pieces ? { kind: 'polygon', points: [] } : undefined
++      for (const p of piece.points) {
++        charge(1)
++        const x = port.x + dx * p.x - dy * p.y, y = port.y + dy * p.x + dx * p.y
++        polygon?.points.push({ x, y })
++        minX = Math.min(minX, x); maxX = Math.max(maxX, x)
++        minY = Math.min(minY, y); maxY = Math.max(maxY, y)
++      }
++      if (polygon) pieces!.push(polygon)
++    }
++  }
++  return pieces ? { owner, source, pieces, minX, maxX, minY, maxY }
++    : { x: minX - margin, y: minY - margin, width: maxX - minX + 2 * margin, height: maxY - minY + 2 * margin }
++}
++
++export function projectMeasuredMarkerBox(
++  template: readonly ClassMarkerPiece[], port: Point, next: Point, margin: number,
++  charge: (amount: number) => void, records: (amount: number) => void, fail: (reason: string) => never,
++): RoutingBox {
++  return projectMarker(template, port, next, -1, false, charge, records, fail, undefined, margin) as RoutingBox
++}
++
++export function projectMeasuredMarkerPose(
++  template: readonly ClassMarkerPiece[], port: Point, next: Point, owner: number, source: boolean,
++  charge: (amount: number) => void, records: (amount: number) => void, reservePoints: (amount: number) => void, fail: (reason: string) => never,
++): MarkerPose {
++  return projectMarker(template, port, next, owner, source, charge, records, fail, reservePoints) as MarkerPose
++}
