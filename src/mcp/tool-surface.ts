@@ -563,6 +563,9 @@ ${options.sdkDeclaration}`,
   }
 }
 
+/** The compact-result paths, named in both servers' instructions. */
+export const MCP_COMPACT_RESULTS_NOTE = 'For smaller results, pass receipt:"summary" to render tools and output:"image" to render_png; describe_sdk capability=render-options (field=<name>) gives each render option\'s families and terminal notes, capability=code-mode the execute declaration.'
+
 /** Render tools do not verify. Running verify's checks on every render would
  * add roughly 55-100% CPU to each uncached render (measured locally on 10-60
  * node flowcharts, xychart, sequence and class diagrams), so the warnings

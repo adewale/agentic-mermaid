@@ -122,10 +122,12 @@ function compactInterfaceDeclarations(declaration: string): string {
 }
 
 /** Preserve literals and line separators while dropping optional type-syntax
- * whitespace from the progressive-disclosure prompt. */
+ * whitespace, and the optional separator before a closing brace, from the
+ * progressive-disclosure prompt. */
 export function compactSdkDeclaration(source: string): string {
-  return source.replace(/('(?:\\.|[^'\\])*'|"(?:\\.|[^"\\])*"|`(?:\\.|[^`\\])*`)|\s+/g, (text, literal: string | undefined, offset: number) => {
+  return source.replace(/('(?:\\.|[^'\\])*'|"(?:\\.|[^"\\])*"|`(?:\\.|[^`\\])*`)|;(?=\s*\})|\s+/g, (text, literal: string | undefined, offset: number) => {
     if (literal) return literal
+    if (text === ';') return ''
     if (text.includes('\n')) return '\n'
     return /[\w$]/.test(source[offset - 1] ?? '') && /[\w$]/.test(source[offset + text.length] ?? '') ? ' ' : ''
   })

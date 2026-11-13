@@ -26,5 +26,6 @@ Load only the relevant channel reference for exact call shapes:
 The operating guide owns authoring, typed edits, verification, semantic
 read-back, source-preserving fallback and response rules. References add
 channel and family syntax; they do not define a second workflow. Discover
-family headers and operations with `am capabilities --json` or `describe_sdk`
+family headers and operations with `am capabilities --summary`, then
+`--family <id>`, or `describe_sdk`
 rather than borrowing another family's vocabulary.

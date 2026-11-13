@@ -12,7 +12,7 @@ that fits the task, then stop discovering tools:
 
 | Available environment | Channel | Version-matched reference |
 |---|---|---|
-| JS/TS with the package installed | `agentic-mermaid/agent/core` for portable editing; `/agent` also supplies native PNG | Installed declarations and `am capabilities --json` |
+| JS/TS with the package installed | `agentic-mermaid/agent/core` for portable editing; `/agent` also supplies native PNG | Installed declarations and `am capabilities --summary` |
 | Shell | `am …` or `npx agentic-mermaid …` | `am <command> --help` |
 | Connected local MCP | `agentic-mermaid-mcp` | `describe_sdk` and the connected tool list |
 | Network only, with permission to send the source | Hosted MCP at `https://agentic-mermaid.dev/mcp` | Connected tool list and `describe_sdk` |
@@ -36,8 +36,9 @@ transport and input limits; do not send private material merely to test access.
 
 ## Discover the family's actual schema
 
-Run `am capabilities --json` for installed families, headers, examples, edit
-policies, warning codes and operation fields. In MCP, use
+Run `am capabilities --summary` for installed families, headers, edit policies,
+operation names and warning codes, then `am capabilities --family <id>` for that
+family's operation fields and example. In MCP, use
 `describe_sdk({ family, detail: 'fields' })`; `detail: 'signatures'` is a compact
 menu. These describe the installed or connected version. Online
 `https://agentic-mermaid.dev/capabilities.json` describes production and may be
@@ -147,6 +148,9 @@ render and verify with the same options. PNG sizing and font availability can
 change readability: inspect the artifact rather than treating a successful
 render or a `BELOW_READABLE_SIZE` warning as a general quality verdict.
 Gantt has no implicit clock read: pass `ganttToday` to draw today's marker.
+To keep results small, MCP render tools take `receipt: "summary"`, `render_png`
+takes `output: "image"`, and the CLI takes `am verify --summary` and
+`am mutate --json --summary`.
 
 Flowchart labels containing punctuation should be quoted. In a quoted label,
 `\n` is a line break and canonical serialization uses `<br>`. A group is

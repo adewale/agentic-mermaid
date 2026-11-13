@@ -5,6 +5,7 @@ import { writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { applyOps, createMermaid, mutate, mutateChecked, parseRegisteredMermaid, serializeMermaid, verifyMermaid } from '../agent/core.ts'
 import { renderMermaidSVG } from '../index.ts'
+import { sharedRenderOptionsJsonSchema } from '../render-contract.ts'
 import vm from 'node:vm'
 import pkg from '../../package.json'
 import { BUILTIN_FAMILY_METADATA, getFamily, replaceFamilyForTest } from '../agent/families.ts'
@@ -769,6 +770,39 @@ describe('MCP — JSON-RPC happy + sad', () => {
     const payload = JSON.parse((r!.result as any).content[0].text)
     expect(payload).toEqual(expect.objectContaining({ ok: true, family: 'journey', detail: 'fields' }))
     expect(payload.ops.add_task).toContainEqual(expect.objectContaining({ name: 'score', required: true, note: 'finite number 1..5' }))
+  })
+  test('describe_sdk discloses the annotated render options and the execute declaration on request', async () => {
+    const describeSdk = async (args: Record<string, unknown>) => {
+      const r = await handleRequest({ jsonrpc: '2.0', id: 33, method: 'tools/call', params: { name: 'describe_sdk', arguments: args } })
+      return r!.error ? { rpcError: r!.error.message } : JSON.parse((r!.result as any).content[0].text)
+    }
+    // The annotated schema the website publishes; tools/list carries a compact projection.
+    const published = sharedRenderOptionsJsonSchema() as { $id: string; properties: Record<string, any> }
+    const index = await describeSdk({ capability: 'render-options' })
+    expect(index.schema).toBe(published.$id)
+    expect(index.fields.map((row: { name: string }) => row.name)).toEqual(Object.keys(published.properties))
+    for (const row of index.fields) {
+      const field = published.properties[row.name]
+      expect(row).toEqual(JSON.parse(JSON.stringify({
+        name: row.name,
+        description: field.description,
+        families: field['x-agentic-mermaid-applicable-builtin-families'],
+        terminal: field['x-agentic-mermaid-terminal'],
+        terminalNote: field['x-agentic-mermaid-terminal-note'],
+      })))
+    }
+    for (const name of ['padding', 'style', 'architecture']) {
+      const detail = await describeSdk({ capability: 'render-options', field: name })
+      expect(detail.schema).toEqual(JSON.parse(JSON.stringify(published.properties[name])))
+      // Every reference resolves inside the returned definitions.
+      const refs = JSON.stringify([detail.schema, detail.$defs ?? {}]).match(/"#\/\$defs\/[^"]+"/g) ?? []
+      for (const ref of refs) expect({ name, ref, resolved: Object.hasOwn(detail.$defs ?? {}, JSON.parse(ref).slice('#/$defs/'.length)) }).toEqual({ name, ref, resolved: true })
+    }
+    const codeMode = await describeSdk({ capability: 'code-mode' })
+    expect(LOCAL_TOOLS[0]!.description.endsWith(`\n${codeMode.declaration}`)).toBe(true)
+    expect((await describeSdk({ capability: 'render-options', field: 'paddng' })).rpcError).toContain('padding')
+    expect((await describeSdk({ family: 'gantt', field: 'padding' })).rpcError).toContain('render-options')
+    expect((await describeSdk({ capability: 'code-mode', detail: 'signatures' })).rpcError).toContain('detail')
   })
   test('transport maximum caps execute even when the request omits timeoutMs', async () => {
     const r = await handleRequest(

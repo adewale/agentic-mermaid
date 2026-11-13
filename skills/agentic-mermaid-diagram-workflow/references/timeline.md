@@ -14,8 +14,8 @@ Lines: `title <text>`, `section <label>`, `<period-label> : <event>`
 (multi-event via `: <event2> : <event3>`), and continuation `: <event>`
 that adds an event to the previous period.
 
-MutationOps: the live list and field shapes come from `am capabilities --json`
-or `describeOps('timeline')` — title, section, period, and event add/remove/
+MutationOps: the live list and field shapes come from
+`am capabilities --family timeline` or `describeOps('timeline')` — title, section, period, and event add/remove/
 relabel ops, move ops (order is the chronology), and accessibility title/
 description. `set_title` takes `null` to clear.
 

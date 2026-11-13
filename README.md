@@ -41,7 +41,7 @@ The agent workflow is the guardrail behind the polish: agents should not guess f
 
 ## Highlights
 
-- **Discover supported diagrams and edits** — `am capabilities --json` reports what the installed version supports, including registered extensions.
+- **Discover supported diagrams and edits** — `am capabilities --summary` indexes what the installed version supports, including registered extensions; `am capabilities --family <id>` gives one family's full edit schema.
 - **SVG, PNG, ASCII, Unicode, JSON** — export images, review diagrams in the terminal, or inspect positions as JSON layout.
 - **Render SVG without a browser** — the synchronous JavaScript API runs without a DOM or Puppeteer.
 - **Composable styles** — `{ style: ['hand-drawn', 'dracula'] }` combines a look with a palette. Set colors, fonts, strokes, fills and backdrops in a [JSON style](./docs/style-authoring.md). `seed` re-rolls the ink, never the layout.
@@ -133,7 +133,7 @@ If it only has shell access:
 
 ```bash
 am --agent-instructions
-am capabilities --json
+am capabilities --summary          # then: am capabilities --family <id>
 am preview diagram.mmd --security strict --open
 am mutate diagram.mmd --op '{"kind":"set_label","target":"API","label":"API gateway"}' --json
 ```
@@ -200,8 +200,9 @@ Rules:
 
 ## Supported diagram families
 
-Run `am capabilities --json` for the supported families and edit operations in
-your installed version. See [diagram families](./docs/diagram-families.md) for
+Run `am capabilities --summary` for the supported families and edit operations in
+your installed version, then `am capabilities --family <id>` for one family's
+full entry. See [diagram families](./docs/diagram-families.md) for
 syntax examples and compatibility notes.
 
 ## More documentation

@@ -21,6 +21,7 @@ import {
   createRenderPngTool,
   dispatchAdmittedMcpRequest,
   isValidExecuteTimeout,
+  MCP_COMPACT_RESULTS_NOTE,
   mcpPngImageResult,
   projectMcpRenderOptions,
   RENDER_WARNINGS_NOTE,
@@ -108,7 +109,7 @@ export const HOSTED_TOOLS = [
   ...EDIT_TOOLS,
 ]
 
-const INSTRUCTIONS = `agentic-mermaid hosted MCP server (stateless). Direct tools render_svg, render_ascii, render_png, verify, and describe cover plain render/verify calls cheaply. Successful deterministic pure-tool results may be reused by a private server-side compute cache for up to 24 hours; execute, mutate, and build bypass it. HTTP /mcp responses themselves are cache-control: no-store, so clients must not infer response freshness from CDN headers. The x-agentic-mermaid-compute-cache response header reports hit, miss, mixed, bypass, or disabled. There is no layout seed — the library's optional style seed only re-rolls ink of styled looks. describe_sdk progressively discloses one family's version-matched mutation schema. Declarative mutate/build apply typed op lists and verify before emitting source; prefer them for straightforward structured edits. execute runs synchronous JavaScript against the typed mermaid.* SDK in an isolated on-demand sandbox for logic the ops don't express; async/await and Promise jobs are not supported, and network access is disabled. Inputs are capped at 64KB; for bigger diagrams, Code Mode artifacts, or file/URL PNG output, run the local stdio server (see https://agentic-mermaid.dev/docs/mcp/).`
+const INSTRUCTIONS = `agentic-mermaid hosted MCP server (stateless). Direct tools render_svg, render_ascii, render_png, verify, and describe cover plain render/verify calls cheaply. Successful deterministic pure-tool results may be reused by a private server-side compute cache for up to 24 hours; execute, mutate, and build bypass it. HTTP /mcp responses themselves are cache-control: no-store, so clients must not infer response freshness from CDN headers. The x-agentic-mermaid-compute-cache response header reports hit, miss, mixed, bypass, or disabled. There is no layout seed — the library's optional style seed only re-rolls ink of styled looks. describe_sdk progressively discloses one family's version-matched mutation schema. Declarative mutate/build apply typed op lists and verify before emitting source; prefer them for straightforward structured edits. execute runs synchronous JavaScript against the typed mermaid.* SDK in an isolated on-demand sandbox for logic the ops don't express; async/await and Promise jobs are not supported, and network access is disabled. Inputs are capped at 64KB; for bigger diagrams, Code Mode artifacts, or file/URL PNG output, run the local stdio server (see https://agentic-mermaid.dev/docs/mcp/). ${MCP_COMPACT_RESULTS_NOTE}`
 
 const HOSTED_SURFACE: McpServerSurface<HostedMcpContext> = {
   // Historical fallback for callers that construct a surface without an
@@ -291,8 +292,17 @@ export function cacheKeyFor(name: string | undefined, args: Record<string, unkno
     }
     case 'describe_sdk': {
       try {
-        const payload = describeSdkPayload(args) as { family: string; detail: string }
-        return { t: 'describe_sdk', family: payload.family, detail: payload.detail }
+        // Validate exactly as dispatch does, then key on every argument that
+        // selects a payload. Capability payloads echo no detail, so keying on
+        // the payload's own family/detail made every capability request share
+        // one entry (resolved-scene fields and signatures included).
+        describeSdkPayload(args)
+        return {
+          t: 'describe_sdk',
+          ...(args.capability === undefined ? { family: args.family } : { capability: args.capability }),
+          detail: args.capability === undefined || args.capability === 'resolved-scene' ? args.detail ?? 'fields' : undefined,
+          field: args.field,
+        }
       } catch {
         return null
       }

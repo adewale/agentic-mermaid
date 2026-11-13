@@ -119,8 +119,8 @@ For Node/Bun applications, `agentic-mermaid/agent` provides rendering and editin
 Browser/Worker editing uses `agentic-mermaid/agent/core` to avoid the native PNG
 dependency; browser rendering uses `agentic-mermaid/browser/lazy`.
 
-The CLI and MCP tools use the same operations. Run `am capabilities --json` for
-version-matched families and edit schemas; the registry is their source of truth.
+The CLI and MCP tools use the same operations. Run `am capabilities --summary`,
+then `am capabilities --family <id>`, for version-matched families and edit schemas; the registry is their source of truth.
 The [MCP guide](docs/mcp-http-transport.md) distinguishes the local and hosted
 tool sets. Code Mode composes SDK calls in JavaScript; it grants no filesystem
 access. Local VM containment and hosted Worker isolation have different security

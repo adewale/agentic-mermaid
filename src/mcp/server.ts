@@ -19,6 +19,7 @@ import {
   dispatchAdmittedMcpRequest,
   isValidExecuteTimeout,
   isMcpPngOutputMode,
+  MCP_COMPACT_RESULTS_NOTE,
   MCP_PNG_OUTPUT_MODES,
   mcpPngImageResult,
   projectMcpRenderOptions,
@@ -125,7 +126,7 @@ let defaultArtifactStore: ArtifactStore | undefined
 let defaultArtifactStoreExitHook = false
 const MCP_NARROWERS = BUILTIN_FAMILY_METADATA.map(f => f.narrower).join('/')
 
-const LOCAL_INSTRUCTIONS = `agentic-mermaid editing server. Prefer mutate/build for ordinary edits. execute runs synchronous JavaScript against the typed mermaid.* SDK in a sandbox; async/await and Promise jobs are not supported. describe_sdk progressively discloses one family's version-matched mutation schema; call it before authoring unfamiliar ops. Direct render_svg, render_ascii and verify helpers return structured results with a 15s deadline, a bounded queue and a sampled 512 MiB render-process memory budget. The compiled Bun binary includes its renderer. render_png and describe are additional narrow helpers. render_png can return base64, an MCP image content block (output image), managed file paths, or managed URLs when the transport config provides an artifact store. Prefer declarative mutate/build for structured edits; they accept ordered JSON ops and verify before emitting source. Reserve execute for custom logic; narrow via ${MCP_NARROWERS}. Every built-in renderable family ships a typed path when the body narrows; only opaque fallback bodies are source-level only. Layout is deterministic; there is no layout seed (the optional style seed only re-rolls ink of styled looks, never geometry).`
+const LOCAL_INSTRUCTIONS = `agentic-mermaid editing server. Prefer mutate/build for ordinary edits. execute runs synchronous JavaScript against the typed mermaid.* SDK in a sandbox; async/await and Promise jobs are not supported. describe_sdk progressively discloses one family's version-matched mutation schema; call it before authoring unfamiliar ops. Direct render_svg, render_ascii and verify helpers return structured results with a 15s deadline, a bounded queue and a sampled 512 MiB render-process memory budget. The compiled Bun binary includes its renderer. render_png and describe are additional narrow helpers. render_png can return base64, an MCP image content block (output image), managed file paths, or managed URLs when the transport config provides an artifact store. Prefer declarative mutate/build for structured edits; they accept ordered JSON ops and verify before emitting source. Reserve execute for custom logic; narrow via ${MCP_NARROWERS}. Every built-in renderable family ships a typed path when the body narrows; only opaque fallback bodies are source-level only. Layout is deterministic; there is no layout seed (the optional style seed only re-rolls ink of styled looks, never geometry). ${MCP_COMPACT_RESULTS_NOTE}`
 
 const LOCAL_SURFACE: McpServerSurface<McpRequestContext> = {
   protocolVersion: PROTOCOL_VERSION,

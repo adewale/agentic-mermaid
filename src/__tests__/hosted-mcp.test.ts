@@ -895,6 +895,19 @@ describe('cacheKeyFor (validated, normalized, output-affecting arguments)', () =
     expect(cacheKeyFor('describe_sdk', { family: 'gantt', detail: 'unknown' })).toBeNull()
   })
 
+  test('describe_sdk capability requests key apart from one another', () => {
+    const requests = [
+      { capability: 'resolved-scene' }, { capability: 'resolved-scene', detail: 'signatures' },
+      { capability: 'render-options' }, { capability: 'render-options', field: 'padding' }, { capability: 'render-options', field: 'style' },
+      { capability: 'code-mode' }, { family: 'gantt' },
+    ]
+    const keys = requests.map(request => JSON.stringify(cacheKeyFor('describe_sdk', request)))
+    expect(new Set(keys).size).toBe(requests.length)
+    expect(cacheKeyFor('describe_sdk', { capability: 'resolved-scene', detail: 'fields' })).toEqual(cacheKeyFor('describe_sdk', { capability: 'resolved-scene' }))
+    expect(cacheKeyFor('describe_sdk', { capability: 'render-options', field: 'nope' })).toBeNull()
+    expect(cacheKeyFor('describe_sdk', { capability: 'code-mode', detail: 'fields' })).toBeNull()
+  })
+
   test('does not cache arguments rejected by the advertised tool schema', () => {
     expect(cacheKeyFor('describe', { source: FLOW, nonce: 'x', foo: 1 })).toBeNull()
   })
