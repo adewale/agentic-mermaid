@@ -1,0 +1,84 @@
+/**
+ * synthesizeFromGraph must accept every body kind ValidDiagramPayload
+ * declares. The body-kind acceptance list used to be a hand-maintained `||`
+ * chain, and pie and quadrant were missing from it — a structurally valid
+ * payload for either family was rejected with INVALID_PAYLOAD. The loop
+ * below feeds every family's canonical example back through the payload
+ * path, so a newly registered family is covered automatically.
+ */
+import { describe, it, expect } from 'bun:test'
+import { parseRegisteredMermaid as parseMermaid } from '../agent/parse.ts'
+import { serializeMermaid, synthesizeFromGraph } from '../agent/serialize.ts'
+import { builtinFamilyMetadata, knownBuiltinFamilies } from '../agent/families.ts'
+import type { ValidDiagramPayload } from '../agent/types.ts'
+
+/** The JSON payload `am parse` emits and `am serialize` reads back: Maps
+ *  become records (the CLI's replacer), Sets become arrays; all remaining values are plain JSON. */
+function toWirePayload(diagram: { kind: string; body: unknown }): ValidDiagramPayload {
+  return JSON.parse(JSON.stringify({ kind: diagram.kind, body: diagram.body }, (_key, value) => value instanceof Map ? Object.fromEntries(value) : value instanceof Set ? [...value] : value))
+}
+
+describe('synthesizeFromGraph accepts every declared body kind', () => {
+  it('serializes the edited body instead of stale canonical source retained in a JSON payload', () => {
+    const result = synthesizeFromGraph({
+      kind: 'pie',
+      body: { kind: 'pie', title: 'Budget', showData: false, slices: [{ id: 'slice0', label: 'Authored', value: 7 }] },
+      canonicalSource: 'pie\n  "Stale" : 999\n',
+    })
+    expect(result.ok).toBe(true)
+    if (!result.ok) throw new Error(JSON.stringify(result.error))
+    expect(serializeMermaid(result.value)).toBe('pie\n  title Budget\n  "Authored" : 7\n')
+  })
+
+  it('publicly types the registered structured radar payload without a cast', () => {
+    const payload = {
+      kind: 'radar',
+      body: {
+        kind: 'radar',
+        axes: [{ id: 'a', label: 'A' }],
+        curves: [{ id: 'x', label: 'X', values: [1] }],
+        min: 0,
+        max: 2,
+        ticks: 5,
+        graticule: 'circle',
+        showLegend: true,
+      },
+    } satisfies ValidDiagramPayload
+    expect(synthesizeFromGraph(payload).ok).toBe(true)
+  })
+
+  for (const kind of knownBuiltinFamilies()) {
+    const meta = builtinFamilyMetadata(kind)
+    if (!meta) continue
+
+    it(`${kind}: round-trips its parsed body through the payload path`, () => {
+      const parsed = parseMermaid(meta.example)
+      expect(parsed.ok).toBe(true)
+      if (!parsed.ok) return
+      const result = synthesizeFromGraph(toWirePayload(parsed.value))
+      expect(result.ok).toBe(true)
+      if (!result.ok) return
+      // Semantic records survive JSON. AgentFlow's parser-owned attachment
+      // coordinates follow the canonical text admitted by synthesis.
+      const semanticBody = (body: typeof parsed.value.body) => body.kind === 'agentflow' ? { ...body, mappings: undefined } : body
+      expect(semanticBody(result.value.body)).toEqual(semanticBody(parsed.value.body))
+      const canonicalSource = serializeMermaid(parsed.value)
+      expect(result.value.canonicalSource).toBe(canonicalSource)
+      if (result.value.body.kind === 'agentflow') {
+        const canonical = parseMermaid(canonicalSource)
+        if (!canonical.ok || canonical.value.body.kind !== 'agentflow') throw new Error('Canonical AgentFlow must parse natively')
+        expect(result.value.body.mappings).toEqual(canonical.value.body.mappings)
+      }
+    })
+  }
+
+  it('still rejects an unknown body kind', () => {
+    const result = synthesizeFromGraph({
+      kind: 'flowchart',
+      body: { kind: 'nonsense' } as never,
+    })
+    expect(result.ok).toBe(false)
+    if (result.ok) return
+    expect(result.error[0]?.code).toBe('INVALID_PAYLOAD')
+  })
+})

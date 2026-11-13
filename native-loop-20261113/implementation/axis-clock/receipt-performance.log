@@ -1,0 +1,11 @@
+1 | import {readFileSync,writeFileSync,mkdirSync,appendFileSync,existsSync} from 'node:fs'
+2 | import {spawnSync} from 'node:child_process'
+3 | import {join} from 'node:path'
+4 | import {gunzipSync} from 'node:zlib'
+5 | const out=import.meta.dir
+6 | if(!existsSync(join(out,'PERFORMANCE-COMPLETED.json')))throw Error('Finish serial Trident timings before receipt timings')
+                                                                 ^
+error: Finish serial Trident timings before receipt timings
+      at /workspace/pr449-native-loop-20261113/implementation/axis-clock/receipt-performance.ts:6:62
+
+Bun v1.4.4 (Linux x64)

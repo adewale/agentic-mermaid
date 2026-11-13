@@ -1,0 +1,5429 @@
+{
+  "chain100": {
+    "renders": 10,
+    "scope": "Diagnostic sampled wall contributions. Inspector overhead is retained, excluded from product design claims; no unprofiled savings implied. Exact minified line and column prevent same-name closure conflation.",
+    "totalMs": 1648.963,
+    "self": [
+      {
+        "function": "post",
+        "file": "node:inspector",
+        "line": 115,
+        "column": 7,
+        "msPerRender": 30.116,
+        "pct": 18.26,
+        "samples": 12
+      },
+      {
+        "function": "_",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 1,
+        "column": 29565,
+        "msPerRender": 11.991,
+        "pct": 7.27,
+        "samples": 400
+      },
+      {
+        "function": "ZO",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 10,
+        "column": 195025,
+        "msPerRender": 3.744,
+        "pct": 2.27,
+        "samples": 138
+      },
+      {
+        "function": "T",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 1,
+        "column": 34495,
+        "msPerRender": 3.082,
+        "pct": 1.87,
+        "samples": 98
+      },
+      {
+        "function": "Oo",
+        "file": "chunk-46NR7W2P.js",
+        "line": 18,
+        "column": 16247,
+        "msPerRender": 3.07,
+        "pct": 1.86,
+        "samples": 103
+      },
+      {
+        "function": "(garbage collector)",
+        "file": "",
+        "line": 0,
+        "column": 0,
+        "msPerRender": 2.955,
+        "pct": 1.79,
+        "samples": 98
+      },
+      {
+        "function": "mM",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 1,
+        "column": 94411,
+        "msPerRender": 2.833,
+        "pct": 1.72,
+        "samples": 93
+      },
+      {
+        "function": "u",
+        "file": "chunk-46NR7W2P.js",
+        "line": 1,
+        "column": 124689,
+        "msPerRender": 2.183,
+        "pct": 1.32,
+        "samples": 73
+      },
+      {
+        "function": "eF",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 10,
+        "column": 198222,
+        "msPerRender": 2.003,
+        "pct": 1.21,
+        "samples": 72
+      },
+      {
+        "function": "attribute",
+        "file": "chunk-46NR7W2P.js",
+        "line": 1,
+        "column": 151949,
+        "msPerRender": 1.51,
+        "pct": 0.92,
+        "samples": 51
+      },
+      {
+        "function": "Un",
+        "file": "chunk-46NR7W2P.js",
+        "line": 1,
+        "column": 33206,
+        "msPerRender": 1.349,
+        "pct": 0.82,
+        "samples": 48
+      },
+      {
+        "function": "c",
+        "file": "chunk-46NR7W2P.js",
+        "line": 1,
+        "column": 136467,
+        "msPerRender": 1.244,
+        "pct": 0.75,
+        "samples": 39
+      },
+      {
+        "function": "pg",
+        "file": "chunk-46NR7W2P.js",
+        "line": 1,
+        "column": 155018,
+        "msPerRender": 1.224,
+        "pct": 0.74,
+        "samples": 42
+      },
+      {
+        "function": "F0",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 32,
+        "column": 181806,
+        "msPerRender": 1.212,
+        "pct": 0.73,
+        "samples": 43
+      },
+      {
+        "function": "write",
+        "file": "chunk-46NR7W2P.js",
+        "line": 22,
+        "column": 18977,
+        "msPerRender": 1.168,
+        "pct": 0.71,
+        "samples": 40
+      },
+      {
+        "function": "rn",
+        "file": "chunk-46NR7W2P.js",
+        "line": 54,
+        "column": 35727,
+        "msPerRender": 1.099,
+        "pct": 0.67,
+        "samples": 38
+      },
+      {
+        "function": "K",
+        "file": "chunk-46NR7W2P.js",
+        "line": 1,
+        "column": 37372,
+        "msPerRender": 1.094,
+        "pct": 0.66,
+        "samples": 38
+      },
+      {
+        "function": "dt",
+        "file": "chunk-46NR7W2P.js",
+        "line": 1,
+        "column": 841,
+        "msPerRender": 1.094,
+        "pct": 0.66,
+        "samples": 39
+      },
+      {
+        "function": "d",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 1,
+        "column": 7637,
+        "msPerRender": 0.99,
+        "pct": 0.6,
+        "samples": 32
+      },
+      {
+        "function": "leaf",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 1,
+        "column": 45013,
+        "msPerRender": 0.943,
+        "pct": 0.57,
+        "samples": 32
+      },
+      {
+        "function": "hM",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 1,
+        "column": 82838,
+        "msPerRender": 0.921,
+        "pct": 0.56,
+        "samples": 30
+      },
+      {
+        "function": "Ci",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 10,
+        "column": 189007,
+        "msPerRender": 0.912,
+        "pct": 0.55,
+        "samples": 33
+      },
+      {
+        "function": "li",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 10,
+        "column": 43742,
+        "msPerRender": 0.885,
+        "pct": 0.54,
+        "samples": 32
+      },
+      {
+        "function": "Te",
+        "file": "chunk-46NR7W2P.js",
+        "line": 1,
+        "column": 68416,
+        "msPerRender": 0.879,
+        "pct": 0.53,
+        "samples": 29
+      },
+      {
+        "function": "Un",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 1,
+        "column": 51213,
+        "msPerRender": 0.878,
+        "pct": 0.53,
+        "samples": 30
+      },
+      {
+        "function": "check",
+        "file": "chunk-46NR7W2P.js",
+        "line": 1,
+        "column": 148420,
+        "msPerRender": 0.877,
+        "pct": 0.53,
+        "samples": 32
+      },
+      {
+        "function": "P",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 1,
+        "column": 36488,
+        "msPerRender": 0.875,
+        "pct": 0.53,
+        "samples": 28
+      },
+      {
+        "function": "Af",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 10,
+        "column": 24546,
+        "msPerRender": 0.871,
+        "pct": 0.53,
+        "samples": 31
+      },
+      {
+        "function": "xm",
+        "file": "chunk-46NR7W2P.js",
+        "line": 1,
+        "column": 85765,
+        "msPerRender": 0.848,
+        "pct": 0.51,
+        "samples": 29
+      },
+      {
+        "function": "group",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 12,
+        "column": 9974,
+        "msPerRender": 0.844,
+        "pct": 0.51,
+        "samples": 26
+      },
+      {
+        "function": "kr",
+        "file": "chunk-46NR7W2P.js",
+        "line": 54,
+        "column": 43527,
+        "msPerRender": 0.826,
+        "pct": 0.5,
+        "samples": 28
+      },
+      {
+        "function": "ao",
+        "file": "chunk-46NR7W2P.js",
+        "line": 1,
+        "column": 117884,
+        "msPerRender": 0.754,
+        "pct": 0.46,
+        "samples": 26
+      },
+      {
+        "function": "Eb",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 10,
+        "column": 141574,
+        "msPerRender": 0.751,
+        "pct": 0.46,
+        "samples": 27
+      },
+      {
+        "function": "Id",
+        "file": "chunk-46NR7W2P.js",
+        "line": 1,
+        "column": 83874,
+        "msPerRender": 0.749,
+        "pct": 0.45,
+        "samples": 24
+      },
+      {
+        "function": "An",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 10,
+        "column": 75564,
+        "msPerRender": 0.712,
+        "pct": 0.43,
+        "samples": 22
+      },
+      {
+        "function": "Qd",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 10,
+        "column": 123172,
+        "msPerRender": 0.698,
+        "pct": 0.42,
+        "samples": 19
+      },
+      {
+        "function": "aa",
+        "file": "chunk-46NR7W2P.js",
+        "line": 1,
+        "column": 162393,
+        "msPerRender": 0.68,
+        "pct": 0.41,
+        "samples": 18
+      },
+      {
+        "function": "OF",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 10,
+        "column": 223969,
+        "msPerRender": 0.676,
+        "pct": 0.41,
+        "samples": 24
+      },
+      {
+        "function": "ca",
+        "file": "chunk-46NR7W2P.js",
+        "line": 1,
+        "column": 164555,
+        "msPerRender": 0.675,
+        "pct": 0.41,
+        "samples": 22
+      },
+      {
+        "function": "",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 12,
+        "column": 11367,
+        "msPerRender": 0.664,
+        "pct": 0.4,
+        "samples": 21
+      },
+      {
+        "function": "pO",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 10,
+        "column": 80711,
+        "msPerRender": 0.659,
+        "pct": 0.4,
+        "samples": 25
+      },
+      {
+        "function": "c",
+        "file": "chunk-46NR7W2P.js",
+        "line": 16,
+        "column": 5547,
+        "msPerRender": 0.652,
+        "pct": 0.4,
+        "samples": 22
+      },
+      {
+        "function": "Mre",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 33,
+        "column": 22426,
+        "msPerRender": 0.646,
+        "pct": 0.39,
+        "samples": 20
+      },
+      {
+        "function": "Yl",
+        "file": "chunk-46NR7W2P.js",
+        "line": 1,
+        "column": 157091,
+        "msPerRender": 0.623,
+        "pct": 0.38,
+        "samples": 21
+      },
+      {
+        "function": "parts",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 1,
+        "column": 39223,
+        "msPerRender": 0.615,
+        "pct": 0.37,
+        "samples": 21
+      },
+      {
+        "function": "ar",
+        "file": "chunk-46NR7W2P.js",
+        "line": 16,
+        "column": 35561,
+        "msPerRender": 0.612,
+        "pct": 0.37,
+        "samples": 21
+      },
+      {
+        "function": "Ri",
+        "file": "chunk-46NR7W2P.js",
+        "line": 1,
+        "column": 10028,
+        "msPerRender": 0.608,
+        "pct": 0.37,
+        "samples": 24
+      },
+      {
+        "function": "XF",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 13,
+        "column": 5997,
+        "msPerRender": 0.584,
+        "pct": 0.35,
+        "samples": 21
+      },
+      {
+        "function": "",
+        "file": "chunk-46NR7W2P.js",
+        "line": 1,
+        "column": 141400,
+        "msPerRender": 0.571,
+        "pct": 0.35,
+        "samples": 19
+      },
+      {
+        "function": "Ao",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 10,
+        "column": 91880,
+        "msPerRender": 0.569,
+        "pct": 0.35,
+        "samples": 20
+      },
+      {
+        "function": "connector",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 12,
+        "column": 9639,
+        "msPerRender": 0.55,
+        "pct": 0.33,
+        "samples": 19
+      },
+      {
+        "function": "QO",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 10,
+        "column": 194067,
+        "msPerRender": 0.543,
+        "pct": 0.33,
+        "samples": 19
+      },
+      {
+        "function": "ru",
+        "file": "chunk-46NR7W2P.js",
+        "line": 16,
+        "column": 3212,
+        "msPerRender": 0.538,
+        "pct": 0.33,
+        "samples": 15
+      },
+      {
+        "function": "IK",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 12,
+        "column": 4372,
+        "msPerRender": 0.535,
+        "pct": 0.32,
+        "samples": 19
+      },
+      {
+        "function": "_t",
+        "file": "chunk-46NR7W2P.js",
+        "line": 1,
+        "column": 135813,
+        "msPerRender": 0.535,
+        "pct": 0.32,
+        "samples": 18
+      },
+      {
+        "function": "Kt",
+        "file": "chunk-46NR7W2P.js",
+        "line": 1,
+        "column": 129156,
+        "msPerRender": 0.527,
+        "pct": 0.32,
+        "samples": 18
+      },
+      {
+        "function": "ew",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 13,
+        "column": 26400,
+        "msPerRender": 0.526,
+        "pct": 0.32,
+        "samples": 19
+      },
+      {
+        "function": "vs",
+        "file": "chunk-46NR7W2P.js",
+        "line": 1,
+        "column": 55580,
+        "msPerRender": 0.526,
+        "pct": 0.32,
+        "samples": 18
+      },
+      {
+        "function": "VS",
+        "file": "chunk-46NR7W2P.js",
+        "line": 1,
+        "column": 140714,
+        "msPerRender": 0.503,
+        "pct": 0.31,
+        "samples": 17
+      },
+      {
+        "function": "En",
+        "file": "chunk-46NR7W2P.js",
+        "line": 1,
+        "column": 130181,
+        "msPerRender": 0.497,
+        "pct": 0.3,
+        "samples": 17
+      },
+      {
+        "function": "c7",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 22,
+        "column": 15236,
+        "msPerRender": 0.485,
+        "pct": 0.29,
+        "samples": 17
+      },
+      {
+        "function": "r",
+        "file": "chunk-46NR7W2P.js",
+        "line": 1,
+        "column": 91267,
+        "msPerRender": 0.485,
+        "pct": 0.29,
+        "samples": 16
+      },
+      {
+        "function": "$X",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 1,
+        "column": 54089,
+        "msPerRender": 0.484,
+        "pct": 0.29,
+        "samples": 16
+      },
+      {
+        "function": "node",
+        "file": "chunk-46NR7W2P.js",
+        "line": 22,
+        "column": 18586,
+        "msPerRender": 0.483,
+        "pct": 0.29,
+        "samples": 17
+      },
+      {
+        "function": "bt",
+        "file": "chunk-46NR7W2P.js",
+        "line": 1,
+        "column": 122459,
+        "msPerRender": 0.474,
+        "pct": 0.29,
+        "samples": 16
+      },
+      {
+        "function": "Er",
+        "file": "chunk-46NR7W2P.js",
+        "line": 54,
+        "column": 45322,
+        "msPerRender": 0.472,
+        "pct": 0.29,
+        "samples": 15
+      },
+      {
+        "function": "$e",
+        "file": "chunk-46NR7W2P.js",
+        "line": 1,
+        "column": 73751,
+        "msPerRender": 0.463,
+        "pct": 0.28,
+        "samples": 15
+      },
+      {
+        "function": "observe",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 1,
+        "column": 41797,
+        "msPerRender": 0.453,
+        "pct": 0.27,
+        "samples": 16
+      },
+      {
+        "function": "r",
+        "file": "chunk-46NR7W2P.js",
+        "line": 1,
+        "column": 90727,
+        "msPerRender": 0.45,
+        "pct": 0.27,
+        "samples": 15
+      },
+      {
+        "function": "leaf",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 1,
+        "column": 6066,
+        "msPerRender": 0.434,
+        "pct": 0.26,
+        "samples": 15
+      },
+      {
+        "function": "lx",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 1,
+        "column": 3770,
+        "msPerRender": 0.431,
+        "pct": 0.26,
+        "samples": 15
+      },
+      {
+        "function": "attribute",
+        "file": "chunk-46NR7W2P.js",
+        "line": 1,
+        "column": 146709,
+        "msPerRender": 0.43,
+        "pct": 0.26,
+        "samples": 15
+      },
+      {
+        "function": "VO",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 10,
+        "column": 188266,
+        "msPerRender": 0.425,
+        "pct": 0.26,
+        "samples": 16
+      },
+      {
+        "function": "a",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 12,
+        "column": 7167,
+        "msPerRender": 0.424,
+        "pct": 0.26,
+        "samples": 15
+      },
+      {
+        "function": "g",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 29,
+        "column": 275052,
+        "msPerRender": 0.423,
+        "pct": 0.26,
+        "samples": 15
+      },
+      {
+        "function": "ft",
+        "file": "chunk-46NR7W2P.js",
+        "line": 1,
+        "column": 78215,
+        "msPerRender": 0.419,
+        "pct": 0.25,
+        "samples": 15
+      },
+      {
+        "function": "",
+        "file": "chunk-46NR7W2P.js",
+        "line": 1,
+        "column": 80445,
+        "msPerRender": 0.419,
+        "pct": 0.25,
+        "samples": 14
+      },
+      {
+        "function": "Zn",
+        "file": "chunk-46NR7W2P.js",
+        "line": 1,
+        "column": 97079,
+        "msPerRender": 0.415,
+        "pct": 0.25,
+        "samples": 14
+      },
+      {
+        "function": "js",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 29,
+        "column": 274739,
+        "msPerRender": 0.413,
+        "pct": 0.25,
+        "samples": 15
+      },
+      {
+        "function": "sa",
+        "file": "chunk-46NR7W2P.js",
+        "line": 1,
+        "column": 160894,
+        "msPerRender": 0.411,
+        "pct": 0.25,
+        "samples": 14
+      },
+      {
+        "function": "JR",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 33,
+        "column": 13649,
+        "msPerRender": 0.406,
+        "pct": 0.25,
+        "samples": 14
+      },
+      {
+        "function": "",
+        "file": "chunk-46NR7W2P.js",
+        "line": 1,
+        "column": 126204,
+        "msPerRender": 0.405,
+        "pct": 0.25,
+        "samples": 14
+      },
+      {
+        "function": "element",
+        "file": "chunk-46NR7W2P.js",
+        "line": 1,
+        "column": 146600,
+        "msPerRender": 0.404,
+        "pct": 0.24,
+        "samples": 11
+      },
+      {
+        "function": "be",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 1,
+        "column": 116632,
+        "msPerRender": 0.395,
+        "pct": 0.24,
+        "samples": 14
+      },
+      {
+        "function": "zc",
+        "file": "chunk-46NR7W2P.js",
+        "line": 1,
+        "column": 18663,
+        "msPerRender": 0.393,
+        "pct": 0.24,
+        "samples": 14
+      },
+      {
+        "function": "xP",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 12,
+        "column": 7009,
+        "msPerRender": 0.393,
+        "pct": 0.24,
+        "samples": 13
+      },
+      {
+        "function": "Sre",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 33,
+        "column": 18719,
+        "msPerRender": 0.385,
+        "pct": 0.23,
+        "samples": 13
+      },
+      {
+        "function": "nr",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 6,
+        "column": 5836,
+        "msPerRender": 0.383,
+        "pct": 0.23,
+        "samples": 13
+      },
+      {
+        "function": "Nt",
+        "file": "chunk-46NR7W2P.js",
+        "line": 1,
+        "column": 37480,
+        "msPerRender": 0.378,
+        "pct": 0.23,
+        "samples": 13
+      },
+      {
+        "function": "Ze",
+        "file": "chunk-46NR7W2P.js",
+        "line": 18,
+        "column": 4571,
+        "msPerRender": 0.375,
+        "pct": 0.23,
+        "samples": 13
+      },
+      {
+        "function": "consume",
+        "file": "receipt-worker.mjs",
+        "line": 19,
+        "column": 17,
+        "msPerRender": 0.375,
+        "pct": 0.23,
+        "samples": 13
+      },
+      {
+        "function": "Fe",
+        "file": "chunk-46NR7W2P.js",
+        "line": 1,
+        "column": 68285,
+        "msPerRender": 0.375,
+        "pct": 0.23,
+        "samples": 12
+      },
+      {
+        "function": "p",
+        "file": "chunk-46NR7W2P.js",
+        "line": 1,
+        "column": 137069,
+        "msPerRender": 0.369,
+        "pct": 0.22,
+        "samples": 13
+      },
+      {
+        "function": "",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 10,
+        "column": 93606,
+        "msPerRender": 0.367,
+        "pct": 0.22,
+        "samples": 13
+      },
+      {
+        "function": "pD",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 22,
+        "column": 23629,
+        "msPerRender": 0.361,
+        "pct": 0.22,
+        "samples": 11
+      },
+      {
+        "function": "zs",
+        "file": "chunk-46NR7W2P.js",
+        "line": 1,
+        "column": 80239,
+        "msPerRender": 0.359,
+        "pct": 0.22,
+        "samples": 12
+      },
+      {
+        "function": "Qt",
+        "file": "chunk-46NR7W2P.js",
+        "line": 18,
+        "column": 5198,
+        "msPerRender": 0.348,
+        "pct": 0.21,
+        "samples": 13
+      },
+      {
+        "function": "",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 29,
+        "column": 54947,
+        "msPerRender": 0.346,
+        "pct": 0.21,
+        "samples": 12
+      },
+      {
+        "function": "el",
+        "file": "chunk-46NR7W2P.js",
+        "line": 1,
+        "column": 102818,
+        "msPerRender": 0.343,
+        "pct": 0.21,
+        "samples": 12
+      },
+      {
+        "function": "wu",
+        "file": "chunk-46NR7W2P.js",
+        "line": 18,
+        "column": 12380,
+        "msPerRender": 0.343,
+        "pct": 0.21,
+        "samples": 12
+      }
+    ],
+    "inclusive": [
+      {
+        "function": "(root)",
+        "file": "",
+        "line": 0,
+        "column": 0,
+        "msPerRender": 164.896,
+        "pct": 100.0,
+        "samples": 0
+      },
+      {
+        "function": "",
+        "file": "receipt-worker.mjs",
+        "line": 0,
+        "column": 0,
+        "msPerRender": 161.909,
+        "pct": 98.19,
+        "samples": 1
+      },
+      {
+        "function": "consume",
+        "file": "receipt-worker.mjs",
+        "line": 19,
+        "column": 17,
+        "msPerRender": 131.528,
+        "pct": 79.76,
+        "samples": 13
+      },
+      {
+        "function": "VK",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 13,
+        "column": 12833,
+        "msPerRender": 129.77,
+        "pct": 78.7,
+        "samples": 0
+      },
+      {
+        "function": "",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 13,
+        "column": 12801,
+        "msPerRender": 129.77,
+        "pct": 78.7,
+        "samples": 0
+      },
+      {
+        "function": "Vb",
+        "file": "chunk-46NR7W2P.js",
+        "line": 1,
+        "column": 3637,
+        "msPerRender": 129.77,
+        "pct": 78.7,
+        "samples": 0
+      },
+      {
+        "function": "zwe",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 13,
+        "column": 12774,
+        "msPerRender": 129.77,
+        "pct": 78.7,
+        "samples": 0
+      },
+      {
+        "function": "rq",
+        "file": "chunk-TJNJ4CWB.js",
+        "line": 215,
+        "column": 32239,
+        "msPerRender": 129.77,
+        "pct": 78.7,
+        "samples": 0
+      },
+      {
+        "function": "XK",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 13,
+        "column": 12690,
+        "msPerRender": 127.6,
+        "pct": 77.38,
+        "samples": 0
+      },
+      {
+        "function": "KK",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 13,
+        "column": 12913,
+        "msPerRender": 127.6,
+        "pct": 77.38,
+        "samples": 0
+      },
+      {
+        "function": "Y",
+        "file": "chunk-YASALRXB.js",
+        "line": 1,
+        "column": 7044,
+        "msPerRender": 127.515,
+        "pct": 77.33,
+        "samples": 0
+      },
+      {
+        "function": "Ii",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 6,
+        "column": 6916,
+        "msPerRender": 125.772,
+        "pct": 76.27,
+        "samples": 1
+      },
+      {
+        "function": "UK",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 13,
+        "column": 10184,
+        "msPerRender": 97.693,
+        "pct": 59.25,
+        "samples": 3
+      },
+      {
+        "function": "",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 13,
+        "column": 9573,
+        "msPerRender": 97.693,
+        "pct": 59.25,
+        "samples": 0
+      },
+      {
+        "function": "Bb",
+        "file": "chunk-46NR7W2P.js",
+        "line": 1,
+        "column": 428,
+        "msPerRender": 97.693,
+        "pct": 59.25,
+        "samples": 0
+      },
+      {
+        "function": "",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 13,
+        "column": 9564,
+        "msPerRender": 97.693,
+        "pct": 59.25,
+        "samples": 0
+      },
+      {
+        "function": "qK",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 13,
+        "column": 9428,
+        "msPerRender": 97.693,
+        "pct": 59.25,
+        "samples": 0
+      },
+      {
+        "function": "YK",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 13,
+        "column": 9286,
+        "msPerRender": 97.693,
+        "pct": 59.25,
+        "samples": 0
+      },
+      {
+        "function": "",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 13,
+        "column": 10522,
+        "msPerRender": 73.878,
+        "pct": 44.8,
+        "samples": 1
+      },
+      {
+        "function": "jF",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 12,
+        "column": 8237,
+        "msPerRender": 73.82,
+        "pct": 44.77,
+        "samples": 2
+      },
+      {
+        "function": "",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 13,
+        "column": 5695,
+        "msPerRender": 73.82,
+        "pct": 44.77,
+        "samples": 0
+      },
+      {
+        "function": "MP",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 13,
+        "column": 3808,
+        "msPerRender": 73.82,
+        "pct": 44.77,
+        "samples": 0
+      },
+      {
+        "function": "HF",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 12,
+        "column": 8827,
+        "msPerRender": 73.762,
+        "pct": 44.73,
+        "samples": 2
+      },
+      {
+        "function": "",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 12,
+        "column": 11967,
+        "msPerRender": 63.413,
+        "pct": 38.46,
+        "samples": 3
+      },
+      {
+        "function": "Hx",
+        "file": "chunk-46NR7W2P.js",
+        "line": 1,
+        "column": 102365,
+        "msPerRender": 63.413,
+        "pct": 38.46,
+        "samples": 0
+      },
+      {
+        "function": "JR",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 33,
+        "column": 13649,
+        "msPerRender": 63.328,
+        "pct": 38.4,
+        "samples": 14
+      },
+      {
+        "function": "Mre",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 33,
+        "column": 22426,
+        "msPerRender": 37.962,
+        "pct": 23.02,
+        "samples": 20
+      },
+      {
+        "function": "u",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 12,
+        "column": 9227,
+        "msPerRender": 36.649,
+        "pct": 22.23,
+        "samples": 10
+      },
+      {
+        "function": "leaf",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 1,
+        "column": 45013,
+        "msPerRender": 36.27,
+        "pct": 22.0,
+        "samples": 32
+      },
+      {
+        "function": "post",
+        "file": "node:inspector",
+        "line": 115,
+        "column": 7,
+        "msPerRender": 30.261,
+        "pct": 18.35,
+        "samples": 12
+      },
+      {
+        "function": "",
+        "file": "util",
+        "line": 478,
+        "column": 24,
+        "msPerRender": 30.261,
+        "pct": 18.35,
+        "samples": 0
+      },
+      {
+        "function": "fn",
+        "file": "util",
+        "line": 477,
+        "column": 14,
+        "msPerRender": 30.261,
+        "pct": 18.35,
+        "samples": 0
+      },
+      {
+        "function": "BF",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 12,
+        "column": 1552,
+        "msPerRender": 29.907,
+        "pct": 18.14,
+        "samples": 1
+      },
+      {
+        "function": "_F",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 12,
+        "column": 927,
+        "msPerRender": 29.907,
+        "pct": 18.14,
+        "samples": 0
+      },
+      {
+        "function": "",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 13,
+        "column": 12718,
+        "msPerRender": 29.907,
+        "pct": 18.14,
+        "samples": 0
+      },
+      {
+        "function": "",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 12,
+        "column": 2764,
+        "msPerRender": 29.822,
+        "pct": 18.09,
+        "samples": 1
+      },
+      {
+        "function": "w",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 12,
+        "column": 2739,
+        "msPerRender": 29.822,
+        "pct": 18.09,
+        "samples": 0
+      },
+      {
+        "function": "layout",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 34,
+        "column": 235364,
+        "msPerRender": 28.047,
+        "pct": 17.01,
+        "samples": 1
+      },
+      {
+        "function": "",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 12,
+        "column": 3122,
+        "msPerRender": 28.047,
+        "pct": 17.01,
+        "samples": 0
+      },
+      {
+        "function": "Zx",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 6,
+        "column": 7560,
+        "msPerRender": 28.047,
+        "pct": 17.01,
+        "samples": 0
+      },
+      {
+        "function": "vH",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 32,
+        "column": 175855,
+        "msPerRender": 24.963,
+        "pct": 15.14,
+        "samples": 0
+      },
+      {
+        "function": "",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 32,
+        "column": 175769,
+        "msPerRender": 24.963,
+        "pct": 15.14,
+        "samples": 0
+      },
+      {
+        "function": "CO",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 10,
+        "column": 100945,
+        "msPerRender": 24.963,
+        "pct": 15.14,
+        "samples": 0
+      },
+      {
+        "function": "Ta",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 32,
+        "column": 175551,
+        "msPerRender": 24.963,
+        "pct": 15.14,
+        "samples": 0
+      },
+      {
+        "function": "Eo",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 6,
+        "column": 7908,
+        "msPerRender": 24.936,
+        "pct": 15.12,
+        "samples": 0
+      },
+      {
+        "function": "gre",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 32,
+        "column": 179334,
+        "msPerRender": 24.936,
+        "pct": 15.12,
+        "samples": 0
+      },
+      {
+        "function": "YG",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 29,
+        "column": 263793,
+        "msPerRender": 24.88,
+        "pct": 15.09,
+        "samples": 0
+      },
+      {
+        "function": "UG",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 29,
+        "column": 269400,
+        "msPerRender": 24.88,
+        "pct": 15.09,
+        "samples": 0
+      },
+      {
+        "function": "",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 32,
+        "column": 179385,
+        "msPerRender": 24.88,
+        "pct": 15.09,
+        "samples": 0
+      },
+      {
+        "function": "Sre",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 33,
+        "column": 18719,
+        "msPerRender": 24.109,
+        "pct": 14.62,
+        "samples": 13
+      },
+      {
+        "function": "connector",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 12,
+        "column": 9639,
+        "msPerRender": 23.529,
+        "pct": 14.27,
+        "samples": 19
+      },
+      {
+        "function": "Ph",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 29,
+        "column": 261123,
+        "msPerRender": 22.213,
+        "pct": 13.47,
+        "samples": 0
+      },
+      {
+        "function": "ate",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 29,
+        "column": 261735,
+        "msPerRender": 22.213,
+        "pct": 13.47,
+        "samples": 0
+      },
+      {
+        "function": "G",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 1,
+        "column": 45029,
+        "msPerRender": 21.049,
+        "pct": 12.76,
+        "samples": 4
+      },
+      {
+        "function": "",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 12,
+        "column": 9248,
+        "msPerRender": 20.899,
+        "pct": 12.67,
+        "samples": 1
+      },
+      {
+        "function": "write",
+        "file": "chunk-46NR7W2P.js",
+        "line": 22,
+        "column": 18977,
+        "msPerRender": 20.867,
+        "pct": 12.65,
+        "samples": 40
+      },
+      {
+        "function": "project",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 29,
+        "column": 66995,
+        "msPerRender": 20.791,
+        "pct": 12.61,
+        "samples": 4
+      },
+      {
+        "function": "GR",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 32,
+        "column": 149828,
+        "msPerRender": 19.237,
+        "pct": 11.67,
+        "samples": 3
+      },
+      {
+        "function": "gO",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 10,
+        "column": 84682,
+        "msPerRender": 19.04,
+        "pct": 11.55,
+        "samples": 10
+      },
+      {
+        "function": "XF",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 13,
+        "column": 5997,
+        "msPerRender": 18.28,
+        "pct": 11.09,
+        "samples": 21
+      },
+      {
+        "function": "",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 13,
+        "column": 10682,
+        "msPerRender": 18.28,
+        "pct": 11.09,
+        "samples": 0
+      },
+      {
+        "function": "mM",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 1,
+        "column": 94411,
+        "msPerRender": 17.637,
+        "pct": 10.7,
+        "samples": 93
+      },
+      {
+        "function": "group",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 12,
+        "column": 9974,
+        "msPerRender": 16.665,
+        "pct": 10.11,
+        "samples": 26
+      },
+      {
+        "function": "T",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 1,
+        "column": 34495,
+        "msPerRender": 15.35,
+        "pct": 9.31,
+        "samples": 98
+      },
+      {
+        "function": "_",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 1,
+        "column": 29565,
+        "msPerRender": 14.694,
+        "pct": 8.91,
+        "samples": 400
+      },
+      {
+        "function": "ar",
+        "file": "chunk-46NR7W2P.js",
+        "line": 16,
+        "column": 35561,
+        "msPerRender": 14.247,
+        "pct": 8.64,
+        "samples": 21
+      },
+      {
+        "function": "Su",
+        "file": "chunk-46NR7W2P.js",
+        "line": 16,
+        "column": 35521,
+        "msPerRender": 13.923,
+        "pct": 8.44,
+        "samples": 4
+      },
+      {
+        "function": "Ig",
+        "file": "chunk-46NR7W2P.js",
+        "line": 16,
+        "column": 37666,
+        "msPerRender": 13.372,
+        "pct": 8.11,
+        "samples": 11
+      },
+      {
+        "function": "Uie",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 32,
+        "column": 148009,
+        "msPerRender": 11.377,
+        "pct": 6.9,
+        "samples": 1
+      },
+      {
+        "function": "d",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 10,
+        "column": 85442,
+        "msPerRender": 11.377,
+        "pct": 6.9,
+        "samples": 0
+      },
+      {
+        "function": "eF",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 10,
+        "column": 198222,
+        "msPerRender": 11.347,
+        "pct": 6.88,
+        "samples": 72
+      },
+      {
+        "function": "Cre",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 33,
+        "column": 25291,
+        "msPerRender": 9.115,
+        "pct": 5.53,
+        "samples": 7
+      },
+      {
+        "function": "Rre",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 33,
+        "column": 25936,
+        "msPerRender": 8.693,
+        "pct": 5.27,
+        "samples": 2
+      },
+      {
+        "function": "text",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 12,
+        "column": 9617,
+        "msPerRender": 8.635,
+        "pct": 5.24,
+        "samples": 3
+      },
+      {
+        "function": "shape",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 12,
+        "column": 9600,
+        "msPerRender": 8.569,
+        "pct": 5.2,
+        "samples": 9
+      },
+      {
+        "function": "Oo",
+        "file": "chunk-46NR7W2P.js",
+        "line": 18,
+        "column": 16247,
+        "msPerRender": 8.247,
+        "pct": 5.0,
+        "samples": 103
+      },
+      {
+        "function": "ZO",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 10,
+        "column": 195025,
+        "msPerRender": 7.893,
+        "pct": 4.79,
+        "samples": 138
+      },
+      {
+        "function": "ca",
+        "file": "chunk-46NR7W2P.js",
+        "line": 1,
+        "column": 164555,
+        "msPerRender": 6.826,
+        "pct": 4.14,
+        "samples": 22
+      },
+      {
+        "function": "$K",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 12,
+        "column": 7118,
+        "msPerRender": 5.952,
+        "pct": 3.61,
+        "samples": 2
+      },
+      {
+        "function": "a",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 12,
+        "column": 7167,
+        "msPerRender": 5.864,
+        "pct": 3.56,
+        "samples": 15
+      },
+      {
+        "function": "OS",
+        "file": "chunk-46NR7W2P.js",
+        "line": 1,
+        "column": 124437,
+        "msPerRender": 4.812,
+        "pct": 2.92,
+        "samples": 9
+      },
+      {
+        "function": "node",
+        "file": "chunk-46NR7W2P.js",
+        "line": 22,
+        "column": 18586,
+        "msPerRender": 4.088,
+        "pct": 2.48,
+        "samples": 17
+      },
+      {
+        "function": "leaf",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 1,
+        "column": 6066,
+        "msPerRender": 4.064,
+        "pct": 2.46,
+        "samples": 15
+      },
+      {
+        "function": "",
+        "file": "chunk-46NR7W2P.js",
+        "line": 1,
+        "column": 126204,
+        "msPerRender": 4.041,
+        "pct": 2.45,
+        "samples": 14
+      },
+      {
+        "function": "Er",
+        "file": "chunk-46NR7W2P.js",
+        "line": 54,
+        "column": 45322,
+        "msPerRender": 3.903,
+        "pct": 2.37,
+        "samples": 15
+      },
+      {
+        "function": "run",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 32,
+        "column": 144846,
+        "msPerRender": 3.831,
+        "pct": 2.32,
+        "samples": 2
+      },
+      {
+        "function": "Eb",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 10,
+        "column": 141574,
+        "msPerRender": 3.776,
+        "pct": 2.29,
+        "samples": 27
+      },
+      {
+        "function": "aa",
+        "file": "chunk-46NR7W2P.js",
+        "line": 1,
+        "column": 162393,
+        "msPerRender": 3.736,
+        "pct": 2.27,
+        "samples": 18
+      },
+      {
+        "function": "finish",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 1,
+        "column": 48961,
+        "msPerRender": 3.689,
+        "pct": 2.24,
+        "samples": 8
+      },
+      {
+        "function": "u",
+        "file": "chunk-46NR7W2P.js",
+        "line": 1,
+        "column": 124689,
+        "msPerRender": 3.664,
+        "pct": 2.22,
+        "samples": 73
+      },
+      {
+        "function": "d",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 1,
+        "column": 7637,
+        "msPerRender": 3.456,
+        "pct": 2.1,
+        "samples": 32
+      },
+      {
+        "function": "Yl",
+        "file": "chunk-46NR7W2P.js",
+        "line": 1,
+        "column": 157091,
+        "msPerRender": 3.332,
+        "pct": 2.02,
+        "samples": 21
+      },
+      {
+        "function": "attribute",
+        "file": "chunk-46NR7W2P.js",
+        "line": 1,
+        "column": 151949,
+        "msPerRender": 3.16,
+        "pct": 1.92,
+        "samples": 51
+      },
+      {
+        "function": "group",
+        "file": "chunk-46NR7W2P.js",
+        "line": 1,
+        "column": 139304,
+        "msPerRender": 3.085,
+        "pct": 1.87,
+        "samples": 8
+      },
+      {
+        "function": "S",
+        "file": "chunk-46NR7W2P.js",
+        "line": 1,
+        "column": 137959,
+        "msPerRender": 3.004,
+        "pct": 1.82,
+        "samples": 10
+      },
+      {
+        "function": "hM",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 1,
+        "column": 82838,
+        "msPerRender": 2.995,
+        "pct": 1.82,
+        "samples": 30
+      },
+      {
+        "function": "lD",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 22,
+        "column": 1456,
+        "msPerRender": 2.971,
+        "pct": 1.8,
+        "samples": 5
+      },
+      {
+        "function": "gD",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 22,
+        "column": 4781,
+        "msPerRender": 2.971,
+        "pct": 1.8,
+        "samples": 0
+      },
+      {
+        "function": "gl",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 22,
+        "column": 52593,
+        "msPerRender": 2.971,
+        "pct": 1.8,
+        "samples": 0
+      },
+      {
+        "function": "mD",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 22,
+        "column": 4672,
+        "msPerRender": 2.971,
+        "pct": 1.8,
+        "samples": 0
+      }
+    ]
+  },
+  "fanin100": {
+    "renders": 10,
+    "scope": "Diagnostic sampled wall contributions. Inspector overhead is retained, excluded from product design claims; no unprofiled savings implied. Exact minified line and column prevent same-name closure conflation.",
+    "totalMs": 2127.827,
+    "self": [
+      {
+        "function": "post",
+        "file": "node:inspector",
+        "line": 115,
+        "column": 7,
+        "msPerRender": 30.642,
+        "pct": 14.4,
+        "samples": 10
+      },
+      {
+        "function": "_f",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 10,
+        "column": 90644,
+        "msPerRender": 22.841,
+        "pct": 10.73,
+        "samples": 785
+      },
+      {
+        "function": "_",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 1,
+        "column": 29565,
+        "msPerRender": 10.68,
+        "pct": 5.02,
+        "samples": 338
+      },
+      {
+        "function": "xO",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 10,
+        "column": 90258,
+        "msPerRender": 8.204,
+        "pct": 3.86,
+        "samples": 274
+      },
+      {
+        "function": "(garbage collector)",
+        "file": "",
+        "line": 0,
+        "column": 0,
+        "msPerRender": 5.797,
+        "pct": 2.72,
+        "samples": 153
+      },
+      {
+        "function": "Ao",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 10,
+        "column": 91880,
+        "msPerRender": 5.474,
+        "pct": 2.57,
+        "samples": 198
+      },
+      {
+        "function": "mM",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 1,
+        "column": 94411,
+        "msPerRender": 3.493,
+        "pct": 1.64,
+        "samples": 109
+      },
+      {
+        "function": "T",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 1,
+        "column": 34495,
+        "msPerRender": 3.197,
+        "pct": 1.5,
+        "samples": 102
+      },
+      {
+        "function": "ZO",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 10,
+        "column": 195025,
+        "msPerRender": 3.178,
+        "pct": 1.49,
+        "samples": 104
+      },
+      {
+        "function": "Oo",
+        "file": "chunk-46NR7W2P.js",
+        "line": 18,
+        "column": 16247,
+        "msPerRender": 2.507,
+        "pct": 1.18,
+        "samples": 78
+      },
+      {
+        "function": "r",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 10,
+        "column": 90304,
+        "msPerRender": 2.266,
+        "pct": 1.06,
+        "samples": 73
+      },
+      {
+        "function": "Ci",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 10,
+        "column": 189007,
+        "msPerRender": 2.038,
+        "pct": 0.96,
+        "samples": 40
+      },
+      {
+        "function": "u",
+        "file": "chunk-46NR7W2P.js",
+        "line": 1,
+        "column": 124689,
+        "msPerRender": 1.903,
+        "pct": 0.89,
+        "samples": 64
+      },
+      {
+        "function": "pg",
+        "file": "chunk-46NR7W2P.js",
+        "line": 1,
+        "column": 155018,
+        "msPerRender": 1.837,
+        "pct": 0.86,
+        "samples": 62
+      },
+      {
+        "function": "eF",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 10,
+        "column": 198222,
+        "msPerRender": 1.725,
+        "pct": 0.81,
+        "samples": 58
+      },
+      {
+        "function": "",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 10,
+        "column": 91686,
+        "msPerRender": 1.53,
+        "pct": 0.72,
+        "samples": 51
+      },
+      {
+        "function": "Y1",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 10,
+        "column": 89877,
+        "msPerRender": 1.424,
+        "pct": 0.67,
+        "samples": 50
+      },
+      {
+        "function": "d",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 1,
+        "column": 3211,
+        "msPerRender": 1.362,
+        "pct": 0.64,
+        "samples": 44
+      },
+      {
+        "function": "XF",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 13,
+        "column": 5997,
+        "msPerRender": 1.283,
+        "pct": 0.6,
+        "samples": 43
+      },
+      {
+        "function": "attribute",
+        "file": "chunk-46NR7W2P.js",
+        "line": 1,
+        "column": 151949,
+        "msPerRender": 1.242,
+        "pct": 0.58,
+        "samples": 41
+      },
+      {
+        "function": "F0",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 32,
+        "column": 181806,
+        "msPerRender": 1.158,
+        "pct": 0.54,
+        "samples": 37
+      },
+      {
+        "function": "K",
+        "file": "chunk-46NR7W2P.js",
+        "line": 1,
+        "column": 37372,
+        "msPerRender": 1.119,
+        "pct": 0.53,
+        "samples": 38
+      },
+      {
+        "function": "dt",
+        "file": "chunk-46NR7W2P.js",
+        "line": 1,
+        "column": 841,
+        "msPerRender": 1.115,
+        "pct": 0.52,
+        "samples": 39
+      },
+      {
+        "function": "check",
+        "file": "chunk-46NR7W2P.js",
+        "line": 1,
+        "column": 148420,
+        "msPerRender": 1.109,
+        "pct": 0.52,
+        "samples": 39
+      },
+      {
+        "function": "Te",
+        "file": "chunk-46NR7W2P.js",
+        "line": 1,
+        "column": 68416,
+        "msPerRender": 1.053,
+        "pct": 0.5,
+        "samples": 25
+      },
+      {
+        "function": "xm",
+        "file": "chunk-46NR7W2P.js",
+        "line": 1,
+        "column": 85765,
+        "msPerRender": 0.975,
+        "pct": 0.46,
+        "samples": 32
+      },
+      {
+        "function": "c",
+        "file": "chunk-46NR7W2P.js",
+        "line": 1,
+        "column": 136467,
+        "msPerRender": 0.943,
+        "pct": 0.44,
+        "samples": 33
+      },
+      {
+        "function": "rn",
+        "file": "chunk-46NR7W2P.js",
+        "line": 54,
+        "column": 35727,
+        "msPerRender": 0.925,
+        "pct": 0.43,
+        "samples": 25
+      },
+      {
+        "function": "Ri",
+        "file": "chunk-46NR7W2P.js",
+        "line": 1,
+        "column": 10028,
+        "msPerRender": 0.887,
+        "pct": 0.42,
+        "samples": 31
+      },
+      {
+        "function": "Pi",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 10,
+        "column": 75203,
+        "msPerRender": 0.871,
+        "pct": 0.41,
+        "samples": 13
+      },
+      {
+        "function": "d",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 1,
+        "column": 7637,
+        "msPerRender": 0.864,
+        "pct": 0.41,
+        "samples": 30
+      },
+      {
+        "function": "rectanglePaint",
+        "file": "chunk-46NR7W2P.js",
+        "line": 1,
+        "column": 142595,
+        "msPerRender": 0.836,
+        "pct": 0.39,
+        "samples": 16
+      },
+      {
+        "function": "Id",
+        "file": "chunk-46NR7W2P.js",
+        "line": 1,
+        "column": 83874,
+        "msPerRender": 0.827,
+        "pct": 0.39,
+        "samples": 27
+      },
+      {
+        "function": "",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 12,
+        "column": 11367,
+        "msPerRender": 0.814,
+        "pct": 0.38,
+        "samples": 28
+      },
+      {
+        "function": "Qd",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 10,
+        "column": 123172,
+        "msPerRender": 0.812,
+        "pct": 0.38,
+        "samples": 28
+      },
+      {
+        "function": "li",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 10,
+        "column": 43742,
+        "msPerRender": 0.802,
+        "pct": 0.38,
+        "samples": 28
+      },
+      {
+        "function": "Mre",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 33,
+        "column": 22426,
+        "msPerRender": 0.752,
+        "pct": 0.35,
+        "samples": 25
+      },
+      {
+        "function": "write",
+        "file": "chunk-46NR7W2P.js",
+        "line": 22,
+        "column": 18977,
+        "msPerRender": 0.738,
+        "pct": 0.35,
+        "samples": 24
+      },
+      {
+        "function": "FO",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 10,
+        "column": 123428,
+        "msPerRender": 0.736,
+        "pct": 0.35,
+        "samples": 9
+      },
+      {
+        "function": "ca",
+        "file": "chunk-46NR7W2P.js",
+        "line": 1,
+        "column": 164555,
+        "msPerRender": 0.734,
+        "pct": 0.34,
+        "samples": 22
+      },
+      {
+        "function": "hM",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 1,
+        "column": 82838,
+        "msPerRender": 0.734,
+        "pct": 0.34,
+        "samples": 24
+      },
+      {
+        "function": "group",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 12,
+        "column": 9974,
+        "msPerRender": 0.718,
+        "pct": 0.34,
+        "samples": 24
+      },
+      {
+        "function": "pO",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 10,
+        "column": 80711,
+        "msPerRender": 0.692,
+        "pct": 0.33,
+        "samples": 25
+      },
+      {
+        "function": "ar",
+        "file": "chunk-46NR7W2P.js",
+        "line": 16,
+        "column": 35561,
+        "msPerRender": 0.658,
+        "pct": 0.31,
+        "samples": 23
+      },
+      {
+        "function": "",
+        "file": "chunk-46NR7W2P.js",
+        "line": 1,
+        "column": 141400,
+        "msPerRender": 0.646,
+        "pct": 0.3,
+        "samples": 23
+      },
+      {
+        "function": "Un",
+        "file": "chunk-46NR7W2P.js",
+        "line": 1,
+        "column": 33206,
+        "msPerRender": 0.645,
+        "pct": 0.3,
+        "samples": 23
+      },
+      {
+        "function": "bt",
+        "file": "chunk-46NR7W2P.js",
+        "line": 1,
+        "column": 122459,
+        "msPerRender": 0.616,
+        "pct": 0.29,
+        "samples": 18
+      },
+      {
+        "function": "ze",
+        "file": "chunk-46NR7W2P.js",
+        "line": 1,
+        "column": 135248,
+        "msPerRender": 0.611,
+        "pct": 0.29,
+        "samples": 10
+      },
+      {
+        "function": "M",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 10,
+        "column": 143117,
+        "msPerRender": 0.606,
+        "pct": 0.28,
+        "samples": 20
+      },
+      {
+        "function": "Er",
+        "file": "chunk-46NR7W2P.js",
+        "line": 54,
+        "column": 45322,
+        "msPerRender": 0.606,
+        "pct": 0.28,
+        "samples": 14
+      },
+      {
+        "function": "r",
+        "file": "chunk-46NR7W2P.js",
+        "line": 1,
+        "column": 90727,
+        "msPerRender": 0.587,
+        "pct": 0.28,
+        "samples": 18
+      },
+      {
+        "function": "zd",
+        "file": "chunk-46NR7W2P.js",
+        "line": 1,
+        "column": 87203,
+        "msPerRender": 0.579,
+        "pct": 0.27,
+        "samples": 19
+      },
+      {
+        "function": "P",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 1,
+        "column": 36488,
+        "msPerRender": 0.57,
+        "pct": 0.27,
+        "samples": 19
+      },
+      {
+        "function": "r",
+        "file": "chunk-46NR7W2P.js",
+        "line": 1,
+        "column": 136112,
+        "msPerRender": 0.564,
+        "pct": 0.27,
+        "samples": 12
+      },
+      {
+        "function": "bb",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 10,
+        "column": 89768,
+        "msPerRender": 0.556,
+        "pct": 0.26,
+        "samples": 10
+      },
+      {
+        "function": "An",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 10,
+        "column": 75564,
+        "msPerRender": 0.552,
+        "pct": 0.26,
+        "samples": 19
+      },
+      {
+        "function": "aa",
+        "file": "chunk-46NR7W2P.js",
+        "line": 1,
+        "column": 162393,
+        "msPerRender": 0.548,
+        "pct": 0.26,
+        "samples": 19
+      },
+      {
+        "function": "En",
+        "file": "chunk-46NR7W2P.js",
+        "line": 1,
+        "column": 130181,
+        "msPerRender": 0.548,
+        "pct": 0.26,
+        "samples": 18
+      },
+      {
+        "function": "dc",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 10,
+        "column": 128565,
+        "msPerRender": 0.534,
+        "pct": 0.25,
+        "samples": 13
+      },
+      {
+        "function": "m",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 29,
+        "column": 274966,
+        "msPerRender": 0.529,
+        "pct": 0.25,
+        "samples": 12
+      },
+      {
+        "function": "ft",
+        "file": "chunk-46NR7W2P.js",
+        "line": 1,
+        "column": 78215,
+        "msPerRender": 0.523,
+        "pct": 0.25,
+        "samples": 18
+      },
+      {
+        "function": "u",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 12,
+        "column": 9227,
+        "msPerRender": 0.522,
+        "pct": 0.25,
+        "samples": 16
+      },
+      {
+        "function": "JR",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 33,
+        "column": 13649,
+        "msPerRender": 0.519,
+        "pct": 0.24,
+        "samples": 17
+      },
+      {
+        "function": "IK",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 12,
+        "column": 4372,
+        "msPerRender": 0.519,
+        "pct": 0.24,
+        "samples": 11
+      },
+      {
+        "function": "fa",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 10,
+        "column": 88664,
+        "msPerRender": 0.514,
+        "pct": 0.24,
+        "samples": 15
+      },
+      {
+        "function": "",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 10,
+        "column": 91573,
+        "msPerRender": 0.507,
+        "pct": 0.24,
+        "samples": 16
+      },
+      {
+        "function": "Ig",
+        "file": "chunk-46NR7W2P.js",
+        "line": 16,
+        "column": 37666,
+        "msPerRender": 0.502,
+        "pct": 0.24,
+        "samples": 17
+      },
+      {
+        "function": "vn",
+        "file": "chunk-46NR7W2P.js",
+        "line": 1,
+        "column": 151458,
+        "msPerRender": 0.499,
+        "pct": 0.23,
+        "samples": 16
+      },
+      {
+        "function": "c",
+        "file": "chunk-46NR7W2P.js",
+        "line": 16,
+        "column": 5547,
+        "msPerRender": 0.497,
+        "pct": 0.23,
+        "samples": 17
+      },
+      {
+        "function": "ao",
+        "file": "chunk-46NR7W2P.js",
+        "line": 1,
+        "column": 117884,
+        "msPerRender": 0.491,
+        "pct": 0.23,
+        "samples": 17
+      },
+      {
+        "function": "",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 10,
+        "column": 91907,
+        "msPerRender": 0.489,
+        "pct": 0.23,
+        "samples": 7
+      },
+      {
+        "function": "observe",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 1,
+        "column": 41797,
+        "msPerRender": 0.489,
+        "pct": 0.23,
+        "samples": 17
+      },
+      {
+        "function": "VS",
+        "file": "chunk-46NR7W2P.js",
+        "line": 1,
+        "column": 140714,
+        "msPerRender": 0.487,
+        "pct": 0.23,
+        "samples": 15
+      },
+      {
+        "function": "g",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 29,
+        "column": 275052,
+        "msPerRender": 0.472,
+        "pct": 0.22,
+        "samples": 15
+      },
+      {
+        "function": "Yl",
+        "file": "chunk-46NR7W2P.js",
+        "line": 1,
+        "column": 157091,
+        "msPerRender": 0.471,
+        "pct": 0.22,
+        "samples": 16
+      },
+      {
+        "function": "node",
+        "file": "chunk-46NR7W2P.js",
+        "line": 22,
+        "column": 18586,
+        "msPerRender": 0.47,
+        "pct": 0.22,
+        "samples": 16
+      },
+      {
+        "function": "handle",
+        "file": "chunk-46NR7W2P.js",
+        "line": 18,
+        "column": 14789,
+        "msPerRender": 0.467,
+        "pct": 0.22,
+        "samples": 14
+      },
+      {
+        "function": "Jc",
+        "file": "chunk-46NR7W2P.js",
+        "line": 1,
+        "column": 32453,
+        "msPerRender": 0.466,
+        "pct": 0.22,
+        "samples": 18
+      },
+      {
+        "function": "a",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 12,
+        "column": 7167,
+        "msPerRender": 0.462,
+        "pct": 0.22,
+        "samples": 17
+      },
+      {
+        "function": "lx",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 1,
+        "column": 3770,
+        "msPerRender": 0.457,
+        "pct": 0.21,
+        "samples": 16
+      },
+      {
+        "function": "leaf",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 1,
+        "column": 45013,
+        "msPerRender": 0.454,
+        "pct": 0.21,
+        "samples": 16
+      },
+      {
+        "function": "c7",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 22,
+        "column": 15236,
+        "msPerRender": 0.452,
+        "pct": 0.21,
+        "samples": 12
+      },
+      {
+        "function": "Kt",
+        "file": "chunk-46NR7W2P.js",
+        "line": 1,
+        "column": 129156,
+        "msPerRender": 0.451,
+        "pct": 0.21,
+        "samples": 14
+      },
+      {
+        "function": "Sre",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 33,
+        "column": 18719,
+        "msPerRender": 0.447,
+        "pct": 0.21,
+        "samples": 15
+      },
+      {
+        "function": "parts",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 1,
+        "column": 39223,
+        "msPerRender": 0.446,
+        "pct": 0.21,
+        "samples": 15
+      },
+      {
+        "function": "Ff",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 10,
+        "column": 89976,
+        "msPerRender": 0.435,
+        "pct": 0.2,
+        "samples": 4
+      },
+      {
+        "function": "VO",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 10,
+        "column": 188266,
+        "msPerRender": 0.432,
+        "pct": 0.2,
+        "samples": 17
+      },
+      {
+        "function": "Eb",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 10,
+        "column": 141574,
+        "msPerRender": 0.431,
+        "pct": 0.2,
+        "samples": 15
+      },
+      {
+        "function": "",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 10,
+        "column": 91631,
+        "msPerRender": 0.431,
+        "pct": 0.2,
+        "samples": 15
+      },
+      {
+        "function": "leaf",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 1,
+        "column": 6066,
+        "msPerRender": 0.431,
+        "pct": 0.2,
+        "samples": 15
+      },
+      {
+        "function": "nt",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 1,
+        "column": 105034,
+        "msPerRender": 0.422,
+        "pct": 0.2,
+        "samples": 15
+      },
+      {
+        "function": "Un",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 1,
+        "column": 51213,
+        "msPerRender": 0.415,
+        "pct": 0.2,
+        "samples": 14
+      },
+      {
+        "function": "r",
+        "file": "chunk-46NR7W2P.js",
+        "line": 1,
+        "column": 91267,
+        "msPerRender": 0.411,
+        "pct": 0.19,
+        "samples": 13
+      },
+      {
+        "function": "OF",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 10,
+        "column": 223969,
+        "msPerRender": 0.411,
+        "pct": 0.19,
+        "samples": 13
+      },
+      {
+        "function": "f",
+        "file": "chunk-46NR7W2P.js",
+        "line": 1,
+        "column": 155662,
+        "msPerRender": 0.409,
+        "pct": 0.19,
+        "samples": 14
+      },
+      {
+        "function": "wD",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 22,
+        "column": 18187,
+        "msPerRender": 0.406,
+        "pct": 0.19,
+        "samples": 10
+      },
+      {
+        "function": "OO",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 10,
+        "column": 118428,
+        "msPerRender": 0.402,
+        "pct": 0.19,
+        "samples": 14
+      },
+      {
+        "function": "el",
+        "file": "chunk-46NR7W2P.js",
+        "line": 1,
+        "column": 102818,
+        "msPerRender": 0.401,
+        "pct": 0.19,
+        "samples": 13
+      },
+      {
+        "function": "Ip",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 1,
+        "column": 2152,
+        "msPerRender": 0.398,
+        "pct": 0.19,
+        "samples": 14
+      },
+      {
+        "function": "_t",
+        "file": "chunk-46NR7W2P.js",
+        "line": 1,
+        "column": 135813,
+        "msPerRender": 0.395,
+        "pct": 0.19,
+        "samples": 14
+      }
+    ],
+    "inclusive": [
+      {
+        "function": "(root)",
+        "file": "",
+        "line": 0,
+        "column": 0,
+        "msPerRender": 212.783,
+        "pct": 100.0,
+        "samples": 0
+      },
+      {
+        "function": "",
+        "file": "receipt-worker.mjs",
+        "line": 0,
+        "column": 0,
+        "msPerRender": 206.78,
+        "pct": 97.18,
+        "samples": 1
+      },
+      {
+        "function": "consume",
+        "file": "receipt-worker.mjs",
+        "line": 19,
+        "column": 17,
+        "msPerRender": 175.974,
+        "pct": 82.7,
+        "samples": 11
+      },
+      {
+        "function": "VK",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 13,
+        "column": 12833,
+        "msPerRender": 174.855,
+        "pct": 82.18,
+        "samples": 0
+      },
+      {
+        "function": "",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 13,
+        "column": 12801,
+        "msPerRender": 174.855,
+        "pct": 82.18,
+        "samples": 0
+      },
+      {
+        "function": "Vb",
+        "file": "chunk-46NR7W2P.js",
+        "line": 1,
+        "column": 3637,
+        "msPerRender": 174.855,
+        "pct": 82.18,
+        "samples": 0
+      },
+      {
+        "function": "zwe",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 13,
+        "column": 12774,
+        "msPerRender": 174.855,
+        "pct": 82.18,
+        "samples": 0
+      },
+      {
+        "function": "rq",
+        "file": "chunk-TJNJ4CWB.js",
+        "line": 215,
+        "column": 32239,
+        "msPerRender": 174.855,
+        "pct": 82.18,
+        "samples": 0
+      },
+      {
+        "function": "KK",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 13,
+        "column": 12913,
+        "msPerRender": 172.7,
+        "pct": 81.16,
+        "samples": 1
+      },
+      {
+        "function": "XK",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 13,
+        "column": 12690,
+        "msPerRender": 172.525,
+        "pct": 81.08,
+        "samples": 0
+      },
+      {
+        "function": "Y",
+        "file": "chunk-YASALRXB.js",
+        "line": 1,
+        "column": 7044,
+        "msPerRender": 172.495,
+        "pct": 81.07,
+        "samples": 0
+      },
+      {
+        "function": "Ii",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 6,
+        "column": 6916,
+        "msPerRender": 170.693,
+        "pct": 80.22,
+        "samples": 0
+      },
+      {
+        "function": "Bb",
+        "file": "chunk-46NR7W2P.js",
+        "line": 1,
+        "column": 428,
+        "msPerRender": 95.253,
+        "pct": 44.77,
+        "samples": 1
+      },
+      {
+        "function": "",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 13,
+        "column": 9564,
+        "msPerRender": 95.253,
+        "pct": 44.77,
+        "samples": 0
+      },
+      {
+        "function": "qK",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 13,
+        "column": 9428,
+        "msPerRender": 95.253,
+        "pct": 44.77,
+        "samples": 0
+      },
+      {
+        "function": "YK",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 13,
+        "column": 9286,
+        "msPerRender": 95.253,
+        "pct": 44.77,
+        "samples": 0
+      },
+      {
+        "function": "UK",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 13,
+        "column": 10184,
+        "msPerRender": 95.223,
+        "pct": 44.75,
+        "samples": 3
+      },
+      {
+        "function": "",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 13,
+        "column": 9573,
+        "msPerRender": 95.223,
+        "pct": 44.75,
+        "samples": 0
+      },
+      {
+        "function": "BF",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 12,
+        "column": 1552,
+        "msPerRender": 77.272,
+        "pct": 36.32,
+        "samples": 1
+      },
+      {
+        "function": "_F",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 12,
+        "column": 927,
+        "msPerRender": 77.272,
+        "pct": 36.32,
+        "samples": 0
+      },
+      {
+        "function": "",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 13,
+        "column": 12718,
+        "msPerRender": 77.272,
+        "pct": 36.32,
+        "samples": 0
+      },
+      {
+        "function": "",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 12,
+        "column": 2764,
+        "msPerRender": 77.242,
+        "pct": 36.3,
+        "samples": 0
+      },
+      {
+        "function": "w",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 12,
+        "column": 2739,
+        "msPerRender": 77.242,
+        "pct": 36.3,
+        "samples": 0
+      },
+      {
+        "function": "layout",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 34,
+        "column": 235364,
+        "msPerRender": 75.997,
+        "pct": 35.72,
+        "samples": 1
+      },
+      {
+        "function": "",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 12,
+        "column": 3122,
+        "msPerRender": 75.997,
+        "pct": 35.72,
+        "samples": 0
+      },
+      {
+        "function": "Zx",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 6,
+        "column": 7560,
+        "msPerRender": 75.997,
+        "pct": 35.72,
+        "samples": 0
+      },
+      {
+        "function": "vH",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 32,
+        "column": 175855,
+        "msPerRender": 73.018,
+        "pct": 34.32,
+        "samples": 1
+      },
+      {
+        "function": "",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 32,
+        "column": 175769,
+        "msPerRender": 73.018,
+        "pct": 34.32,
+        "samples": 0
+      },
+      {
+        "function": "CO",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 10,
+        "column": 100945,
+        "msPerRender": 73.018,
+        "pct": 34.32,
+        "samples": 0
+      },
+      {
+        "function": "Ta",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 32,
+        "column": 175551,
+        "msPerRender": 73.018,
+        "pct": 34.32,
+        "samples": 0
+      },
+      {
+        "function": "Eo",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 6,
+        "column": 7908,
+        "msPerRender": 72.928,
+        "pct": 34.27,
+        "samples": 0
+      },
+      {
+        "function": "gre",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 32,
+        "column": 179334,
+        "msPerRender": 72.928,
+        "pct": 34.27,
+        "samples": 0
+      },
+      {
+        "function": "",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 32,
+        "column": 179385,
+        "msPerRender": 72.898,
+        "pct": 34.26,
+        "samples": 0
+      },
+      {
+        "function": "YG",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 29,
+        "column": 263793,
+        "msPerRender": 72.871,
+        "pct": 34.25,
+        "samples": 0
+      },
+      {
+        "function": "UG",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 29,
+        "column": 269400,
+        "msPerRender": 72.871,
+        "pct": 34.25,
+        "samples": 0
+      },
+      {
+        "function": "",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 13,
+        "column": 10522,
+        "msPerRender": 69.544,
+        "pct": 32.68,
+        "samples": 1
+      },
+      {
+        "function": "MP",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 13,
+        "column": 3808,
+        "msPerRender": 69.515,
+        "pct": 32.67,
+        "samples": 1
+      },
+      {
+        "function": "HF",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 12,
+        "column": 8827,
+        "msPerRender": 69.487,
+        "pct": 32.66,
+        "samples": 6
+      },
+      {
+        "function": "jF",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 12,
+        "column": 8237,
+        "msPerRender": 69.487,
+        "pct": 32.66,
+        "samples": 0
+      },
+      {
+        "function": "",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 13,
+        "column": 5695,
+        "msPerRender": 69.487,
+        "pct": 32.66,
+        "samples": 0
+      },
+      {
+        "function": "Ph",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 29,
+        "column": 261123,
+        "msPerRender": 60.533,
+        "pct": 28.45,
+        "samples": 0
+      },
+      {
+        "function": "ate",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 29,
+        "column": 261735,
+        "msPerRender": 60.533,
+        "pct": 28.45,
+        "samples": 0
+      },
+      {
+        "function": "project",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 29,
+        "column": 66995,
+        "msPerRender": 59.022,
+        "pct": 27.74,
+        "samples": 1
+      },
+      {
+        "function": "",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 12,
+        "column": 11967,
+        "msPerRender": 58.953,
+        "pct": 27.71,
+        "samples": 4
+      },
+      {
+        "function": "Hx",
+        "file": "chunk-46NR7W2P.js",
+        "line": 1,
+        "column": 102365,
+        "msPerRender": 58.953,
+        "pct": 27.71,
+        "samples": 0
+      },
+      {
+        "function": "JR",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 33,
+        "column": 13649,
+        "msPerRender": 58.834,
+        "pct": 27.65,
+        "samples": 17
+      },
+      {
+        "function": "GR",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 32,
+        "column": 149828,
+        "msPerRender": 57.56,
+        "pct": 27.05,
+        "samples": 3
+      },
+      {
+        "function": "gO",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 10,
+        "column": 84682,
+        "msPerRender": 57.297,
+        "pct": 26.93,
+        "samples": 10
+      },
+      {
+        "function": "Uie",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 32,
+        "column": 148009,
+        "msPerRender": 45.659,
+        "pct": 21.46,
+        "samples": 1
+      },
+      {
+        "function": "d",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 10,
+        "column": 85442,
+        "msPerRender": 45.659,
+        "pct": 21.46,
+        "samples": 0
+      },
+      {
+        "function": "eF",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 10,
+        "column": 198222,
+        "msPerRender": 45.631,
+        "pct": 21.44,
+        "samples": 58
+      },
+      {
+        "function": "ru",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 10,
+        "column": 191180,
+        "msPerRender": 42.488,
+        "pct": 19.97,
+        "samples": 4
+      },
+      {
+        "function": "Ao",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 10,
+        "column": 91880,
+        "msPerRender": 42.291,
+        "pct": 19.88,
+        "samples": 198
+      },
+      {
+        "function": "_f",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 10,
+        "column": 90644,
+        "msPerRender": 38.637,
+        "pct": 18.16,
+        "samples": 785
+      },
+      {
+        "function": "u",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 12,
+        "column": 9227,
+        "msPerRender": 35.091,
+        "pct": 16.49,
+        "samples": 16
+      },
+      {
+        "function": "Mre",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 33,
+        "column": 22426,
+        "msPerRender": 34.588,
+        "pct": 16.26,
+        "samples": 25
+      },
+      {
+        "function": "leaf",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 1,
+        "column": 45013,
+        "msPerRender": 34.468,
+        "pct": 16.2,
+        "samples": 16
+      },
+      {
+        "function": "",
+        "file": "util",
+        "line": 478,
+        "column": 24,
+        "msPerRender": 30.744,
+        "pct": 14.45,
+        "samples": 1
+      },
+      {
+        "function": "fn",
+        "file": "util",
+        "line": 477,
+        "column": 14,
+        "msPerRender": 30.744,
+        "pct": 14.45,
+        "samples": 0
+      },
+      {
+        "function": "post",
+        "file": "node:inspector",
+        "line": 115,
+        "column": 7,
+        "msPerRender": 30.72,
+        "pct": 14.44,
+        "samples": 10
+      },
+      {
+        "function": "Sre",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 33,
+        "column": 18719,
+        "msPerRender": 23.144,
+        "pct": 10.88,
+        "samples": 15
+      },
+      {
+        "function": "connector",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 12,
+        "column": 9639,
+        "msPerRender": 22.578,
+        "pct": 10.61,
+        "samples": 11
+      },
+      {
+        "function": "G",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 1,
+        "column": 45029,
+        "msPerRender": 20.101,
+        "pct": 9.45,
+        "samples": 2
+      },
+      {
+        "function": "",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 12,
+        "column": 9248,
+        "msPerRender": 19.838,
+        "pct": 9.32,
+        "samples": 3
+      },
+      {
+        "function": "XF",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 13,
+        "column": 5997,
+        "msPerRender": 19.836,
+        "pct": 9.32,
+        "samples": 43
+      },
+      {
+        "function": "",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 13,
+        "column": 10682,
+        "msPerRender": 19.836,
+        "pct": 9.32,
+        "samples": 0
+      },
+      {
+        "function": "write",
+        "file": "chunk-46NR7W2P.js",
+        "line": 22,
+        "column": 18977,
+        "msPerRender": 19.753,
+        "pct": 9.28,
+        "samples": 24
+      },
+      {
+        "function": "p",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 10,
+        "column": 85973,
+        "msPerRender": 19.287,
+        "pct": 9.06,
+        "samples": 0
+      },
+      {
+        "function": "mM",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 1,
+        "column": 94411,
+        "msPerRender": 18.553,
+        "pct": 8.72,
+        "samples": 109
+      },
+      {
+        "function": "ZO",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 10,
+        "column": 195025,
+        "msPerRender": 18.114,
+        "pct": 8.51,
+        "samples": 104
+      },
+      {
+        "function": "group",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 12,
+        "column": 9974,
+        "msPerRender": 16.175,
+        "pct": 7.6,
+        "samples": 24
+      },
+      {
+        "function": "ar",
+        "file": "chunk-46NR7W2P.js",
+        "line": 16,
+        "column": 35561,
+        "msPerRender": 14.707,
+        "pct": 6.91,
+        "samples": 23
+      },
+      {
+        "function": "T",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 1,
+        "column": 34495,
+        "msPerRender": 14.534,
+        "pct": 6.83,
+        "samples": 102
+      },
+      {
+        "function": "Su",
+        "file": "chunk-46NR7W2P.js",
+        "line": 16,
+        "column": 35521,
+        "msPerRender": 14.336,
+        "pct": 6.74,
+        "samples": 2
+      },
+      {
+        "function": "_",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 1,
+        "column": 29565,
+        "msPerRender": 13.851,
+        "pct": 6.51,
+        "samples": 338
+      },
+      {
+        "function": "Ig",
+        "file": "chunk-46NR7W2P.js",
+        "line": 16,
+        "column": 37666,
+        "msPerRender": 13.679,
+        "pct": 6.43,
+        "samples": 17
+      },
+      {
+        "function": "IS",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 29,
+        "column": 263537,
+        "msPerRender": 12.338,
+        "pct": 5.8,
+        "samples": 0
+      },
+      {
+        "function": "oF",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 10,
+        "column": 205679,
+        "msPerRender": 12.311,
+        "pct": 5.79,
+        "samples": 1
+      },
+      {
+        "function": "Db",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 10,
+        "column": 205633,
+        "msPerRender": 12.311,
+        "pct": 5.79,
+        "samples": 0
+      },
+      {
+        "function": "xO",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 10,
+        "column": 90258,
+        "msPerRender": 12.306,
+        "pct": 5.78,
+        "samples": 274
+      },
+      {
+        "function": "oP",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 10,
+        "column": 194977,
+        "msPerRender": 11.662,
+        "pct": 5.48,
+        "samples": 8
+      },
+      {
+        "function": "Cre",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 33,
+        "column": 25291,
+        "msPerRender": 8.442,
+        "pct": 3.97,
+        "samples": 4
+      },
+      {
+        "function": "Oo",
+        "file": "chunk-46NR7W2P.js",
+        "line": 18,
+        "column": 16247,
+        "msPerRender": 8.187,
+        "pct": 3.85,
+        "samples": 78
+      },
+      {
+        "function": "shape",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 12,
+        "column": 9600,
+        "msPerRender": 8.164,
+        "pct": 3.84,
+        "samples": 2
+      },
+      {
+        "function": "Rre",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 33,
+        "column": 25936,
+        "msPerRender": 7.524,
+        "pct": 3.54,
+        "samples": 2
+      },
+      {
+        "function": "text",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 12,
+        "column": 9617,
+        "msPerRender": 7.441,
+        "pct": 3.5,
+        "samples": 2
+      },
+      {
+        "function": "ca",
+        "file": "chunk-46NR7W2P.js",
+        "line": 1,
+        "column": 164555,
+        "msPerRender": 7.427,
+        "pct": 3.49,
+        "samples": 22
+      },
+      {
+        "function": "run",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 32,
+        "column": 144846,
+        "msPerRender": 6.895,
+        "pct": 3.24,
+        "samples": 7
+      },
+      {
+        "function": "Eb",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 10,
+        "column": 141574,
+        "msPerRender": 6.699,
+        "pct": 3.15,
+        "samples": 15
+      },
+      {
+        "function": "$K",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 12,
+        "column": 7118,
+        "msPerRender": 5.91,
+        "pct": 2.78,
+        "samples": 3
+      },
+      {
+        "function": "(garbage collector)",
+        "file": "",
+        "line": 0,
+        "column": 0,
+        "msPerRender": 5.797,
+        "pct": 2.72,
+        "samples": 153
+      },
+      {
+        "function": "a",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 12,
+        "column": 7167,
+        "msPerRender": 5.739,
+        "pct": 2.7,
+        "samples": 17
+      },
+      {
+        "function": "Zd",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 10,
+        "column": 125868,
+        "msPerRender": 5.579,
+        "pct": 2.62,
+        "samples": 8
+      },
+      {
+        "function": "GO",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 10,
+        "column": 158353,
+        "msPerRender": 5.51,
+        "pct": 2.59,
+        "samples": 9
+      },
+      {
+        "function": "Yl",
+        "file": "chunk-46NR7W2P.js",
+        "line": 1,
+        "column": 157091,
+        "msPerRender": 5.045,
+        "pct": 2.37,
+        "samples": 16
+      },
+      {
+        "function": "node",
+        "file": "chunk-46NR7W2P.js",
+        "line": 22,
+        "column": 18586,
+        "msPerRender": 4.822,
+        "pct": 2.27,
+        "samples": 16
+      },
+      {
+        "function": "M",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 10,
+        "column": 143117,
+        "msPerRender": 4.501,
+        "pct": 2.12,
+        "samples": 20
+      },
+      {
+        "function": "U1",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 10,
+        "column": 125113,
+        "msPerRender": 4.228,
+        "pct": 1.99,
+        "samples": 5
+      },
+      {
+        "function": "WO",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 10,
+        "column": 158304,
+        "msPerRender": 4.218,
+        "pct": 1.98,
+        "samples": 3
+      },
+      {
+        "function": "leaf",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 1,
+        "column": 6066,
+        "msPerRender": 4.211,
+        "pct": 1.98,
+        "samples": 15
+      }
+    ]
+  },
+  "chain300": {
+    "renders": 10,
+    "scope": "Diagnostic sampled wall contributions. Inspector overhead is retained, excluded from product design claims; no unprofiled savings implied. Exact minified line and column prevent same-name closure conflation.",
+    "totalMs": 3365.329,
+    "self": [
+      {
+        "function": "post",
+        "file": "node:inspector",
+        "line": 115,
+        "column": 7,
+        "msPerRender": 31.256,
+        "pct": 9.29,
+        "samples": 10
+      },
+      {
+        "function": "_",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 1,
+        "column": 29565,
+        "msPerRender": 28.645,
+        "pct": 8.51,
+        "samples": 939
+      },
+      {
+        "function": "ZO",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 10,
+        "column": 195025,
+        "msPerRender": 21.011,
+        "pct": 6.24,
+        "samples": 702
+      },
+      {
+        "function": "(garbage collector)",
+        "file": "",
+        "line": 0,
+        "column": 0,
+        "msPerRender": 8.336,
+        "pct": 2.48,
+        "samples": 180
+      },
+      {
+        "function": "T",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 1,
+        "column": 34495,
+        "msPerRender": 7.3,
+        "pct": 2.17,
+        "samples": 245
+      },
+      {
+        "function": "Oo",
+        "file": "chunk-46NR7W2P.js",
+        "line": 18,
+        "column": 16247,
+        "msPerRender": 7.12,
+        "pct": 2.12,
+        "samples": 252
+      },
+      {
+        "function": "Ci",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 10,
+        "column": 189007,
+        "msPerRender": 6.042,
+        "pct": 1.8,
+        "samples": 187
+      },
+      {
+        "function": "i",
+        "file": "chunk-YASALRXB.js",
+        "line": 1,
+        "column": 11312,
+        "msPerRender": 4.735,
+        "pct": 1.41,
+        "samples": 158
+      },
+      {
+        "function": "Ao",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 10,
+        "column": 91880,
+        "msPerRender": 4.425,
+        "pct": 1.31,
+        "samples": 132
+      },
+      {
+        "function": "eF",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 10,
+        "column": 198222,
+        "msPerRender": 3.727,
+        "pct": 1.11,
+        "samples": 133
+      },
+      {
+        "function": "dt",
+        "file": "chunk-46NR7W2P.js",
+        "line": 1,
+        "column": 841,
+        "msPerRender": 3.71,
+        "pct": 1.1,
+        "samples": 123
+      },
+      {
+        "function": "F0",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 32,
+        "column": 181806,
+        "msPerRender": 3.424,
+        "pct": 1.02,
+        "samples": 121
+      },
+      {
+        "function": "pg",
+        "file": "chunk-46NR7W2P.js",
+        "line": 1,
+        "column": 155018,
+        "msPerRender": 3.195,
+        "pct": 0.95,
+        "samples": 110
+      },
+      {
+        "function": "Af",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 10,
+        "column": 24546,
+        "msPerRender": 3.171,
+        "pct": 0.94,
+        "samples": 119
+      },
+      {
+        "function": "attribute",
+        "file": "chunk-46NR7W2P.js",
+        "line": 1,
+        "column": 151949,
+        "msPerRender": 3.099,
+        "pct": 0.92,
+        "samples": 106
+      },
+      {
+        "function": "leaf",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 1,
+        "column": 45013,
+        "msPerRender": 2.95,
+        "pct": 0.88,
+        "samples": 102
+      },
+      {
+        "function": "write",
+        "file": "chunk-46NR7W2P.js",
+        "line": 22,
+        "column": 18977,
+        "msPerRender": 2.885,
+        "pct": 0.86,
+        "samples": 98
+      },
+      {
+        "function": "g",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 29,
+        "column": 275052,
+        "msPerRender": 2.875,
+        "pct": 0.85,
+        "samples": 89
+      },
+      {
+        "function": "c",
+        "file": "chunk-46NR7W2P.js",
+        "line": 1,
+        "column": 136467,
+        "msPerRender": 2.814,
+        "pct": 0.84,
+        "samples": 98
+      },
+      {
+        "function": "rn",
+        "file": "chunk-46NR7W2P.js",
+        "line": 54,
+        "column": 35727,
+        "msPerRender": 2.639,
+        "pct": 0.78,
+        "samples": 92
+      },
+      {
+        "function": "Mre",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 33,
+        "column": 22426,
+        "msPerRender": 2.63,
+        "pct": 0.78,
+        "samples": 71
+      },
+      {
+        "function": "OF",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 10,
+        "column": 223969,
+        "msPerRender": 2.547,
+        "pct": 0.76,
+        "samples": 92
+      },
+      {
+        "function": "xm",
+        "file": "chunk-46NR7W2P.js",
+        "line": 1,
+        "column": 85765,
+        "msPerRender": 2.401,
+        "pct": 0.71,
+        "samples": 82
+      },
+      {
+        "function": "Un",
+        "file": "chunk-46NR7W2P.js",
+        "line": 1,
+        "column": 33206,
+        "msPerRender": 2.367,
+        "pct": 0.7,
+        "samples": 81
+      },
+      {
+        "function": "d",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 1,
+        "column": 7637,
+        "msPerRender": 2.347,
+        "pct": 0.7,
+        "samples": 76
+      },
+      {
+        "function": "K",
+        "file": "chunk-46NR7W2P.js",
+        "line": 1,
+        "column": 37372,
+        "msPerRender": 2.3,
+        "pct": 0.68,
+        "samples": 79
+      },
+      {
+        "function": "group",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 12,
+        "column": 9974,
+        "msPerRender": 2.197,
+        "pct": 0.65,
+        "samples": 76
+      },
+      {
+        "function": "connector",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 12,
+        "column": 9639,
+        "msPerRender": 2.099,
+        "pct": 0.62,
+        "samples": 57
+      },
+      {
+        "function": "parts",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 1,
+        "column": 39223,
+        "msPerRender": 2.04,
+        "pct": 0.61,
+        "samples": 71
+      },
+      {
+        "function": "Id",
+        "file": "chunk-46NR7W2P.js",
+        "line": 1,
+        "column": 83874,
+        "msPerRender": 2.019,
+        "pct": 0.6,
+        "samples": 55
+      },
+      {
+        "function": "IK",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 12,
+        "column": 4372,
+        "msPerRender": 1.967,
+        "pct": 0.58,
+        "samples": 53
+      },
+      {
+        "function": "Ig",
+        "file": "chunk-46NR7W2P.js",
+        "line": 16,
+        "column": 37666,
+        "msPerRender": 1.935,
+        "pct": 0.57,
+        "samples": 58
+      },
+      {
+        "function": "P",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 1,
+        "column": 36488,
+        "msPerRender": 1.902,
+        "pct": 0.57,
+        "samples": 61
+      },
+      {
+        "function": "ar",
+        "file": "chunk-46NR7W2P.js",
+        "line": 16,
+        "column": 35561,
+        "msPerRender": 1.882,
+        "pct": 0.56,
+        "samples": 56
+      },
+      {
+        "function": "kr",
+        "file": "chunk-46NR7W2P.js",
+        "line": 54,
+        "column": 43527,
+        "msPerRender": 1.724,
+        "pct": 0.51,
+        "samples": 60
+      },
+      {
+        "function": "dc",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 10,
+        "column": 128565,
+        "msPerRender": 1.638,
+        "pct": 0.49,
+        "samples": 40
+      },
+      {
+        "function": "mn",
+        "file": "chunk-46NR7W2P.js",
+        "line": 1,
+        "column": 46337,
+        "msPerRender": 1.616,
+        "pct": 0.48,
+        "samples": 55
+      },
+      {
+        "function": "r",
+        "file": "chunk-46NR7W2P.js",
+        "line": 1,
+        "column": 90727,
+        "msPerRender": 1.593,
+        "pct": 0.47,
+        "samples": 47
+      },
+      {
+        "function": "An",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 10,
+        "column": 75564,
+        "msPerRender": 1.548,
+        "pct": 0.46,
+        "samples": 54
+      },
+      {
+        "function": "JR",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 33,
+        "column": 13649,
+        "msPerRender": 1.541,
+        "pct": 0.46,
+        "samples": 54
+      },
+      {
+        "function": "li",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 10,
+        "column": 43742,
+        "msPerRender": 1.511,
+        "pct": 0.45,
+        "samples": 54
+      },
+      {
+        "function": "Sre",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 33,
+        "column": 18719,
+        "msPerRender": 1.498,
+        "pct": 0.45,
+        "samples": 54
+      },
+      {
+        "function": "Ri",
+        "file": "chunk-46NR7W2P.js",
+        "line": 1,
+        "column": 10028,
+        "msPerRender": 1.484,
+        "pct": 0.44,
+        "samples": 54
+      },
+      {
+        "function": "zd",
+        "file": "chunk-46NR7W2P.js",
+        "line": 1,
+        "column": 87203,
+        "msPerRender": 1.459,
+        "pct": 0.43,
+        "samples": 49
+      },
+      {
+        "function": "Eb",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 10,
+        "column": 141574,
+        "msPerRender": 1.452,
+        "pct": 0.43,
+        "samples": 52
+      },
+      {
+        "function": "Rm",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 10,
+        "column": 192184,
+        "msPerRender": 1.365,
+        "pct": 0.41,
+        "samples": 46
+      },
+      {
+        "function": "a",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 12,
+        "column": 7167,
+        "msPerRender": 1.346,
+        "pct": 0.4,
+        "samples": 46
+      },
+      {
+        "function": "_t",
+        "file": "chunk-46NR7W2P.js",
+        "line": 1,
+        "column": 135813,
+        "msPerRender": 1.326,
+        "pct": 0.39,
+        "samples": 45
+      },
+      {
+        "function": "QO",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 10,
+        "column": 194067,
+        "msPerRender": 1.316,
+        "pct": 0.39,
+        "samples": 43
+      },
+      {
+        "function": "u",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 12,
+        "column": 9227,
+        "msPerRender": 1.278,
+        "pct": 0.38,
+        "samples": 43
+      },
+      {
+        "function": "Ci",
+        "file": "chunk-46NR7W2P.js",
+        "line": 1,
+        "column": 1694,
+        "msPerRender": 1.258,
+        "pct": 0.37,
+        "samples": 26
+      },
+      {
+        "function": "pO",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 10,
+        "column": 80711,
+        "msPerRender": 1.245,
+        "pct": 0.37,
+        "samples": 43
+      },
+      {
+        "function": "rectanglePaint",
+        "file": "chunk-46NR7W2P.js",
+        "line": 1,
+        "column": 142595,
+        "msPerRender": 1.223,
+        "pct": 0.36,
+        "samples": 43
+      },
+      {
+        "function": "sa",
+        "file": "chunk-46NR7W2P.js",
+        "line": 1,
+        "column": 160894,
+        "msPerRender": 1.219,
+        "pct": 0.36,
+        "samples": 43
+      },
+      {
+        "function": "$e",
+        "file": "chunk-46NR7W2P.js",
+        "line": 1,
+        "column": 73751,
+        "msPerRender": 1.218,
+        "pct": 0.36,
+        "samples": 38
+      },
+      {
+        "function": "ca",
+        "file": "chunk-46NR7W2P.js",
+        "line": 1,
+        "column": 164555,
+        "msPerRender": 1.211,
+        "pct": 0.36,
+        "samples": 44
+      },
+      {
+        "function": "r",
+        "file": "chunk-46NR7W2P.js",
+        "line": 1,
+        "column": 91267,
+        "msPerRender": 1.187,
+        "pct": 0.35,
+        "samples": 40
+      },
+      {
+        "function": "VS",
+        "file": "chunk-46NR7W2P.js",
+        "line": 1,
+        "column": 140714,
+        "msPerRender": 1.173,
+        "pct": 0.35,
+        "samples": 41
+      },
+      {
+        "function": "EK",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 10,
+        "column": 224008,
+        "msPerRender": 1.154,
+        "pct": 0.34,
+        "samples": 37
+      },
+      {
+        "function": "ew",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 13,
+        "column": 26400,
+        "msPerRender": 1.142,
+        "pct": 0.34,
+        "samples": 40
+      },
+      {
+        "function": "attribute",
+        "file": "chunk-46NR7W2P.js",
+        "line": 1,
+        "column": 146709,
+        "msPerRender": 1.06,
+        "pct": 0.32,
+        "samples": 36
+      },
+      {
+        "function": "Yl",
+        "file": "chunk-46NR7W2P.js",
+        "line": 1,
+        "column": 157091,
+        "msPerRender": 1.059,
+        "pct": 0.31,
+        "samples": 38
+      },
+      {
+        "function": "vs",
+        "file": "chunk-46NR7W2P.js",
+        "line": 1,
+        "column": 55580,
+        "msPerRender": 1.027,
+        "pct": 0.31,
+        "samples": 35
+      },
+      {
+        "function": "Pi",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 10,
+        "column": 75203,
+        "msPerRender": 1.0,
+        "pct": 0.3,
+        "samples": 35
+      },
+      {
+        "function": "aa",
+        "file": "chunk-46NR7W2P.js",
+        "line": 1,
+        "column": 162393,
+        "msPerRender": 0.982,
+        "pct": 0.29,
+        "samples": 34
+      },
+      {
+        "function": "fixedAttribute",
+        "file": "chunk-46NR7W2P.js",
+        "line": 1,
+        "column": 152556,
+        "msPerRender": 0.972,
+        "pct": 0.29,
+        "samples": 35
+      },
+      {
+        "function": "ru",
+        "file": "chunk-46NR7W2P.js",
+        "line": 16,
+        "column": 3212,
+        "msPerRender": 0.952,
+        "pct": 0.28,
+        "samples": 36
+      },
+      {
+        "function": "Qd",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 10,
+        "column": 123172,
+        "msPerRender": 0.95,
+        "pct": 0.28,
+        "samples": 28
+      },
+      {
+        "function": "bc",
+        "file": "chunk-46NR7W2P.js",
+        "line": 1,
+        "column": 607,
+        "msPerRender": 0.911,
+        "pct": 0.27,
+        "samples": 26
+      },
+      {
+        "function": "zs",
+        "file": "chunk-46NR7W2P.js",
+        "line": 1,
+        "column": 80239,
+        "msPerRender": 0.877,
+        "pct": 0.26,
+        "samples": 29
+      },
+      {
+        "function": "dl",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 10,
+        "column": 223318,
+        "msPerRender": 0.871,
+        "pct": 0.26,
+        "samples": 20
+      },
+      {
+        "function": "el",
+        "file": "chunk-46NR7W2P.js",
+        "line": 1,
+        "column": 102818,
+        "msPerRender": 0.865,
+        "pct": 0.26,
+        "samples": 31
+      },
+      {
+        "function": "leaf",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 1,
+        "column": 6066,
+        "msPerRender": 0.851,
+        "pct": 0.25,
+        "samples": 29
+      },
+      {
+        "function": "",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 10,
+        "column": 93606,
+        "msPerRender": 0.833,
+        "pct": 0.25,
+        "samples": 27
+      },
+      {
+        "function": "Te",
+        "file": "chunk-46NR7W2P.js",
+        "line": 1,
+        "column": 68416,
+        "msPerRender": 0.823,
+        "pct": 0.24,
+        "samples": 29
+      },
+      {
+        "function": "handle",
+        "file": "chunk-46NR7W2P.js",
+        "line": 18,
+        "column": 14789,
+        "msPerRender": 0.822,
+        "pct": 0.24,
+        "samples": 28
+      },
+      {
+        "function": "VO",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 10,
+        "column": 188266,
+        "msPerRender": 0.816,
+        "pct": 0.24,
+        "samples": 29
+      },
+      {
+        "function": "GF",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 12,
+        "column": 6387,
+        "msPerRender": 0.813,
+        "pct": 0.24,
+        "samples": 8
+      },
+      {
+        "function": "su",
+        "file": "chunk-46NR7W2P.js",
+        "line": 16,
+        "column": 6061,
+        "msPerRender": 0.813,
+        "pct": 0.24,
+        "samples": 10
+      },
+      {
+        "function": "cy",
+        "file": "chunk-46NR7W2P.js",
+        "line": 18,
+        "column": 6990,
+        "msPerRender": 0.812,
+        "pct": 0.24,
+        "samples": 31
+      },
+      {
+        "function": "indent",
+        "file": "chunk-46NR7W2P.js",
+        "line": 1,
+        "column": 139340,
+        "msPerRender": 0.809,
+        "pct": 0.24,
+        "samples": 28
+      },
+      {
+        "function": "get",
+        "file": "chunk-YASALRXB.js",
+        "line": 1,
+        "column": 10078,
+        "msPerRender": 0.807,
+        "pct": 0.24,
+        "samples": 29
+      },
+      {
+        "function": "df",
+        "file": "chunk-46NR7W2P.js",
+        "line": 54,
+        "column": 34329,
+        "msPerRender": 0.804,
+        "pct": 0.24,
+        "samples": 30
+      },
+      {
+        "function": "WK",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 13,
+        "column": 7280,
+        "msPerRender": 0.787,
+        "pct": 0.23,
+        "samples": 28
+      },
+      {
+        "function": "",
+        "file": "chunk-46NR7W2P.js",
+        "line": 1,
+        "column": 80445,
+        "msPerRender": 0.783,
+        "pct": 0.23,
+        "samples": 27
+      },
+      {
+        "function": "consume",
+        "file": "receipt-worker.mjs",
+        "line": 19,
+        "column": 17,
+        "msPerRender": 0.783,
+        "pct": 0.23,
+        "samples": 28
+      },
+      {
+        "function": "Dg",
+        "file": "chunk-46NR7W2P.js",
+        "line": 16,
+        "column": 38041,
+        "msPerRender": 0.782,
+        "pct": 0.23,
+        "samples": 27
+      },
+      {
+        "function": "pn",
+        "file": "chunk-46NR7W2P.js",
+        "line": 1,
+        "column": 36087,
+        "msPerRender": 0.778,
+        "pct": 0.23,
+        "samples": 28
+      },
+      {
+        "function": "Jc",
+        "file": "chunk-46NR7W2P.js",
+        "line": 1,
+        "column": 32453,
+        "msPerRender": 0.777,
+        "pct": 0.23,
+        "samples": 29
+      },
+      {
+        "function": "Ze",
+        "file": "chunk-46NR7W2P.js",
+        "line": 18,
+        "column": 4571,
+        "msPerRender": 0.775,
+        "pct": 0.23,
+        "samples": 27
+      },
+      {
+        "function": "js",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 29,
+        "column": 274739,
+        "msPerRender": 0.764,
+        "pct": 0.23,
+        "samples": 26
+      },
+      {
+        "function": "mo",
+        "file": "chunk-46NR7W2P.js",
+        "line": 1,
+        "column": 141290,
+        "msPerRender": 0.762,
+        "pct": 0.23,
+        "samples": 27
+      },
+      {
+        "function": "Hm",
+        "file": "chunk-46NR7W2P.js",
+        "line": 1,
+        "column": 132111,
+        "msPerRender": 0.742,
+        "pct": 0.22,
+        "samples": 24
+      },
+      {
+        "function": "S",
+        "file": "chunk-46NR7W2P.js",
+        "line": 1,
+        "column": 137959,
+        "msPerRender": 0.73,
+        "pct": 0.22,
+        "samples": 25
+      },
+      {
+        "function": "xP",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 12,
+        "column": 7009,
+        "msPerRender": 0.729,
+        "pct": 0.22,
+        "samples": 25
+      },
+      {
+        "function": "observe",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 1,
+        "column": 41797,
+        "msPerRender": 0.727,
+        "pct": 0.22,
+        "samples": 26
+      },
+      {
+        "function": "ao",
+        "file": "chunk-46NR7W2P.js",
+        "line": 1,
+        "column": 117884,
+        "msPerRender": 0.721,
+        "pct": 0.21,
+        "samples": 24
+      },
+      {
+        "function": "Qt",
+        "file": "chunk-46NR7W2P.js",
+        "line": 18,
+        "column": 5198,
+        "msPerRender": 0.707,
+        "pct": 0.21,
+        "samples": 25
+      },
+      {
+        "function": "Lo",
+        "file": "chunk-46NR7W2P.js",
+        "line": 54,
+        "column": 30824,
+        "msPerRender": 0.703,
+        "pct": 0.21,
+        "samples": 26
+      },
+      {
+        "function": "Er",
+        "file": "chunk-46NR7W2P.js",
+        "line": 54,
+        "column": 45322,
+        "msPerRender": 0.703,
+        "pct": 0.21,
+        "samples": 25
+      }
+    ],
+    "inclusive": [
+      {
+        "function": "(root)",
+        "file": "",
+        "line": 0,
+        "column": 0,
+        "msPerRender": 336.533,
+        "pct": 100.0,
+        "samples": 0
+      },
+      {
+        "function": "",
+        "file": "receipt-worker.mjs",
+        "line": 0,
+        "column": 0,
+        "msPerRender": 327.723,
+        "pct": 97.38,
+        "samples": 1
+      },
+      {
+        "function": "consume",
+        "file": "receipt-worker.mjs",
+        "line": 19,
+        "column": 17,
+        "msPerRender": 296.178,
+        "pct": 88.01,
+        "samples": 28
+      },
+      {
+        "function": "VK",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 13,
+        "column": 12833,
+        "msPerRender": 291.187,
+        "pct": 86.53,
+        "samples": 0
+      },
+      {
+        "function": "",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 13,
+        "column": 12801,
+        "msPerRender": 291.187,
+        "pct": 86.53,
+        "samples": 0
+      },
+      {
+        "function": "Vb",
+        "file": "chunk-46NR7W2P.js",
+        "line": 1,
+        "column": 3637,
+        "msPerRender": 291.187,
+        "pct": 86.53,
+        "samples": 0
+      },
+      {
+        "function": "zwe",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 13,
+        "column": 12774,
+        "msPerRender": 291.187,
+        "pct": 86.53,
+        "samples": 0
+      },
+      {
+        "function": "rq",
+        "file": "chunk-TJNJ4CWB.js",
+        "line": 215,
+        "column": 32239,
+        "msPerRender": 291.187,
+        "pct": 86.53,
+        "samples": 0
+      },
+      {
+        "function": "XK",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 13,
+        "column": 12690,
+        "msPerRender": 288.605,
+        "pct": 85.76,
+        "samples": 0
+      },
+      {
+        "function": "KK",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 13,
+        "column": 12913,
+        "msPerRender": 288.605,
+        "pct": 85.76,
+        "samples": 0
+      },
+      {
+        "function": "Y",
+        "file": "chunk-YASALRXB.js",
+        "line": 1,
+        "column": 7044,
+        "msPerRender": 288.522,
+        "pct": 85.73,
+        "samples": 0
+      },
+      {
+        "function": "Ii",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 6,
+        "column": 6916,
+        "msPerRender": 280.336,
+        "pct": 83.3,
+        "samples": 3
+      },
+      {
+        "function": "qK",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 13,
+        "column": 9428,
+        "msPerRender": 190.335,
+        "pct": 56.56,
+        "samples": 1
+      },
+      {
+        "function": "YK",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 13,
+        "column": 9286,
+        "msPerRender": 190.335,
+        "pct": 56.56,
+        "samples": 0
+      },
+      {
+        "function": "UK",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 13,
+        "column": 10184,
+        "msPerRender": 190.307,
+        "pct": 56.55,
+        "samples": 1
+      },
+      {
+        "function": "",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 13,
+        "column": 9573,
+        "msPerRender": 190.307,
+        "pct": 56.55,
+        "samples": 0
+      },
+      {
+        "function": "Bb",
+        "file": "chunk-46NR7W2P.js",
+        "line": 1,
+        "column": 428,
+        "msPerRender": 190.307,
+        "pct": 56.55,
+        "samples": 0
+      },
+      {
+        "function": "",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 13,
+        "column": 9564,
+        "msPerRender": 190.307,
+        "pct": 56.55,
+        "samples": 0
+      },
+      {
+        "function": "",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 13,
+        "column": 10522,
+        "msPerRender": 174.159,
+        "pct": 51.75,
+        "samples": 1
+      },
+      {
+        "function": "MP",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 13,
+        "column": 3808,
+        "msPerRender": 174.131,
+        "pct": 51.74,
+        "samples": 1
+      },
+      {
+        "function": "",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 13,
+        "column": 5695,
+        "msPerRender": 174.076,
+        "pct": 51.73,
+        "samples": 1
+      },
+      {
+        "function": "jF",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 12,
+        "column": 8237,
+        "msPerRender": 174.042,
+        "pct": 51.72,
+        "samples": 2
+      },
+      {
+        "function": "HF",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 12,
+        "column": 8827,
+        "msPerRender": 173.987,
+        "pct": 51.7,
+        "samples": 4
+      },
+      {
+        "function": "",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 12,
+        "column": 11967,
+        "msPerRender": 158.744,
+        "pct": 47.17,
+        "samples": 6
+      },
+      {
+        "function": "Hx",
+        "file": "chunk-46NR7W2P.js",
+        "line": 1,
+        "column": 102365,
+        "msPerRender": 158.744,
+        "pct": 47.17,
+        "samples": 0
+      },
+      {
+        "function": "JR",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 33,
+        "column": 13649,
+        "msPerRender": 158.58,
+        "pct": 47.12,
+        "samples": 54
+      },
+      {
+        "function": "BF",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 12,
+        "column": 1552,
+        "msPerRender": 98.27,
+        "pct": 29.2,
+        "samples": 0
+      },
+      {
+        "function": "_F",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 12,
+        "column": 927,
+        "msPerRender": 98.27,
+        "pct": 29.2,
+        "samples": 0
+      },
+      {
+        "function": "",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 13,
+        "column": 12718,
+        "msPerRender": 98.27,
+        "pct": 29.2,
+        "samples": 0
+      },
+      {
+        "function": "",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 12,
+        "column": 2764,
+        "msPerRender": 98.215,
+        "pct": 29.18,
+        "samples": 0
+      },
+      {
+        "function": "w",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 12,
+        "column": 2739,
+        "msPerRender": 98.215,
+        "pct": 29.18,
+        "samples": 0
+      },
+      {
+        "function": "u",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 12,
+        "column": 9227,
+        "msPerRender": 95.066,
+        "pct": 28.25,
+        "samples": 43
+      },
+      {
+        "function": "leaf",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 1,
+        "column": 45013,
+        "msPerRender": 93.366,
+        "pct": 27.74,
+        "samples": 102
+      },
+      {
+        "function": "layout",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 34,
+        "column": 235364,
+        "msPerRender": 92.6,
+        "pct": 27.52,
+        "samples": 1
+      },
+      {
+        "function": "",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 12,
+        "column": 3122,
+        "msPerRender": 92.6,
+        "pct": 27.52,
+        "samples": 0
+      },
+      {
+        "function": "Zx",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 6,
+        "column": 7560,
+        "msPerRender": 92.6,
+        "pct": 27.52,
+        "samples": 0
+      },
+      {
+        "function": "Mre",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 33,
+        "column": 22426,
+        "msPerRender": 92.439,
+        "pct": 27.47,
+        "samples": 71
+      },
+      {
+        "function": "",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 32,
+        "column": 175769,
+        "msPerRender": 86.171,
+        "pct": 25.61,
+        "samples": 1
+      },
+      {
+        "function": "CO",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 10,
+        "column": 100945,
+        "msPerRender": 86.171,
+        "pct": 25.61,
+        "samples": 0
+      },
+      {
+        "function": "Ta",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 32,
+        "column": 175551,
+        "msPerRender": 86.171,
+        "pct": 25.61,
+        "samples": 0
+      },
+      {
+        "function": "vH",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 32,
+        "column": 175855,
+        "msPerRender": 86.143,
+        "pct": 25.6,
+        "samples": 0
+      },
+      {
+        "function": "Eo",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 6,
+        "column": 7908,
+        "msPerRender": 86.056,
+        "pct": 25.57,
+        "samples": 0
+      },
+      {
+        "function": "gre",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 32,
+        "column": 179334,
+        "msPerRender": 86.056,
+        "pct": 25.57,
+        "samples": 0
+      },
+      {
+        "function": "YG",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 29,
+        "column": 263793,
+        "msPerRender": 86.022,
+        "pct": 25.56,
+        "samples": 0
+      },
+      {
+        "function": "UG",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 29,
+        "column": 269400,
+        "msPerRender": 86.022,
+        "pct": 25.56,
+        "samples": 0
+      },
+      {
+        "function": "",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 32,
+        "column": 179385,
+        "msPerRender": 86.022,
+        "pct": 25.56,
+        "samples": 0
+      },
+      {
+        "function": "Ph",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 29,
+        "column": 261123,
+        "msPerRender": 75.36,
+        "pct": 22.39,
+        "samples": 0
+      },
+      {
+        "function": "ate",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 29,
+        "column": 261735,
+        "msPerRender": 75.36,
+        "pct": 22.39,
+        "samples": 0
+      },
+      {
+        "function": "project",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 29,
+        "column": 66995,
+        "msPerRender": 67.707,
+        "pct": 20.12,
+        "samples": 6
+      },
+      {
+        "function": "Sre",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 33,
+        "column": 18719,
+        "msPerRender": 63.912,
+        "pct": 18.99,
+        "samples": 54
+      },
+      {
+        "function": "GR",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 32,
+        "column": 149828,
+        "msPerRender": 63.814,
+        "pct": 18.96,
+        "samples": 5
+      },
+      {
+        "function": "connector",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 12,
+        "column": 9639,
+        "msPerRender": 61.768,
+        "pct": 18.35,
+        "samples": 57
+      },
+      {
+        "function": "gO",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 10,
+        "column": 84682,
+        "msPerRender": 59.7,
+        "pct": 17.74,
+        "samples": 17
+      },
+      {
+        "function": "G",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 1,
+        "column": 45029,
+        "msPerRender": 54.835,
+        "pct": 16.29,
+        "samples": 10
+      },
+      {
+        "function": "",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 12,
+        "column": 9248,
+        "msPerRender": 53.952,
+        "pct": 16.03,
+        "samples": 13
+      },
+      {
+        "function": "write",
+        "file": "chunk-46NR7W2P.js",
+        "line": 22,
+        "column": 18977,
+        "msPerRender": 53.564,
+        "pct": 15.92,
+        "samples": 98
+      },
+      {
+        "function": "d",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 10,
+        "column": 85442,
+        "msPerRender": 39.695,
+        "pct": 11.8,
+        "samples": 1
+      },
+      {
+        "function": "Uie",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 32,
+        "column": 148009,
+        "msPerRender": 39.668,
+        "pct": 11.79,
+        "samples": 2
+      },
+      {
+        "function": "group",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 12,
+        "column": 9974,
+        "msPerRender": 39.58,
+        "pct": 11.76,
+        "samples": 76
+      },
+      {
+        "function": "eF",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 10,
+        "column": 198222,
+        "msPerRender": 39.577,
+        "pct": 11.76,
+        "samples": 133
+      },
+      {
+        "function": "ar",
+        "file": "chunk-46NR7W2P.js",
+        "line": 16,
+        "column": 35561,
+        "msPerRender": 37.726,
+        "pct": 11.21,
+        "samples": 56
+      },
+      {
+        "function": "T",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 1,
+        "column": 34495,
+        "msPerRender": 37.092,
+        "pct": 11.02,
+        "samples": 245
+      },
+      {
+        "function": "Su",
+        "file": "chunk-46NR7W2P.js",
+        "line": 16,
+        "column": 35521,
+        "msPerRender": 36.91,
+        "pct": 10.97,
+        "samples": 12
+      },
+      {
+        "function": "_",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 1,
+        "column": 29565,
+        "msPerRender": 35.732,
+        "pct": 10.62,
+        "samples": 939
+      },
+      {
+        "function": "Ig",
+        "file": "chunk-46NR7W2P.js",
+        "line": 16,
+        "column": 37666,
+        "msPerRender": 34.954,
+        "pct": 10.39,
+        "samples": 58
+      },
+      {
+        "function": "ZO",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 10,
+        "column": 195025,
+        "msPerRender": 34.522,
+        "pct": 10.26,
+        "samples": 702
+      },
+      {
+        "function": "post",
+        "file": "node:inspector",
+        "line": 115,
+        "column": 7,
+        "msPerRender": 31.431,
+        "pct": 9.34,
+        "samples": 10
+      },
+      {
+        "function": "",
+        "file": "util",
+        "line": 478,
+        "column": 24,
+        "msPerRender": 31.431,
+        "pct": 9.34,
+        "samples": 0
+      },
+      {
+        "function": "fn",
+        "file": "util",
+        "line": 477,
+        "column": 14,
+        "msPerRender": 31.431,
+        "pct": 9.34,
+        "samples": 0
+      },
+      {
+        "function": "Cre",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 33,
+        "column": 25291,
+        "msPerRender": 24.116,
+        "pct": 7.17,
+        "samples": 17
+      },
+      {
+        "function": "shape",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 12,
+        "column": 9600,
+        "msPerRender": 22.426,
+        "pct": 6.66,
+        "samples": 7
+      },
+      {
+        "function": "Oo",
+        "file": "chunk-46NR7W2P.js",
+        "line": 18,
+        "column": 16247,
+        "msPerRender": 22.191,
+        "pct": 6.59,
+        "samples": 252
+      },
+      {
+        "function": "Rre",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 33,
+        "column": 25936,
+        "msPerRender": 21.157,
+        "pct": 6.29,
+        "samples": 4
+      },
+      {
+        "function": "text",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 12,
+        "column": 9617,
+        "msPerRender": 20.618,
+        "pct": 6.13,
+        "samples": 3
+      },
+      {
+        "function": "ca",
+        "file": "chunk-46NR7W2P.js",
+        "line": 1,
+        "column": 164555,
+        "msPerRender": 15.994,
+        "pct": 4.75,
+        "samples": 44
+      },
+      {
+        "function": "$K",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 12,
+        "column": 7118,
+        "msPerRender": 13.693,
+        "pct": 4.07,
+        "samples": 10
+      },
+      {
+        "function": "a",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 12,
+        "column": 7167,
+        "msPerRender": 13.404,
+        "pct": 3.98,
+        "samples": 46
+      },
+      {
+        "function": "p",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 10,
+        "column": 85973,
+        "msPerRender": 12.397,
+        "pct": 3.68,
+        "samples": 1
+      },
+      {
+        "function": "node",
+        "file": "chunk-46NR7W2P.js",
+        "line": 22,
+        "column": 18586,
+        "msPerRender": 11.532,
+        "pct": 3.43,
+        "samples": 20
+      },
+      {
+        "function": "IS",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 29,
+        "column": 263537,
+        "msPerRender": 10.662,
+        "pct": 3.17,
+        "samples": 1
+      },
+      {
+        "function": "oF",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 10,
+        "column": 205679,
+        "msPerRender": 10.607,
+        "pct": 3.15,
+        "samples": 6
+      },
+      {
+        "function": "Db",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 10,
+        "column": 205633,
+        "msPerRender": 10.607,
+        "pct": 3.15,
+        "samples": 0
+      },
+      {
+        "function": "leaf",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 1,
+        "column": 6066,
+        "msPerRender": 10.091,
+        "pct": 3.0,
+        "samples": 29
+      },
+      {
+        "function": "oP",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 10,
+        "column": 194977,
+        "msPerRender": 9.243,
+        "pct": 2.75,
+        "samples": 10
+      },
+      {
+        "function": "Yl",
+        "file": "chunk-46NR7W2P.js",
+        "line": 1,
+        "column": 157091,
+        "msPerRender": 9.127,
+        "pct": 2.71,
+        "samples": 38
+      },
+      {
+        "function": "gn",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 10,
+        "column": 63337,
+        "msPerRender": 9.064,
+        "pct": 2.69,
+        "samples": 9
+      },
+      {
+        "function": "Er",
+        "file": "chunk-46NR7W2P.js",
+        "line": 54,
+        "column": 45322,
+        "msPerRender": 8.881,
+        "pct": 2.64,
+        "samples": 25
+      },
+      {
+        "function": "d",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 1,
+        "column": 7637,
+        "msPerRender": 8.834,
+        "pct": 2.63,
+        "samples": 76
+      },
+      {
+        "function": "mn",
+        "file": "chunk-46NR7W2P.js",
+        "line": 1,
+        "column": 46337,
+        "msPerRender": 8.814,
+        "pct": 2.62,
+        "samples": 55
+      },
+      {
+        "function": "aa",
+        "file": "chunk-46NR7W2P.js",
+        "line": 1,
+        "column": 162393,
+        "msPerRender": 8.537,
+        "pct": 2.54,
+        "samples": 34
+      },
+      {
+        "function": "run",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 32,
+        "column": 144846,
+        "msPerRender": 8.41,
+        "pct": 2.5,
+        "samples": 4
+      },
+      {
+        "function": "sa",
+        "file": "chunk-46NR7W2P.js",
+        "line": 1,
+        "column": 160894,
+        "msPerRender": 8.368,
+        "pct": 2.49,
+        "samples": 43
+      },
+      {
+        "function": "(garbage collector)",
+        "file": "",
+        "line": 0,
+        "column": 0,
+        "msPerRender": 8.336,
+        "pct": 2.48,
+        "samples": 180
+      },
+      {
+        "function": "Eb",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 10,
+        "column": 141574,
+        "msPerRender": 8.3,
+        "pct": 2.47,
+        "samples": 52
+      },
+      {
+        "function": "zs",
+        "file": "chunk-46NR7W2P.js",
+        "line": 1,
+        "column": 80239,
+        "msPerRender": 7.669,
+        "pct": 2.28,
+        "samples": 29
+      },
+      {
+        "function": "groupValidation",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 1,
+        "column": 41671,
+        "msPerRender": 7.507,
+        "pct": 2.23,
+        "samples": 12
+      },
+      {
+        "function": "Px",
+        "file": "chunk-46NR7W2P.js",
+        "line": 1,
+        "column": 84663,
+        "msPerRender": 7.121,
+        "pct": 2.12,
+        "samples": 18
+      },
+      {
+        "function": "attribute",
+        "file": "chunk-46NR7W2P.js",
+        "line": 1,
+        "column": 151949,
+        "msPerRender": 6.902,
+        "pct": 2.05,
+        "samples": 106
+      },
+      {
+        "function": "fixedAttribute",
+        "file": "chunk-46NR7W2P.js",
+        "line": 1,
+        "column": 152556,
+        "msPerRender": 6.697,
+        "pct": 1.99,
+        "samples": 35
+      },
+      {
+        "function": "kk",
+        "file": "chunk-46NR7W2P.js",
+        "line": 16,
+        "column": 4380,
+        "msPerRender": 6.695,
+        "pct": 1.99,
+        "samples": 0
+      }
+    ]
+  }
+}

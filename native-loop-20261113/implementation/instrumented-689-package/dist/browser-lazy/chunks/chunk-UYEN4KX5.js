@@ -1,0 +1,1 @@
+function t(t,i,e){let d=t,h=t,w=1;if(t.width>i+.01)for(let t of[1,2]){let f=e(t,h);if(!f)break;if(w++,h=f,f.width<d.width&&(d=f),f.width<=i+.01){d=f;break}}return Object.assign(d,{widthFit:{maxWidth:i,width:d.width,attempts:w,status:d.width<=i+.01?"fitted":"exceeded"}})}export{t};

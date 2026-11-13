@@ -1,0 +1,47 @@
+[
+  {
+    "case": "chain100",
+    "counts": {
+      "calls": 0,
+      "sameAxis": 0
+    },
+    "perRender": {
+      "calls": 0.0,
+      "sameAxis": 0.0
+    },
+    "exact": {
+      "warmup.svg.gz": true,
+      "warmup.receipt.json.gz": true
+    }
+  },
+  {
+    "case": "fanin100",
+    "counts": {
+      "calls": 135780,
+      "sameAxis": 58212
+    },
+    "perRender": {
+      "calls": 67890.0,
+      "sameAxis": 29106.0
+    },
+    "exact": {
+      "warmup.svg.gz": true,
+      "warmup.receipt.json.gz": true
+    }
+  },
+  {
+    "case": "chain300",
+    "counts": {
+      "calls": 0,
+      "sameAxis": 0
+    },
+    "perRender": {
+      "calls": 0.0,
+      "sameAxis": 0.0
+    },
+    "exact": {
+      "warmup.svg.gz": true,
+      "warmup.receipt.json.gz": true
+    }
+  }
+]

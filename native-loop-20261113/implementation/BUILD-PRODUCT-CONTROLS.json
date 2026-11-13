@@ -1,0 +1,930 @@
+{
+  "comparisons": 132,
+  "allExact": true,
+  "controls": [
+    {
+      "case": "chain100",
+      "arm": "baseline",
+      "phase": "warmup",
+      "part": "svg",
+      "exactCanonical": true
+    },
+    {
+      "case": "chain100",
+      "arm": "baseline",
+      "phase": "warmup",
+      "part": "receipt.json",
+      "exactCanonical": true
+    },
+    {
+      "case": "chain100",
+      "arm": "baseline",
+      "phase": "repeat0",
+      "part": "svg",
+      "exactCanonical": true
+    },
+    {
+      "case": "chain100",
+      "arm": "baseline",
+      "phase": "repeat0",
+      "part": "receipt.json",
+      "exactCanonical": true
+    },
+    {
+      "case": "chain100",
+      "arm": "baseline",
+      "phase": "repeat1",
+      "part": "svg",
+      "exactCanonical": true
+    },
+    {
+      "case": "chain100",
+      "arm": "baseline",
+      "phase": "repeat1",
+      "part": "receipt.json",
+      "exactCanonical": true
+    },
+    {
+      "case": "chain100",
+      "arm": "baseline",
+      "phase": "repeat2",
+      "part": "svg",
+      "exactCanonical": true
+    },
+    {
+      "case": "chain100",
+      "arm": "baseline",
+      "phase": "repeat2",
+      "part": "receipt.json",
+      "exactCanonical": true
+    },
+    {
+      "case": "chain100",
+      "arm": "baseline",
+      "phase": "repeat3",
+      "part": "svg",
+      "exactCanonical": true
+    },
+    {
+      "case": "chain100",
+      "arm": "baseline",
+      "phase": "repeat3",
+      "part": "receipt.json",
+      "exactCanonical": true
+    },
+    {
+      "case": "chain100",
+      "arm": "baseline",
+      "phase": "repeat4",
+      "part": "svg",
+      "exactCanonical": true
+    },
+    {
+      "case": "chain100",
+      "arm": "baseline",
+      "phase": "repeat4",
+      "part": "receipt.json",
+      "exactCanonical": true
+    },
+    {
+      "case": "chain100",
+      "arm": "baseline",
+      "phase": "repeat5",
+      "part": "svg",
+      "exactCanonical": true
+    },
+    {
+      "case": "chain100",
+      "arm": "baseline",
+      "phase": "repeat5",
+      "part": "receipt.json",
+      "exactCanonical": true
+    },
+    {
+      "case": "chain100",
+      "arm": "baseline",
+      "phase": "repeat6",
+      "part": "svg",
+      "exactCanonical": true
+    },
+    {
+      "case": "chain100",
+      "arm": "baseline",
+      "phase": "repeat6",
+      "part": "receipt.json",
+      "exactCanonical": true
+    },
+    {
+      "case": "chain100",
+      "arm": "baseline",
+      "phase": "repeat7",
+      "part": "svg",
+      "exactCanonical": true
+    },
+    {
+      "case": "chain100",
+      "arm": "baseline",
+      "phase": "repeat7",
+      "part": "receipt.json",
+      "exactCanonical": true
+    },
+    {
+      "case": "chain100",
+      "arm": "baseline",
+      "phase": "repeat8",
+      "part": "svg",
+      "exactCanonical": true
+    },
+    {
+      "case": "chain100",
+      "arm": "baseline",
+      "phase": "repeat8",
+      "part": "receipt.json",
+      "exactCanonical": true
+    },
+    {
+      "case": "chain100",
+      "arm": "baseline",
+      "phase": "repeat9",
+      "part": "svg",
+      "exactCanonical": true
+    },
+    {
+      "case": "chain100",
+      "arm": "baseline",
+      "phase": "repeat9",
+      "part": "receipt.json",
+      "exactCanonical": true
+    },
+    {
+      "case": "chain100",
+      "arm": "candidate",
+      "phase": "warmup",
+      "part": "svg",
+      "exactCanonical": true
+    },
+    {
+      "case": "chain100",
+      "arm": "candidate",
+      "phase": "warmup",
+      "part": "receipt.json",
+      "exactCanonical": true
+    },
+    {
+      "case": "chain100",
+      "arm": "candidate",
+      "phase": "repeat0",
+      "part": "svg",
+      "exactCanonical": true
+    },
+    {
+      "case": "chain100",
+      "arm": "candidate",
+      "phase": "repeat0",
+      "part": "receipt.json",
+      "exactCanonical": true
+    },
+    {
+      "case": "chain100",
+      "arm": "candidate",
+      "phase": "repeat1",
+      "part": "svg",
+      "exactCanonical": true
+    },
+    {
+      "case": "chain100",
+      "arm": "candidate",
+      "phase": "repeat1",
+      "part": "receipt.json",
+      "exactCanonical": true
+    },
+    {
+      "case": "chain100",
+      "arm": "candidate",
+      "phase": "repeat2",
+      "part": "svg",
+      "exactCanonical": true
+    },
+    {
+      "case": "chain100",
+      "arm": "candidate",
+      "phase": "repeat2",
+      "part": "receipt.json",
+      "exactCanonical": true
+    },
+    {
+      "case": "chain100",
+      "arm": "candidate",
+      "phase": "repeat3",
+      "part": "svg",
+      "exactCanonical": true
+    },
+    {
+      "case": "chain100",
+      "arm": "candidate",
+      "phase": "repeat3",
+      "part": "receipt.json",
+      "exactCanonical": true
+    },
+    {
+      "case": "chain100",
+      "arm": "candidate",
+      "phase": "repeat4",
+      "part": "svg",
+      "exactCanonical": true
+    },
+    {
+      "case": "chain100",
+      "arm": "candidate",
+      "phase": "repeat4",
+      "part": "receipt.json",
+      "exactCanonical": true
+    },
+    {
+      "case": "chain100",
+      "arm": "candidate",
+      "phase": "repeat5",
+      "part": "svg",
+      "exactCanonical": true
+    },
+    {
+      "case": "chain100",
+      "arm": "candidate",
+      "phase": "repeat5",
+      "part": "receipt.json",
+      "exactCanonical": true
+    },
+    {
+      "case": "chain100",
+      "arm": "candidate",
+      "phase": "repeat6",
+      "part": "svg",
+      "exactCanonical": true
+    },
+    {
+      "case": "chain100",
+      "arm": "candidate",
+      "phase": "repeat6",
+      "part": "receipt.json",
+      "exactCanonical": true
+    },
+    {
+      "case": "chain100",
+      "arm": "candidate",
+      "phase": "repeat7",
+      "part": "svg",
+      "exactCanonical": true
+    },
+    {
+      "case": "chain100",
+      "arm": "candidate",
+      "phase": "repeat7",
+      "part": "receipt.json",
+      "exactCanonical": true
+    },
+    {
+      "case": "chain100",
+      "arm": "candidate",
+      "phase": "repeat8",
+      "part": "svg",
+      "exactCanonical": true
+    },
+    {
+      "case": "chain100",
+      "arm": "candidate",
+      "phase": "repeat8",
+      "part": "receipt.json",
+      "exactCanonical": true
+    },
+    {
+      "case": "chain100",
+      "arm": "candidate",
+      "phase": "repeat9",
+      "part": "svg",
+      "exactCanonical": true
+    },
+    {
+      "case": "chain100",
+      "arm": "candidate",
+      "phase": "repeat9",
+      "part": "receipt.json",
+      "exactCanonical": true
+    },
+    {
+      "case": "fanin100",
+      "arm": "baseline",
+      "phase": "warmup",
+      "part": "svg",
+      "exactCanonical": true
+    },
+    {
+      "case": "fanin100",
+      "arm": "baseline",
+      "phase": "warmup",
+      "part": "receipt.json",
+      "exactCanonical": true
+    },
+    {
+      "case": "fanin100",
+      "arm": "baseline",
+      "phase": "repeat0",
+      "part": "svg",
+      "exactCanonical": true
+    },
+    {
+      "case": "fanin100",
+      "arm": "baseline",
+      "phase": "repeat0",
+      "part": "receipt.json",
+      "exactCanonical": true
+    },
+    {
+      "case": "fanin100",
+      "arm": "baseline",
+      "phase": "repeat1",
+      "part": "svg",
+      "exactCanonical": true
+    },
+    {
+      "case": "fanin100",
+      "arm": "baseline",
+      "phase": "repeat1",
+      "part": "receipt.json",
+      "exactCanonical": true
+    },
+    {
+      "case": "fanin100",
+      "arm": "baseline",
+      "phase": "repeat2",
+      "part": "svg",
+      "exactCanonical": true
+    },
+    {
+      "case": "fanin100",
+      "arm": "baseline",
+      "phase": "repeat2",
+      "part": "receipt.json",
+      "exactCanonical": true
+    },
+    {
+      "case": "fanin100",
+      "arm": "baseline",
+      "phase": "repeat3",
+      "part": "svg",
+      "exactCanonical": true
+    },
+    {
+      "case": "fanin100",
+      "arm": "baseline",
+      "phase": "repeat3",
+      "part": "receipt.json",
+      "exactCanonical": true
+    },
+    {
+      "case": "fanin100",
+      "arm": "baseline",
+      "phase": "repeat4",
+      "part": "svg",
+      "exactCanonical": true
+    },
+    {
+      "case": "fanin100",
+      "arm": "baseline",
+      "phase": "repeat4",
+      "part": "receipt.json",
+      "exactCanonical": true
+    },
+    {
+      "case": "fanin100",
+      "arm": "baseline",
+      "phase": "repeat5",
+      "part": "svg",
+      "exactCanonical": true
+    },
+    {
+      "case": "fanin100",
+      "arm": "baseline",
+      "phase": "repeat5",
+      "part": "receipt.json",
+      "exactCanonical": true
+    },
+    {
+      "case": "fanin100",
+      "arm": "baseline",
+      "phase": "repeat6",
+      "part": "svg",
+      "exactCanonical": true
+    },
+    {
+      "case": "fanin100",
+      "arm": "baseline",
+      "phase": "repeat6",
+      "part": "receipt.json",
+      "exactCanonical": true
+    },
+    {
+      "case": "fanin100",
+      "arm": "baseline",
+      "phase": "repeat7",
+      "part": "svg",
+      "exactCanonical": true
+    },
+    {
+      "case": "fanin100",
+      "arm": "baseline",
+      "phase": "repeat7",
+      "part": "receipt.json",
+      "exactCanonical": true
+    },
+    {
+      "case": "fanin100",
+      "arm": "baseline",
+      "phase": "repeat8",
+      "part": "svg",
+      "exactCanonical": true
+    },
+    {
+      "case": "fanin100",
+      "arm": "baseline",
+      "phase": "repeat8",
+      "part": "receipt.json",
+      "exactCanonical": true
+    },
+    {
+      "case": "fanin100",
+      "arm": "baseline",
+      "phase": "repeat9",
+      "part": "svg",
+      "exactCanonical": true
+    },
+    {
+      "case": "fanin100",
+      "arm": "baseline",
+      "phase": "repeat9",
+      "part": "receipt.json",
+      "exactCanonical": true
+    },
+    {
+      "case": "fanin100",
+      "arm": "candidate",
+      "phase": "warmup",
+      "part": "svg",
+      "exactCanonical": true
+    },
+    {
+      "case": "fanin100",
+      "arm": "candidate",
+      "phase": "warmup",
+      "part": "receipt.json",
+      "exactCanonical": true
+    },
+    {
+      "case": "fanin100",
+      "arm": "candidate",
+      "phase": "repeat0",
+      "part": "svg",
+      "exactCanonical": true
+    },
+    {
+      "case": "fanin100",
+      "arm": "candidate",
+      "phase": "repeat0",
+      "part": "receipt.json",
+      "exactCanonical": true
+    },
+    {
+      "case": "fanin100",
+      "arm": "candidate",
+      "phase": "repeat1",
+      "part": "svg",
+      "exactCanonical": true
+    },
+    {
+      "case": "fanin100",
+      "arm": "candidate",
+      "phase": "repeat1",
+      "part": "receipt.json",
+      "exactCanonical": true
+    },
+    {
+      "case": "fanin100",
+      "arm": "candidate",
+      "phase": "repeat2",
+      "part": "svg",
+      "exactCanonical": true
+    },
+    {
+      "case": "fanin100",
+      "arm": "candidate",
+      "phase": "repeat2",
+      "part": "receipt.json",
+      "exactCanonical": true
+    },
+    {
+      "case": "fanin100",
+      "arm": "candidate",
+      "phase": "repeat3",
+      "part": "svg",
+      "exactCanonical": true
+    },
+    {
+      "case": "fanin100",
+      "arm": "candidate",
+      "phase": "repeat3",
+      "part": "receipt.json",
+      "exactCanonical": true
+    },
+    {
+      "case": "fanin100",
+      "arm": "candidate",
+      "phase": "repeat4",
+      "part": "svg",
+      "exactCanonical": true
+    },
+    {
+      "case": "fanin100",
+      "arm": "candidate",
+      "phase": "repeat4",
+      "part": "receipt.json",
+      "exactCanonical": true
+    },
+    {
+      "case": "fanin100",
+      "arm": "candidate",
+      "phase": "repeat5",
+      "part": "svg",
+      "exactCanonical": true
+    },
+    {
+      "case": "fanin100",
+      "arm": "candidate",
+      "phase": "repeat5",
+      "part": "receipt.json",
+      "exactCanonical": true
+    },
+    {
+      "case": "fanin100",
+      "arm": "candidate",
+      "phase": "repeat6",
+      "part": "svg",
+      "exactCanonical": true
+    },
+    {
+      "case": "fanin100",
+      "arm": "candidate",
+      "phase": "repeat6",
+      "part": "receipt.json",
+      "exactCanonical": true
+    },
+    {
+      "case": "fanin100",
+      "arm": "candidate",
+      "phase": "repeat7",
+      "part": "svg",
+      "exactCanonical": true
+    },
+    {
+      "case": "fanin100",
+      "arm": "candidate",
+      "phase": "repeat7",
+      "part": "receipt.json",
+      "exactCanonical": true
+    },
+    {
+      "case": "fanin100",
+      "arm": "candidate",
+      "phase": "repeat8",
+      "part": "svg",
+      "exactCanonical": true
+    },
+    {
+      "case": "fanin100",
+      "arm": "candidate",
+      "phase": "repeat8",
+      "part": "receipt.json",
+      "exactCanonical": true
+    },
+    {
+      "case": "fanin100",
+      "arm": "candidate",
+      "phase": "repeat9",
+      "part": "svg",
+      "exactCanonical": true
+    },
+    {
+      "case": "fanin100",
+      "arm": "candidate",
+      "phase": "repeat9",
+      "part": "receipt.json",
+      "exactCanonical": true
+    },
+    {
+      "case": "chain300",
+      "arm": "baseline",
+      "phase": "warmup",
+      "part": "svg",
+      "exactCanonical": true
+    },
+    {
+      "case": "chain300",
+      "arm": "baseline",
+      "phase": "warmup",
+      "part": "receipt.json",
+      "exactCanonical": true
+    },
+    {
+      "case": "chain300",
+      "arm": "baseline",
+      "phase": "repeat0",
+      "part": "svg",
+      "exactCanonical": true
+    },
+    {
+      "case": "chain300",
+      "arm": "baseline",
+      "phase": "repeat0",
+      "part": "receipt.json",
+      "exactCanonical": true
+    },
+    {
+      "case": "chain300",
+      "arm": "baseline",
+      "phase": "repeat1",
+      "part": "svg",
+      "exactCanonical": true
+    },
+    {
+      "case": "chain300",
+      "arm": "baseline",
+      "phase": "repeat1",
+      "part": "receipt.json",
+      "exactCanonical": true
+    },
+    {
+      "case": "chain300",
+      "arm": "baseline",
+      "phase": "repeat2",
+      "part": "svg",
+      "exactCanonical": true
+    },
+    {
+      "case": "chain300",
+      "arm": "baseline",
+      "phase": "repeat2",
+      "part": "receipt.json",
+      "exactCanonical": true
+    },
+    {
+      "case": "chain300",
+      "arm": "baseline",
+      "phase": "repeat3",
+      "part": "svg",
+      "exactCanonical": true
+    },
+    {
+      "case": "chain300",
+      "arm": "baseline",
+      "phase": "repeat3",
+      "part": "receipt.json",
+      "exactCanonical": true
+    },
+    {
+      "case": "chain300",
+      "arm": "baseline",
+      "phase": "repeat4",
+      "part": "svg",
+      "exactCanonical": true
+    },
+    {
+      "case": "chain300",
+      "arm": "baseline",
+      "phase": "repeat4",
+      "part": "receipt.json",
+      "exactCanonical": true
+    },
+    {
+      "case": "chain300",
+      "arm": "baseline",
+      "phase": "repeat5",
+      "part": "svg",
+      "exactCanonical": true
+    },
+    {
+      "case": "chain300",
+      "arm": "baseline",
+      "phase": "repeat5",
+      "part": "receipt.json",
+      "exactCanonical": true
+    },
+    {
+      "case": "chain300",
+      "arm": "baseline",
+      "phase": "repeat6",
+      "part": "svg",
+      "exactCanonical": true
+    },
+    {
+      "case": "chain300",
+      "arm": "baseline",
+      "phase": "repeat6",
+      "part": "receipt.json",
+      "exactCanonical": true
+    },
+    {
+      "case": "chain300",
+      "arm": "baseline",
+      "phase": "repeat7",
+      "part": "svg",
+      "exactCanonical": true
+    },
+    {
+      "case": "chain300",
+      "arm": "baseline",
+      "phase": "repeat7",
+      "part": "receipt.json",
+      "exactCanonical": true
+    },
+    {
+      "case": "chain300",
+      "arm": "baseline",
+      "phase": "repeat8",
+      "part": "svg",
+      "exactCanonical": true
+    },
+    {
+      "case": "chain300",
+      "arm": "baseline",
+      "phase": "repeat8",
+      "part": "receipt.json",
+      "exactCanonical": true
+    },
+    {
+      "case": "chain300",
+      "arm": "baseline",
+      "phase": "repeat9",
+      "part": "svg",
+      "exactCanonical": true
+    },
+    {
+      "case": "chain300",
+      "arm": "baseline",
+      "phase": "repeat9",
+      "part": "receipt.json",
+      "exactCanonical": true
+    },
+    {
+      "case": "chain300",
+      "arm": "candidate",
+      "phase": "warmup",
+      "part": "svg",
+      "exactCanonical": true
+    },
+    {
+      "case": "chain300",
+      "arm": "candidate",
+      "phase": "warmup",
+      "part": "receipt.json",
+      "exactCanonical": true
+    },
+    {
+      "case": "chain300",
+      "arm": "candidate",
+      "phase": "repeat0",
+      "part": "svg",
+      "exactCanonical": true
+    },
+    {
+      "case": "chain300",
+      "arm": "candidate",
+      "phase": "repeat0",
+      "part": "receipt.json",
+      "exactCanonical": true
+    },
+    {
+      "case": "chain300",
+      "arm": "candidate",
+      "phase": "repeat1",
+      "part": "svg",
+      "exactCanonical": true
+    },
+    {
+      "case": "chain300",
+      "arm": "candidate",
+      "phase": "repeat1",
+      "part": "receipt.json",
+      "exactCanonical": true
+    },
+    {
+      "case": "chain300",
+      "arm": "candidate",
+      "phase": "repeat2",
+      "part": "svg",
+      "exactCanonical": true
+    },
+    {
+      "case": "chain300",
+      "arm": "candidate",
+      "phase": "repeat2",
+      "part": "receipt.json",
+      "exactCanonical": true
+    },
+    {
+      "case": "chain300",
+      "arm": "candidate",
+      "phase": "repeat3",
+      "part": "svg",
+      "exactCanonical": true
+    },
+    {
+      "case": "chain300",
+      "arm": "candidate",
+      "phase": "repeat3",
+      "part": "receipt.json",
+      "exactCanonical": true
+    },
+    {
+      "case": "chain300",
+      "arm": "candidate",
+      "phase": "repeat4",
+      "part": "svg",
+      "exactCanonical": true
+    },
+    {
+      "case": "chain300",
+      "arm": "candidate",
+      "phase": "repeat4",
+      "part": "receipt.json",
+      "exactCanonical": true
+    },
+    {
+      "case": "chain300",
+      "arm": "candidate",
+      "phase": "repeat5",
+      "part": "svg",
+      "exactCanonical": true
+    },
+    {
+      "case": "chain300",
+      "arm": "candidate",
+      "phase": "repeat5",
+      "part": "receipt.json",
+      "exactCanonical": true
+    },
+    {
+      "case": "chain300",
+      "arm": "candidate",
+      "phase": "repeat6",
+      "part": "svg",
+      "exactCanonical": true
+    },
+    {
+      "case": "chain300",
+      "arm": "candidate",
+      "phase": "repeat6",
+      "part": "receipt.json",
+      "exactCanonical": true
+    },
+    {
+      "case": "chain300",
+      "arm": "candidate",
+      "phase": "repeat7",
+      "part": "svg",
+      "exactCanonical": true
+    },
+    {
+      "case": "chain300",
+      "arm": "candidate",
+      "phase": "repeat7",
+      "part": "receipt.json",
+      "exactCanonical": true
+    },
+    {
+      "case": "chain300",
+      "arm": "candidate",
+      "phase": "repeat8",
+      "part": "svg",
+      "exactCanonical": true
+    },
+    {
+      "case": "chain300",
+      "arm": "candidate",
+      "phase": "repeat8",
+      "part": "receipt.json",
+      "exactCanonical": true
+    },
+    {
+      "case": "chain300",
+      "arm": "candidate",
+      "phase": "repeat9",
+      "part": "svg",
+      "exactCanonical": true
+    },
+    {
+      "case": "chain300",
+      "arm": "candidate",
+      "phase": "repeat9",
+      "part": "receipt.json",
+      "exactCanonical": true
+    }
+  ]
+}

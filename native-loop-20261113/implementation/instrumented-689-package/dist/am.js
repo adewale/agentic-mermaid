@@ -1,0 +1,3 @@
+#!/usr/bin/env node
+import{s as e}from"./chunk-62RBMITI.js";import"./chunk-5BYN55G4.js";import"./chunk-BYJR4CMX.js";import"./chunk-X4JDR34Z.js";import"./chunk-C3IVQDYX.js";import"./chunk-V5RFODN6.js";async function t(r){if(r[0]==="mcp"){const{runMcpCli:s}=await import("./mcp-cli-CE5GDEOY.js");return s(r.slice(1))}const i=e(r);if("exitCode"in i)return i.exitCode;const{runPreparedCli:o}=await import("./cli-7UTNDDDT.js");return o(i)}var n=await t(process.argv.slice(2));if(n!==0)process.exit(n);
+//# sourceMappingURL=am.js.map

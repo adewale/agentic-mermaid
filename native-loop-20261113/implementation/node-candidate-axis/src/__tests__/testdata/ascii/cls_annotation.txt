@@ -1,0 +1,34 @@
+classDiagram
+  class Shape {
+    <<abstract>>
+    +draw() void
+  }
+  class Circle {
+    +radius int
+    +draw() void
+  }
+  Shape <|-- Circle
+---
+    +----------------+
+    | <<abstract>>   |
+    | Shape          |
+    +----------------+
+    |                |
+    +----------------+
+    | + draw(): void |
+    +----------------+
+            ^
+            |
+            |
+            |
+            |
+            |
+            |
+            |
+    +----------------+
+    | Circle         |
+    +----------------+
+    | +radius int    |
+    +----------------+
+    | + draw(): void |
+    +----------------+

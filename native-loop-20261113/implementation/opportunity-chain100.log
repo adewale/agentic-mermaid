@@ -1,0 +1,14 @@
+{"case":"diagnostic:chain100","backend":"agentic","phase":"repeat1","status":"returned","wallMs":169.23777900000005,"cpuMs":262.551}
+node:zlib:173
+      throw new ERR_INVALID_ARG_TYPE(
+            ^
+
+TypeError [ERR_INVALID_ARG_TYPE]: The "buffer" argument must be of type string or an instance of Buffer, TypedArray, DataView, or ArrayBuffer. Received undefined
+    at zlibBufferSync (node:zlib:173:13)
+    at syncBufferWrapper (node:zlib:809:14)
+    at gz (file:///workspace/pr449-native-loop-20261113/implementation/opportunity-worker.mjs:10:60)
+    at file:///workspace/pr449-native-loop-20261113/implementation/opportunity-worker.mjs:38:1 {
+  code: 'ERR_INVALID_ARG_TYPE'
+}
+
+Node.js v24.19.0

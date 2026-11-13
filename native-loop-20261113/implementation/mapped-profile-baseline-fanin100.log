@@ -1,0 +1,10 @@
+{"case":"diagnostic:fanin100","backend":"agentic","phase":"repeat0","status":"returned","wallMs":223.711096,"cpuMs":378.246,"samples":736}
+{"case":"diagnostic:fanin100","backend":"agentic","phase":"repeat1","status":"returned","wallMs":155.82647399999996,"cpuMs":273.962,"samples":528}
+{"case":"diagnostic:fanin100","backend":"agentic","phase":"repeat2","status":"returned","wallMs":149.63928799999985,"cpuMs":254.927,"samples":491}
+{"case":"diagnostic:fanin100","backend":"agentic","phase":"repeat3","status":"returned","wallMs":240.31457,"cpuMs":331.777,"samples":789}
+{"case":"diagnostic:fanin100","backend":"agentic","phase":"repeat4","status":"returned","wallMs":190.13104999999996,"cpuMs":328.249,"samples":591}
+{"case":"diagnostic:fanin100","backend":"agentic","phase":"repeat5","status":"returned","wallMs":143.08171500000003,"cpuMs":196.469,"samples":500}
+{"case":"diagnostic:fanin100","backend":"agentic","phase":"repeat6","status":"returned","wallMs":139.8505590000002,"cpuMs":202.068,"samples":460}
+{"case":"diagnostic:fanin100","backend":"agentic","phase":"repeat7","status":"returned","wallMs":194.714336,"cpuMs":314.733,"samples":613}
+{"case":"diagnostic:fanin100","backend":"agentic","phase":"repeat8","status":"returned","wallMs":162.56240499999967,"cpuMs":230.492,"samples":510}
+{"case":"diagnostic:fanin100","backend":"agentic","phase":"repeat9","status":"returned","wallMs":174.22845599999982,"cpuMs":307.044,"samples":517}

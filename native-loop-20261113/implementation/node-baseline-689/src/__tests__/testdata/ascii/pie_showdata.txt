@@ -1,0 +1,12 @@
+pie showData
+    title Key elements in Product X
+    "Calcium" : 42.96
+    "Potassium" : 50.05
+    "Magnesium" : 10.01
+    "Iron" :  5
+---
+Key elements in Product X
+Calcium    ##########################       39.8%  [42.96]
+Potassium  ##############################   46.3%  [50.05]
+Magnesium  ######                            9.3%  [10.01]
+Iron       ###                               4.6%  [5]

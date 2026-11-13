@@ -1,0 +1,2 @@
+import"./chunk-D7HLB2ZO.js";import{Kd as e,Md as t,Nd as r,Od as o}from"./chunk-46NR7W2P.js";import"./chunk-YASALRXB.js";import"./chunk-X4JDR34Z.js";import"./chunk-C3IVQDYX.js";import"./chunk-V5RFODN6.js";export{t as getStyle,o as knownStyleDescriptors,r as knownStyles,e as registerStyle};
+//# sourceMappingURL=svg-styles.js.map

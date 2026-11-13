@@ -1,0 +1,33 @@
+bun test v1.4.4 (38afee6c8)
+
+src/__tests__/edge-crossing-pair.test.ts:
+(pass) specialized polyline pair crossing metric > preserves proper incidences, route endpoints, tangencies and shared ink [11.99ms]
+(pass) specialized polyline pair crossing metric > deduplicates retracing without merging nearby distinct crossing locations [4.05ms]
+(pass) specialized polyline pair crossing metric > retains numerical vertex topology and very short subdivisions [3.19ms]
+(pass) specialized polyline pair crossing metric > agrees across numeric scales and large translations [24.16ms]
+(pass) specialized polyline pair crossing metric > matches the general metric on deterministic mixed multi-segment routes [62.59ms]
+(pass) specialized polyline pair crossing metric > does not retain stale segment geometry or leak scratch state between calls [0.73ms]
+
+src/__tests__/edge-crossings.test.ts:
+(pass) shared visible proper-crossing metric > sharing a graph endpoint never hides a crossing elsewhere [2.06ms]
+(pass) shared visible proper-crossing metric > endpoint tolerance measures pixels rather than a fraction of segment length [0.34ms]
+(pass) shared visible proper-crossing metric > public paths retain subpixel evidence needed to agree near rounded endpoints [0.25ms]
+(pass) shared visible proper-crossing metric > an exact zero-padding canvas contains its fractional-width node [21.67ms]
+(pass) shared visible proper-crossing metric > nested groups and their canvas retain exact shared boundaries [0.19ms]
+(pass) shared visible proper-crossing metric > hidden structural routes survive projection and do not add crossings [0.27ms]
+(pass) shared visible proper-crossing metric > adding hidden structural routes cannot dilute a visible crossing violation [1.04ms]
+(pass) shared visible proper-crossing metric > subdivision, repeated points, route order, and route direction preserve one crossing [0.86ms]
+(pass) shared visible proper-crossing metric > nearby crossing locations do not depend on route traversal or input order [3.21ms]
+(pass) shared visible proper-crossing metric > an interior crossing near a bend is not snapped to that bend [0.50ms]
+(pass) shared visible proper-crossing metric > intersection roundoff at an internal vertex preserves tangency versus crossing [1.64ms]
+(pass) shared visible proper-crossing metric > retracing a long diagonal does not count its single crossing twice [0.60ms]
+(pass) shared visible proper-crossing metric > collinear subdivisions retain a crossing even when the new segment is tiny [0.42ms]
+(pass) shared visible proper-crossing metric > counts distinct incidences while excluding tangencies, shared ink, and self-crossings [0.38ms]
+(pass) shared visible proper-crossing metric > involved-edge filtering preserves indices when hidden routes are omitted [0.08ms]
+(pass) shared visible proper-crossing metric > translation and scale retain crossings outside the physical contact tolerance [0.12ms]
+(pass) shared visible proper-crossing metric > final bend totals and production pass budgets both ignore invisible routes [1.44ms]
+
+ 23 pass
+ 0 fail
+ 6541 expect() calls
+Ran 23 tests across 2 files. [558.00ms]

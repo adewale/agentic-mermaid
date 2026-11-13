@@ -1,0 +1,12 @@
+1 | import { cpus, hostname, release } from 'node:os'
+2 | import { existsSync, readFileSync } from 'node:fs'
+3 | import { byteDigest, runtimeIdentity } from './artifacts.ts'
+4 | 
+5 | export function environmentIdentity(node: string) {
+6 |   const runtime = runtimeIdentity(node)
+                      ^
+SyntaxError: JSON Parse error: Unexpected EOF
+      at environmentIdentity (/tmp/pr449-week-comparison-20261101/trident-elk-research-20261107/trident/portable/environment.ts:6:19)
+      at /workspace/pr449-native-loop-20261113/implementation/axis-clock/performance.ts:11:65
+
+Bun v1.4.4 (Linux x64)

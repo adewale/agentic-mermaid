@@ -1,0 +1,389 @@
+// Hosted MCP server core — the tool surface served at agentic-mermaid.dev/mcp
+// by the Cloudflare website Worker. Runtime-neutral: pure tools run inline;
+// `execute` and `render_png` are injected by the host (the Worker backs them
+// with a Dynamic Worker isolate and resvg-wasm; tests back them with fakes).
+//
+// Both surfaces share declarative edit tools. Hosted `execute` spins a
+// billable isolate, so common render/verify paths get direct pure tools that cost one ordinary
+// Worker invocation and are eligible for the private compute cache.
+
+import { EDIT_TOOLS, handleEditTool } from './edit-tools.ts'
+import { TEXT_RENDER_TOOLS, VERIFY_TOOL } from './source-tool-definitions.ts'
+import { runSourceTool } from './source-tools.ts'
+import { renderConfigWarningsForMermaid } from '../agent/verify.ts'
+import { codeModeScreen } from './facade.ts'
+import { rpcError, toolResult, type JsonRpcRequest, type JsonRpcResponse } from './protocol.ts'
+import {
+  EXECUTE_TIMEOUT_ERROR,
+  executeToolPayload,
+  createDescribeTool,
+  createExecuteTool,
+  createRenderPngTool,
+  dispatchAdmittedMcpRequest,
+  isValidExecuteTimeout,
+  projectMcpRenderOptions,
+  RENDER_WARNINGS_NOTE,
+  validateMcpToolArguments,
+  withClosedMcpInputSchema,
+  type McpDispatchOptions,
+  type McpServerSurface,
+} from './tool-surface.ts'
+import { SDK_CORE_DECLARATION, createDescribeSdkTool, describeSdkPayload } from './sdk-discovery.ts'
+import { mcpDescribePayload } from './describe-payload.ts'
+import { isDescribeFormat } from '../agent/describe.ts'
+import type { ExecuteResult } from './sandbox.ts'
+import type { PngRasterResult } from '../shared/png-font-warnings.ts'
+import type { RenderOptions } from '../types.ts'
+import { HOSTED_RENDER_OPTIONS } from '../render-host-policy.ts'
+import {
+  MAX_HOSTED_PNG_BYTES,
+  PNG_DEFAULT_MIN_LABEL_PX,
+  projectPortablePngOutputOptions,
+  resolvePortablePngOutputPolicy,
+  type PortablePngOutputOptions,
+} from '../png-contract.ts'
+import { projectRenderErrorDiagnostic } from '../render-error-diagnostic.ts'
+import { boundedUtf8ByteLength } from '../shared/utf8.ts'
+import { DEFAULT_EXECUTE_TIMEOUT_MS } from './execute-limits.ts'
+import {
+  admitMcpMessage,
+  type AdmittedMcpMessage,
+  type McpAdmissionOptions,
+  type McpAdmissionResult,
+} from './admission.ts'
+
+export type { ExecuteResult }
+
+/** Internal execution facts for the request log. This never reaches an MCP
+ * client: the hosted transport consumes it through the optional callback. */
+export interface HostedExecuteTelemetry {
+  loaderAttempts: 1 | 2
+}
+
+export interface HostedMcpContext {
+  /** Run Code Mode JavaScript. Hosted: a Dynamic Worker isolate. */
+  execute(code: string, timeoutMs: number, onTelemetry?: (telemetry: HostedExecuteTelemetry) => void): Promise<ExecuteResult>
+  /** Rasterize SVG to PNG bytes. Hosted: resvg-wasm. Absent → render_png reports unavailable. */
+  renderPng?(source: string, opts: RenderOptions & import('../png-contract.ts').PortablePngOutputOptions): Promise<PngRasterResult>
+}
+
+// Streamable HTTP begins at 2025-03-26. The 2024-11-05 revision belongs to the
+// separate local HTTP+SSE transport and must not be advertised by this hosted
+// POST-only endpoint. Echo whichever supported Streamable revision the client
+// offers.
+//
+// Dual-era: 2026-07-28 is the stateless revision (no initialize, no ping,
+// server/discover mandatory); everything before it is handshake-based. We serve
+// both, which the spec explicitly permits. Older entries are retained because
+// per-request, header-driven versioning makes multi-version support free —
+// there is no session whose version could go stale.
+//
+// This constant is the SINGLE authority for the accepted set. The published
+// discovery document (website/build.ts) derives from it; nothing restates it.
+export const SUPPORTED_PROTOCOL_VERSIONS = ['2025-03-26', '2025-06-18', '2025-11-25', '2026-07-28']
+
+// Hosted server identity, distinct from the local stdio server's
+// MCP_SERVER_NAME: registries and clients cache tool lists by server identity,
+// and their transports and execution policies differ.
+export const HOSTED_MCP_SERVER_NAME = 'agentic-mermaid-hosted'
+
+export const MAX_SOURCE_BYTES = 64 * 1024
+export const MAX_CODE_BYTES = 64 * 1024
+const MAX_EXECUTE_TIMEOUT_MS = 30_000
+
+// Shared with the transport's 413 (total-body cap) so every "too big" refusal
+// points at the same way out.
+export const LOCAL_FALLBACK_HINT = 'run the local agentic-mermaid CLI or stdio MCP server instead (see https://agentic-mermaid.dev/docs/mcp/)'
+const TOO_LARGE_HINT = `input exceeds the hosted size cap; ${LOCAL_FALLBACK_HINT}`
+
+export const HOSTED_TOOLS = [
+  createExecuteTool({ sdkDeclaration: SDK_CORE_DECLARATION, hosted: true }),
+  withClosedMcpInputSchema(createDescribeSdkTool()),
+  ...TEXT_RENDER_TOOLS,
+  createRenderPngTool('hosted'),
+  VERIFY_TOOL,
+  createDescribeTool(),
+  ...EDIT_TOOLS,
+]
+
+const INSTRUCTIONS = `agentic-mermaid hosted MCP server (stateless). Direct tools render_svg, render_ascii, render_png, verify, and describe cover plain render/verify calls cheaply. Successful deterministic pure-tool results may be reused by a private server-side compute cache for up to 24 hours; execute, mutate, and build bypass it. HTTP /mcp responses themselves are cache-control: no-store, so clients must not infer response freshness from CDN headers. The x-agentic-mermaid-compute-cache response header reports hit, miss, mixed, bypass, or disabled. There is no layout seed — the library's optional style seed only re-rolls ink of styled looks. describe_sdk progressively discloses one family's version-matched mutation schema. Declarative mutate/build apply typed op lists and verify before emitting source; prefer them for straightforward structured edits. execute runs synchronous JavaScript against the typed mermaid.* SDK in an isolated on-demand sandbox for logic the ops don't express; async/await and Promise jobs are not supported, and network access is disabled. Inputs are capped at 64KB; for bigger diagrams, Code Mode artifacts, or file/URL PNG output, run the local stdio server (see https://agentic-mermaid.dev/docs/mcp/).`
+
+const HOSTED_SURFACE: McpServerSurface<HostedMcpContext> = {
+  // Historical fallback for callers that construct a surface without an
+  // explicit version list. Normal negotiation is centralized in the admitted
+  // dispatcher and selects from supportedVersions below.
+  protocolVersion: '2025-11-25',
+  serverName: HOSTED_MCP_SERVER_NAME,
+  supportedVersions: SUPPORTED_PROTOCOL_VERSIONS,
+  tools: HOSTED_TOOLS,
+  instructions: INSTRUCTIONS,
+  handleToolCall,
+}
+
+export type HostedMcpAdmissionOptions = Omit<McpAdmissionOptions, 'supportedVersions'> & {
+  supportedVersions?: readonly string[]
+}
+
+/** The hosted surface's single raw-message entrypoint. HTTP uses this before
+ * cache lookup; direct library callers reach it through handleHostedRequest. */
+export function admitHostedRequest(req: unknown, options: HostedMcpAdmissionOptions = {}): McpAdmissionResult {
+  const { supportedVersions: transportVersions, ...admissionOptions } = options
+  const supportedVersions = transportVersions
+    ? SUPPORTED_PROTOCOL_VERSIONS.filter(version => transportVersions.includes(version))
+    : SUPPORTED_PROTOCOL_VERSIONS
+  return admitMcpMessage(req, { ...admissionOptions, supportedVersions })
+}
+
+export async function handleAdmittedHostedRequest(message: AdmittedMcpMessage, context: HostedMcpContext): Promise<JsonRpcResponse | null> {
+  return dispatchAdmittedMcpRequest(message, context, HOSTED_SURFACE)
+}
+
+/** Compatibility wrapper for tests and embedders which pass a typed-looking but
+ * still untrusted JsonRpcRequest directly. Transport code must admit first. */
+export async function handleHostedRequest(req: JsonRpcRequest, context: HostedMcpContext, options: McpDispatchOptions = {}): Promise<JsonRpcResponse | null> {
+  const admission = admitHostedRequest(req, {
+    negotiatedVersion: options.protocolVersion,
+    protocolEra: options.protocolEra,
+    supportedVersions: options.supportedVersions,
+  })
+  return admission.ok
+    ? handleAdmittedHostedRequest(admission.message, context)
+    : admission.response
+}
+
+
+async function handleToolCall(id: number | string | null, params: unknown, context: HostedMcpContext): Promise<JsonRpcResponse> {
+  const p = params as { name?: string; arguments?: Record<string, unknown> } | undefined
+  const name = p?.name
+  const args = p?.arguments ?? {}
+  switch (name) {
+    case 'execute': return handleExecute(id, args, context)
+    case 'describe_sdk': {
+      try {
+        return toolResult(id, describeSdkPayload(args), false)
+      } catch (e) {
+        return rpcError(id, -32602, e instanceof Error ? e.message : String(e))
+      }
+    }
+    case 'render_svg':
+    case 'render_ascii':
+    case 'verify': return sourceTool(id, args, () => runSourceTool(name, args))
+    case 'render_png': return handleRenderPng(id, args, context)
+    case 'describe': return sourceTool(id, args, source => mcpDescribePayload(source, args))
+    case 'mutate': return handleEditTool(id, args, 'source', MAX_SOURCE_BYTES, TOO_LARGE_HINT)
+    case 'build': return handleEditTool(id, args, 'family', MAX_SOURCE_BYTES, TOO_LARGE_HINT)
+    default: return rpcError(id, -32602, `Unknown tool: ${name ?? '<none>'}`)
+  }
+}
+
+function svgOptions(args: Record<string, unknown>): RenderOptions {
+  // Public MCP SVG is commonly embedded by downstream agent UIs. It must
+  // never carry active tags/event handlers or external fetches from Mermaid
+  // init/config payloads; unlike the local library, this direct tool exposes no
+  // caller-selectable security mode.
+  const opts = projectMcpRenderOptions(args)
+  // The hosted boundary owns this policy. An advanced options object cannot
+  // weaken it even though the same canonical request fields are accepted.
+  return { ...opts, ...HOSTED_RENDER_OPTIONS }
+}
+
+// ---- Effective (normalized) arguments -------------------------------------
+
+interface NormalizedHostedPngRequest {
+  readonly output: PortablePngOutputOptions
+  readonly render: RenderOptions
+}
+
+/** One normalized request projection shared by execution and cache identity. */
+function normalizedHostedPngRequest(args: Record<string, unknown>): NormalizedHostedPngRequest {
+  const requestedOutput = projectPortablePngOutputOptions(args)
+  const policy = resolvePortablePngOutputPolicy(requestedOutput)
+  const output: PortablePngOutputOptions = {
+    scale: policy.scale,
+    ...(policy.background.mode === 'explicit' ? { background: policy.background.value } : {}),
+    ...(policy.fitTo.mode === 'width'
+      ? { fitTo: { width: policy.fitTo.value } }
+      : policy.fitTo.mode === 'height'
+        ? { fitTo: { height: policy.fitTo.value } }
+        : {}),
+    // Default-floor requests and explicit-default requests rasterize
+    // identically; canonicalize so their cache identities coincide.
+    ...(policy.minLabelPx === PNG_DEFAULT_MIN_LABEL_PX ? {} : { minLabelPx: policy.minLabelPx }),
+  }
+  return {
+    output,
+    render: {
+      ...projectMcpRenderOptions(args),
+      ...HOSTED_RENDER_OPTIONS,
+    },
+  }
+}
+
+/** Cache identity is the normalized request projection, not another copied
+ * list of shared fields. */
+function effectiveSvgArgs(args: Record<string, unknown>): Record<string, unknown> {
+  return { render: svgOptions(args) }
+}
+
+/**
+ * Canonical cache-key inputs for a tools/call: validated, normalized,
+ * output-affecting inputs only. Validation against the exact advertised schema
+ * happens before any key is returned, so an invalid request cannot collide with
+ * a cached valid response and bypass dispatch. Semantically identical valid
+ * calls may then share an entry. Non-idempotent execute is never cached.
+ *
+ * Source payloads are likewise keyed verbatim. Canonicalizing source or
+ * arguments is deliberately avoided because a wrong cached result is worse
+ * than a missed dedup.
+ */
+export function cacheKeyFor(name: string | undefined, args: Record<string, unknown>): unknown | null {
+  const tool = HOSTED_TOOLS.find(candidate => candidate.name === name)
+  if (!tool || validateMcpToolArguments(tool, args).length > 0) return null
+  switch (name) {
+    // Code Mode intentionally exposes time and randomness and is annotated
+    // non-idempotent. Never freeze its first result in the shared compute cache.
+    case 'execute':
+      return null
+    case 'render_svg':
+      return typeof args.source === 'string' ? { t: 'render_svg', source: args.source, ...effectiveSvgArgs(args) } : null
+    case 'render_ascii':
+      return typeof args.source === 'string' ? {
+        t: 'render_ascii',
+        source: args.source,
+        useAscii: args.useAscii === true,
+        targetWidth: typeof args.targetWidth === 'number' ? args.targetWidth : undefined,
+        render: projectMcpRenderOptions(args),
+      } : null
+    case 'render_png': {
+      if (typeof args.source !== 'string') return null
+      try {
+        const normalized = normalizedHostedPngRequest(args)
+        return {
+          t: 'render_png',
+          source: args.source,
+          output: normalized.output,
+          render: normalized.render,
+        }
+      } catch {
+        return null
+      }
+    }
+    case 'verify':
+      return typeof args.source === 'string' ? { t: 'verify', source: args.source } : null
+    case 'describe': {
+      if (typeof args.source !== 'string') return null
+      const format = args.format ?? 'text'
+      return isDescribeFormat(format) ? { t: 'describe', source: args.source, format } : null
+    }
+    case 'describe_sdk': {
+      try {
+        const payload = describeSdkPayload(args) as { family: string; detail: string }
+        return { t: 'describe_sdk', family: payload.family, detail: payload.detail }
+      } catch {
+        return null
+      }
+    }
+    default:
+      return null
+  }
+}
+
+/** Shared shape for the pure source→payload tools: validate, cap, run, wrap errors. */
+function sourceTool(id: number | string | null, args: Record<string, unknown>, run: (source: string) => { ok: boolean } & Record<string, unknown>): JsonRpcResponse {
+  const source = args.source
+  if (typeof source !== 'string') return rpcError(id, -32602, 'tool requires `source` (string)')
+  if (boundedUtf8ByteLength(source, MAX_SOURCE_BYTES) > MAX_SOURCE_BYTES) {
+    return toolResult(id, { ok: false as const, error: { code: 'SOURCE_TOO_LARGE', message: TOO_LARGE_HINT } }, true)
+  }
+  try {
+    const payload = run(source)
+    return toolResult(id, payload, !payload.ok)
+  } catch (e) {
+    return toolResult(id, {
+      ok: false as const,
+      error: projectRenderErrorDiagnostic(e, { source }),
+    }, true)
+  }
+}
+
+async function handleExecute(id: number | string | null, args: Record<string, unknown>, context: HostedMcpContext): Promise<JsonRpcResponse> {
+  const code = args.code
+  if (typeof code !== 'string') return rpcError(id, -32602, 'execute requires `code` (string)')
+  if (boundedUtf8ByteLength(code, MAX_CODE_BYTES) > MAX_CODE_BYTES) {
+    return toolResult(id, { ok: false as const, error: { code: 'CODE_TOO_LARGE', message: TOO_LARGE_HINT }, logs: [] }, true)
+  }
+  // Screen sync-only violations before any isolate exists: rejected code costs
+  // nothing and the error message matches the local sandbox exactly.
+  const screened = codeModeScreen(code)
+  if (screened) return toolResult(id, executeToolPayload({ ok: false, error: screened.message, location: screened.location, logs: [] }), true)
+  const requested = args.timeoutMs
+  if (requested !== undefined && !isValidExecuteTimeout(requested)) {
+    return rpcError(id, -32602, EXECUTE_TIMEOUT_ERROR)
+  }
+  const timeoutMs = typeof requested === 'number' && Number.isFinite(requested)
+    ? Math.min(requested, MAX_EXECUTE_TIMEOUT_MS)
+    : DEFAULT_EXECUTE_TIMEOUT_MS
+  try {
+    // The CPU-budget overrun is tagged EXECUTE_TIMEOUT by the runner (see
+    // failure() in website/src/execute-loader.ts); the shared payload keeps
+    // the runner's message verbatim, exactly as the stdio server does.
+    const r = await context.execute(code, timeoutMs)
+    return toolResult(id, executeToolPayload(r), !r.ok)
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e)
+    return toolResult(id, executeToolPayload({ ok: false, error: msg, logs: [] }), true)
+  }
+}
+
+async function handleRenderPng(id: number | string | null, args: Record<string, unknown>, context: HostedMcpContext): Promise<JsonRpcResponse> {
+  const source = args.source
+  if (typeof source !== 'string') return rpcError(id, -32602, 'render_png requires `source` (string)')
+  if (boundedUtf8ByteLength(source, MAX_SOURCE_BYTES) > MAX_SOURCE_BYTES) {
+    return toolResult(id, { ok: false as const, error: { code: 'SOURCE_TOO_LARGE', message: TOO_LARGE_HINT } }, true)
+  }
+  if (!context.renderPng) {
+    return toolResult(id, { ok: false as const, error: { code: 'PNG_UNAVAILABLE', message: 'PNG rendering is not enabled on this host' } }, true)
+  }
+  try {
+    const normalized = normalizedHostedPngRequest(args)
+    const result = await context.renderPng(source, {
+      ...normalized.render,
+      ...normalized.output,
+    })
+    if (!(result.png instanceof Uint8Array)) throw new TypeError('hosted PNG rasterizer must return Uint8Array bytes')
+    if (result.png.byteLength > MAX_HOSTED_PNG_BYTES) {
+      return toolResult(id, { ok: false as const, error: {
+        code: 'PNG_OUTPUT_TOO_LARGE',
+        message: `hosted PNG output exceeds the ${MAX_HOSTED_PNG_BYTES}-byte response cap; ${LOCAL_FALLBACK_HINT}`,
+      } }, true)
+    }
+    const warnings = [...renderConfigWarningsForMermaid(source, normalized.render), ...result.warnings]
+      .filter((warning, index, all) => all.findIndex(candidate => JSON.stringify(candidate) === JSON.stringify(warning)) === index)
+    return toolResult(id, {
+      ok: true as const,
+      png_base64: base64Encode(result.png),
+      receipt: result.receipt,
+      runtime: result.runtime,
+      warnings,
+    }, false)
+  } catch (e) {
+    return toolResult(id, {
+      ok: false as const,
+      error: projectRenderErrorDiagnostic(e, { source }),
+    }, true)
+  }
+}
+
+// Buffer is unavailable in workerd; btoa takes a byte-string. Chunk to stay
+// under argument-length limits for large PNGs.
+function base64Encode(bytes: Uint8Array): string {
+  if (bytes.byteLength > MAX_HOSTED_PNG_BYTES) throw new RangeError('hosted PNG exceeds the base64 response cap')
+  const encoded: string[] = []
+  // A multiple of three keeps independently encoded chunks concatenable.
+  const CHUNK = 0x6000
+  for (let i = 0; i < bytes.length; i += CHUNK) {
+    const binary = String.fromCharCode(...bytes.subarray(i, i + CHUNK))
+    encoded.push(btoa(binary))
+  }
+  return encoded.join('')
+}

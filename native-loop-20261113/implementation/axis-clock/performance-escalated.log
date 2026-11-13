@@ -1,0 +1,9 @@
+{"completed":24,"errors":0,"case":"diagnostic:fanin100","mode":"warm","target":"baseline","backend":"agentic","cache":0}
+{"phaseComplete":"warm","cache":0,"completed":36,"errors":0}
+{"completed":48,"errors":0,"case":"diagnostic:chain100","mode":"cold","target":"baseline","backend":"agentic","cache":0}
+{"completed":72,"errors":0,"case":"diagnostic:chain300","mode":"cold","target":"baseline","backend":"elk","cache":0}
+{"phaseComplete":"cold","cache":0,"completed":72,"errors":0}
+{"completed":96,"errors":0,"case":"diagnostic:chain100","mode":"memory","target":"candidate","backend":"elk","cache":0}
+{"completed":120,"errors":0,"case":"diagnostic:fanin100","mode":"memory","target":"baseline","backend":"agentic","cache":0}
+{"completed":144,"errors":0,"case":"diagnostic:chain300","mode":"memory","target":"candidate","backend":"agentic","cache":0}
+{"phaseComplete":"resources","cache":0,"completed":144,"errors":0}

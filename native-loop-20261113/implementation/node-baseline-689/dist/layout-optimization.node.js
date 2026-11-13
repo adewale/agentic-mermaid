@@ -1,0 +1,2 @@
+import"./chunk-VUFVLGTH.js";import{layoutOptimizationKernel as o}from"#optional-kernels";var i;function e(t=false){if(t&&!i)i=o();return i}export{e as layoutOptimization};
+//# sourceMappingURL=layout-optimization.node.js.map

@@ -1,0 +1,21 @@
+CLI Building entry: {"index":"/workspace/pr449-native-loop-20261113/implementation/node-baseline-689/src/index.ts","agent-core":"/workspace/pr449-native-loop-20261113/implementation/node-baseline-689/src/agent/core.ts","elk-constructor":"/workspace/pr449-native-loop-20261113/implementation/node-baseline-689/src/elk-constructor.ts","builtin-font-metrics":"/workspace/pr449-native-loop-20261113/implementation/node-baseline-689/src/builtin-font-metrics.ts","builtin-font-metrics.node":"/workspace/pr449-native-loop-20261113/implementation/node-baseline-689/src/builtin-font-metrics.node.ts","layout-optimization":"/workspace/pr449-native-loop-20261113/implementation/node-baseline-689/src/layout/optimization-context.ts","layout-optimization.node":"/workspace/pr449-native-loop-20261113/implementation/node-baseline-689/src/layout/optimization-context.node.ts"}
+CLI Using tsconfig: tsconfig.json
+CLI tsup v8.5.1
+CLI Target: es2022
+ESM Build start
+ESM Build failed
+1225 |           sendResponse(id, response);
+1226 |           resolve();
+1227 |         });
+1228 |       });
+1229 |     sendRequest(refs, request, (error, response) => {
+1230 |       if (error) return callback(new Error(error), null);
+                                            ^
+error: The service was stopped
+      at <anonymous> (/workspace/agentic-mermaid/node_modules/esbuild/lib/main.js:1230:38)
+      at <anonymous> (/workspace/agentic-mermaid/node_modules/esbuild/lib/main.js:884:9)
+      at afterClose (/workspace/agentic-mermaid/node_modules/esbuild/lib/main.js:875:25)
+      at emit (node:events:97:22)
+      at endReadableNT (internal:streams/readable:901:50)
+
+Bun v1.4.4 (Linux x64)

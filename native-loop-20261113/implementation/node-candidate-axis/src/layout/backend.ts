@@ -1,0 +1,131 @@
+import { immutableDecision } from './decision-evidence.ts'
+export { retainGraphLayoutDecision, graphLayoutDecisionsOf, transferGraphLayoutDecisions } from './decision-evidence.ts'
+import type { Direction, RenderOptions } from '../types.ts'
+import { LayoutCertificationError } from './certification-error.ts'
+export { DeferredDependencyError, LayoutCertificationError, type LayoutCertificationAttempt } from './certification-error.ts'
+export { withRenderStageObserver, measureRenderStage, type RenderStage, type RenderStageSample } from '../render-stages.ts'
+
+export const AGENTIC_LAYERED_IMPLEMENTATION = 'agentic-layered@28'
+
+export interface GraphLayoutDecision {
+  readonly requested: 'elk' | 'agentic'
+  readonly fallback: 'none' | 'elk'
+  readonly selected: 'elk' | 'agentic'
+  readonly reason?: string
+  readonly attempts: readonly {
+    readonly backend: 'elk' | 'agentic'
+    readonly outcome: 'selected' | 'unsupported' | 'candidate-rejected'
+    readonly reason?: string
+  }[]
+  readonly implementation: string
+  readonly role?: 'primary' | 'companion'
+}
+
+export class GraphLayoutUnsupportedError extends Error {
+  readonly code = 'GRAPH_LAYOUT_UNSUPPORTED'
+  constructor(readonly reason: string, backend: 'Agentic' | 'ELK' = 'Agentic') {
+    super(`${backend} graph layout does not support this input: ${reason}`)
+    this.name = 'GraphLayoutUnsupportedError'
+  }
+}
+
+/** Exhausting a supplied cumulative ledger must never authorize fallback. */
+export class LayoutWorkLimitError extends RangeError {
+  readonly code = 'LAYOUT_WORK_LIMIT'
+  constructor(readonly resource: 'pairs' | 'arcs' | 'swaps') {
+    super(`Measured layout ${resource} work limit exceeded`)
+    this.name = 'LayoutWorkLimitError'
+  }
+}
+
+let observer: ((decision: GraphLayoutDecision) => void) | undefined
+
+export function withGraphLayoutDecisionObserver<T>(observe: (decision: GraphLayoutDecision) => void, run: () => T): T {
+  const previous = observer
+  observer = observe
+  try { return run() } finally { observer = previous }
+}
+
+
+export function emitGraphLayoutDecision(decision: GraphLayoutDecision): void {
+  observer?.(immutableDecision(decision))
+}
+
+/** Dispatch and evidence must use the same admitted runtime selection, even
+ * for JavaScript callers that bypass serialized render-option validation. */
+function graphLayoutBackend(value: unknown): GraphLayoutDecision['requested'] {
+  if (value !== 'elk' && value !== 'agentic') {
+    throw new TypeError('graphLayout.backend must be elk or agentic')
+  }
+  return value
+}
+
+function graphLayoutFallback(value: unknown): GraphLayoutDecision['fallback'] {
+  if (value === undefined) return 'none'
+  if (value !== 'none' && value !== 'elk') throw new TypeError('graphLayout.fallback must be none or elk')
+  return value
+}
+
+/** Families whose specialized geometry has not joined the owned producer yet. */
+export function selectElkForGraphFamily(options: Pick<RenderOptions, 'graphLayout'>, family: string): GraphLayoutDecision {
+  const policy = options.graphLayout
+  const requested = policy === undefined ? 'elk' : graphLayoutBackend(policy?.backend)
+  const fallback = graphLayoutFallback(policy?.fallback)
+  if (requested !== 'elk') {
+    const name = 'Agentic'
+    const reason = `${family} family geometry is not supported by the ${name} backend`
+    if (fallback !== 'elk') throw new GraphLayoutUnsupportedError(reason, name)
+    return { requested, fallback, selected: 'elk', reason, attempts: [{ backend: requested, outcome: 'unsupported', reason }, { backend: 'elk', outcome: 'selected' }], implementation: 'elk-layered@1' }
+  }
+  return { requested, fallback, selected: 'elk', attempts: [{ backend: 'elk', outcome: 'selected' }], implementation: 'elk-layered@1' }
+}
+
+/** Family adapters retain their measured geometry and painting rules. Only a
+ * typed native capability decline permits the requested one-way fallback. The
+ * generic graph adapter also opts into certified candidate rejection. */
+export function runMeasuredGraphBackend<T>(
+  options: Pick<RenderOptions, 'graphLayout'>,
+  native: () => T,
+  elk: () => T,
+  allowCandidateRejection = false,
+  retainDecision?: (result: T, decision: GraphLayoutDecision) => void,
+): T {
+  const policy = options.graphLayout
+  if (policy === undefined) return elk()
+  const requested = graphLayoutBackend(policy?.backend)
+  const fallback = graphLayoutFallback(policy?.fallback)
+  const attempts: Array<GraphLayoutDecision['attempts'][number]> = []
+  let result: T, selected = requested, reason: string | undefined
+  if (requested !== 'elk') {
+    try {
+      result = native()
+    } catch (error) {
+      const unsupported = error instanceof GraphLayoutUnsupportedError
+      if ((!unsupported && !(allowCandidateRejection && error instanceof LayoutCertificationError)) || fallback !== 'elk') throw error
+      reason = unsupported ? error.reason : 'candidate failed mandatory geometry certification'
+      attempts.push({ backend: requested, outcome: unsupported ? 'unsupported' : 'candidate-rejected', reason })
+      result = elk()
+      selected = 'elk'
+    }
+  } else {
+    result = elk()
+  }
+  attempts.push({ backend: selected, outcome: 'selected' })
+  const decision = immutableDecision({ requested, fallback, selected, attempts,
+    implementation: selected === 'agentic' ? AGENTIC_LAYERED_IMPLEMENTATION : 'elk-layered@1', ...(reason ? { reason } : {}) })
+  retainDecision?.(result, decision)
+  observer?.(decision)
+  return result
+}
+
+/** Shared Mermaid-to-ELK direction mapping, without depending on the graph engine. */
+export function directionToElk(dir: Direction): string {
+  switch (dir) {
+    case 'LR': return 'RIGHT'
+    case 'RL': return 'LEFT'
+    case 'BT': return 'UP'
+    case 'TD':
+    case 'TB':
+    default: return 'DOWN'
+  }
+}

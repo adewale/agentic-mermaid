@@ -1,0 +1,295 @@
+import { isBuiltinDefaultBackend, isOriginalEnrolledDefaultBackend } from './backend.ts'
+import { pageRectFor } from './drawing-page.ts'
+import { isOwnedFamily } from '../experimental/owned-family.ts'
+import { nativeDrawingOf, originalNativeDrawingOf } from './drawing.ts'
+import { hasPrivateNativePositionedInput, positionedForNativeProducer } from '../positioning.ts'
+import { resolvedFamilyRenderContextOf, resolvedRenderExecutionPlanOf, type ResolvedRenderRequest } from '../render-contract.ts'
+import type { FamilyLayoutResult } from '../agent/families.ts'
+import { textMeasurementCacheIdentity } from '../text-measurement-profile.ts'
+import { sceneAssertionsEnabled } from './assertions.ts'
+import type { StyleSpec } from './style-registry.ts'
+import type { DrawingDocument, DrawingFactory, DrawingProducer } from './drawing.ts'
+import type { PositionedDiagram, RenderContext } from '../types.ts'
+import type { SceneDoc, SceneNode } from './ir.ts'
+import * as marks from './marks.ts'
+import { formatSvgNumber } from '../shared/svg-number.ts'
+import { indentLines, transferSceneNodeSerialization } from './serialization.ts'
+import { composeMatrices, IDENTITY_MATRIX, transformMatrix } from './transforms.ts'
+import { createOwnedNativePaintRecorder, multiplySceneOpacity, nativePaintAncestors, sceneGroupOpacity, type NativePaintEntry, type PaintInspectionHeader, type ScenePaintGeometryInspection } from './inspection.ts'
+import { createNativeSceneValidator, SceneValidationError, SCENE_VALIDATION_LIMITS, assertFinalSvgByteBudget } from './scene-validation-core.ts'
+import { withDeferredTerminalProjections } from './deferred-terminal-projection.ts'
+import { retainedGroupEmission } from './group-emission.ts'
+import { createNativePaintEmission, createOriginalNativePaintEmission, MAX_OCCLUSION_OPERATIONS } from './native-paint-emission.ts'
+import { writeNativeGroupOpening, type SvgTextPaintWrite, type SvgXmlWrite, type SvgXmlCapture } from './svg-writer.ts'
+
+interface FragmentData {
+  readonly svg: string
+  readonly xmlWrite: SvgXmlWrite
+  readonly nodeCount: number
+  readonly depth: number
+  readonly prepared: boolean
+}
+type LeafNode = Exclude<SceneNode, { kind: 'group' }>
+interface GroupFragment extends FragmentData {
+  readonly kind: 'group'
+  readonly children: readonly Fragment[]
+  readonly matrix: ReturnType<typeof transformMatrix> | undefined
+  readonly own: NonNullable<NativePaintEntry['ancestors']>[number]
+  readonly owner: NativePaintEntry['owner']
+  readonly conditional: boolean
+  readonly opacity: number
+}
+type Fragment = (FragmentData & { readonly kind: 'leaf'; readonly node: LeafNode; readonly textPaint?: SvgTextPaintWrite; readonly geometryPaint?: true; readonly conditional: boolean }) | GroupFragment
+export interface NativeDrawing {
+  readonly svg: string
+  readonly paint: ScenePaintGeometryInspection
+  readonly preparedText: boolean
+  readonly header: Omit<SceneDoc, 'parts'>
+}
+
+/** Internal rosters use own iterator operations. The input arrays keep their
+ * ordinary observable prototype and symbols; no inherited map/iterator can
+ * change the completed roster used for emission and inspection. */
+function privateValues<T>(length: number, read: (index: number) => T): Iterable<T> {
+  const iterable = Object.create(null) as Iterable<T>
+  iterable[Symbol.iterator] = () => {
+    let index = 0
+    const iterator = Object.create(null) as Iterator<T>
+    iterator.next = (): IteratorResult<T> => index < length ? { done: false, value: read(index++) } : { done: true, value: undefined }
+    return iterator
+  }
+  return iterable
+}
+function appendPrivate<T>(values: T[], value: T): void {
+  Object.defineProperty(values, values.length, { value, enumerable: true, writable: true, configurable: true })
+}
+
+/** Feed each emitted occurrence to inspection without copying its descendants
+ * every time a group wraps them. Reused fragments keep distinct occurrence keys. */
+function inspectPaint(header: PaintInspectionHeader, parts: readonly Fragment[], observe: (node: LeafNode, svg: string, paintWrite?: SvgTextPaintWrite, xmlWrite?: SvgXmlWrite) => boolean | SvgTextPaintWrite, documentFont?: string, geometryCapture?: SvgXmlCapture): ScenePaintGeometryInspection {
+  const recorder = createOwnedNativePaintRecorder(header, documentFont)
+  const groups: GroupFragment[] = []
+  type Occurrence = Omit<NativePaintEntry, 'node' | 'key'>
+  function visit(children: readonly Fragment[], prefix: string, occurrence?: Occurrence): void {
+    for (let index = 0; index < children.length; index++) {
+      const fragment = children[index]!
+      const key = `${prefix}.${index}`
+      if (fragment.kind === 'group') {
+        appendPrivate(groups, fragment)
+        // Reduce once per occurrence, preserving the original bottom-up
+        // floating-point association for both matrices and group opacity.
+        let parentMatrix: ReturnType<typeof transformMatrix> | undefined
+        let groupOpacity = 1
+        let conditional: true | undefined
+        for (let depth = groups.length - 1; depth >= 0; depth--) {
+          const group = groups[depth]!
+          if (group.matrix !== undefined || parentMatrix !== undefined) {
+            parentMatrix = composeMatrices(group.matrix ?? IDENTITY_MATRIX, parentMatrix ?? IDENTITY_MATRIX)
+          }
+          groupOpacity = multiplySceneOpacity(group.opacity, groupOpacity)
+          if (group.conditional) conditional = true
+        }
+        const ancestors = nativePaintAncestors(occurrence?.ancestors, fragment.own)
+        const owner = fragment.owner?.id === fragment.own.id && fragment.owner.role === fragment.own.role ? ancestors[ancestors.length - 1] : fragment.owner
+        visit(fragment.children, key, { parentMatrix, ancestors, owner, conditional, groupOpacity })
+        groups.length--
+      } else if (occurrence) {
+        const observed = !fragment.conditional && observe(fragment.node, fragment.svg, fragment.textPaint, fragment.xmlWrite)
+        const bound = !!observed, actualPaint = typeof observed === 'object' ? observed : undefined
+        recorder.leaf(fragment.node, key, occurrence.parentMatrix, occurrence.ancestors, occurrence.conditional || !bound, occurrence.groupOpacity, fragment.node.owner ?? occurrence.owner, actualPaint, fragment.svg, fragment.geometryPaint ? geometryCapture : undefined, fragment.geometryPaint ? fragment.xmlWrite : undefined)
+      } else {
+        const observed = !fragment.conditional && observe(fragment.node, fragment.svg, fragment.textPaint, fragment.xmlWrite)
+        const bound = !!observed, actualPaint = typeof observed === 'object' ? observed : undefined
+        recorder.leaf(fragment.node, key, undefined, undefined, !bound, 1, undefined, actualPaint, fragment.svg, fragment.geometryPaint ? geometryCapture : undefined, fragment.geometryPaint ? fragment.xmlWrite : undefined)
+      }
+    }
+  }
+  visit(parts, 'scene')
+  return recorder.finish()
+}
+
+/** Compose SVG immediately and retain shallow group handles until inspection. */
+export function drawNative(
+  producer: DrawingProducer,
+  context: RenderContext<PositionedDiagram>,
+  family: string,
+  style?: StyleSpec,
+): NativeDrawing { return drawNativeImplementation(producer, context, family, style, false) }
+
+let originalDrawingDepth = 0
+/** Private resolved-operation adapter; no caller context or RenderOption can
+ * request ownership. Replacement producers and SDK calls keep their snapshot. */
+export function drawOriginalPositionedNative(request: ResolvedRenderRequest, layout: FamilyLayoutResult, producer: DrawingProducer): NativeDrawing | undefined {
+  const plan = resolvedRenderExecutionPlanOf(request)
+  if (originalDrawingDepth || plan.mode !== 'scene' || !isOwnedFamily(plan.family)
+    || !(plan.consumer?.kind === 'native-drawing' || plan.backend && isBuiltinDefaultBackend(plan.backend.backend) && isOriginalEnrolledDefaultBackend(plan.backend.backend))
+    || sceneAssertionsEnabled(request) || producer !== nativeDrawingOf(plan.family.lowerScene)
+    || producer !== originalNativeDrawingOf(plan.family.lowerScene) || !hasPrivateNativePositionedInput(layout, producer)
+    || plan.textMeasurement && textMeasurementCacheIdentity(plan.textMeasurement) === undefined) return undefined
+  const colors = request.output === 'png' && request.appearance.colors.embedFontImport !== false
+    ? { ...request.appearance.colors, embedFontImport: false } : request.appearance.colors
+  originalDrawingDepth++
+  try {
+    return drawNativeImplementation(producer, { positioned: positionedForNativeProducer(layout, producer), colors,
+      resolved: resolvedFamilyRenderContextOf(request) }, plan.family.id, request.appearance.styled ? request.appearance.style : undefined, true)
+  } finally { originalDrawingDepth-- }
+}
+
+function drawNativeImplementation(producer: DrawingProducer, context: RenderContext<PositionedDiagram>, family: string, style: StyleSpec | undefined, closeLeaves: boolean): NativeDrawing {
+  const header = { family, width: context.positioned.width, height: context.positioned.height, colors: context.colors, transparent: context.resolved.renderOptions.transparent ?? false }
+  const emission = closeLeaves ? createOriginalNativePaintEmission(MAX_OCCLUSION_OPERATIONS) : createNativePaintEmission(MAX_OCCLUSION_OPERATIONS)
+  const xml = emission.xml
+  if (family.startsWith('family:')) emission.uncertain()
+  let emittedHeader = emission.snapshot(header)
+  const validator = createNativeSceneValidator(header, { groupValidation: emission.groupValidation })
+  const ownedFragments = new WeakSet<object>()
+  const ownFragment = <T extends Fragment>(fragment: T): T => { if (emission.retainFragment()) ownedFragments.add(fragment); return Object.freeze(fragment) }
+  const leaf = (node: LeafNode): Fragment => {
+    const captured = emission.leaf(node, (captured, sink) => validator.write(captured, xml, 0, sink), xml)
+    const svg = captured.svg
+    return ownFragment({ kind: 'leaf', node: captured.paintNode, svg, xmlWrite: captured.xmlWrite!, textPaint: captured.textPaint, geometryPaint: captured.geometryPaint, conditional: captured.conditional, nodeCount: 1, depth: 0,
+      prepared: node.kind === 'document' ? !/<\s*text/i.test(svg)
+        : node.kind !== 'text' || node.measurement === 'prepared' && node.block !== undefined })
+  }
+  const factory: DrawingFactory<Fragment> = {
+    image: fields => leaf(marks.image(fields)),
+    shape: fields => leaf(marks.shape(fields)),
+    text: fields => leaf(marks.text(fields)),
+    connector: fields => leaf(marks.connector(fields)),
+    documentOpen: (fields, svg) => {
+      const captured = emission.snapshot(fields)
+      if (captured) {
+        emittedHeader = Object.freeze({ family, width: captured.width, height: captured.height, colors: captured.colors, transparent: captured.transparent })
+        emittedHeader = emission.header(emittedHeader, svg)
+      }
+      else emission.uncertain()
+      return leaf(marks.documentOpen(fields, svg))
+    },
+    documentContent: (fields, svg) => leaf(marks.documentContent(fields, svg)),
+    documentText: fields => leaf(marks.documentText(fields)),
+    definitions: (fields, svg) => leaf(marks.definitions(fields, svg)),
+    documentClose: () => leaf(marks.documentClose()),
+    group(fields) {
+      const submittedChildren = Object.getOwnPropertyDescriptor(fields, 'children')
+      if (!submittedChildren || !Object.hasOwn(submittedChildren, 'value')) emission.uncertain()
+      const { children: inputChildren, ...shellFields } = fields
+      const submitted = emission.parts(inputChildren, SCENE_VALIDATION_LIMITS.maxNodes)
+      const submittedRoster = emission.ownsParts(submitted) ? privateValues(submitted.length, index => submitted[index]!) : submitted
+      const childParts: Array<{ readonly node: Fragment; readonly indent: number }> = []
+      let nodeCount = 1, characters = 0, depth = 1, prepared = true, allOwned = true
+      const children: Fragment[] = []
+      for (const child of submittedRoster) {
+        // Read each caller wrapper only once. The same owned node+indent pair
+        // supplies both retained ancestry and actual SVG composition.
+        const nodeField = Object.getOwnPropertyDescriptor(child, 'node'), indentField = Object.getOwnPropertyDescriptor(child, 'indent')
+        if (!nodeField || !Object.hasOwn(nodeField, 'value') || !indentField || !Object.hasOwn(indentField, 'value')) emission.uncertain()
+        const entry = Object.freeze({ node: child.node, indent: child.indent })
+        appendPrivate(childParts, entry)
+        if (!ownedFragments.has(entry.node)) { emission.uncertain(); allOwned = false }
+        appendPrivate(children, entry.node)
+        nodeCount += entry.node.nodeCount
+        characters += entry.node.svg.length
+        depth = Math.max(depth, 1 + entry.node.depth)
+        prepared = prepared && entry.node.prepared
+      }
+      if (nodeCount > SCENE_VALIDATION_LIMITS.maxNodes) throw new RangeError('Native drawing contains too many emitted nodes')
+      if (characters > SCENE_VALIDATION_LIMITS.maxSerializationBytesPerNode) throw new RangeError('Native group has an oversized SVG serialization')
+      const shell = marks.group({ ...shellFields, children: [] }, emission.groupRegistration)
+      if (!closeLeaves) validator.node(shell)
+      validator.depth(depth)
+      const capturedShell = emission.snapshot(shell)
+      if (!capturedShell) emission.uncertain()
+      // The private producer validates the exact closed shell it will write.
+      // That validation issues its lexer operands for context and XML too;
+      // generic drawing retains the original pre-snapshot observations.
+      if (closeLeaves) {
+        if (capturedShell) {
+          if (!emission.groupRegistration(4)) emission.uncertain()
+          transferSceneNodeSerialization(shell, capturedShell)
+        }
+        validator.node(capturedShell ?? shell)
+      }
+      else if (capturedShell) emission.bindGroup(capturedShell)
+      const matrix = capturedShell ? emission.group(capturedShell) : undefined
+      const own = capturedShell?.identity ?? { id: shell.id, role: shell.role }
+      for (let index = 0; index < children.length; index++) {
+        const child = children[index]!
+        if (child.kind === 'leaf' && child.node.kind === 'shape' && !child.node.identity) validator.enclosure(child.node.id, capturedShell?.identity ?? shell.identity ?? own)
+      }
+      // The captured shell supplies both lexical evidence and actual bytes.
+      // Later reflection hooks cannot rewrite the original private mark after
+      // its immutable opening has already been checked. Foreign composition
+      // keeps its legacy observations and remains outside owned proof.
+      const writtenShell = allOwned && capturedShell ? capturedShell : shell
+      let xmlWrite: SvgXmlWrite
+      if (allOwned) {
+        const parsed = retainedGroupEmission(writtenShell)?.nativeParse
+        xmlWrite = xml.group(privateValues(childParts.length + 2, index => {
+          if (index === 0) return (closeLeaves ? writeNativeGroupOpening(xml, writtenShell, parsed) : undefined) ?? xml.raw(writtenShell.open)
+          if (index === childParts.length + 1) return xml.raw(writtenShell.close)
+          const child = childParts[index - 1]!
+          return xml.indent(child.node.xmlWrite, child.indent)
+        }), parsed, writtenShell.join)
+      } else {
+        // Keep the legacy read/coercion order for foreign fragment values.
+        const fragments = [shell.open]
+        for (const child of childParts) fragments.push(indentLines(child.node.svg, child.indent))
+        fragments.push(shell.close)
+        xmlWrite = xml.raw(fragments.join(shell.join))
+      }
+      const svg = xmlWrite.svg
+      validator.serialization(svg)
+      return ownFragment({ kind: 'group', svg, xmlWrite, children: Object.freeze(children), matrix, own, owner: capturedShell?.owner,
+        conditional: !capturedShell || writtenShell.visibility === 'conditional', opacity: sceneGroupOpacity(capturedShell?.paint?.opacity),
+        nodeCount, depth, prepared: !/<\s*text/i.test(writtenShell.open + writtenShell.close) && prepared })
+    },
+    pathArtwork: fields => marks.drawPathArtwork(factory, fields),
+  }
+  const document: DrawingDocument<Fragment> = withDeferredTerminalProjections(() => producer(factory, context))
+  // One actual occurrence roster owns BOTH byte composition and inspection.
+  // Late getters cannot substitute a different document after serialization.
+  const documentFields = ['parts', 'family', 'width', 'height', 'colors', 'transparent'] as const
+  for (let index = 0; index < documentFields.length; index++) {
+    const field = documentFields[index]!
+    const descriptor = Object.getOwnPropertyDescriptor(document, field)
+    if (!descriptor || !Object.hasOwn(descriptor, 'value')) emission.uncertain()
+  }
+  const parts = emission.parts(document.parts, SCENE_VALIDATION_LIMITS.maxNodes)
+  const ownsParts = emission.ownsParts(parts)
+  const partRoster = ownsParts ? privateValues(parts.length, index => parts[index]!) : parts
+  let allOwned = true
+  for (const part of partRoster) if (!ownedFragments.has(part)) { emission.uncertain(); allOwned = false }
+  const result = validator.finish()
+  if (!result.valid) throw new SceneValidationError(result.diagnostics)
+  let nodeCount = 0, characters = -1, preparedText = true
+  for (const part of partRoster) {
+    nodeCount += part.nodeCount
+    characters += part.svg.length + 1
+    preparedText = preparedText && part.prepared
+  }
+  if (nodeCount > SCENE_VALIDATION_LIMITS.maxNodes) throw new RangeError('Native drawing contains too many emitted nodes')
+  if (characters > SCENE_VALIDATION_LIMITS.maxFinalSvgBytes) throw new RangeError('Native drawing exceeds the final SVG limit')
+  const backdrop = pageRectFor(document, { seed: 0, ...(style ? { style } : {}) })
+  const xmlWrite = allOwned && ownsParts
+    ? xml.join(privateValues(parts.length, index => {
+      const part = parts[index]!
+      return index === 0 && backdrop ? xml.join(privateValues(2, position => position === 0 ? part.xmlWrite : xml.raw(backdrop)), '\n') : part.xmlWrite
+    }), '\n')
+    : allOwned ? xml.join(parts.map((part, index) => index === 0 && backdrop ? xml.join([part.xmlWrite, xml.raw(backdrop)], '\n') : part.xmlWrite), '\n')
+    : xml.raw(parts.map((part, index) => index === 0 && backdrop ? `${part.svg}\n${backdrop}` : part.svg).join('\n'))
+  const svg = xmlWrite.svg
+  assertFinalSvgByteBudget(svg, 'native drawing output')
+  // The document shell was already emitted. Late aliases cannot rewrite the
+  // palette or viewport used by inspection and by later public certification.
+  const capturedHeader = emittedHeader ?? Object.freeze({ ...header, colors: Object.freeze({ bg: 'none', fg: 'none' }) })
+  const finalHeader = emission.snapshot({ family: document.family, width: document.width, height: document.height, colors: document.colors, transparent: document.transparent })
+  const paintHeader = Object.freeze({ ...capturedHeader, family: finalHeader?.family ?? family })
+  if (!finalHeader || !emission.same({ ...finalHeader, width: Number(formatSvgNumber(finalHeader.width)), height: Number(formatSvgNumber(finalHeader.height)) }, paintHeader)) emission.uncertain()
+  const font = emittedHeader ? Object.getOwnPropertyDescriptor(emittedHeader.colors, 'font') : undefined
+  const documentFont = font && Object.hasOwn(font, 'value') && typeof font.value === 'string' ? font.value : undefined
+  const paint = inspectPaint(paintHeader, parts, emission.observe, documentFont, xml)
+  // The styled backdrop is emitted outside the recorder's primitive roster.
+  // It excludes only new proofs requiring a closed marker-paint context.
+  emission.finish(paint, paintHeader, xmlWrite, backdrop !== '')
+  return Object.freeze({ svg, header: paintHeader, preparedText, paint })
+}

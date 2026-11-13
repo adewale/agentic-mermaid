@@ -1,0 +1,60 @@
+diff --git a/src/__tests__/edge-crossings.test.ts b/src/__tests__/edge-crossings.test.ts
+index 300f57a..99f2a60 100644
+--- a/src/__tests__/edge-crossings.test.ts
++++ b/src/__tests__/edge-crossings.test.ts
+@@ -39,6 +39,21 @@ describe('shared visible proper-crossing metric', () => {
+     expect(crossingMeasurements(edges)).toEqual([1, 1])
+   })
+ 
++  test('public quality observes live path coordinates again on each call', () => {
++    const edges = [edge([[0, 50], [100, 50]]), edge([[50, 0], [50, 100]], 'C', 'D')]
++    const layout = positionedToRenderedLayout({ nodes: [], edges, groups: [], width: 1000, height: 1000 }, 'flowchart')
++    let offset = 0
++    for (const point of layout.edges[1]!.path) {
++      const x = point[0]
++      Object.defineProperty(point, '0', { get: () => toFinite(x + offset) })
++    }
++    expect(measureQuality(layout).edgeCrossings).toBe(1)
++    offset = 200
++    expect(measureQuality(layout).edgeCrossings).toBe(0)
++    offset = 0
++    expect(measureQuality(layout).edgeCrossings).toBe(1)
++  })
++
+   test('an exact zero-padding canvas contains its fractional-width node', () => {
+     const positioned = layoutGraphSync(parseMermaid('flowchart TD\nA[WWWWWWWWWWW]'), { padding: 0 })
+     const layout = positionedToRenderedLayout(positioned, 'flowchart')
+diff --git a/src/shared/edge-crossings.ts b/src/shared/edge-crossings.ts
+index f4e1a5d..651b5b2 100644
+--- a/src/shared/edge-crossings.ts
++++ b/src/shared/edge-crossings.ts
+@@ -20,6 +20,7 @@ interface Segment {
+   maxX: number
+   minY: number
+   maxY: number
++  axis: 0 | 1 | 2
+ }
+ 
+ interface CrossingLocation extends CrossingPoint { error: number }
+@@ -135,7 +136,12 @@ export function countPolylineCrossings(routes: readonly CrossingPolyline[], invo
+     for (let pointIndex = 0; pointIndex + 1 < route.points.length; pointIndex++) {
+       const a = route.points[pointIndex]!, b = route.points[pointIndex + 1]!
+       if (a.x === b.x && a.y === b.y) continue
+-      segments.push({ a, b, edgeIndex, pointIndex, minX: Math.min(a.x, b.x), maxX: Math.max(a.x, b.x), minY: Math.min(a.y, b.y), maxY: Math.max(a.y, b.y) })
++      const minX = Math.min(a.x, b.x), maxX = Math.max(a.x, b.x), minY = Math.min(a.y, b.y), maxY = Math.max(a.y, b.y)
++      // Reuse the existing bounds: exact parallel axes have zero determinant.
++      // Nonfinite or overflowing spans retain the original fallback.
++      const axis = Number.isFinite(maxX - minX) && Number.isFinite(maxY - minY)
++        ? minX === maxX ? 1 : minY === maxY ? 2 : 0 : 0
++      segments.push({ a, b, edgeIndex, pointIndex, minX, maxX, minY, maxY, axis })
+     }
+   })
+   segments.sort((a, b) => a.minX - b.minX || a.minY - b.minY || a.edgeIndex - b.edgeIndex || a.pointIndex - b.pointIndex)
+@@ -150,6 +156,7 @@ export function countPolylineCrossings(routes: readonly CrossingPolyline[], invo
+       if (!(other.maxX >= segment.minX)) continue
+       active[retained++] = other
+       if (other.edgeIndex === segment.edgeIndex || (involved && !involved.has(other.edgeIndex) && !involved.has(segment.edgeIndex)) || other.maxY < segment.minY || other.minY > segment.maxY) continue
++      if (segment.axis && segment.axis === other.axis) continue
+       const point = crossingPoint(segment, other, routes)
+       if (!point) continue
+       const key = `${Math.min(segment.edgeIndex, other.edgeIndex)}:${Math.max(segment.edgeIndex, other.edgeIndex)}`

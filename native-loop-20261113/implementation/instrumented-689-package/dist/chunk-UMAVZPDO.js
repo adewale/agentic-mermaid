@@ -1,0 +1,2 @@
+var O=15e3;var _=512*1024*1024;var E=10;var o=32;var t=16*1024*1024;var T=4*1024*1024;var e=16*1024*1024;var L=Object.freeze(["--max-old-space-size=480","--max-semi-space-size=8"]);var S="--am-renderer-child";var U=72;var R=73;var s=74;export{O as a,_ as b,E as c,o as d,t as e,T as f,e as g,L as h,S as i,U as j,R as k,s as l};
+//# sourceMappingURL=chunk-UMAVZPDO.js.map

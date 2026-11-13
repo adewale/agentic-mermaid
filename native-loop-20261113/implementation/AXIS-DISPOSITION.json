@@ -1,0 +1,16 @@
+{
+  "at": "2026-11-13T01:34:23.924750+00:00",
+  "status": "withdrawn",
+  "productionHead": "68986ba8e3b76ad99dad44c6ec8d43475cc5e12f",
+  "sourceClean": true,
+  "report": "/workspace/pr449-native-loop-20261113/implementation/AXIS-PROBE-REPORT.md",
+  "artifactTree": "/workspace/pr449-native-loop-20261113/implementation",
+  "exclude": "Dependency node_modules links and other symlinks only; no evidence deletion",
+  "allClocksClosed": true,
+  "stockWorkers": 144,
+  "fullWorkers": 36,
+  "fullCalls": 324,
+  "pairedWholeProducts": 162,
+  "allSVGReceiptsExact": true,
+  "noRetainedPatch": true
+}

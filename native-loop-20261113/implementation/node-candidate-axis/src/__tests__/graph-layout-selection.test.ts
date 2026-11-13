@@ -1,0 +1,707 @@
+import { readFileSync } from 'node:fs'
+import { describe, expect, test } from 'bun:test'
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { createRequire } from 'node:module'
+import { join } from 'node:path'
+import { layoutMermaidWithReceipt, verifyMermaid } from '../agent/core.ts'
+import { parseRegisteredMermaid as parseMermaid } from '../agent/index.ts'
+import { renderMermaidPNGWithReceipt } from '../agent/png.ts'
+import { renderMermaidASCIIWithReceipt } from '../ascii/index.ts'
+import { runCli } from '../cli/index.ts'
+import { measureQuality } from '../agent/quality.ts'
+import { layoutGraphSync } from '../layout-engine.ts'
+import { separateEdgeLabelPills } from '../route-contracts.ts'
+import { graphTextBlock } from '../graph-text.ts'
+import { renderSvg } from '../renderer.ts'
+import { scanSvgStartTags, decodedSvgAttributeValue } from '../svg-structure.ts'
+import { missingSvgLabels } from './helpers/svg-labels.ts'
+import { portLaneInkClear } from '../layout/passes/port-lanes.ts'
+import { bundleEdgePaths } from '../layout/passes/edge-bundling.ts'
+import { resolveRenderStyle } from '../styles.ts'
+import type { PositionedEdge, PositionedNode } from '../types.ts'
+import { parseMermaid as parseFlowchart } from '../parser.ts'
+import { clearElkLayoutCache } from '../elk-instance.ts'
+import { Resvg } from '@resvg/resvg-js'
+
+test.each(['LR', 'RL', 'TB', 'BT'] as const)('all graph solvers deliver the actual sized inline PNG and separate its caption in %s', direction => {
+  const png = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGP4z8DwHwAFAAH/iZk9HQAAAABJRU5ErkJggg=='
+  const source = `flowchart ${direction}\nArt@{ img: "${png}", label: "Icon 漢🙂", w: 32, h: 48, constraint: "on" }\nArt --> Target[Target]`
+  for (const backend of ['elk', 'agentic'] as const) for (const style of [undefined, 'hand-drawn', 'freehand']) {
+    const options = { graphLayout: { backend, fallback: 'none' as const }, style, embedFontImport: false, security: 'strict' as const }
+    const product = renderMermaidSVGWithReceipt(source, options), layout = layoutMermaidWithReceipt(source, options).layout
+    const tags = scanSvgStartTags(product.svg), image = tags.find(tag => tag.name === 'image')!
+    expect(decodedSvgAttributeValue(image, 'href')).toBe(png)
+    expect(decodedSvgAttributeValue(image, 'width')).toBe('32')
+    expect(decodedSvgAttributeValue(image, 'height')).toBe('48')
+    expect(decodedSvgAttributeValue(image, 'preserveAspectRatio')).toBe('xMidYMid meet')
+    const bottom = Number(decodedSvgAttributeValue(image, 'y')) + 48
+    const art = layout.nodes.find(node => node.id === 'Art')!, caption = art.labelBounds!
+    expect(caption.y).toBeGreaterThan(bottom)
+    expect(caption.y + caption.h).toBeLessThan(art.y + art.h)
+    const text = tags.find(tag => tag.name === 'text' && tag.start > image.end)!
+    expect(Number(decodedSvgAttributeValue(text, 'y'))).toBeCloseTo(caption.y + caption.h / 2, 3)
+    expect(layout.nodes.map(node => [node.id, node.label])).toEqual([['Art', 'Icon 漢🙂'], ['Target', 'Target']])
+    expect(layout.edges.map(edge => [edge.from, edge.to])).toEqual([['Art', 'Target']])
+    expect(product.svg).not.toContain('flowchart-image-placeholder')
+    expect(product.receipt.layoutCertification?.status).toBe('unverified')
+    const raster = new Resvg(product.svg, { font: { loadSystemFonts: false } }).render()
+    let red = 0
+    const pixels = raster.pixels
+    for (let i = 0; i < pixels.length; i += 4) if (pixels[i]! > 245 && pixels[i + 1]! < 10 && pixels[i + 2]! < 10 && pixels[i + 3]! > 245) red++
+    expect(red).toBeGreaterThan(900)
+    expect(renderMermaidSVGWithReceipt(source, options)).toEqual(product)
+  }
+})
+import { renderMermaidSVGWithReceipt, GraphLayoutUnsupportedError } from '../index.ts'
+import { withRenderStageObserver } from '../render-stages.ts'
+import { resolveRenderRequest, validateSerializableRenderOptions } from '../render-contract.ts'
+import { captureCli } from './helpers/cli-capture.ts'
+import { flowchartMultigraph, flowchartSubgraphs } from '../../eval/shared/graph-fixtures.ts'
+import { generatedFlowchartSamples } from '../../eval/layout-compare/generated.ts'
+
+const SOURCE = 'flowchart TD\n A[Start] --> B[Finish]'
+const AGENTIC = { graphLayout: { backend: 'agentic' as const } }
+const FALLBACK = { graphLayout: { backend: 'agentic' as const, fallback: 'elk' as const } }
+// A sibling edge still materializes private ranks; ancestor prefixes do not.
+const RANK_CAP_SOURCE = `flowchart LR\n A[Source]\n B[Target]\n A ${'-'.repeat(2049)}> B`
+
+describe('checked graph layout selection', () => {
+  test('admits only closed, nonredundant selection objects and normalizes fallback', () => {
+    for (const graphLayout of [{}, { backend: 'other' }, { backend: 'trinity' }, { backend: 'trinity', fallback: 'elk' }, { backend: 'elk', fallback: 'elk' }, { backend: 'agentic', fallback: 'other' }, { backend: 'agentic', hidden: true }]) {
+      expect(validateSerializableRenderOptions({ graphLayout }).length).toBeGreaterThan(0)
+      expect(() => resolveRenderRequest(SOURCE, { graphLayout } as never)).toThrow()
+    }
+    const omitted = resolveRenderRequest(SOURCE, AGENTIC)
+    const explicit = resolveRenderRequest(SOURCE, { graphLayout: { backend: 'agentic', fallback: 'none' } })
+    expect(omitted.renderOptions.graphLayout).toEqual({ backend: 'agentic', fallback: 'none' })
+    expect(omitted.sharedRequestDigest).toBe(explicit.sharedRequestDigest)
+    expect(Object.isFrozen(omitted.renderOptions.graphLayout)).toBe(true)
+  })
+
+  test('preserves default ELK bytes and exposes the selected kernel across source, parsed and layout calls', () => {
+    const baseline = renderMermaidSVGWithReceipt(SOURCE)
+    const elk = renderMermaidSVGWithReceipt(SOURCE, { graphLayout: { backend: 'elk' } })
+    expect(elk.svg).toBe(baseline.svg)
+    expect(baseline.receipt.layoutDecisions).toBeUndefined()
+    expect(elk.receipt.layoutDecisions).toEqual([expect.objectContaining({ requested: 'elk', selected: 'elk', fallback: 'none', role: 'primary' })])
+    const parsed = parseMermaid(SOURCE)
+    expect(parsed.ok).toBe(true)
+    if (!parsed.ok) throw new Error('fixture must parse')
+    const stages: string[] = []
+    const source = withRenderStageObserver(sample => stages.push(sample.stage), () => renderMermaidSVGWithReceipt(SOURCE, AGENTIC))
+    const fromParsed = renderMermaidSVGWithReceipt(parsed.value, AGENTIC)
+    const layout = layoutMermaidWithReceipt(SOURCE, AGENTIC)
+    expect(source.svg).toBe(fromParsed.svg)
+    expect(source.receipt.layoutDecisions).toEqual(layout.receipt.layoutDecisions)
+    expect(source.receipt.layoutDecisions).toEqual([expect.objectContaining({ requested: 'agentic', selected: 'agentic', fallback: 'none', role: 'primary', attempts: [{ backend: 'agentic', outcome: 'selected' }] })])
+    expect(stages).not.toContain('elk')
+    expect(source.svg).toContain('Start')
+    expect(source.svg).toContain('Finish')
+    const png = renderMermaidPNGWithReceipt(SOURCE, AGENTIC)
+    expect(png.receipt.layoutDecisions).toEqual(source.receipt.layoutDecisions)
+    expect(png.png.length).toBeGreaterThan(0)
+  })
+
+  test.each(['TD', 'LR'] as const)('keeps an incomplete ternary tree crossing-free after all geometry passes in %s', direction => {
+    const source = `flowchart ${direction}\n` + Array.from({ length: 299 }, (_, index) => {
+      const parent = Math.floor(index / 3)
+      return `n${parent}[Node ${parent}] --> n${index + 1}[Node ${index + 1}]`
+    }).join('\n')
+    const result = layoutMermaidWithReceipt(source, { ...AGENTIC, debug: true })
+    const quality = measureQuality(result.layout)
+    expect(quality.nodeCount).toBe(300)
+    expect(quality.edgeCount).toBe(299)
+    expect(quality.edgeCrossings).toBe(0)
+    expect(quality.labelConflicts?.total).toBe(0)
+    expect(result.receipt.layoutDecisions).toEqual([expect.objectContaining({ selected: 'agentic' })])
+    JSON.stringify(result.receipt)
+  })
+
+  test.each([
+    { seed: 40, nodes: 9, edges: 23, from: 'n3', to: 'n7', labels: ['edge 4 xxxxxxx', 'edge 8 xxxxxxxxxxx'] },
+    { seed: 156, nodes: 8, edges: 18, from: 'n0', to: 'n5', labels: ['edge 0 xxx', 'edge 12 xxxxxxxxxxxxxxx', 'edge 16 xxxxxxxxxxxxxxxxxxx'] },
+  ].flatMap(sample => ['TD', 'BT', 'LR', 'RL'].map(direction => ({ ...sample, direction }))))('retains labelled duplicates without displacing safe captions in ELK cycle $seed in $direction', ({ seed, nodes, edges, from, to, labels, direction }) => {
+    const source = generatedFlowchartSamples({ start: seed, count: 1 })[0]!.source.replace('flowchart TD', `flowchart ${direction}`)
+    const options = { graphLayout: { backend: 'elk' as const }, layoutSafety: 'strict' as const }
+    const svg = renderMermaidSVGWithReceipt(source, options)
+    const result = layoutMermaidWithReceipt(source, { ...options, debug: true })
+    expect(result.layout.nodes).toHaveLength(nodes)
+    expect(result.layout.edges).toHaveLength(edges)
+    const parallel = result.layout.edges.filter(edge => edge.from === from && edge.to === to)
+    expect(parallel).toHaveLength(labels.length)
+    expect(parallel.map(edge => edge.label?.text)).toEqual(labels)
+    const paintedCaptions = scanSvgStartTags(svg.svg).filter(tag => tag.name === 'g' && decodedSvgAttributeValue(tag, 'class') === 'edge-label' && decodedSvgAttributeValue(tag, 'data-from') === from && decodedSvgAttributeValue(tag, 'data-to') === to)
+    expect(paintedCaptions.map(tag => decodedSvgAttributeValue(tag, 'data-label'))).toEqual(labels)
+    expect(parallel[0]!.path).not.toEqual(parallel[1]!.path)
+    expect(measureQuality(result.layout).labelConflicts?.labelLabel).toBe(0)
+    expect(measureQuality(result.layout).labelConflicts?.total).toBe(0)
+    expect(svg.receipt.layoutCertification?.status).toBe('passed')
+    for (const label of labels) expect(svg.svg).toContain(label)
+    expect(svg.receipt.layoutCertification?.status).not.toBe('failed')
+    expect(svg.receipt.layoutDecisions?.[0]?.selected).toBe('elk')
+  })
+
+  test('separates nearby caption halos without seating a caption on a foreign guard route', () => {
+    const source = `flowchart TD
+Top left@-->|edge 12 xxxxxxxxxxxxxxx| Bottom
+Top wide@-->|edge 16 xxxxxxxxxxxxxxxxxxx| Bottom
+Top right@-->|edge 4 xxxxxxx| Bottom
+GuardStart[G] guard@--> GuardEnd[H]`
+    const graph = parseFlowchart(source), style = resolveRenderStyle({})
+    const positions = [
+      { id: 'Top', x: 0, y: 0, width: 620, height: 40 },
+      { id: 'Bottom', x: 0, y: 320, width: 620, height: 40 },
+      { id: 'GuardStart', x: 700, y: 50, width: 40, height: 40 },
+      { id: 'GuardEnd', x: 900, y: 50, width: 40, height: 40 },
+    ]
+    const nodes: PositionedNode[] = positions.map(position => ({ ...graph.nodes.get(position.id)!, ...position, labelBlock: graphTextBlock(graph.nodes.get(position.id)!.label, style, 'node') }))
+    // The guard leaves a narrow clear seat beside each existing caption but
+    // crosses the distant runs the old longest-segment ladder tries first.
+    const paths: Array<Array<[number, number]>> = [
+      [[257.734, 40], [257.734, 320]],
+      [[416.124, 40], [416.124, 320]],
+      [[549.274, 40], [549.274, 320]],
+      [[700, 70], [607, 70], [607, 44], [174, 44], [174, 100], [607, 100], [607, 110], [100, 110], [100, 147], [888, 147], [888, 184], [100, 184], [100, 221], [888, 221], [888, 258], [100, 258], [100, 295], [888, 295], [960, 295], [960, 110], [888, 110], [888, 70], [900, 70]],
+    ]
+    const centers = [{ x: 257.429, y: 70 }, { x: 415.699, y: 70 }, { x: 549.274, y: 70 }]
+    const edges: PositionedEdge[] = graph.edges.map((edge, index) => ({ ...edge, edgeIndex: index, points: paths[index]!.map(([x, y]) => ({ x, y })), labelPosition: centers[index], ...(edge.label ? { labelBlock: graphTextBlock(edge.label, style, 'edge') } : {}) }))
+    const positioned = { width: 1000, height: 400, nodes, edges, groups: [] }
+    const facts = [
+      ['left', 'Top', 'Bottom', 'edge 12 xxxxxxxxxxxxxxx'],
+      ['wide', 'Top', 'Bottom', 'edge 16 xxxxxxxxxxxxxxxxxxx'],
+      ['right', 'Top', 'Bottom', 'edge 4 xxxxxxx'],
+      ['guard', 'GuardStart', 'GuardEnd', undefined],
+    ]
+    separateEdgeLabelPills(positioned, graph, style)
+    expect(edges.map(edge => [edge.id, edge.source, edge.target, edge.label])).toEqual(facts)
+    expect(edges.map(edge => edge.points.map(point => [point.x, point.y]))).toEqual(paths)
+    expect(nodes.map(({ id, x, y, width, height }) => ({ id, x, y, width, height }))).toEqual(positions)
+    const svg = renderSvg({ positioned, colors: { bg: '#fff', fg: '#111' }, resolved: { renderOptions: {} } })
+    const tags = scanSvgStartTags(svg)
+    const carriers = tags.filter(tag => tag.name === 'polyline' && decodedSvgAttributeValue(tag, 'data-role') === 'edge')
+    expect(carriers.map(tag => ['data-id', 'data-from', 'data-to', 'data-label'].map(name => decodedSvgAttributeValue(tag, name)))).toEqual(facts)
+    expect(carriers.map(tag => decodedSvgAttributeValue(tag, 'points'))).toEqual(paths.map(path => path.map(point => point.join(',')).join(' ')))
+    expect(missingSvgLabels(svg, facts.slice(0, 3).map(row => row[3]!))).toEqual([])
+    for (let index = 0; index < tags.length; index++) {
+      const label = tags[index]!
+      if (label.name !== 'g' || decodedSvgAttributeValue(label, 'class') !== 'edge-label') continue
+      const halo = tags[index + 1]!
+      expect(decodedSvgAttributeValue(halo, 'class')).toBe('edge-label-halo')
+      const x = Number(decodedSvgAttributeValue(halo, 'x')), y = Number(decodedSvgAttributeValue(halo, 'y'))
+      const right = x + Number(decodedSvgAttributeValue(halo, 'width')), bottom = y + Number(decodedSvgAttributeValue(halo, 'height'))
+      for (const carrier of carriers) {
+        if (decodedSvgAttributeValue(carrier, 'data-label') === decodedSvgAttributeValue(label, 'data-label')) continue
+        const half = Number(decodedSvgAttributeValue(carrier, 'stroke-width')) / 2
+        const points = decodedSvgAttributeValue(carrier, 'points')!.split(' ').map(token => token.split(',').map(Number))
+        for (let point = 1; point < points.length; point++) {
+          const [ax, ay] = points[point - 1]!, [bx, by] = points[point]!
+          expect(ax === bx || ay === by).toBe(true)
+          const covered = ax === bx
+            ? ax! > x - half && ax! < right + half && Math.max(ay!, by!) > y - half && Math.min(ay!, by!) < bottom + half
+            : ay! > y - half && ay! < bottom + half && Math.max(ax!, bx!) > x - half && Math.min(ax!, bx!) < right + half
+          expect(covered).toBe(false)
+        }
+      }
+    }
+    expect(edges.filter(edge => edge.label).every(edge => edge.labelPosition!.y === 70)).toBe(true)
+  })
+
+  test.each([
+    { change: 'foreign shaft crosses caption', expected: false },
+    { change: 'caption moves onto foreign shaft', expected: false },
+    { change: 'caption covers its own marker', expected: false },
+    { change: 'caption swaps covered marker ends', expected: false },
+    { change: 'caption halos overlap', expected: false },
+    { change: 'equal-count conflict swaps owners', expected: false },
+    { change: 'foreign shaft stays clear', expected: true },
+    { change: 'hidden shaft crosses caption', expected: true },
+    { change: 'hidden edge caption overlaps', expected: false },
+    { change: 'hidden edge caption covers card', expected: false },
+  ])('admits a port-lane proposal only when caption separation survives: $change', ({ change, expected }) => {
+    const edge = (source: string, target: string, points: Array<[number, number]>, label?: string, labelPosition?: { x: number; y: number }): PositionedEdge => ({
+      source, target, points: points.map(([x, y]) => ({ x, y })), label, labelPosition,
+      style: 'solid', hasArrowStart: false, hasArrowEnd: false,
+    })
+    const before = [
+      edge('A', 'B', [[0, 80], [300, 80]], 'reserved', { x: 50, y: 80 }),
+      edge('C', 'D', [[180, 0], [180, 160]]),
+    ]
+    if (change === 'equal-count conflict swaps owners') before.push(edge('E', 'F', [[50, 0], [50, 160]]))
+    if (change === 'caption covers its own marker' || change === 'caption swaps covered marker ends') before[0]!.hasArrowEnd = true
+    if (change === 'caption swaps covered marker ends') { before[0]!.hasArrowStart = true; before[0]!.labelPosition!.x = 10 }
+    if (change === 'caption halos overlap' || change === 'hidden edge caption overlaps' || change === 'hidden edge caption covers card') {
+      before[1] = edge('C', 'D', [[0, 160], [300, 160]], 'peer', { x: 50, y: 160 })
+    }
+    if (change.startsWith('hidden')) before[1]!.style = 'invisible'
+    if (change === 'hidden edge caption covers card') { before[0]!.points = [{ x: 0, y: -80 }, { x: 300, y: -80 }]; before[0]!.labelPosition!.y = -80 }
+    const after = structuredClone(before)
+    if (change === 'caption moves onto foreign shaft') after[0]!.labelPosition!.x = 180
+    else if (change === 'caption covers its own marker' || change === 'caption swaps covered marker ends') after[0]!.labelPosition!.x = 290
+    else if (change === 'caption halos overlap' || change === 'hidden edge caption overlaps' || change === 'hidden edge caption covers card') after[1]!.labelPosition!.y = 110
+    else {
+      after[1]!.points = [{ x: change === 'foreign shaft stays clear' ? 220 : 50, y: 0 }, { x: change === 'foreign shaft stays clear' ? 220 : 50, y: 160 }]
+      if (change === 'equal-count conflict swaps owners') after[2]!.points = [{ x: 180, y: 0 }, { x: 180, y: 160 }]
+    }
+    const nodes: PositionedNode[] = change === 'hidden edge caption covers card' ? [{ id: 'card', label: 'card', shape: 'rectangle', x: 20, y: 100, width: 60, height: 40 }] : []
+    expect(portLaneInkClear(nodes, after, nodes, before, [], resolveRenderStyle({}))).toBe(expected)
+  })
+
+  test.each([{ captionY: 120, members: 0 }, { captionY: 400, members: 2 }])('bundles a fan only when its new shaft clears the foreign caption at $captionY', ({ captionY, members }) => {
+    const node = (id: string, x: number, y: number): PositionedNode => ({ id, label: id, shape: 'rectangle', x, y, width: 40, height: 40 })
+    const edge = (source: string, target: string, points: Array<[number, number]>): PositionedEdge => ({ source, target, points: points.map(([x, y]) => ({ x, y })), style: 'solid', hasArrowStart: false, hasArrowEnd: false })
+    const nodes = [node('A', 0, 0), node('B', 200, 200), node('C', 400, 200), node('X', 260, 0), node('Y', 260, 460)]
+    const edges = [
+      edge('A', 'B', [[20, 40], [20, 70], [220, 70], [220, 200]]),
+      edge('A', 'C', [[30, 40], [30, 60], [420, 60], [420, 200]]),
+      { ...edge('X', 'Y', [[280, 40], [280, 460]]), label: 'reserved', labelPosition: { x: 280, y: captionY } },
+    ]
+    const before = structuredClone(edges)
+    const bundled = bundleEdgePaths(edges, nodes, [], 'TD', resolveRenderStyle({}))
+    expect(bundled.size).toBe(members)
+    expect(edges[2]).toEqual(before[2])
+    if (members === 0) expect(edges).toEqual(before)
+    else {
+      expect(edges[0]!.points).not.toEqual(before[0]!.points)
+      expect(edges[1]!.points).not.toEqual(before[1]!.points)
+      expect(edges[0]!.points[0]).toEqual({ x: 20, y: 40 })
+      expect(edges[1]!.points.at(-1)).toEqual({ x: 420, y: 200 })
+    }
+  })
+
+  test.each(['TD', 'LR', 'BT', 'RL'].flatMap(direction => [
+    { direction, links: 'A & B --> C & D', ids: ['A', 'B', 'C', 'D'], facts: ['A->C', 'A->D', 'B->C', 'B->D'] },
+    { direction, links: 'A & B --> C', ids: ['A', 'B', 'C'], facts: ['A->C', 'B->C'] },
+    { direction, links: 'A --> B & C', ids: ['A', 'B', 'C'], facts: ['A->B', 'A->C'] },
+  ]))('routes a complete rectangular fan net $links without extra crossings in $direction', ({ direction, links, ids, facts }) => {
+    const source = `---\ntitle: Complete fan\n---\nflowchart ${direction}\n${links}`
+    const svg = renderMermaidSVGWithReceipt(source, AGENTIC)
+    const layout = layoutMermaidWithReceipt(source, { ...AGENTIC, debug: true })
+    const reference = layoutMermaidWithReceipt(source, { graphLayout: { backend: 'elk' }, debug: true })
+    expect(layout.layout.nodes.map(node => node.id).sort()).toEqual(ids)
+    expect(layout.layout.edges.map(edge => `${edge.from}->${edge.to}`).sort()).toEqual(facts)
+    const quality = measureQuality(layout.layout)
+    expect(quality.edgeCrossings).toBe(0)
+    expect(quality.edgeCrossings).toBeLessThanOrEqual(measureQuality(reference.layout).edgeCrossings)
+    expect(quality.routeOverlaps).toEqual({ opposing: 0, parallel: 0 })
+    expect(quality.labelConflicts?.total).toBe(0)
+    expect(svg.receipt.layoutDecisions?.[0]?.selected).toBe('agentic')
+    JSON.stringify(svg.receipt)
+    JSON.stringify(layout.receipt)
+  })
+
+  test.each([
+    { nodes: 11, edges: 24, source: readFileSync(new URL('../../eval/layout-compare/fixtures/cyclic-labelled-11.mmd', import.meta.url), 'utf8') },
+    { nodes: 10, edges: 20, source: readFileSync(new URL('../../eval/layout-compare/fixtures/cyclic-labelled-10.mmd', import.meta.url), 'utf8') },
+    { nodes: 15, edges: 31, source: readFileSync(new URL('../../eval/layout-compare/fixtures/cyclic-labelled-15.mmd', import.meta.url), 'utf8') },
+    { nodes: 19, edges: 44, tight: { maxArea: 1_350_000, allowPaintBudget: true }, source: readFileSync(new URL('../../eval/layout-compare/fixtures/cyclic-labelled-19.mmd', import.meta.url), 'utf8') },
+    { nodes: 13, edges: 31, source: readFileSync(new URL('../../eval/layout-compare/fixtures/cyclic-labelled-13.mmd', import.meta.url), 'utf8') },
+    { nodes: 15, edges: 34, tight: { maxArea: 1_500_000 }, source: readFileSync(new URL('../../eval/layout-compare/fixtures/cyclic-labelled-15-chains.mmd', import.meta.url), 'utf8') },
+    { nodes: 9, edges: 23, tight: { maxHeight: 451 }, source: readFileSync(new URL('../../eval/layout-compare/fixtures/cyclic-labelled-9-chains.mmd', import.meta.url), 'utf8') },
+  ])('reduces crossings in a cyclic $nodes-node labelled multigraph without merging routes', ({ source, nodes, edges, tight }) => {
+    const titledSource = '---\ntitle: Cyclic routes\n---\n' + source
+    const svg = renderMermaidSVGWithReceipt(titledSource, AGENTIC)
+    const native = layoutMermaidWithReceipt(titledSource, { ...AGENTIC, debug: true })
+    const elk = layoutMermaidWithReceipt(titledSource, { graphLayout: { backend: 'elk' }, debug: true })
+    const quality = measureQuality(native.layout)
+    expect(quality.nodeCount).toBe(nodes)
+    expect(quality.edgeCount).toBe(edges)
+    expect(quality.edgeCrossings).toBeLessThanOrEqual(measureQuality(elk.layout).edgeCrossings)
+    expect(quality.labelConflicts?.total).toBe(0)
+    expect(quality.routeOverlaps).toEqual({ opposing: 0, parallel: 0 })
+    expect(svg.receipt.layoutDecisions?.[0]?.selected).toBe('agentic')
+    if (tight) {
+      const fitted = renderMermaidSVGWithReceipt(source, { ...AGENTIC, padding: 40, nodeSpacing: 28, layerSpacing: 48 })
+      const tags = scanSvgStartTags(fitted.svg.replace(/<defs>[\s\S]*?<\/defs>/g, ''))
+      const number = (tag: typeof tags[number], key: string) => Number(decodedSvgAttributeValue(tag, key))
+      const vertices = tags.flatMap(tag => {
+        const name = tag.name
+        if (name === 'rect') return [[number(tag, 'x'), number(tag, 'y')], [number(tag, 'x') + number(tag, 'width'), number(tag, 'y') + number(tag, 'height')]]
+        if (name === 'circle' || name === 'ellipse') {
+          const rx = number(tag, name === 'circle' ? 'r' : 'rx'), ry = number(tag, name === 'circle' ? 'r' : 'ry')
+          return [[number(tag, 'cx') - rx, number(tag, 'cy') - ry], [number(tag, 'cx') + rx, number(tag, 'cy') + ry]]
+        }
+        if (name === 'polygon' || name === 'polyline') return decodedSvgAttributeValue(tag, 'points')!.trim().split(/\s+/).map(pair => pair.split(',').map(Number))
+        if (name === 'line') return [[number(tag, 'x1'), number(tag, 'y1')], [number(tag, 'x2'), number(tag, 'y2')]]
+        return []
+      })
+      const viewport = decodedSvgAttributeValue(tags[0]!, 'viewBox')!.split(/\s+/).map(Number)
+      // Old private canvases retained 451px height / 1.57M and 1.41M px² area.
+      if (tight.maxHeight !== undefined) expect(viewport[3]!).toBeLessThan(tight.maxHeight)
+      if (tight.maxArea !== undefined) expect(viewport[2]! * viewport[3]!).toBeLessThan(tight.maxArea)
+      const left = Math.min(...vertices.map(point => point[0]!)), top = Math.min(...vertices.map(point => point[1]!))
+      const right = Math.max(...vertices.map(point => point[0]!)), bottom = Math.max(...vertices.map(point => point[1]!))
+      // Requested padding surrounds body outlines and route centerlines;
+      // ordinary strokes retain their existing half-width outside that support.
+      expect(left).toBeCloseTo(40, 6)
+      expect(top).toBeCloseTo(40, 6)
+      expect(viewport[2]! - right).toBeGreaterThanOrEqual(40 - 1e-6)
+      expect(viewport[3]! - bottom).toBeGreaterThanOrEqual(40 - 1e-6)
+      for (const halo of tags.filter(tag => decodedSvgAttributeValue(tag, 'class') === 'edge-label-halo')) {
+        expect(number(halo, 'x')).toBeGreaterThanOrEqual(0)
+        expect(number(halo, 'y')).toBeGreaterThanOrEqual(0)
+        expect(number(halo, 'x') + number(halo, 'width')).toBeLessThanOrEqual(viewport[2]!)
+        expect(number(halo, 'y') + number(halo, 'height')).toBeLessThanOrEqual(viewport[3]!)
+      }
+      const proof = fitted.receipt.layoutCertification
+      // The 19-node drawing is delivered even when advisory paint checking exhausts.
+      if (tight.allowPaintBudget && proof?.status === 'unverified') expect(proof.issues.map(issue => issue.code)).toEqual(['CHECK_BUDGET'])
+      else expect(proof?.status).toBe('passed')
+    }
+    JSON.stringify(svg.receipt)
+    JSON.stringify(native.receipt)
+  })
+
+  test.each(['TD', 'BT', 'LR', 'RL'] as const)('reduces the nine-node crossing case without adding bends or losing native content in %s', direction => {
+    const source = readFileSync(new URL('../../eval/layout-compare/fixtures/cyclic-labelled-9.mmd', import.meta.url), 'utf8').replace(/^flowchart BT/, `flowchart ${direction}`)
+    const result = layoutMermaidWithReceipt(source, { ...AGENTIC, debug: true }), quality = measureQuality(result.layout)
+    expect(quality.nodeCount).toBe(9)
+    expect(quality.edgeCount).toBe(21)
+    const reference = layoutMermaidWithReceipt(source, { graphLayout: { backend: 'elk' }, debug: true })
+    expect(quality.edgeCrossings).toBeLessThanOrEqual(measureQuality(reference.layout).edgeCrossings)
+    const bends = (layout: typeof result.layout) => layout.edges.reduce((sum, edge) => sum + Math.max(0, edge.path.length - 2), 0)
+    expect(bends(result.layout)).toBeLessThanOrEqual(bends(reference.layout))
+    expect(quality.labelConflicts?.total).toBe(0)
+    expect(quality.routeOverlaps).toEqual({ opposing: 0, parallel: 0 })
+    expect(result.receipt.layoutDecisions?.[0]?.selected).toBe('agentic')
+  })
+
+  test.each([
+    { seed: 171, generator: 'lcg-v1' as const, maxCrossings: 3 },
+    ...[217, 228, 296, 319].map(seed => ({ seed, generator: 'lcg-v1' as const, maxCrossings: undefined })),
+    { seed: 22, generator: 'sha256-counter-v1' as const, maxCrossings: undefined },
+  ])('retains clear long-edge ordering for development $generator seed $seed', ({ seed, generator, maxCrossings }) => {
+    const source = generatedFlowchartSamples({ start: seed, count: 1 }, generator)[0]!.source
+    const rendered = renderMermaidSVGWithReceipt(source, AGENTIC)
+    const native = layoutMermaidWithReceipt(source, { ...AGENTIC, debug: true })
+    const reference = layoutMermaidWithReceipt(source, { graphLayout: { backend: 'elk' }, debug: true })
+    const quality = measureQuality(native.layout)
+    expect(quality.nodeCount).toBe(8 + seed % 13)
+    expect(quality.edgeCount).toBe(2 * quality.nodeCount + seed % 7)
+    if (maxCrossings !== undefined) expect(quality.edgeCrossings).toBeLessThanOrEqual(maxCrossings)
+    expect(quality.edgeCrossings).toBeLessThanOrEqual(measureQuality(reference.layout).edgeCrossings)
+    expect(quality.labelConflicts?.total).toBe(0)
+    expect(quality.routeOverlaps).toEqual({ opposing: 0, parallel: 0 })
+    expect(rendered.receipt.layoutDecisions?.[0]?.selected).toBe('agentic')
+    JSON.stringify(rendered.receipt)
+    JSON.stringify(native.receipt)
+  })
+
+  test.each(['elk', 'agentic'] as const)('contains wide nested headers in %s without changing frame endpoints', async backend => {
+    const source = await Bun.file(new URL('../../eval/layout-compare/fixtures/nested-wide-titles.mmd', import.meta.url)).text()
+    const options = { graphLayout: { backend } }
+    const rendered = renderMermaidSVGWithReceipt(source, options)
+    const { layout, receipt } = layoutMermaidWithReceipt(source, { ...options, debug: true })
+    expect(layout.groups).toHaveLength(3)
+    expect(layout.nodes).toHaveLength(4)
+    expect(layout.edges).toHaveLength(3)
+    for (const group of layout.groups.filter(group => group.parentId)) {
+      const parent = layout.groups.find(parent => parent.id === group.parentId)!
+      expect(group.x).toBeGreaterThanOrEqual(parent.x)
+      expect(group.y).toBeGreaterThanOrEqual(parent.y)
+      expect(group.x + group.w).toBeLessThanOrEqual(parent.x + parent.w)
+      expect(group.y + group.h).toBeLessThanOrEqual(parent.y + parent.h)
+    }
+    expect(layout.edges.some(edge => edge.from === 'entry' && edge.to === 'Inner')).toBe(true)
+    expect(layout.edges.some(edge => edge.from === 'Inner' && edge.to === 'done')).toBe(true)
+    expect(rendered.svg).toContain('A nested heading much wider than its leaf nodes')
+    expect(rendered.svg).toContain('Another heading wider than a and b')
+    expect(measureQuality(layout).labelConflicts?.total).toBe(0)
+    expect(receipt.layoutDecisions?.[0]?.selected).toBe(backend)
+    JSON.stringify(rendered.receipt)
+    JSON.stringify(receipt)
+  })
+
+  test.each(['TD', 'LR'] as const)('certifies mixed shape outlines, labelled branches and markers natively in %s', direction => {
+    const source = `flowchart ${direction}\nA([Start]) --> B{Choose}\nB -->|yes| C[(Database)]\nB -->|no| D((End))\nD --> E[[Audit]]`
+    const stages: string[] = []
+    const result = withRenderStageObserver(sample => stages.push(sample.stage), () => renderMermaidSVGWithReceipt(source, AGENTIC))
+    expect(stages).not.toContain('elk')
+    expect(result.receipt.layoutDecisions).toEqual([expect.objectContaining({ selected: 'agentic' })])
+    expect(layoutGraphSync(parseFlowchart(source), AGENTIC).certification).toMatchObject({ status: 'passed', hardViolations: 0 })
+    for (const label of ['Start', 'Choose', 'Database', 'End', 'Audit', 'yes', 'no']) expect(result.svg).toContain(label)
+    JSON.stringify(result.receipt)
+  })
+
+  test.each([
+    { name: 'labelled reciprocal cycles and loops', source: 'flowchart LR\nA[Send] -->|request| B[Process]\nB -->|retry| A\nB --> C[Commit]\nC --> A\nA -->|repeat| A\nA --> A\nC -->|wait| C', nodes: 3, edges: 7, labels: ['Send', 'Process', 'Commit', 'request', 'retry', 'repeat', 'wait'] },
+    { name: 'interacting loop and parallel corridors', source: flowchartMultigraph(24), nodes: 24, edges: 75, labels: ['Node 0', 'Node 23', 'transition 0', 'transition 68'] },
+  ])('renders $name without ELK and preserves graph certification', ({ source, nodes, edges, labels }) => {
+    const stages: string[] = []
+    const result = withRenderStageObserver(sample => stages.push(sample.stage), () => renderMermaidSVGWithReceipt(source, AGENTIC))
+    expect(stages).not.toContain('elk')
+    expect(result.receipt.layoutDecisions).toEqual([expect.objectContaining({ selected: 'agentic', attempts: [{ backend: 'agentic', outcome: 'selected' }] })])
+    for (const label of labels) expect(result.svg).toContain(label)
+    const native = measureQuality(layoutMermaidWithReceipt(source, { ...AGENTIC, debug: true }).layout)
+    const reference = measureQuality(layoutMermaidWithReceipt(source, { graphLayout: { backend: 'elk' }, debug: true }).layout)
+    expect(native.nodeCount).toBe(nodes)
+    expect(native.edgeCount).toBe(edges)
+    expect(native.edgeCrossings).toBeLessThanOrEqual(reference.edgeCrossings)
+    expect(native.labelConflicts?.total).toBe(0)
+    expect(native.routeOverlaps?.opposing).toBe(0)
+    expect(native.routeOverlaps?.parallel).toBeLessThanOrEqual(reference.routeOverlaps!.parallel)
+    JSON.stringify(result.receipt)
+  }, 60000)
+
+  test.each(['TD', 'LR', 'BT', 'RL'])('retains State pseudostates, configured bars and notes without ELK in %s', direction => {
+    const source = `stateDiagram-v2\ndirection ${direction}\nstate F <<fork>>\nstate J <<join>>\nstate C <<choice>>\n[*] --> F\nF --> A\nF --> B\nA --> J\nB --> J\nJ --> C\nC --> A: retry\nC --> [*]: done\nnote right of A : keep this note`
+    const options = { ...AGENTIC, mermaidConfig: { state: { forkWidth: 120, forkHeight: 24, fontSize: 22, noteMargin: 50 } } }
+    const stages: string[] = []
+    const result = withRenderStageObserver(sample => stages.push(sample.stage), () => renderMermaidSVGWithReceipt(source, options))
+    const rendered = layoutMermaidWithReceipt(source, { ...options, debug: true })
+    const bars = rendered.layout.nodes.filter(node => node.id === 'F' || node.id === 'J')
+    expect(bars).toHaveLength(2)
+    for (const bar of bars) expect([Number(bar.w), Number(bar.h)]).toEqual(direction === 'LR' || direction === 'RL' ? [24, 120] : [120, 24])
+    expect(stages).not.toContain('elk')
+    expect(result.receipt.layoutDecisions).toEqual([expect.objectContaining({ selected: 'agentic', attempts: [{ backend: 'agentic', outcome: 'selected' }] })])
+    for (const text of ['keep this note', 'retry', 'done', 'font-size="22"']) expect(result.svg).toContain(text)
+    const quality = measureQuality(rendered.layout)
+    expect(quality.minimumNodeSpacing).toBeGreaterThanOrEqual(0)
+    expect(quality.labelConflicts?.total).toBe(0)
+    expect(result.svg).toBe(renderMermaidSVGWithReceipt(source, options).svg)
+    JSON.stringify(result.receipt)
+    JSON.stringify(rendered.receipt)
+  })
+
+  test.each([
+    { name: 'disconnected fan-out', source: 'flowchart TD\nn58 --> n66\nn58 --> n70\nn29 -->|label 37| n16\nn113 -->|label 38| n16', nodes: 6, edges: 4, parallel: undefined, lines: undefined },
+    { name: 'duplicate lanes', source: 'flowchart BT\nn0 --> n6\nn0 -->|edge 4 xxxxxxx| n2\nn0 --> n6', nodes: 3, edges: 3, parallel: ['n0', 'n6'], lines: undefined },
+    { name: 'independent height bands', source: 'flowchart TB\nA[A0<br/>A1<br/>A2<br/>A3<br/>A4<br/>A5<br/>A6<br/>A7] --> B[Branch B]\nA --> C[Branch C]\nD[Root D] --> E[E0<br/>E1<br/>E2<br/>E3<br/>E4<br/>E5<br/>E6<br/>E7]\nD --> F[Branch F]', nodes: 6, edges: 4, parallel: undefined,
+      lines: [['A0', 'A1', 'A2', 'A3', 'A4', 'A5', 'A6', 'A7'], ['Branch B'], ['Branch C'], ['Root D'], ['E0', 'E1', 'E2', 'E3', 'E4', 'E5', 'E6', 'E7'], ['Branch F']] },
+  ])('retains separate label corridors beside $name', ({ source, nodes, edges, parallel, lines }) => {
+    // Reduced public counterexamples: a shared routing proposal must not
+    // replace clear native corridors with crossings through a foreign pill.
+    const result = layoutMermaidWithReceipt(source, { ...AGENTIC, debug: true })
+    const quality = measureQuality(result.layout)
+    expect(quality.nodeCount).toBe(nodes)
+    expect(quality.edgeCount).toBe(edges)
+    expect(quality.edgeCrossings).toBe(0)
+    expect(quality.labelConflicts?.total).toBe(0)
+    if (parallel) {
+      const routes = result.layout.edges.filter(edge => edge.from === parallel[0] && edge.to === parallel[1])
+      expect(routes).toHaveLength(2)
+      expect(routes[0]!.path).not.toEqual(routes[1]!.path)
+    }
+    if (lines) {
+      const rendered = renderMermaidSVGWithReceipt(source, { graphLayout: { backend: 'agentic', fallback: 'none' }, embedFontImport: false })
+      expect(rendered.receipt.layoutCertification?.status).toBe('passed')
+      const { JSDOM } = createRequire(import.meta.url)('jsdom')
+      const dom = new JSDOM(rendered.svg, { contentType: 'image/svg+xml' })
+      try {
+        const document = dom.window.document as Document, cards = [...document.querySelectorAll('g.node')]
+        expect(cards.map(card => card.getAttribute('data-id'))).toEqual(['A', 'B', 'C', 'D', 'E', 'F'])
+        for (const [index, card] of cards.entries()) expect([...card.querySelectorAll('text')].flatMap(text => {
+          const runs = [...text.querySelectorAll('tspan')]
+          return (runs.length ? runs : [text]).map(run => run.textContent?.trim())
+        })).toEqual([...lines[index]!])
+        const carriers = [...document.querySelectorAll('[data-role="edge"][data-from]')]
+        expect(carriers.map(edge => [edge.getAttribute('data-from'), edge.getAttribute('data-to')])).toEqual([['A', 'B'], ['A', 'C'], ['D', 'E'], ['D', 'F']])
+        for (const carrier of carriers) {
+          const points = carrier.getAttribute('points')!.trim().split(/\s+/).map(pair => pair.split(',').map(Number))
+          for (const [id, point, adjacent] of [[carrier.getAttribute('data-from'), points[0]!, points[1]!], [carrier.getAttribute('data-to'), points.at(-1)!, points.at(-2)!]] as const) {
+            const rect = cards.find(card => card.getAttribute('data-id') === id)!.querySelector('rect')!
+            const x = Number(rect.getAttribute('x')), y = Number(rect.getAttribute('y')), width = Number(rect.getAttribute('width')), height = Number(rect.getAttribute('height'))
+            const dx = adjacent[0]! - point[0]!, dy = adjacent[1]! - point[1]!
+            expect(dy === 0 && point[1]! > y && point[1]! < y + height && (Math.abs(point[0]! - x) < 1e-8 && dx < 0 || Math.abs(point[0]! - x - width) < 1e-8 && dx > 0)
+              || dx === 0 && point[0]! > x && point[0]! < x + width && (Math.abs(point[1]! - y) < 1e-8 && dy < 0 || Math.abs(point[1]! - y - height) < 1e-8 && dy > 0)).toBe(true)
+          }
+          const reference = carrier.getAttribute('marker-end')!
+          expect(reference).toMatch(/^url\(#[^)]+\)$/)
+          const marker = document.getElementById(reference.slice(5, -1))!, polygon = marker.querySelector('polygon')!
+          expect(polygon.getAttribute('points')).toBe('0 0, 8 2.5, 0 5')
+          expect(polygon.getAttribute('fill')).toMatch(/^#[0-9a-f]{6}$/i)
+          expect(Number(polygon.getAttribute('stroke-width'))).toBeGreaterThan(0)
+        }
+      } finally { dom.window.close() }
+    }
+    JSON.stringify(result.receipt)
+  })
+
+  test.each([
+    { name: 'nested frames and directions', source: 'flowchart LR\nsubgraph Outer[A wide outer title]\n direction TB\n subgraph Left[Stage One]\n  direction RL\n  A([Begin]) -->|within| B\n end\n subgraph Right[Stage Two]\n  direction BT\n  C --> D{Finish}\n end\n Left -->|handoff| Right\nend\nStart --> Outer --> Done', nodes: 6, groups: 3, edges: 5, frame: 'Outer' },
+    { name: 'State composites and notes', source: 'stateDiagram-v2\ndirection LR\nstate Composite {\n direction BT\n [*] --> A\n A --> [*]: finish\n note right of A : inner note\n}\n[*] --> Composite\nComposite --> Done\nDone --> [*]', nodes: 6, groups: 1, edges: 5, frame: 'Composite' },
+    { name: 'concurrent regions with reciprocal labels', source: 'stateDiagram-v2\n[*] --> Active\nstate Active {\n [*] --> NumLockOff\n NumLockOff --> NumLockOn : EvNumLockPressed\n NumLockOn --> NumLockOff : EvNumLockPressed\n note right of NumLockOff : inner note\n --\n [*] --> CapsLockOff\n CapsLockOff --> CapsLockOn : EvCapsLockPressed\n CapsLockOn --> CapsLockOff : EvCapsLockPressed\n --\n [*] --> ScrollLockOff\n ScrollLockOff --> ScrollLockOn : EvScrollLockPressed\n ScrollLockOn --> ScrollLockOff : EvScrollLockPressed\n}', nodes: 10, groups: 4, edges: 10, frame: 'Active' },
+  ])('retains $name natively without flattening frame endpoints', ({ source, nodes, groups, edges, frame: frameId }) => {
+    const stages: string[] = []
+    const svg = withRenderStageObserver(sample => stages.push(sample.stage), () => renderMermaidSVGWithReceipt(source, AGENTIC))
+    const result = layoutMermaidWithReceipt(source, { ...AGENTIC, debug: true })
+    expect(stages).not.toContain('elk')
+    expect(result.layout.nodes).toHaveLength(nodes)
+    expect(result.layout.groups).toHaveLength(groups)
+    expect(result.layout.edges).toHaveLength(edges)
+    const frame = result.layout.groups.find(group => group.id === frameId)!
+    const entering = result.layout.edges.find(edge => edge.to === frame.id)!
+    expect(entering.to).toBe(frame.id)
+    const [x, y] = entering.path.at(-1)!
+    expect(Math.min(Math.abs(x - frame.x), Math.abs(x - frame.x - frame.w), Math.abs(y - frame.y), Math.abs(y - frame.y - frame.h))).toBeLessThan(0.5)
+    expect(x).toBeGreaterThanOrEqual(frame.x - 0.5)
+    expect(x).toBeLessThanOrEqual(frame.x + frame.w + 0.5)
+    expect(y).toBeGreaterThanOrEqual(frame.y - 0.5)
+    expect(y).toBeLessThanOrEqual(frame.y + frame.h + 0.5)
+    if (groups === 3) {
+      expect(result.layout.groups.find(group => group.id === 'Left')).toMatchObject({ parentId: 'Outer', members: ['A', 'B'] })
+      expect(result.layout.groups.find(group => group.id === 'Right')).toMatchObject({ parentId: 'Outer', members: ['C', 'D'] })
+      expect(svg.svg).toContain('handoff')
+    } else expect(svg.svg).toContain('inner note')
+    const quality = measureQuality(result.layout)
+    expect(quality.edgeCrossings).toBe(0)
+    expect(quality.labelConflicts?.total).toBe(0)
+    expect(quality.routeOverlaps?.opposing).toBe(0)
+    expect(result.receipt.layoutDecisions).toEqual([expect.objectContaining({ selected: 'agentic' })])
+    expect(layoutGraphSync(parseFlowchart(source), AGENTIC).certification).toMatchObject({ status: 'passed', hardViolations: 0 })
+    JSON.stringify(svg.receipt)
+    JSON.stringify(result.receipt)
+  })
+
+  test.each([
+    ['Flowchart', 'flowchart TB\nsubgraph One[Team One]\n A[Source] --> B[Review]\nend\nsubgraph Two[Team Two]\n C[Target] --> D[Finish]\nend\nB -->|handoff| C'],
+    ['State', 'stateDiagram-v2\nstate One {\nA --> B\n}\nstate Two {\nC --> D\n}\nB --> C : handoff'],
+  ])('preserves %s cross-scope leaf relationships across public surfaces', (_family, source) => {
+    const parsed = parseMermaid(source)
+    if (!parsed.ok) throw new Error('cross-scope example must parse')
+    const stages: string[] = []
+    const svg = withRenderStageObserver(sample => stages.push(sample.stage), () => renderMermaidSVGWithReceipt(source, AGENTIC))
+    const result = layoutMermaidWithReceipt(source, AGENTIC)
+    expect(stages).not.toContain('elk')
+    expect(result.layout.nodes.map(node => node.id).sort()).toEqual(['A', 'B', 'C', 'D'])
+    expect(result.layout.groups.map(group => [group.id, group.members])).toEqual([['One', ['A', 'B']], ['Two', ['C', 'D']]])
+    expect(result.layout.edges.map(edge => [edge.from, edge.to])).toEqual([['A', 'B'], ['C', 'D'], ['B', 'C']])
+    expect(svg.svg).toContain('handoff')
+    expect(svg.receipt.layoutCertification?.status).toBe('passed')
+    expect(renderMermaidSVGWithReceipt(parsed.value, AGENTIC).svg).toBe(svg.svg)
+    expect(renderMermaidPNGWithReceipt(source, AGENTIC).receipt.layoutDecisions).toEqual(svg.receipt.layoutDecisions)
+    expect(result.receipt.layoutDecisions).toEqual(svg.receipt.layoutDecisions)
+    expect(renderMermaidASCIIWithReceipt(source, AGENTIC).receipt.layoutDecisions).toEqual([expect.objectContaining({ selected: 'agentic', role: 'companion' })])
+    const quality = measureQuality(result.layout)
+    expect(quality.edgeCrossings).toBe(0)
+    expect(quality.labelConflicts?.total).toBe(0)
+    expect(quality.routeOverlaps).toMatchObject({ opposing: 0, parallel: 0 })
+  })
+
+  test('routes the large grouped workload without a dense visibility grid or ELK', () => {
+    const source = flowchartSubgraphs(12, 8)
+    const model = parseFlowchart(source), stages: string[] = []
+    const svg = withRenderStageObserver(sample => stages.push(sample.stage), () => renderMermaidSVGWithReceipt(source, AGENTIC))
+    expect(stages).not.toContain('elk')
+    const result = layoutMermaidWithReceipt(source, AGENTIC)
+    expect(result.layout.nodes).toHaveLength(96)
+    expect(result.layout.groups).toHaveLength(12)
+    expect(result.layout.groups.every(group => group.members.length === 8)).toBe(true)
+    expect(result.layout.edges.map(edge => [edge.from, edge.to])).toEqual(model.edges.map(edge => [edge.source, edge.target]))
+    expect(svg.receipt.layoutCertification?.status).toBe('passed')
+    const quality = measureQuality(result.layout)
+    expect(quality.edgeCrossings).toBe(0)
+    expect(quality.labelConflicts?.total).toBe(0)
+    expect(quality.routeOverlaps).toMatchObject({ opposing: 0, parallel: 0 })
+    const terminal = renderMermaidASCIIWithReceipt(source, AGENTIC)
+    expect(terminal.text.length).toBeGreaterThan(0)
+    expect(terminal.receipt.layoutDecisions).toEqual([expect.objectContaining({ selected: 'agentic', role: 'companion' })])
+  })
+
+  test.each(['TB', 'BT', 'LR', 'RL'] as const)('routes to and from a nested frame in %s without substituting a child', direction => {
+    for (const [from, to] of [['Outside', 'Inner'], ['Inner', 'Outside']]) {
+      const source = `flowchart ${direction}\nsubgraph Outer\n subgraph Inner\n  A --> B\n end\nend\n${from} --> ${to}`
+      const rendered = renderMermaidSVGWithReceipt(source, AGENTIC)
+      const result = layoutMermaidWithReceipt(source, { ...AGENTIC, debug: true })
+      expect(result.layout.edges).toHaveLength(2)
+      expect(result.layout.edges.find(edge => edge.from === from && edge.to === to)).toBeDefined()
+      expect(result.layout.groups.find(group => group.id === 'Inner')).toMatchObject({ parentId: 'Outer', members: ['A', 'B'] })
+      expect(rendered.receipt.layoutDecisions).toEqual([expect.objectContaining({ selected: 'agentic', fallback: 'none' })])
+      expect(result.layout.paintCertification?.status).toBe('passed')
+    }
+  })
+
+  test.each(['flowchart', 'state'].flatMap(family => ['TD', 'LR'].flatMap(direction => [
+    { family, direction, from: 'Outer', to: 'A', label: 'enters' },
+    { family, direction, from: 'A', to: 'Outer', label: 'returns' },
+  ])))('retains an authored containing-frame contact $from->$to in $family $direction', ({ family, direction, from, to, label }) => {
+    const source = family === 'flowchart' ? `flowchart ${direction}\nsubgraph Outer\n subgraph Inner\n  A --> B\n end\nend\n${from} -->|${label}| ${to}`
+      : `stateDiagram-v2\n direction ${direction === 'TD' ? 'TB' : direction}\nstate Outer {\n state Inner {\n  A --> B\n }\n}\n${from} --> ${to} : ${label}`
+    const stages: string[] = []
+    const rendered = withRenderStageObserver(sample => stages.push(sample.stage), () => renderMermaidSVGWithReceipt(source, AGENTIC))
+    expect(stages).not.toContain('elk')
+    expect(rendered.receipt.layoutDecisions?.[0]).toMatchObject({ selected: 'agentic', fallback: 'none' })
+    expect(rendered.receipt.layoutCertification?.status).toBe('passed')
+    expect(rendered.svg).toContain(label)
+    expect(renderMermaidSVGWithReceipt(source, AGENTIC).svg).toBe(rendered.svg)
+    const result = layoutMermaidWithReceipt(source, { ...AGENTIC, debug: true })
+    expect(result.layout.edges.map(edge => [edge.from, edge.to])).toEqual([['A', 'B'], [from, to]])
+    expect(result.layout.groups.find(group => group.id === 'Inner')).toMatchObject({ parentId: 'Outer', members: ['A', 'B'] })
+    expect(result.layout.paintCertification?.status).toBe('passed')
+  })
+
+  test('declines the explicit private-rank cap and attributes a requested ELK fallback consistently across cache states', () => {
+    const compound = RANK_CAP_SOURCE
+    expect(() => renderMermaidSVGWithReceipt(compound, AGENTIC)).toThrow(GraphLayoutUnsupportedError)
+    clearElkLayoutCache()
+    const diagnostics: unknown[] = []
+    const options = { ...FALLBACK, onConfigDiagnostic: (value: unknown) => diagnostics.push(value) }
+    const first = renderMermaidSVGWithReceipt(compound, options)
+    const again = renderMermaidSVGWithReceipt(compound, options)
+    expect(again.svg).toBe(first.svg)
+    expect(again.receipt).toEqual(first.receipt)
+    expect(first.receipt.layoutDecisions).toEqual([expect.objectContaining({
+      requested: 'agentic', selected: 'elk', fallback: 'elk', role: 'primary',
+      attempts: [expect.objectContaining({ backend: 'agentic', outcome: 'unsupported', reason: 'agentic local rank-expansion limit' }), { backend: 'elk', outcome: 'selected' }],
+    })])
+    expect(first.receipt.diagnostics).toContainEqual(expect.objectContaining({ code: 'GRAPH_LAYOUT_FALLBACK' }))
+    expect(diagnostics).toHaveLength(2)
+    expect(diagnostics[0]).toMatchObject({ field: 'graphLayout.backend', code: 'INEFFECTIVE_CONFIG' })
+    const verified = verifyMermaid(compound, { renderOptions: AGENTIC })
+    expect(verified.warnings).toContainEqual(expect.objectContaining({ code: 'RENDER_FAILED', origin: 'config' }))
+    expect(verified.warnings.some(warning => warning.code === 'INTERNAL_ERROR')).toBe(false)
+  })
+
+  test.each([
+    ['flowchart', RANK_CAP_SOURCE],
+  ])('never silently uses ELK for a strict Agentic %s request', (_family, source) => {
+    expect(() => renderMermaidSVGWithReceipt(source, AGENTIC)).toThrow(GraphLayoutUnsupportedError)
+    const result = renderMermaidSVGWithReceipt(source, FALLBACK)
+    expect(result.receipt.layoutDecisions).toHaveLength(1)
+    expect(result.receipt.layoutDecisions?.[0]).toMatchObject({ requested: 'agentic', selected: 'elk', fallback: 'elk' })
+    expect(result.receipt.layoutDecisions?.[0]?.attempts[0]).toMatchObject({ reason: 'agentic local rank-expansion limit' })
+  })
+
+  test('keeps terminal-cell layout independent and classifies optional companion execution', () => {
+    const source = 'classDiagram\n class Duck'
+    const stages: string[] = []
+    const rendered = withRenderStageObserver(sample => stages.push(sample.stage), () => {
+      const value = renderMermaidASCIIWithReceipt(source, AGENTIC)
+      expect(value.text).toContain('Duck')
+      JSON.stringify(value.receipt)
+      return value
+    })
+    expect(stages).not.toContain('elk')
+    expect(stages).toContain('agentic')
+    expect(rendered.text).toBe(renderMermaidASCIIWithReceipt(source).text)
+    expect(rendered.receipt.layoutDecisions).toEqual([expect.objectContaining({ requested: 'agentic', selected: 'agentic', role: 'companion' })])
+    const fallback = renderMermaidASCIIWithReceipt(source, FALLBACK)
+    expect(fallback.receipt.layoutDecisions).toEqual([expect.objectContaining({ requested: 'agentic', selected: 'agentic', role: 'companion' })])
+    const architecture = 'architecture-beta\ngroup g[Group]\n service a(server)[A] in g'
+    const projected = renderMermaidASCIIWithReceipt(architecture, AGENTIC)
+    expect(projected.text).toContain('Group')
+    expect(projected.receipt.layoutDecisions).toEqual([
+      expect.objectContaining({ selected: 'agentic', role: 'primary' }),
+      expect.objectContaining({ selected: 'agentic', role: 'companion' }),
+    ])
+  })
+
+  test('diagnoses nonapplicable families without claiming graph execution', () => {
+    const rendered = renderMermaidSVGWithReceipt('sequenceDiagram\n A->>B: Hello', AGENTIC)
+    expect(rendered.receipt.layoutDecisions).toBeUndefined()
+    expect(rendered.receipt.diagnostics).toContainEqual(expect.objectContaining({ code: 'RENDER_OPTION_NOT_APPLICABLE', feature: 'render-option:graphLayout' }))
+  })
+
+  test('CLI convenience flags use the same checked graph option and receipt', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'am-layout-'))
+    const path = join(dir, 'diagram.mmd')
+    try {
+      writeFileSync(path, SOURCE)
+      const result = captureCli(() => runCli(['render', path, '--graph-layout', 'agentic', '--json']))
+      expect(result.code).toBe(0)
+      expect(JSON.parse(result.out).receipt.layoutDecisions[0]).toMatchObject({ requested: 'agentic', selected: 'agentic' })
+      const invalid = captureCli(() => runCli(['render', path, '--graph-layout', 'elk', '--graph-layout-fallback', 'elk']))
+      expect(invalid.code).toBe(2)
+    } finally { rmSync(dir, { recursive: true, force: true }) }
+  })
+})

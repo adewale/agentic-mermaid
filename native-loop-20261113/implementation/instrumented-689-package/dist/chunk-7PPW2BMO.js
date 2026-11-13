@@ -1,0 +1,2 @@
+var r="1.4.0";function i(n=process.versions.bun){if(n===void 0)return void 0;const u=/^(\d+)\.(\d+)\.(\d+)/.exec(n);const d=r.split(".").map(Number);if(u){const t=[1,2,3].map(e=>Number(u[e])-d[e-1]).find(e=>e!==0)??0;if(t>=0)return void 0}return`Code Mode requires Bun ${r} or later (found ${n}): earlier Bun mishandles node:vm timeouts, which can hang or crash the server. Run \`bun upgrade\`.`}export{i as a};
+//# sourceMappingURL=chunk-7PPW2BMO.js.map

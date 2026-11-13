@@ -1,0 +1,30 @@
+$ bun run typecheck:core && bun run typecheck:repo
+$ tsc --noEmit -p tsconfig.json
+$ bun eval/trident/prepare.ts && tsc --noEmit -p tsconfig.repo.json
+19 | export function prepareTrident(): string {
+20 |   const config = JSON.parse(readFileSync(join(root, 'eval/trident/config.json'), 'utf8')) as { repository: string; revision: string }
+21 |   if (!/^[a-f0-9]{40}$/.test(config.revision) || config.repository !== 'https://github.com/adewale/trident.git') throw Error('Invalid pinned Trident configuration')
+22 |   const explicit = process.env.TRIDENT_ROOT
+23 |   const trident = resolve(explicit ?? join(root, 'bench-report/.trident', config.revision))
+24 |   const git = (values: string[]) => execFileSync('git', values, { cwd: trident, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }).trim()
+                                         ^
+error: Command failed: git fetch --depth=1 origin f080278e31e4202ca89d524e4ee9e4cf3cbff038
+fatal: unable to access 'https://github.com/adewale/trident.git/': Failed to connect to proxy port 8080 after 0 ms: Could not connect to server
+
+ signal: null,
+ status: 128,
+ output: [ null, "", "fatal: unable to access 'https://github.com/adewale/trident.git/': Failed to connect to proxy port 8080 after 0 ms: Could not connect to server\n" ],
+    pid: 35811,
+ stdout: "",
+ stderr: "fatal: unable to access 'https://github.com/adewale/trident.git/': Failed to connect to proxy port 8080 after 0 ms: Could not connect to server\n",
+
+      at genericNodeError (node:child_process:1097:13)
+      at checkExecSyncError (node:child_process:504:27)
+      at execFileSync (node:child_process:301:31)
+      at git (/workspace/agentic-mermaid/eval/trident/prepare.ts:24:37)
+      at prepareTrident (/workspace/agentic-mermaid/eval/trident/prepare.ts:33:5)
+      at /workspace/agentic-mermaid/eval/trident/prepare.ts:64:35
+
+Bun v1.4.4 (Linux x64)
+error: script "typecheck:repo" exited with code 1
+error: script "typecheck" exited with code 1

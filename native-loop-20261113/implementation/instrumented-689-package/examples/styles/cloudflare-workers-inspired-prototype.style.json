@@ -1,0 +1,110 @@
+{
+  "$schema": "https://agentic-mermaid.dev/schemas/style-spec.schema.json",
+  "formatVersion": 1,
+  "name": "look:cloudflare-workers-inspired-prototype",
+  "blurb": "Documentation-only Cloudflare Workers-inspired prototype exercising public role styles, Gantt category bindings, non-color cues, and inspect-only constraints; not built in or endorsed.",
+  "colors": {
+    "bg": "#f5f1eb",
+    "fg": "#521000",
+    "line": "#835446",
+    "accent": "#ff4801",
+    "muted": "#835446",
+    "surface": "#fffbf5",
+    "border": "#ebd5c1"
+  },
+  "font": "Inter",
+  "stroke": "crisp",
+  "strokeWidth": 1.25,
+  "intent": "premium",
+  "roles": {
+    "node": {
+      "fontSize": 13,
+      "fontWeight": 500,
+      "paddingX": 22,
+      "paddingY": 12,
+      "cornerRadius": 8,
+      "lineWidth": 1,
+      "fillColor": "#fffbf5",
+      "borderColor": "#ebd5c1",
+      "textColor": "#521000"
+    },
+    "edge": {
+      "fontSize": 11,
+      "fontWeight": 400,
+      "letterSpacing": 0.1,
+      "lineWidth": 1.25,
+      "bendRadius": 10,
+      "strokeColor": "#835446",
+      "textColor": "#835446"
+    },
+    "group": {
+      "fontFamily": "Share Tech Mono",
+      "fontSize": 11,
+      "fontWeight": 400,
+      "letterSpacing": 0.6,
+      "textTransform": "uppercase",
+      "paddingX": 18,
+      "paddingY": 18,
+      "cornerRadius": 12,
+      "lineWidth": 1,
+      "fillColor": "rgba(255,72,1,0.04)",
+      "headerFillColor": "rgba(255,72,1,0.08)",
+      "borderColor": "#ebd5c1",
+      "textColor": "#835446"
+    },
+    "label": {
+      "fontSize": 11,
+      "fontWeight": 400,
+      "letterSpacing": 0.1,
+      "textColor": "#835446"
+    },
+    "group-header": {
+      "fontFamily": "Share Tech Mono",
+      "fontSize": 11,
+      "fontWeight": 700,
+      "letterSpacing": 0.5,
+      "textTransform": "uppercase",
+      "textColor": "#521000",
+      "fillColor": "rgba(255,72,1,0.08)",
+      "borderColor": "#ebd5c1",
+      "lineWidth": 1
+    },
+    "task": {
+      "fillColor": "#fff0e8",
+      "borderColor": "#c2410c",
+      "lineWidth": 1.5,
+      "cue": "outline"
+    },
+    "milestone": {
+      "fillColor": "#ff4801",
+      "borderColor": "#8a2600",
+      "lineWidth": 2,
+      "cue": "pattern"
+    }
+  },
+  "semanticSlots": {
+    "edge-work": {
+      "fillColor": "#fff0e8",
+      "borderColor": "#c2410c",
+      "strokeColor": "#c2410c",
+      "lineWidth": 1.5,
+      "cue": "outline"
+    },
+    "runtime-work": {
+      "fillColor": "#ff4801",
+      "borderColor": "#8a2600",
+      "strokeColor": "#8a2600",
+      "lineWidth": 2,
+      "cue": "pattern"
+    }
+  },
+  "bindings": [
+    { "channel": "category", "value": "Edge", "slot": "edge-work", "role": "task" },
+    { "channel": "category", "value": "Runtime", "slot": "runtime-work", "role": "task" },
+    { "channel": "category", "value": "Runtime", "slot": "runtime-work", "role": "milestone" }
+  ],
+  "constraints": [
+    { "kind": "contrast", "action": "warn", "minimum": 4.5 },
+    { "kind": "accent-area", "action": "warn", "maxFraction": 0.35 }
+  ]
+}

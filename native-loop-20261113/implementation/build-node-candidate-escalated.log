@@ -1,0 +1,28 @@
+CLI Building entry: {"index":"/workspace/pr449-native-loop-20261113/implementation/node-candidate-axis/src/index.ts","agent-core":"/workspace/pr449-native-loop-20261113/implementation/node-candidate-axis/src/agent/core.ts","elk-constructor":"/workspace/pr449-native-loop-20261113/implementation/node-candidate-axis/src/elk-constructor.ts","builtin-font-metrics":"/workspace/pr449-native-loop-20261113/implementation/node-candidate-axis/src/builtin-font-metrics.ts","builtin-font-metrics.node":"/workspace/pr449-native-loop-20261113/implementation/node-candidate-axis/src/builtin-font-metrics.node.ts","layout-optimization":"/workspace/pr449-native-loop-20261113/implementation/node-candidate-axis/src/layout/optimization-context.ts","layout-optimization.node":"/workspace/pr449-native-loop-20261113/implementation/node-candidate-axis/src/layout/optimization-context.node.ts"}
+CLI Using tsconfig: tsconfig.json
+CLI tsup v8.5.1
+CLI Target: es2022
+ESM Build start
+ESM dist/builtin-font-metrics.node.js     377.00 B
+ESM dist/layout-optimization.js           181.00 B
+ESM dist/layout-optimization.node.js      224.00 B
+ESM dist/chunk-VUFVLGTH.js                150.00 B
+ESM dist/elk-constructor.js               162.00 B
+ESM dist/chunk-H77JNERV.js                137.00 B
+ESM dist/builtin-font-metrics.js          348.00 B
+ESM dist/chunk-Z7QFUOYN.js                21.52 KB
+ESM dist/index.js                         6.92 KB
+ESM dist/agent-core.js                    155.86 KB
+ESM dist/chunk-VUFVLGTH.js.map            71.00 B
+ESM dist/builtin-font-metrics.js.map      1015.00 B
+ESM dist/chunk-H77JNERV.js.map            802.00 B
+ESM dist/layout-optimization.node.js.map  775.00 B
+ESM dist/elk-constructor.js.map           772.00 B
+ESM dist/builtin-font-metrics.node.js.map 1.13 KB
+ESM dist/layout-optimization.js.map       559.00 B
+ESM dist/chunk-UAK6G2JV.js                3.55 MB
+ESM dist/index.js.map                     71.00 B
+ESM dist/chunk-Z7QFUOYN.js.map            103.10 KB
+ESM dist/agent-core.js.map                612.54 KB
+ESM dist/chunk-UAK6G2JV.js.map            14.25 MB
+ESM ⚡️ Build success in 1410ms

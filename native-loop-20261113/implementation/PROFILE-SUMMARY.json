@@ -1,0 +1,2553 @@
+{
+  "chain100": {
+    "renders": 10,
+    "totalMs": 1648.963,
+    "self": [
+      {
+        "function": "post",
+        "file": "node:inspector",
+        "line": 115,
+        "msPerRender": 30.116,
+        "pct": 18.26,
+        "samples": 12
+      },
+      {
+        "function": "_",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 1,
+        "msPerRender": 11.991,
+        "pct": 7.27,
+        "samples": 400
+      },
+      {
+        "function": "ZO",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 10,
+        "msPerRender": 3.744,
+        "pct": 2.27,
+        "samples": 138
+      },
+      {
+        "function": "T",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 1,
+        "msPerRender": 3.082,
+        "pct": 1.87,
+        "samples": 98
+      },
+      {
+        "function": "Oo",
+        "file": "chunk-46NR7W2P.js",
+        "line": 18,
+        "msPerRender": 3.07,
+        "pct": 1.86,
+        "samples": 103
+      },
+      {
+        "function": "(garbage collector)",
+        "file": "",
+        "line": 0,
+        "msPerRender": 2.955,
+        "pct": 1.79,
+        "samples": 98
+      },
+      {
+        "function": "mM",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 1,
+        "msPerRender": 2.833,
+        "pct": 1.72,
+        "samples": 93
+      },
+      {
+        "function": "",
+        "file": "chunk-46NR7W2P.js",
+        "line": 1,
+        "msPerRender": 2.555,
+        "pct": 1.55,
+        "samples": 86
+      },
+      {
+        "function": "u",
+        "file": "chunk-46NR7W2P.js",
+        "line": 1,
+        "msPerRender": 2.386,
+        "pct": 1.45,
+        "samples": 80
+      },
+      {
+        "function": "eF",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 10,
+        "msPerRender": 2.003,
+        "pct": 1.21,
+        "samples": 72
+      },
+      {
+        "function": "attribute",
+        "file": "chunk-46NR7W2P.js",
+        "line": 1,
+        "msPerRender": 1.94,
+        "pct": 1.18,
+        "samples": 66
+      },
+      {
+        "function": "",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 10,
+        "msPerRender": 1.845,
+        "pct": 1.12,
+        "samples": 65
+      },
+      {
+        "function": "leaf",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 1,
+        "msPerRender": 1.376,
+        "pct": 0.83,
+        "samples": 47
+      },
+      {
+        "function": "d",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 1,
+        "msPerRender": 1.355,
+        "pct": 0.82,
+        "samples": 45
+      },
+      {
+        "function": "Un",
+        "file": "chunk-46NR7W2P.js",
+        "line": 1,
+        "msPerRender": 1.349,
+        "pct": 0.82,
+        "samples": 48
+      },
+      {
+        "function": "c",
+        "file": "chunk-46NR7W2P.js",
+        "line": 1,
+        "msPerRender": 1.244,
+        "pct": 0.75,
+        "samples": 39
+      },
+      {
+        "function": "pg",
+        "file": "chunk-46NR7W2P.js",
+        "line": 1,
+        "msPerRender": 1.224,
+        "pct": 0.74,
+        "samples": 42
+      },
+      {
+        "function": "F0",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 32,
+        "msPerRender": 1.212,
+        "pct": 0.73,
+        "samples": 43
+      },
+      {
+        "function": "write",
+        "file": "chunk-46NR7W2P.js",
+        "line": 22,
+        "msPerRender": 1.168,
+        "pct": 0.71,
+        "samples": 40
+      },
+      {
+        "function": "rn",
+        "file": "chunk-46NR7W2P.js",
+        "line": 54,
+        "msPerRender": 1.099,
+        "pct": 0.67,
+        "samples": 38
+      },
+      {
+        "function": "K",
+        "file": "chunk-46NR7W2P.js",
+        "line": 1,
+        "msPerRender": 1.094,
+        "pct": 0.66,
+        "samples": 38
+      },
+      {
+        "function": "dt",
+        "file": "chunk-46NR7W2P.js",
+        "line": 1,
+        "msPerRender": 1.094,
+        "pct": 0.66,
+        "samples": 39
+      },
+      {
+        "function": "r",
+        "file": "chunk-46NR7W2P.js",
+        "line": 1,
+        "msPerRender": 1.075,
+        "pct": 0.65,
+        "samples": 36
+      },
+      {
+        "function": "",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 1,
+        "msPerRender": 1.01,
+        "pct": 0.61,
+        "samples": 34
+      },
+      {
+        "function": "hM",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 1,
+        "msPerRender": 0.921,
+        "pct": 0.56,
+        "samples": 30
+      },
+      {
+        "function": "Ci",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 10,
+        "msPerRender": 0.912,
+        "pct": 0.55,
+        "samples": 33
+      },
+      {
+        "function": "",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 29,
+        "msPerRender": 0.889,
+        "pct": 0.54,
+        "samples": 31
+      },
+      {
+        "function": "li",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 10,
+        "msPerRender": 0.885,
+        "pct": 0.54,
+        "samples": 32
+      },
+      {
+        "function": "Te",
+        "file": "chunk-46NR7W2P.js",
+        "line": 1,
+        "msPerRender": 0.879,
+        "pct": 0.53,
+        "samples": 29
+      },
+      {
+        "function": "Un",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 1,
+        "msPerRender": 0.878,
+        "pct": 0.53,
+        "samples": 30
+      },
+      {
+        "function": "check",
+        "file": "chunk-46NR7W2P.js",
+        "line": 1,
+        "msPerRender": 0.877,
+        "pct": 0.53,
+        "samples": 32
+      },
+      {
+        "function": "P",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 1,
+        "msPerRender": 0.875,
+        "pct": 0.53,
+        "samples": 28
+      },
+      {
+        "function": "Af",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 10,
+        "msPerRender": 0.871,
+        "pct": 0.53,
+        "samples": 31
+      },
+      {
+        "function": "xm",
+        "file": "chunk-46NR7W2P.js",
+        "line": 1,
+        "msPerRender": 0.848,
+        "pct": 0.51,
+        "samples": 29
+      },
+      {
+        "function": "group",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 12,
+        "msPerRender": 0.844,
+        "pct": 0.51,
+        "samples": 26
+      },
+      {
+        "function": "",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 12,
+        "msPerRender": 0.837,
+        "pct": 0.51,
+        "samples": 27
+      },
+      {
+        "function": "kr",
+        "file": "chunk-46NR7W2P.js",
+        "line": 54,
+        "msPerRender": 0.826,
+        "pct": 0.5,
+        "samples": 28
+      },
+      {
+        "function": "ao",
+        "file": "chunk-46NR7W2P.js",
+        "line": 1,
+        "msPerRender": 0.754,
+        "pct": 0.46,
+        "samples": 26
+      },
+      {
+        "function": "Eb",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 10,
+        "msPerRender": 0.751,
+        "pct": 0.46,
+        "samples": 27
+      },
+      {
+        "function": "Id",
+        "file": "chunk-46NR7W2P.js",
+        "line": 1,
+        "msPerRender": 0.749,
+        "pct": 0.45,
+        "samples": 24
+      },
+      {
+        "function": "An",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 10,
+        "msPerRender": 0.712,
+        "pct": 0.43,
+        "samples": 22
+      },
+      {
+        "function": "Qd",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 10,
+        "msPerRender": 0.698,
+        "pct": 0.42,
+        "samples": 19
+      },
+      {
+        "function": "aa",
+        "file": "chunk-46NR7W2P.js",
+        "line": 1,
+        "msPerRender": 0.68,
+        "pct": 0.41,
+        "samples": 18
+      },
+      {
+        "function": "OF",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 10,
+        "msPerRender": 0.676,
+        "pct": 0.41,
+        "samples": 24
+      },
+      {
+        "function": "ca",
+        "file": "chunk-46NR7W2P.js",
+        "line": 1,
+        "msPerRender": 0.675,
+        "pct": 0.41,
+        "samples": 22
+      },
+      {
+        "function": "pO",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 10,
+        "msPerRender": 0.659,
+        "pct": 0.4,
+        "samples": 25
+      },
+      {
+        "function": "c",
+        "file": "chunk-46NR7W2P.js",
+        "line": 16,
+        "msPerRender": 0.652,
+        "pct": 0.4,
+        "samples": 22
+      },
+      {
+        "function": "Mre",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 33,
+        "msPerRender": 0.646,
+        "pct": 0.39,
+        "samples": 20
+      },
+      {
+        "function": "Yl",
+        "file": "chunk-46NR7W2P.js",
+        "line": 1,
+        "msPerRender": 0.623,
+        "pct": 0.38,
+        "samples": 21
+      },
+      {
+        "function": "parts",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 1,
+        "msPerRender": 0.615,
+        "pct": 0.37,
+        "samples": 21
+      }
+    ],
+    "inclusive": [
+      {
+        "function": "(root)",
+        "file": "",
+        "line": 0,
+        "msPerRender": 164.896,
+        "pct": 100.0,
+        "samples": 0
+      },
+      {
+        "function": "",
+        "file": "receipt-worker.mjs",
+        "line": 0,
+        "msPerRender": 161.909,
+        "pct": 98.19,
+        "samples": 1
+      },
+      {
+        "function": "consume",
+        "file": "receipt-worker.mjs",
+        "line": 19,
+        "msPerRender": 131.528,
+        "pct": 79.76,
+        "samples": 13
+      },
+      {
+        "function": "",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 13,
+        "msPerRender": 131.124,
+        "pct": 79.52,
+        "samples": 2
+      },
+      {
+        "function": "VK",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 13,
+        "msPerRender": 129.77,
+        "pct": 78.7,
+        "samples": 0
+      },
+      {
+        "function": "Vb",
+        "file": "chunk-46NR7W2P.js",
+        "line": 1,
+        "msPerRender": 129.77,
+        "pct": 78.7,
+        "samples": 0
+      },
+      {
+        "function": "zwe",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 13,
+        "msPerRender": 129.77,
+        "pct": 78.7,
+        "samples": 0
+      },
+      {
+        "function": "rq",
+        "file": "chunk-TJNJ4CWB.js",
+        "line": 215,
+        "msPerRender": 129.77,
+        "pct": 78.7,
+        "samples": 0
+      },
+      {
+        "function": "XK",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 13,
+        "msPerRender": 127.6,
+        "pct": 77.38,
+        "samples": 0
+      },
+      {
+        "function": "KK",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 13,
+        "msPerRender": 127.6,
+        "pct": 77.38,
+        "samples": 0
+      },
+      {
+        "function": "Y",
+        "file": "chunk-YASALRXB.js",
+        "line": 1,
+        "msPerRender": 127.515,
+        "pct": 77.33,
+        "samples": 0
+      },
+      {
+        "function": "Ii",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 6,
+        "msPerRender": 125.772,
+        "pct": 76.27,
+        "samples": 1
+      },
+      {
+        "function": "UK",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 13,
+        "msPerRender": 97.693,
+        "pct": 59.25,
+        "samples": 3
+      },
+      {
+        "function": "Bb",
+        "file": "chunk-46NR7W2P.js",
+        "line": 1,
+        "msPerRender": 97.693,
+        "pct": 59.25,
+        "samples": 0
+      },
+      {
+        "function": "qK",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 13,
+        "msPerRender": 97.693,
+        "pct": 59.25,
+        "samples": 0
+      },
+      {
+        "function": "YK",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 13,
+        "msPerRender": 97.693,
+        "pct": 59.25,
+        "samples": 0
+      },
+      {
+        "function": "",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 12,
+        "msPerRender": 93.263,
+        "pct": 56.56,
+        "samples": 27
+      },
+      {
+        "function": "jF",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 12,
+        "msPerRender": 73.82,
+        "pct": 44.77,
+        "samples": 2
+      },
+      {
+        "function": "MP",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 13,
+        "msPerRender": 73.82,
+        "pct": 44.77,
+        "samples": 0
+      },
+      {
+        "function": "HF",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 12,
+        "msPerRender": 73.762,
+        "pct": 44.73,
+        "samples": 2
+      },
+      {
+        "function": "Hx",
+        "file": "chunk-46NR7W2P.js",
+        "line": 1,
+        "msPerRender": 63.413,
+        "pct": 38.46,
+        "samples": 0
+      },
+      {
+        "function": "JR",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 33,
+        "msPerRender": 63.328,
+        "pct": 38.4,
+        "samples": 14
+      },
+      {
+        "function": "leaf",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 1,
+        "msPerRender": 40.333,
+        "pct": 24.46,
+        "samples": 47
+      },
+      {
+        "function": "Mre",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 33,
+        "msPerRender": 37.962,
+        "pct": 23.02,
+        "samples": 20
+      },
+      {
+        "function": "u",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 12,
+        "msPerRender": 36.649,
+        "pct": 22.23,
+        "samples": 10
+      },
+      {
+        "function": "post",
+        "file": "node:inspector",
+        "line": 115,
+        "msPerRender": 30.261,
+        "pct": 18.35,
+        "samples": 12
+      },
+      {
+        "function": "",
+        "file": "util",
+        "line": 478,
+        "msPerRender": 30.261,
+        "pct": 18.35,
+        "samples": 0
+      },
+      {
+        "function": "fn",
+        "file": "util",
+        "line": 477,
+        "msPerRender": 30.261,
+        "pct": 18.35,
+        "samples": 0
+      },
+      {
+        "function": "BF",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 12,
+        "msPerRender": 29.907,
+        "pct": 18.14,
+        "samples": 1
+      },
+      {
+        "function": "_F",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 12,
+        "msPerRender": 29.907,
+        "pct": 18.14,
+        "samples": 0
+      },
+      {
+        "function": "w",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 12,
+        "msPerRender": 29.822,
+        "pct": 18.09,
+        "samples": 0
+      },
+      {
+        "function": "layout",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 34,
+        "msPerRender": 28.047,
+        "pct": 17.01,
+        "samples": 1
+      },
+      {
+        "function": "Zx",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 6,
+        "msPerRender": 28.047,
+        "pct": 17.01,
+        "samples": 0
+      },
+      {
+        "function": "",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 32,
+        "msPerRender": 24.963,
+        "pct": 15.14,
+        "samples": 4
+      },
+      {
+        "function": "vH",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 32,
+        "msPerRender": 24.963,
+        "pct": 15.14,
+        "samples": 0
+      },
+      {
+        "function": "CO",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 10,
+        "msPerRender": 24.963,
+        "pct": 15.14,
+        "samples": 0
+      },
+      {
+        "function": "Ta",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 32,
+        "msPerRender": 24.963,
+        "pct": 15.14,
+        "samples": 0
+      },
+      {
+        "function": "Eo",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 6,
+        "msPerRender": 24.936,
+        "pct": 15.12,
+        "samples": 0
+      },
+      {
+        "function": "gre",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 32,
+        "msPerRender": 24.936,
+        "pct": 15.12,
+        "samples": 0
+      },
+      {
+        "function": "YG",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 29,
+        "msPerRender": 24.88,
+        "pct": 15.09,
+        "samples": 0
+      },
+      {
+        "function": "UG",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 29,
+        "msPerRender": 24.88,
+        "pct": 15.09,
+        "samples": 0
+      },
+      {
+        "function": "Sre",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 33,
+        "msPerRender": 24.109,
+        "pct": 14.62,
+        "samples": 13
+      },
+      {
+        "function": "connector",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 12,
+        "msPerRender": 23.529,
+        "pct": 14.27,
+        "samples": 19
+      },
+      {
+        "function": "Ph",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 29,
+        "msPerRender": 22.213,
+        "pct": 13.47,
+        "samples": 0
+      },
+      {
+        "function": "ate",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 29,
+        "msPerRender": 22.213,
+        "pct": 13.47,
+        "samples": 0
+      },
+      {
+        "function": "G",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 1,
+        "msPerRender": 21.049,
+        "pct": 12.76,
+        "samples": 4
+      },
+      {
+        "function": "write",
+        "file": "chunk-46NR7W2P.js",
+        "line": 22,
+        "msPerRender": 20.867,
+        "pct": 12.65,
+        "samples": 40
+      },
+      {
+        "function": "project",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 29,
+        "msPerRender": 20.791,
+        "pct": 12.61,
+        "samples": 4
+      },
+      {
+        "function": "GR",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 32,
+        "msPerRender": 19.237,
+        "pct": 11.67,
+        "samples": 3
+      },
+      {
+        "function": "gO",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 10,
+        "msPerRender": 19.04,
+        "pct": 11.55,
+        "samples": 10
+      }
+    ],
+    "exactSVG": true,
+    "exactReceipt": true,
+    "proof": {
+      "version": 1,
+      "unit": "px",
+      "scope": "native-scene",
+      "status": "passed",
+      "viewport": {
+        "x": 0,
+        "y": 0,
+        "width": 170.115,
+        "height": 8522
+      },
+      "attempts": 1,
+      "repairs": [],
+      "coverage": {
+        "measured": 299,
+        "unmeasured": 0,
+        "preparedText": 100,
+        "fallbackText": 0,
+        "conditional": 0
+      },
+      "checks": {
+        "primitives": 302,
+        "labels": 100,
+        "occlusionPairs": 814,
+        "maxOcclusionPairs": 100000,
+        "operations": 238786,
+        "maxOperations": 400000,
+        "markers": 99
+      },
+      "issues": [],
+      "limitations": [
+        "Prepared occupied text regions bound native geometry; exact glyph ink depends on the resolved font.",
+        "Declared transparency, intentional data-mark overlap and externally modified CSS are outside this proof."
+      ],
+      "outputDigest": "fnv1a64:a94d1220d549c9cf"
+    }
+  },
+  "fanin100": {
+    "renders": 10,
+    "totalMs": 2127.827,
+    "self": [
+      {
+        "function": "post",
+        "file": "node:inspector",
+        "line": 115,
+        "msPerRender": 30.642,
+        "pct": 14.4,
+        "samples": 10
+      },
+      {
+        "function": "_f",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 10,
+        "msPerRender": 22.841,
+        "pct": 10.73,
+        "samples": 785
+      },
+      {
+        "function": "_",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 1,
+        "msPerRender": 10.68,
+        "pct": 5.02,
+        "samples": 338
+      },
+      {
+        "function": "xO",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 10,
+        "msPerRender": 8.204,
+        "pct": 3.86,
+        "samples": 274
+      },
+      {
+        "function": "(garbage collector)",
+        "file": "",
+        "line": 0,
+        "msPerRender": 5.797,
+        "pct": 2.72,
+        "samples": 153
+      },
+      {
+        "function": "Ao",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 10,
+        "msPerRender": 5.474,
+        "pct": 2.57,
+        "samples": 198
+      },
+      {
+        "function": "",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 10,
+        "msPerRender": 4.325,
+        "pct": 2.03,
+        "samples": 135
+      },
+      {
+        "function": "mM",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 1,
+        "msPerRender": 3.493,
+        "pct": 1.64,
+        "samples": 109
+      },
+      {
+        "function": "T",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 1,
+        "msPerRender": 3.197,
+        "pct": 1.5,
+        "samples": 102
+      },
+      {
+        "function": "ZO",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 10,
+        "msPerRender": 3.178,
+        "pct": 1.49,
+        "samples": 104
+      },
+      {
+        "function": "Oo",
+        "file": "chunk-46NR7W2P.js",
+        "line": 18,
+        "msPerRender": 2.507,
+        "pct": 1.18,
+        "samples": 78
+      },
+      {
+        "function": "r",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 10,
+        "msPerRender": 2.266,
+        "pct": 1.06,
+        "samples": 73
+      },
+      {
+        "function": "d",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 1,
+        "msPerRender": 2.256,
+        "pct": 1.06,
+        "samples": 75
+      },
+      {
+        "function": "",
+        "file": "chunk-46NR7W2P.js",
+        "line": 1,
+        "msPerRender": 2.103,
+        "pct": 0.99,
+        "samples": 64
+      },
+      {
+        "function": "u",
+        "file": "chunk-46NR7W2P.js",
+        "line": 1,
+        "msPerRender": 2.1,
+        "pct": 0.99,
+        "samples": 71
+      },
+      {
+        "function": "Ci",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 10,
+        "msPerRender": 2.038,
+        "pct": 0.96,
+        "samples": 40
+      },
+      {
+        "function": "pg",
+        "file": "chunk-46NR7W2P.js",
+        "line": 1,
+        "msPerRender": 1.837,
+        "pct": 0.86,
+        "samples": 62
+      },
+      {
+        "function": "eF",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 10,
+        "msPerRender": 1.725,
+        "pct": 0.81,
+        "samples": 58
+      },
+      {
+        "function": "r",
+        "file": "chunk-46NR7W2P.js",
+        "line": 1,
+        "msPerRender": 1.562,
+        "pct": 0.73,
+        "samples": 43
+      },
+      {
+        "function": "attribute",
+        "file": "chunk-46NR7W2P.js",
+        "line": 1,
+        "msPerRender": 1.557,
+        "pct": 0.73,
+        "samples": 51
+      },
+      {
+        "function": "Y1",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 10,
+        "msPerRender": 1.424,
+        "pct": 0.67,
+        "samples": 50
+      },
+      {
+        "function": "XF",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 13,
+        "msPerRender": 1.283,
+        "pct": 0.6,
+        "samples": 43
+      },
+      {
+        "function": "",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 1,
+        "msPerRender": 1.189,
+        "pct": 0.56,
+        "samples": 39
+      },
+      {
+        "function": "F0",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 32,
+        "msPerRender": 1.158,
+        "pct": 0.54,
+        "samples": 37
+      },
+      {
+        "function": "K",
+        "file": "chunk-46NR7W2P.js",
+        "line": 1,
+        "msPerRender": 1.119,
+        "pct": 0.53,
+        "samples": 38
+      },
+      {
+        "function": "dt",
+        "file": "chunk-46NR7W2P.js",
+        "line": 1,
+        "msPerRender": 1.115,
+        "pct": 0.52,
+        "samples": 39
+      },
+      {
+        "function": "check",
+        "file": "chunk-46NR7W2P.js",
+        "line": 1,
+        "msPerRender": 1.109,
+        "pct": 0.52,
+        "samples": 39
+      },
+      {
+        "function": "Te",
+        "file": "chunk-46NR7W2P.js",
+        "line": 1,
+        "msPerRender": 1.053,
+        "pct": 0.5,
+        "samples": 25
+      },
+      {
+        "function": "",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 12,
+        "msPerRender": 1.018,
+        "pct": 0.48,
+        "samples": 35
+      },
+      {
+        "function": "xm",
+        "file": "chunk-46NR7W2P.js",
+        "line": 1,
+        "msPerRender": 0.975,
+        "pct": 0.46,
+        "samples": 32
+      },
+      {
+        "function": "c",
+        "file": "chunk-46NR7W2P.js",
+        "line": 1,
+        "msPerRender": 0.943,
+        "pct": 0.44,
+        "samples": 33
+      },
+      {
+        "function": "rn",
+        "file": "chunk-46NR7W2P.js",
+        "line": 54,
+        "msPerRender": 0.925,
+        "pct": 0.43,
+        "samples": 25
+      },
+      {
+        "function": "Ri",
+        "file": "chunk-46NR7W2P.js",
+        "line": 1,
+        "msPerRender": 0.887,
+        "pct": 0.42,
+        "samples": 31
+      },
+      {
+        "function": "leaf",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 1,
+        "msPerRender": 0.885,
+        "pct": 0.42,
+        "samples": 31
+      },
+      {
+        "function": "Pi",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 10,
+        "msPerRender": 0.871,
+        "pct": 0.41,
+        "samples": 13
+      },
+      {
+        "function": "rectanglePaint",
+        "file": "chunk-46NR7W2P.js",
+        "line": 1,
+        "msPerRender": 0.836,
+        "pct": 0.39,
+        "samples": 16
+      },
+      {
+        "function": "",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 29,
+        "msPerRender": 0.83,
+        "pct": 0.39,
+        "samples": 27
+      },
+      {
+        "function": "Id",
+        "file": "chunk-46NR7W2P.js",
+        "line": 1,
+        "msPerRender": 0.827,
+        "pct": 0.39,
+        "samples": 27
+      },
+      {
+        "function": "Qd",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 10,
+        "msPerRender": 0.812,
+        "pct": 0.38,
+        "samples": 28
+      },
+      {
+        "function": "li",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 10,
+        "msPerRender": 0.802,
+        "pct": 0.38,
+        "samples": 28
+      },
+      {
+        "function": "Mre",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 33,
+        "msPerRender": 0.752,
+        "pct": 0.35,
+        "samples": 25
+      },
+      {
+        "function": "write",
+        "file": "chunk-46NR7W2P.js",
+        "line": 22,
+        "msPerRender": 0.738,
+        "pct": 0.35,
+        "samples": 24
+      },
+      {
+        "function": "FO",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 10,
+        "msPerRender": 0.736,
+        "pct": 0.35,
+        "samples": 9
+      },
+      {
+        "function": "ca",
+        "file": "chunk-46NR7W2P.js",
+        "line": 1,
+        "msPerRender": 0.734,
+        "pct": 0.34,
+        "samples": 22
+      },
+      {
+        "function": "hM",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 1,
+        "msPerRender": 0.734,
+        "pct": 0.34,
+        "samples": 24
+      },
+      {
+        "function": "group",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 12,
+        "msPerRender": 0.718,
+        "pct": 0.34,
+        "samples": 24
+      },
+      {
+        "function": "pO",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 10,
+        "msPerRender": 0.692,
+        "pct": 0.33,
+        "samples": 25
+      },
+      {
+        "function": "M",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 10,
+        "msPerRender": 0.661,
+        "pct": 0.31,
+        "samples": 22
+      },
+      {
+        "function": "ar",
+        "file": "chunk-46NR7W2P.js",
+        "line": 16,
+        "msPerRender": 0.658,
+        "pct": 0.31,
+        "samples": 23
+      },
+      {
+        "function": "Un",
+        "file": "chunk-46NR7W2P.js",
+        "line": 1,
+        "msPerRender": 0.645,
+        "pct": 0.3,
+        "samples": 23
+      }
+    ],
+    "inclusive": [
+      {
+        "function": "(root)",
+        "file": "",
+        "line": 0,
+        "msPerRender": 212.783,
+        "pct": 100.0,
+        "samples": 0
+      },
+      {
+        "function": "",
+        "file": "receipt-worker.mjs",
+        "line": 0,
+        "msPerRender": 206.78,
+        "pct": 97.18,
+        "samples": 1
+      },
+      {
+        "function": "consume",
+        "file": "receipt-worker.mjs",
+        "line": 19,
+        "msPerRender": 175.974,
+        "pct": 82.7,
+        "samples": 11
+      },
+      {
+        "function": "",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 13,
+        "msPerRender": 175.557,
+        "pct": 82.51,
+        "samples": 2
+      },
+      {
+        "function": "VK",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 13,
+        "msPerRender": 174.855,
+        "pct": 82.18,
+        "samples": 0
+      },
+      {
+        "function": "Vb",
+        "file": "chunk-46NR7W2P.js",
+        "line": 1,
+        "msPerRender": 174.855,
+        "pct": 82.18,
+        "samples": 0
+      },
+      {
+        "function": "zwe",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 13,
+        "msPerRender": 174.855,
+        "pct": 82.18,
+        "samples": 0
+      },
+      {
+        "function": "rq",
+        "file": "chunk-TJNJ4CWB.js",
+        "line": 215,
+        "msPerRender": 174.855,
+        "pct": 82.18,
+        "samples": 0
+      },
+      {
+        "function": "KK",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 13,
+        "msPerRender": 172.7,
+        "pct": 81.16,
+        "samples": 1
+      },
+      {
+        "function": "XK",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 13,
+        "msPerRender": 172.525,
+        "pct": 81.08,
+        "samples": 0
+      },
+      {
+        "function": "Y",
+        "file": "chunk-YASALRXB.js",
+        "line": 1,
+        "msPerRender": 172.495,
+        "pct": 81.07,
+        "samples": 0
+      },
+      {
+        "function": "Ii",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 6,
+        "msPerRender": 170.693,
+        "pct": 80.22,
+        "samples": 0
+      },
+      {
+        "function": "",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 12,
+        "msPerRender": 136.222,
+        "pct": 64.02,
+        "samples": 35
+      },
+      {
+        "function": "Bb",
+        "file": "chunk-46NR7W2P.js",
+        "line": 1,
+        "msPerRender": 95.253,
+        "pct": 44.77,
+        "samples": 1
+      },
+      {
+        "function": "qK",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 13,
+        "msPerRender": 95.253,
+        "pct": 44.77,
+        "samples": 0
+      },
+      {
+        "function": "YK",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 13,
+        "msPerRender": 95.253,
+        "pct": 44.77,
+        "samples": 0
+      },
+      {
+        "function": "UK",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 13,
+        "msPerRender": 95.223,
+        "pct": 44.75,
+        "samples": 3
+      },
+      {
+        "function": "BF",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 12,
+        "msPerRender": 77.272,
+        "pct": 36.32,
+        "samples": 1
+      },
+      {
+        "function": "_F",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 12,
+        "msPerRender": 77.272,
+        "pct": 36.32,
+        "samples": 0
+      },
+      {
+        "function": "w",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 12,
+        "msPerRender": 77.242,
+        "pct": 36.3,
+        "samples": 0
+      },
+      {
+        "function": "layout",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 34,
+        "msPerRender": 75.997,
+        "pct": 35.72,
+        "samples": 1
+      },
+      {
+        "function": "Zx",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 6,
+        "msPerRender": 75.997,
+        "pct": 35.72,
+        "samples": 0
+      },
+      {
+        "function": "",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 32,
+        "msPerRender": 73.018,
+        "pct": 34.32,
+        "samples": 5
+      },
+      {
+        "function": "vH",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 32,
+        "msPerRender": 73.018,
+        "pct": 34.32,
+        "samples": 1
+      },
+      {
+        "function": "CO",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 10,
+        "msPerRender": 73.018,
+        "pct": 34.32,
+        "samples": 0
+      },
+      {
+        "function": "Ta",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 32,
+        "msPerRender": 73.018,
+        "pct": 34.32,
+        "samples": 0
+      },
+      {
+        "function": "Eo",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 6,
+        "msPerRender": 72.928,
+        "pct": 34.27,
+        "samples": 0
+      },
+      {
+        "function": "gre",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 32,
+        "msPerRender": 72.928,
+        "pct": 34.27,
+        "samples": 0
+      },
+      {
+        "function": "YG",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 29,
+        "msPerRender": 72.871,
+        "pct": 34.25,
+        "samples": 0
+      },
+      {
+        "function": "UG",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 29,
+        "msPerRender": 72.871,
+        "pct": 34.25,
+        "samples": 0
+      },
+      {
+        "function": "MP",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 13,
+        "msPerRender": 69.515,
+        "pct": 32.67,
+        "samples": 1
+      },
+      {
+        "function": "HF",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 12,
+        "msPerRender": 69.487,
+        "pct": 32.66,
+        "samples": 6
+      },
+      {
+        "function": "jF",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 12,
+        "msPerRender": 69.487,
+        "pct": 32.66,
+        "samples": 0
+      },
+      {
+        "function": "Ph",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 29,
+        "msPerRender": 60.533,
+        "pct": 28.45,
+        "samples": 0
+      },
+      {
+        "function": "ate",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 29,
+        "msPerRender": 60.533,
+        "pct": 28.45,
+        "samples": 0
+      },
+      {
+        "function": "project",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 29,
+        "msPerRender": 59.022,
+        "pct": 27.74,
+        "samples": 1
+      },
+      {
+        "function": "Hx",
+        "file": "chunk-46NR7W2P.js",
+        "line": 1,
+        "msPerRender": 58.953,
+        "pct": 27.71,
+        "samples": 0
+      },
+      {
+        "function": "JR",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 33,
+        "msPerRender": 58.834,
+        "pct": 27.65,
+        "samples": 17
+      },
+      {
+        "function": "GR",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 32,
+        "msPerRender": 57.56,
+        "pct": 27.05,
+        "samples": 3
+      },
+      {
+        "function": "gO",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 10,
+        "msPerRender": 57.297,
+        "pct": 26.93,
+        "samples": 10
+      },
+      {
+        "function": "d",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 10,
+        "msPerRender": 45.798,
+        "pct": 21.52,
+        "samples": 0
+      },
+      {
+        "function": "Uie",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 32,
+        "msPerRender": 45.659,
+        "pct": 21.46,
+        "samples": 1
+      },
+      {
+        "function": "eF",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 10,
+        "msPerRender": 45.631,
+        "pct": 21.44,
+        "samples": 58
+      },
+      {
+        "function": "ru",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 10,
+        "msPerRender": 42.488,
+        "pct": 19.97,
+        "samples": 4
+      },
+      {
+        "function": "Ao",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 10,
+        "msPerRender": 42.291,
+        "pct": 19.88,
+        "samples": 198
+      },
+      {
+        "function": "leaf",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 1,
+        "msPerRender": 38.679,
+        "pct": 18.18,
+        "samples": 31
+      },
+      {
+        "function": "_f",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 10,
+        "msPerRender": 38.637,
+        "pct": 18.16,
+        "samples": 785
+      },
+      {
+        "function": "u",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 12,
+        "msPerRender": 35.091,
+        "pct": 16.49,
+        "samples": 16
+      },
+      {
+        "function": "Mre",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 33,
+        "msPerRender": 34.588,
+        "pct": 16.26,
+        "samples": 25
+      },
+      {
+        "function": "",
+        "file": "util",
+        "line": 478,
+        "msPerRender": 30.744,
+        "pct": 14.45,
+        "samples": 1
+      }
+    ],
+    "exactSVG": true,
+    "exactReceipt": true,
+    "proof": {
+      "version": 1,
+      "unit": "px",
+      "scope": "native-scene",
+      "status": "passed",
+      "viewport": {
+        "x": 0,
+        "y": 0,
+        "width": 11582.365,
+        "height": 201.8
+      },
+      "attempts": 1,
+      "repairs": [],
+      "coverage": {
+        "measured": 299,
+        "unmeasured": 0,
+        "preparedText": 100,
+        "fallbackText": 0,
+        "conditional": 0
+      },
+      "checks": {
+        "primitives": 302,
+        "labels": 100,
+        "occlusionPairs": 1909,
+        "maxOcclusionPairs": 100000,
+        "operations": 291836,
+        "maxOperations": 400000,
+        "markers": 99
+      },
+      "issues": [],
+      "limitations": [
+        "Prepared occupied text regions bound native geometry; exact glyph ink depends on the resolved font.",
+        "Declared transparency, intentional data-mark overlap and externally modified CSS are outside this proof."
+      ],
+      "outputDigest": "fnv1a64:54332f1b1489c59d"
+    }
+  },
+  "chain300": {
+    "renders": 10,
+    "totalMs": 3365.329,
+    "self": [
+      {
+        "function": "post",
+        "file": "node:inspector",
+        "line": 115,
+        "msPerRender": 31.256,
+        "pct": 9.29,
+        "samples": 10
+      },
+      {
+        "function": "_",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 1,
+        "msPerRender": 28.645,
+        "pct": 8.51,
+        "samples": 939
+      },
+      {
+        "function": "ZO",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 10,
+        "msPerRender": 21.011,
+        "pct": 6.24,
+        "samples": 702
+      },
+      {
+        "function": "(garbage collector)",
+        "file": "",
+        "line": 0,
+        "msPerRender": 8.336,
+        "pct": 2.48,
+        "samples": 180
+      },
+      {
+        "function": "T",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 1,
+        "msPerRender": 7.3,
+        "pct": 2.17,
+        "samples": 245
+      },
+      {
+        "function": "Oo",
+        "file": "chunk-46NR7W2P.js",
+        "line": 18,
+        "msPerRender": 7.12,
+        "pct": 2.12,
+        "samples": 252
+      },
+      {
+        "function": "Ci",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 10,
+        "msPerRender": 6.042,
+        "pct": 1.8,
+        "samples": 187
+      },
+      {
+        "function": "i",
+        "file": "chunk-YASALRXB.js",
+        "line": 1,
+        "msPerRender": 4.735,
+        "pct": 1.41,
+        "samples": 158
+      },
+      {
+        "function": "Ao",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 10,
+        "msPerRender": 4.425,
+        "pct": 1.31,
+        "samples": 132
+      },
+      {
+        "function": "",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 10,
+        "msPerRender": 4.261,
+        "pct": 1.27,
+        "samples": 133
+      },
+      {
+        "function": "attribute",
+        "file": "chunk-46NR7W2P.js",
+        "line": 1,
+        "msPerRender": 4.159,
+        "pct": 1.24,
+        "samples": 142
+      },
+      {
+        "function": "leaf",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 1,
+        "msPerRender": 3.801,
+        "pct": 1.13,
+        "samples": 131
+      },
+      {
+        "function": "eF",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 10,
+        "msPerRender": 3.727,
+        "pct": 1.11,
+        "samples": 133
+      },
+      {
+        "function": "dt",
+        "file": "chunk-46NR7W2P.js",
+        "line": 1,
+        "msPerRender": 3.71,
+        "pct": 1.1,
+        "samples": 123
+      },
+      {
+        "function": "F0",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 32,
+        "msPerRender": 3.424,
+        "pct": 1.02,
+        "samples": 121
+      },
+      {
+        "function": "pg",
+        "file": "chunk-46NR7W2P.js",
+        "line": 1,
+        "msPerRender": 3.195,
+        "pct": 0.95,
+        "samples": 110
+      },
+      {
+        "function": "Af",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 10,
+        "msPerRender": 3.171,
+        "pct": 0.94,
+        "samples": 119
+      },
+      {
+        "function": "r",
+        "file": "chunk-46NR7W2P.js",
+        "line": 1,
+        "msPerRender": 3.107,
+        "pct": 0.92,
+        "samples": 98
+      },
+      {
+        "function": "",
+        "file": "chunk-46NR7W2P.js",
+        "line": 1,
+        "msPerRender": 2.999,
+        "pct": 0.89,
+        "samples": 96
+      },
+      {
+        "function": "write",
+        "file": "chunk-46NR7W2P.js",
+        "line": 22,
+        "msPerRender": 2.885,
+        "pct": 0.86,
+        "samples": 98
+      },
+      {
+        "function": "g",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 29,
+        "msPerRender": 2.875,
+        "pct": 0.85,
+        "samples": 89
+      },
+      {
+        "function": "c",
+        "file": "chunk-46NR7W2P.js",
+        "line": 1,
+        "msPerRender": 2.814,
+        "pct": 0.84,
+        "samples": 98
+      },
+      {
+        "function": "rn",
+        "file": "chunk-46NR7W2P.js",
+        "line": 54,
+        "msPerRender": 2.639,
+        "pct": 0.78,
+        "samples": 92
+      },
+      {
+        "function": "Mre",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 33,
+        "msPerRender": 2.63,
+        "pct": 0.78,
+        "samples": 71
+      },
+      {
+        "function": "OF",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 10,
+        "msPerRender": 2.547,
+        "pct": 0.76,
+        "samples": 92
+      },
+      {
+        "function": "xm",
+        "file": "chunk-46NR7W2P.js",
+        "line": 1,
+        "msPerRender": 2.401,
+        "pct": 0.71,
+        "samples": 82
+      },
+      {
+        "function": "Un",
+        "file": "chunk-46NR7W2P.js",
+        "line": 1,
+        "msPerRender": 2.367,
+        "pct": 0.7,
+        "samples": 81
+      },
+      {
+        "function": "d",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 1,
+        "msPerRender": 2.347,
+        "pct": 0.7,
+        "samples": 76
+      },
+      {
+        "function": "K",
+        "file": "chunk-46NR7W2P.js",
+        "line": 1,
+        "msPerRender": 2.3,
+        "pct": 0.68,
+        "samples": 79
+      },
+      {
+        "function": "group",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 12,
+        "msPerRender": 2.197,
+        "pct": 0.65,
+        "samples": 76
+      },
+      {
+        "function": "connector",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 12,
+        "msPerRender": 2.099,
+        "pct": 0.62,
+        "samples": 57
+      },
+      {
+        "function": "parts",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 1,
+        "msPerRender": 2.04,
+        "pct": 0.61,
+        "samples": 71
+      },
+      {
+        "function": "Id",
+        "file": "chunk-46NR7W2P.js",
+        "line": 1,
+        "msPerRender": 2.019,
+        "pct": 0.6,
+        "samples": 55
+      },
+      {
+        "function": "IK",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 12,
+        "msPerRender": 1.967,
+        "pct": 0.58,
+        "samples": 53
+      },
+      {
+        "function": "Ig",
+        "file": "chunk-46NR7W2P.js",
+        "line": 16,
+        "msPerRender": 1.935,
+        "pct": 0.57,
+        "samples": 58
+      },
+      {
+        "function": "P",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 1,
+        "msPerRender": 1.902,
+        "pct": 0.57,
+        "samples": 61
+      },
+      {
+        "function": "ar",
+        "file": "chunk-46NR7W2P.js",
+        "line": 16,
+        "msPerRender": 1.882,
+        "pct": 0.56,
+        "samples": 56
+      },
+      {
+        "function": "kr",
+        "file": "chunk-46NR7W2P.js",
+        "line": 54,
+        "msPerRender": 1.724,
+        "pct": 0.51,
+        "samples": 60
+      },
+      {
+        "function": "dc",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 10,
+        "msPerRender": 1.638,
+        "pct": 0.49,
+        "samples": 40
+      },
+      {
+        "function": "mn",
+        "file": "chunk-46NR7W2P.js",
+        "line": 1,
+        "msPerRender": 1.616,
+        "pct": 0.48,
+        "samples": 55
+      },
+      {
+        "function": "An",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 10,
+        "msPerRender": 1.548,
+        "pct": 0.46,
+        "samples": 54
+      },
+      {
+        "function": "JR",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 33,
+        "msPerRender": 1.541,
+        "pct": 0.46,
+        "samples": 54
+      },
+      {
+        "function": "li",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 10,
+        "msPerRender": 1.511,
+        "pct": 0.45,
+        "samples": 54
+      },
+      {
+        "function": "Sre",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 33,
+        "msPerRender": 1.498,
+        "pct": 0.45,
+        "samples": 54
+      },
+      {
+        "function": "Ri",
+        "file": "chunk-46NR7W2P.js",
+        "line": 1,
+        "msPerRender": 1.484,
+        "pct": 0.44,
+        "samples": 54
+      },
+      {
+        "function": "zd",
+        "file": "chunk-46NR7W2P.js",
+        "line": 1,
+        "msPerRender": 1.459,
+        "pct": 0.43,
+        "samples": 49
+      },
+      {
+        "function": "Eb",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 10,
+        "msPerRender": 1.452,
+        "pct": 0.43,
+        "samples": 52
+      },
+      {
+        "function": "",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 29,
+        "msPerRender": 1.437,
+        "pct": 0.43,
+        "samples": 52
+      },
+      {
+        "function": "Rm",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 10,
+        "msPerRender": 1.365,
+        "pct": 0.41,
+        "samples": 46
+      },
+      {
+        "function": "a",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 12,
+        "msPerRender": 1.346,
+        "pct": 0.4,
+        "samples": 46
+      }
+    ],
+    "inclusive": [
+      {
+        "function": "(root)",
+        "file": "",
+        "line": 0,
+        "msPerRender": 336.533,
+        "pct": 100.0,
+        "samples": 0
+      },
+      {
+        "function": "",
+        "file": "receipt-worker.mjs",
+        "line": 0,
+        "msPerRender": 327.723,
+        "pct": 97.38,
+        "samples": 1
+      },
+      {
+        "function": "consume",
+        "file": "receipt-worker.mjs",
+        "line": 19,
+        "msPerRender": 296.178,
+        "pct": 88.01,
+        "samples": 28
+      },
+      {
+        "function": "",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 13,
+        "msPerRender": 295.313,
+        "pct": 87.75,
+        "samples": 2
+      },
+      {
+        "function": "VK",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 13,
+        "msPerRender": 291.187,
+        "pct": 86.53,
+        "samples": 0
+      },
+      {
+        "function": "Vb",
+        "file": "chunk-46NR7W2P.js",
+        "line": 1,
+        "msPerRender": 291.187,
+        "pct": 86.53,
+        "samples": 0
+      },
+      {
+        "function": "zwe",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 13,
+        "msPerRender": 291.187,
+        "pct": 86.53,
+        "samples": 0
+      },
+      {
+        "function": "rq",
+        "file": "chunk-TJNJ4CWB.js",
+        "line": 215,
+        "msPerRender": 291.187,
+        "pct": 86.53,
+        "samples": 0
+      },
+      {
+        "function": "XK",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 13,
+        "msPerRender": 288.605,
+        "pct": 85.76,
+        "samples": 0
+      },
+      {
+        "function": "KK",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 13,
+        "msPerRender": 288.605,
+        "pct": 85.76,
+        "samples": 0
+      },
+      {
+        "function": "Y",
+        "file": "chunk-YASALRXB.js",
+        "line": 1,
+        "msPerRender": 288.522,
+        "pct": 85.73,
+        "samples": 0
+      },
+      {
+        "function": "Ii",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 6,
+        "msPerRender": 280.336,
+        "pct": 83.3,
+        "samples": 3
+      },
+      {
+        "function": "",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 12,
+        "msPerRender": 257.017,
+        "pct": 76.37,
+        "samples": 45
+      },
+      {
+        "function": "qK",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 13,
+        "msPerRender": 190.335,
+        "pct": 56.56,
+        "samples": 1
+      },
+      {
+        "function": "YK",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 13,
+        "msPerRender": 190.335,
+        "pct": 56.56,
+        "samples": 0
+      },
+      {
+        "function": "UK",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 13,
+        "msPerRender": 190.307,
+        "pct": 56.55,
+        "samples": 1
+      },
+      {
+        "function": "Bb",
+        "file": "chunk-46NR7W2P.js",
+        "line": 1,
+        "msPerRender": 190.307,
+        "pct": 56.55,
+        "samples": 0
+      },
+      {
+        "function": "MP",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 13,
+        "msPerRender": 174.131,
+        "pct": 51.74,
+        "samples": 1
+      },
+      {
+        "function": "jF",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 12,
+        "msPerRender": 174.042,
+        "pct": 51.72,
+        "samples": 2
+      },
+      {
+        "function": "HF",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 12,
+        "msPerRender": 173.987,
+        "pct": 51.7,
+        "samples": 4
+      },
+      {
+        "function": "Hx",
+        "file": "chunk-46NR7W2P.js",
+        "line": 1,
+        "msPerRender": 158.744,
+        "pct": 47.17,
+        "samples": 0
+      },
+      {
+        "function": "JR",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 33,
+        "msPerRender": 158.58,
+        "pct": 47.12,
+        "samples": 54
+      },
+      {
+        "function": "leaf",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 1,
+        "msPerRender": 103.457,
+        "pct": 30.74,
+        "samples": 131
+      },
+      {
+        "function": "BF",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 12,
+        "msPerRender": 98.27,
+        "pct": 29.2,
+        "samples": 0
+      },
+      {
+        "function": "_F",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 12,
+        "msPerRender": 98.27,
+        "pct": 29.2,
+        "samples": 0
+      },
+      {
+        "function": "w",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 12,
+        "msPerRender": 98.215,
+        "pct": 29.18,
+        "samples": 0
+      },
+      {
+        "function": "u",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 12,
+        "msPerRender": 95.066,
+        "pct": 28.25,
+        "samples": 43
+      },
+      {
+        "function": "layout",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 34,
+        "msPerRender": 92.6,
+        "pct": 27.52,
+        "samples": 1
+      },
+      {
+        "function": "Zx",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 6,
+        "msPerRender": 92.6,
+        "pct": 27.52,
+        "samples": 0
+      },
+      {
+        "function": "Mre",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 33,
+        "msPerRender": 92.439,
+        "pct": 27.47,
+        "samples": 71
+      },
+      {
+        "function": "",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 32,
+        "msPerRender": 86.171,
+        "pct": 25.61,
+        "samples": 7
+      },
+      {
+        "function": "CO",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 10,
+        "msPerRender": 86.171,
+        "pct": 25.61,
+        "samples": 0
+      },
+      {
+        "function": "Ta",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 32,
+        "msPerRender": 86.171,
+        "pct": 25.61,
+        "samples": 0
+      },
+      {
+        "function": "vH",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 32,
+        "msPerRender": 86.143,
+        "pct": 25.6,
+        "samples": 0
+      },
+      {
+        "function": "Eo",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 6,
+        "msPerRender": 86.056,
+        "pct": 25.57,
+        "samples": 0
+      },
+      {
+        "function": "gre",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 32,
+        "msPerRender": 86.056,
+        "pct": 25.57,
+        "samples": 0
+      },
+      {
+        "function": "YG",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 29,
+        "msPerRender": 86.022,
+        "pct": 25.56,
+        "samples": 0
+      },
+      {
+        "function": "UG",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 29,
+        "msPerRender": 86.022,
+        "pct": 25.56,
+        "samples": 0
+      },
+      {
+        "function": "Ph",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 29,
+        "msPerRender": 75.36,
+        "pct": 22.39,
+        "samples": 0
+      },
+      {
+        "function": "ate",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 29,
+        "msPerRender": 75.36,
+        "pct": 22.39,
+        "samples": 0
+      },
+      {
+        "function": "project",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 29,
+        "msPerRender": 67.707,
+        "pct": 20.12,
+        "samples": 6
+      },
+      {
+        "function": "Sre",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 33,
+        "msPerRender": 63.912,
+        "pct": 18.99,
+        "samples": 54
+      },
+      {
+        "function": "GR",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 32,
+        "msPerRender": 63.814,
+        "pct": 18.96,
+        "samples": 5
+      },
+      {
+        "function": "connector",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 12,
+        "msPerRender": 61.768,
+        "pct": 18.35,
+        "samples": 57
+      },
+      {
+        "function": "gO",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 10,
+        "msPerRender": 59.7,
+        "pct": 17.74,
+        "samples": 17
+      },
+      {
+        "function": "G",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 1,
+        "msPerRender": 54.835,
+        "pct": 16.29,
+        "samples": 10
+      },
+      {
+        "function": "write",
+        "file": "chunk-46NR7W2P.js",
+        "line": 22,
+        "msPerRender": 53.564,
+        "pct": 15.92,
+        "samples": 98
+      },
+      {
+        "function": "d",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 10,
+        "msPerRender": 39.695,
+        "pct": 11.8,
+        "samples": 1
+      },
+      {
+        "function": "Uie",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 32,
+        "msPerRender": 39.668,
+        "pct": 11.79,
+        "samples": 2
+      },
+      {
+        "function": "group",
+        "file": "chunk-PMPY6D6Q.js",
+        "line": 12,
+        "msPerRender": 39.58,
+        "pct": 11.76,
+        "samples": 76
+      }
+    ],
+    "exactSVG": true,
+    "exactReceipt": true,
+    "proof": {
+      "version": 1,
+      "unit": "px",
+      "scope": "native-scene",
+      "status": "unverified",
+      "viewport": {
+        "x": 0,
+        "y": 0,
+        "width": 177.525,
+        "height": 25502.00000000011
+      },
+      "attempts": 1,
+      "repairs": [],
+      "coverage": {
+        "measured": 899,
+        "unmeasured": 0,
+        "preparedText": 300,
+        "fallbackText": 0,
+        "conditional": 586
+      },
+      "checks": {
+        "primitives": 902,
+        "labels": 300,
+        "occlusionPairs": 0,
+        "maxOcclusionPairs": 100000,
+        "operations": 400000,
+        "maxOperations": 400000,
+        "markers": 0
+      },
+      "issues": [
+        {
+          "code": "CONDITIONAL_PAINT",
+          "message": "586 primitives depend on unresolved paint or interaction state"
+        },
+        {
+          "code": "OUTPUT_SCOPE",
+          "message": "Emitted document context or marker resource differs from retained paint evidence"
+        },
+        {
+          "code": "CHECK_BUDGET",
+          "message": "Occlusion checking reached its 100000-pair or 400000-operation limit"
+        }
+      ],
+      "limitations": [
+        "Prepared occupied text regions bound native geometry; exact glyph ink depends on the resolved font.",
+        "Declared transparency, intentional data-mark overlap and externally modified CSS are outside this proof."
+      ],
+      "outputDigest": "fnv1a64:f35a06eeedcba3b4"
+    }
+  }
+}

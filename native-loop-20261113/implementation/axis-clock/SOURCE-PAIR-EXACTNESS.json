@@ -1,0 +1,1365 @@
+{
+  "pairedWholeProducts": 162,
+  "allSVGExact": true,
+  "allReceiptsExact": true,
+  "proofCounts": {
+    "('baseline', 'passed')": 108,
+    "('candidate', 'passed')": 108,
+    "('baseline', 'unverified')": 54,
+    "('candidate', 'unverified')": 54
+  },
+  "rows": [
+    {
+      "case": "chain100",
+      "backend": "agentic",
+      "replica": 0,
+      "phase": "warmup",
+      "svgExact": true,
+      "receipt.jsonExact": true
+    },
+    {
+      "case": "chain100",
+      "backend": "agentic",
+      "replica": 0,
+      "phase": "repeat1",
+      "svgExact": true,
+      "receipt.jsonExact": true
+    },
+    {
+      "case": "chain100",
+      "backend": "agentic",
+      "replica": 0,
+      "phase": "repeat2",
+      "svgExact": true,
+      "receipt.jsonExact": true
+    },
+    {
+      "case": "chain100",
+      "backend": "agentic",
+      "replica": 0,
+      "phase": "repeat3",
+      "svgExact": true,
+      "receipt.jsonExact": true
+    },
+    {
+      "case": "chain100",
+      "backend": "agentic",
+      "replica": 0,
+      "phase": "repeat4",
+      "svgExact": true,
+      "receipt.jsonExact": true
+    },
+    {
+      "case": "chain100",
+      "backend": "agentic",
+      "replica": 0,
+      "phase": "edit1",
+      "svgExact": true,
+      "receipt.jsonExact": true
+    },
+    {
+      "case": "chain100",
+      "backend": "agentic",
+      "replica": 0,
+      "phase": "edit2",
+      "svgExact": true,
+      "receipt.jsonExact": true
+    },
+    {
+      "case": "chain100",
+      "backend": "agentic",
+      "replica": 0,
+      "phase": "edit3",
+      "svgExact": true,
+      "receipt.jsonExact": true
+    },
+    {
+      "case": "chain100",
+      "backend": "agentic",
+      "replica": 0,
+      "phase": "edit4",
+      "svgExact": true,
+      "receipt.jsonExact": true
+    },
+    {
+      "case": "chain100",
+      "backend": "agentic",
+      "replica": 1,
+      "phase": "warmup",
+      "svgExact": true,
+      "receipt.jsonExact": true
+    },
+    {
+      "case": "chain100",
+      "backend": "agentic",
+      "replica": 1,
+      "phase": "repeat1",
+      "svgExact": true,
+      "receipt.jsonExact": true
+    },
+    {
+      "case": "chain100",
+      "backend": "agentic",
+      "replica": 1,
+      "phase": "repeat2",
+      "svgExact": true,
+      "receipt.jsonExact": true
+    },
+    {
+      "case": "chain100",
+      "backend": "agentic",
+      "replica": 1,
+      "phase": "repeat3",
+      "svgExact": true,
+      "receipt.jsonExact": true
+    },
+    {
+      "case": "chain100",
+      "backend": "agentic",
+      "replica": 1,
+      "phase": "repeat4",
+      "svgExact": true,
+      "receipt.jsonExact": true
+    },
+    {
+      "case": "chain100",
+      "backend": "agentic",
+      "replica": 1,
+      "phase": "edit1",
+      "svgExact": true,
+      "receipt.jsonExact": true
+    },
+    {
+      "case": "chain100",
+      "backend": "agentic",
+      "replica": 1,
+      "phase": "edit2",
+      "svgExact": true,
+      "receipt.jsonExact": true
+    },
+    {
+      "case": "chain100",
+      "backend": "agentic",
+      "replica": 1,
+      "phase": "edit3",
+      "svgExact": true,
+      "receipt.jsonExact": true
+    },
+    {
+      "case": "chain100",
+      "backend": "agentic",
+      "replica": 1,
+      "phase": "edit4",
+      "svgExact": true,
+      "receipt.jsonExact": true
+    },
+    {
+      "case": "chain100",
+      "backend": "agentic",
+      "replica": 2,
+      "phase": "warmup",
+      "svgExact": true,
+      "receipt.jsonExact": true
+    },
+    {
+      "case": "chain100",
+      "backend": "agentic",
+      "replica": 2,
+      "phase": "repeat1",
+      "svgExact": true,
+      "receipt.jsonExact": true
+    },
+    {
+      "case": "chain100",
+      "backend": "agentic",
+      "replica": 2,
+      "phase": "repeat2",
+      "svgExact": true,
+      "receipt.jsonExact": true
+    },
+    {
+      "case": "chain100",
+      "backend": "agentic",
+      "replica": 2,
+      "phase": "repeat3",
+      "svgExact": true,
+      "receipt.jsonExact": true
+    },
+    {
+      "case": "chain100",
+      "backend": "agentic",
+      "replica": 2,
+      "phase": "repeat4",
+      "svgExact": true,
+      "receipt.jsonExact": true
+    },
+    {
+      "case": "chain100",
+      "backend": "agentic",
+      "replica": 2,
+      "phase": "edit1",
+      "svgExact": true,
+      "receipt.jsonExact": true
+    },
+    {
+      "case": "chain100",
+      "backend": "agentic",
+      "replica": 2,
+      "phase": "edit2",
+      "svgExact": true,
+      "receipt.jsonExact": true
+    },
+    {
+      "case": "chain100",
+      "backend": "agentic",
+      "replica": 2,
+      "phase": "edit3",
+      "svgExact": true,
+      "receipt.jsonExact": true
+    },
+    {
+      "case": "chain100",
+      "backend": "agentic",
+      "replica": 2,
+      "phase": "edit4",
+      "svgExact": true,
+      "receipt.jsonExact": true
+    },
+    {
+      "case": "chain100",
+      "backend": "elk",
+      "replica": 0,
+      "phase": "warmup",
+      "svgExact": true,
+      "receipt.jsonExact": true
+    },
+    {
+      "case": "chain100",
+      "backend": "elk",
+      "replica": 0,
+      "phase": "repeat1",
+      "svgExact": true,
+      "receipt.jsonExact": true
+    },
+    {
+      "case": "chain100",
+      "backend": "elk",
+      "replica": 0,
+      "phase": "repeat2",
+      "svgExact": true,
+      "receipt.jsonExact": true
+    },
+    {
+      "case": "chain100",
+      "backend": "elk",
+      "replica": 0,
+      "phase": "repeat3",
+      "svgExact": true,
+      "receipt.jsonExact": true
+    },
+    {
+      "case": "chain100",
+      "backend": "elk",
+      "replica": 0,
+      "phase": "repeat4",
+      "svgExact": true,
+      "receipt.jsonExact": true
+    },
+    {
+      "case": "chain100",
+      "backend": "elk",
+      "replica": 0,
+      "phase": "edit1",
+      "svgExact": true,
+      "receipt.jsonExact": true
+    },
+    {
+      "case": "chain100",
+      "backend": "elk",
+      "replica": 0,
+      "phase": "edit2",
+      "svgExact": true,
+      "receipt.jsonExact": true
+    },
+    {
+      "case": "chain100",
+      "backend": "elk",
+      "replica": 0,
+      "phase": "edit3",
+      "svgExact": true,
+      "receipt.jsonExact": true
+    },
+    {
+      "case": "chain100",
+      "backend": "elk",
+      "replica": 0,
+      "phase": "edit4",
+      "svgExact": true,
+      "receipt.jsonExact": true
+    },
+    {
+      "case": "chain100",
+      "backend": "elk",
+      "replica": 1,
+      "phase": "warmup",
+      "svgExact": true,
+      "receipt.jsonExact": true
+    },
+    {
+      "case": "chain100",
+      "backend": "elk",
+      "replica": 1,
+      "phase": "repeat1",
+      "svgExact": true,
+      "receipt.jsonExact": true
+    },
+    {
+      "case": "chain100",
+      "backend": "elk",
+      "replica": 1,
+      "phase": "repeat2",
+      "svgExact": true,
+      "receipt.jsonExact": true
+    },
+    {
+      "case": "chain100",
+      "backend": "elk",
+      "replica": 1,
+      "phase": "repeat3",
+      "svgExact": true,
+      "receipt.jsonExact": true
+    },
+    {
+      "case": "chain100",
+      "backend": "elk",
+      "replica": 1,
+      "phase": "repeat4",
+      "svgExact": true,
+      "receipt.jsonExact": true
+    },
+    {
+      "case": "chain100",
+      "backend": "elk",
+      "replica": 1,
+      "phase": "edit1",
+      "svgExact": true,
+      "receipt.jsonExact": true
+    },
+    {
+      "case": "chain100",
+      "backend": "elk",
+      "replica": 1,
+      "phase": "edit2",
+      "svgExact": true,
+      "receipt.jsonExact": true
+    },
+    {
+      "case": "chain100",
+      "backend": "elk",
+      "replica": 1,
+      "phase": "edit3",
+      "svgExact": true,
+      "receipt.jsonExact": true
+    },
+    {
+      "case": "chain100",
+      "backend": "elk",
+      "replica": 1,
+      "phase": "edit4",
+      "svgExact": true,
+      "receipt.jsonExact": true
+    },
+    {
+      "case": "chain100",
+      "backend": "elk",
+      "replica": 2,
+      "phase": "warmup",
+      "svgExact": true,
+      "receipt.jsonExact": true
+    },
+    {
+      "case": "chain100",
+      "backend": "elk",
+      "replica": 2,
+      "phase": "repeat1",
+      "svgExact": true,
+      "receipt.jsonExact": true
+    },
+    {
+      "case": "chain100",
+      "backend": "elk",
+      "replica": 2,
+      "phase": "repeat2",
+      "svgExact": true,
+      "receipt.jsonExact": true
+    },
+    {
+      "case": "chain100",
+      "backend": "elk",
+      "replica": 2,
+      "phase": "repeat3",
+      "svgExact": true,
+      "receipt.jsonExact": true
+    },
+    {
+      "case": "chain100",
+      "backend": "elk",
+      "replica": 2,
+      "phase": "repeat4",
+      "svgExact": true,
+      "receipt.jsonExact": true
+    },
+    {
+      "case": "chain100",
+      "backend": "elk",
+      "replica": 2,
+      "phase": "edit1",
+      "svgExact": true,
+      "receipt.jsonExact": true
+    },
+    {
+      "case": "chain100",
+      "backend": "elk",
+      "replica": 2,
+      "phase": "edit2",
+      "svgExact": true,
+      "receipt.jsonExact": true
+    },
+    {
+      "case": "chain100",
+      "backend": "elk",
+      "replica": 2,
+      "phase": "edit3",
+      "svgExact": true,
+      "receipt.jsonExact": true
+    },
+    {
+      "case": "chain100",
+      "backend": "elk",
+      "replica": 2,
+      "phase": "edit4",
+      "svgExact": true,
+      "receipt.jsonExact": true
+    },
+    {
+      "case": "fanin100",
+      "backend": "agentic",
+      "replica": 0,
+      "phase": "warmup",
+      "svgExact": true,
+      "receipt.jsonExact": true
+    },
+    {
+      "case": "fanin100",
+      "backend": "agentic",
+      "replica": 0,
+      "phase": "repeat1",
+      "svgExact": true,
+      "receipt.jsonExact": true
+    },
+    {
+      "case": "fanin100",
+      "backend": "agentic",
+      "replica": 0,
+      "phase": "repeat2",
+      "svgExact": true,
+      "receipt.jsonExact": true
+    },
+    {
+      "case": "fanin100",
+      "backend": "agentic",
+      "replica": 0,
+      "phase": "repeat3",
+      "svgExact": true,
+      "receipt.jsonExact": true
+    },
+    {
+      "case": "fanin100",
+      "backend": "agentic",
+      "replica": 0,
+      "phase": "repeat4",
+      "svgExact": true,
+      "receipt.jsonExact": true
+    },
+    {
+      "case": "fanin100",
+      "backend": "agentic",
+      "replica": 0,
+      "phase": "edit1",
+      "svgExact": true,
+      "receipt.jsonExact": true
+    },
+    {
+      "case": "fanin100",
+      "backend": "agentic",
+      "replica": 0,
+      "phase": "edit2",
+      "svgExact": true,
+      "receipt.jsonExact": true
+    },
+    {
+      "case": "fanin100",
+      "backend": "agentic",
+      "replica": 0,
+      "phase": "edit3",
+      "svgExact": true,
+      "receipt.jsonExact": true
+    },
+    {
+      "case": "fanin100",
+      "backend": "agentic",
+      "replica": 0,
+      "phase": "edit4",
+      "svgExact": true,
+      "receipt.jsonExact": true
+    },
+    {
+      "case": "fanin100",
+      "backend": "agentic",
+      "replica": 1,
+      "phase": "warmup",
+      "svgExact": true,
+      "receipt.jsonExact": true
+    },
+    {
+      "case": "fanin100",
+      "backend": "agentic",
+      "replica": 1,
+      "phase": "repeat1",
+      "svgExact": true,
+      "receipt.jsonExact": true
+    },
+    {
+      "case": "fanin100",
+      "backend": "agentic",
+      "replica": 1,
+      "phase": "repeat2",
+      "svgExact": true,
+      "receipt.jsonExact": true
+    },
+    {
+      "case": "fanin100",
+      "backend": "agentic",
+      "replica": 1,
+      "phase": "repeat3",
+      "svgExact": true,
+      "receipt.jsonExact": true
+    },
+    {
+      "case": "fanin100",
+      "backend": "agentic",
+      "replica": 1,
+      "phase": "repeat4",
+      "svgExact": true,
+      "receipt.jsonExact": true
+    },
+    {
+      "case": "fanin100",
+      "backend": "agentic",
+      "replica": 1,
+      "phase": "edit1",
+      "svgExact": true,
+      "receipt.jsonExact": true
+    },
+    {
+      "case": "fanin100",
+      "backend": "agentic",
+      "replica": 1,
+      "phase": "edit2",
+      "svgExact": true,
+      "receipt.jsonExact": true
+    },
+    {
+      "case": "fanin100",
+      "backend": "agentic",
+      "replica": 1,
+      "phase": "edit3",
+      "svgExact": true,
+      "receipt.jsonExact": true
+    },
+    {
+      "case": "fanin100",
+      "backend": "agentic",
+      "replica": 1,
+      "phase": "edit4",
+      "svgExact": true,
+      "receipt.jsonExact": true
+    },
+    {
+      "case": "fanin100",
+      "backend": "agentic",
+      "replica": 2,
+      "phase": "warmup",
+      "svgExact": true,
+      "receipt.jsonExact": true
+    },
+    {
+      "case": "fanin100",
+      "backend": "agentic",
+      "replica": 2,
+      "phase": "repeat1",
+      "svgExact": true,
+      "receipt.jsonExact": true
+    },
+    {
+      "case": "fanin100",
+      "backend": "agentic",
+      "replica": 2,
+      "phase": "repeat2",
+      "svgExact": true,
+      "receipt.jsonExact": true
+    },
+    {
+      "case": "fanin100",
+      "backend": "agentic",
+      "replica": 2,
+      "phase": "repeat3",
+      "svgExact": true,
+      "receipt.jsonExact": true
+    },
+    {
+      "case": "fanin100",
+      "backend": "agentic",
+      "replica": 2,
+      "phase": "repeat4",
+      "svgExact": true,
+      "receipt.jsonExact": true
+    },
+    {
+      "case": "fanin100",
+      "backend": "agentic",
+      "replica": 2,
+      "phase": "edit1",
+      "svgExact": true,
+      "receipt.jsonExact": true
+    },
+    {
+      "case": "fanin100",
+      "backend": "agentic",
+      "replica": 2,
+      "phase": "edit2",
+      "svgExact": true,
+      "receipt.jsonExact": true
+    },
+    {
+      "case": "fanin100",
+      "backend": "agentic",
+      "replica": 2,
+      "phase": "edit3",
+      "svgExact": true,
+      "receipt.jsonExact": true
+    },
+    {
+      "case": "fanin100",
+      "backend": "agentic",
+      "replica": 2,
+      "phase": "edit4",
+      "svgExact": true,
+      "receipt.jsonExact": true
+    },
+    {
+      "case": "fanin100",
+      "backend": "elk",
+      "replica": 0,
+      "phase": "warmup",
+      "svgExact": true,
+      "receipt.jsonExact": true
+    },
+    {
+      "case": "fanin100",
+      "backend": "elk",
+      "replica": 0,
+      "phase": "repeat1",
+      "svgExact": true,
+      "receipt.jsonExact": true
+    },
+    {
+      "case": "fanin100",
+      "backend": "elk",
+      "replica": 0,
+      "phase": "repeat2",
+      "svgExact": true,
+      "receipt.jsonExact": true
+    },
+    {
+      "case": "fanin100",
+      "backend": "elk",
+      "replica": 0,
+      "phase": "repeat3",
+      "svgExact": true,
+      "receipt.jsonExact": true
+    },
+    {
+      "case": "fanin100",
+      "backend": "elk",
+      "replica": 0,
+      "phase": "repeat4",
+      "svgExact": true,
+      "receipt.jsonExact": true
+    },
+    {
+      "case": "fanin100",
+      "backend": "elk",
+      "replica": 0,
+      "phase": "edit1",
+      "svgExact": true,
+      "receipt.jsonExact": true
+    },
+    {
+      "case": "fanin100",
+      "backend": "elk",
+      "replica": 0,
+      "phase": "edit2",
+      "svgExact": true,
+      "receipt.jsonExact": true
+    },
+    {
+      "case": "fanin100",
+      "backend": "elk",
+      "replica": 0,
+      "phase": "edit3",
+      "svgExact": true,
+      "receipt.jsonExact": true
+    },
+    {
+      "case": "fanin100",
+      "backend": "elk",
+      "replica": 0,
+      "phase": "edit4",
+      "svgExact": true,
+      "receipt.jsonExact": true
+    },
+    {
+      "case": "fanin100",
+      "backend": "elk",
+      "replica": 1,
+      "phase": "warmup",
+      "svgExact": true,
+      "receipt.jsonExact": true
+    },
+    {
+      "case": "fanin100",
+      "backend": "elk",
+      "replica": 1,
+      "phase": "repeat1",
+      "svgExact": true,
+      "receipt.jsonExact": true
+    },
+    {
+      "case": "fanin100",
+      "backend": "elk",
+      "replica": 1,
+      "phase": "repeat2",
+      "svgExact": true,
+      "receipt.jsonExact": true
+    },
+    {
+      "case": "fanin100",
+      "backend": "elk",
+      "replica": 1,
+      "phase": "repeat3",
+      "svgExact": true,
+      "receipt.jsonExact": true
+    },
+    {
+      "case": "fanin100",
+      "backend": "elk",
+      "replica": 1,
+      "phase": "repeat4",
+      "svgExact": true,
+      "receipt.jsonExact": true
+    },
+    {
+      "case": "fanin100",
+      "backend": "elk",
+      "replica": 1,
+      "phase": "edit1",
+      "svgExact": true,
+      "receipt.jsonExact": true
+    },
+    {
+      "case": "fanin100",
+      "backend": "elk",
+      "replica": 1,
+      "phase": "edit2",
+      "svgExact": true,
+      "receipt.jsonExact": true
+    },
+    {
+      "case": "fanin100",
+      "backend": "elk",
+      "replica": 1,
+      "phase": "edit3",
+      "svgExact": true,
+      "receipt.jsonExact": true
+    },
+    {
+      "case": "fanin100",
+      "backend": "elk",
+      "replica": 1,
+      "phase": "edit4",
+      "svgExact": true,
+      "receipt.jsonExact": true
+    },
+    {
+      "case": "fanin100",
+      "backend": "elk",
+      "replica": 2,
+      "phase": "warmup",
+      "svgExact": true,
+      "receipt.jsonExact": true
+    },
+    {
+      "case": "fanin100",
+      "backend": "elk",
+      "replica": 2,
+      "phase": "repeat1",
+      "svgExact": true,
+      "receipt.jsonExact": true
+    },
+    {
+      "case": "fanin100",
+      "backend": "elk",
+      "replica": 2,
+      "phase": "repeat2",
+      "svgExact": true,
+      "receipt.jsonExact": true
+    },
+    {
+      "case": "fanin100",
+      "backend": "elk",
+      "replica": 2,
+      "phase": "repeat3",
+      "svgExact": true,
+      "receipt.jsonExact": true
+    },
+    {
+      "case": "fanin100",
+      "backend": "elk",
+      "replica": 2,
+      "phase": "repeat4",
+      "svgExact": true,
+      "receipt.jsonExact": true
+    },
+    {
+      "case": "fanin100",
+      "backend": "elk",
+      "replica": 2,
+      "phase": "edit1",
+      "svgExact": true,
+      "receipt.jsonExact": true
+    },
+    {
+      "case": "fanin100",
+      "backend": "elk",
+      "replica": 2,
+      "phase": "edit2",
+      "svgExact": true,
+      "receipt.jsonExact": true
+    },
+    {
+      "case": "fanin100",
+      "backend": "elk",
+      "replica": 2,
+      "phase": "edit3",
+      "svgExact": true,
+      "receipt.jsonExact": true
+    },
+    {
+      "case": "fanin100",
+      "backend": "elk",
+      "replica": 2,
+      "phase": "edit4",
+      "svgExact": true,
+      "receipt.jsonExact": true
+    },
+    {
+      "case": "chain300",
+      "backend": "agentic",
+      "replica": 0,
+      "phase": "warmup",
+      "svgExact": true,
+      "receipt.jsonExact": true
+    },
+    {
+      "case": "chain300",
+      "backend": "agentic",
+      "replica": 0,
+      "phase": "repeat1",
+      "svgExact": true,
+      "receipt.jsonExact": true
+    },
+    {
+      "case": "chain300",
+      "backend": "agentic",
+      "replica": 0,
+      "phase": "repeat2",
+      "svgExact": true,
+      "receipt.jsonExact": true
+    },
+    {
+      "case": "chain300",
+      "backend": "agentic",
+      "replica": 0,
+      "phase": "repeat3",
+      "svgExact": true,
+      "receipt.jsonExact": true
+    },
+    {
+      "case": "chain300",
+      "backend": "agentic",
+      "replica": 0,
+      "phase": "repeat4",
+      "svgExact": true,
+      "receipt.jsonExact": true
+    },
+    {
+      "case": "chain300",
+      "backend": "agentic",
+      "replica": 0,
+      "phase": "edit1",
+      "svgExact": true,
+      "receipt.jsonExact": true
+    },
+    {
+      "case": "chain300",
+      "backend": "agentic",
+      "replica": 0,
+      "phase": "edit2",
+      "svgExact": true,
+      "receipt.jsonExact": true
+    },
+    {
+      "case": "chain300",
+      "backend": "agentic",
+      "replica": 0,
+      "phase": "edit3",
+      "svgExact": true,
+      "receipt.jsonExact": true
+    },
+    {
+      "case": "chain300",
+      "backend": "agentic",
+      "replica": 0,
+      "phase": "edit4",
+      "svgExact": true,
+      "receipt.jsonExact": true
+    },
+    {
+      "case": "chain300",
+      "backend": "agentic",
+      "replica": 1,
+      "phase": "warmup",
+      "svgExact": true,
+      "receipt.jsonExact": true
+    },
+    {
+      "case": "chain300",
+      "backend": "agentic",
+      "replica": 1,
+      "phase": "repeat1",
+      "svgExact": true,
+      "receipt.jsonExact": true
+    },
+    {
+      "case": "chain300",
+      "backend": "agentic",
+      "replica": 1,
+      "phase": "repeat2",
+      "svgExact": true,
+      "receipt.jsonExact": true
+    },
+    {
+      "case": "chain300",
+      "backend": "agentic",
+      "replica": 1,
+      "phase": "repeat3",
+      "svgExact": true,
+      "receipt.jsonExact": true
+    },
+    {
+      "case": "chain300",
+      "backend": "agentic",
+      "replica": 1,
+      "phase": "repeat4",
+      "svgExact": true,
+      "receipt.jsonExact": true
+    },
+    {
+      "case": "chain300",
+      "backend": "agentic",
+      "replica": 1,
+      "phase": "edit1",
+      "svgExact": true,
+      "receipt.jsonExact": true
+    },
+    {
+      "case": "chain300",
+      "backend": "agentic",
+      "replica": 1,
+      "phase": "edit2",
+      "svgExact": true,
+      "receipt.jsonExact": true
+    },
+    {
+      "case": "chain300",
+      "backend": "agentic",
+      "replica": 1,
+      "phase": "edit3",
+      "svgExact": true,
+      "receipt.jsonExact": true
+    },
+    {
+      "case": "chain300",
+      "backend": "agentic",
+      "replica": 1,
+      "phase": "edit4",
+      "svgExact": true,
+      "receipt.jsonExact": true
+    },
+    {
+      "case": "chain300",
+      "backend": "agentic",
+      "replica": 2,
+      "phase": "warmup",
+      "svgExact": true,
+      "receipt.jsonExact": true
+    },
+    {
+      "case": "chain300",
+      "backend": "agentic",
+      "replica": 2,
+      "phase": "repeat1",
+      "svgExact": true,
+      "receipt.jsonExact": true
+    },
+    {
+      "case": "chain300",
+      "backend": "agentic",
+      "replica": 2,
+      "phase": "repeat2",
+      "svgExact": true,
+      "receipt.jsonExact": true
+    },
+    {
+      "case": "chain300",
+      "backend": "agentic",
+      "replica": 2,
+      "phase": "repeat3",
+      "svgExact": true,
+      "receipt.jsonExact": true
+    },
+    {
+      "case": "chain300",
+      "backend": "agentic",
+      "replica": 2,
+      "phase": "repeat4",
+      "svgExact": true,
+      "receipt.jsonExact": true
+    },
+    {
+      "case": "chain300",
+      "backend": "agentic",
+      "replica": 2,
+      "phase": "edit1",
+      "svgExact": true,
+      "receipt.jsonExact": true
+    },
+    {
+      "case": "chain300",
+      "backend": "agentic",
+      "replica": 2,
+      "phase": "edit2",
+      "svgExact": true,
+      "receipt.jsonExact": true
+    },
+    {
+      "case": "chain300",
+      "backend": "agentic",
+      "replica": 2,
+      "phase": "edit3",
+      "svgExact": true,
+      "receipt.jsonExact": true
+    },
+    {
+      "case": "chain300",
+      "backend": "agentic",
+      "replica": 2,
+      "phase": "edit4",
+      "svgExact": true,
+      "receipt.jsonExact": true
+    },
+    {
+      "case": "chain300",
+      "backend": "elk",
+      "replica": 0,
+      "phase": "warmup",
+      "svgExact": true,
+      "receipt.jsonExact": true
+    },
+    {
+      "case": "chain300",
+      "backend": "elk",
+      "replica": 0,
+      "phase": "repeat1",
+      "svgExact": true,
+      "receipt.jsonExact": true
+    },
+    {
+      "case": "chain300",
+      "backend": "elk",
+      "replica": 0,
+      "phase": "repeat2",
+      "svgExact": true,
+      "receipt.jsonExact": true
+    },
+    {
+      "case": "chain300",
+      "backend": "elk",
+      "replica": 0,
+      "phase": "repeat3",
+      "svgExact": true,
+      "receipt.jsonExact": true
+    },
+    {
+      "case": "chain300",
+      "backend": "elk",
+      "replica": 0,
+      "phase": "repeat4",
+      "svgExact": true,
+      "receipt.jsonExact": true
+    },
+    {
+      "case": "chain300",
+      "backend": "elk",
+      "replica": 0,
+      "phase": "edit1",
+      "svgExact": true,
+      "receipt.jsonExact": true
+    },
+    {
+      "case": "chain300",
+      "backend": "elk",
+      "replica": 0,
+      "phase": "edit2",
+      "svgExact": true,
+      "receipt.jsonExact": true
+    },
+    {
+      "case": "chain300",
+      "backend": "elk",
+      "replica": 0,
+      "phase": "edit3",
+      "svgExact": true,
+      "receipt.jsonExact": true
+    },
+    {
+      "case": "chain300",
+      "backend": "elk",
+      "replica": 0,
+      "phase": "edit4",
+      "svgExact": true,
+      "receipt.jsonExact": true
+    },
+    {
+      "case": "chain300",
+      "backend": "elk",
+      "replica": 1,
+      "phase": "warmup",
+      "svgExact": true,
+      "receipt.jsonExact": true
+    },
+    {
+      "case": "chain300",
+      "backend": "elk",
+      "replica": 1,
+      "phase": "repeat1",
+      "svgExact": true,
+      "receipt.jsonExact": true
+    },
+    {
+      "case": "chain300",
+      "backend": "elk",
+      "replica": 1,
+      "phase": "repeat2",
+      "svgExact": true,
+      "receipt.jsonExact": true
+    },
+    {
+      "case": "chain300",
+      "backend": "elk",
+      "replica": 1,
+      "phase": "repeat3",
+      "svgExact": true,
+      "receipt.jsonExact": true
+    },
+    {
+      "case": "chain300",
+      "backend": "elk",
+      "replica": 1,
+      "phase": "repeat4",
+      "svgExact": true,
+      "receipt.jsonExact": true
+    },
+    {
+      "case": "chain300",
+      "backend": "elk",
+      "replica": 1,
+      "phase": "edit1",
+      "svgExact": true,
+      "receipt.jsonExact": true
+    },
+    {
+      "case": "chain300",
+      "backend": "elk",
+      "replica": 1,
+      "phase": "edit2",
+      "svgExact": true,
+      "receipt.jsonExact": true
+    },
+    {
+      "case": "chain300",
+      "backend": "elk",
+      "replica": 1,
+      "phase": "edit3",
+      "svgExact": true,
+      "receipt.jsonExact": true
+    },
+    {
+      "case": "chain300",
+      "backend": "elk",
+      "replica": 1,
+      "phase": "edit4",
+      "svgExact": true,
+      "receipt.jsonExact": true
+    },
+    {
+      "case": "chain300",
+      "backend": "elk",
+      "replica": 2,
+      "phase": "warmup",
+      "svgExact": true,
+      "receipt.jsonExact": true
+    },
+    {
+      "case": "chain300",
+      "backend": "elk",
+      "replica": 2,
+      "phase": "repeat1",
+      "svgExact": true,
+      "receipt.jsonExact": true
+    },
+    {
+      "case": "chain300",
+      "backend": "elk",
+      "replica": 2,
+      "phase": "repeat2",
+      "svgExact": true,
+      "receipt.jsonExact": true
+    },
+    {
+      "case": "chain300",
+      "backend": "elk",
+      "replica": 2,
+      "phase": "repeat3",
+      "svgExact": true,
+      "receipt.jsonExact": true
+    },
+    {
+      "case": "chain300",
+      "backend": "elk",
+      "replica": 2,
+      "phase": "repeat4",
+      "svgExact": true,
+      "receipt.jsonExact": true
+    },
+    {
+      "case": "chain300",
+      "backend": "elk",
+      "replica": 2,
+      "phase": "edit1",
+      "svgExact": true,
+      "receipt.jsonExact": true
+    },
+    {
+      "case": "chain300",
+      "backend": "elk",
+      "replica": 2,
+      "phase": "edit2",
+      "svgExact": true,
+      "receipt.jsonExact": true
+    },
+    {
+      "case": "chain300",
+      "backend": "elk",
+      "replica": 2,
+      "phase": "edit3",
+      "svgExact": true,
+      "receipt.jsonExact": true
+    },
+    {
+      "case": "chain300",
+      "backend": "elk",
+      "replica": 2,
+      "phase": "edit4",
+      "svgExact": true,
+      "receipt.jsonExact": true
+    }
+  ],
+  "stockControls": [
+    {
+      "case": "chain100",
+      "backend": "agentic",
+      "sourcePairExact": true,
+      "stockFullExact": {
+        "baseline": true,
+        "candidate": true
+      }
+    },
+    {
+      "case": "chain100",
+      "backend": "elk",
+      "sourcePairExact": true,
+      "stockFullExact": {
+        "baseline": true,
+        "candidate": true
+      }
+    },
+    {
+      "case": "fanin100",
+      "backend": "agentic",
+      "sourcePairExact": true,
+      "stockFullExact": {
+        "baseline": true,
+        "candidate": true
+      }
+    },
+    {
+      "case": "fanin100",
+      "backend": "elk",
+      "sourcePairExact": true,
+      "stockFullExact": {
+        "baseline": true,
+        "candidate": true
+      }
+    },
+    {
+      "case": "chain300",
+      "backend": "agentic",
+      "sourcePairExact": true,
+      "stockFullExact": {
+        "baseline": true,
+        "candidate": true
+      }
+    },
+    {
+      "case": "chain300",
+      "backend": "elk",
+      "sourcePairExact": true,
+      "stockFullExact": {
+        "baseline": true,
+        "candidate": true
+      }
+    }
+  ]
+}

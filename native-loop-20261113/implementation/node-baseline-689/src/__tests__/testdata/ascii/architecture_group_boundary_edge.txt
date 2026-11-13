@@ -1,0 +1,26 @@
+architecture-beta
+  group edge(cloud)[Edge]
+  group app(server)[Application]
+  service api(server)[Public API] in app
+  junction bus in app
+  service db(database)[Primary DB]
+  api:R --> L:db
+  api:B -["async fan-out"]-> T:bus
+---
+  +-(cloud) Edge-+
+  |              |
+  |              |
+  |              |
+  +--------------+
+
+
+  +-(server) Application-------------------------------+  +---------------------+
+  |                                                    |  |                     |
+  |                      +-----------------------------+->|[database] Primary DB|
+  | +-------------------+| [async fan-out]      ++     |  |                     |
+  | |                   ||+---------------------+v     |  +---------------------+
+  | |[server] Public API|+|                  +-------+ |
+  | |                   |++                  |(*) bus| |
+  | +-------------------+|                   +-------+ |
+  |           +----------+                             |
+  +----------------------------------------------------+

@@ -1,0 +1,2 @@
+import{a as o}from"./chunk-H77JNERV.js";import{$ as i,Z as r}from"./chunk-Z7QFUOYN.js";import"./chunk-VUFVLGTH.js";import{interMetricsKernel as n}from"#optional-kernels";var e;function c(){if(!e){const t=n();e=o(t.createInterMetrics({monospace:i,estimate:r}),t.coversInterMetrics)}return e}export{c as bundledInterMetrics};
+//# sourceMappingURL=builtin-font-metrics.node.js.map

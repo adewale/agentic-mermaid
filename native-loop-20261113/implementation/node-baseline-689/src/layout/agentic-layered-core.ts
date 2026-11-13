@@ -1,0 +1,951 @@
+import { assertMeasuredContactMetadata } from './measured-graph.ts'
+import { assertMarkerPaint } from './compound-marker-seating.ts'
+import { layoutOptimization } from './optimization-context.ts'
+import { refinePrivateChainOrder } from './chain-insertion-order.ts'
+import { minimumSpanRanks, privateRankSpan, MAX_MEASURED_RANKS as MAX_RANKS } from './minimum-span-ranks.ts'
+import { compactMeasuredLoops } from './compact-measured-loops.ts'
+import type { Direction, Point } from '../types.ts'
+import type { MeasuredGraph as SharedMeasuredGraph, MeasuredRoutes } from './measured-graph.ts'
+import { layoutSharedFan } from './shared-fan-core.ts'
+import { layoutCyclicGraph, orientMeasuredEdge, type LayoutSearchWork } from './cycle-layout-search.ts'
+import { layoutCompoundGraph } from './agentic-compound-core.ts'
+import { nativeNestingOf, placeNativeNesting, prepareNestingBands } from './native-nesting.ts'
+import { compareFeedbackOrders, depthFirstOrder, feedbackOrder, groupSourceOrder } from './cycle-order.ts'
+import { assignChannelTracks, orderedPortCoordinate, type ChannelStep, type ChannelWork } from './channel-tracks.ts'
+import { AGENTIC_MAX_NODES as MAX_NODES, AGENTIC_MAX_EDGES as MAX_EDGES, AGENTIC_MAX_EXPANDED_VERTICES as MAX_EXPANDED_VERTICES } from './agentic-limits.ts'
+
+/** Native implementation controls stay outside the common measured contract. */
+export interface MeasuredGraph extends SharedMeasuredGraph {
+  /** Private source-port separation constraints introduced by loop expansion. */
+  loopPorts?: readonly (readonly [number, number])[]
+  /** Private single-candidate refinement; authored arrow direction is restored. */
+  authoredCycleOrder?: boolean
+  /** Lifted group cycles preserve earlier authored links when cut counts tie. */
+  groupCycleEdges?: readonly number[]
+  /** Optional compact candidate: only labelled links need an extra private rank. */
+  compactPrivateRanks?: boolean
+  /** Bounded optional coordinate refinement using the selected port offsets. */
+  portAwarePlacement?: true
+  /** Private acyclic projection; its parent restores authored cycle directions. */
+  cycleOriented?: true
+  /** Internal family contract: retain placement constraints, omit final routes.
+   * This flag participates in the measured-geometry cache key. */
+  placementOnly?: true
+}
+
+export interface AgenticLayout extends MeasuredRoutes {
+  topology: 'forest' | 'layered'
+  /** Authored edges whose producer explicitly owns shared routing. */
+  sharedEdges?: readonly number[]
+  /** Private aggregate work accounting for nested scope expansion. */
+  expandedVertices?: number
+  /** Routes whose frame/header corridors must survive raw shortcutting. */
+  boundaryRoutes?: readonly number[]
+}
+
+export type CompleteMeasuredCandidate = (candidate: AgenticLayout, fail: (reason: string) => never, work: ChannelWork) => AgenticLayout
+
+interface Vertex {
+  rank: number
+  crossSize: number
+  mainSize: number
+  incoming: number[]
+  outgoing: number[]
+}
+
+export { MAX_EXPANDED_VERTICES }
+const SWEEP_PAIRS = 4
+const LABEL_GAP = 8
+const defineOrderSlot = Object.defineProperty
+
+function finiteSize(value: number, positive: boolean): boolean {
+  return Number.isFinite(value) && (positive ? value > 0 : value >= 0)
+}
+
+/**
+ * Measured layered layout, independent of ELK's schema and runtime. Longest-path
+ * ranks are expanded into private channel/label vertices. Stable barycenter
+ * sweeps order the ranks; orthogonal routes stay inside the reserved channels
+ * and inter-rank gaps. Cycles reverse private constraints and restore authored
+ * route directions. Authored arrays and their edge order are never changed.
+ */
+// The adapters supply the shared forest fast path and typed decline. Keeping
+// those bindings outside this module lets the browser fetch one private solver
+// chunk without splitting shared family code into more startup requests.
+export function layoutLayeredGraph(
+  input: MeasuredGraph,
+  forestLayout: (input: MeasuredGraph, context?: 'complete' | 'scope') => AgenticLayout | undefined,
+  unsupported: (reason: string) => never,
+  routingWork: ChannelWork = { pairs: 1_000_000, arcs: 65536, swaps: 1_000_000 },
+  searchWork: LayoutSearchWork = { attempts: 128, scorePairs: 8_000_000, loopPairs: 2_000_000, rankPairs: 200_000, blockPairs: 2_000_000, routing: { pairs: 500_000, arcs: 32768, swaps: 500_000 } },
+  complete?: CompleteMeasuredCandidate,
+): AgenticLayout {
+  let { nodes } = input
+  const { edges, padding, nodeSpacing, layerSpacing } = input
+  const nesting = nativeNestingOf(input)
+  if ((nesting ? nesting.input.nodes.length + nesting.input.groups!.length : nodes.length) > MAX_NODES
+    || (nesting ? nesting.input.edges.length : edges.length) > MAX_EDGES) unsupported('agentic local graph-size limit')
+  if (![padding, nodeSpacing, layerSpacing].every(value => finiteSize(value, false))) {
+    throw new TypeError('Measured graph spacing must be finite and nonnegative')
+  }
+  if (input.edgeSpacing !== undefined && !finiteSize(input.edgeSpacing, true)) throw new TypeError('Measured edge spacing must be finite and positive')
+  if (input.minimumTerminalLead !== undefined && !finiteSize(input.minimumTerminalLead, false)) throw new TypeError('Measured terminal lead must be finite and nonnegative')
+  if (input.nodeClearance !== undefined && !finiteSize(input.nodeClearance, false)) throw new TypeError('Invalid measured node clearance')
+  if (input.maximumEdgeStrokeWidth !== undefined && !finiteSize(input.maximumEdgeStrokeWidth, true)) throw new TypeError('Measured maximum edge stroke width must be finite and positive')
+  if (input.maximumEdgeBendRadius !== undefined && !finiteSize(input.maximumEdgeBendRadius,false)) throw new TypeError('Invalid measured edge bend radius')
+  for (const node of input.nodes) {
+    assertMeasuredContactMetadata(node)
+    if (node.contact === 'diamond') unsupported('diamond measured contacts require the owning family adapter')
+    if (node.paintStrokeWidth !== undefined && !finiteSize(node.paintStrokeWidth,true)) throw new TypeError('Invalid measured node paint stroke')
+  }
+  for (const node of input.nodes) if (node.paintCornerRadius !== undefined && !finiteSize(node.paintCornerRadius,false)) throw new TypeError('Invalid measured node corner radius')
+  for (const node of input.nodes) if (node.minimumPortSpacing !== undefined && !finiteSize(node.minimumPortSpacing,true)) throw new TypeError('Invalid measured node port spacing')
+  for (const group of input.groups ?? []) if (group.paintStrokeWidth !== undefined && !finiteSize(group.paintStrokeWidth,true)) throw new TypeError('Invalid measured group paint stroke')
+  for (const group of input.groups ?? []) if (group.paintCornerRadius !== undefined && !finiteSize(group.paintCornerRadius,false)) throw new TypeError('Invalid measured group corner radius')
+  for (const edge of input.edges) if (edge.markerPaint !== undefined) assertMarkerPaint(edge.markerPaint)
+  if (!['TD', 'TB', 'BT', 'LR', 'RL'].includes(input.direction)) throw new TypeError('Invalid measured graph direction')
+  if (input.groups?.length) {
+    if (nodes.length + input.groups.length > MAX_NODES) unsupported('agentic local compound-size limit')
+    // Local components can have authored contacts outside this projection.
+    // Preserve their corridor arrangement until the parent restores those edges.
+    const place = (flat: MeasuredGraph) => layoutLayeredGraph(flat, local => forestLayout(local, 'scope'), unsupported, routingWork, searchWork)
+    return layoutCompoundGraph(input, place, unsupported, MAX_EXPANDED_VERTICES, routingWork,
+      (owners, children, lifted) => placeNativeNesting(input, owners, children, lifted, place, routingWork, MAX_EXPANDED_VERTICES, unsupported))
+  }
+  const horizontal = input.direction === 'LR' || input.direction === 'RL'
+  const reverse = input.direction === 'BT' || input.direction === 'RL'
+  const ids = new Set<string>()
+  let hasModelOrder = false
+  for (const [nodeIndex, node] of nodes.entries()) {
+    if (node.parent !== undefined) throw new TypeError('Measured parent requires a compound scope')
+    if (node.modelOrder !== undefined) {
+      if (!Number.isSafeInteger(node.modelOrder) || node.modelOrder < 0) throw new TypeError('Invalid measured model order')
+      hasModelOrder = true
+    }
+    if (node.partition !== undefined && (!Number.isSafeInteger(node.partition) || node.partition < 0 || node.partition > 10000)) throw new TypeError('Invalid measured partition')
+    if (ids.has(node.id)) throw new TypeError('Measured graph node identities must be unique')
+    ids.add(node.id)
+    const privateBorder = nesting !== undefined && nodeIndex >= nesting.input.nodes.length
+    if (!finiteSize(node.width, !privateBorder) || !finiteSize(node.height, !privateBorder)) throw new TypeError('Measured node dimensions must be finite and positive')
+  }
+  const incoming: number[][] = nodes.map(() => [])
+  const outgoing: number[][] = nodes.map(() => [])
+  const indegree = new Uint32Array(nodes.length)
+  let sourcePortSpans: Float64Array | undefined, targetPortSpans: Float64Array | undefined
+  let hasLoops = false, hasShortEdges = false
+  for (let index = 0; index < edges.length; index++) {
+    const edge = edges[index]!
+    if (!Number.isInteger(edge.source) || !Number.isInteger(edge.target)
+      || edge.source < 0 || edge.source >= nodes.length || edge.target < 0 || edge.target >= nodes.length) {
+      throw new TypeError('Measured edge endpoint is outside the node array')
+    }
+    if (!Number.isSafeInteger(edge.minSpan) || edge.minSpan < 1) throw new TypeError('Measured edge minimum span must be a positive integer')
+    if (edge.short !== undefined && edge.short !== true) throw new TypeError('Invalid measured short-edge preference')
+    const sourceSpan = edge.sourcePortSpan, targetSpan = edge.targetPortSpan
+    if (sourceSpan !== undefined || targetSpan !== undefined) {
+      if (sourceSpan !== undefined && !finiteSize(sourceSpan, true) || targetSpan !== undefined && !finiteSize(targetSpan, true)) throw new TypeError('Invalid measured endpoint port span')
+      if (!sourcePortSpans) {
+        routingWork.arcs -= 2 * edges.length; routingWork.pairs -= 2 * edges.length
+        if (routingWork.arcs < 0 || routingWork.pairs < 0) unsupported('agentic endpoint port-span work limit')
+        sourcePortSpans = new Float64Array(edges.length); targetPortSpans = new Float64Array(edges.length)
+      }
+      sourcePortSpans[index] = sourceSpan ?? 0; targetPortSpans![index] = targetSpan ?? 0
+    }
+    if (edge.boundaryMarker !== undefined && (![edge.boundaryMarker.inset, edge.boundaryMarker.height].every(value => Number.isFinite(value) && value >= 0))) throw new TypeError('Invalid measured ancestor marker dimensions')
+    hasShortEdges ||= edge.short === true
+    if (edge.label && (!finiteSize(edge.label.width, false) || !finiteSize(edge.label.height, false))) {
+      throw new TypeError('Measured edge label dimensions must be finite and nonnegative')
+    }
+    if (edge.source === edge.target) {
+      hasLoops = true; continue
+    }
+    outgoing[edge.source]!.push(index)
+    incoming[edge.target]!.push(index)
+    indegree[edge.target] = indegree[edge.target]! + 1
+  }
+
+  const partitioned = nodes.some(node => (node.partition ?? 0) !== (nodes[0]?.partition ?? 0))
+  if (partitioned && edges.some(edge => (nodes[edge.source]!.partition ?? 0) > (nodes[edge.target]!.partition ?? 0))) {
+    // Partitions constrain placement, not authored arrow direction. Orient only
+    // the private placement graph, then restore each authored route occurrence.
+    const reversed = edges.map(edge => (nodes[edge.source]!.partition ?? 0) > (nodes[edge.target]!.partition ?? 0))
+    const placed = layoutLayeredGraph({ ...input, edges: edges.map((edge, index) => reversed[index]
+      ? orientMeasuredEdge(edge, edge.target, edge.source, true) : edge) }, forestLayout, unsupported, routingWork, searchWork)
+    return { ...placed, edges: placed.edges.map((edge, index) => reversed[index] ? { ...edge, points: [...edge.points].reverse() } : edge) }
+  }
+
+  // Root-only comparison sees authored loop routes, never private helpers.
+  if (complete && hasLoops && !partitioned && !hasModelOrder && !input.authoredCycleOrder && nodes.length <= 48 && edges.length <= 128
+    && searchWork.rankPairs >= nodes.length + 2 * edges.length) {
+    searchWork.rankPairs -= nodes.length + 2 * edges.length
+    let loopCount = 0, span = 0
+    for (const edge of edges) { const loop = edge.source === edge.target; loopCount += Number(loop); span += edge.minSpan * (loop ? 2 : 1) }
+    if (nodes.length + loopCount <= 48 && edges.length + loopCount <= 128 && span <= 128) {
+      const degrees = new Uint32Array(indegree), queue = new Uint32Array(nodes.length)
+      let tail = 0
+      for (let node = 0; node < nodes.length; node++) if (degrees[node] === 0) queue[tail++] = node
+      for (let cursor = 0; cursor < tail; cursor++) for (const index of outgoing[queue[cursor]!]!) {
+        const target = edges[index]!.target
+        degrees[target] = degrees[target]! - 1
+        if (degrees[target] === 0) queue[tail++] = target
+      }
+      if (tail !== nodes.length) return layoutCyclicGraph(input, incoming, outgoing,
+        (flat, fail, work) => layoutLayeredGraph(flat, forestLayout, fail, work, searchWork),
+        unsupported, routingWork, searchWork, complete)
+    }
+  }
+
+  if (hasLoops) {
+    // A private turnaround box reserves space before placement. Two separately
+    // ported spokes form the loop, and only its outward spoke owns the label.
+    // Strip every helper before returning authored node/edge arrays.
+    const expandedNodes = [...nodes], expandedEdges = [...edges]
+    const loopPorts = [...(input.loopPorts ?? [])]
+    const returns = new Int32Array(edges.length).fill(-1)
+    let helperId = 0
+    for (let index = 0; index < edges.length; index++) {
+      const edge = edges[index]!
+      if (edge.source !== edge.target) continue
+      if (expandedNodes.length === MAX_NODES || expandedEdges.length === MAX_EDGES) unsupported('agentic local loop-expansion limit')
+      let id: string
+      do { id = `\0agentic-loop:${helperId++}` } while (ids.has(id))
+      ids.add(id)
+      const target = expandedNodes.length
+      expandedNodes.push({ id, width: horizontal ? 1 : 40, height: horizontal ? 40 : 1, ...(partitioned ? { partition: nodes[edge.source]!.partition ?? 0 } : {}) })
+      expandedEdges[index] = { ...edge, target, ...(edge.targetPortSpan !== undefined ? { targetPortSpan: undefined } : {}), ...(edge.label ? { label: horizontal
+        ? { width: edge.label.width, height: 2 * edge.label.height + 8 }
+        : { width: 2 * edge.label.width + 8, height: edge.label.height } } : {}) }
+      returns[index] = expandedEdges.length
+      loopPorts.push([index, expandedEdges.length])
+      expandedEdges.push({ source: edge.source, target, minSpan: edge.minSpan, ...(edge.targetPortSpan !== undefined ? { sourcePortSpan: edge.targetPortSpan } : {}) })
+    }
+    const placed = layoutLayeredGraph({ ...input, nodes: expandedNodes, edges: expandedEdges, loopPorts }, forestLayout, unsupported, routingWork, searchWork)
+    const projected: AgenticLayout = { ...placed, topology: 'layered', nodes: placed.nodes.slice(0, nodes.length), edges: placed.edges.slice(0, edges.length).map((route, index) => {
+      const back = returns[index]!
+      if (back < 0) return route
+      const returning = placed.edges[back]!.points
+      let labelPosition = route.labelPosition
+      if (labelPosition && edges[index]!.label) {
+        const main = horizontal ? labelPosition.x : labelPosition.y, cross = horizontal ? labelPosition.y : labelPosition.x
+        let side = -1
+        for (let cursor = 1; cursor < returning.length; cursor++) {
+          const a = returning[cursor - 1]!, b = returning[cursor]!
+          const am = horizontal ? a.x : a.y, bm = horizontal ? b.x : b.y
+          const ac = horizontal ? a.y : a.x, bc = horizontal ? b.y : b.x
+          if (ac === bc && main >= Math.min(am, bm) && main <= Math.max(am, bm)) { side = cross < ac ? -1 : 1; break }
+        }
+        const distance = ((horizontal ? edges[index]!.label!.height : edges[index]!.label!.width) / 2 + 4) * side
+        labelPosition = horizontal ? { x: labelPosition.x, y: labelPosition.y + distance } : { x: labelPosition.x + distance, y: labelPosition.y }
+      }
+      return { ...route, ...(labelPosition ? { labelPosition } : {}), points: route.points.concat([...returning].reverse()) }
+    }) }
+    return compactMeasuredLoops(input, projected, searchWork)
+  }
+
+  const physicalCapacity = nodes.some(node => node.contact === 'rectangle' || node.contact === 'rounded-rectangle')
+  const shared = !nesting && !physicalCapacity && !partitioned && !hasModelOrder && !hasShortEdges && layoutSharedFan(input, incoming, outgoing, unsupported)
+  if (shared) return shared
+  const forest = !nesting && !physicalCapacity && !partitioned && !hasModelOrder && !hasShortEdges && forestLayout(input)
+  if (forest) return { ...forest, expandedVertices: nodes.length }
+
+  // The default reserves two private ranks per span. The optional compact
+  // policy reserves the extra rank only for measured labels.
+  const rank = new Uint32Array(nodes.length)
+  const queue = nodes.flatMap((_, index) => indegree[index] === 0 ? [index] : [])
+  let maxRank = 0
+  for (let cursor = 0; cursor < queue.length; cursor++) {
+    const source = queue[cursor]!
+    for (const edgeIndex of outgoing[source]!) {
+      const edge = edges[edgeIndex]!
+      const next = rank[source]! + privateRankSpan(edge, input.compactPrivateRanks)
+      if (next >= MAX_RANKS) unsupported('agentic local rank-expansion limit')
+      rank[edge.target] = Math.max(rank[edge.target]!, next)
+      maxRank = Math.max(maxRank, next)
+      indegree[edge.target] = indegree[edge.target]! - 1
+      if (indegree[edge.target] === 0) queue.push(edge.target)
+    }
+  }
+  if (queue.length !== nodes.length) {
+    if (nesting) throw new TypeError('Native nesting constraints must remain acyclic')
+    if (partitioned) {
+      // Cross-partition links already point forward. A total private order
+      // inside each partition breaks its cycles without reversing that order.
+      let order = input.authoredCycleOrder ? Uint32Array.from(nodes, (_, index) => index) : feedbackOrder(incoming, outgoing, edges)
+      if (!input.authoredCycleOrder && input.groupCycleEdges?.length) {
+        const samePartition = (edge: MeasuredGraph['edges'][number]) => (nodes[edge.source]!.partition ?? 0) === (nodes[edge.target]!.partition ?? 0)
+        const localEdges = edges.filter(samePartition), preferred = input.groupCycleEdges.map(index => edges[index]!).filter(samePartition)
+        for (const candidate of [depthFirstOrder(outgoing, edges), groupSourceOrder(outgoing, edges, preferred)]) {
+          if (compareFeedbackOrders(localEdges, preferred, candidate, order) < 0) order = candidate
+        }
+      }
+      const reversed = edges.map(edge => (nodes[edge.source]!.partition ?? 0) === (nodes[edge.target]!.partition ?? 0) && order[edge.source]! > order[edge.target]!)
+      const placed = layoutLayeredGraph({ ...input, cycleOriented: true, edges: edges.map((edge, index) => reversed[index]
+        ? orientMeasuredEdge(edge, edge.target, edge.source, true) : edge) }, forestLayout, unsupported, routingWork, searchWork)
+      return { ...placed, edges: placed.edges.map((edge, index) => reversed[index] ? { ...edge, points: [...edge.points].reverse() } : edge) }
+    }
+    return layoutCyclicGraph(input, incoming, outgoing,
+      (flat, fail, work) => layoutLayeredGraph(flat, forestLayout, fail, work, searchWork),
+      unsupported, routingWork, searchWork)
+  }
+  if (nesting) {
+    routingWork.pairs -= 2 * edges.length
+    routingWork.arcs -= 2 * nodes.length + 2 * nesting.input.edges.length
+    if (routingWork.pairs < 0 || routingWork.arcs < 0) unsupported('agentic global port adjacency work limit')
+  }
+  const portIncoming = nesting ? incoming.map(peers => peers.filter(index => index < nesting.input.edges.length)) : incoming
+  const portOutgoing = nesting ? outgoing.map(peers => peers.filter(index => index < nesting.input.edges.length)) : outgoing
+  let physicalPortMargins: Float64Array | undefined
+  if (physicalCapacity) {
+    routingWork.arcs -= nodes.length
+    if (routingWork.arcs < 0) unsupported('agentic endpoint capacity work limit')
+    const margins = physicalPortMargins = new Float64Array(nodes.length)
+    // Private orientation is now acyclic. Plan the actual two port faces
+    // before constructing any coordinate or route; fixed bodies never squeeze
+    // known paint demand into a smaller proportional spread.
+    nodes = nodes.map((node, index) => {
+      if (node.contact !== 'rectangle' && node.contact !== 'rounded-rectangle') return node
+      routingWork.pairs -= 8 + portOutgoing[index]!.length + portIncoming[index]!.length
+      if (--routingWork.arcs < 0 || routingWork.pairs < 0) unsupported('agentic endpoint capacity work limit')
+      let support = input.maximumEdgeStrokeWidth ?? 0
+      for (const e of portOutgoing[index]!) support = Math.max(support, sourcePortSpans?.[e] ?? 0)
+      for (const e of portIncoming[index]!) support = Math.max(support, targetPortSpans?.[e] ?? 0)
+      const count = Math.max(portOutgoing[index]!.length, portIncoming[index]!.length)
+      if (!count) return node
+      const margin = Math.max(8, (node.paintCornerRadius ?? 0) + (node.paintStrokeWidth ?? 0) / 2 + support / 2)
+      margins[index] = margin
+      const pitch = Math.max(8, node.minimumPortSpacing ?? 0, support + (input.edgeSpacing ?? 6))
+      const required = 2 * margin + (count - 1) * pitch
+      if (!Number.isFinite(required)) throw new TypeError('Invalid measured endpoint capacity')
+      const cross = horizontal ? node.height : node.width
+      if (cross < required && node.sizePolicy !== 'minimum') unsupported('fixed body has insufficient physical port capacity')
+      const size = Math.max(cross, required)
+      return { ...node, ...(horizontal ? { height: size } : { width: size }), minimumPortSpacing: pitch }
+    })
+  }
+  const incomingWeight = hasShortEdges ? new Uint32Array(nodes.length) : undefined
+  const outgoingWeight = hasShortEdges ? new Uint32Array(nodes.length) : undefined
+  if (hasShortEdges) for (const edge of edges) {
+    const weight = edge.short ? 100 : 1
+    incomingWeight![edge.target] = incomingWeight![edge.target]! + weight
+    outgoingWeight![edge.source] = outgoingWeight![edge.source]! + weight
+  }
+  // Move a vertex to a feasible bound that cannot increase total edge span.
+  // Equal-degree moves favor the later bound; the fixed sweep limit keeps
+  // this compaction deterministic even when several equally short ranks exist.
+  for (let sweep = 0; !partitioned && sweep < 4; sweep++) {
+    let changed = false
+    for (const reverse of [true, false]) {
+      for (let cursor = 0; cursor < queue.length; cursor++) {
+        const id = queue[reverse ? queue.length - 1 - cursor : cursor]!
+        let lower = 0, upper = maxRank
+        for (const index of incoming[id]!) { const edge = edges[index]!; lower = Math.max(lower, rank[edge.source]! + privateRankSpan(edge, input.compactPrivateRanks)) }
+        for (const index of outgoing[id]!) { const edge = edges[index]!; upper = Math.min(upper, rank[edge.target]! - privateRankSpan(edge, input.compactPrivateRanks)) }
+        const later = hasShortEdges ? outgoingWeight![id]! >= incomingWeight![id]! : outgoing[id]!.length >= incoming[id]!.length
+        const next = outgoing[id]!.length && later ? upper : lower
+        if (next !== rank[id]) { rank[id] = next; changed = true }
+      }
+    }
+    if (!changed) break
+  }
+  if (partitioned) {
+    // Compress numeric partitions to their authored order. Empty partition
+    // numbers consume no ranks; consecutive blocks share no placement layer.
+    const blocks = new Map<number, number[]>()
+    for (const index of queue) {
+      const partition = nodes[index]!.partition ?? 0
+      const block = blocks.get(partition) ?? []
+      block.push(index); blocks.set(partition, block)
+    }
+    let floor = 0
+    for (const partition of [...blocks.keys()].sort((a, b) => a - b)) {
+      let last = floor
+      for (const index of blocks.get(partition)!) {
+        let next = floor
+        for (const edgeIndex of incoming[index]!) {
+          const edge = edges[edgeIndex]!
+          next = Math.max(next, rank[edge.source]! + privateRankSpan(edge, input.compactPrivateRanks))
+        }
+        if (next >= MAX_RANKS) unsupported('agentic local rank-expansion limit')
+        rank[index] = next
+        last = Math.max(last, next)
+      }
+      floor = last + 1
+    }
+  }
+  if (partitioned && hasShortEdges) {
+    const windows = new Map<number, { lower: number; upper: number }>()
+    for (const [index, node] of nodes.entries()) {
+      const partition = node.partition ?? 0, window = windows.get(partition)
+      if (window) { window.lower = Math.min(window.lower, rank[index]!); window.upper = Math.max(window.upper, rank[index]!) }
+      else windows.set(partition, { lower: rank[index]!, upper: rank[index]! })
+    }
+    for (let sweep = 0; sweep < 4; sweep++) {
+      let changed = false
+      for (const reverse of [true, false]) for (let cursor = 0; cursor < queue.length; cursor++) {
+        const id = queue[reverse ? queue.length - 1 - cursor : cursor]!, window = windows.get(nodes[id]!.partition ?? 0)!
+        let lower = window.lower, upper = window.upper
+        for (const index of incoming[id]!) { const edge = edges[index]!; lower = Math.max(lower, rank[edge.source]! + privateRankSpan(edge, input.compactPrivateRanks)) }
+        for (const index of outgoing[id]!) { const edge = edges[index]!; upper = Math.min(upper, rank[edge.target]! - privateRankSpan(edge, input.compactPrivateRanks)) }
+        const next = outgoing[id]!.length && outgoingWeight![id]! >= incomingWeight![id]! ? upper : lower
+        if (next !== rank[id]) { rank[id] = next; changed = true }
+      }
+      if (!changed) break
+    }
+  }
+  const optimalRanks = !partitioned && minimumSpanRanks(input, searchWork, hasShortEdges)
+  if (optimalRanks) rank.set(optimalRanks)
+  if (nesting) {
+    const groups = nesting.input.groups!
+    routingWork.pairs -= 4 * nesting.input.nodes.length + groups.length * (64 + Math.ceil(Math.log2(groups.length + 1)))
+    routingWork.arcs -= 4 * groups.length
+    if (routingWork.pairs < 0 || routingWork.arcs < 0) unsupported('agentic nesting rank compaction work limit')
+    const order = groups.map((_, index) => index), depth = new Uint8Array(groups.length)
+    for (let group = 0; group < groups.length; group++) for (let p = group; p >= 0; p = groups[p]!.parent ?? -1) depth[group] = depth[group]! + 1
+    order.sort((a, b) => depth[b]! - depth[a]! || a - b)
+    const first = new Float64Array(groups.length).fill(Infinity), last = new Float64Array(groups.length).fill(-Infinity)
+    nesting.input.nodes.forEach((node, i) => { const parent = node.parent; if (parent !== undefined) { first[parent] = Math.min(first[parent]!, rank[i]!); last[parent] = Math.max(last[parent]!, rank[i]!) } })
+    for (const group of order) {
+      rank[nesting.top[group]!] = first[group]! - 1
+      rank[nesting.bottom[group]!] = last[group]! + 1
+      const parent = groups[group]!.parent
+      if (parent !== undefined) { first[parent] = Math.min(first[parent]!, rank[nesting.top[group]!]!); last[parent] = Math.max(last[parent]!, rank[nesting.bottom[group]!]!) }
+    }
+  }
+  maxRank = rank.reduce((maximum, value) => Math.max(maximum, value), 0)
+  let expandedSize = nodes.length
+  for (const edge of nesting ? edges.slice(0, nesting.input.edges.length) : edges) {
+    expandedSize += rank[edge.target]! - rank[edge.source]! - 1
+    if (expandedSize > MAX_EXPANDED_VERTICES) unsupported('agentic local expanded-graph limit')
+  }
+  if (nodes.length === 0) {
+    if (!Number.isFinite(2 * padding)) unsupported('agentic local coordinate-range limit')
+    return { topology: 'layered', width: 2 * padding, height: 2 * padding, nodes: [], edges: [], expandedVertices: 0 }
+  }
+
+  const vertices: Vertex[] = nodes.map((node, index) => ({
+    rank: rank[index]!, crossSize: horizontal ? node.height : node.width,
+    mainSize: horizontal ? node.width : node.height, incoming: [], outgoing: [],
+  }))
+  const chains: number[][] = []
+  const labelVertices: (number | undefined)[] = []
+  for (let edgeIndex = 0; edgeIndex < edges.length; edgeIndex++) {
+    const edge = edges[edgeIndex]!
+    if (nesting && edgeIndex >= nesting.input.edges.length) { chains.push([]); continue }
+    const chain = [edge.source]
+    const labelRank = edge.label ? Math.floor((rank[edge.source]! + rank[edge.target]!) / 2) : -1
+    for (let currentRank = rank[edge.source]! + 1; currentRank < rank[edge.target]!; currentRank++) {
+      const label = currentRank === labelRank
+      const index = vertices.length
+      vertices.push({
+        rank: currentRank,
+        crossSize: label ? (horizontal ? edge.label!.height : edge.label!.width) + 2 * LABEL_GAP : 4,
+        mainSize: label ? (horizontal ? edge.label!.width : edge.label!.height) : 0,
+        incoming: [], outgoing: [],
+      })
+      if (label) labelVertices[edgeIndex] = index
+      chain.push(index)
+    }
+    chain.push(edge.target)
+    for (let index = 1; index < chain.length; index++) {
+      const source = chain[index - 1]!, target = chain[index]!
+      vertices[source]!.outgoing.push(target)
+      vertices[target]!.incoming.push(source)
+    }
+    chains.push(chain)
+  }
+
+  const nestedBands = nesting ? prepareNestingBands(nesting, vertices, rank, chains, routingWork, MAX_EXPANDED_VERTICES, unsupported) : undefined
+  const bands: number[][] = Array.from({ length: maxRank + 1 }, () => [])
+  const bandWidths = new Float64Array(bands.length)
+  const bandHeights = new Float64Array(bands.length)
+  for (let index = 0; index < vertices.length; index++) bands[vertices[index]!.rank]!.push(index)
+  if (nestedBands) for (const band of bands) nestedBands.canonicalize(band)
+  const preserveModelOrder = hasModelOrder ? (band: number[]): void => {
+    const ordered = band.filter(index => nodes[index]?.modelOrder !== undefined)
+    ordered.sort((a, b) => nodes[a]!.modelOrder! - nodes[b]!.modelOrder!)
+    let cursor = 0
+    for (let index = 0; index < band.length; index++) if (nodes[band[index]!]?.modelOrder !== undefined) band[index] = ordered[cursor++]!
+  } : undefined
+  if (preserveModelOrder) for (const band of bands) preserveModelOrder(band)
+  let crossExtent = 0
+  for (let index = 0; index < bands.length; index++) {
+    const band = bands[index]!
+    let width = Math.max(0, band.length - 1) * nodeSpacing
+    for (const vertexIndex of band) {
+      const vertex = vertices[vertexIndex]!
+      width += vertex.crossSize
+      bandHeights[index] = Math.max(bandHeights[index]!, vertex.mainSize)
+    }
+    bandWidths[index] = width
+    crossExtent = Math.max(crossExtent, width)
+  }
+  const cross = new Float64Array(vertices.length)
+  const assignBand = (index: number): void => {
+    let start = (crossExtent - bandWidths[index]!) / 2
+    const band = bands[index]!
+    for (let slot = 0; slot < band.length; slot++) {
+      const vertexIndex = band[slot]!
+      const width = vertices[vertexIndex]!.crossSize
+      cross[vertexIndex] = start + width / 2
+      start += width + nodeSpacing
+    }
+  }
+  for (let index = 0; index < bands.length; index++) assignBand(index)
+  const barycenters = new Float64Array(vertices.length)
+  const reorder = (index: number, forward: boolean): void => {
+    const band = bands[index]!
+    let finite = true
+    for (let slot = 0; slot < band.length; slot++) {
+      const vertexIndex = band[slot]!
+      const neighbors = forward ? vertices[vertexIndex]!.incoming : vertices[vertexIndex]!.outgoing
+      let sum = 0
+      for (let neighbor = 0; neighbor < neighbors.length; neighbor++) sum += cross[neighbors[neighbor]!]!
+      const value = neighbors.length ? sum / neighbors.length : cross[vertexIndex]!
+      barycenters[vertexIndex] = value
+      finite &&= Number.isFinite(value)
+    }
+    if (band.length <= 16 && finite) {
+      // At most 120 comparisons, with the exact barycenter/identity order.
+      for (let slot = 1; slot < band.length; slot++) {
+        const vertex = band[slot]!, value = barycenters[vertex]!
+        let cursor = slot
+        while (cursor > 0) {
+          const previous = band[cursor - 1]!
+          if ((barycenters[previous]! - value || previous - vertex) <= 0) break
+          band[cursor--] = previous
+        }
+        band[cursor] = vertex
+      }
+    } else band.sort((a, b) => barycenters[a]! - barycenters[b]! || a - b)
+    preserveModelOrder?.(band)
+    nestedBands?.canonicalize(band)
+    assignBand(index)
+  }
+  const orderSlots = new Uint32Array(vertices.length)
+  // Rank cardinalities stay fixed throughout ordering. Reuse zeroed score
+  // trees instead of allocating them for every bounded search proposal.
+  const crossingTrees = bands.slice(1).map(band => new Uint32Array(band.length + 1))
+  const refreshOrderSlots = (): void => {
+    for (let rank = 0; rank < bands.length; rank++) {
+      const band = bands[rank]!
+      for (let slot = 0; slot < band.length; slot++) orderSlots[band[slot]!] = slot
+    }
+  }
+  const crossingScore = (): number => {
+    refreshOrderSlots()
+    let score = 0
+    for (let rank = 0; rank + 1 < bands.length; rank++) {
+      const tree = crossingTrees[rank]!
+      tree.fill(0)
+      let seen = 0
+      const band = bands[rank]!
+      for (let slot = 0; slot < band.length; slot++) {
+        const targets = vertices[band[slot]!]!.outgoing
+        for (let edge = 0; edge < targets.length; edge++) {
+          const target = targets[edge]!
+          let before = 0
+          for (let index = orderSlots[target]! + 1; index > 0; index -= index & -index) before += tree[index]!
+          score += seen - before
+        }
+        // A source's own fan is ordered at its ports and does not cross itself.
+        for (let edge = 0; edge < targets.length; edge++) {
+          for (let index = orderSlots[targets[edge]!]! + 1; index < tree.length; index += index & -index) tree[index] = tree[index]! + 1
+        }
+        seen += targets.length
+      }
+    }
+    return score
+  }
+  let bestScore = crossingScore(), bestBands = bands.map(band => [...band])
+  const rememberOrder = (): void => {
+    const score = crossingScore()
+    if (score < bestScore) { bestScore = score; bestBands = bands.map(band => [...band]) }
+  }
+  for (let sweep = 0; sweep < SWEEP_PAIRS; sweep++) {
+    for (let index = 1; index < bands.length; index++) reorder(index, true)
+    rememberOrder()
+    for (let index = bands.length - 2; index >= 0; index--) reorder(index, false)
+    rememberOrder()
+  }
+  bestBands.forEach((band, index) => { bands[index] = band; band.forEach((vertex, slot) => { orderSlots[vertex] = slot }) })
+  // Adjacent switching reduces the exact two-layer inversion score. Charge
+  // every neighbor comparison; budget exhaustion stops optional refinement.
+  const switchAdjacentRanks = (): void => {
+    refreshOrderSlots()
+    for (let sweep = 0; sweep < 4; sweep++) {
+      let changed = false
+      for (let rank = 0; rank < bands.length; rank++) {
+        const band = bands[rank]!
+        for (let index = 0; index + 1 < band.length; index++) {
+          if (hasModelOrder && nodes[band[index]!]?.modelOrder !== undefined && nodes[band[index + 1]!]?.modelOrder !== undefined) continue
+          const a = vertices[band[index]!]!, b = vertices[band[index + 1]!]!
+          const cost = a.incoming.length * b.incoming.length + a.outgoing.length * b.outgoing.length
+          if (cost > routingWork.swaps) continue
+          routingWork.swaps -= cost
+          let reduction = 0
+          for (let left = 0; left < a.incoming.length; left++) for (let right = 0; right < b.incoming.length; right++)
+            reduction += Math.sign(orderSlots[a.incoming[left]!]! - orderSlots[b.incoming[right]!]!)
+          for (let left = 0; left < a.outgoing.length; left++) for (let right = 0; right < b.outgoing.length; right++)
+            reduction += Math.sign(orderSlots[a.outgoing[left]!]! - orderSlots[b.outgoing[right]!]!)
+          if (reduction > 0) {
+            const first = band[index]!, second = band[index + 1]!
+            band[index] = second; band[index + 1] = first
+            orderSlots[first] = index + 1; orderSlots[second] = index; changed = true
+          }
+        }
+      }
+      if (!changed) break
+    }
+  }
+  if (!nesting) switchAdjacentRanks()
+  // Move a long edge's private vertices together. Single-rank switches can
+  // stall when their temporary crossings conceal an improving joint move.
+  if (!nesting && input.compactPrivateRanks && nodes.length <= 20 && edges.length <= 64 && vertices.length <= 256) {
+    const slotDescriptor = { __proto__: null, value: undefined as [number, number[]] | undefined, writable: true, enumerable: true, configurable: true }
+    let value = crossingScore(), trials = 128
+    const blocks = chains.map(chain => chain.slice(1, -1)).filter(block => block.length > 1).sort((a, b) => b.length - a.length)
+    for (const block of blocks) {
+      if (value === 0) break
+      const saved: Array<[number, number[]]> = []
+      for (let ordinal = 0; ordinal < block.length; ordinal++) {
+        const id = block[ordinal]!
+        slotDescriptor.value = [vertices[id]!.rank, [...bands[vertices[id]!.rank]!]]
+        defineOrderSlot(saved, ordinal, slotDescriptor)
+      }
+      let best = value, bestOrders: typeof saved | undefined, exhausted = false
+      for (const fraction of [0, 1, .25, .5, .75]) {
+        // Each expanded arc has at most eight Fenwick steps per query/update.
+        const cost = bands.length + vertices.length + 16 * (vertices.length - nodes.length + edges.length)
+        if (trials-- <= 0 || (searchWork.blockPairs ?? 2_000_000) < cost) { exhausted = true; break }
+        searchWork.blockPairs = (searchWork.blockPairs ?? 2_000_000) - cost
+        for (let ordinal = 0; ordinal < block.length; ordinal++) {
+          const id = block[ordinal]!
+          const rank = vertices[id]!.rank, band = bands[rank]!, original = saved[ordinal]![1]
+          for (let index = 0; index < band.length; index++) band[index] = original[index]!
+          const from = band.indexOf(id), to = Math.floor((band.length - 1) * fraction)
+          if (from < to) for (let index = from; index < to; index++) band[index] = band[index + 1]!
+          else for (let index = from; index > to; index--) band[index] = band[index - 1]!
+          band[to] = id
+        }
+        const score = crossingScore()
+        if (score < best) {
+          best = score
+          bestOrders = []
+          for (let ordinal = 0; ordinal < saved.length; ordinal++) {
+            const rank = saved[ordinal]![0]
+            slotDescriptor.value = [rank, [...bands[rank]!]]
+            defineOrderSlot(bestOrders, ordinal, slotDescriptor)
+          }
+        }
+      }
+      // Restore a completed best order before leaving, including exhaustion
+      // halfway through a block's proposals. No partial proposal escapes.
+      const orders = bestOrders ?? saved
+      for (let ordinal = 0; ordinal < orders.length; ordinal++) {
+        const order = orders[ordinal]!
+        bands[order[0]] = order[1]
+      }
+      value = best
+      if (exhausted) break
+    }
+  }
+  // Tiny cyclic graphs already enumerate every cycle-search start. Keep that
+  // tuned policy: chain inversion gains there can add physical route bends.
+  // DAGs can refine long chains at every size without changing cycle placement.
+  if (!nesting && input.compactPrivateRanks && (nodes.length > 12 || !input.cycleOriented) && nodes.length <= 20 && edges.length <= 64 && vertices.length <= 256) {
+    refinePrivateChainOrder(bands, vertices, chains, searchWork)
+  }
+  // On a DAG, joint moves can make previously blocked local swaps improving
+  // again. Keep the separately validated cycle-placement policy intact.
+  if (!nesting && input.compactPrivateRanks && !input.cycleOriented) switchAdjacentRanks()
+  for (let index = 0; index < bands.length; index++) assignBand(index)
+
+  // Median coordinate descent reduces adjacent-rank L1 span within the
+  // existing band order. Real boxes retain their requested spacing even
+  // when private channel or label vertices occur between them.
+  const previousReal = new Int32Array(vertices.length).fill(-1), nextReal = new Int32Array(vertices.length).fill(-1)
+  for (const band of bands) {
+    let prior = -1
+    for (const id of band) { previousReal[id] = prior; if (id < nodes.length) prior = id }
+    prior = -1
+    for (let cursor = band.length - 1; cursor >= 0; cursor--) { const id = band[cursor]!; nextReal[id] = prior; if (id < nodes.length) prior = id }
+  }
+  let medianScratch = new Float64Array(0)
+  const coordinateGap = Math.min(4, nodeSpacing)
+  for (let sweep = 0; !nesting && sweep < 4; sweep++) for (const forward of [true, false]) {
+    for (let row = 0; row < bands.length; row++) {
+      const band = bands[forward ? row : bands.length - 1 - row]!
+      for (let cursor = 0; cursor < band.length; cursor++) {
+        const slot = forward ? cursor : band.length - 1 - cursor, id = band[slot]!, vertex = vertices[id]!
+        const degree = vertex.incoming.length + vertex.outgoing.length
+        if (!degree) continue
+        let median: number
+        if (degree <= 2) {
+          // Most private chain vertices have two neighbors. Preserve the
+          // directional lower/upper median without allocating or sorting.
+          const firstNeighbor = vertex.incoming[0] ?? vertex.outgoing[0]!
+          const secondNeighbor = degree === 1 ? firstNeighbor : vertex.incoming.length === 2
+            ? vertex.incoming[1]! : vertex.outgoing[vertex.incoming.length === 1 ? 0 : 1]!
+          const first = cross[firstNeighbor]!, second = cross[secondNeighbor]!
+          median = forward ? Math.min(first, second) : Math.max(first, second)
+        } else {
+          if (medianScratch.length < degree) medianScratch = new Float64Array(degree)
+          const peers = medianScratch.subarray(0, degree)
+          let cursor = 0, numeric = true
+          for (let neighbor = 0; neighbor < vertex.incoming.length; neighbor++) {
+            const value = cross[vertex.incoming[neighbor]!]!
+            peers[cursor++] = value; numeric &&= Number.isFinite(value) && !Object.is(value, -0)
+          }
+          for (let neighbor = 0; neighbor < vertex.outgoing.length; neighbor++) {
+            const value = cross[vertex.outgoing[neighbor]!]!
+            peers[cursor++] = value; numeric &&= Number.isFinite(value) && !Object.is(value, -0)
+          }
+          // Typed sorting treats signed zero and non-finite ties differently.
+          const sorted = numeric ? peers.sort() : Array.from(peers).sort((a,b)=>a-b)
+          median = sorted[Math.floor((degree - Number(forward)) / 2)]!
+        }
+        const before = band[slot - 1], after = band[slot + 1]
+        let lo = before === undefined ? vertex.crossSize / 2 : cross[before]! + (vertices[before]!.crossSize + vertex.crossSize) / 2 + coordinateGap
+        let hi = after === undefined ? crossExtent - vertex.crossSize / 2 : cross[after]! - (vertices[after]!.crossSize + vertex.crossSize) / 2 - coordinateGap
+        if (id < nodes.length) {
+          const previous = previousReal[id]!, next = nextReal[id]!
+          if (previous >= 0) lo = Math.max(lo, cross[previous]! + (vertices[previous]!.crossSize + vertex.crossSize) / 2 + nodeSpacing)
+          if (next >= 0) hi = Math.min(hi, cross[next]! - (vertices[next]!.crossSize + vertex.crossSize) / 2 - nodeSpacing)
+        }
+        if (lo <= hi) cross[id] = Math.max(lo, Math.min(hi, median))
+      }
+    }
+  }
+
+  // Compact long private channels into constant lanes where their ordered
+  // free intervals intersect. This pass keeps boxes and band order fixed. Without
+  // this, unequal band widths make a long edge zigzag at every private rank.
+  const slots = new Uint32Array(vertices.length)
+  for (const band of bands) band.forEach((vertex, index) => { slots[vertex] = index })
+  const gap = Math.min(4, nodeSpacing)
+  for (const chain of chains) {
+    if (chain.length < 3) continue
+    let start = 1
+    while (start < chain.length - 1) {
+      let lower = -Infinity, upper = Infinity, end = start
+      while (end < chain.length - 1) {
+        const id = chain[end]!, vertex = vertices[id]!, band = bands[vertex.rank]!, slot = slots[id]!
+        const before = band[slot - 1], after = band[slot + 1]
+        const lo = before === undefined ? vertex.crossSize / 2 : cross[before]! + (vertices[before]!.crossSize + vertex.crossSize) / 2 + gap
+        const hi = after === undefined ? crossExtent - vertex.crossSize / 2 : cross[after]! - (vertices[after]!.crossSize + vertex.crossSize) / 2 - gap
+        const nextLower = Math.max(lower, lo), nextUpper = Math.min(upper, hi)
+        if (nextLower > nextUpper) break
+        lower = nextLower; upper = nextUpper; end++
+      }
+      if (end > start + 1 || (chain.length === 3 && end > start)) {
+        const desired = (cross[chain[start - 1]!]! + cross[chain[end]!]!) / 2
+        const lane = Math.max(lower, Math.min(upper, desired))
+        for (let index = start; index < end; index++) cross[chain[index]!] = lane
+      }
+      start = Math.max(start + 1, end)
+    }
+  }
+
+  // Distinct authored edges receive distinct ports, including duplicate edges.
+  const sourcePort = new Float64Array(edges.length), targetPort = new Float64Array(edges.length)
+  const pairedPorts = new Map<number, (readonly [number, number])[]>()
+  for (const pair of input.loopPorts ?? []) {
+    const a = edges[pair[0]], b = edges[pair[1]]
+    if (!a || !b || a.source !== b.source) throw new TypeError('Invalid measured loop port pair')
+    const pairs = pairedPorts.get(a.source) ?? []
+    pairs.push(pair); pairedPorts.set(a.source, pairs)
+  }
+  if (nestedBands) crossExtent = nestedBands.coordinates(bands, cross)
+  for (let nodeIndex = 0; nodeIndex < nodes.length; nodeIndex++) {
+    const width = vertices[nodeIndex]!.crossSize
+    const assignPorts = (indices: number[], source: boolean): void => {
+      const peers = [...indices].sort((a, b) => {
+        const chainA = chains[a]!, chainB = chains[b]!
+        const neighborA = source ? chainA[1]! : chainA[chainA.length - 2]!
+        const neighborB = source ? chainB[1]! : chainB[chainB.length - 2]!
+        return cross[neighborA]! - cross[neighborB]! || a - b
+      })
+      const pairs = source ? pairedPorts.get(nodeIndex) : undefined
+      if (pairs?.length) {
+        const physicalPitch = physicalPortMargins?.[nodeIndex] ? nodes[nodeIndex]!.minimumPortSpacing : undefined
+        const slots = new Map(peers.map((edge, index) => [edge, index]))
+        const constraints = pairs.map(([a, b]) => [Math.min(slots.get(a)!, slots.get(b)!), Math.max(slots.get(a)!, slots.get(b)!)] as const)
+        if (physicalPitch !== undefined || constraints.some(([a, b]) => width * (b - a) / (peers.length + 1) < 8)) {
+          const positions = new Float64Array(peers.length)
+          const ends = new Map<number, number[]>()
+          for (const [a, b] of constraints) { const starts = ends.get(b) ?? []; starts.push(a); ends.set(b, starts) }
+          for (let index = 0; index < peers.length; index++) {
+            positions[index] = index ? positions[index - 1]! + (physicalPitch ?? 2) : 0
+            for (const start of ends.get(index) ?? []) positions[index] = Math.max(positions[index]!, positions[start]! + (physicalPitch ?? 8))
+          }
+          const margin = physicalPortMargins?.[nodeIndex] || Math.min(8, width / 6)
+          const slack = width - 2 * margin - (positions.at(-1) ?? 0)
+          if (slack < 0) unsupported('agentic local loop-attachment capacity')
+          peers.forEach((edge, index) => { sourcePort[edge] = cross[nodeIndex]! - width / 2 + margin + positions[index]! + slack * (index + 1) / (peers.length + 1) })
+          return
+        }
+      }
+      // Keep distinct ports in neighbor order, but use an available reserved
+      // lane instead of adding a jog merely to reach a uniformly spaced port.
+      // Dense sides retain the existing proportional spread; loop pairs keep
+      // their separately proved attachment separation.
+      if(nodes[nodeIndex]!.minimumPortSpacing!==undefined){routingWork.pairs-=3;if(routingWork.pairs<0)unsupported('agentic node port-spacing work limit')}
+      const margin = physicalPortMargins?.[nodeIndex] || Math.min(8, width / 6), separation = Math.max(8,nodes[nodeIndex]!.minimumPortSpacing??8)
+      if (!pairs?.length && width - 2 * margin >= (peers.length - 1) * separation) {
+        const left = cross[nodeIndex]! - width / 2 + margin, right = cross[nodeIndex]! + width / 2 - margin
+        const positions = peers.map((edge, slot) => {
+          const chain = chains[edge]!, neighbor = source ? chain[1]! : chain[chain.length - 2]!
+          return orderedPortCoordinate(cross[neighbor]!, left, right, slot, peers.length, separation)
+        })
+        for (let slot = 1; slot < positions.length; slot++) positions[slot] = Math.max(positions[slot]!, positions[slot - 1]! + separation)
+        peers.forEach((edge, slot) => { (source ? sourcePort : targetPort)[edge] = positions[slot]! })
+        return
+      }
+      const spans = source ? sourcePortSpans : targetPortSpans
+      if (!pairs?.length && nodes[nodeIndex]!.minimumPortSpacing === undefined && spans && peers.length > 1) {
+        routingWork.pairs -= 6 * peers.length
+        if (routingWork.pairs < 0) unsupported('agentic endpoint port-span work limit')
+        // Invisible constraints retain their ordered ports without consuming paint room.
+        let used = 0, known = true
+        for (const edge of peers) { const hidden = edges[edge]!.visible === false; const span = hidden ? 0 : spans[edge]!; used += span; known &&= hidden || span > 0 }
+        const gap = (width - used) / (peers.length + 1)
+        if (known && gap > (Math.abs(cross[nodeIndex]!) + width + used) * 1e-10 + 1e-9) {
+          let cursor = cross[nodeIndex]! - width / 2 + gap
+          for (const edge of peers) {
+            const span = edges[edge]!.visible === false ? 0 : spans[edge]!
+            ;(source ? sourcePort : targetPort)[edge] = cursor + span / 2
+            cursor += span + gap
+          }
+          return
+        }
+      }
+      for (let index = 0; index < peers.length; index++) {
+        const position = cross[nodeIndex]! - width / 2 + width * (index + 1) / (peers.length + 1)
+        ;(source ? sourcePort : targetPort)[peers[index]!] = position
+      }
+    }
+    assignPorts(portOutgoing[nodeIndex]!, true)
+    assignPorts(portIncoming[nodeIndex]!, false)
+  }
+
+  if (input.portAwarePlacement) layoutOptimization(true)!.improvePortCoordinates(vertices, bands, chains, cross, sourcePort, targetPort, nodes.length, nodeSpacing, crossExtent, previousReal, nextReal)
+
+  // Even zero requested spacing needs a channel in which a fan can turn.
+  const halfGap = Math.max(4, layerSpacing / 2)
+  const channels: ChannelStep[][] = Array.from({ length: maxRank }, () => [])
+  const steps = chains.map((chain, edgeIndex) => chain.slice(1).map((to, index): ChannelStep => {
+    const from = chain[index]!
+    const step = { sourceCross: index === 0 ? sourcePort[edgeIndex]! : cross[from]!,
+      targetCross: index === chain.length - 2 ? targetPort[edgeIndex]! : cross[to]!, offset: halfGap / 2, track: 0 }
+    channels[vertices[from]!.rank]!.push(step)
+    return step
+  }))
+  const gaps = channels.map(channel => {
+    if (nesting && !channel.length) return 0
+    if (input.minimumTerminalLead !== undefined) { routingWork.pairs -= 3; if (routingWork.pairs < 0) unsupported('agentic terminal-lead work limit') }
+    return assignChannelTracks(channel, halfGap, input.edgeSpacing ?? 6, crossExtent, routingWork, unsupported, input.minimumTerminalLead)
+  })
+  let bottomGroups: number[][] | undefined
+  if (nesting && horizontal) {
+    routingWork.arcs -= bands.length + 2 * nesting.top.length
+    routingWork.pairs -= bands.length + nesting.top.length
+    if (routingWork.arcs < 0 || routingWork.pairs < 0) unsupported('agentic nesting extent work limit')
+    bottomGroups = Array.from({ length: bands.length }, () => [])
+    for (let group = 0; group < nesting.top.length; group++) bottomGroups[rank[nesting.bottom[group]!]!]!.push(group)
+  }
+  const main = new Float64Array(vertices.length)
+  let mainExtent = 0
+  for (let index = 0; index < bands.length; index++) {
+    if (nesting && bottomGroups) for (const group of bottomGroups[index]!) {
+      mainExtent = Math.max(mainExtent,
+        main[nesting.top[group]!]! - vertices[nesting.top[group]!]!.mainSize / 2 + nesting.input.groups![group]!.minWidth
+        - vertices[nesting.bottom[group]!]!.mainSize / 2 - bandHeights[index]! / 2)
+    }
+    for (const vertexIndex of bands[index]!) main[vertexIndex] = mainExtent + bandHeights[index]! / 2
+    mainExtent += bandHeights[index]! + (gaps[index] ?? 0)
+  }
+  if (!Number.isFinite(mainExtent + crossExtent + 2 * padding)) unsupported('agentic local coordinate-range limit')
+  const point = (crossValue: number, mainValue: number): Point => {
+    const orientedMain = padding + (reverse ? mainExtent - mainValue : mainValue)
+    return horizontal ? { x: orientedMain, y: padding + crossValue } : { x: padding + crossValue, y: orientedMain }
+  }
+
+  // Node origins are the border authority used by the shape writer. Project
+  // terminal faces from those same values instead of reassociating center/half
+  // arithmetic, and carry each chosen cross coordinate through its lead.
+  const positionedNodes = nodes.map((node, index) => {
+    const center = point(cross[index]!, main[index]!)
+    return { x: center.x - node.width / 2, y: center.y - node.height / 2,
+      ...(node.width !== input.nodes[index]!.width || node.height !== input.nodes[index]!.height ? { width: node.width, height: node.height } : {}) }
+  })
+  const portCross = (value: number, index: number): number => {
+    const width = vertices[index]!.crossSize, margin = physicalPortMargins?.[index] || Math.min(8, width / 6)
+    const origin = horizontal ? positionedNodes[index]!.y : positionedNodes[index]!.x
+    if (value === cross[index]! - width / 2 + margin) return origin + margin
+    if (value === cross[index]! + width / 2 - margin) return origin + width - margin
+    return padding + value
+  }
+  const portMain = (index: number, source: boolean): number => {
+    const node = positionedNodes[index]!, size = nodes[index]!
+    return horizontal ? node.x + (source !== reverse ? size.width : 0) : node.y + (source !== reverse ? size.height : 0)
+  }
+
+  // Cycle selection and loop compaction still depend on temporary route
+  // geometry. Ordinary acyclic placement needs channels/gaps but no point
+  // arrays: the family will build the actual side-constrained routes.
+  const positionedEdges = input.placementOnly && (!input.cycleOriented || nesting !== undefined) && !input.loopPorts?.length
+    ? edges.map(() => ({ points: [] as Point[] })) : edges.map((_, edgeIndex) => {
+    if (nesting && edgeIndex >= nesting.input.edges.length) return { points: [] as Point[] }
+    const chain = chains[edgeIndex]!
+    const points: Point[] = []
+    const append = (crossValue: number, mainValue: number, projectedCross?: number, projectedMain?: number): void => {
+      const next = point(crossValue, mainValue)
+      if (projectedCross !== undefined) { if (horizontal) next.y = projectedCross; else next.x = projectedCross }
+      if (projectedMain !== undefined) { if (horizontal) next.x = projectedMain; else next.y = projectedMain }
+      const last = points.at(-1)
+      if (last?.x === next.x && last.y === next.y) return
+      const previous = points.at(-2)
+      if (previous && last && ((previous.x === last.x && last.x === next.x && (last.y - previous.y) * (next.y - last.y) >= 0)
+        || (previous.y === last.y && last.y === next.y && (last.x - previous.x) * (next.x - last.x) >= 0))) points.pop()
+      points.push(next)
+    }
+    for (let index = 1; index < chain.length; index++) {
+      const from = chain[index - 1]!, to = chain[index]!
+      const step = steps[edgeIndex]![index - 1]!
+      const startCross = step.sourceCross, endCross = step.targetCross
+      const startMain = main[from]! + vertices[from]!.mainSize / 2
+      const endMain = main[to]! - vertices[to]!.mainSize / 2
+      const bandEnd = main[from]! + bandHeights[vertices[from]!.rank]! / 2
+      const gapMain = bandEnd + step.offset
+      const startProjectedCross = from < nodes.length ? portCross(startCross, from) : undefined
+      const endProjectedCross = to < nodes.length ? portCross(endCross, to) : undefined
+      append(startCross, startMain, startProjectedCross, from < nodes.length ? portMain(from, true) : undefined)
+      append(startCross, gapMain, startProjectedCross)
+      append(step.targetEscape ?? endCross, gapMain, step.targetEscape === undefined ? endProjectedCross : undefined)
+      if (step.targetEscape !== undefined) {
+        append(step.targetEscape, bandEnd + step.targetExit!)
+        append(endCross, bandEnd + step.targetExit!, endProjectedCross)
+      }
+      append(endCross, endMain, endProjectedCross, to < nodes.length ? portMain(to, false) : undefined)
+    }
+    const labelIndex = labelVertices[edgeIndex]
+    const labelPosition = labelIndex === undefined ? undefined : point(cross[labelIndex]!, main[labelIndex]!)
+    return { points, ...(labelPosition ? { labelPosition } : {}) }
+  })
+  return {
+    topology: 'layered',
+    expandedVertices: vertices.length,
+    width: 2 * padding + (horizontal ? mainExtent : crossExtent),
+    height: 2 * padding + (horizontal ? crossExtent : mainExtent),
+    nodes: positionedNodes,
+    edges: positionedEdges,
+    ...(nesting && nestedBands ? { groups: nesting.input.groups!.map((_, group) => {
+      const top = nesting.top[group]!, bottom = nesting.bottom[group]!
+      const start = main[top]! - vertices[top]!.mainSize / 2, end = main[bottom]! + vertices[bottom]!.mainSize / 2
+      const low = cross[nestedBands.left[group]!]!, high = cross[nestedBands.right[group]!]!
+      const mainStart = padding + (reverse ? mainExtent - end : start)
+      return horizontal ? { x: mainStart, y: padding + low, width: end - start, height: high - low }
+        : { x: padding + low, y: mainStart, width: high - low, height: end - start }
+    }) } : {}),
+  }
+}

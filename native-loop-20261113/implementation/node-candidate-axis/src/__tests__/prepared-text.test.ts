@@ -1,0 +1,997 @@
+import fc from 'fast-check'
+import { fcParameters } from './helpers/fc-parameters.ts'
+import { applyTextTransform } from '../styles.ts'
+import { beforeAll, describe, expect, it } from 'bun:test'
+import { concatDisplayText, prepareDisplayText, preparedDisplayTextValue, replaceDisplayTextTokens, resolveLabelContent, writeDisplayText } from '../shared/display-text.ts'
+import { decodeMermaidEntities } from '../shared/mermaid-entity-display.ts'
+import { encodeMermaidEntities } from '../shared/mermaid-entities.ts'
+import { prepareCellText } from '../ascii/prepared-text.ts'
+import { labelDisplayLength } from '../agent/label-metrics.ts'
+import { preparePixelText, fitPixelText, pixelTextLine } from '../shared/prepared-text.ts'
+import { renderMultilineText } from '../multiline-utils.ts'
+import { nodeWorldBounds } from '../scene/bounds.ts'
+import { drawNative } from '../scene/native-drawing.ts'
+import { certifyNativePaint } from '../scene/paint-certification.ts'
+import type { DrawingProducer } from '../scene/drawing.ts'
+import * as marks from '../scene/marks.ts'
+import { nodeProblems } from '../scene/fidelity.ts'
+import { transferSceneNodeSerialization } from '../scene/serialization.ts'
+import { buildExternalScene } from '../scene/external-scene.ts'
+import { validateSceneDoc } from '../scene/scene-validation.ts'
+import { measureRenderedText, renderedTextReady } from './helpers/rendered-text.ts'
+import { Resvg } from '@resvg/resvg-js'
+import { join } from 'node:path'
+import { createTextMeasurementExecution, withTextMeasurementExecution, type ProfileTextMeasurementInput } from '../text-measurement-profile.ts'
+import { admitSceneDocument } from '../scene/external-data-snapshot.ts'
+import { createSceneWriteCapture } from '../scene/serialization.ts'
+import { DefaultBackend } from '../scene/backend.ts'
+import { inspectScenePaintGeometry } from '../scene/inspection.ts'
+import { MAX_OCCLUSION_OPERATIONS, createNativePaintEmission } from '../scene/native-paint-emission.ts'
+import { writeTextSvg } from '../scene/svg-writer.ts'
+import { fileURLToPath } from 'node:url'
+import { useTestChildren } from './helpers/test-child.ts'
+
+beforeAll(() => renderedTextReady())
+const typography = { fontSize: 18, fontWeight: 600 }
+const runPreparedChild = useTestChildren(20000)
+
+it.each(['line-array', 'block-record'] as const)('prepared ownership rejects a %s prototype changed during sealing', async mode => {
+  const child = await runPreparedChild(process.execPath, ['--eval', String.raw`
+import assert from 'node:assert/strict'
+const freeze = Object.freeze
+let armed = false, altered = 0
+Object.freeze = function(value) {
+  if (armed && value && Object.isExtensible(value)
+    && (process.env.PART_MODE === 'line-array' ? Array.isArray(value) && value.length === 1 && value[0]?.runs && typeof value[0]?.width === 'number'
+      : value.unit === 'px' && value.text === 'Proto 🧪 é <&>')) {
+    Object.setPrototypeOf(value, Object.create(Object.getPrototypeOf(value))); altered++
+  }
+  return freeze(value)
+}
+const { preparePixelText, isOwnedPixelTextPart } = await import('./src/shared/prepared-text.ts')
+const { prepareDisplayText } = await import('./src/shared/display-text.ts')
+const { writeTextSvg } = await import('./src/scene/svg-writer.ts')
+const marks = await import('./src/scene/marks.ts')
+const input = prepareDisplayText('Proto 🧪 é <&>', 'literal')
+const make = () => preparePixelText(input, { fontSize: 12, fontWeight: 400 })
+const draw = block => writeTextSvg(marks.text({ id: 'T', role: 'label', text: block.text, block, x: 10, y: 20, fontSize: 12, anchor: 'start', paint: { fill: '#111' } }))
+const control = make(), expected = draw(control)
+assert.equal(isOwnedPixelTextPart(control), true)
+armed = true
+const changed = make(); armed = false
+assert.ok(altered > 0)
+assert.equal(isOwnedPixelTextPart(changed), false)
+assert.equal(draw(changed), expected)
+`], { cwd: fileURLToPath(new URL('../../', import.meta.url)), env: { ...process.env, PART_MODE: mode } })
+  expect(child.status, child.stderr).toBe(0)
+})
+
+it.each(['foreign-accessor', 'foreign-prototype', 'changed-prototype', 'foreign-null'] as const)('source-span qualification preserves returned %s without granting unsafe ownership', async mode => {
+  const child = await runPreparedChild(process.execPath, ['--eval', String.raw`
+import assert from 'node:assert/strict'
+const freeze = Object.freeze
+let foreign, reads = 0
+Object.freeze = function(value) {
+  if (value && value.text === 'Span 🧪' && Object.hasOwn(value, 'sourceStart') && !Object.isFrozen(value)) {
+    const mode = process.env.SPAN_MODE
+    if (mode === 'changed-prototype') { Object.setPrototypeOf(value, { inherited: true }); return freeze(value) }
+    foreign = mode === 'foreign-accessor' ? { get text() { reads++; return 'Span 🧪' }, sourceStart: 0, sourceEnd: 7 }
+      : Object.assign(Object.create(mode === 'foreign-null' ? null : { inherited: true }), value)
+    return freeze(foreign)
+  }
+  return freeze(value)
+}
+const { createImmutableParts } = await import('./src/shared/immutable-parts.ts')
+const parts = createImmutableParts(), span = parts.sourceSpan('Span 🧪', 0, 7)
+if (foreign) assert.equal(span, foreign)
+assert.equal(reads, 0)
+assert.equal(parts.has(span), process.env.SPAN_MODE === 'foreign-null')
+assert.equal(parts.hasOwned(span), false)
+const record = Object.create(null); record.text = 'closed'
+parts.freezeOwned(record)
+assert.equal(parts.hasOwned(record), true)
+`], { cwd: fileURLToPath(new URL('../../', import.meta.url)), env: { ...process.env, SPAN_MODE: mode } })
+  expect(child.status, child.stderr).toBe(0)
+})
+
+
+it.each(['span', 'break', 'runs'] as const)('Native capture retains ordered source observations for a foreign frozen %s', async mode => {
+  const child = await runPreparedChild(process.execPath, ['--eval', String.raw`
+const mode = process.env.AM_FOREIGN_PIXEL_PART
+const freeze = Object.getOwnPropertyDescriptor(Object, 'freeze'), define = Object.getOwnPropertyDescriptor(Object, 'defineProperty'), names = Object.getOwnPropertyDescriptor(Object, 'getOwnPropertyNames'), each = Object.getOwnPropertyDescriptor(Array.prototype, 'forEach'), push = Object.getOwnPropertyDescriptor(Array.prototype, 'push')
+let span, active = false, defined = false, traps = 0, markIndex = 0, thirdReads = 0
+const sourceCaptures = []
+Object.defineProperty(Object, 'freeze', { ...freeze, value(value) {
+  const closed = Reflect.apply(freeze.value, Object, [value])
+  if (mode === 'span' && value && value.text === 'R' && Object.hasOwn(value, 'sourceStart') && Object.hasOwn(value, 'sourceEnd') && !Object.hasOwn(value, 'bold')) {
+    span = new Proxy(closed, { getOwnPropertyDescriptor(target, key) {
+      if (active && markIndex === 2 && key === 'sourceStart') { thirdReads++; traps++; throw Error('third source capture is unsupported') }
+      if (active && key === 'text') defined = false
+      if (active && key === 'sourceStart' && !defined) { traps++; throw Error('source observed before prior destination write') }
+      return Reflect.getOwnPropertyDescriptor(target, key)
+    } })
+    return span
+  }
+  return closed
+} })
+if (mode === 'break') Object.defineProperty(Array.prototype, 'forEach', { ...each, value(callback, ...args) {
+  if (this[0]?.kind === 'wrap' && Object.hasOwn(this[0], 'sourceOffset')) {
+    span = new Proxy(this[0], { getOwnPropertyDescriptor(target, key) {
+      if (active && key === 'kind') defined = false
+      if (active && key === 'sourceOffset' && !defined) { traps++; throw Error('source observed before prior destination write') }
+      return Reflect.getOwnPropertyDescriptor(target, key)
+    } })
+    this[0] = span
+  }
+  return Reflect.apply(each.value, this, [callback, ...args])
+} })
+if (mode === 'runs') Object.defineProperty(Array.prototype, 'push', { ...push, value(...args) {
+  const item = args[0]
+  if (args.length === 1 && Array.isArray(item) && !Object.isFrozen(item) && item.length === 1 && item[0]?.text === 'R'
+    && typeof item[0]?.bold === 'boolean' && new Error().stack?.includes('preparePixelText')) {
+    span = new Proxy(item, { getOwnPropertyDescriptor(target, key) {
+      if (active && key === '0') defined = false
+      if (active && key === 'length' && !defined) { traps++; throw Error('source observed before prior destination write') }
+      return Reflect.getOwnPropertyDescriptor(target, key)
+    } })
+    return Reflect.apply(push.value, this, [span])
+  }
+  return Reflect.apply(push.value, this, args)
+} })
+const { preparePixelText, isOwnedPixelTextPart } = await import('./src/shared/prepared-text.ts')
+const { drawNative } = await import('./src/scene/native-drawing.ts')
+const { certifyNativePaint } = await import('./src/scene/paint-certification.ts')
+const block = preparePixelText(mode === 'break' ? 'RR' : 'R', { fontSize: 18, fontWeight: 400, maxWidth: mode === 'break' ? 15 : undefined })
+const owned = isOwnedPixelTextPart(span), frozen = Object.isFrozen(span)
+Reflect.apply(define.value, Object, [Object, 'defineProperty', { ...define, value(target, key, descriptor) {
+  if (mode === 'span' ? key === 'text' && descriptor.value === 'R' : mode === 'break' ? key === 'kind' && descriptor.value === 'wrap' : key === '0' && descriptor.value?.text === 'R') defined = true
+  return Reflect.apply(define.value, Object, [target, key, descriptor])
+} }])
+Reflect.apply(define.value, Object, [Object, 'getOwnPropertyNames', { ...names, value(value) {
+  if (value === span) { active = true; sourceCaptures.push(markIndex) }
+  return Reflect.apply(names.value, Object, [value])
+} }])
+const colors = { bg: '#fff', fg: '#111' }, width = 300, height = 100
+const drawing = drawNative(factory => {
+  const parts = [factory.documentOpen({ id: 'root', width, height, colors, transparent: false, font: 'Inter', hasMonoFont: false }, '<svg xmlns="http://www.w3.org/2000/svg" width="300" height="100">')]
+  for (markIndex = 0; markIndex < (mode === 'span' ? 3 : 1); markIndex++) {
+    parts.push(factory.text({ id: 'label:' + markIndex, role: 'label', text: block.text, block, x: 20 + markIndex * 80, y: 40, fontSize: 18, anchor: 'start', paint: { fill: '#111' } }))
+  }
+  parts.push(factory.documentClose())
+  return { family: 'flowchart', width, height, colors, transparent: false, parts }
+}, { positioned: { width, height }, colors, resolved: { renderOptions: {} } }, 'flowchart')
+const proof = certifyNativePaint(drawing.header, drawing.paint)
+console.log(JSON.stringify({ owned, frozen, traps, thirdReads, sourceCaptures, svg: drawing.svg, status: proof.status, coverage: proof.coverage, issues: proof.issues }))
+`], { cwd: fileURLToPath(new URL('../../', import.meta.url)), env: { ...process.env, AM_FOREIGN_PIXEL_PART: mode } })
+  expect({ status: child.status, stderr: child.stderr }).toEqual({ status: 0, stderr: '' })
+  const result = JSON.parse(child.stdout)
+  if (mode === 'span') {
+    expect(result).toMatchObject({ frozen: true, owned: false, traps: 1, thirdReads: 1, status: 'unverified', coverage: { conditional: 1 } })
+    expect(new Set(result.sourceCaptures)).toEqual(new Set([0, 1, 2]))
+    expect(result.issues.map((issue: { code: string }) => issue.code)).toContain('CONDITIONAL_PAINT')
+    expect(result.svg.match(/>R<\/text>/g)).toHaveLength(3)
+  } else {
+    expect(result).toMatchObject({ frozen: true, traps: 0, status: 'passed' })
+    if (mode === 'break') expect(result.owned).toBe(false)
+    expect(result.svg).toContain('>R<')
+  }
+})
+
+it.each(['map', 'seal'] as const)('Native actual text retains complete receiver data through an interposed %s', mode => {
+  const block = preparePixelText('Read', { fontSize: 18, fontWeight: 400 })
+  const map = Object.getOwnPropertyDescriptor(Array.prototype, 'map')!, seal = Object.getOwnPropertyDescriptor(Object, 'preventExtensions')!
+  const width = 300, height = 100, colors = { bg: '#fff', fg: '#111' }
+  let drawing: ReturnType<typeof drawNative>
+  try {
+    if (mode === 'map') Object.defineProperty(Array.prototype, 'map', { ...map, value(this: object, ...args: unknown[]) {
+      const run = Object.getOwnPropertyDescriptor(this, '0')?.value
+      const result = Reflect.apply(map.value, this, args)
+      if (run && Object.getOwnPropertyDescriptor(run, 'text')?.value === 'Read'
+        && typeof Object.getOwnPropertyDescriptor(run, 'bold')?.value === 'boolean' && !Object.hasOwn(run, 'clusters')) {
+        return Reflect.apply(map.value, result, [(value: unknown) => typeof value === 'string' ? value.replaceAll('Read', 'Lost') : value])
+      }
+      return result
+    } })
+    else Object.defineProperty(Object, 'preventExtensions', { ...seal, value(value: object) {
+      if (Object.getOwnPropertyDescriptor(value, 'source')?.value === 'Read'
+        && Object.hasOwn(value, 'display') && !Object.hasOwn(value, 'lines')) return undefined
+      return Reflect.apply(seal.value, Object, [value])
+    } })
+    const producer: DrawingProducer = factory => ({ family: 'flowchart', width, height, colors, transparent: false, parts: [
+      factory.documentOpen({ id: 'root', width, height, colors, transparent: false, font: 'Inter', hasMonoFont: false }, '<svg xmlns="http://www.w3.org/2000/svg" width="300" height="100">'),
+      factory.text({ id: 'label', role: 'label', text: 'Read', block, x: 20, y: 40, fontSize: 18, anchor: 'start', paint: { fill: '#111' } }),
+      factory.documentClose(),
+    ] })
+    drawing = drawNative(producer, { positioned: { width, height }, colors, resolved: { renderOptions: {} } } as Parameters<typeof drawNative>[1], 'flowchart')
+  } finally {
+    Object.defineProperty(Array.prototype, 'map', map)
+    Object.defineProperty(Object, 'preventExtensions', seal)
+  }
+  expect(drawing.svg).toContain('>Read</text>')
+  expect(drawing.svg).not.toContain('Lost')
+  expect(certifyNativePaint(drawing.header, drawing.paint).status).toBe('passed')
+})
+
+it.each(['foreign-define', 'inherited-get', 'coercible-key'] as const)('retained text operands preserve fresh descriptor observations for %s', mode => {
+  const block = preparePixelText('slot', { fontSize: 14, fontWeight: 400 })
+  const node = marks.text({ id: 'slot-text', role: 'label', text: block.text, block, x: 20, y: 30, fontSize: 14, anchor: 'start', paint: { fill: '#111' } })
+  const emission = createNativePaintEmission(MAX_OCCLUSION_OPERATIONS)
+  const capture = () => emission.leaf(node, source => source.kind === 'text' ? emission.xml.raw(writeTextSvg(source), source) : '')
+  const define = Object.getOwnPropertyDescriptor(Object, 'defineProperty')!, names = Object.getOwnPropertyDescriptor(Object, 'getOwnPropertyNames')!
+  const has = Object.getOwnPropertyDescriptor(WeakSet.prototype, 'has')!, originalGet = Object.getOwnPropertyDescriptor(Object.prototype, 'get')
+  const span = block.prepared.lines[0]![0]!.clusters![0]!
+  const observations: string[][] = [], descriptors: object[] = [], receivers: object[] = [], owners: unknown[] = []
+  let installed = false, attack = false
+  const installGet = () => {
+    if (installed) return
+    installed = true
+    Reflect.apply(define.value, Object, [Object.prototype, 'get', { configurable: true, get(this: object) {
+      observations.push(Reflect.apply(names.value, Object, [this]))
+      Reflect.deleteProperty(Object.prototype, 'get')
+      return undefined
+    } }])
+  }
+  try {
+    capture()
+    if (mode === 'coercible-key') {
+      const key = { [Symbol.toPrimitive]() { if (attack) installGet(); return 'text' } }
+      Reflect.apply(define.value, Object, [Object, 'getOwnPropertyNames', { ...names, value(value: object) {
+        return value === span ? [key, 'sourceStart', 'sourceEnd'] : Reflect.apply(names.value, Object, [value])
+      } }])
+    }
+    capture()
+    Reflect.apply(define.value, Object, [Object, 'getOwnPropertyNames', names])
+    if (mode === 'foreign-define') Reflect.apply(define.value, Object, [Object, 'defineProperty', { ...define, value(this: unknown, target: Record<string, unknown>, key: PropertyKey, descriptor: PropertyDescriptor) {
+      if (key === 'sourceStart' && target.text === 'slot') {
+        observations.push(Reflect.apply(names.value, Object, [descriptor]))
+        descriptors.push(descriptor); receivers.push(target); owners.push(this)
+      }
+      return Reflect.apply(define.value, this, [target, key, descriptor])
+    } }])
+    if (mode === 'inherited-get') Reflect.apply(define.value, Object, [WeakSet.prototype, 'has', { ...has, value(this: WeakSet<object>, value: object) {
+      if (value === span) installGet()
+      return Reflect.apply(has.value, this, [value])
+    } }])
+    attack = true
+    const captured = capture()
+    expect(observations.length).toBeGreaterThan(0)
+    expect(observations.every(keys => keys.join(',') === 'value,enumerable,configurable,writable')).toBe(true)
+    if (mode === 'foreign-define') {
+      expect(new Set(descriptors).size).toBe(descriptors.length)
+      expect(new Set(receivers).size).toBe(receivers.length)
+      expect(owners.every(owner => owner === Object)).toBe(true)
+      expect(captured.node).not.toBe(node)
+    } else expect(captured.node).toBe(node)
+  } finally {
+    Reflect.deleteProperty(Object.prototype, 'get')
+    Reflect.apply(define.value, Object, [Object, 'defineProperty', define])
+    Reflect.apply(define.value, Object, [Object, 'getOwnPropertyNames', names])
+    Reflect.apply(define.value, Object, [WeakSet.prototype, 'has', has])
+    if (originalGet) Reflect.apply(define.value, Object, [Object.prototype, 'get', originalGet])
+  }
+  const first = capture().node, second = capture().node
+  expect(first).not.toBe(second)
+  if (first.kind !== 'text' || second.kind !== 'text') throw new Error('Expected text captures')
+  expect(first.block).not.toBe(block)
+  expect(first.block).not.toBe(second.block)
+  expect(first.block!.prepared.lines[0]![0]!.clusters![0]).not.toBe(second.block!.prepared.lines[0]![0]!.clusters![0])
+  expect(Object.getPrototypeOf(first.block)).toBe(Object.prototype)
+  expect(Object.getOwnPropertyDescriptor(first.block, 'prepared')).toMatchObject({ enumerable: true, writable: false, configurable: false })
+})
+
+it.each([
+  'data-text-anchor="end" text-anchor="start"',
+  'data-note=\' text-anchor="end" \' text-anchor="start"',
+  'text-anchor="start" data-note=\' text-anchor="end" \'',
+  'text-anchor="end" text-anchor="start"',
+  'data-note=\'unterminated text-anchor="end"',
+])('inert quoted attributes cannot choose a prepared fragment anchor: %s', attrs => {
+  const block = preparePixelText('<b>j</b>', { fontSize: 48, fontWeight: 400 })
+  expect(renderMultilineText(block, 100, 80, 48, attrs)).toContain('<tspan x="100" text-anchor="start"')
+})
+
+it.each((['native', 'scene'] as const).flatMap(execution => [
+  { execution, admittedLine: false }, { execution, admittedLine: true },
+]))('host-shaped bold j bounds enclose actual fitted ink through $execution (admitted line: $admittedLine)', ({ execution, admittedLine }) => {
+  // Independently read Inter-Bold glyf/hmtx: units/em2048, advance555,
+  // outline[-50,-418,443,1572]. SVG y points down from its baseline.
+  const measurement = createTextMeasurementExecution({ id: 'test:inter-bold-ink', version: '1.0.0', measure: () => 18.72,
+    measureInk: input => input.text === 'j' && input.fontWeight === 700 ? {
+      advance: 555 / 2048 * 48,
+      bounds: { x0: -50 / 2048 * 48, y0: -1572 / 2048 * 48, x1: 443 / 2048 * 48, y1: 418 / 2048 * 48 },
+    } : undefined,
+  }, 'Inter')!
+  let block = withTextMeasurementExecution(measurement, () => preparePixelText('<b>j</b>', { fontSize: 48, fontWeight: 400 }))
+  expect(block.width).toBe(18.72)
+  const colors = { bg: '#fff', fg: '#111', font: 'Caveat' }, context = { positioned: { width: 240, height: 160 }, colors, resolved: { renderOptions: {} } }
+  const producer: DrawingProducer = factory => ({ family: 'flowchart', width: 240, height: 160, transparent: false, colors, parts: [
+    factory.documentOpen({ id: 'root', width: 240, height: 160, colors, transparent: false, font: 'Caveat', hasMonoFont: false }, '<svg xmlns="http://www.w3.org/2000/svg" width="240" height="160" style="font-family:Caveat">'),
+    factory.text({ id: 'bold-j', role: 'label', text: '<b>j</b>', block, x: 100, y: 80, fontSize: 48, anchor: 'start', paint: { fill: '#111' } }),
+    factory.documentClose(),
+  ] })
+  if (admittedLine) {
+    const admitted = admitSceneDocument(producer(marks, context), 'internal', true)
+    const text = admitted.parts.find(part => part.kind === 'text')
+    if (!text || text.kind !== 'text' || !text.block) throw new Error('Expected admitted prepared text')
+    block = pixelTextLine(text.block, 0)!
+  }
+  let svg: string, paint: ReturnType<typeof inspectScenePaintGeometry>
+  if (execution === 'native') ({ svg, paint } = drawNative(producer, context, 'flowchart'))
+  else {
+    const capture = createSceneWriteCapture(MAX_OCCLUSION_OPERATIONS)
+    const document = admitSceneDocument(producer(marks, context), 'internal', true, capture.observe)
+    const receipt = capture.finish(document)
+    svg = DefaultBackend.render(document, { seed: 0 })
+    paint = inspectScenePaintGeometry(document, receipt)
+  }
+  const bounds = paint.primitives.find(primitive => primitive.id === 'bold-j')!.bounds!
+  const tags = svg.match(/<text\b[^>]*>[\s\S]*?<\/text>/g)!
+  expect(tags).toHaveLength(1)
+  const font = { fontFiles: ['Inter-Bold.ttf', 'Caveat.ttf'].map(file => join(import.meta.dirname, '../../assets/fonts/', file)), loadSystemFonts: false, defaultFontFamily: 'Inter' }
+  const raster = new Resvg(svg, { font }).render(), pixels = raster.pixels
+  const absent = new Resvg(svg.replace(tags[0]!, ''), { font }).render().pixels
+  let changed = 0, outside = 0
+  for (let y = 0; y < raster.height; y++) for (let x = 0; x < raster.width; x++) {
+    const offset = (y * raster.width + x) * 4
+    if (pixels.subarray(offset, offset + 4).equals(absent.subarray(offset, offset + 4))) continue
+    changed++
+    // A raster sample may cover only part of a pixel; its pixel cell must
+    // still intersect the independently shaped continuous envelope.
+    if (x + 1 <= bounds.x0 || x >= bounds.x1 || y + 1 <= bounds.y0 || y >= bounds.y1) outside++
+  }
+  expect(changed).toBeGreaterThan(0)
+  expect(outside).toBe(0)
+  expect(block.fontFamily).toBe('Inter')
+  expect(tags[0]).toContain('font-family="Inter"')
+  expect(svg).toContain('x="100" text-anchor="start" letter-spacing="0" data-text-fragment="true" textLength="18.72"')
+  expect(bounds.x0).toBeCloseTo(98.3135135135, 9)
+  expect(bounds.x1).toBeCloseTo(114.9422702703, 9)
+  expect(bounds.y0).toBeCloseTo(59.95625, 9)
+  expect(bounds.y1).toBeCloseTo(106.596875, 9)
+})
+
+describe('prepared display text', () => {
+  it('keeps decoded tags and emphasis literal through fitting, Scene fidelity, metrics and writing', () => {
+    const source = '#lt;b#gt;X#lt;/b#gt; <b>Y</b> #42;z#42; #92;n\nEND'
+    const decode = (text: string) => replaceDisplayTextTokens(prepareDisplayText(text), /#\w+;/g, decodeMermaidEntities)
+    const prepared = decode(source)
+    const visible = '<b>X</b> Y *z* \\n\nEND'
+    expect(preparedDisplayTextValue(prepared)).toBe(visible)
+    expect(prepared.lines[0]!.filter(run => run.bold).map(run => run.text)).toEqual(['Y'])
+    expect(prepared.lines[0]![0]!.clusters![0]).toEqual({ text: '<', sourceStart: 0, sourceEnd: 4 })
+    const block = preparePixelText(prepared, typography)
+    expect(prepareCellText(prepared).lines.join('\n')).toBe(visible)
+    expect(labelDisplayLength(prepared)).toBe(visible.split('\n')[0]!.length)
+    const svg = renderMultilineText(block, 100, 50, typography.fontSize, 'text-anchor="middle"')
+    expect(svg).toContain('&lt;b&gt;X&lt;/b&gt;')
+    expect(svg).toMatch(/<tspan\b[^>]*\bfont-weight="(?:bold|700)"[^>]*>Y<\/tspan>/)
+    const mark = marks.text({ id: 'decoded-literal', role: 'label', text: block.text, block, x: 100, y: 50, fontSize: typography.fontSize, anchor: 'middle', paint: {} })
+    const problems: string[] = []
+    nodeProblems(mark, 'decoded-literal', problems)
+    expect(problems).toEqual([])
+    const encoded = writeDisplayText(prepared, text => encodeMermaidEntities(text, '<*_~\\'))
+    const reread = decode(encoded.replaceAll('<br>', '\n'))
+    expect(preparedDisplayTextValue(reread)).toBe(visible)
+    expect(reread.lines[0]!.filter(run => run.bold).map(run => run.text)).toEqual(['Y'])
+    const content = { value: '<b>X</b>', prepared }
+    expect(resolveLabelContent(content.value, content)).toBe(prepared)
+    expect(resolveLabelContent('changed', content)).toBe('changed')
+
+    // Explicitly closed spans retain their authored style across hard breaks,
+    // including an empty row; source ranges still count UTF-16 code units.
+    for (const example of [
+      { source: '<i>Top\nBottom 🚀</i>', visible: 'Top\nBottom 🚀', starts: [0, 7],
+        runs: [[['Top', false, true]], [['Bottom 🚀', false, true]]],
+        styled: [/<tspan\b[^>]*\bfont-style="italic"[^>]*>Top<\/tspan>/, /<tspan\b[^>]*\bfont-style="italic"[^>]*>Bottom 🚀<\/tspan>/] },
+      { source: '<b>first\nsecond</b>', visible: 'first\nsecond', starts: [0, 9],
+        runs: [[['first', true, false]], [['second', true, false]]],
+        styled: [/<tspan\b[^>]*\bfont-weight="(?:bold|700)"[^>]*>first<\/tspan>/, /<tspan\b[^>]*\bfont-weight="(?:bold|700)"[^>]*>second<\/tspan>/] },
+      { source: '<b>first\n\nsecond</b>', visible: 'first\n\nsecond', starts: [0, 9, 10],
+        runs: [[['first', true, false]], [], [['second', true, false]]],
+        styled: [/<tspan\b[^>]*\bfont-weight="(?:bold|700)"[^>]*>first<\/tspan>/, /<tspan\b[^>]*\bfont-weight="(?:bold|700)"[^>]*>second<\/tspan>/] },
+      { source: '<i>Top\nß🚀\nEnd</i>', visible: 'Top\nß🚀\nEnd', starts: [0, 7, 11],
+        runs: [[['Top', false, true]], [['ß🚀', false, true]], [['End', false, true]]],
+        styled: [/<tspan\b[^>]*\bfont-style="italic"[^>]*>ß🚀<\/tspan>/] },
+      { source: '<b>Top\nß🚀\nEnd</b>', visible: 'Top\nß🚀\nEnd', starts: [0, 7, 11],
+        runs: [[['Top', true, false]], [['ß🚀', true, false]], [['End', true, false]]],
+        styled: [/<tspan\b[^>]*\bfont-weight="(?:bold|700)"[^>]*>ß🚀<\/tspan>/] },
+    ]) {
+      const display = prepareDisplayText(example.source)
+      expect(preparedDisplayTextValue(display)).toBe(example.visible)
+      expect(display.lineStarts).toEqual(example.starts)
+      expect(display.lines.map(line => line.map(run => [run.text, run.bold, run.italic]))).toEqual(example.runs)
+      const fitted = preparePixelText(display, typography)
+      expect(fitted.lineBlocks.map(line => line.runs.map(run => run.text).join(''))).toEqual(example.visible.split('\n'))
+      expect(prepareCellText(display).lines.join('\n')).toBe(example.visible)
+      const styledMark = marks.text({ id: 'closed-multiline', role: 'label', text: fitted.text, block: fitted, x: 100, y: 50, fontSize: typography.fontSize, anchor: 'middle', paint: {} })
+      const styledProblems: string[] = []
+      nodeProblems(styledMark, 'closed-multiline', styledProblems)
+      expect(styledProblems).toEqual([])
+      for (const output of [renderMultilineText(fitted, 100, 50, typography.fontSize, ''), renderMultilineText(example.source, 100, 50, typography.fontSize, '')]) {
+        for (const span of example.styled) expect(output).toMatch(span)
+      }
+    }
+    const alias = prepareDisplayText('<i>Top\nBottom 🚀</i>')
+    expect(alias.lines[1]![0]!.clusters!.at(-1)).toEqual({ text: '🚀', sourceStart: 14, sourceEnd: 16 })
+    const middle = prepareDisplayText('<i>Top\nß🚀\nEnd</i>', 'formatted', 'uppercase')
+    expect(preparedDisplayTextValue(middle)).toBe('TOP\nSS🚀\nEND')
+    expect(middle.lineStarts).toEqual([0, 7, 11])
+    expect(middle.lines[1]!.map(run => [run.text, run.italic])).toEqual([['SS🚀', true]])
+    expect(middle.lines[1]![0]!.clusters).toEqual([
+      { text: 'SS', sourceStart: 7, sourceEnd: 8 },
+      { text: '🚀', sourceStart: 8, sourceEnd: 10 },
+    ])
+    const literalAlias = prepareDisplayText('<i>Top\nBottom 🚀</i>', 'literal')
+    expect(preparedDisplayTextValue(literalAlias)).toBe('<i>Top\nBottom 🚀</i>')
+    expect(literalAlias.lines.every(line => line.every(run => !run.bold && !run.italic))).toBe(true)
+    // An unmatched opener keeps the existing line-local interpretation.
+    expect(prepareDisplayText('<i>Top\nBottom 🚀').lines.map(line => line.map(run => [run.text, run.italic]))).toEqual([
+      [['Top', true]], [['Bottom 🚀', false]],
+    ])
+  })
+
+  it('combines literal adornments with prepared content without losing source ranges or casing context', () => {
+    const label = replaceDisplayTextTokens(prepareDisplayText('#lt;b#gt;ß\n<b>end</b>'), /#\w+;/g, decodeMermaidEntities)
+    const combined = concatDisplayText(['1. [', label, ']'])
+    expect(preparedDisplayTextValue(combined)).toBe('1. [<b>ß\nend]')
+    expect(combined.lines[0]![1]!.clusters![0]).toEqual({ text: '<', sourceStart: 4, sourceEnd: 8 })
+    const upper = preparePixelText(combined, { ...typography, transform: 'uppercase' })
+    expect(upper.lineBlocks.map(line => line.runs.map(run => run.text).join(''))).toEqual(['1. [<B>SS', 'END]'])
+    expect(upper.prepared.lines[0]![1]!.clusters!.at(-1)!.sourceEnd).toBe(14)
+    expect(prepareDisplayText(upper.prepared)).toBe(upper.prepared)
+    expect(() => replaceDisplayTextTokens(upper.prepared, /x/g, value => value)).toThrow(/before text transforms/)
+    const inert = replaceDisplayTextTokens(prepareDisplayText('token'), /token/g, () => '\n\u001b')
+    expect(preparedDisplayTextValue(inert)).toBe('??')
+    expect(inert.lines).toHaveLength(1)
+  })
+
+  it('keeps source ranges while preparing inert controls for pixel fitting', () => {
+    const source = 'a\t<b>b\u001b</b>\r c\nend'
+    const prepared = prepareDisplayText(source, 'formatted', 'uppercase')
+    expect(prepared.source).toBe(source)
+    expect(prepared.lines.map(line => line.map(run => run.text).join(''))).toEqual(['A B?? C', 'END'])
+    expect(prepared.lines[0]![0]!.clusters).toEqual([
+      { text: 'A', sourceStart: 0, sourceEnd: 1 },
+      { text: ' ', sourceStart: 1, sourceEnd: 2 },
+    ])
+    expect(prepared.lines[0]![1]!.clusters).toEqual([
+      { text: 'B', sourceStart: 5, sourceEnd: 6 },
+      { text: '?', sourceStart: 6, sourceEnd: 7 },
+    ])
+    const pixel = preparePixelText(source, { ...typography, display: 'formatted', transform: 'uppercase' })
+    expect(pixel.prepared.source).toBe(source)
+    expect(pixel.lineBlocks.map(line => line.runs.map(run => run.text).join(''))).toEqual(['A B?? C', 'END'])
+    expect(pixel.lineBlocks.every(line => line.runs.every(run => !/[\u0000-\u001f\u007f-\u009f]/.test(run.text)))).toBe(true)
+  })
+
+  it('distinguishes literal content from styled runs without decoding tag-like entities', () => {
+    const literal = prepareDisplayText('<b>x</b> #lt;br#gt; &#60;br&#62;', 'literal')
+    expect(literal.lines[0]!.map(run => run.text).join('')).toBe('<b>x</b> #lt;br#gt; &#60;br&#62;')
+    expect(literal.lines[0]!.every(run => !run.bold)).toBe(true)
+    const formatted = prepareDisplayText('<b>x</b> &lt;br&gt;', 'formatted')
+    expect(formatted.lines[0]!.map(run => [run.text, run.bold])).toEqual([['x', true], [' &lt;br&gt;', false]])
+  })
+
+  it('transforms the complete visible word across formatting boundaries', () => {
+    const text = prepareDisplayText('pre<b>fix</b> and s<i>uffix</i>', 'formatted', 'capitalize')
+    expect(text.lines[0]!.map(run => run.text).join('')).toBe('Prefix And Suffix')
+    expect(text.source).toBe('pre<b>fix</b> and s<i>uffix</i>')
+  })
+
+  it('capitalizes Unicode words without treating combining marks or formatting as boundaries', () => {
+    const source = 'café ångström niño résumé élève Ελληνικά'
+    const expected = 'Café Ångström Niño Résumé Élève Ελληνικά'
+    expect(preparePixelText(source, { ...typography, transform: 'capitalize' }).text).toBe(expected)
+    expect(applyTextTransform('ca<b>fé</b> ångström', 'capitalize')).toBe('Ca<b>fé</b> Ångström')
+  })
+
+  it('retains source ranges when casing expands characters and changes context', () => {
+    const text = prepareDisplayText('aß<b>c</b>', 'formatted', 'uppercase')
+    expect(text.lines[0]!.map(run => run.text).join('')).toBe('ASSC')
+    expect(text.lines[0]![0]!.clusters).toEqual([
+      { text: 'A', sourceStart: 0, sourceEnd: 1 },
+      { text: 'SS', sourceStart: 1, sourceEnd: 2 },
+    ])
+    expect(prepareDisplayText('ΟΣ', 'literal', 'lowercase').lines[0]![0]!.text).toBe('ος')
+  })
+
+  it('keeps authored empty lines and precise hard-break positions', () => {
+    const block = preparePixelText('A\n\nB\n', { ...typography, display: 'literal', maxWidth: 30 })
+    expect(block.lines).toEqual(['A', '', 'B', ''])
+    expect(block.breaks).toEqual([
+      { kind: 'authored', sourceOffset: 1 },
+      { kind: 'authored', sourceOffset: 2 },
+      { kind: 'authored', sourceOffset: 4 },
+    ])
+    expect(block.height).toBe(4 * block.lineHeight)
+  })
+
+  it('records the whitespace replaced by a soft break instead of losing it', () => {
+    const block = preparePixelText('a   b', { fontSize: 12, fontWeight: 500, maxWidth: 15 })
+    expect(block.lines).toEqual(['a', 'b'])
+    expect(block.breaks).toEqual([{ kind: 'wrap', sourceOffset: 4, replacedText: '   ' }])
+  })
+
+  it('does not capitalize synthetic fragments of an authored word', () => {
+    const source = 'antidisestablishmentarianism'
+    const block = preparePixelText(source, { ...typography, transform: 'capitalize', maxWidth: 80 })
+    expect(block.lines.length).toBeGreaterThan(1)
+    expect(block.lines.join('')).toBe('Antidisestablishmentarianism')
+    expect(block.breaks.every(b => b.kind === 'wrap')).toBe(true)
+    expect(block.lineBlocks.every(line => line.width <= 80)).toBe(true)
+  })
+
+  for (const source of ['rectangle', 'παραλληλόγραμμο', 'прямоугольник', '漢字ひらがな漢字ひらがな', 'cafécafécafé', '👩🏽‍💻👨‍👩‍👧‍👦🇨🇳']) {
+    it(`wraps whole visible graphemes: ${source}`, () => {
+      const block = preparePixelText(source, { ...typography, display: 'literal', maxWidth: 75 })
+      expect(block.lines.join('')).toBe(source)
+      const boundaries = new Set([0, ...Array.from(new Intl.Segmenter('en', { granularity: 'grapheme' }).segment(source), part => part.index + part.segment.length)])
+      let offset = 0
+      for (const line of block.lines) {
+        offset += line.replace(/-$/, '').length
+        expect(boundaries.has(offset), `wrap at source offset ${offset}`).toBe(true)
+      }
+    })
+  }
+
+  it('captures mutable prepared input without reinterpreting its decoded content', () => {
+    const decoded = replaceDisplayTextTokens(prepareDisplayText('#lt;b#gt;'), /#\w+;/g, decodeMermaidEntities)
+    const input = structuredClone(decoded)
+    const block = preparePixelText(input, { fontSize: 12, fontWeight: 400 })
+    Object.assign(input, { source: 'Forged' })
+    Object.assign(input.lines[0]!, { 0: { ...input.lines[0]![0]!, text: 'Lost' } })
+    expect(block.prepared.source).toBe('#lt;b#gt;')
+    expect(block.lineBlocks[0]!.runs.map(run => run.text).join('')).toBe('<b>')
+    expect(block.prepared.lines[0]![0]!.text).toBe('<b>')
+    expect(Object.isFrozen(block.prepared)).toBe(true)
+    expect(Object.isFrozen(block.prepared.lines[0]![0]!.clusters)).toBe(true)
+  })
+
+  it.each([{ nesting: 10, deepest: 48 }, { nesting: 14, deepest: 64 }, { nesting: 15, deepest: 68 }, { nesting: 70, deepest: 288 }])('keeps constructor text at descendant depth $deepest within Native snapshot limits', ({ nesting, deepest }) => {
+    const text = 'Read'
+    let plan = prepareDisplayText(text, 'literal')
+    // Native's text leaf adds one edge to the block. Its ordinary prepared
+    // plan reaches scalar data at depth8; each extra plan adds four edges.
+    for (let depth = 0; depth < nesting; depth++) {
+      const run = { text, bold: false, italic: false, underline: false, strikethrough: false, sourceStart: 0, sourceEnd: text.length, extra: plan }
+      plan = prepareDisplayText({ source: text, display: 'literal', lineStarts: [0], lines: [[run]] })
+    }
+    const context = { positioned: { width: 100, height: 80 }, colors: { bg: '#fff', fg: '#111' }, resolved: { renderOptions: {} } }
+    const drawing = (block: ReturnType<typeof preparePixelText>) => {
+      const producer: DrawingProducer = factory => ({ family: 'flowchart', width: 100, height: 80, transparent: false, colors: context.colors, parts: [
+        factory.documentOpen({ id: 'root', width: 100, height: 80, colors: context.colors, transparent: false, font: 'Inter', hasMonoFont: false }, '<svg xmlns="http://www.w3.org/2000/svg" width="100" height="80" style="--bg:#fff;--fg:#111">'),
+        factory.text({ id: 'label', role: 'label', text, block, x: 50, y: 30, fontSize: 12, anchor: 'middle', paint: { fill: '#111' } }),
+        factory.documentClose(),
+      ] })
+      const result = drawNative(producer, context, 'flowchart')
+      return { ...result, proof: certifyNativePaint(result.header, result.paint) }
+    }
+    const ordinary = drawing(preparePixelText(text, { fontSize: 12, fontWeight: 400 }))
+    const deep = drawing(preparePixelText(plan, { fontSize: 12, fontWeight: 400 }))
+    expect(ordinary.proof.status).toBe('passed')
+    expect(deep.svg).toBe(ordinary.svg)
+    expect(deep.proof.status).toBe(deepest <= 64 ? 'passed' : 'unverified')
+    if (deepest <= 64) expect(deep.proof.issues).toEqual([])
+    else expect(deep.proof.issues).toContainEqual(expect.objectContaining({ code: 'CONDITIONAL_PAINT' }))
+  })
+
+  it('preserves measurement observations for supplied fragment accessors', () => {
+    const style = { bold: false, italic: false, underline: false, strikethrough: false }
+    const fragments = [
+      { ...style, get text() { fragments.length = 1; return 'A' }, sourceStart: 0, sourceEnd: 1 },
+      { ...style, text: 'B', sourceStart: 1, sourceEnd: 2 },
+    ]
+    const input = { source: 'AB', display: 'literal' as const, lineStarts: [0], lines: [[{ ...style, text: 'AB', sourceStart: 0, sourceEnd: 2, fragments }]] }
+    const measured: string[] = []
+    const execution = createTextMeasurementExecution({ id: 'test:fragment-accessors', version: '1.0.0', measure: ({ text }) => { measured.push(text); return text.length * 10 } }, 'Inter')
+    withTextMeasurementExecution(execution, () => preparePixelText(input, { fontSize: 14, fontWeight: 400, maxWidth: 1000 }))
+    expect(measured).toEqual(['AB', 'A'])
+  })
+
+  it('keeps monospace metrics distinct from proportional text', () => {
+    const block = preparePixelText('iii界', { ...typography, display: 'literal', monospace: true })
+    expect(block.width).toBe(5 * 18 * 0.6)
+    expect(block.unit).toBe('px')
+  })
+
+  it.each(["'Share Tech Mono', sans-serif", '"JetBrains Mono", monospace', 'monospace', 'ui-monospace'])('uses uniform tracked glyph allocations for explicit %s', fontFamily => {
+    const block = preparePixelText('IMI', { fontSize: 13.2, fontWeight: 400, fontFamily, letterSpacing: 2 })
+    expect(block.monospace).toBe(true)
+    expect(block.fontFamily).toBe(fontFamily)
+    expect(block.lineBlocks[0]!.fragments).toHaveLength(3)
+    for (const fragment of block.lineBlocks[0]!.fragments!) expect(fragment.width).toBeCloseTo(7.92, 10)
+    expect(block.width).toBeCloseTo(27.76, 10)
+    const svg = renderMultilineText(block, 0, 20, 13.2, 'font-size="13.2" letter-spacing="2"')
+    expect([...svg.matchAll(/textLength="([^"]+)"/g)].map(match => Number(match[1]))).toEqual([7.92, 7.92, 7.92])
+    const proportional = preparePixelText('IMI', { fontSize: 13.2, fontWeight: 400, fontFamily, letterSpacing: 2, monospace: false })
+    expect(proportional.monospace).toBe(false)
+    expect(proportional.lineBlocks[0]!.fragments![0]!.width).toBeLessThan(proportional.lineBlocks[0]!.fragments![1]!.width)
+  })
+
+  it.each(['Inter, monospace', 'Unknown Font, monospace', '"Unknown, monospace", monospace'])('keeps proportional and unknown primary font %s unchanged', fontFamily => {
+    const block = preparePixelText('IM', { fontSize: 13.2, fontWeight: 400, fontFamily, letterSpacing: 2 })
+    expect(block.monospace).toBe(false)
+    expect(block.lineBlocks[0]!.fragments![0]!.width).toBeLessThan(block.lineBlocks[0]!.fragments![1]!.width)
+  })
+
+  it('keeps known mono font family, weight and host profile advances at the tracked glyph boundary', () => {
+    const inputs: ProfileTextMeasurementInput[] = [], fontFamily = "'Share Tech Mono', monospace"
+    const execution = createTextMeasurementExecution({ id: 'test:known-mono-profile', version: '1.0.0', measure: input => {
+      inputs.push(input)
+      return [...input.text].reduce((sum, character) => sum + (character === 'I' ? 11 : 17), 0)
+    } }, 'Inter')
+    const options = { fontSize: 13.2, fontWeight: 400, fontFamily, letterSpacing: 2 }
+    const block = withTextMeasurementExecution(execution, () => preparePixelText('I<b>M</b>', options))
+    expect(block.monospace).toBe(true)
+    expect(block.lineBlocks[0]!.fragments!.map(fragment => fragment.width)).toEqual([11, 17])
+    expect(block.width).toBe(30)
+    expect(inputs.every(input => input.fontFamily === fontFamily && input.monospace)).toBe(true)
+    expect(inputs).toContainEqual({ text: 'I', fontFamily, fontSize: 13.2, fontWeight: 400, fontStyle: 'normal', monospace: true })
+    expect(inputs).toContainEqual({ text: 'M', fontFamily, fontSize: 13.2, fontWeight: 700, fontStyle: 'normal', monospace: true })
+    inputs.length = 0
+    const overridden = withTextMeasurementExecution(execution, () => preparePixelText('I<b>M</b>', { ...options, monospace: false }))
+    expect(overridden.width).toBe(30)
+    expect(inputs.every(input => input.fontFamily === fontFamily && !input.monospace)).toBe(true)
+    expect(inputs.length).toBeGreaterThan(0)
+  })
+
+  it('keeps a visible grapheme atomic across formatting boundaries', () => {
+    const block = preparePixelText('e<b>́</b>e<b>́</b>', { ...typography, maxWidth: 13 })
+    expect(block.lineBlocks.map(line => line.runs.map(run => run.text).join(''))).toEqual(['é', 'é'])
+    expect(block.lineBlocks.every(line => line.runs.some(run => run.bold))).toBe(true)
+  })
+
+  it('reconstructs transformed visible source across generated formatting, spaces and wraps', () => {
+    fc.assert(fc.property(
+      fc.constantFrom('ßeta', 'café', 'antidisestablishmentarianism', 'Ωμέγα', 'Широкий'),
+      fc.constantFrom('漢字', '👩🏽‍💻', 'é', 'مرحبا'),
+      fc.boolean(), fc.integer({ min: 28, max: 120 }),
+      (word, tail, styled, maxWidth) => {
+        const source = `a${styled ? `<b>${word}</b>` : word}  ${tail}\n\n${word}`
+        const expected = `a${word}  ${tail}\n\n${word}`.toUpperCase()
+        const block = preparePixelText(source, { fontSize: 14, fontWeight: 500, transform: 'uppercase', maxWidth })
+        const reconstructed = block.lineBlocks.map((line, index) => {
+          const at = block.breaks[index]
+          const visible = line.runs.map(run => run.text).join('')
+          return (at?.kind === 'hyphen' ? visible.slice(0, -1) : visible) + (at?.kind === 'authored' ? '\n' : at?.replacedText ?? '')
+        }).join('')
+        expect(reconstructed).toBe(expected)
+      },
+    ), fcParameters({ numRuns: 40 }))
+  })
+
+  it('reports unsatisfiable width or height instead of silently claiming a fit', () => {
+    expect(fitPixelText('👩‍💻', typography, { width: 1, height: 100 }).kind).toBe('needs-space')
+    expect(fitPixelText('A\nB', typography, { width: 100, height: 10 }).kind).toBe('needs-space')
+    expect(fitPixelText('A', typography, { width: 100, height: 100 }).kind).toBe('placed')
+    expect(() => preparePixelText('A', { fontSize: NaN, fontWeight: 600 })).toThrow(RangeError)
+  })
+
+  it('reserves occupied intervals when negative tracking reverses the pen', () => {
+    const block = preparePixelText('iiiiiiiiiiii', { ...typography, letterSpacing: -12 })
+    expect(block.width).toBeGreaterThan(5)
+    expect(block.lineBlocks[0]!.originX).toBeGreaterThan(0)
+    expect(fitPixelText('iiiiiiiiiiii', { ...typography, letterSpacing: -12 }, { width: 1, height: 100 }).kind).toBe('needs-space')
+    expect(Object.isFrozen(block.lines)).toBe(true)
+    expect(Object.isFrozen(block.lineBlocks[0]!.runs[0])).toBe(true)
+  })
+
+  it.each([3, -12])('retains the actual glyph allocations for tracking %s across measurement contexts', letterSpacing => {
+    const execution = createTextMeasurementExecution({ id: 'test:nonadditive-tracking', version: '1.0.0', measure: ({ text, fontWeight }) => text.length > 1 ? 2 : fontWeight >= 700 ? 9 : 6 }, 'Inter')
+    const block = withTextMeasurementExecution(execution, () => preparePixelText('A<b>B</b>CD', { fontSize: 12, fontWeight: 400, letterSpacing }))
+    expect(block.width).toBe(letterSpacing === 3 ? 36 : 21)
+    const svg = renderMultilineText(block, 10, 20, 12, `text-anchor="start" font-size="12" font-weight="400" letter-spacing="${letterSpacing}"`)
+    expect([...svg.matchAll(/textLength="([^"]+)"/g)].map(match => Number(match[1]))).toEqual([6, 9, 6, 6])
+    expect(svg.replace(/<[^>]+>/g, '')).toBe('ABCD')
+    const node = marks.text({ id: 'tracked', role: 'label', text: block.text, block, x: 10, y: 20, fontSize: 12, anchor: 'start', paint: {} })
+    const problems: string[] = []
+    nodeProblems(node, 'tracked', problems)
+    expect(problems).toEqual([])
+    expect(Object.isFrozen(block.lineBlocks[0]!.fragments)).toBe(true)
+    expect(Object.isFrozen(block.lineBlocks[0]!.fragments![0])).toBe(true)
+  })
+})
+
+describe('prepared text at the graphical boundary', () => {
+  it.each(['unfrozen', 'relinked-runs', 'foreign-prototype'] as const)('a projected line refuses Native admission after its new wrappers are %s', mode => {
+    const { source, injected } = Object.freeze({ source: 'ProjectionBeforeC731', injected: 'ProjectionAfterCC731' })
+    const block = preparePixelText(source, { fontSize: 18, fontWeight: 400, fontFamily: 'Inter' })
+    const freeze = Object.getOwnPropertyDescriptor(Object, 'freeze')!
+    let projected: ReturnType<typeof preparePixelText>
+    let replaced = 0
+    try {
+      Object.defineProperty(Object, 'freeze', { ...freeze, value: <T>(value: T): T => {
+        if (mode === 'unfrozen') return value
+        if (value && typeof value === 'object' && Object.getOwnPropertyDescriptor(value, 'runs')?.value === block.lineBlocks[0]!.runs) {
+          if (mode === 'relinked-runs') Object.assign(value, { runs: [{ ...block.lineBlocks[0]!.runs[0]!, text: injected }] })
+          else Object.setPrototypeOf(value, { fragments: [{ runIndex: 0, text: injected, x: 0, width: block.lineBlocks[0]!.width }] })
+          replaced++
+        }
+        return Reflect.apply(freeze.value, Object, [value])
+      } })
+      projected = pixelTextLine(block, 0)!
+    } finally { Object.defineProperty(Object, 'freeze', freeze) }
+    expect(Object.isExtensible(projected)).toBe(mode === 'unfrozen')
+    expect(replaced).toBe(mode === 'unfrozen' ? 0 : 1)
+    const width = 360, height = 120, colors = { bg: '#fff', fg: '#111', font: 'Inter' }
+    const context = { positioned: { width, height }, colors, resolved: { renderOptions: {} } }
+    const producer: DrawingProducer = factory => ({ family: 'flowchart', width, height, colors, transparent: false, parts: [
+      factory.documentOpen({ id: 'root', width, height, colors, transparent: false, font: 'Inter', hasMonoFont: false }, '<svg xmlns="http://www.w3.org/2000/svg" width="360" height="120">'),
+      factory.text({ id: 'projected-label', role: 'label', text: source, block: projected, x: 20, y: 50, fontSize: 18, anchor: 'start', paint: { fill: '#111' } }),
+      factory.documentClose(),
+    ] })
+    expect(() => drawNative(producer, context, 'flowchart')).toThrow('must retain the actual immutable pixel text preparation')
+  })
+
+  it.each([
+    { cache: 'pixel', execution: 'native', before: 'PixelNativeBeforeC731', after: 'PixelNativeAfterCC731' },
+    { cache: 'pixel', execution: 'scene', before: 'PixelSceneBeforeC731', after: 'PixelSceneAfterCC731' },
+    { cache: 'display', execution: 'native', before: 'DisplayNativeBeforeC731', after: 'DisplayNativeAfterCC731' },
+    { cache: 'display', execution: 'scene', before: 'DisplaySceneBeforeC731', after: 'DisplaySceneAfterCC731' },
+  ] as const)('fresh preparation preserves its authored literal after an interposed freeze in the $cache cache through $execution', fixture => {
+    const expected = Object.freeze({ before: fixture.before, after: fixture.after })
+    const freeze = Object.getOwnPropertyDescriptor(Object, 'freeze')!
+    const options = { display: 'literal' as const, fontSize: 18, fontWeight: 400, fontFamily: 'Inter' }
+    let pixel: ReturnType<typeof preparePixelText> | undefined
+    let display: ReturnType<typeof prepareDisplayText> | undefined
+    try {
+      Object.defineProperty(Object, 'freeze', { ...freeze, value: <T>(value: T): T => value })
+      if (fixture.cache === 'pixel') pixel = preparePixelText(expected.before, options)
+      else display = prepareDisplayText(expected.before, 'literal')
+    } finally { Object.defineProperty(Object, 'freeze', freeze) }
+    const plan = pixel?.prepared ?? display!
+    Object.assign(plan, { source: expected.after })
+    Object.assign(plan.lines[0]![0]!, { text: expected.after })
+    if (pixel) {
+      Object.assign(pixel, { text: expected.after })
+      pixel.lines[0] = expected.after
+      Object.assign(pixel.lineBlocks[0]!, { text: expected.after })
+      Object.assign(pixel.lineBlocks[0]!.runs[0]!, { text: expected.after })
+    }
+    const block = preparePixelText(expected.before, options)
+    const width = 360, height = 120, colors = { bg: '#fff', fg: '#111', font: 'Inter' }
+    const context = { positioned: { width, height }, colors, resolved: { renderOptions: {} } }
+    const producer: DrawingProducer = factory => ({ family: 'flowchart', width, height, colors, transparent: false, parts: [
+      factory.documentOpen({ id: 'root', width, height, colors, transparent: false, font: 'Inter', hasMonoFont: false }, '<svg xmlns="http://www.w3.org/2000/svg" width="360" height="120">'),
+      factory.text({ id: 'cache-label', role: 'label', text: expected.before, block, x: 20, y: 50, fontSize: 18, anchor: 'start', paint: { fill: '#111' } }),
+      factory.documentClose(),
+    ] })
+    let svg: string
+    if (fixture.execution === 'native') svg = drawNative(producer, context, 'flowchart').svg
+    else {
+      const capture = createSceneWriteCapture(MAX_OCCLUSION_OPERATIONS)
+      const document = admitSceneDocument(producer(marks, context), 'internal', true, capture.observe)
+      capture.finish(document)
+      svg = DefaultBackend.render(document, { seed: 0 })
+    }
+    const texts = svg.match(/<text\b[^>]*>[^<]*<\/text>/g)!
+    expect(texts).toHaveLength(1)
+    expect(texts[0]!.slice(texts[0]!.indexOf('>') + 1, -7)).toBe(expected.before)
+    const font = { fontFiles: [join(import.meta.dirname, '../../assets/fonts/Inter-Regular.ttf')], loadSystemFonts: false, defaultFontFamily: 'Inter' }
+    const pixels = (value: string) => new Resvg(value, { font, background: '#fff' }).render().pixels
+    expect(Buffer.compare(pixels(svg), pixels(svg.replace(texts[0]!, '')))).not.toBe(0)
+  })
+
+  it.each([{ letterSpacing: 0, fontWeight: 400 }, { letterSpacing: 2, fontWeight: 400 }, { letterSpacing: 0, fontWeight: 800 }])('paints retained styled allocations without nested fitting: %j', ({ letterSpacing, fontWeight }) => {
+    let measurements = 0
+    const execution = createTextMeasurementExecution({ id: 'test:styled-allocations', version: '1.0.0', measure: ({ text }) => { measurements++; return text.length > 1 ? text.length * 10 + 5 : 10 } }, 'Inter')
+    const block = withTextMeasurementExecution(execution, () => preparePixelText('This <b>is</b> <i>Markdown</i>', { fontSize: 20, fontWeight, letterSpacing }))
+    const preparedMeasurements = measurements
+    const markup = withTextMeasurementExecution(execution, () => renderMultilineText(block, 30, 73, 20, `text-anchor="start" font-size="20" font-weight="${fontWeight}"`))
+    expect(measurements).toBe(preparedMeasurements)
+    expect(block.prepared.source).toBe('This <b>is</b> <i>Markdown</i>')
+    expect(block.width).toBe(letterSpacing === 0 ? 175 : 190)
+    const fragments = block.lineBlocks[0]!.fragments!
+    expect(fragments).toHaveLength(letterSpacing === 0 ? 4 : 16)
+    expect(fragments.map(fragment => fragment.text).join('')).toBe('This is Markdown')
+    if (letterSpacing === 0) expect(fragments.map(fragment => [fragment.x, fragment.width])).toEqual([[0, 55], [55, 25], [80, 10], [90, 85]])
+    const reference = letterSpacing === 0
+      ? `<text x="30" y="80" textLength="55" lengthAdjust="spacingAndGlyphs" xml:space="preserve">This </text><text x="85" y="80" textLength="25" lengthAdjust="spacingAndGlyphs" font-weight="${Math.max(700, fontWeight)}">is</text><text x="110" y="80" textLength="10" lengthAdjust="spacingAndGlyphs" xml:space="preserve"> </text><text x="120" y="80" textLength="85" lengthAdjust="spacingAndGlyphs" font-style="italic">Markdown</text>`
+      : [...'This is Markdown'].map((text, index) => `<text x="${30 + index * 12}" y="80" textLength="10" lengthAdjust="spacingAndGlyphs" xml:space="preserve"${index >= 5 && index <= 6 ? ' font-weight="bold"' : index >= 8 ? ' font-style="italic"' : ''}>${text}</text>`).join('')
+    const wrap = (text: string) => `<svg xmlns="http://www.w3.org/2000/svg" width="300" height="120" font-weight="${fontWeight}"><style>text{font-family:Inter;font-size:20px}</style>${text}</svg>`
+    const raster = (text: string) => new Resvg(wrap(text), { font: { loadSystemFonts: false, fontDirs: [join(import.meta.dir, '..', '..', 'assets', 'fonts')], defaultFontFamily: 'Inter' } }).render().pixels
+    expect(Buffer.from(raster(markup)).equals(Buffer.from(raster(reference)))).toBe(true)
+    const node = marks.text({ id: 'styled-allocations', role: 'label', text: block.text, block, x: 30, y: 73, fontSize: 20, anchor: 'start', paint: {} })
+    const problems: string[] = []
+    nodeProblems(node, 'styled-allocations', problems)
+    expect(problems).toEqual([])
+  })
+
+  it.each(['<b>WWW</b>', '<i>WWW</i>', '<u>WWW</u>', '<s>WWW</s>', '<b>A</b> <i>B</i>'])('retains fitted style carriers and zero-width authored whitespace: %s', source => {
+    const execution = createTextMeasurementExecution({ id: 'test:zero-space-run', version: '1.0.0', measure: ({ text }) => text.trim() ? 10 : 0 }, 'Inter')
+    const block = withTextMeasurementExecution(execution, () => preparePixelText(source, { fontSize: 30, fontWeight: 400 }))
+    const markup = renderMultilineText(block, 30, 50, 30, 'text-anchor="start" font-size="30" font-weight="400"')
+    const node = marks.text({ id: 'single-style', role: 'label', text: block.text, block, x: 30, y: 50, fontSize: 30, anchor: 'start', paint: {} })
+    const problems: string[] = []
+    nodeProblems(node, 'single-style', problems)
+    expect(problems).toEqual([])
+    expect(block.lineBlocks[0]!.fragments!.map(fragment => fragment.width)).toEqual(source.includes(' ') ? [10, 0, 10] : [10])
+    const resvg = new Resvg(`<svg xmlns="http://www.w3.org/2000/svg" width="200" height="100"><style>text{font-family:Inter}</style>${markup}</svg>`, { font: { loadSystemFonts: false, fontDirs: [join(import.meta.dir, '..', '..', 'assets', 'fonts')], defaultFontFamily: 'Inter' } }).render()
+    const pixels = resvg.pixels
+    const ink: number[] = []
+    for (let y = 0; y < resvg.height; y++) for (let x = 0; x < resvg.width; x++) if (pixels[(y * resvg.width + x) * 4 + 3]) ink.push(x)
+    expect(ink.length).toBeGreaterThan(0)
+    expect(Math.min(...ink)).toBeGreaterThanOrEqual(29)
+    expect(Math.max(...ink)).toBeLessThanOrEqual(source.includes(' ') ? 51 : 41)
+  })
+
+  it.each([undefined, 2])('keeps adjacent identical styles in their original whole-run measurement at width %s', maxWidth => {
+    const execution = createTextMeasurementExecution({ id: 'test:adjacent-style-runs', version: '1.0.0', measure: ({ text }) => text.length > 1 ? 2 : 9 }, 'Inter')
+    for (const source of ['<b>A</b><b>B</b>', concatDisplayText([prepareDisplayText('<b>A</b>'), prepareDisplayText('<b>B</b>')])]) {
+      const block = withTextMeasurementExecution(execution, () => preparePixelText(source, { fontSize: 20, fontWeight: 800, maxWidth }))
+      expect(block.width).toBe(2)
+      expect(block.breaks).toEqual([])
+      expect(block.lineBlocks[0]!.runs.map(run => run.text)).toEqual(['A', 'B'])
+      expect(block.lineBlocks[0]!.fragments).toEqual([{ runIndex: 0, text: 'AB', x: 0, width: 2 }])
+      const markup = renderMultilineText(block, 10, 30, 20, 'text-anchor="start" font-size="20" font-weight="800"')
+      const node = marks.text({ id: 'adjacent-style', role: 'label', text: block.text, block, x: 10, y: 30, fontSize: 20, anchor: 'start', paint: {} })
+      const problems: string[] = []
+      nodeProblems(node, 'adjacent-style', problems)
+      expect(problems).toEqual([])
+    }
+    const unicode = preparePixelText('<b>漢</b>', { fontSize: 20, fontWeight: 800 })
+    expect(unicode.lineBlocks[0]!.fragments).toBeUndefined()
+    expect(renderMultilineText(unicode, 10, 30, 20, 'text-anchor="start" font-size="20" font-weight="800"')).toMatch(/<tspan\b[^>]*\bfont-weight="800"[^>]*>漢<\/tspan>/)
+  })
+
+  it.each(['مرحبا بكم', 'שָׁלוֹם'])('keeps a native RTL single line on its absolute baseline: %s', label => {
+    const block = preparePixelText(label, { fontSize: 40, fontWeight: 500 })
+    const wrap = (text: string) => `<svg xmlns="http://www.w3.org/2000/svg" width="500" height="160"><style>text{font-family:DejaVu Sans;font-size:40px;font-weight:500}</style>${text}</svg>`
+    const markup = renderMultilineText(block, 250, 70, 40, 'text-anchor="middle" font-size="40" font-weight="500"')
+    const reference = `<text x="250" y="84" text-anchor="middle">${label}</text>`
+    const raster = (text: string) => new Resvg(wrap(text), { font: { loadSystemFonts: false, fontDirs: [join(import.meta.dir, '..', '..', 'assets', 'fonts')], defaultFontFamily: 'Inter' } }).render().pixels
+    expect(Buffer.from(raster(markup)).equals(Buffer.from(raster(reference)))).toBe(true)
+    const node = marks.text({ id: 'rtl-line', role: 'label', text: block.text, block, x: 250, y: 70, fontSize: 40, anchor: 'middle', paint: {} })
+    expect(node.textLayout!.offsetY).toBeCloseTo(0)
+  })
+
+  it('places every native RTL line like independently positioned text', () => {
+    const lines = [...Array<string>(12).fill('مرحبا مرحبا'), 'مرحبا']
+    const block = preparePixelText(lines.join('\n'), { fontSize: 13, fontWeight: 500 })
+    const wrap = (text: string) => `<svg xmlns="http://www.w3.org/2000/svg" width="200" height="450"><style>text{font-family:DejaVu Sans;font-size:13px;font-weight:500}</style>${text}</svg>`
+    const markup = renderMultilineText(block, 100, 212.65, 13, 'text-anchor="middle" font-size="13" font-weight="500"')
+    const actual = wrap(markup)
+    // Separate text elements give each authored line its own native shaping
+    // context. Relative dy must not be consumed by reordered RTL fragments.
+    const reference = wrap(lines.map((line, i) => `<text x="100" y="${30 + i * 31.2}" text-anchor="middle">${line}</text>`).join(''))
+    const raster = (svg: string) => new Resvg(svg, { font: { loadSystemFonts: false, fontDirs: [join(import.meta.dir, '..', '..', 'assets', 'fonts')], defaultFontFamily: 'Inter' } }).render().pixels
+    expect(Buffer.from(raster(actual)).equals(Buffer.from(raster(reference)))).toBe(true)
+    const node = marks.text({ id: 'rtl-lines', role: 'label', text: block.text, block, x: 100, y: 212.65, fontSize: 13, anchor: 'middle', paint: {} })
+    expect(node.textLayout!.offsetY).toBeCloseTo(0)
+  })
+
+  it('recomputes external text geometry instead of trusting a supplied band', () => {
+    const valid = buildExternalScene({ version: 1, family: 'family:test/text-band', width: 200, height: 100, colors: { bg: '#fff', fg: '#111' }, metadata: { title: 'Measured text' }, parts: [{ kind: 'text', id: 'label', role: 'label', text: 'Visible label', x: 10, y: 30, fontSize: 18 }] })
+    expect(validateSceneDoc(valid, { mode: 'external' }).valid).toBe(true)
+    const text = valid.parts.find(node => node.kind === 'text')!
+    if (text.kind !== 'text') throw new Error('fixture must have text')
+    for (const [field, value] of [
+      ['owner', { id: 'absent', role: 'node' }],
+      ['measurement', 'prepared'], ['prepared', true],
+      ['block', { ...text.block!, text: 'Forged content', prepared: { ...text.block!.prepared, source: 'Forged content' } }],
+      ['fontWeight', 900], ['letterSpacing', 30], ['display', 'formatted'],
+      ['textLayout', { ...text.textLayout, width: 0 }],
+      ['textLayout', { ...text.textLayout, offsetY: 10 }],
+    ] as const) {
+      // A forged copy keeps the original's writer admission, so rejection
+      // tests the field, not a missing serialization.
+      const forgedText = { ...text, [field]: value }
+      transferSceneNodeSerialization(text, forgedText)
+      const result = validateSceneDoc({ ...valid, parts: valid.parts.map(node => node === text ? forgedText : node) }, { mode: 'external' })
+      expect(result.valid).toBe(false)
+      expect(result.diagnostics).toContainEqual(expect.objectContaining({ code: field === 'owner' ? 'SCENE_REFERENCE' : 'SCENE_FIDELITY', path: expect.stringMatching(new RegExp(`\\.${field}$`)) }))
+    }
+  })
+  for (const label of ['WIDE LABEL WITH TRACKING '.repeat(3), '漢字ひらがな É 👩🏽‍💻 👨‍👩‍👧‍👦']) {
+    it(`keeps projected ink within the measured band: ${label.slice(0, 16)}`, () => {
+      const block = preparePixelText(label, { fontSize: 22, fontWeight: 800, letterSpacing: 2, display: 'literal', safeFont: true })
+      const width = block.width + 40
+      const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="100" viewBox="0 0 ${width} 100" style="font-family:Inter;background:white">${renderMultilineText(block, width / 2, 45, 22, 'text-anchor="middle" font-size="22" font-weight="800" letter-spacing="2"')}</svg>`
+      const measured = measureRenderedText(svg).texts[0]!
+      expect(measured.pixels).toBeGreaterThan(0)
+      expect(measured.offCanvasPixels).toBe(0)
+      expect(measured.content).toBe(label.trim())
+    })
+  }
+
+  it.each(['<b> a</b>', 'a <b> </b>b', '<b>a </b>'])('preserves visible spaces across formatting: %s', label => {
+    const block = preparePixelText(label, { fontSize: 18, fontWeight: 500 })
+    expect(renderMultilineText(block, 10, 20, 18, 'font-size="18"')).toContain('xml:space="preserve"')
+  })
+
+  it.each([
+    ['e<b>́</b>e<b>́</b>e<b>́</b>', 0],
+    ['🇺🇸🇬🇧🇫🇷', 10],
+    ['مرحبا بكم', -12],
+    ['ΩΩΩΩΩΩ', 0],
+    ['ШШШШШШ', 0],
+    ['ÄÄÄÄÄÄ', 0],
+    ['mmmmmm é', 0],
+  ] as const)('contains native shaping ink with tracking: %s (%s)', (label, letterSpacing) => {
+    const block = preparePixelText(label, { fontSize: 30, fontWeight: 400, letterSpacing })
+    const width = block.width + 2
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="90" viewBox="0 0 ${width} 90" style="font-family:Inter">${renderMultilineText(block, width / 2, 45, 30, `text-anchor="middle" font-size="30" font-weight="400" letter-spacing="${letterSpacing}"`)}</svg>`
+    const measured = measureRenderedText(svg).texts[0]!
+    expect(measured.pixels).toBeGreaterThan(0)
+    expect(measured.offCanvasPixels).toBe(0)
+    expect(svg.match(/data-text-fragment="true"/g)).toHaveLength(1)
+  })
+
+  it.each(['مرحبا', 'مَرْحَبًا بِكُمْ', 'שָׁלוֹם', 'किंकर्तव्यविमूढ़', '̸', '́́́'])('allocates the full native glyph band: %s', label => {
+    const block = preparePixelText(label, { fontSize: 30, fontWeight: 400 })
+    const width = block.width + 2
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${block.height}" viewBox="0 0 ${width} ${block.height}" style="font-family:Inter">${renderMultilineText(block, width / 2, block.height / 2, 30, 'text-anchor="middle" font-size="30" font-weight="400"')}</svg>`
+    const measured = measureRenderedText(svg).texts[0]!
+    expect(measured.pixels).toBeGreaterThan(0)
+    expect(measured.offCanvasPixels).toBe(0)
+    expect(fitPixelText(label, { fontSize: 30, fontWeight: 400 }, { width: block.width, height: block.height }).kind).toBe('placed')
+  })
+
+  it.each(['start', 'middle', 'end'] as const)('contains natural ink bearings with %s anchoring', anchor => {
+    for (const label of ['̸', '́́́', 'किंकर्तव्यविमूढ़']) {
+      const block = preparePixelText(label, { fontSize: 30, fontWeight: 800 })
+      const width = block.width + 4
+      const x = anchor === 'start' ? 2 : anchor === 'end' ? width - 2 : width / 2
+      const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${block.height}" viewBox="0 0 ${width} ${block.height}" style="font-family:Inter">${renderMultilineText(block, x, block.height / 2, 30, `text-anchor="${anchor}" font-size="30" font-weight="800"`)}</svg>`
+      expect(measureRenderedText(svg).texts[0]!.offCanvasPixels).toBe(0)
+    }
+  })
+
+  it('retains complete joining-script text in a shaping run', () => {
+    const label = 'مرحبا بكم'
+    const block = preparePixelText(label, { ...typography, display: 'literal' })
+    const svg = renderMultilineText(block, 100, 30, 18, 'text-anchor="middle" font-size="18"')
+    expect(svg).toContain('>مرحبا بكم<')
+    expect(svg).not.toContain('>م</tspan>')
+  })
+
+  it('carries multiline typography into transformed Scene bounds', () => {
+    const block = preparePixelText('WIDE\nSECOND\nTHIRD', { fontSize: 24, fontWeight: 800, letterSpacing: 2 })
+    const node = marks.text({ id: 'label', role: 'label', text: block.text, block, x: 100, y: 100, fontSize: 24, anchor: 'middle', paint: {}, transform: { kind: 'rotate', angle: 90, cx: 100, cy: 100 } })
+    const bounds = nodeWorldBounds(node)!
+    expect(bounds.x1 - bounds.x0).toBeCloseTo(3 * 24 * 1.3)
+    expect(bounds.y1 - bounds.y0).toBeCloseTo(block.width)
+    expect(node.fontWeight).toBe(800)
+    expect(node.letterSpacing).toBe(2)
+  })
+})
+
+
+describe('discretionary Unicode breaks', () => {
+  it('keeps hints invisible without a break and measures the visible text', () => {
+    const source = 'ab\u00adcd\u200bef'
+    const block = preparePixelText(source, { fontSize: 14, fontWeight: 400 })
+    expect(block.prepared.source).toBe(source)
+    expect(block.lines).toEqual(['abcdef'])
+    expect(block.width).toBe(preparePixelText('abcdef', { fontSize: 14, fontWeight: 400 }).width)
+  })
+
+  it.each([
+    ['ab\u00adcd', 23, ['ab-', 'cd'], 'hyphen', '\u00ad'],
+    ['ab\u200bcd', 20, ['ab', 'cd'], 'wrap', '\u200b'],
+  ] as const)('uses the authored hint in %s without a line of its own', (source, maxWidth, lines, kind, replacedText) => {
+    const block = preparePixelText(source, { fontSize: 14, fontWeight: 400, maxWidth })
+    expect(block.lines).toEqual([...lines])
+    expect(block.breaks).toEqual([{ kind, sourceOffset: 3, replacedText }])
+    expect(block.lineBlocks.every(line => line.width <= maxWidth)).toBe(true)
+  })
+
+  it('retains formatted source positions and the style of a selected hyphen', () => {
+    const source = '<b>ab\u00adcd</b>'
+    const block = preparePixelText(source, { fontSize: 14, fontWeight: 400, maxWidth: 27 })
+    expect(block.lineBlocks.map(line => line.runs.map(run => run.text).join(''))).toEqual(['ab-', 'cd'])
+    expect(block.lineBlocks.flatMap(line => line.runs).every(run => run.bold)).toBe(true)
+    expect(block.lineBlocks[0]!.runs.at(-1)).toMatchObject({ text: '-', sourceStart: 5, sourceEnd: 6 })
+    expect(block.breaks).toEqual([{ kind: 'hyphen', sourceOffset: 6, replacedText: '\u00ad' }])
+    expect(block.prepared.source).toBe(source)
+  })
+})
+
+
+it('retains all visible cluster source spans when unused hints join equal-style runs', () => {
+  const source = '<b>ab\u00ad</b><b>cd</b>'
+  const block = preparePixelText(source, { fontSize: 14, fontWeight: 400 })
+  expect(block.lineBlocks[0]!.runs.map(run => run.text).join('')).toBe('abcd')
+  expect(block.lineBlocks[0]!.runs.flatMap(run => run.clusters ?? []).map(cluster => [cluster.text, cluster.sourceStart, cluster.sourceEnd]))
+    .toEqual([['a', 3, 4], ['b', 4, 5], ['c', 13, 14], ['d', 14, 15]])
+})

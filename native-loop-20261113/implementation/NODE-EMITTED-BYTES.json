@@ -1,0 +1,233 @@
+{
+  "scope": "Sum of actual per-file compressed JavaScript/CJS bytes from matching 7-entry Node builds; excludes maps, assets/declarations. Emitted set, not browser fetched closure, network transfer or standalone/site payload.",
+  "rows": [
+    {
+      "arm": "baseline",
+      "files": 15,
+      "raw": 3939496,
+      "gzip9": 1208186,
+      "brotli11": 952032,
+      "parts": [
+        {
+          "name": "agent-core.js",
+          "raw": 159598,
+          "gzip9": 49750,
+          "brotli11": 42959,
+          "sha256": "64e0b04e0417b30da870573871a3cc75e32a38ce3228e6b3d30db02ad3a65968"
+        },
+        {
+          "name": "builtin-font-metrics.js",
+          "raw": 348,
+          "gzip9": 247,
+          "brotli11": 215,
+          "sha256": "0b1e018e9f12f2e3357e3dccc380e4d4ce2f37f7b83cc29d7c4d00fa3f42645e"
+        },
+        {
+          "name": "builtin-font-metrics.node.js",
+          "raw": 377,
+          "gzip9": 266,
+          "brotli11": 233,
+          "sha256": "071386e4390705691d6962ad4c13fa7f9ff8ba797ebeb337b464433abe4b73ec"
+        },
+        {
+          "name": "chunk-6K4YVZQU.js",
+          "raw": 3721806,
+          "gzip9": 1131959,
+          "brotli11": 886372,
+          "sha256": "972dd293ba52b9e7e4d1e9befbac5b500bbde8baf2e980b160a18297ee04d1c7"
+        },
+        {
+          "name": "chunk-H77JNERV.js",
+          "raw": 137,
+          "gzip9": 144,
+          "brotli11": 123,
+          "sha256": "7a293e9af3e91b795219aad8b6f48590970949afa84aeab0f9b017755095aabb"
+        },
+        {
+          "name": "chunk-VUFVLGTH.js",
+          "raw": 150,
+          "gzip9": 157,
+          "brotli11": 128,
+          "sha256": "1c4a54620dbc5af7f2de154c1854ab695b6180e948b4df5575171f1663c80951"
+        },
+        {
+          "name": "chunk-Z7QFUOYN.js",
+          "raw": 22032,
+          "gzip9": 8151,
+          "brotli11": 7238,
+          "sha256": "a5a38a4a1a55960374a9347b291eb495a91bd2b5bb34c1182b89eda31232f967"
+        },
+        {
+          "name": "elk-constructor.js",
+          "raw": 162,
+          "gzip9": 156,
+          "brotli11": 130,
+          "sha256": "7c56215756c8ffe4933aab1fb6beebf84f597a2f5825c3bedcd4e61b9a11cb5d"
+        },
+        {
+          "name": "elk-constructor.node.js",
+          "raw": 535,
+          "gzip9": 319,
+          "brotli11": 272,
+          "sha256": "d10a7c739b2abce378d516f6d606767ce142667b5d322a86fc306f49c9b8448f"
+        },
+        {
+          "name": "index.js",
+          "raw": 7086,
+          "gzip9": 2912,
+          "brotli11": 2441,
+          "sha256": "43cbf556e966227e4993529713c976bb960d12e0885e5f01119fb8dea3b122d4"
+        },
+        {
+          "name": "inter-metrics-kernel.cjs",
+          "raw": 19168,
+          "gzip9": 10353,
+          "brotli11": 8537,
+          "sha256": "458adacd352474d2a2bfbc37a1d653f6bf0937b16afcf71fad9aedcf247e0b14"
+        },
+        {
+          "name": "layout-optimization.cjs",
+          "raw": 7125,
+          "gzip9": 3159,
+          "brotli11": 2875,
+          "sha256": "ca508d15d4503f4ca91a8a80421ed8129cd2e31fff2379366e35072eacf002ce"
+        },
+        {
+          "name": "layout-optimization.js",
+          "raw": 181,
+          "gzip9": 158,
+          "brotli11": 122,
+          "sha256": "88d6a5a04290501eddc0393af819d64c7fe42e98cb932b5ecef7a2cbd9f4b6b4"
+        },
+        {
+          "name": "layout-optimization.node.js",
+          "raw": 224,
+          "gzip9": 185,
+          "brotli11": 156,
+          "sha256": "8887a42918d34d47ea699d37d8bd73b0d23893faecda76f623cb33ea06a9fc92"
+        },
+        {
+          "name": "optional-kernels.node.js",
+          "raw": 567,
+          "gzip9": 270,
+          "brotli11": 231,
+          "sha256": "83eaa139c2a6642fd3dc39b68ba0e3d0d527b28c871b8bccb53a89207eabf27f"
+        }
+      ]
+    },
+    {
+      "arm": "candidate",
+      "files": 15,
+      "raw": 3939632,
+      "gzip9": 1208256,
+      "brotli11": 952075,
+      "parts": [
+        {
+          "name": "agent-core.js",
+          "raw": 159598,
+          "gzip9": 49750,
+          "brotli11": 43025,
+          "sha256": "8ef6bf84d7923cae45520e2bb71e09b6a25c545bbb3692a68e65b46583fc4b6d"
+        },
+        {
+          "name": "builtin-font-metrics.js",
+          "raw": 348,
+          "gzip9": 247,
+          "brotli11": 215,
+          "sha256": "0b1e018e9f12f2e3357e3dccc380e4d4ce2f37f7b83cc29d7c4d00fa3f42645e"
+        },
+        {
+          "name": "builtin-font-metrics.node.js",
+          "raw": 377,
+          "gzip9": 266,
+          "brotli11": 233,
+          "sha256": "071386e4390705691d6962ad4c13fa7f9ff8ba797ebeb337b464433abe4b73ec"
+        },
+        {
+          "name": "chunk-H77JNERV.js",
+          "raw": 137,
+          "gzip9": 144,
+          "brotli11": 123,
+          "sha256": "7a293e9af3e91b795219aad8b6f48590970949afa84aeab0f9b017755095aabb"
+        },
+        {
+          "name": "chunk-UAK6G2JV.js",
+          "raw": 3721942,
+          "gzip9": 1132029,
+          "brotli11": 886349,
+          "sha256": "f8d6e7de3c2d75b2313b92fe51f9709fd580caad56342d0dd8b00d82dcc7fa76"
+        },
+        {
+          "name": "chunk-VUFVLGTH.js",
+          "raw": 150,
+          "gzip9": 157,
+          "brotli11": 128,
+          "sha256": "1c4a54620dbc5af7f2de154c1854ab695b6180e948b4df5575171f1663c80951"
+        },
+        {
+          "name": "chunk-Z7QFUOYN.js",
+          "raw": 22032,
+          "gzip9": 8151,
+          "brotli11": 7238,
+          "sha256": "a5a38a4a1a55960374a9347b291eb495a91bd2b5bb34c1182b89eda31232f967"
+        },
+        {
+          "name": "elk-constructor.js",
+          "raw": 162,
+          "gzip9": 156,
+          "brotli11": 130,
+          "sha256": "7c56215756c8ffe4933aab1fb6beebf84f597a2f5825c3bedcd4e61b9a11cb5d"
+        },
+        {
+          "name": "elk-constructor.node.js",
+          "raw": 535,
+          "gzip9": 319,
+          "brotli11": 272,
+          "sha256": "d10a7c739b2abce378d516f6d606767ce142667b5d322a86fc306f49c9b8448f"
+        },
+        {
+          "name": "index.js",
+          "raw": 7086,
+          "gzip9": 2912,
+          "brotli11": 2441,
+          "sha256": "de89632eb6c502a27fbaccd923adb9868f661d57830310c641ef5820d9ced085"
+        },
+        {
+          "name": "inter-metrics-kernel.cjs",
+          "raw": 19168,
+          "gzip9": 10353,
+          "brotli11": 8537,
+          "sha256": "458adacd352474d2a2bfbc37a1d653f6bf0937b16afcf71fad9aedcf247e0b14"
+        },
+        {
+          "name": "layout-optimization.cjs",
+          "raw": 7125,
+          "gzip9": 3159,
+          "brotli11": 2875,
+          "sha256": "ca508d15d4503f4ca91a8a80421ed8129cd2e31fff2379366e35072eacf002ce"
+        },
+        {
+          "name": "layout-optimization.js",
+          "raw": 181,
+          "gzip9": 158,
+          "brotli11": 122,
+          "sha256": "88d6a5a04290501eddc0393af819d64c7fe42e98cb932b5ecef7a2cbd9f4b6b4"
+        },
+        {
+          "name": "layout-optimization.node.js",
+          "raw": 224,
+          "gzip9": 185,
+          "brotli11": 156,
+          "sha256": "8887a42918d34d47ea699d37d8bd73b0d23893faecda76f623cb33ea06a9fc92"
+        },
+        {
+          "name": "optional-kernels.node.js",
+          "raw": 567,
+          "gzip9": 270,
+          "brotli11": 231,
+          "sha256": "83eaa139c2a6642fd3dc39b68ba0e3d0d527b28c871b8bccb53a89207eabf27f"
+        }
+      ]
+    }
+  ]
+}

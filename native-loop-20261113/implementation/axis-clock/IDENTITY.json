@@ -1,0 +1,22 @@
+{
+  "artifacts": {
+    "baseline": {
+      "artifact": {
+        "project": "adewale/agentic-mermaid",
+        "root": "/workspace/pr449-native-loop-20261113/implementation/node-baseline-689",
+        "entry": "/workspace/pr449-native-loop-20261113/implementation/node-baseline-689/dist/index.js",
+        "version": "0.5.7",
+        "adapter": "agentic"
+      }
+    },
+    "candidate": {
+      "artifact": {
+        "project": "adewale/agentic-mermaid",
+        "root": "/workspace/pr449-native-loop-20261113/implementation/node-candidate-axis",
+        "entry": "/workspace/pr449-native-loop-20261113/implementation/node-candidate-axis/dist/index.js",
+        "version": "0.5.7",
+        "adapter": "agentic"
+      }
+    }
+  }
+}

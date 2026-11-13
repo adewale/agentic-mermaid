@@ -1,0 +1,87 @@
+{
+  "$schema": "https://agentic-mermaid.dev/schemas/style-spec.schema.json",
+  "formatVersion": 1,
+  "name": "look:vercel-inspired-prototype",
+  "blurb": "Documentation-only Vercel-inspired prototype exercising public role styles, semantic XYChart bindings, and inspect-only constraints; not built in or endorsed.",
+  "colors": {
+    "bg": "#0a0a0a",
+    "fg": "#ededed",
+    "line": "#565656",
+    "accent": "#0070f3",
+    "muted": "#a1a1a1",
+    "surface": "#111111",
+    "border": "#2e2e2e"
+  },
+  "font": "Inter",
+  "stroke": "crisp",
+  "strokeWidth": 1,
+  "intent": "premium",
+  "roles": {
+    "node": {
+      "fontSize": 13,
+      "fontWeight": 500,
+      "paddingX": 20,
+      "paddingY": 11,
+      "cornerRadius": 6,
+      "lineWidth": 1,
+      "fillColor": "#111111",
+      "borderColor": "#2e2e2e",
+      "textColor": "#ededed"
+    },
+    "edge": {
+      "fontSize": 11,
+      "fontWeight": 400,
+      "lineWidth": 1,
+      "bendRadius": 8,
+      "strokeColor": "#565656",
+      "textColor": "#a1a1a1"
+    },
+    "group": {
+      "fontSize": 12,
+      "fontWeight": 500,
+      "letterSpacing": 0.1,
+      "paddingX": 16,
+      "paddingY": 16,
+      "cornerRadius": 8,
+      "lineWidth": 1,
+      "fillColor": "rgba(255,255,255,0.04)",
+      "headerFillColor": "rgba(255,255,255,0.06)",
+      "borderColor": "#2e2e2e",
+      "textColor": "#a1a1a1"
+    },
+    "label": {
+      "fontSize": 11,
+      "fontWeight": 400,
+      "textColor": "#a1a1a1"
+    },
+    "bar": {
+      "fillColor": "#2e2e2e",
+      "borderColor": "#565656",
+      "lineWidth": 1
+    },
+    "series": {
+      "strokeColor": "#565656",
+      "lineWidth": 1
+    }
+  },
+  "semanticSlots": {
+    "primary-series": {
+      "fillColor": "#ededed",
+      "borderColor": "#ededed",
+      "strokeColor": "#ededed",
+      "lineWidth": 1
+    },
+    "accent-series": {
+      "strokeColor": "#0070f3",
+      "lineWidth": 2
+    }
+  },
+  "bindings": [
+    { "channel": "category", "value": "bar-0", "slot": "primary-series", "role": "bar" },
+    { "channel": "category", "value": "line-0", "slot": "accent-series", "role": "series" }
+  ],
+  "constraints": [
+    { "kind": "contrast", "action": "warn", "minimum": 4.5 },
+    { "kind": "accent-area", "action": "warn", "maxFraction": 0.28 }
+  ]
+}

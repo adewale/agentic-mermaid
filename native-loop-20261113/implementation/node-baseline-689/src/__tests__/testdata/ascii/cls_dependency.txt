@@ -1,0 +1,17 @@
+classDiagram
+  Client ..> Server : uses
+---
+    +--------+
+    | Client |
+    +--------+
+        :
+        :
+        :
+        : uses
+        :
+        :
+        :
+        v
+    +--------+
+    | Server |
+    +--------+

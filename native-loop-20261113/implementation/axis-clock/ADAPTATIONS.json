@@ -1,0 +1,10 @@
+{
+  "source": "Existing canonical baseline performance.ts/receipt-performance.ts + unchangedkit andreceipt-worker",
+  "grid": "3diagnostics\u00d72sourcearms\u00d72backends\u00d73freshreplicas\u00d7cache0",
+  "stockWorkers": 144,
+  "fullWorkers": 36,
+  "stockScope": "Warm7adaptive means pertrack; separatecold/import andbaseline/memory/GNU RSS",
+  "fullScope": "Cold+repeat1-4+edit1-4; entireSVG+receipt serialized once",
+  "sampling": "Exploratory3processmedians,notformalcalibration",
+  "changes": "Only roots/grid/casefilter/cache0; protocols/expectations/budgets unchanged"
+}
