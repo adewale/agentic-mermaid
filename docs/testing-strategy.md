@@ -19,10 +19,10 @@ is historical; its removed reports and receipts are not current requirements.
 For quick feedback, run the tests for the changed behavior and
 `bun run typecheck:core`; use `bun run typecheck:watch` while editing core code,
 tests, or scripts. Before completing a change, run `bun run typecheck` to check
-both core and repository surfaces. These commands check the same complete
-project graphs as CI. TypeScript keeps separate incremental caches for the two
-projects under `node_modules/.cache/typecheck/`, so unchanged files do not need
-to be checked again. Changed dependencies and compiler options invalidate the
+the complete source, test, script and repository graph in one compiler program,
+as CI does. The focused core watcher keeps its own cache; canonical validation
+uses the repository cache under `node_modules/.cache/typecheck/`. Unchanged
+files do not need to be checked again. Changed dependencies and compiler options invalidate the
 affected results automatically; deleting that directory forces a cold check.
 For a timing breakdown, add `-- --extendedDiagnostics` to either
 `typecheck:core` or `typecheck:repo`.
@@ -72,9 +72,10 @@ Generate focused before/after witnesses when reviewing a rendering change with
 Scene comparisons cover the full selected corpus. Comparer fault checks run
 once on the first eligible scene for each case, with progress logged per scene.
 
-Both tarball-consumer lanes also execute the Getting Started commands from the
-built website's shell blocks and `docs/getting-started.md`'s bash fences in fresh
-consumer directories. Only the registry package spec is replaced with the packed
+Both Node 24 and Node 22 tarball-consumer lanes execute the guide's JavaScript
+and TypeScript blocks directly under Node, plus its CLI examples, in the existing
+installed consumer. The built website's shell blocks and `docs/getting-started.md`'s
+bash fences still run in independent fresh consumer directories. Only the registry package spec is replaced with the packed
 tarball; the guide's separate repository-development alternative is excluded.
 The gate checks verification JSON, parsed SVG and PNG files, terminal output,
 style discovery, and stdio MCP initialization/tool discovery for both the CLI
@@ -94,7 +95,6 @@ repository's authored `llms.txt` points readers to those sources. A second
 committed capability roster and its snapshot-freshness test are unnecessary.
 There are no input-hash receipts.
 
-The sketch prototype remains an on-demand research tool (`bun run sketch:check`).
 Production styling is exercised by the Scene/backend and render-conformance
 tests; the browser label-contrast check renders the shipped looks.
 
@@ -627,8 +627,9 @@ table here, which would drift. In broad strokes:
   full runtime qualification. Compatible consumers reuse built artifacts; native
   builds and independent installations retain their own contracts. Required
   checks must pass; additional passing checks do not invalidate the run.
-- **Layout review:** relevant PR changes select the advisory image and generated
-  layout campaigns. A full manual dispatch can request them with `layout_evidence`.
+- **Layout review:** advisory image and generated-layout campaigns run only on
+  a manual dispatch with `layout_evidence=true`. Before/after review also requires
+  `layout_base`, a full commit SHA checked out as the comparison baseline.
 - **Release and deployment:** follow the [release guide](https://github.com/adewale/agentic-mermaid/blob/f2b3fd0ab50af0841175681f87a0b40090b9c9f5/docs/contributing/releasing.md)
   for full qualification and the distinction between CI success and delivery.
 - **Weekly (`contract-discovery.yml`):** one bounded model/grammar discovery job;
@@ -764,7 +765,7 @@ table here, which would drift. In broad strokes:
   V8, not native memory or peak RSS. Compare with `--baseline <source-edit-ref>`
   and calibrate timing noise with `--aa`; an unavailable baseline API is not a
   fast successful edit. `bun run bench:peers` (the built package against
-  the pinned browserless and terminal peers in `eval/fork-graph/`, with output checks outside timing/allocation and label
+  the browserless and terminal peers pinned in `eval/benchmark/peer-bench.ts`, with output checks outside timing/allocation and label
   checks before timing; includes the native Go Sketch worker, requiring Go >=1.25).
   `bench:peers --corpus` attempts every official fence occurrence, including
   unsupported families, with one warmup and three single-call samples per

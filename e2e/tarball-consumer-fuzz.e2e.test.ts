@@ -152,8 +152,43 @@ beforeAll(() => {
   haveConsumer = true
 }, BUILD_TIMEOUT_MS + INSTALL_TIMEOUT_MS + RUN_TIMEOUT_MS)
 
-test('Getting Started shell commands and pinned MCP config work against the packed package', () => {
+test('Getting Started library, shell commands and pinned MCP config work against the packed package', () => {
   expect(haveConsumer).toBe(true)
+  const execute = (command: string, args: string[]): string => {
+    const result = spawnSync(command, args, { cwd: work, encoding: 'utf8', timeout: RUN_TIMEOUT_MS, maxBuffer: 8 * 1024 * 1024 })
+    expect(result.status, `${command} ${args.join(' ')}: ${result.error ?? result.stderr}`).toBe(0)
+    return result.stdout
+  }
+  const guide = readFileSync(join(REPO, 'docs/getting-started.md'), 'utf8')
+  const examples = [...guide.matchAll(/^```(?:ts|js)\n([\s\S]*?)^```/gm)]
+  expect(examples.length).toBeGreaterThan(0)
+  for (const [index, example] of examples.entries()) {
+    const path = join(work, `getting-started-${index}.mts`)
+    writeFileSync(path, example[1]!)
+    // Execute the reader's TypeScript directly under the advertised Node floor,
+    // rather than using Bun or substituting a compiled JavaScript example.
+    execute(NODE!, [path])
+  }
+  writeFileSync(join(work, 'diagram.mmd'), 'flowchart LR\n  A[Start] --> B[Finish]\n')
+  for (const match of guide.matchAll(/^npx --no-install agentic-mermaid (.+)$/gm)) {
+    const args = match[1]!.trim().split(/\s+/)
+    const outputIndex = args.indexOf('--output')
+    const outputPath = outputIndex < 0 ? undefined : join(work, args[outputIndex + 1]!)
+    // Every command must create its own artifact, even when a library example
+    // deliberately used the same filename earlier.
+    if (outputPath) rmSync(outputPath, { force: true })
+    const output = execute('npx', ['--no-install', 'agentic-mermaid', ...args])
+    if (match[1]!.includes('--format png')) {
+      expect(outputPath).toBeDefined()
+      expect(readFileSync(outputPath!).subarray(0, 8).toString('hex')).toBe('89504e470d0a1a0a')
+    }
+    if (match[1]!.includes('--format svg')) expect(output).toContain('<svg')
+    if (match[1]!.includes('--format ascii')) {
+      expect(output).toContain('Start')
+      expect(output).toContain('Finish')
+    }
+  }
+  execute('npx', ['--no-install', 'agentic-mermaid', '--help'])
   runGettingStartedCommands(REPO, tarball)
 }, BUILD_TIMEOUT_MS + INSTALL_TIMEOUT_MS + RUN_TIMEOUT_MS)
 

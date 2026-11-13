@@ -368,7 +368,7 @@ bun test src/__tests__/styled-output.test.ts --timeout 30000   # determinism + g
 bun test src/__tests__/scene-fidelity.test.ts  # semantic/backend agreement
 ```
 
-Then render your style across every registered diagram family and *look at it small*
-— the optional research poster/contact-sheet harness in `scripts/sketch-prototype/` is the
-visual-review surface. A style ships when it is distinctive at a glance,
+Render representative family inputs with the public CLI and your StyleSpec JSON
+(`am render diagram.mmd --style brand.style.json --format png --output review.png`).
+Inspect the output at small size. A style ships when it is distinctive at a glance,
 legible at cell size, and honest to its intent.

@@ -1,5 +1,4 @@
-// Tiny PNG pixel-inspection helper for raster tests. Wraps upng-js (already a
-// devDependency, used by the sketch-prototype scripts) so tests can decode
+// Tiny PNG pixel-inspection helper for raster tests. Wraps upng-js so tests can decode
 // renderMermaidPNG output and scan for glyph ink without adding dependencies.
 
 // @ts-expect-error - upng-js ships no types

@@ -48,7 +48,7 @@ An independent git root alone does not establish an independent algorithm.
 The inventory observations retain their original 18–20 October dates. Later
 source inspections and the supplementary Zombie 5.8.2 package pin below do not
 silently refresh that snapshot or its published-package claims. Sketch, the Go
-Pele port in `eval/fork-graph/population.json`, is a separate recorded lead; it
+Pele port in the [historical population](https://github.com/adewale/agentic-mermaid/blob/72c5170c870a746028ec5f8610907138e3b2c9c7/eval/fork-graph/population.json), is a separate recorded lead; it
 is not added to the 83-node total.
 
 ## Approaches and the useful differences

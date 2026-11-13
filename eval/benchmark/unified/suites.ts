@@ -375,8 +375,6 @@ export function benchmarkSuites(options: SuiteOptions): SuiteDefinition[] {
       prerequisites: [],
       policy: 'Existing owning style behavior checks; scoped correctness evidence, not a renderer speed rank.',
     })
-  if (pkg.scripts['sketch:check'])
-    suites.push({ id: 'sketch-check', title: 'Sketch style behavior and contrast audit', kind: 'test', smoke: false, source: pkg.scripts['sketch:check'], command: ['bun', 'run', 'sketch:check'], prerequisites: [], policy: 'Existing sketch behavior and contrast evaluator. Contrast is our own quality contract.' })
   standalone(
     'agent-subagent',
     'Observed external-agent transcript capture/evaluation',

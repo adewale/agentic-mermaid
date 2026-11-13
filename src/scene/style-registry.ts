@@ -630,8 +630,7 @@ for (const definition of BUILTIN_PALETTE_DEFINITIONS as readonly BuiltinPaletteD
 }
 
 // ----------------------------------------------------------------------------
-// Built-in full looks. Parameters were converged in the prototype
-// (scripts/sketch-prototype); backends are inferred, never declared.
+// Built-in full looks; backends are inferred, never declared.
 // ----------------------------------------------------------------------------
 
 registerBuiltInStyle({

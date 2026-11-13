@@ -628,8 +628,8 @@ unit tests while visibly clipping in the editor.
 **Coverage evidence has to separate plumbing, readability, and taste.** The
 state-space diagram and galleries explain what the style catalog covers, but
 the durable gates are `style:audit`, which renders every built-in family under
-a Style + Palette stack and rejects removed role keys, and `sketch:check`, whose contrast audit enforces
-the WCAG floors for every registered style. Visual galleries answer "are these looks differentiated?"; the audit
+a Style + Palette stack and rejects removed role keys. Visual galleries answer
+"are these looks differentiated?"; the audit
 answers "does the style system reach the elements it claims to reach?" Keep
 both, and be explicit about the remaining gap: arbitrary user-authored
 style/palette stacks are not yet universally WCAG-proved.

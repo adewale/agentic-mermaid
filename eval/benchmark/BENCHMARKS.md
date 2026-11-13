@@ -4,7 +4,7 @@ A benchmark is useful when it answers a decision you actually face. The diagnost
 
 **Start here:** use community admission to find unsupported or broken inputs; use authored meaning/paint checks to investigate fidelity; use first-result/scaling experiments for performance decisions. The six-input community speed core is a narrow repeat workload, not evidence of general rendering speed.
 
-The [27–28 October historical campaign](../../docs/benchmarks/campaign-2026-10-28.md) retains AM PR comparisons and backend/source-suite findings separately from Trident’s ecosystem scores. It is not a current release qualification.
+The [27–28 October historical campaign](https://github.com/adewale/agentic-mermaid/blob/72c5170c870a746028ec5f8610907138e3b2c9c7/docs/benchmarks/campaign-2026-10-28.md) retains measured revisions, seed-mismatch and attribution limits separately from Trident’s ecosystem scores. Its [PR tables](https://github.com/adewale/agentic-mermaid/blob/72c5170c870a746028ec5f8610907138e3b2c9c7/docs/benchmarks/pr-performance-2026-10-28.md) are historical, not current release qualification.
 
 ## Run product diagnostics
 
@@ -180,7 +180,7 @@ Corpus building (`family-portfolio`, corpus import), artifact acquisition, repor
 
 ## Historical product campaign reports
 
-The AM-specific retained-report writer and chart generator live in `eval/benchmark/unified/update-scorecard.ts` and `eval/benchmark/unified/charts.py`. Their overlay-admission and invocation-census tests move with them. They read existing evidence and never collect new timings. Prepare the pinned Trident dependency first; shared record decoding and artifact-version validation stay in that library.
+`eval/benchmark/unified/update-scorecard.ts` and `eval/benchmark/unified/charts.py` delegate to the historical AM reporters in the exact pinned Trident library. Their implementation and overlay-admission/invocation-census tests have one owner there. These readers collect no new timings. Prepare the pinned dependency first; a future Trident pin update must retain these historical interfaces or explicitly retire the commands. They are distinct from the current ecosystem reporters.
 
 ```sh
 bun eval/benchmark/unified/update-scorecard.ts --run /evidence/am-campaign --output /evidence/am-scorecard.md

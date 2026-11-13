@@ -1,7 +1,7 @@
 import { harnessFile } from 'trident/unified/harness-paths.ts'
 import 'trident/ci-policy-enforce.ts'
 // Peer benchmark: the same workloads in agentic-mermaid's built package and in
-// the browserless peers from eval/fork-graph, each timed in fresh processes.
+// the pinned browserless peers below, each timed in fresh processes.
 //
 //   bun run eval/benchmark/peer-bench.ts                     # every peer, 3 rounds
 //   bun run eval/benchmark/peer-bench.ts --quick --rounds 1  # smoke run
@@ -32,8 +32,6 @@ import 'trident/ci-policy-enforce.ts'
 // scripts disabled (termaid: wheel only, into a venv there). Peer code runs
 // only inside worker processes, but there with this user's privileges, and a
 // peer's transitive npm dependencies resolve at install time (no lockfile).
-// Pins are checked against eval/fork-graph/population.json; a mismatch is a
-// printed warning.
 // Sketch is fetched at its exact git commit and compiled with Go >=1.25 on PATH.
 //
 // Each round runs one fresh worker process per peer and output (`node`, or the
@@ -630,22 +628,8 @@ function installPypi(name: string, version: string): { python: string; pythonVer
   return { python, pythonVersion: run(python, ['-I', '-c', 'import sys; print(sys.version.split()[0])']).stdout.trim() }
 }
 
-function populationWarnings(peer: Peer): string[] {
-  if (peer.source.registry === 'local') return []
-  if (peer.source.registry === 'git') {
-    const source = peer.source
-    const population = JSON.parse(readFileSync(join(ROOT, 'eval/fork-graph/population.json'), 'utf8')) as { nodes: Array<{ repo?: string; head?: string; benchmarkCommit?: string }> }
-    return population.nodes.some(node => node.repo === source.repo && (node.benchmarkCommit ?? node.head) === source.commit) ? [] : [`${peer.id}: git pin is not recorded in population.json`]
-  }
-  const { registry, name, version } = peer.source
-  const population = JSON.parse(readFileSync(join(ROOT, 'eval/fork-graph/population.json'), 'utf8')) as { nodes: Array<{ id: string; packages?: Array<{ registry: string; name: string; version: string }> }> }
-  const recorded = population.nodes.flatMap(node => (node.packages ?? []).filter(entry => entry.registry === registry && entry.name === name).map(entry => `${entry.version} (${node.id})`))
-  if (!recorded.length) return [`${peer.id}: ${name} is not in eval/fork-graph/population.json`]
-  return recorded.some(entry => entry.startsWith(`${version} `)) ? [] : [`${peer.id}: pinned ${name}@${version}, but population.json records ${recorded.join(', ')}`]
-}
-
 function prepare(peer: Peer, nodeVersion: string): Prepared {
-  const warnings = populationWarnings(peer)
+  const warnings: string[] = []
   if (peer.source.registry === 'local') {
     if (!existsSync(join(ROOT, 'dist/index.js'))) throw new Error('dist/index.js is missing: run `bun run build` before the peer benchmark')
     const dirty = git(['status', '--porcelain', '--', 'src']).length > 0

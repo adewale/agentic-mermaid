@@ -17,13 +17,8 @@ if (args.includes('--help') || command === '--help') {
     if (!Object.hasOwn(scripts, command)) throw Error('Unknown product diagnostic ' + command)
     const { assertBenchmarkExecutionAllowed } = await import('trident/ci-policy.ts')
     assertBenchmarkExecutionAllowed(process.env, { mermaidOracle: !['bench:typecheck', 'bench:lint', 'bench:test'].includes(command) && !args.includes('--list') })
-    const checks: Record<string, string[]> = {
-      'bench:test': ['test', '--timeout', '30000', '--parallel=2', 'eval/benchmark/tests'],
-      'bench:typecheck': ['x', '--no-install', 'tsc', '--noEmit', '-p', 'eval/benchmark/tsconfig.json'],
-      'bench:lint': ['x', '--no-install', 'biome', 'lint', 'eval/benchmark'],
-    }
     const tokens = scripts[command as keyof typeof scripts].split(' ')
-    const argv = checks[command] ?? tokens.slice(tokens[1] === 'run' ? 2 : 1)
+    const argv = tokens.slice(tokens[1] === 'run' ? 2 : 1)
     const result = spawnSync(process.execPath, [...argv, ...args], { cwd: root, stdio: 'inherit', env: { ...process.env, TRIDENT_ROOT: trident } })
     if (result.error) throw result.error
     process.exitCode = result.status ?? 1

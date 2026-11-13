@@ -7,6 +7,10 @@ on:
         description: Generate the extended layout review artifacts
         type: boolean
         default: false
+      layout_base:
+        description: Full baseline commit SHA for the optional before/after layout review
+        type: string
+        default: ''
   push:
     branches: [main]
   pull_request:
@@ -21,7 +25,6 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       full: ${{ steps.scope.outputs.full }}
-      layout: ${{ steps.scope.outputs.layout }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
@@ -32,11 +35,7 @@ jobs:
           no-cache: true
       - name: Classify the changes in the tested checkout
         id: scope
-        env:
-          REQUEST_LAYOUT: ${{ inputs.layout_evidence == true }}
         run: |
-          flags=()
-          if [[ "$REQUEST_LAYOUT" == true ]]; then flags+=(--layout-evidence); fi
           base=''
           case "$GITHUB_EVENT_NAME" in
             pull_request)
@@ -48,11 +47,11 @@ jobs:
             push) base=$(jq -r '.before // ""' "$GITHUB_EVENT_PATH") ;;
           esac
           if [[ "$base" =~ ^[0-9a-f]{40}$ ]] && git cat-file -e "$base^{commit}" 2>/dev/null; then
-            git diff --name-only --no-renames -z "$base" HEAD -- | bun scripts/ci/change-scope.ts "${flags[@]}"
+            git diff --name-only --no-renames -z "$base" HEAD -- | bun scripts/ci/change-scope.ts
           else
             # Dispatches (including release qualification), new branches and
             # missing history always run every required runtime lane.
-            bun scripts/ci/change-scope.ts --full "${flags[@]}" </dev/null
+            bun scripts/ci/change-scope.ts --full </dev/null
           fi
 
   docs:
@@ -182,8 +181,7 @@ jobs:
 
   layout-evidence:
     name: Layout backend review evidence
-    needs: scope
-    if: needs.scope.outputs.layout == 'true' && (github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch')
+    if: github.event_name == 'workflow_dispatch' && inputs.layout_evidence
     runs-on: ubuntu-latest
     timeout-minutes: 25
     continue-on-error: true
@@ -198,10 +196,13 @@ jobs:
           bun-version: 1.4.4
       - run: bun install --frozen-lockfile
       - name: Prepare the immutable base for layout review
-        if: github.event_name == 'pull_request'
         env:
-          LAYOUT_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          LAYOUT_BASE_SHA: ${{ inputs.layout_base }}
         run: |
+          if [[ ! "$LAYOUT_BASE_SHA" =~ ^[0-9a-f]{40}$ ]]; then
+            echo '::error::Set layout_base to a full commit SHA for before/after layout review.'
+            exit 1
+          fi
           layout_base="$RUNNER_TEMP/layout-review-base"
           git fetch --no-tags --depth=1 origin "$LAYOUT_BASE_SHA"
           git worktree add --detach "$layout_base" "$LAYOUT_BASE_SHA"
@@ -333,8 +334,7 @@ jobs:
 
   layout-quality-evidence:
     name: Generated layout diagnostic (advisory)
-    needs: scope
-    if: needs.scope.outputs.layout == 'true' && (github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch')
+    if: github.event_name == 'workflow_dispatch' && inputs.layout_evidence
     runs-on: ubuntu-latest
     timeout-minutes: 10
     continue-on-error: true
@@ -530,7 +530,7 @@ jobs:
   # proof that every runtime dependency passed, including installed consumers.
   test:
     runs-on: ubuntu-latest
-    needs: [scope, artifacts, unit, quality, mcp-conformance, renderer-platforms, cli, e2e, semantic, consumer-quickstarts]
+    needs: [scope, artifacts, unit, quality, mcp-conformance, renderer-platforms, cli, e2e, semantic]
     if: ${{ always() && needs.scope.outputs.full == 'true' }}
     timeout-minutes: 5
     steps:
@@ -811,27 +811,3 @@ jobs:
              elif $full == "false" then .docs.result == "success"
              else false end)
           ' <<< "$RESULTS"
-
-  consumer-quickstarts:
-    needs: [scope, artifacts]
-    if: needs.scope.outputs.full == 'true'
-    name: Installed-package quickstarts
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
-        with:
-          bun-version: 1.4.4
-          no-cache: true
-      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
-        with:
-          node-version: 24
-      - run: bun install --frozen-lockfile
-      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
-        with:
-          name: verified-test-package
-          path: ci-release-artifact
-      - run: node scripts/ci/installed-quickstarts.mjs
-        env:
-          AM_TEST_TARBALL: ${{ github.workspace }}/ci-release-artifact/package.tgz

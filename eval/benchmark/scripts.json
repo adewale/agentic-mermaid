@@ -18,7 +18,7 @@
   "bench:prs": "bun run eval/benchmark/unified/pr-campaign.ts",
   "bench:test": "bun test --timeout 30000 --parallel=2 eval/benchmark/tests",
   "bench:typecheck": "bun x --no-install tsc --noEmit -p eval/benchmark/tsconfig.json",
-  "bench:lint": "bun run eval/benchmark/commands.ts lint",
+  "bench:lint": "bun x --no-install biome lint eval/benchmark",
   "bench:performance-profile": "bun run eval/benchmark/qualify-performance-profile.ts",
   "bench:endpoint-marker": "bun run eval/benchmark/endpoint-marker-compare.ts",
   "bench:modern-summary": "bun eval/benchmark/modern-editor/summarize.mjs"
