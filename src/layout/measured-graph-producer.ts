@@ -4,6 +4,7 @@ import type { Direction, MermaidGraph, MermaidSubgraph, PositionedGraph, Positio
 import type { ResolvedRenderStyle } from '../styles.ts'
 import type { AgenticGraphBindings, AgenticGraphOptions } from '../layout-engine.ts'
 import type { MeasuredGraph, MeasuredRoutes } from './measured-graph.ts'
+import type { MarkerPaint } from './compound-marker-seating.ts'
 import { fitMeasuredLayout } from './fit-measured-layout.ts'
 import { LayoutWorkLimitError } from './backend.ts'
 import { paintedStrokeExtent } from '../scene/bounds.ts'
@@ -11,6 +12,7 @@ import { shapeOutline } from '../shape-outline.ts'
 import { flowchartImageViewport } from '../flowchart-image.ts'
 
 interface ProjectionCompletion { mergeEdges: boolean; sharedEdges?: readonly number[] }
+const markerResourceOperands = ['hasArrowStart', 'hasArrowEnd', 'style', 'curve'] as const
 
 /** One owner for measured glyph/CSS demand and authored graph projection.
  * Existing Native completion stays explicit; owned routes need no legacy repair. */
@@ -160,10 +162,46 @@ export function prepareMeasuredGraphCandidate(
       if (target >= nodes.length && encloses(target - nodes.length, source)) return 'end'
       return undefined
     } : undefined
+    // The ordinary arrow resource bounds are complete conservative support.
+    // Unknown shapes, authored frame terminals and custom CSS keep their
+    // existing producer; they do not acquire partial physical proof metadata.
+    let nativeMarkerTemplates = nativeCapacity && groups.length > 0 && !options.stateVisual && style.edgeBendRadius === 0
+      && !graph.nodeStyles.size && !graph.linkStyles.size && !graph.classAssignments.size
+    if (nativeMarkerTemplates) {
+      // Reflect only the operands used by the new admission. Accessors retain
+      // the legacy path and its original evaluation count/order.
+      pay(0, 7) // The local descriptor helper and the two iteration records.
+      const ownDescriptor = (subject: object, field: string): PropertyDescriptor | undefined => {
+        pay(8)
+        const own = Object.hasOwn(subject, field)
+        // An absent property creates no descriptor. A native descriptor owns
+        // four fields plus its record; reserve it before the reflective call.
+        if (own) pay(0, 5)
+        return own ? Object.getOwnPropertyDescriptor(subject, field) : undefined
+      }
+      for (const node of graph.nodes.values()) {
+        const shape = ownDescriptor(node, 'shape'), semantic = ownDescriptor(node, 'semanticShape')
+        if (!shape || !('value' in shape) || shape.value !== 'rectangle'
+          || (semantic ? !('value' in semantic) || semantic.value !== undefined : 'semanticShape' in node)) { nativeMarkerTemplates = false; break }
+      }
+      if (nativeMarkerTemplates) for (const edge of graph.edges) {
+        const source = ownDescriptor(edge, 'source'), target = ownDescriptor(edge, 'target')
+        const start = ownDescriptor(edge, 'startMarker'), end = ownDescriptor(edge, 'endMarker')
+        if (!source || !('value' in source) || !target || !('value' in target)
+          || !graph.nodes.has(source.value) || !graph.nodes.has(target.value)
+          || (start ? !('value' in start) || start.value !== undefined && start.value !== 'arrow' : 'startMarker' in edge)
+          || (end ? !('value' in end) || end.value !== undefined && end.value !== 'arrow' : 'endMarker' in edge)) { nativeMarkerTemplates = false; break }
+        for (let operand = 0; operand < markerResourceOperands.length; operand++) {
+          const field = markerResourceOperands[operand]!, descriptor = ownDescriptor(edge, field)
+          if (descriptor ? !('value' in descriptor) : field in edge) { nativeMarkerTemplates = false; break }
+        }
+        if (!nativeMarkerTemplates) break
+      }
+    }
     let lead = 0, doubleDepth = 0, maximumStroke = 0, knownClearance = true
     pay(0, 4 * nodes.length + 5)
     const portSpans = new Float64Array(2 * nodes.length), incoming = new Uint32Array(nodes.length), outgoing = new Uint32Array(nodes.length)
-    type MarkerRoom = { start: number; end: number; startSpan: number; endSpan: number; span: number; boundaryInset: number; boundaryHeight: number; boundaryCount: number; startPresent?: boolean; endPresent?: boolean }
+    type MarkerRoom = { start: number; end: number; startSpan: number; endSpan: number; span: number; boundaryInset: number; boundaryHeight: number; boundaryCount: number; startPresent?: boolean; endPresent?: boolean; markerPaint?: MarkerPaint }
     const footprints = new Map<string, MarkerRoom>()
     const numericWidth = (value: string | number): number | undefined => {
       pay(4 + (typeof value === 'string' ? value.length : 0), 1)
@@ -220,6 +258,20 @@ export function prepareMeasuredGraphCandidate(
           }
           pay(diamondContacts ? 2 : 0, diamondContacts ? 13 : 9)
           footprint = { start, end, startSpan, endSpan, span, boundaryInset, boundaryHeight, boundaryCount, ...(diamondContacts ? { startPresent, endPresent } : undefined) }
+          if (nativeMarkerTemplates) {
+            pay(8 * markers.length, 18 * markers.length + 1)
+            const markerPaint: MarkerPaint = {}
+            for (const marker of markers) {
+              if (marker.position !== 'start' && marker.position !== 'end' || !marker.bounds) continue
+              const box = marker.bounds, anchor = marker.anchor, sourceEnd = marker.position === 'start'
+              const x0 = sourceEnd ? box.x0 - anchor.x : anchor.x - box.x1
+              const x1 = sourceEnd ? box.x1 - anchor.x : anchor.x - box.x0
+              const y0 = sourceEnd ? box.y0 - anchor.y : anchor.y - box.y1
+              const y1 = sourceEnd ? box.y1 - anchor.y : anchor.y - box.y0
+              markerPaint[marker.position] = [{ kind: 'polygon', points: [{ x: x0, y: y0 }, { x: x1, y: y0 }, { x: x1, y: y1 }, { x: x0, y: y1 }] }]
+            }
+            footprint.markerPaint = markerPaint
+          }
           footprints.set(key, footprint)
         }
         const { start: startDepth, end: endDepth, span } = footprint
@@ -251,7 +303,12 @@ export function prepareMeasuredGraphCandidate(
         ...(physical || portFaces?.[source] ? { sourcePortSpan: Math.max(shaft, footprint?.startSpan ?? 0) } : {}),
         ...(physical || portFaces?.[target] ? { targetPortSpan: Math.max(shaft, footprint?.endSpan ?? 0) } : {}),
       } : {}
-      return { source, target, ...(diamondContacts && source < nodes.length && graph.nodes.get(nodes[source]!.id)?.shape === 'diamond' ? { sourceMarkerPresent: footprint ? footprint.startPresent : false } : {}), ...(diamondContacts && target < nodes.length && graph.nodes.get(nodes[target]!.id)?.shape === 'diamond' ? { targetMarkerPresent: footprint ? footprint.endPresent : false } : {}), ...endpointSpans, minSpan: edge.length ?? 1, ...(preferred?.has(index) ? { short: true as const } : {}), ...(boundaryMarker ? { boundaryMarker } : {}), ...(edge.style === 'invisible' ? { visible: false } : {}), ...(block ? { label: { width: block.width + 2 * LABEL_PILL_PADDING + 2 * halo, height: block.height + 2 * LABEL_PILL_PADDING + 2 * halo } } : {}) }
+      if (nativeMarkerTemplates) pay(0, 3)
+      return { source, target, ...(nativeMarkerTemplates ? {
+        sourceTerminalLead: footprint?.start ? footprint.start + VISIBLE_SHAFT + style.edgeBendRadius : 0,
+        targetTerminalLead: footprint?.end ? footprint.end + VISIBLE_SHAFT + style.edgeBendRadius : 0,
+        ...(footprint?.markerPaint ? { markerPaint: footprint.markerPaint } : {}),
+      } : {}), ...(diamondContacts && source < nodes.length && graph.nodes.get(nodes[source]!.id)?.shape === 'diamond' ? { sourceMarkerPresent: footprint ? footprint.startPresent : false } : {}), ...(diamondContacts && target < nodes.length && graph.nodes.get(nodes[target]!.id)?.shape === 'diamond' ? { targetMarkerPresent: footprint ? footprint.endPresent : false } : {}), ...endpointSpans, minSpan: edge.length ?? 1, ...(preferred?.has(index) ? { short: true as const } : {}), ...(boundaryMarker ? { boundaryMarker } : {}), ...(edge.style === 'invisible' ? { visible: false } : {}), ...(block ? { label: { width: block.width + 2 * LABEL_PILL_PADDING + 2 * halo, height: block.height + 2 * LABEL_PILL_PADDING + 2 * halo } } : {}) }
     })
     const shareCompleteFans = !options.stateVisual && !groups.length && [...graph.nodes.values()].every(node => node.shape === 'rectangle' && !node.semanticShape)
       && graph.edges.every((edge, index) => {
@@ -314,6 +371,31 @@ export function prepareMeasuredGraphCandidate(
     const margin = border + maximumStroke / 2
     if (physical && !knownClearance) bindings.unsupported('paint needs an absolute positive pixel stroke measurement')
     const edgeSpacing = Math.max(6, style.lineWidth + 4)
+    if (nativeMarkerTemplates) {
+      pay(12 * edges.length + 3 * nodes.length + 3 * groups.length)
+      // Caller size overrides own dimensions, not physical paint authority.
+      for (const node of nodes) { node.paintStrokeWidth = style.nodeLineWidth; node.paintCornerRadius = style.cornerRadius ?? 0 }
+      for (const group of groups) { group.paintStrokeWidth = style.groupLineWidth; group.paintCornerRadius = style.groupCornerRadius }
+      for (const edge of edges) {
+        if (edge.sourceTerminalLead) edge.sourceTerminalLead += margin
+        if (edge.targetTerminalLead) edge.targetTerminalLead += margin
+        if (edge.visible === false || nodes[edge.source]!.parent === nodes[edge.target]!.parent) continue
+        for (let role = 0; role < 2; role++) {
+          const endpoint = role === 0 ? edge.source : edge.target, parent = nodes[endpoint]!.parent
+          if (parent === undefined) continue
+          const group = groups[parent]!, direction = group.direction ?? graph.direction
+          const side = direction === 'LR' ? role === 0 ? 'right' : 'left'
+            : direction === 'RL' ? role === 0 ? 'left' : 'right'
+              : direction === 'BT' ? role === 0 ? 'top' : 'bottom'
+                : role === 0 ? 'bottom' : 'top'
+          const demand = Math.max(8, (role === 0 ? edge.sourceTerminalLead : edge.targetTerminalLead) ?? 0)
+          // North alone includes the physical title and the exact existing
+          // header obstacle halo. Equality with its boundary remains clear.
+          const header = side === 'top' ? (group.headerHeight ?? 0) + Math.max(2, edgeSpacing / 2) : 0
+          group.padding[side] = Math.max(group.padding[side], header + demand)
+        }
+      }
+    }
     if (portFaces && knownClearance) pay(0, 1)
     const minimumTerminalLead = lead + margin > Math.max(12, edgeSpacing) ? lead + margin : undefined
     for (let index = 0; !physical && index < nodes.length; index++) {
@@ -344,7 +426,7 @@ export function prepareMeasuredGraphCandidate(
     return { nodes, groups, edges, shareCompleteFans: physical ? false : shareCompleteFans, direction: graph.direction, padding: opts.padding, nodeSpacing: opts.nodeSpacing,
       layerSpacing: Math.max(opts.layerSpacing, 2 * (doubleDepth + margin)), edgeSpacing,
       ...(physical ? { minimumTerminalLead: lead + margin, maximumEdgeStrokeWidth: maximumStroke || style.lineWidth, maximumEdgeBendRadius: style.edgeBendRadius, nodeClearance: 0 }
-        : { ...(minimumTerminalLead !== undefined ? { minimumTerminalLead } : {}), ...(portFaces && knownClearance ? { nodeClearance: margin } : {}) }),
+        : { ...(nativeMarkerTemplates && knownClearance ? { maximumEdgeStrokeWidth: maximumStroke || style.lineWidth, maximumEdgeBendRadius: style.edgeBendRadius } : {}), ...(minimumTerminalLead !== undefined ? { minimumTerminalLead } : {}), ...(portFaces && knownClearance ? { nodeClearance: margin } : {}) }),
     }
 
   })

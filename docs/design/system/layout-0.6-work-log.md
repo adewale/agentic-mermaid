@@ -2401,3 +2401,24 @@ memory-heavy type/build retry or waiver. Canonical exact-head CI must qualify al
 owners, actual Node/browser products and compressed payload. No byte/runtime win
 claimed yet; defaults/versions/caps unchanged. Native100155.74ms, Chain300400k
 unknown and payload losses remain. Next: actual CI bundle/consumer comparison.
+
+### 2026-11-13 — owned compound terminal demand (base68986ba8e3b7)
+
+Carry actual resource-derived source/end demand separately through compound
+placement, private orientation/loops and complete routing; reserve only real
+committed marker support, preserve constructed terminal leads, and reuse the
+existing title/marker pose owners. One fully checked collinear leaf path avoids
+an unlabeled temporary guide. No cap/default/version/backend/cache change.
+Native default controls7/12→12/12 and width4 controls3contacts+1refusal→4clear;
+all16 actual built outputs pass declared meaning/paint/direction and independent
+marker/foreign-shaft support checks. LR/RLidentity wire1485.5→560,bends28→0,
+crossings0 and area176346 retained. DefaultTB crossings24→29 and area+3.18%,
+plus nestingarea+140.923, remain adverse.912 affected owners/core+repo/lint pass.
+Same-host exploratory full-response medians: identity38.90→25.36ms, TB87.62→77.31;
+Chain100107.97/Fan-in100145.88ms still miss100ms; Chain300 proof remains400k
+unverified. Chain100 cold/first-edit and some at-return heaps worsen. Actual
+NativeFlow closure adds1761gzip/1509Brotli bytes; requests32vsELK27 remain.
+The shared receipt omits general marker/foreign-shaft coverage; independent
+checks are case-scoped. Corrected99 enrollment and all failures/unknowns/costs
+remain in the dated PR602 loop packet. Newer Maina2e5 integration and its
+combined qualification are pending; this is a bounded milestone, not readiness.

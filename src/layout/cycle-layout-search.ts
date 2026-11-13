@@ -18,7 +18,7 @@ export interface LayoutSearchWork {
 
 /** Keep endpoint-owned metadata with its endpoint through private orientation. */
 export function orientMeasuredEdge(edge: MeasuredGraph['edges'][number], source: number, target: number, reversed: boolean): MeasuredGraph['edges'][number] {
-  return { ...edge, source, target, ...(reversed ? { sourcePortSpan: edge.targetPortSpan, targetPortSpan: edge.sourcePortSpan } : {}) }
+  return { ...edge, source, target, ...(reversed ? { sourcePortSpan: edge.targetPortSpan, targetPortSpan: edge.sourcePortSpan, sourceTerminalLead: edge.targetTerminalLead, targetTerminalLead: edge.sourceTerminalLead } : {}) }
 }
 
 class OptionalOrderDecline extends Error {}

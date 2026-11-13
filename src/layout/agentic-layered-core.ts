@@ -102,7 +102,11 @@ export function layoutLayeredGraph(
   for (const node of input.nodes) if (node.minimumPortSpacing !== undefined && !finiteSize(node.minimumPortSpacing,true)) throw new TypeError('Invalid measured node port spacing')
   for (const group of input.groups ?? []) if (group.paintStrokeWidth !== undefined && !finiteSize(group.paintStrokeWidth,true)) throw new TypeError('Invalid measured group paint stroke')
   for (const group of input.groups ?? []) if (group.paintCornerRadius !== undefined && !finiteSize(group.paintCornerRadius,false)) throw new TypeError('Invalid measured group corner radius')
-  for (const edge of input.edges) if (edge.markerPaint !== undefined) assertMarkerPaint(edge.markerPaint)
+  for (const edge of input.edges) {
+    if (edge.markerPaint !== undefined) assertMarkerPaint(edge.markerPaint)
+    if (edge.sourceTerminalLead !== undefined && !finiteSize(edge.sourceTerminalLead, false)
+      || edge.targetTerminalLead !== undefined && !finiteSize(edge.targetTerminalLead, false)) throw new TypeError('Invalid measured endpoint terminal lead')
+  }
   if (!['TD', 'TB', 'BT', 'LR', 'RL'].includes(input.direction)) throw new TypeError('Invalid measured graph direction')
   if (input.groups?.length) {
     if (nodes.length + input.groups.length > MAX_NODES) unsupported('agentic local compound-size limit')
@@ -212,12 +216,12 @@ export function layoutLayeredGraph(
       ids.add(id)
       const target = expandedNodes.length
       expandedNodes.push({ id, width: horizontal ? 1 : 40, height: horizontal ? 40 : 1, ...(partitioned ? { partition: nodes[edge.source]!.partition ?? 0 } : {}) })
-      expandedEdges[index] = { ...edge, target, ...(edge.targetPortSpan !== undefined ? { targetPortSpan: undefined } : {}), ...(edge.label ? { label: horizontal
+      expandedEdges[index] = { ...edge, target, ...(edge.targetTerminalLead !== undefined ? { targetTerminalLead: undefined } : {}), ...(edge.targetPortSpan !== undefined ? { targetPortSpan: undefined } : {}), ...(edge.label ? { label: horizontal
         ? { width: edge.label.width, height: 2 * edge.label.height + 8 }
         : { width: 2 * edge.label.width + 8, height: edge.label.height } } : {}) }
       returns[index] = expandedEdges.length
       loopPorts.push([index, expandedEdges.length])
-      expandedEdges.push({ source: edge.source, target, minSpan: edge.minSpan, ...(edge.targetPortSpan !== undefined ? { sourcePortSpan: edge.targetPortSpan } : {}) })
+      expandedEdges.push({ source: edge.source, target, minSpan: edge.minSpan, ...(edge.targetTerminalLead !== undefined ? { sourceTerminalLead: edge.targetTerminalLead } : {}), ...(edge.targetPortSpan !== undefined ? { sourcePortSpan: edge.targetPortSpan } : {}) })
     }
     const placed = layoutLayeredGraph({ ...input, nodes: expandedNodes, edges: expandedEdges, loopPorts }, forestLayout, unsupported, routingWork, searchWork)
     const projected: AgenticLayout = { ...placed, topology: 'layered', nodes: placed.nodes.slice(0, nodes.length), edges: placed.edges.slice(0, edges.length).map((route, index) => {

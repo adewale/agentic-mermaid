@@ -478,7 +478,7 @@ n3 --> n1` }])
     const input=measured();input.nodes=input.nodes.map((node,index)=>index?node:{...node,minimumPortSpacing:value})
     expect(()=>compute(input)).toThrow(TypeError)
   })
-  test.each(['minimumPortSpacing', 'sourcePortSpan', 'targetPortSpan', 'nodeClearance'] as const)('includes %s mutations in the full measured cache key', field => {
+  test.each(['minimumPortSpacing', 'sourcePortSpan', 'targetPortSpan', 'sourceTerminalLead', 'targetTerminalLead', 'nodeClearance'] as const)('includes %s mutations in the full measured cache key', field => {
     let calls = 0
     const cached = createMeasuredLayoutCache(input => { calls++; return compute(input) }), input = measured()
     cached(input)
@@ -490,8 +490,16 @@ n3 --> n1` }])
     expect(result).toEqual(compute(input))
     expect(cached(input)).toEqual(result)
     expect(calls).toBe(2)
+    if (field === 'sourceTerminalLead' || field === 'targetTerminalLead') {
+      input.edges = input.edges.map((edge, index) => index ? edge : { ...edge, [field]: 0 })
+      cached(input)
+      expect(calls).toBe(3)
+      input.edges = input.edges.map(edge => { const copy = { ...edge }; delete copy[field]; return copy })
+      cached(input)
+      expect(calls).toBe(3) // Omitted demand returns to the original cache entry.
+    }
   })
-  test.each(['sourcePortSpan', 'targetPortSpan', 'nodeClearance'] as const)('rejects invalid measured %s values', field => {
+  test.each(['sourcePortSpan', 'targetPortSpan', 'sourceTerminalLead', 'targetTerminalLead', 'nodeClearance'] as const)('rejects invalid measured %s values', field => {
     for (const value of [-1, NaN, Infinity]) {
       const input = measured()
       if (field === 'nodeClearance') input.nodeClearance = value

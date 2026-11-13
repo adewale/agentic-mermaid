@@ -21,7 +21,7 @@ export interface MeasuredGraph {
    * the shaft axis, including its stroke. Label dimensions include the occupied painted body. Its own shaft is
    * masked by that body; foreign routes must stay outside it. Loop expansion
    * reserves additional space beside the arc instead of masking its shaft. */
-  edges: readonly { source: number; target: number; minSpan: number; sourcePortSpan?: number; targetPortSpan?: number; /** Explicit marker-roster facts for diamond contacts; false proves shaft-only. */ sourceMarkerPresent?: boolean; targetMarkerPresent?: boolean; short?: true; boundaryMarker?: { inset: number; height: number }; markerPaint?: MarkerPaint; visible?: boolean; label?: { width: number; height: number } }[]
+  edges: readonly { source: number; target: number; minSpan: number; sourcePortSpan?: number; targetPortSpan?: number; /** Authored endpoint artwork demand, separate from opposite-end markers. Absence retains the consumer's legacy lead policy. */ sourceTerminalLead?: number; targetTerminalLead?: number; /** Explicit marker-roster facts for diamond contacts; false proves shaft-only. */ sourceMarkerPresent?: boolean; targetMarkerPresent?: boolean; short?: true; boundaryMarker?: { inset: number; height: number }; markerPaint?: MarkerPaint; visible?: boolean; label?: { width: number; height: number } }[]
   direction: Direction
   padding: number
   nodeSpacing: number

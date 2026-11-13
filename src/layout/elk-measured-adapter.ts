@@ -11,7 +11,7 @@ export function elkMeasuredAdapter(policy: { rootId: string; edgeNodeSpacing: nu
       const input = request.graph
       const physical = input.maximumEdgeStrokeWidth !== undefined
       if (input.groups?.length || input.shareCompleteFans || input.nodes.some(n => { assertMeasuredContactMetadata(n); return n.contact === 'diamond' || n.parent !== undefined || n.partition || n.modelOrder !== undefined })
-        || input.edges.some(e => e.minSpan !== 1 || e.short || e.visible === false || e.markerPaint !== undefined || e.boundaryMarker)
+        || input.edges.some(e => e.minSpan !== 1 || e.short || e.visible === false || e.markerPaint !== undefined || e.sourceTerminalLead !== undefined || e.targetTerminalLead !== undefined || e.boundaryMarker)
         || (physical ? Number.isFinite(input.maximumEdgeBendRadius) && input.maximumEdgeBendRadius! > 0 : input.edgeSpacing !== undefined || input.nodeClearance !== undefined || input.maximumEdgeBendRadius !== undefined
           || input.nodes.some(n => n.minimumPortSpacing !== undefined || n.paintStrokeWidth !== undefined || n.paintCornerRadius !== undefined)
           || input.edges.some(e => e.sourcePortSpan !== undefined || e.targetPortSpan !== undefined))) throw new GraphLayoutUnsupportedError('ELK flat measured adapter requires the existing family adapter for these constraints', 'ELK')

@@ -1,6 +1,7 @@
 import { formatSvgNumber } from '../shared/svg-number.ts'
 import { classMarkerPiecesOverlap } from './measured-marker-overlap.ts'
 import { seatMeasuredMarkers } from './compound-marker-seating.ts'
+import { projectMeasuredMarkerBox } from './measured-marker-pose.ts'
 import { createOwnedCompoundObstacleIndexFactory } from './compound-obstacle-index.ts'
 import { proposeRetainedLabelChannel, compactProvedPath } from './compound-portal-channel.ts'
 import { proposeOuterChannel } from './compound-outer-channel.ts'
@@ -9,7 +10,7 @@ import type { AgenticLayout, MeasuredGraph } from './agentic-layered-core.ts'
 import type { ChannelWork } from './channel-tracks.ts'
 import type { Direction, Point } from '../types.ts'
 import { scoreMeasuredRouteCrossings, scoreMeasuredRouteProposalCrossings, measuredRouteContactPairBudget, segmentEntersMeasuredBox, type MeasuredSharpContactWitness } from './measured-route-safety.ts'
-import { simplifyOrthogonal, type RoutingBox, type Terminal } from './compound-visibility.ts'
+import { retainsTerminalLead, simplifyOrthogonal, type RoutingBox, type Terminal } from './compound-visibility.ts'
 import { createEndpointSparseVisibilityGraph, createSparseAdjacencyStoragePool, createSparseQueryWorkspacePool, createSparseVisibilityGraph, type SparseQueryWorkspacePool } from './compound-sparse-visibility.ts'
 import { createLazyVisibilityGrid } from './compound-lazy-visibility.ts'
 import { routeAncestorBoundaryConnection, type AncestorBoundaryPlan } from './ancestor-boundary-routes.ts'
@@ -507,6 +508,11 @@ function seatFinalMeasuredMarkers(
         const source = role === 0, box = subjects[source ? edge.source : edge.target]!
         const p = source ? candidate[0]! : candidate.at(-1)!, q = source ? candidate[1]! : candidate.at(-2)!
         const a = source ? old.points[0]! : old.points.at(-1)!, b = source ? old.points[1]! : old.points.at(-2)!
+        const terminalDemand = source ? edge.sourceTerminalLead : edge.targetTerminalLead
+        if (terminalDemand !== undefined) {
+          charge(8)
+          if (!retainsTerminalLead(p, q, terminalDemand)) return false
+        }
         if (Math.sign(q.x-p.x) !== Math.sign(b.x-a.x) || Math.sign(q.y-p.y) !== Math.sign(b.y-a.y)
           || Math.abs(q.x-p.x)+Math.abs(q.y-p.y) < Math.min(clearance,Math.abs(b.x-a.x)+Math.abs(b.y-a.y))) return false
         if (p.x < box.x || p.x > box.x+box.width || p.y < box.y || p.y > box.y+box.height) return false
@@ -768,7 +774,9 @@ export function routeCrossHierarchy(
         // unreachable; the actual box still forbids a route through its interior.
         if (leafCount + group === edge.source || leafCount + group === edge.target) obstacles.push(frame)
         else if (!related.has(group)) obstacles.push(inflate(frame, clearance))
-        else if (groups[group]!.padding.top > 0) obstacles.push(inflate({ ...frame, height: ancestorPlan || leafCount > 64 ? (headerGroups[group]!.headerHeight ?? headerGroups[group]!.padding.top) : groups[group]!.padding.top }, Math.max(2, (input.edgeSpacing ?? 6) / 2)))
+        // Complete per-end requests use the measured title strip as their
+        // obstacle. Existing small-scope policies retain their padding bound.
+        else if (groups[group]!.padding.top > 0) obstacles.push(inflate({ ...frame, height: ancestorPlan || leafCount > 64 || edge.sourceTerminalLead !== undefined || edge.targetTerminalLead !== undefined ? (headerGroups[group]!.headerHeight ?? headerGroups[group]!.padding.top) : groups[group]!.padding.top }, Math.max(2, (input.edgeSpacing ?? 6) / 2)))
       }
       const solidObstacles = [...obstacles]
       let ownReservedLabel: RoutingBox | undefined
@@ -782,7 +790,24 @@ export function routeCrossHierarchy(
           solidObstacles.push(label)
           if (other === index) ownReservedLabel = label
         }
-        if (other === index || measured.visible === false || ancestorPlan?.connections.has(other)) continue
+        // Fully lifted quotients have no authored terminal yet. A partially
+        // lifted route still reserves its real leaf tail and marker space.
+        const pending = lifted.get(other)
+        if (other === index || measured.visible === false || ancestorPlan?.connections.has(other)
+          || pending && !completed.has(other) && pending.source !== measured.source && pending.target !== measured.target) continue
+        // A finalized route already owns a definite marker pose. Reserve it
+        // before admitting later shafts; final seating still proves all paint.
+        if (markerPaint && (measured.sourceTerminalLead !== undefined || measured.targetTerminalLead !== undefined)
+          && (!pending || completed.has(other))) for (const source of [true, false]) {
+          const template = source ? measured.markerPaint?.start : measured.markerPaint?.end
+          if (!template?.length) continue
+          const markerBox = projectMeasuredMarkerBox(template, source ? route.points[0]! : route.points.at(-1)!,
+            source ? route.points[1]! : route.points.at(-2)!, widthProof! / 2,
+            chargePhysicalContact!, reservePhysicalContact!, fail)
+          work.arcs -= 2 // The two retained obstacle-array references.
+          if (work.arcs < 0) fail('agentic committed marker obstacle capacity limit')
+          obstacles.push(markerBox); solidObstacles.push(markerBox)
+        }
         for (let cursor = 1; cursor < route.points.length; cursor++) {
           if (--work.pairs < 0) fail('agentic local cross-hierarchy obstacle-work limit')
           const a = route.points[cursor - 1]!, b = route.points[cursor]!
@@ -817,8 +842,21 @@ export function routeCrossHierarchy(
         ? { x: frame.x + pad.left, y: frame.y + pad.top, width: frame.width - pad.left - pad.right, height: frame.height - pad.top - pad.bottom }
         : { x: frame.x + paddingInset, y: frame.y + pad.top, width: frame.width - 2 * paddingInset, height: frame.height - pad.top - paddingInset }
         : { x: 0, y: 0, width: placed.width, height: placed.height }
-      const sources = crossingSource ? terminals(subjects[edge.source]!, directions[owners[edge.source]! + 1]!, true, clearance) : []
-      const targets = crossingTarget ? terminals(subjects[edge.target]!, directions[owners[edge.target]! + 1]!, false, clearance) : []
+      const sourceLead = Math.max(clearance, edge.sourceTerminalLead ?? 0)
+      const targetLead = Math.max(clearance, edge.targetTerminalLead ?? 0)
+      const retainsTerminalLeads = (path: readonly Point[]): boolean => {
+        for (let role = 0; role < 2; role++) {
+          const demand = role === 0 ? edge.sourceTerminalLead : edge.targetTerminalLead
+          if (demand === undefined || demand === 0) continue
+          work.pairs -= 8
+          if (work.pairs < 0) fail('agentic terminal-lead work limit')
+          const port = role === 0 ? path[0]! : path.at(-1)!, next = role === 0 ? path[1]! : path.at(-2)!
+          if (!retainsTerminalLead(port, next, demand)) return false
+        }
+        return true
+      }
+      const sources = crossingSource ? terminals(subjects[edge.source]!, directions[owners[edge.source]! + 1]!, true, sourceLead) : []
+      const targets = crossingTarget ? terminals(subjects[edge.target]!, directions[owners[edge.target]! + 1]!, false, targetLead) : []
       const endpointFrames = (endpoint: number): RoutingBox[] => {
         const result: RoutingBox[] = []
         for (let group = owners[endpoint]!; group >= 0; group = owners[leafCount + group]!) {
@@ -831,13 +869,71 @@ export function routeCrossHierarchy(
       let rejected: Point[] | undefined
       let decline = 'agentic local cross-hierarchy size limit'
       const corridorFail = (reason: string): never => {
-        if (reason === 'agentic local cross-hierarchy visibility-expansion limit'
+        // A completed peer can block a temporary quotient anchor while the
+        // authored leaf-to-leaf route still has a bounded full-path search.
+        if (reason === 'cross-hierarchy route has no clear anchor'
+          || reason === 'agentic local cross-hierarchy visibility-expansion limit'
           || reason === 'cross-hierarchy route has no bounded clear corridor'
           || reason === 'cross-hierarchy route needs an unsupported self-contact repair') throw new BoundaryRouteDecline(reason)
         return fail(reason)
       }
-      const clearLeafPath = leafPaths && leafPathClear(quotient)
-      if (clearLeafPath && !selfContact(quotient, work, fail)) points = quotient
+
+      // An unlabeled quotient is only a placement guide. Prefer one complete
+      // aligned real-leaf path when its shaft and both marker supports already
+      // pass the existing physical admission; otherwise retain every strategy.
+      if (!edge.label && widthProof !== undefined && edge.source < leafCount && edge.target < leafCount
+        && crossingSource && crossingTarget && edge.sourceTerminalLead !== undefined && edge.targetTerminalLead !== undefined) {
+        work.pairs -= 40
+        if (work.pairs < 0) fail('agentic local cross-hierarchy obstacle-work limit')
+        const first = sources[0]!, last = targets[0]!, a = first.port, b = last.port
+        const aligned = a.y === b.y && first.stub.y === a.y && last.stub.y === b.y
+          && (a.x < b.x ? first.stub.x > a.x && last.stub.x < b.x : a.x > b.x && first.stub.x < a.x && last.stub.x > b.x)
+          || a.x === b.x && first.stub.x === a.x && last.stub.x === b.x
+          && (a.y < b.y ? first.stub.y > a.y && last.stub.y < b.y : a.y > b.y && first.stub.y < a.y && last.stub.y > b.y)
+        if (aligned && a.x >= bounds.x && a.x <= bounds.x + bounds.width && a.y >= bounds.y && a.y <= bounds.y + bounds.height
+          && b.x >= bounds.x && b.x <= bounds.x + bounds.width && b.y >= bounds.y && b.y <= bounds.y + bounds.height
+          && retainsTerminalLead(a, b, sourceLead) && retainsTerminalLead(b, a, targetLead)) {
+          let clear = true
+          for (const box of obstacles) {
+            work.pairs -= 5
+            if (work.pairs < 0) fail('agentic local cross-hierarchy obstacle-work limit')
+            if (segmentEntersMeasuredBox(a, b, box)) { clear = false; break }
+          }
+          let firstMarker: RoutingBox | undefined
+          for (let role = 0; clear && role < 2; role++) {
+            const template = role === 0 ? edge.markerPaint?.start : edge.markerPaint?.end
+            if (!template?.length) continue
+            const marker = projectMeasuredMarkerBox(template, role === 0 ? a : b, role === 0 ? b : a, 0,
+              chargePhysicalContact!, reservePhysicalContact!, fail)
+            const opposite = role === 0 ? edge.target : edge.source, box = subjects[opposite]!, half = (input.nodes[opposite]!.paintStrokeWidth ?? 0) / 2
+            work.pairs -= 12
+            if (work.pairs < 0) fail('agentic local cross-hierarchy obstacle-work limit')
+            if (marker.x < box.x + box.width + half && marker.x + marker.width > box.x - half
+              && marker.y < box.y + box.height + half && marker.y + marker.height > box.y - half
+              || firstMarker && marker.x < firstMarker.x + firstMarker.width && marker.x + marker.width > firstMarker.x
+                && marker.y < firstMarker.y + firstMarker.height && marker.y + marker.height > firstMarker.y) { clear = false; break }
+            for (const obstacle of obstacles) {
+              work.pairs -= 9
+              if (work.pairs < 0) fail('agentic local cross-hierarchy obstacle-work limit')
+              // Same own-endpoint contact policy as final marker seating.
+              if (obstacle === subjects[role === 0 ? edge.source : edge.target]) continue
+              if (marker.x < obstacle.x + obstacle.width && marker.x + marker.width > obstacle.x
+                && marker.y < obstacle.y + obstacle.height && marker.y + marker.height > obstacle.y) { clear = false; break }
+            }
+            firstMarker = marker
+          }
+          if (clear) {
+            work.arcs -= 3 + 4 * placed.edges.length + 1
+            if (work.arcs < 0) fail('agentic local cross-hierarchy visibility-arc limit')
+            const candidate = [a, b]
+            const peers = placed.edges.map((route, other) => ({ points: route.points, style: input.edges[other]!.visible === false
+              || ancestorPlan?.connections.has(other) || lifted.has(other) && !completed.has(other) ? 'invisible' : 'solid' }))
+            if (createBoundaryContactValidator(input, index, peers, work, fail)(candidate)) points = candidate
+          }
+        }
+      }
+      const clearLeafPath = !points && leafPaths && retainsTerminalLeads(quotient) && leafPathClear(quotient)
+      if (!points && clearLeafPath && !selfContact(quotient, work, fail)) points = quotient
       if (!points && !directOnly) try {
         // A globally ranked route already joins the actual leaves. Its middle
         // cannot inherit the recursive quotient's assumption that headers were
@@ -863,6 +959,7 @@ export function routeCrossHierarchy(
           last ??= grid.route(targets, end).reverse()
         }
         points = simplifyOrthogonal([...first, ...core.slice(1, -1), ...last])
+        if (!retainsTerminalLeads(points)) corridorFail('cross-hierarchy route has no bounded clear corridor')
         if (selfContact(points, work, fail)) {
           rejected = points
           corridorFail('cross-hierarchy route needs an unsupported self-contact repair')
@@ -888,7 +985,7 @@ export function routeCrossHierarchy(
         const contactsClear = createBoundaryProposalContactValidator(input, index, routes, work, fail)
         const accept = (path: Point[]): Point[] | undefined => {
           const candidate = selfContact(path, work, fail) ? removeClosedExcursions(path, work, fail) : path
-          if (candidate.length < 2) return
+          if (candidate.length < 2 || !retainsTerminalLeads(candidate)) return
           if (leafPaths && !leafPathClear(candidate)) return
           for (const source of [true, false]) {
             work.pairs -= 4
@@ -934,8 +1031,8 @@ export function routeCrossHierarchy(
           if(work.arcs<0)fail('agentic local cross-hierarchy visibility-arc limit')
           legacyDirect=()=>{
         if (!points && !edge.label) {
-          const starts = terminals(subjects[edge.source]!, directions[owners[edge.source]! + 1]!, true, clearance)
-          const ends = terminals(subjects[edge.target]!, directions[owners[edge.target]! + 1]!, false, clearance)
+          const starts = terminals(subjects[edge.source]!, directions[owners[edge.source]! + 1]!, true, sourceLead)
+          const ends = terminals(subjects[edge.target]!, directions[owners[edge.target]! + 1]!, false, targetLead)
           const borders = [...endpointFrames(edge.source), ...endpointFrames(edge.target)]
           for (let fraction = 0; fraction < 3 && !points && probes.candidates > 0; fraction++) for (let side = 0; side < 4 && !points && probes.candidates > 0; side++) {
             const target = ends[side * 3 + fraction]!
@@ -958,8 +1055,8 @@ export function routeCrossHierarchy(
           }
         }else if(widthProof===undefined){
         if (!points && !edge.label) {
-          const starts = terminals(subjects[edge.source]!, directions[owners[edge.source]! + 1]!, true, clearance)
-          const ends = terminals(subjects[edge.target]!, directions[owners[edge.target]! + 1]!, false, clearance)
+          const starts = terminals(subjects[edge.source]!, directions[owners[edge.source]! + 1]!, true, sourceLead)
+          const ends = terminals(subjects[edge.target]!, directions[owners[edge.target]! + 1]!, false, targetLead)
           const borders = [...endpointFrames(edge.source), ...endpointFrames(edge.target)]
           for (let fraction = 0; fraction < 3 && !points && probes.candidates > 0; fraction++) for (let side = 0; side < 4 && !points && probes.candidates > 0; side++) {
             const target = ends[side * 3 + fraction]!
@@ -992,7 +1089,7 @@ export function routeCrossHierarchy(
               return { ...route, style }
             })
             const fractions = [...new Set([(ordinal + 1) / (degree + 1), .5, .25, .75])]
-            return terminals(subjects[endpoint]!, directions[owners[endpoint]! + 1]!, source, clearance, fractions).filter(terminal => {
+            return terminals(subjects[endpoint]!, directions[owners[endpoint]! + 1]!, source, source ? sourceLead : targetLead, fractions).filter(terminal => {
               work.pairs -= 4 * leadSegments + 2
               if (work.pairs < 0) fail('agentic local cross-hierarchy crossing-work limit')
               // Finalized incident edges already own their physical escape rays.
@@ -1029,7 +1126,8 @@ export function routeCrossHierarchy(
               const port = side === 'N' || side === 'S'
                 ? { x: box.x + fraction * box.width, y: side === 'N' ? box.y : box.y + box.height }
                 : { x: side === 'W' ? box.x : box.x + box.width, y: box.y + fraction * box.height }
-              const stub = { x: port.x + (side === 'E' ? clearance * 2 : side === 'W' ? -clearance * 2 : 0), y: port.y + (side === 'S' ? clearance * 2 : side === 'N' ? -clearance * 2 : 0) }
+              const lead = Math.max(clearance * 2, source ? sourceLead : targetLead)
+              const stub = { x: port.x + (side === 'E' ? lead : side === 'W' ? -lead : 0), y: port.y + (side === 'S' ? lead : side === 'N' ? -lead : 0) }
               roots[sideIndex] = { port, stub, penalty: sideIndex * clearance * 2 + Math.abs(fraction - .5) * clearance }
             }
             return roots
@@ -1092,7 +1190,18 @@ export function routeCrossHierarchy(
                     const accepted = accept(simplifyOrthogonal([...first, target.port]))
                     if (accepted) { points = accepted; return true }
                     return false
-                  }, canTraverse) } finally { peerOwner!.leaveQuery(peerLease!) }
+                  }, (a, b, axis, nextAxis) => {
+                    // The target owns the same non-reversing lead as a root.
+                    // Reject the transition before equal-axis state merging.
+                    if (b.x === target.stub.x && b.y === target.stub.y) {
+                      work.pairs -= 8
+                      if (work.pairs < 0) fail('agentic local cross-hierarchy obstacle-work limit')
+                      const dx = target.stub.x - target.port.x, dy = target.stub.y - target.port.y
+                      if (dx > 0 && a.y === b.y && a.x < b.x || dx < 0 && a.y === b.y && a.x > b.x
+                        || dy > 0 && a.x === b.x && a.y < b.y || dy < 0 && a.x === b.x && a.y > b.y) return false
+                    }
+                    return canTraverse(a, b, axis, nextAxis)
+                  }) } finally { peerOwner!.leaveQuery(peerLease!) }
                 })
               } } finally { graph.retire() }
             }
