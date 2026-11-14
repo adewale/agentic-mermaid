@@ -25,7 +25,7 @@ export async function renderLoadedFamilySvgWithReceipt(
   if (capturedRenderBackend(options) !== 'default') await import('../scene/builtin-backends.ts')
   installLoadedFamilyDescriptor(family)
   let request: ResolvedRenderRequest | undefined
-  const loaded = new Map<'ELK' | 'YAML' | 'Agentic layout' | 'Forest layout' | 'HTML entities' | 'Bundled Inter metrics' | 'Layout optimization' | 'Authored parser positions' | 'State comments', () => Promise<void>>()
+  const loaded = new Map<'ELK' | 'YAML' | 'Agentic layout' | 'Forest layout' | 'HTML entities' | 'Bundled Inter metrics' | 'Layout optimization' | 'Authored parser positions' | 'State comments' | 'Indexed crossings', () => Promise<void>>()
   for (;;) {
     try {
       request ??= measureRenderStage('request', () => resolveRenderRequestForExecution(source, options, 'svg', undefined, {
@@ -43,7 +43,7 @@ export async function renderLoadedFamilySvgWithReceipt(
       const load = deferred ? deferred.load
         : (error as Partial<HtmlEntityTableNotLoadedError> | undefined)?.loadHtmlEntityTable
       const dependency = deferred
-        ? deferred.dependency === 'ELK' || deferred.dependency === 'YAML' || deferred.dependency === 'Agentic layout' || deferred.dependency === 'Forest layout' || deferred.dependency === 'Bundled Inter metrics' || deferred.dependency === 'Layout optimization' || deferred.dependency === 'Authored parser positions' || deferred.dependency === 'State comments' ? deferred.dependency : undefined
+        ? deferred.dependency === 'ELK' || deferred.dependency === 'YAML' || deferred.dependency === 'Agentic layout' || deferred.dependency === 'Forest layout' || deferred.dependency === 'Bundled Inter metrics' || deferred.dependency === 'Layout optimization' || deferred.dependency === 'Authored parser positions' || deferred.dependency === 'State comments' || deferred.dependency === 'Indexed crossings' ? deferred.dependency : undefined
         : typeof load === 'function' ? 'HTML entities' : undefined
       if (!dependency || typeof load !== 'function' || loaded.has(dependency) || [...loaded.values()].includes(load)) throw error
       loaded.set(dependency, load)

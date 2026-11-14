@@ -63,6 +63,11 @@ class Fenwick {
   prefix(end: number): number { let sum = 0; for (let i = end; i > 0; i -= i & -i) sum += this.tree[i]!; return sum }
 }
 
+/** Layout producers call this before placement when every complete count of
+ * their routes will be indexed. This module is already present; the lazy
+ * browser twin demands its own chunk here instead of after placement. */
+export function prepareIndexedCrossings(): void {}
+
 /**
  * `sorted` must be the reference order (minX, minY, edgeIndex, pointIndex) of
  * every visible non-degenerate segment; `byRoute` the same segments in route

@@ -425,7 +425,11 @@ function bestDrawableCandidate(graph: MermaidGraph, style: ResolvedRenderStyle, 
   let best: { candidate: DrawableCandidate; misleading: number } | undefined
   for (const candidate of drawable) {
     if (!candidate.complete) {
-      try { candidate.violations.push(...hardViolations(assessLayout(graph, candidate.positioned, style)).map(rubricViolation)) } catch { continue }
+      try { candidate.violations.push(...hardViolations(assessLayout(graph, candidate.positioned, style)).map(rubricViolation)) } catch (error) {
+        // A suspended provider must replay the render, not drop the candidate.
+        if (error instanceof DeferredDependencyError) throw error
+        continue
+      }
       candidate.complete = true
     }
     const misleading = candidate.violations.filter(violation => MISLEADING_VIOLATIONS.has(violation.kind)).length

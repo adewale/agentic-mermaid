@@ -1,4 +1,5 @@
 export { MAX_PREFERENCE_NODES, MAX_PREFERENCE_EDGES, withinLayoutPreferenceBudget } from './route-geometry.ts'
+import { DeferredDependencyError } from './certification-error.ts'
 
 // The LayoutPass abstraction — see docs/design/system/route-contracts.md.
 //
@@ -129,7 +130,8 @@ export function runPipeline<C extends PassContextBase>(ctx: C, passes: ReadonlyA
     const measure = (requested = measured): PassMetrics => {
       try { return opts.measureMetrics!(ctx, requested) }
       catch (error) {
-        if (error instanceof LayoutPassContractError) throw error
+        // An async entry's suspended provider is not a broken measurement.
+        if (error instanceof LayoutPassContractError || error instanceof DeferredDependencyError) throw error
         throw new LayoutPassContractError(pass.id, 'measurement', `Layout pass '${pass.id}' could not measure its declared geometry: ${error instanceof Error ? error.message : String(error)}`)
       }
     }

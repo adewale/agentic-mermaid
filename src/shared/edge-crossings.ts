@@ -1,5 +1,5 @@
 /** Shared painted-route crossing metric. No layout, renderer, or agent dependencies. */
-import { countIndexedCrossings } from './edge-crossings-indexed.ts'
+import { countIndexedCrossings, prepareIndexedCrossings } from './edge-crossings-indexed.ts'
 
 interface CrossingPoint { readonly x: number; readonly y: number }
 
@@ -150,6 +150,13 @@ function indexedCrossings(routes: readonly CrossingPolyline[], segments: Segment
 
 /** Below this many segments the reference sweep is cheaper than indexing. */
 const INDEXED_CROSSING_SEGMENTS = 256
+
+/** A visible route normally has at least one segment, so from this many
+ * routes a complete count is indexed. Producers announce them before placement
+ * so a lazy host loads the counter before, not after, that work. */
+export function anticipateCrossingCounts(visibleRoutes: number): void {
+  if (visibleRoutes >= INDEXED_CROSSING_SEGMENTS) prepareIndexedCrossings()
+}
 
 const segmentOrder = (a: Segment, b: Segment): number => a.minX - b.minX || a.minY - b.minY || a.edgeIndex - b.edgeIndex || a.pointIndex - b.pointIndex
 

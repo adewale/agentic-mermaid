@@ -56,6 +56,7 @@ import { DeferredDependencyError, runMeasuredGraphBackend, GraphLayoutUnsupporte
 import { measureRenderStage } from './render-stages.ts'
 import { clipEdgeToShape } from './shape-clipping.ts'
 import { onShapeOutline, assessLayout, hardViolations, measureRubricMetrics, countEdgeCrossings, countOpposingRouteOverlaps, countParallelRouteOverlaps } from './layout-rubric.ts'
+import { anticipateCrossingCounts } from './shared/edge-crossings.ts'
 import { applyRouteContracts, classifyRoutes, closeRouteContracts, repairMarkerTerminals, diamondFacetPorts, labelRect, PORT_EXACT, repairLabelsOffOwnRoute, repairLabelsOnSharedTrunks, separateEdgeLabelPills, shapePorts, simplifyPolyline, trimBoundaryEndpointRuns } from './route-contracts.ts'
 import { bundleRouteBeforeRewrite, retainBundleRouteAfterRewrite } from './layout/bundle-routes.ts'
 import type { LabelMetricsStyle } from './route-contracts.ts'
@@ -2065,6 +2066,7 @@ export function layoutGraphSync(
 
 function layoutGraphWithBudget(graph: MermaidGraph, options: LayoutEngineOptions): PositionedGraph {
   assertMermaidGraphWork(graph)
+  anticipateCrossingCounts(graph.edges.reduce((visible, edge) => edge.style === 'invisible' ? visible : visible + 1, 0))
   const style = resolveRenderStyle(options, (options as StateRenderOptions).stateVisual?.styleDefaults, options.styleFace)
   const positioned = layoutUntitledGraph(graphWithDisplayCaptions(graph, style), options)
   retainGraphText(positioned, style)

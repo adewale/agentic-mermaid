@@ -214,6 +214,25 @@ if (!MEASURE_ONLY) {
     || BROWSER_BUILTIN_FAMILY_IDS.some(id => familyFiles[id].includes(htmlEntityOutputs[0]!))) {
     throw new Error('HTML5 named-reference table must load only on demand, never with the initial download or a family')
   }
+  // The indexed crossing counter is its own chunk, demanded by the first
+  // count of at least 256 route segments (or a graph announcing that many
+  // visible edges), never by a family's static download.
+  const indexedCrossingOutputs = outputNames.filter(path =>
+    Object.hasOwn(metafile.outputs[path]!.inputs, 'src/shared/edge-crossings-indexed.ts'))
+  if (indexedCrossingOutputs.length !== 1 || initialFiles.includes(indexedCrossingOutputs[0]!)
+    || BROWSER_BUILTIN_FAMILY_IDS.some(id => staticFamilyFiles[id].includes(indexedCrossingOutputs[0]!))) {
+    throw new Error('Indexed crossing counter must load only on demand, never with the initial download or a family')
+  }
+  // Observe the emitted module graph: Bun fetches the chunk only when an
+  // executed render imports it.
+  const indexedCrossingPath = join(ROOT, indexedCrossingOutputs[0]!)
+  const indexedCrossingLoads: string[] = []
+  Bun.plugin({ name: 'observe-indexed-crossings', setup(build) {
+    build.onLoad({ filter: /\/browser-lazy\/chunks\/[^/]+\.js$/ }, args => {
+      if (args.path === indexedCrossingPath) indexedCrossingLoads.push(args.path)
+      return { contents: readFileSync(args.path, 'utf8'), loader: 'js' }
+    })
+  } })
   // Source-level tests do not exercise the build-only CJS alias or the lazy
   // table swap. Execute the emitted ESM entry so a broken on-demand decoder
   // fails this mandatory build gate.
@@ -245,6 +264,17 @@ if (!MEASURE_ONLY) {
   if (!stateTexts.includes('%% kept') || stateTexts.some(text => text.includes('hidden'))) {
     throw new Error(`Built State lazy render misread comments or block notes: ${JSON.stringify(stateTexts)}`)
   }
+
+  // Sparse renders above leave the counter unfetched. A dense grid (144
+  // authored edges, 428 segments) first demands it inside a pass budget
+  // measurement after placement; the render replays and draws exactly what
+  // the synchronous renderer, which always holds the counter, draws.
+  if (indexedCrossingLoads.length) throw new Error('Sparse lazy renders fetched the indexed crossing counter')
+  const dense = `flowchart LR\n  ${Array.from({ length: 12 }, (_, i) => `A${i}`).join(' & ')} --> ${Array.from({ length: 12 }, (_, i) => `B${i}`).join(' & ')}`
+  const denseSvg = await renderMermaidSVGAsync(dense)
+  if (indexedCrossingLoads.length !== 1) throw new Error('Dense lazy render did not fetch the indexed crossing counter')
+  const { renderMermaidSVG } = await import('../../src/index.ts')
+  if (denseSvg !== renderMermaidSVG(dense)) throw new Error('Dense lazy render differs from the synchronous renderer')
 
   if (initialFiles.includes(elkOutput) || MEASURED_FAMILY_IDS.some(id => staticFamilyFiles[id].includes(elkOutput))) {
     throw new Error(`ELK must load only when placement demands it, never in a family static closure: ${observedElkFamilies.join(', ')}`)

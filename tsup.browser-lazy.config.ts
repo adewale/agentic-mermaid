@@ -27,7 +27,8 @@ export default defineConfig({
   metafile: true,
   noExternal: [/.*/],
   external: [],
-  // ELK, YAML and the HTML5 entity table load only when a diagram needs them.
+  // ELK, YAML, the HTML5 entity table and the indexed crossing counter load
+  // only when a diagram needs them.
   // Build-only facade twins preserve the synchronous source/Node APIs.
   esbuildPlugins: [runtimeRenderContractPlugin({ schemaDocumentation: false, terminalAdapter: false, conformanceObservations: false, coalesceRuntimePrimitives: true, sourceOnlySceneAdmission: true, lazyLayoutOptimization: true }), {
     name: 'lazy-browser-dependencies',
@@ -59,7 +60,7 @@ export default defineConfig({
       build.onResolve({ filter: /\/edge-crossing-pair\.ts$/ }, args =>
         ({ path: resolve(args.resolveDir, args.path.replace(/\.ts$/, '.lazy.ts')) }))
       build.onResolve({ filter: /\/edge-crossings-indexed\.ts$/ }, args =>
-        ({ path: resolve(args.resolveDir, args.path.replace(/\.ts$/, '.lazy.ts')) }))
+        args.kind === 'dynamic-import' ? undefined : { path: resolve(args.resolveDir, args.path.replace(/\.ts$/, '.lazy.ts')) })
       build.onResolve({ filter: /\/indexed-forest\.ts$/ }, args =>
         ({ path: resolve(args.resolveDir, args.path.replace(/\.ts$/, '.lazy.ts')) }))
       build.onResolve({ filter: /\/agentic-layered\.ts$/ }, args =>
