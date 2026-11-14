@@ -47,7 +47,7 @@ describe('Class terminal namespace frames (B05/CL4)', () => {
     expect(boxes[1]!.top).toBeGreaterThan(boxes[0]!.bottom)
   })
 
-  test.each([13, 37, 38] as const)('reserves final card faces and opposing routing lanes (case %s)', ordinal => {
+  test.each([13, 33, 37, 38] as const)('reserves final card faces and opposing routing lanes (case %s)', ordinal => {
     for (const useAscii of [false, true]) {
       const result = renderMermaidASCIIWithReceipt(namespacePackingCases[ordinal]!, { useAscii, colorMode: 'none' })
       const doc = terminalDocumentOf(result)!, regions = doc.regions()
@@ -57,10 +57,10 @@ describe('Class terminal namespace frames (B05/CL4)', () => {
       if (ordinal !== 13) {
         const inner = regions.find(region => region.kind === 'cluster' && region.id === 'Root.Domain')!
         expect(inner.parentId).toBe('Root')
-        expect(inner.members).toContain(ordinal === 37 ? 'C9' : 'C8')
+        expect(inner.members).toContain(ordinal === 33 ? 'C11' : ordinal === 37 ? 'C9' : 'C8')
       }
       const edges = regions.filter(region => region.kind === 'edge')
-      expect(edges).toHaveLength(({ 13: 45, 37: 34, 38: 25 }[ordinal]!) + 1)
+      expect(edges).toHaveLength(({ 13: 45, 33: 44, 37: 34, 38: 25 }[ordinal]!) + 1)
       const authored = [...namespacePackingCases[ordinal]!.matchAll(/^`([^`]+)`(?: "([^"]*)")? ([.*o<|>\-]+)(?: "([^"]*)")? `([^`]+)`(?: : (.*))?$/gm)]
       expect(authored).toHaveLength(edges.length - 1)
       for (const [index, relation] of authored.entries()) {
@@ -69,7 +69,7 @@ describe('Class terminal namespace frames (B05/CL4)', () => {
         for (const [suffix, text] of [['from', relation[2]], ['to', relation[4]]] as const) if (text) expect(regions.find(region => region.id === `${id}:${suffix}-cardinality`)?.projectedText).toBe(text)
         if (relation[6]) expect(edges.find(edge => edge.id === id)?.projectedText).toBe(relation[6].trim())
       }
-      expect(regions.filter(region => region.kind === 'node')).toHaveLength(({ 13: 23, 37: 18, 38: 17 }[ordinal]!) + 2)
+      expect(regions.filter(region => region.kind === 'node')).toHaveLength(({ 13: 23, 33: 23, 37: 18, 38: 17 }[ordinal]!) + 2)
       const notes = regions.filter(region => region.annotationTarget?.id === hub.id)
       expect(notes).toHaveLength(1)
       expect(notes[0]!.projectedText).toBe(`owned note ${ordinal}\nsecond line`)
@@ -360,6 +360,141 @@ namespace Root {
 \`class-namespace:Domain\` "1..*" <|-- \`ns:Domain\` : edge 24 xxxxxxxxxxxxxxxxxxxxxx
 note for \`ns:Domain\` "owned note 38<br/>second line"
 note "free note 38"
+`,
+  33: `---
+title: Class compact 33
+---
+classDiagram
+direction TB
+namespace Root {
+  class \`ns:Domain\`["Card 33-0 WWW 👩‍💻"] {
+    +String value0
+    +step0()
+  }
+  class \`class-namespace:Domain\`["Card 33-1 WWWWWWWWW"] {
+    +String value1
+    +step1()
+  }
+  class \`__interface_0\`["Card 33-2 W"] {
+    +String value2
+    +step2()
+  }
+  class \`C3\`["Card 33-3  👩‍💻"] {
+    +String value3
+  }
+  class \`C4\`["Card 33-4 WWWW"] {
+    +String value4
+    +step4()
+  }
+  class \`C5\`["Card 33-5 WWWWWWWWWWWW"] {
+    +String value5
+  }
+  class \`C6\`["Card 33-6 WWWWWWWWWW 👩‍💻"] {
+    +String value6
+    +step6()
+  }
+  class \`C7\`["Card 33-7 WWWWWWWWWWWW"] {
+    +String value7
+  }
+  class \`C8\`["Card 33-8 "] {
+    +String value8
+  }
+  class \`C9\`["Card 33-9 WWWWWWWWWW 👩‍💻"] {
+    +String value9
+  }
+  class \`C10\`["Card 33-10 WWWWWWWWW"] {
+    +String value10
+    +step10()
+  }
+  namespace Domain {
+    class \`C11\`["Card 33-11 WWW"] {
+      +String value11
+    }
+    class \`C12\`["Card 33-12 WWWWWWWW 👩‍💻"] {
+      +String value12
+    }
+    class \`C13\`["Card 33-13 "] {
+      +String value13
+    }
+    class \`C14\`["Card 33-14 WWWWWWWWWWWW"] {
+      +String value14
+      +step14()
+    }
+    class \`C15\`["Card 33-15 WWWWWWW 👩‍💻"] {
+      +String value15
+      +step15()
+    }
+    class \`C16\`["Card 33-16 WWWWWWW"] {
+      +String value16
+    }
+    class \`C17\`["Card 33-17 WWWWWWW"] {
+      +String value17
+      +step17()
+    }
+    class \`C18\`["Card 33-18 WWWWWWW 👩‍💻"] {
+      +String value18
+    }
+    class \`C19\`["Card 33-19 WWWWWWWWWWWW"] {
+      +String value19
+    }
+    class \`C20\`["Card 33-20 WW"] {
+      +String value20
+      +step20()
+    }
+    class \`C21\`["Card 33-21 WWWW 👩‍💻"] {
+      +String value21
+    }
+    class \`C22\`["Card 33-22 WWWW"] {
+      +String value22
+    }
+  }
+}
+\`ns:Domain\` "1..*" *-- \`class-namespace:Domain\` : edge 0 xxxxxxxx
+\`ns:Domain\` "0..1" ..> \`__interface_0\`
+\`ns:Domain\` "1..*" o-- \`C3\` : edge 2 xxxxxxxxxxxx
+\`ns:Domain\` "1" *-- \`C4\`
+\`ns:Domain\` "1..*" -- \`C5\` : edge 4 xxxxx
+\`ns:Domain\` "1..*" --> \`C6\`
+\`ns:Domain\` "1" <|-- \`C7\`
+\`ns:Domain\` "0..1" ..> \`C8\`
+\`ns:Domain\` "*" -- \`C9\` : edge 8 xxxxxxxxxxxx
+\`ns:Domain\` "0..1" *-- \`C10\`
+\`ns:Domain\` "1" --> \`C11\`
+\`ns:Domain\` "0..1" ..|> \`C12\`
+\`ns:Domain\` "0..1" --> \`C13\` : edge 12 xxxxxxxxxxxxxxx
+\`ns:Domain\` "1" ..|> \`C14\` : edge 13 x
+\`ns:Domain\` "*" ..|> \`C15\`
+\`ns:Domain\` "1" ..> \`C16\` : edge 15 xxxxxxxxxxxxxxxx
+\`ns:Domain\` "0..1" o-- \`C17\`
+\`ns:Domain\` "*" <|-- \`C18\`
+\`ns:Domain\` "1" *-- \`C19\` : edge 18 xxxxxxx
+\`ns:Domain\` "0..1" -- \`C20\`
+\`ns:Domain\` "1" ..|> \`C21\`
+\`ns:Domain\` "*" -- \`C22\`
+\`class-namespace:Domain\` "0..1" ..> \`C22\`
+\`__interface_0\` "*" ..|> \`C22\` : edge 23 xxxxxxxxxxxxxxxxxxxxxx
+\`C3\` "*" ..> \`C22\` : edge 24
+\`C4\` "1..*" ..|> \`C22\` : edge 25 xxxxxxxxxxxxxxxxxxxx
+\`C5\` "1..*" -- \`C22\` : edge 26 xxxxxxxx
+\`C6\` "1" -- \`C22\` : edge 27 xxxxx
+\`C7\` "0..1" *-- \`C22\` : edge 28 xxxxxxxxxxxxxxxxxxxx
+\`C8\` "*" -- \`C22\`
+\`C9\` "0..1" ..> \`C22\` : edge 30 xxxx
+\`C10\` "1" ..> \`C22\` : edge 31 xxxxxxxxxxxxxxxxxxx
+\`C11\` "1..*" *-- \`C22\` : edge 32 xxxxxxxx
+\`C12\` "0..1" ..> \`C22\`
+\`C13\` "1..*" o-- \`C22\` : edge 34 xxxxxxxxxxxx
+\`C14\` "1" *-- \`C22\`
+\`C15\` "1..*" -- \`C22\` : edge 36 xxxxx
+\`C16\` "1..*" --> \`C22\`
+\`C17\` "1" <|-- \`C22\`
+\`C18\` "0..1" ..> \`C22\`
+\`C19\` "*" -- \`C22\` : edge 40 xxxxxxxxxxxx
+\`C20\` "0..1" *-- \`C22\`
+\`C21\` "1" --> \`C22\`
+\`C22\` "0..1" ..|> \`C22\`
+note for \`ns:Domain\` "owned note 33<br/>second line"
+note "free note 33"
 `,
   37: `classDiagram
 direction BT

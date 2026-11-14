@@ -240,12 +240,29 @@ export function renderClassTerminal(text: string, config: AsciiConfig, colorMode
           for (const child of placed.values()) if (namespaceByClass.get(child.id) === box.id) move(child, dy)
         }
       }
+      // A card with three or more relationships into a frame fans them across
+      // the gap below that frame. Once a first attempt has failed, widening
+      // sizes that gap as a rank gap beside a fan: both approaches and a row
+      // for each route but one to turn in. Every sibling card settles beyond
+      // it, as every card of a rank does, so none slides into those rows.
+      const inside = (frameId: string, classId: string): boolean => {
+        for (let at = namespaceByClass.get(classId); at !== undefined; at = namespaces.find(box => box.id === at)?.parentId) if (at === frameId) return true
+        return false
+      }
+      const fanGap = (card: PlacedClass, frame: PlacedNamespace): number => {
+        const routes = diagram.relationships.filter(rel => rel.from !== rel.to && (rel.from === card.id ? inside(frame.id, rel.to) : rel.to === card.id && inside(frame.id, rel.from))).length
+        return channel && routes >= 3 ? 2 * (BOX_ROUTE_APPROACH_DISTANCE + 1) + routes - 1 + channel : 0
+      }
+      const frameGap = (frame: PlacedNamespace, cards: readonly PlacedClass[]): number => Math.max(frameClearance, ...cards.map(card => fanGap(card, frame)))
       const settle = (parentId?: string): void => {
         const children = [...namespaces.filter(box => box.parentId === parentId), ...[...placed.values()].filter(box => namespaceByClass.get(box.id) === parentId)]
         for (const child of children) if ('members' in child) settle(child.id)
         const allocated: Array<PlacedClass | PlacedNamespace> = []
+        const cards = children.filter((child): child is PlacedClass => !('members' in child))
+        const gaps = new Map(children.flatMap(child => ('members' in child ? [[child.id, frameGap(child, cards)] as const] : [])))
         for (const child of children.sort((a, b) => a.y - b.y || a.x - b.x || compareCodePointStrings(a.id, b.id))) {
-          const separation = (other: PlacedClass | PlacedNamespace) => (routingGapPromoted && !('members' in child) && !('members' in other) ? Math.max(frameClearance, minimumRoutingGap) : frameClearance)
+          const separation = (other: PlacedClass | PlacedNamespace) =>
+            !('members' in child) && 'members' in other ? gaps.get(other.id)! : routingGapPromoted && !('members' in child) && !('members' in other) ? Math.max(frameClearance, minimumRoutingGap) : frameClearance
           for (;;) {
             const blockers = allocated.filter(other => child.x < other.x + other.width + separation(other) && other.x < child.x + child.width + separation(other) && child.y < other.y + other.height + separation(other) && other.y < child.y + child.height + separation(other))
             if (!blockers.length) break
