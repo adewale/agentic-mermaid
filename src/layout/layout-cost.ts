@@ -25,11 +25,16 @@ export interface LayoutCostEstimate {
   readonly bundleWork: number
 }
 
-/** ELK options relaxed above the cost thresholds, in a stable order. */
-export type RelaxedLayoutOption = 'model-order' | 'edge-bundling'
+/** Layout options relaxed above the cost thresholds, in a stable order.
+ * 'junction-contraction' lays out each complete-bipartite block through a
+ * hidden junction (src/layout/junction-contraction.ts); the other options are
+ * then decided from the contracted graph. */
+export type RelaxedLayoutOption = 'junction-contraction' | 'model-order' | 'edge-bundling'
 
 export interface LayoutCostReceipt {
   readonly estimate: LayoutCostEstimate
+  /** With 'junction-contraction': the estimate of the graph actually laid out. */
+  readonly contracted?: LayoutCostEstimate
   readonly relaxed: readonly RelaxedLayoutOption[]
   /** Layout candidates the bounded search may produce, each with at most
    * `maxElkAttemptsPerCandidate` ELK runs. */
@@ -111,12 +116,25 @@ export function estimateLayoutCost(graph: LayoutCostGraph): LayoutCostEstimate {
   return { nodes: graph.nodes.size, edges: graph.edges.length, layers, dummySegments, maxGapEdges, bundleWork: fanMembers * graph.edges.length }
 }
 
-/** The bounded profile for a graph above a cost threshold, else undefined. */
-export function layoutCostReceipt(graph: Pick<MermaidGraph, 'nodes' | 'edges'>): LayoutCostReceipt | undefined {
-  const estimate = estimateLayoutCost(graph)
+function relaxedOptions(estimate: LayoutCostEstimate): RelaxedLayoutOption[] {
   const relaxed: RelaxedLayoutOption[] = []
   if (estimate.dummySegments >= LAYOUT_COST_THRESHOLDS.dummySegments || estimate.maxGapEdges >= LAYOUT_COST_THRESHOLDS.maxGapEdges) relaxed.push('model-order')
   if (estimate.bundleWork >= LAYOUT_COST_THRESHOLDS.bundleWork) relaxed.push('edge-bundling')
+  return relaxed
+}
+
+/** The bounded profile for a graph above a cost threshold, else undefined. */
+export function layoutCostReceipt(graph: Pick<MermaidGraph, 'nodes' | 'edges'>): LayoutCostReceipt | undefined {
+  const estimate = estimateLayoutCost(graph)
+  const relaxed = relaxedOptions(estimate)
   if (!relaxed.length) return undefined
   return { estimate, relaxed, maxCandidates: BOUNDED_CANDIDATES, maxElkAttemptsPerCandidate: BOUNDED_ELK_ATTEMPTS }
+}
+
+/** The bounded profile when `contracted` (junction contraction of the graph
+ * `receipt` describes) is laid out instead: the remaining relaxations are
+ * decided from the contracted graph's own estimate. */
+export function contractedLayoutCostReceipt(receipt: LayoutCostReceipt, contracted: Pick<MermaidGraph, 'nodes' | 'edges'>): LayoutCostReceipt {
+  const estimate = estimateLayoutCost(contracted)
+  return { ...receipt, contracted: estimate, relaxed: ['junction-contraction', ...relaxedOptions(estimate)] }
 }
