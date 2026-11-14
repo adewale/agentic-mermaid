@@ -47,6 +47,13 @@ export default defineConfig({
         ({ path: resolve(args.resolveDir, args.path.replace(/\.ts$/, '.lazy.ts')) }))
       build.onResolve({ filter: /\/mermaid-yaml\.ts$/ }, args =>
         ({ path: resolve(args.resolveDir, args.path.replace(/\.ts$/, '.lazy.ts')) }))
+      // The State comment scanner comes from the State family chunk, which
+      // only the lazy entry's graph holds; the ZenUML build reuses these
+      // facades and keeps the scanner rather than ship the State family.
+      if (Object.values(build.initialOptions.entryPoints ?? {}).includes('src/browser-lazy.ts')) {
+        build.onResolve({ filter: /\/state\/source-comments\.ts$/ }, args =>
+          ({ path: resolve(args.resolveDir, args.path.replace(/\.ts$/, '.lazy.ts')) }))
+      }
       build.onResolve({ filter: /\/elk-constructor\.ts$/ }, args =>
         ({ path: resolve(args.resolveDir, args.path.replace(/\.ts$/, '.lazy.ts')) }))
       build.onResolve({ filter: /\/edge-crossing-pair\.ts$/ }, args =>

@@ -238,6 +238,13 @@ if (!MEASURE_ONLY) {
       throw new Error(`Built Pie lazy decoder failed HTML5 named reference #${name};`)
     }
   }
+  // The State comment scanner leaves the render core; normalization demands
+  // it from the State chunk and replays. A comment stays out of the drawing
+  // while a block note keeps its %% line.
+  const stateTexts = displayedTexts(await renderMermaidSVGAsync('stateDiagram-v2\n  A --> B %% hidden\n  note left of A\n    %% kept\n  end note'))
+  if (!stateTexts.includes('%% kept') || stateTexts.some(text => text.includes('hidden'))) {
+    throw new Error(`Built State lazy render misread comments or block notes: ${JSON.stringify(stateTexts)}`)
+  }
 
   if (initialFiles.includes(elkOutput) || MEASURED_FAMILY_IDS.some(id => staticFamilyFiles[id].includes(elkOutput))) {
     throw new Error(`ELK must load only when placement demands it, never in a family static closure: ${observedElkFamilies.join(', ')}`)
