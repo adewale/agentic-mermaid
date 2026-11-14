@@ -9,12 +9,7 @@
 import { isPlainRecord } from '../shared/plain-data.ts'
 import { registerAdvertisedMcpInputSchema, mcpToolValidationSchema, type McpToolDefinition } from './tool-surface.ts'
 
-export const MCP_TOOL_PROFILES = Object.freeze(['full', 'slim'] as const)
-export type McpToolProfile = typeof MCP_TOOL_PROFILES[number]
-
-export function isMcpToolProfile(value: unknown): value is McpToolProfile {
-  return typeof value === 'string' && (MCP_TOOL_PROFILES as readonly string[]).includes(value)
-}
+export { isMcpToolProfile, MCP_TOOL_PROFILES, type McpToolProfile } from './tool-profile.ts'
 
 type Schema = Record<string, unknown>
 

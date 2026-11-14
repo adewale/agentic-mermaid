@@ -1,6 +1,6 @@
 import { unsupportedBunReason } from './bun-version.ts'
 import type { HttpMcpOptions } from './server.ts'
-import { isMcpToolProfile, MCP_TOOL_PROFILES } from './slim-tools.ts'
+import { isMcpToolProfile, MCP_TOOL_PROFILES } from './tool-profile.ts'
 
 export const MCP_CLI_HELP = `agentic-mermaid-mcp [--transport stdio|http] [--host 127.0.0.1] [--port 3000]
 
