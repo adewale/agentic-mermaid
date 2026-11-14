@@ -6,18 +6,25 @@ import { drawMultiBox } from './draw.ts'
 import { visualWidth } from './width.ts'
 import { wrapText } from './wrap.ts'
 import { displayText } from '../multiline-utils.ts'
-import { allocateChannelledBoxRoutes, boxFaceSizes, paintBoxRoute, paintBoxText, reverseBoxes, type TerminalBox, type BoxRelation } from './class-like-layout.ts'
+import { allocateChannelledBoxRoutes, bipartiteBuses, boxFaceSizes, type BusChoice, paintBoxBus, paintBoxBusText, paintBoxRoute, paintBoxText, renderWithBuses, reverseBoxes, type TerminalBox, type BoxRelation } from './class-like-layout.ts'
 import type { MermaidFrontmatterMap } from '../mermaid-source.ts'
 import { frontmatterTitle } from '../mermaid-source.ts'
 
 export function renderRequirementTerminal(lines: string[] | string, config: AsciiConfig, colorMode?: ColorMode, theme?: AsciiTheme, frontmatter: MermaidFrontmatterMap = {}, targetWidth?: number): TerminalArtifact {
+  // A complete-bipartite block of relations of one type (one label, marker
+  // and shaft) draws as a bus when routing relation by relation cannot finish.
+  return renderWithBuses(choose => renderRequirementCells(lines, config, colorMode, theme, frontmatter, targetWidth, choose), 9)
+}
+
+function renderRequirementCells(lines: string[] | string, config: AsciiConfig, colorMode: ColorMode | undefined, theme: AsciiTheme | undefined, frontmatter: MermaidFrontmatterMap, targetWidth: number | undefined, choose: BusChoice): TerminalArtifact {
   const model = parseRequirementDiagram(lines),
     direction = model.direction,
     horizontal = direction === 'LR' || direction === 'RL',
     width = targetWidth ?? config.targetWidth ?? config.maxWidth
   const wrap = (value: string) => wrapText(displayText(value), width ? Math.max(1, width - 8) : undefined)
   const relations: BoxRelation[] = model.relations.map(e => ({ id: e.id, from: e.src, to: e.dst, lines: [`<<${e.type}>>`] })),
-    demand = boxFaceSizes(relations, direction)
+    buses = choose(() => bipartiteBuses(relations, (_relation, index) => model.relations[index]!.type)),
+    demand = boxFaceSizes(relations, direction, undefined, buses)
   const cards = [
     ...model.requirements.map(r => ({
       id: r.name,
@@ -101,7 +108,7 @@ export function renderRequirementTerminal(lines: string[] | string, config: Asci
   // faces, as C4 and ER do, so every port is allocated before painting.
   for (let pass = 0; pass < relations.length * 2 + 2; pass++) {
     let changed = false
-    for (const [id, face] of boxFaceSizes(relations, direction, boxes)) {
+    for (const [id, face] of boxFaceSizes(relations, direction, boxes, buses)) {
       const size = sizes.get(id)
       if (!size || (size.width >= face.width && size.height >= face.height)) continue
       size.width = Math.max(size.width, face.width)
@@ -114,19 +121,31 @@ export function renderRequirementTerminal(lines: string[] | string, config: Asci
   return { boxes }
   }
   const doc = new TerminalDocument(),
-    routes = allocateChannelledBoxRoutes(layout, relations, direction)
-  const byId = new Map(model.relations.map(edge => [edge.id, edge]))
-  for (const route of routes) {
+    routes = allocateChannelledBoxRoutes(layout, relations, direction, { buses })
+  const byId = new Map(model.relations.map(edge => [edge.id, edge])), busOf = new Map(buses.flatMap(bus => bus.members.map(index => [index, bus] as const)))
+  // A bus's members are painted together, at its first member, each keeping
+  // its own connected route through the shared ink.
+  const owners = routes.map((route, index) => {
+    const edge = byId.get(route.relation.id)!, bus = busOf.get(index)
+    return doc.element({ id: edge.id, kind: 'edge', from: edge.src, to: edge.dst, ...(bus ? { route: 'connected' as const, bundle: bus.id } : {}) })
+  })
+  for (const [index, route] of routes.entries()) {
     const edge = byId.get(route.relation.id)!,
-      owner = doc.element({ id: edge.id, kind: 'edge', from: edge.src, to: edge.dst })
-    paintBoxRoute(doc, route, owner, config.useAscii, edge.type !== 'contains')
+      owner = owners[index]!,
+      bus = busOf.get(index)
+    if (!bus) paintBoxRoute(doc, route, owner, config.useAscii, edge.type !== 'contains')
+    else if (bus.members[0] === index) {
+      const members = bus.members.map(member => routes[member]!)
+      paintBoxBus(doc, members, bus.members.map(member => owners[member]!), config.useAscii, edge.type !== 'contains')
+      paintBoxBusText(doc, members, member => owners[bus.members[member]!]!)
+    }
     const end = edge.type === 'contains' ? 'start' : 'end',
       port = end === 'start' ? route.source : route.target,
       marker = { shape: edge.type === 'contains' ? ('circle' as const) : ('open-arrow' as const), direction: ({ T: 'B', B: 'T', L: 'R', R: 'L' } as const)[port.side], ascii: config.useAscii }
     doc.expectMarkers(owner, end, [marker])
     doc.expectMarkers(owner, end === 'start' ? 'end' : 'start', [])
     doc.marker(port.x, port.y, marker, { owner, role: 'arrow' })
-    paintBoxText(doc, route.label, owner)
+    if (!bus) paintBoxText(doc, route.label, owner)
   }
   for (const box of boxes) {
     const owner: TerminalOwner = { id: box.id, kind: 'node' }

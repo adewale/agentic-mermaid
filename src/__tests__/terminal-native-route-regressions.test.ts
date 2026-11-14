@@ -618,6 +618,8 @@ test.each(cardRoutes.flatMap(item => [false, true].map(useAscii => [item.name, u
 
 // A table relating each of 20 classes to the same 20 classes once refused
 // with TERMINAL_WORK_LIMIT: routing each relation needs a gap row per route.
+// So did the same tables of ER entities, of requirements and of blocks in an
+// authored grid, which share the card router.
 // Each complete-bipartite block of alike relations now draws as one bus
 // through one port per card. Every relation keeps its own identity,
 // endpoints and markers, and its own directions join its two ports through
@@ -637,6 +639,9 @@ const busTables: Array<{ name: string; source: string; pair?: (i: number, j: num
   { name: 'Class 20 x 20 table of <|--', source: bipartiteTable((i, j) => `A${i} <|-- B${j}`), ends: [['open-arrow'], []] },
   { name: 'Class 20 x 20 table of --> sharing a label and cardinalities', source: bipartiteTable((i, j) => `A${i} "one" --> "many" B${j} : uses`), ends: [[], ['triangle']], texts: [['uses', 1, 'all'], ['one', 20, 'from'], ['many', 20, 'to']] },
   { name: 'Class 20 x 20 table of --> beside relations touching its cards', source: bipartiteTable((i, j) => `A${i} --> B${j}`, ['classDiagram'], classOthers), ends: [[], ['triangle']], others: [['A0', 'X'], ['Y', 'B0'], ['A1', 'Z'], ['W', 'A2']] },
+  { name: 'ER 20 x 20 table of ||--o{ sharing a label', source: bipartiteTable((i, j) => `A${i} ||--o{ B${j} : has`, ['erDiagram']), faces: ['R', 'L'], ends: [['cardinality-one'], ['cardinality-many', 'circle']], texts: [['has', 1, 'all']] },
+  { name: 'Block 20 x 20 grid of labelled links', source: bipartiteTable((i, j) => `a${i} -- "uses" --> b${j}`, ['block', 'columns 20', ...range20.map(i => `a${i}["A ${i}"]`), ...range20.map(i => `b${i}["B ${i}"]`)]), pair: (i, j) => [`a${i}`, `b${j}`], ends: [[], ['arrow']], texts: [['uses', 1, 'all']] },
+  { name: 'Requirement 20 x 20 table of satisfies', source: bipartiteTable((i, j) => `b${j} - satisfies -> a${i}`, ['requirementDiagram', ...range20.flatMap(i => [`requirement a${i} {`, `id: A${i}`, '}', `element b${i} {`, 'type: part', '}'])]), pair: (i, j) => [`b${j}`, `a${i}`], ends: [[], ['open-arrow']], texts: [['<<satisfies>>', 1, 'all']] },
 ]
 /** Breadth-first search over the cells an edge owns, through its own directions only. */
 function ownDirectionsConnect(doc: TerminalDocument, edge: TerminalRegion): boolean {
@@ -687,7 +692,8 @@ test.each(busTables.flatMap(item => [false, true].map(useAscii => [item.name, us
   expect([...portsAt.values()].map(ports => ports.size)).toEqual(Array.from({ length: 40 }, () => 1))
   const rows = result.text.split('\n')
   for (const [text, count, share] of texts) {
-    const places = rows.flatMap((row, y) => [...row.matchAll(new RegExp(`\\b${text}\\b`, 'g'))].map(match => [match.index!, y] as const))
+    const word = (end: string) => (/\w/.test(end) ? '\\b' : ''), pattern = new RegExp(word(text[0]!) + text + word(text.at(-1)!), 'g')
+    const places = rows.flatMap((row, y) => [...row.matchAll(pattern)].map(match => [match.index!, y] as const))
     expect({ text, places: places.length }).toEqual({ text, places: count })
     for (const [x, y] of places) {
       // A label belongs to each relation; a cardinality to each relation's own cardinality label.
@@ -700,6 +706,9 @@ test.each(busTables.flatMap(item => [false, true].map(useAscii => [item.name, us
 
 // A shared trunk cannot say which of several labels belongs to which pair:
 // a table whose relations carry distinct labels still refuses.
-test('Class 20 x 20 table of distinctly labelled relations still refuses with the typed work limit', () => {
-  expect(() => renderMermaidASCIIWithReceipt(bipartiteTable((i, j) => `A${i} --> B${j} : r${i}_${j}`), { colorMode: 'none' })).toThrow(expect.objectContaining({ code: 'TERMINAL_WORK_LIMIT' }))
+test.each([
+  ['Class', bipartiteTable((i, j) => `A${i} --> B${j} : r${i}_${j}`)],
+  ['ER', bipartiteTable((i, j) => `A${i} ||--o{ B${j} : r${i}_${j}`, ['erDiagram'])],
+])('%s 20 x 20 table of distinctly labelled relations still refuses with the typed work limit', (_family, source) => {
+  expect(() => renderMermaidASCIIWithReceipt(source, { colorMode: 'none' })).toThrow(expect.objectContaining({ code: 'TERMINAL_WORK_LIMIT' }))
 })

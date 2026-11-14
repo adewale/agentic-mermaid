@@ -5,7 +5,7 @@ export { TERMINAL_CERTIFICATION_LIMITS } from './terminal-limits.ts'
 
 import { renderContractDigest } from '../render-contract.ts'
 import { secureTerminalHtmlOutput, terminalOutputPlainText } from '../terminal-security.ts'
-import { type TerminalDocument, type TerminalOwner, type TerminalPort, terminalCellConnections, terminalGlyphForPaint, terminalOwnedStrokeMask, terminalStrokeProvenanceMatches } from './terminal-document.ts'
+import { type TerminalCell, type TerminalDocument, type TerminalOwner, type TerminalPort, terminalCellConnections, terminalGlyphForPaint, terminalOwnedStrokeMask, terminalStrokeProvenanceMatches } from './terminal-document.ts'
 import type { ColorMode } from './types.ts'
 import { visualWidth, WIDE_CHAR_CONTINUATION } from './width.ts'
 
@@ -74,9 +74,25 @@ const keyOf = (owner: Pick<TerminalOwner, 'id' | 'kind'>) => {
 }
 const siteOf = (x: number, y: number) => `${x},${y}`
 
-/** Cells shared by more owners than this (a bus) index their owners once
- * for every route checked through them, instead of scanning them per route. */
+/** Cells shared by more owners than this (a bus, or a text its members
+ * share) index their owners once for every route or text owner checked
+ * through them, instead of scanning them per owner. */
 const SHARED_CELL_INDEX = 16
+
+/** A shared cell's owner positions by key, indexed once per certification. */
+function sharedOwnerIndex(cell: TerminalCell, shared: Map<object, Map<string, number>>, visit: () => void): Map<string, number> {
+  let index = shared.get(cell)
+  if (!index) {
+    visit() // index map before allocation
+    index = new Map()
+    for (let at = 0; at < cell.owners.length; at++) {
+      visit() // one scanned owner and its map slot
+      index.set(keyOf(cell.owners[at]!), at)
+    }
+    shared.set(cell, index)
+  }
+  return index
+}
 
 function liveOwnedMask(document: TerminalDocument, owner: TerminalOwner, x: number, y: number, visit: () => void, shared: Map<object, Map<string, number>>): number {
   visit() // one translated point predicate; two neighbor bits are one mask predicate
@@ -86,17 +102,7 @@ function liveOwnedMask(document: TerminalDocument, owner: TerminalOwner, x: numb
   let owned = false,
     ownMask = 0
   if (cell.owners.length > SHARED_CELL_INDEX) {
-    let index = shared.get(cell)
-    if (!index) {
-      visit() // index map before allocation
-      index = new Map()
-      for (let at = 0; at < cell.owners.length; at++) {
-        visit() // one scanned owner and its map slot
-        index.set(keyOf(cell.owners[at]!), at)
-      }
-      shared.set(cell, index)
-    }
-    const at = index.get(keyOf(owner))
+    const at = sharedOwnerIndex(cell, shared, visit).get(keyOf(owner))
     if (at !== undefined) {
       owned = true
       ownMask = terminalOwnedStrokeMask(cell, at)
@@ -311,13 +317,16 @@ export function certifyTerminalLayout(document: TerminalDocument | undefined, ou
             else if (!cell || cell.kind !== 'text' || cell.glyph !== cluster.glyph || cell.width !== cluster.width || cell.head !== x) add('TERMINAL_TEXT_CHANGED', 'failed', 'Retained measured text does not survive in the final cells.', allocation.owners[0]?.id, x, y)
             else {
               const checkOwners = (expected: readonly TerminalOwner[]) => {
+                const index = cell.owners.length > SHARED_CELL_INDEX ? sharedOwnerIndex(cell, sharedCells, visit) : undefined
                 for (const owner of expected) {
                   visit()
                   if (
-                    !cell.owners.some(actual => {
-                      visit()
-                      return keyOf(actual) === keyOf(owner)
-                    })
+                    index
+                      ? !index.has(keyOf(owner))
+                      : !cell.owners.some(actual => {
+                          visit()
+                          return keyOf(actual) === keyOf(owner)
+                        })
                   )
                     add('TERMINAL_TEXT_OWNER_CHANGED', 'failed', 'Measured text lost its native owner.', owner.id, x, y)
                 }

@@ -9,7 +9,7 @@ import { visualWidth } from './width.ts'
 import { wrapText } from './wrap.ts'
 import { displayText } from '../multiline-utils.ts'
 import { paintTerminalFrame } from './terminal-geometry.ts'
-import { allocateChannelledBoxRoutes, BOX_ROUTE_APPROACH_DISTANCE, boxFaceSizes, paintBoxRoute, paintBoxText, type BoxRelation } from './class-like-layout.ts'
+import { allocateChannelledBoxRoutes, bipartiteBuses, BOX_ROUTE_APPROACH_DISTANCE, boxFaceSizes, type BusChoice, paintBoxBus, paintBoxBusText, paintBoxRoute, paintBoxText, renderWithBuses, type BoxRelation } from './class-like-layout.ts'
 import { frontmatterTitle, type MermaidFrontmatterMap } from '../mermaid-source.ts'
 
 interface BlockCell extends Cell {
@@ -18,6 +18,13 @@ interface BlockCell extends Cell {
   parentId?: string
 }
 export function renderBlockTerminal(lines: string[] | string, config: AsciiConfig, colorMode?: ColorMode, theme?: AsciiTheme, frontmatter: MermaidFrontmatterMap = {}, targetWidth?: number): TerminalArtifact {
+  // A complete-bipartite block of alike links (one pattern, both arrowheads
+  // and one label or none) draws as a bus when routing link by link cannot
+  // finish, where the authored grid gives its two sides facing rows.
+  return renderWithBuses(choose => renderBlockCells(lines, config, colorMode, theme, frontmatter, targetWidth, choose), 12)
+}
+
+function renderBlockCells(lines: string[] | string, config: AsciiConfig, colorMode: ColorMode | undefined, theme: AsciiTheme | undefined, frontmatter: MermaidFrontmatterMap, targetWidth: number | undefined, choose: BusChoice): TerminalArtifact {
   const model = parseBlockDiagram(lines),
     width = targetWidth ?? config.targetWidth ?? config.maxWidth,
     cols = model.root.columns && model.root.columns > 0 ? model.root.columns : Math.max(1, model.root.children?.length ?? 1)
@@ -44,6 +51,7 @@ export function renderBlockTerminal(lines: string[] | string, config: AsciiConfi
     .filter(c => c.block.type !== 'space')
     .map(c => ({ ...c, id: c.block.id, x: Math.round(c.x - c.w / 2) + margin, y: Math.round(c.y - c.h / 2) + margin, width: Math.round(c.w), height: Math.round(c.h), container: c.block.type === 'composite', headerHeight: c.head }))
   const relations: BoxRelation[] = model.edges.map(e => ({ id: e.id, from: e.start!, to: e.end!, ...(e.label ? { lines: wrapText(blockDisplayText(e.label), width ? Math.max(1, width - 8) : undefined) } : {}) }))
+  const buses = choose(() => bipartiteBuses(relations, (relation, index) => JSON.stringify([model.edges[index]!.arrowTypeStart ?? '', model.edges[index]!.arrowTypeEnd ?? '', model.edges[index]!.pattern ?? '', relation.lines ?? []])))
   // Opposing protected approaches must leave a transverse channel between
   // cells. Without it, disjoint ports can close a pocket around another exit.
   const gap = relations.length ? Math.max(6, 2 * (BOX_ROUTE_APPROACH_DISTANCE + 1) + 1) : 6
@@ -60,7 +68,7 @@ export function renderBlockTerminal(lines: string[] | string, config: AsciiConfi
   for (;;) {
     let changed = false
     const byId = new Map(boxes.map(box => [box.id, box]))
-    for (const [id, demand] of boxFaceSizes(relations, 'TB', boxes)) {
+    for (const [id, demand] of boxFaceSizes(relations, 'TB', boxes, buses)) {
       const cell = cells.get(id), box = byId.get(id)
       if (!cell || !box) continue // The route allocator diagnoses missing endpoints.
       if (box.width < demand.width) { cell.nw = Math.max(cell.nw, demand.width); changed = true }
@@ -76,7 +84,7 @@ export function renderBlockTerminal(lines: string[] | string, config: AsciiConfi
   }
   return { boxes }
   }
-  const routes = allocateChannelledBoxRoutes(layout, relations, 'TB'),
+  const routes = allocateChannelledBoxRoutes(layout, relations, 'TB', { buses }),
     doc = new TerminalDocument()
   const members = new Map<string, string[]>(), edges = new Map(model.edges.map(edge => [edge.id, edge]))
   for (const box of boxes) if (box.parentId) {
@@ -90,10 +98,23 @@ export function renderBlockTerminal(lines: string[] | string, config: AsciiConfi
     paintTerminalFrame(doc, box, owner, config.useAscii)
     if (box.block.label) doc.textBlock(box.x + 2, box.y + 1, box.lines, { owner })
   }
-  for (const route of routes) {
+  // A bus's members are painted together, at its first member, each keeping
+  // its own connected route through the shared ink.
+  const busOf = new Map(buses.flatMap(bus => bus.members.map(index => [index, bus] as const)))
+  const owners = routes.map((route, index) => {
+    const edge = edges.get(route.relation.id)!, bus = busOf.get(index)
+    return doc.element({ id: edge.id, kind: 'edge', from: edge.start!, to: edge.end!, ...(bus ? { route: 'connected' as const, bundle: bus.id } : {}) })
+  })
+  for (const [index, route] of routes.entries()) {
     const edge = edges.get(route.relation.id)!,
-      owner = doc.element({ id: edge.id, kind: 'edge', from: edge.start!, to: edge.end! })
-    paintBoxRoute(doc, route, owner, config.useAscii, edge.pattern === 'dotted')
+      owner = owners[index]!,
+      bus = busOf.get(index)
+    if (!bus) paintBoxRoute(doc, route, owner, config.useAscii, edge.pattern === 'dotted')
+    else if (bus.members[0] === index) {
+      const members = bus.members.map(member => routes[member]!)
+      paintBoxBus(doc, members, bus.members.map(member => owners[member]!), config.useAscii, edge.pattern === 'dotted')
+      paintBoxBusText(doc, members, member => owners[bus.members[member]!]!)
+    }
     for (const [end, port, type] of [
       ['start', route.source, edge.arrowTypeStart],
       ['end', route.target, edge.arrowTypeEnd],
@@ -103,7 +124,7 @@ export function renderBlockTerminal(lines: string[] | string, config: AsciiConfi
       doc.expectMarkers(owner, end, marker ? [marker] : [])
       if (marker) doc.marker(port.x, port.y, marker, { owner, role: 'arrow' })
     }
-    paintBoxText(doc, route.label, owner)
+    if (!bus) paintBoxText(doc, route.label, owner)
   }
   for (const box of boxes.filter(b => !b.container)) {
     const owner: TerminalOwner = { id: box.id, kind: 'node', parent: box.parentId ? { id: box.parentId, kind: 'cluster' } : undefined }
