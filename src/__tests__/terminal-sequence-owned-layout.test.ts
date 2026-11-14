@@ -234,6 +234,40 @@ end`)
     }
   })
 
+  // [unicode, ascii] glyphs each message endpoint owns on its lifeline.
+  test.each([
+    ['a filled head into the destroyed receiver', 'A->>C: bye', { end: ['▶', '>'] }],
+    ['an async head into the destroyed receiver', 'A-)C: bye', { end: ['▷', '>'] }],
+    ['a central head into the destroyed receiver', 'A->>()C: bye', { end: ['○', 'o'] }],
+    ['a cross head into the destroyed receiver', 'A-xC: bye', { end: ['X', 'X'] }],
+    ['a bidirectional message from the destroyed sender', 'C<<->>A: bye', { start: ['▶', '>'], end: ['◀', '<'] }],
+    ['a self-message by the destroyed participant', 'C->>C: bye', { end: ['◀', '<'] }],
+    ['a par branch followed by a note', 'par first\nA->>C: bye\nNote over C: after\nand second\nB->>A: other\nend', { end: ['▶', '>'] }],
+  ] as const)('ends a destroyed lifeline with its own cross below %s', (_name, body, heads) => {
+    for (const useAscii of [false, true]) {
+      const { doc, region } = render(`destroy C\n${body}\nB->>A: tail`, useAscii)
+      const ports = region('message:0').ports!
+      for (const [end, glyphs] of Object.entries(heads)) {
+        const port = ports.find(item => item.end === end)!
+        const cell = doc.cell(port.x, port.y)!
+        expect(cell.kind).toBe('marker')
+        expect(cell.glyph).toBe(glyphs[useAscii ? 1 : 0])
+        expect(cell.owners.map(owner => owner.id)).toEqual(['message:0'])
+      }
+      const crosses = [...doc.entries()].filter(([, , cell]) => cell.kind === 'marker' && cell.owners.some(owner => owner.id === 'C'))
+      expect(crosses).toHaveLength(1)
+      const [x, y, cross] = crosses[0]!
+      expect(cross.glyph).toBe('X')
+      expect(cross.owners.map(owner => owner.id)).toEqual(['C'])
+      // The lifeline runs through the message's last contact and stops at the cross.
+      const contacts = ports.filter(item => item.nodeId === 'C')
+      expect(x).toBe(contacts[0]!.x)
+      expect(y).toBe(Math.max(...contacts.map(item => item.y)) + 1)
+      expect([...doc.entries()].filter(([, row, cell]) => row > y && cell.owners.some(owner => owner.id === 'C'))).toEqual([])
+      expect(doc.diagnostics.filter(item => /COLLISION|OVERLAP/.test(item.code))).toEqual([])
+    }
+  })
+
   test('keeps the crossed lifeline on each side of a reserved message label', () => {
     const { doc, region } = render('A->>C: hello')
     const column = region('B').authoredTextCells![0]!.column

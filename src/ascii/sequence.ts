@@ -139,6 +139,7 @@ export function renderSequenceDiagramTerminal(input: SequenceDiagram, config: As
   const closedFrames: SequenceFrame[] = []
   const activeFrames: number[] = []
   const actorTop = new Map<number, number>()
+  const destroyCrosses = new Map<number, CellBounds>()
   const currentParent = () => activeFrames.length ? blockId(activeFrames.at(-1)!) : undefined
   let cursor = participantTop + actorBoxH
   const ownedBounds = new Map<number, CellBounds[]>()
@@ -283,7 +284,16 @@ export function renderSequenceDiagramTerminal(input: SequenceDiagram, config: As
       cursor += shift; positioned.y += shift; positioned.arrowY += shift
       messages.push(positioned)
       own({ x: Math.min(fromX, toX, positioned.x), y: cursor, width: Math.max(fromX, toX, positioned.x + width - 1) - Math.min(fromX, toX, positioned.x) + 1, height: lines.length + (self ? 2 : 1) })
-      cursor += lines.length + (self ? 2 : 1); messageCursor++
+      cursor += lines.length + (self ? 2 : 1)
+      // A destroyed lifeline runs through its last endpoint on this message
+      // (a self-message's return row); that cell is the message's marker, so
+      // the cross takes the cell below it, on the row the cursor now holds.
+      diagram.actors.forEach((actor, index) => {
+        if (actor.destroyMessageIndex !== messageCursor) return
+        const cross = { x: llX[index]!, y: cursor, width: 1, height: 1 }
+        destroyCrosses.set(index, cross); own(cross)
+      })
+      messageCursor++
     } else if (note) {
       // A parser-owned note is always reachable at the current final cursor.
       messageCursor = Math.max(messageCursor, note.afterIndex + 1)
@@ -326,7 +336,7 @@ export function renderSequenceDiagramTerminal(input: SequenceDiagram, config: As
     if (actor.external) return
     const card = { x: llX[index]! - Math.floor(actorWidths[index]! / 2), y: actorTop.get(index) ?? participantTop, width: actorWidths[index]!, height: actorBoxH }
     foreground.push(card)
-    if (actor.destroyMessageIndex === undefined) foreground.push({ ...card, y: footerY })
+    if (!destroyCrosses.has(index)) foreground.push({ ...card, y: footerY })
   })
   const backgroundGaps = new Map<number, Array<{ start: number; end: number }>>()
   for (const bounds of foreground) for (let row = bounds.y; row < bounds.y + bounds.height; row++) {
@@ -344,7 +354,7 @@ export function renderSequenceDiagramTerminal(input: SequenceDiagram, config: As
     if (actor.external) { owner(actor.id); return }
     const element = owner(actor.id, 'node', actor.box === undefined ? undefined : { id: generated(`box:${actor.box}`), kind: 'group' })
     const start = actorTop.has(index) ? actorTop.get(index)! + actorBoxH : participantTop + actorBoxH
-    const end = actor.destroyMessageIndex === undefined ? footerY : messages[actor.destroyMessageIndex]?.arrowY ?? footerY
+    const end = (destroyCrosses.get(index)?.y ?? footerY + 1) - 1
     for (let y = start; y <= end; y++) if (!reservedForeground(llX[index]!, y)) stroke(llX[index]!, y, 5, 'line', element)
   })
   // Activations are owned spans, drawn behind opaque labels and notes.
@@ -389,11 +399,12 @@ export function renderSequenceDiagramTerminal(input: SequenceDiagram, config: As
       doc.scope(element, () => lines.forEach((line, row) => doc.text(x + 2 + Math.floor((width - 4 - visualWidth(line)) / 2), top + 1 + row, line, { owner: element, role: 'text', kind: 'text' })))
     }
     drawActor(actorTop.get(index) ?? participantTop)
-    if (actor.destroyMessageIndex === undefined) drawActor(footerY)
-    else marker(llX[index]!, messages[actor.destroyMessageIndex]?.arrowY ?? footerY, 'X', element)
+    const cross = destroyCrosses.get(index)
+    if (cross) marker(cross.x, cross.y, 'X', element)
+    else drawActor(footerY)
     if (!ascii) {
       if (actor.createMessageIndex === undefined) stroke(llX[index]!, participantTop + actorBoxH - 1, 14, 'junction', element)
-      if (actor.destroyMessageIndex === undefined) stroke(llX[index]!, footerY, 11, 'junction', element)
+      if (!destroyCrosses.has(index)) stroke(llX[index]!, footerY, 11, 'junction', element)
     }
   })
   for (const positioned of messages) {
