@@ -8,7 +8,7 @@ import { displayText, normalizeBrTags } from '../multiline-utils.ts'
 import { compareCodePointStrings } from '../shared/deterministic-order.ts'
 import { type DisplayTextInput, resolveLabelContent } from '../shared/display-text.ts'
 import { checkAllClassLikeAuthoredStyles } from '../shared/style-props.ts'
-import { allocateChannelledBoxRoutes, bipartiteBuses, type BusChoice, TerminalBoxRouteUnavailable, BOX_ROUTE_APPROACH_DISTANCE, type BoxRelation, type BoxSide, boxFaceDemands, boxFaceSizes, paintClassLikeCard, paintBoxBus, paintBoxRoute, paintBoxText, renderWithBuses, reverseBoxes, type TerminalBox } from './class-like-layout.ts'
+import { allocateChannelledBoxRoutes, bipartiteBuses, type BusChoice, TerminalBoxRouteUnavailable, BOX_ROUTE_APPROACH_DISTANCE, type BoxRelation, type BoxSide, boxFaceDemands, boxFaceSizes, paintClassLikeCard, paintBoxBus, paintBoxBusText, paintBoxRoute, paintBoxText, renderWithBuses, reverseBoxes, type TerminalBox } from './class-like-layout.ts'
 import { terminalIds } from './identity.ts'
 import { type TerminalArtifact, terminalArtifact } from './terminal-artifact.ts'
 import { TerminalDocument, type TerminalMarker, type TerminalOwner } from './terminal-document.ts'
@@ -81,8 +81,8 @@ function renderClassCells(text: string, config: AsciiConfig, colorMode: ColorMod
     ...(rel.fromCardinality ? { fromLines: prepared(resolveLabelContent(rel.fromCardinality, rel.fromCardinalityContent)) } : {}),
     ...(rel.toCardinality ? { toLines: prepared(resolveLabelContent(rel.toCardinality, rel.toCardinalityContent)) } : {}),
   }))
-  // A bus shares every drawn property of its members, which carry no text
-  // and join cards of one namespace.
+  // A bus shares every drawn property of its members, which carry one label
+  // and cardinality text (or none) and join cards of one namespace.
   const scopeOf = new Map<string, string>()
   const scope = (items: ClassNamespace[], parent = ''): void =>
     items.forEach(item => {
@@ -92,11 +92,11 @@ function renderClassCells(text: string, config: AsciiConfig, colorMode: ColorMod
     })
   scope(diagram.namespaces)
   const buses = choose(() =>
-    bipartiteBuses(relations, (_relation, index) => {
+    bipartiteBuses(relations, (relation, index) => {
       const rel = diagram.relationships[index]!,
         kinds = [rel.type, rel.fromType ?? rel.type, rel.toType ?? rel.type]
-      if (rel.label || rel.fromCardinality || rel.toCardinality || kinds.includes('lollipop') || (scopeOf.get(rel.from) ?? '') !== (scopeOf.get(rel.to) ?? '')) return undefined
-      return JSON.stringify([scopeOf.get(rel.from) ?? '', ...kinds, rel.markerAt, classRelationshipLineStyle(rel)])
+      if (kinds.includes('lollipop') || (scopeOf.get(rel.from) ?? '') !== (scopeOf.get(rel.to) ?? '')) return undefined
+      return JSON.stringify([scopeOf.get(rel.from) ?? '', ...kinds, rel.markerAt, classRelationshipLineStyle(rel), relation.lines ?? [], relation.fromLines ?? [], relation.toLines ?? []])
     }),
   )
   const busOf = new Map(buses.flatMap(bus => bus.members.map(index => [relations[index]!.id, bus.id] as const)))
@@ -440,6 +440,7 @@ function renderClassCells(text: string, config: AsciiConfig, colorMode: ColorMod
     const bundle = busOf.get(route.relation.id)
     return doc.element({ id: route.relation.id, kind: 'edge', route: 'connected', from: rel.from, to: rel.to, ...(bundle === undefined ? {} : { bundle }) })
   }
+  const cardinality = (edge: TerminalOwner, end: 'from' | 'to'): TerminalOwner => ({ id: generated(`${edge.id}:${end}-cardinality`), kind: 'label', parent: { id: edge.id, kind: 'edge' } })
   const paintedBuses = new Set<string>()
   for (const route of routes) {
     const rel = relationshipById.get(route.relation.id)
@@ -458,7 +459,9 @@ function renderClassCells(text: string, config: AsciiConfig, colorMode: ColorMod
     else if (!paintedBuses.has(bus.id)) {
       paintedBuses.add(bus.id)
       const members = bus.members.map(index => routeAt.get(relations[index]!.id)!)
-      paintBoxBus(doc, members, members.map(member => relationOwner(member, relationshipById.get(member.relation.id)!)), ascii, classRelationshipLineStyle(rel) === 'dashed')
+      const owners = members.map(member => relationOwner(member, relationshipById.get(member.relation.id)!))
+      paintBoxBus(doc, members, owners, ascii, classRelationshipLineStyle(rel) === 'dashed')
+      paintBoxBusText(doc, members, (index, text) => (text === 'label' ? owners[index]! : cardinality(owners[index]!, text === 'fromLabel' ? 'from' : 'to')))
     }
     for (const [end, port, type, enabled] of [
       ['start', route.source, rel.fromType ?? rel.type, rel.markerAt === 'from' || rel.markerAt === 'both'],
@@ -468,9 +471,10 @@ function renderClassCells(text: string, config: AsciiConfig, colorMode: ColorMod
       doc.expectMarkers(owner, end, marker ? [marker] : [])
       if (marker) doc.marker(port.x, port.y, marker, { owner, role: 'arrow' })
     }
-    paintBoxText(doc, route.label, owner)
-    paintBoxText(doc, route.fromLabel, { id: generated(`${owner.id}:from-cardinality`), kind: 'label', parent: { id: owner.id, kind: 'edge' } })
-    paintBoxText(doc, route.toLabel, { id: generated(`${owner.id}:to-cardinality`), kind: 'label', parent: { id: owner.id, kind: 'edge' } })
+    // A bus member's texts were painted once, with its bus.
+    paintBoxText(doc, bus ? undefined : route.label, owner)
+    paintBoxText(doc, bus ? undefined : route.fromLabel, cardinality(owner, 'from'))
+    paintBoxText(doc, bus ? undefined : route.toLabel, cardinality(owner, 'to'))
   }
   for (const box of placed.values()) {
     const owner = doc.element({ id: box.id, kind: 'node', parent: namespaceByClass.has(box.id) ? { id: namespaceByClass.get(box.id)!, kind: 'cluster' } : undefined })

@@ -47,7 +47,9 @@ export interface BoxPort extends Readonly<GridCoord> { readonly side: BoxSide }
  * bus ink misstates nothing because the block is complete: wherever the paths
  * of s -> t and s' -> t' share ink, s -> t' and s' -> t are also relations of
  * the block, alike. Collector ink runs toward the junction and distributor ink
- * away from it, so no two members share a cell in opposite directions.
+ * away from it, so no two members share a cell in opposite directions. A
+ * label (or cardinality) written once for the members misstates nothing
+ * either: every member it is written for carries that same text.
  */
 export interface BoxBus {
   readonly id: string
@@ -98,8 +100,8 @@ function sides(relation: BoxRelation, direction: DiagramDirection, boxes?: Reado
  * The closed complete-bipartite blocks of alike relations that contract to a
  * bus: sources S and targets T with |S|, |T| >= 2 and |S||T| > |S| + |T|,
  * every s -> t joined by exactly one relation, all with the same defined
- * `signature` (the family's complete shared paint: kind, markers, shaft, and
- * no text), and no other relation leaving a source or entering a target.
+ * `signature` (the family's complete shared paint: kind, markers, shaft and
+ * text), and no other relation leaving a source or entering a target.
  * Deterministic: blocks follow their first member, members authored order.
  */
 export function bipartiteBuses(relations: readonly BoxRelation[], signature: (relation: BoxRelation, index: number) => string | undefined): BoxBus[] {
@@ -496,13 +498,15 @@ export function allocateBoxRoutes(boxes: readonly TerminalBox[], relations: read
   /**
    * Every bus is drawn before any other route searches, at fixed cells: from
    * each shared source port straight across the gap to the collector run,
-   * along it to the junction, two cells on to the distributor run, along it
-   * and straight into each shared target port. The collector runs on the
+   * along it to the junction, along the trunk to the distributor run, along
+   * it and straight into each shared target port. The collector runs on the
    * first row (or column) past every source approach, the distributor two
-   * cells beyond, and the junction at the members' median crossing, unless
-   * those cells touch a card, text, another route or an unrelated approach,
-   * when the next feasible row and junction are taken. Later routes cross
-   * bus ink only perpendicularly, as they cross any route.
+   * cells beyond (or past the members' one shared label, written beside the
+   * trunk), and the junction at the members' median crossing, unless those
+   * cells touch a card, text, another route or an unrelated approach, when
+   * the next feasible row and junction are taken. Alike cardinalities are
+   * written once beside each shared port. Later routes cross bus ink only
+   * perpendicularly, as they cross any route.
    */
   function constructBuses(): Set<number> {
     const done = new Set<number>(), planAt = new Map(plans.map(plan => [plan.index, plan]))
@@ -518,8 +522,13 @@ export function allocateBoxRoutes(boxes: readonly TerminalBox[], relations: read
       const sources = [...new Map(members.map(plan => [gridKey(plan.source), plan.source])).values()]
       const targets = [...new Map(members.map(plan => [gridKey(plan.target), plan.target])).values()]
       const own = new Set([...sources, ...targets].flatMap(point => approachCells(point)))
+      // The members' one shared label sits beside the trunk, between the two
+      // runs: the trunk lengthens to hold its rows (or, along a horizontal
+      // trunk, its width and a blank cell at each end).
+      const lines = members[0]!.relation.lines, measured = lines?.some(line => line.length > 0) ? measuredText(lines) : undefined
+      const rise = measured ? (vertical ? measured.height + 1 : measured.width + 3) : 2
       const low = Math.max(...sources.map(point => depth(point) + BOX_ROUTE_APPROACH_DISTANCE))
-      const high = Math.min(...targets.map(point => depth(point) - BOX_ROUTE_APPROACH_DISTANCE)) - 2
+      const high = Math.min(...targets.map(point => depth(point) - BOX_ROUTE_APPROACH_DISTANCE)) - rise
       const crossings = members.flatMap(plan => [along(plan.source), along(plan.target)]).sort((a, b) => a - b)
       const median = crossings[(crossings.length - 1) >> 1]!, first = crossings[0]!, last = crossings.at(-1)!
       // The junction keeps off every stem, so each run meets it as a tee that
@@ -536,38 +545,69 @@ export function allocateBoxRoutes(boxes: readonly TerminalBox[], relations: read
       }
       const path = (source: BoxPort, target: BoxPort, collector: number, junction: number): GridCoord[] => {
         const points: GridCoord[] = [{ x: source.x, y: source.y }]
-        for (const goal of [at(along(source), collector), at(junction, collector), at(junction, collector + 2), at(along(target), collector + 2), target]) run(points, goal)
+        for (const goal of [at(along(source), collector), at(junction, collector), at(junction, collector + rise), at(along(target), collector + rise), target]) run(points, goal)
         return points
       }
-      let chosen: { collector: number; junction: number } | undefined, policyChecks = 0
+      // The label keeps the clearance of any route caption, except from the
+      // bus's own approaches and the escape cells beyond them.
+      const reserved = new Set([...sources, ...targets].flatMap(point => approachCells(point, BOX_ROUTE_APPROACH_DISTANCE + 1)))
+      const labelAt = (collector: number, junction: number): TerminalBounds | undefined => {
+        if (!measured) return undefined
+        const bounds = vertical
+          ? { x: junction + 2, y: Math.min(sign * (collector + 1), sign * (collector + rise - 1)), width: measured.width, height: measured.height }
+          : { x: Math.min(sign * (collector + 2), sign * (collector + rise - 2)), y: junction - measured.height, width: measured.width, height: measured.height }
+        const clearance = { x: bounds.x - 1, y: bounds.y - 1, width: bounds.width + 2, height: bounds.height + 2 }
+        if (bounds.x < 0 || bounds.y < 0 || textObstacles.some(box => overlaps(clearance, box)) || textBounds.some(other => overlaps(clearance, other))) return undefined
+        for (let y = clearance.y; y < clearance.y + clearance.height; y++)
+          for (let x = clearance.x; x < clearance.x + clearance.width; x++) {
+            const key = `${x},${y}`
+            if ((markerCells.has(key) && !reserved.has(key)) || (overlaps(bounds, { x, y, width: 1, height: 1 }) && (routeCells.has(key) || cardCells.has(key)))) return undefined
+          }
+        return bounds
+      }
+      let chosen: { collector: number; junction: number; label?: TerminalBounds } | undefined, policyChecks = 0
       search: for (let collector = low; collector <= high; collector++) for (const junction of junctions) {
         // The union of member paths: every stem, both runs and the junction.
         const span = (values: number[]) => [Math.min(junction, ...values), Math.max(junction, ...values)] as const
         const cells: GridCoord[] = []
         for (const point of sources) { const stem = [{ x: point.x, y: point.y }]; run(stem, at(along(point), collector)); cells.push(...stem) }
-        for (const point of targets) { const stem = [{ x: point.x, y: point.y }]; run(stem, at(along(point), collector + 2)); cells.push(...stem) }
-        for (const [row, values] of [[collector, sources.map(along)], [collector + 2, targets.map(along)]] as const) {
+        for (const point of targets) { const stem = [{ x: point.x, y: point.y }]; run(stem, at(along(point), collector + rise)); cells.push(...stem) }
+        for (const [row, values] of [[collector, sources.map(along)], [collector + rise, targets.map(along)]] as const) {
           const [from, to] = span(values)
           for (let a = from; a <= to; a++) cells.push(at(a, row))
         }
-        cells.push(at(junction, collector + 1))
+        for (let trunk = collector + 1; trunk < collector + rise; trunk++) cells.push(at(junction, trunk))
         if (!cells.every(free)) continue
+        const label = labelAt(collector, junction)
+        if (measured && !label) continue
         if (policyChecks++ >= 4) break search
         for (const plan of members) {
           const policy = stepPolicy(plan.relation), points = path(plan.source, plan.target, collector, junction)
           if (policy && points.some((point, index) => index > 0 && !policy(points[index - 1]!.x, points[index - 1]!.y, point.x, point.y))) continue search
         }
-        chosen = { collector, junction }
+        chosen = { collector, junction, ...(label ? { label } : {}) }
         break
       }
       if (!chosen) throw unavailable()
-      for (const plan of members) {
-        const points = path(plan.source, plan.target, chosen.collector, chosen.junction)
-        record(points)
-        retireReservations(plan.source, plan.target)
-        routes[plan.index] = sealRoute({ relation: plan.relation, source: plan.source, target: plan.target, points })
-        done.add(plan.index)
+      let label: BoxText | undefined
+      if (chosen.label) {
+        textBounds.push(chosen.label); occupy(chosen.label)
+        label = Object.freeze({ ...chosen.label, lines: Object.freeze([...lines!]), text: measured! })
       }
+      const paths = members.map(plan => path(plan.source, plan.target, chosen.collector, chosen.junction))
+      members.forEach((plan, index) => { record(paths[index]!); retireReservations(plan.source, plan.target) })
+      // Alike cardinalities are written once beside each shared port.
+      const captions = new Map<string, BoxText | undefined>()
+      const caption = (lines: readonly string[] | undefined, port: BoxPort, end: string) => {
+        const key = `${end}\0${gridKey(port)}`
+        if (!captions.has(key)) captions.set(key, text(lines, [port]))
+        return captions.get(key)
+      }
+      members.forEach((plan, index) => {
+        const fromLabel = caption(plan.relation.fromLines, plan.source, 'start'), toLabel = caption(plan.relation.toLines, plan.target, 'end')
+        routes[plan.index] = sealRoute({ relation: plan.relation, source: plan.source, target: plan.target, points: paths[index]!, ...(label ? { label } : {}), ...(fromLabel ? { fromLabel } : {}), ...(toLabel ? { toLabel } : {}) })
+        done.add(plan.index)
+      })
     }
     return done
   }
@@ -742,6 +782,22 @@ export function paintBoxBus(doc: TerminalDocument, routes: readonly BoxRoute[], 
     if (owner?.kind !== 'edge' || owner.id !== route.relation.id || owner.from !== route.relation.from || owner.to !== route.relation.to) throw new TypeError('Terminal route identity must match its allocated endpoints')
   })
   if (!paintTerminalBus(doc, routes.map((route, index) => ({ route: route.path, owner: owners[index]! })), ascii, dashed ? 'dashed' : 'solid')) throw new Error(`Allocated terminal bus ${owners[0]?.bundle} conflicts with admitted geometry`)
+}
+
+/** Paint each text a bus's members share once, owned by each member's own
+ * owner of that text (`owner`: the member's label or cardinality owner). */
+export function paintBoxBusText(doc: TerminalDocument, routes: readonly BoxRoute[], owner: (index: number, text: 'label' | 'fromLabel' | 'toLabel') => TerminalOwner): void {
+  const shared = new Map<BoxText, TerminalOwner[]>()
+  routes.forEach((route, index) => {
+    for (const key of ['label', 'fromLabel', 'toLabel'] as const) {
+      const text = route[key]
+      if (!text) continue
+      const holders = shared.get(text) ?? []
+      holders.push(doc.element(owner(index, key)))
+      shared.set(text, holders)
+    }
+  })
+  for (const [text, holders] of shared) doc.textBlock(text.x, text.y, text.text, { owner: holders[0], owners: holders, role: 'text', kind: 'text' })
 }
 
 export function paintBoxText(doc: TerminalDocument, text: BoxText | undefined, owner: TerminalOwner): void {

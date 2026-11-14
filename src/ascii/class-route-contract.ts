@@ -94,7 +94,9 @@ function inspectClassRoutes(routes: readonly BoxRoute[], boxes: readonly Termina
       }
     }
   }
-  const labels = routes.flatMap(route => [route.label, route.fromLabel, route.toLabel].filter((text): text is BoxText => !!text).map(text => ({ text, relation: route.relation.id })))
+  // A bus's members share each of its texts, checked once.
+  const shared = new Set<BoxText>()
+  const labels = routes.flatMap(route => [route.label, route.fromLabel, route.toLabel].filter((text): text is BoxText => !!text && !shared.has(text) && !!shared.add(text)).map(text => ({ text, relation: route.relation.id })))
   for (let i = 0; i < labels.length; i++) {
     const { text: label, relation } = labels[i]!
     for (const box of [...boxes, ...frames.map(frame => ({ x: frame.x, y: frame.y, width: frame.width, height: frame.labelLines.length }))]) {

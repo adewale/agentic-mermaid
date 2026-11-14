@@ -63,11 +63,14 @@ exhausts them within about five seconds. Card-routed families (class, ER,
 requirement, block, C4 and swimlane) widen their corridors and retry when
 greedy routing fills one, within one shared cell-search ceiling
 (`route-search`, 4 million cells); an all-pairs table of 20 entities with
-attributes renders, a labelled 20 × 20 bipartite table refuses. When a class
-diagram exhausts that ceiling, each closed complete-bipartite block of alike,
-unlabeled relations (`A0..A19 --> B0..B19`) draws as one bus instead: one port
+attributes renders, a 20 × 20 bipartite table whose relations carry distinct
+labels refuses. When a class diagram exhausts that ceiling, each closed
+complete-bipartite block of alike relations (`A0..A19 --> B0..B19`: one kind,
+and one label and cardinality text or none) draws as one bus instead: one port
 per card, collector and distributor runs meeting at one junction, and every
 relation keeping its own identity, endpoints, markers and connected owned ink.
+The block's shared label is written once beside the junction, and its shared
+cardinalities once beside each card's port.
 A block of at least 9 classes on each side cannot route relation by relation
 within the ceiling, so it draws as a bus at once, without that search first.
 A render that would exceed one throws
