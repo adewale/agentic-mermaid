@@ -22,7 +22,7 @@ import {
   type McpAdmissionResult,
 } from '../../src/mcp/admission.ts'
 import { decorateMcpResult, protocolNeutralMcpResult } from '../../src/mcp/tool-surface.ts'
-import { withRequestCpuAllowance } from '../../src/mcp/hosted-tool-runtime.ts'
+import { withRequestCpuAllowanceForIsolate } from '../../src/mcp/hosted-tool-runtime.ts'
 import { readCapped } from './execute-loader.ts'
 
 export const MAX_MCP_BODY_BYTES = 128 * 1024
@@ -288,10 +288,11 @@ function internalErrorType(error: unknown): McpInternalErrorType {
   return 'UnknownError'
 }
 
-/** One HTTP request's context: its layout calls run one at a time against
- * a shared CPU allowance, so a batch cannot multiply the per-call budget. */
+/** One HTTP request's context: its isolate calls run one at a time against
+ * a shared CPU allowance, so a batch cannot multiply the per-call budget.
+ * Calls light enough to run inline neither queue nor draw from it. */
 function contextForRequest(context: HostedMcpContext): HostedMcpContext {
-  return context.runTool ? { ...context, runTool: withRequestCpuAllowance(context.runTool) } : context
+  return context.runTool ? { ...context, runTool: withRequestCpuAllowanceForIsolate(context.runTool) } : context
 }
 
 /** Scope the execution telemetry callback to the item which started the

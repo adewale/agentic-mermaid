@@ -7,7 +7,7 @@
 import { describe, expect, test } from 'bun:test'
 import { createHash } from 'node:crypto'
 import { createLoaderExecute, createLoaderToolRunner, deployTag, DYNAMIC_WORKER_COMPAT_DATE, MAX_RESULT_BYTES, MAX_TOOL_RESULT_BYTES, readCapped, type WorkerLoaderBinding } from '../../website/src/execute-loader.ts'
-import { HOSTED_TOOL_CPU_MS, hostedToolNeedsIsolate, isolateHeavyHostedTools, runHostedTool, withRequestCpuAllowance, type HostedToolRequest } from '../mcp/hosted-tool-runtime.ts'
+import { HOSTED_TOOL_CPU_MS, hostedToolNeedsIsolate, isolateHeavyHostedTools, runHostedTool, withRequestCpuAllowance, withRequestCpuAllowanceForIsolate, type HostedToolRequest } from '../mcp/hosted-tool-runtime.ts'
 import { handleHostedRequest, type HostedMcpContext } from '../mcp/hosted-server.ts'
 import type { JsonRpcResponse } from '../mcp/protocol.ts'
 import { renderPortablePngGraphicalProjection } from '../png-graphical.ts'
@@ -365,6 +365,23 @@ describe('per-request CPU allowance', () => {
     expect(results.slice(0, 3)).toEqual([{ ok: true }, { ok: true }, { ok: true }])
     expect(results[3]).toMatchObject({ ok: false, error: { code: 'RENDER_TIMEOUT', message: expect.stringContaining('30000ms CPU allowance') } })
   })
+
+  test('over a split runner only isolate calls queue on and draw from the allowance', async () => {
+    let now = 0
+    const isolated: string[] = []
+    const light: HostedToolRequest = { name: 'verify', args: { source: 'flowchart LR\n  A --> B' } }
+    const heavy = (tag: string): HostedToolRequest => ({ name: 'verify', args: { source: `flowchart LR\n  ${tag} --> B` } })
+    const split = isolateHeavyHostedTools(async request => {
+      isolated.push(request.name === 'png_projection' ? request.source : String(request.args.source))
+      now += 31_000 // spends the whole allowance
+      return { ok: true }
+    }, request => request !== light)
+    const runner = withRequestCpuAllowanceForIsolate(split, 30_000, () => now)
+    expect(await runner(heavy('H1'), 10_000)).toEqual({ ok: true })
+    expect(await runner(light, 10_000)).toEqual(runHostedTool(light))
+    expect(await runner(heavy('H2'), 10_000)).toMatchObject({ ok: false, error: { code: 'RENDER_TIMEOUT', message: expect.stringContaining('30000ms CPU allowance') } })
+    expect(isolated).toEqual(['flowchart LR\n  H1 --> B'])
+  })
 })
 
 // Hybrid isolate use: only a diagram whose pre-layout cost estimate is heavy
@@ -389,6 +406,28 @@ describe('hosted isolate only for heavy layout', () => {
   ] as const)('%s (isolate: %p)', (_name, heavy, source) => {
     expect(hostedToolNeedsIsolate(call(source))).toBe(heavy)
     expect(hostedToolNeedsIsolate({ name: 'png_projection', source, renderOptions: {}, outputOptions: {} as never })).toBe(heavy)
+  })
+
+  // mutate and build lay out the diagram their ops produce; their ops
+  // declare nodes first, so model order puts every a before every b. 300
+  // composites each run start --> Xi --> Yi --> end inside their own scope,
+  // with distinct start and end pseudostates: 300 edges per layer gap and no
+  // fan of 2. One shared [*] node would give fans of 300 in and out: bundle
+  // work 900 × 600 = 540,000.
+  const composites = (n: number) => ['stateDiagram-v2', ...Array.from({ length: n }, (_, i) => `state C${i} {\n  [*] --> X${i}\n  X${i} --> Y${i}\n  Y${i} --> [*]\n}`)].join('\n')
+  const fanOps = (n: number, from = 0) => [
+    ...['a', 'b'].flatMap(side => Array.from({ length: n }, (_, i) => ({ kind: 'add_node', id: `${side}${i}`, label: `${side}${i}` })).filter((_, i) => side === 'b' || i >= from)),
+    ...Array.from({ length: n }, (_, i) => Array.from({ length: n }, (_, j) => ({ kind: 'add_edge', from: `a${i}`, to: `b${j}` }))).flat(),
+  ]
+  test.each([
+    ['300 composites each with their own [*]', false, call(composites(300))],
+    ['mutate adding a 20 × 20 fan to a small flowchart', true, { name: 'mutate', args: { source: 'flowchart TD\n  a0', ops: fanOps(20, 1) } }],
+    ['mutate adding one edge to a small flowchart', false, { name: 'mutate', args: { source: 'flowchart TD\n  a0 --> b0', ops: [{ kind: 'add_edge', from: 'b0', to: 'c0' }] } }],
+    ['mutate whose ops fail is judged on its source', true, { name: 'mutate', args: { source: cartesian(20), ops: [{ kind: 'remove_node', id: 'missing' }] } }],
+    ['build of a 20 × 20 fan', true, { name: 'build', args: { family: 'flowchart', ops: fanOps(20) } }],
+    ['build of a 19 × 19 fan', false, { name: 'build', args: { family: 'flowchart', ops: fanOps(19) } }],
+  ] as const)('%s (isolate: %p)', (_name, heavy, request) => {
+    expect(hostedToolNeedsIsolate(request as HostedToolRequest)).toBe(heavy)
   })
 
   test('light calls run inline without starting the isolate; heavy calls go to it', async () => {

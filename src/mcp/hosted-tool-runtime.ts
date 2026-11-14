@@ -9,6 +9,10 @@ import { projectRenderErrorDiagnostic } from '../render-error-diagnostic.ts'
 import type { PortablePngOutputOptions } from '../png-contract.ts'
 import type { RenderOptions } from '../types.ts'
 import { parseRegisteredMermaid } from '../agent/parse.ts'
+import { applyMutationBatch } from '../agent/mutate.ts'
+import { buildChecked } from '../agent/apply.ts'
+import { hasOpSchema } from '../agent/op-schema.ts'
+import type { ParsedDiagram } from '../agent/types.ts'
 import { estimateLayoutCost, layoutCostExceedsThresholds } from '../layout/layout-cost.ts'
 
 /** One hosted call's layout work. PNG lays out in the isolate and rasterizes
@@ -58,12 +62,10 @@ type EstimatedGraph = { nodes: Map<string, unknown>; edges: Array<{ source: stri
 type StateScope = { states?: readonly StateScopeNode[]; transitions?: ReadonlyArray<{ from: string; to: string }>; regions?: readonly StateScope[] }
 type StateScopeNode = StateScope & { id: string }
 
-/** Nodes and edges of a family that lays out on ELK, read from the parsed
- * body before any layout runs; other families return undefined. */
-function estimatedGraph(source: string): EstimatedGraph | undefined {
-  const parsed = parseRegisteredMermaid(source)
-  if (!parsed.ok) return undefined
-  const body = parsed.value.body as { kind: string } & Record<string, unknown>
+/** Nodes and edges of a diagram whose family lays out on ELK, read from its
+ * parsed body before any layout runs; other families return undefined. */
+function estimatedGraph(diagram: ParsedDiagram): EstimatedGraph | undefined {
+  const body = diagram.body as { kind: string } & Record<string, unknown>
   const graph: EstimatedGraph = { nodes: new Map(), edges: [] }
   const add = (items: ReadonlyArray<{ id: string }>, links: ReadonlyArray<{ from: string; to: string }>) => {
     for (const item of items) graph.nodes.set(item.id, item)
@@ -74,8 +76,15 @@ function estimatedGraph(source: string): EstimatedGraph | undefined {
     case 'class': add(body.classes as Array<{ id: string }>, body.relations as Array<{ from: string; to: string }>); return graph
     case 'er': add(body.entities as Array<{ id: string }>, body.relations as Array<{ from: string; to: string }>); return graph
     case 'state': {
+      // Each scope lays out its own start and end pseudostates, and its
+      // start comes before the states it leads to.
+      let scopes = 0
       const visit = (scope: StateScope) => {
-        add(scope.states ?? [], scope.transitions ?? [])
+        const own = scopes++, start = `[*]\u0000start\u0000${own}`, end = `[*]\u0000end\u0000${own}`
+        const transitions = scope.transitions ?? []
+        if (transitions.some(transition => transition.from === '[*]')) graph.nodes.set(start, undefined)
+        add(scope.states ?? [], [])
+        for (const { from, to } of transitions) graph.edges.push({ source: from === '[*]' ? start : from, target: to === '[*]' ? end : to })
         for (const node of scope.states ?? []) visit(node)
         for (const region of scope.regions ?? []) visit(region)
       }
@@ -86,28 +95,64 @@ function estimatedGraph(source: string): EstimatedGraph | undefined {
   }
 }
 
+/** The diagram a call lays out: its source, or for mutate and build the
+ * diagram its ops produce (applied to the model without layout). */
+function diagramForEstimate(request: HostedToolRequest): ParsedDiagram | undefined {
+  if (request.name === 'png_projection') return parsedOrUndefined(request.source)
+  const { args } = request
+  if (request.name === 'build') {
+    if (typeof args.family !== 'string' || !hasOpSchema(args.family) || !Array.isArray(args.ops)) return undefined
+    const built = buildChecked(args.family, args.ops)
+    return built.ok ? built.value : undefined
+  }
+  if (typeof args.source !== 'string') return undefined
+  const parsed = parsedOrUndefined(args.source)
+  if (!parsed || request.name !== 'mutate' || !Array.isArray(args.ops)) return parsed
+  const edited = applyMutationBatch(parsed, args.ops)
+  return edited.ok ? edited.value : parsed
+}
+
+function parsedOrUndefined(source: string): ParsedDiagram | undefined {
+  const parsed = parseRegisteredMermaid(source)
+  return parsed.ok ? parsed.value : undefined
+}
+
 /**
  * Whether a call's diagram is heavy enough to need the CPU-bounded isolate:
  * a family that lays out on ELK whose pre-layout cost estimate reaches a
  * layout-cost threshold (the same estimate that relaxes ELK's options). The
- * estimate depends only on the source, so the same call always takes the
+ * estimate depends only on the request, so the same call always takes the
  * same path. Everything else runs inline, as it did before the isolate.
  */
 export function hostedToolNeedsIsolate(request: HostedToolRequest): boolean {
-  const source = request.name === 'png_projection' ? request.source : request.args?.source
-  if (typeof source !== 'string') return false
   try {
-    const graph = estimatedGraph(source)
+    const diagram = diagramForEstimate(request)
+    const graph = diagram && estimatedGraph(diagram)
     return graph !== undefined && layoutCostExceedsThresholds(estimateLayoutCost(graph))
   } catch {
     return false
   }
 }
 
+/** The parts of a runner built by isolateHeavyHostedTools. */
+const splitRunners = new WeakMap<HostedToolRunner, { isolate: HostedToolRunner; needsIsolate: (request: HostedToolRequest) => boolean }>()
+
 /** Run heavy calls through `isolate` and every other call inline. Inline
  * calls cost what they did before the isolate existed: no extra request. */
 export function isolateHeavyHostedTools(isolate: HostedToolRunner, needsIsolate: (request: HostedToolRequest) => boolean = hostedToolNeedsIsolate): HostedToolRunner {
-  return (request, cpuMs, onStart) => needsIsolate(request) ? isolate(request, cpuMs, onStart) : Promise.resolve(runHostedTool(request))
+  const run: HostedToolRunner = (request, cpuMs, onStart) => needsIsolate(request) ? isolate(request, cpuMs, onStart) : Promise.resolve(runHostedTool(request))
+  splitRunners.set(run, { isolate, needsIsolate })
+  return run
+}
+
+/** One HTTP request's runner. Only isolate calls queue on and draw from the
+ * request's CPU allowance; calls the split runs inline neither wait nor
+ * count. A runner that is not a split is treated as all isolate. */
+export function withRequestCpuAllowanceForIsolate(run: HostedToolRunner, allowanceMs = HOSTED_REQUEST_CPU_MS, now: () => number = Date.now): HostedToolRunner {
+  const split = splitRunners.get(run)
+  return split
+    ? isolateHeavyHostedTools(withRequestCpuAllowance(split.isolate, allowanceMs, now), split.needsIsolate)
+    : withRequestCpuAllowance(run, allowanceMs, now)
 }
 
 /**
