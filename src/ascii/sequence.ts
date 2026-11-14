@@ -357,14 +357,18 @@ export function renderSequenceDiagramTerminal(input: SequenceDiagram, config: As
     const end = (destroyCrosses.get(index)?.y ?? footerY + 1) - 1
     for (let y = start; y <= end; y++) if (!reservedForeground(llX[index]!, y)) stroke(llX[index]!, y, 5, 'line', element)
   })
-  // Activations are owned spans, drawn behind opaque labels and notes.
+  // Activations are owned spans, drawn behind opaque labels and notes. A
+  // destroyed participant's activation ends with its lifeline, on the row
+  // above the cross, however late it is closed.
   const activationStacks = new Map<string, Array<{ y: number; id: number }>>()
   let activationIndex = 0
-  const activation = (id: string, y: number, enable: boolean) => {
+  const activation = (id: string, closeY: number, enable: boolean) => {
     const stack = activationStacks.get(id) ?? []
-    if (enable) stack.push({ y, id: activationIndex++ })
+    if (enable) stack.push({ y: closeY, id: activationIndex++ })
     else if (stack.length) {
       const opened = stack.pop()!, start = opened.y, ai = actorIndex.get(id)!, x = llX[ai]! + stack.length
+      const crossY = destroyCrosses.get(ai)?.y
+      const y = crossY !== undefined && start < crossY ? Math.min(closeY, crossY - 1) : closeY
       const element = owner(generated(`activation:${opened.id}`), 'band', { id, kind: 'node' })
       doc.region(element, { x: x - 1, y: start, width: 3, height: Math.max(1, y - start + 1) })
       for (let row = start; row <= y; row++) for (const column of [x - 1, x + 1]) if (!reservedForeground(column, row)) stroke(column, row, 5, 'line', element)

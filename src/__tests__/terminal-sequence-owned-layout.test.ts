@@ -234,25 +234,32 @@ end`)
     }
   })
 
-  // [unicode, ascii] glyphs each message endpoint owns on its lifeline.
+  // [unicode, ascii] glyphs each message endpoint owns on its lifeline, after
+  // the given lines ahead of the `destroy`.
   test.each([
-    ['a filled head into the destroyed receiver', 'A->>C: bye', { end: ['▶', '>'] }],
-    ['an async head into the destroyed receiver', 'A-)C: bye', { end: ['▷', '>'] }],
-    ['a central head into the destroyed receiver', 'A->>()C: bye', { end: ['○', 'o'] }],
-    ['a cross head into the destroyed receiver', 'A-xC: bye', { end: ['X', 'X'] }],
-    ['a bidirectional message from the destroyed sender', 'C<<->>A: bye', { start: ['▶', '>'], end: ['◀', '<'] }],
-    ['a self-message by the destroyed participant', 'C->>C: bye', { end: ['◀', '<'] }],
-    ['a par branch followed by a note', 'par first\nA->>C: bye\nNote over C: after\nand second\nB->>A: other\nend', { end: ['▶', '>'] }],
-  ] as const)('ends a destroyed lifeline with its own cross below %s', (_name, body, heads) => {
+    ['a filled head into the destroyed receiver', 'A->>C: bye', { end: ['▶', '>'] }, ''],
+    ['an async head into the destroyed receiver', 'A-)C: bye', { end: ['▷', '>'] }, ''],
+    ['a central head into the destroyed receiver', 'A->>()C: bye', { end: ['○', 'o'] }, ''],
+    ['a cross head into the destroyed receiver', 'A-xC: bye', { end: ['X', 'X'] }, ''],
+    ['a bidirectional message from the destroyed sender', 'C<<->>A: bye', { start: ['▶', '>'], end: ['◀', '<'] }, ''],
+    ['a self-message by the destroyed participant', 'C->>C: bye', { end: ['◀', '<'] }, ''],
+    ['a par branch followed by a note', 'par first\nA->>C: bye\nNote over C: after\nand second\nB->>A: other\nend', { end: ['▶', '>'] }, ''],
+    // Activations still open on the destroyed participant end with its lifeline.
+    ['an activation the destroy message opens', 'A->>+C: bye', { end: ['▶', '>'] }, ''],
+    ['an activation opened before the destroy', 'A->>C: bye', { end: ['▶', '>'] }, 'A->>+C: open\n'],
+    ['nested activations around a destroyed self-message', 'C->>C: bye', { end: ['◀', '<'] }, 'A->>+C: open\nactivate C\n'],
+    ['an activation closed after the destroy', 'A->>C: bye\nA->>B: later\ndeactivate C', { end: ['▶', '>'] }, 'A->>+C: open\n'],
+  ] as const)('ends a destroyed lifeline with its own cross below %s', (_name, body, heads, opened) => {
     for (const useAscii of [false, true]) {
-      const { doc, region } = render(`destroy C\n${body}\nB->>A: tail`, useAscii)
-      const ports = region('message:0').ports!
+      const { doc, region } = render(`${opened}destroy C\n${body}\nB->>A: tail`, useAscii)
+      const destroyed = `message:${opened.split('\n').filter(line => line.includes('->>')).length}`
+      const ports = region(destroyed).ports!
       for (const [end, glyphs] of Object.entries(heads)) {
         const port = ports.find(item => item.end === end)!
         const cell = doc.cell(port.x, port.y)!
         expect(cell.kind).toBe('marker')
         expect(cell.glyph).toBe(glyphs[useAscii ? 1 : 0])
-        expect(cell.owners.map(owner => owner.id)).toEqual(['message:0'])
+        expect(cell.owners.map(owner => owner.id)).toEqual([destroyed])
       }
       const crosses = [...doc.entries()].filter(([, , cell]) => cell.kind === 'marker' && cell.owners.some(owner => owner.id === 'C'))
       expect(crosses).toHaveLength(1)
@@ -264,6 +271,10 @@ end`)
       expect(x).toBe(contacts[0]!.x)
       expect(y).toBe(Math.max(...contacts.map(item => item.y)) + 1)
       expect([...doc.entries()].filter(([, row, cell]) => row > y && cell.owners.some(owner => owner.id === 'C'))).toEqual([])
+      // Owned activation ink ends on the row above the cross, nothing below.
+      const activationRows = [...doc.entries()].flatMap(([, row, cell]) => cell.owners.some(owner => owner.kind === 'band' && owner.parent?.id === 'C') ? [row] : [])
+      if (/\+C|activate C/.test(opened + body)) expect(Math.max(...activationRows)).toBe(y - 1)
+      else expect(activationRows).toEqual([])
       expect(doc.diagnostics.filter(item => /COLLISION|OVERLAP/.test(item.code))).toEqual([])
     }
   })
