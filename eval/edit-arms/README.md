@@ -183,3 +183,29 @@ per-run assumption (see PREREGISTRATION.md §8).
   when they verify. `am mutate` re-serializes a structured body canonically
   (`--preserve-source` applies only to opaque bodies), so arm B's preservation
   depends on whether agents keep that output or patch the original text.
+
+## Pilot (2026-11-13) and why the full run is deferred
+
+Ten seed-1 tasks × arms A and B × one run, dispatched to fresh Claude Sonnet
+subagents (exploratory, not the preregistered confirmatory run):
+
+| Arm | Success | Collateral damage | Untouched lines preserved |
+| --- | ---: | ---: | ---: |
+| A — text edit + verify | 10/10 | 0/10 | 100% |
+| B — typed path | 8/10 | 2/10 | 33% (comments 0%) |
+
+B − A preservation was −67 points (bootstrap 95% CI −88 to −43); the damage
+difference (+20 points, CI 0 to +50) does not exclude zero at this size. Both
+damaged B runs come from re-serialization, not from the model: `am mutate`
+writes structured bodies canonically and `--preserve-source` refuses them, so
+one run rewrote a quoted subgraph title into a new subgraph identity and the
+other wrote `<` as `#lt;` (displayed the same, recorded differently by
+Mermaid). Every B run dropped the diagram's comments.
+
+The confirmatory run is deferred: the pilot already shows the typed path losing
+on the primary metric for a known, fixable reason, so its result is predictable
+until typed edits preserve untouched source. Rerun this pilot after that change
+as the acceptance check. Cost note: pilot runs averaged ~77k tokens, almost all
+of it the Claude Code subagent's fixed context rather than the task; a runner
+that calls a model API with only the request file would cost a fraction of that,
+so re-estimate before any full run.
