@@ -1,0 +1,220 @@
+[
+  {
+    "id": "diagnostic:chain100",
+    "backend": "agentic",
+    "emissionWork": [
+      {
+        "operations": 194374,
+        "exhausted": false,
+        "uncertain": false,
+        "closedMarkerContext": false
+      }
+    ],
+    "returned": true,
+    "svgExact4cdd": true,
+    "proof": {
+      "version": 1,
+      "unit": "px",
+      "scope": "native-scene",
+      "status": "passed",
+      "viewport": {
+        "x": 0,
+        "y": 0,
+        "width": 170.115,
+        "height": 8522
+      },
+      "attempts": 1,
+      "repairs": [],
+      "coverage": {
+        "measured": 299,
+        "unmeasured": 0,
+        "preparedText": 100,
+        "fallbackText": 0,
+        "conditional": 0
+      },
+      "checks": {
+        "primitives": 302,
+        "labels": 100,
+        "occlusionPairs": 710,
+        "maxOcclusionPairs": 100000,
+        "operations": 225301,
+        "maxOperations": 400000,
+        "markers": 85
+      },
+      "issues": [],
+      "limitations": [
+        "Prepared occupied text regions bound native geometry; exact glyph ink depends on the resolved font.",
+        "Declared transparency, intentional data-mark overlap and externally modified CSS are outside this proof."
+      ],
+      "outputDigest": "fnv1a64:a94d1220d549c9cf"
+    }
+  },
+  {
+    "id": "diagnostic:chain100",
+    "backend": "elk",
+    "emissionWork": [
+      {
+        "operations": 194374,
+        "exhausted": false,
+        "uncertain": false,
+        "closedMarkerContext": false
+      }
+    ],
+    "returned": true,
+    "svgExact4cdd": true,
+    "proof": {
+      "version": 1,
+      "unit": "px",
+      "scope": "native-scene",
+      "status": "passed",
+      "viewport": {
+        "x": 0,
+        "y": 0,
+        "width": 170.115,
+        "height": 8522
+      },
+      "attempts": 1,
+      "repairs": [],
+      "coverage": {
+        "measured": 299,
+        "unmeasured": 0,
+        "preparedText": 100,
+        "fallbackText": 0,
+        "conditional": 0
+      },
+      "checks": {
+        "primitives": 302,
+        "labels": 100,
+        "occlusionPairs": 710,
+        "maxOcclusionPairs": 100000,
+        "operations": 225301,
+        "maxOperations": 400000,
+        "markers": 85
+      },
+      "issues": [],
+      "limitations": [
+        "Prepared occupied text regions bound native geometry; exact glyph ink depends on the resolved font.",
+        "Declared transparency, intentional data-mark overlap and externally modified CSS are outside this proof."
+      ],
+      "outputDigest": "fnv1a64:a94d1220d549c9cf"
+    }
+  },
+  {
+    "id": "diagnostic:chain300",
+    "backend": "agentic",
+    "emissionWork": [
+      {
+        "operations": 398428,
+        "exhausted": true,
+        "uncertain": true,
+        "closedMarkerContext": false
+      }
+    ],
+    "returned": true,
+    "svgExact4cdd": true,
+    "proof": {
+      "version": 1,
+      "unit": "px",
+      "scope": "native-scene",
+      "status": "unverified",
+      "viewport": {
+        "x": 0,
+        "y": 0,
+        "width": 177.525,
+        "height": 25502.00000000011
+      },
+      "attempts": 1,
+      "repairs": [],
+      "coverage": {
+        "measured": 899,
+        "unmeasured": 0,
+        "preparedText": 300,
+        "fallbackText": 0,
+        "conditional": 0
+      },
+      "checks": {
+        "primitives": 902,
+        "labels": 300,
+        "occlusionPairs": 0,
+        "maxOcclusionPairs": 100000,
+        "operations": 400000,
+        "maxOperations": 400000,
+        "markers": 0
+      },
+      "issues": [
+        {
+          "code": "OUTPUT_SCOPE",
+          "message": "Emitted document context or marker resource differs from retained paint evidence"
+        },
+        {
+          "code": "CHECK_BUDGET",
+          "message": "Occlusion checking reached its 100000-pair or 400000-operation limit"
+        }
+      ],
+      "limitations": [
+        "Prepared occupied text regions bound native geometry; exact glyph ink depends on the resolved font.",
+        "Declared transparency, intentional data-mark overlap and externally modified CSS are outside this proof."
+      ],
+      "outputDigest": "fnv1a64:f35a06eeedcba3b4"
+    }
+  },
+  {
+    "id": "diagnostic:chain300",
+    "backend": "elk",
+    "emissionWork": [
+      {
+        "operations": 397082,
+        "exhausted": true,
+        "uncertain": true,
+        "closedMarkerContext": false
+      }
+    ],
+    "returned": true,
+    "svgExact4cdd": true,
+    "proof": {
+      "version": 1,
+      "unit": "px",
+      "scope": "native-scene",
+      "status": "unverified",
+      "viewport": {
+        "x": 0,
+        "y": 0,
+        "width": 177.525,
+        "height": 25502
+      },
+      "attempts": 1,
+      "repairs": [],
+      "coverage": {
+        "measured": 899,
+        "unmeasured": 0,
+        "preparedText": 300,
+        "fallbackText": 0,
+        "conditional": 0
+      },
+      "checks": {
+        "primitives": 902,
+        "labels": 300,
+        "occlusionPairs": 0,
+        "maxOcclusionPairs": 100000,
+        "operations": 400000,
+        "maxOperations": 400000,
+        "markers": 3
+      },
+      "issues": [
+        {
+          "code": "OUTPUT_SCOPE",
+          "message": "Emitted document context or marker resource differs from retained paint evidence"
+        },
+        {
+          "code": "CHECK_BUDGET",
+          "message": "Occlusion checking reached its 100000-pair or 400000-operation limit"
+        }
+      ],
+      "limitations": [
+        "Prepared occupied text regions bound native geometry; exact glyph ink depends on the resolved font.",
+        "Declared transparency, intentional data-mark overlap and externally modified CSS are outside this proof."
+      ],
+      "outputDigest": "fnv1a64:e50408574ac8b030"
+    }
+  }
+]

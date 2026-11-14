@@ -1,0 +1,2058 @@
+[
+  {
+    "stage": "group-literal-stage",
+    "id": "diagnostic:chain100",
+    "backend": "agentic",
+    "returned": true,
+    "svgExact4cdd": true,
+    "stages": [
+      {
+        "phase": "after-producer",
+        "operations": 124761,
+        "exhausted": false
+      },
+      {
+        "phase": "after-composition",
+        "operations": 125778,
+        "exhausted": false
+      }
+    ],
+    "emissionWork": [
+      {
+        "operations": 195061,
+        "exhausted": false,
+        "uncertain": false,
+        "closedMarkerContext": false
+      },
+      {
+        "operations": 195061,
+        "exhausted": false,
+        "uncertain": false,
+        "closedMarkerContext": false
+      },
+      {
+        "operations": 195061,
+        "exhausted": false,
+        "uncertain": false,
+        "closedMarkerContext": false
+      },
+      {
+        "operations": 195061,
+        "exhausted": false,
+        "uncertain": false,
+        "closedMarkerContext": false
+      },
+      {
+        "operations": 195061,
+        "exhausted": false,
+        "uncertain": false,
+        "closedMarkerContext": false
+      },
+      {
+        "operations": 195061,
+        "exhausted": false,
+        "uncertain": false,
+        "closedMarkerContext": false
+      },
+      {
+        "operations": 195061,
+        "exhausted": false,
+        "uncertain": false,
+        "closedMarkerContext": false
+      },
+      {
+        "operations": 195061,
+        "exhausted": false,
+        "uncertain": false,
+        "closedMarkerContext": false
+      },
+      {
+        "operations": 195061,
+        "exhausted": false,
+        "uncertain": false,
+        "closedMarkerContext": false
+      },
+      {
+        "operations": 195061,
+        "exhausted": false,
+        "uncertain": false,
+        "closedMarkerContext": false
+      },
+      {
+        "operations": 195061,
+        "exhausted": false,
+        "uncertain": false,
+        "closedMarkerContext": false
+      },
+      {
+        "operations": 195061,
+        "exhausted": false,
+        "uncertain": false,
+        "closedMarkerContext": false
+      },
+      {
+        "operations": 195061,
+        "exhausted": false,
+        "uncertain": false,
+        "closedMarkerContext": false
+      },
+      {
+        "operations": 195061,
+        "exhausted": false,
+        "uncertain": false,
+        "closedMarkerContext": false
+      },
+      {
+        "operations": 195061,
+        "exhausted": false,
+        "uncertain": false,
+        "closedMarkerContext": false
+      },
+      {
+        "operations": 195061,
+        "exhausted": false,
+        "uncertain": false,
+        "closedMarkerContext": false
+      },
+      {
+        "operations": 195061,
+        "exhausted": false,
+        "uncertain": false,
+        "closedMarkerContext": false
+      },
+      {
+        "operations": 195061,
+        "exhausted": false,
+        "uncertain": false,
+        "closedMarkerContext": false
+      },
+      {
+        "operations": 195061,
+        "exhausted": false,
+        "uncertain": false,
+        "closedMarkerContext": false
+      },
+      {
+        "operations": 195061,
+        "exhausted": false,
+        "uncertain": false,
+        "closedMarkerContext": false
+      },
+      {
+        "operations": 195061,
+        "exhausted": false,
+        "uncertain": false,
+        "closedMarkerContext": false
+      },
+      {
+        "operations": 195061,
+        "exhausted": false,
+        "uncertain": false,
+        "closedMarkerContext": false
+      },
+      {
+        "operations": 195061,
+        "exhausted": false,
+        "uncertain": false,
+        "closedMarkerContext": false
+      },
+      {
+        "operations": 195061,
+        "exhausted": false,
+        "uncertain": false,
+        "closedMarkerContext": false
+      },
+      {
+        "operations": 195061,
+        "exhausted": false,
+        "uncertain": false,
+        "closedMarkerContext": false
+      },
+      {
+        "operations": 195061,
+        "exhausted": false,
+        "uncertain": false,
+        "closedMarkerContext": false
+      },
+      {
+        "operations": 195061,
+        "exhausted": false,
+        "uncertain": false,
+        "closedMarkerContext": false
+      },
+      {
+        "operations": 195061,
+        "exhausted": false,
+        "uncertain": false,
+        "closedMarkerContext": false
+      },
+      {
+        "operations": 195061,
+        "exhausted": false,
+        "uncertain": false,
+        "closedMarkerContext": false
+      },
+      {
+        "operations": 195061,
+        "exhausted": false,
+        "uncertain": false,
+        "closedMarkerContext": false
+      },
+      {
+        "operations": 195061,
+        "exhausted": false,
+        "uncertain": false,
+        "closedMarkerContext": false
+      },
+      {
+        "operations": 195061,
+        "exhausted": false,
+        "uncertain": false,
+        "closedMarkerContext": false
+      },
+      {
+        "operations": 195061,
+        "exhausted": false,
+        "uncertain": false,
+        "closedMarkerContext": false
+      },
+      {
+        "operations": 195061,
+        "exhausted": false,
+        "uncertain": false,
+        "closedMarkerContext": false
+      },
+      {
+        "operations": 195061,
+        "exhausted": false,
+        "uncertain": false,
+        "closedMarkerContext": false
+      },
+      {
+        "operations": 195061,
+        "exhausted": false,
+        "uncertain": false,
+        "closedMarkerContext": false
+      },
+      {
+        "operations": 195061,
+        "exhausted": false,
+        "uncertain": false,
+        "closedMarkerContext": false
+      },
+      {
+        "operations": 195061,
+        "exhausted": false,
+        "uncertain": false,
+        "closedMarkerContext": false
+      },
+      {
+        "operations": 195061,
+        "exhausted": false,
+        "uncertain": false,
+        "closedMarkerContext": false
+      },
+      {
+        "operations": 195061,
+        "exhausted": false,
+        "uncertain": false,
+        "closedMarkerContext": false
+      },
+      {
+        "operations": 195061,
+        "exhausted": false,
+        "uncertain": false,
+        "closedMarkerContext": false
+      },
+      {
+        "operations": 195061,
+        "exhausted": false,
+        "uncertain": false,
+        "closedMarkerContext": false
+      },
+      {
+        "operations": 195061,
+        "exhausted": false,
+        "uncertain": false,
+        "closedMarkerContext": false
+      },
+      {
+        "operations": 195061,
+        "exhausted": false,
+        "uncertain": false,
+        "closedMarkerContext": false
+      },
+      {
+        "operations": 195061,
+        "exhausted": false,
+        "uncertain": false,
+        "closedMarkerContext": false
+      },
+      {
+        "operations": 195061,
+        "exhausted": false,
+        "uncertain": false,
+        "closedMarkerContext": false
+      },
+      {
+        "operations": 195061,
+        "exhausted": false,
+        "uncertain": false,
+        "closedMarkerContext": false
+      },
+      {
+        "operations": 195061,
+        "exhausted": false,
+        "uncertain": false,
+        "closedMarkerContext": false
+      },
+      {
+        "operations": 195061,
+        "exhausted": false,
+        "uncertain": false,
+        "closedMarkerContext": false
+      },
+      {
+        "operations": 195061,
+        "exhausted": false,
+        "uncertain": false,
+        "closedMarkerContext": false
+      },
+      {
+        "operations": 195061,
+        "exhausted": false,
+        "uncertain": false,
+        "closedMarkerContext": false
+      },
+      {
+        "operations": 195061,
+        "exhausted": false,
+        "uncertain": false,
+        "closedMarkerContext": false
+      },
+      {
+        "operations": 195061,
+        "exhausted": false,
+        "uncertain": false,
+        "closedMarkerContext": false
+      },
+      {
+        "operations": 195061,
+        "exhausted": false,
+        "uncertain": false,
+        "closedMarkerContext": false
+      },
+      {
+        "operations": 195061,
+        "exhausted": false,
+        "uncertain": false,
+        "closedMarkerContext": false
+      },
+      {
+        "operations": 195061,
+        "exhausted": false,
+        "uncertain": false,
+        "closedMarkerContext": false
+      },
+      {
+        "operations": 195061,
+        "exhausted": false,
+        "uncertain": false,
+        "closedMarkerContext": false
+      },
+      {
+        "operations": 195061,
+        "exhausted": false,
+        "uncertain": false,
+        "closedMarkerContext": false
+      },
+      {
+        "operations": 195061,
+        "exhausted": false,
+        "uncertain": false,
+        "closedMarkerContext": false
+      },
+      {
+        "operations": 195061,
+        "exhausted": false,
+        "uncertain": false,
+        "closedMarkerContext": false
+      },
+      {
+        "operations": 195061,
+        "exhausted": false,
+        "uncertain": false,
+        "closedMarkerContext": false
+      },
+      {
+        "operations": 195061,
+        "exhausted": false,
+        "uncertain": false,
+        "closedMarkerContext": false
+      },
+      {
+        "operations": 195061,
+        "exhausted": false,
+        "uncertain": false,
+        "closedMarkerContext": false
+      },
+      {
+        "operations": 195061,
+        "exhausted": false,
+        "uncertain": false,
+        "closedMarkerContext": false
+      },
+      {
+        "operations": 195061,
+        "exhausted": false,
+        "uncertain": false,
+        "closedMarkerContext": false
+      },
+      {
+        "operations": 195061,
+        "exhausted": false,
+        "uncertain": false,
+        "closedMarkerContext": false
+      },
+      {
+        "operations": 195061,
+        "exhausted": false,
+        "uncertain": false,
+        "closedMarkerContext": false
+      },
+      {
+        "operations": 195061,
+        "exhausted": false,
+        "uncertain": false,
+        "closedMarkerContext": false
+      },
+      {
+        "operations": 195061,
+        "exhausted": false,
+        "uncertain": false,
+        "closedMarkerContext": false
+      },
+      {
+        "operations": 195061,
+        "exhausted": false,
+        "uncertain": false,
+        "closedMarkerContext": false
+      },
+      {
+        "operations": 195061,
+        "exhausted": false,
+        "uncertain": false,
+        "closedMarkerContext": false
+      },
+      {
+        "operations": 195061,
+        "exhausted": false,
+        "uncertain": false,
+        "closedMarkerContext": false
+      },
+      {
+        "operations": 195061,
+        "exhausted": false,
+        "uncertain": false,
+        "closedMarkerContext": false
+      },
+      {
+        "operations": 195061,
+        "exhausted": false,
+        "uncertain": false,
+        "closedMarkerContext": false
+      },
+      {
+        "operations": 195061,
+        "exhausted": false,
+        "uncertain": false,
+        "closedMarkerContext": false
+      },
+      {
+        "operations": 195061,
+        "exhausted": false,
+        "uncertain": false,
+        "closedMarkerContext": false
+      },
+      {
+        "operations": 195061,
+        "exhausted": false,
+        "uncertain": false,
+        "closedMarkerContext": false
+      },
+      {
+        "operations": 195061,
+        "exhausted": false,
+        "uncertain": false,
+        "closedMarkerContext": false
+      },
+      {
+        "operations": 195061,
+        "exhausted": false,
+        "uncertain": false,
+        "closedMarkerContext": false
+      },
+      {
+        "operations": 195061,
+        "exhausted": false,
+        "uncertain": false,
+        "closedMarkerContext": false
+      },
+      {
+        "operations": 195061,
+        "exhausted": false,
+        "uncertain": false,
+        "closedMarkerContext": false
+      },
+      {
+        "operations": 195061,
+        "exhausted": false,
+        "uncertain": false,
+        "closedMarkerContext": false
+      },
+      {
+        "operations": 195061,
+        "exhausted": false,
+        "uncertain": false,
+        "closedMarkerContext": false
+      },
+      {
+        "operations": 195061,
+        "exhausted": false,
+        "uncertain": false,
+        "closedMarkerContext": false
+      },
+      {
+        "operations": 195061,
+        "exhausted": false,
+        "uncertain": false,
+        "closedMarkerContext": false
+      },
+      {
+        "operations": 195061,
+        "exhausted": false,
+        "uncertain": false,
+        "closedMarkerContext": false
+      },
+      {
+        "operations": 195061,
+        "exhausted": false,
+        "uncertain": false,
+        "closedMarkerContext": false
+      },
+      {
+        "operations": 195061,
+        "exhausted": false,
+        "uncertain": false,
+        "closedMarkerContext": false
+      },
+      {
+        "operations": 195061,
+        "exhausted": false,
+        "uncertain": false,
+        "closedMarkerContext": false
+      },
+      {
+        "operations": 195061,
+        "exhausted": false,
+        "uncertain": false,
+        "closedMarkerContext": false
+      },
+      {
+        "operations": 195061,
+        "exhausted": false,
+        "uncertain": false,
+        "closedMarkerContext": false
+      },
+      {
+        "operations": 195061,
+        "exhausted": false,
+        "uncertain": false,
+        "closedMarkerContext": false
+      },
+      {
+        "operations": 195061,
+        "exhausted": false,
+        "uncertain": false,
+        "closedMarkerContext": false
+      },
+      {
+        "operations": 195061,
+        "exhausted": false,
+        "uncertain": false,
+        "closedMarkerContext": false
+      },
+      {
+        "operations": 195061,
+        "exhausted": false,
+        "uncertain": false,
+        "closedMarkerContext": false
+      },
+      {
+        "operations": 195061,
+        "exhausted": false,
+        "uncertain": false,
+        "closedMarkerContext": false
+      },
+      {
+        "operations": 195061,
+        "exhausted": false,
+        "uncertain": false,
+        "closedMarkerContext": false
+      },
+      {
+        "operations": 195061,
+        "exhausted": false,
+        "uncertain": false,
+        "closedMarkerContext": false
+      },
+      {
+        "operations": 195061,
+        "exhausted": false,
+        "uncertain": false,
+        "closedMarkerContext": false
+      },
+      {
+        "operations": 195061,
+        "exhausted": false,
+        "uncertain": false,
+        "closedMarkerContext": false
+      }
+    ],
+    "status": "passed",
+    "checks": {
+      "primitives": 302,
+      "labels": 100,
+      "occlusionPairs": 814,
+      "maxOcclusionPairs": 100000,
+      "operations": 230586,
+      "maxOperations": 400000,
+      "markers": 99
+    },
+    "coverage": {
+      "measured": 299,
+      "unmeasured": 0,
+      "preparedText": 100,
+      "fallbackText": 0,
+      "conditional": 0
+    },
+    "issues": []
+  },
+  {
+    "stage": "group-literal-stage",
+    "id": "diagnostic:chain100",
+    "backend": "elk",
+    "returned": true,
+    "svgExact4cdd": true,
+    "stages": [
+      {
+        "phase": "after-producer",
+        "operations": 124761,
+        "exhausted": false
+      },
+      {
+        "phase": "after-composition",
+        "operations": 125778,
+        "exhausted": false
+      }
+    ],
+    "emissionWork": [
+      {
+        "operations": 195061,
+        "exhausted": false,
+        "uncertain": false,
+        "closedMarkerContext": false
+      },
+      {
+        "operations": 195061,
+        "exhausted": false,
+        "uncertain": false,
+        "closedMarkerContext": false
+      },
+      {
+        "operations": 195061,
+        "exhausted": false,
+        "uncertain": false,
+        "closedMarkerContext": false
+      },
+      {
+        "operations": 195061,
+        "exhausted": false,
+        "uncertain": false,
+        "closedMarkerContext": false
+      },
+      {
+        "operations": 195061,
+        "exhausted": false,
+        "uncertain": false,
+        "closedMarkerContext": false
+      },
+      {
+        "operations": 195061,
+        "exhausted": false,
+        "uncertain": false,
+        "closedMarkerContext": false
+      },
+      {
+        "operations": 195061,
+        "exhausted": false,
+        "uncertain": false,
+        "closedMarkerContext": false
+      },
+      {
+        "operations": 195061,
+        "exhausted": false,
+        "uncertain": false,
+        "closedMarkerContext": false
+      },
+      {
+        "operations": 195061,
+        "exhausted": false,
+        "uncertain": false,
+        "closedMarkerContext": false
+      },
+      {
+        "operations": 195061,
+        "exhausted": false,
+        "uncertain": false,
+        "closedMarkerContext": false
+      },
+      {
+        "operations": 195061,
+        "exhausted": false,
+        "uncertain": false,
+        "closedMarkerContext": false
+      },
+      {
+        "operations": 195061,
+        "exhausted": false,
+        "uncertain": false,
+        "closedMarkerContext": false
+      },
+      {
+        "operations": 195061,
+        "exhausted": false,
+        "uncertain": false,
+        "closedMarkerContext": false
+      },
+      {
+        "operations": 195061,
+        "exhausted": false,
+        "uncertain": false,
+        "closedMarkerContext": false
+      },
+      {
+        "operations": 195061,
+        "exhausted": false,
+        "uncertain": false,
+        "closedMarkerContext": false
+      },
+      {
+        "operations": 195061,
+        "exhausted": false,
+        "uncertain": false,
+        "closedMarkerContext": false
+      },
+      {
+        "operations": 195061,
+        "exhausted": false,
+        "uncertain": false,
+        "closedMarkerContext": false
+      },
+      {
+        "operations": 195061,
+        "exhausted": false,
+        "uncertain": false,
+        "closedMarkerContext": false
+      },
+      {
+        "operations": 195061,
+        "exhausted": false,
+        "uncertain": false,
+        "closedMarkerContext": false
+      },
+      {
+        "operations": 195061,
+        "exhausted": false,
+        "uncertain": false,
+        "closedMarkerContext": false
+      },
+      {
+        "operations": 195061,
+        "exhausted": false,
+        "uncertain": false,
+        "closedMarkerContext": false
+      },
+      {
+        "operations": 195061,
+        "exhausted": false,
+        "uncertain": false,
+        "closedMarkerContext": false
+      },
+      {
+        "operations": 195061,
+        "exhausted": false,
+        "uncertain": false,
+        "closedMarkerContext": false
+      },
+      {
+        "operations": 195061,
+        "exhausted": false,
+        "uncertain": false,
+        "closedMarkerContext": false
+      },
+      {
+        "operations": 195061,
+        "exhausted": false,
+        "uncertain": false,
+        "closedMarkerContext": false
+      },
+      {
+        "operations": 195061,
+        "exhausted": false,
+        "uncertain": false,
+        "closedMarkerContext": false
+      },
+      {
+        "operations": 195061,
+        "exhausted": false,
+        "uncertain": false,
+        "closedMarkerContext": false
+      },
+      {
+        "operations": 195061,
+        "exhausted": false,
+        "uncertain": false,
+        "closedMarkerContext": false
+      },
+      {
+        "operations": 195061,
+        "exhausted": false,
+        "uncertain": false,
+        "closedMarkerContext": false
+      },
+      {
+        "operations": 195061,
+        "exhausted": false,
+        "uncertain": false,
+        "closedMarkerContext": false
+      },
+      {
+        "operations": 195061,
+        "exhausted": false,
+        "uncertain": false,
+        "closedMarkerContext": false
+      },
+      {
+        "operations": 195061,
+        "exhausted": false,
+        "uncertain": false,
+        "closedMarkerContext": false
+      },
+      {
+        "operations": 195061,
+        "exhausted": false,
+        "uncertain": false,
+        "closedMarkerContext": false
+      },
+      {
+        "operations": 195061,
+        "exhausted": false,
+        "uncertain": false,
+        "closedMarkerContext": false
+      },
+      {
+        "operations": 195061,
+        "exhausted": false,
+        "uncertain": false,
+        "closedMarkerContext": false
+      },
+      {
+        "operations": 195061,
+        "exhausted": false,
+        "uncertain": false,
+        "closedMarkerContext": false
+      },
+      {
+        "operations": 195061,
+        "exhausted": false,
+        "uncertain": false,
+        "closedMarkerContext": false
+      },
+      {
+        "operations": 195061,
+        "exhausted": false,
+        "uncertain": false,
+        "closedMarkerContext": false
+      },
+      {
+        "operations": 195061,
+        "exhausted": false,
+        "uncertain": false,
+        "closedMarkerContext": false
+      },
+      {
+        "operations": 195061,
+        "exhausted": false,
+        "uncertain": false,
+        "closedMarkerContext": false
+      },
+      {
+        "operations": 195061,
+        "exhausted": false,
+        "uncertain": false,
+        "closedMarkerContext": false
+      },
+      {
+        "operations": 195061,
+        "exhausted": false,
+        "uncertain": false,
+        "closedMarkerContext": false
+      },
+      {
+        "operations": 195061,
+        "exhausted": false,
+        "uncertain": false,
+        "closedMarkerContext": false
+      },
+      {
+        "operations": 195061,
+        "exhausted": false,
+        "uncertain": false,
+        "closedMarkerContext": false
+      },
+      {
+        "operations": 195061,
+        "exhausted": false,
+        "uncertain": false,
+        "closedMarkerContext": false
+      },
+      {
+        "operations": 195061,
+        "exhausted": false,
+        "uncertain": false,
+        "closedMarkerContext": false
+      },
+      {
+        "operations": 195061,
+        "exhausted": false,
+        "uncertain": false,
+        "closedMarkerContext": false
+      },
+      {
+        "operations": 195061,
+        "exhausted": false,
+        "uncertain": false,
+        "closedMarkerContext": false
+      },
+      {
+        "operations": 195061,
+        "exhausted": false,
+        "uncertain": false,
+        "closedMarkerContext": false
+      },
+      {
+        "operations": 195061,
+        "exhausted": false,
+        "uncertain": false,
+        "closedMarkerContext": false
+      },
+      {
+        "operations": 195061,
+        "exhausted": false,
+        "uncertain": false,
+        "closedMarkerContext": false
+      },
+      {
+        "operations": 195061,
+        "exhausted": false,
+        "uncertain": false,
+        "closedMarkerContext": false
+      },
+      {
+        "operations": 195061,
+        "exhausted": false,
+        "uncertain": false,
+        "closedMarkerContext": false
+      },
+      {
+        "operations": 195061,
+        "exhausted": false,
+        "uncertain": false,
+        "closedMarkerContext": false
+      },
+      {
+        "operations": 195061,
+        "exhausted": false,
+        "uncertain": false,
+        "closedMarkerContext": false
+      },
+      {
+        "operations": 195061,
+        "exhausted": false,
+        "uncertain": false,
+        "closedMarkerContext": false
+      },
+      {
+        "operations": 195061,
+        "exhausted": false,
+        "uncertain": false,
+        "closedMarkerContext": false
+      },
+      {
+        "operations": 195061,
+        "exhausted": false,
+        "uncertain": false,
+        "closedMarkerContext": false
+      },
+      {
+        "operations": 195061,
+        "exhausted": false,
+        "uncertain": false,
+        "closedMarkerContext": false
+      },
+      {
+        "operations": 195061,
+        "exhausted": false,
+        "uncertain": false,
+        "closedMarkerContext": false
+      },
+      {
+        "operations": 195061,
+        "exhausted": false,
+        "uncertain": false,
+        "closedMarkerContext": false
+      },
+      {
+        "operations": 195061,
+        "exhausted": false,
+        "uncertain": false,
+        "closedMarkerContext": false
+      },
+      {
+        "operations": 195061,
+        "exhausted": false,
+        "uncertain": false,
+        "closedMarkerContext": false
+      },
+      {
+        "operations": 195061,
+        "exhausted": false,
+        "uncertain": false,
+        "closedMarkerContext": false
+      },
+      {
+        "operations": 195061,
+        "exhausted": false,
+        "uncertain": false,
+        "closedMarkerContext": false
+      },
+      {
+        "operations": 195061,
+        "exhausted": false,
+        "uncertain": false,
+        "closedMarkerContext": false
+      },
+      {
+        "operations": 195061,
+        "exhausted": false,
+        "uncertain": false,
+        "closedMarkerContext": false
+      },
+      {
+        "operations": 195061,
+        "exhausted": false,
+        "uncertain": false,
+        "closedMarkerContext": false
+      },
+      {
+        "operations": 195061,
+        "exhausted": false,
+        "uncertain": false,
+        "closedMarkerContext": false
+      },
+      {
+        "operations": 195061,
+        "exhausted": false,
+        "uncertain": false,
+        "closedMarkerContext": false
+      },
+      {
+        "operations": 195061,
+        "exhausted": false,
+        "uncertain": false,
+        "closedMarkerContext": false
+      },
+      {
+        "operations": 195061,
+        "exhausted": false,
+        "uncertain": false,
+        "closedMarkerContext": false
+      },
+      {
+        "operations": 195061,
+        "exhausted": false,
+        "uncertain": false,
+        "closedMarkerContext": false
+      },
+      {
+        "operations": 195061,
+        "exhausted": false,
+        "uncertain": false,
+        "closedMarkerContext": false
+      },
+      {
+        "operations": 195061,
+        "exhausted": false,
+        "uncertain": false,
+        "closedMarkerContext": false
+      },
+      {
+        "operations": 195061,
+        "exhausted": false,
+        "uncertain": false,
+        "closedMarkerContext": false
+      },
+      {
+        "operations": 195061,
+        "exhausted": false,
+        "uncertain": false,
+        "closedMarkerContext": false
+      },
+      {
+        "operations": 195061,
+        "exhausted": false,
+        "uncertain": false,
+        "closedMarkerContext": false
+      },
+      {
+        "operations": 195061,
+        "exhausted": false,
+        "uncertain": false,
+        "closedMarkerContext": false
+      },
+      {
+        "operations": 195061,
+        "exhausted": false,
+        "uncertain": false,
+        "closedMarkerContext": false
+      },
+      {
+        "operations": 195061,
+        "exhausted": false,
+        "uncertain": false,
+        "closedMarkerContext": false
+      },
+      {
+        "operations": 195061,
+        "exhausted": false,
+        "uncertain": false,
+        "closedMarkerContext": false
+      },
+      {
+        "operations": 195061,
+        "exhausted": false,
+        "uncertain": false,
+        "closedMarkerContext": false
+      },
+      {
+        "operations": 195061,
+        "exhausted": false,
+        "uncertain": false,
+        "closedMarkerContext": false
+      },
+      {
+        "operations": 195061,
+        "exhausted": false,
+        "uncertain": false,
+        "closedMarkerContext": false
+      },
+      {
+        "operations": 195061,
+        "exhausted": false,
+        "uncertain": false,
+        "closedMarkerContext": false
+      },
+      {
+        "operations": 195061,
+        "exhausted": false,
+        "uncertain": false,
+        "closedMarkerContext": false
+      },
+      {
+        "operations": 195061,
+        "exhausted": false,
+        "uncertain": false,
+        "closedMarkerContext": false
+      },
+      {
+        "operations": 195061,
+        "exhausted": false,
+        "uncertain": false,
+        "closedMarkerContext": false
+      },
+      {
+        "operations": 195061,
+        "exhausted": false,
+        "uncertain": false,
+        "closedMarkerContext": false
+      },
+      {
+        "operations": 195061,
+        "exhausted": false,
+        "uncertain": false,
+        "closedMarkerContext": false
+      },
+      {
+        "operations": 195061,
+        "exhausted": false,
+        "uncertain": false,
+        "closedMarkerContext": false
+      },
+      {
+        "operations": 195061,
+        "exhausted": false,
+        "uncertain": false,
+        "closedMarkerContext": false
+      },
+      {
+        "operations": 195061,
+        "exhausted": false,
+        "uncertain": false,
+        "closedMarkerContext": false
+      },
+      {
+        "operations": 195061,
+        "exhausted": false,
+        "uncertain": false,
+        "closedMarkerContext": false
+      },
+      {
+        "operations": 195061,
+        "exhausted": false,
+        "uncertain": false,
+        "closedMarkerContext": false
+      },
+      {
+        "operations": 195061,
+        "exhausted": false,
+        "uncertain": false,
+        "closedMarkerContext": false
+      },
+      {
+        "operations": 195061,
+        "exhausted": false,
+        "uncertain": false,
+        "closedMarkerContext": false
+      },
+      {
+        "operations": 195061,
+        "exhausted": false,
+        "uncertain": false,
+        "closedMarkerContext": false
+      },
+      {
+        "operations": 195061,
+        "exhausted": false,
+        "uncertain": false,
+        "closedMarkerContext": false
+      }
+    ],
+    "status": "passed",
+    "checks": {
+      "primitives": 302,
+      "labels": 100,
+      "occlusionPairs": 814,
+      "maxOcclusionPairs": 100000,
+      "operations": 230586,
+      "maxOperations": 400000,
+      "markers": 99
+    },
+    "coverage": {
+      "measured": 299,
+      "unmeasured": 0,
+      "preparedText": 100,
+      "fallbackText": 0,
+      "conditional": 0
+    },
+    "issues": []
+  },
+  {
+    "stage": "group-literal-stage",
+    "id": "diagnostic:chain300",
+    "backend": "agentic",
+    "returned": true,
+    "svgExact4cdd": true,
+    "stages": [
+      {
+        "phase": "after-producer",
+        "operations": 351415,
+        "exhausted": false
+      },
+      {
+        "phase": "after-composition",
+        "operations": 354432,
+        "exhausted": false
+      }
+    ],
+    "emissionWork": [
+      {
+        "operations": 400000,
+        "exhausted": true,
+        "uncertain": true,
+        "closedMarkerContext": false
+      }
+    ],
+    "status": "unverified",
+    "checks": {
+      "primitives": 902,
+      "labels": 300,
+      "occlusionPairs": 0,
+      "maxOcclusionPairs": 100000,
+      "operations": 400000,
+      "maxOperations": 400000,
+      "markers": 0
+    },
+    "coverage": {
+      "measured": 899,
+      "unmeasured": 0,
+      "preparedText": 300,
+      "fallbackText": 0,
+      "conditional": 0
+    },
+    "issues": [
+      {
+        "code": "OUTPUT_SCOPE",
+        "message": "Emitted document context or marker resource differs from retained paint evidence"
+      },
+      {
+        "code": "CHECK_BUDGET",
+        "message": "Occlusion checking reached its 100000-pair or 400000-operation limit"
+      }
+    ]
+  },
+  {
+    "stage": "group-literal-stage",
+    "id": "diagnostic:chain300",
+    "backend": "elk",
+    "returned": true,
+    "svgExact4cdd": true,
+    "stages": [
+      {
+        "phase": "after-producer",
+        "operations": 350069,
+        "exhausted": false
+      },
+      {
+        "phase": "after-composition",
+        "operations": 353086,
+        "exhausted": false
+      }
+    ],
+    "emissionWork": [
+      {
+        "operations": 399369,
+        "exhausted": true,
+        "uncertain": true,
+        "closedMarkerContext": false
+      }
+    ],
+    "status": "unverified",
+    "checks": {
+      "primitives": 902,
+      "labels": 300,
+      "occlusionPairs": 0,
+      "maxOcclusionPairs": 100000,
+      "operations": 400000,
+      "maxOperations": 400000,
+      "markers": 0
+    },
+    "coverage": {
+      "measured": 899,
+      "unmeasured": 0,
+      "preparedText": 300,
+      "fallbackText": 0,
+      "conditional": 0
+    },
+    "issues": [
+      {
+        "code": "OUTPUT_SCOPE",
+        "message": "Emitted document context or marker resource differs from retained paint evidence"
+      },
+      {
+        "code": "CHECK_BUDGET",
+        "message": "Occlusion checking reached its 100000-pair or 400000-operation limit"
+      }
+    ]
+  },
+  {
+    "stage": "content-stage",
+    "id": "diagnostic:chain100",
+    "backend": "agentic",
+    "returned": true,
+    "svgExact4cdd": true,
+    "stages": [
+      {
+        "phase": "after-producer",
+        "operations": 135253,
+        "exhausted": false
+      },
+      {
+        "phase": "after-composition",
+        "operations": 136270,
+        "exhausted": false
+      },
+      {
+        "phase": "before-inspection",
+        "operations": 136470,
+        "exhausted": false
+      }
+    ],
+    "emissionWork": [
+      {
+        "operations": 205561,
+        "exhausted": false,
+        "uncertain": false,
+        "closedMarkerContext": false
+      }
+    ],
+    "status": "passed",
+    "checks": {
+      "primitives": 302,
+      "labels": 100,
+      "occlusionPairs": 814,
+      "maxOcclusionPairs": 100000,
+      "operations": 241086,
+      "maxOperations": 400000,
+      "markers": 99
+    },
+    "coverage": {
+      "measured": 299,
+      "unmeasured": 0,
+      "preparedText": 100,
+      "fallbackText": 0,
+      "conditional": 0
+    },
+    "issues": []
+  },
+  {
+    "stage": "content-stage",
+    "id": "diagnostic:chain100",
+    "backend": "elk",
+    "returned": true,
+    "svgExact4cdd": true,
+    "stages": [
+      {
+        "phase": "after-producer",
+        "operations": 135253,
+        "exhausted": false
+      },
+      {
+        "phase": "after-composition",
+        "operations": 136270,
+        "exhausted": false
+      },
+      {
+        "phase": "before-inspection",
+        "operations": 136470,
+        "exhausted": false
+      }
+    ],
+    "emissionWork": [
+      {
+        "operations": 205561,
+        "exhausted": false,
+        "uncertain": false,
+        "closedMarkerContext": false
+      }
+    ],
+    "status": "passed",
+    "checks": {
+      "primitives": 302,
+      "labels": 100,
+      "occlusionPairs": 814,
+      "maxOcclusionPairs": 100000,
+      "operations": 241086,
+      "maxOperations": 400000,
+      "markers": 99
+    },
+    "coverage": {
+      "measured": 299,
+      "unmeasured": 0,
+      "preparedText": 100,
+      "fallbackText": 0,
+      "conditional": 0
+    },
+    "issues": []
+  },
+  {
+    "stage": "content-stage",
+    "id": "diagnostic:chain300",
+    "backend": "agentic",
+    "returned": true,
+    "svgExact4cdd": true,
+    "stages": [
+      {
+        "phase": "after-producer",
+        "operations": 382907,
+        "exhausted": false
+      },
+      {
+        "phase": "after-composition",
+        "operations": 385924,
+        "exhausted": false
+      },
+      {
+        "phase": "before-inspection",
+        "operations": 386124,
+        "exhausted": false
+      }
+    ],
+    "emissionWork": [
+      {
+        "operations": 399999,
+        "exhausted": true,
+        "uncertain": true,
+        "closedMarkerContext": false
+      }
+    ],
+    "status": "unverified",
+    "checks": {
+      "primitives": 902,
+      "labels": 300,
+      "occlusionPairs": 0,
+      "maxOcclusionPairs": 100000,
+      "operations": 400000,
+      "maxOperations": 400000,
+      "markers": 0
+    },
+    "coverage": {
+      "measured": 899,
+      "unmeasured": 0,
+      "preparedText": 300,
+      "fallbackText": 0,
+      "conditional": 721
+    },
+    "issues": [
+      {
+        "code": "CONDITIONAL_PAINT",
+        "message": "721 primitives depend on unresolved paint or interaction state"
+      },
+      {
+        "code": "OUTPUT_SCOPE",
+        "message": "Emitted document context or marker resource differs from retained paint evidence"
+      },
+      {
+        "code": "CHECK_BUDGET",
+        "message": "Occlusion checking reached its 100000-pair or 400000-operation limit"
+      }
+    ]
+  },
+  {
+    "stage": "content-stage",
+    "id": "diagnostic:chain300",
+    "backend": "elk",
+    "returned": true,
+    "svgExact4cdd": true,
+    "stages": [
+      {
+        "phase": "after-producer",
+        "operations": 381561,
+        "exhausted": false
+      },
+      {
+        "phase": "after-composition",
+        "operations": 384578,
+        "exhausted": false
+      },
+      {
+        "phase": "before-inspection",
+        "operations": 384778,
+        "exhausted": false
+      }
+    ],
+    "emissionWork": [
+      {
+        "operations": 399998,
+        "exhausted": true,
+        "uncertain": true,
+        "closedMarkerContext": false
+      }
+    ],
+    "status": "unverified",
+    "checks": {
+      "primitives": 902,
+      "labels": 300,
+      "occlusionPairs": 0,
+      "maxOcclusionPairs": 100000,
+      "operations": 400000,
+      "maxOperations": 400000,
+      "markers": 0
+    },
+    "coverage": {
+      "measured": 899,
+      "unmeasured": 0,
+      "preparedText": 300,
+      "fallbackText": 0,
+      "conditional": 696
+    },
+    "issues": [
+      {
+        "code": "CONDITIONAL_PAINT",
+        "message": "696 primitives depend on unresolved paint or interaction state"
+      },
+      {
+        "code": "OUTPUT_SCOPE",
+        "message": "Emitted document context or marker resource differs from retained paint evidence"
+      },
+      {
+        "code": "CHECK_BUDGET",
+        "message": "Occlusion checking reached its 100000-pair or 400000-operation limit"
+      }
+    ]
+  },
+  {
+    "stage": "construction-stage",
+    "id": "diagnostic:chain100",
+    "backend": "agentic",
+    "returned": true,
+    "svgExact4cdd": true,
+    "stages": [
+      {
+        "phase": "after-producer",
+        "operations": 130303,
+        "exhausted": false
+      },
+      {
+        "phase": "after-composition",
+        "operations": 131320,
+        "exhausted": false
+      },
+      {
+        "phase": "before-inspection",
+        "operations": 131520,
+        "exhausted": false
+      }
+    ],
+    "emissionWork": [
+      {
+        "operations": 200611,
+        "exhausted": false,
+        "uncertain": false,
+        "closedMarkerContext": false
+      }
+    ],
+    "status": "passed",
+    "checks": {
+      "primitives": 302,
+      "labels": 100,
+      "occlusionPairs": 814,
+      "maxOcclusionPairs": 100000,
+      "operations": 236136,
+      "maxOperations": 400000,
+      "markers": 99
+    },
+    "coverage": {
+      "measured": 299,
+      "unmeasured": 0,
+      "preparedText": 100,
+      "fallbackText": 0,
+      "conditional": 0
+    },
+    "issues": []
+  },
+  {
+    "stage": "construction-stage",
+    "id": "diagnostic:chain100",
+    "backend": "elk",
+    "returned": true,
+    "svgExact4cdd": true,
+    "stages": [
+      {
+        "phase": "after-producer",
+        "operations": 130303,
+        "exhausted": false
+      },
+      {
+        "phase": "after-composition",
+        "operations": 131320,
+        "exhausted": false
+      },
+      {
+        "phase": "before-inspection",
+        "operations": 131520,
+        "exhausted": false
+      }
+    ],
+    "emissionWork": [
+      {
+        "operations": 200611,
+        "exhausted": false,
+        "uncertain": false,
+        "closedMarkerContext": false
+      }
+    ],
+    "status": "passed",
+    "checks": {
+      "primitives": 302,
+      "labels": 100,
+      "occlusionPairs": 814,
+      "maxOcclusionPairs": 100000,
+      "operations": 236136,
+      "maxOperations": 400000,
+      "markers": 99
+    },
+    "coverage": {
+      "measured": 299,
+      "unmeasured": 0,
+      "preparedText": 100,
+      "fallbackText": 0,
+      "conditional": 0
+    },
+    "issues": []
+  },
+  {
+    "stage": "construction-stage",
+    "id": "diagnostic:chain300",
+    "backend": "agentic",
+    "returned": true,
+    "svgExact4cdd": true,
+    "stages": [
+      {
+        "phase": "after-producer",
+        "operations": 367957,
+        "exhausted": false
+      },
+      {
+        "phase": "after-composition",
+        "operations": 370974,
+        "exhausted": false
+      },
+      {
+        "phase": "before-inspection",
+        "operations": 371174,
+        "exhausted": false
+      }
+    ],
+    "emissionWork": [
+      {
+        "operations": 400000,
+        "exhausted": true,
+        "uncertain": true,
+        "closedMarkerContext": false
+      }
+    ],
+    "status": "unverified",
+    "checks": {
+      "primitives": 902,
+      "labels": 300,
+      "occlusionPairs": 0,
+      "maxOcclusionPairs": 100000,
+      "operations": 400000,
+      "maxOperations": 400000,
+      "markers": 0
+    },
+    "coverage": {
+      "measured": 899,
+      "unmeasured": 0,
+      "preparedText": 300,
+      "fallbackText": 0,
+      "conditional": 220
+    },
+    "issues": [
+      {
+        "code": "CONDITIONAL_PAINT",
+        "message": "220 primitives depend on unresolved paint or interaction state"
+      },
+      {
+        "code": "OUTPUT_SCOPE",
+        "message": "Emitted document context or marker resource differs from retained paint evidence"
+      },
+      {
+        "code": "CHECK_BUDGET",
+        "message": "Occlusion checking reached its 100000-pair or 400000-operation limit"
+      }
+    ]
+  },
+  {
+    "stage": "construction-stage",
+    "id": "diagnostic:chain300",
+    "backend": "elk",
+    "returned": true,
+    "svgExact4cdd": true,
+    "stages": [
+      {
+        "phase": "after-producer",
+        "operations": 366611,
+        "exhausted": false
+      },
+      {
+        "phase": "after-composition",
+        "operations": 369628,
+        "exhausted": false
+      },
+      {
+        "phase": "before-inspection",
+        "operations": 369828,
+        "exhausted": false
+      }
+    ],
+    "emissionWork": [
+      {
+        "operations": 400000,
+        "exhausted": true,
+        "uncertain": true,
+        "closedMarkerContext": false
+      }
+    ],
+    "status": "unverified",
+    "checks": {
+      "primitives": 902,
+      "labels": 300,
+      "occlusionPairs": 0,
+      "maxOcclusionPairs": 100000,
+      "operations": 400000,
+      "maxOperations": 400000,
+      "markers": 0
+    },
+    "coverage": {
+      "measured": 899,
+      "unmeasured": 0,
+      "preparedText": 300,
+      "fallbackText": 0,
+      "conditional": 159
+    },
+    "issues": [
+      {
+        "code": "CONDITIONAL_PAINT",
+        "message": "159 primitives depend on unresolved paint or interaction state"
+      },
+      {
+        "code": "OUTPUT_SCOPE",
+        "message": "Emitted document context or marker resource differs from retained paint evidence"
+      },
+      {
+        "code": "CHECK_BUDGET",
+        "message": "Occlusion checking reached its 100000-pair or 400000-operation limit"
+      }
+    ]
+  },
+  {
+    "stage": "reduced-stage",
+    "id": "diagnostic:chain100",
+    "backend": "agentic",
+    "returned": true,
+    "svgExact4cdd": true,
+    "stages": [
+      {
+        "phase": "after-producer",
+        "operations": 124066,
+        "exhausted": false
+      },
+      {
+        "phase": "after-composition",
+        "operations": 125083,
+        "exhausted": false
+      },
+      {
+        "phase": "before-inspection",
+        "operations": 125283,
+        "exhausted": false
+      }
+    ],
+    "emissionWork": [
+      {
+        "operations": 194374,
+        "exhausted": false,
+        "uncertain": false,
+        "closedMarkerContext": false
+      }
+    ],
+    "status": "passed",
+    "checks": {
+      "primitives": 302,
+      "labels": 100,
+      "occlusionPairs": 710,
+      "maxOcclusionPairs": 100000,
+      "operations": 225301,
+      "maxOperations": 400000,
+      "markers": 85
+    },
+    "coverage": {
+      "measured": 299,
+      "unmeasured": 0,
+      "preparedText": 100,
+      "fallbackText": 0,
+      "conditional": 0
+    },
+    "issues": []
+  },
+  {
+    "stage": "reduced-stage",
+    "id": "diagnostic:chain100",
+    "backend": "elk",
+    "returned": true,
+    "svgExact4cdd": true,
+    "stages": [
+      {
+        "phase": "after-producer",
+        "operations": 124066,
+        "exhausted": false
+      },
+      {
+        "phase": "after-composition",
+        "operations": 125083,
+        "exhausted": false
+      },
+      {
+        "phase": "before-inspection",
+        "operations": 125283,
+        "exhausted": false
+      }
+    ],
+    "emissionWork": [
+      {
+        "operations": 194374,
+        "exhausted": false,
+        "uncertain": false,
+        "closedMarkerContext": false
+      }
+    ],
+    "status": "passed",
+    "checks": {
+      "primitives": 302,
+      "labels": 100,
+      "occlusionPairs": 710,
+      "maxOcclusionPairs": 100000,
+      "operations": 225301,
+      "maxOperations": 400000,
+      "markers": 85
+    },
+    "coverage": {
+      "measured": 299,
+      "unmeasured": 0,
+      "preparedText": 100,
+      "fallbackText": 0,
+      "conditional": 0
+    },
+    "issues": []
+  },
+  {
+    "stage": "reduced-stage",
+    "id": "diagnostic:chain300",
+    "backend": "agentic",
+    "returned": true,
+    "svgExact4cdd": true,
+    "stages": [
+      {
+        "phase": "after-producer",
+        "operations": 349120,
+        "exhausted": false
+      },
+      {
+        "phase": "after-composition",
+        "operations": 352137,
+        "exhausted": false
+      },
+      {
+        "phase": "before-inspection",
+        "operations": 352337,
+        "exhausted": false
+      }
+    ],
+    "emissionWork": [
+      {
+        "operations": 398428,
+        "exhausted": true,
+        "uncertain": true,
+        "closedMarkerContext": false
+      }
+    ],
+    "status": "unverified",
+    "checks": {
+      "primitives": 902,
+      "labels": 300,
+      "occlusionPairs": 0,
+      "maxOcclusionPairs": 100000,
+      "operations": 400000,
+      "maxOperations": 400000,
+      "markers": 0
+    },
+    "coverage": {
+      "measured": 899,
+      "unmeasured": 0,
+      "preparedText": 300,
+      "fallbackText": 0,
+      "conditional": 0
+    },
+    "issues": [
+      {
+        "code": "OUTPUT_SCOPE",
+        "message": "Emitted document context or marker resource differs from retained paint evidence"
+      },
+      {
+        "code": "CHECK_BUDGET",
+        "message": "Occlusion checking reached its 100000-pair or 400000-operation limit"
+      }
+    ]
+  },
+  {
+    "stage": "reduced-stage",
+    "id": "diagnostic:chain300",
+    "backend": "elk",
+    "returned": true,
+    "svgExact4cdd": true,
+    "stages": [
+      {
+        "phase": "after-producer",
+        "operations": 347774,
+        "exhausted": false
+      },
+      {
+        "phase": "after-composition",
+        "operations": 350791,
+        "exhausted": false
+      },
+      {
+        "phase": "before-inspection",
+        "operations": 350991,
+        "exhausted": false
+      }
+    ],
+    "emissionWork": [
+      {
+        "operations": 397082,
+        "exhausted": true,
+        "uncertain": true,
+        "closedMarkerContext": false
+      }
+    ],
+    "status": "unverified",
+    "checks": {
+      "primitives": 902,
+      "labels": 300,
+      "occlusionPairs": 0,
+      "maxOcclusionPairs": 100000,
+      "operations": 400000,
+      "maxOperations": 400000,
+      "markers": 3
+    },
+    "coverage": {
+      "measured": 899,
+      "unmeasured": 0,
+      "preparedText": 300,
+      "fallbackText": 0,
+      "conditional": 0
+    },
+    "issues": [
+      {
+        "code": "OUTPUT_SCOPE",
+        "message": "Emitted document context or marker resource differs from retained paint evidence"
+      },
+      {
+        "code": "CHECK_BUDGET",
+        "message": "Occlusion checking reached its 100000-pair or 400000-operation limit"
+      }
+    ]
+  }
+]

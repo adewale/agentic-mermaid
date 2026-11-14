@@ -1,0 +1,62 @@
+[
+  {
+    "path": "src/__tests__/paint-certification.test.ts",
+    "bytes": 408640,
+    "sha256": "c39ab76bc0d73fba71a060bebab1b0fc5db640e17e188954f9425ccf3bd12ae4"
+  },
+  {
+    "path": "src/renderer.ts",
+    "bytes": 35439,
+    "sha256": "2eddd57271b86356f4132feeb18f980b305530912c35f320c962d9aac9047109"
+  },
+  {
+    "path": "src/scene/bounds.ts",
+    "bytes": 43262,
+    "sha256": "8a7e44ec862af5c2c16de238b6abd4384ba1dc90d8c1072f083ae733d893a6fd"
+  },
+  {
+    "path": "src/scene/drawing.ts",
+    "bytes": 3400,
+    "sha256": "bfb25d4bae1335bf4d991fa7ef615c28507f385a7d13abc3d391f88e88c42bda"
+  },
+  {
+    "path": "src/scene/emission-context.ts",
+    "bytes": 40228,
+    "sha256": "6573d31377df8c4df0220c1d7b781c39c482d6631fdd4a765257b2f9dab98b55"
+  },
+  {
+    "path": "src/scene/group-emission.ts",
+    "bytes": 29506,
+    "sha256": "92401ed05320308908a03b2d9181e7423a58f23042911a7c4cc552fcd3f08bc3"
+  },
+  {
+    "path": "src/scene/inspection.ts",
+    "bytes": 24428,
+    "sha256": "de6850af99548f64cd8cf629bf4047d38891c814208e8eeb34546f89a955ce86"
+  },
+  {
+    "path": "src/scene/native-drawing.ts",
+    "bytes": 21997,
+    "sha256": "94ee80c9297785c68e317fa6a969c2b7a78627513e6d60f2ab86bab6ffad264a"
+  },
+  {
+    "path": "src/scene/native-paint-emission.ts",
+    "bytes": 74893,
+    "sha256": "a3da79824168b0298bb0577a900d22f386597aa255626a3d8fa733e9000f604f"
+  },
+  {
+    "path": "src/scene/scene-validation-core.ts",
+    "bytes": 102202,
+    "sha256": "b8c1093e50781fcbd1dd4fd38cafd8b9337d1a9963a54c833ee0eeb41c2c7897"
+  },
+  {
+    "path": "src/scene/svg-writer.ts",
+    "bytes": 79361,
+    "sha256": "7ac74e770e2b70ddc1b44d9a1df44aac44144f41cd15b8c0b0f01004c8bd613a"
+  },
+  {
+    "path": "src/scene/native-polyline.ts",
+    "bytes": 8902,
+    "sha256": "fb39292c4d735cb44c60963f7883b3084dbf0d4b24d2b7ccf7512b4fbb4567f3"
+  }
+]
