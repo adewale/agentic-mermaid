@@ -8,11 +8,10 @@ import { displayText, normalizeBrTags } from '../multiline-utils.ts'
 import { compareCodePointStrings } from '../shared/deterministic-order.ts'
 import { type DisplayTextInput, resolveLabelContent } from '../shared/display-text.ts'
 import { checkAllClassLikeAuthoredStyles } from '../shared/style-props.ts'
-import { allocateChannelledBoxRoutes, bipartiteBuses, type BoxBus, TerminalBoxRouteUnavailable, BOX_ROUTE_APPROACH_DISTANCE, type BoxRelation, type BoxSide, boxFaceDemands, boxFaceSizes, paintClassLikeCard, paintBoxBus, paintBoxRoute, paintBoxText, reverseBoxes, type TerminalBox } from './class-like-layout.ts'
+import { allocateChannelledBoxRoutes, bipartiteBuses, type BusChoice, TerminalBoxRouteUnavailable, BOX_ROUTE_APPROACH_DISTANCE, type BoxRelation, type BoxSide, boxFaceDemands, boxFaceSizes, paintClassLikeCard, paintBoxBus, paintBoxRoute, paintBoxText, renderWithBuses, reverseBoxes, type TerminalBox } from './class-like-layout.ts'
 import { terminalIds } from './identity.ts'
 import { type TerminalArtifact, terminalArtifact } from './terminal-artifact.ts'
 import { TerminalDocument, type TerminalMarker, type TerminalOwner } from './terminal-document.ts'
-import { TerminalWorkLimitError } from './terminal-limits.ts'
 import { faceSize, paintTerminalFrame } from './terminal-geometry.ts'
 import type { AsciiConfig, AsciiTheme, ColorMode } from './types.ts'
 import { visualWidth } from './width.ts'
@@ -43,27 +42,13 @@ function classMarker(type: RelationshipType, side: BoxSide, ascii: boolean): Ter
 }
 
 export function renderClassTerminal(text: string, config: AsciiConfig, colorMode?: ColorMode, theme?: AsciiTheme, targetWidth?: number, authoredText?: string): TerminalArtifact {
-  try {
-    return renderClassCells(text, config, colorMode, theme, targetWidth, authoredText, false)!
-  } catch (error) {
-    // A table too dense to route relation by relation draws each closed
-    // complete-bipartite block of alike, unlabeled relations as one bus.
-    // Every diagram that routes relation by relation keeps that drawing.
-    if (!(error instanceof TerminalWorkLimitError)) throw error
-    let bussed: TerminalArtifact | undefined
-    try {
-      bussed = renderClassCells(text, config, colorMode, theme, targetWidth, authoredText, true)
-    } catch (busError) {
-      // A bus that cannot be drawn either leaves the original refusal.
-      if (!(busError instanceof TerminalWorkLimitError)) throw busError
-    }
-    if (!bussed) throw error
-    return bussed
-  }
+  // A table too dense to route relation by relation draws each closed
+  // complete-bipartite block of alike, unlabeled relations as one bus.
+  // Every diagram that routes relation by relation keeps that drawing.
+  return renderWithBuses(choose => renderClassCells(text, config, colorMode, theme, targetWidth, authoredText, choose), 9)
 }
 
-/** With `contract`, undefined when no relation forms a bus. */
-function renderClassCells(text: string, config: AsciiConfig, colorMode: ColorMode | undefined, theme: AsciiTheme | undefined, targetWidth: number | undefined, authoredText: string | undefined, contract: boolean): TerminalArtifact | undefined {
+function renderClassCells(text: string, config: AsciiConfig, colorMode: ColorMode | undefined, theme: AsciiTheme | undefined, targetWidth: number | undefined, authoredText: string | undefined, choose: BusChoice): TerminalArtifact {
   targetWidth ??= config.targetWidth ?? config.maxWidth
   const lines = (value: string) =>
     value
@@ -106,15 +91,14 @@ function renderClassCells(text: string, config: AsciiConfig, colorMode: ColorMod
       scope(item.children, id)
     })
   scope(diagram.namespaces)
-  const buses: BoxBus[] = contract
-    ? bipartiteBuses(relations, (_relation, index) => {
-        const rel = diagram.relationships[index]!,
-          kinds = [rel.type, rel.fromType ?? rel.type, rel.toType ?? rel.type]
-        if (rel.label || rel.fromCardinality || rel.toCardinality || kinds.includes('lollipop') || (scopeOf.get(rel.from) ?? '') !== (scopeOf.get(rel.to) ?? '')) return undefined
-        return JSON.stringify([scopeOf.get(rel.from) ?? '', ...kinds, rel.markerAt, classRelationshipLineStyle(rel)])
-      })
-    : []
-  if (contract && !buses.length) return undefined
+  const buses = choose(() =>
+    bipartiteBuses(relations, (_relation, index) => {
+      const rel = diagram.relationships[index]!,
+        kinds = [rel.type, rel.fromType ?? rel.type, rel.toType ?? rel.type]
+      if (rel.label || rel.fromCardinality || rel.toCardinality || kinds.includes('lollipop') || (scopeOf.get(rel.from) ?? '') !== (scopeOf.get(rel.to) ?? '')) return undefined
+      return JSON.stringify([scopeOf.get(rel.from) ?? '', ...kinds, rel.markerAt, classRelationshipLineStyle(rel)])
+    }),
+  )
   const busOf = new Map(buses.flatMap(bus => bus.members.map(index => [relations[index]!.id, bus.id] as const)))
   const relationshipById = new Map<string, (typeof diagram.relationships)[number]>()
   relations.forEach((relation, index) => {

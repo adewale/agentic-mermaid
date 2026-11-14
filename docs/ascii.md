@@ -68,6 +68,8 @@ diagram exhausts that ceiling, each closed complete-bipartite block of alike,
 unlabeled relations (`A0..A19 --> B0..B19`) draws as one bus instead: one port
 per card, collector and distributor runs meeting at one junction, and every
 relation keeping its own identity, endpoints, markers and connected owned ink.
+A block of at least 9 classes on each side cannot route relation by relation
+within the ceiling, so it draws as a bus at once, without that search first.
 A render that would exceed one throws
 `TerminalWorkLimitError` with code `TERMINAL_WORK_LIMIT`, naming the exhausted
 `resource`, instead of drawing a partial diagram; CLI and MCP report it as

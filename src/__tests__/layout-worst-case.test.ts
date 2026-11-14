@@ -48,8 +48,8 @@ const CASES: Array<{ name: string; source: string; limit?: string; terminal?: tr
   { name: 'terminal: all-to-all fan 50 x 50', source: fan(50), limit: 'TERMINAL_WORK_LIMIT', terminal: true },
   { name: 'terminal: complete DAG 30', source: completeDag(30), terminal: true },
   { name: 'terminal: chain 150 with long links', source: chainWithLongLinks(150), terminal: true },
-  // Routed relation by relation, this table exhausts the search ceiling below
-  // first; it then draws as one bus (see class-like-layout.ts BoxBus).
+  // Routed relation by relation, this table would exhaust the search ceiling
+  // below; it draws as one bus at once (see class-like-layout.ts BoxBus).
   { name: 'terminal: class relationships 20 x 20', source: edgewise('classDiagram', 20, (a, b) => `${a} --> ${b}`), terminal: true },
   // Card routing widens its corridors until every relationship routes, within
   // one shared search ceiling: an all-pairs table of 10 entities renders; the

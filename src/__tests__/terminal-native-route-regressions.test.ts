@@ -11,6 +11,7 @@ import { parseMermaid } from '../parser.ts'
 import { contactSheetScenarios } from '../../eval/visual-rubric/scenarios.ts'
 import { readFileSync } from 'node:fs'
 import { parseAsciiGoldenFixture } from '../../scripts/ascii-golden-fixture.ts'
+import { withPerformanceObserver } from '../performance-observations.ts'
 
 const denseClassSource = `classDiagram
 direction TB
@@ -620,6 +621,8 @@ test.each(cardRoutes.flatMap(item => [false, true].map(useAscii => [item.name, u
 // draws as one bus through one port per card. Every relation keeps its own
 // identity, endpoints and markers, and its own directions join its two ports
 // through cells it owns; shared cells belong only to that bus's relations.
+// A block this dense draws as a bus at once: no relation-by-relation route
+// search runs first (it once spent the whole search ceiling before failing).
 const bipartiteTable = (arrow: string, label = '') => ['classDiagram', ...Array.from({ length: 20 }, (_, i) => Array.from({ length: 20 }, (_, j) => `A${i} ${arrow} B${j}${label}`)).flat()].join('\n')
 /** Breadth-first search over the cells an edge owns, through its own directions only. */
 function ownDirectionsConnect(doc: TerminalDocument, edge: TerminalRegion): boolean {
@@ -643,7 +646,9 @@ function ownDirectionsConnect(doc: TerminalDocument, edge: TerminalRegion): bool
 }
 test.each(([['-->', 'end', 'triangle'], ['<|--', 'start', 'open-arrow']] as const).flatMap(([arrow, end, shape]) => [false, true].map(useAscii => [arrow, useAscii, end, shape] as const)))('Class 20 x 20 table of %s draws each relation through a certified bus (ASCII=%s)', (arrow, useAscii, end, shape) => {
   const source = bipartiteTable(arrow)
-  const result = renderMermaidASCIIWithReceipt(source, { useAscii, colorMode: 'none', layoutSafety: 'strict' })
+  let searched = 0
+  const result = withPerformanceObserver(event => { if (event.kind === 'work' && event.owner === 'terminal-route-search') searched += event.units }, () => renderMermaidASCIIWithReceipt(source, { useAscii, colorMode: 'none', layoutSafety: 'strict' }))
+  expect(searched).toBe(0)
   const doc = terminalDocumentOf(result)!
   expect(certifyTerminalLayout(doc, result.text, 'none')).toMatchObject({ status: 'passed', issues: [] })
   expect(renderMermaidASCIIWithReceipt(source, { useAscii, colorMode: 'none' }).text).toBe(result.text)

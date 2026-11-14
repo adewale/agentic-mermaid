@@ -136,6 +136,47 @@ export function bipartiteBuses(relations: readonly BoxRelation[], signature: (re
   return buses.sort((a, b) => a.members[0]! - b.members[0]!).map((bus, index) => Object.freeze({ id: `bus:${index}`, ...bus }))
 }
 
+/** A family's buses for one routing attempt, chosen from its candidate blocks. */
+export type BusChoice = (candidates: () => BoxBus[]) => BoxBus[]
+
+/**
+ * Render a family whose complete-bipartite blocks may contract to buses.
+ * `render` asks `choose` for the buses of its candidate blocks; it routes
+ * every other relation, or all of them given none. A block is dense when
+ * both its sides hold at least `denseSide` cards: relation by relation, each
+ * of its relations needs its own port and gap track, and the route search
+ * exhausts its ceiling (each family's threshold comes from a sweep of
+ * complete-bipartite tables, with and without other relations, in which no
+ * table that routes relation by relation is dense). The first attempt draws
+ * every bus when one is dense, else none. When routing relation by relation
+ * exhausts a terminal work limit, the render retries once with every bus; a
+ * dense attempt that exhausts one retries relation by relation. A retry that
+ * exhausts one too leaves the relation-by-relation refusal.
+ */
+export function renderWithBuses<T>(render: (choose: BusChoice) => T, denseSide: number): T {
+  let mode: 'auto' | 'all' | 'none' = 'auto', found = false, dense = false
+  const choose: BusChoice = candidates => {
+    if (mode === 'none') return []
+    const buses = candidates()
+    found = buses.length > 0
+    dense = buses.some(bus => Math.min(bus.sources.length, bus.targets.length) >= denseSide)
+    return mode === 'all' || dense ? buses : []
+  }
+  try {
+    return render(choose)
+  } catch (error) {
+    if (!(error instanceof TerminalWorkLimitError) || !found) throw error
+    mode = dense ? 'none' : 'all'
+    if (dense) return render(choose)
+    try {
+      return render(choose)
+    } catch (busError) {
+      if (!(busError instanceof TerminalWorkLimitError)) throw busError
+    }
+    throw error
+  }
+}
+
 /** Face capacity belongs to allocation, before any node or connector is painted. */
 export function boxFaceSizes(relations: readonly BoxRelation[], direction: DiagramDirection, boxes?: readonly TerminalBox[], buses: readonly BoxBus[] = []): Map<string, { width: number; height: number }> {
   const counts = faceCounts(relations, direction, boxes ? new Map(boxes.map(box => [box.id, box])) : undefined, buses)
