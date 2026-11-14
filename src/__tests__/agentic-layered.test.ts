@@ -12,6 +12,7 @@ import { GraphLayoutUnsupportedError } from '../layout/backend.ts'
 import type { Direction, Point } from '../types.ts'
 import { countOpposingRouteOverlaps, countParallelRouteOverlaps } from '../layout-rubric.ts'
 import { layoutMeasuredForest } from '../layout/measured-forest.ts'
+import { placeNativeNesting } from '../layout/native-nesting.ts'
 import { assignChannelTracks } from '../layout/channel-tracks.ts'
 import { createEndpointSparseVisibilityGraph, createSparseAdjacencyStoragePool, createSparseQueryWorkspacePool, createSparseVisibilityGraph } from '../layout/compound-sparse-visibility.ts'
 import { retainsTerminalLead, createVisibilityGrid } from '../layout/compound-visibility.ts'
@@ -703,9 +704,9 @@ describe('owned measured layered layout', () => {
     const nodes = new Map(positioned!.nodes.map(node => [node.id, node]))
     const horizontal = direction === 'LR' || direction === 'RL', reverse = direction === 'BT' || direction === 'RL'
     for (const edge of positioned!.edges) {
-      // These aligned real faces have an unobstructed direct corridor. An
-      // unlabeled temporary group guide must not introduce a detour.
-      if (variant === 'identity' && horizontal) expect(edge.points).toHaveLength(2)
+      // Common root order aligns the real faces across these private scopes.
+      // North title bands keep vertical scopes outside this ordering rule.
+      if (horizontal) expect(edge.points).toHaveLength(2)
       const from = nodes.get(edge.source)!, to = nodes.get(edge.target)!
       const mainStart = (node: Box) => horizontal ? node.x : node.y
       const mainEnd = (node: Box) => mainStart(node) + (horizontal ? node.width : node.height)
@@ -731,6 +732,86 @@ describe('owned measured layered layout', () => {
         for (const group of positioned!.groups) expect(crossesInterior(edge.points[i - 1]!, edge.points[i]!, { ...group, height: group.headerHeight! })).toBe(false)
       }
     }
+  })
+
+  test.each(['eligible-LR', 'eligible-RL', 'full-budget', 'low-pairs', 'low-slots', 'vertical-TB', 'vertical-BT',
+    'node-order0', 'group-order0', 'node-partition0', 'group-partition0', 'branch', 'cycle', 'same-path-return',
+    'mixed', 'nested', 'frame-endpoint', 'local-edge', 'label', 'invisible', 'ungrouped',
+    'isolate-LR', 'isolate-RL', 'partial-LR', 'partial-RL'] as const)('private compound path order preserves its eligibility boundary: %s', mode => {
+    const padding = { top: 10, right: 10, bottom: 10, left: 10 }
+    const input = measured({ direction: mode === 'eligible-RL' || mode === 'isolate-RL' || mode === 'partial-RL' ? 'RL' : mode === 'vertical-TB' ? 'TB' : mode === 'vertical-BT' ? 'BT' : 'LR', placementOnly: true,
+      nodes: [
+        { id: 'A0', width: 40, height: 24, parent: 0 }, { id: 'A1', width: 40, height: 24, parent: 0 },
+        { id: 'B0', width: 40, height: 24, parent: 1 }, { id: 'B1', width: 40, height: 24, parent: 1 },
+      ],
+      groups: [{ id: 'GA', minWidth: 80, padding }, { id: 'GB', minWidth: 80, padding }],
+      edges: [{ source: 0, target: 3, minSpan: 1 }, { source: 1, target: 2, minSpan: 1 }],
+    })
+    if (mode === 'isolate-LR' || mode === 'isolate-RL') input.edges = [{ source: 1, target: 3, minSpan: 1 }]
+    if (mode === 'partial-LR' || mode === 'partial-RL') {
+      input.nodes = [...input.nodes, { id: 'C0', width: 40, height: 24, parent: 2 }]
+      input.groups = [...input.groups!, { id: 'GC', minWidth: 80, padding }]
+      input.edges = [...input.edges, { source: 3, target: 4, minSpan: 1 }]
+    }
+    if (mode === 'node-order0') input.nodes[0]!.modelOrder = 0
+    if (mode === 'group-order0') input.groups![0]!.modelOrder = 0
+    if (mode === 'node-partition0') input.nodes[0]!.partition = 0
+    if (mode === 'group-partition0') input.groups![0]!.partition = 0
+    if (mode === 'branch') input.edges = [{ source: 0, target: 2, minSpan: 1 }, { source: 0, target: 3, minSpan: 1 }]
+    if (mode === 'cycle') input.edges = [...input.edges, { source: 2, target: 1, minSpan: 1 }]
+    if (mode === 'same-path-return') input.edges = [{ source: 0, target: 3, minSpan: 1 }, { source: 3, target: 1, minSpan: 1 }, { source: 1, target: 2, minSpan: 1 }]
+    if (mode === 'mixed') input.groups![1]!.direction = 'TB'
+    if (mode === 'nested') input.groups![1]!.parent = 0
+    if (mode === 'frame-endpoint') input.edges[0]!.source = 4
+    if (mode === 'local-edge') input.edges[0]!.target = 1
+    if (mode === 'label') input.edges[0]!.label = { width: 10, height: 10 }
+    if (mode === 'invisible') input.edges[0]!.visible = false
+    if (mode === 'ungrouped') delete input.nodes[0]!.parent
+    const before = structuredClone(input)
+    for (const node of input.nodes) Object.freeze(node)
+    for (const edge of input.edges) Object.freeze(edge)
+    for (const group of input.groups!) { Object.freeze(group.padding); Object.freeze(group) }
+    Object.freeze(input.nodes); Object.freeze(input.edges); Object.freeze(input.groups); Object.freeze(input)
+    const work = { pairs: mode === 'low-pairs' ? 36 : mode === 'full-budget' ? 37 : 1_000_000,
+      arcs: mode === 'low-slots' ? 12 : mode === 'full-budget' ? 13 : 1_000_000, swaps: 1_000_000 }
+    const scopes: string[][] = []
+    const fail = (reason: string): never => { throw new GraphLayoutUnsupportedError(reason) }
+    layoutCompoundGraph(input, flat => { scopes.push(flat.nodes.map(node => node.id)); return layoutLayeredGraph(flat, graph => layoutMeasuredForest(graph, 'scope'), fail) },
+      fail, 10000, work, () => mode === 'cycle' || mode === 'same-path-return' ? undefined : 'acyclic-quotient')
+    const reordered = mode === 'eligible-LR' || mode === 'eligible-RL' || mode === 'full-budget'
+    expect(scopes.find(nodes => nodes.includes('B0'))).toEqual(reordered ? ['B1', 'B0'] : ['B0', 'B1'])
+    expect(input).toEqual(before)
+  })
+
+  test.each((['LR', 'RL'] as const).flatMap(direction => (['acyclic', 'budget-decline', 'span-decline'] as const).map(mode => ({ direction, mode }))))('compound ordering requires the actual paid acyclic quotient result: %j', ({ direction, mode }) => {
+    const padding = { top: 10, right: 10, bottom: 10, left: 10 }
+    const input = measured({ direction, placementOnly: true,
+      nodes: [{ id: 'A0', width: 40, height: 24, parent: 0 }, { id: 'A1', width: 40, height: 24, parent: 0 },
+        { id: 'B0', width: 40, height: 24, parent: 1 }, { id: 'B1', width: 40, height: 24, parent: 1 }],
+      groups: [{ id: 'GA', minWidth: 80, padding }, { id: 'GB', minWidth: 80, padding }],
+      edges: [{ source: 0, target: 3, minSpan: mode === 'span-decline' ? 683 : 1 }, { source: mode === 'acyclic' ? 1 : 2, target: mode === 'acyclic' ? 2 : 1, minSpan: 1 }],
+    })
+    // These limits fit the child-order plan, but not the global producer's
+    // quotient admission. Opposite paths must keep the original sibling order.
+    const work = { pairs: mode === 'budget-decline' ? 56 : 1_000_000, arcs: mode === 'budget-decline' ? 18 : 1_000_000, swaps: 1_000_000 }
+    const scopes: string[][] = []
+    const fail = (reason: string): never => { throw new GraphLayoutUnsupportedError(reason) }
+    // This owner observes scope inputs, not rank expansion. A fixed placement
+    // adapter avoids materializing hundreds of irrelevant span dummy nodes.
+    const place = (flat: MeasuredGraph): AgenticLayout => {
+      scopes.push(flat.nodes.map(node => node.id))
+      const nodes = flat.nodes.map((_, index) => ({ x: index * 100, y: 0 }))
+      return { topology: 'layered', width: 100 * nodes.length, height: 100, nodes,
+        edges: flat.edges.map(edge => ({ points: [{ ...nodes[edge.source]! }, { ...nodes[edge.target]! }] })) }
+    }
+    let outcome: string | undefined
+    layoutCompoundGraph(input, place, fail, 10000, work, (owners, children, lifted) => {
+      const result = placeNativeNesting(input, owners, children, lifted, place, work, 10000, fail)
+      outcome = typeof result === 'string' ? result : result ? 'placed' : 'declined'
+      return result
+    })
+    expect(outcome).toBe(mode === 'acyclic' ? 'acyclic-quotient' : 'declined')
+    expect(scopes.find(nodes => nodes.includes('B0'))).toEqual(mode === 'acyclic' ? ['B1', 'B0'] : ['B0', 'B1'])
   })
 
   test.each(['TB', 'BT', 'LR', 'RL'] as const)('global leaf ranks do not inherit a lifted group cycle in %s', direction => {

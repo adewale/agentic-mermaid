@@ -4,6 +4,32 @@ Current work order: [Native replacement plan](layout-0.6-qualification.md).
 The dated records below are historical evidence; earlier “next” statements do not
 create parallel active queues. No retained experiment or output is discarded.
 
+14 November horizontal complete-path ordering, parent
+`1e6882c9c40ad2989bb64c3cb7662fd4696016d4` (runtime `c037a727`):
+reuse the existing paid quotient-DAG outcome to order only private child buckets
+for flat LR/RL complete disjoint path bundles. Preserve authored arrays/IDs/edge
+order and all caps; no second quotient scan, sort, backend or cache. The broader
+TB pilot added 8.81% wire and an isolate pilot added four bends; both are retained
+and excluded structurally. Complete-bundle admission restores the isolate's
+entire product. Actual built LR/RL permutation crossings 25/21→0, bends 39→0,
+wire 4848/4899→560; all six changed horizontal cases improve area/wire/bends/crossings.
+Independent final-SVG marker/shaft supports are clear for all 32 products; this is
+separate from the certificate's uncovered general marker/foreign-shaft category.
+All 26 unchanged compound and 198 original-corpus products remain byte-exact.
+Native/cache owners 349P, selected Class owners 6P, refined boundary table 25P;
+core/repository types, scoped lint and canonical Node/browser builds pass.
+Matched exploratory full-response LR/RL medians 41.29/39.92→24.26/24.76ms;
+healthy identity 24.12→25.98ms and stock chain100 89.64→98.01ms are adverse.
+All 432 full calls return scoped proofP; full chain100's 98.96ms median has
+107.38ms process counterexample and does not close the general 100ms goal.
+Browser delivery 132P, all browsers closed; Flow app gzip +314 Native/+1 ELK,
+requests 32/27 unchanged (including two observer bindings). Evidence:
+`path-order-implementation/REPORT.md` and `audit/PATH-ORDER-BUILT-REVIEW.json`
+in the existing campaign packet. Exact-head CI/publication remain pending;
+Chain300 proof capacity, shared overhead, payload ceilings and other named
+quality losses remain open.
+
+
 12 November Main contract alignment, parent
 `483b4b967a2b31ab44e5830e8e27b84319663ac0`: internal non-painting metadata
 now uses Main's final XML text projection during its closed-envelope check.

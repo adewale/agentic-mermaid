@@ -15,12 +15,14 @@ interface Nesting {
 const pending = new WeakMap<MeasuredGraph, Nesting>()
 export const nativeNestingOf = (input: MeasuredGraph) => pending.get(input)
 
+export type NativeNestingResult = AgenticLayout | 'acyclic-quotient' | undefined
+
 export function placeNativeNesting(
   input: MeasuredGraph, owners: Int32Array, children: readonly number[][],
   lifted: ReadonlyMap<number, { source: number; target: number; host: number }>,
   layout: (flat: MeasuredGraph) => AgenticLayout, work: ChannelWork, limit: number,
   fail: (reason: string) => never,
-): AgenticLayout | undefined {
+): NativeNestingResult {
   const groups = input.groups!, n = input.nodes.length, g = groups.length
   const direction = input.direction === 'TD' ? 'TB' : input.direction
   // These existing contracts retain the recursive implementation. No edge or
@@ -57,7 +59,7 @@ export function placeNativeNesting(
     degree[target] = degree[target]! - 1
     if (!degree[target]) queue[queued++] = target
   }
-  if (queued === subjects) return undefined
+  if (queued === subjects) return 'acyclic-quotient'
   reserve(24 * (size + input.edges.length), 2 * size + 4 * g + input.edges.length)
   // This strategy admits acyclic leaf constraints. Do not run feedback-order
   // searches only to discard every cyclic result into recursive compatibility.
