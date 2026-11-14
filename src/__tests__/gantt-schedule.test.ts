@@ -120,6 +120,29 @@ describe('resolver — core rules', () => {
     expect(incl.tasks[0]!.end - base.tasks[0]!.end).toBe(DAY_MS)
   })
 
+  // Mermaid reads a length only as a number glued to ms, s, m, h, d, w, M or y
+  // and gives a task with any other spelling no length; ours keeps the
+  // length a unit name or a blank before the unit plainly states.
+  test.each([
+    ['2min', UTC(1970, 1, 1, 12, 2)],
+    ['2 m', UTC(1970, 1, 1, 12, 2)],
+    ['90 Seconds', UTC(1970, 1, 1, 12, 1) + 30_000],
+    ['250 msecs', UTC(1970, 1, 1, 12) + 250],
+    ['3 hours', UTC(1970, 1, 1, 15)],
+    ['1hr', UTC(1970, 1, 1, 13)],
+    ['2days', UTC(1970, 1, 3, 12)],
+    ['1 wk', UTC(1970, 1, 8, 12)],
+    ['1 month', UTC(1970, 2, 1, 12)],
+    ['1 M', UTC(1970, 2, 1, 12)],
+    ['2 Years', UTC(1972, 1, 1, 12)],
+  ])('a length spelled %j ends the task where it says', (length, end) => {
+    expect(scheduleOf(`gantt\n  dateFormat HH:mm\n  A :a, 12:00, ${length}`).tasks[0]).toMatchObject({ start: UTC(1970, 1, 1, 12), end })
+  })
+
+  test.each(['1h30m', '2 fortnights', 'min', '2 mn'])('a length ours cannot read, %j, stays an error', length => {
+    expect(() => scheduleOf(`gantt\n  dateFormat HH:mm\n  A :a, 12:00, ${length}`)).toThrow('GANTT_BAD_DATE')
+  })
+
   test('milestones resolve like zero/short tasks', () => {
     const s = scheduleOf('gantt\n  M :milestone, m1, 2024-01-05, 0d')
     expect(s.tasks[0]).toMatchObject({ start: UTC(2024, 1, 5), end: UTC(2024, 1, 5) })
