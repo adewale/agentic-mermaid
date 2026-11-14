@@ -7,6 +7,7 @@ import { handleRequest } from '../mcp/server.ts'
 import { runSourceToolIsolated, SourceToolExecutor, type RenderProcess } from '../mcp/source-worker-client.ts'
 import { sourceToolMessage, SourceToolMessageLimitError, type SourceToolRequest } from '../mcp/source-tool-message.ts'
 import { SourceRenderProcess } from '../mcp/source-render-process.ts'
+import { SOURCE_TOOL_RESULT_BYTES } from '../mcp/source-worker-limits.ts'
 
 const temp = useTempDirs('am-source-tools-')
 
@@ -104,7 +105,7 @@ parentPort.postMessage({type:'ready'});`)
   }, 10_000)
 
   test('supervisor rejects an oversized worker reply before forwarding it', async () => {
-    const worker = workerFixture(`parentPort.on('message', ({id}) => parentPort.postMessage({type:'result',id,json:'x'.repeat(16*1024*1024+1)}));parentPort.postMessage({type:'ready'});`)
+    const worker = workerFixture(`parentPort.on('message', ({id}) => parentPort.postMessage({type:'result',id,json:'x'.repeat(${SOURCE_TOOL_RESULT_BYTES}+1)}));parentPort.postMessage({type:'ready'});`)
     const renderer = new SourceRenderProcess({ worker })
     const closed = rendererExit(renderer)
     let forwarded = false
