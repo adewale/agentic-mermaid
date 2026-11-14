@@ -347,19 +347,21 @@ describe('sequence create/destroy are typed statements', () => {
       .toEqual(renderParse(written).actors.map(actor => [actor.id, actor.type, actor.label]))
   })
 
-  // Mermaid binds a stacked directive to the message after the stack even
-  // when its participant is in a later message; ours binds it to that later
-  // message, and verify says so on the directive's line.
+  // Mermaid's database binds a stacked directive to the message after the
+  // stack even when its participant is in a later message, and its renderer
+  // then draws no creation or destruction for it (the message does not
+  // involve the participant); ours binds it to that later message, and verify
+  // says so on the directive's line.
   test.each([
-    ['a stacked destroy', 'Alice->>Bob: hi\n  Alice->>Carl: yo\n  destroy Carl\n  destroy Bob\n  Bob->>Alice: bye\n  Carl->>Alice: later', 'destroy Carl', ['Carl', 'Alice', 'later'], ['Bob', 'Alice', 'bye'], 4],
-    ['a stacked create', 'Alice->>Bob: hi\n  create participant X\n  create participant Y\n  Bob->>Y: make\n  Alice->>X: later', 'create X', ['Alice', 'X', 'later'], ['Bob', 'Y', 'make'], 3],
-  ] as const)('%s whose participant is in a later message binds there and warns', async (_name, body, directive, ours, mermaid, line) => {
+    ['a stacked destroy', 'Alice->>Bob: hi\n  Alice->>Carl: yo\n  destroy Carl\n  destroy Bob\n  Bob->>Alice: bye\n  Carl->>Alice: later', 'destroy Carl', ['Carl', 'Alice', 'later'], ['Bob', 'Alice', 'bye'], 4, 'draws no destruction for "Carl"'],
+    ['a stacked create', 'Alice->>Bob: hi\n  create participant X\n  create participant Y\n  Bob->>Y: make\n  Alice->>X: later', 'create X', ['Alice', 'X', 'later'], ['Bob', 'Y', 'make'], 3, 'draws no creation for "X"'],
+  ] as const)('%s whose participant is in a later message binds there and warns', async (_name, body, directive, ours, mermaid, line, drawn) => {
     const source = `sequenceDiagram\n  ${body}\n`
     const bound = await bindings(source)
     expect(bound.ours[directive]).toEqual([...ours])
     expect(bound.mermaid).toMatchObject({ [directive]: mermaid })
     expect(verifyMermaid(source).warnings.filter(warning => warning.code === 'UNSUPPORTED_SYNTAX')).toEqual([
-      expect.objectContaining({ syntax: 'sequence_stacked_lifecycle', line }),
+      expect.objectContaining({ syntax: 'sequence_stacked_lifecycle', line, message: expect.stringContaining(drawn) }),
     ])
   })
 

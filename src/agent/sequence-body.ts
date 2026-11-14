@@ -461,13 +461,15 @@ export function sequenceLifecycleIssues(statements: readonly SequenceSourceState
   // A stacked directive whose participant is not in the message ending its
   // stack, but is in a later one: Mermaid accepts the stack and binds the
   // directive to the message right after it, where ours binds it later.
+  // Mermaid's renderer draws a binding only for a participant its message
+  // involves, so it draws nothing for this directive.
   const reported = new Set(issues.map(issue => issue.entry))
   for (const { kind, id, entry, next } of directives) {
     const qualifies = (m: { from: string; to: string }) => kind === 'create' ? m.to === id : m.from === id || m.to === id
     if (reported.has(entry) || next >= messages.length || qualifies(messages[next]!) || !messages.slice(next + 1).some(qualifies)) continue
     issues.push({
       entry, syntax: 'sequence_stacked_lifecycle',
-      message: `"${kind} ${id}" is stacked above a message ${kind === 'create' ? `"${id}" does not receive` : `without "${id}"`}; ours ${kind === 'create' ? 'creates' : 'ends'} "${id}" at its later message, pinned Mermaid at the message after the stack. Move the line directly above that later message.`,
+      message: `"${kind} ${id}" is stacked above a message ${kind === 'create' ? `"${id}" does not receive` : `without "${id}"`}; ours ${kind === 'create' ? 'creates' : 'ends'} "${id}" at its later message. Pinned Mermaid binds it to the message after the stack and so draws no ${kind === 'create' ? 'creation' : 'destruction'} for "${id}". Move the line directly above that later message.`,
     })
   }
   return issues
