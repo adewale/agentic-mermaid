@@ -8,7 +8,7 @@ import { svgOpenTag, buildStyleBlock, buildShadowDefs, resolvedColorValue, type 
 import { FONT_SIZES, FONT_WEIGHTS, STROKE_WIDTHS, TEXT_BASELINE_SHIFT, applyTextTransform, resolveRenderStyle, diagramTitleFields } from '../styles.ts'
 import type { RenderStyleDefaults, ResolvedRenderStyle } from '../styles.ts'
 import { SEQUENCE_STYLE_DEFAULTS } from './layout.ts'
-import { SEQUENCE_DESTROY_CROSS_RADIUS, sequenceDestroyCrossStrokeWidth, sequenceMarkerFor, sequenceMarkerResources } from './geometry.ts'
+import { SEQUENCE_DESTROY_CROSS_RADIUS, sequenceActorIconScale, sequenceDestroyCrossStrokeWidth, sequenceMarkerFor, sequenceMarkerResources } from './geometry.ts'
 import { buildAccessibilityAttrs } from '../shared/svg-a11y.ts'
 import { escapeAttr, escapeDisplayAttr, escapeXml } from '../multiline-utils.ts'
 import type { Geometry, MarkerDescriptor } from '../scene/ir.ts'
@@ -351,7 +351,7 @@ function renderActor<T>(
     // Defined in a 24×24 coordinate space, scaled to 90% of the actor box height
     // and centered both horizontally and vertically within the box.
     // Stroke width is inverse-scaled so the visual thickness matches STROKE_WIDTHS.outerBox.
-    const s = (height / 24) * 0.9
+    const s = sequenceActorIconScale(height)
     const tx = x - 12 * s            // center icon horizontally on actor.x
     const ty = y + (height - 24 * s) / 2  // center icon vertically in actor box
     const sw = lineWidth / s  // compensate for scale transform
@@ -361,7 +361,10 @@ function renderActor<T>(
       node: marks.pathArtwork({ id: `actor:${id}:icon`, owner: { id, role: 'actor' }, channels: { category: id },
         open: `<g transform="translate(${tx},${ty}) scale(${s})">`,
         transform: { kind: 'matrix', a: s, b: 0, c: 0, d: s, e: tx, f: ty },
-        paint: { fill: 'none', stroke: roleStyle?.borderColor ?? style.edgeStrokeColor ?? 'var(--_line)', strokeWidth: String(sw) },
+        // The icon's curves meet tangentially, so a round join changes no ink;
+        // it lets paint certification bound the outline by its half-width
+        // where a creation message's head meets the outer circle.
+        paint: { fill: 'none', stroke: roleStyle?.borderColor ?? style.edgeStrokeColor ?? 'var(--_line)', strokeWidth: String(sw), strokeLinejoin: 'round' },
         join: '\n', indent: 2,
         paths: [
           'M21 12C21 16.9706 16.9706 21 12 21C7.02944 21 3 16.9706 3 12C3 7.02944 7.02944 3 12 3C16.9706 3 21 7.02944 21 12Z',

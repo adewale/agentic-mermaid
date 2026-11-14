@@ -112,21 +112,42 @@ describe('sequence create/destroy layout', () => {
     expect(createMsg.y).toBeLessThanOrEqual(donald.y + donald.height)
   })
 
-  it.each([
-    ['right', 'participant A\ncreate participant C as Created\nA->>C: Welcome'],
-    ['left', 'create participant C as Created\nA->>C: Welcome'],
-  ])('creation arrows meet the %s participant header without losing their labels', (_direction, body) => {
-    const p = layoutSequenceDiagram(parse(`sequenceDiagram\n${body}`))
-    const message = p.messages[0]!, source = p.actors.find(actor => actor.id === 'A')!, target = p.actors.find(actor => actor.id === 'C')!
-    const attachment = source.x < target.x ? target.bounds.x : target.bounds.x + target.bounds.width
-    expect(message.x1).toBe(source.x)
-    expect(message.x2).toBe(attachment)
-    expect(message.x2).not.toBe(target.x)
-    expect(message.points.at(-1)).toEqual({ x: attachment, y: message.y })
-    expect(message).toMatchObject({ from: 'A', to: 'C', endHead: 'filled', label: 'Welcome' })
-    expect(renderMermaidSVGWithReceipt(`sequenceDiagram\n${body}`, { layoutSafety: 'strict' }).receipt.layoutCertification?.status).toBe('passed')
+  // A creation message ends where its head meets the created header's
+  // outline, a participant card's side or the stick figure's outer circle,
+  // with the head's ink outside it, so the header covers none of the head and
+  // strict layout safety certifies the diagram (the Mermaid documentation
+  // example creates the actor `D as Donald` this way).
+  const creationHeads = [['filled', '->>'], ['dotted', '-->>'], ['open', '->'], ['cross', '-x'], ['async', '-)'], ['bidirectional', '<<->>']] as const
+  it.each(['participant', 'actor'].flatMap(type => creationHeads.flatMap(([head, arrow]) => [
+    [type, head, 'right', `participant A\ncreate ${type} C as Created\nA${arrow}C: Welcome`],
+    [type, head, 'left', `create ${type} C as Created\nA${arrow}C: Welcome`],
+  ])))('a creation message meets the created %s header with a %s head from the %s', (type, _head, _direction, body) => {
+    const source = `sequenceDiagram\n${body}\nC-->>A: back`
+    const p = layoutSequenceDiagram(parse(source))
+    const message = p.messages[0]!, sender = p.actors.find(actor => actor.id === 'A')!, target = p.actors.find(actor => actor.id === 'C')!
+    expect(message).toMatchObject({ from: 'A', to: 'C', label: 'Welcome', x1: sender.x })
+    expect(message.points.at(-1)).toEqual({ x: message.x2, y: message.y })
+    const { svg, receipt } = renderMermaidSVGWithReceipt(source, { layoutSafety: 'strict' })
+    expect(receipt.layoutCertification?.status).toBe('passed')
+    // The drawn outline on the message row: the card's side, or the icon's
+    // outer circle (radius 9 of its 24-unit box), each with a 1px stroke.
+    const icon = svg.match(/<g transform="translate\(([-\d.]+),([-\d.]+)\) scale\(([-\d.]+)\)">/)
+    const outline = type === 'actor' ? 9 * Number(icon![3]) + 0.5 : target.width / 2 + 0.5
+    if (type === 'actor') {
+      expect(Number(icon![1]) + 12 * Number(icon![3])).toBe(target.x)
+      expect(Number(icon![2]) + 12 * Number(icon![3])).toBe(message.y)
+    } else expect(target.y + target.height / 2).toBe(message.y)
+    const reach = Math.abs(target.x - message.x2)
+    expect(reach).toBeGreaterThanOrEqual(outline)
+    expect(reach).toBeLessThanOrEqual(outline + 7)
+    expect(Math.sign(target.x - message.x2)).toBe(Math.sign(target.x - sender.x))
     expect(message.labelPosition.bounds.x).toBeGreaterThanOrEqual(Math.min(message.x1, message.x2))
     expect(message.labelPosition.bounds.x + message.labelPosition.bounds.width).toBeLessThanOrEqual(Math.max(message.x1, message.x2))
+  })
+
+  it('certifies the Mermaid documentation example under strict safety', () => {
+    const source = 'sequenceDiagram\nAlice->>Bob: Hello Bob, how are you ?\nBob->>Alice: Fine, thank you. And you?\ncreate participant Carl\nAlice->>Carl: Hi Carl!\ncreate actor D as Donald\nCarl->>D: Hi!\ndestroy Carl\nAlice-xCarl: We are too many\ndestroy Bob\nBob->>Alice: I agree'
+    expect(renderMermaidSVGWithReceipt(source, { layoutSafety: 'strict' }).receipt.layoutCertification?.status).toBe('passed')
   })
 
   // A stacked directive whose participant is not in its message still acts at

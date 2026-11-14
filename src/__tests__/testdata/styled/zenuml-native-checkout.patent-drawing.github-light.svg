@@ -1,7 +1,7 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="612.08" height="593.85" viewBox="0 0 612.08 593.85" style="--bg:#ffffff;--fg:#1f2328;--line:#d1d9e0;--accent:#0969da;--muted:#59636e;--surface:#ffffff;--border:#111111;--font:EB Garamond;background:#ffffff" class="am-0s1b1ns1p1h0h8">
+<svg xmlns="http://www.w3.org/2000/svg" width="612.08" height="593.85" viewBox="0 0 612.08 593.85" style="--bg:#ffffff;--fg:#1f2328;--line:#d1d9e0;--accent:#0969da;--muted:#59636e;--surface:#ffffff;--border:#111111;--font:EB Garamond;background:#ffffff" class="am-15d2z3k08qch5f">
 <style>
-  svg.am-0s1b1ns1p1h0h8 { font-family: var(--font, 'EB Garamond'), system-ui, sans-serif; }
-  svg.am-0s1b1ns1p1h0h8 {
+  svg.am-15d2z3k08qch5f { font-family: var(--font, 'EB Garamond'), system-ui, sans-serif; }
+  svg.am-15d2z3k08qch5f {
     /* Derived from --bg and --fg (overridable via --line, --accent, etc.) */
     --_text:          #1f2328;
     --_text-sec:      #59636e;
@@ -97,9 +97,9 @@
   <text paint-order="stroke" stroke="#ffffff" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" x="296.97" y="335" text-anchor="middle" font-size="12" font-weight="400" fill="#1f2328" data-prepared-text="true" dy="4.2" textLength="44.568" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">rejected</text>
 </g>
 <g class="message" data-label="«order»" data-line-style="solid" data-start-head="none" data-end-head="filled" data-central-start="false" data-central-end="false" data-self="false" data-id="statement:6" data-role="message">
-  <line stroke-opacity="0" x1="226.97" y1="417.45" x2="451.34" y2="417.45" stroke="#1f2328" stroke-width="1.45" marker-end="url(#seq-arrow)" data-relationship="sequence-message" data-direction="forward" data-id="statement:6:line" data-role="message" data-from="API" data-to="ticket:Ticket" role="graphics-symbol" aria-roledescription="relation" aria-label="API to ticket:Ticket: «order»" />
-  <path d="M226.77 417.29 C279.21 416.86, 330.36 417.62, 451.42 417.3" fill="none" stroke="#1f2328" stroke-width="1.9575" stroke-linecap="butt" stroke-linejoin="miter" stroke-miterlimit="4" />
-  <text paint-order="stroke" stroke="#ffffff" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" x="339.155" y="406.8" text-anchor="middle" font-size="12" font-weight="400" fill="#1f2328" data-prepared-text="true"><tspan x="339.155" y="411" text-anchor="middle" data-text-fragment="true">«order»</tspan></text>
+  <line stroke-opacity="0" x1="226.97" y1="417.45" x2="450.665" y2="417.45" stroke="#1f2328" stroke-width="1.45" marker-end="url(#seq-arrow)" data-relationship="sequence-message" data-direction="forward" data-id="statement:6:line" data-role="message" data-from="API" data-to="ticket:Ticket" role="graphics-symbol" aria-roledescription="relation" aria-label="API to ticket:Ticket: «order»" />
+  <path d="M226.77 417.29 C279.05 416.86, 330.05 417.63, 450.75 417.3" fill="none" stroke="#1f2328" stroke-width="1.9575" stroke-linecap="butt" stroke-linejoin="miter" stroke-miterlimit="4" />
+  <text paint-order="stroke" stroke="#ffffff" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" x="338.8175" y="406.8" text-anchor="middle" font-size="12" font-weight="400" fill="#1f2328" data-prepared-text="true"><tspan x="338.8175" y="411" text-anchor="middle" data-text-fragment="true">«order»</tspan></text>
 </g>
 <g class="message" data-label="ticket" data-line-style="dashed" data-start-head="none" data-end-head="open" data-central-start="false" data-central-end="false" data-self="false" data-id="statement:6:reply" data-role="message">
   <line stroke-opacity="0" x1="516.71" y1="481.25" x2="226.97" y2="481.25" stroke="#1f2328" stroke-width="1.45" stroke-dasharray="6 4" marker-end="url(#seq-arrow-open)" data-relationship="sequence-message" data-direction="forward" data-id="statement:6:reply:line" data-role="message" data-from="ticket:Ticket" data-to="API" role="graphics-symbol" aria-roledescription="relation" aria-label="ticket:Ticket to API: ticket" />

@@ -1,7 +1,7 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="577.676" height="541.4" viewBox="0 0 577.676 541.4" style="--bg:#282a36;--fg:#f8f8f2;--line:#6272a4;--accent:#bd93f9;--muted:#6272a4;--border:#ecece7;--font:Caveat;background:#282a36" class="am-0x1vzyl03jxfwc">
+<svg xmlns="http://www.w3.org/2000/svg" width="577.676" height="541.4" viewBox="0 0 577.676 541.4" style="--bg:#282a36;--fg:#f8f8f2;--line:#6272a4;--accent:#bd93f9;--muted:#6272a4;--border:#ecece7;--font:Caveat;background:#282a36" class="am-1i6df6118d7p8v">
 <style>
-  svg.am-0x1vzyl03jxfwc { font-family: var(--font, 'Caveat'), system-ui, sans-serif; }
-  svg.am-0x1vzyl03jxfwc {
+  svg.am-1i6df6118d7p8v { font-family: var(--font, 'Caveat'), system-ui, sans-serif; }
+  svg.am-1i6df6118d7p8v {
     /* Derived from --bg and --fg (overridable via --line, --accent, etc.) */
     --_text:          #f8f8f2;
     --_text-sec:      #6272a4;
@@ -116,9 +116,9 @@
   <text paint-order="stroke" stroke="#282a36" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" x="285.133" y="293.4" text-anchor="middle" font-size="11" font-weight="400" fill="#a0aac4" data-prepared-text="true" dy="3.85" textLength="40.854" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">rejected</text>
 </g>
 <g class="message" data-label="«order»" data-line-style="solid" data-start-head="none" data-end-head="filled" data-central-start="false" data-central-end="false" data-self="false" data-id="statement:6" data-role="message">
-  <line stroke-opacity="0" x1="215.133" y1="371.4" x2="442.59" y2="371.4" stroke="#6272a4" stroke-width="1" marker-end="url(#seq-arrow)" data-relationship="sequence-message" data-direction="forward" data-id="statement:6:line" data-role="message" data-from="API" data-to="ticket:Ticket" role="graphics-symbol" aria-roledescription="relation" aria-label="API to ticket:Ticket: «order»" />
-  <path d="M214.47 370.86 C269.15 368.25, 319.59 370.78, 442.86 370.91 M215.38 371.35 C285.95 373.59, 358.96 373.2, 442.61 371.75" fill="none" stroke="#6272a4" stroke-width="1.8" stroke-linecap="butt" stroke-linejoin="miter" stroke-miterlimit="4" />
-  <text paint-order="stroke" stroke="#282a36" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" x="328.8615" y="361.4" text-anchor="middle" font-size="11" font-weight="400" fill="#a0aac4" data-prepared-text="true"><tspan x="328.8615" y="365.25" text-anchor="middle" data-text-fragment="true">«order»</tspan></text>
+  <line stroke-opacity="0" x1="215.133" y1="371.4" x2="442.09" y2="371.4" stroke="#6272a4" stroke-width="1" marker-end="url(#seq-arrow)" data-relationship="sequence-message" data-direction="forward" data-id="statement:6:line" data-role="message" data-from="API" data-to="ticket:Ticket" role="graphics-symbol" aria-roledescription="relation" aria-label="API to ticket:Ticket: «order»" />
+  <path d="M214.47 370.86 C269.04 368.25, 319.36 370.78, 442.36 370.91 M215.38 371.35 C285.79 373.59, 358.65 373.2, 442.11 371.75" fill="none" stroke="#6272a4" stroke-width="1.8" stroke-linecap="butt" stroke-linejoin="miter" stroke-miterlimit="4" />
+  <text paint-order="stroke" stroke="#282a36" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" x="328.6115" y="361.4" text-anchor="middle" font-size="11" font-weight="400" fill="#a0aac4" data-prepared-text="true"><tspan x="328.6115" y="365.25" text-anchor="middle" data-text-fragment="true">«order»</tspan></text>
 </g>
 <g class="message" data-label="ticket" data-line-style="dashed" data-start-head="none" data-end-head="open" data-central-start="false" data-central-end="false" data-self="false" data-id="statement:6:reply" data-role="message">
   <line stroke-opacity="0" x1="495.133" y1="431.4" x2="215.133" y2="431.4" stroke="#6272a4" stroke-width="1" stroke-dasharray="6 4" marker-end="url(#seq-arrow-open)" data-relationship="sequence-message" data-direction="forward" data-id="statement:6:reply:line" data-role="message" data-from="ticket:Ticket" data-to="API" role="graphics-symbol" aria-roledescription="relation" aria-label="ticket:Ticket to API: ticket" />

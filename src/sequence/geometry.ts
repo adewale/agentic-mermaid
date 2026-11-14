@@ -9,14 +9,20 @@ import type { resolveRoleStyle } from '../scene/style-registry.ts'
 import type { MarkerDescriptor } from '../scene/ir.ts'
 import { markerBoundsAt } from '../scene/bounds.ts'
 
-/** Support across the carrier at unit carrier width, from the same painted
- * envelope as markerTerminalDepth: how far the marker reaches either side of
- * a straight carrier at its endpoint. */
-function markerLateralExtent(marker: MarkerDescriptor, position: 'start' | 'end'): number {
+/** A terminal marker's painted envelope at unit carrier width around its
+ * endpoint, on a straight carrier running in +x (as markerTerminalDepth). */
+function terminalMarkerBounds(marker: MarkerDescriptor, position: 'start' | 'end') {
   const angle = typeof marker.orient === 'number' ? marker.orient
     : position === 'start' && marker.orient === 'auto-start-reverse' ? 180 : 0
   const bounds = markerBoundsAt(marker, { x: 0, y: 0 }, 1, true, angle)
   if (!bounds) throw new TypeError(`Unmeasured terminal marker ${marker.id}`)
+  return bounds
+}
+
+/** How far the marker reaches either side of a straight carrier at its
+ * endpoint, at unit carrier width. */
+function markerLateralExtent(marker: MarkerDescriptor, position: 'start' | 'end'): number {
+  const bounds = terminalMarkerBounds(marker, position)
   return Math.max(0, -bounds.y0, bounds.y1)
 }
 
@@ -76,6 +82,29 @@ export function sequenceMarkerFor(markerResources: readonly MarkerDescriptor[], 
 function sequenceHeadHalfHeight(markerResources: readonly MarkerDescriptor[], head: PositionedMessage['endHead'], position: 'start' | 'end', strokeWidth: number): number {
   const marker = sequenceMarkerFor(markerResources, head)
   return marker ? markerLateralExtent(marker, position) * (marker.units === 'userSpaceOnUse' ? 1 : strokeWidth) : 0
+}
+
+/** How far a message head paints past its endpoint along the carrier, at
+ * the message's stroke width (a cross head is centred on it; an arrow tip
+ * ends there, its stroke a little beyond). */
+export function sequenceHeadOverreach(style: ResolvedRenderStyle, head: PositionedMessage['endHead'], position: 'start' | 'end'): number {
+  const marker = sequenceMarkerFor(sequenceMarkerResources(style), head)
+  if (!marker) return 0
+  const bounds = terminalMarkerBounds(marker, position)
+  return Math.max(0, position === 'end' ? bounds.x1 : -bounds.x0) * (marker.units === 'userSpaceOnUse' ? 1 : style.lineWidth)
+}
+
+/** The stick-figure `actor` glyph is a 24-unit icon scaled to 90% of its
+ * header's height and centred in it; its outer circle has a 9-unit radius. */
+export function sequenceActorIconScale(height: number): number {
+  return (height / 24) * 0.9
+}
+
+/** Painted half-width of a created participant's outline on the row of the
+ * message that creates it, which runs through the header's middle: a card's
+ * side, or the stick figure's outer circle, out to its stroke's edge. */
+export function sequenceCreatedOutlineHalfWidth(type: Actor['type'], spec: Pick<SequenceActorGeometrySpec, 'width' | 'height'>, outlineWidth: number): number {
+  return (type === 'actor' ? 9 * sequenceActorIconScale(spec.height) : spec.width / 2) + outlineWidth / 2
 }
 
 /** Half-size of the X cross ending a destroyed lifeline. */
