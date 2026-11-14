@@ -1,0 +1,31 @@
+{
+  "base": "c037a727de23228c2dccfc6f8bc12dcb77ba94ca",
+  "changedFile": "src/__tests__/resolved-scene.test.ts",
+  "sourceSha256": "4fd6925c59214c17dfd6196834f16f59098be0d39696bba1598a7f0fea407099",
+  "patchSha256": "b4472df04f585249c0feadc4c29177c142a419de602b5f38e6c7da616edf9ec8",
+  "runtimeSourceChanged": false,
+  "stableForParentCommit": true,
+  "publicationOwner": "root",
+  "checks": {
+    "originalCIReproduced": "one old callback-type assertion failed",
+    "newBunOwner": "2/2 pass cache0/cache1",
+    "credibleAliasSabotage": "1/1 intended failure on shared occupied Set",
+    "builtNodePublic": "8/8 pass cache0/cache1 x four styles, Scene/layout mutation and complete products",
+    "affectedOwners": "130 initial passes plus one failed reader rerun passes with canonical30000ms;131 distinct owners across three files",
+    "initialReaderTimeout": "5000ms default, retained OWNERS.log; canonical target passes in7501ms",
+    "types": "canonical core/repo terminal0",
+    "lint": "one file passed"
+  },
+  "setupFailures": [
+    "Raw-source Node parameter-property unsupported",
+    "Raw-source Node JSON import attribute missing after transform flag"
+  ],
+  "publishedSource": "1e6882c9c40ad2989bb64c3cb7662fd4696016d4",
+  "publishedTree": "3bc90f40580d9908a140f3a62e445283f7375e36",
+  "runtimeSource": "c037a727de23228c2dccfc6f8bc12dcb77ba94ca",
+  "ci": {
+    "run": 43541748422,
+    "status": "in_progress",
+    "ready": false
+  }
+}

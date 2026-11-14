@@ -1,0 +1,191 @@
+bun test v1.4.4 (38afee6c8)
+
+src/__tests__/resolved-scene.test.ts:
+101 |       detached.nodes[0].x = -9999
+102 |       assert.deepEqual(renderResolvedScene(source), resolved,
+103 |         'exposed planner and geometry mutations cannot poison a later resolved scene')
+104 |       assert.deepEqual(renderMermaidSVGWithReceipt(source), plain)
+105 |     `], { cwd: `${import.meta.dir}/../..`, env: { ...process.env, AGENTIC_MERMAID_SCENE_ASSERTIONS: '0', AGENTIC_MERMAID_ELK_CACHE: cache } })
+106 |     expect(child.status, child.stderr).toBe(0)
+                                             ^
+error: 65 |         assert.equal(detached, layout.positioned)
+66 |         assert.equal(hasPrivateNativePositionedInput(layout, producer), false,
+67 |           'restoring the original producer cannot reacquire exposed private input')
+68 |       } else {
+69 |         assert.notEqual(detached, layout.positioned)
+70 |         assert.notEqual(detached.identities.generated.occupied, layout.positioned.identities.generated.occupied)
+                    ^
+AssertionError: Expected "actual" not to be reference-equal to "expected":
+
+Set(48) {
+  'api',
+  'c4-rel-1',
+  'c4-rel-2',
+  'c4-rel-3',
+  'c4:api:card',
+  'c4:api:surface',
+  'c4:api:text',
+  'c4:c4-rel-1:label',
+  'c4:c4-rel-1:label-halo',
+  'c4:c4-rel-1:label-text',
+  'c4:c4-rel-1:relationship',
+  'c4:c4-rel-1:relationship-label',
+  'c4:c4-rel-2:label',
+  'c4:c4-rel-2:label-halo',
+  'c4:c4-rel-2:label-text',
+  'c4:c4-rel-2:relationship',
+  'c4:c4-rel-2:relationship-label',
+  'c4:c4-rel-3:label',
+  'c4:c4-rel-3:label-halo',
+  'c4:c4-rel-3:label-text',
+  'c4:c4-rel-3:relationship',
+  'c4:c4-rel-3:relationship-label',
+  'c4:c4:legend:container:database:legend-rim',
+  'c4:c4:legend:container:database:legend-swatch',
+  'c4:c4:legend:container:database:legend-text',
+  'c4:c4:legend:container:rectangle:legend-swatch',
+  'c4:c4:legend:container:rectangle:legend-text',
+  'c4:c4:legend:person:person:legend-head',
+  'c4:c4:legend:person:person:legend-swatch',
+  'c4:c4:legend:person:person:legend-text',
+  'c4:customer:card',
+  'c4:customer:person-head',
+  'c4:customer:person-shoulders',
+  'c4:customer:surface',
+  'c4:customer:text',
+  'c4:db:card',
+  'c4:db:database-rim',
+  'c4:db:surface',
+  'c4:db:text',
+  'c4:legend:container',
+  'c4:legend:heading',
+  'c4:platform:boundary-band',
+  'c4:platform:boundary-frame',
+  'c4:platform:boundary-text',
+  'c4:platform:frame',
+  'customer',
+  'db',
+  'platform'
+}
+
+ generatedMessage: true,
+     actual: Set(48) {
+  "customer",
+  "api",
+  "db",
+  "platform",
+  "c4-rel-1",
+  "c4-rel-2",
+  "c4-rel-3",
+  "c4:platform:boundary-frame",
+  "c4:platform:boundary-band",
+  "c4:platform:boundary-text",
+  "c4:platform:frame",
+  "c4:c4-rel-1:relationship",
+  "c4:c4-rel-1:label-text",
+  "c4:c4-rel-2:relationship",
+  "c4:c4-rel-2:label-text",
+  "c4:c4-rel-3:relationship",
+  "c4:c4-rel-3:label-text",
+  "c4:c4-rel-1:relationship-label",
+  "c4:c4-rel-1:label",
+  "c4:c4-rel-1:label-halo",
+  "c4:c4-rel-2:relationship-label",
+  "c4:c4-rel-2:label",
+  "c4:c4-rel-2:label-halo",
+  "c4:c4-rel-3:relationship-label",
+  "c4:c4-rel-3:label",
+  "c4:c4-rel-3:label-halo",
+  "c4:customer:surface",
+  "c4:customer:person-head",
+  "c4:customer:person-shoulders",
+  "c4:customer:text",
+  "c4:customer:card",
+  "c4:api:surface",
+  "c4:api:text",
+  "c4:api:card",
+  "c4:db:surface",
+  "c4:db:database-rim",
+  "c4:db:text",
+  "c4:db:card",
+  "c4:legend:heading",
+  "c4:c4:legend:person:person:legend-head",
+  "c4:c4:legend:person:person:legend-swatch",
+  "c4:c4:legend:person:person:legend-text",
+  "c4:c4:legend:container:rectangle:legend-swatch",
+  "c4:c4:legend:container:rectangle:legend-text",
+  "c4:c4:legend:container:database:legend-swatch",
+  "c4:c4:legend:container:database:legend-rim",
+  "c4:c4:legend:container:database:legend-text",
+  "c4:legend:container",
+},
+   expected: Set(48) {
+  "customer",
+  "api",
+  "db",
+  "platform",
+  "c4-rel-1",
+  "c4-rel-2",
+  "c4-rel-3",
+  "c4:platform:boundary-frame",
+  "c4:platform:boundary-band",
+  "c4:platform:boundary-text",
+  "c4:platform:frame",
+  "c4:c4-rel-1:relationship",
+  "c4:c4-rel-1:label-text",
+  "c4:c4-rel-2:relationship",
+  "c4:c4-rel-2:label-text",
+  "c4:c4-rel-3:relationship",
+  "c4:c4-rel-3:label-text",
+  "c4:c4-rel-1:relationship-label",
+  "c4:c4-rel-1:label",
+  "c4:c4-rel-1:label-halo",
+  "c4:c4-rel-2:relationship-label",
+  "c4:c4-rel-2:label",
+  "c4:c4-rel-2:label-halo",
+  "c4:c4-rel-3:relationship-label",
+  "c4:c4-rel-3:label",
+  "c4:c4-rel-3:label-halo",
+  "c4:customer:surface",
+  "c4:customer:person-head",
+  "c4:customer:person-shoulders",
+  "c4:customer:text",
+  "c4:customer:card",
+  "c4:api:surface",
+  "c4:api:text",
+  "c4:api:card",
+  "c4:db:surface",
+  "c4:db:database-rim",
+  "c4:db:text",
+  "c4:db:card",
+  "c4:legend:heading",
+  "c4:c4:legend:person:person:legend-head",
+  "c4:c4:legend:person:person:legend-swatch",
+  "c4:c4:legend:person:person:legend-text",
+  "c4:c4:legend:container:rectangle:legend-swatch",
+  "c4:c4:legend:container:rectangle:legend-text",
+  "c4:c4:legend:container:database:legend-swatch",
+  "c4:c4:legend:container:database:legend-rim",
+  "c4:c4:legend:container:database:legend-text",
+  "c4:legend:container",
+},
+   operator: "notStrictEqual",
+       diff: "simple",
+       code: "ERR_ASSERTION"
+
+      at /workspace/agentic-mermaid/[eval]:70:16
+
+Bun v1.4.4 (Linux x64)
+
+
+Expected: 0
+Received: 1
+
+      at <anonymous> (/workspace/agentic-mermaid/src/__tests__/resolved-scene.test.ts:106:40)
+(fail) renderResolvedScene > C4 identities preserve resolved delivery and geometry isolation (cache 1) [1313.61ms]
+
+ 0 pass
+ 36 filtered out
+ 1 fail
+ 1 expect() calls
+Ran 1 test across 1 file. [1.68s]

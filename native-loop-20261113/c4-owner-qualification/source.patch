@@ -1,0 +1,63 @@
+diff --git a/src/__tests__/resolved-scene.test.ts b/src/__tests__/resolved-scene.test.ts
+index 8ae5f9be..826761c5 100644
+--- a/src/__tests__/resolved-scene.test.ts
++++ b/src/__tests__/resolved-scene.test.ts
+@@ -12,7 +12,7 @@ import { useTestChildren } from './helpers/test-child.ts'
+ const runChild = useTestChildren(30_000)
+ 
+ describe('renderResolvedScene', () => {
+-  test('uncached C4 identity planners preserve resolved delivery and public geometry isolation', async () => {
++  test.each(['0', '1'])('C4 identities preserve resolved delivery and geometry isolation (cache %s)', async cache => {
+     const source = readFileSync(new URL('../../eval/layout-compare/fixtures/c4-basic.mmd', import.meta.url), 'utf8')
+     const child = await runChild(process.execPath, ['-e', `
+       import assert from 'node:assert/strict'
+@@ -22,6 +22,7 @@ describe('renderResolvedScene', () => {
+       import { withRenderStageObserver } from './src/render-stages.ts'
+       import { resolveRenderRequestForExecution } from './src/render-contract.ts'
+       import { positionFamilyForNativeRender, positionedForNativeProducer, hasPrivateNativePositionedInput } from './src/positioning.ts'
++      import { allocateGeneratedId } from './src/shared/generated-identity.ts'
+       const source = ${JSON.stringify(source)}
+       for (const style of [undefined, 'crisp', 'paper', 'publication-figure']) {
+         const options = style ? { style } : {}
+@@ -72,13 +73,36 @@ describe('renderResolvedScene', () => {
+       assert.deepEqual(comparable(changed), comparable(plain))
+       for (const key of Object.keys(exposed)) delete exposed[key]
+       assert.deepEqual(renderMermaidSVGWithReceipt(source), plain)
++      const resolved = renderResolvedScene(source)
+       const layout = positionFamilyForNativeRender(resolveRenderRequestForExecution(source, {}, 'svg'))
+-      assert.equal(typeof layout.positioned.identities.generated, 'function')
+       assert.ok(hasPrivateNativePositionedInput(layout, producer))
+-      assert.equal(positionedForNativeProducer(layout, nativeDrawingOf(replacement)), layout.positioned)
+-      assert.equal(hasPrivateNativePositionedInput(layout, producer), false,
+-        'restoring the original producer cannot reacquire exposed private input')
+-    `], { cwd: `${import.meta.dir}/../..`, env: { ...process.env, AGENTIC_MERMAID_SCENE_ASSERTIONS: '0', AGENTIC_MERMAID_ELK_CACHE: '1' } })
++      const detached = positionedForNativeProducer(layout, nativeDrawingOf(replacement))
++      if (${JSON.stringify(cache)} === '0') {
++        assert.equal(detached, layout.positioned)
++        assert.equal(hasPrivateNativePositionedInput(layout, producer), false,
++          'restoring the original producer cannot reacquire exposed private input')
++      } else {
++        assert.notEqual(detached, layout.positioned)
++        assert.notEqual(detached.identities.generated.occupied, layout.positioned.identities.generated.occupied)
++        assert.notEqual(detached.identities.generated.assigned, layout.positioned.identities.generated.assigned)
++      }
++      // Main's data planner continues the same reservation/allocation rules.
++      // Allocate on the exposed input, never mutate a cache-private planner.
++      const generated = detached.identities.generated
++      const first = allocateGeneratedId(generated, 'customer', ['isolation', 0])
++      assert.notEqual(first, 'customer', 'authored identities remain reserved')
++      assert.equal(allocateGeneratedId(generated, 'customer', ['isolation', 0]), first)
++      assert.notEqual(allocateGeneratedId(generated, 'customer', ['isolation', 1]), first)
++      generated.occupied.clear()
++      generated.assigned.clear()
++      generated.assigned.set(JSON.stringify(['c4', 'customer', 'surface']), 'poisoned-surface')
++      detached.identities.nodes.clear()
++      detached.identities.relationships.clear()
++      detached.nodes[0].x = -9999
++      assert.deepEqual(renderResolvedScene(source), resolved,
++        'exposed planner and geometry mutations cannot poison a later resolved scene')
++      assert.deepEqual(renderMermaidSVGWithReceipt(source), plain)
++    `], { cwd: `${import.meta.dir}/../..`, env: { ...process.env, AGENTIC_MERMAID_SCENE_ASSERTIONS: '0', AGENTIC_MERMAID_ELK_CACHE: cache } })
+     expect(child.status, child.stderr).toBe(0)
+   })
+ 

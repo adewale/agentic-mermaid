@@ -1,0 +1,31 @@
+{
+  "runtime": "v24.19.0",
+  "root": "/workspace/pr449-native-loop-20261113/main-combined/build-candidate",
+  "scope": "Existing built SDK public C4 style/Scene/layout mutability and complete product checks; private source-custody assertions remain in owning Bun test.",
+  "rows": [
+    {
+      "cache": "0",
+      "style": "default",
+      "passed": true,
+      "uniqueSvgIds": 2
+    },
+    {
+      "cache": "0",
+      "style": "crisp",
+      "passed": true,
+      "uniqueSvgIds": 2
+    },
+    {
+      "cache": "0",
+      "style": "paper",
+      "passed": true,
+      "uniqueSvgIds": 2
+    },
+    {
+      "cache": "0",
+      "style": "publication-figure",
+      "passed": true,
+      "uniqueSvgIds": 4
+    }
+  ]
+}

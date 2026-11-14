@@ -1,0 +1,4 @@
+$ bun run typecheck:core && bun run typecheck:repo
+$ tsc --noEmit -p tsconfig.json
+$ bun eval/trident/prepare.ts && tsc --noEmit -p tsconfig.repo.json
+/workspace/agentic-mermaid/bench-report/.trident/f080278e31e4202ca89d524e4ee9e4cf3cbff038

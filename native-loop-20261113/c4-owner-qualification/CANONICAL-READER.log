@@ -1,0 +1,10 @@
+bun test v1.4.4 (38afee6c8)
+
+src/__tests__/c4-semantics.test.ts:
+(pass) C4 authored semantics > unchanged reader extensions use portable argument and title tokens [7501.07ms]
+
+ 1 pass
+ 59 filtered out
+ 0 fail
+ 102 expect() calls
+Ran 1 test across 1 file. [7.81s]
