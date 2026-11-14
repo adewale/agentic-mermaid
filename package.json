@@ -296,7 +296,7 @@
     "mermaid": "12.2.0",
     "mermaid-ast": "0.8.2",
     "perfect-freehand": "1.2.3",
-    "playwright": "^1.58.2",
+    "playwright": "^1.65.1",
     "publint": "0.3.24",
     "rollup": "4.59.0",
     "roughjs": "4.6.6",

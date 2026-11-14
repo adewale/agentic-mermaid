@@ -299,8 +299,12 @@ browserTests('explicit upstream ZenUML browser backend', () => {
       finally { renderer.dispose() }
     })
     expect(timedAdmission).toBe('BACKEND_UNAVAILABLE')
+    // Keep the held palette module unavailable: browsers may retry a failed
+    // dynamic import, so its earlier abort alone does not make it missing.
+    const missing = new Set(held.map(route => route.request().url()))
     for (const route of held) await route.abort()
     await page.unroute('**/*.js')
+    await page.route(url => missing.has(url.href), route => route.abort())
     const failedImport = await page.evaluate(async () => {
       const entry = '/index.js', api = await import(entry)
       try { await api.renderUpstreamZenUMLSVG('zenuml\nA->B: missing palette', { backendURL: '/frame.js', style: 'dracula' }); return 'unexpected-success' }
