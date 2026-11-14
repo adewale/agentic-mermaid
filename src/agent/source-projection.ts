@@ -326,10 +326,10 @@ function planEdit(lines: readonly AuthoredLine[], c0: readonly string[], c1: rea
   const placed = { before: new Map<number, Array<[number, string]>>(), after: new Map<number, Array<[number, string]>>() }
   // A moved statement keeps its authored line when that line held only it.
   const moved = new Map<string, number[]>()
-  const push = (where: 'before' | 'after', at: number, index: number) => {
+  const push = (where: 'before' | 'after', at: number, index: number, indent?: string) => {
     const list = placed[where].get(at) ?? []
     const from = moved.get(c1[index]!.trim())?.shift()
-    list.push([index, from === undefined ? indentFor(index) + c1[index]!.trimStart() : lines[from]!.text])
+    list.push([index, from === undefined ? (indent ?? indentFor(index)) + c1[index]!.trimStart() : lines[from]!.text])
     placed[where].set(at, list)
   }
   // Each kept or edited C1 statement knows the C0 statement it continues.
@@ -405,26 +405,50 @@ function planEdit(lines: readonly AuthoredLine[], c0: readonly string[], c1: rea
   const unit = indentUnit(lines)
   // A new statement takes the authored indentation of its nearest sibling
   // in the edited canonical text, or of its enclosing block plus one step.
+  // The body of a new block has no authored sibling or opener, so it takes
+  // the indentation of the nearest authored statement at its depth (another
+  // block's body), else its new opener's indentation plus one step.
+  const authoredIndent = (at: number) => {
+    const from = sourceOf.get(at)
+    return from !== undefined && owner[from]! >= 0 ? leading(lines[owner[from]!]!.text) : undefined
+  }
+  const peerIndent = (index: number, target: number): string | undefined => {
+    for (let distance = 1; index - distance >= 0 || index + distance < c1.length; distance++) {
+      for (const at of [index - distance, index + distance]) {
+        if (at < 0 || at >= c1.length || !c1[at]!.trim() || depthOf(c1[at]!) !== target) continue
+        const indent = authoredIndent(at)
+        if (indent !== undefined) return indent
+      }
+    }
+    return undefined
+  }
+  const indents = new Map<number, string>()
   const indentFor = (index: number): string => {
+    const known = indents.get(index)
+    if (known !== undefined) return known
     const target = depthOf(c1[index]!)
-    const authoredIndent = (at: number) => {
-      const from = sourceOf.get(at)
-      return from !== undefined && owner[from]! >= 0 ? leading(lines[owner[from]!]!.text) : undefined
+    const resolve = (): string => {
+      let opener: string | undefined
+      for (let at = index - 1; at >= 0; at--) {
+        if (!c1[at]!.trim()) continue
+        const depth = depthOf(c1[at]!), indent = authoredIndent(at)
+        if (depth === target && indent !== undefined) return indent
+        if (depth < target) {
+          opener = indent !== undefined ? indent + unit : peerIndent(index, target) ?? indentFor(at) + unit
+          break
+        }
+      }
+      for (let at = index + 1; at < c1.length; at++) {
+        if (!c1[at]!.trim()) continue
+        const depth = depthOf(c1[at]!), indent = authoredIndent(at)
+        if (depth === target && indent !== undefined) return indent
+        if (depth < target) break
+      }
+      return opener ?? leading(c1[index]!)
     }
-    let opener: string | undefined
-    for (let at = index - 1; at >= 0; at--) {
-      if (!c1[at]!.trim()) continue
-      const depth = depthOf(c1[at]!), indent = authoredIndent(at)
-      if (depth === target && indent !== undefined) return indent
-      if (depth < target) { opener = indent === undefined ? undefined : indent + unit; break }
-    }
-    for (let at = index + 1; at < c1.length; at++) {
-      if (!c1[at]!.trim()) continue
-      const depth = depthOf(c1[at]!), indent = authoredIndent(at)
-      if (depth === target && indent !== undefined) return indent
-      if (depth < target) break
-    }
-    return opener ?? leading(c1[index]!)
+    const indent = resolve()
+    indents.set(index, indent)
+    return indent
   }
   const owned = (from: number, step: 1 | -1): number => {
     for (let index = from; index >= 0 && index < c0.length; index += step) if (c0[index]!.trim() && owner[index]! >= 0) return index
@@ -437,12 +461,13 @@ function planEdit(lines: readonly AuthoredLine[], c0: readonly string[], c1: rea
     moved.set(c0[del]!.trim(), list)
   }
   // A removed line that also carried surviving statements is rewritten as
-  // those statements in canonical spelling, where it stood.
+  // those statements in canonical spelling, where it stood and indented as
+  // it was.
   for (let index = 0; index < c0.length; index++) {
     if (!c0[index]!.trim() || gone.has(index) || !plan.removed.has(owner[index]!)) continue
     const kept = keptAs.get(index) ?? pairOf.get(index)
     if (kept === undefined) return undefined
-    push('before', owner[index]!, kept)
+    push('before', owner[index]!, kept, leading(lines[owner[index]!]!.text))
   }
   for (const hunk of hunks) {
     const replaced = hunk.dels.find(del => gone.has(del))
@@ -455,7 +480,9 @@ function planEdit(lines: readonly AuthoredLine[], c0: readonly string[], c1: rea
       const del = pairedFrom.get(ins)
       if (del !== undefined && !whole.has(del)) continue
       const at = del ?? replaced
-      if (at !== undefined) push('before', owner[at]!, ins)
+      // A statement written in place of a removed one at its depth keeps
+      // that line's indentation.
+      if (at !== undefined) push('before', owner[at]!, ins, plan.removed.has(owner[at]!) && depthOf(c0[at]!) === depthOf(c1[ins]!) ? leading(lines[owner[at]!]!.text) : undefined)
       else if (afterPrevious && previous >= 0) push('after', owner[previous]!, ins)
       else if (next >= 0) push('before', owner[next]!, ins)
       else return undefined

@@ -6,7 +6,9 @@
 //   2. the edited source parses to the same diagram as the canonical edit
 //      (mutateChecked): the same facts and the same canonical statements;
 //   3. upstream Mermaid 12.2.0 accepts it and reads it as the hand-written
-//      reference edit (DB getters compared whole).
+//      reference edit (DB getters compared whole);
+//   4. new and rewritten lines are spelled and indented as in the reference
+//      edit (lines compared as a multiset: placement is checked by 1).
 import { afterAll, describe, expect, test } from 'bun:test'
 import { applyOps, describeMermaidFacts, mutateChecked, parseRegisteredMermaid, serializeMermaid } from '../agent/index.ts'
 import type { ParsedDiagram } from '../agent/types.ts'
@@ -135,11 +137,12 @@ const CASES: Case[] = [
   { name: 'sequence add_participant', source: SEQUENCE, op: { kind: 'add_participant', id: 'D', label: 'Database' }, reference: [['\tparticipant C as Controller\n', '\tparticipant C as Controller\n\tparticipant D as Database\n']] },
   { name: 'class add_class', source: CLASS, op: { kind: 'add_class', id: 'Bird' }, reference: [['    %% notes\n', '    %% notes\n    class Bird\n']] },
   { name: 'class add_member to a block', source: CLASS, op: { kind: 'add_member', class: 'Animal', text: '+int age' }, reference: [['        +eat() void\n', '        +eat() void\n        +int age\n']] },
+  { name: 'class add_class with members opens a block indented like its siblings', source: CLASS, op: { kind: 'add_class', id: 'Bird', members: ['+fly() void'] }, reference: [['    %% notes\n', '    %% notes\n    class Bird {\n        +fly() void\n    }\n']] },
   { name: 'class add_member to a bare class opens a block', source: CLASS, op: { kind: 'add_member', class: 'Dog', text: '+bark() void' }, touched: ['    class Dog'], reference: [['    class Dog\n', '    class Dog {\n        +bark() void\n    }\n']] },
   { name: 'class add_relation', source: CLASS, op: { kind: 'add_relation', from: 'Animal', to: 'Cat', relKind: 'inheritance' }, reference: [['    Animal <|-- Dog : extends\n', '    Animal <|-- Dog : extends\n    Animal <|-- Cat\n']] },
   { name: 'class rename_class', source: CLASS, op: { kind: 'rename_class', from: 'Dog', to: 'Hound' }, touched: ['    class Dog', '    Animal <|-- Dog : extends', '    note for Dog "Good boy"'], reference: [['class Dog\n', 'class Hound\n'], ['<|-- Dog', '<|-- Hound'], ['note for Dog', 'note for Hound']] },
   { name: 'class add_note', source: CLASS, op: { kind: 'add_note', for: 'Cat', text: 'Independent' }, reference: [['    note for Dog "Good boy"\n', '    note for Dog "Good boy"\n    note for Cat "Independent"\n']] },
-  { name: 'class set_title rewrites only the frontmatter title', source: CLASS, op: { kind: 'set_title', title: 'Zoo' }, touched: ['title: Classes'], reference: [['title: Classes', 'title: Zoo']] },
+  { name: 'class set_title rewrites only the frontmatter title', source: CLASS, op: { kind: 'set_title', title: 'Zoo' }, touched: ['title: Classes'], reference: [['title: Classes', 'title: "Zoo"']] },
   { name: 'state add_state into a composite', source: STATE, op: { kind: 'add_state', id: 'Medium', parent: 'Running' }, reference: [['      Fast --> Slow\n', '      Fast --> Slow\n      Medium\n']] },
   { name: 'state add_transition', source: STATE, op: { kind: 'add_transition', from: 'Running', to: 'Idle', label: 'pause' }, reference: [['    Done --> [*]\n', '    Done --> [*]\n    Running --> Idle : pause\n']] },
   { name: 'state set_state_label edits a description in place', source: STATE, op: { kind: 'set_state_label', id: 'Idle', label: 'Idle now' }, touched: ['    Idle: Waiting here'], reference: [['Idle: Waiting here', 'Idle: Idle now']] },
@@ -148,6 +151,7 @@ const CASES: Case[] = [
   { name: 'state rename_state inside a composite', source: STATE, op: { kind: 'rename_state', from: 'Fast', to: 'Quick' }, touched: ['      Fast --> Slow'], reference: [['Fast --> Slow', 'Quick --> Slow']] },
   { name: 'er add_entity', source: ER, op: { kind: 'add_entity', id: 'PRODUCT' }, reference: [['    LINE_ITEM["Line item"]\n', '    LINE_ITEM["Line item"]\n    PRODUCT\n']] },
   { name: 'er add_attribute', source: ER, op: { kind: 'add_attribute', entity: 'ORDER', text: 'date placed' }, reference: [['        int id\n', '        int id\n        date placed\n']] },
+  { name: 'er add_attribute to an entity named only by a relation opens an indented block', source: `${ER}    ORDER ||--o{ SHIPMENT : ships\n`, op: { kind: 'add_attribute', entity: 'SHIPMENT', text: 'date sent' }, reference: [['    ORDER ||--o{ SHIPMENT : ships\n', '    ORDER ||--o{ SHIPMENT : ships\n    SHIPMENT {\n        date sent\n    }\n']] },
   { name: 'er add_relation', source: ER, op: { kind: 'add_relation', from: 'ORDER', to: 'LINE_ITEM', leftCard: 'one-only', rightCard: 'one-or-many', label: 'contains' }, reference: [['    CUSTOMER ||--o{ ORDER : places\n', '    CUSTOMER ||--o{ ORDER : places\n    ORDER ||--|{ LINE_ITEM : contains\n']] },
   { name: 'er set_entity_label', source: ER, op: { kind: 'set_entity_label', entity: 'ORDER', label: 'Order' }, touched: ['    ORDER {'], reference: [['    ORDER {', '    ORDER["Order"] {']] },
   { name: 'gantt add_task', source: GANTT, op: { kind: 'add_task', sectionIndex: 0, label: 'Test', taskId: 'test', start: 'after impl', end: '3d' }, reference: [['    Implement   :impl, after des, 10d\n', '    Implement   :impl, after des, 10d\n    Test :test, after impl, 3d\n']] },
@@ -225,6 +229,7 @@ describe('source-preserving typed edits of structured bodies', () => {
     expect(describeMermaidFacts(edited).sort()).toEqual(describeMermaidFacts(canonical.value).sort())
     expect(statements(edited)).toEqual(statements(canonical.value))
 
+    expect(result.source.split('\n').sort()).toEqual(patch(source, reference).split('\n').sort())
     const [read, expected] = await upstream.projectEach([result.source, patch(source, reference)], snapshot)
     expect(read).toEqual(expected!)
     expect(read!.ok).toBe(true)
