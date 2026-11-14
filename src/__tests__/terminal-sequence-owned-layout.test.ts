@@ -5,6 +5,8 @@ import { type TerminalRegion } from '../ascii/terminal-document.ts'
 import type { AsciiConfig, ColorMode } from '../ascii/types.ts'
 import { visualWidth, WIDE_CHAR_CONTINUATION } from '../ascii/width.ts'
 import { parseSequenceDiagram } from '../sequence/parser.ts'
+import { layoutSequenceDiagram } from '../sequence/layout.ts'
+import { renderMermaidASCIIWithReceipt, renderMermaidSVGWithReceipt } from '../index.ts'
 
 function render(body: string, useAscii = false, targetWidth?: number) {
   const source = `sequenceDiagram\nparticipant A\nparticipant B\nparticipant C\n${body}`
@@ -279,30 +281,77 @@ end`)
     }
   })
 
-  // A stacked directive whose participant is not in its message acts at that
+  // A stacked destroy whose participant is not in its message acts at that
   // message: the destroyed lifeline's cross shares the row below the arrow
-  // with the message's own, and a created header precedes the message.
-  test.each([
-    ['a destroy beside the destroyed sender', 'destroy C\ndestroy B\nB->>A: bye\nA->>A: tail', 'C'],
-    ['a create beside the created receiver', 'create participant D\ncreate participant E\nA->>E: make\nE->>A: ok', 'D'],
-  ] as const)('acts on %s at the stack\'s message', (_name, body, id) => {
+  // with the message's own.
+  test('acts on a destroy beside the destroyed sender at the stack\'s message', () => {
     for (const useAscii of [false, true]) {
-      const { doc, region } = render(body, useAscii)
-      const message = region('message:0')
-      const arrowRow = message.ports![0]!.y
-      const owned = [...doc.entries()].filter(([, , cell]) => cell.owners.some(owner => owner.id === id))
-      if (body.startsWith('destroy')) {
-        const crossRows = (owner: string) => [...doc.entries()].flatMap(([, row, cell]) => cell.kind === 'marker' && cell.glyph === 'X' && cell.owners.some(item => item.id === owner) ? [row] : [])
-        expect(crossRows(id)).toEqual([arrowRow + 1])
-        expect(crossRows('B')).toEqual([arrowRow + 1])
-        expect(owned.filter(([, row]) => row > arrowRow + 1)).toEqual([])
-      } else {
-        // The created card (three rows) lies between the top cards and the message.
-        expect(region(id).canvasRow).toBeGreaterThanOrEqual(region('A').canvasRow + 3)
-        expect(region(id).canvasRow + 3).toBeLessThanOrEqual(message.canvasRow)
-      }
+      const { doc, region } = render('destroy C\ndestroy B\nB->>A: bye\nA->>A: tail', useAscii)
+      const arrowRow = region('message:0').ports![0]!.y
+      const crossRows = (owner: string) => [...doc.entries()].flatMap(([, row, cell]) => cell.kind === 'marker' && cell.glyph === 'X' && cell.owners.some(item => item.id === owner) ? [row] : [])
+      expect(crossRows('C')).toEqual([arrowRow + 1])
+      expect(crossRows('B')).toEqual([arrowRow + 1])
+      expect([...doc.entries()].filter(([, row, cell]) => row > arrowRow + 1 && cell.owners.some(owner => owner.id === 'C'))).toEqual([])
       expect(doc.diagnostics.filter(item => /COLLISION|OVERLAP/.test(item.code))).toEqual([])
     }
+  })
+
+  // A created participant's card meets its creation message where the SVG
+  // header does: centred on the arrow's row when the message reaches it, the
+  // arrow ending at the card's side, and just below the message when it is
+  // created at a message it does not receive. Both surfaces put the card on,
+  // below or above the message row alike, and strict safety certifies both.
+  test.each([
+    ['a receiver to the right', 'participant A\nparticipant B\ncreate participant D as Dynamic\nA->>D: created across B\nD-->>A: ok', 'D', 0, 'on-row'],
+    ['a receiver to the left', 'create participant D as Dynamic\nparticipant A\nA-)D: from the right\nD->>A: ok', 'D', 0, 'on-row'],
+    ['a receiver with a two-line card', 'participant A\nA->>B: hi\ncreate participant D as Two<br/>lines\nB->>D: make', 'D', 1, 'on-row'],
+    ['a receiver whose label is taller than half its card', 'participant A\ncreate participant D\nA->>D: first<br/>second<br/>third\nD->>A: ok', 'D', 0, 'on-row'],
+    ['a created icon participant', 'participant A\ncreate participant D@{ "type": "database" } as Orders\nA->>D: store\nD-->>A: stored', 'D', 0, 'on-row'],
+    ['a receiver the message activates', 'participant A\ncreate participant D\nA->>+D: start\nD-->>-A: done', 'D', 0, 'on-row'],
+    ['a receiver created inside a fragment', 'participant A\nalt fresh\ncreate participant D\nA->>D: make\nelse stale\nA->>A: reuse\nend\nD->>A: ok', 'D', 0, 'on-row'],
+    ['a created and destroyed receiver', 'participant A\ncreate participant D\nA->>D: make\ndestroy D\nA-xD: drop\nA->>A: tail', 'D', 0, 'on-row'],
+    ['a self-message that creates its participant', 'participant A\ncreate participant D\nD->>D: self\nA->>D: later', 'D', 0, 'on-row'],
+    ['a participant stacked beside the receiver', 'participant A\ncreate participant D\ncreate participant E\nA->>E: make\nE->>A: ok\nD->>A: later', 'D', 0, 'below'],
+    ['a participant stacked beside a destroy', 'participant A\nparticipant C\ncreate participant D\ndestroy C\nA->>C: last\nD->>A: ok', 'D', 0, 'below'],
+  ] as const)('places the card of %s as the SVG header', (_name, body, id, index, expected) => {
+    const source = `sequenceDiagram\n${body}`
+    // SVG: the created header against the message row and its own bounds.
+    const svg = layoutSequenceDiagram(parseSequenceDiagram(source.split('\n')))
+    const header = svg.actors.find(actor => actor.id === id)!, svgMessage = svg.messages[index]!
+    const svgPlace = header.y + header.height / 2 === svgMessage.y ? 'on-row'
+      : header.bounds.y > svgMessage.bounds.y + svgMessage.bounds.height ? 'below'
+        : header.bounds.y + header.bounds.height < svgMessage.bounds.y ? 'above' : 'overlapping'
+    expect(svgPlace).toBe(expected)
+    for (const useAscii of [false, true]) {
+      const config: AsciiConfig = { useAscii, paddingX: 1, paddingY: 1, boxBorderPadding: 1, graphDirection: 'TD' }
+      const artifact = renderSequenceAscii(source, config, 'none')
+      serializeTerminalArtifact(artifact)
+      const doc = artifact.document
+      // The created card: the first frame the participant owns below the top row.
+      const owned = [...doc.entries()].filter(([, , cell]) => cell.kind !== 'text' && cell.owners.some(owner => owner.id === id))
+      const corner = useAscii ? '+' : '┌'
+      const top = Math.min(...owned.filter(([, , cell]) => cell.glyph === corner).map(([, row]) => row))
+      const cardBottom = Math.min(...owned.filter(([, row, cell]) => row > top && cell.glyph === (useAscii ? '+' : '└')).map(([, row]) => row))
+      const left = Math.min(...owned.filter(([, row]) => row === top).map(([x]) => x)), right = Math.max(...owned.filter(([, row]) => row === top).map(([x]) => x))
+      const message = doc.regions().find(region => region.id === `message:${index}`)!
+      const start = message.ports!.find(port => port.end === 'start')!, end = message.ports!.find(port => port.end === 'end')!
+      // The arrow's row (a self-message's first), against the card's rows.
+      const rows = [message.canvasRow, bottom(message) - 1, start.y, end.y]
+      const place = start.y > top && start.y < cardBottom ? 'on-row'
+        : top > Math.max(...rows) ? 'below' : cardBottom < Math.min(...rows) ? 'above' : 'overlapping'
+      expect(place).toBe(expected)
+      if (expected === 'on-row' && start.nodeId !== id) {
+        // The arrow ends beside the card's side, its head the cell next to it.
+        expect(end.x === left - 1 || end.x === right + 1).toBe(true)
+        expect(end.y).toBe(start.y)
+      }
+      expect(() => renderMermaidASCIIWithReceipt(source, { useAscii, colorMode: 'none', layoutSafety: 'strict' })).not.toThrow()
+      expect(doc.diagnostics.filter(item => /COLLISION|OVERLAP/.test(item.code))).toEqual([])
+    }
+    // The SVG header still covers the loop of a self-message that creates
+    // its participant, which strict SVG safety refuses: not certified here.
+    if (svgPlace === 'on-row' && svgMessage.from === svgMessage.to) return
+    expect(renderMermaidSVGWithReceipt(source, { layoutSafety: 'strict' }).receipt.layoutCertification?.status).toBe('passed')
   })
 
   test('keeps the crossed lifeline on each side of a reserved message label', () => {

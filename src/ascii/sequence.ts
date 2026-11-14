@@ -16,7 +16,7 @@ import { concatDisplayText, prepareDisplayText, resolveLabelContent, type Displa
 
 interface CellBounds { x: number; y: number; width: number; height: number }
 interface PositionedText extends CellBounds { lines: string[]; index: number; parentId?: string }
-interface PositionedMessage extends PositionedText { arrowY: number; fromX: number; toX: number }
+interface PositionedMessage extends PositionedText { arrowY: number; fromX: number; toX: number; loopX?: number }
 interface SequenceFrame extends CellBounds { index: number; header: string[]; dividers: Array<{ x?: number; y: number; lines: string[] }> ; parentId?: string }
 
 function messageLabelX(message: PositionedMessage, line: string): number {
@@ -63,13 +63,23 @@ export function renderSequenceDiagramTerminal(input: SequenceDiagram, config: As
   const halfBox = actorWidths.map(width => Math.ceil(width / 2))
   const actorBoxH = diagram.actors.length ? Math.max(3, ...actorLines.map(lines => lines.length + 2)) : 0
   const gaps = new Array<number>(Math.max(0, diagram.actors.length - 1)).fill(0)
+  // A creation message meets the created card's side on the card's middle
+  // row, as the SVG header does, so the card's half (and the head beside it)
+  // is part of the message's span; a self-message that creates its
+  // participant leaves from the card's side.
+  const createdBy = (index: number): number | undefined => {
+    const to = actorIndex.get(diagram.messages[index]!.to)!
+    return diagram.actors[to]!.createMessageIndex === index ? to : undefined
+  }
+  const cardOf = (actor: number) => ({ x: llX[actor]! - Math.floor(actorWidths[actor]! / 2), width: actorWidths[actor]! })
   diagram.messages.forEach((message, index) => {
     const from = actorIndex.get(message.from)!, to = actorIndex.get(message.to)!
     const width = Math.max(0, ...messageLines[index]!.map(visualWidth))
+    const card = createdBy(index) === undefined ? 0 : halfBox[to]! + 1
     if (from === to) {
-      if (from < gaps.length) gaps[from] = Math.max(gaps[from]!, width + 5)
+      if (from < gaps.length) gaps[from] = Math.max(gaps[from]!, width + 5 + card)
     } else {
-      for (let gap = Math.min(from, to); gap < Math.max(from, to); gap++) gaps[gap] = Math.max(gaps[gap]!, Math.ceil((width + 4) / Math.abs(to - from)))
+      for (let gap = Math.min(from, to); gap < Math.max(from, to); gap++) gaps[gap] = Math.max(gaps[gap]!, Math.ceil((width + 4 + card) / Math.abs(to - from)))
     }
   })
   diagram.boxes?.forEach((_, index) => {
@@ -102,12 +112,25 @@ export function renderSequenceDiagramTerminal(input: SequenceDiagram, config: As
   if (maxDepth) leftMargin += maxDepth * 4
   const llX = [leftMargin]
   for (let index = 1; index < diagram.actors.length; index++) llX[index] = llX[index - 1]! + Math.max(halfBox[index - 1]! + halfBox[index]! + (diagram.actors[index - 1]!.box !== diagram.actors[index]!.box ? 4 : 2), gaps[index - 1]! + 2, 10)
-  const messageSpans = diagram.messages.map((message, index) => {
-    const from = llX[actorIndex.get(message.from)!]!, to = llX[actorIndex.get(message.to)!]!
+  // Where a message's arrow runs: from the sender's lifeline to the
+  // receiver's, or to the side of the card it creates (a self-message that
+  // creates its participant leaves from that side, `loopX`), its label
+  // between them (right of a self-message's loop).
+  const messageGeometry = (index: number) => {
+    const message = diagram.messages[index]!
+    const receiver = actorIndex.get(message.to)!, created = createdBy(index)
+    const card = created === undefined ? undefined : cardOf(created)
+    const fromX = llX[actorIndex.get(message.from)!]!, self = message.from === message.to
+    const toX = card && !self ? (fromX < llX[receiver]! ? card.x - 1 : card.x + card.width) : llX[receiver]!
+    const loopX = card && self ? card.x + card.width : fromX
     const width = Math.max(0, ...messageLines[index]!.map(visualWidth))
-    const labelX = from === to ? from + 6 : Math.min(from, to) + Math.floor((Math.abs(to - from) - width) / 2)
-    const x = Math.min(from, to, labelX)
-    return { x, width: Math.max(from, to, labelX + width - 1) - x + 1 }
+    const labelX = self ? loopX + (loopX === fromX ? 6 : 5) : Math.min(fromX, toX) + Math.floor((Math.abs(toX - fromX) - width) / 2)
+    const x = Math.min(fromX, toX, labelX, card?.x ?? fromX)
+    return { created, card, fromX, toX, loopX, self, width, labelX, x, right: Math.max(fromX, toX, labelX + width - 1, card ? card.x + card.width - 1 : fromX) }
+  }
+  const messageSpans = diagram.messages.map((_, index) => {
+    const { x, right } = messageGeometry(index)
+    return { x, width: right - x + 1 }
   })
   const noteSpans = diagram.notes.map((note, index) => {
     const first = llX[actorIndex.get(note.actorIds[0]!) ?? 0]!, last = llX[actorIndex.get(note.actorIds.at(-1)!) ?? 0]!
@@ -268,30 +291,45 @@ export function renderSequenceDiagramTerminal(input: SequenceDiagram, config: As
       notes.push(positioned); own(positioned); cursor += positioned.height; noteCursor++
     } else if (messageCursor < diagram.messages.length) {
       const message = diagram.messages[messageCursor]!
-      // A created actor's complete header precedes its creation message.
-      diagram.actors.forEach((actor, index) => {
-        if (actor.createMessageIndex !== messageCursor) return
-        cursor++; actorTop.set(index, cursor); cursor += actorBoxH
-        own({ x: llX[index]! - Math.floor(actorWidths[index]! / 2), y: actorTop.get(index)!, width: actorWidths[index]!, height: actorBoxH })
-      })
       cursor++
       const lines = messageLines[messageCursor]!
-      const fromX = llX[actorIndex.get(message.from)!]!, toX = llX[actorIndex.get(message.to)!]!
-      const self = fromX === toX
-      const width = Math.max(0, ...lines.map(visualWidth))
-      const positioned = { index: messageCursor, x: self ? fromX + 6 : Math.min(fromX, toX) + Math.floor((Math.abs(toX - fromX) - width) / 2), y: self ? cursor + 1 : cursor, width, height: lines.length, lines, arrowY: self ? cursor : cursor + lines.length, fromX, toX, parentId: message.parentId ?? currentParent() }
-      const shift = overlayContent({ x: Math.min(fromX, toX, positioned.x), y: cursor, width: Math.max(fromX, toX, positioned.x + width - 1) - Math.min(fromX, toX, positioned.x) + 1, height: lines.length + (self ? 2 : 1) })
-      cursor += shift; positioned.y += shift; positioned.arrowY += shift
+      const { created, card, fromX, toX, loopX, self, width, labelX, x, right } = messageGeometry(messageCursor)
+      // The card a message creates is centred on the arrow's row, as the SVG
+      // header is, so the arrow ends at its side. A self-message that creates
+      // its participant takes a lower interior row, so its loop returns to
+      // the lifeline below the card.
+      const middle = !card ? 0 : self ? Math.min(actorBoxH - 2, Math.max(1, actorBoxH - 1 - lines.length)) : Math.floor((actorBoxH - 1) / 2)
+      const arrowY = cursor + (self ? middle : Math.max(lines.length, middle))
+      const positioned: PositionedMessage = { index: messageCursor, x: labelX, y: self ? arrowY + 1 : arrowY - lines.length, width, height: lines.length, lines, arrowY, fromX, toX, ...(loopX === fromX ? {} : { loopX }), parentId: message.parentId ?? currentParent() }
+      const cardTop = arrowY - middle
+      const lastRow = self ? arrowY + lines.length + 1 : arrowY
+      const contentBottom = Math.max(lastRow, card ? cardTop + actorBoxH - 1 : lastRow)
+      const shift = overlayContent({ x, y: cursor, width: right - x + 1, height: contentBottom - cursor + 1 })
+      positioned.y += shift; positioned.arrowY += shift
       messages.push(positioned)
-      own({ x: Math.min(fromX, toX, positioned.x), y: cursor, width: Math.max(fromX, toX, positioned.x + width - 1) - Math.min(fromX, toX, positioned.x) + 1, height: lines.length + (self ? 2 : 1) })
-      cursor += lines.length + (self ? 2 : 1)
+      own({ x, y: cursor + shift, width: right - x + 1, height: lastRow - cursor + 1 })
+      if (card) {
+        actorTop.set(created!, cardTop + shift)
+        own({ ...card, y: cardTop + shift, height: actorBoxH })
+      }
+      cursor = contentBottom + shift + 1
+      // A participant created at a message it does not receive starts just
+      // below the message, as the SVG header does.
+      const belowTop = lastRow + shift + 2
+      diagram.actors.forEach((actor, index) => {
+        if (actor.createMessageIndex !== messageCursor || index === created) return
+        actorTop.set(index, belowTop); own({ ...cardOf(index), y: belowTop, height: actorBoxH })
+        cursor = Math.max(cursor, belowTop + actorBoxH)
+      })
       // A destroyed lifeline runs through its last endpoint on this message
       // (a self-message's return row); that cell is the message's marker, so
-      // the cross takes the cell below it, on the row the cursor now holds.
+      // the cross takes the cell below it (or below the participant's own
+      // card when the message also creates it).
       diagram.actors.forEach((actor, index) => {
         if (actor.destroyMessageIndex !== messageCursor) return
-        const cross = { x: llX[index]!, y: cursor, width: 1, height: 1 }
+        const cross = { x: llX[index]!, y: Math.max(lastRow + shift + 1, actorTop.has(index) && actor.createMessageIndex === messageCursor ? actorTop.get(index)! + actorBoxH : 0), width: 1, height: 1 }
         destroyCrosses.set(index, cross); own(cross)
+        cursor = Math.max(cursor, cross.y)
       })
       messageCursor++
     } else if (note) {
@@ -366,7 +404,9 @@ export function renderSequenceDiagramTerminal(input: SequenceDiagram, config: As
     const stack = activationStacks.get(id) ?? []
     if (enable) stack.push({ y: closeY, id: activationIndex++ })
     else if (stack.length) {
-      const opened = stack.pop()!, start = opened.y, ai = actorIndex.get(id)!, x = llX[ai]! + stack.length
+      // An activation the creation message opens starts below the card.
+      const opened = stack.pop()!, ai = actorIndex.get(id)!, x = llX[ai]! + stack.length
+      const start = Math.max(opened.y, (actorTop.get(ai) ?? participantTop) + actorBoxH)
       const crossY = destroyCrosses.get(ai)?.y
       const y = crossY !== undefined && start < crossY ? Math.min(closeY, crossY - 1) : closeY
       const element = owner(generated(`activation:${opened.id}`), 'band', { id, kind: 'node' })
@@ -420,22 +460,26 @@ export function renderSequenceDiagramTerminal(input: SequenceDiagram, config: As
       const semantic = sequenceMarker(start ? message.startHead : message.endHead, right, ascii, start ? message.centralStart : message.centralEnd)
       if (semantic) doc.marker(x, row, semantic, { owner: element, role: 'arrow' })
     }
-    doc.port(element, { nodeId: message.from, x: from, y, side: self || from < to ? 'R' : 'L', end: 'start', surface: 'lifeline' })
-    doc.port(element, { nodeId: message.to, x: to, y: self ? y + positioned.lines.length + 1 : y, side: self || from > to ? 'R' : 'L', end: 'end', surface: 'lifeline' })
+    // A creation message meets the created card's side, not its lifeline.
+    const loop = positioned.loopX ?? from, creates = diagram.actors[actorIndex.get(message.to)!]!.createMessageIndex === positioned.index
+    doc.port(element, { nodeId: message.from, x: loop, y, side: self || from < to ? 'R' : 'L', end: 'start', surface: loop === from ? 'lifeline' : 'frame' })
+    doc.port(element, { nodeId: message.to, x: to, y: self ? y + positioned.lines.length + 1 : y, side: self || from > to ? 'R' : 'L', end: 'end', surface: creates && !self ? 'frame' : 'lifeline' })
     const startMarker = sequenceMarker(message.startHead, !self && from > to, ascii, message.centralStart)
     const endMarker = sequenceMarker(message.endHead, !self && from < to, ascii, message.centralEnd)
     doc.expectMarkers(element, 'start', startMarker ? [startMarker] : [])
     doc.expectMarkers(element, 'end', endMarker ? [endMarker] : [])
     if (self) {
-      stroke(from, y, 7, 'junction', element)
-      for (let x = from + 1; x < from + 4; x++) stroke(x, y, 10, 'line', element, style)
-      stroke(from + 4, y, 12, 'corner', element)
-      for (let row = y + 1; row <= y + positioned.lines.length; row++) stroke(from + 4, row, 5, 'line', element)
+      // The loop leaves its lifeline, or the side of the card it creates.
+      const corner = loop === from ? from + 4 : loop + 3
+      if (loop === from) stroke(from, y, 7, 'junction', element)
+      for (let x = loop === from ? from + 1 : loop; x < corner; x++) stroke(x, y, 10, 'line', element, style)
+      stroke(corner, y, 12, 'corner', element)
+      for (let row = y + 1; row <= y + positioned.lines.length; row++) stroke(corner, row, 5, 'line', element)
       const bottom = y + positioned.lines.length + 1
-      for (let x = from + 1; x < from + 4; x++) stroke(x, bottom, 10, 'line', element, style)
-      stroke(from + 4, bottom, 9, 'corner', element)
+      for (let x = from + 1; x < corner; x++) stroke(x, bottom, 10, 'line', element, style)
+      stroke(corner, bottom, 9, 'corner', element)
       endpoint(from, bottom, false, false)
-      endpoint(from, y, true, false)
+      endpoint(loop, y, true, false)
     } else {
       for (let x = Math.min(from, to) + 1; x < Math.max(from, to); x++) stroke(x, y, 10, 'line', element, style)
       endpoint(from, y, true, from > to)
