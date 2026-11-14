@@ -142,6 +142,10 @@ const staticFamilyFiles = Object.fromEntries(MEASURED_FAMILY_IDS.map(id => [
   id,
   staticClosure([entry, renderCore, familyOutputs[id]]),
 ])) as Record<BrowserBuiltinFamilyId, string[]>
+// Files every measured family downloads beyond the initial entry: growth here
+// costs every family at once, so the per-PR delta judges it on its own.
+const sharedCoreFiles = staticFamilyFiles[MEASURED_FAMILY_IDS[0]!]!.filter(file =>
+  !initialFiles.includes(file) && MEASURED_FAMILY_IDS.every(id => staticFamilyFiles[id].includes(file)))
 const agenticOutputs = outputNames.filter(path =>
   Object.keys(metafile.outputs[path]!.inputs).some(input => input.endsWith('/layout/agentic-layered-core.ts')))
 const agenticLoaders = outputNames.filter(path =>
@@ -307,6 +311,7 @@ const report = {
   elkChunk: elkOutput,
   elkTransfer: transferSize(elkFiles),
   initial: { requests: initialFiles.length, ...transferSize(initialFiles) },
+  sharedCore: { requests: sharedCoreFiles.length, ...transferSize(sharedCoreFiles) },
   budgetedFamilies: Object.fromEntries(MEASURED_FAMILY_IDS.map(id => [id, {
     requests: budgetedFamilyFiles[id].length, elk: budgetedFamilyFiles[id].includes(elkOutput), ...transferSize(budgetedFamilyFiles[id]),
   }])) as Record<BrowserBuiltinFamilyId, TransferSize & { requests: number; elk: boolean }>,

@@ -874,10 +874,18 @@ jobs:
           AM_CI_ARTIFACTS=0 PATH="$base_path" "$head_bun" run scripts/site/website-payload-report.ts --root ../payload-base --report base-site.json
           bun run scripts/build/browser-lazy-report.ts --root ../payload-base --measure-only --json > base-lazy.json
           cp ../payload-base/dist/metafile-esm.json base-lazy-metafile.json
+          # The self-contained editor.html holds every renderer in one file; its
+          # growth is judged here rather than by a hand-raised ceiling.
+          bun run editor > /dev/null && cp editor.html head-editor.html
+          editor=(--head-editor head-editor.html)
+          if (cd ../payload-base && PATH="$base_path" bun run editor > /dev/null); then
+            cp ../payload-base/editor.html base-editor.html
+            editor+=(--base-editor base-editor.html)
+          fi
           allow=()
           if bun run scripts/ci/label-approval.ts check --label payload-growth-approved; then allow=(--allow-growth); fi
           bun run scripts/ci/payload-delta.ts --base-lazy base-lazy.json --head-lazy head-lazy.json \
-            --base-site base-site.json --head-site head-site.json "${allow[@]}"
+            --base-site base-site.json --head-site head-site.json "${editor[@]}" "${allow[@]}"
 
       - name: Retain payload reports and module graphs
         if: ${{ always() && matrix.suite == 'payload' }}
