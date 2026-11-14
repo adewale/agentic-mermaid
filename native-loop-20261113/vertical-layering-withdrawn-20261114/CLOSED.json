@@ -1,0 +1,20 @@
+{
+  "status": "CLOSED_WITHDRAWN",
+  "sourceRevision": "4cddae30548df1adf0ea1908c88454fae3bcb36d",
+  "sourceUnchanged": true,
+  "renderCalls": 8,
+  "baselineReturned": 4,
+  "candidateReturned": 3,
+  "candidateRefused": 1,
+  "candidateBuild": false,
+  "timing": false,
+  "freshCandidateMeaningPaintDirectionPassed": 3,
+  "markerForeignShaftPairs": 1296,
+  "markerForeignShaftHits": 0,
+  "markerForeignShaftUnknown": 0,
+  "renderWorkersClosed": true,
+  "observerBrowserClosed": true,
+  "reason": "Previously supported BT identity refuses at unchanged cross-hierarchy crossing-work limit; selector withdrawn without alternatives.",
+  "patchSha256": "ee5583e535b4b90e9fc0a6aa8e155c30b847736ac4fc6c1f4a8d7c9afccbbcd4",
+  "closedAtUtc": "2026-11-14T08:20:55.712944+00:00"
+}

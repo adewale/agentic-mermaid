@@ -1,0 +1,26 @@
+--- a/src/layout/native-nesting.ts
++++ b/src/layout/native-nesting.ts
+@@ -59,7 +59,22 @@
+     degree[target] = degree[target]! - 1
+     if (!degree[target]) queue[queued++] = target
+   }
+-  if (queued === subjects) return 'acyclic-quotient'
++  if (queued === subjects) {
++      // Scratch admission only; original global placement/routing below is unchanged.
++      if ((direction !== 'TB' && direction !== 'BT') || g < 2 || n - edgeCount < 2 || n !== g * (n - edgeCount)) return 'acyclic-quotient'
++      const admissionPairs = 4 * n + 2 * g + 6 * edgeCount, admissionSlots = 2 * n + 2
++      if (work.pairs < admissionPairs || work.arcs < admissionSlots) return 'acyclic-quotient'
++      reserve(admissionPairs, admissionSlots)
++      if (groups.some(group => (group.parent ?? -1) !== -1)
++        || input.nodes.some((node, i) => owners[i]! < 0)
++        || input.edges.some(edge => edge.visible === false || edge.label !== undefined || owners[edge.source] === owners[edge.target])) return 'acyclic-quotient'
++      const incoming = new Uint8Array(n), outgoing = new Uint8Array(n)
++      for (const edge of input.edges) {
++        if (outgoing[edge.source] || incoming[edge.target]) return 'acyclic-quotient'
++        outgoing[edge.source] = 1; incoming[edge.target] = 1
++      }
++      ;(globalThis as any).__verticalLayeringAdmissions = ((globalThis as any).__verticalLayeringAdmissions ?? 0) + 1
++    }
+   reserve(24 * (size + input.edges.length), 2 * size + 4 * g + input.edges.length)
+   // This strategy admits acyclic leaf constraints. Do not run feedback-order
+   // searches only to discard every cyclic result into recursive compatibility.

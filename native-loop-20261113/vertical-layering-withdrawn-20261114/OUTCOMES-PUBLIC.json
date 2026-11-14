@@ -1,0 +1,382 @@
+{
+  "sourceRevision": "4cddae30548df1adf0ea1908c88454fae3bcb36d",
+  "candidateKind": "Untimed source diagnostic only; no canonical candidate build",
+  "renderCalls": 8,
+  "rows": [
+    {
+      "direction": "TB",
+      "variant": "permutation",
+      "source": "flowchart TB\nsubgraph GroupA[Group A]\nA0[A0]\nA1[A1]\nA2[A2]\nA3[A3]\nA4[A4]\nend\nsubgraph GroupB[Group B]\nB0[B0]\nB1[B1]\nB2[B2]\nB3[B3]\nB4[B4]\nend\nsubgraph GroupC[Group C]\nC0[C0]\nC1[C1]\nC2[C2]\nC3[C3]\nC4[C4]\nend\nA0 --> B4\nA1 --> B2\nA2 --> B0\nA3 --> B3\nA4 --> B1\nB0 --> C1\nB1 --> C3\nB2 --> C0\nB3 --> C4\nB4 --> C2",
+      "options": {
+        "graphLayout": {
+          "backend": "agentic",
+          "fallback": "none"
+        }
+      },
+      "returned": true,
+      "arm": "baseline",
+      "proof": {
+        "version": 1,
+        "unit": "px",
+        "scope": "native-scene",
+        "status": "passed",
+        "viewport": {
+          "x": 0,
+          "y": 0,
+          "width": 572,
+          "height": 456.79375
+        },
+        "attempts": 1,
+        "repairs": [],
+        "coverage": {
+          "measured": 49,
+          "unmeasured": 0,
+          "preparedText": 18,
+          "fallbackText": 0,
+          "conditional": 0
+        },
+        "checks": {
+          "primitives": 52,
+          "labels": 15,
+          "occlusionPairs": 582,
+          "maxOcclusionPairs": 100000,
+          "operations": 74386,
+          "maxOperations": 400000,
+          "markers": 10
+        },
+        "issues": [],
+        "limitations": [
+          "Prepared occupied text regions bound native geometry; exact glyph ink depends on the resolved font.",
+          "Declared transparency, intentional data-mark overlap and externally modified CSS are outside this proof."
+        ],
+        "outputDigest": "fnv1a64:aceb923ef617da47"
+      },
+      "productSha256": "391d3ca3a5a48dc8f4dcec9ef8a3ed180f470e1ed6826f9b2e3b1aa61ae8f4fa",
+      "productFile": "baseline/TB-permutation.product.json"
+    },
+    {
+      "direction": "TB",
+      "variant": "identity",
+      "source": "flowchart TB\nsubgraph GroupA[Group A]\nA0[A0]\nA1[A1]\nA2[A2]\nA3[A3]\nA4[A4]\nend\nsubgraph GroupB[Group B]\nB0[B0]\nB1[B1]\nB2[B2]\nB3[B3]\nB4[B4]\nend\nsubgraph GroupC[Group C]\nC0[C0]\nC1[C1]\nC2[C2]\nC3[C3]\nC4[C4]\nend\nA0 --> B0\nA1 --> B1\nA2 --> B2\nA3 --> B3\nA4 --> B4\nB0 --> C0\nB1 --> C1\nB2 --> C2\nB3 --> C3\nB4 --> C4",
+      "options": {
+        "graphLayout": {
+          "backend": "agentic",
+          "fallback": "none"
+        }
+      },
+      "returned": true,
+      "arm": "baseline",
+      "proof": {
+        "version": 1,
+        "unit": "px",
+        "scope": "native-scene",
+        "status": "passed",
+        "viewport": {
+          "x": 0,
+          "y": 0,
+          "width": 572,
+          "height": 456.79375
+        },
+        "attempts": 1,
+        "repairs": [],
+        "coverage": {
+          "measured": 49,
+          "unmeasured": 0,
+          "preparedText": 18,
+          "fallbackText": 0,
+          "conditional": 0
+        },
+        "checks": {
+          "primitives": 52,
+          "labels": 15,
+          "occlusionPairs": 598,
+          "maxOcclusionPairs": 100000,
+          "operations": 74378,
+          "maxOperations": 400000,
+          "markers": 10
+        },
+        "issues": [],
+        "limitations": [
+          "Prepared occupied text regions bound native geometry; exact glyph ink depends on the resolved font.",
+          "Declared transparency, intentional data-mark overlap and externally modified CSS are outside this proof."
+        ],
+        "outputDigest": "fnv1a64:05bfc41019b9abef"
+      },
+      "productSha256": "65be9a67e19ab779261a57078d6afe90e491fe24c25caba93289adf746695073",
+      "productFile": "baseline/TB-identity.product.json"
+    },
+    {
+      "direction": "BT",
+      "variant": "permutation",
+      "source": "flowchart BT\nsubgraph GroupA[Group A]\nA0[A0]\nA1[A1]\nA2[A2]\nA3[A3]\nA4[A4]\nend\nsubgraph GroupB[Group B]\nB0[B0]\nB1[B1]\nB2[B2]\nB3[B3]\nB4[B4]\nend\nsubgraph GroupC[Group C]\nC0[C0]\nC1[C1]\nC2[C2]\nC3[C3]\nC4[C4]\nend\nA0 --> B4\nA1 --> B2\nA2 --> B0\nA3 --> B3\nA4 --> B1\nB0 --> C1\nB1 --> C3\nB2 --> C0\nB3 --> C4\nB4 --> C2",
+      "options": {
+        "graphLayout": {
+          "backend": "agentic",
+          "fallback": "none"
+        }
+      },
+      "returned": true,
+      "arm": "baseline",
+      "proof": {
+        "version": 1,
+        "unit": "px",
+        "scope": "native-scene",
+        "status": "passed",
+        "viewport": {
+          "x": 0,
+          "y": 0,
+          "width": 572,
+          "height": 454.7
+        },
+        "attempts": 1,
+        "repairs": [],
+        "coverage": {
+          "measured": 49,
+          "unmeasured": 0,
+          "preparedText": 18,
+          "fallbackText": 0,
+          "conditional": 0
+        },
+        "checks": {
+          "primitives": 52,
+          "labels": 15,
+          "occlusionPairs": 570,
+          "maxOcclusionPairs": 100000,
+          "operations": 73961,
+          "maxOperations": 400000,
+          "markers": 10
+        },
+        "issues": [],
+        "limitations": [
+          "Prepared occupied text regions bound native geometry; exact glyph ink depends on the resolved font.",
+          "Declared transparency, intentional data-mark overlap and externally modified CSS are outside this proof."
+        ],
+        "outputDigest": "fnv1a64:843bae3641ab9081"
+      },
+      "productSha256": "87f2018b99c2227c79011cdb673b759eb3e37e7d8144871cd26e3775b853c9d6",
+      "productFile": "baseline/BT-permutation.product.json"
+    },
+    {
+      "direction": "BT",
+      "variant": "identity",
+      "source": "flowchart BT\nsubgraph GroupA[Group A]\nA0[A0]\nA1[A1]\nA2[A2]\nA3[A3]\nA4[A4]\nend\nsubgraph GroupB[Group B]\nB0[B0]\nB1[B1]\nB2[B2]\nB3[B3]\nB4[B4]\nend\nsubgraph GroupC[Group C]\nC0[C0]\nC1[C1]\nC2[C2]\nC3[C3]\nC4[C4]\nend\nA0 --> B0\nA1 --> B1\nA2 --> B2\nA3 --> B3\nA4 --> B4\nB0 --> C0\nB1 --> C1\nB2 --> C2\nB3 --> C3\nB4 --> C4",
+      "options": {
+        "graphLayout": {
+          "backend": "agentic",
+          "fallback": "none"
+        }
+      },
+      "returned": true,
+      "arm": "baseline",
+      "proof": {
+        "version": 1,
+        "unit": "px",
+        "scope": "native-scene",
+        "status": "passed",
+        "viewport": {
+          "x": 0,
+          "y": 0,
+          "width": 572,
+          "height": 442.7
+        },
+        "attempts": 1,
+        "repairs": [],
+        "coverage": {
+          "measured": 49,
+          "unmeasured": 0,
+          "preparedText": 18,
+          "fallbackText": 0,
+          "conditional": 0
+        },
+        "checks": {
+          "primitives": 52,
+          "labels": 15,
+          "occlusionPairs": 621,
+          "maxOcclusionPairs": 100000,
+          "operations": 74099,
+          "maxOperations": 400000,
+          "markers": 10
+        },
+        "issues": [],
+        "limitations": [
+          "Prepared occupied text regions bound native geometry; exact glyph ink depends on the resolved font.",
+          "Declared transparency, intentional data-mark overlap and externally modified CSS are outside this proof."
+        ],
+        "outputDigest": "fnv1a64:17424fdf2e5abea0"
+      },
+      "productSha256": "328ff0e896fc7b54ad0bc97dc405acb6ccebfaf9f6f3db5b28e676cd11adf0c2",
+      "productFile": "baseline/BT-identity.product.json"
+    },
+    {
+      "direction": "TB",
+      "variant": "permutation",
+      "source": "flowchart TB\nsubgraph GroupA[Group A]\nA0[A0]\nA1[A1]\nA2[A2]\nA3[A3]\nA4[A4]\nend\nsubgraph GroupB[Group B]\nB0[B0]\nB1[B1]\nB2[B2]\nB3[B3]\nB4[B4]\nend\nsubgraph GroupC[Group C]\nC0[C0]\nC1[C1]\nC2[C2]\nC3[C3]\nC4[C4]\nend\nA0 --> B4\nA1 --> B2\nA2 --> B0\nA3 --> B3\nA4 --> B1\nB0 --> C1\nB1 --> C3\nB2 --> C0\nB3 --> C4\nB4 --> C2",
+      "options": {
+        "graphLayout": {
+          "backend": "agentic",
+          "fallback": "none"
+        }
+      },
+      "returned": true,
+      "arm": "candidate",
+      "proof": {
+        "version": 1,
+        "unit": "px",
+        "scope": "native-scene",
+        "status": "passed",
+        "viewport": {
+          "x": 0,
+          "y": 0,
+          "width": 553.5,
+          "height": 647.29375
+        },
+        "attempts": 1,
+        "repairs": [],
+        "coverage": {
+          "measured": 49,
+          "unmeasured": 0,
+          "preparedText": 18,
+          "fallbackText": 0,
+          "conditional": 0
+        },
+        "checks": {
+          "primitives": 52,
+          "labels": 15,
+          "occlusionPairs": 435,
+          "maxOcclusionPairs": 100000,
+          "operations": 72240,
+          "maxOperations": 400000,
+          "markers": 10
+        },
+        "issues": [],
+        "limitations": [
+          "Prepared occupied text regions bound native geometry; exact glyph ink depends on the resolved font.",
+          "Declared transparency, intentional data-mark overlap and externally modified CSS are outside this proof."
+        ],
+        "outputDigest": "fnv1a64:c0a8c15576d703ed"
+      },
+      "productSha256": "4c4740e35505d52db8f7ed70dcbe65ef19b719cd1dcfcf1f066032bac0ac3984",
+      "productFile": "candidate/TB-permutation.product.json"
+    },
+    {
+      "direction": "TB",
+      "variant": "identity",
+      "source": "flowchart TB\nsubgraph GroupA[Group A]\nA0[A0]\nA1[A1]\nA2[A2]\nA3[A3]\nA4[A4]\nend\nsubgraph GroupB[Group B]\nB0[B0]\nB1[B1]\nB2[B2]\nB3[B3]\nB4[B4]\nend\nsubgraph GroupC[Group C]\nC0[C0]\nC1[C1]\nC2[C2]\nC3[C3]\nC4[C4]\nend\nA0 --> B0\nA1 --> B1\nA2 --> B2\nA3 --> B3\nA4 --> B4\nB0 --> C0\nB1 --> C1\nB2 --> C2\nB3 --> C3\nB4 --> C4",
+      "options": {
+        "graphLayout": {
+          "backend": "agentic",
+          "fallback": "none"
+        }
+      },
+      "returned": true,
+      "arm": "candidate",
+      "proof": {
+        "version": 1,
+        "unit": "px",
+        "scope": "native-scene",
+        "status": "passed",
+        "viewport": {
+          "x": 0,
+          "y": 0,
+          "width": 553.5,
+          "height": 641.29375
+        },
+        "attempts": 1,
+        "repairs": [],
+        "coverage": {
+          "measured": 49,
+          "unmeasured": 0,
+          "preparedText": 18,
+          "fallbackText": 0,
+          "conditional": 0
+        },
+        "checks": {
+          "primitives": 52,
+          "labels": 15,
+          "occlusionPairs": 436,
+          "maxOcclusionPairs": 100000,
+          "operations": 71587,
+          "maxOperations": 400000,
+          "markers": 10
+        },
+        "issues": [],
+        "limitations": [
+          "Prepared occupied text regions bound native geometry; exact glyph ink depends on the resolved font.",
+          "Declared transparency, intentional data-mark overlap and externally modified CSS are outside this proof."
+        ],
+        "outputDigest": "fnv1a64:07591bd345c5ef62"
+      },
+      "productSha256": "1f94fd7f928104cc914435de0adeaa1ea9c5de237e566ac7ae8b4179ca6ddb1a",
+      "productFile": "candidate/TB-identity.product.json"
+    },
+    {
+      "direction": "BT",
+      "variant": "permutation",
+      "source": "flowchart BT\nsubgraph GroupA[Group A]\nA0[A0]\nA1[A1]\nA2[A2]\nA3[A3]\nA4[A4]\nend\nsubgraph GroupB[Group B]\nB0[B0]\nB1[B1]\nB2[B2]\nB3[B3]\nB4[B4]\nend\nsubgraph GroupC[Group C]\nC0[C0]\nC1[C1]\nC2[C2]\nC3[C3]\nC4[C4]\nend\nA0 --> B4\nA1 --> B2\nA2 --> B0\nA3 --> B3\nA4 --> B1\nB0 --> C1\nB1 --> C3\nB2 --> C0\nB3 --> C4\nB4 --> C2",
+      "options": {
+        "graphLayout": {
+          "backend": "agentic",
+          "fallback": "none"
+        }
+      },
+      "returned": true,
+      "arm": "candidate",
+      "proof": {
+        "version": 1,
+        "unit": "px",
+        "scope": "native-scene",
+        "status": "passed",
+        "viewport": {
+          "x": 0,
+          "y": 0,
+          "width": 553.5,
+          "height": 643.2
+        },
+        "attempts": 1,
+        "repairs": [],
+        "coverage": {
+          "measured": 49,
+          "unmeasured": 0,
+          "preparedText": 18,
+          "fallbackText": 0,
+          "conditional": 0
+        },
+        "checks": {
+          "primitives": 52,
+          "labels": 15,
+          "occlusionPairs": 440,
+          "maxOcclusionPairs": 100000,
+          "operations": 73860,
+          "maxOperations": 400000,
+          "markers": 10
+        },
+        "issues": [],
+        "limitations": [
+          "Prepared occupied text regions bound native geometry; exact glyph ink depends on the resolved font.",
+          "Declared transparency, intentional data-mark overlap and externally modified CSS are outside this proof."
+        ],
+        "outputDigest": "fnv1a64:d1ed0685b3269c8c"
+      },
+      "productSha256": "ed6f539238cd5d5abbdf6648b940a7d5edc23518ee64c52450f89aba50f61838",
+      "productFile": "candidate/BT-permutation.product.json"
+    },
+    {
+      "direction": "BT",
+      "variant": "identity",
+      "source": "flowchart BT\nsubgraph GroupA[Group A]\nA0[A0]\nA1[A1]\nA2[A2]\nA3[A3]\nA4[A4]\nend\nsubgraph GroupB[Group B]\nB0[B0]\nB1[B1]\nB2[B2]\nB3[B3]\nB4[B4]\nend\nsubgraph GroupC[Group C]\nC0[C0]\nC1[C1]\nC2[C2]\nC3[C3]\nC4[C4]\nend\nA0 --> B0\nA1 --> B1\nA2 --> B2\nA3 --> B3\nA4 --> B4\nB0 --> C0\nB1 --> C1\nB2 --> C2\nB3 --> C3\nB4 --> C4",
+      "options": {
+        "graphLayout": {
+          "backend": "agentic",
+          "fallback": "none"
+        }
+      },
+      "returned": false,
+      "arm": "candidate",
+      "error": {
+        "name": "GraphLayoutUnsupportedError",
+        "message": "Agentic graph layout does not support this input: agentic local cross-hierarchy crossing-work limit",
+        "code": "GRAPH_LAYOUT_UNSUPPORTED"
+      }
+    }
+  ]
+}

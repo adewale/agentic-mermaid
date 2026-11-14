@@ -1,0 +1,281 @@
+{
+  "scope": "Existing SVG scanner and exact polygon helper applied to final authored fixture markup. Distinct carrier occurrences only; full marker viewport supports prove separation, actual filled triangle/solid butt-strip overlap proves geometric ink intersection. Ambiguous stroke-only candidates stay unverified. This does not certify node/label occlusion, own-carrier masking, arbitrary CSS, curves, transforms or fonts.",
+  "rows": [
+    {
+      "file": "/workspace/pr449-native-loop-20261113/vertical-layering-probe/candidate/TB-permutation.svg",
+      "sha256": "4fd3631cf7ff9f87ef530c8f9767c1c1103b2b18be75211278b59029c1d3b58f",
+      "carriers": 10,
+      "markers": 10,
+      "pairCount": 432,
+      "checks": [
+        {
+          "owner": "edge:A0-&gt;B4#0",
+          "end": "end",
+          "candidates": 0,
+          "filledHits": 0,
+          "unresolved": 0,
+          "status": "clear-complete-supports"
+        },
+        {
+          "owner": "edge:A1-&gt;B2#0",
+          "end": "end",
+          "candidates": 0,
+          "filledHits": 0,
+          "unresolved": 0,
+          "status": "clear-complete-supports"
+        },
+        {
+          "owner": "edge:A2-&gt;B0#0",
+          "end": "end",
+          "candidates": 0,
+          "filledHits": 0,
+          "unresolved": 0,
+          "status": "clear-complete-supports"
+        },
+        {
+          "owner": "edge:A3-&gt;B3#0",
+          "end": "end",
+          "candidates": 0,
+          "filledHits": 0,
+          "unresolved": 0,
+          "status": "clear-complete-supports"
+        },
+        {
+          "owner": "edge:A4-&gt;B1#0",
+          "end": "end",
+          "candidates": 0,
+          "filledHits": 0,
+          "unresolved": 0,
+          "status": "clear-complete-supports"
+        },
+        {
+          "owner": "edge:B0-&gt;C1#0",
+          "end": "end",
+          "candidates": 0,
+          "filledHits": 0,
+          "unresolved": 0,
+          "status": "clear-complete-supports"
+        },
+        {
+          "owner": "edge:B1-&gt;C3#0",
+          "end": "end",
+          "candidates": 0,
+          "filledHits": 0,
+          "unresolved": 0,
+          "status": "clear-complete-supports"
+        },
+        {
+          "owner": "edge:B2-&gt;C0#0",
+          "end": "end",
+          "candidates": 0,
+          "filledHits": 0,
+          "unresolved": 0,
+          "status": "clear-complete-supports"
+        },
+        {
+          "owner": "edge:B3-&gt;C4#0",
+          "end": "end",
+          "candidates": 0,
+          "filledHits": 0,
+          "unresolved": 0,
+          "status": "clear-complete-supports"
+        },
+        {
+          "owner": "edge:B4-&gt;C2#0",
+          "end": "end",
+          "candidates": 0,
+          "filledHits": 0,
+          "unresolved": 0,
+          "status": "clear-complete-supports"
+        }
+      ],
+      "hits": [],
+      "unknown": [],
+      "status": "clear-complete-supports"
+    },
+    {
+      "file": "/workspace/pr449-native-loop-20261113/vertical-layering-probe/candidate/TB-identity.svg",
+      "sha256": "f047d5ea21a46c0cd996f9e1b4d5b0d81c4cf4338f8502362375fcbbb4169d1b",
+      "carriers": 10,
+      "markers": 10,
+      "pairCount": 432,
+      "checks": [
+        {
+          "owner": "edge:A0-&gt;B0#0",
+          "end": "end",
+          "candidates": 0,
+          "filledHits": 0,
+          "unresolved": 0,
+          "status": "clear-complete-supports"
+        },
+        {
+          "owner": "edge:A1-&gt;B1#0",
+          "end": "end",
+          "candidates": 0,
+          "filledHits": 0,
+          "unresolved": 0,
+          "status": "clear-complete-supports"
+        },
+        {
+          "owner": "edge:A2-&gt;B2#0",
+          "end": "end",
+          "candidates": 0,
+          "filledHits": 0,
+          "unresolved": 0,
+          "status": "clear-complete-supports"
+        },
+        {
+          "owner": "edge:A3-&gt;B3#0",
+          "end": "end",
+          "candidates": 0,
+          "filledHits": 0,
+          "unresolved": 0,
+          "status": "clear-complete-supports"
+        },
+        {
+          "owner": "edge:A4-&gt;B4#0",
+          "end": "end",
+          "candidates": 0,
+          "filledHits": 0,
+          "unresolved": 0,
+          "status": "clear-complete-supports"
+        },
+        {
+          "owner": "edge:B0-&gt;C0#0",
+          "end": "end",
+          "candidates": 0,
+          "filledHits": 0,
+          "unresolved": 0,
+          "status": "clear-complete-supports"
+        },
+        {
+          "owner": "edge:B1-&gt;C1#0",
+          "end": "end",
+          "candidates": 0,
+          "filledHits": 0,
+          "unresolved": 0,
+          "status": "clear-complete-supports"
+        },
+        {
+          "owner": "edge:B2-&gt;C2#0",
+          "end": "end",
+          "candidates": 0,
+          "filledHits": 0,
+          "unresolved": 0,
+          "status": "clear-complete-supports"
+        },
+        {
+          "owner": "edge:B3-&gt;C3#0",
+          "end": "end",
+          "candidates": 0,
+          "filledHits": 0,
+          "unresolved": 0,
+          "status": "clear-complete-supports"
+        },
+        {
+          "owner": "edge:B4-&gt;C4#0",
+          "end": "end",
+          "candidates": 0,
+          "filledHits": 0,
+          "unresolved": 0,
+          "status": "clear-complete-supports"
+        }
+      ],
+      "hits": [],
+      "unknown": [],
+      "status": "clear-complete-supports"
+    },
+    {
+      "file": "/workspace/pr449-native-loop-20261113/vertical-layering-probe/candidate/BT-permutation.svg",
+      "sha256": "b22ee348122d459bc6986525f8e8954221be895ef343f393afbca88f492aa6a6",
+      "carriers": 10,
+      "markers": 10,
+      "pairCount": 432,
+      "checks": [
+        {
+          "owner": "edge:A0-&gt;B4#0",
+          "end": "end",
+          "candidates": 0,
+          "filledHits": 0,
+          "unresolved": 0,
+          "status": "clear-complete-supports"
+        },
+        {
+          "owner": "edge:A1-&gt;B2#0",
+          "end": "end",
+          "candidates": 0,
+          "filledHits": 0,
+          "unresolved": 0,
+          "status": "clear-complete-supports"
+        },
+        {
+          "owner": "edge:A2-&gt;B0#0",
+          "end": "end",
+          "candidates": 0,
+          "filledHits": 0,
+          "unresolved": 0,
+          "status": "clear-complete-supports"
+        },
+        {
+          "owner": "edge:A3-&gt;B3#0",
+          "end": "end",
+          "candidates": 0,
+          "filledHits": 0,
+          "unresolved": 0,
+          "status": "clear-complete-supports"
+        },
+        {
+          "owner": "edge:A4-&gt;B1#0",
+          "end": "end",
+          "candidates": 0,
+          "filledHits": 0,
+          "unresolved": 0,
+          "status": "clear-complete-supports"
+        },
+        {
+          "owner": "edge:B0-&gt;C1#0",
+          "end": "end",
+          "candidates": 0,
+          "filledHits": 0,
+          "unresolved": 0,
+          "status": "clear-complete-supports"
+        },
+        {
+          "owner": "edge:B1-&gt;C3#0",
+          "end": "end",
+          "candidates": 0,
+          "filledHits": 0,
+          "unresolved": 0,
+          "status": "clear-complete-supports"
+        },
+        {
+          "owner": "edge:B2-&gt;C0#0",
+          "end": "end",
+          "candidates": 0,
+          "filledHits": 0,
+          "unresolved": 0,
+          "status": "clear-complete-supports"
+        },
+        {
+          "owner": "edge:B3-&gt;C4#0",
+          "end": "end",
+          "candidates": 0,
+          "filledHits": 0,
+          "unresolved": 0,
+          "status": "clear-complete-supports"
+        },
+        {
+          "owner": "edge:B4-&gt;C2#0",
+          "end": "end",
+          "candidates": 0,
+          "filledHits": 0,
+          "unresolved": 0,
+          "status": "clear-complete-supports"
+        }
+      ],
+      "hits": [],
+      "unknown": [],
+      "status": "clear-complete-supports"
+    }
+  ]
+}

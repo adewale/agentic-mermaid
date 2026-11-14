@@ -1,0 +1,118 @@
+{
+  "source": "4cddae30548df1adf0ea1908c88454fae3bcb36d",
+  "candidate": "Bun-source scratch, no canonical candidate build",
+  "rows": [
+    {
+      "case": "TB-permutation",
+      "baselineNodeWholeProductEqual": true,
+      "sourceEqual": true,
+      "optionsEqual": true,
+      "before": {
+        "wire": 5367.462499999999,
+        "bends": 44,
+        "crossings": 29,
+        "parallelOverlaps": 0,
+        "opposingOverlaps": 0,
+        "area": 261286.025
+      },
+      "returned": true,
+      "observedProductExact": true,
+      "svgHashExact": true,
+      "proof": "passed",
+      "after": {
+        "wire": 6150.006249999999,
+        "bends": 38,
+        "crossings": 19,
+        "area": 358277.090625
+      },
+      "markerPairs": 432,
+      "markerHits": 0,
+      "markerUnknown": 0,
+      "meaning": true,
+      "paint": true,
+      "directionPassed": true,
+      "wirePercent": 14.579398551922829,
+      "areaPercent": 37.120648004423515
+    },
+    {
+      "case": "TB-identity",
+      "baselineNodeWholeProductEqual": true,
+      "sourceEqual": true,
+      "optionsEqual": true,
+      "before": {
+        "wire": 5840.206249999998,
+        "bends": 44,
+        "crossings": 28,
+        "parallelOverlaps": 0,
+        "opposingOverlaps": 0,
+        "area": 261286.025
+      },
+      "returned": true,
+      "observedProductExact": true,
+      "svgHashExact": true,
+      "proof": "passed",
+      "after": {
+        "wire": 5592.006249999999,
+        "bends": 38,
+        "crossings": 22,
+        "area": 354956.090625
+      },
+      "markerPairs": 432,
+      "markerHits": 0,
+      "markerUnknown": 0,
+      "meaning": true,
+      "paint": true,
+      "directionPassed": true,
+      "wirePercent": -4.249849908982217,
+      "areaPercent": 35.849627099267956
+    },
+    {
+      "case": "BT-permutation",
+      "baselineNodeWholeProductEqual": true,
+      "sourceEqual": true,
+      "optionsEqual": true,
+      "before": {
+        "wire": 5013.175000000001,
+        "bends": 40,
+        "crossings": 23,
+        "parallelOverlaps": 0,
+        "opposingOverlaps": 0,
+        "area": 260088.4
+      },
+      "returned": true,
+      "observedProductExact": true,
+      "svgHashExact": true,
+      "proof": "passed",
+      "after": {
+        "wire": 5735.950000000001,
+        "bends": 38,
+        "crossings": 17,
+        "area": 356011.2
+      },
+      "markerPairs": 432,
+      "markerHits": 0,
+      "markerUnknown": 0,
+      "meaning": true,
+      "paint": true,
+      "directionPassed": true,
+      "wirePercent": 14.417509861514887,
+      "areaPercent": 36.88084512804109
+    },
+    {
+      "case": "BT-identity",
+      "baselineNodeWholeProductEqual": true,
+      "sourceEqual": true,
+      "optionsEqual": true,
+      "before": {
+        "wire": 5035.25,
+        "bends": 42,
+        "crossings": 16,
+        "parallelOverlaps": 0,
+        "opposingOverlaps": 0,
+        "area": 253224.4
+      },
+      "returned": false,
+      "error": "Agentic graph layout does not support this input: agentic local cross-hierarchy crossing-work limit"
+    }
+  ]
+}

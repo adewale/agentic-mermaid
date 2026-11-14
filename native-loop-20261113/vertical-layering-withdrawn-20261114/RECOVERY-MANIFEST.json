@@ -1,0 +1,91 @@
+{
+  "scope": "Selected fresh vertical placement pilot evidence only; no old profile, audit or archive content. Original diagnostic stacks remain local and are excluded.",
+  "files": [
+    {
+      "path": "REPORT-PUBLIC.md",
+      "bytes": 2904,
+      "sha256": "e6fbdfdea2748084d66c03efea5352e1e3ddafc1d04e0a0d5132728fb08779f6"
+    },
+    {
+      "path": "CLOSED.json",
+      "bytes": 767,
+      "sha256": "c2b8faf0e16faab831cfd700630c629a72262d46edeb097d68ebe9b17e2c3c1e"
+    },
+    {
+      "path": "CASE-BINDINGS-PUBLIC.json",
+      "bytes": 3843,
+      "sha256": "18075fd70e636b8c98c642d98fb2375a94c0714e2e276ee05ed3312d052ceb04"
+    },
+    {
+      "path": "OUTCOMES-PUBLIC.json",
+      "bytes": 13637,
+      "sha256": "b36279e0ad6095ff7fd9a100dd9de6e13efb3b511c6b014ad9eab787c2dde68f"
+    },
+    {
+      "path": "candidate.patch",
+      "bytes": 1653,
+      "sha256": "ee5583e535b4b90e9fc0a6aa8e155c30b847736ac4fc6c1f4a8d7c9afccbbcd4"
+    },
+    {
+      "path": "pilot.ts",
+      "bytes": 3921,
+      "sha256": "cb4ff13dc08bc2225cd832aaa2e8b31feed52b8035ac0dca2bb10c3408e32eb3"
+    },
+    {
+      "path": "INDEPENDENT-QUALITY-REVIEW.json",
+      "bytes": 3069,
+      "sha256": "e5144dc5402f697f978477fb7592af47ccb3ba1744cbed33fc8c17c3e4e523e5"
+    },
+    {
+      "path": "MARKER-SHAFT-REVIEW.json",
+      "bytes": 7910,
+      "sha256": "38a7a21512cd3eecf493722216738babcdde4a1e9b5f4ba4abdb26ea7f84a0e3"
+    },
+    {
+      "path": "observed/RESULTS.json",
+      "bytes": 131664,
+      "sha256": "0544c1505c1cfc282c93c7116129431c7b313663a1bdd5cb69c8fd1e30ce4f55"
+    },
+    {
+      "path": "observed/CLOSED.json",
+      "bytes": 1370,
+      "sha256": "b3191afef856779e61c67cfd90dd3af5ce89bb8f8ebd2f8ac392c8dbbb3c62a6"
+    },
+    {
+      "path": "baseline/BT-identity.product.json.gz",
+      "bytes": 3152,
+      "sha256": "a8ba79d3d41b0fbc899d7835b9bf61961a56948043782a10c8379532e2b40937"
+    },
+    {
+      "path": "baseline/BT-permutation.product.json.gz",
+      "bytes": 3165,
+      "sha256": "b091ac21053f88dcc9c30d6f5cedf2070040bc77a7b038336aed7a305575a37b"
+    },
+    {
+      "path": "baseline/TB-identity.product.json.gz",
+      "bytes": 3185,
+      "sha256": "f6c9b4d88268adf7c5485cd4d2d562670c10a920054435f6d6ddc11458c9557e"
+    },
+    {
+      "path": "baseline/TB-permutation.product.json.gz",
+      "bytes": 3209,
+      "sha256": "d0671a25572e4b282446b33087547357a008e2d89692cf59df59ba564e280f00"
+    },
+    {
+      "path": "candidate/BT-permutation.product.json.gz",
+      "bytes": 3189,
+      "sha256": "1c77712caaa0ad98f35bb0c22b6eae39bf689c30d4f60944660da88bc056ca47"
+    },
+    {
+      "path": "candidate/TB-identity.product.json.gz",
+      "bytes": 3183,
+      "sha256": "96a88d323ad334ba2fb66be2debdd62b6f9e369ece411dd4816f26804933aaf0"
+    },
+    {
+      "path": "candidate/TB-permutation.product.json.gz",
+      "bytes": 3199,
+      "sha256": "4d0dc4003913ff98ce540497be88bb5a11c7414fbb2ed7d8c88794acf38f066d"
+    }
+  ],
+  "totalBytes": 193020
+}
