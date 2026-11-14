@@ -1,0 +1,51 @@
+{
+  "status": "CLOSED_MEASUREMENT_ONLY",
+  "main": "a2e5ddc927e7432affbc293b7996a74b5fe59003",
+  "current": "4cddae30548df1adf0ea1908c88454fae3bcb36d",
+  "sourceChanged": false,
+  "builds": 0,
+  "newBrowserObservations": 0,
+  "stockWorkers": 0,
+  "profileSessions": 0,
+  "nodeWorkers": 48,
+  "calls": 432,
+  "returned": 432,
+  "lifecycleFailures": 0,
+  "mainProof": {
+    "passed": 216
+  },
+  "currentProof": {
+    "passed": 162,
+    "unverified": 54
+  },
+  "productSummary": {
+    "workers": 48,
+    "calls": 432,
+    "returned": 432,
+    "uniqueWholeProducts": 32,
+    "allRawByteBindingsVerified": true,
+    "paired": 216,
+    "pairedSvgExact": 189,
+    "pairedReceiptExact": 0,
+    "pairedWholeProductExact": 0,
+    "withinWorkerRepeatedProducts": 336,
+    "withinWorkerRepeatedProductsExact": 336,
+    "crossReplicaProducts": 288,
+    "crossReplicaProductsExact": 288,
+    "proofCounts": {
+      "passed": 378,
+      "unverified": 54
+    }
+  },
+  "clockDriverExit": 0,
+  "allTimingWorkersClosed": true,
+  "reportingOnlyWorkersClosed": true,
+  "repeatedOrDiscardedClockRuns": 0,
+  "closedAtUtc": "2026-11-14T11:14:59.297956+00:00",
+  "selectedBundlesInspected": {
+    "workerResults": 48,
+    "calls": 432,
+    "wholeResponses": 32,
+    "profileOrStackData": false
+  }
+}

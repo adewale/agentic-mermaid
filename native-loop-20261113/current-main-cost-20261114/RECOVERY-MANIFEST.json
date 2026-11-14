@@ -1,0 +1,106 @@
+{
+  "scope": "Fresh matched Maina2e/current4cdd measurement only. No old mapped profiles/audits/archives, stacks or sampled function profiles. All compressed bundles decoded and inspected; worker jobs disable profiles/observers; entire public responses carry exact hashes.",
+  "files": [
+    {
+      "path": "REPORT.md",
+      "bytes": 6823,
+      "sha256": "50b86d402f78a3cfcf00b146c2c36abcc58a54be2eddcce6d4406e965094d6bc"
+    },
+    {
+      "path": "CLOSED.json",
+      "bytes": 1275,
+      "sha256": "5f173937af94495fb8fada2790a9f469dfe503b1ed6cd8b65476c5b3061efa1b"
+    },
+    {
+      "path": "PLAN.json",
+      "bytes": 5195,
+      "sha256": "76f84db415d927f0c0d6f24b4f5e52db11aa6f4522a64d61595663ac540afe8c"
+    },
+    {
+      "path": "compatibility-overlay/MEASUREMENT-CASES.json",
+      "bytes": 31277,
+      "sha256": "3f9837e67d0510a434e477364806e67fc5e94351d6139a6e9f89c47048cd6861"
+    },
+    {
+      "path": "receipt-worker.mjs",
+      "bytes": 4971,
+      "sha256": "3eee8e6d34847686fac9d43cd609747422f9689d641a39d52450a5608f3e88dd"
+    },
+    {
+      "path": "receipt-performance.ts",
+      "bytes": 3346,
+      "sha256": "c7b68b627043427a952ffad6739e107110d43e854c62ce7e0421cfb21c089362"
+    },
+    {
+      "path": "reduce-receipts.py",
+      "bytes": 5050,
+      "sha256": "30afba244c0e52d6afe9af13fc822cbdeb524bab43eedc4a3746d8694735e990"
+    },
+    {
+      "path": "verify-products.mjs",
+      "bytes": 4466,
+      "sha256": "31cf4cde96b451a77995e1c3872561358303ac4f80ccd1609174e8e3c7ac4362"
+    },
+    {
+      "path": "package-responses.mjs",
+      "bytes": 1524,
+      "sha256": "534c68d4436e8330f19d60263a3d20c0a07041e4fead41b9c5f10c6d5b95bc02"
+    },
+    {
+      "path": "RECEIPT-METRICS.json",
+      "bytes": 118699,
+      "sha256": "b6e7a0cf5b784af433899b74c361aa06f5f68ab2ae27972181122b70dbcf0cef"
+    },
+    {
+      "path": "RECEIPT-METRICS.csv",
+      "bytes": 70277,
+      "sha256": "1886c7f8cb530abf0e7c30f3346ba22b0316e25c17a24a61f93b9ed44c36de65"
+    },
+    {
+      "path": "PRODUCT-SUMMARY.json",
+      "bytes": 437,
+      "sha256": "39457b18d3fa046ff0e348a9e8248ab1b849220ec3c5102973e2d20627aedb1e"
+    },
+    {
+      "path": "PRODUCT-OBSERVATIONS.json",
+      "bytes": 328887,
+      "sha256": "af02d62c1f95c57c220470da50be2211d9bc1fa8750a27b0159fe694c6b9cd31"
+    },
+    {
+      "path": "RAW-CALLS-PUBLIC.json.gz",
+      "bytes": 31449,
+      "sha256": "808fb40aa855598da58969d5ec69f2d7661392a4d57812dc7ff027bd07207535"
+    },
+    {
+      "path": "WORKER-RESULTS.json.gz",
+      "bytes": 42182,
+      "sha256": "8112e151b073297ed865a5949bc49be0009f6b1039a8766e216c65bb4587b7f5"
+    },
+    {
+      "path": "WHOLE-RESPONSES.json.gz",
+      "bytes": 283726,
+      "sha256": "2b35addf2ed7502675075a3f6cf9311ada18f6684bd760eb7b2c1bcdc3676053"
+    },
+    {
+      "path": "INDEPENDENT-REVIEW.md",
+      "bytes": 4397,
+      "sha256": "4e1169ec5189f2e9061c96ed444744f44ab47494f38b7e1bf983990bbd3a58e4"
+    },
+    {
+      "path": "INDEPENDENT-REDUCTION.json",
+      "bytes": 159323,
+      "sha256": "fc698edcf02e1082fcd5729ce7f290d68930e359d58d270662c4bf224ce12b60"
+    },
+    {
+      "path": "INDEPENDENT-PRODUCT-CHECK.json",
+      "bytes": 266499,
+      "sha256": "b1b31808094d2e2634809ac3f997029119eb44ae4bca831b53f66b43ef5ee493"
+    },
+    {
+      "path": "independent-products.mjs",
+      "bytes": 3462,
+      "sha256": "5f2e8cad23b1deea6d5d93b46f5e1a2fe0a9c7f0d643d2ecbdb8ae2c02715bbb"
+    }
+  ],
+  "totalBytes": 1373265
+}

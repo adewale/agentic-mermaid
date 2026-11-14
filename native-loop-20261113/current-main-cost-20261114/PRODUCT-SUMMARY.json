@@ -1,0 +1,19 @@
+{
+  "workers": 48,
+  "calls": 432,
+  "returned": 432,
+  "uniqueWholeProducts": 32,
+  "allRawByteBindingsVerified": true,
+  "paired": 216,
+  "pairedSvgExact": 189,
+  "pairedReceiptExact": 0,
+  "pairedWholeProductExact": 0,
+  "withinWorkerRepeatedProducts": 336,
+  "withinWorkerRepeatedProductsExact": 336,
+  "crossReplicaProducts": 288,
+  "crossReplicaProductsExact": 288,
+  "proofCounts": {
+    "passed": 378,
+    "unverified": 54
+  }
+}

@@ -1,0 +1,94 @@
+{
+  "purpose": "Fill missing matched current4cdd versus pristine Maina2e full-response runtime table; measurement only, no optimization or code-gain trial.",
+  "sourceUnchanged": "4cddae30548df1adf0ea1908c88454fae3bcb36d",
+  "builds": {
+    "baseline": {
+      "revision": "a2e5ddc927e7432affbc293b7996a74b5fe59003",
+      "root": "/workspace/pr449-native-loop-20261113/main-combined/build-main-a2e",
+      "entrySha256": "7af7e0e634a74ba9742728bace90b1811f0310deef2d7d8b7ce239767ecf0159",
+      "packageSha256": "9f644ec48f6d469689f15f5ba5d46f967f42dbb0bf1f9a1666352cdad0e39269",
+      "existingQualification": "/workspace/pr449-native-loop-20261113/main-combined/MAIN-BASELINE-IDENTITY.json"
+    },
+    "candidate": {
+      "revision": "4cddae30548df1adf0ea1908c88454fae3bcb36d",
+      "root": "/workspace/pr449-native-loop-20261113/path-order-implementation/build-candidate",
+      "entrySha256": "735d7a0dd72efadccc760e90dd20a484b1233778926613811de100108814c552",
+      "packageSha256": "184f9523e4051f4eb5555f3b03ba6b93727e1adc1f5898092234376ccf029832",
+      "existingQualification": "/workspace/pr449-native-loop-20261113/path-order-implementation/BUILD-CLOSED.json"
+    }
+  },
+  "cases": [
+    "diagnostic:chain100",
+    "diagnostic:fanin100",
+    "diagnostic:chain300",
+    "diagnostic:compound-identity-LR"
+  ],
+  "casesSha256": "3f9837e67d0510a434e477364806e67fc5e94351d6139a6e9f89c47048cd6861",
+  "caseBindings": [
+    {
+      "id": "diagnostic:chain100",
+      "sourceSha256": "1f5f7abc2880e1584d10a9dc14a8490ba5a9535c604f3c77ce3d05ec1a3e2c43",
+      "editSha256": "bf69728e54a2ffb9df3a34472360b5925a85bd80ff6a0fa793eb8714bdc7e5c2",
+      "renderOptions": {},
+      "originalCaseFile": "/workspace/pr449-native-loop-20261113/main-combined/cost/compatibility-overlay/MEASUREMENT-CASES.json"
+    },
+    {
+      "id": "diagnostic:fanin100",
+      "sourceSha256": "8ef5e9aafa796d792caf82b69dd70ac23c1e48aef48f2d248544c91ad7331ec3",
+      "editSha256": "96b3de549fe7d48c479fb121400c9ad525fc9f346f94788b203c0c4781400a00",
+      "renderOptions": {},
+      "originalCaseFile": "/workspace/pr449-native-loop-20261113/main-combined/cost/compatibility-overlay/MEASUREMENT-CASES.json"
+    },
+    {
+      "id": "diagnostic:chain300",
+      "sourceSha256": "f9847117ad949c5e76bb9f2f58d5fd36ab7cba8e69e216c9fd100c0b6f02310f",
+      "editSha256": "b13efaa6540f6faf9c21a4220c1f4fea13c979a858493c9843311ae506c71f46",
+      "renderOptions": {},
+      "originalCaseFile": "/workspace/pr449-native-loop-20261113/main-combined/cost/compatibility-overlay/MEASUREMENT-CASES.json"
+    },
+    {
+      "id": "diagnostic:compound-identity-LR",
+      "sourceSha256": "ab5ad55a2129d82541ef5389a2ad521cac43d985aef4ee50c0be61cb5543fce8",
+      "editSha256": "e77a3791b27dd5b7be8405c10984affc1ee61a7963a9975c2f8379d80f6b360d",
+      "renderOptions": {},
+      "originalCaseFile": "/workspace/pr449-native-loop-20261113/main-combined/cost/compatibility-overlay/MEASUREMENT-CASES.json"
+    }
+  ],
+  "replicas": 3,
+  "arms": [
+    "baseline/agentic",
+    "candidate/agentic",
+    "baseline/elk",
+    "candidate/elk"
+  ],
+  "armRotation": "For each case/replica: offset=(caseIndex+replica)%4, preserve existing cyclic arm ordering; one process at a time.",
+  "workers": 48,
+  "fullCalls": 432,
+  "callsPerWorker": [
+    "cold-render",
+    "repeat1",
+    "repeat2",
+    "repeat3",
+    "repeat4",
+    "edit1",
+    "edit2",
+    "edit3",
+    "edit4"
+  ],
+  "node": "/workspace/pr449-runtime-recovery/node-v24.19.0-linux-x64/bin/node",
+  "nodeVersion": "v24.19.0",
+  "environment": {
+    "AGENTIC_MERMAID_ELK_CACHE": "0",
+    "AGENTIC_MERMAID_SCENE_ASSERTIONS": "0"
+  },
+  "cacheScope": "ELK cache environment setting only; other internal/request caches are not all disabled.",
+  "sampling": false,
+  "timedObservers": false,
+  "workerSha256": "3eee8e6d34847686fac9d43cd609747422f9689d641a39d52450a5608f3e88dd",
+  "originalWorker": "/workspace/pr449-native-loop-20261113/path-order-implementation/cost/receipt-worker.mjs",
+  "workerByteExact": true,
+  "driverSha256": "c7b68b627043427a952ffad6739e107110d43e854c62ce7e0421cfb21c089362",
+  "boundary": "Actual built public renderMermaidSVGWithReceipt; full original product JSON.stringify once and UTF8 byte count inside clock. Import separate; cold is fresh process first render; repeat1-4 are same source; edit1 is first edited source and edit2-4 repeated edited source. GC, artifact compression/writes and retained receipt evidence encoding outside API clocks. RSS is process RSS; after heap is at-return heap, not retained-after-GC.",
+  "reduction": "Existing receipt reducer semantics: per-process median for each repeated phase then summary median/min/max across three processes. Keep CPU/import/cold/edit/RSS/heap/bytes/proof and errors. Reconstruct/compare retained full products only after verifying actual serialized byte lengths; no timing ratios for refused outputs.",
+  "limits": "Exploratory three-process comparison, not formal calibration. Main/current may have different proof availability (Chain300) and identity geometry; report those differences, never behavior-preserving causal speedup. No favorable rerun. No code/build/stock/browser/profile/corpus."
+}
