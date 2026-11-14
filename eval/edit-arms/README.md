@@ -212,13 +212,26 @@ applied through `applyOps`, then scored with `score.ts` against the Mermaid
 untouched lines kept (comments 66.7%). Source-preserving mode: 49 applied (one
 diagram fails verification on a class-note layout defect), 49 successes, 0
 damaged, 99.7% of untouched lines kept (comments 100%), every result local.
-This measures the editing path, not agents; rerunning the agent pilot is still
-the acceptance check.
+This measures the editing path, not agents.
 
-The confirmatory run is deferred: the pilot already shows the typed path losing
-on the primary metric for a known, fixable reason, so its result is predictable
-until typed edits preserve untouched source. Rerun this pilot after that change
-as the acceptance check. Cost note: pilot runs averaged ~77k tokens, almost all
-of it the Claude Code subagent's fixed context rather than the task; a runner
-that calls a model API with only the request file would cost a fraction of that,
-so re-estimate before any full run.
+**Pilot rerun (2026-11-14, acceptance check).** The same ten seed-1 requests,
+byte-identical to the first pilot's, were dispatched for arm B only to fresh
+Claude Sonnet subagents after typed edits gained source preservation; arm A's
+first-pilot responses were reused, since nothing arm A runs changed.
+
+| Arm | Success | Collateral damage | Untouched lines preserved |
+| --- | ---: | ---: | ---: |
+| A — text edit + verify (first pilot) | 10/10 | 0/10 | 100% |
+| B — typed path | 10/10 | 0/10 | 99.2% (comments 100%) |
+
+B − A preservation is −0.8 points (bootstrap 95% CI −2.5 to 0). Nine B runs
+used `am mutate --preserve-source`; one added a sequence note by text edit,
+since no operation adds notes. The single lost line is an edge line that also
+declared a node: removing the edge moved the declaration to the next edge
+that names the node. Two runs noted cosmetic indentation in a newly created
+block. Runs averaged 74k tokens (0.75M in all), nearly all of it the
+subagent's fixed context.
+
+The confirmatory run is deferred: at this size the arms no longer differ on
+any metric, and a runner that calls a model API with only the request file
+would cost a fraction of a subagent run, so re-estimate before any full run.
