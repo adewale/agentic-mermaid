@@ -1,4 +1,4 @@
-import { prepareClassConstruction, compactClassRoutesDecision, classLinkFooterText, type ClassConstruction } from './class-constructive-layout.ts'
+import { classRoutesDecision, classLinkFooterText, namespaceHeaderLabel } from './class-route-contract.ts'
 // Class layout keeps integer cards, endpoint demand and label rectangles
 // authoritative before emitting owned terminal primitives.
 import { classRelationshipLineStyle, parseClassDiagram } from '../class/parser.ts'
@@ -8,7 +8,7 @@ import { displayText, normalizeBrTags } from '../multiline-utils.ts'
 import { compareCodePointStrings } from '../shared/deterministic-order.ts'
 import { type DisplayTextInput, resolveLabelContent } from '../shared/display-text.ts'
 import { checkAllClassLikeAuthoredStyles } from '../shared/style-props.ts'
-import { allocateBoxRoutes, allocateConstructiveClassRoutes, TerminalBoxRouteUnavailable, type BoxRoute, BOX_ROUTE_APPROACH_DISTANCE, type BoxRelation, type BoxSide, boxFaceDemands, boxFaceSizes, paintClassLikeCard, paintBoxRoute, paintBoxText, reverseBoxes, type TerminalBox } from './class-like-layout.ts'
+import { allocateChannelledBoxRoutes, TerminalBoxRouteUnavailable, BOX_ROUTE_APPROACH_DISTANCE, type BoxRelation, type BoxSide, boxFaceDemands, boxFaceSizes, paintClassLikeCard, paintBoxRoute, paintBoxText, reverseBoxes, type TerminalBox } from './class-like-layout.ts'
 import { terminalIds } from './identity.ts'
 import { type TerminalArtifact, terminalArtifact } from './terminal-artifact.ts'
 import { TerminalDocument, type TerminalMarker, type TerminalOwner } from './terminal-document.ts'
@@ -127,24 +127,47 @@ export function renderClassTerminal(text: string, config: AsciiConfig, colorMode
   // Each exterior approach occupies distance+1 blank cells. Opposing faces
   // need one additional free row/column between those protected approaches.
   const minimumRoutingGap = 2 * (BOX_ROUTE_APPROACH_DISTANCE + 1) + 1
+  // A card whose relations to three or more cards of later (earlier) ranks
+  // meet those cards alone (all but at most one) fans them out of one face
+  // across the gap beside it, as the router's fans do. Each route but one may
+  // need its own row there to turn toward its card without crossing the
+  // others, so that gap holds both approaches and those rows of its widest fan.
+  const toward = (id: string, later: boolean) => diagram.relationships.flatMap(rel => {
+    const other = rel.from === id ? rel.to : rel.to === id ? rel.from : undefined
+    return other !== undefined && other !== id && level.has(other) && (later ? level.get(other)! > level.get(id)! : level.get(other)! < level.get(id)!) ? [other] : []
+  })
+  const fanRows = new Map<number, number>()
+  for (const cls of diagram.classes) for (const later of [true, false]) {
+    const others = toward(cls.id, later)
+    if (others.length < 3 || others.filter(other => toward(other, !later).length >= 3).length > 1) continue
+    const gap = level.get(cls.id)! - (later ? 0 : 1)
+    fanRows.set(gap, Math.max(fanRows.get(gap) ?? 0, others.length))
+  }
   let routingGapPromoted = false
+  // Routing may widen every gap and the outer margin by `channel` cells when a corridor fills.
+  let channel = 0
   const allocateCards = () => {
     placed.clear()
-    let axis = 4
+    let axis = 4 + channel
     const mainGap = Math.max(8, routingGapPromoted ? minimumRoutingGap : 0, ...relations.flatMap(rel => [rel.lines?.length ?? 0, rel.fromLines?.length ?? 0, rel.toLines?.length ?? 0]).map(count => count + 6))
     for (let index = 0; index <= Math.max(0, ...level.values()); index++) {
-      let cross = 4,
+      let cross = 4 + channel,
         extent = 0
       for (const cls of diagram.classes.filter(item => (level.get(item.id) ?? 0) === index)) {
         const size = sizes.get(cls.id)!
         placed.set(cls.id, { id: cls.id, cls, sections: sections.get(cls.id)!, x: horizontal ? axis : cross, y: horizontal ? cross : axis, ...size })
-        cross += (horizontal ? size.height : size.width) + (routingGapPromoted ? minimumRoutingGap : 6)
+        cross += (horizontal ? size.height : size.width) + (routingGapPromoted ? minimumRoutingGap : 6) + channel
         extent = Math.max(extent, horizontal ? size.width : size.height)
       }
-      axis += extent + mainGap
+      axis += extent + Math.max(mainGap, 2 * (BOX_ROUTE_APPROACH_DISTANCE + 1) + (fanRows.get(index) ?? 1) - 1) + channel
     }
     reverseBoxes(placed.values(), direction)
   }
+  const namespaceByClass = new Map<string, string>(),
+    namespaces: PlacedNamespace[] = []
+  let noteBoxes: Array<TerminalBox & { lines: string[]; targetId?: string }> = []
+  const layout = (next: number) => {
+  channel = next
   allocateCards()
   // Inheritance and feedback links may run against source direction. Recount
   // the physical faces after allocation, then grow/reflow only where needed.
@@ -171,15 +194,13 @@ export function renderClassTerminal(text: string, config: AsciiConfig, colorMode
     if (!changed) break
     allocateCards()
   }
-  const namespaceByClass = new Map<string, string>(),
-    namespaces: PlacedNamespace[] = []
   const allocateNamespaces = (): void => {
     namespaceByClass.clear()
     namespaces.length = 0
     if (diagram.namespaces.length) {
       const header = (ns: ClassNamespace) => prepared(ns.labelContent?.value === (ns.label ?? ns.name) ? ns.labelContent.prepared : normalizeBrTags(ns.label ?? ns.name))
       // Keep normal port approaches and a free routing row inside each frame.
-      const frameClearance = 4
+      const frameClearance = 4 + channel
       const depthOf = (items: ClassNamespace[], depth = 1): number => Math.max(depth, ...items.map(ns => depthOf(ns.children, depth + 1)))
       const headerHeight = (items: ClassNamespace[]): number => Math.max(1, ...items.flatMap(ns => [header(ns).length, headerHeight(ns.children)]))
       const inset = depthOf(diagram.namespaces) * (headerHeight(diagram.namespaces) + frameClearance)
@@ -196,8 +217,8 @@ export function renderClassTerminal(text: string, config: AsciiConfig, colorMode
         const bounds = [...children, ...members]
         const labelLines = header(ns)
         if (!bounds.length) {
-          const empty: PlacedNamespace = { id, parentId, depth, members: [], labelLines, x: 4, y: emptyY, width: Math.max(6, ...labelLines.map(line => visualWidth(line) + 4)), height: labelLines.length + 3 }
-          emptyY += empty.height + 4
+          const empty: PlacedNamespace = { id, parentId, depth, members: [], labelLines, x: 4 + channel, y: emptyY, width: Math.max(6, ...labelLines.map(line => visualWidth(line) + 4)), height: labelLines.length + 3 }
+          emptyY += empty.height + 4 + channel
           namespaces.push(empty)
           return empty
         }
@@ -254,16 +275,15 @@ export function renderClassTerminal(text: string, config: AsciiConfig, colorMode
     }
   }
   const allocateNotes = () => {
-    let noteY = Math.max(0, ...[...placed.values()].map(box => box.y + box.height), ...namespaces.map(box => box.y + box.height)) + Math.max(8, routingGapPromoted ? minimumRoutingGap : 0)
+    let noteY = Math.max(0, ...[...placed.values()].map(box => box.y + box.height), ...namespaces.map(box => box.y + box.height)) + Math.max(8, routingGapPromoted ? minimumRoutingGap : 0) + channel
     return notePlans.map(note => {
       const size = faceSizes.get(note.id),
         target = note.targetId ? placed.get(note.targetId) : undefined
-      const box = { ...note, x: target?.x ?? 2, y: noteY, width: Math.max(6, ...note.lines.map(line => visualWidth(line) + 4), size?.width ?? 0), height: Math.max(note.lines.length + 2, size?.height ?? 0) }
-      noteY += box.height + (routingGapPromoted ? minimumRoutingGap : 4)
+      const box = { ...note, x: target?.x ?? 2 + channel, y: noteY, width: Math.max(6, ...note.lines.map(line => visualWidth(line) + 4), size?.width ?? 0), height: Math.max(note.lines.length + 2, size?.height ?? 0) }
+      noteY += box.height + (routingGapPromoted ? minimumRoutingGap : 4) + channel
       return box
     })
   }
-  let noteBoxes: ReturnType<typeof allocateNotes> = []
   // Namespace packing can change a relation's physical faces after the first
   // rank allocation. Recount those settled faces, including actual note sizes.
   // Every growth reaches a new 3*k+2 threshold, k <= endpoint incident degree.
@@ -313,34 +333,32 @@ export function renderClassTerminal(text: string, config: AsciiConfig, colorMode
     // would accumulate offsets and leave frame/header/note geometry stale.
     allocateCards()
   }
-  // Select one complete layout before painting. An invalid compact route is
-  // not published and never consumes/restarts a certification budget.
-  let routes: BoxRoute[] = [],
-    construction: ClassConstruction | undefined
+  // A class namespace's header band is crossed outside its label, and its
+  // borders are crossed straight through only by routes with an endpoint
+  // inside it, as the class route contract below requires.
+  const descendants = new Map<string, Set<string>>()
+  for (const [member, parent] of namespaceByClass) for (let at: string | undefined = parent; at !== undefined; at = namespaces.find(box => box.id === at)?.parentId) {
+    const set = descendants.get(at) ?? new Set<string>()
+    set.add(member)
+    descendants.set(at, set)
+  }
+  return { boxes: [...placed.values(), ...noteBoxes], obstacles: namespaces.map(box => ({ ...box, container: true, headerHeight: box.labelLines.length, headerLabel: namespaceHeaderLabel(box), encloses: descendants.get(box.id) ?? new Set<string>() })) }
+  }
+  // Select one complete layout before painting: routes widen their corridors
+  // until every relation routes within the class route contract, or the
+  // render refuses with a typed terminal work limit.
   const allRelations = [...relations, ...noteRelations],
-    boxes = [...placed.values(), ...noteBoxes]
-  let compactIssue: string | undefined
-  try {
-    routes = allocateBoxRoutes(
-      boxes,
-      allRelations,
-      direction,
-      namespaces.map(box => ({ ...box, container: true, headerHeight: box.labelLines.length })),
-    )
-    const decision = compactClassRoutesDecision(routes, boxes, namespaces, namespaceByClass)
-    // UNKNOWN preserves the original compact drawing for the one final certifier.
-    if (decision.status === 'invalid') compactIssue = decision.reason
-  } catch (error) {
-    if (!(error instanceof TerminalBoxRouteUnavailable)) throw error
-    compactIssue = error.message
-  }
-  if (compactIssue) {
-    const titleLines = diagram.title ? wrapText(displayText(normalizeBrTags(diagram.title)), targetWidth) : []
-    construction = prepareClassConstruction(placed, namespaces, noteBoxes, namespaceByClass, allRelations, direction, titleLines, targetWidth, relations.length)
-    routes = allocateConstructiveClassRoutes(construction)
-  }
+    relationIndex = new Map(allRelations.map((relation, index) => [relation.id, index]))
+  const routes = allocateChannelledBoxRoutes(layout, allRelations, direction, {
+    // Note connectors leave the ranks for the notes below; only relationships fan.
+    fanning: relation => relationshipById.has(relation.id),
+    accept: allocated => {
+      const decision = classRoutesDecision(allocated, [...placed.values(), ...noteBoxes], namespaces, namespaceByClass)
+      // UNKNOWN keeps the drawing for the one final certifier.
+      if (decision.status === 'invalid') throw new TerminalBoxRouteUnavailable(decision.reason, relationIndex.get(decision.relation) ?? 0)
+    },
+  })
   const doc = new TerminalDocument()
-  if (construction) doc.reserveTerminalPathWitnessWork(construction.report.planningWork)
   const ascii = config.useAscii
   const frame = (box: TerminalBox, owner: TerminalOwner, opaque = false) => paintTerminalFrame(doc, box, owner, ascii, opaque)
   for (const box of namespaces.sort((a, b) => a.depth - b.depth || compareCodePointStrings(a.id, b.id))) {
@@ -418,8 +436,8 @@ export function renderClassTerminal(text: string, config: AsciiConfig, colorMode
       titled = new TerminalDocument(Math.max(doc.width, ...lines.map(visualWidth)), doc.height + lines.length + 1)
     titled.scope({ id: 'title', kind: 'label' }, () => lines.forEach((line, row) => titled.text(Math.floor((titled.width - visualWidth(line)) / 2), row, line)))
     titled.overlay(doc, 0, lines.length + 1)
-    return terminalArtifact(titled, { colorMode, theme, ...(construction ? { trimEnd: true } : {}) })
+    return terminalArtifact(titled, { colorMode, theme })
   }
-  return terminalArtifact(doc, { colorMode, theme, ...(construction ? { trimEnd: true } : {}) })
+  return terminalArtifact(doc, { colorMode, theme })
 }
 

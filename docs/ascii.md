@@ -59,7 +59,7 @@ Terminal drawing has its own work ceilings on top of the
 [graph work budgets](../SECURITY.md#graph-work-budgets). Routes that share
 cells keep every owner of each shared cell, so densely overlapping wiring (an
 all-to-all fan of 26 × 26 nodes or more, or a complete DAG of 40 nodes)
-exhausts them within about five seconds. Card-routed families (ER,
+exhausts them within about five seconds. Card-routed families (class, ER,
 requirement, block, C4 and swimlane) widen their corridors and retry when
 greedy routing fills one, within one shared cell-search ceiling
 (`route-search`, 4 million cells); an all-pairs table of 20 entities with

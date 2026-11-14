@@ -19,7 +19,7 @@ export const TERMINAL_ROUTE_SEARCH_LIMIT = 4_000_000
 /** Extra cells card routing may add to every corridor before it stops widening. */
 export const TERMINAL_ROUTE_CHANNEL_LIMIT = 256
 
-export type TerminalWorkResource = 'stroke-provenance' | 'path-witness' | 'owner-composition' | 'route-search' | 'route-channel' | 'class-construction' | 'class-output'
+export type TerminalWorkResource = 'stroke-provenance' | 'path-witness' | 'owner-composition' | 'route-search' | 'route-channel'
 
 /** Terminal drawing exhausted one of its work ceilings. The ceilings bound the
  * size of the cell projection a diagram needs, so exhausting one is a property
