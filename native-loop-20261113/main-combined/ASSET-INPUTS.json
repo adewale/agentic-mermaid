@@ -1,0 +1,49 @@
+{
+  "reason": "Existing canonical collector requires original font assets; source snapshots initially omitted assets. No rendered samples before preflight ENOENT. Runtime dist unchanged.",
+  "roots": {
+    "candidate": "Working source assets, same sourcefreeze",
+    "Main": "Exact a2e git archive assets"
+  },
+  "fonts": [
+    {
+      "build": "build-candidate",
+      "path": "assets/fonts/Inter-Bold.ttf",
+      "sha256": "b37284b5701b6b168dfc770aa1a4ac492106422fd3ba76bc7641e37434e8019c"
+    },
+    {
+      "build": "build-candidate",
+      "path": "assets/fonts/Inter-Medium.ttf",
+      "sha256": "8c883f63b2c4157d997319f2c8bc6995ed4357ef371940d31ca159004a4aae63"
+    },
+    {
+      "build": "build-candidate",
+      "path": "assets/fonts/Inter-Regular.ttf",
+      "sha256": "1b08e7fc267a5c7e1d614100f604b83e7e8a0be241f0f288faa2b3ac93a683ba"
+    },
+    {
+      "build": "build-candidate",
+      "path": "assets/fonts/Inter-SemiBold.ttf",
+      "sha256": "e7a1aaf7eda9f2fad4131725fa556265ec75ca7b2d756260173a040363e8d4f7"
+    },
+    {
+      "build": "build-main-a2e",
+      "path": "assets/fonts/Inter-Bold.ttf",
+      "sha256": "b37284b5701b6b168dfc770aa1a4ac492106422fd3ba76bc7641e37434e8019c"
+    },
+    {
+      "build": "build-main-a2e",
+      "path": "assets/fonts/Inter-Medium.ttf",
+      "sha256": "8c883f63b2c4157d997319f2c8bc6995ed4357ef371940d31ca159004a4aae63"
+    },
+    {
+      "build": "build-main-a2e",
+      "path": "assets/fonts/Inter-Regular.ttf",
+      "sha256": "1b08e7fc267a5c7e1d614100f604b83e7e8a0be241f0f288faa2b3ac93a683ba"
+    },
+    {
+      "build": "build-main-a2e",
+      "path": "assets/fonts/Inter-SemiBold.ttf",
+      "sha256": "e7a1aaf7eda9f2fad4131725fa556265ec75ca7b2d756260173a040363e8d4f7"
+    }
+  ]
+}

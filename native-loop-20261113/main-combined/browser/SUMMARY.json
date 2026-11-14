@@ -1,0 +1,97 @@
+{
+  "rows": 132,
+  "passed": 132,
+  "observerErrors": 0,
+  "closure": {
+    "browserOpened": 132,
+    "browserClosed": 132,
+    "openBrowsers": 0,
+    "rows": 132,
+    "total": 132,
+    "scope": "Every standard suite closes its browser and local server; any retained browser explicitly closed in collector finally. No browser processes intentionally retained."
+  },
+  "flow": [
+    {
+      "target": "baselineMain",
+      "backend": "agentic",
+      "requests": 32,
+      "totals": {
+        "raw": 1026983,
+        "gzip9": 341244,
+        "brotli11": 292752
+      },
+      "product": {
+        "raw": 1025113,
+        "gzip9": 340317,
+        "brotli11": 291985
+      },
+      "adapter": {
+        "raw": 1870,
+        "gzip9": 927,
+        "brotli11": 767
+      }
+    },
+    {
+      "target": "baselineMain",
+      "backend": "elk",
+      "requests": 28,
+      "totals": {
+        "raw": 2302537,
+        "gzip9": 711466,
+        "brotli11": 563764
+      },
+      "product": {
+        "raw": 2300671,
+        "gzip9": 710541,
+        "brotli11": 562995
+      },
+      "adapter": {
+        "raw": 1866,
+        "gzip9": 925,
+        "brotli11": 769
+      }
+    },
+    {
+      "target": "candidate",
+      "backend": "agentic",
+      "requests": 32,
+      "totals": {
+        "raw": 1145926,
+        "gzip9": 382352,
+        "brotli11": 325680
+      },
+      "product": {
+        "raw": 1144056,
+        "gzip9": 381425,
+        "brotli11": 324913
+      },
+      "adapter": {
+        "raw": 1870,
+        "gzip9": 927,
+        "brotli11": 767
+      }
+    },
+    {
+      "target": "candidate",
+      "backend": "elk",
+      "requests": 27,
+      "totals": {
+        "raw": 2387514,
+        "gzip9": 741758,
+        "brotli11": 586818
+      },
+      "product": {
+        "raw": 2385648,
+        "gzip9": 740833,
+        "brotli11": 586049
+      },
+      "adapter": {
+        "raw": 1866,
+        "gzip9": 925,
+        "brotli11": 769
+      }
+    }
+  ],
+  "requestsIncludeTwoBindingModules": true,
+  "runtimeTimingClaim": false
+}

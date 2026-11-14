@@ -1,0 +1,8 @@
+{
+  "runtime": "v24.19.0",
+  "rows": 396,
+  "exact": 396,
+  "changed": [],
+  "serializedPublicBodyChanged": [],
+  "scope": "Actual pinned-Node public parser and complete product/error compared with existing Bun-orchestrated compiled-SDK Trident observations; actual DOM observations reused only under exact entire product bytes. Serialized public-model comparison is not a proof of borrowed identity/getter behavior. No timing claim."
+}

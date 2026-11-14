@@ -1,0 +1,4442 @@
+[
+  {
+    "target": "baseline",
+    "backend": "agentic",
+    "cache": 0,
+    "id": "diagnostic:chain100",
+    "family": "flowchart",
+    "cohort": "scaling",
+    "expectedAccept": true,
+    "statusCounts": {
+      "partial": 9,
+      "passed": 3
+    },
+    "errors": [],
+    "actualAcceptedCounts": {
+      "True": 9
+    },
+    "allMeasuredOutputsReturnedWithNoKnownDeclaredFailure": true,
+    "warmMs": {
+      "median": 54.49976299703121,
+      "min": 48.578259006142616,
+      "max": 65.50057099759579,
+      "processes": 3
+    },
+    "commentVariantMs": {
+      "median": 34.45858299732208,
+      "min": 33.796314001083374,
+      "max": 47.43710899353027,
+      "processes": 3
+    },
+    "alternatingEditMs": {
+      "median": 32.04451900720596,
+      "min": 30.2832770049572,
+      "max": 33.469714000821114,
+      "processes": 3
+    },
+    "coldMs": {
+      "median": 178.87342700362206,
+      "min": 175.86867401003838,
+      "max": 194.1509850025177,
+      "processes": 3
+    },
+    "importMs": {
+      "median": 172.333222,
+      "min": 167.502449,
+      "max": 177.060979,
+      "processes": 3
+    },
+    "outputBytes": {
+      "median": 95817,
+      "min": 95817,
+      "max": 95817,
+      "processes": 3
+    },
+    "before_rssBytes": {
+      "median": 93089792,
+      "min": 92733440,
+      "max": 93552640,
+      "processes": 3
+    },
+    "before_heapUsedBytes": {
+      "median": 11440976,
+      "min": 11440976,
+      "max": 11441112,
+      "processes": 3
+    },
+    "before_externalBytes": {
+      "median": 8983638,
+      "min": 8983638,
+      "max": 8983638,
+      "processes": 3
+    },
+    "before_arrayBuffersBytes": {
+      "median": 162580,
+      "min": 162580,
+      "max": 162580,
+      "processes": 3
+    },
+    "atReturn_rssBytes": {
+      "median": 112619520,
+      "min": 112427008,
+      "max": 113049600,
+      "processes": 3
+    },
+    "atReturn_heapUsedBytes": {
+      "median": 26888376,
+      "min": 20693392,
+      "max": 26898080,
+      "processes": 3
+    },
+    "atReturn_externalBytes": {
+      "median": 8989674,
+      "min": 8989674,
+      "max": 8989674,
+      "processes": 3
+    },
+    "atReturn_arrayBuffersBytes": {
+      "median": 168576,
+      "min": 168576,
+      "max": 168576,
+      "processes": 3
+    },
+    "afterGc_rssBytes": {
+      "median": 112881664,
+      "min": 112689152,
+      "max": 113442816,
+      "processes": 3
+    },
+    "afterGc_heapUsedBytes": {
+      "median": 17011456,
+      "min": 17010664,
+      "max": 17080400,
+      "processes": 3
+    },
+    "afterGc_externalBytes": {
+      "median": 8983678,
+      "min": 8983678,
+      "max": 8983678,
+      "processes": 3
+    },
+    "afterGc_arrayBuffersBytes": {
+      "median": 162580,
+      "min": 162580,
+      "max": 162580,
+      "processes": 3
+    },
+    "apiReturnDelta_rssBytes": {
+      "median": 19529728,
+      "min": 18874368,
+      "max": 20316160,
+      "processes": 3
+    },
+    "apiReturnDelta_heapUsedBytes": {
+      "median": 15447400,
+      "min": 9252280,
+      "max": 15457104,
+      "processes": 3
+    },
+    "apiReturnDelta_externalBytes": {
+      "median": 6036,
+      "min": 6036,
+      "max": 6036,
+      "processes": 3
+    },
+    "apiReturnDelta_arrayBuffersBytes": {
+      "median": 5996,
+      "min": 5996,
+      "max": 5996,
+      "processes": 3
+    },
+    "retainedDelta_rssBytes": {
+      "median": 19791872,
+      "min": 19136512,
+      "max": 20709376,
+      "processes": 3
+    },
+    "retainedDelta_heapUsedBytes": {
+      "median": 5570344,
+      "min": 5569688,
+      "max": 5639424,
+      "processes": 3
+    },
+    "retainedDelta_externalBytes": {
+      "median": 40,
+      "min": 40,
+      "max": 40,
+      "processes": 3
+    },
+    "retainedDelta_arrayBuffersBytes": {
+      "median": 0,
+      "min": 0,
+      "max": 0,
+      "processes": 3
+    },
+    "baselineAdjustedRetained_rssBytes": {
+      "median": 19488768,
+      "min": 19275776,
+      "max": 20656128,
+      "processes": 3
+    },
+    "baselineAdjustedRetained_heapUsedBytes": {
+      "median": 5586384,
+      "min": 5585736,
+      "max": 5655528,
+      "processes": 3
+    },
+    "baselineAdjustedRetained_externalBytes": {
+      "median": 0,
+      "min": 0,
+      "max": 0,
+      "processes": 3
+    },
+    "baselineAdjustedRetained_arrayBuffersBytes": {
+      "median": 0,
+      "min": 0,
+      "max": 0,
+      "processes": 3
+    },
+    "wholeProcessPeakRssBytes": {
+      "median": 119603200,
+      "min": 119304192,
+      "max": 120553472,
+      "processes": 3
+    },
+    "wholeProcessCpuSeconds": {
+      "median": 0.7100000000000001,
+      "min": 0.66,
+      "max": 0.77,
+      "processes": 3
+    },
+    "baselineProcessPeakRssBytes": {
+      "median": 93200384,
+      "min": 92921856,
+      "max": 93605888,
+      "processes": 3
+    },
+    "baselineProcessCpuSeconds": {
+      "median": 0.28,
+      "min": 0.26,
+      "max": 0.29000000000000004,
+      "processes": 3
+    }
+  },
+  {
+    "target": "candidate",
+    "backend": "agentic",
+    "cache": 0,
+    "id": "diagnostic:chain100",
+    "family": "flowchart",
+    "cohort": "scaling",
+    "expectedAccept": true,
+    "statusCounts": {
+      "partial": 9,
+      "passed": 3
+    },
+    "errors": [],
+    "actualAcceptedCounts": {
+      "True": 9
+    },
+    "allMeasuredOutputsReturnedWithNoKnownDeclaredFailure": true,
+    "warmMs": {
+      "median": 89.09189699590206,
+      "min": 82.52543999254704,
+      "max": 103.74771000444889,
+      "processes": 3
+    },
+    "commentVariantMs": {
+      "median": 69.44684399664402,
+      "min": 65.14202100038528,
+      "max": 77.27766200900078,
+      "processes": 3
+    },
+    "alternatingEditMs": {
+      "median": 68.86201299726963,
+      "min": 61.84015101194382,
+      "max": 72.01007299125195,
+      "processes": 3
+    },
+    "coldMs": {
+      "median": 240.52550299465656,
+      "min": 240.12980599701405,
+      "max": 316.0637279897928,
+      "processes": 3
+    },
+    "importMs": {
+      "median": 187.374305,
+      "min": 180.221267,
+      "max": 211.433721,
+      "processes": 3
+    },
+    "outputBytes": {
+      "median": 95817,
+      "min": 95817,
+      "max": 95817,
+      "processes": 3
+    },
+    "before_rssBytes": {
+      "median": 94470144,
+      "min": 94076928,
+      "max": 94855168,
+      "processes": 3
+    },
+    "before_heapUsedBytes": {
+      "median": 12019480,
+      "min": 12017712,
+      "max": 12025680,
+      "processes": 3
+    },
+    "before_externalBytes": {
+      "median": 9440530,
+      "min": 9440530,
+      "max": 9440530,
+      "processes": 3
+    },
+    "before_arrayBuffersBytes": {
+      "median": 162580,
+      "min": 162580,
+      "max": 162580,
+      "processes": 3
+    },
+    "atReturn_rssBytes": {
+      "median": 123428864,
+      "min": 122650624,
+      "max": 123568128,
+      "processes": 3
+    },
+    "atReturn_heapUsedBytes": {
+      "median": 30150248,
+      "min": 30022304,
+      "max": 30284344,
+      "processes": 3
+    },
+    "atReturn_externalBytes": {
+      "median": 9447466,
+      "min": 9447466,
+      "max": 9447466,
+      "processes": 3
+    },
+    "atReturn_arrayBuffersBytes": {
+      "median": 169476,
+      "min": 169476,
+      "max": 169476,
+      "processes": 3
+    },
+    "afterGc_rssBytes": {
+      "median": 123699200,
+      "min": 122732544,
+      "max": 123953152,
+      "processes": 3
+    },
+    "afterGc_heapUsedBytes": {
+      "median": 18825984,
+      "min": 18779240,
+      "max": 18829496,
+      "processes": 3
+    },
+    "afterGc_externalBytes": {
+      "median": 9440570,
+      "min": 9440570,
+      "max": 9440570,
+      "processes": 3
+    },
+    "afterGc_arrayBuffersBytes": {
+      "median": 162580,
+      "min": 162580,
+      "max": 162580,
+      "processes": 3
+    },
+    "apiReturnDelta_rssBytes": {
+      "median": 28573696,
+      "min": 28573696,
+      "max": 29097984,
+      "processes": 3
+    },
+    "apiReturnDelta_heapUsedBytes": {
+      "median": 18124568,
+      "min": 18004592,
+      "max": 18264864,
+      "processes": 3
+    },
+    "apiReturnDelta_externalBytes": {
+      "median": 6936,
+      "min": 6936,
+      "max": 6936,
+      "processes": 3
+    },
+    "apiReturnDelta_arrayBuffersBytes": {
+      "median": 6896,
+      "min": 6896,
+      "max": 6896,
+      "processes": 3
+    },
+    "retainedDelta_rssBytes": {
+      "median": 29097984,
+      "min": 28655616,
+      "max": 29229056,
+      "processes": 3
+    },
+    "retainedDelta_heapUsedBytes": {
+      "median": 6806504,
+      "min": 6753560,
+      "max": 6811784,
+      "processes": 3
+    },
+    "retainedDelta_externalBytes": {
+      "median": 40,
+      "min": 40,
+      "max": 40,
+      "processes": 3
+    },
+    "retainedDelta_arrayBuffersBytes": {
+      "median": 0,
+      "min": 0,
+      "max": 0,
+      "processes": 3
+    },
+    "baselineAdjustedRetained_rssBytes": {
+      "median": 29560832,
+      "min": 27213824,
+      "max": 29712384,
+      "processes": 3
+    },
+    "baselineAdjustedRetained_heapUsedBytes": {
+      "median": 6819832,
+      "min": 6775768,
+      "max": 6820744,
+      "processes": 3
+    },
+    "baselineAdjustedRetained_externalBytes": {
+      "median": 0,
+      "min": 0,
+      "max": 0,
+      "processes": 3
+    },
+    "baselineAdjustedRetained_arrayBuffersBytes": {
+      "median": 0,
+      "min": 0,
+      "max": 0,
+      "processes": 3
+    },
+    "wholeProcessPeakRssBytes": {
+      "median": 146976768,
+      "min": 144400384,
+      "max": 156549120,
+      "processes": 3
+    },
+    "wholeProcessCpuSeconds": {
+      "median": 1.04,
+      "min": 0.8400000000000001,
+      "max": 1.04,
+      "processes": 3
+    },
+    "baselineProcessPeakRssBytes": {
+      "median": 94523392,
+      "min": 93986816,
+      "max": 95649792,
+      "processes": 3
+    },
+    "baselineProcessCpuSeconds": {
+      "median": 0.31,
+      "min": 0.29000000000000004,
+      "max": 0.34,
+      "processes": 3
+    }
+  },
+  {
+    "target": "baseline",
+    "backend": "elk",
+    "cache": 0,
+    "id": "diagnostic:chain100",
+    "family": "flowchart",
+    "cohort": "scaling",
+    "expectedAccept": true,
+    "statusCounts": {
+      "partial": 9,
+      "passed": 3
+    },
+    "errors": [],
+    "actualAcceptedCounts": {
+      "True": 9
+    },
+    "allMeasuredOutputsReturnedWithNoKnownDeclaredFailure": true,
+    "warmMs": {
+      "median": 109.5693420022726,
+      "min": 102.86050899326801,
+      "max": 162.8241560012102,
+      "processes": 3
+    },
+    "commentVariantMs": {
+      "median": 73.0486150085926,
+      "min": 72.90533800423145,
+      "max": 95.43396100401878,
+      "processes": 3
+    },
+    "alternatingEditMs": {
+      "median": 69.9041690081358,
+      "min": 62.21830199658871,
+      "max": 73.8371199965477,
+      "processes": 3
+    },
+    "coldMs": {
+      "median": 459.84847800433636,
+      "min": 439.73374700546265,
+      "max": 501.22350001335144,
+      "processes": 3
+    },
+    "importMs": {
+      "median": 162.856364,
+      "min": 162.597525,
+      "max": 171.281218,
+      "processes": 3
+    },
+    "outputBytes": {
+      "median": 95817,
+      "min": 95817,
+      "max": 95817,
+      "processes": 3
+    },
+    "before_rssBytes": {
+      "median": 93196288,
+      "min": 92909568,
+      "max": 93523968,
+      "processes": 3
+    },
+    "before_heapUsedBytes": {
+      "median": 11441008,
+      "min": 11440976,
+      "max": 11441080,
+      "processes": 3
+    },
+    "before_externalBytes": {
+      "median": 8983638,
+      "min": 8983638,
+      "max": 8983638,
+      "processes": 3
+    },
+    "before_arrayBuffersBytes": {
+      "median": 162580,
+      "min": 162580,
+      "max": 162580,
+      "processes": 3
+    },
+    "atReturn_rssBytes": {
+      "median": 153460736,
+      "min": 153432064,
+      "max": 155463680,
+      "processes": 3
+    },
+    "atReturn_heapUsedBytes": {
+      "median": 42351160,
+      "min": 38326152,
+      "max": 52233440,
+      "processes": 3
+    },
+    "atReturn_externalBytes": {
+      "median": 8986074,
+      "min": 8983678,
+      "max": 8986474,
+      "processes": 3
+    },
+    "atReturn_arrayBuffersBytes": {
+      "median": 164976,
+      "min": 162580,
+      "max": 164976,
+      "processes": 3
+    },
+    "afterGc_rssBytes": {
+      "median": 153825280,
+      "min": 153722880,
+      "max": 155594752,
+      "processes": 3
+    },
+    "afterGc_heapUsedBytes": {
+      "median": 31919320,
+      "min": 31916576,
+      "max": 31930376,
+      "processes": 3
+    },
+    "afterGc_externalBytes": {
+      "median": 8983678,
+      "min": 8983678,
+      "max": 8983678,
+      "processes": 3
+    },
+    "afterGc_arrayBuffersBytes": {
+      "median": 162580,
+      "min": 162580,
+      "max": 162580,
+      "processes": 3
+    },
+    "apiReturnDelta_rssBytes": {
+      "median": 60235776,
+      "min": 59936768,
+      "max": 62554112,
+      "processes": 3
+    },
+    "apiReturnDelta_heapUsedBytes": {
+      "median": 30910152,
+      "min": 26885176,
+      "max": 40792360,
+      "processes": 3
+    },
+    "apiReturnDelta_externalBytes": {
+      "median": 2436,
+      "min": 40,
+      "max": 2836,
+      "processes": 3
+    },
+    "apiReturnDelta_arrayBuffersBytes": {
+      "median": 2396,
+      "min": 0,
+      "max": 2396,
+      "processes": 3
+    },
+    "retainedDelta_rssBytes": {
+      "median": 60628992,
+      "min": 60198912,
+      "max": 62685184,
+      "processes": 3
+    },
+    "retainedDelta_heapUsedBytes": {
+      "median": 20478312,
+      "min": 20475496,
+      "max": 20489400,
+      "processes": 3
+    },
+    "retainedDelta_externalBytes": {
+      "median": 40,
+      "min": 40,
+      "max": 40,
+      "processes": 3
+    },
+    "retainedDelta_arrayBuffersBytes": {
+      "median": 0,
+      "min": 0,
+      "max": 0,
+      "processes": 3
+    },
+    "baselineAdjustedRetained_rssBytes": {
+      "median": 60555264,
+      "min": 60477440,
+      "max": 62734336,
+      "processes": 3
+    },
+    "baselineAdjustedRetained_heapUsedBytes": {
+      "median": 20494544,
+      "min": 20491584,
+      "max": 20505304,
+      "processes": 3
+    },
+    "baselineAdjustedRetained_externalBytes": {
+      "median": 0,
+      "min": 0,
+      "max": 0,
+      "processes": 3
+    },
+    "baselineAdjustedRetained_arrayBuffersBytes": {
+      "median": 0,
+      "min": 0,
+      "max": 0,
+      "processes": 3
+    },
+    "wholeProcessPeakRssBytes": {
+      "median": 160641024,
+      "min": 160276480,
+      "max": 161230848,
+      "processes": 3
+    },
+    "wholeProcessCpuSeconds": {
+      "median": 1.36,
+      "min": 1.31,
+      "max": 1.4,
+      "processes": 3
+    },
+    "baselineProcessPeakRssBytes": {
+      "median": 93298688,
+      "min": 92860416,
+      "max": 93347840,
+      "processes": 3
+    },
+    "baselineProcessCpuSeconds": {
+      "median": 0.27,
+      "min": 0.26,
+      "max": 0.29,
+      "processes": 3
+    }
+  },
+  {
+    "target": "candidate",
+    "backend": "elk",
+    "cache": 0,
+    "id": "diagnostic:chain100",
+    "family": "flowchart",
+    "cohort": "scaling",
+    "expectedAccept": true,
+    "statusCounts": {
+      "partial": 9,
+      "passed": 3
+    },
+    "errors": [],
+    "actualAcceptedCounts": {
+      "True": 9
+    },
+    "allMeasuredOutputsReturnedWithNoKnownDeclaredFailure": true,
+    "warmMs": {
+      "median": 145.4736340045929,
+      "min": 142.17777998745441,
+      "max": 169.51775600016117,
+      "processes": 3
+    },
+    "commentVariantMs": {
+      "median": 102.19009299576283,
+      "min": 98.66720999777317,
+      "max": 104.25985099375248,
+      "processes": 3
+    },
+    "alternatingEditMs": {
+      "median": 96.50626900792122,
+      "min": 92.2571710050106,
+      "max": 103.26248900592327,
+      "processes": 3
+    },
+    "coldMs": {
+      "median": 512.6127660125494,
+      "min": 506.26252599060535,
+      "max": 530.9970159977674,
+      "processes": 3
+    },
+    "importMs": {
+      "median": 177.461441,
+      "min": 172.257558,
+      "max": 179.448503,
+      "processes": 3
+    },
+    "outputBytes": {
+      "median": 95817,
+      "min": 95817,
+      "max": 95817,
+      "processes": 3
+    },
+    "before_rssBytes": {
+      "median": 95621120,
+      "min": 94326784,
+      "max": 96280576,
+      "processes": 3
+    },
+    "before_heapUsedBytes": {
+      "median": 12019472,
+      "min": 12019472,
+      "max": 12019632,
+      "processes": 3
+    },
+    "before_externalBytes": {
+      "median": 9440530,
+      "min": 9440530,
+      "max": 9440530,
+      "processes": 3
+    },
+    "before_arrayBuffersBytes": {
+      "median": 162580,
+      "min": 162580,
+      "max": 162580,
+      "processes": 3
+    },
+    "atReturn_rssBytes": {
+      "median": 160284672,
+      "min": 159100928,
+      "max": 161234944,
+      "processes": 3
+    },
+    "atReturn_heapUsedBytes": {
+      "median": 45263688,
+      "min": 42430648,
+      "max": 50940704,
+      "processes": 3
+    },
+    "atReturn_externalBytes": {
+      "median": 9443366,
+      "min": 9442966,
+      "max": 9443766,
+      "processes": 3
+    },
+    "atReturn_arrayBuffersBytes": {
+      "median": 165376,
+      "min": 164976,
+      "max": 165776,
+      "processes": 3
+    },
+    "afterGc_rssBytes": {
+      "median": 162099200,
+      "min": 160460800,
+      "max": 162414592,
+      "processes": 3
+    },
+    "afterGc_heapUsedBytes": {
+      "median": 33601464,
+      "min": 33575648,
+      "max": 33750664,
+      "processes": 3
+    },
+    "afterGc_externalBytes": {
+      "median": 9440570,
+      "min": 9440570,
+      "max": 9440570,
+      "processes": 3
+    },
+    "afterGc_arrayBuffersBytes": {
+      "median": 162580,
+      "min": 162580,
+      "max": 162580,
+      "processes": 3
+    },
+    "apiReturnDelta_rssBytes": {
+      "median": 65613824,
+      "min": 62820352,
+      "max": 65957888,
+      "processes": 3
+    },
+    "apiReturnDelta_heapUsedBytes": {
+      "median": 33244056,
+      "min": 30411176,
+      "max": 38921232,
+      "processes": 3
+    },
+    "apiReturnDelta_externalBytes": {
+      "median": 2836,
+      "min": 2436,
+      "max": 3236,
+      "processes": 3
+    },
+    "apiReturnDelta_arrayBuffersBytes": {
+      "median": 2796,
+      "min": 2396,
+      "max": 3196,
+      "processes": 3
+    },
+    "retainedDelta_rssBytes": {
+      "median": 66134016,
+      "min": 65818624,
+      "max": 66793472,
+      "processes": 3
+    },
+    "retainedDelta_heapUsedBytes": {
+      "median": 21581992,
+      "min": 21556016,
+      "max": 21731192,
+      "processes": 3
+    },
+    "retainedDelta_externalBytes": {
+      "median": 40,
+      "min": 40,
+      "max": 40,
+      "processes": 3
+    },
+    "retainedDelta_arrayBuffersBytes": {
+      "median": 0,
+      "min": 0,
+      "max": 0,
+      "processes": 3
+    },
+    "baselineAdjustedRetained_rssBytes": {
+      "median": 66134016,
+      "min": 66064384,
+      "max": 66441216,
+      "processes": 3
+    },
+    "baselineAdjustedRetained_heapUsedBytes": {
+      "median": 21619192,
+      "min": 21572136,
+      "max": 21746976,
+      "processes": 3
+    },
+    "baselineAdjustedRetained_externalBytes": {
+      "median": 0,
+      "min": 0,
+      "max": 0,
+      "processes": 3
+    },
+    "baselineAdjustedRetained_arrayBuffersBytes": {
+      "median": 0,
+      "min": 0,
+      "max": 0,
+      "processes": 3
+    },
+    "wholeProcessPeakRssBytes": {
+      "median": 199639040,
+      "min": 195194880,
+      "max": 200372224,
+      "processes": 3
+    },
+    "wholeProcessCpuSeconds": {
+      "median": 1.67,
+      "min": 1.5699999999999998,
+      "max": 1.71,
+      "processes": 3
+    },
+    "baselineProcessPeakRssBytes": {
+      "median": 95973376,
+      "min": 94457856,
+      "max": 96034816,
+      "processes": 3
+    },
+    "baselineProcessCpuSeconds": {
+      "median": 0.31,
+      "min": 0.30000000000000004,
+      "max": 0.33,
+      "processes": 3
+    }
+  },
+  {
+    "target": "candidate",
+    "backend": "agentic",
+    "cache": 0,
+    "id": "diagnostic:fanin100",
+    "family": "flowchart",
+    "cohort": "scaling",
+    "expectedAccept": true,
+    "statusCounts": {
+      "partial": 9,
+      "passed": 3
+    },
+    "errors": [],
+    "actualAcceptedCounts": {
+      "True": 9
+    },
+    "allMeasuredOutputsReturnedWithNoKnownDeclaredFailure": true,
+    "warmMs": {
+      "median": 120.81813099980354,
+      "min": 116.4008160084486,
+      "max": 125.70144200325012,
+      "processes": 3
+    },
+    "commentVariantMs": {
+      "median": 90.8895879983902,
+      "min": 90.36880798637867,
+      "max": 103.28186200559139,
+      "processes": 3
+    },
+    "alternatingEditMs": {
+      "median": 94.07224199175835,
+      "min": 92.7953350096941,
+      "max": 97.87008900940418,
+      "processes": 3
+    },
+    "coldMs": {
+      "median": 285.36031399667263,
+      "min": 273.44791001081467,
+      "max": 294.15876899659634,
+      "processes": 3
+    },
+    "importMs": {
+      "median": 179.648194,
+      "min": 176.924864,
+      "max": 181.755997,
+      "processes": 3
+    },
+    "outputBytes": {
+      "median": 99287,
+      "min": 99287,
+      "max": 99287,
+      "processes": 3
+    },
+    "before_rssBytes": {
+      "median": 95023104,
+      "min": 93937664,
+      "max": 96161792,
+      "processes": 3
+    },
+    "before_heapUsedBytes": {
+      "median": 12001832,
+      "min": 11997080,
+      "max": 12027456,
+      "processes": 3
+    },
+    "before_externalBytes": {
+      "median": 9440530,
+      "min": 9440530,
+      "max": 9440530,
+      "processes": 3
+    },
+    "before_arrayBuffersBytes": {
+      "median": 162580,
+      "min": 162580,
+      "max": 162580,
+      "processes": 3
+    },
+    "atReturn_rssBytes": {
+      "median": 127660032,
+      "min": 124084224,
+      "max": 127750144,
+      "processes": 3
+    },
+    "atReturn_heapUsedBytes": {
+      "median": 33718552,
+      "min": 33581168,
+      "max": 33851240,
+      "processes": 3
+    },
+    "atReturn_externalBytes": {
+      "median": 9448138,
+      "min": 9448138,
+      "max": 9448138,
+      "processes": 3
+    },
+    "atReturn_arrayBuffersBytes": {
+      "median": 170148,
+      "min": 170148,
+      "max": 170148,
+      "processes": 3
+    },
+    "afterGc_rssBytes": {
+      "median": 127418368,
+      "min": 124026880,
+      "max": 127782912,
+      "processes": 3
+    },
+    "afterGc_heapUsedBytes": {
+      "median": 18892800,
+      "min": 18835096,
+      "max": 18912832,
+      "processes": 3
+    },
+    "afterGc_externalBytes": {
+      "median": 9440570,
+      "min": 9440570,
+      "max": 9440570,
+      "processes": 3
+    },
+    "afterGc_arrayBuffersBytes": {
+      "median": 162580,
+      "min": 162580,
+      "max": 162580,
+      "processes": 3
+    },
+    "apiReturnDelta_rssBytes": {
+      "median": 31588352,
+      "min": 30146560,
+      "max": 32636928,
+      "processes": 3
+    },
+    "apiReturnDelta_heapUsedBytes": {
+      "median": 21691096,
+      "min": 21579336,
+      "max": 21854160,
+      "processes": 3
+    },
+    "apiReturnDelta_externalBytes": {
+      "median": 7608,
+      "min": 7608,
+      "max": 7608,
+      "processes": 3
+    },
+    "apiReturnDelta_arrayBuffersBytes": {
+      "median": 7568,
+      "min": 7568,
+      "max": 7568,
+      "processes": 3
+    },
+    "retainedDelta_rssBytes": {
+      "median": 31621120,
+      "min": 30089216,
+      "max": 32395264,
+      "processes": 3
+    },
+    "retainedDelta_heapUsedBytes": {
+      "median": 6885376,
+      "min": 6833264,
+      "max": 6895720,
+      "processes": 3
+    },
+    "retainedDelta_externalBytes": {
+      "median": 40,
+      "min": 40,
+      "max": 40,
+      "processes": 3
+    },
+    "retainedDelta_arrayBuffersBytes": {
+      "median": 0,
+      "min": 0,
+      "max": 0,
+      "processes": 3
+    },
+    "baselineAdjustedRetained_rssBytes": {
+      "median": 31420416,
+      "min": 29614080,
+      "max": 32792576,
+      "processes": 3
+    },
+    "baselineAdjustedRetained_heapUsedBytes": {
+      "median": 6909224,
+      "min": 6858104,
+      "max": 6915528,
+      "processes": 3
+    },
+    "baselineAdjustedRetained_externalBytes": {
+      "median": 0,
+      "min": 0,
+      "max": 0,
+      "processes": 3
+    },
+    "baselineAdjustedRetained_arrayBuffersBytes": {
+      "median": 0,
+      "min": 0,
+      "max": 0,
+      "processes": 3
+    },
+    "wholeProcessPeakRssBytes": {
+      "median": 147537920,
+      "min": 144449536,
+      "max": 149151744,
+      "processes": 3
+    },
+    "wholeProcessCpuSeconds": {
+      "median": 1.1900000000000002,
+      "min": 1.11,
+      "max": 1.25,
+      "processes": 3
+    },
+    "baselineProcessPeakRssBytes": {
+      "median": 94625792,
+      "min": 94543872,
+      "max": 96493568,
+      "processes": 3
+    },
+    "baselineProcessCpuSeconds": {
+      "median": 0.29000000000000004,
+      "min": 0.29000000000000004,
+      "max": 0.30000000000000004,
+      "processes": 3
+    }
+  },
+  {
+    "target": "baseline",
+    "backend": "elk",
+    "cache": 0,
+    "id": "diagnostic:fanin100",
+    "family": "flowchart",
+    "cohort": "scaling",
+    "expectedAccept": true,
+    "statusCounts": {
+      "partial": 9,
+      "passed": 3
+    },
+    "errors": [],
+    "actualAcceptedCounts": {
+      "True": 9
+    },
+    "allMeasuredOutputsReturnedWithNoKnownDeclaredFailure": true,
+    "warmMs": {
+      "median": 220.06043300032616,
+      "min": 212.62886200845242,
+      "max": 241.01362200081348,
+      "processes": 3
+    },
+    "commentVariantMs": {
+      "median": 173.7311400026083,
+      "min": 172.84562300145626,
+      "max": 178.52543300390244,
+      "processes": 3
+    },
+    "alternatingEditMs": {
+      "median": 169.59172900021076,
+      "min": 161.12714399397373,
+      "max": 180.68593500554562,
+      "processes": 3
+    },
+    "coldMs": {
+      "median": 603.6568580120802,
+      "min": 572.9194259941578,
+      "max": 698.2851829975843,
+      "processes": 3
+    },
+    "importMs": {
+      "median": 164.917858,
+      "min": 158.761882,
+      "max": 168.455053,
+      "processes": 3
+    },
+    "outputBytes": {
+      "median": 100192,
+      "min": 100192,
+      "max": 100192,
+      "processes": 3
+    },
+    "before_rssBytes": {
+      "median": 93077504,
+      "min": 92971008,
+      "max": 93347840,
+      "processes": 3
+    },
+    "before_heapUsedBytes": {
+      "median": 11440992,
+      "min": 11440600,
+      "max": 11441208,
+      "processes": 3
+    },
+    "before_externalBytes": {
+      "median": 8983638,
+      "min": 8983638,
+      "max": 8983638,
+      "processes": 3
+    },
+    "before_arrayBuffersBytes": {
+      "median": 162580,
+      "min": 162580,
+      "max": 162580,
+      "processes": 3
+    },
+    "atReturn_rssBytes": {
+      "median": 163536896,
+      "min": 159043584,
+      "max": 165339136,
+      "processes": 3
+    },
+    "atReturn_heapUsedBytes": {
+      "median": 47431456,
+      "min": 46749528,
+      "max": 47786416,
+      "processes": 3
+    },
+    "atReturn_externalBytes": {
+      "median": 8986074,
+      "min": 8986074,
+      "max": 8986074,
+      "processes": 3
+    },
+    "atReturn_arrayBuffersBytes": {
+      "median": 164976,
+      "min": 164976,
+      "max": 164976,
+      "processes": 3
+    },
+    "afterGc_rssBytes": {
+      "median": 162799616,
+      "min": 159170560,
+      "max": 164917248,
+      "processes": 3
+    },
+    "afterGc_heapUsedBytes": {
+      "median": 32529640,
+      "min": 32464648,
+      "max": 32536520,
+      "processes": 3
+    },
+    "afterGc_externalBytes": {
+      "median": 8983678,
+      "min": 8983678,
+      "max": 8983678,
+      "processes": 3
+    },
+    "afterGc_arrayBuffersBytes": {
+      "median": 162580,
+      "min": 162580,
+      "max": 162580,
+      "processes": 3
+    },
+    "apiReturnDelta_rssBytes": {
+      "median": 70459392,
+      "min": 65695744,
+      "max": 72368128,
+      "processes": 3
+    },
+    "apiReturnDelta_heapUsedBytes": {
+      "median": 35990856,
+      "min": 35308320,
+      "max": 36345424,
+      "processes": 3
+    },
+    "apiReturnDelta_externalBytes": {
+      "median": 2436,
+      "min": 2436,
+      "max": 2436,
+      "processes": 3
+    },
+    "apiReturnDelta_arrayBuffersBytes": {
+      "median": 2396,
+      "min": 2396,
+      "max": 2396,
+      "processes": 3
+    },
+    "retainedDelta_rssBytes": {
+      "median": 69722112,
+      "min": 65822720,
+      "max": 71946240,
+      "processes": 3
+    },
+    "retainedDelta_heapUsedBytes": {
+      "median": 21088432,
+      "min": 21023656,
+      "max": 21095920,
+      "processes": 3
+    },
+    "retainedDelta_externalBytes": {
+      "median": 40,
+      "min": 40,
+      "max": 40,
+      "processes": 3
+    },
+    "retainedDelta_arrayBuffersBytes": {
+      "median": 0,
+      "min": 0,
+      "max": 0,
+      "processes": 3
+    },
+    "baselineAdjustedRetained_rssBytes": {
+      "median": 69480448,
+      "min": 66514944,
+      "max": 71680000,
+      "processes": 3
+    },
+    "baselineAdjustedRetained_heapUsedBytes": {
+      "median": 21104584,
+      "min": 21040000,
+      "max": 21111720,
+      "processes": 3
+    },
+    "baselineAdjustedRetained_externalBytes": {
+      "median": 0,
+      "min": 0,
+      "max": 0,
+      "processes": 3
+    },
+    "baselineAdjustedRetained_arrayBuffersBytes": {
+      "median": 0,
+      "min": 0,
+      "max": 0,
+      "processes": 3
+    },
+    "wholeProcessPeakRssBytes": {
+      "median": 198713344,
+      "min": 197705728,
+      "max": 202403840,
+      "processes": 3
+    },
+    "wholeProcessCpuSeconds": {
+      "median": 2.0100000000000002,
+      "min": 1.9,
+      "max": 2.0700000000000003,
+      "processes": 3
+    },
+    "baselineProcessPeakRssBytes": {
+      "median": 93368320,
+      "min": 92655616,
+      "max": 93450240,
+      "processes": 3
+    },
+    "baselineProcessCpuSeconds": {
+      "median": 0.28,
+      "min": 0.26,
+      "max": 0.33999999999999997,
+      "processes": 3
+    }
+  },
+  {
+    "target": "candidate",
+    "backend": "elk",
+    "cache": 0,
+    "id": "diagnostic:fanin100",
+    "family": "flowchart",
+    "cohort": "scaling",
+    "expectedAccept": true,
+    "statusCounts": {
+      "partial": 9,
+      "passed": 3
+    },
+    "errors": [],
+    "actualAcceptedCounts": {
+      "True": 9
+    },
+    "allMeasuredOutputsReturnedWithNoKnownDeclaredFailure": true,
+    "warmMs": {
+      "median": 275.04917699098587,
+      "min": 263.1827020049095,
+      "max": 288.9355019927025,
+      "processes": 3
+    },
+    "commentVariantMs": {
+      "median": 209.6550489962101,
+      "min": 205.50114700198174,
+      "max": 220.7997049987316,
+      "processes": 3
+    },
+    "alternatingEditMs": {
+      "median": 212.52749399840832,
+      "min": 205.6183229982853,
+      "max": 212.79684799909592,
+      "processes": 3
+    },
+    "coldMs": {
+      "median": 631.7527040094137,
+      "min": 616.02647100389,
+      "max": 725.4933690130711,
+      "processes": 3
+    },
+    "importMs": {
+      "median": 179.335643,
+      "min": 171.854301,
+      "max": 180.885045,
+      "processes": 3
+    },
+    "outputBytes": {
+      "median": 100192,
+      "min": 100192,
+      "max": 100192,
+      "processes": 3
+    },
+    "before_rssBytes": {
+      "median": 94789632,
+      "min": 94085120,
+      "max": 96063488,
+      "processes": 3
+    },
+    "before_heapUsedBytes": {
+      "median": 11995584,
+      "min": 11991136,
+      "max": 12025688,
+      "processes": 3
+    },
+    "before_externalBytes": {
+      "median": 9440530,
+      "min": 9440530,
+      "max": 9440530,
+      "processes": 3
+    },
+    "before_arrayBuffersBytes": {
+      "median": 162580,
+      "min": 162580,
+      "max": 162580,
+      "processes": 3
+    },
+    "atReturn_rssBytes": {
+      "median": 164835328,
+      "min": 164745216,
+      "max": 165892096,
+      "processes": 3
+    },
+    "atReturn_heapUsedBytes": {
+      "median": 49473384,
+      "min": 44627200,
+      "max": 56238872,
+      "processes": 3
+    },
+    "atReturn_externalBytes": {
+      "median": 9440570,
+      "min": 9440570,
+      "max": 9442966,
+      "processes": 3
+    },
+    "atReturn_arrayBuffersBytes": {
+      "median": 162580,
+      "min": 162580,
+      "max": 162580,
+      "processes": 3
+    },
+    "afterGc_rssBytes": {
+      "median": 165359616,
+      "min": 164380672,
+      "max": 166285312,
+      "processes": 3
+    },
+    "afterGc_heapUsedBytes": {
+      "median": 34076464,
+      "min": 33993392,
+      "max": 34181664,
+      "processes": 3
+    },
+    "afterGc_externalBytes": {
+      "median": 9440570,
+      "min": 9440570,
+      "max": 9440570,
+      "processes": 3
+    },
+    "afterGc_arrayBuffersBytes": {
+      "median": 162580,
+      "min": 162580,
+      "max": 162580,
+      "processes": 3
+    },
+    "apiReturnDelta_rssBytes": {
+      "median": 70045696,
+      "min": 68681728,
+      "max": 71806976,
+      "processes": 3
+    },
+    "apiReturnDelta_heapUsedBytes": {
+      "median": 37447696,
+      "min": 32636064,
+      "max": 44243288,
+      "processes": 3
+    },
+    "apiReturnDelta_externalBytes": {
+      "median": 40,
+      "min": 40,
+      "max": 2436,
+      "processes": 3
+    },
+    "apiReturnDelta_arrayBuffersBytes": {
+      "median": 0,
+      "min": 0,
+      "max": 0,
+      "processes": 3
+    },
+    "retainedDelta_rssBytes": {
+      "median": 70569984,
+      "min": 68317184,
+      "max": 72200192,
+      "processes": 3
+    },
+    "retainedDelta_heapUsedBytes": {
+      "median": 22085328,
+      "min": 21967704,
+      "max": 22186080,
+      "processes": 3
+    },
+    "retainedDelta_externalBytes": {
+      "median": 40,
+      "min": 40,
+      "max": 40,
+      "processes": 3
+    },
+    "retainedDelta_arrayBuffersBytes": {
+      "median": 0,
+      "min": 0,
+      "max": 0,
+      "processes": 3
+    },
+    "baselineAdjustedRetained_rssBytes": {
+      "median": 70713344,
+      "min": 69332992,
+      "max": 71704576,
+      "processes": 3
+    },
+    "baselineAdjustedRetained_heapUsedBytes": {
+      "median": 22076536,
+      "min": 22016552,
+      "max": 22176584,
+      "processes": 3
+    },
+    "baselineAdjustedRetained_externalBytes": {
+      "median": 0,
+      "min": 0,
+      "max": 0,
+      "processes": 3
+    },
+    "baselineAdjustedRetained_arrayBuffersBytes": {
+      "median": 0,
+      "min": 0,
+      "max": 0,
+      "processes": 3
+    },
+    "wholeProcessPeakRssBytes": {
+      "median": 203108352,
+      "min": 202031104,
+      "max": 206995456,
+      "processes": 3
+    },
+    "wholeProcessCpuSeconds": {
+      "median": 2.2800000000000002,
+      "min": 2.21,
+      "max": 2.35,
+      "processes": 3
+    },
+    "baselineProcessPeakRssBytes": {
+      "median": 94711808,
+      "min": 94646272,
+      "max": 95047680,
+      "processes": 3
+    },
+    "baselineProcessCpuSeconds": {
+      "median": 0.29000000000000004,
+      "min": 0.29000000000000004,
+      "max": 0.31,
+      "processes": 3
+    }
+  },
+  {
+    "target": "baseline",
+    "backend": "agentic",
+    "cache": 0,
+    "id": "diagnostic:fanin100",
+    "family": "flowchart",
+    "cohort": "scaling",
+    "expectedAccept": true,
+    "statusCounts": {
+      "partial": 9,
+      "passed": 3
+    },
+    "errors": [],
+    "actualAcceptedCounts": {
+      "True": 9
+    },
+    "allMeasuredOutputsReturnedWithNoKnownDeclaredFailure": true,
+    "warmMs": {
+      "median": 72.21235300600529,
+      "min": 70.66287499666214,
+      "max": 81.38139899075031,
+      "processes": 3
+    },
+    "commentVariantMs": {
+      "median": 58.38192701339722,
+      "min": 57.95277699828148,
+      "max": 59.73538400232792,
+      "processes": 3
+    },
+    "alternatingEditMs": {
+      "median": 67.64546899497509,
+      "min": 67.32785299420357,
+      "max": 69.52014300227165,
+      "processes": 3
+    },
+    "coldMs": {
+      "median": 243.8334790021181,
+      "min": 226.49977399408817,
+      "max": 269.9300200045109,
+      "processes": 3
+    },
+    "importMs": {
+      "median": 163.186412,
+      "min": 162.639113,
+      "max": 173.151343,
+      "processes": 3
+    },
+    "outputBytes": {
+      "median": 99287,
+      "min": 99287,
+      "max": 99287,
+      "processes": 3
+    },
+    "before_rssBytes": {
+      "median": 93388800,
+      "min": 93306880,
+      "max": 93437952,
+      "processes": 3
+    },
+    "before_heapUsedBytes": {
+      "median": 11441112,
+      "min": 11440888,
+      "max": 11441136,
+      "processes": 3
+    },
+    "before_externalBytes": {
+      "median": 8983638,
+      "min": 8983638,
+      "max": 8983638,
+      "processes": 3
+    },
+    "before_arrayBuffersBytes": {
+      "median": 162580,
+      "min": 162580,
+      "max": 162580,
+      "processes": 3
+    },
+    "atReturn_rssBytes": {
+      "median": 118423552,
+      "min": 117424128,
+      "max": 118603776,
+      "processes": 3
+    },
+    "atReturn_heapUsedBytes": {
+      "median": 23425200,
+      "min": 22929176,
+      "max": 24670288,
+      "processes": 3
+    },
+    "atReturn_externalBytes": {
+      "median": 8990346,
+      "min": 8990346,
+      "max": 8990346,
+      "processes": 3
+    },
+    "atReturn_arrayBuffersBytes": {
+      "median": 169248,
+      "min": 169248,
+      "max": 169248,
+      "processes": 3
+    },
+    "afterGc_rssBytes": {
+      "median": 118554624,
+      "min": 117817344,
+      "max": 118972416,
+      "processes": 3
+    },
+    "afterGc_heapUsedBytes": {
+      "median": 17067112,
+      "min": 17066048,
+      "max": 17068040,
+      "processes": 3
+    },
+    "afterGc_externalBytes": {
+      "median": 8983678,
+      "min": 8983678,
+      "max": 8983678,
+      "processes": 3
+    },
+    "afterGc_arrayBuffersBytes": {
+      "median": 162580,
+      "min": 162580,
+      "max": 162580,
+      "processes": 3
+    },
+    "apiReturnDelta_rssBytes": {
+      "median": 25034752,
+      "min": 23986176,
+      "max": 25296896,
+      "processes": 3
+    },
+    "apiReturnDelta_heapUsedBytes": {
+      "median": 11984088,
+      "min": 11488040,
+      "max": 13229400,
+      "processes": 3
+    },
+    "apiReturnDelta_externalBytes": {
+      "median": 6708,
+      "min": 6708,
+      "max": 6708,
+      "processes": 3
+    },
+    "apiReturnDelta_arrayBuffersBytes": {
+      "median": 6668,
+      "min": 6668,
+      "max": 6668,
+      "processes": 3
+    },
+    "retainedDelta_rssBytes": {
+      "median": 25165824,
+      "min": 24379392,
+      "max": 25665536,
+      "processes": 3
+    },
+    "retainedDelta_heapUsedBytes": {
+      "median": 5625976,
+      "min": 5625160,
+      "max": 5626928,
+      "processes": 3
+    },
+    "retainedDelta_externalBytes": {
+      "median": 40,
+      "min": 40,
+      "max": 40,
+      "processes": 3
+    },
+    "retainedDelta_arrayBuffersBytes": {
+      "median": 0,
+      "min": 0,
+      "max": 0,
+      "processes": 3
+    },
+    "baselineAdjustedRetained_rssBytes": {
+      "median": 25321472,
+      "min": 24576000,
+      "max": 25690112,
+      "processes": 3
+    },
+    "baselineAdjustedRetained_heapUsedBytes": {
+      "median": 5642304,
+      "min": 5587112,
+      "max": 5642992,
+      "processes": 3
+    },
+    "baselineAdjustedRetained_externalBytes": {
+      "median": 0,
+      "min": 0,
+      "max": 0,
+      "processes": 3
+    },
+    "baselineAdjustedRetained_arrayBuffersBytes": {
+      "median": 0,
+      "min": 0,
+      "max": 0,
+      "processes": 3
+    },
+    "wholeProcessPeakRssBytes": {
+      "median": 125943808,
+      "min": 122617856,
+      "max": 127098880,
+      "processes": 3
+    },
+    "wholeProcessCpuSeconds": {
+      "median": 0.9099999999999999,
+      "min": 0.8999999999999999,
+      "max": 0.9299999999999999,
+      "processes": 3
+    },
+    "baselineProcessPeakRssBytes": {
+      "median": 93241344,
+      "min": 93233152,
+      "max": 93282304,
+      "processes": 3
+    },
+    "baselineProcessCpuSeconds": {
+      "median": 0.27,
+      "min": 0.26,
+      "max": 0.28,
+      "processes": 3
+    }
+  },
+  {
+    "target": "baseline",
+    "backend": "elk",
+    "cache": 0,
+    "id": "diagnostic:chain300",
+    "family": "flowchart",
+    "cohort": "scaling",
+    "expectedAccept": true,
+    "statusCounts": {
+      "partial": 9,
+      "passed": 3
+    },
+    "errors": [],
+    "actualAcceptedCounts": {
+      "True": 9
+    },
+    "allMeasuredOutputsReturnedWithNoKnownDeclaredFailure": true,
+    "warmMs": {
+      "median": 227.6792619973421,
+      "min": 216.03643199801445,
+      "max": 236.63280199468136,
+      "processes": 3
+    },
+    "commentVariantMs": {
+      "median": 214.7604619860649,
+      "min": 211.35058000683784,
+      "max": 223.50077199935913,
+      "processes": 3
+    },
+    "alternatingEditMs": {
+      "median": 205.30828399956226,
+      "min": 198.10947500169277,
+      "max": 205.7981630116701,
+      "processes": 3
+    },
+    "coldMs": {
+      "median": 747.4951339960098,
+      "min": 707.7913819998503,
+      "max": 748.0702699869871,
+      "processes": 3
+    },
+    "importMs": {
+      "median": 165.181815,
+      "min": 163.518371,
+      "max": 202.758465,
+      "processes": 3
+    },
+    "outputBytes": {
+      "median": 291313,
+      "min": 291313,
+      "max": 291313,
+      "processes": 3
+    },
+    "before_rssBytes": {
+      "median": 93401088,
+      "min": 93016064,
+      "max": 93618176,
+      "processes": 3
+    },
+    "before_heapUsedBytes": {
+      "median": 11452720,
+      "min": 11452616,
+      "max": 11452744,
+      "processes": 3
+    },
+    "before_externalBytes": {
+      "median": 8983638,
+      "min": 8983638,
+      "max": 8983638,
+      "processes": 3
+    },
+    "before_arrayBuffersBytes": {
+      "median": 162580,
+      "min": 162580,
+      "max": 162580,
+      "processes": 3
+    },
+    "atReturn_rssBytes": {
+      "median": 224227328,
+      "min": 211861504,
+      "max": 240881664,
+      "processes": 3
+    },
+    "atReturn_heapUsedBytes": {
+      "median": 71927304,
+      "min": 59356384,
+      "max": 75909672,
+      "processes": 3
+    },
+    "atReturn_externalBytes": {
+      "median": 8992074,
+      "min": 8983678,
+      "max": 8992074,
+      "processes": 3
+    },
+    "atReturn_arrayBuffersBytes": {
+      "median": 170976,
+      "min": 162580,
+      "max": 170976,
+      "processes": 3
+    },
+    "afterGc_rssBytes": {
+      "median": 223154176,
+      "min": 210821120,
+      "max": 239939584,
+      "processes": 3
+    },
+    "afterGc_heapUsedBytes": {
+      "median": 39011960,
+      "min": 38974936,
+      "max": 39093608,
+      "processes": 3
+    },
+    "afterGc_externalBytes": {
+      "median": 8983678,
+      "min": 8983678,
+      "max": 8983678,
+      "processes": 3
+    },
+    "afterGc_arrayBuffersBytes": {
+      "median": 162580,
+      "min": 162580,
+      "max": 162580,
+      "processes": 3
+    },
+    "apiReturnDelta_rssBytes": {
+      "median": 130826240,
+      "min": 118845440,
+      "max": 147263488,
+      "processes": 3
+    },
+    "apiReturnDelta_heapUsedBytes": {
+      "median": 60474560,
+      "min": 47903768,
+      "max": 64456952,
+      "processes": 3
+    },
+    "apiReturnDelta_externalBytes": {
+      "median": 8436,
+      "min": 40,
+      "max": 8436,
+      "processes": 3
+    },
+    "apiReturnDelta_arrayBuffersBytes": {
+      "median": 8396,
+      "min": 0,
+      "max": 8396,
+      "processes": 3
+    },
+    "retainedDelta_rssBytes": {
+      "median": 129753088,
+      "min": 117805056,
+      "max": 146321408,
+      "processes": 3
+    },
+    "retainedDelta_heapUsedBytes": {
+      "median": 27559344,
+      "min": 27522216,
+      "max": 27640864,
+      "processes": 3
+    },
+    "retainedDelta_externalBytes": {
+      "median": 40,
+      "min": 40,
+      "max": 40,
+      "processes": 3
+    },
+    "retainedDelta_arrayBuffersBytes": {
+      "median": 0,
+      "min": 0,
+      "max": 0,
+      "processes": 3
+    },
+    "baselineAdjustedRetained_rssBytes": {
+      "median": 129949696,
+      "min": 117882880,
+      "max": 146800640,
+      "processes": 3
+    },
+    "baselineAdjustedRetained_heapUsedBytes": {
+      "median": 27574336,
+      "min": 27538712,
+      "max": 27657384,
+      "processes": 3
+    },
+    "baselineAdjustedRetained_externalBytes": {
+      "median": 0,
+      "min": 0,
+      "max": 0,
+      "processes": 3
+    },
+    "baselineAdjustedRetained_arrayBuffersBytes": {
+      "median": 0,
+      "min": 0,
+      "max": 0,
+      "processes": 3
+    },
+    "wholeProcessPeakRssBytes": {
+      "median": 299044864,
+      "min": 295477248,
+      "max": 319725568,
+      "processes": 3
+    },
+    "wholeProcessCpuSeconds": {
+      "median": 2.8899999999999997,
+      "min": 2.77,
+      "max": 3.1,
+      "processes": 3
+    },
+    "baselineProcessPeakRssBytes": {
+      "median": 93270016,
+      "min": 93069312,
+      "max": 93335552,
+      "processes": 3
+    },
+    "baselineProcessCpuSeconds": {
+      "median": 0.28,
+      "min": 0.27999999999999997,
+      "max": 0.29,
+      "processes": 3
+    }
+  },
+  {
+    "target": "candidate",
+    "backend": "elk",
+    "cache": 0,
+    "id": "diagnostic:chain300",
+    "family": "flowchart",
+    "cohort": "scaling",
+    "expectedAccept": true,
+    "statusCounts": {
+      "partial": 9,
+      "passed": 3
+    },
+    "errors": [],
+    "actualAcceptedCounts": {
+      "True": 9
+    },
+    "allMeasuredOutputsReturnedWithNoKnownDeclaredFailure": true,
+    "warmMs": {
+      "median": 304.6523690074682,
+      "min": 297.8027129918337,
+      "max": 326.85270500183105,
+      "processes": 3
+    },
+    "commentVariantMs": {
+      "median": 271.6780339926481,
+      "min": 255.72787199914455,
+      "max": 279.1160999983549,
+      "processes": 3
+    },
+    "alternatingEditMs": {
+      "median": 269.63256700336933,
+      "min": 262.38324201107025,
+      "max": 301.94714999198914,
+      "processes": 3
+    },
+    "coldMs": {
+      "median": 924.2601379901171,
+      "min": 817.2288759946823,
+      "max": 958.1220379918814,
+      "processes": 3
+    },
+    "importMs": {
+      "median": 174.263627,
+      "min": 171.042348,
+      "max": 185.381725,
+      "processes": 3
+    },
+    "outputBytes": {
+      "median": 291313,
+      "min": 291313,
+      "max": 291313,
+      "processes": 3
+    },
+    "before_rssBytes": {
+      "median": 94801920,
+      "min": 94740480,
+      "max": 94818304,
+      "processes": 3
+    },
+    "before_heapUsedBytes": {
+      "median": 12008616,
+      "min": 11991024,
+      "max": 12037272,
+      "processes": 3
+    },
+    "before_externalBytes": {
+      "median": 9440530,
+      "min": 9440530,
+      "max": 9440530,
+      "processes": 3
+    },
+    "before_arrayBuffersBytes": {
+      "median": 162580,
+      "min": 162580,
+      "max": 162580,
+      "processes": 3
+    },
+    "atReturn_rssBytes": {
+      "median": 225492992,
+      "min": 223121408,
+      "max": 254857216,
+      "processes": 3
+    },
+    "atReturn_heapUsedBytes": {
+      "median": 69887336,
+      "min": 67212080,
+      "max": 88904960,
+      "processes": 3
+    },
+    "atReturn_externalBytes": {
+      "median": 9448966,
+      "min": 9448966,
+      "max": 9448966,
+      "processes": 3
+    },
+    "atReturn_arrayBuffersBytes": {
+      "median": 170976,
+      "min": 170976,
+      "max": 170976,
+      "processes": 3
+    },
+    "afterGc_rssBytes": {
+      "median": 224305152,
+      "min": 222371840,
+      "max": 253079552,
+      "processes": 3
+    },
+    "afterGc_heapUsedBytes": {
+      "median": 40361960,
+      "min": 40337736,
+      "max": 40387712,
+      "processes": 3
+    },
+    "afterGc_externalBytes": {
+      "median": 9440570,
+      "min": 9440570,
+      "max": 9440570,
+      "processes": 3
+    },
+    "afterGc_arrayBuffersBytes": {
+      "median": 162580,
+      "min": 162580,
+      "max": 162580,
+      "processes": 3
+    },
+    "apiReturnDelta_rssBytes": {
+      "median": 130691072,
+      "min": 128380928,
+      "max": 160038912,
+      "processes": 3
+    },
+    "apiReturnDelta_heapUsedBytes": {
+      "median": 57878720,
+      "min": 55221056,
+      "max": 76867688,
+      "processes": 3
+    },
+    "apiReturnDelta_externalBytes": {
+      "median": 8436,
+      "min": 8436,
+      "max": 8436,
+      "processes": 3
+    },
+    "apiReturnDelta_arrayBuffersBytes": {
+      "median": 8396,
+      "min": 8396,
+      "max": 8396,
+      "processes": 3
+    },
+    "retainedDelta_rssBytes": {
+      "median": 129503232,
+      "min": 127631360,
+      "max": 158261248,
+      "processes": 3
+    },
+    "retainedDelta_heapUsedBytes": {
+      "median": 28329120,
+      "min": 28324688,
+      "max": 28396688,
+      "processes": 3
+    },
+    "retainedDelta_externalBytes": {
+      "median": 40,
+      "min": 40,
+      "max": 40,
+      "processes": 3
+    },
+    "retainedDelta_arrayBuffersBytes": {
+      "median": 0,
+      "min": 0,
+      "max": 0,
+      "processes": 3
+    },
+    "baselineAdjustedRetained_rssBytes": {
+      "median": 129576960,
+      "min": 126869504,
+      "max": 158326784,
+      "processes": 3
+    },
+    "baselineAdjustedRetained_heapUsedBytes": {
+      "median": 28350392,
+      "min": 28314944,
+      "max": 28372648,
+      "processes": 3
+    },
+    "baselineAdjustedRetained_externalBytes": {
+      "median": 0,
+      "min": 0,
+      "max": 0,
+      "processes": 3
+    },
+    "baselineAdjustedRetained_arrayBuffersBytes": {
+      "median": 0,
+      "min": 0,
+      "max": 0,
+      "processes": 3
+    },
+    "wholeProcessPeakRssBytes": {
+      "median": 304484352,
+      "min": 300359680,
+      "max": 328970240,
+      "processes": 3
+    },
+    "wholeProcessCpuSeconds": {
+      "median": 3.23,
+      "min": 2.94,
+      "max": 3.3400000000000003,
+      "processes": 3
+    },
+    "baselineProcessPeakRssBytes": {
+      "median": 94752768,
+      "min": 94728192,
+      "max": 95502336,
+      "processes": 3
+    },
+    "baselineProcessCpuSeconds": {
+      "median": 0.32999999999999996,
+      "min": 0.3,
+      "max": 0.33999999999999997,
+      "processes": 3
+    }
+  },
+  {
+    "target": "baseline",
+    "backend": "agentic",
+    "cache": 0,
+    "id": "diagnostic:chain300",
+    "family": "flowchart",
+    "cohort": "scaling",
+    "expectedAccept": true,
+    "statusCounts": {
+      "partial": 9,
+      "passed": 3
+    },
+    "errors": [],
+    "actualAcceptedCounts": {
+      "True": 9
+    },
+    "allMeasuredOutputsReturnedWithNoKnownDeclaredFailure": true,
+    "warmMs": {
+      "median": 136.9648159891367,
+      "min": 122.8685359954834,
+      "max": 138.78331199288368,
+      "processes": 3
+    },
+    "commentVariantMs": {
+      "median": 115.95105201005936,
+      "min": 111.81862500309944,
+      "max": 119.35999700427055,
+      "processes": 3
+    },
+    "alternatingEditMs": {
+      "median": 112.69100700318813,
+      "min": 109.38434499502182,
+      "max": 116.11108399927616,
+      "processes": 3
+    },
+    "coldMs": {
+      "median": 343.1504700034857,
+      "min": 329.71923899650574,
+      "max": 395.8468180000782,
+      "processes": 3
+    },
+    "importMs": {
+      "median": 163.43892,
+      "min": 157.174259,
+      "max": 164.295881,
+      "processes": 3
+    },
+    "outputBytes": {
+      "median": 291156,
+      "min": 291156,
+      "max": 291156,
+      "processes": 3
+    },
+    "before_rssBytes": {
+      "median": 92954624,
+      "min": 92389376,
+      "max": 93290496,
+      "processes": 3
+    },
+    "before_heapUsedBytes": {
+      "median": 11452720,
+      "min": 11452608,
+      "max": 11452760,
+      "processes": 3
+    },
+    "before_externalBytes": {
+      "median": 8983638,
+      "min": 8983638,
+      "max": 8983638,
+      "processes": 3
+    },
+    "before_arrayBuffersBytes": {
+      "median": 162580,
+      "min": 162580,
+      "max": 162580,
+      "processes": 3
+    },
+    "atReturn_rssBytes": {
+      "median": 146284544,
+      "min": 145571840,
+      "max": 146796544,
+      "processes": 3
+    },
+    "atReturn_heapUsedBytes": {
+      "median": 29030848,
+      "min": 22347328,
+      "max": 42479376,
+      "processes": 3
+    },
+    "atReturn_externalBytes": {
+      "median": 9002874,
+      "min": 9002874,
+      "max": 9002874,
+      "processes": 3
+    },
+    "atReturn_arrayBuffersBytes": {
+      "median": 181776,
+      "min": 181776,
+      "max": 181776,
+      "processes": 3
+    },
+    "afterGc_rssBytes": {
+      "median": 145215488,
+      "min": 144437248,
+      "max": 145571840,
+      "processes": 3
+    },
+    "afterGc_heapUsedBytes": {
+      "median": 18461928,
+      "min": 18446288,
+      "max": 18495088,
+      "processes": 3
+    },
+    "afterGc_externalBytes": {
+      "median": 8983678,
+      "min": 8983678,
+      "max": 8983678,
+      "processes": 3
+    },
+    "afterGc_arrayBuffersBytes": {
+      "median": 162580,
+      "min": 162580,
+      "max": 162580,
+      "processes": 3
+    },
+    "apiReturnDelta_rssBytes": {
+      "median": 53182464,
+      "min": 52994048,
+      "max": 53841920,
+      "processes": 3
+    },
+    "apiReturnDelta_heapUsedBytes": {
+      "median": 17578128,
+      "min": 10894720,
+      "max": 31026616,
+      "processes": 3
+    },
+    "apiReturnDelta_externalBytes": {
+      "median": 19236,
+      "min": 19236,
+      "max": 19236,
+      "processes": 3
+    },
+    "apiReturnDelta_arrayBuffersBytes": {
+      "median": 19196,
+      "min": 19196,
+      "max": 19196,
+      "processes": 3
+    },
+    "retainedDelta_rssBytes": {
+      "median": 52047872,
+      "min": 51924992,
+      "max": 52617216,
+      "processes": 3
+    },
+    "retainedDelta_heapUsedBytes": {
+      "median": 7009208,
+      "min": 6993680,
+      "max": 7042328,
+      "processes": 3
+    },
+    "retainedDelta_externalBytes": {
+      "median": 40,
+      "min": 40,
+      "max": 40,
+      "processes": 3
+    },
+    "retainedDelta_arrayBuffersBytes": {
+      "median": 0,
+      "min": 0,
+      "max": 0,
+      "processes": 3
+    },
+    "baselineAdjustedRetained_rssBytes": {
+      "median": 52158464,
+      "min": 51642368,
+      "max": 52379648,
+      "processes": 3
+    },
+    "baselineAdjustedRetained_heapUsedBytes": {
+      "median": 7025624,
+      "min": 6966040,
+      "max": 7058304,
+      "processes": 3
+    },
+    "baselineAdjustedRetained_externalBytes": {
+      "median": 0,
+      "min": 0,
+      "max": 0,
+      "processes": 3
+    },
+    "baselineAdjustedRetained_arrayBuffersBytes": {
+      "median": 0,
+      "min": 0,
+      "max": 0,
+      "processes": 3
+    },
+    "wholeProcessPeakRssBytes": {
+      "median": 167366656,
+      "min": 153964544,
+      "max": 171433984,
+      "processes": 3
+    },
+    "wholeProcessCpuSeconds": {
+      "median": 1.34,
+      "min": 1.32,
+      "max": 1.4400000000000002,
+      "processes": 3
+    },
+    "baselineProcessPeakRssBytes": {
+      "median": 93057024,
+      "min": 92925952,
+      "max": 93323264,
+      "processes": 3
+    },
+    "baselineProcessCpuSeconds": {
+      "median": 0.27,
+      "min": 0.27,
+      "max": 0.29,
+      "processes": 3
+    }
+  },
+  {
+    "target": "candidate",
+    "backend": "agentic",
+    "cache": 0,
+    "id": "diagnostic:chain300",
+    "family": "flowchart",
+    "cohort": "scaling",
+    "expectedAccept": true,
+    "statusCounts": {
+      "partial": 9,
+      "passed": 3
+    },
+    "errors": [],
+    "actualAcceptedCounts": {
+      "True": 9
+    },
+    "allMeasuredOutputsReturnedWithNoKnownDeclaredFailure": true,
+    "warmMs": {
+      "median": 195.69010899960995,
+      "min": 194.3733460009098,
+      "max": 202.16889199614525,
+      "processes": 3
+    },
+    "commentVariantMs": {
+      "median": 171.7796230018139,
+      "min": 165.060467004776,
+      "max": 180.91891199350357,
+      "processes": 3
+    },
+    "alternatingEditMs": {
+      "median": 159.26761800050735,
+      "min": 154.1203970015049,
+      "max": 161.0988039970398,
+      "processes": 3
+    },
+    "coldMs": {
+      "median": 433.2480380088091,
+      "min": 422.13096100091934,
+      "max": 441.7141890078783,
+      "processes": 3
+    },
+    "importMs": {
+      "median": 181.985282,
+      "min": 170.737589,
+      "max": 191.221857,
+      "processes": 3
+    },
+    "outputBytes": {
+      "median": 291156,
+      "min": 291156,
+      "max": 291156,
+      "processes": 3
+    },
+    "before_rssBytes": {
+      "median": 94412800,
+      "min": 94253056,
+      "max": 95461376,
+      "processes": 3
+    },
+    "before_heapUsedBytes": {
+      "median": 12031120,
+      "min": 12030856,
+      "max": 12037328,
+      "processes": 3
+    },
+    "before_externalBytes": {
+      "median": 9440530,
+      "min": 9440530,
+      "max": 9440530,
+      "processes": 3
+    },
+    "before_arrayBuffersBytes": {
+      "median": 162580,
+      "min": 162580,
+      "max": 162580,
+      "processes": 3
+    },
+    "atReturn_rssBytes": {
+      "median": 152821760,
+      "min": 152768512,
+      "max": 154193920,
+      "processes": 3
+    },
+    "atReturn_heapUsedBytes": {
+      "median": 45516232,
+      "min": 44977056,
+      "max": 47261728,
+      "processes": 3
+    },
+    "atReturn_externalBytes": {
+      "median": 9462466,
+      "min": 9462466,
+      "max": 9462466,
+      "processes": 3
+    },
+    "atReturn_arrayBuffersBytes": {
+      "median": 184476,
+      "min": 184476,
+      "max": 184476,
+      "processes": 3
+    },
+    "afterGc_rssBytes": {
+      "median": 152043520,
+      "min": 151539712,
+      "max": 152903680,
+      "processes": 3
+    },
+    "afterGc_heapUsedBytes": {
+      "median": 19827736,
+      "min": 19797472,
+      "max": 19838192,
+      "processes": 3
+    },
+    "afterGc_externalBytes": {
+      "median": 9440570,
+      "min": 9440570,
+      "max": 9440570,
+      "processes": 3
+    },
+    "afterGc_arrayBuffersBytes": {
+      "median": 162580,
+      "min": 162580,
+      "max": 162580,
+      "processes": 3
+    },
+    "apiReturnDelta_rssBytes": {
+      "median": 58568704,
+      "min": 57307136,
+      "max": 59781120,
+      "processes": 3
+    },
+    "apiReturnDelta_heapUsedBytes": {
+      "median": 33485376,
+      "min": 32939728,
+      "max": 35230608,
+      "processes": 3
+    },
+    "apiReturnDelta_externalBytes": {
+      "median": 21936,
+      "min": 21936,
+      "max": 21936,
+      "processes": 3
+    },
+    "apiReturnDelta_arrayBuffersBytes": {
+      "median": 21896,
+      "min": 21896,
+      "max": 21896,
+      "processes": 3
+    },
+    "retainedDelta_rssBytes": {
+      "median": 57790464,
+      "min": 56078336,
+      "max": 58490880,
+      "processes": 3
+    },
+    "retainedDelta_heapUsedBytes": {
+      "median": 7796616,
+      "min": 7766616,
+      "max": 7800864,
+      "processes": 3
+    },
+    "retainedDelta_externalBytes": {
+      "median": 40,
+      "min": 40,
+      "max": 40,
+      "processes": 3
+    },
+    "retainedDelta_arrayBuffersBytes": {
+      "median": 0,
+      "min": 0,
+      "max": 0,
+      "processes": 3
+    },
+    "baselineAdjustedRetained_rssBytes": {
+      "median": 56967168,
+      "min": 56832000,
+      "max": 57413632,
+      "processes": 3
+    },
+    "baselineAdjustedRetained_heapUsedBytes": {
+      "median": 7806240,
+      "min": 7782392,
+      "max": 7828424,
+      "processes": 3
+    },
+    "baselineAdjustedRetained_externalBytes": {
+      "median": 0,
+      "min": 0,
+      "max": 0,
+      "processes": 3
+    },
+    "baselineAdjustedRetained_arrayBuffersBytes": {
+      "median": 0,
+      "min": 0,
+      "max": 0,
+      "processes": 3
+    },
+    "wholeProcessPeakRssBytes": {
+      "median": 194383872,
+      "min": 192032768,
+      "max": 197738496,
+      "processes": 3
+    },
+    "wholeProcessCpuSeconds": {
+      "median": 1.79,
+      "min": 1.6700000000000002,
+      "max": 1.8299999999999998,
+      "processes": 3
+    },
+    "baselineProcessPeakRssBytes": {
+      "median": 94769152,
+      "min": 94703616,
+      "max": 96071680,
+      "processes": 3
+    },
+    "baselineProcessCpuSeconds": {
+      "median": 0.31000000000000005,
+      "min": 0.29000000000000004,
+      "max": 0.37,
+      "processes": 3
+    }
+  },
+  {
+    "target": "candidate",
+    "backend": "elk",
+    "cache": 0,
+    "id": "diagnostic:compound-identity-LR",
+    "family": "flowchart",
+    "cohort": "scaling",
+    "expectedAccept": true,
+    "statusCounts": {
+      "partial": 9,
+      "passed": 3
+    },
+    "errors": [],
+    "actualAcceptedCounts": {
+      "True": 9
+    },
+    "allMeasuredOutputsReturnedWithNoKnownDeclaredFailure": true,
+    "warmMs": {
+      "median": 33.4268119931221,
+      "min": 32.96566000580788,
+      "max": 36.94539800286293,
+      "processes": 3
+    },
+    "commentVariantMs": {
+      "median": 32.829030990600586,
+      "min": 28.925166994333267,
+      "max": 33.72460000216961,
+      "processes": 3
+    },
+    "alternatingEditMs": {
+      "median": 26.277499988675117,
+      "min": 26.0414460003376,
+      "max": 27.070282995700836,
+      "processes": 3
+    },
+    "coldMs": {
+      "median": 317.14592300355434,
+      "min": 311.27528500556946,
+      "max": 325.911249011755,
+      "processes": 3
+    },
+    "importMs": {
+      "median": 180.49906,
+      "min": 171.388635,
+      "max": 224.695499,
+      "processes": 3
+    },
+    "outputBytes": {
+      "median": 14534,
+      "min": 14534,
+      "max": 14534,
+      "processes": 3
+    },
+    "before_rssBytes": {
+      "median": 94814208,
+      "min": 94711808,
+      "max": 94838784,
+      "processes": 3
+    },
+    "before_heapUsedBytes": {
+      "median": 11991152,
+      "min": 11989440,
+      "max": 11991616,
+      "processes": 3
+    },
+    "before_externalBytes": {
+      "median": 9440530,
+      "min": 9440530,
+      "max": 9440530,
+      "processes": 3
+    },
+    "before_arrayBuffersBytes": {
+      "median": 162580,
+      "min": 162580,
+      "max": 162580,
+      "processes": 3
+    },
+    "atReturn_rssBytes": {
+      "median": 130584576,
+      "min": 127795200,
+      "max": 130654208,
+      "processes": 3
+    },
+    "atReturn_heapUsedBytes": {
+      "median": 32305896,
+      "min": 31986848,
+      "max": 34708712,
+      "processes": 3
+    },
+    "atReturn_externalBytes": {
+      "median": 9440570,
+      "min": 9440570,
+      "max": 9440570,
+      "processes": 3
+    },
+    "atReturn_arrayBuffersBytes": {
+      "median": 162580,
+      "min": 162580,
+      "max": 162580,
+      "processes": 3
+    },
+    "afterGc_rssBytes": {
+      "median": 130584576,
+      "min": 127913984,
+      "max": 131047424,
+      "processes": 3
+    },
+    "afterGc_heapUsedBytes": {
+      "median": 30236288,
+      "min": 30219320,
+      "max": 30237712,
+      "processes": 3
+    },
+    "afterGc_externalBytes": {
+      "median": 9440570,
+      "min": 9440570,
+      "max": 9440570,
+      "processes": 3
+    },
+    "afterGc_arrayBuffersBytes": {
+      "median": 162580,
+      "min": 162580,
+      "max": 162580,
+      "processes": 3
+    },
+    "apiReturnDelta_rssBytes": {
+      "median": 35815424,
+      "min": 32980992,
+      "max": 35872768,
+      "processes": 3
+    },
+    "apiReturnDelta_heapUsedBytes": {
+      "median": 20314280,
+      "min": 19995696,
+      "max": 22719272,
+      "processes": 3
+    },
+    "apiReturnDelta_externalBytes": {
+      "median": 40,
+      "min": 40,
+      "max": 40,
+      "processes": 3
+    },
+    "apiReturnDelta_arrayBuffersBytes": {
+      "median": 0,
+      "min": 0,
+      "max": 0,
+      "processes": 3
+    },
+    "retainedDelta_rssBytes": {
+      "median": 35872768,
+      "min": 33099776,
+      "max": 36208640,
+      "processes": 3
+    },
+    "retainedDelta_heapUsedBytes": {
+      "median": 18244672,
+      "min": 18229880,
+      "max": 18246560,
+      "processes": 3
+    },
+    "retainedDelta_externalBytes": {
+      "median": 40,
+      "min": 40,
+      "max": 40,
+      "processes": 3
+    },
+    "retainedDelta_arrayBuffersBytes": {
+      "median": 0,
+      "min": 0,
+      "max": 0,
+      "processes": 3
+    },
+    "baselineAdjustedRetained_rssBytes": {
+      "median": 35938304,
+      "min": 33177600,
+      "max": 36175872,
+      "processes": 3
+    },
+    "baselineAdjustedRetained_heapUsedBytes": {
+      "median": 18238024,
+      "min": 18224720,
+      "max": 18241768,
+      "processes": 3
+    },
+    "baselineAdjustedRetained_externalBytes": {
+      "median": 0,
+      "min": 0,
+      "max": 0,
+      "processes": 3
+    },
+    "baselineAdjustedRetained_arrayBuffersBytes": {
+      "median": 0,
+      "min": 0,
+      "max": 0,
+      "processes": 3
+    },
+    "wholeProcessPeakRssBytes": {
+      "median": 138649600,
+      "min": 136302592,
+      "max": 138711040,
+      "processes": 3
+    },
+    "wholeProcessCpuSeconds": {
+      "median": 0.9400000000000001,
+      "min": 0.8600000000000001,
+      "max": 0.98,
+      "processes": 3
+    },
+    "baselineProcessPeakRssBytes": {
+      "median": 94867456,
+      "min": 94646272,
+      "max": 94871552,
+      "processes": 3
+    },
+    "baselineProcessCpuSeconds": {
+      "median": 0.28,
+      "min": 0.27999999999999997,
+      "max": 0.31,
+      "processes": 3
+    }
+  },
+  {
+    "target": "baseline",
+    "backend": "agentic",
+    "cache": 0,
+    "id": "diagnostic:compound-identity-LR",
+    "family": "flowchart",
+    "cohort": "scaling",
+    "expectedAccept": true,
+    "statusCounts": {
+      "partial": 9,
+      "passed": 3
+    },
+    "errors": [],
+    "actualAcceptedCounts": {
+      "True": 9
+    },
+    "allMeasuredOutputsReturnedWithNoKnownDeclaredFailure": true,
+    "warmMs": {
+      "median": 17.615850001573563,
+      "min": 17.228114992380142,
+      "max": 22.171808004379272,
+      "processes": 3
+    },
+    "commentVariantMs": {
+      "median": 16.638017997145653,
+      "min": 16.069903001189232,
+      "max": 18.11980800330639,
+      "processes": 3
+    },
+    "alternatingEditMs": {
+      "median": 15.046392008662224,
+      "min": 14.362621992826462,
+      "max": 20.955717995762825,
+      "processes": 3
+    },
+    "coldMs": {
+      "median": 132.0009469985962,
+      "min": 121.0780030041933,
+      "max": 142.29691798985004,
+      "processes": 3
+    },
+    "importMs": {
+      "median": 173.405231,
+      "min": 171.833875,
+      "max": 193.259852,
+      "processes": 3
+    },
+    "outputBytes": {
+      "median": 14866,
+      "min": 14866,
+      "max": 14866,
+      "processes": 3
+    },
+    "before_rssBytes": {
+      "median": 93143040,
+      "min": 92991488,
+      "max": 93368320,
+      "processes": 3
+    },
+    "before_heapUsedBytes": {
+      "median": 11437384,
+      "min": 11437280,
+      "max": 11437392,
+      "processes": 3
+    },
+    "before_externalBytes": {
+      "median": 8983638,
+      "min": 8983638,
+      "max": 8983638,
+      "processes": 3
+    },
+    "before_arrayBuffersBytes": {
+      "median": 162580,
+      "min": 162580,
+      "max": 162580,
+      "processes": 3
+    },
+    "atReturn_rssBytes": {
+      "median": 105312256,
+      "min": 104902656,
+      "max": 105857024,
+      "processes": 3
+    },
+    "atReturn_heapUsedBytes": {
+      "median": 19195296,
+      "min": 19137336,
+      "max": 19261256,
+      "processes": 3
+    },
+    "atReturn_externalBytes": {
+      "median": 9167362,
+      "min": 9167362,
+      "max": 9167362,
+      "processes": 3
+    },
+    "atReturn_arrayBuffersBytes": {
+      "median": 176440,
+      "min": 176440,
+      "max": 176440,
+      "processes": 3
+    },
+    "afterGc_rssBytes": {
+      "median": 105574400,
+      "min": 105164800,
+      "max": 105988096,
+      "processes": 3
+    },
+    "afterGc_heapUsedBytes": {
+      "median": 16391472,
+      "min": 16384128,
+      "max": 16412376,
+      "processes": 3
+    },
+    "afterGc_externalBytes": {
+      "median": 8983678,
+      "min": 8983678,
+      "max": 8983678,
+      "processes": 3
+    },
+    "afterGc_arrayBuffersBytes": {
+      "median": 162580,
+      "min": 162580,
+      "max": 162580,
+      "processes": 3
+    },
+    "apiReturnDelta_rssBytes": {
+      "median": 12320768,
+      "min": 11534336,
+      "max": 12713984,
+      "processes": 3
+    },
+    "apiReturnDelta_heapUsedBytes": {
+      "median": 7758016,
+      "min": 7699952,
+      "max": 7823864,
+      "processes": 3
+    },
+    "apiReturnDelta_externalBytes": {
+      "median": 183724,
+      "min": 183724,
+      "max": 183724,
+      "processes": 3
+    },
+    "apiReturnDelta_arrayBuffersBytes": {
+      "median": 13860,
+      "min": 13860,
+      "max": 13860,
+      "processes": 3
+    },
+    "retainedDelta_rssBytes": {
+      "median": 12582912,
+      "min": 11796480,
+      "max": 12845056,
+      "processes": 3
+    },
+    "retainedDelta_heapUsedBytes": {
+      "median": 4954080,
+      "min": 4946744,
+      "max": 4975096,
+      "processes": 3
+    },
+    "retainedDelta_externalBytes": {
+      "median": 40,
+      "min": 40,
+      "max": 40,
+      "processes": 3
+    },
+    "retainedDelta_arrayBuffersBytes": {
+      "median": 0,
+      "min": 0,
+      "max": 0,
+      "processes": 3
+    },
+    "baselineAdjustedRetained_rssBytes": {
+      "median": 12275712,
+      "min": 11857920,
+      "max": 12308480,
+      "processes": 3
+    },
+    "baselineAdjustedRetained_heapUsedBytes": {
+      "median": 4970272,
+      "min": 4962760,
+      "max": 4991048,
+      "processes": 3
+    },
+    "baselineAdjustedRetained_externalBytes": {
+      "median": 0,
+      "min": 0,
+      "max": 0,
+      "processes": 3
+    },
+    "baselineAdjustedRetained_arrayBuffersBytes": {
+      "median": 0,
+      "min": 0,
+      "max": 0,
+      "processes": 3
+    },
+    "wholeProcessPeakRssBytes": {
+      "median": 111362048,
+      "min": 110817280,
+      "max": 111587328,
+      "processes": 3
+    },
+    "wholeProcessCpuSeconds": {
+      "median": 0.5700000000000001,
+      "min": 0.53,
+      "max": 0.6499999999999999,
+      "processes": 3
+    },
+    "baselineProcessPeakRssBytes": {
+      "median": 93429760,
+      "min": 93306880,
+      "max": 93679616,
+      "processes": 3
+    },
+    "baselineProcessCpuSeconds": {
+      "median": 0.27,
+      "min": 0.25,
+      "max": 0.33,
+      "processes": 3
+    }
+  },
+  {
+    "target": "candidate",
+    "backend": "agentic",
+    "cache": 0,
+    "id": "diagnostic:compound-identity-LR",
+    "family": "flowchart",
+    "cohort": "scaling",
+    "expectedAccept": true,
+    "statusCounts": {
+      "partial": 9,
+      "passed": 3
+    },
+    "errors": [],
+    "actualAcceptedCounts": {
+      "True": 9
+    },
+    "allMeasuredOutputsReturnedWithNoKnownDeclaredFailure": true,
+    "warmMs": {
+      "median": 17.85019299387932,
+      "min": 17.023758992552757,
+      "max": 20.187380999326706,
+      "processes": 3
+    },
+    "commentVariantMs": {
+      "median": 16.672150000929832,
+      "min": 16.276873990893364,
+      "max": 18.32558700442314,
+      "processes": 3
+    },
+    "alternatingEditMs": {
+      "median": 14.586809992790222,
+      "min": 13.828136995434761,
+      "max": 16.32547800242901,
+      "processes": 3
+    },
+    "coldMs": {
+      "median": 135.86280100047588,
+      "min": 133.37227100133896,
+      "max": 136.1656969934702,
+      "processes": 3
+    },
+    "importMs": {
+      "median": 183.847892,
+      "min": 181.286652,
+      "max": 190.879389,
+      "processes": 3
+    },
+    "outputBytes": {
+      "median": 14534,
+      "min": 14534,
+      "max": 14534,
+      "processes": 3
+    },
+    "before_rssBytes": {
+      "median": 94605312,
+      "min": 94588928,
+      "max": 95006720,
+      "processes": 3
+    },
+    "before_heapUsedBytes": {
+      "median": 12015736,
+      "min": 11991624,
+      "max": 12021968,
+      "processes": 3
+    },
+    "before_externalBytes": {
+      "median": 9440530,
+      "min": 9440530,
+      "max": 9440530,
+      "processes": 3
+    },
+    "before_arrayBuffersBytes": {
+      "median": 162580,
+      "min": 162580,
+      "max": 162580,
+      "processes": 3
+    },
+    "atReturn_rssBytes": {
+      "median": 106147840,
+      "min": 105861120,
+      "max": 106401792,
+      "processes": 3
+    },
+    "atReturn_heapUsedBytes": {
+      "median": 21934888,
+      "min": 21880624,
+      "max": 21945192,
+      "processes": 3
+    },
+    "atReturn_externalBytes": {
+      "median": 9444098,
+      "min": 9444098,
+      "max": 9444098,
+      "processes": 3
+    },
+    "atReturn_arrayBuffersBytes": {
+      "median": 165772,
+      "min": 165772,
+      "max": 165772,
+      "processes": 3
+    },
+    "afterGc_rssBytes": {
+      "median": 106520576,
+      "min": 106254336,
+      "max": 106532864,
+      "processes": 3
+    },
+    "afterGc_heapUsedBytes": {
+      "median": 18111992,
+      "min": 18106760,
+      "max": 18118256,
+      "processes": 3
+    },
+    "afterGc_externalBytes": {
+      "median": 9440570,
+      "min": 9440570,
+      "max": 9440570,
+      "processes": 3
+    },
+    "afterGc_arrayBuffersBytes": {
+      "median": 162580,
+      "min": 162580,
+      "max": 162580,
+      "processes": 3
+    },
+    "apiReturnDelta_rssBytes": {
+      "median": 11272192,
+      "min": 11141120,
+      "max": 11796480,
+      "processes": 3
+    },
+    "apiReturnDelta_heapUsedBytes": {
+      "median": 9919152,
+      "min": 9889000,
+      "max": 9923224,
+      "processes": 3
+    },
+    "apiReturnDelta_externalBytes": {
+      "median": 3568,
+      "min": 3568,
+      "max": 3568,
+      "processes": 3
+    },
+    "apiReturnDelta_arrayBuffersBytes": {
+      "median": 3192,
+      "min": 3192,
+      "max": 3192,
+      "processes": 3
+    },
+    "retainedDelta_rssBytes": {
+      "median": 11665408,
+      "min": 11513856,
+      "max": 11927552,
+      "processes": 3
+    },
+    "retainedDelta_heapUsedBytes": {
+      "median": 6096288,
+      "min": 6096256,
+      "max": 6115136,
+      "processes": 3
+    },
+    "retainedDelta_externalBytes": {
+      "median": 40,
+      "min": 40,
+      "max": 40,
+      "processes": 3
+    },
+    "retainedDelta_arrayBuffersBytes": {
+      "median": 0,
+      "min": 0,
+      "max": 0,
+      "processes": 3
+    },
+    "baselineAdjustedRetained_rssBytes": {
+      "median": 11808768,
+      "min": 11423744,
+      "max": 11927552,
+      "processes": 3
+    },
+    "baselineAdjustedRetained_heapUsedBytes": {
+      "median": 6117520,
+      "min": 6102632,
+      "max": 6118568,
+      "processes": 3
+    },
+    "baselineAdjustedRetained_externalBytes": {
+      "median": 0,
+      "min": 0,
+      "max": 0,
+      "processes": 3
+    },
+    "baselineAdjustedRetained_arrayBuffersBytes": {
+      "median": 0,
+      "min": 0,
+      "max": 0,
+      "processes": 3
+    },
+    "wholeProcessPeakRssBytes": {
+      "median": 113991680,
+      "min": 113463296,
+      "max": 114266112,
+      "processes": 3
+    },
+    "wholeProcessCpuSeconds": {
+      "median": 0.51,
+      "min": 0.51,
+      "max": 0.5700000000000001,
+      "processes": 3
+    },
+    "baselineProcessPeakRssBytes": {
+      "median": 94724096,
+      "min": 94593024,
+      "max": 94830592,
+      "processes": 3
+    },
+    "baselineProcessCpuSeconds": {
+      "median": 0.30000000000000004,
+      "min": 0.29000000000000004,
+      "max": 0.31,
+      "processes": 3
+    }
+  },
+  {
+    "target": "baseline",
+    "backend": "elk",
+    "cache": 0,
+    "id": "diagnostic:compound-identity-LR",
+    "family": "flowchart",
+    "cohort": "scaling",
+    "expectedAccept": true,
+    "statusCounts": {
+      "partial": 9,
+      "passed": 3
+    },
+    "errors": [],
+    "actualAcceptedCounts": {
+      "True": 9
+    },
+    "allMeasuredOutputsReturnedWithNoKnownDeclaredFailure": true,
+    "warmMs": {
+      "median": 30.22902199625969,
+      "min": 26.198741987347603,
+      "max": 32.614672005176544,
+      "processes": 3
+    },
+    "commentVariantMs": {
+      "median": 23.982998996973038,
+      "min": 21.92104199528694,
+      "max": 23.99082699418068,
+      "processes": 3
+    },
+    "alternatingEditMs": {
+      "median": 23.243001997470856,
+      "min": 22.08467999100685,
+      "max": 25.704357013106346,
+      "processes": 3
+    },
+    "coldMs": {
+      "median": 286.1915580034256,
+      "min": 262.1223250031471,
+      "max": 287.26053500175476,
+      "processes": 3
+    },
+    "importMs": {
+      "median": 159.523492,
+      "min": 158.15298,
+      "max": 198.227988,
+      "processes": 3
+    },
+    "outputBytes": {
+      "median": 14534,
+      "min": 14534,
+      "max": 14534,
+      "processes": 3
+    },
+    "before_rssBytes": {
+      "median": 93306880,
+      "min": 92995584,
+      "max": 93388800,
+      "processes": 3
+    },
+    "before_heapUsedBytes": {
+      "median": 11437320,
+      "min": 11437096,
+      "max": 11437384,
+      "processes": 3
+    },
+    "before_externalBytes": {
+      "median": 8983638,
+      "min": 8983638,
+      "max": 8983638,
+      "processes": 3
+    },
+    "before_arrayBuffersBytes": {
+      "median": 162580,
+      "min": 162580,
+      "max": 162580,
+      "processes": 3
+    },
+    "atReturn_rssBytes": {
+      "median": 124850176,
+      "min": 124678144,
+      "max": 125321216,
+      "processes": 3
+    },
+    "atReturn_heapUsedBytes": {
+      "median": 36619600,
+      "min": 36520880,
+      "max": 36659520,
+      "processes": 3
+    },
+    "atReturn_externalBytes": {
+      "median": 8983678,
+      "min": 8983678,
+      "max": 8983678,
+      "processes": 3
+    },
+    "atReturn_arrayBuffersBytes": {
+      "median": 162580,
+      "min": 162580,
+      "max": 162580,
+      "processes": 3
+    },
+    "afterGc_rssBytes": {
+      "median": 125243392,
+      "min": 124678144,
+      "max": 125583360,
+      "processes": 3
+    },
+    "afterGc_heapUsedBytes": {
+      "median": 28841872,
+      "min": 28825448,
+      "max": 28843752,
+      "processes": 3
+    },
+    "afterGc_externalBytes": {
+      "median": 8983678,
+      "min": 8983678,
+      "max": 8983678,
+      "processes": 3
+    },
+    "afterGc_arrayBuffersBytes": {
+      "median": 162580,
+      "min": 162580,
+      "max": 162580,
+      "processes": 3
+    },
+    "apiReturnDelta_rssBytes": {
+      "median": 31682560,
+      "min": 31461376,
+      "max": 32014336,
+      "processes": 3
+    },
+    "apiReturnDelta_heapUsedBytes": {
+      "median": 25182216,
+      "min": 25083784,
+      "max": 25222200,
+      "processes": 3
+    },
+    "apiReturnDelta_externalBytes": {
+      "median": 40,
+      "min": 40,
+      "max": 40,
+      "processes": 3
+    },
+    "apiReturnDelta_arrayBuffersBytes": {
+      "median": 0,
+      "min": 0,
+      "max": 0,
+      "processes": 3
+    },
+    "retainedDelta_rssBytes": {
+      "median": 31854592,
+      "min": 31682560,
+      "max": 32276480,
+      "processes": 3
+    },
+    "retainedDelta_heapUsedBytes": {
+      "median": 17404488,
+      "min": 17388352,
+      "max": 17406432,
+      "processes": 3
+    },
+    "retainedDelta_externalBytes": {
+      "median": 40,
+      "min": 40,
+      "max": 40,
+      "processes": 3
+    },
+    "retainedDelta_arrayBuffersBytes": {
+      "median": 0,
+      "min": 0,
+      "max": 0,
+      "processes": 3
+    },
+    "baselineAdjustedRetained_rssBytes": {
+      "median": 32088064,
+      "min": 31752192,
+      "max": 32395264,
+      "processes": 3
+    },
+    "baselineAdjustedRetained_heapUsedBytes": {
+      "median": 17420600,
+      "min": 17402760,
+      "max": 17422360,
+      "processes": 3
+    },
+    "baselineAdjustedRetained_externalBytes": {
+      "median": 0,
+      "min": 0,
+      "max": 0,
+      "processes": 3
+    },
+    "baselineAdjustedRetained_arrayBuffersBytes": {
+      "median": 0,
+      "min": 0,
+      "max": 0,
+      "processes": 3
+    },
+    "wholeProcessPeakRssBytes": {
+      "median": 126816256,
+      "min": 125726720,
+      "max": 127156224,
+      "processes": 3
+    },
+    "wholeProcessCpuSeconds": {
+      "median": 0.7899999999999999,
+      "min": 0.75,
+      "max": 0.8600000000000001,
+      "processes": 3
+    },
+    "baselineProcessPeakRssBytes": {
+      "median": 92925952,
+      "min": 92848128,
+      "max": 93495296,
+      "processes": 3
+    },
+    "baselineProcessCpuSeconds": {
+      "median": 0.26,
+      "min": 0.26,
+      "max": 0.29,
+      "processes": 3
+    }
+  },
+  {
+    "target": "baseline",
+    "backend": "agentic",
+    "cache": 0,
+    "id": "diagnostic:compound-permutation-TB",
+    "family": "flowchart",
+    "cohort": "scaling",
+    "expectedAccept": true,
+    "statusCounts": {
+      "partial": 9,
+      "passed": 3
+    },
+    "errors": [],
+    "actualAcceptedCounts": {
+      "True": 9
+    },
+    "allMeasuredOutputsReturnedWithNoKnownDeclaredFailure": true,
+    "warmMs": {
+      "median": 44.07339400053024,
+      "min": 41.44129000604153,
+      "max": 48.74971601366997,
+      "processes": 3
+    },
+    "commentVariantMs": {
+      "median": 35.804455012083054,
+      "min": 34.23456999659538,
+      "max": 36.73539300262928,
+      "processes": 3
+    },
+    "alternatingEditMs": {
+      "median": 37.713356003165245,
+      "min": 36.78726400434971,
+      "max": 44.836624994874,
+      "processes": 3
+    },
+    "coldMs": {
+      "median": 174.59047800302505,
+      "min": 156.79867400228977,
+      "max": 178.17854599654675,
+      "processes": 3
+    },
+    "importMs": {
+      "median": 169.875586,
+      "min": 159.436455,
+      "max": 175.779238,
+      "processes": 3
+    },
+    "outputBytes": {
+      "median": 15109,
+      "min": 15109,
+      "max": 15109,
+      "processes": 3
+    },
+    "before_rssBytes": {
+      "median": 93110272,
+      "min": 92987392,
+      "max": 93315072,
+      "processes": 3
+    },
+    "before_heapUsedBytes": {
+      "median": 11437376,
+      "min": 11437264,
+      "max": 11437400,
+      "processes": 3
+    },
+    "before_externalBytes": {
+      "median": 8983638,
+      "min": 8983638,
+      "max": 8983638,
+      "processes": 3
+    },
+    "before_arrayBuffersBytes": {
+      "median": 162580,
+      "min": 162580,
+      "max": 162580,
+      "processes": 3
+    },
+    "atReturn_rssBytes": {
+      "median": 123396096,
+      "min": 123199488,
+      "max": 124567552,
+      "processes": 3
+    },
+    "atReturn_heapUsedBytes": {
+      "median": 23910984,
+      "min": 23766200,
+      "max": 24313616,
+      "processes": 3
+    },
+    "atReturn_externalBytes": {
+      "median": 9071090,
+      "min": 9039858,
+      "max": 9071090,
+      "processes": 3
+    },
+    "atReturn_arrayBuffersBytes": {
+      "median": 249992,
+      "min": 218760,
+      "max": 249992,
+      "processes": 3
+    },
+    "afterGc_rssBytes": {
+      "median": 122839040,
+      "min": 122613760,
+      "max": 124252160,
+      "processes": 3
+    },
+    "afterGc_heapUsedBytes": {
+      "median": 17087480,
+      "min": 17087072,
+      "max": 17087680,
+      "processes": 3
+    },
+    "afterGc_externalBytes": {
+      "median": 8983678,
+      "min": 8983678,
+      "max": 8983678,
+      "processes": 3
+    },
+    "afterGc_arrayBuffersBytes": {
+      "median": 162580,
+      "min": 162580,
+      "max": 162580,
+      "processes": 3
+    },
+    "apiReturnDelta_rssBytes": {
+      "median": 30408704,
+      "min": 29884416,
+      "max": 31457280,
+      "processes": 3
+    },
+    "apiReturnDelta_heapUsedBytes": {
+      "median": 12473608,
+      "min": 12328936,
+      "max": 12876216,
+      "processes": 3
+    },
+    "apiReturnDelta_externalBytes": {
+      "median": 87452,
+      "min": 56220,
+      "max": 87452,
+      "processes": 3
+    },
+    "apiReturnDelta_arrayBuffersBytes": {
+      "median": 87412,
+      "min": 56180,
+      "max": 87412,
+      "processes": 3
+    },
+    "retainedDelta_rssBytes": {
+      "median": 29851648,
+      "min": 29298688,
+      "max": 31141888,
+      "processes": 3
+    },
+    "retainedDelta_heapUsedBytes": {
+      "median": 5650216,
+      "min": 5649672,
+      "max": 5650304,
+      "processes": 3
+    },
+    "retainedDelta_externalBytes": {
+      "median": 40,
+      "min": 40,
+      "max": 40,
+      "processes": 3
+    },
+    "retainedDelta_arrayBuffersBytes": {
+      "median": 0,
+      "min": 0,
+      "max": 0,
+      "processes": 3
+    },
+    "baselineAdjustedRetained_rssBytes": {
+      "median": 30060544,
+      "min": 29261824,
+      "max": 30896128,
+      "processes": 3
+    },
+    "baselineAdjustedRetained_heapUsedBytes": {
+      "median": 5666200,
+      "min": 5665672,
+      "max": 5666264,
+      "processes": 3
+    },
+    "baselineAdjustedRetained_externalBytes": {
+      "median": 0,
+      "min": 0,
+      "max": 0,
+      "processes": 3
+    },
+    "baselineAdjustedRetained_arrayBuffersBytes": {
+      "median": 0,
+      "min": 0,
+      "max": 0,
+      "processes": 3
+    },
+    "wholeProcessPeakRssBytes": {
+      "median": 124149760,
+      "min": 123662336,
+      "max": 124907520,
+      "processes": 3
+    },
+    "wholeProcessCpuSeconds": {
+      "median": 0.76,
+      "min": 0.76,
+      "max": 0.89,
+      "processes": 3
+    },
+    "baselineProcessPeakRssBytes": {
+      "median": 93351936,
+      "min": 92778496,
+      "max": 93356032,
+      "processes": 3
+    },
+    "baselineProcessCpuSeconds": {
+      "median": 0.28,
+      "min": 0.25,
+      "max": 0.3,
+      "processes": 3
+    }
+  },
+  {
+    "target": "candidate",
+    "backend": "agentic",
+    "cache": 0,
+    "id": "diagnostic:compound-permutation-TB",
+    "family": "flowchart",
+    "cohort": "scaling",
+    "expectedAccept": true,
+    "statusCounts": {
+      "partial": 9,
+      "passed": 3
+    },
+    "errors": [],
+    "actualAcceptedCounts": {
+      "True": 9
+    },
+    "allMeasuredOutputsReturnedWithNoKnownDeclaredFailure": true,
+    "warmMs": {
+      "median": 52.47495900094509,
+      "min": 48.57667300105095,
+      "max": 56.59920999407768,
+      "processes": 3
+    },
+    "commentVariantMs": {
+      "median": 44.279411002993584,
+      "min": 44.02651301026344,
+      "max": 44.61845599114895,
+      "processes": 3
+    },
+    "alternatingEditMs": {
+      "median": 38.72989098727703,
+      "min": 37.452484995126724,
+      "max": 41.920890003442764,
+      "processes": 3
+    },
+    "coldMs": {
+      "median": 204.77253100275993,
+      "min": 201.51988299190998,
+      "max": 205.45965899527073,
+      "processes": 3
+    },
+    "importMs": {
+      "median": 218.419731,
+      "min": 187.952172,
+      "max": 248.569375,
+      "processes": 3
+    },
+    "outputBytes": {
+      "median": 15109,
+      "min": 15109,
+      "max": 15109,
+      "processes": 3
+    },
+    "before_rssBytes": {
+      "median": 94453760,
+      "min": 94326784,
+      "max": 95129600,
+      "processes": 3
+    },
+    "before_heapUsedBytes": {
+      "median": 11991584,
+      "min": 11990936,
+      "max": 12015704,
+      "processes": 3
+    },
+    "before_externalBytes": {
+      "median": 9440530,
+      "min": 9440530,
+      "max": 9440530,
+      "processes": 3
+    },
+    "before_arrayBuffersBytes": {
+      "median": 162580,
+      "min": 162580,
+      "max": 162580,
+      "processes": 3
+    },
+    "atReturn_rssBytes": {
+      "median": 119750656,
+      "min": 118591488,
+      "max": 123424768,
+      "processes": 3
+    },
+    "atReturn_heapUsedBytes": {
+      "median": 25942528,
+      "min": 25151872,
+      "max": 26083544,
+      "processes": 3
+    },
+    "atReturn_externalBytes": {
+      "median": 9554566,
+      "min": 9551262,
+      "max": 9556542,
+      "processes": 3
+    },
+    "atReturn_arrayBuffersBytes": {
+      "median": 272856,
+      "min": 272856,
+      "max": 272856,
+      "processes": 3
+    },
+    "afterGc_rssBytes": {
+      "median": 119750656,
+      "min": 118321152,
+      "max": 122949632,
+      "processes": 3
+    },
+    "afterGc_heapUsedBytes": {
+      "median": 18982848,
+      "min": 18962216,
+      "max": 18985768,
+      "processes": 3
+    },
+    "afterGc_externalBytes": {
+      "median": 9440570,
+      "min": 9440570,
+      "max": 9440570,
+      "processes": 3
+    },
+    "afterGc_arrayBuffersBytes": {
+      "median": 162580,
+      "min": 162580,
+      "max": 162580,
+      "processes": 3
+    },
+    "apiReturnDelta_rssBytes": {
+      "median": 25296896,
+      "min": 23461888,
+      "max": 29097984,
+      "processes": 3
+    },
+    "apiReturnDelta_heapUsedBytes": {
+      "median": 13951592,
+      "min": 13160288,
+      "max": 14067840,
+      "processes": 3
+    },
+    "apiReturnDelta_externalBytes": {
+      "median": 114036,
+      "min": 110732,
+      "max": 116012,
+      "processes": 3
+    },
+    "apiReturnDelta_arrayBuffersBytes": {
+      "median": 110276,
+      "min": 110276,
+      "max": 110276,
+      "processes": 3
+    },
+    "retainedDelta_rssBytes": {
+      "median": 25296896,
+      "min": 23191552,
+      "max": 28622848,
+      "processes": 3
+    },
+    "retainedDelta_heapUsedBytes": {
+      "median": 6971280,
+      "min": 6970064,
+      "max": 6991264,
+      "processes": 3
+    },
+    "retainedDelta_externalBytes": {
+      "median": 40,
+      "min": 40,
+      "max": 40,
+      "processes": 3
+    },
+    "retainedDelta_arrayBuffersBytes": {
+      "median": 0,
+      "min": 0,
+      "max": 0,
+      "processes": 3
+    },
+    "baselineAdjustedRetained_rssBytes": {
+      "median": 25673728,
+      "min": 22749184,
+      "max": 28045312,
+      "processes": 3
+    },
+    "baselineAdjustedRetained_heapUsedBytes": {
+      "median": 6988384,
+      "min": 6961704,
+      "max": 6989488,
+      "processes": 3
+    },
+    "baselineAdjustedRetained_externalBytes": {
+      "median": 0,
+      "min": 0,
+      "max": 0,
+      "processes": 3
+    },
+    "baselineAdjustedRetained_arrayBuffersBytes": {
+      "median": 0,
+      "min": 0,
+      "max": 0,
+      "processes": 3
+    },
+    "wholeProcessPeakRssBytes": {
+      "median": 127352832,
+      "min": 125005824,
+      "max": 129896448,
+      "processes": 3
+    },
+    "wholeProcessCpuSeconds": {
+      "median": 0.9,
+      "min": 0.81,
+      "max": 0.95,
+      "processes": 3
+    },
+    "baselineProcessPeakRssBytes": {
+      "median": 94904320,
+      "min": 94208000,
+      "max": 95703040,
+      "processes": 3
+    },
+    "baselineProcessCpuSeconds": {
+      "median": 0.31000000000000005,
+      "min": 0.28,
+      "max": 0.31000000000000005,
+      "processes": 3
+    }
+  },
+  {
+    "target": "baseline",
+    "backend": "elk",
+    "cache": 0,
+    "id": "diagnostic:compound-permutation-TB",
+    "family": "flowchart",
+    "cohort": "scaling",
+    "expectedAccept": true,
+    "statusCounts": {
+      "partial": 9,
+      "passed": 3
+    },
+    "errors": [],
+    "actualAcceptedCounts": {
+      "True": 9
+    },
+    "allMeasuredOutputsReturnedWithNoKnownDeclaredFailure": true,
+    "warmMs": {
+      "median": 63.718270003795624,
+      "min": 58.212351992726326,
+      "max": 67.26352299749851,
+      "processes": 3
+    },
+    "commentVariantMs": {
+      "median": 53.749871999025345,
+      "min": 49.985007002949715,
+      "max": 55.57419499754906,
+      "processes": 3
+    },
+    "alternatingEditMs": {
+      "median": 50.52065199613571,
+      "min": 49.32073399424553,
+      "max": 51.306169003248215,
+      "processes": 3
+    },
+    "coldMs": {
+      "median": 399.33389200270176,
+      "min": 380.5192300081253,
+      "max": 484.2414060086012,
+      "processes": 3
+    },
+    "importMs": {
+      "median": 169.160933,
+      "min": 169.013814,
+      "max": 190.825399,
+      "processes": 3
+    },
+    "outputBytes": {
+      "median": 14837,
+      "min": 14837,
+      "max": 14837,
+      "processes": 3
+    },
+    "before_rssBytes": {
+      "median": 93474816,
+      "min": 93159424,
+      "max": 93605888,
+      "processes": 3
+    },
+    "before_heapUsedBytes": {
+      "median": 11437288,
+      "min": 11437160,
+      "max": 11437416,
+      "processes": 3
+    },
+    "before_externalBytes": {
+      "median": 8983638,
+      "min": 8983638,
+      "max": 8983638,
+      "processes": 3
+    },
+    "before_arrayBuffersBytes": {
+      "median": 162580,
+      "min": 162580,
+      "max": 162580,
+      "processes": 3
+    },
+    "atReturn_rssBytes": {
+      "median": 137592832,
+      "min": 137412608,
+      "max": 138641408,
+      "processes": 3
+    },
+    "atReturn_heapUsedBytes": {
+      "median": 35389432,
+      "min": 34851680,
+      "max": 50031920,
+      "processes": 3
+    },
+    "atReturn_externalBytes": {
+      "median": 8987629,
+      "min": 8987629,
+      "max": 8987629,
+      "processes": 3
+    },
+    "atReturn_arrayBuffersBytes": {
+      "median": 162580,
+      "min": 162580,
+      "max": 162580,
+      "processes": 3
+    },
+    "afterGc_rssBytes": {
+      "median": 138641408,
+      "min": 137543680,
+      "max": 138903552,
+      "processes": 3
+    },
+    "afterGc_heapUsedBytes": {
+      "median": 30817664,
+      "min": 30814488,
+      "max": 30821408,
+      "processes": 3
+    },
+    "afterGc_externalBytes": {
+      "median": 8987629,
+      "min": 8987629,
+      "max": 8987629,
+      "processes": 3
+    },
+    "afterGc_arrayBuffersBytes": {
+      "median": 162580,
+      "min": 162580,
+      "max": 162580,
+      "processes": 3
+    },
+    "apiReturnDelta_rssBytes": {
+      "median": 44253184,
+      "min": 43986944,
+      "max": 45166592,
+      "processes": 3
+    },
+    "apiReturnDelta_heapUsedBytes": {
+      "median": 23952272,
+      "min": 23414392,
+      "max": 38594504,
+      "processes": 3
+    },
+    "apiReturnDelta_externalBytes": {
+      "median": 3991,
+      "min": 3991,
+      "max": 3991,
+      "processes": 3
+    },
+    "apiReturnDelta_arrayBuffersBytes": {
+      "median": 0,
+      "min": 0,
+      "max": 0,
+      "processes": 3
+    },
+    "retainedDelta_rssBytes": {
+      "median": 45166592,
+      "min": 44384256,
+      "max": 45297664,
+      "processes": 3
+    },
+    "retainedDelta_heapUsedBytes": {
+      "median": 19380376,
+      "min": 19377328,
+      "max": 19383992,
+      "processes": 3
+    },
+    "retainedDelta_externalBytes": {
+      "median": 3991,
+      "min": 3991,
+      "max": 3991,
+      "processes": 3
+    },
+    "retainedDelta_arrayBuffersBytes": {
+      "median": 0,
+      "min": 0,
+      "max": 0,
+      "processes": 3
+    },
+    "baselineAdjustedRetained_rssBytes": {
+      "median": 45219840,
+      "min": 44261376,
+      "max": 45658112,
+      "processes": 3
+    },
+    "baselineAdjustedRetained_heapUsedBytes": {
+      "median": 19396344,
+      "min": 19393184,
+      "max": 19400168,
+      "processes": 3
+    },
+    "baselineAdjustedRetained_externalBytes": {
+      "median": 3951,
+      "min": 3951,
+      "max": 3951,
+      "processes": 3
+    },
+    "baselineAdjustedRetained_arrayBuffersBytes": {
+      "median": 0,
+      "min": 0,
+      "max": 0,
+      "processes": 3
+    },
+    "wholeProcessPeakRssBytes": {
+      "median": 149913600,
+      "min": 149389312,
+      "max": 150519808,
+      "processes": 3
+    },
+    "wholeProcessCpuSeconds": {
+      "median": 1.09,
+      "min": 1.06,
+      "max": 1.11,
+      "processes": 3
+    },
+    "baselineProcessPeakRssBytes": {
+      "median": 93376512,
+      "min": 93282304,
+      "max": 93552640,
+      "processes": 3
+    },
+    "baselineProcessCpuSeconds": {
+      "median": 0.27,
+      "min": 0.26,
+      "max": 0.29000000000000004,
+      "processes": 3
+    }
+  },
+  {
+    "target": "candidate",
+    "backend": "elk",
+    "cache": 0,
+    "id": "diagnostic:compound-permutation-TB",
+    "family": "flowchart",
+    "cohort": "scaling",
+    "expectedAccept": true,
+    "statusCounts": {
+      "partial": 9,
+      "passed": 3
+    },
+    "errors": [],
+    "actualAcceptedCounts": {
+      "True": 9
+    },
+    "allMeasuredOutputsReturnedWithNoKnownDeclaredFailure": true,
+    "warmMs": {
+      "median": 75.77365800738335,
+      "min": 69.8972550034523,
+      "max": 76.00685700774193,
+      "processes": 3
+    },
+    "commentVariantMs": {
+      "median": 61.6124430000782,
+      "min": 59.32598599791527,
+      "max": 65.72798100113869,
+      "processes": 3
+    },
+    "alternatingEditMs": {
+      "median": 57.45491801202297,
+      "min": 56.685589000582695,
+      "max": 63.10936699807644,
+      "processes": 3
+    },
+    "coldMs": {
+      "median": 438.21248100697994,
+      "min": 410.2684320062399,
+      "max": 451.0323100090027,
+      "processes": 3
+    },
+    "importMs": {
+      "median": 181.900864,
+      "min": 176.925734,
+      "max": 195.179024,
+      "processes": 3
+    },
+    "outputBytes": {
+      "median": 14837,
+      "min": 14837,
+      "max": 14837,
+      "processes": 3
+    },
+    "before_rssBytes": {
+      "median": 94535680,
+      "min": 94326784,
+      "max": 94699520,
+      "processes": 3
+    },
+    "before_heapUsedBytes": {
+      "median": 11993296,
+      "min": 11991544,
+      "max": 12015704,
+      "processes": 3
+    },
+    "before_externalBytes": {
+      "median": 9440530,
+      "min": 9440530,
+      "max": 9440530,
+      "processes": 3
+    },
+    "before_arrayBuffersBytes": {
+      "median": 162580,
+      "min": 162580,
+      "max": 162580,
+      "processes": 3
+    },
+    "atReturn_rssBytes": {
+      "median": 142077952,
+      "min": 141352960,
+      "max": 145428480,
+      "processes": 3
+    },
+    "atReturn_heapUsedBytes": {
+      "median": 45111072,
+      "min": 37995856,
+      "max": 48681848,
+      "processes": 3
+    },
+    "atReturn_externalBytes": {
+      "median": 9444521,
+      "min": 9444521,
+      "max": 9444521,
+      "processes": 3
+    },
+    "atReturn_arrayBuffersBytes": {
+      "median": 162580,
+      "min": 162580,
+      "max": 162580,
+      "processes": 3
+    },
+    "afterGc_rssBytes": {
+      "median": 142209024,
+      "min": 141484032,
+      "max": 145559552,
+      "processes": 3
+    },
+    "afterGc_heapUsedBytes": {
+      "median": 32218600,
+      "min": 32216184,
+      "max": 32227224,
+      "processes": 3
+    },
+    "afterGc_externalBytes": {
+      "median": 9444521,
+      "min": 9444521,
+      "max": 9444521,
+      "processes": 3
+    },
+    "afterGc_arrayBuffersBytes": {
+      "median": 162580,
+      "min": 162580,
+      "max": 162580,
+      "processes": 3
+    },
+    "apiReturnDelta_rssBytes": {
+      "median": 47378432,
+      "min": 47026176,
+      "max": 50892800,
+      "processes": 3
+    },
+    "apiReturnDelta_heapUsedBytes": {
+      "median": 33117776,
+      "min": 26004312,
+      "max": 36666144,
+      "processes": 3
+    },
+    "apiReturnDelta_externalBytes": {
+      "median": 3991,
+      "min": 3991,
+      "max": 3991,
+      "processes": 3
+    },
+    "apiReturnDelta_arrayBuffersBytes": {
+      "median": 0,
+      "min": 0,
+      "max": 0,
+      "processes": 3
+    },
+    "retainedDelta_rssBytes": {
+      "median": 47509504,
+      "min": 47157248,
+      "max": 51023872,
+      "processes": 3
+    },
+    "retainedDelta_heapUsedBytes": {
+      "median": 20224640,
+      "min": 20211520,
+      "max": 20225304,
+      "processes": 3
+    },
+    "retainedDelta_externalBytes": {
+      "median": 3991,
+      "min": 3991,
+      "max": 3991,
+      "processes": 3
+    },
+    "retainedDelta_arrayBuffersBytes": {
+      "median": 0,
+      "min": 0,
+      "max": 0,
+      "processes": 3
+    },
+    "baselineAdjustedRetained_rssBytes": {
+      "median": 47759360,
+      "min": 47353856,
+      "max": 50601984,
+      "processes": 3
+    },
+    "baselineAdjustedRetained_heapUsedBytes": {
+      "median": 20232768,
+      "min": 20217144,
+      "max": 20241816,
+      "processes": 3
+    },
+    "baselineAdjustedRetained_externalBytes": {
+      "median": 3951,
+      "min": 3951,
+      "max": 3951,
+      "processes": 3
+    },
+    "baselineAdjustedRetained_arrayBuffersBytes": {
+      "median": 0,
+      "min": 0,
+      "max": 0,
+      "processes": 3
+    },
+    "wholeProcessPeakRssBytes": {
+      "median": 153612288,
+      "min": 153280512,
+      "max": 153817088,
+      "processes": 3
+    },
+    "wholeProcessCpuSeconds": {
+      "median": 1.1500000000000001,
+      "min": 1.1300000000000001,
+      "max": 1.2400000000000002,
+      "processes": 3
+    },
+    "baselineProcessPeakRssBytes": {
+      "median": 94580736,
+      "min": 94261248,
+      "max": 94957568,
+      "processes": 3
+    },
+    "baselineProcessCpuSeconds": {
+      "median": 0.30000000000000004,
+      "min": 0.28,
+      "max": 0.30000000000000004,
+      "processes": 3
+    }
+  }
+]

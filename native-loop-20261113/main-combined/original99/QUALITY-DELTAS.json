@@ -1,0 +1,245 @@
+[
+  {
+    "id": "features:flowchart:nesting-parallel-unicode",
+    "backend": "agentic",
+    "comparison": "enrolled same-meaning quality vector",
+    "main": {
+      "width": 375.794,
+      "height": 472.8,
+      "area": 177675.4032,
+      "linearStatus": "measured",
+      "wire": 500.10799999999995,
+      "bends": 9,
+      "crossings": 0,
+      "parallelOverlaps": 0,
+      "opposingOverlaps": 0
+    },
+    "combined": {
+      "width": 375.794,
+      "height": 473.175,
+      "area": 177816.32595,
+      "linearStatus": "measured",
+      "wire": 500.10799999999995,
+      "bends": 9,
+      "crossings": 0,
+      "parallelOverlaps": 0,
+      "opposingOverlaps": 0
+    }
+  },
+  {
+    "id": "features:class:inheritance-composition-dependency",
+    "backend": "agentic",
+    "comparison": "enrolled same-meaning quality vector",
+    "main": {
+      "width": 360,
+      "height": 380,
+      "area": 136800,
+      "linearStatus": "measured",
+      "wire": 302.6,
+      "bends": 4,
+      "crossings": 0,
+      "parallelOverlaps": 0,
+      "opposingOverlaps": 0
+    },
+    "combined": {
+      "width": 360,
+      "height": 364,
+      "area": 131040,
+      "linearStatus": "measured",
+      "wire": 214.60000000000002,
+      "bends": 0,
+      "crossings": 0,
+      "parallelOverlaps": 0,
+      "opposingOverlaps": 0
+    }
+  },
+  {
+    "id": "features:flowchart:controlled-image",
+    "backend": "agentic",
+    "comparison": "missing-image-content; area is not a like-for-like quality win",
+    "main": {
+      "width": 277.108,
+      "height": 116.9,
+      "area": 32393.9252,
+      "linearStatus": "measured",
+      "wire": 48,
+      "bends": 0,
+      "crossings": 0,
+      "parallelOverlaps": 0,
+      "opposingOverlaps": 0
+    },
+    "combined": {
+      "width": 281.964,
+      "height": 158.9,
+      "area": 44804.079600000005,
+      "linearStatus": "measured",
+      "wire": 48,
+      "bends": 0,
+      "crossings": 0,
+      "parallelOverlaps": 0,
+      "opposingOverlaps": 0
+    }
+  },
+  {
+    "id": "meaning:family:requirement",
+    "backend": "elk",
+    "comparison": "enrolled same-meaning quality vector",
+    "main": {
+      "width": 264.324,
+      "height": 509.4,
+      "area": 134646.6456,
+      "linearStatus": "unavailable",
+      "wire": null,
+      "bends": null,
+      "crossings": null,
+      "parallelOverlaps": null,
+      "opposingOverlaps": null
+    },
+    "combined": {
+      "width": 264.324,
+      "height": 515.4,
+      "area": 136232.5896,
+      "linearStatus": "unavailable",
+      "wire": null,
+      "bends": null,
+      "crossings": null,
+      "parallelOverlaps": null,
+      "opposingOverlaps": null
+    }
+  },
+  {
+    "id": "features:flowchart:nesting-parallel-unicode",
+    "backend": "elk",
+    "comparison": "enrolled same-meaning quality vector",
+    "main": {
+      "width": 283.384,
+      "height": 549.3,
+      "area": 155662.8312,
+      "linearStatus": "measured",
+      "wire": 606.1534999999999,
+      "bends": 7,
+      "crossings": 0,
+      "parallelOverlaps": 0,
+      "opposingOverlaps": 0
+    },
+    "combined": {
+      "width": 288.384,
+      "height": 549.3,
+      "area": 158409.3312,
+      "linearStatus": "measured",
+      "wire": 606.1534999999999,
+      "bends": 7,
+      "crossings": 0,
+      "parallelOverlaps": 0,
+      "opposingOverlaps": 0
+    }
+  },
+  {
+    "id": "features:requirement:types-risk-relations",
+    "backend": "elk",
+    "comparison": "enrolled same-meaning quality vector",
+    "main": {
+      "width": 456.207,
+      "height": 587.1,
+      "area": 267839.1297,
+      "linearStatus": "unavailable",
+      "wire": null,
+      "bends": null,
+      "crossings": null,
+      "parallelOverlaps": null,
+      "opposingOverlaps": null
+    },
+    "combined": {
+      "width": 456.207,
+      "height": 593.1,
+      "area": 270576.3717,
+      "linearStatus": "unavailable",
+      "wire": null,
+      "bends": null,
+      "crossings": null,
+      "parallelOverlaps": null,
+      "opposingOverlaps": null
+    }
+  },
+  {
+    "id": "meaning:family:requirement:configuration-reset",
+    "backend": "elk",
+    "comparison": "enrolled same-meaning quality vector",
+    "main": {
+      "width": 264.324,
+      "height": 509.4,
+      "area": 134646.6456,
+      "linearStatus": "unavailable",
+      "wire": null,
+      "bends": null,
+      "crossings": null,
+      "parallelOverlaps": null,
+      "opposingOverlaps": null
+    },
+    "combined": {
+      "width": 264.324,
+      "height": 515.4,
+      "area": 136232.5896,
+      "linearStatus": "unavailable",
+      "wire": null,
+      "bends": null,
+      "crossings": null,
+      "parallelOverlaps": null,
+      "opposingOverlaps": null
+    }
+  },
+  {
+    "id": "meaning:family:requirement:configuration-reset:edit",
+    "backend": "elk",
+    "comparison": "enrolled same-meaning quality vector",
+    "main": {
+      "width": 239.052,
+      "height": 509.4,
+      "area": 121773.0888,
+      "linearStatus": "unavailable",
+      "wire": null,
+      "bends": null,
+      "crossings": null,
+      "parallelOverlaps": null,
+      "opposingOverlaps": null
+    },
+    "combined": {
+      "width": 239.052,
+      "height": 515.4,
+      "area": 123207.40079999999,
+      "linearStatus": "unavailable",
+      "wire": null,
+      "bends": null,
+      "crossings": null,
+      "parallelOverlaps": null,
+      "opposingOverlaps": null
+    }
+  },
+  {
+    "id": "features:flowchart:controlled-image",
+    "backend": "elk",
+    "comparison": "missing-image-content; area is not a like-for-like quality win",
+    "main": {
+      "width": 277.108,
+      "height": 116.9,
+      "area": 32393.9252,
+      "linearStatus": "measured",
+      "wire": 48,
+      "bends": 0,
+      "crossings": 0,
+      "parallelOverlaps": 0,
+      "opposingOverlaps": 0
+    },
+    "combined": {
+      "width": 281.964,
+      "height": 158.9,
+      "area": 44804.079600000005,
+      "linearStatus": "measured",
+      "wire": 48,
+      "bends": 0,
+      "crossings": 0,
+      "parallelOverlaps": 0,
+      "opposingOverlaps": 0
+    }
+  }
+]

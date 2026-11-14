@@ -1,0 +1,15 @@
+{
+  "at": "2026-11-14T01:26:15.220140+00:00",
+  "head": "c037a727de23228c2dccfc6f8bc12dcb77ba94ca",
+  "base": "a2e5ddc927e7432affbc293b7996a74b5fe59003",
+  "run": 43538455978,
+  "status": "completed",
+  "unit2": "C4 uncached identity planner expected function, received object; Sol reproducing owner contract",
+  "quality": "flowchart gzip779161 exceeds761500; state772532 exceeds761000; raw/Brotli failures retained",
+  "payload": "Flow lazy +37393gzip vsMain; demo315512 exceeds302500, relative+37616; no approval-label waiver",
+  "browser_site": "editor1375700gzip exceeds1334500",
+  "advisory": "development256-319 has one heuristic backend regression; all sampled renders returned; does not certify final ink",
+  "ready": false,
+  "conclusion": "failure",
+  "C4_classification": "Main deliberately replaced generated callback with GeneratedIdentityState; failed test asserts obsolete representation. Sol replacing with actual allocation/isolation across cache0/cache1; no runtime corruption established."
+}

@@ -1,0 +1,37 @@
+{
+  "workers": [
+    {
+      "case": "chain100",
+      "arm": "baseline",
+      "exitCode": 0
+    },
+    {
+      "case": "chain100",
+      "arm": "candidate",
+      "exitCode": 0
+    },
+    {
+      "case": "fanin100",
+      "arm": "baseline",
+      "exitCode": 0
+    },
+    {
+      "case": "fanin100",
+      "arm": "candidate",
+      "exitCode": 0
+    },
+    {
+      "case": "chain300",
+      "arm": "baseline",
+      "exitCode": 0
+    },
+    {
+      "case": "chain300",
+      "arm": "candidate",
+      "exitCode": 0
+    }
+  ],
+  "allTerminal0": true,
+  "closed": true,
+  "scope": "Diagnostic sampled profiles only; no unprofiled speed claims."
+}

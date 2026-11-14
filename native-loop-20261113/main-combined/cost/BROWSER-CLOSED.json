@@ -1,0 +1,14 @@
+{
+  "delivery": {
+    "browserOpened": 132,
+    "browserClosed": 132,
+    "openBrowsers": 0,
+    "rows": 132,
+    "total": 132,
+    "scope": "Every standard suite closes its browser and local server; any retained browser explicitly closed in collector finally. No browser processes intentionally retained."
+  },
+  "AstraCombined32": "closed",
+  "AstraPristineMain32": "closed",
+  "rootOriginal99": "Bun396/browser + pinnedNode396 closed",
+  "source": "8b9ee46fde4889bbfa8cc641f83023c518ee471b3fad1185a0895c80ffc16307"
+}
