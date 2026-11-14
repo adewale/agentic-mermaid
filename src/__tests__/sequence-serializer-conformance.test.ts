@@ -323,6 +323,9 @@ describe('sequence create/destroy are typed statements', () => {
     ['a destroyed sender and self-message', 'A->>B: hi\n  destroy A\n  A-)B: leaving\n  destroy B\n  B->>B: done', ['destroy A', 'destroy B']],
     ['two participants destroyed by one message', 'A->>B: hi\n  destroy B\n  destroy A\n  A<<->>B: both', ['destroy A', 'destroy B']],
     ['a created participant with a wrapped alias', 'A->>B: hi\n  create participant C as wrap: A long created name\n  B->>+C: start\n  C-->>-B: done', ['create C']],
+    ['stacked destroys at a message from the last', 'Alice->>Bob: hi\n  Alice->>Carl: yo\n  destroy Carl\n  destroy Bob\n  Bob->>Alice: bye', ['destroy Carl', 'destroy Bob']],
+    ['stacked creates at a message to the last', 'Alice->>Bob: hi\n  create participant X\n  create actor Y\n  Bob->>Y: make', ['create X', 'create Y']],
+    ['a stacked create and destroy', 'Alice->>Bob: hi\n  create participant Y\n  destroy Alice\n  Bob->>Y: make', ['create Y', 'destroy Alice']],
   ] as const)('%s parses typed, verifies and writes back unchanged', async (_name, body, directives) => {
     const source = `sequenceDiagram\n  ${body}\n`
     const parsed = sequence(source)
@@ -335,6 +338,22 @@ describe('sequence create/destroy are typed statements', () => {
     const { ours, mermaid } = await bindings(written)
     expect(Object.keys(ours).sort()).toEqual([...directives].sort())
     expect(mermaid).toEqual(ours)
+  })
+
+  // Mermaid binds a stacked directive to the message after the stack even
+  // when its participant is in a later message; ours binds it to that later
+  // message, and verify says so on the directive's line.
+  test.each([
+    ['a stacked destroy', 'Alice->>Bob: hi\n  Alice->>Carl: yo\n  destroy Carl\n  destroy Bob\n  Bob->>Alice: bye\n  Carl->>Alice: later', 'destroy Carl', ['Carl', 'Alice', 'later'], ['Bob', 'Alice', 'bye'], 4],
+    ['a stacked create', 'Alice->>Bob: hi\n  create participant X\n  create participant Y\n  Bob->>Y: make\n  Alice->>X: later', 'create X', ['Alice', 'X', 'later'], ['Bob', 'Y', 'make'], 3],
+  ] as const)('%s whose participant is in a later message binds there and warns', async (_name, body, directive, ours, mermaid, line) => {
+    const source = `sequenceDiagram\n  ${body}\n`
+    const bound = await bindings(source)
+    expect(bound.ours[directive]).toEqual([...ours])
+    expect(bound.mermaid).toMatchObject({ [directive]: mermaid })
+    expect(verifyMermaid(source).warnings.filter(warning => warning.code === 'UNSUPPORTED_SYNTAX')).toEqual([
+      expect.objectContaining({ syntax: 'sequence_stacked_lifecycle', line }),
+    ])
   })
 
   const SOURCE = 'sequenceDiagram\n  Alice->>Bob: Hello\n  create participant Carl\n  Alice->>Carl: Hi Carl!\n  create actor D as Donald\n  Carl->>D: Hi!\n  destroy Carl\n  Alice-xCarl: We are too many\n  destroy Bob\n  Bob->>Alice: I agree\n'

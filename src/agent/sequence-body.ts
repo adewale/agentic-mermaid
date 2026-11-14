@@ -406,18 +406,22 @@ export function sequenceUnsupportedSyntaxWarnings(canonicalSource: string): Layo
 }
 
 /**
- * `create`/`destroy` directives pinned Mermaid rejects. Ours binds a
- * directive to the next message that creates (is received by) or involves
- * its participant, and ignores `create` of a participant that already
- * exists. Mermaid's database requires the very next message to be that one
- * and refuses to create a known participant. Messages count in statement
- * order, fragments included, as in Mermaid.
+ * `create`/`destroy` directives pinned Mermaid rejects or binds elsewhere.
+ * Ours binds a directive to the next message that creates (is received by)
+ * or involves its participant, or, when no later message does, to the
+ * message right after it, and ignores `create` of a participant that already
+ * exists. Mermaid binds every directive of a stack to the message right after
+ * it, requires that message to be the last directive's, and refuses to create
+ * a known participant. Messages count in statement order, fragments included,
+ * as in Mermaid.
  */
 export function sequenceLifecycleIssues(statements: readonly SequenceSourceStatement[]): Array<{ entry: number; syntax: string; message: string }> {
   const issues: Array<{ entry: number; syntax: string; message: string }> = []
   const fold = new SequenceParticipantFold()
   let created: { id: string; entry: number } | undefined
   let destroyed: { id: string; entry: number } | undefined
+  const messages: Array<{ from: string; to: string }> = []
+  const directives: Array<{ kind: 'create' | 'destroy'; id: string; entry: number; next: number }> = []
   statements.forEach((entry, index) => {
     const syntax = entry.syntax
     if (syntax?.kind === 'create') {
@@ -426,29 +430,44 @@ export function sequenceLifecycleIssues(statements: readonly SequenceSourceState
         entry: index, syntax: 'sequence_create_known_participant',
         message: `"create" names participant "${id}", which already exists; ours keeps the existing participant. Pinned Mermaid rejects this ("It is not possible to have actors with the same id"); create a new ID, or declare "${id}" without "create".`,
       })
+      else directives.push({ kind: 'create', id, entry: index, next: messages.length })
       created = { id, entry: index }
     } else if (syntax?.kind === 'destroy') {
+      directives.push({ kind: 'destroy', id: syntax.actorId, entry: index, next: messages.length })
       destroyed = { id: syntax.actorId, entry: index }
     } else if (syntax?.kind === 'message') {
+      messages.push(syntax.message)
       const { from, to } = syntax.message
       // Mermaid checks a pending creation first, and a destruction only once
       // no creation is pending.
       if (created) {
         if (to !== created.id) issues.push({
           entry: created.entry, syntax: 'sequence_create_message',
-          message: `The next message after "create" is not received by "${created.id}"; ours creates "${created.id}" at the next message it receives. Pinned Mermaid rejects this; put the "create" line directly above that message.`,
+          message: `The next message after "create" is not received by "${created.id}"; ours creates "${created.id}" at the next message it receives, or at this one when none does. Pinned Mermaid rejects this; put the "create" line directly above that message.`,
         })
         created = undefined
       } else if (destroyed) {
         if (from !== destroyed.id && to !== destroyed.id) issues.push({
           entry: destroyed.entry, syntax: 'sequence_destroy_message',
-          message: `The next message after "destroy ${destroyed.id}" neither comes from nor goes to "${destroyed.id}"; ours ends "${destroyed.id}" at the next message it sends or receives. Pinned Mermaid rejects this; put the "destroy" line directly above that message.`,
+          message: `The next message after "destroy ${destroyed.id}" neither comes from nor goes to "${destroyed.id}"; ours ends "${destroyed.id}" at the next message it sends or receives, or at this one when none does. Pinned Mermaid rejects this; put the "destroy" line directly above that message.`,
         })
         destroyed = undefined
       }
     }
     fold.applyAll(participantEventsOf(syntax))
   })
+  // A stacked directive whose participant is not in the message ending its
+  // stack, but is in a later one: Mermaid accepts the stack and binds the
+  // directive to the message right after it, where ours binds it later.
+  const reported = new Set(issues.map(issue => issue.entry))
+  for (const { kind, id, entry, next } of directives) {
+    const qualifies = (m: { from: string; to: string }) => kind === 'create' ? m.to === id : m.from === id || m.to === id
+    if (reported.has(entry) || next >= messages.length || qualifies(messages[next]!) || !messages.slice(next + 1).some(qualifies)) continue
+    issues.push({
+      entry, syntax: 'sequence_stacked_lifecycle',
+      message: `"${kind} ${id}" is stacked above a message ${kind === 'create' ? `"${id}" does not receive` : `without "${id}"`}; ours ${kind === 'create' ? 'creates' : 'ends'} "${id}" at its later message, pinned Mermaid at the message after the stack. Move the line directly above that later message.`,
+    })
+  }
   return issues
 }
 

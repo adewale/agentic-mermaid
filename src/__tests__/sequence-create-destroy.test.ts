@@ -63,6 +63,24 @@ describe('parseSequenceDiagram – create/destroy', () => {
     expect(c.createMessageIndex).toBe(1)
   })
 
+  // A directive binds to the next message that involves its participant;
+  // one no later message involves binds where its stack ends, at the message
+  // right after it, as Mermaid binds every directive of a stack.
+  it.each([
+    ['stacked destroys at a message from the last', 'participant Alice\nparticipant Bob\nparticipant Carl\nAlice->>Carl: hi\ndestroy Carl\ndestroy Bob\nBob->>Alice: bye', { destroy: { Carl: 1, Bob: 1 } }],
+    ['stacked creates at a message to the last', 'participant A\ncreate participant X\ncreate participant Y\nA->>Y: make\nY->>A: ok', { create: { X: 0, Y: 0 } }],
+    ['a stacked create and destroy', 'A->>B: hi\ncreate participant Y\ndestroy A\nB->>Y: make', { create: { Y: 1 }, destroy: { A: 1 } }],
+    ['a stacked destroy whose participant has a later message', 'A->>B: hi\nA->>C: hey\ndestroy C\ndestroy B\nB->>A: bye\nC->>A: later', { destroy: { B: 2, C: 3 } }],
+    ['a stacked create whose participant receives a later message', 'participant A\ncreate participant X\ncreate participant Y\nA->>Y: make\nA->>X: later', { create: { X: 1, Y: 0 } }],
+    ['a lone destroy no later message involves', 'A->>B: hi\nA->>C: hey\ndestroy C\nA->>B: bye', { destroy: { C: 2 } }],
+    ['a create of a participant that already exists', 'A->>X: early\ncreate participant X\nA->>X: later', {}],
+  ] as const)('binds %s', (_name, body, expected: { create?: Record<string, number>; destroy?: Record<string, number> }) => {
+    const d = parse(`sequenceDiagram\n${body}`)
+    const at = (key: 'createMessageIndex' | 'destroyMessageIndex') => Object.fromEntries(d.actors.flatMap(actor => actor[key] === undefined ? [] : [[actor.id, actor[key]]]))
+    expect(at('createMessageIndex')).toEqual(expected.create ?? {})
+    expect(at('destroyMessageIndex')).toEqual(expected.destroy ?? {})
+  })
+
   it('create/destroy with no following message stays inert (full lifeline)', () => {
     const d = parse(`sequenceDiagram
       A->>B: hi
@@ -109,6 +127,42 @@ describe('sequence create/destroy layout', () => {
     expect(renderMermaidSVGWithReceipt(`sequenceDiagram\n${body}`, { layoutSafety: 'strict' }).receipt.layoutCertification?.status).toBe('passed')
     expect(message.labelPosition.bounds.x).toBeGreaterThanOrEqual(Math.min(message.x1, message.x2))
     expect(message.labelPosition.bounds.x + message.labelPosition.bounds.width).toBeLessThanOrEqual(Math.max(message.x1, message.x2))
+  })
+
+  // A stacked directive whose participant is not in its message still acts at
+  // that message's row: a destroyed lifeline ends at a cross level with the
+  // message's own, and a created header starts just below the message, clear
+  // of the arrow and label crossing its column. Strict safety certifies both.
+  it.each([
+    ['a destroy beside the destroyed sender', 'participant A\nparticipant C\nparticipant B\nA->>B: hi\ndestroy C\ndestroy B\nB->>A: bye\nA->>A: tail', 1],
+    ['a destroy beside the destroyed receiver', 'participant A\nparticipant C\nparticipant B\nA->>C: hi\ndestroy C\ndestroy B\nA-xB: bye\nA->>A: tail', 1],
+    ['a create beside the created receiver', 'participant A\ncreate participant X\ncreate participant Y\nA->>Y: make\nY->>A: ok', 0],
+    ['a create beside a created actor', 'participant A\ncreate actor X\ncreate participant Y\nA->>Y: make\nY->>A: ok', 0],
+    ['a create beside a destroy', 'participant A\nparticipant C\ncreate participant X\ndestroy C\nA->>C: last\nX->>A: ok', 0],
+  ] as const)('acts on %s at the stack\'s message row', (_name, body, row) => {
+    const source = `sequenceDiagram\n${body}`
+    const d = parse(source)
+    const p = layoutSequenceDiagram(d)
+    const message = p.messages[row]!
+    const messageBottom = message.bounds.y + message.bounds.height
+    for (const actor of d.actors) {
+      const lifeline = p.lifelines.find(l => l.actorId === actor.id)!
+      if (actor.destroyMessageIndex === row) {
+        const cross = p.destructions.find(c => c.actorId === actor.id)!
+        expect(cross.y).toBe(p.destructions.find(c => c.actorId === message.from || c.actorId === message.to)?.y ?? cross.y)
+        expect(cross.y).toBeGreaterThan(message.y)
+        expect(cross.y).toBeLessThan(p.messages[row + 1]!.y)
+        expect(lifeline.bottomY).toBe(cross.y)
+      }
+      if (actor.createMessageIndex === row && actor.id !== message.to) {
+        const header = p.actors.find(a => a.id === actor.id)!
+        expect(header.bounds.y).toBeGreaterThan(messageBottom)
+        expect(header.bounds.y + header.bounds.height).toBeLessThan(p.messages[row + 1]!.bounds.y)
+        expect(lifeline.topY).toBe(header.bounds.y + header.bounds.height)
+      }
+    }
+    expect(d.actors.filter(actor => actor.id !== message.from && actor.id !== message.to && (actor.createMessageIndex === row || actor.destroyMessageIndex === row))).not.toEqual([])
+    expect(renderMermaidSVGWithReceipt(source, { layoutSafety: 'strict' }).receipt.layoutCertification?.status).toBe('passed')
   })
 
   it('emits an X cross at the destroy point', () => {

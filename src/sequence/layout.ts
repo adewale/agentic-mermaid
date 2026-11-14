@@ -282,9 +282,10 @@ export function layoutSequenceDiagram(diagram: SequenceDiagram, options: RenderO
   }
 
   // Pre-scan actor lifecycles: a `create` message row hosts the created
-  // actor's header box (centered on the message), so it needs half a box of
-  // clearance above and the remaining header extent below; a `destroy` message
-  // row ends the lifeline.
+  // actor's header box (centered on the message it receives), so it needs half
+  // a box of clearance above and the remaining header extent below; an actor a
+  // stacked `create` binds to a message it does not receive starts just below
+  // that message instead. A `destroy` message row ends the lifeline.
   const createAtIndex = new Map<number, number[]>()
   const destroyAtIndex = new Map<number, string[]>()
   const destroyYByActor = new Map<string, number>()
@@ -565,7 +566,9 @@ export function layoutSequenceDiagram(diagram: SequenceDiagram, options: RenderO
     completeBlocks()
     const opening = openingBlocks(msgIdx)
     let extra = Math.max(extraSpaceBefore.get(msgIdx) ?? 0, headerSpace(opening))
-    for (const ai of createAtIndex.get(msgIdx) ?? []) {
+    const createdHere = createAtIndex.get(msgIdx)
+    const receivesCreation = (ai: number): boolean => diagram.actors[ai]!.id === msg.to
+    for (const ai of createdHere?.filter(receivesCreation) ?? []) {
       const topHalf = actors[ai]!.height / 2
       extra = extra > 0 ? extra + Math.max(0, topHalf - 12) : topHalf + 8
     }
@@ -581,8 +584,9 @@ export function layoutSequenceDiagram(diagram: SequenceDiagram, options: RenderO
       messages[msgIdx] = positioned
       // Created headers must have their real position before fragment geometry
       // is completed, including icon labels extending below the message row.
-      for (const ai of createAtIndex.get(msgIdx) ?? []) {
-        actors[ai] = positionSequenceActor(diagram.actors[ai]!, actorSpecs[ai]!, actorCenterX[ai]!, messageY - actors[ai]!.height / 2)
+      for (const ai of createdHere ?? []) {
+        const top = receivesCreation(ai) ? messageY - actors[ai]!.height / 2 : positioned.bounds.y + positioned.bounds.height + 8
+        actors[ai] = positionSequenceActor(diagram.actors[ai]!, actorSpecs[ai]!, actorCenterX[ai]!, top)
       }
       return positioned
     }
@@ -614,7 +618,7 @@ export function layoutSequenceDiagram(diagram: SequenceDiagram, options: RenderO
     if (overlayShift > 0) { messageY += overlayShift; positionedMsg = positionRow() }
     for (const bi of opening) openedBlocks.add(bi)
     contentBottom = Math.max(contentBottom, positionedMsg.bounds.y + positionedMsg.bounds.height,
-      ...(createAtIndex.get(msgIdx) ?? []).map(ai => actors[ai]!.bounds.y + actors[ai]!.bounds.height))
+      ...(createdHere ?? []).map(ai => actors[ai]!.bounds.y + actors[ai]!.bounds.height))
     // A standalone activate/deactivate applies where the message before it
     // ends, as the `+`/`-` arrow suffix does; commands ahead of every message
     // anchor to the first.
@@ -641,15 +645,11 @@ export function layoutSequenceDiagram(diagram: SequenceDiagram, options: RenderO
     // The cross extends the row: later rows, dividers and notes start below it.
     if (cross) messageY += Math.ceil(cross.bottom - cross.contactY)
 
-    // Clearance below a create row for the bottom portion of the created actor's
-    // header (including below-icon labels for created icon participants).
-    const createdHere = createAtIndex.get(msgIdx)
+    // Clearance below a create row for the part of each created actor's header
+    // below the row (including below-icon labels for created icon participants).
     if (createdHere) {
       const createdBottomClearance = Math.max(
-        ...createdHere.map(ai => {
-          const actor = actors[ai]!
-          return actor.bounds.height - actor.height / 2
-        }),
+        ...createdHere.map(ai => actors[ai]!.bounds.y + actors[ai]!.bounds.height - positionedMsg.y),
       )
       messageY += createdBottomClearance
     }

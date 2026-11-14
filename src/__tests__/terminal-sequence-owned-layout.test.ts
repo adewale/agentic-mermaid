@@ -279,6 +279,32 @@ end`)
     }
   })
 
+  // A stacked directive whose participant is not in its message acts at that
+  // message: the destroyed lifeline's cross shares the row below the arrow
+  // with the message's own, and a created header precedes the message.
+  test.each([
+    ['a destroy beside the destroyed sender', 'destroy C\ndestroy B\nB->>A: bye\nA->>A: tail', 'C'],
+    ['a create beside the created receiver', 'create participant D\ncreate participant E\nA->>E: make\nE->>A: ok', 'D'],
+  ] as const)('acts on %s at the stack\'s message', (_name, body, id) => {
+    for (const useAscii of [false, true]) {
+      const { doc, region } = render(body, useAscii)
+      const message = region('message:0')
+      const arrowRow = message.ports![0]!.y
+      const owned = [...doc.entries()].filter(([, , cell]) => cell.owners.some(owner => owner.id === id))
+      if (body.startsWith('destroy')) {
+        const crossRows = (owner: string) => [...doc.entries()].flatMap(([, row, cell]) => cell.kind === 'marker' && cell.glyph === 'X' && cell.owners.some(item => item.id === owner) ? [row] : [])
+        expect(crossRows(id)).toEqual([arrowRow + 1])
+        expect(crossRows('B')).toEqual([arrowRow + 1])
+        expect(owned.filter(([, row]) => row > arrowRow + 1)).toEqual([])
+      } else {
+        // The created card (three rows) lies between the top cards and the message.
+        expect(region(id).canvasRow).toBeGreaterThanOrEqual(region('A').canvasRow + 3)
+        expect(region(id).canvasRow + 3).toBeLessThanOrEqual(message.canvasRow)
+      }
+      expect(doc.diagnostics.filter(item => /COLLISION|OVERLAP/.test(item.code))).toEqual([])
+    }
+  })
+
   test('keeps the crossed lifeline on each side of a reserved message label', () => {
     const { doc, region } = render('A->>C: hello')
     const column = region('B').authoredTextCells![0]!.column
