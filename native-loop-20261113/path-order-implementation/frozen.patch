@@ -1,0 +1,231 @@
+diff --git a/src/__tests__/agentic-layered.test.ts b/src/__tests__/agentic-layered.test.ts
+index f180a39d..0f8acf69 100644
+--- a/src/__tests__/agentic-layered.test.ts
++++ b/src/__tests__/agentic-layered.test.ts
+@@ -12,6 +12,7 @@ import { GraphLayoutUnsupportedError } from '../layout/backend.ts'
+ import type { Direction, Point } from '../types.ts'
+ import { countOpposingRouteOverlaps, countParallelRouteOverlaps } from '../layout-rubric.ts'
+ import { layoutMeasuredForest } from '../layout/measured-forest.ts'
++import { placeNativeNesting } from '../layout/native-nesting.ts'
+ import { assignChannelTracks } from '../layout/channel-tracks.ts'
+ import { createEndpointSparseVisibilityGraph, createSparseAdjacencyStoragePool, createSparseQueryWorkspacePool, createSparseVisibilityGraph } from '../layout/compound-sparse-visibility.ts'
+ import { retainsTerminalLead, createVisibilityGrid } from '../layout/compound-visibility.ts'
+@@ -703,9 +704,9 @@ describe('owned measured layered layout', () => {
+     const nodes = new Map(positioned!.nodes.map(node => [node.id, node]))
+     const horizontal = direction === 'LR' || direction === 'RL', reverse = direction === 'BT' || direction === 'RL'
+     for (const edge of positioned!.edges) {
+-      // These aligned real faces have an unobstructed direct corridor. An
+-      // unlabeled temporary group guide must not introduce a detour.
+-      if (variant === 'identity' && horizontal) expect(edge.points).toHaveLength(2)
++      // Common root order aligns the real faces across these private scopes.
++      // North title bands keep vertical scopes outside this ordering rule.
++      if (horizontal) expect(edge.points).toHaveLength(2)
+       const from = nodes.get(edge.source)!, to = nodes.get(edge.target)!
+       const mainStart = (node: Box) => horizontal ? node.x : node.y
+       const mainEnd = (node: Box) => mainStart(node) + (horizontal ? node.width : node.height)
+@@ -733,6 +734,86 @@ describe('owned measured layered layout', () => {
+     }
+   })
+ 
++  test.each(['eligible-LR', 'eligible-RL', 'full-budget', 'low-pairs', 'low-slots', 'vertical-TB', 'vertical-BT',
++    'node-order0', 'group-order0', 'node-partition0', 'group-partition0', 'branch', 'cycle', 'same-path-return',
++    'mixed', 'nested', 'frame-endpoint', 'local-edge', 'label', 'invisible', 'ungrouped',
++    'isolate-LR', 'isolate-RL', 'partial-LR', 'partial-RL'] as const)('private compound path order preserves its eligibility boundary: %s', mode => {
++    const padding = { top: 10, right: 10, bottom: 10, left: 10 }
++    const input = measured({ direction: mode === 'eligible-RL' || mode === 'isolate-RL' || mode === 'partial-RL' ? 'RL' : mode === 'vertical-TB' ? 'TB' : mode === 'vertical-BT' ? 'BT' : 'LR', placementOnly: true,
++      nodes: [
++        { id: 'A0', width: 40, height: 24, parent: 0 }, { id: 'A1', width: 40, height: 24, parent: 0 },
++        { id: 'B0', width: 40, height: 24, parent: 1 }, { id: 'B1', width: 40, height: 24, parent: 1 },
++      ],
++      groups: [{ id: 'GA', minWidth: 80, padding }, { id: 'GB', minWidth: 80, padding }],
++      edges: [{ source: 0, target: 3, minSpan: 1 }, { source: 1, target: 2, minSpan: 1 }],
++    })
++    if (mode === 'isolate-LR' || mode === 'isolate-RL') input.edges = [{ source: 1, target: 3, minSpan: 1 }]
++    if (mode === 'partial-LR' || mode === 'partial-RL') {
++      input.nodes = [...input.nodes, { id: 'C0', width: 40, height: 24, parent: 2 }]
++      input.groups = [...input.groups!, { id: 'GC', minWidth: 80, padding }]
++      input.edges = [...input.edges, { source: 3, target: 4, minSpan: 1 }]
++    }
++    if (mode === 'node-order0') input.nodes[0]!.modelOrder = 0
++    if (mode === 'group-order0') input.groups![0]!.modelOrder = 0
++    if (mode === 'node-partition0') input.nodes[0]!.partition = 0
++    if (mode === 'group-partition0') input.groups![0]!.partition = 0
++    if (mode === 'branch') input.edges = [{ source: 0, target: 2, minSpan: 1 }, { source: 0, target: 3, minSpan: 1 }]
++    if (mode === 'cycle') input.edges = [...input.edges, { source: 2, target: 1, minSpan: 1 }]
++    if (mode === 'same-path-return') input.edges = [{ source: 0, target: 3, minSpan: 1 }, { source: 3, target: 1, minSpan: 1 }, { source: 1, target: 2, minSpan: 1 }]
++    if (mode === 'mixed') input.groups![1]!.direction = 'TB'
++    if (mode === 'nested') input.groups![1]!.parent = 0
++    if (mode === 'frame-endpoint') input.edges[0]!.source = 4
++    if (mode === 'local-edge') input.edges[0]!.target = 1
++    if (mode === 'label') input.edges[0]!.label = { width: 10, height: 10 }
++    if (mode === 'invisible') input.edges[0]!.visible = false
++    if (mode === 'ungrouped') delete input.nodes[0]!.parent
++    const before = structuredClone(input)
++    for (const node of input.nodes) Object.freeze(node)
++    for (const edge of input.edges) Object.freeze(edge)
++    for (const group of input.groups!) { Object.freeze(group.padding); Object.freeze(group) }
++    Object.freeze(input.nodes); Object.freeze(input.edges); Object.freeze(input.groups); Object.freeze(input)
++    const work = { pairs: mode === 'low-pairs' ? 36 : mode === 'full-budget' ? 37 : 1_000_000,
++      arcs: mode === 'low-slots' ? 12 : mode === 'full-budget' ? 13 : 1_000_000, swaps: 1_000_000 }
++    const scopes: string[][] = []
++    const fail = (reason: string): never => { throw new GraphLayoutUnsupportedError(reason) }
++    layoutCompoundGraph(input, flat => { scopes.push(flat.nodes.map(node => node.id)); return layoutLayeredGraph(flat, graph => layoutMeasuredForest(graph, 'scope'), fail) },
++      fail, 10000, work, () => mode === 'cycle' || mode === 'same-path-return' ? undefined : 'acyclic-quotient')
++    const reordered = mode === 'eligible-LR' || mode === 'eligible-RL' || mode === 'full-budget'
++    expect(scopes.find(nodes => nodes.includes('B0'))).toEqual(reordered ? ['B1', 'B0'] : ['B0', 'B1'])
++    expect(input).toEqual(before)
++  })
++
++  test.each((['LR', 'RL'] as const).flatMap(direction => (['acyclic', 'budget-decline', 'span-decline'] as const).map(mode => ({ direction, mode }))))('compound ordering requires the actual paid acyclic quotient result: %j', ({ direction, mode }) => {
++    const padding = { top: 10, right: 10, bottom: 10, left: 10 }
++    const input = measured({ direction, placementOnly: true,
++      nodes: [{ id: 'A0', width: 40, height: 24, parent: 0 }, { id: 'A1', width: 40, height: 24, parent: 0 },
++        { id: 'B0', width: 40, height: 24, parent: 1 }, { id: 'B1', width: 40, height: 24, parent: 1 }],
++      groups: [{ id: 'GA', minWidth: 80, padding }, { id: 'GB', minWidth: 80, padding }],
++      edges: [{ source: 0, target: 3, minSpan: mode === 'span-decline' ? 683 : 1 }, { source: mode === 'acyclic' ? 1 : 2, target: mode === 'acyclic' ? 2 : 1, minSpan: 1 }],
++    })
++    // These limits fit the child-order plan, but not the global producer's
++    // quotient admission. Opposite paths must keep the original sibling order.
++    const work = { pairs: mode === 'budget-decline' ? 56 : 1_000_000, arcs: mode === 'budget-decline' ? 18 : 1_000_000, swaps: 1_000_000 }
++    const scopes: string[][] = []
++    const fail = (reason: string): never => { throw new GraphLayoutUnsupportedError(reason) }
++    // This owner observes scope inputs, not rank expansion. A fixed placement
++    // adapter avoids materializing hundreds of irrelevant span dummy nodes.
++    const place = (flat: MeasuredGraph): AgenticLayout => {
++      scopes.push(flat.nodes.map(node => node.id))
++      const nodes = flat.nodes.map((_, index) => ({ x: index * 100, y: 0 }))
++      return { topology: 'layered', width: 100 * nodes.length, height: 100, nodes,
++        edges: flat.edges.map(edge => ({ points: [{ ...nodes[edge.source]! }, { ...nodes[edge.target]! }] })) }
++    }
++    let outcome: string | undefined
++    layoutCompoundGraph(input, place, fail, 10000, work, (owners, children, lifted) => {
++      const result = placeNativeNesting(input, owners, children, lifted, place, work, 10000, fail)
++      outcome = typeof result === 'string' ? result : result ? 'placed' : 'declined'
++      return result
++    })
++    expect(outcome).toBe(mode === 'acyclic' ? 'acyclic-quotient' : 'declined')
++    expect(scopes.find(nodes => nodes.includes('B0'))).toEqual(mode === 'acyclic' ? ['B1', 'B0'] : ['B0', 'B1'])
++  })
++
+   test.each(['TB', 'BT', 'LR', 'RL'] as const)('global leaf ranks do not inherit a lifted group cycle in %s', direction => {
+     const input = measured({ direction,
+       nodes: [{ id: 'a', width: 60, height: 36, parent: 0 }, { id: 'b', width: 60, height: 36, parent: 0 }, { id: 'c', width: 60, height: 36 }],
+diff --git a/src/layout/agentic-compound-core.ts b/src/layout/agentic-compound-core.ts
+index c01db8df..dd1b3122 100644
+--- a/src/layout/agentic-compound-core.ts
++++ b/src/layout/agentic-compound-core.ts
+@@ -3,6 +3,37 @@ import { planAncestorBoundaryConnections, projectAncestorBoundaryPlaceholder } f
+ import type { ChannelWork } from './channel-tracks.ts'
+ import type { AgenticLayout, MeasuredGraph } from './agentic-layered-core.ts'
+ import { placeMeasuredScopes } from './measured-scopes.ts'
++import type { NativeNestingResult } from './native-nesting.ts'
++
++/** Cross-scope paths share authored root order before disconnected child
++ * forests choose their coordinates. Eligibility is complete before refill. */
++function orderPrivateLeafPaths(input: MeasuredGraph, owners: Int32Array, children: number[][], work: ChannelWork): void {
++  const count = input.nodes.length, groups = input.groups!.length, edges = input.edges.length
++  // Every component visits at most one leaf per group in the quotient DAG.
++  // N = G * (N - E) admits complete bundles, preserving partial-path rows.
++  if (count !== groups * (count - edges)) return
++  // The already-paid quotient DAG rules out leaf cycles and scope revisits.
++  // Reserve all storage and traversal work before the first private write.
++  const slots = 2 * count + groups + 3, operations = 6 * count + groups + 4 * edges + 3
++  if (work.arcs < slots || work.pairs < operations) return
++  work.arcs -= 2 * count + 2
++  work.pairs -= 2 * count + 4 * edges + 2
++  const incoming = new Int32Array(count).fill(-1), outgoing = new Int32Array(count).fill(-1)
++  for (const edge of input.edges) {
++    if (outgoing[edge.source] !== -1 || incoming[edge.target] !== -1) return
++    outgoing[edge.source] = edge.target; incoming[edge.target] = edge.source
++  }
++  work.arcs -= groups + 1
++  work.pairs -= 4 * count + groups + 1
++  const cursors = new Int32Array(groups)
++  for (let root = 0; root < count; root++) if (incoming[root] === -1) {
++    for (let node = root; node !== -1; node = outgoing[node]!) {
++      const owner = owners[node]!
++      children[owner + 1]![cursors[owner]!] = node
++      cursors[owner] = cursors[owner]! + 1
++    }
++  }
++}
+ 
+ /** Place scopes bottom-up, then join leaves and frames through bounded boundary
+  * corridors. Explicit ancestor contacts reserve their own interior corridors. */
+@@ -12,10 +43,11 @@ export function layoutCompoundGraph(
+   unsupported: (reason: string) => never,
+   expansionLimit: number,
+   routingWork: ChannelWork,
+-  global?: (owners: Int32Array, children: number[][], lifted: ReadonlyMap<number, { source: number; target: number; host: number }>) => AgenticLayout | undefined,
++  global?: (owners: Int32Array, children: number[][], lifted: ReadonlyMap<number, { source: number; target: number; host: number }>) => NativeNestingResult,
+ ): AgenticLayout {
+   let groups = input.groups!
+   const leafCount = input.nodes.length
++  let pathOrder = (input.direction === 'LR' || input.direction === 'RL') && groups.length > 1 && leafCount > 0 && input.edges.length > 0
+   const count = leafCount + groups.length
+   const owners = new Int32Array(count).fill(-1)
+   const children: number[][] = Array.from({ length: groups.length + 1 }, () => [])
+@@ -31,6 +63,7 @@ export function layoutCompoundGraph(
+     if (subject.partition !== undefined && (!Number.isSafeInteger(subject.partition) || subject.partition < 0 || subject.partition > 10000)) throw new TypeError('Invalid measured partition')
+     const parent = subject.parent ?? -1
+     if (!Number.isInteger(parent) || parent < -1 || parent >= groups.length || (parent >= 0 && index === leafCount + parent)) throw new TypeError('Invalid measured compound parent')
++    if (pathOrder && (subject.modelOrder !== undefined || subject.partition !== undefined || (index < leafCount ? parent < 0 : parent !== -1))) pathOrder = false
+     if (index < leafCount) {
+       const node = input.nodes[index]!
+       if (![node.width, node.height].every(value => Number.isFinite(value) && value > 0)) throw new TypeError('Invalid measured compound leaf dimensions')
+@@ -48,12 +81,14 @@ export function layoutCompoundGraph(
+     }
+     const group = groups[index]!
+     if (group.direction !== undefined && !['TD', 'TB', 'BT', 'LR', 'RL'].includes(group.direction)) throw new TypeError('Invalid measured compound direction')
++    if (pathOrder && group.direction !== undefined && group.direction !== input.direction) pathOrder = false
+     if (![group.minWidth, ...Object.values(group.padding)].every(value => Number.isFinite(value) && value >= 0)) throw new TypeError('Invalid measured compound dimensions')
+     if (group.headerHeight !== undefined && (!Number.isFinite(group.headerHeight) || group.headerHeight < 0 || group.headerHeight > group.padding.top)) throw new TypeError('Invalid measured compound header')
+   }
+   for (let index = 0; index < input.edges.length; index++) {
+     const edge = input.edges[index]!
+     if (!Number.isInteger(edge.source) || !Number.isInteger(edge.target) || edge.source < 0 || edge.target < 0 || edge.source >= count || edge.target >= count) throw new TypeError('Invalid measured compound endpoint')
++    if (pathOrder && (edge.source >= leafCount || edge.target >= leafCount || edge.source === edge.target || edge.label !== undefined || edge.visible === false || owners[edge.source] === owners[edge.target])) pathOrder = false
+     if (!Number.isSafeInteger(edge.minSpan) || edge.minSpan < 1 || (edge.label && ![edge.label.width, edge.label.height].every(value => Number.isFinite(value) && value >= 0))) throw new TypeError('Invalid measured compound edge dimensions')
+     if (edge.short !== undefined && edge.short !== true) throw new TypeError('Invalid measured short-edge preference')
+     if (edge.boundaryMarker !== undefined && (![edge.boundaryMarker.inset, edge.boundaryMarker.height].every(value => Number.isFinite(value) && value >= 0))) throw new TypeError('Invalid measured ancestor marker dimensions')
+@@ -73,8 +108,9 @@ export function layoutCompoundGraph(
+     }
+     hosted[owner + 1]!.push(index)
+   }
+-  const globallyPlaced = global?.(owners, children, lifted)
+-  if (globallyPlaced) return globallyPlaced
++  const globalResult = global?.(owners, children, lifted)
++  if (globalResult && globalResult !== 'acyclic-quotient') return globalResult
++  if (pathOrder && globalResult === 'acyclic-quotient') orderPrivateLeafPaths(input, owners, children, routingWork)
+   const ancestorPlan = ancestorEdges ? planAncestorBoundaryConnections(input, owners, routingWork, unsupported) : undefined
+   if (ancestorPlan) {
+     if (ancestorEdges!.some(index => !ancestorPlan.connections.has(index))) throw new TypeError('Ancestor planner lost an authored endpoint occurrence')
+diff --git a/src/layout/native-nesting.ts b/src/layout/native-nesting.ts
+index a5f2c45c..7a93356e 100644
+--- a/src/layout/native-nesting.ts
++++ b/src/layout/native-nesting.ts
+@@ -15,12 +15,14 @@ interface Nesting {
+ const pending = new WeakMap<MeasuredGraph, Nesting>()
+ export const nativeNestingOf = (input: MeasuredGraph) => pending.get(input)
+ 
++export type NativeNestingResult = AgenticLayout | 'acyclic-quotient' | undefined
++
+ export function placeNativeNesting(
+   input: MeasuredGraph, owners: Int32Array, children: readonly number[][],
+   lifted: ReadonlyMap<number, { source: number; target: number; host: number }>,
+   layout: (flat: MeasuredGraph) => AgenticLayout, work: ChannelWork, limit: number,
+   fail: (reason: string) => never,
+-): AgenticLayout | undefined {
++): NativeNestingResult {
+   const groups = input.groups!, n = input.nodes.length, g = groups.length
+   const direction = input.direction === 'TD' ? 'TB' : input.direction
+   // These existing contracts retain the recursive implementation. No edge or
+@@ -57,7 +59,7 @@ export function placeNativeNesting(
+     degree[target] = degree[target]! - 1
+     if (!degree[target]) queue[queued++] = target
+   }
+-  if (queued === subjects) return undefined
++  if (queued === subjects) return 'acyclic-quotient'
+   reserve(24 * (size + input.edges.length), 2 * size + 4 * g + input.edges.length)
+   // This strategy admits acyclic leaf constraints. Do not run feedback-order
+   // searches only to discard every cyclic result into recursive compatibility.

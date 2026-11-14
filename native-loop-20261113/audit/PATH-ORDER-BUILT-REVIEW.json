@@ -1,0 +1,1402 @@
+{
+  "base": "c037a727de23228c2dccfc6f8bc12dcb77ba94ca",
+  "sourcePatchSha256": "c3bc059b3ee17fe8d397ed89f29fc0d97d8ad11a8f3ee4d008f45a5f5e8cd64d",
+  "nodeEntrySha256": "735d7a0dd72efadccc760e90dd20a484b1233778926613811de100108814c552",
+  "products": 32,
+  "returned": 32,
+  "wholeProductExact": 26,
+  "freshCandidateObservations": 6,
+  "freshBaselineScreenshotObservation": 1,
+  "markerHits": 0,
+  "markerUnknown": 0,
+  "markerPairs": 7379,
+  "images": {
+    "before": {
+      "path": "/workspace/pr449-native-loop-20261113/audit/path-order-built-observed/before/LR-permutation-agentic.svg-element.png",
+      "sha256": "591ba8a5ab43b9999a4e1f28d55a3a8ce14151bf1101ffb4f95ddf9af224db42"
+    },
+    "LR": {
+      "path": "/workspace/pr449-native-loop-20261113/audit/path-order-built-observed/LR/LR-permutation-agentic.svg-element.png",
+      "sha256": "e1ab2a89c67683d4c2007442a1f328950a45bc7958217bdc9bdaf0bf5c4533ab"
+    }
+  },
+  "scope": "Actual pinned Node24.19 products. Six changed candidate SVGs freshly observed with existing Trident/Chromium; 26 prior observations reused only after exact source/options/SVG/receipt binding. Independent final-served marker/foreign-shaft support scan rerun on all32. No internal source geometry or performance claim. Exact node-boundary contacts remain unmeasured; broad claims about arbitrary geometry, CSS, transforms or glyph collisions are excluded.",
+  "rows": [
+    {
+      "id": "audit:compound-permutation:TB",
+      "kind": "default",
+      "backend": "agentic",
+      "stem": "TB-permutation-agentic",
+      "actualProduct": "/workspace/pr449-native-loop-20261113/audit/path-order-built-products/default/TB-permutation-agentic.product.json",
+      "wholeProductExact": true,
+      "svgSha256": "22d2035f83293673be9458081198e727de9b0910844c7d4335632b4203213dde",
+      "observation": "/workspace/pr449-native-loop-20261113/audit/compound-permutation/main-combined-controls/RESULTS.json",
+      "observationReusedByExactBinding": true,
+      "sourceOptionsSvgReceiptBinding": true,
+      "meaning": "passed",
+      "paint": "passed",
+      "direction": "passed",
+      "proof": "passed",
+      "markerForeignShaft": "clear-complete-supports",
+      "markerPairs": 486,
+      "before": {
+        "wire": 5367.462499999999,
+        "bends": 44,
+        "crossings": 29,
+        "parallelOverlaps": 0,
+        "opposingOverlaps": 0,
+        "area": 261286.025
+      },
+      "after": {
+        "wire": 5367.462499999999,
+        "bends": 44,
+        "crossings": 29,
+        "parallelOverlaps": 0,
+        "opposingOverlaps": 0,
+        "area": 261286.025
+      },
+      "custody": {
+        "identitiesExact": true,
+        "framesExact": true,
+        "edgesExact": true
+      },
+      "contacts": {
+        "status": "unavailable",
+        "reason": "No enrolled exact SVG node-boundary contact observer"
+      }
+    },
+    {
+      "id": "audit:compound-permutation:TB",
+      "kind": "default",
+      "backend": "elk",
+      "stem": "TB-permutation-elk",
+      "actualProduct": "/workspace/pr449-native-loop-20261113/audit/path-order-built-products/default/TB-permutation-elk.product.json",
+      "wholeProductExact": true,
+      "svgSha256": "9fa761ac20f9ed6c89aa5bc202299c9776abdfa0a0d4bf54d44f6308b73a04fa",
+      "observation": "/workspace/pr449-native-loop-20261113/audit/compound-permutation/main-combined-controls/RESULTS.json",
+      "observationReusedByExactBinding": true,
+      "sourceOptionsSvgReceiptBinding": true,
+      "meaning": "passed",
+      "paint": "passed",
+      "direction": "passed",
+      "proof": "passed",
+      "markerForeignShaft": "clear-complete-supports",
+      "markerPairs": 342,
+      "before": {
+        "wire": 7502.999999999999,
+        "bends": 28,
+        "crossings": 23,
+        "parallelOverlaps": 0,
+        "opposingOverlaps": 0,
+        "area": 1160773.2000000002
+      },
+      "after": {
+        "wire": 7502.999999999999,
+        "bends": 28,
+        "crossings": 23,
+        "parallelOverlaps": 0,
+        "opposingOverlaps": 0,
+        "area": 1160773.2000000002
+      },
+      "custody": {
+        "identitiesExact": true,
+        "framesExact": true,
+        "edgesExact": true
+      },
+      "contacts": {
+        "status": "unavailable",
+        "reason": "No enrolled exact SVG node-boundary contact observer"
+      }
+    },
+    {
+      "id": "audit:compound-identity:TB",
+      "kind": "default",
+      "backend": "agentic",
+      "stem": "TB-identity-agentic",
+      "actualProduct": "/workspace/pr449-native-loop-20261113/audit/path-order-built-products/default/TB-identity-agentic.product.json",
+      "wholeProductExact": true,
+      "svgSha256": "b02886b9c6eb767adebf5bc0f329fddb2171d7b8343954323e6665c3b18842bb",
+      "observation": "/workspace/pr449-native-loop-20261113/audit/compound-permutation/main-combined-controls/RESULTS.json",
+      "observationReusedByExactBinding": true,
+      "sourceOptionsSvgReceiptBinding": true,
+      "meaning": "passed",
+      "paint": "passed",
+      "direction": "passed",
+      "proof": "passed",
+      "markerForeignShaft": "clear-complete-supports",
+      "markerPairs": 486,
+      "before": {
+        "wire": 5840.206249999998,
+        "bends": 44,
+        "crossings": 28,
+        "parallelOverlaps": 0,
+        "opposingOverlaps": 0,
+        "area": 261286.025
+      },
+      "after": {
+        "wire": 5840.206249999998,
+        "bends": 44,
+        "crossings": 28,
+        "parallelOverlaps": 0,
+        "opposingOverlaps": 0,
+        "area": 261286.025
+      },
+      "custody": {
+        "identitiesExact": true,
+        "framesExact": true,
+        "edgesExact": true
+      },
+      "contacts": {
+        "status": "unavailable",
+        "reason": "No enrolled exact SVG node-boundary contact observer"
+      }
+    },
+    {
+      "id": "audit:compound-identity:TB",
+      "kind": "default",
+      "backend": "elk",
+      "stem": "TB-identity-elk",
+      "actualProduct": "/workspace/pr449-native-loop-20261113/audit/path-order-built-products/default/TB-identity-elk.product.json",
+      "wholeProductExact": true,
+      "svgSha256": "47e887ad587744219f0ccef62f3e2d630e20c629056f8ce4a9f8c239e2633f20",
+      "observation": "/workspace/pr449-native-loop-20261113/audit/compound-permutation/main-combined-controls/RESULTS.json",
+      "observationReusedByExactBinding": true,
+      "sourceOptionsSvgReceiptBinding": true,
+      "meaning": "passed",
+      "paint": "passed",
+      "direction": "passed",
+      "proof": "passed",
+      "markerForeignShaft": "clear-complete-supports",
+      "markerPairs": 342,
+      "before": {
+        "wire": 7503.000000000001,
+        "bends": 28,
+        "crossings": 30,
+        "parallelOverlaps": 0,
+        "opposingOverlaps": 0,
+        "area": 1160773.2000000002
+      },
+      "after": {
+        "wire": 7503.000000000001,
+        "bends": 28,
+        "crossings": 30,
+        "parallelOverlaps": 0,
+        "opposingOverlaps": 0,
+        "area": 1160773.2000000002
+      },
+      "custody": {
+        "identitiesExact": true,
+        "framesExact": true,
+        "edgesExact": true
+      },
+      "contacts": {
+        "status": "unavailable",
+        "reason": "No enrolled exact SVG node-boundary contact observer"
+      }
+    },
+    {
+      "id": "audit:compound-two-groups:TB",
+      "kind": "default",
+      "backend": "agentic",
+      "stem": "TB-two-groups-agentic",
+      "actualProduct": "/workspace/pr449-native-loop-20261113/audit/path-order-built-products/default/TB-two-groups-agentic.product.json",
+      "wholeProductExact": true,
+      "svgSha256": "87682ba997e21499fc2fc2b480beea84fd9107fb6d08f94020e39fd701b59149",
+      "observation": "/workspace/pr449-native-loop-20261113/audit/compound-permutation/main-combined-controls/RESULTS.json",
+      "observationReusedByExactBinding": true,
+      "sourceOptionsSvgReceiptBinding": true,
+      "meaning": "passed",
+      "paint": "passed",
+      "direction": "passed",
+      "proof": "passed",
+      "markerForeignShaft": "clear-complete-supports",
+      "markerPairs": 104,
+      "before": {
+        "wire": 3368.76875,
+        "bends": 21,
+        "crossings": 11,
+        "parallelOverlaps": 0,
+        "opposingOverlaps": 0,
+        "area": 185709.62812500002
+      },
+      "after": {
+        "wire": 3368.76875,
+        "bends": 21,
+        "crossings": 11,
+        "parallelOverlaps": 0,
+        "opposingOverlaps": 0,
+        "area": 185709.62812500002
+      },
+      "custody": {
+        "identitiesExact": true,
+        "framesExact": true,
+        "edgesExact": true
+      },
+      "contacts": {
+        "status": "unavailable",
+        "reason": "No enrolled exact SVG node-boundary contact observer"
+      }
+    },
+    {
+      "id": "audit:compound-two-groups:TB",
+      "kind": "default",
+      "backend": "elk",
+      "stem": "TB-two-groups-elk",
+      "actualProduct": "/workspace/pr449-native-loop-20261113/audit/path-order-built-products/default/TB-two-groups-elk.product.json",
+      "wholeProductExact": true,
+      "svgSha256": "278d1235f7d7dfde77b620949ff096f30e0c719699c100088a236623ba8c2e5f",
+      "observation": "/workspace/pr449-native-loop-20261113/audit/compound-permutation/main-combined-controls/RESULTS.json",
+      "observationReusedByExactBinding": true,
+      "sourceOptionsSvgReceiptBinding": true,
+      "meaning": "passed",
+      "paint": "passed",
+      "direction": "passed",
+      "proof": "passed",
+      "markerForeignShaft": "clear-complete-supports",
+      "markerPairs": 76,
+      "before": {
+        "wire": 2881,
+        "bends": 14,
+        "crossings": 10,
+        "parallelOverlaps": 0,
+        "opposingOverlaps": 0,
+        "area": 410488
+      },
+      "after": {
+        "wire": 2881,
+        "bends": 14,
+        "crossings": 10,
+        "parallelOverlaps": 0,
+        "opposingOverlaps": 0,
+        "area": 410488
+      },
+      "custody": {
+        "identitiesExact": true,
+        "framesExact": true,
+        "edgesExact": true
+      },
+      "contacts": {
+        "status": "unavailable",
+        "reason": "No enrolled exact SVG node-boundary contact observer"
+      }
+    },
+    {
+      "id": "audit:compound-permutation:LR",
+      "kind": "default",
+      "backend": "agentic",
+      "stem": "LR-permutation-agentic",
+      "actualProduct": "/workspace/pr449-native-loop-20261113/audit/path-order-built-products/default/LR-permutation-agentic.product.json",
+      "wholeProductExact": false,
+      "svgSha256": "be9ccae379889f8f2fd27fcb63e01a77ae1c09045fdb2d6829737a1e0745e3c8",
+      "observation": "/workspace/pr449-native-loop-20261113/audit/path-order-built-observed/LR/RESULTS.json",
+      "observationReusedByExactBinding": false,
+      "sourceOptionsSvgReceiptBinding": true,
+      "meaning": "passed",
+      "paint": "passed",
+      "direction": "passed",
+      "proof": "passed",
+      "markerForeignShaft": "clear-complete-supports",
+      "markerPairs": 90,
+      "before": {
+        "wire": 4848.0374999999985,
+        "bends": 39,
+        "crossings": 25,
+        "parallelOverlaps": 0,
+        "opposingOverlaps": 0,
+        "area": 205076.265625
+      },
+      "after": {
+        "wire": 560,
+        "bends": 0,
+        "crossings": 0,
+        "parallelOverlaps": 0,
+        "opposingOverlaps": 0,
+        "area": 176346
+      },
+      "custody": {
+        "identitiesExact": true,
+        "framesExact": true,
+        "edgesExact": true
+      },
+      "contacts": {
+        "status": "unavailable",
+        "reason": "No enrolled exact SVG node-boundary contact observer"
+      }
+    },
+    {
+      "id": "audit:compound-permutation:LR",
+      "kind": "default",
+      "backend": "elk",
+      "stem": "LR-permutation-elk",
+      "actualProduct": "/workspace/pr449-native-loop-20261113/audit/path-order-built-products/default/LR-permutation-elk.product.json",
+      "wholeProductExact": true,
+      "svgSha256": "816c40e753db12fbf45b4997357de1f8247b0b95b075852aaac5cc8f3ef37c02",
+      "observation": "/workspace/pr449-native-loop-20261113/audit/compound-permutation/main-combined-controls/RESULTS.json",
+      "observationReusedByExactBinding": true,
+      "sourceOptionsSvgReceiptBinding": true,
+      "meaning": "passed",
+      "paint": "passed",
+      "direction": "passed",
+      "proof": "passed",
+      "markerForeignShaft": "clear-complete-supports",
+      "markerPairs": 270,
+      "before": {
+        "wire": 2280.6,
+        "bends": 20,
+        "crossings": 11,
+        "parallelOverlaps": 0,
+        "opposingOverlaps": 0,
+        "area": 235178.425
+      },
+      "after": {
+        "wire": 2280.6,
+        "bends": 20,
+        "crossings": 11,
+        "parallelOverlaps": 0,
+        "opposingOverlaps": 0,
+        "area": 235178.425
+      },
+      "custody": {
+        "identitiesExact": true,
+        "framesExact": true,
+        "edgesExact": true
+      },
+      "contacts": {
+        "status": "unavailable",
+        "reason": "No enrolled exact SVG node-boundary contact observer"
+      }
+    },
+    {
+      "id": "audit:compound-identity:LR",
+      "kind": "default",
+      "backend": "agentic",
+      "stem": "LR-identity-agentic",
+      "actualProduct": "/workspace/pr449-native-loop-20261113/audit/path-order-built-products/default/LR-identity-agentic.product.json",
+      "wholeProductExact": true,
+      "svgSha256": "2f6b2f5b449e71c41d9656c50dedcafde747b7054b5c94ac20511286933fb69c",
+      "observation": "/workspace/pr449-native-loop-20261113/audit/compound-permutation/main-combined-controls/RESULTS.json",
+      "observationReusedByExactBinding": true,
+      "sourceOptionsSvgReceiptBinding": true,
+      "meaning": "passed",
+      "paint": "passed",
+      "direction": "passed",
+      "proof": "passed",
+      "markerForeignShaft": "clear-complete-supports",
+      "markerPairs": 90,
+      "before": {
+        "wire": 560,
+        "bends": 0,
+        "crossings": 0,
+        "parallelOverlaps": 0,
+        "opposingOverlaps": 0,
+        "area": 176346
+      },
+      "after": {
+        "wire": 560,
+        "bends": 0,
+        "crossings": 0,
+        "parallelOverlaps": 0,
+        "opposingOverlaps": 0,
+        "area": 176346
+      },
+      "custody": {
+        "identitiesExact": true,
+        "framesExact": true,
+        "edgesExact": true
+      },
+      "contacts": {
+        "status": "unavailable",
+        "reason": "No enrolled exact SVG node-boundary contact observer"
+      }
+    },
+    {
+      "id": "audit:compound-identity:LR",
+      "kind": "default",
+      "backend": "elk",
+      "stem": "LR-identity-elk",
+      "actualProduct": "/workspace/pr449-native-loop-20261113/audit/path-order-built-products/default/LR-identity-elk.product.json",
+      "wholeProductExact": true,
+      "svgSha256": "a35594af7ce6ef783b705a9e9f8e3de0131624f758a467f465aff9326c9a3a7c",
+      "observation": "/workspace/pr449-native-loop-20261113/audit/compound-permutation/main-combined-controls/RESULTS.json",
+      "observationReusedByExactBinding": true,
+      "sourceOptionsSvgReceiptBinding": true,
+      "meaning": "passed",
+      "paint": "passed",
+      "direction": "passed",
+      "proof": "passed",
+      "markerForeignShaft": "clear-complete-supports",
+      "markerPairs": 90,
+      "before": {
+        "wire": 920,
+        "bends": 0,
+        "crossings": 0,
+        "parallelOverlaps": 0,
+        "opposingOverlaps": 0,
+        "area": 207774
+      },
+      "after": {
+        "wire": 920,
+        "bends": 0,
+        "crossings": 0,
+        "parallelOverlaps": 0,
+        "opposingOverlaps": 0,
+        "area": 207774
+      },
+      "custody": {
+        "identitiesExact": true,
+        "framesExact": true,
+        "edgesExact": true
+      },
+      "contacts": {
+        "status": "unavailable",
+        "reason": "No enrolled exact SVG node-boundary contact observer"
+      }
+    },
+    {
+      "id": "audit:compound-two-groups:LR",
+      "kind": "default",
+      "backend": "agentic",
+      "stem": "LR-two-groups-agentic",
+      "actualProduct": "/workspace/pr449-native-loop-20261113/audit/path-order-built-products/default/LR-two-groups-agentic.product.json",
+      "wholeProductExact": false,
+      "svgSha256": "45fa06b767ceeda6951256377364c33129305bdae4b3ac4d6e124303d5875283",
+      "observation": "/workspace/pr449-native-loop-20261113/audit/path-order-built-observed/default/RESULTS.json",
+      "observationReusedByExactBinding": false,
+      "sourceOptionsSvgReceiptBinding": true,
+      "meaning": "passed",
+      "paint": "passed",
+      "direction": "passed",
+      "proof": "passed",
+      "markerForeignShaft": "clear-complete-supports",
+      "markerPairs": 20,
+      "before": {
+        "wire": 2580.275,
+        "bends": 19,
+        "crossings": 10,
+        "parallelOverlaps": 0,
+        "opposingOverlaps": 0,
+        "area": 144913.59375
+      },
+      "after": {
+        "wire": 280,
+        "bends": 0,
+        "crossings": 0,
+        "parallelOverlaps": 0,
+        "opposingOverlaps": 0,
+        "area": 125712
+      },
+      "custody": {
+        "identitiesExact": true,
+        "framesExact": true,
+        "edgesExact": true
+      },
+      "contacts": {
+        "status": "unavailable",
+        "reason": "No enrolled exact SVG node-boundary contact observer"
+      }
+    },
+    {
+      "id": "audit:compound-two-groups:LR",
+      "kind": "default",
+      "backend": "elk",
+      "stem": "LR-two-groups-elk",
+      "actualProduct": "/workspace/pr449-native-loop-20261113/audit/path-order-built-products/default/LR-two-groups-elk.product.json",
+      "wholeProductExact": true,
+      "svgSha256": "a67aee2020a27ed471327c3867c9e8027e7168586d562e4f3de78817784519fb",
+      "observation": "/workspace/pr449-native-loop-20261113/audit/compound-permutation/main-combined-controls/RESULTS.json",
+      "observationReusedByExactBinding": true,
+      "sourceOptionsSvgReceiptBinding": true,
+      "meaning": "passed",
+      "paint": "passed",
+      "direction": "passed",
+      "proof": "passed",
+      "markerForeignShaft": "clear-complete-supports",
+      "markerPairs": 92,
+      "before": {
+        "wire": 2273.25,
+        "bends": 18,
+        "crossings": 4,
+        "parallelOverlaps": 0,
+        "opposingOverlaps": 0,
+        "area": 205393.1675
+      },
+      "after": {
+        "wire": 2273.25,
+        "bends": 18,
+        "crossings": 4,
+        "parallelOverlaps": 0,
+        "opposingOverlaps": 0,
+        "area": 205393.1675
+      },
+      "custody": {
+        "identitiesExact": true,
+        "framesExact": true,
+        "edgesExact": true
+      },
+      "contacts": {
+        "status": "unavailable",
+        "reason": "No enrolled exact SVG node-boundary contact observer"
+      }
+    },
+    {
+      "id": "audit:compound-permutation:BT",
+      "kind": "default",
+      "backend": "agentic",
+      "stem": "BT-permutation-agentic",
+      "actualProduct": "/workspace/pr449-native-loop-20261113/audit/path-order-built-products/default/BT-permutation-agentic.product.json",
+      "wholeProductExact": true,
+      "svgSha256": "d117846ba8387e34e57b922d6969eff9a89dea73db0a6e61e5d5ecd37e59ff9c",
+      "observation": "/workspace/pr449-native-loop-20261113/audit/compound-permutation/main-combined-controls/RESULTS.json",
+      "observationReusedByExactBinding": true,
+      "sourceOptionsSvgReceiptBinding": true,
+      "meaning": "passed",
+      "paint": "passed",
+      "direction": "passed",
+      "proof": "passed",
+      "markerForeignShaft": "clear-complete-supports",
+      "markerPairs": 450,
+      "before": {
+        "wire": 5013.175000000001,
+        "bends": 40,
+        "crossings": 23,
+        "parallelOverlaps": 0,
+        "opposingOverlaps": 0,
+        "area": 260088.4
+      },
+      "after": {
+        "wire": 5013.175000000001,
+        "bends": 40,
+        "crossings": 23,
+        "parallelOverlaps": 0,
+        "opposingOverlaps": 0,
+        "area": 260088.4
+      },
+      "custody": {
+        "identitiesExact": true,
+        "framesExact": true,
+        "edgesExact": true
+      },
+      "contacts": {
+        "status": "unavailable",
+        "reason": "No enrolled exact SVG node-boundary contact observer"
+      }
+    },
+    {
+      "id": "audit:compound-permutation:BT",
+      "kind": "default",
+      "backend": "elk",
+      "stem": "BT-permutation-elk",
+      "actualProduct": "/workspace/pr449-native-loop-20261113/audit/path-order-built-products/default/BT-permutation-elk.product.json",
+      "wholeProductExact": true,
+      "svgSha256": "6948eab0e028fdc80e9256a68051f3cbe28ce9a7c55ea3f152d746a715e6ab97",
+      "observation": "/workspace/pr449-native-loop-20261113/audit/compound-permutation/main-combined-controls/RESULTS.json",
+      "observationReusedByExactBinding": true,
+      "sourceOptionsSvgReceiptBinding": true,
+      "meaning": "passed",
+      "paint": "passed",
+      "direction": "passed",
+      "proof": "passed",
+      "markerForeignShaft": "clear-complete-supports",
+      "markerPairs": 396,
+      "before": {
+        "wire": 7679.75,
+        "bends": 34,
+        "crossings": 7,
+        "parallelOverlaps": 0,
+        "opposingOverlaps": 0,
+        "area": 1099183.05
+      },
+      "after": {
+        "wire": 7679.75,
+        "bends": 34,
+        "crossings": 7,
+        "parallelOverlaps": 0,
+        "opposingOverlaps": 0,
+        "area": 1099183.05
+      },
+      "custody": {
+        "identitiesExact": true,
+        "framesExact": true,
+        "edgesExact": true
+      },
+      "contacts": {
+        "status": "unavailable",
+        "reason": "No enrolled exact SVG node-boundary contact observer"
+      }
+    },
+    {
+      "id": "audit:compound-identity:BT",
+      "kind": "default",
+      "backend": "agentic",
+      "stem": "BT-identity-agentic",
+      "actualProduct": "/workspace/pr449-native-loop-20261113/audit/path-order-built-products/default/BT-identity-agentic.product.json",
+      "wholeProductExact": true,
+      "svgSha256": "4b910f311ffcdfdf280f3037782edad36e15bb15efbdb0e22a87b83c940ad384",
+      "observation": "/workspace/pr449-native-loop-20261113/audit/compound-permutation/main-combined-controls/RESULTS.json",
+      "observationReusedByExactBinding": true,
+      "sourceOptionsSvgReceiptBinding": true,
+      "meaning": "passed",
+      "paint": "passed",
+      "direction": "passed",
+      "proof": "passed",
+      "markerForeignShaft": "clear-complete-supports",
+      "markerPairs": 468,
+      "before": {
+        "wire": 5035.25,
+        "bends": 42,
+        "crossings": 16,
+        "parallelOverlaps": 0,
+        "opposingOverlaps": 0,
+        "area": 253224.4
+      },
+      "after": {
+        "wire": 5035.25,
+        "bends": 42,
+        "crossings": 16,
+        "parallelOverlaps": 0,
+        "opposingOverlaps": 0,
+        "area": 253224.4
+      },
+      "custody": {
+        "identitiesExact": true,
+        "framesExact": true,
+        "edgesExact": true
+      },
+      "contacts": {
+        "status": "unavailable",
+        "reason": "No enrolled exact SVG node-boundary contact observer"
+      }
+    },
+    {
+      "id": "audit:compound-identity:BT",
+      "kind": "default",
+      "backend": "elk",
+      "stem": "BT-identity-elk",
+      "actualProduct": "/workspace/pr449-native-loop-20261113/audit/path-order-built-products/default/BT-identity-elk.product.json",
+      "wholeProductExact": true,
+      "svgSha256": "1d10337a430e9ee7db66bf28b470bb4764670a27c8dee77192ac77f0620c470e",
+      "observation": "/workspace/pr449-native-loop-20261113/audit/compound-permutation/main-combined-controls/RESULTS.json",
+      "observationReusedByExactBinding": true,
+      "sourceOptionsSvgReceiptBinding": true,
+      "meaning": "passed",
+      "paint": "passed",
+      "direction": "passed",
+      "proof": "passed",
+      "markerForeignShaft": "clear-complete-supports",
+      "markerPairs": 342,
+      "before": {
+        "wire": 7503,
+        "bends": 28,
+        "crossings": 0,
+        "parallelOverlaps": 0,
+        "opposingOverlaps": 0,
+        "area": 1160773.2000000002
+      },
+      "after": {
+        "wire": 7503,
+        "bends": 28,
+        "crossings": 0,
+        "parallelOverlaps": 0,
+        "opposingOverlaps": 0,
+        "area": 1160773.2000000002
+      },
+      "custody": {
+        "identitiesExact": true,
+        "framesExact": true,
+        "edgesExact": true
+      },
+      "contacts": {
+        "status": "unavailable",
+        "reason": "No enrolled exact SVG node-boundary contact observer"
+      }
+    },
+    {
+      "id": "audit:compound-two-groups:BT",
+      "kind": "default",
+      "backend": "agentic",
+      "stem": "BT-two-groups-agentic",
+      "actualProduct": "/workspace/pr449-native-loop-20261113/audit/path-order-built-products/default/BT-two-groups-agentic.product.json",
+      "wholeProductExact": true,
+      "svgSha256": "5d64bb3cefc43d5805378af80354c8adcdc4387417636001834433b52d9e18ab",
+      "observation": "/workspace/pr449-native-loop-20261113/audit/compound-permutation/main-combined-controls/RESULTS.json",
+      "observationReusedByExactBinding": true,
+      "sourceOptionsSvgReceiptBinding": true,
+      "meaning": "passed",
+      "paint": "passed",
+      "direction": "passed",
+      "proof": "passed",
+      "markerForeignShaft": "clear-complete-supports",
+      "markerPairs": 104,
+      "before": {
+        "wire": 3195.8,
+        "bends": 21,
+        "crossings": 11,
+        "parallelOverlaps": 0,
+        "opposingOverlaps": 0,
+        "area": 174911.2
+      },
+      "after": {
+        "wire": 3195.8,
+        "bends": 21,
+        "crossings": 11,
+        "parallelOverlaps": 0,
+        "opposingOverlaps": 0,
+        "area": 174911.2
+      },
+      "custody": {
+        "identitiesExact": true,
+        "framesExact": true,
+        "edgesExact": true
+      },
+      "contacts": {
+        "status": "unavailable",
+        "reason": "No enrolled exact SVG node-boundary contact observer"
+      }
+    },
+    {
+      "id": "audit:compound-two-groups:BT",
+      "kind": "default",
+      "backend": "elk",
+      "stem": "BT-two-groups-elk",
+      "actualProduct": "/workspace/pr449-native-loop-20261113/audit/path-order-built-products/default/BT-two-groups-elk.product.json",
+      "wholeProductExact": true,
+      "svgSha256": "dd7dad2c33e59364413b014d997c55beb41e59e1e9a6edbd46b2273f56a33bc3",
+      "observation": "/workspace/pr449-native-loop-20261113/audit/compound-permutation/main-combined-controls/RESULTS.json",
+      "observationReusedByExactBinding": true,
+      "sourceOptionsSvgReceiptBinding": true,
+      "meaning": "passed",
+      "paint": "passed",
+      "direction": "passed",
+      "proof": "passed",
+      "markerForeignShaft": "clear-complete-supports",
+      "markerPairs": 76,
+      "before": {
+        "wire": 2880.9999999999995,
+        "bends": 14,
+        "crossings": 0,
+        "parallelOverlaps": 0,
+        "opposingOverlaps": 0,
+        "area": 410488
+      },
+      "after": {
+        "wire": 2880.9999999999995,
+        "bends": 14,
+        "crossings": 0,
+        "parallelOverlaps": 0,
+        "opposingOverlaps": 0,
+        "area": 410488
+      },
+      "custody": {
+        "identitiesExact": true,
+        "framesExact": true,
+        "edgesExact": true
+      },
+      "contacts": {
+        "status": "unavailable",
+        "reason": "No enrolled exact SVG node-boundary contact observer"
+      }
+    },
+    {
+      "id": "audit:compound-permutation:RL",
+      "kind": "default",
+      "backend": "agentic",
+      "stem": "RL-permutation-agentic",
+      "actualProduct": "/workspace/pr449-native-loop-20261113/audit/path-order-built-products/default/RL-permutation-agentic.product.json",
+      "wholeProductExact": false,
+      "svgSha256": "eb0abb8d6894a139abe0a47502ec4f059e26f93926a10594f16fdf4a796597a6",
+      "observation": "/workspace/pr449-native-loop-20261113/audit/path-order-built-observed/default/RESULTS.json",
+      "observationReusedByExactBinding": false,
+      "sourceOptionsSvgReceiptBinding": true,
+      "meaning": "passed",
+      "paint": "passed",
+      "direction": "passed",
+      "proof": "passed",
+      "markerForeignShaft": "clear-complete-supports",
+      "markerPairs": 90,
+      "before": {
+        "wire": 4898.5374999999985,
+        "bends": 39,
+        "crossings": 21,
+        "parallelOverlaps": 0,
+        "opposingOverlaps": 0,
+        "area": 205076.265625
+      },
+      "after": {
+        "wire": 560,
+        "bends": 0,
+        "crossings": 0,
+        "parallelOverlaps": 0,
+        "opposingOverlaps": 0,
+        "area": 176346
+      },
+      "custody": {
+        "identitiesExact": true,
+        "framesExact": true,
+        "edgesExact": true
+      },
+      "contacts": {
+        "status": "unavailable",
+        "reason": "No enrolled exact SVG node-boundary contact observer"
+      }
+    },
+    {
+      "id": "audit:compound-permutation:RL",
+      "kind": "default",
+      "backend": "elk",
+      "stem": "RL-permutation-elk",
+      "actualProduct": "/workspace/pr449-native-loop-20261113/audit/path-order-built-products/default/RL-permutation-elk.product.json",
+      "wholeProductExact": true,
+      "svgSha256": "a655081187062fc99fd8615dbbc2c14f0a09fba83c576be44bccab843ead5958",
+      "observation": "/workspace/pr449-native-loop-20261113/audit/compound-permutation/main-combined-controls/RESULTS.json",
+      "observationReusedByExactBinding": true,
+      "sourceOptionsSvgReceiptBinding": true,
+      "meaning": "passed",
+      "paint": "passed",
+      "direction": "passed",
+      "proof": "passed",
+      "markerForeignShaft": "clear-complete-supports",
+      "markerPairs": 270,
+      "before": {
+        "wire": 2280.6,
+        "bends": 20,
+        "crossings": 11,
+        "parallelOverlaps": 0,
+        "opposingOverlaps": 0,
+        "area": 235178.425
+      },
+      "after": {
+        "wire": 2280.6,
+        "bends": 20,
+        "crossings": 11,
+        "parallelOverlaps": 0,
+        "opposingOverlaps": 0,
+        "area": 235178.425
+      },
+      "custody": {
+        "identitiesExact": true,
+        "framesExact": true,
+        "edgesExact": true
+      },
+      "contacts": {
+        "status": "unavailable",
+        "reason": "No enrolled exact SVG node-boundary contact observer"
+      }
+    },
+    {
+      "id": "audit:compound-identity:RL",
+      "kind": "default",
+      "backend": "agentic",
+      "stem": "RL-identity-agentic",
+      "actualProduct": "/workspace/pr449-native-loop-20261113/audit/path-order-built-products/default/RL-identity-agentic.product.json",
+      "wholeProductExact": true,
+      "svgSha256": "b34851093c4895a4cf721d75077cb8e11c5de1f48353998639448081da0667e8",
+      "observation": "/workspace/pr449-native-loop-20261113/audit/compound-permutation/main-combined-controls/RESULTS.json",
+      "observationReusedByExactBinding": true,
+      "sourceOptionsSvgReceiptBinding": true,
+      "meaning": "passed",
+      "paint": "passed",
+      "direction": "passed",
+      "proof": "passed",
+      "markerForeignShaft": "clear-complete-supports",
+      "markerPairs": 90,
+      "before": {
+        "wire": 560,
+        "bends": 0,
+        "crossings": 0,
+        "parallelOverlaps": 0,
+        "opposingOverlaps": 0,
+        "area": 176346
+      },
+      "after": {
+        "wire": 560,
+        "bends": 0,
+        "crossings": 0,
+        "parallelOverlaps": 0,
+        "opposingOverlaps": 0,
+        "area": 176346
+      },
+      "custody": {
+        "identitiesExact": true,
+        "framesExact": true,
+        "edgesExact": true
+      },
+      "contacts": {
+        "status": "unavailable",
+        "reason": "No enrolled exact SVG node-boundary contact observer"
+      }
+    },
+    {
+      "id": "audit:compound-identity:RL",
+      "kind": "default",
+      "backend": "elk",
+      "stem": "RL-identity-elk",
+      "actualProduct": "/workspace/pr449-native-loop-20261113/audit/path-order-built-products/default/RL-identity-elk.product.json",
+      "wholeProductExact": true,
+      "svgSha256": "f7b207481c5a6ec1d3823f9c8528705fae584eac62642328ca471fe3c1135465",
+      "observation": "/workspace/pr449-native-loop-20261113/audit/compound-permutation/main-combined-controls/RESULTS.json",
+      "observationReusedByExactBinding": true,
+      "sourceOptionsSvgReceiptBinding": true,
+      "meaning": "passed",
+      "paint": "passed",
+      "direction": "passed",
+      "proof": "passed",
+      "markerForeignShaft": "clear-complete-supports",
+      "markerPairs": 90,
+      "before": {
+        "wire": 920,
+        "bends": 0,
+        "crossings": 0,
+        "parallelOverlaps": 0,
+        "opposingOverlaps": 0,
+        "area": 207774
+      },
+      "after": {
+        "wire": 920,
+        "bends": 0,
+        "crossings": 0,
+        "parallelOverlaps": 0,
+        "opposingOverlaps": 0,
+        "area": 207774
+      },
+      "custody": {
+        "identitiesExact": true,
+        "framesExact": true,
+        "edgesExact": true
+      },
+      "contacts": {
+        "status": "unavailable",
+        "reason": "No enrolled exact SVG node-boundary contact observer"
+      }
+    },
+    {
+      "id": "audit:compound-two-groups:RL",
+      "kind": "default",
+      "backend": "agentic",
+      "stem": "RL-two-groups-agentic",
+      "actualProduct": "/workspace/pr449-native-loop-20261113/audit/path-order-built-products/default/RL-two-groups-agentic.product.json",
+      "wholeProductExact": false,
+      "svgSha256": "3411c1df9106ecd970f9bc7bae45b15c8ef22fdb09a8ce772ec46c74356ad726",
+      "observation": "/workspace/pr449-native-loop-20261113/audit/path-order-built-observed/default/RESULTS.json",
+      "observationReusedByExactBinding": false,
+      "sourceOptionsSvgReceiptBinding": true,
+      "meaning": "passed",
+      "paint": "passed",
+      "direction": "passed",
+      "proof": "passed",
+      "markerForeignShaft": "clear-complete-supports",
+      "markerPairs": 20,
+      "before": {
+        "wire": 2604.4,
+        "bends": 19,
+        "crossings": 9,
+        "parallelOverlaps": 0,
+        "opposingOverlaps": 0,
+        "area": 132624
+      },
+      "after": {
+        "wire": 280,
+        "bends": 0,
+        "crossings": 0,
+        "parallelOverlaps": 0,
+        "opposingOverlaps": 0,
+        "area": 125712
+      },
+      "custody": {
+        "identitiesExact": true,
+        "framesExact": true,
+        "edgesExact": true
+      },
+      "contacts": {
+        "status": "unavailable",
+        "reason": "No enrolled exact SVG node-boundary contact observer"
+      }
+    },
+    {
+      "id": "audit:compound-two-groups:RL",
+      "kind": "default",
+      "backend": "elk",
+      "stem": "RL-two-groups-elk",
+      "actualProduct": "/workspace/pr449-native-loop-20261113/audit/path-order-built-products/default/RL-two-groups-elk.product.json",
+      "wholeProductExact": true,
+      "svgSha256": "a3c2706bd3663bf11bf5ed4bff8309a59ef91b2542ed22f4a34a051422a105c2",
+      "observation": "/workspace/pr449-native-loop-20261113/audit/compound-permutation/main-combined-controls/RESULTS.json",
+      "observationReusedByExactBinding": true,
+      "sourceOptionsSvgReceiptBinding": true,
+      "meaning": "passed",
+      "paint": "passed",
+      "direction": "passed",
+      "proof": "passed",
+      "markerForeignShaft": "clear-complete-supports",
+      "markerPairs": 92,
+      "before": {
+        "wire": 2273.25,
+        "bends": 18,
+        "crossings": 4,
+        "parallelOverlaps": 0,
+        "opposingOverlaps": 0,
+        "area": 200782.4475
+      },
+      "after": {
+        "wire": 2273.25,
+        "bends": 18,
+        "crossings": 4,
+        "parallelOverlaps": 0,
+        "opposingOverlaps": 0,
+        "area": 200782.4475
+      },
+      "custody": {
+        "identitiesExact": true,
+        "framesExact": true,
+        "edgesExact": true
+      },
+      "contacts": {
+        "status": "unavailable",
+        "reason": "No enrolled exact SVG node-boundary contact observer"
+      }
+    },
+    {
+      "id": "audit:compound-permutation:TB",
+      "kind": "wide",
+      "backend": "agentic",
+      "stem": "TB-agentic",
+      "actualProduct": "/workspace/pr449-native-loop-20261113/audit/path-order-built-products/wide/TB-agentic.product.json",
+      "wholeProductExact": true,
+      "svgSha256": "64ad91b7c539e743944489253fb22b0f06e30ec53ab1ad2efe8699f1d0249acf",
+      "observation": "/workspace/pr449-native-loop-20261113/audit/compound-permutation/main-combined-wide/RESULTS.json",
+      "observationReusedByExactBinding": true,
+      "sourceOptionsSvgReceiptBinding": true,
+      "meaning": "passed",
+      "paint": "passed",
+      "direction": "passed",
+      "proof": "passed",
+      "markerForeignShaft": "clear-complete-supports",
+      "markerPairs": 495,
+      "before": {
+        "wire": 5144.799999999999,
+        "bends": 45,
+        "crossings": 21,
+        "parallelOverlaps": 0,
+        "opposingOverlaps": 0,
+        "area": 311997.4
+      },
+      "after": {
+        "wire": 5144.799999999999,
+        "bends": 45,
+        "crossings": 21,
+        "parallelOverlaps": 0,
+        "opposingOverlaps": 0,
+        "area": 311997.4
+      },
+      "custody": {
+        "identitiesExact": true,
+        "framesExact": true,
+        "edgesExact": true
+      },
+      "contacts": {
+        "status": "unavailable",
+        "reason": "No enrolled exact SVG node-boundary contact observer"
+      }
+    },
+    {
+      "id": "audit:compound-permutation:TB",
+      "kind": "wide",
+      "backend": "elk",
+      "stem": "TB-elk",
+      "actualProduct": "/workspace/pr449-native-loop-20261113/audit/path-order-built-products/wide/TB-elk.product.json",
+      "wholeProductExact": true,
+      "svgSha256": "32804f10a5308457ec30d93c9e4fca5a18864efc51d11dd7675c49f4217a231a",
+      "observation": "/workspace/pr449-native-loop-20261113/audit/compound-permutation/main-combined-wide/RESULTS.json",
+      "observationReusedByExactBinding": true,
+      "sourceOptionsSvgReceiptBinding": true,
+      "meaning": "passed",
+      "paint": "passed",
+      "direction": "passed",
+      "proof": "passed",
+      "markerForeignShaft": "clear-complete-supports",
+      "markerPairs": 342,
+      "before": {
+        "wire": 7772.999999999999,
+        "bends": 28,
+        "crossings": 23,
+        "parallelOverlaps": 0,
+        "opposingOverlaps": 0,
+        "area": 1205485.2000000002
+      },
+      "after": {
+        "wire": 7772.999999999999,
+        "bends": 28,
+        "crossings": 23,
+        "parallelOverlaps": 0,
+        "opposingOverlaps": 0,
+        "area": 1205485.2000000002
+      },
+      "custody": {
+        "identitiesExact": true,
+        "framesExact": true,
+        "edgesExact": true
+      },
+      "contacts": {
+        "status": "unavailable",
+        "reason": "No enrolled exact SVG node-boundary contact observer"
+      }
+    },
+    {
+      "id": "audit:compound-permutation:LR",
+      "kind": "wide",
+      "backend": "agentic",
+      "stem": "LR-agentic",
+      "actualProduct": "/workspace/pr449-native-loop-20261113/audit/path-order-built-products/wide/LR-agentic.product.json",
+      "wholeProductExact": false,
+      "svgSha256": "69b975ec3089581c05221a1f5d94c6ca503b2c212e2cd6bef61f0d550ce0972f",
+      "observation": "/workspace/pr449-native-loop-20261113/audit/path-order-built-observed/wide/RESULTS.json",
+      "observationReusedByExactBinding": false,
+      "sourceOptionsSvgReceiptBinding": true,
+      "meaning": "passed",
+      "paint": "passed",
+      "direction": "passed",
+      "proof": "passed",
+      "markerForeignShaft": "clear-complete-supports",
+      "markerPairs": 90,
+      "before": {
+        "wire": 4975.625,
+        "bends": 36,
+        "crossings": 19,
+        "parallelOverlaps": 0,
+        "opposingOverlaps": 0,
+        "area": 254473.27606083604
+      },
+      "after": {
+        "wire": 950,
+        "bends": 0,
+        "crossings": 0,
+        "parallelOverlaps": 0,
+        "opposingOverlaps": 0,
+        "area": 210393
+      },
+      "custody": {
+        "identitiesExact": true,
+        "framesExact": true,
+        "edgesExact": true
+      },
+      "contacts": {
+        "status": "unavailable",
+        "reason": "No enrolled exact SVG node-boundary contact observer"
+      }
+    },
+    {
+      "id": "audit:compound-permutation:LR",
+      "kind": "wide",
+      "backend": "elk",
+      "stem": "LR-elk",
+      "actualProduct": "/workspace/pr449-native-loop-20261113/audit/path-order-built-products/wide/LR-elk.product.json",
+      "wholeProductExact": true,
+      "svgSha256": "233479b9d2b5e79049b0ea82f3908ca15f6f8a39600f6dd43b97f1deb59000a0",
+      "observation": "/workspace/pr449-native-loop-20261113/audit/compound-permutation/main-combined-wide/RESULTS.json",
+      "observationReusedByExactBinding": true,
+      "sourceOptionsSvgReceiptBinding": true,
+      "meaning": "passed",
+      "paint": "passed",
+      "direction": "passed",
+      "proof": "passed",
+      "markerForeignShaft": "clear-complete-supports",
+      "markerPairs": 270,
+      "before": {
+        "wire": 2783.1,
+        "bends": 20,
+        "crossings": 11,
+        "parallelOverlaps": 0,
+        "opposingOverlaps": 0,
+        "area": 282307.89999999997
+      },
+      "after": {
+        "wire": 2783.1,
+        "bends": 20,
+        "crossings": 11,
+        "parallelOverlaps": 0,
+        "opposingOverlaps": 0,
+        "area": 282307.89999999997
+      },
+      "custody": {
+        "identitiesExact": true,
+        "framesExact": true,
+        "edgesExact": true
+      },
+      "contacts": {
+        "status": "unavailable",
+        "reason": "No enrolled exact SVG node-boundary contact observer"
+      }
+    },
+    {
+      "id": "audit:compound-permutation:BT",
+      "kind": "wide",
+      "backend": "agentic",
+      "stem": "BT-agentic",
+      "actualProduct": "/workspace/pr449-native-loop-20261113/audit/path-order-built-products/wide/BT-agentic.product.json",
+      "wholeProductExact": true,
+      "svgSha256": "af3aefb7726a1ab8bb8bd3c73e23ca057de7c99d90e5420e0017a7c3dacba8f4",
+      "observation": "/workspace/pr449-native-loop-20261113/audit/compound-permutation/main-combined-wide/RESULTS.json",
+      "observationReusedByExactBinding": true,
+      "sourceOptionsSvgReceiptBinding": true,
+      "meaning": "passed",
+      "paint": "passed",
+      "direction": "passed",
+      "proof": "passed",
+      "markerForeignShaft": "clear-complete-supports",
+      "markerPairs": 450,
+      "before": {
+        "wire": 5335.675000000001,
+        "bends": 40,
+        "crossings": 17,
+        "parallelOverlaps": 0,
+        "opposingOverlaps": 0,
+        "area": 292985.972080308
+      },
+      "after": {
+        "wire": 5335.675000000001,
+        "bends": 40,
+        "crossings": 17,
+        "parallelOverlaps": 0,
+        "opposingOverlaps": 0,
+        "area": 292985.972080308
+      },
+      "custody": {
+        "identitiesExact": true,
+        "framesExact": true,
+        "edgesExact": true
+      },
+      "contacts": {
+        "status": "unavailable",
+        "reason": "No enrolled exact SVG node-boundary contact observer"
+      }
+    },
+    {
+      "id": "audit:compound-permutation:BT",
+      "kind": "wide",
+      "backend": "elk",
+      "stem": "BT-elk",
+      "actualProduct": "/workspace/pr449-native-loop-20261113/audit/path-order-built-products/wide/BT-elk.product.json",
+      "wholeProductExact": true,
+      "svgSha256": "88e820bdce6996b695b7d9ae8e77bee26c328c4da1b78d9befcb92491ec68959",
+      "observation": "/workspace/pr449-native-loop-20261113/audit/compound-permutation/main-combined-wide/RESULTS.json",
+      "observationReusedByExactBinding": true,
+      "sourceOptionsSvgReceiptBinding": true,
+      "meaning": "passed",
+      "paint": "passed",
+      "direction": "passed",
+      "proof": "passed",
+      "markerForeignShaft": "clear-complete-supports",
+      "markerPairs": 396,
+      "before": {
+        "wire": 8066,
+        "bends": 34,
+        "crossings": 7,
+        "parallelOverlaps": 0,
+        "opposingOverlaps": 0,
+        "area": 1159206.3
+      },
+      "after": {
+        "wire": 8066,
+        "bends": 34,
+        "crossings": 7,
+        "parallelOverlaps": 0,
+        "opposingOverlaps": 0,
+        "area": 1159206.3
+      },
+      "custody": {
+        "identitiesExact": true,
+        "framesExact": true,
+        "edgesExact": true
+      },
+      "contacts": {
+        "status": "unavailable",
+        "reason": "No enrolled exact SVG node-boundary contact observer"
+      }
+    },
+    {
+      "id": "audit:compound-permutation:RL",
+      "kind": "wide",
+      "backend": "agentic",
+      "stem": "RL-agentic",
+      "actualProduct": "/workspace/pr449-native-loop-20261113/audit/path-order-built-products/wide/RL-agentic.product.json",
+      "wholeProductExact": false,
+      "svgSha256": "46c1151b53a21c5ee68a456bd35aa20f845052b1a7c2f3e11dfb6e7e100042bb",
+      "observation": "/workspace/pr449-native-loop-20261113/audit/path-order-built-observed/wide/RESULTS.json",
+      "observationReusedByExactBinding": false,
+      "sourceOptionsSvgReceiptBinding": true,
+      "meaning": "passed",
+      "paint": "passed",
+      "direction": "passed",
+      "proof": "passed",
+      "markerForeignShaft": "clear-complete-supports",
+      "markerPairs": 90,
+      "before": {
+        "wire": 4736.125,
+        "bends": 36,
+        "crossings": 17,
+        "parallelOverlaps": 0,
+        "opposingOverlaps": 0,
+        "area": 249602.666026662
+      },
+      "after": {
+        "wire": 950,
+        "bends": 0,
+        "crossings": 0,
+        "parallelOverlaps": 0,
+        "opposingOverlaps": 0,
+        "area": 210393
+      },
+      "custody": {
+        "identitiesExact": true,
+        "framesExact": true,
+        "edgesExact": true
+      },
+      "contacts": {
+        "status": "unavailable",
+        "reason": "No enrolled exact SVG node-boundary contact observer"
+      }
+    },
+    {
+      "id": "audit:compound-permutation:RL",
+      "kind": "wide",
+      "backend": "elk",
+      "stem": "RL-elk",
+      "actualProduct": "/workspace/pr449-native-loop-20261113/audit/path-order-built-products/wide/RL-elk.product.json",
+      "wholeProductExact": true,
+      "svgSha256": "73d0a3af1e1a4a84911c1544b027ec043b148863fbe83a1d85ed783b5b6d1267",
+      "observation": "/workspace/pr449-native-loop-20261113/audit/compound-permutation/main-combined-wide/RESULTS.json",
+      "observationReusedByExactBinding": true,
+      "sourceOptionsSvgReceiptBinding": true,
+      "meaning": "passed",
+      "paint": "passed",
+      "direction": "passed",
+      "proof": "passed",
+      "markerForeignShaft": "clear-complete-supports",
+      "markerPairs": 270,
+      "before": {
+        "wire": 2783.1,
+        "bends": 20,
+        "crossings": 11,
+        "parallelOverlaps": 0,
+        "opposingOverlaps": 0,
+        "area": 282307.89999999997
+      },
+      "after": {
+        "wire": 2783.1,
+        "bends": 20,
+        "crossings": 11,
+        "parallelOverlaps": 0,
+        "opposingOverlaps": 0,
+        "area": 282307.89999999997
+      },
+      "custody": {
+        "identitiesExact": true,
+        "framesExact": true,
+        "edgesExact": true
+      },
+      "contacts": {
+        "status": "unavailable",
+        "reason": "No enrolled exact SVG node-boundary contact observer"
+      }
+    }
+  ]
+}

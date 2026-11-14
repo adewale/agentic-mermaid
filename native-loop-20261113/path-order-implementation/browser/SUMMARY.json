@@ -1,0 +1,2523 @@
+{
+  "rows": [
+    {
+      "target": "baselineC037",
+      "backend": "agentic",
+      "family": "flowchart",
+      "status": "passed",
+      "observedRequests": 32,
+      "appRequests": 30,
+      "app": {
+        "raw": 1144056,
+        "gzip9": 381425,
+        "brotli11": 324913
+      },
+      "binding": {
+        "raw": 1870,
+        "gzip9": 927,
+        "brotli11": 767
+      },
+      "browserHeapUsedBytes": 5328080
+    },
+    {
+      "target": "baselineC037",
+      "backend": "agentic",
+      "family": "sequence",
+      "status": "passed",
+      "observedRequests": 14,
+      "appRequests": 12,
+      "app": {
+        "raw": 665083,
+        "gzip9": 216999,
+        "brotli11": 181744
+      },
+      "binding": {
+        "raw": 1870,
+        "gzip9": 927,
+        "brotli11": 767
+      },
+      "browserHeapUsedBytes": 4461964
+    },
+    {
+      "target": "baselineC037",
+      "backend": "agentic",
+      "family": "state",
+      "status": "passed",
+      "observedRequests": 29,
+      "appRequests": 27,
+      "app": {
+        "raw": 1124675,
+        "gzip9": 374791,
+        "brotli11": 319023
+      },
+      "binding": {
+        "raw": 1870,
+        "gzip9": 927,
+        "brotli11": 767
+      },
+      "browserHeapUsedBytes": 5028016
+    },
+    {
+      "target": "baselineC037",
+      "backend": "agentic",
+      "family": "class",
+      "status": "passed",
+      "observedRequests": 29,
+      "appRequests": 27,
+      "app": {
+        "raw": 972854,
+        "gzip9": 321239,
+        "brotli11": 272310
+      },
+      "binding": {
+        "raw": 1870,
+        "gzip9": 927,
+        "brotli11": 767
+      },
+      "browserHeapUsedBytes": 5124644
+    },
+    {
+      "target": "baselineC037",
+      "backend": "agentic",
+      "family": "er",
+      "status": "passed",
+      "observedRequests": 30,
+      "appRequests": 28,
+      "app": {
+        "raw": 1087892,
+        "gzip9": 361200,
+        "brotli11": 307055
+      },
+      "binding": {
+        "raw": 1870,
+        "gzip9": 927,
+        "brotli11": 767
+      },
+      "browserHeapUsedBytes": 5030088
+    },
+    {
+      "target": "baselineC037",
+      "backend": "agentic",
+      "family": "timeline",
+      "status": "passed",
+      "observedRequests": 10,
+      "appRequests": 8,
+      "app": {
+        "raw": 605807,
+        "gzip9": 198086,
+        "brotli11": 164650
+      },
+      "binding": {
+        "raw": 1870,
+        "gzip9": 927,
+        "brotli11": 767
+      },
+      "browserHeapUsedBytes": 3755512
+    },
+    {
+      "target": "baselineC037",
+      "backend": "agentic",
+      "family": "journey",
+      "status": "passed",
+      "observedRequests": 11,
+      "appRequests": 9,
+      "app": {
+        "raw": 626760,
+        "gzip9": 205461,
+        "brotli11": 171357
+      },
+      "binding": {
+        "raw": 1870,
+        "gzip9": 927,
+        "brotli11": 767
+      },
+      "browserHeapUsedBytes": 4671744
+    },
+    {
+      "target": "baselineC037",
+      "backend": "agentic",
+      "family": "architecture",
+      "status": "passed",
+      "observedRequests": 30,
+      "appRequests": 28,
+      "app": {
+        "raw": 1143127,
+        "gzip9": 378975,
+        "brotli11": 322391
+      },
+      "binding": {
+        "raw": 1870,
+        "gzip9": 927,
+        "brotli11": 767
+      },
+      "browserHeapUsedBytes": 4803516
+    },
+    {
+      "target": "baselineC037",
+      "backend": "agentic",
+      "family": "xychart",
+      "status": "passed",
+      "observedRequests": 14,
+      "appRequests": 12,
+      "app": {
+        "raw": 649103,
+        "gzip9": 213085,
+        "brotli11": 177940
+      },
+      "binding": {
+        "raw": 1870,
+        "gzip9": 927,
+        "brotli11": 767
+      },
+      "browserHeapUsedBytes": 4415580
+    },
+    {
+      "target": "baselineC037",
+      "backend": "agentic",
+      "family": "pie",
+      "status": "passed",
+      "observedRequests": 16,
+      "appRequests": 14,
+      "app": {
+        "raw": 618378,
+        "gzip9": 204962,
+        "brotli11": 170776
+      },
+      "binding": {
+        "raw": 1870,
+        "gzip9": 927,
+        "brotli11": 767
+      },
+      "browserHeapUsedBytes": 3739116
+    },
+    {
+      "target": "baselineC037",
+      "backend": "agentic",
+      "family": "quadrant",
+      "status": "passed",
+      "observedRequests": 13,
+      "appRequests": 11,
+      "app": {
+        "raw": 615485,
+        "gzip9": 202610,
+        "brotli11": 168658
+      },
+      "binding": {
+        "raw": 1870,
+        "gzip9": 927,
+        "brotli11": 767
+      },
+      "browserHeapUsedBytes": 3933176
+    },
+    {
+      "target": "baselineC037",
+      "backend": "agentic",
+      "family": "gantt",
+      "status": "passed",
+      "observedRequests": 10,
+      "appRequests": 8,
+      "app": {
+        "raw": 632531,
+        "gzip9": 207413,
+        "brotli11": 173151
+      },
+      "binding": {
+        "raw": 1870,
+        "gzip9": 927,
+        "brotli11": 767
+      },
+      "browserHeapUsedBytes": 3993724
+    },
+    {
+      "target": "baselineC037",
+      "backend": "agentic",
+      "family": "mindmap",
+      "status": "passed",
+      "observedRequests": 15,
+      "appRequests": 13,
+      "app": {
+        "raw": 622111,
+        "gzip9": 207084,
+        "brotli11": 172648
+      },
+      "binding": {
+        "raw": 1870,
+        "gzip9": 927,
+        "brotli11": 767
+      },
+      "browserHeapUsedBytes": 4010028
+    },
+    {
+      "target": "baselineC037",
+      "backend": "agentic",
+      "family": "gitgraph",
+      "status": "passed",
+      "observedRequests": 13,
+      "appRequests": 11,
+      "app": {
+        "raw": 625474,
+        "gzip9": 206748,
+        "brotli11": 172378
+      },
+      "binding": {
+        "raw": 1870,
+        "gzip9": 927,
+        "brotli11": 767
+      },
+      "browserHeapUsedBytes": 4253368
+    },
+    {
+      "target": "baselineC037",
+      "backend": "agentic",
+      "family": "radar",
+      "status": "passed",
+      "observedRequests": 15,
+      "appRequests": 13,
+      "app": {
+        "raw": 624795,
+        "gzip9": 206788,
+        "brotli11": 172439
+      },
+      "binding": {
+        "raw": 1870,
+        "gzip9": 927,
+        "brotli11": 767
+      },
+      "browserHeapUsedBytes": 3914928
+    },
+    {
+      "target": "baselineC037",
+      "backend": "agentic",
+      "family": "sankey",
+      "status": "passed",
+      "observedRequests": 13,
+      "appRequests": 11,
+      "app": {
+        "raw": 625838,
+        "gzip9": 205947,
+        "brotli11": 171739
+      },
+      "binding": {
+        "raw": 1870,
+        "gzip9": 927,
+        "brotli11": 767
+      },
+      "browserHeapUsedBytes": 3977840
+    },
+    {
+      "target": "baselineC037",
+      "backend": "agentic",
+      "family": "c4",
+      "status": "passed",
+      "observedRequests": 20,
+      "appRequests": 18,
+      "app": {
+        "raw": 838565,
+        "gzip9": 276608,
+        "brotli11": 233306
+      },
+      "binding": {
+        "raw": 1870,
+        "gzip9": 927,
+        "brotli11": 767
+      },
+      "browserHeapUsedBytes": 4961448
+    },
+    {
+      "target": "baselineC037",
+      "backend": "agentic",
+      "family": "packet",
+      "status": "passed",
+      "observedRequests": 11,
+      "appRequests": 9,
+      "app": {
+        "raw": 593220,
+        "gzip9": 195016,
+        "brotli11": 161944
+      },
+      "binding": {
+        "raw": 1870,
+        "gzip9": 927,
+        "brotli11": 767
+      },
+      "browserHeapUsedBytes": 3719288
+    },
+    {
+      "target": "baselineC037",
+      "backend": "agentic",
+      "family": "kanban",
+      "status": "passed",
+      "observedRequests": 12,
+      "appRequests": 10,
+      "app": {
+        "raw": 601911,
+        "gzip9": 198512,
+        "brotli11": 165035
+      },
+      "binding": {
+        "raw": 1870,
+        "gzip9": 927,
+        "brotli11": 767
+      },
+      "browserHeapUsedBytes": 3797480
+    },
+    {
+      "target": "baselineC037",
+      "backend": "agentic",
+      "family": "requirement",
+      "status": "passed",
+      "observedRequests": 23,
+      "appRequests": 21,
+      "app": {
+        "raw": 855718,
+        "gzip9": 284422,
+        "brotli11": 240504
+      },
+      "binding": {
+        "raw": 1870,
+        "gzip9": 927,
+        "brotli11": 767
+      },
+      "browserHeapUsedBytes": 4702164
+    },
+    {
+      "target": "baselineC037",
+      "backend": "agentic",
+      "family": "treemap",
+      "status": "passed",
+      "observedRequests": 13,
+      "appRequests": 11,
+      "app": {
+        "raw": 612114,
+        "gzip9": 202988,
+        "brotli11": 169152
+      },
+      "binding": {
+        "raw": 1870,
+        "gzip9": 927,
+        "brotli11": 767
+      },
+      "browserHeapUsedBytes": 3775316
+    },
+    {
+      "target": "baselineC037",
+      "backend": "agentic",
+      "family": "ishikawa",
+      "status": "passed",
+      "observedRequests": 12,
+      "appRequests": 10,
+      "app": {
+        "raw": 594822,
+        "gzip9": 195511,
+        "brotli11": 162397
+      },
+      "binding": {
+        "raw": 1870,
+        "gzip9": 927,
+        "brotli11": 767
+      },
+      "browserHeapUsedBytes": 4372828
+    },
+    {
+      "target": "baselineC037",
+      "backend": "agentic",
+      "family": "block",
+      "status": "passed",
+      "observedRequests": 16,
+      "appRequests": 14,
+      "app": {
+        "raw": 778594,
+        "gzip9": 257449,
+        "brotli11": 216414
+      },
+      "binding": {
+        "raw": 1870,
+        "gzip9": 927,
+        "brotli11": 767
+      },
+      "browserHeapUsedBytes": 4148276
+    },
+    {
+      "target": "baselineC037",
+      "backend": "agentic",
+      "family": "eventmodeling",
+      "status": "passed",
+      "observedRequests": 10,
+      "appRequests": 8,
+      "app": {
+        "raw": 602096,
+        "gzip9": 197521,
+        "brotli11": 164195
+      },
+      "binding": {
+        "raw": 1870,
+        "gzip9": 927,
+        "brotli11": 767
+      },
+      "browserHeapUsedBytes": 4435268
+    },
+    {
+      "target": "baselineC037",
+      "backend": "agentic",
+      "family": "zenuml",
+      "status": "passed",
+      "observedRequests": 13,
+      "appRequests": 11,
+      "app": {
+        "raw": 679089,
+        "gzip9": 222201,
+        "brotli11": 186486
+      },
+      "binding": {
+        "raw": 1870,
+        "gzip9": 927,
+        "brotli11": 767
+      },
+      "browserHeapUsedBytes": 4537824
+    },
+    {
+      "target": "baselineC037",
+      "backend": "agentic",
+      "family": "railroad",
+      "status": "passed",
+      "observedRequests": 12,
+      "appRequests": 10,
+      "app": {
+        "raw": 610378,
+        "gzip9": 200588,
+        "brotli11": 166938
+      },
+      "binding": {
+        "raw": 1870,
+        "gzip9": 927,
+        "brotli11": 767
+      },
+      "browserHeapUsedBytes": 3867140
+    },
+    {
+      "target": "baselineC037",
+      "backend": "agentic",
+      "family": "cynefin",
+      "status": "passed",
+      "observedRequests": 12,
+      "appRequests": 10,
+      "app": {
+        "raw": 598239,
+        "gzip9": 196827,
+        "brotli11": 163544
+      },
+      "binding": {
+        "raw": 1870,
+        "gzip9": 927,
+        "brotli11": 767
+      },
+      "browserHeapUsedBytes": 4124556
+    },
+    {
+      "target": "baselineC037",
+      "backend": "agentic",
+      "family": "agentflow",
+      "status": "passed",
+      "observedRequests": 34,
+      "appRequests": 32,
+      "app": {
+        "raw": 1298336,
+        "gzip9": 432355,
+        "brotli11": 370375
+      },
+      "binding": {
+        "raw": 1870,
+        "gzip9": 927,
+        "brotli11": 767
+      },
+      "browserHeapUsedBytes": 5770036
+    },
+    {
+      "target": "baselineC037",
+      "backend": "agentic",
+      "family": "usecase",
+      "status": "passed",
+      "observedRequests": 27,
+      "appRequests": 25,
+      "app": {
+        "raw": 1130286,
+        "gzip9": 376067,
+        "brotli11": 319940
+      },
+      "binding": {
+        "raw": 1870,
+        "gzip9": 927,
+        "brotli11": 767
+      },
+      "browserHeapUsedBytes": 5196016
+    },
+    {
+      "target": "baselineC037",
+      "backend": "agentic",
+      "family": "wardley",
+      "status": "passed",
+      "observedRequests": 13,
+      "appRequests": 11,
+      "app": {
+        "raw": 626526,
+        "gzip9": 205940,
+        "brotli11": 171777
+      },
+      "binding": {
+        "raw": 1870,
+        "gzip9": 927,
+        "brotli11": 767
+      },
+      "browserHeapUsedBytes": 4313356
+    },
+    {
+      "target": "baselineC037",
+      "backend": "agentic",
+      "family": "venn",
+      "status": "passed",
+      "observedRequests": 11,
+      "appRequests": 9,
+      "app": {
+        "raw": 607208,
+        "gzip9": 200355,
+        "brotli11": 166800
+      },
+      "binding": {
+        "raw": 1870,
+        "gzip9": 927,
+        "brotli11": 767
+      },
+      "browserHeapUsedBytes": 3667504
+    },
+    {
+      "target": "baselineC037",
+      "backend": "agentic",
+      "family": "swimlane",
+      "status": "passed",
+      "observedRequests": 32,
+      "appRequests": 30,
+      "app": {
+        "raw": 1173635,
+        "gzip9": 392889,
+        "brotli11": 335480
+      },
+      "binding": {
+        "raw": 1870,
+        "gzip9": 927,
+        "brotli11": 767
+      },
+      "browserHeapUsedBytes": 5159300
+    },
+    {
+      "target": "baselineC037",
+      "backend": "agentic",
+      "family": "treeview",
+      "status": "passed",
+      "observedRequests": 13,
+      "appRequests": 11,
+      "app": {
+        "raw": 602871,
+        "gzip9": 199056,
+        "brotli11": 165473
+      },
+      "binding": {
+        "raw": 1870,
+        "gzip9": 927,
+        "brotli11": 767
+      },
+      "browserHeapUsedBytes": 3546992
+    },
+    {
+      "target": "baselineC037",
+      "backend": "elk",
+      "family": "flowchart",
+      "status": "passed",
+      "observedRequests": 27,
+      "appRequests": 25,
+      "app": {
+        "raw": 2385648,
+        "gzip9": 740833,
+        "brotli11": 586049
+      },
+      "binding": {
+        "raw": 1866,
+        "gzip9": 925,
+        "brotli11": 769
+      },
+      "browserHeapUsedBytes": 10600436
+    },
+    {
+      "target": "baselineC037",
+      "backend": "elk",
+      "family": "sequence",
+      "status": "passed",
+      "observedRequests": 14,
+      "appRequests": 12,
+      "app": {
+        "raw": 665083,
+        "gzip9": 216999,
+        "brotli11": 181744
+      },
+      "binding": {
+        "raw": 1866,
+        "gzip9": 925,
+        "brotli11": 769
+      },
+      "browserHeapUsedBytes": 4462560
+    },
+    {
+      "target": "baselineC037",
+      "backend": "elk",
+      "family": "state",
+      "status": "passed",
+      "observedRequests": 24,
+      "appRequests": 22,
+      "app": {
+        "raw": 2366267,
+        "gzip9": 734199,
+        "brotli11": 580159
+      },
+      "binding": {
+        "raw": 1866,
+        "gzip9": 925,
+        "brotli11": 769
+      },
+      "browserHeapUsedBytes": 10297668
+    },
+    {
+      "target": "baselineC037",
+      "backend": "elk",
+      "family": "class",
+      "status": "passed",
+      "observedRequests": 21,
+      "appRequests": 19,
+      "app": {
+        "raw": 2210191,
+        "gzip9": 678285,
+        "brotli11": 531179
+      },
+      "binding": {
+        "raw": 1866,
+        "gzip9": 925,
+        "brotli11": 769
+      },
+      "browserHeapUsedBytes": 9810048
+    },
+    {
+      "target": "baselineC037",
+      "backend": "elk",
+      "family": "er",
+      "status": "passed",
+      "observedRequests": 22,
+      "appRequests": 20,
+      "app": {
+        "raw": 2319248,
+        "gzip9": 715976,
+        "brotli11": 564099
+      },
+      "binding": {
+        "raw": 1866,
+        "gzip9": 925,
+        "brotli11": 769
+      },
+      "browserHeapUsedBytes": 9773788
+    },
+    {
+      "target": "baselineC037",
+      "backend": "elk",
+      "family": "timeline",
+      "status": "passed",
+      "observedRequests": 10,
+      "appRequests": 8,
+      "app": {
+        "raw": 605807,
+        "gzip9": 198086,
+        "brotli11": 164650
+      },
+      "binding": {
+        "raw": 1866,
+        "gzip9": 925,
+        "brotli11": 769
+      },
+      "browserHeapUsedBytes": 3755492
+    },
+    {
+      "target": "baselineC037",
+      "backend": "elk",
+      "family": "journey",
+      "status": "passed",
+      "observedRequests": 11,
+      "appRequests": 9,
+      "app": {
+        "raw": 626760,
+        "gzip9": 205461,
+        "brotli11": 171357
+      },
+      "binding": {
+        "raw": 1866,
+        "gzip9": 925,
+        "brotli11": 769
+      },
+      "browserHeapUsedBytes": 4671008
+    },
+    {
+      "target": "baselineC037",
+      "backend": "elk",
+      "family": "architecture",
+      "status": "passed",
+      "observedRequests": 25,
+      "appRequests": 23,
+      "app": {
+        "raw": 2384719,
+        "gzip9": 738383,
+        "brotli11": 583527
+      },
+      "binding": {
+        "raw": 1866,
+        "gzip9": 925,
+        "brotli11": 769
+      },
+      "browserHeapUsedBytes": 10507472
+    },
+    {
+      "target": "baselineC037",
+      "backend": "elk",
+      "family": "xychart",
+      "status": "passed",
+      "observedRequests": 14,
+      "appRequests": 12,
+      "app": {
+        "raw": 649103,
+        "gzip9": 213085,
+        "brotli11": 177940
+      },
+      "binding": {
+        "raw": 1866,
+        "gzip9": 925,
+        "brotli11": 769
+      },
+      "browserHeapUsedBytes": 4415556
+    },
+    {
+      "target": "baselineC037",
+      "backend": "elk",
+      "family": "pie",
+      "status": "passed",
+      "observedRequests": 16,
+      "appRequests": 14,
+      "app": {
+        "raw": 618378,
+        "gzip9": 204962,
+        "brotli11": 170776
+      },
+      "binding": {
+        "raw": 1866,
+        "gzip9": 925,
+        "brotli11": 769
+      },
+      "browserHeapUsedBytes": 3738992
+    },
+    {
+      "target": "baselineC037",
+      "backend": "elk",
+      "family": "quadrant",
+      "status": "passed",
+      "observedRequests": 13,
+      "appRequests": 11,
+      "app": {
+        "raw": 615485,
+        "gzip9": 202610,
+        "brotli11": 168658
+      },
+      "binding": {
+        "raw": 1866,
+        "gzip9": 925,
+        "brotli11": 769
+      },
+      "browserHeapUsedBytes": 3933364
+    },
+    {
+      "target": "baselineC037",
+      "backend": "elk",
+      "family": "gantt",
+      "status": "passed",
+      "observedRequests": 10,
+      "appRequests": 8,
+      "app": {
+        "raw": 632531,
+        "gzip9": 207413,
+        "brotli11": 173151
+      },
+      "binding": {
+        "raw": 1866,
+        "gzip9": 925,
+        "brotli11": 769
+      },
+      "browserHeapUsedBytes": 3993284
+    },
+    {
+      "target": "baselineC037",
+      "backend": "elk",
+      "family": "mindmap",
+      "status": "passed",
+      "observedRequests": 15,
+      "appRequests": 13,
+      "app": {
+        "raw": 622111,
+        "gzip9": 207084,
+        "brotli11": 172648
+      },
+      "binding": {
+        "raw": 1866,
+        "gzip9": 925,
+        "brotli11": 769
+      },
+      "browserHeapUsedBytes": 4010356
+    },
+    {
+      "target": "baselineC037",
+      "backend": "elk",
+      "family": "gitgraph",
+      "status": "passed",
+      "observedRequests": 13,
+      "appRequests": 11,
+      "app": {
+        "raw": 625474,
+        "gzip9": 206748,
+        "brotli11": 172378
+      },
+      "binding": {
+        "raw": 1866,
+        "gzip9": 925,
+        "brotli11": 769
+      },
+      "browserHeapUsedBytes": 4253796
+    },
+    {
+      "target": "baselineC037",
+      "backend": "elk",
+      "family": "radar",
+      "status": "passed",
+      "observedRequests": 15,
+      "appRequests": 13,
+      "app": {
+        "raw": 624795,
+        "gzip9": 206788,
+        "brotli11": 172439
+      },
+      "binding": {
+        "raw": 1866,
+        "gzip9": 925,
+        "brotli11": 769
+      },
+      "browserHeapUsedBytes": 3914184
+    },
+    {
+      "target": "baselineC037",
+      "backend": "elk",
+      "family": "sankey",
+      "status": "passed",
+      "observedRequests": 13,
+      "appRequests": 11,
+      "app": {
+        "raw": 625838,
+        "gzip9": 205947,
+        "brotli11": 171739
+      },
+      "binding": {
+        "raw": 1866,
+        "gzip9": 925,
+        "brotli11": 769
+      },
+      "browserHeapUsedBytes": 3978188
+    },
+    {
+      "target": "baselineC037",
+      "backend": "elk",
+      "family": "c4",
+      "status": "passed",
+      "observedRequests": 20,
+      "appRequests": 18,
+      "app": {
+        "raw": 838565,
+        "gzip9": 276608,
+        "brotli11": 233306
+      },
+      "binding": {
+        "raw": 1866,
+        "gzip9": 925,
+        "brotli11": 769
+      },
+      "browserHeapUsedBytes": 4961328
+    },
+    {
+      "target": "baselineC037",
+      "backend": "elk",
+      "family": "packet",
+      "status": "passed",
+      "observedRequests": 11,
+      "appRequests": 9,
+      "app": {
+        "raw": 593220,
+        "gzip9": 195016,
+        "brotli11": 161944
+      },
+      "binding": {
+        "raw": 1866,
+        "gzip9": 925,
+        "brotli11": 769
+      },
+      "browserHeapUsedBytes": 3719124
+    },
+    {
+      "target": "baselineC037",
+      "backend": "elk",
+      "family": "kanban",
+      "status": "passed",
+      "observedRequests": 12,
+      "appRequests": 10,
+      "app": {
+        "raw": 601911,
+        "gzip9": 198512,
+        "brotli11": 165035
+      },
+      "binding": {
+        "raw": 1866,
+        "gzip9": 925,
+        "brotli11": 769
+      },
+      "browserHeapUsedBytes": 3797756
+    },
+    {
+      "target": "baselineC037",
+      "backend": "elk",
+      "family": "requirement",
+      "status": "passed",
+      "observedRequests": 13,
+      "appRequests": 11,
+      "app": {
+        "raw": 2070817,
+        "gzip9": 633665,
+        "brotli11": 492430
+      },
+      "binding": {
+        "raw": 1866,
+        "gzip9": 925,
+        "brotli11": 769
+      },
+      "browserHeapUsedBytes": 9524800
+    },
+    {
+      "target": "baselineC037",
+      "backend": "elk",
+      "family": "treemap",
+      "status": "passed",
+      "observedRequests": 13,
+      "appRequests": 11,
+      "app": {
+        "raw": 612114,
+        "gzip9": 202988,
+        "brotli11": 169152
+      },
+      "binding": {
+        "raw": 1866,
+        "gzip9": 925,
+        "brotli11": 769
+      },
+      "browserHeapUsedBytes": 3774608
+    },
+    {
+      "target": "baselineC037",
+      "backend": "elk",
+      "family": "ishikawa",
+      "status": "passed",
+      "observedRequests": 12,
+      "appRequests": 10,
+      "app": {
+        "raw": 594822,
+        "gzip9": 195511,
+        "brotli11": 162397
+      },
+      "binding": {
+        "raw": 1866,
+        "gzip9": 925,
+        "brotli11": 769
+      },
+      "browserHeapUsedBytes": 4372840
+    },
+    {
+      "target": "baselineC037",
+      "backend": "elk",
+      "family": "block",
+      "status": "passed",
+      "observedRequests": 16,
+      "appRequests": 14,
+      "app": {
+        "raw": 778594,
+        "gzip9": 257449,
+        "brotli11": 216414
+      },
+      "binding": {
+        "raw": 1866,
+        "gzip9": 925,
+        "brotli11": 769
+      },
+      "browserHeapUsedBytes": 4148404
+    },
+    {
+      "target": "baselineC037",
+      "backend": "elk",
+      "family": "eventmodeling",
+      "status": "passed",
+      "observedRequests": 10,
+      "appRequests": 8,
+      "app": {
+        "raw": 602096,
+        "gzip9": 197521,
+        "brotli11": 164195
+      },
+      "binding": {
+        "raw": 1866,
+        "gzip9": 925,
+        "brotli11": 769
+      },
+      "browserHeapUsedBytes": 4434996
+    },
+    {
+      "target": "baselineC037",
+      "backend": "elk",
+      "family": "zenuml",
+      "status": "passed",
+      "observedRequests": 13,
+      "appRequests": 11,
+      "app": {
+        "raw": 679089,
+        "gzip9": 222201,
+        "brotli11": 186486
+      },
+      "binding": {
+        "raw": 1866,
+        "gzip9": 925,
+        "brotli11": 769
+      },
+      "browserHeapUsedBytes": 4536596
+    },
+    {
+      "target": "baselineC037",
+      "backend": "elk",
+      "family": "railroad",
+      "status": "passed",
+      "observedRequests": 12,
+      "appRequests": 10,
+      "app": {
+        "raw": 610378,
+        "gzip9": 200588,
+        "brotli11": 166938
+      },
+      "binding": {
+        "raw": 1866,
+        "gzip9": 925,
+        "brotli11": 769
+      },
+      "browserHeapUsedBytes": 3867160
+    },
+    {
+      "target": "baselineC037",
+      "backend": "elk",
+      "family": "cynefin",
+      "status": "passed",
+      "observedRequests": 12,
+      "appRequests": 10,
+      "app": {
+        "raw": 598239,
+        "gzip9": 196827,
+        "brotli11": 163544
+      },
+      "binding": {
+        "raw": 1866,
+        "gzip9": 925,
+        "brotli11": 769
+      },
+      "browserHeapUsedBytes": 4123612
+    },
+    {
+      "target": "baselineC037",
+      "backend": "elk",
+      "family": "agentflow",
+      "status": "passed",
+      "observedRequests": 29,
+      "appRequests": 27,
+      "app": {
+        "raw": 2539928,
+        "gzip9": 791763,
+        "brotli11": 631511
+      },
+      "binding": {
+        "raw": 1866,
+        "gzip9": 925,
+        "brotli11": 769
+      },
+      "browserHeapUsedBytes": 11093632
+    },
+    {
+      "target": "baselineC037",
+      "backend": "elk",
+      "family": "usecase",
+      "status": "passed",
+      "observedRequests": 23,
+      "appRequests": 21,
+      "app": {
+        "raw": 2372355,
+        "gzip9": 735760,
+        "brotli11": 581319
+      },
+      "binding": {
+        "raw": 1866,
+        "gzip9": 925,
+        "brotli11": 769
+      },
+      "browserHeapUsedBytes": 10409016
+    },
+    {
+      "target": "baselineC037",
+      "backend": "elk",
+      "family": "wardley",
+      "status": "passed",
+      "observedRequests": 13,
+      "appRequests": 11,
+      "app": {
+        "raw": 626526,
+        "gzip9": 205940,
+        "brotli11": 171777
+      },
+      "binding": {
+        "raw": 1866,
+        "gzip9": 925,
+        "brotli11": 769
+      },
+      "browserHeapUsedBytes": 4313836
+    },
+    {
+      "target": "baselineC037",
+      "backend": "elk",
+      "family": "venn",
+      "status": "passed",
+      "observedRequests": 11,
+      "appRequests": 9,
+      "app": {
+        "raw": 607208,
+        "gzip9": 200355,
+        "brotli11": 166800
+      },
+      "binding": {
+        "raw": 1866,
+        "gzip9": 925,
+        "brotli11": 769
+      },
+      "browserHeapUsedBytes": 3665832
+    },
+    {
+      "target": "baselineC037",
+      "backend": "elk",
+      "family": "swimlane",
+      "status": "passed",
+      "observedRequests": 32,
+      "appRequests": 30,
+      "app": {
+        "raw": 1173635,
+        "gzip9": 392889,
+        "brotli11": 335480
+      },
+      "binding": {
+        "raw": 1866,
+        "gzip9": 925,
+        "brotli11": 769
+      },
+      "browserHeapUsedBytes": 5159280
+    },
+    {
+      "target": "baselineC037",
+      "backend": "elk",
+      "family": "treeview",
+      "status": "passed",
+      "observedRequests": 13,
+      "appRequests": 11,
+      "app": {
+        "raw": 602871,
+        "gzip9": 199056,
+        "brotli11": 165473
+      },
+      "binding": {
+        "raw": 1866,
+        "gzip9": 925,
+        "brotli11": 769
+      },
+      "browserHeapUsedBytes": 3548372
+    },
+    {
+      "target": "candidate",
+      "backend": "agentic",
+      "family": "flowchart",
+      "status": "passed",
+      "observedRequests": 32,
+      "appRequests": 30,
+      "app": {
+        "raw": 1144977,
+        "gzip9": 381739,
+        "brotli11": 325129
+      },
+      "binding": {
+        "raw": 1870,
+        "gzip9": 927,
+        "brotli11": 767
+      },
+      "browserHeapUsedBytes": 5329012
+    },
+    {
+      "target": "candidate",
+      "backend": "agentic",
+      "family": "sequence",
+      "status": "passed",
+      "observedRequests": 14,
+      "appRequests": 12,
+      "app": {
+        "raw": 665083,
+        "gzip9": 217001,
+        "brotli11": 181760
+      },
+      "binding": {
+        "raw": 1870,
+        "gzip9": 927,
+        "brotli11": 767
+      },
+      "browserHeapUsedBytes": 4462676
+    },
+    {
+      "target": "candidate",
+      "backend": "agentic",
+      "family": "state",
+      "status": "passed",
+      "observedRequests": 29,
+      "appRequests": 27,
+      "app": {
+        "raw": 1125596,
+        "gzip9": 375107,
+        "brotli11": 319233
+      },
+      "binding": {
+        "raw": 1870,
+        "gzip9": 927,
+        "brotli11": 767
+      },
+      "browserHeapUsedBytes": 5027904
+    },
+    {
+      "target": "candidate",
+      "backend": "agentic",
+      "family": "class",
+      "status": "passed",
+      "observedRequests": 29,
+      "appRequests": 27,
+      "app": {
+        "raw": 973775,
+        "gzip9": 321557,
+        "brotli11": 272529
+      },
+      "binding": {
+        "raw": 1870,
+        "gzip9": 927,
+        "brotli11": 767
+      },
+      "browserHeapUsedBytes": 5125196
+    },
+    {
+      "target": "candidate",
+      "backend": "agentic",
+      "family": "er",
+      "status": "passed",
+      "observedRequests": 30,
+      "appRequests": 28,
+      "app": {
+        "raw": 1088813,
+        "gzip9": 361517,
+        "brotli11": 307241
+      },
+      "binding": {
+        "raw": 1870,
+        "gzip9": 927,
+        "brotli11": 767
+      },
+      "browserHeapUsedBytes": 5029560
+    },
+    {
+      "target": "candidate",
+      "backend": "agentic",
+      "family": "timeline",
+      "status": "passed",
+      "observedRequests": 10,
+      "appRequests": 8,
+      "app": {
+        "raw": 605807,
+        "gzip9": 198088,
+        "brotli11": 164666
+      },
+      "binding": {
+        "raw": 1870,
+        "gzip9": 927,
+        "brotli11": 767
+      },
+      "browserHeapUsedBytes": 3754904
+    },
+    {
+      "target": "candidate",
+      "backend": "agentic",
+      "family": "journey",
+      "status": "passed",
+      "observedRequests": 11,
+      "appRequests": 9,
+      "app": {
+        "raw": 626760,
+        "gzip9": 205463,
+        "brotli11": 171373
+      },
+      "binding": {
+        "raw": 1870,
+        "gzip9": 927,
+        "brotli11": 767
+      },
+      "browserHeapUsedBytes": 4671972
+    },
+    {
+      "target": "candidate",
+      "backend": "agentic",
+      "family": "architecture",
+      "status": "passed",
+      "observedRequests": 30,
+      "appRequests": 28,
+      "app": {
+        "raw": 1144048,
+        "gzip9": 379292,
+        "brotli11": 322629
+      },
+      "binding": {
+        "raw": 1870,
+        "gzip9": 927,
+        "brotli11": 767
+      },
+      "browserHeapUsedBytes": 4804244
+    },
+    {
+      "target": "candidate",
+      "backend": "agentic",
+      "family": "xychart",
+      "status": "passed",
+      "observedRequests": 14,
+      "appRequests": 12,
+      "app": {
+        "raw": 649103,
+        "gzip9": 213087,
+        "brotli11": 177956
+      },
+      "binding": {
+        "raw": 1870,
+        "gzip9": 927,
+        "brotli11": 767
+      },
+      "browserHeapUsedBytes": 4415392
+    },
+    {
+      "target": "candidate",
+      "backend": "agentic",
+      "family": "pie",
+      "status": "passed",
+      "observedRequests": 16,
+      "appRequests": 14,
+      "app": {
+        "raw": 618378,
+        "gzip9": 204964,
+        "brotli11": 170792
+      },
+      "binding": {
+        "raw": 1870,
+        "gzip9": 927,
+        "brotli11": 767
+      },
+      "browserHeapUsedBytes": 3738756
+    },
+    {
+      "target": "candidate",
+      "backend": "agentic",
+      "family": "quadrant",
+      "status": "passed",
+      "observedRequests": 13,
+      "appRequests": 11,
+      "app": {
+        "raw": 615485,
+        "gzip9": 202612,
+        "brotli11": 168674
+      },
+      "binding": {
+        "raw": 1870,
+        "gzip9": 927,
+        "brotli11": 767
+      },
+      "browserHeapUsedBytes": 3931744
+    },
+    {
+      "target": "candidate",
+      "backend": "agentic",
+      "family": "gantt",
+      "status": "passed",
+      "observedRequests": 10,
+      "appRequests": 8,
+      "app": {
+        "raw": 632531,
+        "gzip9": 207415,
+        "brotli11": 173167
+      },
+      "binding": {
+        "raw": 1870,
+        "gzip9": 927,
+        "brotli11": 767
+      },
+      "browserHeapUsedBytes": 3993452
+    },
+    {
+      "target": "candidate",
+      "backend": "agentic",
+      "family": "mindmap",
+      "status": "passed",
+      "observedRequests": 15,
+      "appRequests": 13,
+      "app": {
+        "raw": 622111,
+        "gzip9": 207086,
+        "brotli11": 172664
+      },
+      "binding": {
+        "raw": 1870,
+        "gzip9": 927,
+        "brotli11": 767
+      },
+      "browserHeapUsedBytes": 4010200
+    },
+    {
+      "target": "candidate",
+      "backend": "agentic",
+      "family": "gitgraph",
+      "status": "passed",
+      "observedRequests": 13,
+      "appRequests": 11,
+      "app": {
+        "raw": 625474,
+        "gzip9": 206750,
+        "brotli11": 172394
+      },
+      "binding": {
+        "raw": 1870,
+        "gzip9": 927,
+        "brotli11": 767
+      },
+      "browserHeapUsedBytes": 4250032
+    },
+    {
+      "target": "candidate",
+      "backend": "agentic",
+      "family": "radar",
+      "status": "passed",
+      "observedRequests": 15,
+      "appRequests": 13,
+      "app": {
+        "raw": 624795,
+        "gzip9": 206790,
+        "brotli11": 172455
+      },
+      "binding": {
+        "raw": 1870,
+        "gzip9": 927,
+        "brotli11": 767
+      },
+      "browserHeapUsedBytes": 3915212
+    },
+    {
+      "target": "candidate",
+      "backend": "agentic",
+      "family": "sankey",
+      "status": "passed",
+      "observedRequests": 13,
+      "appRequests": 11,
+      "app": {
+        "raw": 625838,
+        "gzip9": 205949,
+        "brotli11": 171755
+      },
+      "binding": {
+        "raw": 1870,
+        "gzip9": 927,
+        "brotli11": 767
+      },
+      "browserHeapUsedBytes": 3978236
+    },
+    {
+      "target": "candidate",
+      "backend": "agentic",
+      "family": "c4",
+      "status": "passed",
+      "observedRequests": 20,
+      "appRequests": 18,
+      "app": {
+        "raw": 838565,
+        "gzip9": 276610,
+        "brotli11": 233322
+      },
+      "binding": {
+        "raw": 1870,
+        "gzip9": 927,
+        "brotli11": 767
+      },
+      "browserHeapUsedBytes": 4960748
+    },
+    {
+      "target": "candidate",
+      "backend": "agentic",
+      "family": "packet",
+      "status": "passed",
+      "observedRequests": 11,
+      "appRequests": 9,
+      "app": {
+        "raw": 593220,
+        "gzip9": 195018,
+        "brotli11": 161960
+      },
+      "binding": {
+        "raw": 1870,
+        "gzip9": 927,
+        "brotli11": 767
+      },
+      "browserHeapUsedBytes": 3719240
+    },
+    {
+      "target": "candidate",
+      "backend": "agentic",
+      "family": "kanban",
+      "status": "passed",
+      "observedRequests": 12,
+      "appRequests": 10,
+      "app": {
+        "raw": 601911,
+        "gzip9": 198514,
+        "brotli11": 165051
+      },
+      "binding": {
+        "raw": 1870,
+        "gzip9": 927,
+        "brotli11": 767
+      },
+      "browserHeapUsedBytes": 3797736
+    },
+    {
+      "target": "candidate",
+      "backend": "agentic",
+      "family": "requirement",
+      "status": "passed",
+      "observedRequests": 23,
+      "appRequests": 21,
+      "app": {
+        "raw": 856639,
+        "gzip9": 284739,
+        "brotli11": 240732
+      },
+      "binding": {
+        "raw": 1870,
+        "gzip9": 927,
+        "brotli11": 767
+      },
+      "browserHeapUsedBytes": 4703384
+    },
+    {
+      "target": "candidate",
+      "backend": "agentic",
+      "family": "treemap",
+      "status": "passed",
+      "observedRequests": 13,
+      "appRequests": 11,
+      "app": {
+        "raw": 612114,
+        "gzip9": 202990,
+        "brotli11": 169168
+      },
+      "binding": {
+        "raw": 1870,
+        "gzip9": 927,
+        "brotli11": 767
+      },
+      "browserHeapUsedBytes": 3775476
+    },
+    {
+      "target": "candidate",
+      "backend": "agentic",
+      "family": "ishikawa",
+      "status": "passed",
+      "observedRequests": 12,
+      "appRequests": 10,
+      "app": {
+        "raw": 594822,
+        "gzip9": 195513,
+        "brotli11": 162413
+      },
+      "binding": {
+        "raw": 1870,
+        "gzip9": 927,
+        "brotli11": 767
+      },
+      "browserHeapUsedBytes": 4372868
+    },
+    {
+      "target": "candidate",
+      "backend": "agentic",
+      "family": "block",
+      "status": "passed",
+      "observedRequests": 16,
+      "appRequests": 14,
+      "app": {
+        "raw": 778594,
+        "gzip9": 257451,
+        "brotli11": 216430
+      },
+      "binding": {
+        "raw": 1870,
+        "gzip9": 927,
+        "brotli11": 767
+      },
+      "browserHeapUsedBytes": 4148172
+    },
+    {
+      "target": "candidate",
+      "backend": "agentic",
+      "family": "eventmodeling",
+      "status": "passed",
+      "observedRequests": 10,
+      "appRequests": 8,
+      "app": {
+        "raw": 602096,
+        "gzip9": 197523,
+        "brotli11": 164211
+      },
+      "binding": {
+        "raw": 1870,
+        "gzip9": 927,
+        "brotli11": 767
+      },
+      "browserHeapUsedBytes": 4435260
+    },
+    {
+      "target": "candidate",
+      "backend": "agentic",
+      "family": "zenuml",
+      "status": "passed",
+      "observedRequests": 13,
+      "appRequests": 11,
+      "app": {
+        "raw": 679089,
+        "gzip9": 222203,
+        "brotli11": 186502
+      },
+      "binding": {
+        "raw": 1870,
+        "gzip9": 927,
+        "brotli11": 767
+      },
+      "browserHeapUsedBytes": 4537192
+    },
+    {
+      "target": "candidate",
+      "backend": "agentic",
+      "family": "railroad",
+      "status": "passed",
+      "observedRequests": 12,
+      "appRequests": 10,
+      "app": {
+        "raw": 610378,
+        "gzip9": 200590,
+        "brotli11": 166954
+      },
+      "binding": {
+        "raw": 1870,
+        "gzip9": 927,
+        "brotli11": 767
+      },
+      "browserHeapUsedBytes": 3867016
+    },
+    {
+      "target": "candidate",
+      "backend": "agentic",
+      "family": "cynefin",
+      "status": "passed",
+      "observedRequests": 12,
+      "appRequests": 10,
+      "app": {
+        "raw": 598239,
+        "gzip9": 196829,
+        "brotli11": 163560
+      },
+      "binding": {
+        "raw": 1870,
+        "gzip9": 927,
+        "brotli11": 767
+      },
+      "browserHeapUsedBytes": 4123016
+    },
+    {
+      "target": "candidate",
+      "backend": "agentic",
+      "family": "agentflow",
+      "status": "passed",
+      "observedRequests": 34,
+      "appRequests": 32,
+      "app": {
+        "raw": 1299257,
+        "gzip9": 432671,
+        "brotli11": 370599
+      },
+      "binding": {
+        "raw": 1870,
+        "gzip9": 927,
+        "brotli11": 767
+      },
+      "browserHeapUsedBytes": 5770640
+    },
+    {
+      "target": "candidate",
+      "backend": "agentic",
+      "family": "usecase",
+      "status": "passed",
+      "observedRequests": 27,
+      "appRequests": 25,
+      "app": {
+        "raw": 1131207,
+        "gzip9": 376382,
+        "brotli11": 320142
+      },
+      "binding": {
+        "raw": 1870,
+        "gzip9": 927,
+        "brotli11": 767
+      },
+      "browserHeapUsedBytes": 5196288
+    },
+    {
+      "target": "candidate",
+      "backend": "agentic",
+      "family": "wardley",
+      "status": "passed",
+      "observedRequests": 13,
+      "appRequests": 11,
+      "app": {
+        "raw": 626526,
+        "gzip9": 205942,
+        "brotli11": 171793
+      },
+      "binding": {
+        "raw": 1870,
+        "gzip9": 927,
+        "brotli11": 767
+      },
+      "browserHeapUsedBytes": 4316044
+    },
+    {
+      "target": "candidate",
+      "backend": "agentic",
+      "family": "venn",
+      "status": "passed",
+      "observedRequests": 11,
+      "appRequests": 9,
+      "app": {
+        "raw": 607208,
+        "gzip9": 200357,
+        "brotli11": 166816
+      },
+      "binding": {
+        "raw": 1870,
+        "gzip9": 927,
+        "brotli11": 767
+      },
+      "browserHeapUsedBytes": 3666088
+    },
+    {
+      "target": "candidate",
+      "backend": "agentic",
+      "family": "swimlane",
+      "status": "passed",
+      "observedRequests": 32,
+      "appRequests": 30,
+      "app": {
+        "raw": 1174556,
+        "gzip9": 393204,
+        "brotli11": 335705
+      },
+      "binding": {
+        "raw": 1870,
+        "gzip9": 927,
+        "brotli11": 767
+      },
+      "browserHeapUsedBytes": 5159160
+    },
+    {
+      "target": "candidate",
+      "backend": "agentic",
+      "family": "treeview",
+      "status": "passed",
+      "observedRequests": 13,
+      "appRequests": 11,
+      "app": {
+        "raw": 602871,
+        "gzip9": 199058,
+        "brotli11": 165489
+      },
+      "binding": {
+        "raw": 1870,
+        "gzip9": 927,
+        "brotli11": 767
+      },
+      "browserHeapUsedBytes": 3547028
+    },
+    {
+      "target": "candidate",
+      "backend": "elk",
+      "family": "flowchart",
+      "status": "passed",
+      "observedRequests": 27,
+      "appRequests": 25,
+      "app": {
+        "raw": 2385648,
+        "gzip9": 740834,
+        "brotli11": 586072
+      },
+      "binding": {
+        "raw": 1866,
+        "gzip9": 925,
+        "brotli11": 769
+      },
+      "browserHeapUsedBytes": 10604784
+    },
+    {
+      "target": "candidate",
+      "backend": "elk",
+      "family": "sequence",
+      "status": "passed",
+      "observedRequests": 14,
+      "appRequests": 12,
+      "app": {
+        "raw": 665083,
+        "gzip9": 217001,
+        "brotli11": 181760
+      },
+      "binding": {
+        "raw": 1866,
+        "gzip9": 925,
+        "brotli11": 769
+      },
+      "browserHeapUsedBytes": 4462024
+    },
+    {
+      "target": "candidate",
+      "backend": "elk",
+      "family": "state",
+      "status": "passed",
+      "observedRequests": 24,
+      "appRequests": 22,
+      "app": {
+        "raw": 2366267,
+        "gzip9": 734202,
+        "brotli11": 580176
+      },
+      "binding": {
+        "raw": 1866,
+        "gzip9": 925,
+        "brotli11": 769
+      },
+      "browserHeapUsedBytes": 10296752
+    },
+    {
+      "target": "candidate",
+      "backend": "elk",
+      "family": "class",
+      "status": "passed",
+      "observedRequests": 21,
+      "appRequests": 19,
+      "app": {
+        "raw": 2210191,
+        "gzip9": 678290,
+        "brotli11": 531205
+      },
+      "binding": {
+        "raw": 1866,
+        "gzip9": 925,
+        "brotli11": 769
+      },
+      "browserHeapUsedBytes": 9810496
+    },
+    {
+      "target": "candidate",
+      "backend": "elk",
+      "family": "er",
+      "status": "passed",
+      "observedRequests": 22,
+      "appRequests": 20,
+      "app": {
+        "raw": 2319248,
+        "gzip9": 715980,
+        "brotli11": 564092
+      },
+      "binding": {
+        "raw": 1866,
+        "gzip9": 925,
+        "brotli11": 769
+      },
+      "browserHeapUsedBytes": 9771304
+    },
+    {
+      "target": "candidate",
+      "backend": "elk",
+      "family": "timeline",
+      "status": "passed",
+      "observedRequests": 10,
+      "appRequests": 8,
+      "app": {
+        "raw": 605807,
+        "gzip9": 198088,
+        "brotli11": 164666
+      },
+      "binding": {
+        "raw": 1866,
+        "gzip9": 925,
+        "brotli11": 769
+      },
+      "browserHeapUsedBytes": 3755176
+    },
+    {
+      "target": "candidate",
+      "backend": "elk",
+      "family": "journey",
+      "status": "passed",
+      "observedRequests": 11,
+      "appRequests": 9,
+      "app": {
+        "raw": 626760,
+        "gzip9": 205463,
+        "brotli11": 171373
+      },
+      "binding": {
+        "raw": 1866,
+        "gzip9": 925,
+        "brotli11": 769
+      },
+      "browserHeapUsedBytes": 4671808
+    },
+    {
+      "target": "candidate",
+      "backend": "elk",
+      "family": "architecture",
+      "status": "passed",
+      "observedRequests": 25,
+      "appRequests": 23,
+      "app": {
+        "raw": 2384719,
+        "gzip9": 738387,
+        "brotli11": 583572
+      },
+      "binding": {
+        "raw": 1866,
+        "gzip9": 925,
+        "brotli11": 769
+      },
+      "browserHeapUsedBytes": 10507816
+    },
+    {
+      "target": "candidate",
+      "backend": "elk",
+      "family": "xychart",
+      "status": "passed",
+      "observedRequests": 14,
+      "appRequests": 12,
+      "app": {
+        "raw": 649103,
+        "gzip9": 213087,
+        "brotli11": 177956
+      },
+      "binding": {
+        "raw": 1866,
+        "gzip9": 925,
+        "brotli11": 769
+      },
+      "browserHeapUsedBytes": 4415308
+    },
+    {
+      "target": "candidate",
+      "backend": "elk",
+      "family": "pie",
+      "status": "passed",
+      "observedRequests": 16,
+      "appRequests": 14,
+      "app": {
+        "raw": 618378,
+        "gzip9": 204964,
+        "brotli11": 170792
+      },
+      "binding": {
+        "raw": 1866,
+        "gzip9": 925,
+        "brotli11": 769
+      },
+      "browserHeapUsedBytes": 3739348
+    },
+    {
+      "target": "candidate",
+      "backend": "elk",
+      "family": "quadrant",
+      "status": "passed",
+      "observedRequests": 13,
+      "appRequests": 11,
+      "app": {
+        "raw": 615485,
+        "gzip9": 202612,
+        "brotli11": 168674
+      },
+      "binding": {
+        "raw": 1866,
+        "gzip9": 925,
+        "brotli11": 769
+      },
+      "browserHeapUsedBytes": 3932116
+    },
+    {
+      "target": "candidate",
+      "backend": "elk",
+      "family": "gantt",
+      "status": "passed",
+      "observedRequests": 10,
+      "appRequests": 8,
+      "app": {
+        "raw": 632531,
+        "gzip9": 207415,
+        "brotli11": 173167
+      },
+      "binding": {
+        "raw": 1866,
+        "gzip9": 925,
+        "brotli11": 769
+      },
+      "browserHeapUsedBytes": 3993636
+    },
+    {
+      "target": "candidate",
+      "backend": "elk",
+      "family": "mindmap",
+      "status": "passed",
+      "observedRequests": 15,
+      "appRequests": 13,
+      "app": {
+        "raw": 622111,
+        "gzip9": 207086,
+        "brotli11": 172664
+      },
+      "binding": {
+        "raw": 1866,
+        "gzip9": 925,
+        "brotli11": 769
+      },
+      "browserHeapUsedBytes": 4010352
+    },
+    {
+      "target": "candidate",
+      "backend": "elk",
+      "family": "gitgraph",
+      "status": "passed",
+      "observedRequests": 13,
+      "appRequests": 11,
+      "app": {
+        "raw": 625474,
+        "gzip9": 206750,
+        "brotli11": 172394
+      },
+      "binding": {
+        "raw": 1866,
+        "gzip9": 925,
+        "brotli11": 769
+      },
+      "browserHeapUsedBytes": 4253772
+    },
+    {
+      "target": "candidate",
+      "backend": "elk",
+      "family": "radar",
+      "status": "passed",
+      "observedRequests": 15,
+      "appRequests": 13,
+      "app": {
+        "raw": 624795,
+        "gzip9": 206790,
+        "brotli11": 172455
+      },
+      "binding": {
+        "raw": 1866,
+        "gzip9": 925,
+        "brotli11": 769
+      },
+      "browserHeapUsedBytes": 3914844
+    },
+    {
+      "target": "candidate",
+      "backend": "elk",
+      "family": "sankey",
+      "status": "passed",
+      "observedRequests": 13,
+      "appRequests": 11,
+      "app": {
+        "raw": 625838,
+        "gzip9": 205949,
+        "brotli11": 171755
+      },
+      "binding": {
+        "raw": 1866,
+        "gzip9": 925,
+        "brotli11": 769
+      },
+      "browserHeapUsedBytes": 3977928
+    },
+    {
+      "target": "candidate",
+      "backend": "elk",
+      "family": "c4",
+      "status": "passed",
+      "observedRequests": 20,
+      "appRequests": 18,
+      "app": {
+        "raw": 838565,
+        "gzip9": 276610,
+        "brotli11": 233322
+      },
+      "binding": {
+        "raw": 1866,
+        "gzip9": 925,
+        "brotli11": 769
+      },
+      "browserHeapUsedBytes": 4961524
+    },
+    {
+      "target": "candidate",
+      "backend": "elk",
+      "family": "packet",
+      "status": "passed",
+      "observedRequests": 11,
+      "appRequests": 9,
+      "app": {
+        "raw": 593220,
+        "gzip9": 195018,
+        "brotli11": 161960
+      },
+      "binding": {
+        "raw": 1866,
+        "gzip9": 925,
+        "brotli11": 769
+      },
+      "browserHeapUsedBytes": 3719324
+    },
+    {
+      "target": "candidate",
+      "backend": "elk",
+      "family": "kanban",
+      "status": "passed",
+      "observedRequests": 12,
+      "appRequests": 10,
+      "app": {
+        "raw": 601911,
+        "gzip9": 198514,
+        "brotli11": 165051
+      },
+      "binding": {
+        "raw": 1866,
+        "gzip9": 925,
+        "brotli11": 769
+      },
+      "browserHeapUsedBytes": 3798336
+    },
+    {
+      "target": "candidate",
+      "backend": "elk",
+      "family": "requirement",
+      "status": "passed",
+      "observedRequests": 13,
+      "appRequests": 11,
+      "app": {
+        "raw": 2070817,
+        "gzip9": 633669,
+        "brotli11": 492465
+      },
+      "binding": {
+        "raw": 1866,
+        "gzip9": 925,
+        "brotli11": 769
+      },
+      "browserHeapUsedBytes": 9523276
+    },
+    {
+      "target": "candidate",
+      "backend": "elk",
+      "family": "treemap",
+      "status": "passed",
+      "observedRequests": 13,
+      "appRequests": 11,
+      "app": {
+        "raw": 612114,
+        "gzip9": 202990,
+        "brotli11": 169168
+      },
+      "binding": {
+        "raw": 1866,
+        "gzip9": 925,
+        "brotli11": 769
+      },
+      "browserHeapUsedBytes": 3775420
+    },
+    {
+      "target": "candidate",
+      "backend": "elk",
+      "family": "ishikawa",
+      "status": "passed",
+      "observedRequests": 12,
+      "appRequests": 10,
+      "app": {
+        "raw": 594822,
+        "gzip9": 195513,
+        "brotli11": 162413
+      },
+      "binding": {
+        "raw": 1866,
+        "gzip9": 925,
+        "brotli11": 769
+      },
+      "browserHeapUsedBytes": 4372508
+    },
+    {
+      "target": "candidate",
+      "backend": "elk",
+      "family": "block",
+      "status": "passed",
+      "observedRequests": 16,
+      "appRequests": 14,
+      "app": {
+        "raw": 778594,
+        "gzip9": 257451,
+        "brotli11": 216430
+      },
+      "binding": {
+        "raw": 1866,
+        "gzip9": 925,
+        "brotli11": 769
+      },
+      "browserHeapUsedBytes": 4148420
+    },
+    {
+      "target": "candidate",
+      "backend": "elk",
+      "family": "eventmodeling",
+      "status": "passed",
+      "observedRequests": 10,
+      "appRequests": 8,
+      "app": {
+        "raw": 602096,
+        "gzip9": 197523,
+        "brotli11": 164211
+      },
+      "binding": {
+        "raw": 1866,
+        "gzip9": 925,
+        "brotli11": 769
+      },
+      "browserHeapUsedBytes": 4434524
+    },
+    {
+      "target": "candidate",
+      "backend": "elk",
+      "family": "zenuml",
+      "status": "passed",
+      "observedRequests": 13,
+      "appRequests": 11,
+      "app": {
+        "raw": 679089,
+        "gzip9": 222203,
+        "brotli11": 186502
+      },
+      "binding": {
+        "raw": 1866,
+        "gzip9": 925,
+        "brotli11": 769
+      },
+      "browserHeapUsedBytes": 4537252
+    },
+    {
+      "target": "candidate",
+      "backend": "elk",
+      "family": "railroad",
+      "status": "passed",
+      "observedRequests": 12,
+      "appRequests": 10,
+      "app": {
+        "raw": 610378,
+        "gzip9": 200590,
+        "brotli11": 166954
+      },
+      "binding": {
+        "raw": 1866,
+        "gzip9": 925,
+        "brotli11": 769
+      },
+      "browserHeapUsedBytes": 3867240
+    },
+    {
+      "target": "candidate",
+      "backend": "elk",
+      "family": "cynefin",
+      "status": "passed",
+      "observedRequests": 12,
+      "appRequests": 10,
+      "app": {
+        "raw": 598239,
+        "gzip9": 196829,
+        "brotli11": 163560
+      },
+      "binding": {
+        "raw": 1866,
+        "gzip9": 925,
+        "brotli11": 769
+      },
+      "browserHeapUsedBytes": 4124632
+    },
+    {
+      "target": "candidate",
+      "backend": "elk",
+      "family": "agentflow",
+      "status": "passed",
+      "observedRequests": 29,
+      "appRequests": 27,
+      "app": {
+        "raw": 2539928,
+        "gzip9": 791766,
+        "brotli11": 631542
+      },
+      "binding": {
+        "raw": 1866,
+        "gzip9": 925,
+        "brotli11": 769
+      },
+      "browserHeapUsedBytes": 11094864
+    },
+    {
+      "target": "candidate",
+      "backend": "elk",
+      "family": "usecase",
+      "status": "passed",
+      "observedRequests": 23,
+      "appRequests": 21,
+      "app": {
+        "raw": 2372355,
+        "gzip9": 735762,
+        "brotli11": 581328
+      },
+      "binding": {
+        "raw": 1866,
+        "gzip9": 925,
+        "brotli11": 769
+      },
+      "browserHeapUsedBytes": 10411264
+    },
+    {
+      "target": "candidate",
+      "backend": "elk",
+      "family": "wardley",
+      "status": "passed",
+      "observedRequests": 13,
+      "appRequests": 11,
+      "app": {
+        "raw": 626526,
+        "gzip9": 205942,
+        "brotli11": 171793
+      },
+      "binding": {
+        "raw": 1866,
+        "gzip9": 925,
+        "brotli11": 769
+      },
+      "browserHeapUsedBytes": 4315296
+    },
+    {
+      "target": "candidate",
+      "backend": "elk",
+      "family": "venn",
+      "status": "passed",
+      "observedRequests": 11,
+      "appRequests": 9,
+      "app": {
+        "raw": 607208,
+        "gzip9": 200357,
+        "brotli11": 166816
+      },
+      "binding": {
+        "raw": 1866,
+        "gzip9": 925,
+        "brotli11": 769
+      },
+      "browserHeapUsedBytes": 3666488
+    },
+    {
+      "target": "candidate",
+      "backend": "elk",
+      "family": "swimlane",
+      "status": "passed",
+      "observedRequests": 32,
+      "appRequests": 30,
+      "app": {
+        "raw": 1174556,
+        "gzip9": 393204,
+        "brotli11": 335705
+      },
+      "binding": {
+        "raw": 1866,
+        "gzip9": 925,
+        "brotli11": 769
+      },
+      "browserHeapUsedBytes": 5159172
+    },
+    {
+      "target": "candidate",
+      "backend": "elk",
+      "family": "treeview",
+      "status": "passed",
+      "observedRequests": 13,
+      "appRequests": 11,
+      "app": {
+        "raw": 602871,
+        "gzip9": 199058,
+        "brotli11": 165489
+      },
+      "binding": {
+        "raw": 1866,
+        "gzip9": 925,
+        "brotli11": 769
+      },
+      "browserHeapUsedBytes": 3547740
+    }
+  ],
+  "realms": 132,
+  "allRetainedResponseSumsExact": true,
+  "closure": {
+    "browserOpened": 132,
+    "browserClosed": 132,
+    "openBrowsers": 0,
+    "rows": 132,
+    "total": 132,
+    "scope": "Every standard suite closes its browser and local server; any retained browser explicitly closed in collector finally. No browser processes intentionally retained."
+  },
+  "scope": "Independent sum of retained actual fetched-response union. App and two binding requests distinguished. Compression totals are gzip9/Brotli11 of fetched bytes, not actual compressed transport. No new browser or timing."
+}

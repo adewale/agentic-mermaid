@@ -1,0 +1,8 @@
+{
+  "browserOpened": 132,
+  "browserClosed": 132,
+  "openBrowsers": 0,
+  "rows": 132,
+  "total": 132,
+  "scope": "Every standard suite closes its browser and local server; any retained browser explicitly closed in collector finally. No browser processes intentionally retained."
+}

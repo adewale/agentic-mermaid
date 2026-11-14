@@ -1,0 +1,8 @@
+{
+  "runtime": "v24.19.0",
+  "rows": 198,
+  "exact": 198,
+  "changed": [],
+  "serializedPublicBodyChanged": [],
+  "scope": "Actual pinned-Node candidate public parser and complete product/error compared with the existing actual-Node c037 products; earlier DOM observations reused only under exact entire product bytes, same source/options/preludes. No baseline rerender or unchanged full-DOM replay. Serialized public-model comparison is not a proof of borrowed identity/getter behavior. No timing claim."
+}

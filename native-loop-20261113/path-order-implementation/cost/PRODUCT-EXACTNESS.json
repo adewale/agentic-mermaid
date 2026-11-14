@@ -1,0 +1,2499 @@
+{
+  "summary": {
+    "pairs": 216,
+    "svgExact": 162,
+    "receiptExact": 162,
+    "allProofPassed": true,
+    "boundCompoundWarmups": 36,
+    "allCompoundWarmupsExactObservedProducts": true,
+    "scope": "Reporting only; all retained cold/repeat/edit products compared, no rendering. Changed Native permutations remain changed."
+  },
+  "rows": [
+    {
+      "id": "diagnostic:chain100",
+      "backend": "agentic",
+      "replica": 0,
+      "phase": "warmup",
+      "svgExact": true,
+      "receiptExact": true,
+      "baselineProof": "passed",
+      "candidateProof": "passed"
+    },
+    {
+      "id": "diagnostic:chain100",
+      "backend": "agentic",
+      "replica": 0,
+      "phase": "repeat1",
+      "svgExact": true,
+      "receiptExact": true,
+      "baselineProof": "passed",
+      "candidateProof": "passed"
+    },
+    {
+      "id": "diagnostic:chain100",
+      "backend": "agentic",
+      "replica": 0,
+      "phase": "repeat2",
+      "svgExact": true,
+      "receiptExact": true,
+      "baselineProof": "passed",
+      "candidateProof": "passed"
+    },
+    {
+      "id": "diagnostic:chain100",
+      "backend": "agentic",
+      "replica": 0,
+      "phase": "repeat3",
+      "svgExact": true,
+      "receiptExact": true,
+      "baselineProof": "passed",
+      "candidateProof": "passed"
+    },
+    {
+      "id": "diagnostic:chain100",
+      "backend": "agentic",
+      "replica": 0,
+      "phase": "repeat4",
+      "svgExact": true,
+      "receiptExact": true,
+      "baselineProof": "passed",
+      "candidateProof": "passed"
+    },
+    {
+      "id": "diagnostic:chain100",
+      "backend": "agentic",
+      "replica": 0,
+      "phase": "edit1",
+      "svgExact": true,
+      "receiptExact": true,
+      "baselineProof": "passed",
+      "candidateProof": "passed"
+    },
+    {
+      "id": "diagnostic:chain100",
+      "backend": "agentic",
+      "replica": 0,
+      "phase": "edit2",
+      "svgExact": true,
+      "receiptExact": true,
+      "baselineProof": "passed",
+      "candidateProof": "passed"
+    },
+    {
+      "id": "diagnostic:chain100",
+      "backend": "agentic",
+      "replica": 0,
+      "phase": "edit3",
+      "svgExact": true,
+      "receiptExact": true,
+      "baselineProof": "passed",
+      "candidateProof": "passed"
+    },
+    {
+      "id": "diagnostic:chain100",
+      "backend": "agentic",
+      "replica": 0,
+      "phase": "edit4",
+      "svgExact": true,
+      "receiptExact": true,
+      "baselineProof": "passed",
+      "candidateProof": "passed"
+    },
+    {
+      "id": "diagnostic:chain100",
+      "backend": "elk",
+      "replica": 0,
+      "phase": "warmup",
+      "svgExact": true,
+      "receiptExact": true,
+      "baselineProof": "passed",
+      "candidateProof": "passed"
+    },
+    {
+      "id": "diagnostic:chain100",
+      "backend": "elk",
+      "replica": 0,
+      "phase": "repeat1",
+      "svgExact": true,
+      "receiptExact": true,
+      "baselineProof": "passed",
+      "candidateProof": "passed"
+    },
+    {
+      "id": "diagnostic:chain100",
+      "backend": "elk",
+      "replica": 0,
+      "phase": "repeat2",
+      "svgExact": true,
+      "receiptExact": true,
+      "baselineProof": "passed",
+      "candidateProof": "passed"
+    },
+    {
+      "id": "diagnostic:chain100",
+      "backend": "elk",
+      "replica": 0,
+      "phase": "repeat3",
+      "svgExact": true,
+      "receiptExact": true,
+      "baselineProof": "passed",
+      "candidateProof": "passed"
+    },
+    {
+      "id": "diagnostic:chain100",
+      "backend": "elk",
+      "replica": 0,
+      "phase": "repeat4",
+      "svgExact": true,
+      "receiptExact": true,
+      "baselineProof": "passed",
+      "candidateProof": "passed"
+    },
+    {
+      "id": "diagnostic:chain100",
+      "backend": "elk",
+      "replica": 0,
+      "phase": "edit1",
+      "svgExact": true,
+      "receiptExact": true,
+      "baselineProof": "passed",
+      "candidateProof": "passed"
+    },
+    {
+      "id": "diagnostic:chain100",
+      "backend": "elk",
+      "replica": 0,
+      "phase": "edit2",
+      "svgExact": true,
+      "receiptExact": true,
+      "baselineProof": "passed",
+      "candidateProof": "passed"
+    },
+    {
+      "id": "diagnostic:chain100",
+      "backend": "elk",
+      "replica": 0,
+      "phase": "edit3",
+      "svgExact": true,
+      "receiptExact": true,
+      "baselineProof": "passed",
+      "candidateProof": "passed"
+    },
+    {
+      "id": "diagnostic:chain100",
+      "backend": "elk",
+      "replica": 0,
+      "phase": "edit4",
+      "svgExact": true,
+      "receiptExact": true,
+      "baselineProof": "passed",
+      "candidateProof": "passed"
+    },
+    {
+      "id": "diagnostic:chain100",
+      "backend": "elk",
+      "replica": 1,
+      "phase": "warmup",
+      "svgExact": true,
+      "receiptExact": true,
+      "baselineProof": "passed",
+      "candidateProof": "passed"
+    },
+    {
+      "id": "diagnostic:chain100",
+      "backend": "elk",
+      "replica": 1,
+      "phase": "repeat1",
+      "svgExact": true,
+      "receiptExact": true,
+      "baselineProof": "passed",
+      "candidateProof": "passed"
+    },
+    {
+      "id": "diagnostic:chain100",
+      "backend": "elk",
+      "replica": 1,
+      "phase": "repeat2",
+      "svgExact": true,
+      "receiptExact": true,
+      "baselineProof": "passed",
+      "candidateProof": "passed"
+    },
+    {
+      "id": "diagnostic:chain100",
+      "backend": "elk",
+      "replica": 1,
+      "phase": "repeat3",
+      "svgExact": true,
+      "receiptExact": true,
+      "baselineProof": "passed",
+      "candidateProof": "passed"
+    },
+    {
+      "id": "diagnostic:chain100",
+      "backend": "elk",
+      "replica": 1,
+      "phase": "repeat4",
+      "svgExact": true,
+      "receiptExact": true,
+      "baselineProof": "passed",
+      "candidateProof": "passed"
+    },
+    {
+      "id": "diagnostic:chain100",
+      "backend": "elk",
+      "replica": 1,
+      "phase": "edit1",
+      "svgExact": true,
+      "receiptExact": true,
+      "baselineProof": "passed",
+      "candidateProof": "passed"
+    },
+    {
+      "id": "diagnostic:chain100",
+      "backend": "elk",
+      "replica": 1,
+      "phase": "edit2",
+      "svgExact": true,
+      "receiptExact": true,
+      "baselineProof": "passed",
+      "candidateProof": "passed"
+    },
+    {
+      "id": "diagnostic:chain100",
+      "backend": "elk",
+      "replica": 1,
+      "phase": "edit3",
+      "svgExact": true,
+      "receiptExact": true,
+      "baselineProof": "passed",
+      "candidateProof": "passed"
+    },
+    {
+      "id": "diagnostic:chain100",
+      "backend": "elk",
+      "replica": 1,
+      "phase": "edit4",
+      "svgExact": true,
+      "receiptExact": true,
+      "baselineProof": "passed",
+      "candidateProof": "passed"
+    },
+    {
+      "id": "diagnostic:chain100",
+      "backend": "agentic",
+      "replica": 1,
+      "phase": "warmup",
+      "svgExact": true,
+      "receiptExact": true,
+      "baselineProof": "passed",
+      "candidateProof": "passed"
+    },
+    {
+      "id": "diagnostic:chain100",
+      "backend": "agentic",
+      "replica": 1,
+      "phase": "repeat1",
+      "svgExact": true,
+      "receiptExact": true,
+      "baselineProof": "passed",
+      "candidateProof": "passed"
+    },
+    {
+      "id": "diagnostic:chain100",
+      "backend": "agentic",
+      "replica": 1,
+      "phase": "repeat2",
+      "svgExact": true,
+      "receiptExact": true,
+      "baselineProof": "passed",
+      "candidateProof": "passed"
+    },
+    {
+      "id": "diagnostic:chain100",
+      "backend": "agentic",
+      "replica": 1,
+      "phase": "repeat3",
+      "svgExact": true,
+      "receiptExact": true,
+      "baselineProof": "passed",
+      "candidateProof": "passed"
+    },
+    {
+      "id": "diagnostic:chain100",
+      "backend": "agentic",
+      "replica": 1,
+      "phase": "repeat4",
+      "svgExact": true,
+      "receiptExact": true,
+      "baselineProof": "passed",
+      "candidateProof": "passed"
+    },
+    {
+      "id": "diagnostic:chain100",
+      "backend": "agentic",
+      "replica": 1,
+      "phase": "edit1",
+      "svgExact": true,
+      "receiptExact": true,
+      "baselineProof": "passed",
+      "candidateProof": "passed"
+    },
+    {
+      "id": "diagnostic:chain100",
+      "backend": "agentic",
+      "replica": 1,
+      "phase": "edit2",
+      "svgExact": true,
+      "receiptExact": true,
+      "baselineProof": "passed",
+      "candidateProof": "passed"
+    },
+    {
+      "id": "diagnostic:chain100",
+      "backend": "agentic",
+      "replica": 1,
+      "phase": "edit3",
+      "svgExact": true,
+      "receiptExact": true,
+      "baselineProof": "passed",
+      "candidateProof": "passed"
+    },
+    {
+      "id": "diagnostic:chain100",
+      "backend": "agentic",
+      "replica": 1,
+      "phase": "edit4",
+      "svgExact": true,
+      "receiptExact": true,
+      "baselineProof": "passed",
+      "candidateProof": "passed"
+    },
+    {
+      "id": "diagnostic:chain100",
+      "backend": "elk",
+      "replica": 2,
+      "phase": "warmup",
+      "svgExact": true,
+      "receiptExact": true,
+      "baselineProof": "passed",
+      "candidateProof": "passed"
+    },
+    {
+      "id": "diagnostic:chain100",
+      "backend": "elk",
+      "replica": 2,
+      "phase": "repeat1",
+      "svgExact": true,
+      "receiptExact": true,
+      "baselineProof": "passed",
+      "candidateProof": "passed"
+    },
+    {
+      "id": "diagnostic:chain100",
+      "backend": "elk",
+      "replica": 2,
+      "phase": "repeat2",
+      "svgExact": true,
+      "receiptExact": true,
+      "baselineProof": "passed",
+      "candidateProof": "passed"
+    },
+    {
+      "id": "diagnostic:chain100",
+      "backend": "elk",
+      "replica": 2,
+      "phase": "repeat3",
+      "svgExact": true,
+      "receiptExact": true,
+      "baselineProof": "passed",
+      "candidateProof": "passed"
+    },
+    {
+      "id": "diagnostic:chain100",
+      "backend": "elk",
+      "replica": 2,
+      "phase": "repeat4",
+      "svgExact": true,
+      "receiptExact": true,
+      "baselineProof": "passed",
+      "candidateProof": "passed"
+    },
+    {
+      "id": "diagnostic:chain100",
+      "backend": "elk",
+      "replica": 2,
+      "phase": "edit1",
+      "svgExact": true,
+      "receiptExact": true,
+      "baselineProof": "passed",
+      "candidateProof": "passed"
+    },
+    {
+      "id": "diagnostic:chain100",
+      "backend": "elk",
+      "replica": 2,
+      "phase": "edit2",
+      "svgExact": true,
+      "receiptExact": true,
+      "baselineProof": "passed",
+      "candidateProof": "passed"
+    },
+    {
+      "id": "diagnostic:chain100",
+      "backend": "elk",
+      "replica": 2,
+      "phase": "edit3",
+      "svgExact": true,
+      "receiptExact": true,
+      "baselineProof": "passed",
+      "candidateProof": "passed"
+    },
+    {
+      "id": "diagnostic:chain100",
+      "backend": "elk",
+      "replica": 2,
+      "phase": "edit4",
+      "svgExact": true,
+      "receiptExact": true,
+      "baselineProof": "passed",
+      "candidateProof": "passed"
+    },
+    {
+      "id": "diagnostic:chain100",
+      "backend": "agentic",
+      "replica": 2,
+      "phase": "warmup",
+      "svgExact": true,
+      "receiptExact": true,
+      "baselineProof": "passed",
+      "candidateProof": "passed"
+    },
+    {
+      "id": "diagnostic:chain100",
+      "backend": "agentic",
+      "replica": 2,
+      "phase": "repeat1",
+      "svgExact": true,
+      "receiptExact": true,
+      "baselineProof": "passed",
+      "candidateProof": "passed"
+    },
+    {
+      "id": "diagnostic:chain100",
+      "backend": "agentic",
+      "replica": 2,
+      "phase": "repeat2",
+      "svgExact": true,
+      "receiptExact": true,
+      "baselineProof": "passed",
+      "candidateProof": "passed"
+    },
+    {
+      "id": "diagnostic:chain100",
+      "backend": "agentic",
+      "replica": 2,
+      "phase": "repeat3",
+      "svgExact": true,
+      "receiptExact": true,
+      "baselineProof": "passed",
+      "candidateProof": "passed"
+    },
+    {
+      "id": "diagnostic:chain100",
+      "backend": "agentic",
+      "replica": 2,
+      "phase": "repeat4",
+      "svgExact": true,
+      "receiptExact": true,
+      "baselineProof": "passed",
+      "candidateProof": "passed"
+    },
+    {
+      "id": "diagnostic:chain100",
+      "backend": "agentic",
+      "replica": 2,
+      "phase": "edit1",
+      "svgExact": true,
+      "receiptExact": true,
+      "baselineProof": "passed",
+      "candidateProof": "passed"
+    },
+    {
+      "id": "diagnostic:chain100",
+      "backend": "agentic",
+      "replica": 2,
+      "phase": "edit2",
+      "svgExact": true,
+      "receiptExact": true,
+      "baselineProof": "passed",
+      "candidateProof": "passed"
+    },
+    {
+      "id": "diagnostic:chain100",
+      "backend": "agentic",
+      "replica": 2,
+      "phase": "edit3",
+      "svgExact": true,
+      "receiptExact": true,
+      "baselineProof": "passed",
+      "candidateProof": "passed"
+    },
+    {
+      "id": "diagnostic:chain100",
+      "backend": "agentic",
+      "replica": 2,
+      "phase": "edit4",
+      "svgExact": true,
+      "receiptExact": true,
+      "baselineProof": "passed",
+      "candidateProof": "passed"
+    },
+    {
+      "id": "diagnostic:compound-identity-LR",
+      "backend": "elk",
+      "replica": 0,
+      "phase": "warmup",
+      "svgExact": true,
+      "receiptExact": true,
+      "baselineProof": "passed",
+      "candidateProof": "passed"
+    },
+    {
+      "id": "diagnostic:compound-identity-LR",
+      "backend": "elk",
+      "replica": 0,
+      "phase": "repeat1",
+      "svgExact": true,
+      "receiptExact": true,
+      "baselineProof": "passed",
+      "candidateProof": "passed"
+    },
+    {
+      "id": "diagnostic:compound-identity-LR",
+      "backend": "elk",
+      "replica": 0,
+      "phase": "repeat2",
+      "svgExact": true,
+      "receiptExact": true,
+      "baselineProof": "passed",
+      "candidateProof": "passed"
+    },
+    {
+      "id": "diagnostic:compound-identity-LR",
+      "backend": "elk",
+      "replica": 0,
+      "phase": "repeat3",
+      "svgExact": true,
+      "receiptExact": true,
+      "baselineProof": "passed",
+      "candidateProof": "passed"
+    },
+    {
+      "id": "diagnostic:compound-identity-LR",
+      "backend": "elk",
+      "replica": 0,
+      "phase": "repeat4",
+      "svgExact": true,
+      "receiptExact": true,
+      "baselineProof": "passed",
+      "candidateProof": "passed"
+    },
+    {
+      "id": "diagnostic:compound-identity-LR",
+      "backend": "elk",
+      "replica": 0,
+      "phase": "edit1",
+      "svgExact": true,
+      "receiptExact": true,
+      "baselineProof": "passed",
+      "candidateProof": "passed"
+    },
+    {
+      "id": "diagnostic:compound-identity-LR",
+      "backend": "elk",
+      "replica": 0,
+      "phase": "edit2",
+      "svgExact": true,
+      "receiptExact": true,
+      "baselineProof": "passed",
+      "candidateProof": "passed"
+    },
+    {
+      "id": "diagnostic:compound-identity-LR",
+      "backend": "elk",
+      "replica": 0,
+      "phase": "edit3",
+      "svgExact": true,
+      "receiptExact": true,
+      "baselineProof": "passed",
+      "candidateProof": "passed"
+    },
+    {
+      "id": "diagnostic:compound-identity-LR",
+      "backend": "elk",
+      "replica": 0,
+      "phase": "edit4",
+      "svgExact": true,
+      "receiptExact": true,
+      "baselineProof": "passed",
+      "candidateProof": "passed"
+    },
+    {
+      "id": "diagnostic:compound-identity-LR",
+      "backend": "agentic",
+      "replica": 0,
+      "phase": "warmup",
+      "svgExact": true,
+      "receiptExact": true,
+      "baselineProof": "passed",
+      "candidateProof": "passed"
+    },
+    {
+      "id": "diagnostic:compound-identity-LR",
+      "backend": "agentic",
+      "replica": 0,
+      "phase": "repeat1",
+      "svgExact": true,
+      "receiptExact": true,
+      "baselineProof": "passed",
+      "candidateProof": "passed"
+    },
+    {
+      "id": "diagnostic:compound-identity-LR",
+      "backend": "agentic",
+      "replica": 0,
+      "phase": "repeat2",
+      "svgExact": true,
+      "receiptExact": true,
+      "baselineProof": "passed",
+      "candidateProof": "passed"
+    },
+    {
+      "id": "diagnostic:compound-identity-LR",
+      "backend": "agentic",
+      "replica": 0,
+      "phase": "repeat3",
+      "svgExact": true,
+      "receiptExact": true,
+      "baselineProof": "passed",
+      "candidateProof": "passed"
+    },
+    {
+      "id": "diagnostic:compound-identity-LR",
+      "backend": "agentic",
+      "replica": 0,
+      "phase": "repeat4",
+      "svgExact": true,
+      "receiptExact": true,
+      "baselineProof": "passed",
+      "candidateProof": "passed"
+    },
+    {
+      "id": "diagnostic:compound-identity-LR",
+      "backend": "agentic",
+      "replica": 0,
+      "phase": "edit1",
+      "svgExact": true,
+      "receiptExact": true,
+      "baselineProof": "passed",
+      "candidateProof": "passed"
+    },
+    {
+      "id": "diagnostic:compound-identity-LR",
+      "backend": "agentic",
+      "replica": 0,
+      "phase": "edit2",
+      "svgExact": true,
+      "receiptExact": true,
+      "baselineProof": "passed",
+      "candidateProof": "passed"
+    },
+    {
+      "id": "diagnostic:compound-identity-LR",
+      "backend": "agentic",
+      "replica": 0,
+      "phase": "edit3",
+      "svgExact": true,
+      "receiptExact": true,
+      "baselineProof": "passed",
+      "candidateProof": "passed"
+    },
+    {
+      "id": "diagnostic:compound-identity-LR",
+      "backend": "agentic",
+      "replica": 0,
+      "phase": "edit4",
+      "svgExact": true,
+      "receiptExact": true,
+      "baselineProof": "passed",
+      "candidateProof": "passed"
+    },
+    {
+      "id": "diagnostic:compound-identity-LR",
+      "backend": "elk",
+      "replica": 1,
+      "phase": "warmup",
+      "svgExact": true,
+      "receiptExact": true,
+      "baselineProof": "passed",
+      "candidateProof": "passed"
+    },
+    {
+      "id": "diagnostic:compound-identity-LR",
+      "backend": "elk",
+      "replica": 1,
+      "phase": "repeat1",
+      "svgExact": true,
+      "receiptExact": true,
+      "baselineProof": "passed",
+      "candidateProof": "passed"
+    },
+    {
+      "id": "diagnostic:compound-identity-LR",
+      "backend": "elk",
+      "replica": 1,
+      "phase": "repeat2",
+      "svgExact": true,
+      "receiptExact": true,
+      "baselineProof": "passed",
+      "candidateProof": "passed"
+    },
+    {
+      "id": "diagnostic:compound-identity-LR",
+      "backend": "elk",
+      "replica": 1,
+      "phase": "repeat3",
+      "svgExact": true,
+      "receiptExact": true,
+      "baselineProof": "passed",
+      "candidateProof": "passed"
+    },
+    {
+      "id": "diagnostic:compound-identity-LR",
+      "backend": "elk",
+      "replica": 1,
+      "phase": "repeat4",
+      "svgExact": true,
+      "receiptExact": true,
+      "baselineProof": "passed",
+      "candidateProof": "passed"
+    },
+    {
+      "id": "diagnostic:compound-identity-LR",
+      "backend": "elk",
+      "replica": 1,
+      "phase": "edit1",
+      "svgExact": true,
+      "receiptExact": true,
+      "baselineProof": "passed",
+      "candidateProof": "passed"
+    },
+    {
+      "id": "diagnostic:compound-identity-LR",
+      "backend": "elk",
+      "replica": 1,
+      "phase": "edit2",
+      "svgExact": true,
+      "receiptExact": true,
+      "baselineProof": "passed",
+      "candidateProof": "passed"
+    },
+    {
+      "id": "diagnostic:compound-identity-LR",
+      "backend": "elk",
+      "replica": 1,
+      "phase": "edit3",
+      "svgExact": true,
+      "receiptExact": true,
+      "baselineProof": "passed",
+      "candidateProof": "passed"
+    },
+    {
+      "id": "diagnostic:compound-identity-LR",
+      "backend": "elk",
+      "replica": 1,
+      "phase": "edit4",
+      "svgExact": true,
+      "receiptExact": true,
+      "baselineProof": "passed",
+      "candidateProof": "passed"
+    },
+    {
+      "id": "diagnostic:compound-identity-LR",
+      "backend": "agentic",
+      "replica": 1,
+      "phase": "warmup",
+      "svgExact": true,
+      "receiptExact": true,
+      "baselineProof": "passed",
+      "candidateProof": "passed"
+    },
+    {
+      "id": "diagnostic:compound-identity-LR",
+      "backend": "agentic",
+      "replica": 1,
+      "phase": "repeat1",
+      "svgExact": true,
+      "receiptExact": true,
+      "baselineProof": "passed",
+      "candidateProof": "passed"
+    },
+    {
+      "id": "diagnostic:compound-identity-LR",
+      "backend": "agentic",
+      "replica": 1,
+      "phase": "repeat2",
+      "svgExact": true,
+      "receiptExact": true,
+      "baselineProof": "passed",
+      "candidateProof": "passed"
+    },
+    {
+      "id": "diagnostic:compound-identity-LR",
+      "backend": "agentic",
+      "replica": 1,
+      "phase": "repeat3",
+      "svgExact": true,
+      "receiptExact": true,
+      "baselineProof": "passed",
+      "candidateProof": "passed"
+    },
+    {
+      "id": "diagnostic:compound-identity-LR",
+      "backend": "agentic",
+      "replica": 1,
+      "phase": "repeat4",
+      "svgExact": true,
+      "receiptExact": true,
+      "baselineProof": "passed",
+      "candidateProof": "passed"
+    },
+    {
+      "id": "diagnostic:compound-identity-LR",
+      "backend": "agentic",
+      "replica": 1,
+      "phase": "edit1",
+      "svgExact": true,
+      "receiptExact": true,
+      "baselineProof": "passed",
+      "candidateProof": "passed"
+    },
+    {
+      "id": "diagnostic:compound-identity-LR",
+      "backend": "agentic",
+      "replica": 1,
+      "phase": "edit2",
+      "svgExact": true,
+      "receiptExact": true,
+      "baselineProof": "passed",
+      "candidateProof": "passed"
+    },
+    {
+      "id": "diagnostic:compound-identity-LR",
+      "backend": "agentic",
+      "replica": 1,
+      "phase": "edit3",
+      "svgExact": true,
+      "receiptExact": true,
+      "baselineProof": "passed",
+      "candidateProof": "passed"
+    },
+    {
+      "id": "diagnostic:compound-identity-LR",
+      "backend": "agentic",
+      "replica": 1,
+      "phase": "edit4",
+      "svgExact": true,
+      "receiptExact": true,
+      "baselineProof": "passed",
+      "candidateProof": "passed"
+    },
+    {
+      "id": "diagnostic:compound-identity-LR",
+      "backend": "agentic",
+      "replica": 2,
+      "phase": "warmup",
+      "svgExact": true,
+      "receiptExact": true,
+      "baselineProof": "passed",
+      "candidateProof": "passed"
+    },
+    {
+      "id": "diagnostic:compound-identity-LR",
+      "backend": "agentic",
+      "replica": 2,
+      "phase": "repeat1",
+      "svgExact": true,
+      "receiptExact": true,
+      "baselineProof": "passed",
+      "candidateProof": "passed"
+    },
+    {
+      "id": "diagnostic:compound-identity-LR",
+      "backend": "agentic",
+      "replica": 2,
+      "phase": "repeat2",
+      "svgExact": true,
+      "receiptExact": true,
+      "baselineProof": "passed",
+      "candidateProof": "passed"
+    },
+    {
+      "id": "diagnostic:compound-identity-LR",
+      "backend": "agentic",
+      "replica": 2,
+      "phase": "repeat3",
+      "svgExact": true,
+      "receiptExact": true,
+      "baselineProof": "passed",
+      "candidateProof": "passed"
+    },
+    {
+      "id": "diagnostic:compound-identity-LR",
+      "backend": "agentic",
+      "replica": 2,
+      "phase": "repeat4",
+      "svgExact": true,
+      "receiptExact": true,
+      "baselineProof": "passed",
+      "candidateProof": "passed"
+    },
+    {
+      "id": "diagnostic:compound-identity-LR",
+      "backend": "agentic",
+      "replica": 2,
+      "phase": "edit1",
+      "svgExact": true,
+      "receiptExact": true,
+      "baselineProof": "passed",
+      "candidateProof": "passed"
+    },
+    {
+      "id": "diagnostic:compound-identity-LR",
+      "backend": "agentic",
+      "replica": 2,
+      "phase": "edit2",
+      "svgExact": true,
+      "receiptExact": true,
+      "baselineProof": "passed",
+      "candidateProof": "passed"
+    },
+    {
+      "id": "diagnostic:compound-identity-LR",
+      "backend": "agentic",
+      "replica": 2,
+      "phase": "edit3",
+      "svgExact": true,
+      "receiptExact": true,
+      "baselineProof": "passed",
+      "candidateProof": "passed"
+    },
+    {
+      "id": "diagnostic:compound-identity-LR",
+      "backend": "agentic",
+      "replica": 2,
+      "phase": "edit4",
+      "svgExact": true,
+      "receiptExact": true,
+      "baselineProof": "passed",
+      "candidateProof": "passed"
+    },
+    {
+      "id": "diagnostic:compound-identity-LR",
+      "backend": "elk",
+      "replica": 2,
+      "phase": "warmup",
+      "svgExact": true,
+      "receiptExact": true,
+      "baselineProof": "passed",
+      "candidateProof": "passed"
+    },
+    {
+      "id": "diagnostic:compound-identity-LR",
+      "backend": "elk",
+      "replica": 2,
+      "phase": "repeat1",
+      "svgExact": true,
+      "receiptExact": true,
+      "baselineProof": "passed",
+      "candidateProof": "passed"
+    },
+    {
+      "id": "diagnostic:compound-identity-LR",
+      "backend": "elk",
+      "replica": 2,
+      "phase": "repeat2",
+      "svgExact": true,
+      "receiptExact": true,
+      "baselineProof": "passed",
+      "candidateProof": "passed"
+    },
+    {
+      "id": "diagnostic:compound-identity-LR",
+      "backend": "elk",
+      "replica": 2,
+      "phase": "repeat3",
+      "svgExact": true,
+      "receiptExact": true,
+      "baselineProof": "passed",
+      "candidateProof": "passed"
+    },
+    {
+      "id": "diagnostic:compound-identity-LR",
+      "backend": "elk",
+      "replica": 2,
+      "phase": "repeat4",
+      "svgExact": true,
+      "receiptExact": true,
+      "baselineProof": "passed",
+      "candidateProof": "passed"
+    },
+    {
+      "id": "diagnostic:compound-identity-LR",
+      "backend": "elk",
+      "replica": 2,
+      "phase": "edit1",
+      "svgExact": true,
+      "receiptExact": true,
+      "baselineProof": "passed",
+      "candidateProof": "passed"
+    },
+    {
+      "id": "diagnostic:compound-identity-LR",
+      "backend": "elk",
+      "replica": 2,
+      "phase": "edit2",
+      "svgExact": true,
+      "receiptExact": true,
+      "baselineProof": "passed",
+      "candidateProof": "passed"
+    },
+    {
+      "id": "diagnostic:compound-identity-LR",
+      "backend": "elk",
+      "replica": 2,
+      "phase": "edit3",
+      "svgExact": true,
+      "receiptExact": true,
+      "baselineProof": "passed",
+      "candidateProof": "passed"
+    },
+    {
+      "id": "diagnostic:compound-identity-LR",
+      "backend": "elk",
+      "replica": 2,
+      "phase": "edit4",
+      "svgExact": true,
+      "receiptExact": true,
+      "baselineProof": "passed",
+      "candidateProof": "passed"
+    },
+    {
+      "id": "diagnostic:compound-permutation-LR",
+      "backend": "elk",
+      "replica": 0,
+      "phase": "warmup",
+      "svgExact": true,
+      "receiptExact": true,
+      "baselineProof": "passed",
+      "candidateProof": "passed"
+    },
+    {
+      "id": "diagnostic:compound-permutation-LR",
+      "backend": "elk",
+      "replica": 0,
+      "phase": "repeat1",
+      "svgExact": true,
+      "receiptExact": true,
+      "baselineProof": "passed",
+      "candidateProof": "passed"
+    },
+    {
+      "id": "diagnostic:compound-permutation-LR",
+      "backend": "elk",
+      "replica": 0,
+      "phase": "repeat2",
+      "svgExact": true,
+      "receiptExact": true,
+      "baselineProof": "passed",
+      "candidateProof": "passed"
+    },
+    {
+      "id": "diagnostic:compound-permutation-LR",
+      "backend": "elk",
+      "replica": 0,
+      "phase": "repeat3",
+      "svgExact": true,
+      "receiptExact": true,
+      "baselineProof": "passed",
+      "candidateProof": "passed"
+    },
+    {
+      "id": "diagnostic:compound-permutation-LR",
+      "backend": "elk",
+      "replica": 0,
+      "phase": "repeat4",
+      "svgExact": true,
+      "receiptExact": true,
+      "baselineProof": "passed",
+      "candidateProof": "passed"
+    },
+    {
+      "id": "diagnostic:compound-permutation-LR",
+      "backend": "elk",
+      "replica": 0,
+      "phase": "edit1",
+      "svgExact": true,
+      "receiptExact": true,
+      "baselineProof": "passed",
+      "candidateProof": "passed"
+    },
+    {
+      "id": "diagnostic:compound-permutation-LR",
+      "backend": "elk",
+      "replica": 0,
+      "phase": "edit2",
+      "svgExact": true,
+      "receiptExact": true,
+      "baselineProof": "passed",
+      "candidateProof": "passed"
+    },
+    {
+      "id": "diagnostic:compound-permutation-LR",
+      "backend": "elk",
+      "replica": 0,
+      "phase": "edit3",
+      "svgExact": true,
+      "receiptExact": true,
+      "baselineProof": "passed",
+      "candidateProof": "passed"
+    },
+    {
+      "id": "diagnostic:compound-permutation-LR",
+      "backend": "elk",
+      "replica": 0,
+      "phase": "edit4",
+      "svgExact": true,
+      "receiptExact": true,
+      "baselineProof": "passed",
+      "candidateProof": "passed"
+    },
+    {
+      "id": "diagnostic:compound-permutation-LR",
+      "backend": "agentic",
+      "replica": 0,
+      "phase": "warmup",
+      "svgExact": false,
+      "receiptExact": false,
+      "baselineProof": "passed",
+      "candidateProof": "passed"
+    },
+    {
+      "id": "diagnostic:compound-permutation-LR",
+      "backend": "agentic",
+      "replica": 0,
+      "phase": "repeat1",
+      "svgExact": false,
+      "receiptExact": false,
+      "baselineProof": "passed",
+      "candidateProof": "passed"
+    },
+    {
+      "id": "diagnostic:compound-permutation-LR",
+      "backend": "agentic",
+      "replica": 0,
+      "phase": "repeat2",
+      "svgExact": false,
+      "receiptExact": false,
+      "baselineProof": "passed",
+      "candidateProof": "passed"
+    },
+    {
+      "id": "diagnostic:compound-permutation-LR",
+      "backend": "agentic",
+      "replica": 0,
+      "phase": "repeat3",
+      "svgExact": false,
+      "receiptExact": false,
+      "baselineProof": "passed",
+      "candidateProof": "passed"
+    },
+    {
+      "id": "diagnostic:compound-permutation-LR",
+      "backend": "agentic",
+      "replica": 0,
+      "phase": "repeat4",
+      "svgExact": false,
+      "receiptExact": false,
+      "baselineProof": "passed",
+      "candidateProof": "passed"
+    },
+    {
+      "id": "diagnostic:compound-permutation-LR",
+      "backend": "agentic",
+      "replica": 0,
+      "phase": "edit1",
+      "svgExact": false,
+      "receiptExact": false,
+      "baselineProof": "passed",
+      "candidateProof": "passed"
+    },
+    {
+      "id": "diagnostic:compound-permutation-LR",
+      "backend": "agentic",
+      "replica": 0,
+      "phase": "edit2",
+      "svgExact": false,
+      "receiptExact": false,
+      "baselineProof": "passed",
+      "candidateProof": "passed"
+    },
+    {
+      "id": "diagnostic:compound-permutation-LR",
+      "backend": "agentic",
+      "replica": 0,
+      "phase": "edit3",
+      "svgExact": false,
+      "receiptExact": false,
+      "baselineProof": "passed",
+      "candidateProof": "passed"
+    },
+    {
+      "id": "diagnostic:compound-permutation-LR",
+      "backend": "agentic",
+      "replica": 0,
+      "phase": "edit4",
+      "svgExact": false,
+      "receiptExact": false,
+      "baselineProof": "passed",
+      "candidateProof": "passed"
+    },
+    {
+      "id": "diagnostic:compound-permutation-LR",
+      "backend": "agentic",
+      "replica": 1,
+      "phase": "warmup",
+      "svgExact": false,
+      "receiptExact": false,
+      "baselineProof": "passed",
+      "candidateProof": "passed"
+    },
+    {
+      "id": "diagnostic:compound-permutation-LR",
+      "backend": "agentic",
+      "replica": 1,
+      "phase": "repeat1",
+      "svgExact": false,
+      "receiptExact": false,
+      "baselineProof": "passed",
+      "candidateProof": "passed"
+    },
+    {
+      "id": "diagnostic:compound-permutation-LR",
+      "backend": "agentic",
+      "replica": 1,
+      "phase": "repeat2",
+      "svgExact": false,
+      "receiptExact": false,
+      "baselineProof": "passed",
+      "candidateProof": "passed"
+    },
+    {
+      "id": "diagnostic:compound-permutation-LR",
+      "backend": "agentic",
+      "replica": 1,
+      "phase": "repeat3",
+      "svgExact": false,
+      "receiptExact": false,
+      "baselineProof": "passed",
+      "candidateProof": "passed"
+    },
+    {
+      "id": "diagnostic:compound-permutation-LR",
+      "backend": "agentic",
+      "replica": 1,
+      "phase": "repeat4",
+      "svgExact": false,
+      "receiptExact": false,
+      "baselineProof": "passed",
+      "candidateProof": "passed"
+    },
+    {
+      "id": "diagnostic:compound-permutation-LR",
+      "backend": "agentic",
+      "replica": 1,
+      "phase": "edit1",
+      "svgExact": false,
+      "receiptExact": false,
+      "baselineProof": "passed",
+      "candidateProof": "passed"
+    },
+    {
+      "id": "diagnostic:compound-permutation-LR",
+      "backend": "agentic",
+      "replica": 1,
+      "phase": "edit2",
+      "svgExact": false,
+      "receiptExact": false,
+      "baselineProof": "passed",
+      "candidateProof": "passed"
+    },
+    {
+      "id": "diagnostic:compound-permutation-LR",
+      "backend": "agentic",
+      "replica": 1,
+      "phase": "edit3",
+      "svgExact": false,
+      "receiptExact": false,
+      "baselineProof": "passed",
+      "candidateProof": "passed"
+    },
+    {
+      "id": "diagnostic:compound-permutation-LR",
+      "backend": "agentic",
+      "replica": 1,
+      "phase": "edit4",
+      "svgExact": false,
+      "receiptExact": false,
+      "baselineProof": "passed",
+      "candidateProof": "passed"
+    },
+    {
+      "id": "diagnostic:compound-permutation-LR",
+      "backend": "elk",
+      "replica": 1,
+      "phase": "warmup",
+      "svgExact": true,
+      "receiptExact": true,
+      "baselineProof": "passed",
+      "candidateProof": "passed"
+    },
+    {
+      "id": "diagnostic:compound-permutation-LR",
+      "backend": "elk",
+      "replica": 1,
+      "phase": "repeat1",
+      "svgExact": true,
+      "receiptExact": true,
+      "baselineProof": "passed",
+      "candidateProof": "passed"
+    },
+    {
+      "id": "diagnostic:compound-permutation-LR",
+      "backend": "elk",
+      "replica": 1,
+      "phase": "repeat2",
+      "svgExact": true,
+      "receiptExact": true,
+      "baselineProof": "passed",
+      "candidateProof": "passed"
+    },
+    {
+      "id": "diagnostic:compound-permutation-LR",
+      "backend": "elk",
+      "replica": 1,
+      "phase": "repeat3",
+      "svgExact": true,
+      "receiptExact": true,
+      "baselineProof": "passed",
+      "candidateProof": "passed"
+    },
+    {
+      "id": "diagnostic:compound-permutation-LR",
+      "backend": "elk",
+      "replica": 1,
+      "phase": "repeat4",
+      "svgExact": true,
+      "receiptExact": true,
+      "baselineProof": "passed",
+      "candidateProof": "passed"
+    },
+    {
+      "id": "diagnostic:compound-permutation-LR",
+      "backend": "elk",
+      "replica": 1,
+      "phase": "edit1",
+      "svgExact": true,
+      "receiptExact": true,
+      "baselineProof": "passed",
+      "candidateProof": "passed"
+    },
+    {
+      "id": "diagnostic:compound-permutation-LR",
+      "backend": "elk",
+      "replica": 1,
+      "phase": "edit2",
+      "svgExact": true,
+      "receiptExact": true,
+      "baselineProof": "passed",
+      "candidateProof": "passed"
+    },
+    {
+      "id": "diagnostic:compound-permutation-LR",
+      "backend": "elk",
+      "replica": 1,
+      "phase": "edit3",
+      "svgExact": true,
+      "receiptExact": true,
+      "baselineProof": "passed",
+      "candidateProof": "passed"
+    },
+    {
+      "id": "diagnostic:compound-permutation-LR",
+      "backend": "elk",
+      "replica": 1,
+      "phase": "edit4",
+      "svgExact": true,
+      "receiptExact": true,
+      "baselineProof": "passed",
+      "candidateProof": "passed"
+    },
+    {
+      "id": "diagnostic:compound-permutation-LR",
+      "backend": "agentic",
+      "replica": 2,
+      "phase": "warmup",
+      "svgExact": false,
+      "receiptExact": false,
+      "baselineProof": "passed",
+      "candidateProof": "passed"
+    },
+    {
+      "id": "diagnostic:compound-permutation-LR",
+      "backend": "agentic",
+      "replica": 2,
+      "phase": "repeat1",
+      "svgExact": false,
+      "receiptExact": false,
+      "baselineProof": "passed",
+      "candidateProof": "passed"
+    },
+    {
+      "id": "diagnostic:compound-permutation-LR",
+      "backend": "agentic",
+      "replica": 2,
+      "phase": "repeat2",
+      "svgExact": false,
+      "receiptExact": false,
+      "baselineProof": "passed",
+      "candidateProof": "passed"
+    },
+    {
+      "id": "diagnostic:compound-permutation-LR",
+      "backend": "agentic",
+      "replica": 2,
+      "phase": "repeat3",
+      "svgExact": false,
+      "receiptExact": false,
+      "baselineProof": "passed",
+      "candidateProof": "passed"
+    },
+    {
+      "id": "diagnostic:compound-permutation-LR",
+      "backend": "agentic",
+      "replica": 2,
+      "phase": "repeat4",
+      "svgExact": false,
+      "receiptExact": false,
+      "baselineProof": "passed",
+      "candidateProof": "passed"
+    },
+    {
+      "id": "diagnostic:compound-permutation-LR",
+      "backend": "agentic",
+      "replica": 2,
+      "phase": "edit1",
+      "svgExact": false,
+      "receiptExact": false,
+      "baselineProof": "passed",
+      "candidateProof": "passed"
+    },
+    {
+      "id": "diagnostic:compound-permutation-LR",
+      "backend": "agentic",
+      "replica": 2,
+      "phase": "edit2",
+      "svgExact": false,
+      "receiptExact": false,
+      "baselineProof": "passed",
+      "candidateProof": "passed"
+    },
+    {
+      "id": "diagnostic:compound-permutation-LR",
+      "backend": "agentic",
+      "replica": 2,
+      "phase": "edit3",
+      "svgExact": false,
+      "receiptExact": false,
+      "baselineProof": "passed",
+      "candidateProof": "passed"
+    },
+    {
+      "id": "diagnostic:compound-permutation-LR",
+      "backend": "agentic",
+      "replica": 2,
+      "phase": "edit4",
+      "svgExact": false,
+      "receiptExact": false,
+      "baselineProof": "passed",
+      "candidateProof": "passed"
+    },
+    {
+      "id": "diagnostic:compound-permutation-LR",
+      "backend": "elk",
+      "replica": 2,
+      "phase": "warmup",
+      "svgExact": true,
+      "receiptExact": true,
+      "baselineProof": "passed",
+      "candidateProof": "passed"
+    },
+    {
+      "id": "diagnostic:compound-permutation-LR",
+      "backend": "elk",
+      "replica": 2,
+      "phase": "repeat1",
+      "svgExact": true,
+      "receiptExact": true,
+      "baselineProof": "passed",
+      "candidateProof": "passed"
+    },
+    {
+      "id": "diagnostic:compound-permutation-LR",
+      "backend": "elk",
+      "replica": 2,
+      "phase": "repeat2",
+      "svgExact": true,
+      "receiptExact": true,
+      "baselineProof": "passed",
+      "candidateProof": "passed"
+    },
+    {
+      "id": "diagnostic:compound-permutation-LR",
+      "backend": "elk",
+      "replica": 2,
+      "phase": "repeat3",
+      "svgExact": true,
+      "receiptExact": true,
+      "baselineProof": "passed",
+      "candidateProof": "passed"
+    },
+    {
+      "id": "diagnostic:compound-permutation-LR",
+      "backend": "elk",
+      "replica": 2,
+      "phase": "repeat4",
+      "svgExact": true,
+      "receiptExact": true,
+      "baselineProof": "passed",
+      "candidateProof": "passed"
+    },
+    {
+      "id": "diagnostic:compound-permutation-LR",
+      "backend": "elk",
+      "replica": 2,
+      "phase": "edit1",
+      "svgExact": true,
+      "receiptExact": true,
+      "baselineProof": "passed",
+      "candidateProof": "passed"
+    },
+    {
+      "id": "diagnostic:compound-permutation-LR",
+      "backend": "elk",
+      "replica": 2,
+      "phase": "edit2",
+      "svgExact": true,
+      "receiptExact": true,
+      "baselineProof": "passed",
+      "candidateProof": "passed"
+    },
+    {
+      "id": "diagnostic:compound-permutation-LR",
+      "backend": "elk",
+      "replica": 2,
+      "phase": "edit3",
+      "svgExact": true,
+      "receiptExact": true,
+      "baselineProof": "passed",
+      "candidateProof": "passed"
+    },
+    {
+      "id": "diagnostic:compound-permutation-LR",
+      "backend": "elk",
+      "replica": 2,
+      "phase": "edit4",
+      "svgExact": true,
+      "receiptExact": true,
+      "baselineProof": "passed",
+      "candidateProof": "passed"
+    },
+    {
+      "id": "diagnostic:compound-permutation-RL",
+      "backend": "agentic",
+      "replica": 0,
+      "phase": "warmup",
+      "svgExact": false,
+      "receiptExact": false,
+      "baselineProof": "passed",
+      "candidateProof": "passed"
+    },
+    {
+      "id": "diagnostic:compound-permutation-RL",
+      "backend": "agentic",
+      "replica": 0,
+      "phase": "repeat1",
+      "svgExact": false,
+      "receiptExact": false,
+      "baselineProof": "passed",
+      "candidateProof": "passed"
+    },
+    {
+      "id": "diagnostic:compound-permutation-RL",
+      "backend": "agentic",
+      "replica": 0,
+      "phase": "repeat2",
+      "svgExact": false,
+      "receiptExact": false,
+      "baselineProof": "passed",
+      "candidateProof": "passed"
+    },
+    {
+      "id": "diagnostic:compound-permutation-RL",
+      "backend": "agentic",
+      "replica": 0,
+      "phase": "repeat3",
+      "svgExact": false,
+      "receiptExact": false,
+      "baselineProof": "passed",
+      "candidateProof": "passed"
+    },
+    {
+      "id": "diagnostic:compound-permutation-RL",
+      "backend": "agentic",
+      "replica": 0,
+      "phase": "repeat4",
+      "svgExact": false,
+      "receiptExact": false,
+      "baselineProof": "passed",
+      "candidateProof": "passed"
+    },
+    {
+      "id": "diagnostic:compound-permutation-RL",
+      "backend": "agentic",
+      "replica": 0,
+      "phase": "edit1",
+      "svgExact": false,
+      "receiptExact": false,
+      "baselineProof": "passed",
+      "candidateProof": "passed"
+    },
+    {
+      "id": "diagnostic:compound-permutation-RL",
+      "backend": "agentic",
+      "replica": 0,
+      "phase": "edit2",
+      "svgExact": false,
+      "receiptExact": false,
+      "baselineProof": "passed",
+      "candidateProof": "passed"
+    },
+    {
+      "id": "diagnostic:compound-permutation-RL",
+      "backend": "agentic",
+      "replica": 0,
+      "phase": "edit3",
+      "svgExact": false,
+      "receiptExact": false,
+      "baselineProof": "passed",
+      "candidateProof": "passed"
+    },
+    {
+      "id": "diagnostic:compound-permutation-RL",
+      "backend": "agentic",
+      "replica": 0,
+      "phase": "edit4",
+      "svgExact": false,
+      "receiptExact": false,
+      "baselineProof": "passed",
+      "candidateProof": "passed"
+    },
+    {
+      "id": "diagnostic:compound-permutation-RL",
+      "backend": "elk",
+      "replica": 0,
+      "phase": "warmup",
+      "svgExact": true,
+      "receiptExact": true,
+      "baselineProof": "passed",
+      "candidateProof": "passed"
+    },
+    {
+      "id": "diagnostic:compound-permutation-RL",
+      "backend": "elk",
+      "replica": 0,
+      "phase": "repeat1",
+      "svgExact": true,
+      "receiptExact": true,
+      "baselineProof": "passed",
+      "candidateProof": "passed"
+    },
+    {
+      "id": "diagnostic:compound-permutation-RL",
+      "backend": "elk",
+      "replica": 0,
+      "phase": "repeat2",
+      "svgExact": true,
+      "receiptExact": true,
+      "baselineProof": "passed",
+      "candidateProof": "passed"
+    },
+    {
+      "id": "diagnostic:compound-permutation-RL",
+      "backend": "elk",
+      "replica": 0,
+      "phase": "repeat3",
+      "svgExact": true,
+      "receiptExact": true,
+      "baselineProof": "passed",
+      "candidateProof": "passed"
+    },
+    {
+      "id": "diagnostic:compound-permutation-RL",
+      "backend": "elk",
+      "replica": 0,
+      "phase": "repeat4",
+      "svgExact": true,
+      "receiptExact": true,
+      "baselineProof": "passed",
+      "candidateProof": "passed"
+    },
+    {
+      "id": "diagnostic:compound-permutation-RL",
+      "backend": "elk",
+      "replica": 0,
+      "phase": "edit1",
+      "svgExact": true,
+      "receiptExact": true,
+      "baselineProof": "passed",
+      "candidateProof": "passed"
+    },
+    {
+      "id": "diagnostic:compound-permutation-RL",
+      "backend": "elk",
+      "replica": 0,
+      "phase": "edit2",
+      "svgExact": true,
+      "receiptExact": true,
+      "baselineProof": "passed",
+      "candidateProof": "passed"
+    },
+    {
+      "id": "diagnostic:compound-permutation-RL",
+      "backend": "elk",
+      "replica": 0,
+      "phase": "edit3",
+      "svgExact": true,
+      "receiptExact": true,
+      "baselineProof": "passed",
+      "candidateProof": "passed"
+    },
+    {
+      "id": "diagnostic:compound-permutation-RL",
+      "backend": "elk",
+      "replica": 0,
+      "phase": "edit4",
+      "svgExact": true,
+      "receiptExact": true,
+      "baselineProof": "passed",
+      "candidateProof": "passed"
+    },
+    {
+      "id": "diagnostic:compound-permutation-RL",
+      "backend": "agentic",
+      "replica": 1,
+      "phase": "warmup",
+      "svgExact": false,
+      "receiptExact": false,
+      "baselineProof": "passed",
+      "candidateProof": "passed"
+    },
+    {
+      "id": "diagnostic:compound-permutation-RL",
+      "backend": "agentic",
+      "replica": 1,
+      "phase": "repeat1",
+      "svgExact": false,
+      "receiptExact": false,
+      "baselineProof": "passed",
+      "candidateProof": "passed"
+    },
+    {
+      "id": "diagnostic:compound-permutation-RL",
+      "backend": "agentic",
+      "replica": 1,
+      "phase": "repeat2",
+      "svgExact": false,
+      "receiptExact": false,
+      "baselineProof": "passed",
+      "candidateProof": "passed"
+    },
+    {
+      "id": "diagnostic:compound-permutation-RL",
+      "backend": "agentic",
+      "replica": 1,
+      "phase": "repeat3",
+      "svgExact": false,
+      "receiptExact": false,
+      "baselineProof": "passed",
+      "candidateProof": "passed"
+    },
+    {
+      "id": "diagnostic:compound-permutation-RL",
+      "backend": "agentic",
+      "replica": 1,
+      "phase": "repeat4",
+      "svgExact": false,
+      "receiptExact": false,
+      "baselineProof": "passed",
+      "candidateProof": "passed"
+    },
+    {
+      "id": "diagnostic:compound-permutation-RL",
+      "backend": "agentic",
+      "replica": 1,
+      "phase": "edit1",
+      "svgExact": false,
+      "receiptExact": false,
+      "baselineProof": "passed",
+      "candidateProof": "passed"
+    },
+    {
+      "id": "diagnostic:compound-permutation-RL",
+      "backend": "agentic",
+      "replica": 1,
+      "phase": "edit2",
+      "svgExact": false,
+      "receiptExact": false,
+      "baselineProof": "passed",
+      "candidateProof": "passed"
+    },
+    {
+      "id": "diagnostic:compound-permutation-RL",
+      "backend": "agentic",
+      "replica": 1,
+      "phase": "edit3",
+      "svgExact": false,
+      "receiptExact": false,
+      "baselineProof": "passed",
+      "candidateProof": "passed"
+    },
+    {
+      "id": "diagnostic:compound-permutation-RL",
+      "backend": "agentic",
+      "replica": 1,
+      "phase": "edit4",
+      "svgExact": false,
+      "receiptExact": false,
+      "baselineProof": "passed",
+      "candidateProof": "passed"
+    },
+    {
+      "id": "diagnostic:compound-permutation-RL",
+      "backend": "elk",
+      "replica": 1,
+      "phase": "warmup",
+      "svgExact": true,
+      "receiptExact": true,
+      "baselineProof": "passed",
+      "candidateProof": "passed"
+    },
+    {
+      "id": "diagnostic:compound-permutation-RL",
+      "backend": "elk",
+      "replica": 1,
+      "phase": "repeat1",
+      "svgExact": true,
+      "receiptExact": true,
+      "baselineProof": "passed",
+      "candidateProof": "passed"
+    },
+    {
+      "id": "diagnostic:compound-permutation-RL",
+      "backend": "elk",
+      "replica": 1,
+      "phase": "repeat2",
+      "svgExact": true,
+      "receiptExact": true,
+      "baselineProof": "passed",
+      "candidateProof": "passed"
+    },
+    {
+      "id": "diagnostic:compound-permutation-RL",
+      "backend": "elk",
+      "replica": 1,
+      "phase": "repeat3",
+      "svgExact": true,
+      "receiptExact": true,
+      "baselineProof": "passed",
+      "candidateProof": "passed"
+    },
+    {
+      "id": "diagnostic:compound-permutation-RL",
+      "backend": "elk",
+      "replica": 1,
+      "phase": "repeat4",
+      "svgExact": true,
+      "receiptExact": true,
+      "baselineProof": "passed",
+      "candidateProof": "passed"
+    },
+    {
+      "id": "diagnostic:compound-permutation-RL",
+      "backend": "elk",
+      "replica": 1,
+      "phase": "edit1",
+      "svgExact": true,
+      "receiptExact": true,
+      "baselineProof": "passed",
+      "candidateProof": "passed"
+    },
+    {
+      "id": "diagnostic:compound-permutation-RL",
+      "backend": "elk",
+      "replica": 1,
+      "phase": "edit2",
+      "svgExact": true,
+      "receiptExact": true,
+      "baselineProof": "passed",
+      "candidateProof": "passed"
+    },
+    {
+      "id": "diagnostic:compound-permutation-RL",
+      "backend": "elk",
+      "replica": 1,
+      "phase": "edit3",
+      "svgExact": true,
+      "receiptExact": true,
+      "baselineProof": "passed",
+      "candidateProof": "passed"
+    },
+    {
+      "id": "diagnostic:compound-permutation-RL",
+      "backend": "elk",
+      "replica": 1,
+      "phase": "edit4",
+      "svgExact": true,
+      "receiptExact": true,
+      "baselineProof": "passed",
+      "candidateProof": "passed"
+    },
+    {
+      "id": "diagnostic:compound-permutation-RL",
+      "backend": "elk",
+      "replica": 2,
+      "phase": "warmup",
+      "svgExact": true,
+      "receiptExact": true,
+      "baselineProof": "passed",
+      "candidateProof": "passed"
+    },
+    {
+      "id": "diagnostic:compound-permutation-RL",
+      "backend": "elk",
+      "replica": 2,
+      "phase": "repeat1",
+      "svgExact": true,
+      "receiptExact": true,
+      "baselineProof": "passed",
+      "candidateProof": "passed"
+    },
+    {
+      "id": "diagnostic:compound-permutation-RL",
+      "backend": "elk",
+      "replica": 2,
+      "phase": "repeat2",
+      "svgExact": true,
+      "receiptExact": true,
+      "baselineProof": "passed",
+      "candidateProof": "passed"
+    },
+    {
+      "id": "diagnostic:compound-permutation-RL",
+      "backend": "elk",
+      "replica": 2,
+      "phase": "repeat3",
+      "svgExact": true,
+      "receiptExact": true,
+      "baselineProof": "passed",
+      "candidateProof": "passed"
+    },
+    {
+      "id": "diagnostic:compound-permutation-RL",
+      "backend": "elk",
+      "replica": 2,
+      "phase": "repeat4",
+      "svgExact": true,
+      "receiptExact": true,
+      "baselineProof": "passed",
+      "candidateProof": "passed"
+    },
+    {
+      "id": "diagnostic:compound-permutation-RL",
+      "backend": "elk",
+      "replica": 2,
+      "phase": "edit1",
+      "svgExact": true,
+      "receiptExact": true,
+      "baselineProof": "passed",
+      "candidateProof": "passed"
+    },
+    {
+      "id": "diagnostic:compound-permutation-RL",
+      "backend": "elk",
+      "replica": 2,
+      "phase": "edit2",
+      "svgExact": true,
+      "receiptExact": true,
+      "baselineProof": "passed",
+      "candidateProof": "passed"
+    },
+    {
+      "id": "diagnostic:compound-permutation-RL",
+      "backend": "elk",
+      "replica": 2,
+      "phase": "edit3",
+      "svgExact": true,
+      "receiptExact": true,
+      "baselineProof": "passed",
+      "candidateProof": "passed"
+    },
+    {
+      "id": "diagnostic:compound-permutation-RL",
+      "backend": "elk",
+      "replica": 2,
+      "phase": "edit4",
+      "svgExact": true,
+      "receiptExact": true,
+      "baselineProof": "passed",
+      "candidateProof": "passed"
+    },
+    {
+      "id": "diagnostic:compound-permutation-RL",
+      "backend": "agentic",
+      "replica": 2,
+      "phase": "warmup",
+      "svgExact": false,
+      "receiptExact": false,
+      "baselineProof": "passed",
+      "candidateProof": "passed"
+    },
+    {
+      "id": "diagnostic:compound-permutation-RL",
+      "backend": "agentic",
+      "replica": 2,
+      "phase": "repeat1",
+      "svgExact": false,
+      "receiptExact": false,
+      "baselineProof": "passed",
+      "candidateProof": "passed"
+    },
+    {
+      "id": "diagnostic:compound-permutation-RL",
+      "backend": "agentic",
+      "replica": 2,
+      "phase": "repeat2",
+      "svgExact": false,
+      "receiptExact": false,
+      "baselineProof": "passed",
+      "candidateProof": "passed"
+    },
+    {
+      "id": "diagnostic:compound-permutation-RL",
+      "backend": "agentic",
+      "replica": 2,
+      "phase": "repeat3",
+      "svgExact": false,
+      "receiptExact": false,
+      "baselineProof": "passed",
+      "candidateProof": "passed"
+    },
+    {
+      "id": "diagnostic:compound-permutation-RL",
+      "backend": "agentic",
+      "replica": 2,
+      "phase": "repeat4",
+      "svgExact": false,
+      "receiptExact": false,
+      "baselineProof": "passed",
+      "candidateProof": "passed"
+    },
+    {
+      "id": "diagnostic:compound-permutation-RL",
+      "backend": "agentic",
+      "replica": 2,
+      "phase": "edit1",
+      "svgExact": false,
+      "receiptExact": false,
+      "baselineProof": "passed",
+      "candidateProof": "passed"
+    },
+    {
+      "id": "diagnostic:compound-permutation-RL",
+      "backend": "agentic",
+      "replica": 2,
+      "phase": "edit2",
+      "svgExact": false,
+      "receiptExact": false,
+      "baselineProof": "passed",
+      "candidateProof": "passed"
+    },
+    {
+      "id": "diagnostic:compound-permutation-RL",
+      "backend": "agentic",
+      "replica": 2,
+      "phase": "edit3",
+      "svgExact": false,
+      "receiptExact": false,
+      "baselineProof": "passed",
+      "candidateProof": "passed"
+    },
+    {
+      "id": "diagnostic:compound-permutation-RL",
+      "backend": "agentic",
+      "replica": 2,
+      "phase": "edit4",
+      "svgExact": false,
+      "receiptExact": false,
+      "baselineProof": "passed",
+      "candidateProof": "passed"
+    }
+  ],
+  "observationBindings": [
+    {
+      "target": "candidate",
+      "id": "diagnostic:compound-identity-LR",
+      "backend": "agentic",
+      "replica": 0,
+      "observedProduct": "/workspace/pr449-native-loop-20261113/audit/path-order-built-products/default/LR-identity-agentic.product.json",
+      "svgExact": true,
+      "receiptExact": true
+    },
+    {
+      "target": "baseline",
+      "id": "diagnostic:compound-identity-LR",
+      "backend": "elk",
+      "replica": 0,
+      "observedProduct": "/workspace/pr449-native-loop-20261113/audit/compound-permutation/main-combined-products/default/LR-identity-elk.product.json",
+      "svgExact": true,
+      "receiptExact": true
+    },
+    {
+      "target": "candidate",
+      "id": "diagnostic:compound-identity-LR",
+      "backend": "elk",
+      "replica": 0,
+      "observedProduct": "/workspace/pr449-native-loop-20261113/audit/path-order-built-products/default/LR-identity-elk.product.json",
+      "svgExact": true,
+      "receiptExact": true
+    },
+    {
+      "target": "baseline",
+      "id": "diagnostic:compound-identity-LR",
+      "backend": "agentic",
+      "replica": 0,
+      "observedProduct": "/workspace/pr449-native-loop-20261113/audit/compound-permutation/main-combined-products/default/LR-identity-agentic.product.json",
+      "svgExact": true,
+      "receiptExact": true
+    },
+    {
+      "target": "baseline",
+      "id": "diagnostic:compound-identity-LR",
+      "backend": "elk",
+      "replica": 1,
+      "observedProduct": "/workspace/pr449-native-loop-20261113/audit/compound-permutation/main-combined-products/default/LR-identity-elk.product.json",
+      "svgExact": true,
+      "receiptExact": true
+    },
+    {
+      "target": "candidate",
+      "id": "diagnostic:compound-identity-LR",
+      "backend": "elk",
+      "replica": 1,
+      "observedProduct": "/workspace/pr449-native-loop-20261113/audit/path-order-built-products/default/LR-identity-elk.product.json",
+      "svgExact": true,
+      "receiptExact": true
+    },
+    {
+      "target": "baseline",
+      "id": "diagnostic:compound-identity-LR",
+      "backend": "agentic",
+      "replica": 1,
+      "observedProduct": "/workspace/pr449-native-loop-20261113/audit/compound-permutation/main-combined-products/default/LR-identity-agentic.product.json",
+      "svgExact": true,
+      "receiptExact": true
+    },
+    {
+      "target": "candidate",
+      "id": "diagnostic:compound-identity-LR",
+      "backend": "agentic",
+      "replica": 1,
+      "observedProduct": "/workspace/pr449-native-loop-20261113/audit/path-order-built-products/default/LR-identity-agentic.product.json",
+      "svgExact": true,
+      "receiptExact": true
+    },
+    {
+      "target": "candidate",
+      "id": "diagnostic:compound-identity-LR",
+      "backend": "elk",
+      "replica": 2,
+      "observedProduct": "/workspace/pr449-native-loop-20261113/audit/path-order-built-products/default/LR-identity-elk.product.json",
+      "svgExact": true,
+      "receiptExact": true
+    },
+    {
+      "target": "baseline",
+      "id": "diagnostic:compound-identity-LR",
+      "backend": "agentic",
+      "replica": 2,
+      "observedProduct": "/workspace/pr449-native-loop-20261113/audit/compound-permutation/main-combined-products/default/LR-identity-agentic.product.json",
+      "svgExact": true,
+      "receiptExact": true
+    },
+    {
+      "target": "candidate",
+      "id": "diagnostic:compound-identity-LR",
+      "backend": "agentic",
+      "replica": 2,
+      "observedProduct": "/workspace/pr449-native-loop-20261113/audit/path-order-built-products/default/LR-identity-agentic.product.json",
+      "svgExact": true,
+      "receiptExact": true
+    },
+    {
+      "target": "baseline",
+      "id": "diagnostic:compound-identity-LR",
+      "backend": "elk",
+      "replica": 2,
+      "observedProduct": "/workspace/pr449-native-loop-20261113/audit/compound-permutation/main-combined-products/default/LR-identity-elk.product.json",
+      "svgExact": true,
+      "receiptExact": true
+    },
+    {
+      "target": "baseline",
+      "id": "diagnostic:compound-permutation-LR",
+      "backend": "elk",
+      "replica": 0,
+      "observedProduct": "/workspace/pr449-native-loop-20261113/audit/compound-permutation/main-combined-products/default/LR-permutation-elk.product.json",
+      "svgExact": true,
+      "receiptExact": true
+    },
+    {
+      "target": "candidate",
+      "id": "diagnostic:compound-permutation-LR",
+      "backend": "elk",
+      "replica": 0,
+      "observedProduct": "/workspace/pr449-native-loop-20261113/audit/path-order-built-products/default/LR-permutation-elk.product.json",
+      "svgExact": true,
+      "receiptExact": true
+    },
+    {
+      "target": "baseline",
+      "id": "diagnostic:compound-permutation-LR",
+      "backend": "agentic",
+      "replica": 0,
+      "observedProduct": "/workspace/pr449-native-loop-20261113/audit/compound-permutation/main-combined-products/default/LR-permutation-agentic.product.json",
+      "svgExact": true,
+      "receiptExact": true
+    },
+    {
+      "target": "candidate",
+      "id": "diagnostic:compound-permutation-LR",
+      "backend": "agentic",
+      "replica": 0,
+      "observedProduct": "/workspace/pr449-native-loop-20261113/audit/path-order-built-products/default/LR-permutation-agentic.product.json",
+      "svgExact": true,
+      "receiptExact": true
+    },
+    {
+      "target": "candidate",
+      "id": "diagnostic:compound-permutation-LR",
+      "backend": "elk",
+      "replica": 1,
+      "observedProduct": "/workspace/pr449-native-loop-20261113/audit/path-order-built-products/default/LR-permutation-elk.product.json",
+      "svgExact": true,
+      "receiptExact": true
+    },
+    {
+      "target": "baseline",
+      "id": "diagnostic:compound-permutation-LR",
+      "backend": "agentic",
+      "replica": 1,
+      "observedProduct": "/workspace/pr449-native-loop-20261113/audit/compound-permutation/main-combined-products/default/LR-permutation-agentic.product.json",
+      "svgExact": true,
+      "receiptExact": true
+    },
+    {
+      "target": "candidate",
+      "id": "diagnostic:compound-permutation-LR",
+      "backend": "agentic",
+      "replica": 1,
+      "observedProduct": "/workspace/pr449-native-loop-20261113/audit/path-order-built-products/default/LR-permutation-agentic.product.json",
+      "svgExact": true,
+      "receiptExact": true
+    },
+    {
+      "target": "baseline",
+      "id": "diagnostic:compound-permutation-LR",
+      "backend": "elk",
+      "replica": 1,
+      "observedProduct": "/workspace/pr449-native-loop-20261113/audit/compound-permutation/main-combined-products/default/LR-permutation-elk.product.json",
+      "svgExact": true,
+      "receiptExact": true
+    },
+    {
+      "target": "baseline",
+      "id": "diagnostic:compound-permutation-LR",
+      "backend": "agentic",
+      "replica": 2,
+      "observedProduct": "/workspace/pr449-native-loop-20261113/audit/compound-permutation/main-combined-products/default/LR-permutation-agentic.product.json",
+      "svgExact": true,
+      "receiptExact": true
+    },
+    {
+      "target": "candidate",
+      "id": "diagnostic:compound-permutation-LR",
+      "backend": "agentic",
+      "replica": 2,
+      "observedProduct": "/workspace/pr449-native-loop-20261113/audit/path-order-built-products/default/LR-permutation-agentic.product.json",
+      "svgExact": true,
+      "receiptExact": true
+    },
+    {
+      "target": "baseline",
+      "id": "diagnostic:compound-permutation-LR",
+      "backend": "elk",
+      "replica": 2,
+      "observedProduct": "/workspace/pr449-native-loop-20261113/audit/compound-permutation/main-combined-products/default/LR-permutation-elk.product.json",
+      "svgExact": true,
+      "receiptExact": true
+    },
+    {
+      "target": "candidate",
+      "id": "diagnostic:compound-permutation-LR",
+      "backend": "elk",
+      "replica": 2,
+      "observedProduct": "/workspace/pr449-native-loop-20261113/audit/path-order-built-products/default/LR-permutation-elk.product.json",
+      "svgExact": true,
+      "receiptExact": true
+    },
+    {
+      "target": "candidate",
+      "id": "diagnostic:compound-permutation-RL",
+      "backend": "elk",
+      "replica": 0,
+      "observedProduct": "/workspace/pr449-native-loop-20261113/audit/path-order-built-products/default/RL-permutation-elk.product.json",
+      "svgExact": true,
+      "receiptExact": true
+    },
+    {
+      "target": "baseline",
+      "id": "diagnostic:compound-permutation-RL",
+      "backend": "agentic",
+      "replica": 0,
+      "observedProduct": "/workspace/pr449-native-loop-20261113/audit/compound-permutation/main-combined-products/default/RL-permutation-agentic.product.json",
+      "svgExact": true,
+      "receiptExact": true
+    },
+    {
+      "target": "candidate",
+      "id": "diagnostic:compound-permutation-RL",
+      "backend": "agentic",
+      "replica": 0,
+      "observedProduct": "/workspace/pr449-native-loop-20261113/audit/path-order-built-products/default/RL-permutation-agentic.product.json",
+      "svgExact": true,
+      "receiptExact": true
+    },
+    {
+      "target": "baseline",
+      "id": "diagnostic:compound-permutation-RL",
+      "backend": "elk",
+      "replica": 0,
+      "observedProduct": "/workspace/pr449-native-loop-20261113/audit/compound-permutation/main-combined-products/default/RL-permutation-elk.product.json",
+      "svgExact": true,
+      "receiptExact": true
+    },
+    {
+      "target": "baseline",
+      "id": "diagnostic:compound-permutation-RL",
+      "backend": "agentic",
+      "replica": 1,
+      "observedProduct": "/workspace/pr449-native-loop-20261113/audit/compound-permutation/main-combined-products/default/RL-permutation-agentic.product.json",
+      "svgExact": true,
+      "receiptExact": true
+    },
+    {
+      "target": "candidate",
+      "id": "diagnostic:compound-permutation-RL",
+      "backend": "agentic",
+      "replica": 1,
+      "observedProduct": "/workspace/pr449-native-loop-20261113/audit/path-order-built-products/default/RL-permutation-agentic.product.json",
+      "svgExact": true,
+      "receiptExact": true
+    },
+    {
+      "target": "baseline",
+      "id": "diagnostic:compound-permutation-RL",
+      "backend": "elk",
+      "replica": 1,
+      "observedProduct": "/workspace/pr449-native-loop-20261113/audit/compound-permutation/main-combined-products/default/RL-permutation-elk.product.json",
+      "svgExact": true,
+      "receiptExact": true
+    },
+    {
+      "target": "candidate",
+      "id": "diagnostic:compound-permutation-RL",
+      "backend": "elk",
+      "replica": 1,
+      "observedProduct": "/workspace/pr449-native-loop-20261113/audit/path-order-built-products/default/RL-permutation-elk.product.json",
+      "svgExact": true,
+      "receiptExact": true
+    },
+    {
+      "target": "candidate",
+      "id": "diagnostic:compound-permutation-RL",
+      "backend": "agentic",
+      "replica": 2,
+      "observedProduct": "/workspace/pr449-native-loop-20261113/audit/path-order-built-products/default/RL-permutation-agentic.product.json",
+      "svgExact": true,
+      "receiptExact": true
+    },
+    {
+      "target": "baseline",
+      "id": "diagnostic:compound-permutation-RL",
+      "backend": "elk",
+      "replica": 2,
+      "observedProduct": "/workspace/pr449-native-loop-20261113/audit/compound-permutation/main-combined-products/default/RL-permutation-elk.product.json",
+      "svgExact": true,
+      "receiptExact": true
+    },
+    {
+      "target": "candidate",
+      "id": "diagnostic:compound-permutation-RL",
+      "backend": "elk",
+      "replica": 2,
+      "observedProduct": "/workspace/pr449-native-loop-20261113/audit/path-order-built-products/default/RL-permutation-elk.product.json",
+      "svgExact": true,
+      "receiptExact": true
+    },
+    {
+      "target": "baseline",
+      "id": "diagnostic:compound-permutation-RL",
+      "backend": "agentic",
+      "replica": 2,
+      "observedProduct": "/workspace/pr449-native-loop-20261113/audit/compound-permutation/main-combined-products/default/RL-permutation-agentic.product.json",
+      "svgExact": true,
+      "receiptExact": true
+    }
+  ]
+}

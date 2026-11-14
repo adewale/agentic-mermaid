@@ -1,0 +1,27 @@
+{
+  "sourcePatch": "c3bc059b3ee17fe8d397ed89f29fc0d97d8ad11a8f3ee4d008f45a5f5e8cd64d",
+  "baseline": "published runtimec037; test-only1e is identical runtime",
+  "candidate": "1e6882+completehorizontalpathbundle",
+  "cases": [
+    "diagnostic:chain100",
+    "diagnostic:compound-identity-LR",
+    "diagnostic:compound-permutation-LR",
+    "diagnostic:compound-permutation-RL"
+  ],
+  "caseSha256": "489138d8f86e5fd6440d79e7c080ed6a7d64c7131261372b64bb2718d1aad5af",
+  "arms": [
+    "baseline/agentic",
+    "candidate/agentic",
+    "baseline/elk",
+    "candidate/elk"
+  ],
+  "cache": 0,
+  "replicas": 3,
+  "stockWorkers": 192,
+  "fullWorkers": 48,
+  "fullCalls": 432,
+  "stockProtocol": "Unchanged existing Trident protocol: seven adaptive warm means, three fresh first-use workers, separate import/RSS/baseline. Exploratory, not formal calibration.",
+  "fullBoundary": "Existing built public SVG plus entire receipt serialized once and UTF8-counted. Import, first source render and first edit are separate; at-return heap and peak RSS retained. No sampling.",
+  "browserGate": "Pending; no clocks before all observers closed.",
+  "measurementDisposition": "Retain every arm and cell, with no favorable rerun. Affected LR/RL permutation and exact LR identity/flat chain100 controls."
+}

@@ -1,0 +1,152 @@
+{
+  "sourceCommit": "4cddae30548df1adf0ea1908c88454fae3bcb36d",
+  "qualifiedSourcePatchSha256": "c3bc059b3ee17fe8d397ed89f29fc0d97d8ad11a8f3ee4d008f45a5f5e8cd64d",
+  "extractedFrom": "/workspace/pr449-native-loop-20261113/audit/path-order-built-products/RESULTS.json",
+  "sourceParameterization": "Same three-group five-leaf permutation source; only the first flowchart direction token varies across TB/BT/LR/RL. Full source strings are retained per case. No replay performed.",
+  "cases": [
+    {
+      "id": "audit:compound-permutation:TB",
+      "direction": "TB",
+      "source": "flowchart TB\nsubgraph GroupA[Group A]\nA0[A0]\nA1[A1]\nA2[A2]\nA3[A3]\nA4[A4]\nend\nsubgraph GroupB[Group B]\nB0[B0]\nB1[B1]\nB2[B2]\nB3[B3]\nB4[B4]\nend\nsubgraph GroupC[Group C]\nC0[C0]\nC1[C1]\nC2[C2]\nC3[C3]\nC4[C4]\nend\nA0 --> B4\nA1 --> B2\nA2 --> B0\nA3 --> B3\nA4 --> B1\nB0 --> C1\nB1 --> C3\nB2 --> C0\nB3 --> C4\nB4 --> C2",
+      "sourceSha256": "2da42e861f85ba3d6cc024d455a0753d031df8749a8538a8cf5d1cc6cfaa1ef0",
+      "renderOptionsByBackend": {
+        "agentic": {
+          "graphLayout": {
+            "backend": "agentic",
+            "fallback": "none"
+          },
+          "style": {
+            "formatVersion": 1,
+            "name": "compound-wide-interaction",
+            "stroke": "crisp",
+            "strokeWidth": 4
+          }
+        },
+        "elk": {
+          "graphLayout": {
+            "backend": "elk",
+            "fallback": "none"
+          },
+          "style": {
+            "formatVersion": 1,
+            "name": "compound-wide-interaction",
+            "stroke": "crisp",
+            "strokeWidth": 4
+          }
+        }
+      },
+      "retainedProducts": {
+        "agentic": "/workspace/pr449-native-loop-20261113/audit/path-order-built-products/wide/TB-agentic.product.json",
+        "elk": "/workspace/pr449-native-loop-20261113/audit/path-order-built-products/wide/TB-elk.product.json"
+      }
+    },
+    {
+      "id": "audit:compound-permutation:BT",
+      "direction": "BT",
+      "source": "flowchart BT\nsubgraph GroupA[Group A]\nA0[A0]\nA1[A1]\nA2[A2]\nA3[A3]\nA4[A4]\nend\nsubgraph GroupB[Group B]\nB0[B0]\nB1[B1]\nB2[B2]\nB3[B3]\nB4[B4]\nend\nsubgraph GroupC[Group C]\nC0[C0]\nC1[C1]\nC2[C2]\nC3[C3]\nC4[C4]\nend\nA0 --> B4\nA1 --> B2\nA2 --> B0\nA3 --> B3\nA4 --> B1\nB0 --> C1\nB1 --> C3\nB2 --> C0\nB3 --> C4\nB4 --> C2",
+      "sourceSha256": "26c96d6902800b64c87408b6cc6b96d7c4d10084c701b0a4f9ffb1fbd82b5fc5",
+      "renderOptionsByBackend": {
+        "agentic": {
+          "graphLayout": {
+            "backend": "agentic",
+            "fallback": "none"
+          },
+          "style": {
+            "formatVersion": 1,
+            "name": "compound-wide-interaction",
+            "stroke": "crisp",
+            "strokeWidth": 4
+          }
+        },
+        "elk": {
+          "graphLayout": {
+            "backend": "elk",
+            "fallback": "none"
+          },
+          "style": {
+            "formatVersion": 1,
+            "name": "compound-wide-interaction",
+            "stroke": "crisp",
+            "strokeWidth": 4
+          }
+        }
+      },
+      "retainedProducts": {
+        "agentic": "/workspace/pr449-native-loop-20261113/audit/path-order-built-products/wide/BT-agentic.product.json",
+        "elk": "/workspace/pr449-native-loop-20261113/audit/path-order-built-products/wide/BT-elk.product.json"
+      }
+    },
+    {
+      "id": "audit:compound-permutation:LR",
+      "direction": "LR",
+      "source": "flowchart LR\nsubgraph GroupA[Group A]\nA0[A0]\nA1[A1]\nA2[A2]\nA3[A3]\nA4[A4]\nend\nsubgraph GroupB[Group B]\nB0[B0]\nB1[B1]\nB2[B2]\nB3[B3]\nB4[B4]\nend\nsubgraph GroupC[Group C]\nC0[C0]\nC1[C1]\nC2[C2]\nC3[C3]\nC4[C4]\nend\nA0 --> B4\nA1 --> B2\nA2 --> B0\nA3 --> B3\nA4 --> B1\nB0 --> C1\nB1 --> C3\nB2 --> C0\nB3 --> C4\nB4 --> C2",
+      "sourceSha256": "9d07f0f64545e5b01adbfdf3a1b8d33287db9754a5474b888a375af5698e6f07",
+      "renderOptionsByBackend": {
+        "agentic": {
+          "graphLayout": {
+            "backend": "agentic",
+            "fallback": "none"
+          },
+          "style": {
+            "formatVersion": 1,
+            "name": "compound-wide-interaction",
+            "stroke": "crisp",
+            "strokeWidth": 4
+          }
+        },
+        "elk": {
+          "graphLayout": {
+            "backend": "elk",
+            "fallback": "none"
+          },
+          "style": {
+            "formatVersion": 1,
+            "name": "compound-wide-interaction",
+            "stroke": "crisp",
+            "strokeWidth": 4
+          }
+        }
+      },
+      "retainedProducts": {
+        "agentic": "/workspace/pr449-native-loop-20261113/audit/path-order-built-products/wide/LR-agentic.product.json",
+        "elk": "/workspace/pr449-native-loop-20261113/audit/path-order-built-products/wide/LR-elk.product.json"
+      }
+    },
+    {
+      "id": "audit:compound-permutation:RL",
+      "direction": "RL",
+      "source": "flowchart RL\nsubgraph GroupA[Group A]\nA0[A0]\nA1[A1]\nA2[A2]\nA3[A3]\nA4[A4]\nend\nsubgraph GroupB[Group B]\nB0[B0]\nB1[B1]\nB2[B2]\nB3[B3]\nB4[B4]\nend\nsubgraph GroupC[Group C]\nC0[C0]\nC1[C1]\nC2[C2]\nC3[C3]\nC4[C4]\nend\nA0 --> B4\nA1 --> B2\nA2 --> B0\nA3 --> B3\nA4 --> B1\nB0 --> C1\nB1 --> C3\nB2 --> C0\nB3 --> C4\nB4 --> C2",
+      "sourceSha256": "7fd4fc080abe96aa92b75bdd43d66ddd471854d00875a8b9fce654d0350b3f91",
+      "renderOptionsByBackend": {
+        "agentic": {
+          "graphLayout": {
+            "backend": "agentic",
+            "fallback": "none"
+          },
+          "style": {
+            "formatVersion": 1,
+            "name": "compound-wide-interaction",
+            "stroke": "crisp",
+            "strokeWidth": 4
+          }
+        },
+        "elk": {
+          "graphLayout": {
+            "backend": "elk",
+            "fallback": "none"
+          },
+          "style": {
+            "formatVersion": 1,
+            "name": "compound-wide-interaction",
+            "stroke": "crisp",
+            "strokeWidth": 4
+          }
+        }
+      },
+      "retainedProducts": {
+        "agentic": "/workspace/pr449-native-loop-20261113/audit/path-order-built-products/wide/RL-agentic.product.json",
+        "elk": "/workspace/pr449-native-loop-20261113/audit/path-order-built-products/wide/RL-elk.product.json"
+      }
+    }
+  ]
+}
