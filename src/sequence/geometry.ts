@@ -7,7 +7,18 @@ import { ARROW_HEAD, type ResolvedRenderStyle } from '../styles.ts'
 import { LINE_HEIGHT_RATIO, type MultilineMetrics } from '../text-metrics.ts'
 import type { resolveRoleStyle } from '../scene/style-registry.ts'
 import type { MarkerDescriptor } from '../scene/ir.ts'
-import { markerLateralExtent } from '../scene/bounds.ts'
+import { markerBoundsAt } from '../scene/bounds.ts'
+
+/** Support across the carrier at unit carrier width, from the same painted
+ * envelope as markerTerminalDepth: how far the marker reaches either side of
+ * a straight carrier at its endpoint. */
+function markerLateralExtent(marker: MarkerDescriptor, position: 'start' | 'end'): number {
+  const angle = typeof marker.orient === 'number' ? marker.orient
+    : position === 'start' && marker.orient === 'auto-start-reverse' ? 180 : 0
+  const bounds = markerBoundsAt(marker, { x: 0, y: 0 }, 1, true, angle)
+  if (!bounds) throw new TypeError(`Unmeasured terminal marker ${marker.id}`)
+  return Math.max(0, -bounds.y0, bounds.y1)
+}
 
 type ResolvedRoleStyle = ReturnType<typeof resolveRoleStyle>
 
