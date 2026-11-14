@@ -1,0 +1,35 @@
+{
+  "status": "UNQUALIFIED_WORK_IN_PROGRESS",
+  "base": "4cddae30548df1adf0ea1908c88454fae3bcb36d",
+  "patchReconstructsAllFiveSnapshotFiles": true,
+  "fullSourceFilesOmittedBecauseRecoverableFromBaseAndPatch": true,
+  "sourceFiles": [
+    {
+      "path": "src/__tests__/paint-certification.test.ts",
+      "bytes": 408640,
+      "sha256": "c39ab76bc0d73fba71a060bebab1b0fc5db640e17e188954f9425ccf3bd12ae4"
+    },
+    {
+      "path": "src/renderer.ts",
+      "bytes": 34329,
+      "sha256": "6dd9b7f50c933dc2edda1090de5c71bcfe8d9c6477f49199ea45a51145ead1d2"
+    },
+    {
+      "path": "src/scene/drawing.ts",
+      "bytes": 3266,
+      "sha256": "6d1d18257c080cd8833f78e6f8d6a5bea8c7c9411f6f4709c58cd49529a0cdac"
+    },
+    {
+      "path": "src/scene/group-emission.ts",
+      "bytes": 29506,
+      "sha256": "92401ed05320308908a03b2d9181e7423a58f23042911a7c4cc552fcd3f08bc3"
+    },
+    {
+      "path": "src/scene/native-drawing.ts",
+      "bytes": 21398,
+      "sha256": "4357be9ded5b5022dc567d3387038b48396d0cac8d771925e7dea44acd03a9ee"
+    }
+  ],
+  "sourceBranchCommitChanged": false,
+  "oldBlockedArtifactsIncluded": false
+}

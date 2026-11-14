@@ -1,0 +1,256 @@
+diff --git a/src/__tests__/paint-certification.test.ts b/src/__tests__/paint-certification.test.ts
+index 96afa5cf..5c638472 100644
+--- a/src/__tests__/paint-certification.test.ts
++++ b/src/__tests__/paint-certification.test.ts
+@@ -2626,6 +2626,7 @@ const proofCapacityCases = [
+   { name: 'state128', source: ['stateDiagram-v2', ...Array.from({ length: 127 }, (_, index) => `N${index} --> N${index + 1}`)].join('\n'), labels: Array.from({ length: 128 }, (_, index) => `N${index}`) },
+   { name: 'chain100', source: proofCapacityChain(100, true), labels: Array.from({ length: 100 }, (_, index) => `Node ${index}`) },
+   { name: 'fanin100', source: proofCapacityChain(100, true, true), labels: Array.from({ length: 100 }, (_, index) => `Node ${index}`) },
++  { name: 'chain300', source: proofCapacityChain(300, true), labels: Array.from({ length: 300 }, (_, index) => `Node ${index}`) },
+ ]
+ test.each(proofCapacityCases.flatMap(value => (['agentic', 'elk'] as const).map(backend => ({ ...value, backend }))))('public $backend $name repeated labels and markers complete proof within the original allowance', async ({ name, source, labels, backend }) => {
+   const child = await runTextReceiverChild(process.execPath, ['--eval', String.raw`
+@@ -2656,6 +2657,13 @@ console.log(JSON.stringify(renderMermaidSVGWithReceipt(readFileSync(0, 'utf8'),
+     status: 'passed', outputDigest: renderedSvgDigest(result.svg),
+     checks: { maxOperations: 400000, maxOcclusionPairs: 100000 }, issues: [],
+   })
++  if (name === 'chain300') {
++    expect(result.receipt.layoutCertification?.coverage).toMatchObject({ measured: 899, unmeasured: 0, preparedText: 300, fallbackText: 0, conditional: 0 })
++    const proof = result.receipt.layoutCertification
++    if (!proof || !('checks' in proof)) throw new Error('Expected graphical paint checks')
++    expect(proof.checks).toMatchObject({ primitives: 902, markers: 299 })
++    expect(proof.checks.occlusionPairs).toBeGreaterThan(0)
++  }
+ }, 30000)
+ 
+ test.each(['agentic', 'elk'] as const)('public %s thick-arrow and borderless-state markers retain clipping and actual meaning', backend => {
+diff --git a/src/renderer.ts b/src/renderer.ts
+index b48d2d84..663a7f45 100644
+--- a/src/renderer.ts
++++ b/src/renderer.ts
+@@ -581,6 +581,23 @@ function renderNode<T>(marks: DrawingFactory<T>, node: PositionedNode, font: str
+   // data-semantic-shape names the Mermaid v11 `@{ shape }` id when the drawn
+   // geometry is a mapping of it, so agents can explain the semantic shape
+   // even when the geometry is approximate (repo #44).
++  if (marks.groupAttributes) {
++    const semanticShape = node.semanticShape ? [{ name: 'data-semantic-shape', literal: escapeAttr(node.semanticShape) }] : []
++    const interaction = includeInteraction && node.href ? [{ name: 'data-href', literal: escapeAttr(node.href) }, { name: 'role', literal: 'link' }, { name: 'tabindex', literal: '0' }] : []
++    const floatingNote = node.floatingNoteId === undefined ? [] : [{ name: 'data-floating-note-id', literal: escapeAttr(node.floatingNoteId) }]
++    return marks.groupAttributes({
++      id: `node:${node.id}`,
++      role: node.shape === 'state-note' ? 'note' : 'node',
++      openAttributes: [
++        { name: 'class', literal: classAttr },
++        { name: 'data-id', literal: escapeAttr(node.id) },
++        { name: 'data-label', literal: escapeDisplayAttr(node.label) },
++        { name: 'data-shape', literal: node.shape },
++        ...semanticShape, ...interaction, ...floatingNote,
++      ],
++      close: '</g>', children, channels,
++    })
++  }
+   const semanticShape = node.semanticShape ? ` data-semantic-shape="${escapeAttr(node.semanticShape)}"` : ''
+   const interaction = includeInteraction && node.href ? ` data-href="${escapeAttr(node.href)}" role="link" tabindex="0"` : ''
+   const floatingNote = node.floatingNoteId === undefined ? '' : ` data-floating-note-id="${escapeAttr(node.floatingNoteId)}"`
+diff --git a/src/scene/drawing.ts b/src/scene/drawing.ts
+index 6e7a679f..3cbd151b 100644
+--- a/src/scene/drawing.ts
++++ b/src/scene/drawing.ts
+@@ -4,10 +4,14 @@ import * as marks from './marks.ts'
+ 
+ /** One lowering program, with a consumer selected before any marks are built. */
+ export interface DrawingDocument<T> extends Omit<SceneDoc, 'parts'> { parts: T[] }
++export interface DrawingGroupAttribute { readonly name: string; readonly literal: string }
++export type DrawingAttributeGroupInput<T> = Omit<Parameters<typeof marks.group>[0], 'children' | 'open'> & { children: Array<{ node: T; indent: number }>; openAttributes: readonly DrawingGroupAttribute[] }
++
+ export type DrawingFactory<T> = {
+   [K in 'image' | 'shape' | 'text' | 'connector' | 'documentOpen' | 'documentContent' | 'documentText' | 'definitions' | 'documentClose']: (...args: Parameters<typeof marks[K]>) => T
+ } & {
+   group(fields: Omit<Parameters<typeof marks.group>[0], 'children'> & { children: Array<{ node: T; indent: number }> }): T
++  groupAttributes?(fields: DrawingAttributeGroupInput<T>): T
+   pathArtwork(fields: Parameters<typeof marks.pathArtwork>[0]): T
+ }
+ export type DrawingProducer<P extends PositionedDiagram = PositionedDiagram> = <T>(factory: DrawingFactory<T>, context: RenderContext<P>) => DrawingDocument<T>
+diff --git a/src/scene/group-emission.ts b/src/scene/group-emission.ts
+index 77af74a3..3715c78c 100644
+--- a/src/scene/group-emission.ts
++++ b/src/scene/group-emission.ts
+@@ -1,3 +1,5 @@
++import { escapeAttr } from '../multiline-utils.ts'
++import { hasDomSvgIdentityRole } from './identity.ts'
+ import { xmlLiteralSpan } from '../shared/xml-literal.ts'
+ import { decodeXML } from 'entities'
+ import { visitSvgFirstTagAttributes, visitSvgStartTagsFresh, svgClassHasTokenFresh, type SvgStartTagToken, type SvgAttributeToken } from '../svg-structure.ts'
+@@ -230,6 +232,7 @@ export function bindNativeGroupEmission(node: GroupMark, open: string, pay: Pay)
+   }
+   const ownOpen = Object.getOwnPropertyDescriptor(node, 'open')
+   if (!ownOpen || ownOpen.value !== open || ownOpen.writable || ownOpen.configurable || Object.isExtensible(node)) return undefined
++  if (prior.nativeParse && nativeGroupOpeningOf(prior.nativeParse, node, pay) === open) return prior.nativeParse
+   const parsed = captureNativeGroupParse(node, pay, node)
+   if (!parsed || !pay(12)) return undefined
+   groupEmission.set(node, emissionRecord(open, prior.opacity, prior.style, prior.matrix, parsed))
+@@ -407,3 +410,63 @@ export function captureNativeGroupParse(fields: GroupFields, pay: Pay, node?: ob
+ export function freshNativeGroupTags(source: string, pay: Pay): readonly SvgStartTagToken[] | undefined {
+   return collectNativeGroup(source, pay)?.materialize(pay)
+ }
++
++/** Generate plain group bytes from ordered logical attributes. The source and
++ * XML result belong to this write, not to a separately supplied open string. */
++export function createGeneratedNativeGroup(
++  input: readonly { readonly name: string; readonly literal: string }[],
++  fallback: { readonly id: string; readonly role: GroupMark['role'] },
++  pay: Pay,
++): { readonly open: string; readonly identity: NonNullable<GroupMark['identity']>; bind(node: GroupMark): boolean } | undefined {
++  if (!hasDomSvgIdentityRole(fallback.role) || !pay(12 + input.length * 2)) return undefined
++  const values = primitiveGroupList<{ name: string; value: string }>(), names = { __proto__: null } as unknown as Record<string, true>
++  let id = fallback.id, classes: string[] = [], from: string | undefined, to: string | undefined
++  for (let index = 0; index < input.length; index++) {
++    const item = input[index]!, name = item.name, value = item.literal
++    if (typeof name !== 'string' || typeof value !== 'string' || !pay(name.length + value.length + 12)) return undefined
++    if (!plainGroupName(name) || names[name]) return undefined
++    names[name] = true
++    const escaped = value
++    if (!pay(escaped.length + 10)) return undefined
++    values[values.length++] = { name, value: escaped }
++    const actual = name === 'data-id' || name === 'class' || name === 'data-from' || name === 'data-to' ? decodeXML(escaped) : undefined
++    if (name === 'data-id') id = actual!
++    if (name === 'class') classes = actual!.split(/\s+/).filter(Boolean)
++    if (name === 'data-from') from = actual
++    if (name === 'data-to') to = actual
++  }
++  const identity = { id, role: fallback.role, ...(classes.length ? { classNames: classes } : {}), ...(from === undefined ? {} : { from }), ...(to === undefined ? {} : { to }) }
++  // Exactly the legacy identity overwrite/append order, without scanning bytes.
++  for (const [name, value] of [['data-id', id], ['data-role', fallback.role], ...(from === undefined ? [] : [['data-from', from]]), ...(to === undefined ? [] : [['data-to', to]])] as [string, string][]) {
++    if (!pay(values.length + 4)) return undefined
++    let index = 0
++    while (index < values.length && values[index]!.name !== name) index++
++    if (index === values.length) values.length++
++    values[index] = { name, value: escapeAttr(value) }
++  }
++  const attributes = primitiveGroupList<SvgAttributeToken>()
++  let open = '<g', xml = true
++  for (let index = 0; index < values.length; index++) {
++    const item = values[index]!, value = item.value
++    for (let cursor = 0; cursor < value.length;) {
++      const span = xmlLiteralSpan(value, cursor, true)
++      if (!span) { xml = false; cursor++ } else cursor += span
++    }
++    const nameStart = open.length + 1, valueStart = nameStart + item.name.length + 2
++    open += ` ${item.name}="${value}"`
++    attributes[attributes.length++] = { name: item.name, value, quote: '"', nameStart, valueStart, valueEnd: valueStart + value.length }
++  }
++  open += '>'
++  const source = open
++  return { open, identity, bind(node) {
++    if (!pay(20)) return false
++    const slot = groupDescriptor(node, 'open')
++    if (!slot || !groupOwn(slot, 'value') || slot.value !== source || slot.writable || slot.configurable || groupExtensible(node)
++      || node.transform !== undefined || node.paint !== undefined || node.close !== '</g>' || node.join !== '\n') return false
++    const tags = primitiveGroupList<PrimitiveGroupTag>()
++    tags[tags.length++] = { name: 'g', start: 0, end: source.length, selfClosing: false, attributes }
++    const parsed = nativeParseRecord(source, 'g', tags, attributes.length, { valid: true, start: 0, end: source.length, cursor: source.length - 1, attributes, xml }, node)
++    groupEmission.set(node, emissionRecord(source, undefined, false, undefined, parsed))
++    return true
++  } }
++}
+diff --git a/src/scene/native-drawing.ts b/src/scene/native-drawing.ts
+index c96959a7..fa334d1f 100644
+--- a/src/scene/native-drawing.ts
++++ b/src/scene/native-drawing.ts
+@@ -8,17 +8,17 @@ import type { FamilyLayoutResult } from '../agent/families.ts'
+ import { textMeasurementCacheIdentity } from '../text-measurement-profile.ts'
+ import { sceneAssertionsEnabled } from './assertions.ts'
+ import type { StyleSpec } from './style-registry.ts'
+-import type { DrawingDocument, DrawingFactory, DrawingProducer } from './drawing.ts'
++import type { DrawingDocument, DrawingFactory, DrawingProducer, DrawingAttributeGroupInput } from './drawing.ts'
+ import type { PositionedDiagram, RenderContext } from '../types.ts'
+ import type { SceneDoc, SceneNode } from './ir.ts'
+ import * as marks from './marks.ts'
+ import { formatSvgNumber } from '../shared/svg-number.ts'
+-import { indentLines, transferSceneNodeSerialization } from './serialization.ts'
++import { indentLines, transferSceneNodeSerialization, admitWritableSceneNode } from './serialization.ts'
+ import { composeMatrices, IDENTITY_MATRIX, transformMatrix } from './transforms.ts'
+ import { createOwnedNativePaintRecorder, multiplySceneOpacity, nativePaintAncestors, sceneGroupOpacity, type NativePaintEntry, type PaintInspectionHeader, type ScenePaintGeometryInspection } from './inspection.ts'
+ import { createNativeSceneValidator, SceneValidationError, SCENE_VALIDATION_LIMITS, assertFinalSvgByteBudget } from './scene-validation-core.ts'
+ import { withDeferredTerminalProjections } from './deferred-terminal-projection.ts'
+-import { retainedGroupEmission } from './group-emission.ts'
++import { retainedGroupEmission, createGeneratedNativeGroup } from './group-emission.ts'
+ import { createNativePaintEmission, createOriginalNativePaintEmission, MAX_OCCLUSION_OPERATIONS } from './native-paint-emission.ts'
+ import { writeNativeGroupOpening, type SvgTextPaintWrite, type SvgXmlWrite, type SvgXmlCapture } from './svg-writer.ts'
+ 
+@@ -151,25 +151,9 @@ function drawNativeImplementation(producer: DrawingProducer, context: RenderCont
+       prepared: node.kind === 'document' ? !/<\s*text/i.test(svg)
+         : node.kind !== 'text' || node.measurement === 'prepared' && node.block !== undefined })
+   }
+-  const factory: DrawingFactory<Fragment> = {
+-    image: fields => leaf(marks.image(fields)),
+-    shape: fields => leaf(marks.shape(fields)),
+-    text: fields => leaf(marks.text(fields)),
+-    connector: fields => leaf(marks.connector(fields)),
+-    documentOpen: (fields, svg) => {
+-      const captured = emission.snapshot(fields)
+-      if (captured) {
+-        emittedHeader = Object.freeze({ family, width: captured.width, height: captured.height, colors: captured.colors, transparent: captured.transparent })
+-        emittedHeader = emission.header(emittedHeader, svg)
+-      }
+-      else emission.uncertain()
+-      return leaf(marks.documentOpen(fields, svg))
+-    },
+-    documentContent: (fields, svg) => leaf(marks.documentContent(fields, svg)),
+-    documentText: fields => leaf(marks.documentText(fields)),
+-    definitions: (fields, svg) => leaf(marks.definitions(fields, svg)),
+-    documentClose: () => leaf(marks.documentClose()),
+-    group(fields) {
++  const group = (rawFields: Parameters<DrawingFactory<Fragment>['group']>[0], generatedInput?: DrawingAttributeGroupInput<Fragment>['openAttributes']): Fragment => {
++      const generated = generatedInput ? createGeneratedNativeGroup(generatedInput, rawFields, emission.groupRegistration) : undefined
++      const fields = generatedInput ? { ...rawFields, open: generated?.open ?? ('<g' + generatedInput.map(item => ` ${item.name}="${item.literal}"`).join('') + '>') } : rawFields
+       const submittedChildren = Object.getOwnPropertyDescriptor(fields, 'children')
+       if (!submittedChildren || !Object.hasOwn(submittedChildren, 'value')) emission.uncertain()
+       const { children: inputChildren, ...shellFields } = fields
+@@ -194,11 +178,12 @@ function drawNativeImplementation(producer: DrawingProducer, context: RenderCont
+       }
+       if (nodeCount > SCENE_VALIDATION_LIMITS.maxNodes) throw new RangeError('Native drawing contains too many emitted nodes')
+       if (characters > SCENE_VALIDATION_LIMITS.maxSerializationBytesPerNode) throw new RangeError('Native group has an oversized SVG serialization')
+-      const shell = marks.group({ ...shellFields, children: [] }, emission.groupRegistration)
++      const shell: Extract<SceneNode, { kind: 'group' }> = generated ? admitWritableSceneNode({ kind: 'group' as const, id: fields.id, role: fields.role, open: generated.open, close: '</g>', children: [], join: '\n', channels: fields.channels, identity: generated.identity, owner: fields.owner ?? { id: generated.identity.id, role: generated.identity.role }, ...(fields.visibility ? { visibility: fields.visibility } : {}) }) : marks.group({ ...shellFields, children: [] }, emission.groupRegistration)
+       if (!closeLeaves) validator.node(shell)
+       validator.depth(depth)
+       const capturedShell = emission.snapshot(shell)
+       if (!capturedShell) emission.uncertain()
++      if (generated && capturedShell && !generated.bind(capturedShell)) emission.uncertain()
+       // The private producer validates the exact closed shell it will write.
+       // That validation issues its lexer operands for context and XML too;
+       // generic drawing retains the original pre-snapshot observations.
+@@ -242,7 +227,32 @@ function drawNativeImplementation(producer: DrawingProducer, context: RenderCont
+       return ownFragment({ kind: 'group', svg, xmlWrite, children: Object.freeze(children), matrix, own, owner: capturedShell?.owner,
+         conditional: !capturedShell || writtenShell.visibility === 'conditional', opacity: sceneGroupOpacity(capturedShell?.paint?.opacity),
+         nodeCount, depth, prepared: !/<\s*text/i.test(writtenShell.open + writtenShell.close) && prepared })
++  }
++  const factory: DrawingFactory<Fragment> = {
++    image: fields => leaf(marks.image(fields)),
++    shape: fields => leaf(marks.shape(fields)),
++    text: fields => leaf(marks.text(fields)),
++    connector: fields => leaf(marks.connector(fields)),
++    documentOpen: (fields, svg) => {
++      const captured = emission.snapshot(fields)
++      if (captured) {
++        emittedHeader = Object.freeze({ family, width: captured.width, height: captured.height, colors: captured.colors, transparent: captured.transparent })
++        emittedHeader = emission.header(emittedHeader, svg)
++      }
++      else emission.uncertain()
++      return leaf(marks.documentOpen(fields, svg))
+     },
++    documentContent: (fields, svg) => leaf(marks.documentContent(fields, svg)),
++    documentText: fields => leaf(marks.documentText(fields)),
++    definitions: (fields, svg) => leaf(marks.definitions(fields, svg)),
++    documentClose: () => leaf(marks.documentClose()),
++    group: fields => group(fields),
++    groupAttributes: closeLeaves ? (fields: DrawingAttributeGroupInput<Fragment>) => {
++      const { openAttributes, ...rest } = fields
++      const plain = fields.transform === undefined && fields.paint === undefined && fields.close === '</g>' && (fields.join === undefined || fields.join === '\n')
++      const open = plain ? '' : '<g' + openAttributes.map(item => ` ${item.name}="${item.literal}"`).join('') + '>'
++      return group({ ...rest, open }, plain ? openAttributes : undefined)
++    } : undefined,
+     pathArtwork: fields => marks.drawPathArtwork(factory, fields),
+   }
+   const document: DrawingDocument<Fragment> = withDeferredTerminalProjections(() => producer(factory, context))

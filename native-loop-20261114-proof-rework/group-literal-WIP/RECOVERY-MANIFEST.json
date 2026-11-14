@@ -1,0 +1,61 @@
+{
+  "status": "UNQUALIFIED_WORK_IN_PROGRESS",
+  "files": [
+    {
+      "path": "CHAIN300-RED.log",
+      "bytes": 4775,
+      "sha256": "5b96358a8b731308620629dc4b38e449415c7f5ac4efe626b77cc15454decf94"
+    },
+    {
+      "path": "README.md",
+      "bytes": 2814,
+      "sha256": "0196c657ccc02caa03126bf2b3ccadfaa1e665c97d51295caf4c0742883a0c9d"
+    },
+    {
+      "path": "RECOVERY-VERIFICATION.json",
+      "bytes": 1129,
+      "sha256": "2ba3ee554c5858cbb52d2163895d2ba144f8d183e39fee1cd15c0088b3377b26"
+    },
+    {
+      "path": "RESULTS-REDUCED.json",
+      "bytes": 6591,
+      "sha256": "d29e816e9a43f37dd3099fc32a9ad65be1d98177a9f96a4630218e588be94289"
+    },
+    {
+      "path": "SNAPSHOT.json",
+      "bytes": 1410,
+      "sha256": "a55db658f8effadc4dc49512b702d0d8f3913b524f85f84f19fcdd4723555ce8"
+    },
+    {
+      "path": "SOURCE.patch",
+      "bytes": 18212,
+      "sha256": "b73065ce700189bca81a06802de8b3092684b2d5604d3dab1c1ec7a7d990465c"
+    },
+    {
+      "path": "group-literal-stage-probe.ts",
+      "bytes": 3883,
+      "sha256": "03c95e55684c196b903cc78c32b08bf433a99596aff8ea8d5c70f2cd46cd3e2e"
+    },
+    {
+      "path": "products/diagnostic_chain100-agentic.product.json.gz",
+      "bytes": 7990,
+      "sha256": "9477b8bc2cc2fb58687e88c24852b435a2cf7556fc8f83af9f068dbeaa3c599b"
+    },
+    {
+      "path": "products/diagnostic_chain100-elk.product.json.gz",
+      "bytes": 7984,
+      "sha256": "6df121c01c88b8feccafb71ed47e6a5cc2e6e18505d8d4354e15ad2a152f0192"
+    },
+    {
+      "path": "products/diagnostic_chain300-agentic.product.json.gz",
+      "bytes": 19656,
+      "sha256": "17ddfe909698487b594bb79a77fefe7643cb536e7a732d151b65431902a64ee7"
+    },
+    {
+      "path": "products/diagnostic_chain300-elk.product.json.gz",
+      "bytes": 19722,
+      "sha256": "4ba65834cb8bca4aa0e1ec996c8f5977a82d5dc37e07944dbea45c468b9381d1"
+    }
+  ],
+  "totalBytes": 94166
+}
