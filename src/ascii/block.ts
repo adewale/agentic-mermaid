@@ -9,7 +9,7 @@ import { visualWidth } from './width.ts'
 import { wrapText } from './wrap.ts'
 import { displayText } from '../multiline-utils.ts'
 import { paintTerminalFrame } from './terminal-geometry.ts'
-import { allocateBoxRoutes, BOX_ROUTE_APPROACH_DISTANCE, boxFaceSizes, paintBoxRoute, paintBoxText, type BoxRelation } from './class-like-layout.ts'
+import { allocateChannelledBoxRoutes, BOX_ROUTE_APPROACH_DISTANCE, boxFaceSizes, paintBoxRoute, paintBoxText, type BoxRelation } from './class-like-layout.ts'
 import { frontmatterTitle, type MermaidFrontmatterMap } from '../mermaid-source.ts'
 
 interface BlockCell extends Cell {
@@ -39,17 +39,21 @@ export function renderBlockTerminal(lines: string[] | string, config: AsciiConfi
       all.push(c)
     }
   }
-  const placedBoxes = () => all
+  const placedBoxes = (margin: number) => all
     .slice(1)
     .filter(c => c.block.type !== 'space')
-    .map(c => ({ ...c, id: c.block.id, x: Math.round(c.x - c.w / 2) + 4, y: Math.round(c.y - c.h / 2) + 4, width: Math.round(c.w), height: Math.round(c.h), container: c.block.type === 'composite', headerHeight: c.head }))
+    .map(c => ({ ...c, id: c.block.id, x: Math.round(c.x - c.w / 2) + margin, y: Math.round(c.y - c.h / 2) + margin, width: Math.round(c.w), height: Math.round(c.h), container: c.block.type === 'composite', headerHeight: c.head }))
   const relations: BoxRelation[] = model.edges.map(e => ({ id: e.id, from: e.start!, to: e.end!, ...(e.label ? { lines: wrapText(blockDisplayText(e.label), width ? Math.max(1, width - 8) : undefined) } : {}) }))
   // Opposing protected approaches must leave a transverse channel between
   // cells. Without it, disjoint ports can close a pocket around another exit.
   const gap = relations.length ? Math.max(6, 2 * (BOX_ROUTE_APPROACH_DISTANCE + 1) + 1) : 6
-  layoutGrid(root, gap)
-  let boxes = placedBoxes()
   const cells = new Map(all.map(cell => [cell.block.id, cell]))
+  let boxes: ReturnType<typeof placedBoxes> = []
+  // Routing may widen every gap and the outer margin by `channel` cells when a corridor fills.
+  const layout = (channel: number) => {
+  const spacing = gap + channel
+  layoutGrid(root, spacing)
+  boxes = placedBoxes(4 + channel)
   // Geometry determines the contacted faces. Grow before routing, then recount
   // after placement. Minimum sizes only increase and face demand is bounded by
   // the finite incident endpoints, so no retry limit can publish a small card.
@@ -61,16 +65,18 @@ export function renderBlockTerminal(lines: string[] | string, config: AsciiConfi
       if (!cell || !box) continue // The route allocator diagnoses missing endpoints.
       if (box.width < demand.width) { cell.nw = Math.max(cell.nw, demand.width); changed = true }
       if (box.height < demand.height) {
-        if (cell.children.length) cell.insetY = (cell.insetY ?? gap) + Math.ceil((demand.height - box.height) / 2)
+        if (cell.children.length) cell.insetY = (cell.insetY ?? spacing) + Math.ceil((demand.height - box.height) / 2)
         else cell.nh = Math.max(cell.nh, demand.height)
         changed = true
       }
     }
     if (!changed) break
-    layoutGrid(root, gap)
-    boxes = placedBoxes()
+    layoutGrid(root, spacing)
+    boxes = placedBoxes(4 + channel)
   }
-  const routes = allocateBoxRoutes(boxes, relations, 'TB'),
+  return { boxes }
+  }
+  const routes = allocateChannelledBoxRoutes(layout, relations, 'TB'),
     doc = new TerminalDocument()
   const members = new Map<string, string[]>(), edges = new Map(model.edges.map(edge => [edge.id, edge]))
   for (const box of boxes) if (box.parentId) {

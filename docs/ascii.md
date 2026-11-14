@@ -59,7 +59,11 @@ Terminal drawing has its own work ceilings on top of the
 [graph work budgets](../SECURITY.md#graph-work-budgets). Routes that share
 cells keep every owner of each shared cell, so densely overlapping wiring (an
 all-to-all fan of 26 × 26 nodes or more, or a complete DAG of 40 nodes)
-exhausts them within about five seconds. A render that would exceed one throws
+exhausts them within about five seconds. Card-routed families (ER,
+requirement, block, C4 and swimlane) widen their corridors and retry when
+greedy routing fills one, within one shared cell-search ceiling
+(`route-search`, 4 million cells); an all-pairs table of 20 entities with
+attributes renders, a 20 × 20 bipartite table refuses. A render that would exceed one throws
 `TerminalWorkLimitError` with code `TERMINAL_WORK_LIMIT`, naming the exhausted
 `resource`, instead of drawing a partial diagram; CLI and MCP report it as
 `RENDER_FAILED` with origin `source`. Render such diagrams as SVG or split them.

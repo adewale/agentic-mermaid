@@ -210,6 +210,10 @@ const EXACT_SEARCH_ALLOWANCE = 256
  * @param preferredDir - Optional exit direction tried first during neighbour
  *   expansion (see `orderedDirs`). Currently unused by the edge router; kept as
  *   a tested capability and exercised by ascii-pathfinder-determinism.test.ts.
+ * @param work - Optional pops shared by several searches. A search stops when
+ *   the shared total reaches its limit and returns null; the caller tells that
+ *   exhaustion from an unreachable target by comparing `pops` with `limit`.
+ *   Its `margin` widens the bounded extent on the right and bottom.
  */
 export function getPath(
   cells: PathOccupancy | ReadonlyMap<string, unknown>,
@@ -217,6 +221,7 @@ export function getPath(
   to: GridCoord,
   preferredDir?: Direction,
   canStep?: (from: GridCoord, to: GridCoord) => boolean,
+  work?: RouteSearchWork,
 ): GridCoord[] | null {
   // #66 (ktrysmt): bound the search. `isFreeInGrid` only guards x/y < 0, so an
   // unreachable target (walled off) would let A* explore +x/+y unboundedly →
@@ -227,18 +232,25 @@ export function getPath(
   const maxX = Math.max(from.x, to.x, grid.extent.maxX)
   const maxY = Math.max(from.y, to.y, grid.extent.maxY)
   // Margin lets routes detour slightly around obstacles past the extent.
-  const boundX = maxX + 4
-  const boundY = maxY + 4
+  const boundX = maxX + 4 + (work?.margin ?? 0)
+  const boundY = maxY + 4 + (work?.margin ?? 0)
   // Iteration cap proportional to the bounded grid area (with a floor).
-  const maxIterations = Math.max(10_000, (boundX + 1) * (boundY + 1) * 4)
+  const remaining = work ? Math.max(0, work.limit - work.pops) : Infinity
+  const maxIterations = Math.min(remaining, Math.max(10_000, (boundX + 1) * (boundY + 1) * 4))
   const search: Search = { grid, from, to, moveDirs: buildMoveDirs(preferredDir), canStep, boundX, boundY, pops: 0 }
 
   const exactBudget = EXACT_SEARCH_FACTOR * heuristic(from, to) + EXACT_SEARCH_ALLOWANCE
   let path = searchPath(search, false, Math.min(exactBudget, maxIterations))
-  if (path === undefined && exactBudget < maxIterations) path = searchPath(search, true, maxIterations)
+  // A shared ceiling also counts the exact attempt's pops.
+  if (path === undefined && exactBudget < maxIterations) path = searchPath(search, true, work ? maxIterations - search.pops : maxIterations)
+  if (work) work.pops += search.pops
   observeWork('terminal-route-search', search.pops)
   return path ?? null // #66 guard: an exhausted cap bails to the caller's fallback
 }
+
+/** Search pops spent by several getPath calls against one shared ceiling,
+ * and extra cells each search may detour beyond the occupied extent. */
+export interface RouteSearchWork { pops: number; readonly limit: number; margin?: number }
 
 interface Search {
   readonly grid: PathOccupancy

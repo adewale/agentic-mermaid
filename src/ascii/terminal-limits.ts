@@ -9,7 +9,17 @@ export const TERMINAL_CERTIFICATION_LIMITS = Object.freeze({ maxOperations: 1_00
  * a 450-node tree about 3.6 million. */
 export const TERMINAL_OWNER_COMPOSITION_LIMIT = 4_000_000
 
-export type TerminalWorkResource = 'stroke-provenance' | 'path-witness' | 'owner-composition' | 'class-construction' | 'class-output'
+/** Cell-search pops that card routing may spend on one diagram, summed over
+ * every corridor width it tries. An ER table relating every pair of 20
+ * entities with attribute compartments needs about 1.5 million; the same
+ * table without attributes, or a 20 x 20 bipartite table, needs more than
+ * 12 million. */
+export const TERMINAL_ROUTE_SEARCH_LIMIT = 4_000_000
+
+/** Extra cells card routing may add to every corridor before it stops widening. */
+export const TERMINAL_ROUTE_CHANNEL_LIMIT = 256
+
+export type TerminalWorkResource = 'stroke-provenance' | 'path-witness' | 'owner-composition' | 'route-search' | 'route-channel' | 'class-construction' | 'class-output'
 
 /** Terminal drawing exhausted one of its work ceilings. The ceilings bound the
  * size of the cell projection a diagram needs, so exhausting one is a property

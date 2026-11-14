@@ -12,6 +12,9 @@ export class OccupancyMap<T = true> extends Map<string, T> implements PathOccupa
   private columns = new Map<number, number>()
   private rows = new Map<number, number>()
   private limits: Readonly<{ maxX: number; maxY: number }> = Object.freeze({ maxX: 0, maxY: 0 })
+  /** Numeric mirror of in-range keys, so search avoids building strings. */
+  private cells = new Set<number>()
+  private outOfRange = 0
 
   constructor(entries?: Iterable<readonly [string, T]>) {
     super()
@@ -23,6 +26,8 @@ export class OccupancyMap<T = true> extends Map<string, T> implements PathOccupa
   override set(key: string, value: T): this {
     if (!this.has(key)) {
       const [x, y] = coordinates(key)
+      if (inRange(x, y)) this.cells.add(cellKey(x, y))
+      else this.outOfRange++
       this.columns.set(x, (this.columns.get(x) ?? 0) + 1)
       this.rows.set(y, (this.rows.get(y) ?? 0) + 1)
       if (x > this.limits.maxX || y > this.limits.maxY) this.limits = Object.freeze({ maxX: Math.max(this.limits.maxX, x), maxY: Math.max(this.limits.maxY, y) })
@@ -33,6 +38,8 @@ export class OccupancyMap<T = true> extends Map<string, T> implements PathOccupa
   override delete(key: string): boolean {
     if (!super.delete(key)) return false
     const [x, y] = coordinates(key)
+    if (inRange(x, y)) this.cells.delete(cellKey(x, y))
+    else this.outOfRange--
     const remove = (counts: Map<number, number>, coordinate: number): void => {
       const count = counts.get(coordinate)!
       if (count === 1) counts.delete(coordinate)
@@ -45,11 +52,19 @@ export class OccupancyMap<T = true> extends Map<string, T> implements PathOccupa
     return true
   }
 
+  hasCell(x: number, y: number): boolean {
+    return inRange(x, y) ? this.cells.has(cellKey(x, y)) : this.outOfRange > 0 && this.has(`${x},${y}`)
+  }
+
   override clear(): void {
-    super.clear(); this.columns.clear(); this.rows.clear()
+    super.clear(); this.columns.clear(); this.rows.clear(); this.cells.clear(); this.outOfRange = 0
     this.limits = Object.freeze({ maxX: 0, maxY: 0 })
   }
 }
+
+const CELL_SPAN = 2 ** 26
+const inRange = (x: number, y: number): boolean => x >= 0 && y >= 0 && x < CELL_SPAN && y < CELL_SPAN
+const cellKey = (x: number, y: number): number => x * CELL_SPAN + y
 
 function coordinates(key: string): readonly [number, number] {
   const comma = key.indexOf(','), x = Number(key.slice(0, comma)), y = Number(key.slice(comma + 1))

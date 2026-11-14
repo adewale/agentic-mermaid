@@ -12,7 +12,7 @@ import { displayText, normalizeBrTags } from '../multiline-utils.ts'
 import { checkAllClassLikeAuthoredStyles } from '../shared/style-props.ts'
 import { terminalIds } from './identity.ts'
 import { paintTerminalFrame } from './terminal-geometry.ts'
-import { allocateBoxRoutes, boxFaceSizes, paintClassLikeCard, paintBoxRoute, paintBoxText, reverseBoxes, type BoxPort, type BoxRelation, type TerminalBox } from './class-like-layout.ts'
+import { allocateChannelledBoxRoutes, boxFaceSizes, paintClassLikeCard, paintBoxRoute, paintBoxText, reverseBoxes, type BoxPort, type BoxRelation, type TerminalBox } from './class-like-layout.ts'
 
 interface PlacedEntity extends TerminalBox { entity: ErEntity; sections: string[][] }
 const attributeText = (attr: ErAttribute) => `${attr.keys.length ? attr.keys.join(',') : '   '} ${attr.type} ${attr.name}${attr.comment ? ` # ${attr.comment}` : ''}`
@@ -69,18 +69,21 @@ export function renderErTerminal(text: string, config: AsciiConfig, colorMode?: 
   }
   const placed = new Map<string, PlacedEntity>(), byId = new Map(diagram.entities.map(entity => [entity.id, entity]))
   const labelWidth = Math.max(0, ...relations.flatMap(rel => rel.lines ?? []).map(visualWidth)), labelHeight = Math.max(0, ...relations.map(rel => rel.lines?.length ?? 0))
-  const horizontalGap = Math.max(8, labelWidth + 4), verticalGap = Math.max(8, labelHeight + 6)
+  // Routing may widen every gap and the outer margin by `channel` cells when a corridor fills.
+  let channel = 0
   interface GroupFrame extends TerminalBox { children: Array<PlacedEntity | GroupFrame>; labelLines: string[]; parentId?: string; members: string[] }
   let groupFrames: GroupFrame[] = []
   const allocateEntities = () => {
   placed.clear()
-  let componentCross = 4
+  const horizontalGap = Math.max(8, labelWidth + 4) + channel, verticalGap = Math.max(8, labelHeight + 6) + channel
+  const margin = 4 + channel
+  let componentCross = margin
   for (const component of components) {
     const perRow = Math.max(2, Math.ceil(Math.sqrt(component.length)))
-    let axis = 4, cross = componentCross, rowCount = 0, rowExtent = 0, componentEnd = componentCross
+    let axis = margin, cross = componentCross, rowCount = 0, rowExtent = 0, componentEnd = componentCross
     for (const id of component) {
       const entity = byId.get(id)!, size = sizes.get(id)!
-      if (rowCount >= perRow) { cross += rowExtent + (horizontal ? verticalGap : horizontalGap); axis = 4; rowCount = 0; rowExtent = 0 }
+      if (rowCount >= perRow) { cross += rowExtent + (horizontal ? verticalGap : horizontalGap); axis = margin; rowCount = 0; rowExtent = 0 }
       placed.set(id, { id, entity, sections: sections.get(id)!, ...size, x: horizontal ? axis : cross, y: horizontal ? cross : axis })
       axis += (horizontal ? size.width : size.height) + (horizontal ? horizontalGap : verticalGap)
       rowExtent = Math.max(rowExtent, horizontal ? size.height : size.width)
@@ -97,7 +100,7 @@ export function renderErTerminal(text: string, config: AsciiConfig, colorMode?: 
     }
     const build = (id: string): GroupFrame => {
       const group = diagram.groups.find(item => item.id === id)!, labelLines = prepared(resolveLabelContent(group.label, group.labelContent))
-      const frameClearance = 4, headerHeight = labelLines.length + 1
+      const frameClearance = 4 + channel, headerHeight = labelLines.length + 1
       const children: Array<PlacedEntity | GroupFrame> = [
         ...diagram.entities.filter(entity => entity.groupId === id).map(entity => placed.get(entity.id)!),
         ...diagram.groups.filter(item => item.parentId === id).map(item => build(item.id)),
@@ -108,7 +111,7 @@ export function renderErTerminal(text: string, config: AsciiConfig, colorMode?: 
       for (const child of ordered) {
         const x = alongX ? axis : frameClearance, y = alongX ? headerHeight + frameClearance : axis
         move(child, x - child.x, y - child.y)
-        axis += (alongX ? child.width : child.height) + 8
+        axis += (alongX ? child.width : child.height) + 8 + channel
       }
       const size = faceSizes.get(id)
       const frame: GroupFrame = {
@@ -124,13 +127,17 @@ export function renderErTerminal(text: string, config: AsciiConfig, colorMode?: 
       ...diagram.entities.filter(entity => !entity.groupId).map(entity => placed.get(entity.id)!),
     ]
     const ordered = direction === 'RL' || direction === 'BT' ? [...roots].reverse() : roots
-    let axis = 4
+    let axis = margin
     for (const item of ordered) {
-      const x = horizontal ? axis : 4, y = horizontal ? 4 : axis
-      move(item, x - item.x, y - item.y); axis += (horizontal ? item.width : item.height) + 8
+      const x = horizontal ? axis : margin, y = horizontal ? margin : axis
+      move(item, x - item.x, y - item.y); axis += (horizontal ? item.width : item.height) + 8 + channel
     }
+    // Routes cross a group's header band like its other borders, around its label.
+    for (const frame of groupFrames) frame.headerLabel = { x: frame.x + 1, y: frame.y, width: Math.max(0, ...frame.labelLines.map(visualWidth)) + 2, height: frame.labelLines.length }
   }
   }
+  const routes = allocateChannelledBoxRoutes(next => {
+  channel = next
   allocateEntities()
   for (let pass = 0; pass < relations.length * 2 + 2; pass++) {
     const demand = boxFaceSizes(relations, direction, [...placed.values(), ...groupFrames])
@@ -144,7 +151,8 @@ export function renderErTerminal(text: string, config: AsciiConfig, colorMode?: 
     if (!changed) break
     allocateEntities()
   }
-  const routes = allocateBoxRoutes([...placed.values(), ...groupFrames], relations, direction), doc = new TerminalDocument()
+  return { boxes: [...placed.values(), ...groupFrames] }
+  }, relations, direction), doc = new TerminalDocument()
   for (const group of [...groupFrames].reverse()) {
     const owner = doc.element({ id: group.id, kind: 'cluster', parent: group.parentId === undefined ? undefined : { id: group.parentId, kind: 'cluster' }, members: group.members })
     paintTerminalFrame(doc, group, owner, config.useAscii)

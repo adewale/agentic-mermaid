@@ -515,3 +515,66 @@ X --> A`
   expect(edges).toHaveLength(4)
   for (const edge of edges) { expect(hasOwnedRoute(doc, edge), edge.id).toBe(true); visibleEndpointMarkers(doc, edge) }
 })
+
+// Card-routed families threw an untyped "No feasible terminal route" once
+// greedy routes filled a fixed corridor, walled in a face whose ports had not
+// routed yet, or detoured around a full-width lane header. Every authored
+// relationship keeps its own connected ink between ports just outside the
+// faces of its own endpoint cards. (ER uses one-to-one cardinality so every
+// marker glyph is directional for the connectivity walk.)
+const cardRoutes: Array<{ name: string; source: string; relations: ReadonlyArray<readonly [string, string]>; straight?: boolean; lanes?: boolean }> = (() => {
+  const range = (n: number) => Array.from({ length: n }, (_, i) => i)
+  const pairs = (n: number) => range(n).flatMap(i => range(n).filter(j => j > i).map(j => [i, j] as const))
+  const entities = (n: number) => range(n).flatMap(i => [`E${i} {`, 'int id PK', `string name${i}`, '}'])
+  const lanes = (direction: string, count: number, tasks: number, offset = 0) => {
+    const handoffs = range(tasks).flatMap(t => range(count - 1).map(l => [`n${l}_${t}`, `n${l + 1}_${(t + offset) % tasks}`] as const))
+    return { lanes: true, source: [`swimlane-beta ${direction}`, ...range(count).flatMap(l => [`subgraph lane${l}[Team ${l}]`, ...range(tasks).map(t => `n${l}_${t}[Task ${l}.${t}]`), 'end']), ...handoffs.map(([a, b]) => `${a} --> ${b}`)].join('\n'), relations: handoffs }
+  }
+  const tree = range(39).map(i => [`E${Math.floor(i / 2)}`, `E${i + 1}`] as const)
+  const forward = range(10).flatMap(i => range(10).filter(j => j > i && j < i + 5).map(j => [`b${i}`, `b${j}`] as const))
+  const grouped = range(12).flatMap(i => [[`E0_${i}`, `E1_${i}`], [`E0_${i}`, `E1_${(i + 1) % 12}`]] as const)
+  return [
+    { name: 'Swimlane LR 2 lanes x 2 tasks', straight: true, ...lanes('LR', 2, 2) },
+    { name: 'release Swimlane 4 lanes x 10 tasks', straight: true, ...lanes('LR', 4, 10) },
+    { name: 'Swimlane RL 3 lanes x 8 tasks', straight: true, ...lanes('RL', 3, 8) },
+    { name: 'Swimlane LR 3 lanes x 4 offset hand-offs', ...lanes('LR', 3, 4, 1) },
+    { name: 'release ER 40-entity tree', source: ['erDiagram', ...entities(40), ...tree.map(([a, b]) => `${a} ||--|| ${b} : has`)].join('\n'), relations: tree },
+    { name: 'ER table of 10 entities related pairwise', source: ['erDiagram', ...entities(10), ...pairs(10).map(([a, b]) => `E${a} ||--|| E${b} : r${a}_${b}`)].join('\n'), relations: pairs(10).map(([a, b]) => [`E${a}`, `E${b}`] as const) },
+    { name: 'ER groups stacked TB', source: ['erDiagram', 'direction TB', ...range(2).flatMap(g => [`subgraph G${g}[Group ${g}]`, ...range(12).map(i => `E${g}_${i}`), 'end']), ...grouped.map(([a, b], i) => `${a} ||--|| ${b} : r${i}`)].join('\n'), relations: grouped },
+    { name: 'Requirement table of 8 related pairwise', source: ['requirementDiagram', ...range(8).flatMap(i => [`requirement r${i} {`, `id: R${i}`, `text: "Requirement ${i}"`, '}']), ...pairs(8).map(([a, b]) => `r${a} - traces -> r${b}`)].join('\n'), relations: pairs(8).map(([a, b]) => [`r${a}`, `r${b}`] as const) },
+    { name: 'Block grid with four forward links each', source: ['block', 'columns 4', ...range(10).map(i => `b${i}["Block ${i}"]`), ...forward.map(([a, b]) => `${a} --> ${b}`)].join('\n'), relations: forward },
+    { name: 'C4 context of 8 systems related pairwise', source: ['C4Context', ...range(8).map(i => `System(s${i}, "System ${i}")`), ...pairs(8).map(([a, b]) => `Rel(s${a}, s${b}, "uses")`)].join('\n'), relations: pairs(8).map(([a, b]) => [`s${a}`, `s${b}`] as const) },
+  ]
+})()
+
+test.each(cardRoutes.flatMap(item => [false, true].map(useAscii => [item.name, useAscii, item] as const)))('%s routes every relationship between its own cards (ASCII=%s)', (_name, useAscii, { source, relations, straight, lanes }) => {
+  const result = renderMermaidASCIIWithReceipt(source, { useAscii, colorMode: 'none', layoutSafety: 'strict' })
+  expect(result.receipt.layoutCertification).toMatchObject({ status: 'passed', issues: [] })
+  const doc = terminalDocumentOf(result)!, regions = doc.regions(), edges = regions.filter(region => region.kind === 'edge')
+  expect(edges.map(edge => [edge.from, edge.to]).sort()).toEqual(relations.map(pair => [...pair]).sort())
+  for (const edge of edges) {
+    expect(hasOwnedRoute(doc, edge), edge.id).toBe(true)
+    const ports = edge.ports!
+    expect(ports.map(port => port.end)).toEqual(['start', 'end'])
+    for (const port of ports) {
+      const card = regions.find(region => region.kind === 'node' && region.id === (port.end === 'start' ? edge.from : edge.to))!
+      const top = card.canvasRow, bottom = card.canvasRow + (card.rowSpan ?? 1), left = card.canvasColStart, right = card.canvasColEnd
+      const across = port.side === 'T' || port.side === 'B' ? port.x >= left && port.x < right : port.y >= top && port.y < bottom
+      const outside = port.side === 'T' ? port.y === top - 1 : port.side === 'B' ? port.y === bottom : port.side === 'L' ? port.x === left - 1 : port.x === right
+      expect({ edge: edge.id, end: port.end, across, outside }).toEqual({ edge: edge.id, end: port.end, across: true, outside: true })
+    }
+    // A lane's header band (top border, one-line title, blank row) is crossed,
+    // never travelled: inside it the route owns one cell per row.
+    if (lanes) for (const lane of regions.filter(region => region.kind === 'subgraph')) {
+      const inBand = edge.ownedCellSpans.filter(span => span.row >= lane.canvasRow && span.row < lane.canvasRow + 3 && span.end > lane.canvasColStart && span.start < lane.canvasColEnd)
+      expect({ edge: edge.id, lane: lane.id, runs: inBand.filter(span => span.end - span.start > 1) }).toEqual({ edge: edge.id, lane: lane.id, runs: [] })
+    }
+    // Aligned hand-offs in adjacent lanes cross the lane borders directly:
+    // all of the route's own ink lies on its ports' shared column or row.
+    if (straight) {
+      const vertical = ports[0]!.side === 'T' || ports[0]!.side === 'B', axis = vertical ? ports[0]!.x : ports[0]!.y
+      const ink = edge.ownedCellSpans.flatMap(span => Array.from({ length: span.end - span.start }, (_, i) => vertical ? span.start + i : span.row))
+      expect({ edge: edge.id, aligned: (vertical ? ports[1]!.x : ports[1]!.y) === axis, off: ink.filter(cell => cell !== axis).length }).toEqual({ edge: edge.id, aligned: true, off: 0 })
+    }
+  }
+})
