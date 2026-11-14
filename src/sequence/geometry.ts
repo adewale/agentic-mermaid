@@ -94,17 +94,31 @@ export function sequenceHeadOverreach(style: ResolvedRenderStyle, head: Position
   return Math.max(0, position === 'end' ? bounds.x1 : -bounds.x0) * (marker.units === 'userSpaceOnUse' ? 1 : style.lineWidth)
 }
 
+/** The `()` central-connection circle drawn where a message meets a lifeline. */
+export const SEQUENCE_CENTRAL_CIRCLE = { radius: 4, strokeWidth: 1.5 } as const
+const CENTRAL_CIRCLE_OUTER = SEQUENCE_CENTRAL_CIRCLE.radius + SEQUENCE_CENTRAL_CIRCLE.strokeWidth / 2
+
+/** How far a message's carrier stops short of the lifeline contact at one
+ * end: a head beside a central circle ends where its ink meets the circle's
+ * outline, so the circle drawn over the contact covers none of it. */
+function sequenceCentralInset(style: ResolvedRenderStyle, central: boolean | undefined, head: PositionedMessage['endHead'], position: 'start' | 'end'): number {
+  return central && head !== 'none' ? CENTRAL_CIRCLE_OUTER + sequenceHeadOverreach(style, head, position) : 0
+}
+
 /** The stick-figure `actor` glyph is a 24-unit icon scaled to 90% of its
  * header's height and centred in it; its outer circle has a 9-unit radius. */
 export function sequenceActorIconScale(height: number): number {
   return (height / 24) * 0.9
 }
 
-/** Painted half-width of a created participant's outline on the row of the
- * message that creates it, which runs through the header's middle: a card's
- * side, or the stick figure's outer circle, out to its stroke's edge. */
-export function sequenceCreatedOutlineHalfWidth(type: Actor['type'], spec: Pick<SequenceActorGeometrySpec, 'width' | 'height'>, outlineWidth: number): number {
-  return (type === 'actor' ? 9 * sequenceActorIconScale(spec.height) : spec.width / 2) + outlineWidth / 2
+/** How far from a created participant's lifeline the message creating it
+ * meets its header. The row runs through the header's middle, so that is the
+ * painted outline (a card's side, or the stick figure's outer circle, out to
+ * its stroke's edge), plus how far the head paints past its endpoint, or a
+ * `()` circle's radius: the circle sits against the outline, outside it. */
+export function sequenceCreatedContactInset(type: Actor['type'], spec: Pick<SequenceActorGeometrySpec, 'width' | 'height'>, outlineWidth: number, style: ResolvedRenderStyle, message: Pick<Message, 'endHead' | 'centralEnd'>): number {
+  const outline = (type === 'actor' ? 9 * sequenceActorIconScale(spec.height) : spec.width / 2) + outlineWidth / 2
+  return outline + (message.centralEnd ? CENTRAL_CIRCLE_OUTER : sequenceHeadOverreach(style, message.endHead, 'end'))
 }
 
 /** Half-size of the X cross ending a destroyed lifeline. */
@@ -128,7 +142,7 @@ export function sequenceDestroyCrossPlacement(message: PositionedMessage, style:
     style.lineWidth / 2,
     sequenceHeadHalfHeight(markers, message.startHead, 'start', style.lineWidth),
     sequenceHeadHalfHeight(markers, message.endHead, 'end', style.lineWidth),
-    message.centralStart || message.centralEnd ? 4.75 : 0,
+    message.centralStart || message.centralEnd ? CENTRAL_CIRCLE_OUTER : 0,
   )
   const crossHalfHeight = SEQUENCE_DESTROY_CROSS_RADIUS + sequenceDestroyCrossStrokeWidth(style) / 2
   const y = contactY + Math.ceil(endpointHalfHeight + 4 + crossHalfHeight)
@@ -338,7 +352,7 @@ export function measureSequenceMessageSpec(message: Message, style: ResolvedRend
   const labelMetrics: MultilineMetrics = label ? block : { width: 0, height: 0, lines: [], lineHeight: defaultLineHeight }
   const startPad = Math.max(message.startHead !== 'none' ? ARROW_HEAD.width : 0, message.centralStart ? 5 : 0)
   const endPad = Math.max(message.endHead !== 'none' ? ARROW_HEAD.width : 0, message.centralEnd ? 5 : 0)
-  const markerHalfHeight = Math.max(style.lineWidth / 2, message.startHead !== 'none' || message.endHead !== 'none' ? ARROW_HEAD.height / 2 : 0, message.centralStart || message.centralEnd ? 4.75 : 0)
+  const markerHalfHeight = Math.max(style.lineWidth / 2, message.startHead !== 'none' || message.endHead !== 'none' ? ARROW_HEAD.height / 2 : 0, message.centralStart || message.centralEnd ? CENTRAL_CIRCLE_OUTER : 0)
   const shaftClearance = Math.max(16, startPad + endPad + 8)
   const requiredSpanWidth = labelMetrics.width + shaftClearance
   const selfRightExtent = SEQUENCE_SELF_LOOP.width + (labelMetrics.width > 0 ? SEQUENCE_SELF_LOOP.labelPadding + labelMetrics.width : 0)
@@ -363,22 +377,28 @@ export function measureSequenceMessageSpec(message: Message, style: ResolvedRend
 
 export function positionSequenceMessage(message: Message, spec: SequenceMessageGeometrySpec, style: ResolvedRenderStyle, x1: number, x2: number, y: number): PositionedMessage {
   const isSelf = message.from === message.to
+  // x1/x2 are the lifeline contacts, where a central circle is drawn; the
+  // carrier's points stop short of a circle that has a head beside it.
+  const startInset = sequenceCentralInset(style, message.centralStart, message.startHead, 'start')
+  const endInset = sequenceCentralInset(style, message.centralEnd, message.endHead, 'end')
   if (isSelf) {
     const loopW = SEQUENCE_SELF_LOOP.width
     const loopH = SEQUENCE_SELF_LOOP.height
     const points = [
-      { x: x1, y },
+      { x: x1 + startInset, y },
       { x: x1 + loopW, y },
       { x: x1 + loopW, y: y + loopH },
-      { x: x2, y: y + loopH },
+      { x: x2 + endInset, y: y + loopH },
     ]
     const labelX = x1 + loopW + SEQUENCE_SELF_LOOP.labelPadding
     const labelY = y + Math.max(loopH, spec.labelMetrics.height) / 2
     const labelPosition = createSequenceLabelGeometry(spec.displayLabel, labelX, labelY, 'start', style.edgeLabelFontSize, style.edgeLabelFontWeight, style.edgeLetterSpacing, spec.block)
+    // Both ends sit on the lifeline, so an end circle reaches left of it too.
+    const leftPad = Math.max(spec.startPad, message.centralEnd ? 5 : 0)
     const connectorBounds: SequenceBounds = {
-      x: x1 - spec.startPad,
+      x: x1 - leftPad,
       y: y - spec.markerHalfHeight,
-      width: loopW + spec.startPad + style.lineWidth / 2,
+      width: loopW + leftPad + style.lineWidth / 2,
       height: loopH + spec.markerHalfHeight * 2,
     }
     const bounds = spec.label ? unionSequenceBounds(connectorBounds, labelPosition.bounds) : connectorBounds
@@ -403,9 +423,10 @@ export function positionSequenceMessage(message: Message, spec: SequenceMessageG
     }
   }
 
+  const direction = Math.sign(x2 - x1)
   const points = [
-    { x: x1, y },
-    { x: x2, y },
+    { x: x1 + direction * startInset, y },
+    { x: x2 - direction * endInset, y },
   ]
   const midX = (x1 + x2) / 2
   const minClearanceAboveShaft = Math.max(2.85, style.lineWidth / 2 + 2)

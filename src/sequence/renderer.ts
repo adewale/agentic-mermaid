@@ -8,7 +8,7 @@ import { svgOpenTag, buildStyleBlock, buildShadowDefs, resolvedColorValue, type 
 import { FONT_SIZES, FONT_WEIGHTS, STROKE_WIDTHS, TEXT_BASELINE_SHIFT, applyTextTransform, resolveRenderStyle, diagramTitleFields } from '../styles.ts'
 import type { RenderStyleDefaults, ResolvedRenderStyle } from '../styles.ts'
 import { SEQUENCE_STYLE_DEFAULTS } from './layout.ts'
-import { SEQUENCE_DESTROY_CROSS_RADIUS, sequenceActorIconScale, sequenceDestroyCrossStrokeWidth, sequenceMarkerFor, sequenceMarkerResources } from './geometry.ts'
+import { SEQUENCE_CENTRAL_CIRCLE, SEQUENCE_DESTROY_CROSS_RADIUS, sequenceActorIconScale, sequenceDestroyCrossStrokeWidth, sequenceMarkerFor, sequenceMarkerResources } from './geometry.ts'
 import { buildAccessibilityAttrs } from '../shared/svg-a11y.ts'
 import { escapeAttr, escapeDisplayAttr, escapeXml } from '../multiline-utils.ts'
 import type { Geometry, MarkerDescriptor } from '../scene/ir.ts'
@@ -686,14 +686,17 @@ function renderMessage<T>(
     })
   }
 
+  // Each circle sits on its lifeline contact: a self-message ends on the row
+  // its loop returns to.
+  const { radius, strokeWidth: circleStroke } = SEQUENCE_CENTRAL_CIRCLE
   if (msg.centralStart) children.push({ indent: 2, node: marks.shape({
-    id: `${sceneId}:central-start`, role: 'chrome', geometry: { kind: 'circle', cx: msg.x1, cy: msg.y, r: 4 },
-    paint: { fill: 'var(--bg)', stroke: rawStroke, strokeWidth: '1.5' },
+    id: `${sceneId}:central-start`, role: 'chrome', geometry: { kind: 'circle', cx: msg.x1, cy: msg.points[0]!.y, r: radius },
+    paint: { fill: 'var(--bg)', stroke: rawStroke, strokeWidth: String(circleStroke) },
     attributes: { className: 'sequence-central-connection', data: { side: 'start' } },
   }) })
   if (msg.centralEnd) children.push({ indent: 2, node: marks.shape({
-    id: `${sceneId}:central-end`, role: 'chrome', geometry: { kind: 'circle', cx: msg.x2, cy: msg.y, r: 4 },
-    paint: { fill: 'var(--bg)', stroke: rawStroke, strokeWidth: '1.5' },
+    id: `${sceneId}:central-end`, role: 'chrome', geometry: { kind: 'circle', cx: msg.x2, cy: msg.points[msg.points.length - 1]!.y, r: radius },
+    paint: { fill: 'var(--bg)', stroke: rawStroke, strokeWidth: String(circleStroke) },
     attributes: { className: 'sequence-central-connection', data: { side: 'end' } },
   }) })
 

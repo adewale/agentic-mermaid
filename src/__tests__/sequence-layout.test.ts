@@ -13,7 +13,7 @@ import { layoutSequenceDiagram } from '../sequence/layout.ts'
 import type { PositionedSequenceDiagram } from '../sequence/types.ts'
 import { resolveStyleStackWithFace } from '../scene/style-registry.ts'
 import { estimateTextWidth } from '../styles.ts'
-import { renderMermaidASCII, renderMermaidSVG } from '../index.ts'
+import { renderMermaidASCII, renderMermaidSVG, renderMermaidSVGWithReceipt } from '../index.ts'
 import { parseRegisteredMermaid as parseMermaid, layoutMermaid } from '../agent/index.ts'
 
 /** Helper: parse and layout a sequence diagram from source lines */
@@ -1656,6 +1656,59 @@ describe('sequence layout – complete painted bounds (#385)', () => {
       expect(b.x + b.width).toBeLessThanOrEqual(svgWidth + 1e-6)
       expect(b.y + b.height).toBeLessThanOrEqual(svgHeight + 1e-6)
       expect(h.x + h.width).toBeLessThanOrEqual(b.x + b.width + 1e-6)
+    }
+  })
+})
+
+// A `()` central-connection circle sits on its lifeline contact (a
+// self-message's end on the row its loop returns to; a created receiver's
+// against its card), and a head beside it ends where its ink meets the
+// circle's outline, so neither covers the other and strict layout safety
+// certifies the diagram.
+describe('sequence central-connection circles', () => {
+  const heads = ['->>', '-->>', '-x', '--x', '-)', '--)', '<<->>', '<<-->>'] as const
+  const placements = [
+    ['the receiver', (arrow: string) => `A${arrow}()B: m`],
+    ['the sender', (arrow: string) => `A()${arrow}B: m`],
+    ['both ends', (arrow: string) => `A()${arrow}()B: m`],
+    ['the receiver to the left', (arrow: string) => `B${arrow}()A: m`],
+    ['both ends of a self-message', (arrow: string) => `A()${arrow}()A: m`],
+    ['a created receiver', (arrow: string) => `create participant C\nA${arrow}()C: m`],
+  ] as const
+  it.each(heads.flatMap(arrow => placements.map(([where, body]) => [where, arrow, body(arrow)] as const)))('keeps a circle at %s clear of a %s head', (_where, _arrow, body) => {
+    const source = `sequenceDiagram\nparticipant A\nparticipant B\n${body}`
+    const { svg, receipt } = renderMermaidSVGWithReceipt(source, { layoutSafety: 'strict' })
+    expect(receipt.layoutCertification?.status).toBe('passed')
+    const num = (tag: string, name: string) => Number(tag.match(new RegExp(`\\s${name}="([^"]+)"`))![1])
+    const message = svg.match(/<(?:line|polyline) [^>]*data-relationship="sequence-message"[^>]*>/)![0]
+    const points = message.startsWith('<line')
+      ? [[num(message, 'x1'), num(message, 'y1')], [num(message, 'x2'), num(message, 'y2')]]
+      : message.match(/points="([^"]+)"/)![1]!.trim().split(/\s+/).map(pair => pair.split(',').map(Number))
+    const lifelineX = (id: string) => num(svg.match(new RegExp(`<line class="lifeline" data-actor="${id}"[^>]*>`))![0], 'x1')
+    const from = message.match(/data-from="([^"]+)"/)![1]!, to = message.match(/data-to="([^"]+)"/)![1]!
+    const circles = [...svg.matchAll(/<circle class="sequence-central-connection" data-side="(start|end)"[^>]*>/g)]
+    expect(circles.length).toBe(body.match(/\(\)/g)!.length)
+    const { bounds } = layout(source).messages[0]!
+    for (const [tag, side] of circles) {
+      const point = side === 'start' ? points[0]! : points.at(-1)!
+      const outer = num(tag, 'r') + num(tag, 'stroke-width') / 2
+      // The message's painted bounds hold the circle.
+      expect(bounds.x).toBeLessThanOrEqual(num(tag, 'cx') - outer)
+      expect(bounds.x + bounds.width).toBeGreaterThanOrEqual(num(tag, 'cx') + outer)
+      expect(bounds.y).toBeLessThanOrEqual(num(tag, 'cy') - outer)
+      expect(bounds.y + bounds.height).toBeGreaterThanOrEqual(num(tag, 'cy') + outer)
+      const lifeline = lifelineX(side === 'start' ? from : to)
+      if (to === 'C' && side === 'end') {
+        // Against the created card's side (40px from its lifeline), outside it.
+        const card = svg.match(/<rect [^>]*data-id="actor:C:box"[^>]*>/)![0]
+        expect(Math.abs(num(tag, 'cx') - lifeline)).toBe(num(card, 'width') / 2 + num(card, 'stroke-width') / 2 + outer)
+      } else expect(num(tag, 'cx')).toBe(lifeline)
+      expect(num(tag, 'cy')).toBe(point[1]!)
+      const gap = Math.abs(point[0]! - num(tag, 'cx'))
+      if (message.includes(`marker-${side}=`)) {
+        expect(gap).toBeGreaterThanOrEqual(outer)
+        expect(gap).toBeLessThanOrEqual(outer + 7)
+      } else expect(gap).toBe(0)
     }
   })
 })
