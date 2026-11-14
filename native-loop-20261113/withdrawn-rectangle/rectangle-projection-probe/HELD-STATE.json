@@ -1,0 +1,26 @@
+{
+  "base": "1e6882c9c40ad2989bb64c3cb7662fd4696016d4",
+  "patchSha256": "d7351472a52c5f14b79259e076b158b16be613a068fe559808da17244f5c8ca7",
+  "disposition": "HOLD scope/value gate; partial candidate not publishable",
+  "sourceChangedFiles": [
+    "src/scene/svg-writer.ts",
+    "src/scene/native-paint-emission.ts",
+    "src/__tests__/scene-svg-writer.test.ts"
+  ],
+  "broadGuardsAdded": false,
+  "functionalWorkersActive": false,
+  "numericClockRun": false,
+  "completedChecks": {
+    "focused": 5,
+    "owners": 170,
+    "coreRepoTypes": "terminal0",
+    "lintFiles": 3
+  },
+  "demonstratedNegatives": "Audit-only private drawNativeImplementation exported for locally constructed producer; pre-import global intrinsic replacements. Public supported admission reachability not established.",
+  "cost": "Completed direct scalar fee remains17 (23 with2radii), netledger0; no speed/proof-cap improvement claimed.",
+  "unclosedSiblings": [
+    "inert final shape.geometry overlay",
+    "replaceField route overlay",
+    "actual textpaint fill projection"
+  ]
+}

@@ -1,0 +1,17 @@
+{
+  "route-overlay-hook": {
+    "baseline_hook_svg_equals_control": true,
+    "candidate_hook_svg_equals_control": true,
+    "all_three_candidate_svg_equal_baseline": true
+  },
+  "text-paint-hook": {
+    "baseline_hook_svg_equals_control": true,
+    "candidate_hook_svg_equals_control": true,
+    "all_three_candidate_svg_equal_baseline": true
+  },
+  "childProcessesReturned": 4,
+  "completeProducts": 12,
+  "enclosingShellExitCode": 0,
+  "workersRemaining": 0,
+  "timingClaim": false
+}

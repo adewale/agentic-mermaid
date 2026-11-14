@@ -1,0 +1,135 @@
+diff --git a/src/__tests__/scene-svg-writer.test.ts b/src/__tests__/scene-svg-writer.test.ts
+index ce75a12e..fd24121a 100644
+--- a/src/__tests__/scene-svg-writer.test.ts
++++ b/src/__tests__/scene-svg-writer.test.ts
+@@ -6,7 +6,7 @@ import * as marks from '../scene/marks.ts'
+ import { canonicalizeSceneNodeSerialization, sceneNodeSerialization, sceneHasOnlyPreparedText, sceneNodeWrite, transferSceneNodeSerialization } from '../scene/serialization.ts'
+ import { validateSceneDoc } from '../scene/scene-validation.ts'
+ import { preparePixelText } from '../shared/prepared-text.ts'
+-import { createSvgXmlCapture, createNativeXmlWork, writeNativeGroupOpening, readSvgRectanglePaintWrite, writeShapeSvg, writeTextSvg, writeConnectorSvg, type SvgXmlWrite, type SvgXmlCapture } from '../scene/svg-writer.ts'
++import { createSvgXmlCapture, createNativeXmlWork, writeNativeGroupOpening, readSvgRectangleWrite, readSvgRectanglePaintWrite, writeShapeSvg, writeTextSvg, writeConnectorSvg, type SvgXmlWrite, type SvgXmlCapture } from '../scene/svg-writer.ts'
+ import { bindNativeGroupEmission, captureNativeGroupParse, consumeWrittenNativeGroupEmission } from '../scene/group-emission.ts'
+ import { createNativePaintEmission, createOriginalNativePaintEmission } from '../scene/native-paint-emission.ts'
+ import { tipAnchoredArrow, serializeMarkerResources } from '../scene/marker-resources.ts'
+@@ -89,12 +89,25 @@ describe('typed Scene SVG writer', () => {
+     expect(child.status).toBe(0)
+   })
+ 
+-  test('actual rectangle paint belongs to its exact source/write and excludes inherited or altered fields', () => {
++  test.each(['absent', 'zero'] as const)('actual rectangle geometry and paint retain exact source/write custody (radius %s)', presence => {
++    const radius = presence === 'zero' ? 0 : undefined
+     const paint = Object.freeze({ fill: '#e11', stroke: '#111', strokeWidth: '1' })
+-    const geometry = Object.freeze({ kind: 'rect' as const, x: 0, y: 0, width: 20, height: 30 })
++    const geometry = Object.freeze({ kind: 'rect' as const, x: 10.123456789012345, y: -0, width: 20, height: 30,
++      ...(radius === undefined ? {} : { rx: radius, ry: radius }) })
+     const node = marks.shape({ id: 'actual-rect', role: 'chrome', geometry, paint })
+     const work = createNativeXmlWork(400000), capture = work.capture()
+     const written = writeShapeSvg(node, undefined, capture)
++    const served = readSvgRectangleWrite(capture, written, node, geometry, work.pay)!
++    expect(served.x).toBe(10.123456789)
++    expect(Object.is(served.y, 0)).toBe(true)
++    expect(Object.getPrototypeOf(served)).toBe(null)
++    expect(Object.isFrozen(served)).toBe(true)
++    expect(Object.hasOwn(served, 'rx')).toBe(radius !== undefined)
++    expect(Object.hasOwn(served, 'ry')).toBe(radius !== undefined)
++    expect(readSvgRectangleWrite(createNativeXmlWork(400000).capture(), written, node, geometry, work.pay)).toBeUndefined()
++    expect(readSvgRectangleWrite(capture, capture.raw(written.svg, node), node, geometry, work.pay)).toBeUndefined()
++    expect(readSvgRectangleWrite(capture, written, { ...node }, geometry, work.pay)).toBeUndefined()
++    expect(readSvgRectangleWrite(capture, written, node, { ...geometry }, work.pay)).toBeUndefined()
+     const actual = readSvgRectanglePaintWrite(capture, written, node, geometry, paint, work.pay)
+     expect(actual).toEqual(paint)
+     expect(Object.getPrototypeOf(actual)).toBe(null)
+@@ -112,6 +125,38 @@ describe('typed Scene SVG writer', () => {
+     } finally { delete (Object.prototype as { opacity?: string }).opacity }
+   })
+ 
++  test.each(['altered-x', 'missing-x', 'foreign-seal'] as const)('altered actual rectangle receivers cannot acquire paint authority: %s', async mode => {
++    const child = await runWriterChild(process.execPath, ['-e', String.raw`
++      import assert from 'node:assert/strict'
++      const define = Object.defineProperty, seal = Object.preventExtensions, proto = Object.getPrototypeOf
++      const mode = process.env.RECTANGLE_RECEIVER
++      let altered = 0
++      Object.defineProperty = function(target, key, descriptor) {
++        if (mode !== 'foreign-seal' && key === 'x' && proto(target) === null && target.kind === 'rect' && descriptor.value === 40) {
++          altered++
++          return mode === 'missing-x' ? target : define(target, key, { ...descriptor, value: 90 })
++        }
++        return define(target, key, descriptor)
++      }
++      Object.preventExtensions = function(target) {
++        if (mode === 'foreign-seal' && proto(target) === null && target.kind === 'rect') { altered++; return {} }
++        return seal(target)
++      }
++      const marks = await import('./src/scene/marks.ts')
++      const { createOriginalNativePaintEmission } = await import('./src/scene/native-paint-emission.ts')
++      const { writeShapeSvg } = await import('./src/scene/svg-writer.ts')
++      const node = marks.shape({ id: 'cover', role: 'node', geometry: { kind: 'rect', x: 40, y: 10, width: 35, height: 70 }, paint: { fill: '#fff' } })
++      const emission = createOriginalNativePaintEmission(400000)
++      const leaf = emission.leaf(node, (source, sink) => writeShapeSvg(source, sink, emission.xml), emission.xml)
++      assert.equal(altered, 1)
++      assert.ok(leaf.svg.includes('x="40"'))
++      assert.equal(leaf.conditional, true)
++      assert.equal(leaf.paintNode.geometry.x, 40)
++    `], { cwd: `${import.meta.dir}/../..`, env: { ...process.env, RECTANGLE_RECEIVER: mode } })
++    expect(child.stderr).toBe('')
++    expect(child.status).toBe(0)
++  })
++
+   test('rectangle paint co-products decline normalization and unsupported fields without changing actual output', () => {
+     for (const paint of [
+       Object.freeze({ fill: '#e11', strokeWidth: '0.00000000000001' }),
+diff --git a/src/scene/native-paint-emission.ts b/src/scene/native-paint-emission.ts
+index c8654252..ddde8a4b 100644
+--- a/src/scene/native-paint-emission.ts
++++ b/src/scene/native-paint-emission.ts
+@@ -880,8 +880,7 @@ function createPaintEmission(maxOperations: number, closeLeaves: boolean) {
+         && completedDeclarations?.source === captured && !completedDeclarations.deferred
+         && actualCapture === xml && xmlWrite && pay()) closedMarkerOperands = completedDeclarations.head
+       if (directRectangle && geometry && captured.kind === 'shape') {
+-        const actual = readSvgRectangleWrite(xml, xmlWrite, captured, geometry)
+-        served = actual && inertRectangleRecord(actual)
++        served = readSvgRectangleWrite(xml, xmlWrite, captured, geometry, pay)
+         reserved = received = !!served
+         if (rectangle!.writtenPaint) {
+           const paint = readSvgRectanglePaintWrite(xml, xmlWrite, captured, geometry, captured.paint, pay)
+diff --git a/src/scene/svg-writer.ts b/src/scene/svg-writer.ts
+index 1e271411..e3b995c2 100644
+--- a/src/scene/svg-writer.ts
++++ b/src/scene/svg-writer.ts
+@@ -400,12 +400,24 @@ class ActualGeometryWrite {
+     const actual = XmlLeafWrite.geometry(value.#xml)
+     return actual?.valid && actual.received && actual.source === source && actual.projection ? { contours: actual.projection.contours, collapsed: actual.projection.collapsed } : undefined
+   }
+-  static rectangle(value: unknown, capture: SvgXmlCapture, write: SvgXmlWrite | undefined, node: object, source: Geometry): Extract<Geometry, { kind: 'rect' }> | undefined {
++  static rectangle(value: unknown, capture: SvgXmlCapture, write: SvgXmlWrite | undefined, node: object, source: Geometry, pay: (operations: number) => boolean): Extract<Geometry, { kind: 'rect' }> | undefined {
+     if (!value || typeof value !== 'object' || !(#capture in value) || value.#capture !== capture || value.#write !== write || value.#node !== node) return undefined
+     const actual = XmlLeafWrite.rectangle(value.#xml)
+     if (!actual?.valid || actual.source !== source) return undefined
+-    return { kind: 'rect', x: actual.x, y: actual.y, width: actual.width, height: actual.height,
+-      ...(actual.rx === undefined ? {} : { rx: actual.rx }), ...(actual.ry === undefined ? {} : { ry: actual.ry }) }
++    const count = 5 + (actual.rx === undefined ? 0 : 1) + (actual.ry === undefined ? 0 : 1)
++    if (!pay(2 + count * 3)) return undefined
++    const result = { __proto__: null } as unknown as Extract<Geometry, { kind: 'rect' }>
++    pinXmlSlot(result, 'kind', 'rect')
++    pinXmlSlot(result, 'x', actual.x); pinXmlSlot(result, 'y', actual.y)
++    pinXmlSlot(result, 'width', actual.width); pinXmlSlot(result, 'height', actual.height)
++    if (actual.rx !== undefined) pinXmlSlot(result, 'rx', actual.rx)
++    if (actual.ry !== undefined) pinXmlSlot(result, 'ry', actual.ry)
++    if (writtenFactSeal(result) !== result) return undefined
++    if (writtenFactPrototype(result) !== null || writtenFactExtensible(result) || writtenFactKeys(result).length !== count
++      || !closedWrittenSlot(result, 'kind', 'rect') || !closedWrittenSlot(result, 'x', actual.x) || !closedWrittenSlot(result, 'y', actual.y)
++      || !closedWrittenSlot(result, 'width', actual.width) || !closedWrittenSlot(result, 'height', actual.height)
++      || actual.rx !== undefined && !closedWrittenSlot(result, 'rx', actual.rx) || actual.ry !== undefined && !closedWrittenSlot(result, 'ry', actual.ry)) return undefined
++    return result
+   }
+   static rectanglePaint(value: unknown, capture: SvgXmlCapture, write: SvgXmlWrite | undefined, node: object, source: Geometry, paint: MarkPaint, pay: (operations: number) => boolean): MarkPaint | undefined {
+     if (!value || typeof value !== 'object' || !(#capture in value) || value.#capture !== capture || value.#write !== write || value.#node !== node) return undefined
+@@ -449,7 +461,7 @@ const actualWrittenProjection = ActualGeometryWrite.projection, actualWrittenGeo
+ function geometryFact(write: SvgXmlWrite | undefined): unknown { return write && (xmlFactApply(xmlFactGet, xmlWrites, [write]) as XmlWriteFact | undefined)?.geometry }
+ export function readSvgGeometryProjection(capture: SvgXmlCapture, write: SvgXmlWrite | undefined, node: object, source: Geometry): WrittenPolylineProjection | undefined { return actualWrittenProjection(geometryFact(write), capture, write, node, source) }
+ export function readSvgGeometryWrite(capture: SvgXmlCapture, write: SvgXmlWrite | undefined, node: object, source: Geometry): Geometry | undefined { return actualWrittenGeometry(geometryFact(write), capture, write, node, source) }
+-export function readSvgRectangleWrite(capture: SvgXmlCapture, write: SvgXmlWrite | undefined, node: object, source: Geometry): Extract<Geometry, { kind: 'rect' }> | undefined { return actualWrittenRectangle(geometryFact(write), capture, write, node, source) }
++export function readSvgRectangleWrite(capture: SvgXmlCapture, write: SvgXmlWrite | undefined, node: object, source: Geometry, pay: (operations: number) => boolean): Extract<Geometry, { kind: 'rect' }> | undefined { return actualWrittenRectangle(geometryFact(write), capture, write, node, source, pay) }
+ export function readSvgRectanglePaintWrite(capture: SvgXmlCapture, write: SvgXmlWrite | undefined, node: object, source: Geometry, paint: MarkPaint, pay: (operations: number) => boolean): MarkPaint | undefined { return actualWrittenRectanglePaint(geometryFact(write), capture, write, node, source, paint, pay) }
+ export function matchesSvgRectangleWrite(capture: SvgXmlCapture, write: SvgXmlWrite | undefined, node: object, source: Geometry, served: Extract<Geometry, { kind: 'rect' }>, paint: MarkPaint, pay: (operations: number) => boolean): boolean { return matchesWrittenRectangle(geometryFact(write), capture, write, node, source, served, paint, pay) }
+ 

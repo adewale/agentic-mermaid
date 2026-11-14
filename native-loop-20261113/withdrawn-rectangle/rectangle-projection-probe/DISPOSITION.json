@@ -1,0 +1,29 @@
+{
+  "base": "1e6882c9c40ad2989bb64c3cb7662fd4696016d4",
+  "disposition": "withdrawn by root scope/value decision",
+  "reason": "Audit-only private admission bypass with pre-import intrinsic replacement; supported-public/advertised contract reachability unestablished. Completed fees17to17/23to23, no measured speedup; broader guards add cost risk. Findings retained with narrow scope, no public vulnerability claim.",
+  "heldPatchSha256": "d7351472a52c5f14b79259e076b158b16be613a068fe559808da17244f5c8ca7",
+  "restoredOnlyOwned": [
+    {
+      "file": "src/scene/svg-writer.ts",
+      "saved": "rectangle-projection-probe/withdrawn-svg-writer.ts",
+      "sha256": "b44476ee3a88ecb19315e9028131a01610ccab5503eeaf5f18baf961593e39cf",
+      "restoredBlob": "1e271411d5c1ab82e97898a2f347b365efc1a9e1"
+    },
+    {
+      "file": "src/scene/native-paint-emission.ts",
+      "saved": "rectangle-projection-probe/withdrawn-native-paint-emission.ts",
+      "sha256": "0a05b352984179be1129391db17de440f93129ab7e2d2b1490824bcae1f10425",
+      "restoredBlob": "c86542527a6a75cf919d0b450987768ea12e22e3"
+    },
+    {
+      "file": "src/__tests__/scene-svg-writer.test.ts",
+      "saved": "rectangle-projection-probe/withdrawn-scene-svg-writer.test.ts",
+      "sha256": "cff84a1311bc1fca99fa9d3ca0363ddaf5daae6d53bf4258b599b1594d2e1331",
+      "restoredBlob": "ce75a12e8591e3ea0934f68d1bd1a750323e4080"
+    }
+  ],
+  "clean": true,
+  "runtimeRetained": false,
+  "sourceCommitNeeded": false
+}
