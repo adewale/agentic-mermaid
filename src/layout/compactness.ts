@@ -10,9 +10,10 @@
 //
 // Title strip: a visible horizontal route segment inside a titled group,
 // between the bottom of its header band and the top of its first member or
-// child group. Certification already refuses routes that enter the header band
-// itself (headerRouteFindings in ./certification.ts), so the strip starts
-// exactly where that band ends.
+// child group. Certification already refuses routes that enter the painted
+// header band itself, or for Swimlane lanes that travel inside it rather than
+// cross it (positionedHeaderRouteFindings in ./certification.ts), so the strip
+// starts exactly where that band ends.
 
 import type { Direction } from '../types.ts'
 

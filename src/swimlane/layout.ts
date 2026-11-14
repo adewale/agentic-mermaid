@@ -3,6 +3,10 @@ import { resolveEdgeInlineStyle, resolveNodeInlineStyle } from '../color-resolve
 import { graphClassNames } from '../shared/graph-classes.ts'
 import { assertMermaidGraphWork } from '../shared/diagram-limits.ts'
 import { graphTextBlock } from '../graph-text.ts'
+import { graphGroupHeader } from '../graph-group-header.ts'
+import { positionedHeaderRouteFindings } from '../layout/certification.ts'
+import { LayoutCertificationError } from '../layout/certification-error.ts'
+import { mergeUncertifiedLayout } from '../layout/uncertified-layout.ts'
 import { graphEdgeMarkerPaintRegions } from '../graph-connectors.ts'
 import { resolveLabelContent } from '../shared/display-text.ts'
 import { diagramTitleBand, positionDiagramTitle, resolveRenderStyle } from '../styles.ts'
@@ -143,15 +147,20 @@ export function layoutSwimlane(graph: MermaidGraph, options: NonNullable<Paramet
   }
   // Containers are transparent responsibility regions. Nodes and header ink
   // remain obstacles even when a connector crosses an unrelated lane.
-  const headers: Array<{ x: number; y: number; width: number; height: number }> = []
+  const headers: MeasuredBox[] = [], bands: MeasuredBox[] = []
   const addHeader = (group: PositionedGroup): void => {
-    // Responsibility boundaries are crossed perpendicularly; only actual
-    // heading ink is an obstacle, not the entire width of an empty header.
-    const block = group.labelBlock, header = group.headerHeight ?? 40
-    headers.push({ x: group.x + 12, y: group.y + (header - (block?.height ?? 16)) / 2 - 6, width: (block?.width ?? group.width - 24) + 12, height: (block?.height ?? 16) + 12 })
+    // Responsibility boundaries are crossed perpendicularly (HeaderCrossing
+    // 'perpendicular'): no segment may travel inside the painted band, so a
+    // crossing runs edge to edge, and it passes beside the painted title. The
+    // title's leading padding is reserved with it, since a crossing between
+    // the frame edge and the title would hug both.
+    const { band, title } = graphGroupHeader(group, style)
+    headers.push({ x: band.x - 6, y: title.y - 6, width: title.x + title.width + 12 - band.x, height: title.height + 12 })
+    bands.push(band)
     group.children.forEach(addHeader)
   }
   groups.forEach(addHeader)
+  const crossesBandsPerpendicularly = (a: Point, b: Point): boolean => a.x === b.x || bands.every(band => !segmentEntersMeasuredBox(a, b, band))
   const fail = (reason: string): never => { throw new Error(`Swimlane routing: ${reason}`) }
   const channels = handoffChannels(byId, occurrences, headers, owners, horizontal, style, stubGap)
   const terminals = edges.map(edge => {
@@ -184,7 +193,7 @@ export function layoutSwimlane(graph: MermaidGraph, options: NonNullable<Paramet
       for (let index = 1; index < stops.length; index++) {
         const start = stops[index - 1]!
         points.push(...grid!.route([{ port: start, stub: start, penalty: 0 }], stops[index]!, undefined,
-          (a, b) => reservedCaptions.every(candidate => candidate.owner === edge || !segmentEntersMeasuredBox(a, b, candidate.box))).slice(1))
+          (a, b) => crossesBandsPerpendicularly(a, b) && reservedCaptions.every(candidate => candidate.owner === edge || !segmentEntersMeasuredBox(a, b, candidate.box))).slice(1))
       }
       edge.points = simplifyOrthogonal([...points, pair.target.port])
       if (!channel && edge.label) {
@@ -228,7 +237,16 @@ export function layoutSwimlane(graph: MermaidGraph, options: NonNullable<Paramet
         }
       }
     }
-    return { width, height, nodes, groups, edges, ...(titleBand ? { title: positionDiagramTitle(titleBand, width, padding) } : {}) }
+    const positioned: PositionedGraph = { width, height, nodes, groups, edges, ...(titleBand ? { title: positionDiagramTitle(titleBand, width, padding) } : {}) }
+    // Final routes against the painted headers, as graph layout certifies
+    // subgraph bands: strict safety refuses, report safety draws the routes
+    // with an uncertified receipt naming each band they misuse.
+    const findings = positionedHeaderRouteFindings(positioned, style, 'perpendicular')
+    if (findings.length && (options.layoutSafety === 'strict' || findings.some(finding => !finding.drawable))) {
+      throw new LayoutCertificationError([{ strategy: 'swimlane:header-bands', violations: findings.map(finding => finding.text) }])
+    }
+    const uncertified = mergeUncertifiedLayout(undefined, 'swimlane:header-bands', findings.map(finding => finding.drawable!))
+    return uncertified ? { ...positioned, uncertifiedLayout: uncertified } : positioned
   } finally { grid?.retire() }
 }
 

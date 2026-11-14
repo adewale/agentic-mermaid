@@ -11,7 +11,7 @@ import type { LayoutCertificationViolation, UncertifiedLayoutReceipt } from './u
 import type { PixelTextBlock } from '../shared/prepared-text.ts'
 import { prepareDisplayText, resolveLabelContent, type DisplayTextInput } from '../shared/display-text.ts'
 import { observeFallback } from '../performance-observations.ts'
-import { graphTextBlock } from '../graph-text.ts'
+import { graphGroupHeader } from '../graph-group-header.ts'
 import { positionedEdgeWarningIds } from '../shared/edge-selectors.ts'
 
 export { LayoutCertificationError, type LayoutCertificationAttempt } from './certification-error.ts'
@@ -213,20 +213,28 @@ function retainAuthoredMembership(graph: MermaidGraph, positioned: PositionedGra
   retain(positioned.groups)
 }
 
-/** Internal final-route proof. The entire measured header band is reserved,
- * independently of title glyph ink. Exterior group endpoint contact never
- * enters this open rectangle; endpoint identity grants no route exemption. */
-export function positionedHeaderRouteViolations(positioned: PositionedGraph, style: ResolvedRenderStyle): string[] {
-  return findingTexts(headerRouteFindings(positioned, style))
+/** How final routes may meet a group's painted header (graphGroupHeader).
+ * 'reserved': the entire band is reserved, independently of title glyph ink;
+ * exterior group endpoint contact never enters this open rectangle and
+ * endpoint identity grants no route exemption. 'perpendicular': Swimlane
+ * responsibility headers are transparent boundaries, crossed edge to edge by
+ * vertical segments clear of the title ink; no segment travels inside the
+ * band and no route ends inside it. */
+export type HeaderCrossing = 'reserved' | 'perpendicular'
+
+/** Internal final-route proof over the painted header bands. */
+export function positionedHeaderRouteViolations(positioned: PositionedGraph, style: ResolvedRenderStyle, crossing: HeaderCrossing = 'reserved'): string[] {
+  return findingTexts(positionedHeaderRouteFindings(positioned, style, crossing))
 }
 
-function headerRouteFindings(positioned: PositionedGraph, style: ResolvedRenderStyle): CertificationFinding[] {
+export function positionedHeaderRouteFindings(positioned: PositionedGraph, style: ResolvedRenderStyle, crossing: HeaderCrossing = 'reserved'): CertificationFinding[] {
   const failures: CertificationFinding[] = []
-  const enters = (a: Point, b: Point, group: PositionedGroup, height: number): boolean => {
+  type Rect = { x: number; y: number; width: number; height: number }
+  const enters = (a: Point, b: Point, box: Rect): boolean => {
     let low = 0, high = 1
     for (const [start, delta, min, max] of [
-      [a.x, b.x - a.x, group.x, group.x + group.width],
-      [a.y, b.y - a.y, group.y, group.y + height],
+      [a.x, b.x - a.x, box.x, box.x + box.width],
+      [a.y, b.y - a.y, box.y, box.y + box.height],
     ]) {
       if (delta === 0) { if (start! <= min! || start! >= max!) return false; continue }
       const first = (min! - start!) / delta!, last = (max! - start!) / delta!
@@ -235,18 +243,27 @@ function headerRouteFindings(positioned: PositionedGraph, style: ResolvedRenderS
     }
     return low < high
   }
+  const inside = (p: Point, box: Rect): boolean => p.x > box.x && p.x < box.x + box.width && p.y > box.y && p.y < box.y + box.height
   const warningIds = positionedEdgeWarningIds(positioned.edges)
   const visit = (group: PositionedGroup): void => {
     if (!group.concurrencyRegion) {
-      const block = group.labelBlock ?? graphTextBlock(resolveLabelContent(group.label, group.labelContent), style, 'group')
-      const height = group.headerHeight ?? style.groupHeaderFontSize + 16 + block.height - block.lineHeight
-      if (!Number.isFinite(height) || height < 0) failures.push({ text: `group-header ${group.id}: invalid retained height` })
-      else if (height > 0 && group.width > 0) for (const edge of positioned.edges) {
+      const { band, title } = graphGroupHeader(group, style)
+      if (!Number.isFinite(band.height) || band.height < 0) failures.push({ text: `group-header ${group.id}: invalid retained height` })
+      else if (band.height > 0 && group.width > 0) for (const edge of positioned.edges) {
         if (edge.style === 'invisible') continue
-        for (let index = 1; index < edge.points.length; index++) if (enters(edge.points[index - 1]!, edge.points[index]!, group, height)) {
-          const text = `group-header ${group.id}: edge ${edge.source}->${edge.target} segment ${index} enters reserved band`
+        const points = edge.points
+        let breach: string | undefined
+        for (let index = 1; index < points.length && !breach; index++) {
+          const a = points[index - 1]!, b = points[index]!
+          if (!enters(a, b, band)) continue
+          if (crossing === 'reserved') breach = `segment ${index} enters reserved band`
+          else if (a.x !== b.x) breach = `segment ${index} runs inside the header band`
+          else if (enters(a, b, title)) breach = `segment ${index} crosses the header title`
+        }
+        if (!breach && crossing === 'perpendicular' && points.length && (inside(points[0]!, band) || inside(points.at(-1)!, band))) breach = 'ends inside the header band'
+        if (breach) {
+          const text = `group-header ${group.id}: edge ${edge.source}->${edge.target} ${breach}`
           failures.push({ text, drawable: { kind: 'groupHeaderBand', targets: [group.id, warningIds.get(edge)!], detail: text } })
-          break
         }
       }
     }
@@ -298,7 +315,7 @@ export function positionedGeometryViolations(positioned: PositionedGraph, style:
  * geometry) lose content and are never drawable; header-band entries are. */
 export function positionedGeometryFindings(positioned: PositionedGraph, style: ResolvedRenderStyle): CertificationFinding[] {
   const failures = positionedGeometryBaseViolations(positioned, style)
-  return failures.length ? failures.map(text => ({ text })) : headerRouteFindings(positioned, style)
+  return failures.length ? failures.map(text => ({ text })) : positionedHeaderRouteFindings(positioned, style)
 }
 
 function preferenceScore(positioned: PositionedGraph, metrics: RubricMetrics, preferNext: boolean): LayoutPreferenceScore {
