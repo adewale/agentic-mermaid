@@ -255,6 +255,17 @@ export function markerTerminalDepth(marker: MarkerDescriptor, position: 'start' 
   return Math.max(0, position === 'start' ? bounds.x1 : -bounds.x0)
 }
 
+/** Support across the carrier at unit carrier width, from the same painted
+ * envelope as markerTerminalDepth: how far the marker reaches either side of
+ * a straight carrier at its endpoint. */
+export function markerLateralExtent(marker: MarkerDescriptor, position: 'start' | 'end'): number {
+  const angle = typeof marker.orient === 'number' ? marker.orient
+    : position === 'start' && marker.orient === 'auto-start-reverse' ? 180 : 0
+  const bounds = markerBoundsAt(marker, { x: 0, y: 0 }, 1, true, angle)
+  if (!bounds) throw new TypeError(`Unmeasured terminal marker ${marker.id}`)
+  return Math.max(0, -bounds.y0, bounds.y1)
+}
+
 export interface ConnectorMarkerPaintRegion {
   position: 'start' | 'mid' | 'end'
   resource: string

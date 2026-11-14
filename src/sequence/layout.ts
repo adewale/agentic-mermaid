@@ -1,7 +1,7 @@
 import { preparePixelText } from '../shared/prepared-text.ts'
 import { resolveLabelContent, type DisplayTextInput } from '../shared/display-text.ts'
 import type { SequenceBounds, SequenceDiagram, PositionedSequenceDiagram, PositionedActor, Lifeline, PositionedMessage, Activation, PositionedBlock, PositionedNote, PositionedBoxGroup, LifelineCross } from './types.ts'
-import { SEQUENCE_SELF_LOOP, measureSequenceActorSpec, measureSequenceBlockSpec, measureSequenceMessageSpec, positionSequenceActor, positionSequenceBlock, positionSequenceMessage, resolveSequenceBlockScopes, sequenceDividerLeadingNote, translatePositionedSequence, type SequenceBlockPlacement } from './geometry.ts'
+import { SEQUENCE_SELF_LOOP, measureSequenceActorSpec, measureSequenceBlockSpec, measureSequenceMessageSpec, positionSequenceActor, positionSequenceBlock, positionSequenceMessage, resolveSequenceBlockScopes, sequenceDestroyCrossPlacement, sequenceDividerLeadingNote, translatePositionedSequence, type SequenceBlockPlacement } from './geometry.ts'
 import { getSequenceBlockBoundaries } from './parser.ts'
 import { SEQUENCE_TEXT_WRAP_WIDTH } from './geometry.ts'
 import type { RenderOptions } from '../types.ts'
@@ -621,8 +621,14 @@ export function layoutSequenceDiagram(diagram: SequenceDiagram, options: RenderO
     if (msgIdx === 0) applyActivationEvents(0, messageY)
     applyActivationEvents(msgIdx, messageY, nextMessageEvents)
 
+    // A destroyed lifeline ends at its cross, just below the message's last
+    // contact (a self-message's return), and nothing follows on it.
     const destroyedHere = destroyAtIndex.get(msgIdx)
-    if (destroyedHere) for (const id of destroyedHere) destroyYByActor.set(id, messageY)
+    const cross = destroyedHere ? sequenceDestroyCrossPlacement(positionedMsg, style) : undefined
+    if (destroyedHere && cross) {
+      for (const id of destroyedHere) destroyYByActor.set(id, cross.y)
+      contentBottom = Math.max(contentBottom, cross.bottom)
+    }
 
     if (msg.activate) activate(msg.to, messageY)
     if (msg.deactivate) deactivate(msg.from, messageY)
@@ -632,6 +638,8 @@ export function layoutSequenceDiagram(diagram: SequenceDiagram, options: RenderO
     // including a self-message loop.
     applyActivationEvents(msgIdx + 1, messageY + selfLoopAdvance)
     messageY += isSelf ? selfLoopAdvance + messageRowHeight : messageRowHeight
+    // The cross extends the row: later rows, dividers and notes start below it.
+    if (cross) messageY += Math.ceil(cross.bottom - cross.contactY)
 
     // Clearance below a create row for the bottom portion of the created actor's
     // header (including below-icon labels for created icon participants).
@@ -646,7 +654,7 @@ export function layoutSequenceDiagram(diagram: SequenceDiagram, options: RenderO
       messageY += createdBottomClearance
     }
 
-    const noteFloor = createdHere ? contentBottom + 8 : positionedMsg.y + selfLoopAdvance + 14
+    const noteFloor = createdHere || cross ? contentBottom + 8 : positionedMsg.y + selfLoopAdvance + 14
     placeNotes(msgIdx, noteFloor)
   }
   completeBlocks()

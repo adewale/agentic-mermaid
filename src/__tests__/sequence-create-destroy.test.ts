@@ -83,7 +83,8 @@ describe('sequence create/destroy layout', () => {
     // message and ends at the destroy message.
     expect(donaldLife.topY).toBeGreaterThan(aliceLife.topY)
     expect(donaldLife.topY).toBeGreaterThanOrEqual(createMsg.y)
-    expect(donaldLife.bottomY).toBe(destroyMsg.y)
+    expect(donaldLife.bottomY).toBeGreaterThan(destroyMsg.y)
+    expect(donaldLife.bottomY).toBeLessThan(p.messages[4]!.y)
     expect(donaldLife.bottomY).toBeLessThan(aliceLife.bottomY)
 
     // The created actor's header box sits on the create message row.
@@ -121,24 +122,25 @@ describe('sequence create/destroy layout', () => {
   })
 
   // An activation still open on a destroyed participant ends with its lifeline
-  // at the cross, however late it is closed; one the destroy message opens has
-  // no extent left and is not drawn.
+  // at the cross, however late it is closed; one the destroy message closes
+  // ends on that message's row, above the cross.
   it.each([
-    ['opened before the destroy', 'A->>+B: open\ndestroy B\nA->>B: bye', 1],
-    ['nested around a destroyed self-message', 'A->>+B: open\nactivate B\ndestroy B\nB->>B: bye', 2],
-    ['open across a destroyed self-message', 'A->>+B: open\ndestroy B\nB->>B: bye', 1],
-    ['closed by a deactivate after the destroy', 'A->>+B: open\ndestroy B\nA->>B: bye\nA->>A: later\ndeactivate B', 1],
-    ['closed by the destroy message', 'A->>+B: open\ndestroy B\nB-->>-A: bye', 1],
-    ['opened by the destroy message', 'A->>B: hi\ndestroy B\nA->>+B: bye', 0],
-  ] as const)('ends the destroyed participant\'s activation %s at its cross', (_name, body, count) => {
+    ['opened before the destroy', 'A->>+B: open\ndestroy B\nA->>B: bye', 1, 'cross'],
+    ['nested around a destroyed self-message', 'A->>+B: open\nactivate B\ndestroy B\nB->>B: bye', 2, 'cross'],
+    ['open across a destroyed self-message', 'A->>+B: open\ndestroy B\nB->>B: bye', 1, 'cross'],
+    ['closed by a deactivate after the destroy', 'A->>+B: open\ndestroy B\nA->>B: bye\nA->>A: later\ndeactivate B', 1, 'cross'],
+    ['closed by the destroy message', 'A->>+B: open\ndestroy B\nB-->>-A: bye', 1, 'message'],
+    ['opened by the destroy message', 'A->>B: hi\ndestroy B\nA->>+B: bye', 1, 'cross'],
+  ] as const)('ends the destroyed participant\'s activation %s at its cross', (_name, body, count, end) => {
     const source = `sequenceDiagram\nparticipant A\nparticipant B\n${body}\nA->>A: tail`
     const p = layoutSequenceDiagram(parse(source))
     const cross = p.destructions.find(d => d.actorId === 'B')!
+    const destroyMessage = p.messages[p.messages.length - 2]!
     const owned = p.activations.filter(a => a.actorId === 'B')
     expect(owned).toHaveLength(count)
     for (const activation of owned) {
       expect(activation.topY).toBeLessThan(cross.y)
-      expect(activation.bottomY).toBe(cross.y)
+      expect(activation.bottomY).toBe(end === 'cross' ? cross.y : destroyMessage.y)
     }
 
     // The drawn bars are exactly those activations and none runs past the
@@ -149,7 +151,59 @@ describe('sequence create/destroy layout', () => {
     const bars = [...svg.matchAll(/<rect class="activation" data-actor="B"[^>]*>/g)].map(([tag]) => ({ top: attr(tag, 'y'), bottom: attr(tag, 'y') + attr(tag, 'height') }))
     expect(svg.match(/class="activation" data-actor="B"/g)?.length ?? 0).toBe(count)
     expect(bars.map(bar => [bar.top, bar.bottom]).sort()).toEqual(owned.map(a => [a.topY, a.bottomY]).sort())
-    for (const bar of bars) expect(bar.bottom).toBe(attr(lifeline, 'y2'))
+    for (const bar of bars) expect(bar.bottom).toBeLessThanOrEqual(attr(lifeline, 'y2'))
+  })
+
+  // The cross ends the lifeline below the destroy message's last contact with
+  // it (a self-message's return), clear of that contact's endpoint marker, so
+  // the head stays visible and unambiguous (a cross head is not swallowed by
+  // the destroy cross) and strict layout safety certifies the diagram.
+  const heads = [['filled', '->>'], ['open', '->'], ['dotted', '-->>'], ['async', '-)'], ['cross', '-x'], ['bidirectional', '<<->>']] as const
+  const roles = [
+    ['receiver', (arrow: string) => `destroy B\nA${arrow}B: bye`],
+    ['sender', (arrow: string) => `destroy B\nB${arrow}A: bye`],
+    ['self-message', (arrow: string) => `destroy B\nB${arrow}B: bye`],
+  ] as const
+  const wide = { style: { roles: { edge: { lineWidth: 3 } } } }
+  it.each([
+    ...heads.flatMap(([head, arrow]) => roles.map(([role, body]) => [head, role, `participant A\nparticipant B\nparticipant C\nA->>B: hi\n${body(arrow)}\nA->>C: across the destroyed lifeline`, {}] as const)),
+    ['filled', 'receiver with wide edges', 'A->>B: hi\ndestroy B\nA->>B: bye\nA->>A: tail', wide],
+    ['cross', 'self-message with wide edges', 'A->>B: hi\ndestroy B\nB-xB: bye\nA->>A: tail', wide],
+    ['filled', 'receiver followed by a note over it', 'A->>B: hi\ndestroy B\nA->>B: bye\nNote over B: gone', {}],
+    ['async', 'receiver closing an alt branch', 'A->>B: hi\nalt yes\ndestroy B\nA-)B: bye\nelse no\nA->>C: long label over B\nend', {}],
+    ['open', 'self-message ending a loop', 'A->>B: hi\nloop again\ndestroy B\nB->B: bye\nend\nA->>C: later', {}],
+  ] as const)('keeps the %s head of a destroyed %s clear of the cross under strict safety', (_head, _role, body, options) => {
+    const { svg, receipt } = renderMermaidSVGWithReceipt(`sequenceDiagram\n${body}`, { ...options, layoutSafety: 'strict' })
+    expect(receipt.layoutCertification?.status).toBe('passed')
+
+    const num = (tag: string, name: string) => Number(tag.match(new RegExp(`\\s${name}="([^"]+)"`))![1])
+    const [, actor, path, crossStroke] = svg.match(/<path class="destroy-cross" data-actor="([^"]+)" d="([^"]+)"[^>]*stroke-width="([^"]+)"/)!
+    const coords = path!.match(/-?[\d.]+/g)!.map(Number)
+    const xs = coords.filter((_, i) => i % 2 === 0), ys = coords.filter((_, i) => i % 2 === 1)
+    const crossX = (Math.min(...xs) + Math.max(...xs)) / 2
+    const crossY = (Math.min(...ys) + Math.max(...ys)) / 2
+    const crossTop = Math.min(...ys) - Number(crossStroke) / 2
+    const lifeline = svg.match(new RegExp(`<line class="lifeline" data-actor="${actor}"[^>]*>`))![0]
+    expect(num(lifeline, 'x1')).toBe(crossX)
+    expect(num(lifeline, 'y2')).toBe(crossY)
+    for (const [tag] of svg.matchAll(new RegExp(`<rect class="activation" data-actor="${actor}"[^>]*>`, 'g'))) expect(num(tag, 'y') + num(tag, 'height')).toBeLessThanOrEqual(crossY)
+
+    // Every message point on the destroyed lifeline, widened by its marker's
+    // painted half-height, lies above the cross's ink.
+    const markerHalf = new Map([...svg.matchAll(/<marker id="([^"]+)"[^>]*markerHeight="([^"]+)"/g)].map(([, id, h]) => [id!, Number(h) / 2]))
+    let contacts = 0
+    for (const [tag] of svg.matchAll(/<(?:line|polyline) [^>]*data-relationship="sequence-message"[^>]*>/g)) {
+      const points = tag.startsWith('<line')
+        ? [[num(tag, 'x1'), num(tag, 'y1')], [num(tag, 'x2'), num(tag, 'y2')]]
+        : tag.match(/points="([^"]+)"/)![1]!.trim().split(/\s+/).map(pair => pair.split(',').map(Number))
+      const width = num(tag, 'stroke-width')
+      const half = Math.max(width / 2, ...[...tag.matchAll(/marker-(?:start|end)="url\(#([^)]+)\)"/g)].map(([, id]) => markerHalf.get(id!)! * width))
+      for (const [x, y] of points) if (x === crossX) {
+        contacts++
+        expect(y! + half).toBeLessThan(crossTop)
+      }
+    }
+    expect(contacts).toBeGreaterThan(0)
   })
 
   it('boxless/plain diagrams have no destructions', () => {

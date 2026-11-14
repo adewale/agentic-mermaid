@@ -6,6 +6,8 @@ import { concatDisplayText, prepareDisplayText, resolveLabelContent, type LabelC
 import { ARROW_HEAD, type ResolvedRenderStyle } from '../styles.ts'
 import { LINE_HEIGHT_RATIO, type MultilineMetrics } from '../text-metrics.ts'
 import type { resolveRoleStyle } from '../scene/style-registry.ts'
+import type { MarkerDescriptor } from '../scene/ir.ts'
+import { markerLateralExtent } from '../scene/bounds.ts'
 
 type ResolvedRoleStyle = ReturnType<typeof resolveRoleStyle>
 
@@ -24,6 +26,74 @@ export const SEQUENCE_SELF_LOOP = {
   height: 20,
   labelPadding: 8,
 } as const
+
+// ============================================================================
+// Arrow marker definitions
+// ============================================================================
+
+export function sequenceMarkerResources(style: ResolvedRenderStyle): readonly MarkerDescriptor[] {
+  const w = ARROW_HEAD.width
+  const h = ARROW_HEAD.height
+  const edgeColor = style.edgeStrokeColor ?? 'var(--_arrow)'
+  const base = { size: { width: w, height: h }, orient: 'auto-start-reverse' as const }
+  const arrowPoints = [{ x: 0, y: 0 }, { x: w, y: h / 2 }, { x: 0, y: h }]
+  return [
+    { ...base, id: 'seq-arrow', shape: 'arrow', ref: { x: w, y: h / 2 }, geometry: { kind: 'polygon', points: arrowPoints }, paint: { fill: edgeColor } },
+    { ...base, id: 'seq-arrow-open', shape: 'open-arrow', ref: { x: w, y: h / 2 }, geometry: { kind: 'polyline', points: arrowPoints }, paint: { fill: 'none', stroke: edgeColor, strokeWidth: '1' } },
+    { ...base, id: 'seq-arrow-cross', shape: 'cross', ref: { x: w / 2, y: h / 2 }, orient: 'auto', geometry: { kind: 'path', d: `M1 1 L${w - 1} ${h - 1} M1 ${h - 1} L${w - 1} 1` }, paint: { fill: 'none', stroke: edgeColor, strokeWidth: '1.5' } },
+    { ...base, id: 'seq-arrow-half-top', shape: 'arrow', ref: { x: w, y: h / 2 }, geometry: { kind: 'polygon', points: [{ x: 0, y: 0 }, { x: w, y: h / 2 }, { x: 0, y: h / 2 }] }, paint: { fill: edgeColor } },
+    { ...base, id: 'seq-arrow-half-bottom', shape: 'arrow', ref: { x: w, y: h / 2 }, geometry: { kind: 'polygon', points: [{ x: 0, y: h / 2 }, { x: w, y: h / 2 }, { x: 0, y: h }] }, paint: { fill: edgeColor } },
+    { ...base, id: 'seq-arrow-stick-top', shape: 'open-arrow', ref: { x: w, y: h / 2 }, geometry: { kind: 'path', d: `M0 0 L${w} ${h / 2}` }, paint: { fill: 'none', stroke: edgeColor, strokeWidth: '1.5' } },
+    { ...base, id: 'seq-arrow-stick-bottom', shape: 'open-arrow', ref: { x: w, y: h / 2 }, geometry: { kind: 'path', d: `M0 ${h} L${w} ${h / 2}` }, paint: { fill: 'none', stroke: edgeColor, strokeWidth: '1.5' } },
+  ] satisfies readonly MarkerDescriptor[]
+}
+
+export function sequenceMarkerFor(markerResources: readonly MarkerDescriptor[], head: PositionedMessage['endHead']): MarkerDescriptor | undefined {
+  if (head === 'none') return undefined
+  const id = head === 'filled' ? 'seq-arrow'
+    : head === 'cross' ? 'seq-arrow-cross'
+      : head === 'half-top' ? 'seq-arrow-half-top'
+        : head === 'half-bottom' ? 'seq-arrow-half-bottom'
+          : head === 'stick-top' ? 'seq-arrow-stick-top'
+            : head === 'stick-bottom' ? 'seq-arrow-stick-bottom'
+          : 'seq-arrow-open'
+  return markerResources.find(marker => marker.id === id)
+}
+
+/** Painted half-height of a message head across its carrier, at the message's
+ * stroke width, from the same marker resource the SVG paints. */
+function sequenceHeadHalfHeight(markerResources: readonly MarkerDescriptor[], head: PositionedMessage['endHead'], position: 'start' | 'end', strokeWidth: number): number {
+  const marker = sequenceMarkerFor(markerResources, head)
+  return marker ? markerLateralExtent(marker, position) * (marker.units === 'userSpaceOnUse' ? 1 : strokeWidth) : 0
+}
+
+/** Half-size of the X cross ending a destroyed lifeline. */
+export const SEQUENCE_DESTROY_CROSS_RADIUS = 8
+
+export function sequenceDestroyCrossStrokeWidth(style: ResolvedRenderStyle): number {
+  return Math.max(1.5, style.lineWidth)
+}
+
+/**
+ * The destroy cross sits on the lifeline just below the destroy message's
+ * last contact with it (a self-message's return), clear of that contact's
+ * endpoint marker or central circle, so the cross never hides or imitates the
+ * message's head. `bottom` is the cross's painted lower edge: no content of
+ * the destroyed lifeline continues past it.
+ */
+export function sequenceDestroyCrossPlacement(message: PositionedMessage, style: ResolvedRenderStyle): { contactY: number; y: number; bottom: number } {
+  const contactY = message.points[message.points.length - 1]!.y
+  const markers = sequenceMarkerResources(style)
+  const endpointHalfHeight = Math.max(
+    style.lineWidth / 2,
+    sequenceHeadHalfHeight(markers, message.startHead, 'start', style.lineWidth),
+    sequenceHeadHalfHeight(markers, message.endHead, 'end', style.lineWidth),
+    message.centralStart || message.centralEnd ? 4.75 : 0,
+  )
+  const crossHalfHeight = SEQUENCE_DESTROY_CROSS_RADIUS + sequenceDestroyCrossStrokeWidth(style) / 2
+  const y = contactY + Math.ceil(endpointHalfHeight + 4 + crossHalfHeight)
+  return { contactY, y, bottom: y + crossHalfHeight }
+}
 
 /** Pixel layout owns its wrap width; terminal output owns a cell budget. */
 export const SEQUENCE_TEXT_WRAP_WIDTH = 240
@@ -579,6 +649,13 @@ export function positionSequenceBlock(
       blockTop = Math.min(blockTop, actor.bounds.y - createdTopPad)
       blockBottom = Math.max(blockBottom, actor.bounds.y + actor.bounds.height + style.groupPaddingY)
     }
+  }
+
+  for (const ai of involvedActors) {
+    const destroyIndex = diagram.actors[ai]?.destroyMessageIndex
+    const destroyMsg = destroyIndex === undefined ? undefined : messages[destroyIndex]
+    if (destroyMsg && destroyIndex! >= block.startIndex && destroyIndex! < scope.endMessageExclusive)
+      blockBottom = Math.max(blockBottom, sequenceDestroyCrossPlacement(destroyMsg, style).bottom + style.groupPaddingY)
   }
 
   for (const ni of scope.noteIndices) {
