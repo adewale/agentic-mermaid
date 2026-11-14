@@ -16,6 +16,7 @@ import { serializeMermaid } from '../agent/serialize.ts'
 import { mutate } from '../agent/mutate.ts'
 import { asSequence } from '../agent/types.ts'
 import { renderMermaidASCII, renderMermaidSVG } from '../agent/index.ts'
+import { renderMermaidASCIIWithReceipt, renderMermaidSVGWithReceipt } from '../index.ts'
 import { verifyMermaid } from '../agent/verify.ts'
 import { describeMermaidFacts } from '../agent/facts.ts'
 import { startUpstreamMermaid } from './helpers/upstream-mermaid.ts'
@@ -397,5 +398,33 @@ describe('sequence create/destroy are typed statements', () => {
     expect(verifyMermaid(source).warnings).toContainEqual(expect.objectContaining({
       code: 'UNSUPPORTED_SYNTAX', syntax: 'sequence_opaque_segment', message: expect.stringContaining('(alt fragment, destroy)'),
     }))
+  })
+})
+
+// Mermaid 12.2.0 accepts a participant type it has no glyph for and then
+// draws neither its header nor its lifeline. The author meant a
+// participant: ours draws a plain one, keeps the line as written and warns.
+describe('sequence participant of an unknown type', () => {
+  let upstream: ReturnType<typeof startUpstreamMermaid>
+  beforeAll(() => { upstream = startUpstreamMermaid() })
+  afterAll(async () => { await upstream.close() })
+
+  test.each([
+    ['a declaration', 'participant A\n  participant X@{ "type": "bogus" }\n  A->>X: hi', 3, 'bogus', 'X', undefined],
+    ['an aliased actor declaration', 'actor X@{ type: Robot, "alias": "R2" }\n  participant A\n  A->>X: hi', 2, 'Robot', 'R2', undefined],
+    ['a create', 'participant A\n  A->>B: hi\n  create participant X@{ "type": "bogus" } as Thing\n  A->>X: make\n  X-->>A: ok', 4, 'bogus', 'Thing', 1],
+  ] as const)('%s is drawn as a participant, written back unchanged and warned about', async (_name, body, line, type, label, createdAt) => {
+    const source = `sequenceDiagram\n  ${body}\n`
+    const parsed = await upstream.parse(source)
+    expect(parsed.ok && parsed.sequence?.actors.find(actor => actor.name === 'X')).toMatchObject({ type, description: label })
+    expect(renderParse(source).actors.find(actor => actor.id === 'X')).toEqual({ id: 'X', label, type: 'participant', ...(createdAt === undefined ? {} : { createMessageIndex: createdAt }) })
+    expect(serializeMermaid(sequence(source))).toBe(source)
+    expect(verifyMermaid(source).warnings).toContainEqual({
+      code: 'UNSUPPORTED_SYNTAX', syntax: 'sequence_participant_metadata', line, message: expect.stringContaining(`Participant type "${type}" is not a Mermaid sequence type`),
+    })
+    const { svg, receipt } = renderMermaidSVGWithReceipt(source, { layoutSafety: 'strict' })
+    expect(receipt.layoutCertification?.status).toBe('passed')
+    expect(svg).toContain(`data-id="X" data-label="${label}" data-type="participant"`)
+    for (const useAscii of [false, true]) expect(renderMermaidASCIIWithReceipt(source, { useAscii, colorMode: 'none', layoutSafety: 'strict' }).text).toContain(label)
   })
 })

@@ -683,8 +683,12 @@ export function readSequenceStatements(lines: readonly string[]): { statements: 
       if (parent?.kind !== 'block' || !continuationBelongsToBlock(syntax.continuation.type, parent.opener.type)) {
         issue(entry, 'sequence_block_boundary', `Sequence ${syntax.continuation.type} does not belong to the enclosing block`)
       }
-    } else if ((syntax.kind === 'declaration' || syntax.kind === 'create') && syntax.declaration.unmodeledMetadata?.length) {
-      issue(entry, 'sequence_participant_metadata', `Participant metadata fields ${syntax.declaration.unmodeledMetadata.join(', ')} are not modeled; the declaration is preserved as source`)
+    } else if ((syntax.kind === 'declaration' || syntax.kind === 'create') && (syntax.declaration.unmodeledMetadata?.length || syntax.declaration.unknownType !== undefined)) {
+      const { unmodeledMetadata, unknownType } = syntax.declaration
+      issue(entry, 'sequence_participant_metadata', [
+        ...(unknownType === undefined ? [] : [`Participant type "${unknownType}" is not a Mermaid sequence type: ours draws a plain participant; pinned Mermaid draws neither its header nor its lifeline`]),
+        ...(unmodeledMetadata?.length ? [`Participant metadata fields ${unmodeledMetadata.join(', ')} are not modeled`] : []),
+      ].join('; ') + '; the declaration is preserved as source')
     } else if (syntax.kind === 'message' && syntax.message.localArrow) {
       const { localArrow, arrow } = syntax.message
       issue(entry, 'sequence_local_arrow', `The arrow ${localArrow} is a local spelling pinned Mermaid does not read, so it rejects this line. Ours draws it as Mermaid's ${arrow} and writes ${arrow}`)
@@ -793,7 +797,9 @@ const ACTOR_TYPES = new Set<SequenceActorType>(['participant', 'actor', 'boundar
 /** A `participant`/`actor` declaration. `aliased` records whether it names the
  *  actor (`as …` or a metadata alias): Mermaid lets only a naming declaration
  *  change an actor that already exists. */
-export type ParsedActorDeclaration = Pick<Actor, 'id' | 'label' | 'type' | 'wrap'> & { keyword: 'participant' | 'actor'; aliased: boolean; unmodeledMetadata?: string[]; unspacedAlias?: boolean }
+export type ParsedActorDeclaration = Pick<Actor, 'id' | 'label' | 'type' | 'wrap'> & { keyword: 'participant' | 'actor'; aliased: boolean; unmodeledMetadata?: string[]; unspacedAlias?: boolean
+  /** A metadata type Mermaid has no glyph for, read as a plain participant. */
+  unknownType?: string }
 
 function clearSequenceParticipantId(id: string): boolean {
   // Mermaid protects entity tokens before lexing. Their terminator is not
@@ -844,13 +850,10 @@ export function parseActorDeclaration(line: string): ParsedActorDeclaration | nu
     const { entries } = block
     const requestedType = entries.get('type')
     const requested = typeof requestedType === 'string' ? requestedType.toLowerCase() : baseType
-    if (!ACTOR_TYPES.has(requested as SequenceActorType)) throw syntaxError({
-      what: `Unknown sequence actor type '${requested}'`,
-      expectedForm: 'a supported actor type',
-      example: 'participant DB@{ type: database }',
-      known: [...ACTOR_TYPES],
-    })
-    const type = requested as SequenceActorType
+    // A type Mermaid has no glyph for still declares a participant: ours
+    // draws a plain one, keeps the line as source and warns.
+    const known = ACTOR_TYPES.has(requested as SequenceActorType)
+    const type = known ? requested as SequenceActorType : 'participant'
     // Upstream's `addActor`: a truthy metadata alias names the actor unless
     // `as` gives a text other than the id (`B@{ "alias": "Y" } as B` is Y).
     const metadataAlias = metadataText(entries.get('alias'))
@@ -860,6 +863,7 @@ export function parseActorDeclaration(line: string): ParsedActorDeclaration | nu
       id, label: alias ?? id, type, keyword: baseType, aliased: alias !== undefined,
       ...(control?.wrap === undefined ? {} : { wrap: control.wrap }),
       ...(unmodeledMetadata.length ? { unmodeledMetadata } : {}),
+      ...(known ? {} : { unknownType: String(requestedType) }),
     }
   }
   if (line.includes('@{')) return null
@@ -882,7 +886,7 @@ export function parseActorDeclaration(line: string): ParsedActorDeclaration | nu
 }
 
 /** A `create participant|actor X …` line: the participant it creates. */
-export type ParsedSequenceCreate = Pick<Actor, 'id' | 'label' | 'type' | 'wrap'> & Pick<ParsedActorDeclaration, 'keyword' | 'unmodeledMetadata'>
+export type ParsedSequenceCreate = Pick<Actor, 'id' | 'label' | 'type' | 'wrap'> & Pick<ParsedActorDeclaration, 'keyword' | 'unmodeledMetadata' | 'unknownType'>
 
 /** One `create participant|actor X [as Label]` grammar shared by renderer and
  *  agent parsers. Type metadata (`create participant D@{ "type": "database" }`)
@@ -892,8 +896,8 @@ export function parseSequenceCreateLine(line: string): ParsedSequenceCreate | nu
   if (metadata) {
     const declared = parseActorDeclaration(line.slice(metadata[0].length))
     if (!declared) return null
-    const { id, label, type, keyword, wrap, unmodeledMetadata } = declared
-    return { id, label, type, keyword, ...(wrap === undefined ? {} : { wrap }), ...(unmodeledMetadata ? { unmodeledMetadata } : {}) }
+    const { id, label, type, keyword, wrap, unmodeledMetadata, unknownType } = declared
+    return { id, label, type, keyword, ...(wrap === undefined ? {} : { wrap }), ...(unmodeledMetadata ? { unmodeledMetadata } : {}), ...(unknownType === undefined ? {} : { unknownType }) }
   }
   const match = line.match(/^create\s+(participant|actor)\s+(\S+?)(?:\s+as\s+(.+))?$/i)
   if (!match) return null

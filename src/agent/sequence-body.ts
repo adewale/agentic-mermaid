@@ -90,7 +90,7 @@ export function parseSequenceBody(trimmedLines: string[], rawLines?: string[]): 
 
     if (syntax?.kind === 'declaration') {
       const declared = syntax.declaration
-      if (declared.unmodeledMetadata?.length) {
+      if (declared.unmodeledMetadata?.length || declared.unknownType !== undefined) {
         fold.applyAll(participantEventsOf(syntax))
         appendOpaqueSegment(statements, [rawLine], sequenceOpaqueBlock)
         i++
@@ -117,9 +117,9 @@ export function parseSequenceBody(trimmedLines: string[], rawLines?: string[]): 
 
     if (syntax?.kind === 'create') {
       fold.applyAll(participantEventsOf(syntax))
-      const { id, label, type, keyword, wrap, unmodeledMetadata } = syntax.declaration
+      const { id, label, type, keyword, wrap, unmodeledMetadata, unknownType } = syntax.declaration
       // Metadata the body does not model stays verbatim, as a declaration's.
-      if (unmodeledMetadata?.length) { appendOpaqueSegment(statements, [rawLine], sequenceOpaqueBlock); i++; continue }
+      if (unmodeledMetadata?.length || unknownType !== undefined) { appendOpaqueSegment(statements, [rawLine], sequenceOpaqueBlock); i++; continue }
       const text = readSequenceText(label)
       statements.push({ kind: 'create', id, declaration: keyword, ...(type === keyword ? {} : { type }), label: text.value, ...(text.content ? { labelContent: text.content } : {}), ...(wrap === undefined ? {} : { wrap }) })
       i++
