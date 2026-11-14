@@ -340,12 +340,18 @@ function editPreservedSource(d: ParsedDiagram, op: unknown): Result<SourceMutati
   }
 }
 
+/** Batches up to this many ops are projected op by op when the whole batch
+ * does not project; each step re-traces every authored line, so a larger
+ * batch falls back to canonical output instead. */
+const OP_BY_OP_PROJECTION_LIMIT = 16
+
 /**
  * Write `after`, the committed canonical result of typed edits to `before`,
  * as a local change to the source `before` was parsed from. The whole batch
- * is projected at once; when that does not read back as `after`, each op is
- * projected in turn. A diagram with no authored source, or an edit no local
- * change reproduces, is written canonically with the reason.
+ * is projected at once; when that does not read back as `after`, a batch of
+ * at most OP_BY_OP_PROJECTION_LIMIT ops is projected op by op. A diagram
+ * with no authored source, or an edit no local change reproduces, is
+ * written canonically with the reason.
  */
 export function preserveStructuredEdit(before: ParsedDiagram, after: ParsedDiagram, ops: readonly unknown[] = []): SourceMutationResult {
   const canonical = (reason: string): SourceMutationResult => ({ source: serializeMermaid(after), diagram: after, preservation: { method: 'canonical', reason } })
@@ -359,6 +365,7 @@ export function preserveStructuredEdit(before: ParsedDiagram, after: ParsedDiagr
   if (!original) return canonical('the authored source no longer reads as this diagram')
   const whole = projectStructuredEdit(authored, original, after)
   if (whole.ok) return { ...whole.value, preservation: { method: 'local' } }
+  if (ops.length > OP_BY_OP_PROJECTION_LIMIT) return canonical(`${whole.error}; batches of more than ${OP_BY_OP_PROJECTION_LIMIT} operations are not projected one by one`)
   if (ops.length > 1) {
     let source = authored, current = original
     for (const op of ops) {

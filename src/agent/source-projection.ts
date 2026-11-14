@@ -316,9 +316,13 @@ interface Plan {
   readonly after: Map<number, string[]>
 }
 
-function planEdit(lines: readonly AuthoredLine[], c0: readonly string[], c1: readonly string[], { owner, folded }: Trace, variant: Variant): Plan | undefined {
-  const key = variant.loose ? (line: string) => line.replace(/\s+/g, '') : (line: string) => line
-  const ops = diffLines(c0.map(key), c1.map(key))
+/** The canonical line diff a variant reads: exact, or ignoring whitespace. */
+function canonicalDiff(c0: readonly string[], c1: readonly string[], loose: boolean): DiffOp[] | undefined {
+  const key = loose ? (line: string) => line.replace(/\s+/g, '') : (line: string) => line
+  return diffLines(c0.map(key), c1.map(key))
+}
+
+function planEdit(lines: readonly AuthoredLine[], c0: readonly string[], c1: readonly string[], ops: readonly DiffOp[] | undefined, { owner, folded }: Trace, variant: Variant): Plan | undefined {
   if (!ops) return undefined
   const plan: Plan = { removed: new Set(), text: new Map(), before: new Map(), after: new Map() }
   // Insertions are collected with their position in the edited canonical
@@ -557,8 +561,15 @@ export function projectStructuredEdit(authored: string, before: ParsedDiagram, a
   const trace = traceOwners(wrapper, lines, c0, before)
   const facts = describeMermaidFacts(after)
   const tried = new Set<string>()
+  // The diff depends only on whether whitespace counts, so the variants
+  // share two.
+  const diffs = new Map<boolean, DiffOp[] | undefined>()
+  const diffFor = (loose: boolean) => {
+    if (!diffs.has(loose)) diffs.set(loose, canonicalDiff(c0, c1, loose))
+    return diffs.get(loose)
+  }
   for (const variant of VARIANTS) {
-    const plan = planEdit(lines, c0, c1, trace, variant)
+    const plan = planEdit(lines, c0, c1, diffFor(variant.loose), trace, variant)
     if (!plan) continue
     const source = nextWrapper + renderPlan(lines, plan, eol)
     if (tried.has(source)) continue
