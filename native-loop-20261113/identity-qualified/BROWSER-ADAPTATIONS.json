@@ -1,0 +1,7 @@
+{
+  "collector": "Existing browser-delivery.ts; only artifact roots/labels and recovered helper path changed",
+  "helper": "Old compiled helper unrecovered. Regenerate same pinned Trident helper source through prepareCommunityBrowsers with no peer products or alternative observer. Same resulting helper for both arms; record hash.",
+  "browserBaseline": "Fresh canonical689 browser build; matching prior qualified Node files copied byte-exact solely to complete package metadata/module paths.",
+  "nodeBaselineSource": "/workspace/pr449-native-loop-20261113/implementation/node-baseline-689/dist",
+  "casesHash": "feecbdd0ec31f4db7cf270bf469df4375dc7d0b567d755ac1f8b4d30eaecc628"
+}

@@ -1,0 +1,19 @@
+{
+  "parent": "68986ba8e3b76ad99dad44c6ec8d43475cc5e12f",
+  "patchSha256": "69d5ae27748cc9f94e4a9a03d7b4906cd8430de0aaee9c20db011609e1a30961",
+  "previousCandidate": "e1cf34773e7d41fe75eac2eb7e193edea88fdfd2b6e1d4a14e17c21aa4393c5d",
+  "files": {
+    "src/__tests__/agentic-layered.test.ts": "37a4b472d764631f681730d4acba5cb15f5cb49df24c25805b0c97001da6464a",
+    "src/__tests__/native-layout-cache.test.ts": "0b6f310d0527323fe9128eb6d0bc4c665b50a41ef73c3134ffce37858769a51d",
+    "src/layout/agentic-layered-core.ts": "67fa82cf4f86ee1d9648158af4e5061988312698cdc136f0771c45fab274ee64",
+    "src/layout/compound-boundary-routes.ts": "95171e3b9ead25870a61c90552a885bf3f2d89e887531bf9b06656f8f2ac7d5f",
+    "src/layout/compound-marker-seating.ts": "ddbe604010b1242530b4387f5da01782c6c450cadfa4dd97d7ec4ff1234dd24b",
+    "src/layout/compound-visibility.ts": "830df6cd10881c9b07d24d1447de901b67e1c9053b494376319b9ee7d4b88f68",
+    "src/layout/cycle-layout-search.ts": "de8cf0e0de565e5fd44f8abaaf3afe7c98aadf3c46cbe205a800de43b640c129",
+    "src/layout/elk-measured-adapter.ts": "3a35af4624399b88a1096ac9df4eed5ff83daebf1b157f0b6e5a65c2a6fc3377",
+    "src/layout/measured-graph-producer.ts": "4e76789b6873da72e46e7a2af9201871b02facbf0d76805031d54a6df559dfe8",
+    "src/layout/measured-graph.ts": "acea1d91b79805a3f80cf77895f36494a98def313e737fa1d7f37ba27d34bf0d",
+    "src/layout/measured-marker-pose.ts": "7f2746f11087310912bfc235dec856d5273e5347682595f44a41385edb5f9929"
+  },
+  "qualification": "912 affected owners pass; canonical core/repo types pass; source-review clear. Actual rebuilt products/cost pending."
+}

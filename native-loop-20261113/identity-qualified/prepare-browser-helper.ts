@@ -1,0 +1,2 @@
+import {prepareCommunityBrowsers} from '/tmp/pr449-week-comparison-20261101/trident-elk-research-20261107/trident/unified/community-browser.ts'
+await prepareCommunityBrowsers([], {root:'/workspace/agentic-mermaid',harnessRoot:'/tmp/pr449-week-comparison-20261101/trident-elk-research-20261107/trident',out:import.meta.dir,communityQualificationAssetDir:import.meta.dir+'/standard-qualification'} as any)

@@ -1,0 +1,139 @@
+{
+  "scope": "Cumulative69d5 built public product equality confirmed198/198 against e1cf. Reuse earlier meaning/Chromium observations only after entireSVG+receipt identity;2fontinputs corrected through8actual69d5 products. Event originalcorrected projection reused after exactpublicraw+entireproduct equality. Unchanged validation is not newpaintcoverage or sourceimprovement.",
+  "summary": {
+    "baseline689/agentic": {
+      "cases": 99,
+      "returned": 99,
+      "deepAuthored": 91,
+      "deepCompletePassed": 89,
+      "deepIncomplete": 2,
+      "labelsOnly": 8,
+      "paint": {
+        "passed": 75,
+        "unknown": 24
+      },
+      "proof": {
+        "passed": 93,
+        "unverified": 6
+      }
+    },
+    "baseline689/elk": {
+      "cases": 99,
+      "returned": 99,
+      "deepAuthored": 91,
+      "deepCompletePassed": 89,
+      "deepIncomplete": 2,
+      "labelsOnly": 8,
+      "paint": {
+        "passed": 74,
+        "unknown": 25
+      },
+      "proof": {
+        "passed": 93,
+        "unverified": 6
+      }
+    },
+    "candidate/agentic": {
+      "cases": 99,
+      "returned": 99,
+      "deepAuthored": 91,
+      "deepCompletePassed": 89,
+      "deepIncomplete": 2,
+      "labelsOnly": 8,
+      "paint": {
+        "passed": 75,
+        "unknown": 24
+      },
+      "proof": {
+        "passed": 93,
+        "unverified": 6
+      }
+    },
+    "candidate/elk": {
+      "cases": 99,
+      "returned": 99,
+      "deepAuthored": 91,
+      "deepCompletePassed": 89,
+      "deepIncomplete": 2,
+      "labelsOnly": 8,
+      "paint": {
+        "passed": 74,
+        "unknown": 25
+      },
+      "proof": {
+        "passed": 93,
+        "unverified": 6
+      }
+    }
+  },
+  "deltas": [
+    {
+      "id": "features:flowchart:nesting-parallel-unicode",
+      "backend": "agentic",
+      "fields": [
+        "rendered",
+        "paint",
+        "quality"
+      ],
+      "beforeQuality": {
+        "width": 375.794,
+        "height": 472.8,
+        "area": 177675.4032,
+        "viewportScope": "actual viewBox SVG units",
+        "ownedCarriers": 4,
+        "contactCounts": {
+          "status": "unavailable",
+          "reason": "No enrolled exact SVG node-boundary contact observer"
+        },
+        "browserCenterline": {
+          "status": "measured",
+          "value": 500.1079864501953,
+          "scope": "Browser getTotalLength sum in local SVG units, only length-preserving ancestor transforms; curve length is browser approximation, excludes markers/labels"
+        },
+        "linear": {
+          "status": "measured",
+          "edges": 4,
+          "wire": 500.10799999999995,
+          "bends": 9,
+          "crossings": 0,
+          "parallelOverlaps": 0,
+          "opposingOverlaps": 0,
+          "scope": "Existing strict untransformed orthogonal absolute M/L, polyline, or line SVG observer; authored-endpoint crossing exclusions retained"
+        }
+      },
+      "afterQuality": {
+        "width": 375.794,
+        "height": 473.175,
+        "area": 177816.32595,
+        "viewportScope": "actual viewBox SVG units",
+        "ownedCarriers": 4,
+        "contactCounts": {
+          "status": "unavailable",
+          "reason": "No enrolled exact SVG node-boundary contact observer"
+        },
+        "browserCenterline": {
+          "status": "measured",
+          "value": 500.1079864501953,
+          "scope": "Browser getTotalLength sum in local SVG units, only length-preserving ancestor transforms; curve length is browser approximation, excludes markers/labels"
+        },
+        "linear": {
+          "status": "measured",
+          "edges": 4,
+          "wire": 500.10799999999995,
+          "bends": 9,
+          "crossings": 0,
+          "parallelOverlaps": 0,
+          "opposingOverlaps": 0,
+          "scope": "Existing strict untransformed orthogonal absolute M/L, polyline, or line SVG observer; authored-endpoint crossing exclusions retained"
+        }
+      }
+    }
+  ],
+  "retainedOriginalRows": 396,
+  "fontOverlayRows": 8,
+  "eventReusedRows": 4,
+  "noNewRuntimeClaim": true,
+  "candidatePatchSha256": "69d5ae27748cc9f94e4a9a03d7b4906cd8430de0aaee9c20db011609e1a30961",
+  "finalProductEqualityPairs": 198,
+  "updatedAt": "2026-11-13T23:23:21.043562+00:00"
+}

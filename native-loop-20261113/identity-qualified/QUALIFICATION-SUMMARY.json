@@ -1,0 +1,111 @@
+{
+  "runtimePatchSha256": "69d5ae27748cc9f94e4a9a03d7b4906cd8430de0aaee9c20db011609e1a30961",
+  "publicationIdentity": "PUBLICATION-IDENTITY.json",
+  "base": "68986ba8e3b76ad99dad44c6ec8d43475cc5e12f",
+  "newMain": "a2e5ddc927e7432affbc293b7996a74b5fe59003",
+  "newMainIntegrated": false,
+  "sourceCommittedByImplementationOwner": false,
+  "tests": {
+    "affected": 912,
+    "passed": 912,
+    "failed": 0,
+    "files": 12,
+    "coreTypes": "passed",
+    "repoTypes": "passed",
+    "scopedLintFiles": 11,
+    "scopedLint": "passed"
+  },
+  "newControls": {
+    "nativeDefaultReturned": 12,
+    "nativeDefaultTotal": 12,
+    "nativeWideReturned": 4,
+    "nativeWideTotal": 4,
+    "independentActualMarkerShaft": "16 clear complete supports;0hits0unknown",
+    "identityLRRL": {
+      "wire": 560,
+      "bends": 0,
+      "crossings": 0,
+      "area": 176346
+    }
+  },
+  "original99": {
+    "currentToE1cfWholeProductOrErrorExact": 198,
+    "fontCorrectedActualOutputs": 8,
+    "perArmReturns": 99,
+    "declaredDeepMeaningPassed": 89,
+    "declaredDeepMeaningTotal": 91,
+    "deepMeaningUnknown": 2,
+    "labelsOnlySupplement": 8,
+    "proofPassed": 93,
+    "proofUnverified": 6,
+    "source": "../compound-qualification/REDUCED-99-WITH-OVERLAY.json"
+  },
+  "costs": {
+    "stockWorkers": 240,
+    "stockLifecycleErrors": 0,
+    "fullWorkers": 60,
+    "fullCalls": 540,
+    "fullReturned": 540,
+    "fullLifecycleErrors": 0,
+    "scope": "Exploratory same-host3process medians, not formalcalibration",
+    "general100msClosed": false,
+    "chain300Proof": "unverified400k bothbackends",
+    "files": [
+      "cost/SVG-METRICS.json",
+      "cost/RECEIPT-METRICS.json"
+    ]
+  },
+  "delivery": {
+    "observations": 132,
+    "passed": 132,
+    "observerErrors": 0,
+    "browsersOpened": 132,
+    "browsersClosed": 132,
+    "openBrowsers": 0,
+    "flowNativeProductGzip": [
+      379244,
+      381005
+    ],
+    "flowBindingGzip": [
+      927,
+      927
+    ],
+    "flowTotalGzip": [
+      380171,
+      381932
+    ],
+    "flowNativeBrDelta": 1509,
+    "flowRequestsNative": [
+      32,
+      32
+    ],
+    "flowRequestsElk": [
+      27,
+      27
+    ],
+    "observedRequestsIncludeTwoTridentModules": true,
+    "flowAppModuleRequestsNative": [
+      30,
+      30
+    ],
+    "flowAppModuleRequestsElk": [
+      25,
+      25
+    ]
+  },
+  "retainedAdverse": [
+    "TBpermutationcross24to29 and area+3.18percent",
+    "nestingarea+140.923",
+    "Nativechain100cold/firstedit",
+    "Nativechain300time/heap/RSS",
+    "NativeLRidentityatreturnheap",
+    "NativeFlowpayload+1761gzip/+1509Br and32vs27requests"
+  ],
+  "scopeLimits": [
+    "No general marker/foreignshaft certificate; independentcaseobservations",
+    "Exactcontact/axis/glyphcollisionunavailable",
+    "NewMainintegration andcombinedqualificationpending",
+    "No continuous12hexecution orallgoalscompleteclaim"
+  ],
+  "report": "REPORT.md"
+}

@@ -1,0 +1,25 @@
+{
+  "patch": "69d5ae27748cc9f94e4a9a03d7b4906cd8430de0aaee9c20db011609e1a30961",
+  "cases": [
+    "diagnostic:chain100",
+    "diagnostic:fanin100",
+    "diagnostic:chain300",
+    "diagnostic:compound-identity-LR",
+    "diagnostic:compound-permutation-TB"
+  ],
+  "caseSha256": "249fa15c1d72952ba3ac52a8e9dd27356c12d1782808a3a6e972b9ddb09f3002",
+  "arms": [
+    "baseline/agentic",
+    "candidate/agentic",
+    "baseline/elk",
+    "candidate/elk"
+  ],
+  "cache": 0,
+  "replicas": 3,
+  "stockWorkers": 240,
+  "fullWorkers": 60,
+  "fullCalls": 540,
+  "stockProtocol": "Unchanged pinned Trident7adaptive warm means,3fresh first-use workers, separate import/RSS/baseline. Exploratory, not formal calibration.",
+  "fullBoundary": "Same publicSVG+receipt serialized once and UTF8-counted; first source/import and first edit separate; at-return heap/RSS retained. No sampling profile.",
+  "refusalPolicy": "Only previously delivered LRidentity and defaultTBpermutation added; refused products never performance-ratio denominators."
+}

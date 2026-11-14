@@ -1,0 +1,166 @@
+{
+  "selected": [
+    {
+      "id": "features:flowchart:font-size-reset",
+      "family": "flowchart",
+      "required": true,
+      "source": "flowchart TB\nA[Current] --> B[Configuration]",
+      "features": [
+        "font-size-effect",
+        "configuration-reset"
+      ],
+      "provenance": "Original independent portable configuration-reset literal; actual computed font-size is separately checked by the paint observer",
+      "expected": {
+        "labels": [
+          "Current",
+          "Configuration"
+        ],
+        "nodes": [
+          {
+            "id": "A",
+            "label": "Current"
+          },
+          {
+            "id": "B",
+            "label": "Configuration"
+          }
+        ],
+        "edges": [
+          {
+            "source": "A",
+            "target": "B",
+            "label": "",
+            "directed": true
+          }
+        ],
+        "facts": {
+          "direction": "TB"
+        }
+      },
+      "prelude": [
+        {
+          "source": "%%{init: {\"flowchart\": {\"nodeSpacing\": 100}}}%%\nflowchart LR\nA[Previous] --> B[Configuration]",
+          "accept": true
+        }
+      ],
+      "renderOptions": {
+        "style": {
+          "roles": {
+            "node": {
+              "fontSize": 14
+            }
+          }
+        }
+      },
+      "paint": {
+        "fontSize": 14
+      },
+      "edit": {
+        "source": "flowchart TB\nA[Current] --> B[Configuration]",
+        "expected": {
+          "labels": [
+            "Current",
+            "Configuration"
+          ],
+          "nodes": [
+            {
+              "id": "A",
+              "label": "Current"
+            },
+            {
+              "id": "B",
+              "label": "Configuration"
+            }
+          ],
+          "edges": [
+            {
+              "source": "A",
+              "target": "B",
+              "label": "",
+              "directed": true
+            }
+          ],
+          "facts": {
+            "direction": "TB"
+          }
+        },
+        "renderOptions": {
+          "fontSize": 24
+        },
+        "paint": {
+          "fontSize": 24
+        }
+      }
+    },
+    {
+      "id": "features:flowchart:font-size-reset:edit",
+      "family": "flowchart",
+      "required": true,
+      "source": "flowchart TB\nA[Current] --> B[Configuration]",
+      "features": [
+        "font-size-effect",
+        "configuration-reset"
+      ],
+      "provenance": "Original independent portable configuration-reset literal; actual computed font-size is separately checked by the paint observer",
+      "expected": {
+        "labels": [
+          "Current",
+          "Configuration"
+        ],
+        "nodes": [
+          {
+            "id": "A",
+            "label": "Current"
+          },
+          {
+            "id": "B",
+            "label": "Configuration"
+          }
+        ],
+        "edges": [
+          {
+            "source": "A",
+            "target": "B",
+            "label": "",
+            "directed": true
+          }
+        ],
+        "facts": {
+          "direction": "TB"
+        }
+      },
+      "prelude": [
+        {
+          "source": "%%{init: {\"flowchart\": {\"nodeSpacing\": 100}}}%%\nflowchart LR\nA[Previous] --> B[Configuration]",
+          "accept": true
+        },
+        {
+          "source": "flowchart TB\nA[Current] --> B[Configuration]",
+          "accept": true,
+          "renderOptions": {
+            "style": {
+              "roles": {
+                "node": {
+                  "fontSize": 14
+                }
+              }
+            }
+          }
+        }
+      ],
+      "renderOptions": {
+        "style": {
+          "roles": {
+            "node": {
+              "fontSize": 24
+            }
+          }
+        }
+      },
+      "paint": {
+        "fontSize": 24
+      }
+    }
+  ],
+  "supplemental": []
+}
