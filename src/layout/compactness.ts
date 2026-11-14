@@ -141,10 +141,14 @@ function titleStripRoutes({ nodes, edges, groups }: CompactnessGeometry): TitleS
   const findings: TitleStripFinding[] = []
   for (const group of groups) {
     if (!(group.headerHeight > 0)) continue
-    const firstTop = Math.min(
+    const contentTops = [
       ...group.members.flatMap(id => (boxes.has(id) ? [boxes.get(id)!.y] : [])),
       ...groups.filter(child => child.parentId === group.id).map(child => child.y),
-    )
+    ]
+    // An empty group has no content for a route to push down; any strip
+    // ends at the group's own bottom edge.
+    if (contentTops.length === 0) continue
+    const firstTop = Math.min(...contentTops, group.y + group.h)
     const stripTop = group.y + group.headerHeight
     if (!(firstTop - EPSILON > stripTop)) continue
     for (const edge of edges) {

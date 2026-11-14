@@ -84,6 +84,7 @@ describe('compactnessFindings', () => {
     { name: 'a vertical entry through the strip is not', geometry: strip([[150, -50], [150, 80]]) },
     { name: 'a segment in the title band itself belongs to certification', geometry: strip([[-100, 20], [150, 20], [150, 80]]) },
     { name: 'a segment overlapping the group by less than 8px is not', geometry: strip([[-100, 44], [5, 44]]) },
+    { name: 'an empty titled group has no title strip', geometry: { ...strip([[-100, 44], [150, 44], [150, 80]]), groups: [{ ...titled, members: [] }] } },
     { name: 'an untitled group has no title strip', geometry: { ...strip([[-100, 44], [150, 44], [150, 80]]), groups: [{ ...titled, headerHeight: 0 }] } },
     {
       name: 'a nested child group counts as the first member',
