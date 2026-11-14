@@ -1,3 +1,4 @@
+import { formatSvgNumber } from '../shared/svg-number.ts'
 import { decodeXML } from 'entities'
 // ============================================================================
 // Scene fidelity checker — asserts a mark's semantic fields agree with its
@@ -350,6 +351,14 @@ export function nodeProblems(node: SceneNode, path: string, problems: string[], 
     }
   }
   switch (node.kind) {
+    case 'image': {
+      const elements = topLevelElements(serialized), element = elements[0]
+      if (elements.length !== 1 || element?.tag !== 'image') { problems.push(`${path}(image:${node.id}): expected one raster image`); return }
+      if (unescapeXml(element.attrs.get('href') ?? '') !== node.href) problems.push(`${path}(image:${node.id}): resource drift`)
+      for (const field of ['x', 'y', 'width', 'height'] as const) if (Number(element.attrs.get(field)) !== Number(formatSvgNumber(node[field]))) problems.push(`${path}(image:${node.id}): ${field} drift`)
+      if (element.attrs.get('preserveAspectRatio') !== (node.fit === 'contain' ? 'xMidYMid meet' : 'none')) problems.push(`${path}(image:${node.id}): fit drift`)
+      return
+    }
     case 'shape': {
       const els = topLevelElements(serialized)
       geometryProblems(node.geometry, els, `${path}(shape:${node.id})`, problems)
@@ -451,7 +460,9 @@ export function nodeProblems(node: SceneNode, path: string, problems: string[], 
         if (node.block.lineBlocks.map(line => line.runs.map(run => run.text).join('')).join(' ').replace(/\s+/g, ' ').trim() !== actualBlockText) problems.push(`${path}(text:${node.id}).block: retained prepared text differs from actual SVG`)
       }
       if (node.prepared) {
-        const expected = (node.preparedLines ? node.preparedLines.map(line => line.map(run => run.text).join('')).join('\n') : displayText(node.text, node.display)).replace(/\s+/g, ' ').trim()
+        const expected = (node.preparedLines ? node.preparedLines.map(line => line.map(run => run.text).join('')).join('\n')
+          : node.block ? node.block.lineBlocks.map(line => line.runs.map(run => run.text).join('')).join('\n')
+            : displayText(node.text, node.display)).replace(/\s+/g, ' ').trim()
         const actual = unescapeXml(serialized
           .replace(/<tspan\b(?![^>]*\bdata-text-fragment=)[^>]*\s(?:x|dy)="[^"]*"[^>]*>/g, '\n')
           .replace(/<[^>]+>/g, '')).replace(/\s+/g, ' ').trim()

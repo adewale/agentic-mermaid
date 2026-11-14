@@ -5,8 +5,8 @@ import { sceneNodeSerialization } from '../scene/serialization.ts'
 import { inlineResolvedColors } from '../theme.ts'
 import { formatSvgNumbers, namespaceSvgIds, compactSvg } from '../svg-postprocess.ts'
 import { scopeSvgStyles } from '../svg-style-scope.ts'
-import { applyOutputSecurityPolicy, applyWrittenOutputSecurityPolicy } from '../output-security.ts'
-import { transformSvgAttributes } from '../svg-structure.ts'
+import { applyOutputSecurityPolicy, applyWrittenOutputSecurityPolicy, verifySvgDocumentEnvelope, verifySvgDocumentDataPositions } from '../output-security.ts'
+import { transformSvgAttributes, scanSvgStartTags } from '../svg-structure.ts'
 
 
 const document = (body: string, attrs = '') => `<svg xmlns="http://www.w3.org/2000/svg" ${attrs}>${body}</svg>`
@@ -18,6 +18,24 @@ const outcome = (svg: string, strict: boolean, written: boolean): unknown => {
   try { return (written ? applyWrittenOutputSecurityPolicy : applyOutputSecurityPolicy)(svg, strict ? 'strict' : 'default') }
   catch (error) { return String(error) }
 }
+
+test('emitted bytes cannot replace paid XML work or text-position checks', () => {
+  const emitted = mark('#123456')
+  const svg = document(`${emitted}<text> </text>`, 'data-note=" "')
+  expect(verifySvgDocumentEnvelope(svg)).toBe(true)
+  expect(verifySvgDocumentEnvelope(svg, () => false)).toBe(false)
+  expect(verifySvgDocumentDataPositions(svg, [svg.indexOf('data-note="') + 'data-note="'.length])).toBe(false)
+  expect(verifySvgDocumentDataPositions(svg, [svg.indexOf('<text>') + '<text>'.length])).toBe(true)
+})
+
+test('inherited parser metadata cannot allow elements inside style text', () => {
+  Object.defineProperty(Object.prototype, 'styleStart', { configurable: true, get: () => 0 })
+  try {
+    const svg = document('<g></g><style><path /></style>')
+    expect(() => applyOutputSecurityPolicy(svg)).toThrow('invalid SVG document envelope')
+    expect(() => applyWrittenOutputSecurityPolicy(svg)).toThrow('invalid SVG document envelope')
+  } finally { delete (Object.prototype as { styleStart?: number }).styleStart }
+})
 
 // Independent oracle is the unchanged full-byte admission path. Explicit
 // negative expectations also prevent shared acceptance bugs hiding a decline.

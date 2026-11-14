@@ -1,3 +1,4 @@
+import { KNOWN_EXTENSION_CONTRACT_VERSIONS } from '../shared/extension-identity.ts'
 import { describe, expect, test } from 'bun:test'
 import { useTestChildren } from './helpers/test-child.ts'
 import { useTempDirs } from './helpers/temp-dir.ts'
@@ -8,6 +9,8 @@ import packageJson from '../../package.json' with { type: 'json' }
 import { DEFAULT_ARCHITECTURE_VISUAL } from '../architecture/config.ts'
 import { createMermaidRenderer, DefaultBackend, registerBackend, registerStyle, renderContractDigest, renderMermaidSVG } from '../index.ts'
 import { renderedSvgDigest } from '../graphical-render.ts'
+import { FIRST_PARTY_DRAWING_CONSUMER } from '../scene/default-drawing-consumer.ts'
+import { resolveRenderRequestForExecution, resolvedRenderExecutionPlanOf } from '../render-contract.ts'
 import { SCENE_VALIDATION_LIMITS } from '../scene/scene-validation.ts'
 import { renderMermaidASCIIWithReceipt } from '../ascii/index.ts'
 import { layoutMermaidWithReceipt } from '../agent/core.ts'
@@ -18,6 +21,9 @@ import {
   sharedRenderOptionsJsonSchema,
   styleInputJsonSchema,
   deferredRenderContractDigest,
+  captureRenderOptionsInput,
+  captureRenderOptions,
+  capturedRenderBackend,
   resolveRenderRequest,
   validateSerializableRenderOptions,
 } from '../render-contract.ts'
@@ -26,6 +32,85 @@ const runChild = useTestChildren(20_000)
 const temp = useTempDirs('option-style-retention-')
 
 describe('shared RenderOptions authority', () => {
+  test('inherited consumer fields cannot select a private source consumer for SDK requests', () => {
+    const fields = ['consumer', 'drawingConsumer'] as const
+    const before = fields.map(field => Object.getOwnPropertyDescriptor(Object.prototype, field))
+    const reads: string[] = []
+    try {
+      for (const field of fields) Object.defineProperty(Object.prototype, field, {
+        configurable: true, get() { reads.push(field); return FIRST_PARTY_DRAWING_CONSUMER },
+      })
+      const request = resolveRenderRequestForExecution('flowchart LR\nA --> B', {}, 'svg')
+      const plan = resolvedRenderExecutionPlanOf(request)
+      expect(Object.hasOwn(plan, 'consumer')).toBe(true)
+      expect(plan.consumer).toBeUndefined()
+      expect(plan.backend?.inputName).toBe('default')
+      expect(reads).toEqual([])
+    } finally {
+      fields.forEach((field, index) => {
+        const descriptor = before[index]
+        if (descriptor) Object.defineProperty(Object.prototype, field, descriptor)
+        else delete (Object.prototype as Record<string, unknown>)[field]
+      })
+    }
+  })
+
+  test('source consumer callbacks cannot turn thrown values into Scene fallbacks', async () => {
+    const child = await runChild(process.execPath, ['--eval', `
+      await import('./src/index.ts')
+      const { resolveRenderRequestForExecution, resolvedRenderExecutionPlanOf } = await import('./src/render-contract.ts')
+      const { FIRST_PARTY_DRAWING_CONSUMER } = await import('./src/scene/default-drawing-consumer.ts')
+      const { executeResolvedSourceGraphicalRequest } = await import('./src/graphical-render.ts')
+      const { sceneLowering, inheritNativeDrawing, originalNativeDrawingOf } = await import('./src/scene/drawing.ts')
+      const rows = []
+      for (const thrown of [undefined, Symbol('source Scene consumer required'), { code: 'NODE_BUDGET_EXCEEDED' }]) {
+        const request = resolveRenderRequestForExecution('flowchart LR\\nA --> B', {}, 'svg', undefined, { drawingConsumer: FIRST_PARTY_DRAWING_CONSUMER })
+        const lower = resolvedRenderExecutionPlanOf(request).family.lowerScene
+        const original = originalNativeDrawingOf(lower), restore = sceneLowering(original)
+        inheritNativeDrawing(sceneLowering(() => { throw thrown }), lower)
+        let acquired = 0, propagated = false
+        try {
+          await executeResolvedSourceGraphicalRequest(request, async () => { acquired++ })
+        } catch (error) { propagated = error === thrown }
+        finally { inheritNativeDrawing(restore, lower) }
+        rows.push({ acquired, propagated })
+      }
+      console.log(JSON.stringify(rows))
+    `], { cwd: join(import.meta.dirname, '../..'), env: { ...process.env, AGENTIC_MERMAID_SCENE_ASSERTIONS: '0' } })
+    expect(child.status, child.stderr).toBe(0)
+    expect(JSON.parse(child.stdout)).toEqual([
+      { acquired: 0, propagated: true }, { acquired: 0, propagated: true }, { acquired: 0, propagated: true },
+    ])
+  })
+
+  test('input-only capture preserves getter observations and requires style completion before backend use', () => {
+    const reads: string[] = []
+    let color = '#123456'
+    const options = {
+      get style() { reads.push('style'); return { get colors() { reads.push('colors'); return { get fg() { reads.push('fg'); return color } } } } },
+      get padding() { reads.push('padding'); return 30 },
+    }
+    const input = captureRenderOptionsInput(options)
+    expect(reads).toEqual(['style', 'padding', 'colors', 'fg'])
+    expect(() => capturedRenderBackend(input)).toThrow('Render options have not been captured')
+    color = '#abcdef'
+    expect(captureRenderOptionsInput(input)).toBe(input)
+    expect(captureRenderOptions(input)).toBe(input)
+    expect(capturedRenderBackend(input)).toBe('default')
+    expect(resolveRenderRequest('pie\n "One" : 1', input).appearance.style?.colors?.fg).toBe('#123456')
+    expect(reads).toEqual(['style', 'padding', 'colors', 'fg'])
+  })
+
+  test.each([
+    [{ padding: -1 }, /padding/],
+    [{ style: 'missing-captured-style', padding: -1 }, /Unknown style/],
+  ] as const)('input-only membership cannot bypass render option admission (%j)', (options, message) => {
+    const input = captureRenderOptionsInput(options)
+    expect(() => capturedRenderBackend(input)).toThrow('Render options have not been captured')
+    expect(() => captureRenderOptions(input)).toThrow(message)
+    expect(() => resolveRenderRequest('pie\n "One" : 1', input)).toThrow(message)
+  })
+
   test('projects every descriptor schema verbatim with terminal metadata', () => {
     const schema = sharedRenderOptionsJsonSchema() as {
       additionalProperties: boolean
@@ -50,6 +135,22 @@ describe('shared RenderOptions authority', () => {
     const mutableStyleProjection = styleInputJsonSchema() as { anyOf: Array<Record<string, unknown>> }
     mutableStyleProjection.anyOf[0]!.type = 'number'
     expect((styleInputJsonSchema() as { anyOf: Array<Record<string, unknown>> }).anyOf[0]?.type).not.toBe('number')
+  })
+
+  test('public schema copies cannot alter recursive JSON or Style admission', () => {
+    const before = sharedRenderOptionsJsonSchema()
+    const mutable = sharedRenderOptionsJsonSchema() as {
+      properties: Record<string, Record<string, unknown>>
+      $defs: { jsonValue: Record<string, unknown> }
+    }
+    mutable.$defs.jsonValue.anyOf = [{ const: 'foreign-schema' }]
+    mutable.properties.style!.anyOf = [{ type: 'number' }]
+    expect(validateSerializableRenderOptions({
+      style: ['paper', { colors: { accent: '#005fcc' } }],
+      mermaidConfig: { extensionData: [null, true, 4, 'value', { nested: ['ok'] }] },
+    })).toEqual([])
+    expect(sharedRenderOptionsJsonSchema()).toEqual(before)
+    expect(validateSerializableRenderOptions({ mermaidConfig: { nested: [() => 1] } }).length).toBeGreaterThan(0)
   })
 
   test('accepts the exact nested public shapes and recursive Mermaid JSON', () => {
@@ -343,7 +444,7 @@ describe('shared RenderOptions authority', () => {
         return DefaultBackend.render(document, context).replace('</svg>', `<!--${padding}--></svg>`)
       },
     }, {
-      compatibility: { core: '^0.5.0', scene: '^2.0.0' },
+      compatibility: { core: KNOWN_EXTENSION_CONTRACT_VERSIONS.core, scene: '^2.0.0' },
       provenance: { owner: 'large-svg-digest-test', source: 'test' },
     })
     try {

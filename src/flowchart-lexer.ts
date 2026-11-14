@@ -74,8 +74,9 @@ export interface FlowchartScan {
 /** A link operator (Mermaid's LINK token), with an optional leading `<`. A
  * dotted one may leave out its leading `-` (`A .-> B`). Any stroke may end
  * in a cross or a circle (`-.-x`, `==o`), and start with one where it ends
- * in one (`o-.-o`, `x==o`). */
-const FLOWCHART_LINK_BODY = String.raw`~{3,}|[xo]-?\.+-[xo]|-?\.+-[>xo]?|[xo]={2,}[xo]|={2,}[>xo]|={3,}|o-{2,}o|o-{2,}x|x-{2,}o|x-{2,}x|-{2,}[ox]|-{2,}>|-{3,}`
+ * in one (`o-.-o`, `x==o`). Solid links may pair a circle/cross start with
+ * an arrow end too (`o-->`, `x--->`); retain both authored meanings. */
+const FLOWCHART_LINK_BODY = String.raw`~{3,}|[xo]-?\.+-[xo]|-?\.+-[>xo]?|[xo]={2,}[xo]|={2,}[>xo]|={3,}|[xo]-{2,}>|o-{2,}o|o-{2,}x|x-{2,}o|x-{2,}x|-{2,}[ox]|-{2,}>|-{3,}`
 export const FLOWCHART_LINK_RE = new RegExp(`(<)?(${FLOWCHART_LINK_BODY})`, 'y')
 /** The link grammar as a pattern without groups, to build other expressions on. */
 export const FLOWCHART_LINK_SOURCE = `<?(?:${FLOWCHART_LINK_BODY})`

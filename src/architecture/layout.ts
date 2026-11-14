@@ -60,6 +60,40 @@ interface ResolvedEndpoint {
   exit: Point
 }
 
+function architecturePlacementFace(basis: ArchitectureLayoutMetrics) {
+  return {
+      node: {
+        fontSize: basis.serviceFontSize,
+        fontWeight: basis.serviceFontWeight,
+        letterSpacing: basis.serviceLetterSpacing,
+        textTransform: undefined,
+        paddingX: basis.servicePaddingX,
+        paddingY: basis.servicePaddingY,
+        cornerRadius: basis.serviceCornerRadius,
+        lineWidth: basis.serviceLineWidth,
+      },
+      edge: {
+        fontSize: basis.edgeFontSize,
+        fontWeight: basis.edgeFontWeight,
+        letterSpacing: basis.edgeLetterSpacing,
+        textTransform: undefined,
+        lineWidth: basis.edgeLineWidth,
+        bendRadius: basis.edgeBendRadius,
+      },
+      group: {
+        fontSize: basis.groupFontSize,
+        fontWeight: basis.groupFontWeight,
+        letterSpacing: basis.groupLetterSpacing,
+        fontFamily: basis.groupFont,
+        textTransform: undefined,
+        paddingX: basis.groupPaddingX,
+        paddingY: basis.groupPaddingY,
+        cornerRadius: basis.groupCornerRadius,
+        lineWidth: basis.groupLineWidth,
+      },
+    }
+}
+
 /**
  * Lay out an architecture diagram by reusing the graph/subgraph placement
  * engine, then re-projecting the result into architecture-specific primitives.
@@ -68,6 +102,7 @@ export function layoutArchitectureDiagram(
   diagram: ArchitectureDiagram,
   options: RenderOptions = {},
   metrics?: ArchitectureLayoutMetrics,
+  paintBackendId?: string,
 ): PositionedArchitectureDiagram {
   assertArchitectureDiagramWork(diagram)
   const typography = metrics ?? architectureLayoutMetrics(DEFAULT_ARCHITECTURE_VISUAL)
@@ -123,37 +158,7 @@ export function layoutArchitectureDiagram(
     // The graph's temporary routes do not describe the side-constrained paths
     // below. Their cosmetic score cannot rank Architecture's final artifact.
     compareRoutePreferences: false,
-    styleFace: metrics ? {
-      node: {
-        fontSize: metrics.serviceFontSize,
-        fontWeight: metrics.serviceFontWeight,
-        letterSpacing: metrics.serviceLetterSpacing,
-        textTransform: undefined,
-        paddingX: metrics.servicePaddingX,
-        paddingY: metrics.servicePaddingY,
-        cornerRadius: metrics.serviceCornerRadius,
-        lineWidth: metrics.serviceLineWidth,
-      },
-      edge: {
-        fontSize: metrics.edgeFontSize,
-        fontWeight: metrics.edgeFontWeight,
-        letterSpacing: metrics.edgeLetterSpacing,
-        textTransform: undefined,
-        lineWidth: metrics.edgeLineWidth,
-        bendRadius: metrics.edgeBendRadius,
-      },
-      group: {
-        fontSize: metrics.groupFontSize,
-        fontWeight: metrics.groupFontWeight,
-        letterSpacing: metrics.groupLetterSpacing,
-        fontFamily: metrics.groupFont,
-        textTransform: undefined,
-        paddingX: metrics.groupPaddingX,
-        paddingY: metrics.groupPaddingY,
-        cornerRadius: metrics.groupCornerRadius,
-        lineWidth: metrics.groupLineWidth,
-      },
-    } : undefined,
+    styleFace: metrics ? architecturePlacementFace(metrics) : undefined,
   }
   const servicesById = new Map(diagram.services.map((service) => [service.id, service]))
   const groupsById = new Map(diagram.groups.map((group) => [group.id, group]))
@@ -373,6 +378,7 @@ export function layoutArchitectureDiagram(
     () => finish(layoutNativeGraphPlacementSync(graph, placementOptions), true),
     () => finish(layoutElkGraphPlacementSync(graph, { ...placementOptions, preserveSubgraphChildOrder: true }), false),
     true,
+    undefined,
   )
 }
 

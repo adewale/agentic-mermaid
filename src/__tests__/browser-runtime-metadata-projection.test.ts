@@ -154,7 +154,7 @@ describe('browser runtime metadata projection', () => {
       "function fieldsJsonSchema() { return { $schema: 'https://json-schema.org/draft/2020-12/schema', $id: 'https://example.test/schema', title: 'Schema metadata', type: 'object', properties: { $schema: { type: 'string' }, $id: { type: 'string' }, title: { type: 'string' } }, required: ['title'], additionalProperties: false }; }",
       'function run() { return { field: SHARED_RENDER_OPTION_FIELD_DESCRIPTORS.style, paint: PAINT_SCHEMA, properties: ARCHITECTURE_VISUAL_SCHEMA_PROPERTIES, styleFields: STYLE_SPEC_FIELD_DESCRIPTORS, roleFields: ROLE_STYLE_PROPERTY_DESCRIPTORS, roleSchemas: rolePropertyJsonSchemas(), schema: fieldsJsonSchema() }; }',
     ].join('\n')
-    const path = fixture('src/render-contract.ts', source)
+    const path = fixture('src/render-option-contract.ts', source)
     const terminalRenderer = Function(`${project(path, { schemaDocumentation: false, terminalAdapter: true })}\nreturn run();`)()
     expect(terminalRenderer.field.terminal).toBe('projected')
     expect(terminalRenderer.field.terminalNote).toBe('required terminal note')
@@ -234,6 +234,81 @@ test('coalesced SVG consumers retain text, source, ownership and one default bac
     diagnostics: [{ code: 'INEFFECTIVE_CONFIG', field: 'flowchart.unknown', message: 'flowchart config field "unknown" is unknown and has no effect; check the spelling or remove it.' }],
     defaults: 1, original: true,
   })
+})
+
+test('a loaded image consumer preserves viewport and caption math through the coalesced measurement module', async () => {
+  const measurement = JSON.stringify(join(root, 'src/layout/graph-measurement.ts'))
+  const image = JSON.stringify(join(root, 'src/flowchart-image.ts'))
+  const entry = fixture('image-provider/entry.ts', `export { groupHeaderHeight } from ${measurement}; export const load = () => import('./image.ts'); export const other = () => import('./other.ts');`)
+  fixture('image-provider/image.ts', `
+    import { imageDimension, flowchartImageViewport, flowchartImageContent } from ${image};
+    export function run() {
+      const viewport = flowchartImageViewport({ shape: 'rectangle', image: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGP4z8DwHwAFAAH/iZk9HQAAAABJRU5ErkJggg==', imageWidth: 32, imageHeight: 48 });
+      return [imageDimension('32'), imageDimension(true), viewport, flowchartImageContent(viewport, {width:40,height:16}, {nodePaddingX:20,nodePaddingY:10})];
+    }
+  `)
+  fixture('image-provider/other.ts', `export { imageDimension } from ${image};`)
+  const result = await build({
+    absWorkingDir: temporary, entryPoints: [entry], outdir: join(temporary, 'image-provider/output'),
+    bundle: true, format: 'esm', platform: 'node', splitting: true, write: false, metafile: true,
+    plugins: [runtimeRenderContractPlugin({ coalesceRuntimePrimitives: true })],
+  })
+  const outputs = result.metafile!.outputs
+  const entryOutput = Object.keys(outputs).find(path => outputs[path]!.entryPoint && resolve(temporary, outputs[path]!.entryPoint!) === entry)!
+  for (const file of result.outputFiles!) {
+    mkdirSync(dirname(file.path), { recursive: true })
+    writeFileSync(file.path, file.contents)
+  }
+  const consumer = await import(pathToFileURL(resolve(temporary, entryOutput)).href)
+  expect((await consumer.load()).run()).toEqual([32, undefined, {width:32,height:48,fit:'contain'}, {width:80,height:94,contentHeight:74,labelOffset:66,captionOffset:29}])
+})
+
+test('a loaded backend shares lane and bounds primitives without another provider request', async () => {
+  const backend = JSON.stringify(join(root, 'src/layout/backend.ts'))
+  const lanes = JSON.stringify(join(root, 'src/shared/node-lane-index.ts'))
+  const fit = JSON.stringify(join(root, 'src/layout/fit-measured-layout.ts'))
+  const entry = fixture('lane-provider/entry.ts', `export { DeferredDependencyError as OwnedError } from ${backend}; export const load = () => import('./producer.ts'); export const other = () => import('./other.ts');`)
+  const producer = fixture('lane-provider/producer.ts', `
+    import { DeferredDependencyError } from ${backend};
+    import { buildNodeLaneIndex, nodeLaneCell } from ${lanes};
+    import { fitMeasuredLayout } from ${fit};
+    export function run() {
+      const nodes = Array.from({ length: 32 }, (_, index) => ({ x: index * 128, y: 0, width: 32, height: 8 }));
+      const placed = { nodes: [{ x: 10, y: 20 }], edges: [{ points: [{ x: 12, y: 22 }, { x: 45, y: 22 }], labelPosition: { x: 30, y: 16 } }], width: 100, height: 100 };
+      fitMeasuredLayout({ nodes: [{ width: 32, height: 8 }], edges: [{ label: { width: 10, height: 4 } }], padding: 4 }, placed);
+      return [nodeLaneCell(buildNodeLaneIndex(nodes, 'x', 0), 129), new DeferredDependencyError('owned', async () => {}), [placed.width, placed.height, placed.nodes[0], placed.edges[0].labelPosition]];
+    }
+  `)
+  fixture('lane-provider/other.ts', `export { buildNodeLaneIndex } from ${lanes}; export { fitMeasuredLayout } from ${fit};`)
+  const result = await build({
+    absWorkingDir: temporary, entryPoints: [entry], outdir: join(temporary, 'lane-provider/output'),
+    bundle: true, format: 'esm', platform: 'node', splitting: true, write: false, metafile: true,
+    plugins: [runtimeRenderContractPlugin({ coalesceRuntimePrimitives: true })],
+  })
+  const outputs = result.metafile!.outputs
+  const entryOutput = Object.keys(outputs).find(path => outputs[path]!.entryPoint && resolve(temporary, outputs[path]!.entryPoint!) === entry)!
+  const producerOutput = Object.keys(outputs).find(path => outputs[path]!.entryPoint && resolve(temporary, outputs[path]!.entryPoint!) === producer)!
+  const closure = (start: string): Set<string> => {
+    const seen = new Set<string>()
+    const visit = (path: string): void => {
+      if (seen.has(path)) return
+      seen.add(path)
+      for (const edge of outputs[path]!.imports) if (edge.kind !== 'dynamic-import') visit(edge.path)
+    }
+    visit(start)
+    return seen
+  }
+  const initial = closure(entryOutput)
+  expect([...closure(producerOutput)].filter(path => !initial.has(path))).toHaveLength(1)
+  for (const file of result.outputFiles!) {
+    mkdirSync(dirname(file.path), { recursive: true })
+    writeFileSync(file.path, file.contents)
+  }
+  const consumer = await import(pathToFileURL(resolve(temporary, entryOutput)).href)
+  const [cell, error, bounds] = (await consumer.load()).run()
+  expect(cell).toBe(1)
+  expect(error).toBeInstanceOf(consumer.OwnedError)
+  expect(bounds).toEqual([43, 22, { x: 4, y: 10 }, { x: 24, y: 6 }])
 })
 
 test('compacted ESM preserves live bindings, observable getters, arity and recipe-addressed chunks', async () => {

@@ -20,6 +20,11 @@ export const ROLE_STYLE_PROPERTY_DESCRIPTORS = Object.freeze({
   cue: { kind: 'enum', values: ['none', 'outline', 'double-line', 'pattern'], description: 'Non-color semantic cue on roles whose family renderer exposes a cue projection.' },
 } as const)
 
+for (const descriptor of Object.values(ROLE_STYLE_PROPERTY_DESCRIPTORS)) {
+  if (descriptor.kind === 'enum') Object.freeze(descriptor.values)
+  Object.freeze(descriptor)
+}
+
 type RolePropertyDescriptor = (typeof ROLE_STYLE_PROPERTY_DESCRIPTORS)[keyof typeof ROLE_STYLE_PROPERTY_DESCRIPTORS]
 type RolePropertyValue<D> = D extends { readonly kind: 'number' } ? number : D extends { readonly kind: 'font' | 'color' } ? string : D extends { readonly kind: 'enum'; readonly values: readonly (infer V)[] } ? V : never
 

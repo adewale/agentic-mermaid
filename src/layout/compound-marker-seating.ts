@@ -1,4 +1,5 @@
 import type { ClassMarkerPiece } from '../class/relationship-paint.ts'
+import { projectMeasuredMarkerPose, type MarkerPose as Pose } from './measured-marker-pose.ts'
 import { formatSvgNumber } from '../shared/svg-number.ts'
 import type { Point } from '../types.ts'
 import type { ChannelWork } from './channel-tracks.ts'
@@ -69,7 +70,6 @@ export function writtenParallelSupportsOverlap(a: Point, b: Point, c: Point, d: 
   return Math.min(Math.max(A, B), Math.max(C, D)) > Math.max(Math.min(A, B), Math.min(C, D))
 }
 
-type Pose = { owner: number; source: boolean; pieces: ClassMarkerPiece[]; minX: number; maxX: number; minY: number; maxY: number }
 type Route = { points: Point[]; labelPosition?: Point }
 /** All routes are final and all query leases ended before entry. Earlier marker
  * reservations are immutable. Reseating changes only an owned path's endpoint
@@ -303,47 +303,9 @@ export function seatMeasuredMarkers(
   // survives, and every accepted route refreshes its borrowed current records.
   const changedCarrier: Carrier = { current: true, a: undefined as unknown as Point, b: undefined as unknown as Point, point: 0, join: false, minX: 0, maxX: 0, minY: 0, maxY: 0 }
 
-  const pose = (template: readonly ClassMarkerPiece[], port: Point, next: Point, owner: number, source: boolean): Pose => {
-    charge(10)
-    if (!Number.isFinite(port.x) || !Number.isFinite(port.y) || !Number.isFinite(next.x) || !Number.isFinite(next.y)) fail('Nonfinite measured marker normal')
-    const dx = Math.sign(next.x - port.x),
-      dy = Math.sign(next.y - port.y)
-    if (Number(!dx) + Number(!dy) !== 1) fail('Nonorthogonal measured marker normal')
-    let points = 0
-    for (const piece of template) {
-      charge()
-      if (piece.kind === 'polygon') points += piece.points.length
-    }
-    records(2 + 2 * template.length + points)
-    reservePoints(points)
-    const result: Pose = { owner, source, pieces: [], minX: Infinity, maxX: -Infinity, minY: Infinity, maxY: -Infinity }
-    for (const piece of template) {
-      charge()
-      if (piece.kind === 'circle') {
-        const cx = port.x + dx * piece.cx - dy * piece.cy,
-          cy = port.y + dy * piece.cx + dx * piece.cy
-        result.pieces.push({ kind: 'circle', cx, cy, r: piece.r })
-        result.minX = Math.min(result.minX, cx - piece.r)
-        result.maxX = Math.max(result.maxX, cx + piece.r)
-        result.minY = Math.min(result.minY, cy - piece.r)
-        result.maxY = Math.max(result.maxY, cy + piece.r)
-      } else {
-        const polygon: Extract<ClassMarkerPiece, { kind: 'polygon' }> = { kind: 'polygon', points: [] }
-        for (const p of piece.points) {
-          charge()
-          const x = port.x + dx * p.x - dy * p.y,
-            y = port.y + dy * p.x + dx * p.y
-          polygon.points.push({ x, y })
-          result.minX = Math.min(result.minX, x)
-          result.maxX = Math.max(result.maxX, x)
-          result.minY = Math.min(result.minY, y)
-          result.maxY = Math.max(result.maxY, y)
-        }
-        result.pieces.push(polygon)
-      }
-    }
-    return result
-  }
+  const pose = (template: readonly ClassMarkerPiece[], port: Point, next: Point, owner: number, source: boolean): Pose =>
+    projectMeasuredMarkerPose(template, port, next, owner, source, charge, records, reservePoints, fail)
+
   records(markerCount + 1)
   const all: Pose[] = []
   for (let i = 0; i < edges.length; i++) {

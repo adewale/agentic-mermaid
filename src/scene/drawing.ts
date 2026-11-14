@@ -5,7 +5,7 @@ import * as marks from './marks.ts'
 /** One lowering program, with a consumer selected before any marks are built. */
 export interface DrawingDocument<T> extends Omit<SceneDoc, 'parts'> { parts: T[] }
 export type DrawingFactory<T> = {
-  [K in 'shape' | 'text' | 'connector' | 'documentOpen' | 'documentContent' | 'documentText' | 'definitions' | 'documentClose']: (...args: Parameters<typeof marks[K]>) => T
+  [K in 'image' | 'shape' | 'text' | 'connector' | 'documentOpen' | 'documentContent' | 'documentText' | 'definitions' | 'documentClose']: (...args: Parameters<typeof marks[K]>) => T
 } & {
   group(fields: Omit<Parameters<typeof marks.group>[0], 'children'> & { children: Array<{ node: T; indent: number }> }): T
   pathArtwork(fields: Parameters<typeof marks.pathArtwork>[0]): T
@@ -20,6 +20,9 @@ export function adaptOwnedSceneLowering<T extends object>(source: object, target
   return target
 }
 const nativeDrawings = new WeakMap<object, { readonly original: DrawingProducer; current: DrawingProducer }>()
+
+/** ER and Class reuse their immutable Scene as the geometry and actual-write operand. */
+export function preferSceneDrawing(familyId: string): boolean { return familyId === 'er' || familyId === 'class' }
 
 export function sceneLowering<P extends PositionedDiagram>(draw: DrawingProducer<P>): (context: RenderContext<P>) => SceneDoc {
   const lower = (context: RenderContext<P>): SceneDoc => draw<SceneNode>(marks, context)

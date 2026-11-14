@@ -50,7 +50,7 @@ describe('text marks', () => {
       letterSpacing: 0.3, maxWidth: 100, fontFamily: 'Inter',
     })
     const mark = marks.text({
-      id: 'caption', role: 'label', text: block.text, block,
+      id: 'caption', role: 'label', text: 'Straße <b>release</b> notes', block,
       x: 10, y: 20, fontSize: 14, anchor: 'start', paint: {},
     })
     expect(mark.block).toBe(block)
@@ -64,6 +64,14 @@ describe('text marks', () => {
     const svg = sceneNodeSerialization(mark)
     expect(svg).toContain('font-family="Inter"')
     expect(svg.replace(/<[^>]+>/g, '').replace(/\s+/g, '')).toContain('STRASSERELEASENOTES')
+    const problems: string[] = []
+    nodeProblems(mark, 'p', problems)
+    expect(problems).toEqual([])
+    // A caller-supplied legacy roster is still an independent fidelity claim.
+    mark.preparedLines = [[{ ...block.lineBlocks[0]!.runs[0]!, text: 'another label' }]]
+    const legacyProblems: string[] = []
+    nodeProblems(mark, 'p', legacyProblems)
+    expect(legacyProblems.some(problem => problem.includes('prepared text "another label"'))).toBe(true)
   })
 
   it('marks fallback preparation explicitly instead of claiming retained family measurement', () => {
@@ -72,6 +80,39 @@ describe('text marks', () => {
     expect(mark.prepared).toBeUndefined()
     expect(mark.block?.prepared.source).toBe('Hi')
     expect(mark.block?.width).toBe(mark.textLayout?.width)
+  })
+
+  it('preserves caller block reads and inherited array hooks before writing text paint', () => {
+    const block = preparePixelText('Hook', { fontSize: 12, fontWeight: 400 })
+    const paint = { fill: '#111' }
+    const fields = { id: 'hook', role: 'label' as const, text: 'Hook', x: 10, y: 20, fontSize: 12, anchor: 'start' as const, paint }
+    const rawBlock = { ...block, get lineBlocks() { paint.fill = '#123456'; return block.lineBlocks } }
+    expect(sceneNodeSerialization(marks.text({ ...fields, block: rawBlock }))).toContain('fill="#123456"')
+    paint.fill = '#111'
+    const map = Array.prototype.map
+    try {
+      Array.prototype.map = function (...args) {
+        if (this === block.lineBlocks) paint.fill = '#654321'
+        return Reflect.apply(map, this, args)
+      }
+      const mark = marks.text({ ...fields, block })
+      Array.prototype.map = map
+      expect(sceneNodeSerialization(mark)).toContain('fill="#654321"')
+    } finally { Array.prototype.map = map }
+    for (const species of [false, true]) {
+      paint.fill = '#111'
+      const target = species ? Array : Array.prototype, key = species ? Symbol.species : 'constructor'
+      const descriptor = Object.getOwnPropertyDescriptor(target, key)!
+      try {
+        Object.defineProperty(target, key, { configurable: true, get() {
+          if (species || this === block.lineBlocks) paint.fill = '#abcdef'
+          return Array
+        } })
+        const mark = marks.text({ ...fields, block })
+        Object.defineProperty(target, key, descriptor)
+        expect(sceneNodeSerialization(mark)).toContain('fill="#abcdef"')
+      } finally { Object.defineProperty(target, key, descriptor) }
+    }
   })
 
   it('inherits semantic group ownership without mutating reusable children or changing serialization', () => {

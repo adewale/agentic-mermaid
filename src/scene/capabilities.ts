@@ -2,6 +2,7 @@
 
 export const CORE_SCENE_PRIMITIVES = [
   'document',
+  'image',
   'text',
   'shape',
   'container',
@@ -92,42 +93,72 @@ export interface EssentialScenePrimitiveCapability {
   readonly operation: CoreSceneOperation
 }
 
-const detailedConnectorFeatures = [
-  'transform', 'topology', 'subpaths', 'closedness', 'bend-radius', 'stroke-opacity', 'stroke-cap', 'stroke-join',
-  'stroke-miter', 'dash-array', 'dash-offset', 'dash-restart', 'path-length',
-  'paint-order', 'compositing', 'non-scaling-stroke', 'marker-orientation', 'marker-overflow',
-] as const satisfies readonly CoreSceneFeature[]
+function essentialCapability(primitive: CoreScenePrimitive, feature: CoreSceneFeature, operation: CoreSceneOperation): EssentialScenePrimitiveCapability {
+  return Object.freeze({ primitive, feature, operation })
+}
+
+/** Required only when an admitted document actually contains raster artwork. */
+export const IMAGE_SCENE_PRIMITIVE_CAPABILITIES: readonly EssentialScenePrimitiveCapability[] = Object.freeze([
+  essentialCapability('image', 'geometry', 'render'),
+  essentialCapability('image', 'resources', 'serialize'),
+  essentialCapability('image', 'identity', 'serialize'),
+])
 
 /** Minimum feature-level contract required before a backend can truthfully
  * accept a family that emits a primitive. This is intentionally stricter than
  * checking that any claim exists for a primitive/operation pair: geometry
  * support alone must not silently discard paint, identity, markers, relation,
  * accessibility, or hit semantics. */
-
-export const ESSENTIAL_SCENE_PRIMITIVE_CAPABILITIES: readonly EssentialScenePrimitiveCapability[] = Object.freeze(([
-  ['document', 'serialize', ['identity', 'resources']],
-  ['document', 'accessibility', ['interaction']],
-  ['text', 'render', ['geometry', 'paint']],
-  ['text', 'accessibility', ['labels']],
-  ['text', 'serialize', ['identity']],
-  ['shape', 'render', ['geometry', 'paint']],
-  ['shape', 'serialize', ['identity']],
-  ['container', 'render', ['geometry', 'paint']],
-  ['container', 'serialize', ['identity']],
-  ['connector', 'render', ['geometry', 'stroke', ...detailedConnectorFeatures]],
-  ['connector', 'serialize', ['endpoints', 'direction']],
-  ['connector', 'render', ['labels']],
-  ['connector', 'accessibility', ['labels']],
-  ['connector', 'render', ['markers']],
-  ['connector', 'accessibility', ['relation']],
-  ['connector', 'hit-test', ['interaction', 'hit-geometry']],
-  ['connector', 'serialize', ['identity']],
-  ['marker', 'render', ['geometry', 'paint']],
-  ['marker', 'serialize', ['identity']],
-  ['data-mark', 'render', ['geometry', 'paint']],
-  ['data-mark', 'serialize', ['identity']],
-] as const satisfies readonly (readonly [CoreScenePrimitive, CoreSceneOperation, readonly CoreSceneFeature[]])[])
-  .flatMap(([primitive, operation, features]) => features.map(feature => Object.freeze({ primitive, feature, operation }))))
+export const ESSENTIAL_SCENE_PRIMITIVE_CAPABILITIES: readonly EssentialScenePrimitiveCapability[] = Object.freeze([
+  essentialCapability('document', 'identity', 'serialize'),
+  essentialCapability('document', 'resources', 'serialize'),
+  essentialCapability('document', 'interaction', 'accessibility'),
+  essentialCapability('text', 'geometry', 'render'),
+  essentialCapability('text', 'paint', 'render'),
+  essentialCapability('text', 'labels', 'accessibility'),
+  essentialCapability('text', 'identity', 'serialize'),
+  essentialCapability('shape', 'geometry', 'render'),
+  essentialCapability('shape', 'paint', 'render'),
+  essentialCapability('shape', 'identity', 'serialize'),
+  essentialCapability('container', 'geometry', 'render'),
+  essentialCapability('container', 'paint', 'render'),
+  essentialCapability('container', 'identity', 'serialize'),
+  essentialCapability('connector', 'geometry', 'render'),
+  essentialCapability('connector', 'stroke', 'render'),
+  essentialCapability('connector', 'transform', 'render'),
+  essentialCapability('connector', 'topology', 'render'),
+  essentialCapability('connector', 'subpaths', 'render'),
+  essentialCapability('connector', 'closedness', 'render'),
+  essentialCapability('connector', 'bend-radius', 'render'),
+  essentialCapability('connector', 'stroke-opacity', 'render'),
+  essentialCapability('connector', 'stroke-cap', 'render'),
+  essentialCapability('connector', 'stroke-join', 'render'),
+  essentialCapability('connector', 'stroke-miter', 'render'),
+  essentialCapability('connector', 'dash-array', 'render'),
+  essentialCapability('connector', 'dash-offset', 'render'),
+  essentialCapability('connector', 'dash-restart', 'render'),
+  essentialCapability('connector', 'path-length', 'render'),
+  essentialCapability('connector', 'paint-order', 'render'),
+  essentialCapability('connector', 'compositing', 'render'),
+  essentialCapability('connector', 'non-scaling-stroke', 'render'),
+  essentialCapability('connector', 'marker-orientation', 'render'),
+  essentialCapability('connector', 'marker-overflow', 'render'),
+  essentialCapability('connector', 'endpoints', 'serialize'),
+  essentialCapability('connector', 'direction', 'serialize'),
+  essentialCapability('connector', 'labels', 'render'),
+  essentialCapability('connector', 'labels', 'accessibility'),
+  essentialCapability('connector', 'markers', 'render'),
+  essentialCapability('connector', 'relation', 'accessibility'),
+  essentialCapability('connector', 'interaction', 'hit-test'),
+  essentialCapability('connector', 'hit-geometry', 'hit-test'),
+  essentialCapability('connector', 'identity', 'serialize'),
+  essentialCapability('marker', 'geometry', 'render'),
+  essentialCapability('marker', 'paint', 'render'),
+  essentialCapability('marker', 'identity', 'serialize'),
+  essentialCapability('data-mark', 'geometry', 'render'),
+  essentialCapability('data-mark', 'paint', 'render'),
+  essentialCapability('data-mark', 'identity', 'serialize'),
+])
 
 export const PRIMITIVE_REALIZATIONS = [
   'native',
@@ -150,6 +181,7 @@ import type { SceneNode } from './ir.ts'
  */
 export function sceneNodePrimitives(node: SceneNode): readonly CoreScenePrimitive[] {
   switch (node.kind) {
+    case 'image': return ['image']
     case 'text': return ['text']
     case 'shape': return node.channels?.value === undefined ? ['shape'] : ['shape', 'data-mark']
     case 'group': return ['container']
@@ -223,50 +255,37 @@ export function graphicalBackendCapabilityClaims(
     }
     return { realization: 'emulated' }
   }
-
-  const claim = (primitive: CoreScenePrimitive, feature: CoreSceneFeature, operation: CoreSceneOperation,
-    realization: PrimitiveRealization | Pick<PrimitiveCapabilityClaim, 'realization' | 'diagnostic'> = 'native'): PrimitiveCapabilityClaim => ({
-      target, primitive, feature, operation, ...(typeof realization === 'string' ? { realization } : realization), evidence,
-    })
-  const claims: PrimitiveCapabilityClaim[] = [
-    claim('document', 'identity', 'serialize'),
-    claim('document', 'resources', 'serialize'),
-    claim('document', 'interaction', 'accessibility'),
-    claim('text', 'geometry', 'render'),
-    claim('text', 'paint', 'render'),
-    claim('text', 'labels', 'accessibility'),
-    claim('text', 'identity', 'serialize'),
-    claim('shape', 'geometry', 'render', visual),
-    claim('shape', 'paint', 'render', visual),
-    claim('shape', 'identity', 'serialize'),
-    // Group wrappers are not redrawn by sketch backends. Their transform and
-    // paint cascade are preserved natively while eligible children are
-    // independently re-realized.
-    claim('container', 'geometry', 'render'),
-    claim('container', 'paint', 'render'),
-    claim('container', 'identity', 'serialize'),
-    claim('connector', 'geometry', 'render', connectorRealization('geometry')),
-    claim('connector', 'stroke', 'render', visual),
-    ...detailedConnectorFeatures.map(feature => claim('connector', feature, 'render', connectorRealization(feature))),
-    claim('connector', 'relation', 'accessibility'),
-    claim('connector', 'endpoints', 'serialize'),
-    claim('connector', 'direction', 'serialize'),
-    claim('connector', 'labels', 'render'),
-    claim('connector', 'labels', 'accessibility'),
-    claim('connector', 'markers', 'render', markerVisual),
-    claim('connector', 'interaction', 'hit-test'),
-    claim('connector', 'hit-geometry', 'hit-test'),
-    claim('connector', 'identity', 'serialize'),
-    claim('marker', 'geometry', 'render', markerVisual),
-    claim('marker', 'paint', 'render', markerVisual),
-    claim('marker', 'identity', 'serialize'),
-    claim('data-mark', 'geometry', 'render', visual),
-    claim('data-mark', 'paint', 'render', visual),
-    claim('data-mark', 'identity', 'serialize'),
-  ]
+  const claims = ESSENTIAL_SCENE_PRIMITIVE_CAPABILITIES.map(({ primitive, feature, operation }) => {
+    const claim: PrimitiveCapabilityClaim = { target, primitive, feature, operation, realization: 'native' }
+    if (primitive === 'connector' && operation === 'render' && feature !== 'labels' && feature !== 'markers' && feature !== 'stroke') {
+      const projection = connectorRealization(feature)
+      claim.realization = projection.realization
+      if (projection.diagnostic !== undefined) claim.diagnostic = projection.diagnostic
+    } else if ((primitive === 'shape' || primitive === 'data-mark') && (feature === 'geometry' || feature === 'paint')
+      || primitive === 'connector' && feature === 'stroke') {
+      claim.realization = visual
+    } else if (primitive === 'marker' && (feature === 'geometry' || feature === 'paint')
+      || primitive === 'connector' && feature === 'markers') {
+      claim.realization = markerVisual
+    }
+    claim.evidence = evidence
+    return claim
+  })
+  // Raster delivery is an optional capability, not a new registration minimum
+  // for existing vector-only host backends. Pixels have no paint claim.
+  for (const { feature, operation } of IMAGE_SCENE_PRIMITIVE_CAPABILITIES) {
+    claims.push({ target, primitive: 'image', feature, operation, realization: 'native', evidence })
+  }
+  // Preserve the established graphical claim order while sharing the canonical
+  // capability cells: relation precedes the connector's serialized endpoints.
+  const relation = claims.findIndex(claim => claim.primitive === 'connector' && claim.feature === 'relation')
+  const [relationClaim] = claims.splice(relation, 1)
+  const endpoints = claims.findIndex(claim => claim.primitive === 'connector' && claim.feature === 'endpoints')
+  claims.splice(endpoints, 0, relationClaim!)
   const validation = validatePrimitiveCapabilities(claims)
   if (!validation.valid) throw new Error(`Invalid graphical backend capability contract: ${validation.diagnostics.join('; ')}`)
-  return Object.freeze(claims.map(claim => Object.freeze({ ...claim })))
+  for (const claim of claims) Object.freeze(claim)
+  return Object.freeze(claims)
 }
 
 /** Claim-keyed contract for the typed Scene -> terminal evidence adapter.
@@ -304,7 +323,8 @@ export function terminalConnectorCapabilityClaims(
   }))
   const validation = validatePrimitiveCapabilities(claims)
   if (!validation.valid) throw new Error(`Invalid terminal connector capability contract: ${validation.diagnostics.join('; ')}`)
-  return Object.freeze(claims.map(claim => Object.freeze({ ...claim })))
+  for (const claim of claims) Object.freeze(claim)
+  return Object.freeze(claims)
 }
 
 export interface CapabilityValidationResult {

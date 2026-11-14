@@ -1,14 +1,12 @@
+import { scanSvgStartTags } from '../svg-structure.ts'
 
 import { describe, expect, spyOn, test } from 'bun:test'
 import { readFileSync } from 'node:fs'
+import { SaxesParser } from 'saxes'
 import { layoutMermaidWithReceipt, parseRegisteredMermaid } from '../agent/core.ts'
 import { renderMermaidPNGWithReceipt } from '../agent/png.ts'
 import { renderMermaidASCII } from '../ascii/index.ts'
 import * as classLayoutModule from '../class/layout.ts'
-import { lowerClassDrawing } from '../class/renderer.ts'
-import { drawNative } from '../scene/native-drawing.ts'
-import { certifyNativePaint } from '../scene/paint-certification.ts'
-import { resolveDiagramColors } from '../color-resolver.ts'
 import { CLASS_STYLE_DEFAULTS, classTextBlock, finalizeClassOwnedSurfaces, layoutClassDiagram } from '../class/layout.ts'
 import { parseClassDiagram } from '../class/parser.ts'
 import { assertClassElkSelfContactsClear, constructClassElkSelfContacts } from '../class/elk-contacts.ts'
@@ -19,13 +17,17 @@ import { withRenderStageObserver } from '../render-stages.ts'
 import { missingSvgLabels } from './helpers/svg-labels.ts'
 import { measureQuality } from '../agent/quality.ts'
 import { graphStressSamples } from '../../eval/layout-compare/generated.ts'
-import { scanSvgStartTags } from '../svg-structure.ts'
+import { prepareResvgMarkerOrientation } from '../resvg-marker-orientation.ts'
+import { renderSvgPixels } from './helpers/raster.ts'
+import { useTestChildren } from './helpers/test-child.ts'
 
+const runPublicClassChild = useTestChildren(20_000)
 const native = { graphLayout: { backend: 'agentic' as const } }
 const fixture = readFileSync(new URL('../../eval/layout-compare/fixtures/class-backends.mmd', import.meta.url), 'utf8')
 const compoundFixture = readFileSync(new URL('../../eval/layout-compare/fixtures/class-compound-backends.mmd', import.meta.url), 'utf8')
 
 describe('Class layout backends', () => {
+
   test.each(['LR', 'RL', 'TB', 'BT'])('keeps nested ELK captions associated with their own final carrier in %s', direction => {
     const source = `classDiagram\ndirection ${direction}\nnamespace Root {\n class Gateway {\n  +String key\n }\n namespace Domain {\n  class Draft {\n   +String token\n  }\n  class Sink {\n   +String id\n  }\n }\n}\nGateway "1" *-- Draft : opens\nGateway "*" ..> Sink : submits\nDraft "1" --> Sink : commits\nSink "0..1" ..|> Sink : retries\nnote for Gateway "Keep authored Gateway note"`
     const rendered = renderMermaidSVGWithReceipt(source, { graphLayout: { backend: 'elk', fallback: 'none' }, style: { roles: { relationship: { bendRadius: 0 } } } })
@@ -50,22 +52,269 @@ describe('Class layout backends', () => {
     expect(rendered.receipt.layoutCertification?.status).toBe('passed')
   })
 
-  test.each(['TB', 'BT', 'LR', 'RL'])('renders a long native Class chain with exact card contacts in %s', direction => {
-    const source = `classDiagram\ndirection ${direction}\n` + Array.from({ length: 127 }, (_, i) => `N${i} --> N${i + 1}`).join('\n')
+  test.each((['agentic', 'elk'] as const).flatMap(backend => ['TB', 'BT', 'LR', 'RL'].map(direction => ({ backend, direction }))))('nested caption seats retain authored meaning and final contacts: $backend $direction', ({ backend, direction }) => {
+    const source = "classDiagram\ndirection DIRECTION\nnamespace Root {\n class Gateway {\n  +String key\n }\n namespace Domain {\n  class Draft {\n   +String token\n  }\n  class Sink {\n   +String id\n  }\n }\n}\nGateway \"1\" *-- Draft : opens\nGateway \"*\" ..> Sink : submits\nDraft \"1\" --> Sink : commits\nSink \"0..1\" ..|> Sink : retries\nnote for Gateway \"Keep authored Gateway note\"".replace('DIRECTION', direction)
+    const result = renderMermaidSVGWithReceipt(source, { graphLayout: { backend, fallback: 'none' } })
+    const boxes = new Map<string, Record<string, string>>(), frames = new Map<string, Record<string, string>>(), namespaces: Array<[string, string | undefined]> = [], carriers: Array<Record<string, string>> = [], textPrograms: Array<{ text: string; attrs: Record<string, string> }> = []
+    let current: { text: string; attrs: Record<string, string> } | undefined, noteOwner: string | undefined
+    const parser = new SaxesParser({ xmlns: true })
+    parser.on('opentag', tag => {
+      const a = Object.fromEntries(Object.entries(tag.attributes).map(([key, value]) => [key, value.value]))
+      if (tag.local === 'rect' && a['data-role'] === 'class-box') boxes.set(a['data-id']!.slice(6, -4), a)
+      if (tag.local === 'rect' && a['data-id']?.startsWith('namespace-rect:')) frames.set(a['data-id'].slice(15), a)
+      if (tag.local === 'g' && a.class === 'namespace') namespaces.push([a['data-id']!, a['data-parent-id']])
+      if (tag.local === 'g' && a.class === 'class-note') noteOwner = a['data-for']
+      if (tag.local === 'polyline' && a.class === 'class-relationship') carriers.push(a)
+      if (tag.local === 'text') current = { text: '', attrs: a }
+    })
+    parser.on('text', value => { if (current) current.text += value })
+    parser.on('closetag', tag => { if (tag.local === 'text' && current) { textPrograms.push(current); current = undefined } })
+    parser.write(result.svg).close()
+    expect([...boxes.keys()].sort()).toEqual(['Draft', 'Gateway', 'Sink'])
+    expect(namespaces).toEqual([['Root', undefined], ['Root.Domain', 'Root']])
+    expect(noteOwner).toBe('Gateway')
+    expect(textPrograms.map(t => t.text).sort()).toEqual(['Root', 'Domain', 'Gateway', 'Draft', 'Sink', '+String key', '+String token', '+String id', 'opens', 'submits', 'commits', 'retries', '1', '*', '1', '0..1', 'Keep authored Gateway note'].sort())
+    expect(carriers.map(e => [e['data-from'], e['data-to'], e['data-type'], e['data-marker-at'], e['data-from-cardinality'], e['data-label']])).toEqual([
+      ['Gateway', 'Draft', 'composition', 'from', '1', 'opens'], ['Gateway', 'Sink', 'dependency', 'to', '*', 'submits'],
+      ['Draft', 'Sink', 'association', 'to', '1', 'commits'], ['Sink', 'Sink', 'realization', 'to', '0..1', 'retries'],
+    ])
+    for (const [index, edge] of carriers.entries()) {
+      expect(edge[index === 0 ? 'marker-start' : 'marker-end']).toBe(`url(#${index === 0 ? 'cls-composition' : index === 3 ? 'cls-inherit' : 'cls-arrow'})`)
+      const points = edge.points!.split(/\s+/).map(pair => pair.split(',').map(Number))
+      for (const [id, p, next] of [[edge['data-from']!, points[0]!, points[1]!], [edge['data-to']!, points.at(-1)!, points.at(-2)!]] as const) {
+        const b = boxes.get(id)!, x = Number(b.x), y = Number(b.y), w = Number(b.width), h = Number(b.height), px = p[0]!, py = p[1]!, dx = next[0]! - px, dy = next[1]! - py
+        expect(px >= x - 1e-8 && px <= x + w + 1e-8 && py >= y - 1e-8 && py <= y + h + 1e-8).toBe(true)
+        expect((Math.abs(px - x) < 1e-8 && dx < 0 && dy === 0) || (Math.abs(px - x - w) < 1e-8 && dx > 0 && dy === 0) || (Math.abs(py - y) < 1e-8 && dy < 0 && dx === 0) || (Math.abs(py - y - h) < 1e-8 && dy > 0 && dx === 0)).toBe(true)
+      }
+      const a = textPrograms.find(t => t.text === edge['data-label'])!.attrs, width = Number(a.textLength), x = Number(a.x) - width / 2 - 9.5, y = Number(a.y) - Number(a['font-size']) * 1.3 / 2 - 9.5
+      const near = points.slice(1).some((b, i) => { const a = points[i]!; return a[0] === b[0] ? a[0]! > x && a[0]! < x + width + 19 && Math.max(a[1]!, b[1]!) > y && Math.min(a[1]!, b[1]!) < y + 11 * 1.3 + 19 : a[1] === b[1] && a[1]! > y && a[1]! < y + 11 * 1.3 + 19 && Math.max(a[0]!, b[0]!) > x && Math.min(a[0]!, b[0]!) < x + width + 19 })
+      expect(near, `${edge['data-label']} lost its own carrier`).toBe(true)
+    }
+    for (const [id, frameId] of [['Gateway', 'Root'], ['Draft', 'Root.Domain'], ['Sink', 'Root.Domain']]) {
+      const b = boxes.get(id!)!, f = frames.get(frameId!)!
+      expect(Number(b.x)).toBeGreaterThanOrEqual(Number(f.x))
+      expect(Number(b.y)).toBeGreaterThan(Number(f.y))
+      expect(Number(b.x) + Number(b.width)).toBeLessThanOrEqual(Number(f.x) + Number(f.width) + 1e-8)
+      expect(Number(b.y) + Number(b.height)).toBeLessThanOrEqual(Number(f.y) + Number(f.height) + 1e-8)
+    }
+    const loop = carriers[3]!.points!.split(/\s+/)
+    expect(loop[0]).not.toBe(loop.at(-1))
+    expect(result.receipt.layoutCertification?.status).toBe('passed')
+  })
+
+  test.each([true, false])('retains every caption on its own final carrier after loop compaction (markers=%s)', marked => {
+    const source = marked ? fixture : fixture.replaceAll('-->', '--').replaceAll('..>', '..').replaceAll('o--', '--')
+    const rendered = renderMermaidSVGWithReceipt(source, { graphLayout: { backend: 'agentic', fallback: 'none' }, embedFontImport: false })
+    const carriers: Array<Record<string, string>> = [], texts = new Map<string, Record<string, string>>()
+    let text = '', attrs: Record<string, string> | undefined
+    const parser = new SaxesParser({ xmlns: true })
+    parser.on('opentag', tag => {
+      const next = Object.fromEntries(Object.entries(tag.attributes).map(([key, value]) => [key, value.value]))
+      if (tag.local === 'polyline' && next.class === 'class-relationship') carriers.push(next)
+      if (tag.local === 'text') { text = ''; attrs = next }
+    })
+    parser.on('text', value => { if (attrs) text += value })
+    parser.on('closetag', tag => { if (tag.local === 'text' && attrs) { texts.set(text, attrs); attrs = undefined } })
+    parser.write(rendered.svg).close()
+    expect(carriers.map(e => [e['data-from'], e['data-to'], e['data-label']])).toEqual([
+      ['Account', 'Audit', 'records'], ['Account', 'Audit', 'reviews'], ['Audit', 'Account', 'belongs'],
+      ['Account', 'Account', 'delegates'], ['Repository', 'Account', 'stores'],
+    ])
+    for (const carrier of carriers) {
+      const caption = texts.get(carrier['data-label']!)!, width = Number(caption.textLength), x = Number(caption.x) - width / 2 - 1.5 - 8, y = Number(caption.y) - 11 * 1.3 / 2 - 1.5 - 8
+      const points = carrier.points!.split(/\s+/).map(pair => pair.split(',').map(Number))
+      const associated = points.slice(1).some((b, i) => {
+        const a = points[i]!
+        return a[0] === b[0]
+          ? a[0]! > x && a[0]! < x + width + 19 && Math.max(a[1]!, b[1]!) > y && Math.min(a[1]!, b[1]!) < y + 11 * 1.3 + 19
+          : a[1] === b[1] && a[1]! > y && a[1]! < y + 11 * 1.3 + 19 && Math.max(a[0]!, b[0]!) > x && Math.min(a[0]!, b[0]!) < x + width + 19
+      })
+      expect(associated, `${carrier['data-label']} detached from its own final carrier`).toBe(true)
+    }
+    expect(rendered.receipt.layoutCertification?.status).toBe('passed')
+  })
+
+  test('seats a short loop caption beside the outer turn without extra terminal depth', () => {
+    const source = 'classDiagram\ndirection TB\nclass A\nclass B\nclass Sink\nA --> Sink : input\nB --> Sink\nSink --> Sink : retry'
+    const rendered = renderMermaidSVGWithReceipt(source, { graphLayout: { backend: 'agentic', fallback: 'none' }, layerSpacing: 60, embedFontImport: false })
+    const boxes = new Map<string, Record<string, string>>(), carriers: Array<Record<string, string>> = [], texts: Array<{ text: string; attrs: Record<string, string> }> = []
+    let current: { text: string; attrs: Record<string, string> } | undefined
+    const parser = new SaxesParser({ xmlns: true })
+    parser.on('opentag', tag => {
+      const attrs = Object.fromEntries(Object.entries(tag.attributes).map(([key, value]) => [key, value.value]))
+      if (tag.local === 'rect' && attrs['data-role'] === 'class-box') boxes.set(attrs['data-id']!.slice(6, -4), attrs)
+      if (tag.local === 'polyline' && attrs.class === 'class-relationship') carriers.push(attrs)
+      if (tag.local === 'text') current = { text: '', attrs }
+    })
+    parser.on('text', value => { if (current) current.text += value })
+    parser.on('closetag', tag => { if (tag.local === 'text' && current) { texts.push(current); current = undefined } })
+    parser.write(rendered.svg).close()
+    expect([...boxes.keys()]).toEqual(['A', 'B', 'Sink'])
+    expect(texts.map(t => t.text)).toEqual(['A', 'B', 'Sink', 'input', 'retry'])
+    expect(carriers.map(e => [e['data-from'], e['data-to'], e['data-type'], e['data-label']])).toEqual([
+      ['A', 'Sink', 'association', 'input'], ['B', 'Sink', 'association', undefined], ['Sink', 'Sink', 'association', 'retry'],
+    ])
+    for (const carrier of carriers) {
+      const points = carrier.points!.split(/\s+/).map(pair => pair.split(',').map(Number))
+      for (const [id, point] of [[carrier['data-from']!, points[0]!], [carrier['data-to']!, points.at(-1)!]] as const) {
+        const b = boxes.get(id)!, x = Number(b.x), y = Number(b.y), w = Number(b.width), h = Number(b.height)
+        expect(point[0]! >= x && point[0]! <= x + w && point[1]! >= y && point[1]! <= y + h).toBe(true)
+        expect(Math.min(Math.abs(point[0]! - x), Math.abs(point[0]! - x - w), Math.abs(point[1]! - y), Math.abs(point[1]! - y - h))).toBeLessThan(1e-9)
+      }
+    }
+    const loop = carriers[2]!.points!.split(/\s+/).map(pair => pair.split(',').map(Number)), retry = texts.find(t => t.text === 'retry')!.attrs
+    expect(loop).toHaveLength(4)
+    // The existing 24px loop lead has room for this caption beside the bend;
+    // its measured height need not also fit inside both terminal legs.
+    expect(loop[1]![1]! - loop[0]![1]!).toBeLessThanOrEqual(24)
+    expect(Number(retry.y)).toBe(loop[1]![1]!)
+    expect(loop[0]).not.toEqual(loop[3])
+    const captionBottom = Number(retry.y) + Number(retry['font-size']) * 1.3 / 2 + 1.5
+    const canvasHeight = Number(rendered.svg.match(/^<svg\b[^>]*\bheight="([^"]+)"/)![1])
+    expect(canvasHeight, 'unpainted caption reservation exceeds its full halo plus padding').toBeLessThanOrEqual(captionBottom + 40)
+    expect(Number(boxes.get('Sink')!.y) - Number(boxes.get('A')!.y) - Number(boxes.get('A')!.height)).toBeGreaterThanOrEqual(60)
+    expect(Number(retry.x) + Number(retry.textLength) / 2 + 1.5).toBeLessThan(loop[0]![0]!)
+    expect(Number(retry.y) - 11 * 1.3 / 2 - 1.5).toBeGreaterThan(Number(boxes.get('Sink')!.y) + Number(boxes.get('Sink')!.height))
+    const pixels = (svg: string) => Buffer.from(renderSvgPixels(prepareResvgMarkerOrientation(svg)).pixels), actual = pixels(rendered.svg)
+    const caption = rendered.svg.match(/<text\b[^>]*>retry<\/text>/)![0]
+    expect(Buffer.compare(actual, pixels(rendered.svg.replace(caption, caption.replace('<text ', '<text opacity="0" '))))).not.toBe(0)
+    const base = rendered.svg.match(/<polyline\b[^>]*class="class-relationship"[^>]*\/>/g)![2]!
+    const overlay = rendered.svg.match(/<polyline\b[^>]*class="class-marker-overlay"[^>]*\/>/g)![2]!
+    const noHead = rendered.svg.replace(base, base.replace(/ marker-end="[^"]+"/, '')).replace(overlay, overlay.replace(/ marker-end="[^"]+"/, ''))
+    expect(Buffer.compare(actual, pixels(noHead))).not.toBe(0)
+    expect(rendered.receipt.layoutCertification?.status).toBe('passed')
+  })
+
+  test.each(['TB', 'BT', 'LR', 'RL'])('keeps loop compaction outside neighbouring caption halos in %s', direction => {
+    const source = `classDiagram\ndirection ${direction}\nclass Hub {\n +int state\n +tick()\n}\nclass Sink\nHub "1" o-- "many" Sink : owns\nHub "2" o-- "many" Sink : spare\nSink ..> Hub : report\nHub --> Hub : tick\nstyle Hub stroke-width:6px,fill:#fff,stroke:#222`
     const options = { graphLayout: { backend: 'agentic' as const, fallback: 'none' as const } }
-    let rendered!: ReturnType<typeof renderMermaidSVGWithReceipt>
-    expect(() => { rendered = renderMermaidSVGWithReceipt(source, options) }).not.toThrow()
-    expect(rendered.receipt.layoutCertification).toMatchObject({ status: 'passed', issues: [] })
-    expect(rendered.receipt.layoutDecisions).toEqual([expect.objectContaining({ selected: 'agentic', fallback: 'none' })])
-    expect(rendered.svg.match(/class="class-node"/g)).toHaveLength(128)
-    expect(rendered.svg.match(/class="class-relationship"/g)).toHaveLength(127)
-    expect(rendered.svg).toContain('data-id="N127"')
-    // Unit-test scene assertions use the Scene adapter. Also consume the real
-    // native emission ledger used by plain Node and browser entry points.
-    const positioned = layoutClassDiagram(parseClassDiagram(toMermaidLines(source)), options)
-    const context = { positioned, colors: resolveDiagramColors(options, {}), resolved: { renderOptions: options } }
-    const drawing = drawNative(factory => lowerClassDrawing(factory, context), context, 'class')
-    expect(certifyNativePaint(drawing.header, drawing.paint)).toMatchObject({ status: 'passed', issues: [] })
+    const rendered = renderMermaidSVGWithReceipt(source, options)
+    const boxes = new Map<string, Record<string, string>>(), carriers: Array<Record<string, string>> = [], labels: string[] = []
+    let label: string | undefined
+    const parser = new SaxesParser({ xmlns: true })
+    parser.on('opentag', tag => {
+      const attrs = Object.fromEntries(Object.entries(tag.attributes).map(([key, value]) => [key, value.value]))
+      if (tag.local === 'rect' && attrs['data-role'] === 'class-box') boxes.set(attrs['data-id']!.slice(6, -4), attrs)
+      if (tag.local === 'polyline' && attrs.class === 'class-relationship') carriers.push(attrs)
+      if (tag.local === 'text') label = ''
+    })
+    parser.on('text', value => { if (label !== undefined) label += value })
+    parser.on('closetag', tag => { if (tag.local === 'text') { labels.push(label!); label = undefined } })
+    parser.write(rendered.svg).close()
+    expect([...boxes.keys()]).toEqual(['Hub', 'Sink'])
+    expect(boxes.get('Hub')!['stroke-width']).toBe('6')
+    expect(labels).toEqual(expect.arrayContaining(['Hub', 'Sink', 'owns', 'spare', 'report', 'tick', '1', '2', 'many']))
+    expect(carriers.map(edge => [edge['data-from'], edge['data-to'], edge['data-label'], edge['data-type']])).toEqual([
+      ['Hub', 'Sink', 'owns', 'aggregation'], ['Hub', 'Sink', 'spare', 'aggregation'],
+      ['Sink', 'Hub', 'report', 'dependency'], ['Hub', 'Hub', 'tick', 'association'],
+    ])
+    for (const edge of carriers) {
+      const points = edge.points!.split(/\s+/).map(pair => pair.split(',').map(Number))
+      for (const [owner, point] of [[edge['data-from']!, points[0]!], [edge['data-to']!, points.at(-1)!]] as const) {
+        const box = boxes.get(owner)!, x = Number(box.x), y = Number(box.y), width = Number(box.width), height = Number(box.height)
+        expect(point[0]! >= x - 1e-9 && point[0]! <= x + width + 1e-9 && point[1]! >= y - 1e-9 && point[1]! <= y + height + 1e-9).toBe(true)
+        expect(Math.min(Math.abs(point[0]! - x), Math.abs(point[0]! - x - width), Math.abs(point[1]! - y), Math.abs(point[1]! - y - height))).toBeLessThan(1e-9)
+      }
+    }
+    const pixels = (svg: string) => Buffer.from(renderSvgPixels(prepareResvgMarkerOrientation(svg)).pixels)
+    const actual = pixels(rendered.svg)
+    for (const caption of ['owns', 'spare', 'report', 'tick']) {
+      const tag = rendered.svg.match(new RegExp(`<text\\b[^>]*>${caption}</text>`))?.[0]
+      expect(tag).toBeDefined()
+      expect(Buffer.compare(actual, pixels(rendered.svg.replace(tag!, '')))).not.toBe(0)
+    }
+    const semantic = rendered.svg.match(/<polyline\b[^>]*class="class-relationship"[^>]*\/>/g)!, overlays = rendered.svg.match(/<polyline\b[^>]*class="class-marker-overlay"[^>]*\/>/g)!
+    expect(semantic).toHaveLength(4)
+    expect(overlays).toHaveLength(4)
+    for (let index = 0; index < semantic.length; index++) {
+      const end = index < 2 ? 'start' : 'end', attribute = `marker-${end}="${carriers[index]![`marker-${end}`]}"`
+      expect(semantic[index]).toContain(attribute)
+      expect(overlays[index]).toContain(attribute)
+      const removed = rendered.svg.replace(semantic[index]!, semantic[index]!.replace(attribute, '')).replace(overlays[index]!, overlays[index]!.replace(attribute, ''))
+      expect(Buffer.compare(actual, pixels(removed))).not.toBe(0)
+    }
+    expect(rendered.receipt.layoutDecisions?.[0]?.selected).toBe('agentic')
+    expect(rendered.receipt.layoutCertification?.status).toBe('passed')
+  })
+
+  test.each((['agentic', 'elk'] as const).flatMap(backend => ['TB', 'BT', 'LR', 'RL'].map(direction => ({ backend, direction }))))('renders a long Class chain with exact card contacts with $backend in $direction', async ({ backend, direction }) => {
+    const source = `classDiagram\ndirection ${direction}\n` + Array.from({ length: 127 }, (_, i) => `N${i} --> N${i + 1}`).join('\n')
+    const child = await runPublicClassChild(process.execPath, ['-e', `
+      import { renderMermaidSVGWithReceipt } from './src/index.ts'
+      import { withPerformanceObserver } from './src/performance-observations.ts'
+      const providers = []
+      const rendered = withPerformanceObserver(event => {
+        if (event.kind === 'cache' && event.owner === 'paint-certification') providers.push(event.detail)
+      }, () => renderMermaidSVGWithReceipt(${JSON.stringify(source)}, {
+        graphLayout: { backend: ${JSON.stringify(backend)}, fallback: 'none' }, embedFontImport: false,
+      }))
+      console.log(JSON.stringify({ rendered, providers }))
+    `], { cwd: `${import.meta.dir}/../..`, env: { ...process.env, AGENTIC_MERMAID_SCENE_ASSERTIONS: '0' } })
+    expect({ status: child.status, stderr: child.stderr }).toEqual({ status: 0, stderr: '' })
+    const { rendered } = JSON.parse(child.stdout) as { rendered: ReturnType<typeof renderMermaidSVGWithReceipt> }
+    const proof = rendered.receipt.layoutCertification
+    if (!proof || !('checks' in proof)) throw new Error('Class SVG must retain paint certification')
+    expect(proof.checks.maxOperations).toBe(400000)
+    expect(proof.checks.operations).toBeLessThanOrEqual(400000)
+    expect(rendered.receipt.layoutDecisions).toEqual([expect.objectContaining({ selected: backend, fallback: 'none' })])
+    const ids = Array.from({ length: 128 }, (_, index) => `N${index}`), classes: string[] = [], names: string[] = []
+    const groupOwners: Array<string | undefined> = [], ownedNames: Array<[string | undefined, string]> = []
+    const boxes = new Map<string, Record<string, string>>(), carriers: Array<Record<string, string>> = [], overlays: Array<Record<string, string>> = []
+    let text: string | undefined, textOwner: string | undefined, inArrow = false, marker: { attrs: Record<string, string>; pieces: Array<{ name: string; attrs: Record<string, string> }> } | undefined
+    const parser = new SaxesParser({ xmlns: true })
+    parser.on('opentag', tag => {
+      const attrs = Object.fromEntries(Object.entries(tag.attributes).map(([key, value]) => [key, value.value]))
+      if (tag.local === 'g') groupOwners.push(attrs.class === 'class-node' ? attrs['data-id'] : groupOwners.at(-1))
+      if (tag.local === 'g' && attrs.class === 'class-node') classes.push(attrs['data-id']!)
+      if (tag.local === 'rect' && attrs['data-role'] === 'class-box') boxes.set(attrs['data-id']!.slice(6, -4), attrs)
+      if (tag.local === 'polyline' && attrs.class === 'class-relationship') carriers.push(attrs)
+      if (tag.local === 'polyline' && attrs.class === 'class-marker-overlay') overlays.push(attrs)
+      if (tag.local === 'text') { text = ''; textOwner = groupOwners.at(-1) }
+      if (tag.local === 'marker') { inArrow = attrs.id === 'cls-arrow'; if (inArrow) marker = { attrs, pieces: [] } }
+      else if (inArrow) marker!.pieces.push({ name: tag.local, attrs })
+    })
+    parser.on('text', value => { if (text !== undefined) text += value })
+    parser.on('closetag', tag => {
+      if (tag.local === 'text') { names.push(text!); ownedNames.push([textOwner, text!]); text = undefined; textOwner = undefined }
+      if (tag.local === 'g') groupOwners.pop()
+      if (tag.local === 'marker') inArrow = false
+    })
+    parser.write(rendered.svg).close()
+    expect(classes).toEqual(ids)
+    expect([...boxes.keys()]).toEqual(ids)
+    expect(names).toEqual(ids)
+    expect(ownedNames).toEqual(ids.map(id => [id, id]))
+    expect(carriers.map(edge => [edge['data-id'], edge['data-from'], edge['data-to'], edge['data-type'], edge['data-marker-at'], edge['data-label']])).toEqual(
+      Array.from({ length: 127 }, (_, index) => [`rel:N${index}->N${index + 1}#0`, `N${index}`, `N${index + 1}`, 'association', 'to', undefined]),
+    )
+    expect(overlays).toHaveLength(127)
+    expect(marker).toBeDefined()
+    expect(['auto', 'auto-start-reverse']).toContain(marker!.attrs.orient!)
+    expect(marker!.pieces).toHaveLength(1)
+    expect(marker!.pieces[0]!.name).toBe('polyline')
+    expect(marker!.pieces[0]!.attrs.fill).toBe('none')
+    expect(marker!.pieces[0]!.attrs.stroke ?? '').toMatch(/^#[0-9a-f]{6}$/i)
+    expect(Number(marker!.pieces[0]!.attrs['stroke-width'])).toBeGreaterThan(0)
+    expect(Number(marker!.attrs.opacity ?? 1)).toBeGreaterThan(0)
+    expect(Number(marker!.pieces[0]!.attrs.opacity ?? 1)).toBeGreaterThan(0)
+    expect(Number(marker!.pieces[0]!.attrs['stroke-opacity'] ?? 1)).toBeGreaterThan(0)
+    const arrow = marker!.pieces[0]!.attrs.points!.trim().split(/[\s,]+/).map(Number)
+    expect(arrow).toHaveLength(6)
+    expect(arrow.slice(2, 4)).toEqual([Number(marker!.attrs.refX), Number(marker!.attrs.refY)])
+    expect(arrow[0]! < arrow[2]! && arrow[4]! < arrow[2]! && arrow[1]! < arrow[3]! && arrow[5]! > arrow[3]!).toBe(true)
+    for (const [index, carrier] of carriers.entries()) {
+      expect(carrier['marker-start']).toBeUndefined()
+      expect(carrier['marker-end']).toBe('url(#cls-arrow)')
+      expect(overlays[index]!.points).toBe(carrier.points)
+      expect(overlays[index]!['marker-end']).toBe('url(#cls-arrow)')
+      const points = carrier.points!.split(/\s+/).map(pair => pair.split(',').map(Number))
+      for (const [id, p, next] of [[`N${index}`, points[0]!, points[1]!], [`N${index + 1}`, points.at(-1)!, points.at(-2)!]] as const) {
+        const box = boxes.get(id)!, x = Number(box.x), y = Number(box.y), w = Number(box.width), h = Number(box.height), px = p[0]!, py = p[1]!, dx = next[0]! - px, dy = next[1]! - py
+        expect(px >= x - 1e-8 && px <= x + w + 1e-8 && py >= y - 1e-8 && py <= y + h + 1e-8).toBe(true)
+        expect(Math.abs(px - x) < 1e-8 && dx < 0 && dy === 0 || Math.abs(px - x - w) < 1e-8 && dx > 0 && dy === 0 || Math.abs(py - y) < 1e-8 && dy < 0 && dx === 0 || Math.abs(py - y - h) < 1e-8 && dy > 0 && dx === 0).toBe(true)
+      }
+    }
+    expect(proof).toMatchObject({ status: 'passed', issues: [] })
   })
 
   test.each([4, 5].flatMap(children => ['TB', 'BT', 'LR', 'RL'].map(direction => ({ children, direction }))))('reserves independent inheritance fan channels for $children siblings in $direction', ({ children, direction }) => {
@@ -257,6 +506,27 @@ note for Duck "can fly<br>can swim<br>can dive<br>can help in debugging"`
     const flat = layoutClassDiagram(parseClassDiagram(toMermaidLines(compoundFixture)), { ...native, class: { hierarchicalNamespaces: false } })
     expect(flat.namespaces).toHaveLength(3)
     expect(flat.namespaces.every(ns => ns.parentId === undefined)).toBe(true)
+    const labelled = `classDiagram
+namespace Company.Engineering.Backend {
+class Developer {
++writeCode()
+}
+}
+namespace Company.Engineering.Frontend {
+class Designer {
++createMockup()
+}
+}
+namespace Company {
+class CEO {
++makeDecisions()
+}
+}
+CEO --> Developer : oversees
+CEO --> Designer : oversees`
+    const labelledFlat = renderMermaidSVGWithReceipt(labelled, { ...native, class: { hierarchicalNamespaces: false } })
+    expect(labelledFlat.receipt.layoutCertification?.status).toBe('passed')
+    expect(missingSvgLabels(labelledFlat.svg, ['Developer', 'Designer', 'CEO', 'oversees', '+ writeCode()', '+ createMockup()', '+ makeDecisions()'])).toEqual([])
     for (const source of ['classDiagram\nnamespace Empty {\n}', '---\ntitle: Empty namespaces\n---\nclassDiagram\nnamespace Outer {\nnamespace Inner {\n}\n}']) {
       const empty = renderMermaidSVGWithReceipt(source, { graphLayout: { backend: 'agentic', fallback: 'elk' } })
       expect(empty.receipt.layoutDecisions?.[0]?.selected).toBe('agentic')

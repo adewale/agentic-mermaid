@@ -16,6 +16,10 @@
 
 import { Document, Scalar, isMap, isScalar, parse, parseDocument, visit, type ScalarTag, type SchemaOptions, type Tags, type YAMLError } from 'yaml'
 import { stringifyNumber } from 'yaml/util'
+// Source configuration already demands this provider for frontmatter/init.
+// Keep the pinned merge program beside that parser rather than in every
+// ordinary source render's shared closure.
+export { mergeConfigSource, configDirective } from './pinned-mermaid-config/merge.js'
 
 // ---- js-yaml JSON_SCHEMA scalar resolution ---------------------------------
 

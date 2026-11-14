@@ -92,8 +92,8 @@ interface BrowserBuild {
 
 /** Inline only canonical declaration leaves; runtime imports or initialization
  * statements need an explicit owner instead of silently widening a host. */
-function runtimeDeclarations(path: string, names: readonly string[], localTypeImport?: string): string {
-  const file = ts.createSourceFile(path, readFileSync(path, 'utf8'), ts.ScriptTarget.Latest, true, ts.ScriptKind.TS)
+function runtimeDeclarations(path: string, names: readonly string[], localTypeImport?: string, source = readFileSync(path, 'utf8')): string {
+  const file = ts.createSourceFile(path, source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS)
   const statements = file.statements.filter(statement => {
     if (!ts.isImportDeclaration(statement)) return true
     if (!statement.importClause?.isTypeOnly || !ts.isStringLiteral(statement.moduleSpecifier)) throw new Error(`Unexpected runtime leaf import: ${path}`)
@@ -209,12 +209,14 @@ function runtimeLayoutBackendSource(source: string, path: string, lazyLayoutOpti
   }
   const gaps = readFileSync(resolve(dirname(path), 'link-rank-gap.ts'), 'utf8')
   const seeds = runtimeDeclarations(resolve(dirname(path), '../scene/seed.ts'), ['seedFrom', 'hashId', 'makeRng', 'nodeSeed', 'nodeRng'])
+  const lanes = runtimeDeclarations(resolve(dirname(path), '../shared/node-lane-index.ts'), ['NodeLaneIndex', 'NodeLaneIndexes', 'CELL_WIDTH', 'LaneBox', 'IndexCharge', 'buildNodeLaneIndex', 'nodeLaneCell', 'nodeLaneIndexForQuery'])
+  const fit = runtimeDeclarations(resolve(dirname(path), 'fit-measured-layout.ts'), ['fitMeasuredLayout'])
   const order = runtimeDeclarations(resolve(dirname(path), '../shared/deterministic-order.ts'), ['compareCodePointStrings'])
   const plainData = runtimeDeclarations(resolve(dirname(path), '../shared/plain-data.ts'), ['isPlainRecord', 'deepFreeze'])
   const utf8 = runtimeDeclarations(resolve(dirname(path), '../shared/utf8.ts'), ['boundedUtf8ByteLength'])
   const ink = runtimeDeclarations(resolve(dirname(path), '../shared/ink-index.ts'), ['InkBounds', 'InkTree', 'chargeInkSort', 'buildInkTree', 'createInkIndex'])
   const optimization = lazyLayoutOptimization ? withoutRuntimeImport(readFileSync(resolve(dirname(path), 'optimization-context.lazy.ts'), 'utf8'), path, './certification-error.ts', ['DeferredDependencyError']) : ''
-  return `${errors}\n${identities}\n${gaps}\n${seeds}\n${order}\n${plainData}\n${utf8}\n${ink}\n${optimization}\n${ts.createPrinter().printFile(ts.factory.updateSourceFile(file, statements))}`
+  return `${errors}\n${identities}\n${gaps}\n${seeds}\n${lanes}\n${fit}\n${order}\n${plainData}\n${utf8}\n${ink}\n${optimization}\n${ts.createPrinter().printFile(ts.factory.updateSourceFile(file, statements))}`
 }
 
 /** Marker-terminal supports use the same resource bank in the browser; keep
@@ -385,6 +387,19 @@ export function runtimeRenderContractPlugin({ schemaDocumentation = true, termin
           resolve(args.resolveDir, args.path) === admission ? { path: sourceAdmission } : undefined)
       }
       if (coalesceRuntimePrimitives) {
+        const graphMeasurementPath = fileURLToPath(new URL('../../src/layout/graph-measurement.ts', import.meta.url))
+        const imagePath = resolve(dirname(graphMeasurementPath), '../flowchart-image.ts')
+        build.onResolve({ filter: /[\\/]flowchart-image\.ts$/ }, args => resolve(args.resolveDir, args.path) === imagePath ? { path: graphMeasurementPath } : undefined)
+        build.onLoad({ filter: /[\\/]src[\\/]layout[\\/]graph-measurement\.ts$/ }, ({ path }) => {
+          if (path !== graphMeasurementPath) return undefined
+          const measurement = withoutRuntimeImport(readFileSync(path, 'utf8'), path, '../flowchart-image.ts', ['flowchartImageViewport', 'flowchartImageContent'])
+          const image = withoutRuntimeImport(readFileSync(imagePath, 'utf8'), imagePath, './shared/inline-png.ts', ['isInlinePng'])
+          const declarations = runtimeDeclarations(imagePath, ['ImageNode', 'imageDimension', 'flowchartImageViewport', 'flowchartImageContent'], undefined, image)
+          return {
+            contents: `${measurement}\nimport { isInlinePng } from ${JSON.stringify(resolve(dirname(imagePath), 'shared/inline-png.ts'))}\n${declarations}`,
+            loader: 'ts', resolveDir: dirname(path),
+          }
+        })
         const markerBoundsPath = fileURLToPath(new URL('../../src/scene/bounds.ts', import.meta.url))
         const markerTerminalsPath = resolve(dirname(markerBoundsPath), 'marker-terminals.ts')
         build.onResolve({ filter: /[\\/]marker-terminals\.ts$/ }, args => resolve(args.resolveDir, args.path) === markerTerminalsPath ? { path: markerBoundsPath } : undefined)
@@ -408,7 +423,7 @@ export function runtimeRenderContractPlugin({ schemaDocumentation = true, termin
         const postprocessPath = resolve(dirname(structurePath), 'svg-postprocess.ts')
         build.onResolve({ filter: /[\\/]svg-postprocess\.ts$/ }, args => resolve(args.resolveDir, args.path) === postprocessPath ? { path: structurePath } : undefined)
         build.onLoad({ filter: /[\\/]src[\\/]svg-structure\.ts$/ }, ({ path }) => path !== structurePath ? undefined : ({
-          contents: `${readFileSync(path, 'utf8')}\n${withoutRuntimeImport(readFileSync(postprocessPath, 'utf8'), path, './svg-structure.ts', ['scanSvgStartTags', 'transformSvgAttributes', 'transformSvgCssValues'])}`, loader: 'ts', resolveDir: dirname(path),
+          contents: `${readFileSync(path, 'utf8')}\n${withoutRuntimeImport(readFileSync(postprocessPath, 'utf8'), path, './svg-structure.ts', ['projectSvgCss', 'scanSvgStartTags', 'transformSvgAttributes', 'transformSvgCssValues'])}`, loader: 'ts', resolveDir: dirname(path),
         }))
         const grammarPath = fileURLToPath(new URL('../../src/shared/grammar-text.ts', import.meta.url))
         const syntaxPath = resolve(dirname(grammarPath), 'syntax-error.ts')
@@ -427,6 +442,12 @@ export function runtimeRenderContractPlugin({ schemaDocumentation = true, termin
         const identityPath = resolve(dirname(backendPath), '../shared/generated-identity.ts')
         const gapPath = resolve(dirname(backendPath), 'link-rank-gap.ts')
         const seedPath = resolve(dirname(backendPath), '../scene/seed.ts')
+        const laneIndexPath = resolve(dirname(backendPath), '../shared/node-lane-index.ts')
+        const fitPath = resolve(dirname(backendPath), 'fit-measured-layout.ts')
+        // Providers and family routes share this pure broad phase. Keep it in
+        // their already-loaded backend instead of a separate solver request.
+        build.onResolve({ filter: /[\\/]node-lane-index\.ts$/ }, args => resolve(args.resolveDir, args.path) === laneIndexPath ? { path: backendPath } : undefined)
+        build.onResolve({ filter: /[\\/]fit-measured-layout\.ts$/ }, args => resolve(args.resolveDir, args.path) === fitPath ? { path: backendPath } : undefined)
         const orderPath = resolve(dirname(backendPath), '../shared/deterministic-order.ts')
         const inkPath = resolve(dirname(backendPath), '../shared/ink-index.ts')
         build.onResolve({ filter: /[\\/]ink-index\.ts$/ }, args => resolve(args.resolveDir, args.path) === inkPath ? { path: backendPath } : undefined)
@@ -458,7 +479,7 @@ export function runtimeRenderContractPlugin({ schemaDocumentation = true, termin
         const numbersPath = resolve(dirname(multilinePath), 'shared/svg-number.ts')
         build.onResolve({ filter: /[\\/]svg-number\.ts$/ }, args => resolve(args.resolveDir, args.path) === numbersPath ? { path: multilinePath } : undefined)
         build.onLoad({ filter: /[\\/]src[\\/]multiline-utils\.ts$/ }, ({ path }) => path !== multilinePath ? undefined : ({
-          contents: `${withoutRuntimeImport(readFileSync(path, 'utf8'), path, './shared/svg-number.ts', ['formatSvgNumber'])}\n${runtimeDeclarations(numbersPath, ['SVG_NUMBER', 'SVG_LONG_DECIMAL', 'SCALAR_SVG_NUMBER', 'SVG_NUMERIC_ATTRIBUTES', 'numberSpellings', 'attributeSpellings', 'formatSvgNumber', 'formatSvgNumericAttribute'])}`, loader: 'ts', resolveDir: dirname(path),
+          contents: `${withoutRuntimeImport(readFileSync(path, 'utf8'), path, './shared/svg-number.ts', ['formatSvgNumber'])}\n${runtimeDeclarations(numbersPath, ['SVG_NUMBER', 'SVG_LONG_DECIMAL', 'SCALAR_SVG_NUMBER', 'SVG_NUMERIC_ATTRIBUTES', 'attributeSpellings', 'formatSvgNumber', 'formatSvgNumericAttribute'])}`, loader: 'ts', resolveDir: dirname(path),
         }))
         const renderContractPath = fileURLToPath(new URL('../../src/render-contract.ts', import.meta.url))
         const diagnosticsPath = resolve(dirname(renderContractPath), 'shared/family-config-diagnostics.ts')
@@ -477,9 +498,11 @@ export function runtimeRenderContractPlugin({ schemaDocumentation = true, termin
         loader: 'ts',
         resolveDir: dirname(path),
       }))
-      build.onLoad({ filter: /[\\/]src[\\/](?:render-contract|scene[\\/](?:style-spec|role-style-contract))\.ts$/ }, ({ path }) => !path.endsWith('render-contract.ts') && schemaDocumentation ? undefined : ({
-        contents: runtimeSource(coalesceRuntimePrimitives && path.endsWith('render-contract.ts')
-          ? runtimeFamilyDiagnosticsSource(readFileSync(path, 'utf8'), path) : readFileSync(path, 'utf8'), path, schemaDocumentation, terminalAdapter),
+      build.onLoad({ filter: /[\\/]src[\\/]render-contract\.ts$/ }, ({ path }) => !coalesceRuntimePrimitives ? undefined : ({
+        contents: runtimeFamilyDiagnosticsSource(readFileSync(path, 'utf8'), path), loader: 'ts', resolveDir: dirname(path),
+      }))
+      build.onLoad({ filter: /[\\/]src[\\/](?:render-option-contract|scene[\\/](?:style-spec|role-style-contract))\.ts$/ }, ({ path }) => !path.endsWith('render-option-contract.ts') && schemaDocumentation ? undefined : ({
+        contents: runtimeSource(readFileSync(path, 'utf8'), path, schemaDocumentation, terminalAdapter),
         loader: 'ts',
         resolveDir: dirname(path),
       }))

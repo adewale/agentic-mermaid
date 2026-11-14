@@ -1,6 +1,7 @@
 import type { MarkerDescriptor } from '../scene/ir.ts'
 import { tipAnchoredArrow } from '../scene/marker-resources.ts'
 import { prepareMarkerTerminals } from '../scene/marker-terminals.ts'
+import { geometryBounds, paintedStrokeExtent } from '../scene/bounds.ts'
 export const requirementArrow = tipAnchoredArrow('requirement-arrow', { width: 9, height: 7 }, 'end', { fill: 'none', stroke: 'var(--_arrow)', strokeWidth: '1' }, 'userSpaceOnUse')
 export const requirementContains: MarkerDescriptor = {
   id: 'requirement-contains',
@@ -19,3 +20,9 @@ export const requirementContains: MarkerDescriptor = {
   paint: { fill: 'var(--bg)', stroke: 'var(--_arrow)', strokeWidth: '1' },
 }
 export const requirementMarkerTerminal = prepareMarkerTerminals([requirementArrow, requirementContains])
+// This fixed user-space resource turns with the carrier. Reserve its lateral
+// painted envelope, including the same conservative compound stroke extent.
+const containsBounds = geometryBounds(requirementContains.geometry!)!
+export const requirementContainsPortSpan = containsBounds.y1 - containsBounds.y0 + 2 * paintedStrokeExtent(requirementContains.paint!, true)!
+const arrowBounds = geometryBounds(requirementArrow.geometry!)!
+export const requirementArrowPortSpan = arrowBounds.y1 - arrowBounds.y0 + 2 * paintedStrokeExtent(requirementArrow.paint!, true)!

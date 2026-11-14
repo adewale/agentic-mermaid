@@ -112,6 +112,12 @@ function visible(content: LabelContent | undefined): string | undefined {
   return content?.prepared.lines.map(line => line.map(run => run.text).join('')).join('\\n')
 }
 declare const flow: FlowchartGraph
+const imageWidth: number | undefined = flow.nodes.get('Art')?.imageWidth
+const imageHeight: number | undefined = flow.nodes.get('Art')?.imageHeight
+const imageConstraint: 'on' | 'off' | undefined = flow.nodes.get('Art')?.imageConstraint
+const imageNode: MermaidNode = { id: 'Art', label: 'Icon', shape: 'rectangle', imageWidth: 32, imageHeight: 48, imageConstraint: 'on' }
+// @ts-expect-error Image constraints retain the authored on/off vocabulary.
+const invalidImageConstraint: MermaidNode = { ...imageNode, imageConstraint: 'maybe' }
 declare const sequence: SequenceBody
 const participant: SeqParticipant = sequence.participants[0]!
 const participantKind: SeqParticipantKind = participant.kind

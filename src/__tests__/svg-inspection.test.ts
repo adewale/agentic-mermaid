@@ -61,7 +61,7 @@ for (const [source, cssValues, contexts, transformed] of [
   ],
   [
     '<svg><style><![CDATA[.x{content:\'<g fill="red">\';fill:red}]]></style></svg>',
-    ['<![CDATA[.x{content:\'<g fill="red">\';fill:red}]]>', 'red'],
+    ['<![CDATA[.x{content:\'<g fill="red">\';fill:red}]]>'],
     ['<![CDATA[.x{content:\'<g fill="red">\';fill:red}]]>'],
     '<svg><style><![CDATA[.x{content:\'<g fill="tan">\';fill:tan}]]></style></svg>',
   ],

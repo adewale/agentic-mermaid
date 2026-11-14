@@ -69,7 +69,7 @@ export function repairRectLikeEndpointOverflow(edge: PositionedEdge, node: Posit
         if (!prev || Math.abs(prev.x - stub.x) > EPS || Math.abs(prev.y - stub.y) > EPS) points.splice(points.length - 1, 0, stub)
       }
     }
-    if (routeCandidateMarkersClear(edge, points, ctx.edges, ctx.style)) setRoutePoints(ctx, edge, points)
+    if (routeCandidateMarkersClear(edge, points, ctx.edges, ctx.style, edge, ctx.routeMarkerPeers)) setRoutePoints(ctx, edge, points)
   }
 
   if (near(p.x, x0) || near(p.x, x1)) {
@@ -659,7 +659,7 @@ export function tryStraighten(
       blockers.push(...proven.blockers)
       continue
     }
-    const markerBlocker = routeCandidateMarkerBlocker(edge, [proven.start, proven.end], ctx.edges, ctx.style, peerOwner)
+    const markerBlocker = routeCandidateMarkerBlocker(edge, [proven.start, proven.end], ctx.edges, ctx.style, peerOwner, ctx.routeMarkerPeers)
     if (markerBlocker) { blockers.push(markerBlocker); continue }
     const current = simplifyPolyline(edge.points)
     if (current.length === 2 && Math.abs(current[0]![axis.cross] - current[1]![axis.cross]) <= EPS) {

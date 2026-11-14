@@ -1,6 +1,8 @@
 import { PACKAGE_VERSION } from '../version.ts'
 import { observeCache } from '../performance-observations.ts'
-import { formatSvgNumber } from '../shared/svg-number.ts'
+import { pageRectFor } from './drawing-page.ts'
+export { pageRectFor } from './drawing-page.ts'
+import { DEFAULT_DRAWING_CAPABILITIES, DEFAULT_DRAWING_IDENTITY } from './default-drawing-consumer.ts'
 // ============================================================================
 // StyleBackend interface + DefaultBackend + backend registry (SPEC §3.2).
 //
@@ -18,13 +20,13 @@ import { backendWithAdmittedConformanceFixture, runBackendConformance } from './
 import type { BackendConformanceReport } from './backend-conformance.ts'
 import {
   ESSENTIAL_SCENE_PRIMITIVE_CAPABILITIES,
-  graphicalBackendCapabilityClaims,
   validatePrimitiveCapabilities,
 } from './capabilities.ts'
 import type { PrimitiveCapabilityClaim } from './capabilities.ts'
 import { admitBackendSceneDocument } from './external-data-snapshot.ts'
-import { sceneNodeSerialization } from './serialization.ts'
-import { capturedPart } from './part-capture.ts'
+import { sceneNodeSerialization as unobservedSceneNodeSerialization, sceneNodeSerializationObserved, sceneBackendWriteObserver, sceneDocumentComposition } from './serialization.ts'
+import { capturedPart as unobservedCapturedPart } from './part-capture.ts'
+export { capturedPart } from './part-capture.ts'
 import {
   canonicalExtensionId,
   createExtensionIdentity,
@@ -130,24 +132,34 @@ export function composeGroup(
 /** Styled documents carry an explicit page rect after the prelude — resvg
  *  does not paint the root style="background:…" CSS (SPEC §10). Emitted by
  *  every backend when a style is active and the document isn't transparent. */
-export function pageRectFor(doc: Pick<SceneDoc, 'width' | 'height' | 'transparent'>, ctx: StyleBackendContext): string {
-  if (!ctx.style || doc.transparent) return ''
-  return `<rect width="${formatSvgNumber(doc.width)}" height="${formatSvgNumber(doc.height)}" fill="var(--bg)" data-backdrop="page" />`
-}
 
 export const DefaultBackend: StyleBackend = {
   id: 'default',
-  capabilities: graphicalBackendCapabilityClaims('backend:default', 'crisp'),
+  capabilities: DEFAULT_DRAWING_CAPABILITIES,
   drawNode(node: SceneNode): string {
-    return sceneNodeSerialization(node)
+    return unobservedSceneNodeSerialization(node)
   },
   render(doc: SceneDoc, ctx: StyleBackendContext): string {
     const admitted = admitBackendSceneDocument(doc)
     const pageRect = pageRectFor(admitted, ctx)
-    return admitted.parts.map((part, i) => {
+    const observer = sceneBackendWriteObserver(ctx)
+    const root = observer ? sceneDocumentComposition(observer, admitted) : undefined
+    root?.underlay(pageRect)
+    const capturedPart = root ? (context: StyleBackendContext, node: SceneNode, svg: string): string => unobservedCapturedPart(context, node, svg, closed => { if (!closed) root.composition.invalidate() }) : unobservedCapturedPart
+    const sceneNodeSerialization = observer ? (part: SceneNode): string => sceneNodeSerializationObserved(part, undefined, observer) : unobservedSceneNodeSerialization
+    if (!observer) return admitted.parts.map((part, i) => {
       const svg = capturedPart(ctx, part, sceneNodeSerialization(part))
       return pageRect && i === 0 ? `${svg}\n${pageRect}` : svg
     }).join('\n')
+    root?.composition.beforeMap(admitted.parts)
+    const mapped = admitted.parts.map((part, i) => {
+      const svg = capturedPart(ctx, part, sceneNodeSerialization(part))
+      return pageRect && i === 0 ? `${svg}\n${pageRect}` : svg
+    })
+    root?.composition.beforeJoin(mapped)
+    const svg = mapped.join('\n')
+    root?.complete(root.composition.valid)
+    return svg
   },
 }
 
@@ -462,7 +474,7 @@ export function registerBuiltInBackend(backend: StyleBackend): void {
     const conformance = lazyBuiltInConformance(backend, id, originalDefault)
     const frozen = freezeBuiltInBackend(refuseUntilConforming(backend, inputName, conformance))
     registerExtension(BACKENDS, {
-      identity: backendIdentity(id, {
+      identity: inputName === 'default' ? DEFAULT_DRAWING_IDENTITY : backendIdentity(id, {
         version: CORE_BACKEND_VERSION,
         compatibility: CORE_BACKEND_COMPATIBILITY,
         provenance: CORE_BACKEND_PROVENANCE,

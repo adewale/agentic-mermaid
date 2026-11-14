@@ -25,7 +25,7 @@ export const ER_SVG_HOOKS = {
       ctx.source.frontmatter,
     ), ctx.source.frontmatter)
     checkAllClassLikeAuthoredStyles(diagram.classDefs, diagram.entities)
-    return layoutResult(layoutErDiagram(diagram, ctx.renderOptions, ctx.styleFace))
+    return layoutResult(layoutErDiagram(diagram, ctx.renderOptions, ctx.styleFace, ctx.paintBackendId))
   },
   projectPositioned: positionedView(projectErPositioned),
   lowerScene: scene(lowerErScene),

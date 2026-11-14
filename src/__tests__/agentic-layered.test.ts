@@ -11,12 +11,17 @@ import { type AgenticLayout, layoutLayeredGraph } from '../layout/agentic-layere
 import { GraphLayoutUnsupportedError } from '../layout/backend.ts'
 import type { Direction, Point } from '../types.ts'
 import { countOpposingRouteOverlaps, countParallelRouteOverlaps } from '../layout-rubric.ts'
+import { layoutMeasuredForest } from '../layout/measured-forest.ts'
+import { placeNativeNesting } from '../layout/native-nesting.ts'
 import { assignChannelTracks } from '../layout/channel-tracks.ts'
 import { createEndpointSparseVisibilityGraph, createSparseAdjacencyStoragePool, createSparseQueryWorkspacePool, createSparseVisibilityGraph } from '../layout/compound-sparse-visibility.ts'
-import { createVisibilityGrid } from '../layout/compound-visibility.ts'
+import { retainsTerminalLead, createVisibilityGrid } from '../layout/compound-visibility.ts'
 import { createLazyVisibilityGrid } from '../layout/compound-lazy-visibility.ts'
 import { createCompoundObstacleIndex } from '../layout/compound-obstacle-index.ts'
 import { countPolylineCrossings } from '../shared/edge-crossings.ts'
+import { orientMeasuredEdge } from '../layout/cycle-layout-search.ts'
+import { compactMeasuredLoops } from '../layout/compact-measured-loops.ts'
+import { shortenMeasuredRoutes } from '../layout/shorten-measured-routes.ts'
 
 function measured(overrides: Partial<MeasuredGraph> = {}): MeasuredGraph {
   return {
@@ -643,6 +648,298 @@ describe('owned measured layered layout', () => {
     expect(() => layoutAgenticGraph({ ...input, nodes: input.nodes.map(node => ({ ...node, partition: -1 })) })).toThrow('Invalid measured partition')
   })
 
+  test.each((['TB', 'BT', 'LR', 'RL'] as const).flatMap(direction => [false, true].flatMap(partitioned => [false, true].map(majority => ({ direction, partitioned, majority })))))('lifted group cycle cuts respect count then source order: %j', ({ direction, partitioned, majority }) => {
+    const padding = { top: 40, right: 24, bottom: 24, left: 24 }
+    const input = measured({ direction,
+      nodes: [{ id: 'a', width: 64, height: 36, parent: 0 }, { id: 'b', width: 64, height: 36, parent: 1 }],
+      groups: [{ id: 'A', minWidth: 96, padding, ...(partitioned ? { partition: 0 } : {}) }, { id: 'B', minWidth: 96, padding, ...(partitioned ? { partition: 0 } : {}) }],
+      edges: [{ source: 1, target: 0, minSpan: 1 }, { source: 0, target: 1, minSpan: 1 }, ...(majority ? [{ source: 0, target: 1, minSpan: 1 }] : [])],
+    })
+    const result = layoutAgenticGraph(input)
+    const [a, b] = result.groups!
+    const horizontal = direction === 'LR' || direction === 'RL'
+    const before = horizontal ? b!.x + b!.width <= a!.x : b!.y + b!.height <= a!.y
+    const after = horizontal ? a!.x + a!.width <= b!.x : a!.y + a!.height <= b!.y
+    expect(direction === 'BT' || direction === 'RL' ? after : before).toBe(!majority)
+    for (const [index, route] of result.edges.entries()) {
+      const edge = input.edges[index]!
+      expect(onOutline(route.points[0]!, { ...input.nodes[edge.source]!, ...result.nodes[edge.source]! })).toBe(true)
+      expect(onOutline(route.points.at(-1)!, { ...input.nodes[edge.target]!, ...result.nodes[edge.target]! })).toBe(true)
+    }
+    expect(layoutAgenticGraph(input)).toEqual(result)
+  })
+
+  test.each((['TB', 'BT', 'LR', 'RL'] as const).flatMap(direction => (['permutation', 'identity', 'two-groups'] as const).flatMap(variant => (variant === 'permutation' ? [1, 4] : [1]).map(lineWidth => ({ direction, variant, lineWidth })))))('same-direction compounds retain every leaf connection: %j', async ({ direction, variant, lineWidth }) => {
+    const { renderMermaidSVGWithReceipt } = await import('../index.ts')
+    const engine = await import('../layout-engine.ts'), original = engine.layoutGraphSync
+    const groups = variant === 'two-groups' ? ['A', 'B'] : ['A', 'B', 'C']
+    const first = variant === 'identity' ? [0, 1, 2, 3, 4] : [4, 2, 0, 3, 1]
+    const second = variant === 'identity' ? [0, 1, 2, 3, 4] : [1, 3, 0, 4, 2]
+    const source = [`flowchart ${direction}`,
+      ...groups.flatMap(group => [`subgraph Group${group}[Group ${group}]`, ...Array.from({ length: 5 }, (_, index) => `${group}${index}[${group}${index}]`), 'end']),
+      ...first.map((target, index) => `A${index} --> B${target}`),
+      ...(groups.length > 2 ? second.map((target, index) => `B${index} --> C${target}`) : []),
+    ].join('\n')
+    let positioned: ReturnType<typeof original> | undefined
+    const observe = spyOn(engine, 'layoutGraphSync').mockImplementation((...args: Parameters<typeof original>) => {
+      positioned = original(...args); return positioned
+    })
+    let product: ReturnType<typeof renderMermaidSVGWithReceipt>
+    try {
+      product = renderMermaidSVGWithReceipt(source, { graphLayout: { backend: 'agentic', fallback: 'none' },
+        ...(lineWidth === 4 ? { style: { formatVersion: 1, name: 'compound-marker-owner', stroke: 'crisp', strokeWidth: lineWidth } } : {}),
+      })
+    } finally { observe.mockRestore() }
+    expect(positioned).toBeDefined()
+    expect(product.receipt.layoutDecisions?.every(decision => decision.selected === 'agentic')).toBe(true)
+    expect(product.receipt.layoutCertification?.status).toBe('passed')
+    for (const group of groups) {
+      expect(product.svg).toContain(`data-id="Group${group}"`)
+      for (let index = 0; index < 5; index++) expect(product.svg).toContain(`data-id="${group}${index}"`)
+    }
+    for (const [group, targets] of [['A', first], ...(groups.length > 2 ? [['B', second] as const] : [])] as const) {
+      const next = group === 'A' ? 'B' : 'C'
+      targets.forEach((target, index) => expect(product.svg).toContain(`data-from="${group}${index}" data-to="${next}${target}"`))
+    }
+    const nodes = new Map(positioned!.nodes.map(node => [node.id, node]))
+    const horizontal = direction === 'LR' || direction === 'RL', reverse = direction === 'BT' || direction === 'RL'
+    for (const edge of positioned!.edges) {
+      // Common root order aligns the real faces across these private scopes.
+      // North title bands keep vertical scopes outside this ordering rule.
+      if (horizontal) expect(edge.points).toHaveLength(2)
+      const from = nodes.get(edge.source)!, to = nodes.get(edge.target)!
+      const mainStart = (node: Box) => horizontal ? node.x : node.y
+      const mainEnd = (node: Box) => mainStart(node) + (horizontal ? node.width : node.height)
+      expect(reverse ? mainEnd(to) <= mainStart(from) : mainEnd(from) <= mainStart(to)).toBe(true)
+      expect(onOutline(edge.points[0]!, from)).toBe(true)
+      expect(onOutline(edge.points.at(-1)!, to)).toBe(true)
+      // Literal canonical SVG arrow viewport: 8x5 in shaft-width units.
+      // Keep complete viewport/foreign butt-strip supports disjoint; a scalar
+      // crossing score or the narrower certification scope cannot prove this.
+      const tip = edge.points.at(-1)!, near = edge.points.at(-2)!
+      const dx = Math.sign(tip.x - near.x), dy = Math.sign(tip.y - near.y)
+      const marker = dx ? { x: Math.min(tip.x, tip.x - dx * 8 * lineWidth), y: tip.y - 2.5 * lineWidth, width: 8 * lineWidth, height: 5 * lineWidth }
+        : { x: tip.x - 2.5 * lineWidth, y: Math.min(tip.y, tip.y - dy * 8 * lineWidth), width: 5 * lineWidth, height: 8 * lineWidth }
+      for (const peer of positioned!.edges) if (peer !== edge) for (let i = 1; i < peer.points.length; i++) {
+        const a = peer.points[i - 1]!, b = peer.points[i]!, half = lineWidth / 2
+        const strip = a.x === b.x ? { x: a.x - half, y: Math.min(a.y, b.y), width: lineWidth, height: Math.abs(a.y - b.y) }
+          : { x: Math.min(a.x, b.x), y: a.y - half, width: Math.abs(a.x - b.x), height: lineWidth }
+        expect(marker.x < strip.x + strip.width && strip.x < marker.x + marker.width
+          && marker.y < strip.y + strip.height && strip.y < marker.y + marker.height).toBe(false)
+      }
+      for (let i = 1; i < edge.points.length; i++) {
+        for (const node of positioned!.nodes) expect(crossesInterior(edge.points[i - 1]!, edge.points[i]!, node)).toBe(false)
+        for (const group of positioned!.groups) expect(crossesInterior(edge.points[i - 1]!, edge.points[i]!, { ...group, height: group.headerHeight! })).toBe(false)
+      }
+    }
+  })
+
+  test.each(['eligible-LR', 'eligible-RL', 'full-budget', 'low-pairs', 'low-slots', 'vertical-TB', 'vertical-BT',
+    'node-order0', 'group-order0', 'node-partition0', 'group-partition0', 'branch', 'cycle', 'same-path-return',
+    'mixed', 'nested', 'frame-endpoint', 'local-edge', 'label', 'invisible', 'ungrouped',
+    'isolate-LR', 'isolate-RL', 'partial-LR', 'partial-RL'] as const)('private compound path order preserves its eligibility boundary: %s', mode => {
+    const padding = { top: 10, right: 10, bottom: 10, left: 10 }
+    const input = measured({ direction: mode === 'eligible-RL' || mode === 'isolate-RL' || mode === 'partial-RL' ? 'RL' : mode === 'vertical-TB' ? 'TB' : mode === 'vertical-BT' ? 'BT' : 'LR', placementOnly: true,
+      nodes: [
+        { id: 'A0', width: 40, height: 24, parent: 0 }, { id: 'A1', width: 40, height: 24, parent: 0 },
+        { id: 'B0', width: 40, height: 24, parent: 1 }, { id: 'B1', width: 40, height: 24, parent: 1 },
+      ],
+      groups: [{ id: 'GA', minWidth: 80, padding }, { id: 'GB', minWidth: 80, padding }],
+      edges: [{ source: 0, target: 3, minSpan: 1 }, { source: 1, target: 2, minSpan: 1 }],
+    })
+    if (mode === 'isolate-LR' || mode === 'isolate-RL') input.edges = [{ source: 1, target: 3, minSpan: 1 }]
+    if (mode === 'partial-LR' || mode === 'partial-RL') {
+      input.nodes = [...input.nodes, { id: 'C0', width: 40, height: 24, parent: 2 }]
+      input.groups = [...input.groups!, { id: 'GC', minWidth: 80, padding }]
+      input.edges = [...input.edges, { source: 3, target: 4, minSpan: 1 }]
+    }
+    if (mode === 'node-order0') input.nodes[0]!.modelOrder = 0
+    if (mode === 'group-order0') input.groups![0]!.modelOrder = 0
+    if (mode === 'node-partition0') input.nodes[0]!.partition = 0
+    if (mode === 'group-partition0') input.groups![0]!.partition = 0
+    if (mode === 'branch') input.edges = [{ source: 0, target: 2, minSpan: 1 }, { source: 0, target: 3, minSpan: 1 }]
+    if (mode === 'cycle') input.edges = [...input.edges, { source: 2, target: 1, minSpan: 1 }]
+    if (mode === 'same-path-return') input.edges = [{ source: 0, target: 3, minSpan: 1 }, { source: 3, target: 1, minSpan: 1 }, { source: 1, target: 2, minSpan: 1 }]
+    if (mode === 'mixed') input.groups![1]!.direction = 'TB'
+    if (mode === 'nested') input.groups![1]!.parent = 0
+    if (mode === 'frame-endpoint') input.edges[0]!.source = 4
+    if (mode === 'local-edge') input.edges[0]!.target = 1
+    if (mode === 'label') input.edges[0]!.label = { width: 10, height: 10 }
+    if (mode === 'invisible') input.edges[0]!.visible = false
+    if (mode === 'ungrouped') delete input.nodes[0]!.parent
+    const before = structuredClone(input)
+    for (const node of input.nodes) Object.freeze(node)
+    for (const edge of input.edges) Object.freeze(edge)
+    for (const group of input.groups!) { Object.freeze(group.padding); Object.freeze(group) }
+    Object.freeze(input.nodes); Object.freeze(input.edges); Object.freeze(input.groups); Object.freeze(input)
+    const work = { pairs: mode === 'low-pairs' ? 36 : mode === 'full-budget' ? 37 : 1_000_000,
+      arcs: mode === 'low-slots' ? 12 : mode === 'full-budget' ? 13 : 1_000_000, swaps: 1_000_000 }
+    const scopes: string[][] = []
+    const fail = (reason: string): never => { throw new GraphLayoutUnsupportedError(reason) }
+    layoutCompoundGraph(input, flat => { scopes.push(flat.nodes.map(node => node.id)); return layoutLayeredGraph(flat, graph => layoutMeasuredForest(graph, 'scope'), fail) },
+      fail, 10000, work, () => mode === 'cycle' || mode === 'same-path-return' ? undefined : 'acyclic-quotient')
+    const reordered = mode === 'eligible-LR' || mode === 'eligible-RL' || mode === 'full-budget'
+    expect(scopes.find(nodes => nodes.includes('B0'))).toEqual(reordered ? ['B1', 'B0'] : ['B0', 'B1'])
+    expect(input).toEqual(before)
+  })
+
+  test.each((['LR', 'RL'] as const).flatMap(direction => (['acyclic', 'budget-decline', 'span-decline'] as const).map(mode => ({ direction, mode }))))('compound ordering requires the actual paid acyclic quotient result: %j', ({ direction, mode }) => {
+    const padding = { top: 10, right: 10, bottom: 10, left: 10 }
+    const input = measured({ direction, placementOnly: true,
+      nodes: [{ id: 'A0', width: 40, height: 24, parent: 0 }, { id: 'A1', width: 40, height: 24, parent: 0 },
+        { id: 'B0', width: 40, height: 24, parent: 1 }, { id: 'B1', width: 40, height: 24, parent: 1 }],
+      groups: [{ id: 'GA', minWidth: 80, padding }, { id: 'GB', minWidth: 80, padding }],
+      edges: [{ source: 0, target: 3, minSpan: mode === 'span-decline' ? 683 : 1 }, { source: mode === 'acyclic' ? 1 : 2, target: mode === 'acyclic' ? 2 : 1, minSpan: 1 }],
+    })
+    // These limits fit the child-order plan, but not the global producer's
+    // quotient admission. Opposite paths must keep the original sibling order.
+    const work = { pairs: mode === 'budget-decline' ? 56 : 1_000_000, arcs: mode === 'budget-decline' ? 18 : 1_000_000, swaps: 1_000_000 }
+    const scopes: string[][] = []
+    const fail = (reason: string): never => { throw new GraphLayoutUnsupportedError(reason) }
+    // This owner observes scope inputs, not rank expansion. A fixed placement
+    // adapter avoids materializing hundreds of irrelevant span dummy nodes.
+    const place = (flat: MeasuredGraph): AgenticLayout => {
+      scopes.push(flat.nodes.map(node => node.id))
+      const nodes = flat.nodes.map((_, index) => ({ x: index * 100, y: 0 }))
+      return { topology: 'layered', width: 100 * nodes.length, height: 100, nodes,
+        edges: flat.edges.map(edge => ({ points: [{ ...nodes[edge.source]! }, { ...nodes[edge.target]! }] })) }
+    }
+    let outcome: string | undefined
+    layoutCompoundGraph(input, place, fail, 10000, work, (owners, children, lifted) => {
+      const result = placeNativeNesting(input, owners, children, lifted, place, work, 10000, fail)
+      outcome = typeof result === 'string' ? result : result ? 'placed' : 'declined'
+      return result
+    })
+    expect(outcome).toBe(mode === 'acyclic' ? 'acyclic-quotient' : 'declined')
+    expect(scopes.find(nodes => nodes.includes('B0'))).toEqual(mode === 'acyclic' ? ['B1', 'B0'] : ['B0', 'B1'])
+  })
+
+  test.each(['TB', 'BT', 'LR', 'RL'] as const)('global leaf ranks do not inherit a lifted group cycle in %s', direction => {
+    const input = measured({ direction,
+      nodes: [{ id: 'a', width: 60, height: 36, parent: 0 }, { id: 'b', width: 60, height: 36, parent: 0 }, { id: 'c', width: 60, height: 36 }],
+      groups: [{ id: 'G', minWidth: 100, headerHeight: 24, padding: { top: 40, right: 20, bottom: 20, left: 20 } }],
+      edges: [{ source: 0, target: 2, minSpan: 1 }, { source: 2, target: 1, minSpan: 1 }],
+    })
+    const output = layoutAgenticGraph(input)
+    const boxes = input.nodes.map((node, i) => ({ ...node, ...output.nodes[i]! }))
+    const before = (a: typeof boxes[number], b: typeof boxes[number]) => direction === 'LR' ? a.x + a.width <= b.x : direction === 'RL' ? b.x + b.width <= a.x : direction === 'BT' ? b.y + b.height <= a.y : a.y + a.height <= b.y
+    expect(before(boxes[0]!, boxes[2]!)).toBe(true)
+    expect(before(boxes[2]!, boxes[1]!)).toBe(true)
+    const frame = output.groups![0]!
+    for (const box of [boxes[0]!, boxes[1]!]) {
+      expect(box.x).toBeGreaterThanOrEqual(frame.x + 20)
+      expect(box.x + box.width).toBeLessThanOrEqual(frame.x + frame.width - 20)
+      expect(box.y + 1e-7).toBeGreaterThanOrEqual(frame.y + 40)
+      expect(box.y + box.height).toBeLessThanOrEqual(frame.y + frame.height - 20)
+    }
+    const outside = boxes[2]!
+    expect(outside.x + outside.width <= frame.x || outside.x >= frame.x + frame.width || outside.y + outside.height <= frame.y || outside.y >= frame.y + frame.height).toBe(true)
+    for (const [index, route] of output.edges.entries()) {
+      expect(onOutline(route.points[0]!, boxes[input.edges[index]!.source]!)).toBe(true)
+      expect(onOutline(route.points.at(-1)!, boxes[input.edges[index]!.target]!)).toBe(true)
+    }
+  })
+
+  test.each(['TB', 'BT', 'LR', 'RL'] as const)('nested global ranks preserve an acyclic labelled leaf chain in %s', direction => {
+    const outer = { top: 43, right: 27, bottom: 19, left: 23 }, inner = { top: 37, right: 21, bottom: 17, left: 25 }
+    const input = measured({ direction, nodes: [
+      { id: 'a', width: 60, height: 32, parent: 1 }, { id: 'b', width: 74, height: 42, parent: 1 }, { id: 'c', width: 52, height: 28, parent: 0 },
+    ], groups: [{ id: 'Outer', minWidth: 100, padding: outer }, { id: 'Inner', parent: 0, minWidth: 90, padding: inner }],
+    edges: [{ source: 0, target: 2, minSpan: 2, label: { width: 30, height: 12 } }, { source: 2, target: 1, minSpan: 1 }] })
+    const before = structuredClone(input), output = layoutAgenticGraph(input), boxes = output.nodes.map((point, i) => ({ ...input.nodes[i]!, ...point }))
+    expect(input).toEqual(before)
+    expect(layoutAgenticGraph(input)).toEqual(output)
+    const horizontal = direction === 'LR' || direction === 'RL', reverse = direction === 'BT' || direction === 'RL'
+    const precedes = (a: Box, b: Box) => reverse ? (horizontal ? a.x : a.y) >= (horizontal ? b.x + b.width : b.y + b.height)
+      : (horizontal ? a.x + a.width : a.y + a.height) <= (horizontal ? b.x : b.y)
+    expect(precedes(boxes[0]!, boxes[2]!)).toBe(true)
+    expect(precedes(boxes[2]!, boxes[1]!)).toBe(true)
+    for (const [box, frame, pad] of [[boxes[0]!, output.groups![1]!, inner], [boxes[1]!, output.groups![1]!, inner], [boxes[2]!, output.groups![0]!, outer], [output.groups![1]!, output.groups![0]!, outer]] as const) {
+      expect(box.x + 1e-7).toBeGreaterThanOrEqual(frame.x + pad.left)
+      expect(box.x + box.width - 1e-7).toBeLessThanOrEqual(frame.x + frame.width - pad.right)
+      expect(box.y + 1e-7).toBeGreaterThanOrEqual(frame.y + pad.top)
+      expect(box.y + box.height - 1e-7).toBeLessThanOrEqual(frame.y + frame.height - pad.bottom)
+    }
+    expect(intersects(boxes[2]!, output.groups![1]!)).toBe(false)
+    for (const [i, route] of output.edges.entries()) {
+      expect(onOutline(route.points[0]!, boxes[input.edges[i]!.source]!)).toBe(true)
+      expect(onOutline(route.points.at(-1)!, boxes[input.edges[i]!.target]!)).toBe(true)
+      for (let j = 1; j < route.points.length; j++) {
+        for (const box of boxes) expect(crossesInterior(route.points[j - 1]!, route.points[j]!, box)).toBe(false)
+        for (const [k, frame] of output.groups!.entries()) expect(crossesInterior(route.points[j - 1]!, route.points[j]!, { ...frame, height: input.groups![k]!.padding.top })).toBe(false)
+      }
+    }
+    expect(output.edges[0]!.labelPosition).toBeDefined()
+  })
+
+  test.each(['TB', 'BT', 'LR', 'RL'] as const)('private nesting borders do not consume fixed leaf port capacity in %s', direction => {
+    const padding = { top: 20, right: 16, bottom: 16, left: 16 }
+    const input = measured({ direction, nodes: [0, 1, 2].map(i => ({ id: String(i), ...(i < 2 ? { parent: 0 } : {}), width: 16, height: 16,
+      contact: 'rectangle' as const, sizePolicy: 'fixed' as const, paintStrokeWidth: 1, paintCornerRadius: 0 })),
+    groups: [{ id: 'G', minWidth: 48, padding }], maximumEdgeStrokeWidth: 1, maximumEdgeBendRadius: 0,
+    edges: [{ source: 0, target: 2, minSpan: 1, sourcePortSpan: 1, targetPortSpan: 1 }, { source: 2, target: 1, minSpan: 1, sourcePortSpan: 1, targetPortSpan: 1 }] })
+    const original = structuredClone(input), output = layoutAgenticGraph(input)
+    expect(input).toEqual(original)
+    expect(output.nodes).toHaveLength(3)
+    expect(output.edges).toHaveLength(2)
+    for (const [i, point] of output.nodes.entries()) {
+      expect(point.width ?? input.nodes[i]!.width).toBe(16)
+      expect(point.height ?? input.nodes[i]!.height).toBe(16)
+    }
+    for (const [i, route] of output.edges.entries()) {
+      expect(onOutline(route.points[0]!, { ...input.nodes[input.edges[i]!.source]!, ...output.nodes[input.edges[i]!.source]! })).toBe(true)
+      expect(onOutline(route.points.at(-1)!, { ...input.nodes[input.edges[i]!.target]!, ...output.nodes[input.edges[i]!.target]! })).toBe(true)
+    }
+  })
+
+  test.each((['TB', 'BT', 'LR', 'RL'] as const).flatMap(direction => [false, true].flatMap(labelled => [false, true].map(longChild => ({ direction, labelled, longChild })))))('connected siblings stay on one side of an unrelated nested frame: %j', ({ direction, labelled, longChild }) => {
+    const padding = { top: 36, right: 16, bottom: 16, left: 16 }
+    const input = measured({ direction, nodes: [
+      { id: 'A', width: 60, height: 32, parent: 0 }, { id: 'C', width: 60, height: 32, parent: 1 }, { id: 'B', width: 60, height: 32, parent: 0 },
+      ...(longChild ? [{ id: 'D', width: 60, height: 32, parent: 1 }] : []),
+    ], groups: [{ id: 'Parent', minWidth: 0, padding }, { id: 'Child', parent: 0, minWidth: 0, padding }],
+    edges: [{ source: 2, target: 0, minSpan: 1, ...(labelled ? { label: { width: 40, height: 20 } } : {}) }, ...(longChild ? [{ source: 1, target: 3, minSpan: 3 }] : [])] })
+    const before = structuredClone(input), output = layoutAgenticGraph(input), path = output.edges[0]!.points
+    expect(input).toEqual(before)
+    expect(onOutline(path[0]!, { ...input.nodes[2]!, ...output.nodes[2]! })).toBe(true)
+    expect(onOutline(path.at(-1)!, { ...input.nodes[0]!, ...output.nodes[0]! })).toBe(true)
+    for (let i = 1; i < path.length; i++) {
+      expect(crossesInterior(path[i - 1]!, path[i]!, output.groups![1]!)).toBe(false)
+      for (const frame of output.groups!) expect(crossesInterior(path[i - 1]!, path[i]!, { ...frame, height: padding.top })).toBe(false)
+    }
+    if (labelled) expect(output.edges[0]!.labelPosition).toBeDefined()
+  })
+
+  test.each((['TB', 'BT', 'LR', 'RL'] as const).flatMap(direction => [false, true].map(placementOnly => ({ direction, placementOnly }))))('retains ordinary hosted edges in a false quotient cycle: %j', ({ direction, placementOnly }) => {
+    const padding = { top: 36, right: 16, bottom: 16, left: 16 }
+    const input = measured({ direction, ...(placementOnly ? { placementOnly: true } : {}), nodes: [
+      { id: 'A', width: 60, height: 32, parent: 0 }, { id: 'C', width: 60, height: 32, parent: 1 },
+      { id: 'B', width: 60, height: 32, parent: 0 }, { id: 'D', width: 60, height: 32, parent: 1 },
+    ], groups: [{ id: 'Parent', minWidth: 0, padding }, { id: 'Child', parent: 0, minWidth: 0, padding }],
+    edges: [{ source: 2, target: 0, minSpan: 1, label: { width: 40, height: 20 } }, { source: 0, target: 1, minSpan: 1 }, { source: 3, target: 2, minSpan: 3 }] })
+    // D→B→A→C is acyclic. Omitting ordinary B→A from the scope quotient
+    // mistakes Child→B and A→Child for a DAG and invents cyclic border ranks.
+    const original = structuredClone(input), output = layoutAgenticGraph(input)
+    expect(input).toEqual(original)
+    if (placementOnly) expect(output.edges).toEqual(input.edges.map(() => ({ points: [] })))
+    else for (const [i, route] of output.edges.entries()) {
+      expect(onOutline(route.points[0]!, { ...input.nodes[input.edges[i]!.source]!, ...output.nodes[input.edges[i]!.source]! })).toBe(true)
+      expect(onOutline(route.points.at(-1)!, { ...input.nodes[input.edges[i]!.target]!, ...output.nodes[input.edges[i]!.target]! })).toBe(true)
+      for (let j = 1; j < route.points.length; j++) {
+        for (let k = 0; k < input.nodes.length; k++) expect(crossesInterior(route.points[j - 1]!, route.points[j]!, { ...input.nodes[k]!, ...output.nodes[k]! })).toBe(false)
+        for (const frame of output.groups!) expect(crossesInterior(route.points[j - 1]!, route.points[j]!, { ...frame, height: padding.top })).toBe(false)
+      }
+    }
+    const boxes = output.nodes.map((point, i) => ({ ...input.nodes[i]!, ...point }))
+    const horizontal = direction === 'LR' || direction === 'RL', reverse = direction === 'BT' || direction === 'RL'
+    for (const [source, target] of [[3, 2], [2, 0], [0, 1]]) {
+      const a = boxes[source!]!, b = boxes[target!]!
+      expect(reverse ? (horizontal ? a.x : a.y) >= (horizontal ? b.x + b.width : b.y + b.height)
+        : (horizontal ? a.x + a.width : a.y + a.height) <= (horizontal ? b.x : b.y)).toBe(true)
+    }
+    for (const i of [0, 2]) expect(intersects(boxes[i]!, output.groups![1]!)).toBe(false)
+  })
+
   test('direct compound corridors retain more than sixteen authored cross-scope leaf contacts', () => {
     const padding = { top: 40, right: 24, bottom: 24, left: 24 }
     const input = measured({ direction: 'LR', nodes: Array.from({ length: 34 }, (_, index) => ({
@@ -712,7 +1009,7 @@ describe('owned measured layered layout', () => {
     }
   })
 
-  test.each([0, 310, 1_000_000])('retains feasible compact long-edge routes with joint-order budget %s', blockPairs => {
+  test.each([0, 310, 1_000_000].flatMap(blockPairs => [false, true].map(hostileSetter => ({ blockPairs, hostileSetter }))))('retains feasible compact long-edge routes with joint-order budget $blockPairs (hostile setter $hostileSetter)', ({ blockPairs, hostileSetter }) => {
     const input = measured({ compactPrivateRanks: true,
       nodes: Array.from({ length: 5 }, (_, index) => ({ id: String(index), width: 40, height: 40 })),
       edges: [0, 1].flatMap(source => [2, 3, 4].map(target => ({ source, target, minSpan: 3 }))),
@@ -721,7 +1018,31 @@ describe('owned measured layered layout', () => {
     const place = (budget: number) => layoutLayeredGraph(input, () => undefined,
       reason => { throw new GraphLayoutUnsupportedError(reason) }, undefined,
       { attempts: 0, scorePairs: 0, loopPairs: 0, rankPairs: 200_000, blockPairs: budget, routing: { pairs: 0, arcs: 0, swaps: 0 } })
-    const baseline = place(0), output = place(blockPairs)
+    const baseline = place(0), expected = blockPairs === 0 ? baseline : place(blockPairs)
+    let output = expected
+    if (hostileSetter) {
+      const define = Object.defineProperty, own = Object.getOwnPropertyDescriptor, create = Object.create, array = Array.isArray
+      const previous = own(Array.prototype, '0')
+      const descriptor = create(null) as PropertyDescriptor
+      descriptor.configurable = true
+      descriptor.set = function (this: unknown[], value: unknown) {
+        if (array(value) && own(value, 'length')?.value === 2 && typeof own(value, '0')?.value === 'number' && array(own(value, '1')?.value)) {
+          throw new Error('Private rank order reached an inherited array setter')
+        }
+        // Other arrays retain ordinary indexed assignment. A null-prototype
+        // descriptor keeps inherited descriptor fields out of publication.
+        const slot = create(null) as PropertyDescriptor
+        slot.value = value; slot.enumerable = true; slot.configurable = true; slot.writable = true
+        define(this, '0', slot)
+      }
+      define(Array.prototype, '0', descriptor)
+      try { output = place(blockPairs) }
+      finally {
+        if (previous) define(Array.prototype, '0', previous)
+        else Reflect.deleteProperty(Array.prototype, '0')
+      }
+    }
+    expect(output).toEqual(expected)
     expect(input).toEqual(original)
     expect(output.nodes).toHaveLength(5)
     expect(output.edges).toHaveLength(6)
@@ -735,6 +1056,38 @@ describe('owned measured layered layout', () => {
         expect(crossesInterior(route.points[segment - 1]!, route.points[segment]!, box)).toBe(false)
       }
     }
+  })
+
+  test.each(['TB', 'BT', 'LR', 'RL'] as const)('aligns single private lanes between facing card ports in %s', direction => {
+    const horizontal = direction === 'LR' || direction === 'RL'
+    const input = measured({ direction, padding: 32, nodeSpacing: 40, layerSpacing: 72,
+      nodes: [160, 160, 120].map((cross, index) => ({ id: String(index), width: horizontal ? 40 : cross, height: horizontal ? cross : 40 })),
+      edges: [{ source: 0, target: 2, minSpan: 1, label: { width: horizontal ? 10 : 20, height: horizontal ? 20 : 10 } }, { source: 1, target: 2, minSpan: 1 }],
+    })
+    const original = structuredClone(input), output = layoutLayeredGraph(input, () => undefined, reason => { throw new GraphLayoutUnsupportedError(reason) })
+    expect(input).toEqual(original)
+    expect(countPolylineCrossings(output.edges)).toBe(0)
+    const boxes = output.nodes.map((node, index) => ({ ...node, width: input.nodes[index]!.width, height: input.nodes[index]!.height }))
+    for (const [index, edge] of output.edges.entries()) {
+      expect(edge.points).toHaveLength(2)
+      expect(onOutline(edge.points[0]!, boxes[index]!)).toBe(true)
+      expect(onOutline(edge.points[1]!, boxes[2]!)).toBe(true)
+      for (const box of boxes) expect(crossesInterior(edge.points[0]!, edge.points[1]!, box)).toBe(false)
+    }
+  })
+
+  test.each([-2, NaN, 80])('retains the original loop when live label width changes to %s', changed => {
+    let reads = 0
+    const label = { get width() { return ++reads <= 3 ? 200 : changed }, height: 20 }
+    const input = measured({ direction: 'TB', padding: 40,
+      nodes: [{ id: 'loop', width: 180, height: 60 }, { id: 'foreign', width: 20, height: 30 }],
+      edges: [{ source: 0, target: 0, minSpan: 1, label }],
+    })
+    const points = [{ x: 260, y: 100 }, { x: 260, y: 130 }, { x: 260, y: 200 }, { x: 360, y: 200 }, { x: 360, y: 130 }, { x: 360, y: 100 }]
+    const placed: AgenticLayout = { topology: 'layered', width: 600, height: 300, nodes: [{ x: 220, y: 40 }, { x: 220, y: 110 }], edges: [{ points, labelPosition: { x: 156, y: 160 } }] }
+    const before = structuredClone(placed)
+    expect(compactMeasuredLoops(input, placed, { loopPairs: 2_000_000 })).toEqual(before)
+    expect(placed.edges[0]!.points).toBe(points)
   })
 
   test('retains feasible loop routes when optional request work is exhausted', () => {
@@ -929,6 +1282,35 @@ describe('owned measured layered layout', () => {
     expect(layoutAgenticGraph(input)).toEqual(placed)
   })
 
+  test('retains feasible detours after the shared shortcut allowance is spent or lowered', () => {
+    const input: MeasuredGraph = {
+      nodes: [{ id: 'a', width: 20, height: 20 }, { id: 'b', width: 20, height: 20 }],
+      edges: [{ source: 0, target: 1, minSpan: 1 }],
+      direction: 'LR', padding: 0, nodeSpacing: 0, layerSpacing: 0,
+    }
+    const detour = [{ x: 20, y: 10 }, { x: 40, y: 10 }, { x: 40, y: 50 }, { x: 160, y: 50 }, { x: 160, y: 10 }, { x: 200, y: 10 }]
+    const fresh = (): AgenticLayout => ({ topology: 'layered', width: 220, height: 80,
+      nodes: [{ x: 0, y: 0 }, { x: 200, y: 0 }], edges: [{ points: detour.map(point => ({ ...point })) }] })
+    const shared = { attempts: 1, comparisons: 8_000_000 }
+    const first = shortenMeasuredRoutes(input, fresh(), shared)
+    expect(first.edges[0]!.points).toEqual([{ x: 20, y: 10 }, { x: 200, y: 10 }])
+    expect(shortenMeasuredRoutes(input, fresh(), shared).edges[0]!.points).toEqual(detour)
+    for (const work of [
+      { attempts: Number.NaN, comparisons: 8_000_000 }, { attempts: Infinity, comparisons: 8_000_000 },
+      { attempts: 1, comparisons: Number.NaN }, { attempts: 1, comparisons: Infinity },
+      { attempts: 0, comparisons: 8_000_000 }, { attempts: 1, comparisons: 0 }, { attempts: 1, comparisons: 5 },
+    ]) expect(shortenMeasuredRoutes(input, fresh(), work).edges[0]!.points).toEqual(detour)
+    let attempts = 2, comparisons = 8_000_000
+    const lowered = {
+      get attempts() { return attempts },
+      set attempts(value: number) { attempts = value; comparisons = 0 },
+      get comparisons() { return comparisons },
+      set comparisons(value: number) { comparisons = value },
+    }
+    expect(shortenMeasuredRoutes(input, fresh(), lowered).edges[0]!.points).toEqual([{ x: 20, y: 10 }, { x: 200, y: 10 }])
+    expect(shortenMeasuredRoutes(input, fresh(), lowered).edges[0]!.points).toEqual(detour)
+  })
+
   test.each(['TD', 'BT', 'LR', 'RL'] as const)('keeps a labelled branch beside an unrelated wide root in %s', direction => {
     const horizontal = direction === 'LR' || direction === 'RL'
     const input = measured({ direction, nodes: [80, 80, 80, 200].map((size, index) => ({ id: String(index),
@@ -941,6 +1323,25 @@ describe('owned measured layered layout', () => {
     expect(placed.nodes[1]![axis]).toBe(placed.nodes[2]![axis])
     expect(countPolylineCrossings(placed.edges)).toBe(0)
     expect(input).toEqual(original)
+  })
+
+  test('retains routed forest source pitch after extracting body placement', () => {
+    const input: MeasuredGraph = { nodes: [{ id: 'root', width: 160, height: 40, minimumPortSpacing: 40 }, ...['A', 'B', 'C'].map(id => ({ id, width: 40, height: 40 }))],
+      edges: [1, 2, 3].map(target => ({ source: 0, target, minSpan: 1 })), direction: 'TB', padding: 16, nodeSpacing: 40, layerSpacing: 72 }
+    const placed = layoutMeasuredForest(input)!
+    expect(placed).toBeDefined()
+    expect(placed.edges).toHaveLength(3)
+    expect(placed.edges[1]!.points[0]!.x - placed.edges[0]!.points[0]!.x).toBe(40)
+    expect(placed.edges[2]!.points[0]!.x - placed.edges[1]!.points[0]!.x).toBe(40)
+    expect(countParallelRouteOverlaps(placed.edges.map((edge, index) => ({ ...edge, source: 'root', target: String(index), style: 'solid' as const })))).toBe(0)
+  })
+
+  test.each([0, 0.005, 60])('retains measured asymmetric terminal leads for a %s-cross channel', delta => {
+    const steps = [{ sourceCross: 20, targetCross: 20 + delta, offset: 0, track: 0 }]
+    const height = assignChannelTracks(steps, 0, 6, 180, { pairs: 100, arcs: 100, swaps: 100 }, reason => { throw new Error(reason) }, undefined, { source: 18, target: 2 })
+    expect(steps[0]!.offset).toBeGreaterThanOrEqual(18)
+    expect(height - steps[0]!.offset).toBeGreaterThanOrEqual(6)
+    expect(height).toBe(24)
   })
 
   test('keeps nearly coincident terminal columns out of parallel route ink', () => {
@@ -1035,8 +1436,21 @@ describe('owned measured layered layout', () => {
       { source: 0, target: 0, minSpan: 1 },
       { source: 2, target: 2, minSpan: 1, label: { width: 78, height: 18 } },
     ] })
+    input.edges = input.edges.map((edge, index) => ({ ...edge, sourceTerminalLead: index % 2 ? 0 : 13.375, targetTerminalLead: 41.5 }))
     const before = structuredClone(input)
+    let observedReturn = false
+    const authored = new Set(input.nodes.map(node => node.id))
     const output = layoutAgenticGraph(input)
+    layoutLayeredGraph(input, flat => {
+      for (const edge of flat.edges) {
+        const helperSource = !authored.has(flat.nodes[edge.source]!.id), helperTarget = !authored.has(flat.nodes[edge.target]!.id)
+        if (helperSource) expect(edge.sourceTerminalLead).toBeUndefined()
+        if (helperTarget) expect(edge.targetTerminalLead).toBeUndefined()
+        if (helperSource && edge.targetTerminalLead === 41.5 || helperTarget && edge.sourceTerminalLead === 41.5) observedReturn = true
+      }
+      return layoutMeasuredForest(flat)
+    }, reason => { throw new Error(reason) })
+    expect(observedReturn).toBe(true)
     expect(input).toEqual(before)
     expect(layoutAgenticGraph(input)).toEqual(output)
     expect(output.edges).toHaveLength(input.edges.length)
@@ -1582,6 +1996,39 @@ describe('written sharp join contact closure', () => {
 })
 
 describe('Native graph preparation reserves actual styled marker room', () => {
+  test.each([
+    { field: 'shape', threshold: 4, values: ['rectangle', 'rectangle', 'rectangle', 'rectangle'] },
+    { field: 'endMarker', threshold: 4, values: ['arrow', 'arrow', 'arrow', 'arrow'] },
+    { field: 'style', threshold: 7, values: ['solid', 'solid', 'solid', 'solid', 'solid', 'solid', 'solid', 'thick', 'thick', 'thick'] },
+    { field: 'hasArrowEnd', threshold: 1, values: [false, true, true] },
+  ] as const)('borrowed $field accessors retain legacy reads and acquire no partial physical authority', async ({ field, threshold, values }) => {
+    const { parseMermaid } = await import('../parser.ts'), { layoutGraphSync } = await import('../layout-engine.ts')
+    const producer = await import('../layout/measured-graph-producer.ts'), original = producer.prepareMeasuredGraphCandidate
+    const graph = parseMermaid('flowchart LR\nsubgraph G[Group]\nA[A]\nX[X]\nend\nB[B]\nA --> B')
+    const observed: unknown[] = []
+    const subject = field === 'shape' ? graph.nodes.get('X')! : graph.edges[0]!
+    Object.defineProperty(subject, field, { configurable: true, enumerable: true, get() {
+      const read = observed.length + 1
+      const value = field === 'shape' ? read <= threshold ? 'rectangle' : 'diamond'
+        : field === 'style' ? read <= threshold ? 'solid' : 'thick'
+          : field === 'hasArrowEnd' ? read > threshold : read <= threshold ? 'arrow' : 'circle'
+      observed.push(value); return value
+    } })
+    const observe = spyOn(producer, 'prepareMeasuredGraphCandidate').mockImplementation((...args: Parameters<typeof original>) => {
+      const prepared = original(...args), measured: MeasuredGraph = prepared.measured
+      expect(measured.maximumEdgeStrokeWidth).toBeUndefined()
+      expect(measured.edges[0]!.targetTerminalLead).toBeUndefined()
+      expect(measured.edges[0]!.markerPaint).toBeUndefined()
+      return prepared
+    })
+    try {
+      const result = layoutGraphSync(graph, { graphLayout: { backend: 'agentic', fallback: 'none' } })
+      expect(result.nodes).toHaveLength(3)
+      expect(result.edges).toHaveLength(1)
+      expect(observed as readonly unknown[]).toEqual(values)
+    } finally { observe.mockRestore() }
+  })
+
   const source = `flowchart LR
   subgraph Core["Routing core"]
     Intake["Intake"] --> Validate{"Valid?"}
@@ -1644,8 +2091,29 @@ describe('Native graph preparation reserves actual styled marker room', () => {
 
 
 describe('measured endpoint lead admission and work', () => {
+  test.each([[undefined, undefined], [0, 41.5], [13.375, 0]] as const)('private reversal retains authored endpoint demand: %j', (sourceTerminalLead, targetTerminalLead) => {
+    const edge = { source: 0, target: 1, minSpan: 1, sourceTerminalLead, targetTerminalLead }
+    const reversed = orientMeasuredEdge(edge, 1, 0, true)
+    expect(reversed.sourceTerminalLead).toBe(targetTerminalLead)
+    expect(reversed.targetTerminalLead).toBe(sourceTerminalLead)
+    expect(orientMeasuredEdge(reversed, 0, 1, true)).toEqual(edge)
+    expect(orientMeasuredEdge(edge, 0, 1, false)).toEqual(edge)
+  })
+
+  test('constructed cardinal terminal boundaries retain their demand despite subtraction rounding', () => {
+    for (const [origin, boundary, demand] of [[120.90000000000005, 162.40000000000003, 41.5], [243.9, 257.275, 13.375]]) {
+      for (const axis of ['x', 'y'] as const) for (const sign of [-1, 1]) {
+        const port = { x: 0, y: 0, [axis]: sign * origin! }
+        const stub = { x: 0, y: 0, [axis]: sign * boundary! }
+        const short = { ...stub, [axis]: sign * (boundary! - .001) }
+        expect(retainsTerminalLead(port, stub, demand!)).toBe(true)
+        expect(retainsTerminalLead(port, short, demand!)).toBe(false)
+      }
+    }
+  })
+
   const line = (): MeasuredGraph => ({ nodes: [{id:'A',width:40,height:30},{id:'B',width:40,height:30}], edges:[{source:0,target:1,minSpan:1}], direction:'LR',padding:0,nodeSpacing:24,layerSpacing:48 })
-  for (const invalid of [0,-1,NaN,Infinity]) test(`rejects invalid terminal lead ${invalid}`, () => {
+  for (const invalid of [-1,NaN,Infinity]) test(`rejects invalid terminal lead ${invalid}`, () => {
     expect(() => layoutAgenticGraph({...line(),minimumTerminalLead:invalid})).toThrow(TypeError)
   })
   test('new lead predicates consume the original supplied routing allowance', () => {
@@ -1714,23 +2182,31 @@ describe('painted host padding corridors', () => {
   })
   const fail = (reason: string): never => { throw new GraphLayoutUnsupportedError(reason) }
   const budget = () => ({ pairs: 1_000_000, arcs: 65536, swaps: 1_000_000 })
+  // Keep this boundary-consumer fixture on the recursive placement that needs
+  // a padding retry. Global ranks can fit it in the original content domain.
+  const recursive = (graph: MeasuredGraph, work = budget()) => layoutCompoundGraph(graph,
+    flat => layoutLayeredGraph(flat, () => undefined, fail, work), fail, 16384, work)
 
-  test.each([{ radius: 0 }, { radius: 4 }])('routes through blank padding inside the actual radius-$radius host outline', ({ radius }) => {
-    const graph = input(radius), before = structuredClone(graph)
-    const output = layoutLayeredGraph(graph, () => undefined, fail), host = output.groups![0]!, route = output.edges[0]!
+
+  test.each([0, 4].flatMap(radius => [false, true].flatMap(global => (global ? [false, true] : [false]).map(reverse => ({ radius, global, reverse })))))('keeps ink inside the radius-$radius host outline, global=$global, reverse=$reverse', ({ radius, global, reverse }) => {
+    const graph = input(radius)
+    if (reverse) graph.edges = graph.edges.map(edge => ({ ...edge, source: edge.target, target: edge.source }))
+    const before = structuredClone(graph)
+    const solve = global ? (graph: MeasuredGraph) => layoutLayeredGraph(graph, () => undefined, fail) : recursive
+    const output = solve(graph), host = output.groups![0]!, route = output.edges[0]!
     expect(graph).toEqual(before)
     expect(output.nodes).toHaveLength(2)
     expect(output.groups).toHaveLength(2)
     expect(output.edges).toHaveLength(1)
     expect(output.boundaryRoutes).toEqual([0])
-    expect(layoutLayeredGraph(graph, () => undefined, fail)).toEqual(output)
+    expect(solve(graph)).toEqual(output)
     const nodes = output.nodes.map((point, index) => ({ ...graph.nodes[index]!, ...point }))
-    for (const [point, node] of [[route.points[0]!, nodes[0]!], [route.points.at(-1)!, nodes[1]!]] as const) {
+    for (const [point, node] of [[route.points[0]!, nodes[graph.edges[0]!.source]!], [route.points.at(-1)!, nodes[graph.edges[0]!.target]!]] as const) {
       expect(point.x >= node.x && point.x <= node.x + node.width && point.y >= node.y && point.y <= node.y + node.height).toBe(true)
       expect(point.x === node.x || point.x === node.x + node.width || point.y === node.y || point.y === node.y + node.height).toBe(true)
     }
     // This route really uses the side padding excluded by the original domain.
-    expect(route.points.some(point => point.x > host.x + host.width - 16 || point.x < host.x + 16)).toBe(true)
+    if (!global) expect(route.points.some(point => point.x > host.x + host.width - 16 || point.x < host.x + 16)).toBe(true)
     const insidePaintedHost = (point: Point) => {
       // Remove the frame's half-stroke. Testing every vertex of each expanded
       // sharp segment rectangle proves its entire ink is in this convex inset.
@@ -1757,7 +2233,7 @@ describe('painted host padding corridors', () => {
     const graph = input(0)
     delete graph.groups![0]!.paintCornerRadius
     const before = structuredClone(graph)
-    expect(() => layoutLayeredGraph(graph, () => undefined, fail)).toThrow('cross-hierarchy route has no bounded clear corridor')
+    expect(() => recursive(graph)).toThrow('cross-hierarchy route has no bounded clear corridor')
     expect(graph).toEqual(before)
   })
 
@@ -1765,10 +2241,10 @@ describe('painted host padding corridors', () => {
     const unknown = input(0)
     delete unknown.groups![0]!.paintCornerRadius
     const firstAttempt = { ...budget(), arcs: 2400 }
-    expect(() => layoutLayeredGraph(unknown, () => undefined, fail, firstAttempt)).toThrow('cross-hierarchy route has no bounded clear corridor')
+    expect(() => recursive(unknown, firstAttempt)).toThrow('cross-hierarchy route has no bounded clear corridor')
     expect(firstAttempt.arcs).toBeGreaterThan(0)
     const retry = { ...budget(), arcs: 2400 }
-    expect(() => layoutLayeredGraph(input(0), () => undefined, fail, retry)).toThrow('cross-hierarchy visibility-arc limit')
+    expect(() => recursive(input(0), retry)).toThrow('cross-hierarchy visibility-arc limit')
     expect(retry.arcs).toBeLessThan(0)
     expect(retry.pairs).toBeLessThan(firstAttempt.pairs)
     expect(retry.swaps).toBeLessThan(firstAttempt.swaps)

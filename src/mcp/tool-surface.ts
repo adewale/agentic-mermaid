@@ -450,11 +450,10 @@ security:'strict', embedFontImport:false.
   const timeoutDescription = options.hosted
     ? 'Optional CPU-time budget (default 5000ms, max 30000ms).'
     : 'Optional hard timeout (default 5000ms).'
-  const runtime = options.hosted ? 'isolated' : 'node:vm'
   return {
     name: 'execute',
     title: 'Execute Mermaid SDK code',
-    description: `Sync ${runtime} JS; return a value. No imports/TS.
+    description: `Sync JS; return a value. No imports/TS.
 ${hostedNote}
 ${options.sdkDeclaration}`,
     inputSchema: {

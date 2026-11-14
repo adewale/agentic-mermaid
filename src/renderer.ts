@@ -1,10 +1,11 @@
 import { sceneLowering, type DrawingFactory, type DrawingDocument } from './scene/drawing.ts'
 import { prepareDisplayText, resolveLabelContent } from './shared/display-text.ts'
 import { graphTextBlock } from './graph-text.ts'
+import { flowchartImageViewport, flowchartImageContent } from './flowchart-image.ts'
 import type { PositionedGraph, PositionedNode, PositionedEdge, PositionedGroup, PositionedStateNote, RenderContext, RenderOptions } from './types.ts'
 import type { DiagramColors } from './theme.ts'
 import { svgOpenTag, buildStyleBlock, buildShadowDefs } from './theme.ts'
-import { STROKE_WIDTHS, FLOWCHART_DOTTED_DASH, resolveRenderStyle, diagramTitleFields } from './styles.ts'
+import { STROKE_WIDTHS, resolveRenderStyle, diagramTitleFields } from './styles.ts'
 import type { ResolvedRenderStyle } from './styles.ts'
 import { escapeAttr, escapeDisplayAttr } from './multiline-utils.ts'
 import { topRoundedRectPath } from './scene/svg-writer.ts'
@@ -16,7 +17,7 @@ import { DefaultBackend } from './scene/backend.ts'
 import type { ResolvedStateVisualConfig } from './state/config.ts'
 import { resolveMindmapIcon } from './mindmap/icons.ts'
 import { serializeMarkerResources } from './scene/marker-resources.ts'
-import { flowchartMarkerResources, markerIdPrefix, markerSuffix, graphEdgePathProjection } from './graph-connectors.ts'
+import { flowchartMarkerResources, markerIdPrefix, markerSuffix, graphEdgePathProjection, graphEdgeCarrierPaint } from './graph-connectors.ts'
 export { compactSvg, namespaceSvgIds } from './svg-postprocess.ts'
 import { paintsNodeFill, shapeOutline } from './shape-outline.ts'
 import { LABEL_PILL_PADDING, labelHaloExtension } from './shared/edge-label-geometry.ts'
@@ -404,9 +405,8 @@ function renderEdge<T>(
   // Section A output is static and active SVG is rejected in every security
   // mode. Preserve authored animation intent as typed metadata plus a stable
   // dashed projection; a future motion layer can consume the same metadata.
-  const effectiveDashArray = edge.style === 'dotted'
-    ? `${FLOWCHART_DOTTED_DASH.dash} ${FLOWCHART_DOTTED_DASH.gap}`
-    : edge.animate ? '8 4' : undefined
+  const carrierPaint = graphEdgeCarrierPaint(edge, pathProjection)
+  const effectiveDashArray = carrierPaint.dashArray
   const baseStrokeWidth = edge.style === 'thick' ? style.lineWidth * 2 : style.lineWidth
   const markerColor = edge.inlineStyle?.stroke ?? style.edgeStrokeColor
 
@@ -467,7 +467,7 @@ function renderEdge<T>(
   return marks.connector({
     id: sceneId,
     role: 'edge',
-    geometry: { kind: 'polyline', points: edge.points },
+    geometry: carrierPaint.polyline ?? { kind: 'polyline', points: edge.points },
     lineStyle,
     paint,
     markers: { ...(startMarker ? { start: startMarker } : {}), mid: [], ...(endMarker ? { end: endMarker } : {}) },
@@ -573,7 +573,7 @@ function renderNode<T>(marks: DrawingFactory<T>, node: PositionedNode, font: str
     undefined
 
   const children: Array<{ node: T; indent: number }> = [{ indent: 2, node: shape }]
-  const media = renderFlowchartMedia(marks, node, ink)
+  const media = renderFlowchartMedia(marks, node, ink, style)
   if (media) children.push({ indent: 2, node: media })
   if (label) {
     children.push({ indent: 2, node: label })
@@ -594,7 +594,16 @@ function renderNode<T>(marks: DrawingFactory<T>, node: PositionedNode, font: str
   })
 }
 
-function renderFlowchartMedia<T>(marks: DrawingFactory<T>, node: PositionedNode, ink: string): T | null {
+function renderFlowchartMedia<T>(marks: DrawingFactory<T>, node: PositionedNode, ink: string, style: ResolvedRenderStyle): T | null {
+  const viewport = flowchartImageViewport(node)
+  if (viewport) {
+    const block = node.labelBlock ?? graphTextBlock(resolveLabelContent(node.label, node.labelContent), style, 'node')
+    const content = flowchartImageContent(viewport, block, style)
+    if (node.width < content.width || node.height < content.height) throw new Error('Image viewport and caption do not fit the positioned node')
+    return marks.image({ id: `node:${node.id}:image`, role: 'icon', owner: { id: node.id, role: 'node' }, href: node.image!,
+      x: node.x + (node.width - viewport.width) / 2, y: node.y + (node.height - content.contentHeight) / 2,
+      width: viewport.width, height: viewport.height, fit: viewport.fit, attributes: { className: 'flowchart-image' } })
+  }
   const size = Math.min(28, node.height * 0.4)
   const cx = node.x + node.width / 2
   const y = node.y + 6
@@ -675,9 +684,14 @@ function renderNodeLabel<T>(marks: DrawingFactory<T>, node: PositionedNode, font
   }
 
   const cx = node.x + node.width / 2
-  const cy = node.y + node.height / 2
+  let cy = node.y + node.height / 2
 
   const block = node.labelBlock ?? graphTextBlock(resolveLabelContent(node.label, node.labelContent), style, 'node')
+  const viewport = flowchartImageViewport(node)
+  if (viewport) {
+    const content = flowchartImageContent(viewport, block, style)
+    cy = node.y + (node.height - content.contentHeight) / 2 + content.labelOffset
+  }
   const label = block.text
 
   return marks.text({

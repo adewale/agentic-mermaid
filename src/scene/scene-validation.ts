@@ -6,7 +6,7 @@ import { escapeAttr, escapeXml } from '../multiline-utils.ts'
 import { boundedUtf8ByteLength } from '../shared/utf8.ts'
 import { nodeWorldBounds } from './bounds.ts'
 import { canonicalExternalNode } from './external-projection.ts'
-import { canonicalizeSceneNodeSerialization, sceneNodeSerialization } from './serialization.ts'
+import { canonicalizeSceneNodeSerialization, sceneNodeSerialization, type SceneSerializationObserver } from './serialization.ts'
 import type { SceneDoc, SceneNode, SceneOwner } from './ir.ts'
 import {
   add, record, structurallyEqual, SCENE_VALIDATION_LIMITS,
@@ -41,6 +41,7 @@ function validateCanonicalExternalNode(
   parent?: SceneOwner,
 ): void {
   if (node.kind === 'document') return
+  if (node.kind === 'image') { add(diagnostics, 'SCENE_DOCUMENT', path, 'external raster marks are not exposed by the declarative builder'); return }
   let expected: SceneNode
   try {
     expected = canonicalExternalNode(node)
@@ -203,7 +204,7 @@ function validateExternalDocument(value: Record<string, unknown> & { parts: unkn
     const docHeight = value.height as number
     const visitBounds = (node: unknown, path: string): void => {
       if (!record(node)) return
-      if (['shape', 'connector', 'text'].includes(String(node.kind))) {
+      if (['image', 'shape', 'connector', 'text'].includes(String(node.kind))) {
         try {
           const bounds = nodeWorldBounds(node as unknown as SceneNode)
           if (bounds && (bounds.x0 < -1 || bounds.y0 < -1 || bounds.x1 > docWidth + 1 || bounds.y1 > docHeight + 1)) {
@@ -243,8 +244,8 @@ export function validateSceneDoc(value: unknown, options: SceneValidationOptions
  * assertions are on; every other rule, and every rule for external Scenes,
  * always applies.
  */
-export function assertAdmissibleSceneDoc(value: unknown, mode: 'internal' | 'external' | undefined, crossChecks: boolean): asserts value is SceneDoc {
-  const result = validateSceneDocument(value, { mode }, crossChecks || sceneValidationMode(value, { mode }) === 'external', EXTERNAL_DOCUMENT_CHECKS)
+export function assertAdmissibleSceneDoc(value: unknown, mode: 'internal' | 'external' | undefined, crossChecks: boolean, serializationObserver?: SceneSerializationObserver): asserts value is SceneDoc {
+  const result = validateSceneDocument(value, { mode }, crossChecks || sceneValidationMode(value, { mode }) === 'external', EXTERNAL_DOCUMENT_CHECKS, serializationObserver)
   if (!result.valid) throw new SceneValidationError(result.diagnostics)
 }
 

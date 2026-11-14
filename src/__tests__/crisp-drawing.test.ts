@@ -5,7 +5,7 @@ const runChild = useTestChildren(20_000)
 
 // Run with production admission: the ordinary test preload intentionally asks
 // for full Scene cross-checks, which must keep exercising the Scene adapter.
-test('ordinary native crisp rendering constructs no populated Scene groups and retains paint safety', async () => {
+test('ordinary crisp rendering preserves owned Scene selection and native paint safety', async () => {
   const child = await runChild(process.execPath, ['-e', `
     import { spyOn } from 'bun:test'
     import { renderMermaidSVGWithReceipt } from './src/index.ts'
@@ -17,18 +17,19 @@ test('ordinary native crisp rendering constructs no populated Scene groups and r
     import { positionResolvedFamily } from './src/positioning.ts'
     void getBackendDescriptor('default').conformance
     const group = marks.group
-    let groups = 0
+    let groups = 0, ownedScene = false
     const spy = spyOn(marks, 'group').mockImplementation(fields => {
-      if (fields.children.length) throw new Error('constructed a populated Scene group: ' + fields.id)
-      groups++
+      if (fields.children.length && !ownedScene) throw new Error('constructed a populated Scene group: ' + fields.id)
+      if (!ownedScene) groups++
       return group(fields)
     })
     for (const id of knownBuiltinFamilies()) for (const options of [{}, { style: 'tokyo-night' }, { style: 'paper', transparent: true }, { style: { formatVersion: 1, roles: { label: { fontWeight: 600 } } } }]) {
+      ownedScene = id === 'er' || id === 'class'
       const stages = []
       const result = withRenderStageObserver(sample => stages.push(sample.stage),
         () => renderMermaidSVGWithReceipt(getFamily(id).example, options))
       if (!result.svg.startsWith('<svg') || !result.receipt.layoutCertification) throw new Error('missing drawing/proof: ' + id)
-      if (stages.includes('scene') || !stages.includes('drawing')) throw new Error('missing native drawing: ' + id)
+      if (stages.includes('scene') !== ownedScene || !stages.includes('drawing')) throw new Error('incorrect drawing selection: ' + id)
     }
     if (!groups) throw new Error('no groups exercised')
     spy.mockRestore()

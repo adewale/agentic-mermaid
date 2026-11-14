@@ -7,8 +7,54 @@ import type { Direction } from '../types.ts'
 import { renderMermaidSVG } from '../index.ts'
 import { layoutMeasuredForest } from '../layout/measured-forest.ts'
 import type { MeasuredGraph } from '../layout/agentic-layered-core.ts'
+import { scanSvgStartTags, decodedSvgAttributeValue } from '../svg-structure.ts'
 
 describe('certified indexed forest layout', () => {
+  test.each(['TD', 'BT', 'LR', 'RL'] as const)('retains measured native leaf boxes beside a multiline sibling in %s', direction => {
+    const source = `flowchart ${direction}\nA[a<br/>b<br/>c<br/>d<br/>e<br/>f<br/>g<br/>h] --> B[Short]\nA --> C[Short]\nD[Root] --> E[a<br/>b<br/>c<br/>d<br/>e<br/>f<br/>g<br/>h]\nD --> F[Short]`
+    const tags = scanSvgStartTags(renderMermaidSVG(source, { graphLayout: { backend: 'agentic', fallback: 'none' } }))
+    const height = (id: string) => Number(decodedSvgAttributeValue(tags.find(tag => decodedSvgAttributeValue(tag, 'data-id') === `node-shape:${id}`)!, 'height'))
+    expect(height('F')).toBe(height('D'))
+    expect(height('E')).toBeGreaterThan(height('F'))
+  })
+
+  test.each(['TD', 'BT', 'LR', 'RL'] as const)('seats a complete leaf beside its taller sibling without lengthening their routes in %s', direction => {
+    const horizontal = direction === 'LR' || direction === 'RL', reverse = direction === 'BT' || direction === 'RL'
+    const input: MeasuredGraph = {
+      direction, padding: 20, nodeSpacing: 20, layerSpacing: 60,
+      nodes: [40, 100, 40].map((main, index) => ({ id: String(index), width: horizontal ? main : 100, height: horizontal ? 100 : main })),
+      edges: [{ source: 0, target: 1, minSpan: 1 }, { source: 0, target: 2, minSpan: 1 }],
+    }
+    const output = layoutMeasuredForest(input)!, local = layoutMeasuredForest(input, 'scope')!, legacy = layoutMeasuredForest(input, 'elk-projection')!
+    const nearFace = (placed: typeof output, index: number) => horizontal
+      ? placed.nodes[index]!.x + (reverse ? input.nodes[index]!.width : 0)
+      : placed.nodes[index]!.y + (reverse ? input.nodes[index]!.height : 0)
+    expect(nearFace(output, 1)).toBe(nearFace(output, 2))
+    // Local siblings may have external contacts omitted from this projection.
+    expect(Math.abs(nearFace(local, 1) - nearFace(local, 2))).toBe(30)
+    expect(Math.abs(nearFace(legacy, 1) - nearFace(legacy, 2))).toBe(30)
+    expect(output.edges.reduce((length, edge) => length + edge.points.slice(1).reduce((sum, point, index) => sum + Math.abs(point.x - edge.points[index]!.x) + Math.abs(point.y - edge.points[index]!.y), 0), 0)).toBe(240)
+  })
+
+  test.each(['TD', 'BT', 'LR', 'RL'] as const)('packs disconnected components without changing their internal geometry in %s', direction => {
+    const horizontal = direction === 'LR' || direction === 'RL'
+    const input: MeasuredGraph = {
+      direction, padding: 20, nodeSpacing: 20, layerSpacing: 60,
+      nodes: Array.from({ length: 3 }, (_, index) => ({ id: String(index), width: horizontal ? 40 : 100, height: horizontal ? 100 : 40 })),
+      edges: [{ source: 1, target: 2, minSpan: 1 }],
+    }
+    const before = structuredClone(input), output = layoutMeasuredForest(input)!
+    expect(input).toEqual(before)
+    expect(output.nodes).toHaveLength(3)
+    expect(horizontal ? output.height : output.width).toBe(140)
+    expect(horizontal ? output.width : output.height).toBe(240)
+    const source = output.nodes[1]!, target = output.nodes[2]!
+    expect(Math.abs(horizontal ? target.x - source.x : target.y - source.y)).toBe(100)
+    expect(horizontal ? source.y : source.x).toBe(horizontal ? target.y : target.x)
+    const points = output.edges[0]!.points
+    expect(points.reduce((length, point, index) => index ? length + Math.abs(point.x - points[index - 1]!.x) + Math.abs(point.y - points[index - 1]!.y) : 0, 0)).toBe(60)
+  })
+
   test.each([
     { nodeSpacing: 0, layerSpacing: 0, padding: 0 },
     { nodeSpacing: 1, layerSpacing: 0, padding: 0 },
@@ -96,6 +142,44 @@ f:R --> L:g`
         edges: [{ source: 0, target: 1, minSpan: 1 }, { source: 0, target: 2, minSpan: 1 }],
         direction, padding: 40, nodeSpacing: 28, layerSpacing: 48,
       }
+      test(`keeps disconnected fan bands local to their own measured roots in ${direction}`, () => {
+        const graph: MeasuredGraph = {
+          nodes: [160, 40, 40, 40, 160, 40].map((height, index) => ({ id: 'ABCDEF'[index]!, width: horizontal ? height : 60, height: horizontal ? 60 : height })),
+          edges: [{ source: 0, target: 1, minSpan: 1 }, { source: 0, target: 2, minSpan: 1 }, { source: 3, target: 4, minSpan: 1 }, { source: 3, target: 5, minSpan: 1 }],
+          direction, padding: 20, nodeSpacing: 40, layerSpacing: 50,
+        }
+        const before = structuredClone(graph), output = layoutMeasuredForest(graph)!
+        expect(graph).toEqual(before)
+        expect(layoutMeasuredForest(graph)).toEqual(output)
+        // Each fan needs 160 + 50 + 40 main units. Unrelated tall cards
+        // at different depths must not become two shared 160-unit bands.
+        expect(horizontal ? output.width : output.height).toBe(290)
+        expect(horizontal ? output.height : output.width).toBe(400)
+        const boxes = output.nodes.map((point, index) => ({ ...graph.nodes[index]!, label: graph.nodes[index]!.id, shape: 'rectangle' as const, ...point }))
+        const main = (index: number) => horizontal ? boxes[index]!.x : boxes[index]!.y
+        const mainEnd = (index: number) => main(index) + (horizontal ? boxes[index]!.width : boxes[index]!.height)
+        const cross = (index: number) => horizontal ? boxes[index]!.y : boxes[index]!.x
+        const crossEnd = (index: number) => cross(index) + (horizontal ? boxes[index]!.height : boxes[index]!.width)
+        for (const component of [[0, 1, 2], [3, 4, 5]]) expect(Math.max(...component.map(mainEnd)) - Math.min(...component.map(main))).toBe(250)
+        expect(Math.min(...[3, 4, 5].map(cross)) - Math.max(...[0, 1, 2].map(crossEnd))).toBe(40)
+        for (const [index, edge] of graph.edges.entries()) {
+          const source = boxes[edge.source]!, target = boxes[edge.target]!, path = output.edges[index]!.points
+          expect(onShapeOutline(source, path[0]!, 1e-8)).toBe(true)
+          expect(onShapeOutline(target, path.at(-1)!, 1e-8)).toBe(true)
+          const gap = direction === 'BT' || direction === 'RL' ? main(edge.source) - mainEnd(edge.target) : main(edge.target) - mainEnd(edge.source)
+          expect(gap).toBeGreaterThanOrEqual(50)
+          for (let cursor = 1; cursor < path.length; cursor++) {
+            const a = path[cursor - 1]!, b = path[cursor]!
+            expect(a.x === b.x || a.y === b.y).toBe(true)
+            for (const box of boxes) {
+              const enters = a.x === b.x
+                ? a.x > box.x && a.x < box.x + box.width && Math.max(a.y, b.y) > box.y && Math.min(a.y, b.y) < box.y + box.height
+                : a.y > box.y && a.y < box.y + box.height && Math.max(a.x, b.x) > box.x && Math.min(a.x, b.x) < box.x + box.width
+              expect(enters).toBe(false)
+            }
+          }
+        }
+      })
       test(`keeps unequal sibling bands clear with outward ports in ${direction}`, () => {
         const before = structuredClone(input), output = layoutMeasuredForest(input)!
         expect(input).toEqual(before)

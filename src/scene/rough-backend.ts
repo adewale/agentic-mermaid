@@ -1,5 +1,5 @@
 import { serializeTransform } from './transforms.ts'
-import { capturedPart } from './part-capture.ts'
+import { capturedPart } from './backend.ts'
 import { formatSvgNumber } from '../shared/svg-number.ts'
 // ============================================================================
 // RoughBackend (SPEC §3.2/§11 phase 3) — rough.js-backed sketch serialization
@@ -523,6 +523,7 @@ function backdropFor(style: StyleSpec | undefined, doc: SceneDoc): string {
 
 function drawNodeStyled(node: SceneNode, walk: Walk): string {
   switch (node.kind) {
+    case 'image':
     case 'document':
       return sceneNodeSerialization(node)
     case 'shape':

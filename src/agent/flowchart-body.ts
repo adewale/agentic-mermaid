@@ -615,6 +615,9 @@ function renderShape(node: MermaidNode): string {
     const entries = [
       node.icon !== undefined ? `icon: ${quoteMetadataString(node.icon)}` : `img: ${quoteMetadataString(node.image!)}`,
       ...(node.iconForm ? [`form: ${node.iconForm}`] : []),
+      ...(node.imageWidth !== undefined ? [`w: ${node.imageWidth}`] : []),
+      ...(node.imageHeight !== undefined ? [`h: ${node.imageHeight}`] : []),
+      ...(node.imageConstraint !== undefined ? [`constraint: ${node.imageConstraint}`] : []),
       ...(node.label !== node.id ? [`label: ${quoteMetadataLabel(node.label, node.labelContent)}`] : []),
     ]
     return `@{ ${entries.join(', ')} }`

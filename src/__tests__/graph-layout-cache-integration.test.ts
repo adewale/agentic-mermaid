@@ -195,12 +195,13 @@ test('Class cached producer admission remains bound to the actually selected pai
     import { spyOn } from 'bun:test'
     import * as native from './src/layout/agentic-layered.ts'
     import * as elk from './src/elk-instance.ts'
+    import { KNOWN_EXTENSION_CONTRACT_VERSIONS } from './src/shared/extension-identity.ts'
     import { DefaultBackend, registerBackend } from './src/scene/backend.ts'
     import { LayoutCertificationError } from './src/layout/backend.ts'
     const id = 'backend:test/class-marker-admission-cache'
     const unregister = registerBackend({ ...DefaultBackend, id,
       capabilities: DefaultBackend.capabilities.map(claim => ({ ...claim, target: id })) },
-      { compatibility: { core: '^0.5.0', scene: '^2.0.0' } })
+      { compatibility: { core: KNOWN_EXTENSION_CONTRACT_VERSIONS.core, scene: '^2.0.0' } })
     let nativeCalls = 0, elkCalls = 0, policyCalls = 0
     const source = 'classDiagram\\nclass S\\nclass T\\nS o-- T\\nS <|-- T'
     const paths = [
@@ -240,3 +241,26 @@ test('Class cached producer admission remains bound to the actually selected pai
   expect(child.status).toBe(0)
   expect(child.stdout.trim()).toBe('Class backend-bound admission cache passed')
 }, 30_000)
+
+
+test('ELK endpoint capacity ignores inherited numeric pressure facts', async () => {
+  const child = await runChild(process.execPath, ['-e', `
+    import assert from 'node:assert/strict'
+    import { convertToElkFormat } from './src/layout-engine.ts'
+    import { parseMermaid } from './src/parser.ts'
+    const graph = parseMermaid('flowchart LR\\nA -->|one| T[Target]\\nB -->|two| T')
+    const baseline = convertToElkFormat(graph)
+    const descriptor = Object.getOwnPropertyDescriptor(Array.prototype, '0')
+    let actual
+    try {
+      Object.defineProperty(Array.prototype, '0', { configurable: true, writable: true,
+        value: { count: 100, span: 100, known: true } })
+      actual = convertToElkFormat(graph)
+    } finally {
+      delete Array.prototype[0]
+      if (descriptor) Object.defineProperty(Array.prototype, '0', descriptor)
+    }
+    assert.deepEqual(actual, baseline)
+  `], childOptions)
+  expect({ status: child.status, stderr: child.stderr }).toEqual({ status: 0, stderr: '' })
+})

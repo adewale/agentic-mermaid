@@ -5,7 +5,7 @@ export { MAX_PREFERENCE_NODES, MAX_PREFERENCE_EDGES, withinLayoutPreferenceBudge
 // Generic over the concrete context so this module has NO dependency on the
 // layout engine (and therefore cannot create an import cycle). The concrete
 // `LayoutPassContext` and the `LAYOUT_PIPELINE` manifest live in
-// `src/layout-engine.ts`, where the per-pass functions are in scope.
+// `src/layout/legacy-completion.ts`, alongside the guarded legacy repairs.
 //
 // Each pass mutates the shared context in place. Ordering, declared metric
 // budgets and post-freeze geometry contracts apply to every production run.

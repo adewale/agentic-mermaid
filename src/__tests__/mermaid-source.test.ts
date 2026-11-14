@@ -136,6 +136,27 @@ bar [1]`)
     expect(mermaidInitDirectives('family\n  A %%{init:{"theme":"dark"}}%%\n').map(directive => directive.parsed)).toEqual([{ theme: 'dark' }])
   })
 
+  it.each(['%%{wrap}%%', '%%{wrap}%%\n%%{wrap}%%'])('applies a bare wrap directive without sharing mutable configuration: %j', wrapper => {
+    const source = `${wrapper}\nsequenceDiagram\nAlice->>Bob: Wrapped`
+    const processed = preprocessMermaidSource(source)
+    expect(processed.lines).toEqual(['sequenceDiagram', 'Alice->>Bob: Wrapped'])
+    expect(processed.frontmatter).toEqual({ wrap: true })
+    processed.frontmatter.wrap = false
+    expect(preprocessMermaidSource(source).frontmatter).toEqual({ wrap: true })
+  })
+
+  it.each(['', '%%{wrap}%%\n'])('retains authored init configuration with %j and a replaced ambient every method', wrapper => {
+    const originalEvery = Array.prototype.every
+    let processed
+    try {
+      Reflect.set(Array.prototype, 'every', () => true)
+      processed = preprocessMermaidSource(`${wrapper}%%{init: {"sequence":{"actorMargin":75}}}%%\nsequenceDiagram\nAlice->>Bob: Configured`)
+    } finally {
+      Array.prototype.every = originalEvery
+    }
+    expect(processed.frontmatter).toEqual({ sequence: { actorMargin: 75 }, ...(wrapper ? { wrap: true } : {}) })
+  })
+
   it('strips only directive lines and preserves adjacent LF/CRLF indentation and blank bytes', () => {
     expect(stripMermaidInitDirectives(`family
 

@@ -26,8 +26,9 @@ import { describe, test, expect, beforeAll, afterAll } from 'bun:test'
 import { spawnSync } from 'node:child_process'
 import { deserialize } from 'node:v8'
 import { inflateRawSync } from 'node:zlib'
-import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
-import { join } from 'node:path'
+import { existsSync, readdirSync, readFileSync, realpathSync, statSync } from 'node:fs'
+import { join, resolve } from 'node:path'
+import { createRequire } from 'node:module'
 import { chromium, firefox, webkit, type Browser, type Page, type Route } from 'playwright'
 import { BUILTIN_FAMILY_METADATA } from '../src/agent/families.ts'
 import { registerStyle, resolveStyleStack, renderMermaidSVG, sharedRenderOptionsJsonSchema, type RenderOptions } from '../src/index.ts'
@@ -114,12 +115,13 @@ function newestBuildInputMtime(): number {
   return newest
 }
 
-function ensureBrowserBundle(target: 'complete' | 'zenuml' = 'complete') {
-  const outputs = target === 'zenuml' ? [ZENUML_ENTRY, ZENUML_FRAME] : [BUNDLE, LAZY_ENTRY, LAZY_METAFILE, ZENUML_ENTRY, ZENUML_FRAME]
+function ensureBrowserBundle(target: 'complete' | 'zenuml' | 'lazy' = 'complete') {
+  const outputs = target === 'zenuml' ? [ZENUML_ENTRY, ZENUML_FRAME]
+    : target === 'lazy' ? [LAZY_ENTRY, LAZY_METAFILE] : [BUNDLE, LAZY_ENTRY, LAZY_METAFILE, ZENUML_ENTRY, ZENUML_FRAME]
   // Reuse a local dist only when it is newer than every input: a stale bundle
   // could otherwise fake parity with (or mask a break in) the current source.
   if (outputs.every(existsSync) && Math.min(...outputs.map(path => statSync(path).mtimeMs)) >= newestBuildInputMtime()) return
-  const command = target === 'zenuml' ? 'build:zenuml' : 'build'
+  const command = target === 'zenuml' ? 'build:zenuml' : target === 'lazy' ? 'build:browser:lazy' : 'build'
   const build = spawnSync('bun', ['run', command], { cwd: REPO, encoding: 'utf8', timeout: BUILD_TIMEOUT_MS })
   if (build.status !== 0 || !outputs.every(existsSync)) {
     throw new Error(`\`bun run ${command}\` did not produce ${outputs[0]} (status ${build.status}).\n${build.stderr ?? ''}`)
@@ -130,8 +132,10 @@ function lazyImplementationChunk(input = 'node_modules/elkjs/'): string {
   const metafile = JSON.parse(readFileSync(LAZY_METAFILE, 'utf8')) as {
     outputs: Record<string, { inputs: Record<string, unknown> }>
   }
+  const elkImplementation = input === 'node_modules/elkjs/'
+    ? realpathSync(createRequire(join(REPO, 'package.json')).resolve('elkjs/lib/elk.bundled.js')) : undefined
   const matches = Object.entries(metafile.outputs).filter(([, output]) =>
-    Object.keys(output.inputs).some(path => path.includes(input)))
+    Object.keys(output.inputs).some(path => path.includes(input) || elkImplementation !== undefined && resolve(REPO, path) === elkImplementation))
   expect(matches.length).toBe(1)
   return matches[0]![0].replace(/^dist\//, '')
 }
@@ -502,7 +506,7 @@ describe('async family-loaded browser renderer', () => {
   let browser: Browser
 
   beforeAll(async () => {
-    ensureBrowserBundle()
+    ensureBrowserBundle('lazy')
     const served = serveWithAvailablePort({
       preferredPort: 4721,
       async fetch(request) {
@@ -525,6 +529,93 @@ describe('async family-loaded browser renderer', () => {
   afterAll(async () => {
     server?.stop(true)
     await browser?.close()
+  })
+
+  test.each(['elk', 'agentic'] as const)('%s public Flow then State dispatch retains complete products', async backend => {
+    const sources = [
+      'flowchart LR\nA[Flow 😀] --> B[Done]',
+      'stateDiagram-v2\nstate "Ready 😀" as Ready\n[*] --> Ready\nReady --> [*]',
+      'stateDiagram-v2\nstate Composite {\n [*] --> A\n A --> B : 日本語\n}\nComposite --> [*]',
+    ]
+    const options = { graphLayout: { backend, fallback: 'none' as const }, embedFontImport: false }
+    const references = await sourceSVGsWithReceipts(sources.map(source => ({ source, options })))
+    const page = await browser.newPage()
+    // The Node Scene SPI and async source consumer already have different
+    // accounting fees. Preserve every other certificate and receipt field.
+    const withoutOperationCount = (product: SourceSVG): unknown => {
+      const copy = JSON.parse(JSON.stringify(product))
+      if (copy.receipt.layoutCertification) delete copy.receipt.layoutCertification.checks.operations
+      return copy
+    }
+    try {
+      await page.goto(`${base}/blank.html`)
+      for (const [index, source] of sources.entries()) {
+        const actual = await page.evaluate(async ({ entry, source, options }) => {
+          try { return { rendered: await (await import(entry)).renderMermaidSVGWithReceiptAsync(source, options) } }
+          catch (error) { return { error: String(error) } }
+        }, { entry: `${base}/dist/browser-lazy/index.js`, source, options })
+        const expected = references[index]!
+        if ('error' in expected) expect(actual).toEqual({ error: String(expected.error) })
+        else {
+          expect('rendered' in actual).toBe(true)
+          if ('rendered' in actual) expect(withoutOperationCount(actual.rendered)).toEqual(withoutOperationCount(expected.rendered))
+        }
+      }
+    } finally { await page.close() }
+  })
+
+  test.each(['elk', 'agentic'] as const)('%s warm plain preparation preserves diagnostics before option microtasks', async backend => {
+    const page = await browser.newPage()
+    try {
+      await page.goto(`${base}/blank.html`)
+      const result = await page.evaluate(async ({ entry, backend }) => {
+        const api = await import(entry), source = 'flowchart LR\nA[Ready] --> B[Done]'
+        const config = { flowchart: { defaultRenderer: 'dagre' } }
+        const options = { graphLayout: { backend, fallback: 'none' }, embedFontImport: false }
+        const expected = await api.renderMermaidSVGWithReceiptAsync(source, { ...options, mermaidConfig: config })
+        const events: string[] = []; let reads = 0
+        const actual = await api.renderMermaidSVGWithReceiptAsync(source, { ...options,
+          get mermaidConfig() { reads++; events.push('capture'); queueMicrotask(() => events.push('microtask')); return config },
+          onConfigDiagnostic(value: { field: string }) { events.push(`diagnostic:${value.field}`) },
+        })
+        return { exact: JSON.stringify(actual) === JSON.stringify(expected), reads, events }
+      }, { entry: `${base}/dist/browser-lazy/index.js`, backend })
+      expect(result.exact).toBe(true)
+      expect(result.reads).toBe(1)
+      expect(result.events).toContain('diagnostic:flowchart.defaultRenderer')
+      expect(result.events.indexOf('diagnostic:flowchart.defaultRenderer')).toBeLessThan(result.events.indexOf('microtask'))
+    } finally { await page.close() }
+  })
+
+  test.each(['elk', 'agentic'] as const)('%s strict Scene requests acquire the canonical SPI before callbacks and read options once', async backend => {
+    const page = await browser.newPage(), requests: string[] = []
+    page.on('request', request => requests.push(new URL(request.url()).pathname.replace(/^\/dist\//, '')))
+    const source = 'flowchart LR\nA[Hello] --> B[World]'
+    const options = { padding: 35, security: 'strict' as const, layoutSafety: 'strict' as const,
+      mermaidConfig: { flowchart: { nodeSpacing: -1 } }, graphLayout: { backend, fallback: 'none' as const } }
+    const implementation = lazyImplementationChunk('/scene/backend.ts')
+    try {
+      await page.goto(`${base}/blank.html`)
+      const actual = await page.evaluate(async ({ entry, source, options, implementation }) => {
+        const api = await import(entry), diagnostics: unknown[] = [], ready: boolean[] = []
+        let reads = 0
+        const supplied = { ...options, get padding() { reads++; return options.padding }, onConfigDiagnostic(value: unknown) {
+          diagnostics.push(value)
+          ready.push(performance.getEntriesByType('resource').some(item => item.name.endsWith('/dist/' + implementation)))
+        } }
+        const first = await api.renderMermaidSVGWithReceiptAsync(source, supplied)
+        const second = await api.renderMermaidSVGWithReceiptAsync(source, supplied)
+        return { first, second, reads, diagnostics, ready }
+      }, { entry: `${base}/dist/browser-lazy/index.js`, source, options, implementation })
+      const diagnostics: unknown[] = []
+      const expected = JSON.parse(JSON.stringify(await sourceSVGWithReceipt(source, options, diagnostics)))
+      expect(actual.first).toEqual(expected)
+      expect(actual.second).toEqual(expected)
+      expect(actual.reads).toBe(2)
+      expect(actual.diagnostics).toEqual([...diagnostics, ...diagnostics])
+      expect(actual.ready).toEqual([true, true])
+      expect(requests.filter(path => path === implementation)).toHaveLength(1)
+    } finally { await page.close() }
   })
 
   for (const [engineName, engine] of [
@@ -690,6 +781,54 @@ describe('async family-loaded browser renderer', () => {
       await page.close()
     }
   })
+
+  test('plain delivery defers style implementation while styled capture preserves products and getter order', async () => {
+    const source = 'flowchart LR\nA[Ready] --> B[Done]'
+    const inputs = [
+      { style: 'paper' },
+      { style: 'hand-drawn' },
+      { style: { colors: { fg: '#123456' }, roles: { node: { cornerRadius: 4 } } } },
+      { style: ['paper', { colors: { accent: '#0055aa' } }] },
+      { style: 'missing-cold-style', padding: -1 },
+      { style: { colors: { fg: 'url(https://example.invalid/paint)' } } },
+    ]
+    const baseOptions = { graphLayout: { backend: 'agentic', fallback: 'none' }, embedFontImport: false } as const
+    const expected = await sourceSVGsWithReceipts(inputs.map(options => ({ source, options: { ...baseOptions, padding: 40, ...options } as RenderOptions })))
+    const styleChunk = lazyImplementationChunk('src/scene/style-registry.ts')
+    for (const [index, input] of inputs.entries()) {
+      const page = await browser.newPage(), requests: string[] = []
+      page.on('request', request => requests.push(new URL(request.url()).pathname.replace(/^\/dist\//, '')))
+      try {
+        await page.goto(`${base}/blank.html`)
+        const beforePlain = await page.evaluate(async ({ entry, source, options }) => {
+          const api = await import(entry)
+          return JSON.stringify(await api.renderMermaidSVGWithReceiptAsync(source, options))
+        }, { entry: `${base}/dist/browser-lazy/index.js`, source, options: baseOptions })
+        expect(requests).not.toContain(styleChunk)
+        const actual = await page.evaluate(async ({ entry, source, input, baseOptions }) => {
+          const api = await import(entry), reads: string[] = []
+          const options = { ...baseOptions,
+            get style() { reads.push('style'); return input.style },
+            get padding() { reads.push('padding'); return input.padding ?? 40 },
+          }
+          try {
+            const product = await api.renderMermaidSVGWithReceiptAsync(source, options)
+            return { product: JSON.parse(JSON.stringify(product)), reads }
+          } catch (error) { return { error: String(error), reads } }
+        }, { entry: `${base}/dist/browser-lazy/index.js`, source, input: { ...input, padding: 'padding' in input ? input.padding : 40 }, baseOptions })
+        expect(actual.reads).toEqual(['style', 'padding'])
+        const reference = expected[index]!
+        expect('error' in actual ? { error: actual.error } : { product: actual.product }).toEqual(
+          'error' in reference ? { error: String(reference.error) } : { product: JSON.parse(JSON.stringify(reference.rendered)) })
+        expect(requests.filter(path => path === styleChunk)).toHaveLength(1)
+        const afterPlain = await page.evaluate(async ({ entry, source, options }) => {
+          const api = await import(entry)
+          return JSON.stringify(await api.renderMermaidSVGWithReceiptAsync(source, options))
+        }, { entry: `${base}/dist/browser-lazy/index.js`, source, options: baseOptions })
+        expect(afterPlain).toBe(beforePlain)
+      } finally { await page.close() }
+    }
+  }, 30_000)
 
   test.each(['elk', 'agentic'] as const)('%s-backed families fetch and reuse only the selected solver', async backend => {
     const page = await browser.newPage()
@@ -859,34 +998,39 @@ describe('async family-loaded browser renderer', () => {
     } finally { await page.close() }
   })
 
-  for (const [syntax, source] of [
+  for (const [syntax, source, config] of [
     ['init directive', '%%{init: {"theme": "base"}}%%\nsequenceDiagram\n  Alice->>Bob: Configured'],
+    ['wrap directive', '%%{wrap}%%\nsequenceDiagram\n  Alice->>Bob: Wrapped'],
+    ['runtime configuration', 'sequenceDiagram\n  Alice->>Bob: Configured', { sequence: { actorMargin: 75 } }],
     ['flowchart metadata', 'flowchart LR\n  A@{ shape: rect, label: "Meta &amp; data" } --> B'],
     ['sequence metadata', 'sequenceDiagram\n  participant A@{ "type": "database", "alias": "Metadata" }\n  A->>B: Ready'],
     ['Kanban metadata boundaries', 'kanban\nTodo\n  t[Work]@{assigned: Alice, ticket: ID-42}\nDone'],
     ['invalid frontmatter', '---\ntitle: [unclosed\n---\nsequenceDiagram\n  A->>B: Refused'],
     ['invalid metadata', 'sequenceDiagram\n  participant A@{ "type": [unclosed }\n  A->>B: Refused'],
   ] as const) {
-    test(`first-use ${syntax} retains synchronous output or error after loading YAML`, async () => {
+    test(`first-use ${syntax} retains synchronous output or error across configuration acquisition`, async () => {
       const page = await browser.newPage()
       const requests: string[] = []
       page.on('request', request => requests.push(new URL(request.url()).pathname.replace(/^\/dist\//, '')))
       try {
         await page.goto(`${base}/blank.html`)
-        const actual = await page.evaluate(async ([entryUrl, source]) => {
+        const options = { security: 'strict' as const, ...(config ? { mermaidConfig: config } : {}) }
+        const actual = await page.evaluate(async ([entryUrl, source, options]) => {
           const api = await import(entryUrl)
           try {
-            const result = await api.renderMermaidSVGWithReceiptAsync(source, { security: 'strict' })
-            return { svg: result.svg, receipt: result.receipt }
+            const result = await api.renderMermaidSVGWithReceiptAsync(source, options)
+            const repeated = await api.renderMermaidSVGWithReceiptAsync(source, options)
+            return { svg: result.svg, receipt: result.receipt, repeated }
           } catch (error) { return { error: String(error) } }
-        }, [`${base}/dist/browser-lazy/index.js`, source] as const)
+        }, [`${base}/dist/browser-lazy/index.js`, source, options] as const)
         let expected
         try {
-          const result = await sourceSVGWithReceipt(source, { security: 'strict' })
-          expected = { svg: result.svg, receipt: result.receipt }
+          const result = await sourceSVGWithReceipt(source, options)
+          expected = { svg: result.svg, receipt: result.receipt, repeated: result }
         } catch (error) { expected = { error: String(error) } }
         expect(actual).toEqual(expected)
-        for (const chunk of lazyYamlChunks()) expect(requests.filter(path => path === chunk)).toHaveLength(1)
+        const yamlRequests = config || syntax === 'wrap directive' ? 0 : 1
+        for (const chunk of lazyYamlChunks()) expect(requests.filter(path => path === chunk)).toHaveLength(yamlRequests)
       } finally { await page.close() }
     })
   }

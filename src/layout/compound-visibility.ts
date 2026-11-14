@@ -4,6 +4,15 @@ import type { ChannelWork } from './channel-tracks.ts'
 export interface RoutingBox { x: number; y: number; width: number; height: number }
 export interface Terminal { port: Point; stub: Point; penalty: number }
 
+/** Compare with the constructed cardinal boundary. Subtracting a rounded
+ * coordinate can make its own requested stub appear shorter than the demand. */
+export function retainsTerminalLead(port: Point, next: Point, demand: number): boolean {
+  if (demand === 0) return true
+  if (next.y === port.y) return next.x > port.x ? next.x >= port.x + demand : next.x < port.x && next.x <= port.x - demand
+  if (next.x === port.x) return next.y > port.y ? next.y >= port.y + demand : next.y < port.y && next.y <= port.y - demand
+  return false
+}
+
 const inside = (point: Point, box: RoutingBox): boolean => point.x > box.x && point.x < box.x + box.width && point.y > box.y && point.y < box.y + box.height
 const enters = (a: Point, b: Point, box: RoutingBox): boolean => a.x === b.x
   ? a.x > box.x && a.x < box.x + box.width && Math.max(a.y, b.y) > box.y && Math.min(a.y, b.y) < box.y + box.height

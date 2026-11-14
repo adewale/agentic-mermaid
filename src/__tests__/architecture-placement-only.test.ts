@@ -95,7 +95,7 @@ describe('Architecture placement-only ownership', () => {
     expect(placement.groups![1]!.y + placement.groups![1]!.height).toBeLessThan(placement.groups![0]!.y)
     // The last parallel occurrence carries the longer authored span. Keeping
     // only one edge per scope pair would lose this additional rank separation.
-    expect(placement.groups![0]!.y).toBeGreaterThan(shortLinks.groups![0]!.y)
+    expect(placement.nodes[8]!.y - placement.nodes[17]!.y).toBeGreaterThan(shortLinks.nodes[8]!.y - shortLinks.nodes[17]!.y)
     expect(placement.edges).toHaveLength(input.edges.length)
     expect(placement.edges.every(edge => edge.points.length === 0)).toBe(true)
     for (const [index, node] of placement.nodes.entries()) {

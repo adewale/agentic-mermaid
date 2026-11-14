@@ -1,5 +1,7 @@
 // Engine-free editor facade. All rendering is owned by one persistent worker;
 // DOM/font/Canvas capabilities remain explicit main-thread callbacks.
+import { SHARED_RENDER_OPTION_FIELDS, sharedRenderOptionsJsonSchema, validateSerializableRenderOptions } from './render-option-contract.ts'
+import { verifyNoExternalRefs } from './output-security.ts'
 import type { ApplyOpsInput, OpEnvelope } from './agent/apply.ts'
 import { WARNING_SEVERITY, WARNING_TIER } from './agent/types.ts'
 import type { AsciiRenderOptions, RenderedAscii } from './ascii/index.ts'
@@ -9,9 +11,7 @@ import type { BrowserPngRasterizer, RenderedBrowserPng } from './browser-png.ts'
 import type { PreviewWorkerClient } from './browser-preview-client.ts'
 import { PreviewRuntimeLoadError, PreviewSupersededError } from './browser-preview-errors.ts'
 import { resolveAuthoredEditorOptions, type EditorRenderStateInput } from './editor-option-policy.ts'
-import { verifyNoExternalRefs } from './output-security.ts'
 import type { PortablePngOutputOptions } from './png-contract.ts'
-import { SHARED_RENDER_OPTION_FIELDS, sharedRenderOptionsJsonSchema, validateSerializableRenderOptions } from './render-contract.ts'
 import { STYLE_COLOR_TOKEN_DESCRIPTORS, getStyle, knownStyleDescriptors, knownStyles } from './scene/style-registry.ts'
 import type { RenderOptions } from './types.ts'
 

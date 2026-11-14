@@ -23,9 +23,18 @@ export interface GraphLayoutDecision {
 
 export class GraphLayoutUnsupportedError extends Error {
   readonly code = 'GRAPH_LAYOUT_UNSUPPORTED'
-  constructor(readonly reason: string) {
-    super(`Agentic graph layout does not support this input: ${reason}`)
+  constructor(readonly reason: string, backend: 'Agentic' | 'ELK' = 'Agentic') {
+    super(`${backend} graph layout does not support this input: ${reason}`)
     this.name = 'GraphLayoutUnsupportedError'
+  }
+}
+
+/** Exhausting a supplied cumulative ledger must never authorize fallback. */
+export class LayoutWorkLimitError extends RangeError {
+  readonly code = 'LAYOUT_WORK_LIMIT'
+  constructor(readonly resource: 'pairs' | 'arcs' | 'swaps') {
+    super(`Measured layout ${resource} work limit exceeded`)
+    this.name = 'LayoutWorkLimitError'
   }
 }
 
@@ -42,14 +51,31 @@ export function emitGraphLayoutDecision(decision: GraphLayoutDecision): void {
   observer?.(immutableDecision(decision))
 }
 
+/** Dispatch and evidence must use the same admitted runtime selection, even
+ * for JavaScript callers that bypass serialized render-option validation. */
+function graphLayoutBackend(value: unknown): GraphLayoutDecision['requested'] {
+  if (value !== 'elk' && value !== 'agentic') {
+    throw new TypeError('graphLayout.backend must be elk or agentic')
+  }
+  return value
+}
+
+function graphLayoutFallback(value: unknown): GraphLayoutDecision['fallback'] {
+  if (value === undefined) return 'none'
+  if (value !== 'none' && value !== 'elk') throw new TypeError('graphLayout.fallback must be none or elk')
+  return value
+}
+
 /** Families whose specialized geometry has not joined the owned producer yet. */
 export function selectElkForGraphFamily(options: Pick<RenderOptions, 'graphLayout'>, family: string): GraphLayoutDecision {
-  const requested = options.graphLayout?.backend ?? 'elk'
-  const fallback = options.graphLayout?.fallback ?? 'none'
-  if (requested === 'agentic') {
-    const reason = `${family} family geometry is not supported by the Agentic backend`
-    if (fallback !== 'elk') throw new GraphLayoutUnsupportedError(reason)
-    return { requested, fallback, selected: 'elk', reason, attempts: [{ backend: 'agentic', outcome: 'unsupported', reason }, { backend: 'elk', outcome: 'selected' }], implementation: 'elk-layered@1' }
+  const policy = options.graphLayout
+  const requested = policy === undefined ? 'elk' : graphLayoutBackend(policy?.backend)
+  const fallback = graphLayoutFallback(policy?.fallback)
+  if (requested !== 'elk') {
+    const name = 'Agentic'
+    const reason = `${family} family geometry is not supported by the ${name} backend`
+    if (fallback !== 'elk') throw new GraphLayoutUnsupportedError(reason, name)
+    return { requested, fallback, selected: 'elk', reason, attempts: [{ backend: requested, outcome: 'unsupported', reason }, { backend: 'elk', outcome: 'selected' }], implementation: 'elk-layered@1' }
   }
   return { requested, fallback, selected: 'elk', attempts: [{ backend: 'elk', outcome: 'selected' }], implementation: 'elk-layered@1' }
 }
@@ -65,17 +91,19 @@ export function runMeasuredGraphBackend<T>(
   retainDecision?: (result: T, decision: GraphLayoutDecision) => void,
 ): T {
   const policy = options.graphLayout
-  if (!policy) return elk()
+  if (policy === undefined) return elk()
+  const requested = graphLayoutBackend(policy?.backend)
+  const fallback = graphLayoutFallback(policy?.fallback)
   const attempts: Array<GraphLayoutDecision['attempts'][number]> = []
-  let result: T, selected = policy.backend, reason: string | undefined
-  if (policy.backend === 'agentic') {
+  let result: T, selected = requested, reason: string | undefined
+  if (requested !== 'elk') {
     try {
       result = native()
     } catch (error) {
       const unsupported = error instanceof GraphLayoutUnsupportedError
-      if ((!unsupported && !(allowCandidateRejection && error instanceof LayoutCertificationError)) || policy.fallback !== 'elk') throw error
+      if ((!unsupported && !(allowCandidateRejection && error instanceof LayoutCertificationError)) || fallback !== 'elk') throw error
       reason = unsupported ? error.reason : 'candidate failed mandatory geometry certification'
-      attempts.push({ backend: 'agentic', outcome: unsupported ? 'unsupported' : 'candidate-rejected', reason })
+      attempts.push({ backend: requested, outcome: unsupported ? 'unsupported' : 'candidate-rejected', reason })
       result = elk()
       selected = 'elk'
     }
@@ -83,10 +111,10 @@ export function runMeasuredGraphBackend<T>(
     result = elk()
   }
   attempts.push({ backend: selected, outcome: 'selected' })
-  const decision: GraphLayoutDecision = { requested: policy.backend, fallback: policy.fallback ?? 'none', selected, attempts,
-    implementation: selected === 'agentic' ? AGENTIC_LAYERED_IMPLEMENTATION : 'elk-layered@1', ...(reason ? { reason } : {}) }
+  const decision = immutableDecision({ requested, fallback, selected, attempts,
+    implementation: selected === 'agentic' ? AGENTIC_LAYERED_IMPLEMENTATION : 'elk-layered@1', ...(reason ? { reason } : {}) })
   retainDecision?.(result, decision)
-  emitGraphLayoutDecision(decision)
+  observer?.(decision)
   return result
 }
 

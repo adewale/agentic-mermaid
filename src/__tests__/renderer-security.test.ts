@@ -4,10 +4,29 @@
 import { describe, test, expect } from 'bun:test'
 import { spawnSync } from 'node:child_process'
 import { join } from 'node:path'
-import { applyOutputSecurityPolicy, renderMermaidSVG, verifyNoExternalRefs } from '../index.ts'
+import { SaxesParser } from 'saxes'
+import { applyOutputSecurityPolicy, renderMermaidSVG, verifyNoExternalRefs, verifySvgDocumentEnvelope } from '../index.ts'
+import { inspectSvgOnce, withSvgInspectionCache } from '../svg-inspection-cache.ts'
 
 const svgDocument = (body: string, attributes = '') =>
   `<svg xmlns="http://www.w3.org/2000/svg"${attributes}>${body}</svg>`
+
+test('strict security admits only self-contained PNG hrefs on unprefixed image elements', () => {
+  const png = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGP4z8DwHwAFAAH/iZk9HQAAAABJRU5ErkJggg=='
+  const image = `<image href="${png}" x="0" y="0" width="32" height="32"/>`
+  expect(applyOutputSecurityPolicy(svgDocument(image), 'strict').diagnostics).toEqual([])
+  expect(verifyNoExternalRefs(svgDocument(image))).toEqual({ ok: true, refs: [] })
+  for (const unsafe of [
+    `<use href="${png}"/>`, `<image href="https://example.invalid/p.png"/>`, '<image href="data:image/svg+xml;base64,PHN2Zy8+"/>',
+    `<image href="${png}" onload="alert(1)"/>`, `<image href="${png}" xml:base="https://example.invalid/"/>`,
+    `<image href="${png}" src="https://example.invalid/p.png"/>`, `<image href="${png}"/><image/>`,
+    `<image href="${png}\n"/>`, `<image href="${png.replace('==', '=x')}"/>`,
+    `<image:script href="${png}"/>`,
+  ]) {
+    expect(() => applyOutputSecurityPolicy(svgDocument(unsafe), 'strict')).toThrow()
+    expect(verifyNoExternalRefs(svgDocument(unsafe)).ok).toBe(false)
+  }
+})
 
 describe('public SVG emission defaults', () => {
   test.each(['cold', 'warm'] as const)('%s rendering ignores inherited presentation defaults', phase => {
@@ -316,6 +335,61 @@ xychart
     expect(verifyNoExternalRefs('<svg xmlns="http://www.w3.org/2000/svg"><rect/></svg>')).toEqual({ ok: true, refs: [] })
   })
 
+  test.each([
+    { name: 'XML envelope', owner: 'xml-envelope', svg: svgDocument('<g>'), forged: true,
+      check: (svg: string) => expect(verifySvgDocumentEnvelope(svg)).toBe(false) },
+    { name: 'active content', owner: 'final-security', svg: svgDocument('<script>alert(1)</script>'), forged: { active: [], refs: [] },
+      check: (svg: string) => expect(() => applyOutputSecurityPolicy(svg)).toThrow('rejected active content') },
+    { name: 'strict external references', owner: 'final-security', svg: svgDocument('<a href="https://example.invalid/"/>'), forged: { active: [], refs: [] },
+      check: (svg: string) => expect(() => applyOutputSecurityPolicy(svg, 'strict')).toThrow('strict verification failed') },
+    { name: 'reference inspection', owner: 'security', svg: svgDocument('<a href="https://example.invalid/"/>'), forged: { active: [], refs: [] },
+      check: (svg: string) => expect(verifyNoExternalRefs(svg)).toEqual({ ok: false, refs: ['https://example.invalid/'] }) },
+  ])('public inspection probes cannot replace $name decisions', ({ owner, svg, forged, check }) => {
+    withSvgInspectionCache(() => {
+      inspectSvgOnce(owner, svg, () => forged)
+      check(svg)
+    })
+  })
+
+  test.each([
+    ['non-XML space after root', `${svgDocument('')}\u00a0`, svgDocument('<text>\u00a0</text>')],
+    ['byte-order character after root', `${svgDocument('')}\ufeff`, `\ufeff${svgDocument('<text>\ufeff</text>')}`],
+    ['uppercase hexadecimal reference prefix', svgDocument('<text>&#X41;</text>'), svgDocument('<text>&#x41; &#65;</text>')],
+    ['digit at qualified attribute local-name start', svgDocument('', ' xmlns:p="urn:metadata" p:1="x"'), svgDocument('', ' xmlns:p="urn:metadata" p:_1="x"')],
+    ['digit at namespace prefix start', svgDocument('', ' xmlns:1="urn:metadata"'), svgDocument('', ' xmlns:_1="urn:metadata" _1:value="x"')],
+    ['repeatedly decoded namespace alias',
+      svgDocument('', ' xmlns:p="urn:&#38;amp;amp;#x61;" xmlns:q="urn:&amp;amp;amp;#x61;" p:a="1" q:a="2"'),
+      svgDocument('', ' xmlns:p="urn:&#38;amp;amp;#x61;" xmlns:q="urn:&amp;amp;amp;#x62;" p:a="1" q:a="2"')],
+    ['literal namespace whitespace alias',
+      svgDocument('', ' xmlns:p="urn:\tu" xmlns:q="urn: u" p:a="1" q:a="2"'),
+      svgDocument('', ' xmlns:p="urn:&#x9;u" xmlns:q="urn: u" p:a="1" q:a="2"')],
+  ])('final XML admission distinguishes %s from valid authored content', (_name, malformed, valid) => {
+    expect(() => new SaxesParser({ xmlns: true }).write(valid).close()).not.toThrow()
+    for (const mode of ['default', 'strict'] as const) {
+      expect(applyOutputSecurityPolicy(valid, mode)).toEqual({ svg: valid, diagnostics: [] })
+      expect(() => applyOutputSecurityPolicy(malformed, mode)).toThrow('invalid SVG document envelope')
+    }
+  })
+
+  test('bounded XML admission pays repeated expanded namespace names before admitting a short document', () => {
+    const attributes = Array.from({ length: 256 }, (_, index) => ` p:a${index}="x"`).join('')
+    const svg = svgDocument('', ` xmlns:p="urn:${'u'.repeat(2_000)}"${attributes}`)
+    expect(() => new SaxesParser({ xmlns: true }).write(svg).close()).not.toThrow()
+    expect(verifySvgDocumentEnvelope(svg)).toBe(true)
+    expect(svg.length).toBeLessThan(10_000)
+    for (const [allowance, admitted] of [[400_000, false], [4_000_000, true]] as const) {
+      let spent = 0
+      const result = verifySvgDocumentEnvelope(svg, operations => {
+        if (operations > allowance - spent) return false
+        spent += operations
+        return true
+      })
+      expect(result).toBe(admitted)
+      expect(spent).toBeLessThanOrEqual(allowance)
+      if (admitted) expect(spent).toBeGreaterThan(400_000)
+    }
+  })
+
   test('final inspection preserves raw attribute decoding and reference diagnostic order', () => {
     const encoded = 'javascript&amp;amp;amp;amp;#x3a;alert(1)'
     const svg = svgDocument(`<a href="${encoded}"/><rect fill="url(//paint/x)"/><image href="//image/x"/><style>@import url(//css/x);</style>`, ' xml:base="//base/x"')
@@ -323,6 +397,14 @@ xychart
     expect(verifyNoExternalRefs(svg)).toEqual({ ok: false, refs })
     expect(applyOutputSecurityPolicy(svg).diagnostics).toEqual(refs.map(reference => ({ code: 'EXTERNAL_REFERENCE', reference })))
     expect(() => applyOutputSecurityPolicy(svg, 'strict')).toThrow(`OutputSecurityPolicy strict verification failed: ${refs.join(', ')}`)
+    withSvgInspectionCache(() => {
+      const first = verifyNoExternalRefs(svg)
+      first.refs.length = 0
+      const result = applyOutputSecurityPolicy(svg)
+      result.diagnostics[0]!.reference = '#caller'
+      expect(verifyNoExternalRefs(svg)).toEqual({ ok: false, refs })
+      expect(applyOutputSecurityPolicy(svg).diagnostics).toEqual(refs.map(reference => ({ code: 'EXTERNAL_REFERENCE', reference })))
+    })
     const activeElements = svgDocument('<set/><iframe/><SCRIPT/><image/><animateMotion/><foreignObject/><object/><script/><embed/>')
     expect(verifyNoExternalRefs(activeElements)).toEqual({ ok: false, refs: ['<script>', '<foreignObject>', '<image>', '<object>', '<embed>', '<iframe>', '<animation>'] })
     expect(verifyNoExternalRefs('<script:iframe/><set:image/>')).toEqual({ ok: false, refs: ['<script>', '<image>', '<iframe>', '<animation>'] })

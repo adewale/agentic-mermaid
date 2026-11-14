@@ -8,6 +8,7 @@ import { useTempDirs } from '../src/__tests__/helpers/temp-dir.ts'
 
 const REPO = join(import.meta.dir, '..')
 const DIST_CORE = join(REPO, 'dist', 'agent-core.js')
+const DIST_ROOT = join(REPO, 'dist', 'index.js')
 const BUILD_TIMEOUT_MS = 180_000
 const RUN_TIMEOUT_MS = 180_000
 
@@ -53,25 +54,37 @@ describe('built artifact bundler and deferred dependency contracts', () => {
 
   test('Node loads solver and optional kernels only on demand', () => {
     const probe = `
+      import assert from 'node:assert/strict'
       import { createRequire } from 'node:module'
       const require = createRequire(import.meta.url)
-      const loaded = () => { const files = Object.keys(require.cache); return [files.some(path => path.includes('/elkjs/')), files.some(path => path.endsWith('/inter-metrics-kernel.cjs')), files.some(path => path.endsWith('/layout-optimization.cjs'))] }
+      const elkImplementation = require.resolve('elkjs/lib/elk.bundled.js')
+      const loaded = () => { const files = Object.keys(require.cache); return [files.includes(elkImplementation), files.some(path => path.endsWith('/inter-metrics-kernel.cjs')), files.some(path => path.endsWith('/layout-optimization.cjs'))] }
       const { renderMermaidSVG } = await import(${JSON.stringify(DIST_CORE)})
+      const { renderMermaidSVGWithReceipt, renderContractDigest } = await import(${JSON.stringify(DIST_ROOT)})
       const states = [loaded()]
       renderMermaidSVG('sequenceDiagram\\n  A->>B: hi')
       states.push(loaded())
-      renderMermaidSVG('flowchart TD\\n  A --> B')
+      const native = renderMermaidSVGWithReceipt('flowchart TD\\n  A --> B', { graphLayout: { backend: 'agentic', fallback: 'none' } })
+      assert.equal(native.receipt.layoutCertification.status, 'passed')
+      assert.equal(native.receipt.layoutCertification.coverage.conditional, 0)
+      assert.equal(native.receipt.layoutCertification.checks.markers, 1)
+      assert.equal(native.receipt.layoutCertification.outputDigest, renderContractDigest(native.svg))
+      const edge = native.svg.match(/<(?:polyline|line|path)\\b[^>]*data-role="edge"[^>]*>/)?.[0]
+      assert.ok(edge, 'Native actual edge must be emitted')
+      assert.match(edge, /data-from="A"/)
+      assert.match(edge, /data-to="B"/)
+      assert.match(edge, /marker-end="url\\(#.+\\)"/)
       states.push(loaded())
-      renderMermaidSVG('flowchart TD\\n  A -->|needs ELK| B')
+      renderMermaidSVG('flowchart TD\\n  A -->|needs ELK| B\\n  B --> A', { graphLayout: { backend: 'elk' } })
       states.push(loaded())
       renderMermaidSVG('flowchart TD\\n A --> B', { fontMetrics: 'bundled-inter' })
       states.push(loaded())
       renderMermaidSVG('flowchart TD\\n A --> B', { graphLayout: { backend: 'elk', quality: 'balanced' } })
       states.push(loaded())
       console.log(JSON.stringify(states))`
-    const run = spawnSync(NODE, ['--input-type=module', '--eval', probe], { cwd: REPO, encoding: 'utf8', timeout: RUN_TIMEOUT_MS })
+    const run = spawnSync(NODE, ['--input-type=module', '--eval', probe], { cwd: REPO, encoding: 'utf8', timeout: RUN_TIMEOUT_MS, env: { ...process.env, AGENTIC_MERMAID_SCENE_ASSERTIONS: '0', AGENTIC_MERMAID_ELK_CACHE: '0' } })
     expect({ status: run.status, stderr: run.stderr }).toEqual({ status: 0, stderr: '' })
-    // Import, sequence, certified forest, then an ineligible labelled edge.
+    // Import, sequence, certified forest, then an explicit ELK request.
     expect(JSON.parse(run.stdout)).toEqual([[false, false, false], [false, false, false], [false, false, false], [true, false, false], [true, true, false], [true, true, true]])
   }, RUN_TIMEOUT_MS)
 

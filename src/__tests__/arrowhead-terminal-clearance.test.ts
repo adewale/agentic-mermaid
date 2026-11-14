@@ -6,6 +6,7 @@ import { readFileSync } from 'node:fs'
 import { tipAnchoredArrow } from '../scene/marker-resources.ts'
 import { projectRoundedConnectorPath } from '../scene/connector-geometry.ts'
 import { conformanceSourceFor, FAMILY_CONFORMANCE_PROFILES } from './helpers/family-conformance-profiles.ts'
+import { Resvg } from '@resvg/resvg-js'
 
 type Tag = { name: string; attrs: Record<string, string> }
 const numbers = (value: string) => (value.match(/[-+]?(?:\d*\.)?\d+(?:e[-+]?\d+)?/gi) ?? []).map(Number)
@@ -31,7 +32,7 @@ function straightRun(tag: Tag, start: boolean): number {
   return run
 }
 
-describe('arrowheads retain straight terminal ink after routing and rounding', () => {
+describe('arrowheads retain terminal ink after routing and interpolation', () => {
   const wide: RenderOptions['style'] = { roles: { edge: { lineWidth: 3, bendRadius: 20 } } }
   const cases: { name: string; source: string; options?: RenderOptions }[] = [
     { name: 'Flowchart sharp duplicate', source: readFileSync(new URL('../../eval/layout-compare/fixtures/cyclic-labelled-19.mmd', import.meta.url), 'utf8') },
@@ -76,6 +77,30 @@ describe('arrowheads retain straight terminal ink after routing and rounding', (
       const reverse = end === 'start' && marker.attrs.orient === 'auto-start-reverse'
       const depth = end === 'end' || reverse ? ref - Math.min(...xs) : Math.max(...xs) - ref
       const units = marker.attrs.markerUnits === 'userSpaceOnUse' ? 1 : Number(tag.attrs['stroke-width'])
+      const commands = tag.attrs.d ? [...tag.attrs.d.matchAll(/([MLQC])([^MLQC]*)/g)].map(match => ({ kind: match[1], values: numbers(match[2]!) })) : []
+      const segmentIndex = end === 'end' ? commands.length - 1 : 1, segment = commands[segmentIndex]
+      if (segment?.kind === 'C') {
+        const previous = commands[segmentIndex - 1]!.values.slice(-2), controls = [previous, segment.values.slice(0, 2), segment.values.slice(2, 4), segment.values.slice(4)]
+        const first = controls[0]!, last = controls[3]!, chord = [last[0]! - first[0]!, last[1]! - first[1]!]
+        if (controls.slice(1, 3).some(point => Math.abs((point[0]! - first[0]!) * chord[1]! - (point[1]! - first[1]!) * chord[0]!) > 1e-7)) {
+          // A genuinely curved terminal has no straight-run promise. Read
+          // its actual noncollapsed Bezier derivative, then remove only this
+          // occurrence's marker to establish that its arrow ink survives.
+          const tip = end === 'end' ? last : first, toward = end === 'end' ? controls.slice(0, 3).reverse() : controls.slice(1)
+          const control = toward.find(point => point[0] !== tip[0] || point[1] !== tip[1])!
+          expect(Math.hypot(tip[0]! - control[0]!, tip[1]! - control[1]!)).toBeGreaterThan(0)
+          expect(depth * units).toBeGreaterThan(0)
+          const ys = coords.filter((_, index) => index % 2 === 1)
+          expect(Math.max(...ys) - Math.min(...ys)).toBeGreaterThan(0)
+          const occurrence = [...svg.matchAll(/<path\b[^>]*>/g)].find(match => match[0].includes(` data-id="${tag.attrs['data-id']}"`))![0]
+          const token = ` marker-${end}="url(#${id})"`
+          expect(occurrence.split(token)).toHaveLength(2)
+          const without = svg.replace(occurrence, occurrence.replace(token, ''))
+          expect(Buffer.compare(new Resvg(svg).render().pixels, new Resvg(without).render().pixels)).not.toBe(0)
+          checked++
+          continue
+        }
+      }
       expect(straightRun(tag, end === 'start') - depth * units, `${fixture.name}: ${tag.attrs['data-id'] ?? tag.attrs.class}/${end}`).toBeGreaterThanOrEqual(3.9998)
       checked++
     }

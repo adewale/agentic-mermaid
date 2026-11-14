@@ -12,8 +12,9 @@ import { describe, test, expect } from 'bun:test'
 import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { createHash } from 'node:crypto'
-import { renderMermaidPNG, type PngFontWarning } from '../agent/png.ts'
-import { renderMermaidSVG } from '../index.ts'
+import { createMermaidPNGRenderer, renderMermaidPNG, type PngFontWarning } from '../agent/png.ts'
+import { createMermaidRenderer, DefaultBackend, registerBackend, renderMermaidSVG } from '../index.ts'
+import { KNOWN_EXTENSION_CONTRACT_VERSIONS } from '../shared/extension-identity.ts'
 import { runCli } from '../cli/index.ts'
 import { PNG_NAPI_RUNTIME, PNG_WASM_RUNTIME, pngNapiRuntimeProvenance } from '../png-contract.ts'
 import { decodePng, inkColumns } from './helpers/png-pixels.ts'
@@ -138,13 +139,63 @@ describe('PNG glyph-coverage warnings', () => {
 })
 
 describe('fontDirs escape hatch', () => {
-  test.skipIf(!HAS_CJK_FONT)('a CJK-capable fontDirs clears the warning and changes the rendered bytes', () => {
-    const bare = collectWarnings(CJK_SRC)
-    const withFonts = collectWarnings(CJK_SRC, { fontDirs: [CJK_FONT_DIR] })
-    expect(withFonts.warnings.filter(w => w.script === 'CJK')).toEqual([])
-    // Real glyphs instead of tofu — the extra directory reached the rasterizer.
-    expect(Buffer.compare(Buffer.from(bare.png), Buffer.from(withFonts.png))).not.toBe(0)
-  })
+  test.skipIf(!HAS_CJK_FONT)('explicit CJK fallback paints the authored glyph shapes through both graphical writers', () => {
+    // 一 is a horizontal stroke; 口 encloses a clear center. Positive tofu
+    // pixels and merely different PNG bytes do not establish either shape.
+    const id = 'backend:test/cjk-fallback'
+    let sceneCalls = 0
+    const unregister = registerBackend({
+      ...DefaultBackend, id, capabilities: DefaultBackend.capabilities.map(claim => ({ ...claim, target: id })),
+      render(doc, context) { sceneCalls++; return DefaultBackend.render(doc, context) },
+    }, { compatibility: { core: KNOWN_EXTENSION_CONTRACT_VERSIONS.core, scene: '^2.0.0' } })
+    try {
+      const sceneSvg = createMermaidRenderer({ backendPolicy: { selectBackend: () => id } })
+      const scenePng = createMermaidPNGRenderer({ backendPolicy: { selectBackend: () => id } })
+      for (const backend of ['agentic', 'elk'] as const) {
+        for (const writer of ['default', 'explicit-scene'] as const) {
+          for (const char of ['一', '口']) {
+            const source = `flowchart LR\nA[${char}]`
+            const graphLayout = { backend }
+            const warnings: PngFontWarning[] = []
+            const svgRenderer = writer === 'default' ? { renderMermaidSVG } : sceneSvg
+            const pngRenderer = writer === 'default' ? { renderMermaidPNG } : scenePng
+            const before = sceneCalls
+            const svg = svgRenderer.renderMermaidSVG(source, { graphLayout, embedFontImport: false })
+            const rect = svg.match(/<rect x="([\d.]+)" y="([\d.]+)" width="([\d.]+)" height="([\d.]+)"[^>]*data-id="node-shape:A"/)
+            expect(rect, `${backend}/${writer}/${char}: owned node rectangle`).not.toBeNull()
+            const [x, y, width, height] = rect!.slice(1).map(Number) as [number, number, number, number]
+            const scale = 3
+            const image = decodePng(pngRenderer.renderMermaidPNG(source, {
+              graphLayout, scale, fontDirs: [CJK_FONT_DIR],
+              onWarning: warning => { if (warning.code === 'PNG_FONT_COVERAGE') warnings.push(warning) },
+            }))
+            expect(warnings.filter(w => w.script === 'CJK'), `${backend}/${writer}/${char}`).toEqual([])
+            if (writer === 'explicit-scene') expect(sceneCalls - before).toBe(2)
+            const points: { x: number; y: number }[] = []
+            // The inset excludes the node stroke; only actual glyph ink is dark.
+            for (let py = Math.ceil((y + 4) * scale); py < Math.floor((y + height - 4) * scale); py++) {
+              for (let px = Math.ceil((x + 4) * scale); px < Math.floor((x + width - 4) * scale); px++) {
+                const at = (py * image.width + px) * 4
+                if ((image.rgba[at]! + image.rgba[at + 1]! + image.rgba[at + 2]!) / 3 < 100) points.push({ x: px, y: py })
+              }
+            }
+            expect(points.length, `${backend}/${writer}/${char}: actual glyph ink`).toBeGreaterThan(0)
+            const left = Math.min(...points.map(p => p.x)), right = Math.max(...points.map(p => p.x))
+            const top = Math.min(...points.map(p => p.y)), bottom = Math.max(...points.map(p => p.y))
+            const aspect = (right - left + 1) / (bottom - top + 1)
+            if (char === '一') expect(aspect, `${backend}/${writer}: horizontal stroke`).toBeGreaterThan(4)
+            else {
+              expect(aspect, `${backend}/${writer}: enclosure proportions`).toBeGreaterThan(0.5)
+              expect(aspect).toBeLessThan(1.5)
+              const centerInk = points.filter(p => p.x > left + (right - left) / 3 && p.x < right - (right - left) / 3
+                && p.y > top + (bottom - top) / 3 && p.y < bottom - (bottom - top) / 3)
+              expect(centerInk, `${backend}/${writer}: clear enclosed center`).toEqual([])
+            }
+          }
+        }
+      }
+    } finally { unregister() }
+  }, 30_000)
 })
 
 // ---------------------------------------------------------------------------

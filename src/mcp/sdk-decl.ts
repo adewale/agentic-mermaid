@@ -178,7 +178,7 @@ interface RenderedLayoutArtifact { layout: VerifyResult['layout']; receipt: Rend
  * while intentionally summarizing the full terminal evidence records. */
 const CODE_MODE_CORE_STYLE_SPEC_DECLARATION = styleSpecTypeScriptDeclaration({ compact: true }).replaceAll(' | ', '|').replaceAll(', ', ',')
 
-export const CODE_MODE_CORE_RENDER_OPTION_DECLARATIONS = compactSdkDeclaration(`${CODE_MODE_CORE_STYLE_SPEC_DECLARATION}
+export const CODE_MODE_CORE_RENDER_OPTION_DECLARATIONS = `type Solver='elk'|'agentic'\n` + compactSdkDeclaration(`${CODE_MODE_CORE_STYLE_SPEC_DECLARATION}
 type ArchitectureVisualOverrides = Readonly<Record<string, unknown>>
 
 ${CODE_MODE_CORE_SHARED_RENDER_OPTIONS_DECLARATION}
@@ -189,7 +189,7 @@ ${CODE_MODE_CORE_RENDER_RECEIPT_DECLARATIONS}
 
 interface RenderedSvg { svg: string; receipt: RenderRequestReceipt }
 interface RenderedAscii { text: string; receipt: RenderRequestReceipt; terminalStyle: Record<string, unknown>; outputPolicy: Record<string, unknown> }
-interface RenderedLayoutArtifact { layout: VerifyResult['layout']; receipt: RenderRequestReceipt }`.replace(/; +/g, ';').replace(/: +/g, ':')).replaceAll('Record<string,unknown>', 'Fields')
+interface RenderedLayoutArtifact { layout: VerifyResult['layout']; receipt: RenderRequestReceipt }`.replace(/; +/g, ';').replace(/: +/g, ':')).replaceAll('Record<string,unknown>', 'Fields').replaceAll("'elk'|'agentic'", 'Solver')
 
 export const CODE_MODE_LAYOUT_SUMMARY_DECLARATION = `interface RenderedLayout { version: 1; kind: DiagramKind | ExternalFamilyId; nodes: unknown[]; edges: unknown[]; groups: unknown[]; labels?: Array<{ id: string; text: string; bounds?: LayoutRect; container?: LayoutRect; visibility?: 'visible' | 'hidden' | 'semantic' }>; regions?: RenderedRegion[]; actions?: DiagramActionRecord[]; bounds: { w: number; h: number } }`
 

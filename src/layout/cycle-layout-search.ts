@@ -1,7 +1,7 @@
 import { smallFeedbackCuts } from './small-feedback-cuts.ts'
-import type { AgenticLayout, MeasuredGraph } from './agentic-layered-core.ts'
+import type { AgenticLayout, MeasuredGraph, CompleteMeasuredCandidate } from './agentic-layered-core.ts'
 import type { ChannelWork } from './channel-tracks.ts'
-import { depthFirstOrder, feedbackOrder } from './cycle-order.ts'
+import { compareFeedbackOrders, depthFirstOrder, feedbackOrder, groupSourceOrder } from './cycle-order.ts'
 import { countPolylineCrossings } from '../shared/edge-crossings.ts'
 
 /** Optional work is shared across scopes but cannot spend the budget needed
@@ -16,6 +16,11 @@ export interface LayoutSearchWork {
   routing: ChannelWork
 }
 
+/** Keep endpoint-owned metadata with its endpoint through private orientation. */
+export function orientMeasuredEdge(edge: MeasuredGraph['edges'][number], source: number, target: number, reversed: boolean): MeasuredGraph['edges'][number] {
+  return { ...edge, source, target, ...(reversed ? { sourcePortSpan: edge.targetPortSpan, targetPortSpan: edge.sourcePortSpan, sourceTerminalLead: edge.targetTerminalLead, targetTerminalLead: edge.sourceTerminalLead } : {}) }
+}
+
 class OptionalOrderDecline extends Error {}
 
 export function layoutCyclicGraph(
@@ -26,6 +31,7 @@ export function layoutCyclicGraph(
   unsupported: (reason: string) => never,
   routingWork: ChannelWork,
   search: LayoutSearchWork,
+  complete?: CompleteMeasuredCandidate,
 ): AgenticLayout {
   const { nodes, edges } = input
   const greedy = feedbackOrder(incoming, outgoing, edges), model = depthFirstOrder(outgoing, edges)
@@ -42,19 +48,32 @@ export function layoutCyclicGraph(
       nodes: permutation.map(index => nodes[index]!),
       edges: edgeOrder.map(original => {
         const edge = edges[original]!, source = reversed[original] ? edge.target : edge.source, target = reversed[original] ? edge.source : edge.target
-        return { ...edge, source: indices[source]!, target: indices[target]! }
+        return orientMeasuredEdge(edge, indices[source]!, indices[target]!, reversed[original]!)
       }),
       loopPorts: input.loopPorts?.map(([a, b]) => [edgeIndices[a]!, edgeIndices[b]!] as const),
     }, fail, work)
-    return { ...moved, nodes: nodes.map((_, index) => moved.nodes[indices[index]!]!),
+    const restored = { ...moved, nodes: nodes.map((_, index) => moved.nodes[indices[index]!]!),
       edges: edges.map((_, index) => {
         const route = moved.edges[edgeIndices[index]!]!
         return reversed[index] ? { ...route, points: [...route.points].reverse() } : route
       }) }
+    return complete ? complete(restored, fail, work) : restored
   }
   if (input.authoredCycleOrder) return place(Uint32Array.from(nodes, (_, index) => index), unsupported, routingWork, false, true)
-  const primary = feedbackCount(model) <= feedbackCount(greedy) ? model : greedy
+  const preferred = input.groupCycleEdges?.map(index => edges[index]!)
+  const compareOrder = (a: ArrayLike<number>, b: ArrayLike<number>): number => compareFeedbackOrders(edges, preferred!, a, b)
+  let primary = feedbackCount(model) <= feedbackCount(greedy) ? model : greedy
+  if (preferred?.length) {
+    // These are lifted constraints, not leaf traversal. Preserve the earliest
+    // authored group link when equally small feedback cuts are available.
+    const authored = groupSourceOrder(outgoing, edges, preferred)
+    for (const order of [greedy, authored]) if (compareOrder(order, primary) < 0) primary = order
+  }
+  // Only a single cut has the bounded opposite orientation considered below.
+  // Other loop/cycle scopes retain their existing helper-placement search.
+  if (complete && feedbackCount(primary) !== 1) return layout(input, unsupported, routingWork)
   let best = place(primary, unsupported, routingWork)
+  let bestOrder: ArrayLike<number> = primary
   if (nodes.length > 48 || edges.length > 128 || edges.reduce((sum, edge) => sum + edge.minSpan, 0) > 128
     || (best.expandedVertices ?? 0) > 1024 || search.attempts <= 0) return best
   const score = (candidate: AgenticLayout): number | undefined => {
@@ -64,7 +83,24 @@ export function layoutCyclicGraph(
     return countPolylineCrossings(candidate.edges.map((route, index) => ({ ...route, visible: edges[index]!.visible })))
   }
   let bestScore = score(best)
-  if (bestScore === undefined || bestScore === 0) return best
+  if (bestScore === undefined) return best
+  let opposite: Int32Array | undefined
+  if (bestScore === 0) {
+    if (!complete) return best
+    let cut: MeasuredGraph['edges'][number] | undefined
+    for (const edge of edges) if (primary[edge.source]! > primary[edge.target]!) {
+      if (cut) return best
+      cut = edge
+    }
+    if (!cut) return best
+    search.rankPairs -= nodes.length + edges.length
+    if (search.rankPairs < 0) return best
+    opposite = Int32Array.from(primary)
+    const before = primary[cut.target]!, after = primary[cut.source]!
+    for (let node = 0; node < nodes.length; node++) if (primary[node]! >= before && primary[node]! < after) opposite[node] = primary[node]! + 1
+    opposite[cut.source] = before
+    if (feedbackCount(opposite) !== 1) return best
+  }
   const bendCount = (candidate: AgenticLayout): number => candidate.edges.reduce((sum, route, index) =>
     sum + (edges[index]!.visible === false ? 0 : Math.max(0, route.points.length - 2)), 0)
   let bestBends = bendCount(best), bestArea = best.width * best.height
@@ -72,9 +108,9 @@ export function layoutCyclicGraph(
     edges.map(edge => order[edge.source]! > order[edge.target]! ? 1 : 0).join('') + ':' + reverseNodes + ':' + reverseEdges
   // Larger compact candidates retain the primary plus two optional orders.
   // The normal producer keeps its full search; compact placement is optional.
-  let localAttempts = input.compactPrivateRanks && nodes.length > 16 ? 2 : 12
+  let localAttempts = opposite ? 1 : input.compactPrivateRanks && nodes.length > 16 ? 2 : 12
   const seen = new Set([key(primary, false, false)])
-  const starts = nodes.length <= 12 ? nodes.map((_, index) => index)
+  const starts = opposite ? [] : nodes.length <= 12 ? nodes.map((_, index) => index)
     : nodes.length <= 20 ? [0, Math.floor(nodes.length / 4), Math.floor(nodes.length / 2), Math.floor(3 * nodes.length / 4), nodes.length - 1] : []
   const shifted = starts.flatMap(start => {
     const remap = (index: number) => (index - start + nodes.length) % nodes.length
@@ -84,15 +120,15 @@ export function layoutCyclicGraph(
     return [Uint32Array.from(nodes, (_, index) => dfs[remap(index)]!), Uint32Array.from(nodes, (_, index) => otherGreedy[remap(index)]!)]
   })
   // Spend the two larger compact trials on distinct cuts before input variants.
-  const diversify = input.compactPrivateRanks && nodes.length > 16
+  const diversify = !opposite && input.compactPrivateRanks && nodes.length > 16
   // Scarce larger-graph trials should explore cuts beyond the same greedy
   // orientation. For nearly acyclic compact graphs, enumerate small cuts and
   // try opposite span extremes with authored node/edge order intact.
   const cuts = diversify && feedbackCount(primary) <= 3 ? smallFeedbackCuts(input, search, 3) : []
   cuts.sort((a, b) => b.span - a.span)
   const cutOrders = cuts.length > 1 ? [cuts[0]!.order, cuts.at(-1)!.order, ...cuts.slice(1, -1).map(cut => cut.order)] : cuts.map(cut => cut.order)
-  const orders = [...cutOrders, greedy, model, ...shifted, Uint32Array.from(nodes, (_, index) => index)]
-  const permutations = cuts.length ? [[false, false], [true, true], [true, false], [false, true]] as const
+  const orders = opposite ? [opposite] : [...cutOrders, greedy, model, ...shifted, Uint32Array.from(nodes, (_, index) => index)]
+  const permutations = opposite ? [[false, false]] as const : cuts.length ? [[false, false], [true, true], [true, false], [false, true]] as const
     : [[true, true], [true, false], [false, true], [false, false]] as const
   for (let trial = 0; trial < orders.length * permutations.length; trial++) {
     const order = orders[diversify ? trial % orders.length : Math.floor(trial / permutations.length)]!
@@ -100,16 +136,19 @@ export function layoutCyclicGraph(
     const candidateKey = key(order, reverseNodes, reverseEdges)
     if (seen.has(candidateKey)) continue
     seen.add(candidateKey)
+    const preference = preferred?.length ? compareOrder(order, bestOrder) : 0
+    if (preference > 0) continue
     if (localAttempts-- <= 0 || search.attempts-- <= 0 || search.routing.pairs < 0 || search.routing.arcs < 0 || search.routing.swaps < 0) return best
     try {
       const alternative = place(order, reason => { throw new OptionalOrderDecline(reason) }, search.routing, reverseNodes, reverseEdges)
       const value = score(alternative)
       if (value === undefined) return best
       const bends = bendCount(alternative), area = alternative.width * alternative.height
-      // Crossings dominate, followed by bends and area. Exact ties preserve
-      // the earlier candidate; no weighted score trades feasibility away.
-      if (value < bestScore || (value === bestScore && (bends < bestBends || (bends === bestBends && area < bestArea)))) {
+      // Lifted group cut preferences precede crossings, bends and area.
+      // Other scopes retain geometric priority and the earlier exact tie.
+      if (preference < 0 || value < bestScore || (value === bestScore && (bends < bestBends || (bends === bestBends && area < bestArea)))) {
         best = alternative; bestScore = value; bestBends = bends; bestArea = area
+        bestOrder = order
       }
       if (bestScore === 0) return best
     } catch (error) {

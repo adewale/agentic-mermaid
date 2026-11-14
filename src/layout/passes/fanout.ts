@@ -1,6 +1,6 @@
 import type { Direction, MermaidGraph, Point, PositionedEdge, PositionedGroup, PositionedNode } from '../../types.ts'
 import type { LabelMetricsStyle } from '../../route-contracts.ts'
-import { graphReachability, layoutFlow, nodeCrossCenter, nodeMainStart, rectsOverlap } from '../geometry.ts'
+import { graphReachability, layoutFlow, nodeCrossCenter, nodeMainCenter, nodeMainStart, rectsOverlap } from '../geometry.ts'
 import { positionedEdgeForwardish, sameFlowLayer, nodeInsideGroups, flattenPositionedGroups, rectInsideGroup, expandGroupsForMainShift, moveKeepsGroupContainment, sourceEmissionPort, targetFlowPort, symmetricOffsets, doglegBetween, routeClearOfNodes } from './shared.ts'
 import { terminalLabelRunLength, terminalLabelCorridorLength, assignBundledFanoutLabels } from './bundled-labels.ts'
 import { retainConstructedBundleRoutes } from '../bundle-routes.ts'
@@ -87,6 +87,22 @@ function containingGroups(node: PositionedNode, groups: PositionedGroup[]): stri
   return flattenPositionedGroups(groups).filter(group => rectInsideGroup(node, group)).map(group => group.id).join('\u0000')
 }
 
+/** Centered unequal leaf bodies occupy one measured band even when their
+ * receiving faces differ. Spread only their exits; equalizing these bodies
+ * would discard the producer's compact placement. */
+function keepsCenteredTerminalBodies(
+  source: PositionedNode, raw: readonly PositionedEdge[], targets: PositionedNode[],
+  edges: readonly PositionedEdge[], groups: PositionedGroup[], direction: Direction,
+): boolean {
+  if (source.shape !== 'rectangle' || nodeInsideGroups(source, groups) || sameFlowLayer(targets, direction, 40)) return false
+  if (new Set(targets.map(target => target.id)).size !== targets.length) return false
+  if (edges.filter(edge => edge.source === source.id).length !== raw.length) return false
+  if (raw.some(edge => edge.label || edge.style !== 'solid' || edge.hasArrowStart || !edge.hasArrowEnd
+    || edge.endMarker && edge.endMarker !== 'arrow' || edge.inlineStyle !== undefined)) return false
+  const centers = targets.map(target => nodeMainCenter(target, direction))
+  return Math.max(...centers) - Math.min(...centers) <= 0.5
+}
+
 /** The forward edges of a fan-out the symmetric emitter owns, sorted by
  * target cross centre, or undefined. A rectangle or diamond source emits to
  * 2–3 rectangle leaves fed only by it, peers on one rank that do not reach
@@ -119,7 +135,7 @@ export function symmetricFanout(
   // loosening this gate cannot equalize non-peers. (Equalizing such peers is
   // exactly the symmetry the diamond/"warnings"/"ok" fan-out wants; verified
   // byte-identical on the corpus, which has no fan-out in the 28–40px band.)
-  if (!sameFlowLayer(targets, direction, 40)) return undefined
+  if (!sameFlowLayer(targets, direction, 40) && !keepsCenteredTerminalBodies(source, raw, targets, edges, groups, direction)) return undefined
   if (!targets.every(t => edges.every(e => e.source !== t.id && (e.target !== t.id || e.source === source.id)))) return undefined
   for (let i = 0; i < targets.length; i++) for (let j = 0; j < targets.length; j++) {
     if (i !== j && reaches(targets[i]!.id, targets[j]!.id)) return undefined
@@ -134,6 +150,7 @@ export function applySymmetricFanoutEmissions(
   graph: MermaidGraph,
   bundled: Set<PositionedEdge>,
   style: LabelMetricsStyle,
+  preserveMeasuredBoxes = false,
 ): void {
   const reaches = graphReachability(graph.edges)
   const nodeMap = new Map(nodes.map(n => [n.id, n]))
@@ -149,11 +166,10 @@ export function applySymmetricFanoutEmissions(
     const sorted = source && symmetricFanout(source, raw, edges, nodeMap, groups, graph.direction, reaches)
     if (!source || !sorted) continue
     const targets = sorted.map(e => nodeMap.get(e.target)!)
-    // A grouped rectangle keeps ELK's target placement: moving a member would
-    // need its group refitted. Its fork is still emitted symmetrically, with
-    // one shared elbow and level label seats; the terminal runs follow the
-    // targets where ELK centred them under the source.
-    const routeOnly = source.shape !== 'diamond' && nodeInsideGroups(source, groups)
+    // Grouped rectangles and centered unequal leaf bodies keep their existing
+    // placement. Only their source exits and connecting doglegs are rebuilt.
+    const routeOnly = preserveMeasuredBoxes || source.shape !== 'diamond' && nodeInsideGroups(source, groups)
+      || keepsCenteredTerminalBodies(source, raw, targets, edges, groups, graph.direction)
     if (routeOnly) {
       // The straightener's own lanes stand when they already mirror about the
       // source: a symmetric pair of straight lines needs no constructed fork.
@@ -164,7 +180,6 @@ export function applySymmetricFanoutEmissions(
     }
 
     const oldTargets = targets.map(t => ({ t, x: t.x, y: t.y, width: t.width, height: t.height }))
-    const targetGroups = new Map(targets.map(target => [target.id, flattenPositionedGroups(groups).filter(group => rectInsideGroup(target, group))]))
     const oldGroups = flattenPositionedGroups(groups).map(group => ({ group, x: group.x, y: group.y, width: group.width, height: group.height }))
     const restoreGeometry = () => {
       for (const old of oldTargets) { old.t.x = old.x; old.t.y = old.y; old.t.width = old.width; old.t.height = old.height }
@@ -199,9 +214,11 @@ export function applySymmetricFanoutEmissions(
       for (let i = 0; i < targets.length; i++) {
         const target = targets[i]!
         if (target.x < 0 || target.y < 0) return false
-        // Late fan-out placement must preserve every original enclosure. Main
-        // axis expansion below may enlarge a group, but never evict a member.
-        if (!targetGroups.get(target.id)!.every(group => rectInsideGroup(target, group))) return false
+        // Keep original containers even after a target has moved. Current
+        // frames may already have grown along the flow axis.
+        for (const prior of oldGroups) {
+          if (rectInsideGroup(oldTargets[i]!, prior) && !rectInsideGroup(target, prior.group)) return false
+        }
         for (let j = i + 1; j < targets.length; j++) {
           if (rectsOverlap(target, targets[j]!, 8)) return false
         }

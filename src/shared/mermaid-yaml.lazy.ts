@@ -30,4 +30,12 @@ export function stringifyMermaidYaml(value: unknown): string {
   return yaml().stringifyMermaidYaml(value)
 }
 
+export function mergeConfigSource(...args: Parameters<NonNullable<typeof runtime>['mergeConfigSource']>): Record<string, unknown> {
+  return yaml().mergeConfigSource(...args)
+}
+
+export function configDirective(...args: Parameters<NonNullable<typeof runtime>['configDirective']>): string {
+  return yaml().configDirective(...args)
+}
+
 export type { MermaidYamlResult }

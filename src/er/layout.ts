@@ -6,7 +6,7 @@ import { resolveLabelContent, type DisplayTextInput } from '../shared/display-te
 import { assertErDiagramWork, DIAGRAM_WORK_LIMITS } from '../shared/diagram-limits.ts'
 import { preparePixelText, type PixelTextBlock } from '../shared/prepared-text.ts'
 import { projectRoundedConnectorPath } from '../scene/connector-geometry.ts'
-import { visitTypedPathSegments } from '../scene/bounds.ts'
+import { paintedStrokeExtent, visitTypedPathSegments } from '../scene/bounds.ts'
 /**
  * ER measured layout adapters.
  *
@@ -28,6 +28,7 @@ import { alignElkRoundoff } from '../layout/elk-roundoff.ts'
 import { directionToElk } from '../layout/backend.ts'
 import { layoutAgenticGraph } from '../layout/agentic-layered.ts'
 import { runMeasuredGraphBackend } from '../layout/backend.ts'
+import type { MeasuredGraph } from '../layout/measured-graph.ts'
 import { LayoutCertificationError } from '../layout/certification-error.ts'
 import { measureRenderStage } from '../render-stages.ts'
 import { checkedAuthoredStyle } from '../shared/style-props.ts'
@@ -52,6 +53,8 @@ const ER = {
   attrFontSize: 11,
   attrFontWeight: 400,
   nodeSpacing: 70,
+  // Match ER component clearance; connected siblings retain nodeSpacing.
+  isolateSpacing: 20,
   layerSpacing: 90,
 } as const
 
@@ -764,6 +767,115 @@ interface ErPlacement {
   preserveTerminalNormals?: true
 }
 
+const defineErIsland = Object.defineProperty
+
+function erEntityPaint(diagram: ErDiagram, entity: ErEntity, defaultStyle: Readonly<Record<string, string>> | undefined): Record<string, string> | undefined {
+  const classStyle: Record<string, string> = { ...defaultStyle }
+  for (const name of entity.className?.split(/[ \t]+/) ?? []) Object.assign(classStyle, checkedAuthoredStyle(diagram.classDefs.get(name), `classDef ${name}`))
+  return Object.keys(classStyle).length > 0 || entity.inlineStyle ? { ...classStyle, ...checkedAuthoredStyle(entity.inlineStyle, `style ${entity.id}`) } : undefined
+}
+
+function erEntityStrokeHalf(entity: Pick<PositionedErEntity, 'inlineStyle'>, style: ResolvedRenderStyle): number {
+  const authored = Number.parseFloat(entity.inlineStyle?.['stroke-width'] ?? '')
+  return (Number.isFinite(authored) && authored > 0 ? authored : style.nodeLineWidth) / 2
+}
+
+/** Only fresh flat Native cards move; connected paint keeps its exact seats. */
+function packErIslands(
+  entities: PositionedErEntity[], relationships: PositionedErRelationship[], labelBounds: readonly ErInkBox[],
+  result: ErPlacement, spacing: number, style: ResolvedRenderStyle,
+  styleFace: Readonly<InternalStyleFace> | undefined, work: ErGeometryWork,
+): { width: number; height: number } | undefined {
+  if (!Number.isFinite(spacing) || spacing < 0) return undefined
+  erCharge(work, 16)
+  const incident = new Set<string>()
+  const connected = { x0: Infinity, y0: Infinity, x1: -Infinity, y1: -Infinity }
+  const original = { ...connected }
+  const include = (target: ErInkBox, box: ErInkBox): boolean => {
+    erCharge(work, 12)
+    if (!Number.isFinite(box.x0) || !Number.isFinite(box.y0) || !Number.isFinite(box.x1) || !Number.isFinite(box.y1)
+      || box.x1 < box.x0 || box.y1 < box.y0) return false
+    target.x0 = Math.min(target.x0, box.x0); target.y0 = Math.min(target.y0, box.y0)
+    target.x1 = Math.max(target.x1, box.x1); target.y1 = Math.max(target.y1, box.y1)
+    return true
+  }
+  for (let i = 0; i < relationships.length; i++) {
+    erCharge(work, 12)
+    const rel = relationships[i]!, points = rel.points
+    incident.add(rel.entity1); incident.add(rel.entity2)
+    if (points.length < 2) return undefined
+    const role = erRelationshipStyle(rel, styleFace)
+    const lineWidth = role?.lineWidth ?? style.lineWidth
+    erCharge(work, 80)
+    const extent = paintedStrokeExtent({ stroke: '#000', strokeWidth: String(lineWidth) }, points.length > 2)
+    if (extent === undefined) return undefined
+    for (let j = 0; j < points.length; j++) {
+      erCharge(work, 8)
+      const p = points[j]!
+      if (!include(connected, { x0: p.x - extent, y0: p.y - extent, x1: p.x + extent, y1: p.y + extent })) return undefined
+    }
+    // The shared cardinality producer includes circles, ticks and crow's feet.
+    for (let end = 0; end < 2; end++) {
+      erCharge(work, 160)
+      const pieces = erCardinalityInk(end === 0 ? points[0]! : points[points.length - 1]!,
+        end === 0 ? points[1]! : points[points.length - 2]!, end === 0 ? rel.cardinality1 : rel.cardinality2, style.lineWidth)
+      if (!pieces?.length) return undefined
+      for (let j = 0; j < pieces.length; j++) if (!include(connected, pieces[j]!)) return undefined
+    }
+  }
+  for (let i = 0; i < labelBounds.length; i++) {
+    erCharge(work, 2)
+    if (!include(connected, labelBounds[i]!)) return undefined
+  }
+  if (relationships.length && !include(original, connected)) return undefined
+  erCharge(work, 12)
+  const islands: Array<{ entity: PositionedErEntity; half: number; width: number; height: number; x: number; y: number }> = []
+  const slot = { __proto__: null, value: undefined as unknown, writable: true, configurable: true, enumerable: true }
+  let area = 0, widest = 0
+  for (let i = 0; i < entities.length; i++) {
+    erCharge(work, 32)
+    const entity = entities[i]!, half = erEntityStrokeHalf(entity, style)
+    if (!Number.isFinite(half) || half < 0 || !(entity.width > 0) || !(entity.height > 0)) return undefined
+    const box = { x0: entity.x - half, y0: entity.y - half, x1: entity.x + entity.width + half, y1: entity.y + entity.height + half }
+    if (!include(original, box)) return undefined
+    if (incident.has(entity.id)) {
+      if (!include(connected, box)) return undefined
+    } else {
+      erCharge(work, 18)
+      const width = entity.width + 2 * half, height = entity.height + 2 * half
+      slot.value = { entity, half, width, height, x: 0, y: 0 }
+      defineErIsland(islands, islands.length, slot)
+      area += (width + spacing) * (height + spacing)
+      widest = Math.max(widest, width)
+    }
+  }
+  if (islands.length < 2 || !Number.isFinite(area)) return undefined
+  erCharge(work, 16)
+  const hasConnected = connected.x1 !== -Infinity
+  const target = Math.max(Math.sqrt(area), widest, hasConnected ? connected.x1 - ER.padding : 0)
+  let x = ER.padding, y = hasConnected ? connected.y1 + spacing : ER.padding, rowHeight = 0
+  let right = hasConnected ? connected.x1 : ER.padding, bottom = hasConnected ? connected.y1 : ER.padding
+  for (let i = 0; i < islands.length; i++) {
+    erCharge(work, 24)
+    const island = islands[i]!
+    if (x > ER.padding && x + island.width > ER.padding + target) { x = ER.padding; y += rowHeight + spacing; rowHeight = 0 }
+    island.x = x + island.half; island.y = y + island.half
+    right = Math.max(right, x + island.width); bottom = Math.max(bottom, y + island.height)
+    rowHeight = Math.max(rowHeight, island.height); x += island.width + spacing
+  }
+  erCharge(work, 16)
+  const width = right + ER.padding, height = bottom + ER.padding
+  const oldWidth = Math.max(result.width ?? 600, original.x1 + ER.padding)
+  const oldHeight = Math.max(result.height ?? 400, original.y1 + ER.padding)
+  if (!Number.isFinite(width * height) || !Number.isFinite(oldWidth * oldHeight) || !(width * height < oldWidth * oldHeight)) return undefined
+  for (let i = 0; i < islands.length; i++) {
+    erCharge(work, 6)
+    const island = islands[i]!
+    island.entity.x = island.x; island.entity.y = island.y
+  }
+  return { width, height }
+}
+
 function measureErEntities(diagram: ErDiagram, style: ResolvedRenderStyle): EntitySizeMap {
   const entitySizes: EntitySizeMap = new Map()
 
@@ -865,6 +977,7 @@ function extractErLayout(
   style: ResolvedRenderStyle,
   styleFace?: Readonly<InternalStyleFace>,
   work: ErGeometryWork = { operations: 0 },
+  isolateSpacing?: number,
 ): PositionedErDiagram {
   const entityLookup = new Map<string, ErEntity>()
   for (const entity of diagram.entities) entityLookup.set(entity.id, entity)
@@ -874,8 +987,7 @@ function extractErLayout(
   for (const child of result.entities) {
     const entity = entityLookup.get(child.id)
     if (entity) {
-      const classStyle: Record<string, string> = { ...defaultStyle }
-      for (const name of entity.className?.split(/[ \t]+/) ?? []) Object.assign(classStyle, checkedAuthoredStyle(diagram.classDefs.get(name), `classDef ${name}`))
+      const localPaint = erEntityPaint(diagram, entity, defaultStyle)
       positionedEntities.push({
         id: entity.id,
         label: entity.label,
@@ -888,9 +1000,7 @@ function extractErLayout(
         headerHeight: entitySizes.get(entity.id)!.headerHeight,
         rowHeight: ER.rowHeight,
         ...(entity.className ? { className: entity.className } : {}),
-        ...(Object.keys(classStyle).length > 0 || entity.inlineStyle ? {
-          inlineStyle: { ...classStyle, ...checkedAuthoredStyle(entity.inlineStyle, `style ${entity.id}`) },
-        } : {}),
+        ...(localPaint ? { inlineStyle: localPaint } : {}),
         ...(entity.groupId ? { groupId: entity.groupId } : {}),
       })
     }
@@ -953,6 +1063,9 @@ function extractErLayout(
   repairErFrameRoutes(positionedEntities, positionedGroups, relationships, relationshipBlocks, style, styleFace, work, undefined, index => !loop(index))
   const arched = erSelfLoopArches(positionedEntities, positionedGroups, relationships, relationshipBlocks, style, styleFace, work, framePadding, interior.padding)
   repairErFrameRoutes(positionedEntities, positionedGroups, relationships, relationshipBlocks, style, styleFace, work, undefined, index => loop(index) && !arched.has(index))
+  const labelBounds = erPreferredLabelBounds(relationships, relationshipBlocks)
+  const packed = isolateSpacing !== undefined && diagram.groups.length === 0 && positionedGroups.length === 0
+    ? packErIslands(positionedEntities, relationships, labelBounds, result, isolateSpacing, style, styleFace, work) : undefined
 
   // Nested group padding can extend left/top of ELK's entity-only canvas, and
   // group endpoints are routed after ELK. Translate the complete geometry as
@@ -968,7 +1081,6 @@ function extractErLayout(
     ...positionedGroups.flatMap(group => [group.y, group.y + group.height]),
     ...relationships.flatMap(relationship => relationship.points.map(point => point.y)),
   ]
-  const labelBounds = erPreferredLabelBounds(relationships, relationshipBlocks)
   const dx = Math.max(0, xs.length ? ER.padding - Math.min(...xs) : 0, ...labelBounds.map(box => -box.x0))
   const dy = Math.max(0, ys.length ? ER.padding - Math.min(...ys) : 0, ...labelBounds.map(box => -box.y0))
   if (dx !== 0 || dy !== 0) {
@@ -980,14 +1092,14 @@ function extractErLayout(
     }
   }
   const width = Math.max(
-    (result.width ?? 600) + dx,
+    (packed?.width ?? result.width ?? 600) + dx,
     ...positionedEntities.map(entity => entity.x + entity.width + ER.padding),
     ...positionedGroups.map(group => group.x + group.width + ER.padding),
     ...relationships.flatMap(relationship => relationship.points.map(point => point.x + ER.padding)),
     ...labelBounds.map(box => box.x1 + dx),
   )
   const height = Math.max(
-    (result.height ?? 400) + dy,
+    (packed?.height ?? result.height ?? 400) + dy,
     ...positionedEntities.map(entity => entity.y + entity.height + ER.padding),
     ...positionedGroups.map(group => group.y + group.height + ER.padding),
     ...relationships.flatMap(relationship => relationship.points.map(point => point.y + ER.padding)),
@@ -1427,12 +1539,13 @@ function layoutErGroupsOnly(diagram: ErDiagram, style: ResolvedRenderStyle, styl
 }
 
 /**
- * Lay out a parsed ER diagram using ELK.js.
+ * Lay out measured ER cards with the selected graph backend.
  */
 export function layoutErDiagram(
   diagram: ErDiagram,
   options: RenderOptions = {},
   styleFace?: Readonly<InternalStyleFace>,
+  paintBackendId?: string,
 ): PositionedErDiagram {
   assertErDiagramWork(diagram)
   const style = resolveRenderStyle(options, ER_STYLE_DEFAULTS, styleFace)
@@ -1452,10 +1565,11 @@ export function layoutErDiagram(
   if (diagram.entities.length === 0) {
     const empty = (): PositionedErDiagram => withErTitle({ width: 0, height: 0, accessibilityTitle: diagram.accessibilityTitle, accessibilityDescription: diagram.accessibilityDescription, entities: [], relationships: [], groups: [] }, diagram.title, style)
     const frames = () => diagram.groups.length ? finishErGeometry(withErTitle(prepareErText(layoutErGroupsOnly(diagram, style, styleFace, work), style, styleFace), diagram.title, style), style, styleFace, work) : empty()
-    return runMeasuredGraphBackend(options, () => nativeCandidate(frames), () => { erCharge(work, 0); return frames() }, true)
+    return runMeasuredGraphBackend(options, () => nativeCandidate(frames), () => { erCharge(work, 0); return frames() }, true, undefined)
   }
   const entitySizes = measureErEntities(diagram, style)
-  const nativePlacement = (): ErPlacement => {
+  let nativeIsolateSpacing: number | undefined
+  const measuredPlacement = (): ErPlacement => {
     const indices = new Map(diagram.entities.map((entity, index) => [entity.id, index]))
     const groupIds = new Set(diagram.groups.map(group => group.id))
     const subjects = new Set([...indices.keys(), ...groupIds])
@@ -1476,8 +1590,10 @@ export function layoutErDiagram(
         if (!groupIds.has(id)) spans.set(id, (spans.get(id) ?? 0) + bound.y1 - bound.y0 + style.lineWidth + .25)
       }
     }
-    const nativeSizes = new Map(diagram.entities.map(entity => {
-      const size = entitySizes.get(entity.id)!, span = (spans.get(entity.id) ?? 0) + 2 * Math.max(8, style.cornerRadius ?? 0)
+    let isolateCount = 0, requestedNodeSpacing: number | undefined
+    const placementSizes = new Map(diagram.entities.map(entity => {
+      const size = entitySizes.get(entity.id)!, reservedSpan = spans.get(entity.id), span = (reservedSpan ?? 0) + 2 * Math.max(8, style.cornerRadius ?? 0)
+      if (groupIds.size === 0 && reservedSpan === undefined) { erCharge(work); isolateCount++ }
       return [entity.id, { ...size, width: Math.max(size.width, span), height: Math.max(size.height, span) }] as const
     }))
     const edges = diagram.relationships.flatMap((rel, relationshipIndex) => {
@@ -1489,13 +1605,17 @@ export function layoutErDiagram(
       const block = erRelationshipBlock(rel, style, styleFace)
       return [{ relationshipIndex, source, target, minSpan: 1, ...(rel.label ? { label: { width: block.width + 16, height: block.height + 16 } } : {}) }]
     })
-    const placed = measureRenderStage('agentic', () => layoutAgenticGraph({
-      nodes: diagram.entities.map(entity => ({ id: entity.id, ...nativeSizes.get(entity.id)! })), edges,
-      direction: diagram.direction ?? 'LR', padding: ER.padding, nodeSpacing: options.nodeSpacing ?? ER.nodeSpacing,
-      layerSpacing, ...(minimumTerminalLead > 0 ? { minimumTerminalLead } : {}), edgeSpacing: Math.max(6, style.lineWidth + 4),
-    }))
+    const placed = measureRenderStage('agentic', () => {
+      const input: MeasuredGraph = {
+        nodes: diagram.entities.map(entity => ({ id: entity.id, ...placementSizes.get(entity.id)! })), edges,
+        direction: diagram.direction ?? 'LR', padding: ER.padding, nodeSpacing: (requestedNodeSpacing = options.nodeSpacing) ?? ER.nodeSpacing,
+        layerSpacing, ...(minimumTerminalLead > 0 ? { minimumTerminalLead } : {}), edgeSpacing: Math.max(6, style.lineWidth + 4),
+      }
+      return layoutAgenticGraph(input)
+    })
+    nativeIsolateSpacing = groupIds.size === 0 && isolateCount >= 2 ? requestedNodeSpacing ?? ER.isolateSpacing : undefined
     return { width: placed.width, height: placed.height, preserveTerminalNormals: true, labelPlacement: 'shaft-aware',
-      entities: placed.nodes.map((position, index) => ({ id: diagram.entities[index]!.id, ...position, ...nativeSizes.get(diagram.entities[index]!.id)! })),
+      entities: placed.nodes.map((position, index) => ({ id: diagram.entities[index]!.id, ...position, ...placementSizes.get(diagram.entities[index]!.id)! })),
       routes: new Map(placed.edges.map((route, index) => [edges[index]!.relationshipIndex, route.points])),
       labelPositions: new Map(placed.edges.flatMap((route, index) => route.labelPosition
         ? [[edges[index]!.relationshipIndex, { ...route.labelPosition }] as const] : [])) }
@@ -1511,10 +1631,11 @@ export function layoutErDiagram(
     })) }
   }
   const finish = (placement: ErPlacement): PositionedErDiagram => {
-    const positioned = withErTitle(prepareErText(extractErLayout(placement, diagram, entitySizes, style, styleFace, work), style, styleFace), diagram.title, style)
+    const positioned = withErTitle(prepareErText(extractErLayout(placement, diagram, entitySizes, style, styleFace, work,
+      placement.preserveTerminalNormals ? nativeIsolateSpacing : undefined), style, styleFace), diagram.title, style)
     return finishErGeometry(positioned, style, styleFace, work)
   }
-  return runMeasuredGraphBackend(options, () => nativeCandidate(() => finish(nativePlacement())), () => finish(elkPlacement()), true)
+  return runMeasuredGraphBackend(options, () => nativeCandidate(() => finish(measuredPlacement())), () => finish(elkPlacement()), true, undefined)
 }
 
 /** The diagram's title takes a band above everything the layout placed. */
@@ -1547,11 +1668,24 @@ function finishErGeometry(positioned: PositionedErDiagram, style: ResolvedRender
   }
   const subjects = new Map([...positioned.entities, ...positioned.groups].map(box => [box.id, box]))
   const groupIds = new Set(positioned.groups.map(group => group.id))
+  const inwardBottom = (id: string, point: Point, toward: Point, descendant: string): boolean => {
+    const box = subjects.get(id)
+    if (!box || !groupIds.has(id) || point.y !== box.y + box.height || toward.x !== point.x || toward.y >= point.y) return false
+    for (let child = descendant, depth = 0; depth < DIAGRAM_WORK_LIMITS.nesting; depth++) {
+      charge()
+      const subject = subjects.get(child)
+      if (!subject) return false
+      const parent: string | undefined = groupIds.has(child) ? (subject as PositionedErDiagram['groups'][number]).parentId : (subject as PositionedErEntity).groupId
+      if (parent === undefined) return false
+      if (parent === id) return true
+      child = parent
+    }
+    return false
+  }
   canonicalErContacts(positioned.entities, positioned.groups, relationships, work)
   const obstacles: Array<{ id: string; box: ErInkBox; border?: boolean; group?: boolean }> = [
     ...positioned.entities.map(entity => {
-      const authored = Number.parseFloat(entity.inlineStyle?.['stroke-width'] ?? '')
-      const half = (Number.isFinite(authored) && authored > 0 ? authored : style.nodeLineWidth) / 2
+      const half = erEntityStrokeHalf(entity, style)
       return { id: entity.id, box: { x0: entity.x - half, y0: entity.y - half, x1: entity.x + entity.width + half, y1: entity.y + entity.height + half } }
     }),
     ...positioned.groups.flatMap(group => {
@@ -1646,13 +1780,13 @@ function finishErGeometry(positioned: PositionedErDiagram, style: ResolvedRender
   const snapshot = () => {
     const currentGlyphs = glyphs(), currentShafts = shafts()
     const bounds = new Map(currentGlyphs.map(g => [g, glyphBox(g)]))
-    return { currentGlyphs, glyphQuery: erInkIndex(currentGlyphs, g => bounds.get(g)!, charge, currentGlyphs.length), shaftQuery: erInkIndex(currentShafts, s => s.box, charge, currentGlyphs.length) }
+    return { currentGlyphs, currentShafts, bounds, glyphQuery: erInkIndex(currentGlyphs, g => bounds.get(g)!, charge, currentGlyphs.length), shaftQuery: erInkIndex(currentShafts, s => s.box, charge, currentGlyphs.length) }
   }
   let retained = snapshot()
   let changed = false
-  // Allocate automatic entity and frame face contacts. The selected face and far
-  // contact remain fixed; the actual glyph, caption and foreign shaft ranges
-  // determine any required shift along that face, never an arbitrary pitch.
+  // Allocate entity and frame contacts from actual glyph and foreign shaft
+  // ranges. A straight ancestor corridor shares one seat at both endpoints;
+  // other routes retain their selected face and far contact.
   const faceGroups = new Map<string, Map<string, ReturnType<typeof glyphs>>>()
   for (const terminal of glyphs()) {
     charge()
@@ -1676,13 +1810,24 @@ function finishErGeometry(positioned: PositionedErDiagram, style: ResolvedRender
     const horizontal = q.y === p.y && q.x !== p.x, vertical = q.x === p.x && q.y !== p.y
     const sign = horizontal ? Math.sign(q.x - p.x) : Math.sign(q.y - p.y)
     const onFace = horizontal ? p.x === (sign > 0 ? box.x + box.width : box.x) : p.y === (sign > 0 ? box.y + box.height : box.y)
-    // The deliberate bottom corridor of an ancestor points inward. It is not
-    // an automatic exterior port and remains owned by that existing producer.
-    if ((!horizontal && !vertical) || !onFace) continue
+    const otherId = terminal.end ? terminal.rel.entity1 : terminal.rel.entity2
+    const inward = !onFace && inwardBottom(terminal.id, p, q, otherId)
+    if ((!horizontal && !vertical) || !onFace && !inward) continue
     const current = horizontal ? p.y : p.x
     const corner = groupIds.has(terminal.id) ? 6 : Math.min(style.cornerRadius ?? 0, box.width / 2, box.height / 2)
     let low = (horizontal ? box.y : box.x) + corner, high = (horizontal ? box.y + box.height : box.x + box.width) - corner
     const { currentGlyphs, glyphQuery, shaftQuery } = retained, thisGlyph = currentGlyphs[terminal.index * 2 + terminal.end]!
+    const opposite = currentGlyphs[terminal.index * 2 + 1 - terminal.end]!
+    let sharedStraight = false
+    if (vertical && (inward || inwardBottom(opposite.id, opposite.point, opposite.toward, terminal.id))) {
+      charge(terminal.rel.points.length)
+      sharedStraight = terminal.rel.points.every(point => point.x === p.x)
+    }
+    if (inward || sharedStraight) {
+      const other = subjects.get(otherId)!, otherCorner = groupIds.has(otherId) ? 6 : Math.min(style.cornerRadius ?? 0, other.width / 2, other.height / 2)
+      low = Math.max(low, other.x + otherCorner)
+      high = Math.min(high, other.x + other.width - otherCorner)
+    }
     const laterOnFace = [...faceGroups.get(terminal.id)!.values()].flat().map(g => currentGlyphs[g.index * 2 + g.end]!).filter(glyph => {
       charge()
       if (glyph.id !== terminal.id || order.get(glyph.index * 2 + glyph.end)! <= order.get(terminal.index * 2 + terminal.end)!) return false
@@ -1693,15 +1838,20 @@ function finishErGeometry(positioned: PositionedErDiagram, style: ResolvedRender
     charge(laterOnFace.length)
     const roleStyle = erRelationshipStyle(terminal.rel, styleFace)
     const half = (roleStyle?.lineWidth ?? style.lineWidth) / 2
-    const glyphDepth = terminalDepth(thisGlyph.pieces, p, horizontal, sign)
-    const protectedLength = glyphDepth + (roleStyle?.bendRadius ?? style.edgeBendRadius) + half + style.lineWidth + .25
-    const length = Math.min(Math.abs(horizontal ? q.x - p.x : q.y - p.y), protectedLength)
-    const endLead = horizontal ? { x: p.x + sign * length, y: p.y } : { x: p.x, y: p.y + sign * length }
-    const leadBox = { x0: Math.min(p.x, endLead.x) - (horizontal ? 0 : half), x1: Math.max(p.x, endLead.x) + (horizontal ? 0 : half),
-      y0: Math.min(p.y, endLead.y) - (horizontal ? half : 0), y1: Math.max(p.y, endLead.y) + (horizontal ? half : 0) }
+    const leadBoxFor = (glyph: typeof thisGlyph): ErInkBox => {
+      const at = glyph.point, toward = glyph.toward
+      const ray = Math.sign(horizontal ? toward.x - at.x : toward.y - at.y)
+      const depth = terminalDepth(glyph.pieces, at, horizontal, ray)
+      const protectedLength = depth + (roleStyle?.bendRadius ?? style.edgeBendRadius) + half + style.lineWidth + .25
+      const length = Math.min(Math.abs(horizontal ? toward.x - at.x : toward.y - at.y), protectedLength)
+      const end = horizontal ? { x: at.x + ray * length, y: at.y } : { x: at.x, y: at.y + ray * length }
+      return { x0: Math.min(at.x, end.x) - (horizontal ? 0 : half), x1: Math.max(at.x, end.x) + (horizontal ? 0 : half),
+        y0: Math.min(at.y, end.y) - (horizontal ? half : 0), y1: Math.max(at.y, end.y) + (horizontal ? half : 0) }
+    }
+    const leadBox = leadBoxFor(thisGlyph), oppositeLead = sharedStraight ? leadBoxFor(opposite) : undefined
     // Only ink that can meet this glyph or its lead anywhere on the owned
     // face can forbid a seat. Distant geometry keeps its final proof below.
-    const reach = [...thisGlyph.pieces, leadBox]
+    const reach = [...thisGlyph.pieces, leadBox, ...(oppositeLead ? [...opposite.pieces, oppositeLead] : [])]
     charge(reach.length)
     const window = { x0: Math.min(...reach.map(b => b.x0)), x1: Math.max(...reach.map(b => b.x1)), y0: Math.min(...reach.map(b => b.y0)), y1: Math.max(...reach.map(b => b.y1)) }
     if (horizontal) { window.y0 += low - current; window.y1 += high - current }
@@ -1712,7 +1862,7 @@ function finishErGeometry(positioned: PositionedErDiagram, style: ResolvedRender
     if (horizontal) { window.y0 -= gap; window.y1 += gap }
     else { window.x0 -= gap; window.x1 += gap }
     const peers: ErInkBox[] = [
-      ...glyphQuery(window).filter(g => { charge(); return (g.index !== terminal.index || g.end !== terminal.end) && !laterGlyphs.has(g) }).flatMap(g => g.pieces),
+      ...glyphQuery(window).filter(g => { charge(); return (g.index !== terminal.index || !sharedStraight && g.end !== terminal.end) && !laterGlyphs.has(g) }).flatMap(g => g.pieces),
       // Caption centers are still movable; finalize them after fixed face slots.
       // They are not immutable obstacles for allocating those slots.
       ...shaftQuery(window).filter(shaft => shaft.index !== terminal.index && !laterOnFace.some(g => { charge(); return g.index === shaft.index && (g.end ? shaft.last : shaft.first) })).map(shaft => shaft.box),
@@ -1723,8 +1873,13 @@ function finishErGeometry(positioned: PositionedErDiagram, style: ResolvedRender
     const leadObstacles = [...obstacleQuery(window).filter(o => (o.id !== terminal.id || !!o.group !== groupIds.has(terminal.id)) && !o.border).map(o => o.box), ...peers.filter(piece => !oppositePieces.has(piece))]
     const reservations = [...thisGlyph.pieces.map(piece => ({ piece, occupied })), { piece: leadBox, occupied: leadObstacles }]
     charge(occupied.length + leadObstacles.length + reservations.length)
+    if (oppositeLead) {
+      const oppositeOccupied = [...obstacleQuery(window).filter(o => o.id !== opposite.id || !!o.group !== groupIds.has(opposite.id)).map(o => o.box), ...peers]
+      const oppositeLeadObstacles = [...obstacleQuery(window).filter(o => (o.id !== opposite.id || !!o.group !== groupIds.has(opposite.id)) && !o.border).map(o => o.box), ...peers.filter(piece => !oppositePieces.has(piece))]
+      charge(oppositeOccupied.length + oppositeLeadObstacles.length + opposite.pieces.length + 1)
+      reservations.push(...opposite.pieces.map(piece => ({ piece, occupied: oppositeOccupied })), { piece: oppositeLead, occupied: oppositeLeadObstacles })
+    }
     if (current >= low && current <= high && !reservations.some(({piece, occupied}) => occupied.some(other => intersects(piece, other)))) continue
-    const opposite = currentGlyphs[terminal.index * 2 + 1 - terminal.end]!
     const oppositeHorizontal = opposite.point.y === opposite.toward.y
     if (horizontal !== oppositeHorizontal) {
       const oppositeSign = Math.sign(oppositeHorizontal ? opposite.toward.x - opposite.point.x : opposite.toward.y - opposite.point.y)
@@ -1770,7 +1925,10 @@ function finishErGeometry(positioned: PositionedErDiagram, style: ResolvedRender
     const cross = horizontal ? 'y' : 'x', old = p[cross], delta = candidate - old
     let last = first
     for (let i = first; i >= 0 && i < points.length && points[i]![cross] === old; i += step) { charge(); last = i }
-    if (last === (terminal.end ? 0 : points.length - 1)) {
+    if (sharedStraight) {
+      for (const point of points) { charge(); point[cross] += delta }
+      terminal.rel.points = points
+    } else if (last === (terminal.end ? 0 : points.length - 1)) {
       const start = points[0]!, end = points.at(-1)!
       points[first]![cross] = candidate
       const a = currentGlyphs[terminal.index * 2]!, b = currentGlyphs[terminal.index * 2 + 1]!
@@ -1816,12 +1974,15 @@ function finishErGeometry(positioned: PositionedErDiagram, style: ResolvedRender
     finalizeErRelationshipLabels(positioned, style, styleFace, work, 'indexed-prefix')
     labels = retainedErRelationshipLabels(positioned) ?? separateRelationshipLabels(positioned, style, styleFace, work)
   }
-  const allGlyphs = glyphs(), allShafts = shafts(), allLabels = labelBoxes(false)
+  // Frame/caption repairs may move routes after the last face snapshot.
+  // Only the unchanged epoch can share those exact glyphs, shafts and indexes.
+  const finalSnapshot = changed || failedCaptions.length ? undefined : retained
+  const allGlyphs = finalSnapshot?.currentGlyphs ?? glyphs(), allShafts = finalSnapshot?.currentShafts ?? shafts(), allLabels = labelBoxes(false)
   for (const rel of relationships) if (!erSimpleRoute(rel.points, work)) throw new ErRouteGeometryError(rel.entity1, rel.entity2)
   // Strict body/header interiors apply to every raw segment, including an
   // incident card revisited later in a route. Legitimate outline contacts are
-  // on the open boundary and therefore do not enter these rectangles. The
-  // painted obstacle index is conservative; keep the exact interior predicate.
+  // on the open boundary and therefore do not enter these rectangles. Reuse
+  // the conservative painted-obstacle index, then retain the exact predicate.
   for (const rel of relationships) for (let i = 1; i < rel.points.length; i++) {
     const a = rel.points[i - 1]!, b = rel.points[i]!
     charge()
@@ -1856,23 +2017,24 @@ function finishErGeometry(positioned: PositionedErDiagram, style: ResolvedRender
       if (obstacle.border) continue
       const box = subjects.get(obstacle.id)!
       if (obstacle.group && (box as PositionedErDiagram['groups'][number]).headerHeight <= 0) continue
-      const authored = obstacle.group ? NaN : Number.parseFloat((box as PositionedErEntity).inlineStyle?.['stroke-width'] ?? '')
-      const half = obstacle.group ? .75 : (Number.isFinite(authored) && authored > 0 ? authored : style.nodeLineWidth) / 2
+      const half = obstacle.group ? .75 : erEntityStrokeHalf(box as PositionedErEntity, style)
       if (intersects(shaft.box, obstacle.box) && !terminalBorderContact(shaft, box.id, box, half, obstacle.group ? 6 : Math.min(style.cornerRadius ?? 0, box.width / 2, box.height / 2), !!obstacle.group)) throw new ErRouteGeometryError(rel.entity1, rel.entity2)
     }
   }
-  const glyphBounds = new Map(allGlyphs.map(glyph => {
+  const glyphBounds = finalSnapshot?.bounds ?? new Map(allGlyphs.map(glyph => {
     charge(glyph.pieces.length * 4 + 1)
     return [glyph, { x0: Math.min(...glyph.pieces.map(p => p.x0)), y0: Math.min(...glyph.pieces.map(p => p.y0)), x1: Math.max(...glyph.pieces.map(p => p.x1)), y1: Math.max(...glyph.pieces.map(p => p.y1)) }] as const
   }))
-  const glyphQuery = erInkIndex(allGlyphs, glyph => glyphBounds.get(glyph)!, charge, allGlyphs.length + allLabels.length)
-  const shaftQuery = erInkIndex(allShafts, shaft => shaft.box, charge, allGlyphs.length * 4 + allLabels.length)
+  const glyphQuery = finalSnapshot?.glyphQuery ?? erInkIndex(allGlyphs, glyph => glyphBounds.get(glyph)!, charge, allGlyphs.length + allLabels.length)
+  const shaftQuery = finalSnapshot?.shaftQuery ?? erInkIndex(allShafts, shaft => shaft.box, charge, allGlyphs.length * 4 + allLabels.length)
   const labelQuery = erInkIndex(allLabels, label => label.box, charge, allLabels.length)
   for (const glyph of allGlyphs) for (const other of glyphQuery(glyphBounds.get(glyph)!)) {
     charge()
     if (other.index * 2 + other.end <= glyph.index * 2 + glyph.end) continue
     for (const piece of glyph.pieces) if (other.pieces.some(p => intersects(piece, p))) throw new ErRouteGeometryError(glyph.rel.entity1, glyph.rel.entity2)
   }
+  // Keep the actual first/last emitted parts, including a corner without a
+  // straight line: terminal admission below must still reject that corner.
   charge(allGlyphs.length)
   const terminalShaftIndices = new Int32Array(allGlyphs.length)
   for (let index = 0; index < allShafts.length; index++) {
@@ -1891,10 +2053,11 @@ function finishErGeometry(positioned: PositionedErDiagram, style: ResolvedRender
     const line = terminal?.line, far = line && (glyph.end ? line[0] : line[1]), at = line && (glyph.end ? line[1] : line[0])
     if ((!horizontal && !vertical) || !far || !at || (horizontal ? far.y !== at.y || Math.sign(far.x - at.x) !== sign : far.x !== at.x || Math.sign(far.y - at.y) !== sign)
       || sign * ((horizontal ? far.x : far.y) - (horizontal ? glyph.point.x : glyph.point.y)) < terminalDepth(glyph.pieces, glyph.point, horizontal, sign)) throw new ErRouteGeometryError(glyph.rel.entity1, glyph.rel.entity2)
-    for (const piece of glyph.pieces) {
-      for (const obstacle of obstacleQuery(piece)) if ((obstacle.id !== glyph.id || !!obstacle.group !== groupIds.has(glyph.id)) && intersects(piece, obstacle.box)) throw new ErRouteGeometryError(glyph.rel.entity1, glyph.rel.entity2)
-      for (const shaft of shaftQuery(piece)) if ((shaft.index !== glyph.index || !(glyph.end ? shaft.last : shaft.first)) && intersects(piece, shaft.box)) throw new ErRouteGeometryError(glyph.rel.entity1, glyph.rel.entity2)
-    }
+    // The retained union is only a broad phase. Every candidate still meets
+    // the same exact piece predicates and incident-terminal exclusions.
+    const bounds = glyphBounds.get(glyph)!
+    for (const obstacle of obstacleQuery(bounds)) if ((obstacle.id !== glyph.id || !!obstacle.group !== groupIds.has(glyph.id)) && glyph.pieces.some(piece => intersects(piece, obstacle.box))) throw new ErRouteGeometryError(glyph.rel.entity1, glyph.rel.entity2)
+    for (const shaft of shaftQuery(bounds)) if ((shaft.index !== glyph.index || !(glyph.end ? shaft.last : shaft.first)) && glyph.pieces.some(piece => intersects(piece, shaft.box))) throw new ErRouteGeometryError(glyph.rel.entity1, glyph.rel.entity2)
   }
   for (const label of allLabels) {
     const rel = relationships[label.index]!

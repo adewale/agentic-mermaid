@@ -1,7 +1,7 @@
 import { expect, test } from 'bun:test'
 import { minifyBrowserRuntime } from '../../scripts/build/runtime-minify.ts'
 
-test('browser module compression preserves observable calls, getters, coercion and inline-script safety', async () => {
+test.each([1, 6] as const)('browser module compression with %i passes preserves observable calls, getters, coercion and inline-script safety', async passes => {
   const source = `/*! @license runtime-minify-contract */
     export let count = 0;
     export function increment() { return ++count; }
@@ -25,10 +25,11 @@ test('browser module compression preserves observable calls, getters, coercion a
         negativeZero: Object.is(-0, -0), notANumber: Number.isNaN(0 / 0) };
     }
   `
-  const compressed = await minifyBrowserRuntime(source)
+  const compressed = await minifyBrowserRuntime(source, undefined, passes)
   expect(compressed).toContain('@license runtime-minify-contract')
   expect(compressed).not.toMatch(/<\/script/i)
-  const module = await import(`data:text/javascript;base64,${Buffer.from(compressed).toString('base64')}`) as {
+  const encoded = Buffer.from(`${compressed}\n// ${passes} passes`).toString('base64')
+  const module = await import(`data:text/javascript;base64,${encoded}`) as {
     count: number
     increment(): number
     arity: ((this: { label: string }, first: number, second?: number, third?: number) => string)

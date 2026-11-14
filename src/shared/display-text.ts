@@ -2,7 +2,7 @@ import { performanceExperimentEnabled } from '../experimental-performance.ts'
 import { WeightedLru } from '../experimental/weighted-lru.ts'
 import type { LabelDisplay } from '../multiline-utils.ts'
 import type { TextTransform } from '../types.ts'
-import { parseInlineFormatting, serializeStyledSegment, FORMAT_TAG_SOURCE, HAS_FORMAT_TAGS, type StyledSegment } from './inline-format.ts'
+import { parseMultilineFormatting, serializeStyledSegment, FORMAT_TAG_SOURCE, HAS_FORMAT_TAGS, type StyledSegment } from './inline-format.ts'
 import { graphemes } from './graphemes.ts'
 import { createImmutableParts } from './immutable-parts.ts'
 import { sanitizeTextControls } from './text-controls.ts'
@@ -22,14 +22,17 @@ export interface PreparedDisplayText {
 }
 
 const displayPlans = new WeightedLru<string, PreparedDisplayText>(512, 4 * 1024 * 1024)
-const retainedPlans = new WeakSet<object>()
+// Interpreter provenance preserves live prepared inputs. Immutable reuse is
+// authenticated separately by immutableDisplayParts.
+const interpretedPlans = new WeakSet<object>()
 const immutableDisplayParts = createImmutableParts()
 export function isImmutableDisplayTextPart(value: object): boolean { return immutableDisplayParts.has(value) }
-function retainPlan(plan: PreparedDisplayText): PreparedDisplayText { retainedPlans.add(plan); return plan }
+export function isOwnedDisplayTextPart(value: object): boolean { return immutableDisplayParts.hasOwned(value) }
+function retainPlan(plan: PreparedDisplayText): PreparedDisplayText { interpretedPlans.add(plan); return plan }
 
 /** Capture a supplied interpretation without reading its source a second time. */
 function immutablePlan(plan: PreparedDisplayText): PreparedDisplayText {
-  if (retainedPlans.has(plan)) return plan
+  if (interpretedPlans.has(plan)) return plan
   return retainPlan(immutableDisplayParts.freeze({
     source: plan.source, display: plan.display, ...(plan.transform ? { transform: plan.transform } : {}),
     lineStarts: immutableDisplayParts.freeze([...plan.lineStarts]),
@@ -149,12 +152,15 @@ export function prepareDisplayText(source: DisplayTextInput, display: LabelDispl
   if (cacheKey !== undefined) { const cached = displayPlans.get(cacheKey); if (cached) return cached }
   let offset = 0
   const lineStarts: number[] = []
-  const empty = immutableDisplayParts.freeze([]) as readonly DisplayRun[]
-  const lines = source.split('\n').map(line => {
+  const empty = immutableDisplayParts.freezeOwned([]) as readonly DisplayRun[]
+  const lines: Array<readonly DisplayRun[]> = []
+  const sourceLines = source.split('\n')
+  const formattedLines = display === 'formatted' && HAS_FORMAT_TAGS.test(source) ? parseMultilineFormatting(sourceLines) : undefined
+  for (const line of sourceLines) {
     lineStarts.push(offset)
-    if (line === '') { offset++; return empty }
+    if (line === '') { offset++; lines.push(empty); continue }
     let runs: DisplayRun[]
-    if (display === 'literal' || !HAS_FORMAT_TAGS.test(line)) {
+    if (!formattedLines) {
       runs = [{ text: line, bold: false, italic: false, underline: false, strikethrough: false, sourceStart: offset, sourceEnd: offset + line.length }]
     } else {
       const tags = new RegExp(FORMAT_TAG_SOURCE, 'gi')
@@ -165,23 +171,25 @@ export function prepareDisplayText(source: DisplayTextInput, display: LabelDispl
         cursor = tag.index! + tag[0].length
       }
       if (cursor < line.length) spans.push({ start: cursor, end: line.length })
-      runs = parseInlineFormatting(line).map((run, i) => ({ ...run, sourceStart: offset + spans[i]!.start, sourceEnd: offset + spans[i]!.end }))
+      runs = formattedLines![lines.length]!.map((run, i) => ({ ...run, sourceStart: offset + spans[i]!.start, sourceEnd: offset + spans[i]!.end }))
     }
-    runs = runs.map(run => {
+    const retainedRuns: DisplayRun[] = []
+    for (const run of runs) {
       let sourceAt = run.sourceStart
-      const clusters = graphemes(run.text).map(cluster => {
+      const clusters: NonNullable<DisplayRun['clusters']>[number][] = []
+      for (const cluster of graphemes(run.text)) {
         const result = immutableDisplayParts.sourceSpan(sanitizeTextControls(cluster), sourceAt, sourceAt + cluster.length)
         sourceAt += cluster.length
-        return result
-      })
-      return immutableDisplayParts.freeze({ ...run, text: clusters.map(cluster => cluster.text).join(''), clusters: immutableDisplayParts.freeze(clusters) })
-    })
+        clusters.push(result)
+      }
+      retainedRuns.push(immutableDisplayParts.freezeOwned({ ...run, text: clusters.map(cluster => cluster.text).join(''), clusters: immutableDisplayParts.freezeOwned(clusters) }))
+    }
     offset += line.length + 1
-    return immutableDisplayParts.freeze(runs)
-  })
-  const prepared = retainPlan(immutableDisplayParts.freeze({ source, display, lines: immutableDisplayParts.freeze(lines), lineStarts: immutableDisplayParts.freeze(lineStarts) }))
+    lines.push(immutableDisplayParts.freezeOwned(retainedRuns))
+  }
+  const prepared = retainPlan(immutableDisplayParts.freezeOwned({ source, display, lines: immutableDisplayParts.freezeOwned(lines), lineStarts: immutableDisplayParts.freezeOwned(lineStarts) }))
   const result = transform ? transformPreparedDisplayText(prepared, transform) : prepared
-  if (cacheKey !== undefined) displayPlans.set(cacheKey, result, cacheKey.length * 2 + source.length * 96 + 256)
+  if (cacheKey !== undefined && immutableDisplayParts.has(result)) displayPlans.set(cacheKey, result, cacheKey.length * 2 + source.length * 96 + 256)
   return result
 }
 

@@ -5,7 +5,7 @@ import { bendCount } from '../layout/route-geometry.ts'
 import { routeCandidateMarkerBlocker } from '../layout/route-marker-clearance.ts'
 import { buildRoutePortHints, layoutGraphSync } from '../layout-engine.ts'
 import { parseMermaid } from '../parser.ts'
-import { applyRouteContracts, auditRouteContracts, classifyRoutes, closeRouteContracts, diamondFacetPorts, directLaneBlockers, findLabelSlot, findRouteHitches, laneContextFor, straightLaneFor, recertifyReroutedEdge, shapePorts, simplifyPolyline, repairLabelsOffOwnRoute, repairLabelsOnSharedTrunks, separateEdgeLabelPills } from '../route-contracts.ts'
+import { applyRouteContracts, auditRouteContracts, classifyRoutes, closeRouteContracts, diamondFacetPorts, directLaneBlockers, findLabelSlot, findRouteHitches, laneContextFor, straightLaneFor, commitReroutedEdge, shapePorts, simplifyPolyline, repairLabelsOffOwnRoute, repairLabelsOnSharedTrunks, separateEdgeLabelPills } from '../route-contracts.ts'
 import { assessLayout, countEdgeCrossings, countOpposingRouteOverlaps, countParallelRouteOverlaps, hardViolations, measureRubricMetrics, onShapeOutline, segmentThroughShape } from '../layout-rubric.ts'
 import { measureMultilineText } from '../text-metrics.ts'
 import { layoutMermaid, parseRegisteredMermaid as agentParse, verifyMermaid } from '../agent/index.ts'
@@ -27,6 +27,10 @@ import { alignLabeledSourcePort, alignPortLanes } from '../layout/passes/port-la
 import { trimOccludedShapeEndpoint } from '../shape-clipping.ts'
 import { labelSeatPaintContext } from '../layout/graph-paint-support.ts'
 import { decodedSvgAttributeValue, scanSvgStartTags } from '../svg-structure.ts'
+import { createRequire } from 'node:module'
+import { renderSvg } from '../renderer.ts'
+import { readFileSync } from 'node:fs'
+import { SaxesParser } from 'saxes'
 
 describe('outward exact endpoint approaches', () => {
   it.each((['LR', 'RL', 'TD', 'BT'] as const).flatMap(direction => [false, true].map(labelled => [direction, labelled] as const)))('keeps feedback approaches outward through optional alignment in %s layouts (labels: %s)', (direction, labelled) => {
@@ -115,6 +119,52 @@ describe('outward exact endpoint approaches', () => {
     expect(result.metrics.endpointApproaches).toBe(0)
   })
 
+  it.each(['subroutine', 'cylinder'] as const)('retains a clear native two-bend route with outward floating %s contacts', shape => {
+    const graph = parseMermaid(`flowchart TD\nA[A] --> ${shape === 'cylinder' ? 'B[(B)]' : 'B[[B]]'}`)
+    const nodes: PositionedNode[] = [
+      { ...graph.nodes.get('A')!, x: 0, y: 0, width: 80, height: 40 },
+      { ...graph.nodes.get('B')!, x: 200, y: 160, width: 80, height: shape === 'cylinder' ? 50 : 40 },
+    ]
+    const points = [{ x: 72, y: 40 }, { x: 72, y: 100 }, { x: 208, y: 100 }, { x: 208, y: shape === 'cylinder' ? 162.8 : 160 }]
+    const edge: PositionedEdge = { ...graph.edges[0]!, edgeIndex: 0, points: structuredClone(points) }
+    // Disjoint card spans rule out a straight lane. These floating contacts
+    // still leave the source and approach the target along outward rays.
+    expect(points[1]!.y).toBeGreaterThan(points[0]!.y)
+    expect(points[2]!.y).toBeLessThan(points[3]!.y)
+    if (shape === 'cylinder') expect(((points[3]!.x - 240) / 40) ** 2 + ((points[3]!.y - 167) / 7) ** 2).toBeCloseTo(1, 10)
+    else expect(points[3]!.y).toBe(160)
+    applyRouteContracts({ nodes, edges: [edge], groups: [] }, graph, new Set(), resolveRenderStyle(), { preserveEndpointSeats: true })
+    expect(edge.points).toEqual(points)
+    expect([edge.source, edge.target, edge.hasArrowEnd]).toEqual(['A', 'B', true])
+  })
+
+  it('repairs an outward floating route that grazes a foreign rounded card border', () => {
+    const graph = parseMermaid('flowchart TD\nA[A] --> B[[B]]\nC(C)')
+    const nodes: PositionedNode[] = [
+      { ...graph.nodes.get('A')!, x: 0, y: 0, width: 80, height: 40 },
+      { ...graph.nodes.get('B')!, x: 200, y: 160, width: 80, height: 40 },
+      { ...graph.nodes.get('C')!, x: 208, y: 120, width: 16, height: 24 },
+    ]
+    const points = [{ x: 72, y: 40 }, { x: 72, y: 100 }, { x: 208, y: 100 }, { x: 208, y: 160 }]
+    const edge: PositionedEdge = { ...graph.edges[0]!, edgeIndex: 0, points: structuredClone(points) }
+    expect(points[1]!.y - points[0]!.y).toBeGreaterThan(8)
+    expect(points[3]!.y - points[2]!.y).toBeGreaterThan(8)
+    expect(points[2]!.x).toBe(nodes[2]!.x)
+    applyRouteContracts({ nodes, edges: [edge], groups: [] }, graph, new Set(), resolveRenderStyle(), { preserveEndpointSeats: true })
+    expect(edge.points).not.toEqual(points)
+    // A half-pixel expansion conservatively covers the foreign card's
+    // painted border, including the straight west side between its corners.
+    for (let index = 1; index < edge.points.length; index++) {
+      const a = edge.points[index - 1]!, b = edge.points[index]!
+      expect(a.x === b.x || a.y === b.y).toBe(true)
+      const crosses = a.x === b.x
+        ? a.x >= 207.5 && a.x <= 224.5 && Math.max(a.y, b.y) >= 119.5 && Math.min(a.y, b.y) <= 144.5
+        : a.y >= 119.5 && a.y <= 144.5 && Math.max(a.x, b.x) >= 207.5 && Math.min(a.x, b.x) <= 224.5
+      expect(crosses).toBe(false)
+    }
+    expect([edge.source, edge.target, edge.hasArrowEnd]).toEqual(['A', 'B', true])
+  })
+
   it('feedback shortening retains a smooth source normal instead of replacing its exterior stub with a tangent', () => {
     const source = 'flowchart LR\nA[ok]\nB[ok]\nC[ok]\nD[warnings]\nE([process the input])\nA-->B\nB-->C\nA-->D\nC-->E\nB-->|yes|C\nE-->|no|A'
     const graph = parseMermaid(source), positioned = layoutGraphSync(graph)
@@ -188,7 +238,7 @@ it('keeps later fan-out repairs clear of a peer route moved earlier in the same 
     points: routes[edgeIndex]!.map(([x, y]) => ({ x: x!, y: y! })) }))
   const style = resolveRenderStyle()
   applyRouteContracts({ nodes, edges, groups: [] }, graph, new Set(), style,
-    { preserveSelfLoops: true, preserveLabels: true, preserveStraightRoutes: true })
+    { preserveSelfLoops: true, preserveLabels: true, preserveEndpointSeats: true })
   const later = edges[2]!, start = later.points[0]!, turn = later.points[1]!
   expect(turn.y - start.y).toBeGreaterThan(16)
   // Re-prove the returned first leg in a fresh borrowed context: it must not
@@ -1056,13 +1106,15 @@ describe('bundle exemptions belong to constructed routes (#265)', () => {
     expect(findRouteHitches(positioned, graph)).toContainEqual(expect.objectContaining({ edge: 'A->B#0' }))
   })
 
-  it('reissuing a certificate cannot inherit a bundle exemption after changing its lane', () => {
+  it('a committed lane change revokes its old channel geometry and bundle exemption', () => {
     const graph = parseMermaid('flowchart LR\nA --> B\nA --> C'), positioned = layoutGraphSync(graph)
     const edge = positioned.edges.find(edge => edge.points.length > 2)!, saved = edge.routeCertificate!
     expect(saved.invariant).toBe('bundle')
-    for (let i = 1; i < edge.points.length - 1; i++) edge.points[i]!.x += 6
+    const points = edge.points.map((point, index) => ({ ...point, x: point.x + (index > 0 && index < edge.points.length - 1 ? 6 : 0) }))
+    const routeChannelGeometry = new WeakMap<PositionedEdge, null>([[edge, null]])
+    commitReroutedEdge(edge, { points, labelPosition: edge.labelPosition }, positioned.nodes.find(node => node.id === edge.source), positioned.nodes.find(node => node.id === edge.target), { routeChannelGeometry })
+    expect(routeChannelGeometry.has(edge)).toBe(false)
     expect(assessLayout(graph, positioned).metrics.totalBends).toBeGreaterThan(0)
-    recertifyReroutedEdge(edge, saved, positioned.nodes.find(node => node.id === edge.source), positioned.nodes.find(node => node.id === edge.target))
     expect(edge.routeCertificate?.invariant).toBe('explained-detour')
   })
 })
@@ -1688,10 +1740,14 @@ describe('duplicate parallel edges (fast-check counterexample, pinned)', () => {
       expect(onShapeOutline(positioned.nodes.find(node => node.id === from)!, edge.points[0]!)).toBe(true)
       expect(onShapeOutline(positioned.nodes.find(node => node.id === to)!, edge.points.at(-1)!)).toBe(true)
     }
-    expect(dups.find(e => e.label)?.routeCertificate?.invariant).toBe('bundle')
     expect(auditRouteContracts(positioned, graph).filter(f => f.code === 'ROUTE_LABEL_ON_SHARED_TRUNK')).toEqual([])
     expect(assessLayout(graph, positioned).metrics.labelConflicts).toBe(0)
     const tags = scanSvgStartTags(renderMermaidSVG(source.replace('flowchart TD', `flowchart ${direction}`), { embedFontImport: false }))
+    const labelledShaft = tags.find(tag => tag.name === 'polyline' && decodedSvgAttributeValue(tag, 'data-from') === from && decodedSvgAttributeValue(tag, 'data-to') === to && decodedSvgAttributeValue(tag, 'data-label') === 'no')!
+    // Safe placement can leave a private straight lane or a proved detour;
+    // neither needs the exemption reserved for a constructed bundle.
+    const writtenPoints = decodedSvgAttributeValue(labelledShaft, 'points')!.split(' ')
+    expect(dups.find(e => e.label)?.routeCertificate?.invariant).toBe(writtenPoints.length === 2 ? 'straight' : 'explained-detour')
     const owner = tags.findIndex(tag => tag.name === 'g' && decodedSvgAttributeValue(tag, 'class') === 'edge-label' && decodedSvgAttributeValue(tag, 'data-from') === from && decodedSvgAttributeValue(tag, 'data-to') === to)
     expect(owner).toBeGreaterThanOrEqual(0)
     const halo = tags[owner + 1]!
@@ -2603,6 +2659,43 @@ describe('port ranking — sharp bits win when a side carries one line (issue #2
     ])
   })
 
+  it.each(['TD', 'LR', 'BT', 'RL'] as const)('keeps two private captioned diamond routes to the same target in %s', direction => {
+    const turns = ['TD', 'LR', 'BT', 'RL'].indexOf(direction)
+    const rotate = ({ x, y }: Point): Point => {
+      for (let turn = 0; turn < turns; turn++) [x, y] = [y, -x]
+      return { x, y }
+    }
+    const nodes: PositionedNode[] = [
+      { id: 'Q', label: 'Decision', shape: 'diamond' as const, x: 0, y: 0, width: 160, height: 160 },
+      { id: 'T', label: 'Destination', shape: 'rectangle' as const, x: 30, y: 300, width: 100, height: 40 },
+    ].map(node => {
+      const a = rotate(node), b = rotate({ x: node.x + node.width, y: node.y + node.height })
+      return { ...node, x: Math.min(a.x, b.x), y: Math.min(a.y, b.y), width: Math.abs(a.x - b.x), height: Math.abs(a.y - b.y) }
+    })
+    // Independently authored outline contacts: the diamond's lower facets
+    // contain (40,120)/(120,120), and the target's top is y300. Each caption
+    // has its own vertical shaft, separated by 80px before any optional move.
+    const routes = [
+      [{ x: 40, y: 120 }, { x: 40, y: 220 }, { x: 55, y: 220 }, { x: 55, y: 300 }],
+      [{ x: 120, y: 120 }, { x: 120, y: 220 }, { x: 105, y: 220 }, { x: 105, y: 300 }],
+    ].map(points => points.map(rotate))
+    const captions = [{ x: 40, y: 200 }, { x: 120, y: 200 }].map(rotate)
+    const edges: PositionedEdge[] = routes.map((points, index) => ({
+      id: index === 0 ? 'first-route' : 'second-route', edgeIndex: index,
+      source: 'Q', target: 'T', label: index === 0 ? 'first' : 'second',
+      style: 'solid', hasArrowStart: false, hasArrowEnd: true,
+      points: points.map(point => ({ ...point })), labelPosition: { ...captions[index]! },
+    }))
+    const beforeNodes = structuredClone(nodes)
+    alignPortLanes(nodes, edges, [], direction, resolveRenderStyle())
+    expect(edges.map(edge => edge.labelPosition)).toEqual(captions)
+    expect(nodes).toEqual(beforeNodes)
+    expect(edges.map(edge => edge.points)).toEqual(routes)
+    expect(edges.map(edge => [edge.id, edge.edgeIndex, edge.source, edge.target, edge.label])).toEqual([
+      ['first-route', 0, 'Q', 'T', 'first'], ['second-route', 1, 'Q', 'T', 'second'],
+    ])
+  })
+
   it('a TD decision fork/rejoin exits the diamond through lower facet ports before honoring target lanes', () => {
     const positioned = layoutGraphSync(parseMermaid(`flowchart TD
   A[Start] --> B{Decision?}
@@ -2836,6 +2929,195 @@ describe('DECISION_BRANCH_UNLABELED lint (ISO 5807 10.3.1.2 / ANSI X3.5 4.10.2)'
 
 describe('node repairs retain terminal axes around measured headers', () => {
 const repair = rerouteEdgesThroughNodes
+for(const [style,animate,animation,dash] of [
+ ['solid',false,undefined,null],['solid',true,'slow','8 4'],['solid',true,'fast','8 4'],
+ ['thick',true,'fast','8 4'],['dotted',false,undefined,'4 4'],['dotted',true,'fast','4 4'],
+] as const)it(`preserves the actual clear dash gap: ${style}, animate=${animate}, animation=${animation}`,()=>{
+ const { JSDOM }=createRequire(import.meta.url)('jsdom')
+ const nodes:PositionedNode[]=[
+  {id:'S',label:'S',shape:'rectangle',x:0,y:111.49,width:40,height:20},
+  {id:'T',label:'T',shape:'rectangle',x:220,y:111.49,width:40,height:20},
+  {id:'C',label:'C',shape:'circle',x:114,y:80,width:40,height:40,inlineStyle:{fill:'#fff',stroke:'#000','stroke-width':'2'}},
+ ]
+ const edge:PositionedEdge={source:'S',target:'T',style,animate,animation,hasArrowStart:false,hasArrowEnd:true,endMarker:'arrow',edgeIndex:0,points:[{x:40,y:121.49},{x:220,y:121.49}],inlineStyle:{stroke:'#f00','stroke-width':'1'}}
+ const old=structuredClone(edge.points)
+ const observe=()=>{
+  const svg=renderSvg({positioned:{width:300,height:180,nodes,edges:[edge],groups:[]},colors:{bg:'#fff',fg:'#111',embedFontImport:false},resolved:{renderOptions:{}}})
+  const dom=new JSDOM(svg,{contentType:'image/svg+xml'})
+  try{
+   const document=dom.window.document as Document,circle=document.querySelector('[data-id="C"] circle')!,shaft=document.querySelector('[data-role="edge"]')!
+   const n=(element:Element,name:string)=>Number(element.getAttribute(name))
+   expect([n(circle,'cx'),n(circle,'cy'),n(circle,'r'),n(circle,'stroke-width'),n(shaft,'stroke-width')]).toEqual([134,100,20,2,1])
+   expect(shaft.getAttribute('stroke-dasharray')).toBe(dash)
+   return {svg,points:shaft.getAttribute('points')!.split(/\s+/).map(pair=>pair.split(',').map(Number))}
+  }finally{dom.window.close()}
+ }
+ const before=observe();expect(before.points).toEqual([[40,121.49],[220,121.49]])
+ // The complete possible contact interval is inside the literal SVG dash gap
+ // x132..136 for BOTH 8/4 and 4/4 patterns, measured from the authored x40 start.
+ const halfContact=Math.sqrt(21**2-20.99**2)
+ expect(134-halfContact).toBeGreaterThan(132);expect(134+halfContact).toBeLessThan(136)
+ repair(nodes,[edge],{direction:'LR'},undefined,[],resolveRenderStyle())
+ const after=observe()
+ if(dash){expect(edge.points).toEqual(old);expect(after.svg).toBe(before.svg)}
+ else{expect(edge.points).not.toEqual(old);expect(after.points.some(([,y])=>y!>123)).toBe(true)}
+})
+for (const transpose of [false, true]) for (const reverse of [false, true]) it(`retains an admitted shortest circle-clear band: transpose=${transpose}, reverse=${reverse}`, () => {
+ const point = (x: number, y: number) => transpose ? { x: y, y: x } : { x, y }
+ const box = (id: string, x: number, y: number, width: number, height: number, shape: PositionedNode['shape'] = 'rectangle'): PositionedNode => ({ id, label: id, shape, ...point(x, y), width: transpose ? height : width, height: transpose ? width : height })
+ const nodes = [box('S', 0, 100, 40, 20), box('T', 200, 0, 40, 20), { ...box('C', 19.578, 40, 40, 40, 'circle'), inlineStyle: { fill: '#fff', stroke: '#000', 'stroke-width': '.75' } }]
+ let points = [[20,100],[20,30],[220,30],[220,20]].map(([x,y]) => point(x!,y!))
+ if (reverse) points = points.toReversed()
+ const edge: PositionedEdge = { source: reverse ? 'T' : 'S', target: reverse ? 'S' : 'T', style: 'solid', hasArrowStart: false, hasArrowEnd: true, endMarker: 'arrow', points }
+ const endpoints = [points[0]!, points.at(-1)!]
+ repair(nodes, [edge], { direction: transpose ? (reverse ? 'RL' : 'LR') : (reverse ? 'BT' : 'TB') }, undefined, [], resolveRenderStyle())
+ const tags: Array<{ name: string; attrs: Record<string,string> }> = []
+ const parser = new SaxesParser({ xmlns: true })
+ parser.on('opentag', tag => tags.push({ name: tag.local, attrs: Object.fromEntries(Object.values(tag.attributes).map(attribute => [attribute.name, attribute.value])) }))
+ parser.write(renderSvg({ positioned: { width: 340, height: 340, nodes, edges: [edge], groups: [] }, colors: { bg: '#fff', fg: '#111', embedFontImport: false }, resolved: { renderOptions: {} } })).close()
+ const shaft = tags.find(tag => tag.attrs['data-role'] === 'edge')!.attrs
+ const actual = shaft.points!.split(/\s+/).map(pair => { const [x,y] = pair.split(',').map(Number); return { x: x!, y: y! } })
+ expect([actual[0], actual.at(-1)]).toEqual(endpoints)
+ const wire = actual.slice(1).reduce((sum, p, i) => sum + Math.abs(p.x - actual[i]!.x) + Math.abs(p.y - actual[i]!.y), 0)
+ expect(wire).toBeCloseTo(Math.abs(endpoints[0]!.x - endpoints[1]!.x) + Math.abs(endpoints[0]!.y - endpoints[1]!.y), 6)
+ const circle = tags.find(tag => tag.name === 'circle')!.attrs, cx = Number(circle.cx), cy = Number(circle.cy)
+ const distance = Math.min(...actual.slice(1).map((b,i) => { const a = actual[i]!, dx = b.x-a.x, dy = b.y-a.y, t = Math.max(0, Math.min(1, ((cx-a.x)*dx+(cy-a.y)*dy)/(dx*dx+dy*dy))); return Math.hypot(a.x+t*dx-cx,a.y+t*dy-cy) }))
+ expect(distance - Number(circle.r) - Number(circle['stroke-width'])/2 - Number(shaft['stroke-width'])/2).toBeGreaterThan(0)
+ expect([shaft['data-from'],shaft['data-to']]).toEqual([edge.source,edge.target])
+})
+it.each((['elk', 'agentic'] as const).flatMap(backend => (['labelled reciprocal', 'bounded terminal'] as const).map(witness => [backend, witness] as const)))('clears the final painted circle contact in %s / %s', (backend, witness) => {
+ const source = witness === 'labelled reciprocal'
+  ? readFileSync(new URL('../../eval/layout-compare/fixtures/cyclic-labelled-18-cuts.mmd', import.meta.url), 'utf8')
+  : `flowchart BT
+n0(Node 230-0)
+n1((Node 230-1))
+n2[[Node 230-2]]
+n3[(Node 230-3)]
+n4[Node 230-4]
+n5{Node 230-5}
+n6(Node 230-6)
+n7((Node 230-7))
+n8[[Node 230-8]]
+n9[(Node 230-9)]
+n10[Node 230-10]
+n11{Node 230-11}
+n12(Node 230-12)
+n13((Node 230-13))
+n14[[Node 230-14]]
+n15[(Node 230-15)]
+n16[Node 230-16]
+n13 -->|edge 0 xxx| n16
+n1 --> n14
+n14 --> n0
+n1 --> n6
+n10 -->|edge 4 xxxxxxx| n0
+n6 --> n12
+n4 --> n5
+n0 --> n6
+n15 -->|edge 8 xxxxxxxxxxx| n10
+n10 --> n16
+n7 --> n4
+n4 --> n6
+n11 -->|edge 12 xxxxxxxxxxxxxxx| n6
+n9 --> n7
+n16 --> n13
+n5 --> n15
+n8 -->|edge 16 xxxxxxxxxxxxxxxxxxx| n14
+n5 --> n7
+n12 --> n16
+n2 --> n16
+n15 -->|edge 20 xxxxxx| n13
+n11 --> n6
+n4 --> n10
+n11 --> n3
+n1 -->|edge 24 xxxxxxxxxx| n16
+n10 --> n1
+n15 --> n10
+n4 --> n6
+n1 -->|edge 28 xxxxxxxxxxxxxx| n3
+n9 --> n16
+n2 --> n5
+n8 --> n3
+n9 -->|edge 32 xxxxxxxxxxxxxxxxxx| n10
+n3 --> n13
+n15 --> n3
+n4 --> n5
+n4 -->|edge 36 xxxxx| n8
+n9 --> n7
+n7 --> n12
+n15 --> n9`
+ const rendered = renderMermaidSVGWithReceipt(source, { graphLayout: { backend, fallback: 'none' }, embedFontImport: false })
+ const tags: Array<{ name: string; attrs: Record<string, string>; text: string }> = []
+ const stack: Array<(typeof tags)[number]> = []
+ const parser = new SaxesParser({ xmlns: true })
+ parser.on('opentag', tag => {
+  const item = { name: tag.local, attrs: Object.fromEntries(Object.values(tag.attributes).map(attribute => [attribute.name, attribute.value])), text: '' }
+  tags.push(item); stack.push(item)
+ })
+ parser.on('text', text => { for (const parent of stack) parent.text += text })
+ parser.on('closetag', () => { stack.pop() })
+ parser.write(rendered.svg).close()
+ const circle = tags.find(tag => tag.name === 'circle' && tag.attrs['data-id'] === 'node-shape:n1')!
+ const [from, to] = witness === 'labelled reciprocal' ? ['n0', 'n13'] : ['n10', 'n16']
+ const shaft = tags.find(tag => tag.attrs['data-role'] === 'edge' && tag.attrs['data-from'] === from && tag.attrs['data-to'] === to)!
+ const n = (tag: (typeof tags)[number], key: string) => Number(tag.attrs[key])
+ const cx = n(circle, 'cx'), cy = n(circle, 'cy'), radius = n(circle, 'r')
+ expect([circle.name, n(circle, 'stroke-width'), n(shaft, 'stroke-width')]).toEqual(['circle', .75, 1])
+ expect(radius).toBeGreaterThan(0)
+ const points = shaft.attrs.points!.split(/\s+/).map(pair => pair.split(',').map(Number))
+ const distance = Math.min(...points.slice(1).map((b, i) => {
+  const a = points[i]!, dx = b[0]! - a[0]!, dy = b[1]! - a[1]!
+  const t = Math.max(0, Math.min(1, ((cx - a[0]!) * dx + (cy - a[1]!) * dy) / (dx * dx + dy * dy)))
+  return Math.hypot(a[0]! + t * dx - cx, a[1]! + t * dy - cy)
+ }))
+ // Independent written-circle/shaft clearance, including the conservative join extent.
+ expect(distance - radius - n(circle, 'stroke-width') / 2 - 2 * n(shaft, 'stroke-width')).toBeGreaterThan(0)
+ const authored = [...source.matchAll(/^(n\d+) -->(?:\|([^|]+)\|)? (n\d+)$/gm)]
+ const carriers = tags.filter(tag => tag.attrs['data-role'] === 'edge' && tag.attrs['data-from'])
+ expect(carriers.map(tag => `${tag.attrs['data-from']}->${tag.attrs['data-to']}`).sort()).toEqual(authored.map(match => `${match[1]}->${match[3]}`).sort())
+ const nodeCount = witness === 'labelled reciprocal' ? 18 : 17
+ expect(tags.filter(tag => tag.name === 'g' && tag.attrs['data-role'] === 'node').map(tag => tag.attrs['data-id']).sort()).toEqual(Array.from({ length: nodeCount }, (_, i) => `n${i}`).sort())
+ const authoredNames = [...source.matchAll(/Node \d+-\d+/g)].map(match => match[0])
+ expect(tags.filter(tag => tag.name === 'text').map(tag => tag.text).sort()).toEqual([...authoredNames, ...authored.filter(match => match[2]).map(match => match[2]!)].sort())
+ const captions = tags.filter(tag => tag.name === 'g' && tag.attrs.class === 'edge-label')
+ expect(captions.map(tag => JSON.stringify([tag.attrs['data-from'], tag.attrs['data-to'], tag.attrs['data-label']])).sort()).toEqual(authored.filter(match => match[2]).map(match => JSON.stringify([match[1], match[3], match[2]])).sort())
+ for (const caption of captions) expect(caption.text.trim()).toBe(caption.attrs['data-label']!)
+ const resource = shaft.attrs['marker-end']!.slice(5, -1)
+ expect(tags.filter(tag => tag.name === 'marker' && tag.attrs.id === resource)).toHaveLength(1)
+ expect(rendered.receipt.layoutCertification?.status).toBe('passed')
+})
+for (const transpose of [false, true]) for (const reverse of [false,true]) for (const name of ['stroke-only contact', 'positive stroke gap', 'empty curved corner'] as const) it(`repairs actual ${name} without moving a clear route, transpose=${transpose}, reverse=${reverse}`, () => {
+ const { JSDOM } = createRequire(import.meta.url)('jsdom')
+ const y=name==='positive stroke gap'?121.6:name==='empty curved corner'?80:121
+ const p=(x:number,y:number)=>transpose?{x:y,y:x}:{x,y}
+ const box=(id:string,x:number,y:number,width:number,height:number,shape:PositionedNode['shape']='rectangle'):PositionedNode=>({id,label:id,shape,...p(x,y),width:transpose?height:width,height:transpose?width:height})
+ const nodes=[box('S',0,y-10,40,20),box('T',name==='empty curved corner'?260:220,(name==='empty curved corner'?40:y)-10,40,20),{...box('C',110,80,40,40,'circle'),inlineStyle:{fill:'#fff',stroke:'#000','stroke-width':'2'}}]
+ const points=(name==='empty curved corner'?[[40,80],[115,80],[115,40],[260,40]]:[[40,y],[220,y]]).map(([x,y])=>p(x!,y!))
+ if(reverse)points.reverse()
+ const edge:PositionedEdge={source:reverse?'T':'S',target:reverse?'S':'T',style:'solid',hasArrowStart:false,hasArrowEnd:true,endMarker:'arrow',edgeIndex:0,points,inlineStyle:{stroke:'#f00','stroke-width':'1'}}
+ const old=structuredClone(points)
+ const observe=()=>{
+  const dom=new JSDOM(renderSvg({positioned:{width:340,height:340,nodes,edges:[edge],groups:[]},colors:{bg:'#fff',fg:'#111',embedFontImport:false},resolved:{renderOptions:{}}}),{contentType:'image/svg+xml'})
+  try{
+   const document=dom.window.document as Document,circle=document.querySelector('[data-id="C"] circle')!,shaft=document.querySelector('[data-role="edge"]')!
+   expect([shaft.getAttribute('data-from'),shaft.getAttribute('data-to')]).toEqual([edge.source,edge.target])
+   const n=(tag:Element,key:string)=>Number(tag.getAttribute(key)),cx=n(circle,'cx'),cy=n(circle,'cy'),r=n(circle,'r'),width=n(shaft,'stroke-width')
+   expect([cx,cy,r,n(circle,'stroke-width'),width]).toEqual(transpose?[100,130,20,2,1]:[130,100,20,2,1])
+   const path=shaft.getAttribute('points')!.split(/\s+/).map(pair=>pair.split(',').map(Number))
+   const distance=Math.min(...path.slice(1).map((b,i)=>{const a=path[i]!,dx=b[0]!-a[0]!,dy=b[1]!-a[1]!,t=Math.max(0,Math.min(1,((cx-a[0]!)*dx+(cy-a[1]!)*dy)/(dx*dx+dy*dy)));return Math.hypot(a[0]!+t*dx-cx,a[1]!+t*dy-cy)}))
+   expect(shaft.hasAttribute('marker-end')).toBe(true)
+   return distance-r-n(circle,'stroke-width')/2-width*(path.length>2?2:.5)
+  }finally{dom.window.close()}
+ }
+ const before=observe()
+ if(name==='stroke-only contact')expect(before).toBeCloseTo(-.5,8)
+ else expect(before).toBeGreaterThan(0)
+ repair(nodes,[edge],{direction:transpose?(reverse?'BT':'TB'):(reverse?'RL':'LR')},undefined,[],resolveRenderStyle())
+ expect(observe()).toBeGreaterThan(0)
+ expect([edge.points[0],edge.points.at(-1)]).toEqual([old[0],old.at(-1)])
+ if(name!=='stroke-only contact')expect(edge.points).toEqual(old)
+ else expect(edge.points).not.toEqual(old)
+})
 const cross=(a:any,b:any,box:any)=>a.x===b.x?a.x>box.x&&a.x<box.x+box.width&&Math.max(a.y,b.y)>box.y&&Math.min(a.y,b.y)<box.y+box.height:a.y===b.y&&a.y>box.y&&a.y<box.y+box.height&&Math.max(a.x,b.x)>box.x&&Math.min(a.x,b.x)<box.x+box.width
 const clear=(path:any[],box:any)=>path.slice(1).every((b,i)=>!cross(path[i],b,box))
 const sameRay=(port:any,old:any,next:any)=>old.x===port.x&&next.x===port.x&&Math.sign(old.y-port.y)===Math.sign(next.y-port.y)||old.y===port.y&&next.y===port.y&&Math.sign(old.x-port.x)===Math.sign(next.x-port.x)
@@ -3055,7 +3337,7 @@ describe('port-lane foreign painted corridors', () => {
     const nodes = [node('F', -100, 52), node('N', 102.5, 50), node('C', x - 20, -40), node('D', endX - 20, 100)]
     const edges: PositionedEdge[] = [
       { source: 'F', target: 'N', style: 'solid', hasArrowStart: false, hasArrowEnd: false, points: [{ x: -60, y: 72 }, { x: 80, y: 72 }, { x: 80, y: 70 }, { x: 102.5, y: 70 }] },
-      { source: 'C', target: 'D', style: 'solid', hasArrowStart: false, hasArrowEnd: true, curve: 'basis', points: [{ x, y: 0 }, { x: endX, y: 100 }] },
+      { source: 'C', target: 'D', style: 'solid', hasArrowStart: false, hasArrowEnd: true, curve: 'bumpX', points: [{ x, y: 0 }, { x: endX, y: 100 }] },
     ]
     const groups: PositionedGroup[] = nodes.filter(n => n.id !== 'N').map(n => ({ id: `pin-${n.id}`, label: '', x: n.x - 1, y: n.y - 1, width: 42, height: 42, headerHeight: 0, children: [] }))
     const style = { ...resolveRenderStyle(), nodeLineWidth: .75, cornerRadius: 0, lineWidth: 1, edgeBendRadius: 0 }

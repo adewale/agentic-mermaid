@@ -1,6 +1,9 @@
 import { describe, expect, test } from 'bun:test'
+import { SaxesParser } from 'saxes'
+import { Resvg } from '@resvg/resvg-js'
+import { prepareResvgMarkerOrientation } from '../resvg-marker-orientation.ts'
 import { renderMermaidSVG, renderMermaidSVGWithReceipt } from '../index.ts'
-import { colorPixelBox, redPixel } from './helpers/raster.ts'
+import { colorPixelBox, redPixel, renderSvgPixels } from './helpers/raster.ts'
 
 function styled(sourceLine: string): string {
   return renderMermaidSVG(`flowchart LR
@@ -15,6 +18,84 @@ function edgeEndpoints(svg: string): { startX: number; endX: number; y: number }
 }
 
 describe('raster-safe Flowchart endpoint markers', () => {
+  test.each(([{ backend: 'agentic', end: 'end' }, { backend: 'elk', end: 'start' }] as const).flatMap(lane => [{ ...lane, direction: 'LR', count: 10 }, ...['LR', 'RL', 'TB', 'BT'].map(direction => ({ ...lane, direction, count: 16 }))]))('$backend keeps crowded $end labelled arrowheads distinct in $direction ($count)', ({ backend, end, direction, count }) => {
+    const source = `flowchart ${direction}\nT[Target]\n` + Array.from({ length: count }, (_, index) => end === 'start' ? `T <-- Message ${index} --- s${index}[S${index}]` : `s${index}[S${index}] -->|Message ${index}| T`).join('\n')
+    const result = renderMermaidSVGWithReceipt(source, { embedFontImport: false, graphLayout: { backend, fallback: 'none' } })
+    const carriers = [...result.svg.matchAll(/<polyline\b[^>]*\/>/g)].map(match => match[0]).filter(tag => tag.includes(end === 'start' ? 'data-from="T"' : 'data-to="T"'))
+    expect(carriers).toHaveLength(count)
+    const ends = carriers.map(tag => /points="([^"]+)"/.exec(tag)![1]!.trim().split(/\s+/).at(end === 'start' ? 0 : -1)!.split(',').map(Number))
+    const cross = direction === 'LR' || direction === 'RL' ? 1 : 0
+    const coordinates = ends.map(point => point[cross]!).sort((a, b) => a - b)
+    // Read the emitted marker viewport and stroke, independently of the
+    // producer's footprint or port certificate. Every target head needs room.
+    const marker = new RegExp(`<marker id="${end === 'start' ? 'arrowhead-start' : 'arrowhead'}"[^>]*markerHeight="([^"]+)"`).exec(result.svg)!
+    const shaft = Number(/stroke-width="([^"]+)"/.exec(carriers[0]!)![1])
+    for (let index = 1; index < coordinates.length; index++) expect(coordinates[index]! - coordinates[index - 1]!).toBeGreaterThan(Number(marker[1]) * shaft)
+
+    // Selected-pair subtraction checks actual painted ink as well as anchors.
+    // The other heads, shafts, labels and bodies remain in all four variants.
+    const selected = carriers[0]!, peer = carriers[1]!, strip = (tag: string) => tag.replace(new RegExp(` marker-${end}="[^"]*"`), '')
+    const variants = [result.svg, result.svg.replace(selected, strip(selected)), result.svg.replace(peer, strip(peer)), result.svg.replace(selected, strip(selected)).replace(peer, strip(peer))]
+    const images = variants.map(svg => new Resvg(prepareResvgMarkerOrientation(svg), { background: '#ffffff', fitTo: { mode: 'zoom', value: 3 } }).render())
+    const a = ends[0]!, b = ends[1]!, pixels = images.map(image => image.pixels)
+    const delta = (first: Uint8Array, second: Uint8Array, offset: number) => Math.abs(first[offset]! - second[offset]!) + Math.abs(first[offset + 1]! - second[offset + 1]!) + Math.abs(first[offset + 2]! - second[offset + 2]!)
+    let exposed = 0, hidden = 0
+    for (let y = Math.floor((Math.min(a[1]!, b[1]!) - 12) * 3); y < Math.ceil((Math.max(a[1]!, b[1]!) + 12) * 3); y++) {
+      for (let x = Math.floor((Math.min(a[0]!, b[0]!) - 12) * 3); x < Math.ceil((Math.max(a[0]!, b[0]!) + 12) * 3); x++) {
+        const offset = (y * images[0]!.width + x) * 4
+        if (delta(pixels[2]!, pixels[3]!, offset) >= 6) {
+          exposed++
+          if (delta(pixels[0]!, pixels[1]!, offset) < 6) hidden++
+        }
+      }
+    }
+    expect(exposed).toBeGreaterThan(100)
+    expect(hidden).toBe(0)
+    expect(result.receipt.layoutCertification?.status).toBe('passed')
+  })
+
+  test.each(['agentic', 'elk'] as const)('%s retains distinct source markers beside formatted Unicode labels', backend => {
+    for (const start of ['o', 'x'] as const) {
+      const source = `flowchart LR\nA["<b>Read</b> 界 é"] ${start}-->|queue 界| B[Store]\nlinkStyle 0 stroke:#ff0000,stroke-width:2px`
+      const result = renderMermaidSVGWithReceipt(source, { embedFontImport: false, graphLayout: { backend, fallback: 'none' } })
+      const texts: string[] = [], nodes = new Map<string, { x: number; y: number; width: number; height: number }>()
+      const groups: Array<string | undefined> = []
+      let text: string | undefined, edge: Record<string, string> | undefined
+      const parser = new SaxesParser({ xmlns: true })
+      parser.on('opentag', tag => {
+        const attrs = Object.fromEntries(Object.entries(tag.attributes).map(([key, value]) => [key, value.value]))
+        if (tag.local === 'g') groups.push(attrs.class === 'node' ? attrs['data-id'] : undefined)
+        if (tag.local === 'rect' && groups.at(-1)) nodes.set(groups.at(-1)!, { x: Number(attrs.x), y: Number(attrs.y), width: Number(attrs.width), height: Number(attrs.height) })
+        if (tag.local === 'polyline' && attrs.class === 'edge') edge = attrs
+        if (tag.local === 'text') text = ''
+      })
+      parser.on('text', value => { if (text !== undefined) text += value })
+      parser.on('closetag', tag => {
+        if (tag.local === 'g') groups.pop()
+        if (tag.local === 'text') { texts.push(text!); text = undefined }
+      })
+      parser.write(result.svg).close()
+      expect(texts).toEqual(expect.arrayContaining(['Read 界 é', 'Store', 'queue 界']))
+      expect([...nodes.keys()]).toEqual(['A', 'B'])
+      expect(edge).toBeDefined()
+      const points = edge!.points!.split(/\s+/).map(pair => pair.split(',').map(Number))
+      const first = points[0]!, last = points.at(-1)!, a = nodes.get('A')!, b = nodes.get('B')!
+      expect(first[0]).toBeCloseTo(a.x + a.width, 10)
+      expect(first[1]! >= a.y && first[1]! <= a.y + a.height).toBe(true)
+      expect(last[0]).toBe(b.x)
+      expect(last[1]! >= b.y && last[1]! <= b.y + b.height).toBe(true)
+      expect(edge!['marker-start']).toContain(start === 'o' ? 'circlehead-start-' : 'crosshead-start-')
+      expect(edge!['marker-end']).toContain('arrowhead-')
+      const pixels = Buffer.from(renderSvgPixels(result.svg).pixels)
+      for (const end of ['start', 'end']) {
+        const actual = `marker-${end}="${edge![`marker-${end}`]}"`
+        expect(result.svg).toContain(actual)
+        expect(Buffer.compare(pixels, Buffer.from(renderSvgPixels(result.svg.replace(actual, '')).pixels))).not.toBe(0)
+      }
+      expect(result.receipt.layoutDecisions?.[0]?.selected).toBe(backend)
+    }
+  })
+
   test('anchors the arrow tip itself at an exact circle outline', () => {
     const svg = styled('A --> B@{ shape: sm-circ, label: "" }')
     const edge = svg.match(/<polyline class="edge"[^>]*points="([^"]+)"[^>]*marker-end="url\(#arrowhead-23ff0000-fixed\)"/)

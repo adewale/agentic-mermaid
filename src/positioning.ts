@@ -1,6 +1,6 @@
 import { isOwnedFamily } from './experimental/owned-family.ts'
 import { isOriginalEnrolledDefaultBackend } from './scene/backend.ts'
-import { nativeDrawingOf, originalNativeDrawingOf, type DrawingProducer } from './scene/drawing.ts'
+import { nativeDrawingOf, originalNativeDrawingOf, preferSceneDrawing, type DrawingProducer } from './scene/drawing.ts'
 import { sceneAssertionsEnabled } from './scene/assertions.ts'
 import { PERFORMANCE_EXPERIMENTS, performanceExperimentEnabled } from './experimental-performance.ts'
 import { borrowedPositioned, cachedPositioned, clonePositioned, isRetainedPositionedSnapshot, positionedDrawingNeedsCopy, retainOwnedNativeSvgPositioned, retainPositioned } from './experimental/position-cache.ts'
@@ -75,12 +75,18 @@ export function positionFamilyForNativeRender(request: ResolvedRenderRequest): F
   // later restored original producer never borrows caller-retained geometry.
   const producer = nativeDrawingOf(plan.family.lowerScene)
   const reusableMetrics = !plan.textMeasurement || textMeasurementCacheIdentity(plan.textMeasurement) !== undefined
-  const borrow = plan.mode === 'scene' && isOriginalEnrolledDefaultBackend(plan.backend?.backend)
-    && isOwnedFamily(plan.family) && reusableMetrics
+  const borrow = plan.mode === 'scene' && (plan.consumer?.kind === 'native-drawing' || isOriginalEnrolledDefaultBackend(plan.backend?.backend))
+    && isOwnedFamily(plan.family) && !preferSceneDrawing(plan.family.id) && reusableMetrics
     && !!producer && producer === originalNativeDrawingOf(plan.family.lowerScene) && !sceneAssertionsEnabled(request)
   const result = positionFamily(plan.family.id, request, request.source, {}, borrow, true)
-  if (borrow && isRetainedPositionedSnapshot(result)) borrowedNativeProducers.set(result, producer!)
+  if (borrow) borrowedNativeProducers.set(result, producer!)
   return result
+}
+
+/** The selected original owns this private result; the drawing adapter still
+ * detaches results marked as needing a copy before giving them to a producer. */
+export function hasPrivateNativePositionedInput(layout: FamilyLayoutResult, producer: DrawingProducer): boolean {
+  return borrowedNativeProducers.get(layout) === producer
 }
 
 /** A stage/cache observer can replace the native capability after positioning.
@@ -88,12 +94,19 @@ export function positionFamilyForNativeRender(request: ResolvedRenderRequest): F
  * before any producer. Public inputs keep their original getter observations. */
 export function positionedForNativeProducer(layout: FamilyLayoutResult, producer: DrawingProducer): PositionedDiagram {
   const original = borrowedNativeProducers.get(layout)
+  if (original && original !== producer && !isRetainedPositionedSnapshot(layout) && !positionedDrawingNeedsCopy(layout)) {
+    // Fresh exclusive geometry needs no alias-detaching copy. Once exposed,
+    // it cannot regain original-producer custody even if that producer returns.
+    borrowedNativeProducers.delete(layout)
+    return layout.positioned
+  }
   return original && (original !== producer || positionedDrawingNeedsCopy(layout)) ? clonePositioned(layout.positioned, true, true) : layout.positioned
 }
 
-/** Scene lowering can retain aliases; never hand it borrowed cache geometry. */
+/** Scene lowering can retain aliases; never hand it borrowed cache geometry.
+ * Fresh uncached results may contain family-owned planners, not cloneable data. */
 export function positionedForSceneLowering(layout: FamilyLayoutResult): PositionedDiagram {
-  return borrowedNativeProducers.has(layout) ? clonePositioned(layout.positioned, true, true) : layout.positioned
+  return borrowedNativeProducers.has(layout) && isRetainedPositionedSnapshot(layout) ? clonePositioned(layout.positioned, true, true) : layout.positioned
 }
 
 function positionFamily(familyId: FamilyId, request: ResolvedRenderRequest, source: Readonly<NormalizedMermaidSource>, projectionOptions: FamilyPositionedProjectionOptions, borrow: boolean, immutableText = false): FamilyLayoutResult {
@@ -201,7 +214,7 @@ function positionFamily(familyId: FamilyId, request: ResolvedRenderRequest, sour
       retain(descriptor, boundedKey, result, retainedProjections.get(result), borrow || isOwnedFamily(descriptor))
     }
     return result
-  })
+  }, request.appearance.font)
   const optimization = layoutOptimization(Boolean(request.renderOptions.graphLayout?.quality || request.renderOptions.graphLayout?.viewport))
   return optimization ? optimization.withLayoutOptimizationBudget(request, request.renderOptions.graphLayout, position, true) : position()
 }

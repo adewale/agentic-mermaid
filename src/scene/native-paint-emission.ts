@@ -1,52 +1,256 @@
-import { freezeOwnedDrawingData } from './owned-data.ts'
-import type { SceneNode, SceneDoc, ConnectorMark } from './ir.ts'
+import { nativeTextPaintWriteOf, ownedTextPaintRoster } from './inspection.ts'
+import type { SceneNode, SceneDoc, ConnectorMark, Geometry, MarkPaint, ShapeMark, MarkerDescriptor } from './ir.ts'
 import type { ScenePaintGeometryInspection, ScenePaintGeometry } from './inspection.ts'
 import { scanSvgStartTags, decodedSvgAttributeValue } from '../svg-structure.ts'
-import { serializeMarkerResource } from './marker-resources.ts'
-import { isImmutablePixelTextPart, transferRetainedPixelText } from '../shared/prepared-text.ts'
+import { markerResourceMarkupCost, serializeMarkerResource } from './marker-resources.ts'
+import { transferRetainedPixelText, isOwnedPixelTextPart } from '../shared/prepared-text.ts'
 import { formatSvgNumber } from '../shared/svg-number.ts'
 import { safeCssFontFamily } from '../shared/css-font.ts'
 import { deferredTerminalProjectionInput, copyDeferredTerminalProjection } from './deferred-terminal-projection.ts'
 import { transferSceneNodeSerialization } from './serialization.ts'
-import { retainedGroupEmission } from './marks.ts'
+import { createNativeXmlWork, readSvgGeometryProjection, readSvgGeometryWrite, readSvgRectangleWrite, readSvgRectanglePaintWrite, matchesSvgRectangleWrite, hasInheritedSvgTextPaint, closeSvgTextPaintWrite, hasSvgTextPaintClosure, matchesSvgTextPaintWrite, readSvgTextPaintWrite, type SvgTextPaintWrite, type SvgGeometryWriteSink, type SvgXmlCapture, type SvgXmlWrite } from './svg-writer.ts'
+import { connectorContourSemantics } from './connector-geometry.ts'
+import { rectanglePaintFields, writtenPolylineProjectionOf, prepareWrittenCompoundShape, observeWrittenCompoundShape, completeWrittenCompoundShape } from './written-geometry.ts'
+import { MAX_OCCLUSION_OPERATIONS } from './paint-work.ts'
+import { createEmissionContext, type EmissionColorResolver } from './emission-context.ts'
+import { verifySvgDocumentEnvelope } from '../output-security.ts'
+import { bindNativeGroupEmission, captureNativeGroupEmission, transferNativeGroupEmission } from './group-emission.ts'
 
-export const MAX_OCCLUSION_OPERATIONS = 400_000
+import { computeMarkerPaintEvidence, type MarkerPaintEvidence } from './marker-paint-identity.ts'
+
+export { MAX_OCCLUSION_OPERATIONS } from './paint-work.ts'
 
 type Leaf = Exclude<SceneNode, { kind: 'group' }>
-export interface NativeEmissionWork { readonly operations: number; readonly exhausted: boolean; readonly uncertain: boolean; readonly header: Omit<SceneDoc, 'parts'> }
+export interface NativeEmissionWork { readonly operations: number; readonly exhausted: boolean; readonly uncertain: boolean; readonly closedMarkerContext: boolean; readonly fractionalCircleContext: boolean; readonly header: Omit<SceneDoc, 'parts'>; readonly resolveColor?: EmissionColorResolver; readonly markerPaint?: (marker: MarkerDescriptor) => unknown }
+const textPaintSet = WeakSet, textPaintMap = WeakMap, textPaintApply = Reflect.apply
+const textPaintGet = WeakMap.prototype.get, textPaintPut = WeakMap.prototype.set
+const textPaintAdd = WeakSet.prototype.add, textPaintHas = WeakSet.prototype.has, textPaintFreeze = Object.freeze
+const textPaintPrototype = Object.prototype, textPaintKeys = Reflect.ownKeys
+const textPaintDescriptor = Object.getOwnPropertyDescriptor, textPaintProto = Object.getPrototypeOf
+const textPaintExtensible = Object.isExtensible, textPaintOwn = Object.hasOwn, textPaintDefine = Object.defineProperty
+const textPaintFields = textPaintFreeze(Object.keys(rectanglePaintFields) as (keyof MarkPaint)[])
+const textPaintBits = { __proto__: null } as unknown as Record<string, number>
+for (let i = 0; i < textPaintFields.length; i++) textPaintDefine(textPaintBits, textPaintFields[i]!, { value: 1 << i })
+textPaintFreeze(textPaintBits)
 const emittedOccurrences = new WeakSet<ScenePaintGeometry>()
 export function hasNativeEmissionOccurrence(primitive: ScenePaintGeometry): boolean { return emittedOccurrences.has(primitive) }
-const emissionWork = new WeakMap<ScenePaintGeometryInspection, NativeEmissionWork>()
-export function nativeEmissionWorkOf(inspection: ScenePaintGeometryInspection): NativeEmissionWork | undefined { return emissionWork.get(inspection) }
+const emissionWork = new textPaintMap<ScenePaintGeometryInspection, NativeEmissionWork>()
+export function nativeEmissionWorkOf(inspection: ScenePaintGeometryInspection): NativeEmissionWork | undefined { return textPaintApply(textPaintGet, emissionWork, [inspection]) }
 
-/** Capture lifetime only: this does not round geometry, decode SVG, or grant a
- * new contact exemption. Every occurrence retains its own immutable fields and
- * are captured BEFORE the single existing writer call, which emits that copy.
+const markerPaintIssuer = { __proto__: null }
+const markerFactMap = Map, markerFactGet = Map.prototype.get, markerFactSet = Map.prototype.set
+const markerPaintFields = ['fill', 'stroke', 'opacity', 'strokeWidth', 'strokeMiterlimit', 'strokeLinecap', 'strokeLinejoin', 'strokeDasharray', 'strokeDashoffset', 'paintOrder'] as const
+type CompletedMarkerPaintEvidence = MarkerPaintEvidence & { readonly nativePaintOperand: object }
+class CompletedMarkerPaint {
+  readonly #value: MarkerPaintEvidence
+  readonly #mask: number
+  constructor(issuer: object, value: MarkerPaintEvidence, mask: number) {
+    if (issuer !== markerPaintIssuer) throw new TypeError('Completed marker paint requires its resource write')
+    // Only private scalar/color operands are retained; no sealing callback can
+    // replace or mutate this completed value after another reference reads it.
+    this.#value = { identity: value.identity, fillColor: value.fillColor && [value.fillColor[0], value.fillColor[1], value.fillColor[2], value.fillColor[3]],
+      strokeColor: value.strokeColor && [value.strokeColor[0], value.strokeColor[1], value.strokeColor[2], value.strokeColor[3]],
+      strokeVisible: value.strokeVisible, survivingFill: value.survivingFill, transparent: value.transparent }
+    this.#mask = mask
+  }
+  static mask(value: CompletedMarkerPaint): number { return value.#mask }
+  static same(first: unknown, second: unknown): boolean { return !!first && first === second && typeof first === 'object' && #value in first }
+  static read(source: CompletedMarkerPaint, work: () => boolean): CompletedMarkerPaintEvidence | undefined {
+    for (let index = 0; index < 19; index++) if (!work()) return undefined
+    const value = source.#value
+    return { identity: value.identity, fillColor: value.fillColor && [value.fillColor[0], value.fillColor[1], value.fillColor[2], value.fillColor[3]],
+      strokeColor: value.strokeColor && [value.strokeColor[0], value.strokeColor[1], value.strokeColor[2], value.strokeColor[3]],
+      strokeVisible: value.strokeVisible, survivingFill: value.survivingFill, transparent: value.transparent, nativePaintOperand: source }
+  }
+}
+const completedMarkerMask = CompletedMarkerPaint.mask, completedMarkerView = CompletedMarkerPaint.read, sameCompletedMarkerPaint = CompletedMarkerPaint.same
+/** Same completed actual-resource paint, never a caller id or frozen lookalike. */
+export function sameNativeMarkerPaintOperand(first: unknown, second: unknown): boolean { return sameCompletedMarkerPaint(first, second) }
+class CheckedMarkerResource {
+  readonly #marker: MarkerDescriptor
+  #prepared = false
+  #paint: CompletedMarkerPaint | undefined
+  #resolver: EmissionColorResolver | undefined
+  constructor(issuer: object, marker: MarkerDescriptor) {
+    if (issuer !== markerPaintIssuer) throw new TypeError('Checked marker resource requires its actual definition')
+    this.#marker = marker
+  }
+  static marker(value: unknown): MarkerDescriptor | undefined { return value && typeof value === 'object' && #marker in value ? value.#marker : undefined }
+  static prepare(issuer: object, value: CheckedMarkerResource, resolver: EmissionColorResolver, pay: (count?: number) => boolean): void {
+    if (issuer !== markerPaintIssuer) throw new TypeError('Completed marker paint requires its resource write')
+    if (value.#prepared) return
+    value.#prepared = true; value.#resolver = resolver
+    if (!pay(4)) return
+    const descriptor = Object.getOwnPropertyDescriptor(value.#marker, 'paint')
+    if (!descriptor || !Object.hasOwn(descriptor, 'value') || descriptor.writable || descriptor.configurable || !descriptor.value || typeof descriptor.value !== 'object') return
+    const paint = descriptor.value as MarkPaint
+    if (!pay(2) || Object.isExtensible(paint)) return
+    let mask = 0
+    for (let index = 0; index < markerPaintFields.length; index++) {
+      if (!pay()) return
+      const field = markerPaintFields[index]!, slot = Object.getOwnPropertyDescriptor(paint, field)
+      if (!slot) { if (field in paint) return; continue }
+      if (!Object.hasOwn(slot, 'value') || slot.writable || slot.configurable || slot.value !== undefined && typeof slot.value !== 'string') return
+      mask |= 1 << index
+    }
+    const prepared = computeMarkerPaintEvidence(value.#marker, resolver, () => pay(), true)
+    if (prepared && pay(24)) value.#paint = new CompletedMarkerPaint(markerPaintIssuer, prepared, mask)
+  }
+  static paint(value: CheckedMarkerResource, resolver: EmissionColorResolver): CompletedMarkerPaint | undefined { return value.#resolver === resolver ? value.#paint : undefined }
+}
+const checkedMarkerSource = CheckedMarkerResource.marker, prepareCheckedMarker = CheckedMarkerResource.prepare, checkedMarkerPaint = CheckedMarkerResource.paint
+class NativeMarkerPaintReference {
+  readonly #inspection: ScenePaintGeometryInspection
+  readonly #marker: MarkerDescriptor
+  readonly #resource: CheckedMarkerResource
+  #paint: MarkPaint | undefined
+  readonly #closed: boolean
+  constructor(issuer: object, inspection: ScenePaintGeometryInspection, marker: MarkerDescriptor, resource: CheckedMarkerResource, closed: boolean) {
+    if (issuer !== markerPaintIssuer) throw new TypeError('Marker paint requires its actual reference')
+    this.#inspection = inspection; this.#marker = marker; this.#resource = resource; this.#closed = closed
+  }
+  static complete(issuer: object, value: unknown, inspection: ScenePaintGeometryInspection, marker: MarkerDescriptor, resolver: EmissionColorResolver, pay: (count?: number) => boolean): void {
+    if (issuer !== markerPaintIssuer) throw new TypeError('Marker paint requires its actual reference')
+    if (!value || typeof value !== 'object' || !(#marker in value) || value.#inspection !== inspection || value.#marker !== marker || !value.#closed) return
+    prepareCheckedMarker(markerPaintIssuer, value.#resource, resolver, pay)
+    if (!checkedMarkerPaint(value.#resource, resolver) || !pay(4)) return
+    const paint = Object.getOwnPropertyDescriptor(marker, 'paint')
+    if (!paint || !Object.hasOwn(paint, 'value') || paint.writable || paint.configurable || !paint.value || typeof paint.value !== 'object' || Object.isExtensible(paint.value)) return
+    value.#paint = paint.value
+  }
+  static read(value: unknown, inspection: ScenePaintGeometryInspection, marker: MarkerDescriptor, resolver: EmissionColorResolver, work: () => boolean): CompletedMarkerPaintEvidence | undefined {
+    if (!value || typeof value !== 'object' || !(#marker in value) || value.#inspection !== inspection || value.#marker !== marker || !value.#paint) return undefined
+    const paint = checkedMarkerPaint(value.#resource, resolver)
+    if (!paint || !work()) return undefined
+    for (let index = 0; index < markerPaintFields.length; index++) {
+      if (completedMarkerMask(paint) & (1 << index)) continue
+      if (!work() || markerPaintFields[index]! in value.#paint) return undefined
+    }
+    return completedMarkerView(paint, work)
+  }
+}
+const readNativeMarkerPaint = NativeMarkerPaintReference.read, completeNativeMarkerPaint = NativeMarkerPaintReference.complete
+export function nativeMarkerPaintEvidenceOf(inspection: ScenePaintGeometryInspection, marker: MarkerDescriptor | undefined, boundColor: EmissionColorResolver | undefined, work: () => boolean): CompletedMarkerPaintEvidence | undefined {
+  if (!marker || !boundColor || !work()) return undefined
+  const context = nativeEmissionWorkOf(inspection)
+  if (!context || context.uncertain || context.exhausted || context.resolveColor !== boundColor) return undefined
+  try { return readNativeMarkerPaint(context.markerPaint?.(marker), inspection, marker, boundColor, work) } catch { return undefined }
+}
+
+/** Every occurrence retains immutable operands BEFORE the existing writer
+ * call. Lines and polylines retain that actual write's numeric operands;
+ * the original operands still supply validation and SVG serialization.
  * Accessors/unsupported data or an exhausted capture keep paint conditional. */
-export function createNativePaintEmission(maxOperations: number, owned = false) {
-  let operations = 0, exhausted = false, uncertain = false
+export function createNativePaintEmission(maxOperations: number) { return createPaintEmission(maxOperations, false) }
+
+/** Internal original-producer entry. The request/positioning adapter selects
+ * this only for its private input; the SDK capture factory stays generic. */
+export function createOriginalNativePaintEmission(maxOperations: number) { return createPaintEmission(maxOperations, true) }
+
+function createPaintEmission(maxOperations: number, closeLeaves: boolean) {
+  const work = createNativeXmlWork(maxOperations)
+  let uncertain = false, pendingCustomRootStyle = false, hasMarkedConnector = false
+  // A deliberately smaller admission domain for new served marker proofs.
+  // Existing proofs do not depend on this flat, stylesheet-free context.
+  let closedMarkerContext = true, definitionsClosed = true, rootOpens = 0, rootCloses = 0
   const resources = new Map<string, string | undefined>()
   const references: NonNullable<Extract<Leaf, { kind: 'connector' }>['markers']['start']>[] = []
-  const pay = (count = 1): boolean => {
-    if (exhausted) return false
-    if (!Number.isSafeInteger(count) || count < 0 || count > maxOperations - operations) { exhausted = true; return false }
-    operations += count
-    return true
-  }
+  const pay = work.pay
+  // Fixed request/backend/family/producer/position/measurement admission checks.
+  if (closeLeaves && !pay(16)) uncertain = true
+  const emissionContext = createEmissionContext(pay, { resources: false })
+  const xml = work.capture()
   const failed = Symbol('unsupported-emission')
-  const copy = (value: unknown, depth = 0, parents: object[] = []): unknown => {
+  const capturedLeaves = new WeakMap<object, Leaf>()
+  const observedTextPaintWrites = new textPaintSet<SvgTextPaintWrite>()
+  let usedTextPaint = false
+  let ownedPartRosters: WeakSet<object> | undefined
+  type CaptureContext = 'leaf' | 'route' | 'geometry' | 'points' | 'point' | 'pixel-part' | 'text-paint' | 'markers' | 'marker-list' | 'marker' | 'marker-declarations'
+  // Completed operands of an actual definitions capture, not a cache keyed by
+  // caller identity or a claim that arbitrary frozen resources are immutable.
+  // These private links never pass through a caller-dispatched collection or
+  // sealing helper. A later occurrence still validates and binds its resource
+  // to the actual definition bytes in finish().
+  interface ClosedMarkerOperand { readonly value: object; readonly depth: number; readonly prior: ClosedMarkerOperand | undefined }
+  interface ClosingDeclarations { readonly source: object; head: ClosedMarkerOperand | undefined; deferred: boolean }
+  let closedMarkerOperands: ClosedMarkerOperand | undefined
+  let closingDeclarations: ClosingDeclarations | undefined, completedDeclarations: ClosingDeclarations | undefined
+  interface TextCopyPlan { readonly source: object; readonly array: boolean; readonly slots: readonly TextCopySlot[]; readonly length: number | undefined; readonly height: number }
+  interface TextCopySlot { readonly key: string; readonly enumerable: boolean; value: unknown; readonly child: TextCopyPlan | undefined; readonly writable: false; readonly configurable: false }
+  const textPlans = new textPaintMap<object, { plan: TextCopyPlan | undefined }>()
+  let copyingFirstText = false
+  let planningText: { readonly plans: WeakMap<object, TextCopyPlan>; pure: boolean } | undefined
+  const capturedTextPaint = new textPaintMap<object, number>()
+  const retainTextPaintPresence = (result: object): void => {
+    if (!pay() || textPaintProto(result) !== textPaintPrototype) return
+    if (!pay() || textPaintExtensible(result)) return
+    if (!pay()) return
+    const keys = textPaintKeys(result)
+    if (!pay(keys.length)) return
+    let mask = 0
+    for (let i = 0; i < keys.length; i++) {
+      if (!pay()) return
+      const key = keys[i]!
+      if (typeof key !== 'string') return
+      const descriptor = textPaintDescriptor(result, key)
+      if (!descriptor || !textPaintOwn(descriptor, 'value') || descriptor.configurable !== false || descriptor.writable !== false) return
+      mask |= textPaintBits[key] ?? 0
+    }
+    if (pay()) textPaintApply(textPaintPut, capturedTextPaint, [result, mask])
+  }
+  const materializeText = (plan: TextCopyPlan, depth: number): unknown => {
+    if (depth + plan.height > 64 || !pay()) throw failed
+    // Every occurrence receives the same fresh {} / [] receiver as copyInner.
+    // Only source key/descriptor reflection is retained in the private plan.
+    const result: Record<string, unknown> | unknown[] = plan.array ? [] : {}
+    for (let index = 0; index < plan.slots.length; index++) {
+      if (!pay()) throw failed
+      const slot = plan.slots[index]!
+      const value = slot.child ? materializeText(slot.child, depth + 1) : slot.value
+      const owner = Object, define = owner.defineProperty
+      if (define === textPaintDefine && typeof slot.key === 'string'
+        && !('get' in textPaintPrototype) && !('set' in textPaintPrototype)) {
+        // No callback can observe this private operand on the native path.
+        // Keep only the original instruction after writing a fresh child.
+        const previous = slot.value
+        slot.value = value
+        try { define(result, slot.key, slot) } finally { slot.value = previous }
+      } else if (define === textPaintDefine) define(result, slot.key, { value, enumerable: slot.enumerable, configurable: false, writable: false })
+      else textPaintApply(define, owner, [result, slot.key, { value, enumerable: slot.enumerable, configurable: false, writable: false }])
+    }
+    if (plan.array) {
+      if (!pay()) throw failed
+      Object.defineProperty(result, 'length', { value: plan.length, writable: false })
+    }
+    transferRetainedPixelText(plan.source, result)
+    return Object.preventExtensions(result)
+  }
+  const copyInner = (value: unknown, depth: number, parents: Set<object>, context?: CaptureContext, close = false): unknown => {
     if (depth > 64) throw failed
     if (value === null || value === undefined || typeof value === 'boolean') return value
     if (typeof value === 'number' || typeof value === 'string') return value
-    if (typeof value !== 'object' || !pay() || parents.includes(value)) throw failed
-    if (isImmutablePixelTextPart(value)) return value
-    const prototype = Object.getPrototypeOf(value)
+    if (typeof value !== 'object' || !pay() || parents.has(value)) throw failed
+    if (close) {
+      const retained = Object.preventExtensions(value)
+      if (retained !== value || textPaintExtensible(value)) throw failed
+    }
+    const prototype = close ? textPaintProto(value) : Object.getPrototypeOf(value)
     if (prototype !== Object.prototype && prototype !== null && prototype !== Array.prototype) throw failed
     // The object-entry visit covers constant prototype/reflection work. Key
     // slots and subsequent descriptor/copy visits are distinct paid work.
-    const keys = Object.getOwnPropertyNames(value)
+    const keys = close ? textPaintKeys(value) as readonly string[] : Object.getOwnPropertyNames(value)
     if (!pay(keys.length)) throw failed
+    if (close) {
+      // The original field visit covered descriptor observation and a native
+      // readonly definition. Prepay those same visits before bulk sealing.
+      if (!pay(keys.length)) throw failed
+      if (textPaintFreeze(value) !== value) throw failed
+      // V8 can leave empty-array length writable after preventExtensions +
+      // freeze. Keep the generic walk's explicit readonly length definition.
+      if (Array.isArray(value)) Object.defineProperty(value, 'length', { writable: false })
+    }
     const deferredProjection = deferredTerminalProjectionInput(value)
+    if (closingDeclarations && deferredProjection) closingDeclarations.deferred = true
     // Pay before reading caller data and reuse each descriptor if the typed
     // constructor declines, so fallback cannot repeat uncharged proxy work.
     let inspected = 0
@@ -54,134 +258,416 @@ export function createNativePaintEmission(maxOperations: number, owned = false) 
     // Coordinate buffers dominate native geometry. Capture their fixed scalar
     // records directly; descriptors still prove that no accessor or hidden
     // field can acquire immutable authority through this constructor.
-    if (!deferredProjection && depth < 64 && keys.length === 2 && keys[0] === 'x' && keys[1] === 'y') {
+    // A point shortcut may not skip leaf/geometry custody or a text plan's
+    // required child instructions. Exact x/y slots already prove point custody.
+    if (!close && !planningText && (context === undefined || context === 'point')
+      && !deferredProjection && depth < 64 && keys.length === 2 && keys[0] === 'x' && keys[1] === 'y') {
       if (!pay()) throw failed
       x = Object.getOwnPropertyDescriptor(value, 'x')
       inspected = 1
-      if (x && 'value' in x && x.enumerable && typeof x.value === 'number') {
+      if (x && Object.hasOwn(x, 'value') && x.enumerable && typeof x.value === 'number') {
         if (!pay()) throw failed
         y = Object.getOwnPropertyDescriptor(value, 'y')
         inspected = 2
-        if (y && 'value' in y && y.enumerable && typeof y.value === 'number') {
+        if (y && Object.hasOwn(y, 'value') && y.enumerable && typeof y.value === 'number') {
           // Keep the generic path's final validity check: the last descriptor
           // trap may have revoked its source Proxy after returning the data.
           if (Array.isArray(value)) throw failed
-          const point = Object.freeze({ x: x.value as number, y: y.value as number })
+          const point = textPaintFreeze({ x: x.value as number, y: y.value as number })
           transferRetainedPixelText(value, point)
           return point
         }
       }
     }
-    parents.push(value)
-    const result: Record<string, unknown> | unknown[] = Array.isArray(value) ? [] : {}
+    parents.add(value)
+    const result: Record<string, unknown> | unknown[] = close ? value as Record<string, unknown> : Array.isArray(value) ? [] : {}
+    const kindSlot = context === 'leaf' || context === 'geometry' ? (close ? textPaintDescriptor(value, 'kind') : Object.getOwnPropertyDescriptor(value, 'kind')) : undefined
+    const kind = kindSlot && Object.hasOwn(kindSlot, 'value') ? kindSlot.value : undefined
+    if ((context === 'leaf' || context === 'geometry') && typeof kind !== 'string') throw failed
+    let planSlots: TextCopySlot[] | undefined, planHeight = 0
+    if (planningText) { if (!pay(2)) throw failed; planSlots = [] }
+    let ownedFields = 0, ownedPointSlots = 0
     let arrayLength: PropertyDescriptor | undefined
     for (let index = 0; index < keys.length; index++) {
       const key = keys[index]!
+      if (close && typeof key !== 'string') throw failed
       // This property visit owns descriptor retention and scalar assignment;
       // a primitive needs no second visit or numeric formatting/replay.
       let descriptor: PropertyDescriptor | undefined
       if (index < inspected) descriptor = index === 0 ? x : y
       else {
-        if (!pay()) throw failed
-        descriptor = Object.getOwnPropertyDescriptor(value, key)
+        if (!close && !pay()) throw failed
+        descriptor = close ? textPaintDescriptor(value, key) : Object.getOwnPropertyDescriptor(value, key)
       }
       if (!descriptor) continue
+      if (close && (descriptor.writable || descriptor.configurable)) throw failed
       if (key === 'length' && Array.isArray(value)) { arrayLength = descriptor; continue }
       // Deferred terminal geometry is neither read nor used by paint writing.
       if (key === 'terminalProjection' && deferredProjection) continue
-      if (!('value' in descriptor)) throw failed
-      const captured = copy(descriptor.value, depth + 1, parents)
-      // Own data keys cannot invoke inherited setters. Keep descriptor writes
-      // for arrays, hidden fields and names installed on Object.prototype.
-      if (!Array.isArray(result) && descriptor.enumerable && !Object.hasOwn(Object.prototype, key)) {
-        (result as Record<string, unknown>)[key] = captured
-      } else Object.defineProperty(result, key, { value: captured, enumerable: descriptor.enumerable, configurable: true, writable: true })
+      if (!Object.hasOwn(descriptor, 'value')) throw failed
+      // Custody comes from the paid descriptor visits, never inherited fields
+      // which could become getters after capture. No second point pass.
+      if (context === 'point') {
+        if (key === 'x') ownedFields |= 1
+        else if (key === 'y') ownedFields |= 2
+      } else if (context === 'geometry') {
+        if (kind === 'line') {
+          if (key === 'x1') ownedFields |= 1
+          else if (key === 'y1') ownedFields |= 2
+          else if (key === 'x2') ownedFields |= 4
+          else if (key === 'y2') ownedFields |= 8
+        } else if (kind === 'rect') {
+          if (key === 'x') ownedFields |= 1
+          else if (key === 'y') ownedFields |= 2
+          else if (key === 'width') ownedFields |= 4
+          else if (key === 'height') ownedFields |= 8
+        } else if (kind === 'path' && key === 'd' || kind === 'polyline' && key === 'points') ownedFields |= 1
+      } else if (context === 'leaf' && (kind === 'connector' && key === 'route' || kind === 'shape' && key === 'geometry')
+        || context === 'route' && key === 'geometry') ownedFields |= 1
+      const pointSlot = context === 'points' && /^(?:0|[1-9]\d*)$/.test(key) && Number(key) < 0xffff_ffff
+      if (pointSlot) ownedPointSlots++
+      const markerSlot = close && (context === 'marker-list' || context === 'marker-declarations') && /^(?:0|[1-9]\d*)$/.test(key) && Number(key) < 0xffff_ffff
+      const childContext = context === 'leaf' && kind === 'text' && key === 'paint' ? 'text-paint'
+        : context === 'pixel-part' || context === 'leaf' && kind === 'text' && (key === 'block' || key === 'preparedLines') ? 'pixel-part'
+        : close && context === 'leaf' && kind === 'document' && key === 'markerResources' ? 'marker-declarations'
+        : close && context === 'leaf' && kind === 'connector' && key === 'markers' ? 'markers'
+        : context === 'markers' && key === 'mid' ? 'marker-list'
+        : context === 'markers' && (key === 'start' || key === 'end') || markerSlot ? 'marker'
+        : context === 'leaf' && kind === 'connector' && key === 'route' ? 'route'
+        : (context === 'leaf' && kind === 'shape' || context === 'route') && key === 'geometry' ? 'geometry' : context === 'geometry' && kind === 'polyline' && key === 'points' ? 'points' : pointSlot ? 'point' : undefined
+      let copied: unknown
+      if (close && childContext === 'marker-declarations') {
+        if (!pay(3)) throw failed
+        const previous = closingDeclarations
+        const declaration: ClosingDeclarations = { source: value, head: closedMarkerOperands, deferred: false }
+        closingDeclarations = declaration
+        try { copied = copy(descriptor.value, depth + 1, parents, childContext, close) }
+        finally { closingDeclarations = previous }
+        completedDeclarations = declaration
+      } else copied = copy(descriptor.value, depth + 1, parents, childContext, close)
+      if (close && context === 'marker-declarations' && markerSlot && copied && typeof copied === 'object' && closingDeclarations) {
+        if (!pay(3)) throw failed
+        closingDeclarations.head = { value: copied, depth: depth + 1, prior: closingDeclarations.head }
+      }
+      if (planSlots) {
+        if (!pay(2)) throw failed
+        const child = copied && typeof copied === 'object' ? textPaintApply(textPaintGet, planningText!.plans, [copied]) as TextCopyPlan | undefined : undefined
+        if (copied && typeof copied === 'object' && !child) throw failed
+        const candidateHeight = 1 + (child?.height ?? 0)
+        if (candidateHeight > planHeight) planHeight = candidateHeight
+        // Private instructions must not escape through caller-dispatched
+        // registration or inherited descriptor fields. Actual receiver copies
+        // below retain their ordinary observable definition operations.
+        textPaintDefine(planSlots, String(planSlots.length), { __proto__: null, value: { key, enumerable: descriptor.enumerable!, value: child ? undefined : copied, child, writable: false, configurable: false }, enumerable: true } as PropertyDescriptor)
+      }
+      if (!close) Object.defineProperty(result, key, { value: copied, enumerable: descriptor.enumerable, configurable: false, writable: false })
+      else if (copied !== descriptor.value) throw failed
     }
+    const requiredFields = context === 'point' ? 3 : context === 'geometry' ? kind === 'line' || kind === 'rect' ? 15 : kind === 'polyline' || kind === 'path' ? 1 : 0
+      : context === 'route' || context === 'leaf' && (kind === 'shape' || kind === 'connector') ? 1 : 0
+    if (ownedFields !== requiredFields) throw failed
     if (Array.isArray(value)) {
-      if (!arrayLength || !('value' in arrayLength)) throw failed
-      Object.defineProperty(result, 'length', { value: arrayLength.value, writable: false })
+      if (!arrayLength || !Object.hasOwn(arrayLength, 'value')) throw failed
+      if (context === 'points' && ownedPointSlots !== arrayLength.value) throw failed
+      if (!close) Object.defineProperty(result, 'length', { value: arrayLength.value, writable: false })
     }
-    if (deferredProjection) {
+    if (deferredProjection && !close) {
+      if (planningText) { if (!pay()) throw failed; planningText.pure = false }
       if (!pay(3) || !copyDeferredTerminalProjection(value, result as unknown as ConnectorMark)) throw failed
       const descriptor = Object.getOwnPropertyDescriptor(result, 'terminalProjection')!
       Object.defineProperty(result, 'terminalProjection', { ...descriptor, configurable: false })
     }
-    transferRetainedPixelText(value, result)
-    parents.pop()
-    return Object.freeze(result)
+    if (!close) transferRetainedPixelText(value, result)
+    // A hostile proxy can change its kind between reflective observations.
+    // Never attach a line projection to a different captured geometry kind.
+    if (context === 'leaf' || context === 'geometry') {
+      const kindSlot = Object.getOwnPropertyDescriptor(result, 'kind')
+      if (!kindSlot || !Object.hasOwn(kindSlot, 'value') || kindSlot.value !== kind) throw failed
+    }
+    parents.delete(value)
+    // Every retained data property is already nonwritable/nonconfigurable;
+    // arrays also own readonly length. Prevent extensions without rescanning
+    // the same fields a second time through Object.freeze.
+    if (planSlots) {
+      if (!pay(2)) throw failed
+      textPaintApply(textPaintPut, planningText!.plans, [result, { source: value, array: Array.isArray(value), slots: planSlots, length: arrayLength?.value, height: planHeight }])
+    }
+    const retained = close ? result : Object.preventExtensions(result)
+    // Only the actual local capture receiver can reuse its document role.
+    // Foreign preventExtensions returns keep their original getter path.
+    if (context === 'leaf' && kind === 'document' && retained === result && pay(3)) {
+      const element = textPaintDescriptor(result, 'element')
+      if (element && textPaintOwn(element, 'value') && element.value === 'definitions'
+        && !element.writable && !element.configurable && !textPaintExtensible(result)) {
+        emissionContext.capturedDefinition(result as unknown as Extract<Leaf, { kind: 'document' }>)
+      }
+    }
+    // Literal allocation and exact returned identity exclude an interposed proxy.
+    // Shared bookkeeping can expose the clone, so inspect only after sealing.
+    if (context === 'text-paint' && retained === result) retainTextPaintPresence(result)
+    return retained
+  }
+  const copy = (value: unknown, depth = 0, parents = new Set<object>(), context?: CaptureContext, close = false): unknown => {
+    if (depth > 64) throw failed
+    if (close) {
+      if (context === 'marker' && value && typeof value === 'object' && closedMarkerOperands) {
+        if (!pay(2) || parents.has(value)) throw failed
+        for (let operand: ClosedMarkerOperand | undefined = closedMarkerOperands; operand; operand = operand.prior) {
+          if (!pay()) throw failed
+          // The first completed walk proves the whole descendant depth only
+          // at that depth or shallower. Deeper references keep the full walk.
+          if (operand.value === value && depth <= operand.depth) return value
+        }
+      }
+      if (context === 'pixel-part' && value && typeof value === 'object') {
+        if (!pay(2)) throw failed
+        if (isOwnedPixelTextPart(value)) return value
+      }
+      return copyInner(value, depth, parents, context, true)
+    }
+    if (planningText || copyingFirstText || context !== 'pixel-part' || !value || typeof value !== 'object') return copyInner(value, depth, parents, context)
+    // Ownership allows retaining reflection instructions; it never authorizes
+    // sharing the receivers observed by inherited getters or array methods.
+    if (!pay(2)) throw failed
+    if (!isOwnedPixelTextPart(value)) return copyInner(value, depth, parents, context)
+    if (!pay(2)) throw failed
+    const previous = textPaintApply(textPaintGet, textPlans, [value]) as { plan: TextCopyPlan | undefined } | undefined
+    if (previous?.plan) return materializeText(previous.plan, depth)
+    if (!previous) {
+      copyingFirstText = true
+      try {
+        const result = copyInner(value, depth, parents, context)
+        if (!pay(2)) throw failed
+        textPaintApply(textPaintPut, textPlans, [value, { plan: undefined }])
+        return result
+      } finally { copyingFirstText = false }
+    }
+    if (!pay(2)) throw failed
+    const planning = { plans: new textPaintMap<object, TextCopyPlan>(), pure: true }
+    planningText = planning
+    try {
+      const result = copyInner(value, depth, parents, context)
+      if (planning.pure) {
+        if (!pay(2)) throw failed
+        const plan = textPaintApply(textPaintGet, planning.plans, [result]) as TextCopyPlan | undefined
+        if (!plan) throw failed
+        previous.plan = plan
+      }
+      return result
+    } finally { planningText = undefined }
+  }
+
+  let observedPaintFields: (keyof MarkPaint)[] | undefined
+  const hasInheritedPaint = (paint: unknown): boolean => {
+    if (!paint || typeof paint !== 'object') return false
+    if (!pay(2)) { uncertain = true; return true }
+    if (Object.getPrototypeOf(paint) === null) return false
+    if (!observedPaintFields) {
+      // The existing finite MarkPaint inventory owns all thirteen fields.
+      // Retain its private key roster once, before walking any paint record.
+      if (!pay(16)) { uncertain = true; return true }
+      observedPaintFields = Object.keys(rectanglePaintFields) as (keyof MarkPaint)[]
+    }
+    let inherited = false
+    for (let index = 0; index < observedPaintFields.length; index++) {
+      if (!pay(2)) { uncertain = true; break }
+      const field = observedPaintFields[index]!
+      if (!Object.hasOwn(paint, field) && field in paint) inherited = true
+    }
+    return inherited
+  }
+  const hasInheritedTextPaint = (paint: unknown): boolean => {
+    if (!paint || typeof paint !== 'object') return false
+    if (!pay(2)) { uncertain = true; return true }
+    const mask = textPaintApply(textPaintGet, capturedTextPaint, [paint]) as number | undefined
+    if (mask === undefined) return hasInheritedPaint(paint)
+    if (!pay(2)) { uncertain = true; return true }
+    if (Object.getPrototypeOf(paint) === null) return false
+    let inherited = false
+    for (let i = 0; i < textPaintFields.length; i++) {
+      if (mask & (1 << i)) continue
+      if (!pay()) { uncertain = true; break }
+      if (textPaintFields[i]! in paint) inherited = true
+    }
+    return inherited
   }
   const snapshot = <T>(value: T): T | undefined => {
-    try { return owned ? freezeOwnedDrawingData(value, pay) : copy(value) as T } catch { return undefined }
+    try {
+      const retained = copy(value) as T
+      if (value && typeof value === 'object' && retained && typeof retained === 'object') transferNativeGroupEmission(value, retained, pay)
+      return retained
+    } catch { return undefined }
+  }
+  // Overlay one field of an already captured record without reading getters
+  // or losing optional/nonenumerable metadata. Pay before each shallow copy.
+  const replaceField = <T extends object>(source: T, field: string, value: unknown): T | undefined => {
+    if (!pay(2)) return undefined
+    const keys = Object.getOwnPropertyNames(source)
+    const ownField = Object.getOwnPropertyDescriptor(source, field)
+    if (!ownField || !Object.hasOwn(ownField, 'value')) return undefined
+    if (!pay(keys.length * 3)) return undefined
+    const result = Object.create(Object.getPrototypeOf(source)) as T
+    for (let keyIndex = 0; keyIndex < keys.length; keyIndex++) {
+      const key = keys[keyIndex]!
+      const descriptor = Object.getOwnPropertyDescriptor(source, key)!
+      Object.defineProperty(result, key, key === field ? { ...descriptor, value } : descriptor)
+    }
+    if (capturedLeaves.has(source) && pay()) capturedLeaves.set(result, capturedLeaves.get(source)!)
+    return Object.preventExtensions(result)
+  }
+  // This proof-only record cannot acquire an inherited opacity or radius
+  // after emission. Required overlays share this one descriptor walk; an
+  // absent or accessor field cannot acquire an emitted replacement.
+  // The writer and generic caller objects remain unchanged.
+  const inertRectangleRecord = <T extends object>(source: T, firstField?: string, firstValue?: unknown, secondField?: string, secondValue?: unknown): T | undefined => {
+    if (!pay(2)) return undefined
+    const keys = Object.getOwnPropertyNames(source)
+    if (!pay(keys.length * 3)) return undefined
+    const result = Object.create(null) as T
+    let replaced = 0
+    for (let keyIndex = 0; keyIndex < keys.length; keyIndex++) {
+      const key = keys[keyIndex]!
+      const descriptor = Object.getOwnPropertyDescriptor(source, key)
+      if (!descriptor || !Object.hasOwn(descriptor, 'value')) return undefined
+      let value = descriptor.value
+      if (key === firstField) { value = firstValue; replaced |= 1 }
+      else if (key === secondField) { value = secondValue; replaced |= 2 }
+      Object.defineProperty(result, key, { value, enumerable: descriptor.enumerable, writable: false, configurable: false })
+    }
+    if (firstField !== undefined && !(replaced & 1) || secondField !== undefined && !(replaced & 2)) return undefined
+    if (capturedLeaves.has(source) && pay()) capturedLeaves.set(result, capturedLeaves.get(source)!)
+    return Object.preventExtensions(result)
+  }
+  const rectanglePaint = (paint: MarkPaint): MarkPaint | undefined => {
+    if (!pay(16)) return undefined
+    const fields = Object.keys(rectanglePaintFields) as (keyof MarkPaint)[]
+    if (!pay(fields.length * 4)) return undefined
+    for (let fieldIndex = 0; fieldIndex < fields.length; fieldIndex++) {
+      const field = fields[fieldIndex]!
+      const descriptor = Object.getOwnPropertyDescriptor(paint, field)
+      if (!descriptor) {
+        if (field in paint) { uncertain = true; return undefined }
+        continue
+      }
+      if (!Object.hasOwn(descriptor, 'value')) return undefined
+      const value = descriptor.value
+      // The existing numeric formatter returns strings shorter than13
+      // verbatim. Longer numeric paints need their own emitted authority.
+      if (value !== undefined && (typeof value !== 'string' || rectanglePaintFields[field].numeric && value.length >= 13)) return undefined
+    }
+    return inertRectangleRecord(paint)
+  }
+  const rectangleInput = (node: ShapeMark, geometry: Extract<Geometry, { kind: 'rect' }>, writtenPaint = false): { paint: MarkPaint; writtenPaint?: true } | undefined => {
+    if (!pay(16) || 'transform' in node || !(geometry.width > 0 && geometry.height > 0)) return undefined
+    const fields = ['rx', 'ry'] as const
+    for (let fieldIndex = 0; fieldIndex < fields.length; fieldIndex++) {
+      const field = fields[fieldIndex]!
+      const descriptor = Object.getOwnPropertyDescriptor(geometry, field)
+      if (descriptor ? !Object.hasOwn(descriptor, 'value') || descriptor.value !== undefined && descriptor.value !== 0 : field in geometry) return undefined
+    }
+    if (writtenPaint) return { paint: node.paint, writtenPaint: true }
+    const paint = rectanglePaint(node.paint)
+    return paint ? { paint } : undefined
+  }
+  const sameRectanglePaint = (paint: MarkPaint, attributes: Readonly<Record<string, string>>): boolean => {
+    if (!pay(16) || Object.hasOwn(attributes, 'transform')) return false
+    let matched = 0
+    const fields = Object.keys(rectanglePaintFields) as (keyof MarkPaint)[]
+    for (let fieldIndex = 0; fieldIndex < fields.length; fieldIndex++) {
+      const field = fields[fieldIndex]!
+      const expected = paint[field]
+      // Field names are a fixed bounded inventory; arbitrary data hooks never
+      // reach this record. Literal names remove conversion; descriptor and
+      // actual-value comparisons remain paid.
+      if (!pay(4)) return false
+      const attribute = rectanglePaintFields[field].attribute
+      const descriptor = Object.getOwnPropertyDescriptor(attributes, attribute)
+      if (descriptor && (!Object.hasOwn(descriptor, 'value') || typeof descriptor.value !== 'string')) return false
+      const actual = descriptor?.value as string | undefined
+      if (!pay((expected?.length ?? 0) + (actual?.length ?? 0))) return false
+      if (actual !== expected) return false
+      if (descriptor) matched++
+    }
+    return Object.getOwnPropertyNames(attributes).length === matched
   }
   // Immutable operands make this a finite field walk, without allocating a
   // second descriptor array or JSON representation before its work is paid.
-  const same = (a: unknown, b: unknown): boolean => {
+  const same = (a: unknown, b: unknown, closed?: { valid: boolean }): boolean => {
     if (!pay()) return false
     if (typeof a === 'string' && typeof b === 'string') return pay(a.length + b.length) && a === b
-    // Preserve the same conservative logical work ledger when owned records
-    // share identities that the defensive path would have copied separately.
-    if (a === b && (!owned || a === null || typeof a !== 'object' || isImmutablePixelTextPart(a))) return true
+    if (a === b) return true
     if (!a || !b || typeof a !== 'object' || typeof b !== 'object') return false
     let na = 0, nb = 0
     if (!pay(2)) return false
     const ak = Object.getOwnPropertyNames(a), bk = Object.getOwnPropertyNames(b)
     if (!pay(ak.length + bk.length)) return false
-    for (const key of ak) {
+    for (let keyIndex = 0; keyIndex < ak.length; keyIndex++) {
+      const key = ak[keyIndex]!
       if (!pay(3)) return false
       const da = Object.getOwnPropertyDescriptor(a, key), db = Object.getOwnPropertyDescriptor(b, key)
       if (!da) continue
       na++
-      if (!db || !('value' in da) || !('value' in db) || da.enumerable !== db.enumerable || !same(da.value, db.value)) return false
+      if (closed && db && (db.writable || db.configurable)) closed.valid = false
+      if (!db || !Object.hasOwn(da, 'value') || !Object.hasOwn(db, 'value') || da.enumerable !== db.enumerable || !same(da.value, db.value, closed)) return false
     }
-    for (const key of bk) { if (!pay()) return false; if (Object.hasOwn(b, key)) nb++ }
+    for (let keyIndex = 0; keyIndex < bk.length; keyIndex++) { if (!pay()) return false; if (Object.hasOwn(b, bk[keyIndex]!)) nb++ }
     return na === nb
   }
-  // Upper bound for one resource serialization. Fields are already inert and
-  // immutable; pay the walk and resulting markup BEFORE calling the writer.
-  const markupCost = (value: unknown): number | undefined => {
-    if (!pay()) return undefined
-    if (typeof value === 'string') return value.length * 6 + 2
-    if (typeof value === 'number') return 32
-    if (!value || typeof value !== 'object') return 8
-    let cost = 64
-    if (!pay()) return undefined
-    const keys = Object.getOwnPropertyNames(value)
-    if (!pay(keys.length)) return undefined
-    for (const key of keys) {
-      if (!pay(3)) return undefined
-      const descriptor = Object.getOwnPropertyDescriptor(value, key)
-      if (!descriptor || !('value' in descriptor)) return undefined
-      const child = markupCost(descriptor.value)
-      if (child === undefined) return undefined
-      cost += key.length + 16 + child
-      if (!Number.isSafeInteger(cost) || cost > maxOperations) return undefined
-    }
-    return cost
-  }
   return {
+    xml,
     snapshot,
     same,
     retainFragment(): boolean { return pay() },
+    ownsParts(value: unknown): boolean {
+      if (!pay(2)) { uncertain = true; return false }
+      return value !== null && typeof value === 'object' && (ownedPartRosters?.has(value) ?? false)
+    },
     parts<T>(items: readonly T[], max: number): readonly T[] {
       if (!pay()) { uncertain = true; return items }
       if (!Array.isArray(items)) { uncertain = true; return items }
-      const length = Object.getOwnPropertyDescriptor(items, 'length')?.value
+      const lengthSlot = Object.getOwnPropertyDescriptor(items, 'length')
+      const length = lengthSlot && Object.hasOwn(lengthSlot, 'value') ? lengthSlot.value : undefined
       if (!Number.isSafeInteger(length) || length < 0 || length > max) throw new RangeError('Native drawing contains too many emitted nodes')
       if (!pay(length * 4)) { uncertain = true; return items }
       const retained: T[] = []
       for (let index = 0; index < length; index++) {
         const descriptor = Object.getOwnPropertyDescriptor(items, String(index))
-        if (!descriptor || !('value' in descriptor)) { uncertain = true; retained.push(items[index]!) }
-        else retained.push(descriptor.value as T)
+        let value: T
+        if (!descriptor || !Object.hasOwn(descriptor, 'value')) { uncertain = true; value = items[index]! }
+        else value = descriptor.value as T
+        Object.defineProperty(retained, index, { value, enumerable: true, writable: true, configurable: true })
       }
-      return Object.freeze(retained)
+      const frozen = Object.freeze(retained)
+      // The first completed roster pays its private set allocation as well
+      // as registration. A failed registration retains the legacy array.
+      if (!pay(ownedPartRosters ? 2 : 4)) { uncertain = true; return frozen }
+      ;(ownedPartRosters ??= new WeakSet()).add(frozen)
+      return frozen
     },
     uncertain(): void { uncertain = true },
     header(header: Omit<SceneDoc, 'parts'>, svg: string): Omit<SceneDoc, 'parts'> {
       if (!pay(svg.length * 8 + 128)) return header
-      const root = scanSvgStartTags(svg).find(tag => tag.name === 'svg')
+      const tags = scanSvgStartTags(svg)
+      const root = tags.find(tag => tag.name === 'svg')
       if (!root) { uncertain = true; return header }
+      if (tags.length !== 1 || root.selfClosing || decodedSvgAttributeValue(root, 'xmlns') !== 'http://www.w3.org/2000/svg'
+        || !/^[ \t\r\n]*$/.test(svg.slice(0, root.start)) || !/^[ \t\r\n]*$/.test(svg.slice(root.end))) closedMarkerContext = false
       const width = formatSvgNumber(header.width), height = formatSvgNumber(header.height)
+      if (decodedSvgAttributeValue(root, 'width') !== width || decodedSvgAttributeValue(root, 'height') !== height) closedMarkerContext = false
+      // The new proof admits only this small, complete XML root grammar. In
+      // particular, IDs, styles, ignored malformed attributes and duplicate
+      // attributes cannot create a second resource or cascade authority.
+      const rootNames = new Set<string>()
+      let rootCursor = root.start + 4
+      for (const attribute of root.attributes) {
+        if (!['xmlns', 'width', 'height', 'viewBox'].includes(attribute.name) || rootNames.has(attribute.name)
+          || !/^[ \t\r\n]+$/.test(svg.slice(rootCursor, attribute.nameStart))
+          || svg.slice(attribute.nameStart, attribute.valueStart) !== `${attribute.name}="`
+          || attribute.value.includes('&') || attribute.value.includes('<')) closedMarkerContext = false
+        rootNames.add(attribute.name)
+        rootCursor = attribute.valueEnd + 1
+      }
+      if (!/^[ \t\r\n]*>$/.test(svg.slice(rootCursor, root.end))) closedMarkerContext = false
       const viewBox = decodedSvgAttributeValue(root, 'viewBox')
       if (viewBox !== undefined ? viewBox !== `0 0 ${width} ${height}`
         : decodedSvgAttributeValue(root, 'width') !== width || decodedSvgAttributeValue(root, 'height') !== height) uncertain = true
@@ -207,67 +693,356 @@ export function createNativePaintEmission(maxOperations: number, owned = false) 
           if (!pay(typeof colors.font === 'string' ? colors.font.length * 4 : 1) || safeCssFontFamily(colors.font) !== value) uncertain = true
           continue
         }
-        if (!['bg', 'fg', 'line', 'accent', 'muted', 'surface', 'border', 'font'].some(key => `--${key}` === name) || colors[name.slice(2)] !== value) uncertain = true
+        if (!['bg', 'fg', 'line', 'accent', 'muted', 'surface', 'border', 'font'].some(key => `--${key}` === name)) {
+          if (name.startsWith('--')) pendingCustomRootStyle = true
+          else uncertain = true
+        } else if (colors[name.slice(2)] !== value) uncertain = true
       }
       return captured
     },
-    group(shell: Extract<SceneNode, { kind: 'group' }>, original?: object) {
-      const retained = original && retainedGroupEmission(original)
-      if (!pay(3)) return undefined
-      if (!retained || retained.open !== shell.open || retained.opacity !== shell.paint?.opacity) { uncertain = true; return undefined }
-      if (retained.style || shell.paint?.fill !== undefined) uncertain = true
-      return retained.matrix
+    groupRegistration: pay,
+    bindGroup(shell: Extract<SceneNode, { kind: 'group' }>) { bindNativeGroupEmission(shell, shell.open, pay) },
+    groupValidation(shell: Extract<SceneNode, { kind: 'group' }>) {
+      if (!closeLeaves || !bindNativeGroupEmission(shell, shell.open, pay)) captureNativeGroupEmission(shell, pay)
     },
-    observe(node: Leaf, svg: string): boolean {
+    group(shell: Extract<SceneNode, { kind: 'group' }>) {
+      closedMarkerContext = false
+      const actual = emissionContext.nativeGroup(shell)
+      if (actual?.uncertain) uncertain = true
+      return actual?.matrix
+    },
+    observe(node: Leaf, svg: string, paintWrite?: SvgTextPaintWrite, xmlWrite?: SvgXmlWrite): boolean | SvgTextPaintWrite {
+      let actualTextPaint: SvgTextPaintWrite | undefined
       // Reserve the actual occurrence's custody records before inspection.
       // Every inline label can add one primitive; noninline labels only make
       // this a conservative upper bound. Failed reservations are conditional.
       if (!pay(2 * (1 + (node.kind === 'connector' ? node.labels.length : 0)))) return false
+      if (node.kind === 'document') emissionContext.document(node, svg)
+      else if (node.kind === 'connector') {
+        if (closeLeaves && capturedLeaves.has(node)) emissionContext.capturedConnector(node)
+        else emissionContext.connector(node)
+      }
+      const opens = node.kind === 'document' && node.element === 'open'
+      if (opens ? rootOpens !== 0 || rootCloses !== 0 : rootOpens !== 1 || rootCloses !== 0) closedMarkerContext = false
       if (node.kind === 'connector') {
-        const reference = (marker: typeof node.markers.start): void => { if (marker && pay(2)) references.push(marker) }
+        if (node.lineStyle !== 'invisible' && (node.markers.start || node.markers.end || node.markers.mid.length)) hasMarkedConnector = true
+        const reference = (marker: typeof node.markers.start): void => {
+          if (!marker || !pay(4)) return
+          references.push(marker)
+        }
         reference(node.markers.start)
         for (const marker of node.markers.mid) { if (!pay()) break; reference(marker) }
         reference(node.markers.end)
+      } else if (node.kind === 'document' && node.element === 'open') rootOpens++
+      else if (node.kind === 'document' && node.element === 'close') {
+        rootCloses++
+        if (svg !== '</svg>') closedMarkerContext = false
       } else if (node.kind === 'document' && node.element === 'definitions') {
         if (!pay(svg.length * 8)) return false
-        for (const tag of scanSvgStartTags(svg)) {
+        if (svg.includes('<?') || svg.includes('<!')) definitionsClosed = false
+        const tags = scanSvgStartTags(svg), outer = tags[0]
+        if (!outer || outer.name !== 'defs' || outer.selfClosing || outer.attributes.length
+          || !/^<defs[ \t\r\n]*>$/.test(svg.slice(outer.start, outer.end))
+          || !/^[ \t\r\n]*$/.test(svg.slice(0, outer.start))) definitionsClosed = false
+        // Declarations belong to this captured definitions occurrence. Read
+        // only own data slots, so fallback metadata cannot invoke getters.
+        if (!pay(2)) return false
+        const declaration = Object.getOwnPropertyDescriptor(node, 'markerResources')
+        if (declaration) {
+          if (!Object.hasOwn(declaration, 'value') || declaration.value !== undefined && !Array.isArray(declaration.value)) uncertain = true
+          else if (declaration.value !== undefined) {
+            if (!pay(2)) return false
+            const markers = declaration.value as NonNullable<typeof node.markerResources>
+            const lengthSlot = Object.getOwnPropertyDescriptor(markers, 'length')
+            const length = lengthSlot && Object.hasOwn(lengthSlot, 'value') ? lengthSlot.value : undefined
+            if (!Number.isSafeInteger(length) || length < 0) uncertain = true
+            else for (let index = 0; index < length; index++) {
+              if (!pay(3)) break
+              const marker = Object.getOwnPropertyDescriptor(markers, String(index))
+              if (!marker || !Object.hasOwn(marker, 'value')) uncertain = true
+              else references.push(marker.value)
+            }
+          }
+        }
+        let resourceCursor = outer?.end ?? 0
+        let markerEnd = -1
+        for (const tag of tags) {
           if (!pay(tag.attributes.length + 1)) break
+          if (tag.name === 'defs') {
+            if (tag.attributes.length || tag.start < markerEnd) definitionsClosed = false
+          } else if (tag.name !== 'marker' && (tag.start >= markerEnd || !['circle', 'ellipse', 'line', 'rect', 'polygon', 'polyline', 'path'].includes(tag.name))) definitionsClosed = false
           if (tag.name !== 'marker') continue
           const id = decodedSvgAttributeValue(tag, 'id')
           const end = svg.indexOf('</marker>', tag.end)
           if (!id || end < 0 || resources.has(id)) { uncertain = true; continue }
+          if (!/^[ \t\r\n]*$/.test(svg.slice(resourceCursor, tag.start))) definitionsClosed = false
+          markerEnd = end + 9
+          resourceCursor = markerEnd
           const bytes = svg.slice(tag.start, end + 9).replace(/(^|\n)[ \t]+(?=<)/g, '$1')
           if (!pay(2)) break
           resources.set(id, bytes)
         }
+        if (!/^[ \t\r\n]*<\/defs>[ \t\r\n]*$/.test(svg.slice(resourceCursor))) definitionsClosed = false
+      } else if (node.kind === 'document') closedMarkerContext = false
+      if (capturedLeaves.has(node)) {
+        // A prototype changed after writing cannot move retained source ink.
+        // Presence checks on this owned plain record do not invoke its getter;
+        // ordinary context and inspection reads still run in their old order.
+        if (node.kind !== 'document') {
+          if (!pay(2)) uncertain = true
+          else if (!Object.hasOwn(node, 'transform') && 'transform' in node) uncertain = true
+        }
+        if (node.kind !== 'document') {
+          if (!pay(2)) uncertain = true
+          else {
+            const paint = Object.getOwnPropertyDescriptor(node, 'paint')
+            if (paint && Object.hasOwn(paint, 'value')) {
+              if ((node.kind === 'text' ? hasInheritedTextPaint(paint.value) : hasInheritedPaint(paint.value)) || node.kind === 'text' && paintWrite && hasInheritedSvgTextPaint(paintWrite)) {
+                const fact = node.kind === 'text' && paintWrite && pay(6) && matchesSvgTextPaintWrite(paintWrite, xml, xmlWrite, node, svg) ? paintWrite : undefined
+                if (fact && readSvgTextPaintWrite(fact, node, svg) && pay(2)) {
+                  textPaintApply(textPaintAdd, observedTextPaintWrites, [fact]); usedTextPaint = true
+                  emissionContext.requireTextPaintContext()
+                  actualTextPaint = fact
+                } else uncertain = true
+              }
+            }
+          }
+          if (node.kind === 'shape') {
+            if (!pay(2)) uncertain = true
+            else {
+              const children = Object.getOwnPropertyDescriptor(node, 'childPaints')
+              if (children && Object.hasOwn(children, 'value') && Array.isArray(children.value)) {
+                if (!pay(2)) uncertain = true
+                else {
+                  const length = Object.getOwnPropertyDescriptor(children.value, 'length')
+                  if (length && Object.hasOwn(length, 'value')) for (let index = 0; index < length.value; index++) {
+                    if (!pay(2)) { uncertain = true; break }
+                    const paint = Object.getOwnPropertyDescriptor(children.value, String(index))
+                    if (paint && Object.hasOwn(paint, 'value') && hasInheritedPaint(paint.value)) uncertain = true
+                  }
+                }
+              }
+            }
+          }
+        }
+        emissionContext.hint(node)
+        if (node.kind !== 'document') emissionContext.leaf(capturedLeaves.get(node)!, svg)
+      } else emissionContext.invalidateFractionalCircle()
+      return work.exhausted() ? false : actualTextPaint ?? true
+    },
+    leaf(node: Leaf, write: (node: Leaf, sink?: SvgGeometryWriteSink) => string | SvgXmlWrite, actualCapture?: SvgXmlCapture): { node: Leaf; paintNode: Leaf; svg: string; xmlWrite: SvgXmlWrite | undefined; textPaint?: SvgTextPaintWrite; geometryPaint?: true; conditional: boolean } {
+      const serialize = (source: Leaf, sink?: SvgGeometryWriteSink): { svg: string; xmlWrite: SvgXmlWrite | undefined } => {
+        const written = write(source, sink)
+        if (typeof written === 'string') return { svg: written, xmlWrite: undefined }
+        const record = xml.read(written, source)
+        if (!record) throw new TypeError('Native XML output must belong to its actual captured leaf')
+        return { svg: record.svg, xmlWrite: written }
       }
-      return !exhausted
-    },
-    leaf(node: Leaf): { node: Leaf; conditional: boolean } {
-      const captured = snapshot(node)
-      if (!captured) return { node, conditional: true }
+      let captured: Leaf | undefined
+      try { captured = copy(node, 0, new Set(), 'leaf', closeLeaves) as Leaf } catch { /* Strict mutable fallback. */ }
+      if (!captured) return { node, paintNode: node, ...serialize(node), conditional: true }
       transferSceneNodeSerialization(node, captured)
-      return { node: captured, conditional: false }
+      const geometry = captured.kind === 'shape' ? captured.geometry : captured.kind === 'connector' && captured.lineStyle !== 'invisible' ? captured.route.geometry : undefined
+      // Eligibility is decided before validation/writing can observe inherited
+      // caller hooks. Unsupported rectangles retain their legacy inspection.
+      const rectangle = captured.kind === 'shape' && geometry?.kind === 'rect' ? rectangleInput(captured, geometry, closeLeaves && actualCapture === xml) : undefined
+      const compound = captured.kind === 'shape' && geometry?.kind === 'compound' ? prepareWrittenCompoundShape(captured, pay) : undefined
+      const supported = !!compound || geometry?.kind === 'line' || geometry?.kind === 'polyline' || !!rectangle || captured.kind === 'connector' && geometry?.kind === 'path'
+      // Constant custody is separate from variable projection work. The writer
+      // reserves the entire token stream before allocating its first point.
+      const directRectangle = !!rectangle && actualCapture === xml
+      const directGeometry = !compound && supported && actualCapture === xml
+      let reserved = supported && !directGeometry && pay(192)
+      let received = false, invalid = false, projectionReserved = false, served: Geometry | undefined
+      let attributesReceived = false, invalidAttributes = false, attributes: Readonly<Record<string, string>> | undefined
+      let textPaintReceived = false, textPaintInvalid = false, textPaint: SvgTextPaintWrite | undefined
+      const sink: SvgGeometryWriteSink | undefined = reserved || captured.kind === 'text' ? Object.assign((source: Geometry, written: Geometry | undefined) => {
+        if (compound) { observeWrittenCompoundShape(compound, source, written, pay); return }
+        if (source !== geometry || received) { invalid = true; return }
+        received = true
+        // The writer's fresh rectangle record owns actual optional radii too.
+        // Seal it before later attribute hooks can change Object.prototype.
+        served = rectangle && written ? inertRectangleRecord(written) : written
+      }, { reserveProjection: (source: Geometry, operations: number) => {
+        if (source !== geometry || projectionReserved) { invalid = true; return false }
+        projectionReserved = true
+        return pay(operations)
+      }, textPaint: captured.kind === 'text' ? (source: object, fact: SvgTextPaintWrite | undefined): void => {
+        if (source !== captured || textPaintReceived) { textPaintInvalid = true; return }
+        textPaintReceived = true; textPaint = fact
+      } : undefined, rectangleAttributes: rectangle ? (source: ShapeMark, written: Readonly<Record<string, string>> | undefined): void => {
+        if (source !== captured || attributesReceived) { invalidAttributes = true; return }
+        attributesReceived = true
+        attributes = written
+      } : undefined }) : undefined
+      const { svg, xmlWrite } = serialize(captured, sink)
+      if (closeLeaves && captured.kind === 'document' && captured.element === 'definitions'
+        && completedDeclarations?.source === captured && !completedDeclarations.deferred
+        && actualCapture === xml && xmlWrite && pay()) closedMarkerOperands = completedDeclarations.head
+      if (directRectangle && geometry && captured.kind === 'shape') {
+        const actual = readSvgRectangleWrite(xml, xmlWrite, captured, geometry)
+        served = actual && inertRectangleRecord(actual)
+        reserved = received = !!served
+        if (rectangle!.writtenPaint) {
+          const paint = readSvgRectanglePaintWrite(xml, xmlWrite, captured, geometry, captured.paint, pay)
+          if (paint) rectangle!.paint = paint
+          else {
+            // Unsupported/foreign paint retains the original defensive field
+            // inventory. No additional write or caller getter is replayed.
+            const fallback = rectanglePaint(captured.paint)
+            if (!fallback) { if (pay()) capturedLeaves.set(captured, captured); return { node: captured, paintNode: captured, svg, xmlWrite, conditional: false } }
+            rectangle!.paint = fallback
+            if (!served || served.kind !== 'rect' || !matchesSvgRectangleWrite(xml, xmlWrite, captured, geometry, served, fallback, pay)) invalid = true
+          }
+        } else if (!served || served.kind !== 'rect' || !matchesSvgRectangleWrite(xml, xmlWrite, captured, geometry, served, rectangle!.paint, pay)) invalid = true
+      } else if (directGeometry && geometry) {
+        if (pay(4)) served = readSvgGeometryWrite(xml, xmlWrite, captured, geometry)
+        reserved = received = !!served
+      }
+      const textPaintCandidate = textPaintReceived && !textPaintInvalid ? textPaint : undefined
+      if (pay()) capturedLeaves.set(captured, captured)
+      const retained = { node: captured, paintNode: captured, svg, xmlWrite, textPaint: textPaintCandidate, conditional: false }
+      if (!supported) return retained
+      if (compound && captured.kind === 'shape' && geometry) {
+        const projection = reserved && completeWrittenCompoundShape(compound, geometry, svg, pay)
+        // Missing fresh callbacks or mismatched bytes cannot create the new
+        // compound projection; existing general compound proofs stay intact.
+        if (!projection) return retained
+        const paintNode = inertRectangleRecord(captured, 'geometry', projection.geometry, 'childPaints', projection.childPaints)
+        return paintNode ? { ...retained, paintNode } : retained
+      }
+      // A cached serialization, missing/duplicate receipt, failed capture or
+      // unsupported numeric projection cannot borrow another write's proof.
+      if (!reserved || !received || invalid || !served || !geometry || served.kind !== geometry.kind) return { ...retained, conditional: true }
+      if (rectangle && captured.kind === 'shape' && served.kind === 'rect') {
+        if (!directRectangle && (!attributesReceived || invalidAttributes || !attributes || !sameRectanglePaint(rectangle.paint, attributes))) return { ...retained, conditional: true }
+        // A rectangle has extent, not a line's start/end topology. Never
+        // borrow the line-collapse branch or pre-write radii for served ink.
+        if (!(served.width > 0 && served.height > 0) || (served.rx ?? 0) !== 0 || (served.ry ?? 0) !== 0) return { ...retained, conditional: true }
+        const paintNode = inertRectangleRecord(captured, 'geometry', served, 'paint', rectangle.paint)
+        return paintNode ? { ...retained, paintNode, conditional: false } : { ...retained, conditional: true }
+      }
+      if (served === geometry) return retained
+      if (captured.transform || captured.kind === 'connector' && (captured.route.closed || served.kind === 'polyline' && captured.markers.mid.length !== 0)) return { ...retained, conditional: true }
+      // The recorder already produces the reduced Native paint source. Give
+      // it this exact write instead of first copying every complete mark slot
+      // onto another SceneNode merely to replace its route. The actual route
+      // allocation and its readonly value checks remain funded here.
+      if (closeLeaves && directGeometry && captured.kind === 'connector' && served.kind === 'polyline') {
+        const projection = readSvgGeometryProjection(xml, xmlWrite, captured, geometry)
+        if (!projection || !pay(96)) return { ...retained, conditional: true }
+        return { ...retained, geometryPaint: true, conditional: projection.collapsed }
+      }
+      if (!pay(48)) return { ...retained, conditional: true }
+      // A path receipt owns only the actual d literal. Keep the already paid,
+      // immutable routing metadata; the certifier measures actual d segments.
+      const path = captured.kind === 'connector' && captured.route.geometry.kind === 'path' && served.kind === 'path'
+        ? replaceField(captured.route.geometry, 'd', served.d) : undefined
+      if (served.kind === 'path' && !path) return { ...retained, conditional: true }
+      const projection = served.kind === 'polyline' ? directGeometry && geometry ? readSvgGeometryProjection(xml, xmlWrite, captured, geometry) : writtenPolylineProjectionOf(served) : undefined
+      const frozen = path ?? (served.kind === 'polyline' ? projection && served : snapshot(served))
+      if (!frozen) return { ...retained, conditional: true }
+      const start = frozen.kind === 'line' ? { x: frozen.x1, y: frozen.y1 } : frozen.kind === 'polyline' ? frozen.points[0] : undefined
+      const end = frozen.kind === 'line' ? { x: frozen.x2, y: frozen.y2 } : frozen.kind === 'polyline' ? frozen.points.at(-1) : undefined
+      const collapsed = !start || !end || (frozen.kind === 'polyline'
+        ? projection!.collapsed
+        : start.x === end.x && start.y === end.y)
+      if (captured.kind === 'shape') return { ...retained, paintNode: Object.freeze({ ...captured, geometry: frozen }), conditional: collapsed }
+      if (captured.kind !== 'connector' || !pay(64)) return { ...retained, conditional: true }
+      // Rebuild directions from served coordinates, never round unit tangents.
+      const contours = path ? captured.route.contours : projection?.contours ?? snapshot(connectorContourSemantics(frozen as typeof captured.route.geometry, false))
+      if (!contours) return { ...retained, conditional: true }
+      const route = Object.freeze({ ...captured.route, geometry: frozen, contours,
+        startTangent: contours[0]?.startTangent, endTangent: contours.at(-1)?.endTangent })
+      const paintNode = replaceField(captured, 'route', route)
+      return paintNode ? { ...retained, paintNode, conditional: !path && collapsed } : { ...retained, conditional: true }
     },
-    finish(inspection: ScenePaintGeometryInspection, header: Omit<SceneDoc, 'parts'>): void {
-      const checked = new Map<string, (typeof references)[number]>()
+    finish(inspection: ScenePaintGeometryInspection, header: Omit<SceneDoc, 'parts'>, output: string | SvgXmlWrite, unrecordedPaint = false): void {
+      // An issued inspection cannot be resealed with another document. Nor can
+      // a wrapper around its already-issued occurrences borrow fresh custody.
+      if (emissionWork.has(inspection)) return
+      if (pay(inspection.primitives.length) && inspection.primitives.some(primitive => emittedOccurrences.has(primitive))) uncertain = true
+      const checked = new Map<string, CheckedMarkerResource>()
+      let markerPaintReferences: Map<MarkerDescriptor, NativeMarkerPaintReference> | undefined
+      try { if (references.length && pay(2)) markerPaintReferences = new markerFactMap() } catch { /* Optional correspondence; the generic proof remains. */ }
+      const retainMarkerPaint = (marker: MarkerDescriptor, reference: NativeMarkerPaintReference): void => {
+        try { if (markerPaintReferences) textPaintApply(markerFactSet, markerPaintReferences, [marker, reference]) } catch { /* No completed fact. */ }
+      }
+      const retainedMarkerPaint = (marker: MarkerDescriptor): unknown => {
+        try { return markerPaintReferences && textPaintApply(markerFactGet, markerPaintReferences, [marker]) } catch { return undefined }
+      }
       for (const marker of references) {
         if (!pay()) break
         try {
           if (!pay(2)) break
-          const prior = checked.get(marker.id)
-          if (prior && same(prior, marker)) continue
-          const cost = markupCost(marker)
+          const entry = checked.get(marker.id), prior = checkedMarkerSource(entry)
+          const closure = { valid: true }
+          if (prior && same(prior, marker, closure)) {
+            if (pay(4)) retainMarkerPaint(marker, new NativeMarkerPaintReference(markerPaintIssuer, inspection, marker, entry!, closure.valid))
+            continue
+          }
+          const cost = markerResourceMarkupCost(marker, pay, { maxCost: maxOperations, maxDepth: undefined, iterableKeys: false })
           if (cost === undefined || !pay(cost * 2)) { uncertain = true; break }
           const expected = serializeMarkerResource(marker, { indent: 0 }).replace(/(^|\n)[ \t]+(?=<)/g, '$1')
           if (!pay(expected.length * 3) || resources.get(marker.id) !== expected) uncertain = true
-          else if (pay(2)) checked.set(marker.id, marker)
+          else if (pay(6)) {
+            const resource = new CheckedMarkerResource(markerPaintIssuer, marker)
+            checked.set(marker.id, resource)
+            retainMarkerPaint(marker, new NativeMarkerPaintReference(markerPaintIssuer, inspection, marker, resource, true))
+          }
         } catch { uncertain = true }
       }
-      // Paid in observe before these immutable occurrences were created.
-      // Conditional fallback occurrences already prohibit P, even if rewrapped.
-      for (const primitive of inspection.primitives) if (primitive.visibility !== 'conditional') emittedOccurrences.add(primitive)
-      emissionWork.set(inspection, Object.freeze({ operations, exhausted, uncertain, header }))
+      // Unbound opaque resources have no descriptor/byte comparison and
+      // could contain a shadowing child ID or malformed XML. The new closed
+      // domain admits only resources checked against declarations or references.
+      if (closedMarkerContext && definitionsClosed && (!pay() || resources.size !== checked.size)) closedMarkerContext = false
+      const checkedContext = emissionContext.finish(header)
+      if (checkedContext.uncertain || pendingCustomRootStyle && !checkedContext.resolveColor) uncertain = true
+      // A resolver is issued only for a validated marker-bearing context.
+      // Every declared resource in that context needs actual-byte custody;
+      // unrelated unmarked definitions retain their existing proof scope.
+      if (checkedContext.resolveColor && (!definitionsClosed || !pay() || resources.size !== checked.size)) uncertain = true
+      // This raw-document obligation belongs to marker-bearing emission proofs.
+      // The callback forces a fresh parse and pays its scans and namespace work
+      // from the same unchanged allowance as capture and geometric proof.
+      if (hasMarkedConnector) {
+        const verified = typeof output === 'string' ? verifySvgDocumentEnvelope(output, pay) : xml.verify(output)
+        if (!verified) uncertain = true
+      }
+      // This existing occurrence pass also closes exactly the paint facts
+      // consumed by the recorder. Raw fallback never closes typed paint.
+      const actualPaintRoster = ownedTextPaintRoster(inspection)
+      const occurrence = (primitive: ScenePaintGeometry): void => {
+        if (actualPaintRoster !== false) {
+          if (!pay(2)) uncertain = true
+          else {
+            const fact = nativeTextPaintWriteOf(primitive)
+            if (fact) {
+              if (!pay(2) || !textPaintApply(textPaintHas, observedTextPaintWrites, [fact])) uncertain = true
+              else if (hasMarkedConnector ? !hasSvgTextPaintClosure(fact) : !closeSvgTextPaintWrite(fact, xml)) uncertain = true
+            }
+          }
+        }
+        // Paid in observe; exhausted closure cannot discard occurrence custody.
+        if (primitive.visibility !== 'conditional') emittedOccurrences.add(primitive)
+      }
+      if (actualPaintRoster === true) {
+        for (let i = 0; i < inspection.primitives.length; i++) occurrence(inspection.primitives[i]!)
+      } else for (const primitive of inspection.primitives) occurrence(primitive)
+      const boundResolver = checkedContext.resolveColor
+      if (!uncertain && !work.exhausted() && definitionsClosed && boundResolver) {
+        for (const marker of references) {
+          if (!pay(3)) break
+          const entry = retainedMarkerPaint(marker)
+          try { completeNativeMarkerPaint(markerPaintIssuer, entry, inspection, marker, boundResolver, pay) } catch { /* Foreign helpers retain their live proof fallback. */ }
+        }
+      }
+      const operations = work.operations(), exhausted = work.exhausted()
+      textPaintApply(textPaintPut, emissionWork, [inspection, (usedTextPaint ? textPaintFreeze : Object.freeze)({ operations, exhausted, uncertain,
+        closedMarkerContext: closedMarkerContext && definitionsClosed && !unrecordedPaint && rootOpens === 1 && rootCloses === 1 && !uncertain && !exhausted,
+        fractionalCircleContext: checkedContext.fractionalCircleContext && definitionsClosed && resources.size === checked.size
+          && !unrecordedPaint && rootOpens === 1 && rootCloses === 1 && !uncertain && !exhausted,
+        header, resolveColor: uncertain ? undefined : checkedContext.resolveColor, markerPaint: retainedMarkerPaint })])
     },
   }
 }

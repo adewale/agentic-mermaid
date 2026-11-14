@@ -3,7 +3,21 @@ import { useTestChildren } from './helpers/test-child.ts'
 
 const runChild = useTestChildren(20_000)
 
-test('copied native snapshots skip drawing and certification replay without exposing cached geometry', async () => {
+// Original private closure and replacement-producer capture perform different
+// paid work. Their actual output and every other proof field must still agree.
+const crossProducerAssertion = `
+    const assertCrossProducerProduct = (actual, expected) => {
+      const comparable = product => {
+        const receipt = product.receipt, proof = receipt.layoutCertification
+        assert.ok(Number.isSafeInteger(proof.checks.operations) && proof.checks.operations >= 0 && proof.checks.operations <= 400000)
+        return { ...product, receipt: { ...receipt, layoutCertification: { ...proof,
+          checks: { ...proof.checks, operations: undefined } } } }
+      }
+      assert.deepEqual(comparable(actual), comparable(expected))
+    }
+`
+
+test('copied snapshots preserve Scene delivery and Native reuse without exposing cached geometry', async () => {
   const child = await runChild(process.execPath, ['-e', `
     import assert from 'node:assert/strict'
     import { spyOn } from 'bun:test'
@@ -13,7 +27,9 @@ test('copied native snapshots skip drawing and certification replay without expo
     import { layoutMermaidWithReceipt } from './src/agent/index.ts'
     import { resolveRenderRequestForExecution } from './src/render-contract.ts'
     import { positionFamilyForNativeRender, positionedForSceneLowering } from './src/positioning.ts'
-    const draw = spyOn(drawing, 'drawNative'), certify = spyOn(paint, 'certifyNativePaint')
+    const publicDraw = spyOn(drawing, 'drawNative'), privateDraw = spyOn(drawing, 'drawOriginalPositionedNative')
+    const certify = spyOn(paint, 'certifyNativePaint')
+    const draw = { get calls() { return publicDraw.mock.calls.length + privateDraw.mock.results.filter(result => result.type === 'return' && result.value !== undefined).length } }
     const cases = [
       ['classDiagram', 'StageClassA --> StageClassB'],
       ['erDiagram', 'STAGE_OWNER ||--o{ STAGE_ITEM : owns'],
@@ -21,27 +37,29 @@ test('copied native snapshots skip drawing and certification replay without expo
     ]
     const options = { embedFontImport: false }
     for (const lines of cases) {
+      // ER and Class retain the PR's actual Scene writer lane.
+      const native = lines[0] === 'packet-beta'
       const source = lines.join(String.fromCharCode(10))
-      const before = draw.mock.calls.length
+      const before = draw.calls
       const expected = render(source, options)
       assert.deepEqual(render(source, options), expected)
-      assert.equal(draw.mock.calls.length, before + 2)
-      const drawn = draw.mock.calls.length, certified = certify.mock.calls.length
+      assert.equal(draw.calls, before + (native ? 2 : 0))
+      const drawn = draw.calls, certified = certify.mock.calls.length
       for (let repeat = 0; repeat < 3; repeat++) assert.deepEqual(render(source, options), expected)
-      assert.equal(draw.mock.calls.length, drawn, 'warm render rebuilt drawing: ' + lines[0])
-      assert.equal(certify.mock.calls.length, certified, 'warm render repeated certification: ' + lines[0])
+      assert.equal(draw.calls, drawn, 'warm render rebuilt drawing: ' + lines[0])
+      assert.equal(certify.mock.calls.length, certified + (native ? 0 : 3), 'Scene writes keep fresh certification; Native may reuse: ' + lines[0])
       const exposed = layoutMermaidWithReceipt(source, options)
       exposed.layout.nodes.length = 0
       const layout = positionFamilyForNativeRender(resolveRenderRequestForExecution(source, options, 'svg'))
       const sceneInput = positionedForSceneLowering(layout)
-      assert.notEqual(sceneInput, layout.positioned)
+      if (native) assert.notEqual(sceneInput, layout.positioned)
       for (const key of Object.keys(sceneInput)) delete sceneInput[key]
       assert.deepEqual(render(source, options), expected)
-      const beforeControl = draw.mock.calls.length, certificationBeforeControl = certify.mock.calls.length
+      const beforeControl = draw.calls, certificationBeforeControl = certify.mock.calls.length
       process.env.AGENTIC_MERMAID_ELK_CACHE = '0'
       try { assert.deepEqual(render(source, options), expected) }
       finally { process.env.AGENTIC_MERMAID_ELK_CACHE = '1' }
-      assert.equal(draw.mock.calls.length, beforeControl + 1, 'uncached control must construct a drawing')
+      assert.equal(draw.calls, beforeControl + (native ? 1 : 0), 'uncached control follows its family writer')
       assert.equal(certify.mock.calls.length, certificationBeforeControl + 1)
     }
   `], { cwd: `${import.meta.dir}/../..`, env: { ...process.env, AGENTIC_MERMAID_SCENE_ASSERTIONS: '0', AGENTIC_MERMAID_ELK_CACHE: '1' } })
@@ -156,7 +174,8 @@ test('constructor text custody excludes mutable, accessor and function descendan
   const child = await runChild(process.execPath, ['-e', `
     import assert from 'node:assert/strict'
     import { preparePixelText } from './src/shared/prepared-text.ts'
-    import { clonePositioned } from './src/experimental/position-cache.ts'
+    import { clonePositioned, retainPositioned, cachedPositioned } from './src/experimental/position-cache.ts'
+    import { prepareDisplayText, preparedDisplayTextValue } from './src/shared/display-text.ts'
     import { createNativePaintEmission } from './src/scene/native-paint-emission.ts'
     for (const mode of ['mutable', 'shallow-frozen', 'accessor', 'function']) {
       const extra = mode === 'accessor' ? Object.freeze({ get value() { throw Error('uncaptured accessor') } })
@@ -182,6 +201,31 @@ test('constructor text custody excludes mutable, accessor and function descendan
         assert.equal(captured.prepared.lines[0][0].extra.nested.value, 'before')
       }
     }
+    // A caller's map override can return an accessor-bearing array. Freezing
+    // that array does not turn its live element into constructor-owned data.
+    let line = [{ text: 'Read', sourceStart: 0, sourceEnd: 4 }]
+    const liveLines = []
+    Object.defineProperty(liveLines, '0', { configurable: true, enumerable: true, get: () => line })
+    const suppliedLines = new Proxy([], {
+      get: (target, key, receiver) => key === 'map' ? () => liveLines : Reflect.get(target, key, receiver),
+    })
+    const previous = Object.getOwnPropertyDescriptor(Object.prototype, 'value')
+    let plan
+    try {
+      Object.defineProperty(Object.prototype, 'value', { configurable: true, writable: true, value: 0 })
+      plan = prepareDisplayText({ source: 'Read', display: 'literal', lineStarts: [0], lines: suppliedLines })
+    } finally {
+      delete Object.prototype.value
+      if (previous) Object.defineProperty(Object.prototype, 'value', previous)
+    }
+    const block = preparePixelText(plan, { fontSize: 12, fontWeight: 400 }), family = {}
+    retainPositioned(family, 'accessor-plan', { positioned: { width: 100, height: 80, block } })
+    line = [{ text: 'Lost', sourceStart: 0, sourceEnd: 4 }]
+    assert.equal(preparedDisplayTextValue(block.prepared), 'Lost')
+    const retained = cachedPositioned(family, 'accessor-plan', false, true).positioned.block
+    assert.equal(preparedDisplayTextValue(retained.prepared), 'Read')
+    assert.notEqual(retained, block)
+    assert.equal(retained.lineBlocks[0].text, 'Read')
   `], { cwd: `${import.meta.dir}/../..` })
   expect(child.stderr).toBe('')
   expect(child.status).toBe(0)
@@ -443,13 +487,14 @@ test('repeated private native drawings preserve receipts, policy and final secur
 test('a producer changed between drawing and certification cannot publish a retained artifact', async () => {
   const child = await runChild(process.execPath, ['-e', `
     import assert from 'node:assert/strict'
+    ${crossProducerAssertion}
     import { renderMermaidSVGWithReceipt } from './src/index.ts'
     import { getFamily } from './src/agent/families.ts'
     import { inheritNativeDrawing, nativeDrawingOf, sceneLowering } from './src/scene/drawing.ts'
     import { withRenderStageObserver } from './src/render-stages.ts'
     import { resolveRenderRequestForExecution } from './src/render-contract.ts'
     import { positionFamilyForNativeRender } from './src/positioning.ts'
-    import { retainedNativeDrawing } from './src/scene/positioned.ts'
+    import { retainedNativeDrawing, positionedPaintCertification } from './src/scene/positioned.ts'
     import { borrowedPositioned, cachedNativeDrawing, retainNativeDrawing, retainOwnedNativeSvgPositioned } from './src/experimental/position-cache.ts'
     const lower = getFamily('sequence').lowerScene
     const original = nativeDrawingOf(lower)
@@ -478,7 +523,7 @@ test('a producer changed between drawing and certification cannot publish a reta
     assert.deepEqual(raced.result, warm.result)
     const changedProducer = render(() => renderMermaidSVGWithReceipt(source))
     assert.equal(customCalls, 1, 'the installed replacement must construct its own drawing')
-    assert.deepEqual(changedProducer.result, warm.result)
+    assertCrossProducerProduct(changedProducer.result, warm.result)
     inheritNativeDrawing(originalSource, lower)
     const restoredMiss = render(() => renderMermaidSVGWithReceipt(source))
     assert.equal(restoredMiss.events.filter(event => event.owner === 'native-drawing' && event.detail === 'positioned-owner').length, 0,
@@ -501,7 +546,8 @@ test('a producer changed between drawing and certification cannot publish a reta
     inheritNativeDrawing(originalSource, lower)
     assert.ok(warm.events.some(event => event.owner === 'svg-inspection' && event.detail === 'final-security'))
     for (const [name, sample] of Object.entries({ raced, changedProducer, restoredMiss, restoredHit, hitRace })) {
-      assert.deepEqual(sample.result, warm.result)
+      if (name === 'changedProducer' || name === 'hitRace') assertCrossProducerProduct(sample.result, warm.result)
+      else assert.deepEqual(sample.result, warm.result)
       assert.equal(sample.events.filter(event => event.owner === 'svg-inspection' && event.detail === 'final-security').length, 1, name)
     }
     delete globalThis[symbol]
@@ -547,6 +593,25 @@ test('a producer changed between drawing and certification cannot publish a reta
     for (const key of pressureKeys.slice(3)) {
       assert.equal(pressureProbe(key).hit, undefined, 'changed-producer probes must not age drawing admission')
     }
+
+    const ownedRequest = resolveRenderRequestForExecution(source + String.fromCharCode(10) + ' ProducerB->>ProducerA: reentrant ownership', {}, 'svg')
+    const ownedLayout = positionFamilyForNativeRender(ownedRequest)
+    assert.ok(retainedNativeDrawing(ownedRequest, ownedLayout))
+    let replacement
+    globalThis[symbol] = event => {
+      if (!replacement && event.owner === 'paint-certification' && event.outcome === 'miss' && event.detail === 'native') {
+        inheritNativeDrawing(customSource, lower)
+        replacement = retainedNativeDrawing(ownedRequest, ownedLayout)
+      }
+    }
+    const beforeReentrantCalls = customCalls
+    positionedPaintCertification(ownedRequest, ownedLayout)
+    delete globalThis[symbol]
+    assert.ok(replacement)
+    assert.equal(retainedNativeDrawing(ownedRequest, ownedLayout), replacement,
+      'an earlier certification must not overwrite a newer reentrant drawing')
+    assert.equal(customCalls, beforeReentrantCalls + 1)
+    inheritNativeDrawing(originalSource, lower)
   `], { cwd: `${import.meta.dir}/../..`, env: { ...process.env, AGENTIC_MERMAID_SCENE_ASSERTIONS: '0', AGENTIC_MERMAID_ELK_CACHE: '1' } })
   expect(child.stderr).toBe('')
   expect(child.status).toBe(0)
@@ -558,6 +623,7 @@ test('family ownership follows constructed identities and backend ownership foll
     const child = await runChild(process.execPath, ['-e', `
       import assert from 'node:assert/strict'
       import { isOwnedFamily } from './src/experimental/owned-family.ts'
+      import { KNOWN_EXTENSION_CONTRACT_VERSIONS } from './src/shared/extension-identity.ts'
       import { DefaultBackend, isOriginalEnrolledDefaultBackend, registerBackend, registerBuiltInBackend } from './src/scene/backend.ts'
       const mode = ${JSON.stringify(mode)}
       const fail = () => { throw new Error('backend query touched a proxy') }
@@ -567,7 +633,7 @@ test('family ownership follows constructed identities and backend ownership foll
       assert.equal(isOriginalEnrolledDefaultBackend(proxy), false)
       if (mode === 'changed-before-enrollment') DefaultBackend.drawNode = () => { throw new Error('unexpected rendering') }
       if (mode === 'failed-enrollment') {
-        registerBackend({ ...DefaultBackend, id: 'backend:default' }, { compatibility: { core: '^0.5.0', scene: '^2.0.0' } })
+        registerBackend({ ...DefaultBackend, id: 'backend:default' }, { compatibility: { core: KNOWN_EXTENSION_CONTRACT_VERSIONS.core, scene: '^2.0.0' } })
         assert.throws(() => registerBuiltInBackend(DefaultBackend), { name: 'ExtensionCollisionError' })
         assert.equal(Object.isFrozen(DefaultBackend), true)
         assert.equal(isOriginalEnrolledDefaultBackend(DefaultBackend), false)
@@ -634,6 +700,7 @@ for (const family of ['flowchart', 'state'] as const) {
   for (const backend of ['elk', 'agentic', ...(family === 'flowchart' ? ['fallback'] : [])]) test(`${backend} ${family} geometry stays isolated across private/public/PNG order and replacement hooks`, async () => {
     const child = await runChild(process.execPath, ['-e', `
       import assert from 'node:assert/strict'
+      ${crossProducerAssertion}
       import { renderMermaidSVGWithReceipt } from './src/index.ts'
       import { renderMermaidPNGWithReceipt } from './src/agent/index.ts'
       import { resolveRenderRequestForExecution } from './src/render-contract.ts'
@@ -703,10 +770,11 @@ for (const family of ['flowchart', 'state'] as const) {
         }
       })
       try {
-        assert.deepEqual(renderMermaidSVGWithReceipt(source, options), first)
+        const replacement = renderMermaidSVGWithReceipt(source, options)
+        assertCrossProducerProduct(replacement, first)
         callerOwned.positioned.nodes[0].label = 'poisoned replacement node'
         callerOwned.positioned.edges[0].points[0].x = NaN
-        assert.deepEqual(renderMermaidSVGWithReceipt(source, options), first)
+        assert.deepEqual(renderMermaidSVGWithReceipt(source, options), replacement)
         assert.equal(projections, 2)
         invalid = true
         assert.throws(() => renderMermaidSVGWithReceipt(source, options), { code: 'LAYOUT_CERTIFICATION_FAILED' })
@@ -721,6 +789,7 @@ for (const family of ['flowchart', 'state'] as const) {
 test('native cached rendering stays isolated from public geometry and replacement projectors', async () => {
   const child = await runChild(process.execPath, ['-e', `
     import assert from 'node:assert/strict'
+    ${crossProducerAssertion}
     import { createMermaidRenderer, parseRegisteredMermaid, renderMermaidSVGWithReceipt } from './src/index.ts'
     import { resolveRenderRequestForExecution } from './src/render-contract.ts'
     import { positionResolvedFamily, retainedFamilyProjection } from './src/positioning.ts'
@@ -792,10 +861,11 @@ test('native cached rendering stays isolated from public geometry and replacemen
       }
     })
     try {
-      assert.deepEqual(renderMermaidSVGWithReceipt(source, options), first)
+      const replacement = renderMermaidSVGWithReceipt(source, options)
+      assertCrossProducerProduct(replacement, first)
       callerOwned.positioned.actors[0].label = 'poisoned replacement-owned participant'
       callerOwned.positioned.notes[0].actors[0] = 'poisoned'
-      assert.deepEqual(renderMermaidSVGWithReceipt(source, options), first)
+      assert.deepEqual(renderMermaidSVGWithReceipt(source, options), replacement)
       assert.equal(projections, 2)
       invalid = true
       assert.throws(() => renderMermaidSVGWithReceipt(source, options), { code: 'LAYOUT_CERTIFICATION_FAILED' })
@@ -908,6 +978,32 @@ test('Architecture cached rings stay isolated from mutable public layouts across
   expect(child.status).toBe(0)
 }, 30_000)
 
+test('certified Native requests release construction paint while retaining repeatable output', async () => {
+  const child = await runChild(process.execPath, ['-e', `
+    import './src/index.ts'
+    import assert from 'node:assert/strict'
+    import { setImmediate } from 'node:timers/promises'
+    import { resolveRenderRequestForExecution } from './src/render-contract.ts'
+    import { positionFamilyForNativeRender } from './src/positioning.ts'
+    import { retainedNativeDrawing, positionedPaintCertification } from './src/scene/positioned.ts'
+    const request = resolveRenderRequestForExecution('flowchart LR\\nStart --> Finish', { graphLayout: { backend: 'agentic' } }, 'svg')
+    const layout = positionFamilyForNativeRender(request)
+    let initial = retainedNativeDrawing(request, layout)
+    assert.ok(initial && initial.paint)
+    const paint = new WeakRef(initial.paint), expected = initial.svg
+    const proof = positionedPaintCertification(request, layout)
+    initial = undefined
+    const retained = retainedNativeDrawing(request, layout)
+    assert.equal(retained.svg, expected)
+    assert.equal('paint' in retained, false)
+    assert.equal(positionedPaintCertification(request, layout), proof)
+    for (let i = 0; i < 8; i++) { await setImmediate(); Bun.gc(true) }
+    assert.equal(paint.deref(), undefined, 'held request and layout must not retain completed paint evidence')
+    assert.equal(retainedNativeDrawing(request, layout).svg, expected)
+  `], { cwd: `${import.meta.dir}/../..`, env: { ...process.env, AGENTIC_MERMAID_SCENE_ASSERTIONS: '0' } })
+  expect(child.stderr).toBe('')
+  expect(child.status).toBe(0)
+})
 test.each([process.execPath, 'node'])('private cache copies preserve intrinsic native kinds independently of prototypes and ignore collection overrides (%s)', async runtime => {
   const child = await runChild(runtime, ['-e', `
     import assert from 'node:assert/strict'
@@ -1084,6 +1180,7 @@ test.each([process.execPath, 'node'])('native snapshots retain mutable descripto
 test('private Pie ownership survives public mutation, replacement producers and immutable metrics', async () => {
   const child = await runChild(process.execPath, ['-e', `
     import assert from 'node:assert/strict'
+    ${crossProducerAssertion}
     import { renderMermaidSVGWithReceipt, createMermaidRenderer } from './src/index.ts'
     import { resolveRenderRequestForExecution } from './src/render-contract.ts'
     import { positionResolvedFamily } from './src/positioning.ts'
@@ -1108,7 +1205,7 @@ test('private Pie ownership survives public mutation, replacement producers and 
         held = context.positioned
         return original(factory, context)
       }), lower)
-      try { assert.deepEqual(renderMermaidSVGWithReceipt(source, options), reference) }
+      try { assertCrossProducerProduct(renderMermaidSVGWithReceipt(source, options), reference) }
       finally { inheritNativeDrawing(sceneLowering(original), lower) }
       held.legend[0].label = 'poisoned replacement text'
       held.slices.length = 0

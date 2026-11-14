@@ -1,9 +1,11 @@
 import type { MermaidGraph, Point, PositionedEdge, PositionedNode, PositionedGroup } from '../../types.ts'
 import { onShapeOutline, routeBounds, routeMissesShapeBox, segmentThroughShape } from '../../layout-rubric.ts'
-import { recertifyReroutedEdge, shapePorts, simplifyPolyline } from '../../route-contracts.ts'
+import { commitReroutedEdge, recertifyReroutedEdge, shapePorts, simplifyPolyline } from '../../route-contracts.ts'
 import { bundleRouteBeforeRewrite, retainBundleRouteAfterRewrite } from '../bundle-routes.ts'
 import { calculatePathMidpoint, layoutFlow, nodeCrossSize, nodeCrossStart } from '../geometry.ts'
 import { doglegBetween, hookedElbow, routeClearOfNodes } from './shared.ts'
+import { circleShaftPaintContext, type GraphPaintStyle } from '../graph-paint-support.ts'
+import { graphInkClear, graphInkWork, withinGraphInkBudget } from '../label-conflicts.ts'
 import { invalidEndpointApproaches, terminalHookLength, simpleOrthogonal, type LabelMetricsStyle } from '../route-geometry.ts'
 import { shapeRoutingProfile } from '../../shape-outline.ts'
 import { isOutwardShapeApproach } from '../../shape-clipping.ts'
@@ -41,10 +43,7 @@ export function reanchorOffOutlineEndpoints(nodes: PositionedNode[], edges: Posi
     const elbow = hookedElbow(start[f.main], end[f.main], terminalHookLength(style, edge, 'start'), terminalHookLength(style, edge, 'end'))
     const route = doglegBetween(start, end, graph.direction, elbow)
     if (!routeClearOfNodes(route, nodes, new Set([edge.source, edge.target]))) continue
-    const savedCert = edge.routeCertificate
-    edge.points = route
-    recertifyReroutedEdge(edge, savedCert, source, target)
-    if (edge.label) edge.labelPosition = calculatePathMidpoint(route)
+    commitReroutedEdge(edge, { points: route, labelPosition: edge.label ? calculatePathMidpoint(route) : edge.labelPosition }, source, target)
   }
 }
 
@@ -74,30 +73,49 @@ export function reanchorOffOutlineEndpoints(nodes: PositionedNode[], edges: Posi
  * adopted ONLY when it clears every node and both endpoints stay on their outlines;
  * otherwise the edge is left untouched (never traded for a worse route).
  *
- * Fires ONLY on an edge the rubric already flags edgeThroughNode, or one that
- * enters a group's reserved title band (the certification group-header check)
- * — which the HARD-clean corpus never has — so it is a strict no-op there and
- * byte-exact equivalence holds. Edge-only, deterministic (fixed candidate
- * order); label re-centred on the new route. Self-loops are skipped. Returns
- * how many routes it rebuilt and how many of those entered a title band: the
- * caller ranks such placements against alternatives that needed no repair.
+ * A supplied resolved style also admits actual written circle/orthogonal-shaft
+ * contacts that the rubric's intentional graze tolerance ignores. These added
+ * repairs preserve painted bodies, markers, labels and headers under the same
+ * bounded proposal validator as port-lane changes. Unsupported geometry keeps
+ * the existing outcome. Edge-only and deterministic; self-loops are skipped.
  */
-export function rerouteEdgesThroughNodes(nodes: PositionedNode[], edges: PositionedEdge[], graph: Pick<MermaidGraph, 'direction'>, chargeWork?: (operations: number) => void, groups: readonly PositionedGroup[] = []): { titleBandRepairs: number; repaired: number } {
+export function rerouteEdgesThroughNodes(nodes: PositionedNode[], edges: PositionedEdge[], graph: Pick<MermaidGraph, 'direction'>, chargeWork?: (operations: number) => void, groups: readonly PositionedGroup[] = [], style?: GraphPaintStyle): { titleBandRepairs: number; repaired: number } {
   const f = layoutFlow(graph.direction)
   chargeWork?.(nodes.length)
   const nodeMap = new Map(nodes.map(n => [n.id, n]))
   const THROUGH_LANE_GAP = 10
+  const paintWork = graphInkWork()
+  const payPaint = (units: number): boolean => { chargeWork?.(units); return (paintWork.remaining -= units) >= 0 }
+  const paintedContact = style && withinGraphInkBudget(nodes, edges, groups) ? circleShaftPaintContext(style, payPaint) : undefined
+  let currentEdge: PositionedEdge, paintedRepair = false, triedTerminals = false
+  const blockedBy = (a: Point, b: Point, node: PositionedNode): boolean => segmentThroughShape(a, b, node)
+    || paintedRepair && node.id !== currentEdge.source && node.id !== currentEdge.target && paintedContact!(currentEdge, [a, b], node) !== false
   const throughNode = (pts: Point[], skip: ReadonlySet<string>): boolean => {
     const bounds = routeBounds(pts)
     for (const n of nodes) {
       chargeWork?.(1)
       if (skip.has(n.id)) continue
-      // A node the whole route misses cannot be crossed; charge its skipped
-      // segment tests so the work budget is unchanged.
-      if (routeMissesShapeBox(bounds, n)) { if (pts.length > 1) chargeWork?.(pts.length - 1); continue }
-      for (let i = 1; i < pts.length; i++) { chargeWork?.(1); if (segmentThroughShape(pts[i - 1]!, pts[i]!, n)) return true }
+      // A raw-box miss excludes geometric crossings, but not painted ink
+      // extending beyond the node box. Preserve the existing paint owner.
+      if (!paintedRepair && routeMissesShapeBox(bounds, n)) { if (pts.length > 1) chargeWork?.(pts.length - 1); continue }
+      for (let i = 1; i < pts.length; i++) { chargeWork?.(1); if (blockedBy(pts[i - 1]!, pts[i]!, n)) return true }
     }
     return false
+  }
+  const admitPaint = (submitted: Point[]): boolean => {
+    if (!paintedRepair) return true
+    const original = currentEdge.points
+    // Source-terminal proposals are constructed in the reversed domain.
+    // Paint/marker ownership still follows the authored source/target order.
+    const reverse = submitted[0]!.x === original.at(-1)!.x && submitted[0]!.y === original.at(-1)!.y
+      && submitted.at(-1)!.x === original[0]!.x && submitted.at(-1)!.y === original[0]!.y
+    if (reverse && !payPaint(submitted.length)) return false
+    const points = reverse ? submitted.toReversed() : submitted
+    const sameRay = (port: Point, old: Point, next: Point): boolean => old.x === port.x && next.x === port.x && Math.sign(old.y - port.y) === Math.sign(next.y - port.y)
+      || old.y === port.y && next.y === port.y && Math.sign(old.x - port.x) === Math.sign(next.x - port.x)
+    if (!sameRay(original[0]!, original[1]!, points[1]!) || !sameRay(original.at(-1)!, original.at(-2)!, points.at(-2)!) || !simpleOrthogonal(points, chargeWork)) return false
+    const proposed = { ...currentEdge, points, ...(currentEdge.label ? { labelPosition: calculatePathMidpoint(points) } : {}) }
+    return graphInkClear(nodes, edges.map(edge => edge === currentEdge ? proposed : edge), nodes, edges, groups, style!, paintWork, chargeWork)
   }
   // Headers are live reserved geometry, including endpoint ancestors. A node
   // detour may not trade an opaque card crossing for a reserved-band crossing.
@@ -197,7 +215,15 @@ export function rerouteEdgesThroughNodes(nodes: PositionedNode[], edges: Positio
     const lanes = [...new Set(laneSet)].sort((p, q) => Math.abs(p - mean) - Math.abs(q - mean))
     for (const lane of lanes) {
       const route = simplifyPolyline([start, pt(m1, start[f.cross]), pt(m1, lane), pt(m2, lane), pt(m2, end[f.cross]), end])
-      if (!throughNode(route, skip) && routeClearOfNodes(route, nodes, skip, chargeWork) && clearHeaders(route) && admit(route)) return route
+      if (!throughNode(route, skip) && routeClearOfNodes(route, nodes, skip, chargeWork) && clearHeaders(route)) {
+        if (admit(route)) return route
+        // A rejected painted band first tries the existing local terminal
+        // repair before spending its bounded ink work on more global lanes.
+        if (paintedRepair && !triedTerminals) {
+          const local = detourTerminals(pts, skip, admit)
+          if (local) return local
+        }
+      }
     }
     return null
   }
@@ -233,6 +259,14 @@ export function rerouteEdgesThroughNodes(nodes: PositionedNode[], edges: Positio
       if (!throughNode(trial, noSkip) && routeClearOfNodes(trial, nodes, skip, chargeWork) && clearHeaders(trial) && simpleOrthogonal(trial, chargeWork) && admit(trial)) return trial
     }
     return null
+  }
+  const detourTerminals = (pts: Point[], skip: ReadonlySet<string>, admit: (trial: Point[]) => boolean): Point[] | null => {
+    if (triedTerminals) return null
+    triedTerminals = true
+    const route = detourTerminalSegment(pts, skip, admit)
+    if (route) return route
+    chargeWork?.(pts.length)
+    return detourTerminalSegment(pts.toReversed(), skip, trial => admit(trial.toReversed()))?.reverse() ?? null
   }
   // Last resort: a segment that runs straight across one obstacle (a card or
   // a reserved title band) and extends past it on both sides steps around it
@@ -306,13 +340,16 @@ export function rerouteEdgesThroughNodes(nodes: PositionedNode[], edges: Positio
   collectFrames(groups)
   let titleBandRepairs = 0, repaired = 0
   for (const edge of edges) {
+    currentEdge = edge; paintedRepair = false; triedTerminals = false
     chargeWork?.(1)
     if (edge.source === edge.target || edge.points.length < 2) continue
     const source = nodeMap.get(edge.source) ?? frames.get(edge.source), target = nodeMap.get(edge.target) ?? frames.get(edge.target)
     if (!source || !target) continue
     const skip = new Set([edge.source, edge.target])
     const entersBand = !clearHeaders(edge.points)
-    if (!entersBand && !throughNode(edge.points, skip)) continue // no-op gate: only fires on edgeThroughNode or a header-band entry
+    const crossesNode = throughNode(edge.points, skip)
+    if (!crossesNode && paintedContact && nodes.some(node => !skip.has(node.id) && paintedContact(edge, edge.points, node) === true)) paintedRepair = true
+    if (!entersBand && !crossesNode && !paintedRepair) continue
     // Off-outline endpoints are reanchorOffOutlineEndpoints' job; this pass only
     // relocates the interior of an otherwise port-exact route.
     if (!onShapeOutline(source, edge.points[0]!) || !onShapeOutline(target, edge.points[edge.points.length - 1]!)) continue
@@ -330,21 +367,14 @@ export function rerouteEdgesThroughNodes(nodes: PositionedNode[], edges: Positio
       return adjacent && isOutwardShapeApproach(start ? source : target, pts[start ? 0 : pts.length - 1]!, adjacent)
     }
     const wasOutward = [outward(edge.points, true), outward(edge.points, false)]
-    const keepsApproach = (trial: Point[]): boolean => [true, false].every((start, end) => wasOutward[end] !== true || outward(trial, start) === true)
+    const keepsApproach = (trial: Point[]): boolean => [true, false].every((start, end) => wasOutward[end] !== true || outward(trial, start) === true) && admitPaint(trial)
     let route = shiftInteriorSegment(edge.points, skip, keepsApproach) ?? bracketOverBand(edge.points, skip, keepsApproach)
-      ?? detourTerminalSegment(edge.points, skip, keepsApproach)
-    if (!route) {
-      chargeWork?.(edge.points.length) // reverse-domain reference initialization
-      route = detourTerminalSegment(edge.points.toReversed(), skip, trial => keepsApproach(trial.toReversed()))?.reverse() ?? null
-    }
+    if (!route && !triedTerminals) route = detourTerminals(edge.points, skip, keepsApproach)
     route ??= detourAroundObstacle(edge.points, skip, keepsApproach)
     route ??= rebuildEndTail(edge.points.toReversed(), skip, target, trial => keepsApproach(trial.toReversed()))?.reverse() ?? null
     route ??= rebuildEndTail(edge.points, skip, source, keepsApproach)
     if (!route) continue // never-worse: no clean detour found, leave as-is
-    const savedCert = edge.routeCertificate
-    edge.points = route
-    recertifyReroutedEdge(edge, savedCert, nodeMap.get(edge.source), nodeMap.get(edge.target))
-    if (edge.label) edge.labelPosition = calculatePathMidpoint(route)
+    commitReroutedEdge(edge, { points: route, labelPosition: edge.label ? calculatePathMidpoint(route) : edge.labelPosition }, nodeMap.get(edge.source), nodeMap.get(edge.target))
     if (entersBand) titleBandRepairs++
     repaired++
   }

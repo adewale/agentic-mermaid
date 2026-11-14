@@ -1,10 +1,11 @@
 import { tryParseCssColor } from '../shared/color-math.ts'
 import { rotateBoxBounds, type AxisAlignedBox } from '../shared/transformed-bounds.ts'
-import type { ConnectorLabelDescriptor, ConnectorMark, Geometry, MarkPaint, MarkerDescriptor, SceneNode, ScenePoint, SceneTransform } from './ir.ts'
+import type { ConnectorContourSemantics, ConnectorLabelDescriptor, ConnectorMark, Geometry, MarkPaint, MarkerDescriptor, SceneNode, ScenePoint, SceneTransform } from './ir.ts'
 import { connectorEndpointAnchors, connectorMidpoints } from './connector-geometry.ts'
-import { preparePixelText, type PixelTextBlock } from '../shared/prepared-text.ts'
+import { preparePixelText, preparedTextInkBounds, preparedInterTextBounds, hasPreparedInterTextEnvelope, type PixelTextBlock } from '../shared/prepared-text.ts'
 import { resolveLabelContent } from '../shared/display-text.ts'
 import { composeMatrices, inverseMatrix, transformMatrix, transformPoint } from './transforms.ts'
+import { writtenPolylineProjectionOf } from './written-geometry.ts'
 
 function pointsBounds(points: Array<{ x: number; y: number }>): AxisAlignedBox | undefined {
   if (points.length === 0) return undefined
@@ -44,7 +45,7 @@ export interface TypedPathSegment {
   readonly line?: readonly [ScenePoint, ScenePoint]
 }
 
-function pathBounds(d: string, visit?: (segment: TypedPathSegment) => boolean, work?: () => boolean): AxisAlignedBox | undefined {
+function pathBounds(d: string, visit?: (segment: TypedPathSegment) => boolean, work?: () => boolean, retainContours?: (contours: readonly ConnectorContourSemantics[] | undefined) => void): AxisAlignedBox | undefined {
   const number = /[+-]?(?:\d+\.?\d*|\.\d+)(?:[eE][+-]?\d+)?/y
   let index = 0, x = 0, y = 0, startX = 0, startY = 0
   let command = '', previous = ''
@@ -52,6 +53,8 @@ function pathBounds(d: string, visit?: (segment: TypedPathSegment) => boolean, w
   let result: AxisAlignedBox | undefined
   let segmentBounds: AxisAlignedBox | undefined
   let stopped = false
+  const contours: Array<{ start: ScenePoint; end: ScenePoint; closed: boolean; startTangent?: ScenePoint; endTangent?: ScenePoint }> = []
+  let contour: (typeof contours)[number] | undefined, knownTangents = true
   const consume = (count: number): boolean => {
     if (work) for (let i = 0; i < count; i++) if (!work()) { stopped = true; return false }
     return true
@@ -81,15 +84,42 @@ function pathBounds(d: string, visit?: (segment: TypedPathSegment) => boolean, w
     if (visit) segmentBounds = unionSceneBounds(segmentBounds, { x0: px, y0: py, x1: px, y1: py })
     return true
   }
+  const direction = (...points: readonly ScenePoint[]): ScenePoint | undefined => {
+    const origin = points[0]!
+    for (let i = 1; i < points.length; i++) {
+      const dx = points[i]!.x - origin.x, dy = points[i]!.y - origin.y, length = Math.hypot(dx, dy)
+      if (length > 0 && Number.isFinite(length)) return { x: dx / length, y: dy / length }
+    }
+    return undefined
+  }
   while (true) {
     skip()
     if (stopped) return undefined
-    if (index >= d.length) return result
+    if (index >= d.length) {
+      if (retainContours && knownTangents) {
+        for (const item of contours) {
+          if (!consume(12)) return undefined
+          Object.freeze(item.start); Object.freeze(item.end)
+          if (item.startTangent) Object.freeze(item.startTangent)
+          if (item.endTangent) Object.freeze(item.endTangent)
+          Object.freeze(item)
+        }
+        retainContours(Object.freeze(contours))
+      } else retainContours?.(undefined)
+      return result
+    }
     if (/[a-zA-Z]/.test(d[index]!)) {
       if (!consume(1)) return undefined
       command = d[index++]!
       if (!/[MmLlHhVvCcSsQqTtAaZz]/.test(command) || (!result && command.toUpperCase() !== 'M')) return undefined
       if (command.toUpperCase() === 'Z') {
+        if (retainContours) {
+          if (!consume(16) || !contour) return undefined
+          const tangent = direction({ x, y }, { x: startX, y: startY })
+          contour.startTangent ??= tangent
+          if (tangent) contour.endTangent = tangent
+          contour.end = { x: startX, y: startY }; contour.closed = true
+        }
         if (visit && !visit({ bounds: { x0: Math.min(x, startX), y0: Math.min(y, startY), x1: Math.max(x, startX), y1: Math.max(y, startY) }, line: [{ x, y }, { x: startX, y: startY }] })) return undefined
         x = startX; y = startY; previous = 'Z'; control = undefined; command = ''
         continue
@@ -108,6 +138,7 @@ function pathBounds(d: string, visit?: (segment: TypedPathSegment) => boolean, w
     const px = (i: number): number => args[i]! + (relative ? x : 0)
     const py = (i: number): number => args[i]! + (relative ? y : 0)
     let nextX: number, nextY: number, nextControl: ScenePoint | undefined
+    let firstControl: ScenePoint | undefined, lastControl: ScenePoint | undefined
     if (upper === 'H') { nextX = px(0); nextY = y }
     else if (upper === 'V') { nextX = x; nextY = py(0) }
     else if (upper === 'C' || upper === 'S' || upper === 'Q' || upper === 'T') {
@@ -117,6 +148,10 @@ function pathBounds(d: string, visit?: (segment: TypedPathSegment) => boolean, w
       for (let i = 0; i < count - 2; i += 2) if (!include(px(i), py(i + 1))) return undefined
       nextX = px(count - 2); nextY = py(count - 1)
       nextControl = upper === 'T' ? reflected : { x: px(count - 4), y: py(count - 3) }
+      if (retainContours) {
+        firstControl = upper === 'S' || upper === 'T' ? reflected : { x: px(0), y: py(1) }
+        lastControl = nextControl
+      }
     } else if (upper === 'A') {
       nextX = px(5); nextY = py(6)
       let rx = Math.abs(args[0]!), ry = Math.abs(args[1]!)
@@ -139,6 +174,20 @@ function pathBounds(d: string, visit?: (segment: TypedPathSegment) => boolean, w
       if (upper === 'M') { startX = nextX; startY = nextY; command = relative ? 'l' : 'L' }
     }
     if (!include(nextX, nextY)) return undefined
+    if (retainContours) {
+      if (!consume(24)) return undefined
+      const end = { x: nextX, y: nextY }, start = { x, y }
+      if (upper === 'M') {
+        contour = { start: end, end, closed: false }; contours.push(contour)
+      } else if (contour) {
+        if (upper === 'A' || contour.closed) knownTangents = false
+        const startTangent = firstControl ? direction(start, firstControl, lastControl!, end) : direction(start, end)
+        const backwards = lastControl ? direction(end, lastControl, firstControl!, start) : direction(end, start)
+        contour.startTangent ??= startTangent
+        if (backwards) contour.endTangent = { x: -backwards.x, y: -backwards.y }
+        contour.end = end
+      } else knownTangents = false
+    }
     if (visit && upper !== 'M' && !visit({ bounds: segmentBounds!, ...(['L', 'H', 'V'].includes(upper) ? { line: [{ x, y }, { x: nextX, y: nextY }] as const } : {}) })) return undefined
     x = nextX; y = nextY; control = nextControl; previous = upper
   }
@@ -146,30 +195,39 @@ function pathBounds(d: string, visit?: (segment: TypedPathSegment) => boolean, w
 
 /** Visit the same admitted typed-path segments used by geometry bounds.
  * Returning false stops bounded consumers without accepting a partial path. */
-export function visitTypedPathSegments(d: string, visit: (segment: TypedPathSegment) => boolean, work?: () => boolean): boolean {
-  return pathBounds(d, visit, work) !== undefined
+export function visitTypedPathSegments(d: string, visit: (segment: TypedPathSegment) => boolean, work?: () => boolean, retainContours?: (contours: readonly ConnectorContourSemantics[] | undefined) => void): boolean {
+  return pathBounds(d, visit, work, retainContours) !== undefined
 }
 
 export function geometryBounds(geometry: Geometry): AxisAlignedBox | undefined {
+  return measureGeometryBounds(geometry)
+}
+
+function measureGeometryBounds(geometry: Geometry, retain?: (bounds: AxisAlignedBox, joins: boolean) => void, compoundChild = false): AxisAlignedBox | undefined {
+  let bounds: AxisAlignedBox | undefined, joins = false
   switch (geometry.kind) {
-    case 'rect': return { x0: geometry.x, y0: geometry.y, x1: geometry.x + geometry.width, y1: geometry.y + geometry.height }
-    case 'circle': return { x0: geometry.cx - geometry.r, y0: geometry.cy - geometry.r, x1: geometry.cx + geometry.r, y1: geometry.cy + geometry.r }
-    case 'ellipse': return { x0: geometry.cx - geometry.rx, y0: geometry.cy - geometry.ry, x1: geometry.cx + geometry.rx, y1: geometry.cy + geometry.ry }
-    case 'line': return { x0: Math.min(geometry.x1, geometry.x2), y0: Math.min(geometry.y1, geometry.y2), x1: Math.max(geometry.x1, geometry.x2), y1: Math.max(geometry.y1, geometry.y2) }
-    case 'polygon':
-    case 'polyline': return pointsBounds(geometry.points)
+    case 'rect': bounds = { x0: geometry.x, y0: geometry.y, x1: geometry.x + geometry.width, y1: geometry.y + geometry.height }; break
+    case 'circle': bounds = { x0: geometry.cx - geometry.r, y0: geometry.cy - geometry.r, x1: geometry.cx + geometry.r, y1: geometry.cy + geometry.r }; break
+    case 'ellipse': bounds = { x0: geometry.cx - geometry.rx, y0: geometry.cy - geometry.ry, x1: geometry.cx + geometry.rx, y1: geometry.cy + geometry.ry }; break
+    case 'line': bounds = { x0: Math.min(geometry.x1, geometry.x2), y0: Math.min(geometry.y1, geometry.y2), x1: Math.max(geometry.x1, geometry.x2), y1: Math.max(geometry.y1, geometry.y2) }; break
+    case 'polygon': bounds = pointsBounds(geometry.points); joins = true; break
+    case 'polyline': bounds = unionSceneBounds(pointsBounds(geometry.points), writtenPolylineProjectionOf(geometry)?.rawBounds); joins = true; break
     case 'compound': {
       let bounds: AxisAlignedBox | undefined
       for (const child of geometry.children) {
-        const measured = geometryBounds(child)
+        const measured = measureGeometryBounds(child, retain, true)
         if (!measured) return undefined
         bounds = unionSceneBounds(bounds, measured)
       }
       return bounds
     }
-    case 'path': return pathBounds(geometry.d)
+    case 'path': bounds = pathBounds(geometry.d); joins = true; break
   }
+  if (bounds && compoundChild && retain) retain(bounds, joins)
+  return bounds
 }
+
+interface MarkerPaintPart { bounds: AxisAlignedBox; joins: boolean; next: MarkerPaintPart | undefined }
 
 function markerBoundsAt(
   marker: MarkerDescriptor | undefined,
@@ -179,9 +237,19 @@ function markerBoundsAt(
   angle?: number,
 ): AxisAlignedBox | undefined {
   if (!marker || !anchor) return undefined
-  const geometry = marker.geometry ? geometryBounds(marker.geometry) : undefined
+  // Retain only numeric child bounds during the original geometry walk. Paint
+  // getters run afterward, once; they cannot change these retained operands.
+  let first: MarkerPaintPart | undefined, last: MarkerPaintPart | undefined
+  const retain = painted ? (bounds: AxisAlignedBox, joins: boolean) => {
+    const part: MarkerPaintPart = { bounds, joins, next: undefined }
+    if (last) last.next = part
+    else first = part
+    last = part
+  } : undefined
+  const geometry = marker.geometry ? measureGeometryBounds(marker.geometry, retain) : undefined
   if (painted && marker.geometry && !geometry) return undefined
-  let local = marker.bounds
+  const declared = marker.bounds
+  let local = declared
     ?? geometry
     ?? (marker.viewBox ? {
       x0: marker.viewBox.x,
@@ -192,10 +260,20 @@ function markerBoundsAt(
     ?? (marker.size ? { x0: 0, y0: 0, x1: marker.size.width, y1: marker.size.height } : undefined)
   if (!local) return undefined
   if (painted) {
-    local = unionSceneBounds(local, geometry)!
-    const extent = paintedStrokeExtent(marker.paint ?? {}, true)
-    if (extent === undefined) return undefined
-    local = expandSceneBounds(local, extent)
+    if (first && !declared) {
+      const supports = paintedStrokeExtent(marker.paint ?? {}, 'supports')
+      if (!supports) return undefined
+      let paintedLocal: AxisAlignedBox | undefined
+      for (let part: MarkerPaintPart | undefined = first; part; part = part.next) {
+        paintedLocal = unionSceneBounds(paintedLocal, expandSceneBounds(part.bounds, part.joins ? supports.joined : supports.smooth))
+      }
+      local = paintedLocal!
+    } else {
+      local = unionSceneBounds(local, geometry)!
+      const extent = paintedStrokeExtent(marker.paint ?? {}, true)
+      if (extent === undefined) return undefined
+      local = expandSceneBounds(local, extent)
+    }
   }
   let refX = marker.ref?.x ?? 0
   let refY = marker.ref?.y ?? 0
@@ -271,16 +349,22 @@ export function connectorMarkerPaintRegions(node: {
   stroke: Pick<ConnectorMark['stroke'], 'width'>
   markers: ConnectorMark['markers']
   transform?: SceneTransform
-}, parentTransform?: SceneTransform, includeHull = true): ConnectorMarkerPaintRegion[] {
-  const geometry = node.route.geometry, endpoints = connectorEndpointAnchors(geometry, node.route.closed)
-  const mids = connectorMidpoints(geometry, node.route.closed)
+}, parentTransform?: SceneTransform, servedContours?: readonly ConnectorContourSemantics[], includeHull = true): ConnectorMarkerPaintRegion[] {
+  const geometry = node.route.geometry, endpoints = servedContours ? { starts: servedContours.map(contour => contour.start), ends: servedContours.map(contour => contour.end) } : connectorEndpointAnchors(geometry, node.route.closed)
+  const written = geometry.kind === 'polyline' ? writtenPolylineProjectionOf(geometry) : undefined
+  const mids = node.markers.mid.length ? connectorMidpoints(geometry, node.route.closed) : []
   const transform = composedTransform(parentTransform, node.transform)
   const result: ConnectorMarkerPaintRegion[] = []
   const include = (position: ConnectorMarkerPaintRegion['position'], marker: MarkerDescriptor | undefined, anchor: ScenePoint | undefined, tangent?: ScenePoint): void => {
     if (!marker || !anchor) return
     const angle = typeof marker.orient === 'number' ? marker.orient : tangent ? Math.atan2(tangent.y, tangent.x) * 180 / Math.PI + (position === 'start' && marker.orient === 'auto-start-reverse' ? 180 : 0) : undefined
     const strokeWidth = numericStrokeWidth(node.stroke.width)
-    const local = markerBoundsAt(marker, anchor, strokeWidth, true, angle)
+    // The original operands retain their conservative envelope. Only the
+    // served pose below supplies a hull or visible-ink/contact witness.
+    const rawAnchor = position === 'start' ? written?.rawStart : position === 'end' ? written?.rawEnd : undefined
+    const rawTangent = position === 'start' ? written?.rawStartTangent : position === 'end' ? written?.rawEndTangent : undefined
+    const rawAngle = typeof marker.orient === 'number' ? marker.orient : rawTangent ? Math.atan2(rawTangent.y, rawTangent.x) * 180 / Math.PI + (position === 'start' && marker.orient === 'auto-start-reverse' ? 180 : 0) : undefined
+    const local = unionSceneBounds(markerBoundsAt(marker, anchor, strokeWidth, true, angle), markerBoundsAt(marker, rawAnchor, strokeWidth, true, rawAngle))
     const matrix = transformMatrix(transform)
     // Equality is about the actual resource, orientation, unit scale and
     // composed linear transform, rather than an owner or resource count.
@@ -302,8 +386,8 @@ export function connectorMarkerPaintRegions(node: {
     }
     result.push({ position, resource: marker.id, anchor: transformPoint(anchor, matrix), repaint, ...(hull ? { hull, padding } : {}), ...(local ? { bounds: transformedBounds(local, transform) } : {}) })
   }
-  endpoints.starts.forEach((anchor, index) => include('start', node.markers.start, anchor, node.route.contours[index]?.startTangent))
-  endpoints.ends.forEach((anchor, index) => include('end', node.markers.end, anchor, node.route.contours[index]?.endTangent))
+  endpoints.starts.forEach((anchor, index) => include('start', node.markers.start, anchor, (servedContours ?? node.route.contours)[index]?.startTangent))
+  endpoints.ends.forEach((anchor, index) => include('end', node.markers.end, anchor, (servedContours ?? node.route.contours)[index]?.endTangent))
   if (node.markers.mid.length === 1) for (const anchor of mids) include('mid', node.markers.mid[0], anchor)
   else node.markers.mid.forEach((marker, index) => include('mid', marker, mids[index]))
   return result
@@ -331,6 +415,11 @@ function connectorLocalBounds(node: ConnectorMark): AxisAlignedBox | undefined {
   const anchors = connectorEndpointAnchors(geometry, node.route.closed)
   for (const anchor of anchors.starts) local = unionSceneBounds(local, markerBoundsAt(node.markers.start, anchor, width))!
   for (const anchor of anchors.ends) local = unionSceneBounds(local, markerBoundsAt(node.markers.end, anchor, width))!
+  const written = geometry.kind === 'polyline' ? writtenPolylineProjectionOf(geometry) : undefined
+  if (written) {
+    local = unionSceneBounds(local, markerBoundsAt(node.markers.start, written.rawStart, width))!
+    local = unionSceneBounds(local, markerBoundsAt(node.markers.end, written.rawEnd, width))!
+  }
   const interior = connectorMidpoints(geometry, node.route.closed)
   if (node.markers.mid.length === 1) {
     for (const anchor of interior) local = unionSceneBounds(local, markerBoundsAt(node.markers.mid[0], anchor, width))!
@@ -391,7 +480,7 @@ export function connectorInlineLabelVisualBounds(
     : label.textAnchor === 'end' ? label.anchor.x - labelWidth : label.anchor.x
   const y = label.anchor.y - Math.max(0, label.clearance ?? 0)
   const halo = Math.max(0, label.halo?.width ?? 0) / 2
-  return expandSceneBounds({
+  return expandSceneBounds(preparedTextInkBounds(block, label.anchor.x, y, label.textAnchor, 0) ?? {
     x0,
     y0: y - block.fontSize * 0.35 - block.height / 2,
     x1: x0 + labelWidth,
@@ -403,7 +492,8 @@ export function connectorInlineLabelVisualBounds(
  * routed source points and include stroke, endpoint markers, and label bounds. */
 export function nodeWorldBounds(node: SceneNode): AxisAlignedBox | undefined {
   let local: AxisAlignedBox | undefined
-  if (node.kind === 'shape') local = geometryBounds(node.geometry)
+  if (node.kind === 'image') local = { x0: node.x, y0: node.y, x1: node.x + node.width, y1: node.y + node.height }
+  else if (node.kind === 'shape') local = geometryBounds(node.geometry)
   else if (node.kind === 'connector') local = connectorLocalBounds(node)
   else if (node.kind === 'text') {
     const metrics = node.textLayout ?? preparePixelText(node.text, { display: node.display, fontSize: node.fontSize, fontWeight: node.fontWeight ?? 500, letterSpacing: node.letterSpacing })
@@ -453,8 +543,10 @@ export function connectorStrokeHasJoins(route: Pick<ConnectorMark['route'], 'geo
 
 /** Numeric user-unit/px strokes have a typed extent. Relative and unresolved
  * CSS units do not: treating `1em` or `var(...)` as one pixel would undercount. */
-export function paintedStrokeExtent(paint: MarkPaint, hasJoins: boolean): number | undefined {
-  if (paint.stroke === undefined || paint.stroke === 'none' || paint.stroke === 'transparent' || tryParseCssColor(paint.stroke)?.[3] === 0) return 0
+export function paintedStrokeExtent(paint: MarkPaint, hasJoins: boolean): number | undefined
+export function paintedStrokeExtent(paint: MarkPaint, hasJoins: 'supports'): { joined: number; smooth: number } | undefined
+export function paintedStrokeExtent(paint: MarkPaint, hasJoins: boolean | 'supports'): number | { joined: number; smooth: number } | undefined {
+  if (paint.stroke === undefined || paint.stroke === 'none' || paint.stroke === 'transparent' || tryParseCssColor(paint.stroke)?.[3] === 0) return hasJoins === 'supports' ? { joined: 0, smooth: 0 } : 0
   const raw = paint.strokeWidth ?? '1'
   if (!/^\s*(?:\d+\.?\d*|\.\d+)(?:[eE][+-]?\d+)?(?:px)?\s*$/.test(raw)) return undefined
   const half = Number.parseFloat(raw) / 2
@@ -465,8 +557,9 @@ export function paintedStrokeExtent(paint: MarkPaint, hasJoins: boolean): number
   const join = hasJoins && (miter === 'miter' || miter === 'miter-clip') ? half * limit : half
   // A square cap rotated relative to the axes can extend sqrt(2)*half on
   // either axis. Round/butt caps stay inside the half-width envelope.
-  const extent = Math.max(join, paint.strokeLinecap === 'square' ? half * Math.SQRT2 : half)
-  return Number.isFinite(extent) ? extent : undefined
+  let cap: number
+  const extent = Math.max(join, cap = paint.strokeLinecap === 'square' ? half * Math.SQRT2 : half)
+  return Number.isFinite(extent) ? hasJoins === 'supports' ? { joined: extent, smooth: cap > half ? cap : half } : extent : undefined
 }
 
 function paintedBox(box: AxisAlignedBox, extent: number, nonScaling: boolean, transform?: SceneTransform): AxisAlignedBox | undefined {
@@ -535,18 +628,18 @@ export function ribbonEndOvershoot(near: number, far: number, rise: number, half
   return Math.min(half, reach)
 }
 
-function connectorPaintBounds(node: ConnectorMark, transform?: SceneTransform): AxisAlignedBox | undefined {
-  const geometry = node.route.geometry
+function connectorPaintBounds(node: ConnectorMark, transform?: SceneTransform, actualRoute?: ConnectorMark['route']): AxisAlignedBox | undefined {
+  const geometry = (actualRoute ?? node.route).geometry
   const local = geometryBounds(geometry)
-  const extent = paintedStrokeExtent({ stroke: node.stroke.color, strokeWidth: String(node.stroke.width), strokeLinecap: node.stroke.lineCap, strokeLinejoin: node.stroke.lineJoin, strokeMiterlimit: String(node.stroke.miterLimit) }, connectorStrokeHasJoins(node.route))
+  const extent = paintedStrokeExtent({ stroke: node.stroke.color, strokeWidth: String(node.stroke.width), strokeLinecap: node.stroke.lineCap, strokeLinejoin: node.stroke.lineJoin, strokeMiterlimit: String(node.stroke.miterLimit) }, connectorStrokeHasJoins(actualRoute ?? node.route))
   if (!local || extent === undefined) return undefined
   const singleCubic = geometry.kind === 'path' && node.stroke.lineCap === 'butt' && !node.stroke.nonScaling
     ? ribbonCubicStrokeBounds(geometry.d, numericStrokeWidth(node.stroke.width) / 2) : undefined
   let result = singleCubic ? transformedBounds(singleCubic, transform) : paintedBox(local, extent, node.stroke.nonScaling, transform)
   if (!result) return undefined
   const width = numericStrokeWidth(node.stroke.width)
-  const anchors = connectorEndpointAnchors(geometry, node.route.closed)
-  const mids = connectorMidpoints(geometry, node.route.closed)
+  const anchors = connectorEndpointAnchors(geometry, (actualRoute ?? node.route).closed)
+  const mids = connectorMidpoints(geometry, (actualRoute ?? node.route).closed)
   const markers: Array<{ marker: MarkerDescriptor; anchor: ScenePoint | undefined }> = [
     ...anchors.starts.flatMap(anchor => node.markers.start ? [{ marker: node.markers.start, anchor }] : []),
     ...anchors.ends.flatMap(anchor => node.markers.end ? [{ marker: node.markers.end, anchor }] : []),
@@ -554,6 +647,11 @@ function connectorPaintBounds(node: ConnectorMark, transform?: SceneTransform): 
       ? mids.map(anchor => ({ marker: node.markers.mid[0]!, anchor }))
       : node.markers.mid.map((marker, index) => ({ marker, anchor: mids[index] }))),
   ]
+  const written = geometry.kind === 'polyline' ? writtenPolylineProjectionOf(geometry) : undefined
+  if (written) {
+    if (node.markers.start && written.rawStart) markers.push({ marker: node.markers.start, anchor: written.rawStart })
+    if (node.markers.end && written.rawEnd) markers.push({ marker: node.markers.end, anchor: written.rawEnd })
+  }
   for (const { marker, anchor } of markers) {
     const bounds = markerBoundsAt(marker, anchor, width, true)
     const world = bounds && transformedBounds(bounds, transform)
@@ -577,11 +675,11 @@ function connectorPaintBounds(node: ConnectorMark, transform?: SceneTransform): 
 /** Conservative painted bounds, independent of legacy layout/hit envelopes.
  * Pass the ancestor transform before stroke expansion, so non-scaling strokes
  * retain their world-space width. Unknown artwork is wholly unmeasured. */
-export function nodePaintBounds(node: SceneNode, parentTransform?: SceneTransform): AxisAlignedBox | undefined {
-  return paintBounds(node, parentTransform)
+export function nodePaintBounds(node: SceneNode, parentTransform?: SceneTransform, documentFont?: string, actualTextPaint?: MarkPaint, actualRoute?: ConnectorMark['route']): AxisAlignedBox | undefined {
+  return paintBounds(node, parentTransform, documentFont, actualTextPaint, actualRoute)
 }
 
-function paintBounds(node: SceneNode, parentTransform?: SceneTransform): AxisAlignedBox | undefined {
+function paintBounds(node: SceneNode, parentTransform?: SceneTransform, documentFont?: string, actualTextPaint?: MarkPaint, actualRoute?: ConnectorMark['route']): AxisAlignedBox | undefined {
   const transform = composedTransform(parentTransform, node.transform)
   if (transform && !inverseMatrix(transformMatrix(transform))) return undefined
   let local: AxisAlignedBox | undefined
@@ -603,18 +701,29 @@ function paintBounds(node: SceneNode, parentTransform?: SceneTransform): AxisAli
     const alternateBounds = strokedBox(node.geometry, local, alternate, node.conditionalPaint.strokeLinecap, node.conditionalPaint.vectorEffect === 'non-scaling-stroke', transform)
     return alternateBounds ? unionSceneBounds(base, alternateBounds) : undefined
   } else if (node.kind === 'connector') {
-    return connectorPaintBounds(node, transform)
+    return connectorPaintBounds(node, transform, actualRoute)
   } else if (node.kind === 'text') {
     // nodeWorldBounds already uses the retained occupied band/offset. Apply
     // the transform only once, after optional text stroke expansion.
-    local = nodeWorldBounds({ ...node, transform: undefined })
-    const extent = paintedStrokeExtent(node.paint, false)
+    const block = node.measurement === 'prepared' ? node.block : undefined
+    const matches = block && node.fontSize === block.fontSize && (node.fontWeight ?? block.fontWeight) === block.fontWeight
+      && (node.letterSpacing ?? 0) === block.letterSpacing && !node.fontStyle && !node.textDecoration && !node.dominantBaseline && !node.spans
+    let x = 0, y = 0, baselineShift = 0.35
+    let anchor: typeof node.anchor = 'start'
+    if (matches) { x = node.x; y = node.y; anchor = node.anchor; baselineShift = node.baselineShift ?? 0.35 }
+    const ink = matches ? preparedTextInkBounds(block!, x, y, anchor, baselineShift) : undefined
+    local = ink ?? nodeWorldBounds({ ...node, transform: undefined })
+    if (!ink && block && hasPreparedInterTextEnvelope(block) && matches) {
+      const envelope = preparedInterTextBounds(block, x, y, anchor, baselineShift, documentFont)
+      if (envelope) local = unionSceneBounds(local, envelope)
+    }
+    const extent = paintedStrokeExtent(actualTextPaint ?? node.paint, false)
     if (!local || extent === undefined) return undefined
-    return paintedBox(local, extent, node.paint.vectorEffect === 'non-scaling-stroke', transform)
+    return paintedBox(local, extent, (actualTextPaint ?? node.paint).vectorEffect === 'non-scaling-stroke', transform)
   } else if (node.kind === 'group') {
     for (const child of node.children) {
       if (child.node.kind === 'document' && child.node.nonPaint) continue
-      const bounds = paintBounds(child.node, transform)
+      const bounds = paintBounds(child.node, transform, documentFont)
       if (!bounds) return undefined
       local = unionSceneBounds(local, bounds)
     }

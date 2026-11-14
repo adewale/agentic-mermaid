@@ -70,6 +70,7 @@ flowchart LR
   subgraph ops[Operations]
     A@{ icon: "fa fa-book", form: "circle", label: "Start" }
     U@{ icon: "acme:unknown", label: "Fallback" }
+    P@{ img: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGP4z8DwHwAFAAH/iZk9HQAAAABJRU5ErkJggg==", label: "Picture", w: 32, h: 32 }
   end
   U --> A -->|go| B{Ready?}`,
   state: `---

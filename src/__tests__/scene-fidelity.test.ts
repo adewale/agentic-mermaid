@@ -227,7 +227,7 @@ describe('scene fidelity', () => {
         if (node.kind === 'document' || conditional || node.visibility === 'conditional') return
         const classes = new Set(node.attributes?.className?.split(' ') ?? [])
         // The elements the writer emits for this mark.
-        const elements = new Set(node.kind === 'text' ? ['text', 'tspan'] : node.kind === 'connector' ? [node.route.geometry.kind, 'text'] : node.geometry.kind === 'compound' ? node.geometry.children.map(child => child.kind) : [node.geometry.kind])
+        const elements = new Set(node.kind === 'image' ? ['image'] : node.kind === 'text' ? ['text', 'tspan'] : node.kind === 'connector' ? [node.route.geometry.kind, 'text'] : node.geometry.kind === 'compound' ? node.geometry.children.map(child => child.kind) : [node.geometry.kind])
         for (const rule of rules) {
           const matches = rule.classes.length > 0 ? rule.classes.every(name => classes.has(name)) && (!rule.element || elements.has(rule.element)) : rule.element !== undefined && elements.has(rule.element)
           if (matches) problems.push(`${scene.id}: "${rule.selector}" sets ${rule.properties.join(', ')} on ${node.kind} ${node.id}`)

@@ -14,7 +14,7 @@ import fc from 'fast-check'
 import { fcParameters } from './helpers/fc-parameters.ts'
 import { layoutGraphSync } from '../layout-engine.ts'
 import { parseMermaid } from '../parser.ts'
-import { assessLayout, countParallelRouteOverlaps, hardViolations, onShapeOutline, routeBounds, routeMissesShapeBox, segmentThroughShape } from '../layout-rubric.ts'
+import { assessLayout, countParallelRouteOverlaps, hardViolations, measureRubricMetrics, onShapeOutline, routeBounds, routeMissesShapeBox, segmentThroughShape } from '../layout-rubric.ts'
 import { graphReachability } from '../layout/geometry.ts'
 import { shapePorts, diamondFacetPorts } from '../route-contracts.ts'
 
@@ -36,6 +36,19 @@ import { EDGE_FORMS, renderEdgeLine } from './helpers/edge-vocabulary.ts'
 import { complicatedFixtures, simpleFixtures } from '../../eval/visual-rubric/fixtures.ts'
 import { scoreFixture } from '../../eval/visual-rubric/run.ts'
 import { resolveStyleStackWithFace } from '../scene/style-registry.ts'
+import { resolveRenderStyle } from '../styles.ts'
+import type { PositionedGraph } from '../types.ts'
+
+it('hard-only pass measurement retains actual defects and every separately requested metric', () => {
+  const graph = parseMermaid('flowchart LR\nA --> B\nC')
+  const positioned: PositionedGraph = { width: 120, height: 20, groups: [],
+    nodes: ['A', 'C', 'B'].map((id, index) => ({ id, label: '', shape: 'rectangle', x: index * 50, y: 0, width: 20, height: 20 })),
+    edges: [{ source: 'A', target: 'B', style: 'solid', hasArrowStart: false, hasArrowEnd: true, points: [{ x: 20, y: 10 }, { x: 100, y: 10 }] }],
+  }
+  const expected = { hard: 1, crossings: 0, portRate: 1, symErr: 0, parallelOverlaps: 0, opposingOverlaps: 0, endpointApproaches: 0, bends: 0, straight: 1 }
+  expect(measureRubricMetrics(graph, positioned, ['hard', 'crossings', 'portRate', 'symErr', 'parallelOverlaps', 'opposingOverlaps', 'endpointApproaches', 'bends', 'straight'], resolveRenderStyle({}), new Set())).toEqual(expected)
+  expect(assessLayout(graph, positioned).violations).toEqual([{ metric: 'edgeThroughNode', detail: 'A->B segment 1 through C', targets: ['A->B#0', 'C'], severity: 'primary' }])
+})
 
 describe('visual rubric — simple battery (every pattern x direction x shape)', () => {
   for (const fixture of simpleFixtures()) {

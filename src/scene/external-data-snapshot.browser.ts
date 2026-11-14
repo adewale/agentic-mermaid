@@ -1,3 +1,4 @@
+import type { SceneSerializationObserver } from './serialization.ts'
 /** The async browser API accepts source and built-in descriptors, never an
  * external Scene. Keep every internal structural/cross-check and final security
  * gate, and refuse an unexpected external family rather than weakening it. */
@@ -13,8 +14,8 @@ export {
 } from './scene-data-snapshot.ts'
 export type { ExternalDataSnapshotLimits } from './scene-data-snapshot.ts'
 
-function assertInternalScene(value: unknown, mode: 'internal' | 'external' | undefined, crossChecks: boolean): asserts value is SceneDoc {
-  const result = validateSceneDocument(value, { mode }, crossChecks)
+function assertInternalScene(value: unknown, mode: 'internal' | 'external' | undefined, crossChecks: boolean, serializationObserver?: SceneSerializationObserver): asserts value is SceneDoc {
+  const result = validateSceneDocument(value, { mode }, crossChecks, undefined, serializationObserver)
   if (!result.valid) throw new SceneValidationError(result.diagnostics)
 }
 
@@ -22,6 +23,6 @@ export function admitBackendSceneDocument(value: unknown): SceneDoc {
   return admitSceneDocument(value)
 }
 
-export function admitSceneDocument(value: unknown, mode?: 'internal' | 'external', crossChecks = sceneAssertionsEnabled()): SceneDoc {
-  return admitSceneDocumentWith(value, mode, crossChecks, assertInternalScene, true)
+export function admitSceneDocument(value: unknown, mode?: 'internal' | 'external', crossChecks = sceneAssertionsEnabled(), serializationObserver?: SceneSerializationObserver): SceneDoc {
+  return admitSceneDocumentWith(value, mode, crossChecks, assertInternalScene, true, serializationObserver)
 }

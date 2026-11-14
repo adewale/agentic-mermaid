@@ -64,7 +64,7 @@ export function flattenPositionedGroups(groups: PositionedGroup[], out: Position
   return out
 }
 
-export function rectInsideGroup(rect: { x: number; y: number; width: number; height: number }, group: PositionedGroup): boolean {
+export function rectInsideGroup(rect: { x: number; y: number; width: number; height: number }, group: Pick<PositionedGroup, 'x' | 'y' | 'width' | 'height'>): boolean {
   return rect.x >= group.x - 0.5 &&
     rect.y >= group.y - 0.5 &&
     rect.x + rect.width <= group.x + group.width + 0.5 &&

@@ -1,3 +1,5 @@
+import { isInlinePng } from '../shared/inline-png.ts'
+import { SCENE_VALIDATION_LIMITS } from './scene-validation-limits.ts'
 import { sanitizeDisplayLines } from '../shared/text-controls.ts'
 // ============================================================================
 // Mark constructors — the only way family lowerings build scene nodes.
@@ -14,7 +16,7 @@ import type {
   ConnectorContourSemantics, ConnectorDash, ConnectorEndpointAnchor, ConnectorEndpoints, ConnectorGeometry,
   ConnectorHitGeometry, ConnectorLabelDescriptor, ConnectorMark, ConnectorRelationship,
   ConnectorRoute, ConnectorStroke, ConnectorTerminalProjection, DocumentMark, GroupMark,
-  Geometry, LinearGradientDescriptor, MarkAttributes, MarkPaint, MarkerDescriptor,
+  Geometry, ImageMark, LinearGradientDescriptor, MarkAttributes, MarkPaint, MarkerDescriptor,
   SceneNode, SceneOwner, SceneRole, SceneTransform, SemanticChannels, ShapeMark, TextMark,
 } from './ir.ts'
 import type { DiagramColors } from '../theme.ts'
@@ -24,7 +26,7 @@ import { relationAccessibility } from './accessibility.ts'
 import { displayText, escapeAttr, escapeXml } from '../multiline-utils.ts'
 import { resolveLabelContent } from '../shared/display-text.ts'
 import type { LabelDisplay } from '../multiline-utils.ts'
-import { preparePixelText, type PixelTextBlock } from '../shared/prepared-text.ts'
+import { preparePixelText, isOwnedPixelTextPart, type PixelTextBlock } from '../shared/prepared-text.ts'
 import {
   connectorContourSemantics,
   connectorGeometryHasCurves,
@@ -36,7 +38,7 @@ import {
 import { connectorInlineLabelText } from './bounds.ts'
 import { setConnectorTerminalProjection, copyDeferredTerminalProjection, deferredTerminalProjectionInput } from './deferred-terminal-projection.ts'
 import type { parseSvgTransform } from './transforms.ts'
-import { assertInertGroup } from './group-emission.ts'
+import { assertInertGroup, registerGroupEmission } from './group-emission.ts'
 import {
   admitWritableSceneNode,
   attachSceneNodeSerialization,
@@ -66,8 +68,7 @@ function assertMarkAttributes(id: string, attributes: MarkAttributes | undefined
   if (attributes.ariaLabel !== undefined && typeof attributes.ariaLabel !== 'string') throw new TypeError(`Mark "${id}" ariaLabel must be a string`)
 }
 
-const groupEmission = new WeakMap<object, { open: string; opacity: string | undefined; style: boolean; matrix: ReturnType<typeof parseSvgTransform> }>()
-export function retainedGroupEmission(node: object) { return groupEmission.get(node) }
+export { retainedGroupEmission } from './group-emission.ts'
 
 /** Typed identity: the explicit public identity, or the mark id with its
  * class tokens, which is what the writer emits as data-id and class. */
@@ -115,6 +116,28 @@ export function shape(fields: {
     ...(fields.childPaints ? { childPaints: fields.childPaints } : {}),
     ...(fields.conditionalPaint ? { conditionalPaint: fields.conditionalPaint } : {}),
     ...(fields.surfaceFragment !== undefined ? { surfaceFragment: fields.surfaceFragment } : {}),
+    ...(fields.channels ? { channels: fields.channels } : {}),
+    ...(fields.transform ? { transform: fields.transform } : {}),
+    ...(fields.attributes ? { attributes: fields.attributes } : {}),
+  })
+}
+
+export function image(fields: Omit<ImageMark, 'kind' | 'identity' | 'accessibility'> & {
+  identity?: Omit<SvgSemanticIdentity, 'role'>
+}): ImageMark {
+  assertMarkAttributes(fields.id, fields.attributes)
+  if (typeof fields.href !== 'string' || fields.href.length > SCENE_VALIDATION_LIMITS.maxSerializationBytesPerNode || !isInlinePng(fields.href)) throw new TypeError('Image requires a self-contained PNG data URI')
+  if (![fields.x, fields.y, fields.width, fields.height].every(value => Number.isFinite(value) && Math.abs(value) <= SCENE_VALIDATION_LIMITS.maxExtent)
+    || fields.width <= 0 || fields.height <= 0 || !['contain', 'stretch'].includes(fields.fit)) throw new TypeError('Image requires a bounded positive viewport and fit')
+  const identity = typedIdentity(fields)
+  const accessibility = relationAccessibility(identity, fields.attributes?.data?.label)
+  if (accessibility && fields.attributes?.ariaLabel !== undefined) throw new TypeError(`Image "${fields.id}" takes its aria-label from typed relation accessibility`)
+  return admitWritableSceneNode({
+    kind: 'image', id: fields.id, role: fields.role, identity,
+    href: fields.href, x: fields.x, y: fields.y, width: fields.width, height: fields.height, fit: fields.fit,
+    ...(fields.owner ? { owner: fields.owner } : {}),
+    ...(fields.visibility ? { visibility: fields.visibility } : {}),
+    ...(accessibility ? { accessibility } : {}),
     ...(fields.channels ? { channels: fields.channels } : {}),
     ...(fields.transform ? { transform: fields.transform } : {}),
     ...(fields.attributes ? { attributes: fields.attributes } : {}),
@@ -469,6 +492,25 @@ export function connector(fields: ConnectorFields): ConnectorMark {
   return admitWritableSceneNode(result)
 }
 
+const preparedRunMap = Array.prototype.map
+const preparedRunApply = Reflect.apply
+const preparedRunArray = Array, preparedRunPrototype = Array.prototype
+const preparedRunDescriptor = Object.getOwnPropertyDescriptor, preparedRunOwn = Object.hasOwn
+const preparedRunProto = Object.getPrototypeOf
+const preparedRunSpecies = preparedRunDescriptor(Array, Symbol.species)?.get
+function legacyPreparedRuns(block: PixelTextBlock): TextMark['preparedLines'] {
+  if (!isOwnedPixelTextPart(block)) return block.lineBlocks.map(line => line.runs)
+  const lines = block.lineBlocks, map = lines.map
+  // Owned blocks already retain these runs. Preserve caller array hooks while
+  // avoiding a second roster for the ordinary intrinsic mapping operation.
+  const constructor = preparedRunDescriptor(preparedRunPrototype, 'constructor')
+  const species = preparedRunDescriptor(preparedRunArray, Symbol.species)
+  const intrinsic = map === preparedRunMap && preparedRunProto(lines) === preparedRunPrototype && !preparedRunDescriptor(lines, 'constructor')
+    && constructor && preparedRunOwn(constructor, 'value') && constructor.value === preparedRunArray
+    && species && !preparedRunOwn(species, 'value') && preparedRunSpecies !== undefined && species.get === preparedRunSpecies
+  return intrinsic ? undefined : preparedRunApply(map, lines, [(line: PixelTextBlock['lineBlocks'][number]) => line.runs])
+}
+
 export function text(fields: {
   id: string
   role: SceneRole
@@ -528,7 +570,7 @@ export function text(fields: {
   if (accessibility && fields.attributes?.ariaLabel !== undefined) throw new TypeError(`Text "${fields.id}" takes its aria-label from typed relation accessibility`)
   return admitWritableSceneNode({
     kind: 'text', ...semantic, identity, accessibility, block: measured, measurement: block ? 'prepared' : 'fallback',
-    ...(block ? { prepared: true, preparedLines: block.lineBlocks.map(line => line.runs) } : {}),
+    ...(block ? { prepared: true, preparedLines: legacyPreparedRuns(block) } : {}),
     fontWeight: weight, letterSpacing: spacing, display,
     textLayout: { width: measured.width, height: measured.height, lineHeight: measured.lineHeight, offsetY },
   })
@@ -586,7 +628,7 @@ export function group(fields: {
   join?: string
   channels?: SemanticChannels
   paint?: GroupMark['paint']
-}): GroupMark {
+}, nativePay?: (operations: number) => boolean): GroupMark {
   const sourceOpen = fields.open, close = fields.close, join = fields.join ?? '\n'
   const emitted = assertInertGroup({ id: fields.id, open: sourceOpen, close, join, transform: fields.transform })
   const identity = semanticIdentityForSvg(sourceOpen, fields)
@@ -634,7 +676,7 @@ export function group(fields: {
     ...(fields.transform ? { transform: fields.transform } : {}),
     ...(paint ? { paint } : {}),
   })
-  groupEmission.set(result, Object.freeze({ open, opacity, ...emitted, style: emitted.style || fill !== undefined }))
+  registerGroupEmission(result, { open, opacity, ...emitted, style: emitted.style || fill !== undefined }, nativePay)
   return result
 }
 

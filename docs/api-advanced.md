@@ -141,6 +141,12 @@ selected SVG/PNG consumer; no Canvas or system-font measurement is enabled
 implicitly. See [custom fonts](./custom-fonts.md#trusted-font-measurement-profiles)
 for an example and reproducibility requirements.
 
+An optional `measureInk(input)` callback can supply actual shaped advance and
+baseline-relative ink bounds for supported fitted runs. These occupied bounds
+are separate from allocation width and follow the same emitted fitting geometry
+through Native and Scene paint inspection. Its fonts and shaping must match the
+output consumer; omitted or unsupported measurements grant no new ink authority.
+
 This is an in-process host option, separate from serializable `RenderOptions`,
 Style data, Mermaid source, editor state, CLI, and MCP inputs. Bound renderers
 capture the profile's name, version, and function once. Layout, prepared pixel
