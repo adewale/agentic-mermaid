@@ -234,6 +234,77 @@ end`)
     }
   })
 
+  // [unicode, ascii] glyphs each message endpoint owns on its lifeline, after
+  // the given lines ahead of the `destroy`.
+  test.each([
+    ['a filled head into the destroyed receiver', 'A->>C: bye', { end: ['▶', '>'] }, ''],
+    ['an async head into the destroyed receiver', 'A-)C: bye', { end: ['▷', '>'] }, ''],
+    ['a central head into the destroyed receiver', 'A->>()C: bye', { end: ['○', 'o'] }, ''],
+    ['a cross head into the destroyed receiver', 'A-xC: bye', { end: ['X', 'X'] }, ''],
+    ['a bidirectional message from the destroyed sender', 'C<<->>A: bye', { start: ['▶', '>'], end: ['◀', '<'] }, ''],
+    ['a self-message by the destroyed participant', 'C->>C: bye', { end: ['◀', '<'] }, ''],
+    ['a par branch followed by a note', 'par first\nA->>C: bye\nNote over C: after\nand second\nB->>A: other\nend', { end: ['▶', '>'] }, ''],
+    // Activations still open on the destroyed participant end with its lifeline.
+    ['an activation the destroy message opens', 'A->>+C: bye', { end: ['▶', '>'] }, ''],
+    ['an activation opened before the destroy', 'A->>C: bye', { end: ['▶', '>'] }, 'A->>+C: open\n'],
+    ['nested activations around a destroyed self-message', 'C->>C: bye', { end: ['◀', '<'] }, 'A->>+C: open\nactivate C\n'],
+    ['an activation closed after the destroy', 'A->>C: bye\nA->>B: later\ndeactivate C', { end: ['▶', '>'] }, 'A->>+C: open\n'],
+  ] as const)('ends a destroyed lifeline with its own cross below %s', (_name, body, heads, opened) => {
+    for (const useAscii of [false, true]) {
+      const { doc, region } = render(`${opened}destroy C\n${body}\nB->>A: tail`, useAscii)
+      const destroyed = `message:${opened.split('\n').filter(line => line.includes('->>')).length}`
+      const ports = region(destroyed).ports!
+      for (const [end, glyphs] of Object.entries(heads)) {
+        const port = ports.find(item => item.end === end)!
+        const cell = doc.cell(port.x, port.y)!
+        expect(cell.kind).toBe('marker')
+        expect(cell.glyph).toBe(glyphs[useAscii ? 1 : 0])
+        expect(cell.owners.map(owner => owner.id)).toEqual([destroyed])
+      }
+      const crosses = [...doc.entries()].filter(([, , cell]) => cell.kind === 'marker' && cell.owners.some(owner => owner.id === 'C'))
+      expect(crosses).toHaveLength(1)
+      const [x, y, cross] = crosses[0]!
+      expect(cross.glyph).toBe('X')
+      expect(cross.owners.map(owner => owner.id)).toEqual(['C'])
+      // The lifeline runs through the message's last contact and stops at the cross.
+      const contacts = ports.filter(item => item.nodeId === 'C')
+      expect(x).toBe(contacts[0]!.x)
+      expect(y).toBe(Math.max(...contacts.map(item => item.y)) + 1)
+      expect([...doc.entries()].filter(([, row, cell]) => row > y && cell.owners.some(owner => owner.id === 'C'))).toEqual([])
+      // Owned activation ink ends on the row above the cross, nothing below.
+      const activationRows = [...doc.entries()].flatMap(([, row, cell]) => cell.owners.some(owner => owner.kind === 'band' && owner.parent?.id === 'C') ? [row] : [])
+      if (/\+C|activate C/.test(opened + body)) expect(Math.max(...activationRows)).toBe(y - 1)
+      else expect(activationRows).toEqual([])
+      expect(doc.diagnostics.filter(item => /COLLISION|OVERLAP/.test(item.code))).toEqual([])
+    }
+  })
+
+  // A stacked directive whose participant is not in its message acts at that
+  // message: the destroyed lifeline's cross shares the row below the arrow
+  // with the message's own, and a created header precedes the message.
+  test.each([
+    ['a destroy beside the destroyed sender', 'destroy C\ndestroy B\nB->>A: bye\nA->>A: tail', 'C'],
+    ['a create beside the created receiver', 'create participant D\ncreate participant E\nA->>E: make\nE->>A: ok', 'D'],
+  ] as const)('acts on %s at the stack\'s message', (_name, body, id) => {
+    for (const useAscii of [false, true]) {
+      const { doc, region } = render(body, useAscii)
+      const message = region('message:0')
+      const arrowRow = message.ports![0]!.y
+      const owned = [...doc.entries()].filter(([, , cell]) => cell.owners.some(owner => owner.id === id))
+      if (body.startsWith('destroy')) {
+        const crossRows = (owner: string) => [...doc.entries()].flatMap(([, row, cell]) => cell.kind === 'marker' && cell.glyph === 'X' && cell.owners.some(item => item.id === owner) ? [row] : [])
+        expect(crossRows(id)).toEqual([arrowRow + 1])
+        expect(crossRows('B')).toEqual([arrowRow + 1])
+        expect(owned.filter(([, row]) => row > arrowRow + 1)).toEqual([])
+      } else {
+        // The created card (three rows) lies between the top cards and the message.
+        expect(region(id).canvasRow).toBeGreaterThanOrEqual(region('A').canvasRow + 3)
+        expect(region(id).canvasRow + 3).toBeLessThanOrEqual(message.canvasRow)
+      }
+      expect(doc.diagnostics.filter(item => /COLLISION|OVERLAP/.test(item.code))).toEqual([])
+    }
+  })
+
   test('keeps the crossed lifeline on each side of a reserved message label', () => {
     const { doc, region } = render('A->>C: hello')
     const column = region('B').authoredTextCells![0]!.column

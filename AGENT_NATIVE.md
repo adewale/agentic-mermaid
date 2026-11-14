@@ -62,7 +62,7 @@ codes, and [quality](docs/quality.md) describes layout priorities and limits.
 |---|---|---|
 | `NODE_OVERLAP` | warning | Two laid-out node bounding boxes intersect |
 | `CONTENT_OCCLUDED` | error | Final layout hides authored text or an interaction marker |
-| `LAYOUT_LIMIT_EXCEEDED` | warning | Preserved content exceeds an explicitly requested layout budget |
+| `LAYOUT_LIMIT_EXCEEDED` | warning | Preserved content exceeds an explicitly requested layout budget, or a graph exceeds the host layout cost bound (`constraint: "layout.cost"`) and was laid out with a bounded search |
 | `LAYOUT_UNCERTIFIED` | error | No layout candidate passed certification, so the diagram was drawn from the best one anyway (fewest misleading, then fewest violations). One warning per failed check: `violation` names it (a hard rubric metric such as `endpointApproaches` or `edgeThroughNode`, `groupHeaderBand`, or a paint issue such as `CONNECTOR_CARD_CROSSING`) and `targets` the ids involved; a containment failure is `GROUP_BREACH`. Render still succeeds; `receipt.layoutCertification.geometry` names the candidate drawn. `layoutSafety: "strict"` refuses instead. |
 | `ROUTE_SELF_CROSS` | warning | An edge route crosses itself |
 | `ROUTE_HITCH` | warning | An edge bends although a direct lane for it is provably clear (route-contract tripwire) |
@@ -94,6 +94,8 @@ codes, and [quality](docs/quality.md) describes layout priorities and limits.
 | `SCALE_RANGE_EXCLUDES_ZERO` | warning | The radial scale excludes zero. |
 | `BAR_RANGE_EXCLUDES_ZERO` | warning | An XY chart with bar series has an authored y-axis range that excludes zero. Bars grow from zero clamped into the range, so they start at the reported `baseline` and their lengths stop being proportional to their values (a truncated axis). The authored range is kept. Include zero with `set_y_axis`, or draw the series as a line. |
 | `VALUES_OUTSIDE_RANGE` | warning | An XY chart series has values outside the authored y-axis range. A bar stops at the edge of the range, so its length understates the value, and a line point is drawn past the plot. The warning names the `series`, the `values` outside the range, and the `range`; the range is kept. Widen it with `set_y_axis`, or remove it so the axis fits the data. |
+| `EDGE_RANK_SLACK` | warning | Flowchart/state: a forward edge crosses at least two more node layers than the longest forward path between its endpoints needs (authored link lengths such as `--->` count), so its target could sit nearer its source. Payload carries `edge`, `spannedLayers`, `requiredLayers` and `message`. Back edges, self-loops and invisible links are never reported. |
+| `EDGE_UNDER_GROUP_TITLE` | warning | Flowchart, state, class namespace, architecture and C4 groups: a visible horizontal route segment runs inside a titled group between the bottom of its title band and the top of its first member or child group, crowding the title and padding the group. Payload carries `edge`, `group`, `clearancePx` (distance below the band) and `message`. Routes entering the title band itself are refused by layout certification instead. |
 | `BRAND_CONSTRAINT_WARNING` | warning | A caller-selected inspect-only `contrast`, `accent-area`, or `mono-role` Brand constraint failed or could not be measured. Payload reports the constraint, `measurement`, applicable role/mark, and concrete evidence without repainting or relayout. |
 | `BRAND_CONSTRAINT_ERROR` | error | The same inspect-only Brand constraint contract with `action: "error"`; it preserves authored output but flips `verify.ok` so a caller can enforce its declared brand policy. |
 <!-- END GENERATED: warning-table:lint -->
@@ -106,10 +108,13 @@ other inputs remain opaque source and refuse ordinary typed mutation. Preserving
 source is preferable to silently dropping meaning to fit a smaller model.
 
 Canonical serialization can normalize source spelling. Where exact retained
-bytes matter, the explicit source-preserving mode supports a bounded set of
-Class and Flowchart edits. It returns the edited source together with its parsed
-diagram and refuses ambiguous ownership or unsupported dependencies. See the
-[mutation policy](docs/agent-mutation-policy.md) for the operations and limits.
+bytes matter, the explicit source-preserving mode writes a typed edit as a
+local change to the authored source: untouched lines are copied byte for byte
+and the result must read back as the same diagram as the canonical edit, or
+the canonical source is returned with a receipt saying so. On opaque bodies it
+supports a bounded set of Class and Flowchart edits and refuses ambiguous
+ownership. See the [mutation policy](docs/agent-mutation-policy.md) for the
+operations and limits.
 
 ## Library, CLI and MCP
 
@@ -117,8 +122,8 @@ For Node/Bun applications, `agentic-mermaid/agent` provides rendering and editin
 Browser/Worker editing uses `agentic-mermaid/agent/core` to avoid the native PNG
 dependency; browser rendering uses `agentic-mermaid/browser/lazy`.
 
-The CLI and MCP tools use the same operations. Run `am capabilities --json` for
-version-matched families and edit schemas; the registry is their source of truth.
+The CLI and MCP tools use the same operations. Run `am capabilities --summary`,
+then `am capabilities --family <id>`, for version-matched families and edit schemas; the registry is their source of truth.
 The [MCP guide](docs/mcp-http-transport.md) distinguishes the local and hosted
 tool sets. Code Mode composes SDK calls in JavaScript; it grants no filesystem
 access. Local VM containment and hosted Worker isolation have different security
@@ -128,7 +133,7 @@ boundaries, documented in [SECURITY.md](SECURITY.md).
 
 - [API reference](docs/api.md): signatures, options and result shapes.
 - [Mutation policy](docs/agent-mutation-policy.md): structured and source-level edits.
-- [Testing strategy](docs/testing-strategy.md): behavior checks and their limits.
+- [Testing strategy](https://github.com/adewale/agentic-mermaid/blob/main/docs/testing-strategy.md): behavior checks and their limits.
 - [Fork differences](docs/fork-differences.md): additions to Beautiful Mermaid.
 - [TODO.md](https://github.com/adewale/agentic-mermaid/blob/main/TODO.md): active work.
 

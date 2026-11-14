@@ -4,7 +4,64 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
 
 ## Unreleased
 
+### Deprecated
+
+- **0.6.0 will make the compact agent views the defaults.** Nothing changes in
+  this release; every compact view below is opt-in today, and each current
+  default has a name you can pin now so the flip does not affect you:
+
+  | Surface | 0.6.0 default | Keep today's output with |
+  |---|---|---|
+  | MCP `render_svg`, `render_ascii`, `render_png` | `receipt: "summary"` | `receipt: "full"` |
+  | MCP `render_png` (local and hosted) | `output: "image"` | `output: "base64"` |
+  | `am verify` | `--summary` | `--full` |
+  | `am mutate --json` | `--summary` | `--full` |
+  | `am capabilities` | `--summary` (index) | `--full` |
+
+  The `--help` text of those commands and both MCP servers' `instructions`
+  carry the same notice.
+- **0.6.0 will make source-preserving edits the default for `am mutate` and
+  MCP `mutate`.** Today both still write the whole diagram canonically; pin that
+  output now with `am mutate --canonical` or `mode: "structured"`.
+  `am mutate --help` and the MCP `mutate` tool description carry the notice.
+
 ### Added
+
+- Source-preserving typed edits of structured bodies. `mutatePreservingSource`,
+  `applyOps({ mode: 'source-preserving' })`, MCP `mutate` with
+  `mode: "source-preserving"` and `am mutate --preserve-source` now accept every
+  operation of every structured family (they previously refused structured
+  bodies). The edit is replayed on the authored lines: comments, blank lines,
+  indentation, quoting, `:::class` shorthand, directives and frontmatter that
+  the edit does not touch are kept byte for byte, and new statements are written
+  in portable Mermaid next to related ones. A result is returned only when it
+  reads back as the same diagram as the canonical edit; otherwise the canonical
+  source is returned and `preservation: { method: "canonical", reason }` says so
+  (`method: "local"` otherwise; `am mutate` also notes it on stderr). On the 56
+  held-out edit-arms tasks a typed operation can express, scripted typed edits
+  kept 99.7% of untouched lines (canonical: 18.6%) with no collateral damage
+  (canonical: 10 damaged). `am mutate --canonical` names the current default.
+
+- Compact agent views, all opt-in. MCP render tools take `receipt: "summary"`:
+  request digest, acceptance, unselected capabilities, layout fallbacks, the
+  layout certification verdict and diagnostics grouped by code with counts
+  (an 8-node SVG receipt goes from 7.7 KB to 158 B). `render_png` takes
+  `output: "image"` on local and hosted servers and returns the PNG as an MCP
+  image content block beside a small JSON block, instead of base64 inside the
+  JSON text (51 KB, ~32k tokens, of text for an 8-node flowchart).
+  `am verify --summary` prints the MCP verify payload and
+  `am mutate --json --summary` embeds it (17.4 KB → 1.6 KB for 30 nodes).
+  `am capabilities --summary` prints an index (132 KB → 12 KB) and
+  `--family <id>[,<id>…]` one or more full family entries.
+- `describe_sdk` `capability: "render-options"` lists every render option's
+  applicable families and terminal treatment, and with `field` returns that
+  option's full annotated schema; `capability: "code-mode"` returns the
+  `execute` SDK declaration.
+- `agentic-mermaid-mcp --tool-profile slim` serves a 26 KB `tools/list`
+  (instead of 99 KB) under the server name `agentic-mermaid-mcp-slim`: render
+  arguments one level deep, and `execute` pointing at `describe_sdk`
+  `capability: "code-mode"`. Validation is unchanged. Local server only.
+- `/capabilities.json` is served minified (261 KB → 155 KB, same JSON).
 
 - Insert and remove empty concurrency regions in composite states with
   `add_region` and `remove_region`. State, transition, move and floating-note
@@ -48,6 +105,14 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
   are unchanged.
 
 ### Fixed
+
+- ASCII and Unicode output of densely overlapping graphs, such as a 30 × 30
+  `&` fan, a complete 40-node DAG or a 20 × 20 class relationship table,
+  failed as `INTERNAL_ERROR`, a 50 × 50 fan only after ~94 s. Terminal work
+  ceilings now throw `TerminalWorkLimitError` (`TERMINAL_WORK_LIMIT`, reported
+  as `RENDER_FAILED` with origin `source`), and composing the owners of shared
+  route cells is counted, so these refuse within about 5 s. 26 × 26 and
+  28 × 28 fans, which drew in about 30 and 40 s, now refuse the same way.
 
 - `RENDER_OPTION_NOT_APPLICABLE` now names the families an option really
   affects. `padding` is consumed by Requirement, Block, Packet, Kanban and

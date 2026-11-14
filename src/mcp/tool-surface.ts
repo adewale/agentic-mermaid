@@ -31,6 +31,8 @@ import type { CodeModeLocation } from './facade.ts'
 import { isPlainRecord } from '../shared/plain-data.ts'
 import { knownStyleDescriptors } from '../scene/style-registry.ts'
 import { validateJsonSchema, type SchemaPath, type JsonSchema } from '../shared/schema-validation.ts'
+import { inspectPngDimensions } from '../output-color-profile.ts'
+import { mcpRenderReceiptProperty } from './receipt-summary.ts'
 
 export interface McpToolDefinition {
   name: string
@@ -45,18 +47,109 @@ export interface McpToolDefinition {
   }
 }
 
-export const MCP_PNG_OUTPUT_MODES = Object.freeze(['base64', 'file', 'url'] as const)
+export const MCP_PNG_OUTPUT_MODES = Object.freeze(['base64', 'file', 'url', 'image'] as const)
 export type McpPngOutputMode = typeof MCP_PNG_OUTPUT_MODES[number]
+/** The hosted endpoint returns bytes in its response only; it keeps no artifacts. */
+export const HOSTED_MCP_PNG_OUTPUT_MODES = Object.freeze(['base64', 'image'] as const)
 
 export function isMcpPngOutputMode(value: unknown): value is McpPngOutputMode {
   return typeof value === 'string' && MCP_PNG_OUTPUT_MODES.includes(value as McpPngOutputMode)
 }
 
+/**
+ * The annotated schema behind each compact advertised `inputSchema`, keyed by
+ * the advertised object. tools/list loads every advertised schema into each
+ * agent's context, while server-side validation needs the runtime annotations
+ * (`x-agentic-mermaid-runtime-validator` and the expectations that word its
+ * diagnostics) and the explicit role-style records its messages name.
+ */
+const CANONICAL_INPUT_SCHEMAS = new WeakMap<object, Record<string, unknown>>()
+
 /** Adapt independently authored tool definitions to the closed argument
  * contract used by every first-party surface. This keeps progressive tools
  * from silently reopening the interface when they are composed into a server. */
 export function withClosedMcpInputSchema(tool: McpToolDefinition): McpToolDefinition {
-  return { ...tool, inputSchema: { ...tool.inputSchema, additionalProperties: false } }
+  const inputSchema = { ...tool.inputSchema, additionalProperties: false }
+  const canonical = CANONICAL_INPUT_SCHEMAS.get(tool.inputSchema)
+  if (canonical) CANONICAL_INPUT_SCHEMAS.set(inputSchema, { ...canonical, additionalProperties: false })
+  return { ...tool, inputSchema }
+}
+
+/** Record that `advertised` is a projection of `canonical`, so validation of a
+ * tool advertising it enforces the canonical schema. */
+export function registerAdvertisedMcpInputSchema(advertised: Record<string, unknown>, canonical: Record<string, unknown>): void {
+  CANONICAL_INPUT_SCHEMAS.set(advertised, canonical)
+}
+
+/** The schema `validateMcpToolArguments` enforces for a tool: the canonical
+ * annotated schema when the advertised one is a compact projection of it. */
+export function mcpToolValidationSchema(tool: McpToolDefinition): Record<string, unknown> {
+  return CANONICAL_INPUT_SCHEMAS.get(tool.inputSchema) ?? tool.inputSchema
+}
+
+// Keywords whose value maps names to schemas, and keywords whose value is data
+// rather than a schema. Annotations are stripped at schema positions only, so a
+// property or definition that happens to be named `x-…` keeps its name.
+const SCHEMA_MAP_KEYWORDS = new Set(['properties', 'patternProperties', '$defs', 'definitions', 'dependentSchemas'])
+const SCHEMA_DATA_KEYWORDS = new Set(['enum', 'const', 'default', 'examples', 'required'])
+
+function withoutVendorAnnotations(schema: unknown): unknown {
+  if (Array.isArray(schema)) return schema.map(withoutVendorAnnotations)
+  if (!isPlainRecord(schema)) return schema
+  const projected: Record<string, unknown> = {}
+  for (const [keyword, value] of Object.entries(schema)) {
+    if (keyword.startsWith('x-')) continue
+    projected[keyword] = SCHEMA_DATA_KEYWORDS.has(keyword) ? value
+      : SCHEMA_MAP_KEYWORDS.has(keyword) && isPlainRecord(value)
+        ? Object.fromEntries(Object.entries(value).map(([name, child]) => [name, withoutVendorAnnotations(child)]))
+        : withoutVendorAnnotations(value)
+  }
+  return projected
+}
+
+const ROLE_STYLE_PREFIX = 'roleStyle-'
+const SHARED_ROLE_STYLE = 'roleStyle-any'
+const CLOSED_RECORD_KEYWORDS = new Set(['type', 'additionalProperties', 'maxProperties', 'properties'])
+
+/** The property names of a role-style record that only restricts the shared
+ * record to a subset of its properties, each with the shared property schema;
+ * undefined when the record constrains anything else, so it stays explicit. */
+function sharedRoleStyleRestriction(record: unknown, shared: Record<string, unknown>): string[] | undefined {
+  const closed = (candidate: unknown): candidate is { properties: Record<string, unknown>; maxProperties?: unknown } =>
+    isPlainRecord(candidate) && candidate.type === 'object' && candidate.additionalProperties === false
+    && isPlainRecord(candidate.properties) && Object.keys(candidate).every(keyword => CLOSED_RECORD_KEYWORDS.has(keyword))
+  if (!closed(record) || !closed(shared)) return undefined
+  const names = Object.keys(record.properties)
+  const bound = (maxProperties: unknown) => maxProperties === undefined || (typeof maxProperties === 'number' && maxProperties >= names.length)
+  if (names.length === 0 || !bound(record.maxProperties) || !bound(shared.maxProperties)) return undefined
+  return names.every(name => Object.hasOwn(shared.properties, name)
+    && JSON.stringify(record.properties[name]) === JSON.stringify(shared.properties[name])) ? names : undefined
+}
+
+/**
+ * The compact form of a canonical tool schema that tools/list and the server
+ * cards advertise; the canonical schema stays the one argument validation
+ * enforces. The projection accepts exactly the same argument values under any
+ * JSON Schema validator: vendor annotations are not assertions, and a
+ * role-style record that restricts the shared record to some of its properties
+ * becomes a reference to the shared record plus the allowed property names,
+ * instead of a second copy of each property schema. `allOf` around the `$ref`
+ * keeps the sibling keyword meaningful to draft-07 validators, which ignore
+ * keywords beside a bare `$ref`.
+ */
+function advertiseMcpInputSchema(canonical: Record<string, unknown>): Record<string, unknown> {
+  const advertised = withoutVendorAnnotations(canonical) as Record<string, unknown>
+  const definitions = advertised.$defs
+  const shared = isPlainRecord(definitions) ? definitions[SHARED_ROLE_STYLE] : undefined
+  if (isPlainRecord(definitions) && isPlainRecord(shared)) {
+    advertised.$defs = Object.fromEntries(Object.entries(definitions).map(([name, record]) => {
+      const names = name.startsWith(ROLE_STYLE_PREFIX) && name !== SHARED_ROLE_STYLE
+        ? sharedRoleStyleRestriction(record, shared) : undefined
+      return [name, names ? { allOf: [{ $ref: `#/$defs/${SHARED_ROLE_STYLE}` }], propertyNames: { enum: names } } : record]
+    }))
+  }
+  CANONICAL_INPUT_SCHEMAS.set(advertised, canonical)
+  return advertised
 }
 
 export interface McpServerSurface<Context> {
@@ -169,25 +262,28 @@ const BUILTIN_PALETTE_NAMES = knownStyleDescriptors()
 export const MCP_RENDER_OPTIONS_DESCRIPTION = `Shared advanced RenderOptions object. style accepts a registered Look (${BUILTIN_LOOK_NAMES.join(', ')}), Palette (${BUILTIN_PALETTE_NAMES.join(', ')}), inline StyleSpec record, or left-to-right stack.`
 
 /**
- * The input schema of a render tool: `source`, the tool's own output fields,
- * and the shared `options` object. The render options schema names its
+ * The advertised input schema of a render tool: `source`, the tool's own output
+ * fields, and the shared `options` object. The render options schema names its
  * StyleSpec and JSON-value records by `#/$defs/<name>`; those definitions sit
  * at this schema's root, once, so every reference resolves from the tool
  * schema itself (no embedded `$id` resource) and no record is inlined twice.
+ * The result is the compact projection (advertiseMcpInputSchema); argument
+ * validation enforces the annotated schema it projects, and the options
+ * description links the published annotated render options schema.
  */
 export function mcpRenderToolInputSchema(outputProperties: Record<string, unknown> = {}): Record<string, unknown> {
-  const { $schema: _dialect, $id: _id, $defs: _defs, ...options } = sharedRenderOptionsJsonSchema()
-  return {
+  const { $schema: _dialect, $id: published, $defs: _defs, ...options } = sharedRenderOptionsJsonSchema()
+  return advertiseMcpInputSchema({
     type: 'object',
     additionalProperties: false,
     properties: {
       source: { type: 'string', description: 'Mermaid source.' },
       ...outputProperties,
-      options: { ...options, description: MCP_RENDER_OPTIONS_DESCRIPTION },
+      options: { ...options, description: `${MCP_RENDER_OPTIONS_DESCRIPTION} Annotated schema (field families, terminal notes): ${String(published)}` },
     },
     required: ['source'],
     $defs: renderOptionsSchemaDefinitions(),
-  }
+  })
 }
 
 export function projectMcpRenderOptions(
@@ -210,7 +306,9 @@ function formatSchemaPath(path: SchemaPath): string {
     typeof part === 'number' ? `${formatted}[${part}]` : `${formatted}.${part}`, 'arguments')
 }
 
-/** Runtime-check one tool's arguments against the exact schema advertised by tools/list. */
+/** Runtime-check one tool's arguments against the canonical schema behind the
+ * one tools/list advertises: the same JSON Schema assertions, plus the runtime
+ * validators its annotations name. */
 export function validateMcpToolArguments(tool: McpToolDefinition, value: unknown): string[] {
   if (!isPlainRecord(value)) return ['arguments must be a plain JSON object']
   const admissionProblems = validateJsonConfigAdmission(value)
@@ -218,7 +316,8 @@ export function validateMcpToolArguments(tool: McpToolDefinition, value: unknown
     return limitJsonConfigDiagnostics(admissionProblems.map(problem =>
       `${formatSchemaPath(problem.path)} ${problem.message}`), 'arguments')
   }
-  const problems = validateJsonSchema(value, tool.inputSchema, tool.inputSchema, [], {
+  const canonical = mcpToolValidationSchema(tool)
+  const problems = validateJsonSchema(value, canonical, canonical, [], {
     patternMismatch: schema => schema['x-agentic-mermaid-runtime-validator'] === 'portablePngBackground'
       ? 'must be a portable basic color keyword or 3, 4, 6, or 8 digit hex color' : undefined,
     validateRuntime: (value, schema, path) => {
@@ -228,7 +327,7 @@ export function validateMcpToolArguments(tool: McpToolDefinition, value: unknown
           ? [{ path, message: 'must be a portable basic color keyword or 3, 4, 6, or 8 digit hex color', generic: false }] : []
       }
       // Cross-field geometry belongs to the normalized RenderOptions boundary;
-      // the advertised wire schema continues to validate its individual fields.
+      // the wire schema continues to validate its individual fields.
       return validator === 'architectureVisual' ? [] : renderSchemaProblems(value, schema, path)
     },
   })
@@ -470,6 +569,9 @@ ${options.sdkDeclaration}`,
   }
 }
 
+/** The compact-result paths, named in both servers' instructions. */
+export const MCP_COMPACT_RESULTS_NOTE = 'For smaller results, pass receipt:"summary" to render tools and output:"image" to render_png; describe_sdk capability=render-options (field=<name>) gives each render option\'s families and terminal notes, capability=code-mode the execute declaration. Deprecation: 0.6.0 makes receipt:"summary" and output:"image" the defaults; pass receipt:"full" or output:"base64" to keep today\'s results.'
+
 /** Render tools do not verify. Running verify's checks on every render would
  * add roughly 55-100% CPU to each uncached render (measured locally on 10-60
  * node flowcharts, xychart, sequence and class diagrams), so the warnings
@@ -477,6 +579,21 @@ ${options.sdkDeclaration}`,
 export const RENDER_WARNINGS_NOTE = `warnings lists source/config warnings only (capabilities.json codes); it is not a verification.
 Layout and content-loss findings (e.g. LABELS_HIDDEN, ROUTE_SELF_LOOP_OCCUPANCY, LAYOUT_UNCERTIFIED) come from
 verify: call it before trusting the drawing. receipt.layoutCertification.geometry marks a drawing that failed layout certification.`
+
+/**
+ * render_png output=image: the PNG travels as an MCP image content block, which
+ * clients hand to a model as an image instead of ~1.3 tokens per base64 byte of
+ * JSON text. content[0] stays the JSON payload every render tool returns, with
+ * the byte count and pixel dimensions in place of png_base64.
+ */
+export function mcpPngImageResult(id: number | string | null, png: Uint8Array, data: string, fields: Record<string, unknown>): JsonRpcResponse {
+  const { width, height } = inspectPngDimensions(png)
+  const payload = { ok: true as const, mimeType: 'image/png', bytes: png.byteLength, width, height, ...fields }
+  return reply(id, {
+    content: [{ type: 'text', text: JSON.stringify(payload) }, { type: 'image', data, mimeType: 'image/png' }],
+    isError: false,
+  })
+}
 
 export function createRenderPngTool(mode: 'local' | 'hosted'): McpToolDefinition {
   const hosted = mode === 'hosted'
@@ -490,12 +607,14 @@ ${RENDER_WARNINGS_NOTE} Raster font-coverage and legibility warnings are added.`
     name: 'render_png',
     title: 'Render Mermaid as PNG',
     description: hosted
-      ? `Rasterize a Mermaid source string to PNG. Returns { ok, png_base64 }.
+      ? `Rasterize a Mermaid source string to PNG. Returns { ok, png_base64 }; output "image"
+returns { ok, bytes, width, height } plus an MCP image content block instead.
 Hosted rendering uses resvg-wasm with bundled fonts; bytes may differ from the
 local napi renderer, so hosted PNG is a convenience surface, not part of the
 byte-determinism contract. For file/URL artifacts use the local stdio server.
 ${budget}`
-      : `Rasterize a Mermaid source string to PNG. By default returns base64-encoded PNG bytes.
+      : `Rasterize a Mermaid source string to PNG. By default returns base64-encoded PNG bytes;
+output "image" returns { ok, bytes, width, height } plus an MCP image content block instead.
 Set output to "file" or "url" to write a managed artifact instead; artifact responses include
 {path?, url?, mimeType, bytes, sha256}. File/URL artifacts are generated under the MCP server's
 artifact directory with safe names, size limits, and TTL cleanup.
@@ -504,9 +623,10 @@ ${budget}
 Agentic Mermaid outputs SVG, PNG, ASCII, Unicode, and JSON layout. For non-PNG output, use render_svg, render_ascii (useAscii true for ASCII, false for Unicode), or verify. Code Mode execute also exposes the corresponding mermaid.* SDK functions.`,
     inputSchema: mcpRenderToolInputSchema({
       ...pngProperties,
-      ...(hosted ? {} : {
-        output: { type: 'string', enum: [...MCP_PNG_OUTPUT_MODES], description: 'PNG return mode (default base64).' },
-      }),
+      output: hosted
+        ? { type: 'string', enum: [...HOSTED_MCP_PNG_OUTPUT_MODES], description: 'base64 (default) JSON field, or image: an MCP image content block beside the JSON.' }
+        : { type: 'string', enum: [...MCP_PNG_OUTPUT_MODES], description: 'PNG return mode (default base64); image returns an MCP image content block beside the JSON.' },
+      receipt: mcpRenderReceiptProperty(),
     }),
     annotations: hosted ? PURE_COMPUTE_ANNOTATIONS : MANAGED_ARTIFACT_ANNOTATIONS,
   }

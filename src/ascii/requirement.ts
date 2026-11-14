@@ -6,7 +6,7 @@ import { drawMultiBox } from './draw.ts'
 import { visualWidth } from './width.ts'
 import { wrapText } from './wrap.ts'
 import { displayText } from '../multiline-utils.ts'
-import { allocateBoxRoutes, boxFaceSizes, paintBoxRoute, paintBoxText, reverseBoxes, type TerminalBox, type BoxRelation } from './class-like-layout.ts'
+import { allocateChannelledBoxRoutes, boxFaceSizes, paintBoxRoute, paintBoxText, reverseBoxes, type TerminalBox, type BoxRelation } from './class-like-layout.ts'
 import type { MermaidFrontmatterMap } from '../mermaid-source.ts'
 import { frontmatterTitle } from '../mermaid-source.ts'
 
@@ -75,24 +75,27 @@ export function renderRequirementTerminal(lines: string[] | string, config: Asci
     if (siblings) siblings.push(card)
     else rows.set(rank, [card])
   }
-  const place = (): (TerminalBox & { sections: string[][] })[] => {
+  // Routing may widen every gap and the outer margin by `channel` cells when a corridor fills.
+  const place = (channel: number): (TerminalBox & { sections: string[][] })[] => {
     const placed: (TerminalBox & { sections: string[][] })[] = []
-    let axis = 4
+    let axis = 4 + channel
     for (let rank = 0; rank <= Math.max(-1, ...ranks.values()); rank++) {
-      let cross = 4,
+      let cross = 4 + channel,
         extent = 0
       for (const c of rows.get(rank) ?? []) {
         const size = sizes.get(c.id)!
         placed.push({ ...size, id: c.id, sections: c.sections, x: horizontal ? axis : cross, y: horizontal ? cross : axis })
-        cross += (horizontal ? size.height : size.width) + 6
+        cross += (horizontal ? size.height : size.width) + 6 + channel
         extent = Math.max(extent, horizontal ? size.width : size.height)
       }
-      axis += extent + 10
+      axis += extent + 10 + channel
     }
     reverseBoxes(placed, direction)
     return placed
   }
-  let boxes = place()
+  let boxes: (TerminalBox & { sections: string[][] })[] = []
+  const layout = (channel: number) => {
+  boxes = place(channel)
   // The faces a relation uses follow placement: a relation back to an earlier
   // rank leaves the face opposite the flow direction. Recount the placed
   // faces, as C4 and ER do, so every port is allocated before painting.
@@ -106,10 +109,12 @@ export function renderRequirementTerminal(lines: string[] | string, config: Asci
       changed = true
     }
     if (!changed) break
-    boxes = place()
+    boxes = place(channel)
+  }
+  return { boxes }
   }
   const doc = new TerminalDocument(),
-    routes = allocateBoxRoutes(boxes, relations, direction)
+    routes = allocateChannelledBoxRoutes(layout, relations, direction)
   const byId = new Map(model.relations.map(edge => [edge.id, edge]))
   for (const route of routes) {
     const edge = byId.get(route.relation.id)!,

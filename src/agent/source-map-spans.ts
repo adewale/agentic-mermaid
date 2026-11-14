@@ -50,6 +50,14 @@ export function recordAuthoredSourceMapSpans(sourceMap: SourceMap, spans: Author
   authoredSourceMapSpans.set(sourceMap, spans)
 }
 
+const authoredSourceBySourceMap = new WeakMap<SourceMap, string>()
+
+/** The exact text a parsed diagram was read from. Source-preserving typed
+ * edits project onto these bytes; a synthesized diagram has none. */
+export function authoredSourceOf(sourceMap: SourceMap): string | undefined {
+  return authoredSourceBySourceMap.get(sourceMap)
+}
+
 /** Tokens exclude adjacent removed init directives while cleanup/entity bounds
  * keep their own affinity. Directives inside an occurrence remain included. */
 export function familySourceSpan(payload: ReturnType<typeof preservedMermaidFamilySource>, starts: readonly number[], start: number, end: number): SourceSpan {
@@ -478,6 +486,7 @@ function mapStatementSpans(locations: Map<string, SourceLocation>, lineStarts: r
 
 /** Add exact authored spans without changing the legacy canonical locations. */
 export function attachSourceMapSpans(sourceMap: SourceMap, canonicalSource: string, authoredSource: string, preserved: PreservedSourceSpans, grammar: SourceSpanGrammar = 'generic'): SourceMap {
+  authoredSourceBySourceMap.set(sourceMap, authoredSource)
   const authored = authoredSourceMapSpans.get(sourceMap)
   const lineStarts = sourceLineStarts(authoredSource)
   const lines = authoredLineMap(canonicalSource, authoredSource, preserved)

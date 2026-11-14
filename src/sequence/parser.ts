@@ -323,10 +323,12 @@ export function parseSequenceDiagram(lines: string[], opts: { showSequenceNumber
   // Visibility is independent of the message counter. Hiding or enabling it
   // does not erase step references; only an explicit start resets the value.
   const autonumber = { visible: opts.showSequenceNumbers === true, next: 1, step: 1 }
-  // Actors awaiting their binding message (`create X` / `destroy X` directives
-  // take effect at the NEXT message that involves the actor)
-  const pendingCreates: string[] = []
-  const pendingDestroys: string[] = []
+  // Actors awaiting their binding message: a `create X` / `destroy X`
+  // directive takes effect at the next message that involves the actor, or,
+  // when no later message does, at the message right after the directive
+  // (`next`), where Mermaid binds every directive of a stack.
+  const pendingCreates: PendingLifecycle[] = []
+  const pendingDestroys: PendingLifecycle[] = []
 
   const pushMessage = (message: ParsedSequenceMessageLine): void => {
     const { from, to } = message
@@ -385,6 +387,9 @@ export function parseSequenceDiagram(lines: string[], opts: { showSequenceNumber
       if (line && !isSequenceCommentLine(line)) throw new MermaidSyntaxError(`SEQUENCE_UNSUPPORTED_STATEMENT: line ${lineOf(entry.line + 1) ?? 'unknown'}: ${line}`, { diagramType: 'sequence', line: lineOf(entry.line + 1), column: columnOf(entry.line + 1, entry.column) })
       continue
     }
+    // A `create` of a participant that already exists keeps that participant
+    // (verify reports it): there is no creation for a message to bind.
+    if (statement.kind === 'create' && !participants.has(statement.declaration.id)) pendingCreates.push({ id: statement.declaration.id, next: diagram.messages.length })
     for (const event of participantEventsOf(statement)) {
       participants.apply(event)
       if (parserObservationActive('sequence')) observeParserMutation('sequence', 'participant.apply', event)
@@ -394,10 +399,8 @@ export function parseSequenceDiagram(lines: string[], opts: { showSequenceNumber
       // --- Participant / Actor declaration, including Mermaid 11 metadata;
       //     `create participant|actor X` binds at the next message X receives. ---
       case 'declaration':
-    case 'create': {
-      if (statement.kind === 'create') pendingCreates.push(statement.declaration.id)
+    case 'create':
       break
-    }
 
       // --- Safe actor menus (`link` and JSON `links`) and undrawn actor data
       //     (`properties`, `details`): the fold records what they create. ---
@@ -459,7 +462,7 @@ export function parseSequenceDiagram(lines: string[], opts: { showSequenceNumber
 
       // --- destroy lifecycle directive ---
       case 'destroy':
-      pendingDestroys.push(statement.actorId)
+      pendingDestroys.push({ id: statement.actorId, next: diagram.messages.length })
         if (parserObservationActive('sequence')) observeParserMutation('sequence', 'pending-destroy', statement.actorId)
       break
 
@@ -582,6 +585,10 @@ export function parseSequenceDiagram(lines: string[], opts: { showSequenceNumber
       break
     }
   }
+  // A directive no later message involves binds where its stack ends, at the
+  // message right after it; one with no message after it stays inert.
+  for (const { id, next } of pendingCreates) if (next < diagram.messages.length) createdAt.set(id, next)
+  for (const { id, next } of pendingDestroys) if (next < diagram.messages.length) destroyedAt.set(id, next)
 
   diagram.actors = participants.list().map(({ id, label, type, links, box, wrap }) => ({
     id, ...readSequenceLabel(label), type,
@@ -925,14 +932,16 @@ function parseMessageArrow(arrow: string): { lineStyle: 'solid' | 'dashed'; star
 }
 
 /** Bind any pending create/destroy directive whose actor participates in the
- *  message being parsed; unmatched directives stay pending (and stay inert if
- *  no later message ever involves the actor). */
+ *  message being parsed; unmatched directives stay pending (and bind at the
+ *  message after them if no later message ever involves the actor). */
+interface PendingLifecycle { id: string; next: number }
+
 function bindLifecycle(
-  pending: string[],
+  pending: PendingLifecycle[],
   matches: (id: string) => boolean,
   bind: (id: string) => void): void {
   for (let i = pending.length - 1; i >= 0; i--) {
-    const id = pending[i]!
+    const { id } = pending[i]!
     if (!matches(id)) continue
     bind(id)
     pending.splice(i, 1)

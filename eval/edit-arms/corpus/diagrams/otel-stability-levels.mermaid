@@ -1,0 +1,11 @@
+stateDiagram-v2
+    state StabilityLevels {
+    InDevelopment --> Alpha
+    Alpha --> Beta
+    Beta --> Stable
+    }
+
+    InDevelopment: In Development
+
+    StabilityLevels --> Deprecated
+    Deprecated --> Removed

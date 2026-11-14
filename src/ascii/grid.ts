@@ -505,15 +505,17 @@ function reserveProtectedEnvelopes(graph: AsciiGraph): void {
     measure()
     let activated = false
     for (let index = 0; index < envelopes.length; index++) for (let next = index + 1; next < envelopes.length; next++) {
-      const a = envelopes[index]!, b = envelopes[next]!, key = `${index}:${next}`
-      if (related(a, b) || active.has(key) || declined.has(key)) continue
-      const first = a.bounds, second = b.bounds
+      const a = envelopes[index]!, b = envelopes[next]!, first = a.bounds, second = b.bounds
       // Independent contacts need separate bend lanes beyond their fixed
       // normal leads. One blank cell alone leaves the first routed lane
       // fencing every remaining lead against the neighboring body.
       const clearance = Math.max(bendCapacity(a), bendCapacity(b))
+      // Most pairs are already apart; every test here is pure, so the cheap
+      // geometric one goes first.
       if (first.maxX + clearance <= second.minX || second.maxX + clearance <= first.minX
         || first.maxY + clearance <= second.minY || second.maxY + clearance <= first.minY) continue
+      const key = `${index}:${next}`
+      if (related(a, b) || active.has(key) || declined.has(key)) continue
       const candidates: Array<Constraint & { extra: number }> = []
       for (const axis of ['x', 'y'] as const) {
         const min = axis === 'x' ? 'minX' : 'minY', max = axis === 'x' ? 'maxX' : 'maxY'

@@ -346,7 +346,8 @@ export function renderArchitectureTerminal(
         ? dirs.has('E') && dirs.has('W')
         : dirs.has('N') && dirs.has('S'))
     })
-    const found = same(start, end) ? null : getPath(separated, start, end, preferredDirection(edge.source.side), endpointStep) ?? getPath(obstacles, start, end, preferredDirection(edge.source.side), crossingStep)
+    const cells = (rule: (a: GridCoord, b: GridCoord) => boolean) => (ax: number, ay: number, bx: number, by: number): boolean => rule({ x: ax, y: ay }, { x: bx, y: by })
+    const found = same(start, end) ? null : getPath(separated, start, end, preferredDirection(edge.source.side), cells(endpointStep)) ?? getPath(obstacles, start, end, preferredDirection(edge.source.side), cells(crossingStep))
     if (!found) {
       unrouted.push({ owner, edge })
       canvas.projectMarkers(owner, `architecture.${owner.id}.route`)

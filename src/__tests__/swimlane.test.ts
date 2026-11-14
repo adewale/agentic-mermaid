@@ -1,6 +1,12 @@
 import { expect, test } from 'bun:test'
+import { readFileSync } from 'node:fs'
 import { parseRegisteredMermaid, serializeMermaid, mutate, mutateChecked, layoutMermaid, verifyMermaid } from '../agent/core.ts'
 import { renderMermaidSVG } from '../index.ts'
+import { lowerPositionedFamilyScene } from '../graphical-render.ts'
+import { positionResolvedFamily } from '../positioning.ts'
+import { resolveRenderRequestForExecution } from '../render-contract.ts'
+import type { SceneNode } from '../scene/ir.ts'
+import type { PositionedGraph, PositionedGroup, RenderOptions } from '../types.ts'
 import { renderMermaidASCIIWithReceipt } from '../ascii/index.ts'
 import { terminalDocumentOf } from '../ascii/terminal-document.ts'
 import { parseSwimlane } from '../swimlane/parser.ts'
@@ -335,4 +341,74 @@ A retry@-->|retry| A${count === 3 ? '\nA revise@-->|revise| A\nA reconsider@-->|
     const contrast = layoutMermaid(parsed.value, { debug: true, style: 'accessible-high-contrast' })
     expect(contrast.paintCertification?.status).toBe('passed')
     expect(renderMermaidSVG(input, { style: 'accessible-high-contrast', layoutSafety: 'strict' })).toContain('data-id="next"')
+})
+
+// Certification reserves each lane header's painted band: a route crosses it
+// edge to edge, perpendicularly and beside the painted title. The agent-usage
+// rename of this fixture once drew a route jog inside the OPERATIONS band.
+test.each(['LR', 'TD'] as const)('Swimlane %s routes cross the painted lane headers only perpendicularly, beside their titles', direction => {
+  const fixture = readFileSync(new URL('../../eval/layout-compare/fixtures/swimlane-native.mmd', import.meta.url), 'utf8')
+  const nested = `swimlane-beta LR
+subgraph customer[CUSTOMER]
+  request[Request order]
+  receive[Receive order]
+end
+subgraph team[OPERATIONS]
+  subgraph wh[Warehouse floor team]
+    check{In stock?}
+    pick[Pick items]
+  end
+  fulfill[Ship parcel]
+end
+subgraph billing[BILLING AND ACCOUNTS RECEIVABLE]
+  invoice[Send invoice]
+end
+request --> check
+check -->|Yes| pick
+pick --> fulfill
+fulfill --> receive
+fulfill --> invoice
+invoice --> request`
+  const box = (d: string) => {
+    const xs: number[] = [], ys: number[] = []
+    let x = 0, y = 0
+    for (const [, command, args] of d.matchAll(/([MHVA])([^MHVAZ]*)/g)) {
+      const values = args!.trim().split(/[\s,]+/).map(Number)
+      if (command === 'M') [x, y] = values as [number, number]
+      else if (command === 'H') x = values[0]!
+      else if (command === 'V') y = values[0]!
+      else [x, y] = values.slice(5) as [number, number]
+      xs.push(x); ys.push(y)
+    }
+    return { x: Math.min(...xs), y: Math.min(...ys), width: Math.max(...xs) - Math.min(...xs), height: Math.max(...ys) - Math.min(...ys) }
+  }
+  const enters = (a: { x: number; y: number }, b: { x: number; y: number }, r: { x: number; y: number; width: number; height: number }) =>
+    Math.max(a.x, b.x) > r.x && Math.min(a.x, b.x) < r.x + r.width && Math.max(a.y, b.y) > r.y && Math.min(a.y, b.y) < r.y + r.height
+  // A wide title inset moves the painted title away from a fixed 12px guess.
+  const styles: RenderOptions['style'][] = [undefined, 'accessible-high-contrast', { roles: { group: { paddingX: 60 } } }]
+  for (const input of [fixture, nested]) for (const style of styles) {
+    const request = resolveRenderRequestForExecution(input.replace(/^swimlane-beta LR/, `swimlane-beta ${direction}`), { ...(style ? { style } : {}), layoutSafety: 'strict' }, 'svg')
+    const layout = positionResolvedFamily('swimlane', request), positioned = layout.positioned as PositionedGraph
+    const marks = new Map<string, SceneNode>()
+    const collect = (node: SceneNode): void => { marks.set(node.id, node); if (node.kind === 'group') node.children.forEach(child => collect(child.node)) }
+    lowerPositionedFamilyScene(request, layout).parts.forEach(collect)
+    const groups: PositionedGroup[] = []
+    const visit = (group: PositionedGroup): void => { groups.push(group); group.children.forEach(visit) }
+    positioned.groups.forEach(visit)
+    expect(groups.length).toBe(input === fixture ? 2 : 4)
+    for (const group of groups) {
+      const header = marks.get(`group-header:${group.id}`), label = marks.get(`group-label:${group.id}`)
+      if (header?.kind !== 'shape' || header.geometry.kind !== 'path' || label?.kind !== 'text' || !label.block) throw new Error(`${group.id}: missing painted header`)
+      const band = box(header.geometry.d), title = { x: label.x, y: label.y - label.block.height / 2, width: label.block.width, height: label.block.height }
+      // The band certification reads (retained headerHeight) is the painted band.
+      const painted = [band.x, band.y, band.x + band.width, band.y + band.height], retained = [group.x, group.y, group.x + group.width, group.y + group.headerHeight!]
+      painted.forEach((value, index) => expect(value).toBeCloseTo(retained[index]!, 6))
+      for (const edge of positioned.edges) for (let index = 1; index < edge.points.length; index++) {
+        const a = edge.points[index - 1]!, b = edge.points[index]!, where = `${direction} ${JSON.stringify(style ?? 'default')} ${edge.source}->${edge.target} segment ${index} in ${group.id}`
+        expect(a.x !== b.x && enters(a, b, band), `${where}: travels inside the band`).toBe(false)
+        expect(enters(a, b, title), `${where}: crosses the title`).toBe(false)
+      }
+    }
+    expect(positioned.uncertifiedLayout).toBeUndefined()
+  }
 })

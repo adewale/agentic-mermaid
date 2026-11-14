@@ -1,0 +1,31 @@
+flowchart TB
+    CLIENTS["Client Layer<br/>Gremlin Console · REST Client · Cypher Client · SDK/Tools"]
+
+    subgraph Server["HugeGraph Server :8080"]
+        API[REST API<br/>Jersey 3]
+        GS[Gremlin Server<br/>TinkerPop 3.8.1]
+        CS[Cypher Engine<br/>OpenCypher]
+        CORE[Graph Engine<br/>hugegraph-core]
+
+        API --> CORE
+        GS --> CORE
+        CS --> CORE
+    end
+
+    subgraph Storage["Storage Layer"]
+        subgraph Standalone["Standalone Mode"]
+            ROCKS[(RocksDB<br/>Embedded)]
+        end
+
+        subgraph Distributed["Distributed Mode"]
+            PD_HSTORE[PD + HStore<br/>Raft Cluster]
+        end
+    end
+
+    CLIENTS --> Server
+    CORE --> ROCKS
+    CORE --> PD_HSTORE
+
+    style Server fill:#e1f5ff
+    style Distributed fill:#fff4e1
+    style Standalone fill:#f0f0f0

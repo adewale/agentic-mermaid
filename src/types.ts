@@ -37,7 +37,7 @@ export interface MermaidGraph {
  *  models these for the render parser and the agent body alike —
  *  src/state/parse-core.ts (plan §State 1, repo #118). */
 export interface StateNoteSpec {
-  /** Stable id (`note#<i>` in source order). */
+  /** Stable id (`note#<i>` in source order, unless an authored state has that name). */
   id: string
   /** The state (or composite) the note is anchored to. */
   target: string
@@ -216,6 +216,9 @@ export interface PositionedGraph extends PositionedDiagram {
   /** Instead of `certification`: report layout safety drew this graph from its
    * best drawable candidate although none certified. */
   uncertifiedLayout?: import('./layout/uncertified-layout.ts').UncertifiedLayoutReceipt
+  /** Present when the graph exceeded a layout cost threshold: the estimate,
+   * the ELK options relaxed and the bounded candidate search. */
+  layoutCost?: import('./layout/layout-cost.ts').LayoutCostReceipt
 }
 
 /** A placed state-diagram note box. */

@@ -2,7 +2,7 @@
 
 `agentic-mermaid-mcp` defaults to stdio for local MCP clients. Use HTTP/SSE only when a client needs a reachable endpoint or when PNG artifacts should be fetched by file/URL instead of returned as large base64 strings.
 
-> Looking for a zero-setup endpoint? A **hosted** MCP already runs at `https://agentic-mermaid.dev/mcp` (`claude mcp add --transport http agentic-mermaid https://agentic-mermaid.dev/mcp`). It is a different implementation — stateless Streamable HTTP, Cloudflare-backed, inputs capped at 64KB, and no file/URL PNG artifacts (base64 only) — with the tools <!-- BEGIN GENERATED: hosted-mcp-tools -->`execute`, `describe_sdk`, `render_svg`, `render_ascii`, `render_png`, `verify`, `describe`, `mutate`, and `build`<!-- END GENERATED: hosted-mcp-tools -->. See the [as-built record](https://github.com/adewale/agentic-mermaid/blob/f2b3fd0ab50af0841175681f87a0b40090b9c9f5/docs/project/archive/hosted-mcp-cloudflare-plan.md). Run the local server below when you need file/URL artifacts, larger inputs, offline use, or your own auth.
+> Looking for a zero-setup endpoint? A **hosted** MCP already runs at `https://agentic-mermaid.dev/mcp` (`claude mcp add --transport http agentic-mermaid https://agentic-mermaid.dev/mcp`). It is a different implementation — stateless Streamable HTTP, Cloudflare-backed, inputs capped at 64KB, and no file/URL PNG artifacts (base64 or an MCP image content block only) — with the tools <!-- BEGIN GENERATED: hosted-mcp-tools -->`execute`, `describe_sdk`, `render_svg`, `render_ascii`, `render_png`, `verify`, `describe`, `mutate`, and `build`<!-- END GENERATED: hosted-mcp-tools -->. See the [as-built record](https://github.com/adewale/agentic-mermaid/blob/f2b3fd0ab50af0841175681f87a0b40090b9c9f5/docs/project/archive/hosted-mcp-cloudflare-plan.md). Each hosted call that lays out a diagram runs in a CPU-bounded isolate: 10 s of CPU per call and 30 s shared by the calls in one request, beyond which it returns `RENDER_TIMEOUT`. Run the local server below when you need file/URL artifacts, larger inputs, longer layouts, offline use, or your own auth.
 >
 > **Protocol versions.** The hosted endpoint is dual-era: it accepts <!-- BEGIN GENERATED: hosted-protocol-versions -->`2025-03-26`, `2025-06-18`, `2025-11-25`, and `2026-07-28`<!-- END GENERATED: hosted-protocol-versions -->. Every revision before `2026-07-28` is handshake-based; `2026-07-28` is the stateless revision that replaces the `initialize` handshake with per-request `_meta` and a mandatory `server/discover`. Clients need do nothing special — send whatever revision you speak in `MCP-Protocol-Version`, and an unsupported one comes back as `-32022` listing the versions we accept. The hosted endpoint does not accept `2024-11-05`: that revision is the HTTP+SSE *transport* (opening with `GET` and expecting an `endpoint` event), and a client using it receives 405. The local server below accepts <!-- BEGIN GENERATED: stdio-protocol-versions -->`2024-11-05`, `2025-06-18`, `2025-11-25`, and `2026-07-28`<!-- END GENERATED: stdio-protocol-versions --> over stdio and <!-- BEGIN GENERATED: http-sse-protocol-versions -->`2024-11-05`<!-- END GENERATED: http-sse-protocol-versions --> over its HTTP+SSE transport.
 >
@@ -56,8 +56,14 @@ responses include both MCP `structuredContent` and an equivalent JSON text
 block. Use `render_ascii` with `useAscii: true` for ASCII, or omit it for Unicode.
 `verify` checks parsing, structure and graphical renderability.
 
-These three local tools share one warm render subprocess, with a 15-second
-wall-clock deadline per request, including queue and startup time. At most 32
+These three local tools, and every other local tool that lays out a diagram
+(`render_png`, `describe`, `mutate` and `build`), share one warm render
+subprocess, with a 15-second wall-clock deadline per request, including queue
+and startup time. A request that misses it returns `RENDER_TIMEOUT` and the
+subprocess is terminated: layout is synchronous and cannot be interrupted any
+other way. `render_png` returns its image to the server as base64 within the
+16 MiB result budget (`RENDER_OUTPUT_LIMIT` beyond it); the server then delivers
+it as base64, an image block or a managed artifact. At most 32
 requests may wait, sharing a 16 MiB budget for serialized request payloads;
 further calls receive `RENDER_BUSY` when either limit is reached. The active
 request has its own 4 MiB message limit. Dequeueing, cancellation and expiration
@@ -271,6 +277,7 @@ data: {"jsonrpc":"2.0","id":4,"result":{}}
 | `--artifact-ttl-ms <n>` | `3600000` | How long managed artifacts remain fetchable. |
 | `--max-rpc-body-bytes <n>` | `1048576` | Maximum HTTP JSON-RPC request body size. |
 | `--max-sandbox-timeout-ms <n>` | `30000` | Maximum `execute` timeout accepted over any transport. |
+| `--tool-profile full\|slim` | `full` | Advertised tool schemas. `slim` (~26 KB `tools/list` instead of ~99 KB, server name `agentic-mermaid-mcp-slim`) lists render arguments one level deep without `$defs` and points `execute` at `describe_sdk` `capability: "code-mode"` for the SDK declaration. Validation and results are unchanged; `describe_sdk` `capability: "render-options"` gives the full option schemas. Local only; the hosted endpoint serves the full profile. |
 
 ## Security defaults
 

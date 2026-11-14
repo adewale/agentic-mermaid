@@ -1,0 +1,34 @@
+sequenceDiagram
+    participant User as mvn test
+    participant Mojo as AbstractSurefireMojo<br/>(Maven JVM)
+    participant FS as ForkStarter
+    participant BS as BooterSerializer
+    participant Fork as ForkedBooter.main()<br/>(Forked JVM)
+    participant Prov as SurefireProvider
+    participant FC as ForkClient
+
+    User->>Mojo: execute()
+    Mojo->>Mojo: Auto-detect provider<br/>(ProviderDetector)
+    Mojo->>Mojo: Resolve provider classpath<br/>(SurefireDependencyResolver)
+    Mojo->>FS: fork()
+
+    FS->>BS: Serialize config to .properties file
+    FS->>FS: Build JVM command line<br/>(ForkConfiguration)
+    FS->>Fork: Launch process<br/>(java -cp ... ForkedBooter)
+
+    Fork->>Fork: setupBooter()<br/>- Read .properties file<br/>- Set system properties<br/>- Connect communication channel<br/>- Start PpidChecker (orphan detection)
+
+    Fork->>Prov: Load provider via IsolatedClassLoader
+    Fork->>Prov: invoke(testSet)
+    Prov->>Prov: Run tests (JUnit/TestNG/etc.)
+
+    loop For each test event
+        Prov->>Fork: Report event via RunListener
+        Fork-->>FC: Binary event stream<br/>(EventChannelEncoder → pipe/TCP)
+        FC-->>Mojo: Decoded Event objects<br/>(EventDecoder → ForkedProcessEventNotifier)
+        Mojo->>Mojo: Update console + write XML reports
+    end
+
+    Fork-->>FC: ControlByeEvent
+    FC-->>FS: Run complete
+    FS-->>Mojo: RunResult (pass/fail/skip counts)

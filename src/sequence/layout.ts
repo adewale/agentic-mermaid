@@ -1,7 +1,7 @@
 import { preparePixelText } from '../shared/prepared-text.ts'
 import { resolveLabelContent, type DisplayTextInput } from '../shared/display-text.ts'
-import type { SequenceBounds, SequenceDiagram, PositionedSequenceDiagram, PositionedActor, Lifeline, PositionedMessage, Activation, PositionedBlock, PositionedNote, PositionedBoxGroup, LifelineCross } from './types.ts'
-import { SEQUENCE_SELF_LOOP, measureSequenceActorSpec, measureSequenceBlockSpec, measureSequenceMessageSpec, positionSequenceActor, positionSequenceBlock, positionSequenceMessage, resolveSequenceBlockScopes, sequenceDividerLeadingNote, translatePositionedSequence, type SequenceBlockPlacement } from './geometry.ts'
+import type { Message, SequenceBounds, SequenceDiagram, PositionedSequenceDiagram, PositionedActor, Lifeline, PositionedMessage, Activation, PositionedBlock, PositionedNote, PositionedBoxGroup, LifelineCross } from './types.ts'
+import { SEQUENCE_SELF_LOOP, measureSequenceActorSpec, measureSequenceBlockSpec, measureSequenceMessageSpec, positionSequenceActor, positionSequenceBlock, positionSequenceMessage, resolveSequenceBlockScopes, sequenceCreatedContactInset, sequenceDestroyCrossPlacement, sequenceDividerLeadingNote, translatePositionedSequence, type SequenceBlockPlacement } from './geometry.ts'
 import { getSequenceBlockBoundaries } from './parser.ts'
 import { SEQUENCE_TEXT_WRAP_WIDTH } from './geometry.ts'
 import type { RenderOptions } from '../types.ts'
@@ -139,6 +139,11 @@ export function layoutSequenceDiagram(diagram: SequenceDiagram, options: RenderO
   const actorIndex = new Map<string, number>()
   for (let i = 0; i < diagram.actors.length; i++) actorIndex.set(diagram.actors[i]!.id, i)
   const messageSpecs = diagram.messages.map(message => measureSequenceMessageSpec(message.wrap === undefined && config.wrap !== undefined ? { ...message, wrap: config.wrap } : message, style, activationWidth))
+  // A creation message ends where its head's ink (or its `()` circle) meets
+  // the created header's painted outline, not at the lifeline under the
+  // header, so the header never covers either.
+  const createdContactInset = (actor: number, message: Message): number =>
+    sequenceCreatedContactInset(diagram.actors[actor]!.type, actorSpecs[actor]!, actorRoleStyles[actor]?.lineWidth ?? style.nodeLineWidth, style, message)
   const messageGapRequirements = Array.from({ length: Math.max(0, diagram.actors.length - 1) }, () => 0)
   for (let mi = 0; mi < diagram.messages.length; mi++) {
     const message = diagram.messages[mi]!
@@ -155,7 +160,7 @@ export function layoutSequenceDiagram(diagram: SequenceDiagram, options: RenderO
     const first = Math.min(from, to)
     const last = Math.max(from, to)
     const span = last - first
-    const createdHeaderWidth = diagram.actors[to]!.createMessageIndex === mi && diagram.actors[to]!.type === 'participant' ? actorWidths[to]! / 2 : 0
+    const createdHeaderWidth = diagram.actors[to]!.createMessageIndex === mi ? createdContactInset(to, message) : 0
     const requiredPerGap = (spec.requiredSpanWidth + createdHeaderWidth) / span
     for (let gap = first; gap < last; gap++) {
       messageGapRequirements[gap] = Math.max(messageGapRequirements[gap]!, requiredPerGap)
@@ -282,9 +287,10 @@ export function layoutSequenceDiagram(diagram: SequenceDiagram, options: RenderO
   }
 
   // Pre-scan actor lifecycles: a `create` message row hosts the created
-  // actor's header box (centered on the message), so it needs half a box of
-  // clearance above and the remaining header extent below; a `destroy` message
-  // row ends the lifeline.
+  // actor's header box (centered on the message it receives), so it needs half
+  // a box of clearance above and the remaining header extent below; an actor a
+  // stacked `create` binds to a message it does not receive starts just below
+  // that message instead. A `destroy` message row ends the lifeline.
   const createAtIndex = new Map<number, number[]>()
   const destroyAtIndex = new Map<number, string[]>()
   const destroyYByActor = new Map<string, number>()
@@ -317,22 +323,32 @@ export function layoutSequenceDiagram(diagram: SequenceDiagram, options: RenderO
   const activationStacks = new Map<string, { startY: number; depth: number }[]>()
   const activations: Activation[] = []
   const nestingOffset = 4 // Horizontal offset per nesting level
+  // Events applied where the previous message ends, and events applied at the
+  // next message's row (SequenceActivationEvent.anchor).
   const activationEvents = new Map<number, NonNullable<SequenceDiagram['activationEvents']>>()
+  const nextMessageEvents = new Map<number, NonNullable<SequenceDiagram['activationEvents']>>()
   for (const event of diagram.activationEvents ?? []) {
-    const list = activationEvents.get(event.messageIndex) ?? []
+    const byBoundary = event.anchor === 'next-message' ? nextMessageEvents : activationEvents
+    const list = byBoundary.get(event.messageIndex) ?? []
     list.push(event)
-    activationEvents.set(event.messageIndex, list)
+    byBoundary.set(event.messageIndex, list)
   }
   const activate = (actorId: string, y: number): void => {
     const stack = activationStacks.get(actorId) ?? []
     stack.push({ startY: y, depth: stack.length })
     activationStacks.set(actorId, stack)
   }
-  const deactivate = (actorId: string, y: number): void => {
+  // A destroyed actor's activation ends with its lifeline, at the cross,
+  // however late it is closed. One opened on the destroy message's row
+  // therefore has no extent and, like any activation closed on the row that
+  // opened it, is not drawn.
+  const deactivate = (actorId: string, closeY: number): void => {
     const stack = activationStacks.get(actorId)
     if (!stack || stack.length === 0) return
     const { startY, depth } = stack.pop()!
     const idx = actorIndex.get(actorId)
+    const crossY = destroyYByActor.get(actorId)
+    const y = crossY !== undefined && startY <= crossY ? Math.min(closeY, crossY) : closeY
     if (idx === undefined || y <= startY) return
     activations.push({
       actorId,
@@ -342,8 +358,8 @@ export function layoutSequenceDiagram(diagram: SequenceDiagram, options: RenderO
       width: activationWidth,
     })
   }
-  const applyActivationEvents = (boundary: number, y: number): void => {
-    for (const event of activationEvents.get(boundary) ?? []) {
+  const applyActivationEvents = (boundary: number, y: number, byBoundary = activationEvents): void => {
+    for (const event of byBoundary.get(boundary) ?? []) {
       if (event.kind === 'activate') activate(event.actorId, y)
       else deactivate(event.actorId, y)
     }
@@ -555,24 +571,27 @@ export function layoutSequenceDiagram(diagram: SequenceDiagram, options: RenderO
     completeBlocks()
     const opening = openingBlocks(msgIdx)
     let extra = Math.max(extraSpaceBefore.get(msgIdx) ?? 0, headerSpace(opening))
-    for (const ai of createAtIndex.get(msgIdx) ?? []) {
+    const createdHere = createAtIndex.get(msgIdx)
+    const receivesCreation = (ai: number): boolean => diagram.actors[ai]!.id === msg.to
+    for (const ai of createdHere?.filter(receivesCreation) ?? []) {
       const topHalf = actors[ai]!.height / 2
       extra = extra > 0 ? extra + Math.max(0, topHalf - 12) : topHalf + 8
     }
     messageY += extra + msgSpec.extraAboveHeight
     const x1 = actorCenterX[fromIdx]!
     const centerX2 = actorCenterX[toIdx]!
-    const createdHeader = diagram.actors[toIdx]!.createMessageIndex === msgIdx && diagram.actors[toIdx]!.type === 'participant'
-    // A creation message meets the header's boundary; later messages use the
-    // lifeline. Ending at its centre puts the arrow under the opaque card.
-    const x2 = createdHeader && !isSelf ? centerX2 - Math.sign(centerX2 - x1) * actorWidths[toIdx]! / 2 : centerX2
+    const createdHeader = diagram.actors[toIdx]!.createMessageIndex === msgIdx
+    // A creation message meets the header's outline; later messages use the
+    // lifeline. Ending at its centre puts the head under the header.
+    const x2 = createdHeader && !isSelf ? centerX2 - Math.sign(centerX2 - x1) * createdContactInset(toIdx, msg) : centerX2
     const positionRow = (): PositionedMessage => {
       const positioned = positionSequenceMessage(msg, msgSpec, style, x1, x2, messageY)
       messages[msgIdx] = positioned
       // Created headers must have their real position before fragment geometry
       // is completed, including icon labels extending below the message row.
-      for (const ai of createAtIndex.get(msgIdx) ?? []) {
-        actors[ai] = positionSequenceActor(diagram.actors[ai]!, actorSpecs[ai]!, actorCenterX[ai]!, messageY - actors[ai]!.height / 2)
+      for (const ai of createdHere ?? []) {
+        const top = receivesCreation(ai) ? messageY - actors[ai]!.height / 2 : positioned.bounds.y + positioned.bounds.height + 8
+        actors[ai] = positionSequenceActor(diagram.actors[ai]!, actorSpecs[ai]!, actorCenterX[ai]!, top)
       }
       return positioned
     }
@@ -604,38 +623,50 @@ export function layoutSequenceDiagram(diagram: SequenceDiagram, options: RenderO
     if (overlayShift > 0) { messageY += overlayShift; positionedMsg = positionRow() }
     for (const bi of opening) openedBlocks.add(bi)
     contentBottom = Math.max(contentBottom, positionedMsg.bounds.y + positionedMsg.bounds.height,
-      ...(createAtIndex.get(msgIdx) ?? []).map(ai => actors[ai]!.bounds.y + actors[ai]!.bounds.height))
-    applyActivationEvents(msgIdx, messageY)
+      ...(createdHere ?? []).map(ai => actors[ai]!.bounds.y + actors[ai]!.bounds.height))
+    // A standalone activate/deactivate applies where the message before it
+    // ends, as the `+`/`-` arrow suffix does; commands ahead of every message
+    // anchor to the first.
+    if (msgIdx === 0) applyActivationEvents(0, messageY)
+    applyActivationEvents(msgIdx, messageY, nextMessageEvents)
 
+    // A destroyed lifeline ends at its cross, just below the message's last
+    // contact (a self-message's return), and nothing follows on it.
     const destroyedHere = destroyAtIndex.get(msgIdx)
-    if (destroyedHere) for (const id of destroyedHere) destroyYByActor.set(id, messageY)
+    const cross = destroyedHere ? sequenceDestroyCrossPlacement(positionedMsg, style) : undefined
+    if (destroyedHere && cross) {
+      for (const id of destroyedHere) destroyYByActor.set(id, cross.y)
+      contentBottom = Math.max(contentBottom, cross.bottom)
+    }
 
     if (msg.activate) activate(msg.to, messageY)
     if (msg.deactivate) deactivate(msg.from, messageY)
 
     const selfLoopAdvance = isSelf ? Math.max(selfMessageHeight, Math.ceil(msgSpec.labelMetrics.height) + 10) : 0
+    // Standalone commands after this message apply below its full extent,
+    // including a self-message loop.
+    applyActivationEvents(msgIdx + 1, messageY + selfLoopAdvance)
     messageY += isSelf ? selfLoopAdvance + messageRowHeight : messageRowHeight
+    // The cross extends the row: later rows, dividers and notes start below it.
+    if (cross) messageY += Math.ceil(cross.bottom - cross.contactY)
 
-    // Clearance below a create row for the bottom portion of the created actor's
-    // header (including below-icon labels for created icon participants).
-    const createdHere = createAtIndex.get(msgIdx)
+    // Clearance below a create row for the part of each created actor's header
+    // below the row (including below-icon labels for created icon participants).
     if (createdHere) {
       const createdBottomClearance = Math.max(
-        ...createdHere.map(ai => {
-          const actor = actors[ai]!
-          return actor.bounds.height - actor.height / 2
-        }),
+        ...createdHere.map(ai => actors[ai]!.bounds.y + actors[ai]!.bounds.height - positionedMsg.y),
       )
       messageY += createdBottomClearance
     }
 
-    const noteFloor = createdHere ? contentBottom + 8 : positionedMsg.y + selfLoopAdvance + 14
+    const noteFloor = createdHere || cross ? contentBottom + 8 : positionedMsg.y + selfLoopAdvance + 14
     placeNotes(msgIdx, noteFloor)
   }
   completeBlocks()
 
   const activationTailY = Math.max(messages[messages.length - 1]?.y ?? messageY, messageY - messageRowHeight / 2)
-  applyActivationEvents(diagram.messages.length, activationTailY)
+  if (diagram.messages.length === 0) applyActivationEvents(0, activationTailY)
+  applyActivationEvents(diagram.messages.length, activationTailY, nextMessageEvents)
 
   // Close any unclosed activations at the lifeline tail.
   for (const [actorId, stack] of activationStacks) {

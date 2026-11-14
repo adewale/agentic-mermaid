@@ -398,10 +398,13 @@ it('resolved circle and ellipse paths preserve the native stroke traversal for d
 it('standalone editor stays within its single-renderer payload budget', async () => {
   const html = new Uint8Array(await Bun.file(join(ROOT, 'editor.html')).arrayBuffer())
   // Keep the 33-family standalone budget and the per-PR growth gate.
-  // Packed Inter metrics, bounded layout search and parser diagnostics must
-  // fit within these limits.
+  // Packed Inter metrics, bounded layout search, parser diagnostics and the
+  // worker's source-preserving applyOps mode (about 4.1 KB gzip) and the
+  // sequence create/destroy and central-connection geometry, and the terminal
+  // class bus router for dense complete-bipartite tables (about 3.2 KB gzip),
+  // must fit within these limits.
   expect(html.byteLength).toBeLessThanOrEqual(5_198_000)
-  expect(gzipSync(html, { level: 9 }).byteLength).toBeLessThanOrEqual(1_561_000)
+  expect(gzipSync(html, { level: 9 }).byteLength).toBeLessThanOrEqual(1_570_000)
   const runtime = new TextDecoder().decode(html).match(/<script type="module" id="editor-runtime">([\s\S]*?)<\/script>/)?.[1]
   expect(runtime).toBeDefined()
   // These literals belong to the page catalog, not its private renderer worker.

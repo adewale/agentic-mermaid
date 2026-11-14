@@ -45,5 +45,11 @@ export function sourceToolMessage(value: unknown, maximum: number): string {
   return text
 }
 
+import type { SourceToolName } from './source-tools.ts'
+
+/** Every tool the local supervised renderer runs: the runtime-neutral source
+ * tools plus the native PNG renderer. */
+export type LocalSourceToolName = SourceToolName | 'render_png'
+
 export interface SourceToolRequest { type: 'request'; id: number; json: string }
 export interface SourceToolReply { type: 'result'; id: number; json: string }

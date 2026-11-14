@@ -139,6 +139,7 @@ export function renderSequenceDiagramTerminal(input: SequenceDiagram, config: As
   const closedFrames: SequenceFrame[] = []
   const activeFrames: number[] = []
   const actorTop = new Map<number, number>()
+  const destroyCrosses = new Map<number, CellBounds>()
   const currentParent = () => activeFrames.length ? blockId(activeFrames.at(-1)!) : undefined
   let cursor = participantTop + actorBoxH
   const ownedBounds = new Map<number, CellBounds[]>()
@@ -283,7 +284,16 @@ export function renderSequenceDiagramTerminal(input: SequenceDiagram, config: As
       cursor += shift; positioned.y += shift; positioned.arrowY += shift
       messages.push(positioned)
       own({ x: Math.min(fromX, toX, positioned.x), y: cursor, width: Math.max(fromX, toX, positioned.x + width - 1) - Math.min(fromX, toX, positioned.x) + 1, height: lines.length + (self ? 2 : 1) })
-      cursor += lines.length + (self ? 2 : 1); messageCursor++
+      cursor += lines.length + (self ? 2 : 1)
+      // A destroyed lifeline runs through its last endpoint on this message
+      // (a self-message's return row); that cell is the message's marker, so
+      // the cross takes the cell below it, on the row the cursor now holds.
+      diagram.actors.forEach((actor, index) => {
+        if (actor.destroyMessageIndex !== messageCursor) return
+        const cross = { x: llX[index]!, y: cursor, width: 1, height: 1 }
+        destroyCrosses.set(index, cross); own(cross)
+      })
+      messageCursor++
     } else if (note) {
       // A parser-owned note is always reachable at the current final cursor.
       messageCursor = Math.max(messageCursor, note.afterIndex + 1)
@@ -326,7 +336,7 @@ export function renderSequenceDiagramTerminal(input: SequenceDiagram, config: As
     if (actor.external) return
     const card = { x: llX[index]! - Math.floor(actorWidths[index]! / 2), y: actorTop.get(index) ?? participantTop, width: actorWidths[index]!, height: actorBoxH }
     foreground.push(card)
-    if (actor.destroyMessageIndex === undefined) foreground.push({ ...card, y: footerY })
+    if (!destroyCrosses.has(index)) foreground.push({ ...card, y: footerY })
   })
   const backgroundGaps = new Map<number, Array<{ start: number; end: number }>>()
   for (const bounds of foreground) for (let row = bounds.y; row < bounds.y + bounds.height; row++) {
@@ -344,30 +354,45 @@ export function renderSequenceDiagramTerminal(input: SequenceDiagram, config: As
     if (actor.external) { owner(actor.id); return }
     const element = owner(actor.id, 'node', actor.box === undefined ? undefined : { id: generated(`box:${actor.box}`), kind: 'group' })
     const start = actorTop.has(index) ? actorTop.get(index)! + actorBoxH : participantTop + actorBoxH
-    const end = actor.destroyMessageIndex === undefined ? footerY : messages[actor.destroyMessageIndex]?.arrowY ?? footerY
+    const end = (destroyCrosses.get(index)?.y ?? footerY + 1) - 1
     for (let y = start; y <= end; y++) if (!reservedForeground(llX[index]!, y)) stroke(llX[index]!, y, 5, 'line', element)
   })
-  // Activations are owned spans, drawn behind opaque labels and notes.
+  // Activations are owned spans, drawn behind opaque labels and notes. A
+  // destroyed participant's activation ends with its lifeline, on the row
+  // above the cross, however late it is closed.
   const activationStacks = new Map<string, Array<{ y: number; id: number }>>()
   let activationIndex = 0
-  const activation = (id: string, y: number, enable: boolean) => {
+  const activation = (id: string, closeY: number, enable: boolean) => {
     const stack = activationStacks.get(id) ?? []
-    if (enable) stack.push({ y, id: activationIndex++ })
+    if (enable) stack.push({ y: closeY, id: activationIndex++ })
     else if (stack.length) {
       const opened = stack.pop()!, start = opened.y, ai = actorIndex.get(id)!, x = llX[ai]! + stack.length
+      const crossY = destroyCrosses.get(ai)?.y
+      const y = crossY !== undefined && start < crossY ? Math.min(closeY, crossY - 1) : closeY
       const element = owner(generated(`activation:${opened.id}`), 'band', { id, kind: 'node' })
       doc.region(element, { x: x - 1, y: start, width: 3, height: Math.max(1, y - start + 1) })
       for (let row = start; row <= y; row++) for (const column of [x - 1, x + 1]) if (!reservedForeground(column, row)) stroke(column, row, 5, 'line', element)
     }
     activationStacks.set(id, stack)
   }
+  // A standalone activate/deactivate applies where the message before it ends
+  // (below a self-message's label), as the `+`/`-` arrow suffix does; commands
+  // ahead of every message anchor to the first.
+  const activationEventsAt = (boundary: number, y: number, nextMessage = false) => {
+    for (const event of diagram.activationEvents ?? []) {
+      if (event.messageIndex === boundary && (event.anchor === 'next-message') === nextMessage) activation(event.actorId, y, event.kind === 'activate')
+    }
+  }
   diagram.messages.forEach((message, index) => {
-    const y = messages[index]!.arrowY
-    for (const event of diagram.activationEvents ?? []) if (event.messageIndex === index) activation(event.actorId, messages[index]!.y, event.kind === 'activate')
+    const positioned = messages[index]!, y = positioned.arrowY
+    if (index === 0) activationEventsAt(0, y)
+    activationEventsAt(index, positioned.y, true)
     if (message.activate) activation(message.to, y, true)
     if (message.deactivate) activation(message.from, y, false)
+    activationEventsAt(index + 1, message.from === message.to ? positioned.y + positioned.height : y)
   })
-  for (const event of diagram.activationEvents ?? []) if (event.messageIndex >= diagram.messages.length) activation(event.actorId, footerY - 1, event.kind === 'activate')
+  if (diagram.messages.length === 0) activationEventsAt(0, footerY - 1)
+  activationEventsAt(diagram.messages.length, footerY - 1, true)
   for (const [id, stack] of activationStacks) while (stack.length) activation(id, footerY, false)
   diagram.actors.forEach((actor, index) => {
     if (actor.external) return
@@ -378,11 +403,12 @@ export function renderSequenceDiagramTerminal(input: SequenceDiagram, config: As
       doc.scope(element, () => lines.forEach((line, row) => doc.text(x + 2 + Math.floor((width - 4 - visualWidth(line)) / 2), top + 1 + row, line, { owner: element, role: 'text', kind: 'text' })))
     }
     drawActor(actorTop.get(index) ?? participantTop)
-    if (actor.destroyMessageIndex === undefined) drawActor(footerY)
-    else marker(llX[index]!, messages[actor.destroyMessageIndex]?.arrowY ?? footerY, 'X', element)
+    const cross = destroyCrosses.get(index)
+    if (cross) marker(cross.x, cross.y, 'X', element)
+    else drawActor(footerY)
     if (!ascii) {
       if (actor.createMessageIndex === undefined) stroke(llX[index]!, participantTop + actorBoxH - 1, 14, 'junction', element)
-      if (actor.destroyMessageIndex === undefined) stroke(llX[index]!, footerY, 11, 'junction', element)
+      if (!destroyCrosses.has(index)) stroke(llX[index]!, footerY, 11, 'junction', element)
     }
   })
   for (const positioned of messages) {

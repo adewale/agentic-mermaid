@@ -213,6 +213,8 @@ describe('determinism — locale-independent ordering authority', () => {
   test('code-point comparison does not inherit locale collation', () => {
     expect(['ä', 'z', 'a'].sort(compareCodePointStrings)).toEqual(['a', 'z', 'ä'])
     expect(['\u{10000}', '\uE000'].sort(compareCodePointStrings)).toEqual(['\uE000', '\u{10000}'])
+    // Lone surrogates are their own code points; a pair is one larger code point.
+    expect(['\u{1F600}', '\uFFFF', '\uD83Db', 'b', '\uD83Da', '\uD83D'].sort(compareCodePointStrings)).toEqual(['b', '\uD83D', '\uD83Da', '\uD83Db', '\uFFFF', '\u{1F600}'])
   })
 
   const NODE = findNodeBinary()

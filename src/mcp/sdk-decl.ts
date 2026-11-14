@@ -122,10 +122,12 @@ function compactInterfaceDeclarations(declaration: string): string {
 }
 
 /** Preserve literals and line separators while dropping optional type-syntax
- * whitespace from the progressive-disclosure prompt. */
+ * whitespace, and the optional separator before a closing brace, from the
+ * progressive-disclosure prompt. */
 export function compactSdkDeclaration(source: string): string {
-  return source.replace(/('(?:\\.|[^'\\])*'|"(?:\\.|[^"\\])*"|`(?:\\.|[^`\\])*`)|\s+/g, (text, literal: string | undefined, offset: number) => {
+  return source.replace(/('(?:\\.|[^'\\])*'|"(?:\\.|[^"\\])*"|`(?:\\.|[^`\\])*`)|;(?=\s*\})|\s+/g, (text, literal: string | undefined, offset: number) => {
     if (literal) return literal
+    if (text === ';') return ''
     if (text.includes('\n')) return '\n'
     return /[\w$]/.test(source[offset - 1] ?? '') && /[\w$]/.test(source[offset + text.length] ?? '') ? ' ' : ''
   })
@@ -322,7 +324,8 @@ ${SDK_FAMILY_TYPE_MAPS}
 // Tier 3 (lint, advisory): DUPLICATE_EDGE, UNREACHABLE_NODE,
 // DECISION_BRANCH_UNLABELED, FLOW_IMBALANCE, COMMENT_DROPPED, UNSUPPORTED_SYNTAX,
 // CONTENT_DROPPED_ON_ROUNDTRIP, INEFFECTIVE_CONFIG, LOW_CONTRAST, LABELS_HIDDEN,
-// SCALE_RANGE_EXCLUDES_ZERO, BAR_RANGE_EXCLUDES_ZERO, VALUES_OUTSIDE_RANGE, BRAND_CONSTRAINT_WARNING. BRAND_CONSTRAINT_ERROR is inspect-only policy
+// SCALE_RANGE_EXCLUDES_ZERO, BAR_RANGE_EXCLUDES_ZERO, VALUES_OUTSIDE_RANGE, EDGE_RANK_SLACK,
+// EDGE_UNDER_GROUP_TITLE, BRAND_CONSTRAINT_WARNING. BRAND_CONSTRAINT_ERROR is inspect-only policy
 // selected explicitly by a Style constraint with action "error".
 ${CODE_MODE_LAYOUT_SUMMARY_DECLARATION}
 
@@ -375,10 +378,12 @@ ${CODE_MODE_RENDER_METHOD_DECLARATIONS}
   // "add_point(label, x, y)". Read these before authoring an unfamiliar op.
   describeOps(family: DiagramKind): Record<string, OpFieldDoc[]>
   opSignatures(family: DiagramKind): string[]
-  // Opaque Class: add_member/remove_member; Flowchart: set_label/rename_node.
-  // Save value.source exactly; verify value.diagram. Ambiguous ownership and
-  // unsupported dependencies refuse; portability diagnostics remain present.
-  mutatePreservingSource(d: ParsedDiagram, op: AnyMutationOp): Result<{ source: string; diagram: ParsedDiagram }, { code: string; message: string }>
+  // Structured bodies: any op; untouched authored lines are kept and
+  // value.preservation.method is 'local', or 'canonical' (with reason) when
+  // the edit had to be re-serialized. Opaque Class: add_member/remove_member;
+  // opaque Flowchart: set_label/rename_node; ambiguous ownership refuses.
+  // Save value.source exactly; verify value.diagram.
+  mutatePreservingSource(d: ParsedDiagram, op: AnyMutationOp): Result<{ source: string; diagram: ParsedDiagram; preservation?: { method: 'local' | 'canonical'; reason?: string } }, { code: string; message: string }>
 }
 
 // Conventions:

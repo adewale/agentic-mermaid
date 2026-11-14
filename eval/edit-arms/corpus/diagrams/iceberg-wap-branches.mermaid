@@ -1,0 +1,20 @@
+---
+title: Conceptually Illustration of the WAP Process
+---
+flowchart LR
+
+    subgraph audit [audit branch]
+        s1_audit["snapshot_1"] -- "1.2 append(new_rows)" --> s2_audit["snapshot_2"]
+        v@{ shape: comment, label: '2. Validation Performed & Passed' }
+         s2_audit ~~~ v
+         v -.-> s2_audit
+    end
+
+    subgraph main [main branch]
+        s1["snapshot_1"]
+        s2_main["snapshot_2"]
+
+    end
+
+    s1 -. "1.1 create_branch" .-> s1_audit
+    s2_audit -. "3. fast_forward_branch" .-> s2_main

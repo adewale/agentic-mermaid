@@ -5,6 +5,8 @@ import { BUILTIN_FAMILY_METADATA } from '../agent/families.ts'
 import { describeOps, opSignatures, type OpFamily } from '../agent/op-schema.ts'
 import { CODE_MODE_RESOLVED_SCENE_SUMMARY_DECLARATION, CODE_MODE_CORE_RENDER_OPTION_DECLARATIONS, CODE_MODE_LAYOUT_SUMMARY_DECLARATION, compactSdkDeclaration } from './sdk-decl.ts'
 import { PURE_COMPUTE_ANNOTATIONS, type McpToolDefinition } from './tool-surface.ts'
+import { sharedRenderOptionsJsonSchema } from '../render-contract.ts'
+import { isPlainRecord } from '../shared/plain-data.ts'
 
 export const SDK_FAMILIES = BUILTIN_FAMILY_METADATA.map(family => family.id)
 const SDK_FAMILY_SET = new Set<string>(SDK_FAMILIES)
@@ -59,7 +61,7 @@ declare const mermaid: Record<${NARROWERS}, Narrow> & {
   createMermaid(kind: DiagramKind, opts?: CreateMermaidOptions): ValidDiagram
   buildMermaid(kind: DiagramKind, ops: MutationOp[], opts?: CreateMermaidOptions): Result<ValidDiagram, { code: string; message: string; opIndex: number }>
   mutate(diagram: ValidDiagram, op: MutationOp): Result<ValidDiagram>
-  mutatePreservingSource(d: ParsedDiagram, op: MutationOp): Result<{source:string;diagram:ParsedDiagram}>
+  mutatePreservingSource(d: ParsedDiagram, op: MutationOp): Result<{source:string;diagram:ParsedDiagram;preservation?:{method:'local'|'canonical';reason?:string}}>
   verifyMermaid(input: ParsedDiagram | string, opts?: { suppress?: string[]; labelCharCap?: number; renderOptions?: SharedRenderOptions }): VerifyResult
   analyzeMermaid(diagram: ValidDiagram): Record<string, unknown>
   analyzeMermaidSource(source: string): Result<Record<string, unknown>>
@@ -80,6 +82,68 @@ declare const mermaid: Record<${NARROWERS}, Narrow> & {
 
 export type DescribeSdkDetail = 'signatures' | 'fields'
 
+/** Read-only capabilities describe_sdk discloses instead of a family. */
+export const DESCRIBE_SDK_CAPABILITIES = Object.freeze(['resolved-scene', 'render-options', 'code-mode'] as const)
+const DESCRIBE_SDK_CAPABILITY_SET = new Set<string>(DESCRIBE_SDK_CAPABILITIES)
+
+const APPLICABLE_FAMILIES = 'x-agentic-mermaid-applicable-builtin-families'
+const TERMINAL = 'x-agentic-mermaid-terminal'
+const TERMINAL_NOTE = 'x-agentic-mermaid-terminal-note'
+
+/** `#/$defs/<name>` references reachable from a schema, through the definitions they name. */
+function referencedDefinitions(schema: unknown, definitions: Record<string, unknown>, found = new Set<string>()): Set<string> {
+  if (Array.isArray(schema)) for (const item of schema) referencedDefinitions(item, definitions, found)
+  else if (isPlainRecord(schema)) {
+    for (const [keyword, value] of Object.entries(schema)) {
+      if (keyword === '$ref' && typeof value === 'string' && value.startsWith('#/$defs/')) {
+        const name = value.slice('#/$defs/'.length)
+        if (!found.has(name) && Object.hasOwn(definitions, name)) {
+          found.add(name)
+          referencedDefinitions(definitions[name], definitions, found)
+        }
+      } else referencedDefinitions(value, definitions, found)
+    }
+  }
+  return found
+}
+
+/**
+ * The annotated render options the compact tools/list schema omits. Without a
+ * field: one row per RenderOptions field with its description, the built-in
+ * families it applies to and its terminal treatment. With a field: that
+ * field's complete annotated schema and the definitions it references.
+ */
+function renderOptionsPayload(field: unknown): Record<string, unknown> {
+  const { $id, properties, $defs } = sharedRenderOptionsJsonSchema() as { $id: string; properties: Record<string, Record<string, unknown>>; $defs: Record<string, unknown> }
+  if (field === undefined) {
+    return {
+      ok: true,
+      capability: 'render-options',
+      schema: $id,
+      hint: 'Pass field for one option\'s full annotated schema.',
+      fields: Object.entries(properties).map(([name, schema]) => ({
+        name,
+        ...(typeof schema.description === 'string' ? { description: schema.description } : {}),
+        ...(Array.isArray(schema[APPLICABLE_FAMILIES]) ? { families: schema[APPLICABLE_FAMILIES] } : {}),
+        ...(schema[TERMINAL] === undefined ? {} : { terminal: schema[TERMINAL] }),
+        ...(schema[TERMINAL_NOTE] === undefined ? {} : { terminalNote: schema[TERMINAL_NOTE] }),
+      })),
+    }
+  }
+  if (typeof field !== 'string' || !Object.hasOwn(properties, field)) {
+    throw new Error(`describe_sdk field must be one of: ${Object.keys(properties).join(', ')}`)
+  }
+  const schema = properties[field]!
+  const names = [...referencedDefinitions(schema, $defs)]
+  return {
+    ok: true,
+    capability: 'render-options',
+    field,
+    schema,
+    ...(names.length > 0 ? { $defs: Object.fromEntries(names.map(name => [name, $defs[name]])) } : {}),
+  }
+}
+
 export function createDescribeSdkTool(): McpToolDefinition {
   return {
     name: 'describe_sdk',
@@ -87,13 +151,16 @@ export function createDescribeSdkTool(): McpToolDefinition {
     description: `Return version-matched mutation operations for one diagram family, or use capability=resolved-scene for painted geometry, runtime limits and typed errors.
 Use detail=signatures for the compact op menu or detail=fields (default) for exact
 field types, required flags, enum values, defaults, and constraints. Call this
-before build, mutate, or execute when the family schema is not already known.`,
+before build, mutate, or execute when the family schema is not already known.
+capability=render-options lists each render option's families and terminal notes (field= for one option's full schema);
+capability=code-mode returns the execute SDK declaration.`,
     inputSchema: {
       type: 'object',
       properties: {
-        capability: { type: 'string', enum: ['resolved-scene'], description: 'Read-only rendering capability; use instead of family.' },
+        capability: { type: 'string', enum: [...DESCRIBE_SDK_CAPABILITIES], description: 'Read-only capability; use instead of family.' },
         family: { type: 'string', enum: [...SDK_FAMILIES], description: 'Diagram family whose mutation operations are needed.' },
         detail: { type: 'string', enum: ['signatures', 'fields'], description: 'signatures for a compact menu; fields for the complete schema (default).' },
+        field: { type: 'string', description: 'With capability=render-options: one RenderOptions field name.' },
       },
       oneOf: [{ required: ['family'] }, { required: ['capability'] }],
     },
@@ -102,8 +169,21 @@ before build, mutate, or execute when the family schema is not already known.`,
 }
 
 export function describeSdkPayload(args: Record<string, unknown>): Record<string, unknown> {
+  if (args.field !== undefined && args.capability !== 'render-options') throw new Error('describe_sdk field applies only to capability=render-options')
   if (args.capability !== undefined) {
-    if (args.capability !== 'resolved-scene' || args.family !== undefined) throw new Error('describe_sdk accepts capability=resolved-scene instead of family')
+    if (typeof args.capability !== 'string' || !DESCRIBE_SDK_CAPABILITY_SET.has(args.capability) || args.family !== undefined) {
+      throw new Error(`describe_sdk accepts capability=${DESCRIBE_SDK_CAPABILITIES.join('|')} instead of family`)
+    }
+    if (args.capability !== 'resolved-scene' && args.detail !== undefined) throw new Error(`describe_sdk detail does not apply to capability=${args.capability}`)
+    if (args.capability === 'render-options') return renderOptionsPayload(args.field)
+    if (args.capability === 'code-mode') {
+      return {
+        ok: true,
+        capability: 'code-mode',
+        hint: 'execute runs synchronous JavaScript with this global mermaid; family IR and op unions come from describe_sdk family=<id>.',
+        declaration: SDK_CORE_DECLARATION,
+      }
+    }
     const detail = args.detail ?? 'fields'
     if (detail !== 'fields' && detail !== 'signatures') throw new Error('describe_sdk detail must be one of: signatures, fields')
     if (detail === 'signatures') return { ok: true, capability: 'resolved-scene', signatures: ['renderResolvedScene(input: ParsedDiagram | string, options?: SvgRenderOptions): ResolvedScene'] }

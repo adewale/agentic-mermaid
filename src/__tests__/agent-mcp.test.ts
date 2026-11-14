@@ -5,13 +5,15 @@ import { writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { applyOps, createMermaid, mutate, mutateChecked, parseRegisteredMermaid, serializeMermaid, verifyMermaid } from '../agent/core.ts'
 import { renderMermaidSVG } from '../index.ts'
+import { sharedRenderOptionsJsonSchema } from '../render-contract.ts'
 import vm from 'node:vm'
 import pkg from '../../package.json'
 import { BUILTIN_FAMILY_METADATA, getFamily, replaceFamilyForTest } from '../agent/families.ts'
 import { runCli, runBatchLine } from '../cli/index.ts'
 import { MCP_CLI_HELP, parseMcpCliOptions, runMcpCli } from '../mcp/mcp-cli.ts'
 import { executeInSandbox } from '../mcp/sandbox.ts'
-import { createStdioMessageProcessor, handleRequest, LOCAL_TOOLS } from '../mcp/server.ts'
+import { createStdioMessageProcessor, handleRequest, LOCAL_TOOLS, MCP_SLIM_SERVER_NAME, SLIM_LOCAL_TOOLS } from '../mcp/server.ts'
+import { AjvJsonSchemaValidator } from '@modelcontextprotocol/sdk/validation/ajv'
 import { LOCAL_MCP_TOOL_NAMES } from '../mcp/tool-names.ts'
 import { captureCli as capture } from './helpers/cli-capture.ts'
 import { useTempDirs } from './helpers/temp-dir.ts'
@@ -49,6 +51,32 @@ describe('source-preserving edits across agent channels', () => {
     const failed = applyOps({ source, ops: [op, { kind: 'invalid_second_op' }], mode: 'source-preserving' })
     expect(failed).toMatchObject({ ok: false, opIndex: 1 })
     expect('source' in failed).toBe(false)
+  })
+  // A structured body: every channel returns the library's exact bytes and its
+  // preservation receipt, `local` or the announced `canonical` fallback.
+  test.each([
+    ['flowchart TD\n  %% keep\n    A["Old"] --> B\n', { kind: 'set_label', target: 'A', label: 'New' }, 'flowchart TD\n  %% keep\n    A["New"] --> B\n', 'local'],
+    ['flowchart TD\n  %% keep\n  A["line one\nline two"] --> B\n', { kind: 'set_label', target: 'A', label: 'Short' }, undefined, 'canonical'],
+  ] as const)('structured source-preserving edits agree across library, CLI and MCP: %j', async (source, op, expected, method) => {
+    const result = applyOps({ source, ops: [op], mode: 'source-preserving' })
+    if (!result.ok) throw new Error(result.error.message)
+    expect(result.preservation?.method).toBe(method)
+    const structured = applyOps({ source, ops: [op] })
+    if (!structured.ok) throw new Error(structured.error.message)
+    expect(result.source).toBe(expected ?? structured.source)
+    const file = join(temp.dir('structured-source-mode-'), 'diagram.mmd')
+    writeFileSync(file, source)
+    expect(JSON.parse(capture(() => runCli(['mutate', file, '--op', JSON.stringify(op), '--preserve-source', '--json'])).out)).toMatchObject({ ok: true, source: result.source, mode: 'source-preserving', preservation: result.preservation })
+    const text = capture(() => runCli(['mutate', file, '--op', JSON.stringify(op), '--preserve-source']))
+    expect({ code: text.code, out: text.out, noted: text.err.includes('fell back to canonical serialization') }).toEqual({ code: 0, out: result.source, noted: method === 'canonical' })
+    expect(capture(() => runCli(['mutate', file, '--op', JSON.stringify(op), '--canonical'])).out).toBe(structured.source)
+    expect(capture(() => runCli(['mutate', file, '--op', JSON.stringify(op), '--canonical', '--preserve-source'])).code).toBe(2)
+    expect(runBatchLine(JSON.stringify({ op: 'mutate', source, mutation: op, preserveSource: true }))).toMatchObject({ ok: true, data: { source: result.source, mode: 'source-preserving' } })
+    const response = await handleRequest({ jsonrpc: '2.0', id: 1, method: 'tools/call', params: { name: 'mutate', arguments: { source, ops: [op], mode: 'source-preserving' } } })
+    expect(JSON.parse((response!.result as any).content[0].text)).toEqual(result)
+    const direct = await executeInSandbox(`const d=mermaid.parseRegisteredMermaid(${JSON.stringify(source)}).value; return mermaid.mutatePreservingSource(d,${JSON.stringify(op)});`)
+    expect(direct.ok).toBe(true)
+    expect(direct.value).toEqual(result)
   })
   test('CLI mutate --json and batch carry the MCP mutate envelope fields on failure and success', async () => {
     const source = 'flowchart TD\n  A --> B\n'
@@ -770,6 +798,39 @@ describe('MCP — JSON-RPC happy + sad', () => {
     expect(payload).toEqual(expect.objectContaining({ ok: true, family: 'journey', detail: 'fields' }))
     expect(payload.ops.add_task).toContainEqual(expect.objectContaining({ name: 'score', required: true, note: 'finite number 1..5' }))
   })
+  test('describe_sdk discloses the annotated render options and the execute declaration on request', async () => {
+    const describeSdk = async (args: Record<string, unknown>) => {
+      const r = await handleRequest({ jsonrpc: '2.0', id: 33, method: 'tools/call', params: { name: 'describe_sdk', arguments: args } })
+      return r!.error ? { rpcError: r!.error.message } : JSON.parse((r!.result as any).content[0].text)
+    }
+    // The annotated schema the website publishes; tools/list carries a compact projection.
+    const published = sharedRenderOptionsJsonSchema() as { $id: string; properties: Record<string, any> }
+    const index = await describeSdk({ capability: 'render-options' })
+    expect(index.schema).toBe(published.$id)
+    expect(index.fields.map((row: { name: string }) => row.name)).toEqual(Object.keys(published.properties))
+    for (const row of index.fields) {
+      const field = published.properties[row.name]
+      expect(row).toEqual(JSON.parse(JSON.stringify({
+        name: row.name,
+        description: field.description,
+        families: field['x-agentic-mermaid-applicable-builtin-families'],
+        terminal: field['x-agentic-mermaid-terminal'],
+        terminalNote: field['x-agentic-mermaid-terminal-note'],
+      })))
+    }
+    for (const name of ['padding', 'style', 'architecture']) {
+      const detail = await describeSdk({ capability: 'render-options', field: name })
+      expect(detail.schema).toEqual(JSON.parse(JSON.stringify(published.properties[name])))
+      // Every reference resolves inside the returned definitions.
+      const refs = JSON.stringify([detail.schema, detail.$defs ?? {}]).match(/"#\/\$defs\/[^"]+"/g) ?? []
+      for (const ref of refs) expect({ name, ref, resolved: Object.hasOwn(detail.$defs ?? {}, JSON.parse(ref).slice('#/$defs/'.length)) }).toEqual({ name, ref, resolved: true })
+    }
+    const codeMode = await describeSdk({ capability: 'code-mode' })
+    expect(LOCAL_TOOLS[0]!.description.endsWith(`\n${codeMode.declaration}`)).toBe(true)
+    expect((await describeSdk({ capability: 'render-options', field: 'paddng' })).rpcError).toContain('padding')
+    expect((await describeSdk({ family: 'gantt', field: 'padding' })).rpcError).toContain('render-options')
+    expect((await describeSdk({ capability: 'code-mode', detail: 'signatures' })).rpcError).toContain('detail')
+  })
   test('transport maximum caps execute even when the request omits timeoutMs', async () => {
     const r = await handleRequest(
       {
@@ -883,6 +944,8 @@ describe('MCP bin shim', () => {
       'secret',
       '--max-sandbox-timeout-ms',
       '1000',
+      '--tool-profile',
+      'slim',
     ])
     expect(parsed.transport).toBe('http')
     expect(parsed.httpOptions).toEqual({
@@ -897,14 +960,33 @@ describe('MCP bin shim', () => {
       maxRpcBodyBytes: 789,
       authToken: 'secret',
       maxSandboxTimeoutMs: 1000,
+      toolProfile: 'slim',
     })
   })
 
   test('the MCP parser rejects unknown, missing, duplicate, positional, and inapplicable arguments', () => {
-    for (const argv of [['--bogus'], ['--port'], ['--port', '--http'], ['stray'], ['--transport', 'http', '--transport', 'http'], ['--http', '--transport', 'stdio'], ['--host', '127.0.0.1'], ['--transport=']]) {
+    for (const argv of [['--bogus'], ['--port'], ['--port', '--http'], ['stray'], ['--transport', 'http', '--transport', 'http'], ['--http', '--transport', 'stdio'], ['--host', '127.0.0.1'], ['--transport='], ['--tool-profile', 'tiny']]) {
       expect(() => parseMcpCliOptions(argv), argv.join(' ')).toThrow()
     }
     expect(parseMcpCliOptions(['--transport=http', '--port=0']).transport).toBe('http')
+    expect(parseMcpCliOptions(['--tool-profile', 'full']).httpOptions.toolProfile).toBe('full')
+  })
+
+  test('the slim tool profile advertises its own list under its own name and validates canonically', async () => {
+    const slim = { toolProfile: 'slim' as const }
+    const initialized = await handleRequest({ jsonrpc: '2.0', id: 1, method: 'initialize', params: { protocolVersion: '2025-06-18', capabilities: {}, clientInfo: { name: 't', version: '0' } } }, slim)
+    expect((initialized!.result as { serverInfo: { name: string } }).serverInfo.name).toBe(MCP_SLIM_SERVER_NAME)
+    expect(((await handleRequest({ jsonrpc: '2.0', id: 2, method: 'tools/list' }, slim))!.result as { tools: unknown }).tools).toBe(SLIM_LOCAL_TOOLS)
+    expect(SLIM_LOCAL_TOOLS.map(tool => tool.name)).toEqual(LOCAL_TOOLS.map(tool => tool.name))
+    expect(SLIM_LOCAL_TOOLS[0]!.description).toContain('describe_sdk capability=code-mode')
+    // A nested role property the slim schema does not describe is still refused by the server.
+    const args = { source: 'flowchart TD\n  A --> B', options: { style: { roles: { node: { bendRadius: 3 } } } } }
+    const svg = SLIM_LOCAL_TOOLS.find(tool => tool.name === 'render_svg')!
+    expect(new AjvJsonSchemaValidator().getValidator(svg.inputSchema as never)(args).valid).toBe(true)
+    for (const context of [slim, {}]) {
+      const refused = await handleRequest({ jsonrpc: '2.0', id: 3, method: 'tools/call', params: { name: 'render_svg', arguments: args } }, context)
+      expect(refused!.error?.message).toContain('arguments.options.style')
+    }
   })
 
   test('runMcpCli handles help and bad flags without launching a server', async () => {
@@ -1074,6 +1156,48 @@ describe('CLI — sad paths via runCli', () => {
     expect(payload.ok).toBe(true)
     expect(payload.source).toContain('C')
     expect(payload.verify.warnings.map((w: any) => w.code)).toContain('LABEL_OVERFLOW')
+  })
+
+  test.each([
+    ['flowchart with a warning', `flowchart TD\n  A --> B\n  B --> C[${'X'.repeat(80)}]\n`],
+    ['sequence', 'sequenceDiagram\n  A->>B: hi\n  B-->>A: ok\n'],
+    ['parse failure under a known header', 'flowchart TD\n  A -->\n'],
+    ['unknown header', 'notADiagram\n  A --> B\n'],
+  ])('verify --summary prints the MCP verify payload; its counts and bounds are the full layout\'s (%s)', async (_label, source) => {
+    const tmp = tmpFile('verify-summary.mmd', source)
+    const full = capture(() => runCli(['verify', tmp]))
+    const summary = capture(() => runCli(['verify', tmp, '--summary']))
+    expect(summary.code).toBe(full.code)
+    const fullPayload = JSON.parse(full.out)
+    const summaryPayload = JSON.parse(summary.out)
+    const mcp = await handleRequest({ jsonrpc: '2.0', id: 77, method: 'tools/call', params: { name: 'verify', arguments: { source } } })
+    expect(summaryPayload).toEqual((mcp!.result as { structuredContent: unknown }).structuredContent)
+    expect({ ok: summaryPayload.ok, warnings: summaryPayload.warnings, checks: summaryPayload.checks })
+      .toEqual({ ok: fullPayload.ok, warnings: fullPayload.warnings, checks: fullPayload.checks })
+    if (summaryPayload.layout) {
+      expect(summaryPayload.layout).toEqual({ bounds: fullPayload.layout.bounds, nodes: fullPayload.layout.nodes.length, edges: fullPayload.layout.edges.length })
+      expect(full.out.length).toBeGreaterThan(summary.out.length)
+    }
+  })
+
+  test('mutate --json --summary embeds the compact verify of the edited diagram', () => {
+    const tmp = tmpFile('mutate-summary.mmd', 'flowchart TD\n  A --> B\n')
+    const op = JSON.stringify({ kind: 'add_node', id: 'C', label: 'X'.repeat(80) })
+    const full = JSON.parse(capture(() => runCli(['mutate', tmp, '--op', op, '--json'])).out)
+    const { code, out } = capture(() => runCli(['mutate', tmp, '--op', op, '--json', '--summary']))
+    expect(code).toBe(0)
+    const summary = JSON.parse(out)
+    expect({ ok: summary.ok, family: summary.family, source: summary.source }).toEqual({ ok: full.ok, family: full.family, source: full.source })
+    expect(summary.verify).toEqual({
+      ok: full.verify.ok,
+      family: 'flowchart',
+      summary: expect.stringContaining('3-node flowchart'),
+      warnings: full.verify.warnings,
+      checks: full.verify.checks,
+      layout: { bounds: full.verify.layout.bounds, nodes: full.verify.layout.nodes.length, edges: full.verify.layout.edges.length },
+    })
+    expect(capture(() => runCli(['mutate', tmp, '--op', op, '--json', '--full'])).out).toBe(`${JSON.stringify(full)}\n`)
+    expect(capture(() => runCli(['mutate', tmp, '--op', op, '--json', '--summary', '--full'])).code).toBe(2)
   })
 
   test('mutate supports class diagrams through the public CLI surface', () => {

@@ -1,0 +1,17 @@
+sequenceDiagram
+    participant C as Client
+    participant B as Segment broker
+    participant ML as Managed Ledger
+    participant M as Metadata Store
+
+    C->>B: send(txnId, payload)
+    B->>M: read /txn/<txnId>.state  (cached)
+    alt state != OPEN
+        B-->>C: TxnConflict
+    else state == OPEN
+        B->>ML: asyncAddEntry(payload)
+        ML-->>B: position
+        B->>M: put /txn-op/<txnId>/<seq> {kind=write, segment, position}
+        M-->>B: ack
+        B-->>C: send-ack
+    end

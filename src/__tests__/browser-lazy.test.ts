@@ -36,12 +36,12 @@ describe('async browser SVG entry', () => {
     expect(position(1, 5)).toEqual({ line: 5, column: 7 })
     expect(position(2, 3)).toEqual({ line: 6, column: 7 })
   })
-  test.each(['Agentic layout', 'Forest layout'])('replays YAML, %s, ELK and entities without changing the admitted request', async producer => {
+  test.each(['Agentic layout', 'Forest layout'])('replays YAML, %s, ELK, entities, State comments and indexed crossings without changing the admitted request', async producer => {
     const { default: descriptor } = await import('../browser-lazy/families/pie.ts')
     const source = 'pie\n "One" : 1'
     const expected = await renderLoadedFamilySvgWithReceipt(source, {}, descriptor)
     const loaded: string[] = []
-    const names = ['YAML', producer, 'ELK', 'HTML entities', 'Layout optimization', 'Authored parser positions']
+    const names = ['YAML', producer, 'ELK', 'HTML entities', 'Layout optimization', 'Authored parser positions', 'State comments', 'Indexed crossings']
     const dependencies = names.map(name => {
       const load = async () => { loaded.push(name) }
       return name === 'HTML entities' ? new HtmlEntityTableNotLoadedError('&hearts;', load)

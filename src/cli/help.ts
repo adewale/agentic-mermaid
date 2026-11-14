@@ -3,6 +3,9 @@ import { CLI_RENDER_FORMATS, DEFAULT_CLI_RENDER_FORMAT, cliRenderFormatHelpLines
 import { PNG_DEFAULT_SCALE } from '../output-policy-versions.ts'
 import { FAMILY_NARROWING_NOTE } from '../shared/agent-workflow.ts'
 
+/** The default flip announced in CHANGELOG (Deprecated) for 0.6.0. */
+const COMPACT_DEFAULT_NOTICE = (summary: string) => `Deprecation: 0.6.0 makes ${summary} the default; pass --full to keep this output.`
+
 export const GLOBAL_USAGE = `Usage: am <command> [options] [file|-]
 
 Commands:
@@ -26,7 +29,8 @@ Flags:
   --ascii                For render-markdown: ASCII instead of SVG
   --op <JSON>            For mutate: one MutationOp
   --ops <JSON|file>      For mutate: JSON array of MutationOps
-  --preserve-source     For mutate: edit supported source ranges without regenerating opaque syntax
+  --preserve-source      For mutate: keep untouched authored lines; write only the edited statements
+  --canonical            For mutate: re-serialize the whole diagram (today's default)
   --output <FILE>        Write render/preview output to FILE instead of stdout
   --open                 For preview: open generated HTML in browser
   --force                For init-agent: refresh generated skill/MCP files
@@ -40,6 +44,8 @@ Flags:
   --certificates         For render --format layout: include route/family certificates
   --gantt-today <DATE>   For render: draw the gantt today marker at DATE (rendering never reads the wall clock)
   --target-width <CELLS> Hard terminal-cell bound for ASCII/Unicode output
+  --timeout <SECONDS>    For render, verify, mutate, describe, preview, render-markdown: stop the
+                         command after SECONDS and exit 124 (default 120; 0 = no limit; not with --watch)
   --agent-instructions   Print the canonical agent-use guide
   --version, -v          Print the package version (with --json: {"ok":true,"version":...})
   --help                 Show this message (or per-command help: am <cmd> --help)
@@ -49,6 +55,7 @@ Exit codes:
   2  arg / parse error (bad flag, missing file, malformed JSON), or a render the input refuses
   3  verify reported errors (severity 'error')
   4  internal failure: an INTERNAL_ERROR render, or verify errors that are all INTERNAL_ERROR
+  124 the command exceeded its --timeout deadline and was stopped (RENDER_TIMEOUT)
 `
 
 /** Warning codes of one severity, comma-separated and wrapped for help text. */
@@ -95,6 +102,8 @@ ${cliRenderFormatHelpLines()}
   --min-label-px <PX> PNG only: warn below this effective text size
                     (provisional default 9; 0 disables)
   --watch           Re-render one input file on change (non-PNG only)
+  --timeout <SECONDS> Stop after SECONDS and exit 124 with RENDER_TIMEOUT
+                    (default 120; 0 = no limit); not with --watch
 Multiple inputs emit a JSON results array for non-PNG formats.
 With --json, success prints {"ok":true,...}: textual forms as
 {"ok":true,"<format>":"...","receipt":{...},"warnings":[...]}, layout as the
@@ -107,8 +116,14 @@ too. Stack them with render --style (e.g. --style hand-drawn,dracula) and
 re-roll ink with --seed. Custom styles are JSON records (docs/style-authoring.md);
 pass a .json file path anywhere a name is accepted.
 With --json: [{ name, canonicalId, kind: look|palette, isDefault, backend, intent?, blurb }].`,
-  verify: `am verify <file|-> [--markdown] [--suppress A,B] [--label-cap N] [--style NAMES|file]
-Always emits JSON: {ok, warnings[], layout}.
+  verify: `am verify <file|-> [--markdown] [--summary | --full] [--suppress A,B] [--label-cap N] [--style NAMES|file]
+Always emits JSON: {ok, warnings[], checks, layout}.
+  --summary         Emit the MCP verify payload instead: {ok, family, summary,
+                    warnings, checks, layout: {bounds, nodes, edges}} (parse
+                    failures: {ok:false, errors, warnings, family?, example?}).
+                    The full layout is ~10x larger. --markdown is already compact.
+  --full            The full result (the default)
+${COMPACT_DEFAULT_NOTICE('--summary')}
 With --markdown: verify top-level Mermaid fences and emit {ok,file,blocks[]}.
 Nested list/blockquote fences require host extraction; HTML examples are skipped.
 Warnings use physical document lines; lineIsBlockStart marks a fallback when
@@ -133,8 +148,26 @@ Pipe to 'am serialize' to round-trip.`,
   serialize: `am serialize  (reads ValidDiagram JSON on stdin)
 Emits canonical Mermaid source. Accepts the JSON shape that 'am parse' emits;
 rebuilds the diagram via synthesizeFromGraph without re-parsing source.`,
-  mutate: `am mutate <file|-> (--op '<JSON>' | --ops '<JSON array|file.json>') [--preserve-source] [--json]
+  mutate: `am mutate <file|-> (--op '<JSON>' | --ops '<JSON array|file.json>') [--preserve-source | --canonical] [--json [--summary | --full]]
 Applies one or more MutationOps, verifies the final diagram, then emits source.
+With --json, emits {ok, family, source, verify}; verify is verify's full result.
+  --preserve-source Write the edit as a local change: every authored line the
+                    ops do not touch (comments, blank lines, indentation,
+                    quoting, :::classes, directives) is kept byte for byte and
+                    new statements are written in portable Mermaid next to
+                    related ones. The result must read back as the same diagram
+                    as the canonical edit; when no local change does, the
+                    canonical source is emitted, a note goes to stderr and
+                    --json carries preservation:{method:"canonical", reason}
+                    (method "local" otherwise). Opaque Class/Flowchart bodies
+                    accept only their bounded source operations.
+  --canonical       Re-serialize the whole diagram canonically (the default).
+Deprecation: 0.6.0 makes --preserve-source the default; pass --canonical to keep this output.
+  --summary         With --json, verify is the compact MCP verify payload
+                    {ok, family, summary, warnings, checks, layout: {bounds,
+                    nodes, edges}} (--preserve-source already embeds {ok, warnings, checks})
+  --full            verify's full result (the default)
+${COMPACT_DEFAULT_NOTICE('the --summary verify under --json')}
 Registered families with mutationOps have typed mutation; discover the live roster,
 narrowers, and op names with 'am capabilities --json'. Opaque-fallback diagrams
 (unmodeled syntax) return a structured UNSUPPORTED_FAMILY error (exit 2). Verify failures
@@ -155,13 +188,23 @@ Summarize a Mermaid diagram. Text format emits prose by default; --json wraps
 it as {ok,text}. --format json emits the structured AX tree
 {kind,nodes,edges,entryPoints,sinks}; with --json it wraps as {ok,tree}.
 --format facts emits deterministic semantic fact lines; with --json it wraps as {ok,facts}.`,
-  capabilities: `am capabilities [--json]
-Emits a single JSON object describing the SDK's capability surface:
-  { sdkVersion, families: [{ id, hasMutate, hasExtractLabels, mutationOps, editPolicy, example }],
+  capabilities: `am capabilities [--summary | --full] [--family <id>[,<id>...]] [--json]
+Emits one JSON object describing the SDK's capability surface (always JSON):
+  { sdkVersion, resolvedScene,
+    families: [{ id, identity, conformance, hasMutate, hasExtractLabels, mutationOps,
+                 opFields?, editPolicy, narrower?, headers?, example }],
     warningCodes: [{ code, tier, severity, origins }],
     outputFormats: ${JSON.stringify(CLI_RENDER_FORMATS)} }
-editPolicy is "structured-when-narrowed" or "source-level-only". Use this to
-introspect what the CLI can do without running every command.`,
+editPolicy is "structured-when-narrowed" or "source-level-only"; opFields gives
+each mutation op's exact fields. The full object is ~130 KB; agents should run
+--summary first, then --family for the families they will edit.
+  --summary         Index only: { view, sdkVersion, families: [{ id, editPolicy,
+                    narrower, headers, mutationOps }], warningCodes: [code],
+                    outputFormats, detail } (~12 KB)
+  --family <IDS>    Keep only these families' entries (comma-separated ids, in
+                    the order given); an unknown id exits 2 listing valid ids
+  --full            The full object (the default)
+${COMPACT_DEFAULT_NOTICE('the --summary index')}`,
   batch: `am batch [--jsonl]  (reads JSONL from stdin; --jsonl names that mode)
 Each line: { op: "render"|"verify"|"parse"|"serialize"|"mutate", source: string,
 options?: {}, mutation?: MutationOp, mutations?: MutationOp[] }. Emits one JSON

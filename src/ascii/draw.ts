@@ -23,7 +23,7 @@ import { visualWidth } from './width.ts'
 import { getCorners } from './shapes/corners.ts'
 import { getShapeAttachmentPoint } from './shapes/index.ts'
 import { safeCssColor } from '../shared/css-color.ts'
-import { measuredText, terminalCellConnections, type MeasuredTerminalText, type TerminalCell, type TerminalMarker, type TerminalOwner, type TerminalSide } from './terminal-document.ts'
+import { measuredText, terminalCellConnections, type MeasuredTerminalText, type TerminalCell, type TerminalMarker, type TerminalOwner, type TerminalPort, type TerminalSide } from './terminal-document.ts'
 import type { PathOccupancy } from './occupancy.ts'
 import { getPath, mergePath } from './pathfinder.ts'
 import { allocateFacePort } from './terminal-geometry.ts'
@@ -61,6 +61,7 @@ function protectedGraphCells(document: Canvas): PathOccupancy {
  * whose interior crosses protected text needs a terminal-cell detour. */
 function feasiblePolyline(poly: DrawingCoord[], protectedCells?: PathOccupancy): DrawingCoord[] {
   if (!protectedCells) return poly
+  const blocked = (x: number, y: number): boolean => protectedCells.hasCell ? protectedCells.hasCell(x, y) : protectedCells.has(`${x},${y}`)
   const result: DrawingCoord[] = [poly[0]!]
   for (let index = 1; index < poly.length; index++) {
     const start = poly[index - 1]!, end = poly[index]!
@@ -69,7 +70,7 @@ function feasiblePolyline(poly: DrawingCoord[], protectedCells?: PathOccupancy):
     if (dx && dy) { result.push(end); continue }
     const distance = Math.abs(end.x - start.x) + Math.abs(end.y - start.y)
     let obstructed = false
-    for (let step = 1; step < distance; step++) if (protectedCells.has(`${start.x + dx * step},${start.y + dy * step}`)) { obstructed = true; break }
+    for (let step = 1; step < distance; step++) if (blocked(start.x + dx * step, start.y + dy * step)) { obstructed = true; break }
     if (!obstructed || distance < 4) { result.push(end); continue }
     const exit = { x: start.x + dx, y: start.y + dy }
     // Keep a straight cell before a terminal marker: a marker cannot also
@@ -1415,12 +1416,7 @@ function planAllocatedGraphRoutes(graph: AsciiGraph, protectedCells: PathOccupan
   // Per-cell route state is read for every searched step, so it is keyed by
   // one number. Terminal coordinates are far below the row stride.
   const cellKey = (x: number, y: number): number => y * 0x200000 + x
-  const routed = new Map<number, number>()
   const retainedEdges = new Map(graph.edges.filter(edge => !edge.cellAllocation).map(edge => [terminalEdgeOwner(graph, edge).id, edge]))
-  for (const [x, y, cell] of retained.entries()) if (cell.kind === 'stroke' && cell.owners.some(owner => owner.kind === 'edge')) {
-    const mask = cell.stroke?.mask ?? 0
-    routed.set(cellKey(x, y), (mask & 5 ? 5 : 0) | (mask & 10 ? 10 : 0))
-  }
   const retainedText = new Map<NonNullable<TerminalCell['textBlock']>, Set<AsciiEdge>>()
   for (const [, , cell] of retained.entries()) if (cell.textBlock) for (const owner of cell.owners) {
     const edge = owner.kind === 'edge' ? retainedEdges.get(owner.id) : undefined
@@ -1536,19 +1532,52 @@ function planAllocatedGraphRoutes(graph: AsciiGraph, protectedCells: PathOccupan
       const members = rectangleCells.get(cellKey(x, y)); if (members) members.push(entry); else rectangleCells.set(cellKey(x, y), [entry])
     }
   }
+  // Protected content, approach markers and label rectangles are fixed while
+  // routes are planned, so each probed cell is classified once. Route state
+  // is kept in the same dense cell order. Cells past the searched extent, or
+  // an extent too large to index densely, are classified on every probe.
+  const PROBED = 1, PROTECTED = 2, MARKED = 4, LABELLED = 8
+  const protectedCell = protectedCells.hasCell ?? ((x: number, y: number) => protectedCells.has(`${x},${y}`))
+  const classify = (x: number, y: number, key: number): number =>
+    PROBED | (protectedCell(x, y) ? PROTECTED : 0) | (markerCells.has(key) ? MARKED : 0) | (rectangleCells.has(key) ? LABELLED : 0)
+  const width = extent.maxX + 6, height = extent.maxY + 6, indexed = width * height <= 1 << 22
+  const classes = new Uint8Array(indexed ? width * height : 0)
+  const routedCells = new Uint8Array(classes.length)
+  const index = (x: number, y: number): number => indexed && x >= 0 && y >= 0 && x < width && y < height ? y * width + x : -1
+  const classOf = (x: number, y: number, key: number): number => {
+    const at = index(x, y)
+    if (at < 0) return classify(x, y, key)
+    return classes[at] || (classes[at] = classify(x, y, key))
+  }
+  const routed = new Map<number, number>()
+  const routedAt = (x: number, y: number): number => {
+    const at = index(x, y)
+    return at < 0 ? routed.get(cellKey(x, y)) ?? 0 : routedCells[at]!
+  }
+  const route = (x: number, y: number, mask: number): void => {
+    const at = index(x, y)
+    if (at < 0) routed.set(cellKey(x, y), (routed.get(cellKey(x, y)) ?? 0) | mask)
+    else routedCells[at]! |= mask
+  }
+  for (const [x, y, cell] of retained.entries()) if (cell.kind === 'stroke' && cell.owners.some(owner => owner.kind === 'edge')) {
+    const mask = cell.stroke?.mask ?? 0
+    route(x, y, (mask & 5 ? 5 : 0) | (mask & 10 ? 10 : 0))
+  }
   for (const edge of edges) {
     if (!ends.has(edge)) continue
     const [start, end] = ends.get(edge)!, rectangle = rectangles.get(edge)
     const exit = step(start, edge.startDir, graphEdgeEscape(edge, true)), entry = step(end, edge.endDir, graphEdgeEscape(edge, false))
-    const ownMarkers = new Set([start, end, step(start, edge.startDir, 1), step(end, edge.endDir, 1)].map(point => cellKey(point.x, point.y)))
-    const protectedCell = protectedCells.hasCell ?? ((x: number, y: number) => protectedCells.has(`${x},${y}`))
+    const ownMarkers = [start, end, step(start, edge.startDir, 1), step(end, edge.endDir, 1)].map(point => cellKey(point.x, point.y))
+    const [own0, own1, own2, own3] = ownMarkers as [number, number, number, number]
     const hasCell = (x: number, y: number): boolean => {
       const key = cellKey(x, y)
-      if (ownMarkers.has(key) || protectedCell(x, y)) return true
-      for (const owner of markerCells.get(key) ?? []) if (owner !== edge) return true
+      if (key === own0 || key === own1 || key === own2 || key === own3) return true
+      const kind = classOf(x, y, key)
+      if (kind & PROTECTED) return true
+      if (kind & MARKED) for (const owner of markerCells.get(key)!) if (owner !== edge) return true
       // Another label blocks its whole `inside` area; this edge's own label
       // blocks only a multiline rectangle, never the adjacent wire column.
-      for (const [owner, box] of rectangleCells.get(key) ?? []) if (owner !== edge || box.height > 1 && x >= box.x) return true
+      if (kind & LABELLED) for (const [owner, box] of rectangleCells.get(key)!) if (owner !== edge || box.height > 1 && x >= box.x) return true
       return false
     }
     const obstacles: PathOccupancy = {
@@ -1563,9 +1592,9 @@ function planAllocatedGraphRoutes(graph: AsciiGraph, protectedCells: PathOccupan
     // including authored blank rows. Short rows need not reach a centre wire.
     const labelStart = rectangle ? rectangle.height > 1 ? { x: rectangle.x - 1, y: rectangle.y } : { x: rectangle.x + Math.floor(rectangle.width / 2), y: rectangle.y } : undefined
     const labelEnd = rectangle && labelStart ? { x: labelStart.x, y: labelStart.y + rectangle.height - 1 } : undefined
-    const canStep = (from: DrawingCoord, to: DrawingCoord): boolean => {
-      const mask = from.x === to.x ? 5 : 10
-      return !((routed.get(cellKey(from.x, from.y)) ?? 0) & mask) && !((routed.get(cellKey(to.x, to.y)) ?? 0) & mask)
+    const canStep = (fromX: number, fromY: number, toX: number, toY: number): boolean => {
+      const mask = fromX === toX ? 5 : 10
+      return !(routedAt(fromX, fromY) & mask) && !(routedAt(toX, toY) & mask)
     }
     const first = !obstacles.has(`${exit.x},${exit.y}`) && !obstacles.has(`${entry.x},${entry.y}`)
       ? getPath(obstacles, exit, labelStart ?? entry, edge.startDir, canStep) : null
@@ -1576,7 +1605,7 @@ function planAllocatedGraphRoutes(graph: AsciiGraph, protectedCells: PathOccupan
         const a = edge.cellRoute.points[index - 1]!, b = edge.cellRoute.points[index]!
         const dx = Math.sign(b.x - a.x), dy = Math.sign(b.y - a.y), mask = dx ? 10 : 5
         for (let x = a.x, y = a.y;; x += dx, y += dy) {
-          const key = cellKey(x, y); routed.set(key, (routed.get(key) ?? 0) | mask)
+          route(x, y, mask)
           if (x === b.x && y === b.y) break
         }
       }
@@ -1602,10 +1631,40 @@ function graphLabelRoutes(document: Canvas, labels: readonly GraphLabel[]): Map<
   return routes
 }
 
+/** The ports of each edge region `document.regions()` reports, by edge id,
+ * without summarising every region's cells. An owner has a region when it
+ * owns or occludes a cell or declares bounds; only a serialized document
+ * limits regions to its emitted cells, so that case asks `regions()`. */
+function edgeRegionPorts(document: Canvas): ReadonlyMap<string, readonly TerminalPort[] | undefined> {
+  const evidence = document.layoutEvidence(), regions = new Map<string, readonly TerminalPort[] | undefined>()
+  if (evidence.emittedWidths) {
+    for (const region of document.regions()) if (region.kind === 'edge') regions.set(region.id, region.ports)
+    return regions
+  }
+  const present = new Set<string>(), visited = new Set<readonly TerminalOwner[]>()
+  const visit = (owners: readonly TerminalOwner[]): void => {
+    // Cells share interned owner sets; read each set once.
+    if (visited.has(owners)) return
+    visited.add(owners)
+    for (const owner of owners) if (owner.kind === 'edge') present.add(owner.id)
+  }
+  for (const [owner] of evidence.declarations) if (owner.kind === 'edge') present.add(owner.id)
+  for (const [, , cell] of document.entries()) {
+    visit(cell.owners)
+    if (cell.occludedOwners) visit(cell.occludedOwners)
+  }
+  const ports = new Map<string, TerminalPort[]>()
+  for (const [owner, port] of evidence.ports) if (owner.kind === 'edge') {
+    const list = ports.get(owner.id); if (list) list.push(port); else ports.set(owner.id, [port])
+  }
+  for (const id of present) regions.set(id, ports.get(id))
+  return regions
+}
+
 /** Reserve actual emitted endpoint contacts and their first exterior cell. */
 function graphPortApproaches(document: Canvas): ReadonlySet<string> {
   const approachCells = new Set<string>()
-  for (const region of document.regions()) if (region.kind === 'edge') for (const port of region.ports ?? []) {
+  for (const ports of edgeRegionPorts(document).values()) for (const port of ports ?? []) {
     const dx = port.side === 'L' ? -1 : port.side === 'R' ? 1 : 0
     const dy = port.side === 'T' ? -1 : port.side === 'B' ? 1 : 0
     approachCells.add(`${port.x},${port.y}`); approachCells.add(`${port.x + dx},${port.y + dy}`)
@@ -1677,30 +1736,73 @@ function feasibleLabel(document: Canvas, label: GraphLabel, route: readonly Draw
 
 /** Admit actual route contributions, rather than guessed grid corridors.
  * Different units may cross perpendicularly; collinear ink and opaque markers
- * cannot stand for independent relationships at the same terminal cell. */
-function retainedRouteConflicts(graph: AsciiGraph, layers: readonly Canvas[][], projected: Canvas): Set<AsciiEdge> {
+ * cannot stand for independent relationships at the same terminal cell. These
+ * units share a cell incompatibly in their own layers, read before painting. */
+function overlappingRouteUnits(graph: AsciiGraph, layers: readonly Canvas[][]): Set<AsciiEdge> {
   const edges = new Map(graph.edges.map(edge => [terminalEdgeOwner(graph, edge).id, edge]))
-  const occupied = new Map<string, Map<object | string, { edges: Set<AsciiEdge>; mask: number; marker: boolean }>>()
-  for (const stage of layers) for (const layer of stage) for (const [x, y, cell] of layer.entries()) {
-    const point = `${x},${y}`, units = occupied.get(point) ?? new Map()
-    for (const owner of cell.owners) {
-      const edge = owner.kind === 'edge' ? edges.get(owner.id) : undefined
-      if (!edge) continue
-      const unit = edge.bundle ?? edge.sharedTrunk ?? edge
-      const previous = units.get(unit) ?? { edges: new Set<AsciiEdge>(), mask: 0, marker: false }
-      const mask = cell.stroke?.mask ?? 0
-      previous.edges.add(edge); previous.mask |= mask
-      previous.marker ||= cell.kind === 'marker'
-      units.set(unit, previous)
+  // Cells are keyed by one number within the extent the layers will paint.
+  let width = graph.canvas.width, height = graph.canvas.height
+  for (const stage of layers) for (const layer of stage) { width = Math.max(width, layer.width); height = Math.max(height, layer.height) }
+  const keyOf = (x: number, y: number): number => x >= 0 && y >= 0 && x < width && y < height ? y * width + x : -1
+  // Most cells hold one unit; a cell takes a map once a second unit arrives.
+  // A unit's first edge is kept inline; a set holds the edges after it.
+  type Contribution = { unit: object | string; edge: AsciiEdge; edges?: Set<AsciiEdge>; mask: number; marker: boolean }
+  const occupied = new Map<number, Contribution | Map<object | string, Contribution>>()
+  // A layer's cells share its interned owner sets: resolve each set's edges once.
+  let lastOwners: readonly TerminalOwner[] | undefined, ownerEdges: AsciiEdge[] = []
+  for (const stage of layers) for (const layer of stage) layer.forEachCell((x, y, cell) => {
+    const point = keyOf(x, y)
+    if (cell.owners !== lastOwners) {
+      lastOwners = cell.owners; ownerEdges = []
+      for (const owner of cell.owners) {
+        const edge = owner.kind === 'edge' ? edges.get(owner.id) : undefined
+        if (edge) ownerEdges.push(edge)
+      }
     }
-    occupied.set(point, units)
+    for (const edge of ownerEdges) {
+      const unit = edge.bundle ?? edge.sharedTrunk ?? edge
+      const slot = occupied.get(point)
+      let previous = slot instanceof Map ? slot.get(unit) : slot?.unit === unit ? slot : undefined
+      if (!previous) {
+        previous = { unit, edge, mask: 0, marker: false }
+        if (!slot) occupied.set(point, previous)
+        else if (slot instanceof Map) slot.set(unit, previous)
+        else occupied.set(point, new Map([[slot.unit, slot], [unit, previous]]))
+      } else if (edge !== previous.edge) (previous.edges ??= new Set([previous.edge])).add(edge)
+      previous.mask |= cell.stroke?.mask ?? 0
+      previous.marker ||= cell.kind === 'marker'
+    }
+  })
+  const conflicts = new Set<AsciiEdge>()
+  for (const units of occupied.values()) {
+    if (!(units instanceof Map)) continue
+    let marker = false, horizontal = 0, vertical = 0
+    for (const unit of units.values()) {
+      marker ||= unit.marker
+      if (unit.mask & 10) horizontal++
+      if (unit.mask & 5) vertical++
+    }
+    for (const unit of units.values()) if (marker || horizontal > 1 && (unit.mask & 10) || vertical > 1 && (unit.mask & 5)) {
+      for (const edge of unit.edges ?? [unit.edge]) conflicts.add(edge)
+    }
   }
+  return conflicts
+}
+
+/** Retained routes without their own connected visible path in the combined
+ * paint, and the `overlapping` units (already conflicts, so not walked). */
+function retainedRouteConflicts(graph: AsciiGraph, overlapping: ReadonlySet<AsciiEdge>, projected: Canvas): Set<AsciiEdge> {
+  const edges = new Map(graph.edges.map(edge => [terminalEdgeOwner(graph, edge).id, edge]))
+  // Cells are keyed by one number. Every layer lies inside the projection; a
+  // probe outside it has no key, so it never matches an indexed cell.
+  const width = projected.width, height = projected.height
+  const keyOf = (x: number, y: number): number => x >= 0 && y >= 0 && x < width && y < height ? y * width + x : -1
   const conflicts = new Set<AsciiEdge>()
   // Logical adjacency does not prove a visible route: projection can leave
   // half-strokes in its interior or replace the final bend with a marker.
   // Index the actual combined paint once, preserving every shared owner,
   // then admit each retained route through its own cardinal glyph contacts.
-  const routes = new Map<AsciiEdge, Map<string, number>>()
+  const routes = new Map<AsciiEdge, Map<number, number>>()
   for (const [x, y, cell] of projected.entries()) {
     // Arrowheads terminate at their tail; they are never transit junctions.
     if (cell.marker?.shape === 'arrow') continue
@@ -1708,20 +1810,21 @@ function retainedRouteConflicts(graph: AsciiGraph, layers: readonly Canvas[][], 
     if (!ports) continue
     for (const owner of cell.owners) {
       const edge = owner.kind === 'edge' ? edges.get(owner.id) : undefined
-      if (!edge || edge.cellAllocation) continue
-      const cells = routes.get(edge) ?? new Map<string, number>()
-      cells.set(`${x},${y}`, ports); routes.set(edge, cells)
+      if (!edge || edge.cellAllocation || overlapping.has(edge)) continue
+      const cells = routes.get(edge) ?? new Map<number, number>()
+      cells.set(keyOf(x, y), ports); routes.set(edge, cells)
     }
   }
   const normals = { T: [0, -1, 1, 4], R: [1, 0, 2, 8], B: [0, 1, 4, 1], L: [-1, 0, 8, 2] } as const
-  for (const region of projected.regions()) {
-    const edge = region.kind === 'edge' ? edges.get(region.id) : undefined
-    if (!edge || edge.cellAllocation || edge.style === 'invisible') continue
-    const start = region.ports?.find(port => port.end === 'start'), end = region.ports?.find(port => port.end === 'end')
+  const steps = Object.values(normals)
+  for (const [id, ports] of edgeRegionPorts(projected)) {
+    const edge = edges.get(id)
+    if (!edge || edge.cellAllocation || edge.style === 'invisible' || overlapping.has(edge)) continue
+    const start = ports?.find(port => port.end === 'start'), end = ports?.find(port => port.end === 'end')
     if (!start?.side || !end?.side) { conflicts.add(edge); continue }
     const [sx, sy, sourceOut, sourceContact] = normals[start.side], [tx, ty, , targetContact] = normals[end.side]
     const markerX = end.x + tx * (end.markerOffset ?? 1), markerY = end.y + ty * (end.markerOffset ?? 1)
-    let exit = `${start.x + sx},${start.y + sy}`, tip = `${markerX},${markerY}`
+    let exit = keyOf(start.x + sx, start.y + sy), tip = keyOf(markerX, markerY)
     let sourceRequired = sourceContact
     const cells = routes.get(edge)
     const opposite = { T: 'B', R: 'L', B: 'T', L: 'R' } as const
@@ -1732,32 +1835,25 @@ function retainedRouteConflicts(graph: AsciiGraph, layers: readonly Canvas[][], 
     if (edge.hasArrowEnd && (!edge.endMarker || edge.endMarker === 'arrow')) {
       const marker = projected.cell(markerX, markerY)
       if (marker?.marker?.shape !== 'arrow' || marker.marker.direction !== opposite[end.side]) { conflicts.add(edge); continue }
-      tip = `${markerX + tx},${markerY + ty}`
+      tip = keyOf(markerX + tx, markerY + ty)
       // A one-cell arrow can meet its source face directly. Only an actual
       // owned junction on that face can supply its tail, never an invented port.
-      if (exit === `${markerX},${markerY}` && tip === `${start.x},${start.y}` && ((cells?.get(tip) ?? 0) & sourceOut)) { exit = tip; sourceRequired = sourceOut }
+      if (start.x + sx === markerX && start.y + sy === markerY && markerX + tx === start.x && markerY + ty === start.y && ((cells?.get(tip) ?? 0) & sourceOut)) { exit = tip; sourceRequired = sourceOut }
     }
     if (!((cells?.get(exit) ?? 0) & sourceRequired) || !((cells?.get(tip) ?? 0) & targetContact)) { conflicts.add(edge); continue }
     const queue = [exit], seen = new Set(queue)
     for (let index = 0; index < queue.length && !seen.has(tip); index++) {
-      const key = queue[index]!, comma = key.indexOf(','), x = Number(key.slice(0, comma)), y = Number(key.slice(comma + 1)), ports = cells!.get(key)!
-      for (const [dx, dy, out, into] of Object.values(normals)) {
-        const next = `${x + dx},${y + dy}`
-        if ((ports & out) && ((cells!.get(next) ?? 0) & into) && !seen.has(next)) { seen.add(next); queue.push(next) }
+      const key = queue[index]!, x = key % width, y = (key - x) / width, ports = cells!.get(key)!
+      for (let side = 0; side < 4; side++) {
+        const normal = steps[side]!
+        if (!(ports & normal[2])) continue
+        const next = keyOf(x + normal[0], y + normal[1])
+        if (((cells!.get(next) ?? 0) & normal[3]) && !seen.has(next)) { seen.add(next); queue.push(next) }
       }
     }
     if (!seen.has(tip)) conflicts.add(edge)
   }
-  for (const units of occupied.values()) {
-    const contributions = [...units.values()]
-    if (contributions.length < 2) continue
-    const marker = contributions.some(unit => unit.marker)
-    const horizontal = contributions.filter(unit => unit.mask & 10).length > 1
-    const vertical = contributions.filter(unit => unit.mask & 5).length > 1
-    for (const unit of contributions) if (marker || horizontal && (unit.mask & 10) || vertical && (unit.mask & 5)) {
-      for (const edge of unit.edges) conflicts.add(edge)
-    }
-  }
+  for (const edge of overlapping) conflicts.add(edge)
   return conflicts
 }
 
@@ -1857,8 +1953,12 @@ function drawGraphCandidate(graph: AsciiGraph): Canvas | Set<AsciiEdge> {
   const allocated = graph.edges.filter(edge => edge.cellAllocation)
   const retained = allocated.length ? document.blank() : document
   if (retained !== document) retained.overlay(document)
+  // Overlapping units already reject this attempt, so its paint is read only
+  // for the connectivity conflicts and its work charges.
+  const overlapping = overlappingRouteUnits(graph, layers)
+  if (overlapping.size) retained.discardDiagnostics()
   for (const stage of layers) for (const layer of stage) retained.overlay(layer)
-  const conflicts = retainedRouteConflicts(graph, layers, retained)
+  const conflicts = retainedRouteConflicts(graph, overlapping, retained)
   if (conflicts.size) return conflicts
   const retainedLabels: Canvas[] = []
   const retainedApproaches = graphPortApproaches(retained), retainedRoutes = graphLabelRoutes(retained, labels)

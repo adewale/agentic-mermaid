@@ -54,7 +54,7 @@ Local MCP also provides three helpers:
 
 - `describe_sdk({ family, detail })` returns version-matched mutation operations for one family without running Code Mode. `detail: "signatures"` returns a compact menu; `detail: "fields"` returns the exact field schema. The initial `execute` declaration stays limited to the core SDK, while `mermaid.describeOps` and `mermaid.opSignatures` expose the same registry inside an execution.
 
-- `render_png(source)` exists because PNG is binary output and returning base64 from a dedicated MCP tool is simpler than putting binary handling into Code Mode snippets. Local and hosted tools share portable `scale`, `background`, `minLabelPx`, and mutually exclusive `fitTo.width`/`fitTo.height` controls; local additionally accepts trusted-host `fontDirs`/`loadSystemFonts` remedies. Both return deterministic configuration and raster-legibility warnings, with native hosts also reporting glyph coverage. For clients that cannot comfortably carry large base64 payloads, `render_png({source, output:"file"})` writes a managed local artifact and `output:"url"` returns an HTTP-served artifact when the server runs with HTTP/SSE transport. Because those modes create managed files, the local tool is annotated as non-read-only and non-idempotent.
+- `render_png(source)` exists because PNG is binary output and returning base64 from a dedicated MCP tool is simpler than putting binary handling into Code Mode snippets. Local and hosted tools share portable `scale`, `background`, `minLabelPx`, and mutually exclusive `fitTo.width`/`fitTo.height` controls; local additionally accepts trusted-host `fontDirs`/`loadSystemFonts` remedies. Both return deterministic configuration and raster-legibility warnings, with native hosts also reporting glyph coverage. For clients that cannot comfortably carry large base64 payloads, `output:"image"` (local and hosted) returns the bytes as an MCP image content block beside a small JSON block, `render_png({source, output:"file"})` writes a managed local artifact and `output:"url"` returns an HTTP-served artifact when the server runs with HTTP/SSE transport. Because those modes create managed files, the local tool is annotated as non-read-only and non-idempotent.
 - `describe(source)` exists because one-shot natural-language summaries are common for screen readers, docs, and context compaction.
 
 <!-- complete: hosted-mcp-tools -->
@@ -65,7 +65,7 @@ nested `options` object, generated from the shared RenderOptions descriptors.
 Palette selection uses `options.style`; `theme` and top-level
 `bg`/`fg`/`style`/`seed` are not tool inputs.
 
-Local managed artifacts are generated under one exclusively owned server artifact directory with safe names, per-file and aggregate limits, persisted TTL cleanup, MIME type, byte count, and SHA-256 integrity metadata; they are not arbitrary user-chosen file writes. A second live owner fails closed instead of racing a stale manifest. Hosted `render_png` returns base64 only.
+Local managed artifacts are generated under one exclusively owned server artifact directory with safe names, per-file and aggregate limits, persisted TTL cleanup, MIME type, byte count, and SHA-256 integrity metadata; they are not arbitrary user-chosen file writes. A second live owner fails closed instead of racing a stale manifest. Hosted `render_png` returns base64 or an image content block only.
 
 ## Equivalence example
 

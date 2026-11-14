@@ -1,0 +1,19 @@
+erDiagram
+    "Test suite" {
+        string code
+        string description
+        string tag
+    }
+    "Test scenario" {
+        string scenario_name
+    }
+    "Test scenario result" {
+        string scenario_name
+        int number_of_SQL_statements
+        int duration_in_milliseconds
+    }
+    "Test suite" ||--o{ "Test codenit" : includes
+    "Test codenit" ||--o{ "Test scenario" : contains
+    "Test suite" ||--o{ "Test suite run" : "can be run "
+    "Test suite run" ||--o{ "Test scenario result" : "results in"
+    "Test scenario result" ||--o{ "Test scenario" : measure

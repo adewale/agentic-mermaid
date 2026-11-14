@@ -49,11 +49,13 @@ import { ok, err } from './types.ts'
 import { serializeMermaid, wrapperPrefix } from './serialize.ts'
 import { logToolInvocation } from './trace-log.ts'
 import { getFamily } from './families.ts'
-import { admitOpRecord, validateOp, hasOpSchema } from './op-schema.ts'
+import { admitOpRecord, validateOp, hasOpSchema, type OpFamily } from './op-schema.ts'
 import { AccessibilityTextError, accessibilityFromBody, metadataFromBody, ensureAccessibilityLines, normalizeBodyAccessibility } from './accessibility-envelope.ts'
 import { parseRegisteredMermaid as parseMermaid } from './parse.ts'
 import { applySourceEdits, sameSourceMeaning } from './source-mutation.ts'
 import { serializationDrift } from './serialization-closure.ts'
+import { authoredSourceOf } from './source-map-spans.ts'
+import { projectStructuredEdit, sameProjectedDiagram, type SourceEditPreservation } from './source-projection.ts'
 
 export function mutate(d: FlowchartValidDiagram, op: FlowchartMutationOp): Result<FlowchartValidDiagram, MutationError>
 export function mutate(d: StateValidDiagram, op: StateMutationOp): Result<StateValidDiagram, MutationError>
@@ -282,29 +284,46 @@ export interface SourceMutationResult {
    * this artifact is not promised to be portable Mermaid. */
   readonly source: string
   readonly diagram: ParsedDiagram
+  /** For a structured body: whether the edit was written as a local change
+   * to the authored source or fell back to the canonical serialization. */
+  readonly preservation?: SourceEditPreservation
 }
 
-/** Explicit source-level edits for opaque bodies. Family hooks admit only
- * operations whose complete native read-back changes by the requested delta.
- * Ordinary mutate, checked batches and canonical writers retain their contracts. */
+/** Typed edits written as the smallest change to the source they were read
+ * from. A structured body is edited canonically, then the change is projected
+ * onto its authored lines and accepted only when it reads back as the same
+ * diagram; otherwise the canonical source is returned and the receipt says
+ * so. An opaque body uses its family's bounded source hooks and refuses
+ * operations they do not own. */
 export function mutatePreservingSource(d: ParsedDiagram, op: unknown): Result<SourceMutationResult, MutationError> {
   const result = editPreservedSource(d, op)
   logToolInvocation('mutate', result.ok)
   return result
 }
 
+function admittedOp(kind: OpFamily, op: unknown): Result<AnyMutationOp, MutationError> {
+  const admitted = admitOpRecord(op)
+  const invalid = validateOp(kind, admitted.ok ? admitted.value : op)
+  return invalid ? err(invalid) : ok((admitted.ok ? admitted.value : op) as AnyMutationOp)
+}
+
 function editPreservedSource(d: ParsedDiagram, op: unknown): Result<SourceMutationResult, MutationError> {
-  if (d.body.kind !== 'opaque' || d.body.family !== d.kind) return err({ code: 'INVALID_OP', message: 'Source-preserving mutation requires an opaque body of its parsed family; use mutate for structured bodies' })
+  if (d.body.kind !== 'opaque' && d.body.kind !== 'preserved' && d.body.kind !== 'extension' && hasOpSchema(d.kind)) {
+    const checked = admittedOp(d.kind, op)
+    if (!checked.ok) return checked
+    const edited = applyOneMutation(d, checked.value)
+    return edited.ok ? ok(preserveStructuredEdit(d, edited.value)) : edited
+  }
+  if (d.body.kind !== 'opaque' || d.body.family !== d.kind) return err({ code: 'INVALID_OP', message: 'Source-preserving mutation requires a structured or opaque body of its parsed family' })
   const plugin = getFamily(d.kind)
   if (!plugin?.mutateSource || !hasOpSchema(d.kind)) return err({ code: 'UNSUPPORTED_FAMILY', message: `${d.kind} has no source-preserving mutation contract` })
-  const admitted = admitOpRecord(op)
-  const invalid = validateOp(d.kind, admitted.ok ? admitted.value : op)
-  if (invalid) return err(invalid)
+  const checked = admittedOp(d.kind, op)
+  if (!checked.ok) return checked
   // The opaque body and captured wrapper own the original bytes. The ordinary
   // serializer may normalize the final newline, so it is not this authority.
   const source = (d.meta.wrapperSource ?? '') + d.body.source
   try {
-    const next = plugin.mutateSource(source, (admitted.ok ? admitted.value : op) as AnyMutationOp)
+    const next = plugin.mutateSource(source, checked.value)
     if (!next.ok) return next
     const editedSource = applySourceEdits(source, next.value)
     if (editedSource === source) return ok({ source, diagram: d })
@@ -319,6 +338,46 @@ function editPreservedSource(d: ParsedDiagram, op: unknown): Result<SourceMutati
   } catch (error) {
     return err({ code: 'INVALID_OP', message: error instanceof Error ? error.message : String(error) })
   }
+}
+
+/** Batches up to this many ops are projected op by op when the whole batch
+ * does not project; each step re-traces every authored line, so a larger
+ * batch falls back to canonical output instead. */
+const OP_BY_OP_PROJECTION_LIMIT = 16
+
+/**
+ * Write `after`, the committed canonical result of typed edits to `before`,
+ * as a local change to the source `before` was parsed from. The whole batch
+ * is projected at once; when that does not read back as `after`, a batch of
+ * at most OP_BY_OP_PROJECTION_LIMIT ops is projected op by op. A diagram
+ * with no authored source, or an edit no local change reproduces, is
+ * written canonically with the reason.
+ */
+export function preserveStructuredEdit(before: ParsedDiagram, after: ParsedDiagram, ops: readonly unknown[] = []): SourceMutationResult {
+  const canonical = (reason: string): SourceMutationResult => ({ source: serializeMermaid(after), diagram: after, preservation: { method: 'canonical', reason } })
+  const authored = authoredSourceOf(before.source)
+  if (authored === undefined) return canonical('the diagram was not parsed from source, so there are no authored lines to keep')
+  const read = (source: string) => {
+    const parsed = parseMermaid(source)
+    return parsed.ok && parsed.value.kind === before.kind && parsed.value.body.kind === before.body.kind ? parsed.value : undefined
+  }
+  const original = read(authored)
+  if (!original) return canonical('the authored source no longer reads as this diagram')
+  const whole = projectStructuredEdit(authored, original, after)
+  if (whole.ok) return { ...whole.value, preservation: { method: 'local' } }
+  if (ops.length > OP_BY_OP_PROJECTION_LIMIT) return canonical(`${whole.error}; batches of more than ${OP_BY_OP_PROJECTION_LIMIT} operations are not projected one by one`)
+  if (ops.length > 1) {
+    let source = authored, current = original
+    for (const op of ops) {
+      const checked = hasOpSchema(current.kind) ? admittedOp(current.kind, op) : ok(op as AnyMutationOp)
+      const next = checked.ok ? applyOneMutation(current, checked.value) : checked
+      const projected = next.ok ? projectStructuredEdit(source, current, next.value) : undefined
+      if (!projected?.ok) break
+      ;({ source, diagram: current } = projected.value)
+    }
+    if (current !== original && sameProjectedDiagram(current, after)) return { source, diagram: current, preservation: { method: 'local' } }
+  }
+  return canonical(whole.error)
 }
 
 function checkedMutation(d: ParsedDiagram, op: unknown, deferSerialization: boolean, draft?: BatchDraft): Result<ParsedDiagram, MutationError> {

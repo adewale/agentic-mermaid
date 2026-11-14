@@ -29,6 +29,11 @@
   "worker_loaders": [
     { "binding": "LOADER" }
   ],
+  // The parent Worker's own CPU ceiling per invocation (the Workers Paid
+  // default, stated so it is reviewed). Layout never runs here: the direct
+  // MCP tools and execute lay out in loader isolates with their own cpuMs
+  // budgets; this bounds transport, cache and PNG rasterization work.
+  "limits": { "cpu_ms": 30000 },
   // Wrangler's default rules already treat *.txt as Text and *.wasm as
   // CompiledWasm; the fonts need an explicit Data rule.
   "rules": [

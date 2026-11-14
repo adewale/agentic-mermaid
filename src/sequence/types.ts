@@ -27,8 +27,9 @@ export interface SequenceDiagram {
   blocks: Block[]
   /** Notes attached to actors */
   notes: Note[]
-  /** Ordered standalone activate/deactivate commands, anchored at the next
-   * message boundary (messages.length at the source position). */
+  /** Ordered standalone activate/deactivate commands. `messageIndex` is the
+   * message boundary at the source position (messages.length); see
+   * `SequenceActivationEvent.anchor` for where the command applies. */
   activationEvents?: SequenceActivationEvent[]
   /** `box <color?> <label?> ... end` participant groups (upstream §Grouping/Box).
    *  Optional for hand-built diagrams; the parser always populates it. */
@@ -81,6 +82,11 @@ export interface SequenceActivationEvent {
   actorId: string
   kind: 'activate' | 'deactivate'
   messageIndex: number
+  /** Where the command applies. By default it applies where the message before
+   * the boundary ends, as Mermaid's `+`/`-` arrow suffix does. `next-message`
+   * applies at the following message's row instead: a ZenUML call's occurrence
+   * spans its children up to the next message. */
+  anchor?: 'next-message'
 }
 
 export interface Message {

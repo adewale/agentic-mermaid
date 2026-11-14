@@ -19,7 +19,8 @@
 import { parseRegisteredMermaid } from './parse.ts'
 import { serializeMermaid } from './serialize.ts'
 import { createMermaid, type CreateMermaidOptions } from './create.ts'
-import { applyMutationBatch, mutatePreservingSource } from './mutate.ts'
+import { applyMutationBatch, mutatePreservingSource, preserveStructuredEdit } from './mutate.ts'
+import type { SourceEditPreservation } from './source-projection.ts'
 import { renderFailureWarning, verifyMermaid } from './verify.ts'
 import { hasOpSchema, type OpFamily, type OpValidationError } from './op-schema.ts'
 import type { MutableValidDiagram, ValidDiagram, VerifyResult, DiagramKind, LayoutWarning, MutationError, Result } from './types.ts'
@@ -54,6 +55,10 @@ export type OpEnvelope =
       /** Canonical source by default; exact edited bytes in source-preserving mode. */
       source: string
       mode?: 'source-preserving'
+      /** Source-preserving edits of a structured body: `local` when every
+       * untouched authored line was kept, `canonical` (with `reason`) when the
+       * edit could only be written by re-serializing the diagram. */
+      preservation?: SourceEditPreservation
       verify: VerifySummary
     }
   | {
@@ -202,6 +207,15 @@ export function applyOps(input: ApplyOpsInput): OpEnvelope {
     return { ok: false, family: null, error: { code: 'INVALID_OP', message: 'applyOps requires either `source` (to edit) or `family` (to build)' } }
   }
 
+  if (mode === 'source-preserving' && before.body.kind !== 'opaque') {
+    const edited = applyMutationBatch(d, checkedOps)
+    if (!edited.ok) {
+      const { opIndex, ...error } = edited.error
+      return { ok: false, family: d.kind, opIndex, error }
+    }
+    const preserved = preserveStructuredEdit(before, edited.value, checkedOps)
+    return verifiedEnvelope(preserved.diagram as ValidDiagram, before, preserved.source, preserved.preservation)
+  }
   if (mode === 'source-preserving') {
     let current: ParsedDiagram = before, exactSource = source as string
     for (let index = 0; index < checkedOps.length; index++) {
@@ -253,7 +267,7 @@ export function verifyMutationResult(diagram: ParsedDiagram, before?: ParsedDiag
   }
 }
 
-function verifiedEnvelope(diagram: ValidDiagram, before?: ParsedDiagram, preservedSource?: string): OpEnvelope {
+function verifiedEnvelope(diagram: ValidDiagram, before?: ParsedDiagram, preservedSource?: string, preservation?: SourceEditPreservation): OpEnvelope {
   const { accepted, verification } = verifyMutationResult(diagram, before)
   const summary = verifySummary(verification)
   if (!accepted) {
@@ -272,6 +286,7 @@ function verifiedEnvelope(diagram: ValidDiagram, before?: ParsedDiagram, preserv
     family: diagram.kind,
     source: preservedSource ?? serializeMermaid(diagram),
     ...(preservedSource !== undefined ? { mode: 'source-preserving' as const } : {}),
+    ...(preservation ? { preservation } : {}),
     verify: summary,
   }
 }

@@ -1,9 +1,8 @@
 import { generatedIds } from '../shared/generated-identity.ts'
 import { assertDiagramWorkLimit } from '../shared/diagram-limits.ts'
-import { parseClassShorthandStatement } from '../shared/mermaid-identifiers.ts'
 import {
   isConcurrencySeparator, isHistoryEndpoint, matchNoteLine, matchNoteOpen,
-  matchStateDeclarationLine, matchStereotypeDecl, matchTransitionLine,
+  matchStateClassShorthand, matchStateDeclarationLine, matchStereotypeDecl, matchTransitionLine,
   STATE_ALIAS_RE, STATE_COMPOSITE_OPEN_RE, STATE_DESCRIPTION_RE, type StateStatement,
 } from './parse-core.ts'
 import type { StateScope } from './types.ts'
@@ -60,7 +59,7 @@ export function resolveStateIdentities(statements: readonly StateStatement[]) {
       continue
     }
     const id = matchNoteLine(line)?.target ?? matchNoteOpen(line)?.target
-      ?? matchStereotypeDecl(line)?.id ?? parseClassShorthandStatement(line)?.id
+      ?? matchStereotypeDecl(line)?.id ?? matchStateClassShorthand(line)?.id
       ?? line.match(STATE_ALIAS_RE)?.[2] ?? line.match(STATE_DESCRIPTION_RE)?.[1]
       ?? matchStateDeclarationLine(line)
     if (id) mention(id, scope)
@@ -100,6 +99,8 @@ export function resolveStateIdentities(statements: readonly StateStatement[]) {
     ownedIds: (): IterableIterator<string> => owners.keys(),
     regionId, scopeId,
     floatingNoteId: (id: string): string => allocate(`note:${id}`, ['state-floating-note', id]),
+    /** The `index`th note attached to a state, apart from a state named `note#0`. */
+    noteId: (index: number): string => allocate(`note#${index}`, ['state-note', index]),
     pseudostateId: (kind: 'start' | 'end', statement: StateStatement): string => {
       const scope = normalized(contexts.get(statement))
       const parent = scope ? scopeId(scope) : ''

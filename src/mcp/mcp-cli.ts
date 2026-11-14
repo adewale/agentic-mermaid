@@ -1,5 +1,6 @@
 import { unsupportedBunReason } from './bun-version.ts'
 import type { HttpMcpOptions } from './server.ts'
+import { isMcpToolProfile, MCP_TOOL_PROFILES } from './tool-profile.ts'
 
 export const MCP_CLI_HELP = `agentic-mermaid-mcp [--transport stdio|http] [--host 127.0.0.1] [--port 3000]
 
@@ -16,6 +17,9 @@ Options:
   --max-rpc-body-bytes <n>       Max HTTP JSON-RPC body size (default 1MiB).
   --auth-token <token>           Bearer token required for every non-health HTTP route.
   --max-sandbox-timeout-ms <n>   Max execute timeout (default 30000).
+  --tool-profile full|slim       Advertised tool schemas (default full). slim lists render
+                                 arguments one level deep, without $defs, and points execute
+                                 at describe_sdk capability=code-mode; validation is unchanged.
   --help                         Show this help.
 `
 
@@ -43,6 +47,7 @@ export const MCP_FLAG_SPECS = Object.freeze({
   'max-rpc-body-bytes': { kind: 'integer', applicability: 'http', min: 1 },
   'auth-token': { kind: 'string', applicability: 'http' },
   'max-sandbox-timeout-ms': { kind: 'integer', applicability: 'both', min: 1 },
+  'tool-profile': { kind: 'string', applicability: 'both' },
 } as const satisfies Readonly<Record<string, McpFlagSpec>>)
 
 type ParsedMcpFlags = Readonly<Record<string, string | true>>
@@ -98,6 +103,10 @@ export function parseMcpCliOptions(argv: readonly string[]): { transport: 'stdio
     throw new Error(`unknown transport: ${explicitTransport}`)
   }
   const transport: 'stdio' | 'http' = explicitTransport === 'http' ? 'http' : 'stdio'
+  const toolProfile = stringFlag(flags, 'tool-profile')
+  if (toolProfile !== undefined && !isMcpToolProfile(toolProfile)) {
+    throw new Error(`--tool-profile must be one of: ${MCP_TOOL_PROFILES.join(', ')}`)
+  }
   if (transport === 'stdio') {
     const invalid = Object.keys(flags).filter(name => MCP_FLAG_SPECS[name as keyof typeof MCP_FLAG_SPECS]?.applicability === 'http')
     if (invalid.length > 0) throw new Error(`${invalid.map(name => `--${name}`).join(', ')} ${invalid.length === 1 ? 'is' : 'are'} valid only with HTTP transport`)
@@ -116,6 +125,7 @@ export function parseMcpCliOptions(argv: readonly string[]): { transport: 'stdio
       maxRpcBodyBytes: integerFlag(flags, 'max-rpc-body-bytes'),
       authToken: stringFlag(flags, 'auth-token'),
       maxSandboxTimeoutMs: integerFlag(flags, 'max-sandbox-timeout-ms'),
+      toolProfile,
     },
   }
 }
@@ -155,6 +165,7 @@ export async function runMcpCli(argv: readonly string[] = process.argv.slice(2),
       maxArtifacts: httpOptions.maxArtifacts,
       artifactTtlMs: httpOptions.artifactTtlMs,
       maxSandboxTimeoutMs: httpOptions.maxSandboxTimeoutMs,
+      toolProfile: httpOptions.toolProfile,
     })
     return 0
   } catch (err) {

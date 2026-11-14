@@ -9,6 +9,8 @@ import {
   SUPPORTED_PROTOCOL_VERSIONS, cacheKeyFor, type HostedMcpContext, type ExecuteResult,
 } from '../mcp/hosted-server.ts'
 import { MCP_SERVER_NAME, createRenderPngTool, validateMcpToolArguments } from '../mcp/tool-surface.ts'
+import { summarizeRenderReceipt } from '../mcp/receipt-summary.ts'
+import { renderMermaidPNGWithReceipt } from '../agent/png.ts'
 import type { JsonRpcRequest } from '../mcp/protocol.ts'
 import { isLegacyProtocolVersion } from '../mcp/protocol-versions.ts'
 import pkg from '../../package.json'
@@ -154,11 +156,15 @@ describe('hosted MCP handshake', () => {
       expect({ tool: tool.name, records: text.split(JSON.stringify(recordDescription)).length - 1 }).toEqual({ tool: tool.name, records: 1 })
       const refs: string[] = []
       const nestedResources: string[] = []
+      const refSiblings: string[] = []
       // Keys of a `properties`/`$defs` map are names (StyleSpec has a `$schema`
       // field), not keywords; only keyword positions are inspected.
       const walk = (node: unknown, depth: number, names = false) => {
         if (Array.isArray(node)) return node.forEach(child => walk(child, depth + 1))
         if (!node || typeof node !== 'object') return
+        // draft-07 validators ignore every keyword beside a `$ref`, so a
+        // constraint placed there would be advertised but not enforced.
+        if (!names && '$ref' in node) refSiblings.push(...Object.keys(node).filter(key => key !== '$ref'))
         for (const [key, child] of Object.entries(node)) {
           if (!names && key === '$ref' && typeof child === 'string') refs.push(child)
           if (!names && depth > 0 && (key === '$id' || key === '$schema')) nestedResources.push(key)
@@ -166,7 +172,7 @@ describe('hosted MCP handshake', () => {
         }
       }
       walk(tool.inputSchema, 0)
-      expect({ tool: tool.name, nestedResources }).toEqual({ tool: tool.name, nestedResources: [] })
+      expect({ tool: tool.name, nestedResources, refSiblings }).toEqual({ tool: tool.name, nestedResources: [], refSiblings: [] })
       expect({ tool: tool.name, unresolved: refs.filter(ref => resolve(tool.inputSchema, ref) === undefined) }).toEqual({ tool: tool.name, unresolved: [] })
       // A validator we did not write (the MCP SDK's client-side Ajv provider)
       // still checks every field through the references.
@@ -740,9 +746,30 @@ describe('hosted render_png', () => {
   })
 
   test('file/url artifact modes are a local-server feature', async () => {
+    // Hosted output takes only the in-response modes (base64, image).
     const res = await handleHostedRequest(call('render_png', { source: FLOW, output: 'file' }), makeContext())
     expect(res?.error?.code).toBe(-32602)
-    expect(res?.error?.message).toContain('arguments.output is not allowed')
+    expect(res?.error?.message).toContain('arguments.output')
+  })
+
+  test('output=image returns the same PNG bytes as an image content block', async () => {
+    const real = renderMermaidPNGWithReceipt(FLOW)
+    const ctx = makeContext({ renderPng: async () => ({ png: real.png, warnings: [], receipt: TEST_PNG_RECEIPT, runtime: PNG_WASM_RUNTIME }) })
+    const base64 = payloadOf(await handleHostedRequest(call('render_png', { source: FLOW }), ctx))
+    const response = await handleHostedRequest(call('render_png', { source: FLOW, output: 'image' }), ctx)
+    const result = response?.result as { content: Array<{ type: string; text?: string; data?: string; mimeType?: string }>; isError: boolean }
+    expect(result.isError).toBe(false)
+    expect(result.content.map(block => block.type)).toEqual(['text', 'image'])
+    expect(result.content[1]!.mimeType).toBe('image/png')
+    expect(result.content[1]!.data).toBe(base64.png_base64)
+    const decoded = Uint8Array.from(atob(result.content[1]!.data!), c => c.charCodeAt(0))
+    expect(decoded).toEqual(new Uint8Array(real.png))
+    const meta = JSON.parse(result.content[0]!.text!)
+    expect(meta).not.toHaveProperty('png_base64')
+    expect(meta).toMatchObject({ ok: true, mimeType: 'image/png', bytes: real.png.byteLength, receipt: TEST_PNG_RECEIPT, runtime: PNG_WASM_RUNTIME })
+    // Dimensions are the PNG header's, independently of the helper that reports them.
+    const header = new DataView(real.png.buffer, real.png.byteOffset + 16, 8)
+    expect([meta.width, meta.height]).toEqual([header.getUint32(0), header.getUint32(4)])
   })
 
   test('reports unavailability when no rasterizer is wired', async () => {
@@ -769,6 +796,94 @@ describe('hosted render_png', () => {
   })
 })
 
+// A 30-node, 3-subgraph flowchart: its terminal receipt repeats one connector
+// limitation per edge, the case receipt:'summary' groups.
+const STAGED = ['flowchart LR', ...[0, 1, 2].flatMap(stage => [
+  `  subgraph S${stage}[Stage ${stage}]`,
+  ...Array.from({ length: 10 }, (_, step) => `    N${stage}_${step}[Step ${stage}.${step}]`),
+  ...Array.from({ length: 9 }, (_, step) => `    N${stage}_${step} --> N${stage}_${step + 1}`),
+  '  end',
+]), '  N0_9 --> N1_0', '  N1_9 -.-> N2_0'].join('\n')
+
+describe('render receipt views', () => {
+  type Diagnostic = { code: string; message?: string; feature?: string }
+  type Receipt = Record<string, any> & { diagnostics?: Diagnostic[] }
+  const cases = [
+    ['render_svg', FLOW], ['render_svg', STAGED], ['render_ascii', FLOW], ['render_ascii', STAGED],
+    ['render_ascii', 'sequenceDiagram\n  A->>B: hi\n  B-->>A: ok'], ['render_svg', 'pie\n  "a" : 1\n  "b" : 2'],
+  ] as const
+  test.each(cases)('%s summary corresponds to the full receipt of the same request (%#)', async (tool, source) => {
+    const ctx = makeContext()
+    const omitted = payloadOf(await handleHostedRequest(call(tool, { source }), ctx))
+    const full = payloadOf(await handleHostedRequest(call(tool, { source, receipt: 'full' }), ctx))
+    const summary = payloadOf(await handleHostedRequest(call(tool, { source, receipt: 'summary' }), ctx))
+    expect(omitted).toEqual(full)
+    const { receipt: fullReceipt, ...fullRest } = full as { receipt: Receipt }
+    const { receipt: view, ...summaryRest } = summary as { receipt: Receipt }
+    expect(summaryRest).toEqual(fullRest)
+    expect(view).toMatchObject({
+      view: 'summary',
+      version: fullReceipt.version,
+      output: fullReceipt.output,
+      requestDigest: fullReceipt.requestDigest,
+      accepted: fullReceipt.capabilityDecision.accepted,
+    })
+    expect(view.capabilityResolutions ?? []).toEqual(fullReceipt.capabilityDecision.resolutions.filter((r: { status: string }) => r.status !== 'selected'))
+    const certification = fullReceipt.layoutCertification
+    expect(view.layoutCertification).toEqual(certification === undefined ? undefined : {
+      status: certification.status,
+      issues: certification.issues,
+      ...(certification.geometry === undefined ? {} : { geometry: certification.geometry }),
+    })
+    // Every full diagnostic is counted once, under an entry with its code and message.
+    const fullDiagnostics = fullReceipt.diagnostics ?? []
+    const groups = (view.diagnostics ?? []) as Array<Diagnostic & { count: number }>
+    expect(groups.reduce((total, group) => total + group.count, 0)).toBe(fullDiagnostics.length)
+    for (const diagnostic of fullDiagnostics) {
+      const matching = groups.filter(group => group.code === diagnostic.code && group.message === diagnostic.message)
+      expect({ code: diagnostic.code, groups: matching.length }).toEqual({ code: diagnostic.code, groups: 1 })
+    }
+    for (const group of groups) {
+      expect({ code: group.code, count: group.count }).toEqual({
+        code: group.code,
+        count: fullDiagnostics.filter(diagnostic => diagnostic.code === group.code && diagnostic.message === group.message).length,
+      })
+    }
+  })
+
+  test('the staged terminal receipt collapses per-edge connector diagnostics', async () => {
+    const ctx = makeContext()
+    const full = payloadOf(await handleHostedRequest(call('render_ascii', { source: STAGED }), ctx))
+    const summary = payloadOf(await handleHostedRequest(call('render_ascii', { source: STAGED, receipt: 'summary' }), ctx))
+    const limitations = (full.receipt.diagnostics as Diagnostic[]).filter(d => d.code === 'TERMINAL_CONNECTOR_DECLARED_LIMITATION')
+    expect(limitations.length).toBe(3 * 9 + 2) // one per edge
+    expect(summary.receipt.diagnostics.length).toBeLessThan(5)
+    expect(JSON.stringify(summary.receipt).length * 5).toBeLessThan(JSON.stringify(full.receipt).length)
+  })
+
+  test('summary keeps unselected capabilities, layout fallbacks and uncertified geometry', () => {
+    const geometry = { status: 'uncertified', strategy: 'best-effort', attempts: 2, violations: [{ kind: 'edgeThroughNode', detail: 'A-B' }] }
+    const fallback = { requested: 'agentic', fallback: 'elk', selected: 'elk', reason: 'unsupported', attempts: [], implementation: 'elk' }
+    const summary = summarizeRenderReceipt({
+      version: 2, output: 'svg', sharedRequestDigest: 's', requestDigest: 'r', appearanceDigest: 'a',
+      capabilityDecision: { version: 1, accepted: false, resolutions: [
+        { id: 'core:scene', range: '^1.0.0', level: 'required', status: 'selected', version: '1.0.0' },
+        { id: 'backend:x', range: '^9.0.0', level: 'required', status: 'incompatible' },
+      ] },
+      layoutDecisions: [{ requested: 'elk', fallback: 'none', selected: 'elk', attempts: [], implementation: 'elk' }, fallback],
+      layoutCertification: { status: 'failed', issues: [{ code: 'X' }], geometry } as never,
+      diagnostics: [{ code: 'D', message: 'm', feature: 'a' }, { code: 'D', message: 'm', feature: 'b' }, { code: 'D', message: 'n', feature: 'c' }],
+    } as never)
+    expect(summary as unknown).toEqual({
+      view: 'summary', version: 2, output: 'svg', requestDigest: 'r', accepted: false,
+      capabilityResolutions: [{ id: 'backend:x', range: '^9.0.0', level: 'required', status: 'incompatible' }],
+      layoutDecisions: [fallback],
+      layoutCertification: { status: 'failed', issues: [{ code: 'X' }], geometry },
+      diagnostics: [{ code: 'D', message: 'm', count: 2 }, { code: 'D', message: 'n', count: 1 }],
+    })
+  })
+})
+
 describe('cacheKeyFor (validated, normalized, output-affecting arguments)', () => {
   test('normalizes describe_sdk defaults and rejects invalid discovery requests', () => {
     expect(cacheKeyFor('describe_sdk', { family: 'gantt' }))
@@ -778,6 +893,19 @@ describe('cacheKeyFor (validated, normalized, output-affecting arguments)', () =
     expect(cacheKeyFor('describe_sdk', { family: 'gantt', ignored: true })).toBeNull()
     expect(cacheKeyFor('describe_sdk', { family: 'unknown' })).toBeNull()
     expect(cacheKeyFor('describe_sdk', { family: 'gantt', detail: 'unknown' })).toBeNull()
+  })
+
+  test('describe_sdk capability requests key apart from one another', () => {
+    const requests = [
+      { capability: 'resolved-scene' }, { capability: 'resolved-scene', detail: 'signatures' },
+      { capability: 'render-options' }, { capability: 'render-options', field: 'padding' }, { capability: 'render-options', field: 'style' },
+      { capability: 'code-mode' }, { family: 'gantt' },
+    ]
+    const keys = requests.map(request => JSON.stringify(cacheKeyFor('describe_sdk', request)))
+    expect(new Set(keys).size).toBe(requests.length)
+    expect(cacheKeyFor('describe_sdk', { capability: 'resolved-scene', detail: 'fields' })).toEqual(cacheKeyFor('describe_sdk', { capability: 'resolved-scene' }))
+    expect(cacheKeyFor('describe_sdk', { capability: 'render-options', field: 'nope' })).toBeNull()
+    expect(cacheKeyFor('describe_sdk', { capability: 'code-mode', detail: 'fields' })).toBeNull()
   })
 
   test('does not cache arguments rejected by the advertised tool schema', () => {
@@ -859,6 +987,20 @@ describe('cacheKeyFor (validated, normalized, output-affecting arguments)', () =
       .not.toEqual(cacheKeyFor('render_ascii', { source: FLOW }))
     expect(cacheKeyFor('render_ascii', { source: FLOW, targetWidth: 40 }))
       .not.toEqual(cacheKeyFor('render_ascii', { source: FLOW, targetWidth: 60 }))
+  })
+
+  test('result-shape arguments key apart from the default, which explicit defaults share', () => {
+    for (const tool of ['render_svg', 'render_ascii', 'render_png']) {
+      const base = cacheKeyFor(tool, { source: FLOW })
+      expect({ tool, key: cacheKeyFor(tool, { source: FLOW, receipt: 'full' }) }).toEqual({ tool, key: base })
+      expect({ tool, key: cacheKeyFor(tool, { source: FLOW, receipt: 'summary' }) }).not.toEqual({ tool, key: base })
+      expect({ tool, key: cacheKeyFor(tool, { source: FLOW, receipt: 'brief' }) }).toEqual({ tool, key: null })
+    }
+    const png = cacheKeyFor('render_png', { source: FLOW })
+    expect(cacheKeyFor('render_png', { source: FLOW, output: 'base64' })).toEqual(png)
+    expect(cacheKeyFor('render_png', { source: FLOW, output: 'image' })).not.toEqual(png)
+    expect(cacheKeyFor('render_png', { source: FLOW, output: 'image', receipt: 'summary' }))
+      .not.toEqual(cacheKeyFor('render_png', { source: FLOW, output: 'image' }))
   })
 
   test('returns null for uncacheable calls (unknown tool, missing arg, bad output)', () => {

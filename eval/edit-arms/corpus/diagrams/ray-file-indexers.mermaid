@@ -1,0 +1,31 @@
+classDiagram
+    class FileIndexer {
+        list_files()
+    }
+    class NonSamplingFileIndexer {
+        walks a PyArrow filesystem, one row per file
+    }
+    class FilePartitioner {
+        add_input()
+        next_partition()
+        finalize()
+    }
+    class RoundRobinPartitioner {
+        deals whole files into buckets
+    }
+    class OnlineBinPacker {
+        pool of open bins, splits at read units
+    }
+    class InMemorySizeEstimator {
+        estimate_in_memory_sizes(manifest)
+    }
+    class SamplingInMemorySizeEstimator {
+        reads one file per listing task
+    }
+    FileIndexer <|-- NonSamplingFileIndexer
+    FilePartitioner <|-- RoundRobinPartitioner
+    FilePartitioner <|-- OnlineBinPacker
+    InMemorySizeEstimator <|-- SamplingInMemorySizeEstimator
+    RoundRobinPartitioner --> InMemorySizeEstimator : sizes rows with
+    DataSourceV2 ..> FileIndexer : _get_file_indexer() returns
+    DataSourceV2 ..> FilePartitioner : get_file_partitioner(hints) returns

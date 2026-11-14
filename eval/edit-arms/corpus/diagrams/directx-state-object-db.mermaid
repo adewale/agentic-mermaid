@@ -1,0 +1,26 @@
+erDiagram
+    client["D3D Client"]
+    toolchain["Offline Compile Toolchain"]
+    sodb["State Object Database (SODB)"]
+    psdb["Precompiled Shader Database (PSDB)"]
+    compiler["IHV Compiler Plugin"]
+
+    sodb_entry["SODB Entry"] {
+        D3D12_STATE_OBJECT_DESC desc
+        byte* bytecode
+    }
+
+    psdb_entry["PSDB Entry"] {
+        byte* isa
+    }
+
+    toolchain 1 to 1+ compiler : invokes
+
+    client 1 to 1+ sodb : creates
+    client 1 to 1+ sodb_entry : creates
+    
+    toolchain 1 to 1+ sodb : compiles
+    sodb 1 to 1+ sodb_entry : contains
+
+    toolchain 1 to 1+ psdb : creates
+    psdb 1 to 1+ psdb_entry : contains

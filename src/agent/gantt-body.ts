@@ -22,7 +22,7 @@
 // structured bodies serialize-idempotent by construction.
 // ============================================================================
 
-import { GANTT_TASK_TAGS, type ParsedTaskMeta, readGanttStatements, renderGanttTaskMeta } from '../gantt/parser.ts'
+import { GANTT_DURATION_RE, GANTT_TASK_TAGS, ganttDuration, type ParsedTaskMeta, readGanttStatements, renderGanttTaskMeta } from '../gantt/parser.ts'
 import { breakLineTags } from '../multiline-utils.ts'
 import { writeMermaidComment } from '../shared/trailing-comment.ts'
 import { GANTT_ADJACENT_TASK_COLON, ganttTaskLabelNeedsShield, writeGanttTaskLabel } from '../gantt/task-text.ts'
@@ -35,8 +35,9 @@ import { err, ok } from './types.ts'
 const TASK_ID_RE = /^[\w-]+$/
 // ---- Parser -----------------------------------------------------------------
 
-/** Diagnose task text and separators read more generously than the pinned
- * lexer; preserve literal labels and keep comments outside scheduling data. */
+/** Diagnose task text, lengths and separators read more generously than the
+ * pinned lexer; preserve literal labels and keep comments outside scheduling
+ * data. */
 export function ganttUnsupportedSyntaxWarnings(source: string): LayoutWarning[] {
   const statements = readGanttStatements(source.split(/\r?\n/))
   const labelWarnings: LayoutWarning[] = statements.flatMap(statement =>
@@ -44,7 +45,13 @@ export function ganttUnsupportedSyntaxWarnings(source: string): LayoutWarning[] 
       ? [{ code: 'UNSUPPORTED_SYNTAX', syntax: 'gantt_task_label', line: statement.startLine, message: `Task label "${statement.label}" is drawn literally. Pinned Mermaid reads part of its authored spelling as a directive, keyword, date, or click action; the writer protects that token with an entity code.` }]
       : [],
   )
-  return labelWarnings.concat(statements.flatMap((statement, index) =>
+  const durationWarnings: LayoutWarning[] = statements.flatMap(statement => {
+    if (statement.kind !== 'task' || statement.meta.end.kind !== 'duration' || GANTT_DURATION_RE.test(statement.meta.end.raw)) return []
+    const raw = statement.meta.end.raw
+    const written = ganttDuration(raw)
+    return [{ code: 'UNSUPPORTED_SYNTAX', syntax: 'gantt_duration_spelling', line: statement.startLine, message: `The task length "${raw}" is read as \`${written}\`. Pinned Mermaid reads a length only as a number followed directly by ms, s, m, h, d, w, M or y: it ignores this one and gives the task no length. The writer writes \`${written}\`.` }]
+  })
+  return labelWarnings.concat(durationWarnings, statements.flatMap((statement, index) =>
     statement.kind === 'comment' && statements[index - 1]?.kind === 'task' && statements[index - 1]!.endLine === statement.startLine
       ? [{ code: 'UNSUPPORTED_SYNTAX' as const, syntax: 'gantt_inline_task_comment', line: statement.startLine, message: 'Inline task metadata comments are read as comments. Pinned Mermaid reads them into the end date; put %% comments on their own line for portability.' }]
       : statement.afterSemicolon
@@ -122,7 +129,7 @@ export function parseGanttBody(trimmedLines: string[], rawLines?: string[]): Gan
         label,
         tags: canonicalTags(meta.tags),
         start: meta.start ? (meta.start.kind === 'after' ? `after ${meta.start.refs.join(' ')}` : meta.start.raw) : undefined,
-        end: meta.end.kind === 'until' ? `until ${meta.end.refs.join(' ')}` : meta.end.raw,
+        end: meta.end.kind === 'until' ? `until ${meta.end.refs.join(' ')}` : taskEnd(meta.end.raw),
       }
       body.sections[section]!.tasks.push(task)
       statements.push({ kind: 'task', section, ref: body.sections[section]!.tasks.length - 1 })
@@ -141,6 +148,9 @@ function canonicalTags(tags: GanttBodyTaskTag[]): GanttBodyTaskTag[] {
 }
 
 const ganttOpaqueBlock = (lines: string[]): GanttStatement => ({ kind: 'opaque-block', lines })
+
+/** A task's end, with a length in Mermaid's spelling (`2min` is `2m`). */
+const taskEnd = (end: string): string => ganttDuration(end) ?? end
 
 // ---- Serializer ---------------------------------------------------------------
 
@@ -447,7 +457,7 @@ export function mutateGantt(input: GanttBody, op: GanttMutationOp): Result<Gantt
         label: op.label?.trim() ?? '',
         tags: canonicalTags(op.tags ?? []),
         start: op.start?.trim() || undefined,
-        end: (op.end ?? '').trim(),
+        end: taskEnd((op.end ?? '').trim()),
       }
       const bad = validateTask(task)
       if (bad) return err(bad)
@@ -559,7 +569,7 @@ export function mutateGantt(input: GanttBody, op: GanttMutationOp): Result<Gantt
       if (!t) return err({ code: 'TASK_NOT_FOUND', message: `No task at (${op.sectionIndex},${op.taskIndex})` })
       const candidate = { ...t, tags: [...t.tags] }
       if (op.start !== undefined) candidate.start = op.start === null ? undefined : op.start.trim()
-      if (op.end !== undefined) candidate.end = op.end.trim()
+      if (op.end !== undefined) candidate.end = taskEnd(op.end.trim())
       const bad = validateTask(candidate)
       if (bad) return err(bad)
       t.start = candidate.start

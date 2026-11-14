@@ -5,9 +5,10 @@ import { contrastTextColor, toneOnFill } from '../color-resolver.ts'
 import { compositeCssColor, legibleInk, toHex, tryParseCssColor, wcagContrastRatio } from '../shared/color-math.ts'
 import type { RenderContext } from '../types.ts'
 import { svgOpenTag, buildStyleBlock, buildShadowDefs, resolvedColorValue, type DiagramColors } from '../theme.ts'
-import { FONT_SIZES, FONT_WEIGHTS, STROKE_WIDTHS, ARROW_HEAD, TEXT_BASELINE_SHIFT, applyTextTransform, resolveRenderStyle, diagramTitleFields } from '../styles.ts'
+import { FONT_SIZES, FONT_WEIGHTS, STROKE_WIDTHS, TEXT_BASELINE_SHIFT, applyTextTransform, resolveRenderStyle, diagramTitleFields } from '../styles.ts'
 import type { RenderStyleDefaults, ResolvedRenderStyle } from '../styles.ts'
 import { SEQUENCE_STYLE_DEFAULTS } from './layout.ts'
+import { SEQUENCE_CENTRAL_CIRCLE, SEQUENCE_DESTROY_CROSS_RADIUS, sequenceActorIconScale, sequenceDestroyCrossStrokeWidth, sequenceMarkerFor, sequenceMarkerResources } from './geometry.ts'
 import { buildAccessibilityAttrs } from '../shared/svg-a11y.ts'
 import { escapeAttr, escapeDisplayAttr, escapeXml } from '../multiline-utils.ts'
 import type { Geometry, MarkerDescriptor } from '../scene/ir.ts'
@@ -301,38 +302,6 @@ function surfaceInk(
   }
 }
 
-// ============================================================================
-// Arrow marker definitions
-// ============================================================================
-
-function sequenceMarkerResources(style: ResolvedRenderStyle): readonly MarkerDescriptor[] {
-  const w = ARROW_HEAD.width
-  const h = ARROW_HEAD.height
-  const edgeColor = style.edgeStrokeColor ?? 'var(--_arrow)'
-  const base = { size: { width: w, height: h }, orient: 'auto-start-reverse' as const }
-  const arrowPoints = [{ x: 0, y: 0 }, { x: w, y: h / 2 }, { x: 0, y: h }]
-  return [
-    { ...base, id: 'seq-arrow', shape: 'arrow', ref: { x: w, y: h / 2 }, geometry: { kind: 'polygon', points: arrowPoints }, paint: { fill: edgeColor } },
-    { ...base, id: 'seq-arrow-open', shape: 'open-arrow', ref: { x: w, y: h / 2 }, geometry: { kind: 'polyline', points: arrowPoints }, paint: { fill: 'none', stroke: edgeColor, strokeWidth: '1' } },
-    { ...base, id: 'seq-arrow-cross', shape: 'cross', ref: { x: w / 2, y: h / 2 }, orient: 'auto', geometry: { kind: 'path', d: `M1 1 L${w - 1} ${h - 1} M1 ${h - 1} L${w - 1} 1` }, paint: { fill: 'none', stroke: edgeColor, strokeWidth: '1.5' } },
-    { ...base, id: 'seq-arrow-half-top', shape: 'arrow', ref: { x: w, y: h / 2 }, geometry: { kind: 'polygon', points: [{ x: 0, y: 0 }, { x: w, y: h / 2 }, { x: 0, y: h / 2 }] }, paint: { fill: edgeColor } },
-    { ...base, id: 'seq-arrow-half-bottom', shape: 'arrow', ref: { x: w, y: h / 2 }, geometry: { kind: 'polygon', points: [{ x: 0, y: h / 2 }, { x: w, y: h / 2 }, { x: 0, y: h }] }, paint: { fill: edgeColor } },
-    { ...base, id: 'seq-arrow-stick-top', shape: 'open-arrow', ref: { x: w, y: h / 2 }, geometry: { kind: 'path', d: `M0 0 L${w} ${h / 2}` }, paint: { fill: 'none', stroke: edgeColor, strokeWidth: '1.5' } },
-    { ...base, id: 'seq-arrow-stick-bottom', shape: 'open-arrow', ref: { x: w, y: h / 2 }, geometry: { kind: 'path', d: `M0 ${h} L${w} ${h / 2}` }, paint: { fill: 'none', stroke: edgeColor, strokeWidth: '1.5' } },
-  ] satisfies readonly MarkerDescriptor[]
-}
-
-function sequenceMarkerFor(markerResources: readonly MarkerDescriptor[], head: PositionedMessage['endHead']): MarkerDescriptor | undefined {
-  if (head === 'none') return undefined
-  const id = head === 'filled' ? 'seq-arrow'
-    : head === 'cross' ? 'seq-arrow-cross'
-      : head === 'half-top' ? 'seq-arrow-half-top'
-        : head === 'half-bottom' ? 'seq-arrow-half-bottom'
-          : head === 'stick-top' ? 'seq-arrow-stick-top'
-            : head === 'stick-bottom' ? 'seq-arrow-stick-bottom'
-          : 'seq-arrow-open'
-  return markerResources.find(marker => marker.id === id)
-}
 
 // ============================================================================
 // Component renderers
@@ -382,7 +351,7 @@ function renderActor<T>(
     // Defined in a 24×24 coordinate space, scaled to 90% of the actor box height
     // and centered both horizontally and vertically within the box.
     // Stroke width is inverse-scaled so the visual thickness matches STROKE_WIDTHS.outerBox.
-    const s = (height / 24) * 0.9
+    const s = sequenceActorIconScale(height)
     const tx = x - 12 * s            // center icon horizontally on actor.x
     const ty = y + (height - 24 * s) / 2  // center icon vertically in actor box
     const sw = lineWidth / s  // compensate for scale transform
@@ -392,7 +361,10 @@ function renderActor<T>(
       node: marks.pathArtwork({ id: `actor:${id}:icon`, owner: { id, role: 'actor' }, channels: { category: id },
         open: `<g transform="translate(${tx},${ty}) scale(${s})">`,
         transform: { kind: 'matrix', a: s, b: 0, c: 0, d: s, e: tx, f: ty },
-        paint: { fill: 'none', stroke: roleStyle?.borderColor ?? style.edgeStrokeColor ?? 'var(--_line)', strokeWidth: String(sw) },
+        // The icon's curves meet tangentially, so a round join changes no ink;
+        // it lets paint certification bound the outline by its half-width
+        // where a creation message's head meets the outer circle.
+        paint: { fill: 'none', stroke: roleStyle?.borderColor ?? style.edgeStrokeColor ?? 'var(--_line)', strokeWidth: String(sw), strokeLinejoin: 'round' },
         join: '\n', indent: 2,
         paths: [
           'M21 12C21 16.9706 16.9706 21 12 21C7.02944 21 3 16.9706 3 12C3 7.02944 7.02944 3 12 3C16.9706 3 21 7.02944 21 12Z',
@@ -714,14 +686,17 @@ function renderMessage<T>(
     })
   }
 
+  // Each circle sits on its lifeline contact: a self-message ends on the row
+  // its loop returns to.
+  const { radius, strokeWidth: circleStroke } = SEQUENCE_CENTRAL_CIRCLE
   if (msg.centralStart) children.push({ indent: 2, node: marks.shape({
-    id: `${sceneId}:central-start`, role: 'chrome', geometry: { kind: 'circle', cx: msg.x1, cy: msg.y, r: 4 },
-    paint: { fill: 'var(--bg)', stroke: rawStroke, strokeWidth: '1.5' },
+    id: `${sceneId}:central-start`, role: 'chrome', geometry: { kind: 'circle', cx: msg.x1, cy: msg.points[0]!.y, r: radius },
+    paint: { fill: 'var(--bg)', stroke: rawStroke, strokeWidth: String(circleStroke) },
     attributes: { className: 'sequence-central-connection', data: { side: 'start' } },
   }) })
   if (msg.centralEnd) children.push({ indent: 2, node: marks.shape({
-    id: `${sceneId}:central-end`, role: 'chrome', geometry: { kind: 'circle', cx: msg.x2, cy: msg.y, r: 4 },
-    paint: { fill: 'var(--bg)', stroke: rawStroke, strokeWidth: '1.5' },
+    id: `${sceneId}:central-end`, role: 'chrome', geometry: { kind: 'circle', cx: msg.x2, cy: msg.points[msg.points.length - 1]!.y, r: radius },
+    paint: { fill: 'var(--bg)', stroke: rawStroke, strokeWidth: String(circleStroke) },
     attributes: { className: 'sequence-central-connection', data: { side: 'end' } },
   }) })
 
@@ -961,15 +936,17 @@ function boxTitleInk(fill: string | undefined, style: ResolvedRenderStyle): stri
  * Render the X cross ending a destroyed lifeline (`destroy` directive).
  */
 function renderDestroyCross<T>(marks: DrawingFactory<T>, cross: LifelineCross, style: ResolvedRenderStyle): T {
-  const r = 8
+  const r = SEQUENCE_DESTROY_CROSS_RADIUS
   const stroke = style.edgeStrokeColor ?? 'var(--_line)'
-  const strokeWidth = Math.max(1.5, style.lineWidth)
+  const strokeWidth = sequenceDestroyCrossStrokeWidth(style)
   const d = `M ${cross.x - r} ${cross.y - r} L ${cross.x + r} ${cross.y + r} M ${cross.x - r} ${cross.y + r} L ${cross.x + r} ${cross.y - r}`
   return marks.shape({
     id: `destroy:${cross.actorId}`,
     role: 'icon',
     geometry: { kind: 'path', d },
-    paint: { fill: 'none', stroke, strokeWidth: String(strokeWidth) },
+    // The two strokes are separate subpaths with no joins; a round join
+    // states that, so the cross's painted envelope is its half-width.
+    paint: { fill: 'none', stroke, strokeWidth: String(strokeWidth), strokeLinejoin: 'round' },
     channels: { category: cross.actorId },
     attributes: { className: 'destroy-cross', data: { actor: cross.actorId } },
   })

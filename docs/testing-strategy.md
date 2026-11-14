@@ -31,6 +31,16 @@ repository-wide typechecking (the
 list is `QUALITY_CHECKS` in `scripts/ci/quality-gates.ts`). The workflow calls
 this same entry point, so the local list and CI list cannot diverge.
 
+Before pushing a pull-request update, run `bun run check:pre-push`. It runs the
+same list without the install step, then the website payload budgets that the
+`E2E (payload)` lane checks. A check whose local tool is missing (Docker for
+the font subsets, Playwright's Chromium for the payload budgets) is skipped
+with a line saying so; CI always runs it. Unit tests stay
+with focused `bun test <file>` runs and CI's shards. Advisory CI jobs
+(`Layout backend review evidence`, `Generated layout diagnostic (advisory)`)
+end green and report failed steps as warnings and in the job summary, so a red
+check always means a gating lane failed.
+
 CI's artifact job builds the portable bundles, website fixture and verified
 tarball once. Unit and E2E lanes consume those artifacts from the same checkout;
 the final `CI complete` gate waits for every selected lane. Package manifest and

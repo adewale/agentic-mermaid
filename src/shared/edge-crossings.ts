@@ -1,4 +1,6 @@
 /** Shared painted-route crossing metric. No layout, renderer, or agent dependencies. */
+import { countIndexedCrossings, prepareIndexedCrossings } from './edge-crossings-indexed.ts'
+
 interface CrossingPoint { readonly x: number; readonly y: number }
 
 export interface CrossingPolyline {
@@ -129,6 +131,36 @@ export function crossingPoint(a: RouteSegment, b: RouteSegment, routes: readonly
  * and public quality. `involved` preserves original route indices.
  */
 export function countPolylineCrossings(routes: readonly CrossingPolyline[], involved?: ReadonlySet<number>): number {
+  const segments = visibleSegments(routes)
+  const indexed = segments.length >= INDEXED_CROSSING_SEGMENTS ? indexedCrossings(routes, segments, involved) : undefined
+  return indexed ?? sweepPolylineCrossings(routes, segments, involved)
+}
+
+/** @internal The indexed evaluation at every size, for differential tests.
+ * Undefined outside its numeric domain, where the reference sweep applies. */
+export function countIndexedPolylineCrossings(routes: readonly CrossingPolyline[], involved?: ReadonlySet<number>): number | undefined {
+  return indexedCrossings(routes, visibleSegments(routes), involved)
+}
+
+function indexedCrossings(routes: readonly CrossingPolyline[], segments: Segment[], involved: ReadonlySet<number> | undefined): number | undefined {
+  const byRoute = segments.slice()
+  segments.sort(segmentOrder)
+  return countIndexedCrossings(routes.length, byRoute, segments, involved, (a, b) => crossingPoint(a, b, routes), distinctCrossingLocations, edge => routes[edge]!.points)
+}
+
+/** Below this many segments the reference sweep is cheaper than indexing. */
+const INDEXED_CROSSING_SEGMENTS = 256
+
+/** A visible route normally has at least one segment, so from this many
+ * routes a complete count is indexed. Producers announce them before placement
+ * so a lazy host loads the counter before, not after, that work. */
+export function anticipateCrossingCounts(visibleRoutes: number): void {
+  if (visibleRoutes >= INDEXED_CROSSING_SEGMENTS) prepareIndexedCrossings()
+}
+
+const segmentOrder = (a: Segment, b: Segment): number => a.minX - b.minX || a.minY - b.minY || a.edgeIndex - b.edgeIndex || a.pointIndex - b.pointIndex
+
+function visibleSegments(routes: readonly CrossingPolyline[]): Segment[] {
   const segments: Segment[] = []
   routes.forEach((route, edgeIndex) => {
     if (route.visible === false) return
@@ -138,7 +170,12 @@ export function countPolylineCrossings(routes: readonly CrossingPolyline[], invo
       segments.push({ a, b, edgeIndex, pointIndex, minX: Math.min(a.x, b.x), maxX: Math.max(a.x, b.x), minY: Math.min(a.y, b.y), maxY: Math.max(a.y, b.y) })
     }
   })
-  segments.sort((a, b) => a.minX - b.minX || a.minY - b.minY || a.edgeIndex - b.edgeIndex || a.pointIndex - b.pointIndex)
+  return segments
+}
+
+/** The reference evaluation: every closed bounding-box overlap, pair by pair. */
+function sweepPolylineCrossings(routes: readonly CrossingPolyline[], segments: Segment[], involved?: ReadonlySet<number>): number {
+  segments.sort(segmentOrder)
   const active: Segment[] = []
   const locations = new Map<string, CrossingLocation[]>()
   for (const segment of segments) {
@@ -167,16 +204,9 @@ export function countPolylineCrossings(routes: readonly CrossingPolyline[], invo
     active.push(segment)
   }
   let crossings = 0
-  for (const points of locations.values()) {
-    // Physical endpoint contact tolerance must not merge distinct incidences.
-    // Only numerically identical locations are duplicates; canonical order
-    // makes representative selection independent of route traversal.
-    points.sort(pointOrder)
-    const distinct: CrossingLocation[] = []
-    for (const point of points) {
-      if (!distinct.some(previous => sameLocation(previous, point, Math.max(previous.error, point.error)))) distinct.push(point)
-    }
-    crossings += distinct.length
-  }
+  // Physical endpoint contact tolerance must not merge distinct incidences.
+  // Only numerically identical locations are duplicates; canonical order
+  // makes representative selection independent of route traversal.
+  for (const points of locations.values()) crossings += distinctCrossingLocations(points)
   return crossings
 }

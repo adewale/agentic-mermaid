@@ -972,6 +972,24 @@ describe('retained header bands are independent of frame height', () => {
       const findings = positionedHeaderRouteViolations({ width: 200, height: 240, nodes: [], groups: [group], edges: [edge] }, style)
       expect(findings).toEqual(row.expected === 'clear' ? [] : row.expected === 'invalid' ? ['group-header g: invalid retained height'] : ['group-header g: edge src->dst segment 1 enters reserved band'])
     })
+  // Swimlane headers are transparent responsibility boundaries: band y 40..68,
+  // painted title "Group" starting at x 42 (x + groupLabelPaddingX).
+  for (const row of [
+    { name: 'edge-to-edge vertical crossing beside the title', points: [[110, 20], [110, 90]], reserved: 'segment 1 enters reserved band', perpendicular: undefined },
+    { name: 'jog travelling inside the band', points: [[110, 20], [110, 50], [120, 50], [120, 90]], reserved: 'segment 1 enters reserved band', perpendicular: 'segment 2 runs inside the header band' },
+    { name: 'vertical crossing through the title', points: [[50, 20], [50, 90]], reserved: 'segment 1 enters reserved band', perpendicular: 'segment 1 crosses the header title' },
+    { name: 'route ending inside the band', points: [[110, 20], [110, 50]], reserved: 'segment 1 enters reserved band', perpendicular: 'ends inside the header band' },
+    { name: 'parallel run on the band edge', points: [[20, 68], [140, 68]], reserved: undefined, perpendicular: undefined },
+  ])
+    test('perpendicular crossing: ' + row.name, () => {
+      const group = { id: 'g', label: 'Group', x: 30, y: 40, width: 100, height: 160, headerHeight: 28, children: [] },
+        edge = { source: 'src', target: 'dst', style: 'solid' as const, hasArrowStart: false, hasArrowEnd: true, points: row.points.map(([x, y]) => ({ x: x!, y: y! })) },
+        positioned = { width: 200, height: 240, nodes: [], groups: [group], edges: [edge] }
+      for (const crossing of ['reserved', 'perpendicular'] as const) {
+        const breach = row[crossing]
+        expect(positionedHeaderRouteViolations(positioned, style, crossing)).toEqual(breach ? [`group-header g: edge src->dst ${breach}`] : [])
+      }
+    })
   for (const row of [
     { name: 'inside measured band beyond frame', height: 28, frame: 0, lo: 50, hi: 60, block: true },
     { name: 'below measured band beyond frame', height: 28, frame: 1, lo: 69, hi: 90, block: false },

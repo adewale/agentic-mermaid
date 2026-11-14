@@ -32,6 +32,29 @@ const WEEKDAYS: readonly GanttWeekday[] = [
 ]
 
 export const GANTT_DURATION_RE = /^(\d+(?:\.\d+)?)(ms|s|m|h|d|w|M|y)$/
+// Pinned Mermaid reads a task length only as a number followed directly by
+// one of the units above (ganttDb.js parseDuration). It ignores any other
+// spelling and gives the task no length, which drops what the author wrote.
+// Ours also reads a blank before the unit and the English unit names (`2min`,
+// `3 hours`, `1.5 days`, any case) as that length, verify reports them
+// (gantt_duration_spelling), and the writer writes Mermaid's spelling.
+const GANTT_SPACED_DURATION_RE = /^(\d+(?:\.\d+)?)\s+(ms|s|m|h|d|w|M|y)$/
+const GANTT_NAMED_DURATION_RE = /^(\d+(?:\.\d+)?)\s*(milliseconds?|msecs?|seconds?|secs?|minutes?|mins?|hours?|hrs?|days?|weeks?|wks?|months?|years?|yrs?)$/i
+const GANTT_DURATION_UNIT_NAMES: ReadonlyArray<readonly [RegExp, string]> = [
+  [/^(?:millisecond|msec)/i, 'ms'], [/^sec/i, 's'], [/^min/i, 'm'], [/^(?:hour|hr)/i, 'h'],
+  [/^day/i, 'd'], [/^(?:week|wk)/i, 'w'], [/^month/i, 'M'], [/^(?:year|yr)/i, 'y'],
+]
+
+/** A task length as Mermaid spells it (`2m`), from Mermaid's own spelling
+ *  or one ours also reads (`2min`); null when `raw` is no length. */
+export function ganttDuration(raw: string): string | null {
+  if (GANTT_DURATION_RE.test(raw)) return raw
+  const spaced = raw.match(GANTT_SPACED_DURATION_RE)
+  if (spaced) return `${spaced[1]}${spaced[2]}`
+  const named = raw.match(GANTT_NAMED_DURATION_RE)
+  if (!named) return null
+  return `${named[1]}${GANTT_DURATION_UNIT_NAMES.find(([name]) => name.test(named[2]!))![1]}`
+}
 const TICK_INTERVAL_RE = /^([1-9][0-9]*)(millisecond|second|minute|hour|day|week|month)$/
 
 export interface ParsedTaskMeta {
@@ -70,7 +93,7 @@ export function parseGanttTaskMeta(rawMeta: string): ParsedTaskMeta | null {
   const classifyEnd = (raw: string): GanttEndExpr => {
     const until = raw.match(/^until\s+(.+)$/)
     if (until) return { kind: 'until', refs: until[1]!.split(/\s+/).filter(Boolean) }
-    if (GANTT_DURATION_RE.test(raw)) return { kind: 'duration', raw }
+    if (ganttDuration(raw) !== null) return { kind: 'duration', raw }
     return { kind: 'date', raw }
   }
 
@@ -83,12 +106,13 @@ export function parseGanttTaskMeta(rawMeta: string): ParsedTaskMeta | null {
 }
 
 /** Canonical re-emission of a parsed task metadata (used by the agent body
- *  serializer and the parser↔body differential tests). */
+ *  serializer and the parser↔body differential tests). A length is written
+ *  as Mermaid spells it. */
 export function renderGanttTaskMeta(meta: ParsedTaskMeta): string {
   const parts: string[] = [...meta.tags]
   if (meta.id !== undefined) parts.push(meta.id)
   if (meta.start) parts.push(meta.start.kind === 'after' ? `after ${meta.start.refs.join(' ')}` : meta.start.raw)
-  parts.push(meta.end.kind === 'until' ? `until ${meta.end.refs.join(' ')}` : meta.end.raw)
+  parts.push(meta.end.kind === 'until' ? `until ${meta.end.refs.join(' ')}` : ganttDuration(meta.end.raw) ?? meta.end.raw)
   return parts.join(', ')
 }
 

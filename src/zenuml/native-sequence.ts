@@ -107,7 +107,7 @@ export function projectZenUMLSequence(body: ZenUMLBody, observe?: ZenUMLProjecti
           const childContext = { ...context, owner: to, returnTo: from, callAncestors: observe ? [...context.callAncestors, s.id] : context.callAncestors }
           visit(s.children, childContext)
           if (s.assignment && !self && !explicitReturn) addMessage(derivedId(`${s.id}:reply`), to, from, assignmentLabel(s.assignment), childContext, 'reply', false, s.id)
-          sequence.activationEvents!.push({ actorId: target, kind: 'deactivate', messageIndex: sequence.messages.length })
+          sequence.activationEvents!.push({ actorId: target, kind: 'deactivate', messageIndex: sequence.messages.length, anchor: 'next-message' })
           break
         }
         case 'create': {
@@ -123,7 +123,7 @@ export function projectZenUMLSequence(body: ZenUMLBody, observe?: ZenUMLProjecti
           const childContext = { ...context, owner: target, returnTo: context.owner, callAncestors: observe ? [...context.callAncestors, s.id] : context.callAncestors }
           visit(s.children, childContext)
           if (s.assignment && !explicitReturn) addMessage(derivedId(`${s.id}:reply`), target, context.owner, assignmentLabel(s.assignment), childContext, 'reply', false, s.id)
-          sequence.activationEvents!.push({ actorId: target, kind: 'deactivate', messageIndex: sequence.messages.length })
+          sequence.activationEvents!.push({ actorId: target, kind: 'deactivate', messageIndex: sequence.messages.length, anchor: 'next-message' })
           break
         }
         case 'message':

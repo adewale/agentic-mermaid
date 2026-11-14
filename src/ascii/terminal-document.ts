@@ -5,7 +5,7 @@ import { observeWork } from '../performance-observations.ts'
 import { sanitizeTerminalText } from '../terminal-security.ts'
 import type { TerminalProjectionDiagnostic } from '../terminal-style.ts'
 import { colorizeLine, colorizeText, DEFAULT_ASCII_THEME } from './ansi.ts'
-import { TERMINAL_CERTIFICATION_LIMITS } from './terminal-limits.ts'
+import { TERMINAL_CERTIFICATION_LIMITS, TERMINAL_OWNER_COMPOSITION_LIMIT, TerminalWorkLimitError } from './terminal-limits.ts'
 import { terminalPathAdmission } from './terminal-route.ts'
 import type { AsciiTheme, CharRole, ColorMode } from './types.ts'
 import { charVisualWidth, visualWidth, WIDE_CHAR_CONTINUATION } from './width.ts'
@@ -210,14 +210,62 @@ export interface TerminalCompositionDiagnostic {
   message: string
 }
 
-const ownerKey = (owner: TerminalOwner): string => `${owner.kind ?? 'node'}\0${owner.id}`
+// Frozen definitions and identities cannot change key; cache theirs once.
+const frozenOwnerKeys = new WeakMap<TerminalOwner, string>()
+const ownerKey = (owner: TerminalOwner): string => {
+  let key = frozenOwnerKeys.get(owner)
+  if (key === undefined) {
+    key = `${owner.kind ?? 'node'}\0${owner.id}`
+    if (Object.isFrozen(owner)) frozenOwnerKeys.set(owner, key)
+  }
+  return key
+}
 const geometryRelated = (a: TerminalOwner, b: TerminalOwner): boolean => ownerKey(a) === ownerKey(b) || !!(a.bundle && a.bundle === b.bundle) || !!(a.parent && ownerKey(a.parent) === ownerKey(b)) || !!(b.parent && ownerKey(b.parent) === ownerKey(a))
+/** Some owner of `owners` relates to no owner of `others` (both non-empty). */
+const unrelatedOwners = (owners: readonly TerminalOwner[], others: readonly TerminalOwner[], geometry: boolean): boolean => {
+  if (!owners.length || !others.length) return false
+  outer: for (const owner of owners) {
+    for (const other of others) if (owner === other || (geometry && geometryRelated(owner, other))) continue outer
+    return true
+  }
+  return false
+}
+/** The sanitized glyph of each one-code-unit glyph that stays one terminal
+ * cell, or '' when it does not. Both projections are pure. */
+const singleCellGlyphs = new Map<string, string>()
+const singleCellGlyph = (glyph: string): string => {
+  let cell = singleCellGlyphs.get(glyph)
+  if (cell === undefined) {
+    const safe = sanitizeTerminalText(glyph, true)
+    cell = safe.length === 1 && charVisualWidth(safe) === 1 ? safe : ''
+    singleCellGlyphs.set(glyph, cell)
+  }
+  return cell
+}
 const textGroupKey = (owner: TerminalOwner | undefined, group: string | undefined): string | undefined => (group === undefined ? undefined : JSON.stringify([owner ? [owner.kind ?? 'node', owner.id] : null, group]))
 // Only snapshots created by this module may back identity-based import caches.
 const canonicalOwnerDefinitions = new WeakSet<TerminalOwner>()
 const canonicalOwnerSets = new WeakSet<readonly TerminalOwner[]>()
 const emptyOwners = Object.freeze([]) as unknown as TerminalOwnerSet
 canonicalOwnerSets.add(emptyOwners)
+/** A well-mixed 32-bit value per admission ordinal. Set hashes add these, so
+ * the hash of a union with one new owner needs no pass over the set. */
+const ownerHash = (ordinal: number): number => {
+  let hash = Math.imul(ordinal + 1, 0x9e3779b1)
+  hash = Math.imul(hash ^ (hash >>> 16), 0x85ebca6b)
+  hash = Math.imul(hash ^ (hash >>> 13), 0xc2b2ae35)
+  return hash ^ (hash >>> 16)
+}
+// Diagnostic naming of frozen definitions: display name and JSON identity.
+const frozenOwnerNames = new WeakMap<TerminalOwner, { name: string; json: string }>()
+const ownerNames = (owner: TerminalOwner): { name: string; json: string } => {
+  let names = frozenOwnerNames.get(owner)
+  if (!names) {
+    names = { name: `${owner.kind ?? 'node'}:${owner.id}`, json: JSON.stringify([owner.kind ?? 'node', owner.id]) }
+    if (Object.isFrozen(owner)) frozenOwnerNames.set(owner, names)
+  }
+  return names
+}
 const definitionFields = ['sourceLine', 'parent', 'annotationTarget', 'bundle', 'from', 'to', 'members', 'route'] as const
 
 function snapshotOwner(owner: TerminalOwner): TerminalOwner {
@@ -413,7 +461,10 @@ export class TerminalDocument {
   readonly metrics = { writes: 0, overlayVisits: 0, outputCells: 0 }
   private rows = new Map<number, Map<number, TerminalCell>>()
   private elements = new Map<string, TerminalOwner>()
-  private ownerSets = new Map<string, TerminalOwnerSet>()
+  /** Multi-owner sets by additive member hash; members compare by identity. */
+  private ownerSets = new Map<number, TerminalOwnerSet[]>()
+  private ownerSetHashes = new WeakMap<TerminalOwnerSet, number>()
+  private ownerHashes = new WeakMap<TerminalOwner, number>()
   private singletonOwners = new WeakMap<TerminalOwner, TerminalOwnerSet>()
   private importedOwners = new WeakMap<readonly TerminalOwner[], TerminalOwnerSet>()
   private canonicalOwners = new WeakSet<TerminalOwner>()
@@ -433,6 +484,22 @@ export class TerminalDocument {
   private emittedText: string | undefined
   private emittedColorMode: ColorMode | undefined
   private strokeProvenanceWork = 0
+  private ownerCompositionWork = 0
+  private discarded = false
+  /** The last canonical inputs of a repeated owner composition and its set.
+   * Interned sets are permanent, so repeating those inputs would charge
+   * nothing and return the same set. */
+  private lastPaintOwner: TerminalOwner | undefined
+  private lastPaintOwners: TerminalPaint['owners']
+  private lastPaintSet: TerminalOwnerSet | undefined
+  private lastUnionLeft: readonly TerminalOwner[] | undefined
+  private lastUnionRight: readonly TerminalOwner[] | undefined
+  private lastUnion: TerminalOwnerSet | undefined
+  private lastRoutesPrevious: TerminalOwnerSet | undefined
+  private lastRoutesIncoming: TerminalOwnerSet | undefined
+  private lastDistinctRoutes = false
+  /** Whether any cell was ever bound to a text block (flip keeps bindings). */
+  private textCells = false
 
   constructor(width = 0, height = 0) {
     integer(width, 'width')
@@ -469,6 +536,11 @@ export class TerminalDocument {
     for (const [y, row] of this.rows) for (const [x, cell] of row) yield [x, y, cell] as const
   }
 
+  /** Visit the occupied cells in `entries()` order, without an iterator. */
+  forEachCell(visit: (x: number, y: number, cell: TerminalCell) => void): void {
+    this.rows.forEach((row, y) => row.forEach((cell, x) => visit(x, y, cell)))
+  }
+
   /** Snapshot of the occupied cells inside `bounds`. Within each row the
    * cells keep `entries()` order, so repainting them in sequence reorders a
    * row exactly as repainting the same cells from a whole-document snapshot. */
@@ -485,7 +557,7 @@ export class TerminalDocument {
   attribute(owners: TerminalOwner | readonly TerminalOwner[], paint: Omit<TerminalPaint, 'owner'> = {}): this {
     const canonical = this.owners(Array.isArray(owners) ? owners : [owners])
     const blocks = new Set<TextBlock>()
-    for (const [, , cell] of this.entries()) {
+    for (const row of this.rows.values()) for (const cell of row.values()) {
       if (cell.textBlock) blocks.add(cell.textBlock)
       this.attributeStroke(cell, canonical)
       cell.owners = this.unionOwners(cell.owners, canonical)
@@ -536,6 +608,7 @@ export class TerminalDocument {
 
   private remember(owner: TerminalOwner | undefined): TerminalOwner | undefined {
     if (!owner) return undefined
+    if (this.canonicalOwners.has(owner)) return owner
     return this.admitOwners([owner])[0]
   }
 
@@ -564,6 +637,7 @@ export class TerminalDocument {
       this.elements.set(key, owner)
       this.canonicalOwners.add(owner)
       this.ownerKeys.set(owner, key)
+      this.ownerHashes.set(owner, ownerHash(this.elements.size - 1))
     }
     if (imported) observeWork('terminal-owner-import', imported)
     return definitions
@@ -588,17 +662,41 @@ export class TerminalDocument {
       if (cacheable) this.importedOwners.set(values as readonly TerminalOwner[], set)
       return set
     }
-    const keys = [...byKey.keys()].sort(compareCodePointStrings),
-      key = JSON.stringify(keys)
-    let set = this.ownerSets.get(key)
-    if (!set) {
-      set = Object.freeze(keys.map(key => byKey.get(key)!)) as TerminalOwnerSet
-      canonicalOwnerSets.add(set)
-      this.ownerSets.set(key, set)
-      this.importedOwners.set(set, set)
-    }
+    this.reserveOwnerComposition(byKey.size) // ordered and interned before the set lookup
+    const keys = [...byKey.keys()]
+    // Imported canonical sets already arrive in key order; check that linearly.
+    let ordered = true
+    for (let index = 1; ordered && index < keys.length; index++) ordered = compareCodePointStrings(keys[index - 1]!, keys[index]!) < 0
+    if (!ordered) keys.sort(compareCodePointStrings)
+    const set = this.internOwnerSet(keys.map(key => byKey.get(key)!))
     if (cacheable) this.importedOwners.set(values as readonly TerminalOwner[], set)
     return set
+  }
+
+  /** One canonical set per membership. `members` are distinct definitions of
+   * this document in key order. Candidates share the additive member hash and
+   * compare by identity, so no set key is serialized. */
+  private internOwnerSet(members: TerminalOwner[], hash = this.ownerSetHash(members)): TerminalOwnerSet {
+    const bucket = this.ownerSets.get(hash)
+    const found = bucket?.find(set => set.length === members.length && set.every((owner, index) => owner === members[index]))
+    if (found) return found
+    const set = (this.discarded ? members : Object.freeze(members)) as TerminalOwnerSet
+    canonicalOwnerSets.add(set)
+    this.importedOwners.set(set, set)
+    this.ownerSetHashes.set(set, hash)
+    if (bucket) bucket.push(set)
+    else this.ownerSets.set(hash, [set])
+    return set
+  }
+
+  private ownerSetHash(members: readonly TerminalOwner[]): number {
+    if (members.length > 1) {
+      const known = this.ownerSetHashes.get(members as TerminalOwnerSet)
+      if (known !== undefined) return known
+    }
+    let hash = 0
+    for (const owner of members) hash = (hash + this.ownerHashes.get(owner)!) | 0
+    return hash
   }
 
   private singletonOwnerSet(owner: TerminalOwner): TerminalOwnerSet {
@@ -612,19 +710,28 @@ export class TerminalDocument {
     return set
   }
 
-  private paintOwners(paint: TerminalPaint): TerminalOwnerSet {
-    const supplied = paint.owner ?? this.activeOwner
+  private paintOwners(paint: TerminalPaint, owner = paint.owner): TerminalOwnerSet {
+    // Consecutive cells of one source repeat their canonical owners.
+    if (owner !== undefined && owner === this.lastPaintOwner && paint.owners === this.lastPaintOwners) return this.lastPaintSet!
+    const supplied = owner ?? this.activeOwner
     if (!supplied) return paint.owners ? this.owners(paint.owners) : emptyOwners
     if (this.canonicalOwners.has(supplied)) {
       const primary = this.singletonOwnerSet(supplied)
-      return paint.owners ? this.unionOwners(this.owners(paint.owners), primary) : primary
+      const set = paint.owners ? this.unionOwners(this.owners(paint.owners), primary) : primary
+      if (owner !== undefined && (!paint.owners || canonicalOwnerSets.has(paint.owners))) {
+        this.lastPaintOwner = owner
+        this.lastPaintOwners = paint.owners
+        this.lastPaintSet = set
+      }
+      return set
     }
     if (!paint.owners) return this.owners([supplied])
     return this.owners([...paint.owners, supplied])
   }
 
-  private canonicalPaint(paint: TerminalPaint): TerminalPaint {
-    paint = { ...paint }
+  /** An `owned` paint is a fresh object no caller retains; it is not copied again. */
+  private canonicalPaint(paint: TerminalPaint, owned = false): TerminalPaint {
+    if (!owned) paint = { ...paint }
     const primary = paint.owner ?? this.activeOwner
     const occluded = (paint as TerminalCell).occludedOwners
     if (!paint.owners && !occluded && (!primary || this.canonicalOwners.has(primary))) return primary === paint.owner ? paint : { ...paint, owner: primary }
@@ -637,6 +744,17 @@ export class TerminalDocument {
   }
 
   private unionOwners(left: readonly TerminalOwner[], right: readonly TerminalOwner[]): TerminalOwnerSet {
+    if (left === this.lastUnionLeft && right === this.lastUnionRight) return this.lastUnion!
+    const union = this.composeOwners(left, right)
+    if (canonicalOwnerSets.has(left) && canonicalOwnerSets.has(right)) {
+      this.lastUnionLeft = left
+      this.lastUnionRight = right
+      this.lastUnion = union
+    }
+    return union
+  }
+
+  private composeOwners(left: readonly TerminalOwner[], right: readonly TerminalOwner[]): TerminalOwnerSet {
     const a = this.owners(left),
       b = this.owners(right)
     if (!a.length || a === b) return b
@@ -644,13 +762,61 @@ export class TerminalDocument {
     let unions = this.ownerUnions.get(a)
     const cached = unions?.get(b) ?? this.ownerUnions.get(b)?.get(a)
     if (cached) return cached
-    const combined = a.every(owner => b.includes(owner)) ? b : b.every(owner => a.includes(owner)) ? a : this.owners([...a, ...b])
+    // Canonical sets hold distinct members in key order: one linear merge, and
+    // one more pass over the members of a combination neither set contains.
+    this.reserveOwnerComposition(a.length + b.length)
+    const combined = this.mergeOwnerSets(a, b)
     if (!unions) {
       unions = new WeakMap()
       this.ownerUnions.set(a, unions)
     }
     unions.set(b, combined)
     return combined
+  }
+
+  /** Both sets hold this document's definitions, so equal keys are one object.
+   * A set that already contains the other is returned itself. */
+  private mergeOwnerSets(a: TerminalOwnerSet, b: TerminalOwnerSet): TerminalOwnerSet {
+    const keyOf = (owner: TerminalOwner) => this.ownerKeys.get(owner)!
+    if (a.length === 1 || b.length === 1) {
+      // A single owner (the common shared-cell case) needs only its position.
+      const [one, many] = b.length === 1 ? [b[0]!, a] : [a[0]!, b]
+      const key = keyOf(one)
+      let low = 0,
+        high = many.length
+      while (low < high) {
+        const middle = (low + high) >>> 1
+        if (compareCodePointStrings(keyOf(many[middle]!), key) < 0) low = middle + 1
+        else high = middle
+      }
+      if (many[low] === one) return many
+      this.reserveOwnerComposition(many.length + 1)
+      return this.internOwnerSet([...many.slice(0, low), one, ...many.slice(low)], (this.ownerSetHash(many) + this.ownerHashes.get(one)!) | 0)
+    }
+    const merged: TerminalOwner[] = []
+    let left = 0,
+      right = 0
+    while (left < a.length && right < b.length) {
+      const next = a[left]!,
+        other = b[right]!
+      if (next === other) {
+        merged.push(next)
+        left++
+        right++
+      } else if (compareCodePointStrings(keyOf(next), keyOf(other)) < 0) {
+        merged.push(next)
+        left++
+      } else {
+        merged.push(other)
+        right++
+      }
+    }
+    while (left < a.length) merged.push(a[left++]!)
+    while (right < b.length) merged.push(b[right++]!)
+    if (merged.length === b.length) return b
+    if (merged.length === a.length) return a
+    this.reserveOwnerComposition(merged.length)
+    return this.internOwnerSet(merged)
   }
 
   scope<T>(owner: TerminalOwner, draw: () => T): T {
@@ -829,17 +995,22 @@ export class TerminalDocument {
     const canonical = this.owners(owners)
     let cached = this.warningFeatures.get(canonical)
     if (!cached) {
-      cached = {
-        feature: owners
-          .map(owner => `${owner.kind ?? 'node'}:${owner.id}`)
-          .sort(compareCodePointStrings)
-          .join('|'),
-        keys: {},
+      this.reserveOwnerComposition(canonical.length)
+      if (this.discarded) {
+        this.warningFeatures.set(canonical, { feature: '', keys: {} })
+        return
       }
+      const names = owners.map(owner => ownerNames(owner).name)
+      // Canonical key order usually already orders the names; sort only when not.
+      let ordered = true
+      for (let index = 1; ordered && index < names.length; index++) ordered = compareCodePointStrings(names[index - 1]!, names[index]!) <= 0
+      cached = { feature: (ordered ? names : names.sort(compareCodePointStrings)).join('|'), keys: {} }
       this.warningFeatures.set(canonical, cached)
     }
+    if (this.discarded) return
     const feature = cached.feature
-    const key = (cached.keys[code] ??= JSON.stringify(['owners', code, canonical.map(owner => [owner.kind ?? 'node', owner.id])]))
+    // Spelled exactly as JSON.stringify(['owners', code, [[kind, id], ...]]).
+    const key = (cached.keys[code] ??= `["owners",${JSON.stringify(code)},[${canonical.map(owner => ownerNames(owner).json).join(',')}]]`)
     if (this.diagnosticKeys.has(key)) return
     const description = code === 'TERMINAL_TEXT_COLLISION' ? 'Text footprints overlap' : code === 'TERMINAL_ROUTE_OVERLAP' ? 'Unrelated route runs overlap' : 'Incompatible occupied geometry overlaps'
     this.addDiagnostic({ code, feature, cell: { column: x, row: y }, message: `${description}; owners: ${owners.map(owner => owner.id).join(', ')}.` }, key)
@@ -847,8 +1018,16 @@ export class TerminalDocument {
 
   private reserveStrokeProvenance(count: number): void {
     const next = this.strokeProvenanceWork + count
-    if (!Number.isSafeInteger(next) || next > TERMINAL_CERTIFICATION_LIMITS.maxOperations) throw new RangeError('Terminal stroke provenance exceeds certification ceiling')
+    if (!Number.isSafeInteger(next) || next > TERMINAL_CERTIFICATION_LIMITS.maxOperations) throw new TerminalWorkLimitError('stroke-provenance', TERMINAL_CERTIFICATION_LIMITS.maxOperations)
     this.strokeProvenanceWork = next
+  }
+
+  /** Owner-set sorting and diagnostic naming cost grows with each set's size.
+   * Charge it before the work so overlapping dense routes stop in bounded time. */
+  private reserveOwnerComposition(count: number): void {
+    const next = this.ownerCompositionWork + count
+    if (!Number.isSafeInteger(next) || next > TERMINAL_OWNER_COMPOSITION_LIMIT) throw new TerminalWorkLimitError('owner-composition', TERMINAL_OWNER_COMPOSITION_LIMIT)
+    this.ownerCompositionWork = next
   }
 
   private contribution(cell: TerminalCell | undefined, owner: TerminalOwner, fallback: number): number {
@@ -939,20 +1118,25 @@ export class TerminalDocument {
             })
           ? mask
           : undefined
-    if (
-      canonical.some(owner => {
+    // Charged per owner and per prior owner compared, as each scan stops.
+    let claimsEdge = false
+    for (const owner of canonical) {
+      this.reserveStrokeProvenance(1)
+      if (owner.kind !== 'edge') continue
+      let present = false
+      for (const previous of cell.owners) {
         this.reserveStrokeProvenance(1)
-        return (
-          owner.kind === 'edge' &&
-          !cell.owners.some(previous => {
-            this.reserveStrokeProvenance(1)
-            return previous === owner
-          })
-        )
-      }) &&
-      uniform === undefined
-    )
-      throw new TypeError('Cannot attribute ambiguous merged stroke to a new edge')
+        if (previous === owner) {
+          present = true
+          break
+        }
+      }
+      if (!present) {
+        claimsEdge = true
+        break
+      }
+    }
+    if (claimsEdge && uniform === undefined) throw new TypeError('Cannot attribute ambiguous merged stroke to a new edge')
     if (!cell.owners.length) {
       cell[strokeContributors] = owners
       cell[strokeContributions] = mask
@@ -982,29 +1166,38 @@ export class TerminalDocument {
   }
 
   put(x: number, y: number, glyph: string, paint: TerminalPaint = {}): void {
+    this.putCell(x, y, glyph, paint, false)
+  }
+
+  private putCell(x: number, y: number, glyph: string, paint: TerminalPaint, owned: boolean): void {
     integer(x, 'x')
     integer(y, 'y')
     if (!glyph) return
     if (glyph === WIDE_CHAR_CONTINUATION) return
-    glyph = sanitizeTerminalText(glyph, true)
-    if (glyph.length !== 1 || charVisualWidth(glyph) !== 1) {
-      this.text(x, y, glyph, paint)
-      return
+    const single = glyph.length === 1 ? singleCellGlyph(glyph) : ''
+    if (single) glyph = single
+    else {
+      glyph = sanitizeTerminalText(glyph, true)
+      if (glyph.length !== 1 || charVisualWidth(glyph) !== 1) {
+        this.text(x, y, glyph, paint)
+        return
+      }
     }
-    paint = this.canonicalPaint(paint)
+    paint = this.canonicalPaint(paint, owned)
     const owner = paint.owner
     const kind = paint.kind ?? 'stroke'
     if (glyph === ' ' && kind === 'stroke' && !owner) {
       this.resize(x + 1, y + 1)
       return
     }
-    this.place(x, y, glyph, 1, { ...paint, owner, kind }, undefined)
+    // The canonical paint is a private copy: complete it as `{ ...paint, owner, kind }`.
+    paint.owner = owner
+    paint.kind = kind
+    this.place(x, y, glyph, 1, paint, undefined)
   }
 
   private admit(x: number, y: number, glyph: string, width: number, paint: TerminalPaint, incoming: TerminalOwnerSet, strict = false): boolean {
     // Both sets contain this document's canonical immutable definitions.
-    const related = (a: TerminalOwner, b: TerminalOwner, geometry = true) => a === b || (geometry && geometryRelated(a, b))
-    const incompatible = (previous: readonly TerminalOwner[], bundles = true) => previous.length > 0 && incoming.length > 0 && (previous.some(owner => !incoming.some(next => related(owner, next, bundles))) || incoming.some(next => !previous.some(owner => related(owner, next, bundles))))
     // Check every affected cell and every owner before retiring any old grapheme.
     for (let offset = 0; offset < width; offset++) {
       const covered = this.cell(x + offset, y)
@@ -1015,12 +1208,15 @@ export class TerminalDocument {
         return false
       }
       if (previous.kind === 'text') {
-        const unrelated = incompatible(previous.owners, false)
+        const unrelated = unrelatedOwners(previous.owners, incoming, false) || unrelatedOwners(incoming, previous.owners, false)
         if (unrelated) this.warn('TERMINAL_TEXT_COLLISION', this.unionOwners(previous.owners, incoming), x + offset, y)
         if (unrelated || paint.kind !== 'text') return false
         continue
       }
-      const unrelated = incompatible(previous.owners)
+      // Only these overlaps consult ownership; a crossing stroke admits as is.
+      const kind = previous.kind
+      if (kind === 'stroke' ? paint.kind !== 'text' : kind === 'mark' ? paint.kind === 'stroke' : kind !== 'surface' && kind !== 'marker') continue
+      const unrelated = unrelatedOwners(previous.owners, incoming, true) || unrelatedOwners(incoming, previous.owners, true)
       if (previous.kind === 'surface' && unrelated) {
         this.warn('TERMINAL_GEOMETRY_COLLISION', this.unionOwners(previous.owners, incoming), x + offset, y)
         return false
@@ -1044,9 +1240,10 @@ export class TerminalDocument {
     return true
   }
 
-  private place(x: number, y: number, glyph: string, width: number, paint: TerminalPaint, block: TextBlock | undefined): boolean {
+  /** `owner` replaces `paint.owner`, so a replayed cell needs no copy. */
+  private place(x: number, y: number, glyph: string, width: number, paint: TerminalPaint, block: TextBlock | undefined, owner = paint.owner): boolean {
     const old = this.cell(x, y),
-      incoming = this.paintOwners(paint)
+      incoming = this.paintOwners(paint, owner)
     if (!this.admit(x, y, glyph, width, paint, incoming)) return false
     if (!block && paint.kind === 'surface' && old?.kind === 'surface' && old.textBlock && x >= old.textBlock.x && x + width <= old.textBlock.x + old.textBlock.width && this.compatibleTextSurface(old.owners, incoming)) block = old.textBlock
     if (old?.kind === 'mark' && paint.kind === 'stroke') {
@@ -1060,20 +1257,24 @@ export class TerminalDocument {
     let occludedOwners = importedOcclusion ? this.owners(importedOcclusion) : undefined
     if (old?.kind === 'marker' && paint.kind === 'marker') owners = this.unionOwners(old.owners, incoming)
     if (paint.kind === 'mark' && old?.kind === 'stroke') occludedOwners = this.unionOwners(this.unionOwners(old.owners, old.occludedOwners ?? emptyOwners), occludedOwners ?? emptyOwners)
+    let stroke = paint.stroke
     if (old?.kind === 'stroke' && paint.kind === 'stroke') {
       const a = old.stroke?.mask ?? strokePorts[old.glyph] ?? styledPorts[old.glyph] ?? asciiPorts[old.glyph]
       const b = paint.stroke?.mask ?? strokePorts[glyph] ?? styledPorts[glyph] ?? asciiPorts[glyph]
       if (paint.stroke || old.stroke) {
-        const stroke = { ...(paint.stroke ?? old.stroke!), mask: (a ?? 0) | (b ?? 0) }
-        paint = { ...paint, stroke }
+        stroke = { ...(paint.stroke ?? old.stroke!), mask: (a ?? 0) | (b ?? 0) }
         glyph = strokeGlyph(stroke)
       } else if (a && b && a !== b) glyph = asciiPorts[old.glyph] === undefined && asciiPorts[glyph] === undefined ? (portGlyph.get(a | b) ?? glyph) : '+'
       owners = this.unionOwners(old.owners, incoming)
-      if (a !== undefined && a === b && old.owners.some(previous => incoming.some(next => previous.kind === 'edge' && next.kind === 'edge' && previous.id !== next.id && !(previous.bundle && previous.bundle === next.bundle)))) this.warn('TERMINAL_ROUTE_OVERLAP', owners, x, y)
+      if (a !== undefined && a === b && this.distinctRoutes(old.owners, incoming)) this.warn('TERMINAL_ROUTE_OVERLAP', owners, x, y)
     }
     const contributions = originalStroke ? this.strokeSnapshot(owners, originalStroke, (originalStroke.owners ?? incoming) as TerminalOwnerSet, incomingMask, old?.kind === 'stroke' ? old : undefined) : undefined
     for (let offset = 0; offset < width; offset++) this.retire(x + offset, y)
-    this.resize(x + width, y + 1)
+    // Grow only past the extent; the checks are resize's own.
+    const right = x + width,
+      bottom = y + 1
+    if (right > this.width || bottom > this.height || !Number.isSafeInteger(right) || !Number.isSafeInteger(bottom) || right < 0 || bottom < 0) this.resize(right, bottom)
+    else this.emittedWidths = undefined
     let row = this.rows.get(y)
     if (!row) {
       row = new Map()
@@ -1087,15 +1288,18 @@ export class TerminalDocument {
       cell[strokeContributors] = owners
       cell[strokeContributions] = contributions
     }
-    if (paint.owner !== undefined) cell.owner = paint.owner
+    if (owner !== undefined) cell.owner = owner
     if (paint.role !== undefined) cell.role = paint.role
     if (paint.color !== undefined) cell.color = paint.color
     if (paint.kind !== undefined) cell.kind = paint.kind
     if (paint.textGroup !== undefined) cell.textGroup = paint.textGroup
-    if (paint.stroke !== undefined) cell.stroke = paint.stroke
+    if (stroke !== undefined) cell.stroke = stroke
     if (paint.marker !== undefined) cell.marker = paint.marker
     if (paint.numericMark !== undefined) cell.numericMark = paint.numericMark
-    if (block) cell.textBlock = block
+    if (block) {
+      cell.textBlock = block
+      this.textCells = true
+    }
     if (occludedOwners?.length) cell.occludedOwners = occludedOwners
     row.set(x, cell)
     for (let offset = 1; offset < width; offset++) row.set(x + offset, { ...cell, glyph: WIDE_CHAR_CONTINUATION })
@@ -1104,10 +1308,21 @@ export class TerminalDocument {
     return true
   }
 
+  /** Whether two owner sets hold different, unbundled edges. Canonical sets
+   * never change, and a run repeats one pair cell after cell. */
+  private distinctRoutes(previous: TerminalOwnerSet, incoming: TerminalOwnerSet): boolean {
+    if (previous === this.lastRoutesPrevious && incoming === this.lastRoutesIncoming) return this.lastDistinctRoutes
+    const distinct = previous.some(owner => incoming.some(next => owner.kind === 'edge' && next.kind === 'edge' && owner.id !== next.id && !(owner.bundle && owner.bundle === next.bundle)))
+    this.lastRoutesPrevious = previous
+    this.lastRoutesIncoming = incoming
+    this.lastDistinctRoutes = distinct
+    return distinct
+  }
+
   stroke(x: number, y: number, mask: number, paint: TerminalPaint & Omit<TerminalStroke, 'mask'> = {}): void {
     if (!Number.isInteger(mask) || mask < 1 || mask > 15) throw new RangeError('stroke mask must contain terminal cardinal ports')
     const stroke = Object.freeze({ mask, ascii: paint.ascii, style: paint.style, rounded: paint.rounded })
-    this.put(x, y, strokeGlyph(stroke), { ...paint, kind: 'stroke', stroke })
+    this.putCell(x, y, strokeGlyph(stroke), { ...paint, kind: 'stroke', stroke }, true)
   }
 
   /** Validate a complete stroke batch before changing any occupied cell. */
@@ -1129,13 +1344,47 @@ export class TerminalDocument {
     return true
   }
 
+  /** Validate a complete batch of stroke cells that several routes share, each
+   * cell naming every owner with that owner's own directions. A cell composes
+   * its owner set and provenance once, exactly as painting each owner's route
+   * in turn would leave them. */
+  sharedStrokeBatch(cells: readonly { x: number; y: number; owners: readonly TerminalOwner[]; masks: readonly number[] }[], paint: Omit<TerminalStroke, 'mask'> = {}): boolean {
+    const prepared = cells.map(({ x, y, owners, masks }) => {
+      integer(x, 'x')
+      integer(y, 'y')
+      integer(x + 1, 'width')
+      integer(y + 1, 'height')
+      if (!owners.length || owners.length !== masks.length) throw new RangeError('shared stroke cells need one mask per owner')
+      const set = this.owners(owners)
+      if (set.length !== owners.length) throw new RangeError('shared stroke owners must be distinct')
+      const directions = new Map<string, number>()
+      owners.forEach((owner, index) => directions.set(ownerKey(owner), masks[index]!))
+      let union = 0
+      const aligned = set.map(owner => {
+        const mask = directions.get(ownerKey(owner))!
+        if (!Number.isInteger(mask) || mask < 1 || mask > 15) throw new RangeError('stroke mask must contain terminal cardinal ports')
+        union |= mask
+        return mask
+      })
+      const uniform = aligned.every(mask => mask === union)
+      if (!uniform) this.reserveStrokeProvenance(set.length + 1) // retained array slots/header BEFORE allocation
+      const stroke = Object.freeze({ mask: union, ascii: paint.ascii, style: paint.style, rounded: paint.rounded })
+      const role: CharRole = union & 10 && union & 5 ? 'corner' : 'line'
+      const cell = { kind: 'stroke', role, stroke, owners: set, [strokeContributors]: set, [strokeContributions]: uniform ? union : Object.freeze(aligned) } as unknown as TerminalCell
+      return { x, y, glyph: strokeGlyph(stroke), paint: cell as TerminalPaint, set }
+    })
+    if (prepared.some(cell => !this.admit(cell.x, cell.y, cell.glyph, 1, cell.paint, cell.set, true))) return false
+    for (const cell of prepared) this.place(cell.x, cell.y, cell.glyph, 1, cell.paint, undefined)
+    return true
+  }
+
   marker(x: number, y: number, marker: TerminalMarker, paint: TerminalPaint = {}): void {
     const semantic = Object.freeze({ ...marker, direction: marker.direction ?? 'R' })
-    this.put(x, y, markerGlyph(semantic), { ...paint, kind: 'marker', marker: semantic })
+    this.putCell(x, y, markerGlyph(semantic), { ...paint, kind: 'marker', marker: semantic }, true)
   }
 
   mark(x: number, y: number, glyph: string, paint: TerminalPaint = {}): void {
-    this.put(x, y, glyph, { ...paint, kind: 'mark' })
+    this.putCell(x, y, glyph, { ...paint, kind: 'mark' }, true)
   }
 
   numericMark(x: number, y: number, mark: TerminalNumericMark, paint: TerminalPaint = {}): void {
@@ -1154,7 +1403,10 @@ export class TerminalDocument {
         for (let column = x; column < x + width; column++) {
           const cell = this.cell(column, row)
           if (cell?.kind !== 'surface' || cell.head < block.x || cell.head + cell.width > block.x + block.width) continue
-          if (this.compatibleTextSurface(cell.owners, incoming)) cell.textBlock = block
+          if (this.compatibleTextSurface(cell.owners, incoming)) {
+            cell.textBlock = block
+            this.textCells = true
+          }
         }
     }
     if (!previous) bind(block.x, block.y, block.width, block.height)
@@ -1319,7 +1571,7 @@ export class TerminalDocument {
     if (!Number.isSafeInteger(count) || count < 0) throw new RangeError('Invalid terminal path witness reservation')
     const current = pathWitnessStates.get(this),
       next = (current?.work ?? 3) + count
-    if (!Number.isSafeInteger(next) || next > TERMINAL_CERTIFICATION_LIMITS.maxOperations) throw new RangeError('Terminal path witness reservation exceeds certification ceiling')
+    if (!Number.isSafeInteger(next) || next > TERMINAL_CERTIFICATION_LIMITS.maxOperations) throw new TerminalWorkLimitError('path-witness', TERMINAL_CERTIFICATION_LIMITS.maxOperations)
     if (current) current.work = next
     else pathWitnessStates.set(this, { work: next, witnesses: new Map() }) // three reserved header records
   }
@@ -1356,6 +1608,13 @@ export class TerminalDocument {
     state.witnesses.set(key, Object.freeze({ owner: canonical, token: token as object, dx, dy }))
   }
 
+  /** Declare this a private attempt that is dropped once its cells are read.
+   * Cells, owners and every work charge stay exact; composition diagnostics
+   * are no longer recorded and new owner sets are not frozen. */
+  discardDiagnostics(): void {
+    this.discarded = true
+  }
+
   /** A sparse empty layer with the same extent, suitable for positioned drawing. */
   blank(): TerminalDocument {
     return new TerminalDocument(this.width, this.height)
@@ -1364,7 +1623,12 @@ export class TerminalDocument {
   overlay(other: TerminalDocument, dx = 0, dy = 0): void {
     integer(dx, 'offset x')
     integer(dy, 'offset y')
-    this.admitOwners(other.elements.values())
+    // The source's definitions are admitted and validated once here; each
+    // replayed cell then maps its source definition to the admitted one.
+    const sources = [...other.elements.values()],
+      admittedOwners = this.admitOwners(sources),
+      definitionOf = new Map(sources.map((owner, index) => [owner, admittedOwners[index]!]))
+    const remember = (owner: TerminalOwner | undefined) => (owner && definitionOf.get(owner)) ?? this.remember(owner)
     this.resize(dx + other.width, dy + other.height)
     this.titleHandled ||= other.titleHandled
     if (other.lineWidths) {
@@ -1377,13 +1641,14 @@ export class TerminalDocument {
     const groups = new Map<TextBlock, Array<{ x: number; y: number; cell: TerminalCell }>>()
     const admitted = new Map<TextBlock, boolean>()
     const scopedBlocks = new Set<TextBlock>()
-    for (const [y, row] of other.rows)
-      for (const [x, cell] of row) {
-        if (!cell.textBlock || cell.glyph === WIDE_CHAR_CONTINUATION) continue
-        const group = groups.get(cell.textBlock) ?? []
-        group.push({ x, y, cell })
-        groups.set(cell.textBlock, group)
-      }
+    if (other.textCells)
+      for (const [y, row] of other.rows)
+        for (const [x, cell] of row) {
+          if (!cell.textBlock || cell.glyph === WIDE_CHAR_CONTINUATION) continue
+          const group = groups.get(cell.textBlock) ?? []
+          group.push({ x, y, cell })
+          groups.set(cell.textBlock, group)
+        }
     for (const [y, row] of other.rows)
       for (const [x, cell] of row) {
         if (cell.glyph === WIDE_CHAR_CONTINUATION) continue
@@ -1394,7 +1659,7 @@ export class TerminalDocument {
             admitted.set(
               cell.textBlock,
               groups.get(cell.textBlock)!.every(item => {
-                const paint = { ...item.cell, owner: this.remember(item.cell.owner ?? this.activeOwner) }
+                const paint = { ...item.cell, owner: remember(item.cell.owner ?? this.activeOwner) }
                 return this.admit(item.x + dx, item.y + dy, item.cell.glyph, item.cell.width, paint, this.paintOwners(paint), true)
               }),
             )
@@ -1405,7 +1670,7 @@ export class TerminalDocument {
             blocks.set(cell.textBlock, block)
           }
         }
-        const owner = this.remember(cell.owner ?? this.activeOwner)
+        const owner = remember(cell.owner ?? this.activeOwner)
         if (block && !cell.owner && this.activeOwner) {
           if (!scopedBlocks.has(cell.textBlock!)) {
             this.attributeTextAllocations(block, this.paintOwners({ owner: this.activeOwner }))
@@ -1423,7 +1688,7 @@ export class TerminalDocument {
           blocks.set(cell.textBlock!, block)
         }
         if (block) this.retainedTextBlocks.add(block)
-        if (!this.place(x + dx, y + dy, cell.glyph, cell.width, { ...cell, owner }, block)) continue
+        if (!this.place(x + dx, y + dy, cell.glyph, cell.width, cell, block, owner)) continue
       }
     for (const block of other.retainedTextBlocks)
       if (!groups.has(block)) {
@@ -1435,6 +1700,7 @@ export class TerminalDocument {
     for (const [key, bounds] of other.declared) this.region(other.elements.get(key)!, { ...bounds, x: bounds.x + dx, y: bounds.y + dy })
     for (const [key, ports] of other.ports) for (const port of ports) this.port(other.elements.get(key)!, { ...port, x: port.x + dx, y: port.y + dy })
     this.reserveStrokeProvenance(other.strokeProvenanceWork)
+    this.reserveOwnerComposition(other.ownerCompositionWork)
     const inheritedPaths = pathWitnessStates.get(other)
     if (inheritedPaths) {
       this.reserveTerminalPathWitnessWork(inheritedPaths.work)

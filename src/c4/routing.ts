@@ -9,6 +9,7 @@ import { rerouteEdgesThroughNodes } from '../layout/passes/obstacle-routing.ts'
 import { calculatePathMidpoint } from '../layout/geometry.ts'
 import { segmentThroughShape } from '../layout-rubric.ts'
 import { allocateGeneratedId } from '../shared/generated-identity.ts'
+import { denseLabelSeats } from '../layout/label-seat-search.ts'
 
 type Side = 'T' | 'R' | 'B' | 'L'
 interface Rect { x: number; y: number; width: number; height: number }
@@ -158,7 +159,7 @@ export function routeC4Pixels(boxes: ReadonlyMap<string, C4Box>, positioned: { n
   }
   applyRouteContracts(positioned, graph, new Set(), style)
   repairLabelsOffOwnRoute(positioned, graph, style)
-  separateEdgeLabelPills(positioned, graph, style)
+  separateEdgeLabelPills(positioned, graph, style, { seats: denseLabelSeats })
   closeRouteContracts(positioned, graph, style)
   // Container frames are endpoint surfaces, not solid interior obstacles. Give
   // the shared rerouter the actual endpoint frame plus the opaque header bands
@@ -197,6 +198,6 @@ export function routeC4Pixels(boxes: ReadonlyMap<string, C4Box>, positioned: { n
     const segments = edge.points.slice(1).map((end, index) => ({ start: edge.points[index]!, end })).sort((a, b) => (Math.abs(b.end.x - b.start.x) + Math.abs(b.end.y - b.start.y)) - (Math.abs(a.end.x - a.start.x) + Math.abs(a.end.y - a.start.y)))
     for (const { start, end } of segments) { const slot = findLabelSlot(edge, start, end, ctx); if (slot) { edge.labelPosition = slot; break } }
   }
-  separateEdgeLabelPills(labelPositioned, graph, style)
+  separateEdgeLabelPills(labelPositioned, graph, style, { seats: denseLabelSeats })
   for (const edge of edges) { const source = boxes.get(edge.source)!, target = boxes.get(edge.target)!; recertifyReroutedEdge(edge, edge.routeCertificate, { ...source, label: '', shape: 'rectangle' }, { ...target, label: '', shape: 'rectangle' }) }
 }

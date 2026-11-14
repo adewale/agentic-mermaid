@@ -74,20 +74,41 @@ const keyOf = (owner: Pick<TerminalOwner, 'id' | 'kind'>) => {
 }
 const siteOf = (x: number, y: number) => `${x},${y}`
 
-function liveOwnedMask(document: TerminalDocument, owner: TerminalOwner, x: number, y: number, visit: () => void): number {
+/** Cells shared by more owners than this (a bus) index their owners once
+ * for every route checked through them, instead of scanning them per route. */
+const SHARED_CELL_INDEX = 16
+
+function liveOwnedMask(document: TerminalDocument, owner: TerminalOwner, x: number, y: number, visit: () => void, shared: Map<object, Map<string, number>>): number {
   visit() // one translated point predicate; two neighbor bits are one mask predicate
   if (!Number.isSafeInteger(x) || !Number.isSafeInteger(y) || x < 0 || y < 0) return 0
   const cell = document.cell(x, y)
   if (!cell || !cell.glyph.trim() || cell.width !== 1) return 0
   let owned = false,
     ownMask = 0
-  for (let index = 0; index < cell.owners.length; index++) {
-    visit()
-    if (keyOf(cell.owners[index]!) === keyOf(owner)) {
-      owned = true
-      ownMask = terminalOwnedStrokeMask(cell, index)
+  if (cell.owners.length > SHARED_CELL_INDEX) {
+    let index = shared.get(cell)
+    if (!index) {
+      visit() // index map before allocation
+      index = new Map()
+      for (let at = 0; at < cell.owners.length; at++) {
+        visit() // one scanned owner and its map slot
+        index.set(keyOf(cell.owners[at]!), at)
+      }
+      shared.set(cell, index)
     }
-  }
+    const at = index.get(keyOf(owner))
+    if (at !== undefined) {
+      owned = true
+      ownMask = terminalOwnedStrokeMask(cell, at)
+    }
+  } else
+    for (let index = 0; index < cell.owners.length; index++) {
+      visit()
+      if (keyOf(cell.owners[index]!) === keyOf(owner)) {
+        owned = true
+        ownMask = terminalOwnedStrokeMask(cell, index)
+      }
+    }
   if (!owned) return 0
   return cell.kind === 'stroke' ? ownMask : cell.kind === 'marker' ? (cell.marker?.direction === 'L' || cell.marker?.direction === 'R' ? 10 : cell.marker?.direction === 'T' || cell.marker?.direction === 'B' ? 5 : 0) : 0
 }
@@ -116,6 +137,7 @@ export function certifyTerminalLayout(document: TerminalDocument | undefined, ou
     issues.push(Object.freeze({ code, status: issueStatus, message, ...(elementId === undefined ? {} : { elementId }), ...(x === undefined || y === undefined ? {} : { cell: Object.freeze({ column: x, row: y }) }) }))
   }
   const budgetExceeded = Symbol('terminal certification budget')
+  const sharedCells = new Map<object, Map<string, number>>()
   const visit = () => {
     if (operations >= limits.maxOperations) {
       exhausted = true
@@ -324,6 +346,25 @@ export function certifyTerminalLayout(document: TerminalDocument | undefined, ou
           add('TERMINAL_CELL_OWNER_UNAVAILABLE', 'unverified', 'A visible cell has no native semantic ownership.', undefined, x, y)
         }
         const directionalStroke = cell.kind === 'stroke' && (cell.stroke?.mask ?? terminalCellConnections(cell)) !== 0
+        // Edges of one declared bundle may share directions; edges of two
+        // different bundles (or unbundled edges) only cross perpendicularly.
+        // When every edge of a large shared cell passes that as a whole, no
+        // pair needs the pairwise scan below; any failure takes that scan.
+        let separated = false
+        if (directionalStroke && cell.owners.length > SHARED_CELL_INDEX) {
+          const groups = new Map<string, number>()
+          for (let ownerIndex = 0; ownerIndex < cell.owners.length; ownerIndex++) {
+            const owner = cell.owners[ownerIndex]!
+            if (owner.kind !== 'edge') continue
+            const group = owner.bundle ? 'bundle\0' + owner.bundle : 'edge\0' + keyOf(owner),
+              mask = terminalOwnedStrokeMask(cell, ownerIndex),
+              previous = groups.get(group)
+            if (previous === undefined) groups.set(group, mask)
+            else if (previous !== mask) groups.set(group, -1)
+          }
+          const masks = [...groups.values()]
+          separated = masks.length <= 1 || (masks.length === 2 && ((masks[0] === 10 && masks[1] === 5) || (masks[0] === 5 && masks[1] === 10)))
+        }
         let strokeUnion = 0
         for (let ownerIndex = 0; ownerIndex < cell.owners.length; ownerIndex++) {
           const owner = cell.owners[ownerIndex]!
@@ -332,7 +373,7 @@ export function certifyTerminalLayout(document: TerminalDocument | undefined, ou
           if (cell.kind === 'stroke') {
             strokeUnion |= ownMask
             if (!Number.isInteger(ownMask) || ownMask < 0 || ownMask > 15 || (directionalStroke && owner.kind === 'edge' && !ownMask)) add('TERMINAL_STROKE_PROVENANCE_CHANGED', 'failed', 'A visible route stroke lacks its original owner directions.', owner.id, x, y)
-            if (directionalStroke && owner.kind === 'edge')
+            if (directionalStroke && owner.kind === 'edge' && !separated)
               for (let previous = 0; previous < ownerIndex; previous++) {
                 visit()
                 const other = cell.owners[previous]!
@@ -427,7 +468,7 @@ export function certifyTerminalLayout(document: TerminalDocument | undefined, ou
           const physical = port.boundary ?? { id: port.nodeId, kind: 'node' as const },
             physicalKey = keyOf(physical)
           const frame = frames.get(physicalKey),
-            mask = witness ? liveOwnedMask(document, owner, port.x, port.y, visit) : (cells!.get(siteOf(port.x, port.y)) ?? 0)
+            mask = witness ? liveOwnedMask(document, owner, port.x, port.y, visit, sharedCells) : (cells!.get(siteOf(port.x, port.y)) ?? 0)
           const dx = port.side === 'R' ? 1 : port.side === 'L' ? -1 : 0,
             dy = port.side === 'B' ? 1 : port.side === 'T' ? -1 : 0
           const inward = port.side === 'T' ? 4 : port.side === 'R' ? 8 : port.side === 'B' ? 1 : port.side === 'L' ? 2 : 0
@@ -456,7 +497,7 @@ export function certifyTerminalLayout(document: TerminalDocument | undefined, ou
             let required = 0
             if (previous) required |= previous.x > point.x ? 2 : previous.x < point.x ? 8 : previous.y > point.y ? 4 : 1
             if (next) required |= next.x > point.x ? 2 : next.x < point.x ? 8 : next.y > point.y ? 4 : 1
-            const mask = liveOwnedMask(document, owner, point.x + witness.dx, point.y + witness.dy, visit)
+            const mask = liveOwnedMask(document, owner, point.x + witness.dx, point.y + witness.dy, visit, sharedCells)
             if (!mask || (mask & required) !== required) valid = false
           }
           if (valid) continue
@@ -466,7 +507,7 @@ export function certifyTerminalLayout(document: TerminalDocument | undefined, ou
           visit()
           bfsCells = new Map() // fallback map capacity before allocation
           for (const [x, y] of document.entries()) {
-            const mask = liveOwnedMask(document, owner, x, y, visit)
+            const mask = liveOwnedMask(document, owner, x, y, visit, sharedCells)
             if (mask) {
               visit()
               visit()

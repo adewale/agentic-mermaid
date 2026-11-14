@@ -13,7 +13,7 @@ import { decodeXML } from 'entities'
 
 import { mergeConfigSource, configDirective } from './shared/pinned-mermaid-config/merge.js'
 import { pinnedMermaidDiagramType } from './shared/pinned-mermaid-diagram-type.ts'
-import { scanStateComments } from './state/comment.ts'
+import { scanStateComments } from './state/source-comments.ts'
 import { readAuthoredGrammarAccessibility, readGrammarAccessibility } from './shared/grammar-text.ts'
 import { DeferredDependencyError } from './layout/certification-error.ts'
 import { detectInstalledFamilyDescriptorFromFirstLine, detectInstalledFamilyFromFirstLine, installedFamilyStatementEnds, type RegisteredFamilyResolver } from './agent/family-router.ts'

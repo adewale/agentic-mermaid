@@ -2,6 +2,7 @@ import { eventModelingUnsupportedSyntaxWarnings } from './eventmodeling-body.ts'
 import { canonicalWrapperConfig } from './wrapper-portability.ts'
 import { PaintLayoutCertificationError, renderedPaintCertification } from '../scene/paint-certification.ts'
 import { uncertifiedLayoutWarnings } from './uncertified-layout.ts'
+import { layoutCostWarnings } from './layout-cost-warning.ts'
 import { deferredDependency } from '../layout/certification-error.ts'
 // ============================================================================
 // verifyMermaid — Tier 1 (source/structure) + Tier 2 (geometric) + Tier 3 (lint).
@@ -24,6 +25,7 @@ import type { OutputSecurityDiagnostic } from '../output-security.ts'
 import { DiagramWorkLimitError } from '../shared/diagram-limits.ts'
 import { checkFamilyConfigColors, checkThemeVariableColors, RenderOptionColorError, ThemeVariableColorError } from '../theme-color-admission.ts'
 import { auditRouteContracts, findRouteHitches } from '../route-contracts.ts'
+import { compactnessFindings, type CompactnessGeometry, type CompactnessGroup } from '../layout/compactness.ts'
 import { evaluateBrandConstraints } from '../scene/brand-constraints.ts'
 import { isSequenceCommentLine } from '../sequence/statements.ts'
 import { readSequenceText } from '../sequence/text.ts'
@@ -31,7 +33,7 @@ import { wcagCssContrastRatio } from '../shared/color-math.ts'
 import { sameExtensionIdentity } from '../shared/extension-identity.ts'
 import { edgeWarningIds, positionedEdgeWarningIds } from '../shared/edge-selectors.ts'
 import { explicitFamilyConfigDiagnostics, familyConfigDiagnostics } from '../shared/family-config-diagnostics.ts'
-import type { PositionedGraph, RenderOptions } from '../types.ts'
+import type { Direction, PositionedGraph, RenderOptions } from '../types.ts'
 import { formatBarValue } from '../xychart/axis-utils.ts'
 import type { PositionedXYChart } from '../xychart/types.ts'
 import type { PositionedQuadrantChart } from '../quadrant/types.ts'
@@ -62,7 +64,7 @@ import { kanbanUnsupportedSyntaxWarnings } from './kanban-body.ts'
 import { parseRegisteredMermaid } from './parse.ts'
 import { prepareRenderInput } from './render-input.ts'
 import { quadrantUnsupportedSyntaxWarnings } from './quadrant-body.ts'
-import { sequenceMessages, sequenceUnsupportedSyntaxWarnings } from './sequence-body.ts'
+import { sequenceMessages, sequencePreservedConstructs, sequenceUnsupportedSyntaxWarnings } from './sequence-body.ts'
 import { authoredLineForCanonical, authoredTextForCanonical, sourceCleanup } from './source-map-spans.ts'
 import { serializeMermaid } from './serialize.ts'
 import { stateBodyToGraph, stateUnsupportedSyntaxWarnings } from './state-body.ts'
@@ -254,7 +256,7 @@ function verifyParsedMermaid(input: ParsedDiagram | string, opts: VerifyOptions,
   }
   try {
     const structured = verifyStructure(parsed.value, opts, positioned, typeof input === 'string' ? input : undefined)
-    return withUncertifiedLayout(withRenderParity(withBrandConstraints(structured, opts, positioned), opts, positioned, shared), opts, positioned)
+    return withLayoutCost(withUncertifiedLayout(withRenderParity(withBrandConstraints(structured, opts, positioned), opts, positioned, shared), opts, positioned), opts, positioned)
   } catch (error) {
     // Family layouts, color admission and a work limit only a render-path
     // parser enforces (state nesting) are findings, not verify failures.
@@ -434,6 +436,15 @@ function withUncertifiedLayout(result: VerifyResult, opts: VerifyOptions, positi
     warnings: dedupedConcat(result.warnings, warnings),
     ...(certification && !result.layoutCertification ? { layoutCertification: certification } : {}),
   }
+}
+
+/** A graph laid out under the bounded cost profile: one advisory finding. */
+function withLayoutCost(result: VerifyResult, opts: VerifyOptions, positioned: VerificationArtifact): VerifyResult {
+  let artifact: ProjectedFamilyArtifact | null
+  try { artifact = positioned() } catch { return result }
+  const suppressed = new Set(opts.suppress ?? [])
+  const warnings = artifact ? layoutCostWarnings(artifact.layoutResult.positioned).filter(warning => !suppressed.has(warning.code)) : []
+  return warnings.length ? { ...result, warnings: dedupedConcat(result.warnings, warnings) } : result
 }
 
 // Gantt's todayMarker directive style payload: the wired line-paint
@@ -633,6 +644,77 @@ function c4LayoutWarnings(positioned: VerificationArtifact): LayoutWarning[] {
   } catch {
     return []
   } // The render-parity gate owns layout failures.
+}
+
+/** Tier 3 compactness lint (src/layout/compactness.ts) as verify warnings. */
+function compactnessWarnings(geometry: CompactnessGeometry, direction?: Direction): LayoutWarning[] {
+  const { rankSlack, titleStripRoutes } = compactnessFindings(geometry, direction)
+  return [
+    ...rankSlack.map((f): LayoutWarning => {
+      const extra = f.spannedLayers - f.requiredLayers
+      return { code: 'EDGE_RANK_SLACK', edge: f.edge, spannedLayers: f.spannedLayers, requiredLayers: f.requiredLayers, message: `Edge ${f.from}->${f.to} crosses ${extra} node layers that no path from ${f.from} to ${f.to} needs; ${f.to} could be placed nearer ${f.from}.` }
+    }),
+    ...titleStripRoutes.map((f): LayoutWarning => {
+      const clearancePx = Math.round(f.clearancePx)
+      return { code: 'EDGE_UNDER_GROUP_TITLE', edge: f.edge, group: f.group, clearancePx, message: `Edge ${f.from}->${f.to} runs horizontally ${clearancePx}px below the title of group ${f.group}, above its first member.` }
+    }),
+  ]
+}
+
+/** Public layout groups with the title-band height their positioned group
+ * reserved. A group without a measured band (or a state concurrency region,
+ * which draws none) gets 0 and is not checked for a title strip. */
+function titledGroups(layout: RenderedLayout, positioned: unknown): CompactnessGroup[] {
+  type HeaderOwner = { id: string; headerHeight?: number; concurrencyRegion?: true; children?: readonly HeaderOwner[] }
+  const heights = new Map<string, number>()
+  const visit = (group: HeaderOwner): void => {
+    if (!group.concurrencyRegion && group.headerHeight !== undefined) heights.set(group.id, group.headerHeight)
+    group.children?.forEach(visit)
+  }
+  const owners = positioned as { groups?: readonly HeaderOwner[]; namespaces?: readonly HeaderOwner[] }
+  owners.groups?.forEach(visit)
+  owners.namespaces?.forEach(visit)
+  return layout.groups.map(group => ({ ...group, headerHeight: heights.get(group.id) ?? 0 }))
+}
+
+/** EDGE_RANK_SLACK and EDGE_UNDER_GROUP_TITLE over a positioned graph
+ * (flowchart, swimlane, agentflow, state) and its public projection. */
+export function graphCompactnessWarnings(positioned: PositionedGraph, graph: import('../types.ts').MermaidGraph, layout: RenderedLayout): LayoutWarning[] {
+  const edgeIds = positionedEdgeWarningIds(positioned.edges)
+  return compactnessWarnings({
+    nodes: layout.nodes,
+    edges: positioned.edges.map(edge => ({
+      id: edgeIds.get(edge)!,
+      from: edge.source,
+      to: edge.target,
+      path: edge.points.map(point => [point.x, point.y] as const),
+      ...(edge.style === 'invisible' ? { visibility: 'hidden' as const } : {}),
+      length: edge.edgeIndex === undefined ? undefined : graph.edges[edge.edgeIndex]?.length,
+    })),
+    groups: titledGroups(layout, positioned),
+  }, graph.direction)
+}
+
+/** The compactness lint verify reports for a diagram's positioned artifact:
+ * both checks for graph bodies; the title strip for class namespaces,
+ * architecture groups and C4 boundaries, which reserve a title band above
+ * their contents as subgraphs do; nothing for other families. */
+export function compactnessLintWarnings(d: ParsedDiagram, artifact: ProjectedFamilyArtifact): LayoutWarning[] {
+  const body = d.body
+  if (body.kind === 'flowchart' || body.kind === 'swimlane' || body.kind === 'agentflow' || body.kind === 'state') {
+    return isPositionedGraph(artifact.positioned) ? graphCompactnessWarnings(artifact.positioned, body.kind === 'state' ? stateBodyToGraph(body) : body.graph, artifact.rendered) : []
+  }
+  if (body.kind !== 'class' && body.kind !== 'architecture' && body.kind !== 'c4') return []
+  return compactnessWarnings({ nodes: artifact.rendered.nodes, edges: artifact.rendered.edges, groups: titledGroups(artifact.rendered, artifact.positioned) })
+}
+
+function familyCompactnessWarnings(d: ParsedDiagram, positioned: VerificationArtifact): LayoutWarning[] {
+  try {
+    const artifact = positioned()
+    return artifact ? compactnessLintWarnings(d, artifact) : []
+  } catch {
+    return [] // The render-parity gate owns layout failures.
+  }
 }
 
 function chartWidthWarnings(family: 'pie' | 'radar', positioned: VerificationArtifact): LayoutWarning[] {
@@ -874,7 +956,8 @@ function verifyStructure(parsed: ParsedDiagram, opts: VerifyOptions, positioned:
                 ? treemapHiddenLabelWarnings(positioned)
                 : []
     const fittingWarnings = d.body.kind === 'pie' || d.body.kind === 'radar' ? chartWidthWarnings(d.body.kind, positioned) : []
-    return finalize(dedupedConcat(dedupedConcat(dedupedConcat(dedupedConcat(pluginWarnings, familyGeometry), layoutOutcome.warnings), appearanceWarnings), fittingWarnings), layout, opts)
+    const compactness = familyCompactnessWarnings(d, positioned)
+    return finalize(dedupedConcat(dedupedConcat(dedupedConcat(dedupedConcat(dedupedConcat(pluginWarnings, familyGeometry), layoutOutcome.warnings), appearanceWarnings), fittingWarnings), compactness), layout, opts)
   }
 
   // State diagrams (BUILD-19): the StateBody projects to a MermaidGraph via the
@@ -1022,8 +1105,10 @@ function verifyGraph(graph: import('../types.ts').MermaidGraph, d: ValidDiagram,
   }
   warnings.push(...auditRouteContracts(positioned, graph))
 
-  // Tier 3 — advisory lint for common agent mistakes that still parse/render.
+  // Tier 3 — advisory lint for common agent mistakes that still parse/render,
+  // then the compactness lint over the final geometry.
   warnings.push(...lint)
+  warnings.push(...graphCompactnessWarnings(positioned, graph, layout))
 
   return { warnings, layout }
 }
@@ -1168,6 +1253,7 @@ function warningKey(w: LayoutWarning): string {
   // (flowchart_shape_substitution) so two substituted nodes both surface.
   if (w.code === 'UNSUPPORTED_SYNTAX') return `${w.code}:${w.syntax}:${w.line ?? ''}:${w.node ?? ''}`
   if (w.code === 'RENDER_FAILED' || w.code === 'INTERNAL_ERROR') return `${w.code}:${w.reason}`
+  if (w.code === 'EDGE_UNDER_GROUP_TITLE') return `${w.code}:${w.edge}:${w.group}`
   if ('target' in w) return `${w.code}:${w.target}`
   if ('edge' in w) return `${w.code}:${w.edge}`
   if ('node' in w) return `${w.code}:${w.node}`
@@ -1336,7 +1422,7 @@ function verifySequence(d: ValidDiagram & { body: SequenceBody }, cap: number, o
     warnings.push({
       code: 'UNSUPPORTED_SYNTAX',
       syntax: 'sequence_opaque_segment',
-      message: 'This sequence contains source-preserved constructs that are not represented in describe/facts or typed fragment operations. Inspect the source directly before relying on semantic read-back.',
+      message: `This sequence contains source-preserved constructs that are not represented in describe/facts or typed fragment operations (${sequencePreservedConstructs(opaqueLines).join(', ')}). Inspect the source directly before relying on semantic read-back.`,
     })
     const plugin = getFamily(d.kind)
     const labels = (plugin?.extractLabels ?? extractLabelsGeneric)(opaqueLines.join('\n'))
