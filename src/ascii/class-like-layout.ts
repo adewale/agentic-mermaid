@@ -6,7 +6,7 @@ import { OccupancyMap } from './occupancy.ts'
 import { allocateFacePort, countFaceDemand, faceSize } from './terminal-geometry.ts'
 import { tryParseCssColor, toHex } from '../shared/color-math.ts'
 import { measuredText, type MeasuredTerminalText, type TerminalBounds, type TerminalDocument, type TerminalOwner } from './terminal-document.ts'
-import { allocateTerminalRoute, paintTerminalRoute, type TerminalRoute } from './terminal-route.ts'
+import { allocateTerminalRoute, paintTerminalBus, paintTerminalRoute, type TerminalRoute } from './terminal-route.ts'
 import { drawMultiBox } from './draw.ts'
 import { TERMINAL_ROUTE_CHANNEL_LIMIT, TERMINAL_ROUTE_SEARCH_LIMIT, TerminalWorkLimitError } from './terminal-limits.ts'
 
@@ -38,6 +38,24 @@ export interface BoxRelation {
   toLines?: readonly string[]
 }
 export interface BoxPort extends Readonly<GridCoord> { readonly side: BoxSide }
+/**
+ * A closed complete-bipartite block of alike relations, drawn as one bus: each
+ * source's relations leave through one shared port and stem into a collector
+ * run, the collector meets a distributor run at one junction, and the
+ * distributor stems into one shared port of each target. Every relation keeps
+ * its own identity, endpoints and markers along its own complete path. Shared
+ * bus ink misstates nothing because the block is complete: wherever the paths
+ * of s -> t and s' -> t' share ink, s -> t' and s' -> t are also relations of
+ * the block, alike. Collector ink runs toward the junction and distributor ink
+ * away from it, so no two members share a cell in opposite directions.
+ */
+export interface BoxBus {
+  readonly id: string
+  /** Indices of the member relations, in authored order. */
+  readonly members: readonly number[]
+  readonly sources: readonly string[]
+  readonly targets: readonly string[]
+}
 export interface BoxText extends Readonly<TerminalBounds> { readonly lines: readonly string[]; readonly text: MeasuredTerminalText }
 export class TerminalBoxRouteUnavailable extends Error {
   constructor(message: string, readonly relationIndex: number) { super(message) }
@@ -76,16 +94,70 @@ function sides(relation: BoxRelation, direction: DiagramDirection, boxes?: Reado
   return ['B', 'T']
 }
 
+/**
+ * The closed complete-bipartite blocks of alike relations that contract to a
+ * bus: sources S and targets T with |S|, |T| >= 2 and |S||T| > |S| + |T|,
+ * every s -> t joined by exactly one relation, all with the same defined
+ * `signature` (the family's complete shared paint: kind, markers, shaft, and
+ * no text), and no other relation leaving a source or entering a target.
+ * Deterministic: blocks follow their first member, members authored order.
+ */
+export function bipartiteBuses(relations: readonly BoxRelation[], signature: (relation: BoxRelation, index: number) => string | undefined): BoxBus[] {
+  const pairs = new Map<string, number>(), outgoing = new Map<string, number>(), incoming = new Map<string, number>()
+  for (const relation of relations) {
+    const pair = JSON.stringify([relation.from, relation.to])
+    pairs.set(pair, (pairs.get(pair) ?? 0) + 1)
+    outgoing.set(relation.from, (outgoing.get(relation.from) ?? 0) + 1)
+    incoming.set(relation.to, (incoming.get(relation.to) ?? 0) + 1)
+  }
+  const families = new Map<string, Map<string, number[]>>(), order = new Map<string, number>()
+  relations.forEach((relation, index) => {
+    for (const id of [relation.from, relation.to]) if (!order.has(id)) order.set(id, order.size)
+    const family = relation.from === relation.to || pairs.get(JSON.stringify([relation.from, relation.to])) !== 1 ? undefined : signature(relation, index)
+    if (family === undefined) return
+    const bySource = families.get(family) ?? new Map<string, number[]>()
+    families.set(family, bySource)
+    bySource.set(relation.from, [...(bySource.get(relation.from) ?? []), index])
+  })
+  const buses: Array<Omit<BoxBus, 'id'>> = []
+  for (const bySource of families.values()) {
+    const byTargets = new Map<string, { members: number[]; sources: string[]; targets: string[] }>()
+    for (const [source, members] of bySource) {
+      const targets = members.map(index => relations[index]!.to).sort((a, b) => order.get(a)! - order.get(b)!), key = JSON.stringify(targets)
+      const draft = byTargets.get(key)
+      if (draft) { draft.sources.push(source); draft.members.push(...members) } else byTargets.set(key, { members: [...members], sources: [source], targets })
+    }
+    for (const { members, sources, targets } of byTargets.values()) {
+      if (sources.length < 2 || targets.length < 2 || sources.length * targets.length <= sources.length + targets.length) continue
+      if (sources.some(id => outgoing.get(id) !== targets.length) || targets.some(id => incoming.get(id) !== sources.length)) continue
+      buses.push({ members: members.sort((a, b) => a - b), sources, targets })
+    }
+  }
+  return buses.sort((a, b) => a.members[0]! - b.members[0]!).map((bus, index) => Object.freeze({ id: `bus:${index}`, ...bus }))
+}
+
 /** Face capacity belongs to allocation, before any node or connector is painted. */
-export function boxFaceSizes(relations: readonly BoxRelation[], direction: DiagramDirection, boxes?: readonly TerminalBox[]): Map<string, { width: number; height: number }> {
-  const counts = faceCounts(relations, direction, boxes ? new Map(boxes.map(box => [box.id, box])) : undefined)
+export function boxFaceSizes(relations: readonly BoxRelation[], direction: DiagramDirection, boxes?: readonly TerminalBox[], buses: readonly BoxBus[] = []): Map<string, { width: number; height: number }> {
+  const counts = faceCounts(relations, direction, boxes ? new Map(boxes.map(box => [box.id, box])) : undefined, buses)
   return new Map([...counts].map(([id, count]) => [id, faceSize(count)]))
 }
 
-function faceCounts(relations: readonly BoxRelation[], direction: DiagramDirection, boxes?: ReadonlyMap<string, TerminalBox>): Map<string, Record<BoxSide, number>> {
-  return countFaceDemand(relations.flatMap(relation => {
-    const [from, to] = sides(relation, direction, boxes)
-    return [{ id: relation.from, side: from }, { id: relation.to, side: to }]
+/** The bus each relation index belongs to. */
+const busOf = (buses: readonly BoxBus[]): Map<number, BoxBus> => new Map(buses.flatMap(bus => bus.members.map(index => [index, bus] as const)))
+
+/** A bus's relations at one card face share one port, so they demand one. */
+function faceCounts(relations: readonly BoxRelation[], direction: DiagramDirection, boxes?: ReadonlyMap<string, TerminalBox>, buses: readonly BoxBus[] = []): Map<string, Record<BoxSide, number>> {
+  const member = busOf(buses), shared = new Set<string>()
+  return countFaceDemand(relations.flatMap((relation, index) => {
+    const [from, to] = sides(relation, direction, boxes), bus = member.get(index)
+    return ([['start', relation.from, from], ['end', relation.to, to]] as const).flatMap(([end, id, side]) => {
+      if (bus) {
+        const key = `${bus.id}\0${end}\0${id}\0${side}`
+        if (shared.has(key)) return []
+        shared.add(key)
+      }
+      return [{ id, side }]
+    })
   }))
 }
 
@@ -124,9 +196,10 @@ const overlaps = (a: TerminalBounds, b: TerminalBounds): boolean => a.x < b.x + 
  * marker exits, all text rectangles and earlier routes are allocated here.
  * Family code supplies its own boxes, labels and endpoint marker semantics.
  */
-export function allocateBoxRoutes(boxes: readonly TerminalBox[], relations: readonly BoxRelation[], direction: DiagramDirection, additionalObstacles: readonly TerminalBox[] = [], work?: RouteSearchWork, first: readonly number[] = [], fanning?: (relation: BoxRelation) => boolean): BoxRoute[] {
+export function allocateBoxRoutes(boxes: readonly TerminalBox[], relations: readonly BoxRelation[], direction: DiagramDirection, additionalObstacles: readonly TerminalBox[] = [], work?: RouteSearchWork, first: readonly number[] = [], fanning?: (relation: BoxRelation) => boolean, buses: readonly BoxBus[] = []): BoxRoute[] {
   const byId = new Map(boxes.map(box => [box.id, box]))
-  const counts = faceCounts(relations, direction, byId), cursors = new Map<string, number>()
+  const member = busOf(buses)
+  const counts = faceCounts(relations, direction, byId, buses), cursors = new Map<string, number>()
   // Self-relationships leave the right face and return through the bottom
   // face, one nested slot each: the n-th loop of a card (n = 0 innermost)
   // takes the n-th port from that corner on both faces, so the loops nest
@@ -151,7 +224,7 @@ export function allocateBoxRoutes(boxes: readonly TerminalBox[], relations: read
       const [fromSide, toSide] = sides(relation, direction, byId)
       for (const [end, id, side, otherId, otherSide] of [['start', relation.from, fromSide, relation.to, toSide], ['end', relation.to, toSide, relation.from, fromSide]] as const) {
         const other = byId.get(otherId)!, face = faces.get(`${id}\0${side}`) ?? []
-        face.push({ end: `${index}\0${end}`, along: side === 'T' || side === 'B' ? 2 * other.x + other.width : 2 * other.y + other.height, order: face.length, opposite: counts.get(otherId)![otherSide], fanning: fanning(relation) })
+        face.push({ end: `${index}\0${end}`, along: side === 'T' || side === 'B' ? 2 * other.x + other.width : 2 * other.y + other.height, order: face.length, opposite: counts.get(otherId)![otherSide], fanning: fanning(relation) && !member.has(index) })
         faces.set(`${id}\0${side}`, face)
       }
     })
@@ -161,18 +234,24 @@ export function allocateBoxRoutes(boxes: readonly TerminalBox[], relations: read
       face.sort((a, b) => a.along - b.along || a.order - b.order).forEach((endpoint, slot) => slots.set(endpoint.end, slot))
     }
   }
-  const port = (id: string, side: BoxSide, end: string, loop?: number): BoxPort => {
+  // A bus's relations at one face take the one port its first member takes.
+  const sharedPorts = new Map<string, BoxPort>()
+  const port = (id: string, side: BoxSide, end: string, loop?: number, shared?: string): BoxPort => {
+    const known = shared === undefined ? undefined : sharedPorts.get(shared)
+    if (known) return known
     const box = byId.get(id)!, count = counts.get(id)![side]
     if (loop !== undefined) return allocateFacePort(box, side, count - 1 - loop, count)
     const key = `${id}\0${side}`, index = slots.get(end) ?? cursors.get(key) ?? 0
     cursors.set(key, (cursors.get(key) ?? 0) + 1)
-    return allocateFacePort(box, side, index, count)
+    const allocated = allocateFacePort(box, side, index, count)
+    if (shared !== undefined) sharedPorts.set(shared, allocated)
+    return allocated
   }
   const plans = relations.map((relation, index) => {
     if (!byId.has(relation.from) || !byId.has(relation.to)) throw new Error(`Terminal route ${relation.id} has no allocated endpoint box`)
     const [from, to] = sides(relation, direction, byId)
-    const loop = selfRank.get(relation)
-    return { relation, index, source: port(relation.from, from, `${index}\0start`, loop), target: port(relation.to, to, `${index}\0end`, loop), ...(loop === undefined ? {} : { loop }) }
+    const loop = selfRank.get(relation), bus = member.get(index)
+    return { relation, index, source: port(relation.from, from, `${index}\0start`, loop, bus && `${bus.id}\0start\0${relation.from}\0${from}`), target: port(relation.to, to, `${index}\0end`, loop, bus && `${bus.id}\0end\0${relation.to}\0${to}`), ...(loop === undefined ? {} : { loop }) }
   })
   // The map is a search adapter over cell rectangles; its payload is unused by
   // getPath. No family-specific node store or dense output canvas is copied.
@@ -373,6 +452,84 @@ export function allocateBoxRoutes(boxes: readonly TerminalBox[], relations: read
     }
     return undefined
   }
+  /**
+   * Every bus is drawn before any other route searches, at fixed cells: from
+   * each shared source port straight across the gap to the collector run,
+   * along it to the junction, two cells on to the distributor run, along it
+   * and straight into each shared target port. The collector runs on the
+   * first row (or column) past every source approach, the distributor two
+   * cells beyond, and the junction at the members' median crossing, unless
+   * those cells touch a card, text, another route or an unrelated approach,
+   * when the next feasible row and junction are taken. Later routes cross
+   * bus ink only perpendicularly, as they cross any route.
+   */
+  function constructBuses(): Set<number> {
+    const done = new Set<number>(), planAt = new Map(plans.map(plan => [plan.index, plan]))
+    const opposite = { T: 'B', B: 'T', L: 'R', R: 'L' } as const
+    for (const bus of buses) {
+      const members = bus.members.map(index => planAt.get(index)!), side = members[0]!.source.side
+      const unavailable = () => new TerminalBoxRouteUnavailable(`No feasible terminal bus for ${bus.id}; move its cards apart`, bus.members[0]!)
+      if (members.some(plan => plan.source.side !== side || plan.target.side !== opposite[side])) throw unavailable()
+      // Depth grows from the sources toward the targets; along runs across it.
+      const vertical = side === 'T' || side === 'B', sign = side === 'B' || side === 'R' ? 1 : -1
+      const depth = (point: GridCoord) => sign * (vertical ? point.y : point.x), along = (point: GridCoord) => vertical ? point.x : point.y
+      const at = (a: number, d: number): GridCoord => vertical ? { x: a, y: sign * d } : { x: sign * d, y: a }
+      const sources = [...new Map(members.map(plan => [gridKey(plan.source), plan.source])).values()]
+      const targets = [...new Map(members.map(plan => [gridKey(plan.target), plan.target])).values()]
+      const own = new Set([...sources, ...targets].flatMap(point => approachCells(point)))
+      const low = Math.max(...sources.map(point => depth(point) + BOX_ROUTE_APPROACH_DISTANCE))
+      const high = Math.min(...targets.map(point => depth(point) - BOX_ROUTE_APPROACH_DISTANCE)) - 2
+      const crossings = members.flatMap(plan => [along(plan.source), along(plan.target)]).sort((a, b) => a - b)
+      const median = crossings[(crossings.length - 1) >> 1]!, first = crossings[0]!, last = crossings.at(-1)!
+      // The junction keeps off every stem, so each run meets it as a tee that
+      // cannot read as a crossing, and a cell away from them where it can.
+      const stems = new Set(crossings), crowding = (a: number) => (stems.has(a) ? 2 : stems.has(a - 1) || stems.has(a + 1) ? 1 : 0)
+      const junctions = Array.from({ length: last - first + 1 }, (_, offset) => first + offset).sort((a, b) => crowding(a) - crowding(b) || Math.abs(a - median) - Math.abs(b - median) || a - b).slice(0, 16)
+      const free = (point: GridCoord): boolean => {
+        const key = gridKey(point)
+        return point.x >= 0 && point.y >= 0 && !cardCells.has(key) && !routeCells.has(key) && (!physicalMarker(key) || own.has(key)) && !textBounds.some(bounds => overlaps(bounds, { ...point, width: 1, height: 1 }))
+      }
+      const run = (points: GridCoord[], to: GridCoord) => {
+        const from = points.at(-1)!, dx = Math.sign(to.x - from.x), dy = Math.sign(to.y - from.y)
+        for (let x = from.x + dx, y = from.y + dy; x !== to.x + dx || y !== to.y + dy; x += dx, y += dy) points.push({ x, y })
+      }
+      const path = (source: BoxPort, target: BoxPort, collector: number, junction: number): GridCoord[] => {
+        const points: GridCoord[] = [{ x: source.x, y: source.y }]
+        for (const goal of [at(along(source), collector), at(junction, collector), at(junction, collector + 2), at(along(target), collector + 2), target]) run(points, goal)
+        return points
+      }
+      let chosen: { collector: number; junction: number } | undefined, policyChecks = 0
+      search: for (let collector = low; collector <= high; collector++) for (const junction of junctions) {
+        // The union of member paths: every stem, both runs and the junction.
+        const span = (values: number[]) => [Math.min(junction, ...values), Math.max(junction, ...values)] as const
+        const cells: GridCoord[] = []
+        for (const point of sources) { const stem = [{ x: point.x, y: point.y }]; run(stem, at(along(point), collector)); cells.push(...stem) }
+        for (const point of targets) { const stem = [{ x: point.x, y: point.y }]; run(stem, at(along(point), collector + 2)); cells.push(...stem) }
+        for (const [row, values] of [[collector, sources.map(along)], [collector + 2, targets.map(along)]] as const) {
+          const [from, to] = span(values)
+          for (let a = from; a <= to; a++) cells.push(at(a, row))
+        }
+        cells.push(at(junction, collector + 1))
+        if (!cells.every(free)) continue
+        if (policyChecks++ >= 4) break search
+        for (const plan of members) {
+          const policy = stepPolicy(plan.relation), points = path(plan.source, plan.target, collector, junction)
+          if (policy && points.some((point, index) => index > 0 && !policy(points[index - 1]!.x, points[index - 1]!.y, point.x, point.y))) continue search
+        }
+        chosen = { collector, junction }
+        break
+      }
+      if (!chosen) throw unavailable()
+      for (const plan of members) {
+        const points = path(plan.source, plan.target, chosen.collector, chosen.junction)
+        record(points)
+        retireReservations(plan.source, plan.target)
+        routes[plan.index] = sealRoute({ relation: plan.relation, source: plan.source, target: plan.target, points })
+        done.add(plan.index)
+      }
+    }
+    return done
+  }
   // Self-loops claim their nested corner slots, innermost first, before other
   // routes search: an outer shortest path could otherwise enclose and seal a
   // later exit. Relations listed in `first` (ones that failed an earlier
@@ -404,7 +561,9 @@ export function allocateBoxRoutes(boxes: readonly TerminalBox[], relations: read
     const aLoop = a.loop !== undefined, bLoop = b.loop !== undefined
     return aLoop !== bLoop ? (aLoop ? -1 : 1) : rank(a.index) - rank(b.index) || (fanRank.get(a) ?? 0) - (fanRank.get(b) ?? 0) || a.index - b.index
   })
+  const bussed = constructBuses()
   for (const plan of plans) {
+    if (bussed.has(plan.index)) continue
     const { relation, source, target, index: relationIndex } = plan
     const fromLabel = text(relation.fromLines, [source]), toLabel = text(relation.toLines, [target])
     const loop = plan.loop === undefined ? undefined : constructLoop(plan)
@@ -509,14 +668,14 @@ export function allocateBoxRoutes(boxes: readonly TerminalBox[], relations: read
  * routes with TerminalBoxRouteUnavailable, which widens them as a failed
  * search does; `fanning` names the relations whose faces may form fans.
  */
-export function allocateChannelledBoxRoutes(layout: (channel: number) => { boxes: readonly TerminalBox[]; obstacles?: readonly TerminalBox[] }, relations: readonly BoxRelation[], direction: DiagramDirection, options: { accept?: (routes: BoxRoute[]) => void; fanning?: (relation: BoxRelation) => boolean } = {}): BoxRoute[] {
+export function allocateChannelledBoxRoutes(layout: (channel: number) => { boxes: readonly TerminalBox[]; obstacles?: readonly TerminalBox[] }, relations: readonly BoxRelation[], direction: DiagramDirection, options: { accept?: (routes: BoxRoute[]) => void; fanning?: (relation: BoxRelation) => boolean; buses?: readonly BoxBus[] } = {}): BoxRoute[] {
   const work: RouteSearchWork = { pops: 0, limit: TERMINAL_ROUTE_SEARCH_LIMIT }
   const first: number[] = []
   for (let channel = 0; ; channel = channel ? channel * 2 : 4) {
     const { boxes, obstacles } = layout(channel)
     work.margin = channel
     try {
-      const routes = allocateBoxRoutes(boxes, relations, direction, obstacles, work, first, options.fanning)
+      const routes = allocateBoxRoutes(boxes, relations, direction, obstacles, work, first, options.fanning, options.buses)
       options.accept?.(routes)
       return routes
     } catch (error) {
@@ -532,6 +691,16 @@ export function paintBoxRoute(doc: TerminalDocument, route: BoxRoute, owner: Ter
   if (!allocatedRoutes.has(route)) throw new TypeError('Terminal routes must come from box allocation')
   if (owner.kind !== 'edge' || owner.id !== route.relation.id || owner.from !== route.relation.from || owner.to !== route.relation.to) throw new TypeError('Terminal route identity must match its allocated endpoints')
   if (!paintTerminalRoute(doc, route.path, owner, ascii, dashed ? 'dashed' : 'solid')) throw new Error(`Allocated terminal route ${owner.id} conflicts with admitted geometry`)
+}
+
+/** Paint a bus's member routes together; each keeps its own identity. */
+export function paintBoxBus(doc: TerminalDocument, routes: readonly BoxRoute[], owners: readonly TerminalOwner[], ascii: boolean, dashed = false): void {
+  routes.forEach((route, index) => {
+    const owner = owners[index]
+    if (!allocatedRoutes.has(route)) throw new TypeError('Terminal routes must come from box allocation')
+    if (owner?.kind !== 'edge' || owner.id !== route.relation.id || owner.from !== route.relation.from || owner.to !== route.relation.to) throw new TypeError('Terminal route identity must match its allocated endpoints')
+  })
+  if (!paintTerminalBus(doc, routes.map((route, index) => ({ route: route.path, owner: owners[index]! })), ascii, dashed ? 'dashed' : 'solid')) throw new Error(`Allocated terminal bus ${owners[0]?.bundle} conflicts with admitted geometry`)
 }
 
 export function paintBoxText(doc: TerminalDocument, text: BoxText | undefined, owner: TerminalOwner): void {

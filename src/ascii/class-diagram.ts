@@ -8,10 +8,11 @@ import { displayText, normalizeBrTags } from '../multiline-utils.ts'
 import { compareCodePointStrings } from '../shared/deterministic-order.ts'
 import { type DisplayTextInput, resolveLabelContent } from '../shared/display-text.ts'
 import { checkAllClassLikeAuthoredStyles } from '../shared/style-props.ts'
-import { allocateChannelledBoxRoutes, TerminalBoxRouteUnavailable, BOX_ROUTE_APPROACH_DISTANCE, type BoxRelation, type BoxSide, boxFaceDemands, boxFaceSizes, paintClassLikeCard, paintBoxRoute, paintBoxText, reverseBoxes, type TerminalBox } from './class-like-layout.ts'
+import { allocateChannelledBoxRoutes, bipartiteBuses, type BoxBus, TerminalBoxRouteUnavailable, BOX_ROUTE_APPROACH_DISTANCE, type BoxRelation, type BoxSide, boxFaceDemands, boxFaceSizes, paintClassLikeCard, paintBoxBus, paintBoxRoute, paintBoxText, reverseBoxes, type TerminalBox } from './class-like-layout.ts'
 import { terminalIds } from './identity.ts'
 import { type TerminalArtifact, terminalArtifact } from './terminal-artifact.ts'
 import { TerminalDocument, type TerminalMarker, type TerminalOwner } from './terminal-document.ts'
+import { TerminalWorkLimitError } from './terminal-limits.ts'
 import { faceSize, paintTerminalFrame } from './terminal-geometry.ts'
 import type { AsciiConfig, AsciiTheme, ColorMode } from './types.ts'
 import { visualWidth } from './width.ts'
@@ -42,6 +43,27 @@ function classMarker(type: RelationshipType, side: BoxSide, ascii: boolean): Ter
 }
 
 export function renderClassTerminal(text: string, config: AsciiConfig, colorMode?: ColorMode, theme?: AsciiTheme, targetWidth?: number, authoredText?: string): TerminalArtifact {
+  try {
+    return renderClassCells(text, config, colorMode, theme, targetWidth, authoredText, false)!
+  } catch (error) {
+    // A table too dense to route relation by relation draws each closed
+    // complete-bipartite block of alike, unlabeled relations as one bus.
+    // Every diagram that routes relation by relation keeps that drawing.
+    if (!(error instanceof TerminalWorkLimitError)) throw error
+    let bussed: TerminalArtifact | undefined
+    try {
+      bussed = renderClassCells(text, config, colorMode, theme, targetWidth, authoredText, true)
+    } catch (busError) {
+      // A bus that cannot be drawn either leaves the original refusal.
+      if (!(busError instanceof TerminalWorkLimitError)) throw busError
+    }
+    if (!bussed) throw error
+    return bussed
+  }
+}
+
+/** With `contract`, undefined when no relation forms a bus. */
+function renderClassCells(text: string, config: AsciiConfig, colorMode: ColorMode | undefined, theme: AsciiTheme | undefined, targetWidth: number | undefined, authoredText: string | undefined, contract: boolean): TerminalArtifact | undefined {
   targetWidth ??= config.targetWidth ?? config.maxWidth
   const lines = (value: string) =>
     value
@@ -74,13 +96,33 @@ export function renderClassTerminal(text: string, config: AsciiConfig, colorMode
     ...(rel.fromCardinality ? { fromLines: prepared(resolveLabelContent(rel.fromCardinality, rel.fromCardinalityContent)) } : {}),
     ...(rel.toCardinality ? { toLines: prepared(resolveLabelContent(rel.toCardinality, rel.toCardinalityContent)) } : {}),
   }))
+  // A bus shares every drawn property of its members, which carry no text
+  // and join cards of one namespace.
+  const scopeOf = new Map<string, string>()
+  const scope = (items: ClassNamespace[], parent = ''): void =>
+    items.forEach(item => {
+      const id = parent ? `${parent}.${item.name}` : item.name
+      item.classIds.forEach(member => scopeOf.set(member, id))
+      scope(item.children, id)
+    })
+  scope(diagram.namespaces)
+  const buses: BoxBus[] = contract
+    ? bipartiteBuses(relations, (_relation, index) => {
+        const rel = diagram.relationships[index]!,
+          kinds = [rel.type, rel.fromType ?? rel.type, rel.toType ?? rel.type]
+        if (rel.label || rel.fromCardinality || rel.toCardinality || kinds.includes('lollipop') || (scopeOf.get(rel.from) ?? '') !== (scopeOf.get(rel.to) ?? '')) return undefined
+        return JSON.stringify([scopeOf.get(rel.from) ?? '', ...kinds, rel.markerAt, classRelationshipLineStyle(rel)])
+      })
+    : []
+  if (contract && !buses.length) return undefined
+  const busOf = new Map(buses.flatMap(bus => bus.members.map(index => [relations[index]!.id, bus.id] as const)))
   const relationshipById = new Map<string, (typeof diagram.relationships)[number]>()
   relations.forEach((relation, index) => {
     if (!relationshipById.has(relation.id)) relationshipById.set(relation.id, diagram.relationships[index]!)
   })
   const notePlans = diagram.notes.map((note, index) => ({ id: generated(`note:${index}`), targetId: note.for, lines: wrapText(displayText(resolveLabelContent(note.text, note.textContent)), targetWidth ? Math.max(1, targetWidth - 8) : undefined) }))
   const noteRelations: BoxRelation[] = notePlans.flatMap(note => (note.targetId ? [{ id: generated(`${note.id}:connector`), from: note.targetId, to: note.id }] : []))
-  const faceSizes = boxFaceSizes([...relations, ...noteRelations], direction)
+  const faceSizes = boxFaceSizes([...relations, ...noteRelations], direction, undefined, buses)
   const sections = new Map(diagram.classes.map(cls => [cls.id, classSections(cls, targetWidth ? Math.max(1, targetWidth - 8) : undefined)]))
   const sizes = new Map(
     diagram.classes.map(cls => {
@@ -123,6 +165,31 @@ export function renderClassTerminal(text: string, config: AsciiConfig, colorMode
   }
   let cycleLevel = Math.max(-1, ...level.values()) + 1
   for (const cls of diagram.classes) if (!level.has(cls.id)) level.set(cls.id, cycleLevel++)
+  // A bus crosses one gap: the cards on its parent side share the deepest of
+  // their ranks, the cards on its other side lie beyond it, and their
+  // descendants follow, within the same bound as the ranking above.
+  for (let pass = 0, changed = buses.length > 0; changed && pass <= diagram.classes.length; pass++) {
+    changed = false
+    const raise = (id: string, to: number) => {
+      if (level.get(id)! >= to || to >= diagram.classes.length) return
+      level.set(id, to)
+      changed = true
+    }
+    for (const bus of buses) {
+      const rel = diagram.relationships[bus.members[0]!]!,
+        fromParent = !((rel.type === 'inheritance' || rel.type === 'realization') && rel.markerAt === 'to')
+      const [upper, lower] = fromParent ? [bus.sources, bus.targets] : [bus.targets, bus.sources]
+      const rank = Math.max(...upper.map(id => level.get(id)!))
+      upper.forEach(id => raise(id, rank))
+      lower.forEach(id => raise(id, rank + 1))
+    }
+    for (const [parent, set] of children) for (const child of set) raise(child, level.get(parent)! + 1)
+  }
+  // Raising can empty ranks (a relation back into a bus climbs to the bound).
+  if (buses.length) {
+    const ranks = [...new Set(level.values())].sort((a, b) => a - b)
+    for (const [id, rank] of level) level.set(id, ranks.indexOf(rank))
+  }
   const placed = new Map<string, PlacedClass>()
   // Each exterior approach occupies distance+1 blank cells. Opposing faces
   // need one additional free row/column between those protected approaches.
@@ -179,7 +246,7 @@ export function renderClassTerminal(text: string, config: AsciiConfig, colorMode
       noteY += box.height + 4
       return box
     })
-    const demand = boxFaceSizes([...relations, ...noteRelations], direction, [...placed.values(), ...notes])
+    const demand = boxFaceSizes([...relations, ...noteRelations], direction, [...placed.values(), ...notes], buses)
     let changed = false
     for (const [id, size] of demand) {
       const previous = faceSizes.get(id) ?? { width: 0, height: 0 }
@@ -312,7 +379,7 @@ export function renderClassTerminal(text: string, config: AsciiConfig, colorMode
     noteBoxes = allocateNotes()
     const boxes = [...placed.values(), ...noteBoxes]
     const byId = new Map(boxes.map(box => [box.id, box]))
-    const demand = boxFaceDemands([...relations, ...noteRelations], direction, byId)
+    const demand = boxFaceDemands([...relations, ...noteRelations], direction, byId, buses)
     let changed = false
     for (const [id, count] of demand) {
       const size = faceSize(count)
@@ -369,8 +436,9 @@ export function renderClassTerminal(text: string, config: AsciiConfig, colorMode
   const routes = allocateChannelledBoxRoutes(layout, allRelations, direction, {
     // Note connectors leave the ranks for the notes below; only relationships fan.
     fanning: relation => relationshipById.has(relation.id),
+    buses,
     accept: allocated => {
-      const decision = classRoutesDecision(allocated, [...placed.values(), ...noteBoxes], namespaces, namespaceByClass)
+      const decision = classRoutesDecision(allocated, [...placed.values(), ...noteBoxes], namespaces, namespaceByClass, busOf)
       // UNKNOWN keeps the drawing for the one final certifier.
       if (decision.status === 'invalid') throw new TerminalBoxRouteUnavailable(decision.reason, relationIndex.get(decision.relation) ?? 0)
     },
@@ -383,6 +451,12 @@ export function renderClassTerminal(text: string, config: AsciiConfig, colorMode
     frame(box, owner)
     doc.scope(owner, () => box.labelLines.forEach((line, row) => doc.text(box.x + Math.max(1, Math.floor((box.width - visualWidth(line) - 2) / 2)), box.y + row, ` ${line} `)))
   }
+  const routeAt = new Map(routes.map(route => [route.relation.id, route]))
+  const relationOwner = (route: (typeof routes)[number], rel: (typeof diagram.relationships)[number]) => {
+    const bundle = busOf.get(route.relation.id)
+    return doc.element({ id: route.relation.id, kind: 'edge', route: 'connected', from: rel.from, to: rel.to, ...(bundle === undefined ? {} : { bundle }) })
+  }
+  const paintedBuses = new Set<string>()
   for (const route of routes) {
     const rel = relationshipById.get(route.relation.id)
     if (!rel) {
@@ -392,8 +466,16 @@ export function renderClassTerminal(text: string, config: AsciiConfig, colorMode
       doc.expectMarkers(owner, 'end', [])
       continue
     }
-    const owner = doc.element({ id: route.relation.id, kind: 'edge', route: 'connected', from: rel.from, to: rel.to })
-    paintBoxRoute(doc, route, owner, ascii, classRelationshipLineStyle(rel) === 'dashed')
+    const owner = relationOwner(route, rel),
+      bus = buses.find(item => item.id === owner.bundle)
+    // A bus's members are painted together, at its first member, so every
+    // shared cell composes its owners once.
+    if (!bus) paintBoxRoute(doc, route, owner, ascii, classRelationshipLineStyle(rel) === 'dashed')
+    else if (!paintedBuses.has(bus.id)) {
+      paintedBuses.add(bus.id)
+      const members = bus.members.map(index => routeAt.get(relations[index]!.id)!)
+      paintBoxBus(doc, members, members.map(member => relationOwner(member, relationshipById.get(member.relation.id)!)), ascii, classRelationshipLineStyle(rel) === 'dashed')
+    }
     for (const [end, port, type, enabled] of [
       ['start', route.source, rel.fromType ?? rel.type, rel.markerAt === 'from' || rel.markerAt === 'both'],
       ['end', route.target, rel.toType ?? rel.type, rel.markerAt === 'to' || rel.markerAt === 'both'],

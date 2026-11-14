@@ -1,7 +1,8 @@
 import { expect, test } from 'bun:test'
 import { AsciiWidthError, renderMermaidASCIIWithReceipt } from '../ascii/index.ts'
 import { renderMermaidWithActions } from '../agent/index.ts'
-import { terminalDocumentOf, type TerminalDocument, type TerminalRegion } from '../ascii/terminal-document.ts'
+import { terminalDocumentOf, terminalOwnedStrokeMask, type TerminalDocument, type TerminalRegion } from '../ascii/terminal-document.ts'
+import { certifyTerminalLayout } from '../ascii/terminal-certification.ts'
 import { convertToAsciiGraph } from '../ascii/converter.ts'
 import { createMapping } from '../ascii/grid.ts'
 import { drawGraph } from '../ascii/draw.ts'
@@ -611,4 +612,59 @@ test.each(cardRoutes.flatMap(item => [false, true].map(useAscii => [item.name, u
       expect({ edge: edge.id, aligned: (vertical ? ports[1]!.x : ports[1]!.y) === axis, off: ink.filter(cell => cell !== axis).length }).toEqual({ edge: edge.id, aligned: true, off: 0 })
     }
   }
+})
+
+// A table relating each of 20 classes to the same 20 classes once refused
+// with TERMINAL_WORK_LIMIT: routing each relation needs a gap row per route.
+// Each closed complete-bipartite block of alike, unlabeled relations now
+// draws as one bus through one port per card. Every relation keeps its own
+// identity, endpoints and markers, and its own directions join its two ports
+// through cells it owns; shared cells belong only to that bus's relations.
+const bipartiteTable = (arrow: string, label = '') => ['classDiagram', ...Array.from({ length: 20 }, (_, i) => Array.from({ length: 20 }, (_, j) => `A${i} ${arrow} B${j}${label}`)).flat()].join('\n')
+/** Breadth-first search over the cells an edge owns, through its own directions only. */
+function ownDirectionsConnect(doc: TerminalDocument, edge: TerminalRegion): boolean {
+  const masks = new Map<string, number>()
+  for (const [x, y, cell] of doc.entries()) {
+    const index = cell.owners.findIndex(owner => owner.kind === 'edge' && owner.id === edge.id)
+    if (index < 0) continue
+    const mask = cell.kind === 'stroke' ? terminalOwnedStrokeMask(cell, index) : cell.kind === 'marker' ? (cell.marker?.direction === 'T' || cell.marker?.direction === 'B' ? 5 : 10) : 0
+    if (mask) masks.set(`${x},${y}`, mask)
+  }
+  const [start, end] = edge.ports!.map(port => `${port.x},${port.y}`)
+  const queue = masks.has(start!) ? [start!] : [], seen = new Set(queue)
+  for (let index = 0; index < queue.length; index++) {
+    const [x, y] = queue[index]!.split(',').map(Number), mask = masks.get(queue[index]!)!
+    for (const [dx, dy, exit, entry] of [[-1, 0, 8, 2], [1, 0, 2, 8], [0, -1, 1, 4], [0, 1, 4, 1]] as const) {
+      const next = `${x! + dx},${y! + dy}`
+      if (mask & exit && (masks.get(next) ?? 0) & entry && !seen.has(next)) { seen.add(next); queue.push(next) }
+    }
+  }
+  return seen.has(end!)
+}
+test.each(([['-->', 'end', 'triangle'], ['<|--', 'start', 'open-arrow']] as const).flatMap(([arrow, end, shape]) => [false, true].map(useAscii => [arrow, useAscii, end, shape] as const)))('Class 20 x 20 table of %s draws each relation through a certified bus (ASCII=%s)', (arrow, useAscii, end, shape) => {
+  const source = bipartiteTable(arrow)
+  const result = renderMermaidASCIIWithReceipt(source, { useAscii, colorMode: 'none', layoutSafety: 'strict' })
+  const doc = terminalDocumentOf(result)!
+  expect(certifyTerminalLayout(doc, result.text, 'none')).toMatchObject({ status: 'passed', issues: [] })
+  expect(renderMermaidASCIIWithReceipt(source, { useAscii, colorMode: 'none' }).text).toBe(result.text)
+  const edges = doc.regions().filter(region => region.kind === 'edge')
+  expect(new Set(edges.map(edge => edge.id)).size).toBe(400)
+  expect(edges.map(edge => `${edge.from}>${edge.to}`).sort()).toEqual(Array.from({ length: 20 }, (_, i) => Array.from({ length: 20 }, (_, j) => `A${i}>B${j}`)).flat().sort())
+  const owners = [...doc.layoutEvidence().owners].filter(owner => owner.kind === 'edge')
+  expect(owners.every(owner => owner.route === 'connected' && owner.bundle === owners[0]!.bundle && owner.bundle)).toBe(true)
+  expect([...(doc.layoutEvidence().pathWitnesses ?? [])].filter(witness => witness !== null)).toHaveLength(400)
+  const portsAt = new Map<string, Set<string>>()
+  for (const edge of edges) {
+    expect(edge.ports!.map(port => [port.end, port.nodeId, port.side])).toEqual([['start', edge.from, 'B'], ['end', edge.to, 'T']])
+    for (const port of edge.ports!) portsAt.set(port.nodeId, (portsAt.get(port.nodeId) ?? new Set()).add(`${port.x},${port.y}`))
+    expect(ownDirectionsConnect(doc, edge), edge.id).toBe(true)
+    expect(edge.ports!.map(port => port.markers!.map(marker => marker.shape))).toEqual(end === 'end' ? [[], [shape]] : [[shape], []])
+    expect(visibleEndpointMarkers(doc, edge).map(marker => marker.shape)).toEqual([shape])
+  }
+  // One shared port per card: the bus, not a fan of 20 ports per face.
+  expect([...portsAt.values()].map(ports => ports.size)).toEqual(Array.from({ length: 40 }, () => 1))
+})
+
+test('Class 20 x 20 table of labelled relations still refuses with the typed work limit', () => {
+  expect(() => renderMermaidASCIIWithReceipt(bipartiteTable('-->', ' : uses'), { colorMode: 'none' })).toThrow(expect.objectContaining({ code: 'TERMINAL_WORK_LIMIT' }))
 })

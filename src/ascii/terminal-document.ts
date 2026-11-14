@@ -1344,6 +1344,40 @@ export class TerminalDocument {
     return true
   }
 
+  /** Validate a complete batch of stroke cells that several routes share, each
+   * cell naming every owner with that owner's own directions. A cell composes
+   * its owner set and provenance once, exactly as painting each owner's route
+   * in turn would leave them. */
+  sharedStrokeBatch(cells: readonly { x: number; y: number; owners: readonly TerminalOwner[]; masks: readonly number[] }[], paint: Omit<TerminalStroke, 'mask'> = {}): boolean {
+    const prepared = cells.map(({ x, y, owners, masks }) => {
+      integer(x, 'x')
+      integer(y, 'y')
+      integer(x + 1, 'width')
+      integer(y + 1, 'height')
+      if (!owners.length || owners.length !== masks.length) throw new RangeError('shared stroke cells need one mask per owner')
+      const set = this.owners(owners)
+      if (set.length !== owners.length) throw new RangeError('shared stroke owners must be distinct')
+      const directions = new Map<string, number>()
+      owners.forEach((owner, index) => directions.set(ownerKey(owner), masks[index]!))
+      let union = 0
+      const aligned = set.map(owner => {
+        const mask = directions.get(ownerKey(owner))!
+        if (!Number.isInteger(mask) || mask < 1 || mask > 15) throw new RangeError('stroke mask must contain terminal cardinal ports')
+        union |= mask
+        return mask
+      })
+      const uniform = aligned.every(mask => mask === union)
+      if (!uniform) this.reserveStrokeProvenance(set.length + 1) // retained array slots/header BEFORE allocation
+      const stroke = Object.freeze({ mask: union, ascii: paint.ascii, style: paint.style, rounded: paint.rounded })
+      const role: CharRole = union & 10 && union & 5 ? 'corner' : 'line'
+      const cell = { kind: 'stroke', role, stroke, owners: set, [strokeContributors]: set, [strokeContributions]: uniform ? union : Object.freeze(aligned) } as unknown as TerminalCell
+      return { x, y, glyph: strokeGlyph(stroke), paint: cell as TerminalPaint, set }
+    })
+    if (prepared.some(cell => !this.admit(cell.x, cell.y, cell.glyph, 1, cell.paint, cell.set, true))) return false
+    for (const cell of prepared) this.place(cell.x, cell.y, cell.glyph, 1, cell.paint, undefined)
+    return true
+  }
+
   marker(x: number, y: number, marker: TerminalMarker, paint: TerminalPaint = {}): void {
     const semantic = Object.freeze({ ...marker, direction: marker.direction ?? 'R' })
     this.putCell(x, y, markerGlyph(semantic), { ...paint, kind: 'marker', marker: semantic }, true)

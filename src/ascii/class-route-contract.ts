@@ -21,12 +21,16 @@ const overlap = (a: { x: number; y: number; width: number; height: number }, b: 
 /** Validate actual class route geometry before any paint. Only strict
  * perpendicular interior crossings are legal between unrelated authored
  * paths; a namespace's header band (outside its text) and borders are crossed
- * straight through, and only by routes with an endpoint inside it. */
+ * straight through, and only by routes with an endpoint inside it. The
+ * members of one bus share its ink and count as one path. */
 const proofLimit = Symbol('class route contact proof limit')
-function inspectClassRoutes(routes: readonly BoxRoute[], boxes: readonly TerminalBox[], frames: readonly Frame[], parents: ReadonlyMap<string, string>): { reason: string; relation: string } | undefined {
+function inspectClassRoutes(routes: readonly BoxRoute[], boxes: readonly TerminalBox[], frames: readonly Frame[], parents: ReadonlyMap<string, string>, buses: ReadonlyMap<string, string>): { reason: string; relation: string } | undefined {
   const frameById = new Map(frames.map(frame => [frame.id, frame])),
     headers = new Map(frames.map(frame => [frame.id, namespaceHeaderLabel(frame)])),
-    ink = new Map<string, { edge: string; mask: number; terminal: boolean }>()
+    ink = new Map<string, Array<{ path: string; edge: string; mask: number; terminal: boolean }>>(),
+    // A bus member's cell, with its directions, was already checked against
+    // every card and frame when another member of that bus drew it alike.
+    inspected = new Set<string>()
   let work = 0
   const visit = () => {
     if (work >= LIMITS.maxOperations) throw proofLimit
@@ -45,6 +49,8 @@ function inspectClassRoutes(routes: readonly BoxRoute[], boxes: readonly Termina
   }
   for (const route of routes) {
     const relation = route.relation.id,
+      bus = buses.get(relation),
+      path = bus ?? '\0' + relation,
       permitted = new Set([...ancestors(route.relation.from), ...ancestors(route.relation.to)]),
       seen = new Set<string>()
     for (let index = 0; index < route.points.length; index++) {
@@ -58,9 +64,20 @@ function inspectClassRoutes(routes: readonly BoxRoute[], boxes: readonly Termina
       let mask = 0
       for (const q of [a, b]) if (q) mask |= q.x > p.x ? 2 : q.x < p.x ? 8 : q.y > p.y ? 4 : 1
       const terminal = index === 0 || index === route.points.length - 1,
-        previous = ink.get(key)
-      if (previous && previous.edge !== relation && !(!terminal && !previous.terminal && ((mask === 10 && previous.mask === 5) || (mask === 5 && previous.mask === 10)))) return { reason: 'illegal route contact ' + previous.edge + ' / ' + relation, relation }
-      ink.set(key, { edge: relation, mask: previous ? 15 : mask, terminal })
+        paths = ink.get(key) ?? []
+      let own = paths.find(entry => entry.path === path)
+      if (own) {
+        own.mask |= mask
+        own.terminal ||= terminal
+      } else paths.push((own = { path, edge: relation, mask, terminal }))
+      ink.set(key, paths)
+      const other = paths.filter(entry => entry !== own).at(-1)
+      if (other && (paths.length > 2 || own.terminal || other.terminal || !((own.mask === 10 && other.mask === 5) || (own.mask === 5 && other.mask === 10)))) return { reason: 'illegal route contact ' + other.edge + ' / ' + relation, relation }
+      if (bus !== undefined) {
+        const seenCell = bus + '|' + key + '|' + mask
+        if (inspected.has(seenCell)) continue
+        inspected.add(seenCell)
+      }
       for (const box of boxes) {
         visit()
         if (p.x >= box.x && p.x < box.x + box.width && p.y >= box.y && p.y < box.y + box.height) return { reason: 'card body contact ' + relation, relation }
@@ -96,9 +113,9 @@ function inspectClassRoutes(routes: readonly BoxRoute[], boxes: readonly Termina
   }
   return undefined
 }
-export function classRoutesDecision(routes: readonly BoxRoute[], boxes: readonly TerminalBox[], frames: readonly Frame[], parents: ReadonlyMap<string, string>): { status: 'clear' | 'unknown' } | { status: 'invalid'; reason: string; relation: string } {
+export function classRoutesDecision(routes: readonly BoxRoute[], boxes: readonly TerminalBox[], frames: readonly Frame[], parents: ReadonlyMap<string, string>, buses: ReadonlyMap<string, string> = new Map()): { status: 'clear' | 'unknown' } | { status: 'invalid'; reason: string; relation: string } {
   try {
-    const issue = inspectClassRoutes(routes, boxes, frames, parents)
+    const issue = inspectClassRoutes(routes, boxes, frames, parents, buses)
     return issue ? { status: 'invalid', ...issue } : { status: 'clear' }
   } catch (error) {
     if (error === proofLimit) return { status: 'unknown' }

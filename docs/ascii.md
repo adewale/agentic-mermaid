@@ -63,7 +63,12 @@ exhausts them within about five seconds. Card-routed families (class, ER,
 requirement, block, C4 and swimlane) widen their corridors and retry when
 greedy routing fills one, within one shared cell-search ceiling
 (`route-search`, 4 million cells); an all-pairs table of 20 entities with
-attributes renders, a 20 × 20 bipartite table refuses. A render that would exceed one throws
+attributes renders, a labelled 20 × 20 bipartite table refuses. When a class
+diagram exhausts that ceiling, each closed complete-bipartite block of alike,
+unlabeled relations (`A0..A19 --> B0..B19`) draws as one bus instead: one port
+per card, collector and distributor runs meeting at one junction, and every
+relation keeping its own identity, endpoints, markers and connected owned ink.
+A render that would exceed one throws
 `TerminalWorkLimitError` with code `TERMINAL_WORK_LIMIT`, naming the exhausted
 `resource`, instead of drawing a partial diagram; CLI and MCP report it as
 `RENDER_FAILED` with origin `source`. Render such diagrams as SVG or split them.

@@ -48,11 +48,13 @@ const CASES: Array<{ name: string; source: string; limit?: string; terminal?: tr
   { name: 'terminal: all-to-all fan 50 x 50', source: fan(50), limit: 'TERMINAL_WORK_LIMIT', terminal: true },
   { name: 'terminal: complete DAG 30', source: completeDag(30), terminal: true },
   { name: 'terminal: chain 150 with long links', source: chainWithLongLinks(150), terminal: true },
-  { name: 'terminal: class relationships 20 x 20', source: edgewise('classDiagram', 20, (a, b) => `${a} --> ${b}`), limit: 'TERMINAL_WORK_LIMIT', terminal: true },
+  // Routed relation by relation, this table exhausts the search ceiling below
+  // first; it then draws as one bus (see class-like-layout.ts BoxBus).
+  { name: 'terminal: class relationships 20 x 20', source: edgewise('classDiagram', 20, (a, b) => `${a} --> ${b}`), terminal: true },
   // Card routing widens its corridors until every relationship routes, within
   // one shared search ceiling: an all-pairs table of 10 entities renders; the
-  // 400-relationship bipartite table and a one-column complete DAG of 12
-  // requirements refuse with the typed limit instead of an unroutable edge.
+  // labelled 400-relationship ER bipartite table and a one-column complete DAG
+  // of 12 requirements refuse with the typed limit instead of an unroutable edge.
   { name: 'terminal: ER all pairs of 10 entities', source: ['erDiagram', ...completeDag(10).split('\n').slice(1).map(line => line.replace(' --> ', ' ||--o{ ') + ' : r')].join('\n'), terminal: true },
   { name: 'terminal: ER relationships 20 x 20', source: edgewise('erDiagram', 20, (a, b) => `${a.toUpperCase()} ||--o{ ${b.toUpperCase()} : r`), limit: 'TERMINAL_WORK_LIMIT', terminal: true },
   { name: 'terminal: requirement complete DAG 12', source: ['requirementDiagram', ...names('r', 12).map(id => `requirement ${id} {\nid: ${id}\ntext: "${id}"\n}`), ...completeDag(12).split('\n').slice(1).map(line => line.replaceAll('k', 'r').replace(' --> ', ' - traces -> '))].join('\n'), limit: 'TERMINAL_WORK_LIMIT', terminal: true },
