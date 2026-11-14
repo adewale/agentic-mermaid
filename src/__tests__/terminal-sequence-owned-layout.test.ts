@@ -348,9 +348,6 @@ end`)
       expect(() => renderMermaidASCIIWithReceipt(source, { useAscii, colorMode: 'none', layoutSafety: 'strict' })).not.toThrow()
       expect(doc.diagnostics.filter(item => /COLLISION|OVERLAP/.test(item.code))).toEqual([])
     }
-    // The SVG header still covers the loop of a self-message that creates
-    // its participant, which strict SVG safety refuses: not certified here.
-    if (svgPlace === 'on-row' && svgMessage.from === svgMessage.to) return
     expect(renderMermaidSVGWithReceipt(source, { layoutSafety: 'strict' }).receipt.layoutCertification?.status).toBe('passed')
   })
 

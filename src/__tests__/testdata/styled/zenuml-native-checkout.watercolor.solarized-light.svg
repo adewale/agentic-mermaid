@@ -1,7 +1,7 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="577.676" height="541.4" viewBox="0 0 577.676 541.4" style="--bg:#fdf6e3;--fg:#657b83;--line:#93a1a1;--accent:#268bd2;--muted:#93a1a1;--surface:#ead9b9;--border:#5a564e;--font:Caveat;background:#fdf6e3" class="am-0a1uph01p9p464">
+<svg xmlns="http://www.w3.org/2000/svg" width="577.676" height="541.4" viewBox="0 0 577.676 541.4" style="--bg:#fdf6e3;--fg:#657b83;--line:#93a1a1;--accent:#268bd2;--muted:#93a1a1;--surface:#ead9b9;--border:#5a564e;--font:Caveat;background:#fdf6e3" class="am-04hn7he0su1g0j">
 <style>
-  svg.am-0a1uph01p9p464 { font-family: var(--font, 'Caveat'), system-ui, sans-serif; }
-  svg.am-0a1uph01p9p464 {
+  svg.am-04hn7he0su1g0j { font-family: var(--font, 'Caveat'), system-ui, sans-serif; }
+  svg.am-04hn7he0su1g0j {
     /* Derived from --bg and --fg (overridable via --line, --accent, etc.) */
     --_text:          #657b83;
     --_text-sec:      #93a1a1;
@@ -64,9 +64,9 @@
   <path d="M 350.133 171.4 h 10 V 352.25 h -10 Z M 350.133 370.55 h 10 V 371.4 h -10 Z" fill="#ead9b9" fill-opacity="0.3" stroke="#ead9b9" stroke-width="1.4" stroke-opacity="0.34" data-id="part:[&quot;activation:Stock#0&quot;,&quot;fill&quot;]" data-role="activation" />
   <path d="M348.8 171.89 C350.77 243.55, 351.45 317.75, 348.43 350.46 M361.11 171.7 C360.82 220.49, 359.62 269.62, 360.95 351.48 M350.48 171.53 C353 171.76, 355.23 170.9, 360.52 171.37 M350.17 370.48 C350.13 370.81, 350.19 371.14, 350.21 371.4 M360.16 370.54 C360.19 370.83, 360.07 371.01, 360.1 371.42 M350.87 370.86 C353.12 370.57, 356.12 371.64, 360.39 370.91" fill="none" stroke="#5a564e" stroke-width="1.125" stroke-linecap="round" stroke-linejoin="round" data-id="part:[&quot;activation:Stock#0&quot;,&quot;border&quot;]" data-role="activation" />
 </g>
-<path d="M490.098,371.725 L500.995,372.701 L500.445,471.315 L488.978,470.984 Z" fill="#ead9b9" fill-opacity="0.3" stroke="none" data-id="activation:ticket:Ticket#0" data-role="activation" />
-<path d="M490.098,371.725 L500.995,372.701 L500.445,471.315 L488.978,470.984 Z" fill="none" stroke="#ead9b9" stroke-width="1.4" stroke-opacity="0.34" />
-<path d="M489.87 371 C493.01 370.67, 496.36 372.1, 500.39 370.73 M501.91 372.12 C498.63 401.86, 499.74 435.91, 500.79 472.66 M500.27 471.51 C495.32 470.73, 492.96 471.9, 489.84 470.52 M490.67 471.5 C490.01 451.29, 491 430.35, 491.61 370.85" fill="none" stroke="#5a564e" stroke-width="1.125" stroke-linecap="round" stroke-linejoin="round" />
+<path d="M490.098,391.725 L500.995,392.701 L500.445,471.315 L488.978,470.984 Z" fill="#ead9b9" fill-opacity="0.3" stroke="none" data-id="activation:ticket:Ticket#0" data-role="activation" />
+<path d="M490.098,391.725 L500.995,392.701 L500.445,471.315 L488.978,470.984 Z" fill="none" stroke="#ead9b9" stroke-width="1.4" stroke-opacity="0.34" />
+<path d="M489.87 391 C493.01 390.67, 496.36 392.1, 500.39 390.73 M501.91 392.12 C498.76 415.56, 499.87 443.3, 500.79 472.66 M500.27 471.51 C495.32 470.73, 492.96 471.9, 489.84 470.52 M490.67 471.5 C490 455.43, 490.99 438.64, 491.61 390.85" fill="none" stroke="#5a564e" stroke-width="1.125" stroke-linecap="round" stroke-linejoin="round" />
 <path d="M209.942,130.288 L220.068,131.859 L218.909,489.979 L211.484,492.264 Z" fill="#ead9b9" fill-opacity="0.3" stroke="none" data-id="activation:API#0" data-role="activation" />
 <path d="M209.942,130.288 L220.068,131.859 L218.909,489.979 L211.484,492.264 Z" fill="none" stroke="#ead9b9" stroke-width="1.4" stroke-opacity="0.34" />
 <path d="M209.5 132.27 C212.14 130.74, 213.96 132.21, 220.19 132.23 M219.26 132.41 C218.76 240, 218.94 346.27, 219.93 491.62 M220.66 491.3 C217.73 490.78, 214.9 492.22, 209.87 491.26 M210.77 490.98 C211.5 368.95, 212.03 244.92, 210.01 131.85" fill="none" stroke="#5a564e" stroke-width="1.125" stroke-linecap="round" stroke-linejoin="round" />

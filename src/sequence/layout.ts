@@ -142,8 +142,9 @@ export function layoutSequenceDiagram(diagram: SequenceDiagram, options: RenderO
   // A creation message ends where its head's ink (or its `()` circle) meets
   // the created header's painted outline, not at the lifeline under the
   // header, so the header never covers either.
-  const createdContactInset = (actor: number, message: Message, side: -1 | 1): number =>
-    sequenceCreatedContactInset(diagram.actors[actor]!.type, actorSpecs[actor]!, actorRoleStyles[actor]?.lineWidth ?? style.nodeLineWidth, style, message, side)
+  const createdContactInset = (actor: number, message: Message, side: -1 | 1, position: 'start' | 'end' = 'end'): number =>
+    sequenceCreatedContactInset(diagram.actors[actor]!.type, actorSpecs[actor]!, actorRoleStyles[actor]?.lineWidth ?? style.nodeLineWidth, style,
+      position === 'end' ? message.endHead : message.startHead, position === 'end' ? message.centralEnd : message.centralStart, side, position)
   const messageGapRequirements = Array.from({ length: Math.max(0, diagram.actors.length - 1) }, () => 0)
   for (let mi = 0; mi < diagram.messages.length; mi++) {
     const message = diagram.messages[mi]!
@@ -152,8 +153,10 @@ export function layoutSequenceDiagram(diagram: SequenceDiagram, options: RenderO
     const to = actorIndex.get(message.to)
     if (from === undefined || to === undefined) continue
     if (from === to) {
+      // A self-message creating its participant leaves the header's side.
+      const createdHeaderWidth = diagram.actors[to]!.createMessageIndex === mi ? createdContactInset(to, message, 1, 'start') : 0
       if (from < diagram.actors.length - 1) {
-        messageGapRequirements[from] = Math.max(messageGapRequirements[from]!, spec.requiredSelfNeighborGap)
+        messageGapRequirements[from] = Math.max(messageGapRequirements[from]!, spec.requiredSelfNeighborGap + createdHeaderWidth)
       }
       continue
     }
@@ -341,12 +344,15 @@ export function layoutSequenceDiagram(diagram: SequenceDiagram, options: RenderO
   // A destroyed actor's activation ends with its lifeline, at the cross,
   // however late it is closed. One opened on the destroy message's row
   // therefore has no extent and, like any activation closed on the row that
-  // opened it, is not drawn.
+  // opened it, is not drawn. An activation starts no higher than the
+  // lifeline, below the header: one the creation message opens would
+  // otherwise run through the created header.
   const deactivate = (actorId: string, closeY: number): void => {
     const stack = activationStacks.get(actorId)
     if (!stack || stack.length === 0) return
-    const { startY, depth } = stack.pop()!
     const idx = actorIndex.get(actorId)
+    const opened = stack.pop()!, depth = opened.depth
+    const startY = idx === undefined ? opened.startY : Math.max(opened.startY, actors[idx]!.bounds.y + actors[idx]!.bounds.height)
     const crossY = destroyYByActor.get(actorId)
     const y = crossY !== undefined && startY <= crossY ? Math.min(closeY, crossY) : closeY
     if (idx === undefined || y <= startY) return
@@ -578,14 +584,22 @@ export function layoutSequenceDiagram(diagram: SequenceDiagram, options: RenderO
       extra = extra > 0 ? extra + Math.max(0, topHalf - 12) : topHalf + 8
     }
     messageY += extra + msgSpec.extraAboveHeight
-    const x1 = actorCenterX[fromIdx]!
+    const centerX1 = actorCenterX[fromIdx]!
     const centerX2 = actorCenterX[toIdx]!
     const createdHeader = diagram.actors[toIdx]!.createMessageIndex === msgIdx
     // A creation message meets the header's outline; later messages use the
     // lifeline. Ending at its centre puts the head under the header.
-    const x2 = createdHeader && !isSelf ? centerX2 - Math.sign(centerX2 - x1) * createdContactInset(toIdx, msg, x1 < centerX2 ? -1 : 1) : centerX2
+    const x2 = createdHeader && !isSelf ? centerX2 - Math.sign(centerX2 - centerX1) * createdContactInset(toIdx, msg, centerX1 < centerX2 ? -1 : 1) : centerX2
+    // A self-message that creates its participant leaves the header's right
+    // side and returns to the lifeline below the header, clear of it by the
+    // return head's half-height and 4.
+    const x1 = createdHeader && isSelf ? centerX1 + createdContactInset(toIdx, msg, 1, 'start') : centerX1
+    const header = actors[toIdx]!
+    const loopHeight = createdHeader && isSelf
+      ? Math.max(SEQUENCE_SELF_LOOP.height, Math.ceil(header.bounds.y + header.bounds.height - header.y - header.height / 2 + msgSpec.markerHalfHeight + 4))
+      : SEQUENCE_SELF_LOOP.height
     const positionRow = (): PositionedMessage => {
-      const positioned = positionSequenceMessage(msg, msgSpec, style, x1, x2, messageY)
+      const positioned = positionSequenceMessage(msg, msgSpec, style, x1, x2, messageY, loopHeight)
       messages[msgIdx] = positioned
       // Created headers must have their real position before fragment geometry
       // is completed, including icon labels extending below the message row.
@@ -642,7 +656,7 @@ export function layoutSequenceDiagram(diagram: SequenceDiagram, options: RenderO
     if (msg.activate) activate(msg.to, messageY)
     if (msg.deactivate) deactivate(msg.from, messageY)
 
-    const selfLoopAdvance = isSelf ? Math.max(selfMessageHeight, Math.ceil(msgSpec.labelMetrics.height) + 10) : 0
+    const selfLoopAdvance = isSelf ? Math.max(selfMessageHeight + loopHeight - SEQUENCE_SELF_LOOP.height, Math.ceil(msgSpec.labelMetrics.height) + 10) : 0
     // Standalone commands after this message apply below its full extent,
     // including a self-message loop.
     applyActivationEvents(msgIdx + 1, messageY + selfLoopAdvance)
@@ -653,8 +667,9 @@ export function layoutSequenceDiagram(diagram: SequenceDiagram, options: RenderO
     // Clearance below a create row for the part of each created actor's header
     // below the row (including below-icon labels for created icon participants).
     if (createdHere) {
-      const createdBottomClearance = Math.max(
-        ...createdHere.map(ai => actors[ai]!.bounds.y + actors[ai]!.bounds.height - positionedMsg.y),
+      // A self-message's loop already returns below its own created header.
+      const createdBottomClearance = Math.max(0,
+        ...createdHere.map(ai => actors[ai]!.bounds.y + actors[ai]!.bounds.height - positionedMsg.y - (receivesCreation(ai) ? selfLoopAdvance : 0)),
       )
       messageY += createdBottomClearance
     }

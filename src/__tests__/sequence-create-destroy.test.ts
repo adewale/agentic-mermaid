@@ -202,6 +202,44 @@ describe('sequence create/destroy layout', () => {
     expect(message.labelPosition.bounds.x + message.labelPosition.bounds.width).toBeLessThanOrEqual(Math.max(message.x1, message.x2))
   })
 
+  // A self-message that creates its participant leaves the created header's
+  // right side on the header's row and returns to the lifeline below the
+  // header, as the terminal draws it, so the header covers none of the loop.
+  // An activation the creating message opens starts on the lifeline, below
+  // the header, for a self-message or a message from another participant.
+  it.each(createdHeaders.flatMap(([type, create]) => [
+    [type, create, 'D->>D: self', false],
+    [type, create, 'D->>+D: self<br/>second line\nD-->>-A: done', true],
+    [type, create, 'D-x()D: self', false],
+    [type, create, 'A->>+D: make\nD-->>-A: done', true],
+  ] as const).filter(([type]) => ['participant', 'actor', 'database', 'entity', 'boundary'].includes(type)))('a creating message keeps clear of the created %s header: %s / %s', (type, create, body, activates) => {
+    const source = `sequenceDiagram\nparticipant A\n${create.replace(' C', ' D')}\n${body}\nA->>D: later`
+    const p = layoutSequenceDiagram(parse(source))
+    const message = p.messages[0]!, header = p.actors.find(actor => actor.id === 'D')!
+    const headerBottom = header.bounds.y + header.bounds.height
+    expect(header.y + header.height / 2).toBe(message.y)
+    const { svg, receipt } = renderMermaidSVGWithReceipt(source, { layoutSafety: 'strict' })
+    expect(receipt.layoutCertification?.status).toBe('passed')
+    if (message.isSelf) {
+      // The loop leaves the drawn outline on the right, within 7px of it.
+      const icon = svg.match(/<g transform="translate\(([-\d.]+),([-\d.]+)\) scale\(([-\d.]+)\)">/)
+      const glyph = svg.match(/<g class="sequence-actor-glyph[^]*?<\/g>/)?.[0]
+      const outline = type === 'actor' ? 9 * Number(icon![3]) + 0.5 : type === 'participant' ? header.width / 2 + 0.5 : glyphReach(glyph!, header.x, message.y, 1)
+      expect(message.x1 - header.x).toBeGreaterThanOrEqual(outline)
+      expect(message.x1 - header.x).toBeLessThanOrEqual(outline + 7)
+      // It returns to the lifeline below the header, and runs outside it.
+      const [, corner, turn, end] = message.points
+      expect(end).toMatchObject({ y: turn!.y })
+      expect(message.x2).toBe(header.x)
+      expect(end!.y).toBeGreaterThan(headerBottom)
+      expect(corner!.x).toBeGreaterThan(header.bounds.x + header.bounds.width)
+      expect(p.lifelines.find(lifeline => lifeline.actorId === 'D')!.topY).toBe(headerBottom)
+    }
+    const activations = p.activations.filter(activation => activation.actorId === 'D')
+    expect(activations.length).toBe(activates ? 1 : 0)
+    for (const activation of activations) expect(activation.topY).toBe(headerBottom)
+  })
+
   it('certifies the Mermaid documentation example under strict safety', () => {
     const source = 'sequenceDiagram\nAlice->>Bob: Hello Bob, how are you ?\nBob->>Alice: Fine, thank you. And you?\ncreate participant Carl\nAlice->>Carl: Hi Carl!\ncreate actor D as Donald\nCarl->>D: Hi!\ndestroy Carl\nAlice-xCarl: We are too many\ndestroy Bob\nBob->>Alice: I agree'
     expect(renderMermaidSVGWithReceipt(source, { layoutSafety: 'strict' }).receipt.layoutCertification?.status).toBe('passed')
