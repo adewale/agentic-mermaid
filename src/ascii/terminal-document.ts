@@ -678,8 +678,8 @@ export class TerminalDocument {
     return set
   }
 
-  private paintOwners(paint: TerminalPaint): TerminalOwnerSet {
-    const supplied = paint.owner ?? this.activeOwner
+  private paintOwners(paint: TerminalPaint, owner = paint.owner): TerminalOwnerSet {
+    const supplied = owner ?? this.activeOwner
     if (!supplied) return paint.owners ? this.owners(paint.owners) : emptyOwners
     if (this.canonicalOwners.has(supplied)) {
       const primary = this.singletonOwnerSet(supplied)
@@ -1165,9 +1165,10 @@ export class TerminalDocument {
     return true
   }
 
-  private place(x: number, y: number, glyph: string, width: number, paint: TerminalPaint, block: TextBlock | undefined): boolean {
+  /** `owner` replaces `paint.owner`, so a replayed cell needs no copy. */
+  private place(x: number, y: number, glyph: string, width: number, paint: TerminalPaint, block: TextBlock | undefined, owner = paint.owner): boolean {
     const old = this.cell(x, y),
-      incoming = this.paintOwners(paint)
+      incoming = this.paintOwners(paint, owner)
     if (!this.admit(x, y, glyph, width, paint, incoming)) return false
     if (!block && paint.kind === 'surface' && old?.kind === 'surface' && old.textBlock && x >= old.textBlock.x && x + width <= old.textBlock.x + old.textBlock.width && this.compatibleTextSurface(old.owners, incoming)) block = old.textBlock
     if (old?.kind === 'mark' && paint.kind === 'stroke') {
@@ -1181,12 +1182,12 @@ export class TerminalDocument {
     let occludedOwners = importedOcclusion ? this.owners(importedOcclusion) : undefined
     if (old?.kind === 'marker' && paint.kind === 'marker') owners = this.unionOwners(old.owners, incoming)
     if (paint.kind === 'mark' && old?.kind === 'stroke') occludedOwners = this.unionOwners(this.unionOwners(old.owners, old.occludedOwners ?? emptyOwners), occludedOwners ?? emptyOwners)
+    let stroke = paint.stroke
     if (old?.kind === 'stroke' && paint.kind === 'stroke') {
       const a = old.stroke?.mask ?? strokePorts[old.glyph] ?? styledPorts[old.glyph] ?? asciiPorts[old.glyph]
       const b = paint.stroke?.mask ?? strokePorts[glyph] ?? styledPorts[glyph] ?? asciiPorts[glyph]
       if (paint.stroke || old.stroke) {
-        const stroke = { ...(paint.stroke ?? old.stroke!), mask: (a ?? 0) | (b ?? 0) }
-        paint = { ...paint, stroke }
+        stroke = { ...(paint.stroke ?? old.stroke!), mask: (a ?? 0) | (b ?? 0) }
         glyph = strokeGlyph(stroke)
       } else if (a && b && a !== b) glyph = asciiPorts[old.glyph] === undefined && asciiPorts[glyph] === undefined ? (portGlyph.get(a | b) ?? glyph) : '+'
       owners = this.unionOwners(old.owners, incoming)
@@ -1208,12 +1209,12 @@ export class TerminalDocument {
       cell[strokeContributors] = owners
       cell[strokeContributions] = contributions
     }
-    if (paint.owner !== undefined) cell.owner = paint.owner
+    if (owner !== undefined) cell.owner = owner
     if (paint.role !== undefined) cell.role = paint.role
     if (paint.color !== undefined) cell.color = paint.color
     if (paint.kind !== undefined) cell.kind = paint.kind
     if (paint.textGroup !== undefined) cell.textGroup = paint.textGroup
-    if (paint.stroke !== undefined) cell.stroke = paint.stroke
+    if (stroke !== undefined) cell.stroke = stroke
     if (paint.marker !== undefined) cell.marker = paint.marker
     if (paint.numericMark !== undefined) cell.numericMark = paint.numericMark
     if (block) cell.textBlock = block
@@ -1549,7 +1550,7 @@ export class TerminalDocument {
           blocks.set(cell.textBlock!, block)
         }
         if (block) this.retainedTextBlocks.add(block)
-        if (!this.place(x + dx, y + dy, cell.glyph, cell.width, cell.owner === owner ? cell : { ...cell, owner }, block)) continue
+        if (!this.place(x + dx, y + dy, cell.glyph, cell.width, cell, block, owner)) continue
       }
     for (const block of other.retainedTextBlocks)
       if (!groups.has(block)) {

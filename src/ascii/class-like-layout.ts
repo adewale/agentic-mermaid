@@ -182,7 +182,7 @@ export function allocateBoxRoutes(boxes: readonly TerminalBox[], relations: read
       if (!overlaps(label, { x, y, width: 1, height: 1 })) bandCells.add(x * 0x4000000 + y)
     }
   }
-  const acrossBands = bandCells.size ? (from: GridCoord, to: GridCoord): boolean => from.x === to.x || (!bandCells.has(from.x * 0x4000000 + from.y) && !bandCells.has(to.x * 0x4000000 + to.y)) : undefined
+  const acrossBands = bandCells.size ? (fromX: number, fromY: number, toX: number, toY: number): boolean => fromX === toX || (!bandCells.has(fromX * 0x4000000 + fromY) && !bandCells.has(toX * 0x4000000 + toY)) : undefined
   for (const key of occupied.keys()) cardCells.add(key)
   for (const plan of plans) for (const point of [plan.source, plan.target]) {
     const d = delta[point.side]
@@ -363,7 +363,7 @@ export function allocateBoxRoutes(boxes: readonly TerminalBox[], relations: read
     const exitsClear = sourceExit.x >= 0 && sourceExit.y >= 0 && targetExit.x >= 0 && targetExit.y >= 0 && clearExit(source) && clearExit(target)
     const clearAxis = () => {
       const straight = getClearAxisPath(occupied, sourceExit, targetExit)
-      return straight && acrossBands && straight.some((point, index) => index > 0 && !acrossBands(straight[index - 1]!, point)) ? null : straight
+      return straight && acrossBands && straight.some((point, index) => index > 0 && !acrossBands(straight[index - 1]!.x, straight[index - 1]!.y, point.x, point.y)) ? null : straight
     }
     const path = () => clearAxis() ?? getPath(occupied, sourceExit, targetExit, preferred[source.side], acrossBands, work)
     // A searched self-loop first keeps a blank cell from every loop label.
@@ -378,13 +378,13 @@ export function allocateBoxRoutes(boxes: readonly TerminalBox[], relations: read
       // A crossing must enter and leave straight prior ink perpendicularly.
       // Removing occupancy alone admits shared runs and turns, which are not
       // crossings and cannot retain two independently connected route owners.
-      const canCross = (from: GridCoord, to: GridCoord): boolean => {
-        const axis = from.x === to.x ? 2 : 1
-        const fromAxis = routeAxes.get(from.x * 0x4000000 + from.y), toAxis = routeAxes.get(to.x * 0x4000000 + to.y)
+      const canCross = (fromX: number, fromY: number, toX: number, toY: number): boolean => {
+        const axis = fromX === toX ? 2 : 1
+        const fromAxis = routeAxes.get(fromX * 0x4000000 + fromY), toAxis = routeAxes.get(toX * 0x4000000 + toY)
         return (fromAxis === undefined || fromAxis === (axis === 1 ? 2 : 1))
           && (toAxis === undefined || toAxis === (axis === 1 ? 2 : 1))
       }
-      middle = exitsClear ? getPath(solid, sourceExit, targetExit, preferred[source.side], acrossBands ? (from, to) => canCross(from, to) && acrossBands(from, to) : canCross, work) : null
+      middle = exitsClear ? getPath(solid, sourceExit, targetExit, preferred[source.side], acrossBands ? (fromX, fromY, toX, toY) => canCross(fromX, fromY, toX, toY) && acrossBands(fromX, fromY, toX, toY) : canCross, work) : null
     }
     if (!middle && work && work.pops >= work.limit) throw new TerminalWorkLimitError('route-search', work.limit)
     for (const [key, previous, wasSolid] of removed) { occupied.set(key, previous); if (wasSolid) solid.set(key, previous) }

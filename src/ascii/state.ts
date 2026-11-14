@@ -149,9 +149,9 @@ function attachNote(background: TerminalDocument, layer: TerminalDocument, graph
     return !cell || !!cell.stroke && cell.owners.length > 0 && cell.owners.every(element => element.kind === 'edge'
       || element.kind === 'cluster' && frames.has(element.id))
   }
-  const canStep = (a: GridCoord, b: GridCoord): boolean => {
-    const mask = a.x === b.x ? 5 : 10
-    return [a, b].every(point => {
+  const canStep = (ax: number, ay: number, bx: number, by: number): boolean => {
+    const mask = ax === bx ? 5 : 10
+    return [{ x: ax, y: ay }, { x: bx, y: by }].every(point => {
       if (!free(point)) return false
       const cell = background.cell(point.x, point.y), above = layer.cell(point.x, point.y)
       if (cell?.stroke && (cell.stroke.mask & mask)) return false
