@@ -1,0 +1,250 @@
+[
+  {
+    "direction": "TB",
+    "backend": "agentic",
+    "head": "4cddae30548df1adf0ea1908c88454fae3bcb36d",
+    "svgSHA256": "b078c9c09ca30ace7ee9a430af496b712b40c41dffe6075550dbcd25f5d9acf9",
+    "delivery": "returned",
+    "proof": "passed",
+    "operations": 70471,
+    "authoredCards": 3,
+    "authoredRelations": 5,
+    "ownedCaptionOccurrences": 5,
+    "normalContacts": 10,
+    "width": 461.893,
+    "height": 499.45,
+    "viewportArea": 230692.45885,
+    "routeWire": 677.197666666,
+    "bends": 8,
+    "sizes": {
+      "svgRawBytes": 9912,
+      "svgGzipBytes": 1998,
+      "svgBrotliBytes": 1647,
+      "entireReceiptRawBytes": 7921,
+      "wholeProductRawBytes": 18734
+    },
+    "cost": {
+      "status": "not-measured",
+      "scope": "Functional requalification only, no timing clock"
+    },
+    "ink": "unknown-pending-mask-raster",
+    "qualityLimit": "viewport area and carrier wire, not glyph readability or optimal placement"
+  },
+  {
+    "direction": "TB",
+    "backend": "elk",
+    "head": "4cddae30548df1adf0ea1908c88454fae3bcb36d",
+    "svgSHA256": "e227665df88cd9e9e1b4a948f465a7a0b9e21f14dd4fed5966f94c38cdda7657",
+    "delivery": "returned",
+    "proof": "passed",
+    "operations": 70711,
+    "authoredCards": 3,
+    "authoredRelations": 5,
+    "ownedCaptionOccurrences": 5,
+    "normalContacts": 10,
+    "width": 488.7416,
+    "height": 541.3,
+    "viewportArea": 264555.82808,
+    "routeWire": 1021.1685333329999,
+    "bends": 10,
+    "sizes": {
+      "svgRawBytes": 10020,
+      "svgGzipBytes": 2019,
+      "svgBrotliBytes": 1695,
+      "entireReceiptRawBytes": 7905,
+      "wholeProductRawBytes": 18826
+    },
+    "cost": {
+      "status": "not-measured",
+      "scope": "Functional requalification only, no timing clock"
+    },
+    "ink": "unknown-pending-mask-raster",
+    "qualityLimit": "viewport area and carrier wire, not glyph readability or optimal placement"
+  },
+  {
+    "direction": "BT",
+    "backend": "agentic",
+    "head": "4cddae30548df1adf0ea1908c88454fae3bcb36d",
+    "svgSHA256": "0f8322a5151a7f514c3b66248407cc94234671995e6d16cb5de878b05efbc91b",
+    "delivery": "returned",
+    "proof": "passed",
+    "operations": 70262,
+    "authoredCards": 3,
+    "authoredRelations": 5,
+    "ownedCaptionOccurrences": 5,
+    "normalContacts": 10,
+    "width": 461.893,
+    "height": 499.45,
+    "viewportArea": 230692.45885,
+    "routeWire": 677.197666666,
+    "bends": 8,
+    "sizes": {
+      "svgRawBytes": 9921,
+      "svgGzipBytes": 1991,
+      "svgBrotliBytes": 1671,
+      "entireReceiptRawBytes": 7921,
+      "wholeProductRawBytes": 18743
+    },
+    "cost": {
+      "status": "not-measured",
+      "scope": "Functional requalification only, no timing clock"
+    },
+    "ink": "unknown-pending-mask-raster",
+    "qualityLimit": "viewport area and carrier wire, not glyph readability or optimal placement"
+  },
+  {
+    "direction": "BT",
+    "backend": "elk",
+    "head": "4cddae30548df1adf0ea1908c88454fae3bcb36d",
+    "svgSHA256": "b1a982d984c40a2c2f8db47c072f33bcc1897447bf197a40ab63a96c9f24bd8a",
+    "delivery": "returned",
+    "proof": "passed",
+    "operations": 70724,
+    "authoredCards": 3,
+    "authoredRelations": 5,
+    "ownedCaptionOccurrences": 5,
+    "normalContacts": 10,
+    "width": 488.7416,
+    "height": 541.3,
+    "viewportArea": 264555.82808,
+    "routeWire": 1021.1685333332999,
+    "bends": 10,
+    "sizes": {
+      "svgRawBytes": 10022,
+      "svgGzipBytes": 2012,
+      "svgBrotliBytes": 1675,
+      "entireReceiptRawBytes": 7905,
+      "wholeProductRawBytes": 18828
+    },
+    "cost": {
+      "status": "not-measured",
+      "scope": "Functional requalification only, no timing clock"
+    },
+    "ink": "unknown-pending-mask-raster",
+    "qualityLimit": "viewport area and carrier wire, not glyph readability or optimal placement"
+  },
+  {
+    "direction": "LR",
+    "backend": "agentic",
+    "head": "4cddae30548df1adf0ea1908c88454fae3bcb36d",
+    "svgSHA256": "4b2f30604e8b8fc6723daddda6c99aed2a175efb15f6cc3b9be1a552e76d3431",
+    "delivery": "returned",
+    "proof": "passed",
+    "operations": 70313,
+    "authoredCards": 3,
+    "authoredRelations": 5,
+    "ownedCaptionOccurrences": 5,
+    "normalContacts": 10,
+    "width": 970.194,
+    "height": 251.95,
+    "viewportArea": 244440.37829999998,
+    "routeWire": 943.9999999999997,
+    "bends": 6,
+    "sizes": {
+      "svgRawBytes": 9826,
+      "svgGzipBytes": 1968,
+      "svgBrotliBytes": 1617,
+      "entireReceiptRawBytes": 7921,
+      "wholeProductRawBytes": 18648
+    },
+    "cost": {
+      "status": "not-measured",
+      "scope": "Functional requalification only, no timing clock"
+    },
+    "ink": "unknown-pending-mask-raster",
+    "qualityLimit": "viewport area and carrier wire, not glyph readability or optimal placement"
+  },
+  {
+    "direction": "LR",
+    "backend": "elk",
+    "head": "4cddae30548df1adf0ea1908c88454fae3bcb36d",
+    "svgSHA256": "8f5a2f3c4509e811beb070c750993b0f3ef4fd9219631a8be692236b1cc55d60",
+    "delivery": "returned",
+    "proof": "passed",
+    "operations": 70789,
+    "authoredCards": 3,
+    "authoredRelations": 5,
+    "ownedCaptionOccurrences": 5,
+    "normalContacts": 10,
+    "width": 759.144,
+    "height": 329.3,
+    "viewportArea": 249986.11920000002,
+    "routeWire": 1253.6966666685998,
+    "bends": 10,
+    "sizes": {
+      "svgRawBytes": 10179,
+      "svgGzipBytes": 2015,
+      "svgBrotliBytes": 1683,
+      "entireReceiptRawBytes": 7904,
+      "wholeProductRawBytes": 18984
+    },
+    "cost": {
+      "status": "not-measured",
+      "scope": "Functional requalification only, no timing clock"
+    },
+    "ink": "unknown-pending-mask-raster",
+    "qualityLimit": "viewport area and carrier wire, not glyph readability or optimal placement"
+  },
+  {
+    "direction": "RL",
+    "backend": "agentic",
+    "head": "4cddae30548df1adf0ea1908c88454fae3bcb36d",
+    "svgSHA256": "a38274d1971a10ba9010c70a31491b58cb55fa634abc7911e1024d94d6e21d07",
+    "delivery": "returned",
+    "proof": "passed",
+    "operations": 70200,
+    "authoredCards": 3,
+    "authoredRelations": 5,
+    "ownedCaptionOccurrences": 5,
+    "normalContacts": 10,
+    "width": 970.194,
+    "height": 251.95,
+    "viewportArea": 244440.37829999998,
+    "routeWire": 944.0,
+    "bends": 6,
+    "sizes": {
+      "svgRawBytes": 9810,
+      "svgGzipBytes": 1971,
+      "svgBrotliBytes": 1633,
+      "entireReceiptRawBytes": 7921,
+      "wholeProductRawBytes": 18632
+    },
+    "cost": {
+      "status": "not-measured",
+      "scope": "Functional requalification only, no timing clock"
+    },
+    "ink": "unknown-pending-mask-raster",
+    "qualityLimit": "viewport area and carrier wire, not glyph readability or optimal placement"
+  },
+  {
+    "direction": "RL",
+    "backend": "elk",
+    "head": "4cddae30548df1adf0ea1908c88454fae3bcb36d",
+    "svgSHA256": "aa3f25f8d05e6bbf1a51e0295b22276d80a8e64e135585f09772f5c68197f4ab",
+    "delivery": "returned",
+    "proof": "passed",
+    "operations": 70762,
+    "authoredCards": 3,
+    "authoredRelations": 5,
+    "ownedCaptionOccurrences": 5,
+    "normalContacts": 10,
+    "width": 759.144,
+    "height": 329.3,
+    "viewportArea": 249986.11920000002,
+    "routeWire": 1253.6966666685998,
+    "bends": 10,
+    "sizes": {
+      "svgRawBytes": 10170,
+      "svgGzipBytes": 2023,
+      "svgBrotliBytes": 1667,
+      "entireReceiptRawBytes": 7904,
+      "wholeProductRawBytes": 18975
+    },
+    "cost": {
+      "status": "not-measured",
+      "scope": "Functional requalification only, no timing clock"
+    },
+    "ink": "unknown-pending-mask-raster",
+    "qualityLimit": "viewport area and carrier wire, not glyph readability or optimal placement"
+  }
+]

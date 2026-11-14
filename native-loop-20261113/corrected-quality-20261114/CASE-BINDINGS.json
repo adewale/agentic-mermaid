@@ -1,0 +1,686 @@
+{
+  "currentSource": "4cddae30548df1adf0ea1908c88454fae3bcb36d",
+  "sourceTree": "282b9774ab6f6c45752e730691802c3db41a9783",
+  "qualifiedSdk": "/workspace/pr449-native-loop-20261113/path-order-implementation/build-candidate",
+  "nodeEntrySha256": "735d7a0dd72efadccc760e90dd20a484b1233778926613811de100108814c552",
+  "runtime": "v24.19.0",
+  "publicRenderCalls": 10,
+  "parserObservation": "The existing Trident observer separately acquires the two forest public models; it performs no additional renders.",
+  "requirementHistory": {
+    "evidenceCommit": "2b02e8d5970d3e3f695677d0e2fc9620ce064544",
+    "archivePath": "requirement-directions-20261107/artifacts.tar.gz",
+    "archiveGitBlob": "515d335dbbf2636b5c26446c4db05c183c85960a",
+    "archiveSHA256": "893a850af22dbfb1eab6f2f2e96b030b0a77850082f43f3883cb686978148eb9",
+    "publishedManifestSha256": "9d024cca6d73049060ed9995a06401a32f927a7ea01976773e5d396a0d3b4ce5",
+    "safeRestoredMembers": 67,
+    "sourceRevision": "62af995fafa5392364ab2567678f11e59fea9ea6",
+    "documentationRevision": "deafff39d427082c233e8caf4917175404f6c248",
+    "originalFixtureReference": "requirement-completed-cycle-node24-15972c57e/bindings-requirementTB-node24.json",
+    "TB": "Exact same recovered fixture with direction only changed BT\u2192TB; owner-authorized, no archivedTB product equality asserted."
+  },
+  "forestHistory": {
+    "authoritativeJobPacket": "8b016 / compare-rebase recovered public jobs",
+    "jobSourceRevision": "433b523b86f9017960d8004f3c776d9d8d82dbce",
+    "latestGeometryRevision": "13143a343e30331b97a1104ea657ed2cba7f0903",
+    "currentFixtureMatchesRecoveredJobs": true,
+    "latestGeometryReproduced": true
+  },
+  "rows": [
+    {
+      "family": "requirement",
+      "direction": "TB",
+      "backend": "agentic",
+      "source": "requirementDiagram\ndirection TB\nrequirement fast {\nid: \"performance-1\"\ntext: \"Respond quickly with retained measured fields\"\nrisk: high\nverifymethod: test\n}\nelement suite {\ntype: \"test\"\ndocref: \"bench suite\"\n}\nelement report {\ntype: artifact\n}\nsuite - verifies -> fast\nsuite - traces -> fast\nfast - derives -> report\nreport - satisfies -> fast\nfast - refines -> fast\n",
+      "sourceSha256": "6c5cea194946e7bb8953aa8da7ead278267a83f9611747bb95e9b96758c383a7",
+      "options": {
+        "embedFontImport": false,
+        "graphLayout": {
+          "backend": "agentic",
+          "fallback": "none"
+        }
+      },
+      "environment": {
+        "AGENTIC_MERMAID_ELK_CACHE": "0"
+      },
+      "job": {
+        "caseId": "requirement-cycle-TB",
+        "source": "requirementDiagram\ndirection TB\nrequirement fast {\nid: \"performance-1\"\ntext: \"Respond quickly with retained measured fields\"\nrisk: high\nverifymethod: test\n}\nelement suite {\ntype: \"test\"\ndocref: \"bench suite\"\n}\nelement report {\ntype: artifact\n}\nsuite - verifies -> fast\nsuite - traces -> fast\nfast - derives -> report\nreport - satisfies -> fast\nfast - refines -> fast\n",
+        "sourceReference": "requirement-completed-cycle-node24-15972c57e/bindings-requirementTB-node24.json",
+        "root": "/workspace/pr449-native-loop-20261113/path-order-implementation/build-candidate",
+        "revision": "4cddae30548df1adf0ea1908c88454fae3bcb36d",
+        "expectedHead": "4cddae30548df1adf0ea1908c88454fae3bcb36d",
+        "arm": "current-qualified",
+        "backend": "agentic",
+        "options": {
+          "embedFontImport": false,
+          "graphLayout": {
+            "backend": "agentic",
+            "fallback": "none"
+          }
+        },
+        "historicalRevision": "62af995fafa5392364ab2567678f11e59fea9ea6",
+        "historicalJob": "/workspace/pr449-native-loop-20261113/requirement-history-20261114/restored/BT/agentic/job.json",
+        "directionOnlyDerived": true
+      },
+      "actualPublicRenderCalls": 1,
+      "status": "returned",
+      "proof": "passed",
+      "wholeProduct": "current-4cdd/TB/agentic/actual.product.json.gz",
+      "wholeProductRawSha256": "da5d4f4756995bfe75c893bcc2dfcbb1d2403130b4bf2379f2702108bfad642e",
+      "gzipProductSha256": "41c4a516891eec2b4569694d7f8fdf73737294b71c9a03efe90d1987603ddaab",
+      "svgSha256": "b078c9c09ca30ace7ee9a430af496b712b40c41dffe6075550dbcd25f5d9acf9",
+      "historicalBinding": null,
+      "layoutDecisions": [
+        {
+          "requested": "agentic",
+          "fallback": "none",
+          "selected": "agentic",
+          "attempts": [
+            {
+              "backend": "agentic",
+              "outcome": "selected"
+            }
+          ],
+          "implementation": "agentic-layered@28",
+          "role": "primary"
+        }
+      ]
+    },
+    {
+      "family": "requirement",
+      "direction": "TB",
+      "backend": "elk",
+      "source": "requirementDiagram\ndirection TB\nrequirement fast {\nid: \"performance-1\"\ntext: \"Respond quickly with retained measured fields\"\nrisk: high\nverifymethod: test\n}\nelement suite {\ntype: \"test\"\ndocref: \"bench suite\"\n}\nelement report {\ntype: artifact\n}\nsuite - verifies -> fast\nsuite - traces -> fast\nfast - derives -> report\nreport - satisfies -> fast\nfast - refines -> fast\n",
+      "sourceSha256": "6c5cea194946e7bb8953aa8da7ead278267a83f9611747bb95e9b96758c383a7",
+      "options": {
+        "embedFontImport": false,
+        "graphLayout": {
+          "backend": "elk",
+          "fallback": "none"
+        }
+      },
+      "environment": {
+        "AGENTIC_MERMAID_ELK_CACHE": "0"
+      },
+      "job": {
+        "caseId": "requirement-cycle-TB",
+        "source": "requirementDiagram\ndirection TB\nrequirement fast {\nid: \"performance-1\"\ntext: \"Respond quickly with retained measured fields\"\nrisk: high\nverifymethod: test\n}\nelement suite {\ntype: \"test\"\ndocref: \"bench suite\"\n}\nelement report {\ntype: artifact\n}\nsuite - verifies -> fast\nsuite - traces -> fast\nfast - derives -> report\nreport - satisfies -> fast\nfast - refines -> fast\n",
+        "sourceReference": "requirement-completed-cycle-node24-15972c57e/bindings-requirementTB-node24.json",
+        "root": "/workspace/pr449-native-loop-20261113/path-order-implementation/build-candidate",
+        "revision": "4cddae30548df1adf0ea1908c88454fae3bcb36d",
+        "expectedHead": "4cddae30548df1adf0ea1908c88454fae3bcb36d",
+        "arm": "current-qualified",
+        "backend": "elk",
+        "options": {
+          "embedFontImport": false,
+          "graphLayout": {
+            "backend": "elk",
+            "fallback": "none"
+          }
+        },
+        "historicalRevision": "62af995fafa5392364ab2567678f11e59fea9ea6",
+        "historicalJob": "/workspace/pr449-native-loop-20261113/requirement-history-20261114/restored/BT/elk/job.json",
+        "directionOnlyDerived": true
+      },
+      "actualPublicRenderCalls": 1,
+      "status": "returned",
+      "proof": "passed",
+      "wholeProduct": "current-4cdd/TB/elk/actual.product.json.gz",
+      "wholeProductRawSha256": "6c5ed0a62d82d21a3929424d93fbde9b868c9175c885fb8fd0da29e7f90f2cbc",
+      "gzipProductSha256": "a8dc2f311ed7d210d072a769dd2085258be50f6993e8e33c5318a1a0aa3f865b",
+      "svgSha256": "e227665df88cd9e9e1b4a948f465a7a0b9e21f14dd4fed5966f94c38cdda7657",
+      "historicalBinding": null,
+      "layoutDecisions": [
+        {
+          "requested": "elk",
+          "fallback": "none",
+          "selected": "elk",
+          "attempts": [
+            {
+              "backend": "elk",
+              "outcome": "selected"
+            }
+          ],
+          "implementation": "elk-layered@1",
+          "role": "primary"
+        }
+      ]
+    },
+    {
+      "family": "requirement",
+      "direction": "BT",
+      "backend": "agentic",
+      "source": "requirementDiagram\ndirection BT\nrequirement fast {\nid: \"performance-1\"\ntext: \"Respond quickly with retained measured fields\"\nrisk: high\nverifymethod: test\n}\nelement suite {\ntype: \"test\"\ndocref: \"bench suite\"\n}\nelement report {\ntype: artifact\n}\nsuite - verifies -> fast\nsuite - traces -> fast\nfast - derives -> report\nreport - satisfies -> fast\nfast - refines -> fast\n",
+      "sourceSha256": "8147b56390cdd258cd365dc597347e8b1d5270ae031e164b64fa5e542889e6d0",
+      "options": {
+        "embedFontImport": false,
+        "graphLayout": {
+          "backend": "agentic",
+          "fallback": "none"
+        }
+      },
+      "environment": {
+        "AGENTIC_MERMAID_ELK_CACHE": "0"
+      },
+      "job": {
+        "caseId": "requirement-cycle-BT",
+        "source": "requirementDiagram\ndirection BT\nrequirement fast {\nid: \"performance-1\"\ntext: \"Respond quickly with retained measured fields\"\nrisk: high\nverifymethod: test\n}\nelement suite {\ntype: \"test\"\ndocref: \"bench suite\"\n}\nelement report {\ntype: artifact\n}\nsuite - verifies -> fast\nsuite - traces -> fast\nfast - derives -> report\nreport - satisfies -> fast\nfast - refines -> fast\n",
+        "sourceReference": "requirement-completed-cycle-node24-15972c57e/bindings-requirementTB-node24.json",
+        "root": "/workspace/pr449-native-loop-20261113/path-order-implementation/build-candidate",
+        "revision": "4cddae30548df1adf0ea1908c88454fae3bcb36d",
+        "expectedHead": "4cddae30548df1adf0ea1908c88454fae3bcb36d",
+        "arm": "current-qualified",
+        "backend": "agentic",
+        "options": {
+          "embedFontImport": false,
+          "graphLayout": {
+            "backend": "agentic",
+            "fallback": "none"
+          }
+        },
+        "historicalRevision": "62af995fafa5392364ab2567678f11e59fea9ea6",
+        "historicalJob": "/workspace/pr449-native-loop-20261113/requirement-history-20261114/restored/BT/agentic/job.json",
+        "directionOnlyDerived": false,
+        "bindingReference": {
+          "svgReference": "/workspace/pr449-native-loop-20261113/requirement-history-20261114/restored/BT/agentic/actual.svg.gz",
+          "receiptReference": "/workspace/pr449-native-loop-20261113/requirement-history-20261114/restored/BT/agentic/actual.receipt.json.gz",
+          "sourceHead": "62af995fafa5392364ab2567678f11e59fea9ea6"
+        }
+      },
+      "actualPublicRenderCalls": 1,
+      "status": "returned",
+      "proof": "passed",
+      "wholeProduct": "current-4cdd/BT/agentic/actual.product.json.gz",
+      "wholeProductRawSha256": "f4e47d7429753b02bf932c7ddc0778f955087224d6e1019eddac4257d7006edb",
+      "gzipProductSha256": "a1588145d5584c6798529323f1583be7433b57ae401988f653c5a8f5d70fa43d",
+      "svgSha256": "0f8322a5151a7f514c3b66248407cc94234671995e6d16cb5de878b05efbc91b",
+      "historicalBinding": {
+        "wholeSVGExact": false,
+        "entireReceiptExact": false,
+        "referenceHead": "62af995fafa5392364ab2567678f11e59fea9ea6"
+      },
+      "layoutDecisions": [
+        {
+          "requested": "agentic",
+          "fallback": "none",
+          "selected": "agentic",
+          "attempts": [
+            {
+              "backend": "agentic",
+              "outcome": "selected"
+            }
+          ],
+          "implementation": "agentic-layered@28",
+          "role": "primary"
+        }
+      ]
+    },
+    {
+      "family": "requirement",
+      "direction": "BT",
+      "backend": "elk",
+      "source": "requirementDiagram\ndirection BT\nrequirement fast {\nid: \"performance-1\"\ntext: \"Respond quickly with retained measured fields\"\nrisk: high\nverifymethod: test\n}\nelement suite {\ntype: \"test\"\ndocref: \"bench suite\"\n}\nelement report {\ntype: artifact\n}\nsuite - verifies -> fast\nsuite - traces -> fast\nfast - derives -> report\nreport - satisfies -> fast\nfast - refines -> fast\n",
+      "sourceSha256": "8147b56390cdd258cd365dc597347e8b1d5270ae031e164b64fa5e542889e6d0",
+      "options": {
+        "embedFontImport": false,
+        "graphLayout": {
+          "backend": "elk",
+          "fallback": "none"
+        }
+      },
+      "environment": {
+        "AGENTIC_MERMAID_ELK_CACHE": "0"
+      },
+      "job": {
+        "caseId": "requirement-cycle-BT",
+        "source": "requirementDiagram\ndirection BT\nrequirement fast {\nid: \"performance-1\"\ntext: \"Respond quickly with retained measured fields\"\nrisk: high\nverifymethod: test\n}\nelement suite {\ntype: \"test\"\ndocref: \"bench suite\"\n}\nelement report {\ntype: artifact\n}\nsuite - verifies -> fast\nsuite - traces -> fast\nfast - derives -> report\nreport - satisfies -> fast\nfast - refines -> fast\n",
+        "sourceReference": "requirement-completed-cycle-node24-15972c57e/bindings-requirementTB-node24.json",
+        "root": "/workspace/pr449-native-loop-20261113/path-order-implementation/build-candidate",
+        "revision": "4cddae30548df1adf0ea1908c88454fae3bcb36d",
+        "expectedHead": "4cddae30548df1adf0ea1908c88454fae3bcb36d",
+        "arm": "current-qualified",
+        "backend": "elk",
+        "options": {
+          "embedFontImport": false,
+          "graphLayout": {
+            "backend": "elk",
+            "fallback": "none"
+          }
+        },
+        "historicalRevision": "62af995fafa5392364ab2567678f11e59fea9ea6",
+        "historicalJob": "/workspace/pr449-native-loop-20261113/requirement-history-20261114/restored/BT/elk/job.json",
+        "directionOnlyDerived": false,
+        "bindingReference": {
+          "svgReference": "/workspace/pr449-native-loop-20261113/requirement-history-20261114/restored/BT/elk/actual.svg.gz",
+          "receiptReference": "/workspace/pr449-native-loop-20261113/requirement-history-20261114/restored/BT/elk/actual.receipt.json.gz",
+          "sourceHead": "62af995fafa5392364ab2567678f11e59fea9ea6"
+        }
+      },
+      "actualPublicRenderCalls": 1,
+      "status": "returned",
+      "proof": "passed",
+      "wholeProduct": "current-4cdd/BT/elk/actual.product.json.gz",
+      "wholeProductRawSha256": "922b987fcaef2644c6e548f5b5b3be17f4b49ac8ac6c1c36fadfad86da37d6c1",
+      "gzipProductSha256": "66f718dad93f65bb265bca312f3e0a85c14b9685d1027ad9a68a5e186edeeb3e",
+      "svgSha256": "b1a982d984c40a2c2f8db47c072f33bcc1897447bf197a40ab63a96c9f24bd8a",
+      "historicalBinding": {
+        "wholeSVGExact": false,
+        "entireReceiptExact": false,
+        "referenceHead": "62af995fafa5392364ab2567678f11e59fea9ea6"
+      },
+      "layoutDecisions": [
+        {
+          "requested": "elk",
+          "fallback": "none",
+          "selected": "elk",
+          "attempts": [
+            {
+              "backend": "elk",
+              "outcome": "selected"
+            }
+          ],
+          "implementation": "elk-layered@1",
+          "role": "primary"
+        }
+      ]
+    },
+    {
+      "family": "requirement",
+      "direction": "LR",
+      "backend": "agentic",
+      "source": "requirementDiagram\ndirection LR\nrequirement fast {\nid: \"performance-1\"\ntext: \"Respond quickly with retained measured fields\"\nrisk: high\nverifymethod: test\n}\nelement suite {\ntype: \"test\"\ndocref: \"bench suite\"\n}\nelement report {\ntype: artifact\n}\nsuite - verifies -> fast\nsuite - traces -> fast\nfast - derives -> report\nreport - satisfies -> fast\nfast - refines -> fast\n",
+      "sourceSha256": "3871ab4cd215cb063ef41783dfb7bc8e3324d390c892ae7c66092ef231de85fb",
+      "options": {
+        "embedFontImport": false,
+        "graphLayout": {
+          "backend": "agentic",
+          "fallback": "none"
+        }
+      },
+      "environment": {
+        "AGENTIC_MERMAID_ELK_CACHE": "0"
+      },
+      "job": {
+        "caseId": "requirement-cycle-LR",
+        "source": "requirementDiagram\ndirection LR\nrequirement fast {\nid: \"performance-1\"\ntext: \"Respond quickly with retained measured fields\"\nrisk: high\nverifymethod: test\n}\nelement suite {\ntype: \"test\"\ndocref: \"bench suite\"\n}\nelement report {\ntype: artifact\n}\nsuite - verifies -> fast\nsuite - traces -> fast\nfast - derives -> report\nreport - satisfies -> fast\nfast - refines -> fast\n",
+        "sourceReference": "requirement-completed-cycle-node24-15972c57e/bindings-requirementTB-node24.json",
+        "root": "/workspace/pr449-native-loop-20261113/path-order-implementation/build-candidate",
+        "revision": "4cddae30548df1adf0ea1908c88454fae3bcb36d",
+        "expectedHead": "4cddae30548df1adf0ea1908c88454fae3bcb36d",
+        "arm": "current-qualified",
+        "backend": "agentic",
+        "options": {
+          "embedFontImport": false,
+          "graphLayout": {
+            "backend": "agentic",
+            "fallback": "none"
+          }
+        },
+        "historicalRevision": "62af995fafa5392364ab2567678f11e59fea9ea6",
+        "historicalJob": "/workspace/pr449-native-loop-20261113/requirement-history-20261114/restored/LR/agentic/job.json",
+        "directionOnlyDerived": false,
+        "bindingReference": {
+          "svgReference": "/workspace/pr449-native-loop-20261113/requirement-history-20261114/restored/LR/agentic/actual.svg.gz",
+          "receiptReference": "/workspace/pr449-native-loop-20261113/requirement-history-20261114/restored/LR/agentic/actual.receipt.json.gz",
+          "sourceHead": "62af995fafa5392364ab2567678f11e59fea9ea6"
+        }
+      },
+      "actualPublicRenderCalls": 1,
+      "status": "returned",
+      "proof": "passed",
+      "wholeProduct": "current-4cdd/LR/agentic/actual.product.json.gz",
+      "wholeProductRawSha256": "d28b156f3a35d9bf7a9f1614cd8dd1eabcce58eacce63462f5b85833e969b238",
+      "gzipProductSha256": "8f5e2127f256a5eecb3d109d18397661518a57aa8b0c79944252c2fb18e1141c",
+      "svgSha256": "4b2f30604e8b8fc6723daddda6c99aed2a175efb15f6cc3b9be1a552e76d3431",
+      "historicalBinding": {
+        "wholeSVGExact": false,
+        "entireReceiptExact": false,
+        "referenceHead": "62af995fafa5392364ab2567678f11e59fea9ea6"
+      },
+      "layoutDecisions": [
+        {
+          "requested": "agentic",
+          "fallback": "none",
+          "selected": "agentic",
+          "attempts": [
+            {
+              "backend": "agentic",
+              "outcome": "selected"
+            }
+          ],
+          "implementation": "agentic-layered@28",
+          "role": "primary"
+        }
+      ]
+    },
+    {
+      "family": "requirement",
+      "direction": "LR",
+      "backend": "elk",
+      "source": "requirementDiagram\ndirection LR\nrequirement fast {\nid: \"performance-1\"\ntext: \"Respond quickly with retained measured fields\"\nrisk: high\nverifymethod: test\n}\nelement suite {\ntype: \"test\"\ndocref: \"bench suite\"\n}\nelement report {\ntype: artifact\n}\nsuite - verifies -> fast\nsuite - traces -> fast\nfast - derives -> report\nreport - satisfies -> fast\nfast - refines -> fast\n",
+      "sourceSha256": "3871ab4cd215cb063ef41783dfb7bc8e3324d390c892ae7c66092ef231de85fb",
+      "options": {
+        "embedFontImport": false,
+        "graphLayout": {
+          "backend": "elk",
+          "fallback": "none"
+        }
+      },
+      "environment": {
+        "AGENTIC_MERMAID_ELK_CACHE": "0"
+      },
+      "job": {
+        "caseId": "requirement-cycle-LR",
+        "source": "requirementDiagram\ndirection LR\nrequirement fast {\nid: \"performance-1\"\ntext: \"Respond quickly with retained measured fields\"\nrisk: high\nverifymethod: test\n}\nelement suite {\ntype: \"test\"\ndocref: \"bench suite\"\n}\nelement report {\ntype: artifact\n}\nsuite - verifies -> fast\nsuite - traces -> fast\nfast - derives -> report\nreport - satisfies -> fast\nfast - refines -> fast\n",
+        "sourceReference": "requirement-completed-cycle-node24-15972c57e/bindings-requirementTB-node24.json",
+        "root": "/workspace/pr449-native-loop-20261113/path-order-implementation/build-candidate",
+        "revision": "4cddae30548df1adf0ea1908c88454fae3bcb36d",
+        "expectedHead": "4cddae30548df1adf0ea1908c88454fae3bcb36d",
+        "arm": "current-qualified",
+        "backend": "elk",
+        "options": {
+          "embedFontImport": false,
+          "graphLayout": {
+            "backend": "elk",
+            "fallback": "none"
+          }
+        },
+        "historicalRevision": "62af995fafa5392364ab2567678f11e59fea9ea6",
+        "historicalJob": "/workspace/pr449-native-loop-20261113/requirement-history-20261114/restored/LR/elk/job.json",
+        "directionOnlyDerived": false,
+        "bindingReference": {
+          "svgReference": "/workspace/pr449-native-loop-20261113/requirement-history-20261114/restored/LR/elk/actual.svg.gz",
+          "receiptReference": "/workspace/pr449-native-loop-20261113/requirement-history-20261114/restored/LR/elk/actual.receipt.json.gz",
+          "sourceHead": "62af995fafa5392364ab2567678f11e59fea9ea6"
+        }
+      },
+      "actualPublicRenderCalls": 1,
+      "status": "returned",
+      "proof": "passed",
+      "wholeProduct": "current-4cdd/LR/elk/actual.product.json.gz",
+      "wholeProductRawSha256": "a64b5e8ccf475e6f841b234d36746d6cae652ae938b1755f8b39bd6b696979bf",
+      "gzipProductSha256": "0a65a8cda8202fcb3d405ca4bac04f4750f7c176a56b24ab0e12d006d46ecda0",
+      "svgSha256": "8f5a2f3c4509e811beb070c750993b0f3ef4fd9219631a8be692236b1cc55d60",
+      "historicalBinding": {
+        "wholeSVGExact": false,
+        "entireReceiptExact": false,
+        "referenceHead": "62af995fafa5392364ab2567678f11e59fea9ea6"
+      },
+      "layoutDecisions": [
+        {
+          "requested": "elk",
+          "fallback": "none",
+          "selected": "elk",
+          "attempts": [
+            {
+              "backend": "elk",
+              "outcome": "selected"
+            }
+          ],
+          "implementation": "elk-layered@1",
+          "role": "primary"
+        }
+      ]
+    },
+    {
+      "family": "requirement",
+      "direction": "RL",
+      "backend": "agentic",
+      "source": "requirementDiagram\ndirection RL\nrequirement fast {\nid: \"performance-1\"\ntext: \"Respond quickly with retained measured fields\"\nrisk: high\nverifymethod: test\n}\nelement suite {\ntype: \"test\"\ndocref: \"bench suite\"\n}\nelement report {\ntype: artifact\n}\nsuite - verifies -> fast\nsuite - traces -> fast\nfast - derives -> report\nreport - satisfies -> fast\nfast - refines -> fast\n",
+      "sourceSha256": "766668f1c47f5465341fbd27457a9c66e97094472c85aa3c84c9864e45eabefc",
+      "options": {
+        "embedFontImport": false,
+        "graphLayout": {
+          "backend": "agentic",
+          "fallback": "none"
+        }
+      },
+      "environment": {
+        "AGENTIC_MERMAID_ELK_CACHE": "0"
+      },
+      "job": {
+        "caseId": "requirement-cycle-RL",
+        "source": "requirementDiagram\ndirection RL\nrequirement fast {\nid: \"performance-1\"\ntext: \"Respond quickly with retained measured fields\"\nrisk: high\nverifymethod: test\n}\nelement suite {\ntype: \"test\"\ndocref: \"bench suite\"\n}\nelement report {\ntype: artifact\n}\nsuite - verifies -> fast\nsuite - traces -> fast\nfast - derives -> report\nreport - satisfies -> fast\nfast - refines -> fast\n",
+        "sourceReference": "requirement-completed-cycle-node24-15972c57e/bindings-requirementTB-node24.json",
+        "root": "/workspace/pr449-native-loop-20261113/path-order-implementation/build-candidate",
+        "revision": "4cddae30548df1adf0ea1908c88454fae3bcb36d",
+        "expectedHead": "4cddae30548df1adf0ea1908c88454fae3bcb36d",
+        "arm": "current-qualified",
+        "backend": "agentic",
+        "options": {
+          "embedFontImport": false,
+          "graphLayout": {
+            "backend": "agentic",
+            "fallback": "none"
+          }
+        },
+        "historicalRevision": "62af995fafa5392364ab2567678f11e59fea9ea6",
+        "historicalJob": "/workspace/pr449-native-loop-20261113/requirement-history-20261114/restored/RL/agentic/job.json",
+        "directionOnlyDerived": false,
+        "bindingReference": {
+          "svgReference": "/workspace/pr449-native-loop-20261113/requirement-history-20261114/restored/RL/agentic/actual.svg.gz",
+          "receiptReference": "/workspace/pr449-native-loop-20261113/requirement-history-20261114/restored/RL/agentic/actual.receipt.json.gz",
+          "sourceHead": "62af995fafa5392364ab2567678f11e59fea9ea6"
+        }
+      },
+      "actualPublicRenderCalls": 1,
+      "status": "returned",
+      "proof": "passed",
+      "wholeProduct": "current-4cdd/RL/agentic/actual.product.json.gz",
+      "wholeProductRawSha256": "3f0fd7882bec334bc74436c50c90d8b51b5b1d3540bd1c99f54a004314c4c291",
+      "gzipProductSha256": "9b0f27884c04f3bb7964dc80c330c66b5adac200c85798b4de88e685d949d591",
+      "svgSha256": "a38274d1971a10ba9010c70a31491b58cb55fa634abc7911e1024d94d6e21d07",
+      "historicalBinding": {
+        "wholeSVGExact": false,
+        "entireReceiptExact": false,
+        "referenceHead": "62af995fafa5392364ab2567678f11e59fea9ea6"
+      },
+      "layoutDecisions": [
+        {
+          "requested": "agentic",
+          "fallback": "none",
+          "selected": "agentic",
+          "attempts": [
+            {
+              "backend": "agentic",
+              "outcome": "selected"
+            }
+          ],
+          "implementation": "agentic-layered@28",
+          "role": "primary"
+        }
+      ]
+    },
+    {
+      "family": "requirement",
+      "direction": "RL",
+      "backend": "elk",
+      "source": "requirementDiagram\ndirection RL\nrequirement fast {\nid: \"performance-1\"\ntext: \"Respond quickly with retained measured fields\"\nrisk: high\nverifymethod: test\n}\nelement suite {\ntype: \"test\"\ndocref: \"bench suite\"\n}\nelement report {\ntype: artifact\n}\nsuite - verifies -> fast\nsuite - traces -> fast\nfast - derives -> report\nreport - satisfies -> fast\nfast - refines -> fast\n",
+      "sourceSha256": "766668f1c47f5465341fbd27457a9c66e97094472c85aa3c84c9864e45eabefc",
+      "options": {
+        "embedFontImport": false,
+        "graphLayout": {
+          "backend": "elk",
+          "fallback": "none"
+        }
+      },
+      "environment": {
+        "AGENTIC_MERMAID_ELK_CACHE": "0"
+      },
+      "job": {
+        "caseId": "requirement-cycle-RL",
+        "source": "requirementDiagram\ndirection RL\nrequirement fast {\nid: \"performance-1\"\ntext: \"Respond quickly with retained measured fields\"\nrisk: high\nverifymethod: test\n}\nelement suite {\ntype: \"test\"\ndocref: \"bench suite\"\n}\nelement report {\ntype: artifact\n}\nsuite - verifies -> fast\nsuite - traces -> fast\nfast - derives -> report\nreport - satisfies -> fast\nfast - refines -> fast\n",
+        "sourceReference": "requirement-completed-cycle-node24-15972c57e/bindings-requirementTB-node24.json",
+        "root": "/workspace/pr449-native-loop-20261113/path-order-implementation/build-candidate",
+        "revision": "4cddae30548df1adf0ea1908c88454fae3bcb36d",
+        "expectedHead": "4cddae30548df1adf0ea1908c88454fae3bcb36d",
+        "arm": "current-qualified",
+        "backend": "elk",
+        "options": {
+          "embedFontImport": false,
+          "graphLayout": {
+            "backend": "elk",
+            "fallback": "none"
+          }
+        },
+        "historicalRevision": "62af995fafa5392364ab2567678f11e59fea9ea6",
+        "historicalJob": "/workspace/pr449-native-loop-20261113/requirement-history-20261114/restored/RL/elk/job.json",
+        "directionOnlyDerived": false,
+        "bindingReference": {
+          "svgReference": "/workspace/pr449-native-loop-20261113/requirement-history-20261114/restored/RL/elk/actual.svg.gz",
+          "receiptReference": "/workspace/pr449-native-loop-20261113/requirement-history-20261114/restored/RL/elk/actual.receipt.json.gz",
+          "sourceHead": "62af995fafa5392364ab2567678f11e59fea9ea6"
+        }
+      },
+      "actualPublicRenderCalls": 1,
+      "status": "returned",
+      "proof": "passed",
+      "wholeProduct": "current-4cdd/RL/elk/actual.product.json.gz",
+      "wholeProductRawSha256": "f351abb61ec1972a1daa93d77e79577093ff3638f329fbaa2617c739ef68a94d",
+      "gzipProductSha256": "4944faf2bdf60f962279118fd004c67f576e73979441a8c0cb5b65e12c2ca055",
+      "svgSha256": "aa3f25f8d05e6bbf1a51e0295b22276d80a8e64e135585f09772f5c68197f4ab",
+      "historicalBinding": {
+        "wholeSVGExact": false,
+        "entireReceiptExact": false,
+        "referenceHead": "62af995fafa5392364ab2567678f11e59fea9ea6"
+      },
+      "layoutDecisions": [
+        {
+          "requested": "elk",
+          "fallback": "none",
+          "selected": "elk",
+          "attempts": [
+            {
+              "backend": "elk",
+              "outcome": "selected"
+            }
+          ],
+          "implementation": "elk-layered@1",
+          "role": "primary"
+        }
+      ]
+    },
+    {
+      "family": "flowchart",
+      "direction": "TB",
+      "backend": "agentic",
+      "source": "flowchart TB\nA[A0<br/>A1<br/>A2<br/>A3<br/>A4<br/>A5<br/>A6<br/>A7] --> B[Branch B]\nA --> C[Branch C]\nD[Root D] --> E[E0<br/>E1<br/>E2<br/>E3<br/>E4<br/>E5<br/>E6<br/>E7]\nD --> F[Branch F]",
+      "sourceSha256": "d0e33adb2e779f098040566b2cd6c0186d80c4bf8be589c2b3124e1f783b57b2",
+      "options": {
+        "embedFontImport": false,
+        "graphLayout": {
+          "backend": "agentic",
+          "fallback": "none"
+        }
+      },
+      "environment": {
+        "AGENTIC_MERMAID_ELK_CACHE": "0"
+      },
+      "job": {
+        "caseId": "nonlinear-forest",
+        "revision": "4cddae30548df1adf0ea1908c88454fae3bcb36d",
+        "root": "/workspace/pr449-native-loop-20261113/path-order-implementation/build-candidate",
+        "expectedHead": "4cddae30548df1adf0ea1908c88454fae3bcb36d",
+        "arm": "current-qualified",
+        "source": "flowchart TB\nA[A0<br/>A1<br/>A2<br/>A3<br/>A4<br/>A5<br/>A6<br/>A7] --> B[Branch B]\nA --> C[Branch C]\nD[Root D] --> E[E0<br/>E1<br/>E2<br/>E3<br/>E4<br/>E5<br/>E6<br/>E7]\nD --> F[Branch F]",
+        "options": {
+          "embedFontImport": false,
+          "graphLayout": {
+            "backend": "agentic",
+            "fallback": "none"
+          }
+        },
+        "out": "/workspace/pr449-native-loop-20261113/requirement-history-20261114/forest-current-4cdd/agentic",
+        "bindingReference": null,
+        "priorReference": "/tmp/pr449-week-comparison-20261101/main-integration-39a-970/products/nonlinear-forest/pr/agentic",
+        "backend": "agentic",
+        "historicalRevision": "433b523b86f9017960d8004f3c776d9d8d82dbce",
+        "historicalJob": "/workspace/pr449-native-loop-20261113/requirement-history-20261114/historical-agentic-job.json"
+      },
+      "actualPublicRenderCalls": 1,
+      "status": "returned",
+      "proof": "passed",
+      "wholeProduct": "forest-current-4cdd/agentic/actual.product.json.gz",
+      "wholeProductRawSha256": "2dbb69e6b830a132c3ce05ea5ced86da26180271171259826b67c2aca90effd7",
+      "gzipProductSha256": "94e9962cc8438d27d8161124338655a57d1c2936cf1bccf0b7975d19cfa6af0e",
+      "svgSha256": "0d8e952645d661a667cc789bc07d9604958c0fc7f3586f70bbc3f5bbbacae4e2",
+      "historicalBinding": null,
+      "layoutDecisions": [
+        {
+          "requested": "agentic",
+          "fallback": "none",
+          "selected": "agentic",
+          "attempts": [
+            {
+              "backend": "agentic",
+              "outcome": "selected"
+            }
+          ],
+          "implementation": "agentic-layered@28",
+          "role": "primary"
+        }
+      ]
+    },
+    {
+      "family": "flowchart",
+      "direction": "TB",
+      "backend": "elk",
+      "source": "flowchart TB\nA[A0<br/>A1<br/>A2<br/>A3<br/>A4<br/>A5<br/>A6<br/>A7] --> B[Branch B]\nA --> C[Branch C]\nD[Root D] --> E[E0<br/>E1<br/>E2<br/>E3<br/>E4<br/>E5<br/>E6<br/>E7]\nD --> F[Branch F]",
+      "sourceSha256": "d0e33adb2e779f098040566b2cd6c0186d80c4bf8be589c2b3124e1f783b57b2",
+      "options": {
+        "embedFontImport": false,
+        "graphLayout": {
+          "backend": "elk",
+          "fallback": "none"
+        }
+      },
+      "environment": {
+        "AGENTIC_MERMAID_ELK_CACHE": "0"
+      },
+      "job": {
+        "caseId": "nonlinear-forest",
+        "revision": "4cddae30548df1adf0ea1908c88454fae3bcb36d",
+        "root": "/workspace/pr449-native-loop-20261113/path-order-implementation/build-candidate",
+        "expectedHead": "4cddae30548df1adf0ea1908c88454fae3bcb36d",
+        "arm": "current-qualified",
+        "source": "flowchart TB\nA[A0<br/>A1<br/>A2<br/>A3<br/>A4<br/>A5<br/>A6<br/>A7] --> B[Branch B]\nA --> C[Branch C]\nD[Root D] --> E[E0<br/>E1<br/>E2<br/>E3<br/>E4<br/>E5<br/>E6<br/>E7]\nD --> F[Branch F]",
+        "options": {
+          "embedFontImport": false,
+          "graphLayout": {
+            "backend": "elk",
+            "fallback": "none"
+          }
+        },
+        "out": "/workspace/pr449-native-loop-20261113/requirement-history-20261114/forest-current-4cdd/elk",
+        "bindingReference": null,
+        "priorReference": "/tmp/pr449-week-comparison-20261101/main-integration-39a-970/products/nonlinear-forest/pr/elk",
+        "backend": "elk",
+        "historicalRevision": "433b523b86f9017960d8004f3c776d9d8d82dbce",
+        "historicalJob": "/workspace/pr449-native-loop-20261113/requirement-history-20261114/historical-elk-job.json"
+      },
+      "actualPublicRenderCalls": 1,
+      "status": "returned",
+      "proof": "passed",
+      "wholeProduct": "forest-current-4cdd/elk/actual.product.json.gz",
+      "wholeProductRawSha256": "152495b1075f38798422c0004d5a0fb5785e1eef37d5ef30574d51ad83e5d93b",
+      "gzipProductSha256": "d42af75c81dbc096e5fc67a81d0316efd79a813c6487014ad09dfc88896b966c",
+      "svgSha256": "674d578fdbd9e338cd11a8ff4ca81bfaca1df7e18c967c20630840ddbb83e9eb",
+      "historicalBinding": null,
+      "layoutDecisions": [
+        {
+          "requested": "elk",
+          "fallback": "none",
+          "selected": "elk",
+          "attempts": [
+            {
+              "backend": "elk",
+              "outcome": "selected"
+            }
+          ],
+          "implementation": "elk-layered@1",
+          "role": "primary"
+        }
+      ]
+    }
+  ]
+}

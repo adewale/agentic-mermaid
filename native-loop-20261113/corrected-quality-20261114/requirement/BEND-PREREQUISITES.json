@@ -1,0 +1,66 @@
+[
+  {
+    "direction": "TB",
+    "backend": "agentic",
+    "interiorVertices": 8,
+    "angularBends": 8,
+    "issues": [],
+    "carrierTransforms": []
+  },
+  {
+    "direction": "TB",
+    "backend": "elk",
+    "interiorVertices": 10,
+    "angularBends": 10,
+    "issues": [],
+    "carrierTransforms": []
+  },
+  {
+    "direction": "BT",
+    "backend": "agentic",
+    "interiorVertices": 8,
+    "angularBends": 8,
+    "issues": [],
+    "carrierTransforms": []
+  },
+  {
+    "direction": "BT",
+    "backend": "elk",
+    "interiorVertices": 10,
+    "angularBends": 10,
+    "issues": [],
+    "carrierTransforms": []
+  },
+  {
+    "direction": "LR",
+    "backend": "agentic",
+    "interiorVertices": 6,
+    "angularBends": 6,
+    "issues": [],
+    "carrierTransforms": []
+  },
+  {
+    "direction": "LR",
+    "backend": "elk",
+    "interiorVertices": 10,
+    "angularBends": 10,
+    "issues": [],
+    "carrierTransforms": []
+  },
+  {
+    "direction": "RL",
+    "backend": "agentic",
+    "interiorVertices": 6,
+    "angularBends": 6,
+    "issues": [],
+    "carrierTransforms": []
+  },
+  {
+    "direction": "RL",
+    "backend": "elk",
+    "interiorVertices": 10,
+    "angularBends": 10,
+    "issues": [],
+    "carrierTransforms": []
+  }
+]

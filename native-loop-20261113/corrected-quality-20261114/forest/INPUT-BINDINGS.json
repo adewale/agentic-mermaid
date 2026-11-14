@@ -1,0 +1,28 @@
+[
+  {
+    "backend": "agentic",
+    "historicalJob": "/workspace/pr449-native-loop-20261113/requirement-history-20261114/historical-agentic-job.json",
+    "historicalJobSha256": "fd14a5968a839409c1aeefaa1005baf5aac6fe9b86b8adb757a356f7c8e6b1a2",
+    "sourceSha256": "d0e33adb2e779f098040566b2cd6c0186d80c4bf8be589c2b3124e1f783b57b2",
+    "originalOptions": {
+      "embedFontImport": false,
+      "graphLayout": {
+        "backend": "agentic",
+        "fallback": "none"
+      }
+    }
+  },
+  {
+    "backend": "elk",
+    "historicalJob": "/workspace/pr449-native-loop-20261113/requirement-history-20261114/historical-elk-job.json",
+    "historicalJobSha256": "f6ffe5fdea691cfafed25b484b9b50582a40ff107693503b4588747b5a3036b2",
+    "sourceSha256": "d0e33adb2e779f098040566b2cd6c0186d80c4bf8be589c2b3124e1f783b57b2",
+    "originalOptions": {
+      "embedFontImport": false,
+      "graphLayout": {
+        "backend": "elk",
+        "fallback": "none"
+      }
+    }
+  }
+]

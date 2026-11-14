@@ -1,0 +1,1857 @@
+{
+  "offlineRasters": 168,
+  "publicRenderCalls": 0,
+  "zoom": 2,
+  "fonts": "Manifest-verified Inter weights, no system fonts",
+  "scope": "Each actual text program and marker occurrence contributes final raster pixels. Not complete glyph attribution, font-independent readability, or a whole-diagram occlusion proof.",
+  "results": [
+    {
+      "direction": "TB",
+      "backend": "agentic",
+      "svgSHA256": "b078c9c09ca30ace7ee9a430af496b712b40c41dffe6075550dbcd25f5d9acf9",
+      "width": 924,
+      "height": 999,
+      "textPrograms": 15,
+      "markerOccurrences": 5,
+      "contributions": [
+        {
+          "kind": "text",
+          "index": 0,
+          "changedPixels": 2084,
+          "pixelBounds": {
+            "minX": 417,
+            "minY": 538,
+            "maxX": 624,
+            "maxY": 591
+          }
+        },
+        {
+          "kind": "text",
+          "index": 1,
+          "changedPixels": 1398,
+          "pixelBounds": {
+            "minX": 236,
+            "minY": 645,
+            "maxX": 424,
+            "maxY": 670
+          }
+        },
+        {
+          "kind": "text",
+          "index": 2,
+          "changedPixels": 4383,
+          "pixelBounds": {
+            "minX": 235,
+            "minY": 697,
+            "maxX": 806,
+            "maxY": 722
+          }
+        },
+        {
+          "kind": "text",
+          "index": 3,
+          "changedPixels": 927,
+          "pixelBounds": {
+            "minX": 236,
+            "minY": 749,
+            "maxX": 346,
+            "maxY": 774
+          }
+        },
+        {
+          "kind": "text",
+          "index": 4,
+          "changedPixels": 1436,
+          "pixelBounds": {
+            "minX": 234,
+            "minY": 801,
+            "maxX": 424,
+            "maxY": 821
+          }
+        },
+        {
+          "kind": "text",
+          "index": 5,
+          "changedPixels": 1707,
+          "pixelBounds": {
+            "minX": 255,
+            "minY": 95,
+            "maxX": 405,
+            "maxY": 147
+          }
+        },
+        {
+          "kind": "text",
+          "index": 6,
+          "changedPixels": 840,
+          "pixelBounds": {
+            "minX": 218,
+            "minY": 202,
+            "maxX": 328,
+            "maxY": 226
+          }
+        },
+        {
+          "kind": "text",
+          "index": 7,
+          "changedPixels": 1681,
+          "pixelBounds": {
+            "minX": 219,
+            "minY": 253,
+            "maxX": 442,
+            "maxY": 273
+          }
+        },
+        {
+          "kind": "text",
+          "index": 8,
+          "changedPixels": 1803,
+          "pixelBounds": {
+            "minX": 644,
+            "minY": 121,
+            "maxX": 795,
+            "maxY": 178
+          }
+        },
+        {
+          "kind": "text",
+          "index": 9,
+          "changedPixels": 1131,
+          "pixelBounds": {
+            "minX": 613,
+            "minY": 227,
+            "maxX": 759,
+            "maxY": 252
+          }
+        },
+        {
+          "kind": "text",
+          "index": 10,
+          "changedPixels": 711,
+          "pixelBounds": {
+            "minX": 81,
+            "minY": 402,
+            "maxX": 200,
+            "maxY": 419
+          }
+        },
+        {
+          "kind": "text",
+          "index": 11,
+          "changedPixels": 637,
+          "pixelBounds": {
+            "minX": 275,
+            "minY": 404,
+            "maxX": 384,
+            "maxY": 419
+          }
+        },
+        {
+          "kind": "text",
+          "index": 12,
+          "changedPixels": 740,
+          "pixelBounds": {
+            "minX": 460,
+            "minY": 402,
+            "maxX": 581,
+            "maxY": 419
+          }
+        },
+        {
+          "kind": "text",
+          "index": 13,
+          "changedPixels": 828,
+          "pixelBounds": {
+            "minX": 657,
+            "minY": 402,
+            "maxX": 782,
+            "maxY": 419
+          }
+        },
+        {
+          "kind": "text",
+          "index": 14,
+          "changedPixels": 679,
+          "pixelBounds": {
+            "minX": 269,
+            "minY": 901,
+            "maxX": 382,
+            "maxY": 918
+          }
+        },
+        {
+          "kind": "marker-end",
+          "index": 0,
+          "changedPixels": 126,
+          "pixelBounds": {
+            "minX": 211,
+            "minY": 489,
+            "maxX": 224,
+            "maxY": 507
+          }
+        },
+        {
+          "kind": "marker-end",
+          "index": 1,
+          "changedPixels": 130,
+          "pixelBounds": {
+            "minX": 323,
+            "minY": 489,
+            "maxX": 337,
+            "maxY": 507
+          }
+        },
+        {
+          "kind": "marker-end",
+          "index": 2,
+          "changedPixels": 127,
+          "pixelBounds": {
+            "minX": 589,
+            "minY": 289,
+            "maxX": 602,
+            "maxY": 307
+          }
+        },
+        {
+          "kind": "marker-end",
+          "index": 3,
+          "changedPixels": 127,
+          "pixelBounds": {
+            "minX": 713,
+            "minY": 489,
+            "maxX": 726,
+            "maxY": 507
+          }
+        },
+        {
+          "kind": "marker-end",
+          "index": 4,
+          "changedPixels": 129,
+          "pixelBounds": {
+            "minX": 626,
+            "minY": 862,
+            "maxX": 640,
+            "maxY": 880
+          }
+        }
+      ]
+    },
+    {
+      "direction": "TB",
+      "backend": "elk",
+      "svgSHA256": "e227665df88cd9e9e1b4a948f465a7a0b9e21f14dd4fed5966f94c38cdda7657",
+      "width": 977,
+      "height": 1083,
+      "textPrograms": 15,
+      "markerOccurrences": 5,
+      "contributions": [
+        {
+          "kind": "text",
+          "index": 0,
+          "changedPixels": 2093,
+          "pixelBounds": {
+            "minX": 473,
+            "minY": 694,
+            "maxX": 680,
+            "maxY": 748
+          }
+        },
+        {
+          "kind": "text",
+          "index": 1,
+          "changedPixels": 1368,
+          "pixelBounds": {
+            "minX": 292,
+            "minY": 802,
+            "maxX": 480,
+            "maxY": 826
+          }
+        },
+        {
+          "kind": "text",
+          "index": 2,
+          "changedPixels": 4487,
+          "pixelBounds": {
+            "minX": 291,
+            "minY": 853,
+            "maxX": 862,
+            "maxY": 878
+          }
+        },
+        {
+          "kind": "text",
+          "index": 3,
+          "changedPixels": 947,
+          "pixelBounds": {
+            "minX": 292,
+            "minY": 905,
+            "maxX": 402,
+            "maxY": 930
+          }
+        },
+        {
+          "kind": "text",
+          "index": 4,
+          "changedPixels": 1424,
+          "pixelBounds": {
+            "minX": 290,
+            "minY": 957,
+            "maxX": 480,
+            "maxY": 977
+          }
+        },
+        {
+          "kind": "text",
+          "index": 5,
+          "changedPixels": 1675,
+          "pixelBounds": {
+            "minX": 642,
+            "minY": 95,
+            "maxX": 793,
+            "maxY": 148
+          }
+        },
+        {
+          "kind": "text",
+          "index": 6,
+          "changedPixels": 843,
+          "pixelBounds": {
+            "minX": 606,
+            "minY": 202,
+            "maxX": 716,
+            "maxY": 226
+          }
+        },
+        {
+          "kind": "text",
+          "index": 7,
+          "changedPixels": 1744,
+          "pixelBounds": {
+            "minX": 606,
+            "minY": 253,
+            "maxX": 830,
+            "maxY": 273
+          }
+        },
+        {
+          "kind": "text",
+          "index": 8,
+          "changedPixels": 1787,
+          "pixelBounds": {
+            "minX": 183,
+            "minY": 137,
+            "maxX": 334,
+            "maxY": 194
+          }
+        },
+        {
+          "kind": "text",
+          "index": 9,
+          "changedPixels": 1120,
+          "pixelBounds": {
+            "minX": 152,
+            "minY": 243,
+            "maxX": 298,
+            "maxY": 268
+          }
+        },
+        {
+          "kind": "text",
+          "index": 10,
+          "changedPixels": 734,
+          "pixelBounds": {
+            "minX": 491,
+            "minY": 475,
+            "maxX": 610,
+            "maxY": 492
+          }
+        },
+        {
+          "kind": "text",
+          "index": 11,
+          "changedPixels": 622,
+          "pixelBounds": {
+            "minX": 786,
+            "minY": 477,
+            "maxX": 895,
+            "maxY": 492
+          }
+        },
+        {
+          "kind": "text",
+          "index": 12,
+          "changedPixels": 745,
+          "pixelBounds": {
+            "minX": 321,
+            "minY": 475,
+            "maxX": 442,
+            "maxY": 492
+          }
+        },
+        {
+          "kind": "text",
+          "index": 13,
+          "changedPixels": 794,
+          "pixelBounds": {
+            "minX": 134,
+            "minY": 475,
+            "maxX": 259,
+            "maxY": 492
+          }
+        },
+        {
+          "kind": "text",
+          "index": 14,
+          "changedPixels": 700,
+          "pixelBounds": {
+            "minX": 81,
+            "minY": 832,
+            "maxX": 195,
+            "maxY": 849
+          }
+        },
+        {
+          "kind": "marker-end",
+          "index": 0,
+          "changedPixels": 116,
+          "pixelBounds": {
+            "minX": 625,
+            "minY": 646,
+            "maxX": 639,
+            "maxY": 663
+          }
+        },
+        {
+          "kind": "marker-end",
+          "index": 1,
+          "changedPixels": 115,
+          "pixelBounds": {
+            "minX": 755,
+            "minY": 646,
+            "maxX": 769,
+            "maxY": 663
+          }
+        },
+        {
+          "kind": "marker-end",
+          "index": 2,
+          "changedPixels": 129,
+          "pixelBounds": {
+            "minX": 290,
+            "minY": 305,
+            "maxX": 304,
+            "maxY": 323
+          }
+        },
+        {
+          "kind": "marker-end",
+          "index": 3,
+          "changedPixels": 116,
+          "pixelBounds": {
+            "minX": 384,
+            "minY": 646,
+            "maxX": 398,
+            "maxY": 663
+          }
+        },
+        {
+          "kind": "marker-end",
+          "index": 4,
+          "changedPixels": 124,
+          "pixelBounds": {
+            "minX": 240,
+            "minY": 889,
+            "maxX": 258,
+            "maxY": 902
+          }
+        }
+      ]
+    },
+    {
+      "direction": "BT",
+      "backend": "agentic",
+      "svgSHA256": "0f8322a5151a7f514c3b66248407cc94234671995e6d16cb5de878b05efbc91b",
+      "width": 924,
+      "height": 999,
+      "textPrograms": 15,
+      "markerOccurrences": 5,
+      "contributions": [
+        {
+          "kind": "text",
+          "index": 0,
+          "changedPixels": 2064,
+          "pixelBounds": {
+            "minX": 417,
+            "minY": 166,
+            "maxX": 624,
+            "maxY": 220
+          }
+        },
+        {
+          "kind": "text",
+          "index": 1,
+          "changedPixels": 1385,
+          "pixelBounds": {
+            "minX": 236,
+            "minY": 274,
+            "maxX": 424,
+            "maxY": 299
+          }
+        },
+        {
+          "kind": "text",
+          "index": 2,
+          "changedPixels": 4444,
+          "pixelBounds": {
+            "minX": 235,
+            "minY": 326,
+            "maxX": 806,
+            "maxY": 351
+          }
+        },
+        {
+          "kind": "text",
+          "index": 3,
+          "changedPixels": 933,
+          "pixelBounds": {
+            "minX": 236,
+            "minY": 378,
+            "maxX": 346,
+            "maxY": 403
+          }
+        },
+        {
+          "kind": "text",
+          "index": 4,
+          "changedPixels": 1428,
+          "pixelBounds": {
+            "minX": 234,
+            "minY": 429,
+            "maxX": 424,
+            "maxY": 449
+          }
+        },
+        {
+          "kind": "text",
+          "index": 5,
+          "changedPixels": 1711,
+          "pixelBounds": {
+            "minX": 255,
+            "minY": 714,
+            "maxX": 405,
+            "maxY": 767
+          }
+        },
+        {
+          "kind": "text",
+          "index": 6,
+          "changedPixels": 819,
+          "pixelBounds": {
+            "minX": 218,
+            "minY": 822,
+            "maxX": 328,
+            "maxY": 846
+          }
+        },
+        {
+          "kind": "text",
+          "index": 7,
+          "changedPixels": 1680,
+          "pixelBounds": {
+            "minX": 219,
+            "minY": 873,
+            "maxX": 442,
+            "maxY": 893
+          }
+        },
+        {
+          "kind": "text",
+          "index": 8,
+          "changedPixels": 1818,
+          "pixelBounds": {
+            "minX": 644,
+            "minY": 740,
+            "maxX": 795,
+            "maxY": 798
+          }
+        },
+        {
+          "kind": "text",
+          "index": 9,
+          "changedPixels": 1094,
+          "pixelBounds": {
+            "minX": 613,
+            "minY": 847,
+            "maxX": 759,
+            "maxY": 872
+          }
+        },
+        {
+          "kind": "text",
+          "index": 10,
+          "changedPixels": 708,
+          "pixelBounds": {
+            "minX": 81,
+            "minY": 578,
+            "maxX": 200,
+            "maxY": 595
+          }
+        },
+        {
+          "kind": "text",
+          "index": 11,
+          "changedPixels": 635,
+          "pixelBounds": {
+            "minX": 275,
+            "minY": 580,
+            "maxX": 384,
+            "maxY": 595
+          }
+        },
+        {
+          "kind": "text",
+          "index": 12,
+          "changedPixels": 739,
+          "pixelBounds": {
+            "minX": 460,
+            "minY": 578,
+            "maxX": 581,
+            "maxY": 595
+          }
+        },
+        {
+          "kind": "text",
+          "index": 13,
+          "changedPixels": 825,
+          "pixelBounds": {
+            "minX": 657,
+            "minY": 578,
+            "maxX": 782,
+            "maxY": 595
+          }
+        },
+        {
+          "kind": "text",
+          "index": 14,
+          "changedPixels": 669,
+          "pixelBounds": {
+            "minX": 269,
+            "minY": 79,
+            "maxX": 382,
+            "maxY": 96
+          }
+        },
+        {
+          "kind": "marker-end",
+          "index": 0,
+          "changedPixels": 126,
+          "pixelBounds": {
+            "minX": 211,
+            "minY": 491,
+            "maxX": 224,
+            "maxY": 509
+          }
+        },
+        {
+          "kind": "marker-end",
+          "index": 1,
+          "changedPixels": 130,
+          "pixelBounds": {
+            "minX": 323,
+            "minY": 491,
+            "maxX": 337,
+            "maxY": 509
+          }
+        },
+        {
+          "kind": "marker-end",
+          "index": 2,
+          "changedPixels": 127,
+          "pixelBounds": {
+            "minX": 589,
+            "minY": 691,
+            "maxX": 602,
+            "maxY": 709
+          }
+        },
+        {
+          "kind": "marker-end",
+          "index": 3,
+          "changedPixels": 127,
+          "pixelBounds": {
+            "minX": 713,
+            "minY": 491,
+            "maxX": 726,
+            "maxY": 509
+          }
+        },
+        {
+          "kind": "marker-end",
+          "index": 4,
+          "changedPixels": 129,
+          "pixelBounds": {
+            "minX": 626,
+            "minY": 118,
+            "maxX": 640,
+            "maxY": 136
+          }
+        }
+      ]
+    },
+    {
+      "direction": "BT",
+      "backend": "elk",
+      "svgSHA256": "b1a982d984c40a2c2f8db47c072f33bcc1897447bf197a40ab63a96c9f24bd8a",
+      "width": 977,
+      "height": 1083,
+      "textPrograms": 15,
+      "markerOccurrences": 5,
+      "contributions": [
+        {
+          "kind": "text",
+          "index": 0,
+          "changedPixels": 2084,
+          "pixelBounds": {
+            "minX": 473,
+            "minY": 94,
+            "maxX": 680,
+            "maxY": 148
+          }
+        },
+        {
+          "kind": "text",
+          "index": 1,
+          "changedPixels": 1371,
+          "pixelBounds": {
+            "minX": 292,
+            "minY": 201,
+            "maxX": 480,
+            "maxY": 226
+          }
+        },
+        {
+          "kind": "text",
+          "index": 2,
+          "changedPixels": 4478,
+          "pixelBounds": {
+            "minX": 291,
+            "minY": 253,
+            "maxX": 862,
+            "maxY": 278
+          }
+        },
+        {
+          "kind": "text",
+          "index": 3,
+          "changedPixels": 951,
+          "pixelBounds": {
+            "minX": 292,
+            "minY": 305,
+            "maxX": 402,
+            "maxY": 330
+          }
+        },
+        {
+          "kind": "text",
+          "index": 4,
+          "changedPixels": 1426,
+          "pixelBounds": {
+            "minX": 290,
+            "minY": 357,
+            "maxX": 480,
+            "maxY": 377
+          }
+        },
+        {
+          "kind": "text",
+          "index": 5,
+          "changedPixels": 1688,
+          "pixelBounds": {
+            "minX": 642,
+            "minY": 798,
+            "maxX": 793,
+            "maxY": 851
+          }
+        },
+        {
+          "kind": "text",
+          "index": 6,
+          "changedPixels": 829,
+          "pixelBounds": {
+            "minX": 606,
+            "minY": 906,
+            "maxX": 716,
+            "maxY": 930
+          }
+        },
+        {
+          "kind": "text",
+          "index": 7,
+          "changedPixels": 1719,
+          "pixelBounds": {
+            "minX": 606,
+            "minY": 957,
+            "maxX": 830,
+            "maxY": 977
+          }
+        },
+        {
+          "kind": "text",
+          "index": 8,
+          "changedPixels": 1804,
+          "pixelBounds": {
+            "minX": 183,
+            "minY": 808,
+            "maxX": 334,
+            "maxY": 866
+          }
+        },
+        {
+          "kind": "text",
+          "index": 9,
+          "changedPixels": 1100,
+          "pixelBounds": {
+            "minX": 152,
+            "minY": 915,
+            "maxX": 298,
+            "maxY": 940
+          }
+        },
+        {
+          "kind": "text",
+          "index": 10,
+          "changedPixels": 709,
+          "pixelBounds": {
+            "minX": 491,
+            "minY": 589,
+            "maxX": 610,
+            "maxY": 606
+          }
+        },
+        {
+          "kind": "text",
+          "index": 11,
+          "changedPixels": 616,
+          "pixelBounds": {
+            "minX": 786,
+            "minY": 591,
+            "maxX": 895,
+            "maxY": 606
+          }
+        },
+        {
+          "kind": "text",
+          "index": 12,
+          "changedPixels": 735,
+          "pixelBounds": {
+            "minX": 321,
+            "minY": 589,
+            "maxX": 442,
+            "maxY": 606
+          }
+        },
+        {
+          "kind": "text",
+          "index": 13,
+          "changedPixels": 785,
+          "pixelBounds": {
+            "minX": 134,
+            "minY": 589,
+            "maxX": 259,
+            "maxY": 606
+          }
+        },
+        {
+          "kind": "text",
+          "index": 14,
+          "changedPixels": 695,
+          "pixelBounds": {
+            "minX": 81,
+            "minY": 232,
+            "maxX": 195,
+            "maxY": 249
+          }
+        },
+        {
+          "kind": "marker-end",
+          "index": 0,
+          "changedPixels": 116,
+          "pixelBounds": {
+            "minX": 625,
+            "minY": 419,
+            "maxX": 639,
+            "maxY": 436
+          }
+        },
+        {
+          "kind": "marker-end",
+          "index": 1,
+          "changedPixels": 115,
+          "pixelBounds": {
+            "minX": 755,
+            "minY": 419,
+            "maxX": 769,
+            "maxY": 436
+          }
+        },
+        {
+          "kind": "marker-end",
+          "index": 2,
+          "changedPixels": 129,
+          "pixelBounds": {
+            "minX": 290,
+            "minY": 759,
+            "maxX": 304,
+            "maxY": 777
+          }
+        },
+        {
+          "kind": "marker-end",
+          "index": 3,
+          "changedPixels": 116,
+          "pixelBounds": {
+            "minX": 384,
+            "minY": 419,
+            "maxX": 398,
+            "maxY": 436
+          }
+        },
+        {
+          "kind": "marker-end",
+          "index": 4,
+          "changedPixels": 124,
+          "pixelBounds": {
+            "minX": 240,
+            "minY": 180,
+            "maxX": 258,
+            "maxY": 193
+          }
+        }
+      ]
+    },
+    {
+      "direction": "LR",
+      "backend": "agentic",
+      "svgSHA256": "4b2f30604e8b8fc6723daddda6c99aed2a175efb15f6cc3b9be1a552e76d3431",
+      "width": 1940,
+      "height": 504,
+      "textPrograms": 15,
+      "markerOccurrences": 5,
+      "contributions": [
+        {
+          "kind": "text",
+          "index": 0,
+          "changedPixels": 2098,
+          "pixelBounds": {
+            "minX": 868,
+            "minY": 115,
+            "maxX": 1075,
+            "maxY": 169
+          }
+        },
+        {
+          "kind": "text",
+          "index": 1,
+          "changedPixels": 1382,
+          "pixelBounds": {
+            "minX": 687,
+            "minY": 223,
+            "maxX": 874,
+            "maxY": 247
+          }
+        },
+        {
+          "kind": "text",
+          "index": 2,
+          "changedPixels": 4477,
+          "pixelBounds": {
+            "minX": 686,
+            "minY": 274,
+            "maxX": 1257,
+            "maxY": 299
+          }
+        },
+        {
+          "kind": "text",
+          "index": 3,
+          "changedPixels": 943,
+          "pixelBounds": {
+            "minX": 687,
+            "minY": 326,
+            "maxX": 797,
+            "maxY": 351
+          }
+        },
+        {
+          "kind": "text",
+          "index": 4,
+          "changedPixels": 1432,
+          "pixelBounds": {
+            "minX": 685,
+            "minY": 378,
+            "maxX": 875,
+            "maxY": 398
+          }
+        },
+        {
+          "kind": "text",
+          "index": 5,
+          "changedPixels": 1723,
+          "pixelBounds": {
+            "minX": 134,
+            "minY": 168,
+            "maxX": 284,
+            "maxY": 220
+          }
+        },
+        {
+          "kind": "text",
+          "index": 6,
+          "changedPixels": 856,
+          "pixelBounds": {
+            "minX": 97,
+            "minY": 275,
+            "maxX": 207,
+            "maxY": 299
+          }
+        },
+        {
+          "kind": "text",
+          "index": 7,
+          "changedPixels": 1691,
+          "pixelBounds": {
+            "minX": 98,
+            "minY": 326,
+            "maxX": 321,
+            "maxY": 346
+          }
+        },
+        {
+          "kind": "text",
+          "index": 8,
+          "changedPixels": 1790,
+          "pixelBounds": {
+            "minX": 1660,
+            "minY": 95,
+            "maxX": 1811,
+            "maxY": 153
+          }
+        },
+        {
+          "kind": "text",
+          "index": 9,
+          "changedPixels": 1141,
+          "pixelBounds": {
+            "minX": 1629,
+            "minY": 201,
+            "maxX": 1775,
+            "maxY": 226
+          }
+        },
+        {
+          "kind": "text",
+          "index": 10,
+          "changedPixels": 729,
+          "pixelBounds": {
+            "minX": 444,
+            "minY": 164,
+            "maxX": 563,
+            "maxY": 181
+          }
+        },
+        {
+          "kind": "text",
+          "index": 11,
+          "changedPixels": 638,
+          "pixelBounds": {
+            "minX": 449,
+            "minY": 255,
+            "maxX": 558,
+            "maxY": 270
+          }
+        },
+        {
+          "kind": "text",
+          "index": 12,
+          "changedPixels": 713,
+          "pixelBounds": {
+            "minX": 1383,
+            "minY": 80,
+            "maxX": 1503,
+            "maxY": 97
+          }
+        },
+        {
+          "kind": "text",
+          "index": 13,
+          "changedPixels": 823,
+          "pixelBounds": {
+            "minX": 1380,
+            "minY": 169,
+            "maxX": 1506,
+            "maxY": 185
+          }
+        },
+        {
+          "kind": "text",
+          "index": 14,
+          "changedPixels": 678,
+          "pixelBounds": {
+            "minX": 1386,
+            "minY": 260,
+            "maxX": 1500,
+            "maxY": 277
+          }
+        },
+        {
+          "kind": "marker-end",
+          "index": 0,
+          "changedPixels": 112,
+          "pixelBounds": {
+            "minX": 635,
+            "minY": 167,
+            "maxX": 652,
+            "maxY": 180
+          }
+        },
+        {
+          "kind": "marker-end",
+          "index": 1,
+          "changedPixels": 115,
+          "pixelBounds": {
+            "minX": 635,
+            "minY": 255,
+            "maxX": 652,
+            "maxY": 269
+          }
+        },
+        {
+          "kind": "marker-end",
+          "index": 2,
+          "changedPixels": 116,
+          "pixelBounds": {
+            "minX": 1578,
+            "minY": 82,
+            "maxX": 1595,
+            "maxY": 96
+          }
+        },
+        {
+          "kind": "marker-end",
+          "index": 3,
+          "changedPixels": 115,
+          "pixelBounds": {
+            "minX": 1291,
+            "minY": 216,
+            "maxX": 1308,
+            "maxY": 230
+          }
+        },
+        {
+          "kind": "marker-end",
+          "index": 4,
+          "changedPixels": 116,
+          "pixelBounds": {
+            "minX": 1291,
+            "minY": 372,
+            "maxX": 1308,
+            "maxY": 386
+          }
+        }
+      ]
+    },
+    {
+      "direction": "LR",
+      "backend": "elk",
+      "svgSHA256": "8f5a2f3c4509e811beb070c750993b0f3ef4fd9219631a8be692236b1cc55d60",
+      "width": 1518,
+      "height": 659,
+      "textPrograms": 15,
+      "markerOccurrences": 5,
+      "contributions": [
+        {
+          "kind": "text",
+          "index": 0,
+          "changedPixels": 2091,
+          "pixelBounds": {
+            "minX": 1031,
+            "minY": 259,
+            "maxX": 1238,
+            "maxY": 312
+          }
+        },
+        {
+          "kind": "text",
+          "index": 1,
+          "changedPixels": 1348,
+          "pixelBounds": {
+            "minX": 850,
+            "minY": 366,
+            "maxX": 1038,
+            "maxY": 391
+          }
+        },
+        {
+          "kind": "text",
+          "index": 2,
+          "changedPixels": 4427,
+          "pixelBounds": {
+            "minX": 849,
+            "minY": 418,
+            "maxX": 1420,
+            "maxY": 443
+          }
+        },
+        {
+          "kind": "text",
+          "index": 3,
+          "changedPixels": 922,
+          "pixelBounds": {
+            "minX": 850,
+            "minY": 470,
+            "maxX": 960,
+            "maxY": 495
+          }
+        },
+        {
+          "kind": "text",
+          "index": 4,
+          "changedPixels": 1412,
+          "pixelBounds": {
+            "minX": 849,
+            "minY": 522,
+            "maxX": 1038,
+            "maxY": 542
+          }
+        },
+        {
+          "kind": "text",
+          "index": 5,
+          "changedPixels": 1738,
+          "pixelBounds": {
+            "minX": 134,
+            "minY": 374,
+            "maxX": 284,
+            "maxY": 427
+          }
+        },
+        {
+          "kind": "text",
+          "index": 6,
+          "changedPixels": 833,
+          "pixelBounds": {
+            "minX": 97,
+            "minY": 482,
+            "maxX": 207,
+            "maxY": 506
+          }
+        },
+        {
+          "kind": "text",
+          "index": 7,
+          "changedPixels": 1702,
+          "pixelBounds": {
+            "minX": 98,
+            "minY": 533,
+            "maxX": 321,
+            "maxY": 553
+          }
+        },
+        {
+          "kind": "text",
+          "index": 8,
+          "changedPixels": 1804,
+          "pixelBounds": {
+            "minX": 129,
+            "minY": 95,
+            "maxX": 280,
+            "maxY": 153
+          }
+        },
+        {
+          "kind": "text",
+          "index": 9,
+          "changedPixels": 1138,
+          "pixelBounds": {
+            "minX": 98,
+            "minY": 202,
+            "maxX": 244,
+            "maxY": 227
+          }
+        },
+        {
+          "kind": "text",
+          "index": 10,
+          "changedPixels": 725,
+          "pixelBounds": {
+            "minX": 521,
+            "minY": 393,
+            "maxX": 639,
+            "maxY": 410
+          }
+        },
+        {
+          "kind": "text",
+          "index": 11,
+          "changedPixels": 626,
+          "pixelBounds": {
+            "minX": 526,
+            "minY": 530,
+            "maxX": 635,
+            "maxY": 545
+          }
+        },
+        {
+          "kind": "text",
+          "index": 12,
+          "changedPixels": 728,
+          "pixelBounds": {
+            "minX": 520,
+            "minY": 210,
+            "maxX": 641,
+            "maxY": 227
+          }
+        },
+        {
+          "kind": "text",
+          "index": 13,
+          "changedPixels": 820,
+          "pixelBounds": {
+            "minX": 517,
+            "minY": 134,
+            "maxX": 643,
+            "maxY": 150
+          }
+        },
+        {
+          "kind": "text",
+          "index": 14,
+          "changedPixels": 662,
+          "pixelBounds": {
+            "minX": 1078,
+            "minY": 150,
+            "maxX": 1191,
+            "maxY": 167
+          }
+        },
+        {
+          "kind": "marker-end",
+          "index": 0,
+          "changedPixels": 125,
+          "pixelBounds": {
+            "minX": 798,
+            "minY": 426,
+            "maxX": 816,
+            "maxY": 439
+          }
+        },
+        {
+          "kind": "marker-end",
+          "index": 1,
+          "changedPixels": 128,
+          "pixelBounds": {
+            "minX": 798,
+            "minY": 499,
+            "maxX": 816,
+            "maxY": 513
+          }
+        },
+        {
+          "kind": "marker-end",
+          "index": 2,
+          "changedPixels": 115,
+          "pixelBounds": {
+            "minX": 345,
+            "minY": 182,
+            "maxX": 362,
+            "maxY": 196
+          }
+        },
+        {
+          "kind": "marker-end",
+          "index": 3,
+          "changedPixels": 127,
+          "pixelBounds": {
+            "minX": 798,
+            "minY": 298,
+            "maxX": 816,
+            "maxY": 312
+          }
+        },
+        {
+          "kind": "marker-end",
+          "index": 4,
+          "changedPixels": 129,
+          "pixelBounds": {
+            "minX": 1229,
+            "minY": 210,
+            "maxX": 1243,
+            "maxY": 228
+          }
+        }
+      ]
+    },
+    {
+      "direction": "RL",
+      "backend": "agentic",
+      "svgSHA256": "a38274d1971a10ba9010c70a31491b58cb55fa634abc7911e1024d94d6e21d07",
+      "width": 1940,
+      "height": 504,
+      "textPrograms": 15,
+      "markerOccurrences": 5,
+      "contributions": [
+        {
+          "kind": "text",
+          "index": 0,
+          "changedPixels": 2096,
+          "pixelBounds": {
+            "minX": 864,
+            "minY": 115,
+            "maxX": 1071,
+            "maxY": 169
+          }
+        },
+        {
+          "kind": "text",
+          "index": 1,
+          "changedPixels": 1383,
+          "pixelBounds": {
+            "minX": 683,
+            "minY": 223,
+            "maxX": 870,
+            "maxY": 247
+          }
+        },
+        {
+          "kind": "text",
+          "index": 2,
+          "changedPixels": 4491,
+          "pixelBounds": {
+            "minX": 682,
+            "minY": 274,
+            "maxX": 1253,
+            "maxY": 299
+          }
+        },
+        {
+          "kind": "text",
+          "index": 3,
+          "changedPixels": 941,
+          "pixelBounds": {
+            "minX": 683,
+            "minY": 326,
+            "maxX": 793,
+            "maxY": 351
+          }
+        },
+        {
+          "kind": "text",
+          "index": 4,
+          "changedPixels": 1435,
+          "pixelBounds": {
+            "minX": 681,
+            "minY": 378,
+            "maxX": 871,
+            "maxY": 398
+          }
+        },
+        {
+          "kind": "text",
+          "index": 5,
+          "changedPixels": 1710,
+          "pixelBounds": {
+            "minX": 1655,
+            "minY": 168,
+            "maxX": 1805,
+            "maxY": 220
+          }
+        },
+        {
+          "kind": "text",
+          "index": 6,
+          "changedPixels": 842,
+          "pixelBounds": {
+            "minX": 1618,
+            "minY": 275,
+            "maxX": 1728,
+            "maxY": 299
+          }
+        },
+        {
+          "kind": "text",
+          "index": 7,
+          "changedPixels": 1679,
+          "pixelBounds": {
+            "minX": 1619,
+            "minY": 326,
+            "maxX": 1842,
+            "maxY": 346
+          }
+        },
+        {
+          "kind": "text",
+          "index": 8,
+          "changedPixels": 1788,
+          "pixelBounds": {
+            "minX": 128,
+            "minY": 95,
+            "maxX": 279,
+            "maxY": 153
+          }
+        },
+        {
+          "kind": "text",
+          "index": 9,
+          "changedPixels": 1143,
+          "pixelBounds": {
+            "minX": 97,
+            "minY": 201,
+            "maxX": 243,
+            "maxY": 226
+          }
+        },
+        {
+          "kind": "text",
+          "index": 10,
+          "changedPixels": 716,
+          "pixelBounds": {
+            "minX": 1376,
+            "minY": 164,
+            "maxX": 1495,
+            "maxY": 181
+          }
+        },
+        {
+          "kind": "text",
+          "index": 11,
+          "changedPixels": 638,
+          "pixelBounds": {
+            "minX": 1381,
+            "minY": 255,
+            "maxX": 1490,
+            "maxY": 270
+          }
+        },
+        {
+          "kind": "text",
+          "index": 12,
+          "changedPixels": 696,
+          "pixelBounds": {
+            "minX": 436,
+            "minY": 80,
+            "maxX": 556,
+            "maxY": 97
+          }
+        },
+        {
+          "kind": "text",
+          "index": 13,
+          "changedPixels": 812,
+          "pixelBounds": {
+            "minX": 433,
+            "minY": 169,
+            "maxX": 559,
+            "maxY": 185
+          }
+        },
+        {
+          "kind": "text",
+          "index": 14,
+          "changedPixels": 675,
+          "pixelBounds": {
+            "minX": 439,
+            "minY": 260,
+            "maxX": 553,
+            "maxY": 277
+          }
+        },
+        {
+          "kind": "marker-end",
+          "index": 0,
+          "changedPixels": 112,
+          "pixelBounds": {
+            "minX": 1287,
+            "minY": 167,
+            "maxX": 1304,
+            "maxY": 180
+          }
+        },
+        {
+          "kind": "marker-end",
+          "index": 1,
+          "changedPixels": 115,
+          "pixelBounds": {
+            "minX": 1287,
+            "minY": 255,
+            "maxX": 1304,
+            "maxY": 269
+          }
+        },
+        {
+          "kind": "marker-end",
+          "index": 2,
+          "changedPixels": 117,
+          "pixelBounds": {
+            "minX": 344,
+            "minY": 82,
+            "maxX": 361,
+            "maxY": 96
+          }
+        },
+        {
+          "kind": "marker-end",
+          "index": 3,
+          "changedPixels": 115,
+          "pixelBounds": {
+            "minX": 631,
+            "minY": 216,
+            "maxX": 648,
+            "maxY": 230
+          }
+        },
+        {
+          "kind": "marker-end",
+          "index": 4,
+          "changedPixels": 116,
+          "pixelBounds": {
+            "minX": 631,
+            "minY": 372,
+            "maxX": 648,
+            "maxY": 386
+          }
+        }
+      ]
+    },
+    {
+      "direction": "RL",
+      "backend": "elk",
+      "svgSHA256": "aa3f25f8d05e6bbf1a51e0295b22276d80a8e64e135585f09772f5c68197f4ab",
+      "width": 1518,
+      "height": 659,
+      "textPrograms": 15,
+      "markerOccurrences": 5,
+      "contributions": [
+        {
+          "kind": "text",
+          "index": 0,
+          "changedPixels": 2081,
+          "pixelBounds": {
+            "minX": 279,
+            "minY": 259,
+            "maxX": 486,
+            "maxY": 312
+          }
+        },
+        {
+          "kind": "text",
+          "index": 1,
+          "changedPixels": 1369,
+          "pixelBounds": {
+            "minX": 98,
+            "minY": 366,
+            "maxX": 285,
+            "maxY": 391
+          }
+        },
+        {
+          "kind": "text",
+          "index": 2,
+          "changedPixels": 4459,
+          "pixelBounds": {
+            "minX": 97,
+            "minY": 418,
+            "maxX": 668,
+            "maxY": 443
+          }
+        },
+        {
+          "kind": "text",
+          "index": 3,
+          "changedPixels": 934,
+          "pixelBounds": {
+            "minX": 98,
+            "minY": 470,
+            "maxX": 208,
+            "maxY": 495
+          }
+        },
+        {
+          "kind": "text",
+          "index": 4,
+          "changedPixels": 1431,
+          "pixelBounds": {
+            "minX": 96,
+            "minY": 522,
+            "maxX": 285,
+            "maxY": 542
+          }
+        },
+        {
+          "kind": "text",
+          "index": 5,
+          "changedPixels": 1733,
+          "pixelBounds": {
+            "minX": 1233,
+            "minY": 374,
+            "maxX": 1383,
+            "maxY": 427
+          }
+        },
+        {
+          "kind": "text",
+          "index": 6,
+          "changedPixels": 809,
+          "pixelBounds": {
+            "minX": 1196,
+            "minY": 482,
+            "maxX": 1306,
+            "maxY": 506
+          }
+        },
+        {
+          "kind": "text",
+          "index": 7,
+          "changedPixels": 1684,
+          "pixelBounds": {
+            "minX": 1197,
+            "minY": 533,
+            "maxX": 1420,
+            "maxY": 553
+          }
+        },
+        {
+          "kind": "text",
+          "index": 8,
+          "changedPixels": 1807,
+          "pixelBounds": {
+            "minX": 1237,
+            "minY": 95,
+            "maxX": 1388,
+            "maxY": 153
+          }
+        },
+        {
+          "kind": "text",
+          "index": 9,
+          "changedPixels": 1130,
+          "pixelBounds": {
+            "minX": 1206,
+            "minY": 202,
+            "maxX": 1352,
+            "maxY": 227
+          }
+        },
+        {
+          "kind": "text",
+          "index": 10,
+          "changedPixels": 734,
+          "pixelBounds": {
+            "minX": 878,
+            "minY": 393,
+            "maxX": 996,
+            "maxY": 410
+          }
+        },
+        {
+          "kind": "text",
+          "index": 11,
+          "changedPixels": 648,
+          "pixelBounds": {
+            "minX": 882,
+            "minY": 530,
+            "maxX": 991,
+            "maxY": 545
+          }
+        },
+        {
+          "kind": "text",
+          "index": 12,
+          "changedPixels": 719,
+          "pixelBounds": {
+            "minX": 876,
+            "minY": 210,
+            "maxX": 997,
+            "maxY": 227
+          }
+        },
+        {
+          "kind": "text",
+          "index": 13,
+          "changedPixels": 803,
+          "pixelBounds": {
+            "minX": 874,
+            "minY": 134,
+            "maxX": 1000,
+            "maxY": 150
+          }
+        },
+        {
+          "kind": "text",
+          "index": 14,
+          "changedPixels": 669,
+          "pixelBounds": {
+            "minX": 326,
+            "minY": 150,
+            "maxX": 439,
+            "maxY": 167
+          }
+        },
+        {
+          "kind": "marker-end",
+          "index": 0,
+          "changedPixels": 125,
+          "pixelBounds": {
+            "minX": 701,
+            "minY": 426,
+            "maxX": 719,
+            "maxY": 439
+          }
+        },
+        {
+          "kind": "marker-end",
+          "index": 1,
+          "changedPixels": 128,
+          "pixelBounds": {
+            "minX": 701,
+            "minY": 499,
+            "maxX": 719,
+            "maxY": 513
+          }
+        },
+        {
+          "kind": "marker-end",
+          "index": 2,
+          "changedPixels": 115,
+          "pixelBounds": {
+            "minX": 1155,
+            "minY": 182,
+            "maxX": 1172,
+            "maxY": 196
+          }
+        },
+        {
+          "kind": "marker-end",
+          "index": 3,
+          "changedPixels": 127,
+          "pixelBounds": {
+            "minX": 701,
+            "minY": 298,
+            "maxX": 719,
+            "maxY": 312
+          }
+        },
+        {
+          "kind": "marker-end",
+          "index": 4,
+          "changedPixels": 130,
+          "pixelBounds": {
+            "minX": 274,
+            "minY": 210,
+            "maxX": 288,
+            "maxY": 228
+          }
+        }
+      ]
+    }
+  ]
+}

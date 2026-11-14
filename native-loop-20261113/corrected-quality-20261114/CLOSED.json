@@ -1,0 +1,70 @@
+{
+  "closed": true,
+  "purpose": "Reporting/planning correction, not a new layout fix or optimization.",
+  "source": "4cddae30548df1adf0ea1908c88454fae3bcb36d",
+  "sourceTree": "282b9774ab6f6c45752e730691802c3db41a9783",
+  "workingTreeClean": true,
+  "runtime": "v24.19.0",
+  "sdkNodeEntrySha256": "735d7a0dd72efadccc760e90dd20a484b1233778926613811de100108814c552",
+  "publicRenderCalls": 10,
+  "returned": 10,
+  "proofPassed": 10,
+  "productionEdits": 0,
+  "builds": 0,
+  "performanceClocks": 0,
+  "ciRuns": 0,
+  "requirement": {
+    "products": 8,
+    "authoredCardsPerProduct": 3,
+    "orderedRelationsAndCaptionOwnersPerProduct": 5,
+    "outwardNormalOutlineContacts": 80,
+    "angularBendPrerequisitesPassed": true,
+    "offlineRasters": 168,
+    "additionalRenderCalls": 0,
+    "textProgramsWithInk": 120,
+    "arrowOccurrencesWithInk": 40,
+    "all160ContributionsNonzero": true,
+    "glyphReadability": "not-established",
+    "currentRelative": {
+      "TB_BT": {
+        "areaPercent": -12.800084381342735,
+        "wirePercent": -33.68404484069938,
+        "bends": [
+          8,
+          10
+        ]
+      },
+      "LR_RL": {
+        "areaPercent": -2.21841953375147,
+        "wirePercent": -24.702679276602467,
+        "bends": [
+          6,
+          10
+        ]
+      }
+    }
+  },
+  "forest": {
+    "products": 2,
+    "sourceOptionsExactRecoveredJobs": true,
+    "meaning": "complete-passed",
+    "paint": "complete-passed",
+    "actualDirection": "passed",
+    "sourceGeometryCalls": 0,
+    "nativeWire": 397.7071666659999,
+    "elkWire": 396.46966666599997,
+    "wirePercent": 0.3121298056434796,
+    "nativeArea": 165355.65750000003,
+    "elkArea": 176727.21000000002,
+    "areaPercent": -6.434522731389237,
+    "bendsEach": 8,
+    "crossingsEach": 0,
+    "exactContacts": "UNAVAILABLE"
+  },
+  "historicalCaveats": "Native BT wire+6 versus archive; current relative Requirement improvements partly ELK growth. Native LR/RL wider/shorter. No new source gain/performance/readability claim; oldTB product not bound.",
+  "planningCorrection": "Remove Requirement+9.53 current-deficit claim. Replace forest+16.89/+10.19 active target by exact current+0.31 residual, retaining historical records.",
+  "workersClosed": true,
+  "sourceAndPriorEvidencePreserved": true,
+  "reportSha256": "73dccd6a8645cbe96e40f3c601171e1a02bbc8d0e31b85019c535199e150585b",
+  "caseBindingsSha256": "8ff4080ff3e76e39d061de869453abc416cb83dd1185a736873d82103b02fe6a"
+}
