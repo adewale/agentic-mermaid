@@ -120,6 +120,38 @@ describe('sequence create/destroy layout', () => {
     expect(cross.y).toBe(donaldLife.bottomY)
   })
 
+  // An activation still open on a destroyed participant ends with its lifeline
+  // at the cross, however late it is closed; one the destroy message opens has
+  // no extent left and is not drawn.
+  it.each([
+    ['opened before the destroy', 'A->>+B: open\ndestroy B\nA->>B: bye', 1],
+    ['nested around a destroyed self-message', 'A->>+B: open\nactivate B\ndestroy B\nB->>B: bye', 2],
+    ['open across a destroyed self-message', 'A->>+B: open\ndestroy B\nB->>B: bye', 1],
+    ['closed by a deactivate after the destroy', 'A->>+B: open\ndestroy B\nA->>B: bye\nA->>A: later\ndeactivate B', 1],
+    ['closed by the destroy message', 'A->>+B: open\ndestroy B\nB-->>-A: bye', 1],
+    ['opened by the destroy message', 'A->>B: hi\ndestroy B\nA->>+B: bye', 0],
+  ] as const)('ends the destroyed participant\'s activation %s at its cross', (_name, body, count) => {
+    const source = `sequenceDiagram\nparticipant A\nparticipant B\n${body}\nA->>A: tail`
+    const p = layoutSequenceDiagram(parse(source))
+    const cross = p.destructions.find(d => d.actorId === 'B')!
+    const owned = p.activations.filter(a => a.actorId === 'B')
+    expect(owned).toHaveLength(count)
+    for (const activation of owned) {
+      expect(activation.topY).toBeLessThan(cross.y)
+      expect(activation.bottomY).toBe(cross.y)
+    }
+
+    // The drawn bars are exactly those activations and none runs past the
+    // drawn end of the lifeline.
+    const svg = renderMermaidSVG(source)
+    const attr = (tag: string, name: string) => Number(tag.match(new RegExp(`\\b${name}="([^"]+)"`))![1])
+    const lifeline = svg.match(/<line class="lifeline" data-actor="B"[^>]*>/)![0]
+    const bars = [...svg.matchAll(/<rect class="activation" data-actor="B"[^>]*>/g)].map(([tag]) => ({ top: attr(tag, 'y'), bottom: attr(tag, 'y') + attr(tag, 'height') }))
+    expect(svg.match(/class="activation" data-actor="B"/g)?.length ?? 0).toBe(count)
+    expect(bars.map(bar => [bar.top, bar.bottom]).sort()).toEqual(owned.map(a => [a.topY, a.bottomY]).sort())
+    for (const bar of bars) expect(bar.bottom).toBe(attr(lifeline, 'y2'))
+  })
+
   it('boxless/plain diagrams have no destructions', () => {
     const p = layoutSequenceDiagram(parse('sequenceDiagram\n  A->>B: hi'))
     expect(p.destructions).toHaveLength(0)

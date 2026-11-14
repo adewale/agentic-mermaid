@@ -332,11 +332,17 @@ export function layoutSequenceDiagram(diagram: SequenceDiagram, options: RenderO
     stack.push({ startY: y, depth: stack.length })
     activationStacks.set(actorId, stack)
   }
-  const deactivate = (actorId: string, y: number): void => {
+  // A destroyed actor's activation ends with its lifeline, at the cross,
+  // however late it is closed. One opened on the destroy message's row
+  // therefore has no extent and, like any activation closed on the row that
+  // opened it, is not drawn.
+  const deactivate = (actorId: string, closeY: number): void => {
     const stack = activationStacks.get(actorId)
     if (!stack || stack.length === 0) return
     const { startY, depth } = stack.pop()!
     const idx = actorIndex.get(actorId)
+    const crossY = destroyYByActor.get(actorId)
+    const y = crossY !== undefined && startY <= crossY ? Math.min(closeY, crossY) : closeY
     if (idx === undefined || y <= startY) return
     activations.push({
       actorId,
