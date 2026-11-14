@@ -51,11 +51,24 @@ export interface LayoutCostReceipt {
  * their geometry is unchanged.
  */
 export const LAYOUT_COST_THRESHOLDS = Object.freeze({ dummySegments: 1_000, maxGapEdges: 400, bundleWork: 500_000 })
+/** Whether an estimate reaches any layout-cost threshold. */
+export function layoutCostExceedsThresholds(estimate: LayoutCostEstimate): boolean {
+  return estimate.dummySegments >= LAYOUT_COST_THRESHOLDS.dummySegments
+    || estimate.maxGapEdges >= LAYOUT_COST_THRESHOLDS.maxGapEdges
+    || estimate.bundleWork >= LAYOUT_COST_THRESHOLDS.bundleWork
+}
+
 /** Above a threshold: two candidates, each with two ELK option sets. */
 const BOUNDED_CANDIDATES = 2
 const BOUNDED_ELK_ATTEMPTS = 2
 
-export function estimateLayoutCost(graph: Pick<MermaidGraph, 'nodes' | 'edges'>): LayoutCostEstimate {
+/** The estimate reads only node ids (in declaration order) and edge endpoints. */
+export interface LayoutCostGraph {
+  readonly nodes: ReadonlyMap<string, unknown>
+  readonly edges: ReadonlyArray<{ readonly source: string; readonly target: string }>
+}
+
+export function estimateLayoutCost(graph: LayoutCostGraph): LayoutCostEstimate {
   const order = new Map<string, number>()
   for (const id of graph.nodes.keys()) order.set(id, order.size)
   for (const edge of graph.edges) {

@@ -29,14 +29,17 @@ source/code field, allows batches of up to
 (`website/src/mcp-handler.ts`). `execute` invokes a Dynamic Worker with a
 caller-controlled `timeoutMs` capped at 30s, no subrequests, no bindings, and
 no outbound network. The direct tools that lay out a diagram (`render_svg`,
-`render_ascii`, `render_png`, `verify`, `describe`, `mutate`, `build`) run
-their layout in one per-deploy Dynamic Worker with a 10s `cpuMs` limit per
-call; the calls of one HTTP request run one at a time against a shared 30s
-allowance, charged by elapsed wall time (`HOSTED_TOOL_CPU_MS` and
-`HOSTED_REQUEST_CPU_MS` in `src/mcp/hosted-tool-runtime.ts`). An overrun is a
-`RENDER_TIMEOUT` tool result and is never cached. They are still meaningful
-CPU/memory work, now billed as Dynamic Worker requests and CPU, and must not
-be treated as free.
+`render_ascii`, `render_png`, `verify`, `describe`, `mutate`, `build`) lay
+out inline in the main Worker unless the diagram's pre-layout cost estimate
+reaches a layout-cost threshold (`hostedToolNeedsIsolate` in
+`src/mcp/hosted-tool-runtime.ts`, the same estimate that relaxes ELK's
+options). A heavy call lays out in one per-deploy Dynamic Worker with a 10s
+`cpuMs` limit; every other call costs what it did before the isolate: no
+extra Dynamic Worker request. The calls of one HTTP request run one at a time
+against a shared 30s allowance, charged by elapsed wall time
+(`HOSTED_TOOL_CPU_MS` and `HOSTED_REQUEST_CPU_MS`). An isolate overrun is a
+`RENDER_TIMEOUT` tool result and is never cached; an inline call is bounded
+by the Worker's 30s per-request CPU limit. Neither is free.
 
 Dynamic Workers are billed on three relevant dimensions: requests, CPU time
 (including startup time), and unique Dynamic Workers created per day. The
@@ -207,7 +210,7 @@ game-day evidence, not facts the Worker can infer.
 1`, and dispatch the remaining admitted work through a small explicit
 concurrency limit (initially 2). The batch `Promise.all` remains, but the
 layout calls it dispatches already run one at a time against the request's
-CPU allowance, so a batch of direct tools costs at most 30s of isolate CPU.
+CPU allowance, so a batch of direct tools costs at most 30s of CPU.
 
 **Failure response and telemetry.** Return 429 with `Retry-After` and the
 local fallback hint; record `outcome: "rate_limited"`, bucket name, and item

@@ -190,8 +190,9 @@ The local and hosted sandboxes have deliberate constraints:
   security boundary. It is a local tool for trusted use.
 - Hosted execution contacts a billable Dynamic Worker on every call. Worker
   Loader IDs are content-addressed so identical code can reuse a warm isolate.
-  Direct tools lay out in one shared per-deploy isolate under a 10 s CPU
-  budget, and their private compute cache keeps repeated work off it.
+  Direct tools lay out inline unless their pre-layout cost estimate is heavy;
+  heavy calls lay out in one shared per-deploy isolate under a 10 s CPU
+  budget. Their private compute cache keeps repeated work off both paths.
 - Hosted `execute` responses are never compute-cached: Code Mode exposes time
   and randomness, so retaining the first result would violate its observable
   contract.

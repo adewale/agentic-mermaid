@@ -8,6 +8,8 @@ import { renderPortablePngGraphicalProjection, type PngGraphicalProjection } fro
 import { projectRenderErrorDiagnostic } from '../render-error-diagnostic.ts'
 import type { PortablePngOutputOptions } from '../png-contract.ts'
 import type { RenderOptions } from '../types.ts'
+import { parseRegisteredMermaid } from '../agent/parse.ts'
+import { estimateLayoutCost, layoutCostExceedsThresholds } from '../layout/layout-cost.ts'
 
 /** One hosted call's layout work. PNG lays out in the isolate and rasterizes
  * in the parent Worker, which holds the wasm rasterizer and fonts. */
@@ -50,6 +52,62 @@ export function runHostedTool(request: HostedToolRequest): HostedToolPayload {
   } catch (error) {
     return { ok: false, error: projectRenderErrorDiagnostic(error, { source }) }
   }
+}
+
+type EstimatedGraph = { nodes: Map<string, unknown>; edges: Array<{ source: string; target: string }> }
+type StateScope = { states?: readonly StateScopeNode[]; transitions?: ReadonlyArray<{ from: string; to: string }>; regions?: readonly StateScope[] }
+type StateScopeNode = StateScope & { id: string }
+
+/** Nodes and edges of a family that lays out on ELK, read from the parsed
+ * body before any layout runs; other families return undefined. */
+function estimatedGraph(source: string): EstimatedGraph | undefined {
+  const parsed = parseRegisteredMermaid(source)
+  if (!parsed.ok) return undefined
+  const body = parsed.value.body as { kind: string } & Record<string, unknown>
+  const graph: EstimatedGraph = { nodes: new Map(), edges: [] }
+  const add = (items: ReadonlyArray<{ id: string }>, links: ReadonlyArray<{ from: string; to: string }>) => {
+    for (const item of items) graph.nodes.set(item.id, item)
+    for (const link of links) graph.edges.push({ source: link.from, target: link.to })
+  }
+  switch (body.kind) {
+    case 'flowchart': return body.graph as EstimatedGraph
+    case 'class': add(body.classes as Array<{ id: string }>, body.relations as Array<{ from: string; to: string }>); return graph
+    case 'er': add(body.entities as Array<{ id: string }>, body.relations as Array<{ from: string; to: string }>); return graph
+    case 'state': {
+      const visit = (scope: StateScope) => {
+        add(scope.states ?? [], scope.transitions ?? [])
+        for (const node of scope.states ?? []) visit(node)
+        for (const region of scope.regions ?? []) visit(region)
+      }
+      visit(body as StateScope)
+      return graph
+    }
+    default: return undefined
+  }
+}
+
+/**
+ * Whether a call's diagram is heavy enough to need the CPU-bounded isolate:
+ * a family that lays out on ELK whose pre-layout cost estimate reaches a
+ * layout-cost threshold (the same estimate that relaxes ELK's options). The
+ * estimate depends only on the source, so the same call always takes the
+ * same path. Everything else runs inline, as it did before the isolate.
+ */
+export function hostedToolNeedsIsolate(request: HostedToolRequest): boolean {
+  const source = request.name === 'png_projection' ? request.source : request.args?.source
+  if (typeof source !== 'string') return false
+  try {
+    const graph = estimatedGraph(source)
+    return graph !== undefined && layoutCostExceedsThresholds(estimateLayoutCost(graph))
+  } catch {
+    return false
+  }
+}
+
+/** Run heavy calls through `isolate` and every other call inline. Inline
+ * calls cost what they did before the isolate existed: no extra request. */
+export function isolateHeavyHostedTools(isolate: HostedToolRunner, needsIsolate: (request: HostedToolRequest) => boolean = hostedToolNeedsIsolate): HostedToolRunner {
+  return (request, cpuMs, onStart) => needsIsolate(request) ? isolate(request, cpuMs, onStart) : Promise.resolve(runHostedTool(request))
 }
 
 /**

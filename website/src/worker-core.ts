@@ -5,6 +5,7 @@
 
 import { createMcpHandler, type McpCache } from './mcp-handler.ts'
 import { createLoaderExecute, createLoaderToolRunner, type WorkerLoaderBinding } from './execute-loader.ts'
+import { isolateHeavyHostedTools } from '../../src/mcp/hosted-tool-runtime.ts'
 import type { HostedMcpContext } from '../../src/mcp/hosted-server.ts'
 import { CLEAN_ROUTE_PATHS, LEGACY_REDIRECTS, markdownAlternative } from './site-routes.ts'
 
@@ -264,9 +265,11 @@ export function createWebsiteWorker(runtime: WebsiteWorkerRuntime) {
         const handler = createMcpHandler({
           context: {
             execute: createLoaderExecute(env.LOADER, runtime.executeHarness),
-            // Layout cost depends on a diagram's shape, not its size: the
-            // direct tools lay out in the harness's CPU-bounded isolate.
-            runTool: createLoaderToolRunner(env.LOADER, runtime.executeHarness),
+            // Layout cost depends on a diagram's shape, not its size. A call
+            // whose pre-layout cost estimate is heavy lays out in the harness's
+            // CPU-bounded isolate; every other call runs inline, with no extra
+            // Dynamic Worker request.
+            runTool: isolateHeavyHostedTools(createLoaderToolRunner(env.LOADER, runtime.executeHarness)),
             renderPng: runtime.renderPng,
           },
           // `caches` is a workerd global; guard it so the worker imports and runs

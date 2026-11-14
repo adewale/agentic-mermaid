@@ -7,7 +7,7 @@
 import { describe, expect, test } from 'bun:test'
 import { createHash } from 'node:crypto'
 import { createLoaderExecute, createLoaderToolRunner, deployTag, DYNAMIC_WORKER_COMPAT_DATE, MAX_RESULT_BYTES, MAX_TOOL_RESULT_BYTES, readCapped, type WorkerLoaderBinding } from '../../website/src/execute-loader.ts'
-import { HOSTED_TOOL_CPU_MS, runHostedTool, withRequestCpuAllowance, type HostedToolRequest } from '../mcp/hosted-tool-runtime.ts'
+import { HOSTED_TOOL_CPU_MS, hostedToolNeedsIsolate, isolateHeavyHostedTools, runHostedTool, withRequestCpuAllowance, type HostedToolRequest } from '../mcp/hosted-tool-runtime.ts'
 import { handleHostedRequest, type HostedMcpContext } from '../mcp/hosted-server.ts'
 import type { JsonRpcResponse } from '../mcp/protocol.ts'
 import { renderPortablePngGraphicalProjection } from '../png-graphical.ts'
@@ -364,5 +364,44 @@ describe('per-request CPU allowance', () => {
     expect(reported).toEqual([10_000, 10_000, 6_000])
     expect(results.slice(0, 3)).toEqual([{ ok: true }, { ok: true }, { ok: true }])
     expect(results[3]).toMatchObject({ ok: false, error: { code: 'RENDER_TIMEOUT', message: expect.stringContaining('30000ms CPU allowance') } })
+  })
+})
+
+// Hybrid isolate use: only a diagram whose pre-layout cost estimate is heavy
+// pays for a Dynamic Worker request. Expectations come from each shape's
+// layering, computed by hand: an N × N `&` cartesian puts N² edges in one
+// layer gap; a complete DAG on n nodes has Σ(span − 1) = C(n, 3) dummy segments.
+describe('hosted isolate only for heavy layout', () => {
+  const cartesian = (n: number) => `flowchart TD\n${Array.from({ length: n }, (_, i) => `a${i}`).join(' & ')} --> ${Array.from({ length: n }, (_, i) => `b${i}`).join(' & ')}`
+  const completeDag = (n: number) => ['flowchart TD', ...Array.from({ length: n }, (_, i) => Array.from({ length: n - i - 1 }, (_, k) => `n${i} --> n${i + k + 1}`)).flat()].join('\n')
+  const stateTable = (n: number) => ['stateDiagram-v2', ...Array.from({ length: n }, (_, i) => Array.from({ length: n }, (_, j) => `a${i} --> b${j}`)).flat()].join('\n')
+  const call = (source: string): HostedToolRequest => ({ name: 'render_svg', args: { source } })
+
+  test.each([
+    ['20 × 20 cartesian: 400 edges in one gap', true, cartesian(20)],
+    ['19 × 19 cartesian: 361 edges in one gap', false, cartesian(19)],
+    ['complete DAG on 20 nodes: 1,140 dummy segments', true, completeDag(20)],
+    ['complete DAG on 18 nodes: 816 dummy segments', false, completeDag(18)],
+    ['state transition table 30 × 30: bundle work 900 × 1,800', true, stateTable(30)],
+    ['an ordinary flowchart', false, 'flowchart LR\n  A --> B --> C\n  A --> C'],
+    ['a sequence diagram (not laid out on ELK)', false, 'sequenceDiagram\n  A->>B: hi'],
+    ['unparseable source', false, 'flowchart LR\n  A[unclosed --> B'],
+  ] as const)('%s (isolate: %p)', (_name, heavy, source) => {
+    expect(hostedToolNeedsIsolate(call(source))).toBe(heavy)
+    expect(hostedToolNeedsIsolate({ name: 'png_projection', source, renderOptions: {}, outputOptions: {} as never })).toBe(heavy)
+  })
+
+  test('light calls run inline without starting the isolate; heavy calls go to it', async () => {
+    const started: string[] = []
+    const run = isolateHeavyHostedTools(async request => {
+      started.push(request.name === 'png_projection' ? request.source : String(request.args.source))
+      return { ok: false, error: { code: 'RENDER_TIMEOUT', message: 'isolate' } }
+    })
+    const light = call('flowchart LR\n  A --> B')
+    expect(await run(light, HOSTED_TOOL_CPU_MS)).toEqual(runHostedTool(light))
+    expect(started).toEqual([])
+    const heavy = call(cartesian(20))
+    expect((await run(heavy, HOSTED_TOOL_CPU_MS)).ok).toBe(false)
+    expect(started).toEqual([cartesian(20)])
   })
 })

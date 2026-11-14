@@ -100,7 +100,7 @@ finishes.
 | `am render`, `verify`, `mutate`, `describe`, `preview`, `render-markdown` | 120 s wall clock by default (`--timeout <s>`; `0` = none) in a child process | Exit 124, `RENDER_TIMEOUT`. `--watch` and `batch` take no deadline. |
 | Local MCP tools that lay out (`render_svg`, `render_ascii`, `render_png`, `verify`, `describe`, `mutate`, `build`) | 15 s wall clock per call, including queue and start-up, in a supervised subprocess; 32 queued calls; sampled 512 MiB RSS | `RENDER_TIMEOUT`; the subprocess is terminated. |
 | Local MCP `execute` | 5 s default, capped by `--max-sandbox-timeout-ms` (30 s) | `EXECUTE_TIMEOUT` |
-| Hosted MCP tools that lay out | 10 s CPU per call in a Dynamic Worker; one request's calls share 30 s | `RENDER_TIMEOUT` |
+| Hosted MCP tools that lay out | Heavy diagrams (by pre-layout cost estimate): 10 s CPU per call in a Dynamic Worker. Others: inline, within the Worker's 30 s per-request CPU limit. One request's calls share 30 s | `RENDER_TIMEOUT` |
 | Hosted MCP `execute` | `timeoutMs` CPU in a Dynamic Worker (default 5 s, max 30 s) | `EXECUTE_TIMEOUT` |
 | Browser editor on agentic-mermaid.dev | 30 s, Worker terminated | render error |
 
