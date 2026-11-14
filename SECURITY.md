@@ -74,6 +74,8 @@ expanded edges. Graph layout also counts container nodes and rejects nesting
 deeper than 64 levels before recursive conversion or ELK execution. These host
 budgets apply in every security mode; diagram configuration cannot raise them.
 Exceeding a budget throws `DIAGRAM_WORK_LIMIT` without drawing a partial graph.
+ASCII and Unicode drawing also stops at its own cell-composition ceilings with
+`TERMINAL_WORK_LIMIT` ([terminal output](./docs/ascii.md)).
 
 These budgets bound a diagram's **size, not its running time**. Layout runs
 synchronously and its cost follows the graph's shape. Measured on the 0.6.0

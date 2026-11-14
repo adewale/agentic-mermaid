@@ -5,7 +5,7 @@ import { observeWork } from '../performance-observations.ts'
 import { sanitizeTerminalText } from '../terminal-security.ts'
 import type { TerminalProjectionDiagnostic } from '../terminal-style.ts'
 import { colorizeLine, colorizeText, DEFAULT_ASCII_THEME } from './ansi.ts'
-import { TERMINAL_CERTIFICATION_LIMITS } from './terminal-limits.ts'
+import { TERMINAL_CERTIFICATION_LIMITS, TERMINAL_OWNER_COMPOSITION_LIMIT, TerminalWorkLimitError } from './terminal-limits.ts'
 import { terminalPathAdmission } from './terminal-route.ts'
 import type { AsciiTheme, CharRole, ColorMode } from './types.ts'
 import { charVisualWidth, visualWidth, WIDE_CHAR_CONTINUATION } from './width.ts'
@@ -433,6 +433,7 @@ export class TerminalDocument {
   private emittedText: string | undefined
   private emittedColorMode: ColorMode | undefined
   private strokeProvenanceWork = 0
+  private ownerCompositionWork = 0
 
   constructor(width = 0, height = 0) {
     integer(width, 'width')
@@ -588,6 +589,7 @@ export class TerminalDocument {
       if (cacheable) this.importedOwners.set(values as readonly TerminalOwner[], set)
       return set
     }
+    this.reserveOwnerComposition(byKey.size) // sorted and serialized before the set cache lookup
     const keys = [...byKey.keys()].sort(compareCodePointStrings),
       key = JSON.stringify(keys)
     let set = this.ownerSets.get(key)
@@ -644,7 +646,15 @@ export class TerminalDocument {
     let unions = this.ownerUnions.get(a)
     const cached = unions?.get(b) ?? this.ownerUnions.get(b)?.get(a)
     if (cached) return cached
-    const combined = a.every(owner => b.includes(owner)) ? b : b.every(owner => a.includes(owner)) ? a : this.owners([...a, ...b])
+    // Canonical sets hold distinct members: one linear membership pass each.
+    this.reserveOwnerComposition(a.length + b.length)
+    const within = (inner: TerminalOwnerSet, outer: TerminalOwnerSet): boolean => {
+      if (inner.length > outer.length) return false
+      if (inner.length === 1) return outer.includes(inner[0]!)
+      const members = new Set(outer)
+      return inner.every(owner => members.has(owner))
+    }
+    const combined = within(a, b) ? b : within(b, a) ? a : this.owners([...a, ...b])
     if (!unions) {
       unions = new WeakMap()
       this.ownerUnions.set(a, unions)
@@ -829,6 +839,7 @@ export class TerminalDocument {
     const canonical = this.owners(owners)
     let cached = this.warningFeatures.get(canonical)
     if (!cached) {
+      this.reserveOwnerComposition(canonical.length)
       cached = {
         feature: owners
           .map(owner => `${owner.kind ?? 'node'}:${owner.id}`)
@@ -847,8 +858,16 @@ export class TerminalDocument {
 
   private reserveStrokeProvenance(count: number): void {
     const next = this.strokeProvenanceWork + count
-    if (!Number.isSafeInteger(next) || next > TERMINAL_CERTIFICATION_LIMITS.maxOperations) throw new RangeError('Terminal stroke provenance exceeds certification ceiling')
+    if (!Number.isSafeInteger(next) || next > TERMINAL_CERTIFICATION_LIMITS.maxOperations) throw new TerminalWorkLimitError('stroke-provenance', TERMINAL_CERTIFICATION_LIMITS.maxOperations)
     this.strokeProvenanceWork = next
+  }
+
+  /** Owner-set sorting and diagnostic naming cost grows with each set's size.
+   * Charge it before the work so overlapping dense routes stop in bounded time. */
+  private reserveOwnerComposition(count: number): void {
+    const next = this.ownerCompositionWork + count
+    if (!Number.isSafeInteger(next) || next > TERMINAL_OWNER_COMPOSITION_LIMIT) throw new TerminalWorkLimitError('owner-composition', TERMINAL_OWNER_COMPOSITION_LIMIT)
+    this.ownerCompositionWork = next
   }
 
   private contribution(cell: TerminalCell | undefined, owner: TerminalOwner, fallback: number): number {
@@ -1319,7 +1338,7 @@ export class TerminalDocument {
     if (!Number.isSafeInteger(count) || count < 0) throw new RangeError('Invalid terminal path witness reservation')
     const current = pathWitnessStates.get(this),
       next = (current?.work ?? 3) + count
-    if (!Number.isSafeInteger(next) || next > TERMINAL_CERTIFICATION_LIMITS.maxOperations) throw new RangeError('Terminal path witness reservation exceeds certification ceiling')
+    if (!Number.isSafeInteger(next) || next > TERMINAL_CERTIFICATION_LIMITS.maxOperations) throw new TerminalWorkLimitError('path-witness', TERMINAL_CERTIFICATION_LIMITS.maxOperations)
     if (current) current.work = next
     else pathWitnessStates.set(this, { work: next, witnesses: new Map() }) // three reserved header records
   }
@@ -1435,6 +1454,7 @@ export class TerminalDocument {
     for (const [key, bounds] of other.declared) this.region(other.elements.get(key)!, { ...bounds, x: bounds.x + dx, y: bounds.y + dy })
     for (const [key, ports] of other.ports) for (const port of ports) this.port(other.elements.get(key)!, { ...port, x: port.x + dx, y: port.y + dy })
     this.reserveStrokeProvenance(other.strokeProvenanceWork)
+    this.reserveOwnerComposition(other.ownerCompositionWork)
     const inheritedPaths = pathWitnessStates.get(other)
     if (inheritedPaths) {
       this.reserveTerminalPathWitnessWork(inheritedPaths.work)

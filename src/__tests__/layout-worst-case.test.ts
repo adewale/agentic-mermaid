@@ -1,11 +1,13 @@
 import { describe, expect, test } from 'bun:test'
-import { renderMermaidSVG } from '../index.ts'
+import { renderMermaidASCII, renderMermaidSVG } from '../index.ts'
+import { projectRenderErrorDiagnostic } from '../render-error-diagnostic.ts'
 
 // Bounded cost at the render boundary: small sources that once drove ELK or
 // our own all-pairs passes for 10-110 s each. Every case must render or throw
-// its typed size limit within a loose wall-clock bound; measured on a
-// 4-core development container they take 0.1-6 s. The bound only catches a
-// return to superlinear work, so it is generous for CI shards.
+// its typed size limit within a loose wall-clock bound, never an internal
+// error; measured on a 4-core development container they take 0.1-6 s. The
+// bound only catches a return to superlinear work, so it is generous for CI
+// shards. Terminal cases draw ASCII, whose cell routing has its own costs.
 const BOUND_MS = 15_000
 
 const names = (prefix: string, n: number): string[] => Array.from({ length: n }, (_, i) => `${prefix}${i}`)
@@ -23,25 +25,39 @@ function chainWithLongLinks(n: number): string {
   return lines.join('\n')
 }
 
-const CASES: Array<{ name: string; source: string; limit?: string }> = [
-  { name: 'all-to-all fan 30 x 30 (`&` chains)', source: `flowchart TD\n${names('a', 30).join(' & ')} --> ${names('b', 30).join(' & ')}` },
-  { name: 'complete DAG 30', source: ['flowchart TD', ...Array.from({ length: 30 }, (_, i) => Array.from({ length: 29 - i }, (_, k) => `k${i} --> k${i + k + 1}`)).flat()].join('\n') },
+const fan = (n: number): string => `flowchart TD\n${names('a', n).join(' & ')} --> ${names('b', n).join(' & ')}`
+const completeDag = (n: number): string => ['flowchart TD', ...Array.from({ length: n }, (_, i) => Array.from({ length: n - 1 - i }, (_, k) => `k${i} --> k${i + k + 1}`)).flat()].join('\n')
+
+const CASES: Array<{ name: string; source: string; limit?: string; terminal?: true }> = [
+  { name: 'all-to-all fan 30 x 30 (`&` chains)', source: fan(30) },
+  { name: 'complete DAG 30', source: completeDag(30) },
   { name: 'chain 150 with long links', source: chainWithLongLinks(150) },
   { name: 'state transition table 30 x 30', source: edgewise('stateDiagram-v2', 30, (a, b) => `${a} --> ${b}`) },
   { name: 'class relationships 20 x 20', source: edgewise('classDiagram', 20, (a, b) => `${a} --> ${b}`), limit: 'CLASS_LAYOUT_WORK_LIMIT' },
   { name: 'ER relationships 20 x 20', source: edgewise('erDiagram', 20, (a, b) => `${a.toUpperCase()} ||--o{ ${b.toUpperCase()} : r`), limit: 'ER_LABEL_WORK_LIMIT' },
   { name: 'edges past the host limit', source: ['flowchart TD', ...Array.from({ length: 5001 }, () => 'A --> B')].join('\n'), limit: 'DIAGRAM_WORK_LIMIT' },
+  // Overlapping routes share cells, and every shared cell's owner set grows
+  // with each route through it; dense fans refuse once composing them passes
+  // its ceiling. The complete DAG stays below it and renders.
+  { name: 'terminal: all-to-all fan 30 x 30', source: fan(30), limit: 'TERMINAL_WORK_LIMIT', terminal: true },
+  { name: 'terminal: all-to-all fan 50 x 50', source: fan(50), limit: 'TERMINAL_WORK_LIMIT', terminal: true },
+  { name: 'terminal: complete DAG 30', source: completeDag(30), terminal: true },
+  { name: 'terminal: chain 150 with long links', source: chainWithLongLinks(150), terminal: true },
+  { name: 'terminal: class relationships 20 x 20', source: edgewise('classDiagram', 20, (a, b) => `${a} --> ${b}`), limit: 'TERMINAL_WORK_LIMIT', terminal: true },
 ]
 
 describe('worst-case layout inputs finish within a bounded time', () => {
-  for (const { name, source, limit } of CASES) {
+  for (const { name, source, limit, terminal } of CASES) {
     test(name, () => {
       const started = performance.now()
       let outcome: string
       try {
-        outcome = renderMermaidSVG(source, { security: 'strict' }).startsWith('<svg') ? 'rendered' : 'not svg'
+        outcome = terminal
+          ? renderMermaidASCII(source, { useAscii: true }).includes('+') ? 'rendered' : 'no frames'
+          : renderMermaidSVG(source, { security: 'strict' }).startsWith('<svg') ? 'rendered' : 'not svg'
       } catch (error) {
         outcome = (error as { code?: string }).code ?? String(error)
+        expect(projectRenderErrorDiagnostic(error, { source }).code).not.toBe('INTERNAL_ERROR')
       }
       const elapsed = performance.now() - started
       expect({ name, outcome }).toEqual({ name, outcome: limit ?? 'rendered' })

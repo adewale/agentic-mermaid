@@ -55,6 +55,15 @@ renderMermaidASCII(source, {
 | `maxWidth` | `number` | — | Deprecated best-effort label wrapping; the canvas may exceed it. |
 | `targetWidth` | `number` | — | Hard maximum in terminal display cells; impossible geometry throws `AsciiWidthError` with code `ASCII_TARGET_WIDTH_IMPOSSIBLE`. |
 
+Terminal drawing has its own work ceilings on top of the
+[graph work budgets](../SECURITY.md#graph-work-budgets). Routes that share
+cells keep every owner of each shared cell, so densely overlapping wiring (an
+all-to-all fan of 26 × 26 nodes or more, or a complete DAG of 40 nodes)
+exhausts them within about five seconds. A render that would exceed one throws
+`TerminalWorkLimitError` with code `TERMINAL_WORK_LIMIT`, naming the exhausted
+`resource`, instead of drawing a partial diagram; CLI and MCP report it as
+`RENDER_FAILED` with origin `source`. Render such diagrams as SVG or split them.
+
 HTML is an escaped terminal projection, selected programmatically with
 `renderMermaidASCII(source, { colorMode: 'html' })`. It is not a standalone
 `am render --format` value; CLI discovery advertises only directly supported

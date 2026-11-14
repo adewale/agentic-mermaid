@@ -87,6 +87,14 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
 
 ### Fixed
 
+- ASCII and Unicode output of densely overlapping graphs, such as a 30 × 30
+  `&` fan, a complete 40-node DAG or a 20 × 20 class relationship table,
+  failed as `INTERNAL_ERROR`, a 50 × 50 fan only after ~94 s. Terminal work
+  ceilings now throw `TerminalWorkLimitError` (`TERMINAL_WORK_LIMIT`, reported
+  as `RENDER_FAILED` with origin `source`), and composing the owners of shared
+  route cells is counted, so these refuse within about 5 s. 26 × 26 and
+  28 × 28 fans, which drew in about 30 and 40 s, now refuse the same way.
+
 - `RENDER_OPTION_NOT_APPLICABLE` now names the families an option really
   affects. `padding` is consumed by Requirement, Block, Packet, Kanban and
   Event Modeling, `nodeSpacing` by Event Modeling and `layerSpacing` by

@@ -1,6 +1,6 @@
 import { allocateFacePort, countFaceDemand, faceSize } from './terminal-geometry.ts'
 import { measuredText } from './terminal-document.ts'
-import { TERMINAL_CERTIFICATION_LIMITS as LIMITS } from './terminal-limits.ts'
+import { TERMINAL_CERTIFICATION_LIMITS as LIMITS, TerminalWorkLimitError } from './terminal-limits.ts'
 import { visualWidth } from './width.ts'
 import { sanitizeTerminalText } from '../terminal-security.ts'
 import { AsciiWidthError } from './width-error.ts'
@@ -291,13 +291,15 @@ export function prepareClassConstruction(
     [width, height, pathPoints].every(value => Number.isSafeInteger(value) && value >= 0),
     'unsafe construction arithmetic',
   )
-  requireValue(height <= LIMITS.maxOperations && pathPoints <= LIMITS.maxOperations, 'route/row allocation ceiling')
+  if (height > LIMITS.maxOperations || pathPoints > LIMITS.maxOperations) throw new TerminalWorkLimitError('class-construction', LIMITS.maxOperations)
   if (maxWidth !== undefined && width > maxWidth) throw new AsciiWidthError(maxWidth, width, 'class', 'MINIMUM_GEOMETRY')
   // The fallback emits ordinary trimEnd lines. Row extents below are upper bounds
   // of every card/frame/shaft/text glyph; no visible cell is excluded from proof.
   const widths = new Array<number>(height).fill(0)
   let layoutWork = 0
-  const visit = () => requireValue(++layoutWork <= LIMITS.maxOperations, 'construction planning work ceiling')
+  const visit = () => {
+    if (++layoutWork > LIMITS.maxOperations) throw new TerminalWorkLimitError('class-construction', LIMITS.maxOperations)
+  }
   const span = (x: number, y: number, w: number, h: number) => {
     for (let row = y; row < y + h; row++) {
       visit()
@@ -343,7 +345,7 @@ export function prepareClassConstruction(
       ...footers.flatMap(text => text.lines),
       ...routes.flatMap(route => [...route.central.lines, ...route.fromText.lines, ...route.toText.lines]),
     ].reduce((sum, line) => sum + Math.max(0, line.length - visualWidth(line)), 0)
-  requireValue(outputUpper <= LIMITS.maxOutputCodeUnits, 'encoded output ceiling')
+  if (outputUpper > LIMITS.maxOutputCodeUnits) throw new TerminalWorkLimitError('class-output', LIMITS.maxOutputCodeUnits)
   let frameContacts = 0,
     planningWork = 3
   for (const relation of relations)
