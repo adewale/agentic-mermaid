@@ -1745,26 +1745,34 @@ function overlappingRouteUnits(graph: AsciiGraph, layers: readonly Canvas[][]): 
   for (const stage of layers) for (const layer of stage) { width = Math.max(width, layer.width); height = Math.max(height, layer.height) }
   const keyOf = (x: number, y: number): number => x >= 0 && y >= 0 && x < width && y < height ? y * width + x : -1
   // Most cells hold one unit; a cell takes a map once a second unit arrives.
-  type Contribution = { unit: object | string; edges: Set<AsciiEdge>; mask: number; marker: boolean }
+  // A unit's first edge is kept inline; a set holds the edges after it.
+  type Contribution = { unit: object | string; edge: AsciiEdge; edges?: Set<AsciiEdge>; mask: number; marker: boolean }
   const occupied = new Map<number, Contribution | Map<object | string, Contribution>>()
-  for (const stage of layers) for (const layer of stage) for (const [x, y, cell] of layer.entries()) {
+  // A layer's cells share its interned owner sets: resolve each set's edges once.
+  let lastOwners: readonly TerminalOwner[] | undefined, ownerEdges: AsciiEdge[] = []
+  for (const stage of layers) for (const layer of stage) layer.forEachCell((x, y, cell) => {
     const point = keyOf(x, y)
-    for (const owner of cell.owners) {
-      const edge = owner.kind === 'edge' ? edges.get(owner.id) : undefined
-      if (!edge) continue
+    if (cell.owners !== lastOwners) {
+      lastOwners = cell.owners; ownerEdges = []
+      for (const owner of cell.owners) {
+        const edge = owner.kind === 'edge' ? edges.get(owner.id) : undefined
+        if (edge) ownerEdges.push(edge)
+      }
+    }
+    for (const edge of ownerEdges) {
       const unit = edge.bundle ?? edge.sharedTrunk ?? edge
       const slot = occupied.get(point)
       let previous = slot instanceof Map ? slot.get(unit) : slot?.unit === unit ? slot : undefined
       if (!previous) {
-        previous = { unit, edges: new Set<AsciiEdge>(), mask: 0, marker: false }
+        previous = { unit, edge, mask: 0, marker: false }
         if (!slot) occupied.set(point, previous)
         else if (slot instanceof Map) slot.set(unit, previous)
         else occupied.set(point, new Map([[slot.unit, slot], [unit, previous]]))
-      }
-      previous.edges.add(edge); previous.mask |= cell.stroke?.mask ?? 0
+      } else if (edge !== previous.edge) (previous.edges ??= new Set([previous.edge])).add(edge)
+      previous.mask |= cell.stroke?.mask ?? 0
       previous.marker ||= cell.kind === 'marker'
     }
-  }
+  })
   const conflicts = new Set<AsciiEdge>()
   for (const units of occupied.values()) {
     if (!(units instanceof Map)) continue
@@ -1775,7 +1783,7 @@ function overlappingRouteUnits(graph: AsciiGraph, layers: readonly Canvas[][]): 
       if (unit.mask & 5) vertical++
     }
     for (const unit of units.values()) if (marker || horizontal > 1 && (unit.mask & 10) || vertical > 1 && (unit.mask & 5)) {
-      for (const edge of unit.edges) conflicts.add(edge)
+      for (const edge of unit.edges ?? [unit.edge]) conflicts.add(edge)
     }
   }
   return conflicts

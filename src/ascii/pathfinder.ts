@@ -401,17 +401,22 @@ function searchPath(search: Search, towardTarget: boolean, budget: number): Grid
         // unreachable target lets the search wander the unbounded +x/+y plane.
         if (nx > boundX || ny > boundY) continue
         // Allow moving to the destination even if it's occupied (it's a node boundary)
-        if (!(nx === targetX && ny === targetY) && (numeric ? nx < 0 || ny < 0 || grid.hasCell!(nx, ny) : !isFreeInGrid(grid, { x: nx, y: ny }))) continue
-        if (canStep && !canStep(x, y, nx, ny)) continue
-
+        const target = nx === targetX && ny === targetY
+        if (!target && (nx < 0 || ny < 0)) continue
+        // A neighbour needs a cheaper arrival before its occupancy and step
+        // policy matter. Both are pure predicates, so testing the cost first
+        // admits the same moves while skipping most of their calls: a flood
+        // reaches each cell once, then finds it settled from every side.
         const newCost = currentCost + 1
         const nextKey = keyOf(nx, ny)
-        if (newCost < states.cost(nextKey)) {
-          states.set(nextKey, newCost, move)
-          const absX = Math.abs(nx - targetX), absY = Math.abs(ny - targetY)
-          const remaining = absX === 0 || absY === 0 ? absX + absY : absX + absY + 1 // heuristic(next, to)
-          open.push(nx, ny, newCost + remaining, newCost, remaining)
-        }
+        if (!(newCost < states.cost(nextKey))) continue
+        if (!target && (numeric ? grid.hasCell!(nx, ny) : !isFreeInGrid(grid, { x: nx, y: ny }))) continue
+        if (canStep && !canStep(x, y, nx, ny)) continue
+
+        states.set(nextKey, newCost, move)
+        const absX = Math.abs(nx - targetX), absY = Math.abs(ny - targetY)
+        const remaining = absX === 0 || absY === 0 ? absX + absY : absX + absY + 1 // heuristic(next, to)
+        open.push(nx, ny, newCost + remaining, newCost, remaining)
       }
     }
 
