@@ -508,20 +508,26 @@ export class TerminalDocument {
     for (const [label, value] of Object.entries({ x: bounds.x, y: bounds.y, width: bounds.width, height: bounds.height })) integer(value, label)
     // Attribution changes identity, so its rectangle must admit every selected
     // grapheme completely before changing any cell or registering the owner.
-    for (const [x, y, cell] of this.entries()) {
-      if (x < bounds.x || x >= bounds.x + bounds.width || y < bounds.y || y >= bounds.y + bounds.height) continue
-      if (cell.head < bounds.x || cell.head + cell.width > bounds.x + bounds.width) throw new RangeError('terminal attribution bounds must contain complete graphemes')
+    for (const [y, row] of this.rows) {
+      if (y < bounds.y || y >= bounds.y + bounds.height) continue
+      for (const [x, cell] of row) {
+        if (x < bounds.x || x >= bounds.x + bounds.width) continue
+        if (cell.head < bounds.x || cell.head + cell.width > bounds.x + bounds.width) throw new RangeError('terminal attribution bounds must contain complete graphemes')
+      }
     }
     const attributed = this.remember(owner)!
     const canonical = this.owners([attributed])
     const blocks = new Set<TextBlock>()
-    for (const [x, y, cell] of this.entries()) {
-      if (x < bounds.x || x >= bounds.x + bounds.width || y < bounds.y || y >= bounds.y + bounds.height) continue
-      this.attributeStroke(cell, canonical)
-      cell.owners = this.unionOwners(cell.owners, canonical)
-      if (cell.textBlock) blocks.add(cell.textBlock)
-      if (paint.role !== undefined && cell.kind !== 'text') cell.role = paint.role
-      if (paint.color !== undefined) cell.color = paint.color
+    for (const [y, row] of this.rows) {
+      if (y < bounds.y || y >= bounds.y + bounds.height) continue
+      for (const [x, cell] of row) {
+        if (x < bounds.x || x >= bounds.x + bounds.width) continue
+        this.attributeStroke(cell, canonical)
+        cell.owners = this.unionOwners(cell.owners, canonical)
+        if (cell.textBlock) blocks.add(cell.textBlock)
+        if (paint.role !== undefined && cell.kind !== 'text') cell.role = paint.role
+        if (paint.color !== undefined) cell.color = paint.color
+      }
     }
     for (const block of this.retainedTextBlocks) blocks.add(block)
     for (const block of blocks) {
