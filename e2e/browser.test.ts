@@ -399,10 +399,11 @@ it('standalone editor stays within its single-renderer payload budget', async ()
   const html = new Uint8Array(await Bun.file(join(ROOT, 'editor.html')).arrayBuffer())
   // Keep the 33-family standalone budget and the per-PR growth gate.
   // Packed Inter metrics, bounded layout search, parser diagnostics and the
-  // worker's source-preserving applyOps mode (about 4.1 KB gzip) must fit
-  // within these limits.
+  // worker's source-preserving applyOps mode (about 4.1 KB gzip) and the
+  // sequence create/destroy and central-connection geometry must fit within
+  // these limits.
   expect(html.byteLength).toBeLessThanOrEqual(5_198_000)
-  expect(gzipSync(html, { level: 9 }).byteLength).toBeLessThanOrEqual(1_566_000)
+  expect(gzipSync(html, { level: 9 }).byteLength).toBeLessThanOrEqual(1_567_000)
   const runtime = new TextDecoder().decode(html).match(/<script type="module" id="editor-runtime">([\s\S]*?)<\/script>/)?.[1]
   expect(runtime).toBeDefined()
   // These literals belong to the page catalog, not its private renderer worker.
