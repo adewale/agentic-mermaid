@@ -76,6 +76,7 @@ export function countIndexedCrossings(
   involved: ReadonlySet<number> | undefined,
   crossing: Predicate,
   distinct: (points: Location[]) => number,
+  routePoints: (edge: number) => readonly Point[],
 ): number | undefined {
   let scale = 1
   for (const segment of sorted) {
@@ -153,18 +154,19 @@ export function countIndexedCrossings(
 
   // 2. Evaluate every other bounding-box overlap with the shared predicate.
   const locations = new Map<number, Location[]>()
-  const evaluate = (first: IndexedSegment, second: IndexedSegment): void => {
-    if (first.edgeIndex === second.edgeIndex || (!counts(first.edgeIndex) && !counts(second.edgeIndex))) return
-    const later = rank.get(first)! > rank.get(second)! ? first : second
-    const point = crossing(later, later === first ? second : first)
-    if (!point) return
-    const low = Math.min(first.edgeIndex, second.edgeIndex), high = Math.max(first.edgeIndex, second.edgeIndex)
-    const key = low * routeCount + high
+  const retain = (first: number, second: number, point: Location): void => {
+    const key = Math.min(first, second) * routeCount + Math.max(first, second)
     const previous = locations.get(key)
     if (!previous) { locations.set(key, [point]); return }
     const duplicate = previous.find(p => p.x === point.x && p.y === point.y)
     if (duplicate) duplicate.error = Math.max(duplicate.error, point.error)
     else previous.push(point)
+  }
+  const evaluate = (first: IndexedSegment, second: IndexedSegment): void => {
+    if (first.edgeIndex === second.edgeIndex || (!counts(first.edgeIndex) && !counts(second.edgeIndex))) return
+    const later = rank.get(first)! > rank.get(second)! ? first : second
+    const point = crossing(later, later === first ? second : first)
+    if (point) retain(first.edgeIndex, second.edgeIndex, point)
   }
 
   // 2a. Pairs with a general segment: the reference sweep, scanning only the
@@ -191,25 +193,41 @@ export function countIndexedCrossings(
   // 2b. Fast horizontal × vertical overlaps that are not clean: near an end
   // in x (from each horizontal), else near an end in y (from each vertical).
   // Parallel fast segments never cross under the predicate (zero determinant).
-  const byX = [...verticals].sort((p, q) => p.x - q.x), xs = byX.map(v => v.x)
-  const byY = [...horizontals].sort((p, q) => p.y - q.y), hys = byY.map(h => h.y)
+  // Routes that share ink (a bus, a bundle trunk) repeat the same segment with
+  // the same local neighbourhood; the predicate is evaluated once per pair of
+  // such geometry groups and its location retained for every member pair.
+  const shared = sharedGeometryGroups(fast, routePoints, margin)
+  const vReps = verticals.filter(v => shared.get(v.s)![0] === v.s), hReps = horizontals.filter(h => shared.get(h.s)![0] === h.s)
+  const byX = vReps.sort((p, q) => p.x - q.x), xs = byX.map(v => v.x)
+  const byY = hReps.sort((p, q) => p.y - q.y), hys = byY.map(h => h.y)
   const windows = (min: number, max: number, lo: number, hi: number): Array<[number, number]> => {
     const first = Math.min(max, lo), second = Math.max(min, hi)
     return first >= second ? [[min, max]] : [[min, first], [second, max]]
   }
-  for (const h of horizontals) {
+  const evaluateShared = (first: IndexedSegment, second: IndexedSegment): void => {
+    const firstMembers = shared.get(first)!, secondMembers = shared.get(second)!
+    if (firstMembers.length === 1 && secondMembers.length === 1) { evaluate(first, second); return }
+    const later = rank.get(first)! > rank.get(second)! ? first : second
+    const point = crossing(later, later === first ? second : first)
+    if (!point) return
+    for (const a of firstMembers) for (const b of secondMembers) {
+      if (a.edgeIndex === b.edgeIndex || (!counts(a.edgeIndex) && !counts(b.edgeIndex))) continue
+      retain(a.edgeIndex, b.edgeIndex, { x: point.x, y: point.y, error: point.error })
+    }
+  }
+  for (const h of hReps) {
     for (const [from, to] of windows(h.s.minX, h.s.maxX, h.lo, h.hi)) {
       for (let i = lowerBound(xs, from, false); i < byX.length && byX[i]!.x <= to; i++) {
         const v = byX[i]!
-        if (v.s.minY <= h.y && h.y <= v.s.maxY) evaluate(h.s, v.s)
+        if (v.s.minY <= h.y && h.y <= v.s.maxY) evaluateShared(h.s, v.s)
       }
     }
   }
-  for (const v of verticals) {
+  for (const v of vReps) {
     for (const [from, to] of windows(v.s.minY, v.s.maxY, v.lo, v.hi)) {
       for (let i = lowerBound(hys, from, false); i < byY.length && byY[i]!.y <= to; i++) {
         const h = byY[i]!
-        if (h.s.minX <= v.x && v.x <= h.s.maxX && h.lo < v.x && v.x < h.hi) evaluate(h.s, v.s)
+        if (h.s.minX <= v.x && v.x <= h.s.maxX && h.lo < v.x && v.x < h.hi) evaluateShared(h.s, v.s)
       }
     }
   }
@@ -217,4 +235,40 @@ export function countIndexedCrossings(
   let crossings = cleanCount
   for (const points of locations.values()) crossings += distinct(points)
   return crossings
+}
+
+/**
+ * Fast segments grouped by everything the shared predicate reads from one
+ * side: both ends, the route's neighbouring points beyond them, and any route
+ * endpoint near enough for physical contact. Two segments of one group give
+ * the predicate identical results against any other segment, so a pair of
+ * groups needs one evaluation. Only routes whose consecutive points are more
+ * than `margin` apart group (the predicate's same-vertex scan then stops at
+ * the immediate neighbour); every other segment is its own group. Each group
+ * lists its members in reference order, so its first member represents it.
+ */
+function sharedGeometryGroups(fast: ReadonlySet<IndexedSegment>, routePoints: (edge: number) => readonly Point[], margin: number): Map<IndexedSegment, IndexedSegment[]> {
+  const groups = new Map<IndexedSegment, IndexedSegment[]>()
+  const byKey = new Map<string, IndexedSegment[]>()
+  const separated = new Map<number, boolean>()
+  const near = (p: Point, s: IndexedSegment): boolean => p.x >= s.minX - 1 - margin && p.x <= s.maxX + 1 + margin && p.y >= s.minY - 1 - margin && p.y <= s.maxY + 1 + margin
+  for (const segment of fast) {
+    const points = routePoints(segment.edgeIndex)
+    let groupable = separated.get(segment.edgeIndex)
+    if (groupable === undefined) {
+      groupable = points.every((p, i) => i === 0 || Math.abs(p.x - points[i - 1]!.x) + Math.abs(p.y - points[i - 1]!.y) > margin)
+      separated.set(segment.edgeIndex, groupable)
+    }
+    if (!groupable) { groups.set(segment, [segment]); continue }
+    const i = segment.pointIndex, first = points[0]!, last = points[points.length - 1]!
+    const prev = points[i - 1], next = points[i + 2]
+    const key = [segment.a.x, segment.a.y, segment.b.x, segment.b.y,
+      prev ? `${prev.x},${prev.y}` : '-', next ? `${next.x},${next.y}` : '-',
+      near(first, segment) ? `${first.x},${first.y}` : '-', near(last, segment) ? `${last.x},${last.y}` : '-'].join(' ')
+    let members = byKey.get(key)
+    if (!members) byKey.set(key, members = [])
+    members.push(segment)
+    groups.set(segment, members)
+  }
+  return groups
 }

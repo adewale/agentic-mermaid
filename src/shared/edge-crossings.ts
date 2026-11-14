@@ -145,7 +145,7 @@ export function countIndexedPolylineCrossings(routes: readonly CrossingPolyline[
 function indexedCrossings(routes: readonly CrossingPolyline[], segments: Segment[], involved: ReadonlySet<number> | undefined): number | undefined {
   const byRoute = segments.slice()
   segments.sort(segmentOrder)
-  return countIndexedCrossings(routes.length, byRoute, segments, involved, (a, b) => crossingPoint(a, b, routes), distinctCrossingLocations)
+  return countIndexedCrossings(routes.length, byRoute, segments, involved, (a, b) => crossingPoint(a, b, routes), distinctCrossingLocations, edge => routes[edge]!.points)
 }
 
 /** Below this many segments the reference sweep is cheaper than indexing. */

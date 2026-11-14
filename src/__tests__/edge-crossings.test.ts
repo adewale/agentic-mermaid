@@ -280,10 +280,22 @@ describe('indexed crossing evaluation', () => {
     }
     return { points, ...(visible ? {} : { visible: false }) }
   })
+  // Shared ink: a route may continue another route's first `keep` points
+  // (a trunk or bus) before its own steps, so segments repeat across routes
+  // with identical neighbourhoods up to where the routes diverge.
   const scene = fc.record({
     routes: fc.array(polyline, { minLength: 2, maxLength: 36, size: 'max' }),
+    trunks: fc.array(fc.record({ route: fc.nat(35), from: fc.nat(35), keep: fc.integer({ min: 1, max: 8 }) }), { maxLength: 12 }),
     involved: fc.option(fc.uniqueArray(fc.integer({ min: 0, max: 35 }), { maxLength: 4 }), { nil: undefined }),
     scale: fc.constantFrom(1, 1, 1, 0.001, 1e6),
+  }).map(({ routes, trunks, ...rest }) => {
+    const shared = routes.slice()
+    for (const { route, from, keep } of trunks) {
+      const own = shared[route % shared.length]!, trunk = shared[from % shared.length]!.points.slice(0, keep)
+      const end = trunk.at(-1)!, start = own.points[0]!
+      shared[route % shared.length] = { ...own, points: [...trunk, ...own.points.slice(1).map(p => ({ x: p.x - start.x + end.x, y: p.y - start.y + end.y }))] }
+    }
+    return { routes: shared, ...rest }
   })
 
   type SceneValue = typeof scene extends fc.Arbitrary<infer T> ? T : never
@@ -304,6 +316,10 @@ describe('indexed crossing evaluation', () => {
       [{ routes: [polylineOf([[0, 19.995], [0, 29.995]]), polylineOf([[0.05, 20], [-9.95, 20]]), polylineOf([[0, 0]]), polylineOf([[0, 0]])], involved: undefined, scale: 1 }],
       [{ routes: [polylineOf([[0, 0], [0, 20]]), polylineOf([[0, 0]]), polylineOf([[0, 10], [-10, 10], [0.5, 10]])], involved: undefined, scale: 1 }],
       [{ routes: [polylineOf([[0, 0], [0, 20], [-10, 20], [-10, 10], [0.0501, 10]]), polylineOf([[0, 0]]), polylineOf([[0, 0]])], involved: undefined, scale: 1 }],
+      // Two routes share a segment but continue differently at its end, where
+      // a probe crosses one and only touches the other: shared geometry must
+      // include each side's neighbouring points.
+      [{ routes: [polylineOf([[0, 0], [10, 0], [20, 0]]), polylineOf([[0, 0], [10, 0], [10, 10]]), polylineOf([[10, -5], [10, 5]])], involved: undefined, scale: 1 }],
     ] }))
   })
 
@@ -315,6 +331,21 @@ describe('indexed crossing evaluation', () => {
       routes.push({ points: [{ x: s * 40, y: 0 }, { x: s * 40, y }, { x: t * 40 + 7, y }, { x: t * 40 + 7, y: 2000 }] })
     }
     expect(countPolylineCrossings(routes)).toBe(allPairsCrossings(routes))
+  })
+
+  test('routes sharing a complete-bipartite bus count like the all-pairs evaluation', () => {
+    // n sources join a collector at x = 100, one connector reaches the
+    // distributor at x = 120, and each target leaves it: n² routes share bus
+    // ink. Two probes cross the bus and one stub ends on it.
+    const n = 9, routes: CrossingPolyline[] = []
+    for (let s = 0; s < n; s++) for (let t = 0; t < n; t++) {
+      routes.push({ points: [{ x: 0, y: s * 20 }, { x: 100, y: s * 20 }, { x: 100, y: 80 }, { x: 120, y: 80 }, { x: 120, y: t * 20 + 5 }, { x: 200, y: t * 20 + 5 }] })
+    }
+    routes.push({ points: [{ x: 50, y: 30 }, { x: 150, y: 30 }] }, { points: [{ x: 110, y: -10 }, { x: 110, y: 200 }] }, { points: [{ x: 60, y: 90 }, { x: 100, y: 90 }] })
+    const expected = allPairsCrossings(routes)
+    expect(expected).toBeGreaterThan(0)
+    expect(countIndexedPolylineCrossings(routes)).toBe(expected)
+    expect(countPolylineCrossings(routes)).toBe(expected)
   })
 
   test('non-finite and very large coordinates stay with the reference evaluation', () => {
