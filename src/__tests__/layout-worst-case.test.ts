@@ -25,6 +25,8 @@ function chainWithLongLinks(n: number): string {
   return lines.join('\n')
 }
 
+const c4Systems = (n: number): string => ['C4Context', ...names('s', n).map(id => `  System(${id}, "System ${id}")`),
+  ...completeDag(n).split('\n').slice(1).map(line => `  Rel(${line.replace(' --> ', ', ').replaceAll('k', 's')}, "Uses")`)].join('\n')
 const fan = (n: number): string => `flowchart TD\n${names('a', n).join(' & ')} --> ${names('b', n).join(' & ')}`
 const completeDag = (n: number): string => ['flowchart TD', ...Array.from({ length: n }, (_, i) => Array.from({ length: n - 1 - i }, (_, k) => `k${i} --> k${i + k + 1}`)).flat()].join('\n')
 
@@ -35,6 +37,9 @@ const CASES: Array<{ name: string; source: string; limit?: string; terminal?: tr
   { name: 'state transition table 30 x 30', source: edgewise('stateDiagram-v2', 30, (a, b) => `${a} --> ${b}`) },
   { name: 'class relationships 20 x 20', source: edgewise('classDiagram', 20, (a, b) => `${a} --> ${b}`), limit: 'CLASS_LAYOUT_WORK_LIMIT' },
   { name: 'ER relationships 20 x 20', source: edgewise('erDiagram', 20, (a, b) => `${a.toUpperCase()} ||--o{ ${b.toUpperCase()} : r`), limit: 'ER_LABEL_WORK_LIMIT' },
+  // Every relationship label collides with many others; seat search once
+  // re-proved fixed clearances per conflict and sweep (~40 s).
+  { name: 'C4 relationships between all pairs of 29 systems (406)', source: c4Systems(29) },
   { name: 'edges past the host limit', source: ['flowchart TD', ...Array.from({ length: 5001 }, () => 'A --> B')].join('\n'), limit: 'DIAGRAM_WORK_LIMIT' },
   // Overlapping routes share cells, and every shared cell's owner set grows
   // with each route through it; dense fans refuse once composing them passes
