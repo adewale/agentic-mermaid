@@ -51,7 +51,6 @@ gantt:official-syntax/gantt.md#10 [ Unsupported VerifyError RenderError ] # inli
 # Sequence: structured bodies with source-preserved opaque segments.
 sequence:official-syntax/sequenceDiagram.md#1 [ Unsupported ] # new order example contains source-preserved activate/deactivate and Note controls
 sequence:official-syntax/sequenceDiagram.md#2 [ Unsupported ] # configured order example contains source-preserved activate/deactivate and Note controls
-sequence:official-syntax/sequenceDiagram.md#15 [ Unsupported ] # 'create' / 'destroy' participant lifecycle
 sequence:official-syntax/sequenceDiagram.md#16 [ Unsupported ] # 'box' participant groups
 sequence:official-syntax/sequenceDiagram.md#18 [ Unsupported ] # explicit 'activate' / 'deactivate'
 sequence:official-syntax/sequenceDiagram.md#21 [ Unsupported ] # 'Note right of'
