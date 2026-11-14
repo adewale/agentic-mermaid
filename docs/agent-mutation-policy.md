@@ -76,7 +76,7 @@ TreeView IDs are positional row addresses. After a structural edit, use the
 returned diagram's IDs: its canonical writer and reader may reassign positions
 while preserving the complete authored hierarchy, labels and metadata.
 
-Some families are segment-preserving rather than all-or-nothing: sequence keeps `alt`/`opt`/`loop`/`par` as typed fragments (with their own read-back and mutation ops) while Note/box/critical/activate/autonumber/title ride along verbatim, and its top-level message indices stay separate from fragment-message indices; gantt keeps calendar directives and click/comment lines as verbatim segments; ER keeps ordered typed and opaque-block segments. Only input that cannot be segmented (e.g. an unbalanced `end`) falls back to a whole-body opaque body.
+Some families are segment-preserving rather than all-or-nothing: sequence keeps `alt`/`opt`/`loop`/`par` as typed fragments (with their own read-back and mutation ops) and top-level `create`/`destroy` as typed statements while Note/box/critical/activate/autonumber/title ride along verbatim, and its top-level message indices stay separate from fragment-message indices; gantt keeps calendar directives and click/comment lines as verbatim segments; ER keeps ordered typed and opaque-block segments. Only input that cannot be segmented (e.g. an unbalanced `end`) falls back to a whole-body opaque body.
 
 Opaque/source-level bodies:
 

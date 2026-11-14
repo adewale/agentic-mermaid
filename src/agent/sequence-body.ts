@@ -6,7 +6,8 @@
 // autonumber/title keeps its participant/message mutation ops while unmodeled
 // lines ride along VERBATIM as opaque-block segments.
 //
-//   - Structured lines  = participant/actor declarations + simple messages.
+//   - Structured lines  = participant/actor declarations, simple messages and
+//                         the `create`/`destroy` lifecycle directives.
 //   - Block constructs  = alt|opt|loop|par|critical|break|rect … end (nesting-
 //                         tracked) → ONE opaque-block segment, inner lines kept
 //                         byte-for-byte (original indentation).
@@ -114,6 +115,21 @@ export function parseSequenceBody(trimmedLines: string[], rawLines?: string[]): 
       continue
     }
 
+    if (syntax?.kind === 'create') {
+      fold.applyAll(participantEventsOf(syntax))
+      const { id, label, type, wrap } = syntax.declaration
+      const text = readSequenceText(label)
+      statements.push({ kind: 'create', id, declaration: type === 'actor' ? 'actor' : 'participant', label: text.value, ...(text.content ? { labelContent: text.content } : {}), ...(wrap === undefined ? {} : { wrap }) })
+      i++
+      continue
+    }
+
+    if (syntax?.kind === 'destroy') {
+      statements.push({ kind: 'destroy', actorId: syntax.actorId })
+      i++
+      continue
+    }
+
     if (syntax?.kind === 'message') {
       fold.applyAll(participantEventsOf(syntax))
       messages.push(sequenceMessageFromParsed(syntax.message))
@@ -137,7 +153,7 @@ export function parseSequenceBody(trimmedLines: string[], rawLines?: string[]): 
       continue
     }
 
-    // Any other unmodeled single line (Note…, create, activate/deactivate,
+    // Any other unmodeled single line (Note…, activate/deactivate,
     // autonumber, title…) joins an adjacent opaque-block segment, kept
     // verbatim, and still declares the participants it names.
     fold.applyAll(participantEventsOf(syntax))
@@ -290,6 +306,29 @@ export function sequenceMessageStyle(arrow: string): SequenceMessageStyle {
 
 // ---- Verifier ---------------------------------------------------------------
 
+/** The constructs preserved source lines hold, named once each in source
+ * order (a fragment by its keyword), so a warning can say what the typed
+ * body leaves out. Messages, branch lines, `end` and a box's declarations
+ * belong to their block. */
+export function sequencePreservedConstructs(lines: readonly string[]): string[] {
+  const names = new Set<string>()
+  for (const entry of readSequenceStatements([...lines]).statements) {
+    const syntax = entry.syntax
+    if (!syntax) {
+      if (entry.raw.trim() && !isSequenceCommentLine(entry.raw.trim())) names.add('unrecognized statement')
+      continue
+    }
+    const name = syntax.kind === 'block' ? `${syntax.opener.type} fragment`
+      : syntax.kind === 'activation' ? 'activate/deactivate'
+        : syntax.kind === 'declaration' ? (entry.parent === undefined ? 'participant declaration' : undefined)
+          : syntax.kind === 'links' || syntax.kind === 'actor-data' ? 'actor data'
+            : syntax.kind === 'message' || syntax.kind === 'continuation' || syntax.kind === 'end' ? undefined
+              : syntax.kind
+    if (name) names.add(name)
+  }
+  return [...names]
+}
+
 /** Sequence source ours reads where pinned Mermaid rejects it, each on its
  * canonical line: a participant a second `box` meets stays in its first box
  * (sequence/participants.ts), and deactivating a participant that is not
@@ -360,7 +399,57 @@ export function sequenceUnsupportedSyntaxWarnings(canonicalSource: string): Layo
       fold.closeBox()
     }
   }
+  for (const issue of sequenceLifecycleIssues(source.statements)) warnings.push({
+    code: 'UNSUPPORTED_SYNTAX', syntax: issue.syntax, line: header + source.statements[issue.entry]!.line + 2, message: issue.message,
+  })
   return warnings
+}
+
+/**
+ * `create`/`destroy` directives pinned Mermaid rejects. Ours binds a
+ * directive to the next message that creates (is received by) or involves
+ * its participant, and ignores `create` of a participant that already
+ * exists. Mermaid's database requires the very next message to be that one
+ * and refuses to create a known participant. Messages count in statement
+ * order, fragments included, as in Mermaid.
+ */
+export function sequenceLifecycleIssues(statements: readonly SequenceSourceStatement[]): Array<{ entry: number; syntax: string; message: string }> {
+  const issues: Array<{ entry: number; syntax: string; message: string }> = []
+  const fold = new SequenceParticipantFold()
+  let created: { id: string; entry: number } | undefined
+  let destroyed: { id: string; entry: number } | undefined
+  statements.forEach((entry, index) => {
+    const syntax = entry.syntax
+    if (syntax?.kind === 'create') {
+      const { id } = syntax.declaration
+      if (fold.has(id)) issues.push({
+        entry: index, syntax: 'sequence_create_known_participant',
+        message: `"create" names participant "${id}", which already exists; ours keeps the existing participant. Pinned Mermaid rejects this ("It is not possible to have actors with the same id"); create a new ID, or declare "${id}" without "create".`,
+      })
+      created = { id, entry: index }
+    } else if (syntax?.kind === 'destroy') {
+      destroyed = { id: syntax.actorId, entry: index }
+    } else if (syntax?.kind === 'message') {
+      const { from, to } = syntax.message
+      // Mermaid checks a pending creation first, and a destruction only once
+      // no creation is pending.
+      if (created) {
+        if (to !== created.id) issues.push({
+          entry: created.entry, syntax: 'sequence_create_message',
+          message: `The next message after "create" is not received by "${created.id}"; ours creates "${created.id}" at the next message it receives. Pinned Mermaid rejects this; put the "create" line directly above that message.`,
+        })
+        created = undefined
+      } else if (destroyed) {
+        if (from !== destroyed.id && to !== destroyed.id) issues.push({
+          entry: destroyed.entry, syntax: 'sequence_destroy_message',
+          message: `The next message after "destroy ${destroyed.id}" neither comes from nor goes to "${destroyed.id}"; ours ends "${destroyed.id}" at the next message it sends or receives. Pinned Mermaid rejects this; put the "destroy" line directly above that message.`,
+        })
+        destroyed = undefined
+      }
+    }
+    fold.applyAll(participantEventsOf(syntax))
+  })
+  return issues
 }
 
 // ---- Serializer -------------------------------------------------------------
@@ -389,6 +478,10 @@ export function renderSequence(body: SequenceBody): string {
         else for (const [label, href] of Object.entries(st.links)) lines.push(`  link ${st.actorId}: ${label} @ ${href}`)
       } else if (st.kind === 'fragment') {
         lines.push(...renderFragment(st.fragment))
+      } else if (st.kind === 'create') {
+        lines.push(renderCreate(st))
+      } else if (st.kind === 'destroy') {
+        lines.push(`  destroy ${st.actorId}`)
       } else {
         const m = body.messages[st.ref]
         if (m) lines.push(renderMessage(m))
@@ -430,6 +523,10 @@ function serializationIdError(body: SequenceBody): MutationError | undefined {
       }
     } else if (statement.kind === 'actor-links') {
       invalid = actorIdError(statement.actorId, 'receiver')
+    } else if (statement.kind === 'create' || statement.kind === 'destroy') {
+      // Both directives spell the participant as one token.
+      const id = statement.kind === 'create' ? statement.id : statement.actorId
+      invalid = actorIdError(id, 'declaration') ?? (/\s/.test(id) ? { code: 'INVALID_OP', message: `Sequence participant ID "${id}" contains spaces; create and destroy need an ID without spaces` } : undefined)
     } else if (statement.kind === 'message') {
       const message = body.messages[statement.ref]
       if (message) invalid = messageIdError(message)
@@ -477,6 +574,12 @@ function renderParticipant(p: SequenceParticipant, redeclared: boolean): string 
   return `${prefix}${label !== p.id || redeclared ? ` as ${label}` : ''}`
 }
 
+function renderCreate(statement: Extract<SequenceStatement, { kind: 'create' }>): string {
+  const prefix = `  create ${statement.declaration} ${statement.id}`
+  const label = writeSequenceControlledText(statement.label, statement.labelContent, statement.wrap, `${prefix} as `)
+  return `${prefix}${label !== statement.id ? ` as ${label}` : ''}`
+}
+
 function assertParticipantDeclarations(source: ReturnType<typeof readSequenceStatements>): void {
   const problem = source.issues.find(issue => issue.syntax === 'sequence_participant_id' || issue.syntax === 'sequence_participant_id_extension')
   if (problem) {
@@ -493,6 +596,9 @@ function statementParticipantIds(statement: SequenceStatement, participants: Seq
     case 'message': return endpoints(messages[statement.ref])
     case 'fragment': return statement.fragment.branches.flatMap(branch => branch.messages.flatMap(endpoints))
     case 'actor-links': return [statement.actorId]
+    case 'create': return [statement.id]
+    // `destroy` refers to a participant without creating it.
+    case 'destroy': return []
     case 'opaque-block': return statement.lines.flatMap(line => preservedLineEvents(line).map(event => event.id))
   }
 }
@@ -548,6 +654,8 @@ function cloneSequenceBody(body: SequenceBody): SequenceBody {
 }
 
 function mutateSequenceBody(body: SequenceBody, op: SequenceMutationOp): Result<SequenceBody, MutationError> {
+  // Ops edit the body in place: keep the source the lifecycle check compares.
+  const before = hasLifecycleDirective(body) ? renderedOrUndefined(body) : undefined
   const { participants, messages, statements } = body
 
   switch (op.kind) {
@@ -585,8 +693,9 @@ function mutateSequenceBody(body: SequenceBody, op: SequenceMutationOp): Result<
       const removedMsgIdx = new Set<number>()
       messages.forEach((m, mi) => { if (m.from === op.id || m.to === op.id) removedMsgIdx.add(mi) })
       const keptMessages = messages.filter((_, mi) => !removedMsgIdx.has(mi))
-      const rebuilt = coalesceOpaqueSegments(rebuildStatements(statements, idx, removedMsgIdx, op.id))
-      return ok(refolded({ kind: 'sequence', participants, messages: keptMessages, statements: rebuilt }))
+      const rebuilt: SequenceBody = { kind: 'sequence', participants, messages: keptMessages, statements: coalesceOpaqueSegments(rebuildStatements(statements, idx, removedMsgIdx, op.id)) }
+      const invalid = lifecycleEditError(before, rebuilt)
+      return invalid ? err(invalid) : ok(refolded(rebuilt))
     }
     case 'add_message': {
       const invalidId = messageIdError(op)
@@ -639,6 +748,14 @@ function mutateSequenceBody(body: SequenceBody, op: SequenceMutationOp): Result<
       const ref = participants.indexOf(p)
       const naming = namingDeclaration(statements, ref, p.id)
       if (naming?.preserved && relabelPreservedDeclaration(statements[naming.index]!, p)) break
+      // A participant its `create` line names is renamed there.
+      const creating = naming === undefined ? statements[creatingStatement(statements, participants, messages, p.id)] : undefined
+      if (creating?.kind === 'create' && creating.id === p.id) {
+        creating.label = p.label
+        if (p.labelContent) creating.labelContent = p.labelContent
+        else delete creating.labelContent
+        break
+      }
       const at = naming === undefined ? creatingStatement(statements, participants, messages, p.id) + 1 : naming.preserved ? naming.index + 1 : undefined
       if (at === undefined) break
       const actorData = actorDataBefore({ kind: 'sequence', participants, messages, statements: statements.slice(0, at) }, p.id)
@@ -792,8 +909,27 @@ function mutateSequenceBody(body: SequenceBody, op: SequenceMutationOp): Result<
     }
   }
   const next: SequenceBody = { kind: 'sequence', participants, messages, statements: coalesceOpaqueSegments(statements) }
-  const invalid = serializationIdError(next)
+  const invalid = serializationIdError(next) ?? lifecycleEditError(before, next)
   return invalid ? err(invalid) : ok(refolded(next))
+}
+
+function renderedOrUndefined(body: SequenceBody): string | undefined {
+  try { return renderSequence(body) } catch { return undefined }
+}
+
+function hasLifecycleDirective(body: SequenceBody): boolean {
+  return body.statements.some(statement => statement.kind === 'create' || statement.kind === 'destroy'
+    || (statement.kind === 'opaque-block' && statement.lines.some(line => /^\s*(?:create|destroy)\s/i.test(line))))
+}
+
+/** An edit may not leave a `create`/`destroy` without the message Mermaid
+ * requires right after it. Source that already did keeps its issues. */
+function lifecycleEditError(before: string | undefined, after: SequenceBody): MutationError | undefined {
+  if (before === undefined) return undefined
+  const issues = (rendered: string) => sequenceLifecycleIssues(readSequenceStatements(rendered.split('\n').slice(1)).statements).map(issue => issue.message)
+  const known = issues(before)
+  const added = issues(renderSequence(after)).find(message => !known.includes(message))
+  return added === undefined ? undefined : { code: 'INVALID_OP', message: `This edit would leave sequence source Mermaid rejects: ${added}` }
 }
 
 /** Keep an edited body the fold of its own statements, which is what its
@@ -1011,6 +1147,10 @@ function rebuildStatements(
     }
     if (s.kind === 'actor-links') {
       if (s.actorId !== removedParticipantId) out.push({ ...s, links: { ...s.links } })
+      continue
+    }
+    if (s.kind === 'create' || s.kind === 'destroy') {
+      if ((s.kind === 'create' ? s.id : s.actorId) !== removedParticipantId) out.push({ ...s })
       continue
     }
     // message

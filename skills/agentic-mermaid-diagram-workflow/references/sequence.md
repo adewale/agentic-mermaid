@@ -22,7 +22,10 @@ text edits.
 
 IMPORTANT — segment-preserving fidelity: `alt`, `opt`, `loop`, and `par` are
 typed fragments. Their messages appear in describe/facts/verify and fragment
-ops can author or edit them. Other constructs (Note/critical/break/rect/box/
+ops can author or edit them. Top-level `create participant|actor` and
+`destroy` lines are typed statements too (facts: `create …`, `destroy …`);
+an edit that would separate one from the message Mermaid requires right
+after it is refused. Other constructs (Note/critical/break/rect/box/
 activate/autonumber/title) ride along VERBATIM as opaque-block segments while
 participant and top-level message ops remain live. Only an un-segmentable
 diagram (a stray `end`, an unclosed block) falls back to a whole-body OPAQUE

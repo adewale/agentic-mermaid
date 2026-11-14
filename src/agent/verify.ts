@@ -64,7 +64,7 @@ import { kanbanUnsupportedSyntaxWarnings } from './kanban-body.ts'
 import { parseRegisteredMermaid } from './parse.ts'
 import { prepareRenderInput } from './render-input.ts'
 import { quadrantUnsupportedSyntaxWarnings } from './quadrant-body.ts'
-import { sequenceMessages, sequenceUnsupportedSyntaxWarnings } from './sequence-body.ts'
+import { sequenceMessages, sequencePreservedConstructs, sequenceUnsupportedSyntaxWarnings } from './sequence-body.ts'
 import { authoredLineForCanonical, authoredTextForCanonical, sourceCleanup } from './source-map-spans.ts'
 import { serializeMermaid } from './serialize.ts'
 import { stateBodyToGraph, stateUnsupportedSyntaxWarnings } from './state-body.ts'
@@ -1422,7 +1422,7 @@ function verifySequence(d: ValidDiagram & { body: SequenceBody }, cap: number, o
     warnings.push({
       code: 'UNSUPPORTED_SYNTAX',
       syntax: 'sequence_opaque_segment',
-      message: 'This sequence contains source-preserved constructs that are not represented in describe/facts or typed fragment operations. Inspect the source directly before relying on semantic read-back.',
+      message: `This sequence contains source-preserved constructs that are not represented in describe/facts or typed fragment operations (${sequencePreservedConstructs(opaqueLines).join(', ')}). Inspect the source directly before relying on semantic read-back.`,
     })
     const plugin = getFamily(d.kind)
     const labels = (plugin?.extractLabels ?? extractLabelsGeneric)(opaqueLines.join('\n'))

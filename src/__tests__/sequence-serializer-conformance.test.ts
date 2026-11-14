@@ -16,6 +16,8 @@ import { serializeMermaid } from '../agent/serialize.ts'
 import { mutate } from '../agent/mutate.ts'
 import { asSequence } from '../agent/types.ts'
 import { renderMermaidASCII, renderMermaidSVG } from '../agent/index.ts'
+import { verifyMermaid } from '../agent/verify.ts'
+import { describeMermaidFacts } from '../agent/facts.ts'
 import { startUpstreamMermaid } from './helpers/upstream-mermaid.ts'
 import { projectEntityMarkers } from '../shared/mermaid-entity-display.ts'
 import type { SequenceValidDiagram, SequenceMutationOp } from '../agent/types.ts'
@@ -283,5 +285,89 @@ links title:{"":"http:"}`
     expect(sequence(written).body.participants).toEqual(parsed.body.participants)
     expect(sequence(written).body.messages.map(({ from, to, text }) => ({ from, to, text })))
       .toEqual(parsed.body.messages.map(({ from, to, text }) => ({ from, to, text })))
+  })
+})
+
+
+// `create`/`destroy` are typed statements: ordinary lifecycle diagrams parse
+// with no preserved segment, verify reads them without UNSUPPORTED_SYNTAX,
+// they write back byte-for-byte, and Mermaid binds each directive to the same
+// message ours draws it at. Typed edits keep that binding or are refused.
+describe('sequence create/destroy are typed statements', () => {
+  let upstream: ReturnType<typeof startUpstreamMermaid>
+  beforeAll(() => { upstream = startUpstreamMermaid() })
+  afterAll(async () => { await upstream.close() })
+
+  /** Each created/destroyed participant and the message (from, to, text) it
+   * binds to, by the renderer's parser and by pinned Mermaid. */
+  async function bindings(source: string) {
+    const rendered = renderParse(source)
+    const ours = Object.fromEntries(rendered.actors.flatMap(actor => [
+      ...(actor.createMessageIndex === undefined ? [] : [[`create ${actor.id}`, rendered.messages[actor.createMessageIndex]!]] as const),
+      ...(actor.destroyMessageIndex === undefined ? [] : [[`destroy ${actor.id}`, rendered.messages[actor.destroyMessageIndex]!]] as const),
+    ]).map(([key, m]) => [key, [m.from, m.to, m.label]]))
+    const parsed = await upstream.parse(source)
+    if (!parsed.ok || !parsed.sequence) return { ours, mermaid: parsed.ok ? 'no sequence' : parsed.error }
+    const { messages, created, destroyed } = parsed.sequence
+    const at = (index: number) => [messages[index]!.from, messages[index]!.to, projectEntityMarkers(messages[index]!.message)]
+    const mermaid = Object.fromEntries([
+      ...Object.entries(created).map(([id, index]) => [`create ${id}`, at(index)]),
+      ...Object.entries(destroyed).map(([id, index]) => [`destroy ${id}`, at(index)]),
+    ])
+    return { ours, mermaid }
+  }
+
+  test.each([
+    ['a destroyed receiver', 'participant A\n  participant B\n  A->>B: hi\n  destroy B\n  A->>B: bye', ['destroy B']],
+    ['the Mermaid documentation example', 'Alice->>Bob: Hello Bob, how are you ?\n  Bob->>Alice: Fine, thank you. And you?\n  create participant Carl\n  Alice->>Carl: Hi Carl!\n  create actor D as Donald\n  Carl->>D: Hi!\n  destroy Carl\n  Alice-xCarl: We are too many\n  destroy Bob\n  Bob->>Alice: I agree', ['create Carl', 'create D', 'destroy Carl', 'destroy Bob']],
+    ['a destroyed sender and self-message', 'A->>B: hi\n  destroy A\n  A-)B: leaving\n  destroy B\n  B->>B: done', ['destroy A', 'destroy B']],
+    ['two participants destroyed by one message', 'A->>B: hi\n  destroy B\n  destroy A\n  A<<->>B: both', ['destroy A', 'destroy B']],
+    ['a created participant with a wrapped alias', 'A->>B: hi\n  create participant C as wrap: A long created name\n  B->>+C: start\n  C-->>-B: done', ['create C']],
+  ] as const)('%s parses typed, verifies and writes back unchanged', async (_name, body, directives) => {
+    const source = `sequenceDiagram\n  ${body}\n`
+    const parsed = sequence(source)
+    expect(parsed.body.statements.filter(statement => statement.kind === 'opaque-block')).toEqual([])
+    expect(parsed.body.statements.flatMap(statement => statement.kind === 'create' ? [`create ${statement.id}`] : statement.kind === 'destroy' ? [`destroy ${statement.actorId}`] : []).sort()).toEqual([...directives].sort())
+    expect(verifyMermaid(source).warnings.filter(warning => warning.code === 'UNSUPPORTED_SYNTAX')).toEqual([])
+    expect(describeMermaidFacts(parsed).filter(fact => /^(create|destroy) /.test(fact)).map(fact => `${fact.split(' ')[0]} ${fact.split(' ').at(fact.startsWith('create') ? 2 : 1)}`).sort()).toEqual([...directives].sort())
+    const written = serializeMermaid(parsed)
+    expect(written).toBe(source)
+    const { ours, mermaid } = await bindings(written)
+    expect(Object.keys(ours).sort()).toEqual([...directives].sort())
+    expect(mermaid).toEqual(ours)
+  })
+
+  const SOURCE = 'sequenceDiagram\n  Alice->>Bob: Hello\n  create participant Carl\n  Alice->>Carl: Hi Carl!\n  create actor D as Donald\n  Carl->>D: Hi!\n  destroy Carl\n  Alice-xCarl: We are too many\n  destroy Bob\n  Bob->>Alice: I agree\n'
+  test.each([
+    ['relabels a created participant on its create line', { kind: 'set_participant_label', id: 'D', label: 'Daisy' }, '  create actor D as Daisy\n'],
+    ['relabels a participant created without an alias', { kind: 'set_participant_label', id: 'Carl', label: 'Carlos' }, '  create participant Carl as Carlos\n'],
+    ['removes a destroyed participant with its directive', { kind: 'remove_participant', id: 'Bob' }, '  Alice-xCarl: We are too many\n'],
+    ['edits the destroying message', { kind: 'set_message_text', index: 3, text: 'Goodbye' }, '  destroy Carl\n  Alice-xCarl: Goodbye\n'],
+  ] as const)('a typed edit %s and keeps every binding Mermaid reads', async (_name, op, line) => {
+    const written = serializeMermaid(apply(sequence(SOURCE), op as SequenceMutationOp))
+    expect(written).toContain(line)
+    expect(written.includes('destroy Bob')).toBe(op.kind !== 'remove_participant')
+    const { ours, mermaid } = await bindings(written)
+    expect(mermaid).toEqual(ours)
+    expect(sequence(written).body.statements.filter(statement => statement.kind === 'opaque-block')).toEqual([])
+  })
+
+  test.each([
+    ['separates a destroy from its message', { kind: 'add_message', index: 3, from: 'Alice', to: 'D', text: 'interject' }, 'destroy Carl'],
+    ['removes the message that creates a participant', { kind: 'remove_participant', id: 'Carl' }, '"create" is not received by "D"'],
+  ] as const)('a typed edit that %s is refused', (_name, op, problem) => {
+    const parsed = sequence(SOURCE)
+    const result = mutate(parsed, op as SequenceMutationOp)
+    expect(result.ok).toBe(false)
+    if (!result.ok) expect(result.error).toEqual({ code: 'INVALID_OP', message: expect.stringContaining(problem) })
+    expect(serializeMermaid(parsed)).toBe(SOURCE)
+  })
+
+  test('a lifecycle directive inside a preserved fragment is named by the opaque warning', () => {
+    const source = 'sequenceDiagram\n  A->>B: hi\n  alt done\n    destroy B\n    A->>B: bye\n  end\n'
+    expect(sequence(source).body.statements.map(statement => statement.kind)).toEqual(['message', 'opaque-block'])
+    expect(verifyMermaid(source).warnings).toContainEqual(expect.objectContaining({
+      code: 'UNSUPPORTED_SYNTAX', syntax: 'sequence_opaque_segment', message: expect.stringContaining('(alt fragment, destroy)'),
+    }))
   })
 })

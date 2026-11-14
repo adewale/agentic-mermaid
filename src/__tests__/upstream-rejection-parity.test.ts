@@ -172,6 +172,12 @@ const C4_READ_GENEROUSLY: ReadonlyArray<GenerousRow> = [
 const SEQUENCE_READ_GENEROUSLY: ReadonlyArray<GenerousRow> = [
   ['a message deactivating its inactive sender', 'sequenceDiagram\n  Alice->>+Bob: Hi\n  Bob-->>-Alice: Hello\n  Bob-->>-Alice: Again', 'Again', 'sequence_inactive_deactivation', 4],
   ['deactivating a participant never activated', 'sequenceDiagram\n  Alice->>Bob: Hi\n  deactivate Bob', 'Hi', 'sequence_inactive_deactivation', 3],
+  // Mermaid requires the very next message to create or destroy the
+  // participant a directive names, and refuses to create a known one; ours
+  // binds the directive to the next message that does.
+  ['a destroy whose next message does not involve it', 'sequenceDiagram\n  Alice->>Bob: Hi\n  destroy Bob\n  Alice->>Carol: Aside\n  Alice->>Bob: Bye', 'Bye', 'sequence_destroy_message', 3],
+  ['a create whose next message goes elsewhere', 'sequenceDiagram\n  Alice->>Bob: Hi\n  create participant Carol\n  Alice->>Bob: Aside\n  Alice->>Carol: Welcome', 'Welcome', 'sequence_create_message', 3],
+  ['creating a participant that already exists', 'sequenceDiagram\n  Alice->>Bob: Hi\n  create participant Bob\n  Alice->>Bob: Again', 'Again', 'sequence_create_known_participant', 3],
 ]
 
 // Ours keeps local arrow spellings Mermaid's lexer does not have; each draws

@@ -554,6 +554,14 @@ function describeSequence(d: SequenceValidDiagram): string {
       if (message) interactions.push(`message ${message.from} -> ${message.to}: ${sequenceDisplayText(message.text, message.textContent)}`)
       continue
     }
+    if (statement.kind === 'create') {
+      interactions.push(`create ${statement.declaration} ${statement.id}${statement.label !== statement.id ? ` (${sequenceDisplayText(statement.label, statement.labelContent)})` : ''}`)
+      continue
+    }
+    if (statement.kind === 'destroy') {
+      interactions.push(`destroy ${statement.actorId}`)
+      continue
+    }
     if (statement.kind !== 'fragment') continue
     const branches = statement.fragment.branches.map((branch, branchIndex) => {
       const label = sequenceBranchDisplay(statement.fragment, branchIndex)

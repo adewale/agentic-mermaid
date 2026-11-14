@@ -176,6 +176,18 @@ export interface SequenceFragment {
   rawLines?: string[]
 }
 
+/** `create participant|actor X [as Label]`: X's header and lifeline start at
+ * the next message X receives. The statement keeps its own spelling; the
+ * participant it creates is listed in `participants`. */
+export interface SequenceCreateStatement {
+  kind: 'create'
+  id: string
+  declaration: 'participant' | 'actor'
+  label: string
+  labelContent?: LabelContent
+  wrap?: boolean
+}
+
 // Ordered statement list. Refs index into the top-level arrays. The four
 // common control fragments are typed so their messages participate in
 // describe/facts/verify and can be authored through mutation ops. Constructs
@@ -185,6 +197,9 @@ export type SequenceStatement =
   | { kind: 'participant'; ref: number } // index into participants
   | { kind: 'message'; ref: number } // index into messages
   | { kind: 'actor-links'; actorId: string; links: Record<string, string> }
+  | SequenceCreateStatement
+  /** `destroy X`: X's lifeline ends at the next message X sends or receives. */
+  | { kind: 'destroy'; actorId: string }
   | { kind: 'fragment'; fragment: SequenceFragment }
   | { kind: 'opaque-block'; lines: string[] }
 

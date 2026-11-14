@@ -415,6 +415,20 @@ function factsSequence(out: string[], body: SequenceBody): void {
       if (branch.wrap !== undefined) add(out, `fragment#${index} branch#${branchIndex} wrap ${branch.wrap}`)
     })
   })
+  // Lifecycle directives, placed by the message# that follows them.
+  let messageIndex = 0
+  const total = sequenceMessageContexts(body).length
+  for (const statement of body.statements) {
+    if (statement.kind === 'message') messageIndex++
+    else if (statement.kind === 'fragment') messageIndex += statement.fragment.branches.reduce((n, branch) => n + branch.messages.length, 0)
+    else if (statement.kind === 'create' || statement.kind === 'destroy') {
+      const id = statement.kind === 'create' ? statement.id : statement.actorId
+      const at = messageIndex < total ? ` before message#${messageIndex}` : ''
+      add(out, statement.kind === 'create'
+        ? `create ${statement.declaration} ${clean(id)} : ${shown(statement.label, statement.labelContent)}${at}`
+        : `destroy ${clean(id)}${at}`)
+    }
+  }
 }
 
 /** A message's style when not the default `sync`, and its operator when the
