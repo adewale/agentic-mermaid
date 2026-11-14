@@ -1,6 +1,7 @@
 import { describe, expect, test } from 'bun:test'
 import { parseC4Diagram, readC4Source, emptyC4Body } from '../c4/parser.ts'
 import { planC4Identity } from '../c4/identity.ts'
+import { allocateGeneratedId } from '../shared/generated-identity.ts'
 import { buildC4SourceMap, c4BodyProblem, mutateC4, renderC4 } from '../agent/c4-body.ts'
 import type { C4Body, C4MutationOp } from '../c4/types.ts'
 import { startUpstreamMermaid } from './helpers/upstream-mermaid.ts'
@@ -382,7 +383,7 @@ UpdateElementStyle(g,$borderColor="navy")`
     expect(removed.relationships.map(record => [record.id, record.label])).toEqual([['c4-rel-1#1', 'Second'], ['c4-rel-2', 'Reply']])
     const identity = planC4Identity(removed)
     expect(identity.nodes.get('c4-rel-1')).toBe('c4-rel-1')
-    expect(identity.generated('c4-rel-1', ['decoration', 0])).not.toBe('c4-rel-1')
+    expect(allocateGeneratedId(identity.generated, 'c4-rel-1', ['decoration', 0])).not.toBe('c4-rel-1')
     expect(mutateC4(removed, { kind: 'add_relationship', relationship: { id: 'arbitrary', from: 'a', to: 'b', label: 'No hidden ID syntax' } }).ok).toBe(false)
   })
 

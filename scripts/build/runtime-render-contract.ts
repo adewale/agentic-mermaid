@@ -194,9 +194,17 @@ function runtimeLayoutBackendSource(source: string, path: string, lazyLayoutOpti
   if (imports !== 1 || exports !== 1) throw new Error('Expected one canonical layout error import and export')
   const identities = readFileSync(resolve(dirname(path), '../shared/generated-identity.ts'), 'utf8')
   const identityFile = ts.createSourceFile('generated-identity.ts', identities, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS)
-  if (identityFile.statements.length !== 2 || !ts.isTypeAliasDeclaration(identityFile.statements[0]!)
-    || identityFile.statements[0]!.name.text !== 'GeneratedIdentityKey'
-    || !ts.isFunctionDeclaration(identityFile.statements[1]!) || identityFile.statements[1]!.name?.text !== 'generatedIds') {
+  const identityDeclarations: Array<[string, (statement: ts.Statement) => boolean]> = [
+    ['GeneratedIdentityKey', ts.isTypeAliasDeclaration],
+    ['GeneratedIdentityState', ts.isInterfaceDeclaration],
+    ['generatedIdentityState', ts.isFunctionDeclaration],
+    ['allocateGeneratedId', ts.isFunctionDeclaration],
+    ['generatedIds', ts.isFunctionDeclaration],
+  ]
+  if (identityFile.statements.length !== identityDeclarations.length || identityFile.statements.some((statement, index) => {
+    const [name, kind] = identityDeclarations[index]!
+    return !kind(statement) || (statement as ts.DeclarationStatement).name?.getText(identityFile) !== name
+  })) {
     throw new Error('Unsupported canonical generated identity declarations')
   }
   const gaps = readFileSync(resolve(dirname(path), 'link-rank-gap.ts'), 'utf8')

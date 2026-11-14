@@ -504,12 +504,12 @@ describe('canonical terminal output policy', () => {
       const delayedStyle = delayed.terminalStyle
       expect(observedClock).toBe('2026-10-05')
       expect(calls).toBe(1)
+      // The same explicit clock is the same layout key, so the eager render reuses it.
       const eager = renderMermaidASCIIWithReceipt(source, { colorMode: 'none', ganttToday: '2026-10-05', onProjectionDiagnostic() {} })
-      expect(calls).toBe(2)
       expect(eager.text).toBe(delayed.text)
       expect(eager.terminalStyle).toEqual(delayedStyle)
       expect(eager.receipt).toEqual(delayed.receipt)
-      expect(calls).toBe(2)
+      expect(calls).toBe(1)
     } finally {
       restore()
     }

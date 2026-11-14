@@ -72,31 +72,37 @@ test('private cache copies preserve text custody without trusting mutable measur
     import assert from 'node:assert/strict'
     import { clonePositioned, retainPositioned, cachedPositioned } from './src/experimental/position-cache.ts'
     import { preparePixelText, transferRetainedPixelText } from './src/shared/prepared-text.ts'
-    const block = preparePixelText('Read', { fontSize: 12, fontWeight: 400 })
-    const alias = structuredClone(block)
-    transferRetainedPixelText(block, alias)
-    const family = {}, source = { positioned: { width: 100, height: 80, block, alias,
-      point: { x: 20, y: 30 }, list: [block, alias], map: new Map([[block, alias], [alias, block]]), set: new Set([block, alias]) } }
-    retainPositioned(family, 'text-custody', source)
-    const publicCopy = cachedPositioned(family, 'text-custody').positioned
-    publicCopy.point.x = 400
-    publicCopy.block.lineBlocks[0].text = 'public mutation'
-    alias.lineBlocks[0].text = 'late caller alias'
-    const privateCopy = cachedPositioned(family, 'text-custody', false, true).positioned
-    assert.equal(privateCopy.point.x, 20)
-    assert.equal(privateCopy.block, block)
-    assert.equal(privateCopy.block.lineBlocks[0].text, 'Read')
-    assert.notEqual(privateCopy.alias, alias)
-    assert.equal(privateCopy.alias.lineBlocks[0].text, 'Read')
-    assert.equal(privateCopy.list[0], block)
-    assert.equal([...privateCopy.map.keys()][0], block)
-    assert.equal([...privateCopy.map.values()][1], block)
-    assert.equal([...privateCopy.set][0], block)
-    const copiedAlias = clonePositioned(alias, true)
-    alias.lineBlocks[0].text = 'later mutation'
-    assert.notEqual(copiedAlias, alias)
-    assert.equal(copiedAlias.lineBlocks[0].text, 'late caller alias')
-    assert.notEqual(clonePositioned(block), block)
+    for (const ownedProducer of [false, true]) {
+      const block = preparePixelText('Read', { fontSize: 12, fontWeight: 400 })
+      const alias = structuredClone(block)
+      transferRetainedPixelText(block, alias)
+      const family = {}, source = { positioned: { width: 100, height: 80, block, alias,
+        point: { x: 20, y: 30 }, list: [block, alias], map: new Map([[block, alias], [alias, block]]), set: new Set([block, alias]) } }
+      retainPositioned(family, 'text-custody', source, undefined, ownedProducer)
+      // The store owns its snapshot: later producer-side mutation cannot reach it.
+      source.positioned.point.x = 999
+      source.positioned.list.push('late producer mutation')
+      const publicCopy = cachedPositioned(family, 'text-custody').positioned
+      publicCopy.point.x = 400
+      publicCopy.block.lineBlocks[0].text = 'public mutation'
+      alias.lineBlocks[0].text = 'late caller alias'
+      const privateCopy = cachedPositioned(family, 'text-custody', false, true).positioned
+      assert.equal(privateCopy.point.x, 20)
+      assert.equal(privateCopy.block, block)
+      assert.equal(privateCopy.block.lineBlocks[0].text, 'Read')
+      assert.notEqual(privateCopy.alias, alias)
+      assert.equal(privateCopy.alias.lineBlocks[0].text, 'Read')
+      assert.equal(privateCopy.list[0], block)
+      assert.equal(privateCopy.list.length, 2)
+      assert.equal([...privateCopy.map.keys()][0], block)
+      assert.equal([...privateCopy.map.values()][1], block)
+      assert.equal([...privateCopy.set][0], block)
+      const copiedAlias = clonePositioned(alias, true)
+      alias.lineBlocks[0].text = 'later mutation'
+      assert.notEqual(copiedAlias, alias)
+      assert.equal(copiedAlias.lineBlocks[0].text, 'late caller alias')
+      assert.notEqual(clonePositioned(block), block)
+    }
   `], { cwd: `${import.meta.dir}/../..` })
   expect(child.stderr).toBe('')
   expect(child.status).toBe(0)
@@ -115,13 +121,13 @@ test('private text reuse preserves every frozen descendant alias independent of 
       for (const key of Object.keys(value)) collect(value[key], [...path, key])
     }
     collect(block)
-    for (const rootFirst of [false, true]) for (const privateMode of [false, true]) {
+    for (const rootFirst of [false, true]) for (const privateMode of [false, true]) for (const ownedSource of [false, true]) {
       const links = parts.map(part => part.value), mutable = { x: 20 }
       const graph = rootFirst ? { block, projected, links } : { links, block, projected }
       graph.map = new Map(parts.map(({ value }, index) => [value, index]))
       graph.set = new Set(links); graph.mutable = mutable; graph.self = graph
       graph.map.set(graph.map, graph)
-      const copy = clonePositioned(graph, privateMode)
+      const copy = clonePositioned(graph, privateMode, ownedSource)
       assert.equal(copy.self, copy)
       assert.equal(copy.map.get(copy.map), copy)
       assert.equal(copy.block === block, privateMode)
@@ -179,13 +185,19 @@ test('constructor text custody excludes mutable, accessor and function descendan
         text: 'Read', bold: false, italic: false, underline: false, strikethrough: false, sourceStart: 0, sourceEnd: 4, extra,
       }]] }, { fontSize: 12, fontWeight: 400 })
       const captured = createNativePaintEmission(10000).snapshot(block)
-      if (mode === 'function' || mode === 'accessor') assert.equal(captured, undefined)
-      else {
-        const copy = clonePositioned({ block, extra }, true)
-        assert.notEqual(copy.block, block)
-        assert.equal(copy.extra, copy.block.prepared.lines[0][0].extra)
+      if (mode === 'function' || mode === 'accessor') {
+        assert.equal(captured, undefined)
+        for (const ownedSource of [false, true]) {
+          assert.throws(() => clonePositioned({ block, extra }, true, ownedSource), mode === 'function' ? { name: 'DataCloneError' } : /uncaptured accessor/)
+        }
+      } else {
+        const copies = [false, true].map(ownedSource => clonePositioned({ block, extra }, true, ownedSource))
+        for (const copy of copies) {
+          assert.notEqual(copy.block, block)
+          assert.equal(copy.extra, copy.block.prepared.lines[0][0].extra)
+        }
         extra.nested.value = 'after'
-        assert.equal(copy.extra.nested.value, 'before')
+        for (const copy of copies) assert.equal(copy.extra.nested.value, 'before')
         assert.equal(captured.prepared.lines[0][0].extra.nested.value, 'before')
       }
     }
@@ -214,6 +226,36 @@ test('constructor text custody excludes mutable, accessor and function descendan
     assert.equal(preparedDisplayTextValue(retained.prepared), 'Read')
     assert.notEqual(retained, block)
     assert.equal(retained.lineBlocks[0].text, 'Read')
+  `], { cwd: `${import.meta.dir}/../..` })
+  expect(child.stderr).toBe('')
+  expect(child.status).toBe(0)
+})
+
+test('a repeated drawing keeps its finished output when the drawing tier is full', async () => {
+  const child = await runChild('node', ['--input-type=module', '-e', `
+    import assert from 'node:assert/strict'
+    import { borrowedPositioned, cachedNativeDrawing, finishedNativeDrawing, retainFinishedNativeDrawing, retainNativeDrawing, retainOwnedNativeSvgPositioned } from './src/experimental/position-cache.ts'
+    const family = {}
+    const use = (key, svg) => {
+      const request = {}
+      const layout = borrowedPositioned(family, key, request).result
+      const cached = cachedNativeDrawing(request, layout, true)
+      if (!cached) retainNativeDrawing(request, layout, { svg, preparedText: true, certification: { status: 'passed' } })
+      return cached
+    }
+    // Large drawings fill the tier's weight budget, leaving less room than
+    // the repeated drawing's finished output needs.
+    for (let index = 0; index < 12; index++) {
+      retainOwnedNativeSvgPositioned(family, 'fill-' + index, { positioned: { width: 1, height: 1 } })
+      use('fill-' + index, '<svg>' + 'x'.repeat(250000) + '</svg>')
+    }
+    retainOwnedNativeSvgPositioned(family, 'target', { positioned: { width: 1, height: 1 } })
+    use('target', '<svg/>')
+    use('target', '<svg/>')
+    const drawing = use('target', '<svg/>')
+    assert.ok(drawing)
+    retainFinishedNativeDrawing(drawing, { identity: 'finish', svg: '<svg>' + 'y'.repeat(400000) + '</svg>', diagnostics: [] })
+    assert.ok(finishedNativeDrawing(drawing, 'finish'), 'a locally repeated drawing may evict to keep its finished output')
   `], { cwd: `${import.meta.dir}/../..` })
   expect(child.stderr).toBe('')
   expect(child.status).toBe(0)
@@ -410,18 +452,22 @@ test('repeated private native drawings preserve receipts, policy and final secur
       'stateDiagram-v2\\n NativeOwnerA --> NativeOwnerB: retained transition',
     ]) {
       const reference = withoutPositionCache(() => renderer.renderMermaidSVGWithReceipt(source))
-      const reuse = []
-      for (let index = 0; index < 3; index++) {
+      const reuse = [], finalSecurity = []
+      for (let index = 0; index < 4; index++) {
         const start = events.length, priorPolicies = policies
         const actual = renderer.renderMermaidSVGWithReceipt(source)
         assert.deepEqual(actual, reference)
         assert.equal(policies, priorPolicies + 1)
         const observed = events.slice(start)
         reuse.push(observed.filter(event => event.kind === 'cache' && event.owner === 'native-drawing' && event.detail === 'positioned-owner').length)
-        assert.equal(observed.filter(event => event.kind === 'cache' && event.owner === 'svg-inspection' && event.detail === 'final-security').length, 1)
-        assert.ok(observed.some(event => event.kind === 'cache' && event.owner === 'paint-certification' && event.outcome === (index === 2 ? 'hit' : 'miss')))
+        finalSecurity.push(observed.filter(event => event.kind === 'cache' && event.owner === 'svg-inspection' && event.detail === 'final-security').length)
+        assert.ok(observed.some(event => event.kind === 'cache' && event.owner === 'paint-certification' && event.outcome === (index >= 2 ? 'hit' : 'miss')))
       }
-      assert.deepEqual(reuse, [0, 0, 1])
+      assert.deepEqual(reuse, [0, 0, 1, 1])
+      // Finishing (and its final security gate) runs until a retained drawing
+      // holds its finished output; the next identical repeat reuses those exact
+      // secured bytes and diagnostics, with the same receipt.
+      assert.deepEqual(finalSecurity, [1, 1, 1, 0])
       for (const options of [{ fg: '#334455' }, { compact: true }, { security: 'strict' }]) {
         const expected = withoutPositionCache(() => renderer.renderMermaidSVGWithReceipt(source, options))
         const start = events.length

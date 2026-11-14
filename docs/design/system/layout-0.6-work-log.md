@@ -2422,3 +2422,29 @@ The shared receipt omits general marker/foreign-shaft coverage; independent
 checks are case-scoped. Corrected99 enrollment and all failures/unknowns/costs
 remain in the dated PR602 loop packet. Newer Maina2e5 integration and its
 combined qualification are pending; this is a bounded milestone, not readiness.
+
+### 2026-11-14 — normal Main integration and cumulative cost (parents 0e96c55c / a2e5ddc9)
+
+Resolve the shared renderer merge by retaining actual-write/custody, paid XML,
+prepared-text and painted-circle contracts alongside Main's owned clone, bounded
+route prefilter and finishing reuse. Upstream's Block lazy budget change is
+inherited unchanged. All 1,457 affected tests, core/repo types, scoped lint and
+matched seven-entry Node/lazy-browser builds pass. Fresh compound 32 outputs
+remain exact to the prior milestone and clear in independent final-ink checks.
+Fresh original 99 x four arms plus pinned-Node 396 parser/product checks preserve
+all 198 prior candidate products; current Main's controlled-image omission is
+absent in the combined result. Meaning is 89/91 complete, two unknown; paint has
+75 Native/74 ELK passes, 24/25 unknown and no known failure. General marker/shaft
+receipt coverage remains absent; the separate compound scan stays case-scoped.
+Current-Main matched full-response medians are adverse on Native chain100
+72.58→100.52 ms, fan-in100 112.51→140.60 and chain300 179.15→249.33; identityLR
+30.73→23.81 improves, while its stock SVG clock is effectively unchanged.
+Chain300 proof changes from Main passed to combined 400k unverified; no waiver.
+All 540 calls return, but cold/edit, heap/RSS and ELK regressions remain recorded.
+Actual Flow app payload grows 41,108 gzip Native/30,292 ELK bytes versus Main;
+observed requests are 32 Native/27 ELK, including two observation bindings.
+All 132 delivery observations pass and close. The fresh mapped diagnostic still
+ranks Native paint copy/validation work highly; inspector overhead is separate,
+and sample time implies no unprofiled saving. General 100 ms, payload, proof and
+TB crossing/area gaps remain open. Next: exact merge-head CI and a distinct,
+profile-supported simplification; do not replay withdrawn copy/XML/axis probes.

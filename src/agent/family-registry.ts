@@ -33,7 +33,7 @@ import { boundedUtf8ByteLength } from '../shared/utf8.ts'
 
 import { compareCodePointStrings } from '../shared/deterministic-order.ts'
 import { C4_CONFIG_KEYS, C4_NOOP_CONFIG_KEYS } from '../c4/config.ts'
-import { installRegisteredFamilyByIdResolver, installRegisteredFamilyResolver } from './family-router.ts'
+import { installRegisteredFamilyByIdResolver, installRegisteredFamilyResolver, noteFamilyRoutingChange } from './family-router.ts'
 import { normalizeFamilyDetectionLine } from '../mermaid-source-wrapper.ts'
 export { extractLabelsGeneric } from './family-labels.ts'
 
@@ -1985,6 +1985,9 @@ function validateDescriptor(descriptor: FamilyDescriptor, replacingId?: FamilyId
 
 /** Built-ins enter this authority only after their implementation is loaded. */
 const REGISTRY = new Map<FamilyId, FamilyDescriptor>()
+// Every installed-family change advances the routing revision.
+function setRegisteredFamily(id: FamilyId, descriptor: FamilyDescriptor): void { REGISTRY.set(id, descriptor); noteFamilyRoutingChange() }
+function deleteRegisteredFamily(id: FamilyId): void { if (REGISTRY.delete(id)) noteFamilyRoutingChange() }
 
 /** @internal Complete first-party hooks, loaded eagerly by the library or on
  * demand by its hosted worker. Extensions use the conformance boundary. */
@@ -1997,7 +2000,7 @@ export function installBuiltinFamily(id: DiagramKind, hooks: Parameters<typeof c
   const descriptor = completeBuiltinDescriptor(seed, hooks)
   validateDescriptor(descriptor)
   enrollOwnedFamily(descriptor)
-  REGISTRY.set(id, descriptor)
+  setRegisteredFamily(id, descriptor)
   CONFORMANCE.set(id, builtinFamilyConformanceReport(descriptor))
   return descriptor
 }
@@ -2013,7 +2016,7 @@ export function installBuiltinMutationHooks(id: DiagramKind, hooks: Pick<FamilyO
   const descriptor = completeBuiltinDescriptor(seed, { ...existing, mutate: hooks.mutate, mutateSource: hooks.mutateSource })
   validateDescriptor(descriptor, id)
   enrollOwnedFamily(descriptor)
-  REGISTRY.set(id, descriptor)
+  setRegisteredFamily(id, descriptor)
   CONFORMANCE.set(id, builtinFamilyConformanceReport(descriptor))
   return descriptor
 }
@@ -2083,7 +2086,7 @@ export function stageFamilyCandidateForConformance(descriptor: FamilyDescriptor,
     if (existing) throw new ExtensionCollisionError(installed.identity, existing.identity)
     validateSnapshot?.(installed)
     validateDescriptor(installed)
-    REGISTRY.set(id, installed)
+    setRegisteredFamily(id, installed)
     let settled = false
     const settle = (): void => {
       if (stagedMutation?.token !== token) throw new Error(`Family candidate "${id}" lost its staging authority`)
@@ -2106,7 +2109,7 @@ export function stageFamilyCandidateForConformance(descriptor: FamilyDescriptor,
           if (removed) return
           assertRegistryMutationAllowed()
           if (REGISTRY.get(id) === installed) {
-            REGISTRY.delete(id)
+            deleteRegisteredFamily(id)
             CONFORMANCE.delete(id)
           }
           removed = true
@@ -2114,7 +2117,7 @@ export function stageFamilyCandidateForConformance(descriptor: FamilyDescriptor,
       },
       rollback(): void {
         if (settled) return
-        if (REGISTRY.get(id) === installed) REGISTRY.delete(id)
+        if (REGISTRY.get(id) === installed) deleteRegisteredFamily(id)
         CONFORMANCE.delete(id)
         settle()
       },
@@ -2136,7 +2139,7 @@ export function replaceFamilyForTest(id: FamilyId, replacement: FamilyDescriptor
     const installed = freezeDescriptor(replacement)
     if (installed.id !== id) throw new Error(`Replacement id "${installed.id}" does not match "${id}"`)
     validateDescriptor(installed, id)
-    REGISTRY.set(id, installed)
+    setRegisteredFamily(id, installed)
   } catch (error) {
     if (stagedMutation?.token === token) stagedMutation = null
     throw error
@@ -2147,7 +2150,7 @@ export function replaceFamilyForTest(id: FamilyId, replacement: FamilyDescriptor
   return () => {
     if (restored) return
     assertRegistryMutationAllowed()
-    REGISTRY.set(id, previous)
+    setRegisteredFamily(id, previous)
     restored = true
   }
 }

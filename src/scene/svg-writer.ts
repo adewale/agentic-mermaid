@@ -1,5 +1,4 @@
 import { xmlLiteralSpan } from '../shared/xml-literal.ts'
-import { retainWrittenFields, retainTextAttributes, writeTextOpening, writerEvidenceEnabled } from '../svg-writer-evidence.ts'
 // ============================================================================
 // The default backend's SVG writer: each shape, text and connector mark's
 // element is written from its typed fields, so paint certification, which
@@ -733,9 +732,6 @@ export function writtenLeafContextOf(node: object, svg: string): WrittenLeafCont
  * Numeric fields use the shared SVG spelling at this write boundary. */
 class SvgWriter {
   value = ''
-  private tagName?: string
-  private start = 0
-  private attributes: string[] | undefined = writerEvidenceEnabled() ? [] : undefined
   transformed = false
   ownedGeometry = false
   observeAttributes?: (name: string, literal: string) => void
@@ -754,27 +750,20 @@ class SvgWriter {
 
   element(name: string): void {
     const actual = `${name}`
-    this.tagName = actual
-    this.start = this.value.length
-    this.attributes = writerEvidenceEnabled() ? [] : undefined
     this.raw(`<${actual}`)
     this.xml?.element(actual)
   }
 
   close(): void {
     this.value += ' />'
-    if (this.tagName && this.attributes) retainWrittenFields(this.value.slice(this.start), this.tagName, this.attributes, true)
-    this.tagName = undefined
   }
 
-  textEvidence(text: string) { return this.attributes ? retainTextAttributes(text, this.attributes) : undefined }
 
   raw(text: string): void { this.value += text }
 
   attribute(name: string, value: string | number, changedToken?: (offset: number, literal: string) => boolean | void, numericToken?: (literal: string, raw: string) => boolean | void, paintField?: keyof MarkPaint, fixed = false): string {
     const literal = typeof value === 'number' ? formatSvgNumber(value) : formatSvgNumericAttribute(name, value, changedToken, numericToken)
     const escaped = typeof value === 'number' ? literal : escapeAttr(literal)
-    this.attributes?.push(name, escaped)
     this.value += ` ${name}="${escaped}"`
     // The numeric producer spells primitive numbers with intrinsic ToString.
     // Its ASCII fact closes only XML syntax, never finite geometry or paint.
@@ -789,7 +778,6 @@ class SvgWriter {
   }
   numericPoints(value: string, valid: boolean): void {
     if (!valid) { this.fixedAttribute('points', value); return }
-    this.attributes?.push('points', value)
     this.value += ` points="${value}"`
     this.xml?.numericPoints(value, valid)
   }
@@ -1178,7 +1166,7 @@ export function writeTextSvg(node: TextMark, capture?: SvgXmlCapture, sink?: Svg
     observed = true
     out.xml!.prepared(written)
     if (report) out.xml!.markPaintPrepared(written)
-  } : undefined, node.anchor, out.textEvidence(attrs))
+  } : undefined, node.anchor)
   if (!node.spans) {
     if (!capture) return svg
     const write = finishXmlLeaf(capture, node, svg, out.xml, observed, undefined, report ? out.xml : undefined)
@@ -1193,7 +1181,7 @@ export function writeTextSvg(node: TextMark, capture?: SvgXmlCapture, sink?: Svg
   const content = `>${escapeXml(shown)}</text>`
   if (!svg.endsWith(content)) throw new TypeError(`Text "${node.id}" spans require a one-line label`)
   let spans = ''
-  for (const span of node.spans) spans += `${writeTextOpening('tspan', [['fill', escapeAttr(span.fill)]])}${escapeXml(span.text)}</tspan>`
+  for (const span of node.spans) spans += `<tspan fill="${escapeAttr(span.fill)}">${escapeXml(span.text)}</tspan>`
   const written = `${svg.slice(0, -content.length)}>${spans}</text>`
   if (!capture) return written
   const write = capture.raw(written, node)
@@ -1229,7 +1217,7 @@ function connectorInlineLabelSvg(node: ConnectorMark, label: ConnectorLabelDescr
   const svg = renderMultilineText(block, label.anchor.x, label.anchor.y - Math.max(0, label.clearance ?? 0), block.fontSize, attrs = capture ? xmlRange(out.value, 1) : out.value.slice(1), 0, false, out.xml ? written => {
     complete = true
     out.xml!.prepared(written)
-  } : undefined, label.textAnchor, out.textEvidence(attrs))
+  } : undefined, label.textAnchor)
   return { svg, transformed: out.transformed, xml: out.xml, complete }
 }
 

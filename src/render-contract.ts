@@ -1,4 +1,6 @@
 import { WeightedLru } from './experimental/weighted-lru.ts'
+import { parserObservationActive } from './shared/parser-observation.ts'
+import { familyRoutingRevision } from './agent/family-router.ts'
 // ============================================================================
 // Canonical render-request waist.
 //
@@ -513,27 +515,92 @@ interface FamilyDataNormalizationBudget {
   chars: number
   opaque: boolean
   admission?: { nodes: number; valid: boolean }
+  /** Every visited value, position-independent JSON-admission failures and
+   * the deepest object/value, so a captured subtree can record its totals. */
+  values: number
+  invalid: number
+  objectDepth: number
+  valueDepth: number
 }
 
+function familyDataBudget(admission?: NonNullable<FamilyDataNormalizationBudget['admission']>): FamilyDataNormalizationBudget {
+  return { nodes: 0, chars: 0, opaque: false, admission, values: 0, invalid: 0, objectDepth: 0, valueDepth: 0 }
+}
+
+/** A captured snapshot's budget totals. Snapshots are deeply frozen, so the
+ * totals stay true, and a later capture can charge them without walking. Only
+ * snapshots with no JSON-admission failure are recorded; any other snapshot
+ * always takes the full walk. */
+interface AdmittedFamilyData {
+  readonly chars: number
+  readonly nodes: number
+  readonly values: number
+  readonly objectDepth: number
+  readonly valueDepth: number
+}
+const ADMITTED_FAMILY_DATA = new WeakMap<object, AdmittedFamilyData>()
+
 /** Capture compact immutable data under the bounds before schema validation.
- * Opaque leaves remain unbranded for the owner's subsequent rejection. */
+ * Opaque leaves remain unbranded for the owner's subsequent rejection.
+ * A snapshot this function already captured is admitted once: later captures
+ * (request receipts, cached capability decisions, family config) charge its
+ * recorded totals and reuse it. Whenever a bound could be crossed, the full
+ * walk runs instead, so every limit error keeps its exact type and path. */
 function omitUndefinedObjectFields(
   value: unknown,
   path = '$',
   depth = 0,
   ancestors = new Set<object>(),
-  budget: FamilyDataNormalizationBudget = { nodes: 0, chars: 0, opaque: false, admission: undefined },
+  budget: FamilyDataNormalizationBudget = familyDataBudget(),
+): unknown {
+  if (value === null || typeof value !== 'object') return captureFamilyDataNode(value, path, depth, ancestors, budget)
+  const admitted = ADMITTED_FAMILY_DATA.get(value)
+  if (admitted && !ancestors.has(value) && depth + admitted.objectDepth <= FAMILY_DATA_MAX_DEPTH
+    && budget.chars + admitted.chars <= FAMILY_DATA_MAX_CHARS && budget.nodes + admitted.nodes <= FAMILY_DATA_MAX_NODES) {
+    budget.chars += admitted.chars
+    budget.nodes += admitted.nodes
+    budget.values += admitted.values
+    budget.objectDepth = Math.max(budget.objectDepth, depth + admitted.objectDepth)
+    budget.valueDepth = Math.max(budget.valueDepth, depth + admitted.valueDepth)
+    const admission = budget.admission
+    if (admission?.valid) {
+      admission.nodes += admitted.values
+      if (admission.nodes > JSON_CONFIG_ADMISSION_LIMITS.maxNodes || depth + admitted.valueDepth > JSON_CONFIG_ADMISSION_LIMITS.maxDepth) admission.valid = false
+    }
+    return value
+  }
+  const chars = budget.chars, nodes = budget.nodes, values = budget.values, invalid = budget.invalid
+  const objectDepth = budget.objectDepth, valueDepth = budget.valueDepth
+  budget.objectDepth = budget.valueDepth = depth
+  const captured = captureFamilyDataNode(value, path, depth, ancestors, budget)
+  if (captured !== value && typeof captured === 'object' && captured !== null && IMMUTABLE_SNAPSHOTS.has(captured) && budget.invalid === invalid) {
+    ADMITTED_FAMILY_DATA.set(captured, {
+      chars: budget.chars - chars,
+      nodes: budget.nodes - nodes,
+      values: budget.values - values,
+      objectDepth: budget.objectDepth - depth,
+      valueDepth: budget.valueDepth - depth,
+    })
+  }
+  budget.objectDepth = Math.max(budget.objectDepth, objectDepth)
+  budget.valueDepth = Math.max(budget.valueDepth, valueDepth)
+  return captured
+}
+
+function captureFamilyDataNode(
+  value: unknown,
+  path: string,
+  depth: number,
+  ancestors: Set<object>,
+  budget: FamilyDataNormalizationBudget,
 ): unknown {
   const admission = budget.admission
-  if (admission?.valid) {
-    if (++admission.nodes > JSON_CONFIG_ADMISSION_LIMITS.maxNodes || depth > JSON_CONFIG_ADMISSION_LIMITS.maxDepth) admission.valid = false
-    switch (typeof value) {
-      case 'number':
-        if (value - value !== 0) admission.valid = false
-        break
-      case 'undefined': case 'bigint': case 'symbol': case 'function': admission.valid = false
-    }
-  }
+  budget.values++
+  if (depth > budget.valueDepth) budget.valueDepth = depth
+  const invalidLeaf = typeof value === 'number' ? value - value !== 0
+    : typeof value === 'undefined' || typeof value === 'bigint' || typeof value === 'symbol' || typeof value === 'function'
+  if (invalidLeaf) budget.invalid++
+  if (admission?.valid && (++admission.nodes > JSON_CONFIG_ADMISSION_LIMITS.maxNodes || depth > JSON_CONFIG_ADMISSION_LIMITS.maxDepth || invalidLeaf)) admission.valid = false
   if (typeof value === 'string') {
     budget.chars += value.length
     if (budget.chars > FAMILY_DATA_MAX_CHARS) throw new TypeError(`data exceeds the ${FAMILY_DATA_MAX_CHARS}-character aggregate limit at ${path}`)
@@ -541,6 +608,7 @@ function omitUndefinedObjectFields(
   }
   if (value === null || typeof value !== 'object') return value
   if (depth > FAMILY_DATA_MAX_DEPTH) throw new TypeError(`data exceeds maximum depth ${FAMILY_DATA_MAX_DEPTH} at ${path}`)
+  if (depth > budget.objectDepth) budget.objectDepth = depth
   if (++budget.nodes > FAMILY_DATA_MAX_NODES) throw new TypeError(`data exceeds the ${FAMILY_DATA_MAX_NODES}-node aggregate limit at ${path}`)
   if (ancestors.has(value)) throw new TypeError(`data must be acyclic at ${path}`)
 
@@ -561,7 +629,10 @@ function omitUndefinedObjectFields(
         slot.value = child
         Object.defineProperty(result, index, slot)
       }
-      if (admission && result.length > JSON_CONFIG_ADMISSION_LIMITS.maxItemsPerContainer) admission.valid = false
+      if (result.length > JSON_CONFIG_ADMISSION_LIMITS.maxItemsPerContainer) {
+        budget.invalid++
+        if (admission) admission.valid = false
+      }
       return freezeSnapshot(result, !budget.opaque)
     } finally {
       ancestors.delete(value)
@@ -581,7 +652,10 @@ function omitUndefinedObjectFields(
       budget.chars += key.length
       if (budget.chars > FAMILY_DATA_MAX_CHARS) throw new TypeError(`data exceeds the ${FAMILY_DATA_MAX_CHARS}-character aggregate limit at ${path}.${key}`)
       if (child !== undefined) {
-        if (admission && (++properties > JSON_CONFIG_ADMISSION_LIMITS.maxItemsPerContainer || isForbiddenJsonConfigKey(key))) admission.valid = false
+        if (++properties > JSON_CONFIG_ADMISSION_LIMITS.maxItemsPerContainer || isForbiddenJsonConfigKey(key)) {
+          budget.invalid++
+          if (admission) admission.valid = false
+        }
         const captured = omitUndefinedObjectFields(child, `${path}.${key}`, depth + 1, ancestors, budget)
         if (key in result) Object.defineProperty(result, key, { value: captured, enumerable: true })
         else result[key] = captured
@@ -705,9 +779,9 @@ function canonicalJson(value: unknown): string {
 /** Stable, browser-safe FNV-1a-64 receipt (not a security primitive). */
 /** A request receipt that overflows the digest budget is a source too large
  * for this host, even when the source alone fit the sourceCharacters check. */
-function deferredRequestReceiptDigest(receipt: unknown, source: { readonly originalText: string; readonly text: string }): () => string {
+function admittedRequestReceipt(receipt: unknown, source: { readonly originalText: string; readonly text: string }): unknown {
   try {
-    return deferredRenderContractDigest(receipt)
+    return admitRenderContractDigestInput(receipt)
   } catch (error) {
     if (error instanceof TypeError && /aggregate limit/.test(error.message)) {
       throw new DiagramWorkLimitError('sourceCharacters', source.originalText.length + source.text.length, true)
@@ -726,7 +800,12 @@ export function renderContractDigest(value: unknown): string {
  * for a long-lived receipt consumer. Internal only: public digest calls remain
  * eager, including all their admission errors. */
 export function deferredRenderContractDigest(value: unknown): () => string {
-  let snapshot: unknown = admitRenderContractDigestInput(value)
+  return deferredAdmittedDigest(admitRenderContractDigestInput(value))
+}
+
+/** Serialize and hash an already-admitted snapshot only when consumed. */
+function deferredAdmittedDigest(admitted: unknown): () => string {
+  let snapshot: unknown = admitted
   let digest: string | undefined
   return () => {
     if (digest === undefined) {
@@ -841,7 +920,7 @@ function boundedImmutableJsonSnapshot<T>(value: T, context: string, admission?: 
     // A non-JSON leaf stays unbranded until the ordinary snapshot walk names
     // it, after the complete budget/accessor pass has kept its error order.
     return immutableSnapshot(admission
-      ? omitUndefinedObjectFields(value, '$', 0, new Set(), { nodes: 0, chars: 0, opaque: false, admission })
+      ? omitUndefinedObjectFields(value, '$', 0, new Set(), familyDataBudget(admission))
       : omitUndefinedObjectFields(value)) as T
   } catch (error) {
     throw new TypeError(`${context} could not be snapshotted: ${error instanceof Error ? error.message : String(error)}`)
@@ -1073,6 +1152,72 @@ function executionCapabilityError(
 
 const EXECUTION_CAPABILITY_DECISIONS = new Map<string, CapabilityDecision>()
 
+// Normalization is a pure function of the text, the (empty) Mermaid config
+// overrides and family routing, for the package's own family descriptors.
+// Results are reused within one routing revision and for the same explicit
+// descriptor. Each request receives its own frozen top-level snapshot over the
+// shared frozen views, so request-scoped custody keyed by source identity is
+// unchanged.
+interface RememberedNormalizedSource {
+  readonly revision: number
+  readonly descriptor: FamilyDescriptor | undefined
+  readonly source: NormalizedMermaidSource
+  readonly classification: ReturnType<typeof classifyMermaidFamilyDescriptorFromFirstLine> | undefined
+}
+const NORMALIZED_SOURCES = new WeightedLru<string, RememberedNormalizedSource>(64, 4 * 1024 * 1024)
+
+function rememberedNormalizedSource(text: string, descriptor: FamilyDescriptor | undefined): RememberedNormalizedSource | undefined {
+  const remembered = NORMALIZED_SOURCES.get(text)
+  return remembered && remembered.revision === familyRoutingRevision() && remembered.descriptor === descriptor ? remembered : undefined
+}
+
+function rememberNormalizedSource(text: string, descriptor: FamilyDescriptor | undefined, source: NormalizedMermaidSource, classification: RememberedNormalizedSource['classification']): void {
+  // The normalized views hold about eight copies of the text.
+  NORMALIZED_SOURCES.set(text, { revision: familyRoutingRevision(), descriptor, source, classification }, text.length * 18 + 4096)
+}
+
+function requestSourceSnapshot(shared: NormalizedMermaidSource): NormalizedMermaidSource {
+  return freezeSnapshot({ ...shared })
+}
+
+// resolveAppearance is a pure function of the family, the normalized source,
+// the admitted options and the style and face prepared from them; named style
+// references also read the style registry. Its deeply frozen result is reused
+// for a remembered source under the same registry revision, options and
+// prepared style identities. Entries live as long as the remembered source.
+interface RememberedAppearance {
+  readonly style: Readonly<StyleSpec> | undefined
+  readonly face: Readonly<InternalStyleFace> | undefined
+  readonly context: ResolvedAppearanceContext
+}
+const REMEMBERED_APPEARANCES = new WeakMap<NormalizedMermaidSource, Map<string, RememberedAppearance>>()
+const REMEMBERED_APPEARANCES_PER_SOURCE = 8
+
+function appearanceMemoKey(admitted: AdmittedRenderOptions): string | undefined {
+  // Captured options carry the style and references of their capture instant.
+  if (admitted.capturedStyle) return undefined
+  const options = admitted === EMPTY_ADMITTED_OPTIONS ? '' : JSON.stringify(admitted.serializable)
+  return options.length <= 4096 ? `${styleRegistryRevision()}:${options}` : undefined
+}
+
+function rememberedAppearance(
+  shared: NormalizedMermaidSource | undefined,
+  key: string | undefined,
+  input: ResolveAppearanceInput,
+): ResolvedAppearanceContext {
+  // An active parser observer asks to see the family normalizer's actual parse.
+  if (!shared || key === undefined || parserObservationActive(input.family.id)) return resolveAppearance(input)
+  let entries = REMEMBERED_APPEARANCES.get(shared)
+  const remembered = entries?.get(key)
+  if (remembered && remembered.style === input.style && remembered.face === input.styleFace) return remembered.context
+  const context = resolveAppearance(input)
+  if (!entries) REMEMBERED_APPEARANCES.set(shared, entries = new Map())
+  entries.delete(key)
+  entries.set(key, { style: input.style, face: input.styleFace, context })
+  if (entries.size > REMEMBERED_APPEARANCES_PER_SOURCE) entries.delete(entries.keys().next().value as string)
+  return context
+}
+
 /** Keys contain only captured tuple metadata, never source, hooks or policy.
  * Length prefixes preserve order and boundaries without serialization hooks. */
 function executionCapabilityKey(output: RenderOutput, offers: readonly CapabilityOffer[], requirements: readonly CapabilityRequirement[], available: boolean): string | undefined {
@@ -1101,7 +1246,9 @@ function executionCapabilityDecision(output: RenderOutput, offers: readonly Capa
   const retained = key === undefined ? undefined : EXECUTION_CAPABILITY_DECISIONS.get(key)
   observeCache('capability-decision', key === undefined ? 'bypass' : retained ? 'hit' : 'miss', key === undefined ? 'tuple-budget' : undefined)
   if (retained) return retained
-  const decision = negotiateRenderCapabilityTuple(output, { offers, requirements, outputAvailable })
+  // Admitted once here, so every request receipt that embeds this cached
+  // decision reuses it instead of copying its resolutions again.
+  const decision = omitUndefinedObjectFields(negotiateRenderCapabilityTuple(output, { offers, requirements, outputAvailable })) as CapabilityDecision
   if (key !== undefined) {
     if (EXECUTION_CAPABILITY_DECISIONS.size < 32) EXECUTION_CAPABILITY_DECISIONS.set(key, decision)
     else observeCache('capability-decision', 'store-skipped', 'capacity')
@@ -1418,15 +1565,31 @@ export function resolveRenderRequestForExecution(
   // Decode at the shared request waist so SVG, PNG, layout and terminal
   // transports agree on semantic text; retain authored bytes separately.
   let classification: ReturnType<typeof classifyMermaidFamilyDescriptorFromFirstLine> | undefined
-  const normalizedSource = normalizeMermaidRenderSource(text, admittedOptions.mermaidConfig ?? {}, firstLine => {
-    if (resolutionOptions.familyDescriptor) return resolutionOptions.familyDescriptor
-    classification = classifyMermaidFamilyDescriptorFromFirstLine(firstLine)
-    return classification.kind === 'registered' ? classification.family : null
-  })
   // Parsing consumes decoded semantic text, while provenance retains the
   // exact authored boundary bytes. Equivalent encodings may render alike but
   // must not collapse to the same request identity.
-  const detectedSource: NormalizedMermaidSource = immutableSnapshot(normalizedSource)
+  let detectedSource: NormalizedMermaidSource
+  let sharedSource: NormalizedMermaidSource | undefined
+  const memoable = admittedOptions.mermaidConfig === undefined || Object.keys(admittedOptions.mermaidConfig).length === 0
+  const remembered = memoable ? rememberedNormalizedSource(text, resolutionOptions.familyDescriptor) : undefined
+  if (remembered) {
+    classification = remembered.classification
+    sharedSource = remembered.source
+    detectedSource = requestSourceSnapshot(remembered.source)
+  } else {
+    const normalizedSource = normalizeMermaidRenderSource(text, admittedOptions.mermaidConfig ?? {}, firstLine => {
+      if (resolutionOptions.familyDescriptor) return resolutionOptions.familyDescriptor
+      classification = classifyMermaidFamilyDescriptorFromFirstLine(firstLine)
+      return classification.kind === 'registered' ? classification.family : null
+    })
+    detectedSource = immutableSnapshot(normalizedSource)
+    const resolved = resolutionOptions.familyDescriptor ?? (classification?.kind === 'registered' ? classification.family : undefined)
+    if (memoable && resolved && isOwnedFamily(resolved)) {
+      rememberNormalizedSource(text, resolutionOptions.familyDescriptor, detectedSource, classification)
+      sharedSource = detectedSource
+      detectedSource = requestSourceSnapshot(detectedSource)
+    }
+  }
   // Capture one immutable descriptor before any extension callback runs. The
   // same object owns normalization, capability negotiation, layout and
   // lowering for the lifetime of this request.
@@ -1446,7 +1609,7 @@ export function resolveRenderRequestForExecution(
   checkFamilyConfigColors(source.frontmatter, family.id)
   const explicitOptionFields = Object.freeze(SHARED_RENDER_OPTION_FIELDS.filter(field => admittedOptions[field] !== undefined))
   const resolutionDiagnostics = renderOptionApplicabilityDiagnostics(family, explicitOptionFields)
-  const resolvedContext = resolveAppearance({
+  const resolvedContext = rememberedAppearance(sharedSource, appearanceMemoKey(admitted), {
     family,
     source,
     options: admittedOptions,
@@ -1496,14 +1659,17 @@ export function resolveRenderRequestForExecution(
     ...(executionPlan.textMeasurement ? { textMeasurement: executionPlan.textMeasurement.identity } : {}),
     capabilities: sharedCapabilityDecision,
   }
-  const sharedRequestDigest = deferredRequestReceiptDigest(sharedRequestReceipt, source)
+  const sharedAdmitted = admittedRequestReceipt(sharedRequestReceipt, source) as Readonly<Record<string, unknown>>
+  const sharedRequestDigest = deferredAdmittedDigest(sharedAdmitted)
+  // The full receipt restores the output negotiation over the shared fields
+  // as admitted above, so admission charges them instead of walking them again.
   const requestReceipt = {
-    ...sharedRequestReceipt,
+    ...sharedAdmitted,
     output,
     outputOptions,
     capabilities: capabilityDecision,
   }
-  const requestDigest = deferredRequestReceiptDigest(requestReceipt, source)
+  const requestDigest = deferredAdmittedDigest(admittedRequestReceipt(requestReceipt, source))
   const request: ResolvedRenderRequest = Object.freeze({
     version: RENDER_CONTRACT_VERSION,
     output,

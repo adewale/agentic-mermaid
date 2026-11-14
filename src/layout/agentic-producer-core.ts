@@ -1,6 +1,7 @@
 import { solveMeasuredLayout } from './measured-backend.ts'
 import { prepareMeasuredGraphCandidate } from './measured-graph-producer.ts'
 import { finalizeFlatMeasuredMarkers } from './compound-boundary-routes.ts'
+import { layoutDebugEnvIdentity } from './debug-env.ts'
 import type { ChannelWork } from './channel-tracks.ts'
 import type { LayoutCertificationCandidate } from './certification.ts'
 import { GraphLayoutUnsupportedError, LayoutCertificationError } from './backend.ts'
@@ -169,7 +170,7 @@ function selectNativeGraphCandidate(
   let key: string | undefined, choices: NativeResults<NativeOrder> | undefined
   if (eligible && NATIVE_CACHE_ENABLED && !bindings.customTextMeasurementActive()) {
     const serialized = geometryInputKey([graph, options, style,
-      Object.keys(nativeHost.process?.env ?? {}).filter(name => name.startsWith('APL_')).map(name => [name, nativeHost.process!.env![name]]).sort()])
+      layoutDebugEnvIdentity()])
     if (serialized.length <= 65536) {
       key = serialized
       choices = orderChoices.get(bindings)

@@ -12,6 +12,7 @@ import * as elk from '../elk-instance.ts'
 import { useTestChildren } from './helpers/test-child.ts'
 
 const runChild = useTestChildren(20_000)
+const GANTT_SOURCE = 'gantt\n  dateFormat YYYY-MM-DD\n  title Delivery\n  section Build\n    Design :a1, 2026-01-01, 3d\n    Implement :after a1, 4d'
 
 test('capability reuse reports hits, bounded capacity and oversized bypass without retaining a different tuple', async () => {
   const child = await runChild(process.execPath, ['-e', `
@@ -119,6 +120,101 @@ test('positioned cache reports real lookup results and an uncached uncloneable a
     { version: 1, kind: 'cache', owner: 'positioned-layout', outcome: 'miss' },
   ])
   expect(JSON.stringify(events)).not.toContain('private-key')
+})
+
+test('a rotation larger than the positioned cache keeps hitting, without losing immediate reuse or a new working set', async () => {
+  const child = await runChild(process.execPath, ['-e', `
+    import { cachedPositioned, retainPositioned } from './src/experimental/position-cache.ts'
+    const family = {}
+    const use = key => {
+      if (cachedPositioned(family, key)) return 1
+      retainPositioned(family, key, { positioned: { width: 1, height: 1, label: key + 'x'.repeat(key.startsWith('heavy') ? 1_000_000 : key.startsWith('light') ? 40_000 : 0) } })
+      return 0
+    }
+    const pass = keys => keys.reduce((hits, key) => hits + use(key), 0)
+    const keys = (prefix, count) => Array.from({ length: count }, (_, index) => prefix + index)
+    // A few heavy layouts fill the weight budget; medium ones fit only by displacing them.
+    const mixed = [...keys('heavy-', 12), ...keys('light-', 100)]
+    const mixedPasses = [pass(mixed), pass(mixed), pass(mixed)]
+    // A larger rotation then replaces that working set.
+    const rotation = keys('rotation-', 200)
+    const rotationPasses = Array.from({ length: 6 }, () => pass(rotation))
+    // Render then verify of new text while the cache is saturated.
+    use('fresh')
+    const immediate = cachedPositioned(family, 'fresh') !== undefined
+    const afterImmediate = pass(rotation)
+    // New text reused after other layouts were stored joins the cache.
+    use('working'); use('other'); const reused = use('working')
+    for (const key of keys('later-', 5)) use(key)
+    console.log(JSON.stringify({ mixedPasses, rotationPasses, immediate, afterImmediate, reused, working: use('working'), other: use('other') }))
+  `], { cwd: `${import.meta.dir}/../..`, env: { ...process.env } })
+  expect(child.status, child.stderr).toBe(0)
+  const result = JSON.parse(child.stdout)
+  // Lighter layouts displace heavy ones instead of thrashing behind them.
+  expect(result.mixedPasses[2]).toBeGreaterThanOrEqual(100)
+  // The cache holds 128 layouts; a protected rotation reuses all of them.
+  expect(result.rotationPasses.at(-1)).toBe(128)
+  expect(result.immediate).toBe(true)
+  expect(result.afterImmediate).toBe(128)
+  expect({ reused: result.reused, working: result.working, other: result.other }).toEqual({ reused: 1, working: 1, other: 0 })
+}, 20_000)
+
+test('a diagram repeated while the positioned cache is hot reuses its drawing', async () => {
+  const child = await runChild(process.execPath, ['-e', `
+    import { renderMermaidSVG } from './src/index.ts'
+    import { cachedPositioned, retainPositioned } from './src/experimental/position-cache.ts'
+    import { withPerformanceObserver } from './src/performance-observations.ts'
+    const filler = {}
+    for (let index = 0; index < 128; index++) retainPositioned(filler, 'filler-' + index, { positioned: { width: 1, height: 1 } })
+    for (let index = 0; index < 128; index++) cachedPositioned(filler, 'filler-' + index)
+    const outcomes = Array.from({ length: 3 }, () => {
+      const events = []
+      withPerformanceObserver(event => { if (event.kind === 'cache' && event.owner === 'native-drawing') events.push(event.outcome) }, () => renderMermaidSVG('flowchart LR\\n  Hot --> Repeat'))
+      return events
+    })
+    console.log(JSON.stringify(outcomes))
+  `], { cwd: `${import.meta.dir}/../..`, env: { ...process.env, AGENTIC_MERMAID_SCENE_ASSERTIONS: '0' } })
+  expect(child.status, child.stderr).toBe(0)
+  const outcomes = JSON.parse(child.stdout) as string[][]
+  expect(outcomes.at(-1)).toContain('hit')
+}, 20_000)
+
+test('identical repeats reuse positioned layouts: keys grow with authored text and layouts stay cloneable', () => {
+  const columns = Array.from({ length: 12 }, (_, column) => [`  stage${column}[Stage ${column}]`,
+    ...Array.from({ length: 20 }, (_, task) => `    task${column}_${task}[Task ${column}.${task}]@{assigned: "Owner ${task % 4}", ticket: "AM-${column * 20 + task}"}`)].join('\n'))
+  const services = Array.from({ length: 40 }, (_, index) => `  Container(s${index}, "Service ${index}", "TypeScript", "Handles workload ${index}")`)
+  const calls = Array.from({ length: 39 }, (_, index) => `Rel(s${index}, s${index + 1}, "Calls", "HTTPS")`)
+  const cases = [
+    // Derived grammar views once made this key about eight times the source.
+    { name: 'large kanban', source: ['kanban', ...columns].join('\n'), minimum: 12_000 },
+    // C4 layouts carry their identity allocator, which must be data, not a callback.
+    { name: 'small C4', source: 'C4Context\n  Person(u, "User")\n  System(s, "System")\n  Rel(u, s, "Uses")', minimum: 0 },
+    // The parsed C4 model in familyConfig is derived from the keyed source.
+    { name: 'large C4', source: ['C4Container', '  Person(user, "User")', '  System_Boundary(platform, "Platform") {', ...services, '  }', 'Rel(user, s0, "Uses")', ...calls].join('\n'), minimum: 3_000 },
+    // Gantt reads no clock; its today marker comes only from a keyed option.
+    { name: 'gantt', source: GANTT_SOURCE, minimum: 0 },
+  ]
+  for (const { name, source, minimum } of cases) {
+    expect(source.length).toBeGreaterThan(minimum)
+    const outcomes = (): string[] => {
+      const events: PerformanceObservation[] = []
+      withPerformanceObserver(event => events.push(event), () => renderMermaidSVG(source))
+      return events.flatMap(event => event.kind === 'cache' && event.owner === 'positioned-layout' ? [event.reason ? `${event.outcome}:${event.reason}` : event.outcome] : [])
+    }
+    outcomes()
+    expect({ name, outcomes: outcomes() }).toEqual({ name, outcomes: expect.arrayContaining(['hit']) })
+  }
+  // A different clock is a different key and moves the today marker.
+  const at = (ganttToday: string) => {
+    const events: PerformanceObservation[] = []
+    const svg = withPerformanceObserver(event => events.push(event), () => renderMermaidSVG(GANTT_SOURCE, { ganttToday }))
+    return { svg, hit: events.some(event => event.kind === 'cache' && event.owner === 'positioned-layout' && event.outcome === 'hit') }
+  }
+  const first = at('2026-01-03'), repeat = at('2026-01-03'), later = at('2026-01-05')
+  expect([first.hit, repeat.hit, later.hit]).toEqual([false, true, false])
+  expect(repeat.svg).toBe(first.svg)
+  expect(later.svg).not.toBe(first.svg)
+  expect(at('2026-01-05').svg).toBe(later.svg)
 })
 
 test('public rendering signals support and actual position-cache bypass; observer failures cannot affect output', () => {

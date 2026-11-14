@@ -12,6 +12,9 @@ export class WeightedLru<K, V> {
     this.#entries.delete(key); this.#entries.set(key, found)
     return found.value
   }
+  get size(): number { return this.#entries.size }
+  /** Read without changing recency. */
+  peek(key: K): V | undefined { return this.#entries.get(key)?.value }
   canFit(key: K, weight: number): boolean {
     const prior = this.#entries.get(key)
     return Number.isFinite(weight) && weight >= 0 && this.#entries.size + (prior ? 0 : 1) <= this.#maxEntries && this.#weight - (prior?.weight ?? 0) + weight <= this.#maxWeight
@@ -20,6 +23,12 @@ export class WeightedLru<K, V> {
   leastRecentlyUsed(): V | undefined {
     const oldest = this.#entries.values().next()
     return oldest.done ? undefined : oldest.value.value
+  }
+  /** The heaviest entry's key and weight, without changing recency. */
+  heaviest(): { key: K; weight: number } | undefined {
+    let found: { key: K; weight: number } | undefined
+    for (const [key, entry] of this.#entries) if (!found || entry.weight > found.weight) found = { key, weight: entry.weight }
+    return found
   }
   delete(key: K): boolean {
     const prior = this.#entries.get(key)
