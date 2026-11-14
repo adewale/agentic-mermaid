@@ -1,0 +1,113 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="572" height="454.7" viewBox="0 0 572 454.7" style="--bg:#FFFFFF;--fg:#27272A;--font:Inter;background:#FFFFFF" class="am-0tbcilf01qjwq1">
+<style>
+  svg.am-0tbcilf01qjwq1 { font-family: var(--font, 'Inter'), system-ui, sans-serif; }
+  svg.am-0tbcilf01qjwq1 {
+    /* Derived from --bg and --fg (overridable via --line, --accent, etc.) */
+    --_text:          #27272A;
+    --_text-sec:      #575759;
+    --_text-muted:    #707072;
+    --_text-faint:    #8a8a8c;
+    --_line:          #939395;
+    --_arrow:         #47474a;
+    --_node-fill:     #f9f9f9;
+    --_node-stroke:   #d4d4d4;
+    --_group-fill:    #FFFFFF;
+    --_group-hdr:     #f4f4f4;
+    --_inner-stroke:  #e5e5e5;
+    --_key-badge:     #e9e9ea;
+  }
+</style>
+<defs>
+  <marker id="arrowhead" markerWidth="8" markerHeight="5" refX="8" refY="2.5" orient="auto">
+    <polygon points="0 0, 8 2.5, 0 5" fill="#47474a" stroke="#47474a" stroke-width="0.75" stroke-linejoin="round" />
+  </marker>
+  <marker id="arrowhead-start" markerWidth="8" markerHeight="5" refX="0" refY="2.5" orient="auto">
+    <polygon points="8 0, 0 2.5, 8 5" fill="#47474a" stroke="#47474a" stroke-width="0.75" stroke-linejoin="round" />
+  </marker>
+</defs>
+<g class="subgraph" data-id="GroupA" data-region="subgraph" data-label="Group A" data-role="group">
+  <rect x="40" y="281.8" width="444" height="96.9" rx="0" ry="0" fill="#FFFFFF" stroke="#949495" stroke-width="1" data-id="group-rect:GroupA" data-role="group" />
+  <path d="M40,281.8 H484 V309.8 H40 Z" fill="#f4f4f4" stroke="#949495" stroke-width="1" />
+  <text x="52" y="295.8" text-anchor="start" font-size="12" font-weight="600" fill="#575759" data-prepared-text="true" dy="4.2" textLength="48.6" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Group A</text>
+</g>
+<g class="subgraph" data-id="GroupB" data-region="subgraph" data-label="Group B" data-role="group">
+  <rect x="40" y="160.9" width="444" height="96.9" rx="0" ry="0" fill="#FFFFFF" stroke="#949495" stroke-width="1" data-id="group-rect:GroupB" data-role="group" />
+  <path d="M40,160.9 H484 V188.9 H40 Z" fill="#f4f4f4" stroke="#949495" stroke-width="1" />
+  <text x="52" y="174.9" text-anchor="start" font-size="12" font-weight="600" fill="#575759" data-prepared-text="true" dy="4.2" textLength="48.6" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Group B</text>
+</g>
+<g class="subgraph" data-id="GroupC" data-region="subgraph" data-label="Group C" data-role="group">
+  <rect x="40" y="40" width="444" height="96.9" rx="0" ry="0" fill="#FFFFFF" stroke="#949495" stroke-width="1" data-id="group-rect:GroupC" data-role="group" />
+  <path d="M40,40 H484 V68 H40 Z" fill="#f4f4f4" stroke="#949495" stroke-width="1" />
+  <text x="52" y="54" text-anchor="start" font-size="12" font-weight="600" fill="#575759" data-prepared-text="true" dy="4.2" textLength="48.6" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Group C</text>
+</g>
+<polyline class="edge" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" points="71,325.8 71,312.8 37,312.8 37,273.8 423,273.8 423,241.8" fill="none" stroke="#939395" stroke-width="1" marker-end="url(#arrowhead)" data-relationship="flowchart-edge" data-direction="forward" data-id="edge:A0-&gt;B4#0" data-role="edge" data-from="A0" data-to="B4" role="graphics-symbol" aria-roledescription="relation" aria-label="A0 to B4" />
+<polyline class="edge" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" points="174,362.7 174,394.7 18.5,394.7 18.5,264.4875 252,264.4875 252,241.8" fill="none" stroke="#939395" stroke-width="1" marker-end="url(#arrowhead)" data-relationship="flowchart-edge" data-direction="forward" data-id="edge:A1-&gt;B2#0" data-role="edge" data-from="A1" data-to="B2" role="graphics-symbol" aria-roledescription="relation" aria-label="A1 to B2" />
+<polyline class="edge" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" points="262,362.7 262,382.7 9.25,382.7 9.25,217.2 56,217.2" fill="none" stroke="#939395" stroke-width="1" marker-end="url(#arrowhead)" data-relationship="flowchart-edge" data-direction="forward" data-id="edge:A2-&gt;B0#0" data-role="edge" data-from="A2" data-to="B0" role="graphics-symbol" aria-roledescription="relation" aria-label="A2 to B0" />
+<polyline class="edge" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" points="350,362.7 350,406.7 27.75,406.7 27.75,259.83125 340,259.83125 340,241.8" fill="none" stroke="#939395" stroke-width="1" marker-end="url(#arrowhead)" data-relationship="flowchart-edge" data-direction="forward" data-id="edge:A3-&gt;B3#0" data-role="edge" data-from="A3" data-to="B3" role="graphics-symbol" aria-roledescription="relation" aria-label="A3 to B3" />
+<polyline class="edge" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" points="438,362.7 438,376.7 4.625,376.7 4.625,269.14375 164,269.14375 164,241.8" fill="none" stroke="#939395" stroke-width="1" marker-end="url(#arrowhead)" data-relationship="flowchart-edge" data-direction="forward" data-id="edge:A4-&gt;B1#0" data-role="edge" data-from="A4" data-to="B1" role="graphics-symbol" aria-roledescription="relation" aria-label="A4 to B1" />
+<polyline class="edge" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" points="86,204.9 86,196.9 24,196.9 24,134.275 174,134.275 174,120.9" fill="none" stroke="#939395" stroke-width="1" marker-end="url(#arrowhead)" data-relationship="flowchart-edge" data-direction="forward" data-id="edge:B0-&gt;C1#0" data-role="edge" data-from="B0" data-to="C1" role="graphics-symbol" aria-roledescription="relation" aria-label="B0 to C1" />
+<polyline class="edge" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" points="174,204.9 174,196.9 500,196.9 500,134.275 350,134.275 350,120.9" fill="none" stroke="#939395" stroke-width="1" marker-end="url(#arrowhead)" data-relationship="flowchart-edge" data-direction="forward" data-id="edge:B1-&gt;C3#0" data-role="edge" data-from="B1" data-to="C3" role="graphics-symbol" aria-roledescription="relation" aria-label="B1 to C3" />
+<polyline class="edge" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" points="247,204.9 247,191.9 37,191.9 37,148.9 86,148.9 86,120.9" fill="none" stroke="#939395" stroke-width="1" marker-end="url(#arrowhead)" data-relationship="flowchart-edge" data-direction="forward" data-id="edge:B2-&gt;C0#0" data-role="edge" data-from="B2" data-to="C0" role="graphics-symbol" aria-roledescription="relation" aria-label="B2 to C0" />
+<polyline class="edge" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" points="365,204.9 365,191.9 487,191.9 487,148.9 438,148.9 438,120.9" fill="none" stroke="#939395" stroke-width="1" marker-end="url(#arrowhead)" data-relationship="flowchart-edge" data-direction="forward" data-id="edge:B3-&gt;C4#0" data-role="edge" data-from="B3" data-to="C4" role="graphics-symbol" aria-roledescription="relation" aria-label="B3 to C4" />
+<polyline class="edge" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-marker-end="arrow" points="468,214.125 524,214.125 524,157.9 262,157.9 262,120.9" fill="none" stroke="#939395" stroke-width="1" marker-end="url(#arrowhead)" data-relationship="flowchart-edge" data-direction="forward" data-id="edge:B4-&gt;C2#0" data-role="edge" data-from="B4" data-to="C2" role="graphics-symbol" aria-roledescription="relation" aria-label="B4 to C2" />
+<g class="node" data-id="A0" data-label="A0" data-shape="rectangle" data-role="node">
+  <rect x="56" y="325.8" width="60" height="36.9" rx="0" ry="0" fill="#f9f9f9" stroke="#949495" stroke-width="0.75" data-id="node-shape:A0" data-role="node" />
+  <text x="86" y="344.25" text-anchor="middle" font-size="13" font-weight="500" fill="#27272A" data-prepared-text="true" dy="4.55" textLength="18.252" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">A0</text>
+</g>
+<g class="node" data-id="A1" data-label="A1" data-shape="rectangle" data-role="node">
+  <rect x="144" y="325.8" width="60" height="36.9" rx="0" ry="0" fill="#f9f9f9" stroke="#949495" stroke-width="0.75" data-id="node-shape:A1" data-role="node" />
+  <text x="174" y="344.25" text-anchor="middle" font-size="13" font-weight="500" fill="#27272A" data-prepared-text="true" dy="4.55" textLength="13.806" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">A1</text>
+</g>
+<g class="node" data-id="A2" data-label="A2" data-shape="rectangle" data-role="node">
+  <rect x="232" y="325.8" width="60" height="36.9" rx="0" ry="0" fill="#f9f9f9" stroke="#949495" stroke-width="0.75" data-id="node-shape:A2" data-role="node" />
+  <text x="262" y="344.25" text-anchor="middle" font-size="13" font-weight="500" fill="#27272A" data-prepared-text="true" dy="4.55" textLength="18.252" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">A2</text>
+</g>
+<g class="node" data-id="A3" data-label="A3" data-shape="rectangle" data-role="node">
+  <rect x="320" y="325.8" width="60" height="36.9" rx="0" ry="0" fill="#f9f9f9" stroke="#949495" stroke-width="0.75" data-id="node-shape:A3" data-role="node" />
+  <text x="350" y="344.25" text-anchor="middle" font-size="13" font-weight="500" fill="#27272A" data-prepared-text="true" dy="4.55" textLength="18.252" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">A3</text>
+</g>
+<g class="node" data-id="A4" data-label="A4" data-shape="rectangle" data-role="node">
+  <rect x="408" y="325.8" width="60" height="36.9" rx="0" ry="0" fill="#f9f9f9" stroke="#949495" stroke-width="0.75" data-id="node-shape:A4" data-role="node" />
+  <text x="438" y="344.25" text-anchor="middle" font-size="13" font-weight="500" fill="#27272A" data-prepared-text="true" dy="4.55" textLength="18.252" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">A4</text>
+</g>
+<g class="node" data-id="B0" data-label="B0" data-shape="rectangle" data-role="node">
+  <rect x="56" y="204.9" width="60" height="36.9" rx="0" ry="0" fill="#f9f9f9" stroke="#949495" stroke-width="0.75" data-id="node-shape:B0" data-role="node" />
+  <text x="86" y="223.35" text-anchor="middle" font-size="13" font-weight="500" fill="#27272A" data-prepared-text="true" dy="4.55" textLength="18.252" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">B0</text>
+</g>
+<g class="node" data-id="B1" data-label="B1" data-shape="rectangle" data-role="node">
+  <rect x="144" y="204.9" width="60" height="36.9" rx="0" ry="0" fill="#f9f9f9" stroke="#949495" stroke-width="0.75" data-id="node-shape:B1" data-role="node" />
+  <text x="174" y="223.35" text-anchor="middle" font-size="13" font-weight="500" fill="#27272A" data-prepared-text="true" dy="4.55" textLength="13.806" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">B1</text>
+</g>
+<g class="node" data-id="B2" data-label="B2" data-shape="rectangle" data-role="node">
+  <rect x="232" y="204.9" width="60" height="36.9" rx="0" ry="0" fill="#f9f9f9" stroke="#949495" stroke-width="0.75" data-id="node-shape:B2" data-role="node" />
+  <text x="262" y="223.35" text-anchor="middle" font-size="13" font-weight="500" fill="#27272A" data-prepared-text="true" dy="4.55" textLength="18.252" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">B2</text>
+</g>
+<g class="node" data-id="B3" data-label="B3" data-shape="rectangle" data-role="node">
+  <rect x="320" y="204.9" width="60" height="36.9" rx="0" ry="0" fill="#f9f9f9" stroke="#949495" stroke-width="0.75" data-id="node-shape:B3" data-role="node" />
+  <text x="350" y="223.35" text-anchor="middle" font-size="13" font-weight="500" fill="#27272A" data-prepared-text="true" dy="4.55" textLength="18.252" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">B3</text>
+</g>
+<g class="node" data-id="B4" data-label="B4" data-shape="rectangle" data-role="node">
+  <rect x="408" y="204.9" width="60" height="36.9" rx="0" ry="0" fill="#f9f9f9" stroke="#949495" stroke-width="0.75" data-id="node-shape:B4" data-role="node" />
+  <text x="438" y="223.35" text-anchor="middle" font-size="13" font-weight="500" fill="#27272A" data-prepared-text="true" dy="4.55" textLength="18.252" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">B4</text>
+</g>
+<g class="node" data-id="C0" data-label="C0" data-shape="rectangle" data-role="node">
+  <rect x="56" y="84" width="60" height="36.9" rx="0" ry="0" fill="#f9f9f9" stroke="#949495" stroke-width="0.75" data-id="node-shape:C0" data-role="node" />
+  <text x="86" y="102.45" text-anchor="middle" font-size="13" font-weight="500" fill="#27272A" data-prepared-text="true" dy="4.55" textLength="18.252" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">C0</text>
+</g>
+<g class="node" data-id="C1" data-label="C1" data-shape="rectangle" data-role="node">
+  <rect x="144" y="84" width="60" height="36.9" rx="0" ry="0" fill="#f9f9f9" stroke="#949495" stroke-width="0.75" data-id="node-shape:C1" data-role="node" />
+  <text x="174" y="102.45" text-anchor="middle" font-size="13" font-weight="500" fill="#27272A" data-prepared-text="true" dy="4.55" textLength="13.806" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">C1</text>
+</g>
+<g class="node" data-id="C2" data-label="C2" data-shape="rectangle" data-role="node">
+  <rect x="232" y="84" width="60" height="36.9" rx="0" ry="0" fill="#f9f9f9" stroke="#949495" stroke-width="0.75" data-id="node-shape:C2" data-role="node" />
+  <text x="262" y="102.45" text-anchor="middle" font-size="13" font-weight="500" fill="#27272A" data-prepared-text="true" dy="4.55" textLength="18.252" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">C2</text>
+</g>
+<g class="node" data-id="C3" data-label="C3" data-shape="rectangle" data-role="node">
+  <rect x="320" y="84" width="60" height="36.9" rx="0" ry="0" fill="#f9f9f9" stroke="#949495" stroke-width="0.75" data-id="node-shape:C3" data-role="node" />
+  <text x="350" y="102.45" text-anchor="middle" font-size="13" font-weight="500" fill="#27272A" data-prepared-text="true" dy="4.55" textLength="18.252" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">C3</text>
+</g>
+<g class="node" data-id="C4" data-label="C4" data-shape="rectangle" data-role="node">
+  <rect x="408" y="84" width="60" height="36.9" rx="0" ry="0" fill="#f9f9f9" stroke="#949495" stroke-width="0.75" data-id="node-shape:C4" data-role="node" />
+  <text x="438" y="102.45" text-anchor="middle" font-size="13" font-weight="500" fill="#27272A" data-prepared-text="true" dy="4.55" textLength="18.252" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">C4</text>
+</g>
+</svg>

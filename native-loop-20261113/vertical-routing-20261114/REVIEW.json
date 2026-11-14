@@ -1,0 +1,263 @@
+{
+  "scope": "Two actual Bun scratch products, independently observed with existing Trident/Chrome and served marker scanner; baseline entire products bound to qualified Node4cdd. Primary constrained-leg arrays compared exactly, not inferred from same goal. No production or timing qualification.",
+  "rows": [
+    {
+      "direction": "TB",
+      "baselineFullProductExactQualifiedNode": true,
+      "candidateSvgSha256": "74c5d2792f131102f5e8a5204881269afc7928366ff5a9f45d6f064cffc726e0",
+      "constrainedLeg": "last",
+      "constrainedLegExact": true,
+      "beforeConstrainedLeg": [
+        {
+          "x": 262,
+          "y": 152.90000000000003
+        },
+        {
+          "x": 487,
+          "y": 152.90000000000003
+        },
+        {
+          "x": 487,
+          "y": 191.90000000000003
+        },
+        {
+          "x": 453,
+          "y": 191.90000000000003
+        },
+        {
+          "x": 453,
+          "y": 205.27500000000003
+        }
+      ],
+      "afterConstrainedLeg": [
+        {
+          "x": 262,
+          "y": 152.90000000000003
+        },
+        {
+          "x": 487,
+          "y": 152.90000000000003
+        },
+        {
+          "x": 487,
+          "y": 191.90000000000003
+        },
+        {
+          "x": 453,
+          "y": 191.90000000000003
+        },
+        {
+          "x": 453,
+          "y": 205.27500000000003
+        }
+      ],
+      "beforeCore": [
+        {
+          "x": 262,
+          "y": 144.9
+        },
+        {
+          "x": 262,
+          "y": 152.90000000000003
+        }
+      ],
+      "chosenExistingAnchor": {
+        "x": 262,
+        "y": 152.90000000000003
+      },
+      "changedFinalEdgeIndices": [
+        0
+      ],
+      "otherNineFinalPointsExact": true,
+      "sourceOptionsBinding": true,
+      "meaning": "passed",
+      "paint": "passed",
+      "directionCheck": "passed",
+      "proof": "passed",
+      "marker": "clear-complete-supports",
+      "hits": 0,
+      "unknown": 0,
+      "beforeQuality": {
+        "width": 572,
+        "height": 456.79375,
+        "area": 261286.025,
+        "viewportScope": "actual viewBox SVG units",
+        "ownedCarriers": 10,
+        "contactCounts": {
+          "status": "unavailable",
+          "reason": "No enrolled exact SVG node-boundary contact observer"
+        },
+        "browserCenterline": {
+          "status": "measured",
+          "value": 5367.462585449219,
+          "scope": "Browser getTotalLength sum in local SVG units, only length-preserving ancestor transforms; curve length is browser approximation, excludes markers/labels"
+        },
+        "linear": {
+          "status": "measured",
+          "edges": 10,
+          "wire": 5367.462499999999,
+          "bends": 44,
+          "crossings": 29,
+          "parallelOverlaps": 0,
+          "opposingOverlaps": 0,
+          "scope": "Existing strict untransformed orthogonal absolute M/L, polyline, or line SVG observer; authored-endpoint crossing exclusions retained"
+        }
+      },
+      "afterQuality": {
+        "width": 572,
+        "height": 456.79375,
+        "area": 261286.025,
+        "viewportScope": "actual viewBox SVG units",
+        "ownedCarriers": 10,
+        "contactCounts": {
+          "status": "unavailable",
+          "reason": "No enrolled exact SVG node-boundary contact observer"
+        },
+        "browserCenterline": {
+          "status": "measured",
+          "value": 5367.462585449219,
+          "scope": "Browser getTotalLength sum in local SVG units, only length-preserving ancestor transforms; curve length is browser approximation, excludes markers/labels"
+        },
+        "linear": {
+          "status": "measured",
+          "edges": 10,
+          "wire": 5367.462499999999,
+          "bends": 42,
+          "crossings": 29,
+          "parallelOverlaps": 0,
+          "opposingOverlaps": 0,
+          "scope": "Existing strict untransformed orthogonal absolute M/L, polyline, or line SVG observer; authored-endpoint crossing exclusions retained"
+        }
+      }
+    },
+    {
+      "direction": "BT",
+      "baselineFullProductExactQualifiedNode": true,
+      "candidateSvgSha256": "52e1b0fdd03425210d7a0f50050fdc194cdb9df74c2565b2d20f60afa4c9b49c",
+      "constrainedLeg": "first",
+      "constrainedLegExact": true,
+      "beforeConstrainedLeg": [
+        {
+          "x": 71,
+          "y": 325.80000000000007
+        },
+        {
+          "x": 71,
+          "y": 312.80000000000007
+        },
+        {
+          "x": 37,
+          "y": 312.80000000000007
+        },
+        {
+          "x": 37,
+          "y": 273.80000000000007
+        },
+        {
+          "x": 262,
+          "y": 273.80000000000007
+        }
+      ],
+      "afterConstrainedLeg": [
+        {
+          "x": 71,
+          "y": 325.80000000000007
+        },
+        {
+          "x": 71,
+          "y": 312.80000000000007
+        },
+        {
+          "x": 37,
+          "y": 312.80000000000007
+        },
+        {
+          "x": 37,
+          "y": 273.80000000000007
+        },
+        {
+          "x": 262,
+          "y": 273.80000000000007
+        }
+      ],
+      "beforeCore": [
+        {
+          "x": 262,
+          "y": 273.80000000000007
+        },
+        {
+          "x": 262,
+          "y": 265.8
+        }
+      ],
+      "chosenExistingAnchor": {
+        "x": 262,
+        "y": 273.80000000000007
+      },
+      "changedFinalEdgeIndices": [
+        0
+      ],
+      "otherNineFinalPointsExact": true,
+      "sourceOptionsBinding": true,
+      "meaning": "passed",
+      "paint": "passed",
+      "directionCheck": "passed",
+      "proof": "passed",
+      "marker": "clear-complete-supports",
+      "hits": 0,
+      "unknown": 0,
+      "beforeQuality": {
+        "width": 572,
+        "height": 454.7,
+        "area": 260088.4,
+        "viewportScope": "actual viewBox SVG units",
+        "ownedCarriers": 10,
+        "contactCounts": {
+          "status": "unavailable",
+          "reason": "No enrolled exact SVG node-boundary contact observer"
+        },
+        "browserCenterline": {
+          "status": "measured",
+          "value": 5013.175079345703,
+          "scope": "Browser getTotalLength sum in local SVG units, only length-preserving ancestor transforms; curve length is browser approximation, excludes markers/labels"
+        },
+        "linear": {
+          "status": "measured",
+          "edges": 10,
+          "wire": 5013.175000000001,
+          "bends": 40,
+          "crossings": 23,
+          "parallelOverlaps": 0,
+          "opposingOverlaps": 0,
+          "scope": "Existing strict untransformed orthogonal absolute M/L, polyline, or line SVG observer; authored-endpoint crossing exclusions retained"
+        }
+      },
+      "afterQuality": {
+        "width": 572,
+        "height": 454.7,
+        "area": 260088.4,
+        "viewportScope": "actual viewBox SVG units",
+        "ownedCarriers": 10,
+        "contactCounts": {
+          "status": "unavailable",
+          "reason": "No enrolled exact SVG node-boundary contact observer"
+        },
+        "browserCenterline": {
+          "status": "measured",
+          "value": 5013.175079345703,
+          "scope": "Browser getTotalLength sum in local SVG units, only length-preserving ancestor transforms; curve length is browser approximation, excludes markers/labels"
+        },
+        "linear": {
+          "status": "measured",
+          "edges": 10,
+          "wire": 5013.175000000001,
+          "bends": 38,
+          "crossings": 23,
+          "parallelOverlaps": 0,
+          "opposingOverlaps": 0,
+          "scope": "Existing strict untransformed orthogonal absolute M/L, polyline, or line SVG observer; authored-endpoint crossing exclusions retained"
+        }
+      }
+    }
+  ]
+}
