@@ -1,0 +1,76 @@
+{
+  "runtime": "v24.19.0",
+  "roots": {
+    "baseline": "/workspace/pr449-native-loop-20261113/path-order-implementation/build-candidate",
+    "candidate": "/workspace/pr449-native-loop-20261113/group-span-probe/build-candidate"
+  },
+  "rows": [
+    {
+      "target": "baseline",
+      "id": "diagnostic:chain100",
+      "backend": "agentic",
+      "proof": "passed",
+      "sha256": "bcb9c5cc73d4ed70a5b408f9f7b95ad77048713feb7327d184ef374eee7899f9",
+      "exact": null
+    },
+    {
+      "target": "baseline",
+      "id": "diagnostic:chain100",
+      "backend": "elk",
+      "proof": "passed",
+      "sha256": "f2183064252702f67f57dc8fdb9cba198c332273aa2e3e2b8b90e28db8863d0a",
+      "exact": null
+    },
+    {
+      "target": "baseline",
+      "id": "diagnostic:chain300",
+      "backend": "agentic",
+      "proof": "unverified",
+      "sha256": "3b469866f69a186da28eb475e26e5b062e5735654d4d0400dcac5cdafdfb1f0d",
+      "exact": null
+    },
+    {
+      "target": "baseline",
+      "id": "diagnostic:chain300",
+      "backend": "elk",
+      "proof": "unverified",
+      "sha256": "cb9876f8d48030c070fca87e8909d4db3adcd352adbdd6e86bea95f48eff9755",
+      "exact": null
+    },
+    {
+      "target": "candidate",
+      "id": "diagnostic:chain100",
+      "backend": "agentic",
+      "proof": "passed",
+      "sha256": "bcb9c5cc73d4ed70a5b408f9f7b95ad77048713feb7327d184ef374eee7899f9",
+      "exact": true
+    },
+    {
+      "target": "candidate",
+      "id": "diagnostic:chain100",
+      "backend": "elk",
+      "proof": "passed",
+      "sha256": "f2183064252702f67f57dc8fdb9cba198c332273aa2e3e2b8b90e28db8863d0a",
+      "exact": true
+    },
+    {
+      "target": "candidate",
+      "id": "diagnostic:chain300",
+      "backend": "agentic",
+      "proof": "unverified",
+      "sha256": "3b469866f69a186da28eb475e26e5b062e5735654d4d0400dcac5cdafdfb1f0d",
+      "exact": true
+    },
+    {
+      "target": "candidate",
+      "id": "diagnostic:chain300",
+      "backend": "elk",
+      "proof": "unverified",
+      "sha256": "cb9876f8d48030c070fca87e8909d4db3adcd352adbdd6e86bea95f48eff9755",
+      "exact": true
+    }
+  ],
+  "pairs": 4,
+  "exactPairs": 4,
+  "scope": "Actual matching canonical7entryNodeSDKs, fullpublicSVG+receipt; no clock/profile/browser."
+}

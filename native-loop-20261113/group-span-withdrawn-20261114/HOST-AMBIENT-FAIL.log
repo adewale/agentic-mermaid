@@ -1,0 +1,23 @@
+bun test v1.4.4 (38afee6c8)
+
+../pr449-native-loop-20261113/group-span-probe/build-candidate/src/__tests__/scene-svg-writer.test.ts:
+335 |           const actual = Reflect.apply(slice.value, this, [start, end])
+336 |           return String(this) === shell.open && actual === 'wrap' ? 'mono' : actual
+337 |         } })
+338 |         parsed = bindNativeGroupEmission(shell, shell.open, work.pay)!
+339 |       } finally { Object.defineProperty(String.prototype, 'slice', slice) }
+340 |       expect(consumeWrittenNativeGroupEmission(shell, work.pay)?.uncertain).toBe(false)
+                                                                                  ^
+error: expect(received).toBe(expected)
+
+Expected: false
+Received: true
+
+      at <anonymous> (/workspace/pr449-native-loop-20261113/group-span-probe/build-candidate/src/__tests__/scene-svg-writer.test.ts:340:77)
+(fail) typed Scene SVG writer > source-bound plain group facts cannot be forged through their discoverable constructor [7.97ms]
+
+ 0 pass
+ 87 filtered out
+ 1 fail
+ 37 expect() calls
+Ran 1 test across 1 file. [54.00ms]

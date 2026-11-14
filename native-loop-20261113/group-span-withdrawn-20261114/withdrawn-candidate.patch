@@ -1,0 +1,83 @@
+--- a/src/scene/group-emission.ts
++++ b/src/scene/group-emission.ts
+@@ -17,6 +17,7 @@
+ // them. Keep their exact literal receiver; a freeze return is no authority.
+ const groupDefine = Object.defineProperties, groupSlot = Object.defineProperty, groupPrevent = Object.preventExtensions
+ const groupDescriptor = Object.getOwnPropertyDescriptor, groupOwn = Object.hasOwn, groupExtensible = Object.isExtensible
++const groupSlice: (source: string, start: number, end: number) => string = Function.prototype.call.bind(String.prototype.slice)
+ function attributeRecord(name: string, value: string, quote: '"' | "'", nameStart: number, valueStart: number, valueEnd: number): SvgAttributeToken {
+   return groupPrevent(groupDefine({}, {
+     name: { value: name, enumerable: true }, value: { value, enumerable: true }, quote: { value: quote, enumerable: true },
+@@ -297,7 +298,7 @@
+     const expected = firstCharacter === 'c' ? 'class' : firstCharacter === 'r' ? 'role' : firstCharacter === 't' ? 'tabindex'
+       : firstCharacter === 'p' ? 'pointer-events' : firstCharacter === 'd' ? 'data-' : firstCharacter === 'a' ? 'aria-' : undefined
+     if (!expected) return undefined
+-    let name = '', validName = true
++    let validName = true
+     while (cursor < source.length) {
+       const character = source[cursor]!
+       if (!(character >= 'a' && character <= 'z' || character >= '0' && character <= '9' || character === '-')) break
+@@ -305,8 +306,9 @@
+       if (offset < expected.length ? character !== expected[offset]
+         : expected === 'data-' ? !(character >= 'a' && character <= 'z' || offset > 5 && (character >= '0' && character <= '9' || character === '-'))
+           : expected === 'aria-' ? !(character >= 'a' && character <= 'z') : true) validName = false
+-      name += character; cursor++
+-    }
++      cursor++
++    }
++    const name = groupSlice(source, nameStart, cursor)
+     if (!validName || (expected === 'data-' || expected === 'aria-' ? name.length <= 5 : name.length !== expected.length) || names[name]) return undefined
+     names[name] = true
+     while (groupXmlSpace(source[cursor])) cursor++
+@@ -315,12 +317,12 @@
+     const quote = source[cursor++]
+     if (quote !== '"' && quote !== "'") return undefined
+     const valueStart = cursor
+-    let value = ''
+     while (cursor < source.length && source[cursor] !== quote) {
+       const span = xmlLiteralSpan(source, cursor, true)
+-      if (!span) { xml = false; value += source[cursor++]!; continue }
+-      for (let index = 0; index < span; index++) value += source[cursor++]!
+-    }
++      if (!span) { xml = false; cursor++; continue }
++      cursor += span
++    }
++    const value = groupSlice(source, valueStart, cursor)
+     if (source[cursor] !== quote || !pay(8)) return undefined
+     attributes[attributes.length++] = { name, value, quote, nameStart, valueStart, valueEnd: cursor++ }
+   }
+--- a/src/__tests__/scene-svg-writer.test.ts
++++ b/src/__tests__/scene-svg-writer.test.ts
+@@ -323,12 +323,21 @@
+     expect(verifySvgDocumentEnvelope(whole.svg)).toBe(false)
+     expect(capture.verify(whole)).toBe(false)
+ 
+-    for (const mode of ['actual', 'invalid-utf16', 'raw-child'] as const) {
++    for (const mode of ['actual', 'invalid-utf16', 'raw-child', 'post-import-slice'] as const) {
+       const work = createNativeXmlWork(400000), capture = work.capture()
+       const label = mode === 'invalid-utf16' ? '\ud800' : 'Read &amp; retained'
+       const shell = marks.group({ id: 'actual', role: 'group', open: `<g class="wrap" data-label="${label}">`, close: '</g>', children: [] }, work.pay)
+       Object.freeze(shell)
+-      const parsed = bindNativeGroupEmission(shell, shell.open, work.pay)!
++      const slice = Object.getOwnPropertyDescriptor(String.prototype, 'slice')!
++      let parsed!: NonNullable<ReturnType<typeof bindNativeGroupEmission>>
++      try {
++        if (mode === 'post-import-slice') Object.defineProperty(String.prototype, 'slice', { ...slice, value: function(this: string, start: number, end: number) {
++          const actual = Reflect.apply(slice.value, this, [start, end])
++          return String(this) === shell.open && actual === 'wrap' ? 'mono' : actual
++        } })
++        parsed = bindNativeGroupEmission(shell, shell.open, work.pay)!
++      } finally { Object.defineProperty(String.prototype, 'slice', slice) }
++      expect(consumeWrittenNativeGroupEmission(shell, work.pay)?.uncertain).toBe(false)
+       const opening = writeNativeGroupOpening(capture, shell, parsed)!
+       const view = capture.read(opening, shell)!
+       expect(Object.isFrozen(view)).toBe(true)
+@@ -346,7 +355,7 @@
+       const expectedChild = mode === 'raw-child' ? '<g xmlns="urn:not-svg"><rect/></g>'
+         : '<rect x="0" y="0" width="10" height="10" fill="#111" data-id="rect" data-role="node" />'
+       expect(whole.svg).toBe(`<svg xmlns="http://www.w3.org/2000/svg">\n<g class="wrap" data-label="${label}" data-id="actual" data-role="group">\n${expectedChild}\n</g>\n</svg>`)
+-      expect(capture.verify(whole)).toBe(mode === 'actual')
++      expect(capture.verify(whole)).toBe(mode === 'actual' || mode === 'post-import-slice')
+     }
+ 
+     const define = Object.getOwnPropertyDescriptor(Object, 'defineProperty')!
