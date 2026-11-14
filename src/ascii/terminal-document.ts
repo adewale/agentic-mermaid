@@ -473,6 +473,7 @@ export class TerminalDocument {
   private emittedColorMode: ColorMode | undefined
   private strokeProvenanceWork = 0
   private ownerCompositionWork = 0
+  private discarded = false
 
   constructor(width = 0, height = 0) {
     integer(width, 'width')
@@ -648,7 +649,7 @@ export class TerminalDocument {
     const bucket = this.ownerSets.get(hash)
     const found = bucket?.find(set => set.length === members.length && set.every((owner, index) => owner === members[index]))
     if (found) return found
-    const set = Object.freeze(members) as TerminalOwnerSet
+    const set = (this.discarded ? members : Object.freeze(members)) as TerminalOwnerSet
     canonicalOwnerSets.add(set)
     this.importedOwners.set(set, set)
     this.ownerSetHashes.set(set, hash)
@@ -944,6 +945,10 @@ export class TerminalDocument {
     let cached = this.warningFeatures.get(canonical)
     if (!cached) {
       this.reserveOwnerComposition(canonical.length)
+      if (this.discarded) {
+        this.warningFeatures.set(canonical, { feature: '', keys: {} })
+        return
+      }
       const names = owners.map(owner => ownerNames(owner).name)
       // Canonical key order usually already orders the names; sort only when not.
       let ordered = true
@@ -951,6 +956,7 @@ export class TerminalDocument {
       cached = { feature: (ordered ? names : names.sort(compareCodePointStrings)).join('|'), keys: {} }
       this.warningFeatures.set(canonical, cached)
     }
+    if (this.discarded) return
     const feature = cached.feature
     // Spelled exactly as JSON.stringify(['owners', code, [[kind, id], ...]]).
     const key = (cached.keys[code] ??= `["owners",${JSON.stringify(code)},[${canonical.map(owner => ownerNames(owner).json).join(',')}]]`)
@@ -1476,6 +1482,13 @@ export class TerminalDocument {
     if (starts !== 1 || ends !== 1) return
     this.reserveTerminalPathWitnessWork(2) // immutable descriptor and map entry before allocation
     state.witnesses.set(key, Object.freeze({ owner: canonical, token: token as object, dx, dy }))
+  }
+
+  /** Declare this a private attempt that is dropped once its cells are read.
+   * Cells, owners and every work charge stay exact; composition diagnostics
+   * are no longer recorded and new owner sets are not frozen. */
+  discardDiagnostics(): void {
+    this.discarded = true
   }
 
   /** A sparse empty layer with the same extent, suitable for positioned drawing. */

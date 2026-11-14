@@ -1736,28 +1736,59 @@ function feasibleLabel(document: Canvas, label: GraphLabel, route: readonly Draw
 
 /** Admit actual route contributions, rather than guessed grid corridors.
  * Different units may cross perpendicularly; collinear ink and opaque markers
- * cannot stand for independent relationships at the same terminal cell. */
-function retainedRouteConflicts(graph: AsciiGraph, layers: readonly Canvas[][], projected: Canvas): Set<AsciiEdge> {
+ * cannot stand for independent relationships at the same terminal cell. These
+ * units share a cell incompatibly in their own layers, read before painting. */
+function overlappingRouteUnits(graph: AsciiGraph, layers: readonly Canvas[][]): Set<AsciiEdge> {
+  const edges = new Map(graph.edges.map(edge => [terminalEdgeOwner(graph, edge).id, edge]))
+  // Cells are keyed by one number within the extent the layers will paint.
+  let width = graph.canvas.width, height = graph.canvas.height
+  for (const stage of layers) for (const layer of stage) { width = Math.max(width, layer.width); height = Math.max(height, layer.height) }
+  const keyOf = (x: number, y: number): number => x >= 0 && y >= 0 && x < width && y < height ? y * width + x : -1
+  // Most cells hold one unit; a cell takes a map once a second unit arrives.
+  type Contribution = { unit: object | string; edges: Set<AsciiEdge>; mask: number; marker: boolean }
+  const occupied = new Map<number, Contribution | Map<object | string, Contribution>>()
+  for (const stage of layers) for (const layer of stage) for (const [x, y, cell] of layer.entries()) {
+    const point = keyOf(x, y)
+    for (const owner of cell.owners) {
+      const edge = owner.kind === 'edge' ? edges.get(owner.id) : undefined
+      if (!edge) continue
+      const unit = edge.bundle ?? edge.sharedTrunk ?? edge
+      const slot = occupied.get(point)
+      let previous = slot instanceof Map ? slot.get(unit) : slot?.unit === unit ? slot : undefined
+      if (!previous) {
+        previous = { unit, edges: new Set<AsciiEdge>(), mask: 0, marker: false }
+        if (!slot) occupied.set(point, previous)
+        else if (slot instanceof Map) slot.set(unit, previous)
+        else occupied.set(point, new Map([[slot.unit, slot], [unit, previous]]))
+      }
+      previous.edges.add(edge); previous.mask |= cell.stroke?.mask ?? 0
+      previous.marker ||= cell.kind === 'marker'
+    }
+  }
+  const conflicts = new Set<AsciiEdge>()
+  for (const units of occupied.values()) {
+    if (!(units instanceof Map)) continue
+    let marker = false, horizontal = 0, vertical = 0
+    for (const unit of units.values()) {
+      marker ||= unit.marker
+      if (unit.mask & 10) horizontal++
+      if (unit.mask & 5) vertical++
+    }
+    for (const unit of units.values()) if (marker || horizontal > 1 && (unit.mask & 10) || vertical > 1 && (unit.mask & 5)) {
+      for (const edge of unit.edges) conflicts.add(edge)
+    }
+  }
+  return conflicts
+}
+
+/** Retained routes without their own connected visible path in the combined
+ * paint, and the `overlapping` units (already conflicts, so not walked). */
+function retainedRouteConflicts(graph: AsciiGraph, overlapping: ReadonlySet<AsciiEdge>, projected: Canvas): Set<AsciiEdge> {
   const edges = new Map(graph.edges.map(edge => [terminalEdgeOwner(graph, edge).id, edge]))
   // Cells are keyed by one number. Every layer lies inside the projection; a
   // probe outside it has no key, so it never matches an indexed cell.
   const width = projected.width, height = projected.height
   const keyOf = (x: number, y: number): number => x >= 0 && y >= 0 && x < width && y < height ? y * width + x : -1
-  const occupied = new Map<number, Map<object | string, { edges: Set<AsciiEdge>; mask: number; marker: boolean }>>()
-  for (const stage of layers) for (const layer of stage) for (const [x, y, cell] of layer.entries()) {
-    const point = keyOf(x, y), units = occupied.get(point) ?? new Map()
-    for (const owner of cell.owners) {
-      const edge = owner.kind === 'edge' ? edges.get(owner.id) : undefined
-      if (!edge) continue
-      const unit = edge.bundle ?? edge.sharedTrunk ?? edge
-      const previous = units.get(unit) ?? { edges: new Set<AsciiEdge>(), mask: 0, marker: false }
-      const mask = cell.stroke?.mask ?? 0
-      previous.edges.add(edge); previous.mask |= mask
-      previous.marker ||= cell.kind === 'marker'
-      units.set(unit, previous)
-    }
-    occupied.set(point, units)
-  }
   const conflicts = new Set<AsciiEdge>()
   // Logical adjacency does not prove a visible route: projection can leave
   // half-strokes in its interior or replace the final bend with a marker.
@@ -1771,7 +1802,7 @@ function retainedRouteConflicts(graph: AsciiGraph, layers: readonly Canvas[][], 
     if (!ports) continue
     for (const owner of cell.owners) {
       const edge = owner.kind === 'edge' ? edges.get(owner.id) : undefined
-      if (!edge || edge.cellAllocation) continue
+      if (!edge || edge.cellAllocation || overlapping.has(edge)) continue
       const cells = routes.get(edge) ?? new Map<number, number>()
       cells.set(keyOf(x, y), ports); routes.set(edge, cells)
     }
@@ -1780,7 +1811,7 @@ function retainedRouteConflicts(graph: AsciiGraph, layers: readonly Canvas[][], 
   const steps = Object.values(normals)
   for (const [id, ports] of edgeRegionPorts(projected)) {
     const edge = edges.get(id)
-    if (!edge || edge.cellAllocation || edge.style === 'invisible') continue
+    if (!edge || edge.cellAllocation || edge.style === 'invisible' || overlapping.has(edge)) continue
     const start = ports?.find(port => port.end === 'start'), end = ports?.find(port => port.end === 'end')
     if (!start?.side || !end?.side) { conflicts.add(edge); continue }
     const [sx, sy, sourceOut, sourceContact] = normals[start.side], [tx, ty, , targetContact] = normals[end.side]
@@ -1814,18 +1845,7 @@ function retainedRouteConflicts(graph: AsciiGraph, layers: readonly Canvas[][], 
     }
     if (!seen.has(tip)) conflicts.add(edge)
   }
-  for (const units of occupied.values()) {
-    if (units.size < 2) continue
-    let marker = false, horizontal = 0, vertical = 0
-    for (const unit of units.values()) {
-      marker ||= unit.marker
-      if (unit.mask & 10) horizontal++
-      if (unit.mask & 5) vertical++
-    }
-    for (const unit of units.values()) if (marker || horizontal > 1 && (unit.mask & 10) || vertical > 1 && (unit.mask & 5)) {
-      for (const edge of unit.edges) conflicts.add(edge)
-    }
-  }
+  for (const edge of overlapping) conflicts.add(edge)
   return conflicts
 }
 
@@ -1925,8 +1945,12 @@ function drawGraphCandidate(graph: AsciiGraph): Canvas | Set<AsciiEdge> {
   const allocated = graph.edges.filter(edge => edge.cellAllocation)
   const retained = allocated.length ? document.blank() : document
   if (retained !== document) retained.overlay(document)
+  // Overlapping units already reject this attempt, so its paint is read only
+  // for the connectivity conflicts and its work charges.
+  const overlapping = overlappingRouteUnits(graph, layers)
+  if (overlapping.size) retained.discardDiagnostics()
   for (const stage of layers) for (const layer of stage) retained.overlay(layer)
-  const conflicts = retainedRouteConflicts(graph, layers, retained)
+  const conflicts = retainedRouteConflicts(graph, overlapping, retained)
   if (conflicts.size) return conflicts
   const retainedLabels: Canvas[] = []
   const retainedApproaches = graphPortApproaches(retained), retainedRoutes = graphLabelRoutes(retained, labels)
