@@ -1,15 +1,18 @@
 // Hosted MCP server core — the tool surface served at agentic-mermaid.dev/mcp
-// by the Cloudflare website Worker. Runtime-neutral: pure tools run inline;
-// `execute` and `render_png` are injected by the host (the Worker backs them
-// with a Dynamic Worker isolate and resvg-wasm; tests back them with fakes).
+// by the Cloudflare website Worker. Runtime-neutral: `execute`, the layout
+// work of the direct tools, and PNG rasterization are injected by the host
+// (the Worker backs them with Dynamic Worker isolates under cpuMs limits and
+// resvg-wasm; tests back them with fakes or run the layout inline).
 //
-// Both surfaces share declarative edit tools. Hosted `execute` spins a
-// billable isolate, so common render/verify paths get direct pure tools that cost one ordinary
-// Worker invocation and are eligible for the private compute cache.
+// Both surfaces share declarative edit tools. Layout is synchronous and its
+// cost depends on the diagram's shape, not its size, so the Worker runs it in
+// an isolate it can stop. Direct render/verify results remain eligible for the
+// private compute cache.
 
-import { EDIT_TOOLS, handleEditTool } from './edit-tools.ts'
+import { EDIT_TOOLS, editToolRequestError } from './edit-tools.ts'
 import { TEXT_RENDER_TOOLS, VERIFY_TOOL } from './source-tool-definitions.ts'
-import { runSourceTool } from './source-tools.ts'
+import { HOSTED_TOOL_CPU_MS, runHostedTool, type HostedPngProjectionPayload, type HostedToolPayload, type HostedToolRequest, type HostedToolRunner } from './hosted-tool-runtime.ts'
+import type { PngGraphicalProjection } from '../png-graphical.ts'
 import { renderConfigWarningsForMermaid } from '../agent/verify.ts'
 import { codeModeScreen } from './facade.ts'
 import { rpcError, toolResult, type JsonRpcRequest, type JsonRpcResponse } from './protocol.ts'
@@ -31,7 +34,6 @@ import {
   type McpServerSurface,
 } from './tool-surface.ts'
 import { SDK_CORE_DECLARATION, createDescribeSdkTool, describeSdkPayload } from './sdk-discovery.ts'
-import { mcpDescribePayload } from './describe-payload.ts'
 import { mcpRenderReceipt } from './receipt-summary.ts'
 import { isDescribeFormat } from '../agent/describe.ts'
 import type { ExecuteResult } from './sandbox.ts'
@@ -66,9 +68,16 @@ export interface HostedExecuteTelemetry {
 export interface HostedMcpContext {
   /** Run Code Mode JavaScript. Hosted: a Dynamic Worker isolate. */
   execute(code: string, timeoutMs: number, onTelemetry?: (telemetry: HostedExecuteTelemetry) => void): Promise<ExecuteResult>
-  /** Rasterize SVG to PNG bytes. Hosted: resvg-wasm. Absent → render_png reports unavailable. */
-  renderPng?(source: string, opts: RenderOptions & import('../png-contract.ts').PortablePngOutputOptions): Promise<PngRasterResult>
+  /** Render PNG bytes. Hosted: resvg-wasm. Absent → render_png reports
+   * unavailable. `project` is the layout step when runTool is present. */
+  renderPng?(source: string, opts: RenderOptions & import('../png-contract.ts').PortablePngOutputOptions, project?: HostedPngProjector): Promise<PngRasterResult>
+  /** Run a call's layout work under a cpuMs budget. Hosted: a Dynamic Worker
+   * isolate, with a per-request allowance. Absent → the work runs inline. */
+  runTool?: HostedToolRunner
 }
+
+/** The layout step of a PNG render, run where its CPU is bounded. */
+export type HostedPngProjector = (source: string, renderOptions: RenderOptions, outputOptions: PortablePngOutputOptions) => Promise<PngGraphicalProjection>
 
 // Streamable HTTP begins at 2025-03-26. The 2024-11-05 revision belongs to the
 // separate local HTTP+SSE transport and must not be advertised by this hosted
@@ -109,7 +118,7 @@ export const HOSTED_TOOLS = [
   ...EDIT_TOOLS,
 ]
 
-const INSTRUCTIONS = `agentic-mermaid hosted MCP server (stateless). Direct tools render_svg, render_ascii, render_png, verify, and describe cover plain render/verify calls cheaply. Successful deterministic pure-tool results may be reused by a private server-side compute cache for up to 24 hours; execute, mutate, and build bypass it. HTTP /mcp responses themselves are cache-control: no-store, so clients must not infer response freshness from CDN headers. The x-agentic-mermaid-compute-cache response header reports hit, miss, mixed, bypass, or disabled. There is no layout seed — the library's optional style seed only re-rolls ink of styled looks. describe_sdk progressively discloses one family's version-matched mutation schema. Declarative mutate/build apply typed op lists and verify before emitting source; prefer them for straightforward structured edits. execute runs synchronous JavaScript against the typed mermaid.* SDK in an isolated on-demand sandbox for logic the ops don't express; async/await and Promise jobs are not supported, and network access is disabled. Inputs are capped at 64KB; for bigger diagrams, Code Mode artifacts, or file/URL PNG output, run the local stdio server (see https://agentic-mermaid.dev/docs/mcp/). ${MCP_COMPACT_RESULTS_NOTE}`
+const INSTRUCTIONS = `agentic-mermaid hosted MCP server (stateless). Direct tools render_svg, render_ascii, render_png, verify, and describe cover plain render/verify calls. Every tool that lays out a diagram (those five, mutate and build) runs with a ${HOSTED_TOOL_CPU_MS / 1000}s CPU budget and returns RENDER_TIMEOUT beyond it; calls in one batch share one CPU allowance. Successful deterministic pure-tool results may be reused by a private server-side compute cache for up to 24 hours; execute, mutate, and build bypass it. HTTP /mcp responses themselves are cache-control: no-store, so clients must not infer response freshness from CDN headers. The x-agentic-mermaid-compute-cache response header reports hit, miss, mixed, bypass, or disabled. There is no layout seed — the library's optional style seed only re-rolls ink of styled looks. describe_sdk progressively discloses one family's version-matched mutation schema. Declarative mutate/build apply typed op lists and verify before emitting source; prefer them for straightforward structured edits. execute runs synchronous JavaScript against the typed mermaid.* SDK in an isolated on-demand sandbox for logic the ops don't express; async/await and Promise jobs are not supported, and network access is disabled. Inputs are capped at 64KB; for bigger diagrams, Code Mode artifacts, or file/URL PNG output, run the local stdio server (see https://agentic-mermaid.dev/docs/mcp/). ${MCP_COMPACT_RESULTS_NOTE}`
 
 const HOSTED_SURFACE: McpServerSurface<HostedMcpContext> = {
   // Historical fallback for callers that construct a surface without an
@@ -170,11 +179,16 @@ async function handleToolCall(id: number | string | null, params: unknown, conte
     }
     case 'render_svg':
     case 'render_ascii':
-    case 'verify': return sourceTool(id, args, () => runSourceTool(name, args))
+    case 'verify':
+    case 'describe': return sourceTool(id, args, { name, args }, context)
     case 'render_png': return handleRenderPng(id, args, context)
-    case 'describe': return sourceTool(id, args, source => mcpDescribePayload(source, args))
-    case 'mutate': return handleEditTool(id, args, 'source', MAX_SOURCE_BYTES, TOO_LARGE_HINT)
-    case 'build': return handleEditTool(id, args, 'family', MAX_SOURCE_BYTES, TOO_LARGE_HINT)
+    case 'mutate':
+    case 'build': {
+      const refused = editToolRequestError(id, args, name === 'mutate' ? 'source' : 'family', MAX_SOURCE_BYTES, TOO_LARGE_HINT)
+      if (refused) return refused
+      const payload = await runLayoutTool(context, { name, args })
+      return toolResult(id, payload, !payload.ok)
+    }
     default: return rpcError(id, -32602, `Unknown tool: ${name ?? '<none>'}`)
   }
 }
@@ -312,22 +326,26 @@ export function cacheKeyFor(name: string | undefined, args: Record<string, unkno
   }
 }
 
-/** Shared shape for the pure source→payload tools: validate, cap, run, wrap errors. */
-function sourceTool(id: number | string | null, args: Record<string, unknown>, run: (source: string) => { ok: boolean } & Record<string, unknown>): JsonRpcResponse {
+/** A call's layout work: in the host's CPU-bounded isolate when it provides
+ * one, otherwise inline. Failures are structured payloads either way. */
+function runLayoutTool(context: HostedMcpContext, request: HostedToolRequest): Promise<HostedToolPayload> {
+  return context.runTool ? context.runTool(request, HOSTED_TOOL_CPU_MS) : Promise.resolve(runHostedTool(request))
+}
+
+/** Shared shape for the pure source→payload tools: validate, cap, run. */
+async function sourceTool(id: number | string | null, args: Record<string, unknown>, request: HostedToolRequest, context: HostedMcpContext): Promise<JsonRpcResponse> {
   const source = args.source
   if (typeof source !== 'string') return rpcError(id, -32602, 'tool requires `source` (string)')
   if (boundedUtf8ByteLength(source, MAX_SOURCE_BYTES) > MAX_SOURCE_BYTES) {
     return toolResult(id, { ok: false as const, error: { code: 'SOURCE_TOO_LARGE', message: TOO_LARGE_HINT } }, true)
   }
-  try {
-    const payload = run(source)
-    return toolResult(id, payload, !payload.ok)
-  } catch (e) {
-    return toolResult(id, {
-      ok: false as const,
-      error: projectRenderErrorDiagnostic(e, { source }),
-    }, true)
-  }
+  const payload = await runLayoutTool(context, request)
+  return toolResult(id, payload, !payload.ok)
+}
+
+/** A failed isolate layout step, carried through the PNG adapter unchanged. */
+class HostedToolFailure extends Error {
+  constructor(readonly payload: HostedToolPayload) { super('hosted layout step failed') }
 }
 
 async function handleExecute(id: number | string | null, args: Record<string, unknown>, context: HostedMcpContext): Promise<JsonRpcResponse> {
@@ -370,10 +388,16 @@ async function handleRenderPng(id: number | string | null, args: Record<string, 
   }
   try {
     const normalized = normalizedHostedPngRequest(args)
+    const runTool = context.runTool
+    const project: HostedPngProjector | undefined = runTool && (async (projectSource, renderOptions, outputOptions) => {
+      const payload = await runTool({ name: 'png_projection', source: projectSource, renderOptions, outputOptions }, HOSTED_TOOL_CPU_MS)
+      if (!payload.ok) throw new HostedToolFailure(payload)
+      return (payload as unknown as HostedPngProjectionPayload).projection
+    })
     const result = await context.renderPng(source, {
       ...normalized.render,
       ...normalized.output,
-    })
+    }, project)
     if (!(result.png instanceof Uint8Array)) throw new TypeError('hosted PNG rasterizer must return Uint8Array bytes')
     if (result.png.byteLength > MAX_HOSTED_PNG_BYTES) {
       return toolResult(id, { ok: false as const, error: {
@@ -393,6 +417,7 @@ async function handleRenderPng(id: number | string | null, args: Record<string, 
       warnings,
     }, false)
   } catch (e) {
+    if (e instanceof HostedToolFailure) return toolResult(id, e.payload, true)
     return toolResult(id, {
       ok: false as const,
       error: projectRenderErrorDiagnostic(e, { source }),

@@ -1,11 +1,18 @@
-// Worker Loader glue for hosted execute (website/src/execute-loader.ts):
+// Worker Loader glue for hosted execute and the direct tools' layout isolate
+// (website/src/execute-loader.ts):
 // isolate keying, the expression-first startup-probe fallback, limit plumbing,
 // and failure mapping. The loader binding is a purpose-built fake recording
 // every isolate request; real loader behavior is covered by website/e2e-mcp.sh.
 
 import { describe, expect, test } from 'bun:test'
 import { createHash } from 'node:crypto'
-import { createLoaderExecute, deployTag, DYNAMIC_WORKER_COMPAT_DATE, MAX_RESULT_BYTES, readCapped, type WorkerLoaderBinding } from '../../website/src/execute-loader.ts'
+import { createLoaderExecute, createLoaderToolRunner, deployTag, DYNAMIC_WORKER_COMPAT_DATE, MAX_RESULT_BYTES, MAX_TOOL_RESULT_BYTES, readCapped, type WorkerLoaderBinding } from '../../website/src/execute-loader.ts'
+import { HOSTED_TOOL_CPU_MS, runHostedTool, withRequestCpuAllowance, type HostedToolRequest } from '../mcp/hosted-tool-runtime.ts'
+import { handleHostedRequest, type HostedMcpContext } from '../mcp/hosted-server.ts'
+import type { JsonRpcResponse } from '../mcp/protocol.ts'
+import { renderPortablePngGraphicalProjection } from '../png-graphical.ts'
+import { HOSTED_RENDER_OPTIONS } from '../render-host-policy.ts'
+import { PNG_WASM_RUNTIME } from '../png-contract.ts'
 import pkg from '../../package.json'
 
 interface IsolateRequest { id: string; modules: Record<string, string>; globalOutbound: unknown; limits?: { cpuMs?: number; subRequests?: number } }
@@ -244,5 +251,118 @@ describe('readCapped', () => {
     const a = euro.subarray(0, 1)
     const b = euro.subarray(1)
     expect(await readCapped(streamOf([a, b]), 10)).toBe('€')
+  })
+})
+
+// The direct tools' layout isolate (createLoaderToolRunner). The fake loader
+// runs the harness's /tool route body, runHostedTool, on the JSON the parent
+// sent, so these cases cover the real request, round trip and failure mapping;
+// cpuMs enforcement itself belongs to workerd and is exercised only at deploy.
+describe('hosted direct-tool isolate', () => {
+  interface ToolIsolateRequest { id: string; modules: Record<string, string>; globalOutbound: unknown; limits?: { cpuMs?: number; subRequests?: number }; body: Record<string, unknown> }
+  function toolLoader(respond: (body: HostedToolRequest) => Response | Error | Promise<never> = body => okResponse(runHostedTool(body))) {
+    const requests: ToolIsolateRequest[] = []
+    const loader: WorkerLoaderBinding = {
+      get(id, getCode) {
+        return {
+          getEntrypoint(_name, options) {
+            return {
+              async fetch(url, init) {
+                const code = await getCode()
+                const body = JSON.parse(String(init?.body))
+                requests.push({ id, modules: code.modules, globalOutbound: code.globalOutbound, limits: options?.limits, body: { url, ...body } })
+                const out = await respond(body)
+                if (out instanceof Error) throw out
+                return out
+              },
+            }
+          },
+        }
+      },
+    }
+    return { loader, requests }
+  }
+  const execute = async () => ({ ok: true as const, value: null, logs: [] })
+  const payloadOf = (response: JsonRpcResponse | null) => JSON.parse((response?.result as { content: Array<{ text: string }> }).content[0]!.text)
+  const callTool = async (context: HostedMcpContext, name: string, args: Record<string, unknown>) =>
+    payloadOf(await handleHostedRequest({ jsonrpc: '2.0', id: 1, method: 'tools/call', params: { name, arguments: args } }, context))
+  const tools = (context: HostedMcpContext) => Promise.all(([
+    ['render_svg', { source: 'flowchart LR\n  A --> B' }],
+    ['render_ascii', { source: 'sequenceDiagram\n  A->>B: Hi', useAscii: true }],
+    ['verify', { source: 'flowchart TD\n  B --> [oops' }],
+    ['describe', { source: 'mindmap\n  Root\n    Leaf', format: 'facts' }],
+    ['mutate', { source: 'flowchart LR\n  A --> B', ops: [{ kind: 'add_node', id: 'C', label: 'C' }] }],
+    ['build', { family: 'flowchart', ops: [{ kind: 'add_node', id: 'A', label: 'Start' }] }],
+  ] as const).map(([name, args]) => callTool(context, name, args)))
+
+  test('every layout tool runs in one per-deploy isolate with no network and its cpuMs, and answers as the inline path does', async () => {
+    const { loader, requests } = toolLoader()
+    const isolated = await tools({ execute, runTool: createLoaderToolRunner(loader, 'HARNESS') })
+    expect(isolated).toEqual(await tools({ execute }))
+    expect(isolated.map(payload => payload.ok)).toEqual([true, true, false, true, true, true])
+    expect(requests.map(request => [request.body.url, request.body.name])).toEqual(['render_svg', 'render_ascii', 'verify', 'describe', 'mutate', 'build'].map(name => ['https://tool.internal/tool', name]))
+    for (const request of requests) {
+      expect(request).toMatchObject({ id: `tool-${await deployTag('HARNESS')}`, globalOutbound: null, limits: { cpuMs: HOSTED_TOOL_CPU_MS, subRequests: 0 } })
+      expect(request.modules).toEqual({ 'harness.js': 'HARNESS', 'user.js': 'export default undefined' })
+    }
+  })
+
+  test('render_png lays out in the isolate and a failed layout is the tool result', async () => {
+    const source = 'flowchart LR\n  A --> B'
+    const projections: unknown[] = []
+    const renderPng: NonNullable<HostedMcpContext['renderPng']> = async (input, opts, project) => {
+      const { scale, background, fitTo, minLabelPx, ...renderOptions } = opts
+      const projection = await project!(input, renderOptions, { scale, background, fitTo, minLabelPx })
+      projections.push(projection)
+      return { png: new Uint8Array([137, 80, 78, 71]), warnings: [], receipt: projection.receipt, runtime: PNG_WASM_RUNTIME }
+    }
+    const { loader, requests } = toolLoader()
+    expect(await callTool({ execute, renderPng, runTool: createLoaderToolRunner(loader, 'H') }, 'render_png', { source })).toMatchObject({ ok: true, png_base64: 'iVBORw==' })
+    expect(requests.map(request => request.body.name)).toEqual(['png_projection'])
+    expect(JSON.parse(JSON.stringify(projections[0]))).toEqual(JSON.parse(JSON.stringify(renderPortablePngGraphicalProjection(source, HOSTED_RENDER_OPTIONS, { scale: 2 }))))
+    const timedOut = toolLoader(() => new Error('Worker exceeded CPU time limit.'))
+    expect(await callTool({ execute, renderPng, runTool: createLoaderToolRunner(timedOut.loader, 'H') }, 'render_png', { source }))
+      .toEqual({ ok: false, error: { code: 'RENDER_TIMEOUT', message: `Operation exceeded its ${HOSTED_TOOL_CPU_MS}ms CPU budget` } })
+  })
+
+  test.each([
+    ['a cpuMs overrun', () => new Error('Worker exceeded CPU time limit.'), 'RENDER_TIMEOUT'],
+    ['a memory overrun', () => new Error('Worker exceeded memory limit.'), 'RENDER_MEMORY_LIMIT'],
+    ['an isolate failure', () => new Error('internal error'), 'RENDER_WORKER_FAILED'],
+    ['a non-OK response', () => new Response('nope', { status: 500 }), 'RENDER_WORKER_FAILED'],
+    ['a malformed body', () => okResponse({ unexpected: true }), 'RENDER_WORKER_FAILED'],
+    ['an oversized body', () => okResponse({ ok: true, svg: 'x'.repeat(MAX_TOOL_RESULT_BYTES) }), 'RENDER_OUTPUT_LIMIT'],
+    ['a hung call past the wall-clock backstop', () => new Promise<never>(() => {}), 'RENDER_TIMEOUT'],
+  ] as const)('%s is a structured failure', async (_label, respond, code) => {
+    const { loader } = toolLoader(respond)
+    const result = await createLoaderToolRunner(loader, 'H', 10)({ name: 'verify', args: { source: 'flowchart LR\n  A --> B' } }, 20)
+    expect(result).toMatchObject({ ok: false, error: { code } })
+  })
+})
+
+describe('per-request CPU allowance', () => {
+  test('calls run one at a time, each budget is clamped to what remains, and a spent allowance starts nothing', async () => {
+    let now = 0
+    let active = 0
+    const started: Array<{ name: string; cpuMs: number; active: number }> = []
+    const runner = withRequestCpuAllowance(async (request, cpuMs, onStart) => {
+      onStart?.(cpuMs)
+      started.push({ name: request.name, cpuMs, active: ++active })
+      await Promise.resolve()
+      now += 12_000 // each call takes longer than its share
+      active--
+      return { ok: true }
+    }, 30_000, () => now)
+    const reported: number[] = []
+    const results = await Promise.all(['render_svg', 'verify', 'describe', 'render_ascii'].map(name =>
+      runner({ name: name as 'verify', args: {} }, 10_000, cpuMs => reported.push(cpuMs))))
+    expect(started).toEqual([
+      { name: 'render_svg', cpuMs: 10_000, active: 1 },
+      { name: 'verify', cpuMs: 10_000, active: 1 },
+      { name: 'describe', cpuMs: 6_000, active: 1 },
+    ])
+    expect(reported).toEqual([10_000, 10_000, 6_000])
+    expect(results.slice(0, 3)).toEqual([{ ok: true }, { ok: true }, { ok: true }])
+    expect(results[3]).toMatchObject({ ok: false, error: { code: 'RENDER_TIMEOUT', message: expect.stringContaining('30000ms CPU allowance') } })
   })
 })

@@ -4,7 +4,7 @@
 // data-module loaders.
 
 import { createMcpHandler, type McpCache } from './mcp-handler.ts'
-import { createLoaderExecute, type WorkerLoaderBinding } from './execute-loader.ts'
+import { createLoaderExecute, createLoaderToolRunner, type WorkerLoaderBinding } from './execute-loader.ts'
 import type { HostedMcpContext } from '../../src/mcp/hosted-server.ts'
 import { CLEAN_ROUTE_PATHS, LEGACY_REDIRECTS, markdownAlternative } from './site-routes.ts'
 
@@ -264,6 +264,9 @@ export function createWebsiteWorker(runtime: WebsiteWorkerRuntime) {
         const handler = createMcpHandler({
           context: {
             execute: createLoaderExecute(env.LOADER, runtime.executeHarness),
+            // Layout cost depends on a diagram's shape, not its size: the
+            // direct tools lay out in the harness's CPU-bounded isolate.
+            runTool: createLoaderToolRunner(env.LOADER, runtime.executeHarness),
             renderPng: runtime.renderPng,
           },
           // `caches` is a workerd global; guard it so the worker imports and runs

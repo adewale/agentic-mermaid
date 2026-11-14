@@ -15,6 +15,7 @@ import { createMcpHandler, MAX_MCP_BODY_BYTES, MAX_BATCH_ITEMS, type McpCache, t
 import { SUPPORTED_PROTOCOL_VERSIONS, type HostedMcpContext } from '../mcp/hosted-server.ts'
 import { META_CLIENT_CAPABILITIES, META_PROTOCOL_VERSION } from '../mcp/protocol-versions.ts'
 import { PNG_WASM_RUNTIME } from '../png-contract.ts'
+import { HOSTED_TOOL_CPU_MS } from '../mcp/hosted-tool-runtime.ts'
 
 const FLOW = 'flowchart LR\n  A --> B'
 const MODERN = '2026-07-28'
@@ -612,6 +613,34 @@ describe('wide-event canonical log lines', () => {
       tool: 'execute', cache_eligible: false, cache_hit: false, loader_attempts: 1, configured_cpu_limit_ms: 1234,
     })])
     expect(JSON.stringify(events)).not.toContain(code)
+  })
+
+  test('a batch\'s layout calls share one request CPU allowance, one call at a time, and each event records its budget', async () => {
+    const { events, onEvent } = capture()
+    const budgets: number[] = []
+    let active = 0
+    let overlapped = false
+    const { handler } = makeHandler({
+      onEvent,
+      context: {
+        async runTool(request, cpuMs, onStart) {
+          onStart?.(cpuMs)
+          budgets.push(cpuMs)
+          if (++active > 1) overlapped = true
+          // Each call spends its whole budget, as a pathological layout would.
+          await new Promise(resolve => setTimeout(resolve, 0))
+          active--
+          return { ok: false, error: { code: 'RENDER_TIMEOUT', message: `${request.name} exceeded its ${cpuMs}ms CPU budget` } }
+        },
+      },
+    })
+    const sources = Array.from({ length: 5 }, (_, index) => call('verify', { source: `flowchart LR\n  A${index} --> B` }, index + 1))
+    const response = await handler(post(sources))
+    const bodies = await response.json() as Array<{ result: { content: Array<{ text: string }> } }>
+    expect(bodies.map(body => JSON.parse(body.result.content[0]!.text).error.code)).toEqual(Array(5).fill('RENDER_TIMEOUT'))
+    expect(overlapped).toBe(false)
+    expect(budgets.every(budget => budget > 0 && budget <= HOSTED_TOOL_CPU_MS)).toBe(true)
+    expect(events[0]!.items.map(item => item.configured_cpu_limit_ms)).toEqual(budgets)
   })
 
   test('the handler preserves a statement-fallback loader-attempt count', async () => {
